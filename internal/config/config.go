@@ -10,11 +10,11 @@ import (
 )
 
 const (
-	defaultMusicDirectory  = "~/Music"
-	defaultMPVSocketPath   = "/tmp/muse-mpv.sock"
-	defaultMPVExtraFlags   = ""
-	defaultVolume          = 100
-	configFileName         = "config.toml"
+	defaultMusicDirectory = "~/Music"
+	defaultMPVSocketPath  = "/tmp/muse-mpv.sock"
+	defaultMPVExtraFlags  = ""
+	defaultVolume         = 100
+	configFileName        = "config.toml"
 )
 
 // Config holds all application configuration values.
@@ -109,7 +109,7 @@ func validate(raw Config) Config {
 	return cfg
 }
 
-// writeDefaults serialises the default config to path as TOML.
+// writeDefaults serializes the default config to path as TOML.
 func writeDefaults(path string, cfg Config) error {
 	f, err := os.Create(path)
 	if err != nil {
