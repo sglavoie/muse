@@ -45,6 +45,9 @@ const (
 	actionFilterBar     // '/': activate filter bar in active view
 	actionHelp          // '?': show help overlay
 
+	// Library-local actions.
+	actionLibraryEnqueue // enter: append the focused track to the play queue
+
 	// Queue-local actions.
 	actionCursorUp
 	actionCursorDown
@@ -104,6 +107,7 @@ func newRegistry() Registry {
 	r.register(contextLibrary, "k", actionCursorUp)
 	r.register(contextLibrary, "up", actionCursorUp)
 	r.register(contextLibrary, "down", actionCursorDown)
+	r.register(contextLibrary, "enter", actionLibraryEnqueue)
 
 	// Queue-local bindings.
 	r.register(contextQueue, "up", actionCursorUp)

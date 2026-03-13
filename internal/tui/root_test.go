@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
 func TestUpdateViewSwitching(t *testing.T) {
@@ -1792,5 +1793,54 @@ func TestLibraryCursorNotMovedWhenQueueActive(t *testing.T) {
 	nm := next.(Model)
 	if nm.library.cursor != 0 {
 		t.Errorf("down in queue view must not move library cursor, got %d", nm.library.cursor)
+	}
+}
+
+// TestTrackEnqueuedMsgStartsPlaybackWhenQueueWasEmpty verifies that the root
+// model transitions from PlaybackIdle to PlaybackPlaying and calls
+// PlayFromIndex(0) when a TrackEnqueuedMsg arrives with WasEmpty=true.
+func TestTrackEnqueuedMsgStartsPlaybackWhenQueueWasEmpty(t *testing.T) {
+	p := &stubPlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+	m.playbackState = PlaybackIdle
+	// Pre-seed one queue entry so the model knows what to display.
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Display: "Alice – Song One", Artist: "Alice", Title: "Song One"},
+	}
+
+	track := library.Track{Artist: "Alice", Title: "Song One", Path: "/music/a.flac"}
+	msg := libtui.TrackEnqueuedMsg{Track: track, QueueID: 1, WasEmpty: true}
+	next, cmd := m.Update(msg)
+	nm := next.(Model)
+
+	if cmd != nil {
+		t.Fatalf("TrackEnqueuedMsg must not return a follow-up cmd, got %T", cmd)
+	}
+	if nm.playbackState != PlaybackPlaying {
+		t.Fatalf("expected playbackState PlaybackPlaying, got %v", nm.playbackState)
+	}
+	if len(p.playFromIndexCalls) != 1 || p.playFromIndexCalls[0] != 0 {
+		t.Fatalf("expected PlayFromIndex(0), got calls=%v", p.playFromIndexCalls)
+	}
+}
+
+// TestTrackEnqueuedMsgDoesNotStartPlaybackWhenQueueWasNonEmpty verifies that
+// the root model does NOT call PlayFromIndex when WasEmpty is false, leaving
+// current playback uninterrupted.
+func TestTrackEnqueuedMsgDoesNotStartPlaybackWhenQueueWasNonEmpty(t *testing.T) {
+	p := &stubPlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+	m.playbackState = PlaybackIdle
+
+	track := library.Track{Artist: "Bob", Title: "Track Two", Path: "/music/b.flac"}
+	msg := libtui.TrackEnqueuedMsg{Track: track, QueueID: 2, WasEmpty: false}
+	next, _ := m.Update(msg)
+	nm := next.(Model)
+
+	if len(p.playFromIndexCalls) != 0 {
+		t.Fatalf("expected no PlayFromIndex call when WasEmpty=false, got calls=%v", p.playFromIndexCalls)
+	}
+	if nm.playbackState != PlaybackIdle {
+		t.Fatalf("expected playbackState PlaybackIdle (unchanged), got %v", nm.playbackState)
 	}
 }

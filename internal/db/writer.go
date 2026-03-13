@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/sglavoie/muse/internal/library"
 )
 
 const writerDrainTimeout = 5 * time.Second
@@ -79,6 +81,28 @@ func (w *Writer) run(ctx context.Context) {
 			return
 		}
 	}
+}
+
+// AppendTrack inserts track at the end of the play queue using a gapped
+// position (MAX(position)+1000) and returns the new row's ID. The track must
+// already exist in the tracks table (i.e., it was previously scanned).
+// Duplicate queue entries for the same track hash are accepted without error.
+func (w *Writer) AppendTrack(track library.Track) (int64, error) {
+	var id int64
+	err := w.Exec(func(db *sql.DB) error {
+		now := time.Now().Unix()
+		res, err := db.Exec(`
+			INSERT INTO queue (track_hash, position, added_at)
+			VALUES (?, COALESCE((SELECT MAX(position) FROM queue), 0) + 1000, ?)`,
+			track.Hash, now,
+		)
+		if err != nil {
+			return err
+		}
+		id, err = res.LastInsertId()
+		return err
+	})
+	return id, err
 }
 
 // MarkTrackMissing sets missing=1 on the tracks row identified by hash and

@@ -4,8 +4,28 @@ import (
 	"fmt"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	musiclib "github.com/sglavoie/muse/internal/library"
 )
+
+// QueueAppender appends a track to the persisted play queue. Implementations
+// must be safe to call from a tea.Cmd goroutine (i.e., they must not hold the
+// main-loop lock). The DB single-writer goroutine satisfies this contract.
+// AppendTrack returns the new queue row ID assigned by the database.
+type QueueAppender interface {
+	AppendTrack(track musiclib.Track) (int64, error)
+}
+
+// TrackEnqueuedMsg is returned by the tea.Cmd created by EnqueueFocused when
+// the DB write completes. The root model handles it by appending the entry to
+// the queue view and, when WasEmpty is true and playback is idle, triggering
+// immediate playback from index 0.
+type TrackEnqueuedMsg struct {
+	Track    musiclib.Track
+	QueueID  int64 // DB-assigned row ID; needed by the player for PlayQueueEntry
+	Err      error
+	WasEmpty bool // true when the queue was empty before this enqueue
+}
 
 // ansiAccent / ansiReset wrap text in reverse-video for the focused-row highlight.
 const (
@@ -55,6 +75,41 @@ func (v View) effectiveTrackCount() int {
 		return len(v.Fuzzy.Search(v.FilterText, v.Index.Tracks()))
 	}
 	return v.Index.Len()
+}
+
+// FocusedTrack returns the track currently under the cursor, accounting for
+// any active fuzzy filter. The second return value is false when the library
+// is empty or the cursor is out of range.
+func (v View) FocusedTrack() (musiclib.Track, bool) {
+	allTracks := v.Index.Tracks()
+	if v.FilterActive && v.Fuzzy != nil {
+		matches := v.Fuzzy.Search(v.FilterText, allTracks)
+		if v.Cursor < 0 || v.Cursor >= len(matches) {
+			return musiclib.Track{}, false
+		}
+		return allTracks[matches[v.Cursor].TrackIndex], true
+	}
+	if v.Cursor < 0 || v.Cursor >= len(allTracks) {
+		return musiclib.Track{}, false
+	}
+	return allTracks[v.Cursor], true
+}
+
+// EnqueueFocused dispatches a tea.Cmd that appends the focused track to the
+// play queue via qa. prevQueueLen is the number of entries in the queue before
+// this call; it is forwarded in TrackEnqueuedMsg.WasEmpty so the root model
+// can decide whether to trigger immediate playback. Returns nil Cmd when the
+// library is empty or the cursor is out of range.
+func (v View) EnqueueFocused(qa QueueAppender, prevQueueLen int) (View, tea.Cmd) {
+	track, ok := v.FocusedTrack()
+	if !ok {
+		return v, nil
+	}
+	wasEmpty := prevQueueLen == 0
+	return v, func() tea.Msg {
+		id, err := qa.AppendTrack(track)
+		return TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty}
+	}
 }
 
 // displayTrack pairs a track with its fuzzy match positions for highlight rendering.

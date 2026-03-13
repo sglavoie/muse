@@ -162,6 +162,15 @@ func (m *Manager) SetQueue(entries []QueueTrack) {
 	m.mu.Unlock()
 }
 
+// AppendToQueue appends a single entry to the in-memory queue used by
+// PlayFromIndex. Call this after persisting the entry to the database so that
+// the player and TUI queues stay in sync without a full SetQueue replacement.
+func (m *Manager) AppendToQueue(entry QueueTrack) {
+	m.mu.Lock()
+	m.queue = append(m.queue, entry)
+	m.mu.Unlock()
+}
+
 // SetMissingMarker sets the MissingMarker used to persist missing-file state
 // to the database. Call before playback begins.
 func (m *Manager) SetMissingMarker(marker MissingMarker) {

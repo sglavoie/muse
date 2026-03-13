@@ -5,6 +5,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/player"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
 // playPauser is the subset of the player interface used by the root model for
@@ -25,6 +27,13 @@ type commandPlayer interface {
 	SetVolumeRelative(delta float64) error
 	Next() error
 	Previous() error
+}
+
+// playerQueueAppender is an optional interface for appending a single entry to
+// the player's in-memory queue without replacing the whole queue. Root checks
+// for it via type assertion after a track is enqueued from the library view.
+type playerQueueAppender interface {
+	AppendToQueue(player.QueueTrack)
 }
 
 // positionSyncer is implemented by player.Manager. Root uses it to
@@ -199,7 +208,9 @@ type Model struct {
 
 	// player is the playback backend. It may be nil when playback is not
 	// available (e.g. in tests that do not exercise playback).
-	player        playPauser
+	player      playPauser
+	queueWriter libtui.QueueAppender // may be nil; set via SetQueueWriter
+
 	playbackState PlaybackState // current play/pause/stopped/idle state
 	repeat        bool          // repeat mode enabled
 	shuffle       bool          // shuffle mode enabled
@@ -256,6 +267,14 @@ func New(logPath, configPath string, configCreated bool, scanCh <-chan library.T
 // Manager share the same index-ordered entries from the start.
 func (m *Model) SetQueueEntries(entries []QueueEntry) {
 	m.queue.entries = entries
+}
+
+// SetQueueWriter sets the QueueAppender used by the library-view Enter handler
+// to persist newly enqueued tracks to the database. Call this on the Model
+// returned by New before passing it to tea.NewProgram. Passing nil disables
+// enqueueing (Enter in the library view becomes a no-op).
+func (m *Model) SetQueueWriter(qa libtui.QueueAppender) {
+	m.queueWriter = qa
 }
 
 // configNoticeDuration controls how long the first-run config path notification
@@ -484,6 +503,43 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.elapsedSecs = 0
 		m.totalSecs = 0
 
+	case libtui.TrackEnqueuedMsg:
+		if msg.Err != nil {
+			break
+		}
+		display := msg.Track.Artist + " – " + msg.Track.Title
+		if msg.Track.Artist == "" && msg.Track.Title == "" {
+			display = msg.Track.Path
+		} else if msg.Track.Artist == "" {
+			display = msg.Track.Title
+		} else if msg.Track.Title == "" {
+			display = msg.Track.Artist
+		}
+		m.queue.entries = append(m.queue.entries, QueueEntry{
+			Path:    msg.Track.Path,
+			Display: display,
+			Artist:  msg.Track.Artist,
+			Title:   msg.Track.Title,
+		})
+		// Keep the player's in-memory queue in sync.
+		if pa, ok := m.player.(playerQueueAppender); ok {
+			pa.AppendToQueue(player.QueueTrack{
+				Path:    msg.Track.Path,
+				Hash:    msg.Track.Hash,
+				QueueID: msg.QueueID,
+			})
+		}
+		// Trigger immediate playback when the queue was previously empty and
+		// nothing is playing.
+		if msg.WasEmpty && m.playbackState == PlaybackIdle && m.player != nil {
+			if err := m.player.PlayFromIndex(0); err == nil {
+				m.playbackState = PlaybackPlaying
+				m.statusBar.artist = msg.Track.Artist
+				m.statusBar.title = msg.Track.Title
+				m.statusBar.playlistSource = "Queue"
+			}
+		}
+
 	case PlayQueueIndexMsg:
 		if m.player != nil {
 			if err := m.player.PlayFromIndex(msg.Index); err == nil {
@@ -620,6 +676,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, func() tea.Msg { return UndoMsg{} }
 		case actionFilterBar:
 			return m, func() tea.Msg { return FilterBarMsg{} }
+		case actionLibraryEnqueue:
+			if m.queueWriter != nil {
+				return m, m.library.EnqueueFocused(m.queueWriter, len(m.queue.entries))
+			}
 		case actionCursorUp, actionCursorDown:
 			// Route cursor movement to the active view. Library cursor is
 			// stored on LibraryView; queue cursor is stored on QueueView.

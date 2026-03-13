@@ -143,6 +143,7 @@ func main() {
 	}
 
 	model := tui.New(config.LogPath(), configPath, configCreated, scanCh, watchCh, cfg.MusicDirectory, extractor, mgr)
+	model.SetQueueWriter(result.Writer)
 	p := tea.NewProgram(model)
 
 	// setQueue keeps the player Manager and the TUI QueueView in sync.
