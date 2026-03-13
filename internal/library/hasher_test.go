@@ -123,6 +123,72 @@ func TestHashFile_SizeAloneDoesNotEqualise(t *testing.T) {
 	}
 }
 
+// TestHashWorkers_DrainAndClose verifies that HashWorkers drains every path
+// from the input channel and closes the output channel on completion.
+func TestHashWorkers_DrainAndClose(t *testing.T) {
+	dir := t.TempDir()
+
+	const n = 8
+	paths := make([]string, n)
+	for i := range paths {
+		p := filepath.Join(dir, filepath.Join("track"+string(rune('0'+i))+".flac"))
+		writeFile(t, p, []byte("audio content for track"))
+		paths[i] = p
+	}
+
+	in := make(chan string, n)
+	for _, p := range paths {
+		in <- p
+	}
+	close(in)
+
+	var got []HashedFile
+	for hf := range HashWorkers(in) {
+		got = append(got, hf)
+	}
+
+	if len(got) != n {
+		t.Fatalf("expected %d HashedFile values, got %d", n, len(got))
+	}
+	for _, hf := range got {
+		if hf.Hash == "" {
+			t.Errorf("empty hash for path %q", hf.Path)
+		}
+	}
+}
+
+// TestHashWorkers_SkipsErrors verifies that non-existent paths are silently
+// skipped and do not block the pipeline or reduce valid results below the
+// count of files that actually exist.
+func TestHashWorkers_SkipsErrors(t *testing.T) {
+	dir := t.TempDir()
+
+	validPaths := []string{
+		filepath.Join(dir, "a.flac"),
+		filepath.Join(dir, "b.flac"),
+	}
+	for _, p := range validPaths {
+		writeFile(t, p, []byte("real audio"))
+	}
+
+	in := make(chan string, 4)
+	in <- filepath.Join(dir, "does_not_exist.flac")
+	for _, p := range validPaths {
+		in <- p
+	}
+	in <- filepath.Join(dir, "also_missing.flac")
+	close(in)
+
+	var got []HashedFile
+	for hf := range HashWorkers(in) {
+		got = append(got, hf)
+	}
+
+	if len(got) != len(validPaths) {
+		t.Fatalf("expected %d results (valid files only), got %d", len(validPaths), len(got))
+	}
+}
+
 // TestHashFile_LargeFileDifferentSizes verifies that the size suffix
 // distinguishes files that share the same first+last 1 MB bytes but differ in
 // total size (content in the middle).

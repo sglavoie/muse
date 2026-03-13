@@ -5,9 +5,41 @@ import (
 	"encoding/hex"
 	"io"
 	"os"
+	"runtime"
+	"sync"
 
 	"github.com/zeebo/blake3"
 )
+
+// HashedFile pairs a file path with its BLAKE3 fingerprint.
+type HashedFile struct {
+	Path string
+	Hash string
+}
+
+// HashWorkers spawns runtime.NumCPU() goroutines that consume file paths from
+// in and emit HashedFile values to the returned channel. The output channel is
+// closed once all workers have finished draining the input.
+func HashWorkers(in <-chan string) <-chan HashedFile {
+	out := make(chan HashedFile, runtime.NumCPU())
+	var wg sync.WaitGroup
+	for range runtime.NumCPU() {
+		wg.Go(func() {
+			for path := range in {
+				hash, err := HashFile(path)
+				if err != nil {
+					continue
+				}
+				out <- HashedFile{Path: path, Hash: hash}
+			}
+		})
+	}
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+	return out
+}
 
 const (
 	// partialThreshold is the file size above which partial hashing is used.
