@@ -1615,3 +1615,77 @@ func TestEscRestoringViewDoesNotAlterPlaybackOrScanState(t *testing.T) {
 		t.Fatal("Esc: scanning changed; expected true, got false")
 	}
 }
+
+// TestRapidWindowSizeMsgDoesNotPanic verifies that sending many successive
+// WindowSizeMsg events in a tight loop does not cause a panic and always
+// returns a valid model.
+func TestRapidWindowSizeMsgDoesNotPanic(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+
+	sizes := [][2]int{
+		{80, 24}, {120, 40}, {40, 10}, {200, 50}, {60, 20},
+		{80, 24}, {100, 30}, {50, 15}, {180, 45}, {70, 22},
+	}
+	for range 5 {
+		for _, s := range sizes {
+			next, _ := m.Update(tea.WindowSizeMsg{Width: s[0], Height: s[1]})
+			m = next.(Model)
+		}
+	}
+
+	// If we reach here, no panic occurred. Confirm final termWidth is the last sent value.
+	lastWidth := sizes[len(sizes)-1][0]
+	if m.termWidth != lastWidth {
+		t.Fatalf("after rapid resize: expected termWidth=%d, got %d", lastWidth, m.termWidth)
+	}
+}
+
+// TestWindowSizeMsgPreservesApplicationState verifies that a terminal resize
+// does not alter cursor position, playback state, or scan state.
+func TestWindowSizeMsgPreservesApplicationState(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Display: "A"},
+		{Path: "/music/b.flac", Display: "B"},
+		{Path: "/music/c.flac", Display: "C"},
+	}
+	m.queue.cursor = 2
+	m.playbackState = PlaybackPlaying
+	m.scanning = true
+	m.activeView = viewQueue
+
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 160, Height: 50})
+	nm := next.(Model)
+
+	if nm.queue.cursor != 2 {
+		t.Fatalf("resize: queue cursor changed; expected 2, got %d", nm.queue.cursor)
+	}
+	if nm.playbackState != PlaybackPlaying {
+		t.Fatalf("resize: playbackState changed; expected PlaybackPlaying, got %v", nm.playbackState)
+	}
+	if !nm.scanning {
+		t.Fatal("resize: scanning changed; expected true, got false")
+	}
+	if nm.activeView != viewQueue {
+		t.Fatalf("resize: activeView changed; expected viewQueue (%d), got %d", viewQueue, nm.activeView)
+	}
+}
+
+// TestWindowSizeMsgUpdatesTermWidthAndRendersContent verifies that after a
+// WindowSizeMsg the model stores the new terminal width and View() produces
+// non-empty rendered content.
+func TestWindowSizeMsgUpdatesTermWidthAndRendersContent(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	nm := next.(Model)
+
+	if nm.termWidth != 120 {
+		t.Fatalf("termWidth: expected 120, got %d", nm.termWidth)
+	}
+
+	v := nm.View()
+	if v.Content == "" {
+		t.Fatal("View() after WindowSizeMsg must produce non-empty content")
+	}
+}
