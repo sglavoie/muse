@@ -18,3 +18,12 @@ func (v View) AppendFilterChar(ch rune) View {
 	v.Cursor = 0
 	return v
 }
+
+// DeactivateFilter clears the filter query, deactivates the filter bar, and
+// resets the cursor to 0, restoring the full unfiltered track list.
+func (v View) DeactivateFilter() View {
+	v.FilterActive = false
+	v.FilterText = ""
+	v.Cursor = 0
+	return v
+}

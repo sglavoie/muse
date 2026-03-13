@@ -109,7 +109,7 @@ func (v View) Render() string {
 
 	if v.Width == 0 {
 		if end == 0 {
-			return heading + separator + "(no matches)"
+			return heading + separator + "No matches"
 		}
 		lines := make([]string, end)
 		for i, dt := range display[:end] {
@@ -126,7 +126,9 @@ func (v View) Render() string {
 	header := renderRow("#", "Artist", "Title", "Album", "Time", cols)
 
 	if end == 0 {
-		return heading + separator + header + "\n(no matches)"
+		noMatches := "No matches"
+		leftPad := max(0, (v.Width-len(noMatches))/2)
+		return heading + separator + header + "\n" + strings.Repeat(" ", leftPad) + noMatches
 	}
 
 	lines := make([]string, end)

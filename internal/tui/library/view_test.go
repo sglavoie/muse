@@ -390,6 +390,117 @@ func TestHighlightedPositionsWithinArtistColumn(t *testing.T) {
 	}
 }
 
+// TestDeactivateFilterClearsQueryAndResetsCursor verifies that DeactivateFilter
+// (Esc handler) clears the filter text, deactivates the bar, and resets the
+// cursor to 0.
+func TestDeactivateFilterClearsQueryAndResetsCursor(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{
+		Index:  idx,
+		Width:  80,
+		Height: 24,
+		Fuzzy:  musiclib.FakeFuzzySearcher{},
+		Cursor: 2,
+	}
+	v = v.ActivateFilter()
+	v = v.AppendFilterChar('A')
+	v = v.AppendFilterChar('l')
+	v = v.DeactivateFilter()
+	if v.FilterActive {
+		t.Error("FilterActive should be false after DeactivateFilter")
+	}
+	if v.FilterText != "" {
+		t.Errorf("FilterText should be empty after DeactivateFilter, got %q", v.FilterText)
+	}
+	if v.Cursor != 0 {
+		t.Errorf("Cursor should be 0 after DeactivateFilter, got %d", v.Cursor)
+	}
+}
+
+// TestDeactivateFilterRestoresFullTrackList verifies that the full unfiltered
+// list is rendered after DeactivateFilter is called.
+func TestDeactivateFilterRestoresFullTrackList(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{
+		Index:  idx,
+		Width:  80,
+		Height: 24,
+		Fuzzy:  musiclib.FakeFuzzySearcher{},
+	}
+	v = v.ActivateFilter()
+	for _, ch := range "Alice" {
+		v = v.AppendFilterChar(ch)
+	}
+	v = v.DeactivateFilter()
+	got := v.Render()
+	if !strings.Contains(got, "Alice") {
+		t.Errorf("restored render should contain 'Alice', got:\n%s", got)
+	}
+	if !strings.Contains(got, "Bob") {
+		t.Errorf("restored render should contain 'Bob', got:\n%s", got)
+	}
+}
+
+// TestNoMatchesEmptyStateCenteredInListArea verifies that when the fuzzy
+// search returns zero results, "No matches" is displayed centered in the list
+// area and the filter bar remains visible.
+func TestNoMatchesEmptyStateCenteredInListArea(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{
+		Index:  idx,
+		Width:  80,
+		Height: 24,
+		Fuzzy:  musiclib.FakeFuzzySearcher{},
+	}
+	v = v.ActivateFilter()
+	for _, ch := range "zzzzz" {
+		v = v.AppendFilterChar(ch)
+	}
+	got := v.Render()
+
+	if !strings.Contains(got, "No matches") {
+		t.Errorf("expected 'No matches' in zero-result render, got:\n%s", got)
+	}
+	if !strings.Contains(got, "Filter: >") {
+		t.Errorf("filter bar should remain visible in zero-result render, got:\n%s", got)
+	}
+
+	// Find the line containing "No matches" and verify it is centered.
+	var noMatchesLine string
+	for line := range strings.SplitSeq(got, "\n") {
+		if strings.Contains(line, "No matches") {
+			noMatchesLine = line
+			break
+		}
+	}
+	if noMatchesLine == "" {
+		t.Fatal("could not find 'No matches' line in output")
+	}
+	if !strings.HasPrefix(noMatchesLine, " ") {
+		t.Errorf("'No matches' should be indented for centering, got: %q", noMatchesLine)
+	}
+}
+
+// TestNoMatchesZeroWidthFallback verifies that zero-width mode also renders
+// "No matches" when the filter produces no results.
+func TestNoMatchesZeroWidthFallback(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{
+		Index:  idx,
+		Width:  0,
+		Height: 24,
+		Fuzzy:  musiclib.FakeFuzzySearcher{},
+	}
+	v = v.ActivateFilter()
+	for _, ch := range "zzzzz" {
+		v = v.AppendFilterChar(ch)
+	}
+	got := v.Render()
+	if !strings.Contains(got, "No matches") {
+		t.Errorf("zero-width render should contain 'No matches' when filter has no results, got:\n%s", got)
+	}
+}
+
 // TestCursorStoredOnModel verifies that the cursor index is retained on the
 // View value after multiple moves.
 func TestCursorStoredOnModel(t *testing.T) {
