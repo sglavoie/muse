@@ -40,9 +40,23 @@ type Manager struct {
 	// Zero uses the production default (200 ms). Set a shorter value in tests.
 	pingInterval time.Duration
 
+	// lastTrackPath and lastElapsed hold the most recently persisted playback
+	// position, used to resume playback after an auto-restart.
+	lastTrackPath string
+	lastElapsed   float64
+
 	cmd    *exec.Cmd
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx    context.Context    // scoped to the current mpv subprocess; replaced on restart
+	cancel context.CancelFunc // cancels the current subprocess context
+
+	// rootCtx is the manager's lifetime context; it is never replaced.
+	// Close() cancels rootCtx which cascades to the current subprocess ctx.
+	rootCtx    context.Context
+	rootCancel context.CancelFunc
+
+	// launchFn starts the mpv subprocess. Tests replace this with a no-op
+	// that returns (nil, nil) while providing their own fake socket server.
+	launchFn func(ctx context.Context, socketPath string) (*exec.Cmd, error)
 }
 
 // NewManager creates a Manager with a socket path resolved via XDG dirs.
@@ -59,13 +73,29 @@ func NewManager() (*Manager, error) {
 		return nil, fmt.Errorf("mpv: %w", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	rootCtx, rootCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(rootCtx)
 	return &Manager{
 		socketPath:   socketPath,
+		rootCtx:      rootCtx,
+		rootCancel:   rootCancel,
 		ctx:          ctx,
 		cancel:       cancel,
 		disconnectCh: make(chan error, 1),
+		launchFn:     defaultLaunch,
 	}, nil
+}
+
+// defaultLaunch starts the mpv subprocess with --idle flag and IPC server.
+func defaultLaunch(ctx context.Context, socketPath string) (*exec.Cmd, error) {
+	cmd := exec.CommandContext(ctx, "mpv",
+		"--idle=yes",
+		"--input-ipc-server="+socketPath,
+	)
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("mpv: start: %w", err)
+	}
+	return cmd, nil
 }
 
 // SocketPath returns the resolved Unix domain socket path.
@@ -81,6 +111,16 @@ func (m *Manager) SetStatusFunc(fn func(string)) {
 	m.mu.Unlock()
 }
 
+// SetCurrentPosition persists the current playback position for use in crash
+// recovery. Call this periodically while a track is playing so that
+// auto-restart can resume at the correct offset.
+func (m *Manager) SetCurrentPosition(path string, elapsed float64) {
+	m.mu.Lock()
+	m.lastTrackPath = path
+	m.lastElapsed = elapsed
+	m.mu.Unlock()
+}
+
 // DisconnectCh returns a channel that receives the first error surfaced by the
 // health-check goroutine when an IPC socket disconnect is detected. The caller
 // must not close the channel.
@@ -91,7 +131,7 @@ func (m *Manager) DisconnectCh() <-chan error {
 // healthCheck runs in a goroutine after the IPC socket connects. It pings mpv
 // at regular intervals; on the first ping failure it marks the client as
 // disconnected and forwards the error to disconnectCh.
-func (m *Manager) healthCheck(client *IPCClient) {
+func (m *Manager) healthCheck(ctx context.Context, client *IPCClient) {
 	interval := m.pingInterval
 	if interval == 0 {
 		interval = 200 * time.Millisecond
@@ -101,7 +141,7 @@ func (m *Manager) healthCheck(client *IPCClient) {
 
 	for {
 		select {
-		case <-m.ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-ticker.C:
 			_, err := client.SendCommand("get_version")
@@ -111,7 +151,7 @@ func (m *Manager) healthCheck(client *IPCClient) {
 
 			// Ignore errors that occurred because the manager is shutting down.
 			select {
-			case <-m.ctx.Done():
+			case <-ctx.Done():
 				return
 			default:
 			}
@@ -140,19 +180,25 @@ func (m *Manager) Start() error {
 		return fmt.Errorf("mpv: create runtime dir: %w", err)
 	}
 
-	m.cmd = exec.CommandContext(m.ctx, "mpv",
-		"--idle=yes",
-		"--input-ipc-server="+m.socketPath,
-	)
-	if err := m.cmd.Start(); err != nil {
-		return fmt.Errorf("mpv: start: %w", err)
+	launchFn := m.launchFn
+	if launchFn == nil {
+		launchFn = defaultLaunch
 	}
+
+	cmd, err := launchFn(m.ctx, m.socketPath)
+	if err != nil {
+		return err
+	}
+	m.cmd = cmd
 
 	m.mu.Lock()
 	m.cmdQueue = []func() error{}
 	m.mu.Unlock()
 
-	go m.pollUntilReady()
+	go m.pollUntilReady(m.ctx)
+	if m.rootCtx != nil {
+		go m.watchAndRestart()
+	}
 	return nil
 }
 
@@ -176,7 +222,11 @@ func (m *Manager) enqueue(cmd func() error) error {
 
 // Close cancels the mpv subprocess and closes the IPC connection.
 func (m *Manager) Close() error {
-	m.cancel()
+	if m.rootCancel != nil {
+		m.rootCancel()
+	} else {
+		m.cancel()
+	}
 
 	m.mu.Lock()
 	c := m.client
@@ -193,8 +243,8 @@ func (m *Manager) Close() error {
 }
 
 // pollUntilReady dials the mpv socket at regular intervals until it succeeds
-// or the Manager context is cancelled.
-func (m *Manager) pollUntilReady() {
+// or the context is cancelled.
+func (m *Manager) pollUntilReady(ctx context.Context) {
 	const (
 		pollInterval = 50 * time.Millisecond
 		timeout      = 10 * time.Second
@@ -202,7 +252,7 @@ func (m *Manager) pollUntilReady() {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		select {
-		case <-m.ctx.Done():
+		case <-ctx.Done():
 			return
 		default:
 		}
@@ -218,7 +268,7 @@ func (m *Manager) pollUntilReady() {
 			for _, cmd := range queue {
 				_ = cmd()
 			}
-			go m.healthCheck(client)
+			go m.healthCheck(ctx, client)
 			return
 		}
 
@@ -235,6 +285,81 @@ func (m *Manager) ipc() (*IPCClient, error) {
 		return nil, ErrNotConnected
 	}
 	return c, nil
+}
+
+// watchAndRestart loops until the manager is closed, restarting mpv whenever
+// the health-check goroutine signals a disconnect on disconnectCh.
+func (m *Manager) watchAndRestart() {
+	for {
+		select {
+		case <-m.rootCtx.Done():
+			return
+		case <-m.disconnectCh:
+			m.handleRestart()
+		}
+	}
+}
+
+// handleRestart performs one auto-restart cycle: emits a status notification,
+// cancels the old subprocess context, launches a new mpv process, queues a
+// resume loadfile command, and begins polling for the new socket.
+func (m *Manager) handleRestart() {
+	m.mu.RLock()
+	fn := m.statusFn
+	path := m.lastTrackPath
+	elapsed := m.lastElapsed
+	m.mu.RUnlock()
+
+	if fn != nil {
+		fn("mpv disconnected, restarting…")
+	}
+
+	// Cancel old subprocess context and create a fresh one derived from rootCtx.
+	m.mu.Lock()
+	m.cancel()
+	newCtx, newCancel := context.WithCancel(m.rootCtx)
+	m.ctx = newCtx
+	m.cancel = newCancel
+	m.cmdQueue = []func() error{} // non-nil = started, allow queueing
+	m.mu.Unlock()
+
+	// Remove any stale socket file left by the crashed process so the new
+	// mpv instance can bind to the same path.
+	_ = os.Remove(m.socketPath)
+
+	launchFn := m.launchFn
+	if launchFn == nil {
+		launchFn = defaultLaunch
+	}
+
+	newCmd, err := launchFn(newCtx, m.socketPath)
+	if err != nil {
+		if fn != nil {
+			fn("mpv: restart failed: " + err.Error())
+		}
+		return
+	}
+	m.cmd = newCmd
+
+	// Queue a loadfile command to resume playback at the last persisted position.
+	if path != "" {
+		_ = m.enqueue(func() error {
+			return m.loadFileAt(path, elapsed)
+		})
+	}
+
+	go m.pollUntilReady(newCtx)
+}
+
+// loadFileAt sends mpv a loadfile command with a start= option to resume
+// playback at the given elapsed time (in seconds).
+func (m *Manager) loadFileAt(path string, elapsed float64) error {
+	c, err := m.ipc()
+	if err != nil {
+		return err
+	}
+	_, err = c.SendCommand("loadfile", path, "replace", 0, fmt.Sprintf("start=%g", elapsed))
+	return err
 }
 
 // Play resumes playback.
