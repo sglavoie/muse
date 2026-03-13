@@ -9,7 +9,7 @@ import (
 )
 
 func TestUpdateViewSwitching(t *testing.T) {
-	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil)
+	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil, nil)
 
 	if m.activeView != viewLibrary {
 		t.Fatalf("expected viewLibrary (%d), got %d", viewLibrary, m.activeView)
@@ -38,7 +38,7 @@ func TestUpdateViewSwitching(t *testing.T) {
 }
 
 func TestUpdateCtrlCQuits(t *testing.T) {
-	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil)
+	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil, nil)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	if cmd == nil {
 		t.Fatal("ctrl+c: expected a quit command, got nil")
@@ -50,7 +50,7 @@ func TestUpdateCtrlCQuits(t *testing.T) {
 }
 
 func TestUpdateQDoesNotQuit(t *testing.T) {
-	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil)
+	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil, nil)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	if cmd != nil {
 		t.Fatal("q key must not quit the application")
@@ -58,7 +58,7 @@ func TestUpdateQDoesNotQuit(t *testing.T) {
 }
 
 func TestUpdateEscDoesNotQuit(t *testing.T) {
-	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil)
+	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil, nil)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if cmd != nil {
 		t.Fatal("Esc key must not quit the application")
@@ -66,7 +66,7 @@ func TestUpdateEscDoesNotQuit(t *testing.T) {
 }
 
 func TestViewReturnsTeaView(t *testing.T) {
-	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil)
+	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil, nil)
 	v := m.View()
 	// Compile-time check: View() returns tea.View (not string).
 	_ = v.Content
@@ -74,7 +74,7 @@ func TestViewReturnsTeaView(t *testing.T) {
 
 func TestViewStatusBarShowsLogPath(t *testing.T) {
 	logPath := "/var/log/muse/muse.log"
-	m := New(logPath, "", false, nil, nil, "", nil)
+	m := New(logPath, "", false, nil, nil, "", nil, nil)
 	v := m.View()
 	if !strings.Contains(v.Content, logPath) {
 		t.Fatalf("status bar missing log path %q in:\n%s", logPath, v.Content)
@@ -83,7 +83,7 @@ func TestViewStatusBarShowsLogPath(t *testing.T) {
 
 func TestViewStatusBarShowsConfigPathOnFirstRun(t *testing.T) {
 	configPath := "/home/user/.config/muse/config.toml"
-	m := New("/log/path", configPath, true, nil, nil, "", nil)
+	m := New("/log/path", configPath, true, nil, nil, "", nil, nil)
 	v := m.View()
 	if !strings.Contains(v.Content, configPath) {
 		t.Fatalf("status bar missing config path %q in:\n%s", configPath, v.Content)
@@ -92,7 +92,7 @@ func TestViewStatusBarShowsConfigPathOnFirstRun(t *testing.T) {
 
 func TestViewStatusBarHidesConfigPathAfterFirstRun(t *testing.T) {
 	configPath := "/home/user/.config/muse/config.toml"
-	m := New("/log/path", configPath, false, nil, nil, "", nil)
+	m := New("/log/path", configPath, false, nil, nil, "", nil, nil)
 	v := m.View()
 	if strings.Contains(v.Content, configPath) {
 		t.Fatalf("status bar must not show config path when configCreated=false")
@@ -102,7 +102,7 @@ func TestViewStatusBarHidesConfigPathAfterFirstRun(t *testing.T) {
 // TestUpdateScanBatchMsgAppendsTracksToLibrary verifies that receiving a
 // ScanBatchMsg inserts all tracks into the library index.
 func TestUpdateScanBatchMsgAppendsTracksToLibrary(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil)
+	m := New("/log", "", false, nil, nil, "", nil, nil)
 	tracks := []library.Track{
 		{Artist: "Artist A", Title: "Track 1"},
 		{Artist: "Artist B", Title: "Track 2"},
@@ -121,7 +121,7 @@ func TestUpdateScanBatchMsgAppendsTracksToLibrary(t *testing.T) {
 func TestUpdateScanBatchMsgChainsWaitCmd(t *testing.T) {
 	ch := make(chan library.Track)
 	close(ch)
-	m := New("/log", "", false, ch, nil, "", nil)
+	m := New("/log", "", false, ch, nil, "", nil, nil)
 
 	tracks := []library.Track{{Artist: "A", Title: "T"}}
 	_, cmd := m.Update(library.ScanBatchMsg{Tracks: tracks})
@@ -139,7 +139,7 @@ func TestUpdateScanBatchMsgChainsWaitCmd(t *testing.T) {
 func TestUpdateScanDoneMsgClearsScanState(t *testing.T) {
 	ch := make(chan library.Track)
 	close(ch)
-	m := New("/log", "", false, ch, nil, "", nil)
+	m := New("/log", "", false, ch, nil, "", nil, nil)
 
 	next, cmd := m.Update(library.ScanDoneMsg{})
 	nm := next.(Model)
@@ -157,7 +157,7 @@ func TestUpdateScanDoneMsgClearsScanState(t *testing.T) {
 // TestViewLibraryShowsTrackCount verifies that after receiving a ScanBatchMsg
 // the library view renders the track count.
 func TestViewLibraryShowsTrackCount(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil)
+	m := New("/log", "", false, nil, nil, "", nil, nil)
 	tracks := []library.Track{
 		{Artist: "X", Title: "Y"},
 	}
@@ -172,7 +172,7 @@ func TestViewLibraryShowsTrackCount(t *testing.T) {
 // TestViewStatusBarShowsScanProgress verifies that the status bar shows a
 // formatted "X tracks" progress string after a ScanProgressMsg.
 func TestViewStatusBarShowsScanProgress(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil)
+	m := New("/log", "", false, nil, nil, "", nil, nil)
 	next, _ := m.Update(library.ScanProgressMsg{Scanned: 1234})
 	nm := next.(Model)
 	v := nm.View()
@@ -194,7 +194,7 @@ func (stubExtractor) Extract(files []library.HashedFile) ([]library.Track, error
 // library root returns a non-nil background cmd and does not block.
 func TestRescanHotkeyReturnsCmd(t *testing.T) {
 	root := t.TempDir()
-	m := New("/log", "", false, nil, nil, root, stubExtractor{})
+	m := New("/log", "", false, nil, nil, root, stubExtractor{}, nil)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
 	if cmd == nil {
 		t.Fatal("r key: expected non-nil cmd for rescan, got nil")
@@ -207,7 +207,7 @@ func TestRescanHotkeyIsNoOpWhenScanning(t *testing.T) {
 	ch := make(chan library.Track)
 	defer close(ch)
 	root := t.TempDir()
-	m := New("/log", "", false, ch, nil, root, stubExtractor{})
+	m := New("/log", "", false, ch, nil, root, stubExtractor{}, nil)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
 	if cmd != nil {
 		t.Fatal("r key during active scan must return nil cmd")
@@ -217,7 +217,7 @@ func TestRescanHotkeyIsNoOpWhenScanning(t *testing.T) {
 // TestRescanHotkeyIsNoOpWithoutRoot verifies that pressing r when no library
 // root is configured returns nil.
 func TestRescanHotkeyIsNoOpWithoutRoot(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil)
+	m := New("/log", "", false, nil, nil, "", nil, nil)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
 	if cmd != nil {
 		t.Fatal("r key without library root must return nil cmd")
@@ -228,7 +228,7 @@ func TestRescanHotkeyIsNoOpWithoutRoot(t *testing.T) {
 // MissingTrackMsg marks the matching queue entry as missing and sets a
 // transient error message in the status bar.
 func TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil)
+	m := New("/log", "", false, nil, nil, "", nil, nil)
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/song.flac", Display: "Artist – Song"},
 	}
@@ -266,7 +266,7 @@ func TestQueueViewRendersMissingEntryDimmed(t *testing.T) {
 // populate it with only the new tracks, effectively removing deleted ones.
 func TestRescanResetsIndexAndAddsNewTracks(t *testing.T) {
 	root := t.TempDir()
-	m := New("/log", "", false, nil, nil, root, stubExtractor{})
+	m := New("/log", "", false, nil, nil, root, stubExtractor{}, nil)
 
 	// Seed two initial tracks.
 	next, _ := m.Update(library.ScanBatchMsg{Tracks: []library.Track{
@@ -304,7 +304,7 @@ func TestRescanResetsIndexAndAddsNewTracks(t *testing.T) {
 // TestViewStatusBarHidesScanProgressWhenDone verifies that the scanning
 // indicator is removed from the status bar after ScanDoneMsg.
 func TestViewStatusBarHidesScanProgressWhenDone(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil)
+	m := New("/log", "", false, nil, nil, "", nil, nil)
 	// First set progress, then clear it.
 	next, _ := m.Update(library.ScanProgressMsg{Scanned: 100})
 	nm := next.(Model)
@@ -313,5 +313,57 @@ func TestViewStatusBarHidesScanProgressWhenDone(t *testing.T) {
 	v := nm.View()
 	if strings.Contains(v.Content, "Scanning") {
 		t.Fatalf("status bar must not show scan progress after ScanDoneMsg; got:\n%s", v.Content)
+	}
+}
+
+// stubPlayer records Play and Pause calls for assertion in tests.
+type stubPlayer struct {
+	playCalls  int
+	pauseCalls int
+}
+
+func (s *stubPlayer) Play() error {
+	s.playCalls++
+	return nil
+}
+
+func (s *stubPlayer) Pause() error {
+	s.pauseCalls++
+	return nil
+}
+
+// TestSpaceTogglesPlayPauseFromAnyView verifies that pressing space triggers
+// a play or pause call on the player regardless of which view is focused.
+func TestSpaceTogglesPlayPauseFromAnyView(t *testing.T) {
+	views := []struct {
+		name   string
+		viewID viewID
+	}{
+		{"Library", viewLibrary},
+		{"Playlists", viewPlaylists},
+		{"Queue", viewQueue},
+	}
+
+	spaceMsg := tea.KeyPressMsg{Code: tea.KeySpace}
+
+	for _, tc := range views {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &stubPlayer{}
+			m := New("/log", "", false, nil, nil, "", nil, p)
+			m.activeView = tc.viewID
+
+			// First press: not playing → Play() called.
+			next, _ := m.Update(spaceMsg)
+			nm := next.(Model)
+			if p.playCalls != 1 || p.pauseCalls != 0 {
+				t.Fatalf("first space (%s): expected 1 Play call, got play=%d pause=%d", tc.name, p.playCalls, p.pauseCalls)
+			}
+
+			// Second press: playing → Pause() called.
+			_, _ = nm.Update(spaceMsg)
+			if p.playCalls != 1 || p.pauseCalls != 1 {
+				t.Fatalf("second space (%s): expected 1 Pause call, got play=%d pause=%d", tc.name, p.playCalls, p.pauseCalls)
+			}
+		})
 	}
 }

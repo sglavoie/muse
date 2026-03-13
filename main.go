@@ -102,7 +102,7 @@ func main() {
 	scanCh := library.Scan(cfg.MusicDirectory, extractor)
 	watchCh, _ := library.Watch(ctx, cfg.MusicDirectory, extractor, library.DefaultDebounce)
 
-	model := tui.New(config.LogPath(), configPath, configCreated, scanCh, watchCh, cfg.MusicDirectory, extractor)
+	model := tui.New(config.LogPath(), configPath, configCreated, scanCh, watchCh, cfg.MusicDirectory, extractor, nil)
 	p := tea.NewProgram(model)
 
 	// When the signal context is cancelled (SIGTERM/SIGINT from outside),

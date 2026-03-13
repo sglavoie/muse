@@ -7,6 +7,14 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 )
 
+// playPauser is the subset of the player interface used by the root model for
+// global space-bar play/pause toggling. Keeping it narrow makes test injection
+// simple.
+type playPauser interface {
+	Play() error
+	Pause() error
+}
+
 // clearConfigNotice is sent after the transient first-run notification timeout.
 type clearConfigNotice struct{}
 
@@ -60,6 +68,11 @@ type Model struct {
 	extractor   library.MetadataExtractor
 
 	statusBar StatusBar
+
+	// player is the playback backend. It may be nil when playback is not
+	// available (e.g. in tests that do not exercise playback).
+	player  playPauser
+	playing bool // tracks current play/pause state for the global toggle
 }
 
 // New creates a root Model. logPath is displayed in the status bar on every
@@ -77,7 +90,9 @@ type Model struct {
 //
 // libraryRoot and extractor enable the manual rescan hotkey. Pass empty string
 // and nil to disable it (e.g. in tests that do not exercise rescan).
-func New(logPath, configPath string, configCreated bool, scanCh <-chan library.Track, watchCh <-chan library.WatchEvent, libraryRoot string, extractor library.MetadataExtractor) Model {
+//
+// p is the playback backend. Pass nil to disable playback controls.
+func New(logPath, configPath string, configCreated bool, scanCh <-chan library.Track, watchCh <-chan library.WatchEvent, libraryRoot string, extractor library.MetadataExtractor, p playPauser) Model {
 	return Model{
 		activeView:    viewLibrary,
 		logPath:       logPath,
@@ -88,6 +103,7 @@ func New(logPath, configPath string, configCreated bool, scanCh <-chan library.T
 		watchCh:       watchCh,
 		libraryRoot:   libraryRoot,
 		extractor:     extractor,
+		player:        p,
 		statusBar: StatusBar{
 			logPath:       logPath,
 			configPath:    configPath,
@@ -231,6 +247,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
+		case "space":
+			if m.player != nil {
+				if m.playing {
+					_ = m.player.Pause()
+					m.playing = false
+				} else {
+					_ = m.player.Play()
+					m.playing = true
+				}
+			}
 		case "1":
 			m.activeView = viewLibrary
 		case "2":
