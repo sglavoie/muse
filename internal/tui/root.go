@@ -10,6 +10,13 @@ import (
 // clearConfigNotice is sent after the transient first-run notification timeout.
 type clearConfigNotice struct{}
 
+// MissingTrackMsg is dispatched by the player when it attempts to play a
+// queued track whose file cannot be found. The TUI marks that entry as missing
+// in the queue view and displays a transient error in the status bar.
+type MissingTrackMsg struct {
+	Path string
+}
+
 // scanBatchSize is the maximum number of tracks collected per batch before
 // returning a ScanBatchMsg to the update loop.
 const scanBatchSize = 100
@@ -215,6 +222,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.scanning = false
 		m.scanCh = nil
 		m.statusBar.handleScanDone()
+
+	case MissingTrackMsg:
+		m.queue.markMissing(msg.Path)
+		m.statusBar.handleMissingTrack(msg.Path)
 
 	case tea.KeyPressMsg:
 		switch msg.String() {

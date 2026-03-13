@@ -32,6 +32,12 @@ func (s *StatusBar) handleScanDone() {
 	s.transientRight = ""
 }
 
+// handleMissingTrack sets the transient right zone to an error message
+// indicating that a track could not be found and was skipped.
+func (s *StatusBar) handleMissingTrack(path string) {
+	s.transientRight = fmt.Sprintf("Error: track not found, skipped: %s", path)
+}
+
 // render builds the full status bar string.
 func (s StatusBar) render() string {
 	bar := fmt.Sprintf("log: %s", s.logPath)

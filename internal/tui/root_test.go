@@ -224,6 +224,43 @@ func TestRescanHotkeyIsNoOpWithoutRoot(t *testing.T) {
 	}
 }
 
+// TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError verifies that
+// MissingTrackMsg marks the matching queue entry as missing and sets a
+// transient error message in the status bar.
+func TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil)
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/song.flac", Display: "Artist – Song"},
+	}
+
+	next, _ := m.Update(MissingTrackMsg{Path: "/music/song.flac"})
+	nm := next.(Model)
+
+	if nm.statusBar.transientRight == "" {
+		t.Fatal("MissingTrackMsg must set a transient status bar error message")
+	}
+	if !nm.queue.entries[0].Missing {
+		t.Fatal("MissingTrackMsg must mark the matching queue entry as missing")
+	}
+}
+
+// TestQueueViewRendersMissingEntryDimmed verifies that a missing queue entry
+// is wrapped in ANSI dim escape codes in the rendered output.
+func TestQueueViewRendersMissingEntryDimmed(t *testing.T) {
+	q := QueueView{
+		entries: []QueueEntry{
+			{Path: "/music/gone.flac", Display: "Artist – Gone", Missing: true},
+		},
+	}
+	got := q.render()
+	if !strings.Contains(got, ansiDim) {
+		t.Fatalf("missing entry must use dim ANSI code; got:\n%s", got)
+	}
+	if !strings.Contains(got, "[missing]") {
+		t.Fatalf("missing entry must include [missing] label; got:\n%s", got)
+	}
+}
+
 // TestRescanResetsIndexAndAddsNewTracks verifies that triggering a rescan
 // clears the existing index and that subsequent ScanBatchMsg messages
 // populate it with only the new tracks, effectively removing deleted ones.
