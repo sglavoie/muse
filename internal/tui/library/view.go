@@ -19,6 +19,8 @@ const (
 // Cursor holds the zero-based index of the focused track row.
 // FilterActive is false by default and is set to true when the user presses '/'.
 // FilterText accumulates the query string while FilterActive is true.
+// Fuzzy is the fuzzy search engine used when the filter bar is active;
+// inject musiclib.FakeFuzzySearcher in tests and musiclib.SahilmFuzzySearcher in production.
 type View struct {
 	Index        musiclib.LibraryIndex
 	Width        int
@@ -26,6 +28,7 @@ type View struct {
 	Cursor       int
 	FilterActive bool
 	FilterText   string
+	Fuzzy        musiclib.FuzzySearcher
 }
 
 // CursorUp moves the cursor one row up, stopping at the first track.
@@ -38,11 +41,26 @@ func (v View) CursorUp() View {
 
 // CursorDown moves the cursor one row down, stopping at the last track.
 func (v View) CursorDown() View {
-	n := v.Index.Len()
+	n := v.effectiveTrackCount()
 	if n > 0 && v.Cursor < n-1 {
 		v.Cursor++
 	}
 	return v
+}
+
+// effectiveTrackCount returns the number of tracks currently displayed,
+// accounting for any active fuzzy filter.
+func (v View) effectiveTrackCount() int {
+	if v.FilterActive && v.Fuzzy != nil {
+		return len(v.Fuzzy.Search(v.FilterText, v.Index.Tracks()))
+	}
+	return v.Index.Len()
+}
+
+// displayTrack pairs a track with its fuzzy match positions for highlight rendering.
+type displayTrack struct {
+	track          musiclib.Track
+	matchedIndexes []int
 }
 
 // Render returns the complete library panel string. When Width is zero (before
@@ -53,41 +71,92 @@ func (v View) Render() string {
 		return "Library\n\n(no tracks)"
 	}
 
-	tracks := v.Index.Tracks()
+	allTracks := v.Index.Tracks()
+
+	// Resolve the set of tracks to display, with optional match positions.
+	var display []displayTrack
+	if v.FilterActive && v.Fuzzy != nil {
+		matches := v.Fuzzy.Search(v.FilterText, allTracks)
+		display = make([]displayTrack, len(matches))
+		for i, m := range matches {
+			display[i] = displayTrack{
+				track:          allTracks[m.TrackIndex],
+				matchedIndexes: m.MatchedIndexes,
+			}
+		}
+	} else {
+		display = make([]displayTrack, len(allTracks))
+		for i, t := range allTracks {
+			display[i] = displayTrack{track: t}
+		}
+	}
+
+	reserve := 3
+	if v.FilterActive {
+		reserve = 4
+	}
 	maxRows := 50
 	if v.Height > 0 {
-		maxRows = max(1, v.Height-3)
+		maxRows = max(1, v.Height-reserve)
 	}
-	end := min(n, maxRows)
+	end := min(len(display), maxRows)
 
 	heading := fmt.Sprintf("Library (%s tracks)", formatCount(n))
+	separator := "\n\n"
+	if v.FilterActive {
+		separator = "\nFilter: > " + v.FilterText + "\n"
+	}
 
 	if v.Width == 0 {
+		if end == 0 {
+			return heading + separator + "(no matches)"
+		}
 		lines := make([]string, end)
-		for i, t := range tracks[:end] {
-			row := fmt.Sprintf("%s – %s", t.Artist, t.Title)
+		for i, dt := range display[:end] {
+			row := fmt.Sprintf("%s – %s", dt.track.Artist, dt.track.Title)
 			if i == v.Cursor {
 				row = ansiAccent + row + ansiReset
 			}
 			lines[i] = row
 		}
-		return heading + "\n\n" + strings.Join(lines, "\n")
+		return heading + separator + strings.Join(lines, "\n")
 	}
 
 	cols := Compute(v.Width)
 	header := renderRow("#", "Artist", "Title", "Album", "Time", cols)
+
+	if end == 0 {
+		return heading + separator + header + "\n(no matches)"
+	}
+
 	lines := make([]string, end)
-	for i, t := range tracks[:end] {
+	for i, dt := range display[:end] {
+		t := dt.track
 		num := fmt.Sprintf("%d", i+1)
 		dur := formatDuration(t.Duration)
-		row := renderRow(num, t.Artist, t.Title, t.Album, dur, cols)
+
+		var row string
+		if len(dt.matchedIndexes) > 0 {
+			artistRunes := len([]rune(t.Artist))
+			titleRunes := len([]rune(t.Title))
+			artistPos := fieldMatchPositions(dt.matchedIndexes, 0, artistRunes)
+			titlePos := fieldMatchPositions(dt.matchedIndexes, artistRunes+1, titleRunes)
+			row = pad(num, cols.TrackNum) + " " +
+				padHighlight(t.Artist, cols.Artist, artistPos) + " " +
+				padHighlight(t.Title, cols.Title, titlePos) + " " +
+				pad(t.Album, cols.Album) + " " +
+				pad(dur, cols.Duration)
+		} else {
+			row = renderRow(num, t.Artist, t.Title, t.Album, dur, cols)
+		}
+
 		if i == v.Cursor {
 			row = ansiAccent + row + ansiReset
 		}
 		lines[i] = row
 	}
 
-	return heading + "\n\n" + header + "\n" + strings.Join(lines, "\n")
+	return heading + separator + header + "\n" + strings.Join(lines, "\n")
 }
 
 // renderRow formats a single row with each field padded or truncated to its

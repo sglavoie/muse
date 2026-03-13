@@ -7,12 +7,14 @@ func (v View) ActivateFilter() View {
 	return v
 }
 
-// AppendFilterChar appends ch to the filter query string. It is a no-op when
-// the filter bar is not active.
+// AppendFilterChar appends ch to the filter query string and resets the cursor
+// to 0 since the displayed track list changes with each keystroke. It is a
+// no-op when the filter bar is not active.
 func (v View) AppendFilterChar(ch rune) View {
 	if !v.FilterActive {
 		return v
 	}
 	v.FilterText += string(ch)
+	v.Cursor = 0
 	return v
 }

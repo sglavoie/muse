@@ -231,6 +231,165 @@ func TestAppendFilterCharIgnoredWhenInactive(t *testing.T) {
 	}
 }
 
+// highlightFake is a test-local FuzzySearcher that returns predetermined results.
+type highlightFake struct {
+	results []musiclib.Match
+}
+
+func (h highlightFake) Search(_ string, _ []musiclib.Track) []musiclib.Match {
+	return h.results
+}
+
+// TestFuzzyFilterUpdatesDisplayedTracks verifies that displayed tracks narrow
+// to those matching the filter query after each character is typed.
+func TestFuzzyFilterUpdatesDisplayedTracks(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{
+		Index:  idx,
+		Width:  80,
+		Height: 24,
+		Fuzzy:  musiclib.FakeFuzzySearcher{},
+	}
+	v = v.ActivateFilter()
+	for _, ch := range "Alice" {
+		v = v.AppendFilterChar(ch)
+	}
+	got := v.Render()
+	if !strings.Contains(got, "Alice") {
+		t.Errorf("filtered render should contain 'Alice', got:\n%s", got)
+	}
+	if strings.Contains(stripANSI(got), "Bob") {
+		t.Errorf("filtered render should not contain 'Bob' when filtering for 'Alice', got:\n%s", got)
+	}
+}
+
+// TestFuzzyFilterUpdatesOnEachKeystroke verifies that results narrow
+// incrementally with each additional character typed.
+func TestFuzzyFilterUpdatesOnEachKeystroke(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{
+		Index:  idx,
+		Width:  80,
+		Height: 24,
+		Fuzzy:  musiclib.FakeFuzzySearcher{},
+	}
+	v = v.ActivateFilter()
+	v = v.AppendFilterChar('B')
+	got := v.Render()
+	if !strings.Contains(got, "Bob") {
+		t.Errorf("filtering for 'B' should show 'Bob', got:\n%s", got)
+	}
+	if strings.Contains(stripANSI(got), "Alice") {
+		t.Errorf("filtering for 'B' should not show 'Alice', got:\n%s", got)
+	}
+
+	v = v.AppendFilterChar('o')
+	got = v.Render()
+	if !strings.Contains(got, "Bob") {
+		t.Errorf("filtering for 'Bo' should still show 'Bob', got:\n%s", got)
+	}
+
+	v = v.AppendFilterChar('z')
+	got = v.Render()
+	if strings.Contains(stripANSI(got), "Bob") {
+		t.Errorf("filtering for 'Boz' should have no matches, got:\n%s", got)
+	}
+}
+
+// TestFuzzyFilterShowsFilterBar verifies that the filter bar text is visible
+// in the rendered output when the filter is active.
+func TestFuzzyFilterShowsFilterBar(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{
+		Index:  idx,
+		Width:  80,
+		Height: 24,
+		Fuzzy:  musiclib.FakeFuzzySearcher{},
+	}
+	v = v.ActivateFilter()
+	v = v.AppendFilterChar('A')
+	got := v.Render()
+	if !strings.Contains(got, "Filter: > A") {
+		t.Errorf("render should contain filter bar text 'Filter: > A', got:\n%s", got)
+	}
+}
+
+// TestFuzzyFilterCursorResetOnKeystroke verifies that the cursor resets to 0
+// when a character is appended to the filter query.
+func TestFuzzyFilterCursorResetOnKeystroke(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{
+		Index:  idx,
+		Width:  80,
+		Height: 24,
+		Fuzzy:  musiclib.FakeFuzzySearcher{},
+		Cursor: 2,
+	}
+	v = v.ActivateFilter()
+	v = v.AppendFilterChar('A')
+	if v.Cursor != 0 {
+		t.Errorf("cursor should reset to 0 on filter keystroke, got %d", v.Cursor)
+	}
+}
+
+// TestHighlightedRowContainsBoldANSI verifies that a rendered row with
+// non-nil MatchedIndexes contains bold ANSI codes at the matched positions.
+func TestHighlightedRowContainsBoldANSI(t *testing.T) {
+	tracks := []musiclib.Track{
+		{Artist: "Alice", Title: "Song One", Album: "Debut", Duration: 185},
+	}
+	idx := buildIndex(tracks)
+	// Positions 0 and 1 in the concatenated "Alice Song One …" string are
+	// 'A' and 'l' in the Artist field.
+	fake := highlightFake{
+		results: []musiclib.Match{
+			{TrackIndex: 0, MatchedIndexes: []int{0, 1}},
+		},
+	}
+	v := View{
+		Index:  idx,
+		Width:  80,
+		Height: 24,
+		Fuzzy:  fake,
+	}
+	v = v.ActivateFilter()
+	v = v.AppendFilterChar('A')
+	v = v.AppendFilterChar('l')
+	got := v.Render()
+	if !strings.Contains(got, ansiBold) {
+		t.Errorf("rendered row should contain ANSI bold code for match highlights, got:\n%q", got)
+	}
+}
+
+// TestHighlightedPositionsWithinArtistColumn verifies that bold codes appear
+// before the correct rune positions within the artist column.
+func TestHighlightedPositionsWithinArtistColumn(t *testing.T) {
+	tracks := []musiclib.Track{
+		{Artist: "Alice", Title: "Song One", Album: "Debut", Duration: 185},
+	}
+	idx := buildIndex(tracks)
+	// Match position 0 → 'A' in Artist.
+	fake := highlightFake{
+		results: []musiclib.Match{
+			{TrackIndex: 0, MatchedIndexes: []int{0}},
+		},
+	}
+	v := View{
+		Index:  idx,
+		Width:  80,
+		Height: 24,
+		Fuzzy:  fake,
+	}
+	v = v.ActivateFilter()
+	v = v.AppendFilterChar('A')
+	got := v.Render()
+	// The bold sequence should precede 'A' somewhere in the output.
+	boldA := ansiBold + "A" + ansiReset
+	if !strings.Contains(got, boldA) {
+		t.Errorf("expected bold-wrapped 'A' (%q) in rendered output, got:\n%q", boldA, got)
+	}
+}
+
 // TestCursorStoredOnModel verifies that the cursor index is retained on the
 // View value after multiple moves.
 func TestCursorStoredOnModel(t *testing.T) {
