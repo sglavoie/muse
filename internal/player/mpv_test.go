@@ -286,6 +286,24 @@ func TestManager_PlayerInterface(t *testing.T) {
 	m.client = client
 	m.mu.Unlock()
 
+	// Next/Previous now use Go-side queue arithmetic, so populate the queue
+	// with real temp files (os.Stat must succeed) and set currentIndex to 1
+	// so both Next (→ 2) and Previous (→ 0) are in range.
+	makeFile := func(name string) string {
+		dir := t.TempDir()
+		path := dir + "/" + name
+		if err := os.WriteFile(path, []byte{}, 0o600); err != nil {
+			t.Fatalf("create temp file %s: %v", path, err)
+		}
+		return path
+	}
+	m.queue = []QueueTrack{
+		{Path: makeFile("a.flac"), Hash: "h0", QueueID: 1},
+		{Path: makeFile("b.flac"), Hash: "h1", QueueID: 2},
+		{Path: makeFile("c.flac"), Hash: "h2", QueueID: 3},
+	}
+	m.currentIndex = 1 // Next→2, Previous→0 — both valid
+
 	for _, tc := range []struct {
 		name string
 		fn   func() error

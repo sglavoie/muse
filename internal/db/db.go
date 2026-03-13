@@ -9,6 +9,18 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// QueueRow holds a single queue entry joined with its track metadata.
+// Used by ReadQueue to return typed results that callers convert into
+// player.QueueTrack and tui.QueueEntry slices.
+type QueueRow struct {
+	ID      int64
+	Hash    string
+	Path    string
+	Artist  string
+	Title   string
+	Missing bool
+}
+
 // DB wraps sql.DB with muse-specific setup.
 type DB struct {
 	*sql.DB
@@ -35,6 +47,33 @@ func Open(path string) (*DB, error) {
 	}
 
 	return &DB{sqlDB}, nil
+}
+
+// ReadQueue returns all queue entries ordered by position, joined with track
+// metadata. Returns an empty slice (not an error) when the queue is empty.
+func (d *DB) ReadQueue() ([]QueueRow, error) {
+	rows, err := d.Query(`
+		SELECT q.id, t.hash, t.path, t.artist, t.title, q.missing
+		FROM queue q
+		JOIN tracks t ON q.track_hash = t.hash
+		ORDER BY q.position
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("db: read queue: %w", err)
+	}
+	defer rows.Close()
+
+	var result []QueueRow
+	for rows.Next() {
+		var r QueueRow
+		var missing int
+		if err := rows.Scan(&r.ID, &r.Hash, &r.Path, &r.Artist, &r.Title, &missing); err != nil {
+			return nil, fmt.Errorf("db: read queue row: %w", err)
+		}
+		r.Missing = missing != 0
+		result = append(result, r)
+	}
+	return result, rows.Err()
 }
 
 // configure applies the required PRAGMA settings.

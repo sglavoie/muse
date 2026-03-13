@@ -15,6 +15,7 @@ import (
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui"
 )
 
@@ -67,11 +68,18 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
+	mgr, err := player.NewManager()
+	if err != nil {
+		slog.Error("player: create manager", "err", err)
+		fmt.Fprintf(os.Stderr, "muse: player: %v\n", err)
+		os.Exit(1)
+	}
+
 	deps := app.Deps{
 		Config: cfg,
 		LaunchMPV: func(ctx context.Context, socketPath string) error {
-			slog.Info("startup: mpv launch (stub)")
-			return nil
+			mgr.SetSocketPath(socketPath)
+			return mgr.Start()
 		},
 		RunScan: func(ctx context.Context, database *db.DB) error {
 			return nil
@@ -102,8 +110,61 @@ func main() {
 	scanCh := library.Scan(cfg.MusicDirectory, extractor)
 	watchCh, _ := library.Watch(ctx, cfg.MusicDirectory, extractor, library.DefaultDebounce)
 
-	model := tui.New(config.LogPath(), configPath, configCreated, scanCh, watchCh, cfg.MusicDirectory, extractor, nil)
+	// Load the current queue from the database so both the player Manager and
+	// the TUI QueueView start with the same ordered set of entries. A failure
+	// here is non-fatal: the queue will simply be empty until the user adds tracks.
+	queueRows, err := result.DB.ReadQueue()
+	if err != nil {
+		slog.Warn("failed to load queue from DB", "err", err)
+	}
+	var playerEntries []player.QueueTrack
+	var tuiEntries []tui.QueueEntry
+	for _, r := range queueRows {
+		playerEntries = append(playerEntries, player.QueueTrack{
+			Path:    r.Path,
+			Hash:    r.Hash,
+			QueueID: r.ID,
+		})
+		display := r.Artist + " – " + r.Title
+		if r.Artist == "" && r.Title == "" {
+			display = r.Path
+		} else if r.Artist == "" {
+			display = r.Title
+		} else if r.Title == "" {
+			display = r.Artist
+		}
+		tuiEntries = append(tuiEntries, tui.QueueEntry{
+			Path:    r.Path,
+			Display: display,
+			Missing: r.Missing,
+			Artist:  r.Artist,
+			Title:   r.Title,
+		})
+	}
+
+	model := tui.New(config.LogPath(), configPath, configCreated, scanCh, watchCh, cfg.MusicDirectory, extractor, mgr)
 	p := tea.NewProgram(model)
+
+	// setQueue keeps the player Manager and the TUI QueueView in sync.
+	// Callers MUST use this helper whenever the queue changes so that
+	// PlayQueueIndexMsg.Index addresses the same track in both sides.
+	setQueue := func(pe []player.QueueTrack, te []tui.QueueEntry) {
+		mgr.SetQueue(pe)
+		model.SetQueueEntries(te)
+	}
+	setQueue(playerEntries, tuiEntries)
+
+	// Wire player callbacks after p is created so events reach the TUI via Send.
+	mgr.SetMissingFileFunc(func(path string) {
+		p.Send(tui.MissingTrackMsg{Path: path})
+	})
+	mgr.SetStatusFunc(func(s string) {
+		p.Send(tui.PlayerStatusMsg{Text: s})
+	})
+	mgr.SetPlaybackEndedFunc(func() {
+		p.Send(tui.PlaybackEndedMsg{})
+	})
+	mgr.SetMissingMarker(result.Writer)
 
 	// When the signal context is cancelled (SIGTERM/SIGINT from outside),
 	// tell the TUI to quit so p.Run() returns and shutdown proceeds.

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sglavoie/muse/internal/library"
 )
@@ -9,11 +10,25 @@ import (
 // StatusBar manages the persistent status bar at the bottom of the screen.
 // transientRight holds a temporary message (e.g. scan progress) that is
 // cleared when the scan completes.
+//
+// The persistent left zone shows playback state, track artist/title, active
+// playlist source, and repeat/shuffle mode indicators. The right zone shows
+// auto-dismissing transient notifications.
 type StatusBar struct {
 	logPath        string
 	configCreated  bool
 	configPath     string
 	transientRight string
+
+	// Persistent left zone fields — set during Update when track/state changes.
+	artist         string
+	title          string
+	playlistSource string
+
+	// Playback mode fields — injected by renderStatusBar from the root Model.
+	playbackState PlaybackState
+	repeat        bool
+	shuffle       bool
 }
 
 // handleScanProgress sets the transient right zone to a formatted progress string.
@@ -38,14 +53,69 @@ func (s *StatusBar) handleMissingTrack(path string) {
 	s.transientRight = fmt.Sprintf("Error: track not found, skipped: %s", path)
 }
 
-// render builds the full status bar string.
+// render builds the full status bar string. The persistent left zone shows
+// playback state indicator, track info, playlist source, and mode indicators.
+// The right zone shows transient notifications.
 func (s StatusBar) render() string {
-	bar := fmt.Sprintf("log: %s", s.logPath)
+	var segments []string
+
+	// Persistent left zone: shown whenever a track is loaded or state is active.
+	if s.playbackState != PlaybackIdle || s.artist != "" || s.title != "" {
+		stateIcon := ""
+		switch s.playbackState {
+		case PlaybackPlaying:
+			stateIcon = "▶"
+		case PlaybackPaused:
+			stateIcon = "⏸"
+		case PlaybackStopped:
+			stateIcon = "■"
+		}
+
+		trackInfo := ""
+		switch {
+		case s.artist != "" && s.title != "":
+			trackInfo = s.artist + " – " + s.title
+		case s.title != "":
+			trackInfo = s.title
+		case s.artist != "":
+			trackInfo = s.artist
+		}
+
+		left := ""
+		switch {
+		case stateIcon != "" && trackInfo != "":
+			left = stateIcon + " " + trackInfo
+		case stateIcon != "":
+			left = stateIcon
+		case trackInfo != "":
+			left = trackInfo
+		}
+
+		if s.playlistSource != "" {
+			left += "  " + s.playlistSource
+		}
+		if s.repeat {
+			left += "  R"
+		}
+		if s.shuffle {
+			left += "  S"
+		}
+		if left != "" {
+			segments = append(segments, left)
+		}
+	}
+
+	// Log path and optional first-run config notice (always shown).
+	logPart := fmt.Sprintf("log: %s", s.logPath)
 	if s.configCreated {
-		bar += fmt.Sprintf("  |  config created: %s", s.configPath)
+		logPart += fmt.Sprintf("  |  config created: %s", s.configPath)
 	}
+	segments = append(segments, logPart)
+
+	// Transient right zone.
 	if s.transientRight != "" {
-		bar += "  |  " + s.transientRight
+		segments = append(segments, s.transientRight)
 	}
-	return bar
+
+	return strings.Join(segments, "  |  ")
 }

@@ -1,7 +1,9 @@
 package player
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -19,6 +21,13 @@ const mpvSockName = "mpv.sock"
 // Compile-time check that Manager implements Player.
 var _ Player = (*Manager)(nil)
 
+// noopMarker is a MissingMarker that silently discards all calls. It is used
+// when PlayFromIndex is called before a real MissingMarker has been wired in.
+type noopMarker struct{}
+
+func (noopMarker) MarkTrackMissing(_ string) error    { return nil }
+func (noopMarker) MarkQueueEntryMissing(_ int64) error { return nil }
+
 // Manager manages an mpv subprocess and its JSON-IPC connection.
 // It implements the Player interface. Commands issued after Start() but before
 // the IPC socket becomes ready are queued and replayed on connect. Commands
@@ -30,6 +39,29 @@ type Manager struct {
 	client   *IPCClient     // nil until the socket is connected
 	cmdQueue []func() error // nil = not started; non-nil = started, may have pending cmds
 	statusFn func(string)   // optional callback for transient status messages
+
+	// queue is the ordered set of tracks available for playback. Set via
+	// SetQueue so that PlayFromIndex can resolve an index to a QueueTrack.
+	queue []QueueTrack
+
+	// currentIndex is the queue index of the most recently successfully
+	// started track. Used by Next/Previous and the event reader for
+	// auto-advance.
+	currentIndex int
+
+	// marker persists missing-file state to the database. Set via
+	// SetMissingMarker. When nil, PlayFromIndex uses a no-op marker.
+	marker MissingMarker
+
+	// missingFileFn is called with the file path when a missing track is
+	// detected. Used to dispatch MissingTrackMsg into the Bubble Tea program.
+	missingFileFn func(string)
+
+	// playbackEndedFn is called when auto-advance exhausts the queue (i.e.
+	// PlayFromIndex returns ErrPlaybackFailed after an end-file/eof event).
+	// Used to dispatch PlaybackEndedMsg into the Bubble Tea program so that
+	// the TUI can reset its play/pause toggle to the correct idle state.
+	playbackEndedFn func()
 
 	// disconnectCh receives the first error when the IPC socket is detected
 	// as disconnected by the health-check goroutine. The channel is buffered
@@ -119,6 +151,105 @@ func (m *Manager) SetCurrentPosition(path string, elapsed float64) {
 	m.lastTrackPath = path
 	m.lastElapsed = elapsed
 	m.mu.Unlock()
+}
+
+// SetQueue replaces the ordered set of tracks used by PlayFromIndex. Call
+// whenever the playback queue changes (e.g. after loading from the database).
+func (m *Manager) SetQueue(entries []QueueTrack) {
+	m.mu.Lock()
+	m.queue = make([]QueueTrack, len(entries))
+	copy(m.queue, entries)
+	m.mu.Unlock()
+}
+
+// SetMissingMarker sets the MissingMarker used to persist missing-file state
+// to the database. Call before playback begins.
+func (m *Manager) SetMissingMarker(marker MissingMarker) {
+	m.mu.Lock()
+	m.marker = marker
+	m.mu.Unlock()
+}
+
+// SetMissingFileFunc sets a callback invoked with the file path whenever a
+// missing track is detected during PlayQueueEntry. Use this to dispatch a
+// MissingTrackMsg into the Bubble Tea program (e.g. p.Send).
+func (m *Manager) SetMissingFileFunc(fn func(string)) {
+	m.mu.Lock()
+	m.missingFileFn = fn
+	m.mu.Unlock()
+}
+
+// SetPlaybackEndedFunc sets a callback invoked when auto-advance exhausts the
+// queue (PlayFromIndex returns ErrPlaybackFailed after an end-file/eof event).
+// Use this to dispatch a PlaybackEndedMsg into the Bubble Tea program so the
+// TUI space-bar toggle stays synchronized with mpv's actual idle state.
+func (m *Manager) SetPlaybackEndedFunc(fn func()) {
+	m.mu.Lock()
+	m.playbackEndedFn = fn
+	m.mu.Unlock()
+}
+
+// PlayFromIndex starts playback from the queue entry at index. The queue must
+// have been populated via SetQueue. Missing entries are skipped automatically:
+// PlayFromIndex iterates forward from index until it finds a playable entry,
+// calling missingFileFn for each skipped entry. Returns ErrPlaybackFailed if
+// index is out of range or no playable entry exists from index onward.
+func (m *Manager) PlayFromIndex(index int) error {
+	m.mu.RLock()
+	queue := m.queue
+	marker := m.marker
+	m.mu.RUnlock()
+
+	if index < 0 || index >= len(queue) {
+		return fmt.Errorf("%w: index %d out of range [0, %d)", ErrPlaybackFailed, index, len(queue))
+	}
+
+	mk := marker
+	if mk == nil {
+		mk = noopMarker{}
+	}
+
+	for i := index; i < len(queue); i++ {
+		err := m.PlayQueueEntry(queue[i], mk)
+		if err == nil {
+			m.mu.Lock()
+			m.currentIndex = i
+			m.mu.Unlock()
+			return nil
+		}
+		if !errors.Is(err, ErrMissingFile) {
+			return err
+		}
+		// ErrMissingFile: missingFileFn already called by PlayQueueEntry; try next.
+	}
+	return fmt.Errorf("%w: no playable entry starting at index %d", ErrPlaybackFailed, index)
+}
+
+// SyncPosition queries mpv for the current file path and playback position,
+// then persists them via SetCurrentPosition for crash-resume. Safe to call
+// when mpv is idle — errors are silently ignored.
+func (m *Manager) SyncPosition() error {
+	c, err := m.ipc()
+	if err != nil {
+		return err
+	}
+
+	pathResp, err := c.SendCommand("get_property", "path")
+	if err != nil {
+		return err
+	}
+	path, _ := pathResp.Data.(string)
+
+	posResp, err := c.SendCommand("get_property", "time-pos")
+	if err != nil {
+		return err
+	}
+	elapsed, _ := posResp.Data.(float64)
+
+	if path != "" {
+		m.SetCurrentPosition(path, elapsed)
+	}
+	return nil
 }
 
 // DisconnectCh returns a channel that receives the first error surfaced by the
@@ -269,10 +400,78 @@ func (m *Manager) pollUntilReady(ctx context.Context) {
 				_ = cmd()
 			}
 			go m.healthCheck(ctx, client)
+			go m.startEventReader(ctx)
 			return
 		}
 
 		time.Sleep(pollInterval)
+	}
+}
+
+// SetSocketPath overrides the socket path used by Start and the event reader.
+// Call this before Start if the socket path must match an externally resolved
+// value (e.g. from app.Run).
+func (m *Manager) SetSocketPath(path string) {
+	m.mu.Lock()
+	m.socketPath = path
+	m.mu.Unlock()
+}
+
+// startEventReader opens a dedicated read-only connection to the mpv socket
+// and dispatches async events. It runs as a goroutine until ctx is cancelled
+// or the connection drops. On an end-file event with reason "eof" it calls
+// PlayFromIndex(currentIndex+1) to drive auto-advance.
+func (m *Manager) startEventReader(ctx context.Context) {
+	conn, err := net.Dial("unix", m.socketPath)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	// Close the connection when the context is cancelled so the scanner
+	// unblocks and the goroutine exits cleanly.
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-ctx.Done():
+			conn.Close()
+		case <-done:
+		}
+	}()
+
+	scanner := bufio.NewScanner(conn)
+	for scanner.Scan() {
+		var raw map[string]any
+		if json.Unmarshal(scanner.Bytes(), &raw) != nil {
+			continue
+		}
+		event, _ := raw["event"].(string)
+		switch event {
+		case "start-file":
+			// Immediately sync the position so that a crash right after track
+			// start resumes at the correct file (elapsed≈0) rather than the
+			// previous track's last persisted position.
+			_ = m.SyncPosition()
+		case "end-file":
+			reason, _ := raw["reason"].(string)
+			if reason != "eof" {
+				// "stop", "replace", "quit", "error" — do not auto-advance.
+				continue
+			}
+			m.mu.RLock()
+			idx := m.currentIndex
+			m.mu.RUnlock()
+			if err := m.PlayFromIndex(idx + 1); err != nil {
+				// Queue exhausted: notify the TUI so it can reset the toggle.
+				m.mu.RLock()
+				fn := m.playbackEndedFn
+				m.mu.RUnlock()
+				if fn != nil {
+					fn()
+				}
+			}
+		}
 	}
 }
 
@@ -388,7 +587,7 @@ func (m *Manager) Pause() error {
 	return err
 }
 
-// Stop stops playback.
+// Stop pauses playback and seeks to the beginning of the current track.
 func (m *Manager) Stop() error {
 	c, err := m.ipc()
 	if errors.Is(err, ErrNotConnected) {
@@ -397,7 +596,10 @@ func (m *Manager) Stop() error {
 	if err != nil {
 		return err
 	}
-	_, err = c.SendCommand("stop")
+	if _, err = c.SendCommand("set_property", "pause", true); err != nil {
+		return err
+	}
+	_, err = c.SendCommand("seek", 0, "absolute")
 	return err
 }
 
@@ -427,30 +629,31 @@ func (m *Manager) SetVolumeRelative(delta float64) error {
 	return err
 }
 
-// Next advances to the next track in the playlist.
+// Next advances to the next track in the queue using the Go-side index so
+// that the Manager (not mpv's internal playlist) owns sequencing.
+// Returns ErrNotConnected if Start has not been called.
 func (m *Manager) Next() error {
-	c, err := m.ipc()
-	if errors.Is(err, ErrNotConnected) {
-		return m.enqueue(m.Next)
+	m.mu.RLock()
+	idx := m.currentIndex
+	notStarted := m.client == nil && m.cmdQueue == nil
+	m.mu.RUnlock()
+	if notStarted {
+		return ErrNotConnected
 	}
-	if err != nil {
-		return err
-	}
-	_, err = c.SendCommand("playlist-next")
-	return err
+	return m.PlayFromIndex(idx + 1)
 }
 
-// Previous returns to the previous track in the playlist.
+// Previous returns to the previous track in the queue using the Go-side index.
+// Returns ErrNotConnected if Start has not been called.
 func (m *Manager) Previous() error {
-	c, err := m.ipc()
-	if errors.Is(err, ErrNotConnected) {
-		return m.enqueue(m.Previous)
+	m.mu.RLock()
+	idx := m.currentIndex
+	notStarted := m.client == nil && m.cmdQueue == nil
+	m.mu.RUnlock()
+	if notStarted {
+		return ErrNotConnected
 	}
-	if err != nil {
-		return err
-	}
-	_, err = c.SendCommand("playlist-prev")
-	return err
+	return m.PlayFromIndex(idx - 1)
 }
 
 // PlayQueueEntry stats the file at entry.Path before loading it into mpv.
@@ -466,9 +669,13 @@ func (m *Manager) PlayQueueEntry(entry QueueTrack, marker MissingMarker) error {
 
 		m.mu.RLock()
 		fn := m.statusFn
+		mfn := m.missingFileFn
 		m.mu.RUnlock()
 		if fn != nil {
 			fn("Missing file: " + entry.Path)
+		}
+		if mfn != nil {
+			mfn(entry.Path)
 		}
 		return ErrMissingFile
 	}

@@ -33,6 +33,8 @@ type QueueEntry struct {
 	Path    string // file path used to identify the entry
 	Display string // human-readable label, e.g. "Artist – Title"
 	Missing bool   // true when the file was not found at playback time
+	Artist  string // track artist, used by the status bar persistent left zone
+	Title   string // track title, used by the status bar persistent left zone
 }
 
 // QueueView renders the playback queue panel.
@@ -41,12 +43,24 @@ type QueueView struct {
 	cursor  int // index of the currently selected entry
 }
 
-// Update handles queue-specific key messages. Pressing Enter dispatches a
-// PlayQueueIndexMsg for the currently selected entry so that root can start
-// playback from that position.
+// Update handles queue-specific key messages. Up/Down move the cursor;
+// Enter dispatches a PlayQueueIndexMsg for the selected entry.
 func (v QueueView) Update(msg tea.Msg) (QueueView, tea.Cmd) {
-	if key, ok := msg.(tea.KeyPressMsg); ok && key.String() == "enter" {
-		if len(v.entries) > 0 {
+	key, ok := msg.(tea.KeyPressMsg)
+	if !ok {
+		return v, nil
+	}
+	switch key.String() {
+	case "up":
+		if v.cursor > 0 {
+			v.cursor--
+		}
+	case "down":
+		if v.cursor < len(v.entries)-1 {
+			v.cursor++
+		}
+	case "enter":
+		if len(v.entries) > 0 && !v.entries[v.cursor].Missing {
 			idx := v.cursor
 			return v, func() tea.Msg { return PlayQueueIndexMsg{Index: idx} }
 		}
@@ -72,10 +86,14 @@ func (v QueueView) render() string {
 	}
 	lines := make([]string, len(v.entries))
 	for i, e := range v.entries {
+		cursor := "  "
+		if i == v.cursor {
+			cursor = "> "
+		}
 		if e.Missing {
-			lines[i] = fmt.Sprintf("%s%s [missing]%s", ansiDim, e.Display, ansiReset)
+			lines[i] = fmt.Sprintf("%s%s%s [missing]%s", cursor, ansiDim, e.Display, ansiReset)
 		} else {
-			lines[i] = e.Display
+			lines[i] = cursor + e.Display
 		}
 	}
 	return "Queue\n\n" + strings.Join(lines, "\n")

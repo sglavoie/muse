@@ -459,3 +459,180 @@ func TestSpaceTogglesPlayPauseFromAnyView(t *testing.T) {
 		})
 	}
 }
+
+// stubCommandPlayer extends stubPlayer with the commandPlayer interface so that
+// tests can exercise the s/n/p/seek/volume key handlers.
+type stubCommandPlayer struct {
+	stubPlayer
+	stopCalls int
+}
+
+func (s *stubCommandPlayer) Stop() error {
+	s.stopCalls++
+	return nil
+}
+
+func (s *stubCommandPlayer) SeekRelative(float64) error      { return nil }
+func (s *stubCommandPlayer) SetVolumeRelative(float64) error { return nil }
+func (s *stubCommandPlayer) Next() error                     { return nil }
+func (s *stubCommandPlayer) Previous() error                 { return nil }
+
+// TestModelPlaybackStateTransitions verifies that the playbackState field on
+// root Model transitions correctly through playing, paused, and idle states.
+func TestModelPlaybackStateTransitions(t *testing.T) {
+	p := &stubPlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+	m.queue.entries = []QueueEntry{
+		{Path: "/a.flac", Display: "Artist – Song", Artist: "Artist", Title: "Song"},
+	}
+
+	if m.playbackState != PlaybackIdle {
+		t.Fatalf("initial: expected PlaybackIdle, got %v", m.playbackState)
+	}
+
+	// PlayQueueIndexMsg → playing.
+	next, _ := m.Update(PlayQueueIndexMsg{Index: 0})
+	nm := next.(Model)
+	if nm.playbackState != PlaybackPlaying {
+		t.Fatalf("after PlayQueueIndexMsg: expected PlaybackPlaying, got %v", nm.playbackState)
+	}
+
+	// Space while playing → paused.
+	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	nm = next.(Model)
+	if nm.playbackState != PlaybackPaused {
+		t.Fatalf("space (playing→paused): expected PlaybackPaused, got %v", nm.playbackState)
+	}
+
+	// Space while paused → playing.
+	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	nm = next.(Model)
+	if nm.playbackState != PlaybackPlaying {
+		t.Fatalf("space (paused→playing): expected PlaybackPlaying, got %v", nm.playbackState)
+	}
+
+	// PlaybackEndedMsg → idle.
+	next, _ = nm.Update(PlaybackEndedMsg{})
+	nm = next.(Model)
+	if nm.playbackState != PlaybackIdle {
+		t.Fatalf("after PlaybackEndedMsg: expected PlaybackIdle, got %v", nm.playbackState)
+	}
+}
+
+// TestModelStopKeyTransitionsToStopped verifies that the s key transitions
+// the playback state to stopped when the player implements commandPlayer.
+func TestModelStopKeyTransitionsToStopped(t *testing.T) {
+	p := &stubCommandPlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+	m.playbackState = PlaybackPlaying
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 's', Text: "s"})
+	nm := next.(Model)
+	if nm.playbackState != PlaybackStopped {
+		t.Fatalf("s key: expected PlaybackStopped, got %v", nm.playbackState)
+	}
+	if p.stopCalls != 1 {
+		t.Fatalf("s key: expected 1 Stop() call, got %d", p.stopCalls)
+	}
+}
+
+// TestModelRepeatAndShuffleDefaultFalse verifies that root Model holds repeat
+// and shuffle boolean fields that default to false.
+func TestModelRepeatAndShuffleDefaultFalse(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	if m.repeat {
+		t.Fatal("repeat must default to false")
+	}
+	if m.shuffle {
+		t.Fatal("shuffle must default to false")
+	}
+}
+
+// TestStatusBarReceivesTrackInfoBeforeRender verifies that after a
+// PlayQueueIndexMsg is processed, the rendered status bar shows the correct
+// artist, title, and playlist source in the persistent left zone.
+func TestStatusBarReceivesTrackInfoBeforeRender(t *testing.T) {
+	p := &stubPlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+	m.queue.entries = []QueueEntry{
+		{Path: "/a.flac", Display: "The Artist – The Song", Artist: "The Artist", Title: "The Song"},
+	}
+
+	next, _ := m.Update(PlayQueueIndexMsg{Index: 0})
+	nm := next.(Model)
+	v := nm.View()
+
+	if !strings.Contains(v.Content, "The Artist") {
+		t.Fatalf("status bar must show artist; got:\n%s", v.Content)
+	}
+	if !strings.Contains(v.Content, "The Song") {
+		t.Fatalf("status bar must show title; got:\n%s", v.Content)
+	}
+	if !strings.Contains(v.Content, "Queue") {
+		t.Fatalf("status bar must show playlist source 'Queue'; got:\n%s", v.Content)
+	}
+}
+
+// TestStatusBarShowsPlaybackStateIndicator verifies that render() outputs the
+// correct unicode indicator for each playback state.
+func TestStatusBarShowsPlaybackStateIndicator(t *testing.T) {
+	tests := []struct {
+		state PlaybackState
+		want  string
+	}{
+		{PlaybackPlaying, "▶"},
+		{PlaybackPaused, "⏸"},
+		{PlaybackStopped, "■"},
+	}
+
+	for _, tc := range tests {
+		sb := StatusBar{
+			artist:        "A",
+			title:         "T",
+			playbackState: tc.state,
+		}
+		out := sb.render()
+		if !strings.Contains(out, tc.want) {
+			t.Fatalf("state %v: expected %q in status bar; got: %s", tc.state, tc.want, out)
+		}
+	}
+}
+
+// TestTrackChangedMsgUpdatesStatusBar verifies that TrackChangedMsg updates
+// the status bar's artist, title, and playlist source.
+func TestTrackChangedMsgUpdatesStatusBar(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+
+	next, _ := m.Update(TrackChangedMsg{
+		Artist:         "New Artist",
+		Title:          "New Title",
+		PlaylistSource: "My Playlist",
+	})
+	nm := next.(Model)
+	v := nm.View()
+
+	if !strings.Contains(v.Content, "New Artist") {
+		t.Fatalf("status bar must show artist from TrackChangedMsg; got:\n%s", v.Content)
+	}
+	if !strings.Contains(v.Content, "New Title") {
+		t.Fatalf("status bar must show title from TrackChangedMsg; got:\n%s", v.Content)
+	}
+	if !strings.Contains(v.Content, "My Playlist") {
+		t.Fatalf("status bar must show playlist source from TrackChangedMsg; got:\n%s", v.Content)
+	}
+	if nm.playbackState != PlaybackPlaying {
+		t.Fatalf("TrackChangedMsg must set PlaybackPlaying, got %v", nm.playbackState)
+	}
+}
+
+// TestTrackChangedMsgDefaultsPlaylistSourceToQueue verifies that a
+// TrackChangedMsg with an empty PlaylistSource defaults to "Queue".
+func TestTrackChangedMsgDefaultsPlaylistSourceToQueue(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	next, _ := m.Update(TrackChangedMsg{Artist: "A", Title: "T"})
+	nm := next.(Model)
+	v := nm.View()
+	if !strings.Contains(v.Content, "Queue") {
+		t.Fatalf("status bar must default playlist source to 'Queue'; got:\n%s", v.Content)
+	}
+}

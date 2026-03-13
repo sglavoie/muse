@@ -49,4 +49,7 @@ type Player interface {
 
 	// Previous returns to the previous track in the playlist.
 	Previous() error
+
+	// PlayFromIndex starts playback from the queue entry at the given index.
+	PlayFromIndex(index int) error
 }
