@@ -17,9 +17,14 @@ type StatusBar struct {
 }
 
 // handleScanProgress sets the transient right zone to a formatted progress string.
+// When msg.Total is known (> 0) the format is "Scanning… X / Y tracks";
+// before the count arrives it falls back to "Scanning… X tracks".
 func (s *StatusBar) handleScanProgress(msg library.ScanProgressMsg) {
-	s.transientRight = fmt.Sprintf("Scanning… %s / %s tracks",
-		formatCount(msg.Scanned), formatCount(msg.Total))
+	if msg.Total > 0 {
+		s.transientRight = fmt.Sprintf("Scanning… %s / %s tracks", formatCount(msg.Scanned), formatCount(msg.Total))
+	} else {
+		s.transientRight = fmt.Sprintf("Scanning… %s tracks", formatCount(msg.Scanned))
+	}
 }
 
 // handleScanDone clears the transient right zone.

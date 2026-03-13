@@ -14,17 +14,19 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-// collectTracks drains ch into a slice, returning once ch is closed or ctx is
-// cancelled.
-func collectTracks(ctx context.Context, ch <-chan Track) []Track {
+// collectTracks drains ch and returns all non-deletion Track values, stopping
+// once ch is closed or ctx is cancelled.
+func collectTracks(ctx context.Context, ch <-chan WatchEvent) []Track {
 	var tracks []Track
 	for {
 		select {
-		case t, ok := <-ch:
+		case e, ok := <-ch:
 			if !ok {
 				return tracks
 			}
-			tracks = append(tracks, t)
+			if !e.Deleted {
+				tracks = append(tracks, e.Track)
+			}
 		case <-ctx.Done():
 			return tracks
 		}
@@ -106,16 +108,16 @@ func TestDebounce_RescansAfterWindow(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	// Expect a track to arrive within debounce + generous margin.
+	// Expect a watch event to arrive within debounce + generous margin.
 	deadline := time.After(debounce + 500*time.Millisecond)
 	for {
 		select {
 		case _, ok := <-ch:
 			if ok {
-				return // received a track — test passes
+				return // received an event — test passes
 			}
 		case <-deadline:
-			t.Fatal("no track received within debounce window + margin")
+			t.Fatal("no event received within debounce window + margin")
 		}
 	}
 }
@@ -148,8 +150,8 @@ func TestDebounce_NoRescanBeforeWindowElapses(t *testing.T) {
 
 	earlyDeadline := time.After(debounce / 2)
 	select {
-	case _, ok := <-ch:
-		if ok {
+	case e, ok := <-ch:
+		if ok && !e.Deleted {
 			t.Error("rescan fired before debounce window elapsed")
 		}
 	case <-earlyDeadline:
@@ -251,7 +253,8 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 
 	t.Run("Create audio file adds to pending", func(t *testing.T) {
 		pending := make(map[string]bool)
-		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Create}, pending, w)
+		deleted := make(map[string]struct{})
+		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Create}, pending, deleted, w)
 		isDir, ok := pending[audioPath]
 		if !ok {
 			t.Errorf("expected %q in pending after Create event", audioPath)
@@ -263,25 +266,34 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 
 	t.Run("Write audio file adds to pending", func(t *testing.T) {
 		pending := make(map[string]bool)
-		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Write}, pending, w)
+		deleted := make(map[string]struct{})
+		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Write}, pending, deleted, w)
 		if _, ok := pending[audioPath]; !ok {
 			t.Errorf("expected %q in pending after Write event", audioPath)
 		}
 	})
 
-	t.Run("Rename removes from pending", func(t *testing.T) {
+	t.Run("Rename removes from pending and adds to deleted", func(t *testing.T) {
 		pending := map[string]bool{audioPath: false}
-		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Rename}, pending, w)
+		deleted := make(map[string]struct{})
+		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Rename}, pending, deleted, w)
 		if _, ok := pending[audioPath]; ok {
 			t.Errorf("expected %q removed from pending after Rename event", audioPath)
 		}
+		if _, ok := deleted[audioPath]; !ok {
+			t.Errorf("expected %q in deleted after Rename event", audioPath)
+		}
 	})
 
-	t.Run("Remove removes from pending", func(t *testing.T) {
+	t.Run("Remove removes from pending and adds to deleted", func(t *testing.T) {
 		pending := map[string]bool{audioPath: false}
-		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Remove}, pending, w)
+		deleted := make(map[string]struct{})
+		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Remove}, pending, deleted, w)
 		if _, ok := pending[audioPath]; ok {
 			t.Errorf("expected %q removed from pending after Remove event", audioPath)
+		}
+		if _, ok := deleted[audioPath]; !ok {
+			t.Errorf("expected %q in deleted after Remove event", audioPath)
 		}
 	})
 
@@ -289,7 +301,8 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 		txtPath := filepath.Join(root, "readme.txt")
 		mkfile(t, txtPath)
 		pending := make(map[string]bool)
-		handleFsEvent(fsnotify.Event{Name: txtPath, Op: fsnotify.Create}, pending, w)
+		deleted := make(map[string]struct{})
+		handleFsEvent(fsnotify.Event{Name: txtPath, Op: fsnotify.Create}, pending, deleted, w)
 		if _, ok := pending[txtPath]; ok {
 			t.Errorf("non-audio file should not be added to pending")
 		}
@@ -301,7 +314,8 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 			t.Fatalf("mkdir: %v", err)
 		}
 		pending := make(map[string]bool)
-		handleFsEvent(fsnotify.Event{Name: dirPath, Op: fsnotify.Create}, pending, w)
+		deleted := make(map[string]struct{})
+		handleFsEvent(fsnotify.Event{Name: dirPath, Op: fsnotify.Create}, pending, deleted, w)
 		isDir, ok := pending[dirPath]
 		if !ok {
 			t.Errorf("expected %q in pending after directory Create", dirPath)

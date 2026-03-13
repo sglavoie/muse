@@ -14,6 +14,7 @@ import (
 	"github.com/sglavoie/muse/internal/app"
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui"
 )
 
@@ -73,7 +74,6 @@ func main() {
 			return nil
 		},
 		RunScan: func(ctx context.Context, database *db.DB) error {
-			slog.Info("startup: library scan (stub)")
 			return nil
 		},
 	}
@@ -98,7 +98,11 @@ func main() {
 		CloseLog:   config.CloseLog,
 	}
 
-	model := tui.New(config.LogPath(), configPath, configCreated, nil, "", nil)
+	extractor := library.ExifToolExtractor{}
+	scanCh := library.Scan(cfg.MusicDirectory, extractor)
+	watchCh, _ := library.Watch(ctx, cfg.MusicDirectory, extractor, library.DefaultDebounce)
+
+	model := tui.New(config.LogPath(), configPath, configCreated, scanCh, watchCh, cfg.MusicDirectory, extractor)
 	p := tea.NewProgram(model)
 
 	// When the signal context is cancelled (SIGTERM/SIGINT from outside),

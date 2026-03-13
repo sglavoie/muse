@@ -41,3 +41,22 @@ func (idx *LibraryIndex) Insert(t Track) {
 	copy(idx.tracks[pos+1:], idx.tracks[pos:])
 	idx.tracks[pos] = t
 }
+
+// RemoveByPath removes the first track whose Path equals path.
+// Returns true if a track was found and removed, false otherwise.
+func (idx *LibraryIndex) RemoveByPath(path string) bool {
+	for i, t := range idx.tracks {
+		if t.Path == path {
+			idx.tracks = append(idx.tracks[:i], idx.tracks[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+// UpsertByPath removes any existing track with the given path then inserts t,
+// ensuring modified files replace their stale entries without creating duplicates.
+func (idx *LibraryIndex) UpsertByPath(path string, t Track) {
+	idx.RemoveByPath(path)
+	idx.Insert(t)
+}

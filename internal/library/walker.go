@@ -74,6 +74,45 @@ func Walk(root string) <-chan string {
 	return ch
 }
 
+// CountAudioFiles walks root using stat-only directory traversal and returns
+// the number of audio files matching audioExtensions. It applies the same
+// hidden-file, hidden-directory, and file-only-symlink rules as Walk so the
+// count matches what the scanner pipeline will process. Intended to be called
+// in a background goroutine to provide an early estimated total.
+func CountAudioFiles(root string) int {
+	count := 0
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		name := d.Name()
+		if strings.HasPrefix(name, ".") {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if d.Type()&fs.ModeSymlink != 0 {
+			info, err := os.Stat(path)
+			if err != nil {
+				return nil
+			}
+			if info.IsDir() {
+				return nil
+			}
+			if isAudioFile(info.Name()) {
+				count++
+			}
+			return nil
+		}
+		if !d.IsDir() && isAudioFile(name) {
+			count++
+		}
+		return nil
+	})
+	return count
+}
+
 func isAudioFile(name string) bool {
 	ext := strings.ToLower(filepath.Ext(name))
 	_, ok := audioExtensions[ext]
