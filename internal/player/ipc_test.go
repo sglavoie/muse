@@ -1,78 +1,9 @@
 package player
 
 import (
-	"encoding/json"
-	"fmt"
-	"net"
-	"os"
+	"errors"
 	"testing"
 )
-
-// shortSockPath returns a short socket path under /tmp to stay within the
-// 104-character macOS limit for Unix domain socket paths.
-func shortSockPath(t *testing.T, name string) string {
-	t.Helper()
-	return fmt.Sprintf("/tmp/muse-test-%d-%s.sock", os.Getpid(), name)
-}
-
-// fakeServer starts a minimal mpv-like JSON-IPC server on a Unix domain
-// socket. For every newline-delimited JSON request it receives it writes back
-// a success response carrying the same request_id.
-func fakeServer(t *testing.T, socketPath string) {
-	t.Helper()
-
-	os.Remove(socketPath) // clean up any stale socket
-	ln, err := net.Listen("unix", socketPath)
-	if err != nil {
-		t.Fatalf("fakeServer: listen: %v", err)
-	}
-	t.Cleanup(func() {
-		ln.Close()
-		os.Remove(socketPath)
-	})
-
-	go func() {
-		for {
-			conn, err := ln.Accept()
-			if err != nil {
-				return // listener closed
-			}
-			go handleConn(conn)
-		}
-	}()
-}
-
-func handleConn(conn net.Conn) {
-	defer conn.Close()
-	dec := json.NewDecoder(conn)
-	enc := json.NewEncoder(conn)
-
-	for {
-		var req map[string]any
-		if err := dec.Decode(&req); err != nil {
-			return
-		}
-		rid := req["request_id"]
-		_ = enc.Encode(map[string]any{
-			"error":      "success",
-			"data":       nil,
-			"request_id": rid,
-		})
-	}
-}
-
-func newTestClient(t *testing.T) *IPCClient {
-	t.Helper()
-	sock := shortSockPath(t, "mpv")
-	fakeServer(t, sock)
-
-	client, err := NewIPCClient(sock)
-	if err != nil {
-		t.Fatalf("NewIPCClient: %v", err)
-	}
-	t.Cleanup(func() { client.Close() })
-	return client
-}
 
 func TestSendCommand_LoadFile(t *testing.T) {
 	c := newTestClient(t)
@@ -148,37 +79,7 @@ func TestSendCommand_RequestIDRoundTrip(t *testing.T) {
 
 func TestSendCommand_MPVErrorReturnsErrPlaybackFailed(t *testing.T) {
 	sock := shortSockPath(t, "mpv-err")
-
-	os.Remove(sock) // clean up any stale socket
-	// Server that always returns an error response.
-	ln, err := net.Listen("unix", sock)
-	if err != nil {
-		t.Fatalf("listen: %v", err)
-	}
-	t.Cleanup(func() {
-		ln.Close()
-		os.Remove(sock)
-	})
-	go func() {
-		conn, err := ln.Accept()
-		if err != nil {
-			return
-		}
-		defer conn.Close()
-		dec := json.NewDecoder(conn)
-		enc := json.NewEncoder(conn)
-		for {
-			var req map[string]any
-			if err := dec.Decode(&req); err != nil {
-				return
-			}
-			_ = enc.Encode(map[string]any{
-				"error":      "invalid parameter",
-				"data":       nil,
-				"request_id": req["request_id"],
-			})
-		}
-	}()
+	fakeServerWithHandler(t, sock, errorHandler("invalid parameter"))
 
 	client, err := NewIPCClient(sock)
 	if err != nil {
@@ -190,23 +91,7 @@ func TestSendCommand_MPVErrorReturnsErrPlaybackFailed(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !isErrPlaybackFailed(err) {
+	if !errors.Is(err, ErrPlaybackFailed) {
 		t.Fatalf("expected ErrPlaybackFailed, got %v", err)
 	}
-}
-
-func isErrPlaybackFailed(err error) bool {
-	// Walk the error chain.
-	for err != nil {
-		if err == ErrPlaybackFailed {
-			return true
-		}
-		type unwrapper interface{ Unwrap() error }
-		u, ok := err.(unwrapper)
-		if !ok {
-			break
-		}
-		err = u.Unwrap()
-	}
-	return false
 }
