@@ -75,9 +75,12 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title: "Modals",
+			// Note: "esc" here also dismisses the help overlay itself, which is
+			// handled at the root level (outside the keybinding registry). The
+			// Modals section covers any future modal dialogs as well.
+			title: "Modals / Help overlay",
 			entries: []helpEntry{
-				{"esc", "Dismiss"},
+				{"esc", "Dismiss modal or close this help overlay"},
 			},
 		},
 	}

@@ -35,7 +35,11 @@ const (
 	actionSwitchPlaylists
 	actionSwitchQueue
 	actionRescan
-	actionRepeatCycle   // 'r': cycle repeat mode off→on (toggle)
+	// actionRepeatCycle toggles repeat between off and on (two-state boolean).
+	// If a three-state cycle (off/all/one) is needed in a future phase, rename
+	// this to actionRepeatCycle and replace the bool field with an enum.
+	// TODO(future): implement off→all→one cycle when repeat-one is supported.
+	actionRepeatCycle // 'r': toggle repeat mode on/off
 	actionShuffleToggle // 'z': toggle shuffle mode
 	actionUndo          // 'u': dispatch undo
 	actionFilterBar     // '/': activate filter bar in active view

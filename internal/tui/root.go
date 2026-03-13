@@ -33,6 +33,15 @@ type positionSyncer interface {
 	SyncPosition() error
 }
 
+// repeatShuffler is an optional extension checked via type assertion. Root
+// calls SetRepeat and SetShuffle after toggling the model booleans so that mpv
+// is instructed to change its repeat/shuffle mode and the player state stays in
+// sync with what the status bar displays.
+type repeatShuffler interface {
+	SetRepeat(bool) error
+	SetShuffle(bool) error
+}
+
 // elapsedReader is implemented by player.Manager to provide the current
 // elapsed playback position and total track duration. Root queries it on
 // each 1-second tick to keep the status bar time display current.
@@ -369,7 +378,11 @@ func (m Model) activeViewContext() bindingContext {
 	case viewQueue:
 		return contextQueue
 	default:
-		return contextGlobal
+		// A new viewID was added without a corresponding case here. Add the
+		// case above to ensure view-local keybinding precedence works correctly
+		// for the new view. Falling back to contextGlobal would silently bypass
+		// view-local shadowing (e.g. playlist 'r' rename vs. global repeat).
+		panic("activeViewContext: unhandled viewID — add a case for the new view")
 	}
 }
 
@@ -484,6 +497,35 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+	case DequeueTrackMsg:
+		if msg.Index >= 0 && msg.Index < len(m.queue.entries) {
+			m.queue.entries = append(m.queue.entries[:msg.Index], m.queue.entries[msg.Index+1:]...)
+			if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
+				m.queue.cursor = len(m.queue.entries) - 1
+			}
+		}
+
+	case BulkSelectionToggleMsg:
+		if msg.Index >= 0 && msg.Index < len(m.queue.entries) {
+			m.queue.entries[msg.Index].Selected = !m.queue.entries[msg.Index].Selected
+		}
+
+	case ClearQueueMsg:
+		m.queue.entries = nil
+		m.queue.cursor = 0
+
+	case MoveTrackUpMsg:
+		if msg.Index > 0 && msg.Index < len(m.queue.entries) {
+			m.queue.entries[msg.Index-1], m.queue.entries[msg.Index] = m.queue.entries[msg.Index], m.queue.entries[msg.Index-1]
+			m.queue.cursor = msg.Index - 1
+		}
+
+	case MoveTrackDownMsg:
+		if msg.Index >= 0 && msg.Index < len(m.queue.entries)-1 {
+			m.queue.entries[msg.Index], m.queue.entries[msg.Index+1] = m.queue.entries[msg.Index+1], m.queue.entries[msg.Index]
+			m.queue.cursor = msg.Index + 1
+		}
+
 	case tea.KeyPressMsg:
 		if m.helpVisible {
 			if msg.String() == "esc" {
@@ -492,7 +534,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		switch m.registry.resolve(m.activeViewContext(), msg.String()) {
+		a := m.registry.resolve(m.activeViewContext(), msg.String())
+		switch a {
 		case actionHelp:
 			m.prevActiveView = m.activeView
 			m.helpVisible = true
@@ -512,6 +555,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if cp, ok := m.player.(commandPlayer); ok {
 				_ = cp.Stop()
 				m.playbackState = PlaybackStopped
+				m.elapsedSecs = 0
+				m.totalSecs = 0
 			}
 		case actionNext:
 			if cp, ok := m.player.(commandPlayer); ok {
@@ -563,8 +608,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case actionRepeatCycle:
 			m.repeat = !m.repeat
+			if rs, ok := m.player.(repeatShuffler); ok {
+				_ = rs.SetRepeat(m.repeat)
+			}
 		case actionShuffleToggle:
 			m.shuffle = !m.shuffle
+			if rs, ok := m.player.(repeatShuffler); ok {
+				_ = rs.SetShuffle(m.shuffle)
+			}
 		case actionUndo:
 			return m, func() tea.Msg { return UndoMsg{} }
 		case actionFilterBar:
@@ -572,8 +623,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case actionCursorUp, actionCursorDown, actionSelect,
 			actionDequeue, actionBulkSelectionToggle, actionClearQueue,
 			actionMoveTrackUp, actionMoveTrackDown:
+			// Pass the resolved action (not the raw key) to QueueView so that
+			// key-to-action mapping lives in a single authoritative location
+			// (the registry). QueueView.HandleAction never inspects key strings.
 			var cmd tea.Cmd
-			m.queue, cmd = m.queue.Update(msg)
+			m.queue, cmd = m.queue.HandleAction(a)
 			return m, cmd
 		case actionPlaylistRename:
 			return m, func() tea.Msg { return PlaylistRenameMsg{} }
@@ -606,13 +660,14 @@ func (m Model) View() tea.View {
 }
 
 // renderStatusBar builds the status bar line shown at the bottom of the view.
-// It syncs the model-owned playbackState, repeat, and shuffle into a local
-// StatusBar copy so that the render logic has a complete picture.
+// It syncs the model-owned playbackState, repeat, shuffle, and configCreated
+// into a local StatusBar copy so that the render logic has a complete picture.
 func (m Model) renderStatusBar() string {
 	sb := m.statusBar
 	sb.playbackState = m.playbackState
 	sb.repeat = m.repeat
 	sb.shuffle = m.shuffle
+	sb.configCreated = m.configCreated
 	if m.elapsedSecs > 0 || m.totalSecs > 0 {
 		sb.elapsed = formatTime(m.elapsedSecs)
 		sb.total = formatTime(m.totalSecs)

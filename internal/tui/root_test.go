@@ -350,10 +350,11 @@ func (s *stubPlayer) PlayFromIndex(idx int) error {
 	return nil
 }
 
-// TestQueueViewUpdateEnterSendsPlayQueueIndexMsg verifies that pressing Enter
-// in the queue view returns a Cmd that emits PlayQueueIndexMsg with the cursor
-// index.
-func TestQueueViewUpdateEnterSendsPlayQueueIndexMsg(t *testing.T) {
+// TestQueueViewHandleActionEnterSendsPlayQueueIndexMsg verifies that
+// actionSelect returns a Cmd that emits PlayQueueIndexMsg with the cursor
+// index. Root routes Enter → actionSelect via the registry and calls
+// HandleAction, so this is the code path exercised in production.
+func TestQueueViewHandleActionEnterSendsPlayQueueIndexMsg(t *testing.T) {
 	q := QueueView{
 		entries: []QueueEntry{
 			{Path: "/music/a.flac", Display: "Artist – A"},
@@ -361,9 +362,9 @@ func TestQueueViewUpdateEnterSendsPlayQueueIndexMsg(t *testing.T) {
 		},
 		cursor: 1,
 	}
-	_, cmd := q.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	_, cmd := q.HandleAction(actionSelect)
 	if cmd == nil {
-		t.Fatal("Enter key must return a non-nil cmd")
+		t.Fatal("actionSelect must return a non-nil cmd")
 	}
 	msg := cmd()
 	pqi, ok := msg.(PlayQueueIndexMsg)
@@ -375,18 +376,18 @@ func TestQueueViewUpdateEnterSendsPlayQueueIndexMsg(t *testing.T) {
 	}
 }
 
-// TestQueueViewUpdateEnterOnEmptyQueueIsNoOp verifies that pressing Enter on
-// an empty queue does not emit a PlayQueueIndexMsg.
-func TestQueueViewUpdateEnterOnEmptyQueueIsNoOp(t *testing.T) {
+// TestQueueViewHandleActionEnterOnEmptyQueueIsNoOp verifies that actionSelect
+// on an empty queue does not emit a PlayQueueIndexMsg.
+func TestQueueViewHandleActionEnterOnEmptyQueueIsNoOp(t *testing.T) {
 	q := QueueView{}
-	_, cmd := q.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	_, cmd := q.HandleAction(actionSelect)
 	if cmd != nil {
-		t.Fatal("Enter on empty queue must return nil cmd")
+		t.Fatal("actionSelect on empty queue must return nil cmd")
 	}
 }
 
-// TestQueueViewUpdateDSendsDequeueTrackMsg verifies that pressing 'd' in the
-// queue view dispatches DequeueTrackMsg with the current cursor index.
+// TestQueueViewUpdateDSendsDequeueTrackMsg verifies that actionDequeue
+// dispatches DequeueTrackMsg with the current cursor index.
 func TestQueueViewUpdateDSendsDequeueTrackMsg(t *testing.T) {
 	q := QueueView{
 		entries: []QueueEntry{
@@ -395,9 +396,9 @@ func TestQueueViewUpdateDSendsDequeueTrackMsg(t *testing.T) {
 		},
 		cursor: 1,
 	}
-	_, cmd := q.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	_, cmd := q.HandleAction(actionDequeue)
 	if cmd == nil {
-		t.Fatal("'d' must return a non-nil cmd")
+		t.Fatal("actionDequeue must return a non-nil cmd")
 	}
 	msg, ok := cmd().(DequeueTrackMsg)
 	if !ok {
@@ -408,18 +409,19 @@ func TestQueueViewUpdateDSendsDequeueTrackMsg(t *testing.T) {
 	}
 }
 
-// TestQueueViewUpdateDOnEmptyQueueIsNoOp verifies that pressing 'd' on an
+// TestQueueViewUpdateDOnEmptyQueueIsNoOp verifies that actionDequeue on an
 // empty queue does not emit a DequeueTrackMsg.
 func TestQueueViewUpdateDOnEmptyQueueIsNoOp(t *testing.T) {
 	q := QueueView{}
-	_, cmd := q.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	_, cmd := q.HandleAction(actionDequeue)
 	if cmd != nil {
-		t.Fatal("'d' on empty queue must return nil cmd")
+		t.Fatal("actionDequeue on empty queue must return nil cmd")
 	}
 }
 
-// TestQueueViewUpdateXSendsBulkSelectionToggleMsg verifies that pressing 'x'
-// dispatches BulkSelectionToggleMsg with the current cursor index.
+// TestQueueViewUpdateXSendsBulkSelectionToggleMsg verifies that
+// actionBulkSelectionToggle dispatches BulkSelectionToggleMsg with the current
+// cursor index.
 func TestQueueViewUpdateXSendsBulkSelectionToggleMsg(t *testing.T) {
 	q := QueueView{
 		entries: []QueueEntry{
@@ -428,9 +430,9 @@ func TestQueueViewUpdateXSendsBulkSelectionToggleMsg(t *testing.T) {
 		},
 		cursor: 0,
 	}
-	_, cmd := q.Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
+	_, cmd := q.HandleAction(actionBulkSelectionToggle)
 	if cmd == nil {
-		t.Fatal("'x' must return a non-nil cmd")
+		t.Fatal("actionBulkSelectionToggle must return a non-nil cmd")
 	}
 	msg, ok := cmd().(BulkSelectionToggleMsg)
 	if !ok {
@@ -441,7 +443,7 @@ func TestQueueViewUpdateXSendsBulkSelectionToggleMsg(t *testing.T) {
 	}
 }
 
-// TestQueueViewUpdateCSendsClearQueueMsg verifies that pressing 'C' (Shift+c)
+// TestQueueViewUpdateCSendsClearQueueMsg verifies that actionClearQueue
 // dispatches ClearQueueMsg.
 func TestQueueViewUpdateCSendsClearQueueMsg(t *testing.T) {
 	q := QueueView{
@@ -449,16 +451,16 @@ func TestQueueViewUpdateCSendsClearQueueMsg(t *testing.T) {
 			{Path: "/music/a.flac", Display: "A"},
 		},
 	}
-	_, cmd := q.Update(tea.KeyPressMsg{Code: 'C', Text: "C"})
+	_, cmd := q.HandleAction(actionClearQueue)
 	if cmd == nil {
-		t.Fatal("'C' must return a non-nil cmd")
+		t.Fatal("actionClearQueue must return a non-nil cmd")
 	}
 	if _, ok := cmd().(ClearQueueMsg); !ok {
 		t.Fatalf("expected ClearQueueMsg, got %T", cmd())
 	}
 }
 
-// TestQueueViewUpdateKSendsMoveTrackUpMsg verifies that pressing 'K' (Shift+k)
+// TestQueueViewUpdateKSendsMoveTrackUpMsg verifies that actionMoveTrackUp
 // dispatches MoveTrackUpMsg with the current cursor index.
 func TestQueueViewUpdateKSendsMoveTrackUpMsg(t *testing.T) {
 	q := QueueView{
@@ -468,9 +470,9 @@ func TestQueueViewUpdateKSendsMoveTrackUpMsg(t *testing.T) {
 		},
 		cursor: 1,
 	}
-	_, cmd := q.Update(tea.KeyPressMsg{Code: 'K', Text: "K"})
+	_, cmd := q.HandleAction(actionMoveTrackUp)
 	if cmd == nil {
-		t.Fatal("'K' must return a non-nil cmd")
+		t.Fatal("actionMoveTrackUp must return a non-nil cmd")
 	}
 	msg, ok := cmd().(MoveTrackUpMsg)
 	if !ok {
@@ -481,8 +483,8 @@ func TestQueueViewUpdateKSendsMoveTrackUpMsg(t *testing.T) {
 	}
 }
 
-// TestQueueViewUpdateKAtTopIsNoOp verifies that pressing 'K' when cursor is
-// at the first entry (boundary) does not emit a MoveTrackUpMsg.
+// TestQueueViewUpdateKAtTopIsNoOp verifies that actionMoveTrackUp at the
+// first entry (boundary) does not emit a MoveTrackUpMsg.
 func TestQueueViewUpdateKAtTopIsNoOp(t *testing.T) {
 	q := QueueView{
 		entries: []QueueEntry{
@@ -491,14 +493,14 @@ func TestQueueViewUpdateKAtTopIsNoOp(t *testing.T) {
 		},
 		cursor: 0,
 	}
-	_, cmd := q.Update(tea.KeyPressMsg{Code: 'K', Text: "K"})
+	_, cmd := q.HandleAction(actionMoveTrackUp)
 	if cmd != nil {
-		t.Fatal("'K' at top entry must return nil cmd")
+		t.Fatal("actionMoveTrackUp at top entry must return nil cmd")
 	}
 }
 
-// TestQueueViewUpdateJSendsMoveTrackDownMsg verifies that pressing 'J'
-// (Shift+j) dispatches MoveTrackDownMsg with the current cursor index.
+// TestQueueViewUpdateJSendsMoveTrackDownMsg verifies that actionMoveTrackDown
+// dispatches MoveTrackDownMsg with the current cursor index.
 func TestQueueViewUpdateJSendsMoveTrackDownMsg(t *testing.T) {
 	q := QueueView{
 		entries: []QueueEntry{
@@ -507,9 +509,9 @@ func TestQueueViewUpdateJSendsMoveTrackDownMsg(t *testing.T) {
 		},
 		cursor: 0,
 	}
-	_, cmd := q.Update(tea.KeyPressMsg{Code: 'J', Text: "J"})
+	_, cmd := q.HandleAction(actionMoveTrackDown)
 	if cmd == nil {
-		t.Fatal("'J' must return a non-nil cmd")
+		t.Fatal("actionMoveTrackDown must return a non-nil cmd")
 	}
 	msg, ok := cmd().(MoveTrackDownMsg)
 	if !ok {
@@ -520,8 +522,8 @@ func TestQueueViewUpdateJSendsMoveTrackDownMsg(t *testing.T) {
 	}
 }
 
-// TestQueueViewUpdateJAtBottomIsNoOp verifies that pressing 'J' when cursor
-// is at the last entry (boundary) does not emit a MoveTrackDownMsg.
+// TestQueueViewUpdateJAtBottomIsNoOp verifies that actionMoveTrackDown at the
+// last entry (boundary) does not emit a MoveTrackDownMsg.
 func TestQueueViewUpdateJAtBottomIsNoOp(t *testing.T) {
 	q := QueueView{
 		entries: []QueueEntry{
@@ -530,9 +532,9 @@ func TestQueueViewUpdateJAtBottomIsNoOp(t *testing.T) {
 		},
 		cursor: 1,
 	}
-	_, cmd := q.Update(tea.KeyPressMsg{Code: 'J', Text: "J"})
+	_, cmd := q.HandleAction(actionMoveTrackDown)
 	if cmd != nil {
-		t.Fatal("'J' at bottom entry must return nil cmd")
+		t.Fatal("actionMoveTrackDown at bottom entry must return nil cmd")
 	}
 }
 
