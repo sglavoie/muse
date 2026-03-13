@@ -35,6 +35,10 @@ const (
 	actionSwitchPlaylists
 	actionSwitchQueue
 	actionRescan
+	actionRepeatCycle   // 'r': cycle repeat mode off→on (toggle)
+	actionShuffleToggle // 'z': toggle shuffle mode
+	actionUndo          // 'u': dispatch undo
+	actionFilterBar     // '/': activate filter bar in active view
 
 	// Queue-local actions.
 	actionCursorUp
@@ -43,6 +47,7 @@ const (
 
 	// Playlists-local actions.
 	actionPlaylistRename
+	actionPlaylistCreate // 'c': create new playlist
 )
 
 // registryKey is the composite map key for registry lookups.
@@ -72,12 +77,16 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "right", actionSeekForward)
 	r.register(contextGlobal, "shift+left", actionSeekBackLong)
 	r.register(contextGlobal, "shift+right", actionSeekForwardLong)
-	r.register(contextGlobal, "+", actionVolumeUp)
+	r.register(contextGlobal, "=", actionVolumeUp)
 	r.register(contextGlobal, "-", actionVolumeDown)
 	r.register(contextGlobal, "1", actionSwitchLibrary)
 	r.register(contextGlobal, "2", actionSwitchPlaylists)
 	r.register(contextGlobal, "3", actionSwitchQueue)
-	r.register(contextGlobal, "r", actionRescan)
+	r.register(contextGlobal, "R", actionRescan)
+	r.register(contextGlobal, "r", actionRepeatCycle)
+	r.register(contextGlobal, "z", actionShuffleToggle)
+	r.register(contextGlobal, "u", actionUndo)
+	r.register(contextGlobal, "/", actionFilterBar)
 
 	// Queue-local bindings.
 	r.register(contextQueue, "up", actionCursorUp)
@@ -85,9 +94,10 @@ func newRegistry() Registry {
 	r.register(contextQueue, "enter", actionSelect)
 
 	// Playlists-local bindings.
-	// 'r' is bound to rename here, shadowing the global rescan binding while
-	// the Playlists view is focused.
+	// 'r' is bound to rename here, shadowing the global repeat-cycle binding
+	// while the Playlists view is focused.
 	r.register(contextPlaylists, "r", actionPlaylistRename)
+	r.register(contextPlaylists, "c", actionPlaylistCreate)
 
 	return r
 }

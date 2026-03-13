@@ -191,37 +191,37 @@ func (stubExtractor) Extract(files []library.HashedFile) ([]library.Track, error
 	return nil, nil
 }
 
-// TestRescanHotkeyReturnsCmd verifies that pressing r with a configured
-// library root returns a non-nil background cmd and does not block.
+// TestRescanHotkeyReturnsCmd verifies that pressing R (Shift+r) with a
+// configured library root returns a non-nil background cmd and does not block.
 func TestRescanHotkeyReturnsCmd(t *testing.T) {
 	root := t.TempDir()
 	m := New("/log", "", false, nil, nil, root, stubExtractor{}, nil)
-	_, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
 	if cmd == nil {
-		t.Fatal("r key: expected non-nil cmd for rescan, got nil")
+		t.Fatal("R key: expected non-nil cmd for rescan, got nil")
 	}
 }
 
-// TestRescanHotkeyIsNoOpWhenAlreadyScanning verifies that pressing r during
+// TestRescanHotkeyIsNoOpWhenAlreadyScanning verifies that pressing R during
 // an in-progress scan does nothing.
 func TestRescanHotkeyIsNoOpWhenScanning(t *testing.T) {
 	ch := make(chan library.Track)
 	defer close(ch)
 	root := t.TempDir()
 	m := New("/log", "", false, ch, nil, root, stubExtractor{}, nil)
-	_, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
 	if cmd != nil {
-		t.Fatal("r key during active scan must return nil cmd")
+		t.Fatal("R key during active scan must return nil cmd")
 	}
 }
 
-// TestRescanHotkeyIsNoOpWithoutRoot verifies that pressing r when no library
+// TestRescanHotkeyIsNoOpWithoutRoot verifies that pressing R when no library
 // root is configured returns nil.
 func TestRescanHotkeyIsNoOpWithoutRoot(t *testing.T) {
 	m := New("/log", "", false, nil, nil, "", nil, nil)
-	_, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
 	if cmd != nil {
-		t.Fatal("r key without library root must return nil cmd")
+		t.Fatal("R key without library root must return nil cmd")
 	}
 }
 
@@ -280,7 +280,7 @@ func TestRescanResetsIndexAndAddsNewTracks(t *testing.T) {
 	}
 
 	// Trigger rescan — index must be reset immediately.
-	next, cmd := nm.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+	next, cmd := nm.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
 	nm = next.(Model)
 	if cmd == nil {
 		t.Fatal("rescan: expected non-nil cmd")
@@ -853,32 +853,34 @@ func TestScanProgressVisibleDuringScanAndAutoDismissed(t *testing.T) {
 // view defines a local binding for a key, the view-local action fires and the
 // global action for that key is suppressed.
 //
-// The 'r' key is bound globally to actionRescan and locally to
+// The 'r' key is bound globally to actionRepeatCycle and locally to
 // actionPlaylistRename in the Playlists view. When the Playlists view is
-// focused, pressing 'r' must not trigger a rescan.
+// focused, pressing 'r' must fire rename (not toggle repeat mode).
 func TestViewLocalBindingTakesPrecedenceOverGlobal(t *testing.T) {
-	root := t.TempDir()
-	m := New("/log", "", false, nil, nil, root, stubExtractor{}, nil)
+	m := New("/log", "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 
-	// With a library root configured, the global 'r' binding would normally
-	// trigger a rescan and set m.scanning = true. The Playlists-local binding
-	// for 'r' (rename) must intercept first so no rescan occurs.
+	// The global 'r' binding would normally toggle repeat mode. The
+	// Playlists-local binding for 'r' (rename) must intercept first.
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
 	nm := next.(Model)
 
-	if cmd != nil {
-		t.Fatal("view-local 'r' in Playlists must not return a rescan cmd")
+	if cmd == nil {
+		t.Fatal("view-local 'r' in Playlists must return a rename cmd")
 	}
-	if nm.scanning {
-		t.Fatal("view-local 'r' in Playlists must not trigger a rescan")
+	msg := cmd()
+	if _, ok := msg.(PlaylistRenameMsg); !ok {
+		t.Fatalf("view-local 'r' in Playlists: expected PlaylistRenameMsg, got %T", msg)
+	}
+	if nm.repeat {
+		t.Fatal("view-local 'r' in Playlists must not toggle global repeat mode")
 	}
 }
 
 // TestGlobalBindingFiresWhenNoViewLocalBinding verifies that keys not
 // overridden by the active view still trigger their global action.
 //
-// The Library and Queue views have no local binding for 'r', so pressing 'r'
+// The Library and Queue views have no local binding for 'R', so pressing 'R'
 // in those views falls through to the global actionRescan.
 func TestGlobalBindingFiresWhenNoViewLocalBinding(t *testing.T) {
 	views := []struct {
@@ -894,10 +896,150 @@ func TestGlobalBindingFiresWhenNoViewLocalBinding(t *testing.T) {
 			m := New("/log", "", false, nil, nil, root, stubExtractor{}, nil)
 			m.activeView = tc.viewID
 
-			_, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+			_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
 			if cmd == nil {
-				t.Fatalf("%s: global 'r' must return a rescan cmd when no view-local binding exists", tc.name)
+				t.Fatalf("%s: global 'R' must return a rescan cmd when no view-local binding exists", tc.name)
 			}
 		})
+	}
+}
+
+// TestEqualKeyFiresVolumeUp verifies that pressing '=' calls SetVolumeRelative
+// with a positive delta on the player.
+func TestEqualKeyFiresVolumeUp(t *testing.T) {
+	p := &stubVolumePlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+
+	m.Update(tea.KeyPressMsg{Code: '=', Text: "="})
+
+	if p.volumeDelta != 5 {
+		t.Fatalf("= key: expected SetVolumeRelative(5), got delta=%v", p.volumeDelta)
+	}
+}
+
+// stubVolumePlayer extends stubCommandPlayer to capture SetVolumeRelative calls.
+type stubVolumePlayer struct {
+	stubCommandPlayer
+	volumeDelta float64
+}
+
+func (s *stubVolumePlayer) SetVolumeRelative(delta float64) error {
+	s.volumeDelta = delta
+	return nil
+}
+
+// TestShiftRFiresRescan verifies that pressing 'R' (Shift+r) with a configured
+// library root triggers a rescan, while lowercase 'r' does not.
+func TestShiftRFiresRescan(t *testing.T) {
+	root := t.TempDir()
+	m := New("/log", "", false, nil, nil, root, stubExtractor{}, nil)
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
+	if cmd == nil {
+		t.Fatal("R key: expected non-nil rescan cmd")
+	}
+}
+
+// TestLowerRCyclesRepeatModeInNonPlaylistViews verifies that pressing 'r' in
+// Library and Queue views toggles the repeat field, and does NOT trigger rescan.
+func TestLowerRCyclesRepeatModeInNonPlaylistViews(t *testing.T) {
+	views := []struct {
+		name   string
+		viewID viewID
+	}{
+		{"Library", viewLibrary},
+		{"Queue", viewQueue},
+	}
+	for _, tc := range views {
+		t.Run(tc.name, func(t *testing.T) {
+			m := New("/log", "", false, nil, nil, "", nil, nil)
+			m.activeView = tc.viewID
+
+			// First press: repeat off → on.
+			next, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+			nm := next.(Model)
+			if cmd != nil {
+				t.Fatalf("%s: 'r' repeat cycle must return nil cmd, got non-nil", tc.name)
+			}
+			if !nm.repeat {
+				t.Fatalf("%s: 'r' first press: expected repeat=true, got false", tc.name)
+			}
+
+			// Second press: repeat on → off.
+			next, _ = nm.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+			nm = next.(Model)
+			if nm.repeat {
+				t.Fatalf("%s: 'r' second press: expected repeat=false, got true", tc.name)
+			}
+		})
+	}
+}
+
+// TestZTogglesShuffleGlobal verifies that pressing 'z' toggles the shuffle
+// field on the root model.
+func TestZTogglesShuffleGlobal(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+
+	// First press: shuffle off → on.
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'z', Text: "z"})
+	nm := next.(Model)
+	if cmd != nil {
+		t.Fatal("z key: expected nil cmd for shuffle toggle")
+	}
+	if !nm.shuffle {
+		t.Fatal("z key first press: expected shuffle=true, got false")
+	}
+
+	// Second press: shuffle on → off.
+	next, _ = nm.Update(tea.KeyPressMsg{Code: 'z', Text: "z"})
+	nm = next.(Model)
+	if nm.shuffle {
+		t.Fatal("z key second press: expected shuffle=false, got true")
+	}
+}
+
+// TestUDispatchesUndoMessage verifies that pressing 'u' returns a cmd that
+// emits UndoMsg.
+func TestUDispatchesUndoMessage(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'u', Text: "u"})
+	if cmd == nil {
+		t.Fatal("u key: expected non-nil cmd for undo dispatch")
+	}
+	msg := cmd()
+	if _, ok := msg.(UndoMsg); !ok {
+		t.Fatalf("u key: expected UndoMsg, got %T", msg)
+	}
+}
+
+// TestSlashRoutesToActiveView verifies that pressing '/' returns a cmd that
+// emits FilterBarMsg for routing to the active view.
+func TestSlashRoutesToActiveView(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: '/', Text: "/"})
+	if cmd == nil {
+		t.Fatal("/ key: expected non-nil cmd for filter bar activation")
+	}
+	msg := cmd()
+	if _, ok := msg.(FilterBarMsg); !ok {
+		t.Fatalf("/ key: expected FilterBarMsg, got %T", msg)
+	}
+}
+
+// TestPlaylistLocalCFiresCreateNotGlobalAction verifies that pressing 'c' in
+// the Playlists view dispatches PlaylistCreateMsg.
+func TestPlaylistLocalCFiresCreateNotGlobalAction(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	if cmd == nil {
+		t.Fatal("c key in Playlists: expected non-nil cmd for create playlist")
+	}
+	msg := cmd()
+	if _, ok := msg.(PlaylistCreateMsg); !ok {
+		t.Fatalf("c key in Playlists: expected PlaylistCreateMsg, got %T", msg)
 	}
 }

@@ -77,6 +77,21 @@ type PlayQueueIndexMsg struct {
 // state to idle so the space-bar toggle stays synchronized with mpv's state.
 type PlaybackEndedMsg struct{}
 
+// UndoMsg is dispatched when the user presses 'u'.
+type UndoMsg struct{}
+
+// FilterBarMsg is dispatched when the user presses '/' to activate the
+// filter bar in the active view.
+type FilterBarMsg struct{}
+
+// PlaylistRenameMsg is dispatched when the user presses 'r' in the playlists
+// view to rename the selected playlist.
+type PlaylistRenameMsg struct{}
+
+// PlaylistCreateMsg is dispatched when the user presses 'c' in the playlists
+// view to create a new playlist.
+type PlaylistCreateMsg struct{}
+
 // PlaybackState represents the current playback status shown in the status bar.
 type PlaybackState int
 
@@ -498,12 +513,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.scanTotal = 0
 				return m, tea.Batch(waitForNextBatch(ch), countAudioFiles(m.libraryRoot))
 			}
+		case actionRepeatCycle:
+			m.repeat = !m.repeat
+		case actionShuffleToggle:
+			m.shuffle = !m.shuffle
+		case actionUndo:
+			return m, func() tea.Msg { return UndoMsg{} }
+		case actionFilterBar:
+			return m, func() tea.Msg { return FilterBarMsg{} }
 		case actionCursorUp, actionCursorDown, actionSelect:
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.Update(msg)
 			return m, cmd
 		case actionPlaylistRename:
-			// Placeholder: view-local rename action for the Playlists view.
+			return m, func() tea.Msg { return PlaylistRenameMsg{} }
+		case actionPlaylistCreate:
+			return m, func() tea.Msg { return PlaylistCreateMsg{} }
 		}
 	}
 	return m, nil
