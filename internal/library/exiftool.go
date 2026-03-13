@@ -69,11 +69,32 @@ func (e ExifToolExtractor) Extract(files []HashedFile) ([]Track, error) {
 	return tracks, nil
 }
 
+// extractWithBinaryRetry calls extractor.Extract for the given files. If the
+// call fails (e.g. invalid JSON caused by a corrupt file poisoning the batch),
+// the batch is split in half and each half is retried recursively. When a
+// single-file batch fails, that file is skipped so at most one track loses
+// metadata per corrupt file.
+func extractWithBinaryRetry(extractor MetadataExtractor, files []HashedFile) []Track {
+	tracks, err := extractor.Extract(files)
+	if err == nil {
+		return tracks
+	}
+	if len(files) == 1 {
+		// Corrupt single file: skip it rather than losing the whole batch.
+		return nil
+	}
+	mid := len(files) / 2
+	left := extractWithBinaryRetry(extractor, files[:mid])
+	right := extractWithBinaryRetry(extractor, files[mid:])
+	return append(left, right...)
+}
+
 // ExtractBatches reads HashedFile values from in, groups them into batches of
-// batchSize (~500), and calls extractor.Extract on each batch. Track values
-// are sent to the returned channel, which is closed once all batches have been
-// processed. Batches that return an error are silently dropped so that one
-// failed exiftool invocation does not stop the pipeline.
+// batchSize (~500), and calls extractor.Extract on each batch via binary-search
+// retry. Track values are sent to the returned channel, which is closed once
+// all batches have been processed. If a batch produces invalid JSON due to a
+// corrupt file, binary-search subdivision isolates the corrupt file so that at
+// most one track loses metadata per corrupt file.
 func ExtractBatches(extractor MetadataExtractor, in <-chan HashedFile) <-chan Track {
 	out := make(chan Track, runtime.NumCPU())
 	go func() {
@@ -83,11 +104,8 @@ func ExtractBatches(extractor MetadataExtractor, in <-chan HashedFile) <-chan Tr
 			if len(batch) == 0 {
 				return
 			}
-			tracks, err := extractor.Extract(batch)
-			if err == nil {
-				for _, t := range tracks {
-					out <- t
-				}
+			for _, t := range extractWithBinaryRetry(extractor, batch) {
+				out <- t
 			}
 			batch = batch[:0]
 		}
