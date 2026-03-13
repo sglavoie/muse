@@ -3,10 +3,13 @@ package player
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestCleanStaleSocket_NoFile(t *testing.T) {
@@ -106,6 +109,77 @@ func TestManager_ErrNotConnected(t *testing.T) {
 		if err := tc.fn(); !errors.Is(err, ErrNotConnected) {
 			t.Errorf("%s: want ErrNotConnected, got %v", tc.name, err)
 		}
+	}
+}
+
+func TestManager_QueueDrainOnConnect(t *testing.T) {
+	sock := shortSockPath(t, "mgr-drain")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{
+		socketPath: sock,
+		ctx:        ctx,
+		cancel:     cancel,
+	}
+	defer m.Close()
+
+	// Collect status messages emitted by the manager.
+	var statusMsgs []string
+	m.SetStatusFunc(func(msg string) {
+		statusMsgs = append(statusMsgs, msg)
+	})
+
+	// Simulate Start() by initialising the queue without launching mpv.
+	m.mu.Lock()
+	m.cmdQueue = []func() error{}
+	m.mu.Unlock()
+
+	// Queue Play and Pause before the server is ready.
+	if err := m.Play(); err != nil {
+		t.Fatalf("Play before ready: want nil (queued), got %v", err)
+	}
+	if err := m.Pause(); err != nil {
+		t.Fatalf("Pause before ready: want nil (queued), got %v", err)
+	}
+	if len(statusMsgs) != 2 {
+		t.Fatalf("expected 2 status messages, got %d: %v", len(statusMsgs), statusMsgs)
+	}
+	for _, msg := range statusMsgs {
+		if msg != "Connecting to mpv…" {
+			t.Errorf("unexpected status message %q", msg)
+		}
+	}
+
+	// Track commands received by the fake server.
+	var mu sync.Mutex
+	var received []string
+	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
+		if cmd, ok := req["command"].([]any); ok && len(cmd) > 0 {
+			mu.Lock()
+			received = append(received, fmt.Sprintf("%v", cmd[0]))
+			mu.Unlock()
+		}
+		return successHandler(req)
+	})
+
+	// pollUntilReady connects and drains the queue.
+	go m.pollUntilReady()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		n := len(received)
+		mu.Unlock()
+		if n >= 2 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(received) < 2 {
+		t.Fatalf("expected 2 queued commands replayed, got %d: %v", len(received), received)
 	}
 }
 

@@ -2,6 +2,7 @@ package player
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -19,13 +20,16 @@ const mpvSockName = "mpv.sock"
 var _ Player = (*Manager)(nil)
 
 // Manager manages an mpv subprocess and its JSON-IPC connection.
-// It implements the Player interface, returning ErrNotConnected for any
-// command issued before the IPC socket becomes ready.
+// It implements the Player interface. Commands issued after Start() but before
+// the IPC socket becomes ready are queued and replayed on connect. Commands
+// issued before Start() return ErrNotConnected immediately.
 type Manager struct {
 	socketPath string
 
-	mu     sync.RWMutex
-	client *IPCClient // nil until the socket is connected
+	mu       sync.RWMutex
+	client   *IPCClient     // nil until the socket is connected
+	cmdQueue []func() error // nil = not started; non-nil = started, may have pending cmds
+	statusFn func(string)   // optional callback for transient status messages
 
 	cmd    *exec.Cmd
 	ctx    context.Context
@@ -59,6 +63,14 @@ func (m *Manager) SocketPath() string {
 	return m.socketPath
 }
 
+// SetStatusFunc sets an optional callback invoked with transient status
+// messages (e.g. "Connecting to mpv…"). Call before Start.
+func (m *Manager) SetStatusFunc(fn func(string)) {
+	m.mu.Lock()
+	m.statusFn = fn
+	m.mu.Unlock()
+}
+
 // Start launches the mpv subprocess with --idle=yes and --input-ipc-server
 // pointing to the socket path, then polls in the background until the socket
 // accepts connections.
@@ -75,7 +87,29 @@ func (m *Manager) Start() error {
 		return fmt.Errorf("mpv: start: %w", err)
 	}
 
+	m.mu.Lock()
+	m.cmdQueue = []func() error{}
+	m.mu.Unlock()
+
 	go m.pollUntilReady()
+	return nil
+}
+
+// enqueue stores cmd for replay once the IPC socket connects and emits a
+// status message. Returns ErrNotConnected if Start has not been called.
+func (m *Manager) enqueue(cmd func() error) error {
+	m.mu.Lock()
+	if m.cmdQueue == nil {
+		m.mu.Unlock()
+		return ErrNotConnected
+	}
+	m.cmdQueue = append(m.cmdQueue, cmd)
+	fn := m.statusFn
+	m.mu.Unlock()
+
+	if fn != nil {
+		fn("Connecting to mpv…")
+	}
 	return nil
 }
 
@@ -116,7 +150,13 @@ func (m *Manager) pollUntilReady() {
 		if err == nil {
 			m.mu.Lock()
 			m.client = client
+			queue := m.cmdQueue
+			m.cmdQueue = nil
 			m.mu.Unlock()
+
+			for _, cmd := range queue {
+				_ = cmd()
+			}
 			return
 		}
 
@@ -138,6 +178,9 @@ func (m *Manager) ipc() (*IPCClient, error) {
 // Play resumes playback.
 func (m *Manager) Play() error {
 	c, err := m.ipc()
+	if errors.Is(err, ErrNotConnected) {
+		return m.enqueue(m.Play)
+	}
 	if err != nil {
 		return err
 	}
@@ -148,6 +191,9 @@ func (m *Manager) Play() error {
 // Pause pauses playback.
 func (m *Manager) Pause() error {
 	c, err := m.ipc()
+	if errors.Is(err, ErrNotConnected) {
+		return m.enqueue(m.Pause)
+	}
 	if err != nil {
 		return err
 	}
@@ -158,6 +204,9 @@ func (m *Manager) Pause() error {
 // Stop stops playback.
 func (m *Manager) Stop() error {
 	c, err := m.ipc()
+	if errors.Is(err, ErrNotConnected) {
+		return m.enqueue(m.Stop)
+	}
 	if err != nil {
 		return err
 	}
@@ -168,6 +217,9 @@ func (m *Manager) Stop() error {
 // SeekRelative seeks forward (positive) or backward (negative) by seconds.
 func (m *Manager) SeekRelative(seconds float64) error {
 	c, err := m.ipc()
+	if errors.Is(err, ErrNotConnected) {
+		return m.enqueue(func() error { return m.SeekRelative(seconds) })
+	}
 	if err != nil {
 		return err
 	}
@@ -178,6 +230,9 @@ func (m *Manager) SeekRelative(seconds float64) error {
 // SetVolumeRelative adjusts volume by the given percentage delta.
 func (m *Manager) SetVolumeRelative(delta float64) error {
 	c, err := m.ipc()
+	if errors.Is(err, ErrNotConnected) {
+		return m.enqueue(func() error { return m.SetVolumeRelative(delta) })
+	}
 	if err != nil {
 		return err
 	}
@@ -188,6 +243,9 @@ func (m *Manager) SetVolumeRelative(delta float64) error {
 // Next advances to the next track in the playlist.
 func (m *Manager) Next() error {
 	c, err := m.ipc()
+	if errors.Is(err, ErrNotConnected) {
+		return m.enqueue(m.Next)
+	}
 	if err != nil {
 		return err
 	}
@@ -198,6 +256,9 @@ func (m *Manager) Next() error {
 // Previous returns to the previous track in the playlist.
 func (m *Manager) Previous() error {
 	c, err := m.ipc()
+	if errors.Is(err, ErrNotConnected) {
+		return m.enqueue(m.Previous)
+	}
 	if err != nil {
 		return err
 	}
