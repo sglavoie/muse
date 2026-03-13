@@ -3,22 +3,35 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/sglavoie/muse/internal/library"
 )
 
+// transientDuration is how long a transient notification stays visible before
+// the 1-second tick clears it.
+const transientDuration = 5 * time.Second
+
+// transientNotification holds a single pending notification for the status bar
+// right zone. expiresAt is the time after which the notification should be
+// cleared by the tick handler. A zero expiresAt means no notification is set.
+type transientNotification struct {
+	msg       string
+	expiresAt time.Time
+}
+
 // StatusBar manages the persistent status bar at the bottom of the screen.
-// transientRight holds a temporary message (e.g. scan progress) that is
-// cleared when the scan completes.
+// notification holds a temporary message (e.g. scan progress, error) that
+// auto-dismisses after transientDuration via the 1-second tick handler.
 //
 // The persistent left zone shows playback state, track artist/title, active
 // playlist source, and repeat/shuffle mode indicators. The right zone shows
 // auto-dismissing transient notifications.
 type StatusBar struct {
-	logPath        string
-	configCreated  bool
-	configPath     string
-	transientRight string
+	logPath       string
+	configCreated bool
+	configPath    string
+	notification  transientNotification
 
 	// Persistent left zone fields — set during Update when track/state changes.
 	artist         string
@@ -36,26 +49,27 @@ type StatusBar struct {
 	total   string
 }
 
-// handleScanProgress sets the transient right zone to a formatted progress string.
+// handleScanProgress sets the transient notification to a formatted progress
+// string with a 5-second expiry. New calls overwrite the previous notification.
 // When msg.Total is known (> 0) the format is "Scanning… X / Y tracks";
 // before the count arrives it falls back to "Scanning… X tracks".
 func (s *StatusBar) handleScanProgress(msg library.ScanProgressMsg) {
+	var text string
 	if msg.Total > 0 {
-		s.transientRight = fmt.Sprintf("Scanning… %s / %s tracks", formatCount(msg.Scanned), formatCount(msg.Total))
+		text = fmt.Sprintf("Scanning… %s / %s tracks", formatCount(msg.Scanned), formatCount(msg.Total))
 	} else {
-		s.transientRight = fmt.Sprintf("Scanning… %s tracks", formatCount(msg.Scanned))
+		text = fmt.Sprintf("Scanning… %s tracks", formatCount(msg.Scanned))
 	}
+	s.notification = transientNotification{msg: text, expiresAt: time.Now().Add(transientDuration)}
 }
 
-// handleScanDone clears the transient right zone.
-func (s *StatusBar) handleScanDone() {
-	s.transientRight = ""
-}
-
-// handleMissingTrack sets the transient right zone to an error message
+// handleMissingTrack sets the transient notification to an error message
 // indicating that a track could not be found and was skipped.
 func (s *StatusBar) handleMissingTrack(path string) {
-	s.transientRight = fmt.Sprintf("Error: track not found, skipped: %s", path)
+	s.notification = transientNotification{
+		msg:       fmt.Sprintf("Error: track not found, skipped: %s", path),
+		expiresAt: time.Now().Add(transientDuration),
+	}
 }
 
 // formatTime converts a duration in seconds to MM:SS format.
@@ -95,8 +109,8 @@ func (s StatusBar) render(width int) string {
 		logPart += fmt.Sprintf("  |  config created: %s", s.configPath)
 	}
 	rightSegments := []string{logPart}
-	if s.transientRight != "" {
-		rightSegments = append(rightSegments, s.transientRight)
+	if s.notification.msg != "" {
+		rightSegments = append(rightSegments, s.notification.msg)
 	}
 	right := strings.Join(rightSegments, "  |  ")
 

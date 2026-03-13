@@ -51,11 +51,6 @@ type syncPositionMsg struct{}
 // clearConfigNotice is sent after the transient first-run notification timeout.
 type clearConfigNotice struct{}
 
-// clearPlayerStatus is sent after the transient player status message timeout
-// to automatically dismiss messages like "Connecting to mpv…".
-// gen is a generation counter: only the most recently scheduled clear fires.
-type clearPlayerStatus struct{ gen int }
-
 // MissingTrackMsg is dispatched by the player when it attempts to play a
 // queued track whose file cannot be found. The TUI marks that entry as missing
 // in the queue view and displays a transient error in the status bar.
@@ -159,11 +154,6 @@ type Model struct {
 	elapsedSecs float64
 	totalSecs   float64
 
-	// statusBarGen is incremented each time a transient right message is set.
-	// clearPlayerStatus messages carry the generation at which they were
-	// scheduled; only a matching generation actually clears the field,
-	// preventing an earlier timer from erasing a newer message.
-	statusBarGen int
 }
 
 // New creates a root Model. logPath is displayed in the status bar on every
@@ -364,7 +354,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case library.ScanDoneMsg:
 		m.scanning = false
 		m.scanCh = nil
-		m.statusBar.handleScanDone()
+		// The last scan-progress notification expires naturally via the tick.
 
 	case tickMsg:
 		if er, ok := m.player.(elapsedReader); ok {
@@ -372,6 +362,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.elapsedSecs = elapsed
 				m.totalSecs = total
 			}
+		}
+		if !m.statusBar.notification.expiresAt.IsZero() && time.Now().After(m.statusBar.notification.expiresAt) {
+			m.statusBar.notification = transientNotification{}
 		}
 		return m, tickCmd()
 
@@ -381,23 +374,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, syncPositionCmd()
 
-	case clearPlayerStatus:
-		if msg.gen == m.statusBarGen {
-			m.statusBar.transientRight = ""
-		}
-
 	case PlayerStatusMsg:
-		m.statusBarGen++
-		gen := m.statusBarGen
-		m.statusBar.transientRight = msg.Text
-		return m, tea.Tick(4*time.Second, func(time.Time) tea.Msg { return clearPlayerStatus{gen: gen} })
+		m.statusBar.notification = transientNotification{
+			msg:       msg.Text,
+			expiresAt: time.Now().Add(transientDuration),
+		}
 
 	case MissingTrackMsg:
 		m.queue.markMissing(msg.Path)
 		m.statusBar.handleMissingTrack(msg.Path)
-		m.statusBarGen++
-		gen := m.statusBarGen
-		return m, tea.Tick(4*time.Second, func(time.Time) tea.Msg { return clearPlayerStatus{gen: gen} })
 
 	case PlaybackEndedMsg:
 		m.playbackState = PlaybackIdle

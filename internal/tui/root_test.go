@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
@@ -236,7 +237,7 @@ func TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError(t *testing.T) {
 	next, _ := m.Update(MissingTrackMsg{Path: "/music/song.flac"})
 	nm := next.(Model)
 
-	if nm.statusBar.transientRight == "" {
+	if nm.statusBar.notification.msg == "" {
 		t.Fatal("MissingTrackMsg must set a transient status bar error message")
 	}
 	if !nm.queue.entries[0].Missing {
@@ -302,17 +303,28 @@ func TestRescanResetsIndexAndAddsNewTracks(t *testing.T) {
 }
 
 // TestViewStatusBarHidesScanProgressWhenDone verifies that the scanning
-// indicator is removed from the status bar after ScanDoneMsg.
+// indicator auto-dismisses after the notification expiry is reached and the
+// tick fires. ScanDoneMsg alone does not clear the notification; it stays
+// visible until the 1-second tick sees that expiresAt has passed.
 func TestViewStatusBarHidesScanProgressWhenDone(t *testing.T) {
 	m := New("/log", "", false, nil, nil, "", nil, nil)
-	// First set progress, then clear it.
+	// Set progress — notification gets a 5-second expiry.
 	next, _ := m.Update(library.ScanProgressMsg{Scanned: 100})
 	nm := next.(Model)
+	// ScanDoneMsg stops scanning but does not clear the notification.
 	next, _ = nm.Update(library.ScanDoneMsg{})
+	nm = next.(Model)
+	if nm.statusBar.notification.msg == "" {
+		t.Fatal("notification must still be set immediately after ScanDoneMsg")
+	}
+	// Manually expire the notification to simulate 5 seconds passing.
+	nm.statusBar.notification.expiresAt = nm.statusBar.notification.expiresAt.Add(-10 * time.Second)
+	// Tick fires → expiry check clears the notification.
+	next, _ = nm.Update(tickMsg{})
 	nm = next.(Model)
 	v := nm.View()
 	if strings.Contains(v.Content, "Scanning") {
-		t.Fatalf("status bar must not show scan progress after ScanDoneMsg; got:\n%s", v.Content)
+		t.Fatalf("status bar must not show scan progress after expiry tick; got:\n%s", v.Content)
 	}
 }
 
@@ -741,5 +753,98 @@ func TestPlaybackEndedMsgResetsElapsed(t *testing.T) {
 	}
 	if nm.totalSecs != 0 {
 		t.Fatalf("totalSecs must be 0 after PlaybackEndedMsg, got %v", nm.totalSecs)
+	}
+}
+
+// TestTransientNotificationClearsAfterTickPastExpiry verifies that a transient
+// notification set on the status bar is cleared when the tick fires after the
+// 5-second expiry has elapsed.
+func TestTransientNotificationClearsAfterTickPastExpiry(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	// Set a notification that is already expired.
+	m.statusBar.notification = transientNotification{
+		msg:       "some transient message",
+		expiresAt: time.Now().Add(-1 * time.Second),
+	}
+
+	next, _ := m.Update(tickMsg{})
+	nm := next.(Model)
+
+	if nm.statusBar.notification.msg != "" {
+		t.Fatalf("notification must be cleared after tick past expiry, got %q", nm.statusBar.notification.msg)
+	}
+}
+
+// TestTransientNotificationPersistsBeforeExpiry verifies that a notification
+// whose expiry has not yet been reached survives the tick unchanged.
+func TestTransientNotificationPersistsBeforeExpiry(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	// Set a notification that expires well in the future.
+	m.statusBar.notification = transientNotification{
+		msg:       "fresh message",
+		expiresAt: time.Now().Add(10 * time.Second),
+	}
+
+	next, _ := m.Update(tickMsg{})
+	nm := next.(Model)
+
+	if nm.statusBar.notification.msg != "fresh message" {
+		t.Fatalf("notification must not be cleared before expiry, got %q", nm.statusBar.notification.msg)
+	}
+}
+
+// TestNewerNotificationOverwritesOlderResettingExpiry verifies that receiving
+// a second transient message while one is active replaces the old message and
+// resets the expiry clock.
+func TestNewerNotificationOverwritesOlderResettingExpiry(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+
+	// First notification, nearly expired.
+	oldExpiry := time.Now().Add(500 * time.Millisecond)
+	m.statusBar.notification = transientNotification{
+		msg:       "old message",
+		expiresAt: oldExpiry,
+	}
+
+	// Second notification via PlayerStatusMsg overwrites the first.
+	next, _ := m.Update(PlayerStatusMsg{Text: "new message"})
+	nm := next.(Model)
+
+	if nm.statusBar.notification.msg != "new message" {
+		t.Fatalf("new notification must overwrite old, got %q", nm.statusBar.notification.msg)
+	}
+	if !nm.statusBar.notification.expiresAt.After(oldExpiry) {
+		t.Fatal("new notification must reset expiry to a later time than the old one")
+	}
+}
+
+// TestScanProgressVisibleDuringScanAndAutoDismissed verifies the full lifecycle:
+// progress is shown while scanning, the last message persists past ScanDoneMsg,
+// and the tick clears it once the expiry passes.
+func TestScanProgressVisibleDuringScanAndAutoDismissed(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+
+	// Scan progress sets a notification.
+	next, _ := m.Update(library.ScanProgressMsg{Scanned: 42})
+	nm := next.(Model)
+	v := nm.View()
+	if !strings.Contains(v.Content, "Scanning") {
+		t.Fatalf("scan progress must be visible during scan; got:\n%s", v.Content)
+	}
+
+	// ScanDoneMsg stops scanning but notification is still set.
+	next, _ = nm.Update(library.ScanDoneMsg{})
+	nm = next.(Model)
+	if nm.statusBar.notification.msg == "" {
+		t.Fatal("scan progress notification must persist immediately after ScanDoneMsg")
+	}
+
+	// Expire the notification and fire a tick.
+	nm.statusBar.notification.expiresAt = nm.statusBar.notification.expiresAt.Add(-10 * time.Second)
+	next, _ = nm.Update(tickMsg{})
+	nm = next.(Model)
+	v = nm.View()
+	if strings.Contains(v.Content, "Scanning") {
+		t.Fatalf("scan progress must be auto-dismissed after expiry tick; got:\n%s", v.Content)
 	}
 }

@@ -184,11 +184,11 @@ func TestRenderRepeatAndShuffleIndicators(t *testing.T) {
 // visible in the output.
 func TestRenderTransientDoesNotOverwritePersistent(t *testing.T) {
 	sb := StatusBar{
-		artist:         "Persistent Artist",
-		title:          "Persistent Title",
-		playbackState:  PlaybackPlaying,
-		transientRight: "Scanning… 100 tracks",
-		logPath:        "muse.log",
+		artist:        "Persistent Artist",
+		title:         "Persistent Title",
+		playbackState: PlaybackPlaying,
+		notification:  transientNotification{msg: "Scanning… 100 tracks"},
+		logPath:       "muse.log",
 	}
 
 	out := sb.render(0)
@@ -212,11 +212,11 @@ func TestRenderTransientDoesNotOverwritePersistent(t *testing.T) {
 // (title may be truncated but artist and glyph are preserved).
 func TestRenderTransientVisibleWithWidthConstraint(t *testing.T) {
 	sb := StatusBar{
-		artist:         "My Artist",
-		title:          "A Very Long Title Indeed",
-		playbackState:  PlaybackPlaying,
-		transientRight: "Some notification",
-		logPath:        "muse.log",
+		artist:        "My Artist",
+		title:         "A Very Long Title Indeed",
+		playbackState: PlaybackPlaying,
+		notification:  transientNotification{msg: "Some notification"},
+		logPath:       "muse.log",
 	}
 
 	out := sb.render(60)
