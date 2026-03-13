@@ -8,11 +8,12 @@ import (
 )
 
 // playPauser is the subset of the player interface used by the root model for
-// global space-bar play/pause toggling. Keeping it narrow makes test injection
-// simple.
+// global play/pause toggling and queue-index playback. Keeping it narrow makes
+// test injection simple.
 type playPauser interface {
 	Play() error
 	Pause() error
+	PlayFromIndex(int) error
 }
 
 // clearConfigNotice is sent after the transient first-run notification timeout.
@@ -23,6 +24,12 @@ type clearConfigNotice struct{}
 // in the queue view and displays a transient error in the status bar.
 type MissingTrackMsg struct {
 	Path string
+}
+
+// PlayQueueIndexMsg is dispatched by the queue view when the user presses
+// Enter on a track. Root handles it by starting playback from that index.
+type PlayQueueIndexMsg struct {
+	Index int
 }
 
 // scanBatchSize is the maximum number of tracks collected per batch before
@@ -243,10 +250,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.queue.markMissing(msg.Path)
 		m.statusBar.handleMissingTrack(msg.Path)
 
+	case PlayQueueIndexMsg:
+		if m.player != nil {
+			_ = m.player.PlayFromIndex(msg.Index)
+			m.playing = true
+		}
+
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
+		case "enter":
+			if m.activeView == viewQueue {
+				var cmd tea.Cmd
+				m.queue, cmd = m.queue.Update(msg)
+				return m, cmd
+			}
 		case "space":
 			if m.player != nil {
 				if m.playing {

@@ -3,6 +3,8 @@ package tui
 import (
 	"fmt"
 	"strings"
+
+	tea "charm.land/bubbletea/v2"
 )
 
 // viewID identifies which primary view is active.
@@ -36,6 +38,20 @@ type QueueEntry struct {
 // QueueView renders the playback queue panel.
 type QueueView struct {
 	entries []QueueEntry
+	cursor  int // index of the currently selected entry
+}
+
+// Update handles queue-specific key messages. Pressing Enter dispatches a
+// PlayQueueIndexMsg for the currently selected entry so that root can start
+// playback from that position.
+func (v QueueView) Update(msg tea.Msg) (QueueView, tea.Cmd) {
+	if key, ok := msg.(tea.KeyPressMsg); ok && key.String() == "enter" {
+		if len(v.entries) > 0 {
+			idx := v.cursor
+			return v, func() tea.Msg { return PlayQueueIndexMsg{Index: idx} }
+		}
+	}
+	return v, nil
 }
 
 // markMissing marks the first entry whose Path matches as missing.

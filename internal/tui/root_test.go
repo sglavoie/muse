@@ -316,10 +316,11 @@ func TestViewStatusBarHidesScanProgressWhenDone(t *testing.T) {
 	}
 }
 
-// stubPlayer records Play and Pause calls for assertion in tests.
+// stubPlayer records Play, Pause, and PlayFromIndex calls for assertion in tests.
 type stubPlayer struct {
-	playCalls  int
-	pauseCalls int
+	playCalls          int
+	pauseCalls         int
+	playFromIndexCalls []int
 }
 
 func (s *stubPlayer) Play() error {
@@ -330,6 +331,97 @@ func (s *stubPlayer) Play() error {
 func (s *stubPlayer) Pause() error {
 	s.pauseCalls++
 	return nil
+}
+
+func (s *stubPlayer) PlayFromIndex(idx int) error {
+	s.playFromIndexCalls = append(s.playFromIndexCalls, idx)
+	return nil
+}
+
+// TestQueueViewUpdateEnterSendsPlayQueueIndexMsg verifies that pressing Enter
+// in the queue view returns a Cmd that emits PlayQueueIndexMsg with the cursor
+// index.
+func TestQueueViewUpdateEnterSendsPlayQueueIndexMsg(t *testing.T) {
+	q := QueueView{
+		entries: []QueueEntry{
+			{Path: "/music/a.flac", Display: "Artist – A"},
+			{Path: "/music/b.flac", Display: "Artist – B"},
+		},
+		cursor: 1,
+	}
+	_, cmd := q.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("Enter key must return a non-nil cmd")
+	}
+	msg := cmd()
+	pqi, ok := msg.(PlayQueueIndexMsg)
+	if !ok {
+		t.Fatalf("expected PlayQueueIndexMsg, got %T", msg)
+	}
+	if pqi.Index != 1 {
+		t.Fatalf("expected index 1, got %d", pqi.Index)
+	}
+}
+
+// TestQueueViewUpdateEnterOnEmptyQueueIsNoOp verifies that pressing Enter on
+// an empty queue does not emit a PlayQueueIndexMsg.
+func TestQueueViewUpdateEnterOnEmptyQueueIsNoOp(t *testing.T) {
+	q := QueueView{}
+	_, cmd := q.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd != nil {
+		t.Fatal("Enter on empty queue must return nil cmd")
+	}
+}
+
+// TestRootUpdatePlayQueueIndexMsgCallsPlayerPlayFromIndex verifies that root
+// handles PlayQueueIndexMsg by calling PlayFromIndex on the player with the
+// correct index.
+func TestRootUpdatePlayQueueIndexMsgCallsPlayerPlayFromIndex(t *testing.T) {
+	p := &stubPlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Display: "A"},
+		{Path: "/music/b.flac", Display: "B"},
+	}
+
+	_, cmd := m.Update(PlayQueueIndexMsg{Index: 1})
+	if cmd != nil {
+		t.Fatal("PlayQueueIndexMsg must not return a follow-up cmd")
+	}
+	if len(p.playFromIndexCalls) != 1 || p.playFromIndexCalls[0] != 1 {
+		t.Fatalf("expected PlayFromIndex(1), got calls=%v", p.playFromIndexCalls)
+	}
+}
+
+// TestRootUpdateEnterInQueueViewDelegatesToQueueUpdate verifies the end-to-end
+// flow: pressing Enter while the queue view is active returns a Cmd that emits
+// PlayQueueIndexMsg, and a subsequent Update call invokes PlayFromIndex.
+func TestRootUpdateEnterInQueueViewDelegatesToQueueUpdate(t *testing.T) {
+	p := &stubPlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Display: "A"},
+		{Path: "/music/b.flac", Display: "B"},
+	}
+	m.queue.cursor = 0
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("Enter in queue view must return a non-nil cmd")
+	}
+	msg := cmd()
+	if _, ok := msg.(PlayQueueIndexMsg); !ok {
+		t.Fatalf("expected PlayQueueIndexMsg, got %T", msg)
+	}
+	// Feed the message back to root to trigger playback.
+	_, cmd2 := m.Update(msg)
+	if cmd2 != nil {
+		t.Fatal("PlayQueueIndexMsg must not return a follow-up cmd")
+	}
+	if len(p.playFromIndexCalls) != 1 || p.playFromIndexCalls[0] != 0 {
+		t.Fatalf("expected PlayFromIndex(0), got calls=%v", p.playFromIndexCalls)
+	}
 }
 
 // TestSpaceTogglesPlayPauseFromAnyView verifies that pressing space triggers
