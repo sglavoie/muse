@@ -181,9 +181,11 @@ type Model struct {
 	libraryRoot string
 	extractor   library.MetadataExtractor
 
-	statusBar StatusBar
-	termWidth int
-	registry  Registry
+	statusBar       StatusBar
+	termWidth       int
+	registry        Registry
+	helpVisible     bool   // true while the help overlay is shown
+	prevActiveView  viewID // the view that was active before help was opened
 
 	// player is the playback backend. It may be nil when playback is not
 	// available (e.g. in tests that do not exercise playback).
@@ -475,7 +477,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.KeyPressMsg:
+		if m.helpVisible {
+			if msg.String() == "esc" {
+				m.helpVisible = false
+				m.activeView = m.prevActiveView
+			}
+			return m, nil
+		}
 		switch m.registry.resolve(m.activeViewContext(), msg.String()) {
+		case actionHelp:
+			m.prevActiveView = m.activeView
+			m.helpVisible = true
 		case actionQuit:
 			return m, tea.Quit
 		case actionPlayPause:
@@ -565,15 +577,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View renders the active panel and a status bar, returning a tea.View.
+// When the help overlay is visible it replaces the body content entirely.
 func (m Model) View() tea.View {
 	var body string
-	switch m.activeView {
-	case viewLibrary:
-		body = m.library.render()
-	case viewPlaylists:
-		body = m.playlists.render()
-	case viewQueue:
-		body = m.queue.render()
+	if m.helpVisible {
+		body = HelpOverlay{logPath: m.logPath}.render()
+	} else {
+		switch m.activeView {
+		case viewLibrary:
+			body = m.library.render()
+		case viewPlaylists:
+			body = m.playlists.render()
+		case viewQueue:
+			body = m.queue.render()
+		}
 	}
 
 	content := body + "\n\n" + m.renderStatusBar()

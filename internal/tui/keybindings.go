@@ -39,6 +39,7 @@ const (
 	actionShuffleToggle // 'z': toggle shuffle mode
 	actionUndo          // 'u': dispatch undo
 	actionFilterBar     // '/': activate filter bar in active view
+	actionHelp          // '?': show help overlay
 
 	// Queue-local actions.
 	actionCursorUp
@@ -92,6 +93,7 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "z", actionShuffleToggle)
 	r.register(contextGlobal, "u", actionUndo)
 	r.register(contextGlobal, "/", actionFilterBar)
+	r.register(contextGlobal, "?", actionHelp)
 
 	// Queue-local bindings.
 	r.register(contextQueue, "up", actionCursorUp)
