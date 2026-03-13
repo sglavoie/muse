@@ -81,6 +81,50 @@ func (w *Writer) run(ctx context.Context) {
 	}
 }
 
+// MarkTrackMissing sets missing=1 on the tracks row identified by hash and
+// updates its updated_at timestamp. It is a no-op if no row matches.
+func (w *Writer) MarkTrackMissing(hash string) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(
+			`UPDATE tracks SET missing=1, updated_at=? WHERE hash=?`,
+			time.Now().Unix(), hash,
+		)
+		return err
+	})
+}
+
+// ClearTrackMissing sets missing=0 on the tracks row identified by hash and
+// updates its updated_at timestamp. Call this during rescan when a file with a
+// matching BLAKE3 hash is located again.
+func (w *Writer) ClearTrackMissing(hash string) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(
+			`UPDATE tracks SET missing=0, updated_at=? WHERE hash=?`,
+			time.Now().Unix(), hash,
+		)
+		return err
+	})
+}
+
+// MarkQueueEntryMissing sets missing=1 on the queue row identified by id.
+// The entry is kept in the queue so it remains visible (grayed out) in the UI.
+func (w *Writer) MarkQueueEntryMissing(id int64) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(`UPDATE queue SET missing=1 WHERE id=?`, id)
+		return err
+	})
+}
+
+// ClearQueueEntriesMissing sets missing=0 on all queue rows that reference
+// trackHash. Call this after ClearTrackMissing during rescan so that the UI
+// removes the grayed-out state from every queued instance of the track.
+func (w *Writer) ClearQueueEntriesMissing(trackHash string) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(`UPDATE queue SET missing=0 WHERE track_hash=?`, trackHash)
+		return err
+	})
+}
+
 // drain flushes all commands already buffered in the cmds channel after ctx is
 // cancelled. A timeout guards against a single stuck write blocking shutdown
 // indefinitely. New Exec calls after drain returns will see w.done closed and

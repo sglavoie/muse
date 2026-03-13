@@ -453,6 +453,37 @@ func (m *Manager) Previous() error {
 	return err
 }
 
+// PlayQueueEntry stats the file at entry.Path before loading it into mpv.
+// If the file is absent it marks the track and queue entry as missing via
+// marker, emits a transient status message, and returns ErrMissingFile without
+// touching mpv — the caller should skip to the next queue entry.
+// If the file is present it sends a loadfile command to mpv (queued if not yet
+// connected).
+func (m *Manager) PlayQueueEntry(entry QueueTrack, marker MissingMarker) error {
+	if _, err := os.Stat(entry.Path); os.IsNotExist(err) {
+		_ = marker.MarkTrackMissing(entry.Hash)
+		_ = marker.MarkQueueEntryMissing(entry.QueueID)
+
+		m.mu.RLock()
+		fn := m.statusFn
+		m.mu.RUnlock()
+		if fn != nil {
+			fn("Missing file: " + entry.Path)
+		}
+		return ErrMissingFile
+	}
+
+	c, err := m.ipc()
+	if errors.Is(err, ErrNotConnected) {
+		return m.enqueue(func() error { return m.PlayQueueEntry(entry, marker) })
+	}
+	if err != nil {
+		return err
+	}
+	_, err = c.SendCommand("loadfile", entry.Path, "replace")
+	return err
+}
+
 // cleanStaleSocket removes the socket file at socketPath if it exists but no
 // live process is listening on it. Returns an error if a live process owns it.
 func cleanStaleSocket(socketPath string) error {

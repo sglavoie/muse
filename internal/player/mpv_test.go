@@ -304,6 +304,174 @@ func TestManager_PlayerInterface(t *testing.T) {
 	}
 }
 
+// mockMarker records calls to MarkTrackMissing and MarkQueueEntryMissing.
+type mockMarker struct {
+	trackHash string
+	queueID   int64
+}
+
+func (m *mockMarker) MarkTrackMissing(hash string) error {
+	m.trackHash = hash
+	return nil
+}
+
+func (m *mockMarker) MarkQueueEntryMissing(id int64) error {
+	m.queueID = id
+	return nil
+}
+
+func TestManager_PlayQueueEntry_MissingFile(t *testing.T) {
+	sock := shortSockPath(t, "pqe-missing")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{
+		socketPath: sock,
+		ctx:        ctx,
+		cancel:     cancel,
+		cmdQueue:   []func() error{}, // mark as started
+	}
+	defer m.Close()
+
+	var statusMsg string
+	m.SetStatusFunc(func(msg string) { statusMsg = msg })
+
+	// Connect the manager to a fake server so ipc() succeeds.
+	fakeServer(t, sock)
+	client, err := NewIPCClient(sock)
+	if err != nil {
+		t.Fatalf("NewIPCClient: %v", err)
+	}
+	m.mu.Lock()
+	m.client = client
+	m.mu.Unlock()
+
+	marker := &mockMarker{}
+	entry := QueueTrack{
+		Path:    "/nonexistent/path/track.flac",
+		Hash:    "abc123",
+		QueueID: 42,
+	}
+
+	gotErr := m.PlayQueueEntry(entry, marker)
+	if !errors.Is(gotErr, ErrMissingFile) {
+		t.Fatalf("PlayQueueEntry: want ErrMissingFile, got %v", gotErr)
+	}
+	if marker.trackHash != "abc123" {
+		t.Errorf("MarkTrackMissing called with %q, want %q", marker.trackHash, "abc123")
+	}
+	if marker.queueID != 42 {
+		t.Errorf("MarkQueueEntryMissing called with %d, want 42", marker.queueID)
+	}
+	if statusMsg == "" {
+		t.Error("expected a status message for the missing file, got none")
+	}
+}
+
+func TestManager_PlayQueueEntry_PresentFile(t *testing.T) {
+	sock := shortSockPath(t, "pqe-present")
+
+	// Create a real temporary file to stat.
+	tmp, err := os.CreateTemp("", "muse-test-*.flac")
+	if err != nil {
+		t.Fatalf("CreateTemp: %v", err)
+	}
+	tmp.Close()
+	t.Cleanup(func() { os.Remove(tmp.Name()) })
+
+	// Track loadfile commands received by the fake server.
+	var mu sync.Mutex
+	var received [][]any
+	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
+		if cmd, ok := req["command"].([]any); ok && len(cmd) > 0 {
+			mu.Lock()
+			received = append(received, cmd)
+			mu.Unlock()
+		}
+		return successHandler(req)
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{
+		socketPath: sock,
+		ctx:        ctx,
+		cancel:     cancel,
+	}
+	defer m.Close()
+
+	client, err := NewIPCClient(sock)
+	if err != nil {
+		t.Fatalf("NewIPCClient: %v", err)
+	}
+	m.mu.Lock()
+	m.client = client
+	m.cmdQueue = []func() error{}
+	m.mu.Unlock()
+
+	marker := &mockMarker{}
+	entry := QueueTrack{
+		Path:    tmp.Name(),
+		Hash:    "deadbeef",
+		QueueID: 7,
+	}
+
+	if err := m.PlayQueueEntry(entry, marker); err != nil {
+		t.Fatalf("PlayQueueEntry: unexpected error: %v", err)
+	}
+
+	// Marker must not have been called.
+	if marker.trackHash != "" || marker.queueID != 0 {
+		t.Errorf("marker was called unexpectedly: hash=%q queueID=%d", marker.trackHash, marker.queueID)
+	}
+
+	// loadfile must have been sent to mpv.
+	mu.Lock()
+	defer mu.Unlock()
+	for _, args := range received {
+		if len(args) > 0 {
+			if name, _ := args[0].(string); name == "loadfile" {
+				return
+			}
+		}
+	}
+	t.Errorf("no loadfile command received; got %v", received)
+}
+
+func TestManager_PlayQueueEntry_NotConnectedQueues(t *testing.T) {
+	sock := shortSockPath(t, "pqe-queue")
+
+	// Create a real temporary file so the stat check passes.
+	tmp, err := os.CreateTemp("", "muse-test-*.flac")
+	if err != nil {
+		t.Fatalf("CreateTemp: %v", err)
+	}
+	tmp.Close()
+	t.Cleanup(func() { os.Remove(tmp.Name()) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{
+		socketPath: sock,
+		ctx:        ctx,
+		cancel:     cancel,
+		cmdQueue:   []func() error{}, // started but not connected
+	}
+	defer m.Close()
+
+	marker := &mockMarker{}
+	entry := QueueTrack{Path: tmp.Name(), Hash: "ff", QueueID: 1}
+
+	// Should queue rather than fail when not yet connected.
+	if err := m.PlayQueueEntry(entry, marker); err != nil {
+		t.Fatalf("PlayQueueEntry before connect: want nil (queued), got %v", err)
+	}
+
+	m.mu.RLock()
+	qlen := len(m.cmdQueue)
+	m.mu.RUnlock()
+	if qlen != 1 {
+		t.Errorf("cmdQueue len = %d, want 1", qlen)
+	}
+}
+
 // TestManager_AutoRestart verifies that on a detected IPC disconnect the
 // manager restarts mpv, reconnects, sends a loadfile command with the
 // correct start= offset, and emits a status bar notification.
