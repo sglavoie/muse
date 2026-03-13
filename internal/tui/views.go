@@ -9,11 +9,6 @@ const (
 	viewQueue     viewID = 3
 )
 
-// LibraryView is a placeholder for the music library panel.
-type LibraryView struct{}
-
-func (v LibraryView) render() string { return "Library" }
-
 // PlaylistsView is a placeholder for the playlists panel.
 type PlaylistsView struct{}
 

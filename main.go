@@ -98,7 +98,7 @@ func main() {
 		CloseLog:   config.CloseLog,
 	}
 
-	model := tui.New(config.LogPath(), configPath, configCreated)
+	model := tui.New(config.LogPath(), configPath, configCreated, nil)
 	p := tea.NewProgram(model)
 
 	// When the signal context is cancelled (SIGTERM/SIGINT from outside),

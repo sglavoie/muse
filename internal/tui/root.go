@@ -5,10 +5,15 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/library"
 )
 
 // clearConfigNotice is sent after the transient first-run notification timeout.
 type clearConfigNotice struct{}
+
+// scanBatchSize is the maximum number of tracks collected per batch before
+// returning a ScanBatchMsg to the update loop.
+const scanBatchSize = 100
 
 // Model is the root Bubble Tea v2 model. It manages view switching between
 // Library, Playlists, and Queue panels, and renders a persistent status bar.
@@ -21,17 +26,28 @@ type Model struct {
 	library   LibraryView
 	playlists PlaylistsView
 	queue     QueueView
+
+	// scanCh is the channel returned by library.Scan. It is nil when no scan
+	// is in progress or after the scan has completed.
+	scanCh  <-chan library.Track
+	scanning bool
+	scanned  int
 }
 
 // New creates a root Model. logPath is displayed in the status bar on every
 // render. When configCreated is true, configPath is also shown as a transient
 // first-run notification.
-func New(logPath, configPath string, configCreated bool) Model {
+//
+// scanCh may be nil when library scanning is not needed (e.g. in tests). Pass
+// the channel returned by library.Scan to enable incremental library updates.
+func New(logPath, configPath string, configCreated bool, scanCh <-chan library.Track) Model {
 	return Model{
 		activeView:    viewLibrary,
 		logPath:       logPath,
 		configPath:    configPath,
 		configCreated: configCreated,
+		scanCh:        scanCh,
+		scanning:      scanCh != nil,
 	}
 }
 
@@ -39,16 +55,47 @@ func New(logPath, configPath string, configCreated bool) Model {
 // is visible in the status bar before it is automatically dismissed.
 const configNoticeDuration = 5 * time.Second
 
-// Init satisfies the tea.Model interface. When this is a first-run session,
-// schedules a command to dismiss the transient config path notification after
-// configNoticeDuration.
-func (m Model) Init() tea.Cmd {
-	if m.configCreated {
-		return tea.Tick(configNoticeDuration, func(time.Time) tea.Msg {
-			return clearConfigNotice{}
-		})
+// waitForNextBatch returns a Cmd that reads up to scanBatchSize tracks from ch
+// and dispatches a ScanBatchMsg. When the channel closes with no remaining
+// tracks it dispatches ScanDoneMsg instead.
+func waitForNextBatch(ch <-chan library.Track) tea.Cmd {
+	return func() tea.Msg {
+		var batch []library.Track
+		for t := range ch {
+			batch = append(batch, t)
+			if len(batch) >= scanBatchSize {
+				return library.ScanBatchMsg{Tracks: batch}
+			}
+		}
+		// Channel closed.
+		if len(batch) > 0 {
+			return library.ScanBatchMsg{Tracks: batch}
+		}
+		return library.ScanDoneMsg{}
 	}
-	return nil
+}
+
+// Init satisfies the tea.Model interface. It schedules the config-notice
+// dismissal timer when this is a first-run session, and kicks off the first
+// batch read from the scanner channel when one is present.
+func (m Model) Init() tea.Cmd {
+	var cmds []tea.Cmd
+	if m.configCreated {
+		cmds = append(cmds, tea.Tick(configNoticeDuration, func(time.Time) tea.Msg {
+			return clearConfigNotice{}
+		}))
+	}
+	if m.scanCh != nil {
+		cmds = append(cmds, waitForNextBatch(m.scanCh))
+	}
+	switch len(cmds) {
+	case 0:
+		return nil
+	case 1:
+		return cmds[0]
+	default:
+		return tea.Batch(cmds...)
+	}
 }
 
 // Update handles incoming messages. Number keys 1/2/3 switch the active view;
@@ -58,6 +105,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case clearConfigNotice:
 		m.configCreated = false
+
+	case library.ScanBatchMsg:
+		for _, t := range msg.Tracks {
+			m.library.index.Insert(t)
+		}
+		m.scanned += len(msg.Tracks)
+		if m.scanCh != nil {
+			return m, waitForNextBatch(m.scanCh)
+		}
+
+	case library.ScanDoneMsg:
+		m.scanning = false
+		m.scanCh = nil
+
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "ctrl+c":
@@ -90,10 +151,15 @@ func (m Model) View() tea.View {
 }
 
 // renderStatusBar builds the status bar line shown at the bottom of the view.
+// It shows the log path, the first-run config notice when applicable, and a
+// scan progress indicator while the scan is in flight.
 func (m Model) renderStatusBar() string {
 	bar := fmt.Sprintf("log: %s", m.logPath)
 	if m.configCreated {
 		bar += fmt.Sprintf("  |  config created: %s", m.configPath)
+	}
+	if m.scanning {
+		bar += fmt.Sprintf("  |  Scanning… %s tracks", formatCount(m.scanned))
 	}
 	return bar
 }
