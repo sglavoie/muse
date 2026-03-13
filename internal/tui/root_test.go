@@ -169,23 +169,16 @@ func TestViewLibraryShowsTrackCount(t *testing.T) {
 	}
 }
 
-// TestViewStatusBarShowsScanProgress verifies that the status bar includes a
-// scanning indicator while a scan is in flight.
+// TestViewStatusBarShowsScanProgress verifies that the status bar shows a
+// formatted "X / Y tracks" progress string after a ScanProgressMsg.
 func TestViewStatusBarShowsScanProgress(t *testing.T) {
-	ch := make(chan library.Track)
-	close(ch)
-	m := New("/log", "", false, ch)
-
-	// Inject some scanned count by handling a batch message.
-	tracks := []library.Track{
-		{Artist: "A", Title: "T1"},
-		{Artist: "B", Title: "T2"},
-	}
-	next, _ := m.Update(library.ScanBatchMsg{Tracks: tracks})
+	m := New("/log", "", false, nil)
+	next, _ := m.Update(library.ScanProgressMsg{Scanned: 1234, Total: 5000})
 	nm := next.(Model)
 	v := nm.View()
-	if !strings.Contains(v.Content, "Scanning") {
-		t.Fatalf("status bar must show scan progress while scanning; got:\n%s", v.Content)
+	want := "Scanning… 1,234 / 5,000 tracks"
+	if !strings.Contains(v.Content, want) {
+		t.Fatalf("status bar must show %q after ScanProgressMsg; got:\n%s", want, v.Content)
 	}
 }
 
@@ -193,10 +186,13 @@ func TestViewStatusBarShowsScanProgress(t *testing.T) {
 // indicator is removed from the status bar after ScanDoneMsg.
 func TestViewStatusBarHidesScanProgressWhenDone(t *testing.T) {
 	m := New("/log", "", false, nil)
-	next, _ := m.Update(library.ScanDoneMsg{})
+	// First set progress, then clear it.
+	next, _ := m.Update(library.ScanProgressMsg{Scanned: 100, Total: 500})
 	nm := next.(Model)
+	next, _ = nm.Update(library.ScanDoneMsg{})
+	nm = next.(Model)
 	v := nm.View()
 	if strings.Contains(v.Content, "Scanning") {
-		t.Fatalf("status bar must not show scan progress after scan done; got:\n%s", v.Content)
+		t.Fatalf("status bar must not show scan progress after ScanDoneMsg; got:\n%s", v.Content)
 	}
 }

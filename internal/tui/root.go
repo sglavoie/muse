@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"fmt"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -32,6 +31,8 @@ type Model struct {
 	scanCh  <-chan library.Track
 	scanning bool
 	scanned  int
+
+	statusBar StatusBar
 }
 
 // New creates a root Model. logPath is displayed in the status bar on every
@@ -48,6 +49,11 @@ func New(logPath, configPath string, configCreated bool, scanCh <-chan library.T
 		configCreated: configCreated,
 		scanCh:        scanCh,
 		scanning:      scanCh != nil,
+		statusBar: StatusBar{
+			logPath:       logPath,
+			configPath:    configPath,
+			configCreated: configCreated,
+		},
 	}
 }
 
@@ -106,6 +112,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case clearConfigNotice:
 		m.configCreated = false
 
+	case library.ScanProgressMsg:
+		m.statusBar.handleScanProgress(msg)
+
 	case library.ScanBatchMsg:
 		for _, t := range msg.Tracks {
 			m.library.index.Insert(t)
@@ -118,6 +127,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case library.ScanDoneMsg:
 		m.scanning = false
 		m.scanCh = nil
+		m.statusBar.handleScanDone()
 
 	case tea.KeyPressMsg:
 		switch msg.String() {
@@ -151,15 +161,6 @@ func (m Model) View() tea.View {
 }
 
 // renderStatusBar builds the status bar line shown at the bottom of the view.
-// It shows the log path, the first-run config notice when applicable, and a
-// scan progress indicator while the scan is in flight.
 func (m Model) renderStatusBar() string {
-	bar := fmt.Sprintf("log: %s", m.logPath)
-	if m.configCreated {
-		bar += fmt.Sprintf("  |  config created: %s", m.configPath)
-	}
-	if m.scanning {
-		bar += fmt.Sprintf("  |  Scanning… %s tracks", formatCount(m.scanned))
-	}
-	return bar
+	return m.statusBar.render()
 }
