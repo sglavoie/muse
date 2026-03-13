@@ -1194,3 +1194,299 @@ func TestPlaylistLocalCFiresCreateNotGlobalAction(t *testing.T) {
 		t.Fatalf("c key in Playlists: expected PlaylistCreateMsg, got %T", msg)
 	}
 }
+
+// stubSeekPlayer extends stubPlayer with tracking for SeekRelative, Next, and
+// Previous calls so that seek and navigation key tests can assert correct deltas
+// and call counts without a real mpv backend.
+type stubSeekPlayer struct {
+	stubPlayer
+	seekDeltas []float64
+	nextCalls  int
+	prevCalls  int
+}
+
+func (s *stubSeekPlayer) Stop() error { return nil }
+func (s *stubSeekPlayer) SeekRelative(d float64) error {
+	s.seekDeltas = append(s.seekDeltas, d)
+	return nil
+}
+func (s *stubSeekPlayer) SetVolumeRelative(float64) error { return nil }
+func (s *stubSeekPlayer) Next() error                     { s.nextCalls++; return nil }
+func (s *stubSeekPlayer) Previous() error                 { s.prevCalls++; return nil }
+
+// TestSeekFineBackwardKey verifies that the left arrow key calls
+// SeekRelative(-5) on the player (fine seek backward by 5 seconds).
+func TestSeekFineBackwardKey(t *testing.T) {
+	p := &stubSeekPlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+
+	m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+
+	if len(p.seekDeltas) != 1 || p.seekDeltas[0] != -5 {
+		t.Fatalf("left arrow: expected SeekRelative(-5), got deltas=%v", p.seekDeltas)
+	}
+}
+
+// TestSeekFineForwardKey verifies that the right arrow key calls
+// SeekRelative(+5) on the player (fine seek forward by 5 seconds).
+func TestSeekFineForwardKey(t *testing.T) {
+	p := &stubSeekPlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+
+	m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+
+	if len(p.seekDeltas) != 1 || p.seekDeltas[0] != 5 {
+		t.Fatalf("right arrow: expected SeekRelative(5), got deltas=%v", p.seekDeltas)
+	}
+}
+
+// TestSeekCoarseBackwardKey verifies that Shift+Left calls SeekRelative(-30)
+// on the player (coarse seek backward by 30 seconds).
+func TestSeekCoarseBackwardKey(t *testing.T) {
+	p := &stubSeekPlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+
+	m.Update(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModShift})
+
+	if len(p.seekDeltas) != 1 || p.seekDeltas[0] != -30 {
+		t.Fatalf("shift+left: expected SeekRelative(-30), got deltas=%v", p.seekDeltas)
+	}
+}
+
+// TestSeekCoarseForwardKey verifies that Shift+Right calls SeekRelative(+30)
+// on the player (coarse seek forward by 30 seconds).
+func TestSeekCoarseForwardKey(t *testing.T) {
+	p := &stubSeekPlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+
+	m.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+
+	if len(p.seekDeltas) != 1 || p.seekDeltas[0] != 30 {
+		t.Fatalf("shift+right: expected SeekRelative(30), got deltas=%v", p.seekDeltas)
+	}
+}
+
+// TestNextTrackKey verifies that pressing 'n' calls Next() on the player.
+func TestNextTrackKey(t *testing.T) {
+	p := &stubSeekPlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+
+	m.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
+
+	if p.nextCalls != 1 {
+		t.Fatalf("n key: expected 1 Next() call, got %d", p.nextCalls)
+	}
+}
+
+// TestPreviousTrackKey verifies that pressing 'p' calls Previous() on the player.
+func TestPreviousTrackKey(t *testing.T) {
+	p := &stubSeekPlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+
+	m.Update(tea.KeyPressMsg{Code: 'p', Text: "p"})
+
+	if p.prevCalls != 1 {
+		t.Fatalf("p key: expected 1 Previous() call, got %d", p.prevCalls)
+	}
+}
+
+// TestMinusKeyFiresVolumeDown verifies that pressing '-' calls
+// SetVolumeRelative(-5) on the player (volume down by 5%).
+func TestMinusKeyFiresVolumeDown(t *testing.T) {
+	p := &stubVolumePlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+
+	m.Update(tea.KeyPressMsg{Code: '-', Text: "-"})
+
+	if p.volumeDelta != -5 {
+		t.Fatalf("- key: expected SetVolumeRelative(-5), got delta=%v", p.volumeDelta)
+	}
+}
+
+// TestHKeyIsUnbound verifies that 'h' is intentionally unbound: pressing it
+// produces no command and leaves the model state unchanged.
+func TestHKeyIsUnbound(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'h', Text: "h"})
+
+	if cmd != nil {
+		t.Fatal("'h' key must be unbound: expected nil cmd")
+	}
+}
+
+// TestLKeyIsUnbound verifies that 'l' is intentionally unbound: pressing it
+// produces no command and leaves the model state unchanged.
+func TestLKeyIsUnbound(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'l', Text: "l"})
+
+	if cmd != nil {
+		t.Fatal("'l' key must be unbound: expected nil cmd")
+	}
+}
+
+// TestViewSwitchingCompletesUnder50ms verifies that each view-switch keypress
+// and its first rendered frame complete within 50ms, and that the active view
+// is correct after each switch.
+func TestViewSwitchingCompletesUnder50ms(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+
+	steps := []struct {
+		key  tea.KeyPressMsg
+		want viewID
+	}{
+		{tea.KeyPressMsg{Code: '2', Text: "2"}, viewPlaylists},
+		{tea.KeyPressMsg{Code: '3', Text: "3"}, viewQueue},
+		{tea.KeyPressMsg{Code: '1', Text: "1"}, viewLibrary},
+	}
+
+	for _, tc := range steps {
+		start := time.Now()
+		next, _ := m.Update(tc.key)
+		nm := next.(Model)
+		_ = nm.View()
+		elapsed := time.Since(start)
+
+		if elapsed >= 50*time.Millisecond {
+			t.Fatalf("view switch to %d: took %v, must complete under 50ms", tc.want, elapsed)
+		}
+		if nm.activeView != tc.want {
+			t.Fatalf("expected activeView %d after key press, got %d", tc.want, nm.activeView)
+		}
+		m = nm
+	}
+}
+
+// TestBackgroundBatchUpdateLoopNonBlocking verifies that the Update loop
+// returns immediately when handling a ScanBatchMsg. The blocking channel read
+// for the next batch is deferred to the returned Cmd, keeping the Elm update
+// loop free to process further messages.
+func TestBackgroundBatchUpdateLoopNonBlocking(t *testing.T) {
+	// Unbuffered channel with no sender — Update must not block on it.
+	ch := make(chan library.Track)
+	m := New("/log", "", false, ch, nil, "", nil, nil)
+
+	start := time.Now()
+	_, cmd := m.Update(library.ScanBatchMsg{Tracks: []library.Track{
+		{Artist: "A", Title: "T"},
+	}})
+	elapsed := time.Since(start)
+
+	if elapsed >= 50*time.Millisecond {
+		t.Fatalf("Update with ScanBatchMsg blocked for %v; must return immediately", elapsed)
+	}
+	if cmd == nil {
+		t.Fatal("ScanBatchMsg must return a follow-up cmd for the next batch read")
+	}
+}
+
+// TestRootQueueLocalDDispatchesDequeueMsg verifies the end-to-end path: pressing
+// 'd' while the queue view is active returns a Cmd that emits DequeueTrackMsg.
+func TestRootQueueLocalDDispatchesDequeueMsg(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Display: "A"},
+		{Path: "/music/b.flac", Display: "B"},
+	}
+	m.queue.cursor = 1
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	if cmd == nil {
+		t.Fatal("'d' in queue view: expected non-nil cmd")
+	}
+	msg, ok := cmd().(DequeueTrackMsg)
+	if !ok {
+		t.Fatalf("'d' in queue view: expected DequeueTrackMsg, got %T", cmd())
+	}
+	if msg.Index != 1 {
+		t.Fatalf("'d' in queue view: expected index 1, got %d", msg.Index)
+	}
+}
+
+// TestRootQueueLocalXDispatchesBulkSelectionToggleMsg verifies the end-to-end
+// path: pressing 'x' while the queue view is active dispatches BulkSelectionToggleMsg.
+func TestRootQueueLocalXDispatchesBulkSelectionToggleMsg(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Display: "A"},
+	}
+	m.queue.cursor = 0
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
+	if cmd == nil {
+		t.Fatal("'x' in queue view: expected non-nil cmd")
+	}
+	if _, ok := cmd().(BulkSelectionToggleMsg); !ok {
+		t.Fatalf("'x' in queue view: expected BulkSelectionToggleMsg, got %T", cmd())
+	}
+}
+
+// TestRootQueueLocalCDispatchesClearQueueMsg verifies the end-to-end path:
+// pressing 'C' (Shift+c) while the queue view is active dispatches ClearQueueMsg.
+func TestRootQueueLocalCDispatchesClearQueueMsg(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Display: "A"},
+	}
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'C', Text: "C"})
+	if cmd == nil {
+		t.Fatal("'C' in queue view: expected non-nil cmd")
+	}
+	if _, ok := cmd().(ClearQueueMsg); !ok {
+		t.Fatalf("'C' in queue view: expected ClearQueueMsg, got %T", cmd())
+	}
+}
+
+// TestRootQueueLocalKDispatchesMoveTrackUpMsg verifies the end-to-end path:
+// pressing 'K' (Shift+k) while the queue view is active dispatches MoveTrackUpMsg.
+func TestRootQueueLocalKDispatchesMoveTrackUpMsg(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Display: "A"},
+		{Path: "/music/b.flac", Display: "B"},
+	}
+	m.queue.cursor = 1
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'K', Text: "K"})
+	if cmd == nil {
+		t.Fatal("'K' in queue view: expected non-nil cmd")
+	}
+	msg, ok := cmd().(MoveTrackUpMsg)
+	if !ok {
+		t.Fatalf("'K' in queue view: expected MoveTrackUpMsg, got %T", cmd())
+	}
+	if msg.Index != 1 {
+		t.Fatalf("'K' in queue view: expected index 1, got %d", msg.Index)
+	}
+}
+
+// TestRootQueueLocalJDispatchesMoveTrackDownMsg verifies the end-to-end path:
+// pressing 'J' (Shift+j) while the queue view is active dispatches MoveTrackDownMsg.
+func TestRootQueueLocalJDispatchesMoveTrackDownMsg(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Display: "A"},
+		{Path: "/music/b.flac", Display: "B"},
+	}
+	m.queue.cursor = 0
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'J', Text: "J"})
+	if cmd == nil {
+		t.Fatal("'J' in queue view: expected non-nil cmd")
+	}
+	msg, ok := cmd().(MoveTrackDownMsg)
+	if !ok {
+		t.Fatalf("'J' in queue view: expected MoveTrackDownMsg, got %T", cmd())
+	}
+	if msg.Index != 0 {
+		t.Fatalf("'J' in queue view: expected index 0, got %d", msg.Index)
+	}
+}
