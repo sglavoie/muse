@@ -1,11 +1,20 @@
 package library
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
 	musiclib "github.com/sglavoie/muse/internal/library"
 )
+
+// ansiEscape strips ANSI escape sequences from s so that display-width checks
+// are not confused by non-printing highlight codes.
+var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+func stripANSI(s string) string {
+	return ansiEscape.ReplaceAllString(s, "")
+}
 
 func buildIndex(tracks []musiclib.Track) musiclib.LibraryIndex {
 	var idx musiclib.LibraryIndex
@@ -61,7 +70,7 @@ func TestRenderColumnsDoNotOverflow(t *testing.T) {
 		}
 
 		for _, line := range lines[2:] {
-			got := len([]rune(line))
+			got := len([]rune(stripANSI(line)))
 			if got != width {
 				t.Errorf("width=%d: row has %d runes, want %d: %q", width, got, width, line)
 			}
@@ -129,5 +138,85 @@ func TestPadPadding(t *testing.T) {
 	got := pad("Hi", 5)
 	if got != "Hi   " {
 		t.Errorf("pad: expected %q, got %q", "Hi   ", got)
+	}
+}
+
+// TestCursorDownAdvances verifies that CursorDown (j / arrow-down) increments
+// the cursor index by one.
+func TestCursorDownAdvances(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Width: 80, Height: 0, Cursor: 0}
+	v = v.CursorDown()
+	if v.Cursor != 1 {
+		t.Errorf("CursorDown: expected cursor 1, got %d", v.Cursor)
+	}
+}
+
+// TestCursorUpAdvances verifies that CursorUp (k / arrow-up) decrements the
+// cursor index by one.
+func TestCursorUpAdvances(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Width: 80, Height: 0, Cursor: 2}
+	v = v.CursorUp()
+	if v.Cursor != 1 {
+		t.Errorf("CursorUp: expected cursor 1, got %d", v.Cursor)
+	}
+}
+
+// TestCursorClampAtBottom verifies that CursorDown stops at the last track
+// without wrapping.
+func TestCursorClampAtBottom(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	last := len(sampleTracks) - 1
+	v := View{Index: idx, Width: 80, Height: 0, Cursor: last}
+	v = v.CursorDown()
+	if v.Cursor != last {
+		t.Errorf("CursorDown at last: expected cursor %d (clamped), got %d", last, v.Cursor)
+	}
+}
+
+// TestCursorClampAtTop verifies that CursorUp stops at the first track without
+// wrapping.
+func TestCursorClampAtTop(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Width: 80, Height: 0, Cursor: 0}
+	v = v.CursorUp()
+	if v.Cursor != 0 {
+		t.Errorf("CursorUp at first: expected cursor 0 (clamped), got %d", v.Cursor)
+	}
+}
+
+// TestCursorStoredOnModel verifies that the cursor index is retained on the
+// View value after multiple moves.
+func TestCursorStoredOnModel(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Width: 80, Height: 0, Cursor: 0}
+	v = v.CursorDown()
+	v = v.CursorDown()
+	if v.Cursor != 2 {
+		t.Errorf("cursor after two CursorDown calls: expected 2, got %d", v.Cursor)
+	}
+}
+
+// TestCursorRowHighlighted verifies that the focused row is wrapped with ANSI
+// accent codes in the rendered output.
+func TestCursorRowHighlighted(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Width: 80, Height: 0, Cursor: 0}
+	got := v.Render()
+	lines := strings.Split(got, "\n")
+	// Track rows begin after the heading, blank line, and header row (index 3).
+	if len(lines) < 4 {
+		t.Fatalf("expected at least 4 lines, got %d", len(lines))
+	}
+	focusedRow := lines[3]
+	if !strings.Contains(focusedRow, ansiAccent) {
+		t.Errorf("focused row should contain ANSI accent code, got: %q", focusedRow)
+	}
+	// Non-focused rows must not carry the accent code.
+	for _, line := range lines[4:] {
+		if strings.Contains(line, ansiAccent) {
+			t.Errorf("non-focused row should not contain ANSI accent code, got: %q", line)
+		}
 	}
 }

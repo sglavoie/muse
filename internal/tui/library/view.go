@@ -7,13 +7,38 @@ import (
 	musiclib "github.com/sglavoie/muse/internal/library"
 )
 
+// ansiAccent / ansiReset wrap text in reverse-video for the focused-row highlight.
+const (
+	ansiAccent = "\033[7m"
+	ansiReset  = "\033[0m"
+)
+
 // View renders the music library panel with proportional columnar layout.
 // Width and Height must be set from the most recent tea.WindowSizeMsg before
 // calling Render; a zero Width falls back to a simple "artist – title" format.
+// Cursor holds the zero-based index of the focused track row.
 type View struct {
 	Index  musiclib.LibraryIndex
 	Width  int
 	Height int
+	Cursor int
+}
+
+// CursorUp moves the cursor one row up, stopping at the first track.
+func (v View) CursorUp() View {
+	if v.Cursor > 0 {
+		v.Cursor--
+	}
+	return v
+}
+
+// CursorDown moves the cursor one row down, stopping at the last track.
+func (v View) CursorDown() View {
+	n := v.Index.Len()
+	if n > 0 && v.Cursor < n-1 {
+		v.Cursor++
+	}
+	return v
 }
 
 // Render returns the complete library panel string. When Width is zero (before
@@ -36,7 +61,11 @@ func (v View) Render() string {
 	if v.Width == 0 {
 		lines := make([]string, end)
 		for i, t := range tracks[:end] {
-			lines[i] = fmt.Sprintf("%s – %s", t.Artist, t.Title)
+			row := fmt.Sprintf("%s – %s", t.Artist, t.Title)
+			if i == v.Cursor {
+				row = ansiAccent + row + ansiReset
+			}
+			lines[i] = row
 		}
 		return heading + "\n\n" + strings.Join(lines, "\n")
 	}
@@ -47,7 +76,11 @@ func (v View) Render() string {
 	for i, t := range tracks[:end] {
 		num := fmt.Sprintf("%d", i+1)
 		dur := formatDuration(t.Duration)
-		lines[i] = renderRow(num, t.Artist, t.Title, t.Album, dur, cols)
+		row := renderRow(num, t.Artist, t.Title, t.Album, dur, cols)
+		if i == v.Cursor {
+			row = ansiAccent + row + ansiReset
+		}
+		lines[i] = row
 	}
 
 	return heading + "\n\n" + header + "\n" + strings.Join(lines, "\n")

@@ -620,12 +620,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, func() tea.Msg { return UndoMsg{} }
 		case actionFilterBar:
 			return m, func() tea.Msg { return FilterBarMsg{} }
-		case actionCursorUp, actionCursorDown, actionSelect,
-			actionDequeue, actionBulkSelectionToggle, actionClearQueue,
-			actionMoveTrackUp, actionMoveTrackDown:
-			// Pass the resolved action (not the raw key) to QueueView so that
-			// key-to-action mapping lives in a single authoritative location
-			// (the registry). QueueView.HandleAction never inspects key strings.
+		case actionCursorUp, actionCursorDown:
+			// Route cursor movement to the active view. Library cursor is
+			// stored on LibraryView; queue cursor is stored on QueueView.
+			if m.activeView == viewLibrary {
+				m.library = m.library.HandleAction(a)
+			} else {
+				var cmd tea.Cmd
+				m.queue, cmd = m.queue.HandleAction(a)
+				return m, cmd
+			}
+		case actionSelect, actionDequeue, actionBulkSelectionToggle,
+			actionClearQueue, actionMoveTrackUp, actionMoveTrackDown:
+			// Queue-only actions — pass to QueueView regardless of active view.
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(a)
 			return m, cmd

@@ -12,6 +12,7 @@ type LibraryView struct {
 	index  library.LibraryIndex
 	width  int
 	height int
+	cursor int // zero-based index of the focused track row
 }
 
 // render returns a string representation of the library panel with proportional
@@ -21,7 +22,26 @@ func (v LibraryView) render() string {
 		Index:  v.index,
 		Width:  v.width,
 		Height: v.height,
+		Cursor: v.cursor,
 	}.Render()
+}
+
+// HandleAction executes a pre-resolved library action dispatched by root.Update.
+func (v LibraryView) HandleAction(a action) LibraryView {
+	view := libtui.View{
+		Index:  v.index,
+		Width:  v.width,
+		Height: v.height,
+		Cursor: v.cursor,
+	}
+	switch a {
+	case actionCursorUp:
+		view = view.CursorUp()
+	case actionCursorDown:
+		view = view.CursorDown()
+	}
+	v.cursor = view.Cursor
+	return v
 }
 
 // formatCount formats n with comma separators (e.g. 1234 → "1,234").

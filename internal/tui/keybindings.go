@@ -99,6 +99,12 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "/", actionFilterBar)
 	r.register(contextGlobal, "?", actionHelp)
 
+	// Library-local bindings.
+	r.register(contextLibrary, "j", actionCursorDown)
+	r.register(contextLibrary, "k", actionCursorUp)
+	r.register(contextLibrary, "up", actionCursorUp)
+	r.register(contextLibrary, "down", actionCursorDown)
+
 	// Queue-local bindings.
 	r.register(contextQueue, "up", actionCursorUp)
 	r.register(contextQueue, "down", actionCursorDown)
