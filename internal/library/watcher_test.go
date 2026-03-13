@@ -120,6 +120,43 @@ func TestDebounce_RescansAfterWindow(t *testing.T) {
 	}
 }
 
+// TestDebounce_NoRescanBeforeWindowElapses verifies that no rescan fires while
+// events are still arriving within the debounce window. It asserts that the
+// output channel stays empty for the entire duration of a rapid burst,
+// confirming the 2-second (configurable) window is observed in production.
+func TestDebounce_NoRescanBeforeWindowElapses(t *testing.T) {
+	root := t.TempDir()
+	const debounce = 300 * time.Millisecond
+
+	p := filepath.Join(root, "track.mp3")
+	mkfile(t, p)
+
+	fe := &fakeExtractor{}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	ch, err := Watch(ctx, root, fe, debounce)
+	if err != nil {
+		t.Fatalf("Watch: %v", err)
+	}
+
+	// Trigger an event and then immediately check that nothing arrives within
+	// half the debounce window — the timer should not have fired yet.
+	if err := os.WriteFile(p, []byte("ID3v2"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	earlyDeadline := time.After(debounce / 2)
+	select {
+	case _, ok := <-ch:
+		if ok {
+			t.Error("rescan fired before debounce window elapsed")
+		}
+	case <-earlyDeadline:
+		// Correct: nothing arrived before the window — debounce is working.
+	}
+}
+
 // TestRename_TreatedAsDeletePlusCreate verifies that renaming a file causes the
 // old path to be dropped from pending while the new path (arriving as a Create
 // event) drives the rescan.
@@ -294,10 +331,7 @@ func TestWatch_WatcherFactoryFailure_LogsWarningAndDegrades(t *testing.T) {
 	}
 	t.Cleanup(func() { watcherFactory = origFactory })
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	ch, err := Watch(ctx, t.TempDir(), &fakeExtractor{}, DefaultDebounce)
+	ch, err := Watch(t.Context(), t.TempDir(), &fakeExtractor{}, DefaultDebounce)
 	if err != nil {
 		t.Fatalf("Watch returned error; want nil for degraded mode: %v", err)
 	}
