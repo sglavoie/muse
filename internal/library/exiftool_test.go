@@ -1,8 +1,10 @@
 package library
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/bits"
 	"path/filepath"
 	"testing"
@@ -148,8 +150,8 @@ func (p *poisonExtractor) Extract(files []HashedFile) ([]Track, error) {
 var _ MetadataExtractor = (*poisonExtractor)(nil)
 
 // TestBinaryRetry_IsolatesCorruptFile verifies that extractWithBinaryRetry
-// isolates a single corrupt file and returns all other tracks. It also asserts
-// that the number of Extract calls is O(log n).
+// isolates a single corrupt file, applies fallback metadata, and returns all n
+// tracks. It also asserts that the number of Extract calls is O(log n).
 func TestBinaryRetry_IsolatesCorruptFile(t *testing.T) {
 	const n = 16
 	const poisonIdx = 7
@@ -165,16 +167,27 @@ func TestBinaryRetry_IsolatesCorruptFile(t *testing.T) {
 	pe := &poisonExtractor{poisonIdx: poisonIdx}
 	tracks := extractWithBinaryRetry(pe, files)
 
-	if len(tracks) != n-1 {
-		t.Fatalf("expected %d tracks (all but the corrupt one), got %d", n-1, len(tracks))
+	// All n tracks must be present: the corrupt file gets fallback metadata.
+	if len(tracks) != n {
+		t.Fatalf("expected %d tracks (including fallback for corrupt file), got %d", n, len(tracks))
 	}
 
-	// Verify the corrupt file is absent from results.
+	// Verify the corrupt file is present with fallback metadata.
 	corruptPath := fmt.Sprintf("/music/track%02d.flac", poisonIdx)
+	found := false
 	for _, tr := range tracks {
 		if tr.Path == corruptPath {
-			t.Errorf("corrupt file %q should not appear in results", corruptPath)
+			found = true
+			if tr.Artist != "Unknown Artist" {
+				t.Errorf("corrupt track artist: want %q, got %q", "Unknown Artist", tr.Artist)
+			}
+			if tr.Title != "track07" {
+				t.Errorf("corrupt track title: want %q, got %q", "track07", tr.Title)
+			}
 		}
+	}
+	if !found {
+		t.Errorf("corrupt file %q missing from results; should be present with fallback metadata", corruptPath)
 	}
 
 	// Verify O(log n) calls: upper bound is 2*(log2(n)+1) for a single corrupt file.
@@ -240,14 +253,89 @@ func TestExtractBatches_BinaryRetryIntegration(t *testing.T) {
 		got = append(got, tr)
 	}
 
-	if len(got) != n-1 {
-		t.Fatalf("expected %d tracks, got %d", n-1, len(got))
+	// All n tracks must be present; the corrupt file gets fallback metadata.
+	if len(got) != n {
+		t.Fatalf("expected %d tracks (including fallback for corrupt file), got %d", n, len(got))
 	}
 	corruptPath := fmt.Sprintf("/music/track%02d.flac", poisonIdx)
+	found := false
 	for _, tr := range got {
 		if tr.Path == corruptPath {
-			t.Errorf("corrupt path %q should not appear in output", corruptPath)
+			found = true
+			if tr.Artist != "Unknown Artist" {
+				t.Errorf("corrupt track artist: want %q, got %q", "Unknown Artist", tr.Artist)
+			}
 		}
+	}
+	if !found {
+		t.Errorf("corrupt path %q missing from output; should be present with fallback metadata", corruptPath)
+	}
+}
+
+// capturingHandler is a slog.Handler that records all log records for inspection.
+type capturingHandler struct {
+	records []slog.Record
+}
+
+func (h *capturingHandler) Enabled(_ context.Context, _ slog.Level) bool { return true }
+func (h *capturingHandler) Handle(_ context.Context, r slog.Record) error {
+	h.records = append(h.records, r)
+	return nil
+}
+func (h *capturingHandler) WithAttrs(_ []slog.Attr) slog.Handler  { return h }
+func (h *capturingHandler) WithGroup(_ string) slog.Handler        { return h }
+
+// alwaysFailExtractor always returns an error regardless of input.
+type alwaysFailExtractor struct{}
+
+func (a *alwaysFailExtractor) Extract(_ []HashedFile) ([]Track, error) {
+	return nil, errors.New("extraction failed")
+}
+
+var _ MetadataExtractor = (*alwaysFailExtractor)(nil)
+
+// TestFallback_SingleFileFailureInsertsFallback verifies that when ExifTool
+// fails to extract metadata for a single file, the track is still returned with
+// Artist="Unknown Artist" and Title set to the filename stem. It also verifies
+// that a slog.Warn is emitted and the track is present in the returned slice.
+// This test exercises the fallback path independently of the binary-search retry.
+func TestFallback_SingleFileFailureInsertsFallback(t *testing.T) {
+	h := &capturingHandler{}
+	prev := slog.Default()
+	slog.SetDefault(slog.New(h))
+	defer slog.SetDefault(prev)
+
+	files := []HashedFile{{Path: "/music/artist/some song.flac", Hash: "deadbeef"}}
+	tracks := extractWithBinaryRetry(&alwaysFailExtractor{}, files)
+
+	// Track must be present (never omitted).
+	if len(tracks) != 1 {
+		t.Fatalf("expected 1 fallback track, got %d", len(tracks))
+	}
+	tr := tracks[0]
+
+	if tr.Artist != "Unknown Artist" {
+		t.Errorf("artist: want %q, got %q", "Unknown Artist", tr.Artist)
+	}
+	if tr.Title != "some song" {
+		t.Errorf("title: want %q (filename stem), got %q", "some song", tr.Title)
+	}
+	if tr.Path != files[0].Path {
+		t.Errorf("path: want %q, got %q", files[0].Path, tr.Path)
+	}
+	if tr.Hash != files[0].Hash {
+		t.Errorf("hash: want %q, got %q", files[0].Hash, tr.Hash)
+	}
+
+	// A warning must have been logged.
+	warnCount := 0
+	for _, r := range h.records {
+		if r.Level == slog.LevelWarn {
+			warnCount++
+		}
+	}
+	if warnCount == 0 {
+		t.Error("expected at least one slog.Warn for failed extraction, got none")
 	}
 }
 

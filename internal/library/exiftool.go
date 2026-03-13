@@ -2,7 +2,9 @@ package library
 
 import (
 	"encoding/json"
+	"log/slog"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 )
 
@@ -80,8 +82,21 @@ func extractWithBinaryRetry(extractor MetadataExtractor, files []HashedFile) []T
 		return tracks
 	}
 	if len(files) == 1 {
-		// Corrupt single file: skip it rather than losing the whole batch.
-		return nil
+		// Corrupt single file: fall back to filename-derived metadata so the
+		// track is still included in the library.
+		slog.Warn("metadata extraction failed, using filename fallback",
+			"path", files[0].Path,
+			"error", err,
+		)
+		base := filepath.Base(files[0].Path)
+		ext := filepath.Ext(base)
+		stem := base[:len(base)-len(ext)]
+		return []Track{{
+			Path:   files[0].Path,
+			Hash:   files[0].Hash,
+			Artist: "Unknown Artist",
+			Title:  stem,
+		}}
 	}
 	mid := len(files) / 2
 	left := extractWithBinaryRetry(extractor, files[:mid])
