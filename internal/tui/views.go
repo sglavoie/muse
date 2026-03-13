@@ -64,6 +64,28 @@ func (v QueueView) Update(msg tea.Msg) (QueueView, tea.Cmd) {
 			idx := v.cursor
 			return v, func() tea.Msg { return PlayQueueIndexMsg{Index: idx} }
 		}
+	case "d":
+		if len(v.entries) > 0 {
+			idx := v.cursor
+			return v, func() tea.Msg { return DequeueTrackMsg{Index: idx} }
+		}
+	case "x":
+		if len(v.entries) > 0 {
+			idx := v.cursor
+			return v, func() tea.Msg { return BulkSelectionToggleMsg{Index: idx} }
+		}
+	case "C":
+		return v, func() tea.Msg { return ClearQueueMsg{} }
+	case "K":
+		if v.cursor > 0 {
+			idx := v.cursor
+			return v, func() tea.Msg { return MoveTrackUpMsg{Index: idx} }
+		}
+	case "J":
+		if v.cursor < len(v.entries)-1 {
+			idx := v.cursor
+			return v, func() tea.Msg { return MoveTrackDownMsg{Index: idx} }
+		}
 	}
 	return v, nil
 }

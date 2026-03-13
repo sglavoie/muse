@@ -385,6 +385,157 @@ func TestQueueViewUpdateEnterOnEmptyQueueIsNoOp(t *testing.T) {
 	}
 }
 
+// TestQueueViewUpdateDSendsDequeueTrackMsg verifies that pressing 'd' in the
+// queue view dispatches DequeueTrackMsg with the current cursor index.
+func TestQueueViewUpdateDSendsDequeueTrackMsg(t *testing.T) {
+	q := QueueView{
+		entries: []QueueEntry{
+			{Path: "/music/a.flac", Display: "A"},
+			{Path: "/music/b.flac", Display: "B"},
+		},
+		cursor: 1,
+	}
+	_, cmd := q.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	if cmd == nil {
+		t.Fatal("'d' must return a non-nil cmd")
+	}
+	msg, ok := cmd().(DequeueTrackMsg)
+	if !ok {
+		t.Fatalf("expected DequeueTrackMsg, got %T", cmd())
+	}
+	if msg.Index != 1 {
+		t.Fatalf("expected index 1, got %d", msg.Index)
+	}
+}
+
+// TestQueueViewUpdateDOnEmptyQueueIsNoOp verifies that pressing 'd' on an
+// empty queue does not emit a DequeueTrackMsg.
+func TestQueueViewUpdateDOnEmptyQueueIsNoOp(t *testing.T) {
+	q := QueueView{}
+	_, cmd := q.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	if cmd != nil {
+		t.Fatal("'d' on empty queue must return nil cmd")
+	}
+}
+
+// TestQueueViewUpdateXSendsBulkSelectionToggleMsg verifies that pressing 'x'
+// dispatches BulkSelectionToggleMsg with the current cursor index.
+func TestQueueViewUpdateXSendsBulkSelectionToggleMsg(t *testing.T) {
+	q := QueueView{
+		entries: []QueueEntry{
+			{Path: "/music/a.flac", Display: "A"},
+			{Path: "/music/b.flac", Display: "B"},
+		},
+		cursor: 0,
+	}
+	_, cmd := q.Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
+	if cmd == nil {
+		t.Fatal("'x' must return a non-nil cmd")
+	}
+	msg, ok := cmd().(BulkSelectionToggleMsg)
+	if !ok {
+		t.Fatalf("expected BulkSelectionToggleMsg, got %T", cmd())
+	}
+	if msg.Index != 0 {
+		t.Fatalf("expected index 0, got %d", msg.Index)
+	}
+}
+
+// TestQueueViewUpdateCSendsClearQueueMsg verifies that pressing 'C' (Shift+c)
+// dispatches ClearQueueMsg.
+func TestQueueViewUpdateCSendsClearQueueMsg(t *testing.T) {
+	q := QueueView{
+		entries: []QueueEntry{
+			{Path: "/music/a.flac", Display: "A"},
+		},
+	}
+	_, cmd := q.Update(tea.KeyPressMsg{Code: 'C', Text: "C"})
+	if cmd == nil {
+		t.Fatal("'C' must return a non-nil cmd")
+	}
+	if _, ok := cmd().(ClearQueueMsg); !ok {
+		t.Fatalf("expected ClearQueueMsg, got %T", cmd())
+	}
+}
+
+// TestQueueViewUpdateKSendsMoveTrackUpMsg verifies that pressing 'K' (Shift+k)
+// dispatches MoveTrackUpMsg with the current cursor index.
+func TestQueueViewUpdateKSendsMoveTrackUpMsg(t *testing.T) {
+	q := QueueView{
+		entries: []QueueEntry{
+			{Path: "/music/a.flac", Display: "A"},
+			{Path: "/music/b.flac", Display: "B"},
+		},
+		cursor: 1,
+	}
+	_, cmd := q.Update(tea.KeyPressMsg{Code: 'K', Text: "K"})
+	if cmd == nil {
+		t.Fatal("'K' must return a non-nil cmd")
+	}
+	msg, ok := cmd().(MoveTrackUpMsg)
+	if !ok {
+		t.Fatalf("expected MoveTrackUpMsg, got %T", cmd())
+	}
+	if msg.Index != 1 {
+		t.Fatalf("expected index 1, got %d", msg.Index)
+	}
+}
+
+// TestQueueViewUpdateKAtTopIsNoOp verifies that pressing 'K' when cursor is
+// at the first entry (boundary) does not emit a MoveTrackUpMsg.
+func TestQueueViewUpdateKAtTopIsNoOp(t *testing.T) {
+	q := QueueView{
+		entries: []QueueEntry{
+			{Path: "/music/a.flac", Display: "A"},
+			{Path: "/music/b.flac", Display: "B"},
+		},
+		cursor: 0,
+	}
+	_, cmd := q.Update(tea.KeyPressMsg{Code: 'K', Text: "K"})
+	if cmd != nil {
+		t.Fatal("'K' at top entry must return nil cmd")
+	}
+}
+
+// TestQueueViewUpdateJSendsMoveTrackDownMsg verifies that pressing 'J'
+// (Shift+j) dispatches MoveTrackDownMsg with the current cursor index.
+func TestQueueViewUpdateJSendsMoveTrackDownMsg(t *testing.T) {
+	q := QueueView{
+		entries: []QueueEntry{
+			{Path: "/music/a.flac", Display: "A"},
+			{Path: "/music/b.flac", Display: "B"},
+		},
+		cursor: 0,
+	}
+	_, cmd := q.Update(tea.KeyPressMsg{Code: 'J', Text: "J"})
+	if cmd == nil {
+		t.Fatal("'J' must return a non-nil cmd")
+	}
+	msg, ok := cmd().(MoveTrackDownMsg)
+	if !ok {
+		t.Fatalf("expected MoveTrackDownMsg, got %T", cmd())
+	}
+	if msg.Index != 0 {
+		t.Fatalf("expected index 0, got %d", msg.Index)
+	}
+}
+
+// TestQueueViewUpdateJAtBottomIsNoOp verifies that pressing 'J' when cursor
+// is at the last entry (boundary) does not emit a MoveTrackDownMsg.
+func TestQueueViewUpdateJAtBottomIsNoOp(t *testing.T) {
+	q := QueueView{
+		entries: []QueueEntry{
+			{Path: "/music/a.flac", Display: "A"},
+			{Path: "/music/b.flac", Display: "B"},
+		},
+		cursor: 1,
+	}
+	_, cmd := q.Update(tea.KeyPressMsg{Code: 'J', Text: "J"})
+	if cmd != nil {
+		t.Fatal("'J' at bottom entry must return nil cmd")
+	}
+}
+
 // TestRootUpdatePlayQueueIndexMsgCallsPlayerPlayFromIndex verifies that root
 // handles PlayQueueIndexMsg by calling PlayFromIndex on the player with the
 // correct index.

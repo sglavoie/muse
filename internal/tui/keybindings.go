@@ -44,6 +44,11 @@ const (
 	actionCursorUp
 	actionCursorDown
 	actionSelect
+	actionDequeue            // 'd': remove the selected track from the queue
+	actionBulkSelectionToggle // 'x': toggle bulk-selection on the selected entry
+	actionClearQueue          // 'C': clear all entries from the queue
+	actionMoveTrackUp         // 'K': move selected track one position earlier
+	actionMoveTrackDown       // 'J': move selected track one position later
 
 	// Playlists-local actions.
 	actionPlaylistRename
@@ -92,6 +97,11 @@ func newRegistry() Registry {
 	r.register(contextQueue, "up", actionCursorUp)
 	r.register(contextQueue, "down", actionCursorDown)
 	r.register(contextQueue, "enter", actionSelect)
+	r.register(contextQueue, "d", actionDequeue)
+	r.register(contextQueue, "x", actionBulkSelectionToggle)
+	r.register(contextQueue, "C", actionClearQueue)
+	r.register(contextQueue, "K", actionMoveTrackUp)
+	r.register(contextQueue, "J", actionMoveTrackDown)
 
 	// Playlists-local bindings.
 	// 'r' is bound to rename here, shadowing the global repeat-cycle binding
