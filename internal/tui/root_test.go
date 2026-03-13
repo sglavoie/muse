@@ -636,3 +636,110 @@ func TestTrackChangedMsgDefaultsPlaylistSourceToQueue(t *testing.T) {
 		t.Fatalf("status bar must default playlist source to 'Queue'; got:\n%s", v.Content)
 	}
 }
+
+// stubElapsedReader extends stubPlayer with the elapsedReader interface for
+// testing the tickMsg handler.
+type stubElapsedReader struct {
+	stubPlayer
+	elapsed float64
+	total   float64
+	err     error
+}
+
+func (s *stubElapsedReader) ElapsedPosition() (float64, float64, error) {
+	return s.elapsed, s.total, s.err
+}
+
+// TestTickMsgUpdatesElapsedFields verifies that receiving a tickMsg calls
+// ElapsedPosition on the player and stores the result on the model.
+func TestTickMsgUpdatesElapsedFields(t *testing.T) {
+	p := &stubElapsedReader{elapsed: 75.5, total: 240.0}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+
+	next, _ := m.Update(tickMsg{})
+	nm := next.(Model)
+
+	if nm.elapsedSecs != 75.5 {
+		t.Fatalf("elapsedSecs: expected 75.5, got %v", nm.elapsedSecs)
+	}
+	if nm.totalSecs != 240.0 {
+		t.Fatalf("totalSecs: expected 240.0, got %v", nm.totalSecs)
+	}
+}
+
+// TestTickMsgReschedulesCmd verifies that tickMsg returns a non-nil follow-up
+// command so the 1-second tick continues firing.
+func TestTickMsgReschedulesCmd(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	_, cmd := m.Update(tickMsg{})
+	if cmd == nil {
+		t.Fatal("tickMsg must return a follow-up cmd to reschedule the tick")
+	}
+}
+
+// TestInitSchedulesTick verifies that Init always returns a non-nil command
+// (at minimum the 1-second tick).
+func TestInitSchedulesTick(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	cmd := m.Init()
+	if cmd == nil {
+		t.Fatal("Init must return a non-nil cmd (at least the 1-second tick)")
+	}
+}
+
+// TestStatusBarRendersElapsedTime verifies that after a tickMsg updates the
+// elapsed position, the view renders the MM:SS / MM:SS format.
+func TestStatusBarRendersElapsedTime(t *testing.T) {
+	p := &stubElapsedReader{elapsed: 83.0, total: 245.0}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+	m.playbackState = PlaybackPlaying
+	m.statusBar.artist = "Artist"
+	m.statusBar.title = "Title"
+
+	next, _ := m.Update(tickMsg{})
+	nm := next.(Model)
+	v := nm.View()
+
+	if !strings.Contains(v.Content, "01:23 / 04:05") {
+		t.Fatalf("status bar must show elapsed/total in MM:SS / MM:SS format; got:\n%s", v.Content)
+	}
+}
+
+// TestStatusBarNoTimeDisplayWhenZero verifies that when elapsedSecs and
+// totalSecs are both 0 the time display is suppressed.
+func TestStatusBarNoTimeDisplayWhenZero(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.playbackState = PlaybackPlaying
+	m.statusBar.artist = "Artist"
+	m.statusBar.title = "Title"
+	// elapsedSecs and totalSecs default to zero — no time display expected.
+
+	v := m.View()
+	if strings.Contains(v.Content, " / ") {
+		t.Fatalf("status bar must not show time display when elapsed/total are zero; got:\n%s", v.Content)
+	}
+}
+
+// TestPlaybackEndedMsgResetsElapsed verifies that PlaybackEndedMsg clears the
+// elapsed and total fields so the time display disappears.
+func TestPlaybackEndedMsgResetsElapsed(t *testing.T) {
+	p := &stubElapsedReader{elapsed: 60.0, total: 180.0}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+
+	// Populate elapsed/total via a tick.
+	next, _ := m.Update(tickMsg{})
+	nm := next.(Model)
+	if nm.elapsedSecs == 0 {
+		t.Fatal("expected non-zero elapsedSecs after tickMsg")
+	}
+
+	// PlaybackEndedMsg must zero them out.
+	next, _ = nm.Update(PlaybackEndedMsg{})
+	nm = next.(Model)
+	if nm.elapsedSecs != 0 {
+		t.Fatalf("elapsedSecs must be 0 after PlaybackEndedMsg, got %v", nm.elapsedSecs)
+	}
+	if nm.totalSecs != 0 {
+		t.Fatalf("totalSecs must be 0 after PlaybackEndedMsg, got %v", nm.totalSecs)
+	}
+}

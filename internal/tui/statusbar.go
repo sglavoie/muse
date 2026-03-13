@@ -29,6 +29,11 @@ type StatusBar struct {
 	playbackState PlaybackState
 	repeat        bool
 	shuffle       bool
+
+	// elapsed and total are pre-formatted MM:SS strings injected by
+	// renderStatusBar. Both must be non-empty to show the time display.
+	elapsed string
+	total   string
 }
 
 // handleScanProgress sets the transient right zone to a formatted progress string.
@@ -51,6 +56,12 @@ func (s *StatusBar) handleScanDone() {
 // indicating that a track could not be found and was skipped.
 func (s *StatusBar) handleMissingTrack(path string) {
 	s.transientRight = fmt.Sprintf("Error: track not found, skipped: %s", path)
+}
+
+// formatTime converts a duration in seconds to MM:SS format.
+func formatTime(secs float64) string {
+	s := int(secs)
+	return fmt.Sprintf("%02d:%02d", s/60, s%60)
 }
 
 // truncateTitle shortens s to at most maxRunes runes, appending "…" when
@@ -116,6 +127,12 @@ func (s StatusBar) render(width int) string {
 		suffix += "  S"
 	}
 
+	// Build the time display appended after the suffix.
+	timeDisplay := ""
+	if s.elapsed != "" && s.total != "" {
+		timeDisplay = "  " + s.elapsed + " / " + s.total
+	}
+
 	// Build the prefix that precedes the title: glyph and artist.
 	// Format: "[glyph] artist – title" or subsets when fields are absent.
 	prefix := ""
@@ -138,15 +155,16 @@ func (s StatusBar) render(width int) string {
 	title := s.title
 	if width > 0 && s.title != "" {
 		// Calculate how many runes are available for the title.
-		// Full line: prefix + sep + title + suffix + "  |  " + right
+		// Full line: prefix + sep + title + suffix + timeDisplay + "  |  " + right
 		const sepStr = "  |  "
 		fixedRunes := len([]rune(prefix)) + len([]rune(sep)) +
-			len([]rune(suffix)) + len([]rune(sepStr)) + len([]rune(right))
+			len([]rune(suffix)) + len([]rune(timeDisplay)) +
+			len([]rune(sepStr)) + len([]rune(right))
 		available := width - fixedRunes
 		title = truncateTitle(s.title, available)
 	}
 
-	left := prefix + sep + title + suffix
+	left := prefix + sep + title + suffix + timeDisplay
 	// Trim leading/trailing spaces that can arise when prefix or title is empty.
 	left = strings.TrimSpace(left)
 

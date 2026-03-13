@@ -255,6 +255,88 @@ func TestRenderIdleStateShowsNoGlyphAndNoTrackInfo(t *testing.T) {
 	}
 }
 
+// TestFormatTime verifies the MM:SS formatting of formatTime.
+func TestFormatTime(t *testing.T) {
+	tests := []struct {
+		secs float64
+		want string
+	}{
+		{0, "00:00"},
+		{59, "00:59"},
+		{60, "01:00"},
+		{61.9, "01:01"},
+		{3600, "60:00"},
+		{3723.5, "62:03"},
+	}
+	for _, tc := range tests {
+		got := formatTime(tc.secs)
+		if got != tc.want {
+			t.Errorf("formatTime(%v) = %q, want %q", tc.secs, got, tc.want)
+		}
+	}
+}
+
+// TestRenderElapsedTimeDisplay verifies that when elapsed and total are set the
+// status bar shows "MM:SS / MM:SS" in the output.
+func TestRenderElapsedTimeDisplay(t *testing.T) {
+	sb := StatusBar{
+		artist:        "Artist",
+		title:         "Title",
+		playbackState: PlaybackPlaying,
+		elapsed:       "01:23",
+		total:         "04:56",
+	}
+
+	out := sb.render(0)
+
+	if !strings.Contains(out, "01:23 / 04:56") {
+		t.Errorf("expected elapsed/total in output: got %q", out)
+	}
+}
+
+// TestRenderNoTimeDisplayWhenBothZero verifies that when elapsed and total are
+// empty strings the time display is suppressed.
+func TestRenderNoTimeDisplayWhenBothZero(t *testing.T) {
+	sb := StatusBar{
+		artist:        "Artist",
+		title:         "Title",
+		playbackState: PlaybackPlaying,
+	}
+
+	out := sb.render(0)
+
+	// Should not contain any MM:SS pattern when no time is set.
+	if strings.Contains(out, " / ") {
+		t.Errorf("unexpected time display when elapsed/total empty: got %q", out)
+	}
+}
+
+// TestRenderTimeDisplayIncludedInTruncationBudget verifies that the time
+// display runes are factored into the title truncation so the full line fits
+// within the specified width.
+func TestRenderTimeDisplayIncludedInTruncationBudget(t *testing.T) {
+	sb := StatusBar{
+		artist:        "Artist",
+		title:         "A Very Long Track Title That Should Be Truncated",
+		playbackState: PlaybackPlaying,
+		elapsed:       "01:23",
+		total:         "04:56",
+		logPath:       "muse.log",
+	}
+
+	out := sb.render(60)
+
+	if !strings.Contains(out, "01:23 / 04:56") {
+		t.Errorf("time display missing with width constraint: got %q", out)
+	}
+	if !strings.Contains(out, "…") {
+		t.Errorf("title should be truncated to fit width with time display: got %q", out)
+	}
+	if len([]rune(out)) > 60 {
+		t.Errorf("output exceeds width=%d: len=%d, got %q", 60, len([]rune(out)), out)
+	}
+}
+
 // TestTruncateTitle covers the truncateTitle helper directly.
 func TestTruncateTitle(t *testing.T) {
 	tests := []struct {

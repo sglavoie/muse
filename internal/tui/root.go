@@ -33,6 +33,17 @@ type positionSyncer interface {
 	SyncPosition() error
 }
 
+// elapsedReader is implemented by player.Manager to provide the current
+// elapsed playback position and total track duration. Root queries it on
+// each 1-second tick to keep the status bar time display current.
+type elapsedReader interface {
+	ElapsedPosition() (elapsed, total float64, err error)
+}
+
+// tickMsg is dispatched every second by tickCmd. It drives elapsed-time
+// display updates and transient-notification expiry checks.
+type tickMsg struct{}
+
 // syncPositionMsg is dispatched every positionSyncInterval to trigger a
 // playback-position update on the player.
 type syncPositionMsg struct{}
@@ -142,6 +153,12 @@ type Model struct {
 	repeat        bool          // repeat mode enabled
 	shuffle       bool          // shuffle mode enabled
 
+	// elapsedSecs and totalSecs hold the most recently queried playback
+	// position and track duration in seconds. Zero values mean no time
+	// data is available and suppress the time display in the status bar.
+	elapsedSecs float64
+	totalSecs   float64
+
 	// statusBarGen is incremented each time a transient right message is set.
 	// clearPlayerStatus messages carry the generation at which they were
 	// scheduled; only a matching generation actually clears the field,
@@ -206,6 +223,13 @@ const positionSyncInterval = 5 * time.Second
 func syncPositionCmd() tea.Cmd {
 	return tea.Tick(positionSyncInterval, func(time.Time) tea.Msg {
 		return syncPositionMsg{}
+	})
+}
+
+// tickCmd schedules a 1-second tick for elapsed-time display updates.
+func tickCmd() tea.Cmd {
+	return tea.Tick(time.Second, func(time.Time) tea.Msg {
+		return tickMsg{}
 	})
 }
 
@@ -285,6 +309,7 @@ func (m Model) Init() tea.Cmd {
 	if _, ok := m.player.(positionSyncer); ok {
 		cmds = append(cmds, syncPositionCmd())
 	}
+	cmds = append(cmds, tickCmd())
 	switch len(cmds) {
 	case 0:
 		return nil
@@ -341,6 +366,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.scanCh = nil
 		m.statusBar.handleScanDone()
 
+	case tickMsg:
+		if er, ok := m.player.(elapsedReader); ok {
+			if elapsed, total, err := er.ElapsedPosition(); err == nil {
+				m.elapsedSecs = elapsed
+				m.totalSecs = total
+			}
+		}
+		return m, tickCmd()
+
 	case syncPositionMsg:
 		if ps, ok := m.player.(positionSyncer); ok {
 			_ = ps.SyncPosition()
@@ -367,6 +401,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case PlaybackEndedMsg:
 		m.playbackState = PlaybackIdle
+		m.elapsedSecs = 0
+		m.totalSecs = 0
 
 	case TrackChangedMsg:
 		m.statusBar.artist = msg.Artist
@@ -377,6 +413,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.statusBar.playlistSource = source
 		m.playbackState = PlaybackPlaying
+		m.elapsedSecs = 0
+		m.totalSecs = 0
 
 	case PlayQueueIndexMsg:
 		if m.player != nil {
@@ -493,5 +531,9 @@ func (m Model) renderStatusBar() string {
 	sb.playbackState = m.playbackState
 	sb.repeat = m.repeat
 	sb.shuffle = m.shuffle
+	if m.elapsedSecs > 0 || m.totalSecs > 0 {
+		sb.elapsed = formatTime(m.elapsedSecs)
+		sb.total = formatTime(m.totalSecs)
+	}
 	return sb.render(m.termWidth)
 }
