@@ -222,3 +222,172 @@ func TestHashFile_LargeFileDifferentSizes(t *testing.T) {
 		t.Fatal("files with same boundary bytes but different sizes must produce different hashes")
 	}
 }
+
+// TestHashFile_BoundaryBelowThreshold verifies that a file one byte under the
+// 2 MB threshold uses full-file hashing (non-empty, deterministic result).
+func TestHashFile_BoundaryBelowThreshold(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "just_under.flac")
+	writeFile(t, path, makeBytes(partialThreshold-1, 0xDE))
+
+	h1, err := HashFile(path)
+	if err != nil {
+		t.Fatalf("HashFile: %v", err)
+	}
+	if h1 == "" {
+		t.Fatal("expected non-empty hash")
+	}
+	h2, err := HashFile(path)
+	if err != nil {
+		t.Fatalf("HashFile second call: %v", err)
+	}
+	if h1 != h2 {
+		t.Fatalf("hash not deterministic at threshold-1: %q != %q", h1, h2)
+	}
+}
+
+// TestHashFile_BoundaryAtThreshold verifies that a file exactly at 2 MB uses
+// partial hashing (size >= partialThreshold triggers the partial branch).
+func TestHashFile_BoundaryAtThreshold(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "exactly_threshold.flac")
+	writeFile(t, path, makeBytes(partialThreshold, 0xDE))
+
+	h1, err := HashFile(path)
+	if err != nil {
+		t.Fatalf("HashFile: %v", err)
+	}
+	if h1 == "" {
+		t.Fatal("expected non-empty hash")
+	}
+	h2, err := HashFile(path)
+	if err != nil {
+		t.Fatalf("HashFile second call: %v", err)
+	}
+	if h1 != h2 {
+		t.Fatalf("hash not deterministic at threshold: %q != %q", h1, h2)
+	}
+}
+
+// TestHashFile_BoundaryAboveThreshold verifies that a file one byte over 2 MB
+// produces a stable partial hash.
+func TestHashFile_BoundaryAboveThreshold(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "just_over.flac")
+	writeFile(t, path, makeBytes(partialThreshold+1, 0xDE))
+
+	h1, err := HashFile(path)
+	if err != nil {
+		t.Fatalf("HashFile: %v", err)
+	}
+	if h1 == "" {
+		t.Fatal("expected non-empty hash")
+	}
+	h2, err := HashFile(path)
+	if err != nil {
+		t.Fatalf("HashFile second call: %v", err)
+	}
+	if h1 != h2 {
+		t.Fatalf("hash not deterministic at threshold+1: %q != %q", h1, h2)
+	}
+}
+
+// TestHashFile_BoundaryFullVsPartialDistinct verifies that the two hashing
+// strategies produce different results even when content at the boundary bytes
+// is identical.
+func TestHashFile_BoundaryFullVsPartialDistinct(t *testing.T) {
+	dir := t.TempDir()
+	// below threshold: full hash
+	pSmall := filepath.Join(dir, "small_boundary.flac")
+	writeFile(t, pSmall, makeBytes(partialThreshold-1, 0xAB))
+
+	// at threshold: partial hash (same fill byte, different strategy)
+	pLarge := filepath.Join(dir, "large_boundary.flac")
+	writeFile(t, pLarge, makeBytes(partialThreshold, 0xAB))
+
+	hSmall, err := HashFile(pSmall)
+	if err != nil {
+		t.Fatalf("HashFile(small): %v", err)
+	}
+	hLarge, err := HashFile(pLarge)
+	if err != nil {
+		t.Fatalf("HashFile(large): %v", err)
+	}
+	if hSmall == hLarge {
+		t.Fatal("files of different sizes must not hash to the same value")
+	}
+}
+
+// TestHashFile_EmptyFile verifies that an empty file can be hashed without
+// error and produces a non-empty fingerprint.
+func TestHashFile_EmptyFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "empty.flac")
+	writeFile(t, path, []byte{})
+
+	h, err := HashFile(path)
+	if err != nil {
+		t.Fatalf("HashFile on empty file: %v", err)
+	}
+	if h == "" {
+		t.Fatal("expected non-empty hash for empty file")
+	}
+}
+
+// TestHashFile_NonExistentFile verifies that HashFile returns an error for a
+// path that does not exist.
+func TestHashFile_NonExistentFile(t *testing.T) {
+	_, err := HashFile("/tmp/this_path_does_not_exist_muse_test.flac")
+	if err == nil {
+		t.Fatal("expected error for non-existent file, got nil")
+	}
+}
+
+// TestHashWorkers_ManyFiles verifies that HashWorkers correctly processes a
+// larger batch of files concurrently and closes the output channel afterwards.
+func TestHashWorkers_ManyFiles(t *testing.T) {
+	dir := t.TempDir()
+
+	const n = 50
+	in := make(chan string, n)
+	expected := make(map[string]struct{}, n)
+	for i := range n {
+		p := filepath.Join(dir, filepath.Join("track_many_"+string(rune('A'+i%26))+string(rune('0'+i/26))+".flac"))
+		writeFile(t, p, makeBytes(1024+i, byte(i)))
+		in <- p
+		expected[p] = struct{}{}
+	}
+	close(in)
+
+	seen := make(map[string]struct{}, n)
+	for hf := range HashWorkers(in) {
+		if hf.Hash == "" {
+			t.Errorf("empty hash for %q", hf.Path)
+		}
+		seen[hf.Path] = struct{}{}
+	}
+
+	if len(seen) != n {
+		t.Fatalf("expected %d results, got %d", n, len(seen))
+	}
+	for p := range expected {
+		if _, ok := seen[p]; !ok {
+			t.Errorf("path %q missing from HashWorkers output", p)
+		}
+	}
+}
+
+// TestHashWorkers_OutputClosedOnEmptyInput verifies that HashWorkers closes
+// the output channel immediately when the input channel is empty and closed.
+func TestHashWorkers_OutputClosedOnEmptyInput(t *testing.T) {
+	in := make(chan string)
+	close(in)
+
+	count := 0
+	for range HashWorkers(in) {
+		count++
+	}
+	if count != 0 {
+		t.Fatalf("expected 0 results for empty input, got %d", count)
+	}
+}
