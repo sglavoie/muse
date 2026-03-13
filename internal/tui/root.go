@@ -140,6 +140,7 @@ type Model struct {
 
 	statusBar StatusBar
 	termWidth int
+	registry  Registry
 
 	// player is the playback backend. It may be nil when playback is not
 	// available (e.g. in tests that do not exercise playback).
@@ -185,6 +186,7 @@ func New(logPath, configPath string, configCreated bool, scanCh <-chan library.T
 		libraryRoot:   libraryRoot,
 		extractor:     extractor,
 		player:        p,
+		registry:      newRegistry(),
 		statusBar: StatusBar{
 			logPath:       logPath,
 			configPath:    configPath,
@@ -310,6 +312,21 @@ func (m Model) Init() tea.Cmd {
 	}
 }
 
+// activeViewContext maps the current activeView to its bindingContext so that
+// the registry can check view-local bindings before falling back to global.
+func (m Model) activeViewContext() bindingContext {
+	switch m.activeView {
+	case viewLibrary:
+		return contextLibrary
+	case viewPlaylists:
+		return contextPlaylists
+	case viewQueue:
+		return contextQueue
+	default:
+		return contextGlobal
+	}
+}
+
 // Update handles incoming messages. Number keys 1/2/3 switch the active view;
 // Ctrl+c quits. q and Esc are intentionally ignored here — they are reserved
 // for in-view navigation.
@@ -415,16 +432,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "ctrl+c":
+		switch m.registry.resolve(m.activeViewContext(), msg.String()) {
+		case actionQuit:
 			return m, tea.Quit
-		case "up", "down", "enter":
-			if m.activeView == viewQueue {
-				var cmd tea.Cmd
-				m.queue, cmd = m.queue.Update(msg)
-				return m, cmd
-			}
-		case "space":
+		case actionPlayPause:
 			if m.player != nil {
 				if m.playbackState == PlaybackPlaying {
 					_ = m.player.Pause()
@@ -434,50 +445,50 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.playbackState = PlaybackPlaying
 				}
 			}
-		case "s":
+		case actionStop:
 			if cp, ok := m.player.(commandPlayer); ok {
 				_ = cp.Stop()
 				m.playbackState = PlaybackStopped
 			}
-		case "n":
+		case actionNext:
 			if cp, ok := m.player.(commandPlayer); ok {
 				_ = cp.Next()
 			}
-		case "p":
+		case actionPrevious:
 			if cp, ok := m.player.(commandPlayer); ok {
 				_ = cp.Previous()
 			}
-		case "left":
+		case actionSeekBack:
 			if cp, ok := m.player.(commandPlayer); ok {
 				_ = cp.SeekRelative(-5)
 			}
-		case "right":
+		case actionSeekForward:
 			if cp, ok := m.player.(commandPlayer); ok {
 				_ = cp.SeekRelative(5)
 			}
-		case "shift+left":
+		case actionSeekBackLong:
 			if cp, ok := m.player.(commandPlayer); ok {
 				_ = cp.SeekRelative(-30)
 			}
-		case "shift+right":
+		case actionSeekForwardLong:
 			if cp, ok := m.player.(commandPlayer); ok {
 				_ = cp.SeekRelative(30)
 			}
-		case "+":
+		case actionVolumeUp:
 			if cp, ok := m.player.(commandPlayer); ok {
 				_ = cp.SetVolumeRelative(5)
 			}
-		case "-":
+		case actionVolumeDown:
 			if cp, ok := m.player.(commandPlayer); ok {
 				_ = cp.SetVolumeRelative(-5)
 			}
-		case "1":
+		case actionSwitchLibrary:
 			m.activeView = viewLibrary
-		case "2":
+		case actionSwitchPlaylists:
 			m.activeView = viewPlaylists
-		case "3":
+		case actionSwitchQueue:
 			m.activeView = viewQueue
-		case "r":
+		case actionRescan:
 			if m.libraryRoot != "" && m.extractor != nil && !m.scanning {
 				ch := library.Scan(m.libraryRoot, m.extractor)
 				m.library.index = library.LibraryIndex{}
@@ -487,6 +498,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.scanTotal = 0
 				return m, tea.Batch(waitForNextBatch(ch), countAudioFiles(m.libraryRoot))
 			}
+		case actionCursorUp, actionCursorDown, actionSelect:
+			var cmd tea.Cmd
+			m.queue, cmd = m.queue.Update(msg)
+			return m, cmd
+		case actionPlaylistRename:
+			// Placeholder: view-local rename action for the Playlists view.
 		}
 	}
 	return m, nil

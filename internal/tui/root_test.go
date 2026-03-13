@@ -848,3 +848,56 @@ func TestScanProgressVisibleDuringScanAndAutoDismissed(t *testing.T) {
 		t.Fatalf("scan progress must be auto-dismissed after expiry tick; got:\n%s", v.Content)
 	}
 }
+
+// TestViewLocalBindingTakesPrecedenceOverGlobal verifies that when the active
+// view defines a local binding for a key, the view-local action fires and the
+// global action for that key is suppressed.
+//
+// The 'r' key is bound globally to actionRescan and locally to
+// actionPlaylistRename in the Playlists view. When the Playlists view is
+// focused, pressing 'r' must not trigger a rescan.
+func TestViewLocalBindingTakesPrecedenceOverGlobal(t *testing.T) {
+	root := t.TempDir()
+	m := New("/log", "", false, nil, nil, root, stubExtractor{}, nil)
+	m.activeView = viewPlaylists
+
+	// With a library root configured, the global 'r' binding would normally
+	// trigger a rescan and set m.scanning = true. The Playlists-local binding
+	// for 'r' (rename) must intercept first so no rescan occurs.
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+	nm := next.(Model)
+
+	if cmd != nil {
+		t.Fatal("view-local 'r' in Playlists must not return a rescan cmd")
+	}
+	if nm.scanning {
+		t.Fatal("view-local 'r' in Playlists must not trigger a rescan")
+	}
+}
+
+// TestGlobalBindingFiresWhenNoViewLocalBinding verifies that keys not
+// overridden by the active view still trigger their global action.
+//
+// The Library and Queue views have no local binding for 'r', so pressing 'r'
+// in those views falls through to the global actionRescan.
+func TestGlobalBindingFiresWhenNoViewLocalBinding(t *testing.T) {
+	views := []struct {
+		name   string
+		viewID viewID
+	}{
+		{"Library", viewLibrary},
+		{"Queue", viewQueue},
+	}
+	for _, tc := range views {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			m := New("/log", "", false, nil, nil, root, stubExtractor{}, nil)
+			m.activeView = tc.viewID
+
+			_, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+			if cmd == nil {
+				t.Fatalf("%s: global 'r' must return a rescan cmd when no view-local binding exists", tc.name)
+			}
+		})
+	}
+}
