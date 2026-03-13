@@ -1,0 +1,272 @@
+package library
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/fsnotify/fsnotify"
+)
+
+// collectTracks drains ch into a slice, returning once ch is closed or ctx is
+// cancelled.
+func collectTracks(ctx context.Context, ch <-chan Track) []Track {
+	var tracks []Track
+	for {
+		select {
+		case t, ok := <-ch:
+			if !ok {
+				return tracks
+			}
+			tracks = append(tracks, t)
+		case <-ctx.Done():
+			return tracks
+		}
+	}
+}
+
+// TestDebounce_CoalescesFastEvents verifies that many events arriving within
+// the debounce window produce at most one rescan batch (deduplicated pending
+// set), not one Extract call per raw event.
+func TestDebounce_CoalescesFastEvents(t *testing.T) {
+	root := t.TempDir()
+	const debounce = 200 * time.Millisecond
+
+	paths := []string{
+		filepath.Join(root, "a.mp3"),
+		filepath.Join(root, "b.flac"),
+		filepath.Join(root, "c.ogg"),
+	}
+	for _, p := range paths {
+		mkfile(t, p)
+	}
+
+	fe := &fakeExtractor{}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	ch, err := Watch(ctx, root, fe, debounce)
+	if err != nil {
+		t.Fatalf("Watch: %v", err)
+	}
+
+	// Fire many rapid Write events on the same files.
+	for i := range 10 {
+		p := paths[i%len(paths)]
+		if err := os.WriteFile(p, []byte("ID3upd"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", p, err)
+		}
+	}
+
+	// Collect tracks until no new ones arrive for a full debounce window,
+	// then cancel so the watcher goroutine exits.
+	drainCtx, drainCancel := context.WithTimeout(context.Background(), debounce+500*time.Millisecond)
+	defer drainCancel()
+	collectTracks(drainCtx, ch)
+	cancel()
+
+	// Extract must have been called at most len(paths) times (one per distinct
+	// path), not 10 times (once per raw event). Debounce coalesces duplicates.
+	totalCalls := 0
+	for _, batch := range fe.batches {
+		totalCalls += len(batch)
+	}
+	if totalCalls > len(paths) {
+		t.Errorf("Extract called for %d file-invocations; want ≤ %d (rapid events coalesced)",
+			totalCalls, len(paths))
+	}
+}
+
+// TestDebounce_RescansAfterWindow verifies that the rescan fires after the
+// debounce window has elapsed without further events.
+func TestDebounce_RescansAfterWindow(t *testing.T) {
+	root := t.TempDir()
+	const debounce = 150 * time.Millisecond
+
+	p := filepath.Join(root, "track.mp3")
+	mkfile(t, p)
+
+	fe := &fakeExtractor{}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	ch, err := Watch(ctx, root, fe, debounce)
+	if err != nil {
+		t.Fatalf("Watch: %v", err)
+	}
+
+	// Trigger one Write event.
+	if err := os.WriteFile(p, []byte("ID3v2"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	// Expect a track to arrive within debounce + generous margin.
+	deadline := time.After(debounce + 500*time.Millisecond)
+	for {
+		select {
+		case _, ok := <-ch:
+			if ok {
+				return // received a track — test passes
+			}
+		case <-deadline:
+			t.Fatal("no track received within debounce window + margin")
+		}
+	}
+}
+
+// TestRename_TreatedAsDeletePlusCreate verifies that renaming a file causes the
+// old path to be dropped from pending while the new path (arriving as a Create
+// event) drives the rescan.
+func TestRename_TreatedAsDeletePlusCreate(t *testing.T) {
+	root := t.TempDir()
+	const debounce = 150 * time.Millisecond
+
+	oldPath := filepath.Join(root, "old.mp3")
+	newPath := filepath.Join(root, "new.mp3")
+	mkfile(t, oldPath)
+
+	fe := &fakeExtractor{}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	ch, err := Watch(ctx, root, fe, debounce)
+	if err != nil {
+		t.Fatalf("Watch: %v", err)
+	}
+
+	// Rename emits Rename on oldPath and Create on newPath.
+	if err := os.Rename(oldPath, newPath); err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+
+	// Collect until the debounce window passes, then verify.
+	drainCtx, drainCancel := context.WithTimeout(context.Background(), debounce+500*time.Millisecond)
+	defer drainCancel()
+	collectTracks(drainCtx, ch)
+	cancel()
+
+	// The rescan must not have attempted to extract oldPath (it was deleted).
+	for _, batch := range fe.batches {
+		for _, hf := range batch {
+			if hf.Path == oldPath {
+				t.Errorf("Extract called for deleted path %q; rename should treat old path as delete", oldPath)
+			}
+		}
+	}
+}
+
+// TestDirectoryEvent_TriggersSubtreeRescan verifies that creating a new
+// directory with audio files causes Walk to traverse the subtree and emit
+// tracks for each file found.
+func TestDirectoryEvent_TriggersSubtreeRescan(t *testing.T) {
+	root := t.TempDir()
+	const debounce = 150 * time.Millisecond
+
+	fe := &fakeExtractor{}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	ch, err := Watch(ctx, root, fe, debounce)
+	if err != nil {
+		t.Fatalf("Watch: %v", err)
+	}
+
+	// Create a new subdirectory with audio files after the watcher starts.
+	subdir := filepath.Join(root, "newalbum")
+	if err := os.Mkdir(subdir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	mkfile(t, filepath.Join(subdir, "track01.flac"))
+	mkfile(t, filepath.Join(subdir, "track02.flac"))
+
+	// Collect tracks until the debounce window passes, then check results.
+	drainCtx, drainCancel := context.WithTimeout(context.Background(), debounce+600*time.Millisecond)
+	defer drainCancel()
+	tracks := collectTracks(drainCtx, ch)
+	cancel()
+
+	// At least 2 tracks should be returned (one per audio file in the subtree).
+	if len(tracks) < 2 {
+		t.Errorf("directory event: expected ≥ 2 tracks from subtree rescan, got %d", len(tracks))
+	}
+}
+
+// TestHandleFsEvent_PendingSetBehavior tests handleFsEvent directly using
+// synthetic fsnotify.Event values to verify the pending-set logic in isolation.
+func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
+	root := t.TempDir()
+
+	// Create an actual audio file so os.Stat in handleFsEvent succeeds.
+	audioPath := filepath.Join(root, "song.mp3")
+	mkfile(t, audioPath)
+
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		t.Fatalf("NewWatcher: %v", err)
+	}
+	defer w.Close()
+
+	t.Run("Create audio file adds to pending", func(t *testing.T) {
+		pending := make(map[string]bool)
+		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Create}, pending, w)
+		isDir, ok := pending[audioPath]
+		if !ok {
+			t.Errorf("expected %q in pending after Create event", audioPath)
+		}
+		if isDir {
+			t.Errorf("audio file should have isDir=false in pending")
+		}
+	})
+
+	t.Run("Write audio file adds to pending", func(t *testing.T) {
+		pending := make(map[string]bool)
+		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Write}, pending, w)
+		if _, ok := pending[audioPath]; !ok {
+			t.Errorf("expected %q in pending after Write event", audioPath)
+		}
+	})
+
+	t.Run("Rename removes from pending", func(t *testing.T) {
+		pending := map[string]bool{audioPath: false}
+		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Rename}, pending, w)
+		if _, ok := pending[audioPath]; ok {
+			t.Errorf("expected %q removed from pending after Rename event", audioPath)
+		}
+	})
+
+	t.Run("Remove removes from pending", func(t *testing.T) {
+		pending := map[string]bool{audioPath: false}
+		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Remove}, pending, w)
+		if _, ok := pending[audioPath]; ok {
+			t.Errorf("expected %q removed from pending after Remove event", audioPath)
+		}
+	})
+
+	t.Run("Non-audio Create is ignored", func(t *testing.T) {
+		txtPath := filepath.Join(root, "readme.txt")
+		mkfile(t, txtPath)
+		pending := make(map[string]bool)
+		handleFsEvent(fsnotify.Event{Name: txtPath, Op: fsnotify.Create}, pending, w)
+		if _, ok := pending[txtPath]; ok {
+			t.Errorf("non-audio file should not be added to pending")
+		}
+	})
+
+	t.Run("Create directory adds as dir and registers watch", func(t *testing.T) {
+		dirPath := filepath.Join(root, "newdir")
+		if err := os.Mkdir(dirPath, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		pending := make(map[string]bool)
+		handleFsEvent(fsnotify.Event{Name: dirPath, Op: fsnotify.Create}, pending, w)
+		isDir, ok := pending[dirPath]
+		if !ok {
+			t.Errorf("expected %q in pending after directory Create", dirPath)
+		}
+		if !isDir {
+			t.Errorf("directory pending entry should have isDir=true")
+		}
+	})
+}
