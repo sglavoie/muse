@@ -31,6 +31,15 @@ type Manager struct {
 	cmdQueue []func() error // nil = not started; non-nil = started, may have pending cmds
 	statusFn func(string)   // optional callback for transient status messages
 
+	// disconnectCh receives the first error when the IPC socket is detected
+	// as disconnected by the health-check goroutine. The channel is buffered
+	// (size 1) so the goroutine never blocks.
+	disconnectCh chan error
+
+	// pingInterval controls how often the health-check goroutine pings mpv.
+	// Zero uses the production default (200 ms). Set a shorter value in tests.
+	pingInterval time.Duration
+
 	cmd    *exec.Cmd
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -52,9 +61,10 @@ func NewManager() (*Manager, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
-		socketPath: socketPath,
-		ctx:        ctx,
-		cancel:     cancel,
+		socketPath:   socketPath,
+		ctx:          ctx,
+		cancel:       cancel,
+		disconnectCh: make(chan error, 1),
 	}, nil
 }
 
@@ -69,6 +79,57 @@ func (m *Manager) SetStatusFunc(fn func(string)) {
 	m.mu.Lock()
 	m.statusFn = fn
 	m.mu.Unlock()
+}
+
+// DisconnectCh returns a channel that receives the first error surfaced by the
+// health-check goroutine when an IPC socket disconnect is detected. The caller
+// must not close the channel.
+func (m *Manager) DisconnectCh() <-chan error {
+	return m.disconnectCh
+}
+
+// healthCheck runs in a goroutine after the IPC socket connects. It pings mpv
+// at regular intervals; on the first ping failure it marks the client as
+// disconnected and forwards the error to disconnectCh.
+func (m *Manager) healthCheck(client *IPCClient) {
+	interval := m.pingInterval
+	if interval == 0 {
+		interval = 200 * time.Millisecond
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-m.ctx.Done():
+			return
+		case <-ticker.C:
+			_, err := client.SendCommand("get_version")
+			if err == nil {
+				continue
+			}
+
+			// Ignore errors that occurred because the manager is shutting down.
+			select {
+			case <-m.ctx.Done():
+				return
+			default:
+			}
+
+			m.mu.Lock()
+			if m.client == client {
+				m.client = nil
+				m.cmdQueue = []func() error{}
+			}
+			m.mu.Unlock()
+
+			select {
+			case m.disconnectCh <- err:
+			default:
+			}
+			return
+		}
+	}
 }
 
 // Start launches the mpv subprocess with --idle=yes and --input-ipc-server
@@ -157,6 +218,7 @@ func (m *Manager) pollUntilReady() {
 			for _, cmd := range queue {
 				_ = cmd()
 			}
+			go m.healthCheck(client)
 			return
 		}
 

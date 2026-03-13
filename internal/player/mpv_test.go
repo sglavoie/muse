@@ -2,6 +2,7 @@ package player
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -180,6 +181,82 @@ func TestManager_QueueDrainOnConnect(t *testing.T) {
 	defer mu.Unlock()
 	if len(received) < 2 {
 		t.Fatalf("expected 2 queued commands replayed, got %d: %v", len(received), received)
+	}
+}
+
+func TestManager_HealthCheckDetectsDisconnect(t *testing.T) {
+	sock := shortSockPath(t, "hc-disc")
+
+	os.Remove(sock)
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { ln.Close(); os.Remove(sock) })
+
+	// connClosed is closed after the server deliberately drops the connection.
+	connClosed := make(chan struct{})
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		// Handle two ping requests, then close the connection.
+		dec := json.NewDecoder(conn)
+		enc := json.NewEncoder(conn)
+		for i := 0; i < 2; i++ {
+			var req map[string]any
+			if err := dec.Decode(&req); err != nil {
+				break
+			}
+			_ = enc.Encode(successHandler(req))
+		}
+		conn.Close()
+		close(connClosed)
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{
+		socketPath:   sock,
+		ctx:          ctx,
+		cancel:       cancel,
+		disconnectCh: make(chan error, 1),
+		pingInterval: 50 * time.Millisecond,
+	}
+	defer m.Close()
+
+	client, err := NewIPCClient(sock)
+	if err != nil {
+		t.Fatalf("NewIPCClient: %v", err)
+	}
+	m.mu.Lock()
+	m.client = client
+	m.mu.Unlock()
+
+	go m.healthCheck(client)
+
+	// Wait for the server to close the connection.
+	select {
+	case <-connClosed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("server did not close connection in time")
+	}
+
+	// The health-check goroutine must surface the disconnect within a few ping intervals.
+	select {
+	case gotErr := <-m.disconnectCh:
+		if gotErr == nil {
+			t.Error("expected non-nil disconnect error")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("health check did not detect disconnect within 1s")
+	}
+
+	m.mu.RLock()
+	c := m.client
+	m.mu.RUnlock()
+	if c != nil {
+		t.Error("expected m.client to be nil after disconnect")
 	}
 }
 
