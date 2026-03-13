@@ -591,7 +591,7 @@ func TestStatusBarShowsPlaybackStateIndicator(t *testing.T) {
 			title:         "T",
 			playbackState: tc.state,
 		}
-		out := sb.render()
+		out := sb.render(0)
 		if !strings.Contains(out, tc.want) {
 			t.Fatalf("state %v: expected %q in status bar; got: %s", tc.state, tc.want, out)
 		}

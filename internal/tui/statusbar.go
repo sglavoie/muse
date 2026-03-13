@@ -53,69 +53,105 @@ func (s *StatusBar) handleMissingTrack(path string) {
 	s.transientRight = fmt.Sprintf("Error: track not found, skipped: %s", path)
 }
 
+// truncateTitle shortens s to at most maxRunes runes, appending "…" when
+// truncation occurs. Returns an empty string when maxRunes <= 0.
+func truncateTitle(s string, maxRunes int) string {
+	if maxRunes <= 0 {
+		return ""
+	}
+	runes := []rune(s)
+	if len(runes) <= maxRunes {
+		return s
+	}
+	if maxRunes == 1 {
+		return "…"
+	}
+	return string(runes[:maxRunes-1]) + "…"
+}
+
 // render builds the full status bar string. The persistent left zone shows
 // playback state indicator, track info, playlist source, and mode indicators.
 // The right zone shows transient notifications.
-func (s StatusBar) render() string {
-	var segments []string
-
-	// Persistent left zone: shown whenever a track is loaded or state is active.
-	if s.playbackState != PlaybackIdle || s.artist != "" || s.title != "" {
-		stateIcon := ""
-		switch s.playbackState {
-		case PlaybackPlaying:
-			stateIcon = "▶"
-		case PlaybackPaused:
-			stateIcon = "⏸"
-		case PlaybackStopped:
-			stateIcon = "■"
-		}
-
-		trackInfo := ""
-		switch {
-		case s.artist != "" && s.title != "":
-			trackInfo = s.artist + " – " + s.title
-		case s.title != "":
-			trackInfo = s.title
-		case s.artist != "":
-			trackInfo = s.artist
-		}
-
-		left := ""
-		switch {
-		case stateIcon != "" && trackInfo != "":
-			left = stateIcon + " " + trackInfo
-		case stateIcon != "":
-			left = stateIcon
-		case trackInfo != "":
-			left = trackInfo
-		}
-
-		if s.playlistSource != "" {
-			left += "  " + s.playlistSource
-		}
-		if s.repeat {
-			left += "  R"
-		}
-		if s.shuffle {
-			left += "  S"
-		}
-		if left != "" {
-			segments = append(segments, left)
-		}
-	}
-
-	// Log path and optional first-run config notice (always shown).
+//
+// width is the available terminal width in columns. When width is 0 the
+// content is rendered without any truncation. When width > 0 the track title
+// is truncated first (with a trailing "…") to make the full line fit, while
+// the artist name is always preserved.
+func (s StatusBar) render(width int) string {
+	// --- Right side (always shown) ---
 	logPart := fmt.Sprintf("log: %s", s.logPath)
 	if s.configCreated {
 		logPart += fmt.Sprintf("  |  config created: %s", s.configPath)
 	}
-	segments = append(segments, logPart)
-
-	// Transient right zone.
+	rightSegments := []string{logPart}
 	if s.transientRight != "" {
-		segments = append(segments, s.transientRight)
+		rightSegments = append(rightSegments, s.transientRight)
+	}
+	right := strings.Join(rightSegments, "  |  ")
+
+	// --- Persistent left zone ---
+	if s.playbackState == PlaybackIdle && s.artist == "" && s.title == "" {
+		return right
 	}
 
-	return strings.Join(segments, "  |  ")
+	stateIcon := ""
+	switch s.playbackState {
+	case PlaybackPlaying:
+		stateIcon = "▶"
+	case PlaybackPaused:
+		stateIcon = "⏸"
+	case PlaybackStopped:
+		stateIcon = "■"
+	}
+
+	// Build the suffix that follows the title: playlist source, repeat, shuffle.
+	suffix := ""
+	if s.playlistSource != "" {
+		suffix += "  " + s.playlistSource
+	}
+	if s.repeat {
+		suffix += "  R"
+	}
+	if s.shuffle {
+		suffix += "  S"
+	}
+
+	// Build the prefix that precedes the title: glyph and artist.
+	// Format: "[glyph] artist – title" or subsets when fields are absent.
+	prefix := ""
+	sep := ""
+	switch {
+	case stateIcon != "" && s.artist != "":
+		prefix = stateIcon + " " + s.artist
+		sep = " – "
+	case stateIcon != "":
+		prefix = stateIcon
+	case s.artist != "":
+		prefix = s.artist
+		sep = " – "
+	}
+	// sep is only meaningful when there is a title; clear it otherwise.
+	if s.title == "" {
+		sep = ""
+	}
+
+	title := s.title
+	if width > 0 && s.title != "" {
+		// Calculate how many runes are available for the title.
+		// Full line: prefix + sep + title + suffix + "  |  " + right
+		const sepStr = "  |  "
+		fixedRunes := len([]rune(prefix)) + len([]rune(sep)) +
+			len([]rune(suffix)) + len([]rune(sepStr)) + len([]rune(right))
+		available := width - fixedRunes
+		title = truncateTitle(s.title, available)
+	}
+
+	left := prefix + sep + title + suffix
+	// Trim leading/trailing spaces that can arise when prefix or title is empty.
+	left = strings.TrimSpace(left)
+
+	if left == "" {
+		return right
+	}
+	return left + "  |  " + right
 }

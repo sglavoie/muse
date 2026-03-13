@@ -1,0 +1,280 @@
+package tui
+
+import (
+	"strings"
+	"testing"
+)
+
+// TestRenderPlaybackStateGlyphs verifies that each PlaybackState maps to the
+// correct indicator glyph (▶ / ⏸ / ■) or no glyph when idle.
+func TestRenderPlaybackStateGlyphs(t *testing.T) {
+	tests := []struct {
+		state    PlaybackState
+		wantGlyph string
+		noGlyph  bool
+	}{
+		{PlaybackPlaying, "▶", false},
+		{PlaybackPaused, "⏸", false},
+		{PlaybackStopped, "■", false},
+		{PlaybackIdle, "", true},
+	}
+
+	for _, tc := range tests {
+		sb := StatusBar{
+			artist:        "Artist",
+			title:         "Title",
+			playbackState: tc.state,
+		}
+		out := sb.render(0)
+
+		if tc.noGlyph {
+			for _, g := range []string{"▶", "⏸", "■"} {
+				if strings.Contains(out, g) {
+					t.Errorf("state=%v: unexpected glyph %q in %q", tc.state, g, out)
+				}
+			}
+		} else {
+			if !strings.Contains(out, tc.wantGlyph) {
+				t.Errorf("state=%v: expected glyph %q in %q", tc.state, tc.wantGlyph, out)
+			}
+		}
+	}
+}
+
+// TestRenderTitleTruncationPreservesArtist verifies that when terminal width is
+// insufficient the track title is truncated with "…" while the full artist name
+// is preserved.
+func TestRenderTitleTruncationPreservesArtist(t *testing.T) {
+	sb := StatusBar{
+		artist:        "Full Artist",
+		title:         "A Very Long Track Title That Should Be Truncated",
+		playbackState: PlaybackPlaying,
+		logPath:       "muse.log",
+	}
+
+	// Width just large enough for glyph + artist + separator but not the full title.
+	// "▶ Full Artist – …  |  log: muse.log" should fit at around 40 chars.
+	out := sb.render(45)
+
+	if !strings.Contains(out, "Full Artist") {
+		t.Errorf("artist should be preserved: got %q", out)
+	}
+	if !strings.Contains(out, "…") {
+		t.Errorf("expected ellipsis after truncation: got %q", out)
+	}
+	if strings.Contains(out, "A Very Long Track Title That Should Be Truncated") {
+		t.Errorf("full title should have been truncated: got %q", out)
+	}
+}
+
+// TestRenderNoTruncationWhenSufficientWidth verifies that the full title is
+// shown when width is large enough.
+func TestRenderNoTruncationWhenSufficientWidth(t *testing.T) {
+	sb := StatusBar{
+		artist:        "Artist",
+		title:         "Short Title",
+		playbackState: PlaybackPlaying,
+		logPath:       "muse.log",
+	}
+
+	out := sb.render(200)
+
+	if !strings.Contains(out, "Short Title") {
+		t.Errorf("expected full title at wide width: got %q", out)
+	}
+	if strings.Contains(out, "…") {
+		t.Errorf("unexpected ellipsis at wide width: got %q", out)
+	}
+}
+
+// TestRenderNoTruncationWhenWidthZero verifies that width=0 means unconstrained
+// and the full title is always shown.
+func TestRenderNoTruncationWhenWidthZero(t *testing.T) {
+	sb := StatusBar{
+		artist:        "Artist",
+		title:         "A Very Long Track Title",
+		playbackState: PlaybackPlaying,
+	}
+
+	out := sb.render(0)
+
+	if !strings.Contains(out, "A Very Long Track Title") {
+		t.Errorf("expected full title when width=0: got %q", out)
+	}
+}
+
+// TestRenderQueuePlaylistSource verifies that when playlistSource is empty the
+// persistent left zone does not display a playlist name (the caller is
+// responsible for setting "Queue" before calling render).
+func TestRenderQueuePlaylistSource(t *testing.T) {
+	sb := StatusBar{
+		artist:         "Artist",
+		title:          "Title",
+		playbackState:  PlaybackPlaying,
+		playlistSource: "Queue",
+	}
+
+	out := sb.render(0)
+
+	if !strings.Contains(out, "Queue") {
+		t.Errorf("expected 'Queue' in output: got %q", out)
+	}
+}
+
+// TestRenderNamedPlaylistSource verifies that a named playlist source is
+// displayed in the persistent left zone.
+func TestRenderNamedPlaylistSource(t *testing.T) {
+	sb := StatusBar{
+		artist:         "Artist",
+		title:          "Title",
+		playbackState:  PlaybackPlaying,
+		playlistSource: "My Playlist",
+	}
+
+	out := sb.render(0)
+
+	if !strings.Contains(out, "My Playlist") {
+		t.Errorf("expected playlist name in output: got %q", out)
+	}
+	if strings.Contains(out, "Queue") {
+		t.Errorf("unexpected 'Queue' when named playlist is set: got %q", out)
+	}
+}
+
+// TestRenderRepeatAndShuffleIndicators verifies that R and S indicators appear
+// when the corresponding modes are active, and are absent otherwise.
+func TestRenderRepeatAndShuffleIndicators(t *testing.T) {
+	base := StatusBar{
+		artist:        "Artist",
+		title:         "Title",
+		playbackState: PlaybackPlaying,
+	}
+
+	// Both off.
+	out := base.render(0)
+	if strings.Contains(out, "  R") || strings.Contains(out, "  S") {
+		t.Errorf("expected no R/S when both off: got %q", out)
+	}
+
+	// Repeat on.
+	sbR := base
+	sbR.repeat = true
+	out = sbR.render(0)
+	if !strings.Contains(out, "  R") {
+		t.Errorf("expected R indicator: got %q", out)
+	}
+	if strings.Contains(out, "  S") {
+		t.Errorf("unexpected S indicator: got %q", out)
+	}
+
+	// Shuffle on.
+	sbS := base
+	sbS.shuffle = true
+	out = sbS.render(0)
+	if !strings.Contains(out, "  S") {
+		t.Errorf("expected S indicator: got %q", out)
+	}
+	if strings.Contains(out, "  R") {
+		t.Errorf("unexpected R indicator: got %q", out)
+	}
+}
+
+// TestRenderTransientDoesNotOverwritePersistent verifies that when a transient
+// message is present the persistent left zone (artist, title, glyph) is still
+// visible in the output.
+func TestRenderTransientDoesNotOverwritePersistent(t *testing.T) {
+	sb := StatusBar{
+		artist:         "Persistent Artist",
+		title:          "Persistent Title",
+		playbackState:  PlaybackPlaying,
+		transientRight: "Scanning… 100 tracks",
+		logPath:        "muse.log",
+	}
+
+	out := sb.render(0)
+
+	if !strings.Contains(out, "Persistent Artist") {
+		t.Errorf("artist hidden by transient message: got %q", out)
+	}
+	if !strings.Contains(out, "Persistent Title") {
+		t.Errorf("title hidden by transient message: got %q", out)
+	}
+	if !strings.Contains(out, "▶") {
+		t.Errorf("glyph hidden by transient message: got %q", out)
+	}
+	if !strings.Contains(out, "Scanning… 100 tracks") {
+		t.Errorf("transient message missing: got %q", out)
+	}
+}
+
+// TestRenderTransientVisibleWithWidthConstraint verifies that when a width is
+// set and a transient message is present, persistent fields remain visible
+// (title may be truncated but artist and glyph are preserved).
+func TestRenderTransientVisibleWithWidthConstraint(t *testing.T) {
+	sb := StatusBar{
+		artist:         "My Artist",
+		title:          "A Very Long Title Indeed",
+		playbackState:  PlaybackPlaying,
+		transientRight: "Some notification",
+		logPath:        "muse.log",
+	}
+
+	out := sb.render(60)
+
+	if !strings.Contains(out, "My Artist") {
+		t.Errorf("artist should be preserved with width constraint: got %q", out)
+	}
+	if !strings.Contains(out, "▶") {
+		t.Errorf("glyph should be preserved with width constraint: got %q", out)
+	}
+	if !strings.Contains(out, "Some notification") {
+		t.Errorf("transient message should remain: got %q", out)
+	}
+	if !strings.Contains(out, "…") {
+		t.Errorf("title should be truncated with ellipsis under width constraint: got %q", out)
+	}
+}
+
+// TestRenderIdleStateShowsNoGlyphAndNoTrackInfo verifies that when state is
+// idle and no artist/title are set the persistent left zone is omitted.
+func TestRenderIdleStateShowsNoGlyphAndNoTrackInfo(t *testing.T) {
+	sb := StatusBar{
+		playbackState: PlaybackIdle,
+		logPath:       "muse.log",
+	}
+
+	out := sb.render(0)
+
+	for _, g := range []string{"▶", "⏸", "■"} {
+		if strings.Contains(out, g) {
+			t.Errorf("unexpected glyph %q in idle state: got %q", g, out)
+		}
+	}
+	if !strings.Contains(out, "log: muse.log") {
+		t.Errorf("log path should always be shown: got %q", out)
+	}
+}
+
+// TestTruncateTitle covers the truncateTitle helper directly.
+func TestTruncateTitle(t *testing.T) {
+	tests := []struct {
+		input    string
+		max      int
+		expected string
+	}{
+		{"hello", 10, "hello"},
+		{"hello", 5, "hello"},
+		{"hello", 4, "hel…"},
+		{"hello", 1, "…"},
+		{"hello", 0, ""},
+		{"hello", -1, ""},
+		{"日本語タイトル", 4, "日本語…"},
+	}
+
+	for _, tc := range tests {
+		got := truncateTitle(tc.input, tc.max)
+		if got != tc.expected {
+			t.Errorf("truncateTitle(%q, %d) = %q, want %q", tc.input, tc.max, got, tc.expected)
+		}
+	}
+}

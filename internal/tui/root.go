@@ -133,6 +133,7 @@ type Model struct {
 	extractor   library.MetadataExtractor
 
 	statusBar StatusBar
+	termWidth int
 
 	// player is the playback backend. It may be nil when playback is not
 	// available (e.g. in tests that do not exercise playback).
@@ -299,6 +300,9 @@ func (m Model) Init() tea.Cmd {
 // for in-view navigation.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.termWidth = msg.Width
+
 	case clearConfigNotice:
 		m.configCreated = false
 
@@ -489,5 +493,5 @@ func (m Model) renderStatusBar() string {
 	sb.playbackState = m.playbackState
 	sb.repeat = m.repeat
 	sb.shuffle = m.shuffle
-	return sb.render()
+	return sb.render(m.termWidth)
 }
