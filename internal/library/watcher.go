@@ -3,12 +3,19 @@ package library
 import (
 	"context"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
+
+// watcherFactory creates a new fsnotify.Watcher. It is a variable so tests can
+// substitute a factory that returns an error to exercise graceful degradation.
+var watcherFactory = func() (*fsnotify.Watcher, error) {
+	return fsnotify.NewWatcher()
+}
 
 // DefaultDebounce is the default debounce window for filesystem events.
 const DefaultDebounce = 2500 * time.Millisecond
@@ -22,21 +29,35 @@ const DefaultDebounce = 2500 * time.Millisecond
 // with a per-file ExifTool invocation (not batched).
 //
 // The returned channel emits Track values for rescanned files and is closed when
-// ctx is cancelled.
+// ctx is cancelled. If fsnotify setup fails (e.g. fd exhaustion on macOS), Watch
+// returns a pre-closed channel and a nil error: the watcher is inactive and the
+// caller should rely on manual rescan as the sole rescan mechanism.
 func Watch(ctx context.Context, root string, extractor MetadataExtractor, debounceDelay time.Duration) (<-chan Track, error) {
-	w, err := fsnotify.NewWatcher()
+	raiseFDLimit()
+
+	w, err := watcherFactory()
 	if err != nil {
-		return nil, err
+		slog.Warn("watcher: failed to create fsnotify watcher; falling back to manual rescan", "err", err)
+		return closedTrackChan(), nil
 	}
 
 	if err := addWatchesRecursive(w, root); err != nil {
 		w.Close()
-		return nil, err
+		slog.Warn("watcher: failed to register directory watches; falling back to manual rescan", "err", err)
+		return closedTrackChan(), nil
 	}
 
 	out := make(chan Track, 64)
 	go watchLoop(ctx, w, root, extractor, debounceDelay, out)
 	return out, nil
+}
+
+// closedTrackChan returns a channel that is already closed, signalling to
+// callers that no tracks will ever be emitted (degraded / no-watcher mode).
+func closedTrackChan() <-chan Track {
+	ch := make(chan Track)
+	close(ch)
+	return ch
 }
 
 // watchLoop is the main event loop for the watcher goroutine.

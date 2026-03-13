@@ -1,9 +1,13 @@
 package library
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -269,4 +273,47 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 			t.Errorf("directory pending entry should have isDir=true")
 		}
 	})
+}
+
+// TestWatch_WatcherFactoryFailure_LogsWarningAndDegrades verifies that when
+// the fsnotify watcher cannot be created (simulating fd exhaustion), Watch
+// logs a warning, returns a nil error, and returns a closed channel so callers
+// can continue running with manual rescan as the sole rescan mechanism.
+func TestWatch_WatcherFactoryFailure_LogsWarningAndDegrades(t *testing.T) {
+	// Capture slog output so we can assert a warning was emitted.
+	var buf bytes.Buffer
+	handler := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})
+	origLogger := slog.Default()
+	slog.SetDefault(slog.New(handler))
+	t.Cleanup(func() { slog.SetDefault(origLogger) })
+
+	// Override watcherFactory to simulate fsnotify creation failure.
+	origFactory := watcherFactory
+	watcherFactory = func() (*fsnotify.Watcher, error) {
+		return nil, errors.New("too many open files")
+	}
+	t.Cleanup(func() { watcherFactory = origFactory })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ch, err := Watch(ctx, t.TempDir(), &fakeExtractor{}, DefaultDebounce)
+	if err != nil {
+		t.Fatalf("Watch returned error; want nil for degraded mode: %v", err)
+	}
+
+	// The returned channel must be closed immediately (degraded: no active watcher).
+	select {
+	case _, ok := <-ch:
+		if ok {
+			t.Error("expected pre-closed channel in degraded mode, received a value")
+		}
+	case <-time.After(time.Second):
+		t.Error("channel not closed within 1 s after watcher creation failure")
+	}
+
+	// A warning containing "watcher" must have been logged.
+	if !strings.Contains(buf.String(), "watcher") {
+		t.Errorf("expected slog warning mentioning 'watcher'; got: %s", buf.String())
+	}
 }
