@@ -32,6 +32,11 @@ type Model struct {
 	scanning bool
 	scanned  int
 
+	// libraryRoot and extractor are required for manual rescan. When
+	// libraryRoot is empty the rescan hotkey is a no-op.
+	libraryRoot string
+	extractor   library.MetadataExtractor
+
 	statusBar StatusBar
 }
 
@@ -41,7 +46,10 @@ type Model struct {
 //
 // scanCh may be nil when library scanning is not needed (e.g. in tests). Pass
 // the channel returned by library.Scan to enable incremental library updates.
-func New(logPath, configPath string, configCreated bool, scanCh <-chan library.Track) Model {
+//
+// libraryRoot and extractor enable the manual rescan hotkey. Pass empty string
+// and nil to disable it (e.g. in tests that do not exercise rescan).
+func New(logPath, configPath string, configCreated bool, scanCh <-chan library.Track, libraryRoot string, extractor library.MetadataExtractor) Model {
 	return Model{
 		activeView:    viewLibrary,
 		logPath:       logPath,
@@ -49,6 +57,8 @@ func New(logPath, configPath string, configCreated bool, scanCh <-chan library.T
 		configCreated: configCreated,
 		scanCh:        scanCh,
 		scanning:      scanCh != nil,
+		libraryRoot:   libraryRoot,
+		extractor:     extractor,
 		statusBar: StatusBar{
 			logPath:       logPath,
 			configPath:    configPath,
@@ -139,6 +149,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.activeView = viewPlaylists
 		case "3":
 			m.activeView = viewQueue
+		case "r":
+			if m.libraryRoot != "" && m.extractor != nil && !m.scanning {
+				ch := library.Scan(m.libraryRoot, m.extractor)
+				m.library.index = library.LibraryIndex{}
+				m.scanCh = ch
+				m.scanning = true
+				m.scanned = 0
+				return m, waitForNextBatch(ch)
+			}
 		}
 	}
 	return m, nil
