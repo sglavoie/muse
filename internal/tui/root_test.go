@@ -1556,3 +1556,62 @@ func TestUpdateEscWhenHelpNotVisibleDoesNotQuit(t *testing.T) {
 		t.Fatal("Esc with helpVisible=false must not produce a command (e.g. quit)")
 	}
 }
+
+// TestViewHelpOverlayContainsSectionHeaders verifies that when the help overlay
+// is visible, View() renders all expected section headers.
+func TestViewHelpOverlayContainsSectionHeaders(t *testing.T) {
+	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil, nil)
+	m.helpVisible = true
+
+	v := m.View()
+	for _, header := range []string{"Global", "Library", "Playlists", "Queue", "Modals"} {
+		if !strings.Contains(v.Content, header) {
+			t.Errorf("View() with helpVisible=true: missing section header %q", header)
+		}
+	}
+}
+
+// TestViewHelpOverlayContainsLogPath verifies that when the help overlay is
+// visible, View() renders the log file path.
+func TestViewHelpOverlayContainsLogPath(t *testing.T) {
+	logPath := "/state/muse/muse.log"
+	m := New(logPath, "", false, nil, nil, "", nil, nil)
+	m.helpVisible = true
+
+	v := m.View()
+	if !strings.Contains(v.Content, logPath) {
+		t.Fatalf("View() with helpVisible=true: missing log path %q in:\n%s", logPath, v.Content)
+	}
+}
+
+// TestEscRestoringViewDoesNotAlterPlaybackOrScanState verifies that dismissing
+// the help overlay with Esc does not change playbackState, repeat, shuffle, or
+// the scanning flag.
+func TestEscRestoringViewDoesNotAlterPlaybackOrScanState(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.playbackState = PlaybackPlaying
+	m.repeat = true
+	m.shuffle = true
+	m.scanning = true
+
+	// Open the overlay.
+	next, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
+	nm := next.(Model)
+
+	// Dismiss with Esc.
+	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	nm = next.(Model)
+
+	if nm.playbackState != PlaybackPlaying {
+		t.Fatalf("Esc: playbackState changed; expected PlaybackPlaying, got %v", nm.playbackState)
+	}
+	if !nm.repeat {
+		t.Fatal("Esc: repeat changed; expected true, got false")
+	}
+	if !nm.shuffle {
+		t.Fatal("Esc: shuffle changed; expected true, got false")
+	}
+	if !nm.scanning {
+		t.Fatal("Esc: scanning changed; expected true, got false")
+	}
+}
