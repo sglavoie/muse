@@ -24,7 +24,10 @@ const (
 )
 
 // PlaylistsView is a placeholder for the playlists panel.
-type PlaylistsView struct{}
+type PlaylistsView struct {
+	width  int
+	height int
+}
 
 func (v PlaylistsView) render() string { return "Playlists" }
 
@@ -41,6 +44,8 @@ type QueueEntry struct {
 type QueueView struct {
 	entries []QueueEntry
 	cursor  int // index of the currently selected entry
+	width   int
+	height  int
 }
 
 // Update handles queue-specific key messages. Up/Down move the cursor;
@@ -106,16 +111,21 @@ func (v QueueView) render() string {
 	if len(v.entries) == 0 {
 		return "Queue\n\n(empty)"
 	}
+	const cursorWidth = 2 // "> " or "  "
 	lines := make([]string, len(v.entries))
 	for i, e := range v.entries {
 		cursor := "  "
 		if i == v.cursor {
 			cursor = "> "
 		}
+		display := e.Display
+		if v.width > 0 {
+			display = truncateTitle(display, v.width-cursorWidth)
+		}
 		if e.Missing {
-			lines[i] = fmt.Sprintf("%s%s%s [missing]%s", cursor, ansiDim, e.Display, ansiReset)
+			lines[i] = fmt.Sprintf("%s%s%s [missing]%s", cursor, ansiDim, display, ansiReset)
 		} else {
-			lines[i] = cursor + e.Display
+			lines[i] = cursor + display
 		}
 	}
 	return "Queue\n\n" + strings.Join(lines, "\n")

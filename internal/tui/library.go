@@ -11,7 +11,9 @@ const maxDisplayedTracks = 50
 
 // LibraryView renders the music library panel backed by a sorted LibraryIndex.
 type LibraryView struct {
-	index library.LibraryIndex
+	index  library.LibraryIndex
+	width  int
+	height int
 }
 
 // render returns a string representation of the library panel. It shows the
@@ -23,13 +25,14 @@ func (v LibraryView) render() string {
 		return "Library\n\n(no tracks)"
 	}
 	tracks := v.index.Tracks()
-	end := n
-	if end > maxDisplayedTracks {
-		end = maxDisplayedTracks
-	}
+	end := min(n, maxDisplayedTracks)
 	lines := make([]string, end)
 	for i, t := range tracks[:end] {
-		lines[i] = fmt.Sprintf("%s – %s", t.Artist, t.Title)
+		line := fmt.Sprintf("%s – %s", t.Artist, t.Title)
+		if v.width > 0 {
+			line = truncateTitle(line, v.width)
+		}
+		lines[i] = line
 	}
 	return fmt.Sprintf("Library (%s tracks)\n\n%s", formatCount(n), strings.Join(lines, "\n"))
 }

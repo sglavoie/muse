@@ -183,6 +183,7 @@ type Model struct {
 
 	statusBar       StatusBar
 	termWidth       int
+	termHeight      int
 	registry        Registry
 	helpVisible     bool   // true while the help overlay is shown
 	prevActiveView  viewID // the view that was active before help was opened
@@ -379,6 +380,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.termWidth = msg.Width
+		m.termHeight = msg.Height
+		m.library.width = msg.Width
+		m.library.height = msg.Height
+		m.playlists.width = msg.Width
+		m.playlists.height = msg.Height
+		m.queue.width = msg.Width
+		m.queue.height = msg.Height
 
 	case clearConfigNotice:
 		m.configCreated = false
