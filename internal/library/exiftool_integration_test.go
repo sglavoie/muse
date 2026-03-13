@@ -1,0 +1,111 @@
+//go:build integration
+
+package library
+
+import (
+	"encoding/binary"
+	"fmt"
+	"os/exec"
+	"path/filepath"
+	"testing"
+)
+
+// makeMinimalWAV returns the bytes of a valid, minimal PCM WAV file with
+// 0 data samples (mono, 8-bit, 8000 Hz). Exiftool parses this without error.
+func makeMinimalWAV() []byte {
+	const (
+		audioFormatPCM uint16 = 1
+		numChannels    uint16 = 1
+		sampleRate     uint32 = 8000
+		bitsPerSample  uint16 = 8
+	)
+	byteRate := uint32(sampleRate) * uint32(numChannels) * uint32(bitsPerSample) / 8
+	blockAlign := numChannels * bitsPerSample / 8
+
+	buf := make([]byte, 44) // RIFF(12) + fmt(24) + data(8)
+	copy(buf[0:], "RIFF")
+	binary.LittleEndian.PutUint32(buf[4:], 36) // chunk size = total - 8
+	copy(buf[8:], "WAVE")
+	copy(buf[12:], "fmt ")
+	binary.LittleEndian.PutUint32(buf[16:], 16) // fmt sub-chunk size
+	binary.LittleEndian.PutUint16(buf[20:], audioFormatPCM)
+	binary.LittleEndian.PutUint16(buf[22:], numChannels)
+	binary.LittleEndian.PutUint32(buf[24:], sampleRate)
+	binary.LittleEndian.PutUint32(buf[28:], byteRate)
+	binary.LittleEndian.PutUint16(buf[32:], blockAlign)
+	binary.LittleEndian.PutUint16(buf[34:], bitsPerSample)
+	copy(buf[36:], "data")
+	binary.LittleEndian.PutUint32(buf[40:], 0) // 0 data bytes
+	return buf
+}
+
+// TestExifToolExtractor_RealInvocation creates a small batch of minimal WAV
+// files and calls ExifToolExtractor.Extract, asserting that the real exiftool
+// binary returns parseable JSON for every file in the batch.
+func TestExifToolExtractor_RealInvocation(t *testing.T) {
+	if _, err := exec.LookPath("exiftool"); err != nil {
+		t.Skip("exiftool not found on PATH: " + err.Error())
+	}
+
+	dir := t.TempDir()
+	const n = 5
+	files := make([]HashedFile, n)
+	for i := range n {
+		p := filepath.Join(dir, fmt.Sprintf("track%02d.wav", i))
+		writeFile(t, p, makeMinimalWAV())
+		files[i] = HashedFile{Path: p, Hash: fmt.Sprintf("testhash%02d", i)}
+	}
+
+	ext := ExifToolExtractor{}
+	tracks, err := ext.Extract(files)
+	if err != nil {
+		t.Fatalf("ExifToolExtractor.Extract returned error: %v", err)
+	}
+	if len(tracks) != n {
+		t.Fatalf("expected %d tracks, got %d", n, len(tracks))
+	}
+	// Build an expected path→hash map from the inputs.
+	wantHash := make(map[string]string, n)
+	for _, f := range files {
+		wantHash[f.Path] = f.Hash
+	}
+	for _, tr := range tracks {
+		if tr.Path == "" {
+			t.Error("Track.Path must not be empty")
+			continue
+		}
+		if got, ok := wantHash[tr.Path]; !ok {
+			t.Errorf("unexpected Track.Path %q", tr.Path)
+		} else if tr.Hash != got {
+			t.Errorf("Track %q: want hash %q, got %q", tr.Path, got, tr.Hash)
+		}
+	}
+}
+
+// TestExifToolExtractor_BatchSize verifies that ExtractBatches correctly
+// dispatches a real exiftool batch when batchSize files accumulate.
+func TestExifToolExtractor_BatchSize(t *testing.T) {
+	if _, err := exec.LookPath("exiftool"); err != nil {
+		t.Skip("exiftool not found on PATH: " + err.Error())
+	}
+
+	dir := t.TempDir()
+	const n = batchSize + 2
+	in := make(chan HashedFile, n)
+	for i := range n {
+		p := filepath.Join(dir, fmt.Sprintf("batch%04d.wav", i))
+		writeFile(t, p, makeMinimalWAV())
+		in <- HashedFile{Path: p, Hash: fmt.Sprintf("bh%04d", i)}
+	}
+	close(in)
+
+	ext := ExifToolExtractor{}
+	var got []Track
+	for tr := range ExtractBatches(ext, in) {
+		got = append(got, tr)
+	}
+
+	if len(got) != n {
+		t.Fatalf("expected %d tracks from full batch run, got %d", n, len(got))
+	}
+}
