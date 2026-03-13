@@ -18,11 +18,18 @@ const mpvSocketName = "mpv.sock"
 // and RunScan fields are required. CheckPrereqs defaults to
 // config.CheckPrereqs when nil.
 type Deps struct {
+	// Config holds the loaded application configuration. LaunchMPV and
+	// RunScan closures can read cfg.MPVExtraFlags, cfg.MusicDirectory, etc.
+	Config config.Config
+
 	// CheckPrereqs verifies that required binaries are available.
 	// If nil, config.CheckPrereqs is used.
 	CheckPrereqs func() error
 
 	// LaunchMPV starts the mpv process listening on socketPath.
+	// IMPORTANT: in production this function MUST be non-blocking — it should
+	// spawn the subprocess and return immediately. If LaunchMPV blocks until
+	// mpv exits, wg.Wait() inside Run will stall and the TUI will never start.
 	LaunchMPV func(ctx context.Context, socketPath string) error
 
 	// RunScan performs the library scan against the open database.
@@ -38,6 +45,17 @@ type RunResult struct {
 
 	// SocketPath is the mpv Unix socket path, for deletion during shutdown.
 	SocketPath string
+
+	// DB is the open database connection. The caller must close it via
+	// ShutdownDeps.CloseDB after all writes have drained.
+	DB *db.DB
+
+	// Writer is the single-writer goroutine. The caller stops it by calling
+	// CancelWriter then Writer.Wait.
+	Writer *db.Writer
+
+	// CancelWriter cancels the context driving the Writer goroutine.
+	CancelWriter context.CancelFunc
 }
 
 // Run executes the startup sequence in the required order:
@@ -75,7 +93,10 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 	}
 
 	// Step 2: Remove stale mpv socket file.
-	socketPath := filepath.Join(dirs.Runtime, mpvSocketName)
+	socketPath := deps.Config.MPVSocketPath
+	if socketPath == "" {
+		socketPath = filepath.Join(dirs.Runtime, mpvSocketName)
+	}
 	slog.Info("startup: removing stale mpv socket", "path", socketPath)
 	if err := removeStaleSocket(socketPath); err != nil {
 		return failf("startup: %w", err)
@@ -89,12 +110,30 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 	if err != nil {
 		return failf("startup: open database: %w", err)
 	}
-	defer database.Close()
+	// From here, failf must also close the database.
+	failf = func(format string, args ...any) (*RunResult, error) {
+		database.Close()
+		lf.Release()
+		return nil, fmt.Errorf(format, args...)
+	}
 
 	if err := db.Migrate(database.DB); err != nil {
 		return failf("startup: migrate: %w", err)
 	}
 	slog.Info("startup: database migrations complete")
+
+	// Start the single-writer goroutine. The caller owns writerCtx and must
+	// call CancelWriter then Writer.Wait during shutdown.
+	writerCtx, cancelWriter := context.WithCancel(ctx)
+	w := db.NewWriter(writerCtx, database.DB)
+	// From here, failf must also stop the writer before closing the DB.
+	failf = func(format string, args ...any) (*RunResult, error) {
+		cancelWriter()
+		w.Wait()
+		database.Close()
+		lf.Release()
+		return nil, fmt.Errorf(format, args...)
+	}
 
 	// Step 4: Verify prerequisite binaries.
 	slog.Info("startup: checking prerequisites")
@@ -129,7 +168,13 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 		}
 	}
 
-	return &RunResult{Lockfile: lf, SocketPath: socketPath}, nil
+	return &RunResult{
+		Lockfile:     lf,
+		SocketPath:   socketPath,
+		DB:           database,
+		Writer:       w,
+		CancelWriter: cancelWriter,
+	}, nil
 }
 
 // removeStaleSocket removes the mpv socket file if it exists. A missing file

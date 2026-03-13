@@ -30,9 +30,6 @@ func TestLoad_MissingFile_CreatesDefaultConfig(t *testing.T) {
 	if cfg.MusicDirectory != defaultMusicDirectory {
 		t.Errorf("MusicDirectory = %q, want %q", cfg.MusicDirectory, defaultMusicDirectory)
 	}
-	if cfg.MPVSocketPath != defaultMPVSocketPath {
-		t.Errorf("MPVSocketPath = %q, want %q", cfg.MPVSocketPath, defaultMPVSocketPath)
-	}
 	if cfg.DefaultVolume != defaultVolume {
 		t.Errorf("DefaultVolume = %d, want %d", cfg.DefaultVolume, defaultVolume)
 	}
@@ -61,7 +58,6 @@ func TestLoad_ParsesTOMLCorrectly(t *testing.T) {
 	dir := t.TempDir()
 	content := `
 music_directory = "/home/user/Songs"
-mpv_socket_path = "/tmp/test.sock"
 mpv_extra_flags = ["--no-video", "--volume=80"]
 default_volume = 75
 `
@@ -80,9 +76,6 @@ default_volume = 75
 	if cfg.MusicDirectory != "/home/user/Songs" {
 		t.Errorf("MusicDirectory = %q", cfg.MusicDirectory)
 	}
-	if cfg.MPVSocketPath != "/tmp/test.sock" {
-		t.Errorf("MPVSocketPath = %q", cfg.MPVSocketPath)
-	}
 	if len(cfg.MPVExtraFlags) != 2 || cfg.MPVExtraFlags[0] != "--no-video" {
 		t.Errorf("MPVExtraFlags = %v", cfg.MPVExtraFlags)
 	}
@@ -95,7 +88,6 @@ func TestLoad_InvalidVolume_FallsBackToDefault(t *testing.T) {
 	dir := t.TempDir()
 	content := `
 music_directory = "/home/user/Songs"
-mpv_socket_path = "/tmp/test.sock"
 default_volume = 999
 `
 	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
@@ -123,7 +115,6 @@ func TestLoad_EmptyMusicDirectory_FallsBackToDefault(t *testing.T) {
 	dir := t.TempDir()
 	content := `
 music_directory = ""
-mpv_socket_path = "/tmp/test.sock"
 default_volume = 50
 `
 	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
@@ -172,7 +163,6 @@ func TestConfig_StructFields(t *testing.T) {
 	cfg := defaults()
 	// Verify all required fields exist and have expected defaults.
 	_ = cfg.MusicDirectory
-	_ = cfg.MPVSocketPath
 	_ = cfg.MPVExtraFlags
 	_ = cfg.DefaultVolume
 }

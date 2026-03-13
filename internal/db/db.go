@@ -3,6 +3,8 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	_ "modernc.org/sqlite"
 )
@@ -14,8 +16,14 @@ type DB struct {
 
 // Open opens (or creates) the SQLite database at path and configures it for
 // WAL mode and safe concurrent use. The caller is responsible for calling
-// Close when done.
+// Close when done. Open creates the parent directory if it does not exist.
 func Open(path string) (*DB, error) {
+	if dir := filepath.Dir(path); dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, fmt.Errorf("db: create directory %s: %w", dir, err)
+		}
+	}
+
 	sqlDB, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, fmt.Errorf("db: open %s: %w", path, err)

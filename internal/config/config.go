@@ -11,9 +11,8 @@ import (
 
 const (
 	defaultMusicDirectory = "~/Music"
-	defaultMPVSocketPath  = "/tmp/muse-mpv.sock"
-	defaultMPVExtraFlags  = ""
 	defaultVolume         = 100
+	defaultLogLevel       = "info"
 	configFileName        = "config.toml"
 )
 
@@ -23,16 +22,24 @@ type Config struct {
 	MPVSocketPath  string   `toml:"mpv_socket_path"`
 	MPVExtraFlags  []string `toml:"mpv_extra_flags"`
 	DefaultVolume  int      `toml:"default_volume"`
+	LogLevel       string   `toml:"log_level"`
 }
 
 // defaults returns a Config populated with built-in default values.
 func defaults() Config {
 	return Config{
 		MusicDirectory: defaultMusicDirectory,
-		MPVSocketPath:  defaultMPVSocketPath,
 		MPVExtraFlags:  []string{},
 		DefaultVolume:  defaultVolume,
+		LogLevel:       defaultLogLevel,
 	}
+}
+
+// ConfigPath returns the path to the config file within configDir.
+// Use this instead of constructing the path manually so that all callers
+// stay in sync if the filename ever changes.
+func ConfigPath(configDir string) string {
+	return filepath.Join(configDir, configFileName)
 }
 
 // Load reads the TOML config file at configDir/config.toml.
@@ -82,14 +89,7 @@ func validate(raw Config) Config {
 		)
 	}
 
-	if raw.MPVSocketPath != "" {
-		cfg.MPVSocketPath = raw.MPVSocketPath
-	} else {
-		slog.Warn("invalid config value, using default",
-			"field", "mpv_socket_path",
-			"default", defaultMPVSocketPath,
-		)
-	}
+	cfg.MPVSocketPath = raw.MPVSocketPath
 
 	cfg.MPVExtraFlags = raw.MPVExtraFlags
 	if cfg.MPVExtraFlags == nil {
@@ -103,6 +103,19 @@ func validate(raw Config) Config {
 			"field", "default_volume",
 			"value", raw.DefaultVolume,
 			"default", defaultVolume,
+		)
+	}
+
+	switch raw.LogLevel {
+	case "debug", "info", "warn", "error":
+		cfg.LogLevel = raw.LogLevel
+	case "":
+		// empty means not set; keep default silently
+	default:
+		slog.Warn("invalid config value, using default",
+			"field", "log_level",
+			"value", raw.LogLevel,
+			"default", defaultLogLevel,
 		)
 	}
 

@@ -2,9 +2,13 @@ package tui
 
 import (
 	"fmt"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
+
+// clearConfigNotice is sent after the transient first-run notification timeout.
+type clearConfigNotice struct{}
 
 // Model is the root Bubble Tea v2 model. It manages view switching between
 // Library, Playlists, and Queue panels, and renders a persistent status bar.
@@ -31,8 +35,19 @@ func New(logPath, configPath string, configCreated bool) Model {
 	}
 }
 
-// Init satisfies the tea.Model interface. No startup commands are needed.
+// configNoticeDuration controls how long the first-run config path notification
+// is visible in the status bar before it is automatically dismissed.
+const configNoticeDuration = 5 * time.Second
+
+// Init satisfies the tea.Model interface. When this is a first-run session,
+// schedules a command to dismiss the transient config path notification after
+// configNoticeDuration.
 func (m Model) Init() tea.Cmd {
+	if m.configCreated {
+		return tea.Tick(configNoticeDuration, func(time.Time) tea.Msg {
+			return clearConfigNotice{}
+		})
+	}
 	return nil
 }
 
@@ -41,6 +56,8 @@ func (m Model) Init() tea.Cmd {
 // for in-view navigation.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case clearConfigNotice:
+		m.configCreated = false
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "ctrl+c":

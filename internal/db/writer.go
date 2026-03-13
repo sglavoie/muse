@@ -4,7 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 )
+
+const writerDrainTimeout = 5 * time.Second
 
 // writeCmd is a single unit of work sent to the writer goroutine.
 // The caller blocks on resp until the goroutine sends the result back.
@@ -64,7 +67,7 @@ func (w *Writer) Wait() {
 }
 
 // run is the single writer goroutine. It drains cmds until ctx is cancelled,
-// then exits and closes done.
+// then flushes any buffered commands before closing done.
 func (w *Writer) run(ctx context.Context) {
 	defer close(w.done)
 	for {
@@ -72,6 +75,23 @@ func (w *Writer) run(ctx context.Context) {
 		case cmd := <-w.cmds:
 			cmd.resp <- cmd.fn(w.db)
 		case <-ctx.Done():
+			w.drain()
+			return
+		}
+	}
+}
+
+// drain flushes all commands already buffered in the cmds channel after ctx is
+// cancelled. A timeout guards against a single stuck write blocking shutdown
+// indefinitely. New Exec calls after drain returns will see w.done closed and
+// receive an error immediately.
+func (w *Writer) drain() {
+	deadline := time.Now().Add(writerDrainTimeout)
+	for time.Now().Before(deadline) {
+		select {
+		case cmd := <-w.cmds:
+			cmd.resp <- cmd.fn(w.db)
+		default:
 			return
 		}
 	}

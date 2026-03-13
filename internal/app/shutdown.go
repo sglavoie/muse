@@ -27,11 +27,19 @@ type ShutdownDeps struct {
 	// ensuring all in-flight writes complete before the database is closed.
 	WaitDBWriter func()
 
+	// CloseDB closes the database connection after the writer has drained.
+	// Nil means no-op.
+	CloseDB func()
+
 	// Lockfile is the PID lockfile to release on shutdown.
 	Lockfile *config.Lockfile
 
 	// SocketPath is the path to the mpv Unix socket to delete.
 	SocketPath string
+
+	// CloseLog flushes and closes the log file. Called last so that all
+	// shutdown log entries are written before the handle is released.
+	CloseLog func()
 }
 
 // Shutdown executes the graceful teardown sequence in order:
@@ -73,6 +81,13 @@ func Shutdown(deps ShutdownDeps) {
 	}
 	slog.Info("shutdown: db writes flushed")
 
+	// Step 3.5: Close the database connection now that all writes have drained.
+	slog.Info("shutdown: closing database")
+	if deps.CloseDB != nil {
+		deps.CloseDB()
+	}
+	slog.Info("shutdown: database closed")
+
 	// Step 4: Release PID lockfile.
 	slog.Info("shutdown: releasing lockfile")
 	if deps.Lockfile != nil {
@@ -88,4 +103,9 @@ func Shutdown(deps ShutdownDeps) {
 		}
 	}
 	slog.Info("shutdown: mpv socket removed")
+
+	// Step 6: Close log file last so all shutdown log entries are captured.
+	if deps.CloseLog != nil {
+		deps.CloseLog()
+	}
 }
