@@ -1,0 +1,121 @@
+package library
+
+import (
+	"fmt"
+	"strings"
+
+	musiclib "github.com/sglavoie/muse/internal/library"
+)
+
+// View renders the music library panel with proportional columnar layout.
+// Width and Height must be set from the most recent tea.WindowSizeMsg before
+// calling Render; a zero Width falls back to a simple "artist – title" format.
+type View struct {
+	Index  musiclib.LibraryIndex
+	Width  int
+	Height int
+}
+
+// Render returns the complete library panel string. When Width is zero (before
+// the first terminal size message) it uses a simple single-line format.
+func (v View) Render() string {
+	n := v.Index.Len()
+	if n == 0 {
+		return "Library\n\n(no tracks)"
+	}
+
+	tracks := v.Index.Tracks()
+	maxRows := 50
+	if v.Height > 0 {
+		maxRows = max(1, v.Height-3)
+	}
+	end := min(n, maxRows)
+
+	heading := fmt.Sprintf("Library (%s tracks)", formatCount(n))
+
+	if v.Width == 0 {
+		lines := make([]string, end)
+		for i, t := range tracks[:end] {
+			lines[i] = fmt.Sprintf("%s – %s", t.Artist, t.Title)
+		}
+		return heading + "\n\n" + strings.Join(lines, "\n")
+	}
+
+	cols := Compute(v.Width)
+	header := renderRow("#", "Artist", "Title", "Album", "Time", cols)
+	lines := make([]string, end)
+	for i, t := range tracks[:end] {
+		num := fmt.Sprintf("%d", i+1)
+		dur := formatDuration(t.Duration)
+		lines[i] = renderRow(num, t.Artist, t.Title, t.Album, dur, cols)
+	}
+
+	return heading + "\n\n" + header + "\n" + strings.Join(lines, "\n")
+}
+
+// renderRow formats a single row with each field padded or truncated to its
+// column width. When cols.Artist is zero the layout degenerates to just the
+// track number field.
+func renderRow(num, artist, title, album, duration string, cols Columns) string {
+	if cols.Artist == 0 {
+		return pad(num, cols.TrackNum)
+	}
+	return pad(num, cols.TrackNum) + " " +
+		pad(artist, cols.Artist) + " " +
+		pad(title, cols.Title) + " " +
+		pad(album, cols.Album) + " " +
+		pad(duration, cols.Duration)
+}
+
+// pad returns s truncated or right-padded with spaces to exactly width runes.
+// Strings longer than width are truncated to width-1 runes followed by "…".
+func pad(s string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	runes := []rune(s)
+	n := len(runes)
+	if n > width {
+		if width == 1 {
+			return string(runes[:1])
+		}
+		return string(runes[:width-1]) + "…"
+	}
+	if n == width {
+		return s
+	}
+	return s + strings.Repeat(" ", width-n)
+}
+
+// formatDuration converts a duration in seconds to M:SS or H:MM:SS format.
+// Returns "--:--" when secs is zero or negative (unknown duration).
+func formatDuration(secs float64) string {
+	if secs <= 0 {
+		return "--:--"
+	}
+	total := int(secs)
+	h := total / 3600
+	m := (total % 3600) / 60
+	s := total % 60
+	if h > 0 {
+		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
+	}
+	return fmt.Sprintf("%d:%02d", m, s)
+}
+
+// formatCount formats n with comma separators (e.g. 1234 → "1,234").
+func formatCount(n int) string {
+	s := fmt.Sprintf("%d", n)
+	if len(s) <= 3 {
+		return s
+	}
+	offset := len(s) % 3
+	var result []byte
+	for i := range len(s) {
+		if i > 0 && (i-offset)%3 == 0 {
+			result = append(result, ',')
+		}
+		result = append(result, s[i])
+	}
+	return string(result)
+}
