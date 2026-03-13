@@ -17,11 +17,15 @@ const (
 // Width and Height must be set from the most recent tea.WindowSizeMsg before
 // calling Render; a zero Width falls back to a simple "artist – title" format.
 // Cursor holds the zero-based index of the focused track row.
+// FilterActive is false by default and is set to true when the user presses '/'.
+// FilterText accumulates the query string while FilterActive is true.
 type View struct {
-	Index  musiclib.LibraryIndex
-	Width  int
-	Height int
-	Cursor int
+	Index        musiclib.LibraryIndex
+	Width        int
+	Height       int
+	Cursor       int
+	FilterActive bool
+	FilterText   string
 }
 
 // CursorUp moves the cursor one row up, stopping at the first track.

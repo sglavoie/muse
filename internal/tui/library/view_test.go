@@ -186,6 +186,51 @@ func TestCursorClampAtTop(t *testing.T) {
 	}
 }
 
+// TestFilterInactiveOnInit verifies that the filter bar is not active when a
+// View is first constructed.
+func TestFilterInactiveOnInit(t *testing.T) {
+	v := View{}
+	if v.FilterActive {
+		t.Error("FilterActive should be false on a zero-value View")
+	}
+	if v.FilterText != "" {
+		t.Errorf("FilterText should be empty on a zero-value View, got %q", v.FilterText)
+	}
+}
+
+// TestSlashActivatesFilter verifies that calling ActivateFilter sets
+// FilterActive to true (models the '/' keypress).
+func TestSlashActivatesFilter(t *testing.T) {
+	v := View{}
+	v = v.ActivateFilter()
+	if !v.FilterActive {
+		t.Error("FilterActive should be true after ActivateFilter")
+	}
+}
+
+// TestAppendFilterCharBuildsQuery verifies that key presses after activation
+// accumulate into FilterText.
+func TestAppendFilterCharBuildsQuery(t *testing.T) {
+	v := View{}
+	v = v.ActivateFilter()
+	v = v.AppendFilterChar('r')
+	v = v.AppendFilterChar('o')
+	v = v.AppendFilterChar('c')
+	if v.FilterText != "roc" {
+		t.Errorf("FilterText: expected %q, got %q", "roc", v.FilterText)
+	}
+}
+
+// TestAppendFilterCharIgnoredWhenInactive verifies that AppendFilterChar is a
+// no-op when the filter bar has not been activated.
+func TestAppendFilterCharIgnoredWhenInactive(t *testing.T) {
+	v := View{}
+	v = v.AppendFilterChar('x')
+	if v.FilterText != "" {
+		t.Errorf("FilterText should remain empty when filter is inactive, got %q", v.FilterText)
+	}
+}
+
 // TestCursorStoredOnModel verifies that the cursor index is retained on the
 // View value after multiple moves.
 func TestCursorStoredOnModel(t *testing.T) {
