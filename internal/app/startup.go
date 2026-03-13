@@ -29,6 +29,17 @@ type Deps struct {
 	RunScan func(ctx context.Context, database *db.DB) error
 }
 
+// RunResult holds resources created during startup that must survive beyond
+// Run's return so that main.go can pass them to Shutdown.
+type RunResult struct {
+	// Lockfile is the acquired PID lockfile. The caller must release it via
+	// ShutdownDeps.Lockfile (never call Release directly before Shutdown).
+	Lockfile *config.Lockfile
+
+	// SocketPath is the mpv Unix socket path, for deletion during shutdown.
+	SocketPath string
+}
+
 // Run executes the startup sequence in the required order:
 //  1. Acquire PID lockfile
 //  2. Remove stale mpv socket
@@ -38,7 +49,9 @@ type Deps struct {
 //
 // Run blocks until both parallel tasks complete or an error occurs. A failure
 // at any step returns immediately without executing subsequent steps.
-func Run(ctx context.Context, dirs config.Dirs, deps Deps) error {
+// On success the caller owns the returned RunResult and is responsible for
+// calling Shutdown so that the lockfile and socket are cleaned up.
+func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 	checkPrereqs := deps.CheckPrereqs
 	if checkPrereqs == nil {
 		checkPrereqs = config.CheckPrereqs
@@ -48,16 +61,24 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) error {
 	slog.Info("startup: acquiring lockfile")
 	lf := config.NewLockfile(dirs.Runtime)
 	if err := lf.Acquire(); err != nil {
-		return fmt.Errorf("startup: %w", err)
+		return nil, fmt.Errorf("startup: %w", err)
 	}
-	defer lf.Release()
+	// NOTE: do NOT defer lf.Release() here — the caller holds the lockfile
+	// for the full application lifetime and releases it via Shutdown.
 	slog.Info("startup: lockfile acquired")
+
+	// failf releases the lockfile and returns a wrapped error. Used for all
+	// error paths after step 1 so the lockfile is never leaked on failure.
+	failf := func(format string, args ...any) (*RunResult, error) {
+		lf.Release()
+		return nil, fmt.Errorf(format, args...)
+	}
 
 	// Step 2: Remove stale mpv socket file.
 	socketPath := filepath.Join(dirs.Runtime, mpvSocketName)
 	slog.Info("startup: removing stale mpv socket", "path", socketPath)
 	if err := removeStaleSocket(socketPath); err != nil {
-		return fmt.Errorf("startup: %w", err)
+		return failf("startup: %w", err)
 	}
 	slog.Info("startup: stale mpv socket removed")
 
@@ -66,19 +87,19 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) error {
 	dbPath := filepath.Join(dirs.Data, "muse.db")
 	database, err := db.Open(dbPath)
 	if err != nil {
-		return fmt.Errorf("startup: open database: %w", err)
+		return failf("startup: open database: %w", err)
 	}
 	defer database.Close()
 
 	if err := db.Migrate(database.DB); err != nil {
-		return fmt.Errorf("startup: migrate: %w", err)
+		return failf("startup: migrate: %w", err)
 	}
 	slog.Info("startup: database migrations complete")
 
 	// Step 4: Verify prerequisite binaries.
 	slog.Info("startup: checking prerequisites")
 	if err := checkPrereqs(); err != nil {
-		return fmt.Errorf("startup: %w", err)
+		return failf("startup: %w", err)
 	}
 	slog.Info("startup: prerequisites verified")
 
@@ -104,11 +125,11 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) error {
 
 	for err := range errs {
 		if err != nil {
-			return err
+			return failf("%w", err)
 		}
 	}
 
-	return nil
+	return &RunResult{Lockfile: lf, SocketPath: socketPath}, nil
 }
 
 // removeStaleSocket removes the mpv socket file if it exists. A missing file

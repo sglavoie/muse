@@ -125,7 +125,7 @@ func TestRunOrder(t *testing.T) {
 		},
 	}
 
-	if err := app.Run(context.Background(), dirs, deps); err != nil {
+	if _, err := app.Run(context.Background(), dirs, deps); err != nil {
 		t.Fatalf("Run returned unexpected error: %v", err)
 	}
 
@@ -218,7 +218,7 @@ func TestRunLockfileFailureStopsSequence(t *testing.T) {
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 	}
 
-	err := app.Run(context.Background(), dirs, deps)
+	_, err := app.Run(context.Background(), dirs, deps)
 	if err == nil {
 		t.Fatal("expected error from lockfile conflict, got nil")
 	}
@@ -245,7 +245,7 @@ func TestRunPrereqFailureStopsParallelLaunch(t *testing.T) {
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 	}
 
-	err := app.Run(context.Background(), dirs, deps)
+	_, err := app.Run(context.Background(), dirs, deps)
 	if err == nil {
 		t.Fatal("expected error from prereq failure, got nil")
 	}
@@ -274,7 +274,7 @@ func TestRunMigrationFailureStopsPrereqs(t *testing.T) {
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 	}
 
-	err := app.Run(context.Background(), dirs, deps)
+	_, err := app.Run(context.Background(), dirs, deps)
 	if err == nil {
 		t.Fatal("expected error from DB open failure, got nil")
 	}
@@ -306,7 +306,7 @@ func TestRunStaleSocketRemovedBeforeMigration(t *testing.T) {
 		},
 	}
 
-	if err := app.Run(context.Background(), dirs, deps); err != nil {
+	if _, err := app.Run(context.Background(), dirs, deps); err != nil {
 		t.Fatalf("Run returned unexpected error: %v", err)
 	}
 
@@ -320,7 +320,7 @@ func TestRunNoStaleSocket(t *testing.T) {
 	dirs := setupDirs(t)
 	installLogger(t)
 
-	if err := app.Run(context.Background(), dirs, noopDeps()); err != nil {
+	if _, err := app.Run(context.Background(), dirs, noopDeps()); err != nil {
 		t.Fatalf("Run returned unexpected error: %v", err)
 	}
 }
@@ -340,7 +340,7 @@ func TestRunParallelLaunchBothErrorsReturned(t *testing.T) {
 		RunScan:      func(_ context.Context, _ *db.DB) error { return scanErr },
 	}
 
-	err := app.Run(context.Background(), dirs, deps)
+	_, err := app.Run(context.Background(), dirs, deps)
 	if err == nil {
 		t.Fatal("expected error from parallel task failures, got nil")
 	}
