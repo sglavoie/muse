@@ -373,6 +373,45 @@ func (w *Writer) WriteShuffle(enabled bool) error {
 	})
 }
 
+// UpsertSession updates all session state fields in the single session row:
+// current_hash (nullable track hash), position_ms (elapsed playback time in
+// milliseconds), shuffle flag, and repeat_mode. Call this on pause, seek, or
+// track-change events to capture full session state.
+func (w *Writer) UpsertSession(hash string, positionMs int64, shuffle bool, repeatMode string) error {
+	return w.Exec(func(db *sql.DB) error {
+		shuffleVal := 0
+		if shuffle {
+			shuffleVal = 1
+		}
+		var hashArg any
+		if hash != "" {
+			hashArg = hash
+		}
+		_, err := db.Exec(
+			`UPDATE session SET current_hash=?, position_ms=?, shuffle=?, repeat_mode=?, updated_at=? WHERE id=1`,
+			hashArg, positionMs, shuffleVal, repeatMode, time.Now().Unix(),
+		)
+		return err
+	})
+}
+
+// UpdateSessionPosition updates only current_hash and position_ms on the
+// single session row. Use this for the periodic 10-second ticker writes where
+// only elapsed position needs persisting, avoiding unnecessary column churn.
+func (w *Writer) UpdateSessionPosition(hash string, positionMs int64) error {
+	return w.Exec(func(db *sql.DB) error {
+		var hashArg any
+		if hash != "" {
+			hashArg = hash
+		}
+		_, err := db.Exec(
+			`UPDATE session SET current_hash=?, position_ms=?, updated_at=? WHERE id=1`,
+			hashArg, positionMs, time.Now().Unix(),
+		)
+		return err
+	})
+}
+
 // WriteRepeatMode persists the repeat mode to the single session row.
 // mode must be one of "none", "all", or "one" (matching the DB CHECK constraint).
 func (w *Writer) WriteRepeatMode(mode string) error {

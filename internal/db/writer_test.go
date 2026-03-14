@@ -569,6 +569,138 @@ func TestWriteShuffle_TwoEnablesProduceDifferentOrderings(t *testing.T) {
 	}
 }
 
+// TestUpsertSession verifies that UpsertSession writes all session fields and
+// that a second call overwrites the previous values.
+func TestUpsertSession(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "hashA", "/trackA")
+
+	if err := w.UpsertSession("hashA", 12345, true, "all"); err != nil {
+		t.Fatalf("UpsertSession: %v", err)
+	}
+
+	var (
+		hash       sql.NullString
+		positionMs int64
+		shuffle    int
+		repeatMode string
+	)
+	if err := d.QueryRow(
+		`SELECT current_hash, position_ms, shuffle, repeat_mode FROM session WHERE id=1`,
+	).Scan(&hash, &positionMs, &shuffle, &repeatMode); err != nil {
+		t.Fatalf("query session: %v", err)
+	}
+	if !hash.Valid || hash.String != "hashA" {
+		t.Errorf("current_hash = %v; want hashA", hash)
+	}
+	if positionMs != 12345 {
+		t.Errorf("position_ms = %d; want 12345", positionMs)
+	}
+	if shuffle != 1 {
+		t.Errorf("shuffle = %d; want 1", shuffle)
+	}
+	if repeatMode != "all" {
+		t.Errorf("repeat_mode = %q; want all", repeatMode)
+	}
+
+	// Second call overwrites with new values.
+	if err := w.UpsertSession("", 0, false, "none"); err != nil {
+		t.Fatalf("UpsertSession (second): %v", err)
+	}
+	if err := d.QueryRow(
+		`SELECT current_hash, position_ms, shuffle, repeat_mode FROM session WHERE id=1`,
+	).Scan(&hash, &positionMs, &shuffle, &repeatMode); err != nil {
+		t.Fatalf("query session after second call: %v", err)
+	}
+	if hash.Valid {
+		t.Errorf("current_hash = %v; want NULL", hash)
+	}
+	if positionMs != 0 {
+		t.Errorf("position_ms = %d; want 0", positionMs)
+	}
+	if shuffle != 0 {
+		t.Errorf("shuffle = %d; want 0", shuffle)
+	}
+	if repeatMode != "none" {
+		t.Errorf("repeat_mode = %q; want none", repeatMode)
+	}
+}
+
+// TestUpsertSession_PropagatesError verifies that a DB error (e.g. invalid
+// repeat_mode value violating the CHECK constraint) is returned to the caller.
+func TestUpsertSession_PropagatesError(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	err := w.UpsertSession("", 0, false, "invalid_mode")
+	if err == nil {
+		t.Fatal("expected error for invalid repeat_mode CHECK violation, got nil")
+	}
+}
+
+// TestUpdateSessionPosition verifies that UpdateSessionPosition updates only
+// current_hash and position_ms, leaving shuffle and repeat_mode unchanged.
+func TestUpdateSessionPosition(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "hashB", "/trackB")
+
+	// Set up a known state first.
+	if err := w.UpsertSession("hashB", 1000, true, "one"); err != nil {
+		t.Fatalf("UpsertSession setup: %v", err)
+	}
+
+	if err := w.UpdateSessionPosition("hashB", 9999); err != nil {
+		t.Fatalf("UpdateSessionPosition: %v", err)
+	}
+
+	var (
+		hash       sql.NullString
+		positionMs int64
+		shuffle    int
+		repeatMode string
+	)
+	if err := d.QueryRow(
+		`SELECT current_hash, position_ms, shuffle, repeat_mode FROM session WHERE id=1`,
+	).Scan(&hash, &positionMs, &shuffle, &repeatMode); err != nil {
+		t.Fatalf("query session: %v", err)
+	}
+	if !hash.Valid || hash.String != "hashB" {
+		t.Errorf("current_hash = %v; want hashB", hash)
+	}
+	if positionMs != 9999 {
+		t.Errorf("position_ms = %d; want 9999", positionMs)
+	}
+	// shuffle and repeat_mode must be untouched.
+	if shuffle != 1 {
+		t.Errorf("shuffle = %d; want 1 (unchanged)", shuffle)
+	}
+	if repeatMode != "one" {
+		t.Errorf("repeat_mode = %q; want one (unchanged)", repeatMode)
+	}
+}
+
+// TestUpdateSessionPosition_NullHash verifies that an empty hash stores NULL.
+func TestUpdateSessionPosition_NullHash(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	if err := w.UpdateSessionPosition("", 500); err != nil {
+		t.Fatalf("UpdateSessionPosition: %v", err)
+	}
+
+	var hash sql.NullString
+	if err := d.QueryRow(`SELECT current_hash FROM session WHERE id=1`).Scan(&hash); err != nil {
+		t.Fatalf("query session: %v", err)
+	}
+	if hash.Valid {
+		t.Errorf("current_hash = %v; want NULL for empty hash arg", hash)
+	}
+}
+
 // TestRenumberQueuePositions_NoOp verifies that RenumberQueuePositions makes
 // no changes when all adjacent gaps are >= 1.
 func TestRenumberQueuePositions_NoOp(t *testing.T) {
