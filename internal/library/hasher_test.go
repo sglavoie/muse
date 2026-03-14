@@ -377,6 +377,77 @@ func TestHashWorkers_ManyFiles(t *testing.T) {
 	}
 }
 
+// TestHashFile_MiddleMutationPreservesHash verifies the core partial-hash
+// contract: mutating only the middle bytes of a >= 2 MB file leaves the hash
+// unchanged, while mutating the first or last 1 MB changes it.
+//
+// File layout (3 MB total):
+//
+//	[0x00, chunkSize)       — first chunk  (0xAA)
+//	[chunkSize, 2*chunkSize) — middle chunk (0x00 baseline / 0xFF mutated)
+//	[2*chunkSize, 3*chunkSize) — last chunk  (0xBB)
+func TestHashFile_MiddleMutationPreservesHash(t *testing.T) {
+	dir := t.TempDir()
+
+	first := makeBytes(chunkSize, 0xAA)
+	middle := makeBytes(chunkSize, 0x00)
+	last := makeBytes(chunkSize, 0xBB)
+
+	baseline := append(append(append([]byte{}, first...), middle...), last...)
+
+	// Variant with only the middle 1 MB changed.
+	middleChanged := makeBytes(chunkSize, 0xFF)
+	withMiddleChanged := append(append(append([]byte{}, first...), middleChanged...), last...)
+
+	// Variant with the first 1 MB changed.
+	firstChanged := makeBytes(chunkSize, 0x11)
+	withFirstChanged := append(append(append([]byte{}, firstChanged...), middle...), last...)
+
+	// Variant with the last 1 MB changed.
+	lastChanged := makeBytes(chunkSize, 0x22)
+	withLastChanged := append(append(append([]byte{}, first...), middle...), lastChanged...)
+
+	pBase := filepath.Join(dir, "base.flac")
+	pMid := filepath.Join(dir, "mid_changed.flac")
+	pFirst := filepath.Join(dir, "first_changed.flac")
+	pLast := filepath.Join(dir, "last_changed.flac")
+
+	writeFile(t, pBase, baseline)
+	writeFile(t, pMid, withMiddleChanged)
+	writeFile(t, pFirst, withFirstChanged)
+	writeFile(t, pLast, withLastChanged)
+
+	hBase, err := HashFile(pBase)
+	if err != nil {
+		t.Fatalf("HashFile(base): %v", err)
+	}
+	hMid, err := HashFile(pMid)
+	if err != nil {
+		t.Fatalf("HashFile(mid_changed): %v", err)
+	}
+	hFirst, err := HashFile(pFirst)
+	if err != nil {
+		t.Fatalf("HashFile(first_changed): %v", err)
+	}
+	hLast, err := HashFile(pLast)
+	if err != nil {
+		t.Fatalf("HashFile(last_changed): %v", err)
+	}
+
+	// Middle mutation must NOT change the hash.
+	if hBase != hMid {
+		t.Errorf("middle-only mutation changed hash: %q -> %q", hBase, hMid)
+	}
+	// First-chunk mutation MUST change the hash.
+	if hBase == hFirst {
+		t.Errorf("first-chunk mutation did not change hash: %q", hBase)
+	}
+	// Last-chunk mutation MUST change the hash.
+	if hBase == hLast {
+		t.Errorf("last-chunk mutation did not change hash: %q", hBase)
+	}
+}
+
 // TestHashWorkers_OutputClosedOnEmptyInput verifies that HashWorkers closes
 // the output channel immediately when the input channel is empty and closed.
 func TestHashWorkers_OutputClosedOnEmptyInput(t *testing.T) {

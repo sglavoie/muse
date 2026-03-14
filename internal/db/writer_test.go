@@ -113,7 +113,9 @@ func TestWriter_PropagatesError(t *testing.T) {
 }
 
 // TestWriter_ShutdownClean verifies that cancelling the context causes the
-// writer goroutine to exit and Wait returns.
+// writer goroutine to exit and Wait returns. This test specifically covers
+// clean shutdown with no pending writes buffered in cmds; see
+// TestWriter_DrainOnShutdown for the pending-writes drain scenario.
 func TestWriter_ShutdownClean(t *testing.T) {
 	d := openTestDB(t)
 
@@ -123,6 +125,80 @@ func TestWriter_ShutdownClean(t *testing.T) {
 	cancel()
 	// Wait must return after cancellation; if it hangs the test times out.
 	w.Wait()
+}
+
+// TestWriter_DrainOnShutdown verifies that pending writes buffered in the cmds
+// channel are committed before the writer goroutine exits. The test blocks the
+// writer goroutine inside the first command so that subsequent commands
+// accumulate in the buffer, then cancels the context and confirms drain()
+// flushes every buffered write.
+func TestWriter_DrainOnShutdown(t *testing.T) {
+	d := openTestDB(t)
+	if _, err := d.Exec("CREATE TABLE items (n INTEGER)"); err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	w := db.NewWriter(ctx, d.DB)
+
+	const n = 10
+
+	// The first command occupies the writer goroutine (via gate) so that all
+	// subsequent commands buffer in the 64-entry cmds channel.
+	writerBusy := make(chan struct{})
+	gate := make(chan struct{})
+
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		_ = w.Exec(func(sdb *sql.DB) error {
+			close(writerBusy) // writer goroutine is now inside this fn
+			<-gate            // block until the test releases it
+			_, err := sdb.Exec("INSERT INTO items VALUES (0)")
+			return err
+		})
+	})
+
+	<-writerBusy // writer goroutine is blocked; cmds channel is ready to buffer
+
+	// Submit n-1 goroutines. Because the writer goroutine is busy, their
+	// sends to the buffered cmds channel complete immediately. submitted
+	// tracks when each goroutine is scheduled and about to call Exec.
+	var submitted sync.WaitGroup
+	for i := 1; i < n; i++ {
+		wg.Add(1)
+		submitted.Add(1)
+		val := i
+		go func() {
+			defer wg.Done()
+			submitted.Done() // goroutine is running; cmds send is next
+			_ = w.Exec(func(sdb *sql.DB) error {
+				_, err := sdb.Exec("INSERT INTO items VALUES (?)", val)
+				return err
+			})
+		}()
+	}
+
+	// On GOMAXPROCS=1 goroutines block at the resp select after sending to
+	// cmds, so the scheduler returns here only after all sends complete.
+	// On GOMAXPROCS>1 the window between submitted.Done() and the cmds send
+	// is negligible compared with the time needed to unblock this goroutine.
+	submitted.Wait()
+
+	// Unblock the writer and cancel. After processing cmd 0 the writer sees
+	// ctx.Done() and calls drain(), which flushes the n-1 buffered commands.
+	close(gate)
+	cancel()
+
+	wg.Wait()
+	w.Wait()
+
+	var count int
+	if err := d.QueryRow("SELECT COUNT(*) FROM items").Scan(&count); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != n {
+		t.Errorf("DB has %d rows; want %d – drain() lost pending writes on shutdown", count, n)
+	}
 }
 
 // TestWriter_ExecAfterStop confirms that submitting work after the writer has

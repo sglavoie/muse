@@ -1,6 +1,8 @@
 package app_test
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"os"
 	"path/filepath"
@@ -9,6 +11,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/app"
 	"github.com/sglavoie/muse/internal/config"
+	"github.com/sglavoie/muse/internal/db"
 )
 
 // stepRecorder collects step names in the order they are called. Because
@@ -202,6 +205,54 @@ func TestShutdownAllStepsRunDespiteErrors(t *testing.T) {
 		if indexIn(got, name) == -1 {
 			t.Errorf("step %q was skipped after earlier error; got %v", name, got)
 		}
+	}
+}
+
+// TestShutdownDBWriterDrainsOnShutdown verifies the end-to-end wiring between
+// app.Shutdown, db.Writer, and a real SQLite database. All writes committed
+// before Shutdown is called must be present in the database after it returns.
+func TestShutdownDBWriterDrainsOnShutdown(t *testing.T) {
+	installLogger(t)
+
+	dir := t.TempDir()
+	d, err := db.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	defer d.Close()
+
+	if _, err := d.Exec("CREATE TABLE items (n INTEGER)"); err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	w := db.NewWriter(ctx, d.DB)
+
+	const n = 5
+	var wg sync.WaitGroup
+	for i := range n {
+		wg.Add(1)
+		go func(val int) {
+			defer wg.Done()
+			_ = w.Exec(func(sdb *sql.DB) error {
+				_, err := sdb.Exec("INSERT INTO items VALUES (?)", val)
+				return err
+			})
+		}(i)
+	}
+	wg.Wait() // all writes committed before Shutdown is invoked
+
+	app.Shutdown(app.ShutdownDeps{
+		CancelDBWriter: cancel,
+		WaitDBWriter:   w.Wait,
+	})
+
+	var count int
+	if err := d.QueryRow("SELECT COUNT(*) FROM items").Scan(&count); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != n {
+		t.Errorf("DB has %d rows; want %d after Shutdown", count, n)
 	}
 }
 

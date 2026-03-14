@@ -18,8 +18,11 @@ func raiseFDLimit() {
 		slog.Warn("watcher: failed to get fd limit; watch may fail on large libraries", "err", err)
 		return
 	}
+	old := rl.Cur
 	rl.Cur = rl.Max
 	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rl); err != nil {
 		slog.Warn("watcher: failed to raise fd limit; watch may fail on large libraries", "err", err)
+		return
 	}
+	slog.Debug("watcher: raised fd limit for FSEvents", "old", old, "new", rl.Max)
 }

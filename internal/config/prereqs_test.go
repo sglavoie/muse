@@ -78,13 +78,53 @@ func TestCheckMPV_BrokenBinary(t *testing.T) {
 func TestCheckExifTool_RunsJSONFlag(t *testing.T) {
 	dir := t.TempDir()
 	script := filepath.Join(dir, "exiftool")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	content := "#!/bin/sh\nprintf '[{\"ExifToolVersion\":\"12.00\"}]'\nexit 0\n"
+	if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", prependPATH(dir))
 
 	if err := checkExifTool(); err != nil {
-		t.Errorf("expected no error with stub exiftool, got: %v", err)
+		t.Errorf("expected no error with stub exiftool emitting valid JSON, got: %v", err)
+	}
+}
+
+func TestCheckExifTool_ValidJSONOutput(t *testing.T) {
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("sh not available")
+	}
+	dir := t.TempDir()
+	script := filepath.Join(dir, "exiftool")
+	content := "#!/bin/sh\nprintf '[{\"ExifToolVersion\":\"12.00\"}]'\nexit 0\n"
+	if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", prependPATH(dir))
+
+	if err := checkExifTool(); err != nil {
+		t.Errorf("stub emitting valid JSON should succeed, got: %v", err)
+	}
+}
+
+func TestCheckExifTool_GarbageOutput(t *testing.T) {
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("sh not available")
+	}
+	dir := t.TempDir()
+	script := filepath.Join(dir, "exiftool")
+	content := "#!/bin/sh\nprintf 'not json'\nexit 0\n"
+	if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", prependPATH(dir))
+
+	err := checkExifTool()
+	if err == nil {
+		t.Fatal("expected error when exiftool outputs garbage instead of JSON")
+	}
+	msg := err.Error()
+	if !strings.Contains(strings.ToLower(msg), "json") {
+		t.Errorf("error should mention JSON, got: %s", msg)
 	}
 }
 
@@ -123,9 +163,13 @@ func TestCheckExifTool_BrokenBinary(t *testing.T) {
 
 func TestCheckPrereqs_BothPresent(t *testing.T) {
 	dir := t.TempDir()
-	for _, name := range []string{"mpv", "exiftool"} {
+	stubs := map[string]string{
+		"mpv":      "#!/bin/sh\nexit 0\n",
+		"exiftool": "#!/bin/sh\nprintf '[{\"ExifToolVersion\":\"12.00\"}]'\nexit 0\n",
+	}
+	for name, content := range stubs {
 		script := filepath.Join(dir, name)
-		if err := os.WriteFile(script, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -137,13 +181,13 @@ func TestCheckPrereqs_BothPresent(t *testing.T) {
 }
 
 func TestCheckPrereqs_MPVMissing(t *testing.T) {
-	// Only exiftool stub present.
+	// Only exiftool stub present — use isolated PATH so system mpv is hidden.
 	dir := t.TempDir()
 	script := filepath.Join(dir, "exiftool")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := os.WriteFile(script, []byte("#!/bin/sh\nprintf '[{\"ExifToolVersion\":\"12.00\"}]'\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("PATH", prependPATH(dir))
+	t.Setenv("PATH", dir)
 
 	err := CheckPrereqs()
 	if err == nil {
@@ -202,9 +246,9 @@ func TestCheckExifTool_InvokesJSONFlag_Strict(t *testing.T) {
 	}
 	dir := t.TempDir()
 	script := filepath.Join(dir, "exiftool")
-	// Exit 0 only when first arg is -json.
+	// Emit valid JSON and exit 0 only when first arg is -json.
 	content := `#!/bin/sh
-if [ "$1" = "-json" ]; then exit 0; fi
+if [ "$1" = "-json" ]; then printf '[{"ExifToolVersion":"12.00"}]'; exit 0; fi
 exit 1
 `
 	if err := os.WriteFile(script, []byte(content), 0o755); err != nil {

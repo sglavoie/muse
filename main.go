@@ -55,9 +55,7 @@ func main() {
 
 	// Apply the log level from config immediately so all subsequent log calls
 	// respect the file-configured verbosity without re-truncating the log.
-	if lvl, err := parseLogLevel(cfg.LogLevel); err == nil {
-		config.SetLogLevel(lvl)
-	}
+	config.SetLogLevel(config.ParseLogLevel(cfg.LogLevel))
 
 	if err := config.ValidateMusicDir(cfg.MusicDirectory, configPath); err != nil {
 		slog.Error("invalid music directory", "err", err)
@@ -187,18 +185,3 @@ func main() {
 	app.Shutdown(shutdownDeps)
 }
 
-// parseLogLevel maps a log_level string from config to a slog.Level.
-func parseLogLevel(s string) (slog.Level, error) {
-	switch s {
-	case "debug":
-		return slog.LevelDebug, nil
-	case "info":
-		return slog.LevelInfo, nil
-	case "warn":
-		return slog.LevelWarn, nil
-	case "error":
-		return slog.LevelError, nil
-	default:
-		return slog.LevelInfo, fmt.Errorf("unknown log level %q", s)
-	}
-}

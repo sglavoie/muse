@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -186,8 +187,10 @@ type playlistTracksLoadedMsg struct {
 type PlaylistRenameMsg struct{}
 
 // playlistRenamedMsg is dispatched after a successful RenamePlaylist call.
-// It carries the refreshed playlist list so root can update the in-memory state.
+// It carries the ID of the renamed playlist so root can reposition the cursor,
+// and the refreshed playlist list so root can update the in-memory state.
 type playlistRenamedMsg struct {
+	id        int64
 	playlists []db.PlaylistRow
 }
 
@@ -213,6 +216,15 @@ type playlistCreatedMsg struct {
 // Root uses it to cancel the inline create input and notify the user.
 type playlistCreateErrorMsg struct {
 	err error
+}
+
+// tracksAddedToPlaylistMsg is dispatched after a successful AddTracksToPlaylist
+// call. It carries the refreshed playlist list (for updating track counts) and
+// metadata for the status-bar notification.
+type tracksAddedToPlaylistMsg struct {
+	playlists    []db.PlaylistRow
+	playlistName string
+	count        int
 }
 
 // DequeueTrackMsg is dispatched when the user presses 'd' in the queue view
@@ -1159,20 +1171,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				if !m.playlists.renameInputIsEmpty() {
 					name := m.playlists.renameInputValue()
+					pl, ok := m.playlists.focusedPlaylist()
+					if !ok {
+						m.playlists = m.playlists.cancelRename()
+						return m, nil
+					}
 					// Reject duplicate names (case-sensitive) with a transient hint.
+					// Skip the playlist being renamed so a no-op Enter is treated as cancel.
 					for _, p := range m.playlists.playlists {
-						if p.Name == name {
+						if p.ID != pl.ID && p.Name == name {
 							m.statusBar.notification = transientNotification{
 								msg:       "A playlist with that name already exists",
 								expiresAt: time.Now().Add(transientDuration),
 							}
 							return m, nil
 						}
-					}
-					pl, ok := m.playlists.focusedPlaylist()
-					if !ok {
-						m.playlists = m.playlists.cancelRename()
-						return m, nil
 					}
 					if m.playlistRenamer != nil {
 						pr := m.playlistRenamer
@@ -1185,7 +1198,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							if err != nil {
 								return playlistRenameErrorMsg{err: err}
 							}
-							return playlistRenamedMsg{playlists: rows}
+							return playlistRenamedMsg{id: id, playlists: rows}
 						}
 					}
 					// No renamer: dismiss the input without persisting.
@@ -1420,7 +1433,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.playlists.cursor >= len(m.playlists.tracks) && m.playlists.cursor > 0 {
 					m.playlists.cursor = len(m.playlists.tracks) - 1
 				}
+				n := len(m.playlists.selectedTrackIDs)
 				m.playlists = m.playlists.clearTrackSelection()
+				noun := "tracks"
+				if n == 1 {
+					noun = "track"
+				}
+				m.statusBar.notification = transientNotification{
+					msg:       fmt.Sprintf("%d %s removed from playlist", n, noun),
+					expiresAt: time.Now().Add(transientDuration),
+				}
 			}
 		case actionPlaylistDelete:
 			if m.playlists.atListLevel() {
@@ -1516,6 +1538,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case playlistRenamedMsg:
 		m.playlists.playlists = msg.playlists
 		m.playlists = m.playlists.cancelRename()
+		for i, p := range msg.playlists {
+			if p.ID == msg.id {
+				m.playlists.cursor = i
+				break
+			}
+		}
 
 	case playlistRenameErrorMsg:
 		m.playlists = m.playlists.cancelRename()
@@ -1546,6 +1574,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			expiresAt: time.Now().Add(transientDuration),
 		}
 
+	case tracksAddedToPlaylistMsg:
+		if msg.playlists != nil {
+			m.playlists.playlists = msg.playlists
+		}
+		noun := "track"
+		if msg.count != 1 {
+			noun = "tracks"
+		}
+		m.statusBar.notification = transientNotification{
+			msg:       fmt.Sprintf("%d %s added to %s", msg.count, noun, msg.playlistName),
+			expiresAt: time.Now().Add(transientDuration),
+		}
+
 	case pltui.DestinationPickerDismissedMsg:
 		m.destPicker = nil
 		m.destPickerTracks = nil
@@ -1553,6 +1594,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case pltui.DestinationPickerCreateMsg:
 		// User selected "New playlist..." — dismiss the picker, switch to the
 		// playlists view, and activate the inline create input.
+		//
+		// Two-step flow (intentional): destPickerTracks is discarded here rather
+		// than forwarded to playlistCreatedMsg. After the playlist is created the
+		// user must re-open the destination picker ('a') to add the tracks. This
+		// matches the requirement text (ac-876649c360cab6be4ab38dee626495c7) which
+		// only specifies "an inline prompt offers to create a new playlist" with no
+		// obligation to auto-add the staged tracks. Forwarding them would require
+		// complex state threading across the create flow with no requirement backing.
 		m.destPicker = nil
 		m.destPickerTracks = nil
 		m.library = m.library.ClearSelection()
@@ -1591,13 +1640,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					pid := p.ID
 					pa := m.playlistAdder
+					pr := m.playlistRenamer
+					pw := m.playlistWriter
 					var hashes []string
 					for _, t := range tracks {
 						hashes = append(hashes, t.Hash)
 					}
+					playlistName := p.Name
+					count := len(hashes)
 					return m, func() tea.Msg {
-						_ = pa.AddTracksToPlaylist(pid, hashes)
-						return nil
+						if err := pa.AddTracksToPlaylist(pid, hashes); err != nil {
+							return nil
+						}
+						var rows []db.PlaylistRow
+						if pr != nil {
+							rows, _ = pr.ReadPlaylists()
+						} else if pw != nil {
+							rows, _ = pw.ReadPlaylists()
+						}
+						return tracksAddedToPlaylistMsg{playlists: rows, playlistName: playlistName, count: count}
 					}
 				}
 			}
@@ -1615,10 +1676,9 @@ func (m Model) View() tea.View {
 	} else {
 		switch m.activeView {
 		case viewLibrary:
+			body = m.library.render()
 			if m.destPicker != nil {
-				body = m.destPicker.Render(m.termWidth, m.termHeight)
-			} else {
-				body = m.library.render()
+				body += "\n" + m.destPicker.Render(m.termWidth, m.termHeight)
 			}
 		case viewPlaylists:
 			body = m.playlists.render()

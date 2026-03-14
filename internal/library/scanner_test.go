@@ -2,6 +2,7 @@ package library
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -70,6 +71,61 @@ func TestScanGoroutineLeak(t *testing.T) {
 	// Allow up to 2 extra goroutines for incidental Go runtime activity.
 	if after > baseline+2 {
 		t.Fatalf("goroutine leak: baseline=%d after scan=%d", baseline, after)
+	}
+}
+
+// TestScanLogging_DebugPerTrack verifies that Scan emits a slog.Debug record
+// with msg="track hashed" for every file in the directory.
+func TestScanLogging_DebugPerTrack(t *testing.T) {
+	const n = 5
+	dir := make10kDir(t, n)
+
+	h := &capturingHandler{}
+	prev := slog.Default()
+	slog.SetDefault(slog.New(h))
+	defer slog.SetDefault(prev)
+
+	for range Scan(dir, &fakeExtractor{}) {
+	}
+
+	var debugCount int
+	for _, r := range h.records {
+		if r.Level == slog.LevelDebug && r.Message == "track hashed" {
+			debugCount++
+		}
+	}
+	if debugCount != n {
+		t.Errorf("expected %d slog.Debug(\"track hashed\") records, got %d", n, debugCount)
+	}
+}
+
+// TestScanLogging_InfoBatchProgress verifies that Scan emits at least one
+// slog.Info record with msg="scan batch complete" and a positive "tracks" count.
+func TestScanLogging_InfoBatchProgress(t *testing.T) {
+	const n = 5
+	dir := make10kDir(t, n)
+
+	h := &capturingHandler{}
+	prev := slog.Default()
+	slog.SetDefault(slog.New(h))
+	defer slog.SetDefault(prev)
+
+	for range Scan(dir, &fakeExtractor{}) {
+	}
+
+	found := false
+	for _, r := range h.records {
+		if r.Level == slog.LevelInfo && r.Message == "scan batch complete" {
+			r.Attrs(func(a slog.Attr) bool {
+				if a.Key == "tracks" && a.Value.Int64() > 0 {
+					found = true
+				}
+				return true
+			})
+		}
+	}
+	if !found {
+		t.Error("expected at least one slog.Info(\"scan batch complete\") record with tracks > 0")
 	}
 }
 

@@ -1,7 +1,10 @@
 package player
 
 import (
+	"bytes"
 	"errors"
+	"log/slog"
+	"strings"
 	"testing"
 )
 
@@ -93,5 +96,49 @@ func TestSendCommand_MPVErrorReturnsErrPlaybackFailed(t *testing.T) {
 	}
 	if !errors.Is(err, ErrPlaybackFailed) {
 		t.Fatalf("expected ErrPlaybackFailed, got %v", err)
+	}
+}
+
+func TestSendCommand_DebugLogsIPCWireMessages(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	prev := slog.Default()
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	c := newTestClient(t)
+	_, err := c.SendCommand("loadfile", "/tmp/track.flac", "replace")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "ipc send") {
+		t.Errorf("expected 'ipc send' in debug log, got:\n%s", out)
+	}
+	if !strings.Contains(out, "ipc recv") {
+		t.Errorf("expected 'ipc recv' in debug log, got:\n%s", out)
+	}
+}
+
+func TestSendCommand_InfoLevelSuppressesIPCWireMessages(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	prev := slog.Default()
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	c := newTestClient(t)
+	_, err := c.SendCommand("loadfile", "/tmp/track.flac", "replace")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	out := buf.String()
+	if strings.Contains(out, "ipc send") {
+		t.Errorf("expected 'ipc send' to be suppressed at Info level, got:\n%s", out)
+	}
+	if strings.Contains(out, "ipc recv") {
+		t.Errorf("expected 'ipc recv' to be suppressed at Info level, got:\n%s", out)
 	}
 }

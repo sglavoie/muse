@@ -53,6 +53,9 @@ func helpSections() []helpSection {
 			title: "Library",
 			entries: []helpEntry{
 				{"/", "Filter tracks"},
+				{"enter", "Enqueue track"},
+				{"x", "Toggle bulk selection"},
+				{"a", "Add to queue or playlist"},
 			},
 		},
 		{
@@ -66,8 +69,7 @@ func helpSections() []helpSection {
 				{"c", "Create playlist"},
 				{"d", "Delete playlist / remove track"},
 				{"x", "Toggle bulk selection"},
-				{"a", "Add to playlist / apply bulk action"},
-				{"/", "Filter playlists"},
+				{"a", "Remove selected tracks (bulk)"},
 			},
 		},
 		{
@@ -88,6 +90,8 @@ func helpSections() []helpSection {
 			title: "Modals / Help overlay",
 			entries: []helpEntry{
 				{"esc", "Dismiss modal or close this help overlay"},
+				{"j / k", "Move cursor down / up (destination picker)"},
+				{"enter", "Confirm selection (destination picker)"},
 			},
 		},
 	}

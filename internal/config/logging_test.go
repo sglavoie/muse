@@ -143,6 +143,93 @@ func TestInitLogging_DebugLevelEnabled(t *testing.T) {
 	}
 }
 
+func TestSetLogLevel(t *testing.T) {
+	dir := t.TempDir()
+	stateDir := filepath.Join(dir, "muse")
+
+	prev := slog.Default()
+	t.Cleanup(func() {
+		slog.SetDefault(prev)
+		if logFile != nil {
+			_ = logFile.Close()
+			logFile = nil
+		}
+	})
+
+	if err := InitLogging(stateDir, slog.LevelInfo); err != nil {
+		t.Fatalf("InitLogging: %v", err)
+	}
+
+	// Debug message emitted at Info level must not appear.
+	slog.Debug("before upgrade: should not appear")
+
+	path := filepath.Join(stateDir, logFileName)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading log file: %v", err)
+	}
+	if n := countJSONLines(data); n != 0 {
+		t.Errorf("expected 0 lines before SetLogLevel(Debug), got %d\ncontent: %s", n, data)
+	}
+
+	// After upgrading to Debug level the same kind of message must appear.
+	SetLogLevel(slog.LevelDebug)
+	slog.Debug("after upgrade: should appear")
+
+	data, err = os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading log file after SetLogLevel: %v", err)
+	}
+	if n := countJSONLines(data); n != 1 {
+		t.Errorf("expected 1 line after SetLogLevel(Debug), got %d\ncontent: %s", n, data)
+	}
+}
+
+func TestLogLevelFromConfig(t *testing.T) {
+	cfgDir := t.TempDir()
+	stateDir := filepath.Join(t.TempDir(), "muse")
+
+	prev := slog.Default()
+	t.Cleanup(func() {
+		slog.SetDefault(prev)
+		if logFile != nil {
+			_ = logFile.Close()
+			logFile = nil
+		}
+	})
+
+	// Write a minimal config file with log_level = "debug".
+	cfgContent := `log_level = "debug"` + "\n"
+	if err := os.WriteFile(filepath.Join(cfgDir, configFileName), []byte(cfgContent), 0o600); err != nil {
+		t.Fatalf("writing config file: %v", err)
+	}
+
+	cfg, _, err := Load(cfgDir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.LogLevel != "debug" {
+		t.Fatalf("expected LogLevel=debug, got %q", cfg.LogLevel)
+	}
+
+	// Init at Info so we start with a clean file, then apply the config level.
+	if err := InitLogging(stateDir, slog.LevelInfo); err != nil {
+		t.Fatalf("InitLogging: %v", err)
+	}
+	SetLogLevel(ParseLogLevel(cfg.LogLevel))
+
+	slog.Debug("end-to-end debug message")
+
+	path := filepath.Join(stateDir, logFileName)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading log file: %v", err)
+	}
+	if n := countJSONLines(data); n != 1 {
+		t.Errorf("expected 1 debug line after config-driven SetLogLevel, got %d\ncontent: %s", n, data)
+	}
+}
+
 // countJSONLines returns the number of non-empty lines in data.
 func countJSONLines(data []byte) int {
 	count := 0

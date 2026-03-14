@@ -305,6 +305,74 @@ func TestReadPlaylistTracks_Metadata(t *testing.T) {
 	}
 }
 
+func TestWALMode_DurabilityAfterAbruptClose(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "wal_durability.db")
+
+	// Open and migrate so the tracks table exists.
+	d, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	if err := db.Migrate(d.DB); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+
+	// Insert rows inside an explicit transaction and commit without checkpointing.
+	now := time.Now().Unix()
+	type rowData struct{ hash, path string }
+	wantRows := []rowData{
+		{"wal-hash-1", "/music/wal-1.flac"},
+		{"wal-hash-2", "/music/wal-2.flac"},
+		{"wal-hash-3", "/music/wal-3.flac"},
+	}
+
+	tx, err := d.Begin()
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	for _, r := range wantRows {
+		if _, err := tx.Exec(
+			`INSERT INTO tracks (hash, path, created_at, updated_at) VALUES (?, ?, ?, ?)`,
+			r.hash, r.path, now, now,
+		); err != nil {
+			_ = tx.Rollback()
+			t.Fatalf("insert %s: %v", r.hash, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	// Close without issuing PRAGMA wal_checkpoint — simulates abrupt connection close.
+	d.Close()
+
+	// Reopen with a fresh db.Open call.
+	d2, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	defer d2.Close()
+
+	// All committed rows must be present — check count.
+	var count int
+	if err := d2.QueryRow(`SELECT COUNT(*) FROM tracks WHERE hash LIKE 'wal-hash-%'`).Scan(&count); err != nil {
+		t.Fatalf("count query: %v", err)
+	}
+	if count != len(wantRows) {
+		t.Errorf("row count after reopen = %d, want %d", count, len(wantRows))
+	}
+
+	// Verify a field value to confirm data integrity, not just row presence.
+	var gotPath string
+	if err := d2.QueryRow(`SELECT path FROM tracks WHERE hash = ?`, "wal-hash-1").Scan(&gotPath); err != nil {
+		t.Fatalf("field query: %v", err)
+	}
+	if gotPath != "/music/wal-1.flac" {
+		t.Errorf("path = %q, want %q", gotPath, "/music/wal-1.flac")
+	}
+}
+
 func TestReadSession_WithValues(t *testing.T) {
 	d := openMigratedDB(t)
 	insertTrack(t, d, "hashX", "/music/x.flac")

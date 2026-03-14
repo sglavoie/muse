@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -69,6 +71,7 @@ func (c *IPCClient) SendCommand(args ...any) (*ipcResponse, error) {
 		return nil, fmt.Errorf("ipc: marshal: %w", err)
 	}
 	data = append(data, '\n')
+	slog.Debug("ipc send", "msg", strings.TrimRight(string(data), "\n"))
 
 	if _, err := c.conn.Write(data); err != nil {
 		return nil, fmt.Errorf("ipc: write: %w", err)
@@ -80,6 +83,7 @@ func (c *IPCClient) SendCommand(args ...any) (*ipcResponse, error) {
 		if err != nil {
 			return nil, fmt.Errorf("ipc: read: %w", err)
 		}
+		slog.Debug("ipc recv", "msg", strings.TrimRight(string(line), "\n"))
 
 		var raw map[string]any
 		if err := json.Unmarshal(line, &raw); err != nil {

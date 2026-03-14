@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"math/bits"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -273,17 +274,21 @@ func TestExtractBatches_BinaryRetryIntegration(t *testing.T) {
 }
 
 // capturingHandler is a slog.Handler that records all log records for inspection.
+// It is safe for concurrent use from multiple goroutines.
 type capturingHandler struct {
+	mu      sync.Mutex
 	records []slog.Record
 }
 
 func (h *capturingHandler) Enabled(_ context.Context, _ slog.Level) bool { return true }
 func (h *capturingHandler) Handle(_ context.Context, r slog.Record) error {
+	h.mu.Lock()
 	h.records = append(h.records, r)
+	h.mu.Unlock()
 	return nil
 }
-func (h *capturingHandler) WithAttrs(_ []slog.Attr) slog.Handler  { return h }
-func (h *capturingHandler) WithGroup(_ string) slog.Handler        { return h }
+func (h *capturingHandler) WithAttrs(_ []slog.Attr) slog.Handler { return h }
+func (h *capturingHandler) WithGroup(_ string) slog.Handler      { return h }
 
 // alwaysFailExtractor always returns an error regardless of input.
 type alwaysFailExtractor struct{}

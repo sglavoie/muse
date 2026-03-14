@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os/exec"
 )
@@ -45,11 +46,20 @@ func checkExifTool() error {
 		)
 	}
 
-	if err := exec.Command("exiftool", "-json", "-ver").Run(); err != nil {
+	out, err := exec.Command("exiftool", "-json", "-ver").Output()
+	if err != nil {
 		return fmt.Errorf(
 			"ExifTool is installed but failed to run ('exiftool -json -ver' exited with error): %w\n"+
 				"Ensure Perl and required modules are installed (apt install libimage-exiftool-perl)",
 			err,
+		)
+	}
+
+	if !json.Valid(out) {
+		return fmt.Errorf(
+			"ExifTool ran but 'exiftool -json -ver' did not produce valid JSON (got: %q)\n"+
+				"Ensure Perl and required modules are installed (apt install libimage-exiftool-perl)",
+			out,
 		)
 	}
 

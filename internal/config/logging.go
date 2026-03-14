@@ -49,6 +49,21 @@ func SetLogLevel(level slog.Level) {
 	slog.SetDefault(slog.New(h))
 }
 
+// ParseLogLevel converts a log-level string (as used in the config file) to
+// its corresponding slog.Level. Unrecognised values default to Info.
+func ParseLogLevel(s string) slog.Level {
+	switch s {
+	case "debug":
+		return slog.LevelDebug
+	case "warn":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
+}
+
 // CloseLog flushes and closes the log file handle. It should be called as the
 // last step of the shutdown sequence, after all log writes have completed.
 func CloseLog() {

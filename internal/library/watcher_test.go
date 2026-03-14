@@ -326,6 +326,53 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 	})
 }
 
+// TestWatchLoop_EmitsDebugForRawEvents verifies that watchLoop emits a
+// slog.Debug record for every raw fsnotify event received, before debouncing
+// and before handleFsEvent filters non-audio files.
+func TestWatchLoop_EmitsDebugForRawEvents(t *testing.T) {
+	var buf bytes.Buffer
+	handler := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+	origLogger := slog.Default()
+	slog.SetDefault(slog.New(handler))
+	t.Cleanup(func() { slog.SetDefault(origLogger) })
+
+	root := t.TempDir()
+	const debounce = 150 * time.Millisecond
+
+	p := filepath.Join(root, "track.mp3")
+	mkfile(t, p)
+
+	fe := &fakeExtractor{}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	ch, err := Watch(ctx, root, fe, debounce)
+	if err != nil {
+		t.Fatalf("Watch: %v", err)
+	}
+
+	if err := os.WriteFile(p, []byte("ID3v2"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	// Drain until the debounce window passes so the event is processed.
+	drainCtx, drainCancel := context.WithTimeout(context.Background(), debounce+400*time.Millisecond)
+	defer drainCancel()
+	collectTracks(drainCtx, ch)
+	cancel()
+
+	log := buf.String()
+	if !strings.Contains(log, "fsnotify event") {
+		t.Errorf("expected debug log containing 'fsnotify event'; got: %s", log)
+	}
+	if !strings.Contains(log, "op=") {
+		t.Errorf("expected debug log with 'op' field; got: %s", log)
+	}
+	if !strings.Contains(log, filepath.Base(p)) {
+		t.Errorf("expected debug log with path %q; got: %s", p, log)
+	}
+}
+
 // TestWatch_WatcherFactoryFailure_LogsWarningAndDegrades verifies that when
 // the fsnotify watcher cannot be created (simulating fd exhaustion), Watch
 // logs a warning, returns a nil error, and returns a closed channel so callers

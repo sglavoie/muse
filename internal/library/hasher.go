@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"io"
+	"log/slog"
 	"os"
 	"runtime"
 	"sync"
@@ -31,6 +32,7 @@ func HashWorkers(in <-chan string) <-chan HashedFile {
 					continue
 				}
 				out <- HashedFile{Path: path, Hash: hash}
+				slog.Debug("track hashed", "path", path, "hash", hash)
 			}
 		})
 	}

@@ -96,6 +96,7 @@ func watchLoop(ctx context.Context, w *fsnotify.Watcher, _ string, extractor Met
 			if !ok {
 				return
 			}
+			slog.Debug("watcher: fsnotify event", "op", event.Op.String(), "path", event.Name)
 			handleFsEvent(event, pending, deleted, w)
 			// Reset the debounce window.
 			debounce = time.After(debounceDelay)

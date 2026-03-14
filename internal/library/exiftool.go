@@ -119,7 +119,10 @@ func ExtractBatches(extractor MetadataExtractor, in <-chan HashedFile) <-chan Tr
 			if len(batch) == 0 {
 				return
 			}
-			for _, t := range extractWithBinaryRetry(extractor, batch) {
+			slog.Debug("processing metadata batch", "size", len(batch))
+			tracks := extractWithBinaryRetry(extractor, batch)
+			slog.Info("scan batch complete", "tracks", len(tracks))
+			for _, t := range tracks {
 				out <- t
 			}
 			batch = batch[:0]
