@@ -2111,6 +2111,22 @@ func (s *stubQueueAppender) AppendTrack(t library.Track) (int64, error) {
 	return int64(len(s.tracks)), nil
 }
 
+// stubPlaylistAdder records calls to AddTracksToPlaylist for test assertions.
+type stubPlaylistAdder struct {
+	calls []struct {
+		playlistID int64
+		hashes     []string
+	}
+}
+
+func (s *stubPlaylistAdder) AddTracksToPlaylist(playlistID int64, hashes []string) error {
+	s.calls = append(s.calls, struct {
+		playlistID int64
+		hashes     []string
+	}{playlistID, hashes})
+	return nil
+}
+
 // TestRootLibraryXTogglesSelectedHash verifies that pressing 'x' while the
 // library view is active toggles the focused track's hash into selectedHashes.
 func TestRootLibraryXTogglesSelectedHash(t *testing.T) {
@@ -2138,9 +2154,53 @@ func TestRootLibraryXTogglesSelectedHash(t *testing.T) {
 	}
 }
 
-// TestRootLibraryAWithSelectionEnqueuesAndClears verifies that pressing 'a'
-// while tracks are bulk-selected in library view enqueues them and clears the
-// selection set.
+// TestRootLibraryAOpensDestinationPickerNoSelection verifies that pressing 'a'
+// in the library view with no bulk selection opens the destination picker modal
+// for the focused track.
+func TestRootLibraryAOpensDestinationPickerNoSelection(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
+
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	nm := next.(Model)
+
+	if cmd != nil {
+		t.Fatalf("'a' with no selection: expected nil cmd (modal open is synchronous), got %T", cmd)
+	}
+	if nm.destPicker == nil {
+		t.Fatal("'a' with no selection: expected destPicker to be non-nil (modal open)")
+	}
+	if len(nm.destPickerTracks) != 1 || nm.destPickerTracks[0].Hash != "hash-one" {
+		t.Errorf("'a' with no selection: expected destPickerTracks to contain focused track, got %v", nm.destPickerTracks)
+	}
+}
+
+// TestRootLibraryAOpensDestinationPickerWithSelection verifies that pressing
+// 'a' while tracks are bulk-selected opens the destination picker modal for
+// all selected tracks.
+func TestRootLibraryAOpensDestinationPickerWithSelection(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
+	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
+	m.library.selectedHashes = map[string]struct{}{"hash-one": {}, "hash-two": {}}
+
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	nm := next.(Model)
+
+	if cmd != nil {
+		t.Fatalf("'a' with selection: expected nil cmd (modal open is synchronous), got %T", cmd)
+	}
+	if nm.destPicker == nil {
+		t.Fatal("'a' with selection: expected destPicker to be non-nil (modal open)")
+	}
+	if len(nm.destPickerTracks) != 2 {
+		t.Errorf("'a' with selection: expected 2 destPickerTracks, got %d", len(nm.destPickerTracks))
+	}
+}
+
+// TestRootLibraryAWithSelectionEnqueuesAndClears verifies that pressing 'a' in
+// library view, then confirming the queue destination, appends tracks to the
+// queue and clears the bulk selection.
 func TestRootLibraryAWithSelectionEnqueuesAndClears(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New("/log", "", false, nil, nil, "", nil, nil)
@@ -2149,18 +2209,117 @@ func TestRootLibraryAWithSelectionEnqueuesAndClears(t *testing.T) {
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
 	m.library.selectedHashes = map[string]struct{}{"hash-one": {}}
 
-	next, cmd := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	// 'a' opens the destination picker.
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	nm := next.(Model)
+	if nm.destPicker == nil {
+		t.Fatal("expected destPicker to be open after 'a'")
+	}
+
+	// Enter confirms the focused destination (Play Queue is first).
+	// The modal dispatches a DestinationPickedMsg via a Cmd.
+	nm2, enterCmd := nm.Update(tea.KeyPressMsg{Code: tea.KeyEnter, Text: "enter"})
+	_ = nm2
+
+	if enterCmd == nil {
+		t.Fatal("Enter on modal: expected non-nil cmd (DestinationPickedMsg)")
+	}
+	pickedMsg := enterCmd()
+
+	// Processing DestinationPickedMsg triggers the actual enqueue Cmd.
+	next3, enqueueCmd := nm.Update(pickedMsg)
+	nm3 := next3.(Model)
+
+	if enqueueCmd == nil {
+		t.Fatal("DestinationPickedMsg: expected non-nil enqueue cmd")
+	}
+	trackMsg := enqueueCmd()
+	if _, ok := trackMsg.(libtui.TrackEnqueuedMsg); !ok {
+		t.Fatalf("expected TrackEnqueuedMsg, got %T", trackMsg)
+	}
+	if nm3.destPicker != nil {
+		t.Error("expected destPicker to be nil after confirmation")
+	}
+	if len(nm3.library.selectedHashes) != 0 {
+		t.Errorf("expected selectedHashes to be cleared after confirmation, got %v", nm3.library.selectedHashes)
+	}
+}
+
+// TestRootLibraryAEscDismissesModal verifies that pressing Esc while the
+// destination picker is open dismisses the modal without enqueueing.
+func TestRootLibraryAEscDismissesModal(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
+
+	// Open the modal.
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	nm := next.(Model)
+	if nm.destPicker == nil {
+		t.Fatal("expected destPicker to be open after 'a'")
+	}
+
+	// Esc dispatches DestinationPickerDismissedMsg via a Cmd.
+	_, escCmd := nm.Update(tea.KeyPressMsg{Code: tea.KeyEscape, Text: "esc"})
+	if escCmd == nil {
+		t.Fatal("Esc: expected a dismiss cmd")
+	}
+	dismissMsg := escCmd()
+	next2, _ := nm.Update(dismissMsg)
+	nm2 := next2.(Model)
+	if nm2.destPicker != nil {
+		t.Error("expected destPicker to be nil after dismiss")
+	}
+}
+
+// TestRootLibraryAConfirmPlaylistAddsToPlaylist verifies that pressing 'a',
+// navigating to a playlist destination, and pressing Enter calls
+// AddTracksToPlaylist with the correct playlist ID and hashes.
+func TestRootLibraryAConfirmPlaylistAddsToPlaylist(t *testing.T) {
+	pa := &stubPlaylistAdder{}
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.SetPlaylistAdder(pa)
+	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
+	m.playlists.playlists = []db.PlaylistRow{{ID: 7, Name: "Favourites"}}
+
+	// 'a' opens the modal.
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	nm := next.(Model)
 
-	if cmd == nil {
-		t.Fatal("'a' with selection: expected non-nil cmd")
+	// 'j' moves cursor from Play Queue (0) to Favourites (1).
+	next2, _ := nm.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	nm2 := next2.(Model)
+
+	// Enter on modal dispatches DestinationPickedMsg via Cmd.
+	_, enterCmd := nm2.Update(tea.KeyPressMsg{Code: tea.KeyEnter, Text: "enter"})
+	if enterCmd == nil {
+		t.Fatal("Enter on playlist destination: expected non-nil cmd (DestinationPickedMsg)")
 	}
-	msg := cmd()
-	if _, ok := msg.(libtui.TrackEnqueuedMsg); !ok {
-		t.Fatalf("'a' with selection: expected TrackEnqueuedMsg, got %T", msg)
+	pickedMsg := enterCmd()
+
+	// Processing DestinationPickedMsg triggers the AddTracksToPlaylist Cmd.
+	next3, addCmd := nm2.Update(pickedMsg)
+	nm3 := next3.(Model)
+
+	if addCmd == nil {
+		t.Fatal("DestinationPickedMsg: expected non-nil add cmd")
 	}
-	if len(nm.library.selectedHashes) != 0 {
-		t.Errorf("'a' with selection: expected selectedHashes to be cleared, got %v", nm.library.selectedHashes)
+	// Execute the cmd to trigger the DB call.
+	addCmd()
+
+	if len(pa.calls) != 1 {
+		t.Fatalf("expected 1 AddTracksToPlaylist call, got %d", len(pa.calls))
+	}
+	if pa.calls[0].playlistID != 7 {
+		t.Errorf("expected playlistID 7, got %d", pa.calls[0].playlistID)
+	}
+	if len(pa.calls[0].hashes) != 1 || pa.calls[0].hashes[0] != "hash-one" {
+		t.Errorf("expected hashes [hash-one], got %v", pa.calls[0].hashes)
+	}
+	if nm3.destPicker != nil {
+		t.Error("expected destPicker to be nil after confirmation")
+	}
+	if len(nm3.library.selectedHashes) != 0 {
+		t.Errorf("expected selectedHashes to be cleared, got %v", nm3.library.selectedHashes)
 	}
 }
 

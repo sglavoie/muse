@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
 // playPauser is the subset of the player interface used by the root model for
@@ -300,6 +301,13 @@ type playlistDeleter interface {
 	PurgeDeletedPlaylistTracks(before int64) error
 }
 
+// playlistTrackAdder appends tracks to a playlist by hash. Root uses it when
+// the user confirms a destination-picker modal selection pointing to a playlist.
+// When nil, the playlist append path of the destination picker is a no-op.
+type playlistTrackAdder interface {
+	AddTracksToPlaylist(playlistID int64, hashes []string) error
+}
+
 // sessionWriter is implemented by db.Writer. Root calls WriteRepeatMode after
 // each actionRepeatCycle, WriteShuffle after each actionShuffleToggle, and
 // UpdateSessionPosition on pause, seek, and track-change events to persist
@@ -388,7 +396,15 @@ type Model struct {
 	playlistReader  playlistTrackReader     // may be nil; set via SetPlaylistTrackReader
 	playlistWriter  playlistCreator         // may be nil; set via SetPlaylistWriter
 	playlistRenamer playlistRenamer         // may be nil; set via SetPlaylistRenamer
-	playlistDeleter playlistDeleter         // may be nil; set via SetPlaylistDeleter
+	playlistDeleter  playlistDeleter         // may be nil; set via SetPlaylistDeleter
+	playlistAdder    playlistTrackAdder      // may be nil; set via SetPlaylistAdder
+
+	// destPicker is non-nil while the destination picker modal is open.
+	// Root dispatches all keypresses to the modal while it is open.
+	destPicker       *pltui.DestinationPickerModal
+	// destPickerTracks holds the tracks staged for the pending destination
+	// action. Populated when the modal opens; cleared on confirmation or dismiss.
+	destPickerTracks []library.Track
 
 	// undoSlot holds the reversible state for the most recent destructive
 	// queue action. The slot is cleared after a successful undo or when a new
@@ -544,6 +560,16 @@ func (m *Model) SetPlaylistRenamer(r playlistRenamer) {
 // all database operations.
 func (m *Model) SetPlaylistDeleter(d playlistDeleter) {
 	m.playlistDeleter = d
+}
+
+// SetPlaylistAdder sets the playlistTrackAdder used to append tracks to a
+// playlist when the user confirms the destination picker modal with a playlist
+// destination. Call this on the Model returned by New before passing it to
+// tea.NewProgram. When nil, the playlist append path of the destination picker
+// is a no-op (the modal still opens and navigates but Enter on a playlist does
+// nothing).
+func (m *Model) SetPlaylistAdder(a playlistTrackAdder) {
+	m.playlistAdder = a
 }
 
 // undoWindowDuration is the time after a destructive queue action during which
@@ -1177,6 +1203,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		// While the destination picker modal is open, route all keypresses to
+		// it instead of the normal registry. The modal dispatches its own Cmds
+		// (DestinationPickedMsg, DestinationPickerDismissedMsg, etc.) which are
+		// handled below in the non-KeyPressMsg cases.
+		if m.destPicker != nil {
+			updated, cmd := m.destPicker.HandleKey(msg.String())
+			m.destPicker = &updated
+			return m, cmd
+		}
 		a := m.registry.resolve(m.activeViewContext(), msg.String())
 		switch a {
 		case actionHelp:
@@ -1291,10 +1326,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.library.EnqueueFocused(m.queueWriter, len(m.queue.entries))
 			}
 		case actionBulkAction:
-			if m.activeView == viewLibrary && len(m.library.selectedHashes) > 0 && m.queueWriter != nil {
-				var cmd tea.Cmd
-				m.library, cmd = m.library.EnqueueSelected(m.queueWriter, len(m.queue.entries))
-				return m, cmd
+			if m.activeView == viewLibrary {
+				var tracks []library.Track
+				if len(m.library.selectedHashes) > 0 {
+					// Collect all bulk-selected tracks in index order.
+					for _, t := range m.library.index.Tracks() {
+						if _, ok := m.library.selectedHashes[t.Hash]; ok {
+							tracks = append(tracks, t)
+						}
+					}
+				} else {
+					// No bulk selection: use the focused track.
+					if t, ok := m.library.view().FocusedTrack(); ok {
+						tracks = []library.Track{t}
+					}
+				}
+				if len(tracks) > 0 {
+					modal := pltui.NewDestinationPicker(m.playlists.playlists)
+					m.destPicker = &modal
+					m.destPickerTracks = tracks
+				}
 			}
 		case actionCursorUp, actionCursorDown:
 			// Route cursor movement to the active view.
@@ -1494,6 +1545,63 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			msg:       "Failed to create playlist: " + msg.err.Error(),
 			expiresAt: time.Now().Add(transientDuration),
 		}
+
+	case pltui.DestinationPickerDismissedMsg:
+		m.destPicker = nil
+		m.destPickerTracks = nil
+
+	case pltui.DestinationPickerCreateMsg:
+		// User selected "New playlist..." — dismiss the picker, switch to the
+		// playlists view, and activate the inline create input.
+		m.destPicker = nil
+		m.destPickerTracks = nil
+		m.library = m.library.ClearSelection()
+		m.activeView = viewPlaylists
+		m.playlists = m.playlists.startCreate()
+
+	case pltui.DestinationPickedMsg:
+		tracks := m.destPickerTracks
+		m.destPicker = nil
+		m.destPickerTracks = nil
+		m.library = m.library.ClearSelection()
+		if msg.IsQueue {
+			// Append each track to the play queue.
+			if m.queueWriter != nil {
+				queueLen := len(m.queue.entries)
+				var cmds []tea.Cmd
+				for i, t := range tracks {
+					track := t
+					wasEmpty := queueLen+i == 0
+					qa := m.queueWriter
+					cmds = append(cmds, func() tea.Msg {
+						id, err := qa.AppendTrack(track)
+						return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty}
+					})
+				}
+				if len(cmds) > 0 {
+					return m, tea.Batch(cmds...)
+				}
+			}
+		} else {
+			// Append tracks to the named playlist.
+			for _, p := range m.playlists.playlists {
+				if p.Name == msg.PlaylistName {
+					if m.playlistAdder == nil {
+						break
+					}
+					pid := p.ID
+					pa := m.playlistAdder
+					var hashes []string
+					for _, t := range tracks {
+						hashes = append(hashes, t.Hash)
+					}
+					return m, func() tea.Msg {
+						_ = pa.AddTracksToPlaylist(pid, hashes)
+						return nil
+					}
+				}
+			}
+		}
 	}
 	return m, nil
 }
@@ -1507,7 +1615,11 @@ func (m Model) View() tea.View {
 	} else {
 		switch m.activeView {
 		case viewLibrary:
-			body = m.library.render()
+			if m.destPicker != nil {
+				body = m.destPicker.Render(m.termWidth, m.termHeight)
+			} else {
+				body = m.library.render()
+			}
 		case viewPlaylists:
 			body = m.playlists.render()
 		case viewQueue:
