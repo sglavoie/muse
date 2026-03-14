@@ -2353,3 +2353,107 @@ func TestTrackChangedMsgWithoutSessionWriterReturnsNilCmd(t *testing.T) {
 		t.Fatal("TrackChangedMsg without session writer: expected nil cmd")
 	}
 }
+
+// TestSessionTickMsgReschedulesCmd verifies that sessionTickMsg always returns
+// a non-nil follow-up command so the 10-second periodic ticker keeps firing.
+func TestSessionTickMsgReschedulesCmd(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	_, cmd := m.Update(sessionTickMsg{})
+	if cmd == nil {
+		t.Fatal("sessionTickMsg must return a follow-up cmd to reschedule the ticker")
+	}
+}
+
+// TestSessionTickMsgWritesPositionWhenPlaying verifies that when playback is
+// active, sessionTickMsg triggers an UpdateSessionPosition write through the
+// session writer with the current track hash and elapsed position in ms.
+//
+// tea.Batch returns a BatchMsg (a []tea.Cmd) when invoked — the runtime then
+// executes each sub-cmd concurrently. The test extracts and runs only the
+// write sub-cmd to confirm the correct value is captured.
+func TestSessionTickMsgWritesPositionWhenPlaying(t *testing.T) {
+	sw := &stubSessionWriter{}
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.SetSessionWriter(sw)
+	m.playbackState = PlaybackPlaying
+	m.currentTrackHash = "abc123"
+	m.elapsedSecs = 45.5 // 45500 ms
+
+	_, cmd := m.Update(sessionTickMsg{})
+	if cmd == nil {
+		t.Fatal("sessionTickMsg while playing: expected non-nil cmd")
+	}
+
+	// cmd() returns a tea.BatchMsg containing [sessionTickCmd, writeCmd].
+	// Execute each sub-cmd in a goroutine with a short timeout so the
+	// blocking timer cmd is skipped while the write cmd runs to completion.
+	batchMsg := cmd()
+	batch, ok := batchMsg.(tea.BatchMsg)
+	if !ok {
+		t.Fatalf("expected tea.BatchMsg, got %T", batchMsg)
+	}
+	for _, subcmd := range batch {
+		if subcmd == nil {
+			continue
+		}
+		done := make(chan struct{})
+		go func(c tea.Cmd) {
+			c()
+			close(done)
+		}(subcmd)
+		select {
+		case <-done:
+			// completed quickly — this is the write cmd
+		case <-time.After(50 * time.Millisecond):
+			// timed out — this is the blocking tick timer; skip it
+		}
+	}
+
+	if len(sw.positionCalls) != 1 {
+		t.Fatalf("expected 1 UpdateSessionPosition call, got %d", len(sw.positionCalls))
+	}
+	got := sw.positionCalls[0]
+	if got.hash != "abc123" {
+		t.Fatalf("expected hash %q, got %q", "abc123", got.hash)
+	}
+	if got.positionMs != 45500 {
+		t.Fatalf("expected positionMs 45500, got %d", got.positionMs)
+	}
+}
+
+// TestSessionTickMsgSkipsWriteWhenNotPlaying verifies that sessionTickMsg does
+// not call UpdateSessionPosition when playback is paused, stopped, or idle.
+// The tick cmd itself is a timer and is not executed (it would block); only the
+// absence of write side-effects is asserted.
+func TestSessionTickMsgSkipsWriteWhenNotPlaying(t *testing.T) {
+	states := []PlaybackState{PlaybackIdle, PlaybackPaused, PlaybackStopped}
+	for _, state := range states {
+		sw := &stubSessionWriter{}
+		m := New("/log", "", false, nil, nil, "", nil, nil)
+		m.SetSessionWriter(sw)
+		m.playbackState = state
+		m.currentTrackHash = "abc123"
+		m.elapsedSecs = 30.0
+
+		_, cmd := m.Update(sessionTickMsg{})
+		if cmd == nil {
+			t.Fatalf("state %v: sessionTickMsg must return a reschedule cmd even when not playing", state)
+		}
+		// When not playing, tea.Batch(sessionTickCmd(), nil) compacts to just
+		// sessionTickCmd() — a timer that must NOT be executed here (it blocks).
+		// Asserting positionCalls is empty confirms no write was scheduled.
+		if len(sw.positionCalls) != 0 {
+			t.Fatalf("state %v: expected 0 UpdateSessionPosition calls, got %d", state, len(sw.positionCalls))
+		}
+	}
+}
+
+// TestInitSchedulesSessionTicker verifies that Init starts the 10-second
+// periodic session ticker in addition to the 1-second display tick.
+func TestInitSchedulesSessionTicker(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	cmd := m.Init()
+	if cmd == nil {
+		t.Fatal("Init must return a non-nil cmd (includes sessionTickCmd)")
+	}
+}

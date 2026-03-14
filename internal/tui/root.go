@@ -99,6 +99,11 @@ type undoSlot struct {
 // display updates and transient-notification expiry checks.
 type tickMsg struct{}
 
+// sessionTickMsg is dispatched every sessionTickInterval by sessionTickCmd.
+// On each tick the current playback position is persisted to the session table,
+// but only when playback is active (PlaybackPlaying).
+type sessionTickMsg struct{}
+
 // syncPositionMsg is dispatched every positionSyncInterval to trigger a
 // playback-position update on the player.
 type syncPositionMsg struct{}
@@ -385,6 +390,10 @@ const configNoticeDuration = 5 * time.Second
 // playback position so that crash-resume can restore to the right offset.
 const positionSyncInterval = 5 * time.Second
 
+// sessionTickInterval is how often the periodic session ticker fires to persist
+// the current elapsed position to the session table during uninterrupted playback.
+const sessionTickInterval = 10 * time.Second
+
 // syncPositionCmd schedules one position-sync tick.
 func syncPositionCmd() tea.Cmd {
 	return tea.Tick(positionSyncInterval, func(time.Time) tea.Msg {
@@ -406,6 +415,13 @@ func (m Model) sessionPositionCmd() tea.Cmd {
 		_ = sw.UpdateSessionPosition(hash, positionMs)
 		return nil
 	}
+}
+
+// sessionTickCmd schedules one periodic session-position tick.
+func sessionTickCmd() tea.Cmd {
+	return tea.Tick(sessionTickInterval, func(time.Time) tea.Msg {
+		return sessionTickMsg{}
+	})
 }
 
 // tickCmd schedules a 1-second tick for elapsed-time display updates.
@@ -492,6 +508,7 @@ func (m Model) Init() tea.Cmd {
 		cmds = append(cmds, syncPositionCmd())
 	}
 	cmds = append(cmds, tickCmd())
+	cmds = append(cmds, sessionTickCmd())
 	switch len(cmds) {
 	case 0:
 		return nil
@@ -591,6 +608,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			_ = ps.SyncPosition()
 		}
 		return m, syncPositionCmd()
+
+	case sessionTickMsg:
+		var cmd tea.Cmd
+		if m.playbackState == PlaybackPlaying {
+			cmd = m.sessionPositionCmd()
+		}
+		return m, tea.Batch(sessionTickCmd(), cmd)
 
 	case PlayerStatusMsg:
 		m.statusBar.notification = transientNotification{
