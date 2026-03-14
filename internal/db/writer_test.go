@@ -569,6 +569,51 @@ func TestWriteShuffle_TwoEnablesProduceDifferentOrderings(t *testing.T) {
 	}
 }
 
+// TestWriteShuffle_ShufflePositionDiffersFromPosition verifies that after
+// WriteShuffle(true), the shuffle_position ordering is distinct from the
+// original position ordering, confirming that shuffle_position is freshly
+// generated and not simply copied from the position column.
+// The test uses 6 rows to make a false positive astronomically unlikely (1/720).
+func TestWriteShuffle_ShufflePositionDiffersFromPosition(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "hs13", "/f13")
+	now := time.Now().Unix()
+
+	positions := []int{1000, 2000, 3000, 4000, 5000, 6000}
+	var ids []int64
+	for _, pos := range positions {
+		res, err := d.Exec(
+			`INSERT INTO queue (track_hash, position, added_at) VALUES ('hs13', ?, ?)`, pos, now,
+		)
+		if err != nil {
+			t.Fatalf("insert row pos %d: %v", pos, err)
+		}
+		id, _ := res.LastInsertId()
+		ids = append(ids, id)
+	}
+
+	if err := w.WriteShuffle(true); err != nil {
+		t.Fatalf("WriteShuffle(true): %v", err)
+	}
+
+	// Collect (position, shuffle_position) pairs for all rows in insertion order.
+	allMatch := true
+	for _, id := range ids {
+		var pos, sp int64
+		if err := d.QueryRow(`SELECT position, shuffle_position FROM queue WHERE id=?`, id).Scan(&pos, &sp); err != nil {
+			t.Fatalf("query row %d: %v", id, err)
+		}
+		if pos != sp {
+			allMatch = false
+		}
+	}
+	if allMatch {
+		t.Error("shuffle_position values are identical to position values; expected a different ordering")
+	}
+}
+
 // TestUpsertSession verifies that UpsertSession writes all session fields and
 // that a second call overwrites the previous values.
 func TestUpsertSession(t *testing.T) {
