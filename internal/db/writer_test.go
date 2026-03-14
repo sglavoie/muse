@@ -267,6 +267,64 @@ func TestDequeueTrackSoft(t *testing.T) {
 	}
 }
 
+// TestDequeueTrackSoftDoesNotAffectPlaylists verifies that DequeueTrackSoft
+// only soft-deletes the queue row and leaves any playlist_tracks rows for the
+// same track hash completely untouched.
+func TestDequeueTrackSoftDoesNotAffectPlaylists(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "hs_pt1", "/fpt1")
+	now := time.Now().Unix()
+
+	// Create a playlist to satisfy the playlist_tracks FK constraint.
+	res, err := d.Exec(
+		`INSERT INTO playlists (name, created_at, updated_at) VALUES ('test', ?, ?)`,
+		now, now,
+	)
+	if err != nil {
+		t.Fatalf("insert playlist: %v", err)
+	}
+	playlistID, _ := res.LastInsertId()
+
+	// Insert a queue row for the track.
+	res, err = d.Exec(
+		`INSERT INTO queue (track_hash, position, added_at) VALUES ('hs_pt1', 1000, ?)`, now,
+	)
+	if err != nil {
+		t.Fatalf("insert queue: %v", err)
+	}
+	queueID, _ := res.LastInsertId()
+
+	// Insert a playlist_tracks row for the same track hash.
+	if _, err := d.Exec(
+		`INSERT INTO playlist_tracks (playlist_id, track_hash, position, added_at) VALUES (?, 'hs_pt1', 1000, ?)`,
+		playlistID, now,
+	); err != nil {
+		t.Fatalf("insert playlist_tracks: %v", err)
+	}
+
+	// Soft-delete the queue row.
+	if err := w.DequeueTrackSoft(queueID); err != nil {
+		t.Fatalf("DequeueTrackSoft: %v", err)
+	}
+
+	// playlist_tracks row must still exist with deleted_at IS NULL.
+	var count int
+	var deletedAt sql.NullInt64
+	if err := d.QueryRow(
+		`SELECT COUNT(*), MAX(deleted_at) FROM playlist_tracks WHERE track_hash='hs_pt1'`,
+	).Scan(&count, &deletedAt); err != nil {
+		t.Fatalf("query playlist_tracks: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("playlist_tracks count = %d; want 1 (row must not be removed)", count)
+	}
+	if deletedAt.Valid {
+		t.Errorf("playlist_tracks.deleted_at = %d; want NULL (row must not be soft-deleted)", deletedAt.Int64)
+	}
+}
+
 // TestUndoDequeue verifies that UndoDequeue clears deleted_at to NULL.
 func TestUndoDequeue(t *testing.T) {
 	d := openMigratedTestDB(t)
