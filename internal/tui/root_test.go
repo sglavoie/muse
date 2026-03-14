@@ -2323,6 +2323,77 @@ func TestRootLibraryAConfirmPlaylistAddsToPlaylist(t *testing.T) {
 	}
 }
 
+// TestRootLibraryAConfirmPlaylistClearsSelectionAndNotifies verifies the full
+// playlist destination-picker confirmation path end-to-end: the stub
+// PlaylistAdder receives the correct playlist ID and hashes, bulk selection is
+// cleared after DestinationPickedMsg, and the status bar notification reflects
+// the track count and playlist name once tracksAddedToPlaylistMsg is processed.
+func TestRootLibraryAConfirmPlaylistClearsSelectionAndNotifies(t *testing.T) {
+	pa := &stubPlaylistAdder{}
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.SetPlaylistAdder(pa)
+	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
+	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
+	m.library.selectedHashes = map[string]struct{}{"hash-one": {}, "hash-two": {}}
+	m.playlists.playlists = []db.PlaylistRow{{ID: 42, Name: "Chill Vibes"}}
+
+	// 'a' opens the destination picker with all 2 bulk-selected tracks staged.
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	nm := next.(Model)
+	if nm.destPicker == nil {
+		t.Fatal("expected destPicker to be open after 'a'")
+	}
+	if len(nm.destPickerTracks) != 2 {
+		t.Fatalf("expected 2 destPickerTracks, got %d", len(nm.destPickerTracks))
+	}
+
+	// 'j' moves cursor from Play Queue (0) to Chill Vibes (1).
+	next2, _ := nm.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	nm2 := next2.(Model)
+
+	// Enter dispatches DestinationPickedMsg via Cmd.
+	_, enterCmd := nm2.Update(tea.KeyPressMsg{Code: tea.KeyEnter, Text: "enter"})
+	if enterCmd == nil {
+		t.Fatal("Enter on playlist destination: expected non-nil cmd (DestinationPickedMsg)")
+	}
+	pickedMsg := enterCmd()
+
+	// Processing DestinationPickedMsg clears bulk selection and returns the add Cmd.
+	next3, addCmd := nm2.Update(pickedMsg)
+	nm3 := next3.(Model)
+
+	if len(nm3.library.selectedHashes) != 0 {
+		t.Errorf("selectedHashes must be empty after DestinationPickedMsg, got %v", nm3.library.selectedHashes)
+	}
+	if addCmd == nil {
+		t.Fatal("DestinationPickedMsg: expected non-nil add cmd")
+	}
+
+	// Execute the add cmd — stub records the call and returns tracksAddedToPlaylistMsg.
+	addedMsg := addCmd()
+
+	if len(pa.calls) != 1 {
+		t.Fatalf("expected 1 AddTracksToPlaylist call, got %d", len(pa.calls))
+	}
+	if pa.calls[0].playlistID != 42 {
+		t.Errorf("expected playlistID 42, got %d", pa.calls[0].playlistID)
+	}
+	if len(pa.calls[0].hashes) != 2 {
+		t.Errorf("expected 2 hashes, got %d: %v", len(pa.calls[0].hashes), pa.calls[0].hashes)
+	}
+
+	// Processing tracksAddedToPlaylistMsg must update the status bar.
+	next4, _ := nm3.Update(addedMsg)
+	nm4 := next4.(Model)
+	v := nm4.View()
+	if !strings.Contains(v.Content, "2 tracks") {
+		t.Errorf("status bar must contain track count; got:\n%s", v.Content)
+	}
+	if !strings.Contains(v.Content, "Chill Vibes") {
+		t.Errorf("status bar must contain playlist name; got:\n%s", v.Content)
+	}
+}
+
 // TestTrackEnqueuedMsgStartsPlaybackWhenQueueWasEmpty verifies that the root
 // model transitions from PlaybackIdle to PlaybackPlaying and calls
 // PlayFromIndex(0) when a TrackEnqueuedMsg arrives with WasEmpty=true.
@@ -2404,6 +2475,105 @@ func (s *stubQueueDequeuer) UndoClearQueue(ids []int64) error {
 func (s *stubQueueDequeuer) PurgeDeletedQueueEntries(before int64) error {
 	s.purgeBeforeCalls = append(s.purgeBeforeCalls, before)
 	return nil
+}
+
+// stubQueueReorderer records calls to ReorderQueueTrack for use in
+// move-track unit tests.
+type stubQueueReorderer struct {
+	calls []struct {
+		id        int64
+		direction int
+	}
+}
+
+func (s *stubQueueReorderer) ReorderQueueTrack(id int64, direction int) error {
+	s.calls = append(s.calls, struct {
+		id        int64
+		direction int
+	}{id, direction})
+	return nil
+}
+
+// TestMoveTrackUpMsgCallsReordererWithCorrectIDAndDirection verifies that
+// MoveTrackUpMsg swaps the TUI slice and calls ReorderQueueTrack with the
+// moved entry's ID and direction -1.
+func TestMoveTrackUpMsgCallsReordererWithCorrectIDAndDirection(t *testing.T) {
+	r := &stubQueueReorderer{}
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.SetQueueReorderer(r)
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/music/a.flac", Display: "A"},
+		{ID: 20, Path: "/music/b.flac", Display: "B"},
+		{ID: 30, Path: "/music/c.flac", Display: "C"},
+	}
+
+	next, cmd := m.Update(MoveTrackUpMsg{Index: 1})
+	nm := next.(Model)
+
+	// TUI slice must be swapped.
+	if nm.queue.entries[0].ID != 20 || nm.queue.entries[1].ID != 10 {
+		t.Fatalf("expected entries swapped: got IDs %d %d", nm.queue.entries[0].ID, nm.queue.entries[1].ID)
+	}
+	if nm.queue.cursor != 0 {
+		t.Fatalf("expected cursor 0, got %d", nm.queue.cursor)
+	}
+
+	// Execute the cmd to trigger the DB write.
+	if cmd == nil {
+		t.Fatal("MoveTrackUpMsg with reorderer: expected non-nil cmd")
+	}
+	cmd()
+
+	if len(r.calls) != 1 {
+		t.Fatalf("expected 1 reorderer call, got %d", len(r.calls))
+	}
+	if r.calls[0].id != 20 {
+		t.Fatalf("expected entry ID 20, got %d", r.calls[0].id)
+	}
+	if r.calls[0].direction != -1 {
+		t.Fatalf("expected direction -1, got %d", r.calls[0].direction)
+	}
+}
+
+// TestMoveTrackDownMsgCallsReordererWithCorrectIDAndDirection verifies that
+// MoveTrackDownMsg swaps the TUI slice and calls ReorderQueueTrack with the
+// moved entry's ID and direction +1.
+func TestMoveTrackDownMsgCallsReordererWithCorrectIDAndDirection(t *testing.T) {
+	r := &stubQueueReorderer{}
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.SetQueueReorderer(r)
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/music/a.flac", Display: "A"},
+		{ID: 20, Path: "/music/b.flac", Display: "B"},
+		{ID: 30, Path: "/music/c.flac", Display: "C"},
+	}
+
+	next, cmd := m.Update(MoveTrackDownMsg{Index: 1})
+	nm := next.(Model)
+
+	// TUI slice must be swapped.
+	if nm.queue.entries[1].ID != 30 || nm.queue.entries[2].ID != 20 {
+		t.Fatalf("expected entries swapped: got IDs %d %d", nm.queue.entries[1].ID, nm.queue.entries[2].ID)
+	}
+	if nm.queue.cursor != 2 {
+		t.Fatalf("expected cursor 2, got %d", nm.queue.cursor)
+	}
+
+	// Execute the cmd to trigger the DB write.
+	if cmd == nil {
+		t.Fatal("MoveTrackDownMsg with reorderer: expected non-nil cmd")
+	}
+	cmd()
+
+	if len(r.calls) != 1 {
+		t.Fatalf("expected 1 reorderer call, got %d", len(r.calls))
+	}
+	if r.calls[0].id != 20 {
+		t.Fatalf("expected entry ID 20, got %d", r.calls[0].id)
+	}
+	if r.calls[0].direction != +1 {
+		t.Fatalf("expected direction +1, got %d", r.calls[0].direction)
+	}
 }
 
 // TestUndoMsgRestoresDequeueWithinWindow verifies that receiving UndoMsg within

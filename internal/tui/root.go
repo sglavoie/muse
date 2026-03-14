@@ -71,6 +71,13 @@ type elapsedReader interface {
 	ElapsedPosition() (elapsed, total float64, err error)
 }
 
+// queueReorderer persists adjacent-item swaps for the queue order. Root uses
+// it when MoveTrackUpMsg or MoveTrackDownMsg is processed. When nil, the TUI
+// slice is still swapped but the change is not persisted to the database.
+type queueReorderer interface {
+	ReorderQueueTrack(id int64, direction int) error
+}
+
 // queueDequeuer handles soft-delete, undo, and purge operations for queue
 // entries. Root performs a type assertion to detect it; tests use stubs.
 // When nil, destructive actions still update the in-memory TUI state but
@@ -403,6 +410,7 @@ type Model struct {
 	// available (e.g. in tests that do not exercise playback).
 	player          playPauser
 	queueWriter     libtui.QueueAppender    // may be nil; set via SetQueueWriter
+	reorderer       queueReorderer          // may be nil; set via SetQueueReorderer
 	undoer          queueDequeuer           // may be nil; set via SetQueueDequeuer
 	sessionWriter   sessionWriter           // may be nil; set via SetSessionWriter
 	playlistReader  playlistTrackReader     // may be nil; set via SetPlaylistTrackReader
@@ -489,6 +497,14 @@ func (m *Model) SetQueueEntries(entries []QueueEntry) {
 // enqueueing (Enter in the library view becomes a no-op).
 func (m *Model) SetQueueWriter(qa libtui.QueueAppender) {
 	m.queueWriter = qa
+}
+
+// SetQueueReorderer sets the queueReorderer used to persist queue entry
+// position swaps in the database. Call this on the Model returned by New
+// before passing it to tea.NewProgram. When nil, MoveTrackUpMsg/MoveTrackDownMsg
+// still update the TUI slice but skip the database write.
+func (m *Model) SetQueueReorderer(r queueReorderer) {
+	m.reorderer = r
 }
 
 // SetQueueDequeuer sets the queueDequeuer used to soft-delete, undo, and purge
@@ -1088,14 +1104,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case MoveTrackUpMsg:
 		if msg.Index > 0 && msg.Index < len(m.queue.entries) {
+			entry := m.queue.entries[msg.Index]
 			m.queue.entries[msg.Index-1], m.queue.entries[msg.Index] = m.queue.entries[msg.Index], m.queue.entries[msg.Index-1]
 			m.queue.cursor = msg.Index - 1
+			if m.reorderer != nil {
+				r := m.reorderer
+				id := entry.ID
+				return m, func() tea.Msg {
+					_ = r.ReorderQueueTrack(id, -1)
+					return nil
+				}
+			}
 		}
 
 	case MoveTrackDownMsg:
 		if msg.Index >= 0 && msg.Index < len(m.queue.entries)-1 {
+			entry := m.queue.entries[msg.Index]
 			m.queue.entries[msg.Index], m.queue.entries[msg.Index+1] = m.queue.entries[msg.Index+1], m.queue.entries[msg.Index]
 			m.queue.cursor = msg.Index + 1
+			if m.reorderer != nil {
+				r := m.reorderer
+				id := entry.ID
+				return m, func() tea.Msg {
+					_ = r.ReorderQueueTrack(id, +1)
+					return nil
+				}
+			}
 		}
 
 	case tea.KeyPressMsg:
