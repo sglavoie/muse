@@ -559,6 +559,23 @@ func (m *Manager) handleRestart() {
 	go m.pollUntilReady(newCtx)
 }
 
+// LoadFilePaused loads the file at path into mpv, seeks to positionMs
+// milliseconds from the start, and leaves mpv in the paused state. Used for
+// session restore at startup. If mpv is not yet connected the command is
+// queued for replay once the IPC socket connects.
+func (m *Manager) LoadFilePaused(path string, positionMs int64) error {
+	elapsedSecs := float64(positionMs) / 1000.0
+	c, err := m.ipc()
+	if errors.Is(err, ErrNotConnected) {
+		return m.enqueue(func() error { return m.LoadFilePaused(path, positionMs) })
+	}
+	if err != nil {
+		return err
+	}
+	_, err = c.SendCommand("loadfile", path, "replace", 0, fmt.Sprintf("start=%g,pause=yes", elapsedSecs))
+	return err
+}
+
 // loadFileAt sends mpv a loadfile command with a start= option to resume
 // playback at the given elapsed time (in seconds).
 func (m *Manager) loadFileAt(path string, elapsed float64) error {

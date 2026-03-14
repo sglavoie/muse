@@ -84,6 +84,9 @@ func main() {
 		RunScan: func(ctx context.Context, database *db.DB) error {
 			return nil
 		},
+		RestorePlayer: func(path string, positionMs int64) error {
+			return mgr.LoadFilePaused(path, positionMs)
+		},
 	}
 
 	result, err := app.Run(ctx, dirs, deps)
@@ -110,42 +113,12 @@ func main() {
 	scanCh := library.Scan(cfg.MusicDirectory, extractor)
 	watchCh, _ := library.Watch(ctx, cfg.MusicDirectory, extractor, library.DefaultDebounce)
 
-	// Load the current queue from the database so both the player Manager and
-	// the TUI QueueView start with the same ordered set of entries. A failure
-	// here is non-fatal: the queue will simply be empty until the user adds tracks.
-	queueRows, err := result.DB.ReadQueue()
-	if err != nil {
-		slog.Warn("failed to load queue from DB", "err", err)
-	}
-	var playerEntries []player.QueueTrack
-	var tuiEntries []tui.QueueEntry
-	for _, r := range queueRows {
-		playerEntries = append(playerEntries, player.QueueTrack{
-			Path:    r.Path,
-			Hash:    r.Hash,
-			QueueID: r.ID,
-		})
-		display := r.Artist + " – " + r.Title
-		if r.Artist == "" && r.Title == "" {
-			display = r.Path
-		} else if r.Artist == "" {
-			display = r.Title
-		} else if r.Title == "" {
-			display = r.Artist
-		}
-		tuiEntries = append(tuiEntries, tui.QueueEntry{
-			Path:       r.Path,
-			Display:    display,
-			Missing:    r.Missing,
-			Artist:     r.Artist,
-			Title:      r.Title,
-			DurationMs: r.DurationMs,
-			Position:   r.Position,
-		})
-	}
+	restored := result.Restored
 
 	model := tui.New(config.LogPath(), configPath, configCreated, scanCh, watchCh, cfg.MusicDirectory, extractor, mgr)
 	model.SetQueueWriter(result.Writer)
+	model.SetQueueDequeuer(result.Writer)
+	model.SetSessionWriter(result.Writer)
 	p := tea.NewProgram(model)
 
 	// setQueue keeps the player Manager and the TUI QueueView in sync.
@@ -155,7 +128,18 @@ func main() {
 		mgr.SetQueue(pe)
 		model.SetQueueEntries(te)
 	}
-	setQueue(playerEntries, tuiEntries)
+	setQueue(restored.PlayerTracks, restored.QueueEntries)
+
+	// Apply restored session state to the model so the first render reflects
+	// the correct repeat/shuffle/playback state from the previous session.
+	model.SetRepeatMode(restored.RepeatMode)
+	model.SetShuffle(restored.Shuffle)
+	if len(restored.QueueEntries) > 0 {
+		model.SetPlaybackState(tui.PlaybackPaused)
+	}
+	if restored.CurrentHash != "" {
+		model.SetCurrentTrackHash(restored.CurrentHash)
+	}
 
 	// Wire player callbacks after p is created so events reach the TUI via Send.
 	mgr.SetMissingFileFunc(func(path string) {

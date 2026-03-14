@@ -377,6 +377,33 @@ func (m *Model) SetSessionWriter(sw sessionWriter) {
 	m.sessionWriter = sw
 }
 
+// SetRepeatMode pre-sets the repeat mode on a newly created Model. Call this
+// before passing the model to tea.NewProgram to restore persisted session state.
+func (m *Model) SetRepeatMode(mode RepeatMode) {
+	m.repeatMode = mode
+}
+
+// SetShuffle pre-sets the shuffle flag on a newly created Model. Call this
+// before passing the model to tea.NewProgram to restore persisted session state.
+func (m *Model) SetShuffle(enabled bool) {
+	m.shuffle = enabled
+}
+
+// SetPlaybackState pre-sets the playback state on a newly created Model. Call
+// this with PlaybackPaused when restoring a session that has a non-empty queue,
+// so that the status bar and space-bar toggle reflect the correct state on the
+// first render.
+func (m *Model) SetPlaybackState(state PlaybackState) {
+	m.playbackState = state
+}
+
+// SetCurrentTrackHash pre-sets the current track hash on a newly created Model.
+// Call this when restoring session state so that the first session-position
+// write uses the correct hash.
+func (m *Model) SetCurrentTrackHash(hash string) {
+	m.currentTrackHash = hash
+}
+
 // undoWindowDuration is the time after a destructive queue action during which
 // pressing 'u' will reverse the action. Only a single undo slot is maintained;
 // a new destructive action within the window replaces the prior slot.

@@ -11,10 +11,12 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/sglavoie/muse/internal/app"
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui"
 )
 
 // logCapture is a minimal slog.Handler that records message strings.
@@ -263,9 +265,13 @@ func TestRunMigrationFailureStopsPrereqs(t *testing.T) {
 	dirs := setupDirs(t)
 	installLogger(t)
 
-	// Point Data to a path where the parent directory does not exist so that
-	// sqlite cannot create the database file.
-	dirs.Data = filepath.Join(dirs.Data, "nonexistent", "nested")
+	// Create a regular file at dirs.Data so that db.Open's MkdirAll call
+	// fails when it tries to treat that path as a directory for muse.db.
+	blockPath := filepath.Join(dirs.Data, "block")
+	if err := os.WriteFile(blockPath, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dirs.Data = blockPath
 
 	prereqCalled := false
 	deps := app.Deps{
@@ -343,6 +349,497 @@ func TestRunParallelLaunchBothErrorsReturned(t *testing.T) {
 	_, err := app.Run(context.Background(), dirs, deps)
 	if err == nil {
 		t.Fatal("expected error from parallel task failures, got nil")
+	}
+}
+
+// ---- Session restore tests ----
+
+// openTestDB opens (or creates) a SQLite database at dirs.Data/muse.db and
+// runs all pending migrations. The caller must close the returned DB.
+func openTestDB(t *testing.T, dirs config.Dirs) *db.DB {
+	t.Helper()
+	dbPath := filepath.Join(dirs.Data, "muse.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("openTestDB: open: %v", err)
+	}
+	if err := db.Migrate(database.DB); err != nil {
+		database.Close()
+		t.Fatalf("openTestDB: migrate: %v", err)
+	}
+	return database
+}
+
+// insertTrack inserts a minimal tracks row and returns the hash.
+func insertTrack(t *testing.T, database *db.DB, hash, path, artist, title string) {
+	t.Helper()
+	now := time.Now().Unix()
+	_, err := database.Exec(
+		`INSERT INTO tracks (hash, path, artist, title, album, duration_ms, size_bytes, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, '', 120000, 1024, ?, ?)`,
+		hash, path, artist, title, now, now,
+	)
+	if err != nil {
+		t.Fatalf("insertTrack %q: %v", hash, err)
+	}
+}
+
+// insertQueueEntry inserts a queue row at the given position and returns the row ID.
+func insertQueueEntry(t *testing.T, database *db.DB, hash string, position int64) int64 {
+	t.Helper()
+	now := time.Now().Unix()
+	res, err := database.Exec(
+		`INSERT INTO queue (track_hash, position, added_at) VALUES (?, ?, ?)`,
+		hash, position, now,
+	)
+	if err != nil {
+		t.Fatalf("insertQueueEntry hash=%q pos=%d: %v", hash, position, err)
+	}
+	id, _ := res.LastInsertId()
+	return id
+}
+
+// setSessionRow writes current_hash and position_ms into the single session row.
+func setSessionRow(t *testing.T, database *db.DB, hash string, positionMs int64, shuffle bool, repeatMode string) {
+	t.Helper()
+	shuffleVal := 0
+	if shuffle {
+		shuffleVal = 1
+	}
+	var hashArg any
+	if hash != "" {
+		hashArg = hash
+	}
+	_, err := database.Exec(
+		`UPDATE session SET current_hash=?, position_ms=?, shuffle=?, repeat_mode=?, updated_at=? WHERE id=1`,
+		hashArg, positionMs, shuffleVal, repeatMode, time.Now().Unix(),
+	)
+	if err != nil {
+		t.Fatalf("setSessionRow: %v", err)
+	}
+}
+
+// newTestWriter creates a db.Writer for use in RestoreSession tests.
+// It cancels the context (stopping the goroutine) on test cleanup.
+func newTestWriter(t *testing.T, database *db.DB) *db.Writer {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	w := db.NewWriter(ctx, database.DB)
+	t.Cleanup(func() {
+		cancel()
+		w.Wait()
+	})
+	return w
+}
+
+// TestRestoreSessionEmpty verifies that RestoreSession on an empty database
+// returns a non-nil RestoredSession with no entries and default flags.
+func TestRestoreSessionEmpty(t *testing.T) {
+	dirs := setupDirs(t)
+	database := openTestDB(t, dirs)
+	defer database.Close()
+	w := newTestWriter(t, database)
+
+	restored, err := app.RestoreSession(database, w)
+	if err != nil {
+		t.Fatalf("RestoreSession: %v", err)
+	}
+	if restored == nil {
+		t.Fatal("RestoreSession returned nil")
+	}
+	if len(restored.QueueEntries) != 0 {
+		t.Errorf("QueueEntries: want 0, got %d", len(restored.QueueEntries))
+	}
+	if len(restored.PlayerTracks) != 0 {
+		t.Errorf("PlayerTracks: want 0, got %d", len(restored.PlayerTracks))
+	}
+	if restored.RepeatMode != tui.RepeatOff {
+		t.Errorf("RepeatMode: want RepeatOff, got %v", restored.RepeatMode)
+	}
+	if restored.Shuffle {
+		t.Error("Shuffle: want false")
+	}
+	if restored.CurrentHash != "" {
+		t.Errorf("CurrentHash: want empty, got %q", restored.CurrentHash)
+	}
+}
+
+// TestRestoreSessionReadableFiles verifies that queue entries with readable
+// file paths are returned with Missing=false.
+func TestRestoreSessionReadableFiles(t *testing.T) {
+	dirs := setupDirs(t)
+	database := openTestDB(t, dirs)
+	defer database.Close()
+	w := newTestWriter(t, database)
+
+	// Create a real audio file so os.Stat succeeds.
+	audioPath := filepath.Join(dirs.Runtime, "track.mp3")
+	if err := os.WriteFile(audioPath, []byte("fake"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	insertTrack(t, database, "hash-aaa", audioPath, "Artist A", "Song A")
+	insertQueueEntry(t, database, "hash-aaa", 1000)
+
+	restored, err := app.RestoreSession(database, w)
+	if err != nil {
+		t.Fatalf("RestoreSession: %v", err)
+	}
+	if len(restored.QueueEntries) != 1 {
+		t.Fatalf("QueueEntries: want 1, got %d", len(restored.QueueEntries))
+	}
+	e := restored.QueueEntries[0]
+	if e.Missing {
+		t.Error("QueueEntry.Missing: want false for readable file")
+	}
+	if e.Artist != "Artist A" {
+		t.Errorf("Artist: want %q, got %q", "Artist A", e.Artist)
+	}
+	if e.Title != "Song A" {
+		t.Errorf("Title: want %q, got %q", "Song A", e.Title)
+	}
+	if e.Display != "Artist A – Song A" {
+		t.Errorf("Display: want %q, got %q", "Artist A – Song A", e.Display)
+	}
+	if len(restored.PlayerTracks) != 1 {
+		t.Fatalf("PlayerTracks: want 1, got %d", len(restored.PlayerTracks))
+	}
+	if restored.PlayerTracks[0].Hash != "hash-aaa" {
+		t.Errorf("PlayerTracks[0].Hash: want %q, got %q", "hash-aaa", restored.PlayerTracks[0].Hash)
+	}
+}
+
+// TestRestoreSessionMissingFiles verifies that queue entries with unreadable
+// file paths have Missing=true in the returned QueueEntry slice.
+func TestRestoreSessionMissingFiles(t *testing.T) {
+	dirs := setupDirs(t)
+	database := openTestDB(t, dirs)
+	defer database.Close()
+	w := newTestWriter(t, database)
+
+	// Use a path that does not exist on disk.
+	missingPath := filepath.Join(dirs.Runtime, "nonexistent.mp3")
+
+	insertTrack(t, database, "hash-bbb", missingPath, "Artist B", "Song B")
+	insertQueueEntry(t, database, "hash-bbb", 1000)
+
+	restored, err := app.RestoreSession(database, w)
+	if err != nil {
+		t.Fatalf("RestoreSession: %v", err)
+	}
+	if len(restored.QueueEntries) != 1 {
+		t.Fatalf("QueueEntries: want 1, got %d", len(restored.QueueEntries))
+	}
+	if !restored.QueueEntries[0].Missing {
+		t.Error("QueueEntry.Missing: want true for unreadable path")
+	}
+	// The player track must still be present (missing tracks stay in queue).
+	if len(restored.PlayerTracks) != 1 {
+		t.Fatalf("PlayerTracks: want 1, got %d", len(restored.PlayerTracks))
+	}
+}
+
+// TestRestoreSessionMixedFiles verifies that only missing files have Missing=true
+// when the queue contains both readable and unreadable entries.
+func TestRestoreSessionMixedFiles(t *testing.T) {
+	dirs := setupDirs(t)
+	database := openTestDB(t, dirs)
+	defer database.Close()
+	w := newTestWriter(t, database)
+
+	readablePath := filepath.Join(dirs.Runtime, "exists.mp3")
+	if err := os.WriteFile(readablePath, []byte("fake"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	missingPath := filepath.Join(dirs.Runtime, "gone.mp3")
+
+	insertTrack(t, database, "hash-r", readablePath, "Readable", "Track")
+	insertTrack(t, database, "hash-m", missingPath, "Missing", "Track")
+	insertQueueEntry(t, database, "hash-r", 1000)
+	insertQueueEntry(t, database, "hash-m", 2000)
+
+	restored, err := app.RestoreSession(database, w)
+	if err != nil {
+		t.Fatalf("RestoreSession: %v", err)
+	}
+	if len(restored.QueueEntries) != 2 {
+		t.Fatalf("QueueEntries: want 2, got %d", len(restored.QueueEntries))
+	}
+	// Order follows queue position.
+	if restored.QueueEntries[0].Missing {
+		t.Error("QueueEntries[0] (readable): want Missing=false")
+	}
+	if !restored.QueueEntries[1].Missing {
+		t.Error("QueueEntries[1] (missing path): want Missing=true")
+	}
+}
+
+// TestRestoreSessionMissingFileMarkedInDB verifies that MarkQueueEntryMissing
+// is called for entries whose files cannot be stat-ed, persisting the missing
+// state back to the database.
+func TestRestoreSessionMissingFileMarkedInDB(t *testing.T) {
+	dirs := setupDirs(t)
+	database := openTestDB(t, dirs)
+	defer database.Close()
+	w := newTestWriter(t, database)
+
+	missingPath := filepath.Join(dirs.Runtime, "ghost.mp3")
+	insertTrack(t, database, "hash-ghost", missingPath, "Ghost", "Track")
+	id := insertQueueEntry(t, database, "hash-ghost", 1000)
+
+	if _, err := app.RestoreSession(database, w); err != nil {
+		t.Fatalf("RestoreSession: %v", err)
+	}
+
+	// Read the queue row back and verify missing=1 was written.
+	var missing int
+	err := database.QueryRow(`SELECT missing FROM queue WHERE id=?`, id).Scan(&missing)
+	if err != nil {
+		t.Fatalf("query queue.missing: %v", err)
+	}
+	if missing != 1 {
+		t.Errorf("queue.missing: want 1, got %d", missing)
+	}
+}
+
+// TestRestoreSessionSessionFlags verifies that repeat_mode, shuffle,
+// current_hash, and position_ms are restored from the session table.
+func TestRestoreSessionSessionFlags(t *testing.T) {
+	dirs := setupDirs(t)
+	database := openTestDB(t, dirs)
+	defer database.Close()
+	w := newTestWriter(t, database)
+
+	audioPath := filepath.Join(dirs.Runtime, "song.mp3")
+	if err := os.WriteFile(audioPath, []byte("fake"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	insertTrack(t, database, "hash-xyz", audioPath, "X", "Y")
+	insertQueueEntry(t, database, "hash-xyz", 1000)
+	setSessionRow(t, database, "hash-xyz", 30500, false, "all")
+
+	restored, err := app.RestoreSession(database, w)
+	if err != nil {
+		t.Fatalf("RestoreSession: %v", err)
+	}
+	if restored.RepeatMode != tui.RepeatAll {
+		t.Errorf("RepeatMode: want RepeatAll, got %v", restored.RepeatMode)
+	}
+	if restored.Shuffle {
+		t.Error("Shuffle: want false")
+	}
+	if restored.CurrentHash != "hash-xyz" {
+		t.Errorf("CurrentHash: want %q, got %q", "hash-xyz", restored.CurrentHash)
+	}
+	if restored.PositionMs != 30500 {
+		t.Errorf("PositionMs: want 30500, got %d", restored.PositionMs)
+	}
+}
+
+// TestRestoreSessionRepeatOne verifies that repeat_mode="one" is correctly parsed.
+func TestRestoreSessionRepeatOne(t *testing.T) {
+	dirs := setupDirs(t)
+	database := openTestDB(t, dirs)
+	defer database.Close()
+	w := newTestWriter(t, database)
+
+	setSessionRow(t, database, "", 0, false, "one")
+
+	restored, err := app.RestoreSession(database, w)
+	if err != nil {
+		t.Fatalf("RestoreSession: %v", err)
+	}
+	if restored.RepeatMode != tui.RepeatOne {
+		t.Errorf("RepeatMode: want RepeatOne, got %v", restored.RepeatMode)
+	}
+}
+
+// TestRunRestorePlayerCalled verifies that deps.RestorePlayer is invoked with
+// the correct path and position when a session with a current_hash is present.
+// It also verifies that Play() is never called during the restore path.
+func TestRunRestorePlayerCalled(t *testing.T) {
+	dirs := setupDirs(t)
+	installLogger(t)
+
+	// Pre-populate the database that app.Run() will open.
+	database := openTestDB(t, dirs)
+	audioPath := filepath.Join(dirs.Runtime, "session.mp3")
+	if err := os.WriteFile(audioPath, []byte("fake audio"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	insertTrack(t, database, "hash-restore", audioPath, "Restore", "Artist")
+	insertQueueEntry(t, database, "hash-restore", 1000)
+	setSessionRow(t, database, "hash-restore", 42000, false, "none")
+	database.Close()
+
+	var (
+		mu                  sync.Mutex
+		restorePlayerCalled bool
+		restorePath         string
+		restorePositionMs   int64
+	)
+
+	deps := app.Deps{
+		CheckPrereqs: func() error { return nil },
+		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
+		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
+		RestorePlayer: func(path string, positionMs int64) error {
+			mu.Lock()
+			restorePlayerCalled = true
+			restorePath = path
+			restorePositionMs = positionMs
+			mu.Unlock()
+			return nil
+		},
+	}
+
+	result, err := app.Run(context.Background(), dirs, deps)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	result.CancelWriter()
+	result.Writer.Wait()
+	result.DB.Close()
+	result.Lockfile.Release()
+
+	mu.Lock()
+	called := restorePlayerCalled
+	gotPath := restorePath
+	gotPos := restorePositionMs
+	mu.Unlock()
+
+	if !called {
+		t.Error("RestorePlayer was not called")
+	}
+	if gotPath != audioPath {
+		t.Errorf("RestorePlayer path: want %q, got %q", audioPath, gotPath)
+	}
+	if gotPos != 42000 {
+		t.Errorf("RestorePlayer positionMs: want 42000, got %d", gotPos)
+	}
+}
+
+// TestRunRestorePlayerNotCalledWithoutCurrentHash verifies that RestorePlayer
+// is not called when the session has no current_hash (nothing was playing).
+func TestRunRestorePlayerNotCalledWithoutCurrentHash(t *testing.T) {
+	dirs := setupDirs(t)
+	installLogger(t)
+
+	// Pre-populate queue but leave current_hash empty in session.
+	database := openTestDB(t, dirs)
+	audioPath := filepath.Join(dirs.Runtime, "nopos.mp3")
+	if err := os.WriteFile(audioPath, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	insertTrack(t, database, "hash-nopos", audioPath, "", "")
+	insertQueueEntry(t, database, "hash-nopos", 1000)
+	// Leave session default (current_hash NULL).
+	database.Close()
+
+	restorePlayerCalled := false
+	deps := app.Deps{
+		CheckPrereqs: func() error { return nil },
+		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
+		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
+		RestorePlayer: func(_ string, _ int64) error {
+			restorePlayerCalled = true
+			return nil
+		},
+	}
+
+	result, err := app.Run(context.Background(), dirs, deps)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	result.CancelWriter()
+	result.Writer.Wait()
+	result.DB.Close()
+	result.Lockfile.Release()
+
+	if restorePlayerCalled {
+		t.Error("RestorePlayer must not be called when session has no current_hash")
+	}
+}
+
+// TestRunRestorePlayerNilDepSafe verifies that Run succeeds even when
+// RestorePlayer is nil and a session with a current_hash is present.
+func TestRunRestorePlayerNilDepSafe(t *testing.T) {
+	dirs := setupDirs(t)
+	installLogger(t)
+
+	database := openTestDB(t, dirs)
+	audioPath := filepath.Join(dirs.Runtime, "safe.mp3")
+	if err := os.WriteFile(audioPath, []byte("y"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	insertTrack(t, database, "hash-safe", audioPath, "", "")
+	insertQueueEntry(t, database, "hash-safe", 1000)
+	setSessionRow(t, database, "hash-safe", 1000, false, "none")
+	database.Close()
+
+	deps := app.Deps{
+		CheckPrereqs:  func() error { return nil },
+		LaunchMPV:     func(_ context.Context, _ string) error { return nil },
+		RunScan:       func(_ context.Context, _ *db.DB) error { return nil },
+		RestorePlayer: nil, // intentionally nil
+	}
+
+	result, err := app.Run(context.Background(), dirs, deps)
+	if err != nil {
+		t.Fatalf("Run with nil RestorePlayer: %v", err)
+	}
+	result.CancelWriter()
+	result.Writer.Wait()
+	result.DB.Close()
+	result.Lockfile.Release()
+}
+
+// TestRunRestoredSessionInResult verifies that RunResult.Restored contains
+// the queue entries loaded from the database.
+func TestRunRestoredSessionInResult(t *testing.T) {
+	dirs := setupDirs(t)
+	installLogger(t)
+
+	database := openTestDB(t, dirs)
+	audioPath := filepath.Join(dirs.Runtime, "result.mp3")
+	if err := os.WriteFile(audioPath, []byte("z"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	insertTrack(t, database, "hash-result", audioPath, "Res", "Ult")
+	insertQueueEntry(t, database, "hash-result", 1000)
+	setSessionRow(t, database, "hash-result", 5000, true, "all")
+	database.Close()
+
+	result, err := app.Run(context.Background(), dirs, noopDeps())
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	result.CancelWriter()
+	result.Writer.Wait()
+	result.DB.Close()
+	result.Lockfile.Release()
+
+	r := result.Restored
+	if r == nil {
+		t.Fatal("RunResult.Restored is nil")
+	}
+	if len(r.QueueEntries) != 1 {
+		t.Fatalf("QueueEntries: want 1, got %d", len(r.QueueEntries))
+	}
+	if r.QueueEntries[0].Missing {
+		t.Error("QueueEntry.Missing: want false for readable file")
+	}
+	if r.RepeatMode != tui.RepeatAll {
+		t.Errorf("RepeatMode: want RepeatAll, got %v", r.RepeatMode)
+	}
+	if !r.Shuffle {
+		t.Error("Shuffle: want true")
+	}
+	if r.CurrentHash != "hash-result" {
+		t.Errorf("CurrentHash: want %q, got %q", "hash-result", r.CurrentHash)
+	}
+	if r.PositionMs != 5000 {
+		t.Errorf("PositionMs: want 5000, got %d", r.PositionMs)
 	}
 }
 
