@@ -28,6 +28,8 @@ type View struct {
 	Height      int
 	Creating    bool      // true while the inline create input is active
 	CreateInput TextInput // current value of the inline create field
+	Renaming    bool      // true while the inline rename input is active
+	RenameInput TextInput // current value of the inline rename field
 }
 
 // CursorUp returns a copy of v with the cursor moved up by one row,
@@ -102,6 +104,34 @@ func (v View) BackspaceCreate() View {
 	return v
 }
 
+// StartRename returns a copy of v with the inline rename input activated,
+// pre-populated with currentName.
+func (v View) StartRename(currentName string) View {
+	v.Renaming = true
+	v.RenameInput = NewTextInput(currentName)
+	return v
+}
+
+// CancelRename returns a copy of v with the inline rename input dismissed.
+func (v View) CancelRename() View {
+	v.Renaming = false
+	v.RenameInput = TextInput{}
+	return v
+}
+
+// AppendRenameChar returns a copy of v with r appended to the rename buffer.
+func (v View) AppendRenameChar(r rune) View {
+	v.RenameInput = v.RenameInput.AppendRune(r)
+	return v
+}
+
+// BackspaceRename returns a copy of v with the last rune removed from the
+// rename buffer.
+func (v View) BackspaceRename() View {
+	v.RenameInput = v.RenameInput.Backspace()
+	return v
+}
+
 // Render returns the string representation of the playlists panel.
 func (v View) Render() string {
 	switch v.Level {
@@ -120,6 +150,10 @@ func (v View) renderList() string {
 	cols := Compute(v.Width)
 	var lines []string
 	for i, p := range v.Playlists {
+		if v.Renaming && i == v.Cursor {
+			lines = append(lines, v.renderRenameInputRow(cols))
+			continue
+		}
 		name := truncate(p.Name, cols.Name)
 		name = fmt.Sprintf("%-*s", cols.Name, name)
 		count := fmt.Sprintf("(%d)", p.TrackCount)
@@ -145,6 +179,15 @@ func (v View) renderList() string {
 func (v View) renderCreateInputRow(cols Columns) string {
 	rowWidth := cols.Name + nameSep + cols.Count
 	display := truncate(v.CreateInput.Render(), rowWidth)
+	display = fmt.Sprintf("%-*s", rowWidth, display)
+	return ansiAccent + display + ansiReset
+}
+
+// renderRenameInputRow renders the inline rename input as a highlighted row
+// fitted to the same column widths as a normal playlist row.
+func (v View) renderRenameInputRow(cols Columns) string {
+	rowWidth := cols.Name + nameSep + cols.Count
+	display := truncate(v.RenameInput.Render(), rowWidth)
 	display = fmt.Sprintf("%-*s", rowWidth, display)
 	return ansiAccent + display + ansiReset
 }

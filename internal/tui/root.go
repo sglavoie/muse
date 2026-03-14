@@ -184,6 +184,18 @@ type playlistTracksLoadedMsg struct {
 // view to rename the selected playlist.
 type PlaylistRenameMsg struct{}
 
+// playlistRenamedMsg is dispatched after a successful RenamePlaylist call.
+// It carries the refreshed playlist list so root can update the in-memory state.
+type playlistRenamedMsg struct {
+	playlists []db.PlaylistRow
+}
+
+// playlistRenameErrorMsg is dispatched when RenamePlaylist returns an error.
+// Root uses it to cancel the inline rename input and notify the user.
+type playlistRenameErrorMsg struct {
+	err error
+}
+
 // PlaylistCreateMsg is dispatched when the user presses 'c' in the playlists
 // view to create a new playlist.
 type PlaylistCreateMsg struct{}
@@ -264,6 +276,14 @@ type playlistTrackReader interface {
 // input is a no-op (the field is dismissed without persisting).
 type playlistCreator interface {
 	CreatePlaylist(name string) (int64, error)
+	ReadPlaylists() ([]db.PlaylistRow, error)
+}
+
+// playlistRenamer renames a playlist and re-reads the full list. Root uses it
+// when the user confirms the inline rename input. When nil, confirming the
+// input is a no-op (the field is dismissed without persisting).
+type playlistRenamer interface {
+	RenamePlaylist(id int64, name string) error
 	ReadPlaylists() ([]db.PlaylistRow, error)
 }
 
@@ -367,6 +387,7 @@ type Model struct {
 	sessionWriter   sessionWriter           // may be nil; set via SetSessionWriter
 	playlistReader  playlistTrackReader     // may be nil; set via SetPlaylistTrackReader
 	playlistWriter  playlistCreator         // may be nil; set via SetPlaylistWriter
+	playlistRenamer playlistRenamer         // may be nil; set via SetPlaylistRenamer
 	playlistDeleter playlistDeleter         // may be nil; set via SetPlaylistDeleter
 
 	// undoSlot holds the reversible state for the most recent destructive
@@ -506,6 +527,14 @@ func (m *Model) SetPlaylistTrackReader(r playlistTrackReader) {
 // input is a no-op (the field is dismissed without writing to the database).
 func (m *Model) SetPlaylistWriter(w playlistCreator) {
 	m.playlistWriter = w
+}
+
+// SetPlaylistRenamer sets the playlistRenamer used to persist a playlist rename
+// and refresh the list after renaming. Call this on the Model returned by New
+// before passing it to tea.NewProgram. When nil, confirming the inline rename
+// input is a no-op (the field is dismissed without writing to the database).
+func (m *Model) SetPlaylistRenamer(r playlistRenamer) {
+	m.playlistRenamer = r
 }
 
 // SetPlaylistDeleter sets the playlistDeleter used to soft-delete playlists
@@ -1095,6 +1124,59 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		// When the inline playlist rename input is active, intercept all
+		// keypresses before the registry.
+		if m.playlists.isRenaming() && m.activeView == viewPlaylists {
+			switch msg.String() {
+			case "esc":
+				m.playlists = m.playlists.cancelRename()
+			case "enter":
+				if !m.playlists.renameInputIsEmpty() {
+					name := m.playlists.renameInputValue()
+					// Reject duplicate names (case-sensitive) with a transient hint.
+					for _, p := range m.playlists.playlists {
+						if p.Name == name {
+							m.statusBar.notification = transientNotification{
+								msg:       "A playlist with that name already exists",
+								expiresAt: time.Now().Add(transientDuration),
+							}
+							return m, nil
+						}
+					}
+					pl, ok := m.playlists.focusedPlaylist()
+					if !ok {
+						m.playlists = m.playlists.cancelRename()
+						return m, nil
+					}
+					if m.playlistRenamer != nil {
+						pr := m.playlistRenamer
+						id := pl.ID
+						return m, func() tea.Msg {
+							if err := pr.RenamePlaylist(id, name); err != nil {
+								return playlistRenameErrorMsg{err: err}
+							}
+							rows, err := pr.ReadPlaylists()
+							if err != nil {
+								return playlistRenameErrorMsg{err: err}
+							}
+							return playlistRenamedMsg{playlists: rows}
+						}
+					}
+					// No renamer: dismiss the input without persisting.
+					m.playlists = m.playlists.cancelRename()
+				}
+				// Empty/whitespace input: keep the field active (no-op).
+			case "backspace":
+				m.playlists = m.playlists.backspaceRename()
+			default:
+				if msg.Text != "" {
+					for _, ch := range msg.Text {
+						m.playlists = m.playlists.appendRenameChar(ch)
+					}
+				}
+			}
+			return m, nil
+		}
 		a := m.registry.resolve(m.activeViewContext(), msg.String())
 		switch a {
 		case actionHelp:
@@ -1347,6 +1429,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case playlistTracksLoadedMsg:
 		m.playlists = m.playlists.openTracks(msg.tracks)
+
+	case PlaylistRenameMsg:
+		if m.playlists.atListLevel() {
+			if pl, ok := m.playlists.focusedPlaylist(); ok {
+				m.playlists = m.playlists.startRename(pl.Name)
+			}
+		}
+
+	case playlistRenamedMsg:
+		m.playlists.playlists = msg.playlists
+		m.playlists = m.playlists.cancelRename()
+
+	case playlistRenameErrorMsg:
+		m.playlists = m.playlists.cancelRename()
+		m.statusBar.notification = transientNotification{
+			msg:       "Failed to rename playlist: " + msg.err.Error(),
+			expiresAt: time.Now().Add(transientDuration),
+		}
 
 	case PlaylistCreateMsg:
 		if m.playlists.atListLevel() {

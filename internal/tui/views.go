@@ -41,6 +41,8 @@ type PlaylistsView struct {
 	height      int
 	creating    bool            // true while the inline create input is active
 	createInput pltui.TextInput // current value of the inline create field
+	renaming    bool            // true while the inline rename input is active
+	renameInput pltui.TextInput // current value of the inline rename field
 }
 
 func (v PlaylistsView) render() string {
@@ -53,6 +55,8 @@ func (v PlaylistsView) render() string {
 		Height:      v.height,
 		Creating:    v.creating,
 		CreateInput: v.createInput,
+		Renaming:    v.renaming,
+		RenameInput: v.renameInput,
 	}.Render()
 }
 
@@ -99,6 +103,60 @@ func (v PlaylistsView) createInputValue() string {
 // createInputIsEmpty reports whether the trimmed create input buffer is empty.
 func (v PlaylistsView) createInputIsEmpty() bool {
 	return v.createInput.IsEmpty()
+}
+
+// isRenaming reports whether the inline rename input is active.
+func (v PlaylistsView) isRenaming() bool {
+	return v.renaming
+}
+
+// startRename activates the inline rename input pre-populated with currentName.
+func (v PlaylistsView) startRename(currentName string) PlaylistsView {
+	view := pltui.View{Renaming: v.renaming, RenameInput: v.renameInput}.StartRename(currentName)
+	v.renaming = view.Renaming
+	v.renameInput = view.RenameInput
+	return v
+}
+
+// cancelRename dismisses the inline rename input without persisting.
+func (v PlaylistsView) cancelRename() PlaylistsView {
+	view := pltui.View{Renaming: v.renaming, RenameInput: v.renameInput}.CancelRename()
+	v.renaming = view.Renaming
+	v.renameInput = view.RenameInput
+	return v
+}
+
+// appendRenameChar appends r to the rename input buffer.
+func (v PlaylistsView) appendRenameChar(r rune) PlaylistsView {
+	view := pltui.View{Renaming: v.renaming, RenameInput: v.renameInput}.AppendRenameChar(r)
+	v.renameInput = view.RenameInput
+	return v
+}
+
+// backspaceRename removes the last rune from the rename input buffer.
+func (v PlaylistsView) backspaceRename() PlaylistsView {
+	view := pltui.View{Renaming: v.renaming, RenameInput: v.renameInput}.BackspaceRename()
+	v.renameInput = view.RenameInput
+	return v
+}
+
+// renameInputValue returns the current rename input buffer as a string.
+func (v PlaylistsView) renameInputValue() string {
+	return v.renameInput.Value()
+}
+
+// renameInputIsEmpty reports whether the trimmed rename input buffer is empty.
+func (v PlaylistsView) renameInputIsEmpty() bool {
+	return v.renameInput.IsEmpty()
+}
+
+// focusedPlaylist returns the playlist at the current cursor position and true.
+// Returns a zero value and false when the list is empty or not at ListLevel.
+func (v PlaylistsView) focusedPlaylist() (db.PlaylistRow, bool) {
+	if len(v.playlists) == 0 || v.level != pltui.ListLevel {
+		return db.PlaylistRow{}, false
+	}
+	return v.playlists[v.cursor], true
 }
 
 // HandleAction executes a pre-resolved playlists action dispatched by root.Update.
