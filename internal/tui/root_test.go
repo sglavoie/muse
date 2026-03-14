@@ -702,12 +702,12 @@ func TestModelStopKeyTransitionsToStopped(t *testing.T) {
 	}
 }
 
-// TestModelRepeatAndShuffleDefaultFalse verifies that root Model holds repeat
-// and shuffle boolean fields that default to false.
-func TestModelRepeatAndShuffleDefaultFalse(t *testing.T) {
+// TestModelRepeatModeDefaultOff verifies that repeat defaults to RepeatOff and
+// shuffle defaults to false on a freshly created model.
+func TestModelRepeatModeDefaultOff(t *testing.T) {
 	m := New("/log", "", false, nil, nil, "", nil, nil)
-	if m.repeat {
-		t.Fatal("repeat must default to false")
+	if m.repeatMode != RepeatOff {
+		t.Fatalf("repeatMode must default to RepeatOff, got %v", m.repeatMode)
 	}
 	if m.shuffle {
 		t.Fatal("shuffle must default to false")
@@ -1026,8 +1026,8 @@ func TestViewLocalBindingTakesPrecedenceOverGlobal(t *testing.T) {
 	if _, ok := msg.(PlaylistRenameMsg); !ok {
 		t.Fatalf("view-local 'r' in Playlists: expected PlaylistRenameMsg, got %T", msg)
 	}
-	if nm.repeat {
-		t.Fatal("view-local 'r' in Playlists must not toggle global repeat mode")
+	if nm.repeatMode != RepeatOff {
+		t.Fatal("view-local 'r' in Playlists must not cycle global repeat mode")
 	}
 }
 
@@ -1095,7 +1095,8 @@ func TestShiftRFiresRescan(t *testing.T) {
 }
 
 // TestLowerRCyclesRepeatModeInNonPlaylistViews verifies that pressing 'r' in
-// Library and Queue views toggles the repeat field, and does NOT trigger rescan.
+// Library and Queue views advances repeatMode through Off→All→One→Off, and
+// does NOT trigger rescan.
 func TestLowerRCyclesRepeatModeInNonPlaylistViews(t *testing.T) {
 	views := []struct {
 		name   string
@@ -1109,23 +1110,63 @@ func TestLowerRCyclesRepeatModeInNonPlaylistViews(t *testing.T) {
 			m := New("/log", "", false, nil, nil, "", nil, nil)
 			m.activeView = tc.viewID
 
-			// First press: repeat off → on.
+			// First press: RepeatOff → RepeatAll.
 			next, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
 			nm := next.(Model)
 			if cmd != nil {
 				t.Fatalf("%s: 'r' repeat cycle must return nil cmd, got non-nil", tc.name)
 			}
-			if !nm.repeat {
-				t.Fatalf("%s: 'r' first press: expected repeat=true, got false", tc.name)
+			if nm.repeatMode != RepeatAll {
+				t.Fatalf("%s: first press: expected RepeatAll, got %v", tc.name, nm.repeatMode)
 			}
 
-			// Second press: repeat on → off.
+			// Second press: RepeatAll → RepeatOne.
 			next, _ = nm.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
 			nm = next.(Model)
-			if nm.repeat {
-				t.Fatalf("%s: 'r' second press: expected repeat=false, got true", tc.name)
+			if nm.repeatMode != RepeatOne {
+				t.Fatalf("%s: second press: expected RepeatOne, got %v", tc.name, nm.repeatMode)
+			}
+
+			// Third press: RepeatOne → RepeatOff (wraps).
+			next, _ = nm.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+			nm = next.(Model)
+			if nm.repeatMode != RepeatOff {
+				t.Fatalf("%s: third press: expected RepeatOff, got %v", tc.name, nm.repeatMode)
 			}
 		})
+	}
+}
+
+// stubSessionWriter records WriteRepeatMode calls for assertion in tests.
+type stubSessionWriter struct {
+	calls []string
+}
+
+func (s *stubSessionWriter) WriteRepeatMode(mode string) error {
+	s.calls = append(s.calls, mode)
+	return nil
+}
+
+// TestRepeatCycleCallsWriteRepeatMode verifies that actionRepeatCycle calls
+// sessionWriter.WriteRepeatMode with the correct mode string on each press
+// and cycles in the order "none" → "all" → "one" → "none".
+func TestRepeatCycleCallsWriteRepeatMode(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	sw := &stubSessionWriter{}
+	m.SetSessionWriter(sw)
+
+	wantCalls := []string{"all", "one", "none"}
+
+	var nm Model = m
+	for i, want := range wantCalls {
+		next, _ := nm.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+		nm = next.(Model)
+		if len(sw.calls) != i+1 {
+			t.Fatalf("press %d: expected %d WriteRepeatMode call(s), got %d", i+1, i+1, len(sw.calls))
+		}
+		if sw.calls[i] != want {
+			t.Fatalf("press %d: expected WriteRepeatMode(%q), got %q", i+1, want, sw.calls[i])
+		}
 	}
 }
 
@@ -1588,12 +1629,12 @@ func TestViewHelpOverlayContainsLogPath(t *testing.T) {
 }
 
 // TestEscRestoringViewDoesNotAlterPlaybackOrScanState verifies that dismissing
-// the help overlay with Esc does not change playbackState, repeat, shuffle, or
-// the scanning flag.
+// the help overlay with Esc does not change playbackState, repeatMode, shuffle,
+// or the scanning flag.
 func TestEscRestoringViewDoesNotAlterPlaybackOrScanState(t *testing.T) {
 	m := New("/log", "", false, nil, nil, "", nil, nil)
 	m.playbackState = PlaybackPlaying
-	m.repeat = true
+	m.repeatMode = RepeatAll
 	m.shuffle = true
 	m.scanning = true
 
@@ -1608,8 +1649,8 @@ func TestEscRestoringViewDoesNotAlterPlaybackOrScanState(t *testing.T) {
 	if nm.playbackState != PlaybackPlaying {
 		t.Fatalf("Esc: playbackState changed; expected PlaybackPlaying, got %v", nm.playbackState)
 	}
-	if !nm.repeat {
-		t.Fatal("Esc: repeat changed; expected true, got false")
+	if nm.repeatMode != RepeatAll {
+		t.Fatalf("Esc: repeatMode changed; expected RepeatAll, got %v", nm.repeatMode)
 	}
 	if !nm.shuffle {
 		t.Fatal("Esc: shuffle changed; expected true, got false")

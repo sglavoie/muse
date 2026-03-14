@@ -40,7 +40,7 @@ type StatusBar struct {
 
 	// Playback mode fields — injected by renderStatusBar from the root Model.
 	playbackState PlaybackState
-	repeat        bool
+	repeatMode    RepeatMode
 	shuffle       bool
 
 	// elapsed and total are pre-formatted MM:SS strings injected by
@@ -134,8 +134,11 @@ func (s StatusBar) render(width int) string {
 	if s.playlistSource != "" {
 		suffix += "  " + s.playlistSource
 	}
-	if s.repeat {
+	switch s.repeatMode {
+	case RepeatAll:
 		suffix += "  R"
+	case RepeatOne:
+		suffix += "  R1"
 	}
 	if s.shuffle {
 		suffix += "  S"

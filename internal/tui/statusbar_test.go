@@ -156,12 +156,23 @@ func TestRenderRepeatAndShuffleIndicators(t *testing.T) {
 		t.Errorf("expected no R/S when both off: got %q", out)
 	}
 
-	// Repeat on.
+	// Repeat all (RepeatAll shows "R").
 	sbR := base
-	sbR.repeat = true
+	sbR.repeatMode = RepeatAll
 	out = sbR.render(0)
 	if !strings.Contains(out, "  R") {
 		t.Errorf("expected R indicator: got %q", out)
+	}
+	if strings.Contains(out, "  S") {
+		t.Errorf("unexpected S indicator: got %q", out)
+	}
+
+	// Repeat one (RepeatOne shows "R1").
+	sbR1 := base
+	sbR1.repeatMode = RepeatOne
+	out = sbR1.render(0)
+	if !strings.Contains(out, "  R1") {
+		t.Errorf("expected R1 indicator: got %q", out)
 	}
 	if strings.Contains(out, "  S") {
 		t.Errorf("unexpected S indicator: got %q", out)

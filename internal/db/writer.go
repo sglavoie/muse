@@ -311,6 +311,18 @@ func (w *Writer) PurgeDeletedQueueEntries(before int64) error {
 	})
 }
 
+// WriteRepeatMode persists the repeat mode to the single session row.
+// mode must be one of "none", "all", or "one" (matching the DB CHECK constraint).
+func (w *Writer) WriteRepeatMode(mode string) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(
+			`UPDATE session SET repeat_mode=?, updated_at=? WHERE id=1`,
+			mode, time.Now().Unix(),
+		)
+		return err
+	})
+}
+
 // drain flushes all commands already buffered in the cmds channel after ctx is
 // cancelled. A timeout guards against a single stuck write blocking shutdown
 // indefinitely. New Exec calls after drain returns will see w.done closed and

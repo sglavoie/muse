@@ -43,11 +43,11 @@ type positionSyncer interface {
 }
 
 // repeatShuffler is an optional extension checked via type assertion. Root
-// calls SetRepeat and SetShuffle after toggling the model booleans so that mpv
-// is instructed to change its repeat/shuffle mode and the player state stays in
+// calls SetRepeat and SetShuffle after cycling the model modes so that mpv is
+// instructed to change its repeat/shuffle mode and the player state stays in
 // sync with what the status bar displays.
 type repeatShuffler interface {
-	SetRepeat(bool) error
+	SetRepeat(RepeatMode) error
 	SetShuffle(bool) error
 }
 
@@ -175,6 +175,35 @@ type MoveTrackDownMsg struct {
 	Index int
 }
 
+// RepeatMode controls how the queue cycles at the end of play.
+type RepeatMode uint8
+
+const (
+	RepeatOff RepeatMode = iota // no repeat; stop after the last track
+	RepeatAll                   // repeat the entire queue from the beginning
+	RepeatOne                   // repeat the current track indefinitely
+)
+
+// String returns the session-table value for this RepeatMode. The values match
+// the CHECK constraint in the session schema: 'none', 'all', or 'one'.
+func (r RepeatMode) String() string {
+	switch r {
+	case RepeatAll:
+		return "all"
+	case RepeatOne:
+		return "one"
+	default:
+		return "none"
+	}
+}
+
+// sessionWriter is implemented by db.Writer. Root calls WriteRepeatMode after
+// each actionRepeatCycle to persist the selected mode to the session table via
+// the single-writer goroutine.
+type sessionWriter interface {
+	WriteRepeatMode(mode string) error
+}
+
 // PlaybackState represents the current playback status shown in the status bar.
 type PlaybackState int
 
@@ -245,9 +274,10 @@ type Model struct {
 
 	// player is the playback backend. It may be nil when playback is not
 	// available (e.g. in tests that do not exercise playback).
-	player      playPauser
-	queueWriter libtui.QueueAppender // may be nil; set via SetQueueWriter
-	undoer      queueDequeuer        // may be nil; set via SetQueueDequeuer
+	player        playPauser
+	queueWriter   libtui.QueueAppender // may be nil; set via SetQueueWriter
+	undoer        queueDequeuer        // may be nil; set via SetQueueDequeuer
+	sessionWriter sessionWriter        // may be nil; set via SetSessionWriter
 
 	// undoSlot holds the reversible state for the most recent destructive
 	// queue action. The slot is cleared after a successful undo or when a new
@@ -255,7 +285,7 @@ type Model struct {
 	undoSlot undoSlot
 
 	playbackState PlaybackState // current play/pause/stopped/idle state
-	repeat        bool          // repeat mode enabled
+	repeatMode    RepeatMode    // repeat mode: off, all, or one
 	shuffle       bool          // shuffle mode enabled
 
 	// elapsedSecs and totalSecs hold the most recently queried playback
@@ -327,6 +357,14 @@ func (m *Model) SetQueueWriter(qa libtui.QueueAppender) {
 // still update the TUI state but skip all database operations.
 func (m *Model) SetQueueDequeuer(qd queueDequeuer) {
 	m.undoer = qd
+}
+
+// SetSessionWriter sets the sessionWriter used to persist session-level state
+// (such as repeat mode) to the database. Call this on the Model returned by
+// New before passing it to tea.NewProgram. When nil, mode changes update
+// the in-memory TUI state but skip all database writes.
+func (m *Model) SetSessionWriter(sw sessionWriter) {
+	m.sessionWriter = sw
 }
 
 // undoWindowDuration is the time after a destructive queue action during which
@@ -806,9 +844,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Batch(waitForNextBatch(ch), countAudioFiles(m.libraryRoot))
 			}
 		case actionRepeatCycle:
-			m.repeat = !m.repeat
+			switch m.repeatMode {
+			case RepeatOff:
+				m.repeatMode = RepeatAll
+			case RepeatAll:
+				m.repeatMode = RepeatOne
+			case RepeatOne:
+				m.repeatMode = RepeatOff
+			}
 			if rs, ok := m.player.(repeatShuffler); ok {
-				_ = rs.SetRepeat(m.repeat)
+				_ = rs.SetRepeat(m.repeatMode)
+			}
+			if m.sessionWriter != nil {
+				_ = m.sessionWriter.WriteRepeatMode(m.repeatMode.String())
 			}
 		case actionShuffleToggle:
 			m.shuffle = !m.shuffle
@@ -875,7 +923,7 @@ func (m Model) View() tea.View {
 func (m Model) renderStatusBar() string {
 	sb := m.statusBar
 	sb.playbackState = m.playbackState
-	sb.repeat = m.repeat
+	sb.repeatMode = m.repeatMode
 	sb.shuffle = m.shuffle
 	sb.configCreated = m.configCreated
 	if m.elapsedSecs > 0 || m.totalSecs > 0 {
