@@ -32,6 +32,35 @@ func TestPlaylistsBindingsResolve(t *testing.T) {
 	}
 }
 
+// TestQueueBindingsResolve verifies that every key registered under
+// contextQueue resolves to the expected action via registry.resolve.
+func TestQueueBindingsResolve(t *testing.T) {
+	reg := newRegistry()
+
+	cases := []struct {
+		key  string
+		want action
+	}{
+		{"j", actionCursorDown},
+		{"k", actionCursorUp},
+		{"up", actionCursorUp},
+		{"down", actionCursorDown},
+		{"enter", actionSelect},
+		{"d", actionDequeue},
+		{"x", actionBulkSelectionToggle},
+		{"C", actionClearQueue},
+		{"K", actionMoveTrackUp},
+		{"J", actionMoveTrackDown},
+	}
+
+	for _, tc := range cases {
+		got := reg.resolve(contextQueue, tc.key)
+		if got != tc.want {
+			t.Errorf("resolve(contextQueue, %q) = %v, want %v", tc.key, got, tc.want)
+		}
+	}
+}
+
 // TestPlaylistsRShadowsGlobalRepeat verifies that 'r' resolves to
 // actionPlaylistRename (not actionRepeatCycle) when the Playlists view is
 // active, locking in the view-local shadowing behaviour.

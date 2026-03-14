@@ -179,6 +179,29 @@ func (m *Manager) AppendToQueue(entry QueueTrack) {
 	m.mu.Unlock()
 }
 
+// RemoveFromQueue removes the queue entry at index from the in-memory queue
+// and adjusts currentIndex atomically. If the removed index precedes
+// currentIndex, currentIndex is decremented by one so it continues pointing
+// at the same track. If the removed index equals currentIndex, currentIndex
+// is left unchanged so that the next auto-advance (PlayFromIndex(currentIndex))
+// resolves to what was previously index+1. Returns an error if index is
+// negative or >= len(m.queue).
+func (m *Manager) RemoveFromQueue(index int) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if index < 0 || index >= len(m.queue) {
+		return fmt.Errorf("index %d out of range", index)
+	}
+
+	m.queue = append(m.queue[:index], m.queue[index+1:]...)
+	if index < m.currentIndex {
+		m.currentIndex--
+	}
+
+	return nil
+}
+
 // SetMissingMarker sets the MissingMarker used to persist missing-file state
 // to the database. Call before playback begins.
 func (m *Manager) SetMissingMarker(marker MissingMarker) {

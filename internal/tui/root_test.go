@@ -3073,3 +3073,167 @@ func TestWindowSizeMsgPropagatesWidthToChildViews(t *testing.T) {
 		t.Fatalf("Title column: expected Compute(120).Title (%d) > Compute(80).Title (%d)", wide.Title, narrow.Title)
 	}
 }
+
+// TestGlobalRepeatBindingFiresInViewsWithoutLocalOverride verifies that
+// pressing lowercase 'r' in Library and Queue views — which have no view-local
+// 'r' binding — cycles repeatMode from RepeatOff to RepeatAll via the global
+// actionRepeatCycle handler. The Playlists view is excluded because it defines
+// a local 'r' binding (rename) that shadows the global action.
+func TestGlobalRepeatBindingFiresInViewsWithoutLocalOverride(t *testing.T) {
+	views := []struct {
+		name   string
+		viewID viewID
+	}{
+		{"Library", viewLibrary},
+		{"Queue", viewQueue},
+	}
+	for _, tc := range views {
+		t.Run(tc.name, func(t *testing.T) {
+			m := New("/log", "", false, nil, nil, "", nil, nil)
+			m.activeView = tc.viewID
+
+			if m.repeatMode != RepeatOff {
+				t.Fatalf("%s: initial repeatMode must be RepeatOff, got %v", tc.name, m.repeatMode)
+			}
+
+			next, _ := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+			nm := next.(Model)
+
+			if nm.repeatMode != RepeatAll {
+				t.Fatalf("%s: pressing 'r' must cycle repeatMode from RepeatOff to RepeatAll, got %v", tc.name, nm.repeatMode)
+			}
+		})
+	}
+}
+
+// TestClearQueueMsgStopsPlaybackAndTransitionsToIdle verifies that handling
+// ClearQueueMsg calls Stop() on the player exactly once and transitions
+// playbackState to PlaybackIdle (not PlaybackStopped).
+func TestClearQueueMsgStopsPlaybackAndTransitionsToIdle(t *testing.T) {
+	p := &stubCommandPlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+	m.playbackState = PlaybackPlaying
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Path: "/music/a.flac", Display: "A"},
+	}
+
+	next, _ := m.Update(ClearQueueMsg{})
+	nm := next.(Model)
+
+	if nm.playbackState != PlaybackIdle {
+		t.Fatalf("ClearQueueMsg: expected PlaybackIdle, got %v", nm.playbackState)
+	}
+	if p.stopCalls != 1 {
+		t.Fatalf("ClearQueueMsg: expected 1 Stop() call, got %d", p.stopCalls)
+	}
+}
+
+// drillIntoPlaylistTrackLevel puts m into Playlists view at TrackLevel with
+// the provided tracks seeded directly, returning a ready-to-use model.
+func drillIntoPlaylistTrackLevel(m Model, tracks []db.PlaylistTrackRow) Model {
+	m.activeView = viewPlaylists
+	m.playlists.level = pltui.TrackLevel
+	m.playlists.tracks = tracks
+	m.playlists.cursor = 0
+	return m
+}
+
+// TestPlaylistTrackCursorDownJKey verifies that pressing "j" while the
+// playlist track-level view is active advances the cursor by one.
+func TestPlaylistTrackCursorDownJKey(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
+		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
+		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
+	})
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	nm := next.(Model)
+	if nm.playlists.cursor != 1 {
+		t.Errorf("j key at TrackLevel: expected cursor 1, got %d", nm.playlists.cursor)
+	}
+}
+
+// TestPlaylistTrackCursorUpKKey verifies that pressing "k" while the playlist
+// track-level view is active moves the cursor up by one.
+func TestPlaylistTrackCursorUpKKey(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
+		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
+		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
+	})
+	m.playlists.cursor = 1
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
+	nm := next.(Model)
+	if nm.playlists.cursor != 0 {
+		t.Errorf("k key at TrackLevel: expected cursor 0, got %d", nm.playlists.cursor)
+	}
+}
+
+// TestPlaylistTrackCursorDownArrow verifies that the down arrow key advances
+// the cursor in the playlist track-level view, behaving identically to "j".
+func TestPlaylistTrackCursorDownArrow(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
+		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
+		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
+	})
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown, Text: "down"})
+	nm := next.(Model)
+	if nm.playlists.cursor != 1 {
+		t.Errorf("down arrow at TrackLevel: expected cursor 1, got %d", nm.playlists.cursor)
+	}
+}
+
+// TestPlaylistTrackCursorUpArrow verifies that the up arrow key moves the
+// cursor up in the playlist track-level view, behaving identically to "k".
+func TestPlaylistTrackCursorUpArrow(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
+		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
+		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
+	})
+	m.playlists.cursor = 1
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyUp, Text: "up"})
+	nm := next.(Model)
+	if nm.playlists.cursor != 0 {
+		t.Errorf("up arrow at TrackLevel: expected cursor 0, got %d", nm.playlists.cursor)
+	}
+}
+
+// TestPlaylistTrackCursorClampAtBottom verifies that the cursor stops at the
+// last track without wrapping when the playlist track-level view is active.
+func TestPlaylistTrackCursorClampAtBottom(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
+		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
+		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
+	})
+	m.playlists.cursor = 1 // already at last item
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	nm := next.(Model)
+	if nm.playlists.cursor != 1 {
+		t.Errorf("j at last track: expected cursor 1 (clamped), got %d", nm.playlists.cursor)
+	}
+}
+
+// TestPlaylistTrackCursorClampAtTop verifies that the cursor stops at the
+// first track without wrapping when the playlist track-level view is active.
+func TestPlaylistTrackCursorClampAtTop(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
+		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
+		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
+	})
+	// cursor starts at 0
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
+	nm := next.(Model)
+	if nm.playlists.cursor != 0 {
+		t.Errorf("k at first track: expected cursor 0 (clamped), got %d", nm.playlists.cursor)
+	}
+}

@@ -808,6 +808,85 @@ func TestManager_PlaybackLatency(t *testing.T) {
 	}
 }
 
+// TestManager_RemoveFromQueue verifies the three index-adjustment cases for
+// RemoveFromQueue: removal after, before, and at currentIndex.
+func TestManager_RemoveFromQueue(t *testing.T) {
+	makeQueue := func() []QueueTrack {
+		return []QueueTrack{
+			{Path: "/a.flac", Hash: "h0", QueueID: 1},
+			{Path: "/b.flac", Hash: "h1", QueueID: 2},
+			{Path: "/c.flac", Hash: "h2", QueueID: 3},
+			{Path: "/d.flac", Hash: "h3", QueueID: 4},
+		}
+	}
+
+	t.Run("remove after currentIndex", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		m := &Manager{ctx: ctx, cancel: cancel, queue: makeQueue(), currentIndex: 1}
+		defer m.Close()
+
+		if err := m.RemoveFromQueue(2); err != nil {
+			t.Fatalf("RemoveFromQueue(2): unexpected error: %v", err)
+		}
+		if got := len(m.queue); got != 3 {
+			t.Errorf("queue len = %d, want 3", got)
+		}
+		if m.currentIndex != 1 {
+			t.Errorf("currentIndex = %d, want 1 (unchanged)", m.currentIndex)
+		}
+	})
+
+	t.Run("remove before currentIndex", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		m := &Manager{ctx: ctx, cancel: cancel, queue: makeQueue(), currentIndex: 2}
+		defer m.Close()
+
+		if err := m.RemoveFromQueue(1); err != nil {
+			t.Fatalf("RemoveFromQueue(1): unexpected error: %v", err)
+		}
+		if got := len(m.queue); got != 3 {
+			t.Errorf("queue len = %d, want 3", got)
+		}
+		if m.currentIndex != 1 {
+			t.Errorf("currentIndex = %d, want 1 (decremented)", m.currentIndex)
+		}
+	})
+
+	t.Run("remove at currentIndex", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		m := &Manager{ctx: ctx, cancel: cancel, queue: makeQueue(), currentIndex: 2}
+		defer m.Close()
+
+		if err := m.RemoveFromQueue(2); err != nil {
+			t.Fatalf("RemoveFromQueue(2): unexpected error: %v", err)
+		}
+		if got := len(m.queue); got != 3 {
+			t.Errorf("queue len = %d, want 3", got)
+		}
+		// currentIndex stays at 2 so auto-advance (PlayFromIndex(2)) resolves
+		// to what was previously index 3 (now at position 2 after removal).
+		if m.currentIndex != 2 {
+			t.Errorf("currentIndex = %d, want 2 (unchanged)", m.currentIndex)
+		}
+	})
+
+	t.Run("out of range returns error", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		m := &Manager{ctx: ctx, cancel: cancel, queue: makeQueue(), currentIndex: 1}
+		defer m.Close()
+
+		if err := m.RemoveFromQueue(-1); err == nil {
+			t.Error("RemoveFromQueue(-1): want error, got nil")
+		}
+		if err := m.RemoveFromQueue(4); err == nil {
+			t.Error("RemoveFromQueue(4): want error, got nil")
+		}
+		if got := len(m.queue); got != 4 {
+			t.Errorf("queue len = %d, want 4 (unmodified)", got)
+		}
+	})
+}
+
 // TestManager_ConnectDisconnectInfoLogs verifies that slog.Info is called with
 // "mpv connected" when the IPC socket connects and "mpv disconnected" when the
 // health-check goroutine detects a lost connection. Both messages must appear

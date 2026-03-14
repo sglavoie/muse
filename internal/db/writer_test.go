@@ -1352,3 +1352,142 @@ func TestRenumberQueuePositions_Triggered(t *testing.T) {
 		t.Errorf("soft-deleted positions = %v; want %v", deletedPos, want)
 	}
 }
+
+// seedQueueEntry inserts an active queue row at the given position and returns its id.
+func seedQueueEntry(t *testing.T, d *db.DB, hash string, pos int64) int64 {
+	t.Helper()
+	now := time.Now().Unix()
+	res, err := d.Exec(
+		`INSERT INTO queue (track_hash, position, added_at) VALUES (?, ?, ?)`,
+		hash, pos, now,
+	)
+	if err != nil {
+		t.Fatalf("seedQueueEntry hash=%s pos=%d: %v", hash, pos, err)
+	}
+	id, _ := res.LastInsertId()
+	return id
+}
+
+// TestReorderQueueTrack_Down verifies that direction=+1 swaps the track with
+// its successor, producing the expected position values.
+func TestReorderQueueTrack_Down(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "qrd1", "/qd1")
+	seedTrack(t, d, "qrd2", "/qd2")
+	seedTrack(t, d, "qrd3", "/qd3")
+	id1 := seedQueueEntry(t, d, "qrd1", 1000)
+	id2 := seedQueueEntry(t, d, "qrd2", 2000)
+	_ = seedQueueEntry(t, d, "qrd3", 3000)
+
+	// Move track at position 1000 down — it should swap with the track at 2000.
+	if err := w.ReorderQueueTrack(id1, +1); err != nil {
+		t.Fatalf("ReorderQueueTrack down: %v", err)
+	}
+
+	var p1, p2 int64
+	if err := d.QueryRow(`SELECT position FROM queue WHERE id=?`, id1).Scan(&p1); err != nil {
+		t.Fatalf("query id1: %v", err)
+	}
+	if err := d.QueryRow(`SELECT position FROM queue WHERE id=?`, id2).Scan(&p2); err != nil {
+		t.Fatalf("query id2: %v", err)
+	}
+	if p1 != 2000 || p2 != 1000 {
+		t.Errorf("after move-down: id1.position=%d id2.position=%d; want 2000/1000", p1, p2)
+	}
+}
+
+// TestReorderQueueTrack_Up verifies that direction=-1 swaps the track with its
+// predecessor.
+func TestReorderQueueTrack_Up(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "qru1", "/qu1")
+	seedTrack(t, d, "qru2", "/qu2")
+	id1 := seedQueueEntry(t, d, "qru1", 1000)
+	id2 := seedQueueEntry(t, d, "qru2", 2000)
+
+	// Move track at position 2000 up.
+	if err := w.ReorderQueueTrack(id2, -1); err != nil {
+		t.Fatalf("ReorderQueueTrack up: %v", err)
+	}
+
+	var p1, p2 int64
+	if err := d.QueryRow(`SELECT position FROM queue WHERE id=?`, id1).Scan(&p1); err != nil {
+		t.Fatalf("query id1: %v", err)
+	}
+	if err := d.QueryRow(`SELECT position FROM queue WHERE id=?`, id2).Scan(&p2); err != nil {
+		t.Fatalf("query id2: %v", err)
+	}
+	if p1 != 2000 || p2 != 1000 {
+		t.Errorf("after move-up: id1.position=%d id2.position=%d; want 2000/1000", p1, p2)
+	}
+}
+
+// TestReorderQueueTrack_Boundary verifies that moving the first track up or the
+// last track down is a no-op (positions unchanged).
+func TestReorderQueueTrack_Boundary(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "qrb1", "/qb1")
+	seedTrack(t, d, "qrb2", "/qb2")
+	id1 := seedQueueEntry(t, d, "qrb1", 1000)
+	id2 := seedQueueEntry(t, d, "qrb2", 2000)
+
+	// Move first track up — no-op.
+	if err := w.ReorderQueueTrack(id1, -1); err != nil {
+		t.Fatalf("ReorderQueueTrack boundary up: %v", err)
+	}
+	// Move last track down — no-op.
+	if err := w.ReorderQueueTrack(id2, +1); err != nil {
+		t.Fatalf("ReorderQueueTrack boundary down: %v", err)
+	}
+
+	var p1, p2 int64
+	if err := d.QueryRow(`SELECT position FROM queue WHERE id=?`, id1).Scan(&p1); err != nil {
+		t.Fatalf("query id1: %v", err)
+	}
+	if err := d.QueryRow(`SELECT position FROM queue WHERE id=?`, id2).Scan(&p2); err != nil {
+		t.Fatalf("query id2: %v", err)
+	}
+	if p1 != 1000 || p2 != 2000 {
+		t.Errorf("positions changed after boundary ops: id1=%d id2=%d; want 1000/2000", p1, p2)
+	}
+}
+
+// TestReorderQueueTrack_IntegerPositions verifies that position values remain
+// integers (not floating point) after a swap.
+func TestReorderQueueTrack_IntegerPositions(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "qri1", "/qi1")
+	seedTrack(t, d, "qri2", "/qi2")
+	id1 := seedQueueEntry(t, d, "qri1", 1000)
+	id2 := seedQueueEntry(t, d, "qri2", 2000)
+
+	if err := w.ReorderQueueTrack(id1, +1); err != nil {
+		t.Fatalf("ReorderQueueTrack: %v", err)
+	}
+
+	// Scan into int64 — if the column held a float the scan would succeed but
+	// the round-trip value would be detectable via the SQL typeof() function.
+	rows, err := d.Query(`SELECT id, position, typeof(position) FROM queue WHERE id IN (?,?) ORDER BY id`, id1, id2)
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, pos int64
+		var typ string
+		if err := rows.Scan(&id, &pos, &typ); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		if typ != "integer" {
+			t.Errorf("queue id=%d: position typeof=%q; want integer", id, typ)
+		}
+	}
+}

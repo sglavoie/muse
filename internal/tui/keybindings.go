@@ -117,6 +117,8 @@ func newRegistry() Registry {
 	r.register(contextLibrary, "a", actionBulkAction)
 
 	// Queue-local bindings.
+	r.register(contextQueue, "j", actionCursorDown)
+	r.register(contextQueue, "k", actionCursorUp)
 	r.register(contextQueue, "up", actionCursorUp)
 	r.register(contextQueue, "down", actionCursorDown)
 	r.register(contextQueue, "enter", actionSelect)

@@ -620,6 +620,62 @@ func (w *Writer) ReorderPlaylistTrack(playlistID, trackID int64, direction int) 
 	})
 }
 
+// ReorderQueueTrack performs a single-step adjacent swap for the queue entry
+// identified by trackID. direction must be -1 (move up, toward lower position)
+// or +1 (move down, toward higher position). It is a no-op when the track is
+// already at the boundary. Only active (deleted_at IS NULL) neighbours are
+// considered.
+func (w *Writer) ReorderQueueTrack(trackID int64, direction int) error {
+	return w.Exec(func(db *sql.DB) error {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback() //nolint:errcheck
+
+		var currPos int64
+		if err := tx.QueryRow(
+			`SELECT position FROM queue WHERE id=?`,
+			trackID,
+		).Scan(&currPos); err != nil {
+			return err
+		}
+
+		var adjQuery string
+		if direction > 0 {
+			adjQuery = `SELECT id, position FROM queue
+				WHERE deleted_at IS NULL AND position > ?
+				ORDER BY position ASC LIMIT 1`
+		} else {
+			adjQuery = `SELECT id, position FROM queue
+				WHERE deleted_at IS NULL AND position < ?
+				ORDER BY position DESC LIMIT 1`
+		}
+
+		var adjID, adjPos int64
+		if err := tx.QueryRow(adjQuery, currPos).Scan(&adjID, &adjPos); err != nil {
+			if err == sql.ErrNoRows {
+				return nil // already at boundary
+			}
+			return err
+		}
+
+		// Three-step swap to avoid transient unique-constraint violations.
+		// Negative positions cannot exist in normal use so -1 is a safe temp.
+		const tempPos int64 = -1
+		if _, err := tx.Exec(`UPDATE queue SET position=? WHERE id=?`, tempPos, trackID); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`UPDATE queue SET position=? WHERE id=?`, currPos, adjID); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`UPDATE queue SET position=? WHERE id=?`, adjPos, trackID); err != nil {
+			return err
+		}
+		return tx.Commit()
+	})
+}
+
 // PurgeDeletedPlaylistTracks physically removes all playlist_tracks rows whose
 // deleted_at is non-NULL and strictly less than the before Unix timestamp.
 // Call this once the undo window has expired to reclaim space.

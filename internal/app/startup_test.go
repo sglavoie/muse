@@ -632,6 +632,78 @@ func TestRestoreSessionMixedFiles(t *testing.T) {
 	}
 }
 
+// TestRestoreSessionQueuePersistence verifies that queue contents survive a
+// simulated session restart: after inserting two tracks and their queue rows,
+// RestoreSession returns fully-populated QueueEntries and parallel PlayerTracks
+// with matching IDs, hashes, artist, and title values.
+func TestRestoreSessionQueuePersistence(t *testing.T) {
+	dirs := setupDirs(t)
+	database := openTestDB(t, dirs)
+	defer database.Close()
+	w := newTestWriter(t, database)
+
+	// Create real audio files so os.Stat succeeds (Missing=false).
+	pathA := filepath.Join(dirs.Runtime, "track-a.mp3")
+	pathB := filepath.Join(dirs.Runtime, "track-b.mp3")
+	for _, p := range []string{pathA, pathB} {
+		if err := os.WriteFile(p, []byte("fake"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	insertTrack(t, database, "hash-aaa", pathA, "Artist A", "Song A")
+	insertTrack(t, database, "hash-bbb", pathB, "Artist B", "Song B")
+
+	idA := insertQueueEntry(t, database, "hash-aaa", 1000)
+	idB := insertQueueEntry(t, database, "hash-bbb", 2000)
+
+	restored, err := app.RestoreSession(database, w)
+	if err != nil {
+		t.Fatalf("RestoreSession: %v", err)
+	}
+	if len(restored.QueueEntries) != 2 {
+		t.Fatalf("QueueEntries: want 2, got %d", len(restored.QueueEntries))
+	}
+	if len(restored.PlayerTracks) != 2 {
+		t.Fatalf("PlayerTracks: want 2, got %d", len(restored.PlayerTracks))
+	}
+
+	eA := restored.QueueEntries[0]
+	if eA.ID != idA {
+		t.Errorf("QueueEntries[0].ID: want %d, got %d", idA, eA.ID)
+	}
+	if eA.Hash != "hash-aaa" {
+		t.Errorf("QueueEntries[0].Hash: want %q, got %q", "hash-aaa", eA.Hash)
+	}
+	if eA.Artist != "Artist A" {
+		t.Errorf("QueueEntries[0].Artist: want %q, got %q", "Artist A", eA.Artist)
+	}
+	if eA.Title != "Song A" {
+		t.Errorf("QueueEntries[0].Title: want %q, got %q", "Song A", eA.Title)
+	}
+
+	eB := restored.QueueEntries[1]
+	if eB.ID != idB {
+		t.Errorf("QueueEntries[1].ID: want %d, got %d", idB, eB.ID)
+	}
+	if eB.Hash != "hash-bbb" {
+		t.Errorf("QueueEntries[1].Hash: want %q, got %q", "hash-bbb", eB.Hash)
+	}
+	if eB.Artist != "Artist B" {
+		t.Errorf("QueueEntries[1].Artist: want %q, got %q", "Artist B", eB.Artist)
+	}
+	if eB.Title != "Song B" {
+		t.Errorf("QueueEntries[1].Title: want %q, got %q", "Song B", eB.Title)
+	}
+
+	// Verify parallel alignment between QueueEntries and PlayerTracks.
+	for i, e := range restored.QueueEntries {
+		if restored.PlayerTracks[i].Hash != e.Hash {
+			t.Errorf("PlayerTracks[%d].Hash: want %q, got %q", i, e.Hash, restored.PlayerTracks[i].Hash)
+		}
+	}
+}
+
 // TestRestoreSessionMissingFileMarkedInDB verifies that MarkQueueEntryMissing
 // is called for entries whose files cannot be stat-ed, persisting the missing
 // state back to the database.

@@ -1019,7 +1019,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Stop active playback — requirement req-019ce3a80fa97003a43d90cf5e7c7a3f.
 		if cp, ok := m.player.(commandPlayer); ok {
 			_ = cp.Stop()
-			m.playbackState = PlaybackStopped
+			m.playbackState = PlaybackIdle
 			m.elapsedSecs = 0
 			m.totalSecs = 0
 		}

@@ -75,6 +75,7 @@ func helpSections() []helpSection {
 		{
 			title: "Queue",
 			entries: []helpEntry{
+				{"j / k", "Move cursor down / up"},
 				{"up / down", "Move cursor"},
 				{"enter", "Play selected track"},
 				{"d", "Remove selected track"},
