@@ -149,6 +149,87 @@ func (w *Writer) ClearQueueEntriesMissing(trackHash string) error {
 	})
 }
 
+// DequeueTrackSoft marks the queue entry identified by id as soft-deleted by
+// setting its deleted_at timestamp to the current Unix time. The row is
+// retained in the database and can be restored via UndoDequeue within the
+// undo window.
+func (w *Writer) DequeueTrackSoft(id int64) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(`UPDATE queue SET deleted_at=? WHERE id=?`, time.Now().Unix(), id)
+		return err
+	})
+}
+
+// UndoDequeue clears the deleted_at flag on the queue entry identified by id,
+// restoring it to the active set. Call this within the undo window to reverse
+// a DequeueTrackSoft.
+func (w *Writer) UndoDequeue(id int64) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(`UPDATE queue SET deleted_at=NULL WHERE id=?`, id)
+		return err
+	})
+}
+
+// RenumberQueuePositions rewrites the position column for all active queue
+// rows (deleted_at IS NULL) using sequential gaps of 1000 (1000, 2000, 3000…)
+// inside a single transaction. It is a no-op when no adjacent pair of active
+// rows has a gap below 1.
+func (w *Writer) RenumberQueuePositions() error {
+	return w.Exec(func(db *sql.DB) error {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback() //nolint:errcheck
+
+		type qrow struct {
+			id       int64
+			position int64
+		}
+
+		rows, err := tx.Query(
+			`SELECT id, position FROM queue WHERE deleted_at IS NULL ORDER BY position`,
+		)
+		if err != nil {
+			return err
+		}
+		var active []qrow
+		for rows.Next() {
+			var r qrow
+			if err := rows.Scan(&r.id, &r.position); err != nil {
+				rows.Close()
+				return err
+			}
+			active = append(active, r)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		needsRenumber := false
+		for i := 1; i < len(active); i++ {
+			if active[i].position-active[i-1].position < 1 {
+				needsRenumber = true
+				break
+			}
+		}
+		if !needsRenumber {
+			return nil
+		}
+
+		// Update in reverse order (highest new position first) to avoid
+		// transient unique-constraint violations during intermediate states.
+		for i := len(active) - 1; i >= 0; i-- {
+			newPos := int64(i+1) * 1000
+			if _, err := tx.Exec(`UPDATE queue SET position=? WHERE id=?`, newPos, active[i].id); err != nil {
+				return err
+			}
+		}
+		return tx.Commit()
+	})
+}
+
 // drain flushes all commands already buffered in the cmds channel after ctx is
 // cancelled. A timeout guards against a single stuck write blocking shutdown
 // indefinitely. New Exec calls after drain returns will see w.done closed and
