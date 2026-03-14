@@ -178,6 +178,20 @@ type PlaylistRenameMsg struct{}
 // view to create a new playlist.
 type PlaylistCreateMsg struct{}
 
+// playlistCreatedMsg is dispatched after a successful CreatePlaylist call.
+// It carries the refreshed playlist list and the ID of the newly created
+// entry so that root can position the cursor on it by ID.
+type playlistCreatedMsg struct {
+	id        int64
+	playlists []db.PlaylistRow
+}
+
+// playlistCreateErrorMsg is dispatched when CreatePlaylist returns an error.
+// Root uses it to cancel the inline create input and notify the user.
+type playlistCreateErrorMsg struct {
+	err error
+}
+
 // DequeueTrackMsg is dispatched when the user presses 'd' in the queue view
 // to remove the entry at Index from the playback queue.
 type DequeueTrackMsg struct {
@@ -233,6 +247,14 @@ func (r RepeatMode) String() string {
 // actionPlaylistOpen is a no-op.
 type playlistTrackReader interface {
 	ReadPlaylistTracks(playlistID int64) ([]db.PlaylistTrackRow, error)
+}
+
+// playlistCreator creates a new playlist and re-reads the full list. Root uses
+// it when the user confirms the inline create input. When nil, confirming the
+// input is a no-op (the field is dismissed without persisting).
+type playlistCreator interface {
+	CreatePlaylist(name string) (int64, error)
+	ReadPlaylists() ([]db.PlaylistRow, error)
 }
 
 // sessionWriter is implemented by db.Writer. Root calls WriteRepeatMode after
@@ -316,11 +338,12 @@ type Model struct {
 
 	// player is the playback backend. It may be nil when playback is not
 	// available (e.g. in tests that do not exercise playback).
-	player        playPauser
-	queueWriter    libtui.QueueAppender    // may be nil; set via SetQueueWriter
-	undoer         queueDequeuer           // may be nil; set via SetQueueDequeuer
-	sessionWriter  sessionWriter           // may be nil; set via SetSessionWriter
-	playlistReader playlistTrackReader     // may be nil; set via SetPlaylistTrackReader
+	player          playPauser
+	queueWriter     libtui.QueueAppender    // may be nil; set via SetQueueWriter
+	undoer          queueDequeuer           // may be nil; set via SetQueueDequeuer
+	sessionWriter   sessionWriter           // may be nil; set via SetSessionWriter
+	playlistReader  playlistTrackReader     // may be nil; set via SetPlaylistTrackReader
+	playlistWriter  playlistCreator         // may be nil; set via SetPlaylistWriter
 
 	// undoSlot holds the reversible state for the most recent destructive
 	// queue action. The slot is cleared after a successful undo or when a new
@@ -451,6 +474,14 @@ func (m *Model) SetPlaylists(rows []db.PlaylistRow) {
 // passing it to tea.NewProgram. When nil, actionPlaylistOpen is a no-op.
 func (m *Model) SetPlaylistTrackReader(r playlistTrackReader) {
 	m.playlistReader = r
+}
+
+// SetPlaylistWriter sets the playlistCreator used to persist a new playlist
+// and refresh the list after creation. Call this on the Model returned by New
+// before passing it to tea.NewProgram. When nil, confirming the inline create
+// input is a no-op (the field is dismissed without writing to the database).
+func (m *Model) SetPlaylistWriter(w playlistCreator) {
+	m.playlistWriter = w
 }
 
 // undoWindowDuration is the time after a destructive queue action during which
@@ -969,6 +1000,44 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		// When the inline playlist create input is active, intercept all
+		// keypresses before the registry.
+		if m.playlists.isCreating() && m.activeView == viewPlaylists {
+			switch msg.String() {
+			case "esc":
+				m.playlists = m.playlists.cancelCreate()
+			case "enter":
+				if !m.playlists.createInputIsEmpty() {
+					name := m.playlists.createInputValue()
+					if m.playlistWriter != nil {
+						pw := m.playlistWriter
+						return m, func() tea.Msg {
+							id, err := pw.CreatePlaylist(name)
+							if err != nil {
+								return playlistCreateErrorMsg{err: err}
+							}
+							rows, err := pw.ReadPlaylists()
+							if err != nil {
+								return playlistCreateErrorMsg{err: err}
+							}
+							return playlistCreatedMsg{id: id, playlists: rows}
+						}
+					}
+					// No writer: dismiss the input without persisting.
+					m.playlists = m.playlists.cancelCreate()
+				}
+				// Empty/whitespace input: keep the field active (no-op).
+			case "backspace":
+				m.playlists = m.playlists.backspaceCreate()
+			default:
+				if msg.Text != "" {
+					for _, ch := range msg.Text {
+						m.playlists = m.playlists.appendCreateChar(ch)
+					}
+				}
+			}
+			return m, nil
+		}
 		a := m.registry.resolve(m.activeViewContext(), msg.String())
 		switch a {
 		case actionHelp:
@@ -1137,6 +1206,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case playlistTracksLoadedMsg:
 		m.playlists = m.playlists.openTracks(msg.tracks)
+
+	case PlaylistCreateMsg:
+		if m.playlists.atListLevel() {
+			m.playlists = m.playlists.startCreate()
+		}
+
+	case playlistCreatedMsg:
+		m.playlists.playlists = msg.playlists
+		m.playlists = m.playlists.cancelCreate()
+		for i, p := range msg.playlists {
+			if p.ID == msg.id {
+				m.playlists.cursor = i
+				break
+			}
+		}
+
+	case playlistCreateErrorMsg:
+		m.playlists = m.playlists.cancelCreate()
+		m.statusBar.notification = transientNotification{
+			msg:       "Failed to create playlist: " + msg.err.Error(),
+			expiresAt: time.Now().Add(transientDuration),
+		}
 	}
 	return m, nil
 }

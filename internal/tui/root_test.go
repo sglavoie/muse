@@ -1351,6 +1351,157 @@ func TestPlaylistLocalCFiresCreateNotGlobalAction(t *testing.T) {
 	}
 }
 
+// stubPlaylistCreator is a minimal playlistCreator used in create-flow tests.
+type stubPlaylistCreator struct {
+	createErr error
+	readErr   error
+	rows      []db.PlaylistRow
+	nextID    int64
+}
+
+func (s *stubPlaylistCreator) CreatePlaylist(name string) (int64, error) {
+	if s.createErr != nil {
+		return 0, s.createErr
+	}
+	id := s.nextID
+	s.rows = append(s.rows, db.PlaylistRow{ID: id, Name: name})
+	return id, nil
+}
+
+func (s *stubPlaylistCreator) ReadPlaylists() ([]db.PlaylistRow, error) {
+	if s.readErr != nil {
+		return nil, s.readErr
+	}
+	return s.rows, nil
+}
+
+// TestPlaylistCreateFlowSuccess exercises the full inline create flow:
+// 'c' activates the input, typing a name and pressing Enter calls CreatePlaylist,
+// feeds playlistCreatedMsg back to Update, and verifies the name appears in the
+// rendered view with the cursor positioned on the new entry.
+func TestPlaylistCreateFlowSuccess(t *testing.T) {
+	creator := &stubPlaylistCreator{nextID: 42}
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	m.SetPlaylistWriter(creator)
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m = next.(Model)
+
+	// 'c' dispatches PlaylistCreateMsg.
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	m = next.(Model)
+	if cmd == nil {
+		t.Fatal("c: expected non-nil cmd")
+	}
+	next, _ = m.Update(cmd())
+	m = next.(Model)
+
+	// Type the playlist name character by character.
+	for _, ch := range "MyList" {
+		next, _ = m.Update(tea.KeyPressMsg{Code: ch, Text: string(ch)})
+		m = next.(Model)
+	}
+
+	// Press Enter — should return the async create cmd.
+	next, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(Model)
+	if cmd == nil {
+		t.Fatal("Enter: expected non-nil cmd for CreatePlaylist")
+	}
+
+	// Execute the cmd and feed the resulting playlistCreatedMsg back.
+	result := cmd()
+	if _, ok := result.(playlistCreatedMsg); !ok {
+		t.Fatalf("cmd result: expected playlistCreatedMsg, got %T", result)
+	}
+	next, _ = m.Update(result)
+	m = next.(Model)
+
+	// Verify the new playlist name appears in the view.
+	v := m.View()
+	if !strings.Contains(v.Content, "MyList") {
+		t.Errorf("expected 'MyList' in view after creation, got:\n%s", v.Content)
+	}
+
+	// Verify cursor is on the new entry (index 0, the only entry).
+	if m.playlists.cursor != 0 {
+		t.Errorf("expected cursor=0 on new entry, got %d", m.playlists.cursor)
+	}
+}
+
+// TestPlaylistCreateFlowEscCancels verifies that pressing Esc during inline
+// creation discards the input without persisting anything.
+func TestPlaylistCreateFlowEscCancels(t *testing.T) {
+	creator := &stubPlaylistCreator{nextID: 1}
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	m.SetPlaylistWriter(creator)
+
+	// Activate create mode.
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	m = next.(Model)
+	next, _ = m.Update(cmd())
+	m = next.(Model)
+
+	// Type something, then press Esc.
+	for _, ch := range "Oops" {
+		next, _ = m.Update(tea.KeyPressMsg{Code: ch, Text: string(ch)})
+		m = next.(Model)
+	}
+	next, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	m = next.(Model)
+
+	if m.playlists.isCreating() {
+		t.Error("expected isCreating=false after Esc")
+	}
+	if len(creator.rows) != 0 {
+		t.Errorf("expected no playlists persisted after Esc, got %d", len(creator.rows))
+	}
+}
+
+// TestPlaylistCreateFlowErrorShowsNotification verifies that a CreatePlaylist
+// error cancels the input and surfaces a status bar notification.
+func TestPlaylistCreateFlowErrorShowsNotification(t *testing.T) {
+	creator := &stubPlaylistCreator{createErr: &errPlaylistCreate{msg: "db locked"}, nextID: 1}
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	m.SetPlaylistWriter(creator)
+
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	m = next.(Model)
+	next, _ = m.Update(cmd())
+	m = next.(Model)
+
+	for _, ch := range "Oops" {
+		next, _ = m.Update(tea.KeyPressMsg{Code: ch, Text: string(ch)})
+		m = next.(Model)
+	}
+	next, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(Model)
+	if cmd == nil {
+		t.Fatal("Enter: expected non-nil cmd")
+	}
+
+	result := cmd()
+	if _, ok := result.(playlistCreateErrorMsg); !ok {
+		t.Fatalf("cmd result: expected playlistCreateErrorMsg, got %T", result)
+	}
+	next, _ = m.Update(result)
+	m = next.(Model)
+
+	if m.playlists.isCreating() {
+		t.Error("expected isCreating=false after error")
+	}
+	if !strings.Contains(m.statusBar.notification.msg, "db locked") {
+		t.Errorf("expected error message in status bar, got %q", m.statusBar.notification.msg)
+	}
+}
+
+// errPlaylistCreate is a simple error type used in create-flow error tests.
+type errPlaylistCreate struct{ msg string }
+
+func (e *errPlaylistCreate) Error() string { return e.msg }
+
 // stubSeekPlayer extends stubPlayer with tracking for SeekRelative, Next, and
 // Previous calls so that seek and navigation key tests can assert correct deltas
 // and call counts without a real mpv backend.

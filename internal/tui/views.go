@@ -30,24 +30,73 @@ const (
 // (at TrackLevel) the tracks of the open playlist. Rendering is delegated to
 // the playlists sub-package.
 type PlaylistsView struct {
-	level      pltui.Level
-	cursor     int
-	listCursor int                  // saved list cursor; preserved across drill-down and back
-	playlists  []db.PlaylistRow
-	tracks     []db.PlaylistTrackRow // populated when level == TrackLevel
-	width      int
-	height     int
+	level       pltui.Level
+	cursor      int
+	listCursor  int                  // saved list cursor; preserved across drill-down and back
+	playlists   []db.PlaylistRow
+	tracks      []db.PlaylistTrackRow // populated when level == TrackLevel
+	width       int
+	height      int
+	creating    bool            // true while the inline create input is active
+	createInput pltui.TextInput // current value of the inline create field
 }
 
 func (v PlaylistsView) render() string {
 	return pltui.View{
-		Level:     v.level,
-		Cursor:    v.cursor,
-		Playlists: v.playlists,
-		Tracks:    v.tracks,
-		Width:     v.width,
-		Height:    v.height,
+		Level:       v.level,
+		Cursor:      v.cursor,
+		Playlists:   v.playlists,
+		Tracks:      v.tracks,
+		Width:       v.width,
+		Height:      v.height,
+		Creating:    v.creating,
+		CreateInput: v.createInput,
 	}.Render()
+}
+
+// isCreating reports whether the inline create input is active.
+func (v PlaylistsView) isCreating() bool {
+	return v.creating
+}
+
+// startCreate activates the inline create input with an empty buffer.
+func (v PlaylistsView) startCreate() PlaylistsView {
+	view := pltui.View{Creating: v.creating, CreateInput: v.createInput}.StartCreate()
+	v.creating = view.Creating
+	v.createInput = view.CreateInput
+	return v
+}
+
+// cancelCreate dismisses the inline create input without persisting.
+func (v PlaylistsView) cancelCreate() PlaylistsView {
+	view := pltui.View{Creating: v.creating, CreateInput: v.createInput}.CancelCreate()
+	v.creating = view.Creating
+	v.createInput = view.CreateInput
+	return v
+}
+
+// appendCreateChar appends r to the create input buffer.
+func (v PlaylistsView) appendCreateChar(r rune) PlaylistsView {
+	view := pltui.View{Creating: v.creating, CreateInput: v.createInput}.AppendCreateChar(r)
+	v.createInput = view.CreateInput
+	return v
+}
+
+// backspaceCreate removes the last rune from the create input buffer.
+func (v PlaylistsView) backspaceCreate() PlaylistsView {
+	view := pltui.View{Creating: v.creating, CreateInput: v.createInput}.BackspaceCreate()
+	v.createInput = view.CreateInput
+	return v
+}
+
+// createInputValue returns the current create input buffer as a string.
+func (v PlaylistsView) createInputValue() string {
+	return v.createInput.Value()
+}
+
+// createInputIsEmpty reports whether the trimmed create input buffer is empty.
+func (v PlaylistsView) createInputIsEmpty() bool {
+	return v.createInput.IsEmpty()
 }
 
 // HandleAction executes a pre-resolved playlists action dispatched by root.Update.

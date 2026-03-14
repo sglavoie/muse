@@ -19,13 +19,15 @@ const (
 // View is the pure render struct for the playlists panel. All fields are set
 // by the caller (PlaylistsView in the tui package) before each Render call.
 type View struct {
-	Level      Level
-	Cursor     int
-	ListCursor int                  // saved list cursor; restored when BackToList is called
-	Playlists  []db.PlaylistRow
-	Tracks     []db.PlaylistTrackRow // populated when Level == TrackLevel
-	Width      int
-	Height     int
+	Level       Level
+	Cursor      int
+	ListCursor  int                  // saved list cursor; restored when BackToList is called
+	Playlists   []db.PlaylistRow
+	Tracks      []db.PlaylistTrackRow // populated when Level == TrackLevel
+	Width       int
+	Height      int
+	Creating    bool      // true while the inline create input is active
+	CreateInput TextInput // current value of the inline create field
 }
 
 // CursorUp returns a copy of v with the cursor moved up by one row,
@@ -72,6 +74,34 @@ func (v View) BackToList() View {
 	return v
 }
 
+// StartCreate returns a copy of v with the inline create input activated and
+// its buffer cleared.
+func (v View) StartCreate() View {
+	v.Creating = true
+	v.CreateInput = NewTextInput("")
+	return v
+}
+
+// CancelCreate returns a copy of v with the inline create input dismissed.
+func (v View) CancelCreate() View {
+	v.Creating = false
+	v.CreateInput = TextInput{}
+	return v
+}
+
+// AppendCreateChar returns a copy of v with r appended to the create buffer.
+func (v View) AppendCreateChar(r rune) View {
+	v.CreateInput = v.CreateInput.AppendRune(r)
+	return v
+}
+
+// BackspaceCreate returns a copy of v with the last rune removed from the
+// create buffer.
+func (v View) BackspaceCreate() View {
+	v.CreateInput = v.CreateInput.Backspace()
+	return v
+}
+
 // Render returns the string representation of the playlists panel.
 func (v View) Render() string {
 	switch v.Level {
@@ -83,12 +113,12 @@ func (v View) Render() string {
 }
 
 func (v View) renderList() string {
-	if len(v.Playlists) == 0 {
+	if len(v.Playlists) == 0 && !v.Creating {
 		return "Playlists\n\n(no playlists)"
 	}
 
 	cols := Compute(v.Width)
-	lines := make([]string, len(v.Playlists))
+	var lines []string
 	for i, p := range v.Playlists {
 		name := truncate(p.Name, cols.Name)
 		name = fmt.Sprintf("%-*s", cols.Name, name)
@@ -98,9 +128,25 @@ func (v View) renderList() string {
 		if i == v.Cursor {
 			line = ansiAccent + line + ansiReset
 		}
-		lines[i] = line
+		lines = append(lines, line)
+		if v.Creating && i == v.Cursor {
+			lines = append(lines, v.renderCreateInputRow(cols))
+		}
+	}
+	// When the list is empty the input is still shown at the top.
+	if v.Creating && len(v.Playlists) == 0 {
+		lines = append(lines, v.renderCreateInputRow(cols))
 	}
 	return "Playlists\n\n" + strings.Join(lines, "\n")
+}
+
+// renderCreateInputRow renders the inline text input as a highlighted row
+// fitted to the same column widths as a normal playlist row.
+func (v View) renderCreateInputRow(cols Columns) string {
+	rowWidth := cols.Name + nameSep + cols.Count
+	display := truncate(v.CreateInput.Render(), rowWidth)
+	display = fmt.Sprintf("%-*s", rowWidth, display)
+	return ansiAccent + display + ansiReset
 }
 
 func (v View) renderTracks() string {
