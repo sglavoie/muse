@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math/rand/v2"
 	"time"
 
 	"github.com/sglavoie/muse/internal/library"
@@ -308,6 +309,67 @@ func (w *Writer) PurgeDeletedQueueEntries(before int64) error {
 			`DELETE FROM queue WHERE deleted_at IS NOT NULL AND deleted_at < ?`, before,
 		)
 		return err
+	})
+}
+
+// WriteShuffle persists the shuffle flag to the session row and, when enabled
+// is true, regenerates shuffle_position for all active queue rows with fresh
+// random gapped integers inside a single transaction. When disabled, only the
+// session flag is updated; the caller switches ordering back to the position
+// column at query time.
+func (w *Writer) WriteShuffle(enabled bool) error {
+	return w.Exec(func(db *sql.DB) error {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback() //nolint:errcheck
+
+		shuffleVal := 0
+		if enabled {
+			shuffleVal = 1
+		}
+		if _, err := tx.Exec(
+			`UPDATE session SET shuffle=?, updated_at=? WHERE id=1`,
+			shuffleVal, time.Now().Unix(),
+		); err != nil {
+			return err
+		}
+
+		if enabled {
+			rows, err := tx.Query(`SELECT id FROM queue WHERE deleted_at IS NULL`)
+			if err != nil {
+				return err
+			}
+			var ids []int64
+			for rows.Next() {
+				var id int64
+				if err := rows.Scan(&id); err != nil {
+					rows.Close()
+					return err
+				}
+				ids = append(ids, id)
+			}
+			rows.Close()
+			if err := rows.Err(); err != nil {
+				return err
+			}
+
+			if len(ids) > 0 {
+				perm := rand.Perm(len(ids))
+				for i, id := range ids {
+					newPos := int64(perm[i]+1) * 1000
+					if _, err := tx.Exec(
+						`UPDATE queue SET shuffle_position=? WHERE id=?`,
+						newPos, id,
+					); err != nil {
+						return err
+					}
+				}
+			}
+		}
+
+		return tx.Commit()
 	})
 }
 

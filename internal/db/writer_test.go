@@ -407,6 +407,168 @@ func TestPurgeDeletedQueueEntries(t *testing.T) {
 	}
 }
 
+// TestWriteShuffle_Enable verifies that WriteShuffle(true) assigns non-zero
+// shuffle_position values to all active rows inside a single transaction and
+// writes shuffle=1 to the session row. Soft-deleted rows are not reordered.
+func TestWriteShuffle_Enable(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "hs10", "/f10")
+	now := time.Now().Unix()
+
+	var activeIDs []int64
+	for _, pos := range []int{1000, 2000, 3000} {
+		res, err := d.Exec(
+			`INSERT INTO queue (track_hash, position, added_at) VALUES ('hs10', ?, ?)`, pos, now,
+		)
+		if err != nil {
+			t.Fatalf("insert active row pos %d: %v", pos, err)
+		}
+		id, _ := res.LastInsertId()
+		activeIDs = append(activeIDs, id)
+	}
+
+	// One soft-deleted row — must not be touched.
+	res, err := d.Exec(
+		`INSERT INTO queue (track_hash, position, added_at, deleted_at) VALUES ('hs10', 4000, ?, ?)`,
+		now, now,
+	)
+	if err != nil {
+		t.Fatalf("insert soft-deleted row: %v", err)
+	}
+	deletedID, _ := res.LastInsertId()
+
+	if err := w.WriteShuffle(true); err != nil {
+		t.Fatalf("WriteShuffle(true): %v", err)
+	}
+
+	// All active rows must have a positive shuffle_position.
+	for _, id := range activeIDs {
+		var sp int64
+		if err := d.QueryRow(`SELECT shuffle_position FROM queue WHERE id=?`, id).Scan(&sp); err != nil {
+			t.Fatalf("query shuffle_position for id %d: %v", id, err)
+		}
+		if sp <= 0 {
+			t.Errorf("id %d: shuffle_position = %d; want > 0", id, sp)
+		}
+	}
+
+	// Soft-deleted row must keep shuffle_position = 0 (default).
+	var sp int64
+	if err := d.QueryRow(`SELECT shuffle_position FROM queue WHERE id=?`, deletedID).Scan(&sp); err != nil {
+		t.Fatalf("query deleted row: %v", err)
+	}
+	if sp != 0 {
+		t.Errorf("soft-deleted row shuffle_position = %d; want 0", sp)
+	}
+
+	// Session must have shuffle=1.
+	var shuffle int
+	if err := d.QueryRow(`SELECT shuffle FROM session WHERE id=1`).Scan(&shuffle); err != nil {
+		t.Fatalf("query session: %v", err)
+	}
+	if shuffle != 1 {
+		t.Errorf("session.shuffle = %d; want 1", shuffle)
+	}
+}
+
+// TestWriteShuffle_Disable verifies that WriteShuffle(false) writes shuffle=0
+// to the session row without modifying shuffle_position values.
+func TestWriteShuffle_Disable(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "hs11", "/f11")
+	now := time.Now().Unix()
+
+	// Insert a row with a non-default shuffle_position.
+	res, err := d.Exec(
+		`INSERT INTO queue (track_hash, position, shuffle_position, added_at) VALUES ('hs11', 1000, 5000, ?)`, now,
+	)
+	if err != nil {
+		t.Fatalf("insert queue row: %v", err)
+	}
+	id, _ := res.LastInsertId()
+
+	// Set session shuffle=1 first.
+	if _, err := d.Exec(`UPDATE session SET shuffle=1, updated_at=? WHERE id=1`, now); err != nil {
+		t.Fatalf("set session shuffle: %v", err)
+	}
+
+	if err := w.WriteShuffle(false); err != nil {
+		t.Fatalf("WriteShuffle(false): %v", err)
+	}
+
+	// Session must have shuffle=0.
+	var shuffle int
+	if err := d.QueryRow(`SELECT shuffle FROM session WHERE id=1`).Scan(&shuffle); err != nil {
+		t.Fatalf("query session: %v", err)
+	}
+	if shuffle != 0 {
+		t.Errorf("session.shuffle = %d; want 0", shuffle)
+	}
+
+	// shuffle_position must be unchanged.
+	var sp int64
+	if err := d.QueryRow(`SELECT shuffle_position FROM queue WHERE id=?`, id).Scan(&sp); err != nil {
+		t.Fatalf("query shuffle_position: %v", err)
+	}
+	if sp != 5000 {
+		t.Errorf("shuffle_position = %d; want 5000 (unchanged)", sp)
+	}
+}
+
+// TestWriteShuffle_TwoEnablesProduceDifferentOrderings verifies that calling
+// WriteShuffle(true) twice produces different shuffle_position assignments.
+// This test is probabilistic: a false positive is astronomically unlikely with
+// 5+ rows (1/5! ≈ 0.8% chance of identical ordering).
+func TestWriteShuffle_TwoEnablesProduceDifferentOrderings(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "hs12", "/f12")
+	now := time.Now().Unix()
+
+	var ids []int64
+	for _, pos := range []int{1000, 2000, 3000, 4000, 5000} {
+		res, err := d.Exec(
+			`INSERT INTO queue (track_hash, position, added_at) VALUES ('hs12', ?, ?)`, pos, now,
+		)
+		if err != nil {
+			t.Fatalf("insert row pos %d: %v", pos, err)
+		}
+		id, _ := res.LastInsertId()
+		ids = append(ids, id)
+	}
+
+	readPositions := func() []int64 {
+		var positions []int64
+		for _, id := range ids {
+			var sp int64
+			if err := d.QueryRow(`SELECT shuffle_position FROM queue WHERE id=?`, id).Scan(&sp); err != nil {
+				t.Fatalf("query shuffle_position for id %d: %v", id, err)
+			}
+			positions = append(positions, sp)
+		}
+		return positions
+	}
+
+	if err := w.WriteShuffle(true); err != nil {
+		t.Fatalf("first WriteShuffle(true): %v", err)
+	}
+	first := readPositions()
+
+	if err := w.WriteShuffle(true); err != nil {
+		t.Fatalf("second WriteShuffle(true): %v", err)
+	}
+	second := readPositions()
+
+	if slices.Equal(first, second) {
+		t.Errorf("two consecutive enables produced identical shuffle_position ordering %v; expected different", first)
+	}
+}
+
 // TestRenumberQueuePositions_NoOp verifies that RenumberQueuePositions makes
 // no changes when all adjacent gaps are >= 1.
 func TestRenumberQueuePositions_NoOp(t *testing.T) {

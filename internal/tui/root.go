@@ -198,10 +198,11 @@ func (r RepeatMode) String() string {
 }
 
 // sessionWriter is implemented by db.Writer. Root calls WriteRepeatMode after
-// each actionRepeatCycle to persist the selected mode to the session table via
-// the single-writer goroutine.
+// each actionRepeatCycle and WriteShuffle after each actionShuffleToggle to
+// persist mode changes to the session table via the single-writer goroutine.
 type sessionWriter interface {
 	WriteRepeatMode(mode string) error
+	WriteShuffle(enabled bool) error
 }
 
 // PlaybackState represents the current playback status shown in the status bar.
@@ -862,6 +863,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.shuffle = !m.shuffle
 			if rs, ok := m.player.(repeatShuffler); ok {
 				_ = rs.SetShuffle(m.shuffle)
+			}
+			if m.sessionWriter != nil {
+				_ = m.sessionWriter.WriteShuffle(m.shuffle)
 			}
 		case actionUndo:
 			return m, func() tea.Msg { return UndoMsg{} }

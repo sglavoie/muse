@@ -1137,13 +1137,19 @@ func TestLowerRCyclesRepeatModeInNonPlaylistViews(t *testing.T) {
 	}
 }
 
-// stubSessionWriter records WriteRepeatMode calls for assertion in tests.
+// stubSessionWriter records WriteRepeatMode and WriteShuffle calls for assertion in tests.
 type stubSessionWriter struct {
-	calls []string
+	calls         []string
+	shuffleCalls  []bool
 }
 
 func (s *stubSessionWriter) WriteRepeatMode(mode string) error {
 	s.calls = append(s.calls, mode)
+	return nil
+}
+
+func (s *stubSessionWriter) WriteShuffle(enabled bool) error {
+	s.shuffleCalls = append(s.shuffleCalls, enabled)
 	return nil
 }
 
