@@ -117,6 +117,78 @@ func (d *DB) ReadSession() (*SessionRow, error) {
 	return &r, nil
 }
 
+// PlaylistRow holds a single playlist entry with its active track count.
+// Used by ReadPlaylists to return typed results for the playlist list view.
+type PlaylistRow struct {
+	Name       string
+	TrackCount int
+}
+
+// ReadPlaylists returns all active (non-deleted) playlists ordered
+// alphabetically by name (case-insensitive), each with its active track count.
+// Returns an empty slice (not an error) when no playlists exist.
+func (d *DB) ReadPlaylists() ([]PlaylistRow, error) {
+	rows, err := d.Query(`
+		SELECT p.name, COUNT(pt.id)
+		FROM playlists p
+		LEFT JOIN playlist_tracks pt ON pt.playlist_id = p.id
+		WHERE p.deleted_at IS NULL
+		GROUP BY p.id
+		ORDER BY p.name COLLATE NOCASE
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("db: read playlists: %w", err)
+	}
+	defer rows.Close()
+
+	var result []PlaylistRow
+	for rows.Next() {
+		var r PlaylistRow
+		if err := rows.Scan(&r.Name, &r.TrackCount); err != nil {
+			return nil, fmt.Errorf("db: read playlist row: %w", err)
+		}
+		result = append(result, r)
+	}
+	return result, rows.Err()
+}
+
+// PlaylistTrackRow holds a single playlist track entry with its position and
+// track metadata. Used by ReadPlaylistTracks to return typed results for the
+// playlist track-level view.
+type PlaylistTrackRow struct {
+	Position   int64
+	Title      string
+	Artist     string
+	DurationMs int64
+}
+
+// ReadPlaylistTracks returns all tracks for the given playlist ID ordered by
+// ascending position, joined with track metadata. Returns an empty slice (not
+// an error) when the playlist has no tracks.
+func (d *DB) ReadPlaylistTracks(playlistID int64) ([]PlaylistTrackRow, error) {
+	rows, err := d.Query(`
+		SELECT pt.position, t.title, t.artist, t.duration_ms
+		FROM playlist_tracks pt
+		JOIN tracks t ON pt.track_hash = t.hash
+		WHERE pt.playlist_id = ?
+		ORDER BY pt.position
+	`, playlistID)
+	if err != nil {
+		return nil, fmt.Errorf("db: read playlist tracks: %w", err)
+	}
+	defer rows.Close()
+
+	var result []PlaylistTrackRow
+	for rows.Next() {
+		var r PlaylistTrackRow
+		if err := rows.Scan(&r.Position, &r.Title, &r.Artist, &r.DurationMs); err != nil {
+			return nil, fmt.Errorf("db: read playlist track row: %w", err)
+		}
+		result = append(result, r)
+	}
+	return result, rows.Err()
+}
+
 // configure applies the required PRAGMA settings.
 func configure(db *sql.DB) error {
 	pragmas := []string{

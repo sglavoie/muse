@@ -41,14 +41,16 @@ const (
 // FilterText accumulates the query string while FilterActive is true.
 // Fuzzy is the fuzzy search engine used when the filter bar is active;
 // inject musiclib.FakeFuzzySearcher in tests and musiclib.SahilmFuzzySearcher in production.
+// SelectedHashes holds the set of track hashes that are bulk-selected.
 type View struct {
-	Index        musiclib.LibraryIndex
-	Width        int
-	Height       int
-	Cursor       int
-	FilterActive bool
-	FilterText   string
-	Fuzzy        musiclib.FuzzySearcher
+	Index          musiclib.LibraryIndex
+	Width          int
+	Height         int
+	Cursor         int
+	FilterActive   bool
+	FilterText     string
+	Fuzzy          musiclib.FuzzySearcher
+	SelectedHashes map[string]struct{}
 }
 
 // CursorUp moves the cursor one row up, stopping at the first track.
@@ -178,7 +180,7 @@ func (v View) Render() string {
 	}
 
 	cols := Compute(v.Width)
-	header := renderRow("#", "Artist", "Title", "Album", "Time", cols)
+	header := strings.Repeat(" ", cols.SelectionMarker) + renderRow("#", "Artist", "Title", "Album", "Time", cols)
 
 	if end == 0 {
 		noMatches := "No matches"
@@ -192,18 +194,26 @@ func (v View) Render() string {
 		num := fmt.Sprintf("%d", i+1)
 		dur := formatDuration(t.Duration)
 
+		_, isSelected := v.SelectedHashes[t.Hash]
+		var markerStr string
+		if isSelected {
+			markerStr = ansiAccent + "●" + ansiReset + " "
+		} else {
+			markerStr = "  "
+		}
+
 		var row string
 		if len(dt.matchedIndexes) > 0 {
 			artistOffset, artistLen, titleOffset, titleLen := searchFieldOffsets(t.Artist, t.Title)
 			artistPos := fieldMatchPositions(dt.matchedIndexes, artistOffset, artistLen)
 			titlePos := fieldMatchPositions(dt.matchedIndexes, titleOffset, titleLen)
-			row = pad(num, cols.TrackNum) + " " +
+			row = markerStr + pad(num, cols.TrackNum) + " " +
 				padHighlight(t.Artist, cols.Artist, artistPos) + " " +
 				padHighlight(t.Title, cols.Title, titlePos) + " " +
 				pad(t.Album, cols.Album) + " " +
 				pad(dur, cols.Duration)
 		} else {
-			row = renderRow(num, t.Artist, t.Title, t.Album, dur, cols)
+			row = markerStr + renderRow(num, t.Artist, t.Title, t.Album, dur, cols)
 		}
 
 		if i == v.Cursor {

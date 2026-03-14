@@ -45,6 +45,34 @@ func insertQueueEntry(t *testing.T, d *db.DB, hash string, position int) int64 {
 	return id
 }
 
+// insertPlaylist inserts a minimal playlists row and returns its id.
+func insertPlaylist(t *testing.T, d *db.DB, name string) int64 {
+	t.Helper()
+	now := time.Now().Unix()
+	res, err := d.Exec(
+		`INSERT INTO playlists (name, created_at, updated_at) VALUES (?, ?, ?)`,
+		name, now, now,
+	)
+	if err != nil {
+		t.Fatalf("insertPlaylist: %v", err)
+	}
+	id, _ := res.LastInsertId()
+	return id
+}
+
+// insertPlaylistTrack inserts a playlist_tracks row for testing.
+func insertPlaylistTrack(t *testing.T, d *db.DB, playlistID int64, hash string, position int) {
+	t.Helper()
+	now := time.Now().Unix()
+	_, err := d.Exec(
+		`INSERT INTO playlist_tracks (playlist_id, track_hash, position, added_at) VALUES (?, ?, ?, ?)`,
+		playlistID, hash, position, now,
+	)
+	if err != nil {
+		t.Fatalf("insertPlaylistTrack: %v", err)
+	}
+}
+
 func TestWriter_MarkTrackMissing(t *testing.T) {
 	d := openMigratedDB(t)
 	insertTrack(t, d, "hash1", "/music/a.flac")

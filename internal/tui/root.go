@@ -1051,6 +1051,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.queueWriter != nil {
 				return m, m.library.EnqueueFocused(m.queueWriter, len(m.queue.entries))
 			}
+		case actionBulkAction:
+			if m.activeView == viewLibrary && len(m.library.selectedHashes) > 0 && m.queueWriter != nil {
+				var cmd tea.Cmd
+				m.library, cmd = m.library.EnqueueSelected(m.queueWriter, len(m.queue.entries))
+				return m, cmd
+			}
 		case actionCursorUp, actionCursorDown:
 			// Route cursor movement to the active view. Library cursor is
 			// stored on LibraryView; queue cursor is stored on QueueView.

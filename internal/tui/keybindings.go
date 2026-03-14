@@ -57,6 +57,9 @@ const (
 	// Playlists-local actions.
 	actionPlaylistRename
 	actionPlaylistCreate // 'c': create new playlist
+
+	// Bulk-selection action — triggered by 'a' when tracks are selected.
+	actionBulkAction // 'a': apply context-appropriate bulk action and clear selection
 )
 
 // registryKey is the composite map key for registry lookups.
@@ -104,6 +107,8 @@ func newRegistry() Registry {
 	r.register(contextLibrary, "up", actionCursorUp)
 	r.register(contextLibrary, "down", actionCursorDown)
 	r.register(contextLibrary, "enter", actionLibraryEnqueue)
+	r.register(contextLibrary, "x", actionBulkSelectionToggle)
+	r.register(contextLibrary, "a", actionBulkAction)
 
 	// Queue-local bindings.
 	r.register(contextQueue, "up", actionCursorUp)

@@ -10,40 +10,57 @@ import (
 
 // LibraryView renders the music library panel backed by a sorted LibraryIndex.
 type LibraryView struct {
-	index        library.LibraryIndex
-	width        int
-	height       int
-	cursor       int // zero-based index of the focused track row
-	filterActive bool
-	filterText   string
-	fuzzy        library.FuzzySearcher
+	index          library.LibraryIndex
+	width          int
+	height         int
+	cursor         int // zero-based index of the focused track row
+	filterActive   bool
+	filterText     string
+	fuzzy          library.FuzzySearcher
+	selectedHashes map[string]struct{} // bulk-selected track hashes
 }
 
 // render returns a string representation of the library panel with proportional
 // columnar layout. Column widths resize with the terminal width.
 func (v LibraryView) render() string {
-	return libtui.View{
-		Index:        v.index,
-		Width:        v.width,
-		Height:       v.height,
-		Cursor:       v.cursor,
-		FilterActive: v.filterActive,
-		FilterText:   v.filterText,
-		Fuzzy:        v.fuzzy,
-	}.Render()
+	return v.view().Render()
 }
 
 // view returns a fully-populated libtui.View from the current LibraryView state.
 func (v LibraryView) view() libtui.View {
 	return libtui.View{
-		Index:        v.index,
-		Width:        v.width,
-		Height:       v.height,
-		Cursor:       v.cursor,
-		FilterActive: v.filterActive,
-		FilterText:   v.filterText,
-		Fuzzy:        v.fuzzy,
+		Index:          v.index,
+		Width:          v.width,
+		Height:         v.height,
+		Cursor:         v.cursor,
+		FilterActive:   v.filterActive,
+		FilterText:     v.filterText,
+		Fuzzy:          v.fuzzy,
+		SelectedHashes: v.selectedHashes,
 	}
+}
+
+// ToggleBulkSelection toggles hash in the selected set. If hash is empty it is
+// a no-op. The map is lazily initialised on first toggle.
+func (v LibraryView) ToggleBulkSelection(hash string) LibraryView {
+	if hash == "" {
+		return v
+	}
+	if v.selectedHashes == nil {
+		v.selectedHashes = make(map[string]struct{})
+	}
+	if _, ok := v.selectedHashes[hash]; ok {
+		delete(v.selectedHashes, hash)
+	} else {
+		v.selectedHashes[hash] = struct{}{}
+	}
+	return v
+}
+
+// ClearSelection removes all bulk-selection markers.
+func (v LibraryView) ClearSelection() LibraryView {
+	v.selectedHashes = nil
+	return v
 }
 
 // HandleAction executes a pre-resolved library action dispatched by root.Update.
@@ -54,6 +71,11 @@ func (v LibraryView) HandleAction(a action) LibraryView {
 		view = view.CursorUp()
 	case actionCursorDown:
 		view = view.CursorDown()
+	case actionBulkSelectionToggle:
+		if t, ok := view.FocusedTrack(); ok {
+			return v.ToggleBulkSelection(t.Hash)
+		}
+		return v
 	}
 	v.cursor = view.Cursor
 	return v
@@ -66,6 +88,36 @@ func (v LibraryView) HandleAction(a action) LibraryView {
 func (v LibraryView) EnqueueFocused(qa libtui.QueueAppender, prevQueueLen int) tea.Cmd {
 	_, cmd := v.view().EnqueueFocused(qa, prevQueueLen)
 	return cmd
+}
+
+// EnqueueSelected dispatches a tea.Cmd that appends all bulk-selected tracks to
+// the play queue via qa, in index order, then clears the selection. Returns the
+// updated view (with selection cleared) and a nil Cmd when no tracks are
+// selected. prevQueueLen is used to set WasEmpty on the first enqueued track so
+// the root model can trigger immediate playback when the queue was empty.
+func (v LibraryView) EnqueueSelected(qa libtui.QueueAppender, prevQueueLen int) (LibraryView, tea.Cmd) {
+	if len(v.selectedHashes) == 0 {
+		return v, nil
+	}
+	var cmds []tea.Cmd
+	queueLen := prevQueueLen
+	for _, t := range v.index.Tracks() {
+		if _, ok := v.selectedHashes[t.Hash]; !ok {
+			continue
+		}
+		track := t
+		wasEmpty := queueLen == 0
+		queueLen++
+		cmds = append(cmds, func() tea.Msg {
+			id, err := qa.AppendTrack(track)
+			return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty}
+		})
+	}
+	v = v.ClearSelection()
+	if len(cmds) == 0 {
+		return v, nil
+	}
+	return v, tea.Batch(cmds...)
 }
 
 // ActivateFilter sets the filter bar to active.

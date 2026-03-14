@@ -1,9 +1,10 @@
 package library
 
 const (
-	trackNumFixed = 5
-	durationFixed = 10
-	sepCount      = 4 // spaces separating the five columns
+	selectionMarkerFixed = 2  // '●' glyph + separator space
+	trackNumFixed        = 5
+	durationFixed        = 10
+	sepCount             = 4 // spaces separating the five content columns
 
 	artistRatio = 30
 	titleRatio  = 35
@@ -14,11 +15,12 @@ const (
 // Columns holds the computed character widths for each track list column.
 // All widths are in Unicode code points (runes), not bytes.
 type Columns struct {
-	TrackNum int // fixed: trackNumFixed chars
-	Artist   int // proportional: ~30% of flex
-	Title    int // proportional: ~35% of flex; absorbs rounding remainder
-	Album    int // proportional: ~25% of flex
-	Duration int // fixed: durationFixed chars
+	SelectionMarker int // fixed: selectionMarkerFixed chars ('●'/' ' + space)
+	TrackNum        int // fixed: trackNumFixed chars
+	Artist          int // proportional: ~30% of flex
+	Title           int // proportional: ~35% of flex; absorbs rounding remainder
+	Album           int // proportional: ~25% of flex
+	Duration        int // fixed: durationFixed chars
 }
 
 // Compute calculates column widths for the given total terminal width.
@@ -31,21 +33,22 @@ type Columns struct {
 // When totalWidth is too small for the full layout, only TrackNum is set and
 // the remaining fields are zero, signalling a degenerate (no-column) render.
 func Compute(totalWidth int) Columns {
-	minWidth := trackNumFixed + durationFixed + sepCount
+	minWidth := selectionMarkerFixed + trackNumFixed + durationFixed + sepCount
 	if totalWidth <= minWidth {
-		return Columns{TrackNum: min(totalWidth, trackNumFixed)}
+		return Columns{SelectionMarker: selectionMarkerFixed, TrackNum: min(totalWidth, trackNumFixed)}
 	}
 
-	flex := totalWidth - trackNumFixed - durationFixed - sepCount
+	flex := totalWidth - selectionMarkerFixed - trackNumFixed - durationFixed - sepCount
 	artist := flex * artistRatio / totalRatio
 	album := flex * albumRatio / totalRatio
 	title := flex - artist - album // absorbs integer division remainder
 
 	return Columns{
-		TrackNum: trackNumFixed,
-		Artist:   artist,
-		Title:    title,
-		Album:    album,
-		Duration: durationFixed,
+		SelectionMarker: selectionMarkerFixed,
+		TrackNum:        trackNumFixed,
+		Artist:          artist,
+		Title:           title,
+		Album:           album,
+		Duration:        durationFixed,
 	}
 }

@@ -152,6 +152,38 @@ func TestQueueRenderWindowSizeMsg(t *testing.T) {
 	}
 }
 
+// TestLibraryViewToggleBulkSelectionToggles verifies that calling
+// ToggleBulkSelection twice on the same hash leaves the set empty (toggle
+// semantics), and that a single call adds the hash.
+func TestLibraryViewToggleBulkSelectionToggles(t *testing.T) {
+	v := LibraryView{}
+
+	v = v.ToggleBulkSelection("abc")
+	if _, ok := v.selectedHashes["abc"]; !ok {
+		t.Fatal("expected hash to be selected after first toggle")
+	}
+
+	v = v.ToggleBulkSelection("abc")
+	if _, ok := v.selectedHashes["abc"]; ok {
+		t.Fatal("expected hash to be deselected after second toggle")
+	}
+	if len(v.selectedHashes) != 0 {
+		t.Fatalf("expected empty selection set, got %v", v.selectedHashes)
+	}
+}
+
+// TestLibraryViewClearSelectionEmptiesSet verifies that ClearSelection removes
+// all bulk-selected hashes.
+func TestLibraryViewClearSelectionEmptiesSet(t *testing.T) {
+	v := LibraryView{}
+	v = v.ToggleBulkSelection("a")
+	v = v.ToggleBulkSelection("b")
+	v = v.ClearSelection()
+	if len(v.selectedHashes) != 0 {
+		t.Fatalf("expected empty selection after ClearSelection, got %v", v.selectedHashes)
+	}
+}
+
 // TestFormatQueueDuration covers the duration formatting helper.
 func TestFormatQueueDuration(t *testing.T) {
 	cases := []struct {
