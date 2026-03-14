@@ -39,13 +39,15 @@ func (v PlaylistsView) render() string {
 
 // QueueEntry holds a single item in the playback queue.
 type QueueEntry struct {
-	ID       int64  // database row ID; 0 when not persisted
-	Path     string // file path used to identify the entry
-	Display  string // human-readable label, e.g. "Artist – Title"
-	Missing  bool   // true when the file was not found at playback time
-	Artist   string // track artist, used by the status bar persistent left zone
-	Title    string // track title, used by the status bar persistent left zone
-	Selected bool   // true when the entry is part of a bulk selection
+	ID         int64  // database row ID; 0 when not persisted
+	Path       string // file path used to identify the entry
+	Display    string // human-readable label, e.g. "Artist – Title"
+	Missing    bool   // true when the file was not found at playback time
+	Artist     string // track artist, used by the status bar persistent left zone
+	Title      string // track title, used by the status bar persistent left zone
+	Selected   bool   // true when the entry is part of a bulk selection
+	DurationMs int64  // track duration in milliseconds from the database
+	Position   int64  // gapped-integer queue position from the database
 }
 
 // QueueView renders the playback queue panel.
@@ -123,28 +125,75 @@ func (v *QueueView) markMissing(path string) {
 	}
 }
 
-// render builds the queue panel string. Missing entries are wrapped in ANSI
-// dim escape codes so they appear grayed out in the terminal.
+// render builds the queue panel string using a 4-column layout:
+//
+//	Position (~4 chars fixed) | Title (~40% of width) | Artist (~30% of width) | Duration (~10 chars fixed)
+//
+// Proportional columns resize on WindowSizeMsg; fixed-width columns are
+// constant. Missing entries are wrapped in ANSI dim escape codes so they
+// appear grayed out in the terminal.
 func (v QueueView) render() string {
 	if len(v.entries) == 0 {
 		return "Queue\n\n(empty)"
 	}
-	const cursorWidth = 2 // "> " or "  "
+
+	const (
+		posWidth = 4  // "> 1" .. ">999" or "   1".."  999"
+		durWidth = 10 // "59:59     " or "--:--     "
+	)
+
+	titleWidth := 20 // sensible fallback when width is unknown
+	artistWidth := 15
+	if v.width > 0 {
+		titleWidth = v.width * 40 / 100
+		artistWidth = v.width * 30 / 100
+	}
+	if titleWidth < 1 {
+		titleWidth = 1
+	}
+	if artistWidth < 1 {
+		artistWidth = 1
+	}
+
 	lines := make([]string, len(v.entries))
 	for i, e := range v.entries {
-		cursor := "  "
+		// Position column: cursor indicator (" " or ">") + right-aligned index.
+		cursorChar := " "
 		if i == v.cursor {
-			cursor = "> "
+			cursorChar = ">"
 		}
-		display := e.Display
-		if v.width > 0 {
-			display = truncateTitle(display, v.width-cursorWidth)
-		}
+		pos := fmt.Sprintf("%s%3d", cursorChar, i+1)
+
+		title := truncateTitle(e.Title, titleWidth)
+		title = fmt.Sprintf("%-*s", titleWidth, title)
+
+		artist := truncateTitle(e.Artist, artistWidth)
+		artist = fmt.Sprintf("%-*s", artistWidth, artist)
+
+		dur := fmt.Sprintf("%-*s", durWidth, formatQueueDuration(e.DurationMs))
+
+		line := pos + " " + title + " " + artist + " " + dur
 		if e.Missing {
-			lines[i] = fmt.Sprintf("%s%s%s [missing]%s", cursor, ansiDim, display, ansiReset)
+			lines[i] = ansiDim + line + " [missing]" + ansiReset
 		} else {
-			lines[i] = cursor + display
+			lines[i] = line
 		}
 	}
 	return "Queue\n\n" + strings.Join(lines, "\n")
+}
+
+// formatQueueDuration converts a duration in milliseconds to a "m:ss" or
+// "h:mm:ss" string. Returns "--:--" when ms is zero or negative.
+func formatQueueDuration(ms int64) string {
+	if ms <= 0 {
+		return "--:--"
+	}
+	totalSec := ms / 1000
+	h := totalSec / 3600
+	m := (totalSec % 3600) / 60
+	s := totalSec % 60
+	if h > 0 {
+		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
+	}
+	return fmt.Sprintf("%d:%02d", m, s)
 }

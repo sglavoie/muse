@@ -134,11 +134,13 @@ func main() {
 			display = r.Artist
 		}
 		tuiEntries = append(tuiEntries, tui.QueueEntry{
-			Path:    r.Path,
-			Display: display,
-			Missing: r.Missing,
-			Artist:  r.Artist,
-			Title:   r.Title,
+			Path:       r.Path,
+			Display:    display,
+			Missing:    r.Missing,
+			Artist:     r.Artist,
+			Title:      r.Title,
+			DurationMs: r.DurationMs,
+			Position:   r.Position,
 		})
 	}
 

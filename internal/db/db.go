@@ -13,12 +13,14 @@ import (
 // Used by ReadQueue to return typed results that callers convert into
 // player.QueueTrack and tui.QueueEntry slices.
 type QueueRow struct {
-	ID      int64
-	Hash    string
-	Path    string
-	Artist  string
-	Title   string
-	Missing bool
+	ID         int64
+	Hash       string
+	Path       string
+	Artist     string
+	Title      string
+	Missing    bool
+	DurationMs int64
+	Position   int64
 }
 
 // DB wraps sql.DB with muse-specific setup.
@@ -49,13 +51,16 @@ func Open(path string) (*DB, error) {
 	return &DB{sqlDB}, nil
 }
 
-// ReadQueue returns all queue entries ordered by position, joined with track
-// metadata. Returns an empty slice (not an error) when the queue is empty.
+// ReadQueue returns all active (non-deleted) queue entries ordered by
+// position, joined with track metadata. Returns an empty slice (not an error)
+// when the queue is empty.
 func (d *DB) ReadQueue() ([]QueueRow, error) {
 	rows, err := d.Query(`
-		SELECT q.id, t.hash, t.path, t.artist, t.title, q.missing
+		SELECT q.id, t.hash, t.path, t.artist, t.title, q.missing,
+		       t.duration_ms, q.position
 		FROM queue q
 		JOIN tracks t ON q.track_hash = t.hash
+		WHERE q.deleted_at IS NULL
 		ORDER BY q.position
 	`)
 	if err != nil {
@@ -67,7 +72,7 @@ func (d *DB) ReadQueue() ([]QueueRow, error) {
 	for rows.Next() {
 		var r QueueRow
 		var missing int
-		if err := rows.Scan(&r.ID, &r.Hash, &r.Path, &r.Artist, &r.Title, &missing); err != nil {
+		if err := rows.Scan(&r.ID, &r.Hash, &r.Path, &r.Artist, &r.Title, &missing, &r.DurationMs, &r.Position); err != nil {
 			return nil, fmt.Errorf("db: read queue row: %w", err)
 		}
 		r.Missing = missing != 0
