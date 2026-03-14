@@ -23,6 +23,15 @@ type QueueRow struct {
 	Position   int64
 }
 
+// SessionRow holds the persisted session state from the single session row.
+// CurrentHash is empty when no track was current at the time of the last save.
+type SessionRow struct {
+	RepeatMode  string
+	Shuffle     bool
+	CurrentHash string
+	PositionMs  int64
+}
+
 // DB wraps sql.DB with muse-specific setup.
 type DB struct {
 	*sql.DB
@@ -79,6 +88,29 @@ func (d *DB) ReadQueue() ([]QueueRow, error) {
 		result = append(result, r)
 	}
 	return result, rows.Err()
+}
+
+// ReadSession reads the single session row and returns the persisted state.
+// Returns nil (no error) when no session row exists.
+func (d *DB) ReadSession() (*SessionRow, error) {
+	var r SessionRow
+	var currentHash sql.NullString
+	var shuffle int
+	err := d.QueryRow(`
+		SELECT repeat_mode, shuffle, current_hash, position_ms
+		FROM session WHERE id = 1
+	`).Scan(&r.RepeatMode, &shuffle, &currentHash, &r.PositionMs)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("db: read session: %w", err)
+	}
+	r.Shuffle = shuffle != 0
+	if currentHash.Valid {
+		r.CurrentHash = currentHash.String
+	}
+	return &r, nil
 }
 
 // configure applies the required PRAGMA settings.
