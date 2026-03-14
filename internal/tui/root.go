@@ -58,6 +58,43 @@ type elapsedReader interface {
 	ElapsedPosition() (elapsed, total float64, err error)
 }
 
+// queueDequeuer handles soft-delete, undo, and purge operations for queue
+// entries. Root performs a type assertion to detect it; tests use stubs.
+// When nil, destructive actions still update the in-memory TUI state but
+// skip all database operations.
+type queueDequeuer interface {
+	DequeueTrackSoft(id int64) error
+	UndoDequeue(id int64) error
+	ClearQueueSoft() ([]int64, error)
+	UndoClearQueue(ids []int64) error
+	PurgeDeletedQueueEntries(before int64) error
+}
+
+// undoKind distinguishes which type of destructive action is reversible.
+type undoKind uint8
+
+const (
+	undoNone        undoKind = iota
+	undoKindDequeue          // single track removed via DequeueTrackMsg
+	undoKindClear            // all tracks removed via ClearQueueMsg
+)
+
+// undoSlot holds the reversible state for the most recent destructive queue
+// action. Only one slot is maintained; a new action replaces the prior one.
+type undoSlot struct {
+	kind      undoKind
+	expiresAt time.Time
+
+	// Dequeue fields — valid when kind == undoKindDequeue.
+	dequeueID    int64
+	dequeueEntry QueueEntry
+	dequeueIdx   int
+
+	// Clear fields — valid when kind == undoKindClear.
+	clearIDs     []int64
+	clearEntries []QueueEntry
+}
+
 // tickMsg is dispatched every second by tickCmd. It drives elapsed-time
 // display updates and transient-notification expiry checks.
 type tickMsg struct{}
@@ -210,6 +247,12 @@ type Model struct {
 	// available (e.g. in tests that do not exercise playback).
 	player      playPauser
 	queueWriter libtui.QueueAppender // may be nil; set via SetQueueWriter
+	undoer      queueDequeuer        // may be nil; set via SetQueueDequeuer
+
+	// undoSlot holds the reversible state for the most recent destructive
+	// queue action. The slot is cleared after a successful undo or when a new
+	// destructive action replaces it before the window expires.
+	undoSlot undoSlot
 
 	playbackState PlaybackState // current play/pause/stopped/idle state
 	repeat        bool          // repeat mode enabled
@@ -277,6 +320,19 @@ func (m *Model) SetQueueEntries(entries []QueueEntry) {
 func (m *Model) SetQueueWriter(qa libtui.QueueAppender) {
 	m.queueWriter = qa
 }
+
+// SetQueueDequeuer sets the queueDequeuer used to soft-delete, undo, and purge
+// queue entries in the database. Call this on the Model returned by New before
+// passing it to tea.NewProgram. When nil, destructive actions (dequeue, clear)
+// still update the TUI state but skip all database operations.
+func (m *Model) SetQueueDequeuer(qd queueDequeuer) {
+	m.undoer = qd
+}
+
+// undoWindowDuration is the time after a destructive queue action during which
+// pressing 'u' will reverse the action. Only a single undo slot is maintained;
+// a new destructive action within the window replaces the prior slot.
+const undoWindowDuration = 5 * time.Second
 
 // configNoticeDuration controls how long the first-run config path notification
 // is visible in the status bar before it is automatically dismissed.
@@ -520,6 +576,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			display = msg.Track.Artist
 		}
 		m.queue.entries = append(m.queue.entries, QueueEntry{
+			ID:      msg.QueueID,
 			Path:    msg.Track.Path,
 			Display: display,
 			Artist:  msg.Track.Artist,
@@ -559,6 +616,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case DequeueTrackMsg:
 		if msg.Index >= 0 && msg.Index < len(m.queue.entries) {
+			entry := m.queue.entries[msg.Index]
+			softDeleteTime := time.Now().Unix()
+			if m.undoer != nil {
+				_ = m.undoer.DequeueTrackSoft(entry.ID)
+				time.AfterFunc(undoWindowDuration, func() {
+					_ = m.undoer.PurgeDeletedQueueEntries(softDeleteTime + 1)
+				})
+			}
+			m.undoSlot = undoSlot{
+				kind:         undoKindDequeue,
+				expiresAt:    time.Now().Add(undoWindowDuration),
+				dequeueID:    entry.ID,
+				dequeueEntry: entry,
+				dequeueIdx:   msg.Index,
+			}
+			m.statusBar.notification = transientNotification{
+				msg:       "Track removed — press u to undo",
+				expiresAt: time.Now().Add(undoWindowDuration),
+			}
 			m.queue.entries = append(m.queue.entries[:msg.Index], m.queue.entries[msg.Index+1:]...)
 			if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
 				m.queue.cursor = len(m.queue.entries) - 1
@@ -571,8 +647,53 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case ClearQueueMsg:
+		savedEntries := make([]QueueEntry, len(m.queue.entries))
+		copy(savedEntries, m.queue.entries)
+		var clearIDs []int64
+		softDeleteTime := time.Now().Unix()
+		if m.undoer != nil {
+			ids, _ := m.undoer.ClearQueueSoft()
+			clearIDs = ids
+			time.AfterFunc(undoWindowDuration, func() {
+				_ = m.undoer.PurgeDeletedQueueEntries(softDeleteTime + 1)
+			})
+		}
+		m.undoSlot = undoSlot{
+			kind:         undoKindClear,
+			expiresAt:    time.Now().Add(undoWindowDuration),
+			clearIDs:     clearIDs,
+			clearEntries: savedEntries,
+		}
+		m.statusBar.notification = transientNotification{
+			msg:       "Queue cleared — press u to undo",
+			expiresAt: time.Now().Add(undoWindowDuration),
+		}
 		m.queue.entries = nil
 		m.queue.cursor = 0
+
+	case UndoMsg:
+		if m.undoSlot.kind != undoNone && time.Now().Before(m.undoSlot.expiresAt) {
+			switch m.undoSlot.kind {
+			case undoKindDequeue:
+				if m.undoer != nil {
+					_ = m.undoer.UndoDequeue(m.undoSlot.dequeueID)
+				}
+				// Reinsert the entry at its original position in the TUI slice.
+				idx := min(m.undoSlot.dequeueIdx, len(m.queue.entries))
+				entries := make([]QueueEntry, len(m.queue.entries)+1)
+				copy(entries, m.queue.entries[:idx])
+				entries[idx] = m.undoSlot.dequeueEntry
+				copy(entries[idx+1:], m.queue.entries[idx:])
+				m.queue.entries = entries
+				m.queue.cursor = idx
+			case undoKindClear:
+				if m.undoer != nil {
+					_ = m.undoer.UndoClearQueue(m.undoSlot.clearIDs)
+				}
+				m.queue.entries = m.undoSlot.clearEntries
+			}
+			m.undoSlot = undoSlot{}
+		}
 
 	case MoveTrackUpMsg:
 		if msg.Index > 0 && msg.Index < len(m.queue.entries) {

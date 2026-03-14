@@ -1844,3 +1844,225 @@ func TestTrackEnqueuedMsgDoesNotStartPlaybackWhenQueueWasNonEmpty(t *testing.T) 
 		t.Fatalf("expected playbackState PlaybackIdle (unchanged), got %v", nm.playbackState)
 	}
 }
+
+// stubQueueDequeuer records calls to soft-delete, undo, and purge methods for
+// use in undo-slot unit tests.
+type stubQueueDequeuer struct {
+	dequeueTrackSoftCalls []int64
+	undoDequeueCallIDs    []int64
+	clearQueueSoftResult  []int64
+	undoClearQueueCalls   [][]int64
+	purgeBeforeCalls      []int64
+}
+
+func (s *stubQueueDequeuer) DequeueTrackSoft(id int64) error {
+	s.dequeueTrackSoftCalls = append(s.dequeueTrackSoftCalls, id)
+	return nil
+}
+
+func (s *stubQueueDequeuer) UndoDequeue(id int64) error {
+	s.undoDequeueCallIDs = append(s.undoDequeueCallIDs, id)
+	return nil
+}
+
+func (s *stubQueueDequeuer) ClearQueueSoft() ([]int64, error) {
+	return s.clearQueueSoftResult, nil
+}
+
+func (s *stubQueueDequeuer) UndoClearQueue(ids []int64) error {
+	s.undoClearQueueCalls = append(s.undoClearQueueCalls, ids)
+	return nil
+}
+
+func (s *stubQueueDequeuer) PurgeDeletedQueueEntries(before int64) error {
+	s.purgeBeforeCalls = append(s.purgeBeforeCalls, before)
+	return nil
+}
+
+// TestUndoMsgRestoresDequeueWithinWindow verifies that receiving UndoMsg within
+// the undo window calls UndoDequeue on the DB writer and restores the entry to
+// the TUI slice at its original index.
+func TestUndoMsgRestoresDequeueWithinWindow(t *testing.T) {
+	d := &stubQueueDequeuer{}
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.SetQueueDequeuer(d)
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/music/a.flac", Display: "A"},
+		{ID: 20, Path: "/music/b.flac", Display: "B"},
+		{ID: 30, Path: "/music/c.flac", Display: "C"},
+	}
+
+	// Dequeue the middle entry (index 1).
+	next, _ := m.Update(DequeueTrackMsg{Index: 1})
+	nm := next.(Model)
+	if len(nm.queue.entries) != 2 {
+		t.Fatalf("after dequeue: expected 2 entries, got %d", len(nm.queue.entries))
+	}
+
+	// UndoMsg within the window must restore the entry.
+	next, _ = nm.Update(UndoMsg{})
+	nm = next.(Model)
+
+	if len(nm.queue.entries) != 3 {
+		t.Fatalf("after undo: expected 3 entries, got %d", len(nm.queue.entries))
+	}
+	if nm.queue.entries[1].ID != 20 {
+		t.Fatalf("after undo: expected restored entry at index 1 with ID=20, got ID=%d", nm.queue.entries[1].ID)
+	}
+	if len(d.undoDequeueCallIDs) != 1 || d.undoDequeueCallIDs[0] != 20 {
+		t.Fatalf("UndoDequeue must be called with ID=20, got calls=%v", d.undoDequeueCallIDs)
+	}
+	// Undo slot must be cleared after restore.
+	if nm.undoSlot.kind != undoNone {
+		t.Fatal("undo slot must be cleared after a successful undo")
+	}
+}
+
+// TestUndoMsgIsNoOpAfterWindowExpiry verifies that UndoMsg received after the
+// 5-second window has elapsed is a no-op: the queue is unchanged and UndoDequeue
+// is not called.
+func TestUndoMsgIsNoOpAfterWindowExpiry(t *testing.T) {
+	d := &stubQueueDequeuer{}
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.SetQueueDequeuer(d)
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/music/a.flac", Display: "A"},
+		{ID: 20, Path: "/music/b.flac", Display: "B"},
+	}
+
+	// Dequeue entry 0, then manually expire the undo slot.
+	next, _ := m.Update(DequeueTrackMsg{Index: 0})
+	nm := next.(Model)
+	nm.undoSlot.expiresAt = time.Now().Add(-1 * time.Second) // expired
+
+	// UndoMsg after expiry must be a no-op.
+	next, _ = nm.Update(UndoMsg{})
+	nm = next.(Model)
+
+	if len(nm.queue.entries) != 1 {
+		t.Fatalf("undo after expiry: expected 1 entry (no restore), got %d", len(nm.queue.entries))
+	}
+	if len(d.undoDequeueCallIDs) != 0 {
+		t.Fatalf("undo after expiry: UndoDequeue must not be called, got calls=%v", d.undoDequeueCallIDs)
+	}
+}
+
+// TestNewDestructiveActionReplacesUndoSlot verifies that a second destructive
+// action before the first undo window expires overwrites the undo slot.
+func TestNewDestructiveActionReplacesUndoSlot(t *testing.T) {
+	d := &stubQueueDequeuer{}
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.SetQueueDequeuer(d)
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/music/a.flac", Display: "A"},
+		{ID: 20, Path: "/music/b.flac", Display: "B"},
+		{ID: 30, Path: "/music/c.flac", Display: "C"},
+	}
+
+	// First dequeue: removes index 0 (ID=10).
+	next, _ := m.Update(DequeueTrackMsg{Index: 0})
+	nm := next.(Model)
+	firstSlotID := nm.undoSlot.dequeueID
+
+	// Second dequeue: removes index 0 of the remaining entries (ID=20).
+	next, _ = nm.Update(DequeueTrackMsg{Index: 0})
+	nm = next.(Model)
+
+	if nm.undoSlot.dequeueID == firstSlotID {
+		t.Fatal("second dequeue must replace the undo slot with the new entry's ID")
+	}
+	if nm.undoSlot.dequeueID != 20 {
+		t.Fatalf("undo slot must hold ID=20 after second dequeue, got %d", nm.undoSlot.dequeueID)
+	}
+}
+
+// TestDequeueShowsUndoHintInStatusBar verifies that the status bar displays an
+// undo hint immediately after a DequeueTrackMsg is processed.
+func TestDequeueShowsUndoHintInStatusBar(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/music/a.flac", Display: "A"},
+	}
+
+	next, _ := m.Update(DequeueTrackMsg{Index: 0})
+	nm := next.(Model)
+
+	if nm.statusBar.notification.msg == "" {
+		t.Fatal("dequeue: status bar must show an undo hint immediately after DequeueTrackMsg")
+	}
+	v := nm.View()
+	if !strings.Contains(v.Content, "undo") {
+		t.Fatalf("dequeue: status bar must mention 'undo'; got:\n%s", v.Content)
+	}
+}
+
+// TestClearQueueShowsUndoHintInStatusBar verifies that the status bar displays
+// an undo hint immediately after a ClearQueueMsg is processed.
+func TestClearQueueShowsUndoHintInStatusBar(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/music/a.flac", Display: "A"},
+		{ID: 20, Path: "/music/b.flac", Display: "B"},
+	}
+
+	next, _ := m.Update(ClearQueueMsg{})
+	nm := next.(Model)
+
+	if nm.statusBar.notification.msg == "" {
+		t.Fatal("clear queue: status bar must show an undo hint immediately after ClearQueueMsg")
+	}
+	v := nm.View()
+	if !strings.Contains(v.Content, "undo") {
+		t.Fatalf("clear queue: status bar must mention 'undo'; got:\n%s", v.Content)
+	}
+}
+
+// TestUndoMsgRestoresClearQueueWithinWindow verifies that UndoMsg within the
+// window calls UndoClearQueue on the DB writer and restores all entries in the
+// TUI slice.
+func TestUndoMsgRestoresClearQueueWithinWindow(t *testing.T) {
+	d := &stubQueueDequeuer{clearQueueSoftResult: []int64{10, 20}}
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.SetQueueDequeuer(d)
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/music/a.flac", Display: "A"},
+		{ID: 20, Path: "/music/b.flac", Display: "B"},
+	}
+
+	next, _ := m.Update(ClearQueueMsg{})
+	nm := next.(Model)
+	if len(nm.queue.entries) != 0 {
+		t.Fatalf("after clear: expected 0 entries, got %d", len(nm.queue.entries))
+	}
+
+	// UndoMsg within the window must restore both entries.
+	next, _ = nm.Update(UndoMsg{})
+	nm = next.(Model)
+
+	if len(nm.queue.entries) != 2 {
+		t.Fatalf("after undo clear: expected 2 entries, got %d", len(nm.queue.entries))
+	}
+	if len(d.undoClearQueueCalls) != 1 {
+		t.Fatalf("UndoClearQueue must be called once, got %d calls", len(d.undoClearQueueCalls))
+	}
+	if nm.undoSlot.kind != undoNone {
+		t.Fatal("undo slot must be cleared after a successful undo")
+	}
+}
+
+// TestUndoMsgWithNoSlotIsNoOp verifies that UndoMsg when no destructive action
+// has been performed is a no-op.
+func TestUndoMsgWithNoSlotIsNoOp(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/music/a.flac", Display: "A"},
+	}
+
+	next, _ := m.Update(UndoMsg{})
+	nm := next.(Model)
+
+	// Queue must be unchanged.
+	if len(nm.queue.entries) != 1 {
+		t.Fatalf("UndoMsg with no slot: expected 1 entry unchanged, got %d", len(nm.queue.entries))
+	}
+}
