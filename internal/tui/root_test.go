@@ -3237,3 +3237,109 @@ func TestPlaylistTrackCursorClampAtTop(t *testing.T) {
 		t.Errorf("k at first track: expected cursor 0 (clamped), got %d", nm.playlists.cursor)
 	}
 }
+
+// TestQueueCursorDownJKey verifies that pressing "j" while the queue view is
+// active advances the cursor by one.
+func TestQueueCursorDownJKey(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Display: "A"},
+		{Path: "/music/b.flac", Display: "B"},
+	}
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	nm := next.(Model)
+	if nm.queue.cursor != 1 {
+		t.Errorf("j key: expected cursor 1, got %d", nm.queue.cursor)
+	}
+}
+
+// TestQueueCursorUpKKey verifies that pressing "k" while the queue view is
+// active moves the cursor up by one.
+func TestQueueCursorUpKKey(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Display: "A"},
+		{Path: "/music/b.flac", Display: "B"},
+	}
+	m.queue.cursor = 1
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
+	nm := next.(Model)
+	if nm.queue.cursor != 0 {
+		t.Errorf("k key: expected cursor 0, got %d", nm.queue.cursor)
+	}
+}
+
+// TestQueueCursorDownArrow verifies that the down arrow key advances the
+// cursor in the queue view, behaving identically to "j".
+func TestQueueCursorDownArrow(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Display: "A"},
+		{Path: "/music/b.flac", Display: "B"},
+	}
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown, Text: "down"})
+	nm := next.(Model)
+	if nm.queue.cursor != 1 {
+		t.Errorf("down arrow: expected cursor 1, got %d", nm.queue.cursor)
+	}
+}
+
+// TestQueueCursorUpArrow verifies that the up arrow key moves the cursor up
+// in the queue view, behaving identically to "k".
+func TestQueueCursorUpArrow(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Display: "A"},
+		{Path: "/music/b.flac", Display: "B"},
+	}
+	m.queue.cursor = 1
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyUp, Text: "up"})
+	nm := next.(Model)
+	if nm.queue.cursor != 0 {
+		t.Errorf("up arrow: expected cursor 0, got %d", nm.queue.cursor)
+	}
+}
+
+// TestQueueCursorClampAtBottom verifies that the cursor stops at the last
+// entry without wrapping when the queue view is active.
+func TestQueueCursorClampAtBottom(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Display: "A"},
+		{Path: "/music/b.flac", Display: "B"},
+	}
+	m.queue.cursor = 1 // already at last item
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	nm := next.(Model)
+	if nm.queue.cursor != 1 {
+		t.Errorf("j at last: expected cursor 1 (clamped), got %d", nm.queue.cursor)
+	}
+}
+
+// TestQueueCursorClampAtTop verifies that the cursor stops at the first entry
+// without wrapping when the queue view is active.
+func TestQueueCursorClampAtTop(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Display: "A"},
+		{Path: "/music/b.flac", Display: "B"},
+	}
+	// cursor starts at 0
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
+	nm := next.(Model)
+	if nm.queue.cursor != 0 {
+		t.Errorf("k at first: expected cursor 0 (clamped), got %d", nm.queue.cursor)
+	}
+}
