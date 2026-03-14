@@ -157,6 +157,7 @@ func (d *DB) ReadPlaylists() ([]PlaylistRow, error) {
 // track metadata. Used by ReadPlaylistTracks to return typed results for the
 // playlist track-level view.
 type PlaylistTrackRow struct {
+	ID         int64 // playlist_tracks row ID; required for soft-delete operations
 	Position   int64
 	Title      string
 	Artist     string
@@ -168,7 +169,7 @@ type PlaylistTrackRow struct {
 // an error) when the playlist has no tracks.
 func (d *DB) ReadPlaylistTracks(playlistID int64) ([]PlaylistTrackRow, error) {
 	rows, err := d.Query(`
-		SELECT pt.position, t.title, t.artist, t.duration_ms
+		SELECT pt.id, pt.position, t.title, t.artist, t.duration_ms
 		FROM playlist_tracks pt
 		JOIN tracks t ON pt.track_hash = t.hash
 		WHERE pt.playlist_id = ? AND pt.deleted_at IS NULL
@@ -182,7 +183,7 @@ func (d *DB) ReadPlaylistTracks(playlistID int64) ([]PlaylistTrackRow, error) {
 	var result []PlaylistTrackRow
 	for rows.Next() {
 		var r PlaylistTrackRow
-		if err := rows.Scan(&r.Position, &r.Title, &r.Artist, &r.DurationMs); err != nil {
+		if err := rows.Scan(&r.ID, &r.Position, &r.Title, &r.Artist, &r.DurationMs); err != nil {
 			return nil, fmt.Errorf("db: read playlist track row: %w", err)
 		}
 		result = append(result, r)

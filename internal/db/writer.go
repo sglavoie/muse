@@ -492,6 +492,19 @@ func (w *Writer) UndoDeletePlaylist(id int64) error {
 	})
 }
 
+// PurgeDeletedPlaylists physically removes all playlist rows whose deleted_at
+// is non-NULL and strictly less than the before Unix timestamp.
+// Call this once the undo window has expired to reclaim space.
+func (w *Writer) PurgeDeletedPlaylists(before int64) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(
+			`DELETE FROM playlists WHERE deleted_at IS NOT NULL AND deleted_at < ?`,
+			before,
+		)
+		return err
+	})
+}
+
 // AddTracksToPlaylist appends hashes to playlistID using gapped-integer
 // positioning (MAX(position)+1000 per track). All inserts run inside a single
 // transaction. It is a no-op when hashes is empty.

@@ -85,9 +85,11 @@ type queueDequeuer interface {
 type undoKind uint8
 
 const (
-	undoNone        undoKind = iota
-	undoKindDequeue          // single track removed via DequeueTrackMsg
-	undoKindClear            // all tracks removed via ClearQueueMsg
+	undoNone                  undoKind = iota
+	undoKindDequeue                    // single track removed via DequeueTrackMsg
+	undoKindClear                      // all tracks removed via ClearQueueMsg
+	undoKindDeletePlaylist             // playlist soft-deleted via actionPlaylistDelete at ListLevel
+	undoKindRemovePlaylistTrack        // track soft-removed via actionPlaylistDelete at TrackLevel
 )
 
 // undoSlot holds the reversible state for the most recent destructive queue
@@ -112,6 +114,14 @@ type undoSlot struct {
 	clearIDs     []int64
 	clearEntries []QueueEntry
 	clearTracks  []player.QueueTrack // parallel to clearEntries; used to restore player queue on undo
+
+	// DeletePlaylist fields — valid when kind == undoKindDeletePlaylist.
+	deletePlaylistEntry db.PlaylistRow
+	deletePlaylistIdx   int
+
+	// RemovePlaylistTrack fields — valid when kind == undoKindRemovePlaylistTrack.
+	removeTrackEntry db.PlaylistTrackRow
+	removeTrackIdx   int
 }
 
 // tickMsg is dispatched every second by tickCmd. It drives elapsed-time
@@ -257,6 +267,19 @@ type playlistCreator interface {
 	ReadPlaylists() ([]db.PlaylistRow, error)
 }
 
+// playlistDeleter handles soft-delete, undo, and purge operations for
+// playlists and their tracks. Root performs a type assertion to detect it;
+// tests use stubs. When nil, destructive playlist actions still update the
+// in-memory TUI state but skip all database operations.
+type playlistDeleter interface {
+	DeletePlaylistSoft(id int64) error
+	UndoDeletePlaylist(id int64) error
+	PurgeDeletedPlaylists(before int64) error
+	RemovePlaylistTrackSoft(id int64) error
+	UndoRemovePlaylistTrack(id int64) error
+	PurgeDeletedPlaylistTracks(before int64) error
+}
+
 // sessionWriter is implemented by db.Writer. Root calls WriteRepeatMode after
 // each actionRepeatCycle, WriteShuffle after each actionShuffleToggle, and
 // UpdateSessionPosition on pause, seek, and track-change events to persist
@@ -344,6 +367,7 @@ type Model struct {
 	sessionWriter   sessionWriter           // may be nil; set via SetSessionWriter
 	playlistReader  playlistTrackReader     // may be nil; set via SetPlaylistTrackReader
 	playlistWriter  playlistCreator         // may be nil; set via SetPlaylistWriter
+	playlistDeleter playlistDeleter         // may be nil; set via SetPlaylistDeleter
 
 	// undoSlot holds the reversible state for the most recent destructive
 	// queue action. The slot is cleared after a successful undo or when a new
@@ -482,6 +506,15 @@ func (m *Model) SetPlaylistTrackReader(r playlistTrackReader) {
 // input is a no-op (the field is dismissed without writing to the database).
 func (m *Model) SetPlaylistWriter(w playlistCreator) {
 	m.playlistWriter = w
+}
+
+// SetPlaylistDeleter sets the playlistDeleter used to soft-delete playlists
+// and tracks and to undo those deletions within the undo window. Call this on
+// the Model returned by New before passing it to tea.NewProgram. When nil,
+// destructive playlist actions still update the in-memory TUI state but skip
+// all database operations.
+func (m *Model) SetPlaylistDeleter(d playlistDeleter) {
+	m.playlistDeleter = d
 }
 
 // undoWindowDuration is the time after a destructive queue action during which
@@ -952,6 +985,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if qs, ok := m.player.(playerQueueSetter); ok {
 					qs.SetQueue(m.undoSlot.clearTracks)
 				}
+				case undoKindDeletePlaylist:
+					if m.playlistDeleter != nil {
+						_ = m.playlistDeleter.UndoDeletePlaylist(m.undoSlot.deletePlaylistEntry.ID)
+					}
+					// Reinsert the playlist at its original position in the TUI slice.
+					idx := min(m.undoSlot.deletePlaylistIdx, len(m.playlists.playlists))
+					playlists := make([]db.PlaylistRow, len(m.playlists.playlists)+1)
+					copy(playlists, m.playlists.playlists[:idx])
+					playlists[idx] = m.undoSlot.deletePlaylistEntry
+					copy(playlists[idx+1:], m.playlists.playlists[idx:])
+					m.playlists.playlists = playlists
+					m.playlists.cursor = idx
+				case undoKindRemovePlaylistTrack:
+					if m.playlistDeleter != nil {
+						_ = m.playlistDeleter.UndoRemovePlaylistTrack(m.undoSlot.removeTrackEntry.ID)
+					}
+					// Reinsert the track at its original position in the TUI slice.
+					idx := min(m.undoSlot.removeTrackIdx, len(m.playlists.tracks))
+					tracks := make([]db.PlaylistTrackRow, len(m.playlists.tracks)+1)
+					copy(tracks, m.playlists.tracks[:idx])
+					tracks[idx] = m.undoSlot.removeTrackEntry
+					copy(tracks[idx+1:], m.playlists.tracks[idx:])
+					m.playlists.tracks = tracks
+					m.playlists.cursor = idx
 			}
 			// Cancel the background purge — the undo restored deleted_at to
 			// NULL, so a stale purge would have been a no-op anyway, but
@@ -1202,6 +1259,86 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case actionPlaylistBack:
 			if !m.playlists.atListLevel() {
 				m.playlists = m.playlists.backToList()
+			}
+		case actionPlaylistDelete:
+			if m.playlists.atListLevel() {
+				// Soft-delete the focused playlist.
+				if len(m.playlists.playlists) == 0 {
+					break
+				}
+				idx := m.playlists.cursor
+				entry := m.playlists.playlists[idx]
+				if m.undoSlot.cancelPurge != nil {
+					close(m.undoSlot.cancelPurge)
+				}
+				cancel := make(chan struct{})
+				softDeleteTime := time.Now().Unix()
+				if m.playlistDeleter != nil {
+					_ = m.playlistDeleter.DeletePlaylistSoft(entry.ID)
+					pd := m.playlistDeleter
+					time.AfterFunc(undoWindowDuration, func() {
+						select {
+						case <-cancel:
+							return
+						default:
+							_ = pd.PurgeDeletedPlaylists(softDeleteTime + 1)
+						}
+					})
+				}
+				m.undoSlot = undoSlot{
+					kind:                undoKindDeletePlaylist,
+					expiresAt:           time.Now().Add(undoWindowDuration),
+					cancelPurge:         cancel,
+					deletePlaylistEntry: entry,
+					deletePlaylistIdx:   idx,
+				}
+				m.statusBar.notification = transientNotification{
+					msg:       "Playlist deleted — press u to undo",
+					expiresAt: time.Now().Add(undoWindowDuration),
+				}
+				m.playlists.playlists = append(m.playlists.playlists[:idx], m.playlists.playlists[idx+1:]...)
+				if m.playlists.cursor >= len(m.playlists.playlists) && m.playlists.cursor > 0 {
+					m.playlists.cursor = len(m.playlists.playlists) - 1
+				}
+			} else {
+				// Soft-remove the focused track from the open playlist.
+				if len(m.playlists.tracks) == 0 {
+					break
+				}
+				idx := m.playlists.cursor
+				entry := m.playlists.tracks[idx]
+				if m.undoSlot.cancelPurge != nil {
+					close(m.undoSlot.cancelPurge)
+				}
+				cancel := make(chan struct{})
+				softDeleteTime := time.Now().Unix()
+				if m.playlistDeleter != nil {
+					_ = m.playlistDeleter.RemovePlaylistTrackSoft(entry.ID)
+					pd := m.playlistDeleter
+					time.AfterFunc(undoWindowDuration, func() {
+						select {
+						case <-cancel:
+							return
+						default:
+							_ = pd.PurgeDeletedPlaylistTracks(softDeleteTime + 1)
+						}
+					})
+				}
+				m.undoSlot = undoSlot{
+					kind:             undoKindRemovePlaylistTrack,
+					expiresAt:        time.Now().Add(undoWindowDuration),
+					cancelPurge:      cancel,
+					removeTrackEntry: entry,
+					removeTrackIdx:   idx,
+				}
+				m.statusBar.notification = transientNotification{
+					msg:       "Track removed — press u to undo",
+					expiresAt: time.Now().Add(undoWindowDuration),
+				}
+				m.playlists.tracks = append(m.playlists.tracks[:idx], m.playlists.tracks[idx+1:]...)
+				if m.playlists.cursor >= len(m.playlists.tracks) && m.playlists.cursor > 0 {
+					m.playlists.cursor = len(m.playlists.tracks) - 1
+				}
 			}
 		}
 	case playlistTracksLoadedMsg:
