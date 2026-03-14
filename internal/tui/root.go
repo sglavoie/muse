@@ -246,6 +246,7 @@ func New(logPath, configPath string, configCreated bool, scanCh <-chan library.T
 		logPath:       logPath,
 		configPath:    configPath,
 		configCreated: configCreated,
+		library:       LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
 		scanCh:        scanCh,
 		scanning:      scanCh != nil,
 		watchCh:       watchCh,
@@ -486,6 +487,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.queue.markMissing(msg.Path)
 		m.statusBar.handleMissingTrack(msg.Path)
 
+	case FilterBarMsg:
+		m.library = m.library.ActivateFilter()
+
 	case PlaybackEndedMsg:
 		m.playbackState = PlaybackIdle
 		m.elapsedSecs = 0
@@ -587,6 +591,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if msg.String() == "esc" {
 				m.helpVisible = false
 				m.activeView = m.prevActiveView
+			}
+			return m, nil
+		}
+		// When the library filter bar is active, intercept all keypresses
+		// before the registry so that typing populates the filter text
+		// instead of triggering normal keybindings.
+		if m.library.filterActive && m.activeView == viewLibrary {
+			switch msg.String() {
+			case "esc":
+				m.library = m.library.DeactivateFilter()
+			case "backspace":
+				m.library = m.library.BackspaceFilter()
+			default:
+				if msg.Text != "" {
+					for _, ch := range msg.Text {
+						m.library = m.library.AppendFilterChar(ch)
+					}
+				}
 			}
 			return m, nil
 		}

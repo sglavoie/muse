@@ -29,6 +29,22 @@ func applyHighlight(s string, positions []int) string {
 	return b.String()
 }
 
+// searchFieldOffsets returns the (offset, length) pair for the artist and
+// title fields within the concatenated "artist title filename" search string
+// that sahilm/fuzzy operates on. The layout is:
+//
+//	[artist] SP [title] SP [filename]
+//
+// Each separator is exactly one rune wide, so the title field starts at
+// len(artistRunes)+1.
+func searchFieldOffsets(artist, title string) (artistOffset, artistLen, titleOffset, titleLen int) {
+	artistLen = len([]rune(artist))
+	titleLen = len([]rune(title))
+	artistOffset = 0
+	titleOffset = artistLen + 1 // +1 for the single space separator
+	return
+}
+
 // fieldMatchPositions filters matchedIndexes (positions in a concatenated
 // "artist title filename" search string) to those within the given field
 // range [fieldOffset, fieldOffset+fieldLen) and returns them 0-indexed

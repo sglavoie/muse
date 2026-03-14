@@ -194,10 +194,9 @@ func (v View) Render() string {
 
 		var row string
 		if len(dt.matchedIndexes) > 0 {
-			artistRunes := len([]rune(t.Artist))
-			titleRunes := len([]rune(t.Title))
-			artistPos := fieldMatchPositions(dt.matchedIndexes, 0, artistRunes)
-			titlePos := fieldMatchPositions(dt.matchedIndexes, artistRunes+1, titleRunes)
+			artistOffset, artistLen, titleOffset, titleLen := searchFieldOffsets(t.Artist, t.Title)
+			artistPos := fieldMatchPositions(dt.matchedIndexes, artistOffset, artistLen)
+			titlePos := fieldMatchPositions(dt.matchedIndexes, titleOffset, titleLen)
 			row = pad(num, cols.TrackNum) + " " +
 				padHighlight(t.Artist, cols.Artist, artistPos) + " " +
 				padHighlight(t.Title, cols.Title, titlePos) + " " +

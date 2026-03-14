@@ -68,6 +68,45 @@ func (v LibraryView) EnqueueFocused(qa libtui.QueueAppender, prevQueueLen int) t
 	return cmd
 }
 
+// ActivateFilter sets the filter bar to active.
+func (v LibraryView) ActivateFilter() LibraryView {
+	v.filterActive = true
+	return v
+}
+
+// DeactivateFilter clears the filter query, deactivates the filter bar, and
+// resets the cursor to 0.
+func (v LibraryView) DeactivateFilter() LibraryView {
+	v.filterActive = false
+	v.filterText = ""
+	v.cursor = 0
+	return v
+}
+
+// AppendFilterChar appends ch to the filter text and resets the cursor to 0.
+// It is a no-op when the filter bar is not active.
+func (v LibraryView) AppendFilterChar(ch rune) LibraryView {
+	if !v.filterActive {
+		return v
+	}
+	v.filterText += string(ch)
+	v.cursor = 0
+	return v
+}
+
+// BackspaceFilter removes the last rune from the filter text and resets the
+// cursor to 0. It is a no-op when the filter bar is not active or the text is
+// already empty.
+func (v LibraryView) BackspaceFilter() LibraryView {
+	if !v.filterActive || len(v.filterText) == 0 {
+		return v
+	}
+	runes := []rune(v.filterText)
+	v.filterText = string(runes[:len(runes)-1])
+	v.cursor = 0
+	return v
+}
+
 // formatCount formats n with comma separators (e.g. 1234 → "1,234").
 func formatCount(n int) string {
 	s := fmt.Sprintf("%d", n)
