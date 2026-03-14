@@ -19,12 +19,13 @@ const (
 // View is the pure render struct for the playlists panel. All fields are set
 // by the caller (PlaylistsView in the tui package) before each Render call.
 type View struct {
-	Level     Level
-	Cursor    int
-	Playlists []db.PlaylistRow
-	Tracks    []db.PlaylistTrackRow // populated when Level == TrackLevel
-	Width     int
-	Height    int
+	Level      Level
+	Cursor     int
+	ListCursor int                  // saved list cursor; restored when BackToList is called
+	Playlists  []db.PlaylistRow
+	Tracks     []db.PlaylistTrackRow // populated when Level == TrackLevel
+	Width      int
+	Height     int
 }
 
 // CursorUp returns a copy of v with the cursor moved up by one row,
@@ -47,6 +48,27 @@ func (v View) CursorDown() View {
 	if v.Cursor < limit {
 		v.Cursor++
 	}
+	return v
+}
+
+// OpenTracks returns a copy of v transitioned to TrackLevel with tracks
+// loaded. The current list cursor is saved to ListCursor so it can be
+// restored by BackToList. The cursor is reset to 0 for track-level navigation.
+func (v View) OpenTracks(tracks []db.PlaylistTrackRow) View {
+	v.ListCursor = v.Cursor
+	v.Tracks = tracks
+	v.Level = TrackLevel
+	v.Cursor = 0
+	return v
+}
+
+// BackToList returns a copy of v transitioned back to ListLevel, restoring
+// the cursor to the position saved by the preceding OpenTracks call and
+// clearing the track slice.
+func (v View) BackToList() View {
+	v.Level = ListLevel
+	v.Cursor = v.ListCursor
+	v.Tracks = nil
 	return v
 }
 

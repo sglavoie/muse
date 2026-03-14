@@ -2559,6 +2559,96 @@ func (s *stubPlaylistTrackReader) ReadPlaylistTracks(_ int64) ([]db.PlaylistTrac
 	return s.rows, nil
 }
 
+// TestPlaylistEscFromTrackLevelReturnsToList verifies that pressing Esc while
+// in TrackLevel transitions back to ListLevel and preserves the list cursor.
+func TestPlaylistEscFromTrackLevelReturnsToList(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.SetPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "Alpha", TrackCount: 1},
+		{ID: 2, Name: "Beta", TrackCount: 1},
+		{ID: 3, Name: "Gamma", TrackCount: 1},
+	})
+	reader := &stubPlaylistTrackReader{
+		rows: []db.PlaylistTrackRow{
+			{Position: 1, Title: "Track One", Artist: "Artist", DurationMs: 60000},
+		},
+	}
+	m.SetPlaylistTrackReader(reader)
+
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	nm := next.(Model)
+	next, _ = nm.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
+	nm = next.(Model)
+
+	// Move cursor to the second playlist (index 1).
+	next, _ = nm.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	nm = next.(Model)
+	if nm.playlists.cursor != 1 {
+		t.Fatalf("precondition: expected cursor at 1, got %d", nm.playlists.cursor)
+	}
+
+	// Press Enter to open the playlist and execute the async load.
+	next, cmd := nm.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	nm = next.(Model)
+	if cmd == nil {
+		t.Fatal("expected non-nil Cmd from actionPlaylistOpen")
+	}
+	next, _ = nm.Update(cmd())
+	nm = next.(Model)
+
+	// Verify we are now at TrackLevel showing the track.
+	v := nm.View()
+	if !strings.Contains(v.Content, "Track One") {
+		t.Fatalf("expected TrackLevel output with 'Track One', got:\n%s", v.Content)
+	}
+
+	// Press Esc — should return to ListLevel.
+	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	nm = next.(Model)
+
+	// Verify we are back at ListLevel and the list cursor is preserved at 1.
+	v = nm.View()
+	if !strings.Contains(v.Content, "Alpha") || !strings.Contains(v.Content, "Beta") {
+		t.Fatalf("expected ListLevel output with playlist names, got:\n%s", v.Content)
+	}
+	if nm.playlists.cursor != 1 {
+		t.Errorf("expected list cursor preserved at 1 after Esc, got %d", nm.playlists.cursor)
+	}
+}
+
+// TestPlaylistEscAtListLevelIsNoOp verifies that pressing Esc while already at
+// ListLevel produces no visible state change and no error.
+func TestPlaylistEscAtListLevelIsNoOp(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.SetPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "Chill", TrackCount: 5},
+	})
+
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	nm := next.(Model)
+	next, _ = nm.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
+	nm = next.(Model)
+
+	beforeView := nm.View()
+	beforeLevel := nm.playlists.level
+	beforeCursor := nm.playlists.cursor
+
+	// Press Esc at ListLevel — must be a no-op.
+	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	nm = next.(Model)
+
+	if nm.playlists.level != beforeLevel {
+		t.Errorf("Esc at ListLevel changed level: before=%v after=%v", beforeLevel, nm.playlists.level)
+	}
+	if nm.playlists.cursor != beforeCursor {
+		t.Errorf("Esc at ListLevel changed cursor: before=%d after=%d", beforeCursor, nm.playlists.cursor)
+	}
+	afterView := nm.View()
+	if beforeView.Content != afterView.Content {
+		t.Errorf("Esc at ListLevel changed rendered output:\nbefore:\n%s\nafter:\n%s", beforeView.Content, afterView.Content)
+	}
+}
+
 // TestPlaylistOpenRendersTrackTitles is an integration test that verifies the
 // full path from actionPlaylistOpen through playlistTracksLoadedMsg to the
 // rendered output. After opening a playlist the track titles must appear in

@@ -30,12 +30,13 @@ const (
 // (at TrackLevel) the tracks of the open playlist. Rendering is delegated to
 // the playlists sub-package.
 type PlaylistsView struct {
-	level     pltui.Level
-	cursor    int
-	playlists []db.PlaylistRow
-	tracks    []db.PlaylistTrackRow // populated when level == TrackLevel
-	width     int
-	height    int
+	level      pltui.Level
+	cursor     int
+	listCursor int                  // saved list cursor; preserved across drill-down and back
+	playlists  []db.PlaylistRow
+	tracks     []db.PlaylistTrackRow // populated when level == TrackLevel
+	width      int
+	height     int
 }
 
 func (v PlaylistsView) render() string {
@@ -79,20 +80,32 @@ func (v PlaylistsView) focusedPlaylistID() (int64, bool) {
 }
 
 // openTracks transitions the view to TrackLevel, storing the loaded tracks
-// and resetting the cursor to the first row.
+// and resetting the cursor to the first row. The current list cursor is saved
+// so it can be restored by backToList.
 func (v PlaylistsView) openTracks(tracks []db.PlaylistTrackRow) PlaylistsView {
-	v.tracks = tracks
-	v.level = pltui.TrackLevel
-	v.cursor = 0
+	view := pltui.View{
+		Level:      v.level,
+		Cursor:     v.cursor,
+		ListCursor: v.listCursor,
+	}.OpenTracks(tracks)
+	v.level = view.Level
+	v.cursor = view.Cursor
+	v.listCursor = view.ListCursor
+	v.tracks = view.Tracks
 	return v
 }
 
-// backToList transitions the view back to ListLevel, clearing the loaded
-// tracks and resetting the cursor to the first playlist.
+// backToList transitions the view back to ListLevel, restoring the list cursor
+// to the position it held before the drill-down.
 func (v PlaylistsView) backToList() PlaylistsView {
-	v.level = pltui.ListLevel
-	v.tracks = nil
-	v.cursor = 0
+	view := pltui.View{
+		Level:      v.level,
+		Cursor:     v.cursor,
+		ListCursor: v.listCursor,
+	}.BackToList()
+	v.level = view.Level
+	v.cursor = view.Cursor
+	v.tracks = view.Tracks
 	return v
 }
 
