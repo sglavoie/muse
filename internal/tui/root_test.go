@@ -3130,6 +3130,79 @@ func TestPlaylistEscAtListLevelIsNoOp(t *testing.T) {
 	}
 }
 
+// TestPlaylistRAtListLevelActivatesRenameInput verifies the full flow: pressing
+// 'r' at ListLevel with a playlist present returns a PlaylistRenameMsg cmd,
+// and processing that msg activates the inline rename input pre-populated with
+// the focused playlist's name.
+func TestPlaylistRAtListLevelActivatesRenameInput(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.SetPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "Chill Mix", TrackCount: 3},
+	})
+
+	// Navigate to playlists view.
+	next, _ := m.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
+	nm := next.(Model)
+
+	// Press 'r' — must return a PlaylistRenameMsg cmd.
+	next, cmd := nm.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+	nm = next.(Model)
+	if cmd == nil {
+		t.Fatal("pressing 'r' at ListLevel must return a non-nil cmd")
+	}
+	msg := cmd()
+	if _, ok := msg.(PlaylistRenameMsg); !ok {
+		t.Fatalf("expected PlaylistRenameMsg, got %T", msg)
+	}
+
+	// Process the PlaylistRenameMsg — rename input must activate.
+	next, _ = nm.Update(msg)
+	nm = next.(Model)
+
+	if !nm.playlists.isRenaming() {
+		t.Fatal("expected isRenaming() to be true after PlaylistRenameMsg")
+	}
+	if got := nm.playlists.renameInputValue(); got != "Chill Mix" {
+		t.Fatalf("expected rename input pre-populated with %q, got %q", "Chill Mix", got)
+	}
+}
+
+// TestPlaylistRAtTrackLevelIsNoOp verifies that pressing 'r' while the
+// playlists view is at TrackLevel does not activate the rename input — rename
+// only applies at list level.
+func TestPlaylistRAtTrackLevelIsNoOp(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.SetPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "Chill Mix", TrackCount: 1},
+	})
+	reader := &stubPlaylistTrackReader{
+		rows: []db.PlaylistTrackRow{
+			{Position: 1, Title: "Track One", Artist: "Artist", DurationMs: 60000},
+		},
+	}
+	m.SetPlaylistTrackReader(reader)
+
+	// Navigate to playlists view and open the playlist to reach TrackLevel.
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	nm := next.(Model)
+	next, _ = nm.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
+	nm = next.(Model)
+	next, cmd := nm.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	nm = next.(Model)
+	if cmd != nil {
+		next, _ = nm.Update(cmd())
+		nm = next.(Model)
+	}
+
+	// Press 'r' at TrackLevel — rename must not activate.
+	next, _ = nm.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+	nm = next.(Model)
+
+	if nm.playlists.isRenaming() {
+		t.Fatal("isRenaming() must be false when 'r' is pressed at TrackLevel")
+	}
+}
+
 // TestPlaylistOpenRendersTrackTitles is an integration test that verifies the
 // full path from actionPlaylistOpen through playlistTracksLoadedMsg to the
 // rendered output. After opening a playlist the track titles must appear in
@@ -3511,5 +3584,102 @@ func TestQueueCursorClampAtTop(t *testing.T) {
 	nm := next.(Model)
 	if nm.queue.cursor != 0 {
 		t.Errorf("k at first: expected cursor 0 (clamped), got %d", nm.queue.cursor)
+	}
+}
+
+// stubPlayerQueueRemover extends stubCommandPlayer with playerQueueRemover so
+// that DequeueTrackMsg handler tests can assert RemoveFromQueue is called with
+// the correct index and that Stop is never invoked.
+type stubPlayerQueueRemover struct {
+	stubCommandPlayer
+	removeFromQueueCalls []int
+}
+
+func (s *stubPlayerQueueRemover) RemoveFromQueue(index int) error {
+	s.removeFromQueueCalls = append(s.removeFromQueueCalls, index)
+	return nil
+}
+
+// TestDequeueTrackMsgCallsPlayerQueueRemoverWithCorrectIndex verifies that
+// DequeueTrackMsg calls RemoveFromQueue on the player with the dequeued track's
+// index so the player's in-memory queue stays in sync with the TUI queue.
+func TestDequeueTrackMsgCallsPlayerQueueRemoverWithCorrectIndex(t *testing.T) {
+	p := &stubPlayerQueueRemover{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/music/a.flac", Display: "A"},
+		{ID: 20, Path: "/music/b.flac", Display: "B"},
+		{ID: 30, Path: "/music/c.flac", Display: "C"},
+	}
+
+	next, _ := m.Update(DequeueTrackMsg{Index: 1})
+	nm := next.(Model)
+
+	if len(nm.queue.entries) != 2 {
+		t.Fatalf("expected 2 queue entries after dequeue, got %d", len(nm.queue.entries))
+	}
+	if len(p.removeFromQueueCalls) != 1 {
+		t.Fatalf("expected 1 RemoveFromQueue call, got %d", len(p.removeFromQueueCalls))
+	}
+	if p.removeFromQueueCalls[0] != 1 {
+		t.Fatalf("expected RemoveFromQueue called with index 1, got %d", p.removeFromQueueCalls[0])
+	}
+}
+
+// TestDequeueTrackMsgDoesNotCallStop verifies that dequeuing a track never
+// calls Stop on the player, regardless of playback state. Playback of the
+// currently active track continues uninterrupted; only the queue index list
+// is trimmed.
+func TestDequeueTrackMsgDoesNotCallStop(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		state PlaybackState
+	}{
+		{"idle", PlaybackIdle},
+		{"playing", PlaybackPlaying},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &stubPlayerQueueRemover{}
+			m := New("/log", "", false, nil, nil, "", nil, p)
+			m.playbackState = tc.state
+			m.queue.entries = []QueueEntry{
+				{ID: 10, Path: "/music/a.flac", Display: "A"},
+				{ID: 20, Path: "/music/b.flac", Display: "B"},
+			}
+
+			m.Update(DequeueTrackMsg{Index: 0})
+
+			if p.stopCalls != 0 {
+				t.Fatalf("DequeueTrackMsg must not call Stop, got %d calls", p.stopCalls)
+			}
+		})
+	}
+}
+
+// TestDequeueTrackMsgDoesNotTouchPlaylistTracks verifies that processing a
+// DequeueTrackMsg leaves any loaded playlist tracks completely unchanged.
+// Queue entries and playlist tracks are independent; dequeuing a queue entry
+// must never modify the saved playlist_tracks table view.
+func TestDequeueTrackMsgDoesNotTouchPlaylistTracks(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/music/a.flac", Display: "A"},
+		{ID: 20, Path: "/music/b.flac", Display: "B"},
+	}
+	playlistTracks := []db.PlaylistTrackRow{
+		{ID: 1, Position: 1, Title: "Playlist Track", Artist: "Artist", DurationMs: 60000},
+	}
+	m = drillIntoPlaylistTrackLevel(m, playlistTracks)
+
+	next, _ := m.Update(DequeueTrackMsg{Index: 0})
+	nm := next.(Model)
+
+	if len(nm.playlists.tracks) != len(playlistTracks) {
+		t.Fatalf("playlist tracks must be unchanged after dequeue: expected %d, got %d",
+			len(playlistTracks), len(nm.playlists.tracks))
+	}
+	if nm.playlists.tracks[0].ID != playlistTracks[0].ID {
+		t.Fatalf("playlist track ID must be unchanged: expected %d, got %d",
+			playlistTracks[0].ID, nm.playlists.tracks[0].ID)
 	}
 }

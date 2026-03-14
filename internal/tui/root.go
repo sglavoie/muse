@@ -47,6 +47,14 @@ type playerQueueSetter interface {
 	SetQueue([]player.QueueTrack)
 }
 
+// playerQueueRemover is an optional interface for removing a single entry from
+// the player's in-memory queue by index. Root checks for it via type assertion
+// in the DequeueTrackMsg handler to keep the player queue in sync with the TUI
+// queue after a track is dequeued.
+type playerQueueRemover interface {
+	RemoveFromQueue(index int) error
+}
+
 // positionSyncer is implemented by player.Manager. Root uses it to
 // periodically persist the current playback position for crash-resume.
 type positionSyncer interface {
@@ -975,6 +983,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.queue.entries = append(m.queue.entries[:msg.Index], m.queue.entries[msg.Index+1:]...)
 			if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
 				m.queue.cursor = len(m.queue.entries) - 1
+			}
+			// Sync the player's in-memory queue with the TUI so that
+			// auto-advance index bookkeeping stays correct after the dequeue.
+			if qr, ok := m.player.(playerQueueRemover); ok {
+				_ = qr.RemoveFromQueue(msg.Index)
 			}
 		}
 
