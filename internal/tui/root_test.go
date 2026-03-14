@@ -1227,10 +1227,15 @@ func TestLowerRCyclesRepeatModeInNonPlaylistViews(t *testing.T) {
 	}
 }
 
-// stubSessionWriter records WriteRepeatMode and WriteShuffle calls for assertion in tests.
+// stubSessionWriter records WriteRepeatMode, WriteShuffle, and
+// UpdateSessionPosition calls for assertion in tests.
 type stubSessionWriter struct {
 	calls         []string
 	shuffleCalls  []bool
+	positionCalls []struct {
+		hash       string
+		positionMs int64
+	}
 }
 
 func (s *stubSessionWriter) WriteRepeatMode(mode string) error {
@@ -1240,6 +1245,14 @@ func (s *stubSessionWriter) WriteRepeatMode(mode string) error {
 
 func (s *stubSessionWriter) WriteShuffle(enabled bool) error {
 	s.shuffleCalls = append(s.shuffleCalls, enabled)
+	return nil
+}
+
+func (s *stubSessionWriter) UpdateSessionPosition(hash string, positionMs int64) error {
+	s.positionCalls = append(s.positionCalls, struct {
+		hash       string
+		positionMs int64
+	}{hash, positionMs})
 	return nil
 }
 
@@ -2201,5 +2214,142 @@ func TestUndoMsgWithNoSlotIsNoOp(t *testing.T) {
 	// Queue must be unchanged.
 	if len(nm.queue.entries) != 1 {
 		t.Fatalf("UndoMsg with no slot: expected 1 entry unchanged, got %d", len(nm.queue.entries))
+	}
+}
+
+// TestPauseEmitsSessionPositionWriteCmd verifies that transitioning to paused
+// returns a Cmd that calls UpdateSessionPosition on the session writer with
+// the current track hash and elapsed position in milliseconds.
+func TestPauseEmitsSessionPositionWriteCmd(t *testing.T) {
+	p := &stubPlayer{}
+	sw := &stubSessionWriter{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+	m.SetSessionWriter(sw)
+	m.playbackState = PlaybackPlaying
+	m.currentTrackHash = "abc123"
+	m.elapsedSecs = 42.5 // 42500 ms
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	if cmd == nil {
+		t.Fatal("pause: expected non-nil cmd for session position write")
+	}
+	cmd() // execute the cmd to trigger the write
+	if len(sw.positionCalls) != 1 {
+		t.Fatalf("pause: expected 1 UpdateSessionPosition call, got %d", len(sw.positionCalls))
+	}
+	if sw.positionCalls[0].hash != "abc123" {
+		t.Fatalf("pause: expected hash %q, got %q", "abc123", sw.positionCalls[0].hash)
+	}
+	if sw.positionCalls[0].positionMs != 42500 {
+		t.Fatalf("pause: expected positionMs 42500, got %d", sw.positionCalls[0].positionMs)
+	}
+}
+
+// TestPauseWithoutSessionWriterReturnsNilCmd verifies that pausing without a
+// session writer returns nil from the Cmd (no-op write path).
+func TestPauseWithoutSessionWriterReturnsNilCmd(t *testing.T) {
+	p := &stubPlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+	m.playbackState = PlaybackPlaying
+	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track"}}
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	if cmd != nil {
+		t.Fatal("pause without session writer: expected nil cmd")
+	}
+}
+
+// TestSeekEmitsSessionPositionWriteCmd verifies that each seek action (fine and
+// coarse, forward and backward) returns a Cmd that calls UpdateSessionPosition
+// on the session writer.
+func TestSeekEmitsSessionPositionWriteCmd(t *testing.T) {
+	seekKeys := []struct {
+		name string
+		msg  tea.KeyPressMsg
+	}{
+		{"seek-back-fine", tea.KeyPressMsg{Code: tea.KeyLeft}},
+		{"seek-forward-fine", tea.KeyPressMsg{Code: tea.KeyRight}},
+		{"seek-back-coarse", tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModShift}},
+		{"seek-forward-coarse", tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift}},
+	}
+
+	for _, tc := range seekKeys {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &stubSeekPlayer{}
+			sw := &stubSessionWriter{}
+			m := New("/log", "", false, nil, nil, "", nil, p)
+			m.SetSessionWriter(sw)
+			m.currentTrackHash = "seekhash"
+			m.elapsedSecs = 10.0 // 10000 ms
+
+			_, cmd := m.Update(tc.msg)
+			if cmd == nil {
+				t.Fatalf("%s: expected non-nil cmd for session position write", tc.name)
+			}
+			cmd()
+			if len(sw.positionCalls) != 1 {
+				t.Fatalf("%s: expected 1 UpdateSessionPosition call, got %d", tc.name, len(sw.positionCalls))
+			}
+			if sw.positionCalls[0].hash != "seekhash" {
+				t.Fatalf("%s: expected hash %q, got %q", tc.name, "seekhash", sw.positionCalls[0].hash)
+			}
+			if sw.positionCalls[0].positionMs != 10000 {
+				t.Fatalf("%s: expected positionMs 10000, got %d", tc.name, sw.positionCalls[0].positionMs)
+			}
+		})
+	}
+}
+
+// TestTrackChangedMsgEmitsSessionPositionWriteCmd verifies that receiving a
+// TrackChangedMsg returns a Cmd that calls UpdateSessionPosition with the new
+// track's hash and position 0 (start of track).
+func TestTrackChangedMsgEmitsSessionPositionWriteCmd(t *testing.T) {
+	sw := &stubSessionWriter{}
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.SetSessionWriter(sw)
+	m.elapsedSecs = 99.0 // must be reset to 0 before the cmd captures position
+
+	_, cmd := m.Update(TrackChangedMsg{
+		Artist: "Artist",
+		Title:  "Title",
+		Hash:   "newhash",
+	})
+	if cmd == nil {
+		t.Fatal("TrackChangedMsg: expected non-nil cmd for session position write")
+	}
+	cmd()
+	if len(sw.positionCalls) != 1 {
+		t.Fatalf("TrackChangedMsg: expected 1 UpdateSessionPosition call, got %d", len(sw.positionCalls))
+	}
+	if sw.positionCalls[0].hash != "newhash" {
+		t.Fatalf("TrackChangedMsg: expected hash %q, got %q", "newhash", sw.positionCalls[0].hash)
+	}
+	if sw.positionCalls[0].positionMs != 0 {
+		t.Fatalf("TrackChangedMsg: expected positionMs 0, got %d", sw.positionCalls[0].positionMs)
+	}
+}
+
+// TestTrackChangedMsgStoresCurrentTrackHash verifies that TrackChangedMsg
+// updates m.currentTrackHash so that subsequent pause/seek writes use the
+// correct hash.
+func TestTrackChangedMsgStoresCurrentTrackHash(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+
+	next, _ := m.Update(TrackChangedMsg{Artist: "A", Title: "T", Hash: "testhash"})
+	nm := next.(Model)
+
+	if nm.currentTrackHash != "testhash" {
+		t.Fatalf("expected currentTrackHash %q, got %q", "testhash", nm.currentTrackHash)
+	}
+}
+
+// TestTrackChangedMsgWithoutSessionWriterReturnsNilCmd verifies that
+// TrackChangedMsg without a session writer returns nil cmd (no-op write path).
+func TestTrackChangedMsgWithoutSessionWriterReturnsNilCmd(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+
+	_, cmd := m.Update(TrackChangedMsg{Artist: "A", Title: "T", Hash: "h"})
+	if cmd != nil {
+		t.Fatal("TrackChangedMsg without session writer: expected nil cmd")
 	}
 }

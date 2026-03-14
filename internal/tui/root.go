@@ -198,11 +198,13 @@ func (r RepeatMode) String() string {
 }
 
 // sessionWriter is implemented by db.Writer. Root calls WriteRepeatMode after
-// each actionRepeatCycle and WriteShuffle after each actionShuffleToggle to
-// persist mode changes to the session table via the single-writer goroutine.
+// each actionRepeatCycle, WriteShuffle after each actionShuffleToggle, and
+// UpdateSessionPosition on pause, seek, and track-change events to persist
+// state changes to the session table via the single-writer goroutine.
 type sessionWriter interface {
 	WriteRepeatMode(mode string) error
 	WriteShuffle(enabled bool) error
+	UpdateSessionPosition(hash string, positionMs int64) error
 }
 
 // PlaybackState represents the current playback status shown in the status bar.
@@ -222,6 +224,7 @@ type TrackChangedMsg struct {
 	Artist         string
 	Title          string
 	PlaylistSource string // "Queue" or a named playlist name; defaults to "Queue" if empty
+	Hash           string // content hash of the new track; used for session persistence
 }
 
 // scanBatchSize is the maximum number of tracks collected per batch before
@@ -285,9 +288,10 @@ type Model struct {
 	// destructive action replaces it before the window expires.
 	undoSlot undoSlot
 
-	playbackState PlaybackState // current play/pause/stopped/idle state
-	repeatMode    RepeatMode    // repeat mode: off, all, or one
-	shuffle       bool          // shuffle mode enabled
+	playbackState    PlaybackState // current play/pause/stopped/idle state
+	repeatMode       RepeatMode    // repeat mode: off, all, or one
+	shuffle          bool          // shuffle mode enabled
+	currentTrackHash string        // content hash of the track currently loaded in the player
 
 	// elapsedSecs and totalSecs hold the most recently queried playback
 	// position and track duration in seconds. Zero values mean no time
@@ -386,6 +390,22 @@ func syncPositionCmd() tea.Cmd {
 	return tea.Tick(positionSyncInterval, func(time.Time) tea.Msg {
 		return syncPositionMsg{}
 	})
+}
+
+// sessionPositionCmd returns a Cmd that writes the current track hash and
+// elapsed position (in milliseconds) to the session table. Returns nil when
+// no sessionWriter is configured.
+func (m Model) sessionPositionCmd() tea.Cmd {
+	if m.sessionWriter == nil {
+		return nil
+	}
+	sw := m.sessionWriter
+	hash := m.currentTrackHash
+	positionMs := int64(m.elapsedSecs * 1000)
+	return func() tea.Msg {
+		_ = sw.UpdateSessionPosition(hash, positionMs)
+		return nil
+	}
 }
 
 // tickCmd schedules a 1-second tick for elapsed-time display updates.
@@ -597,6 +617,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case TrackChangedMsg:
+		m.currentTrackHash = msg.Hash
 		m.statusBar.artist = msg.Artist
 		m.statusBar.title = msg.Title
 		source := msg.PlaylistSource
@@ -607,6 +628,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.playbackState = PlaybackPlaying
 		m.elapsedSecs = 0
 		m.totalSecs = 0
+		return m, m.sessionPositionCmd()
 
 	case libtui.TrackEnqueuedMsg:
 		if msg.Err != nil {
@@ -790,6 +812,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.playbackState == PlaybackPlaying {
 					_ = m.player.Pause()
 					m.playbackState = PlaybackPaused
+					return m, m.sessionPositionCmd()
 				} else if len(m.queue.entries) == 0 {
 					m.statusBar.notification = transientNotification{
 						msg:       "Queue is empty — enqueue tracks from Library (key 1)",
@@ -818,18 +841,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case actionSeekBack:
 			if cp, ok := m.player.(commandPlayer); ok {
 				_ = cp.SeekRelative(-5)
+				return m, m.sessionPositionCmd()
 			}
 		case actionSeekForward:
 			if cp, ok := m.player.(commandPlayer); ok {
 				_ = cp.SeekRelative(5)
+				return m, m.sessionPositionCmd()
 			}
 		case actionSeekBackLong:
 			if cp, ok := m.player.(commandPlayer); ok {
 				_ = cp.SeekRelative(-30)
+				return m, m.sessionPositionCmd()
 			}
 		case actionSeekForwardLong:
 			if cp, ok := m.player.(commandPlayer); ok {
 				_ = cp.SeekRelative(30)
+				return m, m.sessionPositionCmd()
 			}
 		case actionVolumeUp:
 			if cp, ok := m.player.(commandPlayer); ok {
