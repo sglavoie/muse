@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"runtime"
 	"testing"
+	"time"
 )
 
 // TestIndex is the entry point matched by -run TestIndex; subtests cover all
@@ -160,6 +161,34 @@ func TestLibraryIndex_UnknownArtistSortsLast(t *testing.T) {
 	// Verify Unknown Artist entries are themselves title-sorted.
 	if got[2].Title != "another-file" || got[3].Title != "some-file" {
 		t.Errorf("Unknown Artist tracks not title-sorted: %v", got[2:])
+	}
+}
+
+func TestLibraryIndex_Sub100msLatency(t *testing.T) {
+	const n = 10_001
+
+	var idx LibraryIndex
+	for i := range n {
+		idx.Insert(Track{
+			Artist: fmt.Sprintf("Artist%05d", i%1000),
+			Title:  fmt.Sprintf("Track%05d", i),
+			Album:  fmt.Sprintf("Album%05d", i%200),
+			Hash:   fmt.Sprintf("%064x", i),
+			Path:   fmt.Sprintf("/music/artist%05d/track%05d.flac", i%1000, i),
+		})
+	}
+
+	start := time.Now()
+	tracks := idx.Tracks()
+	for range tracks {
+	}
+	elapsed := time.Since(start)
+
+	t.Logf("Tracks() access + iteration over %d tracks: %v", n, elapsed)
+
+	const limit = 100 * time.Millisecond
+	if elapsed >= limit {
+		t.Errorf("access + iteration took %v, want < %v", elapsed, limit)
 	}
 }
 

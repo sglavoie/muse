@@ -344,6 +344,91 @@ func TestFallback_SingleFileFailureInsertsFallback(t *testing.T) {
 	}
 }
 
+// chainExtractor is a MetadataExtractor that simulates the full fallback chain:
+// any batch (len > 1) containing the corrupt path returns an error, and even
+// the per-file (len == 1) invocation of that corrupt path returns an error,
+// forcing extractWithBinaryRetry to produce filename-derived fallback metadata.
+// All other invocations succeed and echo each file as a Track.
+// perFileCalls counts Extract calls where len(files) == 1.
+type chainExtractor struct {
+	corruptPath  string
+	perFileCalls int
+}
+
+func (c *chainExtractor) Extract(files []HashedFile) ([]Track, error) {
+	// Detect whether the corrupt file is in this batch.
+	for _, f := range files {
+		if f.Path == c.corruptPath {
+			if len(files) == 1 {
+				c.perFileCalls++
+			}
+			return nil, errors.New("invalid JSON: corrupt file in batch")
+		}
+	}
+	// Healthy batch: echo each file as a Track.
+	if len(files) == 1 {
+		c.perFileCalls++
+	}
+	tracks := make([]Track, len(files))
+	for i, f := range files {
+		tracks[i] = Track{Path: f.Path, Hash: f.Hash}
+	}
+	return tracks, nil
+}
+
+var _ MetadataExtractor = (*chainExtractor)(nil)
+
+// TestBinaryRetry_FilenameMetadataFallbackChain verifies the full retry chain:
+// a batch containing a corrupt file fails at the batch level, binary search
+// subdivision isolates it, per-file invocation also fails, and
+// extractWithBinaryRetry falls back to filename-derived metadata for that
+// single file while returning all other tracks normally.
+func TestBinaryRetry_FilenameMetadataFallbackChain(t *testing.T) {
+	const n = 8
+	const corruptIdx = 5
+
+	files := make([]HashedFile, n)
+	for i := range n {
+		files[i] = HashedFile{
+			Path: fmt.Sprintf("/music/track%02d.flac", i),
+			Hash: fmt.Sprintf("hash%02d", i),
+		}
+	}
+	corruptPath := fmt.Sprintf("/music/track%02d.flac", corruptIdx)
+
+	ce := &chainExtractor{corruptPath: corruptPath}
+	tracks := extractWithBinaryRetry(ce, files)
+
+	// (1) All N tracks must be returned.
+	if len(tracks) != n {
+		t.Fatalf("expected %d tracks, got %d", n, len(tracks))
+	}
+
+	// (2) The corrupt track must have filename-derived fallback metadata.
+	found := false
+	for _, tr := range tracks {
+		if tr.Path == corruptPath {
+			found = true
+			if tr.Artist != "Unknown Artist" {
+				t.Errorf("corrupt track artist: want %q, got %q", "Unknown Artist", tr.Artist)
+			}
+			wantTitle := fmt.Sprintf("track%02d", corruptIdx)
+			if tr.Title != wantTitle {
+				t.Errorf("corrupt track title: want %q, got %q", wantTitle, tr.Title)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("corrupt path %q missing from results; expected fallback track", corruptPath)
+	}
+
+	// (3) At least one per-file Extract call must have occurred, proving the
+	// binary-search chain reached per-file isolation.
+	if ce.perFileCalls == 0 {
+		t.Error("expected at least one per-file Extract call (len==1), got none; chain was not exercised")
+	}
+}
+
 // TestExtractBatches_HashPreserved verifies that Track.Hash matches the
 // HashedFile.Hash that entered the pipeline.
 func TestExtractBatches_HashPreserved(t *testing.T) {

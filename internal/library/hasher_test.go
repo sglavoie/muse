@@ -1,8 +1,11 @@
 package library
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sync/atomic"
 	"testing"
 )
 
@@ -511,5 +514,67 @@ func TestHashWorkers_OutputClosedOnEmptyInput(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("expected 0 results for empty input, got %d", count)
+	}
+}
+
+// TestHashWorkers_WorkerCountEqualsNumCPU verifies that hashWorkersN launches
+// exactly n goroutines running concurrently. Each injected hashFn signals a
+// "ready" channel before blocking on a gate channel. The test drains the ready
+// channel n times (ensuring all n workers are simultaneously at the gate),
+// then closes the gate to release them. An atomic peak counter tracks the
+// maximum observed concurrency.
+func TestHashWorkers_WorkerCountEqualsNumCPU(t *testing.T) {
+	n := runtime.NumCPU()
+
+	// ready is signalled by each worker once it has incremented the active
+	// counter and is about to block. This lets the test know all n workers
+	// are concurrently in-flight before releasing the gate.
+	ready := make(chan struct{}, n)
+	// gate blocks each worker until all are ready.
+	gate := make(chan struct{})
+
+	var active atomic.Int64
+	var peak atomic.Int64
+
+	hashFn := func(_ string) (string, error) {
+		cur := active.Add(1)
+		// Update peak via a compare-and-swap loop.
+		for {
+			old := peak.Load()
+			if cur <= old {
+				break
+			}
+			if peak.CompareAndSwap(old, cur) {
+				break
+			}
+		}
+		ready <- struct{}{} // signal: this worker is at the gate
+		<-gate              // wait for release
+		active.Add(-1)
+		return "fakehash", nil
+	}
+
+	// Feed exactly n paths so every worker gets exactly one job.
+	in := make(chan string, n)
+	for i := range n {
+		in <- fmt.Sprintf("fakepath_%d", i)
+	}
+	close(in)
+
+	out := hashWorkersN(n, in, hashFn)
+
+	// Wait until all n workers have signalled ready (all are at the gate).
+	for range n {
+		<-ready
+	}
+	// Release all workers simultaneously.
+	close(gate)
+
+	// Drain output to let all goroutines finish.
+	for range out {
+	}
+
+	if got := int(peak.Load()); got != n {
+		t.Fatalf("peak concurrent workers = %d, want %d (runtime.NumCPU())", got, n)
 	}
 }

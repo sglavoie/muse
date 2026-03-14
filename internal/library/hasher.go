@@ -22,12 +22,21 @@ type HashedFile struct {
 // in and emit HashedFile values to the returned channel. The output channel is
 // closed once all workers have finished draining the input.
 func HashWorkers(in <-chan string) <-chan HashedFile {
-	out := make(chan HashedFile, runtime.NumCPU())
+	return hashWorkersN(runtime.NumCPU(), in, HashFile)
+}
+
+// hashWorkersN spawns n goroutines that consume file paths from in, calling
+// hashFn on each path, and emits HashedFile values to the returned channel.
+// The output channel is closed once all workers have finished draining the
+// input. This unexported function exists to allow tests to inject a controlled
+// hashFn for measuring concurrency behaviour.
+func hashWorkersN(n int, in <-chan string, hashFn func(string) (string, error)) <-chan HashedFile {
+	out := make(chan HashedFile, n)
 	var wg sync.WaitGroup
-	for range runtime.NumCPU() {
+	for range n {
 		wg.Go(func() {
 			for path := range in {
-				hash, err := HashFile(path)
+				hash, err := hashFn(path)
 				if err != nil {
 					continue
 				}
