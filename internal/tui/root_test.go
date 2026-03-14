@@ -947,9 +947,11 @@ func TestPlaybackEndedMsgNoNotificationWhenRepeatNotOff(t *testing.T) {
 	}
 }
 
-// TestPlaybackEndedMsgNoNotificationWhenQueueNotEmpty verifies that no "Queue
-// finished" notification is shown when the queue still has entries.
-func TestPlaybackEndedMsgNoNotificationWhenQueueNotEmpty(t *testing.T) {
+// TestPlaybackEndedMsgShowsNotificationWithEntriesPresent verifies that "Queue
+// finished" IS shown even when the TUI slice still holds entries, because
+// PlaybackEndedMsg means mpv exhausted all playable tracks — entries are never
+// removed from the slice during normal play-through.
+func TestPlaybackEndedMsgShowsNotificationWithEntriesPresent(t *testing.T) {
 	m := New("/log", "", false, nil, nil, "", nil, nil)
 	m.repeatMode = RepeatOff
 	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
@@ -957,8 +959,8 @@ func TestPlaybackEndedMsgNoNotificationWhenQueueNotEmpty(t *testing.T) {
 	next, _ := m.Update(PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.statusBar.notification.msg == "Queue finished" {
-		t.Fatal("Queue finished must not appear when queue still has entries")
+	if nm.statusBar.notification.msg != "Queue finished" {
+		t.Fatalf("expected %q, got %q", "Queue finished", nm.statusBar.notification.msg)
 	}
 }
 

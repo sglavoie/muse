@@ -12,6 +12,15 @@ import (
 
 const writerDrainTimeout = 5 * time.Second
 
+// Compile-time check: *Writer must satisfy the sessionWriter interface
+// used by the TUI layer (WriteRepeatMode, WriteShuffle, UpdateSessionPosition).
+// This catches method-signature drift without requiring a runtime assignment.
+var _ interface {
+	WriteRepeatMode(mode string) error
+	WriteShuffle(enabled bool) error
+	UpdateSessionPosition(hash string, positionMs int64) error
+} = (*Writer)(nil)
+
 // writeCmd is a single unit of work sent to the writer goroutine.
 // The caller blocks on resp until the goroutine sends the result back.
 type writeCmd struct {
@@ -315,8 +324,13 @@ func (w *Writer) PurgeDeletedQueueEntries(before int64) error {
 // WriteShuffle persists the shuffle flag to the session row and, when enabled
 // is true, regenerates shuffle_position for all active queue rows with fresh
 // random gapped integers inside a single transaction. When disabled, only the
-// session flag is updated; the caller switches ordering back to the position
-// column at query time.
+// session flag is updated.
+//
+// shuffle_position is a persistence-only field. Playback randomisation is
+// handled by mpv's native shuffle property (SetShuffle on the player). DB reads
+// always use ORDER BY position; shuffle_position is regenerated on each enable
+// (and on session restore when shuffle is on) to ensure varied playback order
+// across sessions without requiring a separate read path.
 func (w *Writer) WriteShuffle(enabled bool) error {
 	return w.Exec(func(db *sql.DB) error {
 		tx, err := db.Begin()
@@ -373,10 +387,11 @@ func (w *Writer) WriteShuffle(enabled bool) error {
 	})
 }
 
-// UpsertSession updates all session state fields in the single session row:
-// current_hash (nullable track hash), position_ms (elapsed playback time in
-// milliseconds), shuffle flag, and repeat_mode. Call this on pause, seek, or
-// track-change events to capture full session state.
+// UpsertSession updates all session state fields atomically in a single UPDATE:
+// current_hash (nullable), position_ms, shuffle, and repeat_mode. This method
+// is not called from the hot-path (individual Write* methods handle each field);
+// it is retained for use in tests as a convenient setup helper that establishes
+// full session state in one call.
 func (w *Writer) UpsertSession(hash string, positionMs int64, shuffle bool, repeatMode string) error {
 	return w.Exec(func(db *sql.DB) error {
 		shuffleVal := 0

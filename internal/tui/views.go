@@ -41,6 +41,7 @@ func (v PlaylistsView) render() string {
 type QueueEntry struct {
 	ID         int64  // database row ID; 0 when not persisted
 	Path       string // file path used to identify the entry
+	Hash       string // BLAKE3 content hash; used to rebuild player.QueueTrack on undo
 	Display    string // human-readable label, e.g. "Artist – Title"
 	Missing    bool   // true when the file was not found at playback time
 	Artist     string // track artist, used by the status bar persistent left zone

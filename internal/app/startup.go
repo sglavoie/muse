@@ -263,11 +263,13 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 			if _, statErr := os.Stat(r.Path); os.IsNotExist(statErr) {
 				missing = true
 				_ = writer.MarkQueueEntryMissing(r.ID)
+				_ = writer.MarkTrackMissing(r.Hash)
 			}
 		}
 		tuiEntries = append(tuiEntries, tui.QueueEntry{
 			ID:         r.ID,
 			Path:       r.Path,
+			Hash:       r.Hash,
 			Display:    buildDisplay(r.Artist, r.Title, r.Path),
 			Missing:    missing,
 			Artist:     r.Artist,
@@ -279,6 +281,8 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 			Path:    r.Path,
 			Hash:    r.Hash,
 			QueueID: r.ID,
+			Artist:  r.Artist,
+			Title:   r.Title,
 		})
 	}
 

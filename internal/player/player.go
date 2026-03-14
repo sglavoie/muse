@@ -22,6 +22,8 @@ type QueueTrack struct {
 	Path    string // absolute path to the audio file
 	Hash    string // BLAKE3 content hash (primary key of the tracks table)
 	QueueID int64  // primary key of the queue table row
+	Artist  string // artist display name; used by trackChangedFn on auto-advance
+	Title   string // track title; used by trackChangedFn on auto-advance
 }
 
 // Player defines the playback control interface backed by mpv over a Unix

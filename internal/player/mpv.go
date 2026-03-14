@@ -63,6 +63,13 @@ type Manager struct {
 	// the TUI can reset its play/pause toggle to the correct idle state.
 	playbackEndedFn func()
 
+	// trackChangedFn is called when a new track starts (mpv "start-file"
+	// event). It receives the content hash, artist, and title of the track
+	// resolved from the in-memory queue. Used to dispatch TrackChangedMsg
+	// into the Bubble Tea program so that the status bar and session hash
+	// stay correct during auto-advance.
+	trackChangedFn func(hash, artist, title string)
+
 	// disconnectCh receives the first error when the IPC socket is detected
 	// as disconnected by the health-check goroutine. The channel is buffered
 	// (size 1) so the goroutine never blocks.
@@ -196,6 +203,43 @@ func (m *Manager) SetPlaybackEndedFunc(fn func()) {
 	m.mu.Lock()
 	m.playbackEndedFn = fn
 	m.mu.Unlock()
+}
+
+// SetTrackChangedFunc sets a callback invoked when a new track starts playing
+// (mpv "start-file" event). The callback receives the content hash, artist,
+// and title resolved from the in-memory queue at currentIndex. Use this to
+// dispatch a TrackChangedMsg into the Bubble Tea program so that the status
+// bar and session hash are updated on auto-advance.
+func (m *Manager) SetTrackChangedFunc(fn func(hash, artist, title string)) {
+	m.mu.Lock()
+	m.trackChangedFn = fn
+	m.mu.Unlock()
+}
+
+// ElapsedPosition queries mpv for the current playback position ("time-pos")
+// and track duration ("duration"), returning them as seconds. Returns
+// (0, 0, ErrNotConnected) when mpv is not yet connected, so callers can fall
+// back gracefully. Satisfies the elapsedReader interface used by the TUI root
+// model.
+func (m *Manager) ElapsedPosition() (elapsed, total float64, err error) {
+	c, ipcErr := m.ipc()
+	if ipcErr != nil {
+		return 0, 0, ipcErr
+	}
+
+	posResp, err := c.SendCommand("get_property", "time-pos")
+	if err != nil {
+		return 0, 0, err
+	}
+	elapsed, _ = posResp.Data.(float64)
+
+	durResp, err := c.SendCommand("get_property", "duration")
+	if err != nil {
+		return 0, 0, err
+	}
+	total, _ = durResp.Data.(float64)
+
+	return elapsed, total, nil
 }
 
 // PlayFromIndex starts playback from the queue entry at index. The queue must
@@ -462,6 +506,19 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			// start resumes at the correct file (elapsed≈0) rather than the
 			// previous track's last persisted position.
 			_ = m.SyncPosition()
+
+			// Notify the TUI that the active track has changed. Resolve the
+			// current track from the in-memory queue using currentIndex so
+			// the TUI can update the status bar and persist the correct hash.
+			m.mu.RLock()
+			idx := m.currentIndex
+			q := m.queue
+			fn := m.trackChangedFn
+			m.mu.RUnlock()
+			if fn != nil && idx >= 0 && idx < len(q) {
+				t := q[idx]
+				fn(t.Hash, t.Artist, t.Title)
+			}
 		case "end-file":
 			reason, _ := raw["reason"].(string)
 			if reason != "eof" {
@@ -557,6 +614,52 @@ func (m *Manager) handleRestart() {
 	}
 
 	go m.pollUntilReady(newCtx)
+}
+
+// SetRepeat configures mpv's repeat behaviour. mode is the string form of
+// RepeatMode: "none" disables looping, "all" loops the playlist, "one" loops
+// the current file. The command is queued for replay if mpv is not yet
+// connected.
+func (m *Manager) SetRepeat(mode string) error {
+	c, err := m.ipc()
+	if errors.Is(err, ErrNotConnected) {
+		return m.enqueue(func() error { return m.SetRepeat(mode) })
+	}
+	if err != nil {
+		return err
+	}
+	switch mode {
+	case "all":
+		if _, err = c.SendCommand("set_property", "loop-playlist", "inf"); err != nil {
+			return err
+		}
+		_, err = c.SendCommand("set_property", "loop-file", "no")
+	case "one":
+		if _, err = c.SendCommand("set_property", "loop-file", "inf"); err != nil {
+			return err
+		}
+		_, err = c.SendCommand("set_property", "loop-playlist", "no")
+	default: // "none"
+		if _, err = c.SendCommand("set_property", "loop-playlist", "no"); err != nil {
+			return err
+		}
+		_, err = c.SendCommand("set_property", "loop-file", "no")
+	}
+	return err
+}
+
+// SetShuffle enables or disables mpv's shuffle mode. The command is queued
+// for replay if mpv is not yet connected.
+func (m *Manager) SetShuffle(enabled bool) error {
+	c, err := m.ipc()
+	if errors.Is(err, ErrNotConnected) {
+		return m.enqueue(func() error { return m.SetShuffle(enabled) })
+	}
+	if err != nil {
+		return err
+	}
+	_, err = c.SendCommand("set_property", "shuffle", enabled)
+	return err
 }
 
 // LoadFilePaused loads the file at path into mpv, seeks to positionMs

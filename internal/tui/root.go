@@ -36,6 +36,14 @@ type playerQueueAppender interface {
 	AppendToQueue(player.QueueTrack)
 }
 
+// playerQueueSetter is an optional interface for replacing the player's entire
+// in-memory queue. Root checks for it via type assertion on ClearQueueMsg (to
+// clear the player queue) and UndoMsg for undoKindClear (to restore it), keeping
+// the player and TUI queue lists in sync after destructive clear operations.
+type playerQueueSetter interface {
+	SetQueue([]player.QueueTrack)
+}
+
 // positionSyncer is implemented by player.Manager. Root uses it to
 // periodically persist the current playback position for crash-resume.
 type positionSyncer interface {
@@ -45,9 +53,11 @@ type positionSyncer interface {
 // repeatShuffler is an optional extension checked via type assertion. Root
 // calls SetRepeat and SetShuffle after cycling the model modes so that mpv is
 // instructed to change its repeat/shuffle mode and the player state stays in
-// sync with what the status bar displays.
+// sync with what the status bar displays. SetRepeat receives the string form
+// of RepeatMode ("none", "all", or "one") to avoid a circular import with the
+// player package.
 type repeatShuffler interface {
-	SetRepeat(RepeatMode) error
+	SetRepeat(mode string) error
 	SetShuffle(bool) error
 }
 
@@ -85,6 +95,13 @@ type undoSlot struct {
 	kind      undoKind
 	expiresAt time.Time
 
+	// cancelPurge is closed when this slot is superseded by a new destructive
+	// action or when undo is successfully performed. The time.AfterFunc purge
+	// callback checks this channel before running to avoid purging rows that
+	// belong to a newer undo slot (e.g. same-second dequeue followed by another
+	// dequeue of the same DB row ID after an undo).
+	cancelPurge chan struct{}
+
 	// Dequeue fields — valid when kind == undoKindDequeue.
 	dequeueID    int64
 	dequeueEntry QueueEntry
@@ -93,6 +110,7 @@ type undoSlot struct {
 	// Clear fields — valid when kind == undoKindClear.
 	clearIDs     []int64
 	clearEntries []QueueEntry
+	clearTracks  []player.QueueTrack // parallel to clearEntries; used to restore player queue on undo
 }
 
 // tickMsg is dispatched every second by tickCmd. It drives elapsed-time
@@ -660,7 +678,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.playbackState = PlaybackIdle
 		m.elapsedSecs = 0
 		m.totalSecs = 0
-		if len(m.queue.entries) == 0 && m.repeatMode == RepeatOff {
+		// PlaybackEndedMsg already implies the queue was exhausted (mpv
+		// auto-advance found no more playable entries). Checking queue length
+		// here would always be false because entries are never removed from the
+		// TUI slice during normal play-through.
+		if m.repeatMode == RepeatOff {
 			m.statusBar.notification = transientNotification{
 				msg:       "Queue finished",
 				expiresAt: time.Now().Add(transientDuration),
@@ -694,11 +716,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			display = msg.Track.Artist
 		}
 		m.queue.entries = append(m.queue.entries, QueueEntry{
-			ID:      msg.QueueID,
-			Path:    msg.Track.Path,
-			Display: display,
-			Artist:  msg.Track.Artist,
-			Title:   msg.Track.Title,
+			ID:         msg.QueueID,
+			Path:       msg.Track.Path,
+			Hash:       msg.Track.Hash,
+			Display:    display,
+			Artist:     msg.Track.Artist,
+			Title:      msg.Track.Title,
+			DurationMs: int64(msg.Track.Duration * 1000),
 		})
 		// Keep the player's in-memory queue in sync.
 		if pa, ok := m.player.(playerQueueAppender); ok {
@@ -706,6 +730,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				Path:    msg.Track.Path,
 				Hash:    msg.Track.Hash,
 				QueueID: msg.QueueID,
+				Artist:  msg.Track.Artist,
+				Title:   msg.Track.Title,
 			})
 		}
 		// Trigger immediate playback when the queue was previously empty and
@@ -735,16 +761,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case DequeueTrackMsg:
 		if msg.Index >= 0 && msg.Index < len(m.queue.entries) {
 			entry := m.queue.entries[msg.Index]
+			// Cancel any in-flight purge timer from the previous undo slot
+			// before replacing it. Without this, the old timer could fire
+			// against rows soft-deleted in the same Unix second and delete DB
+			// rows that now belong to the new slot.
+			if m.undoSlot.cancelPurge != nil {
+				close(m.undoSlot.cancelPurge)
+			}
+			cancel := make(chan struct{})
 			softDeleteTime := time.Now().Unix()
 			if m.undoer != nil {
 				_ = m.undoer.DequeueTrackSoft(entry.ID)
+				undoer := m.undoer
 				time.AfterFunc(undoWindowDuration, func() {
-					_ = m.undoer.PurgeDeletedQueueEntries(softDeleteTime + 1)
+					select {
+					case <-cancel:
+						return // slot superseded; skip purge
+					default:
+						_ = undoer.PurgeDeletedQueueEntries(softDeleteTime + 1)
+					}
 				})
 			}
 			m.undoSlot = undoSlot{
 				kind:         undoKindDequeue,
 				expiresAt:    time.Now().Add(undoWindowDuration),
+				cancelPurge:  cancel,
 				dequeueID:    entry.ID,
 				dequeueEntry: entry,
 				dequeueIdx:   msg.Index,
@@ -767,20 +808,45 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ClearQueueMsg:
 		savedEntries := make([]QueueEntry, len(m.queue.entries))
 		copy(savedEntries, m.queue.entries)
+		// Build parallel player tracks from saved entries for undo restore.
+		savedTracks := make([]player.QueueTrack, len(savedEntries))
+		for i, e := range savedEntries {
+			savedTracks[i] = player.QueueTrack{
+				Path:    e.Path,
+				Hash:    e.Hash,
+				QueueID: e.ID,
+				Artist:  e.Artist,
+				Title:   e.Title,
+			}
+		}
+		// Cancel any in-flight purge timer from the previous undo slot before
+		// replacing it (same-second race guard as in DequeueTrackMsg).
+		if m.undoSlot.cancelPurge != nil {
+			close(m.undoSlot.cancelPurge)
+		}
+		cancel := make(chan struct{})
 		var clearIDs []int64
 		softDeleteTime := time.Now().Unix()
 		if m.undoer != nil {
 			ids, _ := m.undoer.ClearQueueSoft()
 			clearIDs = ids
+			undoer := m.undoer
 			time.AfterFunc(undoWindowDuration, func() {
-				_ = m.undoer.PurgeDeletedQueueEntries(softDeleteTime + 1)
+				select {
+				case <-cancel:
+					return // slot superseded; skip purge
+				default:
+					_ = undoer.PurgeDeletedQueueEntries(softDeleteTime + 1)
+				}
 			})
 		}
 		m.undoSlot = undoSlot{
 			kind:         undoKindClear,
 			expiresAt:    time.Now().Add(undoWindowDuration),
+			cancelPurge:  cancel,
 			clearIDs:     clearIDs,
 			clearEntries: savedEntries,
+			clearTracks:  savedTracks,
 		}
 		m.statusBar.notification = transientNotification{
 			msg:       "Queue cleared — press u to undo",
@@ -788,6 +854,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.queue.entries = nil
 		m.queue.cursor = 0
+		// Stop active playback — requirement req-019ce3a80fa97003a43d90cf5e7c7a3f.
+		if cp, ok := m.player.(commandPlayer); ok {
+			_ = cp.Stop()
+			m.playbackState = PlaybackStopped
+			m.elapsedSecs = 0
+			m.totalSecs = 0
+		}
+		// Clear the player's in-memory queue so it stays in sync with the TUI.
+		if qs, ok := m.player.(playerQueueSetter); ok {
+			qs.SetQueue(nil)
+		}
 
 	case UndoMsg:
 		if m.undoSlot.kind != undoNone && time.Now().Before(m.undoSlot.expiresAt) {
@@ -809,6 +886,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					_ = m.undoer.UndoClearQueue(m.undoSlot.clearIDs)
 				}
 				m.queue.entries = m.undoSlot.clearEntries
+				// Restore the player's in-memory queue to match the restored TUI entries.
+				if qs, ok := m.player.(playerQueueSetter); ok {
+					qs.SetQueue(m.undoSlot.clearTracks)
+				}
+			}
+			// Cancel the background purge — the undo restored deleted_at to
+			// NULL, so a stale purge would have been a no-op anyway, but
+			// cancelling is cleaner and avoids any same-second edge cases.
+			if m.undoSlot.cancelPurge != nil {
+				close(m.undoSlot.cancelPurge)
 			}
 			m.undoSlot = undoSlot{}
 		}
@@ -943,7 +1030,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.repeatMode = RepeatOff
 			}
 			if rs, ok := m.player.(repeatShuffler); ok {
-				_ = rs.SetRepeat(m.repeatMode)
+				_ = rs.SetRepeat(m.repeatMode.String())
 			}
 			if m.sessionWriter != nil {
 				_ = m.sessionWriter.WriteRepeatMode(m.repeatMode.String())

@@ -119,7 +119,6 @@ func main() {
 	model.SetQueueWriter(result.Writer)
 	model.SetQueueDequeuer(result.Writer)
 	model.SetSessionWriter(result.Writer)
-	p := tea.NewProgram(model)
 
 	// setQueue keeps the player Manager and the TUI QueueView in sync.
 	// Callers MUST use this helper whenever the queue changes so that
@@ -132,14 +131,22 @@ func main() {
 
 	// Apply restored session state to the model so the first render reflects
 	// the correct repeat/shuffle/playback state from the previous session.
+	// These Set* calls MUST happen before tea.NewProgram so the program
+	// captures the fully-initialised model at construction time.
 	model.SetRepeatMode(restored.RepeatMode)
 	model.SetShuffle(restored.Shuffle)
+	// Propagate restored repeat/shuffle modes into mpv so its behaviour
+	// matches the status bar indicators from the first user interaction.
+	_ = mgr.SetRepeat(restored.RepeatMode.String())
+	_ = mgr.SetShuffle(restored.Shuffle)
 	if len(restored.QueueEntries) > 0 {
 		model.SetPlaybackState(tui.PlaybackPaused)
 	}
 	if restored.CurrentHash != "" {
 		model.SetCurrentTrackHash(restored.CurrentHash)
 	}
+
+	p := tea.NewProgram(model)
 
 	// Wire player callbacks after p is created so events reach the TUI via Send.
 	mgr.SetMissingFileFunc(func(path string) {
@@ -150,6 +157,9 @@ func main() {
 	})
 	mgr.SetPlaybackEndedFunc(func() {
 		p.Send(tui.PlaybackEndedMsg{})
+	})
+	mgr.SetTrackChangedFunc(func(hash, artist, title string) {
+		p.Send(tui.TrackChangedMsg{Hash: hash, Artist: artist, Title: title, PlaylistSource: "Queue"})
 	})
 	mgr.SetMissingMarker(result.Writer)
 
