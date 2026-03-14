@@ -57,9 +57,15 @@ const (
 	// Playlists-local actions.
 	actionPlaylistRename
 	actionPlaylistCreate // 'c': create new playlist
+	actionPlaylistOpen   // 'enter': open playlist to display its tracks
+	actionPlaylistBack   // 'esc': return to the playlist list from track level
+	actionPlaylistDelete // 'd': delete focused playlist (list level) or remove focused track (track level)
 
 	// Bulk-selection action — triggered by 'a' when tracks are selected.
-	actionBulkAction // 'a': apply context-appropriate bulk action and clear selection
+	// actionBulkAction applies in Library (append selected tracks to queue).
+	// actionAddToPlaylist applies in Playlists (add selected tracks to a playlist).
+	actionBulkAction    // 'a': apply context-appropriate bulk action and clear selection
+	actionAddToPlaylist // 'a': add selected track(s) to a playlist (Playlists context)
 )
 
 // registryKey is the composite map key for registry lookups.
@@ -129,6 +135,11 @@ func newRegistry() Registry {
 	r.register(contextPlaylists, "down", actionCursorDown)
 	r.register(contextPlaylists, "r", actionPlaylistRename)
 	r.register(contextPlaylists, "c", actionPlaylistCreate)
+	r.register(contextPlaylists, "enter", actionPlaylistOpen)
+	r.register(contextPlaylists, "esc", actionPlaylistBack)
+	r.register(contextPlaylists, "d", actionPlaylistDelete)
+	r.register(contextPlaylists, "x", actionBulkSelectionToggle)
+	r.register(contextPlaylists, "a", actionAddToPlaylist)
 
 	return r
 }

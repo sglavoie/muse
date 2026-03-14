@@ -60,8 +60,13 @@ func helpSections() []helpSection {
 			entries: []helpEntry{
 				{"j / k", "Move cursor down / up"},
 				{"up / down", "Move cursor up / down"},
+				{"enter", "Open playlist / enqueue track"},
+				{"esc", "Back to playlist list"},
 				{"r", "Rename playlist (shadows global repeat)"},
 				{"c", "Create playlist"},
+				{"d", "Delete playlist / remove track"},
+				{"x", "Toggle bulk selection"},
+				{"a", "Add to playlist / apply bulk action"},
 				{"/", "Filter playlists"},
 			},
 		},

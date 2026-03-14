@@ -163,6 +163,13 @@ type UndoMsg struct{}
 // filter bar in the active view.
 type FilterBarMsg struct{}
 
+// playlistTracksLoadedMsg carries the result of a background ReadPlaylistTracks
+// call initiated by actionPlaylistOpen. Root handles it by transitioning the
+// playlists view to TrackLevel with the loaded rows.
+type playlistTracksLoadedMsg struct {
+	tracks []db.PlaylistTrackRow
+}
+
 // PlaylistRenameMsg is dispatched when the user presses 'r' in the playlists
 // view to rename the selected playlist.
 type PlaylistRenameMsg struct{}
@@ -219,6 +226,13 @@ func (r RepeatMode) String() string {
 	default:
 		return "none"
 	}
+}
+
+// playlistTrackReader loads playlist tracks from the database. Root uses it
+// when the user opens a playlist to transition to TrackLevel. When nil,
+// actionPlaylistOpen is a no-op.
+type playlistTrackReader interface {
+	ReadPlaylistTracks(playlistID int64) ([]db.PlaylistTrackRow, error)
 }
 
 // sessionWriter is implemented by db.Writer. Root calls WriteRepeatMode after
@@ -303,9 +317,10 @@ type Model struct {
 	// player is the playback backend. It may be nil when playback is not
 	// available (e.g. in tests that do not exercise playback).
 	player        playPauser
-	queueWriter   libtui.QueueAppender // may be nil; set via SetQueueWriter
-	undoer        queueDequeuer        // may be nil; set via SetQueueDequeuer
-	sessionWriter sessionWriter        // may be nil; set via SetSessionWriter
+	queueWriter    libtui.QueueAppender    // may be nil; set via SetQueueWriter
+	undoer         queueDequeuer           // may be nil; set via SetQueueDequeuer
+	sessionWriter  sessionWriter           // may be nil; set via SetSessionWriter
+	playlistReader playlistTrackReader     // may be nil; set via SetPlaylistTrackReader
 
 	// undoSlot holds the reversible state for the most recent destructive
 	// queue action. The slot is cleared after a successful undo or when a new
@@ -429,6 +444,13 @@ func (m *Model) SetCurrentTrackHash(hash string) {
 // immediately on first render.
 func (m *Model) SetPlaylists(rows []db.PlaylistRow) {
 	m.playlists.playlists = rows
+}
+
+// SetPlaylistTrackReader sets the playlistTrackReader used to load tracks when
+// the user opens a playlist. Call this on the Model returned by New before
+// passing it to tea.NewProgram. When nil, actionPlaylistOpen is a no-op.
+func (m *Model) SetPlaylistTrackReader(r playlistTrackReader) {
+	m.playlistReader = r
 }
 
 // undoWindowDuration is the time after a destructive queue action during which
@@ -1097,7 +1119,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, func() tea.Msg { return PlaylistRenameMsg{} }
 		case actionPlaylistCreate:
 			return m, func() tea.Msg { return PlaylistCreateMsg{} }
+		case actionPlaylistOpen:
+			if m.playlists.atListLevel() && m.playlistReader != nil {
+				pid, ok := m.playlists.focusedPlaylistID()
+				if ok {
+					reader := m.playlistReader
+					return m, func() tea.Msg {
+						tracks, _ := reader.ReadPlaylistTracks(pid)
+						return playlistTracksLoadedMsg{tracks: tracks}
+					}
+				}
+			}
+		case actionPlaylistBack:
+			if !m.playlists.atListLevel() {
+				m.playlists = m.playlists.backToList()
+			}
 		}
+	case playlistTracksLoadedMsg:
+		m.playlists = m.playlists.openTracks(msg.tracks)
 	}
 	return m, nil
 }

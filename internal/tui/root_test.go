@@ -2549,3 +2549,55 @@ func TestView2RendersPlaylistsNameAndCount(t *testing.T) {
 		}
 	}
 }
+
+// stubPlaylistTrackReader implements playlistTrackReader for tests.
+type stubPlaylistTrackReader struct {
+	rows []db.PlaylistTrackRow
+}
+
+func (s *stubPlaylistTrackReader) ReadPlaylistTracks(_ int64) ([]db.PlaylistTrackRow, error) {
+	return s.rows, nil
+}
+
+// TestPlaylistOpenRendersTrackTitles is an integration test that verifies the
+// full path from actionPlaylistOpen through playlistTracksLoadedMsg to the
+// rendered output. After opening a playlist the track titles must appear in
+// the playlists panel.
+func TestPlaylistOpenRendersTrackTitles(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.SetPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "Chill", TrackCount: 2},
+	})
+	reader := &stubPlaylistTrackReader{
+		rows: []db.PlaylistTrackRow{
+			{Position: 1, Title: "Ocean Waves", Artist: "Ambient Co", DurationMs: 240000},
+			{Position: 2, Title: "Forest Rain", Artist: "Nature Sounds", DurationMs: 180000},
+		},
+	}
+	m.SetPlaylistTrackReader(reader)
+
+	// Switch to the playlists view at a realistic width.
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	nm := next.(Model)
+	next, _ = nm.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
+	nm = next.(Model)
+
+	// Press Enter to open the playlist — should return a Cmd.
+	next, cmd := nm.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	nm = next.(Model)
+	if cmd == nil {
+		t.Fatal("actionPlaylistOpen: expected a non-nil Cmd to load tracks")
+	}
+
+	// Execute the Cmd and feed the result back into Update.
+	loadMsg := cmd()
+	next, _ = nm.Update(loadMsg)
+	nm = next.(Model)
+
+	v := nm.View()
+	for _, want := range []string{"Ocean Waves", "Forest Rain"} {
+		if !strings.Contains(v.Content, want) {
+			t.Errorf("expected track title %q in view after playlist open, got:\n%s", want, v.Content)
+		}
+	}
+}

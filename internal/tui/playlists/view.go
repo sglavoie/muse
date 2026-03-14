@@ -3,6 +3,7 @@ package playlists
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/sglavoie/muse/internal/db"
 )
@@ -21,6 +22,7 @@ type View struct {
 	Level     Level
 	Cursor    int
 	Playlists []db.PlaylistRow
+	Tracks    []db.PlaylistTrackRow // populated when Level == TrackLevel
 	Width     int
 	Height    int
 }
@@ -35,9 +37,14 @@ func (v View) CursorUp() View {
 }
 
 // CursorDown returns a copy of v with the cursor moved down by one row,
-// stopping at the last entry.
+// stopping at the last entry. The upper bound depends on the active level:
+// TrackLevel uses the track slice length; ListLevel uses the playlist slice.
 func (v View) CursorDown() View {
-	if v.Cursor < len(v.Playlists)-1 {
+	limit := len(v.Playlists) - 1
+	if v.Level == TrackLevel {
+		limit = len(v.Tracks) - 1
+	}
+	if v.Cursor < limit {
 		v.Cursor++
 	}
 	return v
@@ -49,7 +56,7 @@ func (v View) Render() string {
 	case ListLevel:
 		return v.renderList()
 	default:
-		return "Playlists"
+		return v.renderTracks()
 	}
 }
 
@@ -72,6 +79,39 @@ func (v View) renderList() string {
 		lines[i] = line
 	}
 	return "Playlists\n\n" + strings.Join(lines, "\n")
+}
+
+func (v View) renderTracks() string {
+	if len(v.Tracks) == 0 {
+		return "Tracks\n\n(no tracks)"
+	}
+
+	cols := ComputeTrack(v.Width)
+	lines := make([]string, len(v.Tracks))
+	for i, t := range v.Tracks {
+		pos := fmt.Sprintf("%-*d", cols.Position, t.Position)
+		title := truncate(t.Title, cols.Title)
+		title = fmt.Sprintf("%-*s", cols.Title, title)
+		artist := truncate(t.Artist, cols.Artist)
+		artist = fmt.Sprintf("%-*s", cols.Artist, artist)
+		dur := formatDuration(t.DurationMs)
+		dur = fmt.Sprintf("%*s", cols.Duration, dur)
+		line := pos + " " + title + " " + artist + " " + dur
+		if i == v.Cursor {
+			line = ansiAccent + line + ansiReset
+		}
+		lines[i] = line
+	}
+	return "Tracks\n\n" + strings.Join(lines, "\n")
+}
+
+// formatDuration converts milliseconds to a "m:ss" string.
+func formatDuration(ms int64) string {
+	d := time.Duration(ms) * time.Millisecond
+	totalSec := int(d.Seconds())
+	minutes := totalSec / 60
+	seconds := totalSec % 60
+	return fmt.Sprintf("%d:%02d", minutes, seconds)
 }
 
 // truncate shortens s to at most maxLen runes, appending "…" when truncated.

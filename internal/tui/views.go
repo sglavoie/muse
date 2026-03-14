@@ -26,12 +26,14 @@ const (
 )
 
 // PlaylistsView wraps the playlists sub-panel state for the root model.
-// It holds the navigation level, cursor position, and loaded playlist rows,
-// and delegates rendering to the playlists sub-package.
+// It holds the navigation level, cursor position, loaded playlist rows, and
+// (at TrackLevel) the tracks of the open playlist. Rendering is delegated to
+// the playlists sub-package.
 type PlaylistsView struct {
 	level     pltui.Level
 	cursor    int
 	playlists []db.PlaylistRow
+	tracks    []db.PlaylistTrackRow // populated when level == TrackLevel
 	width     int
 	height    int
 }
@@ -41,6 +43,7 @@ func (v PlaylistsView) render() string {
 		Level:     v.level,
 		Cursor:    v.cursor,
 		Playlists: v.playlists,
+		Tracks:    v.tracks,
 		Width:     v.width,
 		Height:    v.height,
 	}.Render()
@@ -52,6 +55,7 @@ func (v PlaylistsView) HandleAction(a action) PlaylistsView {
 		Level:     v.level,
 		Cursor:    v.cursor,
 		Playlists: v.playlists,
+		Tracks:    v.tracks,
 	}
 	switch a {
 	case actionCursorUp:
@@ -62,6 +66,39 @@ func (v PlaylistsView) HandleAction(a action) PlaylistsView {
 	v.level = view.Level
 	v.cursor = view.Cursor
 	return v
+}
+
+// focusedPlaylistID returns the ID of the playlist at the current cursor
+// position and true. Returns 0, false when the list is empty or the view is
+// not at ListLevel.
+func (v PlaylistsView) focusedPlaylistID() (int64, bool) {
+	if len(v.playlists) == 0 || v.level != pltui.ListLevel {
+		return 0, false
+	}
+	return v.playlists[v.cursor].ID, true
+}
+
+// openTracks transitions the view to TrackLevel, storing the loaded tracks
+// and resetting the cursor to the first row.
+func (v PlaylistsView) openTracks(tracks []db.PlaylistTrackRow) PlaylistsView {
+	v.tracks = tracks
+	v.level = pltui.TrackLevel
+	v.cursor = 0
+	return v
+}
+
+// backToList transitions the view back to ListLevel, clearing the loaded
+// tracks and resetting the cursor to the first playlist.
+func (v PlaylistsView) backToList() PlaylistsView {
+	v.level = pltui.ListLevel
+	v.tracks = nil
+	v.cursor = 0
+	return v
+}
+
+// atListLevel reports whether the view is currently showing the playlist list.
+func (v PlaylistsView) atListLevel() bool {
+	return v.level == pltui.ListLevel
 }
 
 // QueueEntry holds a single item in the playback queue.

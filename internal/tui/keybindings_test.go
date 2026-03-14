@@ -1,0 +1,51 @@
+package tui
+
+import "testing"
+
+// TestPlaylistsBindingsResolve verifies that every key registered under
+// contextPlaylists resolves to the expected action via registry.resolve.
+func TestPlaylistsBindingsResolve(t *testing.T) {
+	reg := newRegistry()
+
+	cases := []struct {
+		key  string
+		want action
+	}{
+		{"j", actionCursorDown},
+		{"k", actionCursorUp},
+		{"up", actionCursorUp},
+		{"down", actionCursorDown},
+		{"enter", actionPlaylistOpen},
+		{"esc", actionPlaylistBack},
+		{"r", actionPlaylistRename},
+		{"c", actionPlaylistCreate},
+		{"d", actionPlaylistDelete},
+		{"x", actionBulkSelectionToggle},
+		{"a", actionAddToPlaylist},
+	}
+
+	for _, tc := range cases {
+		got := reg.resolve(contextPlaylists, tc.key)
+		if got != tc.want {
+			t.Errorf("resolve(contextPlaylists, %q) = %v, want %v", tc.key, got, tc.want)
+		}
+	}
+}
+
+// TestPlaylistsRShadowsGlobalRepeat verifies that 'r' resolves to
+// actionPlaylistRename (not actionRepeatCycle) when the Playlists view is
+// active, locking in the view-local shadowing behaviour.
+func TestPlaylistsRShadowsGlobalRepeat(t *testing.T) {
+	reg := newRegistry()
+
+	got := reg.resolve(contextPlaylists, "r")
+	if got != actionPlaylistRename {
+		t.Errorf("resolve(contextPlaylists, \"r\") = %v, want actionPlaylistRename; global repeat binding must not bleed through", got)
+	}
+
+	// Sanity-check: 'r' in a view without a local binding still returns the global action.
+	got = reg.resolve(contextQueue, "r")
+	if got != actionRepeatCycle {
+		t.Errorf("resolve(contextQueue, \"r\") = %v, want actionRepeatCycle", got)
+	}
+}
