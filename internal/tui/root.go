@@ -1255,6 +1255,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return playlistTracksLoadedMsg{tracks: tracks}
 					}
 				}
+			} else if !m.playlists.atListLevel() && m.queueWriter != nil {
+				if cmd := m.playlists.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
+					return m, cmd
+				}
 			}
 		case actionPlaylistBack:
 			if !m.playlists.atListLevel() {

@@ -6,6 +6,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	musiclib "github.com/sglavoie/muse/internal/library"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
@@ -161,6 +163,41 @@ func (v PlaylistsView) backToList() PlaylistsView {
 // atListLevel reports whether the view is currently showing the playlist list.
 func (v PlaylistsView) atListLevel() bool {
 	return v.level == pltui.ListLevel
+}
+
+// focusedTrack returns the musiclib.Track for the cursor position at TrackLevel.
+// Returns false when the view is not at TrackLevel or the track list is empty.
+func (v PlaylistsView) focusedTrack() (musiclib.Track, bool) {
+	if v.level != pltui.TrackLevel || len(v.tracks) == 0 {
+		return musiclib.Track{}, false
+	}
+	if v.cursor < 0 || v.cursor >= len(v.tracks) {
+		return musiclib.Track{}, false
+	}
+	t := v.tracks[v.cursor]
+	return musiclib.Track{
+		Hash:     t.Hash,
+		Path:     t.Path,
+		Artist:   t.Artist,
+		Title:    t.Title,
+		Duration: float64(t.DurationMs) / 1000,
+	}, true
+}
+
+// enqueueFocusedTrack returns a tea.Cmd that appends the focused track to the
+// play queue via qa. prevQueueLen is used to set WasEmpty on the returned
+// TrackEnqueuedMsg so the root model can trigger immediate playback when needed.
+// Returns nil when the view is not at TrackLevel or no track is focused.
+func (v PlaylistsView) enqueueFocusedTrack(qa libtui.QueueAppender, prevQueueLen int) tea.Cmd {
+	track, ok := v.focusedTrack()
+	if !ok {
+		return nil
+	}
+	wasEmpty := prevQueueLen == 0
+	return func() tea.Msg {
+		id, err := qa.AppendTrack(track)
+		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty}
+	}
 }
 
 // QueueEntry holds a single item in the playback queue.
