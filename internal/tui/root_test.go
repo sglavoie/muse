@@ -3044,3 +3044,32 @@ func TestPlaylistsBulkRemoveAtTrackLevel(t *testing.T) {
 		t.Fatalf("expected selectedTrackIDs to be nil after bulk remove, got %v", nm2.playlists.selectedTrackIDs)
 	}
 }
+
+// TestWindowSizeMsgPropagatesWidthToChildViews verifies that a WindowSizeMsg
+// updates the width fields of both the library and playlists child views, and
+// that column widths computed from the updated width are proportionally larger
+// than those computed from a smaller width.
+func TestWindowSizeMsgPropagatesWidthToChildViews(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+
+	const newWidth = 160
+	next, _ := m.Update(tea.WindowSizeMsg{Width: newWidth, Height: 40})
+	nm := next.(Model)
+
+	if nm.library.width != newWidth {
+		t.Fatalf("library.width: expected %d, got %d", newWidth, nm.library.width)
+	}
+	if nm.playlists.width != newWidth {
+		t.Fatalf("playlists.width: expected %d, got %d", newWidth, nm.playlists.width)
+	}
+
+	wide := libtui.Compute(120)
+	narrow := libtui.Compute(80)
+
+	if wide.Artist <= narrow.Artist {
+		t.Fatalf("Artist column: expected Compute(120).Artist (%d) > Compute(80).Artist (%d)", wide.Artist, narrow.Artist)
+	}
+	if wide.Title <= narrow.Title {
+		t.Fatalf("Title column: expected Compute(120).Title (%d) > Compute(80).Title (%d)", wide.Title, narrow.Title)
+	}
+}
