@@ -439,6 +439,187 @@ func (w *Writer) WriteRepeatMode(mode string) error {
 	})
 }
 
+// CreatePlaylist inserts a new playlist with the given name and returns its ID.
+// The playlist is immediately active (deleted_at IS NULL).
+func (w *Writer) CreatePlaylist(name string) (int64, error) {
+	var id int64
+	err := w.Exec(func(db *sql.DB) error {
+		now := time.Now().Unix()
+		res, err := db.Exec(
+			`INSERT INTO playlists (name, created_at, updated_at) VALUES (?, ?, ?)`,
+			name, now, now,
+		)
+		if err != nil {
+			return err
+		}
+		id, err = res.LastInsertId()
+		return err
+	})
+	return id, err
+}
+
+// RenamePlaylist updates the name of the playlist identified by id.
+// It is a no-op if no active playlist with that ID exists.
+func (w *Writer) RenamePlaylist(id int64, name string) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(
+			`UPDATE playlists SET name=?, updated_at=? WHERE id=?`,
+			name, time.Now().Unix(), id,
+		)
+		return err
+	})
+}
+
+// DeletePlaylistSoft soft-deletes the playlist identified by id by setting its
+// deleted_at timestamp. The row is retained for the undo window.
+func (w *Writer) DeletePlaylistSoft(id int64) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(
+			`UPDATE playlists SET deleted_at=? WHERE id=?`,
+			time.Now().Unix(), id,
+		)
+		return err
+	})
+}
+
+// UndoDeletePlaylist clears the deleted_at flag on the playlist identified by
+// id, restoring it to the active set. Call this within the undo window to
+// reverse a DeletePlaylistSoft.
+func (w *Writer) UndoDeletePlaylist(id int64) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(`UPDATE playlists SET deleted_at=NULL WHERE id=?`, id)
+		return err
+	})
+}
+
+// AddTracksToPlaylist appends hashes to playlistID using gapped-integer
+// positioning (MAX(position)+1000 per track). All inserts run inside a single
+// transaction. It is a no-op when hashes is empty.
+func (w *Writer) AddTracksToPlaylist(playlistID int64, hashes []string) error {
+	if len(hashes) == 0 {
+		return nil
+	}
+	return w.Exec(func(db *sql.DB) error {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback() //nolint:errcheck
+
+		var maxPos int64
+		if err := tx.QueryRow(
+			`SELECT COALESCE(MAX(position), 0) FROM playlist_tracks WHERE playlist_id=?`,
+			playlistID,
+		).Scan(&maxPos); err != nil {
+			return err
+		}
+
+		now := time.Now().Unix()
+		for _, hash := range hashes {
+			maxPos += 1000
+			if _, err := tx.Exec(
+				`INSERT INTO playlist_tracks (playlist_id, track_hash, position, added_at) VALUES (?, ?, ?, ?)`,
+				playlistID, hash, maxPos, now,
+			); err != nil {
+				return err
+			}
+		}
+		return tx.Commit()
+	})
+}
+
+// RemovePlaylistTrackSoft soft-deletes the playlist_tracks row identified by
+// id by setting its deleted_at timestamp. The row is retained for the undo
+// window and can be restored via UndoRemovePlaylistTrack.
+func (w *Writer) RemovePlaylistTrackSoft(id int64) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(
+			`UPDATE playlist_tracks SET deleted_at=? WHERE id=?`,
+			time.Now().Unix(), id,
+		)
+		return err
+	})
+}
+
+// UndoRemovePlaylistTrack clears the deleted_at flag on the playlist_tracks
+// row identified by id, restoring it to the active set. Call this within the
+// undo window to reverse a RemovePlaylistTrackSoft.
+func (w *Writer) UndoRemovePlaylistTrack(id int64) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(`UPDATE playlist_tracks SET deleted_at=NULL WHERE id=?`, id)
+		return err
+	})
+}
+
+// ReorderPlaylistTrack performs a single-step adjacent swap for the track
+// identified by trackID inside playlistID. direction must be -1 (move up,
+// toward lower position) or +1 (move down, toward higher position). It is a
+// no-op when the track is already at the boundary. Only active
+// (deleted_at IS NULL) neighbours are considered.
+func (w *Writer) ReorderPlaylistTrack(playlistID, trackID int64, direction int) error {
+	return w.Exec(func(db *sql.DB) error {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback() //nolint:errcheck
+
+		var currPos int64
+		if err := tx.QueryRow(
+			`SELECT position FROM playlist_tracks WHERE id=? AND playlist_id=?`,
+			trackID, playlistID,
+		).Scan(&currPos); err != nil {
+			return err
+		}
+
+		var adjQuery string
+		if direction > 0 {
+			adjQuery = `SELECT id, position FROM playlist_tracks
+				WHERE playlist_id=? AND deleted_at IS NULL AND position > ?
+				ORDER BY position ASC LIMIT 1`
+		} else {
+			adjQuery = `SELECT id, position FROM playlist_tracks
+				WHERE playlist_id=? AND deleted_at IS NULL AND position < ?
+				ORDER BY position DESC LIMIT 1`
+		}
+
+		var adjID, adjPos int64
+		if err := tx.QueryRow(adjQuery, playlistID, currPos).Scan(&adjID, &adjPos); err != nil {
+			if err == sql.ErrNoRows {
+				return nil // already at boundary
+			}
+			return err
+		}
+
+		// Three-step swap to avoid transient unique-constraint violations.
+		// Negative positions cannot exist in normal use so -1 is a safe temp.
+		const tempPos int64 = -1
+		if _, err := tx.Exec(`UPDATE playlist_tracks SET position=? WHERE id=?`, tempPos, trackID); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`UPDATE playlist_tracks SET position=? WHERE id=?`, currPos, adjID); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`UPDATE playlist_tracks SET position=? WHERE id=?`, adjPos, trackID); err != nil {
+			return err
+		}
+		return tx.Commit()
+	})
+}
+
+// PurgeDeletedPlaylistTracks physically removes all playlist_tracks rows whose
+// deleted_at is non-NULL and strictly less than the before Unix timestamp.
+// Call this once the undo window has expired to reclaim space.
+func (w *Writer) PurgeDeletedPlaylistTracks(before int64) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(
+			`DELETE FROM playlist_tracks WHERE deleted_at IS NOT NULL AND deleted_at < ?`,
+			before,
+		)
+		return err
+	})
+}
+
 // drain flushes all commands already buffered in the cmds channel after ctx is
 // cancelled. A timeout guards against a single stuck write blocking shutdown
 // indefinitely. New Exec calls after drain returns will see w.done closed and

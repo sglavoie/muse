@@ -129,6 +129,12 @@ func main() {
 	}
 	setQueue(restored.PlayerTracks, restored.QueueEntries)
 
+	if playlists, err := result.DB.ReadPlaylists(); err == nil {
+		model.SetPlaylists(playlists)
+	} else {
+		slog.Warn("startup: read playlists", "err", err)
+	}
+
 	// Apply restored session state to the model so the first render reflects
 	// the correct repeat/shuffle/playback state from the previous session.
 	// These Set* calls MUST happen before tea.NewProgram so the program

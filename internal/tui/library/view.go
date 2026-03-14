@@ -195,10 +195,18 @@ func (v View) Render() string {
 		dur := formatDuration(t.Duration)
 
 		_, isSelected := v.SelectedHashes[t.Hash]
+		isFocused := i == v.Cursor
+
+		// When the row is focused, omit the inner accent/reset from the marker
+		// so the outer reverse-video wrap covers the full row uniformly. An
+		// inner \033[0m would reset the cursor highlight mid-row.
 		var markerStr string
-		if isSelected {
+		switch {
+		case isSelected && isFocused:
+			markerStr = "● " // plain glyph; outer accent wrap provides styling
+		case isSelected:
 			markerStr = ansiAccent + "●" + ansiReset + " "
-		} else {
+		default:
 			markerStr = "  "
 		}
 
@@ -216,7 +224,7 @@ func (v View) Render() string {
 			row = markerStr + renderRow(num, t.Artist, t.Title, t.Album, dur, cols)
 		}
 
-		if i == v.Cursor {
+		if isFocused {
 			row = ansiAccent + row + ansiReset
 		}
 		lines[i] = row

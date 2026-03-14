@@ -4,6 +4,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
@@ -420,6 +421,14 @@ func (m *Model) SetPlaybackState(state PlaybackState) {
 // write uses the correct hash.
 func (m *Model) SetCurrentTrackHash(hash string) {
 	m.currentTrackHash = hash
+}
+
+// SetPlaylists pre-populates the playlists view with rows loaded from the
+// database before the first render. Call this on the Model returned by New
+// before passing it to tea.NewProgram so that the playlist list is visible
+// immediately on first render.
+func (m *Model) SetPlaylists(rows []db.PlaylistRow) {
+	m.playlists.playlists = rows
 }
 
 // undoWindowDuration is the time after a destructive queue action during which
@@ -1058,8 +1067,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 		case actionCursorUp, actionCursorDown:
-			// Route cursor movement to the active view. Library cursor is
-			// stored on LibraryView; queue cursor is stored on QueueView.
+			// Route cursor movement to the active view.
+			switch m.activeView {
+			case viewLibrary:
+				m.library = m.library.HandleAction(a)
+			case viewPlaylists:
+				m.playlists = m.playlists.HandleAction(a)
+			default:
+				var cmd tea.Cmd
+				m.queue, cmd = m.queue.HandleAction(a)
+				return m, cmd
+			}
+		case actionBulkSelectionToggle:
+			// Route to the active view: library or queue.
 			if m.activeView == viewLibrary {
 				m.library = m.library.HandleAction(a)
 			} else {
@@ -1067,7 +1087,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.queue, cmd = m.queue.HandleAction(a)
 				return m, cmd
 			}
-		case actionSelect, actionDequeue, actionBulkSelectionToggle,
+		case actionSelect, actionDequeue,
 			actionClearQueue, actionMoveTrackUp, actionMoveTrackDown:
 			// Queue-only actions — pass to QueueView regardless of active view.
 			var cmd tea.Cmd

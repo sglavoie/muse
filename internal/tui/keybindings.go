@@ -123,6 +123,10 @@ func newRegistry() Registry {
 	// Playlists-local bindings.
 	// 'r' is bound to rename here, shadowing the global repeat-cycle binding
 	// while the Playlists view is focused.
+	r.register(contextPlaylists, "j", actionCursorDown)
+	r.register(contextPlaylists, "k", actionCursorUp)
+	r.register(contextPlaylists, "up", actionCursorUp)
+	r.register(contextPlaylists, "down", actionCursorDown)
 	r.register(contextPlaylists, "r", actionPlaylistRename)
 	r.register(contextPlaylists, "c", actionPlaylistCreate)
 

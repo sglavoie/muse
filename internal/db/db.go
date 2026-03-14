@@ -120,6 +120,7 @@ func (d *DB) ReadSession() (*SessionRow, error) {
 // PlaylistRow holds a single playlist entry with its active track count.
 // Used by ReadPlaylists to return typed results for the playlist list view.
 type PlaylistRow struct {
+	ID         int64
 	Name       string
 	TrackCount int
 }
@@ -129,9 +130,9 @@ type PlaylistRow struct {
 // Returns an empty slice (not an error) when no playlists exist.
 func (d *DB) ReadPlaylists() ([]PlaylistRow, error) {
 	rows, err := d.Query(`
-		SELECT p.name, COUNT(pt.id)
+		SELECT p.id, p.name, COUNT(pt.id)
 		FROM playlists p
-		LEFT JOIN playlist_tracks pt ON pt.playlist_id = p.id
+		LEFT JOIN playlist_tracks pt ON pt.playlist_id = p.id AND pt.deleted_at IS NULL
 		WHERE p.deleted_at IS NULL
 		GROUP BY p.id
 		ORDER BY p.name COLLATE NOCASE
@@ -144,7 +145,7 @@ func (d *DB) ReadPlaylists() ([]PlaylistRow, error) {
 	var result []PlaylistRow
 	for rows.Next() {
 		var r PlaylistRow
-		if err := rows.Scan(&r.Name, &r.TrackCount); err != nil {
+		if err := rows.Scan(&r.ID, &r.Name, &r.TrackCount); err != nil {
 			return nil, fmt.Errorf("db: read playlist row: %w", err)
 		}
 		result = append(result, r)
@@ -170,7 +171,7 @@ func (d *DB) ReadPlaylistTracks(playlistID int64) ([]PlaylistTrackRow, error) {
 		SELECT pt.position, t.title, t.artist, t.duration_ms
 		FROM playlist_tracks pt
 		JOIN tracks t ON pt.track_hash = t.hash
-		WHERE pt.playlist_id = ?
+		WHERE pt.playlist_id = ? AND pt.deleted_at IS NULL
 		ORDER BY pt.position
 	`, playlistID)
 	if err != nil {

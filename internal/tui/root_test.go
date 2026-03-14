@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
@@ -1948,6 +1949,69 @@ func TestLibraryCursorNotMovedWhenQueueActive(t *testing.T) {
 	}
 }
 
+// stubQueueAppender is a minimal libtui.QueueAppender for root-level tests.
+type stubQueueAppender struct {
+	tracks []library.Track
+}
+
+func (s *stubQueueAppender) AppendTrack(t library.Track) (int64, error) {
+	s.tracks = append(s.tracks, t)
+	return int64(len(s.tracks)), nil
+}
+
+// TestRootLibraryXTogglesSelectedHash verifies that pressing 'x' while the
+// library view is active toggles the focused track's hash into selectedHashes.
+func TestRootLibraryXTogglesSelectedHash(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
+	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
+	m.library.cursor = 0
+	// activeView is viewLibrary by default
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
+	nm := next.(Model)
+
+	if _, ok := nm.library.selectedHashes["hash-one"]; !ok {
+		t.Errorf("'x' on focused track: expected hash-one in selectedHashes, got %v", nm.library.selectedHashes)
+	}
+	if _, ok := nm.library.selectedHashes["hash-two"]; ok {
+		t.Errorf("'x' on focused track: hash-two must not be in selectedHashes")
+	}
+
+	// Pressing 'x' again must remove the hash (toggle off).
+	next2, _ := nm.Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
+	nm2 := next2.(Model)
+	if _, ok := nm2.library.selectedHashes["hash-one"]; ok {
+		t.Errorf("second 'x': expected hash-one to be deselected, but it is still in selectedHashes")
+	}
+}
+
+// TestRootLibraryAWithSelectionEnqueuesAndClears verifies that pressing 'a'
+// while tracks are bulk-selected in library view enqueues them and clears the
+// selection set.
+func TestRootLibraryAWithSelectionEnqueuesAndClears(t *testing.T) {
+	qa := &stubQueueAppender{}
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.SetQueueWriter(qa)
+	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
+	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
+	m.library.selectedHashes = map[string]struct{}{"hash-one": {}}
+
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	nm := next.(Model)
+
+	if cmd == nil {
+		t.Fatal("'a' with selection: expected non-nil cmd")
+	}
+	msg := cmd()
+	if _, ok := msg.(libtui.TrackEnqueuedMsg); !ok {
+		t.Fatalf("'a' with selection: expected TrackEnqueuedMsg, got %T", msg)
+	}
+	if len(nm.library.selectedHashes) != 0 {
+		t.Errorf("'a' with selection: expected selectedHashes to be cleared, got %v", nm.library.selectedHashes)
+	}
+}
+
 // TestTrackEnqueuedMsgStartsPlaybackWhenQueueWasEmpty verifies that the root
 // model transitions from PlaybackIdle to PlaybackPlaying and calls
 // PlayFromIndex(0) when a TrackEnqueuedMsg arrives with WasEmpty=true.
@@ -2457,5 +2521,31 @@ func TestInitSchedulesSessionTicker(t *testing.T) {
 	cmd := m.Init()
 	if cmd == nil {
 		t.Fatal("Init must return a non-nil cmd (includes sessionTickCmd)")
+	}
+}
+
+// TestView2RendersPlaylistsNameAndCount verifies that switching to view 2 and
+// calling SetPlaylists causes each playlist's name and track count to appear
+// in the rendered output.
+func TestView2RendersPlaylistsNameAndCount(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.SetPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "Chill", TrackCount: 3},
+		{ID: 2, Name: "Workout", TrackCount: 8},
+	})
+
+	// Give the model a realistic terminal width so names are not truncated.
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	nm := next.(Model)
+
+	// Switch to the playlists view.
+	next, _ = nm.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
+	nm = next.(Model)
+
+	v := nm.View()
+	for _, want := range []string{"Chill", "(3)", "Workout", "(8)"} {
+		if !strings.Contains(v.Content, want) {
+			t.Errorf("expected %q in view 2 output, got:\n%s", want, v.Content)
+		}
 	}
 }

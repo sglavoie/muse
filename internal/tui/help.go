@@ -58,6 +58,8 @@ func helpSections() []helpSection {
 		{
 			title: "Playlists",
 			entries: []helpEntry{
+				{"j / k", "Move cursor down / up"},
+				{"up / down", "Move cursor up / down"},
 				{"r", "Rename playlist (shadows global repeat)"},
 				{"c", "Create playlist"},
 				{"/", "Filter playlists"},

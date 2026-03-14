@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/db"
+	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
 // viewID identifies which primary view is active.
@@ -23,18 +25,43 @@ const (
 	ansiReset = "\033[0m"
 )
 
-// PlaylistsView is a placeholder for the playlists panel.
+// PlaylistsView wraps the playlists sub-panel state for the root model.
+// It holds the navigation level, cursor position, and loaded playlist rows,
+// and delegates rendering to the playlists sub-package.
 type PlaylistsView struct {
-	width  int
-	height int
+	level     pltui.Level
+	cursor    int
+	playlists []db.PlaylistRow
+	width     int
+	height    int
 }
 
 func (v PlaylistsView) render() string {
-	// TODO: use v.width and v.height to compute proportional column widths when
-	// the Playlists view is fully implemented (req-019ce36041057004a43d4d90f4a13f40).
-	// The current placeholder ignores terminal dimensions; the resize requirement
-	// will not be satisfied for this panel until the real render is written.
-	return "Playlists"
+	return pltui.View{
+		Level:     v.level,
+		Cursor:    v.cursor,
+		Playlists: v.playlists,
+		Width:     v.width,
+		Height:    v.height,
+	}.Render()
+}
+
+// HandleAction executes a pre-resolved playlists action dispatched by root.Update.
+func (v PlaylistsView) HandleAction(a action) PlaylistsView {
+	view := pltui.View{
+		Level:     v.level,
+		Cursor:    v.cursor,
+		Playlists: v.playlists,
+	}
+	switch a {
+	case actionCursorUp:
+		view = view.CursorUp()
+	case actionCursorDown:
+		view = view.CursorDown()
+	}
+	v.level = view.Level
+	v.cursor = view.Cursor
+	return v
 }
 
 // QueueEntry holds a single item in the playback queue.
