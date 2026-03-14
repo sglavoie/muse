@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"os/exec"
@@ -347,6 +348,7 @@ func (m *Manager) healthCheck(ctx context.Context, client *IPCClient) {
 			}
 			m.mu.Unlock()
 
+			slog.Info("mpv disconnected", "err", err)
 			select {
 			case m.disconnectCh <- err:
 			default:
@@ -449,6 +451,7 @@ func (m *Manager) pollUntilReady(ctx context.Context) {
 			m.cmdQueue = nil
 			m.mu.Unlock()
 
+			slog.Info("mpv connected", "socket", m.socketPath)
 			for _, cmd := range queue {
 				_ = cmd()
 			}

@@ -318,6 +318,57 @@ func TestHashFile_BoundaryFullVsPartialDistinct(t *testing.T) {
 	}
 }
 
+// TestHashFile_SmallFileSingleByteMutation verifies that files under 2 MB use
+// full-file hashing: mutating any single byte — at the start, middle, or end —
+// must produce a different hash than the baseline.
+//
+// The middle-byte position (partialThreshold/2) is the critical case: a
+// partial hasher reading only the first+last 1 MB would not cover that index
+// for files significantly smaller than 2 MB, so only a full-file read can
+// detect the change there.
+func TestHashFile_SmallFileSingleByteMutation(t *testing.T) {
+	dir := t.TempDir()
+
+	size := partialThreshold - 1 // one byte under threshold
+	baseline := makeBytes(size, 0xAB)
+
+	pBase := filepath.Join(dir, "base_small.flac")
+	writeFile(t, pBase, baseline)
+
+	hBase, err := HashFile(pBase)
+	if err != nil {
+		t.Fatalf("HashFile(baseline): %v", err)
+	}
+
+	positions := []struct {
+		name string
+		idx  int
+	}{
+		{"first byte", 0},
+		{"middle byte", size / 2},
+		{"last byte", size - 1},
+	}
+
+	for _, pos := range positions {
+		t.Run(pos.name, func(t *testing.T) {
+			mutated := make([]byte, size)
+			copy(mutated, baseline)
+			mutated[pos.idx] ^= 0xFF // flip all bits at this position
+
+			p := filepath.Join(dir, "mutated_"+pos.name+".flac")
+			writeFile(t, p, mutated)
+
+			h, err := HashFile(p)
+			if err != nil {
+				t.Fatalf("HashFile(mutated %s): %v", pos.name, err)
+			}
+			if h == hBase {
+				t.Errorf("mutating %s (index %d) did not change the hash — full-file hashing not in effect", pos.name, pos.idx)
+			}
+		})
+	}
+}
+
 // TestHashFile_EmptyFile verifies that an empty file can be hashed without
 // error and produces a non-empty fingerprint.
 func TestHashFile_EmptyFile(t *testing.T) {

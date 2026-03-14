@@ -1,10 +1,12 @@
 package player
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"os/exec"
@@ -648,4 +650,83 @@ func TestManager_AutoRestart(t *testing.T) {
 		}
 	}
 	t.Errorf("no restart status notification emitted; got %v", statusMsgs)
+}
+
+// TestManager_ConnectDisconnectInfoLogs verifies that slog.Info is called with
+// "mpv connected" when the IPC socket connects and "mpv disconnected" when the
+// health-check goroutine detects a lost connection. Both messages must appear
+// at Info level in the JSON log output.
+func TestManager_ConnectDisconnectInfoLogs(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	prev := slog.Default()
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	sock := shortSockPath(t, "conn-disc-log")
+
+	// Phase 1: a fake server that handles two pings then closes the connection.
+	os.Remove(sock)
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { ln.Close(); os.Remove(sock) })
+
+	connClosed := make(chan struct{})
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		dec := json.NewDecoder(conn)
+		enc := json.NewEncoder(conn)
+		for i := 0; i < 2; i++ {
+			var req map[string]any
+			if err := dec.Decode(&req); err != nil {
+				break
+			}
+			_ = enc.Encode(successHandler(req))
+		}
+		conn.Close()
+		close(connClosed)
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{
+		socketPath:   sock,
+		ctx:          ctx,
+		cancel:       cancel,
+		disconnectCh: make(chan error, 1),
+		pingInterval: 50 * time.Millisecond,
+	}
+	defer m.Close()
+
+	// Simulate Start(): mark as started, then poll until the socket connects.
+	m.mu.Lock()
+	m.cmdQueue = []func() error{}
+	m.mu.Unlock()
+
+	go m.pollUntilReady(ctx)
+
+	// Wait for the health-check to detect the disconnect.
+	select {
+	case <-m.disconnectCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("disconnect was not detected within 3s")
+	}
+
+	// Also wait for connClosed to ensure the server side is done.
+	select {
+	case <-connClosed:
+	case <-time.After(time.Second):
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "mpv connected") {
+		t.Errorf("expected 'mpv connected' in Info log output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "mpv disconnected") {
+		t.Errorf("expected 'mpv disconnected' in Info log output, got:\n%s", out)
+	}
 }
