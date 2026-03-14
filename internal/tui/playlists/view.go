@@ -19,17 +19,18 @@ const (
 // View is the pure render struct for the playlists panel. All fields are set
 // by the caller (PlaylistsView in the tui package) before each Render call.
 type View struct {
-	Level       Level
-	Cursor      int
-	ListCursor  int                  // saved list cursor; restored when BackToList is called
-	Playlists   []db.PlaylistRow
-	Tracks      []db.PlaylistTrackRow // populated when Level == TrackLevel
-	Width       int
-	Height      int
-	Creating    bool      // true while the inline create input is active
-	CreateInput TextInput // current value of the inline create field
-	Renaming    bool      // true while the inline rename input is active
-	RenameInput TextInput // current value of the inline rename field
+	Level            Level
+	Cursor           int
+	ListCursor       int                  // saved list cursor; restored when BackToList is called
+	Playlists        []db.PlaylistRow
+	Tracks           []db.PlaylistTrackRow // populated when Level == TrackLevel
+	Width            int
+	Height           int
+	Creating         bool                  // true while the inline create input is active
+	CreateInput      TextInput             // current value of the inline create field
+	Renaming         bool                  // true while the inline rename input is active
+	RenameInput      TextInput             // current value of the inline rename field
+	SelectedTrackIDs map[int64]struct{}    // bulk-selected playlist track row IDs
 }
 
 // CursorUp returns a copy of v with the cursor moved up by one row,
@@ -132,6 +133,29 @@ func (v View) BackspaceRename() View {
 	return v
 }
 
+// ToggleBulkSelection toggles id in the bulk-selected set. No-op when id is 0.
+// The map is lazily initialised on first toggle.
+func (v View) ToggleBulkSelection(id int64) View {
+	if id == 0 {
+		return v
+	}
+	if v.SelectedTrackIDs == nil {
+		v.SelectedTrackIDs = make(map[int64]struct{})
+	}
+	if _, ok := v.SelectedTrackIDs[id]; ok {
+		delete(v.SelectedTrackIDs, id)
+	} else {
+		v.SelectedTrackIDs[id] = struct{}{}
+	}
+	return v
+}
+
+// ClearBulkSelection removes all bulk-selection markers.
+func (v View) ClearBulkSelection() View {
+	v.SelectedTrackIDs = nil
+	return v
+}
+
 // Render returns the string representation of the playlists panel.
 func (v View) Render() string {
 	switch v.Level {
@@ -200,6 +224,22 @@ func (v View) renderTracks() string {
 	cols := ComputeTrack(v.Width)
 	lines := make([]string, len(v.Tracks))
 	for i, t := range v.Tracks {
+		_, isSelected := v.SelectedTrackIDs[t.ID]
+		isFocused := i == v.Cursor
+
+		// When the row is focused, omit the inner accent/reset from the marker
+		// so the outer reverse-video wrap covers the full row uniformly. An
+		// inner \033[0m would reset the cursor highlight mid-row.
+		var markerStr string
+		switch {
+		case isSelected && isFocused:
+			markerStr = "● " // plain glyph; outer accent wrap provides styling
+		case isSelected:
+			markerStr = ansiAccent + "●" + ansiReset + " "
+		default:
+			markerStr = "  "
+		}
+
 		pos := fmt.Sprintf("%-*d", cols.Position, t.Position)
 		title := truncate(t.Title, cols.Title)
 		title = fmt.Sprintf("%-*s", cols.Title, title)
@@ -207,8 +247,8 @@ func (v View) renderTracks() string {
 		artist = fmt.Sprintf("%-*s", cols.Artist, artist)
 		dur := formatDuration(t.DurationMs)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
-		line := pos + " " + title + " " + artist + " " + dur
-		if i == v.Cursor {
+		line := markerStr + pos + " " + title + " " + artist + " " + dur
+		if isFocused {
 			line = ansiAccent + line + ansiReset
 		}
 		lines[i] = line

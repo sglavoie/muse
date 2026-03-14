@@ -1309,9 +1309,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 		case actionBulkSelectionToggle:
-			// Route to the active view: library or queue.
+			// Route to the active view: library, playlists (TrackLevel), or queue.
 			if m.activeView == viewLibrary {
 				m.library = m.library.HandleAction(a)
+			} else if m.activeView == viewPlaylists {
+				m.playlists = m.playlists.HandleAction(a)
 			} else {
 				var cmd tea.Cmd
 				m.queue, cmd = m.queue.HandleAction(a)
@@ -1345,6 +1347,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case actionPlaylistBack:
 			if !m.playlists.atListLevel() {
 				m.playlists = m.playlists.backToList()
+			}
+		case actionAddToPlaylist:
+			// At TrackLevel with a non-empty bulk selection: remove all selected
+			// tracks from the playlist, then clear the selection markers.
+			if !m.playlists.atListLevel() && m.playlists.hasTrackSelection() {
+				if m.playlistDeleter != nil {
+					for _, t := range m.playlists.tracks {
+						if _, ok := m.playlists.selectedTrackIDs[t.ID]; ok {
+							_ = m.playlistDeleter.RemovePlaylistTrackSoft(t.ID)
+						}
+					}
+				}
+				var remaining []db.PlaylistTrackRow
+				for _, t := range m.playlists.tracks {
+					if _, ok := m.playlists.selectedTrackIDs[t.ID]; !ok {
+						remaining = append(remaining, t)
+					}
+				}
+				m.playlists.tracks = remaining
+				if m.playlists.cursor >= len(m.playlists.tracks) && m.playlists.cursor > 0 {
+					m.playlists.cursor = len(m.playlists.tracks) - 1
+				}
+				m.playlists = m.playlists.clearTrackSelection()
 			}
 		case actionPlaylistDelete:
 			if m.playlists.atListLevel() {

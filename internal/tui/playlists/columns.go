@@ -4,6 +4,7 @@ const (
 	countFixed = 6 // "(9999)" — enough for typical playlist track counts
 	nameSep    = 2 // two spaces between name and count columns
 
+	trackMarkerFixed   = 2  // '●' glyph + separator space
 	trackPosFixed      = 4  // "999 " — position column
 	trackDurationFixed = 10 // "mm:ss.xxx" — duration column
 	trackSepCount      = 3  // spaces between the four track columns
@@ -34,6 +35,7 @@ func Compute(totalWidth int) Columns {
 
 // TrackColumns holds computed character widths for the track-level view columns.
 type TrackColumns struct {
+	Marker   int // fixed: trackMarkerFixed chars ('●'/' ' + space)
 	Position int // fixed: ~4 chars
 	Title    int // proportional: ~45% of flex (56% of flex after fixed cols)
 	Artist   int // proportional: ~35% of flex (44% of flex after fixed cols)
@@ -47,9 +49,10 @@ type TrackColumns struct {
 // remainder. When the terminal is too narrow, Title is clamped to 1 and
 // Artist to 0.
 func ComputeTrack(totalWidth int) TrackColumns {
-	minWidth := trackPosFixed + trackDurationFixed + trackSepCount + 1
+	minWidth := trackMarkerFixed + trackPosFixed + trackDurationFixed + trackSepCount + 1
 	if totalWidth <= minWidth {
 		return TrackColumns{
+			Marker:   trackMarkerFixed,
 			Position: trackPosFixed,
 			Title:    1,
 			Artist:   0,
@@ -57,11 +60,12 @@ func ComputeTrack(totalWidth int) TrackColumns {
 		}
 	}
 
-	flex := totalWidth - trackPosFixed - trackDurationFixed - trackSepCount
+	flex := totalWidth - trackMarkerFixed - trackPosFixed - trackDurationFixed - trackSepCount
 	artist := flex * trackArtistRatio / trackTotalRatio
 	title := flex - artist // absorbs integer division remainder
 
 	return TrackColumns{
+		Marker:   trackMarkerFixed,
 		Position: trackPosFixed,
 		Title:    title,
 		Artist:   artist,

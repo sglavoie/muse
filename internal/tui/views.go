@@ -32,31 +32,33 @@ const (
 // (at TrackLevel) the tracks of the open playlist. Rendering is delegated to
 // the playlists sub-package.
 type PlaylistsView struct {
-	level       pltui.Level
-	cursor      int
-	listCursor  int                  // saved list cursor; preserved across drill-down and back
-	playlists   []db.PlaylistRow
-	tracks      []db.PlaylistTrackRow // populated when level == TrackLevel
-	width       int
-	height      int
-	creating    bool            // true while the inline create input is active
-	createInput pltui.TextInput // current value of the inline create field
-	renaming    bool            // true while the inline rename input is active
-	renameInput pltui.TextInput // current value of the inline rename field
+	level            pltui.Level
+	cursor           int
+	listCursor       int                  // saved list cursor; preserved across drill-down and back
+	playlists        []db.PlaylistRow
+	tracks           []db.PlaylistTrackRow // populated when level == TrackLevel
+	width            int
+	height           int
+	creating         bool                  // true while the inline create input is active
+	createInput      pltui.TextInput       // current value of the inline create field
+	renaming         bool                  // true while the inline rename input is active
+	renameInput      pltui.TextInput       // current value of the inline rename field
+	selectedTrackIDs map[int64]struct{}    // bulk-selected playlist track row IDs at TrackLevel
 }
 
 func (v PlaylistsView) render() string {
 	return pltui.View{
-		Level:       v.level,
-		Cursor:      v.cursor,
-		Playlists:   v.playlists,
-		Tracks:      v.tracks,
-		Width:       v.width,
-		Height:      v.height,
-		Creating:    v.creating,
-		CreateInput: v.createInput,
-		Renaming:    v.renaming,
-		RenameInput: v.renameInput,
+		Level:            v.level,
+		Cursor:           v.cursor,
+		Playlists:        v.playlists,
+		Tracks:           v.tracks,
+		Width:            v.width,
+		Height:           v.height,
+		Creating:         v.creating,
+		CreateInput:      v.createInput,
+		Renaming:         v.renaming,
+		RenameInput:      v.renameInput,
+		SelectedTrackIDs: v.selectedTrackIDs,
 	}.Render()
 }
 
@@ -161,6 +163,15 @@ func (v PlaylistsView) focusedPlaylist() (db.PlaylistRow, bool) {
 
 // HandleAction executes a pre-resolved playlists action dispatched by root.Update.
 func (v PlaylistsView) HandleAction(a action) PlaylistsView {
+	switch a {
+	case actionBulkSelectionToggle:
+		if v.level == pltui.TrackLevel && len(v.tracks) > 0 && v.cursor < len(v.tracks) {
+			id := v.tracks[v.cursor].ID
+			view := pltui.View{SelectedTrackIDs: v.selectedTrackIDs}.ToggleBulkSelection(id)
+			v.selectedTrackIDs = view.SelectedTrackIDs
+		}
+		return v
+	}
 	view := pltui.View{
 		Level:     v.level,
 		Cursor:    v.cursor,
@@ -175,6 +186,17 @@ func (v PlaylistsView) HandleAction(a action) PlaylistsView {
 	}
 	v.level = view.Level
 	v.cursor = view.Cursor
+	return v
+}
+
+// hasTrackSelection reports whether any tracks are bulk-selected.
+func (v PlaylistsView) hasTrackSelection() bool {
+	return len(v.selectedTrackIDs) > 0
+}
+
+// clearTrackSelection removes all bulk-selection markers.
+func (v PlaylistsView) clearTrackSelection() PlaylistsView {
+	v.selectedTrackIDs = nil
 	return v
 }
 

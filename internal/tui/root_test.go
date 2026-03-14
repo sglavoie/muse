@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
 func TestUpdateViewSwitching(t *testing.T) {
@@ -2840,5 +2841,47 @@ func TestPlaylistOpenRendersTrackTitles(t *testing.T) {
 		if !strings.Contains(v.Content, want) {
 			t.Errorf("expected track title %q in view after playlist open, got:\n%s", want, v.Content)
 		}
+	}
+}
+
+// TestPlaylistsBulkRemoveAtTrackLevel verifies the 'a' key at TrackLevel with
+// a non-empty bulk selection: selected tracks are removed from the in-memory
+// slice, the cursor is clamped, and selectedTrackIDs is cleared. The nil
+// playlistDeleter means no DB calls are made — the nil-guard in the handler
+// makes this safe without a stub.
+func TestPlaylistsBulkRemoveAtTrackLevel(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+
+	// Navigate to playlists view.
+	next, _ := m.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
+	nm := next.(Model)
+
+	// Seed the playlists panel directly at TrackLevel with three tracks.
+	nm.playlists.level = pltui.TrackLevel
+	nm.playlists.tracks = []db.PlaylistTrackRow{
+		{ID: 10, Position: 1, Title: "Track One", Artist: "A", DurationMs: 60000},
+		{ID: 20, Position: 2, Title: "Track Two", Artist: "B", DurationMs: 60000},
+		{ID: 30, Position: 3, Title: "Track Three", Artist: "C", DurationMs: 60000},
+	}
+	// Bulk-select the first two tracks.
+	nm.playlists.selectedTrackIDs = map[int64]struct{}{10: {}, 20: {}}
+	// Place cursor beyond the surviving track to exercise cursor clamping.
+	nm.playlists.cursor = 2
+
+	// Press 'a' — should trigger actionAddToPlaylist which bulk-removes.
+	next2, _ := nm.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	nm2 := next2.(Model)
+
+	if len(nm2.playlists.tracks) != 1 {
+		t.Fatalf("expected 1 track remaining, got %d", len(nm2.playlists.tracks))
+	}
+	if nm2.playlists.tracks[0].ID != 30 {
+		t.Fatalf("expected remaining track ID=30, got ID=%d", nm2.playlists.tracks[0].ID)
+	}
+	if nm2.playlists.cursor >= len(nm2.playlists.tracks) {
+		t.Fatalf("cursor %d out of range after bulk remove (len=%d)", nm2.playlists.cursor, len(nm2.playlists.tracks))
+	}
+	if nm2.playlists.selectedTrackIDs != nil {
+		t.Fatalf("expected selectedTrackIDs to be nil after bulk remove, got %v", nm2.playlists.selectedTrackIDs)
 	}
 }

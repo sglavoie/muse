@@ -86,6 +86,85 @@ func TestRenderListEmpty(t *testing.T) {
 	}
 }
 
+// --- bulk-selection state ---
+
+// TestToggleBulkSelectionToggles verifies that the first call adds the ID to
+// the selected set and the second call removes it (toggle semantics).
+func TestToggleBulkSelectionToggles(t *testing.T) {
+	v := View{}
+
+	v = v.ToggleBulkSelection(42)
+	if _, ok := v.SelectedTrackIDs[42]; !ok {
+		t.Fatal("expected ID 42 to be selected after first toggle")
+	}
+
+	v = v.ToggleBulkSelection(42)
+	if _, ok := v.SelectedTrackIDs[42]; ok {
+		t.Fatal("expected ID 42 to be deselected after second toggle")
+	}
+	if len(v.SelectedTrackIDs) != 0 {
+		t.Fatalf("expected empty selection set, got %v", v.SelectedTrackIDs)
+	}
+}
+
+// TestToggleBulkSelectionZeroIDIsNoOp verifies that toggling with id==0 does
+// not add an entry to the selection set.
+func TestToggleBulkSelectionZeroIDIsNoOp(t *testing.T) {
+	v := View{}
+	v = v.ToggleBulkSelection(0)
+	if len(v.SelectedTrackIDs) != 0 {
+		t.Fatalf("ToggleBulkSelection(0) must be a no-op; got %v", v.SelectedTrackIDs)
+	}
+}
+
+// TestClearBulkSelectionEmptiesSet verifies that ClearBulkSelection removes
+// all bulk-selected IDs.
+func TestClearBulkSelectionEmptiesSet(t *testing.T) {
+	v := View{}
+	v = v.ToggleBulkSelection(1)
+	v = v.ToggleBulkSelection(2)
+	v = v.ClearBulkSelection()
+	if len(v.SelectedTrackIDs) != 0 {
+		t.Fatalf("expected empty selection after ClearBulkSelection, got %v", v.SelectedTrackIDs)
+	}
+}
+
+// TestRenderTracksShowsBulletOnlyForSelected verifies that the '●' marker
+// appears in the rendered output for selected rows and not for unselected ones.
+func TestRenderTracksShowsBulletOnlyForSelected(t *testing.T) {
+	tracks := []db.PlaylistTrackRow{
+		{ID: 10, Position: 1, Title: "Selected Song", Artist: "A", DurationMs: 60000},
+		{ID: 20, Position: 2, Title: "Unselected Song", Artist: "B", DurationMs: 60000},
+	}
+	v := View{
+		Level:            TrackLevel,
+		Width:            80,
+		Tracks:           tracks,
+		SelectedTrackIDs: map[int64]struct{}{10: {}},
+	}
+	out := v.Render()
+	if !strings.Contains(out, "●") {
+		t.Fatal("expected '●' marker in output for selected track")
+	}
+	// The bullet must appear on the selected track's line and not on the other.
+	lines := strings.Split(out, "\n")
+	var selectedLine, unselectedLine string
+	for _, l := range lines {
+		if strings.Contains(l, "Selected Song") {
+			selectedLine = l
+		}
+		if strings.Contains(l, "Unselected Song") {
+			unselectedLine = l
+		}
+	}
+	if !strings.Contains(selectedLine, "●") {
+		t.Errorf("selected track line must contain '●'; got: %q", selectedLine)
+	}
+	if strings.Contains(unselectedLine, "●") {
+		t.Errorf("unselected track line must not contain '●'; got: %q", unselectedLine)
+	}
+}
+
 func TestRenderListShowsNameAndCount(t *testing.T) {
 	v := View{
 		Playlists: []db.PlaylistRow{
