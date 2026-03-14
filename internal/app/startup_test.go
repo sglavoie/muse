@@ -352,6 +352,64 @@ func TestRunParallelLaunchBothErrorsReturned(t *testing.T) {
 	}
 }
 
+// TestRunConcurrentLaunchAndScan proves that LaunchMPV and RunScan execute
+// concurrently: RunScan must start (and record its start time) before the
+// deliberately-delayed LaunchMPV returns.
+func TestRunConcurrentLaunchAndScan(t *testing.T) {
+	dirs := setupDirs(t)
+	installLogger(t)
+
+	gate := make(chan struct{})
+
+	var mu sync.Mutex
+	var scanStarted, mpvReturned time.Time
+
+	deps := app.Deps{
+		CheckPrereqs: func() error { return nil },
+		LaunchMPV: func(_ context.Context, _ string) error {
+			<-gate // block until gate is closed
+			mu.Lock()
+			mpvReturned = time.Now()
+			mu.Unlock()
+			return nil
+		},
+		RunScan: func(_ context.Context, _ *db.DB) error {
+			mu.Lock()
+			scanStarted = time.Now()
+			mu.Unlock()
+			return nil
+		},
+	}
+
+	// Release gate after a short delay so RunScan has time to start first.
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		close(gate)
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if _, err := app.Run(ctx, dirs, deps); err != nil {
+		t.Fatalf("Run returned unexpected error: %v", err)
+	}
+
+	mu.Lock()
+	started := scanStarted
+	returned := mpvReturned
+	mu.Unlock()
+
+	if started.IsZero() {
+		t.Fatal("RunScan was never called")
+	}
+	if returned.IsZero() {
+		t.Fatal("LaunchMPV never returned")
+	}
+	if !started.Before(returned) {
+		t.Errorf("RunScan started (%v) was not before LaunchMPV returned (%v); goroutines are not running concurrently", started, returned)
+	}
+}
+
 // ---- Session restore tests ----
 
 // openTestDB opens (or creates) a SQLite database at dirs.Data/muse.db and
