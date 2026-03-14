@@ -609,6 +609,7 @@ func TestSpaceTogglesPlayPauseFromAnyView(t *testing.T) {
 			p := &stubPlayer{}
 			m := New("/log", "", false, nil, nil, "", nil, p)
 			m.activeView = tc.viewID
+			m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
 
 			// First press: not playing → Play() called.
 			next, _ := m.Update(spaceMsg)
@@ -907,6 +908,95 @@ func TestPlaybackEndedMsgResetsElapsed(t *testing.T) {
 	}
 	if nm.totalSecs != 0 {
 		t.Fatalf("totalSecs must be 0 after PlaybackEndedMsg, got %v", nm.totalSecs)
+	}
+}
+
+// TestPlaybackEndedMsgShowsQueueFinishedWhenEmptyRepeatOff verifies that when
+// the queue is exhausted with repeat off, a "Queue finished" transient
+// notification is shown for 5 seconds.
+func TestPlaybackEndedMsgShowsQueueFinishedWhenEmptyRepeatOff(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.repeatMode = RepeatOff
+	// queue.entries is already empty (zero value).
+
+	next, _ := m.Update(PlaybackEndedMsg{})
+	nm := next.(Model)
+
+	if nm.statusBar.notification.msg != "Queue finished" {
+		t.Fatalf("expected 'Queue finished' notification, got %q", nm.statusBar.notification.msg)
+	}
+	if nm.statusBar.notification.expiresAt.IsZero() {
+		t.Fatal("Queue finished notification must have a non-zero expiry")
+	}
+	if nm.statusBar.notification.expiresAt.Before(time.Now().Add(4 * time.Second)) {
+		t.Fatal("Queue finished notification expiry must be ~5 seconds from now")
+	}
+}
+
+// TestPlaybackEndedMsgNoNotificationWhenRepeatNotOff verifies that no "Queue
+// finished" notification is shown when repeat is not off.
+func TestPlaybackEndedMsgNoNotificationWhenRepeatNotOff(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.repeatMode = RepeatAll
+
+	next, _ := m.Update(PlaybackEndedMsg{})
+	nm := next.(Model)
+
+	if nm.statusBar.notification.msg == "Queue finished" {
+		t.Fatal("Queue finished must not appear when repeat mode is not off")
+	}
+}
+
+// TestPlaybackEndedMsgNoNotificationWhenQueueNotEmpty verifies that no "Queue
+// finished" notification is shown when the queue still has entries.
+func TestPlaybackEndedMsgNoNotificationWhenQueueNotEmpty(t *testing.T) {
+	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m.repeatMode = RepeatOff
+	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
+
+	next, _ := m.Update(PlaybackEndedMsg{})
+	nm := next.(Model)
+
+	if nm.statusBar.notification.msg == "Queue finished" {
+		t.Fatal("Queue finished must not appear when queue still has entries")
+	}
+}
+
+// TestPlayPauseOnEmptyQueueShowsHint verifies that pressing space to play when
+// the queue is empty shows the "Queue is empty" hint in the transient status bar.
+func TestPlayPauseOnEmptyQueueShowsHint(t *testing.T) {
+	p := &stubPlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+	// queue.entries is empty, playbackState is PlaybackIdle.
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: ' ', Text: " "})
+	nm := next.(Model)
+
+	want := "Queue is empty — enqueue tracks from Library (key 1)"
+	if nm.statusBar.notification.msg != want {
+		t.Fatalf("expected %q, got %q", want, nm.statusBar.notification.msg)
+	}
+	if nm.playbackState != PlaybackIdle {
+		t.Fatalf("playback state must remain idle, got %v", nm.playbackState)
+	}
+}
+
+// TestPlayPauseWithTracksInQueuePlaysNormally verifies that space to play when
+// the queue has entries proceeds normally (no empty-queue hint).
+func TestPlayPauseWithTracksInQueuePlaysNormally(t *testing.T) {
+	p := &stubPlayer{}
+	m := New("/log", "", false, nil, nil, "", nil, p)
+	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
+	m.playbackState = PlaybackIdle
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: ' ', Text: " "})
+	nm := next.(Model)
+
+	if nm.statusBar.notification.msg == "Queue is empty — enqueue tracks from Library (key 1)" {
+		t.Fatal("empty-queue hint must not appear when queue has entries")
+	}
+	if nm.playbackState != PlaybackPlaying {
+		t.Fatalf("expected PlaybackPlaying after play with non-empty queue, got %v", nm.playbackState)
 	}
 }
 

@@ -589,6 +589,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.playbackState = PlaybackIdle
 		m.elapsedSecs = 0
 		m.totalSecs = 0
+		if len(m.queue.entries) == 0 && m.repeatMode == RepeatOff {
+			m.statusBar.notification = transientNotification{
+				msg:       "Queue finished",
+				expiresAt: time.Now().Add(transientDuration),
+			}
+		}
 
 	case TrackChangedMsg:
 		m.statusBar.artist = msg.Artist
@@ -784,6 +790,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.playbackState == PlaybackPlaying {
 					_ = m.player.Pause()
 					m.playbackState = PlaybackPaused
+				} else if len(m.queue.entries) == 0 {
+					m.statusBar.notification = transientNotification{
+						msg:       "Queue is empty — enqueue tracks from Library (key 1)",
+						expiresAt: time.Now().Add(transientDuration),
+					}
 				} else {
 					_ = m.player.Play()
 					m.playbackState = PlaybackPlaying
