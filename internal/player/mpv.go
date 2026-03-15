@@ -35,6 +35,7 @@ func (noopMarker) MarkQueueEntryMissing(_ int64) error { return nil }
 // issued before Start() return ErrNotConnected immediately.
 type Manager struct {
 	socketPath string
+	extraFlags []string // additional CLI flags appended to the mpv command
 
 	mu       sync.RWMutex
 	client   *IPCClient     // nil until the socket is connected
@@ -100,7 +101,8 @@ type Manager struct {
 }
 
 // NewManager creates a Manager with a socket path resolved via XDG dirs.
-// It removes any stale socket file left by a previously crashed session.
+// The caller is responsible for removing any stale socket file before calling
+// Start; app.Run handles this in step 2 (after the PID lockfile is acquired).
 func NewManager() (*Manager, error) {
 	dirs, err := config.ResolveDirs()
 	if err != nil {
@@ -109,21 +111,28 @@ func NewManager() (*Manager, error) {
 
 	socketPath := filepath.Join(dirs.Runtime, mpvSockName)
 
-	if err := cleanStaleSocket(socketPath); err != nil {
-		return nil, fmt.Errorf("mpv: %w", err)
-	}
-
 	rootCtx, rootCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(rootCtx)
-	return &Manager{
+	m := &Manager{
 		socketPath:   socketPath,
 		rootCtx:      rootCtx,
 		rootCancel:   rootCancel,
 		ctx:          ctx,
 		cancel:       cancel,
 		disconnectCh: make(chan error, 1),
-		launchFn:     defaultLaunch,
-	}, nil
+	}
+	m.launchFn = func(ctx context.Context, socketPath string) (*exec.Cmd, error) {
+		m.mu.RLock()
+		extra := m.extraFlags
+		m.mu.RUnlock()
+		args := append([]string{"--idle=yes", "--input-ipc-server=" + socketPath}, extra...)
+		cmd := exec.CommandContext(ctx, "mpv", args...)
+		if err := cmd.Start(); err != nil {
+			return nil, fmt.Errorf("mpv: start: %w", err)
+		}
+		return cmd, nil
+	}
+	return m, nil
 }
 
 // defaultLaunch starts the mpv subprocess with --idle flag and IPC server.
@@ -496,6 +505,15 @@ func (m *Manager) SetSocketPath(path string) {
 	m.mu.Unlock()
 }
 
+// SetExtraFlags sets additional command-line flags appended to the mpv
+// subprocess after --idle=yes and --input-ipc-server. Call before Start.
+func (m *Manager) SetExtraFlags(flags []string) {
+	m.mu.Lock()
+	m.extraFlags = make([]string, len(flags))
+	copy(m.extraFlags, flags)
+	m.mu.Unlock()
+}
+
 // startEventReader opens a dedicated read-only connection to the mpv socket
 // and dispatches async events. It runs as a goroutine until ctx is cancelled
 // or the connection drops. On an end-file event with reason "eof" it calls
@@ -784,6 +802,21 @@ func (m *Manager) SetVolumeRelative(delta float64) error {
 	return err
 }
 
+// SetVolumeAbsolute sets the volume to an absolute level (0–100). The command
+// is queued for replay if mpv is not yet connected, so it is safe to call
+// immediately after Start before the IPC socket is ready.
+func (m *Manager) SetVolumeAbsolute(volume float64) error {
+	c, err := m.ipc()
+	if errors.Is(err, ErrNotConnected) {
+		return m.enqueue(func() error { return m.SetVolumeAbsolute(volume) })
+	}
+	if err != nil {
+		return err
+	}
+	_, err = c.SendCommand("set_property", "volume", volume)
+	return err
+}
+
 // Next advances to the next track in the queue using the Go-side index so
 // that the Manager (not mpv's internal playlist) owns sequencing.
 // Returns ErrNotConnected if Start has not been called.
@@ -848,6 +881,9 @@ func (m *Manager) PlayQueueEntry(entry QueueTrack, marker MissingMarker) error {
 
 // cleanStaleSocket removes the socket file at socketPath if it exists but no
 // live process is listening on it. Returns an error if a live process owns it.
+// Note: app.Run already removes any stale socket in step 2 (after acquiring
+// the PID lockfile), so this function is not called during normal startup.
+// It is retained for tests and for any caller that needs the liveness check.
 func cleanStaleSocket(socketPath string) error {
 	if _, err := os.Stat(socketPath); os.IsNotExist(err) {
 		return nil // no socket file — nothing to do

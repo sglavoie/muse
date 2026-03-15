@@ -27,8 +27,13 @@ func TestLoad_MissingFile_CreatesDefaultConfig(t *testing.T) {
 		t.Error("expected created=true when config file did not exist")
 	}
 
-	if cfg.MusicDirectory != defaultMusicDirectory {
-		t.Errorf("MusicDirectory = %q, want %q", cfg.MusicDirectory, defaultMusicDirectory)
+	home, err2 := os.UserHomeDir()
+	if err2 != nil {
+		t.Fatalf("UserHomeDir() error = %v", err2)
+	}
+	wantDir := filepath.Join(home, "Music")
+	if cfg.MusicDirectory != wantDir {
+		t.Errorf("MusicDirectory = %q, want %q", cfg.MusicDirectory, wantDir)
 	}
 	if cfg.DefaultVolume != defaultVolume {
 		t.Errorf("DefaultVolume = %d, want %d", cfg.DefaultVolume, defaultVolume)
@@ -129,8 +134,13 @@ default_volume = 50
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.MusicDirectory != defaultMusicDirectory {
-		t.Errorf("MusicDirectory = %q, want %q", cfg.MusicDirectory, defaultMusicDirectory)
+	home, err2 := os.UserHomeDir()
+	if err2 != nil {
+		t.Fatalf("UserHomeDir() error = %v", err2)
+	}
+	wantDir := filepath.Join(home, "Music")
+	if cfg.MusicDirectory != wantDir {
+		t.Errorf("MusicDirectory = %q, want %q", cfg.MusicDirectory, wantDir)
 	}
 	if !strings.Contains(buf.String(), "music_directory") {
 		t.Errorf("expected slog warning mentioning music_directory, got: %s", buf.String())
@@ -151,8 +161,13 @@ func TestLoad_InvalidTOML_UsesDefaults(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.MusicDirectory != defaultMusicDirectory {
-		t.Errorf("MusicDirectory = %q, want default", cfg.MusicDirectory)
+	home, err2 := os.UserHomeDir()
+	if err2 != nil {
+		t.Fatalf("UserHomeDir() error = %v", err2)
+	}
+	wantDir := filepath.Join(home, "Music")
+	if cfg.MusicDirectory != wantDir {
+		t.Errorf("MusicDirectory = %q, want %q", cfg.MusicDirectory, wantDir)
 	}
 	if cfg.DefaultVolume != defaultVolume {
 		t.Errorf("DefaultVolume = %d, want default", cfg.DefaultVolume)

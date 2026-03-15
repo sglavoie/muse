@@ -66,18 +66,30 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	mgr, err := player.NewManager()
-	if err != nil {
-		slog.Error("player: create manager", "err", err)
-		fmt.Fprintf(os.Stderr, "muse: player: %v\n", err)
-		os.Exit(1)
-	}
+	// mgr is set inside LaunchMPV (app.Run step 6), which runs after the PID
+	// lockfile is acquired (step 1) and the stale socket is removed (step 2).
+	// This ordering ensures that "another instance is running" is surfaced
+	// before any socket liveness check, giving users the correct error message.
+	var mgr *player.Manager
 
 	deps := app.Deps{
 		Config: cfg,
 		LaunchMPV: func(ctx context.Context, socketPath string) error {
+			var err error
+			mgr, err = player.NewManager()
+			if err != nil {
+				return fmt.Errorf("player: %w", err)
+			}
 			mgr.SetSocketPath(socketPath)
-			return mgr.Start()
+			mgr.SetExtraFlags(cfg.MPVExtraFlags)
+			if err := mgr.Start(); err != nil {
+				return err
+			}
+			// Apply the configured default volume. SetVolumeAbsolute enqueues
+			// the command for replay once the IPC socket connects, so calling
+			// it here (before the socket is ready) is safe.
+			_ = mgr.SetVolumeAbsolute(float64(cfg.DefaultVolume))
+			return nil
 		},
 		RunScan: func(ctx context.Context, database *db.DB) error {
 			return nil
@@ -108,19 +120,61 @@ func main() {
 	}
 
 	extractor := library.ExifToolExtractor{}
-	scanCh := library.Scan(cfg.MusicDirectory, extractor)
+
+	// Bridge the scan pipeline to both the tracks table and the TUI.
+	// rawScanCh carries individual Track values from the scanner goroutines.
+	// tuiScanCh is a forwarding channel that the TUI reads via waitForNextBatch;
+	// it is buffered so the bridge goroutine does not stall when the TUI is busy.
+	// Tracks are accumulated into batches of upsertBatchSize before being
+	// committed through the single-writer goroutine, ensuring FK constraints on
+	// queue and playlist_tracks are satisfied for all subsequent DB operations.
+	const upsertBatchSize = 500
+	rawScanCh := library.Scan(cfg.MusicDirectory, extractor)
+	tuiScanCh := make(chan library.Track, 256)
+	go func() {
+		defer close(tuiScanCh)
+		var batch []library.Track
+		flush := func() {
+			if len(batch) == 0 {
+				return
+			}
+			if err := result.Writer.UpsertBatch(batch); err != nil {
+				slog.Warn("scan: upsert batch", "err", err, "count", len(batch))
+			}
+			batch = batch[:0]
+		}
+		for t := range rawScanCh {
+			tuiScanCh <- t
+			batch = append(batch, t)
+			if len(batch) >= upsertBatchSize {
+				flush()
+			}
+		}
+		flush()
+	}()
+
 	watchCh, _ := library.Watch(ctx, cfg.MusicDirectory, extractor, library.DefaultDebounce)
 
 	restored := result.Restored
 
-	model := tui.New(config.LogPath(), configPath, configCreated, scanCh, watchCh, cfg.MusicDirectory, extractor, mgr)
+	model := tui.New(config.LogPath(), configPath, configCreated, tuiScanCh, watchCh, cfg.MusicDirectory, extractor, mgr)
 	model.SetQueueWriter(result.Writer)
 	model.SetQueueDequeuer(result.Writer)
 	model.SetSessionWriter(result.Writer)
 
+	adapter := db.NewPlaylistAdapter(result.DB, result.Writer)
+	model.SetPlaylistTrackReader(result.DB)
+	model.SetPlaylistWriter(adapter)
+	model.SetPlaylistRenamer(adapter)
+	model.SetPlaylistDeleter(result.Writer)
+	model.SetPlaylistAdder(result.Writer)
+	model.SetQueueReorderer(result.Writer)
+
 	// setQueue keeps the player Manager and the TUI QueueView in sync.
-	// Callers MUST use this helper whenever the queue changes so that
-	// PlayQueueIndexMsg.Index addresses the same track in both sides.
+	// IMPORTANT: this helper MUST be called any time the queue is mutated
+	// outside the TUI message loop (e.g. session restore, undo clear). Calling
+	// mgr.SetQueue or model.SetQueueEntries independently will cause the
+	// player and TUI indices to diverge, breaking PlayQueueIndexMsg addressing.
 	setQueue := func(pe []player.QueueTrack, te []tui.QueueEntry) {
 		mgr.SetQueue(pe)
 		model.SetQueueEntries(te)
@@ -138,6 +192,14 @@ func main() {
 	// These Set* calls MUST happen before tea.NewProgram so the program
 	// captures the fully-initialised model at construction time.
 	model.SetRepeatMode(restored.RepeatMode)
+	// Regenerate shuffle_position for all queue rows when shuffle is on.
+	// Done here (after app.Run) rather than inside RestoreSession so that
+	// RestoreSession remains read-dominated and startup latency is predictable.
+	if restored.Shuffle && len(restored.QueueEntries) > 0 {
+		if err := result.Writer.WriteShuffle(true); err != nil {
+			slog.Warn("startup: regenerate shuffle positions", "err", err)
+		}
+	}
 	model.SetShuffle(restored.Shuffle)
 	// Propagate restored repeat/shuffle modes into mpv so its behaviour
 	// matches the status bar indicators from the first user interaction.
@@ -162,6 +224,10 @@ func main() {
 	mgr.SetPlaybackEndedFunc(func() {
 		p.Send(tui.PlaybackEndedMsg{})
 	})
+	// NOTE(initial-version): PlaylistSource is always "Queue" here because
+	// auto-advance is driven by the manager's in-memory queue, which has no
+	// knowledge of the originating playlist. A future improvement could store
+	// the playlist source on each QueueTrack so the correct name is forwarded.
 	mgr.SetTrackChangedFunc(func(hash, artist, title string) {
 		p.Send(tui.TrackChangedMsg{Hash: hash, Artist: artist, Title: title, PlaylistSource: "Queue"})
 	})

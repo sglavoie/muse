@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/library"
 )
 
 func openTestDB(t *testing.T) *db.DB {
@@ -1406,6 +1407,7 @@ func TestRenumberQueuePositions_Triggered(t *testing.T) {
 		t.Errorf("active positions = %v; want %v", activePos, want)
 	}
 	// Soft-deleted row must retain its original position.
+
 	if want := []int64{9000}; !slices.Equal(deletedPos, want) {
 		t.Errorf("soft-deleted positions = %v; want %v", deletedPos, want)
 	}
@@ -1547,5 +1549,125 @@ func TestReorderQueueTrack_IntegerPositions(t *testing.T) {
 		if typ != "integer" {
 			t.Errorf("queue id=%d: position typeof=%q; want integer", id, typ)
 		}
+	}
+}
+
+// TestUpsertBatch verifies that UpsertBatch persists tracks to the tracks table
+// and that AppendTrack does not return a FK constraint error after the batch is
+// committed. This covers the critical integration path where a missing tracks
+// row would cause queue inserts, queue reads, and playlist track reads to fail.
+func TestUpsertBatch(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	tracks := []library.Track{
+		{Hash: "hash-a1", Path: "/music/a.mp3", Title: "Track A", Artist: "Artist A", Album: "Album A", Duration: 180.5},
+		{Hash: "hash-b2", Path: "/music/b.flac", Title: "Track B", Artist: "Artist B", Album: "Album B", Duration: 240.0},
+	}
+
+	if err := w.UpsertBatch(tracks); err != nil {
+		t.Fatalf("UpsertBatch: %v", err)
+	}
+
+	// Both tracks must now exist in the tracks table.
+	var count int
+	if err := d.QueryRow(`SELECT COUNT(*) FROM tracks WHERE hash IN ('hash-a1', 'hash-b2')`).Scan(&count); err != nil {
+		t.Fatalf("count tracks: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("tracks count = %d; want 2", count)
+	}
+
+	// Verify stored fields are correct.
+	var path, title, artist, album string
+	var durationMs int64
+	if err := d.QueryRow(
+		`SELECT path, title, artist, album, duration_ms FROM tracks WHERE hash='hash-a1'`,
+	).Scan(&path, &title, &artist, &album, &durationMs); err != nil {
+		t.Fatalf("select track: %v", err)
+	}
+	if path != "/music/a.mp3" {
+		t.Errorf("path = %q; want /music/a.mp3", path)
+	}
+	if title != "Track A" {
+		t.Errorf("title = %q; want Track A", title)
+	}
+	if durationMs != 180500 {
+		t.Errorf("duration_ms = %d; want 180500", durationMs)
+	}
+
+	// AppendTrack must not fail with a FK constraint error now that the track
+	// exists in the tracks table. Before UpsertBatch was wired, this would
+	// return "FOREIGN KEY constraint failed".
+	if _, err := w.AppendTrack(tracks[0]); err != nil {
+		t.Errorf("AppendTrack after UpsertBatch: %v", err)
+	}
+}
+
+// TestUpsertBatch_Idempotent verifies that calling UpsertBatch twice with the
+// same hash updates the row in place without cascading a delete on any FK
+// dependants (queue rows, playlist_tracks rows).
+func TestUpsertBatch_Idempotent(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	original := library.Track{Hash: "hash-idem", Path: "/old.mp3", Title: "Old Title", Artist: "Old Artist", Album: "Old Album", Duration: 60.0}
+	if err := w.UpsertBatch([]library.Track{original}); err != nil {
+		t.Fatalf("first UpsertBatch: %v", err)
+	}
+
+	// Enqueue the track so we can verify the FK row survives the second upsert.
+	queueID, err := w.AppendTrack(original)
+	if err != nil {
+		t.Fatalf("AppendTrack: %v", err)
+	}
+
+	// Second upsert with updated metadata.
+	updated := library.Track{Hash: "hash-idem", Path: "/new.mp3", Title: "New Title", Artist: "New Artist", Album: "New Album", Duration: 90.0}
+	if err := w.UpsertBatch([]library.Track{updated}); err != nil {
+		t.Fatalf("second UpsertBatch: %v", err)
+	}
+
+	// Path and title must reflect the updated values.
+	var path, title string
+	if err := d.QueryRow(`SELECT path, title FROM tracks WHERE hash='hash-idem'`).Scan(&path, &title); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if path != "/new.mp3" {
+		t.Errorf("path = %q; want /new.mp3", path)
+	}
+	if title != "New Title" {
+		t.Errorf("title = %q; want New Title", title)
+	}
+
+	// The queue row must still exist (INSERT OR REPLACE would have deleted it).
+	var queueCount int
+	if err := d.QueryRow(`SELECT COUNT(*) FROM queue WHERE id=?`, queueID).Scan(&queueCount); err != nil {
+		t.Fatalf("count queue: %v", err)
+	}
+	if queueCount != 1 {
+		t.Errorf("queue row count = %d after second upsert; want 1 (no cascade delete)", queueCount)
+	}
+}
+
+// TestUpsertBatch_Empty verifies that UpsertBatch returns nil without error
+// when given an empty slice.
+func TestUpsertBatch_Empty(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	if err := w.UpsertBatch(nil); err != nil {
+		t.Errorf("UpsertBatch(nil): %v", err)
+	}
+	if err := w.UpsertBatch([]library.Track{}); err != nil {
+		t.Errorf("UpsertBatch([]): %v", err)
+	}
+
+	var count int
+	if err := d.QueryRow(`SELECT COUNT(*) FROM tracks`).Scan(&count); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("tracks count = %d; want 0", count)
 	}
 }

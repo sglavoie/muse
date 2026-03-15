@@ -61,7 +61,12 @@ type Deps struct {
 	// mpv exits, wg.Wait() inside Run will stall and the TUI will never start.
 	LaunchMPV func(ctx context.Context, socketPath string) error
 
-	// RunScan performs the library scan against the open database.
+	// RunScan is called concurrently with LaunchMPV during step 6 of Run.
+	// In production (main.go) this is a no-op because the real library scan
+	// pipeline is launched by the caller after Run returns (the scan needs
+	// direct access to the Writer which is an internal implementation detail
+	// of Run). Injecting a real scan here in tests validates the concurrent
+	// execution contract between LaunchMPV and RunScan.
 	RunScan func(ctx context.Context, database *db.DB) error
 
 	// RestorePlayer, when non-nil, is called after LaunchMPV succeeds with
@@ -102,7 +107,10 @@ type RunResult struct {
 //  3. Run pending DB migrations
 //  4. Restore previous session from DB (validate tracks against disk)
 //  5. Verify prerequisite binaries (mpv, ExifTool)
-//  6. Launch mpv and library scan concurrently
+//  6. Launch mpv (via LaunchMPV) and call RunScan concurrently; in production
+//     RunScan is a no-op — the library scan pipeline is started by the caller
+//     after Run returns because it requires the Writer that Run creates
+//     internally.
 //  7. Seek player to last position in paused state (if session data present)
 //
 // Run blocks until both parallel tasks complete or an error occurs. A failure
@@ -300,12 +308,6 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 		shuffle = sess.Shuffle
 		currentHash = sess.CurrentHash
 		positionMs = sess.PositionMs
-
-		// Regenerate fresh shuffle ordering so each session gets a new
-		// permutation rather than replaying the previous order.
-		if shuffle && len(playerTracks) > 0 {
-			_ = writer.WriteShuffle(true)
-		}
 	}
 
 	return &RestoredSession{

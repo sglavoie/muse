@@ -26,9 +26,14 @@ type Config struct {
 }
 
 // defaults returns a Config populated with built-in default values.
+// The MusicDirectory is returned with the tilde expanded to an absolute path.
 func defaults() Config {
+	musicDir := defaultMusicDirectory
+	if expanded, err := expandTilde(musicDir); err == nil {
+		musicDir = expanded
+	}
 	return Config{
-		MusicDirectory: defaultMusicDirectory,
+		MusicDirectory: musicDir,
 		MPVExtraFlags:  []string{},
 		DefaultVolume:  defaultVolume,
 		LogLevel:       defaultLogLevel,
@@ -81,7 +86,11 @@ func validate(raw Config) Config {
 	cfg := defaults()
 
 	if raw.MusicDirectory != "" {
-		cfg.MusicDirectory = raw.MusicDirectory
+		if expanded, err := expandTilde(raw.MusicDirectory); err == nil {
+			cfg.MusicDirectory = expanded
+		} else {
+			cfg.MusicDirectory = raw.MusicDirectory
+		}
 	} else {
 		slog.Warn("invalid config value, using default",
 			"field", "music_directory",

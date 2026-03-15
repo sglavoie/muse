@@ -21,6 +21,25 @@ var _ interface {
 	UpdateSessionPosition(hash string, positionMs int64) error
 } = (*Writer)(nil)
 
+// Compile-time check: *Writer must implement UpsertBatch so that the
+// scan-to-DB bridge in main.go and any future consumer cannot diverge from
+// the actual method signature without a build failure.
+var _ interface {
+	UpsertBatch(tracks []library.Track) error
+} = (*Writer)(nil)
+
+// Compile-time check: *Writer must satisfy the queueDequeuer interface used
+// by the TUI layer (DequeueTrackSoft, UndoDequeue, ClearQueueSoft,
+// UndoClearQueue, PurgeDeletedQueueEntries). Mirrors the sessionWriter and
+// UpsertBatch assertions above to catch method-signature drift at build time.
+var _ interface {
+	DequeueTrackSoft(id int64) error
+	UndoDequeue(id int64) error
+	ClearQueueSoft() ([]int64, error)
+	UndoClearQueue(ids []int64) error
+	PurgeDeletedQueueEntries(before int64) error
+} = (*Writer)(nil)
+
 // writeCmd is a single unit of work sent to the writer goroutine.
 // The caller blocks on resp until the goroutine sends the result back.
 type writeCmd struct {
@@ -686,6 +705,48 @@ func (w *Writer) PurgeDeletedPlaylistTracks(before int64) error {
 			before,
 		)
 		return err
+	})
+}
+
+// UpsertBatch writes tracks into the tracks table inside a single transaction
+// using an INSERT … ON CONFLICT(hash) DO UPDATE so that existing rows are
+// updated in place without cascading deletes on their FK dependants (queue,
+// playlist_tracks). created_at is preserved on conflict; all other fields are
+// updated to the values supplied by the scanner. size_bytes is stored as 0
+// because the Track type does not carry the file size. Duration is converted
+// from seconds (float64) to milliseconds (int64).
+// UpsertBatch is a no-op when tracks is empty.
+func (w *Writer) UpsertBatch(tracks []library.Track) error {
+	if len(tracks) == 0 {
+		return nil
+	}
+	return w.Exec(func(db *sql.DB) error {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback() //nolint:errcheck
+
+		now := time.Now().Unix()
+		for _, t := range tracks {
+			durationMs := int64(t.Duration * 1000)
+			_, err := tx.Exec(`
+				INSERT INTO tracks (hash, path, title, artist, album, duration_ms, size_bytes, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
+				ON CONFLICT(hash) DO UPDATE SET
+					path        = excluded.path,
+					title       = excluded.title,
+					artist      = excluded.artist,
+					album       = excluded.album,
+					duration_ms = excluded.duration_ms,
+					updated_at  = excluded.updated_at`,
+				t.Hash, t.Path, t.Title, t.Artist, t.Album, durationMs, now, now,
+			)
+			if err != nil {
+				return err
+			}
+		}
+		return tx.Commit()
 	})
 }
 

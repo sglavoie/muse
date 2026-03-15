@@ -1735,7 +1735,9 @@ func (m Model) View() tea.View {
 	}
 
 	content := body + "\n\n" + m.renderStatusBar()
-	return tea.NewView(content)
+	v := tea.NewView(content)
+	v.AltScreen = true
+	return v
 }
 
 // renderStatusBar builds the status bar line shown at the bottom of the view.
