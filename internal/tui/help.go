@@ -18,10 +18,7 @@ type helpSection struct {
 }
 
 // HelpOverlay renders a static keybinding reference grouped into named sections.
-// logPath is displayed at the bottom of the overlay.
-type HelpOverlay struct {
-	logPath string
-}
+type HelpOverlay struct{}
 
 // helpSections returns the ordered list of keybinding sections shown in the
 // help overlay. Each section corresponds to one bindingContext.
@@ -98,6 +95,11 @@ func helpSections() []helpSection {
 	}
 }
 
+// helpLineCount returns the total number of lines in the rendered help text.
+func helpLineCount() int {
+	return strings.Count(HelpOverlay{}.render(), "\n") + 1
+}
+
 // render builds the help overlay string: a title, context-grouped keybinding
 // sections with section headers, and the log file path at the bottom.
 func (h HelpOverlay) render() string {
@@ -124,6 +126,5 @@ func (h HelpOverlay) render() string {
 		b.WriteString("\n")
 	}
 
-	b.WriteString("log: " + h.logPath)
-	return b.String()
+	return strings.TrimRight(b.String(), "\n")
 }

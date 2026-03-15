@@ -28,7 +28,6 @@ type transientNotification struct {
 // playlist source, and repeat/shuffle mode indicators. The right zone shows
 // auto-dismissing transient notifications.
 type StatusBar struct {
-	logPath       string
 	configCreated bool
 	configPath    string
 	notification  transientNotification
@@ -104,11 +103,10 @@ func truncateTitle(s string, maxRunes int) string {
 // the artist name is always preserved.
 func (s StatusBar) render(width int) string {
 	// --- Right side (always shown) ---
-	logPart := fmt.Sprintf("log: %s", s.logPath)
+	var rightSegments []string
 	if s.configCreated {
-		logPart += fmt.Sprintf("  |  config created: %s", s.configPath)
+		rightSegments = append(rightSegments, fmt.Sprintf("config created: %s", s.configPath))
 	}
-	rightSegments := []string{logPart}
 	if s.notification.msg != "" {
 		rightSegments = append(rightSegments, s.notification.msg)
 	}

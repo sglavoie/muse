@@ -47,6 +47,7 @@ type View struct {
 	Width          int
 	Height         int
 	Cursor         int
+	ScrollOffset   int // first visible track index
 	FilterActive   bool
 	FilterText     string
 	Fuzzy          musiclib.FuzzySearcher
@@ -54,20 +55,41 @@ type View struct {
 }
 
 // CursorUp moves the cursor one row up, stopping at the first track.
+// The scroll offset is adjusted so the cursor stays visible.
 func (v View) CursorUp() View {
 	if v.Cursor > 0 {
 		v.Cursor--
+	}
+	if v.Cursor < v.ScrollOffset {
+		v.ScrollOffset = v.Cursor
 	}
 	return v
 }
 
 // CursorDown moves the cursor one row down, stopping at the last track.
+// The scroll offset is adjusted so the cursor stays visible.
 func (v View) CursorDown() View {
 	n := v.effectiveTrackCount()
 	if n > 0 && v.Cursor < n-1 {
 		v.Cursor++
 	}
+	maxRows := v.visibleRows()
+	if v.Cursor >= v.ScrollOffset+maxRows {
+		v.ScrollOffset = v.Cursor - maxRows + 1
+	}
 	return v
+}
+
+// visibleRows returns the maximum number of track rows that fit on screen.
+func (v View) visibleRows() int {
+	reserve := 3
+	if v.FilterActive {
+		reserve = 4
+	}
+	if v.Height > 0 {
+		return max(1, v.Height-reserve)
+	}
+	return 50
 }
 
 // effectiveTrackCount returns the number of tracks currently displayed,
@@ -148,15 +170,12 @@ func (v View) Render() string {
 		}
 	}
 
-	reserve := 3
-	if v.FilterActive {
-		reserve = 4
+	maxRows := v.visibleRows()
+	start := v.ScrollOffset
+	if start > len(display) {
+		start = len(display)
 	}
-	maxRows := 50
-	if v.Height > 0 {
-		maxRows = max(1, v.Height-reserve)
-	}
-	end := min(len(display), maxRows)
+	end := min(len(display), start+maxRows)
 
 	heading := fmt.Sprintf("Library (%s tracks)", formatCount(n))
 	separator := "\n\n"
@@ -165,13 +184,14 @@ func (v View) Render() string {
 	}
 
 	if v.Width == 0 {
-		if end == 0 {
+		if start >= end {
 			return heading + separator + "No matches"
 		}
-		lines := make([]string, end)
-		for i, dt := range display[:end] {
+		lines := make([]string, end-start)
+		for i, dt := range display[start:end] {
+			absIdx := start + i
 			row := fmt.Sprintf("%s – %s", dt.track.Artist, dt.track.Title)
-			if i == v.Cursor {
+			if absIdx == v.Cursor {
 				row = ansiAccent + row + ansiReset
 			}
 			lines[i] = row
@@ -182,20 +202,21 @@ func (v View) Render() string {
 	cols := Compute(v.Width)
 	header := strings.Repeat(" ", cols.SelectionMarker) + renderRow("#", "Artist", "Title", "Album", "Time", cols)
 
-	if end == 0 {
+	if start >= end {
 		noMatches := "No matches"
 		leftPad := max(0, (v.Width-len(noMatches))/2)
 		return heading + separator + header + "\n" + strings.Repeat(" ", leftPad) + noMatches
 	}
 
-	lines := make([]string, end)
-	for i, dt := range display[:end] {
+	lines := make([]string, end-start)
+	for i, dt := range display[start:end] {
+		absIdx := start + i
 		t := dt.track
-		num := fmt.Sprintf("%d", i+1)
+		num := fmt.Sprintf("%d", absIdx+1)
 		dur := formatDuration(t.Duration)
 
 		_, isSelected := v.SelectedHashes[t.Hash]
-		isFocused := i == v.Cursor
+		isFocused := absIdx == v.Cursor
 
 		// When the row is focused, omit the inner accent/reset from the marker
 		// so the outer reverse-video wrap covers the full row uniformly. An

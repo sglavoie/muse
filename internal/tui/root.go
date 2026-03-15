@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -381,9 +382,8 @@ type watchBatchMsg struct {
 // Model is the root Bubble Tea v2 model. It manages view switching between
 // Library, Playlists, and Queue panels, and renders a persistent status bar.
 type Model struct {
-	activeView    viewID
-	logPath       string
-	configPath    string
+	activeView viewID
+	configPath string
 	configCreated bool
 
 	library   LibraryView
@@ -412,6 +412,7 @@ type Model struct {
 	termHeight      int
 	registry        Registry
 	helpVisible     bool   // true while the help overlay is shown
+	helpScroll      int    // scroll offset (in lines) for the help overlay
 	prevActiveView  viewID // the view that was active before help was opened
 
 	// player is the playback backend. It may be nil when playback is not
@@ -452,7 +453,7 @@ type Model struct {
 
 }
 
-// New creates a root Model. logPath is displayed in the status bar on every
+// New creates a root Model. configPath is displayed in the status bar on every
 // render. When configCreated is true, configPath is also shown as a transient
 // first-run notification.
 //
@@ -469,11 +470,10 @@ type Model struct {
 // and nil to disable it (e.g. in tests that do not exercise rescan).
 //
 // p is the playback backend. Pass nil to disable playback controls.
-func New(logPath, configPath string, configCreated bool, scanCh <-chan library.Track, watchCh <-chan library.WatchEvent, libraryRoot string, extractor library.MetadataExtractor, p playPauser) Model {
+func New(configPath string, configCreated bool, scanCh <-chan library.Track, watchCh <-chan library.WatchEvent, libraryRoot string, extractor library.MetadataExtractor, p playPauser) Model {
 	return Model{
-		activeView:    viewLibrary,
-		logPath:       logPath,
-		configPath:    configPath,
+		activeView: viewLibrary,
+		configPath: configPath,
 		configCreated: configCreated,
 		library:       LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
 		scanCh:        scanCh,
@@ -484,7 +484,6 @@ func New(logPath, configPath string, configCreated bool, scanCh <-chan library.T
 		player:        p,
 		registry:      newRegistry(),
 		statusBar: StatusBar{
-			logPath:       logPath,
 			configPath:    configPath,
 			configCreated: configCreated,
 		},
@@ -1147,11 +1146,33 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		if m.helpVisible {
-			if msg.String() == "esc" {
+			switch msg.String() {
+			case "ctrl+c":
+				// Fall through to global key handling for quit.
+			case "esc":
 				m.helpVisible = false
+				m.helpScroll = 0
 				m.activeView = m.prevActiveView
+				return m, nil
+			case "j", "down":
+				m.helpScroll++
+				m.helpScroll = m.clampHelpScroll()
+				return m, nil
+			case "k", "up":
+				m.helpScroll--
+				m.helpScroll = m.clampHelpScroll()
+				return m, nil
+			case "ctrl+d":
+				m.helpScroll += m.termHeight / 2
+				m.helpScroll = m.clampHelpScroll()
+				return m, nil
+			case "ctrl+u":
+				m.helpScroll -= m.termHeight / 2
+				m.helpScroll = m.clampHelpScroll()
+				return m, nil
+			default:
+				return m, nil
 			}
-			return m, nil
 		}
 		// When the library filter bar is active, intercept all keypresses
 		// before the registry so that typing populates the filter text
@@ -1268,6 +1289,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// (DestinationPickedMsg, DestinationPickerDismissedMsg, etc.) which are
 		// handled below in the non-KeyPressMsg cases.
 		if m.destPicker != nil {
+			if msg.String() == "ctrl+c" {
+				return m, tea.Quit
+			}
 			updated, cmd := m.destPicker.HandleKey(msg.String())
 			m.destPicker = &updated
 			return m, cmd
@@ -1277,6 +1301,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case actionHelp:
 			m.prevActiveView = m.activeView
 			m.helpVisible = true
+			m.helpScroll = 0
 		case actionQuit:
 			return m, tea.Quit
 		case actionPlayPause:
@@ -1714,18 +1739,49 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// clampHelpScroll constrains helpScroll to [0, maxScroll] based on the
+// terminal height and the total number of help lines.
+func (m Model) clampHelpScroll() int {
+	total := helpLineCount()
+	visible := m.termHeight - 2 // reserve space for the status bar gap
+	if visible <= 0 || visible >= total {
+		return 0
+	}
+	maxScroll := total - visible
+	s := m.helpScroll
+	if s > maxScroll {
+		s = maxScroll
+	}
+	if s < 0 {
+		s = 0
+	}
+	return s
+}
+
 // View renders the active panel and a status bar, returning a tea.View.
 // When the help overlay is visible it replaces the body content entirely.
 func (m Model) View() tea.View {
 	var body string
 	if m.helpVisible {
-		body = HelpOverlay{logPath: m.logPath}.render()
+		full := HelpOverlay{}.render()
+		lines := strings.Split(full, "\n")
+		visible := m.termHeight - 2
+		if visible <= 0 || visible >= len(lines) {
+			body = full
+		} else {
+			end := m.helpScroll + visible
+			if end > len(lines) {
+				end = len(lines)
+			}
+			body = strings.Join(lines[m.helpScroll:end], "\n")
+		}
 	} else {
 		switch m.activeView {
 		case viewLibrary:
-			body = m.library.render()
 			if m.destPicker != nil {
-				body += "\n" + m.destPicker.Render(m.termWidth, m.termHeight)
+				body = m.destPicker.Render(m.termWidth, m.termHeight)
+			} else {
+				body = m.library.render()
 			}
 		case viewPlaylists:
 			body = m.playlists.render()

@@ -49,7 +49,6 @@ func TestRenderTitleTruncationPreservesArtist(t *testing.T) {
 		artist:        "Full Artist",
 		title:         "A Very Long Track Title That Should Be Truncated",
 		playbackState: PlaybackPlaying,
-		logPath:       "muse.log",
 	}
 
 	// Width just large enough for glyph + artist + separator but not the full title.
@@ -74,7 +73,6 @@ func TestRenderNoTruncationWhenSufficientWidth(t *testing.T) {
 		artist:        "Artist",
 		title:         "Short Title",
 		playbackState: PlaybackPlaying,
-		logPath:       "muse.log",
 	}
 
 	out := sb.render(200)
@@ -199,7 +197,6 @@ func TestRenderTransientDoesNotOverwritePersistent(t *testing.T) {
 		title:         "Persistent Title",
 		playbackState: PlaybackPlaying,
 		notification:  transientNotification{msg: "Scanning… 100 tracks"},
-		logPath:       "muse.log",
 	}
 
 	out := sb.render(0)
@@ -227,10 +224,9 @@ func TestRenderTransientVisibleWithWidthConstraint(t *testing.T) {
 		title:         "A Very Long Title Indeed",
 		playbackState: PlaybackPlaying,
 		notification:  transientNotification{msg: "Some notification"},
-		logPath:       "muse.log",
 	}
 
-	out := sb.render(60)
+	out := sb.render(45)
 
 	if !strings.Contains(out, "My Artist") {
 		t.Errorf("artist should be preserved with width constraint: got %q", out)
@@ -251,7 +247,6 @@ func TestRenderTransientVisibleWithWidthConstraint(t *testing.T) {
 func TestRenderIdleStateShowsNoGlyphAndNoTrackInfo(t *testing.T) {
 	sb := StatusBar{
 		playbackState: PlaybackIdle,
-		logPath:       "muse.log",
 	}
 
 	out := sb.render(0)
@@ -261,8 +256,8 @@ func TestRenderIdleStateShowsNoGlyphAndNoTrackInfo(t *testing.T) {
 			t.Errorf("unexpected glyph %q in idle state: got %q", g, out)
 		}
 	}
-	if !strings.Contains(out, "log: muse.log") {
-		t.Errorf("log path should always be shown: got %q", out)
+	if strings.Contains(out, "log:") {
+		t.Errorf("log path should not be shown: got %q", out)
 	}
 }
 
@@ -332,7 +327,6 @@ func TestRenderTimeDisplayIncludedInTruncationBudget(t *testing.T) {
 		playbackState: PlaybackPlaying,
 		elapsed:       "01:23",
 		total:         "04:56",
-		logPath:       "muse.log",
 	}
 
 	out := sb.render(60)

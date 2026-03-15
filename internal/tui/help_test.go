@@ -84,7 +84,7 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 }
 
 func TestHelpOverlayRendersAllSectionHeaders(t *testing.T) {
-	h := HelpOverlay{logPath: "/var/log/muse/muse.log"}
+	h := HelpOverlay{}
 	out := h.render()
 
 	for _, header := range []string{"Global", "Library", "Playlists", "Queue", "Modals"} {
@@ -95,7 +95,7 @@ func TestHelpOverlayRendersAllSectionHeaders(t *testing.T) {
 }
 
 func TestHelpOverlayRendersRepresentativeEntries(t *testing.T) {
-	h := HelpOverlay{logPath: "/var/log/muse/muse.log"}
+	h := HelpOverlay{}
 	out := h.render()
 
 	checks := []struct {
@@ -127,23 +127,3 @@ func TestHelpOverlayRendersRepresentativeEntries(t *testing.T) {
 	}
 }
 
-func TestHelpOverlayRendersLogPath(t *testing.T) {
-	logPath := "/state/muse/muse.log"
-	h := HelpOverlay{logPath: logPath}
-	out := h.render()
-
-	if !strings.Contains(out, logPath) {
-		t.Errorf("help overlay missing log path %q, got:\n%s", logPath, out)
-	}
-}
-
-func TestHelpOverlayLogPathPrefixed(t *testing.T) {
-	logPath := "/tmp/test.log"
-	h := HelpOverlay{logPath: logPath}
-	out := h.render()
-
-	want := "log: " + logPath
-	if !strings.Contains(out, want) {
-		t.Errorf("expected %q in help overlay output, got:\n%s", want, out)
-	}
-}

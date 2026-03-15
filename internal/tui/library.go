@@ -14,6 +14,7 @@ type LibraryView struct {
 	width          int
 	height         int
 	cursor         int // zero-based index of the focused track row
+	scrollOffset   int // first visible track index
 	filterActive   bool
 	filterText     string
 	fuzzy          library.FuzzySearcher
@@ -33,6 +34,7 @@ func (v LibraryView) view() libtui.View {
 		Width:          v.width,
 		Height:         v.height,
 		Cursor:         v.cursor,
+		ScrollOffset:   v.scrollOffset,
 		FilterActive:   v.filterActive,
 		FilterText:     v.filterText,
 		Fuzzy:          v.fuzzy,
@@ -78,6 +80,7 @@ func (v LibraryView) HandleAction(a action) LibraryView {
 		return v
 	}
 	v.cursor = view.Cursor
+	v.scrollOffset = view.ScrollOffset
 	return v
 }
 
@@ -132,6 +135,7 @@ func (v LibraryView) DeactivateFilter() LibraryView {
 	v.filterActive = false
 	v.filterText = ""
 	v.cursor = 0
+	v.scrollOffset = 0
 	return v
 }
 
@@ -143,6 +147,7 @@ func (v LibraryView) AppendFilterChar(ch rune) LibraryView {
 	}
 	v.filterText += string(ch)
 	v.cursor = 0
+	v.scrollOffset = 0
 	return v
 }
 
@@ -156,6 +161,7 @@ func (v LibraryView) BackspaceFilter() LibraryView {
 	runes := []rune(v.filterText)
 	v.filterText = string(runes[:len(runes)-1])
 	v.cursor = 0
+	v.scrollOffset = 0
 	return v
 }
 

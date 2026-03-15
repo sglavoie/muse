@@ -13,7 +13,7 @@ import (
 )
 
 func TestUpdateViewSwitching(t *testing.T) {
-	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 
 	if m.activeView != viewLibrary {
 		t.Fatalf("expected viewLibrary (%d), got %d", viewLibrary, m.activeView)
@@ -42,7 +42,7 @@ func TestUpdateViewSwitching(t *testing.T) {
 }
 
 func TestUpdateCtrlCQuits(t *testing.T) {
-	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	if cmd == nil {
 		t.Fatal("ctrl+c: expected a quit command, got nil")
@@ -54,7 +54,7 @@ func TestUpdateCtrlCQuits(t *testing.T) {
 }
 
 func TestUpdateQDoesNotQuit(t *testing.T) {
-	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	if cmd != nil {
 		t.Fatal("q key must not quit the application")
@@ -62,7 +62,7 @@ func TestUpdateQDoesNotQuit(t *testing.T) {
 }
 
 func TestUpdateEscDoesNotQuit(t *testing.T) {
-	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if cmd != nil {
 		t.Fatal("Esc key must not quit the application")
@@ -70,24 +70,15 @@ func TestUpdateEscDoesNotQuit(t *testing.T) {
 }
 
 func TestViewReturnsTeaView(t *testing.T) {
-	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	v := m.View()
 	// Compile-time check: View() returns tea.View (not string).
 	_ = v.Content
 }
 
-func TestViewStatusBarShowsLogPath(t *testing.T) {
-	logPath := "/var/log/muse/muse.log"
-	m := New(logPath, "", false, nil, nil, "", nil, nil)
-	v := m.View()
-	if !strings.Contains(v.Content, logPath) {
-		t.Fatalf("status bar missing log path %q in:\n%s", logPath, v.Content)
-	}
-}
-
 func TestViewStatusBarShowsConfigPathOnFirstRun(t *testing.T) {
 	configPath := "/home/user/.config/muse/config.toml"
-	m := New("/log/path", configPath, true, nil, nil, "", nil, nil)
+	m := New(configPath, true, nil, nil, "", nil, nil)
 	v := m.View()
 	if !strings.Contains(v.Content, configPath) {
 		t.Fatalf("status bar missing config path %q in:\n%s", configPath, v.Content)
@@ -96,7 +87,7 @@ func TestViewStatusBarShowsConfigPathOnFirstRun(t *testing.T) {
 
 func TestViewStatusBarHidesConfigPathAfterFirstRun(t *testing.T) {
 	configPath := "/home/user/.config/muse/config.toml"
-	m := New("/log/path", configPath, false, nil, nil, "", nil, nil)
+	m := New(configPath, false, nil, nil, "", nil, nil)
 	v := m.View()
 	if strings.Contains(v.Content, configPath) {
 		t.Fatalf("status bar must not show config path when configCreated=false")
@@ -106,7 +97,7 @@ func TestViewStatusBarHidesConfigPathAfterFirstRun(t *testing.T) {
 // TestUpdateScanBatchMsgAppendsTracksToLibrary verifies that receiving a
 // ScanBatchMsg inserts all tracks into the library index.
 func TestUpdateScanBatchMsgAppendsTracksToLibrary(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	tracks := []library.Track{
 		{Artist: "Artist A", Title: "Track 1"},
 		{Artist: "Artist B", Title: "Track 2"},
@@ -125,7 +116,7 @@ func TestUpdateScanBatchMsgAppendsTracksToLibrary(t *testing.T) {
 func TestUpdateScanBatchMsgChainsWaitCmd(t *testing.T) {
 	ch := make(chan library.Track)
 	close(ch)
-	m := New("/log", "", false, ch, nil, "", nil, nil)
+	m := New("", false, ch, nil, "", nil, nil)
 
 	tracks := []library.Track{{Artist: "A", Title: "T"}}
 	_, cmd := m.Update(library.ScanBatchMsg{Tracks: tracks})
@@ -143,7 +134,7 @@ func TestUpdateScanBatchMsgChainsWaitCmd(t *testing.T) {
 func TestUpdateScanDoneMsgClearsScanState(t *testing.T) {
 	ch := make(chan library.Track)
 	close(ch)
-	m := New("/log", "", false, ch, nil, "", nil, nil)
+	m := New("", false, ch, nil, "", nil, nil)
 
 	next, cmd := m.Update(library.ScanDoneMsg{})
 	nm := next.(Model)
@@ -161,7 +152,7 @@ func TestUpdateScanDoneMsgClearsScanState(t *testing.T) {
 // TestViewLibraryShowsTrackCount verifies that after receiving a ScanBatchMsg
 // the library view renders the track count.
 func TestViewLibraryShowsTrackCount(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	tracks := []library.Track{
 		{Artist: "X", Title: "Y"},
 	}
@@ -176,7 +167,7 @@ func TestViewLibraryShowsTrackCount(t *testing.T) {
 // TestViewStatusBarShowsScanProgress verifies that the status bar shows a
 // formatted "X tracks" progress string after a ScanProgressMsg.
 func TestViewStatusBarShowsScanProgress(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	next, _ := m.Update(library.ScanProgressMsg{Scanned: 1234})
 	nm := next.(Model)
 	v := nm.View()
@@ -198,7 +189,7 @@ func (stubExtractor) Extract(files []library.HashedFile) ([]library.Track, error
 // configured library root returns a non-nil background cmd and does not block.
 func TestRescanHotkeyReturnsCmd(t *testing.T) {
 	root := t.TempDir()
-	m := New("/log", "", false, nil, nil, root, stubExtractor{}, nil)
+	m := New("", false, nil, nil, root, stubExtractor{}, nil)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
 	if cmd == nil {
 		t.Fatal("R key: expected non-nil cmd for rescan, got nil")
@@ -211,7 +202,7 @@ func TestRescanHotkeyIsNoOpWhenScanning(t *testing.T) {
 	ch := make(chan library.Track)
 	defer close(ch)
 	root := t.TempDir()
-	m := New("/log", "", false, ch, nil, root, stubExtractor{}, nil)
+	m := New("", false, ch, nil, root, stubExtractor{}, nil)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
 	if cmd != nil {
 		t.Fatal("R key during active scan must return nil cmd")
@@ -221,7 +212,7 @@ func TestRescanHotkeyIsNoOpWhenScanning(t *testing.T) {
 // TestRescanHotkeyIsNoOpWithoutRoot verifies that pressing R when no library
 // root is configured returns nil.
 func TestRescanHotkeyIsNoOpWithoutRoot(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
 	if cmd != nil {
 		t.Fatal("R key without library root must return nil cmd")
@@ -232,7 +223,7 @@ func TestRescanHotkeyIsNoOpWithoutRoot(t *testing.T) {
 // MissingTrackMsg marks the matching queue entry as missing and sets a
 // transient error message in the status bar.
 func TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/song.flac", Display: "Artist – Song"},
 	}
@@ -270,7 +261,7 @@ func TestQueueViewRendersMissingEntryDimmed(t *testing.T) {
 // populate it with only the new tracks, effectively removing deleted ones.
 func TestRescanResetsIndexAndAddsNewTracks(t *testing.T) {
 	root := t.TempDir()
-	m := New("/log", "", false, nil, nil, root, stubExtractor{}, nil)
+	m := New("", false, nil, nil, root, stubExtractor{}, nil)
 
 	// Seed two initial tracks.
 	next, _ := m.Update(library.ScanBatchMsg{Tracks: []library.Track{
@@ -310,7 +301,7 @@ func TestRescanResetsIndexAndAddsNewTracks(t *testing.T) {
 // tick fires. ScanDoneMsg alone does not clear the notification; it stays
 // visible until the 1-second tick sees that expiresAt has passed.
 func TestViewStatusBarHidesScanProgressWhenDone(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	// Set progress — notification gets a 5-second expiry.
 	next, _ := m.Update(library.ScanProgressMsg{Scanned: 100})
 	nm := next.(Model)
@@ -546,7 +537,7 @@ func TestQueueViewUpdateJAtBottomIsNoOp(t *testing.T) {
 // correct index.
 func TestRootUpdatePlayQueueIndexMsgCallsPlayerPlayFromIndex(t *testing.T) {
 	p := &stubPlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
@@ -566,7 +557,7 @@ func TestRootUpdatePlayQueueIndexMsgCallsPlayerPlayFromIndex(t *testing.T) {
 // PlayQueueIndexMsg, and a subsequent Update call invokes PlayFromIndex.
 func TestRootUpdateEnterInQueueViewDelegatesToQueueUpdate(t *testing.T) {
 	p := &stubPlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -609,7 +600,7 @@ func TestSpaceTogglesPlayPauseFromAnyView(t *testing.T) {
 	for _, tc := range views {
 		t.Run(tc.name, func(t *testing.T) {
 			p := &stubPlayer{}
-			m := New("/log", "", false, nil, nil, "", nil, p)
+			m := New("", false, nil, nil, "", nil, p)
 			m.activeView = tc.viewID
 			m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
 
@@ -650,7 +641,7 @@ func (s *stubCommandPlayer) Previous() error                 { return nil }
 // root Model transitions correctly through playing, paused, and idle states.
 func TestModelPlaybackStateTransitions(t *testing.T) {
 	p := &stubPlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 	m.queue.entries = []QueueEntry{
 		{Path: "/a.flac", Display: "Artist – Song", Artist: "Artist", Title: "Song"},
 	}
@@ -692,7 +683,7 @@ func TestModelPlaybackStateTransitions(t *testing.T) {
 // the playback state to stopped when the player implements commandPlayer.
 func TestModelStopKeyTransitionsToStopped(t *testing.T) {
 	p := &stubCommandPlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 	m.playbackState = PlaybackPlaying
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 's', Text: "s"})
@@ -708,7 +699,7 @@ func TestModelStopKeyTransitionsToStopped(t *testing.T) {
 // TestModelRepeatModeDefaultOff verifies that repeat defaults to RepeatOff and
 // shuffle defaults to false on a freshly created model.
 func TestModelRepeatModeDefaultOff(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	if m.repeatMode != RepeatOff {
 		t.Fatalf("repeatMode must default to RepeatOff, got %v", m.repeatMode)
 	}
@@ -722,7 +713,7 @@ func TestModelRepeatModeDefaultOff(t *testing.T) {
 // artist, title, and playlist source in the persistent left zone.
 func TestStatusBarReceivesTrackInfoBeforeRender(t *testing.T) {
 	p := &stubPlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 	m.queue.entries = []QueueEntry{
 		{Path: "/a.flac", Display: "The Artist – The Song", Artist: "The Artist", Title: "The Song"},
 	}
@@ -770,7 +761,7 @@ func TestStatusBarShowsPlaybackStateIndicator(t *testing.T) {
 // TestTrackChangedMsgUpdatesStatusBar verifies that TrackChangedMsg updates
 // the status bar's artist, title, and playlist source.
 func TestTrackChangedMsgUpdatesStatusBar(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 
 	next, _ := m.Update(TrackChangedMsg{
 		Artist:         "New Artist",
@@ -797,7 +788,7 @@ func TestTrackChangedMsgUpdatesStatusBar(t *testing.T) {
 // TestTrackChangedMsgDefaultsPlaylistSourceToQueue verifies that a
 // TrackChangedMsg with an empty PlaylistSource defaults to "Queue".
 func TestTrackChangedMsgDefaultsPlaylistSourceToQueue(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	next, _ := m.Update(TrackChangedMsg{Artist: "A", Title: "T"})
 	nm := next.(Model)
 	v := nm.View()
@@ -823,7 +814,7 @@ func (s *stubElapsedReader) ElapsedPosition() (float64, float64, error) {
 // ElapsedPosition on the player and stores the result on the model.
 func TestTickMsgUpdatesElapsedFields(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 75.5, total: 240.0}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 
 	next, _ := m.Update(tickMsg{})
 	nm := next.(Model)
@@ -839,7 +830,7 @@ func TestTickMsgUpdatesElapsedFields(t *testing.T) {
 // TestTickMsgReschedulesCmd verifies that tickMsg returns a non-nil follow-up
 // command so the 1-second tick continues firing.
 func TestTickMsgReschedulesCmd(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	_, cmd := m.Update(tickMsg{})
 	if cmd == nil {
 		t.Fatal("tickMsg must return a follow-up cmd to reschedule the tick")
@@ -849,7 +840,7 @@ func TestTickMsgReschedulesCmd(t *testing.T) {
 // TestInitSchedulesTick verifies that Init always returns a non-nil command
 // (at minimum the 1-second tick).
 func TestInitSchedulesTick(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	cmd := m.Init()
 	if cmd == nil {
 		t.Fatal("Init must return a non-nil cmd (at least the 1-second tick)")
@@ -860,7 +851,7 @@ func TestInitSchedulesTick(t *testing.T) {
 // elapsed position, the view renders the MM:SS / MM:SS format.
 func TestStatusBarRendersElapsedTime(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 83.0, total: 245.0}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 	m.playbackState = PlaybackPlaying
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Title"
@@ -877,7 +868,7 @@ func TestStatusBarRendersElapsedTime(t *testing.T) {
 // TestStatusBarNoTimeDisplayWhenZero verifies that when elapsedSecs and
 // totalSecs are both 0 the time display is suppressed.
 func TestStatusBarNoTimeDisplayWhenZero(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.playbackState = PlaybackPlaying
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Title"
@@ -893,7 +884,7 @@ func TestStatusBarNoTimeDisplayWhenZero(t *testing.T) {
 // elapsed and total fields so the time display disappears.
 func TestPlaybackEndedMsgResetsElapsed(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 60.0, total: 180.0}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 
 	// Populate elapsed/total via a tick.
 	next, _ := m.Update(tickMsg{})
@@ -917,7 +908,7 @@ func TestPlaybackEndedMsgResetsElapsed(t *testing.T) {
 // the queue is exhausted with repeat off, a "Queue finished" transient
 // notification is shown for 5 seconds.
 func TestPlaybackEndedMsgShowsQueueFinishedWhenEmptyRepeatOff(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.repeatMode = RepeatOff
 	// queue.entries is already empty (zero value).
 
@@ -938,7 +929,7 @@ func TestPlaybackEndedMsgShowsQueueFinishedWhenEmptyRepeatOff(t *testing.T) {
 // TestPlaybackEndedMsgNoNotificationWhenRepeatNotOff verifies that no "Queue
 // finished" notification is shown when repeat is not off.
 func TestPlaybackEndedMsgNoNotificationWhenRepeatNotOff(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.repeatMode = RepeatAll
 
 	next, _ := m.Update(PlaybackEndedMsg{})
@@ -954,7 +945,7 @@ func TestPlaybackEndedMsgNoNotificationWhenRepeatNotOff(t *testing.T) {
 // PlaybackEndedMsg means mpv exhausted all playable tracks — entries are never
 // removed from the slice during normal play-through.
 func TestPlaybackEndedMsgShowsNotificationWithEntriesPresent(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.repeatMode = RepeatOff
 	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
 
@@ -970,7 +961,7 @@ func TestPlaybackEndedMsgShowsNotificationWithEntriesPresent(t *testing.T) {
 // the queue is empty shows the "Queue is empty" hint in the transient status bar.
 func TestPlayPauseOnEmptyQueueShowsHint(t *testing.T) {
 	p := &stubPlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 	// queue.entries is empty, playbackState is PlaybackIdle.
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: ' ', Text: " "})
@@ -989,7 +980,7 @@ func TestPlayPauseOnEmptyQueueShowsHint(t *testing.T) {
 // the queue has entries proceeds normally (no empty-queue hint).
 func TestPlayPauseWithTracksInQueuePlaysNormally(t *testing.T) {
 	p := &stubPlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
 	m.playbackState = PlaybackIdle
 
@@ -1008,7 +999,7 @@ func TestPlayPauseWithTracksInQueuePlaysNormally(t *testing.T) {
 // notification set on the status bar is cleared when the tick fires after the
 // 5-second expiry has elapsed.
 func TestTransientNotificationClearsAfterTickPastExpiry(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	// Set a notification that is already expired.
 	m.statusBar.notification = transientNotification{
 		msg:       "some transient message",
@@ -1026,7 +1017,7 @@ func TestTransientNotificationClearsAfterTickPastExpiry(t *testing.T) {
 // TestTransientNotificationPersistsBeforeExpiry verifies that a notification
 // whose expiry has not yet been reached survives the tick unchanged.
 func TestTransientNotificationPersistsBeforeExpiry(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	// Set a notification that expires well in the future.
 	m.statusBar.notification = transientNotification{
 		msg:       "fresh message",
@@ -1045,7 +1036,7 @@ func TestTransientNotificationPersistsBeforeExpiry(t *testing.T) {
 // a second transient message while one is active replaces the old message and
 // resets the expiry clock.
 func TestNewerNotificationOverwritesOlderResettingExpiry(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 
 	// First notification, nearly expired.
 	oldExpiry := time.Now().Add(500 * time.Millisecond)
@@ -1070,7 +1061,7 @@ func TestNewerNotificationOverwritesOlderResettingExpiry(t *testing.T) {
 // progress is shown while scanning, the last message persists past ScanDoneMsg,
 // and the tick clears it once the expiry passes.
 func TestScanProgressVisibleDuringScanAndAutoDismissed(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 
 	// Scan progress sets a notification.
 	next, _ := m.Update(library.ScanProgressMsg{Scanned: 42})
@@ -1105,7 +1096,7 @@ func TestScanProgressVisibleDuringScanAndAutoDismissed(t *testing.T) {
 // actionPlaylistRename in the Playlists view. When the Playlists view is
 // focused, pressing 'r' must fire rename (not toggle repeat mode).
 func TestViewLocalBindingTakesPrecedenceOverGlobal(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 
 	// The global 'r' binding would normally toggle repeat mode. The
@@ -1141,7 +1132,7 @@ func TestGlobalBindingFiresWhenNoViewLocalBinding(t *testing.T) {
 	for _, tc := range views {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
-			m := New("/log", "", false, nil, nil, root, stubExtractor{}, nil)
+			m := New("", false, nil, nil, root, stubExtractor{}, nil)
 			m.activeView = tc.viewID
 
 			_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
@@ -1156,7 +1147,7 @@ func TestGlobalBindingFiresWhenNoViewLocalBinding(t *testing.T) {
 // with a positive delta on the player.
 func TestEqualKeyFiresVolumeUp(t *testing.T) {
 	p := &stubVolumePlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 
 	m.Update(tea.KeyPressMsg{Code: '=', Text: "="})
 
@@ -1180,7 +1171,7 @@ func (s *stubVolumePlayer) SetVolumeRelative(delta float64) error {
 // library root triggers a rescan, while lowercase 'r' does not.
 func TestShiftRFiresRescan(t *testing.T) {
 	root := t.TempDir()
-	m := New("/log", "", false, nil, nil, root, stubExtractor{}, nil)
+	m := New("", false, nil, nil, root, stubExtractor{}, nil)
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
 	if cmd == nil {
@@ -1201,7 +1192,7 @@ func TestLowerRCyclesRepeatModeInNonPlaylistViews(t *testing.T) {
 	}
 	for _, tc := range views {
 		t.Run(tc.name, func(t *testing.T) {
-			m := New("/log", "", false, nil, nil, "", nil, nil)
+			m := New("", false, nil, nil, "", nil, nil)
 			m.activeView = tc.viewID
 
 			// First press: RepeatOff → RepeatAll.
@@ -1264,7 +1255,7 @@ func (s *stubSessionWriter) UpdateSessionPosition(hash string, positionMs int64)
 // sessionWriter.WriteRepeatMode with the correct mode string on each press
 // and cycles in the order "none" → "all" → "one" → "none".
 func TestRepeatCycleCallsWriteRepeatMode(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	sw := &stubSessionWriter{}
 	m.SetSessionWriter(sw)
 
@@ -1286,7 +1277,7 @@ func TestRepeatCycleCallsWriteRepeatMode(t *testing.T) {
 // TestZTogglesShuffleGlobal verifies that pressing 'z' toggles the shuffle
 // field on the root model.
 func TestZTogglesShuffleGlobal(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 
 	// First press: shuffle off → on.
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'z', Text: "z"})
@@ -1309,7 +1300,7 @@ func TestZTogglesShuffleGlobal(t *testing.T) {
 // TestUDispatchesUndoMessage verifies that pressing 'u' returns a cmd that
 // emits UndoMsg.
 func TestUDispatchesUndoMessage(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'u', Text: "u"})
 	if cmd == nil {
@@ -1324,7 +1315,7 @@ func TestUDispatchesUndoMessage(t *testing.T) {
 // TestSlashRoutesToActiveView verifies that pressing '/' returns a cmd that
 // emits FilterBarMsg for routing to the active view.
 func TestSlashRoutesToActiveView(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: '/', Text: "/"})
 	if cmd == nil {
@@ -1339,7 +1330,7 @@ func TestSlashRoutesToActiveView(t *testing.T) {
 // TestPlaylistLocalCFiresCreateNotGlobalAction verifies that pressing 'c' in
 // the Playlists view dispatches PlaylistCreateMsg.
 func TestPlaylistLocalCFiresCreateNotGlobalAction(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
@@ -1382,7 +1373,7 @@ func (s *stubPlaylistCreator) ReadPlaylists() ([]db.PlaylistRow, error) {
 // rendered view with the cursor positioned on the new entry.
 func TestPlaylistCreateFlowSuccess(t *testing.T) {
 	creator := &stubPlaylistCreator{nextID: 42}
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	m.SetPlaylistWriter(creator)
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -1434,7 +1425,7 @@ func TestPlaylistCreateFlowSuccess(t *testing.T) {
 // creation discards the input without persisting anything.
 func TestPlaylistCreateFlowEscCancels(t *testing.T) {
 	creator := &stubPlaylistCreator{nextID: 1}
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	m.SetPlaylistWriter(creator)
 
@@ -1464,7 +1455,7 @@ func TestPlaylistCreateFlowEscCancels(t *testing.T) {
 // error cancels the input and surfaces a status bar notification.
 func TestPlaylistCreateFlowErrorShowsNotification(t *testing.T) {
 	creator := &stubPlaylistCreator{createErr: &errPlaylistCreate{msg: "db locked"}, nextID: 1}
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	m.SetPlaylistWriter(creator)
 
@@ -1526,7 +1517,7 @@ func (s *stubSeekPlayer) Previous() error                 { s.prevCalls++; retur
 // SeekRelative(-5) on the player (fine seek backward by 5 seconds).
 func TestSeekFineBackwardKey(t *testing.T) {
 	p := &stubSeekPlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 
 	m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 
@@ -1539,7 +1530,7 @@ func TestSeekFineBackwardKey(t *testing.T) {
 // SeekRelative(+5) on the player (fine seek forward by 5 seconds).
 func TestSeekFineForwardKey(t *testing.T) {
 	p := &stubSeekPlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 
 	m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 
@@ -1552,7 +1543,7 @@ func TestSeekFineForwardKey(t *testing.T) {
 // on the player (coarse seek backward by 30 seconds).
 func TestSeekCoarseBackwardKey(t *testing.T) {
 	p := &stubSeekPlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 
 	m.Update(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModShift})
 
@@ -1565,7 +1556,7 @@ func TestSeekCoarseBackwardKey(t *testing.T) {
 // on the player (coarse seek forward by 30 seconds).
 func TestSeekCoarseForwardKey(t *testing.T) {
 	p := &stubSeekPlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 
 	m.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
 
@@ -1577,7 +1568,7 @@ func TestSeekCoarseForwardKey(t *testing.T) {
 // TestNextTrackKey verifies that pressing 'n' calls Next() on the player.
 func TestNextTrackKey(t *testing.T) {
 	p := &stubSeekPlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 
 	m.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
 
@@ -1589,7 +1580,7 @@ func TestNextTrackKey(t *testing.T) {
 // TestPreviousTrackKey verifies that pressing 'p' calls Previous() on the player.
 func TestPreviousTrackKey(t *testing.T) {
 	p := &stubSeekPlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 
 	m.Update(tea.KeyPressMsg{Code: 'p', Text: "p"})
 
@@ -1602,7 +1593,7 @@ func TestPreviousTrackKey(t *testing.T) {
 // SetVolumeRelative(-5) on the player (volume down by 5%).
 func TestMinusKeyFiresVolumeDown(t *testing.T) {
 	p := &stubVolumePlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 
 	m.Update(tea.KeyPressMsg{Code: '-', Text: "-"})
 
@@ -1614,7 +1605,7 @@ func TestMinusKeyFiresVolumeDown(t *testing.T) {
 // TestHKeyIsUnbound verifies that 'h' is intentionally unbound: pressing it
 // produces no command and leaves the model state unchanged.
 func TestHKeyIsUnbound(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'h', Text: "h"})
 
@@ -1626,7 +1617,7 @@ func TestHKeyIsUnbound(t *testing.T) {
 // TestLKeyIsUnbound verifies that 'l' is intentionally unbound: pressing it
 // produces no command and leaves the model state unchanged.
 func TestLKeyIsUnbound(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'l', Text: "l"})
 
@@ -1639,7 +1630,7 @@ func TestLKeyIsUnbound(t *testing.T) {
 // and its first rendered frame complete within 50ms, and that the active view
 // is correct after each switch.
 func TestViewSwitchingCompletesUnder50ms(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 
 	steps := []struct {
 		key  tea.KeyPressMsg
@@ -1674,7 +1665,7 @@ func TestViewSwitchingCompletesUnder50ms(t *testing.T) {
 func TestBackgroundBatchUpdateLoopNonBlocking(t *testing.T) {
 	// Unbuffered channel with no sender — Update must not block on it.
 	ch := make(chan library.Track)
-	m := New("/log", "", false, ch, nil, "", nil, nil)
+	m := New("", false, ch, nil, "", nil, nil)
 
 	start := time.Now()
 	_, cmd := m.Update(library.ScanBatchMsg{Tracks: []library.Track{
@@ -1693,7 +1684,7 @@ func TestBackgroundBatchUpdateLoopNonBlocking(t *testing.T) {
 // TestRootQueueLocalDDispatchesDequeueMsg verifies the end-to-end path: pressing
 // 'd' while the queue view is active returns a Cmd that emits DequeueTrackMsg.
 func TestRootQueueLocalDDispatchesDequeueMsg(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -1717,7 +1708,7 @@ func TestRootQueueLocalDDispatchesDequeueMsg(t *testing.T) {
 // TestRootQueueLocalXDispatchesBulkSelectionToggleMsg verifies the end-to-end
 // path: pressing 'x' while the queue view is active dispatches BulkSelectionToggleMsg.
 func TestRootQueueLocalXDispatchesBulkSelectionToggleMsg(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -1736,7 +1727,7 @@ func TestRootQueueLocalXDispatchesBulkSelectionToggleMsg(t *testing.T) {
 // TestRootQueueLocalCDispatchesClearQueueMsg verifies the end-to-end path:
 // pressing 'C' (Shift+c) while the queue view is active dispatches ClearQueueMsg.
 func TestRootQueueLocalCDispatchesClearQueueMsg(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -1754,7 +1745,7 @@ func TestRootQueueLocalCDispatchesClearQueueMsg(t *testing.T) {
 // TestRootQueueLocalKDispatchesMoveTrackUpMsg verifies the end-to-end path:
 // pressing 'K' (Shift+k) while the queue view is active dispatches MoveTrackUpMsg.
 func TestRootQueueLocalKDispatchesMoveTrackUpMsg(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -1778,7 +1769,7 @@ func TestRootQueueLocalKDispatchesMoveTrackUpMsg(t *testing.T) {
 // TestRootQueueLocalJDispatchesMoveTrackDownMsg verifies the end-to-end path:
 // pressing 'J' (Shift+j) while the queue view is active dispatches MoveTrackDownMsg.
 func TestRootQueueLocalJDispatchesMoveTrackDownMsg(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -1800,7 +1791,7 @@ func TestRootQueueLocalJDispatchesMoveTrackDownMsg(t *testing.T) {
 }
 
 func TestUpdateQuestionMarkSetsHelpVisible(t *testing.T) {
-	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	// Default active view is Library.
 	if m.activeView != viewLibrary {
 		t.Fatalf("precondition: expected viewLibrary, got %d", m.activeView)
@@ -1818,7 +1809,7 @@ func TestUpdateQuestionMarkSetsHelpVisible(t *testing.T) {
 }
 
 func TestViewShowsHelpOverlayWhenVisible(t *testing.T) {
-	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.helpVisible = true
 
 	v := m.View()
@@ -1828,7 +1819,7 @@ func TestViewShowsHelpOverlayWhenVisible(t *testing.T) {
 }
 
 func TestUpdateEscClearsHelpVisibleAndRestoresView(t *testing.T) {
-	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 
 	// Switch to Playlists first.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
@@ -1857,7 +1848,7 @@ func TestUpdateEscClearsHelpVisibleAndRestoresView(t *testing.T) {
 }
 
 func TestUpdateEscWhenHelpNotVisibleDoesNotQuit(t *testing.T) {
-	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	// helpVisible defaults to false — Esc must not quit and must not error.
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if cmd != nil {
@@ -1868,7 +1859,7 @@ func TestUpdateEscWhenHelpNotVisibleDoesNotQuit(t *testing.T) {
 // TestViewHelpOverlayContainsSectionHeaders verifies that when the help overlay
 // is visible, View() renders all expected section headers.
 func TestViewHelpOverlayContainsSectionHeaders(t *testing.T) {
-	m := New("/state/muse/muse.log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.helpVisible = true
 
 	v := m.View()
@@ -1879,24 +1870,13 @@ func TestViewHelpOverlayContainsSectionHeaders(t *testing.T) {
 	}
 }
 
-// TestViewHelpOverlayContainsLogPath verifies that when the help overlay is
-// visible, View() renders the log file path.
-func TestViewHelpOverlayContainsLogPath(t *testing.T) {
-	logPath := "/state/muse/muse.log"
-	m := New(logPath, "", false, nil, nil, "", nil, nil)
-	m.helpVisible = true
 
-	v := m.View()
-	if !strings.Contains(v.Content, logPath) {
-		t.Fatalf("View() with helpVisible=true: missing log path %q in:\n%s", logPath, v.Content)
-	}
-}
 
 // TestEscRestoringViewDoesNotAlterPlaybackOrScanState verifies that dismissing
 // the help overlay with Esc does not change playbackState, repeatMode, shuffle,
 // or the scanning flag.
 func TestEscRestoringViewDoesNotAlterPlaybackOrScanState(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.playbackState = PlaybackPlaying
 	m.repeatMode = RepeatAll
 	m.shuffle = true
@@ -1928,7 +1908,7 @@ func TestEscRestoringViewDoesNotAlterPlaybackOrScanState(t *testing.T) {
 // WindowSizeMsg events in a tight loop does not cause a panic and always
 // returns a valid model.
 func TestRapidWindowSizeMsgDoesNotPanic(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 
 	sizes := [][2]int{
 		{80, 24}, {120, 40}, {40, 10}, {200, 50}, {60, 20},
@@ -1951,7 +1931,7 @@ func TestRapidWindowSizeMsgDoesNotPanic(t *testing.T) {
 // TestWindowSizeMsgPreservesApplicationState verifies that a terminal resize
 // does not alter cursor position, playback state, or scan state.
 func TestWindowSizeMsgPreservesApplicationState(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
@@ -1983,7 +1963,7 @@ func TestWindowSizeMsgPreservesApplicationState(t *testing.T) {
 // WindowSizeMsg the model stores the new terminal width and View() produces
 // non-empty rendered content.
 func TestWindowSizeMsgUpdatesTermWidthAndRendersContent(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	nm := next.(Model)
@@ -2001,7 +1981,7 @@ func TestWindowSizeMsgUpdatesTermWidthAndRendersContent(t *testing.T) {
 // TestLibraryCursorDownJKey verifies that pressing "j" while the library view
 // is active advances the cursor by one.
 func TestLibraryCursorDownJKey(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two"})
 
@@ -2015,7 +1995,7 @@ func TestLibraryCursorDownJKey(t *testing.T) {
 // TestLibraryCursorUpKKey verifies that pressing "k" while the library view
 // is active moves the cursor up by one.
 func TestLibraryCursorUpKKey(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two"})
 	m.library.cursor = 1
@@ -2030,7 +2010,7 @@ func TestLibraryCursorUpKKey(t *testing.T) {
 // TestLibraryCursorDownArrow verifies that the down arrow key advances the
 // cursor in the library view, behaving identically to "j".
 func TestLibraryCursorDownArrow(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two"})
 
@@ -2044,7 +2024,7 @@ func TestLibraryCursorDownArrow(t *testing.T) {
 // TestLibraryCursorUpArrow verifies that the up arrow key moves the cursor up
 // in the library view, behaving identically to "k".
 func TestLibraryCursorUpArrow(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two"})
 	m.library.cursor = 1
@@ -2059,7 +2039,7 @@ func TestLibraryCursorUpArrow(t *testing.T) {
 // TestLibraryCursorClampAtBottom verifies that the cursor stops at the last
 // track without wrapping when the library view is active.
 func TestLibraryCursorClampAtBottom(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two"})
 	m.library.cursor = 1 // already at last item
@@ -2074,7 +2054,7 @@ func TestLibraryCursorClampAtBottom(t *testing.T) {
 // TestLibraryCursorClampAtTop verifies that the cursor stops at the first
 // track without wrapping when the library view is active.
 func TestLibraryCursorClampAtTop(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two"})
 	// cursor starts at 0
@@ -2089,7 +2069,7 @@ func TestLibraryCursorClampAtTop(t *testing.T) {
 // TestLibraryCursorNotMovedWhenQueueActive verifies that j/k in the queue view
 // do not affect the library cursor.
 func TestLibraryCursorNotMovedWhenQueueActive(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two"})
 	m.activeView = viewQueue
@@ -2130,7 +2110,7 @@ func (s *stubPlaylistAdder) AddTracksToPlaylist(playlistID int64, hashes []strin
 // TestRootLibraryXTogglesSelectedHash verifies that pressing 'x' while the
 // library view is active toggles the focused track's hash into selectedHashes.
 func TestRootLibraryXTogglesSelectedHash(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
 	m.library.cursor = 0
@@ -2158,7 +2138,7 @@ func TestRootLibraryXTogglesSelectedHash(t *testing.T) {
 // in the library view with no bulk selection opens the destination picker modal
 // for the focused track.
 func TestRootLibraryAOpensDestinationPickerNoSelection(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
@@ -2179,7 +2159,7 @@ func TestRootLibraryAOpensDestinationPickerNoSelection(t *testing.T) {
 // 'a' while tracks are bulk-selected opens the destination picker modal for
 // all selected tracks.
 func TestRootLibraryAOpensDestinationPickerWithSelection(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
 	m.library.selectedHashes = map[string]struct{}{"hash-one": {}, "hash-two": {}}
@@ -2203,7 +2183,7 @@ func TestRootLibraryAOpensDestinationPickerWithSelection(t *testing.T) {
 // queue and clears the bulk selection.
 func TestRootLibraryAWithSelectionEnqueuesAndClears(t *testing.T) {
 	qa := &stubQueueAppender{}
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetQueueWriter(qa)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
@@ -2248,7 +2228,7 @@ func TestRootLibraryAWithSelectionEnqueuesAndClears(t *testing.T) {
 // TestRootLibraryAEscDismissesModal verifies that pressing Esc while the
 // destination picker is open dismisses the modal without enqueueing.
 func TestRootLibraryAEscDismissesModal(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 
 	// Open the modal.
@@ -2276,7 +2256,7 @@ func TestRootLibraryAEscDismissesModal(t *testing.T) {
 // AddTracksToPlaylist with the correct playlist ID and hashes.
 func TestRootLibraryAConfirmPlaylistAddsToPlaylist(t *testing.T) {
 	pa := &stubPlaylistAdder{}
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetPlaylistAdder(pa)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 	m.playlists.playlists = []db.PlaylistRow{{ID: 7, Name: "Favourites"}}
@@ -2330,7 +2310,7 @@ func TestRootLibraryAConfirmPlaylistAddsToPlaylist(t *testing.T) {
 // the track count and playlist name once tracksAddedToPlaylistMsg is processed.
 func TestRootLibraryAConfirmPlaylistClearsSelectionAndNotifies(t *testing.T) {
 	pa := &stubPlaylistAdder{}
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetPlaylistAdder(pa)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
@@ -2399,7 +2379,7 @@ func TestRootLibraryAConfirmPlaylistClearsSelectionAndNotifies(t *testing.T) {
 // PlayFromIndex(0) when a TrackEnqueuedMsg arrives with WasEmpty=true.
 func TestTrackEnqueuedMsgStartsPlaybackWhenQueueWasEmpty(t *testing.T) {
 	p := &stubPlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 	m.playbackState = PlaybackIdle
 	// Pre-seed one queue entry so the model knows what to display.
 	m.queue.entries = []QueueEntry{
@@ -2427,7 +2407,7 @@ func TestTrackEnqueuedMsgStartsPlaybackWhenQueueWasEmpty(t *testing.T) {
 // current playback uninterrupted.
 func TestTrackEnqueuedMsgDoesNotStartPlaybackWhenQueueWasNonEmpty(t *testing.T) {
 	p := &stubPlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 	m.playbackState = PlaybackIdle
 
 	track := library.Track{Artist: "Bob", Title: "Track Two", Path: "/music/b.flac"}
@@ -2499,7 +2479,7 @@ func (s *stubQueueReorderer) ReorderQueueTrack(id int64, direction int) error {
 // moved entry's ID and direction -1.
 func TestMoveTrackUpMsgCallsReordererWithCorrectIDAndDirection(t *testing.T) {
 	r := &stubQueueReorderer{}
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetQueueReorderer(r)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
@@ -2540,7 +2520,7 @@ func TestMoveTrackUpMsgCallsReordererWithCorrectIDAndDirection(t *testing.T) {
 // moved entry's ID and direction +1.
 func TestMoveTrackDownMsgCallsReordererWithCorrectIDAndDirection(t *testing.T) {
 	r := &stubQueueReorderer{}
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetQueueReorderer(r)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
@@ -2581,7 +2561,7 @@ func TestMoveTrackDownMsgCallsReordererWithCorrectIDAndDirection(t *testing.T) {
 // the TUI slice at its original index.
 func TestUndoMsgRestoresDequeueWithinWindow(t *testing.T) {
 	d := &stubQueueDequeuer{}
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetQueueDequeuer(d)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
@@ -2620,7 +2600,7 @@ func TestUndoMsgRestoresDequeueWithinWindow(t *testing.T) {
 // is not called.
 func TestUndoMsgIsNoOpAfterWindowExpiry(t *testing.T) {
 	d := &stubQueueDequeuer{}
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetQueueDequeuer(d)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
@@ -2648,7 +2628,7 @@ func TestUndoMsgIsNoOpAfterWindowExpiry(t *testing.T) {
 // action before the first undo window expires overwrites the undo slot.
 func TestNewDestructiveActionReplacesUndoSlot(t *testing.T) {
 	d := &stubQueueDequeuer{}
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetQueueDequeuer(d)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
@@ -2676,7 +2656,7 @@ func TestNewDestructiveActionReplacesUndoSlot(t *testing.T) {
 // TestDequeueShowsUndoHintInStatusBar verifies that the status bar displays an
 // undo hint immediately after a DequeueTrackMsg is processed.
 func TestDequeueShowsUndoHintInStatusBar(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
 	}
@@ -2696,7 +2676,7 @@ func TestDequeueShowsUndoHintInStatusBar(t *testing.T) {
 // TestClearQueueShowsUndoHintInStatusBar verifies that the status bar displays
 // an undo hint immediately after a ClearQueueMsg is processed.
 func TestClearQueueShowsUndoHintInStatusBar(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
 		{ID: 20, Path: "/music/b.flac", Display: "B"},
@@ -2719,7 +2699,7 @@ func TestClearQueueShowsUndoHintInStatusBar(t *testing.T) {
 // TUI slice.
 func TestUndoMsgRestoresClearQueueWithinWindow(t *testing.T) {
 	d := &stubQueueDequeuer{clearQueueSoftResult: []int64{10, 20}}
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetQueueDequeuer(d)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
@@ -2750,7 +2730,7 @@ func TestUndoMsgRestoresClearQueueWithinWindow(t *testing.T) {
 // TestUndoMsgWithNoSlotIsNoOp verifies that UndoMsg when no destructive action
 // has been performed is a no-op.
 func TestUndoMsgWithNoSlotIsNoOp(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
 	}
@@ -2770,7 +2750,7 @@ func TestUndoMsgWithNoSlotIsNoOp(t *testing.T) {
 func TestPauseEmitsSessionPositionWriteCmd(t *testing.T) {
 	p := &stubPlayer{}
 	sw := &stubSessionWriter{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 	m.SetSessionWriter(sw)
 	m.playbackState = PlaybackPlaying
 	m.currentTrackHash = "abc123"
@@ -2796,7 +2776,7 @@ func TestPauseEmitsSessionPositionWriteCmd(t *testing.T) {
 // session writer returns nil from the Cmd (no-op write path).
 func TestPauseWithoutSessionWriterReturnsNilCmd(t *testing.T) {
 	p := &stubPlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 	m.playbackState = PlaybackPlaying
 	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track"}}
 
@@ -2824,7 +2804,7 @@ func TestSeekEmitsSessionPositionWriteCmd(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			p := &stubSeekPlayer{}
 			sw := &stubSessionWriter{}
-			m := New("/log", "", false, nil, nil, "", nil, p)
+			m := New("", false, nil, nil, "", nil, p)
 			m.SetSessionWriter(sw)
 			m.currentTrackHash = "seekhash"
 			m.elapsedSecs = 10.0 // 10000 ms
@@ -2852,7 +2832,7 @@ func TestSeekEmitsSessionPositionWriteCmd(t *testing.T) {
 // track's hash and position 0 (start of track).
 func TestTrackChangedMsgEmitsSessionPositionWriteCmd(t *testing.T) {
 	sw := &stubSessionWriter{}
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetSessionWriter(sw)
 	m.elapsedSecs = 99.0 // must be reset to 0 before the cmd captures position
 
@@ -2880,7 +2860,7 @@ func TestTrackChangedMsgEmitsSessionPositionWriteCmd(t *testing.T) {
 // updates m.currentTrackHash so that subsequent pause/seek writes use the
 // correct hash.
 func TestTrackChangedMsgStoresCurrentTrackHash(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 
 	next, _ := m.Update(TrackChangedMsg{Artist: "A", Title: "T", Hash: "testhash"})
 	nm := next.(Model)
@@ -2893,7 +2873,7 @@ func TestTrackChangedMsgStoresCurrentTrackHash(t *testing.T) {
 // TestTrackChangedMsgWithoutSessionWriterReturnsNilCmd verifies that
 // TrackChangedMsg without a session writer returns nil cmd (no-op write path).
 func TestTrackChangedMsgWithoutSessionWriterReturnsNilCmd(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 
 	_, cmd := m.Update(TrackChangedMsg{Artist: "A", Title: "T", Hash: "h"})
 	if cmd != nil {
@@ -2904,7 +2884,7 @@ func TestTrackChangedMsgWithoutSessionWriterReturnsNilCmd(t *testing.T) {
 // TestSessionTickMsgReschedulesCmd verifies that sessionTickMsg always returns
 // a non-nil follow-up command so the 10-second periodic ticker keeps firing.
 func TestSessionTickMsgReschedulesCmd(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	_, cmd := m.Update(sessionTickMsg{})
 	if cmd == nil {
 		t.Fatal("sessionTickMsg must return a follow-up cmd to reschedule the ticker")
@@ -2920,7 +2900,7 @@ func TestSessionTickMsgReschedulesCmd(t *testing.T) {
 // write sub-cmd to confirm the correct value is captured.
 func TestSessionTickMsgWritesPositionWhenPlaying(t *testing.T) {
 	sw := &stubSessionWriter{}
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetSessionWriter(sw)
 	m.playbackState = PlaybackPlaying
 	m.currentTrackHash = "abc123"
@@ -2976,7 +2956,7 @@ func TestSessionTickMsgSkipsWriteWhenNotPlaying(t *testing.T) {
 	states := []PlaybackState{PlaybackIdle, PlaybackPaused, PlaybackStopped}
 	for _, state := range states {
 		sw := &stubSessionWriter{}
-		m := New("/log", "", false, nil, nil, "", nil, nil)
+		m := New("", false, nil, nil, "", nil, nil)
 		m.SetSessionWriter(sw)
 		m.playbackState = state
 		m.currentTrackHash = "abc123"
@@ -2998,7 +2978,7 @@ func TestSessionTickMsgSkipsWriteWhenNotPlaying(t *testing.T) {
 // TestInitSchedulesSessionTicker verifies that Init starts the 10-second
 // periodic session ticker in addition to the 1-second display tick.
 func TestInitSchedulesSessionTicker(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	cmd := m.Init()
 	if cmd == nil {
 		t.Fatal("Init must return a non-nil cmd (includes sessionTickCmd)")
@@ -3009,7 +2989,7 @@ func TestInitSchedulesSessionTicker(t *testing.T) {
 // calling SetPlaylists causes each playlist's name and track count to appear
 // in the rendered output.
 func TestView2RendersPlaylistsNameAndCount(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Chill", TrackCount: 3},
 		{ID: 2, Name: "Workout", TrackCount: 8},
@@ -3043,7 +3023,7 @@ func (s *stubPlaylistTrackReader) ReadPlaylistTracks(_ int64) ([]db.PlaylistTrac
 // TestPlaylistEscFromTrackLevelReturnsToList verifies that pressing Esc while
 // in TrackLevel transitions back to ListLevel and preserves the list cursor.
 func TestPlaylistEscFromTrackLevelReturnsToList(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Alpha", TrackCount: 1},
 		{ID: 2, Name: "Beta", TrackCount: 1},
@@ -3100,7 +3080,7 @@ func TestPlaylistEscFromTrackLevelReturnsToList(t *testing.T) {
 // TestPlaylistEscAtListLevelIsNoOp verifies that pressing Esc while already at
 // ListLevel produces no visible state change and no error.
 func TestPlaylistEscAtListLevelIsNoOp(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Chill", TrackCount: 5},
 	})
@@ -3135,7 +3115,7 @@ func TestPlaylistEscAtListLevelIsNoOp(t *testing.T) {
 // and processing that msg activates the inline rename input pre-populated with
 // the focused playlist's name.
 func TestPlaylistRAtListLevelActivatesRenameInput(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Chill Mix", TrackCount: 3},
 	})
@@ -3171,7 +3151,7 @@ func TestPlaylistRAtListLevelActivatesRenameInput(t *testing.T) {
 // playlists view is at TrackLevel does not activate the rename input — rename
 // only applies at list level.
 func TestPlaylistRAtTrackLevelIsNoOp(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Chill Mix", TrackCount: 1},
 	})
@@ -3208,7 +3188,7 @@ func TestPlaylistRAtTrackLevelIsNoOp(t *testing.T) {
 // rendered output. After opening a playlist the track titles must appear in
 // the playlists panel.
 func TestPlaylistOpenRendersTrackTitles(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Chill", TrackCount: 2},
 	})
@@ -3252,7 +3232,7 @@ func TestPlaylistOpenRendersTrackTitles(t *testing.T) {
 // playlistDeleter means no DB calls are made — the nil-guard in the handler
 // makes this safe without a stub.
 func TestPlaylistsBulkRemoveAtTrackLevel(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 
 	// Navigate to playlists view.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
@@ -3293,7 +3273,7 @@ func TestPlaylistsBulkRemoveAtTrackLevel(t *testing.T) {
 // that column widths computed from the updated width are proportionally larger
 // than those computed from a smaller width.
 func TestWindowSizeMsgPropagatesWidthToChildViews(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 
 	const newWidth = 160
 	next, _ := m.Update(tea.WindowSizeMsg{Width: newWidth, Height: 40})
@@ -3332,7 +3312,7 @@ func TestGlobalRepeatBindingFiresInViewsWithoutLocalOverride(t *testing.T) {
 	}
 	for _, tc := range views {
 		t.Run(tc.name, func(t *testing.T) {
-			m := New("/log", "", false, nil, nil, "", nil, nil)
+			m := New("", false, nil, nil, "", nil, nil)
 			m.activeView = tc.viewID
 
 			if m.repeatMode != RepeatOff {
@@ -3354,7 +3334,7 @@ func TestGlobalRepeatBindingFiresInViewsWithoutLocalOverride(t *testing.T) {
 // playbackState to PlaybackIdle (not PlaybackStopped).
 func TestClearQueueMsgStopsPlaybackAndTransitionsToIdle(t *testing.T) {
 	p := &stubCommandPlayer{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 	m.playbackState = PlaybackPlaying
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Path: "/music/a.flac", Display: "A"},
@@ -3384,7 +3364,7 @@ func drillIntoPlaylistTrackLevel(m Model, tracks []db.PlaylistTrackRow) Model {
 // TestPlaylistTrackCursorDownJKey verifies that pressing "j" while the
 // playlist track-level view is active advances the cursor by one.
 func TestPlaylistTrackCursorDownJKey(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
 		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
 		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
@@ -3400,7 +3380,7 @@ func TestPlaylistTrackCursorDownJKey(t *testing.T) {
 // TestPlaylistTrackCursorUpKKey verifies that pressing "k" while the playlist
 // track-level view is active moves the cursor up by one.
 func TestPlaylistTrackCursorUpKKey(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
 		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
 		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
@@ -3417,7 +3397,7 @@ func TestPlaylistTrackCursorUpKKey(t *testing.T) {
 // TestPlaylistTrackCursorDownArrow verifies that the down arrow key advances
 // the cursor in the playlist track-level view, behaving identically to "j".
 func TestPlaylistTrackCursorDownArrow(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
 		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
 		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
@@ -3433,7 +3413,7 @@ func TestPlaylistTrackCursorDownArrow(t *testing.T) {
 // TestPlaylistTrackCursorUpArrow verifies that the up arrow key moves the
 // cursor up in the playlist track-level view, behaving identically to "k".
 func TestPlaylistTrackCursorUpArrow(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
 		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
 		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
@@ -3450,7 +3430,7 @@ func TestPlaylistTrackCursorUpArrow(t *testing.T) {
 // TestPlaylistTrackCursorClampAtBottom verifies that the cursor stops at the
 // last track without wrapping when the playlist track-level view is active.
 func TestPlaylistTrackCursorClampAtBottom(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
 		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
 		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
@@ -3467,7 +3447,7 @@ func TestPlaylistTrackCursorClampAtBottom(t *testing.T) {
 // TestPlaylistTrackCursorClampAtTop verifies that the cursor stops at the
 // first track without wrapping when the playlist track-level view is active.
 func TestPlaylistTrackCursorClampAtTop(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
 		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
 		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
@@ -3484,7 +3464,7 @@ func TestPlaylistTrackCursorClampAtTop(t *testing.T) {
 // TestQueueCursorDownJKey verifies that pressing "j" while the queue view is
 // active advances the cursor by one.
 func TestQueueCursorDownJKey(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -3501,7 +3481,7 @@ func TestQueueCursorDownJKey(t *testing.T) {
 // TestQueueCursorUpKKey verifies that pressing "k" while the queue view is
 // active moves the cursor up by one.
 func TestQueueCursorUpKKey(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -3519,7 +3499,7 @@ func TestQueueCursorUpKKey(t *testing.T) {
 // TestQueueCursorDownArrow verifies that the down arrow key advances the
 // cursor in the queue view, behaving identically to "j".
 func TestQueueCursorDownArrow(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -3536,7 +3516,7 @@ func TestQueueCursorDownArrow(t *testing.T) {
 // TestQueueCursorUpArrow verifies that the up arrow key moves the cursor up
 // in the queue view, behaving identically to "k".
 func TestQueueCursorUpArrow(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -3554,7 +3534,7 @@ func TestQueueCursorUpArrow(t *testing.T) {
 // TestQueueCursorClampAtBottom verifies that the cursor stops at the last
 // entry without wrapping when the queue view is active.
 func TestQueueCursorClampAtBottom(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -3572,7 +3552,7 @@ func TestQueueCursorClampAtBottom(t *testing.T) {
 // TestQueueCursorClampAtTop verifies that the cursor stops at the first entry
 // without wrapping when the queue view is active.
 func TestQueueCursorClampAtTop(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -3605,7 +3585,7 @@ func (s *stubPlayerQueueRemover) RemoveFromQueue(index int) error {
 // index so the player's in-memory queue stays in sync with the TUI queue.
 func TestDequeueTrackMsgCallsPlayerQueueRemoverWithCorrectIndex(t *testing.T) {
 	p := &stubPlayerQueueRemover{}
-	m := New("/log", "", false, nil, nil, "", nil, p)
+	m := New("", false, nil, nil, "", nil, p)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
 		{ID: 20, Path: "/music/b.flac", Display: "B"},
@@ -3640,7 +3620,7 @@ func TestDequeueTrackMsgDoesNotCallStop(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			p := &stubPlayerQueueRemover{}
-			m := New("/log", "", false, nil, nil, "", nil, p)
+			m := New("", false, nil, nil, "", nil, p)
 			m.playbackState = tc.state
 			m.queue.entries = []QueueEntry{
 				{ID: 10, Path: "/music/a.flac", Display: "A"},
@@ -3661,7 +3641,7 @@ func TestDequeueTrackMsgDoesNotCallStop(t *testing.T) {
 // Queue entries and playlist tracks are independent; dequeuing a queue entry
 // must never modify the saved playlist_tracks table view.
 func TestDequeueTrackMsgDoesNotTouchPlaylistTracks(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
 		{ID: 20, Path: "/music/b.flac", Display: "B"},

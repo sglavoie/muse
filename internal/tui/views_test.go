@@ -131,7 +131,7 @@ func TestQueueRenderProportionalColumnWidths(t *testing.T) {
 // TestQueueRenderWindowSizeMsg verifies that sending a WindowSizeMsg to the
 // root model and then rendering does not panic and produces non-empty content.
 func TestQueueRenderWindowSizeMsg(t *testing.T) {
-	m := New("/log", "", false, nil, nil, "", nil, nil)
+	m := New("", false, nil, nil, "", nil, nil)
 	m.SetQueueEntries([]QueueEntry{
 		{Title: "Track", Artist: "Artist", DurationMs: 30_000, Position: 1000},
 	})
