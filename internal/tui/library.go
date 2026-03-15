@@ -73,6 +73,18 @@ func (v LibraryView) HandleAction(a action) LibraryView {
 		view = view.CursorUp()
 	case actionCursorDown:
 		view = view.CursorDown()
+	case actionHalfPageDown:
+		view = view.HalfPageDown()
+	case actionHalfPageUp:
+		view = view.HalfPageUp()
+	case actionFullPageDown:
+		view = view.FullPageDown()
+	case actionFullPageUp:
+		view = view.FullPageUp()
+	case actionGoToTop:
+		view = view.GoToTop()
+	case actionGoToBottom:
+		view = view.GoToBottom()
 	case actionBulkSelectionToggle:
 		if t, ok := view.FocusedTrack(); ok {
 			return v.ToggleBulkSelection(t.Hash)

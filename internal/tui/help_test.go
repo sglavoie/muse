@@ -25,13 +25,26 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 	}
 
 	// Map the binding contexts that have a direct corresponding section.
-	// contextLibrary has no registry entries currently; contextModals dismiss
-	// is handled in root.Update directly and is intentionally absent from the
-	// registry.
+	// contextModals dismiss is handled in root.Update directly and is
+	// intentionally absent from the registry.
 	ctxSection := map[bindingContext]string{
 		contextGlobal:    "Global",
+		contextLibrary:   "Library",
 		contextQueue:     "Queue",
 		contextPlaylists: "Playlists",
+	}
+
+	// The "Navigation" section covers keys shared across Library, Queue, and
+	// Playlists. Merge its keys into each of those sections for the check.
+	if navKeys, ok := sectionKeys["Navigation (Library / Queue / Playlists)"]; ok {
+		for _, sec := range []string{"Library", "Queue", "Playlists"} {
+			if sectionKeys[sec] == nil {
+				sectionKeys[sec] = make(map[string]bool)
+			}
+			for k := range navKeys {
+				sectionKeys[sec][k] = true
+			}
+		}
 	}
 
 	for rk := range reg.bindings {
@@ -52,17 +65,23 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 	//
 	// Composite display entries where BOTH halves are registered are fine; we
 	// only flag a key when neither half appears in any binding for that context.
-	// The Modals and Library sections are intentionally excluded here because
-	// their keys are handled outside the registry (esc in root.Update, / is a
-	// global binding listed in both Global and Library for readability).
+	// The Modals section is intentionally excluded here because esc is handled
+	// in root.Update directly. The Navigation section covers keys shared
+	// across Library, Queue, and Playlists — each key must exist in at least
+	// one of those contexts.
 	reverseCtx := map[string]bindingContext{
 		"Global":    contextGlobal,
+		"Library":   contextLibrary,
 		"Queue":     contextQueue,
 		"Playlists": contextPlaylists,
 	}
+	// Navigation keys are shared; check that each appears in at least one
+	// of the three view contexts.
+	navContexts := []bindingContext{contextLibrary, contextQueue, contextPlaylists}
 	for _, sec := range sections {
-		ctx, ok := reverseCtx[sec.title]
-		if !ok {
+		ctx, directMatch := reverseCtx[sec.title]
+		isNav := sec.title == "Navigation (Library / Queue / Playlists)"
+		if !directMatch && !isNav {
 			continue
 		}
 		for _, e := range sec.entries {
@@ -70,9 +89,22 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 			anyFound := false
 			for _, part := range parts {
 				k := strings.TrimSpace(part)
-				if reg.lookup(ctx, k) != actionNone || reg.lookup(contextGlobal, k) != actionNone {
-					anyFound = true
-					break
+				if directMatch {
+					if reg.lookup(ctx, k) != actionNone || reg.lookup(contextGlobal, k) != actionNone {
+						anyFound = true
+						break
+					}
+				} else {
+					// Navigation section: check all three view contexts.
+					for _, nc := range navContexts {
+						if reg.lookup(nc, k) != actionNone {
+							anyFound = true
+							break
+						}
+					}
+					if anyFound {
+						break
+					}
 				}
 			}
 			if !anyFound {

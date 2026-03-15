@@ -19,6 +19,11 @@ import (
 
 const mpvSockName = "mpv.sock"
 
+// baseFlags are always prepended to the mpv command line. They keep mpv in
+// headless audio-only mode so it never registers with the macOS window server
+// (which would create a Dock icon and app-switcher entry).
+var baseFlags = []string{"--no-video", "--no-terminal", "--really-quiet"}
+
 // Compile-time check that Manager implements Player.
 var _ Player = (*Manager)(nil)
 
@@ -125,7 +130,8 @@ func NewManager() (*Manager, error) {
 		m.mu.RLock()
 		extra := m.extraFlags
 		m.mu.RUnlock()
-		args := append([]string{"--idle=yes", "--input-ipc-server=" + socketPath}, extra...)
+		args := append([]string{"--idle=yes", "--input-ipc-server=" + socketPath}, baseFlags...)
+		args = append(args, extra...)
 		cmd := exec.CommandContext(ctx, "mpv", args...)
 		if err := cmd.Start(); err != nil {
 			return nil, fmt.Errorf("mpv: start: %w", err)
@@ -137,10 +143,8 @@ func NewManager() (*Manager, error) {
 
 // defaultLaunch starts the mpv subprocess with --idle flag and IPC server.
 func defaultLaunch(ctx context.Context, socketPath string) (*exec.Cmd, error) {
-	cmd := exec.CommandContext(ctx, "mpv",
-		"--idle=yes",
-		"--input-ipc-server="+socketPath,
-	)
+	args := append([]string{"--idle=yes", "--input-ipc-server=" + socketPath}, baseFlags...)
+	cmd := exec.CommandContext(ctx, "mpv", args...)
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("mpv: start: %w", err)
 	}

@@ -47,6 +47,15 @@ func helpSections() []helpSection {
 			},
 		},
 		{
+			title: "Navigation (Library / Queue / Playlists)",
+			entries: []helpEntry{
+				{"j / k / down / up", "Move cursor down / up"},
+				{"ctrl+d / ctrl+u", "Half-page down / up"},
+				{"ctrl+f / ctrl+b", "Full page down / up"},
+				{"g / G", "Go to top / bottom"},
+			},
+		},
+		{
 			title: "Library",
 			entries: []helpEntry{
 				{"/", "Filter tracks"},
@@ -58,8 +67,6 @@ func helpSections() []helpSection {
 		{
 			title: "Playlists",
 			entries: []helpEntry{
-				{"j / k", "Move cursor down / up"},
-				{"up / down", "Move cursor up / down"},
 				{"enter", "Open playlist / enqueue track"},
 				{"esc", "Back to playlist list"},
 				{"r", "Rename playlist (shadows global repeat)"},
@@ -72,8 +79,6 @@ func helpSections() []helpSection {
 		{
 			title: "Queue",
 			entries: []helpEntry{
-				{"j / k", "Move cursor down / up"},
-				{"up / down", "Move cursor"},
 				{"enter", "Play selected track"},
 				{"d", "Remove selected track"},
 				{"x", "Toggle bulk selection"},

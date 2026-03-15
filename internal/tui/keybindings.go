@@ -66,6 +66,14 @@ const (
 	// actionAddToPlaylist applies in Playlists (add selected tracks to a playlist).
 	actionBulkAction    // 'a': apply context-appropriate bulk action and clear selection
 	actionAddToPlaylist // 'a': add selected track(s) to a playlist (Playlists context)
+
+	// Vim-style scrolling actions — shared across Library, Queue, and Playlists.
+	actionHalfPageDown // ctrl+d: move cursor half a page down
+	actionHalfPageUp   // ctrl+u: move cursor half a page up
+	actionFullPageDown // ctrl+f: move cursor a full page down
+	actionFullPageUp   // ctrl+b: move cursor a full page up
+	actionGoToTop      // g: move cursor to the first row
+	actionGoToBottom   // G: move cursor to the last row
 )
 
 // registryKey is the composite map key for registry lookups.
@@ -115,6 +123,12 @@ func newRegistry() Registry {
 	r.register(contextLibrary, "enter", actionLibraryEnqueue)
 	r.register(contextLibrary, "x", actionBulkSelectionToggle)
 	r.register(contextLibrary, "a", actionBulkAction)
+	r.register(contextLibrary, "ctrl+d", actionHalfPageDown)
+	r.register(contextLibrary, "ctrl+u", actionHalfPageUp)
+	r.register(contextLibrary, "ctrl+f", actionFullPageDown)
+	r.register(contextLibrary, "ctrl+b", actionFullPageUp)
+	r.register(contextLibrary, "g", actionGoToTop)
+	r.register(contextLibrary, "G", actionGoToBottom)
 
 	// Queue-local bindings.
 	r.register(contextQueue, "j", actionCursorDown)
@@ -127,6 +141,12 @@ func newRegistry() Registry {
 	r.register(contextQueue, "C", actionClearQueue)
 	r.register(contextQueue, "K", actionMoveTrackUp)
 	r.register(contextQueue, "J", actionMoveTrackDown)
+	r.register(contextQueue, "ctrl+d", actionHalfPageDown)
+	r.register(contextQueue, "ctrl+u", actionHalfPageUp)
+	r.register(contextQueue, "ctrl+f", actionFullPageDown)
+	r.register(contextQueue, "ctrl+b", actionFullPageUp)
+	r.register(contextQueue, "g", actionGoToTop)
+	r.register(contextQueue, "G", actionGoToBottom)
 
 	// Playlists-local bindings.
 	// 'r' is bound to rename here, shadowing the global repeat-cycle binding
@@ -142,6 +162,12 @@ func newRegistry() Registry {
 	r.register(contextPlaylists, "d", actionPlaylistDelete)
 	r.register(contextPlaylists, "x", actionBulkSelectionToggle)
 	r.register(contextPlaylists, "a", actionAddToPlaylist)
+	r.register(contextPlaylists, "ctrl+d", actionHalfPageDown)
+	r.register(contextPlaylists, "ctrl+u", actionHalfPageUp)
+	r.register(contextPlaylists, "ctrl+f", actionFullPageDown)
+	r.register(contextPlaylists, "ctrl+b", actionFullPageUp)
+	r.register(contextPlaylists, "g", actionGoToTop)
+	r.register(contextPlaylists, "G", actionGoToBottom)
 
 	return r
 }

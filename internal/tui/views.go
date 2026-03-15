@@ -35,6 +35,7 @@ type PlaylistsView struct {
 	level            pltui.Level
 	cursor           int
 	listCursor       int                  // saved list cursor; preserved across drill-down and back
+	scrollOffset     int                  // first visible row index
 	playlists        []db.PlaylistRow
 	tracks           []db.PlaylistTrackRow // populated when level == TrackLevel
 	width            int
@@ -50,6 +51,7 @@ func (v PlaylistsView) render() string {
 	return pltui.View{
 		Level:            v.level,
 		Cursor:           v.cursor,
+		ScrollOffset:     v.scrollOffset,
 		Playlists:        v.playlists,
 		Tracks:           v.tracks,
 		Width:            v.width,
@@ -173,19 +175,34 @@ func (v PlaylistsView) HandleAction(a action) PlaylistsView {
 		return v
 	}
 	view := pltui.View{
-		Level:     v.level,
-		Cursor:    v.cursor,
-		Playlists: v.playlists,
-		Tracks:    v.tracks,
+		Level:        v.level,
+		Cursor:       v.cursor,
+		ScrollOffset: v.scrollOffset,
+		Height:       v.height,
+		Playlists:    v.playlists,
+		Tracks:       v.tracks,
 	}
 	switch a {
 	case actionCursorUp:
 		view = view.CursorUp()
 	case actionCursorDown:
 		view = view.CursorDown()
+	case actionHalfPageDown:
+		view = view.HalfPageDown()
+	case actionHalfPageUp:
+		view = view.HalfPageUp()
+	case actionFullPageDown:
+		view = view.FullPageDown()
+	case actionFullPageUp:
+		view = view.FullPageUp()
+	case actionGoToTop:
+		view = view.GoToTop()
+	case actionGoToBottom:
+		view = view.GoToBottom()
 	}
 	v.level = view.Level
 	v.cursor = view.Cursor
+	v.scrollOffset = view.ScrollOffset
 	return v
 }
 
@@ -223,6 +240,7 @@ func (v PlaylistsView) openTracks(tracks []db.PlaylistTrackRow) PlaylistsView {
 	v.cursor = view.Cursor
 	v.listCursor = view.ListCursor
 	v.tracks = view.Tracks
+	v.scrollOffset = 0
 	return v
 }
 
@@ -237,6 +255,7 @@ func (v PlaylistsView) backToList() PlaylistsView {
 	v.level = view.Level
 	v.cursor = view.Cursor
 	v.tracks = view.Tracks
+	v.scrollOffset = 0
 	return v
 }
 
@@ -303,10 +322,11 @@ type QueueEntry struct {
 // Update — that would duplicate registry logic and create a path where registry
 // key renames silently stop working.
 type QueueView struct {
-	entries []QueueEntry
-	cursor  int // index of the currently selected entry
-	width   int
-	height  int
+	entries      []QueueEntry
+	cursor       int // index of the currently selected entry
+	scrollOffset int // first visible entry index
+	width        int
+	height       int
 }
 
 // Update is a no-op stub. See the QueueView godoc for why all key handling is
@@ -324,9 +344,35 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 		if v.cursor > 0 {
 			v.cursor--
 		}
+		if v.cursor < v.scrollOffset {
+			v.scrollOffset = v.cursor
+		}
 	case actionCursorDown:
 		if v.cursor < len(v.entries)-1 {
 			v.cursor++
+		}
+		maxRows := v.visibleRows()
+		if v.cursor >= v.scrollOffset+maxRows {
+			v.scrollOffset = v.cursor - maxRows + 1
+		}
+	case actionHalfPageDown:
+		v = v.moveQueueCursor(v.visibleRows() / 2)
+	case actionHalfPageUp:
+		v = v.moveQueueCursor(-v.visibleRows() / 2)
+	case actionFullPageDown:
+		v = v.moveQueueCursor(v.visibleRows())
+	case actionFullPageUp:
+		v = v.moveQueueCursor(-v.visibleRows())
+	case actionGoToTop:
+		v.cursor = 0
+		v.scrollOffset = 0
+	case actionGoToBottom:
+		if n := len(v.entries); n > 0 {
+			v.cursor = n - 1
+			maxRows := v.visibleRows()
+			if v.cursor >= maxRows {
+				v.scrollOffset = v.cursor - maxRows + 1
+			}
 		}
 	case actionSelect:
 		if len(v.entries) > 0 && !v.entries[v.cursor].Missing {
@@ -369,6 +415,34 @@ func (v *QueueView) markMissing(path string) {
 	}
 }
 
+// moveQueueCursor shifts the cursor by delta rows, clamping to [0, len-1],
+// and adjusts the scroll offset so the cursor stays visible.
+func (v QueueView) moveQueueCursor(delta int) QueueView {
+	n := len(v.entries)
+	if n == 0 {
+		return v
+	}
+	v.cursor += delta
+	v.cursor = max(0, min(v.cursor, n-1))
+	maxRows := v.visibleRows()
+	if v.cursor < v.scrollOffset {
+		v.scrollOffset = v.cursor
+	} else if v.cursor >= v.scrollOffset+maxRows {
+		v.scrollOffset = v.cursor - maxRows + 1
+	}
+	return v
+}
+
+// visibleRows returns the maximum number of queue entries that fit on screen.
+// It reserves 3 lines for the heading, blank line, and header area.
+func (v QueueView) visibleRows() int {
+	reserve := 3
+	if v.height > 0 {
+		return max(1, v.height-reserve)
+	}
+	return 50
+}
+
 // render builds the queue panel string using a 4-column layout:
 //
 //	Position (~4 chars fixed) | Title (~40% of width) | Artist (~30% of width) | Duration (~10 chars fixed)
@@ -399,14 +473,22 @@ func (v QueueView) render() string {
 		artistWidth = 1
 	}
 
-	lines := make([]string, len(v.entries))
-	for i, e := range v.entries {
+	maxRows := v.visibleRows()
+	start := v.scrollOffset
+	if start > len(v.entries) {
+		start = len(v.entries)
+	}
+	end := min(len(v.entries), start+maxRows)
+
+	lines := make([]string, end-start)
+	for i, e := range v.entries[start:end] {
+		absIdx := start + i
 		// Position column: cursor indicator (" " or ">") + right-aligned index.
 		cursorChar := " "
-		if i == v.cursor {
+		if absIdx == v.cursor {
 			cursorChar = ">"
 		}
-		pos := fmt.Sprintf("%s%3d", cursorChar, i+1)
+		pos := fmt.Sprintf("%s%3d", cursorChar, absIdx+1)
 
 		title := truncateTitle(e.Title, titleWidth)
 		title = fmt.Sprintf("%-*s", titleWidth, title)

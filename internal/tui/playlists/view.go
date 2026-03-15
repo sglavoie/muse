@@ -22,6 +22,7 @@ type View struct {
 	Level            Level
 	Cursor           int
 	ListCursor       int                  // saved list cursor; restored when BackToList is called
+	ScrollOffset     int                  // first visible row index
 	Playlists        []db.PlaylistRow
 	Tracks           []db.PlaylistTrackRow // populated when Level == TrackLevel
 	Width            int
@@ -33,11 +34,25 @@ type View struct {
 	SelectedTrackIDs map[int64]struct{}    // bulk-selected playlist track row IDs
 }
 
+// visibleRows returns the maximum number of rows that fit on screen.
+// It reserves 3 lines for the heading, blank line, and header area.
+func (v View) visibleRows() int {
+	reserve := 3
+	if v.Height > 0 {
+		return max(1, v.Height-reserve)
+	}
+	return 50
+}
+
 // CursorUp returns a copy of v with the cursor moved up by one row,
-// stopping at the first entry.
+// stopping at the first entry. The scroll offset is adjusted so the
+// cursor stays visible.
 func (v View) CursorUp() View {
 	if v.Cursor > 0 {
 		v.Cursor--
+	}
+	if v.Cursor < v.ScrollOffset {
+		v.ScrollOffset = v.Cursor
 	}
 	return v
 }
@@ -45,6 +60,7 @@ func (v View) CursorUp() View {
 // CursorDown returns a copy of v with the cursor moved down by one row,
 // stopping at the last entry. The upper bound depends on the active level:
 // TrackLevel uses the track slice length; ListLevel uses the playlist slice.
+// The scroll offset is adjusted so the cursor stays visible.
 func (v View) CursorDown() View {
 	limit := len(v.Playlists) - 1
 	if v.Level == TrackLevel {
@@ -52,6 +68,76 @@ func (v View) CursorDown() View {
 	}
 	if v.Cursor < limit {
 		v.Cursor++
+	}
+	maxRows := v.visibleRows()
+	if v.Cursor >= v.ScrollOffset+maxRows {
+		v.ScrollOffset = v.Cursor - maxRows + 1
+	}
+	return v
+}
+
+// HalfPageDown moves the cursor half a visible page down.
+func (v View) HalfPageDown() View {
+	return v.moveCursor(v.visibleRows() / 2)
+}
+
+// HalfPageUp moves the cursor half a visible page up.
+func (v View) HalfPageUp() View {
+	return v.moveCursor(-v.visibleRows() / 2)
+}
+
+// FullPageDown moves the cursor a full visible page down.
+func (v View) FullPageDown() View {
+	return v.moveCursor(v.visibleRows())
+}
+
+// FullPageUp moves the cursor a full visible page up.
+func (v View) FullPageUp() View {
+	return v.moveCursor(-v.visibleRows())
+}
+
+// GoToTop moves the cursor to the first row.
+func (v View) GoToTop() View {
+	v.Cursor = 0
+	v.ScrollOffset = 0
+	return v
+}
+
+// GoToBottom moves the cursor to the last row.
+func (v View) GoToBottom() View {
+	n := v.itemCount()
+	if n > 0 {
+		v.Cursor = n - 1
+	}
+	maxRows := v.visibleRows()
+	if v.Cursor >= maxRows {
+		v.ScrollOffset = v.Cursor - maxRows + 1
+	}
+	return v
+}
+
+// itemCount returns the number of items in the current level.
+func (v View) itemCount() int {
+	if v.Level == TrackLevel {
+		return len(v.Tracks)
+	}
+	return len(v.Playlists)
+}
+
+// moveCursor shifts the cursor by delta rows, clamping to [0, itemCount-1],
+// and adjusts the scroll offset so the cursor stays visible.
+func (v View) moveCursor(delta int) View {
+	n := v.itemCount()
+	if n == 0 {
+		return v
+	}
+	v.Cursor += delta
+	v.Cursor = max(0, min(v.Cursor, n-1))
+	maxRows := v.visibleRows()
+	if v.Cursor < v.ScrollOffset {
+		v.ScrollOffset = v.Cursor
+	} else if v.Cursor >= v.ScrollOffset+maxRows {
+		v.ScrollOffset = v.Cursor - maxRows + 1
 	}
 	return v
 }
@@ -172,9 +258,18 @@ func (v View) renderList() string {
 	}
 
 	cols := Compute(v.Width)
+
+	maxRows := v.visibleRows()
+	start := v.ScrollOffset
+	if start > len(v.Playlists) {
+		start = len(v.Playlists)
+	}
+	end := min(len(v.Playlists), start+maxRows)
+
 	var lines []string
-	for i, p := range v.Playlists {
-		if v.Renaming && i == v.Cursor {
+	for _, p := range v.Playlists[start:end] {
+		absIdx := start + len(lines) // track absolute index before appending
+		if v.Renaming && absIdx == v.Cursor {
 			lines = append(lines, v.renderRenameInputRow(cols))
 			continue
 		}
@@ -183,11 +278,11 @@ func (v View) renderList() string {
 		count := fmt.Sprintf("(%d)", p.TrackCount)
 		count = fmt.Sprintf("%*s", cols.Count, count)
 		line := name + "  " + count
-		if i == v.Cursor {
+		if absIdx == v.Cursor {
 			line = ansiAccent + line + ansiReset
 		}
 		lines = append(lines, line)
-		if v.Creating && i == v.Cursor {
+		if v.Creating && absIdx == v.Cursor {
 			lines = append(lines, v.renderCreateInputRow(cols))
 		}
 	}
@@ -222,10 +317,19 @@ func (v View) renderTracks() string {
 	}
 
 	cols := ComputeTrack(v.Width)
-	lines := make([]string, len(v.Tracks))
-	for i, t := range v.Tracks {
+
+	maxRows := v.visibleRows()
+	start := v.ScrollOffset
+	if start > len(v.Tracks) {
+		start = len(v.Tracks)
+	}
+	end := min(len(v.Tracks), start+maxRows)
+
+	lines := make([]string, end-start)
+	for i, t := range v.Tracks[start:end] {
+		absIdx := start + i
 		_, isSelected := v.SelectedTrackIDs[t.ID]
-		isFocused := i == v.Cursor
+		isFocused := absIdx == v.Cursor
 
 		// When the row is focused, omit the inner accent/reset from the marker
 		// so the outer reverse-video wrap covers the full row uniformly. An

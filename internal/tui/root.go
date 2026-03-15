@@ -777,11 +777,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.termWidth = msg.Width
 		m.termHeight = msg.Height
 		m.library.width = msg.Width
-		m.library.height = msg.Height
+		m.library.height = msg.Height - 3
 		m.playlists.width = msg.Width
-		m.playlists.height = msg.Height
+		m.playlists.height = msg.Height - 3
 		m.queue.width = msg.Width
-		m.queue.height = msg.Height
+		m.queue.height = msg.Height - 3
 
 	case clearConfigNotice:
 		m.configCreated = false
@@ -1432,7 +1432,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.destPickerTracks = tracks
 				}
 			}
-		case actionCursorUp, actionCursorDown:
+		case actionCursorUp, actionCursorDown,
+			actionHalfPageDown, actionHalfPageUp,
+			actionFullPageDown, actionFullPageUp,
+			actionGoToTop, actionGoToBottom:
 			// Route cursor movement to the active view.
 			switch m.activeView {
 			case viewLibrary:
