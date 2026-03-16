@@ -456,6 +456,221 @@ func TestQueueDequeueNoPanicWhenCursorOutOfBounds(t *testing.T) {
 	}
 }
 
+// --- QueueView navigation ---
+
+func TestQueueHandleActionCursorUpDown(t *testing.T) {
+	q := QueueView{
+		entries: make([]QueueEntry, 5),
+		cursor:  0,
+		width:   80,
+	}
+	q, _ = q.HandleAction(actionCursorDown)
+	if q.cursor != 1 {
+		t.Errorf("CursorDown: expected 1, got %d", q.cursor)
+	}
+	q, _ = q.HandleAction(actionCursorDown)
+	if q.cursor != 2 {
+		t.Errorf("CursorDown: expected 2, got %d", q.cursor)
+	}
+	q, _ = q.HandleAction(actionCursorUp)
+	if q.cursor != 1 {
+		t.Errorf("CursorUp: expected 1, got %d", q.cursor)
+	}
+}
+
+func TestQueueHandleActionCursorClampsAtBounds(t *testing.T) {
+	q := QueueView{
+		entries: make([]QueueEntry, 3),
+		cursor:  0,
+		width:   80,
+	}
+	q, _ = q.HandleAction(actionCursorUp)
+	if q.cursor != 0 {
+		t.Errorf("CursorUp at 0: expected 0, got %d", q.cursor)
+	}
+	q.cursor = 2
+	q, _ = q.HandleAction(actionCursorDown)
+	if q.cursor != 2 {
+		t.Errorf("CursorDown at end: expected 2, got %d", q.cursor)
+	}
+}
+
+func TestQueueHandleActionGoToTopBottom(t *testing.T) {
+	q := QueueView{
+		entries: make([]QueueEntry, 10),
+		cursor:  5,
+		width:   80,
+	}
+	q, _ = q.HandleAction(actionGoToTop)
+	if q.cursor != 0 || q.scrollOffset != 0 {
+		t.Errorf("GoToTop: cursor=%d scroll=%d, want 0,0", q.cursor, q.scrollOffset)
+	}
+	q, _ = q.HandleAction(actionGoToBottom)
+	if q.cursor != 9 {
+		t.Errorf("GoToBottom: expected cursor=9, got %d", q.cursor)
+	}
+}
+
+func TestQueueHandleActionHalfPageDownUp(t *testing.T) {
+	q := QueueView{
+		entries: make([]QueueEntry, 20),
+		cursor:  0,
+		height:  14, // visibleRows = max(1, 14-4) = 10
+		width:   80,
+	}
+	q, _ = q.HandleAction(actionHalfPageDown)
+	if q.cursor != 5 {
+		t.Errorf("HalfPageDown: expected 5, got %d", q.cursor)
+	}
+	q, _ = q.HandleAction(actionHalfPageUp)
+	if q.cursor != 0 {
+		t.Errorf("HalfPageUp: expected 0, got %d", q.cursor)
+	}
+}
+
+func TestQueueHandleActionFullPageDownUp(t *testing.T) {
+	q := QueueView{
+		entries: make([]QueueEntry, 20),
+		cursor:  0,
+		height:  14, // visibleRows = 10
+		width:   80,
+	}
+	q, _ = q.HandleAction(actionFullPageDown)
+	if q.cursor != 10 {
+		t.Errorf("FullPageDown: expected 10, got %d", q.cursor)
+	}
+	q, _ = q.HandleAction(actionFullPageUp)
+	if q.cursor != 0 {
+		t.Errorf("FullPageUp: expected 0, got %d", q.cursor)
+	}
+}
+
+func TestQueueMoveQueueCursorEmpty(t *testing.T) {
+	q := QueueView{cursor: 0}
+	q2 := q.moveQueueCursor(5)
+	if q2.cursor != 0 {
+		t.Errorf("moveQueueCursor empty: expected 0, got %d", q2.cursor)
+	}
+}
+
+func TestQueueVisibleRowsZeroHeight(t *testing.T) {
+	q := QueueView{height: 0}
+	if q.visibleRows() != 50 {
+		t.Errorf("visibleRows height=0: expected 50, got %d", q.visibleRows())
+	}
+}
+
+func TestQueueVisibleRowsSmallHeight(t *testing.T) {
+	q := QueueView{height: 5}
+	if q.visibleRows() != 1 {
+		t.Errorf("visibleRows height=5: expected 1, got %d", q.visibleRows())
+	}
+}
+
+// --- PlaylistsView HandleAction navigation ---
+
+func TestPlaylistsHandleActionCursorUpDown(t *testing.T) {
+	v := PlaylistsView{
+		level:     pltui.ListLevel,
+		cursor:    0,
+		playlists: make([]db.PlaylistRow, 5),
+	}
+	v = v.HandleAction(actionCursorDown)
+	if v.cursor != 1 {
+		t.Errorf("CursorDown: expected 1, got %d", v.cursor)
+	}
+	v = v.HandleAction(actionCursorUp)
+	if v.cursor != 0 {
+		t.Errorf("CursorUp: expected 0, got %d", v.cursor)
+	}
+}
+
+func TestPlaylistsHandleActionGoToTopBottom(t *testing.T) {
+	v := PlaylistsView{
+		level:     pltui.ListLevel,
+		cursor:    0,
+		playlists: make([]db.PlaylistRow, 10),
+	}
+	v = v.HandleAction(actionGoToBottom)
+	if v.cursor != 9 {
+		t.Errorf("GoToBottom: expected 9, got %d", v.cursor)
+	}
+	v = v.HandleAction(actionGoToTop)
+	if v.cursor != 0 {
+		t.Errorf("GoToTop: expected 0, got %d", v.cursor)
+	}
+}
+
+func TestPlaylistsHandleActionHalfPage(t *testing.T) {
+	v := PlaylistsView{
+		level:     pltui.ListLevel,
+		cursor:    0,
+		height:    13, // visibleRows = max(1, 13-3) = 10
+		playlists: make([]db.PlaylistRow, 20),
+	}
+	v = v.HandleAction(actionHalfPageDown)
+	if v.cursor != 5 {
+		t.Errorf("HalfPageDown: expected 5, got %d", v.cursor)
+	}
+}
+
+func TestPlaylistsHandleActionFullPage(t *testing.T) {
+	v := PlaylistsView{
+		level:     pltui.ListLevel,
+		cursor:    0,
+		height:    13, // visibleRows = 10
+		playlists: make([]db.PlaylistRow, 20),
+	}
+	v = v.HandleAction(actionFullPageDown)
+	if v.cursor != 10 {
+		t.Errorf("FullPageDown: expected 10, got %d", v.cursor)
+	}
+}
+
+// --- QueueView HandleAction: ClearQueue, MoveTrackUp, MoveTrackDown ---
+
+func TestQueueHandleActionClearQueue(t *testing.T) {
+	q := QueueView{entries: make([]QueueEntry, 3)}
+	_, cmd := q.HandleAction(actionClearQueue)
+	if cmd == nil {
+		t.Fatal("ClearQueue: expected non-nil cmd")
+	}
+	msg := cmd()
+	if _, ok := msg.(ClearQueueMsg); !ok {
+		t.Errorf("ClearQueue: expected ClearQueueMsg, got %T", msg)
+	}
+}
+
+func TestQueueHandleActionMoveTrackUp(t *testing.T) {
+	q := QueueView{
+		entries: make([]QueueEntry, 3),
+		cursor:  1,
+	}
+	_, cmd := q.HandleAction(actionMoveTrackUp)
+	if cmd == nil {
+		t.Fatal("MoveTrackUp: expected non-nil cmd")
+	}
+	msg := cmd()
+	if m, ok := msg.(MoveTrackUpMsg); !ok || m.Index != 1 {
+		t.Errorf("MoveTrackUp: got %+v", msg)
+	}
+}
+
+func TestQueueHandleActionMoveTrackDown(t *testing.T) {
+	q := QueueView{
+		entries: make([]QueueEntry, 3),
+		cursor:  1,
+	}
+	_, cmd := q.HandleAction(actionMoveTrackDown)
+	if cmd == nil {
+		t.Fatal("MoveTrackDown: expected non-nil cmd")
+	}
+	msg := cmd()
+	if m, ok := msg.(MoveTrackDownMsg); !ok || m.Index != 1 {
+		t.Errorf("MoveTrackDown: got %+v", msg)
+	}
+}
+
 // TestQueueBulkSelectionToggleNoPanicWhenCursorOutOfBounds verifies that the
 // actionBulkSelectionToggle handler does not panic when cursor is out of bounds.
 func TestQueueBulkSelectionToggleNoPanicWhenCursorOutOfBounds(t *testing.T) {

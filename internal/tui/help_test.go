@@ -115,6 +115,17 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 	}
 }
 
+func TestHelpLineCountPositive(t *testing.T) {
+	n := helpLineCount()
+	if n <= 0 {
+		t.Errorf("helpLineCount() = %d, want > 0", n)
+	}
+	// Should include at least the heading, 6 section headers, and their entries
+	if n < 20 {
+		t.Errorf("helpLineCount() = %d, expected at least 20 lines for all sections", n)
+	}
+}
+
 func TestHelpOverlayRendersAllSectionHeaders(t *testing.T) {
 	h := HelpOverlay{}
 	out := h.render()
