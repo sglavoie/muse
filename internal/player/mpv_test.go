@@ -1502,6 +1502,56 @@ func TestManager_DisconnectCh(t *testing.T) {
 	}
 }
 
+// --- noopMarker ---
+
+func TestNoopMarkerDoesNotError(t *testing.T) {
+	var m noopMarker
+	if err := m.MarkTrackMissing("hash"); err != nil {
+		t.Errorf("noopMarker.MarkTrackMissing: %v", err)
+	}
+	if err := m.MarkQueueEntryMissing(42); err != nil {
+		t.Errorf("noopMarker.MarkQueueEntryMissing: %v", err)
+	}
+}
+
+// --- SetSocketPath / SetExtraFlags ---
+
+func TestManager_SetSocketPath(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{ctx: ctx, cancel: cancel}
+	defer m.Close()
+
+	m.SetSocketPath("/tmp/custom.sock")
+	if m.SocketPath() != "/tmp/custom.sock" {
+		t.Errorf("SetSocketPath: got %q, want /tmp/custom.sock", m.SocketPath())
+	}
+}
+
+func TestManager_SetExtraFlags(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{ctx: ctx, cancel: cancel}
+	defer m.Close()
+
+	flags := []string{"--no-video", "--really-quiet"}
+	m.SetExtraFlags(flags)
+
+	m.mu.RLock()
+	got := m.extraFlags
+	m.mu.RUnlock()
+
+	if len(got) != 2 || got[0] != "--no-video" || got[1] != "--really-quiet" {
+		t.Errorf("SetExtraFlags: got %v", got)
+	}
+
+	// Verify it's a copy, not a reference.
+	flags[0] = "modified"
+	m.mu.RLock()
+	if m.extraFlags[0] == "modified" {
+		t.Error("SetExtraFlags must copy the slice, not store a reference")
+	}
+	m.mu.RUnlock()
+}
+
 // --- Setter functions ---
 
 func TestManager_SetMissingMarker(t *testing.T) {
