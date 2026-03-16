@@ -922,6 +922,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.scanned += len(msg.Tracks)
 		m.statusBar.handleScanProgress(library.ScanProgressMsg{Scanned: m.scanned, Total: m.scanTotal})
+		// Invalidate the cached fuzzy-match results so that stale TrackIndex
+		// values from the previous index state cannot cause an out-of-bounds
+		// panic when the filter is active and the user navigates or renders.
+		if m.library.filterText != "" {
+			m.library = m.library.rebuildFilterCache()
+		}
 		if m.scanCh != nil {
 			return m, waitForNextBatch(m.scanCh)
 		}
@@ -932,6 +938,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		for _, t := range msg.tracks {
 			m.library.index.UpsertByPath(t.Path, t)
+		}
+		// Invalidate the cached fuzzy-match results so that stale TrackIndex
+		// values from the previous index state cannot cause an out-of-bounds
+		// panic when the filter is active and the user navigates or renders.
+		if m.library.filterText != "" {
+			m.library = m.library.rebuildFilterCache()
+			// Clamp cursor to the new (possibly shorter) match set.
+			n := len(m.library.filteredMatches)
+			if n == 0 {
+				m.library.cursor = 0
+				m.library.scrollOffset = 0
+			} else if m.library.cursor >= n {
+				m.library.cursor = n - 1
+			}
 		}
 		if m.watchCh != nil {
 			return m, waitForWatchBatch(m.watchCh)

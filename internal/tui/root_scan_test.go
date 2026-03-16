@@ -288,3 +288,97 @@ func TestShiftRFiresRescan(t *testing.T) {
 		t.Fatal("R key: expected non-nil rescan cmd")
 	}
 }
+
+// TestWatchBatchInvalidatesFilterCache verifies that a watchBatchMsg that
+// removes a track invalidates the cached fuzzy-match results so that stale
+// TrackIndex values cannot cause an out-of-bounds panic on the next render
+// or FocusedTrack call.
+func TestWatchBatchInvalidatesFilterCache(t *testing.T) {
+	watchCh := make(chan library.WatchEvent, 1)
+	m := New("", false, nil, watchCh, "", nil, nil)
+	m.library.fuzzy = library.FakeFuzzySearcher{}
+
+	// Seed three tracks.
+	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
+	m.library.index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
+	m.library.index.Insert(library.Track{Artist: "C", Title: "Charlie", Path: "/c", Hash: "h3"})
+
+	// Activate and commit a filter that matches all three.
+	m.library = m.library.ActivateFilter()
+	m.library = m.library.AppendFilterChar('a') // matches Alpha, Beta, Charlie all contain 'a' in artist or title
+	m.library = m.library.CommitFilter()
+
+	// Move cursor to the last match.
+	for range 2 {
+		m.library = m.library.HandleAction(actionCursorDown)
+	}
+	if m.library.cursor != 2 {
+		t.Fatalf("setup: expected cursor=2, got %d", m.library.cursor)
+	}
+
+	// Deliver a watchBatchMsg that deletes two tracks, leaving only one match.
+	next, _ := m.Update(watchBatchMsg{
+		deleted: []string{"/b", "/c"},
+	})
+	nm := next.(Model)
+
+	// The cursor must be clamped so it does not point past the end of the
+	// new (shorter) match set.
+	if nm.library.cursor >= len(nm.library.filteredMatches) && len(nm.library.filteredMatches) > 0 {
+		t.Fatalf("cursor %d out of range for %d filtered matches",
+			nm.library.cursor, len(nm.library.filteredMatches))
+	}
+
+	// FocusedTrack must not panic.
+	track, ok := nm.library.view().FocusedTrack()
+	if !ok && nm.library.index.Len() > 0 && len(nm.library.filteredMatches) > 0 {
+		t.Fatal("FocusedTrack returned false despite non-empty filtered matches")
+	}
+	if ok && track.Path == "/b" {
+		t.Fatal("FocusedTrack returned a deleted track")
+	}
+	if ok && track.Path == "/c" {
+		t.Fatal("FocusedTrack returned a deleted track")
+	}
+}
+
+// TestScanBatchInvalidatesFilterCache verifies that a ScanBatchMsg that adds
+// tracks while a filter is active rebuilds the cached fuzzy-match results so
+// that TrackIndex values stay consistent with the modified index.
+func TestScanBatchInvalidatesFilterCache(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.library.fuzzy = library.FakeFuzzySearcher{}
+
+	// Seed two tracks and set up a filter.
+	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
+	m.library.index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
+	m.library = m.library.ActivateFilter()
+	m.library = m.library.AppendFilterChar('a') // matches both via artist
+	m.library = m.library.CommitFilter()
+
+	oldMatches := len(m.library.filteredMatches)
+	if oldMatches != 2 {
+		t.Fatalf("setup: expected 2 matches, got %d", oldMatches)
+	}
+
+	// Insert a new track that also matches the filter.
+	next, _ := m.Update(library.ScanBatchMsg{Tracks: []library.Track{
+		{Artist: "AA", Title: "Gamma", Path: "/g", Hash: "h3"},
+	}})
+	nm := next.(Model)
+
+	// The filter cache must have been rebuilt to include the new track.
+	if len(nm.library.filteredMatches) <= oldMatches {
+		t.Fatalf("expected filteredMatches to grow after ScanBatchMsg; got %d (was %d)",
+			len(nm.library.filteredMatches), oldMatches)
+	}
+
+	// All TrackIndex values must be in range.
+	allTracks := nm.library.index.Tracks()
+	for i, match := range nm.library.filteredMatches {
+		if match.TrackIndex < 0 || match.TrackIndex >= len(allTracks) {
+			t.Fatalf("match[%d].TrackIndex=%d out of range [0, %d)",
+				i, match.TrackIndex, len(allTracks))
+		}
+	}
+}
