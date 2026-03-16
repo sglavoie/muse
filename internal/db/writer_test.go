@@ -1813,3 +1813,182 @@ func TestRenumberQueuePositions_SoftDeletedConflict(t *testing.T) {
 		t.Errorf("active positions = %v; want %v", activePos, want)
 	}
 }
+
+// --- AppendTracks (batch) ---
+
+func TestAppendTracks_BatchInsert(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	tracks := []library.Track{
+		{Hash: "h1", Path: "/a.mp3"},
+		{Hash: "h2", Path: "/b.mp3"},
+		{Hash: "h3", Path: "/c.mp3"},
+	}
+	for _, tr := range tracks {
+		seedTrack(t, d, tr.Hash, tr.Path)
+	}
+
+	ids, err := w.AppendTracks(tracks, "mylist")
+	if err != nil {
+		t.Fatalf("AppendTracks: %v", err)
+	}
+	if len(ids) != 3 {
+		t.Fatalf("AppendTracks returned %d IDs, want 3", len(ids))
+	}
+	// IDs must be distinct and ascending.
+	for i := 1; i < len(ids); i++ {
+		if ids[i] <= ids[i-1] {
+			t.Errorf("IDs not ascending: %v", ids)
+			break
+		}
+	}
+	// Positions must be gapped by 1000.
+	rows, err := d.Query(`SELECT position, source_playlist FROM queue WHERE deleted_at IS NULL ORDER BY position`)
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	defer rows.Close()
+	var positions []int64
+	for rows.Next() {
+		var pos int64
+		var src string
+		if err := rows.Scan(&pos, &src); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		positions = append(positions, pos)
+		if src != "mylist" {
+			t.Errorf("source_playlist = %q, want 'mylist'", src)
+		}
+	}
+	if want := []int64{1000, 2000, 3000}; !slices.Equal(positions, want) {
+		t.Errorf("positions = %v; want %v", positions, want)
+	}
+}
+
+func TestAppendTracks_EmptySlice(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	ids, err := w.AppendTracks(nil, "")
+	if err != nil {
+		t.Fatalf("AppendTracks(nil): %v", err)
+	}
+	if ids != nil {
+		t.Errorf("AppendTracks(nil): expected nil ids, got %v", ids)
+	}
+}
+
+// --- DequeueTracksSoft (batch) ---
+
+func TestDequeueTracksSoft_BatchSoftDelete(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	// Seed and enqueue 3 tracks.
+	for _, h := range []string{"d1", "d2", "d3"} {
+		seedTrack(t, d, h, "/"+h+".mp3")
+	}
+	tracks := []library.Track{
+		{Hash: "d1", Path: "/d1.mp3"},
+		{Hash: "d2", Path: "/d2.mp3"},
+		{Hash: "d3", Path: "/d3.mp3"},
+	}
+	ids, err := w.AppendTracks(tracks, "")
+	if err != nil {
+		t.Fatalf("AppendTracks: %v", err)
+	}
+
+	// Soft-delete first two.
+	if err := w.DequeueTracksSoft(ids[:2]); err != nil {
+		t.Fatalf("DequeueTracksSoft: %v", err)
+	}
+
+	// Only the third should be active.
+	var activeCount int
+	if err := d.QueryRow(`SELECT COUNT(*) FROM queue WHERE deleted_at IS NULL`).Scan(&activeCount); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if activeCount != 1 {
+		t.Errorf("active queue entries = %d, want 1", activeCount)
+	}
+}
+
+func TestDequeueTracksSoft_EmptySlice(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+	_ = d // satisfy linter
+
+	if err := w.DequeueTracksSoft(nil); err != nil {
+		t.Fatalf("DequeueTracksSoft(nil): %v", err)
+	}
+}
+
+// --- WriteRepeatMode ---
+
+func TestWriteRepeatMode_ValidModes(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	for _, mode := range []string{"none", "all", "one"} {
+		if err := w.WriteRepeatMode(mode); err != nil {
+			t.Fatalf("WriteRepeatMode(%q): %v", mode, err)
+		}
+		var got string
+		if err := d.QueryRow(`SELECT repeat_mode FROM session WHERE id=1`).Scan(&got); err != nil {
+			t.Fatalf("select repeat_mode: %v", err)
+		}
+		if got != mode {
+			t.Errorf("repeat_mode = %q, want %q", got, mode)
+		}
+	}
+}
+
+// --- PurgeDeletedPlaylists ---
+
+func TestPurgeDeletedPlaylists(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	// Create 3 playlists.
+	id1, _ := w.CreatePlaylist("keep")
+	id2, _ := w.CreatePlaylist("purge-old")
+	id3, _ := w.CreatePlaylist("purge-recent")
+	_ = id1
+
+	// Soft-delete two of them.
+	if err := w.DeletePlaylistSoft(id2); err != nil {
+		t.Fatalf("DeletePlaylistSoft: %v", err)
+	}
+	if err := w.DeletePlaylistSoft(id3); err != nil {
+		t.Fatalf("DeletePlaylistSoft: %v", err)
+	}
+
+	// Make id2 look older by backdating deleted_at.
+	if _, err := d.Exec(`UPDATE playlists SET deleted_at=100 WHERE id=?`, id2); err != nil {
+		t.Fatalf("backdate: %v", err)
+	}
+
+	// Purge playlists deleted before timestamp 200 — should only remove id2.
+	if err := w.PurgeDeletedPlaylists(200); err != nil {
+		t.Fatalf("PurgeDeletedPlaylists: %v", err)
+	}
+
+	// id1 (active) and id3 (soft-deleted but recent) should survive.
+	var count int
+	if err := d.QueryRow(`SELECT COUNT(*) FROM playlists`).Scan(&count); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("playlist count after purge = %d, want 2", count)
+	}
+
+	// Verify id2 is gone.
+	var exists int
+	if err := d.QueryRow(`SELECT COUNT(*) FROM playlists WHERE id=?`, id2).Scan(&exists); err != nil {
+		t.Fatalf("select id2: %v", err)
+	}
+	if exists != 0 {
+		t.Error("id2 should have been purged")
+	}
+}
