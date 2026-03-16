@@ -1146,6 +1146,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
 				m.queue.cursor = len(m.queue.entries) - 1
 			}
+			// Clamp scrollOffset so it does not point past the end of the
+			// shortened list, which would cause an empty or broken render.
+			if n := len(m.queue.entries); n > 0 {
+				maxOffset := n - 1
+				if m.queue.scrollOffset > maxOffset {
+					m.queue.scrollOffset = maxOffset
+				}
+			} else {
+				m.queue.scrollOffset = 0
+			}
 			if qr, ok := m.player.(playerQueueRemover); ok {
 				_ = qr.RemoveFromQueue(msg.Index)
 			}
@@ -1628,9 +1638,19 @@ func (m Model) handleUndo() Model {
 				_ = m.undoer.DequeueTrackSoft(entry.ID)
 				undoer := m.undoer
 				softDeleteTime := time.Now().Unix()
+				// Schedule a cancellable purge so a rapid subsequent
+				// destructive action can prevent this timer from purging
+				// rows that belong to a newer undo slot.
+				cancel := make(chan struct{})
 				time.AfterFunc(undoWindowDuration, func() {
-					_ = undoer.PurgeDeletedQueueEntries(softDeleteTime + 1)
+					select {
+					case <-cancel:
+						return
+					default:
+						_ = undoer.PurgeDeletedQueueEntries(softDeleteTime + 1)
+					}
 				})
+				m.undoSlot.cancelPurge = cancel
 			}
 			m.queue.entries = append(m.queue.entries[:idx], m.queue.entries[idx+1:]...)
 			if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
@@ -1699,6 +1719,22 @@ func (m Model) handleUndo() Model {
 	case undoKindBatchEnqueue:
 		if m.batchEnqueuer != nil {
 			_ = m.batchEnqueuer.DequeueTracksSoft(m.undoSlot.batchIDs)
+			// Schedule a cancellable purge so the soft-deleted rows are
+			// eventually removed from the database.
+			if m.undoer != nil {
+				undoer := m.undoer
+				softDeleteTime := time.Now().Unix()
+				cancel := make(chan struct{})
+				time.AfterFunc(undoWindowDuration, func() {
+					select {
+					case <-cancel:
+						return
+					default:
+						_ = undoer.PurgeDeletedQueueEntries(softDeleteTime + 1)
+					}
+				})
+				m.undoSlot.cancelPurge = cancel
+			}
 		}
 		startIdx := m.undoSlot.batchStartIdx
 		endIdx := startIdx + m.undoSlot.batchCount

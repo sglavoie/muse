@@ -22,9 +22,12 @@ const (
 
 // ansiDim / ansiReset wrap text in the ANSI dim (faint) attribute used to
 // display missing queue entries in a grayed-out style.
+// ansiAccent wraps text in reverse-video for focused/selected row highlighting,
+// matching the style used by the Library and Playlists views.
 const (
-	ansiDim   = "\033[2m"
-	ansiReset = "\033[0m"
+	ansiDim    = "\033[2m"
+	ansiAccent = "\033[7m"
+	ansiReset  = "\033[0m"
 )
 
 // PlaylistsView wraps the playlists sub-panel state for the root model.
@@ -491,16 +494,29 @@ func (v QueueView) render() string {
 	}
 	end := min(len(v.entries), start+maxRows)
 
-	// Column header row.
-	header := fmt.Sprintf(" %3s %-*s %-*s %-*s %-*s",
+	// Column header row (2-char left margin aligns with the selection marker column).
+	header := fmt.Sprintf("  %3s %-*s %-*s %-*s %-*s",
 		"#", titleWidth, "Title", artistWidth, "Artist", sourceWidth, "Source", durWidth, "Time")
 
 	lines := make([]string, end-start)
 	for i, e := range v.entries[start:end] {
 		absIdx := start + i
+		isFocused := absIdx == v.cursor
+
+		// Selection marker: matches Library and Playlists style.
+		var markerStr string
+		switch {
+		case e.Selected && isFocused:
+			markerStr = "● "
+		case e.Selected:
+			markerStr = ansiAccent + "●" + ansiReset + " "
+		default:
+			markerStr = "  "
+		}
+
 		// Position column: cursor indicator (" " or ">") + right-aligned index.
 		cursorChar := " "
-		if absIdx == v.cursor {
+		if isFocused {
 			cursorChar = ">"
 		}
 		pos := fmt.Sprintf("%s%3d", cursorChar, absIdx+1)
@@ -516,7 +532,7 @@ func (v QueueView) render() string {
 
 		dur := fmt.Sprintf("%-*s", durWidth, formatQueueDuration(e.DurationMs))
 
-		line := pos + " " + title + " " + artist + " " + source + " " + dur
+		line := markerStr + pos + " " + title + " " + artist + " " + source + " " + dur
 		if e.Missing {
 			lines[i] = ansiDim + line + " [missing]" + ansiReset
 		} else {

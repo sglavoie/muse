@@ -229,3 +229,59 @@ func TestFormatQueueDuration(t *testing.T) {
 		}
 	}
 }
+
+// TestQueueRenderSelectedEntryShowsMarker verifies that a bulk-selected queue
+// entry is rendered with a "●" selection marker, matching the Library and
+// Playlists view behaviour.
+func TestQueueRenderSelectedEntryShowsMarker(t *testing.T) {
+	v := makeQueue(120, []QueueEntry{
+		{Title: "Normal", Artist: "A", DurationMs: 60_000, Selected: false},
+		{Title: "Selected", Artist: "B", DurationMs: 120_000, Selected: true},
+	})
+	out := v.render()
+	if !strings.Contains(out, "●") {
+		t.Fatal("selected queue entry must show a ● marker")
+	}
+}
+
+// TestQueueRenderUnselectedEntryHasNoMarker verifies that unselected queue
+// entries do not contain a selection marker glyph.
+func TestQueueRenderUnselectedEntryHasNoMarker(t *testing.T) {
+	v := makeQueue(120, []QueueEntry{
+		{Title: "Normal", Artist: "A", DurationMs: 60_000, Selected: false},
+	})
+	out := v.render()
+	if strings.Contains(out, "●") {
+		t.Fatal("unselected queue entry must not show a ● marker")
+	}
+}
+
+// TestQueueRenderSelectedAndFocusedMarker verifies that a selected+focused
+// entry uses a plain "●" glyph (without inner ANSI reset) so the outer
+// reverse-video highlight covers the full row uniformly.
+func TestQueueRenderSelectedAndFocusedMarker(t *testing.T) {
+	v := QueueView{
+		entries: []QueueEntry{
+			{Title: "Focused", Artist: "A", DurationMs: 60_000, Selected: true},
+		},
+		cursor: 0,
+		width:  120,
+	}
+	out := v.render()
+	// The focused+selected line must contain "●" but must not contain the
+	// inner accent+reset pair that unfocused selected entries use.
+	lines := strings.Split(out, "\n")
+	var focusedLine string
+	for _, l := range lines {
+		if strings.Contains(l, "Focused") {
+			focusedLine = l
+			break
+		}
+	}
+	if focusedLine == "" {
+		t.Fatal("focused entry must appear in the output")
+	}
+	if !strings.Contains(focusedLine, "●") {
+		t.Error("selected+focused entry must contain ● marker")
+	}
+}

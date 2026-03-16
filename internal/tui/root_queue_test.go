@@ -773,6 +773,49 @@ func TestUndoDequeueRebuildPlayerQueue(t *testing.T) {
 	}
 }
 
+// TestDequeueTrackMsgClampsScrollOffset verifies that dequeuing a track when
+// the queue is scrolled clamps the scrollOffset so it does not point past the
+// end of the shortened list.
+func TestDequeueTrackMsgClampsScrollOffset(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/a.flac", Display: "A"},
+		{ID: 20, Path: "/b.flac", Display: "B"},
+		{ID: 30, Path: "/c.flac", Display: "C"},
+	}
+	// Simulate a scrolled-down state: scrollOffset points to the last entry.
+	m.queue.scrollOffset = 2
+	m.queue.cursor = 2
+
+	next, _ := m.Update(DequeueTrackMsg{Index: 2})
+	nm := next.(Model)
+
+	// After removing the last entry, scrollOffset must be clamped.
+	if nm.queue.scrollOffset > len(nm.queue.entries)-1 {
+		t.Fatalf("scrollOffset %d exceeds last entry index %d after dequeue",
+			nm.queue.scrollOffset, len(nm.queue.entries)-1)
+	}
+}
+
+// TestDequeueLastEntryResetsScrollOffset verifies that dequeuing the only
+// entry resets scrollOffset to 0.
+func TestDequeueLastEntryResetsScrollOffset(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/a.flac", Display: "A"},
+	}
+	m.queue.scrollOffset = 0
+	m.queue.cursor = 0
+
+	next, _ := m.Update(DequeueTrackMsg{Index: 0})
+	nm := next.(Model)
+
+	if nm.queue.scrollOffset != 0 {
+		t.Fatalf("scrollOffset must be 0 after dequeuing the last entry, got %d",
+			nm.queue.scrollOffset)
+	}
+}
+
 // TestDequeueTrackMsgDoesNotTouchPlaylistTracks verifies that processing a
 // DequeueTrackMsg leaves any loaded playlist tracks completely unchanged.
 // Queue entries and playlist tracks are independent; dequeuing a queue entry
