@@ -379,3 +379,95 @@ func TestQueueRenderSelectedAndFocusedMarker(t *testing.T) {
 		t.Error("selected+focused entry must contain ● marker")
 	}
 }
+
+// TestFocusedPlaylistReturnsFalseWhenCursorOutOfBounds verifies that
+// focusedPlaylist returns false when the cursor exceeds the playlist slice
+// length, preventing an index-out-of-bounds panic.
+func TestFocusedPlaylistReturnsFalseWhenCursorOutOfBounds(t *testing.T) {
+	v := PlaylistsView{
+		level:     pltui.ListLevel,
+		playlists: []db.PlaylistRow{{ID: 1, Name: "A"}},
+		cursor:    5, // out of bounds
+	}
+	_, ok := v.focusedPlaylist()
+	if ok {
+		t.Fatal("focusedPlaylist must return false when cursor exceeds slice length")
+	}
+}
+
+// TestFocusedPlaylistIDReturnsFalseWhenCursorOutOfBounds verifies that
+// focusedPlaylistID returns false when the cursor exceeds the playlist slice
+// length, preventing an index-out-of-bounds panic.
+func TestFocusedPlaylistIDReturnsFalseWhenCursorOutOfBounds(t *testing.T) {
+	v := PlaylistsView{
+		level:     pltui.ListLevel,
+		playlists: []db.PlaylistRow{{ID: 1, Name: "A"}},
+		cursor:    5, // out of bounds
+	}
+	_, ok := v.focusedPlaylistID()
+	if ok {
+		t.Fatal("focusedPlaylistID must return false when cursor exceeds slice length")
+	}
+}
+
+// TestFocusedPlaylistReturnsFalseWhenCursorNegative verifies that
+// focusedPlaylist returns false when the cursor is negative.
+func TestFocusedPlaylistReturnsFalseWhenCursorNegative(t *testing.T) {
+	v := PlaylistsView{
+		level:     pltui.ListLevel,
+		playlists: []db.PlaylistRow{{ID: 1, Name: "A"}},
+		cursor:    -1,
+	}
+	_, ok := v.focusedPlaylist()
+	if ok {
+		t.Fatal("focusedPlaylist must return false when cursor is negative")
+	}
+}
+
+// TestQueueSelectNoPanicWhenCursorOutOfBounds verifies that the actionSelect
+// handler in QueueView does not panic when the cursor exceeds the entries slice.
+func TestQueueSelectNoPanicWhenCursorOutOfBounds(t *testing.T) {
+	q := QueueView{
+		entries: []QueueEntry{
+			{Path: "/a.flac", Display: "A"},
+		},
+		cursor: 5, // out of bounds
+	}
+	// Must not panic.
+	_, cmd := q.HandleAction(actionSelect)
+	if cmd != nil {
+		t.Fatal("actionSelect with out-of-bounds cursor must return nil cmd")
+	}
+}
+
+// TestQueueDequeueNoPanicWhenCursorOutOfBounds verifies that the actionDequeue
+// handler in QueueView does not panic when the cursor exceeds the entries slice.
+func TestQueueDequeueNoPanicWhenCursorOutOfBounds(t *testing.T) {
+	q := QueueView{
+		entries: []QueueEntry{
+			{Path: "/a.flac", Display: "A"},
+		},
+		cursor: 5, // out of bounds
+	}
+	// Must not panic.
+	_, cmd := q.HandleAction(actionDequeue)
+	if cmd != nil {
+		t.Fatal("actionDequeue with out-of-bounds cursor must return nil cmd")
+	}
+}
+
+// TestQueueBulkSelectionToggleNoPanicWhenCursorOutOfBounds verifies that the
+// actionBulkSelectionToggle handler does not panic when cursor is out of bounds.
+func TestQueueBulkSelectionToggleNoPanicWhenCursorOutOfBounds(t *testing.T) {
+	q := QueueView{
+		entries: []QueueEntry{
+			{Path: "/a.flac", Display: "A"},
+		},
+		cursor: 5, // out of bounds
+	}
+	// Must not panic.
+	_, cmd := q.HandleAction(actionBulkSelectionToggle)
+	if cmd != nil {
+		t.Fatal("actionBulkSelectionToggle with out-of-bounds cursor must return nil cmd")
+	}
+}

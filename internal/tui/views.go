@@ -164,6 +164,9 @@ func (v PlaylistsView) focusedPlaylist() (db.PlaylistRow, bool) {
 	if len(v.playlists) == 0 || v.level != pltui.ListLevel {
 		return db.PlaylistRow{}, false
 	}
+	if v.cursor < 0 || v.cursor >= len(v.playlists) {
+		return db.PlaylistRow{}, false
+	}
 	return v.playlists[v.cursor], true
 }
 
@@ -246,6 +249,9 @@ func (v PlaylistsView) ensureCursorVisible() PlaylistsView {
 // not at ListLevel.
 func (v PlaylistsView) focusedPlaylistID() (int64, bool) {
 	if len(v.playlists) == 0 || v.level != pltui.ListLevel {
+		return 0, false
+	}
+	if v.cursor < 0 || v.cursor >= len(v.playlists) {
 		return 0, false
 	}
 	return v.playlists[v.cursor].ID, true
@@ -408,17 +414,17 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 			}
 		}
 	case actionSelect:
-		if len(v.entries) > 0 && !v.entries[v.cursor].Missing {
+		if v.cursor >= 0 && v.cursor < len(v.entries) && !v.entries[v.cursor].Missing {
 			idx := v.cursor
 			return v, func() tea.Msg { return PlayQueueIndexMsg{Index: idx} }
 		}
 	case actionDequeue:
-		if len(v.entries) > 0 {
+		if v.cursor >= 0 && v.cursor < len(v.entries) {
 			idx := v.cursor
 			return v, func() tea.Msg { return DequeueTrackMsg{Index: idx} }
 		}
 	case actionBulkSelectionToggle:
-		if len(v.entries) > 0 {
+		if v.cursor >= 0 && v.cursor < len(v.entries) {
 			idx := v.cursor
 			return v, func() tea.Msg { return BulkSelectionToggleMsg{Index: idx} }
 		}

@@ -2155,6 +2155,9 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 				break
 			}
 			idx := m.playlists.cursor
+			if idx < 0 || idx >= len(m.playlists.playlists) {
+				break
+			}
 			entry := m.playlists.playlists[idx]
 			pd := m.playlistDeleter
 			cancel := m.scheduleSoftDelete(
@@ -2193,6 +2196,9 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 				break
 			}
 			idx := m.playlists.cursor
+			if idx < 0 || idx >= len(m.playlists.tracks) {
+				break
+			}
 			entry := m.playlists.tracks[idx]
 			pd := m.playlistDeleter
 			cancel := m.scheduleSoftDelete(

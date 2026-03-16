@@ -931,3 +931,36 @@ func TestPlaylistAddErrorMsgShowsNotification(t *testing.T) {
 		t.Error("notification should expire in the future")
 	}
 }
+
+// TestPlaylistDeleteNoPanicWhenCursorOutOfBounds verifies that
+// actionPlaylistDelete does not panic when the cursor exceeds the playlist
+// slice length (e.g. due to a race between deletion and cursor movement).
+func TestPlaylistDeleteNoPanicWhenCursorOutOfBounds(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	m.playlists.playlists = []db.PlaylistRow{
+		{ID: 1, Name: "A"},
+	}
+	m.playlists.cursor = 5 // out of bounds
+
+	// Must not panic.
+	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	_ = next
+}
+
+// TestPlaylistTrackDeleteNoPanicWhenCursorOutOfBounds verifies that
+// actionPlaylistDelete at track level does not panic when the cursor
+// exceeds the tracks slice length.
+func TestPlaylistTrackDeleteNoPanicWhenCursorOutOfBounds(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	m.playlists.level = pltui.TrackLevel
+	m.playlists.tracks = []db.PlaylistTrackRow{
+		{ID: 1, Title: "A"},
+	}
+	m.playlists.cursor = 5 // out of bounds
+
+	// Must not panic.
+	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	_ = next
+}
