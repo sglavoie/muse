@@ -1814,6 +1814,62 @@ func TestRenumberQueuePositions_SoftDeletedConflict(t *testing.T) {
 	}
 }
 
+// --- PlaylistAdapter ---
+
+func TestPlaylistAdapter_CreateAndReadPlaylists(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+	adapter := db.NewPlaylistAdapter(d, w)
+
+	id, err := adapter.CreatePlaylist("Test Playlist")
+	if err != nil {
+		t.Fatalf("CreatePlaylist: %v", err)
+	}
+	if id <= 0 {
+		t.Errorf("CreatePlaylist: expected positive ID, got %d", id)
+	}
+
+	playlists, err := adapter.ReadPlaylists()
+	if err != nil {
+		t.Fatalf("ReadPlaylists: %v", err)
+	}
+	found := false
+	for _, p := range playlists {
+		if p.Name == "Test Playlist" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("ReadPlaylists: expected to find 'Test Playlist'")
+	}
+}
+
+func TestPlaylistAdapter_RenamePlaylist(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+	adapter := db.NewPlaylistAdapter(d, w)
+
+	id, err := adapter.CreatePlaylist("Old Name")
+	if err != nil {
+		t.Fatalf("CreatePlaylist: %v", err)
+	}
+
+	if err := adapter.RenamePlaylist(id, "New Name"); err != nil {
+		t.Fatalf("RenamePlaylist: %v", err)
+	}
+
+	playlists, err := adapter.ReadPlaylists()
+	if err != nil {
+		t.Fatalf("ReadPlaylists: %v", err)
+	}
+	for _, p := range playlists {
+		if p.ID == id && p.Name != "New Name" {
+			t.Errorf("expected name 'New Name', got %q", p.Name)
+		}
+	}
+}
+
 // --- AppendTracks (batch) ---
 
 func TestAppendTracks_BatchInsert(t *testing.T) {
