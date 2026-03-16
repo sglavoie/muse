@@ -208,7 +208,7 @@ func TestManager_HealthCheckDetectsDisconnect(t *testing.T) {
 		// Handle two ping requests, then close the connection.
 		dec := json.NewDecoder(conn)
 		enc := json.NewEncoder(conn)
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			var req map[string]any
 			if err := dec.Decode(&req); err != nil {
 				break
@@ -515,7 +515,7 @@ func TestManager_AutoRestart(t *testing.T) {
 		}
 		dec := json.NewDecoder(conn)
 		enc := json.NewEncoder(conn)
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			var req map[string]any
 			if err := dec.Decode(&req); err != nil {
 				break
@@ -795,7 +795,6 @@ func TestManager_PlaybackLatency(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			start := time.Now()
 			if err := tc.fn(); err != nil {
@@ -956,7 +955,7 @@ func TestManager_ConnectDisconnectInfoLogs(t *testing.T) {
 		}
 		dec := json.NewDecoder(conn)
 		enc := json.NewEncoder(conn)
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			var req map[string]any
 			if err := dec.Decode(&req); err != nil {
 				break
