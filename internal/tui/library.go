@@ -138,7 +138,7 @@ func (v LibraryView) EnqueueSelected(qa libtui.QueueAppender, prevQueueLen int) 
 		wasEmpty := queueLen == 0
 		queueLen++
 		cmds = append(cmds, func() tea.Msg {
-			id, err := qa.AppendTrack(track)
+			id, err := qa.AppendTrack(track, "")
 			return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty}
 		})
 	}

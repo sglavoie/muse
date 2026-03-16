@@ -61,6 +61,8 @@ const (
 	actionPlaylistBack   // 'esc': return to the playlist list from track level
 	actionPlaylistDelete // 'd': delete focused playlist (list level) or remove focused track (track level)
 
+	actionPlaylistEnqueueAll // 'E': enqueue all tracks from the focused playlist
+
 	// Bulk-selection action — triggered by 'a' when tracks are selected.
 	// actionBulkAction applies in Library (append selected tracks to queue).
 	// actionAddToPlaylist applies in Playlists (add selected tracks to a playlist).
@@ -162,6 +164,7 @@ func newRegistry() Registry {
 	r.register(contextPlaylists, "d", actionPlaylistDelete)
 	r.register(contextPlaylists, "x", actionBulkSelectionToggle)
 	r.register(contextPlaylists, "a", actionAddToPlaylist)
+	r.register(contextPlaylists, "E", actionPlaylistEnqueueAll)
 	r.register(contextPlaylists, "ctrl+d", actionHalfPageDown)
 	r.register(contextPlaylists, "ctrl+u", actionHalfPageUp)
 	r.register(contextPlaylists, "ctrl+f", actionFullPageDown)

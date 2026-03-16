@@ -287,30 +287,37 @@ func (v PlaylistsView) focusedTrack() (musiclib.Track, bool) {
 // play queue via qa. prevQueueLen is used to set WasEmpty on the returned
 // TrackEnqueuedMsg so the root model can trigger immediate playback when needed.
 // Returns nil when the view is not at TrackLevel or no track is focused.
+// The source playlist name is carried through to the DB and TrackEnqueuedMsg.
 func (v PlaylistsView) enqueueFocusedTrack(qa libtui.QueueAppender, prevQueueLen int) tea.Cmd {
 	track, ok := v.focusedTrack()
 	if !ok {
 		return nil
 	}
+	// Determine the source playlist name from the saved list cursor.
+	var playlistName string
+	if v.listCursor >= 0 && v.listCursor < len(v.playlists) {
+		playlistName = v.playlists[v.listCursor].Name
+	}
 	wasEmpty := prevQueueLen == 0
 	return func() tea.Msg {
-		id, err := qa.AppendTrack(track)
-		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty}
+		id, err := qa.AppendTrack(track, playlistName)
+		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, SourcePlaylist: playlistName}
 	}
 }
 
 // QueueEntry holds a single item in the playback queue.
 type QueueEntry struct {
-	ID         int64  // database row ID; 0 when not persisted
-	Path       string // file path used to identify the entry
-	Hash       string // BLAKE3 content hash; used to rebuild player.QueueTrack on undo
-	Display    string // human-readable label, e.g. "Artist – Title"
-	Missing    bool   // true when the file was not found at playback time
-	Artist     string // track artist, used by the status bar persistent left zone
-	Title      string // track title, used by the status bar persistent left zone
-	Selected   bool   // true when the entry is part of a bulk selection
-	DurationMs int64  // track duration in milliseconds from the database
-	Position   int64  // gapped-integer queue position from the database
+	ID             int64  // database row ID; 0 when not persisted
+	Path           string // file path used to identify the entry
+	Hash           string // BLAKE3 content hash; used to rebuild player.QueueTrack on undo
+	Display        string // human-readable label, e.g. "Artist – Title"
+	Missing        bool   // true when the file was not found at playback time
+	Artist         string // track artist, used by the status bar persistent left zone
+	Title          string // track title, used by the status bar persistent left zone
+	Selected       bool   // true when the entry is part of a bulk selection
+	DurationMs     int64  // track duration in milliseconds from the database
+	Position       int64  // gapped-integer queue position from the database
+	SourcePlaylist string // playlist name this entry was enqueued from; empty for individual enqueues
 }
 
 // QueueView renders the playback queue panel.
@@ -443,9 +450,9 @@ func (v QueueView) visibleRows() int {
 	return 50
 }
 
-// render builds the queue panel string using a 4-column layout:
+// render builds the queue panel string using a 5-column layout:
 //
-//	Position (~4 chars fixed) | Title (~40% of width) | Artist (~30% of width) | Duration (~10 chars fixed)
+//	Position (~4 chars fixed) | Title (~35% of width) | Artist (~25% of width) | Source (~15% of width) | Duration (~10 chars fixed)
 //
 // Proportional columns resize on WindowSizeMsg; fixed-width columns are
 // constant. Missing entries are wrapped in ANSI dim escape codes so they
@@ -462,15 +469,20 @@ func (v QueueView) render() string {
 
 	titleWidth := 20 // sensible fallback when width is unknown
 	artistWidth := 15
+	sourceWidth := 10
 	if v.width > 0 {
-		titleWidth = v.width * 40 / 100
-		artistWidth = v.width * 30 / 100
+		titleWidth = v.width * 35 / 100
+		artistWidth = v.width * 25 / 100
+		sourceWidth = v.width * 15 / 100
 	}
 	if titleWidth < 1 {
 		titleWidth = 1
 	}
 	if artistWidth < 1 {
 		artistWidth = 1
+	}
+	if sourceWidth < 1 {
+		sourceWidth = 1
 	}
 
 	maxRows := v.visibleRows()
@@ -496,9 +508,12 @@ func (v QueueView) render() string {
 		artist := truncateTitle(e.Artist, artistWidth)
 		artist = fmt.Sprintf("%-*s", artistWidth, artist)
 
+		source := truncateTitle(e.SourcePlaylist, sourceWidth)
+		source = fmt.Sprintf("%-*s", sourceWidth, source)
+
 		dur := fmt.Sprintf("%-*s", durWidth, formatQueueDuration(e.DurationMs))
 
-		line := pos + " " + title + " " + artist + " " + dur
+		line := pos + " " + title + " " + artist + " " + source + " " + dur
 		if e.Missing {
 			lines[i] = ansiDim + line + " [missing]" + ansiReset
 		} else {

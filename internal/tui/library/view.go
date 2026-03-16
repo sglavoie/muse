@@ -12,8 +12,10 @@ import (
 // must be safe to call from a tea.Cmd goroutine (i.e., they must not hold the
 // main-loop lock). The DB single-writer goroutine satisfies this contract.
 // AppendTrack returns the new queue row ID assigned by the database.
+// sourcePlaylist identifies the playlist the track was enqueued from; pass ""
+// for tracks enqueued individually.
 type QueueAppender interface {
-	AppendTrack(track musiclib.Track) (int64, error)
+	AppendTrack(track musiclib.Track, sourcePlaylist string) (int64, error)
 }
 
 // TrackEnqueuedMsg is returned by the tea.Cmd created by EnqueueFocused when
@@ -21,10 +23,11 @@ type QueueAppender interface {
 // the queue view and, when WasEmpty is true and playback is idle, triggering
 // immediate playback from index 0.
 type TrackEnqueuedMsg struct {
-	Track    musiclib.Track
-	QueueID  int64 // DB-assigned row ID; needed by the player for PlayQueueEntry
-	Err      error
-	WasEmpty bool // true when the queue was empty before this enqueue
+	Track          musiclib.Track
+	QueueID        int64  // DB-assigned row ID; needed by the player for PlayQueueEntry
+	Err            error
+	WasEmpty       bool   // true when the queue was empty before this enqueue
+	SourcePlaylist string // playlist name this track was enqueued from; empty for library enqueues
 }
 
 // ansiAccent / ansiReset wrap text in reverse-video for the focused-row highlight.
@@ -210,7 +213,7 @@ func (v View) EnqueueFocused(qa QueueAppender, prevQueueLen int) (View, tea.Cmd)
 	}
 	wasEmpty := prevQueueLen == 0
 	return v, func() tea.Msg {
-		id, err := qa.AppendTrack(track)
+		id, err := qa.AppendTrack(track, "")
 		return TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty}
 	}
 }

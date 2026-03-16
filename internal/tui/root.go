@@ -109,6 +109,7 @@ const (
 	undoKindClear                      // all tracks removed via ClearQueueMsg
 	undoKindDeletePlaylist             // playlist soft-deleted via actionPlaylistDelete at ListLevel
 	undoKindRemovePlaylistTrack        // track soft-removed via actionPlaylistDelete at TrackLevel
+	undoKindBatchEnqueue               // batch of tracks added via actionPlaylistEnqueueAll
 )
 
 // undoSlot holds the reversible state for the most recent destructive queue
@@ -141,6 +142,11 @@ type undoSlot struct {
 	// RemovePlaylistTrack fields — valid when kind == undoKindRemovePlaylistTrack.
 	removeTrackEntry db.PlaylistTrackRow
 	removeTrackIdx   int
+
+	// BatchEnqueue fields — valid when kind == undoKindBatchEnqueue.
+	batchIDs      []int64 // DB row IDs of all batch-enqueued entries
+	batchCount    int     // number of entries added
+	batchStartIdx int     // index of the first batch entry in queue.entries
 }
 
 // tickMsg is dispatched every second by tickCmd. It drives elapsed-time
@@ -191,6 +197,17 @@ type UndoMsg struct{}
 // FilterBarMsg is dispatched when the user presses '/' to activate the
 // filter bar in the active view.
 type FilterBarMsg struct{}
+
+// BatchEnqueuedMsg carries the result of a batch enqueue operation (all tracks
+// from a playlist). Root handles it by appending all entries to the queue,
+// syncing the player, and setting up the undo slot.
+type BatchEnqueuedMsg struct {
+	Entries      []QueueEntry
+	QueueIDs     []int64
+	WasEmpty     bool
+	PlaylistName string
+	Err          error
+}
 
 // playlistTracksLoadedMsg carries the result of a background ReadPlaylistTracks
 // call initiated by actionPlaylistOpen. Root handles it by transitioning the
@@ -330,6 +347,15 @@ type playlistDeleter interface {
 	PurgeDeletedPlaylistTracks(before int64) error
 }
 
+// batchEnqueuer supports batch enqueue operations and their undo. Root uses it
+// when the user presses 'E' in the playlists view to enqueue all tracks from a
+// playlist, and when undoing a batch enqueue. When nil, the 'E' keybinding is
+// a no-op.
+type batchEnqueuer interface {
+	AppendTracks(tracks []library.Track, sourcePlaylist string) ([]int64, error)
+	DequeueTracksSoft(ids []int64) error
+}
+
 // playlistTrackAdder appends tracks to a playlist by hash. Root uses it when
 // the user confirms a destination-picker modal selection pointing to a playlist.
 // When nil, the playlist append path of the destination picker is a no-op.
@@ -428,6 +454,7 @@ type Model struct {
 	playlistRenamer playlistRenamer         // may be nil; set via SetPlaylistRenamer
 	playlistDeleter  playlistDeleter         // may be nil; set via SetPlaylistDeleter
 	playlistAdder    playlistTrackAdder      // may be nil; set via SetPlaylistAdder
+	batchEnqueuer    batchEnqueuer           // may be nil; set via SetBatchEnqueuer
 
 	// destPicker is non-nil while the destination picker modal is open.
 	// Root dispatches all keypresses to the modal while it is open.
@@ -566,6 +593,23 @@ func (m *Model) SetPlaylists(rows []db.PlaylistRow) {
 	m.playlists.playlists = rows
 }
 
+// SetLibraryTracks pre-populates the library index from cached tracks loaded
+// from the database. Call this on the Model returned by New before passing it
+// to tea.NewProgram to show the full library immediately on first render
+// without waiting for the scan pipeline to complete.
+func (m *Model) SetLibraryTracks(tracks []library.Track) {
+	m.library.index.BulkLoad(tracks)
+	m.scanned = len(tracks)
+	m.scanTotal = len(tracks)
+}
+
+// RemoveLibraryTrackByPath removes a track from the in-memory library index
+// by its file path. Call this before starting the TUI to evict deleted files
+// discovered during the diff scan setup phase.
+func (m *Model) RemoveLibraryTrackByPath(path string) {
+	m.library.index.RemoveByPath(path)
+}
+
 // SetPlaylistTrackReader sets the playlistTrackReader used to load tracks when
 // the user opens a playlist. Call this on the Model returned by New before
 // passing it to tea.NewProgram. When nil, actionPlaylistOpen is a no-op.
@@ -606,6 +650,14 @@ func (m *Model) SetPlaylistDeleter(d playlistDeleter) {
 // nothing).
 func (m *Model) SetPlaylistAdder(a playlistTrackAdder) {
 	m.playlistAdder = a
+}
+
+// SetBatchEnqueuer sets the batchEnqueuer used to batch-insert tracks into the
+// queue when the user presses 'E' in the playlists view and to batch soft-delete
+// on undo. Call this on the Model returned by New before passing it to
+// tea.NewProgram. When nil, 'E' in the playlists view is a no-op.
+func (m *Model) SetBatchEnqueuer(be batchEnqueuer) {
+	m.batchEnqueuer = be
 }
 
 // undoWindowDuration is the time after a destructive queue action during which
@@ -906,13 +958,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			display = msg.Track.Artist
 		}
 		m.queue.entries = append(m.queue.entries, QueueEntry{
-			ID:         msg.QueueID,
-			Path:       msg.Track.Path,
-			Hash:       msg.Track.Hash,
-			Display:    display,
-			Artist:     msg.Track.Artist,
-			Title:      msg.Track.Title,
-			DurationMs: int64(msg.Track.Duration * 1000),
+			ID:             msg.QueueID,
+			Path:           msg.Track.Path,
+			Hash:           msg.Track.Hash,
+			Display:        display,
+			Artist:         msg.Track.Artist,
+			Title:          msg.Track.Title,
+			DurationMs:     int64(msg.Track.Duration * 1000),
+			SourcePlaylist: msg.SourcePlaylist,
 		})
 		// Keep the player's in-memory queue in sync.
 		if pa, ok := m.player.(playerQueueAppender); ok {
@@ -949,6 +1002,65 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.statusBar.title = msg.Track.Title
 				m.statusBar.playlistSource = "Queue"
 			}
+		}
+
+	case BatchEnqueuedMsg:
+		if msg.Err != nil {
+			m.statusBar.notification = transientNotification{
+				msg:       "Failed to enqueue playlist: " + msg.Err.Error(),
+				expiresAt: time.Now().Add(transientDuration),
+			}
+			break
+		}
+		if len(msg.Entries) == 0 {
+			m.statusBar.notification = transientNotification{
+				msg:       "Playlist is empty",
+				expiresAt: time.Now().Add(transientDuration),
+			}
+			break
+		}
+		batchStartIdx := len(m.queue.entries)
+		m.queue.entries = append(m.queue.entries, msg.Entries...)
+		// Keep the player's in-memory queue in sync.
+		if pa, ok := m.player.(playerQueueAppender); ok {
+			for _, e := range msg.Entries {
+				pa.AppendToQueue(player.QueueTrack{
+					Path:    e.Path,
+					Hash:    e.Hash,
+					QueueID: e.ID,
+					Artist:  e.Artist,
+					Title:   e.Title,
+				})
+			}
+		}
+		// Trigger immediate playback when the queue was previously empty.
+		if msg.WasEmpty && m.playbackState == PlaybackIdle && m.player != nil {
+			if err := m.player.PlayFromIndex(0); err == nil {
+				m.playbackState = PlaybackPlaying
+				e := msg.Entries[0]
+				m.statusBar.artist = e.Artist
+				m.statusBar.title = e.Title
+				m.statusBar.playlistSource = msg.PlaylistName
+			}
+		}
+		// Set up undo slot.
+		if m.undoSlot.cancelPurge != nil {
+			close(m.undoSlot.cancelPurge)
+		}
+		m.undoSlot = undoSlot{
+			kind:          undoKindBatchEnqueue,
+			expiresAt:     time.Now().Add(undoWindowDuration),
+			batchIDs:      msg.QueueIDs,
+			batchCount:    len(msg.Entries),
+			batchStartIdx: batchStartIdx,
+		}
+		noun := "tracks"
+		if len(msg.Entries) == 1 {
+			noun = "track"
+		}
+		m.statusBar.notification = transientNotification{
+			msg:       fmt.Sprintf("Added %d %s from %s — press u to undo", len(msg.Entries), noun, msg.PlaylistName),
+			expiresAt: time.Now().Add(undoWindowDuration),
 		}
 
 	case PlayQueueIndexMsg:
@@ -1145,6 +1257,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					copy(tracks[idx+1:], m.playlists.tracks[idx:])
 					m.playlists.tracks = tracks
 					m.playlists.cursor = idx
+				case undoKindBatchEnqueue:
+					// Soft-delete all batch-enqueued entries from the DB.
+					if m.batchEnqueuer != nil {
+						_ = m.batchEnqueuer.DequeueTracksSoft(m.undoSlot.batchIDs)
+					}
+					// Splice the batch entries out of the TUI queue.
+					startIdx := m.undoSlot.batchStartIdx
+					endIdx := startIdx + m.undoSlot.batchCount
+					if endIdx > len(m.queue.entries) {
+						endIdx = len(m.queue.entries)
+					}
+					if startIdx < len(m.queue.entries) {
+						m.queue.entries = append(m.queue.entries[:startIdx], m.queue.entries[endIdx:]...)
+					}
+					if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
+						m.queue.cursor = len(m.queue.entries) - 1
+					}
+					// Remove corresponding entries from the player queue.
+					if qr, ok := m.player.(playerQueueRemover); ok {
+						// Remove in reverse order so indices stay valid.
+						for i := endIdx - 1; i >= startIdx; i-- {
+							_ = qr.RemoveFromQueue(i)
+						}
+					}
 			}
 			// Cancel the background purge — the undo restored deleted_at to
 			// NULL, so a stale purge would have been a no-op anyway, but
@@ -1530,6 +1666,81 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if !m.playlists.atListLevel() {
 				m.playlists = m.playlists.backToList()
 			}
+		case actionPlaylistEnqueueAll:
+			if m.batchEnqueuer == nil || m.playlistReader == nil {
+				break
+			}
+			// Determine playlist ID and name based on the current level.
+			var pid int64
+			var playlistName string
+			if m.playlists.atListLevel() {
+				pl, ok := m.playlists.focusedPlaylist()
+				if !ok {
+					break
+				}
+				pid = pl.ID
+				playlistName = pl.Name
+			} else {
+				// At TrackLevel — use the saved list cursor.
+				if m.playlists.listCursor < 0 || m.playlists.listCursor >= len(m.playlists.playlists) {
+					break
+				}
+				pid = m.playlists.playlists[m.playlists.listCursor].ID
+				playlistName = m.playlists.playlists[m.playlists.listCursor].Name
+			}
+			reader := m.playlistReader
+			be := m.batchEnqueuer
+			wasEmpty := len(m.queue.entries) == 0
+			return m, func() tea.Msg {
+				rows, err := reader.ReadPlaylistTracks(pid)
+				if err != nil {
+					return BatchEnqueuedMsg{Err: err}
+				}
+				if len(rows) == 0 {
+					return BatchEnqueuedMsg{PlaylistName: playlistName}
+				}
+				tracks := make([]library.Track, len(rows))
+				for i, r := range rows {
+					tracks[i] = library.Track{
+						Hash:     r.Hash,
+						Path:     r.Path,
+						Artist:   r.Artist,
+						Title:    r.Title,
+						Duration: float64(r.DurationMs) / 1000,
+					}
+				}
+				ids, err := be.AppendTracks(tracks, playlistName)
+				if err != nil {
+					return BatchEnqueuedMsg{Err: err}
+				}
+				entries := make([]QueueEntry, len(tracks))
+				for i, t := range tracks {
+					display := t.Artist + " – " + t.Title
+					if t.Artist == "" && t.Title == "" {
+						display = t.Path
+					} else if t.Artist == "" {
+						display = t.Title
+					} else if t.Title == "" {
+						display = t.Artist
+					}
+					entries[i] = QueueEntry{
+						ID:             ids[i],
+						Path:           t.Path,
+						Hash:           t.Hash,
+						Display:        display,
+						Artist:         t.Artist,
+						Title:          t.Title,
+						DurationMs:     int64(t.Duration * 1000),
+						SourcePlaylist: playlistName,
+					}
+				}
+				return BatchEnqueuedMsg{
+					Entries:      entries,
+					QueueIDs:     ids,
+					WasEmpty:     wasEmpty,
+					PlaylistName: playlistName,
+				}
+			}
 		case actionAddToPlaylist:
 			// At TrackLevel with a non-empty bulk selection: remove all selected
 			// tracks from the playlist, then clear the selection markers.
@@ -1741,7 +1952,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					wasEmpty := queueLen+i == 0
 					qa := m.queueWriter
 					cmds = append(cmds, func() tea.Msg {
-						id, err := qa.AppendTrack(track)
+						id, err := qa.AppendTrack(track, "")
 						return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty}
 					})
 				}

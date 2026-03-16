@@ -9,18 +9,55 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// TrackRow holds a single row from the tracks table. Used by ReadTracks to
+// return all cached tracks for pre-populating the library on startup.
+type TrackRow struct {
+	Hash       string
+	Path       string
+	Title      string
+	Artist     string
+	Album      string
+	DurationMs int64
+	SizeBytes  int64
+	ModTime    int64
+}
+
+// ReadTracks returns all non-missing tracks from the tracks table. Returns an
+// empty slice (not an error) when the table is empty.
+func (d *DB) ReadTracks() ([]TrackRow, error) {
+	rows, err := d.Query(`
+		SELECT hash, path, title, artist, album, duration_ms, size_bytes, mod_time
+		FROM tracks WHERE missing = 0
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("db: read tracks: %w", err)
+	}
+	defer rows.Close()
+
+	var result []TrackRow
+	for rows.Next() {
+		var r TrackRow
+		if err := rows.Scan(&r.Hash, &r.Path, &r.Title, &r.Artist, &r.Album, &r.DurationMs, &r.SizeBytes, &r.ModTime); err != nil {
+			return nil, fmt.Errorf("db: read track row: %w", err)
+		}
+		result = append(result, r)
+	}
+	return result, rows.Err()
+}
+
 // QueueRow holds a single queue entry joined with its track metadata.
 // Used by ReadQueue to return typed results that callers convert into
 // player.QueueTrack and tui.QueueEntry slices.
 type QueueRow struct {
-	ID         int64
-	Hash       string
-	Path       string
-	Artist     string
-	Title      string
-	Missing    bool
-	DurationMs int64
-	Position   int64
+	ID             int64
+	Hash           string
+	Path           string
+	Artist         string
+	Title          string
+	Missing        bool
+	DurationMs     int64
+	Position       int64
+	SourcePlaylist string
 }
 
 // SessionRow holds the persisted session state from the single session row.
@@ -70,7 +107,7 @@ func Open(path string) (*DB, error) {
 func (d *DB) ReadQueue() ([]QueueRow, error) {
 	rows, err := d.Query(`
 		SELECT q.id, t.hash, t.path, t.artist, t.title, q.missing,
-		       t.duration_ms, q.position
+		       t.duration_ms, q.position, q.source_playlist
 		FROM queue q
 		JOIN tracks t ON q.track_hash = t.hash
 		WHERE q.deleted_at IS NULL
@@ -85,7 +122,7 @@ func (d *DB) ReadQueue() ([]QueueRow, error) {
 	for rows.Next() {
 		var r QueueRow
 		var missing int
-		if err := rows.Scan(&r.ID, &r.Hash, &r.Path, &r.Artist, &r.Title, &missing, &r.DurationMs, &r.Position); err != nil {
+		if err := rows.Scan(&r.ID, &r.Hash, &r.Path, &r.Artist, &r.Title, &missing, &r.DurationMs, &r.Position, &r.SourcePlaylist); err != nil {
 			return nil, fmt.Errorf("db: read queue row: %w", err)
 		}
 		r.Missing = missing != 0

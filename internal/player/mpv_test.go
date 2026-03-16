@@ -622,7 +622,7 @@ func TestManager_AutoRestart(t *testing.T) {
 		foundLoadfile = true
 		hasStart := false
 		for _, arg := range args {
-			if s, ok := arg.(string); ok && s == wantStart {
+			if s, ok := arg.(string); ok && strings.Contains(s, wantStart) {
 				hasStart = true
 				break
 			}

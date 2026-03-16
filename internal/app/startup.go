@@ -275,15 +275,16 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 			}
 		}
 		tuiEntries = append(tuiEntries, tui.QueueEntry{
-			ID:         r.ID,
-			Path:       r.Path,
-			Hash:       r.Hash,
-			Display:    buildDisplay(r.Artist, r.Title, r.Path),
-			Missing:    missing,
-			Artist:     r.Artist,
-			Title:      r.Title,
-			DurationMs: r.DurationMs,
-			Position:   r.Position,
+			ID:             r.ID,
+			Path:           r.Path,
+			Hash:           r.Hash,
+			Display:        buildDisplay(r.Artist, r.Title, r.Path),
+			Missing:        missing,
+			Artist:         r.Artist,
+			Title:          r.Title,
+			DurationMs:     r.DurationMs,
+			Position:       r.Position,
+			SourcePlaylist: r.SourcePlaylist,
 		})
 		playerTracks = append(playerTracks, player.QueueTrack{
 			Path:    r.Path,

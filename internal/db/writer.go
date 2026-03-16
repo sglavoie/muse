@@ -116,14 +116,16 @@ func (w *Writer) run(ctx context.Context) {
 // position (MAX(position)+1000) and returns the new row's ID. The track must
 // already exist in the tracks table (i.e., it was previously scanned).
 // Duplicate queue entries for the same track hash are accepted without error.
-func (w *Writer) AppendTrack(track library.Track) (int64, error) {
+// sourcePlaylist identifies the playlist the track was enqueued from; pass ""
+// for tracks enqueued individually (e.g. from the library view).
+func (w *Writer) AppendTrack(track library.Track, sourcePlaylist string) (int64, error) {
 	var id int64
 	err := w.Exec(func(db *sql.DB) error {
 		now := time.Now().Unix()
 		res, err := db.Exec(`
-			INSERT INTO queue (track_hash, position, added_at)
-			VALUES (?, COALESCE((SELECT MAX(position) FROM queue), 0) + 1000, ?)`,
-			track.Hash, now,
+			INSERT INTO queue (track_hash, position, added_at, source_playlist)
+			VALUES (?, COALESCE((SELECT MAX(position) FROM queue), 0) + 1000, ?, ?)`,
+			track.Hash, now, sourcePlaylist,
 		)
 		if err != nil {
 			return err
@@ -132,6 +134,72 @@ func (w *Writer) AppendTrack(track library.Track) (int64, error) {
 		return err
 	})
 	return id, err
+}
+
+// AppendTracks batch-inserts tracks at the end of the play queue inside a
+// single transaction. Each row gets source_playlist set to sourcePlaylist.
+// Returns a slice of new row IDs in the same order as the input tracks.
+func (w *Writer) AppendTracks(tracks []library.Track, sourcePlaylist string) ([]int64, error) {
+	if len(tracks) == 0 {
+		return nil, nil
+	}
+	var ids []int64
+	err := w.Exec(func(db *sql.DB) error {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback() //nolint:errcheck
+
+		var maxPos int64
+		if err := tx.QueryRow(
+			`SELECT COALESCE(MAX(position), 0) FROM queue`,
+		).Scan(&maxPos); err != nil {
+			return err
+		}
+
+		now := time.Now().Unix()
+		for _, t := range tracks {
+			maxPos += 1000
+			res, err := tx.Exec(
+				`INSERT INTO queue (track_hash, position, added_at, source_playlist) VALUES (?, ?, ?, ?)`,
+				t.Hash, maxPos, now, sourcePlaylist,
+			)
+			if err != nil {
+				return err
+			}
+			id, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			ids = append(ids, id)
+		}
+		return tx.Commit()
+	})
+	return ids, err
+}
+
+// DequeueTracksSoft batch soft-deletes all queue entries identified by ids
+// by setting their deleted_at timestamp inside a single transaction.
+func (w *Writer) DequeueTracksSoft(ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return w.Exec(func(db *sql.DB) error {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback() //nolint:errcheck
+
+		now := time.Now().Unix()
+		for _, id := range ids {
+			if _, err := tx.Exec(`UPDATE queue SET deleted_at=? WHERE id=?`, now, id); err != nil {
+				return err
+			}
+		}
+		return tx.Commit()
+	})
 }
 
 // MarkTrackMissing sets missing=1 on the tracks row identified by hash and
@@ -712,9 +780,8 @@ func (w *Writer) PurgeDeletedPlaylistTracks(before int64) error {
 // using an INSERT … ON CONFLICT(hash) DO UPDATE so that existing rows are
 // updated in place without cascading deletes on their FK dependants (queue,
 // playlist_tracks). created_at is preserved on conflict; all other fields are
-// updated to the values supplied by the scanner. size_bytes is stored as 0
-// because the Track type does not carry the file size. Duration is converted
-// from seconds (float64) to milliseconds (int64).
+// updated to the values supplied by the scanner. Duration is converted from
+// seconds (float64) to milliseconds (int64).
 // UpsertBatch is a no-op when tracks is empty.
 func (w *Writer) UpsertBatch(tracks []library.Track) error {
 	if len(tracks) == 0 {
@@ -731,16 +798,18 @@ func (w *Writer) UpsertBatch(tracks []library.Track) error {
 		for _, t := range tracks {
 			durationMs := int64(t.Duration * 1000)
 			_, err := tx.Exec(`
-				INSERT INTO tracks (hash, path, title, artist, album, duration_ms, size_bytes, created_at, updated_at)
-				VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
+				INSERT INTO tracks (hash, path, title, artist, album, duration_ms, size_bytes, mod_time, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				ON CONFLICT(hash) DO UPDATE SET
 					path        = excluded.path,
 					title       = excluded.title,
 					artist      = excluded.artist,
 					album       = excluded.album,
 					duration_ms = excluded.duration_ms,
+					size_bytes  = excluded.size_bytes,
+					mod_time    = excluded.mod_time,
 					updated_at  = excluded.updated_at`,
-				t.Hash, t.Path, t.Title, t.Artist, t.Album, durationMs, now, now,
+				t.Hash, t.Path, t.Title, t.Artist, t.Album, durationMs, t.SizeBytes, t.ModTime, now, now,
 			)
 			if err != nil {
 				return err

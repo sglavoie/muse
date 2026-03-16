@@ -121,15 +121,40 @@ func main() {
 
 	extractor := library.ExifToolExtractor{}
 
-	// Bridge the scan pipeline to both the tracks table and the TUI.
-	// rawScanCh carries individual Track values from the scanner goroutines.
-	// tuiScanCh is a forwarding channel that the TUI reads via waitForNextBatch;
-	// it is buffered so the bridge goroutine does not stall when the TUI is busy.
-	// Tracks are accumulated into batches of upsertBatchSize before being
-	// committed through the single-writer goroutine, ensuring FK constraints on
-	// queue and playlist_tracks are satisfied for all subsequent DB operations.
+	// Load the cached library from the database for instant startup display.
+	dbTracks, err := result.DB.ReadTracks()
+	if err != nil {
+		slog.Warn("startup: read tracks from DB", "err", err)
+	}
+
+	// Build the library track slice and known-file map for the diff scan.
+	libraryTracks := make([]library.Track, len(dbTracks))
+	known := make(map[string]library.KnownFile, len(dbTracks))
+	for i, row := range dbTracks {
+		libraryTracks[i] = library.Track{
+			Hash:      row.Hash,
+			Path:      row.Path,
+			Title:     row.Title,
+			Artist:    row.Artist,
+			Album:     row.Album,
+			Duration:  float64(row.DurationMs) / 1000.0,
+			ModTime:   row.ModTime,
+			SizeBytes: row.SizeBytes,
+		}
+		known[row.Path] = library.KnownFile{
+			ModTime:   row.ModTime,
+			SizeBytes: row.SizeBytes,
+		}
+	}
+
+	// Diff scan: walk the filesystem and only process files that are new or
+	// have changed since the last scan. Deletions are returned synchronously.
 	const upsertBatchSize = 500
-	rawScanCh := library.Scan(cfg.MusicDirectory, extractor)
+	rawScanCh, deletedPaths := library.DiffScan(cfg.MusicDirectory, extractor, known)
+
+	// Bridge new/changed tracks to both the DB and the TUI scan channel.
+	// tuiScanCh is buffered so the bridge goroutine does not stall when the
+	// TUI is busy processing messages.
 	tuiScanCh := make(chan library.Track, 256)
 	go func() {
 		defer close(tuiScanCh)
@@ -169,6 +194,7 @@ func main() {
 	model.SetPlaylistDeleter(result.Writer)
 	model.SetPlaylistAdder(result.Writer)
 	model.SetQueueReorderer(result.Writer)
+	model.SetBatchEnqueuer(result.Writer)
 
 	// setQueue keeps the player Manager and the TUI QueueView in sync.
 	// IMPORTANT: this helper MUST be called any time the queue is mutated
@@ -180,6 +206,24 @@ func main() {
 		model.SetQueueEntries(te)
 	}
 	setQueue(restored.PlayerTracks, restored.QueueEntries)
+
+	// Pre-populate the library with cached tracks for instant display.
+	model.SetLibraryTracks(libraryTracks)
+
+	// Evict deleted files from the library index before the TUI starts.
+	// Build a path→hash lookup from cached tracks to mark them missing in the DB.
+	hashByPath := make(map[string]string, len(libraryTracks))
+	for _, t := range libraryTracks {
+		hashByPath[t.Path] = t.Hash
+	}
+	for _, path := range deletedPaths {
+		model.RemoveLibraryTrackByPath(path)
+		if hash, ok := hashByPath[path]; ok {
+			if err := result.Writer.MarkTrackMissing(hash); err != nil {
+				slog.Warn("startup: mark deleted track missing", "path", path, "err", err)
+			}
+		}
+	}
 
 	if playlists, err := result.DB.ReadPlaylists(); err == nil {
 		model.SetPlaylists(playlists)

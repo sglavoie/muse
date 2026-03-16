@@ -42,6 +42,17 @@ func (idx *LibraryIndex) Insert(t Track) {
 	idx.tracks[pos] = t
 }
 
+// BulkLoad replaces the index contents with the given tracks and sorts once.
+// It is O(N log N) vs N binary-search inserts, making it suitable for
+// pre-populating the index from the database cache on startup.
+func (idx *LibraryIndex) BulkLoad(tracks []Track) {
+	idx.tracks = make([]Track, len(tracks))
+	copy(idx.tracks, tracks)
+	sort.Slice(idx.tracks, func(i, j int) bool {
+		return less(idx.tracks[i], idx.tracks[j])
+	})
+}
+
 // RemoveByPath removes the first track whose Path equals path.
 // Returns true if a track was found and removed, false otherwise.
 func (idx *LibraryIndex) RemoveByPath(path string) bool {

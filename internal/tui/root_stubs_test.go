@@ -158,7 +158,7 @@ type stubQueueAppender struct {
 	tracks []library.Track
 }
 
-func (s *stubQueueAppender) AppendTrack(t library.Track) (int64, error) {
+func (s *stubQueueAppender) AppendTrack(t library.Track, _ string) (int64, error) {
 	s.tracks = append(s.tracks, t)
 	return int64(len(s.tracks)), nil
 }

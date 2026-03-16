@@ -36,11 +36,11 @@ func (e ExifToolExtractor) Extract(files []HashedFile) ([]Track, error) {
 		return nil, nil
 	}
 
-	hashByPath := make(map[string]string, len(files))
+	fileByPath := make(map[string]HashedFile, len(files))
 	paths := make([]string, len(files))
 	for i, f := range files {
 		paths[i] = f.Path
-		hashByPath[f.Path] = f.Hash
+		fileByPath[f.Path] = f
 	}
 
 	args := make([]string, 0, 5+len(paths))
@@ -59,13 +59,16 @@ func (e ExifToolExtractor) Extract(files []HashedFile) ([]Track, error) {
 
 	tracks := make([]Track, 0, len(records))
 	for _, r := range records {
+		hf := fileByPath[r.SourceFile]
 		tracks = append(tracks, Track{
-			Path:     r.SourceFile,
-			Hash:     hashByPath[r.SourceFile],
-			Artist:   r.Artist,
-			Title:    r.Title,
-			Album:    r.Album,
-			Duration: r.Duration,
+			Path:      r.SourceFile,
+			Hash:      hf.Hash,
+			Artist:    r.Artist,
+			Title:     r.Title,
+			Album:     r.Album,
+			Duration:  r.Duration,
+			ModTime:   hf.ModTime,
+			SizeBytes: hf.SizeBytes,
 		})
 	}
 	return tracks, nil
@@ -92,10 +95,12 @@ func extractWithBinaryRetry(extractor MetadataExtractor, files []HashedFile) []T
 		ext := filepath.Ext(base)
 		stem := base[:len(base)-len(ext)]
 		return []Track{{
-			Path:   files[0].Path,
-			Hash:   files[0].Hash,
-			Artist: "Unknown Artist",
-			Title:  stem,
+			Path:      files[0].Path,
+			Hash:      files[0].Hash,
+			Artist:    "Unknown Artist",
+			Title:     stem,
+			ModTime:   files[0].ModTime,
+			SizeBytes: files[0].SizeBytes,
 		}}
 	}
 	mid := len(files) / 2

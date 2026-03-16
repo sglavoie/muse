@@ -12,10 +12,12 @@ import (
 	"github.com/zeebo/blake3"
 )
 
-// HashedFile pairs a file path with its BLAKE3 fingerprint.
+// HashedFile pairs a file path with its BLAKE3 fingerprint and file stat info.
 type HashedFile struct {
-	Path string
-	Hash string
+	Path      string
+	Hash      string
+	ModTime   int64 // Unix timestamp of last modification
+	SizeBytes int64 // file size in bytes
 }
 
 // HashWorkers spawns runtime.NumCPU() goroutines that consume file paths from
@@ -40,7 +42,12 @@ func hashWorkersN(n int, in <-chan string, hashFn func(string) (string, error)) 
 				if err != nil {
 					continue
 				}
-				out <- HashedFile{Path: path, Hash: hash}
+				hf := HashedFile{Path: path, Hash: hash}
+				if info, statErr := os.Stat(path); statErr == nil {
+					hf.ModTime = info.ModTime().Unix()
+					hf.SizeBytes = info.Size()
+				}
+				out <- hf
 				slog.Debug("track hashed", "path", path, "hash", hash)
 			}
 		})

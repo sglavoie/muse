@@ -1599,7 +1599,7 @@ func TestUpsertBatch(t *testing.T) {
 	// AppendTrack must not fail with a FK constraint error now that the track
 	// exists in the tracks table. Before UpsertBatch was wired, this would
 	// return "FOREIGN KEY constraint failed".
-	if _, err := w.AppendTrack(tracks[0]); err != nil {
+	if _, err := w.AppendTrack(tracks[0], ""); err != nil {
 		t.Errorf("AppendTrack after UpsertBatch: %v", err)
 	}
 }
@@ -1617,7 +1617,7 @@ func TestUpsertBatch_Idempotent(t *testing.T) {
 	}
 
 	// Enqueue the track so we can verify the FK row survives the second upsert.
-	queueID, err := w.AppendTrack(original)
+	queueID, err := w.AppendTrack(original, "")
 	if err != nil {
 		t.Fatalf("AppendTrack: %v", err)
 	}

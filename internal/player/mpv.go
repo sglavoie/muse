@@ -734,7 +734,7 @@ func (m *Manager) loadFileAt(path string, elapsed float64) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.SendCommand("loadfile", path, "replace", 0, fmt.Sprintf("start=%g", elapsed))
+	_, err = c.SendCommand("loadfile", path, "replace", 0, fmt.Sprintf("start=%g,pause=no", elapsed))
 	return err
 }
 
@@ -879,7 +879,7 @@ func (m *Manager) PlayQueueEntry(entry QueueTrack, marker MissingMarker) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.SendCommand("loadfile", entry.Path, "replace")
+	_, err = c.SendCommand("loadfile", entry.Path, "replace", 0, "pause=no")
 	return err
 }
 

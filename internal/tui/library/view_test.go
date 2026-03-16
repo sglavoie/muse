@@ -17,7 +17,7 @@ type fakeQueueAppender struct {
 	err    error
 }
 
-func (f *fakeQueueAppender) AppendTrack(t musiclib.Track) (int64, error) {
+func (f *fakeQueueAppender) AppendTrack(t musiclib.Track, _ string) (int64, error) {
 	if f.err != nil {
 		return 0, f.err
 	}
