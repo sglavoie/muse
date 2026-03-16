@@ -19,6 +19,14 @@ func (v View) AppendFilterChar(ch rune) View {
 	return v
 }
 
+// CommitFilter deactivates the filter bar input while keeping the current
+// FilterText so the filtered results remain visible. Use this when the user
+// confirms the query (Enter or /) and wants to navigate the filtered list.
+func (v View) CommitFilter() View {
+	v.FilterActive = false
+	return v
+}
+
 // DeactivateFilter clears the filter query, deactivates the filter bar, and
 // resets the cursor to 0, restoring the full unfiltered track list.
 func (v View) DeactivateFilter() View {

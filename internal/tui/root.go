@@ -104,6 +104,7 @@ type undoKind uint8
 
 const (
 	undoNone                  undoKind = iota
+	undoKindEnqueue                    // single track added via TrackEnqueuedMsg
 	undoKindDequeue                    // single track removed via DequeueTrackMsg
 	undoKindClear                      // all tracks removed via ClearQueueMsg
 	undoKindDeletePlaylist             // playlist soft-deleted via actionPlaylistDelete at ListLevel
@@ -857,7 +858,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.statusBar.handleMissingTrack(msg.Path)
 
 	case FilterBarMsg:
-		m.library = m.library.ActivateFilter()
+		if m.library.filterActive {
+			m.library = m.library.CommitFilter()
+		} else {
+			m.library = m.library.ActivateFilter()
+		}
 
 	case PlaybackEndedMsg:
 		m.playbackState = PlaybackIdle
@@ -918,6 +923,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				Artist:  msg.Track.Artist,
 				Title:   msg.Track.Title,
 			})
+		}
+		// Set up undo slot so the user can revert the enqueue.
+		enqueueIdx := len(m.queue.entries) - 1
+		if m.undoSlot.cancelPurge != nil {
+			close(m.undoSlot.cancelPurge)
+		}
+		m.undoSlot = undoSlot{
+			kind:         undoKindEnqueue,
+			expiresAt:    time.Now().Add(undoWindowDuration),
+			dequeueID:    msg.QueueID,
+			dequeueEntry: m.queue.entries[enqueueIdx],
+			dequeueIdx:   enqueueIdx,
+		}
+		m.statusBar.notification = transientNotification{
+			msg:       "Added " + display + " — press u to undo",
+			expiresAt: time.Now().Add(undoWindowDuration),
 		}
 		// Trigger immediate playback when the queue was previously empty and
 		// nothing is playing.
@@ -1059,6 +1080,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case UndoMsg:
 		if m.undoSlot.kind != undoNone && time.Now().Before(m.undoSlot.expiresAt) {
 			switch m.undoSlot.kind {
+			case undoKindEnqueue:
+				idx := m.undoSlot.dequeueIdx
+				if idx >= 0 && idx < len(m.queue.entries) {
+					entry := m.queue.entries[idx]
+					if m.undoer != nil {
+						_ = m.undoer.DequeueTrackSoft(entry.ID)
+						undoer := m.undoer
+						softDeleteTime := time.Now().Unix()
+						time.AfterFunc(undoWindowDuration, func() {
+							_ = undoer.PurgeDeletedQueueEntries(softDeleteTime + 1)
+						})
+					}
+					m.queue.entries = append(m.queue.entries[:idx], m.queue.entries[idx+1:]...)
+					if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
+						m.queue.cursor = len(m.queue.entries) - 1
+					}
+					if qr, ok := m.player.(playerQueueRemover); ok {
+						_ = qr.RemoveFromQueue(idx)
+					}
+				}
 			case undoKindDequeue:
 				if m.undoer != nil {
 					_ = m.undoer.UndoDequeue(m.undoSlot.dequeueID)
@@ -1181,6 +1222,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "esc":
 				m.library = m.library.DeactivateFilter()
+			case "enter", "/":
+				m.library = m.library.CommitFilter()
 			case "backspace":
 				m.library = m.library.BackspaceFilter()
 			default:

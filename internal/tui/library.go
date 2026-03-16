@@ -10,15 +10,16 @@ import (
 
 // LibraryView renders the music library panel backed by a sorted LibraryIndex.
 type LibraryView struct {
-	index          library.LibraryIndex
-	width          int
-	height         int
-	cursor         int // zero-based index of the focused track row
-	scrollOffset   int // first visible track index
-	filterActive   bool
-	filterText     string
-	fuzzy          library.FuzzySearcher
-	selectedHashes map[string]struct{} // bulk-selected track hashes
+	index           library.LibraryIndex
+	width           int
+	height          int
+	cursor          int // zero-based index of the focused track row
+	scrollOffset    int // first visible track index
+	filterActive    bool
+	filterText      string
+	filteredMatches []library.Match // cached result of the last fuzzy search
+	fuzzy           library.FuzzySearcher
+	selectedHashes  map[string]struct{} // bulk-selected track hashes
 }
 
 // render returns a string representation of the library panel with proportional
@@ -30,16 +31,29 @@ func (v LibraryView) render() string {
 // view returns a fully-populated libtui.View from the current LibraryView state.
 func (v LibraryView) view() libtui.View {
 	return libtui.View{
-		Index:          v.index,
-		Width:          v.width,
-		Height:         v.height,
-		Cursor:         v.cursor,
-		ScrollOffset:   v.scrollOffset,
-		FilterActive:   v.filterActive,
-		FilterText:     v.filterText,
-		Fuzzy:          v.fuzzy,
-		SelectedHashes: v.selectedHashes,
+		Index:           v.index,
+		Width:           v.width,
+		Height:          v.height,
+		Cursor:          v.cursor,
+		ScrollOffset:    v.scrollOffset,
+		FilterActive:    v.filterActive,
+		FilterText:      v.filterText,
+		FilteredMatches: v.filteredMatches,
+		Fuzzy:           v.fuzzy,
+		SelectedHashes:  v.selectedHashes,
 	}
+}
+
+// rebuildFilterCache recomputes filteredMatches for the current filterText.
+// Call this whenever filterText changes so navigation and rendering reuse the
+// cached slice instead of re-running the fuzzy search on every frame.
+func (v LibraryView) rebuildFilterCache() LibraryView {
+	if v.filterText != "" && v.fuzzy != nil {
+		v.filteredMatches = v.fuzzy.Search(v.filterText, v.index.Tracks())
+	} else {
+		v.filteredMatches = nil
+	}
+	return v
 }
 
 // ToggleBulkSelection toggles hash in the selected set. If hash is empty it is
@@ -141,6 +155,13 @@ func (v LibraryView) ActivateFilter() LibraryView {
 	return v
 }
 
+// CommitFilter deactivates the filter bar input while keeping the current
+// filterText so the filtered results remain visible.
+func (v LibraryView) CommitFilter() LibraryView {
+	v.filterActive = false
+	return v
+}
+
 // DeactivateFilter clears the filter query, deactivates the filter bar, and
 // resets the cursor to 0.
 func (v LibraryView) DeactivateFilter() LibraryView {
@@ -148,7 +169,7 @@ func (v LibraryView) DeactivateFilter() LibraryView {
 	v.filterText = ""
 	v.cursor = 0
 	v.scrollOffset = 0
-	return v
+	return v.rebuildFilterCache()
 }
 
 // AppendFilterChar appends ch to the filter text and resets the cursor to 0.
@@ -160,7 +181,7 @@ func (v LibraryView) AppendFilterChar(ch rune) LibraryView {
 	v.filterText += string(ch)
 	v.cursor = 0
 	v.scrollOffset = 0
-	return v
+	return v.rebuildFilterCache()
 }
 
 // BackspaceFilter removes the last rune from the filter text and resets the
@@ -174,7 +195,7 @@ func (v LibraryView) BackspaceFilter() LibraryView {
 	v.filterText = string(runes[:len(runes)-1])
 	v.cursor = 0
 	v.scrollOffset = 0
-	return v
+	return v.rebuildFilterCache()
 }
 
 // formatCount formats n with comma separators (e.g. 1234 → "1,234").

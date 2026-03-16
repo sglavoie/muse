@@ -39,19 +39,23 @@ const (
 // Cursor holds the zero-based index of the focused track row.
 // FilterActive is false by default and is set to true when the user presses '/'.
 // FilterText accumulates the query string while FilterActive is true.
+// FilteredMatches is the pre-computed result of the last fuzzy search; callers
+// should populate this whenever FilterText changes so that navigation and
+// rendering reuse the cached slice without re-running the search on every frame.
 // Fuzzy is the fuzzy search engine used when the filter bar is active;
 // inject musiclib.FakeFuzzySearcher in tests and musiclib.SahilmFuzzySearcher in production.
 // SelectedHashes holds the set of track hashes that are bulk-selected.
 type View struct {
-	Index          musiclib.LibraryIndex
-	Width          int
-	Height         int
-	Cursor         int
-	ScrollOffset   int // first visible track index
-	FilterActive   bool
-	FilterText     string
-	Fuzzy          musiclib.FuzzySearcher
-	SelectedHashes map[string]struct{}
+	Index           musiclib.LibraryIndex
+	Width           int
+	Height          int
+	Cursor          int
+	ScrollOffset    int // first visible track index
+	FilterActive    bool
+	FilterText      string
+	FilteredMatches []musiclib.Match // pre-computed; nil means not yet cached
+	Fuzzy           musiclib.FuzzySearcher
+	SelectedHashes  map[string]struct{}
 }
 
 // CursorUp moves the cursor one row up, stopping at the first track.
@@ -141,7 +145,7 @@ func (v View) moveCursor(delta int) View {
 // visibleRows returns the maximum number of track rows that fit on screen.
 func (v View) visibleRows() int {
 	reserve := 3
-	if v.FilterActive {
+	if v.FilterText != "" {
 		reserve = 4
 	}
 	if v.Height > 0 {
@@ -150,11 +154,27 @@ func (v View) visibleRows() int {
 	return 50
 }
 
+// filteredMatches returns the current fuzzy-match slice and whether a filter
+// searcher is available. The bool is true when FilteredMatches is populated or
+// Fuzzy is non-nil (i.e. a filter can be applied). When the bool is false the
+// caller should fall back to the full unfiltered track list.
+func (v View) filteredMatches(allTracks []musiclib.Track) ([]musiclib.Match, bool) {
+	if v.FilteredMatches != nil {
+		return v.FilteredMatches, true
+	}
+	if v.Fuzzy != nil {
+		return v.Fuzzy.Search(v.FilterText, allTracks), true
+	}
+	return nil, false
+}
+
 // effectiveTrackCount returns the number of tracks currently displayed,
 // accounting for any active fuzzy filter.
 func (v View) effectiveTrackCount() int {
-	if v.FilterActive && v.Fuzzy != nil {
-		return len(v.Fuzzy.Search(v.FilterText, v.Index.Tracks()))
+	if v.FilterText != "" {
+		if m, ok := v.filteredMatches(v.Index.Tracks()); ok {
+			return len(m)
+		}
 	}
 	return v.Index.Len()
 }
@@ -164,12 +184,13 @@ func (v View) effectiveTrackCount() int {
 // is empty or the cursor is out of range.
 func (v View) FocusedTrack() (musiclib.Track, bool) {
 	allTracks := v.Index.Tracks()
-	if v.FilterActive && v.Fuzzy != nil {
-		matches := v.Fuzzy.Search(v.FilterText, allTracks)
-		if v.Cursor < 0 || v.Cursor >= len(matches) {
-			return musiclib.Track{}, false
+	if v.FilterText != "" {
+		if matches, ok := v.filteredMatches(allTracks); ok {
+			if v.Cursor < 0 || v.Cursor >= len(matches) {
+				return musiclib.Track{}, false
+			}
+			return allTracks[matches[v.Cursor].TrackIndex], true
 		}
-		return allTracks[matches[v.Cursor].TrackIndex], true
 	}
 	if v.Cursor < 0 || v.Cursor >= len(allTracks) {
 		return musiclib.Track{}, false
@@ -212,16 +233,18 @@ func (v View) Render() string {
 
 	// Resolve the set of tracks to display, with optional match positions.
 	var display []displayTrack
-	if v.FilterActive && v.Fuzzy != nil {
-		matches := v.Fuzzy.Search(v.FilterText, allTracks)
-		display = make([]displayTrack, len(matches))
-		for i, m := range matches {
-			display[i] = displayTrack{
-				track:          allTracks[m.TrackIndex],
-				matchedIndexes: m.MatchedIndexes,
+	if v.FilterText != "" {
+		if matches, ok := v.filteredMatches(allTracks); ok {
+			display = make([]displayTrack, len(matches))
+			for i, m := range matches {
+				display[i] = displayTrack{
+					track:          allTracks[m.TrackIndex],
+					matchedIndexes: m.MatchedIndexes,
+				}
 			}
 		}
-	} else {
+	}
+	if display == nil {
 		display = make([]displayTrack, len(allTracks))
 		for i, t := range allTracks {
 			display[i] = displayTrack{track: t}
@@ -239,6 +262,8 @@ func (v View) Render() string {
 	separator := "\n\n"
 	if v.FilterActive {
 		separator = "\nFilter: > " + v.FilterText + "\n"
+	} else if v.FilterText != "" {
+		separator = "\nFilter: " + v.FilterText + "\n"
 	}
 
 	if v.Width == 0 {

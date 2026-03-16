@@ -2,8 +2,7 @@ package library
 
 import (
 	"path/filepath"
-
-	"github.com/sahilm/fuzzy"
+	"strings"
 )
 
 // SahilmFuzzySearcher is a FuzzySearcher backed by github.com/sahilm/fuzzy.
@@ -24,28 +23,23 @@ func (s SahilmFuzzySearcher) Search(query string, tracks []Track) []Match {
 		return matches
 	}
 
-	src := &trackSource{tracks: tracks}
-	fuzzyMatches := fuzzy.FindFrom(query, src)
-
-	matches := make([]Match, 0, len(fuzzyMatches))
-	for _, fm := range fuzzyMatches {
+	lowerQuery := strings.ToLower(query)
+	var matches []Match
+	for i, t := range tracks {
+		searchStr := t.Artist + " " + t.Title + " " + filepath.Base(t.Path)
+		idx := strings.Index(strings.ToLower(searchStr), lowerQuery)
+		if idx < 0 {
+			continue
+		}
+		indexes := make([]int, len(lowerQuery))
+		for j := range indexes {
+			indexes[j] = idx + j
+		}
 		matches = append(matches, Match{
-			TrackIndex:     fm.Index,
-			MatchedIndexes: fm.MatchedIndexes,
+			TrackIndex:     i,
+			MatchedIndexes: indexes,
 		})
 	}
 	return matches
 }
 
-// trackSource implements fuzzy.Source over a []Track by exposing a
-// concatenated "artist title filename" string for each entry.
-type trackSource struct {
-	tracks []Track
-}
-
-func (ts *trackSource) Len() int { return len(ts.tracks) }
-
-func (ts *trackSource) String(i int) string {
-	t := ts.tracks[i]
-	return t.Artist + " " + t.Title + " " + filepath.Base(t.Path)
-}
