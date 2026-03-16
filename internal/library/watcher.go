@@ -101,11 +101,11 @@ func watchLoop(ctx context.Context, w *fsnotify.Watcher, _ string, extractor Met
 			// Reset the debounce window.
 			debounce = time.After(debounceDelay)
 
-		case _, ok := <-w.Errors:
+		case err, ok := <-w.Errors:
 			if !ok {
 				return
 			}
-			// Watcher errors are non-fatal; continue watching.
+			slog.Warn("watcher: fsnotify error", "err", err)
 
 		case <-debounce:
 			debounce = nil

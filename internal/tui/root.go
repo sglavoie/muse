@@ -697,6 +697,26 @@ func (m *Model) scheduleSoftDelete(softDeleteFn func(), purgeFn func(beforeUnix 
 	return cancel
 }
 
+// syncPlayerQueue rebuilds the player's in-memory queue from the current TUI
+// queue entries. Call this after any operation that reorders the TUI queue
+// (e.g. MoveTrackUp/Down) so that the player's auto-advance resolves indices
+// against the same ordering the user sees.
+func (m Model) syncPlayerQueue() {
+	if qs, ok := m.player.(playerQueueSetter); ok {
+		pt := make([]player.QueueTrack, len(m.queue.entries))
+		for i, e := range m.queue.entries {
+			pt[i] = player.QueueTrack{
+				Path:    e.Path,
+				Hash:    e.Hash,
+				QueueID: e.ID,
+				Artist:  e.Artist,
+				Title:   e.Title,
+			}
+		}
+		qs.SetQueue(pt)
+	}
+}
+
 // setUndoSlot replaces the current undo slot and sets a matching status-bar
 // notification that expires at the end of the undo window.
 func (m *Model) setUndoSlot(slot undoSlot, notification string) {
@@ -1222,6 +1242,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			entry := m.queue.entries[msg.Index]
 			m.queue.entries[msg.Index-1], m.queue.entries[msg.Index] = m.queue.entries[msg.Index], m.queue.entries[msg.Index-1]
 			m.queue.cursor = msg.Index - 1
+			m.syncPlayerQueue()
 			if m.reorderer != nil {
 				r := m.reorderer
 				id := entry.ID
@@ -1237,6 +1258,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			entry := m.queue.entries[msg.Index]
 			m.queue.entries[msg.Index], m.queue.entries[msg.Index+1] = m.queue.entries[msg.Index+1], m.queue.entries[msg.Index]
 			m.queue.cursor = msg.Index + 1
+			m.syncPlayerQueue()
 			if m.reorderer != nil {
 				r := m.reorderer
 				id := entry.ID

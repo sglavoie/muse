@@ -917,6 +917,78 @@ func TestUndoBatchEnqueueClampsScrollOffset(t *testing.T) {
 	}
 }
 
+// TestMoveTrackUpSyncsPlayerQueue verifies that MoveTrackUpMsg rebuilds the
+// player's in-memory queue via SetQueue so that auto-advance uses the new
+// ordering after a K reorder.
+func TestMoveTrackUpSyncsPlayerQueue(t *testing.T) {
+	p := &stubPlayerQueueSyncer{}
+	r := &stubQueueReorderer{}
+	m := New("", false, nil, nil, "", nil, p)
+	m.SetQueueReorderer(r)
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/a.flac", Hash: "ha", Artist: "A", Title: "Ta"},
+		{ID: 20, Path: "/b.flac", Hash: "hb", Artist: "B", Title: "Tb"},
+		{ID: 30, Path: "/c.flac", Hash: "hc", Artist: "C", Title: "Tc"},
+	}
+
+	next, cmd := m.Update(MoveTrackUpMsg{Index: 1})
+	_ = next.(Model)
+
+	// SetQueue must have been called to sync the player queue.
+	if len(p.setQueueCalls) != 1 {
+		t.Fatalf("MoveTrackUpMsg must call SetQueue once, got %d calls", len(p.setQueueCalls))
+	}
+	synced := p.setQueueCalls[0]
+	if len(synced) != 3 {
+		t.Fatalf("SetQueue called with %d tracks, want 3", len(synced))
+	}
+	// After moving index 1 up, the order should be: B(hb), A(ha), C(hc)
+	if synced[0].Hash != "hb" || synced[1].Hash != "ha" || synced[2].Hash != "hc" {
+		t.Errorf("player queue order after move-up: got hashes %q %q %q, want hb ha hc",
+			synced[0].Hash, synced[1].Hash, synced[2].Hash)
+	}
+
+	// The DB reorder cmd should also be returned.
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd for DB reorder")
+	}
+}
+
+// TestMoveTrackDownSyncsPlayerQueue verifies that MoveTrackDownMsg rebuilds
+// the player's in-memory queue via SetQueue so that auto-advance uses the
+// new ordering after a J reorder.
+func TestMoveTrackDownSyncsPlayerQueue(t *testing.T) {
+	p := &stubPlayerQueueSyncer{}
+	r := &stubQueueReorderer{}
+	m := New("", false, nil, nil, "", nil, p)
+	m.SetQueueReorderer(r)
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/a.flac", Hash: "ha", Artist: "A", Title: "Ta"},
+		{ID: 20, Path: "/b.flac", Hash: "hb", Artist: "B", Title: "Tb"},
+		{ID: 30, Path: "/c.flac", Hash: "hc", Artist: "C", Title: "Tc"},
+	}
+
+	next, cmd := m.Update(MoveTrackDownMsg{Index: 1})
+	_ = next.(Model)
+
+	if len(p.setQueueCalls) != 1 {
+		t.Fatalf("MoveTrackDownMsg must call SetQueue once, got %d calls", len(p.setQueueCalls))
+	}
+	synced := p.setQueueCalls[0]
+	if len(synced) != 3 {
+		t.Fatalf("SetQueue called with %d tracks, want 3", len(synced))
+	}
+	// After moving index 1 down, the order should be: A(ha), C(hc), B(hb)
+	if synced[0].Hash != "ha" || synced[1].Hash != "hc" || synced[2].Hash != "hb" {
+		t.Errorf("player queue order after move-down: got hashes %q %q %q, want ha hc hb",
+			synced[0].Hash, synced[1].Hash, synced[2].Hash)
+	}
+
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd for DB reorder")
+	}
+}
+
 // TestUndoEnqueueSchedulesPurge verifies that undoing a single-track enqueue
 // schedules a purge that eventually fires (i.e. PurgeDeletedQueueEntries is
 // called after the undo window elapses, not immediately cancelled).
