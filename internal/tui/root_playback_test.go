@@ -250,3 +250,95 @@ func TestClearQueueMsgStopsPlaybackAndTransitionsToIdle(t *testing.T) {
 		t.Fatalf("ClearQueueMsg: expected 1 Stop() call, got %d", p.stopCalls)
 	}
 }
+
+// TestClearQueueMsgResetsScrollOffset verifies that ClearQueueMsg resets the
+// queue scrollOffset to 0 so that entries added after a clear are visible
+// from the first row instead of being off-screen at a stale scroll position.
+func TestClearQueueMsgResetsScrollOffset(t *testing.T) {
+	p := &stubCommandPlayer{}
+	m := New("", false, nil, nil, "", nil, p)
+	m.playbackState = PlaybackPlaying
+	m.queue.entries = make([]QueueEntry, 50)
+	for i := range m.queue.entries {
+		m.queue.entries[i] = QueueEntry{ID: int64(i + 1), Display: "Track"}
+	}
+	m.queue.scrollOffset = 30
+
+	next, _ := m.Update(ClearQueueMsg{})
+	nm := next.(Model)
+
+	if nm.queue.scrollOffset != 0 {
+		t.Fatalf("ClearQueueMsg: expected scrollOffset=0, got %d", nm.queue.scrollOffset)
+	}
+}
+
+// TestPlaybackEndedMsgRepeatAllRestartsQueue verifies that when repeat mode is
+// RepeatAll and the queue is non-empty, receiving PlaybackEndedMsg restarts
+// playback from index 0 instead of transitioning to idle.
+func TestPlaybackEndedMsgRepeatAllRestartsQueue(t *testing.T) {
+	p := &stubPlayer{}
+	sw := &stubSessionWriter{}
+	m := New("", false, nil, nil, "", nil, p)
+	m.SetSessionWriter(sw)
+	m.playbackState = PlaybackPlaying
+	m.repeatMode = RepeatAll
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Path: "/a.flac", Display: "A – One", Artist: "A", Title: "One"},
+		{ID: 2, Path: "/b.flac", Display: "B – Two", Artist: "B", Title: "Two"},
+	}
+
+	next, cmd := m.Update(PlaybackEndedMsg{})
+	nm := next.(Model)
+
+	if nm.playbackState != PlaybackPlaying {
+		t.Fatalf("RepeatAll + PlaybackEndedMsg: expected PlaybackPlaying, got %v", nm.playbackState)
+	}
+	if len(p.playFromIndexCalls) != 1 || p.playFromIndexCalls[0] != 0 {
+		t.Fatalf("RepeatAll + PlaybackEndedMsg: expected PlayFromIndex(0), got calls=%v", p.playFromIndexCalls)
+	}
+	if nm.statusBar.artist != "A" || nm.statusBar.title != "One" {
+		t.Fatalf("RepeatAll + PlaybackEndedMsg: status bar should show first track, got artist=%q title=%q", nm.statusBar.artist, nm.statusBar.title)
+	}
+	if cmd == nil {
+		t.Fatal("RepeatAll + PlaybackEndedMsg: expected a session-position cmd")
+	}
+}
+
+// TestPlaybackEndedMsgRepeatAllEmptyQueueGoesIdle verifies that RepeatAll with
+// an empty queue still transitions to idle (no infinite restart loop).
+func TestPlaybackEndedMsgRepeatAllEmptyQueueGoesIdle(t *testing.T) {
+	p := &stubPlayer{}
+	m := New("", false, nil, nil, "", nil, p)
+	m.playbackState = PlaybackPlaying
+	m.repeatMode = RepeatAll
+	m.queue.entries = nil
+
+	next, _ := m.Update(PlaybackEndedMsg{})
+	nm := next.(Model)
+
+	if nm.playbackState != PlaybackIdle {
+		t.Fatalf("RepeatAll + empty queue: expected PlaybackIdle, got %v", nm.playbackState)
+	}
+	if len(p.playFromIndexCalls) != 0 {
+		t.Fatalf("RepeatAll + empty queue: expected no PlayFromIndex calls, got %v", p.playFromIndexCalls)
+	}
+}
+
+// TestPlaybackEndedMsgRepeatOffShowsNotification verifies that RepeatOff still
+// shows the "Queue finished" notification (regression guard for the RepeatAll fix).
+func TestPlaybackEndedMsgRepeatOffShowsNotification(t *testing.T) {
+	p := &stubPlayer{}
+	m := New("", false, nil, nil, "", nil, p)
+	m.playbackState = PlaybackPlaying
+	m.repeatMode = RepeatOff
+
+	next, _ := m.Update(PlaybackEndedMsg{})
+	nm := next.(Model)
+
+	if nm.playbackState != PlaybackIdle {
+		t.Fatalf("RepeatOff + PlaybackEndedMsg: expected PlaybackIdle, got %v", nm.playbackState)
+	}
+	if !strings.Contains(nm.statusBar.notification.msg, "Queue finished") {
+		t.Fatalf("RepeatOff + PlaybackEndedMsg: expected 'Queue finished' notification, got %q", nm.statusBar.notification.msg)
+	}
+}

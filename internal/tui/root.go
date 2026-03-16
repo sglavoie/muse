@@ -979,13 +979,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case PlaybackEndedMsg:
+		if m.repeatMode == RepeatAll && len(m.queue.entries) > 0 && m.player != nil {
+			if err := m.player.PlayFromIndex(0); err == nil {
+				m.playbackState = PlaybackPlaying
+				e := m.queue.entries[0]
+				m.statusBar.artist = e.Artist
+				m.statusBar.title = e.Title
+				m.statusBar.playlistSource = "Queue"
+				m.elapsedSecs = 0
+				m.totalSecs = 0
+				return m, m.sessionPositionCmd()
+			}
+		}
 		m.playbackState = PlaybackIdle
 		m.elapsedSecs = 0
 		m.totalSecs = 0
-		// PlaybackEndedMsg already implies the queue was exhausted (mpv
-		// auto-advance found no more playable entries). Checking queue length
-		// here would always be false because entries are never removed from the
-		// TUI slice during normal play-through.
 		if m.repeatMode == RepeatOff {
 			m.statusBar.notification = transientNotification{
 				msg:       "Queue finished",
@@ -1223,6 +1231,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}, "Queue cleared — press u to undo")
 		m.queue.entries = nil
 		m.queue.cursor = 0
+		m.queue.scrollOffset = 0
 		// Stop active playback — requirement req-019ce3a80fa97003a43d90cf5e7c7a3f.
 		if cp, ok := m.player.(commandPlayer); ok {
 			_ = cp.Stop()
