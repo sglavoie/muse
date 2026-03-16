@@ -268,13 +268,19 @@ func (m *Manager) ElapsedPosition() (elapsed, total float64, err error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	elapsed, _ = posResp.Data.(float64)
+	elapsed, ok := posResp.Data.(float64)
+	if !ok {
+		return 0, 0, fmt.Errorf("mpv: time-pos: expected float64, got %T", posResp.Data)
+	}
 
 	durResp, err := c.SendCommand("get_property", "duration")
 	if err != nil {
 		return 0, 0, err
 	}
-	total, _ = durResp.Data.(float64)
+	total, ok = durResp.Data.(float64)
+	if !ok {
+		return 0, 0, fmt.Errorf("mpv: duration: expected float64, got %T", durResp.Data)
+	}
 
 	return elapsed, total, nil
 }

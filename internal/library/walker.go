@@ -2,6 +2,7 @@ package library
 
 import (
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,6 +33,7 @@ func Walk(root string) <-chan string {
 		defer close(ch)
 		_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
+				slog.Warn("walk error", "path", path, "err", err)
 				return nil // skip unreadable entries
 			}
 
@@ -83,6 +85,7 @@ func CountAudioFiles(root string) int {
 	count := 0
 	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
+			slog.Warn("count walk error", "path", path, "err", err)
 			return nil
 		}
 		name := d.Name()
