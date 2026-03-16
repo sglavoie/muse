@@ -997,6 +997,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.playbackState = PlaybackIdle
 		m.elapsedSecs = 0
 		m.totalSecs = 0
+		m.statusBar.artist = ""
+		m.statusBar.title = ""
+		m.statusBar.playlistSource = ""
+		m.currentTrackHash = ""
 		if m.repeatMode == RepeatOff {
 			m.statusBar.notification = transientNotification{
 				msg:       "Queue finished",
@@ -1242,6 +1246,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.elapsedSecs = 0
 			m.totalSecs = 0
 		}
+		m.statusBar.artist = ""
+		m.statusBar.title = ""
+		m.statusBar.playlistSource = ""
+		m.currentTrackHash = ""
 		if qs, ok := m.player.(playerQueueSetter); ok {
 			qs.SetQueue(nil)
 		}
@@ -1719,6 +1727,15 @@ func (m Model) handleUndo() Model {
 		copy(entries[idx+1:], m.queue.entries[idx:])
 		m.queue.entries = entries
 		m.queue.cursor = idx
+		// Ensure the restored entry's cursor position is visible.
+		if m.queue.cursor < m.queue.scrollOffset {
+			m.queue.scrollOffset = m.queue.cursor
+		} else {
+			maxRows := m.queue.visibleRows()
+			if m.queue.cursor >= m.queue.scrollOffset+maxRows {
+				m.queue.scrollOffset = m.queue.cursor - maxRows + 1
+			}
+		}
 		// Rebuild the player's in-memory queue so it stays in sync with the
 		// TUI queue after the re-insertion.
 		if qs, ok := m.player.(playerQueueSetter); ok {

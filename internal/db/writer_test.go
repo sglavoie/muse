@@ -1671,3 +1671,64 @@ func TestUpsertBatch_Empty(t *testing.T) {
 		t.Errorf("tracks count = %d; want 0", count)
 	}
 }
+
+// TestWriter_DrainedExecDoesNotReturnSpuriousError verifies that an Exec call
+// whose command is processed during drain() returns the actual result (not a
+// "stopped while waiting" error) even though the done channel closes immediately
+// after drain completes.
+func TestWriter_DrainedExecDoesNotReturnSpuriousError(t *testing.T) {
+	d := openMigratedTestDB(t)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	w := db.NewWriter(ctx, d.DB)
+
+	// Block the writer goroutine so our next Exec buffers in cmds.
+	writerBusy := make(chan struct{})
+	gate := make(chan struct{})
+
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		_ = w.Exec(func(sdb *sql.DB) error {
+			close(writerBusy)
+			<-gate
+			return nil
+		})
+	})
+
+	<-writerBusy
+
+	// Submit a second command that will be buffered and later drained.
+	errCh := make(chan error, 1)
+	wg.Go(func() {
+		errCh <- w.Exec(func(sdb *sql.DB) error {
+			_, err := sdb.Exec(`INSERT INTO tracks (hash, path, created_at, updated_at) VALUES ('drain-test', '/drain', 0, 0)`)
+			return err
+		})
+	})
+
+	// Give the goroutine time to send to cmds.
+	time.Sleep(20 * time.Millisecond)
+
+	// Unblock the writer, then cancel so drain processes the buffered command.
+	close(gate)
+	cancel()
+
+	wg.Wait()
+	w.Wait()
+
+	// The drained Exec must return nil (write succeeded), NOT "stopped while
+	// waiting for result".
+	err := <-errCh
+	if err != nil {
+		t.Errorf("drained Exec returned error %q; want nil (write succeeded but done closed simultaneously)", err)
+	}
+
+	// Verify the write was persisted.
+	var count int
+	if err := d.QueryRow(`SELECT COUNT(*) FROM tracks WHERE hash='drain-test'`).Scan(&count); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("drain-test track count = %d; want 1", count)
+	}
+}

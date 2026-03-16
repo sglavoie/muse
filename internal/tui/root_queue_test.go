@@ -1071,3 +1071,111 @@ func TestUndoBatchEnqueueSchedulesPurge(t *testing.T) {
 		t.Fatal("undo slot must be cleared after successful undo")
 	}
 }
+
+// TestClearQueueClearsStatusBarTrackInfo verifies that ClearQueueMsg resets the
+// status bar artist, title, playlistSource, and currentTrackHash to empty strings
+// so the status bar does not display stale track info after the queue is cleared.
+func TestClearQueueClearsStatusBarTrackInfo(t *testing.T) {
+	sp := &stubCommandPlayer{}
+	m := New("", false, nil, nil, "", nil, sp)
+	m.statusBar.artist = "Old Artist"
+	m.statusBar.title = "Old Title"
+	m.statusBar.playlistSource = "Old Playlist"
+	m.currentTrackHash = "oldhash"
+	m.playbackState = PlaybackPlaying
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/a.flac", Display: "A"},
+	}
+
+	next, _ := m.Update(ClearQueueMsg{})
+	nm := next.(Model)
+
+	if nm.statusBar.artist != "" {
+		t.Errorf("statusBar.artist = %q, want empty after ClearQueueMsg", nm.statusBar.artist)
+	}
+	if nm.statusBar.title != "" {
+		t.Errorf("statusBar.title = %q, want empty after ClearQueueMsg", nm.statusBar.title)
+	}
+	if nm.statusBar.playlistSource != "" {
+		t.Errorf("statusBar.playlistSource = %q, want empty after ClearQueueMsg", nm.statusBar.playlistSource)
+	}
+	if nm.currentTrackHash != "" {
+		t.Errorf("currentTrackHash = %q, want empty after ClearQueueMsg", nm.currentTrackHash)
+	}
+}
+
+// TestPlaybackEndedClearsStatusBarTrackInfo verifies that PlaybackEndedMsg
+// resets the status bar artist, title, playlistSource, and currentTrackHash to
+// empty strings when the queue finishes (non-RepeatAll mode).
+func TestPlaybackEndedClearsStatusBarTrackInfo(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, &stubPlayer{})
+	m.statusBar.artist = "Old Artist"
+	m.statusBar.title = "Old Title"
+	m.statusBar.playlistSource = "Queue"
+	m.currentTrackHash = "oldhash"
+	m.playbackState = PlaybackPlaying
+	m.repeatMode = RepeatOff
+
+	next, _ := m.Update(PlaybackEndedMsg{})
+	nm := next.(Model)
+
+	if nm.playbackState != PlaybackIdle {
+		t.Errorf("playbackState = %v, want PlaybackIdle", nm.playbackState)
+	}
+	if nm.statusBar.artist != "" {
+		t.Errorf("statusBar.artist = %q, want empty after PlaybackEndedMsg", nm.statusBar.artist)
+	}
+	if nm.statusBar.title != "" {
+		t.Errorf("statusBar.title = %q, want empty after PlaybackEndedMsg", nm.statusBar.title)
+	}
+	if nm.statusBar.playlistSource != "" {
+		t.Errorf("statusBar.playlistSource = %q, want empty after PlaybackEndedMsg", nm.statusBar.playlistSource)
+	}
+	if nm.currentTrackHash != "" {
+		t.Errorf("currentTrackHash = %q, want empty after PlaybackEndedMsg", nm.currentTrackHash)
+	}
+}
+
+// TestUndoDequeueEnsuresCursorVisibility verifies that after undoing a dequeue,
+// the scroll offset is adjusted so the restored entry (cursor position) is
+// within the visible viewport.
+func TestUndoDequeueEnsuresCursorVisibility(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, &stubPlayer{})
+	m.queue.height = 10 // visibleRows = 10 - 4 (reserve) = 6
+
+	// Build a queue with enough entries to scroll.
+	entries := make([]QueueEntry, 20)
+	for i := range entries {
+		entries[i] = QueueEntry{ID: int64(i + 1), Path: "/a.flac", Display: "Track"}
+	}
+	// Simulate: entry at index 15 was dequeued, so we have indices 0..14,16..19 (19 entries).
+	dequeued := entries[15]
+	m.queue.entries = append(entries[:15:15], entries[16:]...)
+
+	// Simulate user scrolled to the top of the queue.
+	m.queue.scrollOffset = 0
+	m.queue.cursor = 0
+
+	undoer := &stubQueueDequeuer{}
+	m.undoer = undoer
+	m.undoSlot = undoSlot{
+		kind:         undoKindDequeue,
+		expiresAt:    time.Now().Add(undoWindowDuration),
+		dequeueID:    dequeued.ID,
+		dequeueEntry: dequeued,
+		dequeueIdx:   15,
+	}
+
+	next, _ := m.Update(UndoMsg{})
+	nm := next.(Model)
+
+	if nm.queue.cursor != 15 {
+		t.Fatalf("cursor = %d, want 15 after undo dequeue", nm.queue.cursor)
+	}
+	// cursor (15) must be visible: scrollOffset <= 15 < scrollOffset + visibleRows (6)
+	maxRows := nm.queue.visibleRows()
+	if nm.queue.cursor < nm.queue.scrollOffset || nm.queue.cursor >= nm.queue.scrollOffset+maxRows {
+		t.Errorf("cursor %d not visible: scrollOffset=%d, visibleRows=%d",
+			nm.queue.cursor, nm.queue.scrollOffset, maxRows)
+	}
+}

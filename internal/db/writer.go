@@ -87,7 +87,16 @@ func (w *Writer) Exec(fn func(*sql.DB) error) error {
 	case err := <-resp:
 		return err
 	case <-w.done:
-		return fmt.Errorf("db writer: stopped while waiting for result")
+		// The writer goroutine closed done after drain(). If drain
+		// processed our command, resp already has the result. Check it
+		// with a non-blocking receive to avoid a spurious "stopped"
+		// error when the write actually succeeded.
+		select {
+		case err := <-resp:
+			return err
+		default:
+			return fmt.Errorf("db writer: stopped while waiting for result")
+		}
 	}
 }
 
