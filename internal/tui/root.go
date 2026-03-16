@@ -947,6 +947,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case libtui.TrackEnqueuedMsg:
 		if msg.Err != nil {
+			m.statusBar.notification = transientNotification{
+				msg:       "Failed to enqueue track: " + msg.Err.Error(),
+				expiresAt: time.Now().Add(transientDuration),
+			}
 			break
 		}
 		display := msg.Track.Artist + " – " + msg.Track.Title
@@ -1380,6 +1384,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				if !m.playlists.createInputIsEmpty() {
 					name := m.playlists.createInputValue()
+					// Reject duplicate names (consistent with rename validation).
+					for _, p := range m.playlists.playlists {
+						if p.Name == name {
+							m.statusBar.notification = transientNotification{
+								msg:       "A playlist with that name already exists",
+								expiresAt: time.Now().Add(transientDuration),
+							}
+							return m, nil
+						}
+					}
 					if m.playlistWriter != nil {
 						pw := m.playlistWriter
 						return m, func() tea.Msg {

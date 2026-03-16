@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -201,6 +202,30 @@ func TestTrackEnqueuedMsgDoesNotStartPlaybackWhenQueueWasNonEmpty(t *testing.T) 
 	}
 	if nm.playbackState != PlaybackIdle {
 		t.Fatalf("expected playbackState PlaybackIdle (unchanged), got %v", nm.playbackState)
+	}
+}
+
+// TestTrackEnqueuedMsgWithErrorShowsNotification verifies that a
+// TrackEnqueuedMsg with a non-nil Err sets a transient error notification.
+func TestTrackEnqueuedMsgWithErrorShowsNotification(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+
+	msg := libtui.TrackEnqueuedMsg{
+		Track: library.Track{Artist: "X", Title: "Y", Path: "/music/x.flac"},
+		Err:   &errPlaylistCreate{msg: "db locked"},
+	}
+	next, _ := m.Update(msg)
+	nm := next.(Model)
+
+	if nm.statusBar.notification.msg == "" {
+		t.Fatal("TrackEnqueuedMsg with error must set a notification")
+	}
+	if !strings.Contains(nm.statusBar.notification.msg, "db locked") {
+		t.Fatalf("notification must contain the error message, got %q", nm.statusBar.notification.msg)
+	}
+	// Queue must not have grown.
+	if len(nm.queue.entries) != 0 {
+		t.Fatalf("queue must remain empty on enqueue error, got %d entries", len(nm.queue.entries))
 	}
 }
 

@@ -412,12 +412,11 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 	return v, nil
 }
 
-// markMissing marks the first entry whose Path matches as missing.
+// markMissing marks all entries whose Path matches as missing.
 func (v *QueueView) markMissing(path string) {
 	for i := range v.entries {
 		if v.entries[i].Path == path {
 			v.entries[i].Missing = true
-			return
 		}
 	}
 }

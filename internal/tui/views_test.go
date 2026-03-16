@@ -185,6 +185,29 @@ func TestLibraryViewClearSelectionEmptiesSet(t *testing.T) {
 }
 
 // TestFormatQueueDuration covers the duration formatting helper.
+// TestMarkMissingFlagsAllDuplicateEntries verifies that markMissing marks
+// every entry with the matching path, not just the first one.
+func TestMarkMissingFlagsAllDuplicateEntries(t *testing.T) {
+	q := QueueView{
+		entries: []QueueEntry{
+			{Path: "/music/a.flac", Display: "A"},
+			{Path: "/music/b.flac", Display: "B"},
+			{Path: "/music/a.flac", Display: "A (dup)"},
+		},
+	}
+	q.markMissing("/music/a.flac")
+
+	if !q.entries[0].Missing {
+		t.Error("first entry with matching path must be marked missing")
+	}
+	if q.entries[1].Missing {
+		t.Error("entry with different path must not be marked missing")
+	}
+	if !q.entries[2].Missing {
+		t.Error("second entry with matching path must be marked missing")
+	}
+}
+
 func TestFormatQueueDuration(t *testing.T) {
 	cases := []struct {
 		ms   int64

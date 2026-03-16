@@ -147,6 +147,46 @@ func TestPlaylistCreateFlowErrorShowsNotification(t *testing.T) {
 	}
 }
 
+// TestPlaylistCreateDuplicateNameShowsNotification verifies that attempting to
+// create a playlist with a name that already exists shows a duplicate warning
+// instead of calling CreatePlaylist.
+func TestPlaylistCreateDuplicateNameShowsNotification(t *testing.T) {
+	creator := &stubPlaylistCreator{nextID: 42}
+	m := New("", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	m.SetPlaylistWriter(creator)
+	m.SetPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "Existing"},
+	})
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m = next.(Model)
+
+	// Activate create mode.
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	m = next.(Model)
+	if cmd == nil {
+		t.Fatal("c: expected non-nil cmd")
+	}
+	next, _ = m.Update(cmd())
+	m = next.(Model)
+
+	// Type the duplicate name.
+	for _, ch := range "Existing" {
+		next, _ = m.Update(tea.KeyPressMsg{Code: ch, Text: string(ch)})
+		m = next.(Model)
+	}
+
+	// Press Enter — should NOT return an async cmd (duplicate rejected locally).
+	next, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(Model)
+	if cmd != nil {
+		t.Fatal("Enter with duplicate name: expected nil cmd (no DB call)")
+	}
+	if !strings.Contains(m.statusBar.notification.msg, "already exists") {
+		t.Fatalf("expected duplicate warning, got %q", m.statusBar.notification.msg)
+	}
+}
+
 // TestView2RendersPlaylistsNameAndCount verifies that switching to view 2 and
 // calling SetPlaylists causes each playlist's name and track count to appear
 // in the rendered output.

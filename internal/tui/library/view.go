@@ -264,14 +264,24 @@ func (v View) Render() string {
 	heading := fmt.Sprintf("Library (%s tracks)", formatCount(n))
 	separator := "\n\n"
 	if v.FilterActive {
-		separator = "\nFilter: > " + v.FilterText + "\n"
+		ft := v.FilterText
+		maxLen := v.Width - len("Filter: > ") - 1
+		if maxLen > 0 && len([]rune(ft)) > maxLen {
+			ft = string([]rune(ft)[:maxLen-1]) + "…"
+		}
+		separator = "\nFilter: > " + ft + "\n"
 	} else if v.FilterText != "" {
-		separator = "\nFilter: " + v.FilterText + "\n"
+		ft := v.FilterText
+		maxLen := v.Width - len("Filter: ") - 1
+		if maxLen > 0 && len([]rune(ft)) > maxLen {
+			ft = string([]rune(ft)[:maxLen-1]) + "…"
+		}
+		separator = "\nFilter: " + ft + "\n"
 	}
 
 	if v.Width == 0 {
 		if start >= end {
-			return heading + separator + "No matches"
+			return heading + separator + "No matches — press Esc to clear"
 		}
 		lines := make([]string, end-start)
 		for i, dt := range display[start:end] {
