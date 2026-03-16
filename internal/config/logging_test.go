@@ -230,6 +230,75 @@ func TestLogLevelFromConfig(t *testing.T) {
 	}
 }
 
+// --- ParseLogLevel ---
+
+func TestParseLogLevel_AllValues(t *testing.T) {
+	cases := []struct {
+		input string
+		want  slog.Level
+	}{
+		{"debug", slog.LevelDebug},
+		{"warn", slog.LevelWarn},
+		{"error", slog.LevelError},
+		{"info", slog.LevelInfo},
+		{"", slog.LevelInfo},
+		{"unknown", slog.LevelInfo},
+		{"DEBUG", slog.LevelInfo}, // case-sensitive: uppercase not recognized
+	}
+	for _, tc := range cases {
+		got := ParseLogLevel(tc.input)
+		if got != tc.want {
+			t.Errorf("ParseLogLevel(%q) = %v, want %v", tc.input, got, tc.want)
+		}
+	}
+}
+
+// --- CloseLog ---
+
+func TestCloseLog(t *testing.T) {
+	dir := t.TempDir()
+	stateDir := filepath.Join(dir, "closelog-muse")
+
+	prev := slog.Default()
+	t.Cleanup(func() {
+		slog.SetDefault(prev)
+		logFile = nil
+	})
+
+	if err := InitLogging(stateDir, slog.LevelInfo); err != nil {
+		t.Fatalf("InitLogging: %v", err)
+	}
+
+	CloseLog()
+	if logFile != nil {
+		t.Error("CloseLog: expected logFile=nil after close")
+	}
+
+	// Calling CloseLog again should not panic.
+	CloseLog()
+}
+
+// --- SetLogLevel with nil logFile ---
+
+func TestSetLogLevel_NilLogFile(t *testing.T) {
+	saved := logFile
+	logFile = nil
+	defer func() { logFile = saved }()
+
+	// Must not panic.
+	SetLogLevel(slog.LevelDebug)
+}
+
+// --- ConfigPath ---
+
+func TestConfigPath(t *testing.T) {
+	got := ConfigPath("/home/user/.config/muse")
+	want := filepath.Join("/home/user/.config/muse", configFileName)
+	if got != want {
+		t.Errorf("ConfigPath = %q, want %q", got, want)
+	}
+}
+
 // countJSONLines returns the number of non-empty lines in data.
 func countJSONLines(data []byte) int {
 	count := 0
