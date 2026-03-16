@@ -296,6 +296,14 @@ func main() {
 	}
 	if restored.CurrentHash != "" {
 		model.SetCurrentTrackHash(restored.CurrentHash)
+		// Set the player's currentIndex so that Next/Previous navigate
+		// relative to the restored track rather than defaulting to index 0.
+		for i, pt := range restored.PlayerTracks {
+			if pt.Hash == restored.CurrentHash {
+				mgr.SetCurrentIndex(i)
+				break
+			}
+		}
 	}
 
 	p := tea.NewProgram(model)

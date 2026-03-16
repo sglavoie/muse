@@ -965,3 +965,157 @@ func TestManager_ConnectDisconnectInfoLogs(t *testing.T) {
 		t.Errorf("expected 'mpv disconnected' in Info log output, got:\n%s", out)
 	}
 }
+
+// TestManager_SetQueue_ClampsCurrentIndex verifies that SetQueue clamps
+// currentIndex to the last valid index when the new queue is shorter than
+// the old one, preventing out-of-bounds access from Next/Previous.
+func TestManager_SetQueue_ClampsCurrentIndex(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{
+		ctx:    ctx,
+		cancel: cancel,
+		queue: []QueueTrack{
+			{Path: "/a.flac", Hash: "h0", QueueID: 1},
+			{Path: "/b.flac", Hash: "h1", QueueID: 2},
+			{Path: "/c.flac", Hash: "h2", QueueID: 3},
+			{Path: "/d.flac", Hash: "h3", QueueID: 4},
+		},
+		currentIndex: 3, // last entry
+	}
+	defer m.Close()
+
+	// Replace with a shorter queue — currentIndex must be clamped.
+	m.SetQueue([]QueueTrack{
+		{Path: "/x.flac", Hash: "hx", QueueID: 10},
+		{Path: "/y.flac", Hash: "hy", QueueID: 11},
+	})
+
+	m.mu.RLock()
+	idx := m.currentIndex
+	qLen := len(m.queue)
+	m.mu.RUnlock()
+
+	if idx >= qLen {
+		t.Fatalf("currentIndex = %d after SetQueue with %d entries; expected clamped to %d", idx, qLen, qLen-1)
+	}
+	if idx != 1 {
+		t.Errorf("currentIndex = %d, want 1 (last valid index)", idx)
+	}
+}
+
+// TestManager_SetQueue_EmptyQueue verifies that SetQueue resets currentIndex
+// to 0 when the new queue is empty.
+func TestManager_SetQueue_EmptyQueue(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{
+		ctx:    ctx,
+		cancel: cancel,
+		queue: []QueueTrack{
+			{Path: "/a.flac", Hash: "h0", QueueID: 1},
+		},
+		currentIndex: 0,
+	}
+	defer m.Close()
+
+	m.SetQueue(nil)
+
+	m.mu.RLock()
+	idx := m.currentIndex
+	m.mu.RUnlock()
+
+	if idx != 0 {
+		t.Errorf("currentIndex = %d after SetQueue(nil), want 0", idx)
+	}
+}
+
+// TestManager_SetCurrentIndex verifies that SetCurrentIndex sets the index
+// correctly and clamps out-of-range values.
+func TestManager_SetCurrentIndex(t *testing.T) {
+	makeManager := func(queueLen, startIdx int) *Manager {
+		ctx, cancel := context.WithCancel(context.Background())
+		q := make([]QueueTrack, queueLen)
+		for i := range q {
+			q[i] = QueueTrack{Path: fmt.Sprintf("/%d.flac", i), Hash: fmt.Sprintf("h%d", i), QueueID: int64(i + 1)}
+		}
+		return &Manager{ctx: ctx, cancel: cancel, queue: q, currentIndex: startIdx}
+	}
+
+	t.Run("valid index", func(t *testing.T) {
+		m := makeManager(5, 0)
+		defer m.Close()
+		m.SetCurrentIndex(3)
+		m.mu.RLock()
+		got := m.currentIndex
+		m.mu.RUnlock()
+		if got != 3 {
+			t.Errorf("currentIndex = %d, want 3", got)
+		}
+	})
+
+	t.Run("negative clamped to 0", func(t *testing.T) {
+		m := makeManager(5, 2)
+		defer m.Close()
+		m.SetCurrentIndex(-1)
+		m.mu.RLock()
+		got := m.currentIndex
+		m.mu.RUnlock()
+		if got != 0 {
+			t.Errorf("currentIndex = %d, want 0", got)
+		}
+	})
+
+	t.Run("too large clamped to last", func(t *testing.T) {
+		m := makeManager(3, 0)
+		defer m.Close()
+		m.SetCurrentIndex(10)
+		m.mu.RLock()
+		got := m.currentIndex
+		m.mu.RUnlock()
+		if got != 2 {
+			t.Errorf("currentIndex = %d, want 2", got)
+		}
+	})
+
+	t.Run("empty queue sets 0", func(t *testing.T) {
+		m := makeManager(0, 0)
+		defer m.Close()
+		m.SetCurrentIndex(5)
+		m.mu.RLock()
+		got := m.currentIndex
+		m.mu.RUnlock()
+		if got != 0 {
+			t.Errorf("currentIndex = %d, want 0", got)
+		}
+	})
+}
+
+// TestManager_SetQueue_KeepsCurrentIndexWhenValid verifies that SetQueue does
+// NOT change currentIndex when the new queue is large enough.
+func TestManager_SetQueue_KeepsCurrentIndexWhenValid(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{
+		ctx:    ctx,
+		cancel: cancel,
+		queue: []QueueTrack{
+			{Path: "/a.flac", Hash: "h0", QueueID: 1},
+			{Path: "/b.flac", Hash: "h1", QueueID: 2},
+		},
+		currentIndex: 1,
+	}
+	defer m.Close()
+
+	// Replace with a queue that still has index 1 valid.
+	m.SetQueue([]QueueTrack{
+		{Path: "/x.flac", Hash: "hx", QueueID: 10},
+		{Path: "/y.flac", Hash: "hy", QueueID: 11},
+		{Path: "/z.flac", Hash: "hz", QueueID: 12},
+	})
+
+	m.mu.RLock()
+	idx := m.currentIndex
+	m.mu.RUnlock()
+
+	if idx != 1 {
+		t.Errorf("currentIndex = %d, want 1 (unchanged)", idx)
+	}
+}
