@@ -133,6 +133,12 @@ func watchLoop(ctx context.Context, w *fsnotify.Watcher, _ string, extractor Met
 // watch is also registered.
 func handleFsEvent(event fsnotify.Event, pending map[string]bool, deleted map[string]struct{}, w *fsnotify.Watcher) {
 	path := event.Name
+	base := filepath.Base(path)
+
+	// Skip hidden files and directories (matching Walk's behaviour).
+	if strings.HasPrefix(base, ".") {
+		return
+	}
 
 	switch {
 	case event.Has(fsnotify.Create):
@@ -146,12 +152,12 @@ func handleFsEvent(event fsnotify.Event, pending map[string]bool, deleted map[st
 			// re-traversal of the entire subtree.
 			_ = addWatchesRecursive(w, path)
 			pending[path] = true
-		} else if isAudioFile(filepath.Base(path)) {
+		} else if isAudioFile(base) {
 			pending[path] = false
 		}
 
 	case event.Has(fsnotify.Write) || event.Has(fsnotify.Chmod):
-		if isAudioFile(filepath.Base(path)) {
+		if isAudioFile(base) {
 			pending[path] = false
 		}
 
@@ -161,7 +167,7 @@ func handleFsEvent(event fsnotify.Event, pending map[string]bool, deleted map[st
 		// event and will be added to pending at that point.
 		delete(pending, path)
 		// Record audio file deletions so the TUI can evict the stale index entry.
-		if isAudioFile(filepath.Base(path)) {
+		if isAudioFile(base) {
 			deleted[path] = struct{}{}
 		}
 	}
@@ -239,6 +245,9 @@ func addWatchesRecursive(w *fsnotify.Watcher, root string) error {
 			return nil // skip unreadable entries
 		}
 		if d.IsDir() {
+			if strings.HasPrefix(d.Name(), ".") && path != root {
+				return filepath.SkipDir
+			}
 			_ = w.Add(path)
 		}
 		return nil

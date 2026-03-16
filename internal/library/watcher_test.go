@@ -413,6 +413,107 @@ func TestWatch_WatcherFactoryFailure_LogsWarningAndDegrades(t *testing.T) {
 	}
 }
 
+// TestHandleFsEvent_SkipsHiddenFiles verifies that handleFsEvent ignores
+// events for hidden files and directories (names starting with '.'), matching
+// the same hidden-entry filtering applied by Walk.
+func TestHandleFsEvent_SkipsHiddenFiles(t *testing.T) {
+	root := t.TempDir()
+
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		t.Fatalf("NewWatcher: %v", err)
+	}
+	defer w.Close()
+
+	t.Run("hidden audio file Create is ignored", func(t *testing.T) {
+		hiddenAudio := filepath.Join(root, ".hidden.mp3")
+		mkfile(t, hiddenAudio)
+		pending := make(map[string]bool)
+		deleted := make(map[string]struct{})
+		handleFsEvent(fsnotify.Event{Name: hiddenAudio, Op: fsnotify.Create}, pending, deleted, w)
+		if _, ok := pending[hiddenAudio]; ok {
+			t.Errorf("hidden audio file should not be added to pending")
+		}
+	})
+
+	t.Run("hidden directory Create is ignored", func(t *testing.T) {
+		hiddenDir := filepath.Join(root, ".hidden_dir")
+		if err := os.Mkdir(hiddenDir, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		pending := make(map[string]bool)
+		deleted := make(map[string]struct{})
+		handleFsEvent(fsnotify.Event{Name: hiddenDir, Op: fsnotify.Create}, pending, deleted, w)
+		if _, ok := pending[hiddenDir]; ok {
+			t.Errorf("hidden directory should not be added to pending")
+		}
+	})
+
+	t.Run("hidden file Write is ignored", func(t *testing.T) {
+		hiddenAudio := filepath.Join(root, ".hidden.flac")
+		mkfile(t, hiddenAudio)
+		pending := make(map[string]bool)
+		deleted := make(map[string]struct{})
+		handleFsEvent(fsnotify.Event{Name: hiddenAudio, Op: fsnotify.Write}, pending, deleted, w)
+		if _, ok := pending[hiddenAudio]; ok {
+			t.Errorf("hidden file Write should not be added to pending")
+		}
+	})
+
+	t.Run("hidden file Remove is ignored", func(t *testing.T) {
+		hiddenAudio := filepath.Join(root, ".hidden.mp3")
+		pending := make(map[string]bool)
+		deleted := make(map[string]struct{})
+		handleFsEvent(fsnotify.Event{Name: hiddenAudio, Op: fsnotify.Remove}, pending, deleted, w)
+		if _, ok := deleted[hiddenAudio]; ok {
+			t.Errorf("hidden file Remove should not be added to deleted")
+		}
+	})
+}
+
+// TestAddWatchesRecursive_SkipsHiddenDirs verifies that addWatchesRecursive
+// does not register watches on hidden directories (names starting with '.').
+func TestAddWatchesRecursive_SkipsHiddenDirs(t *testing.T) {
+	root := t.TempDir()
+
+	// Create a visible directory and a hidden directory.
+	visible := filepath.Join(root, "music")
+	hidden := filepath.Join(root, ".git")
+	if err := os.Mkdir(visible, 0o755); err != nil {
+		t.Fatalf("mkdir visible: %v", err)
+	}
+	if err := os.Mkdir(hidden, 0o755); err != nil {
+		t.Fatalf("mkdir hidden: %v", err)
+	}
+
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		t.Fatalf("NewWatcher: %v", err)
+	}
+	defer w.Close()
+
+	if err := addWatchesRecursive(w, root); err != nil {
+		t.Fatalf("addWatchesRecursive: %v", err)
+	}
+
+	// WatchList returns the list of paths being watched.
+	watched := w.WatchList()
+	watchedSet := make(map[string]bool, len(watched))
+	for _, p := range watched {
+		watchedSet[p] = true
+	}
+
+	if !watchedSet[root] {
+		t.Errorf("expected root %q to be watched", root)
+	}
+	if !watchedSet[visible] {
+		t.Errorf("expected visible dir %q to be watched", visible)
+	}
+	if watchedSet[hidden] {
+		t.Errorf("hidden dir %q should NOT be watched", hidden)
+	}
+}
+
 // statPreservingExtractor echoes HashedFile fields into Track, preserving
 // ModTime and SizeBytes. Used to verify that the rescan path populates stat
 // info on the HashedFile before calling Extract.

@@ -808,6 +808,7 @@ func (w *Writer) UpsertBatch(tracks []library.Track) error {
 					duration_ms = excluded.duration_ms,
 					size_bytes  = excluded.size_bytes,
 					mod_time    = excluded.mod_time,
+					missing     = 0,
 					updated_at  = excluded.updated_at`,
 				t.Hash, t.Path, t.Title, t.Artist, t.Album, durationMs, t.SizeBytes, t.ModTime, now, now,
 			)

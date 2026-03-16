@@ -111,3 +111,46 @@ func TestReadTracks_ExcludesMissing(t *testing.T) {
 		t.Errorf("got hash %q, want %q", rows[0].Hash, "hashB")
 	}
 }
+
+func TestUpsertBatch_ClearsMissingFlag(t *testing.T) {
+	d := openMigratedDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	tracks := []library.Track{
+		{Hash: "hashX", Path: "/music/x.flac", Title: "X", Artist: "Artist", Duration: 1},
+	}
+	if err := w.UpsertBatch(tracks); err != nil {
+		t.Fatalf("UpsertBatch: %v", err)
+	}
+
+	// Mark the track as missing (simulates a file disappearing).
+	if err := w.MarkTrackMissing("hashX"); err != nil {
+		t.Fatalf("MarkTrackMissing: %v", err)
+	}
+
+	// Verify the track is excluded from ReadTracks while missing.
+	rows, err := d.ReadTracks()
+	if err != nil {
+		t.Fatalf("ReadTracks: %v", err)
+	}
+	if len(rows) != 0 {
+		t.Fatalf("got %d rows, want 0 (missing track should be excluded)", len(rows))
+	}
+
+	// Re-upsert the same track (simulates a rescan finding the file again).
+	if err := w.UpsertBatch(tracks); err != nil {
+		t.Fatalf("UpsertBatch (re-upsert): %v", err)
+	}
+
+	// The track should now be visible again (missing=0 cleared by upsert).
+	rows, err = d.ReadTracks()
+	if err != nil {
+		t.Fatalf("ReadTracks after re-upsert: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("got %d rows, want 1 (re-upserted track should be visible)", len(rows))
+	}
+	if rows[0].Hash != "hashX" {
+		t.Errorf("got hash %q, want %q", rows[0].Hash, "hashX")
+	}
+}

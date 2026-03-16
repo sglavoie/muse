@@ -178,14 +178,58 @@ func main() {
 		flush()
 	}()
 
-	watchCh, watchErr := library.Watch(ctx, cfg.MusicDirectory, extractor, library.DefaultDebounce)
+	// Build path→hash lookup from cached tracks. Used by the deletion-path
+	// handler in both the pre-TUI eviction loop and the watcher bridge.
+	hashByPath := make(map[string]string, len(libraryTracks))
+	for _, t := range libraryTracks {
+		hashByPath[t.Path] = t.Hash
+	}
+
+	rawWatchCh, watchErr := library.Watch(ctx, cfg.MusicDirectory, extractor, library.DefaultDebounce)
 	if watchErr != nil {
 		slog.Error("failed to start file watcher", "err", watchErr)
 	}
 
+	// Bridge watcher events to both the DB (for persistence) and the TUI
+	// (for in-memory index updates). Without this bridge, watcher-discovered
+	// tracks would appear in the TUI but never reach the tracks table,
+	// causing FK violations when the user tries to enqueue them and data
+	// loss on restart.
+	tuiWatchCh := make(chan library.WatchEvent, 64)
+	go func() {
+		defer close(tuiWatchCh)
+		var batch []library.Track
+		flush := func() {
+			if len(batch) == 0 {
+				return
+			}
+			if err := result.Writer.UpsertBatch(batch); err != nil {
+				slog.Warn("watcher: upsert batch", "err", err, "count", len(batch))
+			}
+			batch = batch[:0]
+		}
+		for ev := range rawWatchCh {
+			tuiWatchCh <- ev
+			if ev.Deleted {
+				flush()
+				if hash, ok := hashByPath[ev.Path]; ok {
+					if err := result.Writer.MarkTrackMissing(hash); err != nil {
+						slog.Warn("watcher: mark deleted track missing", "path", ev.Path, "err", err)
+					}
+				}
+			} else {
+				batch = append(batch, ev.Track)
+				if len(batch) >= upsertBatchSize {
+					flush()
+				}
+			}
+		}
+		flush()
+	}()
+
 	restored := result.Restored
 
-	model := tui.New(configPath, configCreated, tuiScanCh, watchCh, cfg.MusicDirectory, extractor, mgr)
+	model := tui.New(configPath, configCreated, tuiScanCh, tuiWatchCh, cfg.MusicDirectory, extractor, mgr)
 	model.SetQueueWriter(result.Writer)
 	model.SetQueueDequeuer(result.Writer)
 	model.SetSessionWriter(result.Writer)
@@ -214,11 +258,6 @@ func main() {
 	model.SetLibraryTracks(libraryTracks)
 
 	// Evict deleted files from the library index before the TUI starts.
-	// Build a path→hash lookup from cached tracks to mark them missing in the DB.
-	hashByPath := make(map[string]string, len(libraryTracks))
-	for _, t := range libraryTracks {
-		hashByPath[t.Path] = t.Hash
-	}
 	for _, path := range deletedPaths {
 		model.RemoveLibraryTrackByPath(path)
 		if hash, ok := hashByPath[path]; ok {
