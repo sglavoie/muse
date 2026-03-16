@@ -1651,6 +1651,21 @@ func (m Model) handleUndo() Model {
 		copy(entries[idx+1:], m.queue.entries[idx:])
 		m.queue.entries = entries
 		m.queue.cursor = idx
+		// Rebuild the player's in-memory queue so it stays in sync with the
+		// TUI queue after the re-insertion.
+		if qs, ok := m.player.(playerQueueSetter); ok {
+			pt := make([]player.QueueTrack, len(m.queue.entries))
+			for i, e := range m.queue.entries {
+				pt[i] = player.QueueTrack{
+					Path:    e.Path,
+					Hash:    e.Hash,
+					QueueID: e.ID,
+					Artist:  e.Artist,
+					Title:   e.Title,
+				}
+			}
+			qs.SetQueue(pt)
+		}
 	case undoKindClear:
 		if m.undoer != nil {
 			_ = m.undoer.UndoClearQueue(m.undoSlot.clearIDs)

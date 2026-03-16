@@ -3,6 +3,7 @@ package tui
 import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/player"
 )
 
 // stubExtractor is a no-op MetadataExtractor used in rescan tests to avoid
@@ -248,6 +249,26 @@ type stubPlayerQueueRemover struct {
 }
 
 func (s *stubPlayerQueueRemover) RemoveFromQueue(index int) error {
+	s.removeFromQueueCalls = append(s.removeFromQueueCalls, index)
+	return nil
+}
+
+// stubPlayerQueueSyncer extends stubPlayer with playerQueueSetter and
+// playerQueueRemover so undo tests can verify the player queue is rebuilt
+// after undoing a dequeue.
+type stubPlayerQueueSyncer struct {
+	stubPlayer
+	setQueueCalls        [][]player.QueueTrack
+	removeFromQueueCalls []int
+}
+
+func (s *stubPlayerQueueSyncer) SetQueue(tracks []player.QueueTrack) {
+	cp := make([]player.QueueTrack, len(tracks))
+	copy(cp, tracks)
+	s.setQueueCalls = append(s.setQueueCalls, cp)
+}
+
+func (s *stubPlayerQueueSyncer) RemoveFromQueue(index int) error {
 	s.removeFromQueueCalls = append(s.removeFromQueueCalls, index)
 	return nil
 }

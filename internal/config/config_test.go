@@ -181,3 +181,42 @@ func TestConfig_StructFields(t *testing.T) {
 	_ = cfg.MPVExtraFlags
 	_ = cfg.DefaultVolume
 }
+
+func TestLoad_OmittedVolume_UsesDefault(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+music_directory = "/home/user/Songs"
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, _, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.DefaultVolume != defaultVolume {
+		t.Errorf("DefaultVolume = %d, want default %d (omitted field should use default, not zero)", cfg.DefaultVolume, defaultVolume)
+	}
+}
+
+func TestLoad_ExplicitVolumeZero_Accepted(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+music_directory = "/home/user/Songs"
+default_volume = 0
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, _, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.DefaultVolume != 0 {
+		t.Errorf("DefaultVolume = %d, want 0 (explicitly set to 0)", cfg.DefaultVolume)
+	}
+}

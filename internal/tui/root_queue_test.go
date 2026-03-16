@@ -734,6 +734,45 @@ func TestDequeueTrackMsgDoesNotCallStop(t *testing.T) {
 	}
 }
 
+// TestUndoDequeueRebuildPlayerQueue verifies that undoing a dequeue calls
+// SetQueue on the player so the player's in-memory queue stays in sync with
+// the TUI queue after the re-insertion.
+func TestUndoDequeueRebuildPlayerQueue(t *testing.T) {
+	p := &stubPlayerQueueSyncer{}
+	d := &stubQueueDequeuer{}
+	m := New("", false, nil, nil, "", nil, p)
+	m.SetQueueDequeuer(d)
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/music/a.flac", Hash: "ha", Artist: "A", Title: "Ta"},
+		{ID: 20, Path: "/music/b.flac", Hash: "hb", Artist: "B", Title: "Tb"},
+		{ID: 30, Path: "/music/c.flac", Hash: "hc", Artist: "C", Title: "Tc"},
+	}
+
+	// Dequeue the middle entry.
+	next, _ := m.Update(DequeueTrackMsg{Index: 1})
+	nm := next.(Model)
+
+	// Undo within the window.
+	next, _ = nm.Update(UndoMsg{})
+	nm = next.(Model)
+
+	if len(nm.queue.entries) != 3 {
+		t.Fatalf("after undo: expected 3 entries, got %d", len(nm.queue.entries))
+	}
+
+	// SetQueue must have been called to rebuild the player queue.
+	if len(p.setQueueCalls) == 0 {
+		t.Fatal("undo dequeue must call SetQueue to rebuild the player queue")
+	}
+	lastCall := p.setQueueCalls[len(p.setQueueCalls)-1]
+	if len(lastCall) != 3 {
+		t.Fatalf("SetQueue called with %d tracks, want 3", len(lastCall))
+	}
+	if lastCall[1].Hash != "hb" {
+		t.Errorf("restored player queue entry at index 1: want hash %q, got %q", "hb", lastCall[1].Hash)
+	}
+}
+
 // TestDequeueTrackMsgDoesNotTouchPlaylistTracks verifies that processing a
 // DequeueTrackMsg leaves any loaded playlist tracks completely unchanged.
 // Queue entries and playlist tracks are independent; dequeuing a queue entry

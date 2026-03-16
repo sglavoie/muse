@@ -70,7 +70,7 @@ func Load(configDir string) (Config, bool, error) {
 		return cfg, false, err
 	}
 
-	var raw Config
+	var raw rawConfig
 	if _, err := toml.DecodeFile(path, &raw); err != nil {
 		slog.Warn("failed to parse config file, using defaults", "path", path, "error", err)
 		return cfg, false, nil
@@ -80,9 +80,19 @@ func Load(configDir string) (Config, bool, error) {
 	return cfg, false, nil
 }
 
+// rawConfig mirrors Config but uses pointer types for optional numeric fields
+// so that omitted TOML keys can be distinguished from explicit zero values.
+type rawConfig struct {
+	MusicDirectory string   `toml:"music_directory"`
+	MPVSocketPath  string   `toml:"mpv_socket_path"`
+	MPVExtraFlags  []string `toml:"mpv_extra_flags"`
+	DefaultVolume  *int     `toml:"default_volume"`
+	LogLevel       string   `toml:"log_level"`
+}
+
 // validate checks each field and falls back to defaults for invalid values,
 // logging a warning for every field that is replaced.
-func validate(raw Config) Config {
+func validate(raw rawConfig) Config {
 	cfg := defaults()
 
 	if raw.MusicDirectory != "" {
@@ -105,15 +115,19 @@ func validate(raw Config) Config {
 		cfg.MPVExtraFlags = []string{}
 	}
 
-	if raw.DefaultVolume >= 0 && raw.DefaultVolume <= 100 {
-		cfg.DefaultVolume = raw.DefaultVolume
-	} else {
-		slog.Warn("invalid config value, using default",
-			"field", "default_volume",
-			"value", raw.DefaultVolume,
-			"default", defaultVolume,
-		)
+	if raw.DefaultVolume != nil {
+		v := *raw.DefaultVolume
+		if v >= 0 && v <= 100 {
+			cfg.DefaultVolume = v
+		} else {
+			slog.Warn("invalid config value, using default",
+				"field", "default_volume",
+				"value", v,
+				"default", defaultVolume,
+			)
+		}
 	}
+	// nil means omitted — keep the default silently.
 
 	switch raw.LogLevel {
 	case "debug", "info", "warn", "error":

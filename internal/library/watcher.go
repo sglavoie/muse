@@ -196,8 +196,14 @@ func rescan(ctx context.Context, pending map[string]bool, extractor MetadataExtr
 			continue
 		}
 
+		hf := HashedFile{Path: path, Hash: hash}
+		if info, statErr := os.Stat(path); statErr == nil {
+			hf.ModTime = info.ModTime().Unix()
+			hf.SizeBytes = info.Size()
+		}
+
 		// Per-file ExifTool invocation (not batch mode).
-		tracks, err := extractor.Extract([]HashedFile{{Path: path, Hash: hash}})
+		tracks, err := extractor.Extract([]HashedFile{hf})
 		if err != nil {
 			// Apply the same filename fallback used by extractWithBinaryRetry so
 			// no track is ever silently dropped from the library.
@@ -206,10 +212,12 @@ func rescan(ctx context.Context, pending map[string]bool, extractor MetadataExtr
 			slog.Warn("watcher: metadata extraction failed, using filename fallback",
 				"path", path, "error", err)
 			tracks = []Track{{
-				Path:   path,
-				Hash:   hash,
-				Artist: "Unknown Artist",
-				Title:  stem,
+				Path:      path,
+				Hash:      hash,
+				Artist:    "Unknown Artist",
+				Title:     stem,
+				ModTime:   hf.ModTime,
+				SizeBytes: hf.SizeBytes,
 			}}
 		}
 		for _, t := range tracks {
