@@ -89,6 +89,135 @@ func testIndexUnknownArtistBottomSort(t *testing.T) {
 	}
 }
 
+// --- less function ---
+
+func TestLess_NamedBeforeUnknown(t *testing.T) {
+	a := Track{Artist: "Arca", Title: "Piel"}
+	b := Track{Artist: unknownArtist, Title: "abc"}
+	if !less(a, b) {
+		t.Error("named artist must sort before Unknown Artist")
+	}
+	if less(b, a) {
+		t.Error("Unknown Artist must not sort before named artist")
+	}
+}
+
+func TestLess_SameArtistByTitle(t *testing.T) {
+	a := Track{Artist: "Aphex Twin", Title: "Actium"}
+	b := Track{Artist: "Aphex Twin", Title: "Xtal"}
+	if !less(a, b) {
+		t.Error("same artist: earlier title must sort first")
+	}
+	if less(b, a) {
+		t.Error("same artist: later title must not sort first")
+	}
+}
+
+func TestLess_DifferentArtists(t *testing.T) {
+	a := Track{Artist: "Arca", Title: "Piel"}
+	b := Track{Artist: "Zappa", Title: "Bobby Brown"}
+	if !less(a, b) {
+		t.Error("Arca must sort before Zappa")
+	}
+}
+
+func TestLess_BothUnknownByTitle(t *testing.T) {
+	a := Track{Artist: unknownArtist, Title: "aaa"}
+	b := Track{Artist: unknownArtist, Title: "zzz"}
+	if !less(a, b) {
+		t.Error("same Unknown Artist: earlier title must sort first")
+	}
+}
+
+func TestLess_IdenticalTracks(t *testing.T) {
+	a := Track{Artist: "Arca", Title: "Piel"}
+	if less(a, a) {
+		t.Error("identical tracks: less must return false")
+	}
+}
+
+// --- RemoveByPath ---
+
+func TestRemoveByPath_Exists(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Artist: "A", Title: "t1", Path: "/a.flac"})
+	idx.Insert(Track{Artist: "B", Title: "t2", Path: "/b.flac"})
+	idx.Insert(Track{Artist: "C", Title: "t3", Path: "/c.flac"})
+
+	if !idx.RemoveByPath("/b.flac") {
+		t.Fatal("RemoveByPath: expected true for existing path")
+	}
+	if idx.Len() != 2 {
+		t.Fatalf("expected 2 tracks after remove, got %d", idx.Len())
+	}
+	for _, tr := range idx.Tracks() {
+		if tr.Path == "/b.flac" {
+			t.Error("removed track still present")
+		}
+	}
+}
+
+func TestRemoveByPath_NotExists(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Artist: "A", Title: "t1", Path: "/a.flac"})
+
+	if idx.RemoveByPath("/nonexistent.flac") {
+		t.Error("RemoveByPath: expected false for non-existing path")
+	}
+	if idx.Len() != 1 {
+		t.Errorf("expected 1 track, got %d", idx.Len())
+	}
+}
+
+func TestRemoveByPath_EmptyIndex(t *testing.T) {
+	var idx LibraryIndex
+	if idx.RemoveByPath("/a.flac") {
+		t.Error("RemoveByPath on empty index: expected false")
+	}
+}
+
+// --- UpsertByPath ---
+
+func TestUpsertByPath_InsertNew(t *testing.T) {
+	var idx LibraryIndex
+	idx.UpsertByPath("/a.flac", Track{Artist: "A", Title: "t1", Path: "/a.flac"})
+	if idx.Len() != 1 {
+		t.Fatalf("expected 1 track, got %d", idx.Len())
+	}
+}
+
+func TestUpsertByPath_ReplaceExisting(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Artist: "A", Title: "OldTitle", Path: "/a.flac"})
+	idx.Insert(Track{Artist: "B", Title: "t2", Path: "/b.flac"})
+
+	idx.UpsertByPath("/a.flac", Track{Artist: "A", Title: "NewTitle", Path: "/a.flac"})
+
+	if idx.Len() != 2 {
+		t.Fatalf("expected 2 tracks after upsert, got %d", idx.Len())
+	}
+	// Verify the old entry is gone and new one exists.
+	for _, tr := range idx.Tracks() {
+		if tr.Path == "/a.flac" && tr.Title != "NewTitle" {
+			t.Errorf("upsert did not replace: got title %q", tr.Title)
+		}
+	}
+}
+
+func TestUpsertByPath_ChangedArtistResortsCorrectly(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Artist: "Zappa", Title: "t1", Path: "/a.flac"})
+	idx.Insert(Track{Artist: "Miles", Title: "t2", Path: "/b.flac"})
+
+	// Change artist from Zappa to Arca — should now sort first.
+	idx.UpsertByPath("/a.flac", Track{Artist: "Arca", Title: "t1", Path: "/a.flac"})
+
+	got := idx.Tracks()
+	if got[0].Artist != "Arca" {
+		t.Errorf("expected Arca first after upsert, got %q", got[0].Artist)
+	}
+}
+
 // BenchmarkIndex measures insertion of 50,000 tracks and reports per-op
 // allocations. Run with -bench BenchmarkIndex.
 func BenchmarkIndex(b *testing.B) {

@@ -113,6 +113,66 @@ func TestWalk_DirSymlinksNotFollowed(t *testing.T) {
 	}
 }
 
+// --- isAudioFile ---
+
+func TestIsAudioFile_SupportedExtensions(t *testing.T) {
+	for ext := range audioExtensions {
+		name := "track" + ext
+		if !isAudioFile(name) {
+			t.Errorf("isAudioFile(%q) = false, want true", name)
+		}
+	}
+}
+
+func TestIsAudioFile_CaseInsensitive(t *testing.T) {
+	cases := []string{"track.MP3", "song.Flac", "file.OGG", "audio.OPUS"}
+	for _, name := range cases {
+		if !isAudioFile(name) {
+			t.Errorf("isAudioFile(%q) = false, want true (case-insensitive)", name)
+		}
+	}
+}
+
+func TestIsAudioFile_NonAudio(t *testing.T) {
+	cases := []string{"photo.jpg", "doc.pdf", "data.txt", "script.py", "noext", ""}
+	for _, name := range cases {
+		if isAudioFile(name) {
+			t.Errorf("isAudioFile(%q) = true, want false", name)
+		}
+	}
+}
+
+func TestIsAudioFile_DotOnly(t *testing.T) {
+	if isAudioFile(".mp3") {
+		t.Error("isAudioFile(.mp3) should be true for hidden file with audio ext")
+	}
+}
+
+// --- CountAudioFiles ---
+
+func TestCountAudioFiles(t *testing.T) {
+	dir := t.TempDir()
+	mkfile(t, filepath.Join(dir, "a.mp3"))
+	mkfile(t, filepath.Join(dir, "b.flac"))
+	mkfile(t, filepath.Join(dir, "c.txt"))
+	mkfile(t, filepath.Join(dir, "sub", "d.ogg"))
+	mkfile(t, filepath.Join(dir, ".hidden.mp3"))
+
+	got := CountAudioFiles(dir)
+	// a.mp3, b.flac, sub/d.ogg = 3 (hidden file excluded by walk)
+	if got != 3 {
+		t.Errorf("CountAudioFiles = %d, want 3", got)
+	}
+}
+
+func TestCountAudioFiles_EmptyDir(t *testing.T) {
+	dir := t.TempDir()
+	got := CountAudioFiles(dir)
+	if got != 0 {
+		t.Errorf("CountAudioFiles empty dir = %d, want 0", got)
+	}
+}
+
 func TestWalk_ChannelClosedOnCompletion(t *testing.T) {
 	dir := t.TempDir()
 	ch := Walk(dir)
