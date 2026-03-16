@@ -840,6 +840,89 @@ func TestLibraryViewBackspaceFilterInactiveNoOp(t *testing.T) {
 	}
 }
 
+// --- LibraryView DeactivateFilter ---
+
+func TestLibraryViewDeactivateFilter(t *testing.T) {
+	var idx library.LibraryIndex
+	idx.Insert(library.Track{Artist: "A", Title: "T1", Hash: "h1"})
+
+	v := LibraryView{
+		index:        idx,
+		fuzzy:        library.FakeFuzzySearcher{},
+		filterActive: true,
+		filterText:   "AB",
+		cursor:       5,
+	}
+	v = v.DeactivateFilter()
+	if v.filterActive {
+		t.Error("DeactivateFilter: expected filterActive=false")
+	}
+	if v.filterText != "" {
+		t.Errorf("DeactivateFilter: expected filterText='', got %q", v.filterText)
+	}
+	if v.cursor != 0 {
+		t.Errorf("DeactivateFilter: expected cursor=0, got %d", v.cursor)
+	}
+}
+
+// --- Model setters ---
+
+func TestModelSetRepeatMode(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.SetRepeatMode(RepeatAll)
+	if m.repeatMode != RepeatAll {
+		t.Errorf("SetRepeatMode: expected RepeatAll, got %v", m.repeatMode)
+	}
+}
+
+func TestModelSetShuffle(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.SetShuffle(true)
+	if !m.shuffle {
+		t.Error("SetShuffle(true): expected shuffle=true")
+	}
+}
+
+func TestModelSetPlaybackState(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.SetPlaybackState(PlaybackPaused)
+	if m.playbackState != PlaybackPaused {
+		t.Errorf("SetPlaybackState: expected PlaybackPaused, got %v", m.playbackState)
+	}
+}
+
+func TestModelSetCurrentTrackHash(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.SetCurrentTrackHash("abc123")
+	if m.currentTrackHash != "abc123" {
+		t.Errorf("SetCurrentTrackHash: expected 'abc123', got %q", m.currentTrackHash)
+	}
+}
+
+func TestModelSetLibraryTracks(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	tracks := []library.Track{
+		{Artist: "A", Title: "T1", Hash: "h1"},
+		{Artist: "B", Title: "T2", Hash: "h2"},
+	}
+	m.SetLibraryTracks(tracks)
+	if m.library.index.Len() != 2 {
+		t.Errorf("SetLibraryTracks: expected 2 tracks, got %d", m.library.index.Len())
+	}
+}
+
+func TestModelRemoveLibraryTrackByPath(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.SetLibraryTracks([]library.Track{
+		{Artist: "A", Title: "T1", Hash: "h1", Path: "/a.mp3"},
+		{Artist: "B", Title: "T2", Hash: "h2", Path: "/b.mp3"},
+	})
+	m.RemoveLibraryTrackByPath("/a.mp3")
+	if m.library.index.Len() != 1 {
+		t.Errorf("RemoveLibraryTrackByPath: expected 1 track, got %d", m.library.index.Len())
+	}
+}
+
 // --- LibraryView CommitFilter ---
 
 func TestLibraryViewCommitFilter(t *testing.T) {
