@@ -731,6 +731,246 @@ func TestEnqueueFocusedWithActiveFilterSelectsFilteredTrack(t *testing.T) {
 	}
 }
 
+// --- navigation: GoToTop / GoToBottom ---
+
+func TestGoToTopResetsCursorAndScroll(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Width: 80, Height: 24, Cursor: 2, ScrollOffset: 1}
+	v = v.GoToTop()
+	if v.Cursor != 0 {
+		t.Errorf("GoToTop: expected Cursor=0, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 0 {
+		t.Errorf("GoToTop: expected ScrollOffset=0, got %d", v.ScrollOffset)
+	}
+}
+
+func TestGoToBottomMovesCursorToLast(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Width: 80, Height: 24, Cursor: 0}
+	v = v.GoToBottom()
+	want := len(sampleTracks) - 1
+	if v.Cursor != want {
+		t.Errorf("GoToBottom: expected Cursor=%d, got %d", want, v.Cursor)
+	}
+}
+
+func TestGoToBottomEmptyLibrary(t *testing.T) {
+	v := View{Width: 80, Height: 24, Cursor: 0}
+	v = v.GoToBottom()
+	if v.Cursor != 0 {
+		t.Errorf("GoToBottom empty: expected Cursor=0, got %d", v.Cursor)
+	}
+}
+
+func TestGoToBottomAdjustsScrollOffset(t *testing.T) {
+	tracks := make([]musiclib.Track, 20)
+	for i := range tracks {
+		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
+	}
+	idx := buildIndex(tracks)
+	v := View{Index: idx, Width: 80, Height: 6, Cursor: 0} // visibleRows = 3
+	v = v.GoToBottom()
+	if v.Cursor != 19 {
+		t.Errorf("GoToBottom: expected Cursor=19, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 17 {
+		t.Errorf("GoToBottom: expected ScrollOffset=17, got %d", v.ScrollOffset)
+	}
+}
+
+// --- navigation: page movements ---
+
+func TestHalfPageDownMovesByHalfVisibleRows(t *testing.T) {
+	tracks := make([]musiclib.Track, 20)
+	for i := range tracks {
+		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
+	}
+	idx := buildIndex(tracks)
+	v := View{Index: idx, Width: 80, Height: 13, Cursor: 0} // visibleRows = 10
+	v = v.HalfPageDown()
+	if v.Cursor != 5 {
+		t.Errorf("HalfPageDown: expected Cursor=5, got %d", v.Cursor)
+	}
+}
+
+func TestHalfPageUpMovesByHalfVisibleRows(t *testing.T) {
+	tracks := make([]musiclib.Track, 20)
+	for i := range tracks {
+		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
+	}
+	idx := buildIndex(tracks)
+	v := View{Index: idx, Width: 80, Height: 13, Cursor: 10} // visibleRows = 10
+	v = v.HalfPageUp()
+	if v.Cursor != 5 {
+		t.Errorf("HalfPageUp: expected Cursor=5, got %d", v.Cursor)
+	}
+}
+
+func TestFullPageDownMovesByVisibleRows(t *testing.T) {
+	tracks := make([]musiclib.Track, 20)
+	for i := range tracks {
+		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
+	}
+	idx := buildIndex(tracks)
+	v := View{Index: idx, Width: 80, Height: 13, Cursor: 0} // visibleRows = 10
+	v = v.FullPageDown()
+	if v.Cursor != 10 {
+		t.Errorf("FullPageDown: expected Cursor=10, got %d", v.Cursor)
+	}
+}
+
+func TestFullPageUpMovesByVisibleRows(t *testing.T) {
+	tracks := make([]musiclib.Track, 20)
+	for i := range tracks {
+		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
+	}
+	idx := buildIndex(tracks)
+	v := View{Index: idx, Width: 80, Height: 13, Cursor: 15} // visibleRows = 10
+	v = v.FullPageUp()
+	if v.Cursor != 5 {
+		t.Errorf("FullPageUp: expected Cursor=5, got %d", v.Cursor)
+	}
+}
+
+func TestPageMovementsClampsToEnd(t *testing.T) {
+	idx := buildIndex(sampleTracks) // 3 tracks
+	v := View{Index: idx, Width: 80, Height: 13, Cursor: 2}
+	v = v.FullPageDown()
+	if v.Cursor != 2 {
+		t.Errorf("FullPageDown clamp: expected Cursor=2, got %d", v.Cursor)
+	}
+}
+
+func TestPageMovementsClampsToStart(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Width: 80, Height: 13, Cursor: 1}
+	v = v.FullPageUp()
+	if v.Cursor != 0 {
+		t.Errorf("FullPageUp clamp: expected Cursor=0, got %d", v.Cursor)
+	}
+}
+
+func TestMoveCursorEmptyIsNoOp(t *testing.T) {
+	v := View{Width: 80, Height: 24}
+	v2 := v.moveCursor(5)
+	if v2.Cursor != 0 {
+		t.Errorf("moveCursor empty: expected Cursor=0, got %d", v2.Cursor)
+	}
+}
+
+// --- CommitFilter ---
+
+func TestCommitFilterDeactivatesButKeepsText(t *testing.T) {
+	v := View{FilterActive: true, FilterText: "abc"}
+	v = v.CommitFilter()
+	if v.FilterActive {
+		t.Error("CommitFilter: expected FilterActive=false")
+	}
+	if v.FilterText != "abc" {
+		t.Errorf("CommitFilter: expected FilterText='abc', got %q", v.FilterText)
+	}
+}
+
+// --- formatDuration ---
+
+func TestFormatDurationMinutesSeconds(t *testing.T) {
+	got := formatDuration(185)
+	if got != "3:05" {
+		t.Errorf("formatDuration(185): expected 3:05, got %s", got)
+	}
+}
+
+func TestFormatDurationHours(t *testing.T) {
+	got := formatDuration(3661)
+	if got != "1:01:01" {
+		t.Errorf("formatDuration(3661): expected 1:01:01, got %s", got)
+	}
+}
+
+func TestFormatDurationZero(t *testing.T) {
+	got := formatDuration(0)
+	if got != "--:--" {
+		t.Errorf("formatDuration(0): expected --:--, got %s", got)
+	}
+}
+
+func TestFormatDurationNegative(t *testing.T) {
+	got := formatDuration(-5)
+	if got != "--:--" {
+		t.Errorf("formatDuration(-5): expected --:--, got %s", got)
+	}
+}
+
+// --- formatCount ---
+
+func TestFormatCountSmall(t *testing.T) {
+	got := formatCount(42)
+	if got != "42" {
+		t.Errorf("formatCount(42): expected 42, got %s", got)
+	}
+}
+
+func TestFormatCountThousands(t *testing.T) {
+	got := formatCount(1234)
+	if got != "1,234" {
+		t.Errorf("formatCount(1234): expected 1,234, got %s", got)
+	}
+}
+
+func TestFormatCountMillions(t *testing.T) {
+	got := formatCount(1234567)
+	if got != "1,234,567" {
+		t.Errorf("formatCount(1234567): expected 1,234,567, got %s", got)
+	}
+}
+
+func TestFormatCountExactlyThousand(t *testing.T) {
+	got := formatCount(1000)
+	if got != "1,000" {
+		t.Errorf("formatCount(1000): expected 1,000, got %s", got)
+	}
+}
+
+// --- visibleRows ---
+
+func TestVisibleRowsZeroHeight(t *testing.T) {
+	v := View{Height: 0}
+	if v.visibleRows() != 50 {
+		t.Errorf("visibleRows Height=0: expected 50, got %d", v.visibleRows())
+	}
+}
+
+func TestVisibleRowsSmallHeight(t *testing.T) {
+	v := View{Height: 4}
+	if v.visibleRows() != 1 {
+		t.Errorf("visibleRows Height=4: expected 1, got %d", v.visibleRows())
+	}
+}
+
+// --- pad edge cases ---
+
+func TestPadZeroWidth(t *testing.T) {
+	got := pad("hello", 0)
+	if got != "" {
+		t.Errorf("pad width=0: expected empty, got %q", got)
+	}
+}
+
+func TestPadWidthOne(t *testing.T) {
+	got := pad("hello", 1)
+	if got != "h" {
+		t.Errorf("pad width=1: expected 'h', got %q", got)
+	}
+}
+
+func TestPadExactFit(t *testing.T) {
+	got := pad("hi", 2)
+	if got != "hi" {
+		t.Errorf("pad exact fit: expected 'hi', got %q", got)
+	}
+}
+
 // TestVisibleRowsSameWithAndWithoutFilter verifies that visibleRows returns
 // the same value regardless of whether a filter is active. The heading,
 // separator (blank line or filter bar), and column header always consume
