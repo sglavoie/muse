@@ -324,6 +324,41 @@ func (w *Writer) RenumberQueuePositions() error {
 			return nil
 		}
 
+		// Relocate soft-deleted rows whose positions would collide with the
+		// new gapped sequence. The queue_pos_idx unique constraint covers ALL
+		// rows (including soft-deleted), so any soft-deleted row at a position
+		// in the range [1000, len(active)*1000] must be moved first.
+		maxNewPos := int64(len(active)) * 1000
+		softRows, err := tx.Query(
+			`SELECT id, position FROM queue WHERE deleted_at IS NOT NULL AND position >= 1000 AND position <= ?`,
+			maxNewPos,
+		)
+		if err != nil {
+			return err
+		}
+		var conflicting []qrow
+		for softRows.Next() {
+			var r qrow
+			if err := softRows.Scan(&r.id, &r.position); err != nil {
+				softRows.Close()
+				return err
+			}
+			if r.position%1000 == 0 {
+				conflicting = append(conflicting, r)
+			}
+		}
+		softRows.Close()
+		if err := softRows.Err(); err != nil {
+			return err
+		}
+		// Move conflicting soft-deleted rows above the renumber range.
+		for _, r := range conflicting {
+			safePos := maxNewPos + r.position
+			if _, err := tx.Exec(`UPDATE queue SET position=? WHERE id=?`, safePos, r.id); err != nil {
+				return err
+			}
+		}
+
 		// Update in reverse order (highest new position first) to avoid
 		// transient unique-constraint violations during intermediate states.
 		for i := len(active) - 1; i >= 0; i-- {

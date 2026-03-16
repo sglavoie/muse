@@ -1732,3 +1732,84 @@ func TestWriter_DrainedExecDoesNotReturnSpuriousError(t *testing.T) {
 		t.Errorf("drain-test track count = %d; want 1", count)
 	}
 }
+
+// TestRenumberQueuePositions_SoftDeletedConflict verifies that
+// RenumberQueuePositions succeeds when soft-deleted rows occupy positions in
+// the range that the renumber would assign to active rows. Without the fix,
+// this triggers a UNIQUE constraint violation on queue_pos_idx.
+func TestRenumberQueuePositions_SoftDeletedConflict(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "conflict1", "/c1")
+	now := time.Now().Unix()
+
+	// Drop the unique position index so we can manufacture the exact
+	// conflict scenario: active rows with gap < 1 AND soft-deleted rows
+	// occupying the target renumber positions.
+	if _, err := d.Exec(`DROP INDEX IF EXISTS queue_pos_idx`); err != nil {
+		t.Fatalf("drop index: %v", err)
+	}
+
+	// Two active rows with identical positions (gap = 0, triggers renumber).
+	for _, pos := range []int{500, 500} {
+		if _, err := d.Exec(
+			`INSERT INTO queue (track_hash, position, added_at) VALUES ('conflict1', ?, ?)`,
+			pos, now,
+		); err != nil {
+			t.Fatalf("insert active row: %v", err)
+		}
+	}
+
+	// Soft-deleted row at position 1000 — this is exactly the position the
+	// renumber would assign to the first active row.
+	if _, err := d.Exec(
+		`INSERT INTO queue (track_hash, position, added_at, deleted_at) VALUES ('conflict1', 1000, ?, ?)`,
+		now, now,
+	); err != nil {
+		t.Fatalf("insert conflicting soft-deleted row: %v", err)
+	}
+
+	// Another soft-deleted row at position 2000 — the position the renumber
+	// would assign to the second active row.
+	if _, err := d.Exec(
+		`INSERT INTO queue (track_hash, position, added_at, deleted_at) VALUES ('conflict1', 2000, ?, ?)`,
+		now, now,
+	); err != nil {
+		t.Fatalf("insert conflicting soft-deleted row 2: %v", err)
+	}
+
+	// NOTE: we do NOT recreate the unique index because the duplicate active
+	// positions (both 500) prevent it. The renumber will assign unique
+	// positions to the active rows. This accurately reflects the corruption
+	// scenario that RenumberQueuePositions is designed to repair.
+
+	// Without the fix this would return a UNIQUE constraint violation
+	// when the renumber tries to set an active row's position to 1000 or
+	// 2000 (positions occupied by soft-deleted rows).
+	if err := w.RenumberQueuePositions(); err != nil {
+		t.Fatalf("RenumberQueuePositions: %v", err)
+	}
+
+	rows, err := d.Query(`SELECT position, deleted_at IS NULL FROM queue ORDER BY position`)
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	defer rows.Close()
+
+	var activePos []int64
+	for rows.Next() {
+		var pos int64
+		var active int
+		if err := rows.Scan(&pos, &active); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		if active == 1 {
+			activePos = append(activePos, pos)
+		}
+	}
+
+	if want := []int64{1000, 2000}; !slices.Equal(activePos, want) {
+		t.Errorf("active positions = %v; want %v", activePos, want)
+	}
+}
