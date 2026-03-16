@@ -272,3 +272,26 @@ func (s *stubPlayerQueueSyncer) RemoveFromQueue(index int) error {
 	s.removeFromQueueCalls = append(s.removeFromQueueCalls, index)
 	return nil
 }
+
+// stubBatchEnqueuer records calls to AppendTracks and DequeueTracksSoft for
+// use in batch-enqueue undo tests.
+type stubBatchEnqueuer struct {
+	appendTracksCalls     [][]library.Track
+	dequeueTracksSoftIDs  [][]int64
+}
+
+func (s *stubBatchEnqueuer) AppendTracks(tracks []library.Track, _ string) ([]int64, error) {
+	s.appendTracksCalls = append(s.appendTracksCalls, tracks)
+	ids := make([]int64, len(tracks))
+	for i := range tracks {
+		ids[i] = int64(100 + i)
+	}
+	return ids, nil
+}
+
+func (s *stubBatchEnqueuer) DequeueTracksSoft(ids []int64) error {
+	cp := make([]int64, len(ids))
+	copy(cp, ids)
+	s.dequeueTracksSoftIDs = append(s.dequeueTracksSoftIDs, cp)
+	return nil
+}
