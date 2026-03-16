@@ -107,6 +107,12 @@ func main() {
 	}
 
 	shutdownDeps := app.ShutdownDeps{
+		StopPlayback: func() error {
+			if mgr != nil {
+				return mgr.Close()
+			}
+			return nil
+		},
 		CancelDBWriter: result.CancelWriter,
 		WaitDBWriter:   result.Writer.Wait,
 		CloseDB: func() {

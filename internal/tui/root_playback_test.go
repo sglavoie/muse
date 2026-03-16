@@ -304,6 +304,109 @@ func TestPlaybackEndedMsgRepeatAllRestartsQueue(t *testing.T) {
 	}
 }
 
+// TestPlaybackEndedMsgRepeatAllUpdatesCurrentTrackHash verifies that when
+// RepeatAll wraps back to track 0, currentTrackHash is updated to the first
+// track's hash so that the session-position write persists the correct hash.
+func TestPlaybackEndedMsgRepeatAllUpdatesCurrentTrackHash(t *testing.T) {
+	p := &stubPlayer{}
+	sw := &stubSessionWriter{}
+	m := New("", false, nil, nil, "", nil, p)
+	m.SetSessionWriter(sw)
+	m.playbackState = PlaybackPlaying
+	m.repeatMode = RepeatAll
+	m.currentTrackHash = "old-hash-last-track"
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "hash-first", Path: "/a.flac", Display: "A", Artist: "A", Title: "One"},
+		{ID: 2, Hash: "hash-second", Path: "/b.flac", Display: "B", Artist: "B", Title: "Two"},
+	}
+
+	next, cmd := m.Update(PlaybackEndedMsg{})
+	nm := next.(Model)
+
+	if nm.currentTrackHash != "hash-first" {
+		t.Fatalf("RepeatAll wrap: expected currentTrackHash=%q, got %q", "hash-first", nm.currentTrackHash)
+	}
+	// Execute the session-position cmd and verify the hash it persists.
+	if cmd == nil {
+		t.Fatal("RepeatAll wrap: expected a session-position cmd")
+	}
+	cmd()
+	if len(sw.positionCalls) != 1 {
+		t.Fatalf("expected 1 position call, got %d", len(sw.positionCalls))
+	}
+	if sw.positionCalls[0].hash != "hash-first" {
+		t.Fatalf("session position persisted wrong hash: got %q, want %q", sw.positionCalls[0].hash, "hash-first")
+	}
+}
+
+// TestPlayQueueIndexMsgUpdatesCurrentTrackHash verifies that starting playback
+// from a specific queue index updates currentTrackHash immediately, so the
+// status bar and session persistence use the correct hash without waiting for
+// the asynchronous TrackChangedMsg from the event reader.
+func TestPlayQueueIndexMsgUpdatesCurrentTrackHash(t *testing.T) {
+	p := &stubPlayer{}
+	m := New("", false, nil, nil, "", nil, p)
+	m.currentTrackHash = "stale-hash"
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "hash-a", Path: "/a.flac", Display: "A", Artist: "A", Title: "One"},
+		{ID: 2, Hash: "hash-b", Path: "/b.flac", Display: "B", Artist: "B", Title: "Two"},
+	}
+
+	next, _ := m.Update(PlayQueueIndexMsg{Index: 1})
+	nm := next.(Model)
+
+	if nm.currentTrackHash != "hash-b" {
+		t.Fatalf("PlayQueueIndexMsg: expected currentTrackHash=%q, got %q", "hash-b", nm.currentTrackHash)
+	}
+}
+
+// TestTrackEnqueuedAutoPlayUpdatesCurrentTrackHash verifies that when a track
+// is enqueued into an empty queue and triggers auto-play, currentTrackHash is
+// set to the newly enqueued track's hash.
+func TestTrackEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
+	p := &stubPlayer{}
+	m := New("", false, nil, nil, "", nil, p)
+	m.playbackState = PlaybackIdle
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "hash-x", Path: "/x.flac", Display: "X", Artist: "X", Title: "Song"},
+	}
+
+	track := library.Track{Hash: "hash-x", Artist: "X", Title: "Song", Path: "/x.flac"}
+	msg := libtui.TrackEnqueuedMsg{Track: track, QueueID: 1, WasEmpty: true}
+	next, _ := m.Update(msg)
+	nm := next.(Model)
+
+	if nm.currentTrackHash != "hash-x" {
+		t.Fatalf("auto-play enqueue: expected currentTrackHash=%q, got %q", "hash-x", nm.currentTrackHash)
+	}
+}
+
+// TestBatchEnqueuedAutoPlayUpdatesCurrentTrackHash verifies that when a batch
+// enqueue into an empty queue triggers auto-play, currentTrackHash is set to
+// the first entry's hash.
+func TestBatchEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
+	p := &stubPlayer{}
+	m := New("", false, nil, nil, "", nil, p)
+	m.playbackState = PlaybackIdle
+
+	entries := []QueueEntry{
+		{ID: 10, Hash: "hash-p", Path: "/p.flac", Display: "P", Artist: "P", Title: "Song"},
+		{ID: 11, Hash: "hash-q", Path: "/q.flac", Display: "Q", Artist: "Q", Title: "Song"},
+	}
+	msg := BatchEnqueuedMsg{
+		Entries:      entries,
+		QueueIDs:     []int64{10, 11},
+		WasEmpty:     true,
+		PlaylistName: "Test",
+	}
+	next, _ := m.Update(msg)
+	nm := next.(Model)
+
+	if nm.currentTrackHash != "hash-p" {
+		t.Fatalf("batch auto-play: expected currentTrackHash=%q, got %q", "hash-p", nm.currentTrackHash)
+	}
+}
+
 // TestPlaybackEndedMsgRepeatAllEmptyQueueGoesIdle verifies that RepeatAll with
 // an empty queue still transitions to idle (no infinite restart loop).
 func TestPlaybackEndedMsgRepeatAllEmptyQueueGoesIdle(t *testing.T) {

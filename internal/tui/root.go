@@ -986,6 +986,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if err := m.player.PlayFromIndex(0); err == nil {
 				m.playbackState = PlaybackPlaying
 				e := m.queue.entries[0]
+				m.currentTrackHash = e.Hash
 				m.statusBar.artist = e.Artist
 				m.statusBar.title = e.Title
 				m.statusBar.playlistSource = "Queue"
@@ -1079,6 +1080,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.WasEmpty && m.playbackState == PlaybackIdle && m.player != nil {
 			if err := m.player.PlayFromIndex(0); err == nil {
 				m.playbackState = PlaybackPlaying
+				m.currentTrackHash = msg.Track.Hash
 				m.statusBar.artist = msg.Track.Artist
 				m.statusBar.title = msg.Track.Title
 				m.statusBar.playlistSource = "Queue"
@@ -1119,6 +1121,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if err := m.player.PlayFromIndex(0); err == nil {
 				m.playbackState = PlaybackPlaying
 				e := msg.Entries[0]
+				m.currentTrackHash = e.Hash
 				m.statusBar.artist = e.Artist
 				m.statusBar.title = e.Title
 				m.statusBar.playlistSource = msg.PlaylistName
@@ -1146,6 +1149,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.playbackState = PlaybackPlaying
 				if msg.Index < len(m.queue.entries) {
 					e := m.queue.entries[msg.Index]
+					m.currentTrackHash = e.Hash
 					m.statusBar.artist = e.Artist
 					m.statusBar.title = e.Title
 				}
