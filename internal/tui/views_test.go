@@ -1,13 +1,28 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/library"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
+
+// fakeQueueAppender records enqueue calls for testing.
+type fakeQueueAppender struct {
+	tracks []library.Track
+	nextID int64
+}
+
+func (f *fakeQueueAppender) AppendTrack(t library.Track, _ string) (int64, error) {
+	f.nextID++
+	f.tracks = append(f.tracks, t)
+	return f.nextID, nil
+}
 
 // makeQueue returns a QueueView pre-loaded with the given entries.
 func makeQueue(width int, entries []QueueEntry) QueueView {
@@ -668,6 +683,173 @@ func TestQueueHandleActionMoveTrackDown(t *testing.T) {
 	msg := cmd()
 	if m, ok := msg.(MoveTrackDownMsg); !ok || m.Index != 1 {
 		t.Errorf("MoveTrackDown: got %+v", msg)
+	}
+}
+
+// --- FormatDurationSecs ---
+
+func TestFormatDurationSecs(t *testing.T) {
+	cases := []struct {
+		secs float64
+		want string
+	}{
+		{0, "--:--"},
+		{-5, "--:--"},
+		{65, "1:05"},
+		{185, "3:05"},
+		{3661, "1:01:01"},
+	}
+	for _, tc := range cases {
+		got := FormatDurationSecs(tc.secs)
+		if got != tc.want {
+			t.Errorf("FormatDurationSecs(%v) = %q, want %q", tc.secs, got, tc.want)
+		}
+	}
+}
+
+// --- LibraryView HandleAction navigation ---
+
+func TestLibraryViewHandleActionNavigation(t *testing.T) {
+	var idx library.LibraryIndex
+	for i := range 10 {
+		idx.Insert(library.Track{
+			Artist: "A",
+			Title:  fmt.Sprintf("T%d", i),
+			Hash:   fmt.Sprintf("h%d", i),
+		})
+	}
+	v := LibraryView{index: idx, width: 80, height: 24}
+
+	v = v.HandleAction(actionCursorDown)
+	if v.cursor != 1 {
+		t.Errorf("CursorDown: expected 1, got %d", v.cursor)
+	}
+	v = v.HandleAction(actionCursorUp)
+	if v.cursor != 0 {
+		t.Errorf("CursorUp: expected 0, got %d", v.cursor)
+	}
+	v = v.HandleAction(actionGoToBottom)
+	if v.cursor != 9 {
+		t.Errorf("GoToBottom: expected 9, got %d", v.cursor)
+	}
+	v = v.HandleAction(actionGoToTop)
+	if v.cursor != 0 {
+		t.Errorf("GoToTop: expected 0, got %d", v.cursor)
+	}
+}
+
+func TestLibraryViewHandleActionBulkToggle(t *testing.T) {
+	var idx library.LibraryIndex
+	idx.Insert(library.Track{Artist: "A", Title: "T1", Hash: "h1"})
+	idx.Insert(library.Track{Artist: "B", Title: "T2", Hash: "h2"})
+
+	v := LibraryView{index: idx, cursor: 0}
+	v = v.HandleAction(actionBulkSelectionToggle)
+	if len(v.selectedHashes) != 1 {
+		t.Errorf("BulkToggle: expected 1 selected, got %d", len(v.selectedHashes))
+	}
+}
+
+// --- LibraryView EnqueueFocused ---
+
+func TestLibraryViewEnqueueFocused(t *testing.T) {
+	var idx library.LibraryIndex
+	idx.Insert(library.Track{Artist: "A", Title: "T1", Hash: "h1"})
+
+	v := LibraryView{index: idx, cursor: 0}
+	qa := &fakeQueueAppender{}
+	cmd := v.EnqueueFocused(qa, 0)
+	if cmd == nil {
+		t.Fatal("EnqueueFocused: expected non-nil cmd")
+	}
+	msg := cmd()
+	enqueued, ok := msg.(libtui.TrackEnqueuedMsg)
+	if !ok {
+		t.Fatalf("expected TrackEnqueuedMsg, got %T", msg)
+	}
+	if enqueued.Track.Artist != "A" {
+		t.Errorf("enqueued track artist: expected A, got %q", enqueued.Track.Artist)
+	}
+}
+
+func TestLibraryViewEnqueueFocusedEmpty(t *testing.T) {
+	v := LibraryView{}
+	qa := &fakeQueueAppender{}
+	cmd := v.EnqueueFocused(qa, 0)
+	if cmd != nil {
+		t.Error("EnqueueFocused empty: expected nil cmd")
+	}
+}
+
+// --- LibraryView EnqueueSelected ---
+
+func TestLibraryViewEnqueueSelected(t *testing.T) {
+	var idx library.LibraryIndex
+	idx.Insert(library.Track{Artist: "A", Title: "T1", Hash: "h1"})
+	idx.Insert(library.Track{Artist: "B", Title: "T2", Hash: "h2"})
+
+	v := LibraryView{
+		index:          idx,
+		selectedHashes: map[string]struct{}{"h1": {}, "h2": {}},
+	}
+	qa := &fakeQueueAppender{}
+	v2, cmd := v.EnqueueSelected(qa, 0)
+	if cmd == nil {
+		t.Fatal("EnqueueSelected: expected non-nil cmd")
+	}
+	if len(v2.selectedHashes) != 0 {
+		t.Errorf("EnqueueSelected: expected selection cleared, got %v", v2.selectedHashes)
+	}
+}
+
+func TestLibraryViewEnqueueSelectedEmpty(t *testing.T) {
+	v := LibraryView{}
+	qa := &fakeQueueAppender{}
+	_, cmd := v.EnqueueSelected(qa, 0)
+	if cmd != nil {
+		t.Error("EnqueueSelected empty: expected nil cmd")
+	}
+}
+
+// --- LibraryView BackspaceFilter ---
+
+func TestLibraryViewBackspaceFilter(t *testing.T) {
+	var idx library.LibraryIndex
+	idx.Insert(library.Track{Artist: "A", Title: "T1", Hash: "h1"})
+
+	v := LibraryView{
+		index:        idx,
+		fuzzy:        library.FakeFuzzySearcher{},
+		filterActive: true,
+		filterText:   "AB",
+	}
+	v = v.BackspaceFilter()
+	if v.filterText != "A" {
+		t.Errorf("BackspaceFilter: expected 'A', got %q", v.filterText)
+	}
+	if v.cursor != 0 {
+		t.Errorf("BackspaceFilter: expected cursor=0, got %d", v.cursor)
+	}
+}
+
+func TestLibraryViewBackspaceFilterInactiveNoOp(t *testing.T) {
+	v := LibraryView{filterText: "AB"}
+	v = v.BackspaceFilter()
+	if v.filterText != "AB" {
+		t.Errorf("BackspaceFilter inactive: expected 'AB', got %q", v.filterText)
+	}
+}
+
+// --- LibraryView CommitFilter ---
+
+func TestLibraryViewCommitFilter(t *testing.T) {
+	v := LibraryView{filterActive: true, filterText: "test"}
+	v = v.CommitFilter()
+	if v.filterActive {
+		t.Error("CommitFilter: expected filterActive=false")
+	}
+	if v.filterText != "test" {
+		t.Errorf("CommitFilter: expected filterText='test', got %q", v.filterText)
 	}
 }
 
