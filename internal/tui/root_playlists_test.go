@@ -846,7 +846,7 @@ func TestPlaylistRenamedMsgAdjustsScrollOffset(t *testing.T) {
 
 	// Populate 10 playlists named A through J. Cursor on "A" (index 0).
 	var playlists []db.PlaylistRow
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		playlists = append(playlists, db.PlaylistRow{ID: int64(i + 1), Name: string(rune('A' + i))})
 	}
 	m.SetPlaylists(playlists)
@@ -887,7 +887,7 @@ func TestPlaylistCreatedMsgAdjustsScrollOffset(t *testing.T) {
 
 	// Pre-populate 5 playlists named A through E.
 	var playlists []db.PlaylistRow
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		playlists = append(playlists, db.PlaylistRow{ID: int64(i + 1), Name: string(rune('A' + i))})
 	}
 	m.SetPlaylists(playlists)

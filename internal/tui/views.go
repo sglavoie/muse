@@ -512,15 +512,10 @@ func (v QueueView) render() string {
 	if artistWidth < 1 {
 		artistWidth = 1
 	}
-	if sourceWidth < 1 {
-		sourceWidth = 1
-	}
+	sourceWidth = max(sourceWidth, 1)
 
 	maxRows := v.visibleRows()
-	start := v.scrollOffset
-	if start > len(v.entries) {
-		start = len(v.entries)
-	}
+	start := min(v.scrollOffset, len(v.entries))
 	end := min(len(v.entries), start+maxRows)
 
 	// Column header row (2-char left margin aligns with the selection marker column).
