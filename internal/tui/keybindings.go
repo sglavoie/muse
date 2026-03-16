@@ -65,9 +65,9 @@ const (
 
 	// Bulk-selection action — triggered by 'a' when tracks are selected.
 	// actionBulkAction applies in Library (append selected tracks to queue).
-	// actionAddToPlaylist applies in Playlists (add selected tracks to a playlist).
-	actionBulkAction    // 'a': apply context-appropriate bulk action and clear selection
-	actionAddToPlaylist // 'a': add selected track(s) to a playlist (Playlists context)
+	// actionBulkRemovePlaylistTracks applies in Playlists (remove selected tracks from a playlist).
+	actionBulkAction                 // 'a': apply context-appropriate bulk action and clear selection
+	actionBulkRemovePlaylistTracks   // 'a': remove selected track(s) from a playlist (Playlists context)
 
 	// Vim-style scrolling actions — shared across Library, Queue, and Playlists.
 	actionHalfPageDown // ctrl+d: move cursor half a page down
@@ -163,7 +163,7 @@ func newRegistry() Registry {
 	r.register(contextPlaylists, "esc", actionPlaylistBack)
 	r.register(contextPlaylists, "d", actionPlaylistDelete)
 	r.register(contextPlaylists, "x", actionBulkSelectionToggle)
-	r.register(contextPlaylists, "a", actionAddToPlaylist)
+	r.register(contextPlaylists, "a", actionBulkRemovePlaylistTracks)
 	r.register(contextPlaylists, "E", actionPlaylistEnqueueAll)
 	r.register(contextPlaylists, "ctrl+d", actionHalfPageDown)
 	r.register(contextPlaylists, "ctrl+u", actionHalfPageUp)

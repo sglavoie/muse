@@ -165,8 +165,8 @@ func TestStatusBarRendersElapsedTime(t *testing.T) {
 	nm := next.(Model)
 	v := nm.View()
 
-	if !strings.Contains(v.Content, "01:23 / 04:05") {
-		t.Fatalf("status bar must show elapsed/total in MM:SS / MM:SS format; got:\n%s", v.Content)
+	if !strings.Contains(v.Content, "1:23 / 4:05") {
+		t.Fatalf("status bar must show elapsed/total in M:SS / M:SS format; got:\n%s", v.Content)
 	}
 }
 

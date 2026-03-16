@@ -178,7 +178,10 @@ func main() {
 		flush()
 	}()
 
-	watchCh, _ := library.Watch(ctx, cfg.MusicDirectory, extractor, library.DefaultDebounce)
+	watchCh, watchErr := library.Watch(ctx, cfg.MusicDirectory, extractor, library.DefaultDebounce)
+	if watchErr != nil {
+		slog.Error("failed to start file watcher", "err", watchErr)
+	}
 
 	restored := result.Restored
 

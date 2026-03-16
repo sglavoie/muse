@@ -1971,7 +1971,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 				PlaylistName: playlistName,
 			}
 		}
-	case actionAddToPlaylist:
+	case actionBulkRemovePlaylistTracks:
 		if !m.playlists.atListLevel() && m.playlists.hasTrackSelection() {
 			if m.playlistDeleter != nil {
 				for _, t := range m.playlists.tracks {

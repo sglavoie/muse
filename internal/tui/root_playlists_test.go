@@ -443,7 +443,7 @@ func TestPlaylistsBulkRemoveAtTrackLevel(t *testing.T) {
 	// Place cursor beyond the surviving track to exercise cursor clamping.
 	nm.playlists.cursor = 2
 
-	// Press 'a' — should trigger actionAddToPlaylist which bulk-removes.
+	// Press 'a' — should trigger actionBulkRemovePlaylistTracks which bulk-removes.
 	next2, _ := nm.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	nm2 := next2.(Model)
 

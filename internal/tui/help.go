@@ -74,7 +74,7 @@ func helpSections() []helpSection {
 				{"d", "Delete playlist / remove track"},
 				{"x", "Toggle bulk selection"},
 				{"a", "Remove selected tracks (bulk)"},
-			{"E", "Enqueue all tracks from playlist"},
+				{"E", "Enqueue all tracks from playlist"},
 			},
 		},
 		{

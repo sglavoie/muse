@@ -71,10 +71,21 @@ func (s *StatusBar) handleMissingTrack(path string) {
 	}
 }
 
-// formatTime converts a duration in seconds to MM:SS format.
+// formatTime converts a duration in seconds to M:SS or H:MM:SS format.
+// Unlike FormatDurationSecs, zero is treated as a valid position (start of
+// playback) and returns "0:00".
 func formatTime(secs float64) string {
-	s := int(secs)
-	return fmt.Sprintf("%02d:%02d", s/60, s%60)
+	if secs < 0 {
+		secs = 0
+	}
+	total := int(secs)
+	h := total / 3600
+	m := (total % 3600) / 60
+	s := total % 60
+	if h > 0 {
+		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
+	}
+	return fmt.Sprintf("%d:%02d", m, s)
 }
 
 // truncateTitle shortens s to at most maxRunes runes, appending "…" when

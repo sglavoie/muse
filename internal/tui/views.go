@@ -442,7 +442,7 @@ func (v QueueView) moveQueueCursor(delta int) QueueView {
 // visibleRows returns the maximum number of queue entries that fit on screen.
 // It reserves 3 lines for the heading, blank line, and header area.
 func (v QueueView) visibleRows() int {
-	reserve := 3
+	reserve := 4 // "Queue", blank line, header row, bottom margin
 	if v.height > 0 {
 		return max(1, v.height-reserve)
 	}
@@ -491,6 +491,10 @@ func (v QueueView) render() string {
 	}
 	end := min(len(v.entries), start+maxRows)
 
+	// Column header row.
+	header := fmt.Sprintf(" %3s %-*s %-*s %-*s %-*s",
+		"#", titleWidth, "Title", artistWidth, "Artist", sourceWidth, "Source", durWidth, "Time")
+
 	lines := make([]string, end-start)
 	for i, e := range v.entries[start:end] {
 		absIdx := start + i
@@ -519,21 +523,11 @@ func (v QueueView) render() string {
 			lines[i] = line
 		}
 	}
-	return "Queue\n\n" + strings.Join(lines, "\n")
+	return "Queue\n\n" + header + "\n" + strings.Join(lines, "\n")
 }
 
 // formatQueueDuration converts a duration in milliseconds to a "m:ss" or
 // "h:mm:ss" string. Returns "--:--" when ms is zero or negative.
 func formatQueueDuration(ms int64) string {
-	if ms <= 0 {
-		return "--:--"
-	}
-	totalSec := ms / 1000
-	h := totalSec / 3600
-	m := (totalSec % 3600) / 60
-	s := totalSec % 60
-	if h > 0 {
-		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
-	}
-	return fmt.Sprintf("%d:%02d", m, s)
+	return FormatDurationMs(ms)
 }

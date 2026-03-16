@@ -21,7 +21,7 @@ func TestPlaylistsBindingsResolve(t *testing.T) {
 		{"c", actionPlaylistCreate},
 		{"d", actionPlaylistDelete},
 		{"x", actionBulkSelectionToggle},
-		{"a", actionAddToPlaylist},
+		{"a", actionBulkRemovePlaylistTracks},
 	}
 
 	for _, tc := range cases {

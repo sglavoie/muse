@@ -3,7 +3,6 @@ package playlists
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/sglavoie/muse/internal/db"
 )
@@ -360,13 +359,19 @@ func (v View) renderTracks() string {
 	return "Tracks\n\n" + strings.Join(lines, "\n")
 }
 
-// formatDuration converts milliseconds to a "m:ss" string.
+// formatDuration converts milliseconds to a "m:ss" or "h:mm:ss" string.
 func formatDuration(ms int64) string {
-	d := time.Duration(ms) * time.Millisecond
-	totalSec := int(d.Seconds())
-	minutes := totalSec / 60
-	seconds := totalSec % 60
-	return fmt.Sprintf("%d:%02d", minutes, seconds)
+	if ms <= 0 {
+		return "--:--"
+	}
+	totalSec := ms / 1000
+	h := totalSec / 3600
+	m := (totalSec % 3600) / 60
+	s := totalSec % 60
+	if h > 0 {
+		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
+	}
+	return fmt.Sprintf("%d:%02d", m, s)
 }
 
 // truncate shortens s to at most maxLen runes, appending "…" when truncated.
