@@ -68,7 +68,12 @@ func (e ExifToolExtractor) Extract(files []HashedFile) ([]Track, error) {
 
 	tracks := make([]Track, 0, len(records))
 	for _, r := range records {
-		hf := fileByPath[r.SourceFile]
+		hf, ok := fileByPath[r.SourceFile]
+		if !ok {
+			slog.Warn("exiftool: SourceFile not in input set, skipping",
+				"source_file", r.SourceFile)
+			continue
+		}
 		tracks = append(tracks, Track{
 			Path:      r.SourceFile,
 			Hash:      hf.Hash,

@@ -452,9 +452,9 @@ func (m *Manager) Start() error {
 	if err != nil {
 		return err
 	}
-	m.cmd = cmd
 
 	m.mu.Lock()
+	m.cmd = cmd
 	m.cmdQueue = []func() error{}
 	m.mu.Unlock()
 
@@ -494,13 +494,14 @@ func (m *Manager) Close() error {
 	m.mu.Lock()
 	c := m.client
 	m.client = nil
+	cmd := m.cmd
 	m.mu.Unlock()
 
 	if c != nil {
 		_ = c.Close()
 	}
-	if m.cmd != nil && m.cmd.Process != nil {
-		_ = m.cmd.Wait()
+	if cmd != nil && cmd.Process != nil {
+		_ = cmd.Wait()
 	}
 	return nil
 }
@@ -693,7 +694,9 @@ func (m *Manager) handleRestart() {
 		}
 		return
 	}
+	m.mu.Lock()
 	m.cmd = newCmd
+	m.mu.Unlock()
 
 	// Queue a loadfile command to resume playback at the last persisted position.
 	if path != "" {

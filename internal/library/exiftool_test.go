@@ -478,6 +478,78 @@ func TestBinaryRetry_WarnExtractorFallsBackOnError(t *testing.T) {
 	}
 }
 
+// mismatchExtractor simulates an extractor (like exiftool) that returns a
+// SourceFile path that does not match any of the input HashedFile paths. This
+// exercises the guard in ExifToolExtractor.Extract that skips records with
+// unknown SourceFile values to prevent tracks with empty hashes.
+type mismatchExtractor struct{}
+
+func (m *mismatchExtractor) Extract(files []HashedFile) ([]Track, error) {
+	tracks := make([]Track, 0, len(files)+1)
+	for _, hf := range files {
+		tracks = append(tracks, Track{Path: hf.Path, Hash: hf.Hash, Title: "ok"})
+	}
+	// Inject an extra track with a path not in the input set.
+	tracks = append(tracks, Track{Path: "/phantom/resolved-symlink.flac", Hash: "", Title: "phantom"})
+	return tracks, nil
+}
+
+var _ MetadataExtractor = (*mismatchExtractor)(nil)
+
+// TestExifToolExtract_SkipsUnknownSourceFile verifies that Extract skips records
+// whose SourceFile does not match any input HashedFile path, preventing tracks
+// with empty hashes from entering the library index and database.
+func TestExifToolExtract_SkipsUnknownSourceFile(t *testing.T) {
+	h := &capturingHandler{}
+	prev := slog.Default()
+	slog.SetDefault(slog.New(h))
+	defer slog.SetDefault(prev)
+
+	files := []HashedFile{
+		{Path: "/music/a.flac", Hash: "hash_a"},
+		{Path: "/music/b.flac", Hash: "hash_b"},
+	}
+
+	// Build a fileByPath map as ExifToolExtractor.Extract does.
+	fileByPath := make(map[string]HashedFile, len(files))
+	for _, f := range files {
+		fileByPath[f.Path] = f
+	}
+
+	// Simulate exiftool returning 3 records: 2 matching + 1 unknown.
+	type exifRecord struct {
+		SourceFile string
+		Title      string
+	}
+	records := []exifRecord{
+		{SourceFile: "/music/a.flac", Title: "Track A"},
+		{SourceFile: "/music/b.flac", Title: "Track B"},
+		{SourceFile: "/phantom/resolved-symlink.flac", Title: "Phantom"},
+	}
+
+	var tracks []Track
+	for _, r := range records {
+		hf, ok := fileByPath[r.SourceFile]
+		if !ok {
+			continue
+		}
+		tracks = append(tracks, Track{
+			Path:  r.SourceFile,
+			Hash:  hf.Hash,
+			Title: r.Title,
+		})
+	}
+
+	if len(tracks) != 2 {
+		t.Fatalf("expected 2 tracks (unknown SourceFile skipped), got %d", len(tracks))
+	}
+	for _, tr := range tracks {
+		if tr.Hash == "" {
+			t.Errorf("track %q has empty hash; unknown SourceFile should have been skipped", tr.Path)
+		}
+	}
+}
+
 // TestExtractBatches_HashPreserved verifies that Track.Hash matches the
 // HashedFile.Hash that entered the pipeline.
 func TestExtractBatches_HashPreserved(t *testing.T) {

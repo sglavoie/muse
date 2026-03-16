@@ -1129,6 +1129,49 @@ func TestManager_SetCurrentIndex(t *testing.T) {
 	})
 }
 
+// TestManager_CloseProtectsCmdField verifies that Close reads m.cmd under the
+// mutex, preventing a data race with concurrent handleRestart writes. Before
+// the fix, both Close and handleRestart accessed m.cmd without synchronization.
+func TestManager_CloseProtectsCmdField(t *testing.T) {
+	rootCtx, rootCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(rootCtx)
+
+	m := &Manager{
+		socketPath:   "/tmp/muse-test-cmd-race.sock",
+		rootCtx:      rootCtx,
+		rootCancel:   rootCancel,
+		ctx:          ctx,
+		cancel:       cancel,
+		disconnectCh: make(chan error, 1),
+	}
+	// Use a no-op launchFn that returns nil cmd (simulating test mode).
+	m.launchFn = func(_ context.Context, _ string) (*exec.Cmd, error) {
+		return nil, nil
+	}
+
+	// Start with a nil cmd (as if mpv was never launched or was in test mode).
+	m.mu.Lock()
+	m.cmd = nil
+	m.cmdQueue = []func() error{}
+	m.mu.Unlock()
+
+	// Run Close and handleRestart concurrently. Before the fix this would
+	// be detected by the race detector (go test -race) as a data race on m.cmd.
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		m.handleRestart()
+	}()
+	go func() {
+		defer wg.Done()
+		// Give handleRestart a moment to enter and write m.cmd.
+		time.Sleep(5 * time.Millisecond)
+		_ = m.Close()
+	}()
+	wg.Wait()
+}
+
 // TestManager_SetQueue_KeepsCurrentIndexWhenValid verifies that SetQueue does
 // NOT change currentIndex when the new queue is large enough.
 func TestManager_SetQueue_KeepsCurrentIndexWhenValid(t *testing.T) {
