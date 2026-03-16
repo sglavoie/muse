@@ -256,6 +256,48 @@ func TestQueueRenderUnselectedEntryHasNoMarker(t *testing.T) {
 	}
 }
 
+// TestPlaylistsViewEnsureCursorVisibleAdjustsScroll verifies that
+// ensureCursorVisible moves scrollOffset when the cursor is beyond the
+// visible window (both above and below).
+func TestPlaylistsViewEnsureCursorVisibleAdjustsScroll(t *testing.T) {
+	t.Run("cursor below visible window", func(t *testing.T) {
+		v := PlaylistsView{
+			cursor:       9,
+			scrollOffset: 0,
+			height:       6, // visibleRows = max(1, 6-3) = 3
+		}
+		v = v.ensureCursorVisible()
+		// cursor=9, visibleRows=3 → scrollOffset should be 9-3+1 = 7
+		if v.scrollOffset != 7 {
+			t.Errorf("expected scrollOffset=7, got %d", v.scrollOffset)
+		}
+	})
+
+	t.Run("cursor above visible window", func(t *testing.T) {
+		v := PlaylistsView{
+			cursor:       1,
+			scrollOffset: 5,
+			height:       6,
+		}
+		v = v.ensureCursorVisible()
+		if v.scrollOffset != 1 {
+			t.Errorf("expected scrollOffset=1, got %d", v.scrollOffset)
+		}
+	})
+
+	t.Run("cursor already visible", func(t *testing.T) {
+		v := PlaylistsView{
+			cursor:       2,
+			scrollOffset: 1,
+			height:       6, // visibleRows=3, visible range [1,3]
+		}
+		v = v.ensureCursorVisible()
+		if v.scrollOffset != 1 {
+			t.Errorf("expected scrollOffset=1 (unchanged), got %d", v.scrollOffset)
+		}
+	})
+}
+
 // TestQueueRenderSelectedAndFocusedMarker verifies that a selected+focused
 // entry uses a plain "●" glyph (without inner ANSI reset) so the outer
 // reverse-video highlight covers the full row uniformly.

@@ -1471,6 +1471,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 		}
+		m.playlists = m.playlists.ensureCursorVisible()
 
 	case playlistRenameErrorMsg:
 		m.playlists = m.playlists.cancelRename()
@@ -1493,6 +1494,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 		}
+		m.playlists = m.playlists.ensureCursorVisible()
 
 	case playlistCreateErrorMsg:
 		m.playlists = m.playlists.cancelCreate()

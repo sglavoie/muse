@@ -220,6 +220,26 @@ func (v PlaylistsView) clearTrackSelection() PlaylistsView {
 	return v
 }
 
+// ensureCursorVisible adjusts scrollOffset so the cursor row is within the
+// visible window. Call after operations that reposition the cursor (e.g.
+// playlist rename or create) where the new cursor position may fall outside
+// the current viewport.
+func (v PlaylistsView) ensureCursorVisible() PlaylistsView {
+	if v.cursor < v.scrollOffset {
+		v.scrollOffset = v.cursor
+	} else {
+		reserve := 3
+		maxRows := 50
+		if v.height > 0 {
+			maxRows = max(1, v.height-reserve)
+		}
+		if v.cursor >= v.scrollOffset+maxRows {
+			v.scrollOffset = v.cursor - maxRows + 1
+		}
+	}
+	return v
+}
+
 // focusedPlaylistID returns the ID of the playlist at the current cursor
 // position and true. Returns 0, false when the list is empty or the view is
 // not at ListLevel.

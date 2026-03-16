@@ -797,3 +797,82 @@ func TestPlaylistTrackCursorClampAtTop(t *testing.T) {
 		t.Errorf("k at first track: expected cursor 0 (clamped), got %d", nm.playlists.cursor)
 	}
 }
+
+// TestPlaylistRenamedMsgAdjustsScrollOffset verifies that after a playlist
+// rename causes the entry to sort to a different position (because the list is
+// sorted alphabetically), scrollOffset is adjusted so the cursor is visible.
+func TestPlaylistRenamedMsgAdjustsScrollOffset(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	// Use a small terminal so visibleRows is small (height=6 - 3 reserve = 3 visible rows).
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 6})
+	m = next.(Model)
+
+	// Populate 10 playlists named A through J. Cursor on "A" (index 0).
+	var playlists []db.PlaylistRow
+	for i := 0; i < 10; i++ {
+		playlists = append(playlists, db.PlaylistRow{ID: int64(i + 1), Name: string(rune('A' + i))})
+	}
+	m.SetPlaylists(playlists)
+	m.playlists.cursor = 0
+	m.playlists.scrollOffset = 0
+
+	// Simulate renaming "A" (ID=1) to "Z", which sorts it last (index 9).
+	renamedPlaylists := make([]db.PlaylistRow, 0, 10)
+	for i := 1; i < 10; i++ {
+		renamedPlaylists = append(renamedPlaylists, db.PlaylistRow{ID: int64(i + 1), Name: string(rune('A' + i))})
+	}
+	renamedPlaylists = append(renamedPlaylists, db.PlaylistRow{ID: 1, Name: "Z"})
+
+	next, _ = m.Update(playlistRenamedMsg{id: 1, playlists: renamedPlaylists})
+	m = next.(Model)
+
+	// Cursor should be at index 9 (where "Z" now is).
+	if m.playlists.cursor != 9 {
+		t.Fatalf("expected cursor=9 (renamed entry), got %d", m.playlists.cursor)
+	}
+	// scrollOffset must be adjusted so cursor is visible.
+	// visibleRows = max(1, 6-3) = 3, so scrollOffset should be at least 9-3+1 = 7.
+	if m.playlists.scrollOffset+3 <= m.playlists.cursor {
+		t.Fatalf("cursor %d is not visible: scrollOffset=%d, visibleRows=3",
+			m.playlists.cursor, m.playlists.scrollOffset)
+	}
+}
+
+// TestPlaylistCreatedMsgAdjustsScrollOffset verifies that after a playlist
+// creation causes the entry to sort to a position beyond the visible window,
+// scrollOffset is adjusted so the cursor is visible.
+func TestPlaylistCreatedMsgAdjustsScrollOffset(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	// Small terminal: visibleRows = max(1, 6-3) = 3.
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 6})
+	m = next.(Model)
+
+	// Pre-populate 5 playlists named A through E.
+	var playlists []db.PlaylistRow
+	for i := 0; i < 5; i++ {
+		playlists = append(playlists, db.PlaylistRow{ID: int64(i + 1), Name: string(rune('A' + i))})
+	}
+	m.SetPlaylists(playlists)
+	m.playlists.cursor = 0
+	m.playlists.scrollOffset = 0
+
+	// Simulate creating a playlist named "Z" (ID=6), which sorts last.
+	createdPlaylists := make([]db.PlaylistRow, len(playlists))
+	copy(createdPlaylists, playlists)
+	createdPlaylists = append(createdPlaylists, db.PlaylistRow{ID: 6, Name: "Z"})
+
+	next, _ = m.Update(playlistCreatedMsg{id: 6, playlists: createdPlaylists})
+	m = next.(Model)
+
+	// Cursor should be at index 5 (where "Z" is).
+	if m.playlists.cursor != 5 {
+		t.Fatalf("expected cursor=5 (new entry), got %d", m.playlists.cursor)
+	}
+	// scrollOffset must be adjusted so cursor is visible.
+	if m.playlists.scrollOffset+3 <= m.playlists.cursor {
+		t.Fatalf("cursor %d is not visible: scrollOffset=%d, visibleRows=3",
+			m.playlists.cursor, m.playlists.scrollOffset)
+	}
+}
