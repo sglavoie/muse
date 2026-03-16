@@ -1282,6 +1282,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// instead of triggering normal keybindings.
 		if m.library.filterActive && m.activeView == viewLibrary {
 			switch msg.String() {
+			case "ctrl+c":
+				return m, tea.Quit
 			case "esc":
 				m.library = m.library.DeactivateFilter()
 			case "enter", "/":
@@ -1301,14 +1303,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// keypresses before the registry.
 		if m.playlists.isCreating() && m.activeView == viewPlaylists {
 			switch msg.String() {
+			case "ctrl+c":
+				return m, tea.Quit
 			case "esc":
 				m.playlists = m.playlists.cancelCreate()
 			case "enter":
 				if !m.playlists.createInputIsEmpty() {
 					name := m.playlists.createInputValue()
-					// Reject duplicate names (consistent with rename validation).
+					// Reject duplicate names (case-insensitive, matching DB COLLATE NOCASE ordering).
 					for _, p := range m.playlists.playlists {
-						if p.Name == name {
+						if strings.EqualFold(p.Name, name) {
 							m.statusBar.notification = transientNotification{
 								msg:       "A playlist with that name already exists",
 								expiresAt: time.Now().Add(transientDuration),
@@ -1349,6 +1353,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// keypresses before the registry.
 		if m.playlists.isRenaming() && m.activeView == viewPlaylists {
 			switch msg.String() {
+			case "ctrl+c":
+				return m, tea.Quit
 			case "esc":
 				m.playlists = m.playlists.cancelRename()
 			case "enter":
@@ -1359,10 +1365,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.playlists = m.playlists.cancelRename()
 						return m, nil
 					}
-					// Reject duplicate names (case-sensitive) with a transient hint.
+					// Reject duplicate names (case-insensitive, matching DB COLLATE NOCASE ordering).
 					// Skip the playlist being renamed so a no-op Enter is treated as cancel.
 					for _, p := range m.playlists.playlists {
-						if p.ID != pl.ID && p.Name == name {
+						if p.ID != pl.ID && strings.EqualFold(p.Name, name) {
 							m.statusBar.notification = transientNotification{
 								msg:       "A playlist with that name already exists",
 								expiresAt: time.Now().Add(transientDuration),
@@ -1711,6 +1717,9 @@ func (m Model) handleUndo() Model {
 		copy(playlists[idx+1:], m.playlists.playlists[idx:])
 		m.playlists.playlists = playlists
 		m.playlists.cursor = idx
+		if m.playlists.cursor < m.playlists.scrollOffset {
+			m.playlists.scrollOffset = m.playlists.cursor
+		}
 	case undoKindRemovePlaylistTrack:
 		if m.playlistDeleter != nil {
 			_ = m.playlistDeleter.UndoRemovePlaylistTrack(m.undoSlot.removeTrackEntry.ID)
@@ -1722,6 +1731,9 @@ func (m Model) handleUndo() Model {
 		copy(tracks[idx+1:], m.playlists.tracks[idx:])
 		m.playlists.tracks = tracks
 		m.playlists.cursor = idx
+		if m.playlists.cursor < m.playlists.scrollOffset {
+			m.playlists.scrollOffset = m.playlists.cursor
+		}
 	case undoKindBatchEnqueue:
 		if m.batchEnqueuer != nil {
 			_ = m.batchEnqueuer.DequeueTracksSoft(m.undoSlot.batchIDs)
@@ -2043,6 +2055,14 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			if m.playlists.cursor >= len(m.playlists.tracks) && m.playlists.cursor > 0 {
 				m.playlists.cursor = len(m.playlists.tracks) - 1
 			}
+			if nt := len(m.playlists.tracks); nt > 0 {
+				maxOffset := nt - 1
+				if m.playlists.scrollOffset > maxOffset {
+					m.playlists.scrollOffset = maxOffset
+				}
+			} else {
+				m.playlists.scrollOffset = 0
+			}
 			n := len(m.playlists.selectedTrackIDs)
 			m.playlists = m.playlists.clearTrackSelection()
 			m.statusBar.notification = transientNotification{
@@ -2081,6 +2101,14 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			if m.playlists.cursor >= len(m.playlists.playlists) && m.playlists.cursor > 0 {
 				m.playlists.cursor = len(m.playlists.playlists) - 1
 			}
+			if n := len(m.playlists.playlists); n > 0 {
+				maxOffset := n - 1
+				if m.playlists.scrollOffset > maxOffset {
+					m.playlists.scrollOffset = maxOffset
+				}
+			} else {
+				m.playlists.scrollOffset = 0
+			}
 		} else {
 			if len(m.playlists.tracks) == 0 {
 				break
@@ -2110,6 +2138,14 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			m.playlists.tracks = append(m.playlists.tracks[:idx], m.playlists.tracks[idx+1:]...)
 			if m.playlists.cursor >= len(m.playlists.tracks) && m.playlists.cursor > 0 {
 				m.playlists.cursor = len(m.playlists.tracks) - 1
+			}
+			if n := len(m.playlists.tracks); n > 0 {
+				maxOffset := n - 1
+				if m.playlists.scrollOffset > maxOffset {
+					m.playlists.scrollOffset = maxOffset
+				}
+			} else {
+				m.playlists.scrollOffset = 0
 			}
 		}
 	}

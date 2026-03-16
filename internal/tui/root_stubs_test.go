@@ -130,6 +130,19 @@ func (s *stubPlaylistCreator) ReadPlaylists() ([]db.PlaylistRow, error) {
 	return s.rows, nil
 }
 
+// stubPlaylistRenamer is a minimal playlistRenamer used in rename-flow tests.
+type stubPlaylistRenamer struct {
+	rows []db.PlaylistRow
+}
+
+func (s *stubPlaylistRenamer) RenamePlaylist(_ int64, _ string) error {
+	return nil
+}
+
+func (s *stubPlaylistRenamer) ReadPlaylists() ([]db.PlaylistRow, error) {
+	return s.rows, nil
+}
+
 // errPlaylistCreate is a simple error type used in create-flow error tests.
 type errPlaylistCreate struct{ msg string }
 
@@ -270,6 +283,42 @@ func (s *stubPlayerQueueSyncer) SetQueue(tracks []player.QueueTrack) {
 
 func (s *stubPlayerQueueSyncer) RemoveFromQueue(index int) error {
 	s.removeFromQueueCalls = append(s.removeFromQueueCalls, index)
+	return nil
+}
+
+// stubPlaylistDeleter records calls to playlist/track soft-delete, undo, and
+// purge methods for use in playlist deletion and undo tests.
+type stubPlaylistDeleter struct {
+	deletePlaylistSoftCalls       []int64
+	undoDeletePlaylistCalls       []int64
+	purgeDeletedPlaylistsCalls    []int64
+	removePlaylistTrackSoftCalls  []int64
+	undoRemovePlaylistTrackCalls  []int64
+	purgeDeletedPlaylistTracksCalls []int64
+}
+
+func (s *stubPlaylistDeleter) DeletePlaylistSoft(id int64) error {
+	s.deletePlaylistSoftCalls = append(s.deletePlaylistSoftCalls, id)
+	return nil
+}
+func (s *stubPlaylistDeleter) UndoDeletePlaylist(id int64) error {
+	s.undoDeletePlaylistCalls = append(s.undoDeletePlaylistCalls, id)
+	return nil
+}
+func (s *stubPlaylistDeleter) PurgeDeletedPlaylists(before int64) error {
+	s.purgeDeletedPlaylistsCalls = append(s.purgeDeletedPlaylistsCalls, before)
+	return nil
+}
+func (s *stubPlaylistDeleter) RemovePlaylistTrackSoft(id int64) error {
+	s.removePlaylistTrackSoftCalls = append(s.removePlaylistTrackSoftCalls, id)
+	return nil
+}
+func (s *stubPlaylistDeleter) UndoRemovePlaylistTrack(id int64) error {
+	s.undoRemovePlaylistTrackCalls = append(s.undoRemovePlaylistTrackCalls, id)
+	return nil
+}
+func (s *stubPlaylistDeleter) PurgeDeletedPlaylistTracks(before int64) error {
+	s.purgeDeletedPlaylistTracksCalls = append(s.purgeDeletedPlaylistTracksCalls, before)
 	return nil
 }
 

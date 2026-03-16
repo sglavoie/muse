@@ -461,6 +461,233 @@ func TestPlaylistsBulkRemoveAtTrackLevel(t *testing.T) {
 	}
 }
 
+// TestPlaylistDeleteClampsScrollOffset verifies that deleting a playlist when
+// the list is scrolled clamps scrollOffset so it does not point past the end.
+func TestPlaylistDeleteClampsScrollOffset(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	pd := &stubPlaylistDeleter{}
+	m.SetPlaylistDeleter(pd)
+
+	m.SetPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "A"},
+		{ID: 2, Name: "B"},
+	})
+	// Simulate the view being scrolled past what will remain after deletion.
+	m.playlists.cursor = 1
+	m.playlists.scrollOffset = 1
+
+	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	nm := next.(Model)
+
+	if n := len(nm.playlists.playlists); n != 1 {
+		t.Fatalf("expected 1 playlist remaining, got %d", n)
+	}
+	if nm.playlists.scrollOffset > len(nm.playlists.playlists)-1 {
+		t.Fatalf("scrollOffset %d exceeds max valid offset %d after playlist delete",
+			nm.playlists.scrollOffset, len(nm.playlists.playlists)-1)
+	}
+}
+
+// TestPlaylistDeleteAllClampsScrollOffsetToZero verifies that deleting the last
+// playlist resets scrollOffset to 0.
+func TestPlaylistDeleteAllClampsScrollOffsetToZero(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	pd := &stubPlaylistDeleter{}
+	m.SetPlaylistDeleter(pd)
+
+	m.SetPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "A"},
+	})
+	m.playlists.cursor = 0
+	m.playlists.scrollOffset = 0
+
+	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	nm := next.(Model)
+
+	if nm.playlists.scrollOffset != 0 {
+		t.Fatalf("scrollOffset must be 0 after deleting all playlists, got %d",
+			nm.playlists.scrollOffset)
+	}
+}
+
+// TestPlaylistTrackDeleteClampsScrollOffset verifies that removing a track at
+// TrackLevel clamps scrollOffset so it does not point past the end.
+func TestPlaylistTrackDeleteClampsScrollOffset(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	pd := &stubPlaylistDeleter{}
+	m.SetPlaylistDeleter(pd)
+
+	m.playlists.level = pltui.TrackLevel
+	m.playlists.tracks = []db.PlaylistTrackRow{
+		{ID: 10, Position: 1, Title: "A", Artist: "X", DurationMs: 1000},
+		{ID: 20, Position: 2, Title: "B", Artist: "Y", DurationMs: 2000},
+	}
+	m.playlists.cursor = 1
+	m.playlists.scrollOffset = 1
+
+	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	nm := next.(Model)
+
+	if n := len(nm.playlists.tracks); n != 1 {
+		t.Fatalf("expected 1 track remaining, got %d", n)
+	}
+	if nm.playlists.scrollOffset > len(nm.playlists.tracks)-1 {
+		t.Fatalf("scrollOffset %d exceeds max valid offset %d after track delete",
+			nm.playlists.scrollOffset, len(nm.playlists.tracks)-1)
+	}
+}
+
+// TestBulkRemovePlaylistTracksClampsScrollOffset verifies that bulk-removing
+// tracks clamps scrollOffset so it does not point past the end.
+func TestBulkRemovePlaylistTracksClampsScrollOffset(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	pd := &stubPlaylistDeleter{}
+	m.SetPlaylistDeleter(pd)
+
+	m.playlists.level = pltui.TrackLevel
+	m.playlists.tracks = []db.PlaylistTrackRow{
+		{ID: 10, Position: 1, Title: "A", Artist: "X", DurationMs: 1000},
+		{ID: 20, Position: 2, Title: "B", Artist: "Y", DurationMs: 2000},
+		{ID: 30, Position: 3, Title: "C", Artist: "Z", DurationMs: 3000},
+	}
+	m.playlists.selectedTrackIDs = map[int64]struct{}{10: {}, 20: {}}
+	m.playlists.cursor = 2
+	m.playlists.scrollOffset = 2
+
+	next, _ := m.handleKeyAction(actionBulkRemovePlaylistTracks)
+	nm := next.(Model)
+
+	if n := len(nm.playlists.tracks); n != 1 {
+		t.Fatalf("expected 1 track remaining, got %d", n)
+	}
+	if nm.playlists.scrollOffset > 0 {
+		t.Fatalf("scrollOffset %d must be 0 after bulk remove with 1 remaining track",
+			nm.playlists.scrollOffset)
+	}
+}
+
+// TestPlaylistCreateDuplicateNameCaseInsensitive verifies that creating a
+// playlist with a name differing only in case from an existing one is rejected.
+func TestPlaylistCreateDuplicateNameCaseInsensitive(t *testing.T) {
+	creator := &stubPlaylistCreator{nextID: 42}
+	m := New("", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	m.SetPlaylistWriter(creator)
+	m.SetPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "Jazz"},
+	})
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m = next.(Model)
+
+	// Activate create mode.
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	m = next.(Model)
+	if cmd == nil {
+		t.Fatal("c: expected non-nil cmd")
+	}
+	next, _ = m.Update(cmd())
+	m = next.(Model)
+
+	// Type a case-variant of the existing name.
+	for _, ch := range "jazz" {
+		next, _ = m.Update(tea.KeyPressMsg{Code: ch, Text: string(ch)})
+		m = next.(Model)
+	}
+
+	// Press Enter — should be rejected locally (no DB call).
+	next, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(Model)
+	if cmd != nil {
+		t.Fatal("Enter with case-variant duplicate name: expected nil cmd (no DB call)")
+	}
+	if !strings.Contains(m.statusBar.notification.msg, "already exists") {
+		t.Fatalf("expected duplicate warning, got %q", m.statusBar.notification.msg)
+	}
+}
+
+// TestPlaylistRenameDuplicateNameCaseInsensitive verifies that renaming a
+// playlist to a name differing only in case from another existing one is rejected.
+func TestPlaylistRenameDuplicateNameCaseInsensitive(t *testing.T) {
+	renamer := &stubPlaylistRenamer{}
+	m := New("", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	m.SetPlaylistRenamer(renamer)
+	m.SetPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "Rock"},
+		{ID: 2, Name: "Jazz"},
+	})
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m = next.(Model)
+
+	// Press 'r' to rename the focused playlist ("Rock").
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+	m = next.(Model)
+	if cmd == nil {
+		t.Fatal("r: expected non-nil cmd")
+	}
+	next, _ = m.Update(cmd())
+	m = next.(Model)
+
+	// Clear the rename input and type the case-variant duplicate.
+	for range "Rock" {
+		next, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+		m = next.(Model)
+	}
+	for _, ch := range "jazz" {
+		next, _ = m.Update(tea.KeyPressMsg{Code: ch, Text: string(ch)})
+		m = next.(Model)
+	}
+
+	// Press Enter — should be rejected.
+	next, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(Model)
+	if cmd != nil {
+		t.Fatal("Enter with case-variant duplicate name: expected nil cmd (no DB call)")
+	}
+	if !strings.Contains(m.statusBar.notification.msg, "already exists") {
+		t.Fatalf("expected duplicate warning, got %q", m.statusBar.notification.msg)
+	}
+}
+
+// TestUndoDeletePlaylistScrollsToRestoredEntry verifies that undoing a playlist
+// deletion adjusts scrollOffset so the restored entry is visible.
+func TestUndoDeletePlaylistScrollsToRestoredEntry(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	pd := &stubPlaylistDeleter{}
+	m.SetPlaylistDeleter(pd)
+
+	m.SetPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "A"},
+		{ID: 2, Name: "B"},
+		{ID: 3, Name: "C"},
+		{ID: 4, Name: "D"},
+		{ID: 5, Name: "E"},
+	})
+	// Delete the first playlist.
+	m.playlists.cursor = 0
+	m.playlists.scrollOffset = 0
+	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	nm := next.(Model)
+
+	// Simulate scrolling down so scrollOffset moves past the original index.
+	nm.playlists.scrollOffset = 3
+
+	// Undo — the restored entry should make scrollOffset adjust if cursor < scrollOffset.
+	nm2 := nm.handleUndo()
+	if nm2.playlists.cursor != 0 {
+		t.Fatalf("expected cursor at 0 after undo, got %d", nm2.playlists.cursor)
+	}
+	if nm2.playlists.scrollOffset > nm2.playlists.cursor {
+		t.Fatalf("scrollOffset %d should be <= cursor %d so restored entry is visible",
+			nm2.playlists.scrollOffset, nm2.playlists.cursor)
+	}
+}
+
 // drillIntoPlaylistTrackLevel puts m into Playlists view at TrackLevel with
 // the provided tracks seeded directly, returning a ready-to-use model.
 func drillIntoPlaylistTrackLevel(m Model, tracks []db.PlaylistTrackRow) Model {

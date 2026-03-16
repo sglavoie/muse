@@ -5,6 +5,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
@@ -240,5 +241,82 @@ func TestWindowSizeMsgPropagatesWidthToChildViews(t *testing.T) {
 	}
 	if wide.Title <= narrow.Title {
 		t.Fatalf("Title column: expected Compute(120).Title (%d) > Compute(80).Title (%d)", wide.Title, narrow.Title)
+	}
+}
+
+// TestCtrlCQuitsWhileFilterBarActive verifies that ctrl+c dispatches tea.Quit
+// even when the library filter bar is active and intercepting all keypresses.
+func TestCtrlCQuitsWhileFilterBarActive(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.activeView = viewLibrary
+	m.library.filterActive = true
+	m.library.filterText = "test"
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	if cmd == nil {
+		t.Fatal("ctrl+c while filter bar active: expected non-nil Quit cmd")
+	}
+	msg := cmd()
+	if _, ok := msg.(tea.QuitMsg); !ok {
+		t.Fatalf("ctrl+c while filter bar active: expected QuitMsg, got %T", msg)
+	}
+}
+
+// TestCtrlCQuitsWhilePlaylistCreateActive verifies that ctrl+c dispatches
+// tea.Quit even when the inline playlist create input is active.
+func TestCtrlCQuitsWhilePlaylistCreateActive(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+
+	// Activate create mode.
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	m = next.(Model)
+	if cmd != nil {
+		next, _ = m.Update(cmd())
+		m = next.(Model)
+	}
+
+	if !m.playlists.isCreating() {
+		t.Fatal("precondition: expected isCreating=true")
+	}
+
+	_, cmd = m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	if cmd == nil {
+		t.Fatal("ctrl+c while create input active: expected non-nil Quit cmd")
+	}
+	msg := cmd()
+	if _, ok := msg.(tea.QuitMsg); !ok {
+		t.Fatalf("ctrl+c while create input active: expected QuitMsg, got %T", msg)
+	}
+}
+
+// TestCtrlCQuitsWhilePlaylistRenameActive verifies that ctrl+c dispatches
+// tea.Quit even when the inline playlist rename input is active.
+func TestCtrlCQuitsWhilePlaylistRenameActive(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	m.SetPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "Test"},
+	})
+
+	// Activate rename mode via PlaylistRenameMsg.
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+	m = next.(Model)
+	if cmd != nil {
+		next, _ = m.Update(cmd())
+		m = next.(Model)
+	}
+
+	if !m.playlists.isRenaming() {
+		t.Fatal("precondition: expected isRenaming=true")
+	}
+
+	_, cmd = m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	if cmd == nil {
+		t.Fatal("ctrl+c while rename input active: expected non-nil Quit cmd")
+	}
+	msg := cmd()
+	if _, ok := msg.(tea.QuitMsg); !ok {
+		t.Fatalf("ctrl+c while rename input active: expected QuitMsg, got %T", msg)
 	}
 }
