@@ -252,6 +252,12 @@ type playlistCreateErrorMsg struct {
 	err error
 }
 
+// playlistAddErrorMsg is dispatched when AddTracksToPlaylist returns an error.
+// Root uses it to display a transient error notification in the status bar.
+type playlistAddErrorMsg struct {
+	err error
+}
+
 // tracksAddedToPlaylistMsg is dispatched after a successful AddTracksToPlaylist
 // call. It carries the refreshed playlist list (for updating track counts) and
 // metadata for the status-bar notification.
@@ -1515,6 +1521,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			expiresAt: time.Now().Add(transientDuration),
 		}
 
+	case playlistAddErrorMsg:
+		m.statusBar.notification = transientNotification{
+			msg:       "Failed to add tracks: " + msg.err.Error(),
+			expiresAt: time.Now().Add(transientDuration),
+		}
+
 	case tracksAddedToPlaylistMsg:
 		if msg.playlists != nil {
 			m.playlists.playlists = msg.playlists
@@ -1587,7 +1599,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					count := len(hashes)
 					return m, func() tea.Msg {
 						if err := pa.AddTracksToPlaylist(pid, hashes); err != nil {
-							return nil
+							return playlistAddErrorMsg{err: err}
 						}
 						var rows []db.PlaylistRow
 						if pr != nil {

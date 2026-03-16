@@ -82,6 +82,49 @@ func TestExifToolExtractor_RealInvocation(t *testing.T) {
 	}
 }
 
+// TestExifToolExtractor_ExitErrorWithValidOutput verifies that Extract
+// succeeds when exiftool exits with a non-zero status (because some input
+// files don't exist) but still writes valid JSON to stdout for the files it
+// could process. Before the fix, the entire batch was discarded; after the
+// fix, valid tracks from stdout are returned.
+func TestExifToolExtractor_ExitErrorWithValidOutput(t *testing.T) {
+	if _, err := exec.LookPath("exiftool"); err != nil {
+		t.Skip("exiftool not found on PATH: " + err.Error())
+	}
+
+	dir := t.TempDir()
+	// One real file and one non-existent file. exiftool will exit non-zero
+	// because of the missing file, but still output JSON for the real one.
+	realPath := filepath.Join(dir, "real.wav")
+	writeFile(t, realPath, makeMinimalWAV())
+
+	fakePath := filepath.Join(dir, "does_not_exist.wav")
+
+	files := []HashedFile{
+		{Path: realPath, Hash: "real-hash"},
+		{Path: fakePath, Hash: "fake-hash"},
+	}
+
+	ext := ExifToolExtractor{}
+	tracks, err := ext.Extract(files)
+	if err != nil {
+		t.Fatalf("Extract should succeed when exiftool exits non-zero but produces valid stdout, got error: %v", err)
+	}
+	// At minimum the real file should be in the results.
+	foundReal := false
+	for _, tr := range tracks {
+		if tr.Path == realPath {
+			foundReal = true
+			if tr.Hash != "real-hash" {
+				t.Errorf("real track hash: want %q, got %q", "real-hash", tr.Hash)
+			}
+		}
+	}
+	if !foundReal {
+		t.Errorf("expected real file %q in results, got %d tracks: %v", realPath, len(tracks), tracks)
+	}
+}
+
 // TestExifToolExtractor_BatchSize verifies that ExtractBatches correctly
 // dispatches a real exiftool batch when batchSize files accumulate.
 func TestExifToolExtractor_BatchSize(t *testing.T) {

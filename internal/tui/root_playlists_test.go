@@ -1,8 +1,10 @@
 package tui
 
 import (
+	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
@@ -908,5 +910,24 @@ func TestPlaylistCreatedMsgAdjustsScrollOffset(t *testing.T) {
 	if m.playlists.scrollOffset+3 <= m.playlists.cursor {
 		t.Fatalf("cursor %d is not visible: scrollOffset=%d, visibleRows=3",
 			m.playlists.cursor, m.playlists.scrollOffset)
+	}
+}
+
+// TestPlaylistAddErrorMsgShowsNotification verifies that playlistAddErrorMsg
+// sets a transient error notification on the status bar so the user is informed
+// when AddTracksToPlaylist fails.
+func TestPlaylistAddErrorMsgShowsNotification(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	next, _ := m.Update(playlistAddErrorMsg{err: errors.New("disk full")})
+	nm := next.(Model)
+
+	if nm.statusBar.notification.msg == "" {
+		t.Fatal("expected a status bar notification for playlistAddErrorMsg, got empty")
+	}
+	if !strings.Contains(nm.statusBar.notification.msg, "disk full") {
+		t.Errorf("notification should contain error text, got %q", nm.statusBar.notification.msg)
+	}
+	if nm.statusBar.notification.expiresAt.Before(time.Now()) {
+		t.Error("notification should expire in the future")
 	}
 }

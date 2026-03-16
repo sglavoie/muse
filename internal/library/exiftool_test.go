@@ -429,6 +429,55 @@ func TestBinaryRetry_FilenameMetadataFallbackChain(t *testing.T) {
 	}
 }
 
+// warnExtractor returns valid tracks AND an error simultaneously, simulating
+// what ExifToolExtractor does after the fix: exiftool exits non-zero (e.g.
+// warnings about one file) but still writes valid JSON to stdout. Before the
+// fix, the error would cause the entire batch to be discarded and retried via
+// binary subdivision. After the fix, the valid tracks are used directly.
+type warnExtractor struct {
+	calls int
+}
+
+func (w *warnExtractor) Extract(files []HashedFile) ([]Track, error) {
+	w.calls++
+	// Return valid tracks for all files, plus a non-nil error to simulate
+	// exiftool's exit-code-1-with-valid-output behaviour.
+	tracks := make([]Track, len(files))
+	for i, f := range files {
+		tracks[i] = Track{Path: f.Path, Hash: f.Hash, Title: "ok"}
+	}
+	return tracks, errors.New("exiftool exited with status 1")
+}
+
+var _ MetadataExtractor = (*warnExtractor)(nil)
+
+// TestBinaryRetry_WarnExtractorFallsBackOnError verifies that when an
+// extractor returns BOTH valid tracks AND an error (simulating ExifTool's
+// non-zero exit with valid stdout), extractWithBinaryRetry still falls back
+// to binary subdivision because it only checks err==nil. This is expected:
+// the fix lives inside ExifToolExtractor.Extract itself (which now suppresses
+// the error when stdout is parseable), so extractWithBinaryRetry never sees
+// the error for ExitError cases. This test documents the contract.
+func TestBinaryRetry_WarnExtractorFallsBackOnError(t *testing.T) {
+	files := []HashedFile{
+		{Path: "/music/a.flac", Hash: "h1"},
+		{Path: "/music/b.flac", Hash: "h2"},
+	}
+	w := &warnExtractor{}
+	tracks := extractWithBinaryRetry(w, files)
+
+	// All files must still be returned (via fallback or recursion).
+	if len(tracks) != 2 {
+		t.Fatalf("expected 2 tracks, got %d", len(tracks))
+	}
+	// Because warnExtractor always errors, binary retry will subdivide down
+	// to single files, then produce filename-derived fallback metadata.
+	// The total calls should be > 1 (the initial batch call + recursive calls).
+	if w.calls < 2 {
+		t.Errorf("expected multiple Extract calls due to error, got %d", w.calls)
+	}
+}
+
 // TestExtractBatches_HashPreserved verifies that Track.Hash matches the
 // HashedFile.Hash that entered the pipeline.
 func TestExtractBatches_HashPreserved(t *testing.T) {

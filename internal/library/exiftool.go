@@ -2,6 +2,7 @@ package library
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"os/exec"
 	"path/filepath"
@@ -49,7 +50,15 @@ func (e ExifToolExtractor) Extract(files []HashedFile) ([]Track, error) {
 
 	out, err := exec.Command("exiftool", args...).Output()
 	if err != nil {
-		return nil, err
+		// exiftool exits non-zero for warnings (unknown tags, minor file
+		// issues) but still writes valid JSON to stdout. Use the output
+		// when available so a single problematic file does not discard
+		// the entire batch and trigger expensive binary-retry subdivision.
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) || len(out) == 0 {
+			return nil, err
+		}
+		// Fall through: we have stdout from exiftool despite the non-zero exit.
 	}
 
 	var records []exifRecord
