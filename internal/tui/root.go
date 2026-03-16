@@ -1907,6 +1907,11 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		if m.libraryRoot != "" && m.extractor != nil && !m.scanning {
 			ch := library.Scan(m.libraryRoot, m.extractor)
 			m.library.index = library.LibraryIndex{}
+			m.library.cursor = 0
+			m.library.scrollOffset = 0
+			m.library.filterActive = false
+			m.library.filterText = ""
+			m.library.filteredMatches = nil
 			m.scanCh = ch
 			m.scanning = true
 			m.scanned = 0

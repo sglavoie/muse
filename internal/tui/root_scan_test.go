@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -220,6 +221,59 @@ func TestScanProgressVisibleDuringScanAndAutoDismissed(t *testing.T) {
 	v = nm.View()
 	if strings.Contains(v.Content, "Scanning") {
 		t.Fatalf("scan progress must be auto-dismissed after expiry tick; got:\n%s", v.Content)
+	}
+}
+
+// TestRescanResetsCursorScrollOffsetAndFilter verifies that triggering a rescan
+// resets the library cursor, scroll offset, and filter state so that the UI
+// does not render with a stale cursor pointing past the end of the now-empty
+// index.
+func TestRescanResetsCursorScrollOffsetAndFilter(t *testing.T) {
+	root := t.TempDir()
+	m := New("", false, nil, nil, root, stubExtractor{}, nil)
+
+	// Seed tracks and move the cursor down.
+	tracks := make([]library.Track, 20)
+	for i := range tracks {
+		tracks[i] = library.Track{Artist: "A", Title: fmt.Sprintf("T%02d", i), Hash: fmt.Sprintf("h%d", i)}
+	}
+	next, _ := m.Update(library.ScanBatchMsg{Tracks: tracks})
+	nm := next.(Model)
+	// Move cursor to position 10.
+	for range 10 {
+		nm.library = nm.library.HandleAction(actionCursorDown)
+	}
+	if nm.library.cursor != 10 {
+		t.Fatalf("setup: expected cursor=10, got %d", nm.library.cursor)
+	}
+	// Activate a filter.
+	nm.library = nm.library.ActivateFilter()
+	nm.library = nm.library.AppendFilterChar('T')
+	nm.library = nm.library.CommitFilter()
+	if nm.library.filterText != "T" {
+		t.Fatalf("setup: expected filterText='T', got %q", nm.library.filterText)
+	}
+
+	// Trigger rescan.
+	next, cmd := nm.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
+	nm = next.(Model)
+	if cmd == nil {
+		t.Fatal("rescan: expected non-nil cmd")
+	}
+	if nm.library.cursor != 0 {
+		t.Fatalf("rescan: expected cursor=0, got %d", nm.library.cursor)
+	}
+	if nm.library.scrollOffset != 0 {
+		t.Fatalf("rescan: expected scrollOffset=0, got %d", nm.library.scrollOffset)
+	}
+	if nm.library.filterActive {
+		t.Fatal("rescan: expected filterActive=false")
+	}
+	if nm.library.filterText != "" {
+		t.Fatalf("rescan: expected filterText='', got %q", nm.library.filterText)
+	}
+	if nm.library.filteredMatches != nil {
+		t.Fatal("rescan: expected filteredMatches=nil")
 	}
 }
 
