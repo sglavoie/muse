@@ -2091,12 +2091,17 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		}
 	case actionBulkRemovePlaylistTracks:
 		if !m.playlists.atListLevel() && m.playlists.hasTrackSelection() {
+			softDeleteTime := time.Now().Unix()
 			if m.playlistDeleter != nil {
+				pd := m.playlistDeleter
 				for _, t := range m.playlists.tracks {
 					if _, ok := m.playlists.selectedTrackIDs[t.ID]; ok {
-						_ = m.playlistDeleter.RemovePlaylistTrackSoft(t.ID)
+						_ = pd.RemovePlaylistTrackSoft(t.ID)
 					}
 				}
+				time.AfterFunc(undoWindowDuration, func() {
+					_ = pd.PurgeDeletedPlaylistTracks(softDeleteTime + 1)
+				})
 			}
 			var remaining []db.PlaylistTrackRow
 			for _, t := range m.playlists.tracks {

@@ -237,6 +237,15 @@ func (m *Manager) RemoveFromQueue(index int) error {
 	if index < m.currentIndex {
 		m.currentIndex--
 	}
+	// Clamp currentIndex so it never points past the end of the queue.
+	// This can happen when the removed entry was at currentIndex and was
+	// the last element (e.g. queue=[a,b,c], currentIndex=2, remove index 2
+	// → queue=[a,b] but currentIndex is still 2).
+	if len(m.queue) > 0 && m.currentIndex >= len(m.queue) {
+		m.currentIndex = len(m.queue) - 1
+	} else if len(m.queue) == 0 {
+		m.currentIndex = 0
+	}
 
 	return nil
 }

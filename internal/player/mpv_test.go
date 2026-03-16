@@ -870,6 +870,46 @@ func TestManager_RemoveFromQueue(t *testing.T) {
 		}
 	})
 
+	t.Run("remove last entry at currentIndex clamps index", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		q := []QueueTrack{
+			{Path: "/a.flac", Hash: "h0", QueueID: 1},
+			{Path: "/b.flac", Hash: "h1", QueueID: 2},
+			{Path: "/c.flac", Hash: "h2", QueueID: 3},
+		}
+		m := &Manager{ctx: ctx, cancel: cancel, queue: q, currentIndex: 2}
+		defer m.Close()
+
+		if err := m.RemoveFromQueue(2); err != nil {
+			t.Fatalf("RemoveFromQueue(2): unexpected error: %v", err)
+		}
+		if got := len(m.queue); got != 2 {
+			t.Errorf("queue len = %d, want 2", got)
+		}
+		if m.currentIndex != 1 {
+			t.Errorf("currentIndex = %d, want 1 (clamped to last entry)", m.currentIndex)
+		}
+	})
+
+	t.Run("remove only entry resets currentIndex to 0", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		q := []QueueTrack{
+			{Path: "/a.flac", Hash: "h0", QueueID: 1},
+		}
+		m := &Manager{ctx: ctx, cancel: cancel, queue: q, currentIndex: 0}
+		defer m.Close()
+
+		if err := m.RemoveFromQueue(0); err != nil {
+			t.Fatalf("RemoveFromQueue(0): unexpected error: %v", err)
+		}
+		if got := len(m.queue); got != 0 {
+			t.Errorf("queue len = %d, want 0", got)
+		}
+		if m.currentIndex != 0 {
+			t.Errorf("currentIndex = %d, want 0", m.currentIndex)
+		}
+	})
+
 	t.Run("out of range returns error", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		m := &Manager{ctx: ctx, cancel: cancel, queue: makeQueue(), currentIndex: 1}

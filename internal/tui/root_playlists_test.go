@@ -570,6 +570,40 @@ func TestBulkRemovePlaylistTracksClampsScrollOffset(t *testing.T) {
 	}
 }
 
+// TestBulkRemovePlaylistTracksSoftDeletesAndSchedulesPurge verifies that
+// actionBulkRemovePlaylistTracks calls RemovePlaylistTrackSoft for each
+// selected track when a playlistDeleter is wired. Prior to the fix,
+// soft-deleted rows were never purged because no purge timer was scheduled.
+func TestBulkRemovePlaylistTracksSoftDeletesAndSchedulesPurge(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	pd := &stubPlaylistDeleter{}
+	m.SetPlaylistDeleter(pd)
+
+	m.playlists.level = pltui.TrackLevel
+	m.playlists.tracks = []db.PlaylistTrackRow{
+		{ID: 10, Position: 1, Title: "A", Artist: "X", DurationMs: 1000},
+		{ID: 20, Position: 2, Title: "B", Artist: "Y", DurationMs: 2000},
+		{ID: 30, Position: 3, Title: "C", Artist: "Z", DurationMs: 3000},
+	}
+	m.playlists.selectedTrackIDs = map[int64]struct{}{10: {}, 30: {}}
+
+	next, _ := m.handleKeyAction(actionBulkRemovePlaylistTracks)
+	_ = next.(Model)
+
+	if got := len(pd.removePlaylistTrackSoftCalls); got != 2 {
+		t.Fatalf("expected 2 RemovePlaylistTrackSoft calls, got %d", got)
+	}
+	// Verify both selected IDs were soft-deleted (order depends on track slice iteration).
+	softDeleted := map[int64]bool{}
+	for _, id := range pd.removePlaylistTrackSoftCalls {
+		softDeleted[id] = true
+	}
+	if !softDeleted[10] || !softDeleted[30] {
+		t.Fatalf("expected IDs 10 and 30 to be soft-deleted, got %v", pd.removePlaylistTrackSoftCalls)
+	}
+}
+
 // TestPlaylistCreateDuplicateNameCaseInsensitive verifies that creating a
 // playlist with a name differing only in case from an existing one is rejected.
 func TestPlaylistCreateDuplicateNameCaseInsensitive(t *testing.T) {
