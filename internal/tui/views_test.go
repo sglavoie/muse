@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/db"
+	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
 // makeQueue returns a QueueView pre-loaded with the given entries.
@@ -296,6 +298,56 @@ func TestPlaylistsViewEnsureCursorVisibleAdjustsScroll(t *testing.T) {
 			t.Errorf("expected scrollOffset=1 (unchanged), got %d", v.scrollOffset)
 		}
 	})
+}
+
+// TestPlaylistsViewBackToListRestoresScrollOffset verifies that navigating
+// from TrackLevel back to ListLevel restores the scroll offset the user had
+// at list level, so the cursor remains visible without jumping to the top.
+func TestPlaylistsViewBackToListRestoresScrollOffset(t *testing.T) {
+	v := PlaylistsView{
+		level:        pltui.ListLevel,
+		cursor:       15,
+		scrollOffset: 10,
+		height:       10, // visibleRows = max(1, 10-3) = 7
+		playlists:    make([]db.PlaylistRow, 20),
+	}
+
+	// Drill into tracks — openTracks saves list scroll position.
+	v = v.openTracks([]db.PlaylistTrackRow{{Title: "T1"}, {Title: "T2"}})
+	if v.scrollOffset != 0 {
+		t.Fatalf("expected track-level scrollOffset=0, got %d", v.scrollOffset)
+	}
+
+	// Navigate back to the playlist list.
+	v = v.backToList()
+	if v.scrollOffset != 10 {
+		t.Errorf("expected restored scrollOffset=10 after backToList, got %d", v.scrollOffset)
+	}
+	if v.cursor != 15 {
+		t.Errorf("expected restored cursor=15 after backToList, got %d", v.cursor)
+	}
+}
+
+// TestPlaylistsViewOpenTracksClearsStaleSelection verifies that opening a new
+// playlist clears track-level bulk selections from a previously viewed playlist,
+// preventing stale IDs from accidentally matching rows in the new playlist.
+func TestPlaylistsViewOpenTracksClearsStaleSelection(t *testing.T) {
+	v := PlaylistsView{
+		level:     pltui.TrackLevel,
+		playlists: make([]db.PlaylistRow, 5),
+		tracks:    []db.PlaylistTrackRow{{ID: 100, Title: "Old"}},
+		selectedTrackIDs: map[int64]struct{}{
+			100: {},
+		},
+	}
+
+	// Simulate going back to list and opening a different playlist.
+	v = v.backToList()
+	v = v.openTracks([]db.PlaylistTrackRow{{ID: 200, Title: "New"}})
+
+	if v.selectedTrackIDs != nil {
+		t.Errorf("expected selectedTrackIDs to be nil after openTracks, got %v", v.selectedTrackIDs)
+	}
 }
 
 // TestQueueRenderSelectedAndFocusedMarker verifies that a selected+focused

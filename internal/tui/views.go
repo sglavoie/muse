@@ -38,6 +38,7 @@ type PlaylistsView struct {
 	level            pltui.Level
 	cursor           int
 	listCursor       int                  // saved list cursor; preserved across drill-down and back
+	listScrollOffset int                  // saved list scroll offset; preserved across drill-down and back
 	scrollOffset     int                  // first visible row index
 	playlists        []db.PlaylistRow
 	tracks           []db.PlaylistTrackRow // populated when level == TrackLevel
@@ -262,8 +263,10 @@ func (v PlaylistsView) openTracks(tracks []db.PlaylistTrackRow) PlaylistsView {
 	v.level = view.Level
 	v.cursor = view.Cursor
 	v.listCursor = view.ListCursor
+	v.listScrollOffset = v.scrollOffset // preserve list-level scroll position
 	v.tracks = view.Tracks
 	v.scrollOffset = 0
+	v.selectedTrackIDs = nil // clear stale track-level selections from a previous playlist
 	return v
 }
 
@@ -278,7 +281,7 @@ func (v PlaylistsView) backToList() PlaylistsView {
 	v.level = view.Level
 	v.cursor = view.Cursor
 	v.tracks = view.Tracks
-	v.scrollOffset = 0
+	v.scrollOffset = v.listScrollOffset // restore list-level scroll position
 	return v
 }
 
