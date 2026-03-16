@@ -142,9 +142,10 @@ func TestIsAudioFile_NonAudio(t *testing.T) {
 	}
 }
 
-func TestIsAudioFile_DotOnly(t *testing.T) {
-	if isAudioFile(".mp3") {
-		t.Error("isAudioFile(.mp3) should be true for hidden file with audio ext")
+func TestIsAudioFile_HiddenAudioFile(t *testing.T) {
+	// isAudioFile only checks the extension; hidden-file filtering is done by Walk.
+	if !isAudioFile(".mp3") {
+		t.Error("isAudioFile(.mp3) should be true — extension is .mp3")
 	}
 }
 
