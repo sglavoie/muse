@@ -146,11 +146,10 @@ func (v View) moveCursor(delta int) View {
 }
 
 // visibleRows returns the maximum number of track rows that fit on screen.
+// The heading, separator (blank line or filter bar), and column header consume
+// 3 lines regardless of whether a filter is active.
 func (v View) visibleRows() int {
 	reserve := 3
-	if v.FilterText != "" {
-		reserve = 4
-	}
 	if v.Height > 0 {
 		return max(1, v.Height-reserve)
 	}

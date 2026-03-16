@@ -772,3 +772,29 @@ func TestBulkRemoveSelectAllClearsTrackList(t *testing.T) {
 		t.Errorf("expected SelectedTrackIDs=nil after ClearBulkSelection, got %v", v.SelectedTrackIDs)
 	}
 }
+
+// TestRenderTracksShowsSequentialPositions verifies that track-level rendering
+// displays sequential 1-based indices (1, 2, 3) instead of the raw gapped DB
+// position values (1000, 2000, 3000).
+func TestRenderTracksShowsSequentialPositions(t *testing.T) {
+	v := View{
+		Level: TrackLevel,
+		Width: 80,
+		Tracks: []db.PlaylistTrackRow{
+			{Position: 1000, Title: "Song A", Artist: "Artist X", DurationMs: 183000},
+			{Position: 2000, Title: "Song B", Artist: "Artist Y", DurationMs: 245000},
+			{Position: 3000, Title: "Song C", Artist: "Artist Z", DurationMs: 300000},
+		},
+	}
+	out := v.Render()
+	// The raw DB positions (1000, 2000, 3000) must not appear in the output.
+	if strings.Contains(out, "1000") {
+		t.Errorf("render should not contain raw DB position 1000, got:\n%s", out)
+	}
+	if strings.Contains(out, "2000") {
+		t.Errorf("render should not contain raw DB position 2000, got:\n%s", out)
+	}
+	if strings.Contains(out, "3000") {
+		t.Errorf("render should not contain raw DB position 3000, got:\n%s", out)
+	}
+}

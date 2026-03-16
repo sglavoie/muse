@@ -972,6 +972,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.statusBar.handleMissingTrack(msg.Path)
 
 	case FilterBarMsg:
+		if m.activeView != viewLibrary {
+			break
+		}
 		if m.library.filterActive {
 			m.library = m.library.CommitFilter()
 		} else {

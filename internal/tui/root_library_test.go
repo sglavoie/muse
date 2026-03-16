@@ -379,3 +379,34 @@ func TestRootLibraryAConfirmPlaylistClearsSelectionAndNotifies(t *testing.T) {
 		t.Errorf("status bar must contain playlist name; got:\n%s", v.Content)
 	}
 }
+
+// TestFilterBarMsgIgnoredOutsideLibraryView verifies that pressing '/' while on
+// the queue or playlists view does not activate the library filter bar. Before
+// the fix, FilterBarMsg always toggled the library filter regardless of the
+// active view, silently leaving it in an inconsistent state.
+func TestFilterBarMsgIgnoredOutsideLibraryView(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+
+	// Switch to queue view.
+	next, _ := m.Update(tea.KeyPressMsg{Code: '3', Text: "3"})
+	nm := next.(Model)
+	if nm.activeView != viewQueue {
+		t.Fatalf("expected viewQueue, got %d", nm.activeView)
+	}
+
+	// Send FilterBarMsg while on the queue view.
+	next, _ = nm.Update(FilterBarMsg{})
+	nm = next.(Model)
+	if nm.library.filterActive {
+		t.Error("library filterActive should remain false when FilterBarMsg is sent outside the library view")
+	}
+
+	// Also check playlists view.
+	next, _ = m.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
+	nm = next.(Model)
+	next, _ = nm.Update(FilterBarMsg{})
+	nm = next.(Model)
+	if nm.library.filterActive {
+		t.Error("library filterActive should remain false when FilterBarMsg is sent on playlists view")
+	}
+}

@@ -343,7 +343,7 @@ func (v View) renderTracks() string {
 			markerStr = "  "
 		}
 
-		pos := fmt.Sprintf("%-*d", cols.Position, t.Position)
+		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
 		title := truncate(t.Title, cols.Title)
 		title = fmt.Sprintf("%-*s", cols.Title, title)
 		artist := truncate(t.Artist, cols.Artist)

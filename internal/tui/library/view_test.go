@@ -730,3 +730,22 @@ func TestEnqueueFocusedWithActiveFilterSelectsFilteredTrack(t *testing.T) {
 		t.Errorf("EnqueueFocused with active filter: expected Artist %q, got %q", "Alice", msg.Track.Artist)
 	}
 }
+
+// TestVisibleRowsSameWithAndWithoutFilter verifies that visibleRows returns
+// the same value regardless of whether a filter is active. The heading,
+// separator (blank line or filter bar), and column header always consume
+// exactly 3 lines, so the number of data rows should not change.
+func TestVisibleRowsSameWithAndWithoutFilter(t *testing.T) {
+	h := 24
+	noFilter := View{Height: h}
+	withFilter := View{Height: h, FilterText: "abc"}
+	withActiveFilter := View{Height: h, FilterText: "abc", FilterActive: true}
+
+	base := noFilter.visibleRows()
+	if got := withFilter.visibleRows(); got != base {
+		t.Errorf("visibleRows with committed filter: got %d, want %d (same as no filter)", got, base)
+	}
+	if got := withActiveFilter.visibleRows(); got != base {
+		t.Errorf("visibleRows with active filter: got %d, want %d (same as no filter)", got, base)
+	}
+}
