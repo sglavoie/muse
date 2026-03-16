@@ -632,6 +632,334 @@ func TestRenameFlowPersistSimulated(t *testing.T) {
 	}
 }
 
+// --- navigation: CursorUp / CursorDown ---
+
+func TestCursorUpDecrementsAndStopsAtZero(t *testing.T) {
+	v := View{
+		Level:     ListLevel,
+		Cursor:    2,
+		Playlists: make([]db.PlaylistRow, 5),
+	}
+	v = v.CursorUp()
+	if v.Cursor != 1 {
+		t.Errorf("CursorUp: expected 1, got %d", v.Cursor)
+	}
+	v = v.CursorUp()
+	if v.Cursor != 0 {
+		t.Errorf("CursorUp: expected 0, got %d", v.Cursor)
+	}
+	v = v.CursorUp()
+	if v.Cursor != 0 {
+		t.Errorf("CursorUp at 0: expected 0, got %d", v.Cursor)
+	}
+}
+
+func TestCursorUpAdjustsScrollOffset(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Cursor:       3,
+		ScrollOffset: 3,
+		Playlists:    make([]db.PlaylistRow, 10),
+	}
+	v = v.CursorUp()
+	if v.ScrollOffset != 2 {
+		t.Errorf("CursorUp: expected ScrollOffset=2, got %d", v.ScrollOffset)
+	}
+}
+
+func TestCursorDownIncrementsAndStopsAtEnd(t *testing.T) {
+	v := View{
+		Level:     ListLevel,
+		Cursor:    0,
+		Playlists: make([]db.PlaylistRow, 3),
+	}
+	v = v.CursorDown()
+	if v.Cursor != 1 {
+		t.Errorf("CursorDown: expected 1, got %d", v.Cursor)
+	}
+	v = v.CursorDown()
+	if v.Cursor != 2 {
+		t.Errorf("CursorDown: expected 2, got %d", v.Cursor)
+	}
+	v = v.CursorDown()
+	if v.Cursor != 2 {
+		t.Errorf("CursorDown at end: expected 2, got %d", v.Cursor)
+	}
+}
+
+func TestCursorDownAtTrackLevel(t *testing.T) {
+	v := View{
+		Level:  TrackLevel,
+		Cursor: 0,
+		Tracks: make([]db.PlaylistTrackRow, 2),
+	}
+	v = v.CursorDown()
+	if v.Cursor != 1 {
+		t.Errorf("CursorDown TrackLevel: expected 1, got %d", v.Cursor)
+	}
+	v = v.CursorDown()
+	if v.Cursor != 1 {
+		t.Errorf("CursorDown TrackLevel at end: expected 1, got %d", v.Cursor)
+	}
+}
+
+func TestCursorDownAdjustsScrollOffset(t *testing.T) {
+	v := View{
+		Level:     ListLevel,
+		Cursor:    0,
+		Height:    6, // visibleRows = max(1, 6-3) = 3
+		Playlists: make([]db.PlaylistRow, 10),
+	}
+	// Move down past visible area
+	for range 3 {
+		v = v.CursorDown()
+	}
+	if v.ScrollOffset != 1 {
+		t.Errorf("CursorDown: expected ScrollOffset=1, got %d", v.ScrollOffset)
+	}
+}
+
+// --- navigation: GoToTop / GoToBottom ---
+
+func TestGoToTopResetsCursorAndScroll(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Cursor:       5,
+		ScrollOffset: 3,
+		Playlists:    make([]db.PlaylistRow, 10),
+	}
+	v = v.GoToTop()
+	if v.Cursor != 0 {
+		t.Errorf("GoToTop: expected Cursor=0, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 0 {
+		t.Errorf("GoToTop: expected ScrollOffset=0, got %d", v.ScrollOffset)
+	}
+}
+
+func TestGoToBottomMovesCursorToEnd(t *testing.T) {
+	v := View{
+		Level:     ListLevel,
+		Cursor:    0,
+		Playlists: make([]db.PlaylistRow, 10),
+	}
+	v = v.GoToBottom()
+	if v.Cursor != 9 {
+		t.Errorf("GoToBottom: expected Cursor=9, got %d", v.Cursor)
+	}
+}
+
+func TestGoToBottomTrackLevel(t *testing.T) {
+	v := View{
+		Level:  TrackLevel,
+		Cursor: 0,
+		Tracks: make([]db.PlaylistTrackRow, 5),
+	}
+	v = v.GoToBottom()
+	if v.Cursor != 4 {
+		t.Errorf("GoToBottom TrackLevel: expected Cursor=4, got %d", v.Cursor)
+	}
+}
+
+func TestGoToBottomEmptyList(t *testing.T) {
+	v := View{Level: ListLevel, Cursor: 0}
+	v = v.GoToBottom()
+	if v.Cursor != 0 {
+		t.Errorf("GoToBottom empty: expected Cursor=0, got %d", v.Cursor)
+	}
+}
+
+func TestGoToBottomAdjustsScrollOffset(t *testing.T) {
+	v := View{
+		Level:     ListLevel,
+		Cursor:    0,
+		Height:    6, // visibleRows = 3
+		Playlists: make([]db.PlaylistRow, 10),
+	}
+	v = v.GoToBottom()
+	if v.Cursor != 9 {
+		t.Errorf("GoToBottom: expected Cursor=9, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 7 {
+		t.Errorf("GoToBottom: expected ScrollOffset=7, got %d", v.ScrollOffset)
+	}
+}
+
+// --- navigation: page movements ---
+
+func TestHalfPageDownMovesByHalfVisibleRows(t *testing.T) {
+	v := View{
+		Level:     ListLevel,
+		Cursor:    0,
+		Height:    13, // visibleRows = 10
+		Playlists: make([]db.PlaylistRow, 20),
+	}
+	v = v.HalfPageDown()
+	if v.Cursor != 5 {
+		t.Errorf("HalfPageDown: expected Cursor=5, got %d", v.Cursor)
+	}
+}
+
+func TestHalfPageUpMovesByHalfVisibleRows(t *testing.T) {
+	v := View{
+		Level:     ListLevel,
+		Cursor:    10,
+		Height:    13, // visibleRows = 10
+		Playlists: make([]db.PlaylistRow, 20),
+	}
+	v = v.HalfPageUp()
+	if v.Cursor != 5 {
+		t.Errorf("HalfPageUp: expected Cursor=5, got %d", v.Cursor)
+	}
+}
+
+func TestFullPageDownMovesByVisibleRows(t *testing.T) {
+	v := View{
+		Level:     ListLevel,
+		Cursor:    0,
+		Height:    13, // visibleRows = 10
+		Playlists: make([]db.PlaylistRow, 20),
+	}
+	v = v.FullPageDown()
+	if v.Cursor != 10 {
+		t.Errorf("FullPageDown: expected Cursor=10, got %d", v.Cursor)
+	}
+}
+
+func TestFullPageUpMovesByVisibleRows(t *testing.T) {
+	v := View{
+		Level:     ListLevel,
+		Cursor:    15,
+		Height:    13, // visibleRows = 10
+		Playlists: make([]db.PlaylistRow, 20),
+	}
+	v = v.FullPageUp()
+	if v.Cursor != 5 {
+		t.Errorf("FullPageUp: expected Cursor=5, got %d", v.Cursor)
+	}
+}
+
+func TestPageMovementsClampsToEnd(t *testing.T) {
+	v := View{
+		Level:     ListLevel,
+		Cursor:    8,
+		Height:    13, // visibleRows = 10
+		Playlists: make([]db.PlaylistRow, 10),
+	}
+	v = v.FullPageDown()
+	if v.Cursor != 9 {
+		t.Errorf("FullPageDown clamp: expected Cursor=9, got %d", v.Cursor)
+	}
+}
+
+func TestPageMovementsClampsToStart(t *testing.T) {
+	v := View{
+		Level:     ListLevel,
+		Cursor:    2,
+		Height:    13, // visibleRows = 10
+		Playlists: make([]db.PlaylistRow, 10),
+	}
+	v = v.FullPageUp()
+	if v.Cursor != 0 {
+		t.Errorf("FullPageUp clamp: expected Cursor=0, got %d", v.Cursor)
+	}
+}
+
+// --- moveCursor empty list ---
+
+func TestMoveCursorEmptyListIsNoOp(t *testing.T) {
+	v := View{Level: ListLevel, Cursor: 0}
+	v2 := v.moveCursor(5)
+	if v2.Cursor != 0 {
+		t.Errorf("moveCursor empty: expected Cursor=0, got %d", v2.Cursor)
+	}
+}
+
+// --- itemCount ---
+
+func TestItemCountListLevel(t *testing.T) {
+	v := View{Level: ListLevel, Playlists: make([]db.PlaylistRow, 7)}
+	if v.itemCount() != 7 {
+		t.Errorf("itemCount ListLevel: expected 7, got %d", v.itemCount())
+	}
+}
+
+func TestItemCountTrackLevel(t *testing.T) {
+	v := View{Level: TrackLevel, Tracks: make([]db.PlaylistTrackRow, 3)}
+	if v.itemCount() != 3 {
+		t.Errorf("itemCount TrackLevel: expected 3, got %d", v.itemCount())
+	}
+}
+
+// --- visibleRows ---
+
+func TestVisibleRowsZeroHeight(t *testing.T) {
+	v := View{Height: 0}
+	if v.visibleRows() != 50 {
+		t.Errorf("visibleRows Height=0: expected 50, got %d", v.visibleRows())
+	}
+}
+
+func TestVisibleRowsSmallHeight(t *testing.T) {
+	v := View{Height: 4}
+	if v.visibleRows() != 1 {
+		t.Errorf("visibleRows Height=4: expected 1, got %d", v.visibleRows())
+	}
+}
+
+// --- formatDuration edge cases ---
+
+func TestFormatDurationHours(t *testing.T) {
+	got := formatDuration(3661000) // 1h 1m 1s
+	if got != "1:01:01" {
+		t.Errorf("formatDuration hours: expected 1:01:01, got %s", got)
+	}
+}
+
+func TestFormatDurationZero(t *testing.T) {
+	got := formatDuration(0)
+	if got != "--:--" {
+		t.Errorf("formatDuration 0: expected --:--, got %s", got)
+	}
+}
+
+func TestFormatDurationNegative(t *testing.T) {
+	got := formatDuration(-1000)
+	if got != "--:--" {
+		t.Errorf("formatDuration negative: expected --:--, got %s", got)
+	}
+}
+
+// --- truncate edge cases ---
+
+func TestTruncateZeroMaxLen(t *testing.T) {
+	got := truncate("hello", 0)
+	if got != "" {
+		t.Errorf("truncate maxLen=0: expected empty, got %q", got)
+	}
+}
+
+func TestTruncateNegativeMaxLen(t *testing.T) {
+	got := truncate("hello", -1)
+	if got != "" {
+		t.Errorf("truncate maxLen=-1: expected empty, got %q", got)
+	}
+}
+
+func TestTruncateMaxLenOne(t *testing.T) {
+	got := truncate("hello", 1)
+	if got != "h" {
+		t.Errorf("truncate maxLen=1: expected 'h', got %q", got)
+	}
+}
+
+func TestTruncateNoTruncationNeeded(t *testing.T) {
+	got := truncate("hi", 5)
+	if got != "hi" {
+		t.Errorf("truncate no-op: expected 'hi', got %q", got)
+	}
+}
+
 // --- 'x' bulk selection toggle at TrackLevel ---
 
 // TestBulkSelectionToggleAtTrackLevelAddsID verifies that toggling a track ID
