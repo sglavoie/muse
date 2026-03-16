@@ -400,6 +400,170 @@ func TestModalReceivesPreSortedPlaylistsFromFakeReader(t *testing.T) {
 	}
 }
 
+// --- Render / buildBoxLines ---
+
+func TestModalBuildBoxLinesContainsBorders(t *testing.T) {
+	m := NewDestinationPicker(fakePlaylistRows("Alpha", "Beta"))
+	lines := m.buildBoxLines()
+
+	if len(lines) < 4 {
+		t.Fatalf("expected at least 4 box lines, got %d", len(lines))
+	}
+	// First line is top border
+	if lines[0][0:len(cornerTL)] != cornerTL {
+		t.Errorf("first line must start with top-left corner, got %q", lines[0][:3])
+	}
+	// Last line before hint is bottom border
+	bottomBorder := lines[len(lines)-2]
+	if bottomBorder[0:len(cornerBL)] != cornerBL {
+		t.Errorf("bottom border must start with bottom-left corner, got %q", bottomBorder[:3])
+	}
+	// Final line is hint
+	last := lines[len(lines)-1]
+	if last == "" || last[0:2] != "  " {
+		t.Errorf("last line must be keybinding hint, got %q", last)
+	}
+}
+
+func TestModalBuildBoxLinesContainsTitle(t *testing.T) {
+	m := NewDestinationPicker(nil)
+	lines := m.buildBoxLines()
+
+	found := false
+	for _, l := range lines {
+		if containsStr(l, "Destination") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("box lines must contain 'Destination' title")
+	}
+}
+
+func containsStr(s, sub string) bool {
+	for i := 0; i <= len(s)-len(sub); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
+}
+
+func TestModalBuildBoxLinesContainsDestinations(t *testing.T) {
+	m := NewDestinationPicker(fakePlaylistRows("Chill", "Rock"))
+	lines := m.buildBoxLines()
+
+	foundQueue := false
+	foundChill := false
+	foundRock := false
+	for _, l := range lines {
+		if containsStr(l, queueLabel) {
+			foundQueue = true
+		}
+		if containsStr(l, "Chill") {
+			foundChill = true
+		}
+		if containsStr(l, "Rock") {
+			foundRock = true
+		}
+	}
+	if !foundQueue {
+		t.Error("box lines must contain Play Queue")
+	}
+	if !foundChill {
+		t.Error("box lines must contain Chill")
+	}
+	if !foundRock {
+		t.Error("box lines must contain Rock")
+	}
+}
+
+func TestModalBuildBoxLinesFocusedRowHasAccent(t *testing.T) {
+	m := NewDestinationPicker(fakePlaylistRows("Alpha"))
+	m.cursor = 0 // Play Queue focused
+	lines := m.buildBoxLines()
+
+	found := false
+	for _, l := range lines {
+		if containsStr(l, ansiAccent) && containsStr(l, queueLabel) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("focused row must contain ANSI accent code")
+	}
+}
+
+func TestModalRenderCentered(t *testing.T) {
+	m := NewDestinationPicker(fakePlaylistRows("A"))
+	out := m.Render(80, 24)
+
+	// Should have some leading newlines (vertical centering)
+	if out[0] != '\n' {
+		t.Error("Render must have leading newlines for vertical centering")
+	}
+	// Should contain the box content
+	if !containsStr(out, "Destination") {
+		t.Error("Render output must contain 'Destination'")
+	}
+}
+
+func TestModalRenderZeroDimensions(t *testing.T) {
+	m := NewDestinationPicker(nil)
+	out := m.Render(0, 0)
+
+	// Should not panic and should contain content without centering
+	if !containsStr(out, "Destination") {
+		t.Error("Render(0,0) must still contain 'Destination'")
+	}
+}
+
+// --- TextInput.Render ---
+
+func TestTextInputRender(t *testing.T) {
+	ti := NewTextInput("Hello")
+	got := ti.Render()
+	if got != "Hello█" {
+		t.Errorf("Render: expected 'Hello█', got %q", got)
+	}
+}
+
+func TestTextInputRenderEmpty(t *testing.T) {
+	ti := NewTextInput("")
+	got := ti.Render()
+	if got != "█" {
+		t.Errorf("Render empty: expected '█', got %q", got)
+	}
+}
+
+func TestTextInputBackspaceEmpty(t *testing.T) {
+	ti := NewTextInput("")
+	ti = ti.Backspace()
+	if ti.Value() != "" {
+		t.Errorf("Backspace on empty: expected empty, got %q", ti.Value())
+	}
+}
+
+// --- columns edge cases ---
+
+func TestComputeNarrowWidth(t *testing.T) {
+	cols := Compute(5)
+	// Very narrow — should not panic
+	if cols.Name < 0 {
+		t.Errorf("Compute(5): Name=%d, should not be negative", cols.Name)
+	}
+}
+
+func TestComputeTrackNarrowWidth(t *testing.T) {
+	cols := ComputeTrack(10)
+	// Very narrow — should not panic
+	if cols.Title < 0 {
+		t.Errorf("ComputeTrack(10): Title=%d, should not be negative", cols.Title)
+	}
+}
+
 // TestModalHandleKeyIsImmutable verifies that HandleKey does not mutate the
 // receiver: the original modal's cursor must be unchanged after a call.
 func TestModalHandleKeyIsImmutable(t *testing.T) {
