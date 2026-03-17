@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // LibraryView renders the music library panel backed by a sorted LibraryIndex.
@@ -24,8 +25,10 @@ type LibraryView struct {
 
 // render returns a string representation of the library panel with proportional
 // columnar layout. Column widths resize with the terminal width.
-func (v LibraryView) render() string {
-	return v.view().Render()
+func (v LibraryView) render(s styles.Styles) string {
+	lv := v.view()
+	lv.Styles = s
+	return lv.Render()
 }
 
 // view returns a fully-populated libtui.View from the current LibraryView state.

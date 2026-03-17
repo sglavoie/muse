@@ -11,6 +11,7 @@ import (
 	"github.com/sglavoie/muse/internal/player"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // playPauser is the subset of the player interface used by the root model for
@@ -1694,7 +1695,7 @@ func (m Model) View() tea.View {
 			if m.destPicker != nil {
 				body = m.destPicker.Render(m.termWidth, m.termHeight)
 			} else {
-				body = m.library.render()
+				body = m.library.render(styles.NewStyles(true))
 			}
 		case viewPlaylists:
 			body = m.playlists.render()
