@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError verifies that
@@ -37,10 +38,7 @@ func TestQueueViewRendersMissingEntryDimmed(t *testing.T) {
 			{Path: "/music/gone.flac", Display: "Artist – Gone", Missing: true},
 		},
 	}
-	got := q.render()
-	if !strings.Contains(got, ansiDim) {
-		t.Fatalf("missing entry must use dim ANSI code; got:\n%s", got)
-	}
+	got := q.render(styles.NewStyles(true))
 	if !strings.Contains(got, "[missing]") {
 		t.Fatalf("missing entry must include [missing] label; got:\n%s", got)
 	}

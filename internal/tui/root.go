@@ -1711,7 +1711,7 @@ func (m Model) View() tea.View {
 		case viewPlaylists:
 			body = m.playlists.render(*m.styles)
 		case viewQueue:
-			body = m.queue.render()
+			body = m.queue.render(styles.NewStyles(true))
 		}
 	}
 

@@ -21,15 +21,6 @@ const (
 	viewQueue     viewID = 3
 )
 
-// ansiDim / ansiReset wrap text in the ANSI dim (faint) attribute used to
-// display missing queue entries in a grayed-out style.
-// ansiAccent wraps text in reverse-video for focused/selected row highlighting,
-// matching the style used by the Library and Playlists views.
-const (
-	ansiDim    = "\033[2m"
-	ansiAccent = "\033[7m"
-	ansiReset  = "\033[0m"
-)
 
 // PlaylistsView wraps the playlists sub-panel state for the root model.
 // It holds the navigation level, cursor position, loaded playlist rows, and
@@ -491,7 +482,7 @@ func (v QueueView) visibleRows() int {
 // Proportional columns resize on WindowSizeMsg; fixed-width columns are
 // constant. Missing entries are wrapped in ANSI dim escape codes so they
 // appear grayed out in the terminal.
-func (v QueueView) render() string {
+func (v QueueView) render(s styles.Styles) string {
 	if len(v.entries) == 0 {
 		return "Queue\n\n(empty)"
 	}
@@ -536,7 +527,7 @@ func (v QueueView) render() string {
 		case e.Selected && isFocused:
 			markerStr = "● "
 		case e.Selected:
-			markerStr = ansiAccent + "●" + ansiReset + " "
+			markerStr = s.Accent.Render("●") + " "
 		default:
 			markerStr = "  "
 		}
@@ -561,7 +552,7 @@ func (v QueueView) render() string {
 
 		line := markerStr + pos + " " + title + " " + artist + " " + source + " " + dur
 		if e.Missing {
-			lines[i] = ansiDim + line + " [missing]" + ansiReset
+			lines[i] = s.Dim.Render(line + " [missing]")
 		} else {
 			lines[i] = line
 		}

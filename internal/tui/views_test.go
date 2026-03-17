@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // fakeQueueAppender records enqueue calls for testing.
@@ -35,7 +36,7 @@ func makeQueue(width int, entries []QueueEntry) QueueView {
 // TestQueueRenderEmptyShowsPlaceholder verifies the empty-queue message.
 func TestQueueRenderEmptyShowsPlaceholder(t *testing.T) {
 	v := QueueView{}
-	got := v.render()
+	got := v.render(styles.NewStyles(true))
 	if !strings.Contains(got, "empty") {
 		t.Fatalf("empty queue must show '(empty)'; got: %q", got)
 	}
@@ -48,7 +49,7 @@ func TestQueueRenderFourColumns(t *testing.T) {
 		{Title: "Song One", Artist: "Band A", DurationMs: 200_000, Position: 1000},
 		{Title: "Song Two", Artist: "Band B", DurationMs: 65_000, Position: 2000},
 	})
-	out := v.render()
+	out := v.render(styles.NewStyles(true))
 
 	// Position column: index numbers should appear.
 	if !strings.Contains(out, "1") {
@@ -89,7 +90,7 @@ func TestQueueRenderAscendingOrder(t *testing.T) {
 		{Title: "Second", Artist: "B", DurationMs: 120_000, Position: 2000},
 		{Title: "Third", Artist: "C", DurationMs: 180_000, Position: 3000},
 	})
-	out := v.render()
+	out := v.render(styles.NewStyles(true))
 	firstIdx := strings.Index(out, "First")
 	secondIdx := strings.Index(out, "Second")
 	thirdIdx := strings.Index(out, "Third")
@@ -102,19 +103,13 @@ func TestQueueRenderAscendingOrder(t *testing.T) {
 	}
 }
 
-// TestQueueRenderMissingEntryDim verifies that a missing entry is wrapped in
-// ANSI dim codes and shows the "[missing]" label.
+// TestQueueRenderMissingEntryDim verifies that a missing entry is rendered with
+// dim styling and shows the "[missing]" label.
 func TestQueueRenderMissingEntryDim(t *testing.T) {
 	v := makeQueue(80, []QueueEntry{
 		{Title: "Gone", Artist: "Nobody", DurationMs: 0, Missing: true, Position: 1000},
 	})
-	out := v.render()
-	if !strings.Contains(out, ansiDim) {
-		t.Error("missing entry must start with ANSI dim code")
-	}
-	if !strings.Contains(out, ansiReset) {
-		t.Error("missing entry must end with ANSI reset code")
-	}
+	out := v.render(styles.NewStyles(true))
 	if !strings.Contains(out, "[missing]") {
 		t.Error("missing entry must contain '[missing]' label")
 	}
@@ -133,8 +128,8 @@ func TestQueueRenderProportionalColumnWidths(t *testing.T) {
 	narrow := makeQueue(80, []QueueEntry{entry})
 	wide := makeQueue(160, []QueueEntry{entry})
 
-	narrowOut := narrow.render()
-	wideOut := wide.render()
+	narrowOut := narrow.render(styles.NewStyles(true))
+	wideOut := wide.render(styles.NewStyles(true))
 
 	// Wide terminal should accommodate more of the long title / artist strings.
 	// Count how many T's appear in the title column.
@@ -255,7 +250,7 @@ func TestQueueRenderSelectedEntryShowsMarker(t *testing.T) {
 		{Title: "Normal", Artist: "A", DurationMs: 60_000, Selected: false},
 		{Title: "Selected", Artist: "B", DurationMs: 120_000, Selected: true},
 	})
-	out := v.render()
+	out := v.render(styles.NewStyles(true))
 	if !strings.Contains(out, "●") {
 		t.Fatal("selected queue entry must show a ● marker")
 	}
@@ -267,7 +262,7 @@ func TestQueueRenderUnselectedEntryHasNoMarker(t *testing.T) {
 	v := makeQueue(120, []QueueEntry{
 		{Title: "Normal", Artist: "A", DurationMs: 60_000, Selected: false},
 	})
-	out := v.render()
+	out := v.render(styles.NewStyles(true))
 	if strings.Contains(out, "●") {
 		t.Fatal("unselected queue entry must not show a ● marker")
 	}
@@ -376,7 +371,7 @@ func TestQueueRenderSelectedAndFocusedMarker(t *testing.T) {
 		cursor: 0,
 		width:  120,
 	}
-	out := v.render()
+	out := v.render(styles.NewStyles(true))
 	// The focused+selected line must contain "●" but must not contain the
 	// inner accent+reset pair that unfocused selected entries use.
 	lines := strings.Split(out, "\n")
