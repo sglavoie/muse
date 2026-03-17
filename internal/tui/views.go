@@ -9,6 +9,7 @@ import (
 	musiclib "github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // viewID identifies which primary view is active.
@@ -51,8 +52,8 @@ type PlaylistsView struct {
 	selectedTrackIDs map[int64]struct{}    // bulk-selected playlist track row IDs at TrackLevel
 }
 
-func (v PlaylistsView) render() string {
-	return pltui.View{
+func (v PlaylistsView) render(s styles.Styles) string {
+	pv := pltui.View{
 		Level:            v.level,
 		Cursor:           v.cursor,
 		ScrollOffset:     v.scrollOffset,
@@ -65,7 +66,9 @@ func (v PlaylistsView) render() string {
 		Renaming:         v.renaming,
 		RenameInput:      v.renameInput,
 		SelectedTrackIDs: v.selectedTrackIDs,
-	}.Render()
+	}
+	pv.Styles = s
+	return pv.Render()
 }
 
 // isCreating reports whether the inline create input is active.
