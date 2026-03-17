@@ -45,6 +45,21 @@ func searchFieldOffsets(artist, title string) (artistOffset, artistLen, titleOff
 	return
 }
 
+// searchFieldOffsetsAll returns the (offset, length) pairs for the artist,
+// title, and album fields within the concatenated "artist title album filename"
+// search string. The layout is:
+//
+//	[artist] SP [title] SP [album] SP [filename]
+func searchFieldOffsetsAll(artist, title, album string) (artistOffset, artistLen, titleOffset, titleLen, albumOffset, albumLen int) {
+	artistLen = len([]rune(artist))
+	titleLen = len([]rune(title))
+	albumLen = len([]rune(album))
+	artistOffset = 0
+	titleOffset = artistLen + 1
+	albumOffset = titleOffset + titleLen + 1
+	return
+}
+
 // fieldMatchPositions filters matchedIndexes (positions in a concatenated
 // "artist title filename" search string) to those within the given field
 // range [fieldOffset, fieldOffset+fieldLen) and returns them 0-indexed

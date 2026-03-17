@@ -219,8 +219,11 @@ func (v View) EnqueueFocused(qa QueueAppender, prevQueueLen int) (View, tea.Cmd)
 
 // displayTrack pairs a track with its fuzzy match positions for highlight rendering.
 type displayTrack struct {
-	track          musiclib.Track
-	matchedIndexes []int
+	track           musiclib.Track
+	matchedIndexes  []int
+	artistPositions []int
+	titlePositions  []int
+	albumPositions  []int
 }
 
 // Render returns the complete library panel string. When Width is zero (before
@@ -240,8 +243,11 @@ func (v View) Render() string {
 			display = make([]displayTrack, len(matches))
 			for i, m := range matches {
 				display[i] = displayTrack{
-					track:          allTracks[m.TrackIndex],
-					matchedIndexes: m.MatchedIndexes,
+					track:           allTracks[m.TrackIndex],
+					matchedIndexes:  m.MatchedIndexes,
+					artistPositions: m.ArtistPositions,
+					titlePositions:  m.TitlePositions,
+					albumPositions:  m.AlbumPositions,
 				}
 			}
 		}
@@ -264,11 +270,15 @@ func (v View) Render() string {
 	separator := "\n\n"
 	if v.FilterActive {
 		ft := v.FilterText
-		maxLen := v.Width - len("Filter: > ") - 1
-		if maxLen > 0 && len([]rune(ft)) > maxLen {
-			ft = string([]rune(ft)[:maxLen-1]) + "…"
+		if ft == "" {
+			separator = "\nFilter: > \033[2ma: artist  t: title  l: album\033[0m\n"
+		} else {
+			maxLen := v.Width - len("Filter: > ") - 1
+			if maxLen > 0 && len([]rune(ft)) > maxLen {
+				ft = string([]rune(ft)[:maxLen-1]) + "…"
+			}
+			separator = "\nFilter: > " + ft + "\n"
 		}
-		separator = "\nFilter: > " + ft + "\n"
 	} else if v.FilterText != "" {
 		ft := v.FilterText
 		maxLen := v.Width - len("Filter: ") - 1
@@ -327,14 +337,23 @@ func (v View) Render() string {
 		}
 
 		var row string
-		if len(dt.matchedIndexes) > 0 {
-			artistOffset, artistLen, titleOffset, titleLen := searchFieldOffsets(t.Artist, t.Title)
+		hasFieldPos := len(dt.artistPositions) > 0 || len(dt.titlePositions) > 0 || len(dt.albumPositions) > 0
+		if hasFieldPos {
+			row = markerStr + pad(num, cols.TrackNum) + " " +
+				padHighlight(t.Artist, cols.Artist, dt.artistPositions) + " " +
+				padHighlight(t.Title, cols.Title, dt.titlePositions) + " " +
+				padHighlight(t.Album, cols.Album, dt.albumPositions) + " " +
+				pad(dur, cols.Duration)
+		} else if len(dt.matchedIndexes) > 0 {
+			artistOffset, artistLen, titleOffset, titleLen, albumOffset, albumLen :=
+				searchFieldOffsetsAll(t.Artist, t.Title, t.Album)
 			artistPos := fieldMatchPositions(dt.matchedIndexes, artistOffset, artistLen)
 			titlePos := fieldMatchPositions(dt.matchedIndexes, titleOffset, titleLen)
+			albumPos := fieldMatchPositions(dt.matchedIndexes, albumOffset, albumLen)
 			row = markerStr + pad(num, cols.TrackNum) + " " +
 				padHighlight(t.Artist, cols.Artist, artistPos) + " " +
 				padHighlight(t.Title, cols.Title, titlePos) + " " +
-				pad(t.Album, cols.Album) + " " +
+				padHighlight(t.Album, cols.Album, albumPos) + " " +
 				pad(dur, cols.Duration)
 		} else {
 			row = markerStr + renderRow(num, t.Artist, t.Title, t.Album, dur, cols)

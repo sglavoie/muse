@@ -65,6 +65,58 @@ func TestFakeFuzzySearcher(t *testing.T) {
 		}
 	})
 
+	t.Run("AlbumMatch", func(t *testing.T) {
+		f := FakeFuzzySearcher{}
+		tracksWithAlbum := []Track{
+			{Artist: "Radiohead", Title: "Creep", Album: "Pablo Honey", Path: "/music/creep.flac"},
+			{Artist: "Pink Floyd", Title: "Comfortably Numb", Album: "The Wall", Path: "/music/numb.flac"},
+		}
+		got := f.Search("pablo", tracksWithAlbum)
+		if len(got) != 1 || got[0].TrackIndex != 0 {
+			t.Errorf("expected general search to match album, got %+v", got)
+		}
+	})
+
+	t.Run("ArtistPrefix", func(t *testing.T) {
+		f := FakeFuzzySearcher{}
+		got := f.Search("a:radiohead", tracks)
+		if len(got) != 1 || got[0].TrackIndex != 0 {
+			t.Errorf("expected a:radiohead to match index 0, got %+v", got)
+		}
+	})
+
+	t.Run("TitlePrefix", func(t *testing.T) {
+		f := FakeFuzzySearcher{}
+		got := f.Search("t:numb", tracks)
+		if len(got) != 1 || got[0].TrackIndex != 1 {
+			t.Errorf("expected t:numb to match index 1, got %+v", got)
+		}
+	})
+
+	t.Run("AlbumPrefix", func(t *testing.T) {
+		f := FakeFuzzySearcher{}
+		tracksWithAlbum := []Track{
+			{Artist: "Radiohead", Title: "Creep", Album: "Pablo Honey", Path: "/music/creep.flac"},
+			{Artist: "Pink Floyd", Title: "Comfortably Numb", Album: "The Wall", Path: "/music/numb.flac"},
+		}
+		got := f.Search("l:wall", tracksWithAlbum)
+		if len(got) != 1 || got[0].TrackIndex != 1 {
+			t.Errorf("expected l:wall to match The Wall, got %+v", got)
+		}
+	})
+
+	t.Run("FieldANDLogic", func(t *testing.T) {
+		f := FakeFuzzySearcher{}
+		tracksWithAlbum := []Track{
+			{Artist: "Radiohead", Title: "Creep", Album: "Pablo Honey", Path: "/music/creep.flac"},
+			{Artist: "Radiohead", Title: "Lucky", Album: "OK Computer", Path: "/music/lucky.flac"},
+		}
+		got := f.Search("a:radiohead t:lucky", tracksWithAlbum)
+		if len(got) != 1 || got[0].TrackIndex != 1 {
+			t.Errorf("expected AND logic to match only Lucky, got %+v", got)
+		}
+	})
+
 	t.Run("ResultsInIndexOrder", func(t *testing.T) {
 		f := FakeFuzzySearcher{}
 		// "track" appears in Path of index 2 and Title of index 2; "Unknown" in Artist of index 2

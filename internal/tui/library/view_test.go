@@ -296,24 +296,20 @@ func TestFuzzyFilterUpdatesOnEachKeystroke(t *testing.T) {
 	}
 	v = v.ActivateFilter()
 	v = v.AppendFilterChar('B')
+	v = v.AppendFilterChar('o')
+	v = v.AppendFilterChar('b')
 	got := v.Render()
 	if !strings.Contains(got, "Bob") {
-		t.Errorf("filtering for 'B' should show 'Bob', got:\n%s", got)
+		t.Errorf("filtering for 'Bob' should show 'Bob', got:\n%s", got)
 	}
 	if strings.Contains(stripANSI(got), "Alice") {
-		t.Errorf("filtering for 'B' should not show 'Alice', got:\n%s", got)
-	}
-
-	v = v.AppendFilterChar('o')
-	got = v.Render()
-	if !strings.Contains(got, "Bob") {
-		t.Errorf("filtering for 'Bo' should still show 'Bob', got:\n%s", got)
+		t.Errorf("filtering for 'Bob' should not show 'Alice', got:\n%s", got)
 	}
 
 	v = v.AppendFilterChar('z')
 	got = v.Render()
-	if strings.Contains(stripANSI(got), "Bob") {
-		t.Errorf("filtering for 'Boz' should have no matches, got:\n%s", got)
+	if !strings.Contains(got, "No matches") {
+		t.Errorf("filtering for 'Bobz' should show 'No matches', got:\n%s", got)
 	}
 }
 
@@ -987,5 +983,194 @@ func TestVisibleRowsSameWithAndWithoutFilter(t *testing.T) {
 	}
 	if got := withActiveFilter.visibleRows(); got != base {
 		t.Errorf("visibleRows with active filter: got %d, want %d (same as no filter)", got, base)
+	}
+}
+
+// --- field-specific filter rendering ---
+
+// TestFieldSpecificAlbumHighlight verifies that a field-specific album query
+// (l:debut) produces bold ANSI codes in the album column.
+func TestFieldSpecificAlbumHighlight(t *testing.T) {
+	tracks := []musiclib.Track{
+		{Artist: "Alice", Title: "Song One", Album: "Debut", Duration: 185},
+	}
+	idx := buildIndex(tracks)
+	fake := highlightFake{
+		results: []musiclib.Match{
+			{TrackIndex: 0, AlbumPositions: []int{0, 1, 2, 3, 4}},
+		},
+	}
+	v := View{
+		Index:  idx,
+		Width:  80,
+		Height: 24,
+		Fuzzy:  fake,
+	}
+	v = v.ActivateFilter()
+	v = v.AppendFilterChar('l')
+	v = v.AppendFilterChar(':')
+	v = v.AppendFilterChar('d')
+	got := v.Render()
+	boldD := ansiBold + "D" + ansiReset
+	if !strings.Contains(got, boldD) {
+		t.Errorf("expected bold 'D' in album column for field-specific query, got:\n%q", got)
+	}
+}
+
+// TestFieldSpecificArtistNarrowsResults verifies that a:alice only shows
+// tracks with "alice" in the artist field.
+func TestFieldSpecificArtistNarrowsResults(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{
+		Index:  idx,
+		Width:  80,
+		Height: 24,
+		Fuzzy:  musiclib.FakeFuzzySearcher{},
+	}
+	v = v.ActivateFilter()
+	for _, ch := range "a:Alice" {
+		v = v.AppendFilterChar(ch)
+	}
+	got := v.Render()
+	if !strings.Contains(got, "Alice") {
+		t.Errorf("a:Alice should show Alice tracks, got:\n%s", got)
+	}
+	if strings.Contains(stripANSI(got), "Bob") {
+		t.Errorf("a:Alice should not show Bob tracks, got:\n%s", got)
+	}
+}
+
+// TestGeneralSearchMatchesAlbum verifies that a plain (unprefixed) query
+// matches album text. This is new behaviour — previously album was excluded.
+func TestGeneralSearchMatchesAlbum(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{
+		Index:  idx,
+		Width:  80,
+		Height: 24,
+		Fuzzy:  musiclib.FakeFuzzySearcher{},
+	}
+	v = v.ActivateFilter()
+	for _, ch := range "Debut" {
+		v = v.AppendFilterChar(ch)
+	}
+	got := v.Render()
+	if !strings.Contains(got, "Alice") {
+		t.Errorf("searching 'Debut' should match Alice's album, got:\n%s", got)
+	}
+}
+
+// TestFilterBarHintShownWhenEmpty verifies that the dim hint text is shown
+// when the filter bar is active but no text has been typed yet.
+func TestFilterBarHintShownWhenEmpty(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{
+		Index:  idx,
+		Width:  80,
+		Height: 24,
+		Fuzzy:  musiclib.FakeFuzzySearcher{},
+	}
+	v = v.ActivateFilter()
+	got := v.Render()
+	// The hint should contain the prefix shortcuts.
+	if !strings.Contains(got, "a: artist") {
+		t.Errorf("filter bar hint should show 'a: artist' when empty, got:\n%s", got)
+	}
+	if !strings.Contains(got, "t: title") {
+		t.Errorf("filter bar hint should show 't: title' when empty, got:\n%s", got)
+	}
+	if !strings.Contains(got, "l: album") {
+		t.Errorf("filter bar hint should show 'l: album' when empty, got:\n%s", got)
+	}
+	// The dim ANSI code should be present.
+	if !strings.Contains(got, "\033[2m") {
+		t.Errorf("filter bar hint should use dim ANSI code, got:\n%q", got)
+	}
+}
+
+// TestFilterBarHintDisappearsOnInput verifies that the dim hint text is
+// replaced by the actual filter text once the user starts typing.
+func TestFilterBarHintDisappearsOnInput(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{
+		Index:  idx,
+		Width:  80,
+		Height: 24,
+		Fuzzy:  musiclib.FakeFuzzySearcher{},
+	}
+	v = v.ActivateFilter()
+	v = v.AppendFilterChar('A')
+	got := v.Render()
+	if strings.Contains(got, "a: artist") {
+		t.Errorf("filter bar hint should not appear once text is entered, got:\n%s", got)
+	}
+	if !strings.Contains(got, "Filter: > A") {
+		t.Errorf("filter bar should show typed text, got:\n%s", got)
+	}
+}
+
+// TestFieldSpecificMatchedIndexesNil verifies that for field-specific queries,
+// the general MatchedIndexes path is not used (album is highlighted via per-field
+// positions, not via the concatenated string offsets).
+func TestFieldSpecificMatchedIndexesNil(t *testing.T) {
+	tracks := []musiclib.Track{
+		{Artist: "Radiohead", Title: "Creep", Album: "Pablo Honey", Duration: 238},
+	}
+	idx := buildIndex(tracks)
+	fake := highlightFake{
+		results: []musiclib.Match{
+			{
+				TrackIndex:      0,
+				ArtistPositions: []int{0, 1, 2, 3, 4, 5, 6, 7, 8},
+				// MatchedIndexes intentionally nil for field-specific
+			},
+		},
+	}
+	v := View{
+		Index:  idx,
+		Width:  120,
+		Height: 24,
+		Fuzzy:  fake,
+	}
+	v = v.ActivateFilter()
+	for _, ch := range "a:radiohead" {
+		v = v.AppendFilterChar(ch)
+	}
+	got := v.Render()
+	// Artist should be highlighted
+	boldR := ansiBold + "R" + ansiReset
+	if !strings.Contains(got, boldR) {
+		t.Errorf("expected bold 'R' in artist column for field-specific query, got:\n%q", got)
+	}
+}
+
+// TestGeneralSearchHighlightsAlbumColumn verifies that when a general search
+// matches text within the album field, the album column now shows bold
+// highlights (previously album was not highlighted at all).
+func TestGeneralSearchHighlightsAlbumColumn(t *testing.T) {
+	tracks := []musiclib.Track{
+		{Artist: "Alice", Title: "Song One", Album: "Debut", Duration: 185},
+	}
+	idx := buildIndex(tracks)
+	// Positions 15-19 in "Alice Song One Debut file" correspond to "Debut".
+	fake := highlightFake{
+		results: []musiclib.Match{
+			{TrackIndex: 0, MatchedIndexes: []int{15, 16, 17, 18, 19}},
+		},
+	}
+	v := View{
+		Index:  idx,
+		Width:  80,
+		Height: 24,
+		Fuzzy:  fake,
+	}
+	v = v.ActivateFilter()
+	for _, ch := range "Debut" {
+		v = v.AppendFilterChar(ch)
+	}
+	got := v.Render()
+	boldD := ansiBold + "D" + ansiReset
+	if !strings.Contains(got, boldD) {
+		t.Errorf("expected bold 'D' in album column for general search matching album, got:\n%q", got)
 	}
 }
