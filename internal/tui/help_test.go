@@ -3,6 +3,8 @@ package tui
 import (
 	"strings"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // TestHelpSectionsMatchRegistry verifies that every key registered in
@@ -128,7 +130,7 @@ func TestHelpLineCountPositive(t *testing.T) {
 
 func TestHelpOverlayRendersAllSectionHeaders(t *testing.T) {
 	h := HelpOverlay{}
-	out := h.render()
+	out := h.render(styles.Styles{})
 
 	for _, header := range []string{"Global", "Library", "Playlists", "Queue", "Modals"} {
 		if !strings.Contains(out, header) {
@@ -139,7 +141,7 @@ func TestHelpOverlayRendersAllSectionHeaders(t *testing.T) {
 
 func TestHelpOverlayRendersRepresentativeEntries(t *testing.T) {
 	h := HelpOverlay{}
-	out := h.render()
+	out := h.render(styles.Styles{})
 
 	checks := []struct {
 		section string
@@ -169,4 +171,3 @@ func TestHelpOverlayRendersRepresentativeEntries(t *testing.T) {
 		}
 	}
 }
-

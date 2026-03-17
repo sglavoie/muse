@@ -40,6 +40,31 @@ func TestNewStyles(t *testing.T) {
 		if boldOut == "" {
 			t.Errorf("NewStyles(%v).Bold.Render() returned empty string", hasDark)
 		}
+
+		headingOut := s.Heading.Render("x")
+		if headingOut == "" {
+			t.Errorf("NewStyles(%v).Heading.Render() returned empty string", hasDark)
+		}
+
+		successOut := s.Success.Render("x")
+		if successOut == "" {
+			t.Errorf("NewStyles(%v).Success.Render() returned empty string", hasDark)
+		}
+
+		warningOut := s.Warning.Render("x")
+		if warningOut == "" {
+			t.Errorf("NewStyles(%v).Warning.Render() returned empty string", hasDark)
+		}
+
+		errorOut := s.Error.Render("x")
+		if errorOut == "" {
+			t.Errorf("NewStyles(%v).Error.Render() returned empty string", hasDark)
+		}
+
+		colHeadOut := s.ColHead.Render("x")
+		if colHeadOut == "" {
+			t.Errorf("NewStyles(%v).ColHead.Render() returned empty string", hasDark)
+		}
 	}
 }
 

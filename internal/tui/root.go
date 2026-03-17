@@ -104,13 +104,13 @@ type queueDequeuer interface {
 type undoKind uint8
 
 const (
-	undoNone                  undoKind = iota
-	undoKindEnqueue                    // single track added via TrackEnqueuedMsg
-	undoKindDequeue                    // single track removed via DequeueTrackMsg
-	undoKindClear                      // all tracks removed via ClearQueueMsg
-	undoKindDeletePlaylist             // playlist soft-deleted via actionPlaylistDelete at ListLevel
-	undoKindRemovePlaylistTrack        // track soft-removed via actionPlaylistDelete at TrackLevel
-	undoKindBatchEnqueue               // batch of tracks added via actionPlaylistEnqueueAll
+	undoNone                    undoKind = iota
+	undoKindEnqueue                      // single track added via TrackEnqueuedMsg
+	undoKindDequeue                      // single track removed via DequeueTrackMsg
+	undoKindClear                        // all tracks removed via ClearQueueMsg
+	undoKindDeletePlaylist               // playlist soft-deleted via actionPlaylistDelete at ListLevel
+	undoKindRemovePlaylistTrack          // track soft-removed via actionPlaylistDelete at TrackLevel
+	undoKindBatchEnqueue                 // batch of tracks added via actionPlaylistEnqueueAll
 )
 
 // undoSlot holds the reversible state for the most recent destructive queue
@@ -416,8 +416,8 @@ type watchBatchMsg struct {
 // Model is the root Bubble Tea v2 model. It manages view switching between
 // Library, Playlists, and Queue panels, and renders a persistent status bar.
 type Model struct {
-	activeView viewID
-	configPath string
+	activeView    viewID
+	configPath    string
 	configCreated bool
 
 	library   LibraryView
@@ -441,31 +441,31 @@ type Model struct {
 	libraryRoot string
 	extractor   library.MetadataExtractor
 
-	statusBar       StatusBar
-	termWidth       int
-	termHeight      int
-	registry        Registry
-	helpVisible     bool   // true while the help overlay is shown
-	helpScroll      int    // scroll offset (in lines) for the help overlay
-	prevActiveView  viewID // the view that was active before help was opened
+	statusBar      StatusBar
+	termWidth      int
+	termHeight     int
+	registry       Registry
+	helpVisible    bool   // true while the help overlay is shown
+	helpScroll     int    // scroll offset (in lines) for the help overlay
+	prevActiveView viewID // the view that was active before help was opened
 
 	// player is the playback backend. It may be nil when playback is not
 	// available (e.g. in tests that do not exercise playback).
 	player          playPauser
-	queueWriter     libtui.QueueAppender    // may be nil; set via SetQueueWriter
-	reorderer       queueReorderer          // may be nil; set via SetQueueReorderer
-	undoer          queueDequeuer           // may be nil; set via SetQueueDequeuer
-	sessionWriter   sessionWriter           // may be nil; set via SetSessionWriter
-	playlistReader  playlistTrackReader     // may be nil; set via SetPlaylistTrackReader
-	playlistWriter  playlistCreator         // may be nil; set via SetPlaylistWriter
-	playlistRenamer playlistRenamer         // may be nil; set via SetPlaylistRenamer
-	playlistDeleter  playlistDeleter         // may be nil; set via SetPlaylistDeleter
-	playlistAdder    playlistTrackAdder      // may be nil; set via SetPlaylistAdder
-	batchEnqueuer    batchEnqueuer           // may be nil; set via SetBatchEnqueuer
+	queueWriter     libtui.QueueAppender // may be nil; set via SetQueueWriter
+	reorderer       queueReorderer       // may be nil; set via SetQueueReorderer
+	undoer          queueDequeuer        // may be nil; set via SetQueueDequeuer
+	sessionWriter   sessionWriter        // may be nil; set via SetSessionWriter
+	playlistReader  playlistTrackReader  // may be nil; set via SetPlaylistTrackReader
+	playlistWriter  playlistCreator      // may be nil; set via SetPlaylistWriter
+	playlistRenamer playlistRenamer      // may be nil; set via SetPlaylistRenamer
+	playlistDeleter playlistDeleter      // may be nil; set via SetPlaylistDeleter
+	playlistAdder   playlistTrackAdder   // may be nil; set via SetPlaylistAdder
+	batchEnqueuer   batchEnqueuer        // may be nil; set via SetBatchEnqueuer
 
 	// destPicker is non-nil while the destination picker modal is open.
 	// Root dispatches all keypresses to the modal while it is open.
-	destPicker       *pltui.DestinationPickerModal
+	destPicker *pltui.DestinationPickerModal
 	// destPickerTracks holds the tracks staged for the pending destination
 	// action. Populated when the modal opens; cleared on confirmation or dismiss.
 	destPickerTracks []library.Track
@@ -512,8 +512,8 @@ type Model struct {
 func New(configPath string, configCreated bool, scanCh <-chan library.Track, watchCh <-chan library.WatchEvent, libraryRoot string, extractor library.MetadataExtractor, p playPauser) Model {
 	initialStyles := styles.NewStyles(true)
 	return Model{
-		activeView: viewLibrary,
-		configPath: configPath,
+		activeView:    viewLibrary,
+		configPath:    configPath,
 		configCreated: configCreated,
 		library:       LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
 		scanCh:        scanCh,
@@ -1688,7 +1688,7 @@ func (m Model) clampHelpScroll() int {
 func (m Model) View() tea.View {
 	var body string
 	if m.helpVisible {
-		full := HelpOverlay{}.render()
+		full := HelpOverlay{}.render(*m.styles)
 		lines := strings.Split(full, "\n")
 		visible := m.termHeight - 2
 		if visible <= 0 || visible >= len(lines) {
@@ -1734,7 +1734,7 @@ func (m Model) renderStatusBar() string {
 		sb.elapsed = formatTime(m.elapsedSecs)
 		sb.total = formatTime(m.totalSecs)
 	}
-	return sb.render(m.termWidth)
+	return sb.render(m.termWidth, *m.styles)
 }
 
 // handleUndo processes the UndoMsg by reversing the most recent destructive

@@ -25,17 +25,17 @@ var _ styles.Styles = View{}.Styles
 type View struct {
 	Level            Level
 	Cursor           int
-	ListCursor       int                  // saved list cursor; restored when BackToList is called
-	ScrollOffset     int                  // first visible row index
+	ListCursor       int // saved list cursor; restored when BackToList is called
+	ScrollOffset     int // first visible row index
 	Playlists        []db.PlaylistRow
 	Tracks           []db.PlaylistTrackRow // populated when Level == TrackLevel
 	Width            int
 	Height           int
-	Creating         bool                  // true while the inline create input is active
-	CreateInput      TextInput             // current value of the inline create field
-	Renaming         bool                  // true while the inline rename input is active
-	RenameInput      TextInput             // current value of the inline rename field
-	SelectedTrackIDs map[int64]struct{}    // bulk-selected playlist track row IDs
+	Creating         bool               // true while the inline create input is active
+	CreateInput      TextInput          // current value of the inline create field
+	Renaming         bool               // true while the inline rename input is active
+	RenameInput      TextInput          // current value of the inline rename field
+	SelectedTrackIDs map[int64]struct{} // bulk-selected playlist track row IDs
 	Styles           styles.Styles
 }
 
@@ -259,7 +259,7 @@ func (v View) Render() string {
 
 func (v View) renderList() string {
 	if len(v.Playlists) == 0 && !v.Creating {
-		return "Playlists\n\n(no playlists)"
+		return v.Styles.Heading.Render("Playlists") + "\n\n(no playlists)"
 	}
 
 	cols := Compute(v.Width)
@@ -295,7 +295,7 @@ func (v View) renderList() string {
 	if v.Creating && len(v.Playlists) == 0 {
 		lines = append(lines, v.renderCreateInputRow(cols))
 	}
-	return "Playlists\n\n" + strings.Join(lines, "\n")
+	return v.Styles.Heading.Render("Playlists") + "\n\n" + strings.Join(lines, "\n")
 }
 
 // renderCreateInputRow renders the inline text input as a highlighted row
@@ -318,7 +318,7 @@ func (v View) renderRenameInputRow(cols Columns) string {
 
 func (v View) renderTracks() string {
 	if len(v.Tracks) == 0 {
-		return "Tracks\n\n(no tracks)"
+		return v.Styles.Heading.Render("Tracks") + "\n\n(no tracks)"
 	}
 
 	cols := ComputeTrack(v.Width)
@@ -362,7 +362,7 @@ func (v View) renderTracks() string {
 		}
 		lines[i] = line
 	}
-	return "Tracks\n\n" + strings.Join(lines, "\n")
+	return v.Styles.Heading.Render("Tracks") + "\n\n" + strings.Join(lines, "\n")
 }
 
 // formatDuration converts milliseconds to a "m:ss" or "h:mm:ss" string.

@@ -3,6 +3,8 @@ package tui
 import (
 	"fmt"
 	"strings"
+
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // helpEntry is a single row in the keybinding table.
@@ -102,13 +104,14 @@ func helpSections() []helpSection {
 }
 
 // helpLineCount returns the total number of lines in the rendered help text.
+// It uses a zero-value Styles since styling does not add newlines.
 func helpLineCount() int {
-	return strings.Count(HelpOverlay{}.render(), "\n") + 1
+	return strings.Count(HelpOverlay{}.render(styles.Styles{}), "\n") + 1
 }
 
 // render builds the help overlay string: a title, context-grouped keybinding
 // sections with section headers, and the log file path at the bottom.
-func (h HelpOverlay) render() string {
+func (h HelpOverlay) render(s styles.Styles) string {
 	sections := helpSections()
 
 	// Find the longest key string across all sections for column alignment.
@@ -122,10 +125,10 @@ func (h HelpOverlay) render() string {
 	}
 
 	var b strings.Builder
-	b.WriteString("Keybindings\n\n")
+	b.WriteString(s.Heading.Render("Keybindings") + "\n\n")
 
 	for _, sec := range sections {
-		b.WriteString(sec.title + "\n")
+		b.WriteString(s.Bold.Render(sec.title) + "\n")
 		for _, e := range sec.entries {
 			fmt.Fprintf(&b, "  %-*s  %s\n", maxKeyLen, e.key, e.desc)
 		}

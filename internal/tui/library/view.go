@@ -25,7 +25,7 @@ type QueueAppender interface {
 // immediate playback from index 0.
 type TrackEnqueuedMsg struct {
 	Track          musiclib.Track
-	QueueID        int64  // DB-assigned row ID; needed by the player for PlayQueueEntry
+	QueueID        int64 // DB-assigned row ID; needed by the player for PlayQueueEntry
 	Err            error
 	WasEmpty       bool   // true when the queue was empty before this enqueue
 	SourcePlaylist string // playlist name this track was enqueued from; empty for library enqueues
@@ -267,7 +267,7 @@ func (v View) Render() string {
 	}
 	end := min(len(display), start+maxRows)
 
-	heading := fmt.Sprintf("Library (%s tracks)", formatCount(n))
+	heading := v.Styles.Heading.Render(fmt.Sprintf("Library (%s tracks)", formatCount(n)))
 	separator := "\n\n"
 	if v.FilterActive {
 		ft := v.FilterText
@@ -307,7 +307,7 @@ func (v View) Render() string {
 	}
 
 	cols := Compute(v.Width)
-	header := strings.Repeat(" ", cols.SelectionMarker) + renderRow("#", "Artist", "Title", "Album", "Time", cols)
+	header := v.Styles.ColHead.Render(strings.Repeat(" ", cols.SelectionMarker) + renderRow("#", "Artist", "Title", "Album", "Time", cols))
 
 	if start >= end {
 		noMatches := "No matches"

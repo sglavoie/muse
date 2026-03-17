@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 func TestViewStatusBarShowsConfigPathOnFirstRun(t *testing.T) {
@@ -69,7 +70,7 @@ func TestStatusBarShowsPlaybackStateIndicator(t *testing.T) {
 			title:         "T",
 			playbackState: tc.state,
 		}
-		out := sb.render(0)
+		out := sb.render(0, styles.Styles{})
 		if !strings.Contains(out, tc.want) {
 			t.Fatalf("state %v: expected %q in status bar; got: %s", tc.state, tc.want, out)
 		}
@@ -404,4 +405,3 @@ func TestClearQueueShowsUndoHintInStatusBar(t *testing.T) {
 		t.Fatalf("clear queue: status bar must mention 'undo'; got:\n%s", v.Content)
 	}
 }
-

@@ -3,15 +3,17 @@ package tui
 import (
 	"strings"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // TestRenderPlaybackStateGlyphs verifies that each PlaybackState maps to the
 // correct indicator glyph (▶ / ⏸ / ■) or no glyph when idle.
 func TestRenderPlaybackStateGlyphs(t *testing.T) {
 	tests := []struct {
-		state    PlaybackState
+		state     PlaybackState
 		wantGlyph string
-		noGlyph  bool
+		noGlyph   bool
 	}{
 		{PlaybackPlaying, "▶", false},
 		{PlaybackPaused, "⏸", false},
@@ -25,7 +27,7 @@ func TestRenderPlaybackStateGlyphs(t *testing.T) {
 			title:         "Title",
 			playbackState: tc.state,
 		}
-		out := sb.render(0)
+		out := sb.render(0, styles.Styles{})
 
 		if tc.noGlyph {
 			for _, g := range []string{"▶", "⏸", "■"} {
@@ -53,7 +55,7 @@ func TestRenderTitleTruncationPreservesArtist(t *testing.T) {
 
 	// Width just large enough for glyph + artist + separator but not the full title.
 	// "▶ Full Artist – …  |  log: muse.log" should fit at around 40 chars.
-	out := sb.render(45)
+	out := sb.render(45, styles.Styles{})
 
 	if !strings.Contains(out, "Full Artist") {
 		t.Errorf("artist should be preserved: got %q", out)
@@ -75,7 +77,7 @@ func TestRenderNoTruncationWhenSufficientWidth(t *testing.T) {
 		playbackState: PlaybackPlaying,
 	}
 
-	out := sb.render(200)
+	out := sb.render(200, styles.Styles{})
 
 	if !strings.Contains(out, "Short Title") {
 		t.Errorf("expected full title at wide width: got %q", out)
@@ -94,7 +96,7 @@ func TestRenderNoTruncationWhenWidthZero(t *testing.T) {
 		playbackState: PlaybackPlaying,
 	}
 
-	out := sb.render(0)
+	out := sb.render(0, styles.Styles{})
 
 	if !strings.Contains(out, "A Very Long Track Title") {
 		t.Errorf("expected full title when width=0: got %q", out)
@@ -112,7 +114,7 @@ func TestRenderQueuePlaylistSource(t *testing.T) {
 		playlistSource: "Queue",
 	}
 
-	out := sb.render(0)
+	out := sb.render(0, styles.Styles{})
 
 	if !strings.Contains(out, "Queue") {
 		t.Errorf("expected 'Queue' in output: got %q", out)
@@ -129,7 +131,7 @@ func TestRenderNamedPlaylistSource(t *testing.T) {
 		playlistSource: "My Playlist",
 	}
 
-	out := sb.render(0)
+	out := sb.render(0, styles.Styles{})
 
 	if !strings.Contains(out, "My Playlist") {
 		t.Errorf("expected playlist name in output: got %q", out)
@@ -149,7 +151,7 @@ func TestRenderRepeatAndShuffleIndicators(t *testing.T) {
 	}
 
 	// Both off.
-	out := base.render(0)
+	out := base.render(0, styles.Styles{})
 	if strings.Contains(out, "  R") || strings.Contains(out, "  S") {
 		t.Errorf("expected no R/S when both off: got %q", out)
 	}
@@ -157,7 +159,7 @@ func TestRenderRepeatAndShuffleIndicators(t *testing.T) {
 	// Repeat all (RepeatAll shows "R").
 	sbR := base
 	sbR.repeatMode = RepeatAll
-	out = sbR.render(0)
+	out = sbR.render(0, styles.Styles{})
 	if !strings.Contains(out, "  R") {
 		t.Errorf("expected R indicator: got %q", out)
 	}
@@ -168,7 +170,7 @@ func TestRenderRepeatAndShuffleIndicators(t *testing.T) {
 	// Repeat one (RepeatOne shows "R1").
 	sbR1 := base
 	sbR1.repeatMode = RepeatOne
-	out = sbR1.render(0)
+	out = sbR1.render(0, styles.Styles{})
 	if !strings.Contains(out, "  R1") {
 		t.Errorf("expected R1 indicator: got %q", out)
 	}
@@ -179,7 +181,7 @@ func TestRenderRepeatAndShuffleIndicators(t *testing.T) {
 	// Shuffle on.
 	sbS := base
 	sbS.shuffle = true
-	out = sbS.render(0)
+	out = sbS.render(0, styles.Styles{})
 	if !strings.Contains(out, "  S") {
 		t.Errorf("expected S indicator: got %q", out)
 	}
@@ -199,7 +201,7 @@ func TestRenderTransientDoesNotOverwritePersistent(t *testing.T) {
 		notification:  transientNotification{msg: "Scanning… 100 tracks"},
 	}
 
-	out := sb.render(0)
+	out := sb.render(0, styles.Styles{})
 
 	if !strings.Contains(out, "Persistent Artist") {
 		t.Errorf("artist hidden by transient message: got %q", out)
@@ -226,7 +228,7 @@ func TestRenderTransientVisibleWithWidthConstraint(t *testing.T) {
 		notification:  transientNotification{msg: "Some notification"},
 	}
 
-	out := sb.render(45)
+	out := sb.render(45, styles.Styles{})
 
 	if !strings.Contains(out, "My Artist") {
 		t.Errorf("artist should be preserved with width constraint: got %q", out)
@@ -249,7 +251,7 @@ func TestRenderIdleStateShowsNoGlyphAndNoTrackInfo(t *testing.T) {
 		playbackState: PlaybackIdle,
 	}
 
-	out := sb.render(0)
+	out := sb.render(0, styles.Styles{})
 
 	for _, g := range []string{"▶", "⏸", "■"} {
 		if strings.Contains(out, g) {
@@ -293,7 +295,7 @@ func TestRenderElapsedTimeDisplay(t *testing.T) {
 		total:         "04:56",
 	}
 
-	out := sb.render(0)
+	out := sb.render(0, styles.Styles{})
 
 	if !strings.Contains(out, "01:23 / 04:56") {
 		t.Errorf("expected elapsed/total in output: got %q", out)
@@ -309,7 +311,7 @@ func TestRenderNoTimeDisplayWhenBothZero(t *testing.T) {
 		playbackState: PlaybackPlaying,
 	}
 
-	out := sb.render(0)
+	out := sb.render(0, styles.Styles{})
 
 	// Should not contain any MM:SS pattern when no time is set.
 	if strings.Contains(out, " / ") {
@@ -329,7 +331,7 @@ func TestRenderTimeDisplayIncludedInTruncationBudget(t *testing.T) {
 		total:         "04:56",
 	}
 
-	out := sb.render(60)
+	out := sb.render(60, styles.Styles{})
 
 	if !strings.Contains(out, "01:23 / 04:56") {
 		t.Errorf("time display missing with width constraint: got %q", out)

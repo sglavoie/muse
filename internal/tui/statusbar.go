@@ -5,7 +5,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // transientDuration is how long a transient notification stays visible before
@@ -112,14 +114,18 @@ func truncateTitle(s string, maxRunes int) string {
 // content is rendered without any truncation. When width > 0 the track title
 // is truncated first (with a trailing "…") to make the full line fit, while
 // the artist name is always preserved.
-func (s StatusBar) render(width int) string {
+func (s StatusBar) render(width int, st styles.Styles) string {
 	// --- Right side (always shown) ---
 	var rightSegments []string
 	if s.configCreated {
 		rightSegments = append(rightSegments, fmt.Sprintf("config created: %s", s.configPath))
 	}
 	if s.notification.msg != "" {
-		rightSegments = append(rightSegments, s.notification.msg)
+		msg := s.notification.msg
+		if strings.HasPrefix(msg, "Error:") {
+			msg = st.Error.Render(msg)
+		}
+		rightSegments = append(rightSegments, msg)
 	}
 	right := strings.Join(rightSegments, "  |  ")
 
@@ -129,48 +135,66 @@ func (s StatusBar) render(width int) string {
 	}
 
 	stateIcon := ""
+	stateIconWidth := 0
 	switch s.playbackState {
 	case PlaybackPlaying:
-		stateIcon = "▶"
+		stateIcon = st.Success.Render("▶")
+		stateIconWidth = 1
 	case PlaybackPaused:
-		stateIcon = "⏸"
+		stateIcon = st.Warning.Render("⏸")
+		stateIconWidth = 1
 	case PlaybackStopped:
-		stateIcon = "■"
+		stateIcon = st.Error.Render("■")
+		stateIconWidth = 1
 	}
 
 	// Build the suffix that follows the title: playlist source, repeat, shuffle.
 	suffix := ""
+	suffixWidth := 0
 	if s.playlistSource != "" {
 		suffix += "  " + s.playlistSource
+		suffixWidth += 2 + len([]rune(s.playlistSource))
 	}
 	switch s.repeatMode {
 	case RepeatAll:
-		suffix += "  R"
+		styled := st.Bold.Render("R")
+		suffix += "  " + styled
+		suffixWidth += 2 + 1
 	case RepeatOne:
-		suffix += "  R1"
+		styled := st.Bold.Render("R1")
+		suffix += "  " + styled
+		suffixWidth += 2 + 2
 	}
 	if s.shuffle {
-		suffix += "  S"
+		styled := st.Bold.Render("S")
+		suffix += "  " + styled
+		suffixWidth += 2 + 1
 	}
 
 	// Build the time display appended after the suffix.
 	timeDisplay := ""
+	timeDisplayWidth := 0
 	if s.elapsed != "" && s.total != "" {
 		timeDisplay = "  " + s.elapsed + " / " + s.total
+		timeDisplayWidth = 2 + len(s.elapsed) + 3 + len(s.total)
 	}
 
 	// Build the prefix that precedes the title: glyph and artist.
 	// Format: "[glyph] artist – title" or subsets when fields are absent.
 	prefix := ""
+	prefixWidth := 0
 	sep := ""
 	switch {
 	case stateIcon != "" && s.artist != "":
 		prefix = stateIcon + " " + s.artist
+		prefixWidth = stateIconWidth + 1 + len([]rune(s.artist))
 		sep = " – "
 	case stateIcon != "":
 		prefix = stateIcon
+		prefixWidth = stateIconWidth
 	case s.artist != "":
 		prefix = s.artist
+		prefixWidth = len([]rune(s.artist))
 		sep = " – "
 	}
 	// sep is only meaningful when there is a title; clear it otherwise.
@@ -183,10 +207,10 @@ func (s StatusBar) render(width int) string {
 		// Calculate how many runes are available for the title.
 		// Full line: prefix + sep + title + suffix + timeDisplay + "  |  " + right
 		const sepStr = "  |  "
-		fixedRunes := len([]rune(prefix)) + len([]rune(sep)) +
-			len([]rune(suffix)) + len([]rune(timeDisplay)) +
-			len([]rune(sepStr)) + len([]rune(right))
-		available := width - fixedRunes
+		fixedWidth := prefixWidth + len([]rune(sep)) +
+			suffixWidth + timeDisplayWidth +
+			len([]rune(sepStr)) + ansi.StringWidth(right)
+		available := width - fixedWidth
 		title = truncateTitle(s.title, available)
 	}
 

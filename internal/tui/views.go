@@ -21,7 +21,6 @@ const (
 	viewQueue     viewID = 3
 )
 
-
 // PlaylistsView wraps the playlists sub-panel state for the root model.
 // It holds the navigation level, cursor position, loaded playlist rows, and
 // (at TrackLevel) the tracks of the open playlist. Rendering is delegated to
@@ -29,18 +28,18 @@ const (
 type PlaylistsView struct {
 	level            pltui.Level
 	cursor           int
-	listCursor       int                  // saved list cursor; preserved across drill-down and back
-	listScrollOffset int                  // saved list scroll offset; preserved across drill-down and back
-	scrollOffset     int                  // first visible row index
+	listCursor       int // saved list cursor; preserved across drill-down and back
+	listScrollOffset int // saved list scroll offset; preserved across drill-down and back
+	scrollOffset     int // first visible row index
 	playlists        []db.PlaylistRow
 	tracks           []db.PlaylistTrackRow // populated when level == TrackLevel
 	width            int
 	height           int
-	creating         bool                  // true while the inline create input is active
-	createInput      pltui.TextInput       // current value of the inline create field
-	renaming         bool                  // true while the inline rename input is active
-	renameInput      pltui.TextInput       // current value of the inline rename field
-	selectedTrackIDs map[int64]struct{}    // bulk-selected playlist track row IDs at TrackLevel
+	creating         bool               // true while the inline create input is active
+	createInput      pltui.TextInput    // current value of the inline create field
+	renaming         bool               // true while the inline rename input is active
+	renameInput      pltui.TextInput    // current value of the inline rename field
+	selectedTrackIDs map[int64]struct{} // bulk-selected playlist track row IDs at TrackLevel
 }
 
 func (v PlaylistsView) render(s styles.Styles) string {
@@ -484,7 +483,7 @@ func (v QueueView) visibleRows() int {
 // appear grayed out in the terminal.
 func (v QueueView) render(s styles.Styles) string {
 	if len(v.entries) == 0 {
-		return "Queue\n\n(empty)"
+		return s.Heading.Render("Queue") + "\n\n(empty)"
 	}
 
 	const (
@@ -557,7 +556,7 @@ func (v QueueView) render(s styles.Styles) string {
 			lines[i] = line
 		}
 	}
-	return "Queue\n\n" + header + "\n" + strings.Join(lines, "\n")
+	return s.Heading.Render("Queue") + "\n\n" + s.ColHead.Render(header) + "\n" + strings.Join(lines, "\n")
 }
 
 // formatQueueDuration converts a duration in milliseconds to a "m:ss" or

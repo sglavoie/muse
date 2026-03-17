@@ -177,7 +177,7 @@ func (m DestinationPickerModal) buildBoxLines(s styles.Styles) []string {
 	titlePad := innerWidth - len([]rune(modalTitle))
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
-	lines = append(lines, borderV+strings.Repeat(" ", leftTP)+modalTitle+strings.Repeat(" ", rightTP)+borderV)
+	lines = append(lines, borderV+strings.Repeat(" ", leftTP)+s.Heading.Render(modalTitle)+strings.Repeat(" ", rightTP)+borderV)
 
 	// Separator.
 	lines = append(lines, crossL+strings.Repeat(borderH, innerWidth)+crossR)
