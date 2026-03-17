@@ -54,6 +54,12 @@ func TestStyleNesting(t *testing.T) {
 		t.Fatal("outer render is empty")
 	}
 
+	// The bold ANSI attribute sequence must be explicitly present in the outer render.
+	const boldSeq = "\x1b[1m"
+	if !strings.Contains(outer, boldSeq) {
+		t.Errorf("outer render does not contain bold ANSI sequence (\\x1b[1m); outer=%q", outer)
+	}
+
 	// The bold sequences from inner must be present inside the outer render.
 	if !strings.Contains(outer, inner) {
 		t.Errorf("outer render does not contain inner bold sequences; outer=%q inner=%q", outer, inner)
