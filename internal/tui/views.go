@@ -526,7 +526,7 @@ func (v QueueView) render(s styles.Styles) string {
 		case e.Selected && isFocused:
 			markerStr = "● "
 		case e.Selected:
-			markerStr = s.Accent.Render("●") + " "
+			markerStr = s.AccentMark.Render("●") + " "
 		default:
 			markerStr = "  "
 		}
@@ -552,6 +552,8 @@ func (v QueueView) render(s styles.Styles) string {
 		line := markerStr + pos + " " + title + " " + artist + " " + source + " " + dur
 		if e.Missing {
 			lines[i] = s.Dim.Render(line + " [missing]")
+		} else if isFocused {
+			lines[i] = s.Accent.Render(line)
 		} else {
 			lines[i] = line
 		}

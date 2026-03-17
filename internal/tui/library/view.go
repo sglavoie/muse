@@ -333,7 +333,7 @@ func (v View) Render() string {
 		case isSelected && isFocused:
 			markerStr = "● " // plain glyph; outer accent wrap provides styling
 		case isSelected:
-			markerStr = v.Styles.Accent.Render("●") + " "
+			markerStr = v.Styles.AccentMark.Render("●") + " "
 		default:
 			markerStr = "  "
 		}

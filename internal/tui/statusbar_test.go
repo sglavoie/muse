@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -339,8 +340,8 @@ func TestRenderTimeDisplayIncludedInTruncationBudget(t *testing.T) {
 	if !strings.Contains(out, "…") {
 		t.Errorf("title should be truncated to fit width with time display: got %q", out)
 	}
-	if len([]rune(out)) > 60 {
-		t.Errorf("output exceeds width=%d: len=%d, got %q", 60, len([]rune(out)), out)
+	if ansi.StringWidth(out) > 60 {
+		t.Errorf("output visual width exceeds %d: width=%d, got %q", 60, ansi.StringWidth(out), out)
 	}
 }
 

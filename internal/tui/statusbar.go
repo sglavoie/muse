@@ -129,9 +129,20 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	}
 	right := strings.Join(rightSegments, "  |  ")
 
+	// padAndWrap pads result to full width and wraps with StatusBar style.
+	padAndWrap := func(result string) string {
+		if width > 0 {
+			visibleWidth := ansi.StringWidth(result)
+			if visibleWidth < width {
+				result = result + strings.Repeat(" ", width-visibleWidth)
+			}
+		}
+		return st.StatusBar.Render(result)
+	}
+
 	// --- Persistent left zone ---
 	if s.playbackState == PlaybackIdle && s.artist == "" && s.title == "" {
-		return right
+		return padAndWrap(right)
 	}
 
 	stateIcon := ""
@@ -219,7 +230,7 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	left = strings.TrimSpace(left)
 
 	if left == "" {
-		return right
+		return padAndWrap(right)
 	}
-	return left + "  |  " + right
+	return padAndWrap(left + "  |  " + right)
 }

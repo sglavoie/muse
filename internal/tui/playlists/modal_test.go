@@ -433,7 +433,7 @@ func TestModalBuildBoxLinesContainsTitle(t *testing.T) {
 
 	found := false
 	for _, l := range lines {
-		if containsStr(l, "Destination") {
+		if containsStr(ansi.Strip(l), "Destination") {
 			found = true
 			break
 		}
@@ -514,7 +514,7 @@ func TestModalRenderCentered(t *testing.T) {
 		t.Error("Render must have leading newlines for vertical centering")
 	}
 	// Should contain the box content
-	if !containsStr(out, "Destination") {
+	if !containsStr(ansi.Strip(out), "Destination") {
 		t.Error("Render output must contain 'Destination'")
 	}
 }
@@ -524,7 +524,7 @@ func TestModalRenderZeroDimensions(t *testing.T) {
 	out := m.Render(0, 0, styles.NewStyles(true))
 
 	// Should not panic and should contain content without centering
-	if !containsStr(out, "Destination") {
+	if !containsStr(ansi.Strip(out), "Destination") {
 		t.Error("Render(0,0) must still contain 'Destination'")
 	}
 }

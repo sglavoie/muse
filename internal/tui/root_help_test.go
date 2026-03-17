@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestUpdateQuestionMarkSetsHelpVisible(t *testing.T) {
@@ -30,7 +31,7 @@ func TestViewShowsHelpOverlayWhenVisible(t *testing.T) {
 	m.helpVisible = true
 
 	v := m.View()
-	if !strings.Contains(v.Content, "Keybindings") {
+	if !strings.Contains(ansi.Strip(v.Content), "Keybindings") {
 		t.Fatalf("View() with helpVisible=true: expected overlay content containing \"Keybindings\", got:\n%s", v.Content)
 	}
 }

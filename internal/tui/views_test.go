@@ -144,7 +144,7 @@ func TestQueueRenderSelectedNonFocusedRowUsesAccent(t *testing.T) {
 	s := styles.NewStyles(true)
 	out := v.render(s)
 
-	want := styledText(s.Accent, "●")
+	want := styledText(s.AccentMark, "●")
 	// Skip the style assertion if lipgloss emits no ANSI in this environment.
 	if ansi.Strip(want) == want {
 		return

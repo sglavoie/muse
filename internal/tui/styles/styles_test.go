@@ -65,22 +65,32 @@ func TestNewStyles(t *testing.T) {
 		if colHeadOut == "" {
 			t.Errorf("NewStyles(%v).ColHead.Render() returned empty string", hasDark)
 		}
+
+		accentMarkOut := s.AccentMark.Render("x")
+		if accentMarkOut == "" {
+			t.Errorf("NewStyles(%v).AccentMark.Render() returned empty string", hasDark)
+		}
+
+		statusBarOut := s.StatusBar.Render("x")
+		if statusBarOut == "" {
+			t.Errorf("NewStyles(%v).StatusBar.Render() returned empty string", hasDark)
+		}
 	}
 }
 
-// TestStyleNesting verifies that Reverse wrapping Bold output preserves inner
-// styling. Bold sequences must survive the outer Reverse render, satisfying
+// TestStyleNesting verifies that Background wrapping Bold output preserves inner
+// styling. Bold sequences must survive the outer Background render, satisfying
 // ac-f4704a90675005f2b2db92c90011a914.
 func TestStyleNesting(t *testing.T) {
 	bold := lipgloss.NewStyle().Bold(true)
-	reverse := lipgloss.NewStyle().Reverse(true)
+	bg := lipgloss.NewStyle().Background(lipgloss.Color("#2c3e50"))
 
 	inner := bold.Render("hello")
 	if inner == "hello" {
 		t.Fatal("bold.Render did not apply any ANSI sequences to the text")
 	}
 
-	outer := reverse.Render(inner)
+	outer := bg.Render(inner)
 	if outer == "" {
 		t.Fatal("outer render is empty")
 	}
