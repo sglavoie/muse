@@ -1,6 +1,8 @@
 package styles_test
 
 import (
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -76,11 +78,6 @@ func TestStyleNesting(t *testing.T) {
 //
 // Patterns are built at runtime so this source file does not trigger its own
 // check.
-//
-// TODO: Remove the t.Skip once all migration phases are complete and no
-// pre-migration files contain raw ANSI escapes (library/highlight.go,
-// library/view.go, library/view_test.go, playlists/ansi.go, playlists/view.go,
-// tui/views.go). Until then this guard would fail CI on every push.
 func TestNoRawANSI(t *testing.T) {
 	_, thisFile, _, _ := runtime.Caller(0)
 	// thisFile is .../internal/tui/styles/styles_test.go; walk three levels up.
@@ -129,4 +126,50 @@ func TestNoRawANSI(t *testing.T) {
 		t.Errorf("only %d .go file(s) scanned; expected more than 2 (root: %s)", fileCount, root)
 	}
 	t.Logf("TestNoRawANSI: scanned %d .go files", fileCount)
+}
+
+// TestStylesPackageImportIsolation scans non-test .go files in internal/tui/styles/
+// and fails if any import path contains "internal/tui/", ensuring the styles
+// package remains a pure leaf with no upward dependencies into the TUI layer.
+func TestStylesPackageImportIsolation(t *testing.T) {
+	_, thisFile, _, _ := runtime.Caller(0)
+	stylesDir := filepath.Dir(thisFile)
+
+	entries, err := os.ReadDir(stylesDir)
+	if err != nil {
+		t.Fatalf("cannot read styles dir %s: %v", stylesDir, err)
+	}
+
+	fset := token.NewFileSet()
+	var scanned int
+
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+
+		path := filepath.Join(stylesDir, name)
+		f, parseErr := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+		if parseErr != nil {
+			t.Fatalf("cannot parse %s: %v", name, parseErr)
+		}
+		scanned++
+
+		for _, imp := range f.Imports {
+			// imp.Path.Value includes surrounding quotes, e.g. `"internal/tui/library"`
+			impPath := strings.Trim(imp.Path.Value, `"`)
+			if strings.Contains(impPath, "internal/tui/") {
+				t.Errorf("%s: forbidden import %q (styles must not import from internal/tui/)", name, impPath)
+			}
+		}
+	}
+
+	if scanned == 0 {
+		t.Fatalf("no non-test .go files found in %s", stylesDir)
+	}
+	t.Logf("TestStylesPackageImportIsolation: scanned %d non-test file(s)", scanned)
 }
