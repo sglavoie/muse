@@ -963,10 +963,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// The last scan-progress notification expires naturally via the tick.
 
 	case tickMsg:
-		if er, ok := m.player.(elapsedReader); ok {
-			if elapsed, total, err := er.ElapsedPosition(); err == nil {
-				m.elapsedSecs = elapsed
-				m.totalSecs = total
+		if m.playbackState == PlaybackPlaying || m.playbackState == PlaybackPaused {
+			if er, ok := m.player.(elapsedReader); ok {
+				if elapsed, total, err := er.ElapsedPosition(); err == nil {
+					m.elapsedSecs = elapsed
+					m.totalSecs = total
+				}
 			}
 		}
 		if !m.statusBar.notification.expiresAt.IsZero() && time.Now().After(m.statusBar.notification.expiresAt) {
@@ -1223,6 +1225,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if qr, ok := m.player.(playerQueueRemover); ok {
 				_ = qr.RemoveFromQueue(msg.Index)
+			}
+			// If the dequeued track was the currently playing one, stop playback
+			// and clear the status bar.
+			if entry.Hash != "" && entry.Hash == m.currentTrackHash {
+				if cp, ok := m.player.(commandPlayer); ok {
+					_ = cp.Stop()
+				}
+				m.playbackState = PlaybackIdle
+				m.elapsedSecs = 0
+				m.totalSecs = 0
+				m.statusBar.artist = ""
+				m.statusBar.title = ""
+				m.statusBar.playlistSource = ""
+				m.currentTrackHash = ""
 			}
 		}
 

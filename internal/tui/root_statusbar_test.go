@@ -120,6 +120,7 @@ func TestTrackChangedMsgDefaultsPlaylistSourceToQueue(t *testing.T) {
 func TestTickMsgUpdatesElapsedFields(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 75.5, total: 240.0}
 	m := New("", false, nil, nil, "", nil, p)
+	m.playbackState = PlaybackPlaying
 
 	next, _ := m.Update(tickMsg{})
 	nm := next.(Model)
@@ -190,6 +191,7 @@ func TestStatusBarNoTimeDisplayWhenZero(t *testing.T) {
 func TestPlaybackEndedMsgResetsElapsed(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 60.0, total: 180.0}
 	m := New("", false, nil, nil, "", nil, p)
+	m.playbackState = PlaybackPlaying
 
 	// Populate elapsed/total via a tick.
 	next, _ := m.Update(tickMsg{})
