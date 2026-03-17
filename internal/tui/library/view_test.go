@@ -534,11 +534,18 @@ func TestCursorStoredOnModel(t *testing.T) {
 	}
 }
 
-// TestCursorRowHighlighted verifies that the focused row is wrapped with ANSI
-// accent codes in the rendered output.
+// TestCursorRowHighlighted verifies that the focused row carries styling
+// (i.e. ANSI escapes are present) while non-focused rows are plain text.
 func TestCursorRowHighlighted(t *testing.T) {
 	idx := buildIndex(sampleTracks)
+	s := lipgloss.NewStyle().Reverse(true)
+	accentMarker := s.Render("x") // produces a reverse-video ANSI sequence
+	if ansi.Strip(accentMarker) == accentMarker {
+		t.Skip("lipgloss produced no ANSI output in this terminal environment")
+	}
+
 	v := View{Index: idx, Width: 80, Height: 0, Cursor: 0}
+	v.Styles.Accent = s
 	got := v.Render()
 	lines := strings.Split(got, "\n")
 	// Track rows begin after the heading, blank line, and header row (index 3).
@@ -546,13 +553,13 @@ func TestCursorRowHighlighted(t *testing.T) {
 		t.Fatalf("expected at least 4 lines, got %d", len(lines))
 	}
 	focusedRow := lines[3]
-	if !strings.Contains(focusedRow, ansiAccent) {
-		t.Errorf("focused row should contain ANSI accent code, got: %q", focusedRow)
+	if ansi.Strip(focusedRow) == focusedRow {
+		t.Errorf("focused row should contain ANSI styling, got: %q", focusedRow)
 	}
-	// Non-focused rows must not carry the accent code.
+	// Non-focused rows must not carry styling.
 	for _, line := range lines[4:] {
-		if strings.Contains(line, ansiAccent) {
-			t.Errorf("non-focused row should not contain ANSI accent code, got: %q", line)
+		if ansi.Strip(line) != line {
+			t.Errorf("non-focused row should not contain ANSI styling, got: %q", line)
 		}
 	}
 }
@@ -1068,12 +1075,14 @@ func TestGeneralSearchMatchesAlbum(t *testing.T) {
 // when the filter bar is active but no text has been typed yet.
 func TestFilterBarHintShownWhenEmpty(t *testing.T) {
 	idx := buildIndex(sampleTracks)
+	dimStyle := lipgloss.NewStyle().Faint(true)
 	v := View{
 		Index:  idx,
 		Width:  80,
 		Height: 24,
 		Fuzzy:  musiclib.FakeFuzzySearcher{},
 	}
+	v.Styles.Dim = dimStyle
 	v = v.ActivateFilter()
 	got := v.Render()
 	// The hint should contain the prefix shortcuts.
@@ -1086,9 +1095,14 @@ func TestFilterBarHintShownWhenEmpty(t *testing.T) {
 	if !strings.Contains(got, "l: album") {
 		t.Errorf("filter bar hint should show 'l: album' when empty, got:\n%s", got)
 	}
-	// The dim ANSI code should be present.
-	if !strings.Contains(got, "\033[2m") {
-		t.Errorf("filter bar hint should use dim ANSI code, got:\n%q", got)
+	// The hint text should be wrapped in ANSI dim styling.
+	hint := "a: artist  t: title  l: album"
+	styledHint := dimStyle.Render(hint)
+	if ansi.Strip(styledHint) == styledHint {
+		t.Skip("lipgloss produced no ANSI output in this terminal environment")
+	}
+	if !strings.Contains(got, styledHint) {
+		t.Errorf("filter bar hint should use dim styling, got:\n%q", got)
 	}
 }
 

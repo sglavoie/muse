@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	musiclib "github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // QueueAppender appends a track to the persisted play queue. Implementations
@@ -30,12 +31,6 @@ type TrackEnqueuedMsg struct {
 	SourcePlaylist string // playlist name this track was enqueued from; empty for library enqueues
 }
 
-// ansiAccent / ansiReset wrap text in reverse-video for the focused-row highlight.
-const (
-	ansiAccent = "\033[7m"
-	ansiReset  = "\033[0m"
-)
-
 // View renders the music library panel with proportional columnar layout.
 // Width and Height must be set from the most recent tea.WindowSizeMsg before
 // calling Render; a zero Width falls back to a simple "artist – title" format.
@@ -59,6 +54,7 @@ type View struct {
 	FilteredMatches []musiclib.Match // pre-computed; nil means not yet cached
 	Fuzzy           musiclib.FuzzySearcher
 	SelectedHashes  map[string]struct{}
+	Styles          styles.Styles
 }
 
 // CursorUp moves the cursor one row up, stopping at the first track.
@@ -271,7 +267,8 @@ func (v View) Render() string {
 	if v.FilterActive {
 		ft := v.FilterText
 		if ft == "" {
-			separator = "\nFilter: > \033[2ma: artist  t: title  l: album\033[0m\n"
+			hint := v.Styles.Dim.Render("a: artist  t: title  l: album")
+			separator = "\nFilter: > " + hint + "\n"
 		} else {
 			maxLen := v.Width - len("Filter: > ") - 1
 			if maxLen > 0 && len([]rune(ft)) > maxLen {
@@ -297,7 +294,7 @@ func (v View) Render() string {
 			absIdx := start + i
 			row := fmt.Sprintf("%s – %s", dt.track.Artist, dt.track.Title)
 			if absIdx == v.Cursor {
-				row = ansiAccent + row + ansiReset
+				row = v.Styles.Accent.Render(row)
 			}
 			lines[i] = row
 		}
@@ -331,7 +328,7 @@ func (v View) Render() string {
 		case isSelected && isFocused:
 			markerStr = "● " // plain glyph; outer accent wrap provides styling
 		case isSelected:
-			markerStr = ansiAccent + "●" + ansiReset + " "
+			markerStr = v.Styles.Accent.Render("●") + " "
 		default:
 			markerStr = "  "
 		}
@@ -360,7 +357,7 @@ func (v View) Render() string {
 		}
 
 		if isFocused {
-			row = ansiAccent + row + ansiReset
+			row = v.Styles.Accent.Render(row)
 		}
 		lines[i] = row
 	}
