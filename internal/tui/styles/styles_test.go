@@ -3,6 +3,7 @@ package styles_test
 import (
 	"go/parser"
 	"go/token"
+	"image/color"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -198,6 +199,78 @@ func TestStylesPackageImportIsolation(t *testing.T) {
 		t.Fatalf("no non-test .go files found in %s", stylesDir)
 	}
 	t.Logf("TestStylesPackageImportIsolation: scanned %d non-test file(s)", scanned)
+}
+
+// TestLipglossV2ColorAPI verifies that the native lipgloss v2 color API is in
+// use. It calls lipgloss.Color() and assigns the result to a color.Color
+// variable (this only compiles when lipgloss v2 returns color.Color, not the
+// v1 string type alias). It also calls lipgloss.LightDark() to confirm that
+// helper is available for adaptive theming.
+func TestLipglossV2ColorAPI(t *testing.T) {
+	// lipgloss.Color returns color.Color in v2; this assignment would fail to
+	// compile against a v1 or compat package that returns a string type.
+	var c color.Color = lipgloss.Color("#ff0000")
+	if c == nil {
+		t.Fatal("lipgloss.Color returned nil")
+	}
+
+	// lipgloss.LightDark must be callable; invoke it to confirm availability.
+	ld := lipgloss.LightDark(true)
+	if ld == nil {
+		t.Fatal("lipgloss.LightDark returned nil function")
+	}
+}
+
+// TestNoLipglossRenderHelpers walks all TUI .go files and fails if any of the
+// banned lipgloss print-helper calls — lipgloss.Println, lipgloss.Sprint, or
+// lipgloss.Fprintln — appear in production code. Only lipgloss.Style.Render()
+// is permitted for styled output in View() methods.
+func TestNoLipglossRenderHelpers(t *testing.T) {
+	_, thisFile, _, _ := runtime.Caller(0)
+	// thisFile is .../internal/tui/styles/styles_test.go; up three levels is module root.
+	moduleRoot := filepath.Join(filepath.Dir(thisFile), "../../..")
+	tuiDir := filepath.Join(moduleRoot, "internal", "tui")
+	t.Logf("TestNoLipglossRenderHelpers: scanning %s", tuiDir)
+
+	forbidden := []string{
+		"lipgloss.Println",
+		"lipgloss.Sprint",
+		"lipgloss.Fprintln",
+	}
+
+	var fileCount int
+	err := filepath.WalkDir(tuiDir, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+
+		fileCount++
+		src, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+
+		content := string(src)
+		rel, _ := filepath.Rel(moduleRoot, path)
+		for _, call := range forbidden {
+			if strings.Contains(content, call) {
+				t.Errorf("%s: forbidden call %q found (use lipgloss.Style.Render() instead)", rel, call)
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		t.Fatalf("error walking %s: %v", tuiDir, err)
+	}
+
+	if fileCount == 0 {
+		t.Fatalf("no non-test .go files found under %s", tuiDir)
+	}
+	t.Logf("TestNoLipglossRenderHelpers: scanned %d non-test file(s)", fileCount)
 }
 
 // TestBuildNoImportCycles runs "go build ./..." from the module root and fails
