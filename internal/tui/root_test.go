@@ -347,3 +347,22 @@ func TestUpdateBackgroundColorMsgDarkBackground(t *testing.T) {
 		t.Fatalf("expected HasDark=true after dark BackgroundColorMsg, got %v", nm.styles.HasDark)
 	}
 }
+
+// TestBackgroundColorMsgReconstructsStyles verifies that each
+// tea.BackgroundColorMsg reconstructs m.styles, replacing the previous value.
+// Sending dark then light must leave HasDark == false.
+func TestBackgroundColorMsgReconstructsStyles(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+
+	// First set dark background.
+	next, _ := m.Update(tea.BackgroundColorMsg{Color: color.RGBA{R: 0, G: 0, B: 0, A: 255}})
+	m = next.(Model)
+
+	// Now send light background — styles must be reconstructed with HasDark == false.
+	next, _ = m.Update(tea.BackgroundColorMsg{Color: color.RGBA{R: 255, G: 255, B: 255, A: 255}})
+	nm := next.(Model)
+
+	if nm.styles.HasDark != false {
+		t.Fatalf("expected m.styles.HasDark == false after light BackgroundColorMsg, got %v", nm.styles.HasDark)
+	}
+}

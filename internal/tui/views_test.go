@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
@@ -109,10 +110,26 @@ func TestQueueRenderMissingEntryDim(t *testing.T) {
 	v := makeQueue(80, []QueueEntry{
 		{Title: "Gone", Artist: "Nobody", DurationMs: 0, Missing: true, Position: 1000},
 	})
-	out := v.render(styles.NewStyles(true))
+	s := styles.NewStyles(true)
+	out := v.render(s)
+	// Verify [missing] label appears in the output.
 	if !strings.Contains(out, "[missing]") {
 		t.Error("missing entry must contain '[missing]' label")
 	}
+	// Use styledText to check dim styling when ANSI is available.
+	dimSample := styledText(s.Dim, "x")
+	if ansi.Strip(dimSample) == dimSample {
+		return // lipgloss produced no ANSI in this environment; skip style check
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(ansi.Strip(line), "[missing]") {
+			if line == ansi.Strip(line) {
+				t.Error("missing entry must be rendered with dim ANSI styling")
+			}
+			return
+		}
+	}
+	t.Error("missing entry '[missing]' label not found in any output line")
 }
 
 // TestQueueRenderProportionalColumnWidths verifies that the title and artist

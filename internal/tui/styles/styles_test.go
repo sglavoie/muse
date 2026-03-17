@@ -82,8 +82,6 @@ func TestStyleNesting(t *testing.T) {
 // library/view.go, library/view_test.go, playlists/ansi.go, playlists/view.go,
 // tui/views.go). Until then this guard would fail CI on every push.
 func TestNoRawANSI(t *testing.T) {
-	t.Skip("migration pending: pre-migration files still contain raw ANSI escapes; remove skip after migration phases complete")
-
 	_, thisFile, _, _ := runtime.Caller(0)
 	// thisFile is .../internal/tui/styles/styles_test.go; walk three levels up.
 	root := filepath.Join(filepath.Dir(thisFile), "../../..")

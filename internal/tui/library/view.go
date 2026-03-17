@@ -322,7 +322,7 @@ func (v View) Render() string {
 
 		// When the row is focused, omit the inner accent/reset from the marker
 		// so the outer reverse-video wrap covers the full row uniformly. An
-		// inner \033[0m would reset the cursor highlight mid-row.
+		// inner ANSI reset would reset the cursor highlight mid-row.
 		var markerStr string
 		switch {
 		case isSelected && isFocused:

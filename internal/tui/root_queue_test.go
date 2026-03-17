@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -31,17 +32,32 @@ func TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError(t *testing.T) {
 }
 
 // TestQueueViewRendersMissingEntryDimmed verifies that a missing queue entry
-// is wrapped in ANSI dim escape codes in the rendered output.
+// is rendered with dim styling and shows the "[missing]" label.
 func TestQueueViewRendersMissingEntryDimmed(t *testing.T) {
 	q := QueueView{
 		entries: []QueueEntry{
 			{Path: "/music/gone.flac", Display: "Artist – Gone", Missing: true},
 		},
 	}
-	got := q.render(styles.NewStyles(true))
+	s := styles.NewStyles(true)
+	got := q.render(s)
 	if !strings.Contains(got, "[missing]") {
 		t.Fatalf("missing entry must include [missing] label; got:\n%s", got)
 	}
+	// Use styledText to check dim styling when ANSI is available.
+	dimSample := styledText(s.Dim, "x")
+	if ansi.Strip(dimSample) == dimSample {
+		return // lipgloss produced no ANSI in this environment; skip style check
+	}
+	for _, line := range strings.Split(got, "\n") {
+		if strings.Contains(ansi.Strip(line), "[missing]") {
+			if line == ansi.Strip(line) {
+				t.Error("missing entry must be rendered with dim ANSI styling")
+			}
+			return
+		}
+	}
+	t.Error("missing entry '[missing]' label not found in any output line")
 }
 
 // TestQueueViewHandleActionEnterSendsPlayQueueIndexMsg verifies that
