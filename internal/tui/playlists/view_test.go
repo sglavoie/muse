@@ -1,9 +1,11 @@
 package playlists
 
 import (
+	"math"
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/db"
 )
 
@@ -1125,4 +1127,79 @@ func TestRenderTracksShowsSequentialPositions(t *testing.T) {
 	if strings.Contains(out, "3000") {
 		t.Errorf("render should not contain raw DB position 3000, got:\n%s", out)
 	}
+}
+
+// --- baseline column-ratio tests (56:44 Title:Artist at TrackLevel) ---
+
+// trackColumnWidthsFromRender renders the playlists track view at the given
+// width, strips ANSI sequences from the first track row using
+// charmbracelet/x/ansi.Strip, and returns the visible rune widths of the
+// Title and Artist columns.
+func trackColumnWidthsFromRender(t *testing.T, width int) (titleW, artistW int) {
+	t.Helper()
+	v := View{
+		Level: TrackLevel,
+		Width: width,
+		Tracks: []db.PlaylistTrackRow{
+			{Position: 1, Title: "Long Title That Fills The Column", Artist: "Long Artist Name", DurationMs: 183000},
+		},
+	}
+	rendered := v.Render()
+
+	lines := strings.Split(rendered, "\n")
+	// lines[0]="Tracks", lines[1]=blank, lines[2]=first track row
+	if len(lines) < 3 {
+		t.Fatalf("trackColumnWidthsFromRender: expected ≥3 lines, got %d", len(lines))
+	}
+
+	// Strip all ANSI escape sequences to obtain only visible characters.
+	trackRow := ansi.Strip(lines[2])
+	runes := []rune(trackRow)
+	if len(runes) != width {
+		t.Fatalf("trackColumnWidthsFromRender: stripped row has %d runes, want %d", len(runes), width)
+	}
+
+	cols := ComputeTrack(width)
+	// Row layout: marker(2) + pos(4) + sep(1) + Title + sep(1) + Artist + sep(1) + Duration(10)
+	titleStart := trackMarkerFixed + trackPosFixed + 1
+	titleEnd := titleStart + cols.Title
+	artistStart := titleEnd + 1
+	artistEnd := artistStart + cols.Artist
+
+	if artistEnd > len(runes) {
+		t.Fatalf("trackColumnWidthsFromRender: artist column extends beyond row: artistEnd=%d len=%d", artistEnd, len(runes))
+	}
+
+	return len(runes[titleStart:titleEnd]), len(runes[artistStart:artistEnd])
+}
+
+// assertTrackRatioWithinTolerance verifies that colWidth/flexWidth is within
+// ±2% of wantPct (expressed as a percentage, e.g. 56.0 for 56%).
+func assertTrackRatioWithinTolerance(t *testing.T, colName string, colWidth, flexWidth int, wantPct float64) {
+	t.Helper()
+	gotPct := float64(colWidth) / float64(flexWidth) * 100
+	if math.Abs(gotPct-wantPct) > 2.0 {
+		t.Errorf("column %s: ratio %.2f%% (width=%d/flex=%d) exceeds ±2%% tolerance from expected %.2f%%",
+			colName, gotPct, colWidth, flexWidth, wantPct)
+	}
+}
+
+// TestTitleColumnRatioAtWidth80 asserts that the Title column visible width
+// is within ±2% of the 56% share of flex space at TrackLevel with width=80.
+func TestTitleColumnRatioAtWidth80(t *testing.T) {
+	const width = 80
+	flex := width - trackMarkerFixed - trackPosFixed - trackDurationFixed - trackSepCount
+	titleW, _ := trackColumnWidthsFromRender(t, width)
+	wantPct := float64(trackTitleRatio) / float64(trackTotalRatio) * 100
+	assertTrackRatioWithinTolerance(t, "Title", titleW, flex, wantPct)
+}
+
+// TestArtistColumnRatioAtWidth80 asserts that the Artist column visible width
+// is within ±2% of the 44% share of flex space at TrackLevel with width=80.
+func TestArtistColumnRatioAtWidth80(t *testing.T) {
+	const width = 80
+	flex := width - trackMarkerFixed - trackPosFixed - trackDurationFixed - trackSepCount
+	_, artistW := trackColumnWidthsFromRender(t, width)
+	wantPct := float64(trackArtistRatio) / float64(trackTotalRatio) * 100
+	assertTrackRatioWithinTolerance(t, "Artist", artistW, flex, wantPct)
 }
