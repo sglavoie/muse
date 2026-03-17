@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // Level identifies the active navigation level inside the playlist panel.
@@ -31,6 +32,7 @@ type View struct {
 	Renaming         bool                  // true while the inline rename input is active
 	RenameInput      TextInput             // current value of the inline rename field
 	SelectedTrackIDs map[int64]struct{}    // bulk-selected playlist track row IDs
+	Styles           styles.Styles
 }
 
 // visibleRows returns the maximum number of rows that fit on screen.
@@ -278,7 +280,7 @@ func (v View) renderList() string {
 		count = fmt.Sprintf("%*s", cols.Count, count)
 		line := name + "  " + count
 		if absIdx == v.Cursor {
-			line = ansiAccent + line + ansiReset
+			line = v.Styles.Accent.Render(line)
 		}
 		lines = append(lines, line)
 		if v.Creating && absIdx == v.Cursor {
@@ -298,7 +300,7 @@ func (v View) renderCreateInputRow(cols Columns) string {
 	rowWidth := cols.Name + nameSep + cols.Count
 	display := truncate(v.CreateInput.Render(), rowWidth)
 	display = fmt.Sprintf("%-*s", rowWidth, display)
-	return ansiAccent + display + ansiReset
+	return v.Styles.Accent.Render(display)
 }
 
 // renderRenameInputRow renders the inline rename input as a highlighted row
@@ -307,7 +309,7 @@ func (v View) renderRenameInputRow(cols Columns) string {
 	rowWidth := cols.Name + nameSep + cols.Count
 	display := truncate(v.RenameInput.Render(), rowWidth)
 	display = fmt.Sprintf("%-*s", rowWidth, display)
-	return ansiAccent + display + ansiReset
+	return v.Styles.Accent.Render(display)
 }
 
 func (v View) renderTracks() string {
@@ -338,7 +340,7 @@ func (v View) renderTracks() string {
 		case isSelected && isFocused:
 			markerStr = "● " // plain glyph; outer accent wrap provides styling
 		case isSelected:
-			markerStr = ansiAccent + "●" + ansiReset + " "
+			markerStr = v.Styles.Accent.Render("●") + " "
 		default:
 			markerStr = "  "
 		}
@@ -352,7 +354,7 @@ func (v View) renderTracks() string {
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		line := markerStr + pos + " " + title + " " + artist + " " + dur
 		if isFocused {
-			line = ansiAccent + line + ansiReset
+			line = v.Styles.Accent.Render(line)
 		}
 		lines[i] = line
 	}
