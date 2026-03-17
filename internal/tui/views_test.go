@@ -132,6 +132,28 @@ func TestQueueRenderMissingEntryDim(t *testing.T) {
 	t.Error("missing entry '[missing]' label not found in any output line")
 }
 
+// TestQueueRenderSelectedNonFocusedRowUsesAccent verifies that a selected entry
+// that is not the focused row renders its selection marker with Accent styling.
+func TestQueueRenderSelectedNonFocusedRowUsesAccent(t *testing.T) {
+	v := makeQueue(80, []QueueEntry{
+		{Title: "Focused", Artist: "A", DurationMs: 60_000, Selected: false, Position: 1000},
+		{Title: "Selected", Artist: "B", DurationMs: 60_000, Selected: true, Position: 2000},
+	})
+	// cursor=0 so entry at index 1 is selected but not focused.
+	v.cursor = 0
+	s := styles.NewStyles(true)
+	out := v.render(s)
+
+	want := styledText(s.Accent, "●")
+	// Skip the style assertion if lipgloss emits no ANSI in this environment.
+	if ansi.Strip(want) == want {
+		return
+	}
+	if !strings.Contains(out, want) {
+		t.Errorf("selected non-focused row must contain accent-styled marker %q; got:\n%s", want, out)
+	}
+}
+
 // TestQueueRenderProportionalColumnWidths verifies that the title and artist
 // column widths change when the terminal width changes via WindowSizeMsg.
 func TestQueueRenderProportionalColumnWidths(t *testing.T) {
