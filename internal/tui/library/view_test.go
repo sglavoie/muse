@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	musiclib "github.com/sglavoie/muse/internal/library"
 )
@@ -375,8 +376,9 @@ func TestHighlightedRowContainsBoldANSI(t *testing.T) {
 	v = v.AppendFilterChar('A')
 	v = v.AppendFilterChar('l')
 	got := v.Render()
-	if !strings.Contains(got, ansiBold) {
-		t.Errorf("rendered row should contain ANSI bold code for match highlights, got:\n%q", got)
+	boldStyle := lipgloss.NewStyle().Bold(true)
+	if !strings.Contains(got, boldStyle.Render("A")) && !strings.Contains(got, boldStyle.Render("l")) {
+		t.Errorf("rendered row should contain bold-styled match highlights, got:\n%q", got)
 	}
 }
 
@@ -403,7 +405,7 @@ func TestHighlightedPositionsWithinArtistColumn(t *testing.T) {
 	v = v.AppendFilterChar('A')
 	got := v.Render()
 	// The bold sequence should precede 'A' somewhere in the output.
-	boldA := ansiBold + "A" + ansiReset
+	boldA := lipgloss.NewStyle().Bold(true).Render("A")
 	if !strings.Contains(got, boldA) {
 		t.Errorf("expected bold-wrapped 'A' (%q) in rendered output, got:\n%q", boldA, got)
 	}
@@ -1013,7 +1015,7 @@ func TestFieldSpecificAlbumHighlight(t *testing.T) {
 	v = v.AppendFilterChar(':')
 	v = v.AppendFilterChar('d')
 	got := v.Render()
-	boldD := ansiBold + "D" + ansiReset
+	boldD := lipgloss.NewStyle().Bold(true).Render("D")
 	if !strings.Contains(got, boldD) {
 		t.Errorf("expected bold 'D' in album column for field-specific query, got:\n%q", got)
 	}
@@ -1140,7 +1142,7 @@ func TestFieldSpecificMatchedIndexesNil(t *testing.T) {
 	}
 	got := v.Render()
 	// Artist should be highlighted
-	boldR := ansiBold + "R" + ansiReset
+	boldR := lipgloss.NewStyle().Bold(true).Render("R")
 	if !strings.Contains(got, boldR) {
 		t.Errorf("expected bold 'R' in artist column for field-specific query, got:\n%q", got)
 	}
@@ -1252,7 +1254,7 @@ func TestGeneralSearchHighlightsAlbumColumn(t *testing.T) {
 		v = v.AppendFilterChar(ch)
 	}
 	got := v.Render()
-	boldD := ansiBold + "D" + ansiReset
+	boldD := lipgloss.NewStyle().Bold(true).Render("D")
 	if !strings.Contains(got, boldD) {
 		t.Errorf("expected bold 'D' in album column for general search matching album, got:\n%q", got)
 	}

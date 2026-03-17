@@ -1,11 +1,12 @@
 package library
 
-import "strings"
+import (
+	"strings"
 
-// ansiBold wraps text in bold for match-character highlights.
-const ansiBold = "\033[1m"
+	"charm.land/lipgloss/v2"
+)
 
-// applyHighlight wraps the runes at positions in s with bold ANSI styling.
+// applyHighlight wraps the runes at positions in s with bold lipgloss styling.
 // Positions are 0-indexed into the rune slice of s; out-of-range positions are ignored.
 func applyHighlight(s string, positions []int) string {
 	if len(positions) == 0 {
@@ -15,13 +16,12 @@ func applyHighlight(s string, positions []int) string {
 	for _, p := range positions {
 		posSet[p] = struct{}{}
 	}
+	boldStyle := lipgloss.NewStyle().Bold(true)
 	runes := []rune(s)
 	var b strings.Builder
 	for i, r := range runes {
 		if _, ok := posSet[i]; ok {
-			b.WriteString(ansiBold)
-			b.WriteRune(r)
-			b.WriteString(ansiReset)
+			b.WriteString(boldStyle.Render(string(r)))
 		} else {
 			b.WriteRune(r)
 		}
@@ -106,12 +106,11 @@ func padHighlight(s string, width int, positions []int) string {
 		posSet[p] = struct{}{}
 	}
 
+	boldStyle := lipgloss.NewStyle().Bold(true)
 	var b strings.Builder
 	for i, r := range content {
 		if _, ok := posSet[i]; ok {
-			b.WriteString(ansiBold)
-			b.WriteRune(r)
-			b.WriteString(ansiReset)
+			b.WriteString(boldStyle.Render(string(r)))
 		} else {
 			b.WriteRune(r)
 		}
