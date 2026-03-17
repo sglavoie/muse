@@ -6,6 +6,7 @@ import "charm.land/lipgloss/v2"
 type Styles struct {
 	Dim     lipgloss.Style
 	Accent  lipgloss.Style
+	Bold    lipgloss.Style
 	HasDark bool
 }
 
@@ -14,6 +15,7 @@ func NewStyles(hasDark bool) Styles {
 	return Styles{
 		Dim:     lipgloss.NewStyle().Faint(true),
 		Accent:  lipgloss.NewStyle().Reverse(true),
+		Bold:    lipgloss.NewStyle().Bold(true),
 		HasDark: hasDark,
 	}
 }

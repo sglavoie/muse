@@ -17,7 +17,7 @@ import (
 )
 
 // TestNewStyles exercises the NewStyles constructor for both hasDark values,
-// checking all three exported fields (HasDark, Dim, Accent).
+// checking all four exported fields (HasDark, Dim, Accent, Bold).
 func TestNewStyles(t *testing.T) {
 	for _, hasDark := range []bool{true, false} {
 		s := styles.NewStyles(hasDark)
@@ -34,6 +34,11 @@ func TestNewStyles(t *testing.T) {
 		accentOut := s.Accent.Render("x")
 		if accentOut == "" {
 			t.Errorf("NewStyles(%v).Accent.Render() returned empty string", hasDark)
+		}
+
+		boldOut := s.Bold.Render("x")
+		if boldOut == "" {
+			t.Errorf("NewStyles(%v).Bold.Render() returned empty string", hasDark)
 		}
 	}
 }
