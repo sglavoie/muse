@@ -2,7 +2,6 @@ package library
 
 import (
 	"math"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -28,14 +27,6 @@ func (f *fakeQueueAppender) AppendTrack(t musiclib.Track, _ string) (int64, erro
 	f.nextID++
 	f.tracks = append(f.tracks, t)
 	return f.nextID, nil
-}
-
-// ansiEscape strips ANSI escape sequences from s so that display-width checks
-// are not confused by non-printing highlight codes.
-var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*m`)
-
-func stripANSI(s string) string {
-	return ansiEscape.ReplaceAllString(s, "")
 }
 
 func buildIndex(tracks []musiclib.Track) musiclib.LibraryIndex {
@@ -95,7 +86,7 @@ func TestRenderColumnsDoNotOverflow(t *testing.T) {
 		}
 
 		for _, line := range lines[2:] {
-			got := len([]rune(stripANSI(line)))
+			got := len([]rune(ansi.Strip(line)))
 			if got != width {
 				t.Errorf("width=%d: row has %d runes, want %d: %q", width, got, width, line)
 			}
@@ -283,7 +274,7 @@ func TestFuzzyFilterUpdatesDisplayedTracks(t *testing.T) {
 	if !strings.Contains(got, "Alice") {
 		t.Errorf("filtered render should contain 'Alice', got:\n%s", got)
 	}
-	if strings.Contains(stripANSI(got), "Bob") {
+	if strings.Contains(ansi.Strip(got), "Bob") {
 		t.Errorf("filtered render should not contain 'Bob' when filtering for 'Alice', got:\n%s", got)
 	}
 }
@@ -306,7 +297,7 @@ func TestFuzzyFilterUpdatesOnEachKeystroke(t *testing.T) {
 	if !strings.Contains(got, "Bob") {
 		t.Errorf("filtering for 'Bob' should show 'Bob', got:\n%s", got)
 	}
-	if strings.Contains(stripANSI(got), "Alice") {
+	if strings.Contains(ansi.Strip(got), "Alice") {
 		t.Errorf("filtering for 'Bob' should not show 'Alice', got:\n%s", got)
 	}
 
@@ -1046,7 +1037,7 @@ func TestFieldSpecificArtistNarrowsResults(t *testing.T) {
 	if !strings.Contains(got, "Alice") {
 		t.Errorf("a:Alice should show Alice tracks, got:\n%s", got)
 	}
-	if strings.Contains(stripANSI(got), "Bob") {
+	if strings.Contains(ansi.Strip(got), "Bob") {
 		t.Errorf("a:Alice should not show Bob tracks, got:\n%s", got)
 	}
 }
