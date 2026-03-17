@@ -484,7 +484,13 @@ func TestModalBuildBoxLinesContainsDestinations(t *testing.T) {
 func TestModalBuildBoxLinesFocusedRowHasAccent(t *testing.T) {
 	m := NewDestinationPicker(fakePlaylistRows("Alpha"))
 	m.cursor = 0 // Play Queue focused
-	lines := m.buildBoxLines(styles.NewStyles(true))
+	s := styles.NewStyles(true)
+	lines := m.buildBoxLines(s)
+
+	accentMarker := styledText(s.Accent, queueLabel)
+	if ansi.Strip(accentMarker) == accentMarker {
+		t.Skip("lipgloss produced no ANSI output in this terminal environment")
+	}
 
 	found := false
 	for _, l := range lines {
