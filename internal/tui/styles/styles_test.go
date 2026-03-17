@@ -4,6 +4,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -128,12 +129,25 @@ func TestNoRawANSI(t *testing.T) {
 	t.Logf("TestNoRawANSI: scanned %d .go files", fileCount)
 }
 
-// TestStylesPackageImportIsolation scans non-test .go files in internal/tui/styles/
-// and fails if any import path contains "internal/tui/", ensuring the styles
-// package remains a pure leaf with no upward dependencies into the TUI layer.
+// isStdlibImport returns true for standard library import paths. Standard
+// library paths have no dot in the first path segment (e.g. "fmt", "os",
+// "go/parser"), while all third-party modules start with a hostname.
+func isStdlibImport(path string) bool {
+	first := strings.SplitN(path, "/", 2)[0]
+	return !strings.Contains(first, ".")
+}
+
+// TestStylesPackageImportIsolation scans non-test .go files in
+// internal/tui/styles/ and fails if:
+//   - any import path contains "internal/tui/" (upward TUI dependency), or
+//   - any import is not from the standard library and is not charm.land/lipgloss/v2
+//
+// This keeps the styles package a pure leaf that only depends on stdlib and
+// the single charmbracelet styling library.
 func TestStylesPackageImportIsolation(t *testing.T) {
 	_, thisFile, _, _ := runtime.Caller(0)
 	stylesDir := filepath.Dir(thisFile)
+	t.Logf("TestStylesPackageImportIsolation: scanning styles dir %s", stylesDir)
 
 	entries, err := os.ReadDir(stylesDir)
 	if err != nil {
@@ -162,8 +176,14 @@ func TestStylesPackageImportIsolation(t *testing.T) {
 		for _, imp := range f.Imports {
 			// imp.Path.Value includes surrounding quotes, e.g. `"internal/tui/library"`
 			impPath := strings.Trim(imp.Path.Value, `"`)
+
 			if strings.Contains(impPath, "internal/tui/") {
 				t.Errorf("%s: forbidden import %q (styles must not import from internal/tui/)", name, impPath)
+				continue
+			}
+
+			if !isStdlibImport(impPath) && impPath != "charm.land/lipgloss/v2" {
+				t.Errorf("%s: non-whitelisted import %q (only stdlib and charm.land/lipgloss/v2 are allowed)", name, impPath)
 			}
 		}
 	}
@@ -172,4 +192,20 @@ func TestStylesPackageImportIsolation(t *testing.T) {
 		t.Fatalf("no non-test .go files found in %s", stylesDir)
 	}
 	t.Logf("TestStylesPackageImportIsolation: scanned %d non-test file(s)", scanned)
+}
+
+// TestBuildNoImportCycles runs "go build ./..." from the module root and fails
+// if the command exits with a non-zero status. The Go toolchain reports import
+// cycles as hard errors, so a clean build confirms none exist.
+func TestBuildNoImportCycles(t *testing.T) {
+	_, thisFile, _, _ := runtime.Caller(0)
+	// thisFile is .../internal/tui/styles/styles_test.go; three levels up is module root.
+	moduleRoot := filepath.Join(filepath.Dir(thisFile), "../../..")
+
+	cmd := exec.Command("go", "build", "./...")
+	cmd.Dir = moduleRoot
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go build ./... failed (import cycle or build error):\n%s", string(out))
+	}
 }
