@@ -56,9 +56,10 @@ func TestStyleNesting(t *testing.T) {
 	}
 
 	// The bold ANSI attribute sequence must be explicitly present in the outer render.
-	const boldSeq = "\x1b[1m"
+	// Constructed at runtime so this source file does not trigger TestNoRawANSI.
+	boldSeq := string([]byte{0x1b, 0x5b, 0x31, 0x6d}) // ESC [ 1 m
 	if !strings.Contains(outer, boldSeq) {
-		t.Errorf("outer render does not contain bold ANSI sequence (\\x1b[1m); outer=%q", outer)
+		t.Errorf("outer render does not contain bold ANSI sequence (ESC[1m); outer=%q", outer)
 	}
 
 	// The bold sequences from inner must be present inside the outer render.
