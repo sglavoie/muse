@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"image/color"
 	"testing"
 	"time"
 
@@ -318,5 +319,31 @@ func TestCtrlCQuitsWhilePlaylistRenameActive(t *testing.T) {
 	msg := cmd()
 	if _, ok := msg.(tea.QuitMsg); !ok {
 		t.Fatalf("ctrl+c while rename input active: expected QuitMsg, got %T", msg)
+	}
+}
+
+func TestUpdateBackgroundColorMsgLightBackground(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+
+	// White = light background → IsDark() == false.
+	lightMsg := tea.BackgroundColorMsg{Color: color.RGBA{R: 255, G: 255, B: 255, A: 255}}
+	next, _ := m.Update(lightMsg)
+	nm := next.(Model)
+
+	if nm.styles.HasDark != false {
+		t.Fatalf("expected HasDark=false after light BackgroundColorMsg, got %v", nm.styles.HasDark)
+	}
+}
+
+func TestUpdateBackgroundColorMsgDarkBackground(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+
+	// Black = dark background → IsDark() == true.
+	darkMsg := tea.BackgroundColorMsg{Color: color.RGBA{R: 0, G: 0, B: 0, A: 255}}
+	next, _ := m.Update(darkMsg)
+	nm := next.(Model)
+
+	if nm.styles.HasDark != true {
+		t.Fatalf("expected HasDark=true after dark BackgroundColorMsg, got %v", nm.styles.HasDark)
 	}
 }

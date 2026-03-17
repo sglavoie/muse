@@ -486,6 +486,10 @@ type Model struct {
 	elapsedSecs float64
 	totalSecs   float64
 
+	// styles holds the current lipgloss style set. Initialized to dark-safe
+	// defaults in New(); replaced on tea.BackgroundColorMsg once the terminal
+	// reports its actual background color.
+	styles *styles.Styles
 }
 
 // New creates a root Model. configPath is displayed in the status bar on every
@@ -506,6 +510,7 @@ type Model struct {
 //
 // p is the playback backend. Pass nil to disable playback controls.
 func New(configPath string, configCreated bool, scanCh <-chan library.Track, watchCh <-chan library.WatchEvent, libraryRoot string, extractor library.MetadataExtractor, p playPauser) Model {
+	initialStyles := styles.NewStyles(true)
 	return Model{
 		activeView: viewLibrary,
 		configPath: configPath,
@@ -518,6 +523,7 @@ func New(configPath string, configCreated bool, scanCh <-chan library.Track, wat
 		extractor:     extractor,
 		player:        p,
 		registry:      newRegistry(),
+		styles:        &initialStyles,
 		statusBar: StatusBar{
 			configPath:    configPath,
 			configCreated: configCreated,
@@ -861,6 +867,7 @@ func (m Model) Init() tea.Cmd {
 	}
 	cmds = append(cmds, tickCmd())
 	cmds = append(cmds, sessionTickCmd())
+	cmds = append(cmds, tea.RequestBackgroundColor)
 	switch len(cmds) {
 	case 0:
 		return nil
@@ -907,6 +914,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case clearConfigNotice:
 		m.configCreated = false
+
+	case tea.BackgroundColorMsg:
+		s := styles.NewStyles(msg.IsDark())
+		m.styles = &s
 
 	case library.ScanProgressMsg:
 		m.statusBar.handleScanProgress(msg)
@@ -1693,12 +1704,12 @@ func (m Model) View() tea.View {
 		switch m.activeView {
 		case viewLibrary:
 			if m.destPicker != nil {
-				body = m.destPicker.Render(m.termWidth, m.termHeight, styles.NewStyles(true))
+				body = m.destPicker.Render(m.termWidth, m.termHeight, *m.styles)
 			} else {
-				body = m.library.render(styles.NewStyles(true))
+				body = m.library.render(*m.styles)
 			}
 		case viewPlaylists:
-			body = m.playlists.render(styles.NewStyles(true))
+			body = m.playlists.render(*m.styles)
 		case viewQueue:
 			body = m.queue.render()
 		}
