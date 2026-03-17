@@ -43,6 +43,11 @@ type TrackEnqueuedMsg struct {
 // Fuzzy is the fuzzy search engine used when the filter bar is active;
 // inject musiclib.FakeFuzzySearcher in tests and musiclib.SahilmFuzzySearcher in production.
 // SelectedHashes holds the set of track hashes that are bulk-selected.
+//
+// Compile-time assertion: Styles must remain a value type on View.
+// This line fails to compile if View.Styles is ever changed to *styles.Styles.
+var _ styles.Styles = View{}.Styles
+
 type View struct {
 	Index           musiclib.LibraryIndex
 	Width           int

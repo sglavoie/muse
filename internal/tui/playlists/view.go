@@ -16,6 +16,10 @@ const (
 	TrackLevel              // showing the tracks inside a selected playlist
 )
 
+// Compile-time assertion: Styles must remain a value type on View.
+// This line fails to compile if View.Styles is ever changed to *styles.Styles.
+var _ styles.Styles = View{}.Styles
+
 // View is the pure render struct for the playlists panel. All fields are set
 // by the caller (PlaylistsView in the tui package) before each Render call.
 type View struct {

@@ -2,10 +2,12 @@ package tui
 
 import (
 	"image/color"
+	"strings"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
@@ -351,6 +353,8 @@ func TestUpdateBackgroundColorMsgDarkBackground(t *testing.T) {
 // TestBackgroundColorMsgReconstructsStyles verifies that each
 // tea.BackgroundColorMsg reconstructs m.styles, replacing the previous value.
 // Sending dark then light must leave HasDark == false.
+// A render-through assertion also confirms the new Styles values are visible
+// in the rendered output after the swap — not just that the struct field changed.
 func TestBackgroundColorMsgReconstructsStyles(t *testing.T) {
 	m := New("", false, nil, nil, "", nil, nil)
 
@@ -364,5 +368,29 @@ func TestBackgroundColorMsgReconstructsStyles(t *testing.T) {
 
 	if nm.styles.HasDark != false {
 		t.Fatalf("expected m.styles.HasDark == false after light BackgroundColorMsg, got %v", nm.styles.HasDark)
+	}
+
+	// Render-through: verify the new styles are actually applied in rendered output.
+	// Add a missing queue entry so Dim.Render() is exercised, then confirm the
+	// rendered text contains the dim-styled result (not plain unstyled text).
+	nm.queue.entries = []QueueEntry{
+		{Title: "Lost Track", Artist: "Ghost", Missing: true},
+	}
+	nm.queue.width = 80
+	nm.activeView = viewQueue
+	rendered := nm.queue.render(*nm.styles)
+
+	// The rendered output must show the "[missing]" label in the visible text.
+	if !strings.Contains(ansi.Strip(rendered), "[missing]") {
+		t.Fatalf("render-through: expected '[missing]' in stripped rendered output;\ngot:\n%s", rendered)
+	}
+	// When lipgloss emits ANSI sequences, the full rendered line must differ from
+	// its stripped form, proving Dim.Render() was applied after the BackgroundColorMsg swap.
+	dimProbe := nm.styles.Dim.Render("probe")
+	if ansi.Strip(dimProbe) != dimProbe {
+		// ANSI sequences are active in this environment.
+		if rendered == ansi.Strip(rendered) {
+			t.Fatal("render-through: expected ANSI dim sequences in rendered output after BackgroundColorMsg swap, but output contains no ANSI escapes")
+		}
 	}
 }
