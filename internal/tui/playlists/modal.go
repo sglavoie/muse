@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 const (
@@ -116,8 +117,8 @@ func (m DestinationPickerModal) confirmCmd() tea.Cmd {
 // pass the current terminal dimensions so the box is positioned in the middle
 // of the screen. When termWidth or termHeight is zero the box is rendered
 // without any centering offset.
-func (m DestinationPickerModal) Render(termWidth, termHeight int) string {
-	boxLines := m.buildBoxLines()
+func (m DestinationPickerModal) Render(termWidth, termHeight int, s styles.Styles) string {
+	boxLines := m.buildBoxLines(s)
 
 	// Determine the display width of the box (first line = top border, all
 	// ASCII/Unicode single-width characters so byte-len equals display width).
@@ -145,9 +146,9 @@ func (m DestinationPickerModal) Render(termWidth, termHeight int) string {
 }
 
 // buildBoxLines constructs the list of display lines that form the modal box
-// and its keybinding hint. ANSI escape codes are applied to the focused row
-// content only, after all width calculations, so they do not affect padding.
-func (m DestinationPickerModal) buildBoxLines() []string {
+// and its keybinding hint. Styling is applied to the focused row content only,
+// after all width calculations, so it does not affect padding.
+func (m DestinationPickerModal) buildBoxLines(s styles.Styles) []string {
 	labels := m.destinations()
 
 	// Compute inner width: the number of characters between the │ borders.
@@ -190,7 +191,7 @@ func (m DestinationPickerModal) buildBoxLines() []string {
 		// Row content between the borders: " cursor label_padded " = innerWidth chars.
 		rowContent := fmt.Sprintf(" %s %-*s ", cursorCh, contentWidth, label)
 		if i == m.cursor {
-			lines = append(lines, borderV+ansiAccent+rowContent+ansiReset+borderV)
+			lines = append(lines, borderV+s.Accent.Render(rowContent)+borderV)
 		} else {
 			lines = append(lines, borderV+rowContent+borderV)
 		}

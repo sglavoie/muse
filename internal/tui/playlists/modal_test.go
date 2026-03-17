@@ -3,7 +3,9 @@ package playlists
 import (
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // fakePlaylistRows returns a slice of PlaylistRow values as if returned by
@@ -404,7 +406,7 @@ func TestModalReceivesPreSortedPlaylistsFromFakeReader(t *testing.T) {
 
 func TestModalBuildBoxLinesContainsBorders(t *testing.T) {
 	m := NewDestinationPicker(fakePlaylistRows("Alpha", "Beta"))
-	lines := m.buildBoxLines()
+	lines := m.buildBoxLines(styles.NewStyles(true))
 
 	if len(lines) < 4 {
 		t.Fatalf("expected at least 4 box lines, got %d", len(lines))
@@ -427,7 +429,7 @@ func TestModalBuildBoxLinesContainsBorders(t *testing.T) {
 
 func TestModalBuildBoxLinesContainsTitle(t *testing.T) {
 	m := NewDestinationPicker(nil)
-	lines := m.buildBoxLines()
+	lines := m.buildBoxLines(styles.NewStyles(true))
 
 	found := false
 	for _, l := range lines {
@@ -452,7 +454,7 @@ func containsStr(s, sub string) bool {
 
 func TestModalBuildBoxLinesContainsDestinations(t *testing.T) {
 	m := NewDestinationPicker(fakePlaylistRows("Chill", "Rock"))
-	lines := m.buildBoxLines()
+	lines := m.buildBoxLines(styles.NewStyles(true))
 
 	foundQueue := false
 	foundChill := false
@@ -482,23 +484,24 @@ func TestModalBuildBoxLinesContainsDestinations(t *testing.T) {
 func TestModalBuildBoxLinesFocusedRowHasAccent(t *testing.T) {
 	m := NewDestinationPicker(fakePlaylistRows("Alpha"))
 	m.cursor = 0 // Play Queue focused
-	lines := m.buildBoxLines()
+	lines := m.buildBoxLines(styles.NewStyles(true))
 
 	found := false
 	for _, l := range lines {
-		if containsStr(l, ansiAccent) && containsStr(l, queueLabel) {
+		stripped := ansi.Strip(l)
+		if containsStr(stripped, queueLabel) && l != stripped {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Error("focused row must contain ANSI accent code")
+		t.Error("focused row must be styled with ANSI codes")
 	}
 }
 
 func TestModalRenderCentered(t *testing.T) {
 	m := NewDestinationPicker(fakePlaylistRows("A"))
-	out := m.Render(80, 24)
+	out := m.Render(80, 24, styles.NewStyles(true))
 
 	// Should have some leading newlines (vertical centering)
 	if out[0] != '\n' {
@@ -512,7 +515,7 @@ func TestModalRenderCentered(t *testing.T) {
 
 func TestModalRenderZeroDimensions(t *testing.T) {
 	m := NewDestinationPicker(nil)
-	out := m.Render(0, 0)
+	out := m.Render(0, 0, styles.NewStyles(true))
 
 	// Should not panic and should contain content without centering
 	if !containsStr(out, "Destination") {

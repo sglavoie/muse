@@ -1693,7 +1693,7 @@ func (m Model) View() tea.View {
 		switch m.activeView {
 		case viewLibrary:
 			if m.destPicker != nil {
-				body = m.destPicker.Render(m.termWidth, m.termHeight)
+				body = m.destPicker.Render(m.termWidth, m.termHeight, styles.NewStyles(true))
 			} else {
 				body = m.library.render(styles.NewStyles(true))
 			}
