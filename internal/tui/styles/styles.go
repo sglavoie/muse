@@ -8,7 +8,7 @@ type Styles struct {
 	Accent     lipgloss.Style
 	AccentMark lipgloss.Style // foreground-only accent for "●" marker on non-focused rows
 	Bold       lipgloss.Style
-	Heading    lipgloss.Style // bold + blue + underlined for section titles
+	Heading    lipgloss.Style // bold + blue + double-underlined for section titles
 	Success    lipgloss.Style // green foreground for playing state
 	Warning    lipgloss.Style // gold foreground for paused state
 	Error      lipgloss.Style // red foreground for errors / stopped
@@ -25,12 +25,15 @@ func NewStyles(hasDark bool) Styles {
 		Accent:     lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#2c3e50"))),
 		AccentMark: lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#4078f2"), lipgloss.Color("#61afef"))),
 		Bold:       lipgloss.NewStyle().Bold(true),
-		Heading:    lipgloss.NewStyle().Bold(true).Underline(true).Foreground(ld(lipgloss.Color("#4078f2"), lipgloss.Color("#61afef"))),
-		Success:    lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#50a14f"), lipgloss.Color("#98c379"))),
-		Warning:    lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
-		Error:      lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#e45649"), lipgloss.Color("#e06c75"))),
-		ColHead:    lipgloss.NewStyle().Bold(true).Faint(true),
-		StatusBar:  lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),
-		HasDark:    hasDark,
+		Heading: lipgloss.NewStyle().Bold(true).
+			UnderlineStyle(lipgloss.UnderlineDouble).
+			UnderlineColor(ld(lipgloss.Color("#6a9edb"), lipgloss.Color("#3a6fbf"))).
+			Foreground(ld(lipgloss.Color("#4078f2"), lipgloss.Color("#61afef"))),
+		Success:   lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#50a14f"), lipgloss.Color("#98c379"))),
+		Warning:   lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
+		Error:     lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#e45649"), lipgloss.Color("#e06c75"))),
+		ColHead:   lipgloss.NewStyle().Bold(true).Faint(true).UnderlineStyle(lipgloss.UnderlineDotted),
+		StatusBar: lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),
+		HasDark:   hasDark,
 	}
 }
