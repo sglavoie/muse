@@ -9,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	musiclib "github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // fakeQueueAppender records every AppendTrack call and returns a
@@ -376,8 +377,7 @@ func TestHighlightedRowContainsBoldANSI(t *testing.T) {
 	v = v.AppendFilterChar('A')
 	v = v.AppendFilterChar('l')
 	got := v.Render()
-	boldStyle := lipgloss.NewStyle().Bold(true)
-	if !strings.Contains(got, boldStyle.Render("A")) && !strings.Contains(got, boldStyle.Render("l")) {
+	if !strings.Contains(got, styledText(lipgloss.NewStyle().Bold(true), "A")) && !strings.Contains(got, styledText(lipgloss.NewStyle().Bold(true), "l")) {
 		t.Errorf("rendered row should contain bold-styled match highlights, got:\n%q", got)
 	}
 }
@@ -405,7 +405,7 @@ func TestHighlightedPositionsWithinArtistColumn(t *testing.T) {
 	v = v.AppendFilterChar('A')
 	got := v.Render()
 	// The bold sequence should precede 'A' somewhere in the output.
-	boldA := lipgloss.NewStyle().Bold(true).Render("A")
+	boldA := styledText(lipgloss.NewStyle().Bold(true), "A")
 	if !strings.Contains(got, boldA) {
 		t.Errorf("expected bold-wrapped 'A' (%q) in rendered output, got:\n%q", boldA, got)
 	}
@@ -538,8 +538,8 @@ func TestCursorStoredOnModel(t *testing.T) {
 // (i.e. ANSI escapes are present) while non-focused rows are plain text.
 func TestCursorRowHighlighted(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	s := lipgloss.NewStyle().Reverse(true)
-	accentMarker := s.Render("x") // produces a reverse-video ANSI sequence
+	s := styles.NewStyles(true).Accent
+	accentMarker := styledText(s, "x") // produces a reverse-video ANSI sequence
 	if ansi.Strip(accentMarker) == accentMarker {
 		t.Skip("lipgloss produced no ANSI output in this terminal environment")
 	}
@@ -1022,7 +1022,7 @@ func TestFieldSpecificAlbumHighlight(t *testing.T) {
 	v = v.AppendFilterChar(':')
 	v = v.AppendFilterChar('d')
 	got := v.Render()
-	boldD := lipgloss.NewStyle().Bold(true).Render("D")
+	boldD := styledText(lipgloss.NewStyle().Bold(true), "D")
 	if !strings.Contains(got, boldD) {
 		t.Errorf("expected bold 'D' in album column for field-specific query, got:\n%q", got)
 	}
@@ -1075,7 +1075,7 @@ func TestGeneralSearchMatchesAlbum(t *testing.T) {
 // when the filter bar is active but no text has been typed yet.
 func TestFilterBarHintShownWhenEmpty(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	dimStyle := lipgloss.NewStyle().Faint(true)
+	dimStyle := styles.NewStyles(true).Dim
 	v := View{
 		Index:  idx,
 		Width:  80,
@@ -1097,7 +1097,7 @@ func TestFilterBarHintShownWhenEmpty(t *testing.T) {
 	}
 	// The hint text should be wrapped in ANSI dim styling.
 	hint := "a: artist  t: title  l: album"
-	styledHint := dimStyle.Render(hint)
+	styledHint := styledText(dimStyle, hint)
 	if ansi.Strip(styledHint) == styledHint {
 		t.Skip("lipgloss produced no ANSI output in this terminal environment")
 	}
@@ -1156,7 +1156,7 @@ func TestFieldSpecificMatchedIndexesNil(t *testing.T) {
 	}
 	got := v.Render()
 	// Artist should be highlighted
-	boldR := lipgloss.NewStyle().Bold(true).Render("R")
+	boldR := styledText(lipgloss.NewStyle().Bold(true), "R")
 	if !strings.Contains(got, boldR) {
 		t.Errorf("expected bold 'R' in artist column for field-specific query, got:\n%q", got)
 	}
@@ -1268,7 +1268,7 @@ func TestGeneralSearchHighlightsAlbumColumn(t *testing.T) {
 		v = v.AppendFilterChar(ch)
 	}
 	got := v.Render()
-	boldD := lipgloss.NewStyle().Bold(true).Render("D")
+	boldD := styledText(lipgloss.NewStyle().Bold(true), "D")
 	if !strings.Contains(got, boldD) {
 		t.Errorf("expected bold 'D' in album column for general search matching album, got:\n%q", got)
 	}
