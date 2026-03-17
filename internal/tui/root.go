@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -414,7 +415,7 @@ type watchBatchMsg struct {
 }
 
 // Model is the root Bubble Tea v2 model. It manages view switching between
-// Library, Playlists, and Queue panels, and renders a persistent status bar.
+// Library, Playlists, Queue, and Artists panels, and renders a persistent status bar.
 type Model struct {
 	activeView    viewID
 	configPath    string
@@ -423,6 +424,7 @@ type Model struct {
 	library   LibraryView
 	playlists PlaylistsView
 	queue     QueueView
+	artists   ArtistsView
 
 	// scanCh is the channel returned by library.Scan. It is nil when no scan
 	// is in progress or after the scan has completed.
@@ -888,6 +890,8 @@ func (m Model) activeViewContext() bindingContext {
 		return contextPlaylists
 	case viewQueue:
 		return contextQueue
+	case viewArtists:
+		return contextArtists
 	default:
 		// A new viewID was added without a corresponding case here. Add the
 		// case above to ensure view-local keybinding precedence works correctly
@@ -897,7 +901,7 @@ func (m Model) activeViewContext() bindingContext {
 	}
 }
 
-// Update handles incoming messages. Number keys 1/2/3 switch the active view;
+// Update handles incoming messages. Number keys 1/2/3/4 switch the active view;
 // Ctrl+c quits. q and Esc are intentionally ignored here — they are reserved
 // for in-view navigation.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -911,6 +915,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.playlists.height = msg.Height - 3
 		m.queue.width = msg.Width
 		m.queue.height = msg.Height - 3
+		m.artists.width = msg.Width
+		m.artists.height = msg.Height - 3
 
 	case clearConfigNotice:
 		m.configCreated = false
@@ -940,6 +946,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.library.filterText != "" {
 			m.library = m.library.rebuildFilterCache()
 		}
+		// Refresh the artists list when at ArtistLevel so the view stays
+		// current as the library grows during a scan.
+		if m.artists.level == arttui.ArtistLevel {
+			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+			m.artists = m.artists.clampCursor()
+		}
 		if m.scanCh != nil {
 			return m, waitForNextBatch(m.scanCh)
 		}
@@ -964,6 +976,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else if m.library.cursor >= n {
 				m.library.cursor = n - 1
 			}
+		}
+		// Refresh the artists list when at ArtistLevel so the view stays
+		// current when the filesystem watcher detects changes.
+		if m.artists.level == arttui.ArtistLevel {
+			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+			m.artists = m.artists.clampCursor()
 		}
 		if m.watchCh != nil {
 			return m, waitForWatchBatch(m.watchCh)
@@ -1012,13 +1030,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.statusBar.handleMissingTrack(msg.Path)
 
 	case FilterBarMsg:
-		if m.activeView != viewLibrary {
-			break
-		}
-		if m.library.filterActive {
-			m.library = m.library.CommitFilter()
-		} else {
-			m.library = m.library.ActivateFilter()
+		switch m.activeView {
+		case viewLibrary:
+			if m.library.filterActive {
+				m.library = m.library.CommitFilter()
+			} else {
+				m.library = m.library.ActivateFilter()
+			}
+		case viewArtists:
+			if m.artists.filterActive {
+				m.artists = m.artists.CommitFilter()
+			} else {
+				m.artists = m.artists.ActivateFilter()
+			}
 		}
 
 	case PlaybackEndedMsg:
@@ -1399,6 +1423,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		// Same interception for the artists view filter bar.
+		if m.artists.filterActive && m.activeView == viewArtists {
+			switch msg.String() {
+			case "ctrl+c":
+				return m, tea.Quit
+			case "esc":
+				m.artists = m.artists.DeactivateFilter()
+			case "enter", "/":
+				m.artists = m.artists.CommitFilter()
+			case "backspace":
+				m.artists = m.artists.BackspaceFilter()
+			default:
+				if msg.Text != "" {
+					for _, ch := range msg.Text {
+						m.artists = m.artists.AppendFilterChar(ch)
+					}
+				}
+			}
+			return m, nil
+		}
 		// When the inline playlist create input is active, intercept all
 		// keypresses before the registry.
 		if m.playlists.isCreating() && m.activeView == viewPlaylists {
@@ -1712,6 +1756,8 @@ func (m Model) View() tea.View {
 			body = m.playlists.render(*m.styles)
 		case viewQueue:
 			body = m.queue.render(*m.styles)
+		case viewArtists:
+			body = m.artists.render(*m.styles)
 		}
 	}
 
@@ -1967,6 +2013,37 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m.activeView = viewPlaylists
 	case actionSwitchQueue:
 		m.activeView = viewQueue
+	case actionSwitchArtists:
+		m.activeView = viewArtists
+		if len(m.artists.artists) == 0 {
+			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+		}
+	case actionArtistOpen:
+		allTracks := m.library.index.Tracks()
+		switch m.artists.level {
+		case arttui.ArtistLevel:
+			artist, ok := m.artists.focusedArtist()
+			if ok {
+				albums := arttui.DeriveAlbums(allTracks, artist)
+				m.artists.selectedArtist = artist
+				m.artists = m.artists.openAlbums(albums)
+			}
+		case arttui.AlbumLevel:
+			album, ok := m.artists.focusedAlbum()
+			if ok {
+				tracks := arttui.DeriveTracks(allTracks, m.artists.selectedArtist, album)
+				m.artists.selectedAlbum = album
+				m.artists = m.artists.openTracks(tracks)
+			}
+		case arttui.TrackLevel:
+			if m.queueWriter != nil {
+				if cmd := m.artists.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
+					return m, cmd
+				}
+			}
+		}
+	case actionArtistBack:
+		m.artists = m.artists.back()
 	case actionRescan:
 		if m.libraryRoot != "" && m.extractor != nil && !m.scanning {
 			ch := library.Scan(m.libraryRoot, m.extractor)
@@ -1980,6 +2057,9 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			m.scanning = true
 			m.scanned = 0
 			m.scanTotal = 0
+			// Reset the artists view so it gets re-derived from the new
+			// library index as scan batches arrive.
+			m.artists = ArtistsView{width: m.artists.width, height: m.artists.height}
 			return m, tea.Batch(waitForNextBatch(ch), countAudioFiles(m.libraryRoot))
 		}
 	case actionRepeatCycle:
@@ -2042,6 +2122,8 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			m.library = m.library.HandleAction(action)
 		case viewPlaylists:
 			m.playlists = m.playlists.HandleAction(action)
+		case viewArtists:
+			m.artists = m.artists.HandleAction(action)
 		default:
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)

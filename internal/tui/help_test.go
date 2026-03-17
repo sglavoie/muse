@@ -34,12 +34,13 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 		contextLibrary:   "Library",
 		contextQueue:     "Queue",
 		contextPlaylists: "Playlists",
+		contextArtists:   "Artists",
 	}
 
 	// The "Navigation" section covers keys shared across Library, Queue, and
 	// Playlists. Merge its keys into each of those sections for the check.
-	if navKeys, ok := sectionKeys["Navigation (Library / Queue / Playlists)"]; ok {
-		for _, sec := range []string{"Library", "Queue", "Playlists"} {
+	if navKeys, ok := sectionKeys["Navigation (Library / Queue / Playlists / Artists)"]; ok {
+		for _, sec := range []string{"Library", "Queue", "Playlists", "Artists"} {
 			if sectionKeys[sec] == nil {
 				sectionKeys[sec] = make(map[string]bool)
 			}
@@ -79,10 +80,10 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 	}
 	// Navigation keys are shared; check that each appears in at least one
 	// of the three view contexts.
-	navContexts := []bindingContext{contextLibrary, contextQueue, contextPlaylists}
+	navContexts := []bindingContext{contextLibrary, contextQueue, contextPlaylists, contextArtists}
 	for _, sec := range sections {
 		ctx, directMatch := reverseCtx[sec.title]
-		isNav := sec.title == "Navigation (Library / Queue / Playlists)"
+		isNav := sec.title == "Navigation (Library / Queue / Playlists / Artists)"
 		if !directMatch && !isNav {
 			continue
 		}
@@ -132,7 +133,7 @@ func TestHelpOverlayRendersAllSectionHeaders(t *testing.T) {
 	h := HelpOverlay{}
 	out := h.render(styles.Styles{})
 
-	for _, header := range []string{"Global", "Library", "Playlists", "Queue", "Modals"} {
+	for _, header := range []string{"Global", "Library", "Playlists", "Artists", "Queue", "Modals"} {
 		if !strings.Contains(out, header) {
 			t.Errorf("help overlay missing section header %q", header)
 		}
@@ -157,6 +158,9 @@ func TestHelpOverlayRendersRepresentativeEntries(t *testing.T) {
 		// Playlists entries
 		{"Playlists", "Rename playlist"},
 		{"Playlists", "c"},
+		// Artists entries
+		{"Artists", "enter"},
+		{"Artists", "esc"},
 		// Queue entries
 		{"Queue", "enter"},
 		{"Queue", "Remove selected track"},

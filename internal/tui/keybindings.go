@@ -9,6 +9,7 @@ const (
 	contextLibrary                         // applies only in the Library view
 	contextPlaylists                       // applies only in the Playlists view
 	contextQueue                           // applies only in the Queue view
+	contextArtists                         // applies only in the Artists view
 	contextModals                          // applies only when a modal is active
 )
 
@@ -41,6 +42,8 @@ const (
 	actionFilterBar     // '/': activate filter bar in active view
 	actionHelp          // '?': show help overlay
 
+	actionSwitchArtists
+
 	// Library-local actions.
 	actionLibraryEnqueue // enter: append the focused track to the play queue
 
@@ -48,7 +51,7 @@ const (
 	actionCursorUp
 	actionCursorDown
 	actionSelect
-	actionDequeue            // 'd': remove the selected track from the queue
+	actionDequeue             // 'd': remove the selected track from the queue
 	actionBulkSelectionToggle // 'x': toggle bulk-selection on the selected entry
 	actionClearQueue          // 'C': clear all entries from the queue
 	actionMoveTrackUp         // 'K': move selected track one position earlier
@@ -63,11 +66,15 @@ const (
 
 	actionPlaylistEnqueueAll // 'E': enqueue all tracks from the focused playlist
 
+	// Artists-local actions.
+	actionArtistOpen // enter: drill into albums/tracks or enqueue
+	actionArtistBack // esc: go back one level
+
 	// Bulk-selection action — triggered by 'a' when tracks are selected.
 	// actionBulkAction applies in Library (append selected tracks to queue).
 	// actionBulkRemovePlaylistTracks applies in Playlists (remove selected tracks from a playlist).
-	actionBulkAction                 // 'a': apply context-appropriate bulk action and clear selection
-	actionBulkRemovePlaylistTracks   // 'a': remove selected track(s) from a playlist (Playlists context)
+	actionBulkAction               // 'a': apply context-appropriate bulk action and clear selection
+	actionBulkRemovePlaylistTracks // 'a': remove selected track(s) from a playlist (Playlists context)
 
 	// Vim-style scrolling actions — shared across Library, Queue, and Playlists.
 	actionHalfPageDown // ctrl+d: move cursor half a page down
@@ -110,6 +117,7 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "1", actionSwitchLibrary)
 	r.register(contextGlobal, "2", actionSwitchPlaylists)
 	r.register(contextGlobal, "3", actionSwitchQueue)
+	r.register(contextGlobal, "4", actionSwitchArtists)
 	r.register(contextGlobal, "R", actionRescan)
 	r.register(contextGlobal, "r", actionRepeatCycle)
 	r.register(contextGlobal, "z", actionShuffleToggle)
@@ -171,6 +179,20 @@ func newRegistry() Registry {
 	r.register(contextPlaylists, "ctrl+b", actionFullPageUp)
 	r.register(contextPlaylists, "g", actionGoToTop)
 	r.register(contextPlaylists, "G", actionGoToBottom)
+
+	// Artists-local bindings.
+	r.register(contextArtists, "j", actionCursorDown)
+	r.register(contextArtists, "k", actionCursorUp)
+	r.register(contextArtists, "up", actionCursorUp)
+	r.register(contextArtists, "down", actionCursorDown)
+	r.register(contextArtists, "enter", actionArtistOpen)
+	r.register(contextArtists, "esc", actionArtistBack)
+	r.register(contextArtists, "ctrl+d", actionHalfPageDown)
+	r.register(contextArtists, "ctrl+u", actionHalfPageUp)
+	r.register(contextArtists, "ctrl+f", actionFullPageDown)
+	r.register(contextArtists, "ctrl+b", actionFullPageUp)
+	r.register(contextArtists, "g", actionGoToTop)
+	r.register(contextArtists, "G", actionGoToBottom)
 
 	return r
 }

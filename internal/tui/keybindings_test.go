@@ -61,6 +61,47 @@ func TestQueueBindingsResolve(t *testing.T) {
 	}
 }
 
+// TestArtistsBindingsResolve verifies that every key registered under
+// contextArtists resolves to the expected action via registry.resolve.
+func TestArtistsBindingsResolve(t *testing.T) {
+	reg := newRegistry()
+
+	cases := []struct {
+		key  string
+		want action
+	}{
+		{"j", actionCursorDown},
+		{"k", actionCursorUp},
+		{"up", actionCursorUp},
+		{"down", actionCursorDown},
+		{"enter", actionArtistOpen},
+		{"esc", actionArtistBack},
+		{"ctrl+d", actionHalfPageDown},
+		{"ctrl+u", actionHalfPageUp},
+		{"ctrl+f", actionFullPageDown},
+		{"ctrl+b", actionFullPageUp},
+		{"g", actionGoToTop},
+		{"G", actionGoToBottom},
+	}
+
+	for _, tc := range cases {
+		got := reg.resolve(contextArtists, tc.key)
+		if got != tc.want {
+			t.Errorf("resolve(contextArtists, %q) = %v, want %v", tc.key, got, tc.want)
+		}
+	}
+}
+
+// TestSwitchArtistsGlobalBinding verifies that '4' resolves to
+// actionSwitchArtists in the global context.
+func TestSwitchArtistsGlobalBinding(t *testing.T) {
+	reg := newRegistry()
+	got := reg.resolve(contextGlobal, "4")
+	if got != actionSwitchArtists {
+		t.Errorf("resolve(contextGlobal, \"4\") = %v, want actionSwitchArtists", got)
+	}
+}
+
 // TestPlaylistsRShadowsGlobalRepeat verifies that 'r' resolves to
 // actionPlaylistRename (not actionRepeatCycle) when the Playlists view is
 // active, locking in the view-local shadowing behaviour.
