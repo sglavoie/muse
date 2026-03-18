@@ -446,8 +446,8 @@ func TestPlaylistsBulkRemoveAtTrackLevel(t *testing.T) {
 	// Place cursor beyond the surviving track to exercise cursor clamping.
 	nm.playlists.cursor = 2
 
-	// Press 'a' — should trigger actionBulkRemovePlaylistTracks which bulk-removes.
-	next2, _ := nm.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	// Press 'd' — should trigger actionPlaylistDelete which bulk-removes when tracks are selected.
+	next2, _ := nm.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	nm2 := next2.(Model)
 
 	if len(nm2.playlists.tracks) != 1 {
@@ -561,7 +561,7 @@ func TestBulkRemovePlaylistTracksClampsScrollOffset(t *testing.T) {
 	m.playlists.cursor = 2
 	m.playlists.scrollOffset = 2
 
-	next, _ := m.handleKeyAction(actionBulkRemovePlaylistTracks)
+	next, _ := m.handleKeyAction(actionPlaylistDelete)
 	nm := next.(Model)
 
 	if n := len(nm.playlists.tracks); n != 1 {
@@ -591,7 +591,7 @@ func TestBulkRemovePlaylistTracksSoftDeletesAndSchedulesPurge(t *testing.T) {
 	}
 	m.playlists.selectedTrackIDs = map[int64]struct{}{10: {}, 30: {}}
 
-	next, _ := m.handleKeyAction(actionBulkRemovePlaylistTracks)
+	next, _ := m.handleKeyAction(actionPlaylistDelete)
 	_ = next.(Model)
 
 	if got := len(pd.removePlaylistTrackSoftCalls); got != 2 {

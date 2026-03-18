@@ -8,7 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
-	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
 // TestLibraryCursorDownJKey verifies that pressing "j" while the library view
@@ -189,9 +188,9 @@ func TestRootLibraryAOpensDestinationPickerWithSelection(t *testing.T) {
 // library view, then confirming the queue destination, appends tracks to the
 // queue and clears the bulk selection.
 func TestRootLibraryAWithSelectionEnqueuesAndClears(t *testing.T) {
-	qa := &stubQueueAppender{}
+	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
-	m.SetQueueWriter(qa)
+	m.SetBatchEnqueuer(be)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
 	m.library.selectedHashes = map[string]struct{}{"hash-one": {}}
@@ -213,16 +212,16 @@ func TestRootLibraryAWithSelectionEnqueuesAndClears(t *testing.T) {
 	}
 	pickedMsg := enterCmd()
 
-	// Processing DestinationPickedMsg triggers the actual enqueue Cmd.
+	// Processing DestinationPickedMsg triggers the batch enqueue Cmd.
 	next3, enqueueCmd := nm.Update(pickedMsg)
 	nm3 := next3.(Model)
 
 	if enqueueCmd == nil {
 		t.Fatal("DestinationPickedMsg: expected non-nil enqueue cmd")
 	}
-	trackMsg := enqueueCmd()
-	if _, ok := trackMsg.(libtui.TrackEnqueuedMsg); !ok {
-		t.Fatalf("expected TrackEnqueuedMsg, got %T", trackMsg)
+	batchMsg := enqueueCmd()
+	if _, ok := batchMsg.(BatchEnqueuedMsg); !ok {
+		t.Fatalf("expected BatchEnqueuedMsg, got %T", batchMsg)
 	}
 	if nm3.destPicker != nil {
 		t.Error("expected destPicker to be nil after confirmation")

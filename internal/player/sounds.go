@@ -9,33 +9,72 @@ import (
 )
 
 //go:embed sounds/queue_finished.wav
-var queueFinishedSound []byte
+var queueFinishedWAV []byte
 
-var (
-	soundTempPath string
-	soundOnce     sync.Once
+//go:embed sounds/error.aiff
+var errorSound []byte
+
+//go:embed sounds/enqueued.aiff
+var enqueuedSound []byte
+
+//go:embed sounds/removed.aiff
+var removedSound []byte
+
+// Sound identifies a notification sound.
+type Sound int
+
+const (
+	SoundQueueFinished Sound = iota
+	SoundError
+	SoundEnqueued
+	SoundRemoved
 )
 
-// ensureSoundFile writes the embedded WAV to a temp file once.
-func ensureSoundFile() string {
-	soundOnce.Do(func() {
-		dir := os.TempDir()
-		path := filepath.Join(dir, "muse-queue-finished.wav")
-		_ = os.WriteFile(path, queueFinishedSound, 0o644)
-		soundTempPath = path
-	})
-	return soundTempPath
+var soundData = map[Sound]struct {
+	data []byte
+	name string
+}{
+	SoundQueueFinished: {queueFinishedWAV, "queue-finished.wav"},
+	SoundError:         {errorSound, "error.aiff"},
+	SoundEnqueued:      {enqueuedSound, "enqueued.aiff"},
+	SoundRemoved:       {removedSound, "removed.aiff"},
 }
 
-// PlayQueueFinishedSound plays the queue-finished notification sound
-// using a fire-and-forget mpv subprocess. Non-blocking.
-func PlayQueueFinishedSound() {
-	path := ensureSoundFile()
-	if path == "" {
+var (
+	soundPaths map[Sound]string
+	soundOnce  sync.Once
+	// Muted suppresses all sound playback when true. Set to true in tests.
+	Muted bool
+)
+
+func ensureSoundFiles() {
+	soundOnce.Do(func() {
+		dir := filepath.Join(os.TempDir(), "muse-sounds")
+		_ = os.MkdirAll(dir, 0o755)
+		soundPaths = make(map[Sound]string, len(soundData))
+		for s, info := range soundData {
+			p := filepath.Join(dir, info.name)
+			_ = os.WriteFile(p, info.data, 0o644)
+			soundPaths[s] = p
+		}
+	})
+}
+
+// PlaySound plays a notification sound using a fire-and-forget mpv subprocess.
+// It is a no-op when Muted is true.
+func PlaySound(s Sound) {
+	if Muted {
+		return
+	}
+	ensureSoundFiles()
+	path, ok := soundPaths[s]
+	if !ok {
 		return
 	}
 	cmd := exec.Command("mpv", "--no-video", "--no-terminal", "--really-quiet", path)
 	_ = cmd.Start()
-	// Fire-and-forget: reap the process in the background.
 	go func() { _ = cmd.Wait() }()
 }
+
+// PlayQueueFinishedSound plays the queue-finished notification sound.
+func PlayQueueFinishedSound() { PlaySound(SoundQueueFinished) }

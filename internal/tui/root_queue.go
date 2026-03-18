@@ -18,6 +18,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 			msg:       "Failed to enqueue track: " + msg.Err.Error(),
 			expiresAt: time.Now().Add(transientDuration),
 		}
+		player.PlaySound(player.SoundError)
 		return m
 	}
 	display := msg.Track.Artist + " – " + msg.Track.Title
@@ -64,6 +65,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 		msg:       "Added " + display + " — press u to undo",
 		expiresAt: time.Now().Add(undoWindowDuration),
 	}
+	player.PlaySound(player.SoundEnqueued)
 	// Trigger immediate playback when the queue was previously empty and
 	// nothing is playing.
 	if msg.WasEmpty && m.playbackState == PlaybackIdle && m.player != nil {
@@ -86,6 +88,7 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 			msg:       "Failed to enqueue playlist: " + msg.Err.Error(),
 			expiresAt: time.Now().Add(transientDuration),
 		}
+		player.PlaySound(player.SoundError)
 		return m
 	}
 	if len(msg.Entries) == 0 {
@@ -135,6 +138,7 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 		msg:       fmt.Sprintf("Added %d %s from %s — press u to undo", len(msg.Entries), pluralize(len(msg.Entries), "track", "tracks"), msg.PlaylistName),
 		expiresAt: time.Now().Add(undoWindowDuration),
 	}
+	player.PlaySound(player.SoundEnqueued)
 	return m
 }
 
@@ -180,6 +184,7 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 			dequeueEntry: entry,
 			dequeueIdx:   msg.Index,
 		}, "Track removed — press u to undo")
+		player.PlaySound(player.SoundRemoved)
 		m.queue.entries = append(m.queue.entries[:msg.Index], m.queue.entries[msg.Index+1:]...)
 		if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
 			m.queue.cursor = len(m.queue.entries) - 1
@@ -260,6 +265,7 @@ func (m Model) handleClearQueueMsg() Model {
 		clearEntries: savedEntries,
 		clearTracks:  savedTracks,
 	}, "Queue cleared — press u to undo")
+	player.PlaySound(player.SoundRemoved)
 	m.queue.entries = nil
 	m.queue.cursor = 0
 	m.queue.scrollOffset = 0
@@ -516,7 +522,56 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 	switch action {
 	case actionUndo:
 		return m, func() tea.Msg { return UndoMsg{} }, true
-	case actionSelect, actionDequeue,
+	case actionDequeue:
+		if m.queue.hasSelection() {
+			// Bulk dequeue all selected entries.
+			softDeleteTime := time.Now().Unix()
+			var removedIDs []int64
+			for _, e := range m.queue.entries {
+				if e.Selected {
+					removedIDs = append(removedIDs, e.ID)
+					if m.undoer != nil {
+						_ = m.undoer.DequeueTrackSoft(e.ID)
+					}
+				}
+			}
+			if m.undoer != nil {
+				undoer := m.undoer
+				time.AfterFunc(undoWindowDuration, func() {
+					_ = undoer.PurgeDeletedQueueEntries(softDeleteTime + 1)
+				})
+			}
+			var remaining []QueueEntry
+			for _, e := range m.queue.entries {
+				if !e.Selected {
+					remaining = append(remaining, e)
+				}
+			}
+			m.queue.entries = remaining
+			if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
+				m.queue.cursor = len(m.queue.entries) - 1
+			}
+			if n := len(m.queue.entries); n > 0 {
+				maxOffset := n - 1
+				if m.queue.scrollOffset > maxOffset {
+					m.queue.scrollOffset = maxOffset
+				}
+			} else {
+				m.queue.scrollOffset = 0
+			}
+			m.syncPlayerQueue()
+			n := len(removedIDs)
+			m.statusBar.notification = transientNotification{
+				msg:       fmt.Sprintf("%d %s removed from queue", n, pluralize(n, "track", "tracks")),
+				expiresAt: time.Now().Add(transientDuration),
+			}
+			player.PlaySound(player.SoundRemoved)
+			return m, nil, true
+		}
+		var cmd tea.Cmd
+		m.queue, cmd = m.queue.HandleAction(action)
+		return m, cmd, true
+	case actionSelect,
 		actionClearQueue, actionMoveTrackUp, actionMoveTrackDown:
 		var cmd tea.Cmd
 		m.queue, cmd = m.queue.HandleAction(action)

@@ -72,6 +72,7 @@ func (m Model) handlePlayerStatusMsg(msg PlayerStatusMsg) Model {
 func (m Model) handleMissingTrackMsg(msg MissingTrackMsg) Model {
 	m.queue.markMissing(msg.Path)
 	m.statusBar.handleMissingTrack(msg.Path)
+	player.PlaySound(player.SoundError)
 	return m
 }
 
@@ -121,6 +122,7 @@ func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
 		msg:       "Preview error: " + msg.err.Error(),
 		expiresAt: time.Now().Add(transientDuration),
 	}
+	player.PlaySound(player.SoundError)
 	// Resume main player if we paused it.
 	if m.previewWasPlaying && m.player != nil {
 		_ = m.player.Play()

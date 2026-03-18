@@ -1353,6 +1353,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			msg:       "Failed to rename playlist: " + msg.err.Error(),
 			expiresAt: time.Now().Add(transientDuration),
 		}
+		player.PlaySound(player.SoundError)
 
 	case PlaylistCreateMsg:
 		if m.playlists.atListLevel() {
@@ -1412,6 +1413,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			msg:       "Failed to create playlist: " + msg.err.Error(),
 			expiresAt: time.Now().Add(transientDuration),
 		}
+		player.PlaySound(player.SoundError)
 
 	case queueSavedAsPlaylistMsg:
 		m.queue = m.queue.cancelSaveAsPlaylist()
@@ -1424,6 +1426,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			msg:       fmt.Sprintf("Saved %s as %q (%d %s)", source, msg.playlistName, msg.count, pluralize(msg.count, "track", "tracks")),
 			expiresAt: time.Now().Add(transientDuration),
 		}
+		player.PlaySound(player.SoundEnqueued)
 
 	case queueSaveAsPlaylistErrorMsg:
 		m.queue = m.queue.cancelSaveAsPlaylist()
@@ -1431,12 +1434,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			msg:       "Failed to save queue as playlist: " + msg.err.Error(),
 			expiresAt: time.Now().Add(transientDuration),
 		}
+		player.PlaySound(player.SoundError)
 
 	case playlistAddErrorMsg:
 		m.statusBar.notification = transientNotification{
 			msg:       "Failed to add tracks: " + msg.err.Error(),
 			expiresAt: time.Now().Add(transientDuration),
 		}
+		player.PlaySound(player.SoundError)
 
 	case tracksAddedToPlaylistMsg:
 		if msg.playlists != nil {
@@ -1446,6 +1451,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			msg:       fmt.Sprintf("%d %s added to %s", msg.count, pluralize(msg.count, "track", "tracks"), msg.playlistName),
 			expiresAt: time.Now().Add(transientDuration),
 		}
+		player.PlaySound(player.SoundEnqueued)
 
 	case pltui.DestinationPickerDismissedMsg:
 		m.destPicker = nil
@@ -1467,21 +1473,41 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.destPickerTracks = nil
 		m.library = m.library.ClearSelection()
 		if msg.IsQueue {
-			// Append each track to the play queue.
-			if m.queueWriter != nil {
-				queueLen := len(m.queue.entries)
-				var cmds []tea.Cmd
-				for i, t := range tracks {
-					track := t
-					wasEmpty := queueLen+i == 0
-					qa := m.queueWriter
-					cmds = append(cmds, func() tea.Msg {
-						id, err := qa.AppendTrack(track, "")
-						return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty}
-					})
-				}
-				if len(cmds) > 0 {
-					return m, tea.Batch(cmds...)
+			// Append tracks to the play queue as a batch so only one sound plays.
+			if m.batchEnqueuer != nil {
+				be := m.batchEnqueuer
+				wasEmpty := len(m.queue.entries) == 0
+				return m, func() tea.Msg {
+					ids, err := be.AppendTracks(tracks, "")
+					if err != nil {
+						return BatchEnqueuedMsg{Err: err}
+					}
+					entries := make([]QueueEntry, len(tracks))
+					for i, t := range tracks {
+						display := t.Artist + " – " + t.Title
+						if t.Artist == "" && t.Title == "" {
+							display = t.Path
+						} else if t.Artist == "" {
+							display = t.Title
+						} else if t.Title == "" {
+							display = t.Artist
+						}
+						entries[i] = QueueEntry{
+							ID:         ids[i],
+							Path:       t.Path,
+							Hash:       t.Hash,
+							Display:    display,
+							Artist:     t.Artist,
+							Title:      t.Title,
+							DurationMs: int64(t.Duration * 1000),
+						}
+					}
+					return BatchEnqueuedMsg{
+						Entries:      entries,
+						QueueIDs:     ids,
+						WasEmpty:     wasEmpty,
+						PlaylistName: "Queue",
+					}
 				}
 			}
 		} else {
@@ -1787,45 +1813,6 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 				PlaylistName: playlistName,
 			}
 		}
-	case actionBulkRemovePlaylistTracks:
-		if !m.playlists.atListLevel() && m.playlists.hasTrackSelection() {
-			softDeleteTime := time.Now().Unix()
-			if m.playlistDeleter != nil {
-				pd := m.playlistDeleter
-				for _, t := range m.playlists.tracks {
-					if _, ok := m.playlists.selectedTrackIDs[t.ID]; ok {
-						_ = pd.RemovePlaylistTrackSoft(t.ID)
-					}
-				}
-				time.AfterFunc(undoWindowDuration, func() {
-					_ = pd.PurgeDeletedPlaylistTracks(softDeleteTime + 1)
-				})
-			}
-			var remaining []db.PlaylistTrackRow
-			for _, t := range m.playlists.tracks {
-				if _, ok := m.playlists.selectedTrackIDs[t.ID]; !ok {
-					remaining = append(remaining, t)
-				}
-			}
-			m.playlists.tracks = remaining
-			if m.playlists.cursor >= len(m.playlists.tracks) && m.playlists.cursor > 0 {
-				m.playlists.cursor = len(m.playlists.tracks) - 1
-			}
-			if nt := len(m.playlists.tracks); nt > 0 {
-				maxOffset := nt - 1
-				if m.playlists.scrollOffset > maxOffset {
-					m.playlists.scrollOffset = maxOffset
-				}
-			} else {
-				m.playlists.scrollOffset = 0
-			}
-			n := len(m.playlists.selectedTrackIDs)
-			m.playlists = m.playlists.clearTrackSelection()
-			m.statusBar.notification = transientNotification{
-				msg:       fmt.Sprintf("%d %s removed from playlist", n, pluralize(n, "track", "tracks")),
-				expiresAt: time.Now().Add(transientDuration),
-			}
-		}
 	case actionPlaylistDelete:
 		if m.playlists.atListLevel() {
 			if len(m.playlists.playlists) == 0 {
@@ -1856,6 +1843,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 				deletePlaylistEntry: entry,
 				deletePlaylistIdx:   idx,
 			}, "Playlist deleted — press u to undo")
+			player.PlaySound(player.SoundRemoved)
 			m.playlists.playlists = append(m.playlists.playlists[:idx], m.playlists.playlists[idx+1:]...)
 			if m.playlists.cursor >= len(m.playlists.playlists) && m.playlists.cursor > 0 {
 				m.playlists.cursor = len(m.playlists.playlists) - 1
@@ -1869,6 +1857,47 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 				m.playlists.scrollOffset = 0
 			}
 		} else {
+			// Bulk remove if tracks are selected.
+			if m.playlists.hasTrackSelection() {
+				softDeleteTime := time.Now().Unix()
+				if m.playlistDeleter != nil {
+					pd := m.playlistDeleter
+					for _, t := range m.playlists.tracks {
+						if _, ok := m.playlists.selectedTrackIDs[t.ID]; ok {
+							_ = pd.RemovePlaylistTrackSoft(t.ID)
+						}
+					}
+					time.AfterFunc(undoWindowDuration, func() {
+						_ = pd.PurgeDeletedPlaylistTracks(softDeleteTime + 1)
+					})
+				}
+				var remaining []db.PlaylistTrackRow
+				for _, t := range m.playlists.tracks {
+					if _, ok := m.playlists.selectedTrackIDs[t.ID]; !ok {
+						remaining = append(remaining, t)
+					}
+				}
+				m.playlists.tracks = remaining
+				if m.playlists.cursor >= len(m.playlists.tracks) && m.playlists.cursor > 0 {
+					m.playlists.cursor = len(m.playlists.tracks) - 1
+				}
+				if nt := len(m.playlists.tracks); nt > 0 {
+					maxOffset := nt - 1
+					if m.playlists.scrollOffset > maxOffset {
+						m.playlists.scrollOffset = maxOffset
+					}
+				} else {
+					m.playlists.scrollOffset = 0
+				}
+				n := len(m.playlists.selectedTrackIDs)
+				m.playlists = m.playlists.clearTrackSelection()
+				m.statusBar.notification = transientNotification{
+					msg:       fmt.Sprintf("%d %s removed from playlist", n, pluralize(n, "track", "tracks")),
+					expiresAt: time.Now().Add(transientDuration),
+				}
+				player.PlaySound(player.SoundRemoved)
+				break
+			}
 			if len(m.playlists.tracks) == 0 {
 				break
 			}
@@ -1897,6 +1926,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 				removeTrackEntry: entry,
 				removeTrackIdx:   idx,
 			}, "Track removed — press u to undo")
+			player.PlaySound(player.SoundRemoved)
 			m.playlists.tracks = append(m.playlists.tracks[:idx], m.playlists.tracks[idx+1:]...)
 			if m.playlists.cursor >= len(m.playlists.tracks) && m.playlists.cursor > 0 {
 				m.playlists.cursor = len(m.playlists.tracks) - 1
