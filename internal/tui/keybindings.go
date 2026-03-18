@@ -42,6 +42,7 @@ const (
 	actionUndo          // 'u': dispatch undo
 	actionFilterBar     // '/': activate filter bar in active view
 	actionHelp          // '?': show help overlay
+	actionNextView      // tab: cycle to next view
 
 	actionSwitchArtists
 	actionSwitchAlbums
@@ -133,6 +134,7 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "u", actionUndo)
 	r.register(contextGlobal, "/", actionFilterBar)
 	r.register(contextGlobal, "?", actionHelp)
+	r.register(contextGlobal, "tab", actionNextView)
 
 	// Library-local bindings.
 	r.register(contextLibrary, "j", actionCursorDown)

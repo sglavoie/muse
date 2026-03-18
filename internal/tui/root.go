@@ -2113,6 +2113,25 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m.prevActiveView = m.activeView
 		m.helpVisible = true
 		m.helpScroll = 0
+	case actionNextView:
+		switch m.activeView {
+		case viewLibrary:
+			m.activeView = viewPlaylists
+		case viewPlaylists:
+			m.activeView = viewQueue
+		case viewQueue:
+			m.activeView = viewArtists
+		case viewArtists:
+			m.activeView = viewAlbums
+		case viewAlbums:
+			m.activeView = viewLibrary
+		}
+		if m.activeView == viewArtists && len(m.artists.artists) == 0 {
+			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+		}
+		if m.activeView == viewAlbums && len(m.albums.albums) == 0 {
+			m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
+		}
 	case actionQuit:
 		return m, tea.Quit
 	case actionPlayPause:
