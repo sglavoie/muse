@@ -318,7 +318,15 @@ func DeriveAlbums(tracks []library.Track, artist string) []string {
 			albums = append(albums, album)
 		}
 	}
-	sort.Strings(albums)
+	sort.Slice(albums, func(i, j int) bool {
+		if albums[i] == UnknownAlbum {
+			return false
+		}
+		if albums[j] == UnknownAlbum {
+			return true
+		}
+		return albums[i] < albums[j]
+	})
 	return albums
 }
 

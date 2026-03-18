@@ -199,7 +199,15 @@ func DeriveAllAlbums(tracks []library.Track) []string {
 			albums = append(albums, album)
 		}
 	}
-	sort.Strings(albums)
+	sort.Slice(albums, func(i, j int) bool {
+		if albums[i] == arttui.UnknownAlbum {
+			return false
+		}
+		if albums[j] == arttui.UnknownAlbum {
+			return true
+		}
+		return albums[i] < albums[j]
+	})
 	return albums
 }
 

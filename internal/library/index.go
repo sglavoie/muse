@@ -17,17 +17,37 @@ func (idx *LibraryIndex) Len() int { return len(idx.tracks) }
 // Tracks returns a read-only view of the sorted track slice.
 func (idx *LibraryIndex) Tracks() []Track { return idx.tracks }
 
+// isUnknownArtist reports whether the artist field represents an unknown artist
+// (either the sentinel "Unknown Artist" or an empty string).
+func isUnknownArtist(artist string) bool {
+	return artist == unknownArtist || artist == ""
+}
+
 // less reports whether track i should sort before track j.
-// Unknown Artist sorts after all named artists; within the same artist,
-// tracks are ordered by title.
+// Tracks with unknown artists sort after all named artists; within the same
+// artist, unknown albums sort after named albums; within the same album,
+// unknown titles sort after named titles; otherwise alphabetical.
 func less(a, b Track) bool {
-	aUnknown := a.Artist == unknownArtist
-	bUnknown := b.Artist == unknownArtist
+	aUnknown := isUnknownArtist(a.Artist)
+	bUnknown := isUnknownArtist(b.Artist)
 	if aUnknown != bUnknown {
-		return bUnknown // named artist before Unknown Artist
+		return bUnknown // named artist before unknown
 	}
 	if a.Artist != b.Artist {
 		return a.Artist < b.Artist
+	}
+	aAlbumUnknown := a.Album == ""
+	bAlbumUnknown := b.Album == ""
+	if aAlbumUnknown != bAlbumUnknown {
+		return bAlbumUnknown // named album before unknown album
+	}
+	if a.Album != b.Album {
+		return a.Album < b.Album
+	}
+	aTitleUnknown := a.Title == ""
+	bTitleUnknown := b.Title == ""
+	if aTitleUnknown != bTitleUnknown {
+		return bTitleUnknown // named title before unknown title
 	}
 	return a.Title < b.Title
 }
