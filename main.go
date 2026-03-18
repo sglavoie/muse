@@ -293,6 +293,7 @@ func main() {
 		}
 	}
 	model.SetShuffle(restored.Shuffle)
+	model.SetVolume(cfg.DefaultVolume)
 	// Propagate restored repeat/shuffle modes into mpv so its behaviour
 	// matches the status bar indicators from the first user interaction.
 	_ = mgr.SetRepeat(restored.RepeatMode.String())
@@ -350,4 +351,3 @@ func main() {
 
 	app.Shutdown(shutdownDeps)
 }
-

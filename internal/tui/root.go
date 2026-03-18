@@ -482,6 +482,7 @@ type Model struct {
 	playbackState    PlaybackState // current play/pause/stopped/idle state
 	repeatMode       RepeatMode    // repeat mode: off, all, or one
 	shuffle          bool          // shuffle mode enabled
+	volume           int           // current volume level (0–100)
 	currentTrackHash string        // content hash of the track currently loaded in the player
 
 	// elapsedSecs and totalSecs hold the most recently queried playback
@@ -585,6 +586,23 @@ func (m *Model) SetRepeatMode(mode RepeatMode) {
 // before passing the model to tea.NewProgram to restore persisted session state.
 func (m *Model) SetShuffle(enabled bool) {
 	m.shuffle = enabled
+}
+
+// SetVolume pre-sets the volume level on a newly created Model. Call this
+// before passing the model to tea.NewProgram to initialise the tracked volume.
+func (m *Model) SetVolume(v int) {
+	m.volume = clampVolume(v)
+}
+
+// clampVolume restricts v to the [0, 100] range.
+func clampVolume(v int) int {
+	if v < 0 {
+		return 0
+	}
+	if v > 100 {
+		return 100
+	}
+	return v
 }
 
 // SetPlaybackState pre-sets the playback state on a newly created Model. Call
@@ -2048,10 +2066,20 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	case actionVolumeUp:
 		if cp, ok := m.player.(commandPlayer); ok {
 			_ = cp.SetVolumeRelative(5)
+			m.volume = clampVolume(m.volume + 5)
+			m.statusBar.notification = transientNotification{
+				msg:       fmt.Sprintf("Volume: %d%%", m.volume),
+				expiresAt: time.Now().Add(volumeFeedbackDuration),
+			}
 		}
 	case actionVolumeDown:
 		if cp, ok := m.player.(commandPlayer); ok {
 			_ = cp.SetVolumeRelative(-5)
+			m.volume = clampVolume(m.volume - 5)
+			m.statusBar.notification = transientNotification{
+				msg:       fmt.Sprintf("Volume: %d%%", m.volume),
+				expiresAt: time.Now().Add(volumeFeedbackDuration),
+			}
 		}
 	case actionSwitchLibrary:
 		m.activeView = viewLibrary

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -62,15 +63,24 @@ func TestGlobalBindingFiresWhenNoViewLocalBinding(t *testing.T) {
 }
 
 // TestEqualKeyFiresVolumeUp verifies that pressing '=' calls SetVolumeRelative
-// with a positive delta on the player.
+// with a positive delta on the player, updates the volume field, and sets a
+// transient notification.
 func TestEqualKeyFiresVolumeUp(t *testing.T) {
 	p := &stubVolumePlayer{}
 	m := New("", false, nil, nil, "", nil, p)
+	m.volume = 50
 
-	m.Update(tea.KeyPressMsg{Code: '=', Text: "="})
+	next, _ := m.Update(tea.KeyPressMsg{Code: '=', Text: "="})
+	nm := next.(Model)
 
 	if p.volumeDelta != 5 {
 		t.Fatalf("= key: expected SetVolumeRelative(5), got delta=%v", p.volumeDelta)
+	}
+	if nm.volume != 55 {
+		t.Fatalf("= key: expected volume=55, got %d", nm.volume)
+	}
+	if nm.statusBar.notification.msg != "Volume: 55%" {
+		t.Fatalf("= key: expected notification 'Volume: 55%%', got %q", nm.statusBar.notification.msg)
 	}
 }
 
@@ -270,15 +280,89 @@ func TestPreviousTrackKey(t *testing.T) {
 }
 
 // TestMinusKeyFiresVolumeDown verifies that pressing '-' calls
-// SetVolumeRelative(-5) on the player (volume down by 5%).
+// SetVolumeRelative(-5) on the player, updates the volume field, and sets a
+// transient notification.
 func TestMinusKeyFiresVolumeDown(t *testing.T) {
 	p := &stubVolumePlayer{}
 	m := New("", false, nil, nil, "", nil, p)
+	m.volume = 50
 
-	m.Update(tea.KeyPressMsg{Code: '-', Text: "-"})
+	next, _ := m.Update(tea.KeyPressMsg{Code: '-', Text: "-"})
+	nm := next.(Model)
 
 	if p.volumeDelta != -5 {
 		t.Fatalf("- key: expected SetVolumeRelative(-5), got delta=%v", p.volumeDelta)
+	}
+	if nm.volume != 45 {
+		t.Fatalf("- key: expected volume=45, got %d", nm.volume)
+	}
+	if nm.statusBar.notification.msg != "Volume: 45%" {
+		t.Fatalf("- key: expected notification 'Volume: 45%%', got %q", nm.statusBar.notification.msg)
+	}
+}
+
+// TestVolumeUpClampsAt100 verifies that volume up from 95 clamps to 100.
+func TestVolumeUpClampsAt100(t *testing.T) {
+	p := &stubVolumePlayer{}
+	m := New("", false, nil, nil, "", nil, p)
+	m.volume = 95
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: '=', Text: "="})
+	nm := next.(Model)
+
+	if nm.volume != 100 {
+		t.Fatalf("volume up from 95: expected 100, got %d", nm.volume)
+	}
+	if nm.statusBar.notification.msg != "Volume: 100%" {
+		t.Fatalf("expected notification 'Volume: 100%%', got %q", nm.statusBar.notification.msg)
+	}
+}
+
+// TestVolumeUpStaysAt100 verifies that volume up from 100 stays at 100.
+func TestVolumeUpStaysAt100(t *testing.T) {
+	p := &stubVolumePlayer{}
+	m := New("", false, nil, nil, "", nil, p)
+	m.volume = 100
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: '=', Text: "="})
+	nm := next.(Model)
+
+	if nm.volume != 100 {
+		t.Fatalf("volume up from 100: expected 100, got %d", nm.volume)
+	}
+}
+
+// TestVolumeDownClampsAt0 verifies that volume down from 5 clamps to 0.
+func TestVolumeDownClampsAt0(t *testing.T) {
+	p := &stubVolumePlayer{}
+	m := New("", false, nil, nil, "", nil, p)
+	m.volume = 5
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: '-', Text: "-"})
+	nm := next.(Model)
+
+	if nm.volume != 0 {
+		t.Fatalf("volume down from 5: expected 0, got %d", nm.volume)
+	}
+	if nm.statusBar.notification.msg != "Volume: 0%" {
+		t.Fatalf("expected notification 'Volume: 0%%', got %q", nm.statusBar.notification.msg)
+	}
+}
+
+// TestVolumeNotificationUsesShorterExpiry verifies that volume notifications
+// use volumeFeedbackDuration (2s), not the default transientDuration (5s).
+func TestVolumeNotificationUsesShorterExpiry(t *testing.T) {
+	p := &stubVolumePlayer{}
+	m := New("", false, nil, nil, "", nil, p)
+	m.volume = 50
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: '=', Text: "="})
+	nm := next.(Model)
+
+	expiry := nm.statusBar.notification.expiresAt
+	// The expiry should be roughly 2s from now, not 5s. Allow 1s tolerance.
+	if d := time.Until(expiry); d > 3*time.Second || d < 1*time.Second {
+		t.Fatalf("volume notification expiry: expected ~2s from now, got %v", d)
 	}
 }
 
