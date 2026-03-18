@@ -1608,7 +1608,12 @@ func (m Model) View() tea.View {
 		body = m.renderTitleBar() + "\n\n" + body
 	}
 
-	content := body + "\n" + m.renderStatusBar()
+	statusBar := m.renderStatusBar()
+	bodyLines := strings.Count(body, "\n") + 1
+	if padding := m.termHeight - bodyLines - 1; padding > 0 {
+		body += strings.Repeat("\n", padding)
+	}
+	content := body + "\n" + statusBar
 	v := tea.NewView(content)
 	v.AltScreen = true
 	return v
