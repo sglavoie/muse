@@ -198,6 +198,11 @@ type PlayQueueIndexMsg struct {
 	Index int
 }
 
+// MissingTrackSelectedMsg is dispatched by the queue view when the user
+// presses Enter on a missing track. Root handles it by showing a transient
+// notification explaining why playback cannot start.
+type MissingTrackSelectedMsg struct{}
+
 // PlaybackEndedMsg is dispatched by the player when auto-advance exhausts the
 // queue (no more playable entries). Root handles it by resetting the playback
 // state to idle so the space-bar toggle stays synchronized with mpv's state.
@@ -537,6 +542,12 @@ type Model struct {
 	// waiting for a second press to confirm clearing the queue.
 	clearQueuePending   bool
 	clearQueuePendingAt time.Time
+
+	// bulkRemovePending is true when the user has pressed 'a' once in
+	// Playlists view with selected tracks and is waiting for a second
+	// press to confirm removing them.
+	bulkRemovePending   bool
+	bulkRemovePendingAt time.Time
 
 	playbackState    PlaybackState // current play/pause/stopped/idle state
 	repeatMode       RepeatMode    // repeat mode: off, all, or one
@@ -1071,6 +1082,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case PlayQueueIndexMsg:
 		m = m.handlePlayQueueIndexMsg(msg)
 
+	case MissingTrackSelectedMsg:
+		m.statusBar.notification = transientNotification{
+			msg:       "Cannot play — file is missing",
+			expiresAt: time.Now().Add(transientDuration),
+		}
+
 	case DequeueTrackMsg:
 		m = m.handleDequeueTrackMsg(msg)
 
@@ -1413,9 +1430,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				var rows []db.PlaylistRow
 				if pr != nil {
-					rows, _ = pr.ReadPlaylists()
+					var err error
+					rows, err = pr.ReadPlaylists()
+					if err != nil {
+						slog.Warn("playlist read failed", "err", err)
+					}
 				} else if pw != nil {
-					rows, _ = pw.ReadPlaylists()
+					var err error
+					rows, err = pw.ReadPlaylists()
+					if err != nil {
+						slog.Warn("playlist read failed", "err", err)
+					}
 				}
 				return tracksAddedToPlaylistMsg{playlists: rows, playlistName: playlistName, count: count}
 			}
@@ -1550,9 +1575,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 						var rows []db.PlaylistRow
 						if pr != nil {
-							rows, _ = pr.ReadPlaylists()
+							var err error
+							rows, err = pr.ReadPlaylists()
+							if err != nil {
+								slog.Warn("playlist read failed", "err", err)
+							}
 						} else if pw != nil {
-							rows, _ = pw.ReadPlaylists()
+							var err error
+							rows, err = pw.ReadPlaylists()
+							if err != nil {
+								slog.Warn("playlist read failed", "err", err)
+							}
 						}
 						return tracksAddedToPlaylistMsg{playlists: rows, playlistName: playlistName, count: count}
 					}
@@ -1709,6 +1742,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m.helpViewport.SetContent(HelpOverlay{}.render(*m.styles, sections, title))
 	case actionNextView:
 		m.clearQueuePending = false
+		m.bulkRemovePending = false
 		m.activeView = nextView(m.activeView)
 		if m.activeView == viewArtists && len(m.artists.artists) == 0 {
 			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
@@ -1718,6 +1752,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		}
 	case actionPrevView:
 		m.clearQueuePending = false
+		m.bulkRemovePending = false
 		m.activeView = prevView(m.activeView)
 		if m.activeView == viewArtists && len(m.artists.artists) == 0 {
 			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
@@ -1733,21 +1768,26 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		return m, func() tea.Msg { return FilterBarMsg{} }
 	case actionSwitchLibrary:
 		m.clearQueuePending = false
+		m.bulkRemovePending = false
 		m.activeView = viewLibrary
 	case actionSwitchPlaylists:
 		m.clearQueuePending = false
+		m.bulkRemovePending = false
 		m.activeView = viewPlaylists
 	case actionSwitchQueue:
 		m.clearQueuePending = false
+		m.bulkRemovePending = false
 		m.activeView = viewQueue
 	case actionSwitchArtists:
 		m.clearQueuePending = false
+		m.bulkRemovePending = false
 		m.activeView = viewArtists
 		if len(m.artists.artists) == 0 {
 			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
 		}
 	case actionSwitchAlbums:
 		m.clearQueuePending = false
+		m.bulkRemovePending = false
 		m.activeView = viewAlbums
 		if len(m.albums.albums) == 0 {
 			m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())

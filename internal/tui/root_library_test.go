@@ -465,6 +465,14 @@ func TestFilterBarMsgIgnoredOutsideLibraryView(t *testing.T) {
 		t.Error("library filterActive should remain false when FilterBarMsg is sent outside the library view")
 	}
 
+	// Verify transient notification is set for unsupported view.
+	if nm.statusBar.notification.msg == "" {
+		t.Error("FilterBarMsg on queue view should set a transient notification")
+	}
+	if !strings.Contains(nm.statusBar.notification.msg, "not available") {
+		t.Errorf("unexpected notification: %s", nm.statusBar.notification.msg)
+	}
+
 	// Also check playlists view.
 	next, _ = m.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
 	nm = next.(Model)
@@ -472,5 +480,8 @@ func TestFilterBarMsgIgnoredOutsideLibraryView(t *testing.T) {
 	nm = next.(Model)
 	if nm.library.filter.Active {
 		t.Error("library filterActive should remain false when FilterBarMsg is sent on playlists view")
+	}
+	if nm.statusBar.notification.msg == "" {
+		t.Error("FilterBarMsg on playlists view should set a transient notification")
 	}
 }

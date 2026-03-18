@@ -32,6 +32,40 @@ func TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError(t *testing.T) {
 	}
 }
 
+// TestSelectMissingTrackEmitsMissingTrackSelectedMsg verifies that pressing
+// enter on a missing queue entry emits MissingTrackSelectedMsg and that root
+// handles it by setting a transient notification.
+func TestSelectMissingTrackEmitsMissingTrackSelectedMsg(t *testing.T) {
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/gone.flac", Display: "Artist – Gone", Missing: true, Hash: "abc123"},
+	}
+	m.queue.cursor = 0
+
+	// HandleAction with actionSelect on a missing entry should produce
+	// MissingTrackSelectedMsg.
+	v, cmd := m.queue.HandleAction(actionSelect)
+	m.queue = v
+	if cmd == nil {
+		t.Fatal("expected a command from selecting a missing track")
+	}
+	msg := cmd()
+	if _, ok := msg.(MissingTrackSelectedMsg); !ok {
+		t.Fatalf("expected MissingTrackSelectedMsg, got %T", msg)
+	}
+
+	// Feed the message through root Update to verify the notification.
+	next, _ := m.Update(msg)
+	nm := next.(Model)
+	if nm.statusBar.notification.msg == "" {
+		t.Fatal("MissingTrackSelectedMsg must set a transient notification")
+	}
+	if !strings.Contains(nm.statusBar.notification.msg, "missing") {
+		t.Errorf("unexpected notification: %s", nm.statusBar.notification.msg)
+	}
+}
+
 // TestQueueViewRendersMissingEntryDimmed verifies that a missing queue entry
 // is rendered with dim styling and shows the "[missing]" label.
 func TestQueueViewRendersMissingEntryDimmed(t *testing.T) {

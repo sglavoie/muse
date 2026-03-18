@@ -1,8 +1,13 @@
 package tui
 
 import (
+	"fmt"
+	"time"
+
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/player"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
@@ -216,6 +221,56 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 					tracks = []library.Track{t}
 				}
 			}
+		case viewPlaylists:
+			if m.playlists.level != pltui.TrackLevel || !m.playlists.hasTrackSelection() {
+				return m, nil, true
+			}
+			n := len(m.playlists.selectedTrackIDs)
+			now := time.Now()
+			if m.bulkRemovePending && now.Before(m.bulkRemovePendingAt.Add(2*time.Second)) {
+				m.bulkRemovePending = false
+				// Execute bulk removal — same logic as actionPlaylistDelete's bulk path.
+				softDeleteTime := now.Unix()
+				if m.playlistDeleter != nil {
+					pd := m.playlistDeleter
+					for _, t := range m.playlists.tracks {
+						if _, ok := m.playlists.selectedTrackIDs[t.ID]; ok {
+							_ = pd.RemovePlaylistTrackSoft(t.ID)
+						}
+					}
+					time.AfterFunc(undoWindowDuration, func() {
+						_ = pd.PurgeDeletedPlaylistTracks(softDeleteTime + 1)
+					})
+				}
+				var remaining []db.PlaylistTrackRow
+				for _, t := range m.playlists.tracks {
+					if _, ok := m.playlists.selectedTrackIDs[t.ID]; !ok {
+						remaining = append(remaining, t)
+					}
+				}
+				m.playlists.tracks = remaining
+				if m.playlists.cursor >= len(m.playlists.tracks) && m.playlists.cursor > 0 {
+					m.playlists.cursor = len(m.playlists.tracks) - 1
+				}
+				if nt := len(m.playlists.tracks); nt > 0 {
+					maxOffset := nt - 1
+					if m.playlists.scrollOffset > maxOffset {
+						m.playlists.scrollOffset = maxOffset
+					}
+				} else {
+					m.playlists.scrollOffset = 0
+				}
+				m.playlists.selectedTrackIDs = nil
+				player.PlaySound(player.SoundRemoved)
+				return m, nil, true
+			}
+			m.bulkRemovePending = true
+			m.bulkRemovePendingAt = now
+			m.statusBar.notification = transientNotification{
+				msg:       fmt.Sprintf("Press a again to remove %d selected %s", n, pluralize(n, "track", "tracks")),
+				expiresAt: now.Add(2 * time.Second),
+			}
+			return m, nil, true
 		}
 		if len(tracks) > 0 {
 			modal := pltui.NewDestinationPicker(m.playlists.playlists)

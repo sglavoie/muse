@@ -965,3 +965,52 @@ func TestPlaylistTrackDeleteNoPanicWhenCursorOutOfBounds(t *testing.T) {
 	next, _ := m.handleKeyAction(actionPlaylistDelete)
 	_ = next
 }
+
+// TestBulkActionInPlaylistsRequiresConfirmation verifies that pressing 'a' in
+// Playlists at TrackLevel with selected tracks shows a confirmation notification
+// on the first press, and executes the removal on the second press.
+func TestBulkActionInPlaylistsRequiresConfirmation(t *testing.T) {
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m.activeView = viewPlaylists
+	pd := &stubPlaylistDeleter{}
+	m.SetPlaylistDeleter(pd)
+
+	m.playlists.level = pltui.TrackLevel
+	m.playlists.tracks = []db.PlaylistTrackRow{
+		{ID: 10, Position: 1, Title: "A", Artist: "X", DurationMs: 1000},
+		{ID: 20, Position: 2, Title: "B", Artist: "Y", DurationMs: 2000},
+		{ID: 30, Position: 3, Title: "C", Artist: "Z", DurationMs: 3000},
+	}
+	m.playlists.selectedTrackIDs = map[int64]struct{}{10: {}, 20: {}}
+
+	// First 'a' press — should show confirmation, NOT remove tracks.
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	nm := next.(Model)
+
+	if len(nm.playlists.tracks) != 3 {
+		t.Fatalf("first 'a' press should not remove tracks, got %d remaining", len(nm.playlists.tracks))
+	}
+	if !nm.bulkRemovePending {
+		t.Fatal("expected bulkRemovePending=true after first 'a' press")
+	}
+	if nm.statusBar.notification.msg == "" {
+		t.Fatal("expected a confirmation notification after first 'a' press")
+	}
+
+	// Second 'a' press — should execute the removal.
+	next2, _ := nm.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	nm2 := next2.(Model)
+
+	if len(nm2.playlists.tracks) != 1 {
+		t.Fatalf("expected 1 track remaining after confirmed removal, got %d", len(nm2.playlists.tracks))
+	}
+	if nm2.playlists.tracks[0].ID != 30 {
+		t.Fatalf("expected remaining track ID=30, got ID=%d", nm2.playlists.tracks[0].ID)
+	}
+	if nm2.bulkRemovePending {
+		t.Fatal("expected bulkRemovePending=false after confirmed removal")
+	}
+	if nm2.playlists.selectedTrackIDs != nil {
+		t.Fatalf("expected selectedTrackIDs to be nil after removal, got %v", nm2.playlists.selectedTrackIDs)
+	}
+}

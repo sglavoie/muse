@@ -1,10 +1,7 @@
 package library
 
 import (
-	"io/fs"
 	"os"
-	"path/filepath"
-	"strings"
 )
 
 // Scan runs the three-stage scanner pipeline for root and returns a channel
@@ -42,53 +39,16 @@ func FilteredWalk(root string, known map[string]KnownFile) (<-chan string, []str
 	seen := make(map[string]bool, len(known))
 	var changed []string
 
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+	_ = walkAudioPaths(root, func(path string) error {
+		seen[path] = true
+		info, err := os.Stat(path)
 		if err != nil {
+			changed = append(changed, path)
 			return nil
 		}
-
-		name := d.Name()
-
-		if strings.HasPrefix(name, ".") {
-			if d.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if d.Type()&fs.ModeSymlink != 0 {
-			info, err := os.Stat(path)
-			if err != nil {
-				return nil
-			}
-			if info.IsDir() {
-				return nil
-			}
-			if isAudioFile(info.Name()) {
-				seen[path] = true
-				kf, exists := known[path]
-				if !exists || info.ModTime().Unix() != kf.ModTime || info.Size() != kf.SizeBytes {
-					changed = append(changed, path)
-				}
-			}
-			return nil
-		}
-
-		if d.IsDir() {
-			return nil
-		}
-
-		if isAudioFile(name) {
-			seen[path] = true
-			info, err := d.Info()
-			if err != nil {
-				changed = append(changed, path)
-				return nil
-			}
-			kf, exists := known[path]
-			if !exists || info.ModTime().Unix() != kf.ModTime || info.Size() != kf.SizeBytes {
-				changed = append(changed, path)
-			}
+		kf, exists := known[path]
+		if !exists || info.ModTime().Unix() != kf.ModTime || info.Size() != kf.SizeBytes {
+			changed = append(changed, path)
 		}
 		return nil
 	})

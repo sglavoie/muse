@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -71,6 +72,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 		DurationMs:     int64(msg.Track.Duration * 1000),
 		SourcePlaylist: msg.SourcePlaylist,
 	})
+	slog.Debug("track enqueued", "hash", msg.Track.Hash, "position", len(m.queue.entries)-1)
 	// Keep the player's in-memory queue in sync.
 	if pa, ok := m.player.(playerQueueAppender); ok {
 		pa.AppendToQueue(player.QueueTrack{
@@ -216,6 +218,7 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 			dequeueEntry: entry,
 			dequeueIdx:   msg.Index,
 		}, "Track removed — press u to undo")
+		slog.Debug("track dequeued", "hash", entry.Hash, "position", msg.Index)
 		player.PlaySound(player.SoundRemoved)
 		m.queue.entries = append(m.queue.entries[:msg.Index], m.queue.entries[msg.Index+1:]...)
 		m.clampQueueCursorAndScroll()
@@ -276,6 +279,7 @@ func (m Model) handleClearQueueMsg() Model {
 		clearEntries: savedEntries,
 		clearTracks:  savedTracks,
 	}, "Queue cleared — press u to undo")
+	slog.Debug("queue cleared", "count", len(savedEntries))
 	player.PlaySound(player.SoundRemoved)
 	m.queue.entries = nil
 	m.queue.cursor = 0
@@ -320,6 +324,7 @@ func (m Model) handleMoveTrackUpMsg(msg MoveTrackUpMsg) (Model, tea.Cmd) {
 		entry := m.queue.entries[msg.Index]
 		m.queue.entries[msg.Index-1], m.queue.entries[msg.Index] = m.queue.entries[msg.Index], m.queue.entries[msg.Index-1]
 		m.queue.cursor = msg.Index - 1
+		slog.Debug("track reordered", "hash", entry.Hash, "from", msg.Index, "to", msg.Index-1)
 		m.syncPlayerQueue()
 		if m.reorderer != nil {
 			r := m.reorderer
@@ -340,6 +345,7 @@ func (m Model) handleMoveTrackDownMsg(msg MoveTrackDownMsg) (Model, tea.Cmd) {
 		entry := m.queue.entries[msg.Index]
 		m.queue.entries[msg.Index], m.queue.entries[msg.Index+1] = m.queue.entries[msg.Index+1], m.queue.entries[msg.Index]
 		m.queue.cursor = msg.Index + 1
+		slog.Debug("track reordered", "hash", entry.Hash, "from", msg.Index, "to", msg.Index+1)
 		m.syncPlayerQueue()
 		if m.reorderer != nil {
 			r := m.reorderer
@@ -371,6 +377,7 @@ func (m Model) handleUndo() Model {
 		close(m.undoSlot.cancelPurge)
 		m.undoSlot.cancelPurge = nil
 	}
+	slog.Debug("queue undo", "kind", m.undoSlot.kind)
 	switch m.undoSlot.kind {
 	case undoKindEnqueue:
 		idx := m.undoSlot.dequeueIdx

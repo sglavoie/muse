@@ -49,7 +49,7 @@ func helpSections() []helpSection {
 				{"r", "Cycle repeat mode"},
 				{"z", "Toggle shuffle"},
 				{"u", "Undo"},
-				{"/", "Activate filter bar"},
+				{"/", "Filter (Library / Artists / Albums)"},
 				{"P", "Preview focused track"},
 				{"I", "Show now-playing info"},
 				{"M", "Edit metadata of focused track"},

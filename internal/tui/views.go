@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/db"
 	musiclib "github.com/sglavoie/muse/internal/library"
@@ -466,6 +466,8 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 		if v.cursor >= 0 && v.cursor < len(v.entries) && !v.entries[v.cursor].Missing {
 			idx := v.cursor
 			return v, func() tea.Msg { return PlayQueueIndexMsg{Index: idx} }
+		} else if v.cursor >= 0 && v.cursor < len(v.entries) && v.entries[v.cursor].Missing {
+			return v, func() tea.Msg { return MissingTrackSelectedMsg{} }
 		}
 	case actionDequeue:
 		if v.cursor >= 0 && v.cursor < len(v.entries) {

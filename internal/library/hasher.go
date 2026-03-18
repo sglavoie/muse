@@ -40,6 +40,7 @@ func hashWorkersN(n int, in <-chan string, hashFn func(string) (string, error)) 
 			for path := range in {
 				hash, err := hashFn(path)
 				if err != nil {
+					slog.Warn("hash failed", "path", path, "err", err)
 					continue
 				}
 				hf := HashedFile{Path: path, Hash: hash}

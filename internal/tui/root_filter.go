@@ -1,78 +1,85 @@
 package tui
 
-import tea "charm.land/bubbletea/v2"
+import (
+	"time"
+
+	tea "charm.land/bubbletea/v2"
+)
 
 // filterOps bundles the filter operations for a single view so that
-// handleFilterKeyPress can work generically across library/artists/albums.
+// handleFilterKeyPress and handleFilterBarMsg can work generically across
+// library/artists/albums.
 type filterOps struct {
 	deactivate func() Model
 	commit     func() Model
 	backspace  func() Model
 	appendChar func(rune) Model
+	isActive   func() bool
+	activate   func() Model
 }
 
 // activeFilterOps returns the filter operations for the currently active view,
 // or nil if no filter is active.
 func (m Model) activeFilterOps() *filterOps {
+	ops := m.allFilterOps()
+	if ops == nil || !ops.isActive() {
+		return nil
+	}
+	return ops
+}
+
+// allFilterOps returns the filter operations for the currently active view,
+// regardless of whether the filter is active. Returns nil for views that do
+// not support filtering (e.g. Queue, Playlists).
+func (m Model) allFilterOps() *filterOps {
 	switch m.activeView {
 	case viewLibrary:
-		if !m.library.filter.Active {
-			return nil
-		}
 		return &filterOps{
 			deactivate: func() Model { m.library = m.library.DeactivateFilter(); return m },
 			commit:     func() Model { m.library = m.library.CommitFilter(); return m },
 			backspace:  func() Model { m.library = m.library.BackspaceFilter(); return m },
 			appendChar: func(ch rune) Model { m.library = m.library.AppendFilterChar(ch); return m },
+			isActive:   func() bool { return m.library.filter.Active },
+			activate:   func() Model { m.library = m.library.ActivateFilter(); return m },
 		}
 	case viewArtists:
-		if !m.artists.filter.Active {
-			return nil
-		}
 		return &filterOps{
 			deactivate: func() Model { m.artists = m.artists.DeactivateFilter(); return m },
 			commit:     func() Model { m.artists = m.artists.CommitFilter(); return m },
 			backspace:  func() Model { m.artists = m.artists.BackspaceFilter(); return m },
 			appendChar: func(ch rune) Model { m.artists = m.artists.AppendFilterChar(ch); return m },
+			isActive:   func() bool { return m.artists.filter.Active },
+			activate:   func() Model { m.artists = m.artists.ActivateFilter(); return m },
 		}
 	case viewAlbums:
-		if !m.albums.filter.Active {
-			return nil
-		}
 		return &filterOps{
 			deactivate: func() Model { m.albums = m.albums.DeactivateFilter(); return m },
 			commit:     func() Model { m.albums = m.albums.CommitFilter(); return m },
 			backspace:  func() Model { m.albums = m.albums.BackspaceFilter(); return m },
 			appendChar: func(ch rune) Model { m.albums = m.albums.AppendFilterChar(ch); return m },
+			isActive:   func() bool { return m.albums.filter.Active },
+			activate:   func() Model { m.albums = m.albums.ActivateFilter(); return m },
 		}
 	default:
 		return nil
 	}
 }
 
-// handleFilterBarMsg toggles the filter bar in the active view.
+// handleFilterBarMsg toggles the filter bar in the active view, or shows a
+// transient notification if filtering is not supported in the current view.
 func (m Model) handleFilterBarMsg() Model {
-	switch m.activeView {
-	case viewLibrary:
-		if m.library.filter.Active {
-			m.library = m.library.CommitFilter()
-		} else {
-			m.library = m.library.ActivateFilter()
+	ops := m.allFilterOps()
+	if ops == nil {
+		m.statusBar.notification = transientNotification{
+			msg:       "Filter not available in this view",
+			expiresAt: time.Now().Add(transientDuration),
 		}
-	case viewArtists:
-		if m.artists.filter.Active {
-			m.artists = m.artists.CommitFilter()
-		} else {
-			m.artists = m.artists.ActivateFilter()
-		}
-	case viewAlbums:
-		if m.albums.filter.Active {
-			m.albums = m.albums.CommitFilter()
-		} else {
-			m.albums = m.albums.ActivateFilter()
-		}
+		return m
 	}
-	return m
+	if ops.isActive() {
+		return ops.commit()
+	}
+	return ops.activate()
 }
 
 // handleFilterKeyPress intercepts keypresses when a filter bar is active in
