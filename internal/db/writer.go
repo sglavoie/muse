@@ -820,6 +820,19 @@ func (w *Writer) PurgeDeletedPlaylistTracks(before int64) error {
 	})
 }
 
+// UpdateTrackMetadata updates the title, artist, and album for the track
+// identified by hash and sets user_edited=1 so that future rescans preserve
+// the manually edited metadata.
+func (w *Writer) UpdateTrackMetadata(hash, title, artist, album string) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(
+			`UPDATE tracks SET title=?, artist=?, album=?, user_edited=1, updated_at=? WHERE hash=?`,
+			title, artist, album, time.Now().Unix(), hash,
+		)
+		return err
+	})
+}
+
 // UpsertBatch writes tracks into the tracks table inside a single transaction
 // using an INSERT … ON CONFLICT(hash) DO UPDATE so that existing rows are
 // updated in place without cascading deletes on their FK dependants (queue,
@@ -846,9 +859,9 @@ func (w *Writer) UpsertBatch(tracks []library.Track) error {
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				ON CONFLICT(hash) DO UPDATE SET
 					path        = excluded.path,
-					title       = excluded.title,
-					artist      = excluded.artist,
-					album       = excluded.album,
+					title       = CASE WHEN tracks.user_edited = 0 THEN excluded.title ELSE tracks.title END,
+					artist      = CASE WHEN tracks.user_edited = 0 THEN excluded.artist ELSE tracks.artist END,
+					album       = CASE WHEN tracks.user_edited = 0 THEN excluded.album ELSE tracks.album END,
 					duration_ms = excluded.duration_ms,
 					size_bytes  = excluded.size_bytes,
 					mod_time    = excluded.mod_time,

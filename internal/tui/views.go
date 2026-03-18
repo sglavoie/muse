@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/bubbles/v2/textinput"
+
 	"github.com/sglavoie/muse/internal/db"
 	musiclib "github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
@@ -101,9 +103,9 @@ type PlaylistsView struct {
 	width            int
 	height           int
 	creating         bool               // true while the inline create input is active
-	createInput      pltui.TextInput    // current value of the inline create field
+	createInput      textinput.Model    // current value of the inline create field
 	renaming         bool               // true while the inline rename input is active
-	renameInput      pltui.TextInput    // current value of the inline rename field
+	renameInput      textinput.Model    // current value of the inline rename field
 	selectedTrackIDs map[int64]struct{} // bulk-selected playlist track row IDs at TrackLevel
 }
 
@@ -147,18 +149,11 @@ func (v PlaylistsView) cancelCreate() PlaylistsView {
 	return v
 }
 
-// appendCreateChar appends r to the create input buffer.
-func (v PlaylistsView) appendCreateChar(r rune) PlaylistsView {
-	view := pltui.View{Creating: v.creating, CreateInput: v.createInput}.AppendCreateChar(r)
-	v.createInput = view.CreateInput
-	return v
-}
-
-// backspaceCreate removes the last rune from the create input buffer.
-func (v PlaylistsView) backspaceCreate() PlaylistsView {
-	view := pltui.View{Creating: v.creating, CreateInput: v.createInput}.BackspaceCreate()
-	v.createInput = view.CreateInput
-	return v
+// updateCreateInput forwards a key message to the Bubbles textinput model.
+func (v PlaylistsView) updateCreateInput(msg tea.KeyPressMsg) (PlaylistsView, tea.Cmd) {
+	var cmd tea.Cmd
+	v.createInput, cmd = v.createInput.Update(msg)
+	return v, cmd
 }
 
 // createInputValue returns the current create input buffer as a string.
@@ -168,7 +163,7 @@ func (v PlaylistsView) createInputValue() string {
 
 // createInputIsEmpty reports whether the trimmed create input buffer is empty.
 func (v PlaylistsView) createInputIsEmpty() bool {
-	return v.createInput.IsEmpty()
+	return strings.TrimSpace(v.createInput.Value()) == ""
 }
 
 // isRenaming reports whether the inline rename input is active.
@@ -192,18 +187,11 @@ func (v PlaylistsView) cancelRename() PlaylistsView {
 	return v
 }
 
-// appendRenameChar appends r to the rename input buffer.
-func (v PlaylistsView) appendRenameChar(r rune) PlaylistsView {
-	view := pltui.View{Renaming: v.renaming, RenameInput: v.renameInput}.AppendRenameChar(r)
-	v.renameInput = view.RenameInput
-	return v
-}
-
-// backspaceRename removes the last rune from the rename input buffer.
-func (v PlaylistsView) backspaceRename() PlaylistsView {
-	view := pltui.View{Renaming: v.renaming, RenameInput: v.renameInput}.BackspaceRename()
-	v.renameInput = view.RenameInput
-	return v
+// updateRenameInput forwards a key message to the Bubbles textinput model.
+func (v PlaylistsView) updateRenameInput(msg tea.KeyPressMsg) (PlaylistsView, tea.Cmd) {
+	var cmd tea.Cmd
+	v.renameInput, cmd = v.renameInput.Update(msg)
+	return v, cmd
 }
 
 // renameInputValue returns the current rename input buffer as a string.
@@ -213,7 +201,7 @@ func (v PlaylistsView) renameInputValue() string {
 
 // renameInputIsEmpty reports whether the trimmed rename input buffer is empty.
 func (v PlaylistsView) renameInputIsEmpty() bool {
-	return v.renameInput.IsEmpty()
+	return strings.TrimSpace(v.renameInput.Value()) == ""
 }
 
 // focusedPlaylist returns the playlist at the current cursor position and true.
@@ -426,7 +414,7 @@ type QueueView struct {
 	height              int
 	savingAsPlaylist    bool            // true while the inline save-as-playlist input is active
 	savingFromSelection bool            // true when saving only bulk-selected entries (not the full queue)
-	saveInput           pltui.TextInput // current value of the inline save field
+	saveInput           textinput.Model // current value of the inline save field
 }
 
 // Update is a no-op stub. See the QueueView godoc for why all key handling is
@@ -525,7 +513,7 @@ func (v QueueView) isSavingAsPlaylist() bool {
 func (v QueueView) startSaveAsPlaylist(fromSelection bool) QueueView {
 	v.savingAsPlaylist = true
 	v.savingFromSelection = fromSelection
-	v.saveInput = pltui.NewTextInput("")
+	v.saveInput = pltui.NewInlineInput("")
 	return v
 }
 
@@ -533,7 +521,7 @@ func (v QueueView) startSaveAsPlaylist(fromSelection bool) QueueView {
 func (v QueueView) cancelSaveAsPlaylist() QueueView {
 	v.savingAsPlaylist = false
 	v.savingFromSelection = false
-	v.saveInput = pltui.TextInput{}
+	v.saveInput = textinput.Model{}
 	return v
 }
 
@@ -558,16 +546,11 @@ func (v QueueView) selectedHashes() []string {
 	return hashes
 }
 
-// appendSaveChar appends r to the save input buffer.
-func (v QueueView) appendSaveChar(r rune) QueueView {
-	v.saveInput = v.saveInput.AppendRune(r)
-	return v
-}
-
-// backspaceSave removes the last rune from the save input buffer.
-func (v QueueView) backspaceSave() QueueView {
-	v.saveInput = v.saveInput.Backspace()
-	return v
+// updateSaveInput forwards a key message to the Bubbles textinput model.
+func (v QueueView) updateSaveInput(msg tea.KeyPressMsg) (QueueView, tea.Cmd) {
+	var cmd tea.Cmd
+	v.saveInput, cmd = v.saveInput.Update(msg)
+	return v, cmd
 }
 
 // saveInputValue returns the current save input buffer as a string.
@@ -577,7 +560,7 @@ func (v QueueView) saveInputValue() string {
 
 // saveInputIsEmpty reports whether the trimmed save input buffer is empty.
 func (v QueueView) saveInputIsEmpty() bool {
-	return v.saveInput.IsEmpty()
+	return strings.TrimSpace(v.saveInput.Value()) == ""
 }
 
 // moveQueueCursor shifts the cursor by delta rows, clamping to [0, len-1],
@@ -703,7 +686,7 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 		if v.savingFromSelection {
 			prompt = "Save selection as playlist: "
 		}
-		inputLine := s.Accent.Render(prompt) + v.saveInput.Render()
+		inputLine := s.Accent.Render(prompt) + v.saveInput.View()
 		out += "\n" + inputLine
 	}
 	return out

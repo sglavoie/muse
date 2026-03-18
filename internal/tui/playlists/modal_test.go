@@ -550,32 +550,6 @@ func TestModalRenderZeroDimensions(t *testing.T) {
 	}
 }
 
-// --- TextInput.Render ---
-
-func TestTextInputRender(t *testing.T) {
-	ti := NewTextInput("Hello")
-	got := ti.Render()
-	if got != "Hello█" {
-		t.Errorf("Render: expected 'Hello█', got %q", got)
-	}
-}
-
-func TestTextInputRenderEmpty(t *testing.T) {
-	ti := NewTextInput("")
-	got := ti.Render()
-	if got != "█" {
-		t.Errorf("Render empty: expected '█', got %q", got)
-	}
-}
-
-func TestTextInputBackspaceEmpty(t *testing.T) {
-	ti := NewTextInput("")
-	ti = ti.Backspace()
-	if ti.Value() != "" {
-		t.Errorf("Backspace on empty: expected empty, got %q", ti.Value())
-	}
-}
-
 // --- columns edge cases ---
 
 func TestComputeNarrowWidth(t *testing.T) {

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/bubbles/v2/textinput"
+
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -33,9 +35,9 @@ type View struct {
 	Width            int
 	Height           int
 	Creating         bool               // true while the inline create input is active
-	CreateInput      TextInput          // current value of the inline create field
+	CreateInput      textinput.Model    // current value of the inline create field
 	Renaming         bool               // true while the inline rename input is active
-	RenameInput      TextInput          // current value of the inline rename field
+	RenameInput      textinput.Model    // current value of the inline rename field
 	SelectedTrackIDs map[int64]struct{} // bulk-selected playlist track row IDs
 	Styles           styles.Styles
 }
@@ -165,31 +167,29 @@ func (v View) BackToList() View {
 	return v
 }
 
+// NewInlineInput creates a focused textinput suitable for inline row editing.
+func NewInlineInput(initial string) textinput.Model {
+	ti := textinput.New()
+	ti.SetValue(initial)
+	ti.CursorEnd()
+	ti.Prompt = ""
+	ti.CharLimit = 0
+	ti.Focus()
+	return ti
+}
+
 // StartCreate returns a copy of v with the inline create input activated and
 // its buffer cleared.
 func (v View) StartCreate() View {
 	v.Creating = true
-	v.CreateInput = NewTextInput("")
+	v.CreateInput = NewInlineInput("")
 	return v
 }
 
 // CancelCreate returns a copy of v with the inline create input dismissed.
 func (v View) CancelCreate() View {
 	v.Creating = false
-	v.CreateInput = TextInput{}
-	return v
-}
-
-// AppendCreateChar returns a copy of v with r appended to the create buffer.
-func (v View) AppendCreateChar(r rune) View {
-	v.CreateInput = v.CreateInput.AppendRune(r)
-	return v
-}
-
-// BackspaceCreate returns a copy of v with the last rune removed from the
-// create buffer.
-func (v View) BackspaceCreate() View {
-	v.CreateInput = v.CreateInput.Backspace()
+	v.CreateInput = textinput.Model{}
 	return v
 }
 
@@ -197,27 +197,14 @@ func (v View) BackspaceCreate() View {
 // pre-populated with currentName.
 func (v View) StartRename(currentName string) View {
 	v.Renaming = true
-	v.RenameInput = NewTextInput(currentName)
+	v.RenameInput = NewInlineInput(currentName)
 	return v
 }
 
 // CancelRename returns a copy of v with the inline rename input dismissed.
 func (v View) CancelRename() View {
 	v.Renaming = false
-	v.RenameInput = TextInput{}
-	return v
-}
-
-// AppendRenameChar returns a copy of v with r appended to the rename buffer.
-func (v View) AppendRenameChar(r rune) View {
-	v.RenameInput = v.RenameInput.AppendRune(r)
-	return v
-}
-
-// BackspaceRename returns a copy of v with the last rune removed from the
-// rename buffer.
-func (v View) BackspaceRename() View {
-	v.RenameInput = v.RenameInput.Backspace()
+	v.RenameInput = textinput.Model{}
 	return v
 }
 
@@ -299,7 +286,7 @@ func (v View) renderList() string {
 // fitted to the same column widths as a normal playlist row.
 func (v View) renderCreateInputRow(cols Columns) string {
 	rowWidth := cols.Name + nameSep + cols.Count
-	display := truncate(v.CreateInput.Render(), rowWidth)
+	display := truncate(v.CreateInput.View(), rowWidth)
 	display = fmt.Sprintf("%-*s", rowWidth, display)
 	return v.Styles.Accent.Render(display)
 }
@@ -308,7 +295,7 @@ func (v View) renderCreateInputRow(cols Columns) string {
 // fitted to the same column widths as a normal playlist row.
 func (v View) renderRenameInputRow(cols Columns) string {
 	rowWidth := cols.Name + nameSep + cols.Count
-	display := truncate(v.RenameInput.Render(), rowWidth)
+	display := truncate(v.RenameInput.View(), rowWidth)
 	display = fmt.Sprintf("%-*s", rowWidth, display)
 	return v.Styles.Accent.Render(display)
 }

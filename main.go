@@ -248,6 +248,7 @@ func main() {
 	model.SetPlaylistAdder(result.Writer)
 	model.SetQueueReorderer(result.Writer)
 	model.SetBatchEnqueuer(result.Writer)
+	model.SetMetadataWriter(result.Writer)
 
 	// setQueue keeps the player Manager and the TUI QueueView in sync.
 	// IMPORTANT: this helper MUST be called any time the queue is mutated

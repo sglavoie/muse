@@ -52,6 +52,7 @@ func helpSections() []helpSection {
 				{"/", "Activate filter bar"},
 				{"P", "Preview focused track"},
 				{"I", "Show now-playing info"},
+				{"M", "Edit metadata of focused track"},
 				{"?", "Show this help"},
 			},
 		},
@@ -155,12 +156,6 @@ func filteredHelpSections(ctx bindingContext) []helpSection {
 		}
 	}
 	return append(viewSpecific, global...)
-}
-
-// helpLineCount returns the total number of lines in the rendered help text.
-// It uses a zero-value Styles since styling does not add newlines.
-func helpLineCount(sections []helpSection) int {
-	return strings.Count(HelpOverlay{}.render(styles.Styles{}, sections, "Keybindings"), "\n") + 1
 }
 
 // render builds the help overlay string: a title, context-grouped keybinding

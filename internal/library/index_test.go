@@ -321,6 +321,82 @@ func TestLibraryIndex_Sub100msLatency(t *testing.T) {
 	}
 }
 
+// --- FindByHash ---
+
+func TestFindByHash_Found(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "aaa", Artist: "A", Title: "t1"})
+	idx.Insert(Track{Hash: "bbb", Artist: "B", Title: "t2", Album: "Al2"})
+	idx.Insert(Track{Hash: "ccc", Artist: "C", Title: "t3"})
+
+	got, ok := idx.FindByHash("bbb")
+	if !ok {
+		t.Fatal("FindByHash: expected true for existing hash")
+	}
+	if got.Artist != "B" || got.Title != "t2" || got.Album != "Al2" {
+		t.Errorf("FindByHash returned wrong track: %+v", got)
+	}
+}
+
+func TestFindByHash_NotFound(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "aaa", Artist: "A", Title: "t1"})
+
+	_, ok := idx.FindByHash("zzz")
+	if ok {
+		t.Error("FindByHash: expected false for non-existing hash")
+	}
+}
+
+func TestFindByHash_EmptyIndex(t *testing.T) {
+	var idx LibraryIndex
+	_, ok := idx.FindByHash("aaa")
+	if ok {
+		t.Error("FindByHash on empty index: expected false")
+	}
+}
+
+// --- UpdateMetadata ---
+
+func TestUpdateMetadata_UpdatesAndResorts(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "aaa", Artist: "Zappa", Title: "Bobby Brown"})
+	idx.Insert(Track{Hash: "bbb", Artist: "Miles", Title: "So What"})
+
+	ok := idx.UpdateMetadata("aaa", "Piel", "Arca", "Kick")
+	if !ok {
+		t.Fatal("UpdateMetadata: expected true for existing hash")
+	}
+
+	// Arca should now sort before Miles.
+	got := idx.Tracks()
+	if len(got) != 2 {
+		t.Fatalf("expected 2 tracks, got %d", len(got))
+	}
+	if got[0].Artist != "Arca" || got[0].Title != "Piel" || got[0].Album != "Kick" {
+		t.Errorf("position 0: got %+v, want Arca/Piel/Kick", got[0])
+	}
+	if got[0].Hash != "aaa" {
+		t.Errorf("hash should be preserved: got %q", got[0].Hash)
+	}
+	if got[1].Artist != "Miles" {
+		t.Errorf("position 1: got artist %q, want Miles", got[1].Artist)
+	}
+}
+
+func TestUpdateMetadata_NotFound(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "aaa", Artist: "A", Title: "t1"})
+
+	ok := idx.UpdateMetadata("zzz", "X", "Y", "Z")
+	if ok {
+		t.Error("UpdateMetadata: expected false for non-existing hash")
+	}
+	if idx.Len() != 1 {
+		t.Errorf("index length changed unexpectedly: %d", idx.Len())
+	}
+}
+
 func TestLibraryIndex_MemoryUnder25MB(t *testing.T) {
 	const n = 50_000
 

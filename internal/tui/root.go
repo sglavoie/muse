@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/bubbles/v2/viewport"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
@@ -478,9 +479,9 @@ type Model struct {
 	termWidth      int
 	termHeight     int
 	registry       Registry
-	helpVisible    bool   // true while the help overlay is shown
-	helpScroll     int    // scroll offset (in lines) for the help overlay
-	helpFiltered   bool   // true when showing only current-view keybindings
+	helpVisible  bool            // true while the help overlay is shown
+	helpViewport viewport.Model // scrollable viewport for the help overlay
+	helpFiltered bool            // true when showing only current-view keybindings
 	prevActiveView viewID // the view that was active before help was opened
 
 	// player is the playback backend. It may be nil when playback is not
@@ -504,6 +505,10 @@ type Model struct {
 
 	// nowPlayingInfo is non-nil while the now-playing info overlay is active.
 	nowPlayingInfo *NowPlayingOverlay
+
+	// metadataEditor is non-nil while the metadata editor overlay is active.
+	metadataEditor *MetadataEditor
+	metadataWriter metadataUpdater // may be nil; set via SetMetadataWriter
 
 	// destPicker is non-nil while the destination picker modal is open.
 	// Root dispatches all keypresses to the modal while it is open.
@@ -973,6 +978,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.artists.height = msg.Height - 3
 		m.albums.width = msg.Width
 		m.albums.height = msg.Height - 3
+		if m.helpVisible {
+			m.helpViewport.SetWidth(msg.Width)
+			m.helpViewport.SetHeight(msg.Height - 2)
+		}
 
 	case clearConfigNotice:
 		m.configCreated = false
@@ -1073,32 +1082,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Fall through to global key handling for quit.
 			case "esc":
 				m.helpVisible = false
-				m.helpScroll = 0
+				m.helpViewport = viewport.Model{}
 				m.helpFiltered = false
 				m.activeView = m.prevActiveView
 				return m, nil
 			case "?":
 				m.helpFiltered = !m.helpFiltered
-				m.helpScroll = 0
-				return m, nil
-			case "j", "down":
-				m.helpScroll++
-				m.helpScroll = m.clampHelpScroll()
-				return m, nil
-			case "k", "up":
-				m.helpScroll--
-				m.helpScroll = m.clampHelpScroll()
-				return m, nil
-			case "ctrl+d":
-				m.helpScroll += m.termHeight / 2
-				m.helpScroll = m.clampHelpScroll()
-				return m, nil
-			case "ctrl+u":
-				m.helpScroll -= m.termHeight / 2
-				m.helpScroll = m.clampHelpScroll()
+				sections, title := m.helpState()
+				m.helpViewport.SetContent(HelpOverlay{}.render(*m.styles, sections, title))
+				m.helpViewport.SetYOffset(0)
 				return m, nil
 			default:
-				return m, nil
+				var cmd tea.Cmd
+				m.helpViewport, cmd = m.helpViewport.Update(msg)
+				return m, cmd
 			}
 		}
 		// While the now-playing info overlay is active, swallow all keys
@@ -1128,6 +1125,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			default:
 				return m, nil
 			}
+		}
+		// While the metadata editor overlay is active, route all keys to it.
+		if m.metadataEditor != nil {
+			if msg.String() == "ctrl+c" {
+				return m, tea.Quit
+			}
+			updated, act, cmd := m.metadataEditor.HandleKey(msg)
+			m.metadataEditor = &updated
+			switch act {
+			case editorCancel:
+				m.metadataEditor = nil
+				return m, nil
+			case editorSave:
+				return m.handleMetadataSave()
+			}
+			return m, cmd
 		}
 		// Filter bar interception (root_filter.go).
 		if model, cmd, ok := m.handleFilterKeyPress(msg); ok {
@@ -1172,14 +1185,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.playlists = m.playlists.cancelCreate()
 				}
 				// Empty/whitespace input: keep the field active (no-op).
-			case "backspace":
-				m.playlists = m.playlists.backspaceCreate()
 			default:
-				if msg.Text != "" {
-					for _, ch := range msg.Text {
-						m.playlists = m.playlists.appendCreateChar(ch)
-					}
-				}
+				var cmd tea.Cmd
+				m.playlists, cmd = m.playlists.updateCreateInput(msg)
+				return m, cmd
 			}
 			return m, nil
 		}
@@ -1228,14 +1237,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.playlists = m.playlists.cancelRename()
 				}
 				// Empty/whitespace input: keep the field active (no-op).
-			case "backspace":
-				m.playlists = m.playlists.backspaceRename()
 			default:
-				if msg.Text != "" {
-					for _, ch := range msg.Text {
-						m.playlists = m.playlists.appendRenameChar(ch)
-					}
-				}
+				var cmd tea.Cmd
+				m.playlists, cmd = m.playlists.updateRenameInput(msg)
+				return m, cmd
 			}
 			return m, nil
 		}
@@ -1296,14 +1301,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.queue = m.queue.cancelSaveAsPlaylist()
 				}
 				// Empty/whitespace input: keep the field active (no-op).
-			case "backspace":
-				m.queue = m.queue.backspaceSave()
 			default:
-				if msg.Text != "" {
-					for _, ch := range msg.Text {
-						m.queue = m.queue.appendSaveChar(ch)
-					}
-				}
+				var cmd tea.Cmd
+				m.queue, cmd = m.queue.updateSaveInput(msg)
+				return m, cmd
 			}
 			return m, nil
 		}
@@ -1450,6 +1451,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		player.PlaySound(player.SoundEnqueued)
 
+	case metadataEditedMsg:
+		// No-op: in-memory state was already updated synchronously in handleMetadataSave.
+
 	case pltui.DestinationPickerDismissedMsg:
 		m.destPicker = nil
 		m.destPickerTracks = nil
@@ -1554,48 +1558,18 @@ func (m Model) helpState() ([]helpSection, string) {
 	return filteredHelpSections(ctx), "Keybindings — " + name + "  (? to show all)"
 }
 
-// clampHelpScroll constrains helpScroll to [0, maxScroll] based on the
-// terminal height and the total number of help lines.
-func (m Model) clampHelpScroll() int {
-	sections, _ := m.helpState()
-	total := helpLineCount(sections)
-	visible := m.termHeight - 2 // reserve space for the status bar gap
-	if visible <= 0 || visible >= total {
-		return 0
-	}
-	maxScroll := total - visible
-	s := m.helpScroll
-	if s > maxScroll {
-		s = maxScroll
-	}
-	if s < 0 {
-		s = 0
-	}
-	return s
-}
-
 // View renders the active panel and a status bar, returning a tea.View.
 // When the help overlay is visible it replaces the body content entirely.
 func (m Model) View() tea.View {
 	var body string
 	if m.helpVisible {
-		sections, title := m.helpState()
-		full := HelpOverlay{}.render(*m.styles, sections, title)
-		lines := strings.Split(full, "\n")
-		visible := m.termHeight - 2
-		if visible <= 0 || visible >= len(lines) {
-			body = full
-		} else {
-			end := m.helpScroll + visible
-			if end > len(lines) {
-				end = len(lines)
-			}
-			body = strings.Join(lines[m.helpScroll:end], "\n")
-		}
+		body = m.helpViewport.View()
 	} else if m.nowPlayingInfo != nil {
 		body = m.nowPlayingInfo.Render(m.termWidth, m.termHeight, *m.styles)
 	} else if m.preview != nil {
 		body = m.preview.Render(m.termWidth, m.termHeight, *m.styles)
+	} else if m.metadataEditor != nil {
+		body = m.metadataEditor.Render(m.termWidth, m.termHeight, *m.styles)
 	} else if m.destPicker != nil {
 		body = m.destPicker.Render(m.termWidth, m.termHeight, *m.styles)
 	} else {
@@ -1614,7 +1588,7 @@ func (m Model) View() tea.View {
 	}
 
 	// Prepend the centralized title bar when showing a primary view.
-	if m.nowPlayingInfo == nil && m.preview == nil && m.destPicker == nil && !m.helpVisible {
+	if m.nowPlayingInfo == nil && m.preview == nil && m.metadataEditor == nil && m.destPicker == nil && !m.helpVisible {
 		body = m.renderTitleBar() + "\n\n" + body
 	}
 
@@ -1690,6 +1664,10 @@ func (m Model) renderStatusBar() string {
 // It is called from the tea.KeyPressMsg case in Update after the registry
 // resolves the key string to an action.
 func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
+	// Metadata editor action (root_metadata.go).
+	if model, cmd, ok := m.handleMetadataKeyAction(action); ok {
+		return model, cmd
+	}
 	// Playback actions (root_playback.go).
 	if model, cmd, ok := m.handlePlaybackKeyAction(action); ok {
 		return model, cmd
@@ -1708,8 +1686,10 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	case actionHelp:
 		m.prevActiveView = m.activeView
 		m.helpVisible = true
-		m.helpScroll = 0
 		m.helpFiltered = false
+		m.helpViewport = viewport.New(viewport.WithWidth(m.termWidth), viewport.WithHeight(m.termHeight-2))
+		sections, title := m.helpState()
+		m.helpViewport.SetContent(HelpOverlay{}.render(*m.styles, sections, title))
 	case actionNextView:
 		m.activeView = nextView(m.activeView)
 		if m.activeView == viewArtists && len(m.artists.artists) == 0 {

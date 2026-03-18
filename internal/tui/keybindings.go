@@ -46,6 +46,7 @@ const (
 	actionPrevView       // shift+tab: cycle to previous view
 	actionPreview        // 'P': preview focused track
 	actionNowPlayingInfo // 'I': show now-playing info overlay
+	actionEditMetadata   // 'M': edit metadata of focused track
 
 	actionSwitchArtists
 	actionSwitchAlbums
@@ -140,6 +141,7 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "shift+tab", actionPrevView)
 	r.register(contextGlobal, "P", actionPreview)
 	r.register(contextGlobal, "I", actionNowPlayingInfo)
+	r.register(contextGlobal, "M", actionEditMetadata)
 
 	// Library-local bindings.
 	r.register(contextLibrary, "j", actionCursorDown)

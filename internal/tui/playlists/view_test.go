@@ -415,46 +415,32 @@ func TestStartCreateActivatesInput(t *testing.T) {
 }
 
 // TestCreateInputEmptyNameIsRejected verifies that an empty or whitespace-only
-// create input is treated as invalid: IsEmpty() must return true so the root
-// model keeps the input active without persisting.
+// create input is treated as invalid so the root model keeps the input active
+// without persisting.
 func TestCreateInputEmptyNameIsRejected(t *testing.T) {
 	v := View{}.StartCreate()
 
-	if !v.CreateInput.IsEmpty() {
+	if strings.TrimSpace(v.CreateInput.Value()) != "" {
 		t.Error("fresh CreateInput must be empty")
 	}
 
 	// Whitespace only must also be treated as empty.
-	v = v.AppendCreateChar(' ').AppendCreateChar(' ')
-	if !v.CreateInput.IsEmpty() {
+	v.CreateInput.SetValue("  ")
+	if strings.TrimSpace(v.CreateInput.Value()) != "" {
 		t.Error("whitespace-only CreateInput must be considered empty")
 	}
 }
 
-// TestCreateInputTypingAccumulatesBuffer verifies that AppendCreateChar builds
-// up the input buffer correctly.
+// TestCreateInputTypingAccumulatesBuffer verifies that SetValue sets the
+// input buffer correctly.
 func TestCreateInputTypingAccumulatesBuffer(t *testing.T) {
 	v := View{}.StartCreate()
-	for _, ch := range "MyList" {
-		v = v.AppendCreateChar(ch)
-	}
+	v.CreateInput.SetValue("MyList")
 	if v.CreateInput.Value() != "MyList" {
 		t.Errorf("expected buffer 'MyList', got %q", v.CreateInput.Value())
 	}
-	if v.CreateInput.IsEmpty() {
-		t.Error("non-empty input must not be IsEmpty()")
-	}
-}
-
-// TestCreateInputBackspaceRemovesLastRune verifies that BackspaceCreate removes
-// the last rune from the buffer.
-func TestCreateInputBackspaceRemovesLastRune(t *testing.T) {
-	v := View{}.StartCreate()
-	v = v.AppendCreateChar('A').AppendCreateChar('B').AppendCreateChar('C')
-	v = v.BackspaceCreate()
-
-	if v.CreateInput.Value() != "AB" {
-		t.Errorf("BackspaceCreate: expected 'AB', got %q", v.CreateInput.Value())
+	if strings.TrimSpace(v.CreateInput.Value()) == "" {
+		t.Error("non-empty input must not be empty")
 	}
 }
 
@@ -462,9 +448,7 @@ func TestCreateInputBackspaceRemovesLastRune(t *testing.T) {
 // and clears the input buffer.
 func TestCancelCreateDismissesInput(t *testing.T) {
 	v := View{}.StartCreate()
-	for _, ch := range "Partial" {
-		v = v.AppendCreateChar(ch)
-	}
+	v.CreateInput.SetValue("Partial")
 	v2 := v.CancelCreate()
 
 	if v2.Creating {
@@ -476,17 +460,15 @@ func TestCancelCreateDismissesInput(t *testing.T) {
 }
 
 // TestCreateFlowPersistSimulated exercises the full create flow: activate
-// input, type a name, verify the buffer is non-empty (valid), then simulate
+// input, set a name, verify the buffer is non-empty (valid), then simulate
 // a successful DB persist by calling CancelCreate (as the root model does after
 // receiving playlistCreatedMsg) and updating the Playlists slice.
 func TestCreateFlowPersistSimulated(t *testing.T) {
 	v := View{}.StartCreate()
-	for _, ch := range "NewPlaylist" {
-		v = v.AppendCreateChar(ch)
-	}
+	v.CreateInput.SetValue("NewPlaylist")
 
 	name := v.CreateInput.Value()
-	if v.CreateInput.IsEmpty() {
+	if strings.TrimSpace(v.CreateInput.Value()) == "" {
 		t.Fatal("input must not be empty before persist")
 	}
 
@@ -525,14 +507,10 @@ func TestStartRenamePrePopulatesInput(t *testing.T) {
 // produces an empty input that would be rejected before persisting.
 func TestRenameInputEmptyNameIsRejected(t *testing.T) {
 	v := View{}.StartRename("SomeName")
+	v.RenameInput.SetValue("")
 
-	// Backspace all characters.
-	for range "SomeName" {
-		v = v.BackspaceRename()
-	}
-
-	if !v.RenameInput.IsEmpty() {
-		t.Errorf("fully-erased RenameInput must be IsEmpty(); got %q", v.RenameInput.Value())
+	if strings.TrimSpace(v.RenameInput.Value()) != "" {
+		t.Errorf("fully-erased RenameInput must be empty; got %q", v.RenameInput.Value())
 	}
 }
 
@@ -548,10 +526,7 @@ func TestRenameDuplicateNameRejected(t *testing.T) {
 		Cursor:   0,
 		Renaming: true,
 	}
-	v.RenameInput = NewTextInput("")
-	for _, ch := range "Beta" {
-		v = v.AppendRenameChar(ch)
-	}
+	v.RenameInput = NewInlineInput("Beta")
 
 	// Simulate root model duplicate check before persisting.
 	isDuplicate := false
@@ -574,7 +549,6 @@ func TestRenameDuplicateNameRejected(t *testing.T) {
 // and clears the rename buffer.
 func TestCancelRenameDismissesInput(t *testing.T) {
 	v := View{}.StartRename("CurrentName")
-	v = v.AppendRenameChar('X')
 	v2 := v.CancelRename()
 
 	if v2.Renaming {
@@ -586,27 +560,19 @@ func TestCancelRenameDismissesInput(t *testing.T) {
 }
 
 // TestRenameFlowPersistSimulated exercises the full rename flow: activate
-// input pre-populated with the current name, clear and retype a new name,
-// verify it is non-empty and non-duplicate, then simulate a successful DB
-// persist by updating the Playlists slice and calling CancelRename.
+// input pre-populated with the current name, set a new name, verify it is
+// non-empty and non-duplicate, then simulate a successful DB persist by
+// updating the Playlists slice and calling CancelRename.
 func TestRenameFlowPersistSimulated(t *testing.T) {
 	v := View{
 		Playlists: []db.PlaylistRow{{ID: 1, Name: "OldName"}},
 		Cursor:    0,
 	}
 	v = v.StartRename("OldName")
-
-	// Clear pre-populated name via backspace.
-	for range "OldName" {
-		v = v.BackspaceRename()
-	}
-	// Type new name.
-	for _, ch := range "NewName" {
-		v = v.AppendRenameChar(ch)
-	}
+	v.RenameInput.SetValue("NewName")
 
 	newName := v.RenameInput.Value()
-	if v.RenameInput.IsEmpty() {
+	if strings.TrimSpace(v.RenameInput.Value()) == "" {
 		t.Fatal("RenameInput must not be empty before persist")
 	}
 

@@ -29,9 +29,12 @@ func TestUpdateQuestionMarkSetsHelpVisible(t *testing.T) {
 
 func TestViewShowsHelpOverlayWhenVisible(t *testing.T) {
 	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
-	m.helpVisible = true
+	m.termWidth = 80
+	m.termHeight = 100
+	next, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
+	nm := next.(Model)
 
-	v := m.View()
+	v := nm.View()
 	if !strings.Contains(ansi.Strip(v.Content), "Keybindings") {
 		t.Fatalf("View() with helpVisible=true: expected overlay content containing \"Keybindings\", got:\n%s", v.Content)
 	}
@@ -79,9 +82,12 @@ func TestUpdateEscWhenHelpNotVisibleDoesNotQuit(t *testing.T) {
 // is visible, View() renders all expected section headers.
 func TestViewHelpOverlayContainsSectionHeaders(t *testing.T) {
 	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
-	m.helpVisible = true
+	m.termWidth = 80
+	m.termHeight = 100
+	next, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
+	nm := next.(Model)
 
-	v := m.View()
+	v := nm.View()
 	for _, header := range []string{"Global", "Library", "Playlists", "Queue", "Modals"} {
 		if !strings.Contains(v.Content, header) {
 			t.Errorf("View() with helpVisible=true: missing section header %q", header)
@@ -148,6 +154,8 @@ func TestQuestionMarkTogglesHelpFiltered(t *testing.T) {
 
 func TestHelpFilteredShowsViewSections(t *testing.T) {
 	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m.termWidth = 80
+	m.termHeight = 100
 
 	// Switch to Queue.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '3', Text: "3"})
@@ -163,6 +171,12 @@ func TestHelpFilteredShowsViewSections(t *testing.T) {
 
 	v := nm.View()
 	stripped := ansi.Strip(v.Content)
+	// The viewport pads lines to its width, so trim trailing spaces per line.
+	var trimmedLines []string
+	for _, line := range strings.Split(stripped, "\n") {
+		trimmedLines = append(trimmedLines, strings.TrimRight(line, " "))
+	}
+	stripped = strings.Join(trimmedLines, "\n")
 	if !strings.Contains(stripped, "\nQueue\n") {
 		t.Error("filtered help for Queue view should contain Queue section header")
 	}

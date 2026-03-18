@@ -71,3 +71,34 @@ func (idx *LibraryIndex) UpsertByPath(path string, t Track) {
 	idx.RemoveByPath(path)
 	idx.Insert(t)
 }
+
+// FindByHash returns the first track whose Hash equals hash.
+// Returns the track and true if found, or a zero Track and false otherwise.
+func (idx *LibraryIndex) FindByHash(hash string) (Track, bool) {
+	for _, t := range idx.tracks {
+		if t.Hash == hash {
+			return t, true
+		}
+	}
+	return Track{}, false
+}
+
+// UpdateMetadata finds the track by hash, updates its Title, Artist, and Album,
+// then re-inserts it to maintain sort order (since the sort key includes Artist
+// and Title, the position may change). Returns true if the track was found and
+// updated.
+func (idx *LibraryIndex) UpdateMetadata(hash, title, artist, album string) bool {
+	for i, t := range idx.tracks {
+		if t.Hash == hash {
+			// Remove from current position.
+			idx.tracks = append(idx.tracks[:i], idx.tracks[i+1:]...)
+			// Update fields and re-insert in sorted order.
+			t.Title = title
+			t.Artist = artist
+			t.Album = album
+			idx.Insert(t)
+			return true
+		}
+	}
+	return false
+}

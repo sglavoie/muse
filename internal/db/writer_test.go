@@ -2048,3 +2048,90 @@ func TestPurgeDeletedPlaylists(t *testing.T) {
 		t.Error("id2 should have been purged")
 	}
 }
+
+// TestUpdateTrackMetadata verifies that UpdateTrackMetadata sets the title,
+// artist, album, and user_edited flag on the tracks row.
+func TestUpdateTrackMetadata(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	track := library.Track{Hash: "hash-meta", Path: "/a.mp3", Title: "Old", Artist: "Old A", Album: "Old Al", Duration: 60.0}
+	if err := w.UpsertBatch([]library.Track{track}); err != nil {
+		t.Fatalf("UpsertBatch: %v", err)
+	}
+
+	if err := w.UpdateTrackMetadata("hash-meta", "New Title", "New Artist", "New Album"); err != nil {
+		t.Fatalf("UpdateTrackMetadata: %v", err)
+	}
+
+	var title, artist, album string
+	var userEdited int
+	if err := d.QueryRow(
+		`SELECT title, artist, album, user_edited FROM tracks WHERE hash='hash-meta'`,
+	).Scan(&title, &artist, &album, &userEdited); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if title != "New Title" {
+		t.Errorf("title = %q; want New Title", title)
+	}
+	if artist != "New Artist" {
+		t.Errorf("artist = %q; want New Artist", artist)
+	}
+	if album != "New Album" {
+		t.Errorf("album = %q; want New Album", album)
+	}
+	if userEdited != 1 {
+		t.Errorf("user_edited = %d; want 1", userEdited)
+	}
+}
+
+// TestUpsertBatch_PreservesUserEdited verifies that UpsertBatch does not
+// overwrite title/artist/album when user_edited=1.
+func TestUpsertBatch_PreservesUserEdited(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	// Insert initial track.
+	original := library.Track{Hash: "hash-ue", Path: "/a.mp3", Title: "Original", Artist: "Original A", Album: "Original Al", Duration: 60.0}
+	if err := w.UpsertBatch([]library.Track{original}); err != nil {
+		t.Fatalf("first UpsertBatch: %v", err)
+	}
+
+	// Manually edit metadata (sets user_edited=1).
+	if err := w.UpdateTrackMetadata("hash-ue", "Edited Title", "Edited Artist", "Edited Album"); err != nil {
+		t.Fatalf("UpdateTrackMetadata: %v", err)
+	}
+
+	// Rescan with different metadata — should NOT overwrite edited fields.
+	rescanned := library.Track{Hash: "hash-ue", Path: "/a-moved.mp3", Title: "Scanned", Artist: "Scanned A", Album: "Scanned Al", Duration: 90.0}
+	if err := w.UpsertBatch([]library.Track{rescanned}); err != nil {
+		t.Fatalf("second UpsertBatch: %v", err)
+	}
+
+	var path, title, artist, album string
+	var durationMs int64
+	if err := d.QueryRow(
+		`SELECT path, title, artist, album, duration_ms FROM tracks WHERE hash='hash-ue'`,
+	).Scan(&path, &title, &artist, &album, &durationMs); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+
+	// Physical fields should be updated.
+	if path != "/a-moved.mp3" {
+		t.Errorf("path = %q; want /a-moved.mp3 (physical field should update)", path)
+	}
+	if durationMs != 90000 {
+		t.Errorf("duration_ms = %d; want 90000 (physical field should update)", durationMs)
+	}
+
+	// Metadata fields should be preserved.
+	if title != "Edited Title" {
+		t.Errorf("title = %q; want Edited Title (user-edited metadata should be preserved)", title)
+	}
+	if artist != "Edited Artist" {
+		t.Errorf("artist = %q; want Edited Artist (user-edited metadata should be preserved)", artist)
+	}
+	if album != "Edited Album" {
+		t.Errorf("album = %q; want Edited Album (user-edited metadata should be preserved)", album)
+	}
+}
