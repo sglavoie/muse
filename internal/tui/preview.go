@@ -20,31 +20,7 @@ type PreviewOverlay struct {
 // pass the current terminal dimensions so the box is positioned in the middle
 // of the screen.
 func (p PreviewOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
-	title := p.title
-	if title == "" {
-		title = "(unknown)"
-	}
-	artist := p.artist
-	if artist == "" {
-		artist = "(unknown)"
-	}
-
-	progressLine := fmt.Sprintf("▶ %s / %s", formatTime(p.elapsed), formatTime(p.total))
-
-	rows := []OverlayRow{
-		{Label: "Title:", Text: title},
-		{Label: "Artist:", Text: artist},
-	}
-	if p.album != "" {
-		rows = append(rows, OverlayRow{Label: "Album:", Text: p.album})
-	}
-	rows = append(rows, OverlayRow{Blank: true})
-	rows = append(rows, OverlayRow{Text: progressLine, Styled: true})
-
-	box := OverlayBox{
-		Title: " ♪ Preview ",
-		Rows:  rows,
-		Hint:  "P or esc to dismiss",
-	}
-	return box.Render(termWidth, termHeight, s)
+	progress := fmt.Sprintf("▶ %s / %s", formatTime(p.elapsed), formatTime(p.total))
+	return renderTrackOverlay(p.title, p.artist, p.album, progress,
+		" ♪ Preview ", "P or esc to dismiss", termWidth, termHeight, s)
 }

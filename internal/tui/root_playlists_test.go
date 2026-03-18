@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -14,7 +15,7 @@ import (
 // TestPlaylistLocalCFiresCreateNotGlobalAction verifies that pressing 'c' in
 // the Playlists view dispatches PlaylistCreateMsg.
 func TestPlaylistLocalCFiresCreateNotGlobalAction(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
@@ -33,7 +34,7 @@ func TestPlaylistLocalCFiresCreateNotGlobalAction(t *testing.T) {
 // rendered view with the cursor positioned on the new entry.
 func TestPlaylistCreateFlowSuccess(t *testing.T) {
 	creator := &stubPlaylistCreator{nextID: 42}
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	m.SetPlaylistWriter(creator)
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -85,7 +86,7 @@ func TestPlaylistCreateFlowSuccess(t *testing.T) {
 // creation discards the input without persisting anything.
 func TestPlaylistCreateFlowEscCancels(t *testing.T) {
 	creator := &stubPlaylistCreator{nextID: 1}
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	m.SetPlaylistWriter(creator)
 
@@ -115,7 +116,7 @@ func TestPlaylistCreateFlowEscCancels(t *testing.T) {
 // error cancels the input and surfaces a status bar notification.
 func TestPlaylistCreateFlowErrorShowsNotification(t *testing.T) {
 	creator := &stubPlaylistCreator{createErr: &errPlaylistCreate{msg: "db locked"}, nextID: 1}
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	m.SetPlaylistWriter(creator)
 
@@ -154,7 +155,7 @@ func TestPlaylistCreateFlowErrorShowsNotification(t *testing.T) {
 // instead of calling CreatePlaylist.
 func TestPlaylistCreateDuplicateNameShowsNotification(t *testing.T) {
 	creator := &stubPlaylistCreator{nextID: 42}
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	m.SetPlaylistWriter(creator)
 	m.SetPlaylists([]db.PlaylistRow{
@@ -193,7 +194,7 @@ func TestPlaylistCreateDuplicateNameShowsNotification(t *testing.T) {
 // calling SetPlaylists causes each playlist's name and track count to appear
 // in the rendered output.
 func TestView2RendersPlaylistsNameAndCount(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.SetPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Chill", TrackCount: 3},
 		{ID: 2, Name: "Workout", TrackCount: 8},
@@ -218,7 +219,7 @@ func TestView2RendersPlaylistsNameAndCount(t *testing.T) {
 // TestPlaylistEscFromTrackLevelReturnsToList verifies that pressing Esc while
 // in TrackLevel transitions back to ListLevel and preserves the list cursor.
 func TestPlaylistEscFromTrackLevelReturnsToList(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.SetPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Alpha", TrackCount: 1},
 		{ID: 2, Name: "Beta", TrackCount: 1},
@@ -275,7 +276,7 @@ func TestPlaylistEscFromTrackLevelReturnsToList(t *testing.T) {
 // TestPlaylistEscAtListLevelIsNoOp verifies that pressing Esc while already at
 // ListLevel produces no visible state change and no error.
 func TestPlaylistEscAtListLevelIsNoOp(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.SetPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Chill", TrackCount: 5},
 	})
@@ -310,7 +311,7 @@ func TestPlaylistEscAtListLevelIsNoOp(t *testing.T) {
 // and processing that msg activates the inline rename input pre-populated with
 // the focused playlist's name.
 func TestPlaylistRAtListLevelActivatesRenameInput(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.SetPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Chill Mix", TrackCount: 3},
 	})
@@ -346,7 +347,7 @@ func TestPlaylistRAtListLevelActivatesRenameInput(t *testing.T) {
 // playlists view is at TrackLevel does not activate the rename input — rename
 // only applies at list level.
 func TestPlaylistRAtTrackLevelIsNoOp(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.SetPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Chill Mix", TrackCount: 1},
 	})
@@ -383,7 +384,7 @@ func TestPlaylistRAtTrackLevelIsNoOp(t *testing.T) {
 // rendered output. After opening a playlist the track titles must appear in
 // the playlists panel.
 func TestPlaylistOpenRendersTrackTitles(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.SetPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Chill", TrackCount: 2},
 	})
@@ -427,7 +428,7 @@ func TestPlaylistOpenRendersTrackTitles(t *testing.T) {
 // playlistDeleter means no DB calls are made — the nil-guard in the handler
 // makes this safe without a stub.
 func TestPlaylistsBulkRemoveAtTrackLevel(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 
 	// Navigate to playlists view.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
@@ -466,7 +467,7 @@ func TestPlaylistsBulkRemoveAtTrackLevel(t *testing.T) {
 // TestPlaylistDeleteClampsScrollOffset verifies that deleting a playlist when
 // the list is scrolled clamps scrollOffset so it does not point past the end.
 func TestPlaylistDeleteClampsScrollOffset(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	pd := &stubPlaylistDeleter{}
 	m.SetPlaylistDeleter(pd)
@@ -494,7 +495,7 @@ func TestPlaylistDeleteClampsScrollOffset(t *testing.T) {
 // TestPlaylistDeleteAllClampsScrollOffsetToZero verifies that deleting the last
 // playlist resets scrollOffset to 0.
 func TestPlaylistDeleteAllClampsScrollOffsetToZero(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	pd := &stubPlaylistDeleter{}
 	m.SetPlaylistDeleter(pd)
@@ -517,7 +518,7 @@ func TestPlaylistDeleteAllClampsScrollOffsetToZero(t *testing.T) {
 // TestPlaylistTrackDeleteClampsScrollOffset verifies that removing a track at
 // TrackLevel clamps scrollOffset so it does not point past the end.
 func TestPlaylistTrackDeleteClampsScrollOffset(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	pd := &stubPlaylistDeleter{}
 	m.SetPlaylistDeleter(pd)
@@ -545,7 +546,7 @@ func TestPlaylistTrackDeleteClampsScrollOffset(t *testing.T) {
 // TestBulkRemovePlaylistTracksClampsScrollOffset verifies that bulk-removing
 // tracks clamps scrollOffset so it does not point past the end.
 func TestBulkRemovePlaylistTracksClampsScrollOffset(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	pd := &stubPlaylistDeleter{}
 	m.SetPlaylistDeleter(pd)
@@ -577,7 +578,7 @@ func TestBulkRemovePlaylistTracksClampsScrollOffset(t *testing.T) {
 // selected track when a playlistDeleter is wired. Prior to the fix,
 // soft-deleted rows were never purged because no purge timer was scheduled.
 func TestBulkRemovePlaylistTracksSoftDeletesAndSchedulesPurge(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	pd := &stubPlaylistDeleter{}
 	m.SetPlaylistDeleter(pd)
@@ -610,7 +611,7 @@ func TestBulkRemovePlaylistTracksSoftDeletesAndSchedulesPurge(t *testing.T) {
 // playlist with a name differing only in case from an existing one is rejected.
 func TestPlaylistCreateDuplicateNameCaseInsensitive(t *testing.T) {
 	creator := &stubPlaylistCreator{nextID: 42}
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	m.SetPlaylistWriter(creator)
 	m.SetPlaylists([]db.PlaylistRow{
@@ -649,7 +650,7 @@ func TestPlaylistCreateDuplicateNameCaseInsensitive(t *testing.T) {
 // playlist to a name differing only in case from another existing one is rejected.
 func TestPlaylistRenameDuplicateNameCaseInsensitive(t *testing.T) {
 	renamer := &stubPlaylistRenamer{}
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	m.SetPlaylistRenamer(renamer)
 	m.SetPlaylists([]db.PlaylistRow{
@@ -692,7 +693,7 @@ func TestPlaylistRenameDuplicateNameCaseInsensitive(t *testing.T) {
 // TestUndoDeletePlaylistScrollsToRestoredEntry verifies that undoing a playlist
 // deletion adjusts scrollOffset so the restored entry is visible.
 func TestUndoDeletePlaylistScrollsToRestoredEntry(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	pd := &stubPlaylistDeleter{}
 	m.SetPlaylistDeleter(pd)
@@ -737,7 +738,7 @@ func drillIntoPlaylistTrackLevel(m Model, tracks []db.PlaylistTrackRow) Model {
 // TestPlaylistTrackCursorDownJKey verifies that pressing "j" while the
 // playlist track-level view is active advances the cursor by one.
 func TestPlaylistTrackCursorDownJKey(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
 		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
 		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
@@ -753,7 +754,7 @@ func TestPlaylistTrackCursorDownJKey(t *testing.T) {
 // TestPlaylistTrackCursorUpKKey verifies that pressing "k" while the playlist
 // track-level view is active moves the cursor up by one.
 func TestPlaylistTrackCursorUpKKey(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
 		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
 		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
@@ -770,7 +771,7 @@ func TestPlaylistTrackCursorUpKKey(t *testing.T) {
 // TestPlaylistTrackCursorDownArrow verifies that the down arrow key advances
 // the cursor in the playlist track-level view, behaving identically to "j".
 func TestPlaylistTrackCursorDownArrow(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
 		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
 		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
@@ -786,7 +787,7 @@ func TestPlaylistTrackCursorDownArrow(t *testing.T) {
 // TestPlaylistTrackCursorUpArrow verifies that the up arrow key moves the
 // cursor up in the playlist track-level view, behaving identically to "k".
 func TestPlaylistTrackCursorUpArrow(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
 		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
 		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
@@ -803,7 +804,7 @@ func TestPlaylistTrackCursorUpArrow(t *testing.T) {
 // TestPlaylistTrackCursorClampAtBottom verifies that the cursor stops at the
 // last track without wrapping when the playlist track-level view is active.
 func TestPlaylistTrackCursorClampAtBottom(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
 		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
 		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
@@ -820,7 +821,7 @@ func TestPlaylistTrackCursorClampAtBottom(t *testing.T) {
 // TestPlaylistTrackCursorClampAtTop verifies that the cursor stops at the
 // first track without wrapping when the playlist track-level view is active.
 func TestPlaylistTrackCursorClampAtTop(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
 		{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000},
 		{ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000},
@@ -838,7 +839,7 @@ func TestPlaylistTrackCursorClampAtTop(t *testing.T) {
 // rename causes the entry to sort to a different position (because the list is
 // sorted alphabetically), scrollOffset is adjusted so the cursor is visible.
 func TestPlaylistRenamedMsgAdjustsScrollOffset(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	// Use a small terminal so visibleRows is small (height=6 - 3 reserve = 3 visible rows).
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 6})
@@ -879,7 +880,7 @@ func TestPlaylistRenamedMsgAdjustsScrollOffset(t *testing.T) {
 // creation causes the entry to sort to a position beyond the visible window,
 // scrollOffset is adjusted so the cursor is visible.
 func TestPlaylistCreatedMsgAdjustsScrollOffset(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	// Small terminal: visibleRows = max(1, 6-3) = 3.
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 6})
@@ -917,7 +918,7 @@ func TestPlaylistCreatedMsgAdjustsScrollOffset(t *testing.T) {
 // sets a transient error notification on the status bar so the user is informed
 // when AddTracksToPlaylist fails.
 func TestPlaylistAddErrorMsgShowsNotification(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	next, _ := m.Update(playlistAddErrorMsg{err: errors.New("disk full")})
 	nm := next.(Model)
 
@@ -936,7 +937,7 @@ func TestPlaylistAddErrorMsgShowsNotification(t *testing.T) {
 // actionPlaylistDelete does not panic when the cursor exceeds the playlist
 // slice length (e.g. due to a race between deletion and cursor movement).
 func TestPlaylistDeleteNoPanicWhenCursorOutOfBounds(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	m.playlists.playlists = []db.PlaylistRow{
 		{ID: 1, Name: "A"},
@@ -952,7 +953,7 @@ func TestPlaylistDeleteNoPanicWhenCursorOutOfBounds(t *testing.T) {
 // actionPlaylistDelete at track level does not panic when the cursor
 // exceeds the tracks slice length.
 func TestPlaylistTrackDeleteNoPanicWhenCursorOutOfBounds(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewPlaylists
 	m.playlists.level = pltui.TrackLevel
 	m.playlists.tracks = []db.PlaylistTrackRow{

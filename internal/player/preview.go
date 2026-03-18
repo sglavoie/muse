@@ -3,6 +3,7 @@ package player
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"time"
@@ -35,8 +36,10 @@ type PreviewPlayer struct {
 var _ Previewer = (*PreviewPlayer)(nil)
 
 // NewPreviewPlayer creates a PreviewPlayer that will use the given socket path.
-func NewPreviewPlayer(socketPath string) *PreviewPlayer {
-	ctx, cancel := context.WithCancel(context.Background())
+// parentCtx ties the player's lifecycle to the application: when the parent
+// context is cancelled the preview subprocess is also terminated.
+func NewPreviewPlayer(parentCtx context.Context, socketPath string) *PreviewPlayer {
+	ctx, cancel := context.WithCancel(parentCtx)
 	return &PreviewPlayer{
 		socketPath: socketPath,
 		ctx:        ctx,
@@ -138,7 +141,13 @@ func (p *PreviewPlayer) Close() error {
 		p.client = nil
 	}
 	if p.cmd != nil && p.cmd.Process != nil {
-		_ = p.cmd.Wait()
+		done := make(chan error, 1)
+		go func() { done <- p.cmd.Wait() }()
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			slog.Warn("preview mpv process did not exit within timeout")
+		}
 	}
 	_ = os.Remove(p.socketPath)
 	return nil

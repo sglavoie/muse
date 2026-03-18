@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -9,7 +10,7 @@ import (
 )
 
 func TestUpdateQuestionMarkSetsHelpVisible(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	// Default active view is Library.
 	if m.activeView != viewLibrary {
 		t.Fatalf("precondition: expected viewLibrary, got %d", m.activeView)
@@ -27,7 +28,7 @@ func TestUpdateQuestionMarkSetsHelpVisible(t *testing.T) {
 }
 
 func TestViewShowsHelpOverlayWhenVisible(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.helpVisible = true
 
 	v := m.View()
@@ -37,7 +38,7 @@ func TestViewShowsHelpOverlayWhenVisible(t *testing.T) {
 }
 
 func TestUpdateEscClearsHelpVisibleAndRestoresView(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 
 	// Switch to Playlists first.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
@@ -66,7 +67,7 @@ func TestUpdateEscClearsHelpVisibleAndRestoresView(t *testing.T) {
 }
 
 func TestUpdateEscWhenHelpNotVisibleDoesNotQuit(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	// helpVisible defaults to false — Esc must not quit and must not error.
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if cmd != nil {
@@ -77,7 +78,7 @@ func TestUpdateEscWhenHelpNotVisibleDoesNotQuit(t *testing.T) {
 // TestViewHelpOverlayContainsSectionHeaders verifies that when the help overlay
 // is visible, View() renders all expected section headers.
 func TestViewHelpOverlayContainsSectionHeaders(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.helpVisible = true
 
 	v := m.View()
@@ -92,7 +93,7 @@ func TestViewHelpOverlayContainsSectionHeaders(t *testing.T) {
 // the help overlay with Esc does not change playbackState, repeatMode, shuffle,
 // or the scanning flag.
 func TestEscRestoringViewDoesNotAlterPlaybackOrScanState(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.playbackState = PlaybackPlaying
 	m.repeatMode = RepeatAll
 	m.shuffle = true

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -182,7 +183,7 @@ func TestQueueRenderProportionalColumnWidths(t *testing.T) {
 // TestQueueRenderWindowSizeMsg verifies that sending a WindowSizeMsg to the
 // root model and then rendering does not panic and produces non-empty content.
 func TestQueueRenderWindowSizeMsg(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.SetQueueEntries([]QueueEntry{
 		{Title: "Track", Artist: "Artist", DurationMs: 30_000, Position: 1000},
 	})
@@ -951,7 +952,7 @@ func TestLibraryViewDeactivateFilter(t *testing.T) {
 // --- Model setters ---
 
 func TestModelSetRepeatMode(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.SetRepeatMode(RepeatAll)
 	if m.repeatMode != RepeatAll {
 		t.Errorf("SetRepeatMode: expected RepeatAll, got %v", m.repeatMode)
@@ -959,7 +960,7 @@ func TestModelSetRepeatMode(t *testing.T) {
 }
 
 func TestModelSetShuffle(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.SetShuffle(true)
 	if !m.shuffle {
 		t.Error("SetShuffle(true): expected shuffle=true")
@@ -967,7 +968,7 @@ func TestModelSetShuffle(t *testing.T) {
 }
 
 func TestModelSetPlaybackState(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.SetPlaybackState(PlaybackPaused)
 	if m.playbackState != PlaybackPaused {
 		t.Errorf("SetPlaybackState: expected PlaybackPaused, got %v", m.playbackState)
@@ -975,7 +976,7 @@ func TestModelSetPlaybackState(t *testing.T) {
 }
 
 func TestModelSetCurrentTrackHash(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.SetCurrentTrackHash("abc123")
 	if m.currentTrackHash != "abc123" {
 		t.Errorf("SetCurrentTrackHash: expected 'abc123', got %q", m.currentTrackHash)
@@ -983,7 +984,7 @@ func TestModelSetCurrentTrackHash(t *testing.T) {
 }
 
 func TestModelSetLibraryTracks(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	tracks := []library.Track{
 		{Artist: "A", Title: "T1", Hash: "h1"},
 		{Artist: "B", Title: "T2", Hash: "h2"},
@@ -995,7 +996,7 @@ func TestModelSetLibraryTracks(t *testing.T) {
 }
 
 func TestModelRemoveLibraryTrackByPath(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.SetLibraryTracks([]library.Track{
 		{Artist: "A", Title: "T1", Hash: "h1", Path: "/a.mp3"},
 		{Artist: "B", Title: "T2", Hash: "h2", Path: "/b.mp3"},

@@ -235,7 +235,7 @@ func main() {
 
 	restored := result.Restored
 
-	model := tui.New(configPath, configCreated, tuiScanCh, tuiWatchCh, cfg.MusicDirectory, extractor, mgr)
+	model := tui.New(ctx, configPath, configCreated, tuiScanCh, tuiWatchCh, cfg.MusicDirectory, extractor, mgr)
 	model.SetQueueWriter(result.Writer)
 	model.SetQueueDequeuer(result.Writer)
 	model.SetSessionWriter(result.Writer)

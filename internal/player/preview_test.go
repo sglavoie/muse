@@ -12,7 +12,7 @@ func newTestPreviewPlayer(t *testing.T) *PreviewPlayer {
 	sock := shortSockPath(t, "preview")
 	fakeServer(t, sock)
 
-	p := NewPreviewPlayer(sock)
+	p := NewPreviewPlayer(context.Background(), sock)
 	// Replace launchFn with a no-op since the fake server is already listening.
 	p.launchFn = func(ctx context.Context, socketPath string) (*exec.Cmd, error) {
 		return nil, nil
@@ -40,7 +40,7 @@ func TestPreviewPlayer_LoadAndPlay(t *testing.T) {
 }
 
 func TestPreviewPlayer_LoadAndPlay_NotConnected(t *testing.T) {
-	p := NewPreviewPlayer("/tmp/nonexistent.sock")
+	p := NewPreviewPlayer(context.Background(), "/tmp/nonexistent.sock")
 	err := p.LoadAndPlay("/tmp/test.mp3")
 	if err != ErrNotConnected {
 		t.Fatalf("expected ErrNotConnected, got: %v", err)
@@ -72,7 +72,7 @@ func TestPreviewPlayer_ElapsedPosition(t *testing.T) {
 		return successHandler(req)
 	})
 
-	p := NewPreviewPlayer(sock)
+	p := NewPreviewPlayer(context.Background(), sock)
 	p.launchFn = func(ctx context.Context, socketPath string) (*exec.Cmd, error) {
 		return nil, nil
 	}
@@ -94,7 +94,7 @@ func TestPreviewPlayer_ElapsedPosition(t *testing.T) {
 }
 
 func TestPreviewPlayer_ElapsedPosition_NotConnected(t *testing.T) {
-	p := NewPreviewPlayer("/tmp/nonexistent.sock")
+	p := NewPreviewPlayer(context.Background(), "/tmp/nonexistent.sock")
 	_, _, err := p.ElapsedPosition()
 	if err != ErrNotConnected {
 		t.Fatalf("expected ErrNotConnected, got: %v", err)

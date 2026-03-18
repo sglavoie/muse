@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -29,7 +30,7 @@ func (s *stubPreviewer) Close() error { s.closeCalled = true; return nil }
 // setupLibraryWithTrack creates a model with a single track in the library.
 func setupLibraryWithTrack(t *testing.T) Model {
 	t.Helper()
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewLibrary
 	m.library.index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T",
@@ -51,7 +52,7 @@ func TestPreviewKeyActivatesPreview(t *testing.T) {
 // TestPreviewKeyNoTrackShowsNotification verifies that pressing P with no
 // focused track shows a notification.
 func TestPreviewKeyNoTrackShowsNotification(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewLibrary
 	// library.index is empty by default
 
@@ -68,7 +69,7 @@ func TestPreviewKeyNoTrackShowsNotification(t *testing.T) {
 // TestPreviewStartedMsgSetsOverlay verifies that receiving a
 // previewStartedMsg sets the preview overlay and player.
 func TestPreviewStartedMsgSetsOverlay(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	sp := &stubPreviewer{}
 
 	next, _ := m.Update(previewStartedMsg{
@@ -94,7 +95,7 @@ func TestPreviewStartedMsgSetsOverlay(t *testing.T) {
 // TestPreviewDismissWithEsc verifies that pressing Esc while preview is
 // active dismisses it.
 func TestPreviewDismissWithEsc(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	sp := &stubPreviewer{}
 	m.preview = &PreviewOverlay{artist: "A", title: "T"}
 	m.previewPlayer = sp
@@ -113,7 +114,7 @@ func TestPreviewDismissWithEsc(t *testing.T) {
 // TestPreviewDismissWithP verifies that pressing P while preview is
 // active dismisses it.
 func TestPreviewDismissWithP(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	sp := &stubPreviewer{}
 	m.preview = &PreviewOverlay{artist: "A", title: "T"}
 	m.previewPlayer = sp
@@ -132,7 +133,7 @@ func TestPreviewDismissWithP(t *testing.T) {
 // TestPreviewSwallowsKeys verifies that while preview is active, other
 // keys are swallowed (not processed).
 func TestPreviewSwallowsKeys(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.preview = &PreviewOverlay{artist: "A", title: "T"}
 	m.previewPlayer = &stubPreviewer{}
 	m.activeView = viewLibrary
@@ -152,7 +153,7 @@ func TestPreviewSwallowsKeys(t *testing.T) {
 // TestPreviewCtrlCDismissesAndQuits verifies that ctrl+c during preview
 // dismisses the preview and returns a quit command.
 func TestPreviewCtrlCDismissesAndQuits(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	sp := &stubPreviewer{}
 	m.preview = &PreviewOverlay{artist: "A", title: "T"}
 	m.previewPlayer = sp
@@ -178,7 +179,7 @@ func TestPreviewCtrlCDismissesAndQuits(t *testing.T) {
 // resumes main playback when it was playing before preview.
 func TestPreviewDismissResumesPlayback(t *testing.T) {
 	sp := &stubPlayer{}
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.player = sp
 	m.playbackState = PlaybackPaused
 	m.previewWasPlaying = true
@@ -203,7 +204,7 @@ func TestPreviewDismissResumesPlayback(t *testing.T) {
 // preview does not resume main playback when it was not playing.
 func TestPreviewDismissDoesNotResumeIfNotPlaying(t *testing.T) {
 	sp := &stubPlayer{}
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.player = sp
 	m.playbackState = PlaybackPaused
 	m.previewWasPlaying = false
@@ -222,7 +223,7 @@ func TestPreviewDismissDoesNotResumeIfNotPlaying(t *testing.T) {
 // TestPreviewStartErrorMsgShowsNotification verifies that a
 // previewStartErrorMsg shows an error notification.
 func TestPreviewStartErrorMsgShowsNotification(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 
 	next, _ := m.Update(previewStartErrorMsg{err: errTest("boom")})
 	nm := next.(Model)
@@ -236,7 +237,7 @@ func TestPreviewStartErrorMsgShowsNotification(t *testing.T) {
 // resumes main playback if it was paused for the preview.
 func TestPreviewStartErrorResumesPlayback(t *testing.T) {
 	sp := &stubPlayer{}
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.player = sp
 	m.previewWasPlaying = true
 
@@ -254,7 +255,7 @@ func TestPreviewStartErrorResumesPlayback(t *testing.T) {
 // TestPreviewOverlayRenderedInView verifies that when preview is active,
 // View() renders the preview overlay content.
 func TestPreviewOverlayRenderedInView(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.preview = &PreviewOverlay{
 		artist:  "Preview Artist",
 		title:   "Preview Song",
@@ -273,7 +274,7 @@ func TestPreviewOverlayRenderedInView(t *testing.T) {
 // TestPreviewTickUpdatesProgress verifies that a tickMsg updates the
 // preview overlay's elapsed and total values.
 func TestPreviewTickUpdatesProgress(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	sp := &stubPreviewer{elapsed: 45.5, total: 200.0}
 	m.preview = &PreviewOverlay{artist: "A", title: "T"}
 	m.previewPlayer = sp
@@ -295,7 +296,7 @@ func TestPreviewTickUpdatesProgress(t *testing.T) {
 // TestPreviewTickAutoDismissOnError verifies that if ElapsedPosition
 // returns an error during tick, the preview is auto-dismissed.
 func TestPreviewTickAutoDismissOnError(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	sp := &stubPreviewer{elapsedErr: errTest("eof")}
 	m.preview = &PreviewOverlay{artist: "A", title: "T"}
 	m.previewPlayer = sp
@@ -311,7 +312,7 @@ func TestPreviewTickAutoDismissOnError(t *testing.T) {
 // TestFocusedTrackForPreview_Queue verifies that focusedTrackForPreview
 // returns the queue entry under the cursor.
 func TestFocusedTrackForPreview_Queue(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T1", DurationMs: 5000},
@@ -334,7 +335,7 @@ func TestFocusedTrackForPreview_Queue(t *testing.T) {
 // TestFocusedTrackForPreview_QueueMissing verifies that a missing queue
 // entry returns false.
 func TestFocusedTrackForPreview_QueueMissing(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Hash: "h1", Path: "/a.flac", Missing: true},
@@ -350,7 +351,7 @@ func TestFocusedTrackForPreview_QueueMissing(t *testing.T) {
 // TestFocusedTrackForPreview_EmptyQueue verifies that an empty queue
 // returns false.
 func TestFocusedTrackForPreview_EmptyQueue(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewQueue
 	m.queue.entries = nil
 	m.queue.cursor = 0

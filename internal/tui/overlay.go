@@ -7,6 +7,16 @@ import (
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
+const (
+	// OverlayMinInnerWidth is the minimum number of characters between the
+	// vertical borders of an overlay box.
+	OverlayMinInnerWidth = 24
+
+	// OverlayHPadding is the horizontal padding (in characters) inside each
+	// content row, split equally between left and right.
+	OverlayHPadding = 4
+)
+
 // OverlayRow represents a single content row inside an OverlayBox.
 type OverlayRow struct {
 	Label  string // optional right-aligned label (e.g. "Title:")
@@ -60,14 +70,14 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 	}
 
 	// Calculate inner width (space between the vertical borders).
-	minInner := 24
+	minInner := OverlayMinInnerWidth
 	for _, text := range append([]string{o.Title}, rowTexts...) {
-		if w := len([]rune(text)) + 4; w > minInner {
+		if w := len([]rune(text)) + OverlayHPadding; w > minInner {
 			minInner = w
 		}
 	}
 	innerWidth := minInner
-	contentWidth := innerWidth - 4 // padding inside borders
+	contentWidth := innerWidth - OverlayHPadding // padding inside borders
 
 	var lines []string
 
@@ -136,4 +146,29 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 		b.WriteString(prefix + line + "\n")
 	}
 	return b.String()
+}
+
+// renderTrackOverlay builds an OverlayBox for a track (preview or now-playing)
+// and renders it centered. Callers provide the pre-formatted progress line and
+// box chrome (title, hint).
+func renderTrackOverlay(title, artist, album, progressLine, boxTitle, hint string,
+	termWidth, termHeight int, s styles.Styles) string {
+	if title == "" {
+		title = "(unknown)"
+	}
+	if artist == "" {
+		artist = "(unknown)"
+	}
+	rows := []OverlayRow{
+		{Label: "Title:", Text: title},
+		{Label: "Artist:", Text: artist},
+	}
+	if album != "" {
+		rows = append(rows, OverlayRow{Label: "Album:", Text: album})
+	}
+	rows = append(rows, OverlayRow{Blank: true})
+	rows = append(rows, OverlayRow{Text: progressLine, Styled: true})
+
+	box := OverlayBox{Title: boxTitle, Rows: rows, Hint: hint}
+	return box.Render(termWidth, termHeight, s)
 }

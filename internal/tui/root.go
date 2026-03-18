@@ -1,9 +1,8 @@
 package tui
 
 import (
+	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -446,6 +445,7 @@ type watchBatchMsg struct {
 // Model is the root Bubble Tea v2 model. It manages view switching between
 // Library, Playlists, Queue, and Artists panels, and renders a persistent status bar.
 type Model struct {
+	appCtx        context.Context // application-level context for subprocess lifecycle
 	activeView    viewID
 	configPath    string
 	configCreated bool
@@ -550,9 +550,10 @@ type Model struct {
 // and nil to disable it (e.g. in tests that do not exercise rescan).
 //
 // p is the playback backend. Pass nil to disable playback controls.
-func New(configPath string, configCreated bool, scanCh <-chan library.Track, watchCh <-chan library.WatchEvent, libraryRoot string, extractor library.MetadataExtractor, p playPauser) Model {
+func New(ctx context.Context, configPath string, configCreated bool, scanCh <-chan library.Track, watchCh <-chan library.WatchEvent, libraryRoot string, extractor library.MetadataExtractor, p playPauser) Model {
 	initialStyles := styles.NewStyles(true)
 	return Model{
+		appCtx:        ctx,
 		activeView:    viewLibrary,
 		configPath:    configPath,
 		configCreated: configCreated,
@@ -985,499 +986,90 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s := styles.NewStyles(msg.IsDark())
 		m.styles = &s
 
+	// --- Library / scan / watcher messages (root_library.go) ---
+
 	case library.ScanProgressMsg:
-		m.statusBar.handleScanProgress(msg)
+		m = m.handleScanProgressMsg(msg)
 
 	case library.ScanTotalMsg:
-		m.scanTotal = msg.Total
-		if m.scanning {
-			m.statusBar.handleScanProgress(library.ScanProgressMsg{Scanned: m.scanned, Total: m.scanTotal})
-		}
+		m = m.handleScanTotalMsg(msg)
 
 	case library.ScanBatchMsg:
-		for _, t := range msg.Tracks {
-			m.library.index.Insert(t)
-		}
-		m.scanned += len(msg.Tracks)
-		m.statusBar.handleScanProgress(library.ScanProgressMsg{Scanned: m.scanned, Total: m.scanTotal})
-		// Invalidate the cached fuzzy-match results so that stale TrackIndex
-		// values from the previous index state cannot cause an out-of-bounds
-		// panic when the filter is active and the user navigates or renders.
-		if m.library.filterText != "" {
-			m.library = m.library.rebuildFilterCache()
-		}
-		// Refresh the artists list when at ArtistLevel so the view stays
-		// current as the library grows during a scan.
-		if m.artists.level == arttui.ArtistLevel {
-			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
-			m.artists = m.artists.clampCursor()
-		}
-		// Refresh the albums list when at AlbumLevel so the view stays
-		// current as the library grows during a scan.
-		if m.albums.level == albtui.AlbumLevel {
-			m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
-			m.albums = m.albums.clampCursor()
-		}
-		if m.scanCh != nil {
-			return m, waitForNextBatch(m.scanCh)
-		}
+		return m.handleScanBatchMsg(msg)
 
 	case watchBatchMsg:
-		for _, path := range msg.deleted {
-			m.library.index.RemoveByPath(path)
-		}
-		for _, t := range msg.tracks {
-			m.library.index.UpsertByPath(t.Path, t)
-		}
-		// Invalidate the cached fuzzy-match results so that stale TrackIndex
-		// values from the previous index state cannot cause an out-of-bounds
-		// panic when the filter is active and the user navigates or renders.
-		if m.library.filterText != "" {
-			m.library = m.library.rebuildFilterCache()
-			// Clamp cursor to the new (possibly shorter) match set.
-			n := len(m.library.filteredMatches)
-			if n == 0 {
-				m.library.cursor = 0
-				m.library.scrollOffset = 0
-			} else if m.library.cursor >= n {
-				m.library.cursor = n - 1
-			}
-		}
-		// Refresh the artists list when at ArtistLevel so the view stays
-		// current when the filesystem watcher detects changes.
-		if m.artists.level == arttui.ArtistLevel {
-			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
-			m.artists = m.artists.clampCursor()
-		}
-		// Refresh the albums list when at AlbumLevel so the view stays
-		// current when the filesystem watcher detects changes.
-		if m.albums.level == albtui.AlbumLevel {
-			m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
-			m.albums = m.albums.clampCursor()
-		}
-		if m.watchCh != nil {
-			return m, waitForWatchBatch(m.watchCh)
-		}
+		return m.handleWatchBatchMsg(msg)
 
 	case library.ScanDoneMsg:
-		m.scanning = false
-		m.scanCh = nil
-		// The last scan-progress notification expires naturally via the tick.
+		m = m.handleScanDoneMsg()
+
+	// --- Playback messages (root_playback.go) ---
 
 	case tickMsg:
-		if m.playbackState == PlaybackPlaying || m.playbackState == PlaybackPaused {
-			if er, ok := m.player.(elapsedReader); ok {
-				if elapsed, total, err := er.ElapsedPosition(); err == nil {
-					m.elapsedSecs = elapsed
-					m.totalSecs = total
-				}
-			}
-		}
-		if m.preview != nil && m.previewPlayer != nil {
-			if elapsed, total, err := m.previewPlayer.ElapsedPosition(); err == nil {
-				m.preview.elapsed = elapsed
-				m.preview.total = total
-			} else {
-				// Preview track ended or mpv died — auto-dismiss.
-				m = m.dismissPreview()
-			}
-		}
-		if m.nowPlayingInfo != nil {
-			m.nowPlayingInfo.elapsed = m.elapsedSecs
-			m.nowPlayingInfo.total = m.totalSecs
-			m.nowPlayingInfo.state = m.playbackState
-		}
-		if !m.statusBar.notification.expiresAt.IsZero() && time.Now().After(m.statusBar.notification.expiresAt) {
-			m.statusBar.notification = transientNotification{}
-		}
-		return m, tickCmd()
+		return m.handleTickMsg()
 
 	case syncPositionMsg:
-		if ps, ok := m.player.(positionSyncer); ok {
-			_ = ps.SyncPosition()
-		}
-		return m, syncPositionCmd()
+		return m.handleSyncPositionMsg()
 
 	case sessionTickMsg:
-		var cmd tea.Cmd
-		if m.playbackState == PlaybackPlaying {
-			cmd = m.sessionPositionCmd()
-		}
-		return m, tea.Batch(sessionTickCmd(), cmd)
+		return m.handleSessionTickMsg()
 
 	case PlayerStatusMsg:
-		m.statusBar.notification = transientNotification{
-			msg:       msg.Text,
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m = m.handlePlayerStatusMsg(msg)
 
 	case MissingTrackMsg:
-		m.queue.markMissing(msg.Path)
-		m.statusBar.handleMissingTrack(msg.Path)
-
-	case FilterBarMsg:
-		switch m.activeView {
-		case viewLibrary:
-			if m.library.filterActive {
-				m.library = m.library.CommitFilter()
-			} else {
-				m.library = m.library.ActivateFilter()
-			}
-		case viewArtists:
-			if m.artists.filterActive {
-				m.artists = m.artists.CommitFilter()
-			} else {
-				m.artists = m.artists.ActivateFilter()
-			}
-		case viewAlbums:
-			if m.albums.filterActive {
-				m.albums = m.albums.CommitFilter()
-			} else {
-				m.albums = m.albums.ActivateFilter()
-			}
-		}
+		m = m.handleMissingTrackMsg(msg)
 
 	case PlaybackEndedMsg:
-		if m.repeatMode == RepeatAll && len(m.queue.entries) > 0 && m.player != nil {
-			if err := m.player.PlayFromIndex(0); err == nil {
-				m.playbackState = PlaybackPlaying
-				e := m.queue.entries[0]
-				m.currentTrackHash = e.Hash
-				m.statusBar.artist = e.Artist
-				m.statusBar.title = e.Title
-				m.statusBar.playlistSource = "Queue"
-				m.elapsedSecs = 0
-				m.totalSecs = 0
-				return m, m.sessionPositionCmd()
-			}
-		}
-		m.playbackState = PlaybackIdle
-		m.elapsedSecs = 0
-		m.totalSecs = 0
-		m.statusBar.artist = ""
-		m.statusBar.title = ""
-		m.statusBar.playlistSource = ""
-		m.currentTrackHash = ""
-		if m.repeatMode == RepeatOff {
-			m.statusBar.notification = transientNotification{
-				msg:       "Queue finished",
-				expiresAt: time.Now().Add(transientDuration),
-			}
+		m = m.handlePlaybackEndedMsg()
+		if m.playbackState == PlaybackPlaying {
+			return m, m.sessionPositionCmd()
 		}
 
 	case previewStartedMsg:
-		m.previewPlayer = msg.player
-		m.preview = &msg.overlay
+		m = m.handlePreviewStartedMsg(msg)
 
 	case previewStartErrorMsg:
-		m.statusBar.notification = transientNotification{
-			msg:       "Preview error: " + msg.err.Error(),
-			expiresAt: time.Now().Add(transientDuration),
-		}
-		// Resume main player if we paused it.
-		if m.previewWasPlaying && m.player != nil {
-			_ = m.player.Play()
-			m.playbackState = PlaybackPlaying
-		}
-		m.previewWasPlaying = false
+		m = m.handlePreviewStartErrorMsg(msg)
 
 	case TrackChangedMsg:
-		m.currentTrackHash = msg.Hash
-		m.statusBar.artist = msg.Artist
-		m.statusBar.title = msg.Title
-		source := msg.PlaylistSource
-		if source == "" {
-			source = "Queue"
-		}
-		m.statusBar.playlistSource = source
-		m.playbackState = PlaybackPlaying
-		m.elapsedSecs = 0
-		m.totalSecs = 0
-		return m, m.sessionPositionCmd()
+		return m.handleTrackChangedMsg(msg)
+
+	// --- Filter messages (root_filter.go) ---
+
+	case FilterBarMsg:
+		m = m.handleFilterBarMsg()
+
+	// --- Queue messages (root_queue.go) ---
 
 	case libtui.TrackEnqueuedMsg:
-		if msg.Err != nil {
-			m.statusBar.notification = transientNotification{
-				msg:       "Failed to enqueue track: " + msg.Err.Error(),
-				expiresAt: time.Now().Add(transientDuration),
-			}
-			break
-		}
-		display := msg.Track.Artist + " – " + msg.Track.Title
-		if msg.Track.Artist == "" && msg.Track.Title == "" {
-			display = msg.Track.Path
-		} else if msg.Track.Artist == "" {
-			display = msg.Track.Title
-		} else if msg.Track.Title == "" {
-			display = msg.Track.Artist
-		}
-		m.queue.entries = append(m.queue.entries, QueueEntry{
-			ID:             msg.QueueID,
-			Path:           msg.Track.Path,
-			Hash:           msg.Track.Hash,
-			Display:        display,
-			Artist:         msg.Track.Artist,
-			Title:          msg.Track.Title,
-			DurationMs:     int64(msg.Track.Duration * 1000),
-			SourcePlaylist: msg.SourcePlaylist,
-		})
-		// Keep the player's in-memory queue in sync.
-		if pa, ok := m.player.(playerQueueAppender); ok {
-			pa.AppendToQueue(player.QueueTrack{
-				Path:    msg.Track.Path,
-				Hash:    msg.Track.Hash,
-				QueueID: msg.QueueID,
-				Artist:  msg.Track.Artist,
-				Title:   msg.Track.Title,
-			})
-		}
-		// Set up undo slot so the user can revert the enqueue.
-		enqueueIdx := len(m.queue.entries) - 1
-		if m.undoSlot.cancelPurge != nil {
-			close(m.undoSlot.cancelPurge)
-		}
-		m.undoSlot = undoSlot{
-			kind:         undoKindEnqueue,
-			expiresAt:    time.Now().Add(undoWindowDuration),
-			dequeueID:    msg.QueueID,
-			dequeueEntry: m.queue.entries[enqueueIdx],
-			dequeueIdx:   enqueueIdx,
-		}
-		m.statusBar.notification = transientNotification{
-			msg:       "Added " + display + " — press u to undo",
-			expiresAt: time.Now().Add(undoWindowDuration),
-		}
-		// Trigger immediate playback when the queue was previously empty and
-		// nothing is playing.
-		if msg.WasEmpty && m.playbackState == PlaybackIdle && m.player != nil {
-			if err := m.player.PlayFromIndex(0); err == nil {
-				m.playbackState = PlaybackPlaying
-				m.currentTrackHash = msg.Track.Hash
-				m.statusBar.artist = msg.Track.Artist
-				m.statusBar.title = msg.Track.Title
-				m.statusBar.playlistSource = "Queue"
-			}
-		}
+		m = m.handleTrackEnqueuedMsg(msg)
 
 	case BatchEnqueuedMsg:
-		if msg.Err != nil {
-			m.statusBar.notification = transientNotification{
-				msg:       "Failed to enqueue playlist: " + msg.Err.Error(),
-				expiresAt: time.Now().Add(transientDuration),
-			}
-			break
-		}
-		if len(msg.Entries) == 0 {
-			m.statusBar.notification = transientNotification{
-				msg:       "Playlist is empty",
-				expiresAt: time.Now().Add(transientDuration),
-			}
-			break
-		}
-		batchStartIdx := len(m.queue.entries)
-		m.queue.entries = append(m.queue.entries, msg.Entries...)
-		// Keep the player's in-memory queue in sync.
-		if pa, ok := m.player.(playerQueueAppender); ok {
-			for _, e := range msg.Entries {
-				pa.AppendToQueue(player.QueueTrack{
-					Path:    e.Path,
-					Hash:    e.Hash,
-					QueueID: e.ID,
-					Artist:  e.Artist,
-					Title:   e.Title,
-				})
-			}
-		}
-		// Trigger immediate playback when the queue was previously empty.
-		if msg.WasEmpty && m.playbackState == PlaybackIdle && m.player != nil {
-			if err := m.player.PlayFromIndex(0); err == nil {
-				m.playbackState = PlaybackPlaying
-				e := msg.Entries[0]
-				m.currentTrackHash = e.Hash
-				m.statusBar.artist = e.Artist
-				m.statusBar.title = e.Title
-				m.statusBar.playlistSource = msg.PlaylistName
-			}
-		}
-		// Set up undo slot.
-		if m.undoSlot.cancelPurge != nil {
-			close(m.undoSlot.cancelPurge)
-		}
-		m.undoSlot = undoSlot{
-			kind:          undoKindBatchEnqueue,
-			expiresAt:     time.Now().Add(undoWindowDuration),
-			batchIDs:      msg.QueueIDs,
-			batchCount:    len(msg.Entries),
-			batchStartIdx: batchStartIdx,
-		}
-		m.statusBar.notification = transientNotification{
-			msg:       fmt.Sprintf("Added %d %s from %s — press u to undo", len(msg.Entries), pluralize(len(msg.Entries), "track", "tracks"), msg.PlaylistName),
-			expiresAt: time.Now().Add(undoWindowDuration),
-		}
+		m = m.handleBatchEnqueuedMsg(msg)
 
 	case PlayQueueIndexMsg:
-		if m.player != nil {
-			if err := m.player.PlayFromIndex(msg.Index); err == nil {
-				m.playbackState = PlaybackPlaying
-				if msg.Index < len(m.queue.entries) {
-					e := m.queue.entries[msg.Index]
-					m.currentTrackHash = e.Hash
-					m.statusBar.artist = e.Artist
-					m.statusBar.title = e.Title
-				}
-				m.statusBar.playlistSource = "Queue"
-			}
-		}
+		m = m.handlePlayQueueIndexMsg(msg)
 
 	case DequeueTrackMsg:
-		if msg.Index >= 0 && msg.Index < len(m.queue.entries) {
-			entry := m.queue.entries[msg.Index]
-			undoer := m.undoer
-			cancel := m.scheduleSoftDelete(
-				func() {
-					if undoer != nil {
-						_ = undoer.DequeueTrackSoft(entry.ID)
-					}
-				},
-				func(before int64) {
-					if undoer != nil {
-						_ = undoer.PurgeDeletedQueueEntries(before)
-					}
-				},
-			)
-			m.setUndoSlot(undoSlot{
-				kind:         undoKindDequeue,
-				expiresAt:    time.Now().Add(undoWindowDuration),
-				cancelPurge:  cancel,
-				dequeueID:    entry.ID,
-				dequeueEntry: entry,
-				dequeueIdx:   msg.Index,
-			}, "Track removed — press u to undo")
-			m.queue.entries = append(m.queue.entries[:msg.Index], m.queue.entries[msg.Index+1:]...)
-			if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
-				m.queue.cursor = len(m.queue.entries) - 1
-			}
-			// Clamp scrollOffset so it does not point past the end of the
-			// shortened list, which would cause an empty or broken render.
-			if n := len(m.queue.entries); n > 0 {
-				maxOffset := n - 1
-				if m.queue.scrollOffset > maxOffset {
-					m.queue.scrollOffset = maxOffset
-				}
-			} else {
-				m.queue.scrollOffset = 0
-			}
-			if qr, ok := m.player.(playerQueueRemover); ok {
-				_ = qr.RemoveFromQueue(msg.Index)
-			}
-			// If the dequeued track was the currently playing one, stop playback
-			// and clear the status bar.
-			if entry.Hash != "" && entry.Hash == m.currentTrackHash {
-				if cp, ok := m.player.(commandPlayer); ok {
-					_ = cp.Stop()
-				}
-				m.playbackState = PlaybackIdle
-				m.elapsedSecs = 0
-				m.totalSecs = 0
-				m.statusBar.artist = ""
-				m.statusBar.title = ""
-				m.statusBar.playlistSource = ""
-				m.currentTrackHash = ""
-			}
-		}
+		m = m.handleDequeueTrackMsg(msg)
 
 	case BulkSelectionToggleMsg:
-		if msg.Index >= 0 && msg.Index < len(m.queue.entries) {
-			m.queue.entries[msg.Index].Selected = !m.queue.entries[msg.Index].Selected
-		}
+		m = m.handleBulkSelectionToggleMsg(msg)
 
 	case ClearQueueMsg:
-		savedEntries := make([]QueueEntry, len(m.queue.entries))
-		copy(savedEntries, m.queue.entries)
-		savedTracks := make([]player.QueueTrack, len(savedEntries))
-		for i, e := range savedEntries {
-			savedTracks[i] = player.QueueTrack{
-				Path:    e.Path,
-				Hash:    e.Hash,
-				QueueID: e.ID,
-				Artist:  e.Artist,
-				Title:   e.Title,
-			}
-		}
-		var clearIDs []int64
-		undoer := m.undoer
-		cancel := m.scheduleSoftDelete(
-			func() {
-				if undoer != nil {
-					clearIDs, _ = undoer.ClearQueueSoft()
-				}
-			},
-			func(before int64) {
-				if undoer != nil {
-					_ = undoer.PurgeDeletedQueueEntries(before)
-				}
-			},
-		)
-		m.setUndoSlot(undoSlot{
-			kind:         undoKindClear,
-			expiresAt:    time.Now().Add(undoWindowDuration),
-			cancelPurge:  cancel,
-			clearIDs:     clearIDs,
-			clearEntries: savedEntries,
-			clearTracks:  savedTracks,
-		}, "Queue cleared — press u to undo")
-		m.queue.entries = nil
-		m.queue.cursor = 0
-		m.queue.scrollOffset = 0
-		// Stop active playback — requirement req-019ce3a80fa97003a43d90cf5e7c7a3f.
-		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.Stop()
-			m.playbackState = PlaybackIdle
-			m.elapsedSecs = 0
-			m.totalSecs = 0
-		}
-		m.statusBar.artist = ""
-		m.statusBar.title = ""
-		m.statusBar.playlistSource = ""
-		m.currentTrackHash = ""
-		if qs, ok := m.player.(playerQueueSetter); ok {
-			qs.SetQueue(nil)
-		}
+		m = m.handleClearQueueMsg()
 
 	case UndoMsg:
 		m = m.handleUndo()
 
 	case MoveTrackUpMsg:
-		if msg.Index > 0 && msg.Index < len(m.queue.entries) {
-			entry := m.queue.entries[msg.Index]
-			m.queue.entries[msg.Index-1], m.queue.entries[msg.Index] = m.queue.entries[msg.Index], m.queue.entries[msg.Index-1]
-			m.queue.cursor = msg.Index - 1
-			m.syncPlayerQueue()
-			if m.reorderer != nil {
-				r := m.reorderer
-				id := entry.ID
-				return m, func() tea.Msg {
-					_ = r.ReorderQueueTrack(id, -1)
-					return nil
-				}
-			}
-		}
+		return m.handleMoveTrackUpMsg(msg)
 
 	case MoveTrackDownMsg:
-		if msg.Index >= 0 && msg.Index < len(m.queue.entries)-1 {
-			entry := m.queue.entries[msg.Index]
-			m.queue.entries[msg.Index], m.queue.entries[msg.Index+1] = m.queue.entries[msg.Index+1], m.queue.entries[msg.Index]
-			m.queue.cursor = msg.Index + 1
-			m.syncPlayerQueue()
-			if m.reorderer != nil {
-				r := m.reorderer
-				id := entry.ID
-				return m, func() tea.Msg {
-					_ = r.ReorderQueueTrack(id, +1)
-					return nil
-				}
-			}
-		}
+		return m.handleMoveTrackDownMsg(msg)
+
+	// --- Key handling ---
 
 	case tea.KeyPressMsg:
 		if m.helpVisible {
@@ -1537,67 +1129,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		}
-		// When the library filter bar is active, intercept all keypresses
-		// before the registry so that typing populates the filter text
-		// instead of triggering normal keybindings.
-		if m.library.filterActive && m.activeView == viewLibrary {
-			switch msg.String() {
-			case "ctrl+c":
-				return m, tea.Quit
-			case "esc":
-				m.library = m.library.DeactivateFilter()
-			case "enter", "/":
-				m.library = m.library.CommitFilter()
-			case "backspace":
-				m.library = m.library.BackspaceFilter()
-			default:
-				if msg.Text != "" {
-					for _, ch := range msg.Text {
-						m.library = m.library.AppendFilterChar(ch)
-					}
-				}
-			}
-			return m, nil
-		}
-		// Same interception for the artists view filter bar.
-		if m.artists.filterActive && m.activeView == viewArtists {
-			switch msg.String() {
-			case "ctrl+c":
-				return m, tea.Quit
-			case "esc":
-				m.artists = m.artists.DeactivateFilter()
-			case "enter", "/":
-				m.artists = m.artists.CommitFilter()
-			case "backspace":
-				m.artists = m.artists.BackspaceFilter()
-			default:
-				if msg.Text != "" {
-					for _, ch := range msg.Text {
-						m.artists = m.artists.AppendFilterChar(ch)
-					}
-				}
-			}
-			return m, nil
-		}
-		// Same interception for the albums view filter bar.
-		if m.albums.filterActive && m.activeView == viewAlbums {
-			switch msg.String() {
-			case "ctrl+c":
-				return m, tea.Quit
-			case "esc":
-				m.albums = m.albums.DeactivateFilter()
-			case "enter", "/":
-				m.albums = m.albums.CommitFilter()
-			case "backspace":
-				m.albums = m.albums.BackspaceFilter()
-			default:
-				if msg.Text != "" {
-					for _, ch := range msg.Text {
-						m.albums = m.albums.AppendFilterChar(ch)
-					}
-				}
-			}
-			return m, nil
+		// Filter bar interception (root_filter.go).
+		if model, cmd, ok := m.handleFilterKeyPress(msg); ok {
+			return model, cmd
 		}
 		// When the inline playlist create input is active, intercept all
 		// keypresses before the registry.
@@ -1786,6 +1320,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 		return m.handleKeyAction(m.registry.resolve(m.activeViewContext(), msg.String()))
+
+	// --- Playlist messages (remain in root.go) ---
+
 	case playlistTracksLoadedMsg:
 		m.playlists = m.playlists.openTracks(msg.tracks)
 
@@ -2032,164 +1569,24 @@ func (m Model) renderStatusBar() string {
 	return sb.render(m.termWidth, *m.styles)
 }
 
-// handleUndo processes the UndoMsg by reversing the most recent destructive
-// action stored in the undo slot, if one exists and has not expired.
-func (m Model) handleUndo() Model {
-	if m.undoSlot.kind == undoNone || !time.Now().Before(m.undoSlot.expiresAt) {
-		return m
-	}
-	// Cancel any in-flight purge timer from the undo slot being consumed.
-	// This must happen before the switch so that undo cases that schedule
-	// new purge timers do not have them immediately cancelled by the
-	// post-switch cleanup.
-	if m.undoSlot.cancelPurge != nil {
-		close(m.undoSlot.cancelPurge)
-		m.undoSlot.cancelPurge = nil
-	}
-	switch m.undoSlot.kind {
-	case undoKindEnqueue:
-		idx := m.undoSlot.dequeueIdx
-		if idx >= 0 && idx < len(m.queue.entries) {
-			entry := m.queue.entries[idx]
-			if m.undoer != nil {
-				_ = m.undoer.DequeueTrackSoft(entry.ID)
-				undoer := m.undoer
-				softDeleteTime := time.Now().Unix()
-				time.AfterFunc(undoWindowDuration, func() {
-					_ = undoer.PurgeDeletedQueueEntries(softDeleteTime + 1)
-				})
-			}
-			m.queue.entries = append(m.queue.entries[:idx], m.queue.entries[idx+1:]...)
-			if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
-				m.queue.cursor = len(m.queue.entries) - 1
-			}
-			if n := len(m.queue.entries); n > 0 {
-				maxOffset := n - 1
-				if m.queue.scrollOffset > maxOffset {
-					m.queue.scrollOffset = maxOffset
-				}
-			} else {
-				m.queue.scrollOffset = 0
-			}
-			if qr, ok := m.player.(playerQueueRemover); ok {
-				_ = qr.RemoveFromQueue(idx)
-			}
-		}
-	case undoKindDequeue:
-		if m.undoer != nil {
-			_ = m.undoer.UndoDequeue(m.undoSlot.dequeueID)
-		}
-		idx := min(m.undoSlot.dequeueIdx, len(m.queue.entries))
-		entries := make([]QueueEntry, len(m.queue.entries)+1)
-		copy(entries, m.queue.entries[:idx])
-		entries[idx] = m.undoSlot.dequeueEntry
-		copy(entries[idx+1:], m.queue.entries[idx:])
-		m.queue.entries = entries
-		m.queue.cursor = idx
-		// Ensure the restored entry's cursor position is visible.
-		if m.queue.cursor < m.queue.scrollOffset {
-			m.queue.scrollOffset = m.queue.cursor
-		} else {
-			maxRows := m.queue.visibleRows()
-			if m.queue.cursor >= m.queue.scrollOffset+maxRows {
-				m.queue.scrollOffset = m.queue.cursor - maxRows + 1
-			}
-		}
-		// Rebuild the player's in-memory queue so it stays in sync with the
-		// TUI queue after the re-insertion.
-		if qs, ok := m.player.(playerQueueSetter); ok {
-			pt := make([]player.QueueTrack, len(m.queue.entries))
-			for i, e := range m.queue.entries {
-				pt[i] = player.QueueTrack{
-					Path:    e.Path,
-					Hash:    e.Hash,
-					QueueID: e.ID,
-					Artist:  e.Artist,
-					Title:   e.Title,
-				}
-			}
-			qs.SetQueue(pt)
-		}
-	case undoKindClear:
-		if m.undoer != nil {
-			_ = m.undoer.UndoClearQueue(m.undoSlot.clearIDs)
-		}
-		m.queue.entries = m.undoSlot.clearEntries
-		if qs, ok := m.player.(playerQueueSetter); ok {
-			qs.SetQueue(m.undoSlot.clearTracks)
-		}
-	case undoKindDeletePlaylist:
-		if m.playlistDeleter != nil {
-			_ = m.playlistDeleter.UndoDeletePlaylist(m.undoSlot.deletePlaylistEntry.ID)
-		}
-		idx := min(m.undoSlot.deletePlaylistIdx, len(m.playlists.playlists))
-		playlists := make([]db.PlaylistRow, len(m.playlists.playlists)+1)
-		copy(playlists, m.playlists.playlists[:idx])
-		playlists[idx] = m.undoSlot.deletePlaylistEntry
-		copy(playlists[idx+1:], m.playlists.playlists[idx:])
-		m.playlists.playlists = playlists
-		m.playlists.cursor = idx
-		if m.playlists.cursor < m.playlists.scrollOffset {
-			m.playlists.scrollOffset = m.playlists.cursor
-		}
-	case undoKindRemovePlaylistTrack:
-		if m.playlistDeleter != nil {
-			_ = m.playlistDeleter.UndoRemovePlaylistTrack(m.undoSlot.removeTrackEntry.ID)
-		}
-		idx := min(m.undoSlot.removeTrackIdx, len(m.playlists.tracks))
-		tracks := make([]db.PlaylistTrackRow, len(m.playlists.tracks)+1)
-		copy(tracks, m.playlists.tracks[:idx])
-		tracks[idx] = m.undoSlot.removeTrackEntry
-		copy(tracks[idx+1:], m.playlists.tracks[idx:])
-		m.playlists.tracks = tracks
-		m.playlists.cursor = idx
-		if m.playlists.cursor < m.playlists.scrollOffset {
-			m.playlists.scrollOffset = m.playlists.cursor
-		}
-	case undoKindBatchEnqueue:
-		if m.batchEnqueuer != nil {
-			_ = m.batchEnqueuer.DequeueTracksSoft(m.undoSlot.batchIDs)
-			if m.undoer != nil {
-				undoer := m.undoer
-				softDeleteTime := time.Now().Unix()
-				time.AfterFunc(undoWindowDuration, func() {
-					_ = undoer.PurgeDeletedQueueEntries(softDeleteTime + 1)
-				})
-			}
-		}
-		startIdx := m.undoSlot.batchStartIdx
-		endIdx := startIdx + m.undoSlot.batchCount
-		if endIdx > len(m.queue.entries) {
-			endIdx = len(m.queue.entries)
-		}
-		if startIdx < len(m.queue.entries) {
-			m.queue.entries = append(m.queue.entries[:startIdx], m.queue.entries[endIdx:]...)
-		}
-		if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
-			m.queue.cursor = len(m.queue.entries) - 1
-		}
-		if n := len(m.queue.entries); n > 0 {
-			maxOffset := n - 1
-			if m.queue.scrollOffset > maxOffset {
-				m.queue.scrollOffset = maxOffset
-			}
-		} else {
-			m.queue.scrollOffset = 0
-		}
-		if qr, ok := m.player.(playerQueueRemover); ok {
-			for i := endIdx - 1; i >= startIdx; i-- {
-				_ = qr.RemoveFromQueue(i)
-			}
-		}
-	}
-	m.undoSlot = undoSlot{}
-	return m
-}
-
 // handleKeyAction dispatches a resolved KeyAction to the appropriate handler.
 // It is called from the tea.KeyPressMsg case in Update after the registry
 // resolves the key string to an action.
 func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
+	// Playback actions (root_playback.go).
+	if model, cmd, ok := m.handlePlaybackKeyAction(action); ok {
+		return model, cmd
+	}
+	// Library / artist / album actions (root_library.go).
+	if model, cmd, ok := m.handleLibraryKeyAction(action); ok {
+		return model, cmd
+	}
+	// Queue actions (root_queue.go).
+	if model, cmd, ok := m.handleQueueKeyAction(action); ok {
+		return model, cmd
+	}
+
+	// Navigation, view-switching, cursor, playlist, and remaining actions.
 	switch action {
 	case actionHelp:
 		m.prevActiveView = m.activeView
@@ -2218,131 +1615,8 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m.nowPlayingInfo = nil
 		m = m.dismissPreview()
 		return m, tea.Quit
-	case actionNowPlayingInfo:
-		if m.nowPlayingInfo != nil {
-			m.nowPlayingInfo = nil
-			return m, nil
-		}
-		if m.playbackState == PlaybackStopped || m.playbackState == PlaybackIdle {
-			m.statusBar.notification = transientNotification{
-				msg:       "No track playing",
-				expiresAt: time.Now().Add(transientDuration),
-			}
-			return m, nil
-		}
-		overlay := NowPlayingOverlay{
-			artist:  m.statusBar.artist,
-			title:   m.statusBar.title,
-			elapsed: m.elapsedSecs,
-			total:   m.totalSecs,
-			state:   m.playbackState,
-		}
-		// Enrich from library index — the status bar fields may be empty
-		// after a session restore, but the hash is always set.
-		if m.currentTrackHash != "" {
-			for _, t := range m.library.index.Tracks() {
-				if t.Hash == m.currentTrackHash {
-					if overlay.artist == "" {
-						overlay.artist = t.Artist
-					}
-					if overlay.title == "" {
-						overlay.title = t.Title
-					}
-					overlay.album = t.Album
-					break
-				}
-			}
-		}
-		m.nowPlayingInfo = &overlay
-		return m, nil
-	case actionPreview:
-		if m.preview != nil {
-			m = m.dismissPreview()
-			return m, nil
-		}
-		track, ok := m.focusedTrackForPreview()
-		if !ok {
-			m.statusBar.notification = transientNotification{
-				msg:       "No track to preview",
-				expiresAt: time.Now().Add(transientDuration),
-			}
-			return m, nil
-		}
-		m.previewWasPlaying = m.playbackState == PlaybackPlaying
-		if m.previewWasPlaying && m.player != nil {
-			_ = m.player.Pause()
-			m.playbackState = PlaybackPaused
-		}
-		return m, m.startPreviewCmd(track)
-	case actionPlayPause:
-		if m.player != nil {
-			if m.playbackState == PlaybackPlaying {
-				_ = m.player.Pause()
-				m.playbackState = PlaybackPaused
-				return m, m.sessionPositionCmd()
-			} else if len(m.queue.entries) == 0 {
-				m.statusBar.notification = transientNotification{
-					msg:       "Queue is empty — enqueue tracks from Library (key 1)",
-					expiresAt: time.Now().Add(transientDuration),
-				}
-			} else {
-				_ = m.player.Play()
-				m.playbackState = PlaybackPlaying
-			}
-		}
-	case actionStop:
-		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.Stop()
-			m.playbackState = PlaybackStopped
-			m.elapsedSecs = 0
-			m.totalSecs = 0
-		}
-	case actionNext:
-		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.Next()
-		}
-	case actionPrevious:
-		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.Previous()
-		}
-	case actionSeekBack:
-		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SeekRelative(-5)
-			return m, m.sessionPositionCmd()
-		}
-	case actionSeekForward:
-		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SeekRelative(5)
-			return m, m.sessionPositionCmd()
-		}
-	case actionSeekBackLong:
-		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SeekRelative(-30)
-			return m, m.sessionPositionCmd()
-		}
-	case actionSeekForwardLong:
-		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SeekRelative(30)
-			return m, m.sessionPositionCmd()
-		}
-	case actionVolumeUp:
-		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SetVolumeRelative(5)
-			m.volume = clampVolume(m.volume + 5)
-			m.statusBar.notification = transientNotification{
-				msg:       fmt.Sprintf("Volume: %d%%", m.volume),
-				expiresAt: time.Now().Add(volumeFeedbackDuration),
-			}
-		}
-	case actionVolumeDown:
-		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SetVolumeRelative(-5)
-			m.volume = clampVolume(m.volume - 5)
-			m.statusBar.notification = transientNotification{
-				msg:       fmt.Sprintf("Volume: %d%%", m.volume),
-				expiresAt: time.Now().Add(volumeFeedbackDuration),
-			}
-		}
+	case actionFilterBar:
+		return m, func() tea.Msg { return FilterBarMsg{} }
 	case actionSwitchLibrary:
 		m.activeView = viewLibrary
 	case actionSwitchPlaylists:
@@ -2358,131 +1632,6 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m.activeView = viewAlbums
 		if len(m.albums.albums) == 0 {
 			m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
-		}
-	case actionArtistOpen:
-		allTracks := m.library.index.Tracks()
-		switch m.artists.level {
-		case arttui.ArtistLevel:
-			artist, ok := m.artists.focusedArtist()
-			if ok {
-				albums := arttui.DeriveAlbums(allTracks, artist)
-				m.artists.selectedArtist = artist
-				m.artists = m.artists.openAlbums(albums)
-			}
-		case arttui.AlbumLevel:
-			album, ok := m.artists.focusedAlbum()
-			if ok {
-				tracks := arttui.DeriveTracks(allTracks, m.artists.selectedArtist, album)
-				m.artists.selectedAlbum = album
-				m.artists = m.artists.openTracks(tracks)
-			}
-		case arttui.TrackLevel:
-			if m.queueWriter != nil {
-				if cmd := m.artists.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
-					return m, cmd
-				}
-			}
-		}
-	case actionArtistBack:
-		m.artists = m.artists.back()
-	case actionAlbumOpen:
-		allTracks := m.library.index.Tracks()
-		switch m.albums.level {
-		case albtui.AlbumLevel:
-			album, ok := m.albums.focusedAlbum()
-			if ok {
-				tracks := albtui.DeriveAlbumTracks(allTracks, album)
-				m.albums.selectedAlbum = album
-				m.albums = m.albums.openTracks(tracks)
-			}
-		case albtui.TrackLevel:
-			if m.queueWriter != nil {
-				if cmd := m.albums.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
-					return m, cmd
-				}
-			}
-		}
-	case actionAlbumBack:
-		m.albums = m.albums.back()
-	case actionRescan:
-		if m.libraryRoot != "" && m.extractor != nil && !m.scanning {
-			ch := library.Scan(m.libraryRoot, m.extractor)
-			m.library.index = library.LibraryIndex{}
-			m.library.cursor = 0
-			m.library.scrollOffset = 0
-			m.library.filterActive = false
-			m.library.filterText = ""
-			m.library.filteredMatches = nil
-			m.scanCh = ch
-			m.scanning = true
-			m.scanned = 0
-			m.scanTotal = 0
-			// Reset the artists view so it gets re-derived from the new
-			// library index as scan batches arrive.
-			m.artists = ArtistsView{width: m.artists.width, height: m.artists.height}
-			// Reset the albums view so it gets re-derived from the new
-			// library index as scan batches arrive.
-			m.albums = AlbumsView{width: m.albums.width, height: m.albums.height}
-			return m, tea.Batch(waitForNextBatch(ch), countAudioFiles(m.libraryRoot))
-		}
-	case actionRepeatCycle:
-		switch m.repeatMode {
-		case RepeatOff:
-			m.repeatMode = RepeatAll
-		case RepeatAll:
-			m.repeatMode = RepeatOne
-		case RepeatOne:
-			m.repeatMode = RepeatOff
-		}
-		if rs, ok := m.player.(repeatShuffler); ok {
-			_ = rs.SetRepeat(m.repeatMode.String())
-		}
-		if m.sessionWriter != nil {
-			_ = m.sessionWriter.WriteRepeatMode(m.repeatMode.String())
-		}
-	case actionShuffleToggle:
-		m.shuffle = !m.shuffle
-		if rs, ok := m.player.(repeatShuffler); ok {
-			_ = rs.SetShuffle(m.shuffle)
-		}
-		if m.sessionWriter != nil {
-			_ = m.sessionWriter.WriteShuffle(m.shuffle)
-		}
-	case actionUndo:
-		return m, func() tea.Msg { return UndoMsg{} }
-	case actionFilterBar:
-		return m, func() tea.Msg { return FilterBarMsg{} }
-	case actionLibraryFilterClear:
-		if m.library.filterText != "" {
-			m.library = m.library.DeactivateFilter()
-		}
-	case actionLibraryEnqueue:
-		if m.queueWriter != nil {
-			cmd := m.library.EnqueueFocused(m.queueWriter, len(m.queue.entries))
-			if m.library.filterText != "" {
-				m.library = m.library.DeactivateFilter()
-			}
-			return m, cmd
-		}
-	case actionBulkAction:
-		if m.activeView == viewLibrary {
-			var tracks []library.Track
-			if len(m.library.selectedHashes) > 0 {
-				for _, t := range m.library.index.Tracks() {
-					if _, ok := m.library.selectedHashes[t.Hash]; ok {
-						tracks = append(tracks, t)
-					}
-				}
-			} else {
-				if t, ok := m.library.view().FocusedTrack(); ok {
-					tracks = []library.Track{t}
-				}
-			}
-			if len(tracks) > 0 {
-				modal := pltui.NewDestinationPicker(m.playlists.playlists)
-				m.destPicker = &modal
-				m.destPickerTracks = tracks
-			}
 		}
 	case actionCursorUp, actionCursorDown,
 		actionHalfPageDown, actionHalfPageUp,
@@ -2511,21 +1660,6 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)
 			return m, cmd
-		}
-	case actionSelect, actionDequeue,
-		actionClearQueue, actionMoveTrackUp, actionMoveTrackDown:
-		var cmd tea.Cmd
-		m.queue, cmd = m.queue.HandleAction(action)
-		return m, cmd
-	case actionSaveQueueAsPlaylist:
-		if len(m.queue.entries) == 0 {
-			m.statusBar.notification = transientNotification{
-				msg:       "Queue is empty — nothing to save",
-				expiresAt: time.Now().Add(transientDuration),
-			}
-		} else {
-			fromSelection := m.queue.hasSelection()
-			m.queue = m.queue.startSaveAsPlaylist(fromSelection)
 		}
 	case actionPlaylistRename:
 		return m, func() tea.Msg { return PlaylistRenameMsg{} }
@@ -2748,74 +1882,4 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
-}
-
-// focusedTrackForPreview returns the track under the cursor in whichever view
-// is active, or false when no track is focused.
-func (m Model) focusedTrackForPreview() (library.Track, bool) {
-	switch m.activeView {
-	case viewLibrary:
-		return m.library.view().FocusedTrack()
-	case viewQueue:
-		if m.queue.cursor >= 0 && m.queue.cursor < len(m.queue.entries) {
-			e := m.queue.entries[m.queue.cursor]
-			if e.Missing {
-				return library.Track{}, false
-			}
-			return library.Track{
-				Hash:     e.Hash,
-				Path:     e.Path,
-				Artist:   e.Artist,
-				Title:    e.Title,
-				Duration: float64(e.DurationMs) / 1000,
-			}, true
-		}
-	case viewPlaylists:
-		return m.playlists.focusedTrack()
-	case viewArtists:
-		return m.artists.focusedTrack()
-	case viewAlbums:
-		return m.albums.focusedTrack()
-	}
-	return library.Track{}, false
-}
-
-// startPreviewCmd returns a tea.Cmd that launches a PreviewPlayer, loads the
-// given track, and returns a previewStartedMsg on success.
-func (m Model) startPreviewCmd(track library.Track) tea.Cmd {
-	return func() tea.Msg {
-		socketPath := filepath.Join(os.TempDir(), "muse-preview.sock")
-		pp := player.NewPreviewPlayer(socketPath)
-		if err := pp.Start(); err != nil {
-			return previewStartErrorMsg{err: err}
-		}
-		if err := pp.LoadAndPlay(track.Path); err != nil {
-			_ = pp.Close()
-			return previewStartErrorMsg{err: err}
-		}
-		return previewStartedMsg{
-			player: pp,
-			overlay: PreviewOverlay{
-				artist: track.Artist,
-				title:  track.Title,
-				album:  track.Album,
-			},
-		}
-	}
-}
-
-// dismissPreview stops the preview player, clears the overlay, and resumes
-// main playback if it was playing before the preview started.
-func (m Model) dismissPreview() Model {
-	if m.previewPlayer != nil {
-		_ = m.previewPlayer.Close()
-	}
-	m.preview = nil
-	m.previewPlayer = nil
-	if m.previewWasPlaying && m.player != nil {
-		_ = m.player.Play()
-		m.playbackState = PlaybackPlaying
-	}
-	m.previewWasPlaying = false
-	return m
 }

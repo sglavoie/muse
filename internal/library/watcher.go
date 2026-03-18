@@ -82,10 +82,10 @@ func watchLoop(ctx context.Context, w *fsnotify.Watcher, _ string, extractor Met
 	// debounce window. These are emitted as deletion WatchEvents before rescanning.
 	deleted := make(map[string]struct{})
 
-	// debounce is reassigned on each new event; when it fires the pending set
-	// is flushed. Using time.After means each event creates a new timer and the
-	// previous one's channel is simply abandoned (fires into the void, then GC'd).
-	var debounce <-chan time.Time
+	// debounceTimer coalesces rapid filesystem events into a single rescan.
+	// It starts inactive and is reset on each new event.
+	debounceTimer := time.NewTimer(debounceDelay)
+	debounceTimer.Stop() // start inactive
 
 	for {
 		select {
@@ -99,7 +99,13 @@ func watchLoop(ctx context.Context, w *fsnotify.Watcher, _ string, extractor Met
 			slog.Debug("watcher: fsnotify event", "op", event.Op.String(), "path", event.Name)
 			handleFsEvent(event, pending, deleted, w)
 			// Reset the debounce window.
-			debounce = time.After(debounceDelay)
+			if !debounceTimer.Stop() {
+				select {
+				case <-debounceTimer.C:
+				default:
+				}
+			}
+			debounceTimer.Reset(debounceDelay)
 
 		case err, ok := <-w.Errors:
 			if !ok {
@@ -107,8 +113,7 @@ func watchLoop(ctx context.Context, w *fsnotify.Watcher, _ string, extractor Met
 			}
 			slog.Warn("watcher: fsnotify error", "err", err)
 
-		case <-debounce:
-			debounce = nil
+		case <-debounceTimer.C:
 			if len(pending) == 0 && len(deleted) == 0 {
 				continue
 			}

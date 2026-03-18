@@ -501,7 +501,13 @@ func (m *Manager) Close() error {
 		_ = c.Close()
 	}
 	if cmd != nil && cmd.Process != nil {
-		_ = cmd.Wait()
+		done := make(chan error, 1)
+		go func() { done <- cmd.Wait() }()
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			slog.Warn("mpv process did not exit within timeout")
+		}
 	}
 	return nil
 }

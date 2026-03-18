@@ -155,6 +155,7 @@ func (m DestinationPickerModal) buildBoxLines(s styles.Styles) []string {
 	// Row format: │ + " " + cursor(1) + " " + label_padded + " " + │
 	// The four non-label characters between the borders: " > " + " " = 4.
 	// So innerWidth = 4 + contentWidth, where contentWidth = label display width.
+	// Mirrors tui.OverlayMinInnerWidth (cannot import due to circular dep).
 	const minInner = 24
 	innerWidth := minInner
 	const modalTitle = " Destination "

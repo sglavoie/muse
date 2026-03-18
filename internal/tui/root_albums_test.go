@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -190,7 +191,7 @@ func TestAlbumsViewNavigationKeys(t *testing.T) {
 // TestScanBatchRefreshesAlbumList verifies that receiving a ScanBatchMsg
 // while at AlbumLevel re-derives the album list.
 func TestScanBatchRefreshesAlbumList(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.SetLibraryTracks([]library.Track{
 		{Artist: "Alice", Album: "Alpha", Title: "T1", Hash: "h1"},
 	})
@@ -215,7 +216,7 @@ func TestScanBatchRefreshesAlbumList(t *testing.T) {
 // TestWatchBatchRefreshesAlbumList verifies that receiving a watchBatchMsg
 // while at AlbumLevel re-derives the album list.
 func TestWatchBatchRefreshesAlbumList(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.SetLibraryTracks([]library.Track{
 		{Artist: "Alice", Album: "Alpha", Title: "T1", Hash: "h1", Path: "/a.flac"},
 		{Artist: "Bob", Album: "Beta", Title: "T2", Hash: "h2", Path: "/b.flac"},
@@ -242,7 +243,7 @@ func TestWatchBatchRefreshesAlbumList(t *testing.T) {
 // TestAlbumsClampCursorAfterShrink verifies that the cursor is clamped when
 // the album list shrinks during a library update.
 func TestAlbumsClampCursorAfterShrink(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.SetLibraryTracks([]library.Track{
 		{Artist: "Alice", Album: "Alpha", Title: "T1", Hash: "h1", Path: "/a.flac"},
 		{Artist: "Bob", Album: "Beta", Title: "T2", Hash: "h2", Path: "/b.flac"},
@@ -293,7 +294,7 @@ func TestRescanClearsAlbumsView(t *testing.T) {
 // TestAlbumsEmptyLibrary verifies that switching to the Albums view with an
 // empty library shows the "(no albums)" placeholder.
 func TestAlbumsEmptyLibrary(t *testing.T) {
-	m := New("", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 30})
 	m = next.(Model)
 	m = pressKey(m, "5")
