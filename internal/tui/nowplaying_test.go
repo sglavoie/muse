@@ -64,9 +64,9 @@ func TestNowPlayingOverlay_AlbumAbsentWhenEmpty(t *testing.T) {
 			}
 		}
 	}
-	// Without album: track line + progress line = 2 content rows.
-	if contentRows != 2 {
-		t.Errorf("expected 2 content rows without album, got %d", contentRows)
+	// Without album: title + artist + progress = 3 content rows.
+	if contentRows != 3 {
+		t.Errorf("expected 3 content rows without album, got %d", contentRows)
 	}
 }
 

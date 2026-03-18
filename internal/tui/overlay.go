@@ -9,6 +9,7 @@ import (
 
 // OverlayRow represents a single content row inside an OverlayBox.
 type OverlayRow struct {
+	Label  string // optional right-aligned label (e.g. "Title:")
 	Text   string // text content of the row
 	Styled bool   // if true, wrap with styles.Accent
 	Blank  bool   // if true, render an empty row (Text is ignored)
@@ -36,10 +37,24 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 		crossR   = "┤"
 	)
 
+	// Find the widest label for right-alignment.
+	maxLabelW := 0
+	for _, r := range o.Rows {
+		if lw := len([]rune(r.Label)); lw > maxLabelW {
+			maxLabelW = lw
+		}
+	}
+
 	// Collect plain-text row content for width calculation.
+	// For labelled rows the full visual width is: label + " " + text.
 	rowTexts := make([]string, len(o.Rows))
 	for i, r := range o.Rows {
-		if !r.Blank {
+		if r.Blank {
+			continue
+		}
+		if r.Label != "" {
+			rowTexts[i] = fmt.Sprintf("%*s %s", maxLabelW, r.Label, r.Text)
+		} else {
 			rowTexts[i] = r.Text
 		}
 	}
@@ -74,8 +89,16 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 			lines = append(lines, borderV+strings.Repeat(" ", innerWidth)+borderV)
 			continue
 		}
-		truncated := truncateTitle(r.Text, contentWidth)
-		row := fmt.Sprintf("  %-*s  ", contentWidth, truncated)
+		var row string
+		if r.Label != "" {
+			// Right-align the label, then left-align the value.
+			valueWidth := contentWidth - maxLabelW - 1 // 1 for the space between label and value
+			truncated := truncateTitle(r.Text, valueWidth)
+			row = fmt.Sprintf("  %*s %-*s  ", maxLabelW, r.Label, valueWidth, truncated)
+		} else {
+			truncated := truncateTitle(r.Text, contentWidth)
+			row = fmt.Sprintf("  %-*s  ", contentWidth, truncated)
+		}
 		if r.Styled {
 			lines = append(lines, borderV+s.Accent.Render(row)+borderV)
 		} else {

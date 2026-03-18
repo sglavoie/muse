@@ -2798,6 +2798,7 @@ func (m Model) startPreviewCmd(track library.Track) tea.Cmd {
 			overlay: PreviewOverlay{
 				artist: track.Artist,
 				title:  track.Title,
+				album:  track.Album,
 			},
 		}
 	}

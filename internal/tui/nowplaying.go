@@ -19,23 +19,21 @@ type NowPlayingOverlay struct {
 
 // Render produces a centered overlay string for the now-playing info.
 func (n NowPlayingOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
-	// Build track line with the same fallback logic as preview.
-	trackLine := n.artist + " – " + n.title
-	if n.artist == "" && n.title == "" {
-		trackLine = "(unknown)"
-	} else if n.artist == "" {
-		trackLine = n.title
-	} else if n.title == "" {
-		trackLine = n.artist
+	title := n.title
+	if title == "" {
+		title = "(unknown)"
+	}
+	artist := n.artist
+	if artist == "" {
+		artist = "(unknown)"
 	}
 
 	rows := []OverlayRow{
-		{Text: trackLine},
+		{Label: "Title:", Text: title},
+		{Label: "Artist:", Text: artist},
 	}
-
-	// Album line (only if non-empty).
 	if n.album != "" {
-		rows = append(rows, OverlayRow{Text: n.album})
+		rows = append(rows, OverlayRow{Label: "Album:", Text: n.album})
 	}
 
 	// Blank separator.
