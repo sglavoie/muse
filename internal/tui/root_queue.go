@@ -280,6 +280,41 @@ func (m Model) handleClearQueueMsg() Model {
 	return m
 }
 
+// clearQueueForReplace silently clears the queue and stops playback so that a
+// subsequent enqueue becomes the only entry. Unlike handleClearQueueMsg this
+// does not set up an undo slot — the enqueue that follows will create its own.
+func (m Model) clearQueueForReplace() Model {
+	if len(m.queue.entries) > 0 && m.undoer != nil {
+		go func(undoer queueDequeuer) {
+			if _, err := undoer.ClearQueueSoft(); err == nil {
+				_ = undoer.PurgeDeletedQueueEntries(time.Now().Unix() + 1)
+			}
+		}(m.undoer)
+	}
+	// Cancel any in-flight undo purge timer.
+	if m.undoSlot.cancelPurge != nil {
+		close(m.undoSlot.cancelPurge)
+	}
+	m.undoSlot = undoSlot{}
+	m.queue.entries = nil
+	m.queue.cursor = 0
+	m.queue.scrollOffset = 0
+	if cp, ok := m.player.(commandPlayer); ok {
+		_ = cp.Stop()
+		m.playbackState = PlaybackIdle
+		m.elapsedSecs = 0
+		m.totalSecs = 0
+	}
+	m.statusBar.artist = ""
+	m.statusBar.title = ""
+	m.statusBar.playlistSource = ""
+	m.currentTrackHash = ""
+	if qs, ok := m.player.(playerQueueSetter); ok {
+		qs.SetQueue(nil)
+	}
+	return m
+}
+
 // handleMoveTrackUpMsg swaps a queue entry with the one above it and persists
 // the reorder.
 func (m Model) handleMoveTrackUpMsg(msg MoveTrackUpMsg) (Model, tea.Cmd) {

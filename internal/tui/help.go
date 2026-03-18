@@ -67,6 +67,7 @@ func helpSections() []helpSection {
 			entries: []helpEntry{
 				{"/", "Filter tracks"},
 				{"enter", "Enqueue track"},
+				{"shift+enter", "Replace queue with track"},
 				{"esc", "Clear committed filter"},
 				{"x", "Toggle bulk selection"},
 				{"a", "Add to queue or playlist"},
@@ -76,6 +77,7 @@ func helpSections() []helpSection {
 			title: "Playlists",
 			entries: []helpEntry{
 				{"enter", "Open playlist / enqueue track"},
+				{"shift+enter", "Replace queue with track"},
 				{"esc", "Back to playlist list"},
 				{"r", "Rename playlist (shadows global repeat)"},
 				{"c", "Create playlist"},
@@ -90,6 +92,7 @@ func helpSections() []helpSection {
 			entries: []helpEntry{
 				{"/", "Filter current list"},
 				{"enter", "Open albums / tracks / enqueue track"},
+				{"shift+enter", "Replace queue with track"},
 				{"esc", "Back one level"},
 				{"a", "Add focused item to queue or playlist"},
 			},
@@ -99,6 +102,7 @@ func helpSections() []helpSection {
 			entries: []helpEntry{
 				{"/", "Filter current list"},
 				{"enter", "Open tracks / enqueue track"},
+				{"shift+enter", "Replace queue with track"},
 				{"esc", "Back one level"},
 				{"a", "Add focused item to queue or playlist"},
 			},

@@ -143,6 +143,32 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 			return m, cmd, true
 		}
 		return m, nil, true
+	case actionLibraryEnqueueReplace:
+		if m.queueWriter != nil {
+			m = m.clearQueueForReplace()
+			var cmd tea.Cmd
+			switch m.activeView {
+			case viewLibrary:
+				cmd = m.library.EnqueueFocused(m.queueWriter, 0)
+				if m.library.filter.Text != "" {
+					m.library = m.library.DeactivateFilter()
+				}
+			case viewArtists:
+				if m.artists.level == arttui.TrackLevel {
+					cmd = m.artists.enqueueFocusedTrack(m.queueWriter, 0)
+				}
+			case viewAlbums:
+				if m.albums.level == albtui.TrackLevel {
+					cmd = m.albums.enqueueFocusedTrack(m.queueWriter, 0)
+				}
+			case viewPlaylists:
+				if m.playlists.level == pltui.TrackLevel {
+					cmd = m.playlists.enqueueFocusedTrack(m.queueWriter, 0)
+				}
+			}
+			return m, cmd, true
+		}
+		return m, nil, true
 	case actionBulkAction:
 		var tracks []library.Track
 		switch m.activeView {

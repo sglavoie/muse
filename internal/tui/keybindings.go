@@ -50,8 +50,9 @@ const (
 	actionSwitchAlbums
 
 	// Library-local actions.
-	actionLibraryEnqueue     // enter: append the focused track to the play queue
-	actionLibraryFilterClear // esc: clear a committed filter in the library view
+	actionLibraryEnqueue        // enter: append the focused track to the play queue
+	actionLibraryEnqueueReplace // shift+enter: clear queue and enqueue focused track
+	actionLibraryFilterClear    // esc: clear a committed filter in the library view
 
 	// Queue-local actions.
 	actionCursorUp
@@ -146,6 +147,7 @@ func newRegistry() Registry {
 	r.register(contextLibrary, "up", actionCursorUp)
 	r.register(contextLibrary, "down", actionCursorDown)
 	r.register(contextLibrary, "enter", actionLibraryEnqueue)
+	r.register(contextLibrary, "shift+enter", actionLibraryEnqueueReplace)
 	r.register(contextLibrary, "esc", actionLibraryFilterClear)
 	r.register(contextLibrary, "x", actionBulkSelectionToggle)
 	r.register(contextLibrary, "a", actionBulkAction)
@@ -190,6 +192,7 @@ func newRegistry() Registry {
 	r.register(contextPlaylists, "x", actionBulkSelectionToggle)
 	r.register(contextPlaylists, "a", actionBulkRemovePlaylistTracks)
 	r.register(contextPlaylists, "E", actionPlaylistEnqueueAll)
+	r.register(contextPlaylists, "shift+enter", actionLibraryEnqueueReplace)
 	r.register(contextPlaylists, "ctrl+d", actionHalfPageDown)
 	r.register(contextPlaylists, "ctrl+u", actionHalfPageUp)
 	r.register(contextPlaylists, "ctrl+f", actionFullPageDown)
@@ -203,6 +206,7 @@ func newRegistry() Registry {
 	r.register(contextArtists, "up", actionCursorUp)
 	r.register(contextArtists, "down", actionCursorDown)
 	r.register(contextArtists, "enter", actionArtistOpen)
+	r.register(contextArtists, "shift+enter", actionLibraryEnqueueReplace)
 	r.register(contextArtists, "esc", actionArtistBack)
 	r.register(contextArtists, "a", actionBulkAction)
 	r.register(contextArtists, "ctrl+d", actionHalfPageDown)
@@ -218,6 +222,7 @@ func newRegistry() Registry {
 	r.register(contextAlbums, "up", actionCursorUp)
 	r.register(contextAlbums, "down", actionCursorDown)
 	r.register(contextAlbums, "enter", actionAlbumOpen)
+	r.register(contextAlbums, "shift+enter", actionLibraryEnqueueReplace)
 	r.register(contextAlbums, "esc", actionAlbumBack)
 	r.register(contextAlbums, "a", actionBulkAction)
 	r.register(contextAlbums, "ctrl+d", actionHalfPageDown)
