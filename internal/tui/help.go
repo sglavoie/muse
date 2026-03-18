@@ -145,13 +145,16 @@ func helpSections() []helpSection {
 // matches ctx. This powers the "view-specific" help mode toggled with "?".
 func filteredHelpSections(ctx bindingContext) []helpSection {
 	all := helpSections()
-	filtered := make([]helpSection, 0, len(all))
+	// View-specific section first, then global sections.
+	var viewSpecific, global []helpSection
 	for _, sec := range all {
-		if sec.context == contextGlobal || sec.context == ctx {
-			filtered = append(filtered, sec)
+		if sec.context == ctx {
+			viewSpecific = append(viewSpecific, sec)
+		} else if sec.context == contextGlobal {
+			global = append(global, sec)
 		}
 	}
-	return filtered
+	return append(viewSpecific, global...)
 }
 
 // helpLineCount returns the total number of lines in the rendered help text.
