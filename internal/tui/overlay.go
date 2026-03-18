@@ -28,9 +28,10 @@ type OverlayRow struct {
 
 // OverlayBox is a reusable centered-box renderer shared by all overlay types.
 type OverlayBox struct {
-	Title string       // e.g. " ♪ Preview ", " ♪ Now Playing "
-	Rows  []OverlayRow // content rows between the title separator and bottom border
-	Hint  string       // e.g. "P or esc to dismiss"
+	Title         string       // e.g. " ♪ Preview ", " ♪ Now Playing "
+	Rows          []OverlayRow // content rows between the title separator and bottom border
+	Hint          string       // e.g. "P or esc to dismiss"
+	MaxInnerWidth int          // if > 0, clamp inner width to this value
 }
 
 // Render produces a vertically and horizontally centered box string.
@@ -78,6 +79,9 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 		}
 	}
 	innerWidth := minInner
+	if o.MaxInnerWidth > 0 && innerWidth > o.MaxInnerWidth {
+		innerWidth = o.MaxInnerWidth
+	}
 	contentWidth := innerWidth - OverlayHPadding // padding inside borders
 
 	var lines []string

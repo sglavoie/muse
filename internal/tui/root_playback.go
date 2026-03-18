@@ -165,6 +165,35 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 // It returns true in the third value when the action was handled.
 func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 	switch action {
+	case actionTrackInfo:
+		if m.trackInfo != nil {
+			m.trackInfo = nil
+			return m, nil, true
+		}
+		track, ok := m.focusedTrackForPreview()
+		if !ok {
+			m.statusBar.notification = transientNotification{
+				msg:       "No track to inspect",
+				expiresAt: time.Now().Add(transientDuration),
+			}
+			return m, nil, true
+		}
+		if track.Path == "" {
+			for _, t := range m.library.index.Tracks() {
+				if t.Hash == track.Hash {
+					track = t
+					break
+				}
+			}
+		}
+		if track.Path == "" {
+			m.statusBar.notification = transientNotification{
+				msg:       "Track path unknown",
+				expiresAt: time.Now().Add(transientDuration),
+			}
+			return m, nil, true
+		}
+		return m, trackInfoCmd(track.Path), true
 	case actionNowPlayingInfo:
 		if m.nowPlayingInfo != nil {
 			m.nowPlayingInfo = nil

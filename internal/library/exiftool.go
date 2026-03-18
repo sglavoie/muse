@@ -88,6 +88,27 @@ func (e ExifToolExtractor) Extract(files []HashedFile) ([]Track, error) {
 	return tracks, nil
 }
 
+// ExtractAllTags runs exiftool -json on a single file and returns the full
+// set of tags as a map. This is used by the track-info overlay to display
+// detailed metadata without being limited to the fields in exifRecord.
+func ExtractAllTags(path string) (map[string]any, error) {
+	out, err := exec.Command("exiftool", "-json", path).Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) || len(out) == 0 {
+			return nil, err
+		}
+	}
+	var records []map[string]any
+	if err := json.Unmarshal(out, &records); err != nil {
+		return nil, err
+	}
+	if len(records) == 0 {
+		return nil, errors.New("exiftool returned no records")
+	}
+	return records[0], nil
+}
+
 // extractWithBinaryRetry calls extractor.Extract for the given files. If the
 // call fails (e.g. invalid JSON caused by a corrupt file poisoning the batch),
 // the batch is split in half and each half is retried recursively. When a

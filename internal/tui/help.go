@@ -52,6 +52,7 @@ func helpSections() []helpSection {
 				{"/", "Filter (Library / Artists / Albums)"},
 				{"P", "Preview focused track"},
 				{"I", "Show now-playing info"},
+				{"i", "Show track info (exiftool)"},
 				{"M", "Edit metadata of focused track"},
 				{"?", "Show this help"},
 			},

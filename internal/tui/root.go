@@ -522,6 +522,9 @@ type Model struct {
 	// nowPlayingInfo is non-nil while the now-playing info overlay is active.
 	nowPlayingInfo *NowPlayingOverlay
 
+	// trackInfo is non-nil while the track info overlay is active.
+	trackInfo *TrackInfoOverlay
+
 	// metadataEditor is non-nil while the metadata editor overlay is active.
 	metadataEditor *MetadataEditor
 	metadataWriter metadataUpdater // may be nil; set via SetMetadataWriter
@@ -1068,6 +1071,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case previewStartErrorMsg:
 		m = m.handlePreviewStartErrorMsg(msg)
 
+	case trackInfoMsg:
+		if msg.err != nil {
+			m.statusBar.notification = transientNotification{
+				msg:       "Track info error: " + msg.err.Error(),
+				expiresAt: time.Now().Add(transientDuration),
+			}
+		} else {
+			overlay := newTrackInfoOverlay(msg.path, msg.tags)
+			m.trackInfo = &overlay
+		}
+
 	case TrackChangedMsg:
 		return m.handleTrackChangedMsg(msg)
 
@@ -1146,6 +1160,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "esc", "I":
 				m.nowPlayingInfo = nil
 				return m, nil
+			default:
+				return m, nil
+			}
+		}
+		// While the track info overlay is active, swallow all keys
+		// except ctrl+c (quit) and esc/i (dismiss).
+		if m.trackInfo != nil {
+			switch msg.String() {
+			case "ctrl+c":
+				m.trackInfo = nil
+				return m, tea.Quit
+			case "esc", "i":
+				m.trackInfo = nil
+				return m, nil
+			case "y":
+				m.statusBar.notification = transientNotification{
+					msg:       "Path copied to clipboard",
+					expiresAt: time.Now().Add(transientDuration),
+				}
+				return m, tea.SetClipboard(m.trackInfo.path)
 			default:
 				return m, nil
 			}
@@ -1620,6 +1654,8 @@ func (m Model) View() tea.View {
 		body = m.helpViewport.View()
 	} else if m.nowPlayingInfo != nil {
 		body = m.nowPlayingInfo.Render(m.termWidth, m.termHeight, *m.styles)
+	} else if m.trackInfo != nil {
+		body = m.trackInfo.Render(m.termWidth, m.termHeight, *m.styles)
 	} else if m.preview != nil {
 		body = m.preview.Render(m.termWidth, m.termHeight, *m.styles)
 	} else if m.metadataEditor != nil {
@@ -1642,7 +1678,7 @@ func (m Model) View() tea.View {
 	}
 
 	// Prepend the centralized title bar when showing a primary view.
-	if m.nowPlayingInfo == nil && m.preview == nil && m.metadataEditor == nil && m.destPicker == nil && !m.helpVisible {
+	if m.nowPlayingInfo == nil && m.trackInfo == nil && m.preview == nil && m.metadataEditor == nil && m.destPicker == nil && !m.helpVisible {
 		body = m.renderTitleBar() + "\n\n" + body
 	}
 
@@ -1767,6 +1803,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		}
 	case actionQuit:
 		m.nowPlayingInfo = nil
+		m.trackInfo = nil
 		m = m.dismissPreview()
 		return m, tea.Quit
 	case actionFilterBar:

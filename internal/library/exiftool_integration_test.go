@@ -125,6 +125,52 @@ func TestExifToolExtractor_ExitErrorWithValidOutput(t *testing.T) {
 	}
 }
 
+// TestExtractAllTags_RealInvocation verifies that ExtractAllTags returns a
+// non-empty map of tags for a valid audio file.
+func TestExtractAllTags_RealInvocation(t *testing.T) {
+	if _, err := exec.LookPath("exiftool"); err != nil {
+		t.Skip("exiftool not found on PATH: " + err.Error())
+	}
+
+	dir := t.TempDir()
+	p := filepath.Join(dir, "test.wav")
+	writeFile(t, p, makeMinimalWAV())
+
+	tags, err := ExtractAllTags(p)
+	if err != nil {
+		t.Fatalf("ExtractAllTags returned error: %v", err)
+	}
+	if len(tags) == 0 {
+		t.Fatal("expected non-empty tags map")
+	}
+	// A WAV file should have at least FileType and MIMEType.
+	if _, ok := tags["FileType"]; !ok {
+		t.Error("expected FileType tag in result")
+	}
+	if _, ok := tags["MIMEType"]; !ok {
+		t.Error("expected MIMEType tag in result")
+	}
+	// SourceFile should match the input path.
+	if sf, ok := tags["SourceFile"]; ok {
+		if sf != p {
+			t.Errorf("SourceFile: want %q, got %q", p, sf)
+		}
+	}
+}
+
+// TestExtractAllTags_NonexistentFile verifies that ExtractAllTags returns an
+// error for a file that does not exist.
+func TestExtractAllTags_NonexistentFile(t *testing.T) {
+	if _, err := exec.LookPath("exiftool"); err != nil {
+		t.Skip("exiftool not found on PATH: " + err.Error())
+	}
+
+	_, err := ExtractAllTags("/nonexistent/path/file.wav")
+	if err == nil {
+		t.Fatal("expected error for nonexistent file")
+	}
+}
+
 // TestExifToolExtractor_BatchSize verifies that ExtractBatches correctly
 // dispatches a real exiftool batch when batchSize files accumulate.
 func TestExifToolExtractor_BatchSize(t *testing.T) {

@@ -47,6 +47,7 @@ const (
 	actionPreview        // 'P': preview focused track
 	actionNowPlayingInfo // 'I': show now-playing info overlay
 	actionEditMetadata   // 'M': edit metadata of focused track
+	actionTrackInfo      // 'i': show track info overlay (exiftool)
 
 	actionSwitchArtists
 	actionSwitchAlbums
@@ -142,6 +143,7 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "P", actionPreview)
 	r.register(contextGlobal, "I", actionNowPlayingInfo)
 	r.register(contextGlobal, "M", actionEditMetadata)
+	r.register(contextGlobal, "i", actionTrackInfo)
 
 	// Library-local bindings.
 	r.registerNavigation(contextLibrary)
