@@ -1,0 +1,237 @@
+package tui
+
+import (
+	"testing"
+
+	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/library"
+)
+
+// setupPlayingModel returns a model that looks like a track is playing.
+func setupPlayingModel(t *testing.T) Model {
+	t.Helper()
+	m := New("", false, nil, nil, "", nil, nil)
+	m.playbackState = PlaybackPlaying
+	m.statusBar.artist = "Test Artist"
+	m.statusBar.title = "Test Song"
+	m.elapsedSecs = 30
+	m.totalSecs = 180
+	m.currentTrackHash = "h1"
+	m.library.index.Insert(library.Track{
+		Hash: "h1", Path: "/a.flac", Artist: "Test Artist", Title: "Test Song", Album: "Test Album",
+	})
+	return m
+}
+
+// TestNowPlayingKeyShowsOverlay verifies that pressing I when a track is
+// playing opens the now-playing info overlay.
+func TestNowPlayingKeyShowsOverlay(t *testing.T) {
+	m := setupPlayingModel(t)
+
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'I', Text: "I"})
+	nm := next.(Model)
+
+	if cmd != nil {
+		t.Fatal("expected nil command from I key")
+	}
+	if nm.nowPlayingInfo == nil {
+		t.Fatal("expected nowPlayingInfo overlay to be set")
+	}
+	if nm.nowPlayingInfo.artist != "Test Artist" {
+		t.Errorf("expected artist 'Test Artist', got %q", nm.nowPlayingInfo.artist)
+	}
+	if nm.nowPlayingInfo.title != "Test Song" {
+		t.Errorf("expected title 'Test Song', got %q", nm.nowPlayingInfo.title)
+	}
+	if nm.nowPlayingInfo.album != "Test Album" {
+		t.Errorf("expected album 'Test Album', got %q", nm.nowPlayingInfo.album)
+	}
+	if nm.nowPlayingInfo.elapsed != 30 {
+		t.Errorf("expected elapsed 30, got %v", nm.nowPlayingInfo.elapsed)
+	}
+	if nm.nowPlayingInfo.state != PlaybackPlaying {
+		t.Errorf("expected state PlaybackPlaying, got %v", nm.nowPlayingInfo.state)
+	}
+}
+
+// TestNowPlayingKeyIdleShowsNotification verifies that pressing I when
+// no track is playing shows a notification.
+func TestNowPlayingKeyIdleShowsNotification(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.playbackState = PlaybackIdle
+
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'I', Text: "I"})
+	nm := next.(Model)
+
+	if cmd != nil {
+		t.Fatal("expected nil command")
+	}
+	if nm.nowPlayingInfo != nil {
+		t.Fatal("expected no overlay when idle")
+	}
+	if nm.statusBar.notification.msg != "No track playing" {
+		t.Fatalf("expected 'No track playing' notification, got %q", nm.statusBar.notification.msg)
+	}
+}
+
+// TestNowPlayingKeyStoppedShowsNotification verifies that pressing I when
+// playback is stopped shows a notification.
+func TestNowPlayingKeyStoppedShowsNotification(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.playbackState = PlaybackStopped
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'I', Text: "I"})
+	nm := next.(Model)
+
+	if nm.nowPlayingInfo != nil {
+		t.Fatal("expected no overlay when stopped")
+	}
+	if nm.statusBar.notification.msg != "No track playing" {
+		t.Fatalf("expected 'No track playing' notification, got %q", nm.statusBar.notification.msg)
+	}
+}
+
+// TestNowPlayingToggleOff verifies that pressing I while overlay is active
+// dismisses it.
+func TestNowPlayingToggleOff(t *testing.T) {
+	m := setupPlayingModel(t)
+	m.nowPlayingInfo = &NowPlayingOverlay{artist: "A", title: "T"}
+
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'I', Text: "I"})
+	nm := next.(Model)
+
+	if cmd != nil {
+		t.Fatal("expected nil command")
+	}
+	if nm.nowPlayingInfo != nil {
+		t.Fatal("expected overlay to be dismissed on toggle")
+	}
+}
+
+// TestNowPlayingEscDismisses verifies that Esc dismisses the overlay.
+func TestNowPlayingEscDismisses(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.nowPlayingInfo = &NowPlayingOverlay{artist: "A", title: "T"}
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	nm := next.(Model)
+
+	if nm.nowPlayingInfo != nil {
+		t.Fatal("expected overlay to be nil after Esc")
+	}
+}
+
+// TestNowPlayingSwallowsKeys verifies that while the overlay is active,
+// other keys are swallowed.
+func TestNowPlayingSwallowsKeys(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.nowPlayingInfo = &NowPlayingOverlay{artist: "A", title: "T"}
+	m.activeView = viewLibrary
+
+	// Press '3' (switch to queue) — should be swallowed.
+	next, _ := m.Update(tea.KeyPressMsg{Code: '3', Text: "3"})
+	nm := next.(Model)
+
+	if nm.activeView != viewLibrary {
+		t.Fatalf("expected view to stay at library, got %d", nm.activeView)
+	}
+	if nm.nowPlayingInfo == nil {
+		t.Fatal("overlay should still be active after swallowed key")
+	}
+}
+
+// TestNowPlayingTickUpdates verifies that tick updates elapsed/total/state
+// on the overlay.
+func TestNowPlayingTickUpdates(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.nowPlayingInfo = &NowPlayingOverlay{artist: "A", title: "T", state: PlaybackPlaying}
+	m.elapsedSecs = 45.5
+	m.totalSecs = 200.0
+	m.playbackState = PlaybackPaused
+
+	next, _ := m.Update(tickMsg{})
+	nm := next.(Model)
+
+	if nm.nowPlayingInfo == nil {
+		t.Fatal("expected overlay to still be active")
+	}
+	if nm.nowPlayingInfo.elapsed != 45.5 {
+		t.Errorf("expected elapsed=45.5, got %v", nm.nowPlayingInfo.elapsed)
+	}
+	if nm.nowPlayingInfo.total != 200.0 {
+		t.Errorf("expected total=200.0, got %v", nm.nowPlayingInfo.total)
+	}
+	if nm.nowPlayingInfo.state != PlaybackPaused {
+		t.Errorf("expected state PlaybackPaused, got %v", nm.nowPlayingInfo.state)
+	}
+}
+
+// TestNowPlayingCtrlCDismissesAndQuits verifies that ctrl+c dismisses
+// the overlay and returns a quit command.
+func TestNowPlayingCtrlCDismissesAndQuits(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.nowPlayingInfo = &NowPlayingOverlay{artist: "A", title: "T"}
+
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	nm := next.(Model)
+
+	if nm.nowPlayingInfo != nil {
+		t.Fatal("expected overlay to be dismissed on ctrl+c")
+	}
+	if cmd == nil {
+		t.Fatal("expected quit command from ctrl+c")
+	}
+	if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Fatal("expected tea.QuitMsg from ctrl+c command")
+	}
+}
+
+// TestNowPlayingOverlayRenderedInView verifies that when the overlay is
+// active, View() renders its content.
+func TestNowPlayingOverlayRenderedInView(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.nowPlayingInfo = &NowPlayingOverlay{
+		artist:  "View Artist",
+		title:   "View Song",
+		elapsed: 10,
+		total:   60,
+		state:   PlaybackPlaying,
+	}
+	m.termWidth = 80
+	m.termHeight = 24
+
+	v := m.View()
+	if v.Content == "" {
+		t.Fatal("expected non-empty View content with now-playing overlay active")
+	}
+}
+
+// TestNowPlayingSessionRestore verifies that the overlay picks up artist/title
+// from the library index when statusBar fields are empty (session restore case).
+func TestNowPlayingSessionRestore(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.playbackState = PlaybackPaused
+	m.currentTrackHash = "h1"
+	m.elapsedSecs = 10
+	m.totalSecs = 300
+	// statusBar.artist and statusBar.title are intentionally empty (session restore).
+	m.library.index.Insert(library.Track{
+		Hash: "h1", Path: "/a.flac", Artist: "Restored Artist", Title: "Restored Song", Album: "Restored Album",
+	})
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'I', Text: "I"})
+	nm := next.(Model)
+
+	if nm.nowPlayingInfo == nil {
+		t.Fatal("expected overlay to be set")
+	}
+	if nm.nowPlayingInfo.artist != "Restored Artist" {
+		t.Errorf("expected artist from index, got %q", nm.nowPlayingInfo.artist)
+	}
+	if nm.nowPlayingInfo.title != "Restored Song" {
+		t.Errorf("expected title from index, got %q", nm.nowPlayingInfo.title)
+	}
+	if nm.nowPlayingInfo.album != "Restored Album" {
+		t.Errorf("expected album from index, got %q", nm.nowPlayingInfo.album)
+	}
+}

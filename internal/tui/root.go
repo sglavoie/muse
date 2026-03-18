@@ -496,9 +496,12 @@ type Model struct {
 	batchEnqueuer   batchEnqueuer        // may be nil; set via SetBatchEnqueuer
 
 	// preview is non-nil while the preview overlay is active.
-	preview          *PreviewOverlay
-	previewPlayer    player.Previewer // separate mpv instance for preview
-	previewWasPlaying bool            // main player was playing before preview
+	preview           *PreviewOverlay
+	previewPlayer     player.Previewer // separate mpv instance for preview
+	previewWasPlaying bool             // main player was playing before preview
+
+	// nowPlayingInfo is non-nil while the now-playing info overlay is active.
+	nowPlayingInfo *NowPlayingOverlay
 
 	// destPicker is non-nil while the destination picker modal is open.
 	// Root dispatches all keypresses to the modal while it is open.
@@ -1079,6 +1082,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m = m.dismissPreview()
 			}
 		}
+		if m.nowPlayingInfo != nil {
+			m.nowPlayingInfo.elapsed = m.elapsedSecs
+			m.nowPlayingInfo.total = m.totalSecs
+			m.nowPlayingInfo.state = m.playbackState
+		}
 		if !m.statusBar.notification.expiresAt.IsZero() && time.Now().After(m.statusBar.notification.expiresAt) {
 			m.statusBar.notification = transientNotification{}
 		}
@@ -1496,6 +1504,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "ctrl+u":
 				m.helpScroll -= m.termHeight / 2
 				m.helpScroll = m.clampHelpScroll()
+				return m, nil
+			default:
+				return m, nil
+			}
+		}
+		// While the now-playing info overlay is active, swallow all keys
+		// except ctrl+c (quit) and esc/I (dismiss).
+		if m.nowPlayingInfo != nil {
+			switch msg.String() {
+			case "ctrl+c":
+				m.nowPlayingInfo = nil
+				return m, tea.Quit
+			case "esc", "I":
+				m.nowPlayingInfo = nil
 				return m, nil
 			default:
 				return m, nil
@@ -1965,6 +1987,8 @@ func (m Model) View() tea.View {
 			}
 			body = strings.Join(lines[m.helpScroll:end], "\n")
 		}
+	} else if m.nowPlayingInfo != nil {
+		body = m.nowPlayingInfo.Render(m.termWidth, m.termHeight, *m.styles)
 	} else if m.preview != nil {
 		body = m.preview.Render(m.termWidth, m.termHeight, *m.styles)
 	} else {
@@ -2191,8 +2215,46 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
 		}
 	case actionQuit:
+		m.nowPlayingInfo = nil
 		m = m.dismissPreview()
 		return m, tea.Quit
+	case actionNowPlayingInfo:
+		if m.nowPlayingInfo != nil {
+			m.nowPlayingInfo = nil
+			return m, nil
+		}
+		if m.playbackState == PlaybackStopped || m.playbackState == PlaybackIdle {
+			m.statusBar.notification = transientNotification{
+				msg:       "No track playing",
+				expiresAt: time.Now().Add(transientDuration),
+			}
+			return m, nil
+		}
+		overlay := NowPlayingOverlay{
+			artist:  m.statusBar.artist,
+			title:   m.statusBar.title,
+			elapsed: m.elapsedSecs,
+			total:   m.totalSecs,
+			state:   m.playbackState,
+		}
+		// Enrich from library index — the status bar fields may be empty
+		// after a session restore, but the hash is always set.
+		if m.currentTrackHash != "" {
+			for _, t := range m.library.index.Tracks() {
+				if t.Hash == m.currentTrackHash {
+					if overlay.artist == "" {
+						overlay.artist = t.Artist
+					}
+					if overlay.title == "" {
+						overlay.title = t.Title
+					}
+					overlay.album = t.Album
+					break
+				}
+			}
+		}
+		m.nowPlayingInfo = &overlay
+		return m, nil
 	case actionPreview:
 		if m.preview != nil {
 			m = m.dismissPreview()

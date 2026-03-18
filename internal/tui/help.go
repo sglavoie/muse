@@ -49,6 +49,7 @@ func helpSections() []helpSection {
 				{"u", "Undo"},
 				{"/", "Activate filter bar"},
 				{"P", "Preview focused track"},
+				{"I", "Show now-playing info"},
 				{"?", "Show this help"},
 			},
 		},
