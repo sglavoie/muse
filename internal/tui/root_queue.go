@@ -202,9 +202,9 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 		if qr, ok := m.player.(playerQueueRemover); ok {
 			_ = qr.RemoveFromQueue(msg.Index)
 		}
-		// If the dequeued track was the currently playing one, stop playback
-		// and clear the status bar.
-		if entry.Hash != "" && entry.Hash == m.currentTrackHash {
+		// If the dequeued track was the currently playing one, or the queue
+		// is now empty, stop playback and clear the status bar.
+		if (entry.Hash != "" && entry.Hash == m.currentTrackHash) || len(m.queue.entries) == 0 {
 			if cp, ok := m.player.(commandPlayer); ok {
 				_ = cp.Stop()
 			}
@@ -560,6 +560,19 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 				m.queue.scrollOffset = 0
 			}
 			m.syncPlayerQueue()
+			// If the queue is now empty, stop playback and clear status bar.
+			if len(m.queue.entries) == 0 {
+				if cp, ok := m.player.(commandPlayer); ok {
+					_ = cp.Stop()
+				}
+				m.playbackState = PlaybackIdle
+				m.elapsedSecs = 0
+				m.totalSecs = 0
+				m.statusBar.artist = ""
+				m.statusBar.title = ""
+				m.statusBar.playlistSource = ""
+				m.currentTrackHash = ""
+			}
 			n := len(removedIDs)
 			m.statusBar.notification = transientNotification{
 				msg:       fmt.Sprintf("%d %s removed from queue", n, pluralize(n, "track", "tracks")),
