@@ -253,8 +253,8 @@ func TestWindowSizeMsgPropagatesWidthToChildViews(t *testing.T) {
 func TestCtrlCQuitsWhileFilterBarActive(t *testing.T) {
 	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewLibrary
-	m.library.filterActive = true
-	m.library.filterText = "test"
+	m.library.filter.Active = true
+	m.library.filter.Text = "test"
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	if cmd == nil {

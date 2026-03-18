@@ -16,7 +16,7 @@ type filterOps struct {
 func (m Model) activeFilterOps() *filterOps {
 	switch m.activeView {
 	case viewLibrary:
-		if !m.library.filterActive {
+		if !m.library.filter.Active {
 			return nil
 		}
 		return &filterOps{
@@ -26,7 +26,7 @@ func (m Model) activeFilterOps() *filterOps {
 			appendChar: func(ch rune) Model { m.library = m.library.AppendFilterChar(ch); return m },
 		}
 	case viewArtists:
-		if !m.artists.filterActive {
+		if !m.artists.filter.Active {
 			return nil
 		}
 		return &filterOps{
@@ -36,7 +36,7 @@ func (m Model) activeFilterOps() *filterOps {
 			appendChar: func(ch rune) Model { m.artists = m.artists.AppendFilterChar(ch); return m },
 		}
 	case viewAlbums:
-		if !m.albums.filterActive {
+		if !m.albums.filter.Active {
 			return nil
 		}
 		return &filterOps{
@@ -54,19 +54,19 @@ func (m Model) activeFilterOps() *filterOps {
 func (m Model) handleFilterBarMsg() Model {
 	switch m.activeView {
 	case viewLibrary:
-		if m.library.filterActive {
+		if m.library.filter.Active {
 			m.library = m.library.CommitFilter()
 		} else {
 			m.library = m.library.ActivateFilter()
 		}
 	case viewArtists:
-		if m.artists.filterActive {
+		if m.artists.filter.Active {
 			m.artists = m.artists.CommitFilter()
 		} else {
 			m.artists = m.artists.ActivateFilter()
 		}
 	case viewAlbums:
-		if m.albums.filterActive {
+		if m.albums.filter.Active {
 			m.albums = m.albums.CommitFilter()
 		} else {
 			m.albums = m.albums.ActivateFilter()

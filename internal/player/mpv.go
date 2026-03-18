@@ -537,7 +537,9 @@ func (m *Manager) pollUntilReady(ctx context.Context) {
 
 			slog.Info("mpv connected", "socket", m.socketPath)
 			for _, cmd := range queue {
-				_ = cmd()
+				if err := cmd(); err != nil {
+					slog.Warn("mpv: queued command failed on replay", "err", err)
+				}
 			}
 			go m.healthCheck(ctx, client)
 			go m.startEventReader(ctx)
@@ -601,7 +603,9 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			// Immediately sync the position so that a crash right after track
 			// start resumes at the correct file (elapsed≈0) rather than the
 			// previous track's last persisted position.
-			_ = m.SyncPosition()
+			if err := m.SyncPosition(); err != nil {
+				slog.Warn("mpv: sync position failed on track start", "err", err)
+			}
 
 			// Notify the TUI that the active track has changed. Resolve the
 			// current track from the in-memory queue using currentIndex so
@@ -706,9 +710,11 @@ func (m *Manager) handleRestart() {
 
 	// Queue a loadfile command to resume playback at the last persisted position.
 	if path != "" {
-		_ = m.enqueue(func() error {
+		if err := m.enqueue(func() error {
 			return m.loadFileAt(path, elapsed)
-		})
+		}); err != nil {
+			slog.Warn("mpv: failed to enqueue resume command", "err", err)
+		}
 	}
 
 	go m.pollUntilReady(newCtx)
@@ -906,8 +912,12 @@ func (m *Manager) Previous() error {
 // connected).
 func (m *Manager) PlayQueueEntry(entry QueueTrack, marker MissingMarker) error {
 	if _, err := os.Stat(entry.Path); os.IsNotExist(err) {
-		_ = marker.MarkTrackMissing(entry.Hash)
-		_ = marker.MarkQueueEntryMissing(entry.QueueID)
+		if err := marker.MarkTrackMissing(entry.Hash); err != nil {
+			slog.Error("mpv: mark track missing", "hash", entry.Hash, "err", err)
+		}
+		if err := marker.MarkQueueEntryMissing(entry.QueueID); err != nil {
+			slog.Error("mpv: mark queue entry missing", "queueID", entry.QueueID, "err", err)
+		}
 
 		m.mu.RLock()
 		fn := m.statusFn

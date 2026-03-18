@@ -8,6 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	musiclib "github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -206,34 +207,34 @@ func TestCursorClampAtTop(t *testing.T) {
 // View is first constructed.
 func TestFilterInactiveOnInit(t *testing.T) {
 	v := View{}
-	if v.FilterActive {
-		t.Error("FilterActive should be false on a zero-value View")
+	if v.Filter.Active {
+		t.Error("Filter.Active should be false on a zero-value View")
 	}
-	if v.FilterText != "" {
-		t.Errorf("FilterText should be empty on a zero-value View, got %q", v.FilterText)
+	if v.Filter.Text != "" {
+		t.Errorf("Filter.Text should be empty on a zero-value View, got %q", v.Filter.Text)
 	}
 }
 
 // TestSlashActivatesFilter verifies that calling ActivateFilter sets
-// FilterActive to true (models the '/' keypress).
+// Filter.Active to true (models the '/' keypress).
 func TestSlashActivatesFilter(t *testing.T) {
 	v := View{}
 	v = v.ActivateFilter()
-	if !v.FilterActive {
-		t.Error("FilterActive should be true after ActivateFilter")
+	if !v.Filter.Active {
+		t.Error("Filter.Active should be true after ActivateFilter")
 	}
 }
 
 // TestAppendFilterCharBuildsQuery verifies that key presses after activation
-// accumulate into FilterText.
+// accumulate into Filter.Text.
 func TestAppendFilterCharBuildsQuery(t *testing.T) {
 	v := View{}
 	v = v.ActivateFilter()
 	v = v.AppendFilterChar('r')
 	v = v.AppendFilterChar('o')
 	v = v.AppendFilterChar('c')
-	if v.FilterText != "roc" {
-		t.Errorf("FilterText: expected %q, got %q", "roc", v.FilterText)
+	if v.Filter.Text != "roc" {
+		t.Errorf("Filter.Text: expected %q, got %q", "roc", v.Filter.Text)
 	}
 }
 
@@ -242,8 +243,8 @@ func TestAppendFilterCharBuildsQuery(t *testing.T) {
 func TestAppendFilterCharIgnoredWhenInactive(t *testing.T) {
 	v := View{}
 	v = v.AppendFilterChar('x')
-	if v.FilterText != "" {
-		t.Errorf("FilterText should remain empty when filter is inactive, got %q", v.FilterText)
+	if v.Filter.Text != "" {
+		t.Errorf("Filter.Text should remain empty when filter is inactive, got %q", v.Filter.Text)
 	}
 }
 
@@ -418,11 +419,11 @@ func TestDeactivateFilterClearsQueryAndResetsCursor(t *testing.T) {
 	v = v.AppendFilterChar('A')
 	v = v.AppendFilterChar('l')
 	v = v.DeactivateFilter()
-	if v.FilterActive {
-		t.Error("FilterActive should be false after DeactivateFilter")
+	if v.Filter.Active {
+		t.Error("Filter.Active should be false after DeactivateFilter")
 	}
-	if v.FilterText != "" {
-		t.Errorf("FilterText should be empty after DeactivateFilter, got %q", v.FilterText)
+	if v.Filter.Text != "" {
+		t.Errorf("Filter.Text should be empty after DeactivateFilter, got %q", v.Filter.Text)
 	}
 	if v.Cursor != 0 {
 		t.Errorf("Cursor should be 0 after DeactivateFilter, got %d", v.Cursor)
@@ -586,11 +587,10 @@ func TestFocusedTrackEmptyLibrary(t *testing.T) {
 func TestFocusedTrackWithActiveFilter(t *testing.T) {
 	idx := buildIndex(sampleTracks)
 	v := View{
-		Index:        idx,
-		Fuzzy:        musiclib.FakeFuzzySearcher{},
-		FilterActive: true,
-		FilterText:   "Alice",
-		Cursor:       0,
+		Index:  idx,
+		Fuzzy:  musiclib.FakeFuzzySearcher{},
+		Filter: filter.State{Active: true, Text: "Alice"},
+		Cursor: 0,
 	}
 	track, ok := v.FocusedTrack()
 	if !ok {
@@ -705,11 +705,10 @@ func TestEnqueueFocusedWithActiveFilterSelectsFilteredTrack(t *testing.T) {
 	// in the sorted index). Cursor 0 should therefore resolve to Alice, not to
 	// whatever track sits at position 0 in the unfiltered list.
 	v := View{
-		Index:        idx,
-		Fuzzy:        musiclib.FakeFuzzySearcher{},
-		FilterActive: true,
-		FilterText:   "Alice",
-		Cursor:       0,
+		Index:  idx,
+		Fuzzy:  musiclib.FakeFuzzySearcher{},
+		Filter: filter.State{Active: true, Text: "Alice"},
+		Cursor: 0,
 	}
 
 	qa := &fakeQueueAppender{}
@@ -860,13 +859,13 @@ func TestMoveCursorEmptyIsNoOp(t *testing.T) {
 // --- CommitFilter ---
 
 func TestCommitFilterDeactivatesButKeepsText(t *testing.T) {
-	v := View{FilterActive: true, FilterText: "abc"}
+	v := View{Filter: filter.State{Active: true, Text: "abc"}}
 	v = v.CommitFilter()
-	if v.FilterActive {
-		t.Error("CommitFilter: expected FilterActive=false")
+	if v.Filter.Active {
+		t.Error("CommitFilter: expected Filter.Active=false")
 	}
-	if v.FilterText != "abc" {
-		t.Errorf("CommitFilter: expected FilterText='abc', got %q", v.FilterText)
+	if v.Filter.Text != "abc" {
+		t.Errorf("CommitFilter: expected Filter.Text='abc', got %q", v.Filter.Text)
 	}
 }
 
@@ -976,8 +975,8 @@ func TestPadExactFit(t *testing.T) {
 func TestVisibleRowsSameWithAndWithoutFilter(t *testing.T) {
 	h := 24
 	noFilter := View{Height: h}
-	withFilter := View{Height: h, FilterText: "abc"}
-	withActiveFilter := View{Height: h, FilterText: "abc", FilterActive: true}
+	withFilter := View{Height: h, Filter: filter.State{Text: "abc"}}
+	withActiveFilter := View{Height: h, Filter: filter.State{Active: true, Text: "abc"}}
 
 	base := noFilter.visibleRows()
 	if got := withFilter.visibleRows(); got != base {

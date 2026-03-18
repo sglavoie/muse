@@ -394,19 +394,19 @@ func TestLibraryEscClearsCommittedFilter(t *testing.T) {
 	m = typeText(m, "ali")
 	m = pressEnter(m) // commit filter
 
-	if m.library.filterText != "ali" {
-		t.Fatalf("expected committed filterText \"ali\", got %q", m.library.filterText)
+	if m.library.filter.Text != "ali" {
+		t.Fatalf("expected committed filterText \"ali\", got %q", m.library.filter.Text)
 	}
-	if m.library.filterActive {
+	if m.library.filter.Active {
 		t.Fatal("expected filterActive=false after commit")
 	}
 
 	// Esc should clear the committed filter.
 	m = pressEsc(m)
-	if m.library.filterText != "" {
-		t.Errorf("expected filterText cleared after Esc, got %q", m.library.filterText)
+	if m.library.filter.Text != "" {
+		t.Errorf("expected filterText cleared after Esc, got %q", m.library.filter.Text)
 	}
-	if m.library.filterActive {
+	if m.library.filter.Active {
 		t.Error("expected filterActive=false after Esc")
 	}
 }
@@ -430,10 +430,10 @@ func TestLibraryEnterClearsCommittedFilter(t *testing.T) {
 	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = next.(Model)
 
-	if m.library.filterText != "" {
-		t.Errorf("expected filterText cleared after enqueue Enter, got %q", m.library.filterText)
+	if m.library.filter.Text != "" {
+		t.Errorf("expected filterText cleared after enqueue Enter, got %q", m.library.filter.Text)
 	}
-	if m.library.filterActive {
+	if m.library.filter.Active {
 		t.Error("expected filterActive=false after enqueue Enter")
 	}
 	if cmd == nil {
@@ -462,7 +462,7 @@ func TestFilterBarMsgIgnoredOutsideLibraryView(t *testing.T) {
 	// Send FilterBarMsg while on the queue view.
 	next, _ = nm.Update(FilterBarMsg{})
 	nm = next.(Model)
-	if nm.library.filterActive {
+	if nm.library.filter.Active {
 		t.Error("library filterActive should remain false when FilterBarMsg is sent outside the library view")
 	}
 
@@ -471,7 +471,7 @@ func TestFilterBarMsgIgnoredOutsideLibraryView(t *testing.T) {
 	nm = next.(Model)
 	next, _ = nm.Update(FilterBarMsg{})
 	nm = next.(Model)
-	if nm.library.filterActive {
+	if nm.library.filter.Active {
 		t.Error("library filterActive should remain false when FilterBarMsg is sent on playlists view")
 	}
 }

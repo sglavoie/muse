@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -956,7 +957,9 @@ func (m Model) activeViewContext() bindingContext {
 		// case above to ensure view-local keybinding precedence works correctly
 		// for the new view. Falling back to contextGlobal would silently bypass
 		// view-local shadowing (e.g. playlist 'r' rename vs. global repeat).
-		panic("activeViewContext: unhandled viewID — add a case for the new view")
+		slog.Warn("activeViewContext: unhandled viewID, falling back to global bindings",
+			"viewID", int(m.activeView))
+		return contextGlobal
 	}
 }
 

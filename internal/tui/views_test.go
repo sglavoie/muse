@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/filter"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -902,14 +903,13 @@ func TestLibraryViewBackspaceFilter(t *testing.T) {
 	idx.Insert(library.Track{Artist: "A", Title: "T1", Hash: "h1"})
 
 	v := LibraryView{
-		index:        idx,
-		fuzzy:        library.FakeFuzzySearcher{},
-		filterActive: true,
-		filterText:   "AB",
+		index:  idx,
+		fuzzy:  library.FakeFuzzySearcher{},
+		filter: filter.State{Active: true, Text: "AB"},
 	}
 	v = v.BackspaceFilter()
-	if v.filterText != "A" {
-		t.Errorf("BackspaceFilter: expected 'A', got %q", v.filterText)
+	if v.filter.Text != "A" {
+		t.Errorf("BackspaceFilter: expected 'A', got %q", v.filter.Text)
 	}
 	if v.cursor != 0 {
 		t.Errorf("BackspaceFilter: expected cursor=0, got %d", v.cursor)
@@ -917,10 +917,10 @@ func TestLibraryViewBackspaceFilter(t *testing.T) {
 }
 
 func TestLibraryViewBackspaceFilterInactiveNoOp(t *testing.T) {
-	v := LibraryView{filterText: "AB"}
+	v := LibraryView{filter: filter.State{Text: "AB"}}
 	v = v.BackspaceFilter()
-	if v.filterText != "AB" {
-		t.Errorf("BackspaceFilter inactive: expected 'AB', got %q", v.filterText)
+	if v.filter.Text != "AB" {
+		t.Errorf("BackspaceFilter inactive: expected 'AB', got %q", v.filter.Text)
 	}
 }
 
@@ -931,18 +931,17 @@ func TestLibraryViewDeactivateFilter(t *testing.T) {
 	idx.Insert(library.Track{Artist: "A", Title: "T1", Hash: "h1"})
 
 	v := LibraryView{
-		index:        idx,
-		fuzzy:        library.FakeFuzzySearcher{},
-		filterActive: true,
-		filterText:   "AB",
-		cursor:       5,
+		index:  idx,
+		fuzzy:  library.FakeFuzzySearcher{},
+		filter: filter.State{Active: true, Text: "AB"},
+		cursor: 5,
 	}
 	v = v.DeactivateFilter()
-	if v.filterActive {
-		t.Error("DeactivateFilter: expected filterActive=false")
+	if v.filter.Active {
+		t.Error("DeactivateFilter: expected filter.Active=false")
 	}
-	if v.filterText != "" {
-		t.Errorf("DeactivateFilter: expected filterText='', got %q", v.filterText)
+	if v.filter.Text != "" {
+		t.Errorf("DeactivateFilter: expected filter.Text='', got %q", v.filter.Text)
 	}
 	if v.cursor != 0 {
 		t.Errorf("DeactivateFilter: expected cursor=0, got %d", v.cursor)
@@ -1010,13 +1009,13 @@ func TestModelRemoveLibraryTrackByPath(t *testing.T) {
 // --- LibraryView CommitFilter ---
 
 func TestLibraryViewCommitFilter(t *testing.T) {
-	v := LibraryView{filterActive: true, filterText: "test"}
+	v := LibraryView{filter: filter.State{Active: true, Text: "test"}}
 	v = v.CommitFilter()
-	if v.filterActive {
-		t.Error("CommitFilter: expected filterActive=false")
+	if v.filter.Active {
+		t.Error("CommitFilter: expected filter.Active=false")
 	}
-	if v.filterText != "test" {
-		t.Errorf("CommitFilter: expected filterText='test', got %q", v.filterText)
+	if v.filter.Text != "test" {
+		t.Errorf("CommitFilter: expected filter.Text='test', got %q", v.filter.Text)
 	}
 }
 

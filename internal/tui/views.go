@@ -9,6 +9,7 @@ import (
 	musiclib "github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/filter"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -683,8 +684,7 @@ type ArtistsView struct {
 	width  int
 	height int
 
-	filterActive bool
-	filterText   string
+	filter filter.State
 }
 
 func (v ArtistsView) render(s styles.Styles) string {
@@ -704,8 +704,8 @@ func (v ArtistsView) render(s styles.Styles) string {
 		Width:              v.width,
 		Height:             v.height,
 		Styles:             s,
-		FilterActive:       v.filterActive,
-		FilterText:         v.filterText,
+		FilterActive:       v.filter.Active,
+		FilterText:         v.filter.Text,
 	}
 	return av.Render()
 }
@@ -724,7 +724,7 @@ func (v ArtistsView) HandleAction(a action) ArtistsView {
 		AlbumCursor:        v.albumCursor,
 		AlbumScrollOffset:  v.albumScrollOffset,
 		Height:             v.height,
-		FilterText:         v.filterText,
+		FilterText:         v.filter.Text,
 	}
 	switch a {
 	case actionCursorUp:
@@ -764,8 +764,7 @@ func (v ArtistsView) openAlbums(albums []string) ArtistsView {
 	v.artistCursor = view.ArtistCursor
 	v.artistScrollOffset = view.ArtistScrollOffset
 	v.albums = view.Albums
-	v.filterActive = false
-	v.filterText = ""
+	v.filter = filter.State{}
 	return v
 }
 
@@ -784,8 +783,7 @@ func (v ArtistsView) openTracks(tracks []musiclib.Track) ArtistsView {
 	v.albumCursor = view.AlbumCursor
 	v.albumScrollOffset = view.AlbumScrollOffset
 	v.tracks = view.Tracks
-	v.filterActive = false
-	v.filterText = ""
+	v.filter = filter.State{}
 	return v
 }
 
@@ -810,8 +808,7 @@ func (v ArtistsView) back() ArtistsView {
 	v.scrollOffset = view.ScrollOffset
 	v.albums = view.Albums
 	v.tracks = view.Tracks
-	v.filterActive = false
-	v.filterText = ""
+	v.filter = filter.State{}
 	return v
 }
 
@@ -838,20 +835,19 @@ func (v ArtistsView) clampCursor() ArtistsView {
 
 // ActivateFilter sets the filter bar to active input mode.
 func (v ArtistsView) ActivateFilter() ArtistsView {
-	v.filterActive = true
+	v.filter = v.filter.Activate()
 	return v
 }
 
 // CommitFilter exits input mode while keeping the current query visible.
 func (v ArtistsView) CommitFilter() ArtistsView {
-	v.filterActive = false
+	v.filter = v.filter.Commit()
 	return v
 }
 
 // DeactivateFilter clears the query, exits input mode, and resets the cursor.
 func (v ArtistsView) DeactivateFilter() ArtistsView {
-	v.filterActive = false
-	v.filterText = ""
+	v.filter = v.filter.Deactivate()
 	v.cursor = 0
 	v.scrollOffset = 0
 	return v
@@ -859,24 +855,23 @@ func (v ArtistsView) DeactivateFilter() ArtistsView {
 
 // AppendFilterChar adds ch to the filter text and resets the cursor.
 func (v ArtistsView) AppendFilterChar(ch rune) ArtistsView {
-	if !v.filterActive {
-		return v
+	var changed bool
+	v.filter, changed = v.filter.AppendChar(ch)
+	if changed {
+		v.cursor = 0
+		v.scrollOffset = 0
 	}
-	v.filterText += string(ch)
-	v.cursor = 0
-	v.scrollOffset = 0
 	return v
 }
 
 // BackspaceFilter removes the last rune from the filter text.
 func (v ArtistsView) BackspaceFilter() ArtistsView {
-	if !v.filterActive || len(v.filterText) == 0 {
-		return v
+	var changed bool
+	v.filter, changed = v.filter.Backspace()
+	if changed {
+		v.cursor = 0
+		v.scrollOffset = 0
 	}
-	runes := []rune(v.filterText)
-	v.filterText = string(runes[:len(runes)-1])
-	v.cursor = 0
-	v.scrollOffset = 0
 	return v
 }
 
@@ -886,7 +881,7 @@ func (v ArtistsView) focusedArtist() (string, bool) {
 	if v.level != arttui.ArtistLevel {
 		return "", false
 	}
-	items := arttui.FilterStrings(v.artists, v.filterText)
+	items := arttui.FilterStrings(v.artists, v.filter.Text)
 	if v.cursor < 0 || v.cursor >= len(items) {
 		return "", false
 	}
@@ -899,7 +894,7 @@ func (v ArtistsView) focusedAlbum() (string, bool) {
 	if v.level != arttui.AlbumLevel {
 		return "", false
 	}
-	items := arttui.FilterStrings(v.albums, v.filterText)
+	items := arttui.FilterStrings(v.albums, v.filter.Text)
 	if v.cursor < 0 || v.cursor >= len(items) {
 		return "", false
 	}
@@ -912,7 +907,7 @@ func (v ArtistsView) focusedTrack() (musiclib.Track, bool) {
 	if v.level != arttui.TrackLevel {
 		return musiclib.Track{}, false
 	}
-	items := arttui.FilterTracks(v.tracks, v.filterText)
+	items := arttui.FilterTracks(v.tracks, v.filter.Text)
 	if v.cursor < 0 || v.cursor >= len(items) {
 		return musiclib.Track{}, false
 	}
@@ -956,8 +951,7 @@ type AlbumsView struct {
 	width  int
 	height int
 
-	filterActive bool
-	filterText   string
+	filter filter.State
 }
 
 func (v AlbumsView) render(s styles.Styles) string {
@@ -973,8 +967,8 @@ func (v AlbumsView) render(s styles.Styles) string {
 		Width:             v.width,
 		Height:            v.height,
 		Styles:            s,
-		FilterActive:      v.filterActive,
-		FilterText:        v.filterText,
+		FilterActive:      v.filter.Active,
+		FilterText:        v.filter.Text,
 	}
 	return av.Render()
 }
@@ -990,7 +984,7 @@ func (v AlbumsView) HandleAction(a action) AlbumsView {
 		AlbumCursor:       v.albumCursor,
 		AlbumScrollOffset: v.albumScrollOffset,
 		Height:            v.height,
-		FilterText:        v.filterText,
+		FilterText:        v.filter.Text,
 	}
 	switch a {
 	case actionCursorUp:
@@ -1030,8 +1024,7 @@ func (v AlbumsView) openTracks(tracks []musiclib.Track) AlbumsView {
 	v.albumCursor = view.AlbumCursor
 	v.albumScrollOffset = view.AlbumScrollOffset
 	v.tracks = view.Tracks
-	v.filterActive = false
-	v.filterText = ""
+	v.filter = filter.State{}
 	return v
 }
 
@@ -1052,8 +1045,7 @@ func (v AlbumsView) back() AlbumsView {
 	v.cursor = view.Cursor
 	v.scrollOffset = view.ScrollOffset
 	v.tracks = view.Tracks
-	v.filterActive = false
-	v.filterText = ""
+	v.filter = filter.State{}
 	return v
 }
 
@@ -1078,20 +1070,19 @@ func (v AlbumsView) clampCursor() AlbumsView {
 
 // ActivateFilter sets the filter bar to active input mode.
 func (v AlbumsView) ActivateFilter() AlbumsView {
-	v.filterActive = true
+	v.filter = v.filter.Activate()
 	return v
 }
 
 // CommitFilter exits input mode while keeping the current query visible.
 func (v AlbumsView) CommitFilter() AlbumsView {
-	v.filterActive = false
+	v.filter = v.filter.Commit()
 	return v
 }
 
 // DeactivateFilter clears the query, exits input mode, and resets the cursor.
 func (v AlbumsView) DeactivateFilter() AlbumsView {
-	v.filterActive = false
-	v.filterText = ""
+	v.filter = v.filter.Deactivate()
 	v.cursor = 0
 	v.scrollOffset = 0
 	return v
@@ -1099,24 +1090,23 @@ func (v AlbumsView) DeactivateFilter() AlbumsView {
 
 // AppendFilterChar adds ch to the filter text and resets the cursor.
 func (v AlbumsView) AppendFilterChar(ch rune) AlbumsView {
-	if !v.filterActive {
-		return v
+	var changed bool
+	v.filter, changed = v.filter.AppendChar(ch)
+	if changed {
+		v.cursor = 0
+		v.scrollOffset = 0
 	}
-	v.filterText += string(ch)
-	v.cursor = 0
-	v.scrollOffset = 0
 	return v
 }
 
 // BackspaceFilter removes the last rune from the filter text.
 func (v AlbumsView) BackspaceFilter() AlbumsView {
-	if !v.filterActive || len(v.filterText) == 0 {
-		return v
+	var changed bool
+	v.filter, changed = v.filter.Backspace()
+	if changed {
+		v.cursor = 0
+		v.scrollOffset = 0
 	}
-	runes := []rune(v.filterText)
-	v.filterText = string(runes[:len(runes)-1])
-	v.cursor = 0
-	v.scrollOffset = 0
 	return v
 }
 
@@ -1126,7 +1116,7 @@ func (v AlbumsView) focusedAlbum() (string, bool) {
 	if v.level != albtui.AlbumLevel {
 		return "", false
 	}
-	items := arttui.FilterStrings(v.albums, v.filterText)
+	items := arttui.FilterStrings(v.albums, v.filter.Text)
 	if v.cursor < 0 || v.cursor >= len(items) {
 		return "", false
 	}
@@ -1139,7 +1129,7 @@ func (v AlbumsView) focusedTrack() (musiclib.Track, bool) {
 	if v.level != albtui.TrackLevel {
 		return musiclib.Track{}, false
 	}
-	items := arttui.FilterTracks(v.tracks, v.filterText)
+	items := arttui.FilterTracks(v.tracks, v.filter.Text)
 	if v.cursor < 0 || v.cursor >= len(items) {
 		return musiclib.Track{}, false
 	}

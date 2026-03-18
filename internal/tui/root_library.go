@@ -34,7 +34,7 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 	// Invalidate the cached fuzzy-match results so that stale TrackIndex
 	// values from the previous index state cannot cause an out-of-bounds
 	// panic when the filter is active and the user navigates or renders.
-	if m.library.filterText != "" {
+	if m.library.filter.Text != "" {
 		m.library = m.library.rebuildFilterCache()
 	}
 	// Refresh the artists list when at ArtistLevel so the view stays
@@ -67,7 +67,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 	// Invalidate the cached fuzzy-match results so that stale TrackIndex
 	// values from the previous index state cannot cause an out-of-bounds
 	// panic when the filter is active and the user navigates or renders.
-	if m.library.filterText != "" {
+	if m.library.filter.Text != "" {
 		m.library = m.library.rebuildFilterCache()
 		// Clamp cursor to the new (possibly shorter) match set.
 		n := len(m.library.filteredMatches)
@@ -113,8 +113,8 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 			m.library.index = library.LibraryIndex{}
 			m.library.cursor = 0
 			m.library.scrollOffset = 0
-			m.library.filterActive = false
-			m.library.filterText = ""
+			m.library.filter.Active = false
+			m.library.filter.Text = ""
 			m.library.filteredMatches = nil
 			m.scanCh = ch
 			m.scanning = true
@@ -130,14 +130,14 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 		}
 		return m, nil, true
 	case actionLibraryFilterClear:
-		if m.library.filterText != "" {
+		if m.library.filter.Text != "" {
 			m.library = m.library.DeactivateFilter()
 		}
 		return m, nil, true
 	case actionLibraryEnqueue:
 		if m.queueWriter != nil {
 			cmd := m.library.EnqueueFocused(m.queueWriter, len(m.queue.entries))
-			if m.library.filterText != "" {
+			if m.library.filter.Text != "" {
 				m.library = m.library.DeactivateFilter()
 			}
 			return m, cmd, true

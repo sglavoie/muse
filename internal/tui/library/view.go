@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	musiclib "github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -35,10 +36,9 @@ type TrackEnqueuedMsg struct {
 // Width and Height must be set from the most recent tea.WindowSizeMsg before
 // calling Render; a zero Width falls back to a simple "artist – title" format.
 // Cursor holds the zero-based index of the focused track row.
-// FilterActive is false by default and is set to true when the user presses '/'.
-// FilterText accumulates the query string while FilterActive is true.
+// Filter holds the active/text state of the filter bar.
 // FilteredMatches is the pre-computed result of the last fuzzy search; callers
-// should populate this whenever FilterText changes so that navigation and
+// should populate this whenever Filter.Text changes so that navigation and
 // rendering reuse the cached slice without re-running the search on every frame.
 // Fuzzy is the fuzzy search engine used when the filter bar is active;
 // inject musiclib.FakeFuzzySearcher in tests and musiclib.SahilmFuzzySearcher in production.
@@ -54,8 +54,7 @@ type View struct {
 	Height          int
 	Cursor          int
 	ScrollOffset    int // first visible track index
-	FilterActive    bool
-	FilterText      string
+	Filter          filter.State
 	FilteredMatches []musiclib.Match // pre-computed; nil means not yet cached
 	Fuzzy           musiclib.FuzzySearcher
 	SelectedHashes  map[string]struct{}
@@ -166,7 +165,7 @@ func (v View) filteredMatches(allTracks []musiclib.Track) ([]musiclib.Match, boo
 		return v.FilteredMatches, true
 	}
 	if v.Fuzzy != nil {
-		return v.Fuzzy.Search(v.FilterText, allTracks), true
+		return v.Fuzzy.Search(v.Filter.Text, allTracks), true
 	}
 	return nil, false
 }
@@ -174,7 +173,7 @@ func (v View) filteredMatches(allTracks []musiclib.Track) ([]musiclib.Match, boo
 // effectiveTrackCount returns the number of tracks currently displayed,
 // accounting for any active fuzzy filter.
 func (v View) effectiveTrackCount() int {
-	if v.FilterText != "" {
+	if v.Filter.Text != "" {
 		if m, ok := v.filteredMatches(v.Index.Tracks()); ok {
 			return len(m)
 		}
@@ -187,7 +186,7 @@ func (v View) effectiveTrackCount() int {
 // is empty or the cursor is out of range.
 func (v View) FocusedTrack() (musiclib.Track, bool) {
 	allTracks := v.Index.Tracks()
-	if v.FilterText != "" {
+	if v.Filter.Text != "" {
 		if matches, ok := v.filteredMatches(allTracks); ok {
 			if v.Cursor < 0 || v.Cursor >= len(matches) {
 				return musiclib.Track{}, false
@@ -239,7 +238,7 @@ func (v View) Render() string {
 
 	// Resolve the set of tracks to display, with optional match positions.
 	var display []displayTrack
-	if v.FilterText != "" {
+	if v.Filter.Text != "" {
 		if matches, ok := v.filteredMatches(allTracks); ok {
 			display = make([]displayTrack, len(matches))
 			for i, m := range matches {
@@ -269,8 +268,8 @@ func (v View) Render() string {
 
 	heading := v.Styles.Heading.Render(fmt.Sprintf("Library (%s tracks)", formatCount(n)))
 	separator := "\n\n"
-	if v.FilterActive {
-		ft := v.FilterText
+	if v.Filter.Active {
+		ft := v.Filter.Text
 		if ft == "" {
 			hint := v.Styles.Dim.Render("a: artist  t: title  l: album")
 			separator = "\nFilter: > " + hint + "\n"
@@ -281,8 +280,8 @@ func (v View) Render() string {
 			}
 			separator = "\nFilter: > " + ft + "\n"
 		}
-	} else if v.FilterText != "" {
-		ft := v.FilterText
+	} else if v.Filter.Text != "" {
+		ft := v.Filter.Text
 		maxLen := v.Width - len("Filter: ") - 1
 		if maxLen > 0 && len([]rune(ft)) > maxLen {
 			ft = string([]rune(ft)[:maxLen-1]) + "…"

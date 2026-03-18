@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/filter"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -16,8 +17,7 @@ type LibraryView struct {
 	height          int
 	cursor          int // zero-based index of the focused track row
 	scrollOffset    int // first visible track index
-	filterActive    bool
-	filterText      string
+	filter          filter.State
 	filteredMatches []library.Match // cached result of the last fuzzy search
 	fuzzy           library.FuzzySearcher
 	selectedHashes  map[string]struct{} // bulk-selected track hashes
@@ -39,8 +39,7 @@ func (v LibraryView) view() libtui.View {
 		Height:          v.height,
 		Cursor:          v.cursor,
 		ScrollOffset:    v.scrollOffset,
-		FilterActive:    v.filterActive,
-		FilterText:      v.filterText,
+		Filter:          v.filter,
 		FilteredMatches: v.filteredMatches,
 		Fuzzy:           v.fuzzy,
 		SelectedHashes:  v.selectedHashes,
@@ -51,8 +50,8 @@ func (v LibraryView) view() libtui.View {
 // Call this whenever filterText changes so navigation and rendering reuse the
 // cached slice instead of re-running the fuzzy search on every frame.
 func (v LibraryView) rebuildFilterCache() LibraryView {
-	if v.filterText != "" && v.fuzzy != nil {
-		v.filteredMatches = v.fuzzy.Search(v.filterText, v.index.Tracks())
+	if v.filter.Text != "" && v.fuzzy != nil {
+		v.filteredMatches = v.fuzzy.Search(v.filter.Text, v.index.Tracks())
 	} else {
 		v.filteredMatches = nil
 	}
@@ -154,22 +153,21 @@ func (v LibraryView) EnqueueSelected(qa libtui.QueueAppender, prevQueueLen int) 
 
 // ActivateFilter sets the filter bar to active.
 func (v LibraryView) ActivateFilter() LibraryView {
-	v.filterActive = true
+	v.filter = v.filter.Activate()
 	return v
 }
 
 // CommitFilter deactivates the filter bar input while keeping the current
-// filterText so the filtered results remain visible.
+// filter text so the filtered results remain visible.
 func (v LibraryView) CommitFilter() LibraryView {
-	v.filterActive = false
+	v.filter = v.filter.Commit()
 	return v
 }
 
 // DeactivateFilter clears the filter query, deactivates the filter bar, and
 // resets the cursor to 0.
 func (v LibraryView) DeactivateFilter() LibraryView {
-	v.filterActive = false
-	v.filterText = ""
+	v.filter = v.filter.Deactivate()
 	v.cursor = 0
 	v.scrollOffset = 0
 	return v.rebuildFilterCache()
@@ -178,10 +176,11 @@ func (v LibraryView) DeactivateFilter() LibraryView {
 // AppendFilterChar appends ch to the filter text and resets the cursor to 0.
 // It is a no-op when the filter bar is not active.
 func (v LibraryView) AppendFilterChar(ch rune) LibraryView {
-	if !v.filterActive {
+	var changed bool
+	v.filter, changed = v.filter.AppendChar(ch)
+	if !changed {
 		return v
 	}
-	v.filterText += string(ch)
 	v.cursor = 0
 	v.scrollOffset = 0
 	return v.rebuildFilterCache()
@@ -191,11 +190,11 @@ func (v LibraryView) AppendFilterChar(ch rune) LibraryView {
 // cursor to 0. It is a no-op when the filter bar is not active or the text is
 // already empty.
 func (v LibraryView) BackspaceFilter() LibraryView {
-	if !v.filterActive || len(v.filterText) == 0 {
+	var changed bool
+	v.filter, changed = v.filter.Backspace()
+	if !changed {
 		return v
 	}
-	runes := []rune(v.filterText)
-	v.filterText = string(runes[:len(runes)-1])
 	v.cursor = 0
 	v.scrollOffset = 0
 	return v.rebuildFilterCache()

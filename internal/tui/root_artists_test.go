@@ -582,14 +582,14 @@ func TestArtistsFilterActivateAndType(t *testing.T) {
 
 	// Activate filter bar.
 	m = pressSlash(m)
-	if !m.artists.filterActive {
+	if !m.artists.filter.Active {
 		t.Fatal("expected filter to be active after /")
 	}
 
 	// Type "bob" — should filter to just Bob.
 	m = typeText(m, "bob")
-	if m.artists.filterText != "bob" {
-		t.Fatalf("expected filterText='bob', got %q", m.artists.filterText)
+	if m.artists.filter.Text != "bob" {
+		t.Fatalf("expected filterText='bob', got %q", m.artists.filter.Text)
 	}
 
 	// focusedArtist should be Bob.
@@ -607,14 +607,14 @@ func TestArtistsFilterEscClears(t *testing.T) {
 
 	// Esc should deactivate and clear the filter.
 	m = pressEsc(m)
-	if m.artists.filterActive {
+	if m.artists.filter.Active {
 		t.Error("expected filter deactivated after Esc")
 	}
-	if m.artists.filterText != "" {
-		t.Errorf("expected filterText cleared, got %q", m.artists.filterText)
+	if m.artists.filter.Text != "" {
+		t.Errorf("expected filterText cleared, got %q", m.artists.filter.Text)
 	}
 	// All 3 artists should be visible again.
-	if len(arttui.FilterStrings(m.artists.artists, m.artists.filterText)) != 3 {
+	if len(arttui.FilterStrings(m.artists.artists, m.artists.filter.Text)) != 3 {
 		t.Error("expected full artist list after filter cleared")
 	}
 }
@@ -627,11 +627,11 @@ func TestArtistsFilterEnterCommits(t *testing.T) {
 
 	// Enter commits: filter stays but input mode exits.
 	m = pressEnter(m)
-	if m.artists.filterActive {
+	if m.artists.filter.Active {
 		t.Error("expected filter not active after Enter")
 	}
-	if m.artists.filterText != "ali" {
-		t.Errorf("expected filterText='ali' after commit, got %q", m.artists.filterText)
+	if m.artists.filter.Text != "ali" {
+		t.Errorf("expected filterText='ali' after commit, got %q", m.artists.filter.Text)
 	}
 }
 
@@ -643,8 +643,8 @@ func TestArtistsFilterDrillDownClearsFilter(t *testing.T) {
 	m = pressSlash(m)
 	m = typeText(m, "ali")
 	m = pressEnter(m) // commit filter
-	if m.artists.filterText != "ali" {
-		t.Fatalf("expected filterText='ali', got %q", m.artists.filterText)
+	if m.artists.filter.Text != "ali" {
+		t.Fatalf("expected filterText='ali', got %q", m.artists.filter.Text)
 	}
 
 	// Drill down into Alice's albums.
@@ -656,8 +656,8 @@ func TestArtistsFilterDrillDownClearsFilter(t *testing.T) {
 		t.Errorf("expected selectedArtist='Alice', got %q", m.artists.selectedArtist)
 	}
 	// Filter should be cleared on drill-down.
-	if m.artists.filterText != "" {
-		t.Errorf("expected filterText cleared after drill-down, got %q", m.artists.filterText)
+	if m.artists.filter.Text != "" {
+		t.Errorf("expected filterText cleared after drill-down, got %q", m.artists.filter.Text)
 	}
 }
 
@@ -673,8 +673,8 @@ func TestArtistsFilterBackClearsFilter(t *testing.T) {
 
 	// Go back — filter should be cleared.
 	m = pressEsc(m)
-	if m.artists.filterText != "" {
-		t.Errorf("expected filterText cleared after back, got %q", m.artists.filterText)
+	if m.artists.filter.Text != "" {
+		t.Errorf("expected filterText cleared after back, got %q", m.artists.filter.Text)
 	}
 }
 
@@ -704,8 +704,8 @@ func TestArtistsFilterBackspace(t *testing.T) {
 	// Backspace should remove last char.
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	m = next.(Model)
-	if m.artists.filterText != "bo" {
-		t.Errorf("expected filterText='bo' after backspace, got %q", m.artists.filterText)
+	if m.artists.filter.Text != "bo" {
+		t.Errorf("expected filterText='bo' after backspace, got %q", m.artists.filter.Text)
 	}
 }
 

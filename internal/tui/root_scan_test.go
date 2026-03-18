@@ -251,8 +251,8 @@ func TestRescanResetsCursorScrollOffsetAndFilter(t *testing.T) {
 	nm.library = nm.library.ActivateFilter()
 	nm.library = nm.library.AppendFilterChar('T')
 	nm.library = nm.library.CommitFilter()
-	if nm.library.filterText != "T" {
-		t.Fatalf("setup: expected filterText='T', got %q", nm.library.filterText)
+	if nm.library.filter.Text != "T" {
+		t.Fatalf("setup: expected filterText='T', got %q", nm.library.filter.Text)
 	}
 
 	// Trigger rescan.
@@ -267,11 +267,11 @@ func TestRescanResetsCursorScrollOffsetAndFilter(t *testing.T) {
 	if nm.library.scrollOffset != 0 {
 		t.Fatalf("rescan: expected scrollOffset=0, got %d", nm.library.scrollOffset)
 	}
-	if nm.library.filterActive {
+	if nm.library.filter.Active {
 		t.Fatal("rescan: expected filterActive=false")
 	}
-	if nm.library.filterText != "" {
-		t.Fatalf("rescan: expected filterText='', got %q", nm.library.filterText)
+	if nm.library.filter.Text != "" {
+		t.Fatalf("rescan: expected filterText='', got %q", nm.library.filter.Text)
 	}
 	if nm.library.filteredMatches != nil {
 		t.Fatal("rescan: expected filteredMatches=nil")
