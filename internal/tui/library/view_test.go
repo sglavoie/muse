@@ -80,13 +80,12 @@ func TestRenderColumnsDoNotOverflow(t *testing.T) {
 		rendered := v.Render()
 		lines := strings.Split(rendered, "\n")
 
-		// Skip the heading and blank line; the header row is lines[2],
-		// track rows follow.
-		if len(lines) < 3 {
-			t.Fatalf("width=%d: expected at least 3 lines, got %d", width, len(lines))
+		// The header row is lines[0], track rows follow.
+		if len(lines) < 1 {
+			t.Fatalf("width=%d: expected at least 1 line, got %d", width, len(lines))
 		}
 
-		for _, line := range lines[2:] {
+		for _, line := range lines {
 			got := len([]rune(ansi.Strip(line)))
 			if got != width {
 				t.Errorf("width=%d: row has %d runes, want %d: %q", width, got, width, line)
@@ -99,7 +98,7 @@ func TestRenderColumnsDoNotOverflow(t *testing.T) {
 func TestRenderEmptyIndex(t *testing.T) {
 	v := View{Width: 80, Height: 24}
 	got := v.Render()
-	if got != "Library\n\n(no tracks)" {
+	if got != "(no tracks)" {
 		t.Errorf("unexpected empty render: %q", got)
 	}
 }
@@ -110,9 +109,6 @@ func TestRenderZeroWidthFallback(t *testing.T) {
 	idx := buildIndex(sampleTracks)
 	v := View{Index: idx, Width: 0, Height: 0}
 	got := v.Render()
-	if !strings.Contains(got, "Library") {
-		t.Errorf("expected heading in zero-width render, got: %q", got)
-	}
 	// In fallback mode each row is "artist – title", not a padded columnar row.
 	// The column header row starts with the literal "#" track-number header.
 	for line := range strings.SplitSeq(got, "\n") {
@@ -540,16 +536,16 @@ func TestCursorRowHighlighted(t *testing.T) {
 	v.Styles.Accent = s
 	got := v.Render()
 	lines := strings.Split(got, "\n")
-	// Track rows begin after the heading, blank line, and header row (index 3).
-	if len(lines) < 4 {
-		t.Fatalf("expected at least 4 lines, got %d", len(lines))
+	// Track rows begin after the header row (index 1).
+	if len(lines) < 2 {
+		t.Fatalf("expected at least 2 lines, got %d", len(lines))
 	}
-	focusedRow := lines[3]
+	focusedRow := lines[1]
 	if ansi.Strip(focusedRow) == focusedRow {
 		t.Errorf("focused row should contain ANSI styling, got: %q", focusedRow)
 	}
 	// Non-focused rows must not carry styling.
-	for _, line := range lines[4:] {
+	for _, line := range lines[2:] {
 		if ansi.Strip(line) != line {
 			t.Errorf("non-focused row should not contain ANSI styling, got: %q", line)
 		}
@@ -766,13 +762,13 @@ func TestGoToBottomAdjustsScrollOffset(t *testing.T) {
 		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
 	}
 	idx := buildIndex(tracks)
-	v := View{Index: idx, Width: 80, Height: 6, Cursor: 0} // visibleRows = 3
+	v := View{Index: idx, Width: 80, Height: 6, Cursor: 0} // visibleRows = 5
 	v = v.GoToBottom()
 	if v.Cursor != 19 {
 		t.Errorf("GoToBottom: expected Cursor=19, got %d", v.Cursor)
 	}
-	if v.ScrollOffset != 17 {
-		t.Errorf("GoToBottom: expected ScrollOffset=17, got %d", v.ScrollOffset)
+	if v.ScrollOffset != 15 {
+		t.Errorf("GoToBottom: expected ScrollOffset=15, got %d", v.ScrollOffset)
 	}
 }
 
@@ -784,10 +780,10 @@ func TestHalfPageDownMovesByHalfVisibleRows(t *testing.T) {
 		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
 	}
 	idx := buildIndex(tracks)
-	v := View{Index: idx, Width: 80, Height: 13, Cursor: 0} // visibleRows = 10
+	v := View{Index: idx, Width: 80, Height: 13, Cursor: 0} // visibleRows = 12
 	v = v.HalfPageDown()
-	if v.Cursor != 5 {
-		t.Errorf("HalfPageDown: expected Cursor=5, got %d", v.Cursor)
+	if v.Cursor != 6 {
+		t.Errorf("HalfPageDown: expected Cursor=6, got %d", v.Cursor)
 	}
 }
 
@@ -797,10 +793,10 @@ func TestHalfPageUpMovesByHalfVisibleRows(t *testing.T) {
 		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
 	}
 	idx := buildIndex(tracks)
-	v := View{Index: idx, Width: 80, Height: 13, Cursor: 10} // visibleRows = 10
+	v := View{Index: idx, Width: 80, Height: 13, Cursor: 12} // visibleRows = 12
 	v = v.HalfPageUp()
-	if v.Cursor != 5 {
-		t.Errorf("HalfPageUp: expected Cursor=5, got %d", v.Cursor)
+	if v.Cursor != 6 {
+		t.Errorf("HalfPageUp: expected Cursor=6, got %d", v.Cursor)
 	}
 }
 
@@ -810,10 +806,10 @@ func TestFullPageDownMovesByVisibleRows(t *testing.T) {
 		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
 	}
 	idx := buildIndex(tracks)
-	v := View{Index: idx, Width: 80, Height: 13, Cursor: 0} // visibleRows = 10
+	v := View{Index: idx, Width: 80, Height: 13, Cursor: 0} // visibleRows = 12
 	v = v.FullPageDown()
-	if v.Cursor != 10 {
-		t.Errorf("FullPageDown: expected Cursor=10, got %d", v.Cursor)
+	if v.Cursor != 12 {
+		t.Errorf("FullPageDown: expected Cursor=12, got %d", v.Cursor)
 	}
 }
 
@@ -823,10 +819,10 @@ func TestFullPageUpMovesByVisibleRows(t *testing.T) {
 		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
 	}
 	idx := buildIndex(tracks)
-	v := View{Index: idx, Width: 80, Height: 13, Cursor: 15} // visibleRows = 10
+	v := View{Index: idx, Width: 80, Height: 13, Cursor: 15} // visibleRows = 12
 	v = v.FullPageUp()
-	if v.Cursor != 5 {
-		t.Errorf("FullPageUp: expected Cursor=5, got %d", v.Cursor)
+	if v.Cursor != 3 {
+		t.Errorf("FullPageUp: expected Cursor=3, got %d", v.Cursor)
 	}
 }
 
@@ -940,8 +936,8 @@ func TestVisibleRowsZeroHeight(t *testing.T) {
 
 func TestVisibleRowsSmallHeight(t *testing.T) {
 	v := View{Height: 4}
-	if v.visibleRows() != 1 {
-		t.Errorf("visibleRows Height=4: expected 1, got %d", v.visibleRows())
+	if v.visibleRows() != 3 {
+		t.Errorf("visibleRows Height=4: expected 3, got %d", v.visibleRows())
 	}
 }
 
@@ -969,9 +965,8 @@ func TestPadExactFit(t *testing.T) {
 }
 
 // TestVisibleRowsSameWithAndWithoutFilter verifies that visibleRows returns
-// the same value regardless of whether a filter is active. The heading,
-// separator (blank line or filter bar), and column header always consume
-// exactly 3 lines, so the number of data rows should not change.
+// the same value regardless of whether a filter is active. The column header
+// always consumes exactly 1 line, so the number of data rows should not change.
 func TestVisibleRowsSameWithAndWithoutFilter(t *testing.T) {
 	h := 24
 	noFilter := View{Height: h}
@@ -1162,13 +1157,13 @@ func columnWidthsFromRender(t *testing.T, width int) (artistW, titleW, albumW in
 	rendered := v.Render()
 
 	lines := strings.Split(rendered, "\n")
-	// lines[0]=heading, lines[1]=blank, lines[2]=header, lines[3]=first track row
-	if len(lines) < 4 {
-		t.Fatalf("columnWidthsFromRender: expected ≥4 lines, got %d", len(lines))
+	// lines[0]=header, lines[1]=first track row
+	if len(lines) < 2 {
+		t.Fatalf("columnWidthsFromRender: expected ≥2 lines, got %d", len(lines))
 	}
 
 	// Strip all ANSI escape sequences to obtain only visible characters.
-	trackRow := ansi.Strip(lines[3])
+	trackRow := ansi.Strip(lines[1])
 	runes := []rune(trackRow)
 	if len(runes) != width {
 		t.Fatalf("columnWidthsFromRender: stripped row has %d runes, want %d", len(runes), width)

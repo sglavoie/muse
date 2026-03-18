@@ -45,8 +45,8 @@ func TestPreviewOverlayRender_UnknownTrack(t *testing.T) {
 	s := newTestStyles()
 	out := p.Render(80, 24, s)
 
-	if !strings.Contains(out, "(unknown)") {
-		t.Error("expected '(unknown)' for empty artist/title")
+	if !strings.Contains(out, "(unknown title)") || !strings.Contains(out, "(unknown artist)") {
+		t.Error("expected '(unknown title)' and '(unknown artist)' for empty artist/title")
 	}
 }
 

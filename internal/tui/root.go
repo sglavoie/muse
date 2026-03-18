@@ -1603,10 +1603,56 @@ func (m Model) View() tea.View {
 		}
 	}
 
-	content := body + "\n\n" + m.renderStatusBar()
+	// Prepend the centralized title bar when showing a primary view.
+	if m.nowPlayingInfo == nil && m.preview == nil && m.destPicker == nil && !m.helpVisible {
+		body = m.renderTitleBar() + "\n\n" + body
+	}
+
+	content := body + "\n" + m.renderStatusBar()
 	v := tea.NewView(content)
 	v.AltScreen = true
 	return v
+}
+
+// renderTitleBar builds the centralized title bar showing view names with
+// chevrons and numbered badges. When the terminal is wide enough all views
+// are shown; otherwise only the previous, active, and next views are displayed.
+func (m Model) renderTitleBar() string {
+	// Compute the width needed to show all tabs:
+	// "‹ " + "1 Name1  2 Name2  ...  N NameN" + " ›"
+	// Each tab: badge digit (1) + space (1) + name length.
+	const chevronWidth = 4 // "‹ " + " ›"
+	const badgeWidth = 2   // digit + space before name
+	sep := "  "
+	fullWidth := chevronWidth
+	for i, id := range viewOrder {
+		fullWidth += badgeWidth + len(viewName(id))
+		if i < len(viewOrder)-1 {
+			fullWidth += len(sep)
+		}
+	}
+
+	if m.termWidth >= fullWidth {
+		// Wide layout: show all tabs with numbered badges.
+		var parts []string
+		for i, id := range viewOrder {
+			badge := m.styles.Badge.Render(fmt.Sprintf("%d", i+1))
+			name := viewName(id)
+			if id == m.activeView {
+				parts = append(parts, badge+" "+m.styles.Heading.Render(name))
+			} else {
+				parts = append(parts, badge+" "+m.styles.Dim.Render(name))
+			}
+		}
+		return m.styles.Dim.Render("‹ ") + strings.Join(parts, sep) + m.styles.Dim.Render(" ›")
+	}
+
+	// Narrow layout: previous, active, next (no badges).
+	prev := prevView(m.activeView)
+	next := nextView(m.activeView)
+	return m.styles.Dim.Render("‹ "+viewName(prev)) +
+		"  " + m.styles.Heading.Render(viewName(m.activeView)) + "  " +
+		m.styles.Dim.Render(viewName(next)+" ›")
 }
 
 // renderStatusBar builds the status bar line shown at the bottom of the view.
@@ -1649,18 +1695,15 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m.helpVisible = true
 		m.helpScroll = 0
 	case actionNextView:
-		switch m.activeView {
-		case viewLibrary:
-			m.activeView = viewPlaylists
-		case viewPlaylists:
-			m.activeView = viewQueue
-		case viewQueue:
-			m.activeView = viewArtists
-		case viewArtists:
-			m.activeView = viewAlbums
-		case viewAlbums:
-			m.activeView = viewLibrary
+		m.activeView = nextView(m.activeView)
+		if m.activeView == viewArtists && len(m.artists.artists) == 0 {
+			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
 		}
+		if m.activeView == viewAlbums && len(m.albums.albums) == 0 {
+			m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
+		}
+	case actionPrevView:
+		m.activeView = prevView(m.activeView)
 		if m.activeView == viewArtists && len(m.artists.artists) == 0 {
 			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
 		}

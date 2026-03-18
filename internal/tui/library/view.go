@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	musiclib "github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -146,14 +147,9 @@ func (v View) moveCursor(delta int) View {
 }
 
 // visibleRows returns the maximum number of track rows that fit on screen.
-// The heading, separator (blank line or filter bar), and column header consume
-// 3 lines regardless of whether a filter is active.
+// Reserve 1 line for the column header.
 func (v View) visibleRows() int {
-	reserve := 3
-	if v.Height > 0 {
-		return max(1, v.Height-reserve)
-	}
-	return 50
+	return layout.VisibleRows(v.Height, 1)
 }
 
 // filteredMatches returns the current fuzzy-match slice and whether a filter
@@ -231,7 +227,7 @@ type displayTrack struct {
 func (v View) Render() string {
 	n := v.Index.Len()
 	if n == 0 {
-		return "Library\n\n(no tracks)"
+		return "(no tracks)"
 	}
 
 	allTracks := v.Index.Tracks()
@@ -266,19 +262,18 @@ func (v View) Render() string {
 	}
 	end := min(len(display), start+maxRows)
 
-	heading := v.Styles.Heading.Render(fmt.Sprintf("Library (%s tracks)", formatCount(n)))
-	separator := "\n\n"
+	separator := ""
 	if v.Filter.Active {
 		ft := v.Filter.Text
 		if ft == "" {
 			hint := v.Styles.Dim.Render("a: artist  t: title  l: album")
-			separator = "\nFilter: > " + hint + "\n"
+			separator = "Filter: > " + hint + "\n"
 		} else {
 			maxLen := v.Width - len("Filter: > ") - 1
 			if maxLen > 0 && len([]rune(ft)) > maxLen {
 				ft = string([]rune(ft)[:maxLen-1]) + "…"
 			}
-			separator = "\nFilter: > " + ft + "\n"
+			separator = "Filter: > " + ft + "\n"
 		}
 	} else if v.Filter.Text != "" {
 		ft := v.Filter.Text
@@ -286,12 +281,12 @@ func (v View) Render() string {
 		if maxLen > 0 && len([]rune(ft)) > maxLen {
 			ft = string([]rune(ft)[:maxLen-1]) + "…"
 		}
-		separator = "\nFilter: " + ft + "\n"
+		separator = "Filter: " + ft + "\n"
 	}
 
 	if v.Width == 0 {
 		if start >= end {
-			return heading + separator + "No matches — press Esc to clear"
+			return separator + "No matches — press Esc to clear"
 		}
 		lines := make([]string, end-start)
 		for i, dt := range display[start:end] {
@@ -302,7 +297,7 @@ func (v View) Render() string {
 			}
 			lines[i] = row
 		}
-		return heading + separator + strings.Join(lines, "\n")
+		return separator + strings.Join(lines, "\n")
 	}
 
 	cols := Compute(v.Width)
@@ -311,7 +306,7 @@ func (v View) Render() string {
 	if start >= end {
 		noMatches := "No matches"
 		leftPad := max(0, (v.Width-len(noMatches))/2)
-		return heading + separator + header + "\n" + strings.Repeat(" ", leftPad) + noMatches
+		return separator + header + "\n" + strings.Repeat(" ", leftPad) + noMatches
 	}
 
 	lines := make([]string, end-start)
@@ -366,7 +361,7 @@ func (v View) Render() string {
 		lines[i] = row
 	}
 
-	return heading + separator + header + "\n" + strings.Join(lines, "\n")
+	return separator + header + "\n" + strings.Join(lines, "\n")
 }
 
 // renderRow formats a single row with each field padded or truncated to its

@@ -43,6 +43,7 @@ const (
 	actionFilterBar      // '/': activate filter bar in active view
 	actionHelp           // '?': show help overlay
 	actionNextView       // tab: cycle to next view
+	actionPrevView       // shift+tab: cycle to previous view
 	actionPreview        // 'P': preview focused track
 	actionNowPlayingInfo // 'I': show now-playing info overlay
 
@@ -136,6 +137,7 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "/", actionFilterBar)
 	r.register(contextGlobal, "?", actionHelp)
 	r.register(contextGlobal, "tab", actionNextView)
+	r.register(contextGlobal, "shift+tab", actionPrevView)
 	r.register(contextGlobal, "P", actionPreview)
 	r.register(contextGlobal, "I", actionNowPlayingInfo)
 

@@ -89,8 +89,8 @@ func TestNowPlayingOverlay_PausedIcon(t *testing.T) {
 func TestNowPlayingOverlay_UnknownTrack(t *testing.T) {
 	n := NowPlayingOverlay{state: PlaybackPlaying}
 	out := ansi.Strip(n.Render(80, 24, newTestStyles()))
-	if !strings.Contains(out, "(unknown)") {
-		t.Error("expected '(unknown)' for empty artist/title")
+	if !strings.Contains(out, "(unknown title)") || !strings.Contains(out, "(unknown artist)") {
+		t.Error("expected '(unknown title)' and '(unknown artist)' for empty artist/title")
 	}
 }
 

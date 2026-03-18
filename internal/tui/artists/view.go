@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -17,6 +18,20 @@ const (
 	AlbumLevel               // showing albums for a selected artist
 	TrackLevel               // showing tracks for a selected album
 )
+
+const (
+	UnknownArtist = "(unknown artist)"
+	UnknownAlbum  = "(unknown album)"
+)
+
+// RawName converts display sentinels back to an empty string for matching
+// against raw track metadata. All other values pass through.
+func RawName(s string) string {
+	if s == UnknownArtist || s == UnknownAlbum {
+		return ""
+	}
+	return s
+}
 
 // Compile-time assertion: Styles must remain a value type on View.
 // This line fails to compile if View.Styles is ever changed to *styles.Styles.
@@ -93,13 +108,20 @@ func (v View) EffectiveAlbums() []string { return FilterStrings(v.Albums, v.Filt
 func (v View) EffectiveTracks() []library.Track { return FilterTracks(v.Tracks, v.FilterText) }
 
 // visibleRows returns the maximum number of rows that fit on screen.
-// It reserves 3 lines for the heading, blank line, and header area.
+// The reserve depends on the current level: top-level artist list has no
+// chrome (0), while drill-down levels have a heading + separator line (2).
+// An active or committed filter adds 1 line at the top level.
 func (v View) visibleRows() int {
-	reserve := 3
-	if v.Height > 0 {
-		return max(1, v.Height-reserve)
+	var reserve int
+	switch v.Level {
+	case ArtistLevel:
+		if v.FilterActive || v.FilterText != "" {
+			reserve = 1
+		}
+	default:
+		reserve = 2
 	}
-	return 50
+	return layout.VisibleRows(v.Height, reserve)
 }
 
 // CursorUp returns a copy of v with the cursor moved up by one row,
@@ -262,10 +284,16 @@ func DeriveArtists(tracks []library.Track) []string {
 	if len(tracks) == 0 {
 		return nil
 	}
-	artists := []string{tracks[0].Artist}
+	name := func(a string) string {
+		if a == "" {
+			return UnknownArtist
+		}
+		return a
+	}
+	artists := []string{name(tracks[0].Artist)}
 	for i := 1; i < len(tracks); i++ {
 		if tracks[i].Artist != tracks[i-1].Artist {
-			artists = append(artists, tracks[i].Artist)
+			artists = append(artists, name(tracks[i].Artist))
 		}
 	}
 	return artists
@@ -274,15 +302,20 @@ func DeriveArtists(tracks []library.Track) []string {
 // DeriveAlbums returns unique album names for the given artist, sorted
 // alphabetically.
 func DeriveAlbums(tracks []library.Track, artist string) []string {
+	artist = RawName(artist)
 	seen := make(map[string]struct{})
 	var albums []string
 	for _, t := range tracks {
 		if t.Artist != artist {
 			continue
 		}
-		if _, ok := seen[t.Album]; !ok {
-			seen[t.Album] = struct{}{}
-			albums = append(albums, t.Album)
+		album := t.Album
+		if album == "" {
+			album = UnknownAlbum
+		}
+		if _, ok := seen[album]; !ok {
+			seen[album] = struct{}{}
+			albums = append(albums, album)
 		}
 	}
 	sort.Strings(albums)
@@ -291,9 +324,23 @@ func DeriveAlbums(tracks []library.Track, artist string) []string {
 
 // DeriveTracks returns all tracks matching the given artist and album.
 func DeriveTracks(tracks []library.Track, artist, album string) []library.Track {
+	artist = RawName(artist)
+	album = RawName(album)
 	var result []library.Track
 	for _, t := range tracks {
 		if t.Artist == artist && t.Album == album {
+			result = append(result, t)
+		}
+	}
+	return result
+}
+
+// DeriveArtistTracks returns all tracks by the given artist, regardless of album.
+func DeriveArtistTracks(tracks []library.Track, artist string) []library.Track {
+	raw := RawName(artist)
+	var result []library.Track
+	for _, t := range tracks {
+		if t.Artist == raw {
 			result = append(result, t)
 		}
 	}
@@ -315,13 +362,12 @@ func (v View) Render() string {
 }
 
 func (v View) renderArtists() string {
-	heading := v.Styles.Heading.Render("Artists")
 	items := v.EffectiveArtists()
 	if len(v.Artists) == 0 {
-		return heading + "\n\n(no artists)"
+		return "(no artists)"
 	}
 	if len(items) == 0 {
-		return heading + v.filterSeparator() + "(no matches)"
+		return v.topFilterSeparator() + "(no matches)"
 	}
 
 	maxRows := v.visibleRows()
@@ -338,7 +384,7 @@ func (v View) renderArtists() string {
 		}
 		lines[i] = display
 	}
-	return heading + v.filterSeparator() + strings.Join(lines, "\n")
+	return v.topFilterSeparator() + strings.Join(lines, "\n")
 }
 
 func (v View) renderAlbums() string {
@@ -369,7 +415,10 @@ func (v View) renderAlbums() string {
 }
 
 func (v View) renderTracks() string {
-	heading := v.SelectedArtist + " — " + v.SelectedAlbum
+	heading := v.SelectedArtist
+	if v.SelectedAlbum != "" {
+		heading += " — " + v.SelectedAlbum
+	}
 	styledHeading := v.Styles.Heading.Render(heading)
 	items := v.EffectiveTracks()
 	if len(v.Tracks) == 0 {
@@ -427,6 +476,31 @@ func (v View) filterSeparator() string {
 		return "\nFilter: " + ft + "\n"
 	}
 	return "\n\n"
+}
+
+// topFilterSeparator is like filterSeparator but without a leading newline,
+// for use in top-level views where the title bar provides the spacing.
+func (v View) topFilterSeparator() string {
+	if v.FilterActive {
+		if v.FilterText == "" {
+			return "Filter: > \n"
+		}
+		ft := v.FilterText
+		maxLen := v.Width - len("Filter: > ") - 1
+		if maxLen > 0 && len([]rune(ft)) > maxLen {
+			ft = string([]rune(ft)[:maxLen-1]) + "…"
+		}
+		return "Filter: > " + ft + "\n"
+	}
+	if v.FilterText != "" {
+		ft := v.FilterText
+		maxLen := v.Width - len("Filter: ") - 1
+		if maxLen > 0 && len([]rune(ft)) > maxLen {
+			ft = string([]rune(ft)[:maxLen-1]) + "…"
+		}
+		return "Filter: " + ft + "\n"
+	}
+	return ""
 }
 
 // FormatDuration converts seconds (float64) to a "m:ss" or "h:mm:ss" string.

@@ -42,7 +42,7 @@ func helpSections() []helpSection {
 				{"3", "Switch to Queue"},
 				{"4", "Switch to Artists"},
 				{"5", "Switch to Albums"},
-				{"tab", "Next view"},
+				{"tab / shift+tab", "Next / previous view"},
 				{"R", "Rescan library"},
 				{"r", "Cycle repeat mode"},
 				{"z", "Toggle shuffle"},

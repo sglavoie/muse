@@ -615,12 +615,12 @@ func TestQueueHandleActionHalfPageDownUp(t *testing.T) {
 	q := QueueView{
 		entries: make([]QueueEntry, 20),
 		cursor:  0,
-		height:  14, // visibleRows = max(1, 14-4) = 10
+		height:  14, // visibleRows = max(1, 14-2) = 12
 		width:   80,
 	}
 	q, _ = q.HandleAction(actionHalfPageDown)
-	if q.cursor != 5 {
-		t.Errorf("HalfPageDown: expected 5, got %d", q.cursor)
+	if q.cursor != 6 {
+		t.Errorf("HalfPageDown: expected 6, got %d", q.cursor)
 	}
 	q, _ = q.HandleAction(actionHalfPageUp)
 	if q.cursor != 0 {
@@ -632,12 +632,12 @@ func TestQueueHandleActionFullPageDownUp(t *testing.T) {
 	q := QueueView{
 		entries: make([]QueueEntry, 20),
 		cursor:  0,
-		height:  14, // visibleRows = 10
+		height:  14, // visibleRows = 12
 		width:   80,
 	}
 	q, _ = q.HandleAction(actionFullPageDown)
-	if q.cursor != 10 {
-		t.Errorf("FullPageDown: expected 10, got %d", q.cursor)
+	if q.cursor != 12 {
+		t.Errorf("FullPageDown: expected 12, got %d", q.cursor)
 	}
 	q, _ = q.HandleAction(actionFullPageUp)
 	if q.cursor != 0 {
@@ -662,8 +662,8 @@ func TestQueueVisibleRowsZeroHeight(t *testing.T) {
 
 func TestQueueVisibleRowsSmallHeight(t *testing.T) {
 	q := QueueView{height: 5}
-	if q.visibleRows() != 1 {
-		t.Errorf("visibleRows height=5: expected 1, got %d", q.visibleRows())
+	if q.visibleRows() != 3 {
+		t.Errorf("visibleRows height=5: expected 3, got %d", q.visibleRows())
 	}
 }
 
@@ -705,12 +705,12 @@ func TestPlaylistsHandleActionHalfPage(t *testing.T) {
 	v := PlaylistsView{
 		level:     pltui.ListLevel,
 		cursor:    0,
-		height:    13, // visibleRows = max(1, 13-3) = 10
+		height:    13, // visibleRows = max(1, 13-1) = 12
 		playlists: make([]db.PlaylistRow, 20),
 	}
 	v = v.HandleAction(actionHalfPageDown)
-	if v.cursor != 5 {
-		t.Errorf("HalfPageDown: expected 5, got %d", v.cursor)
+	if v.cursor != 6 {
+		t.Errorf("HalfPageDown: expected 6, got %d", v.cursor)
 	}
 }
 
@@ -718,12 +718,12 @@ func TestPlaylistsHandleActionFullPage(t *testing.T) {
 	v := PlaylistsView{
 		level:     pltui.ListLevel,
 		cursor:    0,
-		height:    13, // visibleRows = 10
+		height:    13, // visibleRows = 12
 		playlists: make([]db.PlaylistRow, 20),
 	}
 	v = v.HandleAction(actionFullPageDown)
-	if v.cursor != 10 {
-		t.Errorf("FullPageDown: expected 10, got %d", v.cursor)
+	if v.cursor != 12 {
+		t.Errorf("FullPageDown: expected 12, got %d", v.cursor)
 	}
 }
 

@@ -709,15 +709,15 @@ func TestCursorDownAdjustsScrollOffset(t *testing.T) {
 	v := View{
 		Level:     ListLevel,
 		Cursor:    0,
-		Height:    6, // visibleRows = max(1, 6-3) = 3
+		Height:    6, // visibleRows = max(1, 6-1) = 5
 		Playlists: make([]db.PlaylistRow, 10),
 	}
 	// Move down past visible area
 	for range 3 {
 		v = v.CursorDown()
 	}
-	if v.ScrollOffset != 1 {
-		t.Errorf("CursorDown: expected ScrollOffset=1, got %d", v.ScrollOffset)
+	if v.ScrollOffset != 0 {
+		t.Errorf("CursorDown: expected ScrollOffset=0, got %d", v.ScrollOffset)
 	}
 }
 
@@ -775,15 +775,15 @@ func TestGoToBottomAdjustsScrollOffset(t *testing.T) {
 	v := View{
 		Level:     ListLevel,
 		Cursor:    0,
-		Height:    6, // visibleRows = 3
+		Height:    6, // visibleRows = 5
 		Playlists: make([]db.PlaylistRow, 10),
 	}
 	v = v.GoToBottom()
 	if v.Cursor != 9 {
 		t.Errorf("GoToBottom: expected Cursor=9, got %d", v.Cursor)
 	}
-	if v.ScrollOffset != 7 {
-		t.Errorf("GoToBottom: expected ScrollOffset=7, got %d", v.ScrollOffset)
+	if v.ScrollOffset != 5 {
+		t.Errorf("GoToBottom: expected ScrollOffset=5, got %d", v.ScrollOffset)
 	}
 }
 
@@ -793,12 +793,12 @@ func TestHalfPageDownMovesByHalfVisibleRows(t *testing.T) {
 	v := View{
 		Level:     ListLevel,
 		Cursor:    0,
-		Height:    13, // visibleRows = 10
+		Height:    13, // visibleRows = 12
 		Playlists: make([]db.PlaylistRow, 20),
 	}
 	v = v.HalfPageDown()
-	if v.Cursor != 5 {
-		t.Errorf("HalfPageDown: expected Cursor=5, got %d", v.Cursor)
+	if v.Cursor != 6 {
+		t.Errorf("HalfPageDown: expected Cursor=6, got %d", v.Cursor)
 	}
 }
 
@@ -806,12 +806,12 @@ func TestHalfPageUpMovesByHalfVisibleRows(t *testing.T) {
 	v := View{
 		Level:     ListLevel,
 		Cursor:    10,
-		Height:    13, // visibleRows = 10
+		Height:    13, // visibleRows = 12
 		Playlists: make([]db.PlaylistRow, 20),
 	}
 	v = v.HalfPageUp()
-	if v.Cursor != 5 {
-		t.Errorf("HalfPageUp: expected Cursor=5, got %d", v.Cursor)
+	if v.Cursor != 4 {
+		t.Errorf("HalfPageUp: expected Cursor=4, got %d", v.Cursor)
 	}
 }
 
@@ -819,12 +819,12 @@ func TestFullPageDownMovesByVisibleRows(t *testing.T) {
 	v := View{
 		Level:     ListLevel,
 		Cursor:    0,
-		Height:    13, // visibleRows = 10
+		Height:    13, // visibleRows = 12
 		Playlists: make([]db.PlaylistRow, 20),
 	}
 	v = v.FullPageDown()
-	if v.Cursor != 10 {
-		t.Errorf("FullPageDown: expected Cursor=10, got %d", v.Cursor)
+	if v.Cursor != 12 {
+		t.Errorf("FullPageDown: expected Cursor=12, got %d", v.Cursor)
 	}
 }
 
@@ -832,12 +832,12 @@ func TestFullPageUpMovesByVisibleRows(t *testing.T) {
 	v := View{
 		Level:     ListLevel,
 		Cursor:    15,
-		Height:    13, // visibleRows = 10
+		Height:    13, // visibleRows = 12
 		Playlists: make([]db.PlaylistRow, 20),
 	}
 	v = v.FullPageUp()
-	if v.Cursor != 5 {
-		t.Errorf("FullPageUp: expected Cursor=5, got %d", v.Cursor)
+	if v.Cursor != 3 {
+		t.Errorf("FullPageUp: expected Cursor=3, got %d", v.Cursor)
 	}
 }
 
@@ -845,7 +845,7 @@ func TestPageMovementsClampsToEnd(t *testing.T) {
 	v := View{
 		Level:     ListLevel,
 		Cursor:    8,
-		Height:    13, // visibleRows = 10
+		Height:    13, // visibleRows = 12
 		Playlists: make([]db.PlaylistRow, 10),
 	}
 	v = v.FullPageDown()
@@ -858,7 +858,7 @@ func TestPageMovementsClampsToStart(t *testing.T) {
 	v := View{
 		Level:     ListLevel,
 		Cursor:    2,
-		Height:    13, // visibleRows = 10
+		Height:    13, // visibleRows = 12
 		Playlists: make([]db.PlaylistRow, 10),
 	}
 	v = v.FullPageUp()
@@ -904,8 +904,8 @@ func TestVisibleRowsZeroHeight(t *testing.T) {
 
 func TestVisibleRowsSmallHeight(t *testing.T) {
 	v := View{Height: 4}
-	if v.visibleRows() != 1 {
-		t.Errorf("visibleRows Height=4: expected 1, got %d", v.visibleRows())
+	if v.visibleRows() != 3 {
+		t.Errorf("visibleRows Height=4: expected 3, got %d", v.visibleRows())
 	}
 }
 

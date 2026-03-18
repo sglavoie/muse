@@ -231,7 +231,14 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 			if ok {
 				albums := arttui.DeriveAlbums(allTracks, artist)
 				m.artists.selectedArtist = artist
-				m.artists = m.artists.openAlbums(albums)
+				if len(albums) == 0 {
+					tracks := arttui.DeriveArtistTracks(allTracks, artist)
+					m.artists.selectedAlbum = ""
+					m.artists = m.artists.openAlbums(nil)
+					m.artists = m.artists.openTracks(tracks)
+				} else {
+					m.artists = m.artists.openAlbums(albums)
+				}
 			}
 		case arttui.AlbumLevel:
 			album, ok := m.artists.focusedAlbum()

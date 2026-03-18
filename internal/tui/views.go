@@ -10,6 +10,7 @@ import (
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/layout"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -25,6 +26,47 @@ const (
 	viewArtists   viewID = 4
 	viewAlbums    viewID = 5
 )
+
+// viewOrder defines the tab-cycling order for primary views.
+var viewOrder = []viewID{viewLibrary, viewPlaylists, viewQueue, viewArtists, viewAlbums}
+
+// viewName returns the display name for a viewID.
+func viewName(id viewID) string {
+	switch id {
+	case viewLibrary:
+		return "Library"
+	case viewPlaylists:
+		return "Playlists"
+	case viewQueue:
+		return "Queue"
+	case viewArtists:
+		return "Artists"
+	case viewAlbums:
+		return "Albums"
+	default:
+		return ""
+	}
+}
+
+// prevView returns the previous view in the cycle (wrapping around).
+func prevView(id viewID) viewID {
+	for i, v := range viewOrder {
+		if v == id {
+			return viewOrder[(i-1+len(viewOrder))%len(viewOrder)]
+		}
+	}
+	return viewOrder[0]
+}
+
+// nextView returns the next view in the cycle (wrapping around).
+func nextView(id viewID) viewID {
+	for i, v := range viewOrder {
+		if v == id {
+			return viewOrder[(i+1)%len(viewOrder)]
+		}
+	}
+	return viewOrder[0]
+}
 
 // PlaylistsView wraps the playlists sub-panel state for the root model.
 // It holds the navigation level, cursor position, loaded playlist rows, and
@@ -539,13 +581,9 @@ func (v QueueView) moveQueueCursor(delta int) QueueView {
 }
 
 // visibleRows returns the maximum number of queue entries that fit on screen.
-// It reserves 3 lines for the heading, blank line, and header area.
+// Reserve 2 lines for the column header and bottom margin.
 func (v QueueView) visibleRows() int {
-	reserve := 4 // "Queue", blank line, header row, bottom margin
-	if v.height > 0 {
-		return max(1, v.height-reserve)
-	}
-	return 50
+	return layout.VisibleRows(v.height, 2)
 }
 
 // render builds the queue panel string using a 5-column layout:
@@ -557,7 +595,7 @@ func (v QueueView) visibleRows() int {
 // appear grayed out in the terminal.
 func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 	if len(v.entries) == 0 {
-		return s.Heading.Render("Queue") + "\n\n(empty)"
+		return "(empty)"
 	}
 
 	const (
@@ -641,7 +679,7 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 			lines[i] = line
 		}
 	}
-	out := s.Heading.Render("Queue") + "\n\n" + s.ColHead.Render(header) + "\n" + strings.Join(lines, "\n")
+	out := s.ColHead.Render(header) + "\n" + strings.Join(lines, "\n")
 	if v.savingAsPlaylist {
 		prompt := "Save as playlist: "
 		if v.savingFromSelection {
@@ -788,7 +826,8 @@ func (v ArtistsView) openTracks(tracks []musiclib.Track) ArtistsView {
 }
 
 // back navigates one level up. At AlbumLevel it returns to ArtistLevel;
-// at TrackLevel it returns to AlbumLevel. At ArtistLevel it is a no-op.
+// at TrackLevel it returns to AlbumLevel (or ArtistLevel if albums were
+// skipped). At ArtistLevel it is a no-op.
 func (v ArtistsView) back() ArtistsView {
 	view := arttui.View{
 		Level:              v.level,
@@ -803,6 +842,10 @@ func (v ArtistsView) back() ArtistsView {
 		AlbumScrollOffset:  v.albumScrollOffset,
 	}
 	view = view.Back()
+	// When the album level was skipped (no albums), go straight back to artists.
+	if view.Level == arttui.AlbumLevel && len(view.Albums) == 0 {
+		view = view.Back()
+	}
 	v.level = view.Level
 	v.cursor = view.Cursor
 	v.scrollOffset = view.ScrollOffset

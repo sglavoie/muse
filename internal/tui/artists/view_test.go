@@ -229,12 +229,12 @@ func TestHalfPageDownMovesByHalfVisibleRows(t *testing.T) {
 	v := View{
 		Level:   ArtistLevel,
 		Cursor:  0,
-		Height:  13, // visibleRows = 10
+		Height:  13, // visibleRows = 12
 		Artists: make([]string, 20),
 	}
 	v = v.HalfPageDown()
-	if v.Cursor != 5 {
-		t.Errorf("HalfPageDown: expected Cursor=5, got %d", v.Cursor)
+	if v.Cursor != 6 {
+		t.Errorf("HalfPageDown: expected Cursor=6, got %d", v.Cursor)
 	}
 }
 
@@ -242,12 +242,12 @@ func TestFullPageDownMovesByVisibleRows(t *testing.T) {
 	v := View{
 		Level:   ArtistLevel,
 		Cursor:  0,
-		Height:  13, // visibleRows = 10
+		Height:  13, // visibleRows = 13 (no chrome at ArtistLevel)
 		Artists: make([]string, 20),
 	}
 	v = v.FullPageDown()
-	if v.Cursor != 10 {
-		t.Errorf("FullPageDown: expected Cursor=10, got %d", v.Cursor)
+	if v.Cursor != 13 {
+		t.Errorf("FullPageDown: expected Cursor=13, got %d", v.Cursor)
 	}
 }
 

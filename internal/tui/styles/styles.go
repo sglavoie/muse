@@ -15,6 +15,7 @@ type Styles struct {
 	NowPlaying lipgloss.Style // bold green foreground for currently playing track
 	ColHead    lipgloss.Style // bold + faint for column headers
 	StatusBar  lipgloss.Style // full-width status bar background + foreground
+	Badge      lipgloss.Style // single-char badge with lighter background (title bar view numbers)
 	HasDark    bool
 }
 
@@ -36,6 +37,7 @@ func NewStyles(hasDark bool) Styles {
 		NowPlaying: lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#50a14f"), lipgloss.Color("#98c379"))),
 		ColHead:    lipgloss.NewStyle().Bold(true).Faint(true).UnderlineStyle(lipgloss.UnderlineDotted),
 		StatusBar:  lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),
+		Badge:      lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),
 		HasDark:    hasDark,
 	}
 }

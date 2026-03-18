@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -40,13 +41,9 @@ type View struct {
 }
 
 // visibleRows returns the maximum number of rows that fit on screen.
-// It reserves 3 lines for the heading, blank line, and header area.
+// Reserve 1 line for the header.
 func (v View) visibleRows() int {
-	reserve := 3
-	if v.Height > 0 {
-		return max(1, v.Height-reserve)
-	}
-	return 50
+	return layout.VisibleRows(v.Height, 1)
 }
 
 // CursorUp returns a copy of v with the cursor moved up by one row,
@@ -259,7 +256,7 @@ func (v View) Render() string {
 
 func (v View) renderList() string {
 	if len(v.Playlists) == 0 && !v.Creating {
-		return v.Styles.Heading.Render("Playlists") + "\n\n(no playlists)"
+		return "(no playlists)"
 	}
 
 	cols := Compute(v.Width)
@@ -295,7 +292,7 @@ func (v View) renderList() string {
 	if v.Creating && len(v.Playlists) == 0 {
 		lines = append(lines, v.renderCreateInputRow(cols))
 	}
-	return v.Styles.Heading.Render("Playlists") + "\n\n" + strings.Join(lines, "\n")
+	return strings.Join(lines, "\n")
 }
 
 // renderCreateInputRow renders the inline text input as a highlighted row

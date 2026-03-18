@@ -154,10 +154,10 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 func renderTrackOverlay(title, artist, album, progressLine, boxTitle, hint string,
 	termWidth, termHeight int, s styles.Styles) string {
 	if title == "" {
-		title = "(unknown)"
+		title = "(unknown title)"
 	}
 	if artist == "" {
-		artist = "(unknown)"
+		artist = "(unknown artist)"
 	}
 	rows := []OverlayRow{
 		{Label: "Title:", Text: title},
