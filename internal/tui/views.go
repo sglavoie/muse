@@ -358,11 +358,14 @@ type QueueEntry struct {
 // Update — that would duplicate registry logic and create a path where registry
 // key renames silently stop working.
 type QueueView struct {
-	entries      []QueueEntry
-	cursor       int // index of the currently selected entry
-	scrollOffset int // first visible entry index
-	width        int
-	height       int
+	entries             []QueueEntry
+	cursor              int // index of the currently selected entry
+	scrollOffset        int // first visible entry index
+	width               int
+	height              int
+	savingAsPlaylist    bool            // true while the inline save-as-playlist input is active
+	savingFromSelection bool            // true when saving only bulk-selected entries (not the full queue)
+	saveInput           pltui.TextInput // current value of the inline save field
 }
 
 // Update is a no-op stub. See the QueueView godoc for why all key handling is
@@ -448,6 +451,72 @@ func (v *QueueView) markMissing(path string) {
 			v.entries[i].Missing = true
 		}
 	}
+}
+
+// isSavingAsPlaylist reports whether the inline save-as-playlist input is active.
+func (v QueueView) isSavingAsPlaylist() bool {
+	return v.savingAsPlaylist
+}
+
+// startSaveAsPlaylist activates the inline save-as-playlist input with an empty buffer.
+// When fromSelection is true the prompt says "Save selection as playlist" and
+// only bulk-selected entries will be persisted.
+func (v QueueView) startSaveAsPlaylist(fromSelection bool) QueueView {
+	v.savingAsPlaylist = true
+	v.savingFromSelection = fromSelection
+	v.saveInput = pltui.NewTextInput("")
+	return v
+}
+
+// cancelSaveAsPlaylist dismisses the inline save-as-playlist input without persisting.
+func (v QueueView) cancelSaveAsPlaylist() QueueView {
+	v.savingAsPlaylist = false
+	v.savingFromSelection = false
+	v.saveInput = pltui.TextInput{}
+	return v
+}
+
+// hasSelection reports whether any queue entries are bulk-selected.
+func (v QueueView) hasSelection() bool {
+	for _, e := range v.entries {
+		if e.Selected {
+			return true
+		}
+	}
+	return false
+}
+
+// selectedHashes returns the hashes of all bulk-selected entries, preserving queue order.
+func (v QueueView) selectedHashes() []string {
+	var hashes []string
+	for _, e := range v.entries {
+		if e.Selected {
+			hashes = append(hashes, e.Hash)
+		}
+	}
+	return hashes
+}
+
+// appendSaveChar appends r to the save input buffer.
+func (v QueueView) appendSaveChar(r rune) QueueView {
+	v.saveInput = v.saveInput.AppendRune(r)
+	return v
+}
+
+// backspaceSave removes the last rune from the save input buffer.
+func (v QueueView) backspaceSave() QueueView {
+	v.saveInput = v.saveInput.Backspace()
+	return v
+}
+
+// saveInputValue returns the current save input buffer as a string.
+func (v QueueView) saveInputValue() string {
+	return v.saveInput.Value()
+}
+
+// saveInputIsEmpty reports whether the trimmed save input buffer is empty.
+func (v QueueView) saveInputIsEmpty() bool {
+	return v.saveInput.IsEmpty()
 }
 
 // moveQueueCursor shifts the cursor by delta rows, clamping to [0, len-1],
@@ -571,7 +640,16 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 			lines[i] = line
 		}
 	}
-	return s.Heading.Render("Queue") + "\n\n" + s.ColHead.Render(header) + "\n" + strings.Join(lines, "\n")
+	out := s.Heading.Render("Queue") + "\n\n" + s.ColHead.Render(header) + "\n" + strings.Join(lines, "\n")
+	if v.savingAsPlaylist {
+		prompt := "Save as playlist: "
+		if v.savingFromSelection {
+			prompt = "Save selection as playlist: "
+		}
+		inputLine := s.Accent.Render(prompt) + v.saveInput.Render()
+		out += "\n" + inputLine
+	}
+	return out
 }
 
 // formatQueueDuration converts a duration in milliseconds to a "m:ss" or

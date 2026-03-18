@@ -58,6 +58,7 @@ const (
 	actionClearQueue          // 'C': clear all entries from the queue
 	actionMoveTrackUp         // 'K': move selected track one position earlier
 	actionMoveTrackDown       // 'J': move selected track one position later
+	actionSaveQueueAsPlaylist // 'S': save entire queue as a new playlist
 
 	// Playlists-local actions.
 	actionPlaylistRename
@@ -164,6 +165,7 @@ func newRegistry() Registry {
 	r.register(contextQueue, "ctrl+b", actionFullPageUp)
 	r.register(contextQueue, "g", actionGoToTop)
 	r.register(contextQueue, "G", actionGoToBottom)
+	r.register(contextQueue, "S", actionSaveQueueAsPlaylist)
 
 	// Playlists-local bindings.
 	// 'r' is bound to rename here, shadowing the global repeat-cycle binding

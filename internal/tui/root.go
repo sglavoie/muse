@@ -270,6 +270,22 @@ type tracksAddedToPlaylistMsg struct {
 	count        int
 }
 
+// queueSavedAsPlaylistMsg is dispatched after successfully saving the queue as
+// a new playlist. It carries the refreshed playlist list and metadata for the
+// status-bar notification.
+type queueSavedAsPlaylistMsg struct {
+	playlists     []db.PlaylistRow
+	playlistName  string
+	count         int
+	fromSelection bool // true when only bulk-selected entries were saved
+}
+
+// queueSaveAsPlaylistErrorMsg is dispatched when saving the queue as a
+// playlist fails. Root cancels the inline input and shows an error notification.
+type queueSaveAsPlaylistErrorMsg struct {
+	err error
+}
+
 // DequeueTrackMsg is dispatched when the user presses 'd' in the queue view
 // to remove the entry at Index from the playback queue.
 type DequeueTrackMsg struct {
@@ -1611,6 +1627,74 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		// When the inline save-as-playlist input is active, intercept all
+		// keypresses before the registry.
+		if m.queue.isSavingAsPlaylist() && m.activeView == viewQueue {
+			switch msg.String() {
+			case "ctrl+c":
+				return m, tea.Quit
+			case "esc":
+				m.queue = m.queue.cancelSaveAsPlaylist()
+			case "enter":
+				if !m.queue.saveInputIsEmpty() {
+					name := m.queue.saveInputValue()
+					// Reject duplicate names (case-insensitive).
+					for _, p := range m.playlists.playlists {
+						if strings.EqualFold(p.Name, name) {
+							m.statusBar.notification = transientNotification{
+								msg:       "A playlist with that name already exists",
+								expiresAt: time.Now().Add(transientDuration),
+							}
+							return m, nil
+						}
+					}
+					if m.playlistWriter != nil {
+						pw := m.playlistWriter
+						pa := m.playlistAdder
+						// Capture hashes at dispatch time: selected entries only, or all.
+						var hashes []string
+						if m.queue.savingFromSelection {
+							hashes = m.queue.selectedHashes()
+						} else {
+							hashes = make([]string, len(m.queue.entries))
+							for i, e := range m.queue.entries {
+								hashes[i] = e.Hash
+							}
+						}
+						count := len(hashes)
+						fromSelection := m.queue.savingFromSelection
+						return m, func() tea.Msg {
+							id, err := pw.CreatePlaylist(name)
+							if err != nil {
+								return queueSaveAsPlaylistErrorMsg{err: err}
+							}
+							if pa != nil && len(hashes) > 0 {
+								if err := pa.AddTracksToPlaylist(id, hashes); err != nil {
+									return queueSaveAsPlaylistErrorMsg{err: err}
+								}
+							}
+							rows, err := pw.ReadPlaylists()
+							if err != nil {
+								return queueSaveAsPlaylistErrorMsg{err: err}
+							}
+							return queueSavedAsPlaylistMsg{playlists: rows, playlistName: name, count: count, fromSelection: fromSelection}
+						}
+					}
+					// No writer: dismiss the input without persisting.
+					m.queue = m.queue.cancelSaveAsPlaylist()
+				}
+				// Empty/whitespace input: keep the field active (no-op).
+			case "backspace":
+				m.queue = m.queue.backspaceSave()
+			default:
+				if msg.Text != "" {
+					for _, ch := range msg.Text {
+						m.queue = m.queue.appendSaveChar(ch)
+					}
+				}
+			}
+			return m, nil
+		}
 		// While the destination picker modal is open, route all keypresses to
 		// it instead of the normal registry. The modal dispatches its own Cmds
 		// (DestinationPickedMsg, DestinationPickerDismissedMsg, etc.) which are
@@ -1672,6 +1756,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.playlists = m.playlists.cancelCreate()
 		m.statusBar.notification = transientNotification{
 			msg:       "Failed to create playlist: " + msg.err.Error(),
+			expiresAt: time.Now().Add(transientDuration),
+		}
+
+	case queueSavedAsPlaylistMsg:
+		m.queue = m.queue.cancelSaveAsPlaylist()
+		m.playlists.playlists = msg.playlists
+		source := "queue"
+		if msg.fromSelection {
+			source = "selection"
+		}
+		m.statusBar.notification = transientNotification{
+			msg:       fmt.Sprintf("Saved %s as %q (%d %s)", source, msg.playlistName, msg.count, pluralize(msg.count, "track", "tracks")),
+			expiresAt: time.Now().Add(transientDuration),
+		}
+
+	case queueSaveAsPlaylistErrorMsg:
+		m.queue = m.queue.cancelSaveAsPlaylist()
+		m.statusBar.notification = transientNotification{
+			msg:       "Failed to save queue as playlist: " + msg.err.Error(),
 			expiresAt: time.Now().Add(transientDuration),
 		}
 
@@ -2247,6 +2350,16 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.queue, cmd = m.queue.HandleAction(action)
 		return m, cmd
+	case actionSaveQueueAsPlaylist:
+		if len(m.queue.entries) == 0 {
+			m.statusBar.notification = transientNotification{
+				msg:       "Queue is empty — nothing to save",
+				expiresAt: time.Now().Add(transientDuration),
+			}
+		} else {
+			fromSelection := m.queue.hasSelection()
+			m.queue = m.queue.startSaveAsPlaylist(fromSelection)
+		}
 	case actionPlaylistRename:
 		return m, func() tea.Msg { return PlaylistRenameMsg{} }
 	case actionPlaylistCreate:
