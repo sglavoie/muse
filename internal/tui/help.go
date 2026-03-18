@@ -91,6 +91,7 @@ func helpSections() []helpSection {
 				{"/", "Filter current list"},
 				{"enter", "Open albums / tracks / enqueue track"},
 				{"esc", "Back one level"},
+				{"a", "Add focused item to queue or playlist"},
 			},
 		},
 		{
@@ -99,6 +100,7 @@ func helpSections() []helpSection {
 				{"/", "Filter current list"},
 				{"enter", "Open tracks / enqueue track"},
 				{"esc", "Back one level"},
+				{"a", "Add focused item to queue or playlist"},
 			},
 		},
 		{

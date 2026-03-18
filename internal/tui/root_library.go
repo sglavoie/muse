@@ -144,8 +144,9 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 		}
 		return m, nil, true
 	case actionBulkAction:
-		if m.activeView == viewLibrary {
-			var tracks []library.Track
+		var tracks []library.Track
+		switch m.activeView {
+		case viewLibrary:
 			if len(m.library.selectedHashes) > 0 {
 				for _, t := range m.library.index.Tracks() {
 					if _, ok := m.library.selectedHashes[t.Hash]; ok {
@@ -157,11 +158,43 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 					tracks = []library.Track{t}
 				}
 			}
-			if len(tracks) > 0 {
-				modal := pltui.NewDestinationPicker(m.playlists.playlists)
-				m.destPicker = &modal
-				m.destPickerTracks = tracks
+		case viewArtists:
+			allTracks := m.library.index.Tracks()
+			switch m.artists.level {
+			case arttui.ArtistLevel:
+				if artist, ok := m.artists.focusedArtist(); ok {
+					for _, t := range allTracks {
+						if t.Artist == artist {
+							tracks = append(tracks, t)
+						}
+					}
+				}
+			case arttui.AlbumLevel:
+				if album, ok := m.artists.focusedAlbum(); ok {
+					tracks = arttui.DeriveTracks(allTracks, m.artists.selectedArtist, album)
+				}
+			case arttui.TrackLevel:
+				if t, ok := m.artists.focusedTrack(); ok {
+					tracks = []library.Track{t}
+				}
 			}
+		case viewAlbums:
+			allTracks := m.library.index.Tracks()
+			switch m.albums.level {
+			case albtui.AlbumLevel:
+				if album, ok := m.albums.focusedAlbum(); ok {
+					tracks = albtui.DeriveAlbumTracks(allTracks, album)
+				}
+			case albtui.TrackLevel:
+				if t, ok := m.albums.focusedTrack(); ok {
+					tracks = []library.Track{t}
+				}
+			}
+		}
+		if len(tracks) > 0 {
+			modal := pltui.NewDestinationPicker(m.playlists.playlists)
+			m.destPicker = &modal
+			m.destPickerTracks = tracks
 		}
 		return m, nil, true
 	case actionArtistOpen:

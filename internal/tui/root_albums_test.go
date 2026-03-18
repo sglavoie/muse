@@ -599,6 +599,47 @@ func TestAlbumsFilterBackspace(t *testing.T) {
 	}
 }
 
+// TestAlbumsBulkActionAtTrackLevel verifies that pressing 'a' at TrackLevel
+// opens the destination picker with the focused track.
+func TestAlbumsBulkActionAtTrackLevel(t *testing.T) {
+	m := newModelWithTracks()
+	m = pressKey(m, "5")
+
+	// Drill down: Alpha -> tracks.
+	m = pressEnter(m) // -> TrackLevel
+	if m.albums.level != albtui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.albums.level)
+	}
+
+	// Press 'a' to open destination picker.
+	m = pressKey(m, "a")
+	if m.destPicker == nil {
+		t.Fatal("expected destPicker to be non-nil after pressing 'a' at TrackLevel")
+	}
+	if len(m.destPickerTracks) != 1 {
+		t.Fatalf("expected 1 destPickerTrack, got %d", len(m.destPickerTracks))
+	}
+	if m.destPickerTracks[0].Title != "Track A1" {
+		t.Errorf("expected destPickerTrack 'Track A1', got %q", m.destPickerTracks[0].Title)
+	}
+}
+
+// TestAlbumsBulkActionAtAlbumLevel verifies that pressing 'a' at AlbumLevel
+// opens the destination picker with all tracks from the focused album.
+func TestAlbumsBulkActionAtAlbumLevel(t *testing.T) {
+	m := newModelWithTracks()
+	m = pressKey(m, "5")
+
+	// Press 'a' at AlbumLevel (focused on Alpha which has 2 tracks).
+	m = pressKey(m, "a")
+	if m.destPicker == nil {
+		t.Fatal("expected destPicker to be non-nil at AlbumLevel")
+	}
+	if len(m.destPickerTracks) != 2 {
+		t.Fatalf("expected 2 destPickerTracks (Alpha tracks), got %d", len(m.destPickerTracks))
+	}
+}
+
 // TestAlbumsDrillDownPreservesWidthHeight verifies that openTracks does not
 // reset width/height.
 func TestAlbumsDrillDownPreservesWidthHeight(t *testing.T) {

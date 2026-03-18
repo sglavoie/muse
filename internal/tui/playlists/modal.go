@@ -57,17 +57,15 @@ func NewDestinationPicker(playlists []db.PlaylistRow) DestinationPickerModal {
 }
 
 // destinations returns the ordered list of destination labels: the play queue
-// first, then each playlist name. When no playlists exist, a "New playlist..."
-// entry is appended as the inline create prompt.
+// first, then each playlist name, and finally a "New playlist..." entry so the
+// user can always create a new playlist on the fly.
 func (m DestinationPickerModal) destinations() []string {
 	labels := make([]string, 0, 1+len(m.playlists)+1)
 	labels = append(labels, queueLabel)
 	for _, p := range m.playlists {
 		labels = append(labels, p.Name)
 	}
-	if len(m.playlists) == 0 {
-		labels = append(labels, createLabel)
-	}
+	labels = append(labels, createLabel)
 	return labels
 }
 
@@ -99,12 +97,9 @@ func (m DestinationPickerModal) HandleKey(key string) (DestinationPickerModal, t
 
 // confirmCmd builds the Cmd that confirms the current selection.
 func (m DestinationPickerModal) confirmCmd() tea.Cmd {
-	// When no playlists exist the list is [Play Queue, New playlist...].
-	if len(m.playlists) == 0 {
-		if m.cursor == 1 {
-			return func() tea.Msg { return DestinationPickerCreateMsg{} }
-		}
-		return func() tea.Msg { return DestinationPickedMsg{IsQueue: true} }
+	// Last entry is always "New playlist...".
+	if m.cursor == len(m.playlists)+1 {
+		return func() tea.Msg { return DestinationPickerCreateMsg{} }
 	}
 	if m.cursor == 0 {
 		return func() tea.Msg { return DestinationPickedMsg{IsQueue: true} }

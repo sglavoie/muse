@@ -78,6 +78,8 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 		"Library":   contextLibrary,
 		"Queue":     contextQueue,
 		"Playlists": contextPlaylists,
+		"Artists":   contextArtists,
+		"Albums":    contextAlbums,
 	}
 	// Navigation keys are shared; check that each appears in at least one
 	// of the three view contexts.

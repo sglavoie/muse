@@ -1370,6 +1370,42 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.playlists = m.playlists.ensureCursorVisible()
 
+		// If there are staged tracks from the destination picker, auto-add
+		// them to the newly created playlist.
+		if len(m.destPickerTracks) > 0 && m.playlistAdder != nil {
+			tracks := m.destPickerTracks
+			m.destPickerTracks = nil
+			pid := msg.id
+			pa := m.playlistAdder
+			pr := m.playlistRenamer
+			pw := m.playlistWriter
+			var hashes []string
+			for _, t := range tracks {
+				hashes = append(hashes, t.Hash)
+			}
+			// Find the playlist name for the notification.
+			var playlistName string
+			for _, p := range msg.playlists {
+				if p.ID == pid {
+					playlistName = p.Name
+					break
+				}
+			}
+			count := len(hashes)
+			return m, func() tea.Msg {
+				if err := pa.AddTracksToPlaylist(pid, hashes); err != nil {
+					return playlistAddErrorMsg{err: err}
+				}
+				var rows []db.PlaylistRow
+				if pr != nil {
+					rows, _ = pr.ReadPlaylists()
+				} else if pw != nil {
+					rows, _ = pw.ReadPlaylists()
+				}
+				return tracksAddedToPlaylistMsg{playlists: rows, playlistName: playlistName, count: count}
+			}
+		}
+
 	case playlistCreateErrorMsg:
 		m.playlists = m.playlists.cancelCreate()
 		m.statusBar.notification = transientNotification{
@@ -1417,17 +1453,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case pltui.DestinationPickerCreateMsg:
 		// User selected "New playlist..." — dismiss the picker, switch to the
-		// playlists view, and activate the inline create input.
-		//
-		// Two-step flow (intentional): destPickerTracks is discarded here rather
-		// than forwarded to playlistCreatedMsg. After the playlist is created the
-		// user must re-open the destination picker ('a') to add the tracks. This
-		// matches the requirement text (ac-876649c360cab6be4ab38dee626495c7) which
-		// only specifies "an inline prompt offers to create a new playlist" with no
-		// obligation to auto-add the staged tracks. Forwarding them would require
-		// complex state threading across the create flow with no requirement backing.
+		// playlists view, and activate the inline create input. Keep
+		// destPickerTracks so that after the playlist is created the staged
+		// tracks are auto-added to it.
 		m.destPicker = nil
-		m.destPickerTracks = nil
 		m.library = m.library.ClearSelection()
 		m.activeView = viewPlaylists
 		m.playlists = m.playlists.startCreate()
@@ -1531,14 +1560,12 @@ func (m Model) View() tea.View {
 		body = m.nowPlayingInfo.Render(m.termWidth, m.termHeight, *m.styles)
 	} else if m.preview != nil {
 		body = m.preview.Render(m.termWidth, m.termHeight, *m.styles)
+	} else if m.destPicker != nil {
+		body = m.destPicker.Render(m.termWidth, m.termHeight, *m.styles)
 	} else {
 		switch m.activeView {
 		case viewLibrary:
-			if m.destPicker != nil {
-				body = m.destPicker.Render(m.termWidth, m.termHeight, *m.styles)
-			} else {
-				body = m.library.render(*m.styles)
-			}
+			body = m.library.render(*m.styles)
 		case viewPlaylists:
 			body = m.playlists.render(*m.styles)
 		case viewQueue:

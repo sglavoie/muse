@@ -76,12 +76,12 @@ func TestModalUpArrowMovesUp(t *testing.T) {
 // already on the last entry does not move it past the end.
 func TestModalCursorClampsAtBottom(t *testing.T) {
 	m := NewDestinationPicker(fakePlaylistRows("Alpha", "Beta"))
-	// destinations: [Play Queue, Alpha, Beta] — last index = 2
-	m.cursor = 2
+	// destinations: [Play Queue, Alpha, Beta, New playlist...] — last index = 3
+	m.cursor = 3
 
 	m2, _ := m.HandleKey("j")
-	if m2.cursor != 2 {
-		t.Errorf("j at bottom: expected cursor to clamp at 2, got %d", m2.cursor)
+	if m2.cursor != 3 {
+		t.Errorf("j at bottom: expected cursor to clamp at 3, got %d", m2.cursor)
 	}
 }
 
@@ -101,10 +101,10 @@ func TestModalCursorClampsAtTop(t *testing.T) {
 // the cursor visits each index exactly once in sequence.
 func TestModalNavigationFullRange(t *testing.T) {
 	m := NewDestinationPicker(fakePlaylistRows("A", "B", "C"))
-	// destinations: [Play Queue, A, B, C] — 4 entries
+	// destinations: [Play Queue, A, B, C, New playlist...] — 5 entries
 	n := len(m.destinations())
-	if n != 4 {
-		t.Fatalf("expected 4 destinations, got %d", n)
+	if n != 5 {
+		t.Fatalf("expected 5 destinations, got %d", n)
 	}
 
 	for i := 1; i < n; i++ {
@@ -324,7 +324,8 @@ func TestModalDestinationsQueueFirst(t *testing.T) {
 }
 
 // TestModalDestinationsIncludeAllPlaylists verifies that every playlist name
-// passed to NewDestinationPicker appears in destinations(), after the queue.
+// passed to NewDestinationPicker appears in destinations(), after the queue
+// and before the "New playlist..." entry.
 func TestModalDestinationsIncludeAllPlaylists(t *testing.T) {
 	names := []string{"Ambient", "Chill", "Focus", "Sleep"}
 	m := NewDestinationPicker(fakePlaylistRows(names...))
@@ -334,26 +335,46 @@ func TestModalDestinationsIncludeAllPlaylists(t *testing.T) {
 	if dests[0] != queueLabel {
 		t.Fatalf("expected first destination %q, got %q", queueLabel, dests[0])
 	}
-	// Remaining entries must match names in order.
-	if len(dests) != len(names)+1 {
-		t.Fatalf("expected %d destinations, got %d: %v", len(names)+1, len(dests), dests)
+	// Queue + playlists + "New playlist..." = len(names) + 2
+	if len(dests) != len(names)+2 {
+		t.Fatalf("expected %d destinations, got %d: %v", len(names)+2, len(dests), dests)
 	}
 	for i, name := range names {
 		if dests[i+1] != name {
 			t.Errorf("destination[%d]: expected %q, got %q", i+1, name, dests[i+1])
 		}
 	}
+	// Last entry must be "New playlist...".
+	if dests[len(dests)-1] != createLabel {
+		t.Errorf("expected last destination %q, got %q", createLabel, dests[len(dests)-1])
+	}
 }
 
-// TestModalCreateLabelNotShownWhenPlaylistsExist verifies that the "New
-// playlist..." entry is absent when at least one playlist is present.
-func TestModalCreateLabelNotShownWhenPlaylistsExist(t *testing.T) {
+// TestModalCreateLabelAlwaysShown verifies that the "New playlist..." entry
+// is always present as the last destination, even when playlists exist.
+func TestModalCreateLabelAlwaysShown(t *testing.T) {
 	m := NewDestinationPicker(fakePlaylistRows("OnlyOne"))
 	dests := m.destinations()
-	for _, d := range dests {
-		if d == createLabel {
-			t.Errorf("create label must not appear when playlists exist; destinations: %v", dests)
-		}
+	if dests[len(dests)-1] != createLabel {
+		t.Errorf("expected last destination %q, got %v", createLabel, dests)
+	}
+}
+
+// TestModalEnterOnCreateLabelWithPlaylistsDispatchesCreateMsg verifies that
+// Enter on "New playlist..." dispatches DestinationPickerCreateMsg even when
+// playlists already exist.
+func TestModalEnterOnCreateLabelWithPlaylistsDispatchesCreateMsg(t *testing.T) {
+	m := NewDestinationPicker(fakePlaylistRows("Alpha", "Beta"))
+	// "New playlist..." is at index 3: [Play Queue, Alpha, Beta, New playlist...]
+	m.cursor = 3
+
+	_, cmd := m.HandleKey("enter")
+	if cmd == nil {
+		t.Fatal("enter on create label: expected non-nil cmd")
+	}
+	msg := cmd()
+	if _, ok := msg.(DestinationPickerCreateMsg); !ok {
+		t.Fatalf("enter on create label: expected DestinationPickerCreateMsg, got %T", msg)
 	}
 }
 
@@ -375,8 +396,8 @@ func TestModalReceivesPreSortedPlaylistsFromFakeReader(t *testing.T) {
 	m := NewDestinationPicker(fakeRead)
 	dests := m.destinations()
 
-	// Expect: [Play Queue, Ambient, Chill, Workout]
-	expected := []string{queueLabel, "Ambient", "Chill", "Workout"}
+	// Expect: [Play Queue, Ambient, Chill, Workout, New playlist...]
+	expected := []string{queueLabel, "Ambient", "Chill", "Workout", createLabel}
 	if len(dests) != len(expected) {
 		t.Fatalf("expected %d destinations, got %d: %v", len(expected), len(dests), dests)
 	}

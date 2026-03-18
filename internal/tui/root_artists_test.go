@@ -709,6 +709,75 @@ func TestArtistsFilterBackspace(t *testing.T) {
 	}
 }
 
+// TestArtistsBulkActionAtTrackLevel verifies that pressing 'a' at TrackLevel
+// opens the destination picker with the focused track.
+func TestArtistsBulkActionAtTrackLevel(t *testing.T) {
+	m := newModelWithTracks()
+	m = pressKey(m, "4")
+
+	// Drill down: Alice -> Alpha -> tracks.
+	m = pressEnter(m) // -> AlbumLevel
+	m = pressEnter(m) // -> TrackLevel
+	if m.artists.level != arttui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.artists.level)
+	}
+
+	// Press 'a' to open destination picker.
+	m = pressKey(m, "a")
+	if m.destPicker == nil {
+		t.Fatal("expected destPicker to be non-nil after pressing 'a' at TrackLevel")
+	}
+	if len(m.destPickerTracks) != 1 {
+		t.Fatalf("expected 1 destPickerTrack, got %d", len(m.destPickerTracks))
+	}
+	if m.destPickerTracks[0].Title != "Track A1" {
+		t.Errorf("expected destPickerTrack 'Track A1', got %q", m.destPickerTracks[0].Title)
+	}
+}
+
+// TestArtistsBulkActionAtArtistLevel verifies that pressing 'a' at ArtistLevel
+// opens the destination picker with all tracks by the focused artist.
+func TestArtistsBulkActionAtArtistLevel(t *testing.T) {
+	m := newModelWithTracks()
+	m = pressKey(m, "4")
+
+	// Press 'a' at ArtistLevel (focused on Alice).
+	m = pressKey(m, "a")
+	if m.destPicker == nil {
+		t.Fatal("expected destPicker to be non-nil at ArtistLevel")
+	}
+	if len(m.destPickerTracks) != 3 {
+		t.Fatalf("expected 3 destPickerTracks (all Alice tracks), got %d", len(m.destPickerTracks))
+	}
+	for _, tr := range m.destPickerTracks {
+		if tr.Artist != "Alice" {
+			t.Errorf("expected all tracks by Alice, got artist %q", tr.Artist)
+		}
+	}
+}
+
+// TestArtistsBulkActionAtAlbumLevel verifies that pressing 'a' at AlbumLevel
+// opens the destination picker with all tracks from the focused album.
+func TestArtistsBulkActionAtAlbumLevel(t *testing.T) {
+	m := newModelWithTracks()
+	m = pressKey(m, "4")
+
+	// Drill down: Alice -> AlbumLevel.
+	m = pressEnter(m)
+	if m.artists.level != arttui.AlbumLevel {
+		t.Fatalf("expected AlbumLevel, got %v", m.artists.level)
+	}
+
+	// Press 'a' at AlbumLevel (focused on Alpha which has 2 tracks).
+	m = pressKey(m, "a")
+	if m.destPicker == nil {
+		t.Fatal("expected destPicker to be non-nil at AlbumLevel")
+	}
+	if len(m.destPickerTracks) != 2 {
+		t.Fatalf("expected 2 destPickerTracks (Alpha tracks), got %d", len(m.destPickerTracks))
+	}
+}
+
 // TestArtistsDrillDownPreservesWidthHeight verifies that openAlbums and
 // openTracks do not reset width/height.
 func TestArtistsDrillDownPreservesWidthHeight(t *testing.T) {
