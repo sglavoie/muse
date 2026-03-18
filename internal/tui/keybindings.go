@@ -43,6 +43,7 @@ const (
 	actionFilterBar     // '/': activate filter bar in active view
 	actionHelp          // '?': show help overlay
 	actionNextView      // tab: cycle to next view
+	actionPreview       // 'P': preview focused track
 
 	actionSwitchArtists
 	actionSwitchAlbums
@@ -135,6 +136,7 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "/", actionFilterBar)
 	r.register(contextGlobal, "?", actionHelp)
 	r.register(contextGlobal, "tab", actionNextView)
+	r.register(contextGlobal, "P", actionPreview)
 
 	// Library-local bindings.
 	r.register(contextLibrary, "j", actionCursorDown)

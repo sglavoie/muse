@@ -2,6 +2,8 @@ package tui
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -193,6 +195,16 @@ type PlayQueueIndexMsg struct {
 // queue (no more playable entries). Root handles it by resetting the playback
 // state to idle so the space-bar toggle stays synchronized with mpv's state.
 type PlaybackEndedMsg struct{}
+
+// previewStartedMsg is dispatched when the preview player has been launched
+// and is ready for playback.
+type previewStartedMsg struct {
+	player  player.Previewer
+	overlay PreviewOverlay
+}
+
+// previewStartErrorMsg is dispatched when the preview player fails to start.
+type previewStartErrorMsg struct{ err error }
 
 // UndoMsg is dispatched when the user presses 'u'.
 type UndoMsg struct{}
@@ -482,6 +494,11 @@ type Model struct {
 	playlistDeleter playlistDeleter      // may be nil; set via SetPlaylistDeleter
 	playlistAdder   playlistTrackAdder   // may be nil; set via SetPlaylistAdder
 	batchEnqueuer   batchEnqueuer        // may be nil; set via SetBatchEnqueuer
+
+	// preview is non-nil while the preview overlay is active.
+	preview          *PreviewOverlay
+	previewPlayer    player.Previewer // separate mpv instance for preview
+	previewWasPlaying bool            // main player was playing before preview
 
 	// destPicker is non-nil while the destination picker modal is open.
 	// Root dispatches all keypresses to the modal while it is open.
@@ -1053,6 +1070,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
+		if m.preview != nil && m.previewPlayer != nil {
+			if elapsed, total, err := m.previewPlayer.ElapsedPosition(); err == nil {
+				m.preview.elapsed = elapsed
+				m.preview.total = total
+			} else {
+				// Preview track ended or mpv died — auto-dismiss.
+				m = m.dismissPreview()
+			}
+		}
 		if !m.statusBar.notification.expiresAt.IsZero() && time.Now().After(m.statusBar.notification.expiresAt) {
 			m.statusBar.notification = transientNotification{}
 		}
@@ -1130,6 +1156,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				expiresAt: time.Now().Add(transientDuration),
 			}
 		}
+
+	case previewStartedMsg:
+		m.previewPlayer = msg.player
+		m.preview = &msg.overlay
+
+	case previewStartErrorMsg:
+		m.statusBar.notification = transientNotification{
+			msg:       "Preview error: " + msg.err.Error(),
+			expiresAt: time.Now().Add(transientDuration),
+		}
+		// Resume main player if we paused it.
+		if m.previewWasPlaying && m.player != nil {
+			_ = m.player.Play()
+			m.playbackState = PlaybackPlaying
+		}
+		m.previewWasPlaying = false
 
 	case TrackChangedMsg:
 		m.currentTrackHash = msg.Hash
@@ -1454,6 +1496,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "ctrl+u":
 				m.helpScroll -= m.termHeight / 2
 				m.helpScroll = m.clampHelpScroll()
+				return m, nil
+			default:
+				return m, nil
+			}
+		}
+		// While the preview overlay is active, swallow all keys except
+		// ctrl+c (quit) and esc/P (dismiss preview).
+		if m.preview != nil {
+			switch msg.String() {
+			case "ctrl+c":
+				m = m.dismissPreview()
+				return m, tea.Quit
+			case "esc", "P":
+				m = m.dismissPreview()
 				return m, nil
 			default:
 				return m, nil
@@ -1909,6 +1965,8 @@ func (m Model) View() tea.View {
 			}
 			body = strings.Join(lines[m.helpScroll:end], "\n")
 		}
+	} else if m.preview != nil {
+		body = m.preview.Render(m.termWidth, m.termHeight, *m.styles)
 	} else {
 		switch m.activeView {
 		case viewLibrary:
@@ -2133,7 +2191,27 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
 		}
 	case actionQuit:
+		m = m.dismissPreview()
 		return m, tea.Quit
+	case actionPreview:
+		if m.preview != nil {
+			m = m.dismissPreview()
+			return m, nil
+		}
+		track, ok := m.focusedTrackForPreview()
+		if !ok {
+			m.statusBar.notification = transientNotification{
+				msg:       "No track to preview",
+				expiresAt: time.Now().Add(transientDuration),
+			}
+			return m, nil
+		}
+		m.previewWasPlaying = m.playbackState == PlaybackPlaying
+		if m.previewWasPlaying && m.player != nil {
+			_ = m.player.Pause()
+			m.playbackState = PlaybackPaused
+		}
+		return m, m.startPreviewCmd(track)
 	case actionPlayPause:
 		if m.player != nil {
 			if m.playbackState == PlaybackPlaying {
@@ -2608,4 +2686,73 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+// focusedTrackForPreview returns the track under the cursor in whichever view
+// is active, or false when no track is focused.
+func (m Model) focusedTrackForPreview() (library.Track, bool) {
+	switch m.activeView {
+	case viewLibrary:
+		return m.library.view().FocusedTrack()
+	case viewQueue:
+		if m.queue.cursor >= 0 && m.queue.cursor < len(m.queue.entries) {
+			e := m.queue.entries[m.queue.cursor]
+			if e.Missing {
+				return library.Track{}, false
+			}
+			return library.Track{
+				Hash:     e.Hash,
+				Path:     e.Path,
+				Artist:   e.Artist,
+				Title:    e.Title,
+				Duration: float64(e.DurationMs) / 1000,
+			}, true
+		}
+	case viewPlaylists:
+		return m.playlists.focusedTrack()
+	case viewArtists:
+		return m.artists.focusedTrack()
+	case viewAlbums:
+		return m.albums.focusedTrack()
+	}
+	return library.Track{}, false
+}
+
+// startPreviewCmd returns a tea.Cmd that launches a PreviewPlayer, loads the
+// given track, and returns a previewStartedMsg on success.
+func (m Model) startPreviewCmd(track library.Track) tea.Cmd {
+	return func() tea.Msg {
+		socketPath := filepath.Join(os.TempDir(), "muse-preview.sock")
+		pp := player.NewPreviewPlayer(socketPath)
+		if err := pp.Start(); err != nil {
+			return previewStartErrorMsg{err: err}
+		}
+		if err := pp.LoadAndPlay(track.Path); err != nil {
+			_ = pp.Close()
+			return previewStartErrorMsg{err: err}
+		}
+		return previewStartedMsg{
+			player: pp,
+			overlay: PreviewOverlay{
+				artist: track.Artist,
+				title:  track.Title,
+			},
+		}
+	}
+}
+
+// dismissPreview stops the preview player, clears the overlay, and resumes
+// main playback if it was playing before the preview started.
+func (m Model) dismissPreview() Model {
+	if m.previewPlayer != nil {
+		_ = m.previewPlayer.Close()
+	}
+	m.preview = nil
+	m.previewPlayer = nil
+	if m.previewWasPlaying && m.player != nil {
+		_ = m.player.Play()
+		m.playbackState = PlaybackPlaying
+	}
+	m.previewWasPlaying = false
+	return m
 }

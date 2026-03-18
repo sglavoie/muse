@@ -149,6 +149,10 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 	if err := removeStaleSocket(socketPath); err != nil {
 		return failf("startup: %w", err)
 	}
+	previewSocket := filepath.Join(os.TempDir(), "muse-preview.sock")
+	if err := removeStaleSocket(previewSocket); err != nil {
+		return failf("startup: %w", err)
+	}
 	slog.Info("startup: stale mpv socket removed")
 
 	// Step 3: Open database and run pending migrations.
