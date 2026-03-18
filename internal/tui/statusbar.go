@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -118,47 +119,64 @@ func truncateTitle(s string, maxRunes int) string {
 // is truncated first (with a trailing "…") to make the full line fit, while
 // the artist name is always preserved.
 func (s StatusBar) render(width int, st styles.Styles) string {
+	// Every text segment must carry the StatusBar background so that inner
+	// ANSI resets (\e[0m) don't leave gaps with the terminal default bg.
+	bg := st.StatusBar.GetBackground()
+	fg := st.StatusBar.GetForeground()
+	barText := lipgloss.NewStyle().Background(bg).Foreground(fg)
+	barSuccess := st.Success.Background(bg)
+	barWarning := st.Warning.Background(bg)
+	barError := st.Error.Background(bg)
+	barBold := barText.Bold(true)
+
+	// r renders plain text with the StatusBar background+foreground.
+	r := func(s string) string { return barText.Render(s) }
+
 	// --- Right side (always shown) ---
 	var rightSegments []string
 	if s.configCreated {
-		rightSegments = append(rightSegments, fmt.Sprintf("config created: %s", s.configPath))
+		rightSegments = append(rightSegments, r(fmt.Sprintf("config created: %s", s.configPath)))
 	}
 	if s.notification.msg != "" {
 		msg := s.notification.msg
 		if strings.HasPrefix(msg, "Error:") {
-			msg = st.Error.Render(msg)
+			rightSegments = append(rightSegments, barError.Render(msg))
+		} else {
+			rightSegments = append(rightSegments, r(msg))
 		}
-		rightSegments = append(rightSegments, msg)
 	}
-	right := strings.Join(rightSegments, "  |  ")
+	right := strings.Join(rightSegments, r("  |  "))
 
-	// padAndWrap pads result to full width and wraps with StatusBar style.
-	padAndWrap := func(result string) string {
+	// rightWidth is the visible width of the right zone for truncation math.
+	rightWidth := ansi.StringWidth(right)
+
+	// pad fills the remaining terminal width with background-colored spaces.
+	pad := func(content string) string {
 		if width > 0 {
-			visibleWidth := ansi.StringWidth(result)
+			visibleWidth := ansi.StringWidth(content)
 			if visibleWidth < width {
-				result = result + strings.Repeat(" ", width-visibleWidth)
+				content = content + r(strings.Repeat(" ", width-visibleWidth))
 			}
 		}
-		return st.StatusBar.Render(result)
+		return content
 	}
 
 	// --- Persistent left zone ---
 	if s.playbackState == PlaybackIdle && s.artist == "" && s.title == "" {
-		return padAndWrap(right)
+		return pad(right)
 	}
 
 	stateIcon := ""
 	stateIconWidth := 0
 	switch s.playbackState {
 	case PlaybackPlaying:
-		stateIcon = st.Success.Render("▶")
+		stateIcon = barSuccess.Render("▶")
 		stateIconWidth = 1
 	case PlaybackPaused:
-		stateIcon = st.Warning.Render("⏸")
+		stateIcon = barWarning.Render("⏸")
 		stateIconWidth = 1
 	case PlaybackStopped:
-		stateIcon = st.Error.Render("■")
+		stateIcon = barError.Render("■")
 		stateIconWidth = 1
 	}
 
@@ -166,22 +184,19 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	suffix := ""
 	suffixWidth := 0
 	if s.playlistSource != "" {
-		suffix += "  " + s.playlistSource
+		suffix += r("  " + s.playlistSource)
 		suffixWidth += 2 + len([]rune(s.playlistSource))
 	}
 	switch s.repeatMode {
 	case RepeatAll:
-		styled := st.Bold.Render("R")
-		suffix += "  " + styled
+		suffix += barBold.Render("  R")
 		suffixWidth += 2 + 1
 	case RepeatOne:
-		styled := st.Bold.Render("R1")
-		suffix += "  " + styled
+		suffix += barBold.Render("  R1")
 		suffixWidth += 2 + 2
 	}
 	if s.shuffle {
-		styled := st.Bold.Render("S")
-		suffix += "  " + styled
+		suffix += barBold.Render("  S")
 		suffixWidth += 2 + 1
 	}
 
@@ -189,7 +204,7 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	timeDisplay := ""
 	timeDisplayWidth := 0
 	if s.elapsed != "" && s.total != "" {
-		timeDisplay = "  " + s.elapsed + " / " + s.total
+		timeDisplay = r("  " + s.elapsed + " / " + s.total)
 		timeDisplayWidth = 2 + len(s.elapsed) + 3 + len(s.total)
 	}
 
@@ -198,22 +213,26 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	prefix := ""
 	prefixWidth := 0
 	sep := ""
+	sepWidth := 0
 	switch {
 	case stateIcon != "" && s.artist != "":
-		prefix = stateIcon + " " + s.artist
+		prefix = stateIcon + r(" "+s.artist)
 		prefixWidth = stateIconWidth + 1 + len([]rune(s.artist))
 		sep = " – "
+		sepWidth = 3
 	case stateIcon != "":
 		prefix = stateIcon
 		prefixWidth = stateIconWidth
 	case s.artist != "":
-		prefix = s.artist
+		prefix = r(s.artist)
 		prefixWidth = len([]rune(s.artist))
 		sep = " – "
+		sepWidth = 3
 	}
 	// sep is only meaningful when there is a title; clear it otherwise.
 	if s.title == "" {
 		sep = ""
+		sepWidth = 0
 	}
 
 	title := s.title
@@ -221,19 +240,30 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 		// Calculate how many runes are available for the title.
 		// Full line: prefix + sep + title + suffix + timeDisplay + "  |  " + right
 		const sepStr = "  |  "
-		fixedWidth := prefixWidth + len([]rune(sep)) +
+		fixedWidth := prefixWidth + sepWidth +
 			suffixWidth + timeDisplayWidth +
-			len([]rune(sepStr)) + ansi.StringWidth(right)
+			len([]rune(sepStr)) + rightWidth
 		available := width - fixedWidth
 		title = truncateTitle(s.title, available)
 	}
 
-	left := prefix + sep + title + suffix + timeDisplay
-	// Trim leading/trailing spaces that can arise when prefix or title is empty.
-	left = strings.TrimSpace(left)
-
-	if left == "" {
-		return padAndWrap(right)
+	// Assemble left zone: each piece is already rendered with bg.
+	var parts []string
+	if prefix != "" {
+		parts = append(parts, prefix)
 	}
-	return padAndWrap(left + "  |  " + right)
+	if sep != "" {
+		parts = append(parts, r(sep))
+	}
+	if title != "" {
+		parts = append(parts, r(title))
+	}
+	parts = append(parts, suffix, timeDisplay)
+
+	left := strings.Join(parts, "")
+
+	if ansi.StringWidth(left) == 0 {
+		return pad(right)
+	}
+	return pad(left + r("  |  ") + right)
 }
