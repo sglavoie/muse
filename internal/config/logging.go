@@ -51,16 +51,18 @@ func SetLogLevel(level slog.Level) {
 
 // ParseLogLevel converts a log-level string (as used in the config file) to
 // its corresponding slog.Level. Unrecognised values default to Info.
-func ParseLogLevel(s string) slog.Level {
+func ParseLogLevel(s string) (slog.Level, bool) {
 	switch s {
 	case "debug":
-		return slog.LevelDebug
+		return slog.LevelDebug, true
+	case "info", "":
+		return slog.LevelInfo, true
 	case "warn":
-		return slog.LevelWarn
+		return slog.LevelWarn, true
 	case "error":
-		return slog.LevelError
+		return slog.LevelError, true
 	default:
-		return slog.LevelInfo
+		return slog.LevelInfo, false
 	}
 }
 

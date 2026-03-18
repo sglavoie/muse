@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
 	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
@@ -116,6 +116,7 @@ const (
 	undoKindDeletePlaylist               // playlist soft-deleted via actionPlaylistDelete at ListLevel
 	undoKindRemovePlaylistTrack          // track soft-removed via actionPlaylistDelete at TrackLevel
 	undoKindBatchEnqueue                 // batch of tracks added via actionPlaylistEnqueueAll
+	undoKindBulkDequeue                  // multiple selected tracks removed via bulk dequeue
 )
 
 // undoSlot holds the reversible state for the most recent destructive queue
@@ -153,6 +154,11 @@ type undoSlot struct {
 	batchIDs      []int64 // DB row IDs of all batch-enqueued entries
 	batchCount    int     // number of entries added
 	batchStartIdx int     // index of the first batch entry in queue.entries
+
+	// BulkDequeue fields — valid when kind == undoKindBulkDequeue.
+	bulkDequeueEntries []QueueEntry // removed entries in original order
+	bulkDequeueIndices []int        // original indices for re-insertion
+	bulkDequeueIDs     []int64      // DB IDs for undo
 }
 
 // tickMsg is dispatched every second by tickCmd. It drives elapsed-time
@@ -479,10 +485,10 @@ type Model struct {
 	termWidth      int
 	termHeight     int
 	registry       Registry
-	helpVisible  bool            // true while the help overlay is shown
-	helpViewport viewport.Model // scrollable viewport for the help overlay
-	helpFiltered bool            // true when showing only current-view keybindings
-	prevActiveView viewID // the view that was active before help was opened
+	helpVisible    bool           // true while the help overlay is shown
+	helpViewport   viewport.Model // scrollable viewport for the help overlay
+	helpFiltered   bool           // true when showing only current-view keybindings
+	prevActiveView viewID         // the view that was active before help was opened
 
 	// player is the playback backend. It may be nil when playback is not
 	// available (e.g. in tests that do not exercise playback).
@@ -521,6 +527,16 @@ type Model struct {
 	// queue action. The slot is cleared after a successful undo or when a new
 	// destructive action replaces it before the window expires.
 	undoSlot undoSlot
+
+	// missingTrackCount tracks how many queue entries were skipped due to
+	// missing files during the current playback session. Reset when playback
+	// ends or the queue is cleared.
+	missingTrackCount int
+
+	// clearQueuePending is true when the user has pressed 'C' once and is
+	// waiting for a second press to confirm clearing the queue.
+	clearQueuePending   bool
+	clearQueuePendingAt time.Time
 
 	playbackState    PlaybackState // current play/pause/stopped/idle state
 	repeatMode       RepeatMode    // repeat mode: off, all, or one
@@ -969,18 +985,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.termWidth = msg.Width
 		m.termHeight = msg.Height
 		m.library.width = msg.Width
-		m.library.height = msg.Height - 3
+		m.library.height = max(msg.Height-3, 0)
 		m.playlists.width = msg.Width
-		m.playlists.height = msg.Height - 3
+		m.playlists.height = max(msg.Height-3, 0)
 		m.queue.width = msg.Width
-		m.queue.height = msg.Height - 3
+		m.queue.height = max(msg.Height-3, 0)
 		m.artists.width = msg.Width
-		m.artists.height = msg.Height - 3
+		m.artists.height = max(msg.Height-3, 0)
 		m.albums.width = msg.Width
-		m.albums.height = msg.Height - 3
+		m.albums.height = max(msg.Height-3, 0)
 		if m.helpVisible {
 			m.helpViewport.SetWidth(msg.Width)
-			m.helpViewport.SetHeight(msg.Height - 2)
+			m.helpViewport.SetHeight(max(msg.Height-2, 0))
 		}
 
 	case clearConfigNotice:
@@ -1653,6 +1669,7 @@ func (m Model) renderStatusBar() string {
 	sb.repeatMode = m.repeatMode
 	sb.shuffle = m.shuffle
 	sb.configCreated = m.configCreated
+	sb.queueEmpty = len(m.queue.entries) == 0
 	if m.elapsedSecs > 0 || m.totalSecs > 0 {
 		sb.elapsed = formatTime(m.elapsedSecs)
 		sb.total = formatTime(m.totalSecs)
@@ -1691,6 +1708,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		sections, title := m.helpState()
 		m.helpViewport.SetContent(HelpOverlay{}.render(*m.styles, sections, title))
 	case actionNextView:
+		m.clearQueuePending = false
 		m.activeView = nextView(m.activeView)
 		if m.activeView == viewArtists && len(m.artists.artists) == 0 {
 			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
@@ -1699,6 +1717,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
 		}
 	case actionPrevView:
+		m.clearQueuePending = false
 		m.activeView = prevView(m.activeView)
 		if m.activeView == viewArtists && len(m.artists.artists) == 0 {
 			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
@@ -1713,17 +1732,22 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	case actionFilterBar:
 		return m, func() tea.Msg { return FilterBarMsg{} }
 	case actionSwitchLibrary:
+		m.clearQueuePending = false
 		m.activeView = viewLibrary
 	case actionSwitchPlaylists:
+		m.clearQueuePending = false
 		m.activeView = viewPlaylists
 	case actionSwitchQueue:
+		m.clearQueuePending = false
 		m.activeView = viewQueue
 	case actionSwitchArtists:
+		m.clearQueuePending = false
 		m.activeView = viewArtists
 		if len(m.artists.artists) == 0 {
 			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
 		}
 	case actionSwitchAlbums:
+		m.clearQueuePending = false
 		m.activeView = viewAlbums
 		if len(m.albums.albums) == 0 {
 			m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())

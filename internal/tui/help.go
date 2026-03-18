@@ -85,7 +85,7 @@ func helpSections() []helpSection {
 				{"enter", "Open playlist / enqueue track"},
 				{"shift+enter", "Replace queue with track"},
 				{"esc", "Back to playlist list"},
-				{"r", "Rename playlist (shadows global repeat)"},
+				{"r", "Rename playlist"},
 				{"c", "Create playlist"},
 				{"d", "Delete playlist / remove track"},
 				{"x", "Toggle bulk selection"},

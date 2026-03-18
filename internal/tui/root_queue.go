@@ -10,6 +10,38 @@ import (
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
+// clampCursorAndScroll adjusts the queue cursor and scroll offset so they
+// remain within bounds after entries have been removed.
+func (m *Model) clampQueueCursorAndScroll() {
+	if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
+		m.queue.cursor = len(m.queue.entries) - 1
+	}
+	if n := len(m.queue.entries); n > 0 {
+		if m.queue.scrollOffset > n-1 {
+			m.queue.scrollOffset = n - 1
+		}
+	} else {
+		m.queue.scrollOffset = 0
+	}
+}
+
+// resetPlaybackState stops the player and clears all playback-related fields
+// in the model and status bar.
+func (m Model) resetPlaybackState() Model {
+	if cp, ok := m.player.(commandPlayer); ok {
+		_ = cp.Stop()
+	}
+	m.playbackState = PlaybackIdle
+	m.elapsedSecs = 0
+	m.totalSecs = 0
+	m.statusBar.artist = ""
+	m.statusBar.title = ""
+	m.statusBar.playlistSource = ""
+	m.currentTrackHash = ""
+	m.missingTrackCount = 0
+	return m
+}
+
 // handleTrackEnqueuedMsg adds a newly enqueued track to the queue, sets up an
 // undo slot, and triggers playback if the queue was empty.
 func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
@@ -186,35 +218,14 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 		}, "Track removed — press u to undo")
 		player.PlaySound(player.SoundRemoved)
 		m.queue.entries = append(m.queue.entries[:msg.Index], m.queue.entries[msg.Index+1:]...)
-		if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
-			m.queue.cursor = len(m.queue.entries) - 1
-		}
-		// Clamp scrollOffset so it does not point past the end of the
-		// shortened list, which would cause an empty or broken render.
-		if n := len(m.queue.entries); n > 0 {
-			maxOffset := n - 1
-			if m.queue.scrollOffset > maxOffset {
-				m.queue.scrollOffset = maxOffset
-			}
-		} else {
-			m.queue.scrollOffset = 0
-		}
+		m.clampQueueCursorAndScroll()
 		if qr, ok := m.player.(playerQueueRemover); ok {
 			_ = qr.RemoveFromQueue(msg.Index)
 		}
 		// If the dequeued track was the currently playing one, or the queue
 		// is now empty, stop playback and clear the status bar.
 		if (entry.Hash != "" && entry.Hash == m.currentTrackHash) || len(m.queue.entries) == 0 {
-			if cp, ok := m.player.(commandPlayer); ok {
-				_ = cp.Stop()
-			}
-			m.playbackState = PlaybackIdle
-			m.elapsedSecs = 0
-			m.totalSecs = 0
-			m.statusBar.artist = ""
-			m.statusBar.title = ""
-			m.statusBar.playlistSource = ""
-			m.currentTrackHash = ""
+			m = m.resetPlaybackState()
 		}
 	}
 	return m
@@ -269,17 +280,7 @@ func (m Model) handleClearQueueMsg() Model {
 	m.queue.entries = nil
 	m.queue.cursor = 0
 	m.queue.scrollOffset = 0
-	// Stop active playback — requirement req-019ce3a80fa97003a43d90cf5e7c7a3f.
-	if cp, ok := m.player.(commandPlayer); ok {
-		_ = cp.Stop()
-		m.playbackState = PlaybackIdle
-		m.elapsedSecs = 0
-		m.totalSecs = 0
-	}
-	m.statusBar.artist = ""
-	m.statusBar.title = ""
-	m.statusBar.playlistSource = ""
-	m.currentTrackHash = ""
+	m = m.resetPlaybackState()
 	if qs, ok := m.player.(playerQueueSetter); ok {
 		qs.SetQueue(nil)
 	}
@@ -305,16 +306,7 @@ func (m Model) clearQueueForReplace() Model {
 	m.queue.entries = nil
 	m.queue.cursor = 0
 	m.queue.scrollOffset = 0
-	if cp, ok := m.player.(commandPlayer); ok {
-		_ = cp.Stop()
-		m.playbackState = PlaybackIdle
-		m.elapsedSecs = 0
-		m.totalSecs = 0
-	}
-	m.statusBar.artist = ""
-	m.statusBar.title = ""
-	m.statusBar.playlistSource = ""
-	m.currentTrackHash = ""
+	m = m.resetPlaybackState()
 	if qs, ok := m.player.(playerQueueSetter); ok {
 		qs.SetQueue(nil)
 	}
@@ -365,6 +357,10 @@ func (m Model) handleMoveTrackDownMsg(msg MoveTrackDownMsg) (Model, tea.Cmd) {
 // action stored in the undo slot, if one exists and has not expired.
 func (m Model) handleUndo() Model {
 	if m.undoSlot.kind == undoNone || !time.Now().Before(m.undoSlot.expiresAt) {
+		m.statusBar.notification = transientNotification{
+			msg:       "Nothing to undo",
+			expiresAt: time.Now().Add(transientDuration),
+		}
 		return m
 	}
 	// Cancel any in-flight purge timer from the undo slot being consumed.
@@ -389,17 +385,7 @@ func (m Model) handleUndo() Model {
 				})
 			}
 			m.queue.entries = append(m.queue.entries[:idx], m.queue.entries[idx+1:]...)
-			if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
-				m.queue.cursor = len(m.queue.entries) - 1
-			}
-			if n := len(m.queue.entries); n > 0 {
-				maxOffset := n - 1
-				if m.queue.scrollOffset > maxOffset {
-					m.queue.scrollOffset = maxOffset
-				}
-			} else {
-				m.queue.scrollOffset = 0
-			}
+			m.clampQueueCursorAndScroll()
 			if qr, ok := m.player.(playerQueueRemover); ok {
 				_ = qr.RemoveFromQueue(idx)
 			}
@@ -494,22 +480,33 @@ func (m Model) handleUndo() Model {
 		if startIdx < len(m.queue.entries) {
 			m.queue.entries = append(m.queue.entries[:startIdx], m.queue.entries[endIdx:]...)
 		}
-		if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
-			m.queue.cursor = len(m.queue.entries) - 1
-		}
-		if n := len(m.queue.entries); n > 0 {
-			maxOffset := n - 1
-			if m.queue.scrollOffset > maxOffset {
-				m.queue.scrollOffset = maxOffset
-			}
-		} else {
-			m.queue.scrollOffset = 0
-		}
+		m.clampQueueCursorAndScroll()
 		if qr, ok := m.player.(playerQueueRemover); ok {
 			for i := endIdx - 1; i >= startIdx; i-- {
 				_ = qr.RemoveFromQueue(i)
 			}
 		}
+	case undoKindBulkDequeue:
+		// Restore soft-deleted DB rows.
+		if m.undoer != nil {
+			for _, id := range m.undoSlot.bulkDequeueIDs {
+				_ = m.undoer.UndoDequeue(id)
+			}
+		}
+		// Re-insert entries at their original indices in forward order.
+		// Each insertion shifts later indices by one, which is exactly
+		// what we need since the stored indices are from the original
+		// (pre-removal) ordering.
+		for i := range m.undoSlot.bulkDequeueIndices {
+			idx := min(m.undoSlot.bulkDequeueIndices[i], len(m.queue.entries))
+			entries := make([]QueueEntry, len(m.queue.entries)+1)
+			copy(entries, m.queue.entries[:idx])
+			entries[idx] = m.undoSlot.bulkDequeueEntries[i]
+			copy(entries[idx+1:], m.queue.entries[idx:])
+			m.queue.entries = entries
+		}
+		m.clampQueueCursorAndScroll()
+		m.syncPlayerQueue()
 	}
 	m.undoSlot = undoSlot{}
 	return m
@@ -524,23 +521,33 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 		return m, func() tea.Msg { return UndoMsg{} }, true
 	case actionDequeue:
 		if m.queue.hasSelection() {
-			// Bulk dequeue all selected entries.
-			softDeleteTime := time.Now().Unix()
+			// Bulk dequeue all selected entries — collect removed entries
+			// and their original indices for undo support.
+			var removedEntries []QueueEntry
+			var removedIndices []int
 			var removedIDs []int64
-			for _, e := range m.queue.entries {
+			for i, e := range m.queue.entries {
 				if e.Selected {
+					removedEntries = append(removedEntries, e)
+					removedIndices = append(removedIndices, i)
 					removedIDs = append(removedIDs, e.ID)
-					if m.undoer != nil {
-						_ = m.undoer.DequeueTrackSoft(e.ID)
-					}
 				}
 			}
-			if m.undoer != nil {
-				undoer := m.undoer
-				time.AfterFunc(undoWindowDuration, func() {
-					_ = undoer.PurgeDeletedQueueEntries(softDeleteTime + 1)
-				})
-			}
+			undoer := m.undoer
+			cancel := m.scheduleSoftDelete(
+				func() {
+					if undoer != nil {
+						for _, id := range removedIDs {
+							_ = undoer.DequeueTrackSoft(id)
+						}
+					}
+				},
+				func(before int64) {
+					if undoer != nil {
+						_ = undoer.PurgeDeletedQueueEntries(before)
+					}
+				},
+			)
 			var remaining []QueueEntry
 			for _, e := range m.queue.entries {
 				if !e.Selected {
@@ -548,44 +555,47 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 				}
 			}
 			m.queue.entries = remaining
-			if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
-				m.queue.cursor = len(m.queue.entries) - 1
-			}
-			if n := len(m.queue.entries); n > 0 {
-				maxOffset := n - 1
-				if m.queue.scrollOffset > maxOffset {
-					m.queue.scrollOffset = maxOffset
-				}
-			} else {
-				m.queue.scrollOffset = 0
-			}
+			m.clampQueueCursorAndScroll()
 			m.syncPlayerQueue()
 			// If the queue is now empty, stop playback and clear status bar.
 			if len(m.queue.entries) == 0 {
-				if cp, ok := m.player.(commandPlayer); ok {
-					_ = cp.Stop()
-				}
-				m.playbackState = PlaybackIdle
-				m.elapsedSecs = 0
-				m.totalSecs = 0
-				m.statusBar.artist = ""
-				m.statusBar.title = ""
-				m.statusBar.playlistSource = ""
-				m.currentTrackHash = ""
+				m = m.resetPlaybackState()
 			}
 			n := len(removedIDs)
-			m.statusBar.notification = transientNotification{
-				msg:       fmt.Sprintf("%d %s removed from queue", n, pluralize(n, "track", "tracks")),
-				expiresAt: time.Now().Add(transientDuration),
-			}
+			m.setUndoSlot(undoSlot{
+				kind:               undoKindBulkDequeue,
+				expiresAt:          time.Now().Add(undoWindowDuration),
+				cancelPurge:        cancel,
+				bulkDequeueEntries: removedEntries,
+				bulkDequeueIndices: removedIndices,
+				bulkDequeueIDs:     removedIDs,
+			}, fmt.Sprintf("%d %s removed — press u to undo", n, pluralize(n, "track", "tracks")))
 			player.PlaySound(player.SoundRemoved)
 			return m, nil, true
 		}
 		var cmd tea.Cmd
 		m.queue, cmd = m.queue.HandleAction(action)
 		return m, cmd, true
+	case actionClearQueue:
+		if len(m.queue.entries) == 0 {
+			return m, nil, true
+		}
+		now := time.Now()
+		if m.clearQueuePending && now.Before(m.clearQueuePendingAt.Add(2*time.Second)) {
+			m.clearQueuePending = false
+			var cmd tea.Cmd
+			m.queue, cmd = m.queue.HandleAction(action)
+			return m, cmd, true
+		}
+		m.clearQueuePending = true
+		m.clearQueuePendingAt = now
+		m.statusBar.notification = transientNotification{
+			msg:       "Press C again to clear queue",
+			expiresAt: now.Add(2 * time.Second),
+		}
+		return m, nil, true
 	case actionSelect,
-		actionClearQueue, actionMoveTrackUp, actionMoveTrackDown:
+		actionMoveTrackUp, actionMoveTrackDown:
 		var cmd tea.Cmd
 		m.queue, cmd = m.queue.HandleAction(action)
 		return m, cmd, true

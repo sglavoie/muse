@@ -266,9 +266,10 @@ func TestPlaybackEndedMsgShowsNotificationWithEntriesPresent(t *testing.T) {
 	}
 }
 
-// TestPlayPauseOnEmptyQueueShowsHint verifies that pressing space to play when
-// the queue is empty shows the "Queue is empty" hint in the transient status bar.
-func TestPlayPauseOnEmptyQueueShowsHint(t *testing.T) {
+// TestPlayPauseOnEmptyQueueStaysIdle verifies that pressing space to play when
+// the queue is empty keeps playback idle (the persistent status bar hint is
+// shown via the queueEmpty field rather than a transient notification).
+func TestPlayPauseOnEmptyQueueStaysIdle(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), "", false, nil, nil, "", nil, p)
 	// queue.entries is empty, playbackState is PlaybackIdle.
@@ -276,12 +277,12 @@ func TestPlayPauseOnEmptyQueueShowsHint(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: ' ', Text: " "})
 	nm := next.(Model)
 
-	want := "Queue is empty — enqueue tracks from Library (key 1)"
-	if nm.statusBar.notification.msg != want {
-		t.Fatalf("expected %q, got %q", want, nm.statusBar.notification.msg)
-	}
 	if nm.playbackState != PlaybackIdle {
 		t.Fatalf("playback state must remain idle, got %v", nm.playbackState)
+	}
+	// No transient notification; the persistent hint is rendered via queueEmpty.
+	if nm.statusBar.notification.msg != "" {
+		t.Fatalf("expected no transient notification, got %q", nm.statusBar.notification.msg)
 	}
 }
 

@@ -264,6 +264,37 @@ func TestRenderIdleStateShowsNoGlyphAndNoTrackInfo(t *testing.T) {
 	}
 }
 
+// TestRenderIdleEmptyQueueShowsHint verifies that when the queue is empty and
+// playback is idle, the status bar shows a persistent hint to browse the library.
+func TestRenderIdleEmptyQueueShowsHint(t *testing.T) {
+	sb := StatusBar{
+		playbackState: PlaybackIdle,
+		queueEmpty:    true,
+	}
+
+	out := sb.render(0, styles.Styles{})
+	if !strings.Contains(out, "Queue is empty") {
+		t.Errorf("expected empty-queue hint: got %q", out)
+	}
+	if !strings.Contains(out, "press 1 to browse Library") {
+		t.Errorf("expected library hint: got %q", out)
+	}
+}
+
+// TestRenderIdleNonEmptyQueueNoHint verifies that when the queue has entries
+// and playback is idle (e.g. stopped), no empty-queue hint is shown.
+func TestRenderIdleNonEmptyQueueNoHint(t *testing.T) {
+	sb := StatusBar{
+		playbackState: PlaybackIdle,
+		queueEmpty:    false,
+	}
+
+	out := sb.render(0, styles.Styles{})
+	if strings.Contains(out, "Queue is empty") {
+		t.Errorf("unexpected empty-queue hint when queue has entries: got %q", out)
+	}
+}
+
 // TestFormatTime verifies the MM:SS formatting of formatTime.
 func TestFormatTime(t *testing.T) {
 	tests := []struct {
@@ -358,7 +389,10 @@ func TestTruncateTitle(t *testing.T) {
 		{"hello", 1, "…"},
 		{"hello", 0, ""},
 		{"hello", -1, ""},
-		{"日本語タイトル", 4, "日本語…"},
+		// CJK characters are 2 columns each; maxWidth is now in columns.
+		{"日本語タイトル", 14, "日本語タイトル"}, // exact fit (7×2 = 14)
+		{"日本語タイトル", 7, "日本語…"},     // budget 6 → 3 CJK chars (6) + "…" (1)
+		{"日本語タイトル", 4, "日…"},       // budget 3 → 1 CJK char (2) + "…" (1)
 	}
 
 	for _, tc := range tests {

@@ -293,7 +293,9 @@ func TestRootQueueLocalXDispatchesBulkSelectionToggleMsg(t *testing.T) {
 }
 
 // TestRootQueueLocalCDispatchesClearQueueMsg verifies the end-to-end path:
-// pressing 'C' (Shift+c) while the queue view is active dispatches ClearQueueMsg.
+// pressing 'C' (Shift+c) twice while the queue view is active dispatches
+// ClearQueueMsg. The first press shows a confirmation hint; the second
+// press (within 2 seconds) actually clears the queue.
 func TestRootQueueLocalCDispatchesClearQueueMsg(t *testing.T) {
 	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 	m.activeView = viewQueue
@@ -301,12 +303,26 @@ func TestRootQueueLocalCDispatchesClearQueueMsg(t *testing.T) {
 		{Path: "/music/a.flac", Display: "A"},
 	}
 
-	_, cmd := m.Update(tea.KeyPressMsg{Code: 'C', Text: "C"})
+	// First press: confirmation hint, no cmd.
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'C', Text: "C"})
+	m = next.(Model)
+	if cmd != nil {
+		t.Fatal("first 'C' should not dispatch a cmd")
+	}
+	if !m.clearQueuePending {
+		t.Fatal("clearQueuePending should be true after first 'C'")
+	}
+	if m.statusBar.notification.msg != "Press C again to clear queue" {
+		t.Fatalf("expected confirmation hint, got %q", m.statusBar.notification.msg)
+	}
+
+	// Second press: dispatches ClearQueueMsg.
+	next, cmd = m.Update(tea.KeyPressMsg{Code: 'C', Text: "C"})
 	if cmd == nil {
-		t.Fatal("'C' in queue view: expected non-nil cmd")
+		t.Fatal("second 'C' in queue view: expected non-nil cmd")
 	}
 	if _, ok := cmd().(ClearQueueMsg); !ok {
-		t.Fatalf("'C' in queue view: expected ClearQueueMsg, got %T", cmd())
+		t.Fatalf("second 'C' in queue view: expected ClearQueueMsg, got %T", cmd())
 	}
 }
 
@@ -1258,5 +1274,138 @@ func TestTickDoesNotUpdateElapsedWhenIdle(t *testing.T) {
 	}
 	if nm.totalSecs != 0 {
 		t.Errorf("totalSecs = %v, want 0 when idle", nm.totalSecs)
+	}
+}
+
+// TestBulkDequeueCreatesUndoSlot verifies that bulk-dequeueing selected entries
+// sets up an undoKindBulkDequeue slot with the correct entries, indices, and IDs,
+// and that the notification includes the undo hint.
+func TestBulkDequeueCreatesUndoSlot(t *testing.T) {
+	d := &stubQueueDequeuer{}
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m.SetQueueDequeuer(d)
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/a.flac", Display: "A"},
+		{ID: 20, Path: "/b.flac", Display: "B", Selected: true},
+		{ID: 30, Path: "/c.flac", Display: "C"},
+		{ID: 40, Path: "/d.flac", Display: "D", Selected: true},
+	}
+
+	// Press 'd' to trigger bulk dequeue.
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	nm := next.(Model)
+
+	if len(nm.queue.entries) != 2 {
+		t.Fatalf("after bulk dequeue: expected 2 entries, got %d", len(nm.queue.entries))
+	}
+	if nm.queue.entries[0].ID != 10 || nm.queue.entries[1].ID != 30 {
+		t.Fatalf("remaining entries should be ID=10,30; got %d,%d",
+			nm.queue.entries[0].ID, nm.queue.entries[1].ID)
+	}
+	if nm.undoSlot.kind != undoKindBulkDequeue {
+		t.Fatalf("undo slot kind = %v, want undoKindBulkDequeue", nm.undoSlot.kind)
+	}
+	if len(nm.undoSlot.bulkDequeueIDs) != 2 ||
+		nm.undoSlot.bulkDequeueIDs[0] != 20 || nm.undoSlot.bulkDequeueIDs[1] != 40 {
+		t.Fatalf("bulkDequeueIDs = %v, want [20 40]", nm.undoSlot.bulkDequeueIDs)
+	}
+	if len(nm.undoSlot.bulkDequeueIndices) != 2 ||
+		nm.undoSlot.bulkDequeueIndices[0] != 1 || nm.undoSlot.bulkDequeueIndices[1] != 3 {
+		t.Fatalf("bulkDequeueIndices = %v, want [1 3]", nm.undoSlot.bulkDequeueIndices)
+	}
+	if !strings.Contains(nm.statusBar.notification.msg, "undo") {
+		t.Fatalf("notification should contain undo hint, got %q", nm.statusBar.notification.msg)
+	}
+	// Soft-delete must have been called for both IDs.
+	if len(d.dequeueTrackSoftCalls) != 2 {
+		t.Fatalf("DequeueTrackSoft calls = %d, want 2", len(d.dequeueTrackSoftCalls))
+	}
+}
+
+// TestUndoBulkDequeueRestoresEntries verifies that undoing a bulk dequeue
+// restores all removed entries at their original indices and calls UndoDequeue
+// for each ID.
+func TestUndoBulkDequeueRestoresEntries(t *testing.T) {
+	d := &stubQueueDequeuer{}
+	ps := &stubPlayerQueueSyncer{}
+	m := New(context.Background(), "", false, nil, nil, "", nil, ps)
+	m.SetQueueDequeuer(d)
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/a.flac", Display: "A"},
+		{ID: 20, Path: "/b.flac", Display: "B", Selected: true},
+		{ID: 30, Path: "/c.flac", Display: "C"},
+		{ID: 40, Path: "/d.flac", Display: "D", Selected: true},
+		{ID: 50, Path: "/e.flac", Display: "E"},
+	}
+
+	// Bulk dequeue selected entries (IDs 20 and 40).
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	nm := next.(Model)
+	if len(nm.queue.entries) != 3 {
+		t.Fatalf("after bulk dequeue: expected 3 entries, got %d", len(nm.queue.entries))
+	}
+
+	// Undo within the window.
+	next, _ = nm.Update(UndoMsg{})
+	nm = next.(Model)
+
+	if len(nm.queue.entries) != 5 {
+		t.Fatalf("after undo: expected 5 entries, got %d", len(nm.queue.entries))
+	}
+	// Verify entries restored at original positions.
+	wantIDs := []int64{10, 20, 30, 40, 50}
+	for i, want := range wantIDs {
+		if nm.queue.entries[i].ID != want {
+			t.Errorf("entry[%d].ID = %d, want %d", i, nm.queue.entries[i].ID, want)
+		}
+	}
+	// UndoDequeue must be called for each removed ID.
+	if len(d.undoDequeueCallIDs) != 2 {
+		t.Fatalf("UndoDequeue calls = %d, want 2", len(d.undoDequeueCallIDs))
+	}
+	if d.undoDequeueCallIDs[0] != 20 || d.undoDequeueCallIDs[1] != 40 {
+		t.Fatalf("UndoDequeue IDs = %v, want [20 40]", d.undoDequeueCallIDs)
+	}
+	// Player queue must have been synced.
+	if len(ps.setQueueCalls) == 0 {
+		t.Fatal("expected SetQueue to be called after undo")
+	}
+	// Undo slot must be cleared.
+	if nm.undoSlot.kind != undoNone {
+		t.Fatal("undo slot must be cleared after successful bulk dequeue undo")
+	}
+}
+
+// TestUndoBulkDequeueExpiredIsNoOp verifies that undoing a bulk dequeue after
+// the undo window has expired shows "Nothing to undo" and does not restore entries.
+func TestUndoBulkDequeueExpiredIsNoOp(t *testing.T) {
+	d := &stubQueueDequeuer{}
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m.SetQueueDequeuer(d)
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/a.flac", Display: "A"},
+		{ID: 20, Path: "/b.flac", Display: "B", Selected: true},
+	}
+
+	// Bulk dequeue.
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	nm := next.(Model)
+	// Expire the undo window.
+	nm.undoSlot.expiresAt = time.Now().Add(-1 * time.Second)
+
+	next, _ = nm.Update(UndoMsg{})
+	nm = next.(Model)
+
+	if len(nm.queue.entries) != 1 {
+		t.Fatalf("after expired undo: expected 1 entry, got %d", len(nm.queue.entries))
+	}
+	if len(d.undoDequeueCallIDs) != 0 {
+		t.Fatalf("UndoDequeue must not be called after expiry, got %v", d.undoDequeueCallIDs)
+	}
+	if !strings.Contains(nm.statusBar.notification.msg, "Nothing to undo") {
+		t.Fatalf("expected 'Nothing to undo' notification, got %q", nm.statusBar.notification.msg)
 	}
 }

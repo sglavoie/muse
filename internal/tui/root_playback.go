@@ -39,6 +39,9 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	if !m.statusBar.notification.expiresAt.IsZero() && time.Now().After(m.statusBar.notification.expiresAt) {
 		m.statusBar.notification = transientNotification{}
 	}
+	if m.clearQueuePending && time.Now().After(m.clearQueuePendingAt.Add(2*time.Second)) {
+		m.clearQueuePending = false
+	}
 	return m, tickCmd()
 }
 
@@ -68,10 +71,12 @@ func (m Model) handlePlayerStatusMsg(msg PlayerStatusMsg) Model {
 	return m
 }
 
-// handleMissingTrackMsg marks a queue entry as missing and notifies the status bar.
+// handleMissingTrackMsg marks a queue entry as missing, increments the missing
+// track counter, and notifies the status bar.
 func (m Model) handleMissingTrackMsg(msg MissingTrackMsg) Model {
 	m.queue.markMissing(msg.Path)
 	m.statusBar.handleMissingTrack(msg.Path)
+	m.missingTrackCount++
 	player.PlaySound(player.SoundError)
 	return m
 }
@@ -100,8 +105,14 @@ func (m Model) handlePlaybackEndedMsg() Model {
 	m.statusBar.playlistSource = ""
 	m.currentTrackHash = ""
 	if m.repeatMode == RepeatOff {
+		msg := "Queue finished"
+		if m.missingTrackCount > 0 {
+			msg = fmt.Sprintf("Queue finished (%d %s skipped — missing files)",
+				m.missingTrackCount, pluralize(m.missingTrackCount, "track", "tracks"))
+		}
+		m.missingTrackCount = 0
 		m.statusBar.notification = transientNotification{
-			msg:       "Queue finished",
+			msg:       msg,
 			expiresAt: time.Now().Add(transientDuration),
 		}
 		player.PlayQueueFinishedSound()
@@ -217,10 +228,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 				m.playbackState = PlaybackPaused
 				return m, m.sessionPositionCmd(), true
 			} else if len(m.queue.entries) == 0 {
-				m.statusBar.notification = transientNotification{
-					msg:       "Queue is empty — enqueue tracks from Library (key 1)",
-					expiresAt: time.Now().Add(transientDuration),
-				}
+				return m, nil, true
 			} else {
 				_ = m.player.Play()
 				m.playbackState = PlaybackPlaying
@@ -304,6 +312,19 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		if m.sessionWriter != nil {
 			_ = m.sessionWriter.WriteRepeatMode(m.repeatMode.String())
 		}
+		var modeStr string
+		switch m.repeatMode {
+		case RepeatOff:
+			modeStr = "off"
+		case RepeatAll:
+			modeStr = "all"
+		case RepeatOne:
+			modeStr = "one"
+		}
+		m.statusBar.notification = transientNotification{
+			msg:       "Repeat: " + modeStr,
+			expiresAt: time.Now().Add(volumeFeedbackDuration),
+		}
 		return m, nil, true
 	case actionShuffleToggle:
 		m.shuffle = !m.shuffle
@@ -312,6 +333,14 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		}
 		if m.sessionWriter != nil {
 			_ = m.sessionWriter.WriteShuffle(m.shuffle)
+		}
+		label := "off"
+		if m.shuffle {
+			label = "on"
+		}
+		m.statusBar.notification = transientNotification{
+			msg:       "Shuffle: " + label,
+			expiresAt: time.Now().Add(volumeFeedbackDuration),
 		}
 		return m, nil, true
 	}

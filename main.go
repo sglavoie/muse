@@ -55,7 +55,11 @@ func main() {
 
 	// Apply the log level from config immediately so all subsequent log calls
 	// respect the file-configured verbosity without re-truncating the log.
-	config.SetLogLevel(config.ParseLogLevel(cfg.LogLevel))
+	logLevel, ok := config.ParseLogLevel(cfg.LogLevel)
+	if !ok {
+		slog.Warn("unrecognized log level, defaulting to info", "value", cfg.LogLevel)
+	}
+	config.SetLogLevel(logLevel)
 
 	if err := config.ValidateMusicDir(cfg.MusicDirectory, configPath); err != nil {
 		slog.Error("invalid music directory", "err", err)
@@ -158,30 +162,41 @@ func main() {
 	const upsertBatchSize = 500
 	rawScanCh, deletedPaths := library.DiffScan(cfg.MusicDirectory, extractor, known)
 
+	// batchFlusher accumulates library.Track values and flushes them in
+	// batches to a caller-provided function (typically DB upsert).
+	type batchFlusher struct {
+		batch []library.Track
+		size  int
+		flush func([]library.Track) error
+	}
+	flushBatch := func(f *batchFlusher) {
+		if len(f.batch) == 0 {
+			return
+		}
+		if err := f.flush(f.batch); err != nil {
+			slog.Warn("batch flush", "err", err, "count", len(f.batch))
+		}
+		f.batch = f.batch[:0]
+	}
+	addToBatch := func(f *batchFlusher, t library.Track) {
+		f.batch = append(f.batch, t)
+		if len(f.batch) >= f.size {
+			flushBatch(f)
+		}
+	}
+
 	// Bridge new/changed tracks to both the DB and the TUI scan channel.
 	// tuiScanCh is buffered so the bridge goroutine does not stall when the
 	// TUI is busy processing messages.
 	tuiScanCh := make(chan library.Track, 256)
 	go func() {
 		defer close(tuiScanCh)
-		var batch []library.Track
-		flush := func() {
-			if len(batch) == 0 {
-				return
-			}
-			if err := result.Writer.UpsertBatch(batch); err != nil {
-				slog.Warn("scan: upsert batch", "err", err, "count", len(batch))
-			}
-			batch = batch[:0]
-		}
+		f := &batchFlusher{size: upsertBatchSize, flush: result.Writer.UpsertBatch}
 		for t := range rawScanCh {
 			tuiScanCh <- t
-			batch = append(batch, t)
-			if len(batch) >= upsertBatchSize {
-				flush()
-			}
+			addToBatch(f, t)
 		}
-		flush()
+		flushBatch(f)
 	}()
 
 	// Build path→hash lookup from cached tracks. Used by the deletion-path
@@ -204,33 +219,21 @@ func main() {
 	tuiWatchCh := make(chan library.WatchEvent, 64)
 	go func() {
 		defer close(tuiWatchCh)
-		var batch []library.Track
-		flush := func() {
-			if len(batch) == 0 {
-				return
-			}
-			if err := result.Writer.UpsertBatch(batch); err != nil {
-				slog.Warn("watcher: upsert batch", "err", err, "count", len(batch))
-			}
-			batch = batch[:0]
-		}
+		f := &batchFlusher{size: upsertBatchSize, flush: result.Writer.UpsertBatch}
 		for ev := range rawWatchCh {
 			tuiWatchCh <- ev
 			if ev.Deleted {
-				flush()
+				flushBatch(f)
 				if hash, ok := hashByPath[ev.Path]; ok {
 					if err := result.Writer.MarkTrackMissing(hash); err != nil {
 						slog.Warn("watcher: mark deleted track missing", "path", ev.Path, "err", err)
 					}
 				}
 			} else {
-				batch = append(batch, ev.Track)
-				if len(batch) >= upsertBatchSize {
-					flush()
-				}
+				addToBatch(f, ev.Track)
 			}
 		}
-		flush()
+		flushBatch(f)
 	}()
 
 	restored := result.Restored

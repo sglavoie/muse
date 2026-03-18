@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -50,7 +51,7 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 	// Find the widest label for right-alignment.
 	maxLabelW := 0
 	for _, r := range o.Rows {
-		if lw := len([]rune(r.Label)); lw > maxLabelW {
+		if lw := ansi.StringWidth(r.Label); lw > maxLabelW {
 			maxLabelW = lw
 		}
 	}
@@ -72,7 +73,7 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 	// Calculate inner width (space between the vertical borders).
 	minInner := OverlayMinInnerWidth
 	for _, text := range append([]string{o.Title}, rowTexts...) {
-		if w := len([]rune(text)) + OverlayHPadding; w > minInner {
+		if w := ansi.StringWidth(text) + OverlayHPadding; w > minInner {
 			minInner = w
 		}
 	}
@@ -85,7 +86,7 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 	lines = append(lines, cornerTL+strings.Repeat(borderH, innerWidth)+cornerTR)
 
 	// Title row (centered).
-	titlePad := innerWidth - len([]rune(o.Title))
+	titlePad := innerWidth - ansi.StringWidth(o.Title)
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
 	lines = append(lines, borderV+strings.Repeat(" ", leftTP)+s.Heading.Render(o.Title)+strings.Repeat(" ", rightTP)+borderV)
@@ -125,7 +126,7 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 	}
 
 	// Center the box.
-	boxW := len([]rune(lines[0]))
+	boxW := ansi.StringWidth(lines[0])
 	boxH := len(lines)
 
 	leftPad := 0

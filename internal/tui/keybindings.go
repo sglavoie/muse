@@ -144,48 +144,27 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "M", actionEditMetadata)
 
 	// Library-local bindings.
-	r.register(contextLibrary, "j", actionCursorDown)
-	r.register(contextLibrary, "k", actionCursorUp)
-	r.register(contextLibrary, "up", actionCursorUp)
-	r.register(contextLibrary, "down", actionCursorDown)
+	r.registerNavigation(contextLibrary)
 	r.register(contextLibrary, "enter", actionLibraryEnqueue)
 	r.register(contextLibrary, "shift+enter", actionLibraryEnqueueReplace)
 	r.register(contextLibrary, "esc", actionLibraryFilterClear)
 	r.register(contextLibrary, "x", actionBulkSelectionToggle)
 	r.register(contextLibrary, "a", actionBulkAction)
-	r.register(contextLibrary, "ctrl+d", actionHalfPageDown)
-	r.register(contextLibrary, "ctrl+u", actionHalfPageUp)
-	r.register(contextLibrary, "ctrl+f", actionFullPageDown)
-	r.register(contextLibrary, "ctrl+b", actionFullPageUp)
-	r.register(contextLibrary, "g", actionGoToTop)
-	r.register(contextLibrary, "G", actionGoToBottom)
 
 	// Queue-local bindings.
-	r.register(contextQueue, "j", actionCursorDown)
-	r.register(contextQueue, "k", actionCursorUp)
-	r.register(contextQueue, "up", actionCursorUp)
-	r.register(contextQueue, "down", actionCursorDown)
+	r.registerNavigation(contextQueue)
 	r.register(contextQueue, "enter", actionSelect)
 	r.register(contextQueue, "d", actionDequeue)
 	r.register(contextQueue, "x", actionBulkSelectionToggle)
 	r.register(contextQueue, "C", actionClearQueue)
 	r.register(contextQueue, "K", actionMoveTrackUp)
 	r.register(contextQueue, "J", actionMoveTrackDown)
-	r.register(contextQueue, "ctrl+d", actionHalfPageDown)
-	r.register(contextQueue, "ctrl+u", actionHalfPageUp)
-	r.register(contextQueue, "ctrl+f", actionFullPageDown)
-	r.register(contextQueue, "ctrl+b", actionFullPageUp)
-	r.register(contextQueue, "g", actionGoToTop)
-	r.register(contextQueue, "G", actionGoToBottom)
 	r.register(contextQueue, "S", actionSaveQueueAsPlaylist)
 
 	// Playlists-local bindings.
 	// 'r' is bound to rename here, shadowing the global repeat-cycle binding
 	// while the Playlists view is focused.
-	r.register(contextPlaylists, "j", actionCursorDown)
-	r.register(contextPlaylists, "k", actionCursorUp)
-	r.register(contextPlaylists, "up", actionCursorUp)
-	r.register(contextPlaylists, "down", actionCursorDown)
+	r.registerNavigation(contextPlaylists)
 	r.register(contextPlaylists, "r", actionPlaylistRename)
 	r.register(contextPlaylists, "c", actionPlaylistCreate)
 	r.register(contextPlaylists, "enter", actionPlaylistOpen)
@@ -195,46 +174,37 @@ func newRegistry() Registry {
 	r.register(contextPlaylists, "a", actionBulkAction)
 	r.register(contextPlaylists, "E", actionPlaylistEnqueueAll)
 	r.register(contextPlaylists, "shift+enter", actionLibraryEnqueueReplace)
-	r.register(contextPlaylists, "ctrl+d", actionHalfPageDown)
-	r.register(contextPlaylists, "ctrl+u", actionHalfPageUp)
-	r.register(contextPlaylists, "ctrl+f", actionFullPageDown)
-	r.register(contextPlaylists, "ctrl+b", actionFullPageUp)
-	r.register(contextPlaylists, "g", actionGoToTop)
-	r.register(contextPlaylists, "G", actionGoToBottom)
 
 	// Artists-local bindings.
-	r.register(contextArtists, "j", actionCursorDown)
-	r.register(contextArtists, "k", actionCursorUp)
-	r.register(contextArtists, "up", actionCursorUp)
-	r.register(contextArtists, "down", actionCursorDown)
+	r.registerNavigation(contextArtists)
 	r.register(contextArtists, "enter", actionArtistOpen)
 	r.register(contextArtists, "shift+enter", actionLibraryEnqueueReplace)
 	r.register(contextArtists, "esc", actionArtistBack)
 	r.register(contextArtists, "a", actionBulkAction)
-	r.register(contextArtists, "ctrl+d", actionHalfPageDown)
-	r.register(contextArtists, "ctrl+u", actionHalfPageUp)
-	r.register(contextArtists, "ctrl+f", actionFullPageDown)
-	r.register(contextArtists, "ctrl+b", actionFullPageUp)
-	r.register(contextArtists, "g", actionGoToTop)
-	r.register(contextArtists, "G", actionGoToBottom)
 
 	// Albums-local bindings.
-	r.register(contextAlbums, "j", actionCursorDown)
-	r.register(contextAlbums, "k", actionCursorUp)
-	r.register(contextAlbums, "up", actionCursorUp)
-	r.register(contextAlbums, "down", actionCursorDown)
+	r.registerNavigation(contextAlbums)
 	r.register(contextAlbums, "enter", actionAlbumOpen)
 	r.register(contextAlbums, "shift+enter", actionLibraryEnqueueReplace)
 	r.register(contextAlbums, "esc", actionAlbumBack)
 	r.register(contextAlbums, "a", actionBulkAction)
-	r.register(contextAlbums, "ctrl+d", actionHalfPageDown)
-	r.register(contextAlbums, "ctrl+u", actionHalfPageUp)
-	r.register(contextAlbums, "ctrl+f", actionFullPageDown)
-	r.register(contextAlbums, "ctrl+b", actionFullPageUp)
-	r.register(contextAlbums, "g", actionGoToTop)
-	r.register(contextAlbums, "G", actionGoToBottom)
 
 	return r
+}
+
+// registerNavigation registers the shared cursor/scroll navigation bindings
+// (j/k, up/down, half/full page, go-to-top/bottom) for the given context.
+func (r *Registry) registerNavigation(ctx bindingContext) {
+	r.register(ctx, "j", actionCursorDown)
+	r.register(ctx, "k", actionCursorUp)
+	r.register(ctx, "up", actionCursorUp)
+	r.register(ctx, "down", actionCursorDown)
+	r.register(ctx, "ctrl+d", actionHalfPageDown)
+	r.register(ctx, "ctrl+u", actionHalfPageUp)
+	r.register(ctx, "ctrl+f", actionFullPageDown)
+	r.register(ctx, "ctrl+b", actionFullPageUp)
+	r.register(ctx, "g", actionGoToTop)
+	r.register(ctx, "G", actionGoToBottom)
 }
 
 // register adds a (context, key) → action entry to the registry.

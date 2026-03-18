@@ -47,6 +47,7 @@ type StatusBar struct {
 	playbackState PlaybackState
 	repeatMode    RepeatMode
 	shuffle       bool
+	queueEmpty    bool
 
 	// elapsed and total are pre-formatted MM:SS strings injected by
 	// renderStatusBar. Both must be non-empty to show the time display.
@@ -94,20 +95,33 @@ func formatTime(secs float64) string {
 	return fmt.Sprintf("%d:%02d", m, s)
 }
 
-// truncateTitle shortens s to at most maxRunes runes, appending "…" when
-// truncation occurs. Returns an empty string when maxRunes <= 0.
-func truncateTitle(s string, maxRunes int) string {
-	if maxRunes <= 0 {
+// truncateTitle shortens s so its display width (measured in terminal columns)
+// does not exceed maxWidth. When truncation occurs an ellipsis "…" (width 1)
+// is appended. Returns an empty string when maxWidth <= 0.
+func truncateTitle(s string, maxWidth int) string {
+	if maxWidth <= 0 {
 		return ""
 	}
-	runes := []rune(s)
-	if len(runes) <= maxRunes {
+	if ansi.StringWidth(s) <= maxWidth {
 		return s
 	}
-	if maxRunes == 1 {
+	if maxWidth == 1 {
 		return "…"
 	}
-	return string(runes[:maxRunes-1]) + "…"
+	// Accumulate display width rune-by-rune and truncate when the next
+	// rune would exceed the budget (reserving 1 column for "…").
+	budget := maxWidth - 1 // reserve space for ellipsis
+	w := 0
+	var out []rune
+	for _, r := range s {
+		rw := ansi.StringWidth(string(r))
+		if w+rw > budget {
+			break
+		}
+		w += rw
+		out = append(out, r)
+	}
+	return string(out) + "…"
 }
 
 // render builds the full status bar string. The persistent left zone shows
@@ -162,6 +176,13 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	}
 
 	// --- Persistent left zone ---
+	if s.playbackState == PlaybackIdle && s.queueEmpty {
+		hint := r("Queue is empty — press 1 to browse Library")
+		if right != "" {
+			return pad(hint + r("  |  ") + right)
+		}
+		return pad(hint)
+	}
 	if s.playbackState == PlaybackIdle && s.artist == "" && s.title == "" {
 		return pad(right)
 	}
@@ -185,7 +206,7 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	suffixWidth := 0
 	if s.playlistSource != "" {
 		suffix += r("  " + s.playlistSource)
-		suffixWidth += 2 + len([]rune(s.playlistSource))
+		suffixWidth += 2 + ansi.StringWidth(s.playlistSource)
 	}
 	switch s.repeatMode {
 	case RepeatAll:
@@ -217,7 +238,7 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	switch {
 	case stateIcon != "" && s.artist != "":
 		prefix = stateIcon + r(" "+s.artist)
-		prefixWidth = stateIconWidth + 1 + len([]rune(s.artist))
+		prefixWidth = stateIconWidth + 1 + ansi.StringWidth(s.artist)
 		sep = " – "
 		sepWidth = 3
 	case stateIcon != "":
@@ -225,7 +246,7 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 		prefixWidth = stateIconWidth
 	case s.artist != "":
 		prefix = r(s.artist)
-		prefixWidth = len([]rune(s.artist))
+		prefixWidth = ansi.StringWidth(s.artist)
 		sep = " – "
 		sepWidth = 3
 	}
@@ -242,7 +263,7 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 		const sepStr = "  |  "
 		fixedWidth := prefixWidth + sepWidth +
 			suffixWidth + timeDisplayWidth +
-			len([]rune(sepStr)) + rightWidth
+			ansi.StringWidth(sepStr) + rightWidth
 		available := width - fixedWidth
 		title = truncateTitle(s.title, available)
 	}

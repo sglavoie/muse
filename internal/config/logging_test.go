@@ -216,7 +216,8 @@ func TestLogLevelFromConfig(t *testing.T) {
 	if err := InitLogging(stateDir, slog.LevelInfo); err != nil {
 		t.Fatalf("InitLogging: %v", err)
 	}
-	SetLogLevel(ParseLogLevel(cfg.LogLevel))
+	level, _ := ParseLogLevel(cfg.LogLevel)
+	SetLogLevel(level)
 
 	slog.Debug("end-to-end debug message")
 
@@ -234,21 +235,22 @@ func TestLogLevelFromConfig(t *testing.T) {
 
 func TestParseLogLevel_AllValues(t *testing.T) {
 	cases := []struct {
-		input string
-		want  slog.Level
+		input  string
+		want   slog.Level
+		wantOK bool
 	}{
-		{"debug", slog.LevelDebug},
-		{"warn", slog.LevelWarn},
-		{"error", slog.LevelError},
-		{"info", slog.LevelInfo},
-		{"", slog.LevelInfo},
-		{"unknown", slog.LevelInfo},
-		{"DEBUG", slog.LevelInfo}, // case-sensitive: uppercase not recognized
+		{"debug", slog.LevelDebug, true},
+		{"warn", slog.LevelWarn, true},
+		{"error", slog.LevelError, true},
+		{"info", slog.LevelInfo, true},
+		{"", slog.LevelInfo, true},
+		{"unknown", slog.LevelInfo, false},
+		{"DEBUG", slog.LevelInfo, false}, // case-sensitive: uppercase not recognized
 	}
 	for _, tc := range cases {
-		got := ParseLogLevel(tc.input)
-		if got != tc.want {
-			t.Errorf("ParseLogLevel(%q) = %v, want %v", tc.input, got, tc.want)
+		got, ok := ParseLogLevel(tc.input)
+		if got != tc.want || ok != tc.wantOK {
+			t.Errorf("ParseLogLevel(%q) = (%v, %v), want (%v, %v)", tc.input, got, ok, tc.want, tc.wantOK)
 		}
 	}
 }
