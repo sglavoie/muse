@@ -1,7 +1,7 @@
 package library
 
 const (
-	selectionMarkerFixed = 2  // '●' glyph + separator space
+	selectionMarkerFixed = 2 // '●' glyph + separator space
 	trackNumFixed        = 5
 	durationFixed        = 10
 	sepCount             = 4 // spaces separating the five content columns

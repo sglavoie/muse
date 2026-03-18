@@ -31,7 +31,7 @@ var _ Player = (*Manager)(nil)
 // when PlayFromIndex is called before a real MissingMarker has been wired in.
 type noopMarker struct{}
 
-func (noopMarker) MarkTrackMissing(_ string) error    { return nil }
+func (noopMarker) MarkTrackMissing(_ string) error     { return nil }
 func (noopMarker) MarkQueueEntryMissing(_ int64) error { return nil }
 
 // Manager manages an mpv subprocess and its JSON-IPC connection.

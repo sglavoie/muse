@@ -34,8 +34,8 @@ func (l *logCapture) Handle(_ context.Context, r slog.Record) error {
 	return nil
 }
 
-func (l *logCapture) WithAttrs(_ []slog.Attr) slog.Handler  { return l }
-func (l *logCapture) WithGroup(_ string) slog.Handler        { return l }
+func (l *logCapture) WithAttrs(_ []slog.Attr) slog.Handler { return l }
+func (l *logCapture) WithGroup(_ string) slog.Handler      { return l }
 
 func (l *logCapture) messages() []string {
 	l.mu.Lock()

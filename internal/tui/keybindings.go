@@ -37,14 +37,14 @@ const (
 	actionSwitchPlaylists
 	actionSwitchQueue
 	actionRescan
-	actionRepeatCycle   // 'r': cycle repeat mode off→all→one→off
-	actionShuffleToggle // 'z': toggle shuffle mode
-	actionUndo          // 'u': dispatch undo
-	actionFilterBar     // '/': activate filter bar in active view
-	actionHelp          // '?': show help overlay
-	actionNextView      // tab: cycle to next view
-	actionPreview         // 'P': preview focused track
-	actionNowPlayingInfo  // 'I': show now-playing info overlay
+	actionRepeatCycle    // 'r': cycle repeat mode off→all→one→off
+	actionShuffleToggle  // 'z': toggle shuffle mode
+	actionUndo           // 'u': dispatch undo
+	actionFilterBar      // '/': activate filter bar in active view
+	actionHelp           // '?': show help overlay
+	actionNextView       // tab: cycle to next view
+	actionPreview        // 'P': preview focused track
+	actionNowPlayingInfo // 'I': show now-playing info overlay
 
 	actionSwitchArtists
 	actionSwitchAlbums

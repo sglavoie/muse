@@ -4,9 +4,9 @@ import "testing"
 
 func TestParseFilterQuery(t *testing.T) {
 	tests := []struct {
-		name    string
-		input   string
-		want    FilterQuery
+		name  string
+		input string
+		want  FilterQuery
 	}{
 		{
 			name:  "PlainText",

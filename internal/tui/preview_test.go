@@ -16,8 +16,8 @@ func TestPreviewOverlayRender_BasicContent(t *testing.T) {
 	p := PreviewOverlay{
 		artist:  "Test Artist",
 		title:   "Test Song",
-		elapsed: 83,   // 1:23
-		total:   296,  // 4:56
+		elapsed: 83,  // 1:23
+		total:   296, // 4:56
 	}
 	s := newTestStyles()
 	out := p.Render(80, 24, s)

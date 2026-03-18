@@ -289,11 +289,11 @@ func (s *stubPlayerQueueSyncer) RemoveFromQueue(index int) error {
 // stubPlaylistDeleter records calls to playlist/track soft-delete, undo, and
 // purge methods for use in playlist deletion and undo tests.
 type stubPlaylistDeleter struct {
-	deletePlaylistSoftCalls       []int64
-	undoDeletePlaylistCalls       []int64
-	purgeDeletedPlaylistsCalls    []int64
-	removePlaylistTrackSoftCalls  []int64
-	undoRemovePlaylistTrackCalls  []int64
+	deletePlaylistSoftCalls         []int64
+	undoDeletePlaylistCalls         []int64
+	purgeDeletedPlaylistsCalls      []int64
+	removePlaylistTrackSoftCalls    []int64
+	undoRemovePlaylistTrackCalls    []int64
 	purgeDeletedPlaylistTracksCalls []int64
 }
 
@@ -325,8 +325,8 @@ func (s *stubPlaylistDeleter) PurgeDeletedPlaylistTracks(before int64) error {
 // stubBatchEnqueuer records calls to AppendTracks and DequeueTracksSoft for
 // use in batch-enqueue undo tests.
 type stubBatchEnqueuer struct {
-	appendTracksCalls     [][]library.Track
-	dequeueTracksSoftIDs  [][]int64
+	appendTracksCalls    [][]library.Track
+	dequeueTracksSoftIDs [][]int64
 }
 
 func (s *stubBatchEnqueuer) AppendTracks(tracks []library.Track, _ string) ([]int64, error) {

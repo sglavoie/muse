@@ -545,7 +545,7 @@ func TestRenameDuplicateNameRejected(t *testing.T) {
 			{ID: 1, Name: "Alpha"},
 			{ID: 2, Name: "Beta"},
 		},
-		Cursor:  0,
+		Cursor:   0,
 		Renaming: true,
 	}
 	v.RenameInput = NewTextInput("")
