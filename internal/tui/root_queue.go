@@ -514,6 +514,30 @@ func (m Model) handleUndo() Model {
 		}
 		m.clampQueueCursorAndScroll()
 		m.syncPlayerQueue()
+	case undoKindBulkRemovePlaylistTracks:
+		// Restore soft-deleted DB rows.
+		if m.playlistDeleter != nil {
+			for _, t := range m.undoSlot.bulkRemoveTrackEntries {
+				_ = m.playlistDeleter.UndoRemovePlaylistTrack(t.ID)
+			}
+		}
+		// Re-insert tracks at their original indices in forward order.
+		for i := range m.undoSlot.bulkRemoveTrackIndices {
+			idx := min(m.undoSlot.bulkRemoveTrackIndices[i], len(m.playlists.tracks))
+			tracks := make([]db.PlaylistTrackRow, len(m.playlists.tracks)+1)
+			copy(tracks, m.playlists.tracks[:idx])
+			tracks[idx] = m.undoSlot.bulkRemoveTrackEntries[i]
+			copy(tracks[idx+1:], m.playlists.tracks[idx:])
+			m.playlists.tracks = tracks
+		}
+		if m.playlists.cursor < 0 {
+			m.playlists.cursor = 0
+		} else if m.playlists.cursor >= len(m.playlists.tracks) {
+			m.playlists.cursor = len(m.playlists.tracks) - 1
+		}
+		if m.playlists.cursor < m.playlists.scrollOffset {
+			m.playlists.scrollOffset = m.playlists.cursor
+		}
 	}
 	m.undoSlot = undoSlot{}
 	return m

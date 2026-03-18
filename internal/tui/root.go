@@ -109,14 +109,15 @@ type queueDequeuer interface {
 type undoKind uint8
 
 const (
-	undoNone                    undoKind = iota
-	undoKindEnqueue                      // single track added via TrackEnqueuedMsg
-	undoKindDequeue                      // single track removed via DequeueTrackMsg
-	undoKindClear                        // all tracks removed via ClearQueueMsg
-	undoKindDeletePlaylist               // playlist soft-deleted via actionPlaylistDelete at ListLevel
-	undoKindRemovePlaylistTrack          // track soft-removed via actionPlaylistDelete at TrackLevel
-	undoKindBatchEnqueue                 // batch of tracks added via actionPlaylistEnqueueAll
-	undoKindBulkDequeue                  // multiple selected tracks removed via bulk dequeue
+	undoNone                         undoKind = iota
+	undoKindEnqueue                           // single track added via TrackEnqueuedMsg
+	undoKindDequeue                           // single track removed via DequeueTrackMsg
+	undoKindClear                             // all tracks removed via ClearQueueMsg
+	undoKindDeletePlaylist                    // playlist soft-deleted via actionPlaylistDelete at ListLevel
+	undoKindRemovePlaylistTrack               // track soft-removed via actionPlaylistDelete at TrackLevel
+	undoKindBatchEnqueue                      // batch of tracks added via actionPlaylistEnqueueAll
+	undoKindBulkDequeue                       // multiple selected tracks removed via bulk dequeue
+	undoKindBulkRemovePlaylistTracks          // multiple selected tracks removed from playlist via 'a'
 )
 
 // undoSlot holds the reversible state for the most recent destructive queue
@@ -159,6 +160,10 @@ type undoSlot struct {
 	bulkDequeueEntries []QueueEntry // removed entries in original order
 	bulkDequeueIndices []int        // original indices for re-insertion
 	bulkDequeueIDs     []int64      // DB IDs for undo
+
+	// BulkRemovePlaylistTracks fields — valid when kind == undoKindBulkRemovePlaylistTracks.
+	bulkRemoveTrackEntries []db.PlaylistTrackRow // removed tracks in original order
+	bulkRemoveTrackIndices []int                 // original indices for re-insertion
 }
 
 // tickMsg is dispatched every second by tickCmd. It drives elapsed-time
@@ -1962,18 +1967,29 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		} else {
 			// Bulk remove if tracks are selected.
 			if m.playlists.hasTrackSelection() {
-				softDeleteTime := time.Now().Unix()
-				if m.playlistDeleter != nil {
-					pd := m.playlistDeleter
-					for _, t := range m.playlists.tracks {
-						if _, ok := m.playlists.selectedTrackIDs[t.ID]; ok {
-							_ = pd.RemovePlaylistTrackSoft(t.ID)
-						}
+				var removedEntries []db.PlaylistTrackRow
+				var removedIndices []int
+				for i, t := range m.playlists.tracks {
+					if _, ok := m.playlists.selectedTrackIDs[t.ID]; ok {
+						removedEntries = append(removedEntries, t)
+						removedIndices = append(removedIndices, i)
 					}
-					time.AfterFunc(undoWindowDuration, func() {
-						_ = pd.PurgeDeletedPlaylistTracks(softDeleteTime + 1)
-					})
 				}
+				pd := m.playlistDeleter
+				cancel := m.scheduleSoftDelete(
+					func() {
+						if pd != nil {
+							for _, t := range removedEntries {
+								_ = pd.RemovePlaylistTrackSoft(t.ID)
+							}
+						}
+					},
+					func(before int64) {
+						if pd != nil {
+							_ = pd.PurgeDeletedPlaylistTracks(before)
+						}
+					},
+				)
 				var remaining []db.PlaylistTrackRow
 				for _, t := range m.playlists.tracks {
 					if _, ok := m.playlists.selectedTrackIDs[t.ID]; !ok {
@@ -1994,10 +2010,13 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 				}
 				n := len(m.playlists.selectedTrackIDs)
 				m.playlists = m.playlists.clearTrackSelection()
-				m.statusBar.notification = transientNotification{
-					msg:       fmt.Sprintf("%d %s removed from playlist", n, pluralize(n, "track", "tracks")),
-					expiresAt: time.Now().Add(transientDuration),
-				}
+				m.setUndoSlot(undoSlot{
+					kind:                   undoKindBulkRemovePlaylistTracks,
+					expiresAt:              time.Now().Add(undoWindowDuration),
+					cancelPurge:            cancel,
+					bulkRemoveTrackEntries: removedEntries,
+					bulkRemoveTrackIndices: removedIndices,
+				}, fmt.Sprintf("%d %s removed — press u to undo", n, pluralize(n, "track", "tracks")))
 				player.PlaySound(player.SoundRemoved)
 				break
 			}

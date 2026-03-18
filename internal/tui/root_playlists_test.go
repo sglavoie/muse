@@ -462,6 +462,21 @@ func TestPlaylistsBulkRemoveAtTrackLevel(t *testing.T) {
 	if nm2.playlists.selectedTrackIDs != nil {
 		t.Fatalf("expected selectedTrackIDs to be nil after bulk remove, got %v", nm2.playlists.selectedTrackIDs)
 	}
+
+	// Undo — should restore the removed tracks.
+	if nm2.undoSlot.kind != undoKindBulkRemovePlaylistTracks {
+		t.Fatalf("expected undo kind %d, got %d", undoKindBulkRemovePlaylistTracks, nm2.undoSlot.kind)
+	}
+	nm3 := nm2.handleUndo()
+	if len(nm3.playlists.tracks) != 3 {
+		t.Fatalf("expected 3 tracks after undo, got %d", len(nm3.playlists.tracks))
+	}
+	wantIDs := []int64{10, 20, 30}
+	for i, want := range wantIDs {
+		if nm3.playlists.tracks[i].ID != want {
+			t.Errorf("track[%d]: expected ID=%d, got ID=%d", i, want, nm3.playlists.tracks[i].ID)
+		}
+	}
 }
 
 // TestPlaylistDeleteClampsScrollOffset verifies that deleting a playlist when
@@ -1012,5 +1027,21 @@ func TestBulkActionInPlaylistsRequiresConfirmation(t *testing.T) {
 	}
 	if nm2.playlists.selectedTrackIDs != nil {
 		t.Fatalf("expected selectedTrackIDs to be nil after removal, got %v", nm2.playlists.selectedTrackIDs)
+	}
+
+	// Undo — should restore the removed tracks.
+	if nm2.undoSlot.kind != undoKindBulkRemovePlaylistTracks {
+		t.Fatalf("expected undoSlot kind %d, got %d", undoKindBulkRemovePlaylistTracks, nm2.undoSlot.kind)
+	}
+	nm3 := nm2.handleUndo()
+	if len(nm3.playlists.tracks) != 3 {
+		t.Fatalf("expected 3 tracks after undo, got %d", len(nm3.playlists.tracks))
+	}
+	// Verify original tracks restored at correct positions.
+	wantIDs := []int64{10, 20, 30}
+	for i, want := range wantIDs {
+		if nm3.playlists.tracks[i].ID != want {
+			t.Errorf("track[%d]: expected ID=%d, got ID=%d", i, want, nm3.playlists.tracks[i].ID)
+		}
 	}
 }

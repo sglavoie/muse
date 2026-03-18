@@ -229,19 +229,30 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 			now := time.Now()
 			if m.bulkRemovePending && now.Before(m.bulkRemovePendingAt.Add(2*time.Second)) {
 				m.bulkRemovePending = false
-				// Execute bulk removal — same logic as actionPlaylistDelete's bulk path.
-				softDeleteTime := now.Unix()
-				if m.playlistDeleter != nil {
-					pd := m.playlistDeleter
-					for _, t := range m.playlists.tracks {
-						if _, ok := m.playlists.selectedTrackIDs[t.ID]; ok {
-							_ = pd.RemovePlaylistTrackSoft(t.ID)
-						}
+				// Capture removed entries and their indices for undo.
+				var removedEntries []db.PlaylistTrackRow
+				var removedIndices []int
+				for i, t := range m.playlists.tracks {
+					if _, ok := m.playlists.selectedTrackIDs[t.ID]; ok {
+						removedEntries = append(removedEntries, t)
+						removedIndices = append(removedIndices, i)
 					}
-					time.AfterFunc(undoWindowDuration, func() {
-						_ = pd.PurgeDeletedPlaylistTracks(softDeleteTime + 1)
-					})
 				}
+				pd := m.playlistDeleter
+				cancel := m.scheduleSoftDelete(
+					func() {
+						if pd != nil {
+							for _, t := range removedEntries {
+								_ = pd.RemovePlaylistTrackSoft(t.ID)
+							}
+						}
+					},
+					func(before int64) {
+						if pd != nil {
+							_ = pd.PurgeDeletedPlaylistTracks(before)
+						}
+					},
+				)
 				var remaining []db.PlaylistTrackRow
 				for _, t := range m.playlists.tracks {
 					if _, ok := m.playlists.selectedTrackIDs[t.ID]; !ok {
@@ -261,6 +272,13 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 					m.playlists.scrollOffset = 0
 				}
 				m.playlists.selectedTrackIDs = nil
+				m.setUndoSlot(undoSlot{
+					kind:                   undoKindBulkRemovePlaylistTracks,
+					expiresAt:              time.Now().Add(undoWindowDuration),
+					cancelPurge:            cancel,
+					bulkRemoveTrackEntries: removedEntries,
+					bulkRemoveTrackIndices: removedIndices,
+				}, fmt.Sprintf("%d %s removed — press u to undo", n, pluralize(n, "track", "tracks")))
 				player.PlaySound(player.SoundRemoved)
 				return m, nil, true
 			}
