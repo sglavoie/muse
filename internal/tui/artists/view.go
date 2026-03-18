@@ -331,7 +331,7 @@ func (v View) renderArtists() string {
 	lines := make([]string, end-start)
 	for i, name := range items[start:end] {
 		absIdx := start + i
-		display := truncate(name, v.Width)
+		display := Truncate(name, v.Width)
 		display = fmt.Sprintf("%-*s", v.Width, display)
 		if absIdx == v.Cursor {
 			display = v.Styles.Accent.Render(display)
@@ -358,7 +358,7 @@ func (v View) renderAlbums() string {
 	lines := make([]string, end-start)
 	for i, name := range items[start:end] {
 		absIdx := start + i
-		display := truncate(name, v.Width)
+		display := Truncate(name, v.Width)
 		display = fmt.Sprintf("%-*s", v.Width, display)
 		if absIdx == v.Cursor {
 			display = v.Styles.Accent.Render(display)
@@ -390,9 +390,9 @@ func (v View) renderTracks() string {
 		absIdx := start + i
 
 		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
-		title := truncate(t.Title, cols.Title)
+		title := Truncate(t.Title, cols.Title)
 		title = fmt.Sprintf("%-*s", cols.Title, title)
-		dur := formatDuration(t.Duration)
+		dur := FormatDuration(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		line := pos + " " + title + " " + dur
 		if absIdx == v.Cursor {
@@ -429,8 +429,8 @@ func (v View) filterSeparator() string {
 	return "\n\n"
 }
 
-// formatDuration converts seconds (float64) to a "m:ss" or "h:mm:ss" string.
-func formatDuration(seconds float64) string {
+// FormatDuration converts seconds (float64) to a "m:ss" or "h:mm:ss" string.
+func FormatDuration(seconds float64) string {
 	ms := int64(seconds * 1000)
 	if ms <= 0 {
 		return "--:--"
@@ -445,9 +445,9 @@ func formatDuration(seconds float64) string {
 	return fmt.Sprintf("%d:%02d", m, s)
 }
 
-// truncate shortens s to at most maxLen runes, appending "..." when truncated.
+// Truncate shortens s to at most maxLen runes, appending "..." when truncated.
 // Returns an empty string when maxLen is zero or negative.
-func truncate(s string, maxLen int) string {
+func Truncate(s string, maxLen int) string {
 	if maxLen <= 0 {
 		return ""
 	}

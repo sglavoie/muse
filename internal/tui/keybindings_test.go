@@ -92,6 +92,37 @@ func TestArtistsBindingsResolve(t *testing.T) {
 	}
 }
 
+// TestAlbumsBindingsResolve verifies that every key registered under
+// contextAlbums resolves to the expected action via registry.resolve.
+func TestAlbumsBindingsResolve(t *testing.T) {
+	reg := newRegistry()
+
+	cases := []struct {
+		key  string
+		want action
+	}{
+		{"j", actionCursorDown},
+		{"k", actionCursorUp},
+		{"up", actionCursorUp},
+		{"down", actionCursorDown},
+		{"enter", actionAlbumOpen},
+		{"esc", actionAlbumBack},
+		{"ctrl+d", actionHalfPageDown},
+		{"ctrl+u", actionHalfPageUp},
+		{"ctrl+f", actionFullPageDown},
+		{"ctrl+b", actionFullPageUp},
+		{"g", actionGoToTop},
+		{"G", actionGoToBottom},
+	}
+
+	for _, tc := range cases {
+		got := reg.resolve(contextAlbums, tc.key)
+		if got != tc.want {
+			t.Errorf("resolve(contextAlbums, %q) = %v, want %v", tc.key, got, tc.want)
+		}
+	}
+}
+
 // TestSwitchArtistsGlobalBinding verifies that '4' resolves to
 // actionSwitchArtists in the global context.
 func TestSwitchArtistsGlobalBinding(t *testing.T) {
@@ -99,6 +130,16 @@ func TestSwitchArtistsGlobalBinding(t *testing.T) {
 	got := reg.resolve(contextGlobal, "4")
 	if got != actionSwitchArtists {
 		t.Errorf("resolve(contextGlobal, \"4\") = %v, want actionSwitchArtists", got)
+	}
+}
+
+// TestSwitchAlbumsGlobalBinding verifies that '5' resolves to
+// actionSwitchAlbums in the global context.
+func TestSwitchAlbumsGlobalBinding(t *testing.T) {
+	reg := newRegistry()
+	got := reg.resolve(contextGlobal, "5")
+	if got != actionSwitchAlbums {
+		t.Errorf("resolve(contextGlobal, \"5\") = %v, want actionSwitchAlbums", got)
 	}
 }
 

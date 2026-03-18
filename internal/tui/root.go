@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
@@ -425,6 +426,7 @@ type Model struct {
 	playlists PlaylistsView
 	queue     QueueView
 	artists   ArtistsView
+	albums    AlbumsView
 
 	// scanCh is the channel returned by library.Scan. It is nil when no scan
 	// is in progress or after the scan has completed.
@@ -892,6 +894,8 @@ func (m Model) activeViewContext() bindingContext {
 		return contextQueue
 	case viewArtists:
 		return contextArtists
+	case viewAlbums:
+		return contextAlbums
 	default:
 		// A new viewID was added without a corresponding case here. Add the
 		// case above to ensure view-local keybinding precedence works correctly
@@ -917,6 +921,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.queue.height = msg.Height - 3
 		m.artists.width = msg.Width
 		m.artists.height = msg.Height - 3
+		m.albums.width = msg.Width
+		m.albums.height = msg.Height - 3
 
 	case clearConfigNotice:
 		m.configCreated = false
@@ -952,6 +958,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
 			m.artists = m.artists.clampCursor()
 		}
+		// Refresh the albums list when at AlbumLevel so the view stays
+		// current as the library grows during a scan.
+		if m.albums.level == albtui.AlbumLevel {
+			m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
+			m.albums = m.albums.clampCursor()
+		}
 		if m.scanCh != nil {
 			return m, waitForNextBatch(m.scanCh)
 		}
@@ -982,6 +994,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.artists.level == arttui.ArtistLevel {
 			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
 			m.artists = m.artists.clampCursor()
+		}
+		// Refresh the albums list when at AlbumLevel so the view stays
+		// current when the filesystem watcher detects changes.
+		if m.albums.level == albtui.AlbumLevel {
+			m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
+			m.albums = m.albums.clampCursor()
 		}
 		if m.watchCh != nil {
 			return m, waitForWatchBatch(m.watchCh)
@@ -1042,6 +1060,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.artists = m.artists.CommitFilter()
 			} else {
 				m.artists = m.artists.ActivateFilter()
+			}
+		case viewAlbums:
+			if m.albums.filterActive {
+				m.albums = m.albums.CommitFilter()
+			} else {
+				m.albums = m.albums.ActivateFilter()
 			}
 		}
 
@@ -1443,6 +1467,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		// Same interception for the albums view filter bar.
+		if m.albums.filterActive && m.activeView == viewAlbums {
+			switch msg.String() {
+			case "ctrl+c":
+				return m, tea.Quit
+			case "esc":
+				m.albums = m.albums.DeactivateFilter()
+			case "enter", "/":
+				m.albums = m.albums.CommitFilter()
+			case "backspace":
+				m.albums = m.albums.BackspaceFilter()
+			default:
+				if msg.Text != "" {
+					for _, ch := range msg.Text {
+						m.albums = m.albums.AppendFilterChar(ch)
+					}
+				}
+			}
+			return m, nil
+		}
 		// When the inline playlist create input is active, intercept all
 		// keypresses before the registry.
 		if m.playlists.isCreating() && m.activeView == viewPlaylists {
@@ -1758,6 +1802,8 @@ func (m Model) View() tea.View {
 			body = m.queue.render(*m.styles)
 		case viewArtists:
 			body = m.artists.render(*m.styles)
+		case viewAlbums:
+			body = m.albums.render(*m.styles)
 		}
 	}
 
@@ -2018,6 +2064,11 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		if len(m.artists.artists) == 0 {
 			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
 		}
+	case actionSwitchAlbums:
+		m.activeView = viewAlbums
+		if len(m.albums.albums) == 0 {
+			m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
+		}
 	case actionArtistOpen:
 		allTracks := m.library.index.Tracks()
 		switch m.artists.level {
@@ -2044,6 +2095,25 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		}
 	case actionArtistBack:
 		m.artists = m.artists.back()
+	case actionAlbumOpen:
+		allTracks := m.library.index.Tracks()
+		switch m.albums.level {
+		case albtui.AlbumLevel:
+			album, ok := m.albums.focusedAlbum()
+			if ok {
+				tracks := albtui.DeriveAlbumTracks(allTracks, album)
+				m.albums.selectedAlbum = album
+				m.albums = m.albums.openTracks(tracks)
+			}
+		case albtui.TrackLevel:
+			if m.queueWriter != nil {
+				if cmd := m.albums.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
+					return m, cmd
+				}
+			}
+		}
+	case actionAlbumBack:
+		m.albums = m.albums.back()
 	case actionRescan:
 		if m.libraryRoot != "" && m.extractor != nil && !m.scanning {
 			ch := library.Scan(m.libraryRoot, m.extractor)
@@ -2060,6 +2130,9 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			// Reset the artists view so it gets re-derived from the new
 			// library index as scan batches arrive.
 			m.artists = ArtistsView{width: m.artists.width, height: m.artists.height}
+			// Reset the albums view so it gets re-derived from the new
+			// library index as scan batches arrive.
+			m.albums = AlbumsView{width: m.albums.width, height: m.albums.height}
 			return m, tea.Batch(waitForNextBatch(ch), countAudioFiles(m.libraryRoot))
 		}
 	case actionRepeatCycle:
@@ -2124,6 +2197,8 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			m.playlists = m.playlists.HandleAction(action)
 		case viewArtists:
 			m.artists = m.artists.HandleAction(action)
+		case viewAlbums:
+			m.albums = m.albums.HandleAction(action)
 		default:
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)

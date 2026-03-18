@@ -10,6 +10,7 @@ const (
 	contextPlaylists                       // applies only in the Playlists view
 	contextQueue                           // applies only in the Queue view
 	contextArtists                         // applies only in the Artists view
+	contextAlbums                          // applies only in the Albums view
 	contextModals                          // applies only when a modal is active
 )
 
@@ -43,6 +44,7 @@ const (
 	actionHelp          // '?': show help overlay
 
 	actionSwitchArtists
+	actionSwitchAlbums
 
 	// Library-local actions.
 	actionLibraryEnqueue // enter: append the focused track to the play queue
@@ -69,6 +71,10 @@ const (
 	// Artists-local actions.
 	actionArtistOpen // enter: drill into albums/tracks or enqueue
 	actionArtistBack // esc: go back one level
+
+	// Albums-local actions.
+	actionAlbumOpen // enter: drill into tracks or enqueue
+	actionAlbumBack // esc: go back one level
 
 	// Bulk-selection action — triggered by 'a' when tracks are selected.
 	// actionBulkAction applies in Library (append selected tracks to queue).
@@ -118,6 +124,7 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "2", actionSwitchPlaylists)
 	r.register(contextGlobal, "3", actionSwitchQueue)
 	r.register(contextGlobal, "4", actionSwitchArtists)
+	r.register(contextGlobal, "5", actionSwitchAlbums)
 	r.register(contextGlobal, "R", actionRescan)
 	r.register(contextGlobal, "r", actionRepeatCycle)
 	r.register(contextGlobal, "z", actionShuffleToggle)
@@ -193,6 +200,20 @@ func newRegistry() Registry {
 	r.register(contextArtists, "ctrl+b", actionFullPageUp)
 	r.register(contextArtists, "g", actionGoToTop)
 	r.register(contextArtists, "G", actionGoToBottom)
+
+	// Albums-local bindings.
+	r.register(contextAlbums, "j", actionCursorDown)
+	r.register(contextAlbums, "k", actionCursorUp)
+	r.register(contextAlbums, "up", actionCursorUp)
+	r.register(contextAlbums, "down", actionCursorDown)
+	r.register(contextAlbums, "enter", actionAlbumOpen)
+	r.register(contextAlbums, "esc", actionAlbumBack)
+	r.register(contextAlbums, "ctrl+d", actionHalfPageDown)
+	r.register(contextAlbums, "ctrl+u", actionHalfPageUp)
+	r.register(contextAlbums, "ctrl+f", actionFullPageDown)
+	r.register(contextAlbums, "ctrl+b", actionFullPageUp)
+	r.register(contextAlbums, "g", actionGoToTop)
+	r.register(contextAlbums, "G", actionGoToBottom)
 
 	return r
 }

@@ -41,6 +41,7 @@ func helpSections() []helpSection {
 				{"2", "Switch to Playlists"},
 				{"3", "Switch to Queue"},
 				{"4", "Switch to Artists"},
+				{"5", "Switch to Albums"},
 				{"R", "Rescan library"},
 				{"r", "Cycle repeat mode"},
 				{"z", "Toggle shuffle"},
@@ -50,7 +51,7 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title: "Navigation (Library / Queue / Playlists / Artists)",
+			title: "Navigation (Library / Queue / Playlists / Artists / Albums)",
 			entries: []helpEntry{
 				{"j / k / down / up", "Move cursor down / up"},
 				{"ctrl+d / ctrl+u", "Half-page down / up"},
@@ -85,6 +86,14 @@ func helpSections() []helpSection {
 			entries: []helpEntry{
 				{"/", "Filter current list"},
 				{"enter", "Open albums / tracks / enqueue track"},
+				{"esc", "Back one level"},
+			},
+		},
+		{
+			title: "Albums",
+			entries: []helpEntry{
+				{"/", "Filter current list"},
+				{"enter", "Open tracks / enqueue track"},
 				{"esc", "Back one level"},
 			},
 		},
