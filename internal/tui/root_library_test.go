@@ -380,6 +380,70 @@ func TestRootLibraryAConfirmPlaylistClearsSelectionAndNotifies(t *testing.T) {
 	}
 }
 
+// TestLibraryEscClearsCommittedFilter verifies that pressing Esc while the
+// library has a committed (non-active) filter clears the filter text and
+// restores the full library listing.
+func TestLibraryEscClearsCommittedFilter(t *testing.T) {
+	m := New("", false, nil, nil, "", nil, nil)
+	m.library.index.Insert(library.Track{Artist: "Alice", Title: "Alpha", Hash: "h1"})
+	m.library.index.Insert(library.Track{Artist: "Bob", Title: "Beta", Hash: "h2"})
+
+	// Activate filter, type, commit.
+	m = pressSlash(m)
+	m = typeText(m, "ali")
+	m = pressEnter(m) // commit filter
+
+	if m.library.filterText != "ali" {
+		t.Fatalf("expected committed filterText \"ali\", got %q", m.library.filterText)
+	}
+	if m.library.filterActive {
+		t.Fatal("expected filterActive=false after commit")
+	}
+
+	// Esc should clear the committed filter.
+	m = pressEsc(m)
+	if m.library.filterText != "" {
+		t.Errorf("expected filterText cleared after Esc, got %q", m.library.filterText)
+	}
+	if m.library.filterActive {
+		t.Error("expected filterActive=false after Esc")
+	}
+}
+
+// TestLibraryEnterClearsCommittedFilter verifies that pressing Enter on a
+// focused track while a committed filter is active enqueues the track and
+// clears the filter.
+func TestLibraryEnterClearsCommittedFilter(t *testing.T) {
+	qa := &stubQueueAppender{}
+	m := New("", false, nil, nil, "", nil, nil)
+	m.SetQueueWriter(qa)
+	m.library.index.Insert(library.Track{Artist: "Alice", Title: "Alpha", Hash: "h1"})
+	m.library.index.Insert(library.Track{Artist: "Bob", Title: "Beta", Hash: "h2"})
+
+	// Activate filter, type, commit.
+	m = pressSlash(m)
+	m = typeText(m, "ali")
+	m = pressEnter(m) // commit filter
+
+	// Press Enter to enqueue the focused (filtered) track.
+	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(Model)
+
+	if m.library.filterText != "" {
+		t.Errorf("expected filterText cleared after enqueue Enter, got %q", m.library.filterText)
+	}
+	if m.library.filterActive {
+		t.Error("expected filterActive=false after enqueue Enter")
+	}
+	if cmd == nil {
+		t.Fatal("expected non-nil enqueue cmd")
+	}
+	cmd() // execute the enqueue command
+	if len(qa.tracks) != 1 {
+		t.Errorf("expected 1 enqueued track, got %d", len(qa.tracks))
+	}
+}
+
 // TestFilterBarMsgIgnoredOutsideLibraryView verifies that pressing '/' while on
 // the queue or playlists view does not activate the library filter bar. Before
 // the fix, FilterBarMsg always toggled the library filter regardless of the

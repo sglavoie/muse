@@ -64,6 +64,7 @@ func helpSections() []helpSection {
 			entries: []helpEntry{
 				{"/", "Filter tracks"},
 				{"enter", "Enqueue track"},
+				{"esc", "Clear committed filter"},
 				{"x", "Toggle bulk selection"},
 				{"a", "Add to queue or playlist"},
 			},

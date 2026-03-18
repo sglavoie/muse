@@ -143,6 +143,16 @@ func TestSwitchAlbumsGlobalBinding(t *testing.T) {
 	}
 }
 
+// TestLibraryEscResolvesToFilterClear verifies that 'esc' in the library
+// context resolves to actionLibraryFilterClear.
+func TestLibraryEscResolvesToFilterClear(t *testing.T) {
+	reg := newRegistry()
+	got := reg.resolve(contextLibrary, "esc")
+	if got != actionLibraryFilterClear {
+		t.Errorf("resolve(contextLibrary, \"esc\") = %v, want actionLibraryFilterClear", got)
+	}
+}
+
 // TestPlaylistsRShadowsGlobalRepeat verifies that 'r' resolves to
 // actionPlaylistRename (not actionRepeatCycle) when the Playlists view is
 // active, locking in the view-local shadowing behaviour.

@@ -47,7 +47,8 @@ const (
 	actionSwitchAlbums
 
 	// Library-local actions.
-	actionLibraryEnqueue // enter: append the focused track to the play queue
+	actionLibraryEnqueue     // enter: append the focused track to the play queue
+	actionLibraryFilterClear // esc: clear a committed filter in the library view
 
 	// Queue-local actions.
 	actionCursorUp
@@ -139,6 +140,7 @@ func newRegistry() Registry {
 	r.register(contextLibrary, "up", actionCursorUp)
 	r.register(contextLibrary, "down", actionCursorDown)
 	r.register(contextLibrary, "enter", actionLibraryEnqueue)
+	r.register(contextLibrary, "esc", actionLibraryFilterClear)
 	r.register(contextLibrary, "x", actionBulkSelectionToggle)
 	r.register(contextLibrary, "a", actionBulkAction)
 	r.register(contextLibrary, "ctrl+d", actionHalfPageDown)

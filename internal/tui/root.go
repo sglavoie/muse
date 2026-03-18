@@ -2293,9 +2293,17 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		return m, func() tea.Msg { return UndoMsg{} }
 	case actionFilterBar:
 		return m, func() tea.Msg { return FilterBarMsg{} }
+	case actionLibraryFilterClear:
+		if m.library.filterText != "" {
+			m.library = m.library.DeactivateFilter()
+		}
 	case actionLibraryEnqueue:
 		if m.queueWriter != nil {
-			return m, m.library.EnqueueFocused(m.queueWriter, len(m.queue.entries))
+			cmd := m.library.EnqueueFocused(m.queueWriter, len(m.queue.entries))
+			if m.library.filterText != "" {
+				m.library = m.library.DeactivateFilter()
+			}
+			return m, cmd
 		}
 	case actionBulkAction:
 		if m.activeView == viewLibrary {
