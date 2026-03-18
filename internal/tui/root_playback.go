@@ -103,6 +103,7 @@ func (m Model) handlePlaybackEndedMsg() Model {
 			msg:       "Queue finished",
 			expiresAt: time.Now().Add(transientDuration),
 		}
+		player.PlayQueueFinishedSound()
 	}
 	return m
 }
