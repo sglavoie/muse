@@ -480,6 +480,7 @@ type Model struct {
 	registry       Registry
 	helpVisible    bool   // true while the help overlay is shown
 	helpScroll     int    // scroll offset (in lines) for the help overlay
+	helpFiltered   bool   // true when showing only current-view keybindings
 	prevActiveView viewID // the view that was active before help was opened
 
 	// player is the playback backend. It may be nil when playback is not
@@ -941,26 +942,17 @@ func (m Model) Init() tea.Cmd {
 // activeViewContext maps the current activeView to its bindingContext so that
 // the registry can check view-local bindings before falling back to global.
 func (m Model) activeViewContext() bindingContext {
-	switch m.activeView {
-	case viewLibrary:
-		return contextLibrary
-	case viewPlaylists:
-		return contextPlaylists
-	case viewQueue:
-		return contextQueue
-	case viewArtists:
-		return contextArtists
-	case viewAlbums:
-		return contextAlbums
-	default:
-		// A new viewID was added without a corresponding case here. Add the
-		// case above to ensure view-local keybinding precedence works correctly
-		// for the new view. Falling back to contextGlobal would silently bypass
-		// view-local shadowing (e.g. playlist 'r' rename vs. global repeat).
+	ctx := viewToContext(m.activeView)
+	if ctx == contextGlobal {
+		// A new viewID was added without a corresponding case in viewToContext.
+		// Add the case there to ensure view-local keybinding precedence works
+		// correctly for the new view. Falling back to contextGlobal would
+		// silently bypass view-local shadowing (e.g. playlist 'r' rename vs.
+		// global repeat).
 		slog.Warn("activeViewContext: unhandled viewID, falling back to global bindings",
 			"viewID", int(m.activeView))
-		return contextGlobal
 	}
+	return ctx
 }
 
 // Update handles incoming messages. Number keys 1/2/3/4 switch the active view;
@@ -1082,7 +1074,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "esc":
 				m.helpVisible = false
 				m.helpScroll = 0
+				m.helpFiltered = false
 				m.activeView = m.prevActiveView
+				return m, nil
+			case "?":
+				m.helpFiltered = !m.helpFiltered
+				m.helpScroll = 0
 				return m, nil
 			case "j", "down":
 				m.helpScroll++
@@ -1546,10 +1543,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// helpState returns the sections and title to display in the help overlay,
+// depending on whether the user has toggled view-specific filtering.
+func (m Model) helpState() ([]helpSection, string) {
+	if !m.helpFiltered {
+		return helpSections(), "Keybindings  (? to filter by view)"
+	}
+	ctx := viewToContext(m.prevActiveView)
+	name := viewName(m.prevActiveView)
+	return filteredHelpSections(ctx), "Keybindings — " + name + "  (? to show all)"
+}
+
 // clampHelpScroll constrains helpScroll to [0, maxScroll] based on the
 // terminal height and the total number of help lines.
 func (m Model) clampHelpScroll() int {
-	total := helpLineCount()
+	sections, _ := m.helpState()
+	total := helpLineCount(sections)
 	visible := m.termHeight - 2 // reserve space for the status bar gap
 	if visible <= 0 || visible >= total {
 		return 0
@@ -1570,7 +1579,8 @@ func (m Model) clampHelpScroll() int {
 func (m Model) View() tea.View {
 	var body string
 	if m.helpVisible {
-		full := HelpOverlay{}.render(*m.styles)
+		sections, title := m.helpState()
+		full := HelpOverlay{}.render(*m.styles, sections, title)
 		lines := strings.Split(full, "\n")
 		visible := m.termHeight - 2
 		if visible <= 0 || visible >= len(lines) {
@@ -1699,6 +1709,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m.prevActiveView = m.activeView
 		m.helpVisible = true
 		m.helpScroll = 0
+		m.helpFiltered = false
 	case actionNextView:
 		m.activeView = nextView(m.activeView)
 		if m.activeView == viewArtists && len(m.artists.artists) == 0 {

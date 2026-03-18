@@ -16,6 +16,7 @@ type helpEntry struct {
 // helpSection groups related keybinding entries under a named header.
 type helpSection struct {
 	title   string
+	context bindingContext
 	entries []helpEntry
 }
 
@@ -27,7 +28,8 @@ type HelpOverlay struct{}
 func helpSections() []helpSection {
 	return []helpSection{
 		{
-			title: "Global",
+			title:   "Global",
+			context: contextGlobal,
 			entries: []helpEntry{
 				{"ctrl+c", "Quit"},
 				{"space", "Play / Pause"},
@@ -54,7 +56,8 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title: "Navigation (Library / Queue / Playlists / Artists / Albums)",
+			title:   "Navigation (Library / Queue / Playlists / Artists / Albums)",
+			context: contextGlobal,
 			entries: []helpEntry{
 				{"j / k / down / up", "Move cursor down / up"},
 				{"ctrl+d / ctrl+u", "Half-page down / up"},
@@ -63,7 +66,8 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title: "Library",
+			title:   "Library",
+			context: contextLibrary,
 			entries: []helpEntry{
 				{"/", "Filter tracks"},
 				{"enter", "Enqueue track"},
@@ -74,7 +78,8 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title: "Playlists",
+			title:   "Playlists",
+			context: contextPlaylists,
 			entries: []helpEntry{
 				{"enter", "Open playlist / enqueue track"},
 				{"shift+enter", "Replace queue with track"},
@@ -88,7 +93,8 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title: "Artists",
+			title:   "Artists",
+			context: contextArtists,
 			entries: []helpEntry{
 				{"/", "Filter current list"},
 				{"enter", "Open albums / tracks / enqueue track"},
@@ -98,7 +104,8 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title: "Albums",
+			title:   "Albums",
+			context: contextAlbums,
 			entries: []helpEntry{
 				{"/", "Filter current list"},
 				{"enter", "Open tracks / enqueue track"},
@@ -108,7 +115,8 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title: "Queue",
+			title:   "Queue",
+			context: contextQueue,
 			entries: []helpEntry{
 				{"enter", "Play selected track"},
 				{"d", "Remove selected track"},
@@ -122,7 +130,8 @@ func helpSections() []helpSection {
 			// Note: "esc" here also dismisses the help overlay itself, which is
 			// handled at the root level (outside the keybinding registry). The
 			// Modals section covers any future modal dialogs as well.
-			title: "Modals / Help overlay",
+			title:   "Modals / Help overlay",
+			context: contextModals,
 			entries: []helpEntry{
 				{"esc", "Dismiss modal or close this help overlay"},
 				{"j / k", "Move cursor down / up (destination picker)"},
@@ -132,17 +141,28 @@ func helpSections() []helpSection {
 	}
 }
 
+// filteredHelpSections returns only sections whose context is contextGlobal or
+// matches ctx. This powers the "view-specific" help mode toggled with "?".
+func filteredHelpSections(ctx bindingContext) []helpSection {
+	all := helpSections()
+	filtered := make([]helpSection, 0, len(all))
+	for _, sec := range all {
+		if sec.context == contextGlobal || sec.context == ctx {
+			filtered = append(filtered, sec)
+		}
+	}
+	return filtered
+}
+
 // helpLineCount returns the total number of lines in the rendered help text.
 // It uses a zero-value Styles since styling does not add newlines.
-func helpLineCount() int {
-	return strings.Count(HelpOverlay{}.render(styles.Styles{}), "\n") + 1
+func helpLineCount(sections []helpSection) int {
+	return strings.Count(HelpOverlay{}.render(styles.Styles{}, sections, "Keybindings"), "\n") + 1
 }
 
 // render builds the help overlay string: a title, context-grouped keybinding
 // sections with section headers, and the log file path at the bottom.
-func (h HelpOverlay) render(s styles.Styles) string {
-	sections := helpSections()
-
+func (h HelpOverlay) render(s styles.Styles, sections []helpSection, title string) string {
 	// Find the longest key string across all sections for column alignment.
 	maxKeyLen := 0
 	for _, sec := range sections {
@@ -154,7 +174,7 @@ func (h HelpOverlay) render(s styles.Styles) string {
 	}
 
 	var b strings.Builder
-	b.WriteString(s.Heading.Render("Keybindings") + "\n\n")
+	b.WriteString(s.Heading.Render(title) + "\n\n")
 
 	for _, sec := range sections {
 		b.WriteString(s.Bold.Render(sec.title) + "\n")

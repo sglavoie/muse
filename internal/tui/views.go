@@ -48,6 +48,24 @@ func viewName(id viewID) string {
 	}
 }
 
+// viewToContext maps a viewID to its corresponding bindingContext.
+func viewToContext(id viewID) bindingContext {
+	switch id {
+	case viewLibrary:
+		return contextLibrary
+	case viewPlaylists:
+		return contextPlaylists
+	case viewQueue:
+		return contextQueue
+	case viewArtists:
+		return contextArtists
+	case viewAlbums:
+		return contextAlbums
+	default:
+		return contextGlobal
+	}
+}
+
 // prevView returns the previous view in the cycle (wrapping around).
 func prevView(id viewID) viewID {
 	for i, v := range viewOrder {

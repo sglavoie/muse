@@ -122,7 +122,7 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 }
 
 func TestHelpLineCountPositive(t *testing.T) {
-	n := helpLineCount()
+	n := helpLineCount(helpSections())
 	if n <= 0 {
 		t.Errorf("helpLineCount() = %d, want > 0", n)
 	}
@@ -134,7 +134,7 @@ func TestHelpLineCountPositive(t *testing.T) {
 
 func TestHelpOverlayRendersAllSectionHeaders(t *testing.T) {
 	h := HelpOverlay{}
-	out := h.render(styles.Styles{})
+	out := h.render(styles.Styles{}, helpSections(), "Keybindings")
 
 	for _, header := range []string{"Global", "Library", "Playlists", "Artists", "Albums", "Queue", "Modals"} {
 		if !strings.Contains(out, header) {
@@ -145,7 +145,7 @@ func TestHelpOverlayRendersAllSectionHeaders(t *testing.T) {
 
 func TestHelpOverlayRendersRepresentativeEntries(t *testing.T) {
 	h := HelpOverlay{}
-	out := h.render(styles.Styles{})
+	out := h.render(styles.Styles{}, helpSections(), "Keybindings")
 
 	checks := []struct {
 		section string
@@ -178,6 +178,43 @@ func TestHelpOverlayRendersRepresentativeEntries(t *testing.T) {
 	for _, c := range checks {
 		if !strings.Contains(out, c.text) {
 			t.Errorf("help overlay (%s section): expected entry containing %q", c.section, c.text)
+		}
+	}
+}
+
+func TestFilteredHelpSections(t *testing.T) {
+	sections := filteredHelpSections(contextLibrary)
+
+	// Should contain Global, Navigation, and Library — but not Queue, Playlists, etc.
+	allowed := map[string]bool{
+		"Global":   true,
+		"Navigation (Library / Queue / Playlists / Artists / Albums)": true,
+		"Library": true,
+	}
+	for _, sec := range sections {
+		if !allowed[sec.title] {
+			t.Errorf("filteredHelpSections(contextLibrary) included unexpected section %q", sec.title)
+		}
+	}
+	if len(sections) != len(allowed) {
+		t.Errorf("filteredHelpSections(contextLibrary) returned %d sections, want %d", len(sections), len(allowed))
+	}
+}
+
+func TestFilteredHelpRender(t *testing.T) {
+	sections := filteredHelpSections(contextQueue)
+	out := HelpOverlay{}.render(styles.Styles{}, sections, "Keybindings — Queue")
+
+	// Check that Queue section is present as a standalone section header.
+	if !strings.Contains(out, "\nQueue\n") {
+		t.Error("filtered help render missing Queue section header")
+	}
+	// Verify view-specific sections that should NOT be present.
+	// Use exact section title matches to avoid false positives from
+	// the Navigation section title which mentions all view names.
+	for _, absent := range []string{"\nLibrary\n", "\nPlaylists\n", "\nArtists\n", "\nAlbums\n"} {
+		if strings.Contains(out, absent) {
+			t.Errorf("filtered help render should not contain section header %q", strings.TrimSpace(absent))
 		}
 	}
 }
