@@ -485,7 +485,7 @@ func (v QueueView) visibleRows() int {
 // Proportional columns resize on WindowSizeMsg; fixed-width columns are
 // constant. Missing entries are wrapped in ANSI dim escape codes so they
 // appear grayed out in the terminal.
-func (v QueueView) render(s styles.Styles) string {
+func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 	if len(v.entries) == 0 {
 		return s.Heading.Render("Queue") + "\n\n(empty)"
 	}
@@ -524,13 +524,20 @@ func (v QueueView) render(s styles.Styles) string {
 		absIdx := start + i
 		isFocused := absIdx == v.cursor
 
+		isNowPlaying := currentTrackHash != "" && e.Hash == currentTrackHash
+
 		// Selection marker: matches Library and Playlists style.
+		// Now-playing track gets a "▶" marker when not bulk-selected.
 		var markerStr string
 		switch {
 		case e.Selected && isFocused:
 			markerStr = "● "
 		case e.Selected:
 			markerStr = s.AccentMark.Render("●") + " "
+		case isNowPlaying && isFocused:
+			markerStr = "▶ "
+		case isNowPlaying:
+			markerStr = s.Success.Render("▶") + " "
 		default:
 			markerStr = "  "
 		}
@@ -558,6 +565,8 @@ func (v QueueView) render(s styles.Styles) string {
 			lines[i] = s.Dim.Render(line + " [missing]")
 		} else if isFocused {
 			lines[i] = s.Accent.Render(line)
+		} else if isNowPlaying {
+			lines[i] = s.NowPlaying.Render(line)
 		} else {
 			lines[i] = line
 		}

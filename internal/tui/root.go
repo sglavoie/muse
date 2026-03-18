@@ -1817,7 +1817,7 @@ func (m Model) View() tea.View {
 		case viewPlaylists:
 			body = m.playlists.render(*m.styles)
 		case viewQueue:
-			body = m.queue.render(*m.styles)
+			body = m.queue.render(*m.styles, m.currentTrackHash)
 		case viewArtists:
 			body = m.artists.render(*m.styles)
 		case viewAlbums:

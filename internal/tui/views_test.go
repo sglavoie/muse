@@ -37,7 +37,7 @@ func makeQueue(width int, entries []QueueEntry) QueueView {
 // TestQueueRenderEmptyShowsPlaceholder verifies the empty-queue message.
 func TestQueueRenderEmptyShowsPlaceholder(t *testing.T) {
 	v := QueueView{}
-	got := v.render(styles.NewStyles(true))
+	got := v.render(styles.NewStyles(true), "")
 	if !strings.Contains(got, "empty") {
 		t.Fatalf("empty queue must show '(empty)'; got: %q", got)
 	}
@@ -50,7 +50,7 @@ func TestQueueRenderFourColumns(t *testing.T) {
 		{Title: "Song One", Artist: "Band A", DurationMs: 200_000, Position: 1000},
 		{Title: "Song Two", Artist: "Band B", DurationMs: 65_000, Position: 2000},
 	})
-	out := v.render(styles.NewStyles(true))
+	out := v.render(styles.NewStyles(true), "")
 
 	// Position column: index numbers should appear.
 	if !strings.Contains(out, "1") {
@@ -91,7 +91,7 @@ func TestQueueRenderAscendingOrder(t *testing.T) {
 		{Title: "Second", Artist: "B", DurationMs: 120_000, Position: 2000},
 		{Title: "Third", Artist: "C", DurationMs: 180_000, Position: 3000},
 	})
-	out := v.render(styles.NewStyles(true))
+	out := v.render(styles.NewStyles(true), "")
 	firstIdx := strings.Index(out, "First")
 	secondIdx := strings.Index(out, "Second")
 	thirdIdx := strings.Index(out, "Third")
@@ -111,7 +111,7 @@ func TestQueueRenderMissingEntryDim(t *testing.T) {
 		{Title: "Gone", Artist: "Nobody", DurationMs: 0, Missing: true, Position: 1000},
 	})
 	s := styles.NewStyles(true)
-	out := v.render(s)
+	out := v.render(s, "")
 	// Verify [missing] label appears in the output.
 	if !strings.Contains(out, "[missing]") {
 		t.Error("missing entry must contain '[missing]' label")
@@ -142,7 +142,7 @@ func TestQueueRenderSelectedNonFocusedRowUsesAccent(t *testing.T) {
 	// cursor=0 so entry at index 1 is selected but not focused.
 	v.cursor = 0
 	s := styles.NewStyles(true)
-	out := v.render(s)
+	out := v.render(s, "")
 
 	want := styledText(s.AccentMark, "●")
 	// Skip the style assertion if lipgloss emits no ANSI in this environment.
@@ -167,8 +167,8 @@ func TestQueueRenderProportionalColumnWidths(t *testing.T) {
 	narrow := makeQueue(80, []QueueEntry{entry})
 	wide := makeQueue(160, []QueueEntry{entry})
 
-	narrowOut := narrow.render(styles.NewStyles(true))
-	wideOut := wide.render(styles.NewStyles(true))
+	narrowOut := narrow.render(styles.NewStyles(true), "")
+	wideOut := wide.render(styles.NewStyles(true), "")
 
 	// Wide terminal should accommodate more of the long title / artist strings.
 	// Count how many T's appear in the title column.
@@ -289,7 +289,7 @@ func TestQueueRenderSelectedEntryShowsMarker(t *testing.T) {
 		{Title: "Normal", Artist: "A", DurationMs: 60_000, Selected: false},
 		{Title: "Selected", Artist: "B", DurationMs: 120_000, Selected: true},
 	})
-	out := v.render(styles.NewStyles(true))
+	out := v.render(styles.NewStyles(true), "")
 	if !strings.Contains(out, "●") {
 		t.Fatal("selected queue entry must show a ● marker")
 	}
@@ -301,10 +301,59 @@ func TestQueueRenderUnselectedEntryHasNoMarker(t *testing.T) {
 	v := makeQueue(120, []QueueEntry{
 		{Title: "Normal", Artist: "A", DurationMs: 60_000, Selected: false},
 	})
-	out := v.render(styles.NewStyles(true))
+	out := v.render(styles.NewStyles(true), "")
 	if strings.Contains(out, "●") {
 		t.Fatal("unselected queue entry must not show a ● marker")
 	}
+}
+
+// TestQueueRenderNowPlayingMarker verifies that the currently playing track
+// gets a "▶" marker in the rendered output.
+func TestQueueRenderNowPlayingMarker(t *testing.T) {
+	v := makeQueue(120, []QueueEntry{
+		{Title: "Not Playing", Artist: "A", Hash: "aaa", DurationMs: 60_000},
+		{Title: "Playing", Artist: "B", Hash: "bbb", DurationMs: 120_000},
+	})
+	v.cursor = 0 // cursor on first entry, not the playing one
+	out := v.render(styles.NewStyles(true), "bbb")
+	stripped := ansi.Strip(out)
+
+	// The playing entry's line must contain the ▶ marker.
+	lines := strings.Split(stripped, "\n")
+	var playingLine string
+	for _, l := range lines {
+		if strings.Contains(l, "Playing") && !strings.Contains(l, "Not Playing") {
+			playingLine = l
+			break
+		}
+	}
+	if playingLine == "" {
+		t.Fatal("playing entry must appear in the output")
+	}
+	if !strings.Contains(playingLine, "▶") {
+		t.Errorf("now-playing entry must contain ▶ marker; got: %q", playingLine)
+	}
+}
+
+// TestQueueRenderNonPlayingEntryHasNoPlayMarker verifies that entries that are
+// not currently playing do not get a "▶" marker.
+func TestQueueRenderNonPlayingEntryHasNoPlayMarker(t *testing.T) {
+	v := makeQueue(120, []QueueEntry{
+		{Title: "Normal", Artist: "A", Hash: "aaa", DurationMs: 60_000},
+	})
+	out := v.render(styles.NewStyles(true), "other-hash")
+	stripped := ansi.Strip(out)
+
+	lines := strings.Split(stripped, "\n")
+	for _, l := range lines {
+		if strings.Contains(l, "Normal") {
+			if strings.Contains(l, "▶") {
+				t.Errorf("non-playing entry must not contain ▶ marker; got: %q", l)
+			}
+			return
+		}
+	}
+	t.Fatal("entry must appear in the output")
 }
 
 // TestPlaylistsViewEnsureCursorVisibleAdjustsScroll verifies that
@@ -410,7 +459,7 @@ func TestQueueRenderSelectedAndFocusedMarker(t *testing.T) {
 		cursor: 0,
 		width:  120,
 	}
-	out := v.render(styles.NewStyles(true))
+	out := v.render(styles.NewStyles(true), "")
 	// The focused+selected line must contain "●" but must not contain the
 	// inner accent+reset pair that unfocused selected entries use.
 	lines := strings.Split(out, "\n")
