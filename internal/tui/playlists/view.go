@@ -43,12 +43,12 @@ type View struct {
 }
 
 // visibleRows returns the maximum number of rows that fit on screen.
-// Reserve 1 line for the list level, 3 for the track level ("Tracks"
-// heading + blank line + 1 padding).
+// Reserve 1 line for the list level, 4 for the track level ("Tracks"
+// heading + blank line + header row + 1 padding).
 func (v View) visibleRows() int {
 	reserve := 1
 	if v.Level == TrackLevel {
-		reserve = 3
+		reserve = 4
 	}
 	return layout.VisibleRows(v.Height, reserve)
 }
@@ -312,6 +312,15 @@ func (v View) renderTracks() string {
 
 	cols := ComputeTrack(v.Width)
 
+	header := v.Styles.ColHead.Render(
+		strings.Repeat(" ", cols.Marker) +
+			fmt.Sprintf("%-*s %-*s %-*s %-*s %*s",
+				cols.Position, "#",
+				cols.Title, "Title",
+				cols.Artist, "Artist",
+				cols.Album, "Album",
+				cols.Duration, "Time"))
+
 	maxRows := v.visibleRows()
 	start := v.ScrollOffset
 	if start > len(v.Tracks) {
@@ -343,15 +352,17 @@ func (v View) renderTracks() string {
 		title = fmt.Sprintf("%-*s", cols.Title, title)
 		artist := truncate(t.Artist, cols.Artist)
 		artist = fmt.Sprintf("%-*s", cols.Artist, artist)
+		album := truncate(t.Album, cols.Album)
+		album = fmt.Sprintf("%-*s", cols.Album, album)
 		dur := formatDuration(t.DurationMs)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
-		line := markerStr + pos + " " + title + " " + artist + " " + dur
+		line := markerStr + pos + " " + title + " " + artist + " " + album + " " + dur
 		if isFocused {
 			line = v.Styles.Accent.Render(line)
 		}
 		lines[i] = line
 	}
-	return v.Styles.Heading.Render("Tracks") + "\n\n" + strings.Join(lines, "\n")
+	return v.Styles.Heading.Render("Tracks") + "\n\n" + header + "\n" + strings.Join(lines, "\n")
 }
 
 // formatDuration converts milliseconds to a "m:ss" or "h:mm:ss" string.

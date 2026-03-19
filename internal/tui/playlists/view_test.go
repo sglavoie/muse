@@ -24,14 +24,20 @@ func TestRenderTracksShowsColumns(t *testing.T) {
 		Level: TrackLevel,
 		Width: 80,
 		Tracks: []db.PlaylistTrackRow{
-			{Position: 1, Title: "Song A", Artist: "Artist X", DurationMs: 183000},
-			{Position: 2, Title: "Song B", Artist: "Artist Y", DurationMs: 245000},
+			{Position: 1, Title: "Song A", Artist: "Artist X", Album: "Album P", DurationMs: 183000},
+			{Position: 2, Title: "Song B", Artist: "Artist Y", Album: "Album Q", DurationMs: 245000},
 		},
 	}
 	out := v.Render()
-	for _, want := range []string{"Song A", "Artist X", "3:03", "Song B", "Artist Y", "4:05"} {
+	for _, want := range []string{"Song A", "Artist X", "Album P", "3:03", "Song B", "Artist Y", "Album Q", "4:05"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("expected %q in output, got:\n%s", want, out)
+		}
+	}
+	// Header row must contain column names.
+	for _, hdr := range []string{"Title", "Artist", "Album", "Time"} {
+		if !strings.Contains(out, hdr) {
+			t.Errorf("expected header %q in output, got:\n%s", hdr, out)
 		}
 	}
 }
@@ -877,9 +883,9 @@ func TestVisibleRowsSmallHeight(t *testing.T) {
 
 func TestVisibleRowsTrackLevel(t *testing.T) {
 	v := View{Level: TrackLevel, Height: 10}
-	// reserve=3 for TrackLevel → max(1, 10-3) = 7
-	if v.visibleRows() != 7 {
-		t.Errorf("visibleRows TrackLevel Height=10: expected 7, got %d", v.visibleRows())
+	// reserve=4 for TrackLevel → max(1, 10-4) = 6
+	if v.visibleRows() != 6 {
+		t.Errorf("visibleRows TrackLevel Height=10: expected 6, got %d", v.visibleRows())
 	}
 }
 
@@ -1103,7 +1109,7 @@ func TestRenderTracksShowsSequentialPositions(t *testing.T) {
 	}
 }
 
-// --- baseline column-ratio tests (56:44 Title:Artist at TrackLevel) ---
+// --- baseline column-ratio tests (40:35:25 Title:Artist:Album at TrackLevel) ---
 
 // trackColumnWidthsFromRender renders the playlists track view at the given
 // width, strips ANSI sequences from the first track row using
@@ -1121,20 +1127,20 @@ func trackColumnWidthsFromRender(t *testing.T, width int) (titleW, artistW int) 
 	rendered := v.Render()
 
 	lines := strings.Split(rendered, "\n")
-	// lines[0]="Tracks", lines[1]=blank, lines[2]=first track row
-	if len(lines) < 3 {
-		t.Fatalf("trackColumnWidthsFromRender: expected ≥3 lines, got %d", len(lines))
+	// lines[0]="Tracks", lines[1]=blank, lines[2]=header, lines[3]=first track row
+	if len(lines) < 4 {
+		t.Fatalf("trackColumnWidthsFromRender: expected ≥4 lines, got %d", len(lines))
 	}
 
 	// Strip all ANSI escape sequences to obtain only visible characters.
-	trackRow := ansi.Strip(lines[2])
+	trackRow := ansi.Strip(lines[3])
 	runes := []rune(trackRow)
 	if len(runes) != width {
 		t.Fatalf("trackColumnWidthsFromRender: stripped row has %d runes, want %d", len(runes), width)
 	}
 
 	cols := ComputeTrack(width)
-	// Row layout: marker(2) + pos(4) + sep(1) + Title + sep(1) + Artist + sep(1) + Duration(10)
+	// Row layout: marker(2) + pos(4) + sep(1) + Title + sep(1) + Artist + sep(1) + Album + sep(1) + Duration(10)
 	titleStart := trackMarkerFixed + trackPosFixed + 1
 	titleEnd := titleStart + cols.Title
 	artistStart := titleEnd + 1

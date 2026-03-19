@@ -7,11 +7,12 @@ const (
 	trackMarkerFixed   = 2  // '●' glyph + separator space
 	trackPosFixed      = 4  // "999 " — position column
 	trackDurationFixed = 10 // "mm:ss.xxx" — duration column
-	trackSepCount      = 3  // spaces between the four track columns
+	trackSepCount      = 4  // spaces between the five track columns
 
-	trackTitleRatio  = 56
-	trackArtistRatio = 44
-	trackTotalRatio  = trackTitleRatio + trackArtistRatio
+	trackTitleRatio  = 40
+	trackArtistRatio = 35
+	trackAlbumRatio  = 25
+	trackTotalRatio  = trackTitleRatio + trackArtistRatio + trackAlbumRatio
 )
 
 // Columns holds computed character widths for the playlist list columns.
@@ -37,8 +38,9 @@ func Compute(totalWidth int) Columns {
 type TrackColumns struct {
 	Marker   int // fixed: trackMarkerFixed chars ('●'/' ' + space)
 	Position int // fixed: ~4 chars
-	Title    int // proportional: ~45% of flex (56% of flex after fixed cols)
-	Artist   int // proportional: ~35% of flex (44% of flex after fixed cols)
+	Title    int // proportional: 40% of flex
+	Artist   int // proportional: 35% of flex
+	Album    int // proportional: 25% of flex
 	Duration int // fixed: ~10 chars
 }
 
@@ -56,19 +58,22 @@ func ComputeTrack(totalWidth int) TrackColumns {
 			Position: trackPosFixed,
 			Title:    1,
 			Artist:   0,
+			Album:    0,
 			Duration: trackDurationFixed,
 		}
 	}
 
 	flex := totalWidth - trackMarkerFixed - trackPosFixed - trackDurationFixed - trackSepCount
 	artist := flex * trackArtistRatio / trackTotalRatio
-	title := flex - artist // absorbs integer division remainder
+	album := flex * trackAlbumRatio / trackTotalRatio
+	title := flex - artist - album // absorbs integer division remainder
 
 	return TrackColumns{
 		Marker:   trackMarkerFixed,
 		Position: trackPosFixed,
 		Title:    title,
 		Artist:   artist,
+		Album:    album,
 		Duration: trackDurationFixed,
 	}
 }
