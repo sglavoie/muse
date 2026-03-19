@@ -43,9 +43,14 @@ type View struct {
 }
 
 // visibleRows returns the maximum number of rows that fit on screen.
-// Reserve 1 line for the header.
+// Reserve 1 line for the list level, 3 for the track level ("Tracks"
+// heading + blank line + 1 padding).
 func (v View) visibleRows() int {
-	return layout.VisibleRows(v.Height, 1)
+	reserve := 1
+	if v.Level == TrackLevel {
+		reserve = 3
+	}
+	return layout.VisibleRows(v.Height, reserve)
 }
 
 // CursorUp returns a copy of v with the cursor moved up by one row,

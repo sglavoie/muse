@@ -875,6 +875,14 @@ func TestVisibleRowsSmallHeight(t *testing.T) {
 	}
 }
 
+func TestVisibleRowsTrackLevel(t *testing.T) {
+	v := View{Level: TrackLevel, Height: 10}
+	// reserve=3 for TrackLevel → max(1, 10-3) = 7
+	if v.visibleRows() != 7 {
+		t.Errorf("visibleRows TrackLevel Height=10: expected 7, got %d", v.visibleRows())
+	}
+}
+
 // --- formatDuration edge cases ---
 
 func TestFormatDurationHours(t *testing.T) {
