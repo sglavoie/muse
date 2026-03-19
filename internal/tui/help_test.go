@@ -190,6 +190,70 @@ func TestFilteredHelpSections(t *testing.T) {
 	}
 }
 
+func TestSearchHelpSections(t *testing.T) {
+	sections := helpSections()
+	result := searchHelpSections(sections, "shuffle")
+
+	// "shuffle" should match the Global entry "Toggle shuffle".
+	if len(result) == 0 {
+		t.Fatal("searchHelpSections(\"shuffle\") returned no sections")
+	}
+	for _, sec := range result {
+		for _, e := range sec.entries {
+			lower := strings.ToLower(e.key) + " " + strings.ToLower(e.desc)
+			if !strings.Contains(lower, "shuffle") {
+				t.Errorf("section %q: entry (%q, %q) does not match query \"shuffle\"", sec.title, e.key, e.desc)
+			}
+		}
+	}
+
+	// Only Global should match; view-specific sections have no "shuffle" entry.
+	if len(result) != 1 || result[0].title != "Global" {
+		titles := make([]string, len(result))
+		for i, s := range result {
+			titles[i] = s.title
+		}
+		t.Errorf("expected only Global section, got %v", titles)
+	}
+}
+
+func TestSearchHelpSectionsCaseInsensitive(t *testing.T) {
+	sections := helpSections()
+	for _, query := range []string{"QUIT", "quit", "Quit"} {
+		result := searchHelpSections(sections, query)
+		if len(result) == 0 {
+			t.Fatalf("searchHelpSections(%q) returned no sections", query)
+		}
+		found := false
+		for _, sec := range result {
+			for _, e := range sec.entries {
+				if strings.Contains(strings.ToLower(e.desc), "quit") {
+					found = true
+				}
+			}
+		}
+		if !found {
+			t.Errorf("searchHelpSections(%q) did not return the Quit entry", query)
+		}
+	}
+}
+
+func TestSearchHelpSectionsEmptyQuery(t *testing.T) {
+	sections := helpSections()
+	result := searchHelpSections(sections, "")
+	if len(result) != len(sections) {
+		t.Fatalf("empty query: expected %d sections, got %d", len(sections), len(result))
+	}
+	for i := range sections {
+		if result[i].title != sections[i].title {
+			t.Errorf("empty query: section %d title mismatch: %q vs %q", i, result[i].title, sections[i].title)
+		}
+		if len(result[i].entries) != len(sections[i].entries) {
+			t.Errorf("empty query: section %q entry count mismatch: %d vs %d", result[i].title, len(result[i].entries), len(sections[i].entries))
+		}
+	}
+}
+
 func TestFilteredHelpRender(t *testing.T) {
 	sections := filteredHelpSections(contextQueue)
 	out := HelpOverlay{}.render(styles.Styles{}, sections, "Keybindings — Queue")

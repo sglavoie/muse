@@ -7,6 +7,29 @@ import (
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
+// searchHelpSections filters help sections by a case-insensitive substring
+// match against both entry key and description. Sections with zero matching
+// entries are omitted. An empty query returns sections unchanged.
+func searchHelpSections(sections []helpSection, query string) []helpSection {
+	if query == "" {
+		return sections
+	}
+	q := strings.ToLower(query)
+	var result []helpSection
+	for _, sec := range sections {
+		var matched []helpEntry
+		for _, e := range sec.entries {
+			if strings.Contains(strings.ToLower(e.key), q) || strings.Contains(strings.ToLower(e.desc), q) {
+				matched = append(matched, e)
+			}
+		}
+		if len(matched) > 0 {
+			result = append(result, helpSection{title: sec.title, context: sec.context, entries: matched})
+		}
+	}
+	return result
+}
+
 // helpEntry is a single row in the keybinding table.
 type helpEntry struct {
 	key  string
@@ -132,7 +155,7 @@ func helpSections() []helpSection {
 				{"C", "Clear queue"},
 				{"K / J", "Move track up / down"},
 				{"f", "Focus now-playing track"},
-			{"S", "Save queue as playlist"},
+				{"S", "Save queue as playlist"},
 			},
 		},
 		{
@@ -143,6 +166,7 @@ func helpSections() []helpSection {
 			context: contextModals,
 			entries: []helpEntry{
 				{"esc", "Dismiss modal or close this help overlay"},
+				{"/", "Search keybindings"},
 				{"j / k", "Move cursor down / up (destination picker)"},
 				{"enter", "Confirm selection (destination picker)"},
 			},

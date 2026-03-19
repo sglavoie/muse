@@ -14,6 +14,7 @@ import (
 	"github.com/sglavoie/muse/internal/player"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/filter"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -61,8 +62,9 @@ type Model struct {
 	registry       Registry
 	helpVisible    bool           // true while the help overlay is shown
 	helpViewport   viewport.Model // scrollable viewport for the help overlay
-	helpFiltered   bool           // true when showing only current-view keybindings
-	prevActiveView viewID         // the view that was active before help was opened
+	helpFiltered     bool           // true when showing only current-view keybindings
+	helpSearchFilter filter.State   // search filter state for the help overlay
+	prevActiveView   viewID         // the view that was active before help was opened
 
 	// player is the playback backend. It may be nil when playback is not
 	// available (e.g. in tests that do not exercise playback).
@@ -649,7 +651,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.albums.height = max(msg.Height-3, 0)
 		if m.helpVisible {
 			m.helpViewport.SetWidth(msg.Width)
-			m.helpViewport.SetHeight(max(msg.Height-2, 0))
+			extraLines := 0
+			if m.helpSearchFilter.Active || m.helpSearchFilter.Text != "" {
+				extraLines = 1
+			}
+			m.helpViewport.SetHeight(max(msg.Height-2-extraLines, 0))
 		}
 
 	case tea.BackgroundColorMsg:
@@ -770,25 +776,65 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.configCreated = false
 
 		if m.helpVisible {
-			switch msg.String() {
-			case "ctrl+c":
-				// Fall through to global key handling for quit.
-			case "esc":
-				m.helpVisible = false
-				m.helpViewport = viewport.Model{}
-				m.helpFiltered = false
-				m.activeView = m.prevActiveView
-				return m, nil
-			case "?":
-				m.helpFiltered = !m.helpFiltered
-				sections, title := m.helpState()
-				m.helpViewport.SetContent(HelpOverlay{}.render(*m.styles, sections, title))
-				m.helpViewport.SetYOffset(0)
-				return m, nil
-			default:
-				var cmd tea.Cmd
-				m.helpViewport, cmd = m.helpViewport.Update(msg)
-				return m, cmd
+			if m.helpSearchFilter.Active {
+				// Filter input mode: capture typing.
+				switch msg.String() {
+				case "ctrl+c":
+					// Fall through to global key handling for quit.
+				case "esc":
+					m.helpSearchFilter = m.helpSearchFilter.Deactivate()
+					m.refreshHelpViewport()
+					return m, nil
+				case "enter", "/":
+					m.helpSearchFilter = m.helpSearchFilter.Commit()
+					m.refreshHelpViewport()
+					return m, nil
+				case "backspace":
+					var changed bool
+					m.helpSearchFilter, changed = m.helpSearchFilter.Backspace()
+					if changed {
+						m.refreshHelpViewport()
+					}
+					return m, nil
+				default:
+					if msg.Text != "" {
+						for _, ch := range msg.Text {
+							m.helpSearchFilter, _ = m.helpSearchFilter.AppendChar(ch)
+						}
+						m.refreshHelpViewport()
+					}
+					return m, nil
+				}
+			} else {
+				// Normal help overlay mode.
+				switch msg.String() {
+				case "ctrl+c":
+					// Fall through to global key handling for quit.
+				case "/":
+					m.helpSearchFilter = m.helpSearchFilter.Activate()
+					m.refreshHelpViewport()
+					return m, nil
+				case "esc":
+					if m.helpSearchFilter.Text != "" {
+						m.helpSearchFilter = filter.State{}
+						m.refreshHelpViewport()
+						return m, nil
+					}
+					m.helpVisible = false
+					m.helpViewport = viewport.Model{}
+					m.helpFiltered = false
+					m.helpSearchFilter = filter.State{}
+					m.activeView = m.prevActiveView
+					return m, nil
+				case "?":
+					m.helpFiltered = !m.helpFiltered
+					m.refreshHelpViewport()
+					return m, nil
+				default:
+					var cmd tea.Cmd
+					m.helpViewport, cmd = m.helpViewport.Update(msg)
+					return m, cmd
+				}
 			}
 		}
 		// While the now-playing info overlay is active, swallow all keys
@@ -947,12 +993,34 @@ func (m Model) helpState() ([]helpSection, string) {
 	return filteredHelpSections(ctx), "Keybindings — " + name + "  (? to show all)"
 }
 
+// refreshHelpViewport rebuilds the help viewport content from the current
+// help state and search filter, then resets the scroll position to the top.
+func (m *Model) refreshHelpViewport() {
+	sections, title := m.helpState()
+	if m.helpSearchFilter.Text != "" {
+		sections = searchHelpSections(sections, m.helpSearchFilter.Text)
+	}
+	m.helpViewport.SetContent(HelpOverlay{}.render(*m.styles, sections, title))
+	m.helpViewport.SetYOffset(0)
+	extraLines := 0
+	if m.helpSearchFilter.Active || m.helpSearchFilter.Text != "" {
+		extraLines = 1
+	}
+	m.helpViewport.SetHeight(max(m.termHeight-2-extraLines, 0))
+}
+
 // View renders the active panel and a status bar, returning a tea.View.
 // When the help overlay is visible it replaces the body content entirely.
 func (m Model) View() tea.View {
 	var body string
 	if m.helpVisible {
-		body = m.helpViewport.View()
+		var filterBar string
+		if m.helpSearchFilter.Active {
+			filterBar = "Search: > " + m.helpSearchFilter.Text + "\n"
+		} else if m.helpSearchFilter.Text != "" {
+			filterBar = "Search: " + m.helpSearchFilter.Text + "\n"
+		}
+		body = filterBar + m.helpViewport.View()
 	} else if m.nowPlayingInfo != nil {
 		body = m.nowPlayingInfo.Render(m.termWidth, m.termHeight, *m.styles)
 	} else if m.trackInfo != nil {
@@ -1106,9 +1174,9 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m.prevActiveView = m.activeView
 		m.helpVisible = true
 		m.helpFiltered = false
+		m.helpSearchFilter = filter.State{}
 		m.helpViewport = viewport.New(viewport.WithWidth(m.termWidth), viewport.WithHeight(m.termHeight-2))
-		sections, title := m.helpState()
-		m.helpViewport.SetContent(HelpOverlay{}.render(*m.styles, sections, title))
+		m.refreshHelpViewport()
 	case actionNextView:
 		m = m.switchToView(nextView(m.activeView))
 	case actionPrevView:
