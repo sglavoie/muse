@@ -199,6 +199,7 @@ type PlaylistTrackRow struct {
 	Position   int64
 	Title      string
 	Artist     string
+	Album      string
 	DurationMs int64
 	Hash       string // BLAKE3 content hash; required for enqueue operations
 	Path       string // file path; required for enqueue operations
@@ -209,7 +210,7 @@ type PlaylistTrackRow struct {
 // an error) when the playlist has no tracks.
 func (d *DB) ReadPlaylistTracks(playlistID int64) ([]PlaylistTrackRow, error) {
 	rows, err := d.Query(`
-		SELECT pt.id, pt.position, t.title, t.artist, t.duration_ms, t.hash, t.path
+		SELECT pt.id, pt.position, t.title, t.artist, t.album, t.duration_ms, t.hash, t.path
 		FROM playlist_tracks pt
 		JOIN tracks t ON pt.track_hash = t.hash
 		WHERE pt.playlist_id = ? AND pt.deleted_at IS NULL
@@ -223,7 +224,7 @@ func (d *DB) ReadPlaylistTracks(playlistID int64) ([]PlaylistTrackRow, error) {
 	var result []PlaylistTrackRow
 	for rows.Next() {
 		var r PlaylistTrackRow
-		if err := rows.Scan(&r.ID, &r.Position, &r.Title, &r.Artist, &r.DurationMs, &r.Hash, &r.Path); err != nil {
+		if err := rows.Scan(&r.ID, &r.Position, &r.Title, &r.Artist, &r.Album, &r.DurationMs, &r.Hash, &r.Path); err != nil {
 			return nil, fmt.Errorf("db: read playlist track row: %w", err)
 		}
 		result = append(result, r)

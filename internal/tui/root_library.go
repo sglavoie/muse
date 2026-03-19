@@ -264,17 +264,8 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 					}
 				}
 				m.playlists.tracks = remaining
-				if m.playlists.cursor >= len(m.playlists.tracks) && m.playlists.cursor > 0 {
-					m.playlists.cursor = len(m.playlists.tracks) - 1
-				}
-				if nt := len(m.playlists.tracks); nt > 0 {
-					maxOffset := nt - 1
-					if m.playlists.scrollOffset > maxOffset {
-						m.playlists.scrollOffset = maxOffset
-					}
-				} else {
-					m.playlists.scrollOffset = 0
-				}
+				m.playlists.cursor, m.playlists.scrollOffset = clampAfterRemoval(
+					m.playlists.cursor, m.playlists.scrollOffset, len(m.playlists.tracks))
 				m.playlists.selectedTrackIDs = nil
 				m.setUndoSlot(undoSlot{
 					kind:                   undoKindBulkRemovePlaylistTracks,

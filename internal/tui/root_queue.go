@@ -7,23 +7,36 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
-// clampCursorAndScroll adjusts the queue cursor and scroll offset so they
+// newQueueEntries builds QueueEntry values from matched tracks and DB row IDs.
+// source is the playlist name to record on each entry (empty for individual enqueues).
+func newQueueEntries(tracks []library.Track, ids []int64, source string) []QueueEntry {
+	entries := make([]QueueEntry, len(tracks))
+	for i, t := range tracks {
+		entries[i] = QueueEntry{
+			ID:             ids[i],
+			Path:           t.Path,
+			Hash:           t.Hash,
+			Display:        trackDisplay(t.Artist, t.Title, t.Path),
+			Artist:         t.Artist,
+			Title:          t.Title,
+			Album:          t.Album,
+			DurationMs:     int64(t.Duration * 1000),
+			SourcePlaylist: source,
+		}
+	}
+	return entries
+}
+
+// clampQueueCursorAndScroll adjusts the queue cursor and scroll offset so they
 // remain within bounds after entries have been removed.
 func (m *Model) clampQueueCursorAndScroll() {
-	if m.queue.cursor >= len(m.queue.entries) && m.queue.cursor > 0 {
-		m.queue.cursor = len(m.queue.entries) - 1
-	}
-	if n := len(m.queue.entries); n > 0 {
-		if m.queue.scrollOffset > n-1 {
-			m.queue.scrollOffset = n - 1
-		}
-	} else {
-		m.queue.scrollOffset = 0
-	}
+	m.queue.cursor, m.queue.scrollOffset = clampAfterRemoval(
+		m.queue.cursor, m.queue.scrollOffset, len(m.queue.entries))
 }
 
 // resetPlaybackState stops the player and clears all playback-related fields
@@ -54,14 +67,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 		player.PlaySound(player.SoundError)
 		return m
 	}
-	display := msg.Track.Artist + " – " + msg.Track.Title
-	if msg.Track.Artist == "" && msg.Track.Title == "" {
-		display = msg.Track.Path
-	} else if msg.Track.Artist == "" {
-		display = msg.Track.Title
-	} else if msg.Track.Title == "" {
-		display = msg.Track.Artist
-	}
+	display := trackDisplay(msg.Track.Artist, msg.Track.Title, msg.Track.Path)
 	m.queue.entries = append(m.queue.entries, QueueEntry{
 		ID:             msg.QueueID,
 		Path:           msg.Track.Path,

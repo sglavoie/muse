@@ -428,6 +428,7 @@ func (v PlaylistsView) focusedTrack() (musiclib.Track, bool) {
 		Path:     t.Path,
 		Artist:   t.Artist,
 		Title:    t.Title,
+		Album:    t.Album,
 		Duration: float64(t.DurationMs) / 1000,
 	}, true
 }
@@ -452,6 +453,25 @@ func (v PlaylistsView) enqueueFocusedTrack(qa libtui.QueueAppender, prevQueueLen
 		id, err := qa.AppendTrack(track, playlistName)
 		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, SourcePlaylist: playlistName}
 	}
+}
+
+// clampAfterRemoval adjusts cursor and scrollOffset after items are removed
+// from a list of the given length. Returns the clamped values.
+func clampAfterRemoval(cursor, scrollOffset, length int) (int, int) {
+	if length == 0 {
+		return 0, 0
+	}
+	if cursor >= length {
+		cursor = length - 1
+	}
+	if cursor < 0 {
+		cursor = 0
+	}
+	maxOffset := length - 1
+	if scrollOffset > maxOffset {
+		scrollOffset = maxOffset
+	}
+	return cursor, scrollOffset
 }
 
 // QueueEntry holds a single item in the playback queue.

@@ -176,7 +176,7 @@ func TestFilteredHelpSections(t *testing.T) {
 
 	// Should contain Global, Navigation, and Library — but not Queue, Playlists, etc.
 	allowed := map[string]bool{
-		"Global":   true,
+		"Global": true,
 		"Navigation (Library / Queue / Playlists / Artists / Albums)": true,
 		"Library": true,
 	}
