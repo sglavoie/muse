@@ -7,6 +7,9 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 
 	tea "charm.land/bubbletea/v2"
@@ -23,7 +26,29 @@ import (
 var Version = "dev"
 
 func main() {
+	// Handle subcommands before flag parsing.
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "toggle-play", "volume-up", "volume-down", "next", "previous":
+			if err := runRemoteAction(os.Args[1]); err != nil {
+				fmt.Fprintf(os.Stderr, "muse %s: %v\n", os.Args[1], err)
+				os.Exit(1)
+			}
+			return
+		}
+	}
+
 	version := flag.Bool("version", false, "print version and exit")
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: muse [command] [flags]\n\nCommands:\n")
+		fmt.Fprintf(os.Stderr, "  toggle-play   Toggle play/pause on the running instance\n")
+		fmt.Fprintf(os.Stderr, "  next          Skip to the next track\n")
+		fmt.Fprintf(os.Stderr, "  previous      Skip to the previous track\n")
+		fmt.Fprintf(os.Stderr, "  volume-up     Increase volume\n")
+		fmt.Fprintf(os.Stderr, "  volume-down   Decrease volume\n")
+		fmt.Fprintf(os.Stderr, "\nFlags:\n")
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 
 	if *version {
@@ -338,6 +363,23 @@ func main() {
 	})
 	mgr.SetMissingMarker(result.Writer)
 
+	// Listen for SIGUSR1 to dispatch remote playback actions. The action name
+	// is read from $RUNTIME/muse.cmd (written by runRemoteAction); a missing
+	// file (bare kill -USR1) defaults to play/pause for backward compat.
+	sigusr1 := make(chan os.Signal, 1)
+	signal.Notify(sigusr1, syscall.SIGUSR1)
+	go func() {
+		cmdPath := filepath.Join(dirs.Runtime, "muse.cmd")
+		for range sigusr1 {
+			actionName := ""
+			if data, err := os.ReadFile(cmdPath); err == nil {
+				actionName = strings.TrimSpace(string(data))
+				os.Remove(cmdPath)
+			}
+			p.Send(tui.RemoteActionMsg{ActionName: actionName})
+		}
+	}()
+
 	// When the signal context is cancelled (SIGTERM/SIGINT from outside),
 	// tell the TUI to quit so p.Run() returns and shutdown proceeds.
 	go func() {
@@ -354,4 +396,51 @@ func main() {
 	}
 
 	app.Shutdown(shutdownDeps)
+}
+
+// runRemoteAction writes the action name to $RUNTIME/muse.cmd and sends
+// SIGUSR1 to the running muse process. The TUI's signal handler reads the
+// file and dispatches the action through handlePlaybackKeyAction, keeping
+// all playback logic (including Go-side queue indexing and TUI state sync)
+// in one place.
+func runRemoteAction(action string) error {
+	runtimeDir := resolveRuntimeDir()
+	cmdPath := filepath.Join(runtimeDir, "muse.cmd")
+	pidPath := filepath.Join(runtimeDir, "muse.pid")
+
+	// Atomic write: write to a temp file then rename.
+	tmpPath := cmdPath + ".tmp"
+	if err := os.WriteFile(tmpPath, []byte(action+"\n"), 0o600); err != nil {
+		return fmt.Errorf("write command file: %w", err)
+	}
+	if err := os.Rename(tmpPath, cmdPath); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("rename command file: %w", err)
+	}
+
+	// Signal muse TUI to read the command file and dispatch the action.
+	data, err := os.ReadFile(pidPath)
+	if err != nil {
+		return fmt.Errorf("read PID file: %w", err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		return fmt.Errorf("parse PID: %w", err)
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return fmt.Errorf("find process: %w", err)
+	}
+	if err := proc.Signal(syscall.SIGUSR1); err != nil {
+		return fmt.Errorf("send SIGUSR1: %w", err)
+	}
+	return nil
+}
+
+// resolveRuntimeDir mirrors config.resolveRuntimeDir (unexported).
+func resolveRuntimeDir() string {
+	if v := os.Getenv("XDG_RUNTIME_DIR"); v != "" {
+		return filepath.Join(v, "muse")
+	}
+	return filepath.Join(os.TempDir(), "muse-runtime", "muse")
 }

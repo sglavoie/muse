@@ -217,6 +217,32 @@ type MissingTrackSelectedMsg struct{}
 // state to idle so the space-bar toggle stays synchronized with mpv's state.
 type PlaybackEndedMsg struct{}
 
+// RemoteActionMsg is sent when an external signal (SIGUSR1) requests a
+// playback action, e.g. from a global keybinding. ActionName maps to an
+// action constant via remoteAction(); an empty name defaults to play/pause
+// for backward compatibility with bare `kill -USR1`.
+type RemoteActionMsg struct{ ActionName string }
+
+// remoteAction maps a subcommand name to the corresponding action constant.
+// An empty or unrecognized name defaults to actionPlayPause for backward
+// compatibility with bare SIGUSR1.
+func remoteAction(name string) action {
+	switch name {
+	case "toggle-play":
+		return actionPlayPause
+	case "next":
+		return actionNext
+	case "previous":
+		return actionPrevious
+	case "volume-up":
+		return actionVolumeUp
+	case "volume-down":
+		return actionVolumeDown
+	default:
+		return actionPlayPause
+	}
+}
+
 // previewStartedMsg is dispatched when the preview player has been launched
 // and is ready for playback.
 type previewStartedMsg struct {
@@ -1068,6 +1094,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.playbackState == PlaybackPlaying {
 			return m, m.sessionPositionCmd()
 		}
+
+	case RemoteActionMsg:
+		m, cmd, _ := m.handlePlaybackKeyAction(remoteAction(msg.ActionName))
+		return m, cmd
 
 	case previewStartedMsg:
 		m = m.handlePreviewStartedMsg(msg)
