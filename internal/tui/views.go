@@ -798,6 +798,34 @@ func (v QueueView) filteredEntries() []QueueEntry {
 	return result
 }
 
+// FocusNowPlaying moves the cursor to the entry whose Hash matches
+// currentTrackHash and adjusts the scroll offset to center it in the viewport.
+// Returns v unchanged if no match is found or hash is empty.
+func (v QueueView) FocusNowPlaying(currentTrackHash string) QueueView {
+	if currentTrackHash == "" {
+		return v
+	}
+	filtered := v.filteredEntries()
+	idx := -1
+	for i, e := range filtered {
+		if e.Hash == currentTrackHash {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return v
+	}
+	v.cursor = idx
+	maxRows := v.visibleRows()
+	if v.cursor >= maxRows {
+		v.scrollOffset = v.cursor - maxRows/2
+	} else {
+		v.scrollOffset = 0
+	}
+	return v
+}
+
 // moveQueueCursor shifts the cursor by delta rows, clamping to [0, len-1],
 // and adjusts the scroll offset so the cursor stays visible.
 func (v QueueView) moveQueueCursor(delta int) QueueView {

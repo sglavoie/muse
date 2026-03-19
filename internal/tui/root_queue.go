@@ -693,6 +693,9 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 		var cmd tea.Cmd
 		m.queue, cmd = m.queue.HandleAction(action)
 		return m, cmd, true
+	case actionFocusNowPlaying:
+		m.queue = m.queue.FocusNowPlaying(m.currentTrackHash)
+		return m, nil, true
 	case actionSaveQueueAsPlaylist:
 		if len(m.queue.entries) == 0 {
 			m.statusBar.notification = transientNotification{

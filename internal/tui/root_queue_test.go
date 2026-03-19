@@ -1443,3 +1443,46 @@ func TestUndoBulkDequeueExpiredIsNoOp(t *testing.T) {
 		t.Fatalf("expected 'Nothing to undo' notification, got %q", nm.statusBar.notification.msg)
 	}
 }
+
+// TestFocusNowPlayingMovesCursorToCurrentTrack verifies that pressing "f" in
+// the queue view moves the cursor to the entry matching currentTrackHash.
+func TestFocusNowPlayingMovesCursorToCurrentTrack(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Hash: "aaa", Display: "A"},
+		{Path: "/music/b.flac", Hash: "bbb", Display: "B"},
+		{Path: "/music/c.flac", Hash: "ccc", Display: "C"},
+		{Path: "/music/d.flac", Hash: "ddd", Display: "D"},
+		{Path: "/music/e.flac", Hash: "eee", Display: "E"},
+	}
+	m.currentTrackHash = "ccc"
+	m.queue.cursor = 0 // cursor starts at top
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'f', Text: "f"})
+	nm := next.(Model)
+
+	if nm.queue.cursor != 2 {
+		t.Errorf("f key: expected cursor 2 (track ccc), got %d", nm.queue.cursor)
+	}
+}
+
+// TestFocusNowPlayingNoOpWhenNothingPlaying verifies that pressing "f" does
+// nothing when no track is currently playing (empty currentTrackHash).
+func TestFocusNowPlayingNoOpWhenNothingPlaying(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Hash: "aaa", Display: "A"},
+		{Path: "/music/b.flac", Hash: "bbb", Display: "B"},
+	}
+	m.currentTrackHash = ""
+	m.queue.cursor = 1
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'f', Text: "f"})
+	nm := next.(Model)
+
+	if nm.queue.cursor != 1 {
+		t.Errorf("f key with no playing track: expected cursor unchanged at 1, got %d", nm.queue.cursor)
+	}
+}

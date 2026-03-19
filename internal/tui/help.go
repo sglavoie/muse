@@ -131,7 +131,8 @@ func helpSections() []helpSection {
 				{"X", "Clear bulk selection"},
 				{"C", "Clear queue"},
 				{"K / J", "Move track up / down"},
-				{"S", "Save queue as playlist"},
+				{"f", "Focus now-playing track"},
+			{"S", "Save queue as playlist"},
 			},
 		},
 		{
