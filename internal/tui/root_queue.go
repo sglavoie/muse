@@ -72,6 +72,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 		DurationMs:     int64(msg.Track.Duration * 1000),
 		SourcePlaylist: msg.SourcePlaylist,
 	})
+	m = m.resetQueueSort()
 	slog.Debug("track enqueued", "hash", msg.Track.Hash, "position", len(m.queue.entries)-1)
 	// Keep the player's in-memory queue in sync.
 	if pa, ok := m.player.(playerQueueAppender); ok {
@@ -134,6 +135,7 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 	}
 	batchStartIdx := len(m.queue.entries)
 	m.queue.entries = append(m.queue.entries, msg.Entries...)
+	m = m.resetQueueSort()
 	// Keep the player's in-memory queue in sync.
 	if pa, ok := m.player.(playerQueueAppender); ok {
 		for _, e := range msg.Entries {
@@ -221,6 +223,7 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 		slog.Debug("track dequeued", "hash", entry.Hash, "position", msg.Index)
 		player.PlaySound(player.SoundRemoved)
 		m.queue.entries = append(m.queue.entries[:msg.Index], m.queue.entries[msg.Index+1:]...)
+		m = m.resetQueueSort()
 		m.clampQueueCursorAndScroll()
 		if qr, ok := m.player.(playerQueueRemover); ok {
 			_ = qr.RemoveFromQueue(msg.Index)
@@ -284,6 +287,7 @@ func (m Model) handleClearQueueMsg() Model {
 	m.queue.entries = nil
 	m.queue.cursor = 0
 	m.queue.scrollOffset = 0
+	m = m.resetQueueSort()
 	m = m.resetPlaybackState()
 	if qs, ok := m.player.(playerQueueSetter); ok {
 		qs.SetQueue(nil)
@@ -310,6 +314,7 @@ func (m Model) clearQueueForReplace() Model {
 	m.queue.entries = nil
 	m.queue.cursor = 0
 	m.queue.scrollOffset = 0
+	m = m.resetQueueSort()
 	m = m.resetPlaybackState()
 	if qs, ok := m.player.(playerQueueSetter); ok {
 		qs.SetQueue(nil)
@@ -324,6 +329,7 @@ func (m Model) handleMoveTrackUpMsg(msg MoveTrackUpMsg) (Model, tea.Cmd) {
 		entry := m.queue.entries[msg.Index]
 		m.queue.entries[msg.Index-1], m.queue.entries[msg.Index] = m.queue.entries[msg.Index], m.queue.entries[msg.Index-1]
 		m.queue.cursor = msg.Index - 1
+		m = m.resetQueueSort()
 		slog.Debug("track reordered", "hash", entry.Hash, "from", msg.Index, "to", msg.Index-1)
 		m.syncPlayerQueue()
 		if m.reorderer != nil {
@@ -345,6 +351,7 @@ func (m Model) handleMoveTrackDownMsg(msg MoveTrackDownMsg) (Model, tea.Cmd) {
 		entry := m.queue.entries[msg.Index]
 		m.queue.entries[msg.Index], m.queue.entries[msg.Index+1] = m.queue.entries[msg.Index+1], m.queue.entries[msg.Index]
 		m.queue.cursor = msg.Index + 1
+		m = m.resetQueueSort()
 		slog.Debug("track reordered", "hash", entry.Hash, "from", msg.Index, "to", msg.Index+1)
 		m.syncPlayerQueue()
 		if m.reorderer != nil {
@@ -539,6 +546,8 @@ func (m Model) handleUndo() Model {
 			m.playlists.scrollOffset = m.playlists.cursor
 		}
 	}
+	m = m.resetQueueSort()
+	m = m.resetPlaylistsSort()
 	m.undoSlot = undoSlot{}
 	return m
 }
@@ -586,6 +595,7 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 				}
 			}
 			m.queue.entries = remaining
+			m = m.resetQueueSort()
 			m.clampQueueCursorAndScroll()
 			m.syncPlayerQueue()
 			// If the queue is now empty, stop playback and clear status bar.

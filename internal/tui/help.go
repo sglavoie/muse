@@ -54,6 +54,9 @@ func helpSections() []helpSection {
 				{"I", "Show now-playing info"},
 				{"i", "Show track info (exiftool)"},
 				{"M", "Edit metadata of focused track"},
+				{"ctrl+s", "Cycle sort field"},
+				{"ctrl+a", "Sort ascending"},
+				{"ctrl+d", "Sort descending (when sorting) / half-page down"},
 				{"?", "Show this help"},
 			},
 		},
@@ -62,7 +65,7 @@ func helpSections() []helpSection {
 			context: contextGlobal,
 			entries: []helpEntry{
 				{"j / k / down / up", "Move cursor down / up"},
-				{"ctrl+d / ctrl+u", "Half-page down / up"},
+				{"ctrl+u", "Half-page up"},
 				{"ctrl+f / ctrl+b", "Full page down / up"},
 				{"g / G", "Go to top / bottom"},
 			},

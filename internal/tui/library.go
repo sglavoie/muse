@@ -21,6 +21,8 @@ type LibraryView struct {
 	filteredMatches []library.Match // cached result of the last fuzzy search
 	fuzzy           library.FuzzySearcher
 	selectedHashes  map[string]struct{} // bulk-selected track hashes
+	sortState       SortState
+	sortedTracks    []library.Track // cached sorted copy; nil when SortDefault
 }
 
 // render returns a string representation of the library panel with proportional
@@ -33,7 +35,7 @@ func (v LibraryView) render(s styles.Styles) string {
 
 // view returns a fully-populated libtui.View from the current LibraryView state.
 func (v LibraryView) view() libtui.View {
-	return libtui.View{
+	lv := libtui.View{
 		Index:           v.index,
 		Width:           v.width,
 		Height:          v.height,
@@ -44,6 +46,23 @@ func (v LibraryView) view() libtui.View {
 		Fuzzy:           v.fuzzy,
 		SelectedHashes:  v.selectedHashes,
 	}
+	if v.sortState.Field != SortDefault {
+		lv.OverrideTracks = v.sortedTracks
+		lv.SortField = int(v.sortState.Field)
+		lv.SortDir = int(v.sortState.Dir)
+	}
+	return lv
+}
+
+// recomputeSortedTracks rebuilds the sorted tracks cache based on the current
+// sort state. When sorting is default, the cache is cleared.
+func (v LibraryView) recomputeSortedTracks() LibraryView {
+	if v.sortState.Field == SortDefault {
+		v.sortedTracks = nil
+		return v
+	}
+	v.sortedTracks = SortTracks(v.index.Tracks(), v.sortState.Field, v.sortState.Dir)
+	return v
 }
 
 // rebuildFilterCache recomputes filteredMatches for the current filterText.
@@ -51,11 +70,41 @@ func (v LibraryView) view() libtui.View {
 // cached slice instead of re-running the fuzzy search on every frame.
 func (v LibraryView) rebuildFilterCache() LibraryView {
 	if v.filter.Text != "" && v.fuzzy != nil {
-		v.filteredMatches = v.fuzzy.Search(v.filter.Text, v.index.Tracks())
+		tracks := v.index.Tracks()
+		if v.sortedTracks != nil {
+			tracks = v.sortedTracks
+		}
+		v.filteredMatches = v.fuzzy.Search(v.filter.Text, tracks)
 	} else {
 		v.filteredMatches = nil
 	}
 	return v
+}
+
+// findTrackPosition returns the cursor position for a track with the given hash
+// in the current effective track list (sorted + filtered). Returns 0 if not found.
+func (v LibraryView) findTrackPosition(hash string) int {
+	if hash == "" {
+		return 0
+	}
+	tracks := v.sortedTracks
+	if tracks == nil {
+		tracks = v.index.Tracks()
+	}
+	if v.filter.Text != "" && v.filteredMatches != nil {
+		for i, m := range v.filteredMatches {
+			if m.TrackIndex >= 0 && m.TrackIndex < len(tracks) && tracks[m.TrackIndex].Hash == hash {
+				return i
+			}
+		}
+		return 0
+	}
+	for i, t := range tracks {
+		if t.Hash == hash {
+			return i
+		}
+	}
+	return 0
 }
 
 // ToggleBulkSelection toggles hash in the selected set. If hash is empty it is

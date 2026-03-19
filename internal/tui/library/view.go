@@ -60,6 +60,17 @@ type View struct {
 	Fuzzy           musiclib.FuzzySearcher
 	SelectedHashes  map[string]struct{}
 	Styles          styles.Styles
+	OverrideTracks  []musiclib.Track // sorted tracks override; nil uses Index
+	SortField       int              // active sort field (0 = default/none)
+	SortDir         int              // 0 = asc, 1 = desc
+}
+
+// tracks returns the override tracks if set, otherwise the index tracks.
+func (v View) tracks() []musiclib.Track {
+	if v.OverrideTracks != nil {
+		return v.OverrideTracks
+	}
+	return v.Index.Tracks()
 }
 
 // CursorUp moves the cursor one row up, stopping at the first track.
@@ -170,18 +181,18 @@ func (v View) filteredMatches(allTracks []musiclib.Track) ([]musiclib.Match, boo
 // accounting for any active fuzzy filter.
 func (v View) effectiveTrackCount() int {
 	if v.Filter.Text != "" {
-		if m, ok := v.filteredMatches(v.Index.Tracks()); ok {
+		if m, ok := v.filteredMatches(v.tracks()); ok {
 			return len(m)
 		}
 	}
-	return v.Index.Len()
+	return len(v.tracks())
 }
 
 // FocusedTrack returns the track currently under the cursor, accounting for
 // any active fuzzy filter. The second return value is false when the library
 // is empty or the cursor is out of range.
 func (v View) FocusedTrack() (musiclib.Track, bool) {
-	allTracks := v.Index.Tracks()
+	allTracks := v.tracks()
 	if v.Filter.Text != "" {
 		if matches, ok := v.filteredMatches(allTracks); ok {
 			if v.Cursor < 0 || v.Cursor >= len(matches) {
@@ -225,12 +236,11 @@ type displayTrack struct {
 // Render returns the complete library panel string. When Width is zero (before
 // the first terminal size message) it uses a simple single-line format.
 func (v View) Render() string {
-	n := v.Index.Len()
+	allTracks := v.tracks()
+	n := len(allTracks)
 	if n == 0 {
 		return "(no tracks)"
 	}
-
-	allTracks := v.Index.Tracks()
 
 	// Resolve the set of tracks to display, with optional match positions.
 	var display []displayTrack
@@ -301,7 +311,26 @@ func (v View) Render() string {
 	}
 
 	cols := Compute(v.Width)
-	header := v.Styles.ColHead.Render(strings.Repeat(" ", cols.SelectionMarker) + renderRow("#", "Artist", "Title", "Album", "Time", cols))
+
+	// Append sort indicator to the active column header.
+	artistH, titleH, albumH, timeH := "Artist", "Title", "Album", "Time"
+	if v.SortField != 0 {
+		ind := "▲"
+		if v.SortDir == 1 {
+			ind = "▼"
+		}
+		switch v.SortField {
+		case 1: // SortArtist
+			artistH += ind
+		case 2: // SortTitle
+			titleH += ind
+		case 3: // SortAlbum
+			albumH += ind
+		case 4: // SortDuration
+			timeH += ind
+		}
+	}
+	header := v.Styles.ColHead.Render(strings.Repeat(" ", cols.SelectionMarker) + renderRow("#", artistH, titleH, albumH, timeH, cols))
 
 	if start >= end {
 		noMatches := "No matches"

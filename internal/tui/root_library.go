@@ -46,12 +46,14 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 	// current as the library grows during a scan.
 	if m.artists.level == arttui.ArtistLevel {
 		m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+		m.artists.sortState = SortState{}
 		m.artists = m.artists.clampCursor()
 	}
 	// Refresh the albums list when at AlbumLevel so the view stays
 	// current as the library grows during a scan.
 	if m.albums.level == albtui.AlbumLevel {
 		m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
+		m.albums.sortState = SortState{}
 		m.albums = m.albums.clampCursor()
 	}
 	if m.scanCh != nil {
@@ -87,12 +89,14 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 	// current when the filesystem watcher detects changes.
 	if m.artists.level == arttui.ArtistLevel {
 		m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+		m.artists.sortState = SortState{}
 		m.artists = m.artists.clampCursor()
 	}
 	// Refresh the albums list when at AlbumLevel so the view stays
 	// current when the filesystem watcher detects changes.
 	if m.albums.level == albtui.AlbumLevel {
 		m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
+		m.albums.sortState = SortState{}
 		m.albums = m.albums.clampCursor()
 	}
 	if m.watchCh != nil {

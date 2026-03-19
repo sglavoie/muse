@@ -64,6 +64,8 @@ type View struct {
 
 	FilterActive bool
 	FilterText   string
+
+	SortIndicator string // e.g. "Sort: Name ▲" — shown when non-empty
 }
 
 // FilterStrings returns items whose lowercased form contains the lowercased
@@ -111,6 +113,7 @@ func (v View) EffectiveTracks() []library.Track { return FilterTracks(v.Tracks, 
 // The reserve depends on the current level: top-level artist list has no
 // chrome (0), while drill-down levels have a heading + separator line (2).
 // An active or committed filter adds 1 line at the top level.
+// A sort indicator adds 1 line at any level.
 func (v View) visibleRows() int {
 	var reserve int
 	switch v.Level {
@@ -120,6 +123,9 @@ func (v View) visibleRows() int {
 		}
 	default:
 		reserve = 2
+	}
+	if v.SortIndicator != "" {
+		reserve++
 	}
 	return layout.VisibleRows(v.Height, reserve)
 }
@@ -464,16 +470,20 @@ func (v View) renderTracks() string {
 // When the filter is active or committed it shows the query; otherwise it
 // returns a plain blank line.
 func (v View) filterSeparator() string {
+	var sortLine string
+	if v.SortIndicator != "" {
+		sortLine = "\n" + v.SortIndicator
+	}
 	if v.FilterActive {
 		if v.FilterText == "" {
-			return "\nFilter: > \n"
+			return sortLine + "\nFilter: > \n"
 		}
 		ft := v.FilterText
 		maxLen := v.Width - len("Filter: > ") - 1
 		if maxLen > 0 && len([]rune(ft)) > maxLen {
 			ft = string([]rune(ft)[:maxLen-1]) + "…"
 		}
-		return "\nFilter: > " + ft + "\n"
+		return sortLine + "\nFilter: > " + ft + "\n"
 	}
 	if v.FilterText != "" {
 		ft := v.FilterText
@@ -481,24 +491,28 @@ func (v View) filterSeparator() string {
 		if maxLen > 0 && len([]rune(ft)) > maxLen {
 			ft = string([]rune(ft)[:maxLen-1]) + "…"
 		}
-		return "\nFilter: " + ft + "\n"
+		return sortLine + "\nFilter: " + ft + "\n"
 	}
-	return "\n\n"
+	return sortLine + "\n\n"
 }
 
 // topFilterSeparator is like filterSeparator but without a leading newline,
 // for use in top-level views where the title bar provides the spacing.
 func (v View) topFilterSeparator() string {
+	var prefix string
+	if v.SortIndicator != "" {
+		prefix = v.SortIndicator + "\n"
+	}
 	if v.FilterActive {
 		if v.FilterText == "" {
-			return "Filter: > \n"
+			return prefix + "Filter: > \n"
 		}
 		ft := v.FilterText
 		maxLen := v.Width - len("Filter: > ") - 1
 		if maxLen > 0 && len([]rune(ft)) > maxLen {
 			ft = string([]rune(ft)[:maxLen-1]) + "…"
 		}
-		return "Filter: > " + ft + "\n"
+		return prefix + "Filter: > " + ft + "\n"
 	}
 	if v.FilterText != "" {
 		ft := v.FilterText
@@ -506,9 +520,9 @@ func (v View) topFilterSeparator() string {
 		if maxLen > 0 && len([]rune(ft)) > maxLen {
 			ft = string([]rune(ft)[:maxLen-1]) + "…"
 		}
-		return "Filter: " + ft + "\n"
+		return prefix + "Filter: " + ft + "\n"
 	}
-	return ""
+	return prefix
 }
 
 // FormatDuration converts seconds (float64) to a "m:ss" or "h:mm:ss" string.

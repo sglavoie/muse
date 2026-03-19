@@ -107,15 +107,78 @@ type PlaylistsView struct {
 	renaming         bool               // true while the inline rename input is active
 	renameInput      textinput.Model    // current value of the inline rename field
 	selectedTrackIDs map[int64]struct{} // bulk-selected playlist track row IDs at TrackLevel
+	sortState        SortState
+	sortedPlaylists  []db.PlaylistRow // sorted copy for list level (nil when default)
+	sortedTrackOrder []int            // index permutation for track level (nil when default)
+}
+
+// effectivePlaylists returns the sorted playlists when sort is active,
+// otherwise the original playlists.
+func (v PlaylistsView) effectivePlaylists() []db.PlaylistRow {
+	if v.sortedPlaylists != nil {
+		return v.sortedPlaylists
+	}
+	return v.playlists
+}
+
+// effectiveTrack returns the track at the given display index, translating
+// through sortedTrackOrder when active.
+func (v PlaylistsView) trackIndex(displayIdx int) int {
+	if v.sortedTrackOrder == nil {
+		return displayIdx
+	}
+	if displayIdx < 0 || displayIdx >= len(v.sortedTrackOrder) {
+		return displayIdx
+	}
+	return v.sortedTrackOrder[displayIdx]
+}
+
+// findTrackDisplayPosition returns the display row for the given underlying
+// track index. Returns 0 if not found.
+func (v PlaylistsView) findTrackDisplayPosition(trackIdx int) int {
+	if v.sortedTrackOrder == nil {
+		return trackIdx
+	}
+	for i, idx := range v.sortedTrackOrder {
+		if idx == trackIdx {
+			return i
+		}
+	}
+	return 0
+}
+
+// recomputePlaylistSort rebuilds the sorted playlist/track caches.
+func (v PlaylistsView) recomputePlaylistSort() PlaylistsView {
+	if v.level == pltui.ListLevel {
+		v.sortedPlaylists = SortPlaylists(v.playlists, v.sortState.Field, v.sortState.Dir)
+		v.sortedTrackOrder = nil
+	} else {
+		v.sortedPlaylists = nil
+		v.sortedTrackOrder = SortPlaylistTrackIndices(v.tracks, v.sortState.Field, v.sortState.Dir)
+	}
+	return v
 }
 
 func (v PlaylistsView) render(s styles.Styles) string {
+	playlists := v.playlists
+	if v.sortedPlaylists != nil {
+		playlists = v.sortedPlaylists
+	}
+	tracks := v.tracks
+	if v.sortedTrackOrder != nil {
+		// Build a reordered track slice for rendering.
+		reordered := make([]db.PlaylistTrackRow, len(v.tracks))
+		for i, idx := range v.sortedTrackOrder {
+			reordered[i] = v.tracks[idx]
+		}
+		tracks = reordered
+	}
 	pv := pltui.View{
 		Level:            v.level,
 		Cursor:           v.cursor,
 		ScrollOffset:     v.scrollOffset,
-		Playlists:        v.playlists,
-		Tracks:           v.tracks,
+		Playlists:        playlists,
+		Tracks:           tracks,
 		Width:            v.width,
 		Height:           v.height,
 		Creating:         v.creating,
@@ -207,13 +270,14 @@ func (v PlaylistsView) renameInputIsEmpty() bool {
 // focusedPlaylist returns the playlist at the current cursor position and true.
 // Returns a zero value and false when the list is empty or not at ListLevel.
 func (v PlaylistsView) focusedPlaylist() (db.PlaylistRow, bool) {
-	if len(v.playlists) == 0 || v.level != pltui.ListLevel {
+	pl := v.effectivePlaylists()
+	if len(pl) == 0 || v.level != pltui.ListLevel {
 		return db.PlaylistRow{}, false
 	}
-	if v.cursor < 0 || v.cursor >= len(v.playlists) {
+	if v.cursor < 0 || v.cursor >= len(pl) {
 		return db.PlaylistRow{}, false
 	}
-	return v.playlists[v.cursor], true
+	return pl[v.cursor], true
 }
 
 // HandleAction executes a pre-resolved playlists action dispatched by root.Update.
@@ -221,7 +285,7 @@ func (v PlaylistsView) HandleAction(a action) PlaylistsView {
 	switch a {
 	case actionBulkSelectionToggle:
 		if v.level == pltui.TrackLevel && len(v.tracks) > 0 && v.cursor < len(v.tracks) {
-			id := v.tracks[v.cursor].ID
+			id := v.tracks[v.trackIndex(v.cursor)].ID
 			view := pltui.View{SelectedTrackIDs: v.selectedTrackIDs}.ToggleBulkSelection(id)
 			v.selectedTrackIDs = view.SelectedTrackIDs
 		}
@@ -294,13 +358,14 @@ func (v PlaylistsView) ensureCursorVisible() PlaylistsView {
 // position and true. Returns 0, false when the list is empty or the view is
 // not at ListLevel.
 func (v PlaylistsView) focusedPlaylistID() (int64, bool) {
-	if len(v.playlists) == 0 || v.level != pltui.ListLevel {
+	pl := v.effectivePlaylists()
+	if len(pl) == 0 || v.level != pltui.ListLevel {
 		return 0, false
 	}
-	if v.cursor < 0 || v.cursor >= len(v.playlists) {
+	if v.cursor < 0 || v.cursor >= len(pl) {
 		return 0, false
 	}
-	return v.playlists[v.cursor].ID, true
+	return pl[v.cursor].ID, true
 }
 
 // openTracks transitions the view to TrackLevel, storing the loaded tracks
@@ -319,6 +384,9 @@ func (v PlaylistsView) openTracks(tracks []db.PlaylistTrackRow) PlaylistsView {
 	v.tracks = view.Tracks
 	v.scrollOffset = 0
 	v.selectedTrackIDs = nil // clear stale track-level selections from a previous playlist
+	v.sortState = SortState{}
+	v.sortedPlaylists = nil
+	v.sortedTrackOrder = nil
 	return v
 }
 
@@ -334,6 +402,9 @@ func (v PlaylistsView) backToList() PlaylistsView {
 	v.cursor = view.Cursor
 	v.tracks = view.Tracks
 	v.scrollOffset = v.listScrollOffset // restore list-level scroll position
+	v.sortState = SortState{}
+	v.sortedPlaylists = nil
+	v.sortedTrackOrder = nil
 	return v
 }
 
@@ -351,7 +422,7 @@ func (v PlaylistsView) focusedTrack() (musiclib.Track, bool) {
 	if v.cursor < 0 || v.cursor >= len(v.tracks) {
 		return musiclib.Track{}, false
 	}
-	t := v.tracks[v.cursor]
+	t := v.tracks[v.trackIndex(v.cursor)]
 	return musiclib.Track{
 		Hash:     t.Hash,
 		Path:     t.Path,
@@ -415,6 +486,39 @@ type QueueView struct {
 	savingAsPlaylist    bool            // true while the inline save-as-playlist input is active
 	savingFromSelection bool            // true when saving only bulk-selected entries (not the full queue)
 	saveInput           textinput.Model // current value of the inline save field
+	sortState           SortState
+	displayOrder        []int // nil when sort inactive (identity mapping)
+}
+
+// recomputeDisplayOrder rebuilds the sorted display index mapping.
+func (v QueueView) recomputeDisplayOrder() QueueView {
+	v.displayOrder = SortQueueIndices(v.entries, v.sortState.Field, v.sortState.Dir)
+	return v
+}
+
+// entryIndex translates a display row index to the underlying entries index.
+func (v QueueView) entryIndex(displayIdx int) int {
+	if v.displayOrder == nil {
+		return displayIdx
+	}
+	if displayIdx < 0 || displayIdx >= len(v.displayOrder) {
+		return displayIdx
+	}
+	return v.displayOrder[displayIdx]
+}
+
+// findEntryDisplayPosition returns the display row for the given underlying
+// entry index. Returns 0 if not found.
+func (v QueueView) findEntryDisplayPosition(entryIdx int) int {
+	if v.displayOrder == nil {
+		return entryIdx
+	}
+	for i, idx := range v.displayOrder {
+		if idx == entryIdx {
+			return i
+		}
+	}
+	return 0
 }
 
 // Update is a no-op stub. See the QueueView godoc for why all key handling is
@@ -463,30 +567,39 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 			}
 		}
 	case actionSelect:
-		if v.cursor >= 0 && v.cursor < len(v.entries) && !v.entries[v.cursor].Missing {
-			idx := v.cursor
-			return v, func() tea.Msg { return PlayQueueIndexMsg{Index: idx} }
-		} else if v.cursor >= 0 && v.cursor < len(v.entries) && v.entries[v.cursor].Missing {
+		if v.cursor >= 0 && v.cursor < len(v.entries) {
+			idx := v.entryIndex(v.cursor)
+			if !v.entries[idx].Missing {
+				return v, func() tea.Msg { return PlayQueueIndexMsg{Index: idx} }
+			}
 			return v, func() tea.Msg { return MissingTrackSelectedMsg{} }
 		}
 	case actionDequeue:
 		if v.cursor >= 0 && v.cursor < len(v.entries) {
-			idx := v.cursor
+			idx := v.entryIndex(v.cursor)
 			return v, func() tea.Msg { return DequeueTrackMsg{Index: idx} }
 		}
 	case actionBulkSelectionToggle:
 		if v.cursor >= 0 && v.cursor < len(v.entries) {
-			idx := v.cursor
+			idx := v.entryIndex(v.cursor)
 			return v, func() tea.Msg { return BulkSelectionToggleMsg{Index: idx} }
 		}
 	case actionClearQueue:
 		return v, func() tea.Msg { return ClearQueueMsg{} }
 	case actionMoveTrackUp:
+		if v.displayOrder != nil {
+			// Move is disabled when queue is sorted.
+			return v, nil
+		}
 		if v.cursor > 0 {
 			idx := v.cursor
 			return v, func() tea.Msg { return MoveTrackUpMsg{Index: idx} }
 		}
 	case actionMoveTrackDown:
+		if v.displayOrder != nil {
+			// Move is disabled when queue is sorted.
+			return v, nil
+		}
 		if v.cursor < len(v.entries)-1 {
 			idx := v.cursor
 			return v, func() tea.Msg { return MoveTrackDownMsg{Index: idx} }
@@ -627,12 +740,31 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 	end := min(len(v.entries), start+maxRows)
 
 	// Column header row (2-char left margin aligns with the selection marker column).
+	titleHead, artistHead, sourceHead, timeHead := "Title", "Artist", "Source", "Time"
+	if v.sortState.Field != SortDefault {
+		ind := SortDirIndicator(v.sortState.Dir)
+		switch v.sortState.Field {
+		case SortTitle:
+			titleHead += ind
+		case SortArtist:
+			artistHead += ind
+		case SortSource:
+			sourceHead += ind
+		case SortDuration:
+			timeHead += ind
+		}
+	}
 	header := fmt.Sprintf("  %3s %-*s %-*s %-*s %-*s",
-		"#", titleWidth, "Title", artistWidth, "Artist", sourceWidth, "Source", durWidth, "Time")
+		"#", titleWidth, titleHead, artistWidth, artistHead, sourceWidth, sourceHead, durWidth, timeHead)
 
 	lines := make([]string, end-start)
-	for i, e := range v.entries[start:end] {
+	for i := range end - start {
 		absIdx := start + i
+		entryIdx := absIdx
+		if v.displayOrder != nil {
+			entryIdx = v.displayOrder[absIdx]
+		}
+		e := v.entries[entryIdx]
 		isFocused := absIdx == v.cursor
 
 		isNowPlaying := currentTrackHash != "" && e.Hash == currentTrackHash
@@ -725,10 +857,37 @@ type ArtistsView struct {
 	width  int
 	height int
 
-	filter filter.State
+	filter    filter.State
+	sortState SortState
+}
+
+// recomputeArtistsSort re-sorts the owned slices for the current level.
+func (v ArtistsView) recomputeArtistsSort() ArtistsView {
+	if v.sortState.Field == SortDefault {
+		return v
+	}
+	switch v.level {
+	case arttui.ArtistLevel:
+		if len(v.artists) > 0 {
+			v.artists = SortStrings(v.artists, v.sortState.Dir)
+		}
+	case arttui.AlbumLevel:
+		if len(v.albums) > 0 {
+			v.albums = SortStrings(v.albums, v.sortState.Dir)
+		}
+	case arttui.TrackLevel:
+		if sorted := SortTracks(v.tracks, v.sortState.Field, v.sortState.Dir); sorted != nil {
+			v.tracks = sorted
+		}
+	}
+	return v
 }
 
 func (v ArtistsView) render(s styles.Styles) string {
+	var sortInd string
+	if v.sortState.Field != SortDefault {
+		sortInd = fmt.Sprintf("Sort: %s %s", SortFieldLabel(v.sortState.Field), SortDirIndicator(v.sortState.Dir))
+	}
 	av := arttui.View{
 		Level:              v.level,
 		Cursor:             v.cursor,
@@ -747,6 +906,7 @@ func (v ArtistsView) render(s styles.Styles) string {
 		Styles:             s,
 		FilterActive:       v.filter.Active,
 		FilterText:         v.filter.Text,
+		SortIndicator:      sortInd,
 	}
 	return av.Render()
 }
@@ -806,6 +966,7 @@ func (v ArtistsView) openAlbums(albums []string) ArtistsView {
 	v.artistScrollOffset = view.ArtistScrollOffset
 	v.albums = view.Albums
 	v.filter = filter.State{}
+	v.sortState = SortState{}
 	return v
 }
 
@@ -825,6 +986,7 @@ func (v ArtistsView) openTracks(tracks []musiclib.Track) ArtistsView {
 	v.albumScrollOffset = view.AlbumScrollOffset
 	v.tracks = view.Tracks
 	v.filter = filter.State{}
+	v.sortState = SortState{}
 	return v
 }
 
@@ -855,6 +1017,7 @@ func (v ArtistsView) back() ArtistsView {
 	v.albums = view.Albums
 	v.tracks = view.Tracks
 	v.filter = filter.State{}
+	v.sortState = SortState{}
 	return v
 }
 
@@ -997,10 +1160,33 @@ type AlbumsView struct {
 	width  int
 	height int
 
-	filter filter.State
+	filter    filter.State
+	sortState SortState
+}
+
+// recomputeAlbumsSort re-sorts the owned slices for the current level.
+func (v AlbumsView) recomputeAlbumsSort() AlbumsView {
+	if v.sortState.Field == SortDefault {
+		return v
+	}
+	switch v.level {
+	case albtui.AlbumLevel:
+		if len(v.albums) > 0 {
+			v.albums = SortStrings(v.albums, v.sortState.Dir)
+		}
+	case albtui.TrackLevel:
+		if sorted := SortTracks(v.tracks, v.sortState.Field, v.sortState.Dir); sorted != nil {
+			v.tracks = sorted
+		}
+	}
+	return v
 }
 
 func (v AlbumsView) render(s styles.Styles) string {
+	var sortInd string
+	if v.sortState.Field != SortDefault {
+		sortInd = fmt.Sprintf("Sort: %s %s", SortFieldLabel(v.sortState.Field), SortDirIndicator(v.sortState.Dir))
+	}
 	av := albtui.View{
 		Level:             v.level,
 		Cursor:            v.cursor,
@@ -1015,6 +1201,7 @@ func (v AlbumsView) render(s styles.Styles) string {
 		Styles:            s,
 		FilterActive:      v.filter.Active,
 		FilterText:        v.filter.Text,
+		SortIndicator:     sortInd,
 	}
 	return av.Render()
 }
@@ -1071,6 +1258,7 @@ func (v AlbumsView) openTracks(tracks []musiclib.Track) AlbumsView {
 	v.albumScrollOffset = view.AlbumScrollOffset
 	v.tracks = view.Tracks
 	v.filter = filter.State{}
+	v.sortState = SortState{}
 	return v
 }
 
@@ -1092,6 +1280,7 @@ func (v AlbumsView) back() AlbumsView {
 	v.scrollOffset = view.ScrollOffset
 	v.tracks = view.Tracks
 	v.filter = filter.State{}
+	v.sortState = SortState{}
 	return v
 }
 

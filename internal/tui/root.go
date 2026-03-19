@@ -1408,6 +1408,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case playlistRenamedMsg:
 		m.playlists.playlists = msg.playlists
+		m = m.resetPlaylistsSort()
 		m.playlists = m.playlists.cancelRename()
 		for i, p := range msg.playlists {
 			if p.ID == msg.id {
@@ -1432,6 +1433,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case playlistCreatedMsg:
 		m.playlists.playlists = msg.playlists
+		m = m.resetPlaylistsSort()
 		m.playlists = m.playlists.cancelCreate()
 		for i, p := range msg.playlists {
 			if p.ID == msg.id {
@@ -1496,6 +1498,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case queueSavedAsPlaylistMsg:
 		m.queue = m.queue.cancelSaveAsPlaylist()
 		m.playlists.playlists = msg.playlists
+		m = m.resetPlaylistsSort()
 		source := "queue"
 		if msg.fromSelection {
 			source = "selection"
@@ -1524,6 +1527,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tracksAddedToPlaylistMsg:
 		if msg.playlists != nil {
 			m.playlists.playlists = msg.playlists
+			m = m.resetPlaylistsSort()
 		}
 		m.statusBar.notification = transientNotification{
 			msg:       fmt.Sprintf("%d %s added to %s", msg.count, pluralize(msg.count, "track", "tracks"), msg.playlistName),
@@ -1755,6 +1759,10 @@ func (m Model) renderStatusBar() string {
 // It is called from the tea.KeyPressMsg case in Update after the registry
 // resolves the key string to an action.
 func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
+	// Sort actions (root_sort.go).
+	if model, cmd, ok := m.handleSortAction(action); ok {
+		return model, cmd
+	}
 	// Metadata editor action (root_metadata.go).
 	if model, cmd, ok := m.handleMetadataKeyAction(action); ok {
 		return model, cmd
@@ -1784,6 +1792,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	case actionNextView:
 		m.clearQueuePending = false
 		m.bulkRemovePending = false
+		m = m.resetAllSorts()
 		m.activeView = nextView(m.activeView)
 		if m.activeView == viewArtists && len(m.artists.artists) == 0 {
 			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
@@ -1794,6 +1803,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	case actionPrevView:
 		m.clearQueuePending = false
 		m.bulkRemovePending = false
+		m = m.resetAllSorts()
 		m.activeView = prevView(m.activeView)
 		if m.activeView == viewArtists && len(m.artists.artists) == 0 {
 			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
@@ -1811,18 +1821,22 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	case actionSwitchLibrary:
 		m.clearQueuePending = false
 		m.bulkRemovePending = false
+		m = m.resetAllSorts()
 		m.activeView = viewLibrary
 	case actionSwitchPlaylists:
 		m.clearQueuePending = false
 		m.bulkRemovePending = false
+		m = m.resetAllSorts()
 		m.activeView = viewPlaylists
 	case actionSwitchQueue:
 		m.clearQueuePending = false
 		m.bulkRemovePending = false
+		m = m.resetAllSorts()
 		m.activeView = viewQueue
 	case actionSwitchArtists:
 		m.clearQueuePending = false
 		m.bulkRemovePending = false
+		m = m.resetAllSorts()
 		m.activeView = viewArtists
 		if len(m.artists.artists) == 0 {
 			m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
@@ -1830,6 +1844,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	case actionSwitchAlbums:
 		m.clearQueuePending = false
 		m.bulkRemovePending = false
+		m = m.resetAllSorts()
 		m.activeView = viewAlbums
 		if len(m.albums.albums) == 0 {
 			m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
@@ -1990,6 +2005,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			}, "Playlist deleted — press u to undo")
 			player.PlaySound(player.SoundRemoved)
 			m.playlists.playlists = append(m.playlists.playlists[:idx], m.playlists.playlists[idx+1:]...)
+			m = m.resetPlaylistsSort()
 			if m.playlists.cursor >= len(m.playlists.playlists) && m.playlists.cursor > 0 {
 				m.playlists.cursor = len(m.playlists.playlists) - 1
 			}
@@ -2034,6 +2050,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 					}
 				}
 				m.playlists.tracks = remaining
+				m = m.resetPlaylistsSort()
 				if m.playlists.cursor >= len(m.playlists.tracks) && m.playlists.cursor > 0 {
 					m.playlists.cursor = len(m.playlists.tracks) - 1
 				}
@@ -2060,10 +2077,11 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			if len(m.playlists.tracks) == 0 {
 				break
 			}
-			idx := m.playlists.cursor
-			if idx < 0 || idx >= len(m.playlists.tracks) {
+			displayIdx := m.playlists.cursor
+			if displayIdx < 0 || displayIdx >= len(m.playlists.tracks) {
 				break
 			}
+			idx := m.playlists.trackIndex(displayIdx)
 			entry := m.playlists.tracks[idx]
 			pd := m.playlistDeleter
 			cancel := m.scheduleSoftDelete(
@@ -2087,6 +2105,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			}, "Track removed — press u to undo")
 			player.PlaySound(player.SoundRemoved)
 			m.playlists.tracks = append(m.playlists.tracks[:idx], m.playlists.tracks[idx+1:]...)
+			m = m.resetPlaylistsSort()
 			if m.playlists.cursor >= len(m.playlists.tracks) && m.playlists.cursor > 0 {
 				m.playlists.cursor = len(m.playlists.tracks) - 1
 			}
