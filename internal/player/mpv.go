@@ -737,7 +737,9 @@ func (m *Manager) handleRestart() {
 
 	// Remove any stale socket file left by the crashed process so the new
 	// mpv instance can bind to the same path.
-	_ = os.Remove(m.socketPath)
+	if err := os.Remove(m.socketPath); err != nil && !os.IsNotExist(err) {
+		slog.Warn("player: remove socket", "path", m.socketPath, "err", err)
+	}
 
 	launchFn := m.launchFn
 	if launchFn == nil {

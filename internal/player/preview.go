@@ -151,6 +151,8 @@ func (p *PreviewPlayer) Close() error {
 			slog.Warn("preview mpv process did not exit within timeout")
 		}
 	}
-	_ = os.Remove(p.socketPath)
+	if err := os.Remove(p.socketPath); err != nil && !os.IsNotExist(err) {
+		slog.Warn("preview: remove socket", "path", p.socketPath, "err", err)
+	}
 	return nil
 }

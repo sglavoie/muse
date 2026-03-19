@@ -95,6 +95,8 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
+	player.SetSoundContext(ctx)
+
 	// mgr is set inside LaunchMPV (app.Run step 6), which runs after the PID
 	// lockfile is acquired (step 1) and the stale socket is removed (step 2).
 	// This ordering ensures that "another instance is running" is surfaced
@@ -271,8 +273,12 @@ func main() {
 	model.SetVolume(cfg.DefaultVolume)
 	// Propagate restored repeat/shuffle modes into mpv so its behaviour
 	// matches the status bar indicators from the first user interaction.
-	_ = mgr.SetRepeat(restored.RepeatMode.String())
-	_ = mgr.SetShuffle(restored.Shuffle)
+	if err := mgr.SetRepeat(restored.RepeatMode.String()); err != nil {
+		slog.Debug("startup: set repeat", "err", err)
+	}
+	if err := mgr.SetShuffle(restored.Shuffle); err != nil {
+		slog.Debug("startup: set shuffle", "err", err)
+	}
 	if len(restored.QueueEntries) > 0 {
 		model.SetPlaybackState(tui.PlaybackPaused)
 	}

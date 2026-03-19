@@ -59,7 +59,7 @@ func setupDirs(t *testing.T) config.Dirs {
 // succeed immediately.
 func noopDeps() app.Deps {
 	return app.Deps{
-		CheckPrereqs: func() error { return nil },
+		CheckPrereqs: func(context.Context) error { return nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 	}
@@ -112,7 +112,7 @@ func TestRunOrder(t *testing.T) {
 	var parallelSteps []string
 
 	deps := app.Deps{
-		CheckPrereqs: func() error { return nil },
+		CheckPrereqs: func(context.Context) error { return nil },
 		LaunchMPV: func(_ context.Context, _ string) error {
 			mu.Lock()
 			parallelSteps = append(parallelSteps, "mpv")
@@ -215,7 +215,7 @@ func TestRunLockfileFailureStopsSequence(t *testing.T) {
 
 	prereqCalled := false
 	deps := app.Deps{
-		CheckPrereqs: func() error { prereqCalled = true; return nil },
+		CheckPrereqs: func(context.Context) error { prereqCalled = true; return nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 	}
@@ -242,7 +242,7 @@ func TestRunPrereqFailureStopsParallelLaunch(t *testing.T) {
 	launchCalled := false
 
 	deps := app.Deps{
-		CheckPrereqs: func() error { return prereqErr },
+		CheckPrereqs: func(context.Context) error { return prereqErr },
 		LaunchMPV:    func(_ context.Context, _ string) error { launchCalled = true; return nil },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 	}
@@ -275,7 +275,7 @@ func TestRunMigrationFailureStopsPrereqs(t *testing.T) {
 
 	prereqCalled := false
 	deps := app.Deps{
-		CheckPrereqs: func() error { prereqCalled = true; return nil },
+		CheckPrereqs: func(context.Context) error { prereqCalled = true; return nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 	}
@@ -303,7 +303,7 @@ func TestRunStaleSocketRemovedBeforeMigration(t *testing.T) {
 	// Verify socket is gone by the time RunScan executes (after migration).
 	socketRemovedBeforeScan := false
 	deps := app.Deps{
-		CheckPrereqs: func() error { return nil },
+		CheckPrereqs: func(context.Context) error { return nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
 		RunScan: func(_ context.Context, _ *db.DB) error {
 			_, err := os.Stat(staleSocket)
@@ -341,7 +341,7 @@ func TestRunParallelLaunchBothErrorsReturned(t *testing.T) {
 	scanErr := errors.New("scan failed")
 
 	deps := app.Deps{
-		CheckPrereqs: func() error { return nil },
+		CheckPrereqs: func(context.Context) error { return nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return mpvErr },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return scanErr },
 	}
@@ -365,7 +365,7 @@ func TestRunConcurrentLaunchAndScan(t *testing.T) {
 	var scanStarted, mpvReturned time.Time
 
 	deps := app.Deps{
-		CheckPrereqs: func() error { return nil },
+		CheckPrereqs: func(context.Context) error { return nil },
 		LaunchMPV: func(_ context.Context, _ string) error {
 			<-gate // block until gate is closed
 			mu.Lock()
@@ -810,7 +810,7 @@ func TestRunRestorePlayerCalled(t *testing.T) {
 	)
 
 	deps := app.Deps{
-		CheckPrereqs: func() error { return nil },
+		CheckPrereqs: func(context.Context) error { return nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 		RestorePlayer: func(path string, positionMs int64) error {
@@ -868,7 +868,7 @@ func TestRunRestorePlayerNotCalledWithoutCurrentHash(t *testing.T) {
 
 	restorePlayerCalled := false
 	deps := app.Deps{
-		CheckPrereqs: func() error { return nil },
+		CheckPrereqs: func(context.Context) error { return nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 		RestorePlayer: func(_ string, _ int64) error {
@@ -908,7 +908,7 @@ func TestRunRestorePlayerNilDepSafe(t *testing.T) {
 	database.Close()
 
 	deps := app.Deps{
-		CheckPrereqs:  func() error { return nil },
+		CheckPrereqs:  func(context.Context) error { return nil },
 		LaunchMPV:     func(_ context.Context, _ string) error { return nil },
 		RunScan:       func(_ context.Context, _ *db.DB) error { return nil },
 		RestorePlayer: nil, // intentionally nil

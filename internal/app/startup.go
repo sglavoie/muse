@@ -53,7 +53,7 @@ type Deps struct {
 
 	// CheckPrereqs verifies that required binaries are available.
 	// If nil, config.CheckPrereqs is used.
-	CheckPrereqs func() error
+	CheckPrereqs func(context.Context) error
 
 	// LaunchMPV starts the mpv process listening on socketPath.
 	// IMPORTANT: in production this function MUST be non-blocking — it should
@@ -201,7 +201,7 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 
 	// Step 5: Verify prerequisite binaries.
 	slog.Info("startup: checking prerequisites")
-	if err := checkPrereqs(); err != nil {
+	if err := checkPrereqs(ctx); err != nil {
 		return failf("startup: %w", err)
 	}
 	slog.Info("startup: prerequisites verified")

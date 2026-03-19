@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -40,7 +41,7 @@ func TestCheckMPV_RunsVersionFlag(t *testing.T) {
 	}
 	t.Setenv("PATH", prependPATH(dir))
 
-	if err := checkMPV(); err != nil {
+	if err := checkMPV(context.Background()); err != nil {
 		t.Errorf("expected no error with stub mpv, got: %v", err)
 	}
 }
@@ -48,7 +49,7 @@ func TestCheckMPV_RunsVersionFlag(t *testing.T) {
 func TestCheckMPV_MissingBinary(t *testing.T) {
 	t.Setenv("PATH", t.TempDir()) // empty dir — no mpv present
 
-	err := checkMPV()
+	err := checkMPV(context.Background())
 	if err == nil {
 		t.Fatal("expected error when mpv is missing")
 	}
@@ -66,7 +67,7 @@ func TestCheckMPV_BrokenBinary(t *testing.T) {
 	dir := stubBinary(t, "mpv", 1) // exits non-zero
 	t.Setenv("PATH", prependPATH(dir))
 
-	err := checkMPV()
+	err := checkMPV(context.Background())
 	if err == nil {
 		t.Fatal("expected error when mpv exits non-zero")
 	}
@@ -84,7 +85,7 @@ func TestCheckExifTool_RunsJSONFlag(t *testing.T) {
 	}
 	t.Setenv("PATH", prependPATH(dir))
 
-	if err := checkExifTool(); err != nil {
+	if err := checkExifTool(context.Background()); err != nil {
 		t.Errorf("expected no error with stub exiftool emitting valid JSON, got: %v", err)
 	}
 }
@@ -101,7 +102,7 @@ func TestCheckExifTool_ValidJSONOutput(t *testing.T) {
 	}
 	t.Setenv("PATH", prependPATH(dir))
 
-	if err := checkExifTool(); err != nil {
+	if err := checkExifTool(context.Background()); err != nil {
 		t.Errorf("stub emitting valid JSON should succeed, got: %v", err)
 	}
 }
@@ -118,7 +119,7 @@ func TestCheckExifTool_GarbageOutput(t *testing.T) {
 	}
 	t.Setenv("PATH", prependPATH(dir))
 
-	err := checkExifTool()
+	err := checkExifTool(context.Background())
 	if err == nil {
 		t.Fatal("expected error when exiftool outputs garbage instead of JSON")
 	}
@@ -131,7 +132,7 @@ func TestCheckExifTool_GarbageOutput(t *testing.T) {
 func TestCheckExifTool_MissingBinary(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 
-	err := checkExifTool()
+	err := checkExifTool(context.Background())
 	if err == nil {
 		t.Fatal("expected error when exiftool is missing")
 	}
@@ -148,7 +149,7 @@ func TestCheckExifTool_BrokenBinary(t *testing.T) {
 	dir := stubBinary(t, "exiftool", 1)
 	t.Setenv("PATH", prependPATH(dir))
 
-	err := checkExifTool()
+	err := checkExifTool(context.Background())
 	if err == nil {
 		t.Fatal("expected error when exiftool exits non-zero")
 	}
@@ -175,7 +176,7 @@ func TestCheckPrereqs_BothPresent(t *testing.T) {
 	}
 	t.Setenv("PATH", prependPATH(dir))
 
-	if err := CheckPrereqs(); err != nil {
+	if err := CheckPrereqs(context.Background()); err != nil {
 		t.Errorf("expected no error when both binaries are present, got: %v", err)
 	}
 }
@@ -189,7 +190,7 @@ func TestCheckPrereqs_MPVMissing(t *testing.T) {
 	}
 	t.Setenv("PATH", dir)
 
-	err := CheckPrereqs()
+	err := CheckPrereqs(context.Background())
 	if err == nil {
 		t.Fatal("expected error when mpv is missing")
 	}
@@ -207,7 +208,7 @@ func TestCheckPrereqs_ExifToolMissing(t *testing.T) {
 	}
 	t.Setenv("PATH", dir)
 
-	err := CheckPrereqs()
+	err := CheckPrereqs(context.Background())
 	if err == nil {
 		t.Fatal("expected error when exiftool is missing")
 	}
@@ -234,7 +235,7 @@ exit 1
 	}
 	t.Setenv("PATH", prependPATH(dir))
 
-	if err := checkMPV(); err != nil {
+	if err := checkMPV(context.Background()); err != nil {
 		t.Errorf("checkMPV should invoke 'mpv --version', got error: %v", err)
 	}
 }
@@ -256,7 +257,7 @@ exit 1
 	}
 	t.Setenv("PATH", prependPATH(dir))
 
-	if err := checkExifTool(); err != nil {
+	if err := checkExifTool(context.Background()); err != nil {
 		t.Errorf("checkExifTool should invoke 'exiftool -json ...', got error: %v", err)
 	}
 }

@@ -1,11 +1,13 @@
 package player
 
 import (
+	"context"
 	_ "embed"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 //go:embed sounds/queue_finished.wav
@@ -45,7 +47,18 @@ var (
 	soundOnce  sync.Once
 	// Muted suppresses all sound playback when true. Set to true in tests.
 	Muted bool
+
+	soundMu  sync.Mutex
+	soundCtx context.Context
 )
+
+// SetSoundContext sets the parent context used by PlaySound for cancellation.
+// Call this once after the signal context is created.
+func SetSoundContext(ctx context.Context) {
+	soundMu.Lock()
+	soundCtx = ctx
+	soundMu.Unlock()
+}
 
 func ensureSoundFiles() {
 	soundOnce.Do(func() {
@@ -71,9 +84,19 @@ func PlaySound(s Sound) {
 	if !ok {
 		return
 	}
-	cmd := exec.Command("mpv", "--no-video", "--no-terminal", "--really-quiet", path)
+	soundMu.Lock()
+	parent := soundCtx
+	soundMu.Unlock()
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
+	cmd := exec.CommandContext(ctx, "mpv", "--no-video", "--no-terminal", "--really-quiet", path)
 	_ = cmd.Start()
-	go func() { _ = cmd.Wait() }()
+	go func() {
+		_ = cmd.Wait()
+		cancel()
+	}()
 }
 
 // PlayQueueFinishedSound plays the queue-finished notification sound.
