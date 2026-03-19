@@ -214,6 +214,13 @@ type MissingTrackSelectedMsg struct{}
 // state to idle so the space-bar toggle stays synchronized with mpv's state.
 type PlaybackEndedMsg struct{}
 
+// PauseChangedMsg is dispatched by the player when mpv's pause property
+// changes externally (e.g. via AirPods hardware button). Root handles it by
+// syncing the TUI playback state with mpv's actual pause state.
+type PauseChangedMsg struct {
+	Paused bool
+}
+
 // RemoteActionMsg is sent when an external signal (SIGUSR1) requests a
 // playback action, e.g. from a global keybinding. ActionName maps to an
 // action constant via remoteAction(); an empty name defaults to play/pause
@@ -1025,6 +1032,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.playbackState == PlaybackPlaying {
 			return m, m.sessionPositionCmd()
 		}
+
+	case PauseChangedMsg:
+		return m.handlePauseChangedMsg(msg)
 
 	case RemoteActionMsg:
 		m, cmd, _ := m.handlePlaybackKeyAction(remoteAction(msg.ActionName))

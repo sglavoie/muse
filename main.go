@@ -307,6 +307,9 @@ func main() {
 	mgr.SetTrackChangedFunc(func(hash, artist, title string) {
 		p.Send(tui.TrackChangedMsg{Hash: hash, Artist: artist, Title: title, PlaylistSource: "Queue"})
 	})
+	mgr.SetPauseChangedFunc(func(paused bool) {
+		p.Send(tui.PauseChangedMsg{Paused: paused})
+	})
 	mgr.SetMissingMarker(result.Writer)
 
 	// Listen for SIGUSR1 to dispatch remote playback actions. The action name

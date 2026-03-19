@@ -119,6 +119,23 @@ func (m Model) handlePlaybackEndedMsg() Model {
 	return m
 }
 
+// handlePauseChangedMsg syncs the TUI playback state with mpv's actual pause
+// property. Guards prevent redundant transitions (e.g. user presses space →
+// TUI already updated → mpv confirms via event → no-op).
+func (m Model) handlePauseChangedMsg(msg PauseChangedMsg) (Model, tea.Cmd) {
+	if msg.Paused {
+		if m.playbackState == PlaybackPlaying {
+			m.playbackState = PlaybackPaused
+			return m, m.sessionPositionCmd()
+		}
+	} else {
+		if m.playbackState == PlaybackPaused || m.playbackState == PlaybackStopped {
+			m.playbackState = PlaybackPlaying
+		}
+	}
+	return m, nil
+}
+
 // handlePreviewStartedMsg stores the preview player and overlay state.
 func (m Model) handlePreviewStartedMsg(msg previewStartedMsg) Model {
 	m.previewPlayer = msg.player

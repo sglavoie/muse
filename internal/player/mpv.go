@@ -85,6 +85,12 @@ type Manager struct {
 	// stay correct during auto-advance.
 	trackChangedFn func(hash, artist, title string)
 
+	// pauseChangedFn is called when mpv's pause property changes (e.g. via
+	// hardware media keys routed by macOS). Used to dispatch PauseChangedMsg
+	// into the Bubble Tea program so the TUI stays in sync with mpv's actual
+	// pause state.
+	pauseChangedFn func(paused bool)
+
 	// disconnectCh receives the first error when the IPC socket is detected
 	// as disconnected by the health-check goroutine. The channel is buffered
 	// (size 1) so the goroutine never blocks.
@@ -293,6 +299,16 @@ func (m *Manager) SetPlaybackEndedFunc(fn func()) {
 func (m *Manager) SetTrackChangedFunc(fn func(hash, artist, title string)) {
 	m.mu.Lock()
 	m.trackChangedFn = fn
+	m.mu.Unlock()
+}
+
+// SetPauseChangedFunc sets a callback invoked when mpv's pause property changes
+// (e.g. via hardware media keys). The callback receives the new pause state.
+// Use this to dispatch a PauseChangedMsg into the Bubble Tea program so the TUI
+// stays in sync with mpv's actual pause state.
+func (m *Manager) SetPauseChangedFunc(fn func(paused bool)) {
+	m.mu.Lock()
+	m.pauseChangedFn = fn
 	m.mu.Unlock()
 }
 
@@ -595,6 +611,18 @@ func (m *Manager) startEventReader(ctx context.Context) {
 		}
 	}()
 
+	// Subscribe to mpv's pause property so we learn about external pause
+	// toggles (e.g. AirPods hardware button via macOS media key routing).
+	observeCmd, _ := json.Marshal(map[string]any{
+		"command":    []any{"observe_property", 1, "pause"},
+		"request_id": 0,
+	})
+	observeCmd = append(observeCmd, '\n')
+	if _, err := conn.Write(observeCmd); err != nil {
+		slog.Warn("mpv: event reader: failed to observe pause property", "err", err)
+		return
+	}
+
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
 		var raw map[string]any
@@ -640,6 +668,21 @@ func (m *Manager) startEventReader(ctx context.Context) {
 				if fn != nil {
 					fn()
 				}
+			}
+		case "property-change":
+			name, _ := raw["name"].(string)
+			if name != "pause" {
+				continue
+			}
+			paused, ok := raw["data"].(bool)
+			if !ok {
+				continue
+			}
+			m.mu.RLock()
+			fn := m.pauseChangedFn
+			m.mu.RUnlock()
+			if fn != nil {
+				fn(paused)
 			}
 		}
 	}
