@@ -1,34 +1,27 @@
 package library
 
 import (
+	"context"
 	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sglavoie/muse/internal/audio"
 )
 
-// audioExtensions is the set of supported audio file extensions (lowercase).
-var audioExtensions = map[string]struct{}{
-	".mp3":  {},
-	".flac": {},
-	".ogg":  {},
-	".opus": {},
-	".m4a":  {},
-	".wav":  {},
-	".wma":  {},
-	".aac":  {},
-	".aiff": {},
-	".ape":  {},
-	".wv":   {},
-}
 
 // walkAudioPaths walks root applying the shared rules: skip hidden
 // files/dirs, follow file symlinks only, and filter by audio extension.
 // For each qualifying audio file path, it calls visit. If visit returns
 // filepath.SkipDir or a non-nil error, the walk stops accordingly.
-func walkAudioPaths(root string, visit func(path string) error) error {
+// If ctx is cancelled, the walk stops early.
+func walkAudioPaths(ctx context.Context, root string, visit func(path string) error) error {
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if ctx.Err() != nil {
+			return filepath.SkipAll
+		}
 		if err != nil {
 			slog.Warn("walk error", "path", path, "err", err)
 			return nil
@@ -65,29 +58,33 @@ func walkAudioPaths(root string, visit func(path string) error) error {
 }
 
 // Walk walks root recursively, sending audio file paths to the returned channel.
-// It runs in a single goroutine and closes the channel when the walk completes.
-// Hidden files and directories (names starting with '.') are skipped.
-// Symbolic links are followed for files but not for directories.
-func Walk(root string) <-chan string {
+// It runs in a single goroutine and closes the channel when the walk completes
+// or ctx is cancelled. Hidden files and directories (names starting with '.')
+// are skipped. Symbolic links are followed for files but not for directories.
+func Walk(ctx context.Context, root string) <-chan string {
 	ch := make(chan string, 64)
 	go func() {
 		defer close(ch)
-		_ = walkAudioPaths(root, func(path string) error {
-			ch <- path
-			return nil
+		_ = walkAudioPaths(ctx, root, func(path string) error {
+			select {
+			case ch <- path:
+				return nil
+			case <-ctx.Done():
+				return filepath.SkipAll
+			}
 		})
 	}()
 	return ch
 }
 
 // CountAudioFiles walks root using stat-only directory traversal and returns
-// the number of audio files matching audioExtensions. It applies the same
+// the number of audio files matching audio.Extensions. It applies the same
 // hidden-file, hidden-directory, and file-only-symlink rules as Walk so the
 // count matches what the scanner pipeline will process. Intended to be called
 // in a background goroutine to provide an early estimated total.
-func CountAudioFiles(root string) int {
+func CountAudioFiles(ctx context.Context, root string) int {
 	count := 0
-	_ = walkAudioPaths(root, func(_ string) error {
+	_ = walkAudioPaths(ctx, root, func(_ string) error {
 		count++
 		return nil
 	})
@@ -96,6 +93,6 @@ func CountAudioFiles(root string) int {
 
 func isAudioFile(name string) bool {
 	ext := strings.ToLower(filepath.Ext(name))
-	_, ok := audioExtensions[ext]
+	_, ok := audio.Extensions[ext]
 	return ok
 }

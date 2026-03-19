@@ -2,6 +2,7 @@ package player
 
 import (
 	"context"
+	"errors"
 	"os/exec"
 	"testing"
 )
@@ -42,7 +43,7 @@ func TestPreviewPlayer_LoadAndPlay(t *testing.T) {
 func TestPreviewPlayer_LoadAndPlay_NotConnected(t *testing.T) {
 	p := NewPreviewPlayer(context.Background(), "/tmp/nonexistent.sock")
 	err := p.LoadAndPlay("/tmp/test.mp3")
-	if err != ErrNotConnected {
+	if !errors.Is(err, ErrNotConnected) {
 		t.Fatalf("expected ErrNotConnected, got: %v", err)
 	}
 }
@@ -96,7 +97,7 @@ func TestPreviewPlayer_ElapsedPosition(t *testing.T) {
 func TestPreviewPlayer_ElapsedPosition_NotConnected(t *testing.T) {
 	p := NewPreviewPlayer(context.Background(), "/tmp/nonexistent.sock")
 	_, _, err := p.ElapsedPosition()
-	if err != ErrNotConnected {
+	if !errors.Is(err, ErrNotConnected) {
 		t.Fatalf("expected ErrNotConnected, got: %v", err)
 	}
 }

@@ -187,7 +187,7 @@ func rescan(ctx context.Context, pending map[string]bool, extractor MetadataExtr
 	for path, isDir := range pending {
 		if isDir {
 			// Recursively collect audio files in the affected subtree.
-			for p := range Walk(path) {
+			for p := range Walk(ctx, path) {
 				files[p] = struct{}{}
 			}
 		} else {

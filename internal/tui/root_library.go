@@ -137,7 +137,7 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 			// Reset the albums view so it gets re-derived from the new
 			// library index as scan batches arrive.
 			m.albums = AlbumsView{width: m.albums.width, height: m.albums.height}
-			return m, tea.Batch(waitForNextBatch(ch), countAudioFiles(m.libraryRoot)), true
+			return m, tea.Batch(waitForNextBatch(ch), countAudioFiles(m.appCtx, m.libraryRoot)), true
 		}
 		return m, nil, true
 	case actionLibraryFilterClear:

@@ -168,7 +168,14 @@ func main() {
 	}
 
 	adapter := db.NewPlaylistAdapter(result.DB, result.Writer)
-	model := tui.New(ctx, configPath, configCreated, libResult.TuiScanCh, libResult.TuiWatchCh, cfg.MusicDirectory, extractor, mgr, libResult.WatchDegraded,
+	model := tui.New(ctx,
+		tui.WithConfigPath(configPath, configCreated),
+		tui.WithScanChannel(libResult.TuiScanCh),
+		tui.WithWatchChannel(libResult.TuiWatchCh),
+		tui.WithLibraryRoot(cfg.MusicDirectory),
+		tui.WithExtractor(extractor),
+		tui.WithPlayer(mgr),
+		tui.WithWatchDegraded(libResult.WatchDegraded),
 		tui.WithRuntimeDir(dirs.Runtime),
 		tui.WithQueueWriter(result.Writer),
 		tui.WithQueueDequeuer(result.Writer),
@@ -204,12 +211,8 @@ func main() {
 	mgr.SetPlaybackEndedFunc(func() {
 		p.Send(tui.PlaybackEndedMsg{})
 	})
-	// NOTE(initial-version): PlaylistSource is always "Queue" here because
-	// auto-advance is driven by the manager's in-memory queue, which has no
-	// knowledge of the originating playlist. A future improvement could store
-	// the playlist source on each QueueTrack so the correct name is forwarded.
-	mgr.SetTrackChangedFunc(func(hash, artist, title string) {
-		p.Send(tui.TrackChangedMsg{Hash: hash, Artist: artist, Title: title, PlaylistSource: "Queue"})
+	mgr.SetTrackChangedFunc(func(hash, artist, title, source string) {
+		p.Send(tui.TrackChangedMsg{Hash: hash, Artist: artist, Title: title, PlaylistSource: source})
 	})
 	mgr.SetPauseChangedFunc(func(paused bool) {
 		p.Send(tui.PauseChangedMsg{Paused: paused})

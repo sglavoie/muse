@@ -79,11 +79,11 @@ type Manager struct {
 	playbackEndedFn func()
 
 	// trackChangedFn is called when a new track starts (mpv "start-file"
-	// event). It receives the content hash, artist, and title of the track
-	// resolved from the in-memory queue. Used to dispatch TrackChangedMsg
-	// into the Bubble Tea program so that the status bar and session hash
-	// stay correct during auto-advance.
-	trackChangedFn func(hash, artist, title string)
+	// event). It receives the content hash, artist, title, and playlist
+	// source of the track resolved from the in-memory queue. Used to
+	// dispatch TrackChangedMsg into the Bubble Tea program so that the
+	// status bar and session hash stay correct during auto-advance.
+	trackChangedFn func(hash, artist, title, source string)
 
 	// pauseChangedFn is called when mpv's pause property changes (e.g. via
 	// hardware media keys routed by macOS). Used to dispatch PauseChangedMsg
@@ -293,10 +293,10 @@ func (m *Manager) SetPlaybackEndedFunc(fn func()) {
 
 // SetTrackChangedFunc sets a callback invoked when a new track starts playing
 // (mpv "start-file" event). The callback receives the content hash, artist,
-// and title resolved from the in-memory queue at currentIndex. Use this to
-// dispatch a TrackChangedMsg into the Bubble Tea program so that the status
-// bar and session hash are updated on auto-advance.
-func (m *Manager) SetTrackChangedFunc(fn func(hash, artist, title string)) {
+// title, and playlist source resolved from the in-memory queue at
+// currentIndex. Use this to dispatch a TrackChangedMsg into the Bubble Tea
+// program so that the status bar and session hash are updated on auto-advance.
+func (m *Manager) SetTrackChangedFunc(fn func(hash, artist, title, source string)) {
 	m.mu.Lock()
 	m.trackChangedFn = fn
 	m.mu.Unlock()
@@ -649,7 +649,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			m.mu.RUnlock()
 			if fn != nil && idx >= 0 && idx < len(q) {
 				t := q[idx]
-				fn(t.Hash, t.Artist, t.Title)
+				fn(t.Hash, t.Artist, t.Title, t.Source)
 			}
 		case "end-file":
 			reason, _ := raw["reason"].(string)

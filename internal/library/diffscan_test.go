@@ -108,7 +108,7 @@ func TestFilteredWalk_AllNewFiles(t *testing.T) {
 	dir := t.TempDir()
 	paths := makeAudioFiles(t, dir, 5)
 
-	changedCh, deleted := FilteredWalk(dir, nil)
+	changedCh, deleted := FilteredWalk(context.Background(), dir,nil)
 
 	var changed []string
 	for p := range changedCh {
@@ -139,7 +139,7 @@ func TestFilteredWalk_UnchangedFilesSkipped(t *testing.T) {
 		known[p] = KnownFile{ModTime: info.ModTime().Unix(), SizeBytes: info.Size()}
 	}
 
-	changedCh, deleted := FilteredWalk(dir, known)
+	changedCh, deleted := FilteredWalk(context.Background(), dir,known)
 
 	var changed []string
 	for p := range changedCh {
@@ -169,7 +169,7 @@ func TestFilteredWalk_ModifiedFileIncluded(t *testing.T) {
 		paths[1]: {ModTime: info.ModTime().Unix(), SizeBytes: info.Size()},     // current
 	}
 
-	changedCh, deleted := FilteredWalk(dir, known)
+	changedCh, deleted := FilteredWalk(context.Background(), dir,known)
 	var changed []string
 	for p := range changedCh {
 		changed = append(changed, p)
@@ -199,7 +199,7 @@ func TestFilteredWalk_DeletedFileReported(t *testing.T) {
 		t.Fatalf("remove: %v", err)
 	}
 
-	changedCh, deleted := FilteredWalk(dir, known)
+	changedCh, deleted := FilteredWalk(context.Background(), dir,known)
 	var changed []string
 	for p := range changedCh {
 		changed = append(changed, p)
@@ -304,7 +304,7 @@ func TestFilteredWalk_HiddenFilesSkipped(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	changedCh, _ := FilteredWalk(dir, nil)
+	changedCh, _ := FilteredWalk(context.Background(), dir,nil)
 	var changed []string
 	for p := range changedCh {
 		changed = append(changed, p)
@@ -327,7 +327,7 @@ func TestFilteredWalk_NonAudioFilesIgnored(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	changedCh, _ := FilteredWalk(dir, nil)
+	changedCh, _ := FilteredWalk(context.Background(), dir,nil)
 	var changed []string
 	for p := range changedCh {
 		changed = append(changed, p)
@@ -352,7 +352,7 @@ func TestFilteredWalk_SizeMismatchTriggersRescan(t *testing.T) {
 		p: {ModTime: info.ModTime().Unix(), SizeBytes: info.Size() + 1},
 	}
 
-	changedCh, _ := FilteredWalk(dir, known)
+	changedCh, _ := FilteredWalk(context.Background(), dir,known)
 	var changed []string
 	for p := range changedCh {
 		changed = append(changed, p)
@@ -375,7 +375,7 @@ func TestFilteredWalk_GoroutineCloses(t *testing.T) {
 		known[p] = KnownFile{ModTime: info.ModTime().Unix(), SizeBytes: info.Size()}
 	}
 
-	changedCh, _ := FilteredWalk(dir, known)
+	changedCh, _ := FilteredWalk(context.Background(), dir,known)
 
 	done := make(chan struct{})
 	go func() {

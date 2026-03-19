@@ -16,7 +16,7 @@ import (
 // MissingTrackMsg marks the matching queue entry as missing and sets a
 // transient error message in the status bar.
 func TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/song.flac", Display: "Artist – Song"},
 	}
@@ -36,7 +36,7 @@ func TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError(t *testing.T) {
 // enter on a missing queue entry emits MissingTrackSelectedMsg and that root
 // handles it by setting a transient notification.
 func TestSelectMissingTrackEmitsMissingTrackSelectedMsg(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/gone.flac", Display: "Artist – Gone", Missing: true, Hash: "abc123"},
@@ -286,7 +286,7 @@ func TestQueueViewUpdateJAtBottomIsNoOp(t *testing.T) {
 // TestRootQueueLocalDDispatchesDequeueMsg verifies the end-to-end path: pressing
 // 'd' while the queue view is active returns a Cmd that emits DequeueTrackMsg.
 func TestRootQueueLocalDDispatchesDequeueMsg(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -310,7 +310,7 @@ func TestRootQueueLocalDDispatchesDequeueMsg(t *testing.T) {
 // TestRootQueueLocalXDispatchesBulkSelectionToggleMsg verifies the end-to-end
 // path: pressing 'x' while the queue view is active dispatches BulkSelectionToggleMsg.
 func TestRootQueueLocalXDispatchesBulkSelectionToggleMsg(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -331,7 +331,7 @@ func TestRootQueueLocalXDispatchesBulkSelectionToggleMsg(t *testing.T) {
 // ClearQueueMsg. The first press shows a confirmation hint; the second
 // press (within 2 seconds) actually clears the queue.
 func TestRootQueueLocalCDispatchesClearQueueMsg(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -363,7 +363,7 @@ func TestRootQueueLocalCDispatchesClearQueueMsg(t *testing.T) {
 // TestRootQueueLocalKDispatchesMoveTrackUpMsg verifies the end-to-end path:
 // pressing 'K' (Shift+k) while the queue view is active dispatches MoveTrackUpMsg.
 func TestRootQueueLocalKDispatchesMoveTrackUpMsg(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -387,7 +387,7 @@ func TestRootQueueLocalKDispatchesMoveTrackUpMsg(t *testing.T) {
 // TestRootQueueLocalJDispatchesMoveTrackDownMsg verifies the end-to-end path:
 // pressing 'J' (Shift+j) while the queue view is active dispatches MoveTrackDownMsg.
 func TestRootQueueLocalJDispatchesMoveTrackDownMsg(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -413,7 +413,7 @@ func TestRootQueueLocalJDispatchesMoveTrackDownMsg(t *testing.T) {
 // moved entry's ID and direction -1.
 func TestMoveTrackUpMsgCallsReordererWithCorrectIDAndDirection(t *testing.T) {
 	r := &stubQueueReorderer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetQueueReorderer(r)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
@@ -454,7 +454,7 @@ func TestMoveTrackUpMsgCallsReordererWithCorrectIDAndDirection(t *testing.T) {
 // moved entry's ID and direction +1.
 func TestMoveTrackDownMsgCallsReordererWithCorrectIDAndDirection(t *testing.T) {
 	r := &stubQueueReorderer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetQueueReorderer(r)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
@@ -495,7 +495,7 @@ func TestMoveTrackDownMsgCallsReordererWithCorrectIDAndDirection(t *testing.T) {
 // the TUI slice at its original index.
 func TestUndoMsgRestoresDequeueWithinWindow(t *testing.T) {
 	d := &stubQueueDequeuer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetQueueDequeuer(d)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
@@ -534,7 +534,7 @@ func TestUndoMsgRestoresDequeueWithinWindow(t *testing.T) {
 // is not called.
 func TestUndoMsgIsNoOpAfterWindowExpiry(t *testing.T) {
 	d := &stubQueueDequeuer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetQueueDequeuer(d)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
@@ -562,7 +562,7 @@ func TestUndoMsgIsNoOpAfterWindowExpiry(t *testing.T) {
 // action before the first undo window expires overwrites the undo slot.
 func TestNewDestructiveActionReplacesUndoSlot(t *testing.T) {
 	d := &stubQueueDequeuer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetQueueDequeuer(d)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
@@ -592,7 +592,7 @@ func TestNewDestructiveActionReplacesUndoSlot(t *testing.T) {
 // TUI slice.
 func TestUndoMsgRestoresClearQueueWithinWindow(t *testing.T) {
 	d := &stubQueueDequeuer{clearQueueSoftResult: []int64{10, 20}}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetQueueDequeuer(d)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
@@ -623,7 +623,7 @@ func TestUndoMsgRestoresClearQueueWithinWindow(t *testing.T) {
 // TestUndoMsgWithNoSlotIsNoOp verifies that UndoMsg when no destructive action
 // has been performed is a no-op.
 func TestUndoMsgWithNoSlotIsNoOp(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
 	}
@@ -640,7 +640,7 @@ func TestUndoMsgWithNoSlotIsNoOp(t *testing.T) {
 // TestQueueCursorDownJKey verifies that pressing "j" while the queue view is
 // active advances the cursor by one.
 func TestQueueCursorDownJKey(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -657,7 +657,7 @@ func TestQueueCursorDownJKey(t *testing.T) {
 // TestQueueCursorUpKKey verifies that pressing "k" while the queue view is
 // active moves the cursor up by one.
 func TestQueueCursorUpKKey(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -675,7 +675,7 @@ func TestQueueCursorUpKKey(t *testing.T) {
 // TestQueueCursorDownArrow verifies that the down arrow key advances the
 // cursor in the queue view, behaving identically to "j".
 func TestQueueCursorDownArrow(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -692,7 +692,7 @@ func TestQueueCursorDownArrow(t *testing.T) {
 // TestQueueCursorUpArrow verifies that the up arrow key moves the cursor up
 // in the queue view, behaving identically to "k".
 func TestQueueCursorUpArrow(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -710,7 +710,7 @@ func TestQueueCursorUpArrow(t *testing.T) {
 // TestQueueCursorClampAtBottom verifies that the cursor stops at the last
 // entry without wrapping when the queue view is active.
 func TestQueueCursorClampAtBottom(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -728,7 +728,7 @@ func TestQueueCursorClampAtBottom(t *testing.T) {
 // TestQueueCursorClampAtTop verifies that the cursor stops at the first entry
 // without wrapping when the queue view is active.
 func TestQueueCursorClampAtTop(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -748,7 +748,7 @@ func TestQueueCursorClampAtTop(t *testing.T) {
 // index so the player's in-memory queue stays in sync with the TUI queue.
 func TestDequeueTrackMsgCallsPlayerQueueRemoverWithCorrectIndex(t *testing.T) {
 	p := &stubPlayerQueueRemover{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
+	m := New(context.Background(), WithPlayer(p))
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
 		{ID: 20, Path: "/music/b.flac", Display: "B"},
@@ -783,7 +783,7 @@ func TestDequeueTrackMsgDoesNotCallStop(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			p := &stubPlayerQueueRemover{}
-			m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
+			m := New(context.Background(), WithPlayer(p))
 			m.playbackState = tc.state
 			m.queue.entries = []QueueEntry{
 				{ID: 10, Path: "/music/a.flac", Display: "A"},
@@ -805,7 +805,7 @@ func TestDequeueTrackMsgDoesNotCallStop(t *testing.T) {
 func TestUndoDequeueRebuildPlayerQueue(t *testing.T) {
 	p := &stubPlayerQueueSyncer{}
 	d := &stubQueueDequeuer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
+	m := New(context.Background(), WithPlayer(p))
 	m.SetQueueDequeuer(d)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Hash: "ha", Artist: "A", Title: "Ta"},
@@ -842,7 +842,7 @@ func TestUndoDequeueRebuildPlayerQueue(t *testing.T) {
 // the queue is scrolled clamps the scrollOffset so it does not point past the
 // end of the shortened list.
 func TestDequeueTrackMsgClampsScrollOffset(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/a.flac", Display: "A"},
 		{ID: 20, Path: "/b.flac", Display: "B"},
@@ -865,7 +865,7 @@ func TestDequeueTrackMsgClampsScrollOffset(t *testing.T) {
 // TestDequeueLastEntryResetsScrollOffset verifies that dequeuing the only
 // entry resets scrollOffset to 0.
 func TestDequeueLastEntryResetsScrollOffset(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/a.flac", Display: "A"},
 	}
@@ -886,7 +886,7 @@ func TestDequeueLastEntryResetsScrollOffset(t *testing.T) {
 // Queue entries and playlist tracks are independent; dequeuing a queue entry
 // must never modify the saved playlist_tracks table view.
 func TestDequeueTrackMsgDoesNotTouchPlaylistTracks(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
 		{ID: 20, Path: "/music/b.flac", Display: "B"},
@@ -914,7 +914,7 @@ func TestDequeueTrackMsgDoesNotTouchPlaylistTracks(t *testing.T) {
 // shortened queue.
 func TestUndoEnqueueClampsScrollOffset(t *testing.T) {
 	d := &stubQueueDequeuer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetQueueDequeuer(d)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/a.flac", Display: "A"},
@@ -949,7 +949,7 @@ func TestUndoEnqueueClampsScrollOffset(t *testing.T) {
 func TestUndoBatchEnqueueClampsScrollOffset(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	be := &stubBatchEnqueuer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetQueueDequeuer(d)
 	m.SetBatchEnqueuer(be)
 	m.queue.entries = []QueueEntry{
@@ -988,7 +988,7 @@ func TestUndoBatchEnqueueClampsScrollOffset(t *testing.T) {
 func TestMoveTrackUpSyncsPlayerQueue(t *testing.T) {
 	p := &stubPlayerQueueSyncer{}
 	r := &stubQueueReorderer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
+	m := New(context.Background(), WithPlayer(p))
 	m.SetQueueReorderer(r)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/a.flac", Hash: "ha", Artist: "A", Title: "Ta"},
@@ -1025,7 +1025,7 @@ func TestMoveTrackUpSyncsPlayerQueue(t *testing.T) {
 func TestMoveTrackDownSyncsPlayerQueue(t *testing.T) {
 	p := &stubPlayerQueueSyncer{}
 	r := &stubQueueReorderer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
+	m := New(context.Background(), WithPlayer(p))
 	m.SetQueueReorderer(r)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/a.flac", Hash: "ha", Artist: "A", Title: "Ta"},
@@ -1059,7 +1059,7 @@ func TestMoveTrackDownSyncsPlayerQueue(t *testing.T) {
 // called after the undo window elapses, not immediately cancelled).
 func TestUndoEnqueueSchedulesPurge(t *testing.T) {
 	d := &stubQueueDequeuer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetQueueDequeuer(d)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/a.flac", Display: "A"},
@@ -1104,7 +1104,7 @@ func TestUndoEnqueueSchedulesPurge(t *testing.T) {
 func TestUndoBatchEnqueueSchedulesPurge(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	be := &stubBatchEnqueuer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetQueueDequeuer(d)
 	m.SetBatchEnqueuer(be)
 	m.queue.entries = []QueueEntry{
@@ -1142,7 +1142,7 @@ func TestUndoBatchEnqueueSchedulesPurge(t *testing.T) {
 // so the status bar does not display stale track info after the queue is cleared.
 func TestClearQueueClearsStatusBarTrackInfo(t *testing.T) {
 	sp := &stubCommandPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, sp, false)
+	m := New(context.Background(), WithPlayer(sp))
 	m.statusBar.artist = "Old Artist"
 	m.statusBar.title = "Old Title"
 	m.statusBar.playlistSource = "Old Playlist"
@@ -1173,7 +1173,7 @@ func TestClearQueueClearsStatusBarTrackInfo(t *testing.T) {
 // resets the status bar artist, title, playlistSource, and currentTrackHash to
 // empty strings when the queue finishes (non-RepeatAll mode).
 func TestPlaybackEndedClearsStatusBarTrackInfo(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, &stubPlayer{}, false)
+	m := New(context.Background(), WithPlayer(&stubPlayer{}))
 	m.statusBar.artist = "Old Artist"
 	m.statusBar.title = "Old Title"
 	m.statusBar.playlistSource = "Queue"
@@ -1205,7 +1205,7 @@ func TestPlaybackEndedClearsStatusBarTrackInfo(t *testing.T) {
 // the scroll offset is adjusted so the restored entry (cursor position) is
 // within the visible viewport.
 func TestUndoDequeueEnsuresCursorVisibility(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, &stubPlayer{}, false)
+	m := New(context.Background(), WithPlayer(&stubPlayer{}))
 	m.queue.height = 10 // visibleRows = 10 - 4 (reserve) = 6
 
 	// Build a queue with enough entries to scroll.
@@ -1249,7 +1249,7 @@ func TestUndoDequeueEnsuresCursorVisibility(t *testing.T) {
 // playing track stops playback and clears the status bar fields.
 func TestDequeuePlayingTrackClearsStatusBar(t *testing.T) {
 	p := &stubPlayerQueueRemover{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
+	m := New(context.Background(), WithPlayer(p))
 	m.playbackState = PlaybackPlaying
 	m.currentTrackHash = "abc123"
 	m.statusBar.artist = "Artist"
@@ -1295,7 +1295,7 @@ func TestDequeuePlayingTrackClearsStatusBar(t *testing.T) {
 // overwrite elapsedSecs/totalSecs when playback is idle.
 func TestTickDoesNotUpdateElapsedWhenIdle(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 99.0, total: 300.0}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
+	m := New(context.Background(), WithPlayer(p))
 	m.playbackState = PlaybackIdle
 	m.elapsedSecs = 0
 	m.totalSecs = 0
@@ -1316,7 +1316,7 @@ func TestTickDoesNotUpdateElapsedWhenIdle(t *testing.T) {
 // and that the notification includes the undo hint.
 func TestBulkDequeueCreatesUndoSlot(t *testing.T) {
 	d := &stubQueueDequeuer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetQueueDequeuer(d)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
@@ -1363,7 +1363,7 @@ func TestBulkDequeueCreatesUndoSlot(t *testing.T) {
 func TestUndoBulkDequeueRestoresEntries(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	ps := &stubPlayerQueueSyncer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, ps, false)
+	m := New(context.Background(), WithPlayer(ps))
 	m.SetQueueDequeuer(d)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
@@ -1416,7 +1416,7 @@ func TestUndoBulkDequeueRestoresEntries(t *testing.T) {
 // the undo window has expired shows "Nothing to undo" and does not restore entries.
 func TestUndoBulkDequeueExpiredIsNoOp(t *testing.T) {
 	d := &stubQueueDequeuer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetQueueDequeuer(d)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{

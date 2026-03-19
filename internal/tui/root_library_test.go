@@ -13,7 +13,7 @@ import (
 // TestLibraryCursorDownJKey verifies that pressing "j" while the library view
 // is active advances the cursor by one.
 func TestLibraryCursorDownJKey(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two"})
 
@@ -27,7 +27,7 @@ func TestLibraryCursorDownJKey(t *testing.T) {
 // TestLibraryCursorUpKKey verifies that pressing "k" while the library view
 // is active moves the cursor up by one.
 func TestLibraryCursorUpKKey(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two"})
 	m.library.cursor = 1
@@ -42,7 +42,7 @@ func TestLibraryCursorUpKKey(t *testing.T) {
 // TestLibraryCursorDownArrow verifies that the down arrow key advances the
 // cursor in the library view, behaving identically to "j".
 func TestLibraryCursorDownArrow(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two"})
 
@@ -56,7 +56,7 @@ func TestLibraryCursorDownArrow(t *testing.T) {
 // TestLibraryCursorUpArrow verifies that the up arrow key moves the cursor up
 // in the library view, behaving identically to "k".
 func TestLibraryCursorUpArrow(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two"})
 	m.library.cursor = 1
@@ -71,7 +71,7 @@ func TestLibraryCursorUpArrow(t *testing.T) {
 // TestLibraryCursorClampAtBottom verifies that the cursor stops at the last
 // track without wrapping when the library view is active.
 func TestLibraryCursorClampAtBottom(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two"})
 	m.library.cursor = 1 // already at last item
@@ -86,7 +86,7 @@ func TestLibraryCursorClampAtBottom(t *testing.T) {
 // TestLibraryCursorClampAtTop verifies that the cursor stops at the first
 // track without wrapping when the library view is active.
 func TestLibraryCursorClampAtTop(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two"})
 	// cursor starts at 0
@@ -101,7 +101,7 @@ func TestLibraryCursorClampAtTop(t *testing.T) {
 // TestLibraryCursorNotMovedWhenQueueActive verifies that j/k in the queue view
 // do not affect the library cursor.
 func TestLibraryCursorNotMovedWhenQueueActive(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two"})
 	m.activeView = viewQueue
@@ -116,7 +116,7 @@ func TestLibraryCursorNotMovedWhenQueueActive(t *testing.T) {
 // TestRootLibraryXTogglesSelectedHash verifies that pressing 'x' while the
 // library view is active toggles the focused track's hash into selectedHashes.
 func TestRootLibraryXTogglesSelectedHash(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
 	m.library.cursor = 0
@@ -144,7 +144,7 @@ func TestRootLibraryXTogglesSelectedHash(t *testing.T) {
 // in the library view with no bulk selection opens the destination picker modal
 // for the focused track.
 func TestRootLibraryAOpensDestinationPickerNoSelection(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
@@ -165,7 +165,7 @@ func TestRootLibraryAOpensDestinationPickerNoSelection(t *testing.T) {
 // 'a' while tracks are bulk-selected opens the destination picker modal for
 // all selected tracks.
 func TestRootLibraryAOpensDestinationPickerWithSelection(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
 	m.library.selectedHashes = map[string]struct{}{"hash-one": {}, "hash-two": {}}
@@ -189,7 +189,7 @@ func TestRootLibraryAOpensDestinationPickerWithSelection(t *testing.T) {
 // queue and clears the bulk selection.
 func TestRootLibraryAWithSelectionEnqueuesAndClears(t *testing.T) {
 	be := &stubBatchEnqueuer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetBatchEnqueuer(be)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
@@ -234,7 +234,7 @@ func TestRootLibraryAWithSelectionEnqueuesAndClears(t *testing.T) {
 // TestRootLibraryAEscDismissesModal verifies that pressing Esc while the
 // destination picker is open dismisses the modal without enqueueing.
 func TestRootLibraryAEscDismissesModal(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 
 	// Open the modal.
@@ -262,7 +262,7 @@ func TestRootLibraryAEscDismissesModal(t *testing.T) {
 // AddTracksToPlaylist with the correct playlist ID and hashes.
 func TestRootLibraryAConfirmPlaylistAddsToPlaylist(t *testing.T) {
 	pa := &stubPlaylistAdder{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetPlaylistAdder(pa)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 	m.playlists.playlists = []db.PlaylistRow{{ID: 7, Name: "Favourites"}}
@@ -316,7 +316,7 @@ func TestRootLibraryAConfirmPlaylistAddsToPlaylist(t *testing.T) {
 // the track count and playlist name once tracksAddedToPlaylistMsg is processed.
 func TestRootLibraryAConfirmPlaylistClearsSelectionAndNotifies(t *testing.T) {
 	pa := &stubPlaylistAdder{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetPlaylistAdder(pa)
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
@@ -384,7 +384,7 @@ func TestRootLibraryAConfirmPlaylistClearsSelectionAndNotifies(t *testing.T) {
 // library has a committed (non-active) filter clears the filter text and
 // restores the full library listing.
 func TestLibraryEscClearsCommittedFilter(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.library.index.Insert(library.Track{Artist: "Alice", Title: "Alpha", Hash: "h1"})
 	m.library.index.Insert(library.Track{Artist: "Bob", Title: "Beta", Hash: "h2"})
 
@@ -415,7 +415,7 @@ func TestLibraryEscClearsCommittedFilter(t *testing.T) {
 // clears the filter.
 func TestLibraryEnterClearsCommittedFilter(t *testing.T) {
 	qa := &stubQueueAppender{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetQueueWriter(qa)
 	m.library.index.Insert(library.Track{Artist: "Alice", Title: "Alpha", Hash: "h1"})
 	m.library.index.Insert(library.Track{Artist: "Bob", Title: "Beta", Hash: "h2"})
@@ -449,7 +449,7 @@ func TestLibraryEnterClearsCommittedFilter(t *testing.T) {
 // FilterBarMsg always toggled the library filter regardless of the active view,
 // silently leaving it in an inconsistent state.
 func TestFilterBarMsgIgnoredOutsideLibraryView(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 
 	// Switch to queue view — filter IS supported here now.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '3', Text: "3"})

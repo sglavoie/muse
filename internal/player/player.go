@@ -24,6 +24,7 @@ type QueueTrack struct {
 	QueueID int64  // primary key of the queue table row
 	Artist  string // artist display name; used by trackChangedFn on auto-advance
 	Title   string // track title; used by trackChangedFn on auto-advance
+	Source  string // playlist name this track was enqueued from; "Queue" for individual enqueues
 }
 
 // Player defines the playback control interface backed by mpv over a Unix

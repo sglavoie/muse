@@ -1615,9 +1615,9 @@ func TestManager_SetTrackChangedFunc(t *testing.T) {
 	m := &Manager{ctx: ctx, cancel: cancel}
 	defer m.Close()
 
-	var gotHash, gotArtist, gotTitle string
-	m.SetTrackChangedFunc(func(h, a, tl string) {
-		gotHash, gotArtist, gotTitle = h, a, tl
+	var gotHash, gotArtist, gotTitle, gotSource string
+	m.SetTrackChangedFunc(func(h, a, tl, src string) {
+		gotHash, gotArtist, gotTitle, gotSource = h, a, tl, src
 	})
 
 	m.mu.RLock()
@@ -1626,9 +1626,9 @@ func TestManager_SetTrackChangedFunc(t *testing.T) {
 	if fn == nil {
 		t.Fatal("SetTrackChangedFunc did not set the func")
 	}
-	fn("h1", "Artist", "Title")
-	if gotHash != "h1" || gotArtist != "Artist" || gotTitle != "Title" {
-		t.Errorf("trackChangedFn args: got (%q, %q, %q)", gotHash, gotArtist, gotTitle)
+	fn("h1", "Artist", "Title", "My Playlist")
+	if gotHash != "h1" || gotArtist != "Artist" || gotTitle != "Title" || gotSource != "My Playlist" {
+		t.Errorf("trackChangedFn args: got (%q, %q, %q, %q)", gotHash, gotArtist, gotTitle, gotSource)
 	}
 }
 

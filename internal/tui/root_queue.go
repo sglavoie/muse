@@ -94,6 +94,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 			QueueID: msg.QueueID,
 			Artist:  msg.Track.Artist,
 			Title:   msg.Track.Title,
+			Source:  msg.SourcePlaylist,
 		})
 	}
 	// Set up undo slot so the user can revert the enqueue.
@@ -121,7 +122,11 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 			m.currentTrackHash = msg.Track.Hash
 			m.statusBar.artist = msg.Track.Artist
 			m.statusBar.title = msg.Track.Title
-			m.statusBar.playlistSource = "Queue"
+			source := msg.SourcePlaylist
+			if source == "" {
+				source = "Queue"
+			}
+			m.statusBar.playlistSource = source
 		}
 	}
 	return m
@@ -157,6 +162,7 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 				QueueID: e.ID,
 				Artist:  e.Artist,
 				Title:   e.Title,
+				Source:  e.SourcePlaylist,
 			})
 		}
 	}
@@ -200,8 +206,12 @@ func (m Model) handlePlayQueueIndexMsg(msg PlayQueueIndexMsg) Model {
 				m.currentTrackHash = e.Hash
 				m.statusBar.artist = e.Artist
 				m.statusBar.title = e.Title
+				source := e.SourcePlaylist
+				if source == "" {
+					source = "Queue"
+				}
+				m.statusBar.playlistSource = source
 			}
-			m.statusBar.playlistSource = "Queue"
 		}
 	}
 	return m
@@ -270,6 +280,7 @@ func (m Model) handleClearQueueMsg() Model {
 			QueueID: e.ID,
 			Artist:  e.Artist,
 			Title:   e.Title,
+			Source:  e.SourcePlaylist,
 		}
 	}
 	var clearIDs []int64
@@ -448,6 +459,7 @@ func (m Model) handleUndo() Model {
 					QueueID: e.ID,
 					Artist:  e.Artist,
 					Title:   e.Title,
+					Source:  e.SourcePlaylist,
 				}
 			}
 			qs.SetQueue(pt)

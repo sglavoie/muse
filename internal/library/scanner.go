@@ -18,7 +18,7 @@ import (
 // ExifTool goroutines have drained, signalling scan-complete. Callers drain
 // the channel with a range loop; channel close is the completion signal.
 func Scan(ctx context.Context, root string, extractor MetadataExtractor) <-chan Track {
-	return ExtractBatches(ctx, extractor, HashWorkers(Walk(root)))
+	return ExtractBatches(ctx, extractor, HashWorkers(Walk(ctx, root)))
 }
 
 // KnownFile holds the cached stat info for a file that is already in the DB.
@@ -36,11 +36,11 @@ type KnownFile struct {
 //
 // The walk runs synchronously before returning so that deleted paths are
 // computed deterministically. Changed paths are then streamed via the channel.
-func FilteredWalk(root string, known map[string]KnownFile) (<-chan string, []string) {
+func FilteredWalk(ctx context.Context, root string, known map[string]KnownFile) (<-chan string, []string) {
 	seen := make(map[string]bool, len(known))
 	var changed []string
 
-	_ = walkAudioPaths(root, func(path string) error {
+	_ = walkAudioPaths(ctx, root, func(path string) error {
 		seen[path] = true
 		info, err := os.Stat(path)
 		if err != nil {
@@ -80,6 +80,6 @@ func FilteredWalk(root string, known map[string]KnownFile) (<-chan string, []str
 //
 // On first run (empty known map) DiffScan degrades to a full scan.
 func DiffScan(ctx context.Context, root string, extractor MetadataExtractor, known map[string]KnownFile) (<-chan Track, []string) {
-	changedCh, deleted := FilteredWalk(root, known)
+	changedCh, deleted := FilteredWalk(ctx, root, known)
 	return ExtractBatches(ctx, extractor, HashWorkers(changedCh)), deleted
 }

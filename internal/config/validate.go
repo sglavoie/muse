@@ -5,24 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sglavoie/muse/internal/audio"
 )
 
-// audioExtensions is the set of supported audio file extensions for validation.
-// This intentionally duplicates library.audioExtensions to avoid a cross-package
-// dependency — only the top-level directory is checked.
-var audioExtensions = map[string]struct{}{
-	".mp3":  {},
-	".flac": {},
-	".ogg":  {},
-	".opus": {},
-	".m4a":  {},
-	".wav":  {},
-	".wma":  {},
-	".aac":  {},
-	".aiff": {},
-	".ape":  {},
-	".wv":   {},
-}
 
 // ValidateMusicDir checks that the configured music directory exists and
 // contains at least one audio file or non-hidden subdirectory at the top level.
@@ -57,7 +43,7 @@ func ValidateMusicDir(musicDir, configPath string) error {
 			}
 		} else {
 			ext := strings.ToLower(filepath.Ext(e.Name()))
-			if _, ok := audioExtensions[ext]; ok {
+			if _, ok := audio.Extensions[ext]; ok {
 				hasAudioOrSubdir = true
 				break
 			}

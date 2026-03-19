@@ -143,59 +143,84 @@ type Model struct {
 	styles *styles.Styles
 }
 
-// New creates a root Model. configPath is displayed in the status bar on every
-// render. When configCreated is true, configPath is also shown as a transient
-// first-run notification.
+// New creates a root Model. All dependencies are injected via functional
+// options (With* functions). Only ctx is required as a positional parameter.
 //
-// scanCh may be nil when library scanning is not needed (e.g. in tests). Pass
-// the channel returned by library.Scan to enable incremental library updates.
+// Example:
 //
-// watchCh may be nil to disable filesystem-change watching. Pass the channel
-// returned by library.Watch to receive incremental updates: new/modified tracks
-// are upserted by path and deleted paths are evicted from the index without a
-// full rebuild. The context passed to library.Watch must be cancelled when the
-// application exits to avoid a goroutine leak.
-//
-// libraryRoot and extractor enable the manual rescan hotkey. Pass empty string
-// and nil to disable it (e.g. in tests that do not exercise rescan).
-//
-// p is the playback backend. Pass nil to disable playback controls.
-//
-// Optional dependencies (queue writer, session writer, playlist adapters, etc.)
-// can be injected via With* options instead of calling Set* methods after
-// construction. Both approaches are supported; Set* methods are retained for
-// backward compatibility in tests.
-func New(ctx context.Context, configPath string, configCreated bool, scanCh <-chan library.Track, watchCh <-chan library.WatchEvent, libraryRoot string, extractor library.MetadataExtractor, p playPauser, watchDegraded bool, opts ...Option) Model {
+//	model := tui.New(ctx,
+//	    tui.WithConfigPath(path, true),
+//	    tui.WithScanChannel(scanCh),
+//	    tui.WithLibraryRoot(root),
+//	    tui.WithPlayer(mgr),
+//	)
+func New(ctx context.Context, opts ...Option) Model {
 	initialStyles := styles.NewStyles(true)
 	m := Model{
-		appCtx:        ctx,
-		activeView:    viewLibrary,
-		configPath:    configPath,
-		configCreated: configCreated,
-		library:       LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
-		scanCh:        scanCh,
-		scanning:      scanCh != nil,
-		watchCh:       watchCh,
-		watchDegraded: watchDegraded,
-		libraryRoot:   libraryRoot,
-		extractor:     extractor,
-		player:        p,
-		registry:      newRegistry(),
-		styles:        &initialStyles,
-		statusBar: StatusBar{
-			configPath:    configPath,
-			configCreated: configCreated,
-		},
+		appCtx:   ctx,
+		activeView: viewLibrary,
+		library:    LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
+		registry:   newRegistry(),
+		styles:     &initialStyles,
 	}
 	for _, opt := range opts {
 		opt(&m)
 	}
+	// Derive scanning state from scanCh after options are applied.
+	m.scanning = m.scanCh != nil
+	// Sync statusBar fields from model state.
+	m.statusBar.configPath = m.configPath
+	m.statusBar.configCreated = m.configCreated
 	return m
 }
 
 // Option configures optional dependencies on the Model. Pass options to New()
 // to wire dependencies at construction time rather than via separate Set* calls.
 type Option func(*Model)
+
+// WithConfigPath sets the config file path and whether it was newly created.
+// The path is displayed in the status bar; configCreated triggers a transient
+// first-run notification.
+func WithConfigPath(path string, created bool) Option {
+	return func(m *Model) {
+		m.configPath = path
+		m.configCreated = created
+	}
+}
+
+// WithScanChannel sets the library scan channel. When non-nil, the TUI reads
+// incremental track updates from it. Pass the channel returned by library.Scan.
+func WithScanChannel(ch <-chan library.Track) Option {
+	return func(m *Model) { m.scanCh = ch }
+}
+
+// WithWatchChannel sets the filesystem watch channel. When non-nil, the TUI
+// receives incremental updates (new/modified/deleted tracks) from it.
+func WithWatchChannel(ch <-chan library.WatchEvent) Option {
+	return func(m *Model) { m.watchCh = ch }
+}
+
+// WithLibraryRoot sets the music library root directory. Required for the
+// manual rescan hotkey and the parallel file-count goroutine.
+func WithLibraryRoot(root string) Option {
+	return func(m *Model) { m.libraryRoot = root }
+}
+
+// WithExtractor sets the metadata extractor used during manual rescans.
+func WithExtractor(e library.MetadataExtractor) Option {
+	return func(m *Model) { m.extractor = e }
+}
+
+// WithPlayer sets the playback backend. Pass nil to disable playback controls.
+func WithPlayer(p playPauser) Option {
+	return func(m *Model) { m.player = p }
+}
+
+// WithWatchDegraded marks the filesystem watcher as degraded. The status bar
+// shows a notice so the user knows to use manual rescan.
+func WithWatchDegraded(degraded bool) Option {
+	return func(m *Model) { m.watchDegraded = degraded }
+}
 
 // WithRuntimeDir sets the runtime directory for ephemeral sockets (e.g. preview player).
 func WithRuntimeDir(dir string) Option {
@@ -440,6 +465,7 @@ func (m Model) syncPlayerQueue() {
 				QueueID: e.ID,
 				Artist:  e.Artist,
 				Title:   e.Title,
+				Source:  e.SourcePlaylist,
 			}
 		}
 		qs.SetQueue(pt)
@@ -503,9 +529,9 @@ func tickCmd() tea.Cmd {
 
 // countAudioFiles returns a Cmd that runs library.CountAudioFiles in a
 // background goroutine and dispatches a ScanTotalMsg when done.
-func countAudioFiles(root string) tea.Cmd {
+func countAudioFiles(ctx context.Context, root string) tea.Cmd {
 	return func() tea.Msg {
-		return library.ScanTotalMsg{Total: library.CountAudioFiles(root)}
+		return library.ScanTotalMsg{Total: library.CountAudioFiles(ctx, root)}
 	}
 }
 
@@ -565,7 +591,7 @@ func (m Model) Init() tea.Cmd {
 	if m.scanCh != nil {
 		cmds = append(cmds, waitForNextBatch(m.scanCh))
 		if m.libraryRoot != "" {
-			cmds = append(cmds, countAudioFiles(m.libraryRoot))
+			cmds = append(cmds, countAudioFiles(m.appCtx, m.libraryRoot))
 		}
 	}
 	if m.watchCh != nil {

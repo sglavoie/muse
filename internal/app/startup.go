@@ -297,6 +297,7 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 			QueueID: r.ID,
 			Artist:  r.Artist,
 			Title:   r.Title,
+			Source:  r.SourcePlaylist,
 		})
 	}
 

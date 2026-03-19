@@ -14,7 +14,7 @@ import (
 func TestPauseEmitsSessionPositionWriteCmd(t *testing.T) {
 	p := &stubPlayer{}
 	sw := &stubSessionWriter{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
+	m := New(context.Background(), WithPlayer(p))
 	m.SetSessionWriter(sw)
 	m.playbackState = PlaybackPlaying
 	m.currentTrackHash = "abc123"
@@ -40,7 +40,7 @@ func TestPauseEmitsSessionPositionWriteCmd(t *testing.T) {
 // session writer returns nil from the Cmd (no-op write path).
 func TestPauseWithoutSessionWriterReturnsNilCmd(t *testing.T) {
 	p := &stubPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
+	m := New(context.Background(), WithPlayer(p))
 	m.playbackState = PlaybackPlaying
 	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track"}}
 
@@ -68,7 +68,7 @@ func TestSeekEmitsSessionPositionWriteCmd(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			p := &stubSeekPlayer{}
 			sw := &stubSessionWriter{}
-			m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
+			m := New(context.Background(), WithPlayer(p))
 			m.SetSessionWriter(sw)
 			m.currentTrackHash = "seekhash"
 			m.elapsedSecs = 10.0 // 10000 ms
@@ -96,7 +96,7 @@ func TestSeekEmitsSessionPositionWriteCmd(t *testing.T) {
 // track's hash and position 0 (start of track).
 func TestTrackChangedMsgEmitsSessionPositionWriteCmd(t *testing.T) {
 	sw := &stubSessionWriter{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetSessionWriter(sw)
 	m.elapsedSecs = 99.0 // must be reset to 0 before the cmd captures position
 
@@ -124,7 +124,7 @@ func TestTrackChangedMsgEmitsSessionPositionWriteCmd(t *testing.T) {
 // updates m.currentTrackHash so that subsequent pause/seek writes use the
 // correct hash.
 func TestTrackChangedMsgStoresCurrentTrackHash(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 
 	next, _ := m.Update(TrackChangedMsg{Artist: "A", Title: "T", Hash: "testhash"})
 	nm := next.(Model)
@@ -137,7 +137,7 @@ func TestTrackChangedMsgStoresCurrentTrackHash(t *testing.T) {
 // TestTrackChangedMsgWithoutSessionWriterReturnsNilCmd verifies that
 // TrackChangedMsg without a session writer returns nil cmd (no-op write path).
 func TestTrackChangedMsgWithoutSessionWriterReturnsNilCmd(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 
 	_, cmd := m.Update(TrackChangedMsg{Artist: "A", Title: "T", Hash: "h"})
 	if cmd != nil {
@@ -148,7 +148,7 @@ func TestTrackChangedMsgWithoutSessionWriterReturnsNilCmd(t *testing.T) {
 // TestSessionTickMsgReschedulesCmd verifies that sessionTickMsg always returns
 // a non-nil follow-up command so the 10-second periodic ticker keeps firing.
 func TestSessionTickMsgReschedulesCmd(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	_, cmd := m.Update(sessionTickMsg{})
 	if cmd == nil {
 		t.Fatal("sessionTickMsg must return a follow-up cmd to reschedule the ticker")
@@ -164,7 +164,7 @@ func TestSessionTickMsgReschedulesCmd(t *testing.T) {
 // write sub-cmd to confirm the correct value is captured.
 func TestSessionTickMsgWritesPositionWhenPlaying(t *testing.T) {
 	sw := &stubSessionWriter{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	m.SetSessionWriter(sw)
 	m.playbackState = PlaybackPlaying
 	m.currentTrackHash = "abc123"
@@ -220,7 +220,7 @@ func TestSessionTickMsgSkipsWriteWhenNotPlaying(t *testing.T) {
 	states := []PlaybackState{PlaybackIdle, PlaybackPaused, PlaybackStopped}
 	for _, state := range states {
 		sw := &stubSessionWriter{}
-		m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+		m := New(context.Background())
 		m.SetSessionWriter(sw)
 		m.playbackState = state
 		m.currentTrackHash = "abc123"
@@ -242,7 +242,7 @@ func TestSessionTickMsgSkipsWriteWhenNotPlaying(t *testing.T) {
 // TestInitSchedulesSessionTicker verifies that Init starts the 10-second
 // periodic session ticker in addition to the 1-second display tick.
 func TestInitSchedulesSessionTicker(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
+	m := New(context.Background())
 	cmd := m.Init()
 	if cmd == nil {
 		t.Fatal("Init must return a non-nil cmd (includes sessionTickCmd)")

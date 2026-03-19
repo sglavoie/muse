@@ -12,11 +12,11 @@ install:
 
 # Run all tests
 test:
-    go test ./...
+    go test -race ./...
 
 # Run tests with verbose output
 test-v:
-    go test -v ./...
+    go test -race -v ./...
 
 # Run tests for a specific package (e.g., just test-pkg internal/tui)
 test-pkg pkg:
@@ -41,6 +41,12 @@ release version:
 # Run the application
 run *args:
     go run . {{args}}
+
+# Generate test coverage report
+cover:
+    go test -race -coverprofile=coverage.out ./...
+    go tool cover -html=coverage.out -o coverage.html
+    @echo "coverage.html written"
 
 # Remove build artifacts
 clean:

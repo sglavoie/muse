@@ -1,11 +1,14 @@
 package library
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"slices"
 	"sort"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/audio"
 )
 
 // mkfile creates a file (and any parent directories) with empty content.
@@ -38,7 +41,7 @@ func TestWalk_CaseInsensitiveExtensions(t *testing.T) {
 	mkfile(t, filepath.Join(dir, "song.OPUS"))
 	mkfile(t, filepath.Join(dir, "cover.jpg")) // not audio
 
-	got := collectNames(Walk(dir))
+	got := collectNames(Walk(context.Background(), dir))
 	want := []string{"album.Flac", "song.OPUS", "track.MP3"}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
@@ -51,7 +54,7 @@ func TestWalk_SkipsHiddenFilesAndDirs(t *testing.T) {
 	mkfile(t, filepath.Join(dir, ".hidden.mp3"))
 	mkfile(t, filepath.Join(dir, ".hiddendir", "inside.mp3"))
 
-	got := collectNames(Walk(dir))
+	got := collectNames(Walk(context.Background(), dir))
 	want := []string{"visible.mp3"}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
@@ -64,7 +67,7 @@ func TestWalk_NonAudioFilesDropped(t *testing.T) {
 	mkfile(t, filepath.Join(dir, "cover.jpg"))
 	mkfile(t, filepath.Join(dir, "notes.txt"))
 
-	got := collectNames(Walk(dir))
+	got := collectNames(Walk(context.Background(), dir))
 	want := []string{"track.mp3"}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
@@ -80,7 +83,7 @@ func TestWalk_FileSymlinksFollowed(t *testing.T) {
 		t.Skip("symlinks not supported:", err)
 	}
 
-	got := collectNames(Walk(dir))
+	got := collectNames(Walk(context.Background(), dir))
 	// Both the real file and the symlink should appear.
 	if !slices.Contains(got, "real.mp3") {
 		t.Errorf("real file missing: %v", got)
@@ -100,7 +103,7 @@ func TestWalk_DirSymlinksNotFollowed(t *testing.T) {
 		t.Skip("symlinks not supported:", err)
 	}
 
-	got := collectNames(Walk(dir))
+	got := collectNames(Walk(context.Background(), dir))
 	// track.mp3 appears once (via subdir), not twice.
 	count := 0
 	for _, n := range got {
@@ -116,7 +119,7 @@ func TestWalk_DirSymlinksNotFollowed(t *testing.T) {
 // --- isAudioFile ---
 
 func TestIsAudioFile_SupportedExtensions(t *testing.T) {
-	for ext := range audioExtensions {
+	for ext := range audio.Extensions {
 		name := "track" + ext
 		if !isAudioFile(name) {
 			t.Errorf("isAudioFile(%q) = false, want true", name)
@@ -159,7 +162,7 @@ func TestCountAudioFiles(t *testing.T) {
 	mkfile(t, filepath.Join(dir, "sub", "d.ogg"))
 	mkfile(t, filepath.Join(dir, ".hidden.mp3"))
 
-	got := CountAudioFiles(dir)
+	got := CountAudioFiles(context.Background(), dir)
 	// a.mp3, b.flac, sub/d.ogg = 3 (hidden file excluded by walk)
 	if got != 3 {
 		t.Errorf("CountAudioFiles = %d, want 3", got)
@@ -168,7 +171,7 @@ func TestCountAudioFiles(t *testing.T) {
 
 func TestCountAudioFiles_EmptyDir(t *testing.T) {
 	dir := t.TempDir()
-	got := CountAudioFiles(dir)
+	got := CountAudioFiles(context.Background(), dir)
 	if got != 0 {
 		t.Errorf("CountAudioFiles empty dir = %d, want 0", got)
 	}
@@ -176,7 +179,7 @@ func TestCountAudioFiles_EmptyDir(t *testing.T) {
 
 func TestWalk_ChannelClosedOnCompletion(t *testing.T) {
 	dir := t.TempDir()
-	ch := Walk(dir)
+	ch := Walk(context.Background(), dir)
 	// Drain and confirm the channel is closed (range completes).
 	for range ch {
 	}

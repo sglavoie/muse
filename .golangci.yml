@@ -4,10 +4,13 @@ run:
 linters:
   enable:
     - errcheck
+    - errorlint
     - govet
+    - ineffassign
+    - misspell
+    - nolintlint
     - staticcheck
     - unused
-    - ineffassign
   settings:
     errcheck:
       exclude-functions:
