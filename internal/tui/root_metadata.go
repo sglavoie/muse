@@ -8,12 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// metadataUpdater persists user-edited metadata to the database.
-type metadataUpdater interface {
-	UpdateTrackMetadata(hash, title, artist, album string) error
-}
-
-// SetMetadataWriter sets the metadataUpdater used to persist metadata edits.
+// Deprecated: Use WithMetadataWriter option in New() instead.
 func (m *Model) SetMetadataWriter(w metadataUpdater) {
 	m.metadataWriter = w
 }

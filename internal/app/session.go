@@ -1,0 +1,118 @@
+package app
+
+import (
+	"log/slog"
+
+	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui"
+)
+
+// SessionModel is the subset of tui.Model methods used by ApplyRestoredSession
+// to configure the TUI with restored state.
+type SessionModel interface {
+	SetQueueEntries(entries []tui.QueueEntry)
+	SetLibraryTracks(tracks []library.Track)
+	RemoveLibraryTrackByPath(path string)
+	SetPlaylists(rows []db.PlaylistRow)
+	SetRepeatMode(mode tui.RepeatMode)
+	SetShuffle(enabled bool)
+	SetVolume(v int)
+	SetPlaybackState(state tui.PlaybackState)
+	SetCurrentTrackHash(hash string)
+}
+
+// SessionPlayer is the subset of player.Manager methods used by
+// ApplyRestoredSession to synchronize restored state into mpv.
+type SessionPlayer interface {
+	SetQueue(entries []player.QueueTrack)
+	SetRepeat(mode string) error
+	SetShuffle(enabled bool) error
+	SetCurrentIndex(index int)
+}
+
+// ShuffleWriter can regenerate shuffle positions in the database.
+type ShuffleWriter interface {
+	WriteShuffle(enabled bool) error
+	MarkTrackMissing(hash string) error
+}
+
+// PlaylistReader reads playlists from the database.
+type PlaylistReader interface {
+	ReadPlaylists() ([]db.PlaylistRow, error)
+}
+
+// ApplyRestoredSession configures the TUI model and player with state from the
+// previous session: queue, library tracks, playlists, repeat mode, shuffle,
+// volume, current track, and evicts deleted files from the library index.
+func ApplyRestoredSession(
+	model SessionModel,
+	mgr SessionPlayer,
+	restored *RestoredSession,
+	shuffleWriter ShuffleWriter,
+	playlistReader PlaylistReader,
+	libraryTracks []library.Track,
+	deletedPaths []string,
+	hashByPath map[string]string,
+	defaultVolume int,
+) {
+	// Sync queue between player and TUI.
+	mgr.SetQueue(restored.PlayerTracks)
+	model.SetQueueEntries(restored.QueueEntries)
+
+	// Pre-populate the library with cached tracks for instant display.
+	model.SetLibraryTracks(libraryTracks)
+
+	// Evict deleted files from the library index before the TUI starts.
+	for _, path := range deletedPaths {
+		model.RemoveLibraryTrackByPath(path)
+		if hash, ok := hashByPath[path]; ok {
+			if err := shuffleWriter.MarkTrackMissing(hash); err != nil {
+				slog.Warn("startup: mark deleted track missing", "path", path, "err", err)
+			}
+		}
+	}
+
+	if playlists, err := playlistReader.ReadPlaylists(); err == nil {
+		model.SetPlaylists(playlists)
+	} else {
+		slog.Warn("startup: read playlists", "err", err)
+	}
+
+	// Apply restored session state to the model so the first render reflects
+	// the correct repeat/shuffle/playback state from the previous session.
+	model.SetRepeatMode(restored.RepeatMode)
+
+	// Regenerate shuffle_position for all queue rows when shuffle is on.
+	if restored.Shuffle && len(restored.QueueEntries) > 0 {
+		if err := shuffleWriter.WriteShuffle(true); err != nil {
+			slog.Warn("startup: regenerate shuffle positions", "err", err)
+		}
+	}
+	model.SetShuffle(restored.Shuffle)
+	model.SetVolume(defaultVolume)
+
+	// Propagate restored repeat/shuffle modes into mpv so its behaviour
+	// matches the status bar indicators from the first user interaction.
+	if err := mgr.SetRepeat(restored.RepeatMode.String()); err != nil {
+		slog.Debug("startup: set repeat", "err", err)
+	}
+	if err := mgr.SetShuffle(restored.Shuffle); err != nil {
+		slog.Debug("startup: set shuffle", "err", err)
+	}
+
+	if len(restored.QueueEntries) > 0 {
+		model.SetPlaybackState(tui.PlaybackPaused)
+	}
+
+	if restored.CurrentHash != "" {
+		model.SetCurrentTrackHash(restored.CurrentHash)
+		for i, pt := range restored.PlayerTracks {
+			if pt.Hash == restored.CurrentHash {
+				mgr.SetCurrentIndex(i)
+				break
+			}
+		}
+	}
+}

@@ -18,6 +18,11 @@ import (
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
+// playlistFallbackVisibleRows is the assumed number of visible rows when
+// the terminal height is unknown (zero). Used by ensureCursorVisible to
+// keep the cursor within the viewport before the first WindowSizeMsg.
+const playlistFallbackVisibleRows = 50
+
 // viewID identifies which primary view is active.
 type viewID int
 
@@ -343,12 +348,12 @@ func (v PlaylistsView) ensureCursorVisible() PlaylistsView {
 		v.scrollOffset = v.cursor
 	} else {
 		reserve := 3
-		maxRows := 50
+		rows := playlistFallbackVisibleRows
 		if v.height > 0 {
-			maxRows = max(1, v.height-reserve)
+			rows = max(1, v.height-reserve)
 		}
-		if v.cursor >= v.scrollOffset+maxRows {
-			v.scrollOffset = v.cursor - maxRows + 1
+		if v.cursor >= v.scrollOffset+rows {
+			v.scrollOffset = v.cursor - rows + 1
 		}
 	}
 	return v

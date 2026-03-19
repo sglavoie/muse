@@ -19,407 +19,6 @@ import (
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
-// playPauser is the subset of the player interface used by the root model for
-// global play/pause toggling and queue-index playback. Keeping it narrow makes
-// test injection simple.
-type playPauser interface {
-	Play() error
-	Pause() error
-	PlayFromIndex(int) error
-}
-
-// commandPlayer is the optional extended interface for full playback control.
-// Root checks for it via type assertion so that test stubs only need to
-// implement playPauser.
-type commandPlayer interface {
-	Stop() error
-	SeekRelative(seconds float64) error
-	SetVolumeRelative(delta float64) error
-	Next() error
-	Previous() error
-}
-
-// playerQueueAppender is an optional interface for appending a single entry to
-// the player's in-memory queue without replacing the whole queue. Root checks
-// for it via type assertion after a track is enqueued from the library view.
-type playerQueueAppender interface {
-	AppendToQueue(player.QueueTrack)
-}
-
-// playerQueueSetter is an optional interface for replacing the player's entire
-// in-memory queue. Root checks for it via type assertion on ClearQueueMsg (to
-// clear the player queue) and UndoMsg for undoKindClear (to restore it), keeping
-// the player and TUI queue lists in sync after destructive clear operations.
-type playerQueueSetter interface {
-	SetQueue([]player.QueueTrack)
-}
-
-// playerQueueRemover is an optional interface for removing a single entry from
-// the player's in-memory queue by index. Root checks for it via type assertion
-// in the DequeueTrackMsg handler to keep the player queue in sync with the TUI
-// queue after a track is dequeued.
-type playerQueueRemover interface {
-	RemoveFromQueue(index int) error
-}
-
-// positionSyncer is implemented by player.Manager. Root uses it to
-// periodically persist the current playback position for crash-resume.
-type positionSyncer interface {
-	SyncPosition() error
-}
-
-// repeatShuffler is an optional extension checked via type assertion. Root
-// calls SetRepeat and SetShuffle after cycling the model modes so that mpv is
-// instructed to change its repeat/shuffle mode and the player state stays in
-// sync with what the status bar displays. SetRepeat receives the string form
-// of RepeatMode ("none", "all", or "one") to avoid a circular import with the
-// player package.
-type repeatShuffler interface {
-	SetRepeat(mode string) error
-	SetShuffle(bool) error
-}
-
-// elapsedReader is implemented by player.Manager to provide the current
-// elapsed playback position and total track duration. Root queries it on
-// each 1-second tick to keep the status bar time display current.
-type elapsedReader interface {
-	ElapsedPosition() (elapsed, total float64, err error)
-}
-
-// queueReorderer persists adjacent-item swaps for the queue order. Root uses
-// it when MoveTrackUpMsg or MoveTrackDownMsg is processed. When nil, the TUI
-// slice is still swapped but the change is not persisted to the database.
-type queueReorderer interface {
-	ReorderQueueTrack(id int64, direction int) error
-}
-
-// queueDequeuer handles soft-delete, undo, and purge operations for queue
-// entries. Root performs a type assertion to detect it; tests use stubs.
-// When nil, destructive actions still update the in-memory TUI state but
-// skip all database operations.
-type queueDequeuer interface {
-	DequeueTrackSoft(id int64) error
-	UndoDequeue(id int64) error
-	ClearQueueSoft() ([]int64, error)
-	UndoClearQueue(ids []int64) error
-	PurgeDeletedQueueEntries(before int64) error
-}
-
-// undoKind distinguishes which type of destructive action is reversible.
-type undoKind uint8
-
-const (
-	undoNone                         undoKind = iota
-	undoKindEnqueue                           // single track added via TrackEnqueuedMsg
-	undoKindDequeue                           // single track removed via DequeueTrackMsg
-	undoKindClear                             // all tracks removed via ClearQueueMsg
-	undoKindDeletePlaylist                    // playlist soft-deleted via actionPlaylistDelete at ListLevel
-	undoKindRemovePlaylistTrack               // track soft-removed via actionPlaylistDelete at TrackLevel
-	undoKindBatchEnqueue                      // batch of tracks added via actionPlaylistEnqueueAll
-	undoKindBulkDequeue                       // multiple selected tracks removed via bulk dequeue
-	undoKindBulkRemovePlaylistTracks          // multiple selected tracks removed from playlist via 'a'
-	undoKindBulkEditMetadata                  // bulk metadata edit via 'M' with selection
-)
-
-// undoSlot holds the reversible state for the most recent destructive queue
-// action. Only one slot is maintained; a new action replaces the prior one.
-type undoSlot struct {
-	kind      undoKind
-	expiresAt time.Time
-
-	// cancelPurge is closed when this slot is superseded by a new destructive
-	// action or when undo is successfully performed. The time.AfterFunc purge
-	// callback checks this channel before running to avoid purging rows that
-	// belong to a newer undo slot (e.g. same-second dequeue followed by another
-	// dequeue of the same DB row ID after an undo).
-	cancelPurge chan struct{}
-
-	// Dequeue fields — valid when kind == undoKindDequeue.
-	dequeueID    int64
-	dequeueEntry QueueEntry
-	dequeueIdx   int
-
-	// Clear fields — valid when kind == undoKindClear.
-	clearIDs     []int64
-	clearEntries []QueueEntry
-	clearTracks  []player.QueueTrack // parallel to clearEntries; used to restore player queue on undo
-
-	// DeletePlaylist fields — valid when kind == undoKindDeletePlaylist.
-	deletePlaylistEntry db.PlaylistRow
-	deletePlaylistIdx   int
-
-	// RemovePlaylistTrack fields — valid when kind == undoKindRemovePlaylistTrack.
-	removeTrackEntry db.PlaylistTrackRow
-	removeTrackIdx   int
-
-	// BatchEnqueue fields — valid when kind == undoKindBatchEnqueue.
-	batchIDs      []int64 // DB row IDs of all batch-enqueued entries
-	batchCount    int     // number of entries added
-	batchStartIdx int     // index of the first batch entry in queue.entries
-
-	// BulkDequeue fields — valid when kind == undoKindBulkDequeue.
-	bulkDequeueEntries []QueueEntry // removed entries in original order
-	bulkDequeueIndices []int        // original indices for re-insertion
-	bulkDequeueIDs     []int64      // DB IDs for undo
-
-	// BulkRemovePlaylistTracks fields — valid when kind == undoKindBulkRemovePlaylistTracks.
-	bulkRemoveTrackEntries []db.PlaylistTrackRow // removed tracks in original order
-	bulkRemoveTrackIndices []int                 // original indices for re-insertion
-
-	// BulkEditMetadata fields — valid when kind == undoKindBulkEditMetadata.
-	bulkEditOriginals map[string][3]string // hash → {title, artist, album}
-}
-
-// tickMsg is dispatched every second by tickCmd. It drives elapsed-time
-// display updates and transient-notification expiry checks.
-type tickMsg struct{}
-
-// sessionTickMsg is dispatched every sessionTickInterval by sessionTickCmd.
-// On each tick the current playback position is persisted to the session table,
-// but only when playback is active (PlaybackPlaying).
-type sessionTickMsg struct{}
-
-// syncPositionMsg is dispatched every positionSyncInterval to trigger a
-// playback-position update on the player.
-type syncPositionMsg struct{}
-
-// MissingTrackMsg is dispatched by the player when it attempts to play a
-// queued track whose file cannot be found. The TUI marks that entry as missing
-// in the queue view and displays a transient error in the status bar.
-type MissingTrackMsg struct {
-	Path string
-}
-
-// PlayerStatusMsg carries a transient status string from the player backend
-// (e.g. "Connecting to mpv…" or "mpv disconnected, restarting…") into the
-// TUI status bar. Wire it by calling mgr.SetStatusFunc with a callback that
-// calls p.Send(PlayerStatusMsg{Text: s}).
-type PlayerStatusMsg struct {
-	Text string
-}
-
-// PlayQueueIndexMsg is dispatched by the queue view when the user presses
-// Enter on a track. Root handles it by starting playback from that index.
-type PlayQueueIndexMsg struct {
-	Index int
-}
-
-// MissingTrackSelectedMsg is dispatched by the queue view when the user
-// presses Enter on a missing track. Root handles it by showing a transient
-// notification explaining why playback cannot start.
-type MissingTrackSelectedMsg struct{}
-
-// PlaybackEndedMsg is dispatched by the player when auto-advance exhausts the
-// queue (no more playable entries). Root handles it by resetting the playback
-// state to idle so the space-bar toggle stays synchronized with mpv's state.
-type PlaybackEndedMsg struct{}
-
-// PauseChangedMsg is dispatched by the player when mpv's pause property
-// changes externally (e.g. via AirPods hardware button). Root handles it by
-// syncing the TUI playback state with mpv's actual pause state.
-type PauseChangedMsg struct {
-	Paused bool
-}
-
-// RemoteActionMsg is sent when an external signal (SIGUSR1) requests a
-// playback action, e.g. from a global keybinding. ActionName maps to an
-// action constant via remoteAction(); an empty name defaults to play/pause
-// for backward compatibility with bare `kill -USR1`.
-type RemoteActionMsg struct{ ActionName string }
-
-// remoteAction maps a subcommand name to the corresponding action constant.
-// An empty or unrecognized name defaults to actionPlayPause for backward
-// compatibility with bare SIGUSR1.
-func remoteAction(name string) action {
-	switch name {
-	case "toggle-play":
-		return actionPlayPause
-	case "next":
-		return actionNext
-	case "previous":
-		return actionPrevious
-	case "volume-up":
-		return actionVolumeUp
-	case "volume-down":
-		return actionVolumeDown
-	default:
-		return actionPlayPause
-	}
-}
-
-// previewStartedMsg is dispatched when the preview player has been launched
-// and is ready for playback.
-type previewStartedMsg struct {
-	player  player.Previewer
-	overlay PreviewOverlay
-}
-
-// previewStartErrorMsg is dispatched when the preview player fails to start.
-type previewStartErrorMsg struct{ err error }
-
-// UndoMsg is dispatched when the user presses 'u'.
-type UndoMsg struct{}
-
-// FilterBarMsg is dispatched when the user presses '/' to activate the
-// filter bar in the active view.
-type FilterBarMsg struct{}
-
-// BatchEnqueuedMsg carries the result of a batch enqueue operation (all tracks
-// from a playlist). Root handles it by appending all entries to the queue,
-// syncing the player, and setting up the undo slot.
-type BatchEnqueuedMsg struct {
-	Entries      []QueueEntry
-	QueueIDs     []int64
-	WasEmpty     bool
-	PlaylistName string
-	Err          error
-}
-
-// DequeueTrackMsg is dispatched when the user presses 'd' in the queue view
-// to remove the entry at Index from the playback queue.
-type DequeueTrackMsg struct {
-	Index int
-}
-
-// BulkSelectionToggleMsg is dispatched when the user presses 'x' in the queue
-// view to toggle bulk-selection on the entry at Index.
-type BulkSelectionToggleMsg struct {
-	Index int
-}
-
-// ClearQueueMsg is dispatched when the user presses 'C' (Shift+c) in the
-// queue view to remove all entries from the playback queue.
-type ClearQueueMsg struct{}
-
-// MoveTrackUpMsg is dispatched when the user presses 'K' (Shift+k) in the
-// queue view to move the entry at Index one position earlier.
-type MoveTrackUpMsg struct {
-	Index int
-}
-
-// MoveTrackDownMsg is dispatched when the user presses 'J' (Shift+j) in the
-// queue view to move the entry at Index one position later.
-type MoveTrackDownMsg struct {
-	Index int
-}
-
-// RepeatMode controls how the queue cycles at the end of play.
-type RepeatMode uint8
-
-const (
-	RepeatOff RepeatMode = iota // no repeat; stop after the last track
-	RepeatAll                   // repeat the entire queue from the beginning
-	RepeatOne                   // repeat the current track indefinitely
-)
-
-// String returns the session-table value for this RepeatMode. The values match
-// the CHECK constraint in the session schema: 'none', 'all', or 'one'.
-func (r RepeatMode) String() string {
-	switch r {
-	case RepeatAll:
-		return "all"
-	case RepeatOne:
-		return "one"
-	default:
-		return "none"
-	}
-}
-
-// playlistTrackReader loads playlist tracks from the database. Root uses it
-// when the user opens a playlist to transition to TrackLevel. When nil,
-// actionPlaylistOpen is a no-op.
-type playlistTrackReader interface {
-	ReadPlaylistTracks(playlistID int64) ([]db.PlaylistTrackRow, error)
-}
-
-// playlistCreator creates a new playlist and re-reads the full list. Root uses
-// it when the user confirms the inline create input. When nil, confirming the
-// input is a no-op (the field is dismissed without persisting).
-type playlistCreator interface {
-	CreatePlaylist(name string) (int64, error)
-	ReadPlaylists() ([]db.PlaylistRow, error)
-}
-
-// playlistRenamer renames a playlist and re-reads the full list. Root uses it
-// when the user confirms the inline rename input. When nil, confirming the
-// input is a no-op (the field is dismissed without persisting).
-type playlistRenamer interface {
-	RenamePlaylist(id int64, name string) error
-	ReadPlaylists() ([]db.PlaylistRow, error)
-}
-
-// playlistDeleter handles soft-delete, undo, and purge operations for
-// playlists and their tracks. Root performs a type assertion to detect it;
-// tests use stubs. When nil, destructive playlist actions still update the
-// in-memory TUI state but skip all database operations.
-type playlistDeleter interface {
-	DeletePlaylistSoft(id int64) error
-	UndoDeletePlaylist(id int64) error
-	PurgeDeletedPlaylists(before int64) error
-	RemovePlaylistTrackSoft(id int64) error
-	UndoRemovePlaylistTrack(id int64) error
-	PurgeDeletedPlaylistTracks(before int64) error
-}
-
-// batchEnqueuer supports batch enqueue operations and their undo. Root uses it
-// when the user presses 'E' in the playlists view to enqueue all tracks from a
-// playlist, and when undoing a batch enqueue. When nil, the 'E' keybinding is
-// a no-op.
-type batchEnqueuer interface {
-	AppendTracks(tracks []library.Track, sourcePlaylist string) ([]int64, error)
-	DequeueTracksSoft(ids []int64) error
-}
-
-// playlistTrackAdder appends tracks to a playlist by hash. Root uses it when
-// the user confirms a destination-picker modal selection pointing to a playlist.
-// When nil, the playlist append path of the destination picker is a no-op.
-type playlistTrackAdder interface {
-	AddTracksToPlaylist(playlistID int64, hashes []string) error
-}
-
-// sessionWriter is implemented by db.Writer. Root calls WriteRepeatMode after
-// each actionRepeatCycle, WriteShuffle after each actionShuffleToggle, and
-// UpdateSessionPosition on pause, seek, and track-change events to persist
-// state changes to the session table via the single-writer goroutine.
-type sessionWriter interface {
-	WriteRepeatMode(mode string) error
-	WriteShuffle(enabled bool) error
-	UpdateSessionPosition(hash string, positionMs int64) error
-}
-
-// PlaybackState represents the current playback status shown in the status bar.
-type PlaybackState int
-
-const (
-	PlaybackIdle    PlaybackState = iota // no track loaded; no indicator shown
-	PlaybackPlaying                      // actively playing; shows ▶
-	PlaybackPaused                       // paused; shows ⏸
-	PlaybackStopped                      // stopped at track start; shows ■
-)
-
-// TrackChangedMsg is dispatched when the active track changes (e.g. via
-// auto-advance, Next, or Previous). Root handles it by updating the status bar
-// track info and transitioning to the playing state.
-type TrackChangedMsg struct {
-	Artist         string
-	Title          string
-	PlaylistSource string // "Queue" or a named playlist name; defaults to "Queue" if empty
-	Hash           string // content hash of the new track; used for session persistence
-}
-
-// scanBatchSize is the maximum number of tracks collected per batch before
-// returning a ScanBatchMsg to the update loop.
-const scanBatchSize = 100
-
-// watchBatchMsg carries tracks discovered by the filesystem watcher and paths
-// of files deleted/renamed-away. Unlike ScanBatchMsg, receiving this message
-// does not reset the library index: modified tracks are upserted by path and
-// deleted paths are evicted.
-type watchBatchMsg struct {
-	tracks  []library.Track
-	deleted []string
-}
-
 // Model is the root Bubble Tea v2 model. It manages view switching between
 // Library, Playlists, Queue, and Artists panels, and renders a persistent status bar.
 type Model struct {
@@ -561,9 +160,14 @@ type Model struct {
 // and nil to disable it (e.g. in tests that do not exercise rescan).
 //
 // p is the playback backend. Pass nil to disable playback controls.
-func New(ctx context.Context, configPath string, configCreated bool, scanCh <-chan library.Track, watchCh <-chan library.WatchEvent, libraryRoot string, extractor library.MetadataExtractor, p playPauser, watchDegraded bool) Model {
+//
+// Optional dependencies (queue writer, session writer, playlist adapters, etc.)
+// can be injected via With* options instead of calling Set* methods after
+// construction. Both approaches are supported; Set* methods are retained for
+// backward compatibility in tests.
+func New(ctx context.Context, configPath string, configCreated bool, scanCh <-chan library.Track, watchCh <-chan library.WatchEvent, libraryRoot string, extractor library.MetadataExtractor, p playPauser, watchDegraded bool, opts ...Option) Model {
 	initialStyles := styles.NewStyles(true)
-	return Model{
+	m := Model{
 		appCtx:        ctx,
 		activeView:    viewLibrary,
 		configPath:    configPath,
@@ -583,6 +187,74 @@ func New(ctx context.Context, configPath string, configCreated bool, scanCh <-ch
 			configCreated: configCreated,
 		},
 	}
+	for _, opt := range opts {
+		opt(&m)
+	}
+	return m
+}
+
+// Option configures optional dependencies on the Model. Pass options to New()
+// to wire dependencies at construction time rather than via separate Set* calls.
+type Option func(*Model)
+
+// WithRuntimeDir sets the runtime directory for ephemeral sockets (e.g. preview player).
+func WithRuntimeDir(dir string) Option {
+	return func(m *Model) { m.runtimeDir = dir }
+}
+
+// WithQueueWriter sets the QueueAppender for persisting enqueued tracks.
+func WithQueueWriter(w libtui.QueueAppender) Option {
+	return func(m *Model) { m.queueWriter = w }
+}
+
+// WithQueueDequeuer sets the dequeuer for soft-delete, undo, and purge of queue entries.
+func WithQueueDequeuer(d queueDequeuer) Option {
+	return func(m *Model) { m.undoer = d }
+}
+
+// WithSessionWriter sets the writer for persisting session-level state (repeat mode, position).
+func WithSessionWriter(sw sessionWriter) Option {
+	return func(m *Model) { m.sessionWriter = sw }
+}
+
+// WithPlaylistTrackReader sets the reader for loading playlist tracks.
+func WithPlaylistTrackReader(r playlistTrackReader) Option {
+	return func(m *Model) { m.playlistReader = r }
+}
+
+// WithPlaylistWriter sets the creator for new playlists.
+func WithPlaylistWriter(w playlistCreator) Option {
+	return func(m *Model) { m.playlistWriter = w }
+}
+
+// WithPlaylistRenamer sets the renamer for playlists.
+func WithPlaylistRenamer(r playlistRenamer) Option {
+	return func(m *Model) { m.playlistRenamer = r }
+}
+
+// WithPlaylistDeleter sets the deleter for soft-deleting playlists and tracks.
+func WithPlaylistDeleter(d playlistDeleter) Option {
+	return func(m *Model) { m.playlistDeleter = d }
+}
+
+// WithPlaylistAdder sets the adder for appending tracks to playlists.
+func WithPlaylistAdder(a playlistTrackAdder) Option {
+	return func(m *Model) { m.playlistAdder = a }
+}
+
+// WithQueueReorderer sets the reorderer for persisting queue position swaps.
+func WithQueueReorderer(r queueReorderer) Option {
+	return func(m *Model) { m.reorderer = r }
+}
+
+// WithBatchEnqueuer sets the batch enqueuer for bulk track insertion.
+func WithBatchEnqueuer(be batchEnqueuer) Option {
+	return func(m *Model) { m.batchEnqueuer = be }
+}
+
+// WithMetadataWriter sets the writer for persisting metadata edits.
+func WithMetadataWriter(w metadataUpdater) Option {
+	return func(m *Model) { m.metadataWriter = w }
 }
 
 // SetQueueEntries pre-populates the queue view with entries loaded from the
@@ -593,34 +265,22 @@ func (m *Model) SetQueueEntries(entries []QueueEntry) {
 	m.queue.entries = entries
 }
 
-// SetQueueWriter sets the QueueAppender used by the library-view Enter handler
-// to persist newly enqueued tracks to the database. Call this on the Model
-// returned by New before passing it to tea.NewProgram. Passing nil disables
-// enqueueing (Enter in the library view becomes a no-op).
+// Deprecated: Use WithQueueWriter option in New() instead.
 func (m *Model) SetQueueWriter(qa libtui.QueueAppender) {
 	m.queueWriter = qa
 }
 
-// SetQueueReorderer sets the queueReorderer used to persist queue entry
-// position swaps in the database. Call this on the Model returned by New
-// before passing it to tea.NewProgram. When nil, MoveTrackUpMsg/MoveTrackDownMsg
-// still update the TUI slice but skip the database write.
+// Deprecated: Use WithQueueReorderer option in New() instead.
 func (m *Model) SetQueueReorderer(r queueReorderer) {
 	m.reorderer = r
 }
 
-// SetQueueDequeuer sets the queueDequeuer used to soft-delete, undo, and purge
-// queue entries in the database. Call this on the Model returned by New before
-// passing it to tea.NewProgram. When nil, destructive actions (dequeue, clear)
-// still update the TUI state but skip all database operations.
+// Deprecated: Use WithQueueDequeuer option in New() instead.
 func (m *Model) SetQueueDequeuer(qd queueDequeuer) {
 	m.undoer = qd
 }
 
-// SetSessionWriter sets the sessionWriter used to persist session-level state
-// (such as repeat mode) to the database. Call this on the Model returned by
-// New before passing it to tea.NewProgram. When nil, mode changes update
-// the in-memory TUI state but skip all database writes.
+// Deprecated: Use WithSessionWriter option in New() instead.
 func (m *Model) SetSessionWriter(sw sessionWriter) {
 	m.sessionWriter = sw
 }
@@ -694,60 +354,37 @@ func (m *Model) RemoveLibraryTrackByPath(path string) {
 	m.library.index.RemoveByPath(path)
 }
 
-// SetPlaylistTrackReader sets the playlistTrackReader used to load tracks when
-// the user opens a playlist. Call this on the Model returned by New before
-// passing it to tea.NewProgram. When nil, actionPlaylistOpen is a no-op.
+// Deprecated: Use WithPlaylistTrackReader option in New() instead.
 func (m *Model) SetPlaylistTrackReader(r playlistTrackReader) {
 	m.playlistReader = r
 }
 
-// SetPlaylistWriter sets the playlistCreator used to persist a new playlist
-// and refresh the list after creation. Call this on the Model returned by New
-// before passing it to tea.NewProgram. When nil, confirming the inline create
-// input is a no-op (the field is dismissed without writing to the database).
+// Deprecated: Use WithPlaylistWriter option in New() instead.
 func (m *Model) SetPlaylistWriter(w playlistCreator) {
 	m.playlistWriter = w
 }
 
-// SetPlaylistRenamer sets the playlistRenamer used to persist a playlist rename
-// and refresh the list after renaming. Call this on the Model returned by New
-// before passing it to tea.NewProgram. When nil, confirming the inline rename
-// input is a no-op (the field is dismissed without writing to the database).
+// Deprecated: Use WithPlaylistRenamer option in New() instead.
 func (m *Model) SetPlaylistRenamer(r playlistRenamer) {
 	m.playlistRenamer = r
 }
 
-// SetPlaylistDeleter sets the playlistDeleter used to soft-delete playlists
-// and tracks and to undo those deletions within the undo window. Call this on
-// the Model returned by New before passing it to tea.NewProgram. When nil,
-// destructive playlist actions still update the in-memory TUI state but skip
-// all database operations.
+// Deprecated: Use WithPlaylistDeleter option in New() instead.
 func (m *Model) SetPlaylistDeleter(d playlistDeleter) {
 	m.playlistDeleter = d
 }
 
-// SetPlaylistAdder sets the playlistTrackAdder used to append tracks to a
-// playlist when the user confirms the destination picker modal with a playlist
-// destination. Call this on the Model returned by New before passing it to
-// tea.NewProgram. When nil, the playlist append path of the destination picker
-// is a no-op (the modal still opens and navigates but Enter on a playlist does
-// nothing).
+// Deprecated: Use WithPlaylistAdder option in New() instead.
 func (m *Model) SetPlaylistAdder(a playlistTrackAdder) {
 	m.playlistAdder = a
 }
 
-// SetBatchEnqueuer sets the batchEnqueuer used to batch-insert tracks into the
-// queue when the user presses 'E' in the playlists view and to batch soft-delete
-// on undo. Call this on the Model returned by New before passing it to
-// tea.NewProgram. When nil, 'E' in the playlists view is a no-op.
+// Deprecated: Use WithBatchEnqueuer option in New() instead.
 func (m *Model) SetBatchEnqueuer(be batchEnqueuer) {
 	m.batchEnqueuer = be
 }
 
-// SetRuntimeDir sets the runtime directory used for ephemeral sockets (e.g.
-// the preview player socket). Call this on the Model returned by New before
-// passing it to tea.NewProgram. When empty, the preview socket falls back to
-// os.TempDir().
+// Deprecated: Use WithRuntimeDir option in New() instead.
 func (m *Model) SetRuntimeDir(dir string) {
 	m.runtimeDir = dir
 }

@@ -158,141 +158,39 @@ func main() {
 
 	extractor := library.ExifToolExtractor{}
 
-	// Load the cached library from the database for instant startup display.
-	dbTracks, err := result.DB.ReadTracks()
-	if err != nil {
-		slog.Warn("startup: read tracks from DB", "err", err)
-	}
-
-	// Build the library track slice and known-file map for the diff scan.
-	libraryTracks := make([]library.Track, len(dbTracks))
-	known := make(map[string]library.KnownFile, len(dbTracks))
-	for i, row := range dbTracks {
-		libraryTracks[i] = library.Track{
-			Hash:      row.Hash,
-			Path:      row.Path,
-			Title:     row.Title,
-			Artist:    row.Artist,
-			Album:     row.Album,
-			Duration:  float64(row.DurationMs) / 1000.0,
-			ModTime:   row.ModTime,
-			SizeBytes: row.SizeBytes,
-		}
-		known[row.Path] = library.KnownFile{
-			ModTime:   row.ModTime,
-			SizeBytes: row.SizeBytes,
-		}
-	}
-
-	// Diff scan: walk the filesystem and only process files that are new or
-	// have changed since the last scan. Deletions are returned synchronously.
 	const upsertBatchSize = 500
-	rawScanCh, deletedPaths := library.DiffScan(ctx, cfg.MusicDirectory, extractor, known)
-
-	// Bridge new/changed tracks to both the DB and the TUI scan channel.
-	tuiScanCh := app.BridgeScanChannel(rawScanCh, result.Writer, upsertBatchSize)
-
-	// Build path→hash lookup from cached tracks. Used by the deletion-path
-	// handler in both the pre-TUI eviction loop and the watcher bridge.
-	hashByPath := make(map[string]string, len(libraryTracks))
-	for _, t := range libraryTracks {
-		hashByPath[t.Path] = t.Hash
+	libResult, err := app.LoadLibrary(ctx, result.DB, result.Writer, cfg.MusicDirectory, extractor, upsertBatchSize)
+	if err != nil {
+		slog.Error("load library failed", "err", err)
+		fmt.Fprintf(os.Stderr, "muse: %v\n", err)
+		app.Shutdown(shutdownDeps)
+		os.Exit(1)
 	}
-
-	rawWatchCh, watchDegraded, watchErr := library.Watch(ctx, cfg.MusicDirectory, extractor, library.DefaultDebounce)
-	if watchErr != nil {
-		slog.Error("failed to start file watcher", "err", watchErr)
-	}
-
-	// Bridge watcher events to both the DB (for persistence) and the TUI
-	// (for in-memory index updates).
-	tuiWatchCh := app.BridgeWatchChannel(rawWatchCh, result.Writer, result.Writer, hashByPath, upsertBatchSize)
-
-	restored := result.Restored
-
-	model := tui.New(ctx, configPath, configCreated, tuiScanCh, tuiWatchCh, cfg.MusicDirectory, extractor, mgr, watchDegraded)
-	model.SetRuntimeDir(dirs.Runtime)
-	model.SetQueueWriter(result.Writer)
-	model.SetQueueDequeuer(result.Writer)
-	model.SetSessionWriter(result.Writer)
 
 	adapter := db.NewPlaylistAdapter(result.DB, result.Writer)
-	model.SetPlaylistTrackReader(result.DB)
-	model.SetPlaylistWriter(adapter)
-	model.SetPlaylistRenamer(adapter)
-	model.SetPlaylistDeleter(result.Writer)
-	model.SetPlaylistAdder(result.Writer)
-	model.SetQueueReorderer(result.Writer)
-	model.SetBatchEnqueuer(result.Writer)
-	model.SetMetadataWriter(result.Writer)
+	model := tui.New(ctx, configPath, configCreated, libResult.TuiScanCh, libResult.TuiWatchCh, cfg.MusicDirectory, extractor, mgr, libResult.WatchDegraded,
+		tui.WithRuntimeDir(dirs.Runtime),
+		tui.WithQueueWriter(result.Writer),
+		tui.WithQueueDequeuer(result.Writer),
+		tui.WithSessionWriter(result.Writer),
+		tui.WithPlaylistTrackReader(result.DB),
+		tui.WithPlaylistWriter(adapter),
+		tui.WithPlaylistRenamer(adapter),
+		tui.WithPlaylistDeleter(result.Writer),
+		tui.WithPlaylistAdder(result.Writer),
+		tui.WithQueueReorderer(result.Writer),
+		tui.WithBatchEnqueuer(result.Writer),
+		tui.WithMetadataWriter(result.Writer),
+	)
 
-	// setQueue keeps the player Manager and the TUI QueueView in sync.
-	// IMPORTANT: this helper MUST be called any time the queue is mutated
-	// outside the TUI message loop (e.g. session restore, undo clear). Calling
-	// mgr.SetQueue or model.SetQueueEntries independently will cause the
-	// player and TUI indices to diverge, breaking PlayQueueIndexMsg addressing.
-	setQueue := func(pe []player.QueueTrack, te []tui.QueueEntry) {
-		mgr.SetQueue(pe)
-		model.SetQueueEntries(te)
-	}
-	setQueue(restored.PlayerTracks, restored.QueueEntries)
-
-	// Pre-populate the library with cached tracks for instant display.
-	model.SetLibraryTracks(libraryTracks)
-
-	// Evict deleted files from the library index before the TUI starts.
-	for _, path := range deletedPaths {
-		model.RemoveLibraryTrackByPath(path)
-		if hash, ok := hashByPath[path]; ok {
-			if err := result.Writer.MarkTrackMissing(hash); err != nil {
-				slog.Warn("startup: mark deleted track missing", "path", path, "err", err)
-			}
-		}
-	}
-
-	if playlists, err := result.DB.ReadPlaylists(); err == nil {
-		model.SetPlaylists(playlists)
-	} else {
-		slog.Warn("startup: read playlists", "err", err)
-	}
-
-	// Apply restored session state to the model so the first render reflects
-	// the correct repeat/shuffle/playback state from the previous session.
-	// These Set* calls MUST happen before tea.NewProgram so the program
-	// captures the fully-initialised model at construction time.
-	model.SetRepeatMode(restored.RepeatMode)
-	// Regenerate shuffle_position for all queue rows when shuffle is on.
-	// Done here (after app.Run) rather than inside RestoreSession so that
-	// RestoreSession remains read-dominated and startup latency is predictable.
-	if restored.Shuffle && len(restored.QueueEntries) > 0 {
-		if err := result.Writer.WriteShuffle(true); err != nil {
-			slog.Warn("startup: regenerate shuffle positions", "err", err)
-		}
-	}
-	model.SetShuffle(restored.Shuffle)
-	model.SetVolume(cfg.DefaultVolume)
-	// Propagate restored repeat/shuffle modes into mpv so its behaviour
-	// matches the status bar indicators from the first user interaction.
-	if err := mgr.SetRepeat(restored.RepeatMode.String()); err != nil {
-		slog.Debug("startup: set repeat", "err", err)
-	}
-	if err := mgr.SetShuffle(restored.Shuffle); err != nil {
-		slog.Debug("startup: set shuffle", "err", err)
-	}
-	if len(restored.QueueEntries) > 0 {
-		model.SetPlaybackState(tui.PlaybackPaused)
-	}
-	if restored.CurrentHash != "" {
-		model.SetCurrentTrackHash(restored.CurrentHash)
-		// Set the player's currentIndex so that Next/Previous navigate
-		// relative to the restored track rather than defaulting to index 0.
-		for i, pt := range restored.PlayerTracks {
-			if pt.Hash == restored.CurrentHash {
-				mgr.SetCurrentIndex(i)
-				break
-			}
-		}
-	}
+	// Apply all restored session state (queue, library, playlists,
+	// repeat/shuffle/volume, current track) before tea.NewProgram so the
+	// program captures the fully-initialised model at construction time.
+	app.ApplyRestoredSession(
+		&model, mgr, result.Restored, result.Writer, result.DB,
+		libResult.Tracks, libResult.DeletedPaths, libResult.HashByPath,
+		cfg.DefaultVolume,
+	)
 
 	p := tea.NewProgram(model)
 

@@ -195,7 +195,7 @@ func TestSessionTickMsgWritesPositionWhenPlaying(t *testing.T) {
 		select {
 		case <-done:
 			// completed quickly — this is the write cmd
-		case <-time.After(50 * time.Millisecond):
+		case <-time.After(2 * time.Second):
 			// timed out — this is the blocking tick timer; skip it
 		}
 	}

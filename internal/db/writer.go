@@ -13,9 +13,20 @@ import (
 )
 
 const (
-	writerDrainTimeout  = 5 * time.Second
+	// writerDrainTimeout is how long Close waits for in-flight writes to
+	// finish before giving up. Keep it short so the app exits promptly.
+	writerDrainTimeout = 5 * time.Second
+
+	// writerChannelBuffer is the capacity of the async command channel.
+	// 64 is large enough to absorb burst writes (e.g. batch enqueue)
+	// without blocking the TUI goroutine.
 	writerChannelBuffer = 64
-	queuePositionGap    = 1000
+
+	// queuePositionGap is the integer gap between consecutive queue
+	// positions. Using 1000 instead of 1 allows single-row reorders
+	// (move up/down) to be expressed as simple position swaps without
+	// renumbering the entire queue.
+	queuePositionGap = 1000
 )
 
 // Compile-time check: *Writer must satisfy the sessionWriter interface

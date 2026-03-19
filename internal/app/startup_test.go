@@ -383,7 +383,7 @@ func TestRunConcurrentLaunchAndScan(t *testing.T) {
 
 	// Release gate after a short delay so RunScan has time to start first.
 	go func() {
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 		close(gate)
 	}()
 

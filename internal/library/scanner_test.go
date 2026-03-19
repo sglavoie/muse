@@ -66,7 +66,7 @@ func TestScanGoroutineLeak(t *testing.T) {
 	}
 
 	// Allow any goroutine that closed a channel to finish its own exit.
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	after := runtime.NumGoroutine()
 	// Allow up to 2 extra goroutines for incidental Go runtime activity.

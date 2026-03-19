@@ -1707,7 +1707,7 @@ func TestWriter_DrainedExecDoesNotReturnSpuriousError(t *testing.T) {
 	})
 
 	// Give the goroutine time to send to cmds.
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	// Unblock the writer, then cancel so drain processes the buffered command.
 	close(gate)

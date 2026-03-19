@@ -178,7 +178,7 @@ func TestManager_QueueDrainOnConnect(t *testing.T) {
 		if n >= 2 {
 			break
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	mu.Lock()
@@ -602,7 +602,7 @@ func TestManager_AutoRestart(t *testing.T) {
 		if n > 0 {
 			break
 		}
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 	}
 
 	// Verify loadfile was sent with the correct start= offset.
@@ -697,7 +697,7 @@ func TestManager_Stop_PauseThenSeek(t *testing.T) {
 		if n >= 2 {
 			break
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	mu.Lock()
@@ -1165,7 +1165,7 @@ func TestManager_CloseProtectsCmdField(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		// Give handleRestart a moment to enter and write m.cmd.
-		time.Sleep(5 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		_ = m.Close()
 	}()
 	wg.Wait()

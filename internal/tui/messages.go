@@ -1,0 +1,262 @@
+package tui
+
+import (
+	"time"
+
+	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/player"
+)
+
+// undoKind distinguishes which type of destructive action is reversible.
+type undoKind uint8
+
+const (
+	undoNone                         undoKind = iota
+	undoKindEnqueue                           // single track added via TrackEnqueuedMsg
+	undoKindDequeue                           // single track removed via DequeueTrackMsg
+	undoKindClear                             // all tracks removed via ClearQueueMsg
+	undoKindDeletePlaylist                    // playlist soft-deleted via actionPlaylistDelete at ListLevel
+	undoKindRemovePlaylistTrack               // track soft-removed via actionPlaylistDelete at TrackLevel
+	undoKindBatchEnqueue                      // batch of tracks added via actionPlaylistEnqueueAll
+	undoKindBulkDequeue                       // multiple selected tracks removed via bulk dequeue
+	undoKindBulkRemovePlaylistTracks          // multiple selected tracks removed from playlist via 'a'
+	undoKindBulkEditMetadata                  // bulk metadata edit via 'M' with selection
+)
+
+// undoSlot holds the reversible state for the most recent destructive queue
+// action. Only one slot is maintained; a new action replaces the prior one.
+type undoSlot struct {
+	kind      undoKind
+	expiresAt time.Time
+
+	// cancelPurge is closed when this slot is superseded by a new destructive
+	// action or when undo is successfully performed. The time.AfterFunc purge
+	// callback checks this channel before running to avoid purging rows that
+	// belong to a newer undo slot (e.g. same-second dequeue followed by another
+	// dequeue of the same DB row ID after an undo).
+	cancelPurge chan struct{}
+
+	// Dequeue fields — valid when kind == undoKindDequeue.
+	dequeueID    int64
+	dequeueEntry QueueEntry
+	dequeueIdx   int
+
+	// Clear fields — valid when kind == undoKindClear.
+	clearIDs     []int64
+	clearEntries []QueueEntry
+	clearTracks  []player.QueueTrack // parallel to clearEntries; used to restore player queue on undo
+
+	// DeletePlaylist fields — valid when kind == undoKindDeletePlaylist.
+	deletePlaylistEntry db.PlaylistRow
+	deletePlaylistIdx   int
+
+	// RemovePlaylistTrack fields — valid when kind == undoKindRemovePlaylistTrack.
+	removeTrackEntry db.PlaylistTrackRow
+	removeTrackIdx   int
+
+	// BatchEnqueue fields — valid when kind == undoKindBatchEnqueue.
+	batchIDs      []int64 // DB row IDs of all batch-enqueued entries
+	batchCount    int     // number of entries added
+	batchStartIdx int     // index of the first batch entry in queue.entries
+
+	// BulkDequeue fields — valid when kind == undoKindBulkDequeue.
+	bulkDequeueEntries []QueueEntry // removed entries in original order
+	bulkDequeueIndices []int        // original indices for re-insertion
+	bulkDequeueIDs     []int64      // DB IDs for undo
+
+	// BulkRemovePlaylistTracks fields — valid when kind == undoKindBulkRemovePlaylistTracks.
+	bulkRemoveTrackEntries []db.PlaylistTrackRow // removed tracks in original order
+	bulkRemoveTrackIndices []int                 // original indices for re-insertion
+
+	// BulkEditMetadata fields — valid when kind == undoKindBulkEditMetadata.
+	bulkEditOriginals map[string][3]string // hash → {title, artist, album}
+}
+
+// tickMsg is dispatched every second by tickCmd. It drives elapsed-time
+// display updates and transient-notification expiry checks.
+type tickMsg struct{}
+
+// sessionTickMsg is dispatched every sessionTickInterval by sessionTickCmd.
+// On each tick the current playback position is persisted to the session table,
+// but only when playback is active (PlaybackPlaying).
+type sessionTickMsg struct{}
+
+// syncPositionMsg is dispatched every positionSyncInterval to trigger a
+// playback-position update on the player.
+type syncPositionMsg struct{}
+
+// MissingTrackMsg is dispatched by the player when it attempts to play a
+// queued track whose file cannot be found. The TUI marks that entry as missing
+// in the queue view and displays a transient error in the status bar.
+type MissingTrackMsg struct {
+	Path string
+}
+
+// PlayerStatusMsg carries a transient status string from the player backend
+// (e.g. "Connecting to mpv…" or "mpv disconnected, restarting…") into the
+// TUI status bar. Wire it by calling mgr.SetStatusFunc with a callback that
+// calls p.Send(PlayerStatusMsg{Text: s}).
+type PlayerStatusMsg struct {
+	Text string
+}
+
+// PlayQueueIndexMsg is dispatched by the queue view when the user presses
+// Enter on a track. Root handles it by starting playback from that index.
+type PlayQueueIndexMsg struct {
+	Index int
+}
+
+// MissingTrackSelectedMsg is dispatched by the queue view when the user
+// presses Enter on a missing track. Root handles it by showing a transient
+// notification explaining why playback cannot start.
+type MissingTrackSelectedMsg struct{}
+
+// PlaybackEndedMsg is dispatched by the player when auto-advance exhausts the
+// queue (no more playable entries). Root handles it by resetting the playback
+// state to idle so the space-bar toggle stays synchronized with mpv's state.
+type PlaybackEndedMsg struct{}
+
+// PauseChangedMsg is dispatched by the player when mpv's pause property
+// changes externally (e.g. via AirPods hardware button). Root handles it by
+// syncing the TUI playback state with mpv's actual pause state.
+type PauseChangedMsg struct {
+	Paused bool
+}
+
+// RemoteActionMsg is sent when an external signal (SIGUSR1) requests a
+// playback action, e.g. from a global keybinding. ActionName maps to an
+// action constant via remoteAction(); an empty name defaults to play/pause
+// for backward compatibility with bare `kill -USR1`.
+type RemoteActionMsg struct{ ActionName string }
+
+// remoteAction maps a subcommand name to the corresponding action constant.
+// An empty or unrecognized name defaults to actionPlayPause for backward
+// compatibility with bare SIGUSR1.
+func remoteAction(name string) action {
+	switch name {
+	case "toggle-play":
+		return actionPlayPause
+	case "next":
+		return actionNext
+	case "previous":
+		return actionPrevious
+	case "volume-up":
+		return actionVolumeUp
+	case "volume-down":
+		return actionVolumeDown
+	default:
+		return actionPlayPause
+	}
+}
+
+// previewStartedMsg is dispatched when the preview player has been launched
+// and is ready for playback.
+type previewStartedMsg struct {
+	player  player.Previewer
+	overlay PreviewOverlay
+}
+
+// previewStartErrorMsg is dispatched when the preview player fails to start.
+type previewStartErrorMsg struct{ err error }
+
+// UndoMsg is dispatched when the user presses 'u'.
+type UndoMsg struct{}
+
+// FilterBarMsg is dispatched when the user presses '/' to activate the
+// filter bar in the active view.
+type FilterBarMsg struct{}
+
+// BatchEnqueuedMsg carries the result of a batch enqueue operation (all tracks
+// from a playlist). Root handles it by appending all entries to the queue,
+// syncing the player, and setting up the undo slot.
+type BatchEnqueuedMsg struct {
+	Entries      []QueueEntry
+	QueueIDs     []int64
+	WasEmpty     bool
+	PlaylistName string
+	Err          error
+}
+
+// DequeueTrackMsg is dispatched when the user presses 'd' in the queue view
+// to remove the entry at Index from the playback queue.
+type DequeueTrackMsg struct {
+	Index int
+}
+
+// BulkSelectionToggleMsg is dispatched when the user presses 'x' in the queue
+// view to toggle bulk-selection on the entry at Index.
+type BulkSelectionToggleMsg struct {
+	Index int
+}
+
+// ClearQueueMsg is dispatched when the user presses 'C' (Shift+c) in the
+// queue view to remove all entries from the playback queue.
+type ClearQueueMsg struct{}
+
+// MoveTrackUpMsg is dispatched when the user presses 'K' (Shift+k) in the
+// queue view to move the entry at Index one position earlier.
+type MoveTrackUpMsg struct {
+	Index int
+}
+
+// MoveTrackDownMsg is dispatched when the user presses 'J' (Shift+j) in the
+// queue view to move the entry at Index one position later.
+type MoveTrackDownMsg struct {
+	Index int
+}
+
+// RepeatMode controls how the queue cycles at the end of play.
+type RepeatMode uint8
+
+const (
+	RepeatOff RepeatMode = iota // no repeat; stop after the last track
+	RepeatAll                   // repeat the entire queue from the beginning
+	RepeatOne                   // repeat the current track indefinitely
+)
+
+// String returns the session-table value for this RepeatMode. The values match
+// the CHECK constraint in the session schema: 'none', 'all', or 'one'.
+func (r RepeatMode) String() string {
+	switch r {
+	case RepeatAll:
+		return "all"
+	case RepeatOne:
+		return "one"
+	default:
+		return "none"
+	}
+}
+
+// PlaybackState represents the current playback status shown in the status bar.
+type PlaybackState int
+
+const (
+	PlaybackIdle    PlaybackState = iota // no track loaded; no indicator shown
+	PlaybackPlaying                      // actively playing; shows ▶
+	PlaybackPaused                       // paused; shows ⏸
+	PlaybackStopped                      // stopped at track start; shows ■
+)
+
+// TrackChangedMsg is dispatched when the active track changes (e.g. via
+// auto-advance, Next, or Previous). Root handles it by updating the status bar
+// track info and transitioning to the playing state.
+type TrackChangedMsg struct {
+	Artist         string
+	Title          string
+	PlaylistSource string // "Queue" or a named playlist name; defaults to "Queue" if empty
+	Hash           string // content hash of the new track; used for session persistence
+}
+
+// scanBatchSize is the maximum number of tracks collected per batch before
+// returning a ScanBatchMsg to the update loop.
+const scanBatchSize = 100
+
+// watchBatchMsg carries tracks discovered by the filesystem watcher and paths
+// of files deleted/renamed-away. Unlike ScanBatchMsg, receiving this message
+// does not reset the library index: modified tracks are upserted by path and
+// deleted paths are evicted.
+type watchBatchMsg struct {
+	tracks  []library.Track
+	deleted []string
+}
