@@ -26,7 +26,7 @@ func sampleLibraryTracks() []library.Track {
 
 // newModelWithTracks creates a Model pre-loaded with sample tracks.
 func newModelWithTracks() Model {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.SetLibraryTracks(sampleLibraryTracks())
 	return m
 }
@@ -266,7 +266,7 @@ func TestArtistsViewNavigationKeys(t *testing.T) {
 // TestScanBatchRefreshesArtistList verifies that receiving a ScanBatchMsg
 // while at ArtistLevel re-derives the artist list.
 func TestScanBatchRefreshesArtistList(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.SetLibraryTracks([]library.Track{
 		{Artist: "Alice", Album: "Alpha", Title: "T1", Hash: "h1"},
 	})
@@ -291,7 +291,7 @@ func TestScanBatchRefreshesArtistList(t *testing.T) {
 // TestWatchBatchRefreshesArtistList verifies that receiving a watchBatchMsg
 // while at ArtistLevel re-derives the artist list.
 func TestWatchBatchRefreshesArtistList(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.SetLibraryTracks([]library.Track{
 		{Artist: "Alice", Album: "Alpha", Title: "T1", Hash: "h1", Path: "/a.flac"},
 		{Artist: "Bob", Album: "Beta", Title: "T2", Hash: "h2", Path: "/b.flac"},
@@ -318,7 +318,7 @@ func TestWatchBatchRefreshesArtistList(t *testing.T) {
 // TestArtistsClampCursorAfterShrink verifies that the cursor is clamped when
 // the artist list shrinks during a library update.
 func TestArtistsClampCursorAfterShrink(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.SetLibraryTracks([]library.Track{
 		{Artist: "Alice", Album: "Alpha", Title: "T1", Hash: "h1", Path: "/a.flac"},
 		{Artist: "Bob", Album: "Beta", Title: "T2", Hash: "h2", Path: "/b.flac"},
@@ -369,7 +369,7 @@ func TestRescanClearsArtistsView(t *testing.T) {
 // TestArtistsEmptyLibrary verifies that switching to the Artists view with an
 // empty library shows the "(no artists)" placeholder.
 func TestArtistsEmptyLibrary(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 30})
 	m = next.(Model)
 	m = pressKey(m, "4")

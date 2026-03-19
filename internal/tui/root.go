@@ -183,9 +183,6 @@ type sessionTickMsg struct{}
 // playback-position update on the player.
 type syncPositionMsg struct{}
 
-// clearConfigNotice is sent after the transient first-run notification timeout.
-type clearConfigNotice struct{}
-
 // MissingTrackMsg is dispatched by the player when it attempts to play a
 // queued track whose file cannot be found. The TUI marks that entry as missing
 // in the queue view and displays a transient error in the status bar.
@@ -442,6 +439,11 @@ type Model struct {
 	// watching is disabled.
 	watchCh <-chan library.WatchEvent
 
+	// watchDegraded is true when the filesystem watcher could not be started
+	// (e.g. fd exhaustion). The status bar shows a notice so the user knows
+	// to use manual rescan.
+	watchDegraded bool
+
 	// libraryRoot and extractor are required for manual rescan. When
 	// libraryRoot is empty the rescan hotkey is a no-op.
 	libraryRoot string
@@ -552,7 +554,7 @@ type Model struct {
 // and nil to disable it (e.g. in tests that do not exercise rescan).
 //
 // p is the playback backend. Pass nil to disable playback controls.
-func New(ctx context.Context, configPath string, configCreated bool, scanCh <-chan library.Track, watchCh <-chan library.WatchEvent, libraryRoot string, extractor library.MetadataExtractor, p playPauser) Model {
+func New(ctx context.Context, configPath string, configCreated bool, scanCh <-chan library.Track, watchCh <-chan library.WatchEvent, libraryRoot string, extractor library.MetadataExtractor, p playPauser, watchDegraded bool) Model {
 	initialStyles := styles.NewStyles(true)
 	return Model{
 		appCtx:        ctx,
@@ -563,6 +565,7 @@ func New(ctx context.Context, configPath string, configCreated bool, scanCh <-ch
 		scanCh:        scanCh,
 		scanning:      scanCh != nil,
 		watchCh:       watchCh,
+		watchDegraded: watchDegraded,
 		libraryRoot:   libraryRoot,
 		extractor:     extractor,
 		player:        p,
@@ -809,10 +812,6 @@ func (m *Model) setUndoSlot(slot undoSlot, notification string) {
 	}
 }
 
-// configNoticeDuration controls how long the first-run config path notification
-// is visible in the status bar before it is automatically dismissed.
-const configNoticeDuration = 5 * time.Second
-
 // positionSyncInterval is how often root polls the player for the current
 // playback position so that crash-resume can restore to the right offset.
 const positionSyncInterval = 5 * time.Second
@@ -917,11 +916,8 @@ func waitForWatchBatch(ch <-chan library.WatchEvent) tea.Cmd {
 // watcher batch reader when a watch channel is provided.
 func (m Model) Init() tea.Cmd {
 	var cmds []tea.Cmd
-	if m.configCreated {
-		cmds = append(cmds, tea.Tick(configNoticeDuration, func(time.Time) tea.Msg {
-			return clearConfigNotice{}
-		}))
-	}
+	// configCreated notice is now dismissed on the first keypress (see
+	// tea.KeyPressMsg handler) instead of an auto-clear timer.
 	if m.scanCh != nil {
 		cmds = append(cmds, waitForNextBatch(m.scanCh))
 		if m.libraryRoot != "" {
@@ -985,9 +981,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.helpViewport.SetWidth(msg.Width)
 			m.helpViewport.SetHeight(max(msg.Height-2, 0))
 		}
-
-	case clearConfigNotice:
-		m.configCreated = false
 
 	case tea.BackgroundColorMsg:
 		s := styles.NewStyles(msg.IsDark())
@@ -1100,6 +1093,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// --- Key handling ---
 
 	case tea.KeyPressMsg:
+		// Dismiss the first-run config notice on any keypress.
+		m.configCreated = false
+
 		if m.helpVisible {
 			switch msg.String() {
 			case "ctrl+c":
@@ -1375,6 +1371,7 @@ func (m Model) renderStatusBar() string {
 	sb.repeatMode = m.repeatMode
 	sb.shuffle = m.shuffle
 	sb.configCreated = m.configCreated
+	sb.watchDegraded = m.watchDegraded
 	sb.queueEmpty = len(m.queue.entries) == 0
 	if m.elapsedSecs > 0 || m.totalSecs > 0 {
 		sb.elapsed = formatTime(m.elapsedSecs)

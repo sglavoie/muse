@@ -12,7 +12,7 @@ import (
 // TestQueueFilterActivatesOnSlash verifies that pressing '/' in the queue view
 // activates the queue filter bar.
 func TestQueueFilterActivatesOnSlash(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/a.flac", Title: "Alpha", Artist: "ArtA"},
@@ -80,7 +80,7 @@ func TestQueueFilterMatchesArtistAndAlbum(t *testing.T) {
 // TestQueueFilterEscapeClears verifies that pressing Escape clears the filter
 // and resets the cursor.
 func TestQueueFilterEscapeClears(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/a.flac", Title: "Alpha", Artist: "ArtA"},
@@ -110,7 +110,7 @@ func TestQueueFilterEscapeClears(t *testing.T) {
 // TestQueueFilterEnterCommits verifies that pressing Enter commits the filter
 // (exits input mode but keeps the text).
 func TestQueueFilterEnterCommits(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/a.flac", Title: "Alpha", Artist: "ArtA"},
@@ -199,7 +199,7 @@ func TestQueueFilterNoMatchesShowsMessage(t *testing.T) {
 // clears any active filter.
 func TestQueueFilterClearedOnClearQueue(t *testing.T) {
 	d := &stubQueueDequeuer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.SetQueueDequeuer(d)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{

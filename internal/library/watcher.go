@@ -42,24 +42,24 @@ type WatchEvent struct {
 // cancelled. If fsnotify setup fails (e.g. fd exhaustion on macOS), Watch
 // returns a pre-closed channel and a nil error: the watcher is inactive and the
 // caller should rely on manual rescan as the sole rescan mechanism.
-func Watch(ctx context.Context, root string, extractor MetadataExtractor, debounceDelay time.Duration) (<-chan WatchEvent, error) {
+func Watch(ctx context.Context, root string, extractor MetadataExtractor, debounceDelay time.Duration) (<-chan WatchEvent, bool, error) {
 	raiseFDLimit()
 
 	w, err := watcherFactory()
 	if err != nil {
 		slog.Warn("watcher: failed to create fsnotify watcher; falling back to manual rescan", "err", err)
-		return closedWatchEventChan(), nil
+		return closedWatchEventChan(), true, nil
 	}
 
 	if err := addWatchesRecursive(w, root); err != nil {
 		w.Close()
 		slog.Warn("watcher: failed to register directory watches; falling back to manual rescan", "err", err)
-		return closedWatchEventChan(), nil
+		return closedWatchEventChan(), true, nil
 	}
 
 	out := make(chan WatchEvent, 64)
 	go watchLoop(ctx, w, root, extractor, debounceDelay, out)
-	return out, nil
+	return out, false, nil
 }
 
 // closedWatchEventChan returns a channel that is already closed, signalling to
@@ -214,7 +214,7 @@ func rescan(ctx context.Context, pending map[string]bool, extractor MetadataExtr
 		}
 
 		// Per-file ExifTool invocation (not batch mode).
-		tracks, err := extractor.Extract([]HashedFile{hf})
+		tracks, err := extractor.Extract(ctx, []HashedFile{hf})
 		if err != nil {
 			// Apply the same filename fallback used by extractWithBinaryRetry so
 			// no track is ever silently dropped from the library.

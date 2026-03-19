@@ -1,20 +1,23 @@
 package library
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
 )
 
-// batchSize is the number of files per exiftool invocation.
-const batchSize = 500
+// exiftoolBatchSize is the number of files per exiftool invocation.
+// Independent from the DB upsert batch size in main.go.
+const exiftoolBatchSize = 500
 
 // MetadataExtractor extracts audio metadata from a batch of hashed files.
 type MetadataExtractor interface {
-	Extract(files []HashedFile) ([]Track, error)
+	Extract(ctx context.Context, files []HashedFile) ([]Track, error)
 }
 
 // ExifToolExtractor implements MetadataExtractor using the exiftool binary.
@@ -32,7 +35,10 @@ type exifRecord struct {
 // Extract invokes exiftool -json on the provided files and returns one Track
 // per file. Each Track carries the hash from its corresponding HashedFile.
 // The -Duration# flag requests numeric (seconds) duration output.
-func (e ExifToolExtractor) Extract(files []HashedFile) ([]Track, error) {
+// extractTimeout is the maximum time allowed for a single exiftool invocation.
+const extractTimeout = 30 * time.Second
+
+func (e ExifToolExtractor) Extract(ctx context.Context, files []HashedFile) ([]Track, error) {
 	if len(files) == 0 {
 		return nil, nil
 	}
@@ -48,7 +54,9 @@ func (e ExifToolExtractor) Extract(files []HashedFile) ([]Track, error) {
 	args = append(args, "-json", "-Artist", "-Title", "-Album", "-Duration#")
 	args = append(args, paths...)
 
-	out, err := exec.Command("exiftool", args...).Output()
+	ctx, cancel := context.WithTimeout(ctx, extractTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "exiftool", args...).Output()
 	if err != nil {
 		// exiftool exits non-zero for warnings (unknown tags, minor file
 		// issues) but still writes valid JSON to stdout. Use the output
@@ -88,11 +96,16 @@ func (e ExifToolExtractor) Extract(files []HashedFile) ([]Track, error) {
 	return tracks, nil
 }
 
+// extractAllTagsTimeout is the maximum time allowed for a single-file tag extraction.
+const extractAllTagsTimeout = 10 * time.Second
+
 // ExtractAllTags runs exiftool -json on a single file and returns the full
 // set of tags as a map. This is used by the track-info overlay to display
 // detailed metadata without being limited to the fields in exifRecord.
-func ExtractAllTags(path string) (map[string]any, error) {
-	out, err := exec.Command("exiftool", "-json", path).Output()
+func ExtractAllTags(ctx context.Context, path string) (map[string]any, error) {
+	ctx, cancel := context.WithTimeout(ctx, extractAllTagsTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "exiftool", "-json", path).Output()
 	if err != nil {
 		var exitErr *exec.ExitError
 		if !errors.As(err, &exitErr) || len(out) == 0 {
@@ -114,8 +127,8 @@ func ExtractAllTags(path string) (map[string]any, error) {
 // the batch is split in half and each half is retried recursively. When a
 // single-file batch fails, that file is skipped so at most one track loses
 // metadata per corrupt file.
-func extractWithBinaryRetry(extractor MetadataExtractor, files []HashedFile) []Track {
-	tracks, err := extractor.Extract(files)
+func extractWithBinaryRetry(ctx context.Context, extractor MetadataExtractor, files []HashedFile) []Track {
+	tracks, err := extractor.Extract(ctx, files)
 	if err == nil {
 		return tracks
 	}
@@ -139,28 +152,28 @@ func extractWithBinaryRetry(extractor MetadataExtractor, files []HashedFile) []T
 		}}
 	}
 	mid := len(files) / 2
-	left := extractWithBinaryRetry(extractor, files[:mid])
-	right := extractWithBinaryRetry(extractor, files[mid:])
+	left := extractWithBinaryRetry(ctx, extractor, files[:mid])
+	right := extractWithBinaryRetry(ctx, extractor, files[mid:])
 	return append(left, right...)
 }
 
 // ExtractBatches reads HashedFile values from in, groups them into batches of
-// batchSize (~500), and calls extractor.Extract on each batch via binary-search
+// exiftoolBatchSize (~500), and calls extractor.Extract on each batch via binary-search
 // retry. Track values are sent to the returned channel, which is closed once
 // all batches have been processed. If a batch produces invalid JSON due to a
 // corrupt file, binary-search subdivision isolates the corrupt file so that at
 // most one track loses metadata per corrupt file.
-func ExtractBatches(extractor MetadataExtractor, in <-chan HashedFile) <-chan Track {
+func ExtractBatches(ctx context.Context, extractor MetadataExtractor, in <-chan HashedFile) <-chan Track {
 	out := make(chan Track, runtime.NumCPU())
 	go func() {
 		defer close(out)
-		batch := make([]HashedFile, 0, batchSize)
+		batch := make([]HashedFile, 0, exiftoolBatchSize)
 		flush := func() {
 			if len(batch) == 0 {
 				return
 			}
 			slog.Debug("processing metadata batch", "size", len(batch))
-			tracks := extractWithBinaryRetry(extractor, batch)
+			tracks := extractWithBinaryRetry(ctx, extractor, batch)
 			slog.Info("scan batch complete", "tracks", len(tracks))
 			for _, t := range tracks {
 				out <- t
@@ -169,7 +182,7 @@ func ExtractBatches(extractor MetadataExtractor, in <-chan HashedFile) <-chan Tr
 		}
 		for hf := range in {
 			batch = append(batch, hf)
-			if len(batch) >= batchSize {
+			if len(batch) >= exiftoolBatchSize {
 				flush()
 			}
 		}

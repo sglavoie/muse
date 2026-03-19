@@ -10,7 +10,7 @@ import (
 )
 
 func TestUpdateQuestionMarkSetsHelpVisible(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	// Default active view is Library.
 	if m.activeView != viewLibrary {
 		t.Fatalf("precondition: expected viewLibrary, got %d", m.activeView)
@@ -28,7 +28,7 @@ func TestUpdateQuestionMarkSetsHelpVisible(t *testing.T) {
 }
 
 func TestViewShowsHelpOverlayWhenVisible(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.termWidth = 80
 	m.termHeight = 100
 	next, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
@@ -41,7 +41,7 @@ func TestViewShowsHelpOverlayWhenVisible(t *testing.T) {
 }
 
 func TestUpdateEscClearsHelpVisibleAndRestoresView(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	// Switch to Playlists first.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
@@ -70,7 +70,7 @@ func TestUpdateEscClearsHelpVisibleAndRestoresView(t *testing.T) {
 }
 
 func TestUpdateEscWhenHelpNotVisibleDoesNotQuit(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	// helpVisible defaults to false — Esc must not quit and must not error.
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if cmd != nil {
@@ -81,7 +81,7 @@ func TestUpdateEscWhenHelpNotVisibleDoesNotQuit(t *testing.T) {
 // TestViewHelpOverlayContainsSectionHeaders verifies that when the help overlay
 // is visible, View() renders all expected section headers.
 func TestViewHelpOverlayContainsSectionHeaders(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.termWidth = 80
 	m.termHeight = 100
 	next, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
@@ -99,7 +99,7 @@ func TestViewHelpOverlayContainsSectionHeaders(t *testing.T) {
 // the help overlay with Esc does not change playbackState, repeatMode, shuffle,
 // or the scanning flag.
 func TestEscRestoringViewDoesNotAlterPlaybackOrScanState(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.playbackState = PlaybackPlaying
 	m.repeatMode = RepeatAll
 	m.shuffle = true
@@ -128,7 +128,7 @@ func TestEscRestoringViewDoesNotAlterPlaybackOrScanState(t *testing.T) {
 }
 
 func TestQuestionMarkTogglesHelpFiltered(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	// Open help.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
@@ -153,7 +153,7 @@ func TestQuestionMarkTogglesHelpFiltered(t *testing.T) {
 }
 
 func TestHelpFilteredShowsViewSections(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.termWidth = 80
 	m.termHeight = 100
 
@@ -189,7 +189,7 @@ func TestHelpFilteredShowsViewSections(t *testing.T) {
 }
 
 func TestEscResetsHelpFiltered(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	// Open help and toggle filter on.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})

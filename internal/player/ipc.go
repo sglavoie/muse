@@ -8,7 +8,6 @@ import (
 	"net"
 	"strings"
 	"sync"
-	"sync/atomic"
 )
 
 // ipcRequest is the JSON envelope sent to mpv over the Unix domain socket.
@@ -34,7 +33,7 @@ type IPCClient struct {
 	mu      sync.Mutex
 	conn    net.Conn
 	reader  *bufio.Reader
-	counter atomic.Uint64
+	counter uint64
 }
 
 // NewIPCClient dials the given Unix domain socket and returns a ready client.
@@ -63,7 +62,8 @@ func (c *IPCClient) SendCommand(args ...any) (*ipcResponse, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	id := c.counter.Add(1)
+	c.counter++
+	id := c.counter
 	req := ipcRequest{Command: args, RequestID: id}
 
 	data, err := json.Marshal(req)

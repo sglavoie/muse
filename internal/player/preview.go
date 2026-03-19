@@ -9,6 +9,12 @@ import (
 	"time"
 )
 
+const (
+	previewPollInterval    = 50 * time.Millisecond
+	previewPollTimeout     = 5 * time.Second
+	previewShutdownTimeout = 3 * time.Second
+)
+
 // Previewer controls a lightweight preview player that plays a single track
 // without affecting the main playback queue.
 type Previewer interface {
@@ -73,11 +79,7 @@ func (p *PreviewPlayer) Start() error {
 	p.cmd = cmd
 
 	// Poll until the socket is ready.
-	const (
-		pollInterval = 50 * time.Millisecond
-		timeout      = 5 * time.Second
-	)
-	deadline := time.Now().Add(timeout)
+	deadline := time.Now().Add(previewPollTimeout)
 	for time.Now().Before(deadline) {
 		select {
 		case <-p.ctx.Done():
@@ -90,7 +92,7 @@ func (p *PreviewPlayer) Start() error {
 			p.client = client
 			return nil
 		}
-		time.Sleep(pollInterval)
+		time.Sleep(previewPollInterval)
 	}
 	return fmt.Errorf("preview: timed out waiting for mpv socket at %s", p.socketPath)
 }
@@ -145,7 +147,7 @@ func (p *PreviewPlayer) Close() error {
 		go func() { done <- p.cmd.Wait() }()
 		select {
 		case <-done:
-		case <-time.After(3 * time.Second):
+		case <-time.After(previewShutdownTimeout):
 			slog.Warn("preview mpv process did not exit within timeout")
 		}
 	}

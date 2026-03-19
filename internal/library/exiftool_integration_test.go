@@ -3,6 +3,7 @@
 package library
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"os/exec"
@@ -57,7 +58,7 @@ func TestExifToolExtractor_RealInvocation(t *testing.T) {
 	}
 
 	ext := ExifToolExtractor{}
-	tracks, err := ext.Extract(files)
+	tracks, err := ext.Extract(context.Background(), files)
 	if err != nil {
 		t.Fatalf("ExifToolExtractor.Extract returned error: %v", err)
 	}
@@ -106,7 +107,7 @@ func TestExifToolExtractor_ExitErrorWithValidOutput(t *testing.T) {
 	}
 
 	ext := ExifToolExtractor{}
-	tracks, err := ext.Extract(files)
+	tracks, err := ext.Extract(context.Background(), files)
 	if err != nil {
 		t.Fatalf("Extract should succeed when exiftool exits non-zero but produces valid stdout, got error: %v", err)
 	}
@@ -136,7 +137,7 @@ func TestExtractAllTags_RealInvocation(t *testing.T) {
 	p := filepath.Join(dir, "test.wav")
 	writeFile(t, p, makeMinimalWAV())
 
-	tags, err := ExtractAllTags(p)
+	tags, err := ExtractAllTags(context.Background(), p)
 	if err != nil {
 		t.Fatalf("ExtractAllTags returned error: %v", err)
 	}
@@ -165,7 +166,7 @@ func TestExtractAllTags_NonexistentFile(t *testing.T) {
 		t.Skip("exiftool not found on PATH: " + err.Error())
 	}
 
-	_, err := ExtractAllTags("/nonexistent/path/file.wav")
+	_, err := ExtractAllTags(context.Background(), "/nonexistent/path/file.wav")
 	if err == nil {
 		t.Fatal("expected error for nonexistent file")
 	}
@@ -190,7 +191,7 @@ func TestExifToolExtractor_BatchSize(t *testing.T) {
 
 	ext := ExifToolExtractor{}
 	var got []Track
-	for tr := range ExtractBatches(ext, in) {
+	for tr := range ExtractBatches(context.Background(), ext, in) {
 		got = append(got, tr)
 	}
 

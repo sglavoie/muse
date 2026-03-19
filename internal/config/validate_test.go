@@ -19,8 +19,52 @@ func TestValidateMusicDir_MissingDirectory(t *testing.T) {
 	if !strings.Contains(err.Error(), configPath) {
 		t.Errorf("error should contain config path %q, got: %s", configPath, err.Error())
 	}
-	if !strings.Contains(err.Error(), "does not exist") && !strings.Contains(err.Error(), "cannot be read") {
-		t.Errorf("error should mention missing/unreadable directory, got: %s", err.Error())
+	if !strings.Contains(err.Error(), "does not exist") {
+		t.Errorf("error should mention 'does not exist', got: %s", err.Error())
+	}
+}
+
+func TestValidateMusicDir_PermissionDenied(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("skipping permission test as root")
+	}
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "config.toml")
+	restrictedDir := filepath.Join(tmp, "music")
+	if err := os.Mkdir(restrictedDir, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(restrictedDir, 0o755) })
+
+	err := ValidateMusicDir(restrictedDir, configPath)
+	if err == nil {
+		t.Fatal("expected error for permission-denied directory, got nil")
+	}
+	if !strings.Contains(err.Error(), "permission denied") {
+		t.Errorf("error should mention 'permission denied', got: %s", err.Error())
+	}
+}
+
+func TestValidateMusicDir_OnlyNonAudioFiles(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "config.toml")
+	musicDir := filepath.Join(tmp, "music")
+	if err := os.Mkdir(musicDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(musicDir, "readme.txt"), []byte("hi"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(musicDir, "cover.jpg"), []byte{}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := ValidateMusicDir(musicDir, configPath)
+	if err == nil {
+		t.Fatal("expected error for directory with only non-audio files, got nil")
+	}
+	if !strings.Contains(err.Error(), "no supported audio files") {
+		t.Errorf("error should mention 'no supported audio files', got: %s", err.Error())
 	}
 }
 

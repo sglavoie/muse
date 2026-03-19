@@ -1,0 +1,41 @@
+version: "2"
+run:
+  timeout: 3m
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+  settings:
+    errcheck:
+      exclude-functions:
+        - (io.Closer).Close
+        - (*database/sql.DB).Close
+        - (*database/sql.Rows).Close
+        - (*os.File).Close
+        - (net.Conn).Close
+        - (net.Listener).Close
+        - os.Remove
+        - os.Setenv
+        - os.Unsetenv
+        - os.Chmod
+    staticcheck:
+      checks:
+        - "all"
+        - "-ST1000" # package comments — not required for internal packages
+        - "-ST1003" # naming conventions — noisy for test variables
+        - "-ST1023" # omit type from declaration — too noisy for test helpers
+        - "-QF1001" # De Morgan's law — less readable in test assertions
+        - "-QF1003" # tagged switch — style preference
+        - "-QF1011" # omit type from declaration (v2 rename of ST1023)
+  exclusions:
+    rules:
+      - linters:
+          - errcheck
+        text: "Error return value of .*.Close"
+      - linters:
+          - errcheck
+        text: "Error return value of .*.Write"
+        path: "internal/library/hasher\\.go"

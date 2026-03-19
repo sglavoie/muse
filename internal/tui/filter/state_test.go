@@ -78,7 +78,7 @@ func TestBackspace(t *testing.T) {
 
 func TestBackspaceEmpty(t *testing.T) {
 	s := State{Active: true}
-	s, changed := s.Backspace()
+	s, changed := s.Backspace() //nolint:staticcheck // SA4006: s is intentionally reassigned to test changed flag
 	if changed {
 		t.Error("expected changed=false on empty text")
 	}

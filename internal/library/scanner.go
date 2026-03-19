@@ -1,6 +1,7 @@
 package library
 
 import (
+	"context"
 	"os"
 )
 
@@ -16,8 +17,8 @@ import (
 // The returned channel is closed once the walk has finished and all hash and
 // ExifTool goroutines have drained, signalling scan-complete. Callers drain
 // the channel with a range loop; channel close is the completion signal.
-func Scan(root string, extractor MetadataExtractor) <-chan Track {
-	return ExtractBatches(extractor, HashWorkers(Walk(root)))
+func Scan(ctx context.Context, root string, extractor MetadataExtractor) <-chan Track {
+	return ExtractBatches(ctx, extractor, HashWorkers(Walk(root)))
 }
 
 // KnownFile holds the cached stat info for a file that is already in the DB.
@@ -78,7 +79,7 @@ func FilteredWalk(root string, known map[string]KnownFile) (<-chan string, []str
 // slice of paths that were in known but no longer exist on disk (deletions).
 //
 // On first run (empty known map) DiffScan degrades to a full scan.
-func DiffScan(root string, extractor MetadataExtractor, known map[string]KnownFile) (<-chan Track, []string) {
+func DiffScan(ctx context.Context, root string, extractor MetadataExtractor, known map[string]KnownFile) (<-chan Track, []string) {
 	changedCh, deleted := FilteredWalk(root, known)
-	return ExtractBatches(extractor, HashWorkers(changedCh)), deleted
+	return ExtractBatches(ctx, extractor, HashWorkers(changedCh)), deleted
 }

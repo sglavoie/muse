@@ -1,6 +1,7 @@
 package library
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -220,7 +221,7 @@ func TestDiffScan_EmptyKnownIsFullScan(t *testing.T) {
 	makeAudioFiles(t, dir, n)
 
 	fe := &fakeExtractor{}
-	trackCh, deleted := DiffScan(dir, fe, nil)
+	trackCh, deleted := DiffScan(context.Background(), dir, fe, nil)
 
 	var count int
 	for range trackCh {
@@ -248,7 +249,7 @@ func TestDiffScan_UnchangedFilesSkipped(t *testing.T) {
 	}
 
 	fe := &fakeExtractor{}
-	trackCh, deleted := DiffScan(dir, fe, known)
+	trackCh, deleted := DiffScan(context.Background(), dir, fe, known)
 
 	var count int
 	for range trackCh {
@@ -280,7 +281,7 @@ func TestDiffScan_DeletedFilesReported(t *testing.T) {
 	}
 
 	fe := &fakeExtractor{}
-	trackCh, deleted := DiffScan(dir, fe, known)
+	trackCh, deleted := DiffScan(context.Background(), dir, fe, known)
 	for range trackCh {
 	}
 

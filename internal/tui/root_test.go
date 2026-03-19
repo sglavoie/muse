@@ -15,7 +15,7 @@ import (
 )
 
 func TestUpdateViewSwitching(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	if m.activeView != viewLibrary {
 		t.Fatalf("expected viewLibrary (%d), got %d", viewLibrary, m.activeView)
@@ -44,7 +44,7 @@ func TestUpdateViewSwitching(t *testing.T) {
 }
 
 func TestUpdateCtrlCQuits(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	if cmd == nil {
 		t.Fatal("ctrl+c: expected a quit command, got nil")
@@ -56,7 +56,7 @@ func TestUpdateCtrlCQuits(t *testing.T) {
 }
 
 func TestUpdateQDoesNotQuit(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	if cmd != nil {
 		t.Fatal("q key must not quit the application")
@@ -64,7 +64,7 @@ func TestUpdateQDoesNotQuit(t *testing.T) {
 }
 
 func TestUpdateEscDoesNotQuit(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if cmd != nil {
 		t.Fatal("Esc key must not quit the application")
@@ -72,7 +72,7 @@ func TestUpdateEscDoesNotQuit(t *testing.T) {
 }
 
 func TestViewReturnsTeaView(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	v := m.View()
 	// Compile-time check: View() returns tea.View (not string).
 	_ = v.Content
@@ -81,7 +81,7 @@ func TestViewReturnsTeaView(t *testing.T) {
 // TestModelRepeatModeDefaultOff verifies that repeat defaults to RepeatOff and
 // shuffle defaults to false on a freshly created model.
 func TestModelRepeatModeDefaultOff(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	if m.repeatMode != RepeatOff {
 		t.Fatalf("repeatMode must default to RepeatOff, got %v", m.repeatMode)
 	}
@@ -94,7 +94,7 @@ func TestModelRepeatModeDefaultOff(t *testing.T) {
 // and its first rendered frame complete within 50ms, and that the active view
 // is correct after each switch.
 func TestViewSwitchingCompletesUnder50ms(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	steps := []struct {
 		key  tea.KeyPressMsg
@@ -129,7 +129,7 @@ func TestViewSwitchingCompletesUnder50ms(t *testing.T) {
 func TestBackgroundBatchUpdateLoopNonBlocking(t *testing.T) {
 	// Unbuffered channel with no sender — Update must not block on it.
 	ch := make(chan library.Track)
-	m := New(context.Background(), "", false, ch, nil, "", nil, nil)
+	m := New(context.Background(), "", false, ch, nil, "", nil, nil, false)
 
 	start := time.Now()
 	_, cmd := m.Update(library.ScanBatchMsg{Tracks: []library.Track{
@@ -149,7 +149,7 @@ func TestBackgroundBatchUpdateLoopNonBlocking(t *testing.T) {
 // WindowSizeMsg events in a tight loop does not cause a panic and always
 // returns a valid model.
 func TestRapidWindowSizeMsgDoesNotPanic(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	sizes := [][2]int{
 		{80, 24}, {120, 40}, {40, 10}, {200, 50}, {60, 20},
@@ -172,7 +172,7 @@ func TestRapidWindowSizeMsgDoesNotPanic(t *testing.T) {
 // TestWindowSizeMsgPreservesApplicationState verifies that a terminal resize
 // does not alter cursor position, playback state, or scan state.
 func TestWindowSizeMsgPreservesApplicationState(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
@@ -204,7 +204,7 @@ func TestWindowSizeMsgPreservesApplicationState(t *testing.T) {
 // WindowSizeMsg the model stores the new terminal width and View() produces
 // non-empty rendered content.
 func TestWindowSizeMsgUpdatesTermWidthAndRendersContent(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	nm := next.(Model)
@@ -224,7 +224,7 @@ func TestWindowSizeMsgUpdatesTermWidthAndRendersContent(t *testing.T) {
 // that column widths computed from the updated width are proportionally larger
 // than those computed from a smaller width.
 func TestWindowSizeMsgPropagatesWidthToChildViews(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	const newWidth = 160
 	next, _ := m.Update(tea.WindowSizeMsg{Width: newWidth, Height: 40})
@@ -251,7 +251,7 @@ func TestWindowSizeMsgPropagatesWidthToChildViews(t *testing.T) {
 // TestCtrlCQuitsWhileFilterBarActive verifies that ctrl+c dispatches tea.Quit
 // even when the library filter bar is active and intercepting all keypresses.
 func TestCtrlCQuitsWhileFilterBarActive(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.activeView = viewLibrary
 	m.library.filter.Active = true
 	m.library.filter.Text = "test"
@@ -269,7 +269,7 @@ func TestCtrlCQuitsWhileFilterBarActive(t *testing.T) {
 // TestCtrlCQuitsWhilePlaylistCreateActive verifies that ctrl+c dispatches
 // tea.Quit even when the inline playlist create input is active.
 func TestCtrlCQuitsWhilePlaylistCreateActive(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.activeView = viewPlaylists
 
 	// Activate create mode.
@@ -297,7 +297,7 @@ func TestCtrlCQuitsWhilePlaylistCreateActive(t *testing.T) {
 // TestCtrlCQuitsWhilePlaylistRenameActive verifies that ctrl+c dispatches
 // tea.Quit even when the inline playlist rename input is active.
 func TestCtrlCQuitsWhilePlaylistRenameActive(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.activeView = viewPlaylists
 	m.SetPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Test"},
@@ -326,7 +326,7 @@ func TestCtrlCQuitsWhilePlaylistRenameActive(t *testing.T) {
 }
 
 func TestUpdateBackgroundColorMsgLightBackground(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	// White = light background → IsDark() == false.
 	lightMsg := tea.BackgroundColorMsg{Color: color.RGBA{R: 255, G: 255, B: 255, A: 255}}
@@ -339,7 +339,7 @@ func TestUpdateBackgroundColorMsgLightBackground(t *testing.T) {
 }
 
 func TestUpdateBackgroundColorMsgDarkBackground(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	// Black = dark background → IsDark() == true.
 	darkMsg := tea.BackgroundColorMsg{Color: color.RGBA{R: 0, G: 0, B: 0, A: 255}}
@@ -357,7 +357,7 @@ func TestUpdateBackgroundColorMsgDarkBackground(t *testing.T) {
 // A render-through assertion also confirms the new Styles values are visible
 // in the rendered output after the swap — not just that the struct field changed.
 func TestBackgroundColorMsgReconstructsStyles(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	// First set dark background.
 	next, _ := m.Update(tea.BackgroundColorMsg{Color: color.RGBA{R: 0, G: 0, B: 0, A: 255}})

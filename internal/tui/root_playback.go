@@ -38,7 +38,7 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	if !m.statusBar.notification.expiresAt.IsZero() && time.Now().After(m.statusBar.notification.expiresAt) {
 		m.statusBar.notification = transientNotification{}
 	}
-	if m.clearQueuePending && time.Now().After(m.clearQueuePendingAt.Add(2*time.Second)) {
+	if m.clearQueuePending && time.Now().After(m.clearQueuePendingAt.Add(queueConfirmationWindow)) {
 		m.clearQueuePending = false
 	}
 	return m, tickCmd()
@@ -192,7 +192,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			}
 			return m, nil, true
 		}
-		return m, trackInfoCmd(track.Path), true
+		return m, trackInfoCmd(m.appCtx, track.Path), true
 	case actionNowPlayingInfo:
 		if m.nowPlayingInfo != nil {
 			m.nowPlayingInfo = nil

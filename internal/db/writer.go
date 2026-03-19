@@ -3,14 +3,20 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand/v2"
 	"time"
 
 	"github.com/sglavoie/muse/internal/library"
 )
 
-const writerDrainTimeout = 5 * time.Second
+const (
+	writerDrainTimeout  = 5 * time.Second
+	writerChannelBuffer = 64
+	queuePositionGap    = 1000
+)
 
 // Compile-time check: *Writer must satisfy the sessionWriter interface
 // used by the TUI layer (WriteRepeatMode, WriteShuffle, UpdateSessionPosition).
@@ -62,7 +68,7 @@ type Writer struct {
 func NewWriter(ctx context.Context, db *sql.DB) *Writer {
 	w := &Writer{
 		db:   db,
-		cmds: make(chan writeCmd, 64),
+		cmds: make(chan writeCmd, writerChannelBuffer),
 		done: make(chan struct{}),
 	}
 	go w.run(ctx)
@@ -131,9 +137,9 @@ func (w *Writer) AppendTrack(track library.Track, sourcePlaylist string) (int64,
 	var id int64
 	err := w.Exec(func(db *sql.DB) error {
 		now := time.Now().Unix()
-		res, err := db.Exec(`
+		res, err := db.Exec(fmt.Sprintf(`
 			INSERT INTO queue (track_hash, position, added_at, source_playlist)
-			VALUES (?, COALESCE((SELECT MAX(position) FROM queue), 0) + 1000, ?, ?)`,
+			VALUES (?, COALESCE((SELECT MAX(position) FROM queue), 0) + %d, ?, ?)`, queuePositionGap),
 			track.Hash, now, sourcePlaylist,
 		)
 		if err != nil {
@@ -158,7 +164,7 @@ func (w *Writer) AppendTracks(tracks []library.Track, sourcePlaylist string) ([]
 		if err != nil {
 			return err
 		}
-		defer tx.Rollback() //nolint:errcheck
+		defer rollback(tx)
 
 		var maxPos int64
 		if err := tx.QueryRow(
@@ -169,7 +175,7 @@ func (w *Writer) AppendTracks(tracks []library.Track, sourcePlaylist string) ([]
 
 		now := time.Now().Unix()
 		for _, t := range tracks {
-			maxPos += 1000
+			maxPos += queuePositionGap
 			res, err := tx.Exec(
 				`INSERT INTO queue (track_hash, position, added_at, source_playlist) VALUES (?, ?, ?, ?)`,
 				t.Hash, maxPos, now, sourcePlaylist,
@@ -199,7 +205,7 @@ func (w *Writer) DequeueTracksSoft(ids []int64) error {
 		if err != nil {
 			return err
 		}
-		defer tx.Rollback() //nolint:errcheck
+		defer rollback(tx)
 
 		now := time.Now().Unix()
 		for _, id := range ids {
@@ -286,7 +292,7 @@ func (w *Writer) RenumberQueuePositions() error {
 		if err != nil {
 			return err
 		}
-		defer tx.Rollback() //nolint:errcheck
+		defer rollback(tx)
 
 		type qrow struct {
 			id       int64
@@ -328,7 +334,7 @@ func (w *Writer) RenumberQueuePositions() error {
 		// new gapped sequence. The queue_pos_idx unique constraint covers ALL
 		// rows (including soft-deleted), so any soft-deleted row at a position
 		// in the range [1000, len(active)*1000] must be moved first.
-		maxNewPos := int64(len(active)) * 1000
+		maxNewPos := int64(len(active)) * queuePositionGap
 		softRows, err := tx.Query(
 			`SELECT id, position FROM queue WHERE deleted_at IS NOT NULL AND position >= 1000 AND position <= ?`,
 			maxNewPos,
@@ -343,7 +349,7 @@ func (w *Writer) RenumberQueuePositions() error {
 				softRows.Close()
 				return err
 			}
-			if r.position%1000 == 0 {
+			if r.position%queuePositionGap == 0 {
 				conflicting = append(conflicting, r)
 			}
 		}
@@ -362,7 +368,7 @@ func (w *Writer) RenumberQueuePositions() error {
 		// Update in reverse order (highest new position first) to avoid
 		// transient unique-constraint violations during intermediate states.
 		for i := len(active) - 1; i >= 0; i-- {
-			newPos := int64(i+1) * 1000
+			newPos := int64(i+1) * queuePositionGap
 			if _, err := tx.Exec(`UPDATE queue SET position=? WHERE id=?`, newPos, active[i].id); err != nil {
 				return err
 			}
@@ -382,7 +388,7 @@ func (w *Writer) ClearQueueSoft() ([]int64, error) {
 		if err != nil {
 			return err
 		}
-		defer tx.Rollback() //nolint:errcheck
+		defer rollback(tx)
 
 		rows, err := tx.Query(`SELECT id FROM queue WHERE deleted_at IS NULL`)
 		if err != nil {
@@ -429,7 +435,7 @@ func (w *Writer) UndoClearQueue(ids []int64) error {
 		if err != nil {
 			return err
 		}
-		defer tx.Rollback() //nolint:errcheck
+		defer rollback(tx)
 
 		for _, id := range ids {
 			if _, err := tx.Exec(`UPDATE queue SET deleted_at=NULL WHERE id=?`, id); err != nil {
@@ -468,7 +474,7 @@ func (w *Writer) WriteShuffle(enabled bool) error {
 		if err != nil {
 			return err
 		}
-		defer tx.Rollback() //nolint:errcheck
+		defer rollback(tx)
 
 		shuffleVal := 0
 		if enabled {
@@ -503,7 +509,7 @@ func (w *Writer) WriteShuffle(enabled bool) error {
 			if len(ids) > 0 {
 				perm := rand.Perm(len(ids))
 				for i, id := range ids {
-					newPos := int64(perm[i]+1) * 1000
+					newPos := int64(perm[i]+1) * queuePositionGap
 					if _, err := tx.Exec(
 						`UPDATE queue SET shuffle_position=? WHERE id=?`,
 						newPos, id,
@@ -648,7 +654,7 @@ func (w *Writer) AddTracksToPlaylist(playlistID int64, hashes []string) error {
 		if err != nil {
 			return err
 		}
-		defer tx.Rollback() //nolint:errcheck
+		defer rollback(tx)
 
 		var maxPos int64
 		if err := tx.QueryRow(
@@ -660,7 +666,7 @@ func (w *Writer) AddTracksToPlaylist(playlistID int64, hashes []string) error {
 
 		now := time.Now().Unix()
 		for _, hash := range hashes {
-			maxPos += 1000
+			maxPos += queuePositionGap
 			if _, err := tx.Exec(
 				`INSERT INTO playlist_tracks (playlist_id, track_hash, position, added_at) VALUES (?, ?, ?, ?)`,
 				playlistID, hash, maxPos, now,
@@ -706,7 +712,7 @@ func (w *Writer) ReorderPlaylistTrack(playlistID, trackID int64, direction int) 
 		if err != nil {
 			return err
 		}
-		defer tx.Rollback() //nolint:errcheck
+		defer rollback(tx)
 
 		var currPos int64
 		if err := tx.QueryRow(
@@ -762,7 +768,7 @@ func (w *Writer) ReorderQueueTrack(trackID int64, direction int) error {
 		if err != nil {
 			return err
 		}
-		defer tx.Rollback() //nolint:errcheck
+		defer rollback(tx)
 
 		var currPos int64
 		if err := tx.QueryRow(
@@ -849,7 +855,7 @@ func (w *Writer) UpsertBatch(tracks []library.Track) error {
 		if err != nil {
 			return err
 		}
-		defer tx.Rollback() //nolint:errcheck
+		defer rollback(tx)
 
 		now := time.Now().Unix()
 		for _, t := range tracks {
@@ -875,6 +881,14 @@ func (w *Writer) UpsertBatch(tracks []library.Track) error {
 		}
 		return tx.Commit()
 	})
+}
+
+// rollback attempts to roll back tx, logging unexpected errors. The common
+// sql.ErrTxDone (commit already succeeded) is silently ignored.
+func rollback(tx *sql.Tx) {
+	if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+		slog.Warn("tx rollback failed", "err", err)
+	}
 }
 
 // drain flushes all commands already buffered in the cmds channel after ctx is

@@ -13,6 +13,8 @@ import (
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
+const confirmationWindow = 2 * time.Second
+
 // handleScanProgressMsg updates the status bar with the current scan progress.
 func (m Model) handleScanProgressMsg(msg library.ScanProgressMsg) Model {
 	m.statusBar.handleScanProgress(msg)
@@ -118,7 +120,7 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 	switch action {
 	case actionRescan:
 		if m.libraryRoot != "" && m.extractor != nil && !m.scanning {
-			ch := library.Scan(m.libraryRoot, m.extractor)
+			ch := library.Scan(m.appCtx, m.libraryRoot, m.extractor)
 			m.library.index = library.LibraryIndex{}
 			m.library.cursor = 0
 			m.library.scrollOffset = 0
@@ -231,7 +233,7 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 			}
 			n := len(m.playlists.selectedTrackIDs)
 			now := time.Now()
-			if m.bulkRemovePending && now.Before(m.bulkRemovePendingAt.Add(2*time.Second)) {
+			if m.bulkRemovePending && now.Before(m.bulkRemovePendingAt.Add(confirmationWindow)) {
 				m.bulkRemovePending = false
 				// Capture removed entries and their indices for undo.
 				var removedEntries []db.PlaylistTrackRow
@@ -281,7 +283,7 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 			m.bulkRemovePendingAt = now
 			m.statusBar.notification = transientNotification{
 				msg:       fmt.Sprintf("Press a again to remove %d selected %s", n, pluralize(n, "track", "tracks")),
-				expiresAt: now.Add(2 * time.Second),
+				expiresAt: now.Add(confirmationWindow),
 			}
 			return m, nil, true
 		}

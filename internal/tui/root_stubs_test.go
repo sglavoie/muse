@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"context"
+
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
@@ -10,7 +12,7 @@ import (
 // a real exiftool dependency.
 type stubExtractor struct{}
 
-func (stubExtractor) Extract(files []library.HashedFile) ([]library.Track, error) {
+func (stubExtractor) Extract(_ context.Context, files []library.HashedFile) ([]library.Track, error) {
 	return nil, nil
 }
 

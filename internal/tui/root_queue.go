@@ -12,6 +12,8 @@ import (
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
+const queueConfirmationWindow = 2 * time.Second
+
 // newQueueEntries builds QueueEntry values from matched tracks and DB row IDs.
 // source is the playlist name to record on each entry (empty for individual enqueues).
 func newQueueEntries(tracks []library.Track, ids []int64, source string) []QueueEntry {
@@ -658,7 +660,7 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 			return m, nil, true
 		}
 		now := time.Now()
-		if m.clearQueuePending && now.Before(m.clearQueuePendingAt.Add(2*time.Second)) {
+		if m.clearQueuePending && now.Before(m.clearQueuePendingAt.Add(queueConfirmationWindow)) {
 			m.clearQueuePending = false
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)
@@ -668,7 +670,7 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 		m.clearQueuePendingAt = now
 		m.statusBar.notification = transientNotification{
 			msg:       "Press C again to clear queue",
-			expiresAt: now.Add(2 * time.Second),
+			expiresAt: now.Add(queueConfirmationWindow),
 		}
 		return m, nil, true
 	case actionSelect,

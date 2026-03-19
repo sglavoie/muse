@@ -36,6 +36,7 @@ type transientNotification struct {
 type StatusBar struct {
 	configCreated bool
 	configPath    string
+	watchDegraded bool
 	notification  transientNotification
 
 	// Persistent left zone fields — set during Update when track/state changes.
@@ -150,6 +151,9 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	var rightSegments []string
 	if s.configCreated {
 		rightSegments = append(rightSegments, r(fmt.Sprintf("config created: %s", s.configPath)))
+	}
+	if s.watchDegraded {
+		rightSegments = append(rightSegments, barWarning.Render("File watcher unavailable — press r to rescan manually"))
 	}
 	if s.notification.msg != "" {
 		msg := s.notification.msg

@@ -14,7 +14,7 @@ import (
 // TestUpdateScanBatchMsgAppendsTracksToLibrary verifies that receiving a
 // ScanBatchMsg inserts all tracks into the library index.
 func TestUpdateScanBatchMsgAppendsTracksToLibrary(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	tracks := []library.Track{
 		{Artist: "Artist A", Title: "Track 1"},
 		{Artist: "Artist B", Title: "Track 2"},
@@ -33,7 +33,7 @@ func TestUpdateScanBatchMsgAppendsTracksToLibrary(t *testing.T) {
 func TestUpdateScanBatchMsgChainsWaitCmd(t *testing.T) {
 	ch := make(chan library.Track)
 	close(ch)
-	m := New(context.Background(), "", false, ch, nil, "", nil, nil)
+	m := New(context.Background(), "", false, ch, nil, "", nil, nil, false)
 
 	tracks := []library.Track{{Artist: "A", Title: "T"}}
 	_, cmd := m.Update(library.ScanBatchMsg{Tracks: tracks})
@@ -51,7 +51,7 @@ func TestUpdateScanBatchMsgChainsWaitCmd(t *testing.T) {
 func TestUpdateScanDoneMsgClearsScanState(t *testing.T) {
 	ch := make(chan library.Track)
 	close(ch)
-	m := New(context.Background(), "", false, ch, nil, "", nil, nil)
+	m := New(context.Background(), "", false, ch, nil, "", nil, nil, false)
 
 	next, cmd := m.Update(library.ScanDoneMsg{})
 	nm := next.(Model)
@@ -69,7 +69,7 @@ func TestUpdateScanDoneMsgClearsScanState(t *testing.T) {
 // TestViewLibraryShowsTrackCount verifies that after receiving a ScanBatchMsg
 // the library view renders the track count.
 func TestViewLibraryShowsTrackCount(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	tracks := []library.Track{
 		{Artist: "X", Title: "Y"},
 	}
@@ -84,7 +84,7 @@ func TestViewLibraryShowsTrackCount(t *testing.T) {
 // TestViewStatusBarShowsScanProgress verifies that the status bar shows a
 // formatted "X tracks" progress string after a ScanProgressMsg.
 func TestViewStatusBarShowsScanProgress(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	next, _ := m.Update(library.ScanProgressMsg{Scanned: 1234})
 	nm := next.(Model)
 	v := nm.View()
@@ -98,7 +98,7 @@ func TestViewStatusBarShowsScanProgress(t *testing.T) {
 // configured library root returns a non-nil background cmd and does not block.
 func TestRescanHotkeyReturnsCmd(t *testing.T) {
 	root := t.TempDir()
-	m := New(context.Background(), "", false, nil, nil, root, stubExtractor{}, nil)
+	m := New(context.Background(), "", false, nil, nil, root, stubExtractor{}, nil, false)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
 	if cmd == nil {
 		t.Fatal("R key: expected non-nil cmd for rescan, got nil")
@@ -111,7 +111,7 @@ func TestRescanHotkeyIsNoOpWhenScanning(t *testing.T) {
 	ch := make(chan library.Track)
 	defer close(ch)
 	root := t.TempDir()
-	m := New(context.Background(), "", false, ch, nil, root, stubExtractor{}, nil)
+	m := New(context.Background(), "", false, ch, nil, root, stubExtractor{}, nil, false)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
 	if cmd != nil {
 		t.Fatal("R key during active scan must return nil cmd")
@@ -121,7 +121,7 @@ func TestRescanHotkeyIsNoOpWhenScanning(t *testing.T) {
 // TestRescanHotkeyIsNoOpWithoutRoot verifies that pressing R when no library
 // root is configured returns nil.
 func TestRescanHotkeyIsNoOpWithoutRoot(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
 	if cmd != nil {
 		t.Fatal("R key without library root must return nil cmd")
@@ -133,7 +133,7 @@ func TestRescanHotkeyIsNoOpWithoutRoot(t *testing.T) {
 // populate it with only the new tracks, effectively removing deleted ones.
 func TestRescanResetsIndexAndAddsNewTracks(t *testing.T) {
 	root := t.TempDir()
-	m := New(context.Background(), "", false, nil, nil, root, stubExtractor{}, nil)
+	m := New(context.Background(), "", false, nil, nil, root, stubExtractor{}, nil, false)
 
 	// Seed two initial tracks.
 	next, _ := m.Update(library.ScanBatchMsg{Tracks: []library.Track{
@@ -173,7 +173,7 @@ func TestRescanResetsIndexAndAddsNewTracks(t *testing.T) {
 // tick fires. ScanDoneMsg alone does not clear the notification; it stays
 // visible until the 1-second tick sees that expiresAt has passed.
 func TestViewStatusBarHidesScanProgressWhenDone(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	// Set progress — notification gets a 5-second expiry.
 	next, _ := m.Update(library.ScanProgressMsg{Scanned: 100})
 	nm := next.(Model)
@@ -198,7 +198,7 @@ func TestViewStatusBarHidesScanProgressWhenDone(t *testing.T) {
 // progress is shown while scanning, the last message persists past ScanDoneMsg,
 // and the tick clears it once the expiry passes.
 func TestScanProgressVisibleDuringScanAndAutoDismissed(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	// Scan progress sets a notification.
 	next, _ := m.Update(library.ScanProgressMsg{Scanned: 42})
@@ -231,7 +231,7 @@ func TestScanProgressVisibleDuringScanAndAutoDismissed(t *testing.T) {
 // index.
 func TestRescanResetsCursorScrollOffsetAndFilter(t *testing.T) {
 	root := t.TempDir()
-	m := New(context.Background(), "", false, nil, nil, root, stubExtractor{}, nil)
+	m := New(context.Background(), "", false, nil, nil, root, stubExtractor{}, nil, false)
 
 	// Seed tracks and move the cursor down.
 	tracks := make([]library.Track, 20)
@@ -282,7 +282,7 @@ func TestRescanResetsCursorScrollOffsetAndFilter(t *testing.T) {
 // library root triggers a rescan, while lowercase 'r' does not.
 func TestShiftRFiresRescan(t *testing.T) {
 	root := t.TempDir()
-	m := New(context.Background(), "", false, nil, nil, root, stubExtractor{}, nil)
+	m := New(context.Background(), "", false, nil, nil, root, stubExtractor{}, nil, false)
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
 	if cmd == nil {
@@ -296,7 +296,7 @@ func TestShiftRFiresRescan(t *testing.T) {
 // or FocusedTrack call.
 func TestWatchBatchInvalidatesFilterCache(t *testing.T) {
 	watchCh := make(chan library.WatchEvent, 1)
-	m := New(context.Background(), "", false, nil, watchCh, "", nil, nil)
+	m := New(context.Background(), "", false, nil, watchCh, "", nil, nil, false)
 	m.library.fuzzy = library.FakeFuzzySearcher{}
 
 	// Seed three tracks.
@@ -347,7 +347,7 @@ func TestWatchBatchInvalidatesFilterCache(t *testing.T) {
 // tracks while a filter is active rebuilds the cached fuzzy-match results so
 // that TrackIndex values stay consistent with the modified index.
 func TestScanBatchInvalidatesFilterCache(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.library.fuzzy = library.FakeFuzzySearcher{}
 
 	// Seed two tracks and set up a filter.

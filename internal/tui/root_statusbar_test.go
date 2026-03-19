@@ -12,7 +12,7 @@ import (
 
 func TestViewStatusBarShowsConfigPathOnFirstRun(t *testing.T) {
 	configPath := "/home/user/.config/muse/config.toml"
-	m := New(context.Background(), configPath, true, nil, nil, "", nil, nil)
+	m := New(context.Background(), configPath, true, nil, nil, "", nil, nil, false)
 	v := m.View()
 	if !strings.Contains(v.Content, configPath) {
 		t.Fatalf("status bar missing config path %q in:\n%s", configPath, v.Content)
@@ -21,7 +21,7 @@ func TestViewStatusBarShowsConfigPathOnFirstRun(t *testing.T) {
 
 func TestViewStatusBarHidesConfigPathAfterFirstRun(t *testing.T) {
 	configPath := "/home/user/.config/muse/config.toml"
-	m := New(context.Background(), configPath, false, nil, nil, "", nil, nil)
+	m := New(context.Background(), configPath, false, nil, nil, "", nil, nil, false)
 	v := m.View()
 	if strings.Contains(v.Content, configPath) {
 		t.Fatalf("status bar must not show config path when configCreated=false")
@@ -33,7 +33,7 @@ func TestViewStatusBarHidesConfigPathAfterFirstRun(t *testing.T) {
 // artist, title, and playlist source in the persistent left zone.
 func TestStatusBarReceivesTrackInfoBeforeRender(t *testing.T) {
 	p := &stubPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.queue.entries = []QueueEntry{
 		{Path: "/a.flac", Display: "The Artist – The Song", Artist: "The Artist", Title: "The Song"},
 	}
@@ -81,7 +81,7 @@ func TestStatusBarShowsPlaybackStateIndicator(t *testing.T) {
 // TestTrackChangedMsgUpdatesStatusBar verifies that TrackChangedMsg updates
 // the status bar's artist, title, and playlist source.
 func TestTrackChangedMsgUpdatesStatusBar(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	next, _ := m.Update(TrackChangedMsg{
 		Artist:         "New Artist",
@@ -108,7 +108,7 @@ func TestTrackChangedMsgUpdatesStatusBar(t *testing.T) {
 // TestTrackChangedMsgDefaultsPlaylistSourceToQueue verifies that a
 // TrackChangedMsg with an empty PlaylistSource defaults to "Queue".
 func TestTrackChangedMsgDefaultsPlaylistSourceToQueue(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	next, _ := m.Update(TrackChangedMsg{Artist: "A", Title: "T"})
 	nm := next.(Model)
 	v := nm.View()
@@ -121,7 +121,7 @@ func TestTrackChangedMsgDefaultsPlaylistSourceToQueue(t *testing.T) {
 // ElapsedPosition on the player and stores the result on the model.
 func TestTickMsgUpdatesElapsedFields(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 75.5, total: 240.0}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.playbackState = PlaybackPlaying
 
 	next, _ := m.Update(tickMsg{})
@@ -138,7 +138,7 @@ func TestTickMsgUpdatesElapsedFields(t *testing.T) {
 // TestTickMsgReschedulesCmd verifies that tickMsg returns a non-nil follow-up
 // command so the 1-second tick continues firing.
 func TestTickMsgReschedulesCmd(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	_, cmd := m.Update(tickMsg{})
 	if cmd == nil {
 		t.Fatal("tickMsg must return a follow-up cmd to reschedule the tick")
@@ -148,7 +148,7 @@ func TestTickMsgReschedulesCmd(t *testing.T) {
 // TestInitSchedulesTick verifies that Init always returns a non-nil command
 // (at minimum the 1-second tick).
 func TestInitSchedulesTick(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	cmd := m.Init()
 	if cmd == nil {
 		t.Fatal("Init must return a non-nil cmd (at least the 1-second tick)")
@@ -159,7 +159,7 @@ func TestInitSchedulesTick(t *testing.T) {
 // elapsed position, the view renders the MM:SS / MM:SS format.
 func TestStatusBarRendersElapsedTime(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 83.0, total: 245.0}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.playbackState = PlaybackPlaying
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Title"
@@ -176,7 +176,7 @@ func TestStatusBarRendersElapsedTime(t *testing.T) {
 // TestStatusBarNoTimeDisplayWhenZero verifies that when elapsedSecs and
 // totalSecs are both 0 the time display is suppressed.
 func TestStatusBarNoTimeDisplayWhenZero(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.playbackState = PlaybackPlaying
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Title"
@@ -192,7 +192,7 @@ func TestStatusBarNoTimeDisplayWhenZero(t *testing.T) {
 // elapsed and total fields so the time display disappears.
 func TestPlaybackEndedMsgResetsElapsed(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 60.0, total: 180.0}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.playbackState = PlaybackPlaying
 
 	// Populate elapsed/total via a tick.
@@ -217,7 +217,7 @@ func TestPlaybackEndedMsgResetsElapsed(t *testing.T) {
 // the queue is exhausted with repeat off, a "Queue finished" transient
 // notification is shown for 5 seconds.
 func TestPlaybackEndedMsgShowsQueueFinishedWhenEmptyRepeatOff(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.repeatMode = RepeatOff
 	// queue.entries is already empty (zero value).
 
@@ -238,7 +238,7 @@ func TestPlaybackEndedMsgShowsQueueFinishedWhenEmptyRepeatOff(t *testing.T) {
 // TestPlaybackEndedMsgNoNotificationWhenRepeatNotOff verifies that no "Queue
 // finished" notification is shown when repeat is not off.
 func TestPlaybackEndedMsgNoNotificationWhenRepeatNotOff(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.repeatMode = RepeatAll
 
 	next, _ := m.Update(PlaybackEndedMsg{})
@@ -254,7 +254,7 @@ func TestPlaybackEndedMsgNoNotificationWhenRepeatNotOff(t *testing.T) {
 // PlaybackEndedMsg means mpv exhausted all playable tracks — entries are never
 // removed from the slice during normal play-through.
 func TestPlaybackEndedMsgShowsNotificationWithEntriesPresent(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.repeatMode = RepeatOff
 	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
 
@@ -271,7 +271,7 @@ func TestPlaybackEndedMsgShowsNotificationWithEntriesPresent(t *testing.T) {
 // shown via the queueEmpty field rather than a transient notification).
 func TestPlayPauseOnEmptyQueueStaysIdle(t *testing.T) {
 	p := &stubPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	// queue.entries is empty, playbackState is PlaybackIdle.
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: ' ', Text: " "})
@@ -290,7 +290,7 @@ func TestPlayPauseOnEmptyQueueStaysIdle(t *testing.T) {
 // the queue has entries proceeds normally (no empty-queue hint).
 func TestPlayPauseWithTracksInQueuePlaysNormally(t *testing.T) {
 	p := &stubPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
 	m.playbackState = PlaybackIdle
 
@@ -309,7 +309,7 @@ func TestPlayPauseWithTracksInQueuePlaysNormally(t *testing.T) {
 // notification set on the status bar is cleared when the tick fires after the
 // 5-second expiry has elapsed.
 func TestTransientNotificationClearsAfterTickPastExpiry(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	// Set a notification that is already expired.
 	m.statusBar.notification = transientNotification{
 		msg:       "some transient message",
@@ -327,7 +327,7 @@ func TestTransientNotificationClearsAfterTickPastExpiry(t *testing.T) {
 // TestTransientNotificationPersistsBeforeExpiry verifies that a notification
 // whose expiry has not yet been reached survives the tick unchanged.
 func TestTransientNotificationPersistsBeforeExpiry(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	// Set a notification that expires well in the future.
 	m.statusBar.notification = transientNotification{
 		msg:       "fresh message",
@@ -346,7 +346,7 @@ func TestTransientNotificationPersistsBeforeExpiry(t *testing.T) {
 // a second transient message while one is active replaces the old message and
 // resets the expiry clock.
 func TestNewerNotificationOverwritesOlderResettingExpiry(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	// First notification, nearly expired.
 	oldExpiry := time.Now().Add(500 * time.Millisecond)
@@ -370,7 +370,7 @@ func TestNewerNotificationOverwritesOlderResettingExpiry(t *testing.T) {
 // TestDequeueShowsUndoHintInStatusBar verifies that the status bar displays an
 // undo hint immediately after a DequeueTrackMsg is processed.
 func TestDequeueShowsUndoHintInStatusBar(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
 	}
@@ -390,7 +390,7 @@ func TestDequeueShowsUndoHintInStatusBar(t *testing.T) {
 // TestClearQueueShowsUndoHintInStatusBar verifies that the status bar displays
 // an undo hint immediately after a ClearQueueMsg is processed.
 func TestClearQueueShowsUndoHintInStatusBar(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
 		{ID: 20, Path: "/music/b.flac", Display: "B"},

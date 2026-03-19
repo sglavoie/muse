@@ -12,7 +12,7 @@ import (
 // setupTrackInfoModel returns a model with a focused track in the library.
 func setupTrackInfoModel(t *testing.T) Model {
 	t.Helper()
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.library.index.Insert(library.Track{
 		Hash: "h1", Path: "/music/test.flac", Artist: "Test Artist", Title: "Test Song",
 	})
@@ -28,7 +28,7 @@ func setupTrackInfoModel(t *testing.T) Model {
 // TestTrackInfoKeyNoTrack verifies that pressing i with no focused track
 // shows a notification.
 func TestTrackInfoKeyNoTrack(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.activeView = viewLibrary
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'i', Text: "i"})
@@ -65,7 +65,7 @@ func TestTrackInfoKeyReturnsCmd(t *testing.T) {
 // TestTrackInfoMsgSuccess verifies that receiving a trackInfoMsg with tags
 // sets the overlay.
 func TestTrackInfoMsgSuccess(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	tags := map[string]any{
 		"Title":  "Song",
@@ -85,7 +85,7 @@ func TestTrackInfoMsgSuccess(t *testing.T) {
 // TestTrackInfoMsgError verifies that receiving a trackInfoMsg with an error
 // shows a notification and does not set the overlay.
 func TestTrackInfoMsgError(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	next, _ := m.Update(trackInfoMsg{
 		path: "/music/song.flac",
@@ -104,7 +104,7 @@ func TestTrackInfoMsgError(t *testing.T) {
 // TestTrackInfoToggleOff verifies that pressing i while overlay is active
 // dismisses it.
 func TestTrackInfoToggleOff(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"})
 	m.trackInfo = &overlay
 
@@ -121,7 +121,7 @@ func TestTrackInfoToggleOff(t *testing.T) {
 
 // TestTrackInfoEscDismisses verifies that Esc dismisses the overlay.
 func TestTrackInfoEscDismisses(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"})
 	m.trackInfo = &overlay
 
@@ -136,7 +136,7 @@ func TestTrackInfoEscDismisses(t *testing.T) {
 // TestTrackInfoSwallowsKeys verifies that while the overlay is active,
 // other keys are swallowed.
 func TestTrackInfoSwallowsKeys(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"})
 	m.trackInfo = &overlay
 	m.activeView = viewLibrary
@@ -156,7 +156,7 @@ func TestTrackInfoSwallowsKeys(t *testing.T) {
 // TestTrackInfoCtrlCDismissesAndQuits verifies that ctrl+c dismisses
 // the overlay and returns a quit command.
 func TestTrackInfoCtrlCDismissesAndQuits(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"})
 	m.trackInfo = &overlay
 
@@ -177,7 +177,7 @@ func TestTrackInfoCtrlCDismissesAndQuits(t *testing.T) {
 // TestTrackInfoOverlayRenderedInView verifies that when the overlay is
 // active, View() renders its content.
 func TestTrackInfoOverlayRenderedInView(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "View Song"})
 	m.trackInfo = &overlay
 	m.termWidth = 80
@@ -192,7 +192,7 @@ func TestTrackInfoOverlayRenderedInView(t *testing.T) {
 // TestTrackInfoPathUnknown verifies that pressing i on a track with no path
 // (and not in the index) shows a notification.
 func TestTrackInfoPathUnknown(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.activeView = viewQueue
 	// Add a queue entry with no path and a hash that isn't in the index.
 	m.queue.entries = []QueueEntry{{Hash: "orphan", Display: "Orphan"}}
@@ -215,7 +215,7 @@ func TestTrackInfoPathUnknown(t *testing.T) {
 // TestTrackInfoYankPath verifies that pressing y while the track info overlay
 // is active returns a clipboard command and shows a notification.
 func TestTrackInfoYankPath(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	overlay := newTrackInfoOverlay("/music/artist/song.flac", map[string]any{"Title": "T"})
 	m.trackInfo = &overlay
 

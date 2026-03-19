@@ -19,6 +19,14 @@ import (
 
 const mpvSockName = "mpv.sock"
 
+const (
+	defaultPingInterval    = 200 * time.Millisecond
+	shutdownTimeout        = 3 * time.Second
+	socketPollInterval     = 50 * time.Millisecond
+	socketPollTimeout      = 10 * time.Second
+	staleSocketDialTimeout = 200 * time.Millisecond
+)
+
 // baseFlags are always prepended to the mpv command line. They keep mpv in
 // headless audio-only mode so it never registers with the macOS window server
 // (which would create a Dock icon and app-switcher entry).
@@ -396,7 +404,7 @@ func (m *Manager) DisconnectCh() <-chan error {
 func (m *Manager) healthCheck(ctx context.Context, client *IPCClient) {
 	interval := m.pingInterval
 	if interval == 0 {
-		interval = 200 * time.Millisecond
+		interval = defaultPingInterval
 	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -505,7 +513,7 @@ func (m *Manager) Close() error {
 		go func() { done <- cmd.Wait() }()
 		select {
 		case <-done:
-		case <-time.After(3 * time.Second):
+		case <-time.After(shutdownTimeout):
 			slog.Warn("mpv process did not exit within timeout")
 		}
 	}
@@ -515,11 +523,7 @@ func (m *Manager) Close() error {
 // pollUntilReady dials the mpv socket at regular intervals until it succeeds
 // or the context is cancelled.
 func (m *Manager) pollUntilReady(ctx context.Context) {
-	const (
-		pollInterval = 50 * time.Millisecond
-		timeout      = 10 * time.Second
-	)
-	deadline := time.Now().Add(timeout)
+	deadline := time.Now().Add(socketPollTimeout)
 	for time.Now().Before(deadline) {
 		select {
 		case <-ctx.Done():
@@ -546,7 +550,7 @@ func (m *Manager) pollUntilReady(ctx context.Context) {
 			return
 		}
 
-		time.Sleep(pollInterval)
+		time.Sleep(socketPollInterval)
 	}
 }
 
@@ -954,7 +958,7 @@ func cleanStaleSocket(socketPath string) error {
 	}
 
 	// Try to connect: success means a live process owns the socket.
-	conn, err := net.DialTimeout("unix", socketPath, 200*time.Millisecond)
+	conn, err := net.DialTimeout("unix", socketPath, staleSocketDialTimeout)
 	if err == nil {
 		_ = conn.Close()
 		return fmt.Errorf("socket %s is already in use by a live mpv instance", socketPath)

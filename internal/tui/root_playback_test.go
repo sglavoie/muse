@@ -15,7 +15,7 @@ import (
 // correct index.
 func TestRootUpdatePlayQueueIndexMsgCallsPlayerPlayFromIndex(t *testing.T) {
 	p := &stubPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
@@ -35,7 +35,7 @@ func TestRootUpdatePlayQueueIndexMsgCallsPlayerPlayFromIndex(t *testing.T) {
 // PlayQueueIndexMsg, and a subsequent Update call invokes PlayFromIndex.
 func TestRootUpdateEnterInQueueViewDelegatesToQueueUpdate(t *testing.T) {
 	p := &stubPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "A"},
@@ -78,7 +78,7 @@ func TestSpaceTogglesPlayPauseFromAnyView(t *testing.T) {
 	for _, tc := range views {
 		t.Run(tc.name, func(t *testing.T) {
 			p := &stubPlayer{}
-			m := New(context.Background(), "", false, nil, nil, "", nil, p)
+			m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 			m.activeView = tc.viewID
 			m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
 
@@ -102,7 +102,7 @@ func TestSpaceTogglesPlayPauseFromAnyView(t *testing.T) {
 // root Model transitions correctly through playing, paused, and idle states.
 func TestModelPlaybackStateTransitions(t *testing.T) {
 	p := &stubPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.queue.entries = []QueueEntry{
 		{Path: "/a.flac", Display: "Artist – Song", Artist: "Artist", Title: "Song"},
 	}
@@ -144,7 +144,7 @@ func TestModelPlaybackStateTransitions(t *testing.T) {
 // the playback state to stopped when the player implements commandPlayer.
 func TestModelStopKeyTransitionsToStopped(t *testing.T) {
 	p := &stubCommandPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.playbackState = PlaybackPlaying
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 's', Text: "s"})
@@ -162,7 +162,7 @@ func TestModelStopKeyTransitionsToStopped(t *testing.T) {
 // PlayFromIndex(0) when a TrackEnqueuedMsg arrives with WasEmpty=true.
 func TestTrackEnqueuedMsgStartsPlaybackWhenQueueWasEmpty(t *testing.T) {
 	p := &stubPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.playbackState = PlaybackIdle
 	// Pre-seed one queue entry so the model knows what to display.
 	m.queue.entries = []QueueEntry{
@@ -190,7 +190,7 @@ func TestTrackEnqueuedMsgStartsPlaybackWhenQueueWasEmpty(t *testing.T) {
 // current playback uninterrupted.
 func TestTrackEnqueuedMsgDoesNotStartPlaybackWhenQueueWasNonEmpty(t *testing.T) {
 	p := &stubPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.playbackState = PlaybackIdle
 
 	track := library.Track{Artist: "Bob", Title: "Track Two", Path: "/music/b.flac"}
@@ -209,7 +209,7 @@ func TestTrackEnqueuedMsgDoesNotStartPlaybackWhenQueueWasNonEmpty(t *testing.T) 
 // TestTrackEnqueuedMsgWithErrorShowsNotification verifies that a
 // TrackEnqueuedMsg with a non-nil Err sets a transient error notification.
 func TestTrackEnqueuedMsgWithErrorShowsNotification(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	msg := libtui.TrackEnqueuedMsg{
 		Track: library.Track{Artist: "X", Title: "Y", Path: "/music/x.flac"},
@@ -235,7 +235,7 @@ func TestTrackEnqueuedMsgWithErrorShowsNotification(t *testing.T) {
 // playbackState to PlaybackIdle (not PlaybackStopped).
 func TestClearQueueMsgStopsPlaybackAndTransitionsToIdle(t *testing.T) {
 	p := &stubCommandPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.playbackState = PlaybackPlaying
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Path: "/music/a.flac", Display: "A"},
@@ -257,7 +257,7 @@ func TestClearQueueMsgStopsPlaybackAndTransitionsToIdle(t *testing.T) {
 // from the first row instead of being off-screen at a stale scroll position.
 func TestClearQueueMsgResetsScrollOffset(t *testing.T) {
 	p := &stubCommandPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.playbackState = PlaybackPlaying
 	m.queue.entries = make([]QueueEntry, 50)
 	for i := range m.queue.entries {
@@ -279,7 +279,7 @@ func TestClearQueueMsgResetsScrollOffset(t *testing.T) {
 func TestPlaybackEndedMsgRepeatAllRestartsQueue(t *testing.T) {
 	p := &stubPlayer{}
 	sw := &stubSessionWriter{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.SetSessionWriter(sw)
 	m.playbackState = PlaybackPlaying
 	m.repeatMode = RepeatAll
@@ -311,7 +311,7 @@ func TestPlaybackEndedMsgRepeatAllRestartsQueue(t *testing.T) {
 func TestPlaybackEndedMsgRepeatAllUpdatesCurrentTrackHash(t *testing.T) {
 	p := &stubPlayer{}
 	sw := &stubSessionWriter{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.SetSessionWriter(sw)
 	m.playbackState = PlaybackPlaying
 	m.repeatMode = RepeatAll
@@ -346,7 +346,7 @@ func TestPlaybackEndedMsgRepeatAllUpdatesCurrentTrackHash(t *testing.T) {
 // the asynchronous TrackChangedMsg from the event reader.
 func TestPlayQueueIndexMsgUpdatesCurrentTrackHash(t *testing.T) {
 	p := &stubPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.currentTrackHash = "stale-hash"
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "hash-a", Path: "/a.flac", Display: "A", Artist: "A", Title: "One"},
@@ -366,7 +366,7 @@ func TestPlayQueueIndexMsgUpdatesCurrentTrackHash(t *testing.T) {
 // set to the newly enqueued track's hash.
 func TestTrackEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 	p := &stubPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.playbackState = PlaybackIdle
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "hash-x", Path: "/x.flac", Display: "X", Artist: "X", Title: "Song"},
@@ -387,7 +387,7 @@ func TestTrackEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 // the first entry's hash.
 func TestBatchEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 	p := &stubPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.playbackState = PlaybackIdle
 
 	entries := []QueueEntry{
@@ -412,7 +412,7 @@ func TestBatchEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 // an empty queue still transitions to idle (no infinite restart loop).
 func TestPlaybackEndedMsgRepeatAllEmptyQueueGoesIdle(t *testing.T) {
 	p := &stubPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.playbackState = PlaybackPlaying
 	m.repeatMode = RepeatAll
 	m.queue.entries = nil
@@ -432,7 +432,7 @@ func TestPlaybackEndedMsgRepeatAllEmptyQueueGoesIdle(t *testing.T) {
 // shows the "Queue finished" notification (regression guard for the RepeatAll fix).
 func TestPlaybackEndedMsgRepeatOffShowsNotification(t *testing.T) {
 	p := &stubPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.playbackState = PlaybackPlaying
 	m.repeatMode = RepeatOff
 

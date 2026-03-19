@@ -16,7 +16,7 @@ import (
 // actionPlaylistRename in the Playlists view. When the Playlists view is
 // focused, pressing 'r' must fire rename (not toggle repeat mode).
 func TestViewLocalBindingTakesPrecedenceOverGlobal(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.activeView = viewPlaylists
 
 	// The global 'r' binding would normally toggle repeat mode. The
@@ -52,7 +52,7 @@ func TestGlobalBindingFiresWhenNoViewLocalBinding(t *testing.T) {
 	for _, tc := range views {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
-			m := New(context.Background(), "", false, nil, nil, root, stubExtractor{}, nil)
+			m := New(context.Background(), "", false, nil, nil, root, stubExtractor{}, nil, false)
 			m.activeView = tc.viewID
 
 			_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
@@ -68,7 +68,7 @@ func TestGlobalBindingFiresWhenNoViewLocalBinding(t *testing.T) {
 // transient notification.
 func TestEqualKeyFiresVolumeUp(t *testing.T) {
 	p := &stubVolumePlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.volume = 50
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: '=', Text: "="})
@@ -98,7 +98,7 @@ func TestLowerRCyclesRepeatModeInNonPlaylistViews(t *testing.T) {
 	}
 	for _, tc := range views {
 		t.Run(tc.name, func(t *testing.T) {
-			m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+			m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 			m.activeView = tc.viewID
 
 			// First press: RepeatOff → RepeatAll.
@@ -132,7 +132,7 @@ func TestLowerRCyclesRepeatModeInNonPlaylistViews(t *testing.T) {
 // sessionWriter.WriteRepeatMode with the correct mode string on each press
 // and cycles in the order "none" → "all" → "one" → "none".
 func TestRepeatCycleCallsWriteRepeatMode(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	sw := &stubSessionWriter{}
 	m.SetSessionWriter(sw)
 
@@ -154,7 +154,7 @@ func TestRepeatCycleCallsWriteRepeatMode(t *testing.T) {
 // TestZTogglesShuffleGlobal verifies that pressing 'z' toggles the shuffle
 // field on the root model.
 func TestZTogglesShuffleGlobal(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	// First press: shuffle off → on.
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'z', Text: "z"})
@@ -177,7 +177,7 @@ func TestZTogglesShuffleGlobal(t *testing.T) {
 // TestUDispatchesUndoMessage verifies that pressing 'u' returns a cmd that
 // emits UndoMsg.
 func TestUDispatchesUndoMessage(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'u', Text: "u"})
 	if cmd == nil {
@@ -192,7 +192,7 @@ func TestUDispatchesUndoMessage(t *testing.T) {
 // TestSlashRoutesToActiveView verifies that pressing '/' returns a cmd that
 // emits FilterBarMsg for routing to the active view.
 func TestSlashRoutesToActiveView(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: '/', Text: "/"})
 	if cmd == nil {
@@ -208,7 +208,7 @@ func TestSlashRoutesToActiveView(t *testing.T) {
 // SeekRelative(-5) on the player (fine seek backward by 5 seconds).
 func TestSeekFineBackwardKey(t *testing.T) {
 	p := &stubSeekPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 
 	m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 
@@ -221,7 +221,7 @@ func TestSeekFineBackwardKey(t *testing.T) {
 // SeekRelative(+5) on the player (fine seek forward by 5 seconds).
 func TestSeekFineForwardKey(t *testing.T) {
 	p := &stubSeekPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 
 	m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 
@@ -234,7 +234,7 @@ func TestSeekFineForwardKey(t *testing.T) {
 // on the player (coarse seek backward by 30 seconds).
 func TestSeekCoarseBackwardKey(t *testing.T) {
 	p := &stubSeekPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 
 	m.Update(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModShift})
 
@@ -247,7 +247,7 @@ func TestSeekCoarseBackwardKey(t *testing.T) {
 // on the player (coarse seek forward by 30 seconds).
 func TestSeekCoarseForwardKey(t *testing.T) {
 	p := &stubSeekPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 
 	m.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
 
@@ -259,7 +259,7 @@ func TestSeekCoarseForwardKey(t *testing.T) {
 // TestNextTrackKey verifies that pressing 'n' calls Next() on the player.
 func TestNextTrackKey(t *testing.T) {
 	p := &stubSeekPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 
 	m.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
 
@@ -271,7 +271,7 @@ func TestNextTrackKey(t *testing.T) {
 // TestPreviousTrackKey verifies that pressing 'p' calls Previous() on the player.
 func TestPreviousTrackKey(t *testing.T) {
 	p := &stubSeekPlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 
 	m.Update(tea.KeyPressMsg{Code: 'p', Text: "p"})
 
@@ -285,7 +285,7 @@ func TestPreviousTrackKey(t *testing.T) {
 // transient notification.
 func TestMinusKeyFiresVolumeDown(t *testing.T) {
 	p := &stubVolumePlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.volume = 50
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: '-', Text: "-"})
@@ -305,7 +305,7 @@ func TestMinusKeyFiresVolumeDown(t *testing.T) {
 // TestVolumeUpClampsAt100 verifies that volume up from 95 clamps to 100.
 func TestVolumeUpClampsAt100(t *testing.T) {
 	p := &stubVolumePlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.volume = 95
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: '=', Text: "="})
@@ -322,7 +322,7 @@ func TestVolumeUpClampsAt100(t *testing.T) {
 // TestVolumeUpStaysAt100 verifies that volume up from 100 stays at 100.
 func TestVolumeUpStaysAt100(t *testing.T) {
 	p := &stubVolumePlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.volume = 100
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: '=', Text: "="})
@@ -336,7 +336,7 @@ func TestVolumeUpStaysAt100(t *testing.T) {
 // TestVolumeDownClampsAt0 verifies that volume down from 5 clamps to 0.
 func TestVolumeDownClampsAt0(t *testing.T) {
 	p := &stubVolumePlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.volume = 5
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: '-', Text: "-"})
@@ -354,7 +354,7 @@ func TestVolumeDownClampsAt0(t *testing.T) {
 // use volumeFeedbackDuration (2s), not the default transientDuration (5s).
 func TestVolumeNotificationUsesShorterExpiry(t *testing.T) {
 	p := &stubVolumePlayer{}
-	m := New(context.Background(), "", false, nil, nil, "", nil, p)
+	m := New(context.Background(), "", false, nil, nil, "", nil, p, false)
 	m.volume = 50
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: '=', Text: "="})
@@ -370,7 +370,7 @@ func TestVolumeNotificationUsesShorterExpiry(t *testing.T) {
 // TestHKeyIsUnbound verifies that 'h' is intentionally unbound: pressing it
 // produces no command and leaves the model state unchanged.
 func TestHKeyIsUnbound(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'h', Text: "h"})
 
@@ -382,7 +382,7 @@ func TestHKeyIsUnbound(t *testing.T) {
 // TestLKeyIsUnbound verifies that 'l' is intentionally unbound: pressing it
 // produces no command and leaves the model state unchanged.
 func TestLKeyIsUnbound(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'l', Text: "l"})
 
@@ -406,7 +406,7 @@ func TestGlobalRepeatBindingFiresInViewsWithoutLocalOverride(t *testing.T) {
 	}
 	for _, tc := range views {
 		t.Run(tc.name, func(t *testing.T) {
-			m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+			m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 			m.activeView = tc.viewID
 
 			if m.repeatMode != RepeatOff {

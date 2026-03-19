@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 
 	tea "charm.land/bubbletea/v2"
@@ -16,9 +17,9 @@ type trackInfoMsg struct {
 }
 
 // trackInfoCmd returns a tea.Cmd that extracts all exiftool tags for path.
-func trackInfoCmd(path string) tea.Cmd {
+func trackInfoCmd(ctx context.Context, path string) tea.Cmd {
 	return func() tea.Msg {
-		tags, err := library.ExtractAllTags(path)
+		tags, err := library.ExtractAllTags(ctx, path)
 		return trackInfoMsg{path: path, tags: tags, err: err}
 	}
 }

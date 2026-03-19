@@ -1,6 +1,7 @@
 package library
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -33,7 +34,7 @@ func TestScan10kWallTime(t *testing.T) {
 
 	start := time.Now()
 	var count int
-	for range Scan(dir, &fakeExtractor{}) {
+	for range Scan(context.Background(), dir, &fakeExtractor{}) {
 		count++
 	}
 	elapsed := time.Since(start)
@@ -61,7 +62,7 @@ func TestScanGoroutineLeak(t *testing.T) {
 	baseline := runtime.NumGoroutine()
 
 	// Drain the scan channel; its close is the scan-complete signal.
-	for range Scan(dir, &fakeExtractor{}) {
+	for range Scan(context.Background(), dir, &fakeExtractor{}) {
 	}
 
 	// Allow any goroutine that closed a channel to finish its own exit.
@@ -85,7 +86,7 @@ func TestScanLogging_DebugPerTrack(t *testing.T) {
 	slog.SetDefault(slog.New(h))
 	defer slog.SetDefault(prev)
 
-	for range Scan(dir, &fakeExtractor{}) {
+	for range Scan(context.Background(), dir, &fakeExtractor{}) {
 	}
 
 	var debugCount int
@@ -110,7 +111,7 @@ func TestScanLogging_InfoBatchProgress(t *testing.T) {
 	slog.SetDefault(slog.New(h))
 	defer slog.SetDefault(prev)
 
-	for range Scan(dir, &fakeExtractor{}) {
+	for range Scan(context.Background(), dir, &fakeExtractor{}) {
 	}
 
 	found := false
@@ -139,7 +140,7 @@ func BenchmarkScan(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
 		var count int
-		for range Scan(dir, &fakeExtractor{}) {
+		for range Scan(context.Background(), dir, &fakeExtractor{}) {
 			count++
 		}
 		if count != n {

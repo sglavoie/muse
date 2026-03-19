@@ -11,7 +11,7 @@ import (
 // setupPlayingModel returns a model that looks like a track is playing.
 func setupPlayingModel(t *testing.T) Model {
 	t.Helper()
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.playbackState = PlaybackPlaying
 	m.statusBar.artist = "Test Artist"
 	m.statusBar.title = "Test Song"
@@ -58,7 +58,7 @@ func TestNowPlayingKeyShowsOverlay(t *testing.T) {
 // TestNowPlayingKeyIdleShowsNotification verifies that pressing I when
 // no track is playing shows a notification.
 func TestNowPlayingKeyIdleShowsNotification(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.playbackState = PlaybackIdle
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'I', Text: "I"})
@@ -78,7 +78,7 @@ func TestNowPlayingKeyIdleShowsNotification(t *testing.T) {
 // TestNowPlayingKeyStoppedShowsNotification verifies that pressing I when
 // playback is stopped shows a notification.
 func TestNowPlayingKeyStoppedShowsNotification(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.playbackState = PlaybackStopped
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'I', Text: "I"})
@@ -111,7 +111,7 @@ func TestNowPlayingToggleOff(t *testing.T) {
 
 // TestNowPlayingEscDismisses verifies that Esc dismisses the overlay.
 func TestNowPlayingEscDismisses(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.nowPlayingInfo = &NowPlayingOverlay{artist: "A", title: "T"}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
@@ -125,7 +125,7 @@ func TestNowPlayingEscDismisses(t *testing.T) {
 // TestNowPlayingSwallowsKeys verifies that while the overlay is active,
 // other keys are swallowed.
 func TestNowPlayingSwallowsKeys(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.nowPlayingInfo = &NowPlayingOverlay{artist: "A", title: "T"}
 	m.activeView = viewLibrary
 
@@ -144,7 +144,7 @@ func TestNowPlayingSwallowsKeys(t *testing.T) {
 // TestNowPlayingTickUpdates verifies that tick updates elapsed/total/state
 // on the overlay.
 func TestNowPlayingTickUpdates(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.nowPlayingInfo = &NowPlayingOverlay{artist: "A", title: "T", state: PlaybackPlaying}
 	m.elapsedSecs = 45.5
 	m.totalSecs = 200.0
@@ -170,7 +170,7 @@ func TestNowPlayingTickUpdates(t *testing.T) {
 // TestNowPlayingCtrlCDismissesAndQuits verifies that ctrl+c dismisses
 // the overlay and returns a quit command.
 func TestNowPlayingCtrlCDismissesAndQuits(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.nowPlayingInfo = &NowPlayingOverlay{artist: "A", title: "T"}
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
@@ -190,7 +190,7 @@ func TestNowPlayingCtrlCDismissesAndQuits(t *testing.T) {
 // TestNowPlayingOverlayRenderedInView verifies that when the overlay is
 // active, View() renders its content.
 func TestNowPlayingOverlayRenderedInView(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.nowPlayingInfo = &NowPlayingOverlay{
 		artist:  "View Artist",
 		title:   "View Song",
@@ -210,7 +210,7 @@ func TestNowPlayingOverlayRenderedInView(t *testing.T) {
 // TestNowPlayingSessionRestore verifies that the overlay picks up artist/title
 // from the library index when statusBar fields are empty (session restore case).
 func TestNowPlayingSessionRestore(t *testing.T) {
-	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
+	m := New(context.Background(), "", false, nil, nil, "", nil, nil, false)
 	m.playbackState = PlaybackPaused
 	m.currentTrackHash = "h1"
 	m.elapsedSecs = 10

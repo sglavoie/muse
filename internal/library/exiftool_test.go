@@ -18,7 +18,7 @@ type fakeExtractor struct {
 	batches [][]HashedFile
 }
 
-func (f *fakeExtractor) Extract(files []HashedFile) ([]Track, error) {
+func (f *fakeExtractor) Extract(_ context.Context, files []HashedFile) ([]Track, error) {
 	cp := make([]HashedFile, len(files))
 	copy(cp, files)
 	f.batches = append(f.batches, cp)
@@ -37,7 +37,7 @@ func (f *fakeExtractor) Extract(files []HashedFile) ([]Track, error) {
 // Verify fakeExtractor satisfies the interface at compile time.
 var _ MetadataExtractor = (*fakeExtractor)(nil)
 
-// TestExtractBatches_SingleBatch verifies that fewer than batchSize files are
+// TestExtractBatches_SingleBatch verifies that fewer than exiftoolBatchSize files are
 // dispatched in one Extract call and all Tracks reach the output channel.
 func TestExtractBatches_SingleBatch(t *testing.T) {
 	const n = 10
@@ -50,7 +50,7 @@ func TestExtractBatches_SingleBatch(t *testing.T) {
 	close(in)
 
 	var got []Track
-	for tr := range ExtractBatches(fe, in) {
+	for tr := range ExtractBatches(context.Background(), fe, in) {
 		got = append(got, tr)
 	}
 
@@ -62,10 +62,10 @@ func TestExtractBatches_SingleBatch(t *testing.T) {
 	}
 }
 
-// TestExtractBatches_FullBatch verifies that exactly batchSize files trigger a
-// flush mid-stream, producing at least one batch of batchSize.
+// TestExtractBatches_FullBatch verifies that exactly exiftoolBatchSize files trigger a
+// flush mid-stream, producing at least one batch of exiftoolBatchSize.
 func TestExtractBatches_FullBatch(t *testing.T) {
-	const n = batchSize + 3
+	const n = exiftoolBatchSize + 3
 	fe := &fakeExtractor{}
 
 	in := make(chan HashedFile, n)
@@ -75,19 +75,19 @@ func TestExtractBatches_FullBatch(t *testing.T) {
 	close(in)
 
 	var got []Track
-	for tr := range ExtractBatches(fe, in) {
+	for tr := range ExtractBatches(context.Background(), fe, in) {
 		got = append(got, tr)
 	}
 
 	if len(got) != n {
 		t.Fatalf("expected %d tracks, got %d", n, len(got))
 	}
-	// First batch must be exactly batchSize; remainder in a second batch.
+	// First batch must be exactly exiftoolBatchSize; remainder in a second batch.
 	if len(fe.batches) < 2 {
 		t.Fatalf("expected at least 2 batches for %d files, got %d", n, len(fe.batches))
 	}
-	if len(fe.batches[0]) != batchSize {
-		t.Fatalf("first batch size: want %d, got %d", batchSize, len(fe.batches[0]))
+	if len(fe.batches[0]) != exiftoolBatchSize {
+		t.Fatalf("first batch size: want %d, got %d", exiftoolBatchSize, len(fe.batches[0]))
 	}
 }
 
@@ -99,7 +99,7 @@ func TestExtractBatches_EmptyInput(t *testing.T) {
 	close(in)
 
 	count := 0
-	for range ExtractBatches(fe, in) {
+	for range ExtractBatches(context.Background(), fe, in) {
 		count++
 	}
 	if count != 0 {
@@ -121,7 +121,7 @@ func TestExtractBatches_OutputClosedAfterDrain(t *testing.T) {
 	close(in)
 
 	// If the output channel never closes this would hang; the test timeout catches it.
-	for range ExtractBatches(fe, in) {
+	for range ExtractBatches(context.Background(), fe, in) {
 	}
 }
 
@@ -134,7 +134,7 @@ type poisonExtractor struct {
 	calls     int
 }
 
-func (p *poisonExtractor) Extract(files []HashedFile) ([]Track, error) {
+func (p *poisonExtractor) Extract(_ context.Context, files []HashedFile) ([]Track, error) {
 	p.calls++
 	for _, f := range files {
 		if f.Path == fmt.Sprintf("/music/track%02d.flac", p.poisonIdx) {
@@ -166,7 +166,7 @@ func TestBinaryRetry_IsolatesCorruptFile(t *testing.T) {
 	}
 
 	pe := &poisonExtractor{poisonIdx: poisonIdx}
-	tracks := extractWithBinaryRetry(pe, files)
+	tracks := extractWithBinaryRetry(context.Background(), pe, files)
 
 	// All n tracks must be present: the corrupt file gets fallback metadata.
 	if len(tracks) != n {
@@ -203,7 +203,7 @@ func TestBinaryRetry_IsolatesCorruptFile(t *testing.T) {
 // calling Extract at all.
 func TestBinaryRetry_NoCalls(t *testing.T) {
 	pe := &poisonExtractor{poisonIdx: 0}
-	tracks := extractWithBinaryRetry(pe, nil)
+	tracks := extractWithBinaryRetry(context.Background(), pe, nil)
 	if len(tracks) != 0 {
 		t.Fatalf("expected 0 tracks for nil input, got %d", len(tracks))
 	}
@@ -221,7 +221,7 @@ func TestBinaryRetry_CleanBatch(t *testing.T) {
 	}
 
 	pe := &poisonExtractor{poisonIdx: 99} // 99 is never in the batch
-	tracks := extractWithBinaryRetry(pe, files)
+	tracks := extractWithBinaryRetry(context.Background(), pe, files)
 
 	if len(tracks) != n {
 		t.Fatalf("expected %d tracks, got %d", n, len(tracks))
@@ -250,7 +250,7 @@ func TestExtractBatches_BinaryRetryIntegration(t *testing.T) {
 	close(in)
 
 	var got []Track
-	for tr := range ExtractBatches(pe, in) {
+	for tr := range ExtractBatches(context.Background(), pe, in) {
 		got = append(got, tr)
 	}
 
@@ -293,7 +293,7 @@ func (h *capturingHandler) WithGroup(_ string) slog.Handler      { return h }
 // alwaysFailExtractor always returns an error regardless of input.
 type alwaysFailExtractor struct{}
 
-func (a *alwaysFailExtractor) Extract(_ []HashedFile) ([]Track, error) {
+func (a *alwaysFailExtractor) Extract(_ context.Context, _ []HashedFile) ([]Track, error) {
 	return nil, errors.New("extraction failed")
 }
 
@@ -311,7 +311,7 @@ func TestFallback_SingleFileFailureInsertsFallback(t *testing.T) {
 	defer slog.SetDefault(prev)
 
 	files := []HashedFile{{Path: "/music/artist/some song.flac", Hash: "deadbeef"}}
-	tracks := extractWithBinaryRetry(&alwaysFailExtractor{}, files)
+	tracks := extractWithBinaryRetry(context.Background(), &alwaysFailExtractor{}, files)
 
 	// Track must be present (never omitted).
 	if len(tracks) != 1 {
@@ -355,7 +355,7 @@ type chainExtractor struct {
 	perFileCalls int
 }
 
-func (c *chainExtractor) Extract(files []HashedFile) ([]Track, error) {
+func (c *chainExtractor) Extract(_ context.Context, files []HashedFile) ([]Track, error) {
 	// Detect whether the corrupt file is in this batch.
 	for _, f := range files {
 		if f.Path == c.corruptPath {
@@ -397,7 +397,7 @@ func TestBinaryRetry_FilenameMetadataFallbackChain(t *testing.T) {
 	corruptPath := fmt.Sprintf("/music/track%02d.flac", corruptIdx)
 
 	ce := &chainExtractor{corruptPath: corruptPath}
-	tracks := extractWithBinaryRetry(ce, files)
+	tracks := extractWithBinaryRetry(context.Background(), ce, files)
 
 	// (1) All N tracks must be returned.
 	if len(tracks) != n {
@@ -438,7 +438,7 @@ type warnExtractor struct {
 	calls int
 }
 
-func (w *warnExtractor) Extract(files []HashedFile) ([]Track, error) {
+func (w *warnExtractor) Extract(_ context.Context, files []HashedFile) ([]Track, error) {
 	w.calls++
 	// Return valid tracks for all files, plus a non-nil error to simulate
 	// exiftool's exit-code-1-with-valid-output behaviour.
@@ -464,7 +464,7 @@ func TestBinaryRetry_WarnExtractorFallsBackOnError(t *testing.T) {
 		{Path: "/music/b.flac", Hash: "h2"},
 	}
 	w := &warnExtractor{}
-	tracks := extractWithBinaryRetry(w, files)
+	tracks := extractWithBinaryRetry(context.Background(), w, files)
 
 	// All files must still be returned (via fallback or recursion).
 	if len(tracks) != 2 {
@@ -484,7 +484,7 @@ func TestBinaryRetry_WarnExtractorFallsBackOnError(t *testing.T) {
 // unknown SourceFile values to prevent tracks with empty hashes.
 type mismatchExtractor struct{}
 
-func (m *mismatchExtractor) Extract(files []HashedFile) ([]Track, error) {
+func (m *mismatchExtractor) Extract(_ context.Context, files []HashedFile) ([]Track, error) {
 	tracks := make([]Track, 0, len(files)+1)
 	for _, hf := range files {
 		tracks = append(tracks, Track{Path: hf.Path, Hash: hf.Hash, Title: "ok"})
@@ -566,7 +566,7 @@ func TestExtractBatches_HashPreserved(t *testing.T) {
 	close(in)
 
 	byPath := make(map[string]string)
-	for tr := range ExtractBatches(fe, in) {
+	for tr := range ExtractBatches(context.Background(), fe, in) {
 		byPath[tr.Path] = tr.Hash
 	}
 

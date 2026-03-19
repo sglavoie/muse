@@ -6,6 +6,11 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 )
 
+const (
+	scanChannelBuffer  = 256
+	watchChannelBuffer = 64
+)
+
 // UpsertBatcher batches library track upserts to the database.
 type UpsertBatcher interface {
 	UpsertBatch([]library.Track) error
@@ -45,7 +50,7 @@ func (f *batchFlusher) drain() {
 // channel, and batches upserts via writer. The returned channel is closed
 // when raw is exhausted and any remaining batch has been flushed.
 func BridgeScanChannel(raw <-chan library.Track, writer UpsertBatcher, batchSize int) <-chan library.Track {
-	ch := make(chan library.Track, 256)
+	ch := make(chan library.Track, scanChannelBuffer)
 	go func() {
 		defer close(ch)
 		f := &batchFlusher{size: batchSize, flush: writer.UpsertBatch}
@@ -64,7 +69,7 @@ func BridgeScanChannel(raw <-chan library.Track, writer UpsertBatcher, batchSize
 // hashByPath maps file paths to content hashes for deletion lookups. The
 // returned channel is closed when raw is exhausted.
 func BridgeWatchChannel(raw <-chan library.WatchEvent, writer UpsertBatcher, marker MissingMarker, hashByPath map[string]string, batchSize int) <-chan library.WatchEvent {
-	ch := make(chan library.WatchEvent, 64)
+	ch := make(chan library.WatchEvent, watchChannelBuffer)
 	go func() {
 		defer close(ch)
 		f := &batchFlusher{size: batchSize, flush: writer.UpsertBatch}

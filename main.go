@@ -185,7 +185,7 @@ func main() {
 	// Diff scan: walk the filesystem and only process files that are new or
 	// have changed since the last scan. Deletions are returned synchronously.
 	const upsertBatchSize = 500
-	rawScanCh, deletedPaths := library.DiffScan(cfg.MusicDirectory, extractor, known)
+	rawScanCh, deletedPaths := library.DiffScan(ctx, cfg.MusicDirectory, extractor, known)
 
 	// Bridge new/changed tracks to both the DB and the TUI scan channel.
 	tuiScanCh := app.BridgeScanChannel(rawScanCh, result.Writer, upsertBatchSize)
@@ -197,7 +197,7 @@ func main() {
 		hashByPath[t.Path] = t.Hash
 	}
 
-	rawWatchCh, watchErr := library.Watch(ctx, cfg.MusicDirectory, extractor, library.DefaultDebounce)
+	rawWatchCh, watchDegraded, watchErr := library.Watch(ctx, cfg.MusicDirectory, extractor, library.DefaultDebounce)
 	if watchErr != nil {
 		slog.Error("failed to start file watcher", "err", watchErr)
 	}
@@ -208,7 +208,7 @@ func main() {
 
 	restored := result.Restored
 
-	model := tui.New(ctx, configPath, configCreated, tuiScanCh, tuiWatchCh, cfg.MusicDirectory, extractor, mgr)
+	model := tui.New(ctx, configPath, configCreated, tuiScanCh, tuiWatchCh, cfg.MusicDirectory, extractor, mgr, watchDegraded)
 	model.SetRuntimeDir(dirs.Runtime)
 	model.SetQueueWriter(result.Writer)
 	model.SetQueueDequeuer(result.Writer)

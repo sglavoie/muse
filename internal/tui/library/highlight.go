@@ -6,45 +6,6 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// applyHighlight wraps the runes at positions in s with bold lipgloss styling.
-// Positions are 0-indexed into the rune slice of s; out-of-range positions are ignored.
-func applyHighlight(s string, positions []int) string {
-	if len(positions) == 0 {
-		return s
-	}
-	posSet := make(map[int]struct{}, len(positions))
-	for _, p := range positions {
-		posSet[p] = struct{}{}
-	}
-	boldStyle := lipgloss.NewStyle().Bold(true)
-	runes := []rune(s)
-	var b strings.Builder
-	for i, r := range runes {
-		if _, ok := posSet[i]; ok {
-			b.WriteString(boldStyle.Render(string(r)))
-		} else {
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
-}
-
-// searchFieldOffsets returns the (offset, length) pair for the artist and
-// title fields within the concatenated "artist title filename" search string
-// that sahilm/fuzzy operates on. The layout is:
-//
-//	[artist] SP [title] SP [filename]
-//
-// Each separator is exactly one rune wide, so the title field starts at
-// len(artistRunes)+1.
-func searchFieldOffsets(artist, title string) (artistOffset, artistLen, titleOffset, titleLen int) {
-	artistLen = len([]rune(artist))
-	titleLen = len([]rune(title))
-	artistOffset = 0
-	titleOffset = artistLen + 1 // +1 for the single space separator
-	return
-}
-
 // searchFieldOffsetsAll returns the (offset, length) pairs for the artist,
 // title, and album fields within the concatenated "artist title album filename"
 // search string. The layout is:
