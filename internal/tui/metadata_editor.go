@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -31,9 +31,12 @@ const (
 
 // MetadataEditor is a fullscreen overlay for editing track metadata.
 type MetadataEditor struct {
-	hash    string
-	fields  [metadataFieldCount]textinput.Model
-	focused metadataField
+	hash          string
+	hashes        []string // nil for single-track, populated for bulk
+	fields        [metadataFieldCount]textinput.Model
+	focused       metadataField
+	initialValues [metadataFieldCount]string // snapshot at open time
+	dirty         [metadataFieldCount]bool   // true when field differs from initial
 }
 
 // newField creates a focused textinput with the given initial value.
@@ -54,13 +57,55 @@ func newField(value string, focused bool) textinput.Model {
 // NewMetadataEditor returns a MetadataEditor pre-populated with the given values.
 func NewMetadataEditor(hash, title, artist, album string) MetadataEditor {
 	return MetadataEditor{
-		hash: hash,
+		hash:          hash,
+		initialValues: [metadataFieldCount]string{title, artist, album},
 		fields: [metadataFieldCount]textinput.Model{
 			newField(title, true),
 			newField(artist, false),
 			newField(album, false),
 		},
 	}
+}
+
+// NewBulkMetadataEditor returns a MetadataEditor for editing multiple tracks.
+// Common values are pre-populated; differing fields are left empty.
+func NewBulkMetadataEditor(hashes []string, commonTitle, commonArtist, commonAlbum string) MetadataEditor {
+	return MetadataEditor{
+		hashes:        hashes,
+		initialValues: [metadataFieldCount]string{commonTitle, commonArtist, commonAlbum},
+		fields: [metadataFieldCount]textinput.Model{
+			newField(commonTitle, true),
+			newField(commonArtist, false),
+			newField(commonAlbum, false),
+		},
+	}
+}
+
+// IsBulk reports whether this editor is in bulk mode (multiple tracks).
+func (e MetadataEditor) IsBulk() bool { return len(e.hashes) > 1 }
+
+// TrackCount returns the number of tracks being edited.
+func (e MetadataEditor) TrackCount() int { return len(e.hashes) }
+
+// Hashes returns the hashes slice (nil for single-track editors).
+func (e MetadataEditor) Hashes() []string { return e.hashes }
+
+// DirtyFields returns pointers to the new values for fields that were modified.
+// Non-dirty fields return nil.
+func (e MetadataEditor) DirtyFields() (title, artist, album *string) {
+	if e.dirty[fieldTitle] {
+		v := e.fields[fieldTitle].Value()
+		title = &v
+	}
+	if e.dirty[fieldArtist] {
+		v := e.fields[fieldArtist].Value()
+		artist = &v
+	}
+	if e.dirty[fieldAlbum] {
+		v := e.fields[fieldAlbum].Value()
+		album = &v
+	}
+	return
 }
 
 // HandleKey processes a single key press and returns the updated editor and
@@ -85,6 +130,7 @@ func (e MetadataEditor) HandleKey(msg tea.KeyPressMsg) (MetadataEditor, editorAc
 	// Forward to the focused textinput.
 	var cmd tea.Cmd
 	e.fields[e.focused], cmd = e.fields[e.focused].Update(msg)
+	e.dirty[e.focused] = e.fields[e.focused].Value() != e.initialValues[e.focused]
 	return e, editorNone, cmd
 }
 
@@ -114,7 +160,14 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	)
 
 	labels := [metadataFieldCount]string{"Title:", "Artist:", "Album:"}
-	maxLabelW := 7 // len("Artist:")
+	if e.IsBulk() {
+		for i := range metadataFieldCount {
+			if e.dirty[i] {
+				labels[i] = "*" + labels[i]
+			}
+		}
+	}
+	maxLabelW := 8 // len("*Artist:")
 
 	// Box width: use most of the terminal width, capped at 80.
 	boxInner := termWidth - 8
@@ -129,6 +182,9 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	valueWidth := contentWidth - maxLabelW - 1
 
 	title := " ✎ Edit Metadata "
+	if e.IsBulk() {
+		title = fmt.Sprintf(" ✎ Edit Metadata (%d tracks) ", e.TrackCount())
+	}
 
 	var lines []string
 
@@ -174,7 +230,14 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	lines = append(lines, cornerBL+strings.Repeat(borderH, boxInner)+cornerBR)
 
 	// Hint.
-	lines = append(lines, "  tab/shift+tab fields · enter save · esc cancel")
+	hint := "  tab/shift+tab fields · enter save · esc cancel"
+	if e.IsBulk() {
+		anyDirty := e.dirty[0] || e.dirty[1] || e.dirty[2]
+		if anyDirty {
+			hint += " · * = will be applied"
+		}
+	}
+	lines = append(lines, hint)
 
 	// Center the box.
 	boxW := len([]rune(lines[0]))

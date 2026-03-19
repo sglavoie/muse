@@ -521,6 +521,34 @@ func (m Model) handleUndo() Model {
 		}
 		m.clampQueueCursorAndScroll()
 		m.syncPlayerQueue()
+	case undoKindBulkEditMetadata:
+		w := m.metadataWriter
+		for hash, orig := range m.undoSlot.bulkEditOriginals {
+			m.library.index.UpdateMetadata(hash, orig[0], orig[1], orig[2])
+			display := fmt.Sprintf("%s – %s", orig[1], orig[0])
+			for i := range m.queue.entries {
+				if m.queue.entries[i].Hash == hash {
+					m.queue.entries[i].Title = orig[0]
+					m.queue.entries[i].Artist = orig[1]
+					m.queue.entries[i].Display = display
+				}
+			}
+		}
+		if w != nil {
+			originals := m.undoSlot.bulkEditOriginals
+			go func() {
+				for h, orig := range originals {
+					if err := w.UpdateTrackMetadata(h, orig[0], orig[1], orig[2]); err != nil {
+						slog.Warn("undo bulk metadata edit: DB write failed", "hash", h, "err", err)
+					}
+				}
+			}()
+		}
+		n := len(m.undoSlot.bulkEditOriginals)
+		m.statusBar.notification = transientNotification{
+			msg:       fmt.Sprintf("Undone metadata edit for %d %s", n, pluralize(n, "track", "tracks")),
+			expiresAt: time.Now().Add(transientDuration),
+		}
 	case undoKindBulkRemovePlaylistTracks:
 		// Restore soft-deleted DB rows.
 		if m.playlistDeleter != nil {

@@ -63,6 +63,7 @@ const (
 	actionSelect
 	actionDequeue             // 'd': remove the selected track from the queue
 	actionBulkSelectionToggle // 'x': toggle bulk-selection on the selected entry
+	actionClearSelection      // 'X': clear all bulk-selected entries
 	actionClearQueue          // 'C': clear all entries from the queue
 	actionMoveTrackUp         // 'K': move selected track one position earlier
 	actionMoveTrackDown       // 'J': move selected track one position later
@@ -159,6 +160,7 @@ func newRegistry() Registry {
 	r.register(contextLibrary, "shift+enter", actionLibraryEnqueueReplace)
 	r.register(contextLibrary, "esc", actionLibraryFilterClear)
 	r.register(contextLibrary, "x", actionBulkSelectionToggle)
+	r.register(contextLibrary, "X", actionClearSelection)
 	r.register(contextLibrary, "a", actionBulkAction)
 
 	// Queue-local bindings.
@@ -166,6 +168,7 @@ func newRegistry() Registry {
 	r.register(contextQueue, "enter", actionSelect)
 	r.register(contextQueue, "d", actionDequeue)
 	r.register(contextQueue, "x", actionBulkSelectionToggle)
+	r.register(contextQueue, "X", actionClearSelection)
 	r.register(contextQueue, "C", actionClearQueue)
 	r.register(contextQueue, "K", actionMoveTrackUp)
 	r.register(contextQueue, "J", actionMoveTrackDown)
@@ -181,6 +184,7 @@ func newRegistry() Registry {
 	r.register(contextPlaylists, "esc", actionPlaylistBack)
 	r.register(contextPlaylists, "d", actionPlaylistDelete)
 	r.register(contextPlaylists, "x", actionBulkSelectionToggle)
+	r.register(contextPlaylists, "X", actionClearSelection)
 	r.register(contextPlaylists, "a", actionBulkAction)
 	r.register(contextPlaylists, "E", actionPlaylistEnqueueAll)
 	r.register(contextPlaylists, "shift+enter", actionLibraryEnqueueReplace)

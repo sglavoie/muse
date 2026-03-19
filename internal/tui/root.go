@@ -118,6 +118,7 @@ const (
 	undoKindBatchEnqueue                      // batch of tracks added via actionPlaylistEnqueueAll
 	undoKindBulkDequeue                       // multiple selected tracks removed via bulk dequeue
 	undoKindBulkRemovePlaylistTracks          // multiple selected tracks removed from playlist via 'a'
+	undoKindBulkEditMetadata                  // bulk metadata edit via 'M' with selection
 )
 
 // undoSlot holds the reversible state for the most recent destructive queue
@@ -164,6 +165,9 @@ type undoSlot struct {
 	// BulkRemovePlaylistTracks fields — valid when kind == undoKindBulkRemovePlaylistTracks.
 	bulkRemoveTrackEntries []db.PlaylistTrackRow // removed tracks in original order
 	bulkRemoveTrackIndices []int                 // original indices for re-insertion
+
+	// BulkEditMetadata fields — valid when kind == undoKindBulkEditMetadata.
+	bulkEditOriginals map[string][3]string // hash → {title, artist, album}
 }
 
 // tickMsg is dispatched every second by tickCmd. It drives elapsed-time
@@ -1876,6 +1880,17 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)
 			return m, cmd
+		}
+	case actionClearSelection:
+		switch m.activeView {
+		case viewLibrary:
+			m.library = m.library.ClearSelection()
+		case viewQueue:
+			for i := range m.queue.entries {
+				m.queue.entries[i].Selected = false
+			}
+		case viewPlaylists:
+			m.playlists.selectedTrackIDs = nil
 		}
 	case actionPlaylistRename:
 		return m, func() tea.Msg { return PlaylistRenameMsg{} }
