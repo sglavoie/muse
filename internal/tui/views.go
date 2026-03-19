@@ -463,6 +463,7 @@ type QueueEntry struct {
 	Missing        bool   // true when the file was not found at playback time
 	Artist         string // track artist, used by the status bar persistent left zone
 	Title          string // track title, used by the status bar persistent left zone
+	Album          string // track album name
 	Selected       bool   // true when the entry is part of a bulk selection
 	DurationMs     int64  // track duration in milliseconds from the database
 	Position       int64  // gapped-integer queue position from the database
@@ -702,9 +703,9 @@ func (v QueueView) visibleRows() int {
 	return layout.VisibleRows(v.height, 2)
 }
 
-// render builds the queue panel string using a 5-column layout:
+// render builds the queue panel string using a 6-column layout:
 //
-//	Position (~4 chars fixed) | Title (~35% of width) | Artist (~25% of width) | Source (~15% of width) | Duration (~10 chars fixed)
+//	Position (~4 chars fixed) | Title (~30% of width) | Artist (~20% of width) | Album (~20% of width) | Source (~10% of width) | Duration (~10 chars fixed)
 //
 // Proportional columns resize on WindowSizeMsg; fixed-width columns are
 // constant. Missing entries are wrapped in ANSI dim escape codes so they
@@ -721,11 +722,13 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 
 	titleWidth := 20 // sensible fallback when width is unknown
 	artistWidth := 15
+	albumWidth := 15
 	sourceWidth := 10
 	if v.width > 0 {
-		titleWidth = v.width * 35 / 100
-		artistWidth = v.width * 25 / 100
-		sourceWidth = v.width * 15 / 100
+		titleWidth = v.width * 30 / 100
+		artistWidth = v.width * 20 / 100
+		albumWidth = v.width * 20 / 100
+		sourceWidth = v.width * 10 / 100
 	}
 	if titleWidth < 1 {
 		titleWidth = 1
@@ -733,6 +736,7 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 	if artistWidth < 1 {
 		artistWidth = 1
 	}
+	albumWidth = max(albumWidth, 1)
 	sourceWidth = max(sourceWidth, 1)
 
 	maxRows := v.visibleRows()
@@ -740,7 +744,7 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 	end := min(len(v.entries), start+maxRows)
 
 	// Column header row (2-char left margin aligns with the selection marker column).
-	titleHead, artistHead, sourceHead, timeHead := "Title", "Artist", "Source", "Time"
+	titleHead, artistHead, albumHead, sourceHead, timeHead := "Title", "Artist", "Album", "Source", "Time"
 	if v.sortState.Field != SortDefault {
 		ind := SortDirIndicator(v.sortState.Dir)
 		switch v.sortState.Field {
@@ -748,14 +752,16 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 			titleHead += ind
 		case SortArtist:
 			artistHead += ind
+		case SortAlbum:
+			albumHead += ind
 		case SortSource:
 			sourceHead += ind
 		case SortDuration:
 			timeHead += ind
 		}
 	}
-	header := fmt.Sprintf("  %3s %-*s %-*s %-*s %-*s",
-		"#", titleWidth, titleHead, artistWidth, artistHead, sourceWidth, sourceHead, durWidth, timeHead)
+	header := fmt.Sprintf("  %3s %-*s %-*s %-*s %-*s %-*s",
+		"#", titleWidth, titleHead, artistWidth, artistHead, albumWidth, albumHead, sourceWidth, sourceHead, durWidth, timeHead)
 
 	lines := make([]string, end-start)
 	for i := range end - start {
@@ -798,12 +804,15 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 		artist := truncateTitle(e.Artist, artistWidth)
 		artist = fmt.Sprintf("%-*s", artistWidth, artist)
 
+		album := truncateTitle(e.Album, albumWidth)
+		album = fmt.Sprintf("%-*s", albumWidth, album)
+
 		source := truncateTitle(e.SourcePlaylist, sourceWidth)
 		source = fmt.Sprintf("%-*s", sourceWidth, source)
 
 		dur := fmt.Sprintf("%-*s", durWidth, formatQueueDuration(e.DurationMs))
 
-		line := markerStr + pos + " " + title + " " + artist + " " + source + " " + dur
+		line := markerStr + pos + " " + title + " " + artist + " " + album + " " + source + " " + dur
 		if e.Missing {
 			lines[i] = s.Dim.Render(line + " [missing]")
 		} else if isFocused {

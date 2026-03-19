@@ -54,6 +54,7 @@ type QueueRow struct {
 	Path           string
 	Artist         string
 	Title          string
+	Album          string
 	Missing        bool
 	DurationMs     int64
 	Position       int64
@@ -106,7 +107,7 @@ func Open(path string) (*DB, error) {
 // randomisation is delegated to mpv's native shuffle property.
 func (d *DB) ReadQueue() ([]QueueRow, error) {
 	rows, err := d.Query(`
-		SELECT q.id, t.hash, t.path, t.artist, t.title, q.missing,
+		SELECT q.id, t.hash, t.path, t.artist, t.title, t.album, q.missing,
 		       t.duration_ms, q.position, q.source_playlist
 		FROM queue q
 		JOIN tracks t ON q.track_hash = t.hash
@@ -122,7 +123,7 @@ func (d *DB) ReadQueue() ([]QueueRow, error) {
 	for rows.Next() {
 		var r QueueRow
 		var missing int
-		if err := rows.Scan(&r.ID, &r.Hash, &r.Path, &r.Artist, &r.Title, &missing, &r.DurationMs, &r.Position, &r.SourcePlaylist); err != nil {
+		if err := rows.Scan(&r.ID, &r.Hash, &r.Path, &r.Artist, &r.Title, &r.Album, &missing, &r.DurationMs, &r.Position, &r.SourcePlaylist); err != nil {
 			return nil, fmt.Errorf("db: read queue row: %w", err)
 		}
 		r.Missing = missing != 0

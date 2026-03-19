@@ -1618,6 +1618,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							Display:    display,
 							Artist:     t.Artist,
 							Title:      t.Title,
+							Album:      t.Album,
 							DurationMs: int64(t.Duration * 1000),
 						}
 					}
@@ -2007,6 +2008,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 					Display:        display,
 					Artist:         t.Artist,
 					Title:          t.Title,
+					Album:          t.Album,
 					DurationMs:     int64(t.Duration * 1000),
 					SourcePlaylist: playlistName,
 				}

@@ -69,6 +69,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 		Display:        display,
 		Artist:         msg.Track.Artist,
 		Title:          msg.Track.Title,
+		Album:          msg.Track.Album,
 		DurationMs:     int64(msg.Track.Duration * 1000),
 		SourcePlaylist: msg.SourcePlaylist,
 	})

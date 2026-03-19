@@ -286,6 +286,7 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 			Missing:        missing,
 			Artist:         r.Artist,
 			Title:          r.Title,
+			Album:          r.Album,
 			DurationMs:     r.DurationMs,
 			Position:       r.Position,
 			SourcePlaylist: r.SourcePlaylist,

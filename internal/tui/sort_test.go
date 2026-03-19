@@ -192,9 +192,9 @@ func TestSortDirIndicator(t *testing.T) {
 
 func TestSortQueueIndices(t *testing.T) {
 	entries := []QueueEntry{
-		{Title: "Zulu", Artist: "Charlie", DurationMs: 3000, SourcePlaylist: "Rock"},
-		{Title: "Alpha", Artist: "Bravo", DurationMs: 1000, SourcePlaylist: "Jazz"},
-		{Title: "Mike", Artist: "Alpha", DurationMs: 2000, SourcePlaylist: ""},
+		{Title: "Zulu", Artist: "Charlie", Album: "Red", DurationMs: 3000, SourcePlaylist: "Rock"},
+		{Title: "Alpha", Artist: "Bravo", Album: "Blue", DurationMs: 1000, SourcePlaylist: "Jazz"},
+		{Title: "Mike", Artist: "Alpha", Album: "", DurationMs: 2000, SourcePlaylist: ""},
 	}
 
 	t.Run("sort by title asc", func(t *testing.T) {
@@ -238,6 +238,20 @@ func TestSortQueueIndices(t *testing.T) {
 		}
 		if entries[order[2]].DurationMs != 3000 {
 			t.Errorf("last should have 3000ms, got %d", entries[order[2]].DurationMs)
+		}
+	})
+
+	t.Run("sort by album asc unknown last", func(t *testing.T) {
+		order := SortQueueIndices(entries, SortAlbum, SortAsc)
+		// Blue(1), Red(0), then empty(2)
+		if entries[order[0]].Album != "Blue" {
+			t.Errorf("first should be Blue, got %q", entries[order[0]].Album)
+		}
+		if entries[order[1]].Album != "Red" {
+			t.Errorf("second should be Red, got %q", entries[order[1]].Album)
+		}
+		if entries[order[2]].Album != "" {
+			t.Errorf("third should be empty, got %q", entries[order[2]].Album)
 		}
 	})
 
@@ -1341,8 +1355,8 @@ func TestCompareStringsUnknownLast(t *testing.T) {
 func TestSortCycleQueueAllFields(t *testing.T) {
 	state := SortState{Field: SortDefault}
 
-	// Default → Title → Artist → Duration → Source → Default
-	expected := []SortField{SortTitle, SortArtist, SortDuration, SortSource, SortDefault}
+	// Default → Title → Artist → Album → Duration → Source → Default
+	expected := []SortField{SortTitle, SortArtist, SortAlbum, SortDuration, SortSource, SortDefault}
 	for _, want := range expected {
 		state.Field = CycleSortField(state.Field, queueSortFields)
 		if state.Field != want {

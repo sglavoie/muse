@@ -39,7 +39,7 @@ type SortState struct {
 // Sort field cycles per view+level.
 var (
 	librarySortFields       = []SortField{SortDefault, SortArtist, SortTitle, SortAlbum, SortDuration}
-	queueSortFields         = []SortField{SortDefault, SortTitle, SortArtist, SortDuration, SortSource}
+	queueSortFields         = []SortField{SortDefault, SortTitle, SortArtist, SortAlbum, SortDuration, SortSource}
 	playlistListSortFields  = []SortField{SortDefault, SortName, SortTrackCount}
 	playlistTrackSortFields = []SortField{SortDefault, SortTitle, SortArtist, SortDuration}
 	artistArtistSortFields  = []SortField{SortDefault, SortName}
@@ -147,6 +147,8 @@ func SortQueueIndices(entries []QueueEntry, field SortField, dir SortDir) []int 
 			return compareStringsUnknownLast(ea.Title, eb.Title, dir)
 		case SortArtist:
 			return compareStringsUnknownLast(ea.Artist, eb.Artist, dir)
+		case SortAlbum:
+			return compareStringsUnknownLast(ea.Album, eb.Album, dir)
 		case SortDuration:
 			if dir == SortAsc {
 				return ea.DurationMs < eb.DurationMs
