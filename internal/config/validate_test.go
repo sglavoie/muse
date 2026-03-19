@@ -104,6 +104,43 @@ func TestValidateMusicDir_ValidDirectory(t *testing.T) {
 	}
 }
 
+func TestValidateMusicDir_ValidDirectoryWithSubdirs(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "config.toml")
+	musicDir := filepath.Join(tmp, "music")
+	if err := os.Mkdir(musicDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Create subdirectories that would contain audio files (typical library layout).
+	if err := os.Mkdir(filepath.Join(musicDir, "Artist"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ValidateMusicDir(musicDir, configPath); err != nil {
+		t.Errorf("expected no error for directory with subdirectories, got: %s", err.Error())
+	}
+}
+
+func TestValidateMusicDir_OnlyHiddenDirs(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "config.toml")
+	musicDir := filepath.Join(tmp, "music")
+	if err := os.Mkdir(musicDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(musicDir, ".cache"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	err := ValidateMusicDir(musicDir, configPath)
+	if err == nil {
+		t.Fatal("expected error for directory with only hidden subdirectories, got nil")
+	}
+	if !strings.Contains(err.Error(), "no supported audio files") {
+		t.Errorf("error should mention 'no supported audio files', got: %s", err.Error())
+	}
+}
+
 func TestValidateMusicDir_TildeExpansion(t *testing.T) {
 	tmp := t.TempDir()
 	configPath := filepath.Join(tmp, "config.toml")

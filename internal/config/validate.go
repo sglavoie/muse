@@ -25,8 +25,8 @@ var audioExtensions = map[string]struct{}{
 }
 
 // ValidateMusicDir checks that the configured music directory exists and
-// contains at least one audio file at the top level. configPath is included
-// in error messages so the user knows which file to edit.
+// contains at least one audio file or non-hidden subdirectory at the top level.
+// configPath is included in error messages so the user knows which file to edit.
 func ValidateMusicDir(musicDir, configPath string) error {
 	expanded, err := expandTilde(musicDir)
 	if err != nil {
@@ -48,17 +48,22 @@ func ValidateMusicDir(musicDir, configPath string) error {
 		return fmt.Errorf("music directory %q is empty; add music files or edit %s to set a different path", expanded, configPath)
 	}
 
-	hasAudio := false
+	hasAudioOrSubdir := false
 	for _, e := range entries {
-		if !e.IsDir() {
+		if e.IsDir() {
+			if !strings.HasPrefix(e.Name(), ".") {
+				hasAudioOrSubdir = true
+				break
+			}
+		} else {
 			ext := strings.ToLower(filepath.Ext(e.Name()))
 			if _, ok := audioExtensions[ext]; ok {
-				hasAudio = true
+				hasAudioOrSubdir = true
 				break
 			}
 		}
 	}
-	if !hasAudio {
+	if !hasAudioOrSubdir {
 		return fmt.Errorf("music directory %q contains no supported audio files; add music files or edit %s to set a different path", expanded, configPath)
 	}
 
