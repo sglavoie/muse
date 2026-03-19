@@ -187,42 +187,8 @@ func main() {
 	const upsertBatchSize = 500
 	rawScanCh, deletedPaths := library.DiffScan(cfg.MusicDirectory, extractor, known)
 
-	// batchFlusher accumulates library.Track values and flushes them in
-	// batches to a caller-provided function (typically DB upsert).
-	type batchFlusher struct {
-		batch []library.Track
-		size  int
-		flush func([]library.Track) error
-	}
-	flushBatch := func(f *batchFlusher) {
-		if len(f.batch) == 0 {
-			return
-		}
-		if err := f.flush(f.batch); err != nil {
-			slog.Warn("batch flush", "err", err, "count", len(f.batch))
-		}
-		f.batch = f.batch[:0]
-	}
-	addToBatch := func(f *batchFlusher, t library.Track) {
-		f.batch = append(f.batch, t)
-		if len(f.batch) >= f.size {
-			flushBatch(f)
-		}
-	}
-
 	// Bridge new/changed tracks to both the DB and the TUI scan channel.
-	// tuiScanCh is buffered so the bridge goroutine does not stall when the
-	// TUI is busy processing messages.
-	tuiScanCh := make(chan library.Track, 256)
-	go func() {
-		defer close(tuiScanCh)
-		f := &batchFlusher{size: upsertBatchSize, flush: result.Writer.UpsertBatch}
-		for t := range rawScanCh {
-			tuiScanCh <- t
-			addToBatch(f, t)
-		}
-		flushBatch(f)
-	}()
+	tuiScanCh := app.BridgeScanChannel(rawScanCh, result.Writer, upsertBatchSize)
 
 	// Build path→hash lookup from cached tracks. Used by the deletion-path
 	// handler in both the pre-TUI eviction loop and the watcher bridge.
@@ -237,33 +203,13 @@ func main() {
 	}
 
 	// Bridge watcher events to both the DB (for persistence) and the TUI
-	// (for in-memory index updates). Without this bridge, watcher-discovered
-	// tracks would appear in the TUI but never reach the tracks table,
-	// causing FK violations when the user tries to enqueue them and data
-	// loss on restart.
-	tuiWatchCh := make(chan library.WatchEvent, 64)
-	go func() {
-		defer close(tuiWatchCh)
-		f := &batchFlusher{size: upsertBatchSize, flush: result.Writer.UpsertBatch}
-		for ev := range rawWatchCh {
-			tuiWatchCh <- ev
-			if ev.Deleted {
-				flushBatch(f)
-				if hash, ok := hashByPath[ev.Path]; ok {
-					if err := result.Writer.MarkTrackMissing(hash); err != nil {
-						slog.Warn("watcher: mark deleted track missing", "path", ev.Path, "err", err)
-					}
-				}
-			} else {
-				addToBatch(f, ev.Track)
-			}
-		}
-		flushBatch(f)
-	}()
+	// (for in-memory index updates).
+	tuiWatchCh := app.BridgeWatchChannel(rawWatchCh, result.Writer, result.Writer, hashByPath, upsertBatchSize)
 
 	restored := result.Restored
 
 	model := tui.New(ctx, configPath, configCreated, tuiScanCh, tuiWatchCh, cfg.MusicDirectory, extractor, mgr)
+	model.SetRuntimeDir(dirs.Runtime)
 	model.SetQueueWriter(result.Writer)
 	model.SetQueueDequeuer(result.Writer)
 	model.SetSessionWriter(result.Writer)
@@ -404,7 +350,7 @@ func main() {
 // all playback logic (including Go-side queue indexing and TUI state sync)
 // in one place.
 func runRemoteAction(action string) error {
-	runtimeDir := resolveRuntimeDir()
+	runtimeDir := config.ResolveRuntimeDir()
 	cmdPath := filepath.Join(runtimeDir, "muse.cmd")
 	pidPath := filepath.Join(runtimeDir, "muse.pid")
 
@@ -435,12 +381,4 @@ func runRemoteAction(action string) error {
 		return fmt.Errorf("send SIGUSR1: %w", err)
 	}
 	return nil
-}
-
-// resolveRuntimeDir mirrors config.resolveRuntimeDir (unexported).
-func resolveRuntimeDir() string {
-	if v := os.Getenv("XDG_RUNTIME_DIR"); v != "" {
-		return filepath.Join(v, "muse")
-	}
-	return filepath.Join(os.TempDir(), "muse-runtime", "muse")
 }

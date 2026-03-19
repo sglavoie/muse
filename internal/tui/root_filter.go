@@ -30,7 +30,7 @@ func (m Model) activeFilterOps() *filterOps {
 
 // allFilterOps returns the filter operations for the currently active view,
 // regardless of whether the filter is active. Returns nil for views that do
-// not support filtering (e.g. Queue, Playlists).
+// not support filtering (e.g. Playlists).
 func (m Model) allFilterOps() *filterOps {
 	switch m.activeView {
 	case viewLibrary:
@@ -59,6 +59,15 @@ func (m Model) allFilterOps() *filterOps {
 			appendChar: func(ch rune) Model { m.albums = m.albums.AppendFilterChar(ch); return m },
 			isActive:   func() bool { return m.albums.filter.Active },
 			activate:   func() Model { m.albums = m.albums.ActivateFilter(); return m },
+		}
+	case viewQueue:
+		return &filterOps{
+			deactivate: func() Model { m.queue = m.queue.DeactivateFilter(); return m },
+			commit:     func() Model { m.queue = m.queue.CommitFilter(); return m },
+			backspace:  func() Model { m.queue = m.queue.BackspaceFilter(); return m },
+			appendChar: func(ch rune) Model { m.queue = m.queue.AppendFilterChar(ch); return m },
+			isActive:   func() bool { return m.queue.filter.Active },
+			activate:   func() Model { m.queue = m.queue.ActivateFilter(); return m },
 		}
 	default:
 		return nil

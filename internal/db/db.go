@@ -80,7 +80,7 @@ type DB struct {
 // Close when done. Open creates the parent directory if it does not exist.
 func Open(path string) (*DB, error) {
 	if dir := filepath.Dir(path); dir != "" {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return nil, fmt.Errorf("db: create directory %s: %w", dir, err)
 		}
 	}

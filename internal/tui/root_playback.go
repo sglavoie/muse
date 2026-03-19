@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -410,8 +409,9 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 // given track, and returns a previewStartedMsg on success.
 func (m Model) startPreviewCmd(track library.Track) tea.Cmd {
 	ctx := m.appCtx
+	runtimeDir := m.runtimeDir
 	return func() tea.Msg {
-		socketPath := filepath.Join(os.TempDir(), "muse-preview.sock")
+		socketPath := filepath.Join(runtimeDir, "muse-preview.sock")
 		pp := player.NewPreviewPlayer(ctx, socketPath)
 		if err := pp.Start(); err != nil {
 			return previewStartErrorMsg{err: err}

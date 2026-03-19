@@ -445,35 +445,30 @@ func TestLibraryEnterClearsCommittedFilter(t *testing.T) {
 }
 
 // TestFilterBarMsgIgnoredOutsideLibraryView verifies that pressing '/' while on
-// the queue or playlists view does not activate the library filter bar. Before
-// the fix, FilterBarMsg always toggled the library filter regardless of the
-// active view, silently leaving it in an inconsistent state.
+// the playlists view does not activate the library filter bar. Before the fix,
+// FilterBarMsg always toggled the library filter regardless of the active view,
+// silently leaving it in an inconsistent state.
 func TestFilterBarMsgIgnoredOutsideLibraryView(t *testing.T) {
 	m := New(context.Background(), "", false, nil, nil, "", nil, nil)
 
-	// Switch to queue view.
+	// Switch to queue view — filter IS supported here now.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '3', Text: "3"})
 	nm := next.(Model)
 	if nm.activeView != viewQueue {
 		t.Fatalf("expected viewQueue, got %d", nm.activeView)
 	}
 
-	// Send FilterBarMsg while on the queue view.
+	// Send FilterBarMsg while on the queue view: should activate the queue filter.
 	next, _ = nm.Update(FilterBarMsg{})
 	nm = next.(Model)
 	if nm.library.filter.Active {
-		t.Error("library filterActive should remain false when FilterBarMsg is sent outside the library view")
+		t.Error("library filterActive should remain false when FilterBarMsg is sent on the queue view")
+	}
+	if !nm.queue.filter.Active {
+		t.Error("queue filter should be active after FilterBarMsg on queue view")
 	}
 
-	// Verify transient notification is set for unsupported view.
-	if nm.statusBar.notification.msg == "" {
-		t.Error("FilterBarMsg on queue view should set a transient notification")
-	}
-	if !strings.Contains(nm.statusBar.notification.msg, "not available") {
-		t.Errorf("unexpected notification: %s", nm.statusBar.notification.msg)
-	}
-
-	// Also check playlists view.
+	// Check playlists view — filter is NOT supported here.
 	next, _ = m.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
 	nm = next.(Model)
 	next, _ = nm.Update(FilterBarMsg{})

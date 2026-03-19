@@ -15,11 +15,16 @@ var logFile *os.File
 // sets the global slog default to a JSON handler at the given level, and stores
 // the resolved path for later display.
 func InitLogging(stateDir string, level slog.Level) error {
-	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+	if err := os.MkdirAll(stateDir, 0o700); err != nil {
 		return err
 	}
 
 	path := filepath.Join(stateDir, logFileName)
+
+	// Preserve the previous session log for debugging. Best-effort: if the
+	// file doesn't exist yet (first run), Rename returns an error we ignore.
+	_ = os.Rename(path, path+".prev")
+
 	f, err := os.Create(path) // truncates on every startup
 	if err != nil {
 		return err

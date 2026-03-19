@@ -489,6 +489,7 @@ type QueueView struct {
 	saveInput           textinput.Model // current value of the inline save field
 	sortState           SortState
 	displayOrder        []int // nil when sort inactive (identity mapping)
+	filter              filter.State
 }
 
 // recomputeDisplayOrder rebuilds the sorted display index mapping.
@@ -532,6 +533,9 @@ func (v QueueView) Update(_ tea.Msg) (QueueView, tea.Cmd) {
 // Root resolves the raw key to an action via the keybinding registry and calls
 // this method, keeping key-to-action mapping in one authoritative location.
 func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
+	filtered := v.filteredEntries()
+	n := len(filtered)
+
 	switch a {
 	case actionCursorUp:
 		if v.cursor > 0 {
@@ -541,7 +545,7 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 			v.scrollOffset = v.cursor
 		}
 	case actionCursorDown:
-		if v.cursor < len(v.entries)-1 {
+		if v.cursor < n-1 {
 			v.cursor++
 		}
 		maxRows := v.visibleRows()
@@ -560,7 +564,7 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 		v.cursor = 0
 		v.scrollOffset = 0
 	case actionGoToBottom:
-		if n := len(v.entries); n > 0 {
+		if n > 0 {
 			v.cursor = n - 1
 			maxRows := v.visibleRows()
 			if v.cursor >= maxRows {
@@ -568,28 +572,31 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 			}
 		}
 	case actionSelect:
-		if v.cursor >= 0 && v.cursor < len(v.entries) {
-			idx := v.entryIndex(v.cursor)
-			if !v.entries[idx].Missing {
+		if v.cursor >= 0 && v.cursor < n {
+			e := filtered[v.cursor]
+			idx := v.realEntryIndex(e)
+			if !e.Missing {
 				return v, func() tea.Msg { return PlayQueueIndexMsg{Index: idx} }
 			}
 			return v, func() tea.Msg { return MissingTrackSelectedMsg{} }
 		}
 	case actionDequeue:
-		if v.cursor >= 0 && v.cursor < len(v.entries) {
-			idx := v.entryIndex(v.cursor)
+		if v.cursor >= 0 && v.cursor < n {
+			e := filtered[v.cursor]
+			idx := v.realEntryIndex(e)
 			return v, func() tea.Msg { return DequeueTrackMsg{Index: idx} }
 		}
 	case actionBulkSelectionToggle:
-		if v.cursor >= 0 && v.cursor < len(v.entries) {
-			idx := v.entryIndex(v.cursor)
+		if v.cursor >= 0 && v.cursor < n {
+			e := filtered[v.cursor]
+			idx := v.realEntryIndex(e)
 			return v, func() tea.Msg { return BulkSelectionToggleMsg{Index: idx} }
 		}
 	case actionClearQueue:
 		return v, func() tea.Msg { return ClearQueueMsg{} }
 	case actionMoveTrackUp:
-		if v.displayOrder != nil {
-			// Move is disabled when queue is sorted.
+		if v.displayOrder != nil || v.filter.Text != "" {
+			// Move is disabled when queue is sorted or filtered.
 			return v, nil
 		}
 		if v.cursor > 0 {
@@ -597,16 +604,27 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 			return v, func() tea.Msg { return MoveTrackUpMsg{Index: idx} }
 		}
 	case actionMoveTrackDown:
-		if v.displayOrder != nil {
-			// Move is disabled when queue is sorted.
+		if v.displayOrder != nil || v.filter.Text != "" {
+			// Move is disabled when queue is sorted or filtered.
 			return v, nil
 		}
-		if v.cursor < len(v.entries)-1 {
+		if v.cursor < n-1 {
 			idx := v.cursor
 			return v, func() tea.Msg { return MoveTrackDownMsg{Index: idx} }
 		}
 	}
 	return v, nil
+}
+
+// realEntryIndex returns the index of entry e in the underlying v.entries slice.
+// It matches by Path+Hash to handle entries that may appear multiple times.
+func (v QueueView) realEntryIndex(e QueueEntry) int {
+	for i, ee := range v.entries {
+		if ee.Path == e.Path && ee.Hash == e.Hash && ee.ID == e.ID {
+			return i
+		}
+	}
+	return 0
 }
 
 // markMissing marks all entries whose Path matches as missing.
@@ -679,10 +697,86 @@ func (v QueueView) saveInputIsEmpty() bool {
 	return strings.TrimSpace(v.saveInput.Value()) == ""
 }
 
+// ActivateFilter enters filter input mode for the queue view.
+func (v QueueView) ActivateFilter() QueueView {
+	v.filter = v.filter.Activate()
+	return v
+}
+
+// CommitFilter exits input mode while keeping the current query visible.
+func (v QueueView) CommitFilter() QueueView {
+	v.filter = v.filter.Commit()
+	return v
+}
+
+// DeactivateFilter clears the query, exits input mode, and resets the cursor.
+func (v QueueView) DeactivateFilter() QueueView {
+	v.filter = v.filter.Deactivate()
+	v.cursor = 0
+	v.scrollOffset = 0
+	return v
+}
+
+// AppendFilterChar adds ch to the filter text and resets the cursor.
+func (v QueueView) AppendFilterChar(ch rune) QueueView {
+	var changed bool
+	v.filter, changed = v.filter.AppendChar(ch)
+	if changed {
+		v.cursor = 0
+		v.scrollOffset = 0
+	}
+	return v
+}
+
+// BackspaceFilter removes the last rune from the filter text.
+func (v QueueView) BackspaceFilter() QueueView {
+	var changed bool
+	v.filter, changed = v.filter.Backspace()
+	if changed {
+		v.cursor = 0
+		v.scrollOffset = 0
+	}
+	return v
+}
+
+// filteredEntries returns queue entries matching the current filter text,
+// in display order (respecting sort). When no filter is active, all entries
+// are returned in display order.
+func (v QueueView) filteredEntries() []QueueEntry {
+	n := len(v.entries)
+	if n == 0 {
+		return nil
+	}
+
+	// Build display-ordered slice.
+	ordered := make([]QueueEntry, n)
+	for i := range n {
+		idx := i
+		if v.displayOrder != nil {
+			idx = v.displayOrder[i]
+		}
+		ordered[i] = v.entries[idx]
+	}
+
+	if v.filter.Text == "" {
+		return ordered
+	}
+	query := strings.ToLower(v.filter.Text)
+	var result []QueueEntry
+	for _, e := range ordered {
+		if strings.Contains(strings.ToLower(e.Title), query) ||
+			strings.Contains(strings.ToLower(e.Artist), query) ||
+			strings.Contains(strings.ToLower(e.Album), query) {
+			result = append(result, e)
+		}
+	}
+	return result
+}
+
 // moveQueueCursor shifts the cursor by delta rows, clamping to [0, len-1],
 // and adjusts the scroll offset so the cursor stays visible.
 func (v QueueView) moveQueueCursor(delta int) QueueView {
-	n := len(v.entries)
+	n := len(v.filteredEntries())
 	if n == 0 {
 		return v
 	}
@@ -711,7 +805,11 @@ func (v QueueView) visibleRows() int {
 // constant. Missing entries are wrapped in ANSI dim escape codes so they
 // appear grayed out in the terminal.
 func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
-	if len(v.entries) == 0 {
+	entries := v.filteredEntries()
+	if len(entries) == 0 {
+		if v.filter.Text != "" {
+			return "(no matches)"
+		}
 		return "(empty)"
 	}
 
@@ -740,8 +838,8 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 	sourceWidth = max(sourceWidth, 1)
 
 	maxRows := v.visibleRows()
-	start := min(v.scrollOffset, len(v.entries))
-	end := min(len(v.entries), start+maxRows)
+	start := min(v.scrollOffset, len(entries))
+	end := min(len(entries), start+maxRows)
 
 	// Column header row (2-char left margin aligns with the selection marker column).
 	titleHead, artistHead, albumHead, sourceHead, timeHead := "Title", "Artist", "Album", "Source", "Time"
@@ -766,11 +864,7 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 	lines := make([]string, end-start)
 	for i := range end - start {
 		absIdx := start + i
-		entryIdx := absIdx
-		if v.displayOrder != nil {
-			entryIdx = v.displayOrder[absIdx]
-		}
-		e := v.entries[entryIdx]
+		e := entries[absIdx]
 		isFocused := absIdx == v.cursor
 
 		isNowPlaying := currentTrackHash != "" && e.Hash == currentTrackHash
@@ -823,7 +917,19 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 			lines[i] = line
 		}
 	}
-	out := s.ColHead.Render(header) + "\n" + strings.Join(lines, "\n")
+	// Filter bar line (above the column header, matching the pattern of other views).
+	var filterLine string
+	if v.filter.Active {
+		if v.filter.Text == "" {
+			filterLine = "Filter: > \n"
+		} else {
+			filterLine = "Filter: > " + v.filter.Text + "\n"
+		}
+	} else if v.filter.Text != "" {
+		filterLine = "Filter: " + v.filter.Text + "\n"
+	}
+
+	out := filterLine + s.ColHead.Render(header) + "\n" + strings.Join(lines, "\n")
 	if v.savingAsPlaylist {
 		prompt := "Save as playlist: "
 		if v.savingFromSelection {

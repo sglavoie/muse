@@ -46,6 +46,7 @@ func walkAudioPaths(root string, visit func(path string) error) error {
 				return nil
 			}
 			if info.IsDir() {
+				slog.Warn("skipping symlinked directory (not followed)", "path", path)
 				return nil
 			}
 			if isAudioFile(info.Name()) {

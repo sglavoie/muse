@@ -288,6 +288,7 @@ func (m Model) handleClearQueueMsg() Model {
 	m.queue.entries = nil
 	m.queue.cursor = 0
 	m.queue.scrollOffset = 0
+	m.queue.filter = m.queue.filter.Deactivate()
 	m = m.resetQueueSort()
 	m = m.resetPlaybackState()
 	if qs, ok := m.player.(playerQueueSetter); ok {

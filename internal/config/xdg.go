@@ -30,7 +30,7 @@ func ResolveDirs() (Dirs, error) {
 		Config:  filepath.Join(resolveConfigHome(home), appName),
 		Data:    filepath.Join(resolveDataHome(home), appName),
 		State:   filepath.Join(resolveStateHome(home), appName),
-		Runtime: filepath.Join(resolveRuntimeDir(), appName),
+		Runtime: ResolveRuntimeDir(),
 	}, nil
 }
 
@@ -62,10 +62,11 @@ func resolveStateHome(home string) string {
 	return filepath.Join(home, ".local", "state")
 }
 
-// resolveRuntimeDir returns $XDG_RUNTIME_DIR, falling back to a temp-based path.
-func resolveRuntimeDir() string {
+// ResolveRuntimeDir returns the full runtime directory path for the
+// application ($XDG_RUNTIME_DIR/muse or a temp-based fallback).
+func ResolveRuntimeDir() string {
 	if v := os.Getenv("XDG_RUNTIME_DIR"); v != "" {
-		return v
+		return filepath.Join(v, appName)
 	}
-	return filepath.Join(os.TempDir(), appName+"-runtime")
+	return filepath.Join(os.TempDir(), appName+"-runtime", appName)
 }

@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -73,6 +74,7 @@ func Load(configDir string) (Config, bool, error) {
 	var raw rawConfig
 	if _, err := toml.DecodeFile(path, &raw); err != nil {
 		slog.Warn("failed to parse config file, using defaults", "path", path, "error", err)
+		fmt.Fprintf(os.Stderr, "muse: warning: failed to parse %s: %v (using defaults)\n", path, err)
 		return cfg, false, nil
 	}
 

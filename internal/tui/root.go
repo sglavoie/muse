@@ -599,6 +599,10 @@ type Model struct {
 	elapsedSecs float64
 	totalSecs   float64
 
+	// runtimeDir is the XDG_RUNTIME_DIR-based directory for ephemeral sockets
+	// (e.g. preview player). Set via SetRuntimeDir before tea.NewProgram.
+	runtimeDir string
+
 	// styles holds the current lipgloss style set. Initialized to dark-safe
 	// defaults in New(); replaced on tea.BackgroundColorMsg once the terminal
 	// reports its actual background color.
@@ -802,6 +806,14 @@ func (m *Model) SetPlaylistAdder(a playlistTrackAdder) {
 // tea.NewProgram. When nil, 'E' in the playlists view is a no-op.
 func (m *Model) SetBatchEnqueuer(be batchEnqueuer) {
 	m.batchEnqueuer = be
+}
+
+// SetRuntimeDir sets the runtime directory used for ephemeral sockets (e.g.
+// the preview player socket). Call this on the Model returned by New before
+// passing it to tea.NewProgram. When empty, the preview socket falls back to
+// os.TempDir().
+func (m *Model) SetRuntimeDir(dir string) {
+	m.runtimeDir = dir
 }
 
 // undoWindowDuration is the time after a destructive queue action during which
