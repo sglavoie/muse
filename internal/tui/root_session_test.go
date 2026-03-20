@@ -16,9 +16,9 @@ func TestPauseEmitsSessionPositionWriteCmd(t *testing.T) {
 	sw := &stubSessionWriter{}
 	m := New(context.Background(), WithPlayer(p))
 	m.SetSessionWriter(sw)
-	m.playbackState = PlaybackPlaying
-	m.currentTrackHash = "abc123"
-	m.elapsedSecs = 42.5 // 42500 ms
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "abc123"
+	m.playback.elapsedSecs = 42.5 // 42500 ms
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeySpace})
 	if cmd == nil {
@@ -41,7 +41,7 @@ func TestPauseEmitsSessionPositionWriteCmd(t *testing.T) {
 func TestPauseWithoutSessionWriterReturnsNilCmd(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playbackState = PlaybackPlaying
+	m.playback.state = PlaybackPlaying
 	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track"}}
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeySpace})
@@ -70,8 +70,8 @@ func TestSeekEmitsSessionPositionWriteCmd(t *testing.T) {
 			sw := &stubSessionWriter{}
 			m := New(context.Background(), WithPlayer(p))
 			m.SetSessionWriter(sw)
-			m.currentTrackHash = "seekhash"
-			m.elapsedSecs = 10.0 // 10000 ms
+			m.playback.currentHash = "seekhash"
+			m.playback.elapsedSecs = 10.0 // 10000 ms
 
 			_, cmd := m.Update(tc.msg)
 			if cmd == nil {
@@ -98,7 +98,7 @@ func TestTrackChangedMsgEmitsSessionPositionWriteCmd(t *testing.T) {
 	sw := &stubSessionWriter{}
 	m := New(context.Background())
 	m.SetSessionWriter(sw)
-	m.elapsedSecs = 99.0 // must be reset to 0 before the cmd captures position
+	m.playback.elapsedSecs = 99.0 // must be reset to 0 before the cmd captures position
 
 	_, cmd := m.Update(TrackChangedMsg{
 		Artist: "Artist",
@@ -129,8 +129,8 @@ func TestTrackChangedMsgStoresCurrentTrackHash(t *testing.T) {
 	next, _ := m.Update(TrackChangedMsg{Artist: "A", Title: "T", Hash: "testhash"})
 	nm := next.(Model)
 
-	if nm.currentTrackHash != "testhash" {
-		t.Fatalf("expected currentTrackHash %q, got %q", "testhash", nm.currentTrackHash)
+	if nm.playback.currentHash != "testhash" {
+		t.Fatalf("expected currentTrackHash %q, got %q", "testhash", nm.playback.currentHash)
 	}
 }
 
@@ -166,9 +166,9 @@ func TestSessionTickMsgWritesPositionWhenPlaying(t *testing.T) {
 	sw := &stubSessionWriter{}
 	m := New(context.Background())
 	m.SetSessionWriter(sw)
-	m.playbackState = PlaybackPlaying
-	m.currentTrackHash = "abc123"
-	m.elapsedSecs = 45.5 // 45500 ms
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "abc123"
+	m.playback.elapsedSecs = 45.5 // 45500 ms
 
 	_, cmd := m.Update(sessionTickMsg{})
 	if cmd == nil {
@@ -222,9 +222,9 @@ func TestSessionTickMsgSkipsWriteWhenNotPlaying(t *testing.T) {
 		sw := &stubSessionWriter{}
 		m := New(context.Background())
 		m.SetSessionWriter(sw)
-		m.playbackState = state
-		m.currentTrackHash = "abc123"
-		m.elapsedSecs = 30.0
+		m.playback.state = state
+		m.playback.currentHash = "abc123"
+		m.playback.elapsedSecs = 30.0
 
 		_, cmd := m.Update(sessionTickMsg{})
 		if cmd == nil {

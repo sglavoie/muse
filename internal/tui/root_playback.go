@@ -14,11 +14,11 @@ import (
 // handleTickMsg updates elapsed time for the main player, preview player, and
 // now-playing overlay, and clears expired status bar notifications.
 func (m Model) handleTickMsg() (Model, tea.Cmd) {
-	if m.playbackState == PlaybackPlaying || m.playbackState == PlaybackPaused {
+	if m.playback.state == PlaybackPlaying || m.playback.state == PlaybackPaused {
 		if er, ok := m.player.(elapsedReader); ok {
 			if elapsed, total, err := er.ElapsedPosition(); err == nil {
-				m.elapsedSecs = elapsed
-				m.totalSecs = total
+				m.playback.elapsedSecs = elapsed
+				m.playback.totalSecs = total
 			}
 		}
 	}
@@ -32,9 +32,9 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 		}
 	}
 	if m.nowPlayingInfo != nil {
-		m.nowPlayingInfo.elapsed = m.elapsedSecs
-		m.nowPlayingInfo.total = m.totalSecs
-		m.nowPlayingInfo.state = m.playbackState
+		m.nowPlayingInfo.elapsed = m.playback.elapsedSecs
+		m.nowPlayingInfo.total = m.playback.totalSecs
+		m.nowPlayingInfo.state = m.playback.state
 	}
 	if !m.statusBar.notification.expiresAt.IsZero() && time.Now().After(m.statusBar.notification.expiresAt) {
 		m.statusBar.notification = transientNotification{}
@@ -56,7 +56,7 @@ func (m Model) handleSyncPositionMsg() (Model, tea.Cmd) {
 // handleSessionTickMsg fires a periodic session position update when playing.
 func (m Model) handleSessionTickMsg() (Model, tea.Cmd) {
 	var cmd tea.Cmd
-	if m.playbackState == PlaybackPlaying {
+	if m.playback.state == PlaybackPlaying {
 		cmd = m.sessionPositionCmd()
 	}
 	return m, tea.Batch(sessionTickCmd(), cmd)
@@ -84,28 +84,28 @@ func (m Model) handleMissingTrackMsg(msg MissingTrackMsg) Model {
 // handlePlaybackEndedMsg handles the end of the play queue, optionally
 // wrapping around in repeat-all mode.
 func (m Model) handlePlaybackEndedMsg() Model {
-	if m.repeatMode == RepeatAll && len(m.queue.entries) > 0 && m.player != nil {
+	if m.playback.repeatMode == RepeatAll && len(m.queue.entries) > 0 && m.player != nil {
 		if err := m.player.PlayFromIndex(0); err == nil {
-			m.playbackState = PlaybackPlaying
+			m.playback.state = PlaybackPlaying
 			e := m.queue.entries[0]
-			m.currentTrackHash = e.Hash
+			m.playback.currentHash = e.Hash
 			m.statusBar.artist = e.Artist
 			m.statusBar.title = e.Title
 			m.statusBar.playlistSource = "Queue"
-			m.elapsedSecs = 0
-			m.totalSecs = 0
+			m.playback.elapsedSecs = 0
+			m.playback.totalSecs = 0
 			return m
 		}
 		slog.Warn("repeat-all playback failed", "err", "PlayFromIndex(0)")
 	}
-	m.playbackState = PlaybackIdle
-	m.elapsedSecs = 0
-	m.totalSecs = 0
+	m.playback.state = PlaybackIdle
+	m.playback.elapsedSecs = 0
+	m.playback.totalSecs = 0
 	m.statusBar.artist = ""
 	m.statusBar.title = ""
 	m.statusBar.playlistSource = ""
-	m.currentTrackHash = ""
-	if m.repeatMode == RepeatOff {
+	m.playback.currentHash = ""
+	if m.playback.repeatMode == RepeatOff {
 		msg := "Queue finished"
 		if m.missingTrackCount > 0 {
 			msg = fmt.Sprintf("Queue finished (%d %s skipped — missing files)",
@@ -126,13 +126,13 @@ func (m Model) handlePlaybackEndedMsg() Model {
 // TUI already updated → mpv confirms via event → no-op).
 func (m Model) handlePauseChangedMsg(msg PauseChangedMsg) (Model, tea.Cmd) {
 	if msg.Paused {
-		if m.playbackState == PlaybackPlaying {
-			m.playbackState = PlaybackPaused
+		if m.playback.state == PlaybackPlaying {
+			m.playback.state = PlaybackPaused
 			return m, m.sessionPositionCmd()
 		}
 	} else {
-		if m.playbackState == PlaybackPaused || m.playbackState == PlaybackStopped {
-			m.playbackState = PlaybackPlaying
+		if m.playback.state == PlaybackPaused || m.playback.state == PlaybackStopped {
+			m.playback.state = PlaybackPlaying
 		}
 	}
 	return m, nil
@@ -155,7 +155,7 @@ func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
 	// Resume main player if we paused it.
 	if m.previewWasPlaying && m.player != nil {
 		_ = m.player.Play()
-		m.playbackState = PlaybackPlaying
+		m.playback.state = PlaybackPlaying
 	}
 	m.previewWasPlaying = false
 	return m
@@ -164,7 +164,7 @@ func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
 // handleTrackChangedMsg updates the status bar and playback state when the
 // player advances to a new track.
 func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
-	m.currentTrackHash = msg.Hash
+	m.playback.currentHash = msg.Hash
 	m.statusBar.artist = msg.Artist
 	m.statusBar.title = msg.Title
 	source := msg.PlaylistSource
@@ -172,9 +172,9 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 		source = "Queue"
 	}
 	m.statusBar.playlistSource = source
-	m.playbackState = PlaybackPlaying
-	m.elapsedSecs = 0
-	m.totalSecs = 0
+	m.playback.state = PlaybackPlaying
+	m.playback.elapsedSecs = 0
+	m.playback.totalSecs = 0
 	return m, m.sessionPositionCmd()
 }
 
@@ -217,7 +217,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			m.nowPlayingInfo = nil
 			return m, nil, true
 		}
-		if m.playbackState == PlaybackStopped || m.playbackState == PlaybackIdle {
+		if m.playback.state == PlaybackStopped || m.playback.state == PlaybackIdle {
 			m.statusBar.notification = transientNotification{
 				msg:       "No track playing",
 				expiresAt: time.Now().Add(transientDuration),
@@ -227,15 +227,15 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		overlay := NowPlayingOverlay{
 			artist:  m.statusBar.artist,
 			title:   m.statusBar.title,
-			elapsed: m.elapsedSecs,
-			total:   m.totalSecs,
-			state:   m.playbackState,
+			elapsed: m.playback.elapsedSecs,
+			total:   m.playback.totalSecs,
+			state:   m.playback.state,
 		}
 		// Enrich from library index — the status bar fields may be empty
 		// after a session restore, but the hash is always set.
-		if m.currentTrackHash != "" {
+		if m.playback.currentHash != "" {
 			for _, t := range m.library.index.Tracks() {
-				if t.Hash == m.currentTrackHash {
+				if t.Hash == m.playback.currentHash {
 					if overlay.artist == "" {
 						overlay.artist = t.Artist
 					}
@@ -262,32 +262,32 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			}
 			return m, nil, true
 		}
-		m.previewWasPlaying = m.playbackState == PlaybackPlaying
+		m.previewWasPlaying = m.playback.state == PlaybackPlaying
 		if m.previewWasPlaying && m.player != nil {
 			_ = m.player.Pause()
-			m.playbackState = PlaybackPaused
+			m.playback.state = PlaybackPaused
 		}
 		return m, m.startPreviewCmd(track), true
 	case actionPlayPause:
 		if m.player != nil {
-			if m.playbackState == PlaybackPlaying {
+			if m.playback.state == PlaybackPlaying {
 				_ = m.player.Pause()
-				m.playbackState = PlaybackPaused
+				m.playback.state = PlaybackPaused
 				return m, m.sessionPositionCmd(), true
 			} else if len(m.queue.entries) == 0 {
 				return m, nil, true
 			} else {
 				_ = m.player.Play()
-				m.playbackState = PlaybackPlaying
+				m.playback.state = PlaybackPlaying
 			}
 		}
 		return m, nil, true
 	case actionStop:
 		if cp, ok := m.player.(commandPlayer); ok {
 			_ = cp.Stop()
-			m.playbackState = PlaybackStopped
-			m.elapsedSecs = 0
-			m.totalSecs = 0
+			m.playback.state = PlaybackStopped
+			m.playback.elapsedSecs = 0
+			m.playback.totalSecs = 0
 		}
 		return m, nil, true
 	case actionNext:
@@ -327,9 +327,9 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 	case actionVolumeUp:
 		if cp, ok := m.player.(commandPlayer); ok {
 			_ = cp.SetVolumeRelative(volumeIncrement)
-			m.volume = clampVolume(m.volume + volumeIncrement)
+			m.playback.volume = clampVolume(m.playback.volume + volumeIncrement)
 			m.statusBar.notification = transientNotification{
-				msg:       fmt.Sprintf("Volume: %d%%", m.volume),
+				msg:       fmt.Sprintf("Volume: %d%%", m.playback.volume),
 				expiresAt: time.Now().Add(volumeFeedbackDuration),
 			}
 		}
@@ -337,30 +337,30 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 	case actionVolumeDown:
 		if cp, ok := m.player.(commandPlayer); ok {
 			_ = cp.SetVolumeRelative(-volumeIncrement)
-			m.volume = clampVolume(m.volume - volumeIncrement)
+			m.playback.volume = clampVolume(m.playback.volume - volumeIncrement)
 			m.statusBar.notification = transientNotification{
-				msg:       fmt.Sprintf("Volume: %d%%", m.volume),
+				msg:       fmt.Sprintf("Volume: %d%%", m.playback.volume),
 				expiresAt: time.Now().Add(volumeFeedbackDuration),
 			}
 		}
 		return m, nil, true
 	case actionRepeatCycle:
-		switch m.repeatMode {
+		switch m.playback.repeatMode {
 		case RepeatOff:
-			m.repeatMode = RepeatAll
+			m.playback.repeatMode = RepeatAll
 		case RepeatAll:
-			m.repeatMode = RepeatOne
+			m.playback.repeatMode = RepeatOne
 		case RepeatOne:
-			m.repeatMode = RepeatOff
+			m.playback.repeatMode = RepeatOff
 		}
 		if rs, ok := m.player.(repeatShuffler); ok {
-			_ = rs.SetRepeat(m.repeatMode.String())
+			_ = rs.SetRepeat(m.playback.repeatMode.String())
 		}
 		if m.sessionWriter != nil {
-			_ = m.sessionWriter.WriteRepeatMode(m.repeatMode.String())
+			_ = m.sessionWriter.WriteRepeatMode(m.playback.repeatMode.String())
 		}
 		var modeStr string
-		switch m.repeatMode {
+		switch m.playback.repeatMode {
 		case RepeatOff:
 			modeStr = "off"
 		case RepeatAll:
@@ -374,15 +374,15 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		}
 		return m, nil, true
 	case actionShuffleToggle:
-		m.shuffle = !m.shuffle
+		m.playback.shuffle = !m.playback.shuffle
 		if rs, ok := m.player.(repeatShuffler); ok {
-			_ = rs.SetShuffle(m.shuffle)
+			_ = rs.SetShuffle(m.playback.shuffle)
 		}
 		if m.sessionWriter != nil {
-			_ = m.sessionWriter.WriteShuffle(m.shuffle)
+			_ = m.sessionWriter.WriteShuffle(m.playback.shuffle)
 		}
 		label := "off"
-		if m.shuffle {
+		if m.playback.shuffle {
 			label = "on"
 		}
 		m.statusBar.notification = transientNotification{
@@ -462,7 +462,7 @@ func (m Model) dismissPreview() Model {
 	m.previewPlayer = nil
 	if m.previewWasPlaying && m.player != nil {
 		_ = m.player.Play()
-		m.playbackState = PlaybackPlaying
+		m.playback.state = PlaybackPlaying
 	}
 	m.previewWasPlaying = false
 	return m

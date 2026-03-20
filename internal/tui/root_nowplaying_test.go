@@ -12,12 +12,12 @@ import (
 func setupPlayingModel(t *testing.T) Model {
 	t.Helper()
 	m := New(context.Background())
-	m.playbackState = PlaybackPlaying
+	m.playback.state = PlaybackPlaying
 	m.statusBar.artist = "Test Artist"
 	m.statusBar.title = "Test Song"
-	m.elapsedSecs = 30
-	m.totalSecs = 180
-	m.currentTrackHash = "h1"
+	m.playback.elapsedSecs = 30
+	m.playback.totalSecs = 180
+	m.playback.currentHash = "h1"
 	m.library.index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "Test Artist", Title: "Test Song", Album: "Test Album",
 	})
@@ -59,7 +59,7 @@ func TestNowPlayingKeyShowsOverlay(t *testing.T) {
 // no track is playing shows a notification.
 func TestNowPlayingKeyIdleShowsNotification(t *testing.T) {
 	m := New(context.Background())
-	m.playbackState = PlaybackIdle
+	m.playback.state = PlaybackIdle
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'I', Text: "I"})
 	nm := next.(Model)
@@ -79,7 +79,7 @@ func TestNowPlayingKeyIdleShowsNotification(t *testing.T) {
 // playback is stopped shows a notification.
 func TestNowPlayingKeyStoppedShowsNotification(t *testing.T) {
 	m := New(context.Background())
-	m.playbackState = PlaybackStopped
+	m.playback.state = PlaybackStopped
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'I', Text: "I"})
 	nm := next.(Model)
@@ -146,9 +146,9 @@ func TestNowPlayingSwallowsKeys(t *testing.T) {
 func TestNowPlayingTickUpdates(t *testing.T) {
 	m := New(context.Background())
 	m.nowPlayingInfo = &NowPlayingOverlay{artist: "A", title: "T", state: PlaybackPlaying}
-	m.elapsedSecs = 45.5
-	m.totalSecs = 200.0
-	m.playbackState = PlaybackPaused
+	m.playback.elapsedSecs = 45.5
+	m.playback.totalSecs = 200.0
+	m.playback.state = PlaybackPaused
 
 	next, _ := m.Update(tickMsg{})
 	nm := next.(Model)
@@ -211,10 +211,10 @@ func TestNowPlayingOverlayRenderedInView(t *testing.T) {
 // from the library index when statusBar fields are empty (session restore case).
 func TestNowPlayingSessionRestore(t *testing.T) {
 	m := New(context.Background())
-	m.playbackState = PlaybackPaused
-	m.currentTrackHash = "h1"
-	m.elapsedSecs = 10
-	m.totalSecs = 300
+	m.playback.state = PlaybackPaused
+	m.playback.currentHash = "h1"
+	m.playback.elapsedSecs = 10
+	m.playback.totalSecs = 300
 	// statusBar.artist and statusBar.title are intentionally empty (session restore).
 	m.library.index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "Restored Artist", Title: "Restored Song", Album: "Restored Album",

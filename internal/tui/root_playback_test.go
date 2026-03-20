@@ -107,36 +107,36 @@ func TestModelPlaybackStateTransitions(t *testing.T) {
 		{Path: "/a.flac", Display: "Artist – Song", Artist: "Artist", Title: "Song"},
 	}
 
-	if m.playbackState != PlaybackIdle {
-		t.Fatalf("initial: expected PlaybackIdle, got %v", m.playbackState)
+	if m.playback.state != PlaybackIdle {
+		t.Fatalf("initial: expected PlaybackIdle, got %v", m.playback.state)
 	}
 
 	// PlayQueueIndexMsg → playing.
 	next, _ := m.Update(PlayQueueIndexMsg{Index: 0})
 	nm := next.(Model)
-	if nm.playbackState != PlaybackPlaying {
-		t.Fatalf("after PlayQueueIndexMsg: expected PlaybackPlaying, got %v", nm.playbackState)
+	if nm.playback.state != PlaybackPlaying {
+		t.Fatalf("after PlayQueueIndexMsg: expected PlaybackPlaying, got %v", nm.playback.state)
 	}
 
 	// Space while playing → paused.
 	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeySpace})
 	nm = next.(Model)
-	if nm.playbackState != PlaybackPaused {
-		t.Fatalf("space (playing→paused): expected PlaybackPaused, got %v", nm.playbackState)
+	if nm.playback.state != PlaybackPaused {
+		t.Fatalf("space (playing→paused): expected PlaybackPaused, got %v", nm.playback.state)
 	}
 
 	// Space while paused → playing.
 	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeySpace})
 	nm = next.(Model)
-	if nm.playbackState != PlaybackPlaying {
-		t.Fatalf("space (paused→playing): expected PlaybackPlaying, got %v", nm.playbackState)
+	if nm.playback.state != PlaybackPlaying {
+		t.Fatalf("space (paused→playing): expected PlaybackPlaying, got %v", nm.playback.state)
 	}
 
 	// PlaybackEndedMsg → idle.
 	next, _ = nm.Update(PlaybackEndedMsg{})
 	nm = next.(Model)
-	if nm.playbackState != PlaybackIdle {
-		t.Fatalf("after PlaybackEndedMsg: expected PlaybackIdle, got %v", nm.playbackState)
+	if nm.playback.state != PlaybackIdle {
+		t.Fatalf("after PlaybackEndedMsg: expected PlaybackIdle, got %v", nm.playback.state)
 	}
 }
 
@@ -145,12 +145,12 @@ func TestModelPlaybackStateTransitions(t *testing.T) {
 func TestModelStopKeyTransitionsToStopped(t *testing.T) {
 	p := &stubCommandPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playbackState = PlaybackPlaying
+	m.playback.state = PlaybackPlaying
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 's', Text: "s"})
 	nm := next.(Model)
-	if nm.playbackState != PlaybackStopped {
-		t.Fatalf("s key: expected PlaybackStopped, got %v", nm.playbackState)
+	if nm.playback.state != PlaybackStopped {
+		t.Fatalf("s key: expected PlaybackStopped, got %v", nm.playback.state)
 	}
 	if p.stopCalls != 1 {
 		t.Fatalf("s key: expected 1 Stop() call, got %d", p.stopCalls)
@@ -163,7 +163,7 @@ func TestModelStopKeyTransitionsToStopped(t *testing.T) {
 func TestTrackEnqueuedMsgStartsPlaybackWhenQueueWasEmpty(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playbackState = PlaybackIdle
+	m.playback.state = PlaybackIdle
 	// Pre-seed one queue entry so the model knows what to display.
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "Alice – Song One", Artist: "Alice", Title: "Song One"},
@@ -177,8 +177,8 @@ func TestTrackEnqueuedMsgStartsPlaybackWhenQueueWasEmpty(t *testing.T) {
 	if cmd != nil {
 		t.Fatalf("TrackEnqueuedMsg must not return a follow-up cmd, got %T", cmd)
 	}
-	if nm.playbackState != PlaybackPlaying {
-		t.Fatalf("expected playbackState PlaybackPlaying, got %v", nm.playbackState)
+	if nm.playback.state != PlaybackPlaying {
+		t.Fatalf("expected playbackState PlaybackPlaying, got %v", nm.playback.state)
 	}
 	if len(p.playFromIndexCalls) != 1 || p.playFromIndexCalls[0] != 0 {
 		t.Fatalf("expected PlayFromIndex(0), got calls=%v", p.playFromIndexCalls)
@@ -191,7 +191,7 @@ func TestTrackEnqueuedMsgStartsPlaybackWhenQueueWasEmpty(t *testing.T) {
 func TestTrackEnqueuedMsgDoesNotStartPlaybackWhenQueueWasNonEmpty(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playbackState = PlaybackIdle
+	m.playback.state = PlaybackIdle
 
 	track := library.Track{Artist: "Bob", Title: "Track Two", Path: "/music/b.flac"}
 	msg := libtui.TrackEnqueuedMsg{Track: track, QueueID: 2, WasEmpty: false}
@@ -201,8 +201,8 @@ func TestTrackEnqueuedMsgDoesNotStartPlaybackWhenQueueWasNonEmpty(t *testing.T) 
 	if len(p.playFromIndexCalls) != 0 {
 		t.Fatalf("expected no PlayFromIndex call when WasEmpty=false, got calls=%v", p.playFromIndexCalls)
 	}
-	if nm.playbackState != PlaybackIdle {
-		t.Fatalf("expected playbackState PlaybackIdle (unchanged), got %v", nm.playbackState)
+	if nm.playback.state != PlaybackIdle {
+		t.Fatalf("expected playbackState PlaybackIdle (unchanged), got %v", nm.playback.state)
 	}
 }
 
@@ -236,7 +236,7 @@ func TestTrackEnqueuedMsgWithErrorShowsNotification(t *testing.T) {
 func TestClearQueueMsgStopsPlaybackAndTransitionsToIdle(t *testing.T) {
 	p := &stubCommandPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playbackState = PlaybackPlaying
+	m.playback.state = PlaybackPlaying
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Path: "/music/a.flac", Display: "A"},
 	}
@@ -244,8 +244,8 @@ func TestClearQueueMsgStopsPlaybackAndTransitionsToIdle(t *testing.T) {
 	next, _ := m.Update(ClearQueueMsg{})
 	nm := next.(Model)
 
-	if nm.playbackState != PlaybackIdle {
-		t.Fatalf("ClearQueueMsg: expected PlaybackIdle, got %v", nm.playbackState)
+	if nm.playback.state != PlaybackIdle {
+		t.Fatalf("ClearQueueMsg: expected PlaybackIdle, got %v", nm.playback.state)
 	}
 	if p.stopCalls != 1 {
 		t.Fatalf("ClearQueueMsg: expected 1 Stop() call, got %d", p.stopCalls)
@@ -258,7 +258,7 @@ func TestClearQueueMsgStopsPlaybackAndTransitionsToIdle(t *testing.T) {
 func TestClearQueueMsgResetsScrollOffset(t *testing.T) {
 	p := &stubCommandPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playbackState = PlaybackPlaying
+	m.playback.state = PlaybackPlaying
 	m.queue.entries = make([]QueueEntry, 50)
 	for i := range m.queue.entries {
 		m.queue.entries[i] = QueueEntry{ID: int64(i + 1), Display: "Track"}
@@ -281,8 +281,8 @@ func TestPlaybackEndedMsgRepeatAllRestartsQueue(t *testing.T) {
 	sw := &stubSessionWriter{}
 	m := New(context.Background(), WithPlayer(p))
 	m.SetSessionWriter(sw)
-	m.playbackState = PlaybackPlaying
-	m.repeatMode = RepeatAll
+	m.playback.state = PlaybackPlaying
+	m.playback.repeatMode = RepeatAll
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Path: "/a.flac", Display: "A – One", Artist: "A", Title: "One"},
 		{ID: 2, Path: "/b.flac", Display: "B – Two", Artist: "B", Title: "Two"},
@@ -291,8 +291,8 @@ func TestPlaybackEndedMsgRepeatAllRestartsQueue(t *testing.T) {
 	next, cmd := m.Update(PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playbackState != PlaybackPlaying {
-		t.Fatalf("RepeatAll + PlaybackEndedMsg: expected PlaybackPlaying, got %v", nm.playbackState)
+	if nm.playback.state != PlaybackPlaying {
+		t.Fatalf("RepeatAll + PlaybackEndedMsg: expected PlaybackPlaying, got %v", nm.playback.state)
 	}
 	if len(p.playFromIndexCalls) != 1 || p.playFromIndexCalls[0] != 0 {
 		t.Fatalf("RepeatAll + PlaybackEndedMsg: expected PlayFromIndex(0), got calls=%v", p.playFromIndexCalls)
@@ -313,9 +313,9 @@ func TestPlaybackEndedMsgRepeatAllUpdatesCurrentTrackHash(t *testing.T) {
 	sw := &stubSessionWriter{}
 	m := New(context.Background(), WithPlayer(p))
 	m.SetSessionWriter(sw)
-	m.playbackState = PlaybackPlaying
-	m.repeatMode = RepeatAll
-	m.currentTrackHash = "old-hash-last-track"
+	m.playback.state = PlaybackPlaying
+	m.playback.repeatMode = RepeatAll
+	m.playback.currentHash = "old-hash-last-track"
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "hash-first", Path: "/a.flac", Display: "A", Artist: "A", Title: "One"},
 		{ID: 2, Hash: "hash-second", Path: "/b.flac", Display: "B", Artist: "B", Title: "Two"},
@@ -324,8 +324,8 @@ func TestPlaybackEndedMsgRepeatAllUpdatesCurrentTrackHash(t *testing.T) {
 	next, cmd := m.Update(PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.currentTrackHash != "hash-first" {
-		t.Fatalf("RepeatAll wrap: expected currentTrackHash=%q, got %q", "hash-first", nm.currentTrackHash)
+	if nm.playback.currentHash != "hash-first" {
+		t.Fatalf("RepeatAll wrap: expected currentTrackHash=%q, got %q", "hash-first", nm.playback.currentHash)
 	}
 	// Execute the session-position cmd and verify the hash it persists.
 	if cmd == nil {
@@ -347,7 +347,7 @@ func TestPlaybackEndedMsgRepeatAllUpdatesCurrentTrackHash(t *testing.T) {
 func TestPlayQueueIndexMsgUpdatesCurrentTrackHash(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.currentTrackHash = "stale-hash"
+	m.playback.currentHash = "stale-hash"
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "hash-a", Path: "/a.flac", Display: "A", Artist: "A", Title: "One"},
 		{ID: 2, Hash: "hash-b", Path: "/b.flac", Display: "B", Artist: "B", Title: "Two"},
@@ -356,8 +356,8 @@ func TestPlayQueueIndexMsgUpdatesCurrentTrackHash(t *testing.T) {
 	next, _ := m.Update(PlayQueueIndexMsg{Index: 1})
 	nm := next.(Model)
 
-	if nm.currentTrackHash != "hash-b" {
-		t.Fatalf("PlayQueueIndexMsg: expected currentTrackHash=%q, got %q", "hash-b", nm.currentTrackHash)
+	if nm.playback.currentHash != "hash-b" {
+		t.Fatalf("PlayQueueIndexMsg: expected currentTrackHash=%q, got %q", "hash-b", nm.playback.currentHash)
 	}
 }
 
@@ -367,7 +367,7 @@ func TestPlayQueueIndexMsgUpdatesCurrentTrackHash(t *testing.T) {
 func TestTrackEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playbackState = PlaybackIdle
+	m.playback.state = PlaybackIdle
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "hash-x", Path: "/x.flac", Display: "X", Artist: "X", Title: "Song"},
 	}
@@ -377,8 +377,8 @@ func TestTrackEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 	next, _ := m.Update(msg)
 	nm := next.(Model)
 
-	if nm.currentTrackHash != "hash-x" {
-		t.Fatalf("auto-play enqueue: expected currentTrackHash=%q, got %q", "hash-x", nm.currentTrackHash)
+	if nm.playback.currentHash != "hash-x" {
+		t.Fatalf("auto-play enqueue: expected currentTrackHash=%q, got %q", "hash-x", nm.playback.currentHash)
 	}
 }
 
@@ -388,7 +388,7 @@ func TestTrackEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 func TestBatchEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playbackState = PlaybackIdle
+	m.playback.state = PlaybackIdle
 
 	entries := []QueueEntry{
 		{ID: 10, Hash: "hash-p", Path: "/p.flac", Display: "P", Artist: "P", Title: "Song"},
@@ -403,8 +403,8 @@ func TestBatchEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 	next, _ := m.Update(msg)
 	nm := next.(Model)
 
-	if nm.currentTrackHash != "hash-p" {
-		t.Fatalf("batch auto-play: expected currentTrackHash=%q, got %q", "hash-p", nm.currentTrackHash)
+	if nm.playback.currentHash != "hash-p" {
+		t.Fatalf("batch auto-play: expected currentTrackHash=%q, got %q", "hash-p", nm.playback.currentHash)
 	}
 }
 
@@ -413,15 +413,15 @@ func TestBatchEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 func TestPlaybackEndedMsgRepeatAllEmptyQueueGoesIdle(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playbackState = PlaybackPlaying
-	m.repeatMode = RepeatAll
+	m.playback.state = PlaybackPlaying
+	m.playback.repeatMode = RepeatAll
 	m.queue.entries = nil
 
 	next, _ := m.Update(PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playbackState != PlaybackIdle {
-		t.Fatalf("RepeatAll + empty queue: expected PlaybackIdle, got %v", nm.playbackState)
+	if nm.playback.state != PlaybackIdle {
+		t.Fatalf("RepeatAll + empty queue: expected PlaybackIdle, got %v", nm.playback.state)
 	}
 	if len(p.playFromIndexCalls) != 0 {
 		t.Fatalf("RepeatAll + empty queue: expected no PlayFromIndex calls, got %v", p.playFromIndexCalls)
@@ -433,14 +433,14 @@ func TestPlaybackEndedMsgRepeatAllEmptyQueueGoesIdle(t *testing.T) {
 func TestPlaybackEndedMsgRepeatOffShowsNotification(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playbackState = PlaybackPlaying
-	m.repeatMode = RepeatOff
+	m.playback.state = PlaybackPlaying
+	m.playback.repeatMode = RepeatOff
 
 	next, _ := m.Update(PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playbackState != PlaybackIdle {
-		t.Fatalf("RepeatOff + PlaybackEndedMsg: expected PlaybackIdle, got %v", nm.playbackState)
+	if nm.playback.state != PlaybackIdle {
+		t.Fatalf("RepeatOff + PlaybackEndedMsg: expected PlaybackIdle, got %v", nm.playback.state)
 	}
 	if !strings.Contains(nm.statusBar.notification.msg, "Queue finished") {
 		t.Fatalf("RepeatOff + PlaybackEndedMsg: expected 'Queue finished' notification, got %q", nm.statusBar.notification.msg)

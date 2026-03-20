@@ -784,7 +784,7 @@ func TestDequeueTrackMsgDoesNotCallStop(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			p := &stubPlayerQueueRemover{}
 			m := New(context.Background(), WithPlayer(p))
-			m.playbackState = tc.state
+			m.playback.state = tc.state
 			m.queue.entries = []QueueEntry{
 				{ID: 10, Path: "/music/a.flac", Display: "A"},
 				{ID: 20, Path: "/music/b.flac", Display: "B"},
@@ -1146,8 +1146,8 @@ func TestClearQueueClearsStatusBarTrackInfo(t *testing.T) {
 	m.statusBar.artist = "Old Artist"
 	m.statusBar.title = "Old Title"
 	m.statusBar.playlistSource = "Old Playlist"
-	m.currentTrackHash = "oldhash"
-	m.playbackState = PlaybackPlaying
+	m.playback.currentHash = "oldhash"
+	m.playback.state = PlaybackPlaying
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/a.flac", Display: "A"},
 	}
@@ -1164,8 +1164,8 @@ func TestClearQueueClearsStatusBarTrackInfo(t *testing.T) {
 	if nm.statusBar.playlistSource != "" {
 		t.Errorf("statusBar.playlistSource = %q, want empty after ClearQueueMsg", nm.statusBar.playlistSource)
 	}
-	if nm.currentTrackHash != "" {
-		t.Errorf("currentTrackHash = %q, want empty after ClearQueueMsg", nm.currentTrackHash)
+	if nm.playback.currentHash != "" {
+		t.Errorf("currentTrackHash = %q, want empty after ClearQueueMsg", nm.playback.currentHash)
 	}
 }
 
@@ -1177,15 +1177,15 @@ func TestPlaybackEndedClearsStatusBarTrackInfo(t *testing.T) {
 	m.statusBar.artist = "Old Artist"
 	m.statusBar.title = "Old Title"
 	m.statusBar.playlistSource = "Queue"
-	m.currentTrackHash = "oldhash"
-	m.playbackState = PlaybackPlaying
-	m.repeatMode = RepeatOff
+	m.playback.currentHash = "oldhash"
+	m.playback.state = PlaybackPlaying
+	m.playback.repeatMode = RepeatOff
 
 	next, _ := m.Update(PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playbackState != PlaybackIdle {
-		t.Errorf("playbackState = %v, want PlaybackIdle", nm.playbackState)
+	if nm.playback.state != PlaybackIdle {
+		t.Errorf("playbackState = %v, want PlaybackIdle", nm.playback.state)
 	}
 	if nm.statusBar.artist != "" {
 		t.Errorf("statusBar.artist = %q, want empty after PlaybackEndedMsg", nm.statusBar.artist)
@@ -1196,8 +1196,8 @@ func TestPlaybackEndedClearsStatusBarTrackInfo(t *testing.T) {
 	if nm.statusBar.playlistSource != "" {
 		t.Errorf("statusBar.playlistSource = %q, want empty after PlaybackEndedMsg", nm.statusBar.playlistSource)
 	}
-	if nm.currentTrackHash != "" {
-		t.Errorf("currentTrackHash = %q, want empty after PlaybackEndedMsg", nm.currentTrackHash)
+	if nm.playback.currentHash != "" {
+		t.Errorf("currentTrackHash = %q, want empty after PlaybackEndedMsg", nm.playback.currentHash)
 	}
 }
 
@@ -1250,13 +1250,13 @@ func TestUndoDequeueEnsuresCursorVisibility(t *testing.T) {
 func TestDequeuePlayingTrackClearsStatusBar(t *testing.T) {
 	p := &stubPlayerQueueRemover{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playbackState = PlaybackPlaying
-	m.currentTrackHash = "abc123"
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "abc123"
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Title"
 	m.statusBar.playlistSource = "Queue"
-	m.elapsedSecs = 42.0
-	m.totalSecs = 180.0
+	m.playback.elapsedSecs = 42.0
+	m.playback.totalSecs = 180.0
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A", Hash: "abc123"},
 		{ID: 20, Path: "/music/b.flac", Display: "B", Hash: "other"},
@@ -1265,8 +1265,8 @@ func TestDequeuePlayingTrackClearsStatusBar(t *testing.T) {
 	next, _ := m.Update(DequeueTrackMsg{Index: 0})
 	nm := next.(Model)
 
-	if nm.playbackState != PlaybackIdle {
-		t.Errorf("playbackState = %v, want PlaybackIdle", nm.playbackState)
+	if nm.playback.state != PlaybackIdle {
+		t.Errorf("playbackState = %v, want PlaybackIdle", nm.playback.state)
 	}
 	if nm.statusBar.artist != "" {
 		t.Errorf("statusBar.artist = %q, want empty", nm.statusBar.artist)
@@ -1277,14 +1277,14 @@ func TestDequeuePlayingTrackClearsStatusBar(t *testing.T) {
 	if nm.statusBar.playlistSource != "" {
 		t.Errorf("statusBar.playlistSource = %q, want empty", nm.statusBar.playlistSource)
 	}
-	if nm.currentTrackHash != "" {
-		t.Errorf("currentTrackHash = %q, want empty", nm.currentTrackHash)
+	if nm.playback.currentHash != "" {
+		t.Errorf("currentTrackHash = %q, want empty", nm.playback.currentHash)
 	}
-	if nm.elapsedSecs != 0 {
-		t.Errorf("elapsedSecs = %v, want 0", nm.elapsedSecs)
+	if nm.playback.elapsedSecs != 0 {
+		t.Errorf("elapsedSecs = %v, want 0", nm.playback.elapsedSecs)
 	}
-	if nm.totalSecs != 0 {
-		t.Errorf("totalSecs = %v, want 0", nm.totalSecs)
+	if nm.playback.totalSecs != 0 {
+		t.Errorf("totalSecs = %v, want 0", nm.playback.totalSecs)
 	}
 	if p.stopCalls != 1 {
 		t.Errorf("Stop must be called once, got %d calls", p.stopCalls)
@@ -1296,18 +1296,18 @@ func TestDequeuePlayingTrackClearsStatusBar(t *testing.T) {
 func TestTickDoesNotUpdateElapsedWhenIdle(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 99.0, total: 300.0}
 	m := New(context.Background(), WithPlayer(p))
-	m.playbackState = PlaybackIdle
-	m.elapsedSecs = 0
-	m.totalSecs = 0
+	m.playback.state = PlaybackIdle
+	m.playback.elapsedSecs = 0
+	m.playback.totalSecs = 0
 
 	next, _ := m.Update(tickMsg{})
 	nm := next.(Model)
 
-	if nm.elapsedSecs != 0 {
-		t.Errorf("elapsedSecs = %v, want 0 when idle", nm.elapsedSecs)
+	if nm.playback.elapsedSecs != 0 {
+		t.Errorf("elapsedSecs = %v, want 0 when idle", nm.playback.elapsedSecs)
 	}
-	if nm.totalSecs != 0 {
-		t.Errorf("totalSecs = %v, want 0 when idle", nm.totalSecs)
+	if nm.playback.totalSecs != 0 {
+		t.Errorf("totalSecs = %v, want 0 when idle", nm.playback.totalSecs)
 	}
 }
 
@@ -1456,7 +1456,7 @@ func TestFocusNowPlayingMovesCursorToCurrentTrack(t *testing.T) {
 		{Path: "/music/d.flac", Hash: "ddd", Display: "D"},
 		{Path: "/music/e.flac", Hash: "eee", Display: "E"},
 	}
-	m.currentTrackHash = "ccc"
+	m.playback.currentHash = "ccc"
 	m.queue.cursor = 0 // cursor starts at top
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'f', Text: "f"})
@@ -1476,7 +1476,7 @@ func TestFocusNowPlayingNoOpWhenNothingPlaying(t *testing.T) {
 		{Path: "/music/a.flac", Hash: "aaa", Display: "A"},
 		{Path: "/music/b.flac", Hash: "bbb", Display: "B"},
 	}
-	m.currentTrackHash = ""
+	m.playback.currentHash = ""
 	m.queue.cursor = 1
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'f', Text: "f"})

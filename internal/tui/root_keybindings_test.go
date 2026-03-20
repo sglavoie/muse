@@ -31,7 +31,7 @@ func TestViewLocalBindingTakesPrecedenceOverGlobal(t *testing.T) {
 	if _, ok := msg.(PlaylistRenameMsg); !ok {
 		t.Fatalf("view-local 'r' in Playlists: expected PlaylistRenameMsg, got %T", msg)
 	}
-	if nm.repeatMode != RepeatOff {
+	if nm.playback.repeatMode != RepeatOff {
 		t.Fatal("view-local 'r' in Playlists must not cycle global repeat mode")
 	}
 }
@@ -69,7 +69,7 @@ func TestGlobalBindingFiresWhenNoViewLocalBinding(t *testing.T) {
 func TestEqualKeyFiresVolumeUp(t *testing.T) {
 	p := &stubVolumePlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.volume = 50
+	m.playback.volume = 50
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: '=', Text: "="})
 	nm := next.(Model)
@@ -77,8 +77,8 @@ func TestEqualKeyFiresVolumeUp(t *testing.T) {
 	if p.volumeDelta != 5 {
 		t.Fatalf("= key: expected SetVolumeRelative(5), got delta=%v", p.volumeDelta)
 	}
-	if nm.volume != 55 {
-		t.Fatalf("= key: expected volume=55, got %d", nm.volume)
+	if nm.playback.volume != 55 {
+		t.Fatalf("= key: expected volume=55, got %d", nm.playback.volume)
 	}
 	if nm.statusBar.notification.msg != "Volume: 55%" {
 		t.Fatalf("= key: expected notification 'Volume: 55%%', got %q", nm.statusBar.notification.msg)
@@ -107,22 +107,22 @@ func TestLowerRCyclesRepeatModeInNonPlaylistViews(t *testing.T) {
 			if cmd != nil {
 				t.Fatalf("%s: 'r' repeat cycle must return nil cmd, got non-nil", tc.name)
 			}
-			if nm.repeatMode != RepeatAll {
-				t.Fatalf("%s: first press: expected RepeatAll, got %v", tc.name, nm.repeatMode)
+			if nm.playback.repeatMode != RepeatAll {
+				t.Fatalf("%s: first press: expected RepeatAll, got %v", tc.name, nm.playback.repeatMode)
 			}
 
 			// Second press: RepeatAll → RepeatOne.
 			next, _ = nm.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
 			nm = next.(Model)
-			if nm.repeatMode != RepeatOne {
-				t.Fatalf("%s: second press: expected RepeatOne, got %v", tc.name, nm.repeatMode)
+			if nm.playback.repeatMode != RepeatOne {
+				t.Fatalf("%s: second press: expected RepeatOne, got %v", tc.name, nm.playback.repeatMode)
 			}
 
 			// Third press: RepeatOne → RepeatOff (wraps).
 			next, _ = nm.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
 			nm = next.(Model)
-			if nm.repeatMode != RepeatOff {
-				t.Fatalf("%s: third press: expected RepeatOff, got %v", tc.name, nm.repeatMode)
+			if nm.playback.repeatMode != RepeatOff {
+				t.Fatalf("%s: third press: expected RepeatOff, got %v", tc.name, nm.playback.repeatMode)
 			}
 		})
 	}
@@ -162,14 +162,14 @@ func TestZTogglesShuffleGlobal(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("z key: expected nil cmd for shuffle toggle")
 	}
-	if !nm.shuffle {
+	if !nm.playback.shuffle {
 		t.Fatal("z key first press: expected shuffle=true, got false")
 	}
 
 	// Second press: shuffle on → off.
 	next, _ = nm.Update(tea.KeyPressMsg{Code: 'z', Text: "z"})
 	nm = next.(Model)
-	if nm.shuffle {
+	if nm.playback.shuffle {
 		t.Fatal("z key second press: expected shuffle=false, got true")
 	}
 }
@@ -286,7 +286,7 @@ func TestPreviousTrackKey(t *testing.T) {
 func TestMinusKeyFiresVolumeDown(t *testing.T) {
 	p := &stubVolumePlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.volume = 50
+	m.playback.volume = 50
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: '-', Text: "-"})
 	nm := next.(Model)
@@ -294,8 +294,8 @@ func TestMinusKeyFiresVolumeDown(t *testing.T) {
 	if p.volumeDelta != -5 {
 		t.Fatalf("- key: expected SetVolumeRelative(-5), got delta=%v", p.volumeDelta)
 	}
-	if nm.volume != 45 {
-		t.Fatalf("- key: expected volume=45, got %d", nm.volume)
+	if nm.playback.volume != 45 {
+		t.Fatalf("- key: expected volume=45, got %d", nm.playback.volume)
 	}
 	if nm.statusBar.notification.msg != "Volume: 45%" {
 		t.Fatalf("- key: expected notification 'Volume: 45%%', got %q", nm.statusBar.notification.msg)
@@ -306,13 +306,13 @@ func TestMinusKeyFiresVolumeDown(t *testing.T) {
 func TestVolumeUpClampsAt100(t *testing.T) {
 	p := &stubVolumePlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.volume = 95
+	m.playback.volume = 95
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: '=', Text: "="})
 	nm := next.(Model)
 
-	if nm.volume != 100 {
-		t.Fatalf("volume up from 95: expected 100, got %d", nm.volume)
+	if nm.playback.volume != 100 {
+		t.Fatalf("volume up from 95: expected 100, got %d", nm.playback.volume)
 	}
 	if nm.statusBar.notification.msg != "Volume: 100%" {
 		t.Fatalf("expected notification 'Volume: 100%%', got %q", nm.statusBar.notification.msg)
@@ -323,13 +323,13 @@ func TestVolumeUpClampsAt100(t *testing.T) {
 func TestVolumeUpStaysAt100(t *testing.T) {
 	p := &stubVolumePlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.volume = 100
+	m.playback.volume = 100
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: '=', Text: "="})
 	nm := next.(Model)
 
-	if nm.volume != 100 {
-		t.Fatalf("volume up from 100: expected 100, got %d", nm.volume)
+	if nm.playback.volume != 100 {
+		t.Fatalf("volume up from 100: expected 100, got %d", nm.playback.volume)
 	}
 }
 
@@ -337,13 +337,13 @@ func TestVolumeUpStaysAt100(t *testing.T) {
 func TestVolumeDownClampsAt0(t *testing.T) {
 	p := &stubVolumePlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.volume = 5
+	m.playback.volume = 5
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: '-', Text: "-"})
 	nm := next.(Model)
 
-	if nm.volume != 0 {
-		t.Fatalf("volume down from 5: expected 0, got %d", nm.volume)
+	if nm.playback.volume != 0 {
+		t.Fatalf("volume down from 5: expected 0, got %d", nm.playback.volume)
 	}
 	if nm.statusBar.notification.msg != "Volume: 0%" {
 		t.Fatalf("expected notification 'Volume: 0%%', got %q", nm.statusBar.notification.msg)
@@ -355,7 +355,7 @@ func TestVolumeDownClampsAt0(t *testing.T) {
 func TestVolumeNotificationUsesShorterExpiry(t *testing.T) {
 	p := &stubVolumePlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.volume = 50
+	m.playback.volume = 50
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: '=', Text: "="})
 	nm := next.(Model)
@@ -409,15 +409,15 @@ func TestGlobalRepeatBindingFiresInViewsWithoutLocalOverride(t *testing.T) {
 			m := New(context.Background())
 			m.activeView = tc.viewID
 
-			if m.repeatMode != RepeatOff {
-				t.Fatalf("%s: initial repeatMode must be RepeatOff, got %v", tc.name, m.repeatMode)
+			if m.playback.repeatMode != RepeatOff {
+				t.Fatalf("%s: initial repeatMode must be RepeatOff, got %v", tc.name, m.playback.repeatMode)
 			}
 
 			next, _ := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
 			nm := next.(Model)
 
-			if nm.repeatMode != RepeatAll {
-				t.Fatalf("%s: pressing 'r' must cycle repeatMode from RepeatOff to RepeatAll, got %v", tc.name, nm.repeatMode)
+			if nm.playback.repeatMode != RepeatAll {
+				t.Fatalf("%s: pressing 'r' must cycle repeatMode from RepeatOff to RepeatAll, got %v", tc.name, nm.playback.repeatMode)
 			}
 		})
 	}

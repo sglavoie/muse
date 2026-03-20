@@ -21,6 +21,17 @@ import (
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
+// playbackInfo groups the fields that describe the current playback state.
+type playbackInfo struct {
+	state       PlaybackState
+	repeatMode  RepeatMode
+	shuffle     bool
+	volume      int
+	currentHash string
+	elapsedSecs float64
+	totalSecs   float64
+}
+
 // Model is the root Bubble Tea v2 model. It manages view switching between
 // Library, Playlists, Queue, and Artists panels, and renders a persistent status bar.
 type Model struct {
@@ -127,17 +138,7 @@ type Model struct {
 	bulkRemovePending   bool
 	bulkRemovePendingAt time.Time
 
-	playbackState    PlaybackState // current play/pause/stopped/idle state
-	repeatMode       RepeatMode    // repeat mode: off, all, or one
-	shuffle          bool          // shuffle mode enabled
-	volume           int           // current volume level (0–100)
-	currentTrackHash string        // content hash of the track currently loaded in the player
-
-	// elapsedSecs and totalSecs hold the most recently queried playback
-	// position and track duration in seconds. Zero values mean no time
-	// data is available and suppress the time display in the status bar.
-	elapsedSecs float64
-	totalSecs   float64
+	playback playbackInfo // current playback state, repeat, shuffle, volume, position
 
 	// runtimeDir is the XDG_RUNTIME_DIR-based directory for ephemeral sockets
 	// (e.g. preview player). Set via SetRuntimeDir before tea.NewProgram.
@@ -329,19 +330,19 @@ func (m *Model) SetSessionWriter(sw sessionWriter) {
 // SetRepeatMode pre-sets the repeat mode on a newly created Model. Call this
 // before passing the model to tea.NewProgram to restore persisted session state.
 func (m *Model) SetRepeatMode(mode RepeatMode) {
-	m.repeatMode = mode
+	m.playback.repeatMode = mode
 }
 
 // SetShuffle pre-sets the shuffle flag on a newly created Model. Call this
 // before passing the model to tea.NewProgram to restore persisted session state.
 func (m *Model) SetShuffle(enabled bool) {
-	m.shuffle = enabled
+	m.playback.shuffle = enabled
 }
 
 // SetVolume pre-sets the volume level on a newly created Model. Call this
 // before passing the model to tea.NewProgram to initialise the tracked volume.
 func (m *Model) SetVolume(v int) {
-	m.volume = clampVolume(v)
+	m.playback.volume = clampVolume(v)
 }
 
 // clampVolume restricts v to the [0, 100] range.
@@ -360,14 +361,14 @@ func clampVolume(v int) int {
 // so that the status bar and space-bar toggle reflect the correct state on the
 // first render.
 func (m *Model) SetPlaybackState(state PlaybackState) {
-	m.playbackState = state
+	m.playback.state = state
 }
 
 // SetCurrentTrackHash pre-sets the current track hash on a newly created Model.
 // Call this when restoring session state so that the first session-position
 // write uses the correct hash.
 func (m *Model) SetCurrentTrackHash(hash string) {
-	m.currentTrackHash = hash
+	m.playback.currentHash = hash
 }
 
 // SetPlaylists pre-populates the playlists view with rows loaded from the
@@ -508,8 +509,8 @@ func (m Model) sessionPositionCmd() tea.Cmd {
 		return nil
 	}
 	sw := m.sessionWriter
-	hash := m.currentTrackHash
-	positionMs := int64(m.elapsedSecs * 1000)
+	hash := m.playback.currentHash
+	positionMs := int64(m.playback.elapsedSecs * 1000)
 	return func() tea.Msg {
 		_ = sw.UpdateSessionPosition(hash, positionMs)
 		return nil
@@ -708,7 +709,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case PlaybackEndedMsg:
 		m = m.handlePlaybackEndedMsg()
-		if m.playbackState == PlaybackPlaying {
+		if m.playback.state == PlaybackPlaying {
 			return m, m.sessionPositionCmd()
 		}
 
@@ -1054,7 +1055,7 @@ func (m Model) View() tea.View {
 		case viewPlaylists:
 			body = m.playlists.render(*m.styles)
 		case viewQueue:
-			body = m.queue.render(*m.styles, m.currentTrackHash)
+			body = m.queue.render(*m.styles, m.playback.currentHash)
 		case viewArtists:
 			body = m.artists.render(*m.styles)
 		case viewAlbums:
@@ -1126,15 +1127,15 @@ func (m Model) renderTitleBar() string {
 // into a local StatusBar copy so that the render logic has a complete picture.
 func (m Model) renderStatusBar() string {
 	sb := m.statusBar
-	sb.playbackState = m.playbackState
-	sb.repeatMode = m.repeatMode
-	sb.shuffle = m.shuffle
+	sb.playbackState = m.playback.state
+	sb.repeatMode = m.playback.repeatMode
+	sb.shuffle = m.playback.shuffle
 	sb.configCreated = m.configCreated
 	sb.watchDegraded = m.watchDegraded
 	sb.queueEmpty = len(m.queue.entries) == 0
-	if m.elapsedSecs > 0 || m.totalSecs > 0 {
-		sb.elapsed = formatTime(m.elapsedSecs)
-		sb.total = formatTime(m.totalSecs)
+	if m.playback.elapsedSecs > 0 || m.playback.totalSecs > 0 {
+		sb.elapsed = formatTime(m.playback.elapsedSecs)
+		sb.total = formatTime(m.playback.totalSecs)
 	}
 	return sb.render(m.termWidth, *m.styles)
 }

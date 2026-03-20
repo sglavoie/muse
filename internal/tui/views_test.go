@@ -962,15 +962,15 @@ func TestLibraryViewDeactivateFilter(t *testing.T) {
 func TestModelSetRepeatMode(t *testing.T) {
 	m := New(context.Background())
 	m.SetRepeatMode(RepeatAll)
-	if m.repeatMode != RepeatAll {
-		t.Errorf("SetRepeatMode: expected RepeatAll, got %v", m.repeatMode)
+	if m.playback.repeatMode != RepeatAll {
+		t.Errorf("SetRepeatMode: expected RepeatAll, got %v", m.playback.repeatMode)
 	}
 }
 
 func TestModelSetShuffle(t *testing.T) {
 	m := New(context.Background())
 	m.SetShuffle(true)
-	if !m.shuffle {
+	if !m.playback.shuffle {
 		t.Error("SetShuffle(true): expected shuffle=true")
 	}
 }
@@ -978,16 +978,16 @@ func TestModelSetShuffle(t *testing.T) {
 func TestModelSetPlaybackState(t *testing.T) {
 	m := New(context.Background())
 	m.SetPlaybackState(PlaybackPaused)
-	if m.playbackState != PlaybackPaused {
-		t.Errorf("SetPlaybackState: expected PlaybackPaused, got %v", m.playbackState)
+	if m.playback.state != PlaybackPaused {
+		t.Errorf("SetPlaybackState: expected PlaybackPaused, got %v", m.playback.state)
 	}
 }
 
 func TestModelSetCurrentTrackHash(t *testing.T) {
 	m := New(context.Background())
 	m.SetCurrentTrackHash("abc123")
-	if m.currentTrackHash != "abc123" {
-		t.Errorf("SetCurrentTrackHash: expected 'abc123', got %q", m.currentTrackHash)
+	if m.playback.currentHash != "abc123" {
+		t.Errorf("SetCurrentTrackHash: expected 'abc123', got %q", m.playback.currentHash)
 	}
 }
 

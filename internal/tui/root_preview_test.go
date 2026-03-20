@@ -181,7 +181,7 @@ func TestPreviewDismissResumesPlayback(t *testing.T) {
 	sp := &stubPlayer{}
 	m := New(context.Background())
 	m.player = sp
-	m.playbackState = PlaybackPaused
+	m.playback.state = PlaybackPaused
 	m.previewWasPlaying = true
 	m.preview = &PreviewOverlay{artist: "A", title: "T"}
 	m.previewPlayer = &stubPreviewer{}
@@ -206,7 +206,7 @@ func TestPreviewDismissDoesNotResumeIfNotPlaying(t *testing.T) {
 	sp := &stubPlayer{}
 	m := New(context.Background())
 	m.player = sp
-	m.playbackState = PlaybackPaused
+	m.playback.state = PlaybackPaused
 	m.previewWasPlaying = false
 	m.preview = &PreviewOverlay{artist: "A", title: "T"}
 	m.previewPlayer = &stubPreviewer{}
@@ -368,7 +368,7 @@ func TestPreviewPausesMainPlayback(t *testing.T) {
 	sp := &stubPlayer{}
 	m := setupLibraryWithTrack(t)
 	m.player = sp
-	m.playbackState = PlaybackPlaying
+	m.playback.state = PlaybackPlaying
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'P', Text: "P"})
 	nm := next.(Model)
@@ -379,7 +379,7 @@ func TestPreviewPausesMainPlayback(t *testing.T) {
 	if !nm.previewWasPlaying {
 		t.Fatal("expected previewWasPlaying to be set")
 	}
-	if nm.playbackState != PlaybackPaused {
+	if nm.playback.state != PlaybackPaused {
 		t.Fatal("expected playback state to be paused")
 	}
 }

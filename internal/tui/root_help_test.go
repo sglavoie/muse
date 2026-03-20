@@ -100,9 +100,9 @@ func TestViewHelpOverlayContainsSectionHeaders(t *testing.T) {
 // or the scanning flag.
 func TestEscRestoringViewDoesNotAlterPlaybackOrScanState(t *testing.T) {
 	m := New(context.Background())
-	m.playbackState = PlaybackPlaying
-	m.repeatMode = RepeatAll
-	m.shuffle = true
+	m.playback.state = PlaybackPlaying
+	m.playback.repeatMode = RepeatAll
+	m.playback.shuffle = true
 	m.scanning = true
 
 	// Open the overlay.
@@ -113,13 +113,13 @@ func TestEscRestoringViewDoesNotAlterPlaybackOrScanState(t *testing.T) {
 	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	nm = next.(Model)
 
-	if nm.playbackState != PlaybackPlaying {
-		t.Fatalf("Esc: playbackState changed; expected PlaybackPlaying, got %v", nm.playbackState)
+	if nm.playback.state != PlaybackPlaying {
+		t.Fatalf("Esc: playbackState changed; expected PlaybackPlaying, got %v", nm.playback.state)
 	}
-	if nm.repeatMode != RepeatAll {
-		t.Fatalf("Esc: repeatMode changed; expected RepeatAll, got %v", nm.repeatMode)
+	if nm.playback.repeatMode != RepeatAll {
+		t.Fatalf("Esc: repeatMode changed; expected RepeatAll, got %v", nm.playback.repeatMode)
 	}
-	if !nm.shuffle {
+	if !nm.playback.shuffle {
 		t.Fatal("Esc: shuffle changed; expected true, got false")
 	}
 	if !nm.scanning {

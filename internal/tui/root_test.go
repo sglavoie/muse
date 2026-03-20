@@ -82,10 +82,10 @@ func TestViewReturnsTeaView(t *testing.T) {
 // shuffle defaults to false on a freshly created model.
 func TestModelRepeatModeDefaultOff(t *testing.T) {
 	m := New(context.Background())
-	if m.repeatMode != RepeatOff {
-		t.Fatalf("repeatMode must default to RepeatOff, got %v", m.repeatMode)
+	if m.playback.repeatMode != RepeatOff {
+		t.Fatalf("repeatMode must default to RepeatOff, got %v", m.playback.repeatMode)
 	}
-	if m.shuffle {
+	if m.playback.shuffle {
 		t.Fatal("shuffle must default to false")
 	}
 }
@@ -179,7 +179,7 @@ func TestWindowSizeMsgPreservesApplicationState(t *testing.T) {
 		{Path: "/music/c.flac", Display: "C"},
 	}
 	m.queue.cursor = 2
-	m.playbackState = PlaybackPlaying
+	m.playback.state = PlaybackPlaying
 	m.scanning = true
 	m.activeView = viewQueue
 
@@ -189,8 +189,8 @@ func TestWindowSizeMsgPreservesApplicationState(t *testing.T) {
 	if nm.queue.cursor != 2 {
 		t.Fatalf("resize: queue cursor changed; expected 2, got %d", nm.queue.cursor)
 	}
-	if nm.playbackState != PlaybackPlaying {
-		t.Fatalf("resize: playbackState changed; expected PlaybackPlaying, got %v", nm.playbackState)
+	if nm.playback.state != PlaybackPlaying {
+		t.Fatalf("resize: playbackState changed; expected PlaybackPlaying, got %v", nm.playback.state)
 	}
 	if !nm.scanning {
 		t.Fatal("resize: scanning changed; expected true, got false")

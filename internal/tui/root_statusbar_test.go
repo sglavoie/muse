@@ -100,8 +100,8 @@ func TestTrackChangedMsgUpdatesStatusBar(t *testing.T) {
 	if !strings.Contains(v.Content, "My Playlist") {
 		t.Fatalf("status bar must show playlist source from TrackChangedMsg; got:\n%s", v.Content)
 	}
-	if nm.playbackState != PlaybackPlaying {
-		t.Fatalf("TrackChangedMsg must set PlaybackPlaying, got %v", nm.playbackState)
+	if nm.playback.state != PlaybackPlaying {
+		t.Fatalf("TrackChangedMsg must set PlaybackPlaying, got %v", nm.playback.state)
 	}
 }
 
@@ -122,16 +122,16 @@ func TestTrackChangedMsgDefaultsPlaylistSourceToQueue(t *testing.T) {
 func TestTickMsgUpdatesElapsedFields(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 75.5, total: 240.0}
 	m := New(context.Background(), WithPlayer(p))
-	m.playbackState = PlaybackPlaying
+	m.playback.state = PlaybackPlaying
 
 	next, _ := m.Update(tickMsg{})
 	nm := next.(Model)
 
-	if nm.elapsedSecs != 75.5 {
-		t.Fatalf("elapsedSecs: expected 75.5, got %v", nm.elapsedSecs)
+	if nm.playback.elapsedSecs != 75.5 {
+		t.Fatalf("elapsedSecs: expected 75.5, got %v", nm.playback.elapsedSecs)
 	}
-	if nm.totalSecs != 240.0 {
-		t.Fatalf("totalSecs: expected 240.0, got %v", nm.totalSecs)
+	if nm.playback.totalSecs != 240.0 {
+		t.Fatalf("totalSecs: expected 240.0, got %v", nm.playback.totalSecs)
 	}
 }
 
@@ -160,7 +160,7 @@ func TestInitSchedulesTick(t *testing.T) {
 func TestStatusBarRendersElapsedTime(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 83.0, total: 245.0}
 	m := New(context.Background(), WithPlayer(p))
-	m.playbackState = PlaybackPlaying
+	m.playback.state = PlaybackPlaying
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Title"
 
@@ -177,7 +177,7 @@ func TestStatusBarRendersElapsedTime(t *testing.T) {
 // totalSecs are both 0 the time display is suppressed.
 func TestStatusBarNoTimeDisplayWhenZero(t *testing.T) {
 	m := New(context.Background())
-	m.playbackState = PlaybackPlaying
+	m.playback.state = PlaybackPlaying
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Title"
 	// elapsedSecs and totalSecs default to zero — no time display expected.
@@ -193,23 +193,23 @@ func TestStatusBarNoTimeDisplayWhenZero(t *testing.T) {
 func TestPlaybackEndedMsgResetsElapsed(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 60.0, total: 180.0}
 	m := New(context.Background(), WithPlayer(p))
-	m.playbackState = PlaybackPlaying
+	m.playback.state = PlaybackPlaying
 
 	// Populate elapsed/total via a tick.
 	next, _ := m.Update(tickMsg{})
 	nm := next.(Model)
-	if nm.elapsedSecs == 0 {
+	if nm.playback.elapsedSecs == 0 {
 		t.Fatal("expected non-zero elapsedSecs after tickMsg")
 	}
 
 	// PlaybackEndedMsg must zero them out.
 	next, _ = nm.Update(PlaybackEndedMsg{})
 	nm = next.(Model)
-	if nm.elapsedSecs != 0 {
-		t.Fatalf("elapsedSecs must be 0 after PlaybackEndedMsg, got %v", nm.elapsedSecs)
+	if nm.playback.elapsedSecs != 0 {
+		t.Fatalf("elapsedSecs must be 0 after PlaybackEndedMsg, got %v", nm.playback.elapsedSecs)
 	}
-	if nm.totalSecs != 0 {
-		t.Fatalf("totalSecs must be 0 after PlaybackEndedMsg, got %v", nm.totalSecs)
+	if nm.playback.totalSecs != 0 {
+		t.Fatalf("totalSecs must be 0 after PlaybackEndedMsg, got %v", nm.playback.totalSecs)
 	}
 }
 
@@ -218,7 +218,7 @@ func TestPlaybackEndedMsgResetsElapsed(t *testing.T) {
 // notification is shown for 5 seconds.
 func TestPlaybackEndedMsgShowsQueueFinishedWhenEmptyRepeatOff(t *testing.T) {
 	m := New(context.Background())
-	m.repeatMode = RepeatOff
+	m.playback.repeatMode = RepeatOff
 	// queue.entries is already empty (zero value).
 
 	next, _ := m.Update(PlaybackEndedMsg{})
@@ -239,7 +239,7 @@ func TestPlaybackEndedMsgShowsQueueFinishedWhenEmptyRepeatOff(t *testing.T) {
 // finished" notification is shown when repeat is not off.
 func TestPlaybackEndedMsgNoNotificationWhenRepeatNotOff(t *testing.T) {
 	m := New(context.Background())
-	m.repeatMode = RepeatAll
+	m.playback.repeatMode = RepeatAll
 
 	next, _ := m.Update(PlaybackEndedMsg{})
 	nm := next.(Model)
@@ -255,7 +255,7 @@ func TestPlaybackEndedMsgNoNotificationWhenRepeatNotOff(t *testing.T) {
 // removed from the slice during normal play-through.
 func TestPlaybackEndedMsgShowsNotificationWithEntriesPresent(t *testing.T) {
 	m := New(context.Background())
-	m.repeatMode = RepeatOff
+	m.playback.repeatMode = RepeatOff
 	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
 
 	next, _ := m.Update(PlaybackEndedMsg{})
@@ -277,8 +277,8 @@ func TestPlayPauseOnEmptyQueueStaysIdle(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: ' ', Text: " "})
 	nm := next.(Model)
 
-	if nm.playbackState != PlaybackIdle {
-		t.Fatalf("playback state must remain idle, got %v", nm.playbackState)
+	if nm.playback.state != PlaybackIdle {
+		t.Fatalf("playback state must remain idle, got %v", nm.playback.state)
 	}
 	// No transient notification; the persistent hint is rendered via queueEmpty.
 	if nm.statusBar.notification.msg != "" {
@@ -292,7 +292,7 @@ func TestPlayPauseWithTracksInQueuePlaysNormally(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
 	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
-	m.playbackState = PlaybackIdle
+	m.playback.state = PlaybackIdle
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: ' ', Text: " "})
 	nm := next.(Model)
@@ -300,8 +300,8 @@ func TestPlayPauseWithTracksInQueuePlaysNormally(t *testing.T) {
 	if nm.statusBar.notification.msg == "Queue is empty — enqueue tracks from Library (key 1)" {
 		t.Fatal("empty-queue hint must not appear when queue has entries")
 	}
-	if nm.playbackState != PlaybackPlaying {
-		t.Fatalf("expected PlaybackPlaying after play with non-empty queue, got %v", nm.playbackState)
+	if nm.playback.state != PlaybackPlaying {
+		t.Fatalf("expected PlaybackPlaying after play with non-empty queue, got %v", nm.playback.state)
 	}
 }
 

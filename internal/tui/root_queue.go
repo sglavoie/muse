@@ -45,13 +45,13 @@ func (m Model) resetPlaybackState() Model {
 	if cp, ok := m.player.(commandPlayer); ok {
 		_ = cp.Stop()
 	}
-	m.playbackState = PlaybackIdle
-	m.elapsedSecs = 0
-	m.totalSecs = 0
+	m.playback.state = PlaybackIdle
+	m.playback.elapsedSecs = 0
+	m.playback.totalSecs = 0
 	m.statusBar.artist = ""
 	m.statusBar.title = ""
 	m.statusBar.playlistSource = ""
-	m.currentTrackHash = ""
+	m.playback.currentHash = ""
 	m.missingTrackCount = 0
 	return m
 }
@@ -111,7 +111,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 	player.PlaySound(player.SoundEnqueued)
 	// Trigger immediate playback when the queue was previously empty and
 	// nothing is playing.
-	if msg.WasEmpty && m.playbackState == PlaybackIdle {
+	if msg.WasEmpty && m.playback.state == PlaybackIdle {
 		m = m.tryAutoPlay(msg.Track.Hash, msg.Track.Artist, msg.Track.Title, msg.SourcePlaylist)
 	}
 	return m
@@ -152,7 +152,7 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 		}
 	}
 	// Trigger immediate playback when the queue was previously empty.
-	if msg.WasEmpty && m.playbackState == PlaybackIdle {
+	if msg.WasEmpty && m.playback.state == PlaybackIdle {
 		e := msg.Entries[0]
 		m = m.tryAutoPlay(e.Hash, e.Artist, e.Title, msg.PlaylistName)
 	}
@@ -182,7 +182,7 @@ func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
 		return m
 	}
 	if err := m.player.PlayFromIndex(0); err != nil {
-		m.playbackState = PlaybackIdle
+		m.playback.state = PlaybackIdle
 		m.statusBar.notification = transientNotification{
 			msg:       "Playback failed: " + err.Error(),
 			expiresAt: time.Now().Add(transientDuration),
@@ -190,8 +190,8 @@ func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
 		player.PlaySound(player.SoundError)
 		return m
 	}
-	m.playbackState = PlaybackPlaying
-	m.currentTrackHash = hash
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = hash
 	m.statusBar.artist = artist
 	m.statusBar.title = title
 	if source == "" {
@@ -205,10 +205,10 @@ func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
 func (m Model) handlePlayQueueIndexMsg(msg PlayQueueIndexMsg) Model {
 	if m.player != nil {
 		if err := m.player.PlayFromIndex(msg.Index); err == nil {
-			m.playbackState = PlaybackPlaying
+			m.playback.state = PlaybackPlaying
 			if msg.Index < len(m.queue.entries) {
 				e := m.queue.entries[msg.Index]
-				m.currentTrackHash = e.Hash
+				m.playback.currentHash = e.Hash
 				m.statusBar.artist = e.Artist
 				m.statusBar.title = e.Title
 				source := e.SourcePlaylist
@@ -218,7 +218,7 @@ func (m Model) handlePlayQueueIndexMsg(msg PlayQueueIndexMsg) Model {
 				m.statusBar.playlistSource = source
 			}
 		} else {
-			m.playbackState = PlaybackIdle
+			m.playback.state = PlaybackIdle
 			m.statusBar.notification = transientNotification{
 				msg:       "Playback failed: " + err.Error(),
 				expiresAt: time.Now().Add(transientDuration),
@@ -264,7 +264,7 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 		}
 		// If the dequeued track was the currently playing one, or the queue
 		// is now empty, stop playback and clear the status bar.
-		if (entry.Hash != "" && entry.Hash == m.currentTrackHash) || len(m.queue.entries) == 0 {
+		if (entry.Hash != "" && entry.Hash == m.playback.currentHash) || len(m.queue.entries) == 0 {
 			m = m.resetPlaybackState()
 		}
 	}
@@ -712,7 +712,7 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 		m.queue, cmd = m.queue.HandleAction(action)
 		return m, cmd, true
 	case actionFocusNowPlaying:
-		m.queue = m.queue.FocusNowPlaying(m.currentTrackHash)
+		m.queue = m.queue.FocusNowPlaying(m.playback.currentHash)
 		return m, nil, true
 	case actionSaveQueueAsPlaylist:
 		if len(m.queue.entries) == 0 {
