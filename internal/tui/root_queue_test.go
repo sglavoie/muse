@@ -75,7 +75,7 @@ func TestQueueViewRendersMissingEntryDimmed(t *testing.T) {
 		},
 	}
 	s := styles.NewStyles(true)
-	got := q.render(s, "")
+	got := q.render(s, "", nil)
 	if !strings.Contains(got, "[missing]") {
 		t.Fatalf("missing entry must include [missing] label; got:\n%s", got)
 	}

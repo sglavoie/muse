@@ -116,6 +116,7 @@ type Model struct {
 	batchEnqueuer   batchEnqueuer        // may be nil; set via WithBatchEnqueuer
 	favoriteReader  favoriteReader       // may be nil; set via WithFavoriteReader
 	favoriteWriter  favoriteWriter       // may be nil; set via WithFavoriteWriter
+	favoriteHashes  map[string]struct{}  // set of favorited track hashes for highlight
 
 	overlay        overlayInfo     // all overlay and modal state
 	metadataWriter metadataUpdater // may be nil; set via WithMetadataWriter
@@ -164,6 +165,8 @@ func New(ctx context.Context, opts ...Option) Model {
 	}
 	// Derive scanning state from scanCh after options are applied.
 	m.scanning = m.scanCh != nil
+	// Pre-load the set of favorited track hashes for row highlighting.
+	m.favoriteHashes = loadFavoriteTrackHashes(m.favoriteReader)
 	// Sync statusBar fields from model state.
 	m.statusBar.configPath = m.configPath
 	m.statusBar.configCreated = m.configCreated
@@ -976,17 +979,17 @@ func (m Model) View() tea.View {
 	} else {
 		switch m.activeView {
 		case viewLibrary:
-			body = m.library.render(*m.styles)
+			body = m.library.render(*m.styles, m.favoriteHashes)
 		case viewPlaylists:
-			body = m.playlists.render(*m.styles)
+			body = m.playlists.render(*m.styles, m.favoriteHashes)
 		case viewQueue:
-			body = m.queue.render(*m.styles, m.playback.currentHash)
+			body = m.queue.render(*m.styles, m.playback.currentHash, m.favoriteHashes)
 		case viewArtists:
-			body = m.artists.render(*m.styles)
+			body = m.artists.render(*m.styles, m.favoriteHashes)
 		case viewAlbums:
-			body = m.albums.render(*m.styles)
+			body = m.albums.render(*m.styles, m.favoriteHashes)
 		case viewFavorites:
-			body = m.favorites.render(*m.styles)
+			body = m.favorites.render(*m.styles, m.favoriteHashes)
 		}
 	}
 

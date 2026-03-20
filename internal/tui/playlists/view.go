@@ -39,6 +39,7 @@ type View struct {
 	Renaming         bool               // true while the inline rename input is active
 	RenameInput      textinput.Model    // current value of the inline rename field
 	SelectedTrackIDs map[int64]struct{} // bulk-selected playlist track row IDs
+	FavoriteHashes   map[string]struct{}
 	Styles           styles.Styles
 }
 
@@ -357,8 +358,13 @@ func (v View) renderTracks() string {
 		dur := formatDuration(t.DurationMs)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		line := markerStr + pos + " " + title + " " + artist + " " + album + " " + dur
-		if isFocused {
+		_, isFav := v.FavoriteHashes[t.Hash]
+		if isFocused && isFav {
+			line = v.Styles.FavoriteAccent.Render(line)
+		} else if isFocused {
 			line = v.Styles.Accent.Render(line)
+		} else if isFav {
+			line = v.Styles.Favorite.Render(line)
 		}
 		lines[i] = line
 	}

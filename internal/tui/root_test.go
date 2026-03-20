@@ -378,7 +378,7 @@ func TestBackgroundColorMsgReconstructsStyles(t *testing.T) {
 	}
 	nm.queue.width = 80
 	nm.activeView = viewQueue
-	rendered := nm.queue.render(*nm.styles, "")
+	rendered := nm.queue.render(*nm.styles, "", nil)
 
 	// The rendered output must show the "[missing]" label in the visible text.
 	if !strings.Contains(ansi.Strip(rendered), "[missing]") {

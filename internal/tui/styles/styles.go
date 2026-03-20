@@ -4,19 +4,21 @@ import "charm.land/lipgloss/v2"
 
 // Styles holds the shared lipgloss styles used across TUI views.
 type Styles struct {
-	Dim        lipgloss.Style
-	Accent     lipgloss.Style
-	AccentMark lipgloss.Style // foreground-only accent for "●" marker on non-focused rows
-	Bold       lipgloss.Style
-	Heading    lipgloss.Style // bold + blue + double-underlined for section titles
-	Success    lipgloss.Style // green foreground for playing state
-	Warning    lipgloss.Style // gold foreground for paused state
-	Error      lipgloss.Style // red foreground for errors / stopped
-	NowPlaying lipgloss.Style // bold green foreground for currently playing track
-	ColHead    lipgloss.Style // bold + faint for column headers
-	StatusBar  lipgloss.Style // full-width status bar background + foreground
-	Badge      lipgloss.Style // single-char badge with lighter background (title bar view numbers)
-	HasDark    bool
+	Dim            lipgloss.Style
+	Accent         lipgloss.Style
+	AccentMark     lipgloss.Style // foreground-only accent for "●" marker on non-focused rows
+	Bold           lipgloss.Style
+	Heading        lipgloss.Style // bold + blue + double-underlined for section titles
+	Success        lipgloss.Style // green foreground for playing state
+	Warning        lipgloss.Style // gold foreground for paused state
+	Error          lipgloss.Style // red foreground for errors / stopped
+	NowPlaying     lipgloss.Style // bold green foreground for currently playing track
+	Favorite       lipgloss.Style // amber/gold foreground for favorited tracks
+	FavoriteAccent lipgloss.Style // accent background + favorite foreground for focused favorites
+	ColHead        lipgloss.Style // bold + faint for column headers
+	StatusBar      lipgloss.Style // full-width status bar background + foreground
+	Badge          lipgloss.Style // single-char badge with lighter background (title bar view numbers)
+	HasDark        bool
 }
 
 // NewStyles constructs a Styles value for the given terminal background.
@@ -31,13 +33,15 @@ func NewStyles(hasDark bool) Styles {
 			UnderlineStyle(lipgloss.UnderlineDouble).
 			UnderlineColor(ld(lipgloss.Color("#6a9edb"), lipgloss.Color("#3a6fbf"))).
 			Foreground(ld(lipgloss.Color("#4078f2"), lipgloss.Color("#61afef"))),
-		Success:    lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#50a14f"), lipgloss.Color("#98c379"))),
-		Warning:    lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
-		Error:      lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#e45649"), lipgloss.Color("#e06c75"))),
-		NowPlaying: lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#50a14f"), lipgloss.Color("#98c379"))),
-		ColHead:    lipgloss.NewStyle().Bold(true).Faint(true).UnderlineStyle(lipgloss.UnderlineDotted),
-		StatusBar:  lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),
-		Badge:      lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),
-		HasDark:    hasDark,
+		Success:        lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#50a14f"), lipgloss.Color("#98c379"))),
+		Warning:        lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
+		Error:          lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#e45649"), lipgloss.Color("#e06c75"))),
+		NowPlaying:     lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#50a14f"), lipgloss.Color("#98c379"))),
+		Favorite:       lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
+		FavoriteAccent: lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#2c3e50"))).Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
+		ColHead:        lipgloss.NewStyle().Bold(true).Faint(true).UnderlineStyle(lipgloss.UnderlineDotted),
+		StatusBar:      lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),
+		Badge:          lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),
+		HasDark:        hasDark,
 	}
 }

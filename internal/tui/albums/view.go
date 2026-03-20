@@ -45,7 +45,8 @@ type View struct {
 	FilterActive bool
 	FilterText   string
 
-	SortIndicator string // e.g. "Sort: Name ▲" — shown when non-empty
+	SortIndicator  string // e.g. "Sort: Name ▲" — shown when non-empty
+	FavoriteHashes map[string]struct{}
 }
 
 // EffectiveAlbums returns the album list filtered by FilterText.
@@ -300,8 +301,13 @@ func (v View) renderTracks() string {
 		dur := arttui.FormatDuration(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		line := pos + " " + title + " " + artist + " " + dur
-		if absIdx == v.Cursor {
+		_, isFav := v.FavoriteHashes[t.Hash]
+		if absIdx == v.Cursor && isFav {
+			line = v.Styles.FavoriteAccent.Render(line)
+		} else if absIdx == v.Cursor {
 			line = v.Styles.Accent.Render(line)
+		} else if isFav {
+			line = v.Styles.Favorite.Render(line)
 		}
 		lines[i] = line
 	}

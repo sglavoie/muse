@@ -56,7 +56,7 @@ func (v AlbumsView) recomputeAlbumsSort() AlbumsView {
 	return v
 }
 
-func (v AlbumsView) render(s styles.Styles) string {
+func (v AlbumsView) render(s styles.Styles, favHashes map[string]struct{}) string {
 	var sortInd string
 	if v.sortState.Field != SortDefault {
 		sortInd = fmt.Sprintf("Sort: %s %s", SortFieldLabel(v.sortState.Field), SortDirIndicator(v.sortState.Dir))
@@ -76,6 +76,7 @@ func (v AlbumsView) render(s styles.Styles) string {
 		FilterActive:      v.filter.Active,
 		FilterText:        v.filter.Text,
 		SortIndicator:     sortInd,
+		FavoriteHashes:    favHashes,
 	}
 	return av.Render()
 }

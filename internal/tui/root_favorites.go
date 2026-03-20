@@ -397,6 +397,23 @@ func (m Model) handleFavoritesOpen() (Model, tea.Cmd, bool) {
 	return m, nil, true
 }
 
+// loadFavoriteTrackHashes reads all favorited track hashes from the DB and
+// returns them as a set. Returns nil when reader is nil or on error.
+func loadFavoriteTrackHashes(reader favoriteReader) map[string]struct{} {
+	if reader == nil {
+		return nil
+	}
+	rows, err := reader.ReadFavoritesByType("track")
+	if err != nil {
+		return nil
+	}
+	hashes := make(map[string]struct{}, len(rows))
+	for _, r := range rows {
+		hashes[r.Value] = struct{}{}
+	}
+	return hashes
+}
+
 // handleFavoriteToggledMsg processes the result of a favorite toggle operation.
 func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 	if msg.err != nil {
@@ -423,6 +440,23 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 	m.statusBar.notification = transientNotification{
 		msg:       note,
 		expiresAt: time.Now().Add(transientDuration),
+	}
+
+	// Update the in-memory favorite hash set for track toggles.
+	if msg.typ == "track" {
+		if msg.count > 1 {
+			// Bulk toggle: reload from DB to get accurate state.
+			m.favoriteHashes = loadFavoriteTrackHashes(m.favoriteReader)
+		} else if msg.value != "" {
+			if m.favoriteHashes == nil {
+				m.favoriteHashes = make(map[string]struct{})
+			}
+			if msg.added {
+				m.favoriteHashes[msg.value] = struct{}{}
+			} else {
+				delete(m.favoriteHashes, msg.value)
+			}
+		}
 	}
 
 	// If the Favorites view is active, refresh the in-view state after a removal.

@@ -59,6 +59,7 @@ type View struct {
 	FilteredMatches []musiclib.Match // pre-computed; nil means not yet cached
 	Fuzzy           musiclib.FuzzySearcher
 	SelectedHashes  map[string]struct{}
+	FavoriteHashes  map[string]struct{}
 	Styles          styles.Styles
 	OverrideTracks  []musiclib.Track // sorted tracks override; nil uses Index
 	SortField       int              // active sort field (0 = default/none)
@@ -384,8 +385,13 @@ func (v View) Render() string {
 			row = markerStr + renderRow(num, t.Artist, t.Title, t.Album, dur, cols)
 		}
 
-		if isFocused {
+		_, isFav := v.FavoriteHashes[t.Hash]
+		if isFocused && isFav {
+			row = v.Styles.FavoriteAccent.Render(row)
+		} else if isFocused {
 			row = v.Styles.Accent.Render(row)
+		} else if isFav {
+			row = v.Styles.Favorite.Render(row)
 		}
 		lines[i] = row
 	}

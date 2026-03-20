@@ -55,8 +55,8 @@ type View struct {
 	DrilldownTracks []library.Track
 
 	// Saved cursors/scroll for each level (restored on Back).
-	CategoryCursor int
-	ListCursor     int
+	CategoryCursor   int
+	ListCursor       int
 	ListScrollOffset int
 
 	Width  int
@@ -69,7 +69,8 @@ type View struct {
 	SortIndicator string
 
 	// SelectedItems tracks bulk-selected items at ListLevel/TrackLevel.
-	SelectedItems map[int]struct{}
+	SelectedItems  map[int]struct{}
+	FavoriteHashes map[string]struct{}
 }
 
 // EffectiveItems returns the list items filtered by FilterText for the current category.
@@ -438,8 +439,13 @@ func (v View) renderTrackRows(items []library.Track) string {
 		dur := arttui.FormatDuration(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		line := marker + pos + " " + title + " " + artist + " " + album + " " + dur
-		if isFocused {
+		_, isFav := v.FavoriteHashes[t.Hash]
+		if isFocused && isFav {
+			line = v.Styles.FavoriteAccent.Render(line)
+		} else if isFocused {
 			line = v.Styles.Accent.Render(line)
+		} else if isFav {
+			line = v.Styles.Favorite.Render(line)
 		}
 		lines[i] = line
 	}

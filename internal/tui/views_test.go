@@ -39,7 +39,7 @@ func makeQueue(width int, entries []QueueEntry) QueueView {
 // TestQueueRenderEmptyShowsPlaceholder verifies the empty-queue message.
 func TestQueueRenderEmptyShowsPlaceholder(t *testing.T) {
 	v := QueueView{}
-	got := v.render(styles.NewStyles(true), "")
+	got := v.render(styles.NewStyles(true), "", nil)
 	if !strings.Contains(got, "empty") {
 		t.Fatalf("empty queue must show '(empty)'; got: %q", got)
 	}
@@ -52,7 +52,7 @@ func TestQueueRenderFourColumns(t *testing.T) {
 		{Title: "Song One", Artist: "Band A", DurationMs: 200_000, Position: 1000},
 		{Title: "Song Two", Artist: "Band B", DurationMs: 65_000, Position: 2000},
 	})
-	out := v.render(styles.NewStyles(true), "")
+	out := v.render(styles.NewStyles(true), "", nil)
 
 	// Position column: index numbers should appear.
 	if !strings.Contains(out, "1") {
@@ -93,7 +93,7 @@ func TestQueueRenderAscendingOrder(t *testing.T) {
 		{Title: "Second", Artist: "B", DurationMs: 120_000, Position: 2000},
 		{Title: "Third", Artist: "C", DurationMs: 180_000, Position: 3000},
 	})
-	out := v.render(styles.NewStyles(true), "")
+	out := v.render(styles.NewStyles(true), "", nil)
 	firstIdx := strings.Index(out, "First")
 	secondIdx := strings.Index(out, "Second")
 	thirdIdx := strings.Index(out, "Third")
@@ -113,7 +113,7 @@ func TestQueueRenderMissingEntryDim(t *testing.T) {
 		{Title: "Gone", Artist: "Nobody", DurationMs: 0, Missing: true, Position: 1000},
 	})
 	s := styles.NewStyles(true)
-	out := v.render(s, "")
+	out := v.render(s, "", nil)
 	// Verify [missing] label appears in the output.
 	if !strings.Contains(out, "[missing]") {
 		t.Error("missing entry must contain '[missing]' label")
@@ -144,7 +144,7 @@ func TestQueueRenderSelectedNonFocusedRowUsesAccent(t *testing.T) {
 	// cursor=0 so entry at index 1 is selected but not focused.
 	v.cursor = 0
 	s := styles.NewStyles(true)
-	out := v.render(s, "")
+	out := v.render(s, "", nil)
 
 	want := styledText(s.AccentMark, "●")
 	// Skip the style assertion if lipgloss emits no ANSI in this environment.
@@ -169,8 +169,8 @@ func TestQueueRenderProportionalColumnWidths(t *testing.T) {
 	narrow := makeQueue(80, []QueueEntry{entry})
 	wide := makeQueue(160, []QueueEntry{entry})
 
-	narrowOut := narrow.render(styles.NewStyles(true), "")
-	wideOut := wide.render(styles.NewStyles(true), "")
+	narrowOut := narrow.render(styles.NewStyles(true), "", nil)
+	wideOut := wide.render(styles.NewStyles(true), "", nil)
 
 	// Wide terminal should accommodate more of the long title / artist strings.
 	// Count how many T's appear in the title column.
@@ -290,7 +290,7 @@ func TestQueueRenderSelectedEntryShowsMarker(t *testing.T) {
 		{Title: "Normal", Artist: "A", DurationMs: 60_000, Selected: false},
 		{Title: "Selected", Artist: "B", DurationMs: 120_000, Selected: true},
 	})
-	out := v.render(styles.NewStyles(true), "")
+	out := v.render(styles.NewStyles(true), "", nil)
 	if !strings.Contains(out, "●") {
 		t.Fatal("selected queue entry must show a ● marker")
 	}
@@ -302,7 +302,7 @@ func TestQueueRenderUnselectedEntryHasNoMarker(t *testing.T) {
 	v := makeQueue(120, []QueueEntry{
 		{Title: "Normal", Artist: "A", DurationMs: 60_000, Selected: false},
 	})
-	out := v.render(styles.NewStyles(true), "")
+	out := v.render(styles.NewStyles(true), "", nil)
 	if strings.Contains(out, "●") {
 		t.Fatal("unselected queue entry must not show a ● marker")
 	}
@@ -316,7 +316,7 @@ func TestQueueRenderNowPlayingMarker(t *testing.T) {
 		{Title: "Playing", Artist: "B", Hash: "bbb", DurationMs: 120_000},
 	})
 	v.cursor = 0 // cursor on first entry, not the playing one
-	out := v.render(styles.NewStyles(true), "bbb")
+	out := v.render(styles.NewStyles(true), "bbb", nil)
 	stripped := ansi.Strip(out)
 
 	// The playing entry's line must contain the ▶ marker.
@@ -342,7 +342,7 @@ func TestQueueRenderNonPlayingEntryHasNoPlayMarker(t *testing.T) {
 	v := makeQueue(120, []QueueEntry{
 		{Title: "Normal", Artist: "A", Hash: "aaa", DurationMs: 60_000},
 	})
-	out := v.render(styles.NewStyles(true), "other-hash")
+	out := v.render(styles.NewStyles(true), "other-hash", nil)
 	stripped := ansi.Strip(out)
 
 	lines := strings.Split(stripped, "\n")
@@ -460,7 +460,7 @@ func TestQueueRenderSelectedAndFocusedMarker(t *testing.T) {
 		cursor: 0,
 		width:  120,
 	}
-	out := v.render(styles.NewStyles(true), "")
+	out := v.render(styles.NewStyles(true), "", nil)
 	// The focused+selected line must contain "●" but must not contain the
 	// inner accent+reset pair that unfocused selected entries use.
 	lines := strings.Split(out, "\n")

@@ -27,9 +27,10 @@ type LibraryView struct {
 
 // render returns a string representation of the library panel with proportional
 // columnar layout. Column widths resize with the terminal width.
-func (v LibraryView) render(s styles.Styles) string {
+func (v LibraryView) render(s styles.Styles, favHashes map[string]struct{}) string {
 	lv := v.view()
 	lv.Styles = s
+	lv.FavoriteHashes = favHashes
 	return lv.Render()
 }
 

@@ -49,7 +49,7 @@ type FavoritesView struct {
 	selectedItems map[int]struct{}
 }
 
-func (v FavoritesView) render(s styles.Styles) string {
+func (v FavoritesView) render(s styles.Styles, favHashes map[string]struct{}) string {
 	var sortInd string
 	if v.sortState.Field != SortDefault {
 		sortInd = fmt.Sprintf("Sort: %s %s", SortFieldLabel(v.sortState.Field), SortDirIndicator(v.sortState.Dir))
@@ -76,6 +76,7 @@ func (v FavoritesView) render(s styles.Styles) string {
 		FilterText:       v.filter.Text,
 		SortIndicator:    sortInd,
 		SelectedItems:    v.selectedItems,
+		FavoriteHashes:   favHashes,
 	}
 	return fv.Render()
 }
