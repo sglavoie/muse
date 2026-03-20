@@ -222,48 +222,6 @@ func (v ArtistsView) clampCursor() ArtistsView {
 	return v
 }
 
-// ActivateFilter sets the filter bar to active input mode.
-func (v ArtistsView) ActivateFilter() ArtistsView {
-	v.filter = v.filter.Activate()
-	return v
-}
-
-// CommitFilter exits input mode while keeping the current query visible.
-func (v ArtistsView) CommitFilter() ArtistsView {
-	v.filter = v.filter.Commit()
-	return v
-}
-
-// DeactivateFilter clears the query, exits input mode, and resets the cursor.
-func (v ArtistsView) DeactivateFilter() ArtistsView {
-	v.filter = v.filter.Deactivate()
-	v.cursor = 0
-	v.scrollOffset = 0
-	return v
-}
-
-// AppendFilterChar adds ch to the filter text and resets the cursor.
-func (v ArtistsView) AppendFilterChar(ch rune) ArtistsView {
-	var changed bool
-	v.filter, changed = v.filter.AppendChar(ch)
-	if changed {
-		v.cursor = 0
-		v.scrollOffset = 0
-	}
-	return v
-}
-
-// BackspaceFilter removes the last rune from the filter text.
-func (v ArtistsView) BackspaceFilter() ArtistsView {
-	var changed bool
-	v.filter, changed = v.filter.Backspace()
-	if changed {
-		v.cursor = 0
-		v.scrollOffset = 0
-	}
-	return v
-}
-
 // focusedArtist returns the artist name at the current cursor position and true.
 // When a filter is active it indexes into the filtered list.
 func (v ArtistsView) focusedArtist() (string, bool) {

@@ -248,9 +248,12 @@ func TestRescanResetsCursorScrollOffsetAndFilter(t *testing.T) {
 		t.Fatalf("setup: expected cursor=10, got %d", nm.library.cursor)
 	}
 	// Activate a filter.
-	nm.library = nm.library.ActivateFilter()
-	nm.library = nm.library.AppendFilterChar('T')
-	nm.library = nm.library.CommitFilter()
+	nm.library.filter = nm.library.filter.Activate()
+	nm.library.filter, _ = nm.library.filter.AppendChar('T')
+	nm.library.cursor = 0
+	nm.library.scrollOffset = 0
+	nm.library = nm.library.rebuildFilterCache()
+	nm.library.filter = nm.library.filter.Commit()
 	if nm.library.filter.Text != "T" {
 		t.Fatalf("setup: expected filterText='T', got %q", nm.library.filter.Text)
 	}
@@ -305,9 +308,12 @@ func TestWatchBatchInvalidatesFilterCache(t *testing.T) {
 	m.library.index.Insert(library.Track{Artist: "C", Title: "Charlie", Path: "/c", Hash: "h3"})
 
 	// Activate and commit a filter that matches all three.
-	m.library = m.library.ActivateFilter()
-	m.library = m.library.AppendFilterChar('a') // matches Alpha, Beta, Charlie all contain 'a' in artist or title
-	m.library = m.library.CommitFilter()
+	m.library.filter = m.library.filter.Activate()
+	m.library.filter, _ = m.library.filter.AppendChar('a') // matches Alpha, Beta, Charlie all contain 'a' in artist or title
+	m.library.cursor = 0
+	m.library.scrollOffset = 0
+	m.library = m.library.rebuildFilterCache()
+	m.library.filter = m.library.filter.Commit()
 
 	// Move cursor to the last match.
 	for range 2 {
@@ -353,9 +359,12 @@ func TestScanBatchInvalidatesFilterCache(t *testing.T) {
 	// Seed two tracks and set up a filter.
 	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
-	m.library = m.library.ActivateFilter()
-	m.library = m.library.AppendFilterChar('a') // matches both via artist
-	m.library = m.library.CommitFilter()
+	m.library.filter = m.library.filter.Activate()
+	m.library.filter, _ = m.library.filter.AppendChar('a') // matches both via artist
+	m.library.cursor = 0
+	m.library.scrollOffset = 0
+	m.library = m.library.rebuildFilterCache()
+	m.library.filter = m.library.filter.Commit()
 
 	oldMatches := len(m.library.filteredMatches)
 	if oldMatches != 2 {

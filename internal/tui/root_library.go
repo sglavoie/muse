@@ -140,14 +140,20 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 		return m, nil, true
 	case actionLibraryFilterClear:
 		if m.library.filter.Text != "" {
-			m.library = m.library.DeactivateFilter()
+			m.library.filter = m.library.filter.Deactivate()
+			m.library.cursor = 0
+			m.library.scrollOffset = 0
+			m.library = m.library.rebuildFilterCache()
 		}
 		return m, nil, true
 	case actionLibraryEnqueue:
 		if m.queueWriter != nil {
 			cmd := m.library.EnqueueFocused(m.queueWriter, len(m.queue.entries))
 			if m.library.filter.Text != "" {
-				m.library = m.library.DeactivateFilter()
+				m.library.filter = m.library.filter.Deactivate()
+				m.library.cursor = 0
+				m.library.scrollOffset = 0
+				m.library = m.library.rebuildFilterCache()
 			}
 			return m, cmd, true
 		}
@@ -160,7 +166,10 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 				m = m.clearQueueForReplace()
 				cmd = m.library.EnqueueFocused(m.queueWriter, 0)
 				if m.library.filter.Text != "" {
-					m.library = m.library.DeactivateFilter()
+					m.library.filter = m.library.filter.Deactivate()
+					m.library.cursor = 0
+					m.library.scrollOffset = 0
+					m.library = m.library.rebuildFilterCache()
 				}
 			case viewArtists:
 				if m.artists.level == arttui.TrackLevel {

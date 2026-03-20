@@ -256,48 +256,6 @@ func (v QueueView) saveInputIsEmpty() bool {
 	return strings.TrimSpace(v.saveInput.Value()) == ""
 }
 
-// ActivateFilter enters filter input mode for the queue view.
-func (v QueueView) ActivateFilter() QueueView {
-	v.filter = v.filter.Activate()
-	return v
-}
-
-// CommitFilter exits input mode while keeping the current query visible.
-func (v QueueView) CommitFilter() QueueView {
-	v.filter = v.filter.Commit()
-	return v
-}
-
-// DeactivateFilter clears the query, exits input mode, and resets the cursor.
-func (v QueueView) DeactivateFilter() QueueView {
-	v.filter = v.filter.Deactivate()
-	v.cursor = 0
-	v.scrollOffset = 0
-	return v
-}
-
-// AppendFilterChar adds ch to the filter text and resets the cursor.
-func (v QueueView) AppendFilterChar(ch rune) QueueView {
-	var changed bool
-	v.filter, changed = v.filter.AppendChar(ch)
-	if changed {
-		v.cursor = 0
-		v.scrollOffset = 0
-	}
-	return v
-}
-
-// BackspaceFilter removes the last rune from the filter text.
-func (v QueueView) BackspaceFilter() QueueView {
-	var changed bool
-	v.filter, changed = v.filter.Backspace()
-	if changed {
-		v.cursor = 0
-		v.scrollOffset = 0
-	}
-	return v
-}
-
 // filteredEntries returns queue entries matching the current filter text,
 // in display order (respecting sort). When no filter is active, all entries
 // are returned in display order.

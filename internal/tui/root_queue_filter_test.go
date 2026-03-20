@@ -37,11 +37,10 @@ func TestQueueFilterNarrowsDisplayedEntries(t *testing.T) {
 			{Path: "/c.flac", Title: "Gamma", Artist: "ArtC", Album: "AlbC"},
 		},
 	}
-	q = q.ActivateFilter()
-	q = q.AppendFilterChar('b')
-	q = q.AppendFilterChar('e')
-	q = q.AppendFilterChar('t')
-	q = q.AppendFilterChar('a')
+	q.filter = q.filter.Activate()
+	q.filter.Text = "beta"
+	q.cursor = 0
+	q.scrollOffset = 0
 
 	filtered := q.filteredEntries()
 	if len(filtered) != 1 {
@@ -61,12 +60,10 @@ func TestQueueFilterMatchesArtistAndAlbum(t *testing.T) {
 			{Path: "/b.flac", Title: "Song2", Artist: "Coldplay", Album: "Parachutes"},
 		},
 	}
-	q = q.ActivateFilter()
-	q = q.AppendFilterChar('r')
-	q = q.AppendFilterChar('a')
-	q = q.AppendFilterChar('d')
-	q = q.AppendFilterChar('i')
-	q = q.AppendFilterChar('o')
+	q.filter = q.filter.Activate()
+	q.filter.Text = "radio"
+	q.cursor = 0
+	q.scrollOffset = 0
 
 	filtered := q.filteredEntries()
 	if len(filtered) != 1 {
@@ -144,11 +141,11 @@ func TestQueueFilterCursorStaysInBounds(t *testing.T) {
 		},
 		cursor: 2, // pointing at Gamma
 	}
-	q = q.ActivateFilter()
+	q.filter = q.filter.Activate()
 	// Type "alpha" — only 1 match, cursor must reset to 0.
-	for _, ch := range "alpha" {
-		q = q.AppendFilterChar(ch)
-	}
+	q.filter.Text = "alpha"
+	q.cursor = 0
+	q.scrollOffset = 0
 
 	if q.cursor != 0 {
 		t.Fatalf("cursor should be 0 after filter narrows to 1 entry, got %d", q.cursor)
@@ -163,10 +160,10 @@ func TestQueueFilterRendersFilterBar(t *testing.T) {
 			{Path: "/a.flac", Title: "Song", Artist: "Art", Album: "Alb"},
 		},
 	}
-	q = q.ActivateFilter()
-	for _, ch := range "song" {
-		q = q.AppendFilterChar(ch)
-	}
+	q.filter = q.filter.Activate()
+	q.filter.Text = "song"
+	q.cursor = 0
+	q.scrollOffset = 0
 
 	s := styles.NewStyles(true)
 	out := q.render(s, "")
@@ -183,10 +180,10 @@ func TestQueueFilterNoMatchesShowsMessage(t *testing.T) {
 			{Path: "/a.flac", Title: "Song", Artist: "Art"},
 		},
 	}
-	q = q.ActivateFilter()
-	for _, ch := range "zzzzz" {
-		q = q.AppendFilterChar(ch)
-	}
+	q.filter = q.filter.Activate()
+	q.filter.Text = "zzzzz"
+	q.cursor = 0
+	q.scrollOffset = 0
 
 	s := styles.NewStyles(true)
 	out := q.render(s, "")
@@ -230,10 +227,10 @@ func TestQueueFilterSelectMapsToCorrectEntry(t *testing.T) {
 			{ID: 3, Path: "/c.flac", Hash: "hc", Title: "Gamma", Artist: "C"},
 		},
 	}
-	q = q.ActivateFilter()
-	for _, ch := range "beta" {
-		q = q.AppendFilterChar(ch)
-	}
+	q.filter = q.filter.Activate()
+	q.filter.Text = "beta"
+	q.cursor = 0
+	q.scrollOffset = 0
 
 	// Cursor 0 in filtered view should be "Beta" (real index 1).
 	q.cursor = 0
@@ -261,8 +258,10 @@ func TestQueueFilterMoveDisabled(t *testing.T) {
 		},
 		cursor: 0,
 	}
-	q = q.ActivateFilter()
-	q = q.AppendFilterChar('a') // still matches both
+	q.filter = q.filter.Activate()
+	q.filter.Text = "a" // still matches both
+	q.cursor = 0
+	q.scrollOffset = 0
 
 	_, cmd := q.HandleAction(actionMoveTrackDown)
 	if cmd != nil {

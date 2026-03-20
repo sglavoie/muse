@@ -35,48 +35,186 @@ func (m Model) allFilterOps() *filterOps {
 	switch m.activeView {
 	case viewLibrary:
 		return &filterOps{
-			deactivate: func() Model { m.library = m.library.DeactivateFilter(); return m },
-			commit:     func() Model { m.library = m.library.CommitFilter(); return m },
-			backspace:  func() Model { m.library = m.library.BackspaceFilter(); return m },
-			appendChar: func(ch rune) Model { m.library = m.library.AppendFilterChar(ch); return m },
-			isActive:   func() bool { return m.library.filter.Active },
-			activate:   func() Model { m.library = m.library.ActivateFilter(); return m },
+			activate: func() Model {
+				m.library.filter = m.library.filter.Activate()
+				return m
+			},
+			commit: func() Model {
+				m.library.filter = m.library.filter.Commit()
+				return m
+			},
+			deactivate: func() Model {
+				m.library.filter = m.library.filter.Deactivate()
+				m.library.cursor = 0
+				m.library.scrollOffset = 0
+				m.library = m.library.rebuildFilterCache()
+				return m
+			},
+			appendChar: func(ch rune) Model {
+				var changed bool
+				m.library.filter, changed = m.library.filter.AppendChar(ch)
+				if changed {
+					m.library.cursor = 0
+					m.library.scrollOffset = 0
+					m.library = m.library.rebuildFilterCache()
+				}
+				return m
+			},
+			backspace: func() Model {
+				var changed bool
+				m.library.filter, changed = m.library.filter.Backspace()
+				if changed {
+					m.library.cursor = 0
+					m.library.scrollOffset = 0
+					m.library = m.library.rebuildFilterCache()
+				}
+				return m
+			},
+			isActive: func() bool { return m.library.filter.Active },
 		}
 	case viewArtists:
 		return &filterOps{
-			deactivate: func() Model { m.artists = m.artists.DeactivateFilter(); return m },
-			commit:     func() Model { m.artists = m.artists.CommitFilter(); return m },
-			backspace:  func() Model { m.artists = m.artists.BackspaceFilter(); return m },
-			appendChar: func(ch rune) Model { m.artists = m.artists.AppendFilterChar(ch); return m },
-			isActive:   func() bool { return m.artists.filter.Active },
-			activate:   func() Model { m.artists = m.artists.ActivateFilter(); return m },
+			activate: func() Model {
+				m.artists.filter = m.artists.filter.Activate()
+				return m
+			},
+			commit: func() Model {
+				m.artists.filter = m.artists.filter.Commit()
+				return m
+			},
+			deactivate: func() Model {
+				m.artists.filter = m.artists.filter.Deactivate()
+				m.artists.cursor = 0
+				m.artists.scrollOffset = 0
+				return m
+			},
+			appendChar: func(ch rune) Model {
+				var changed bool
+				m.artists.filter, changed = m.artists.filter.AppendChar(ch)
+				if changed {
+					m.artists.cursor = 0
+					m.artists.scrollOffset = 0
+				}
+				return m
+			},
+			backspace: func() Model {
+				var changed bool
+				m.artists.filter, changed = m.artists.filter.Backspace()
+				if changed {
+					m.artists.cursor = 0
+					m.artists.scrollOffset = 0
+				}
+				return m
+			},
+			isActive: func() bool { return m.artists.filter.Active },
 		}
 	case viewAlbums:
 		return &filterOps{
-			deactivate: func() Model { m.albums = m.albums.DeactivateFilter(); return m },
-			commit:     func() Model { m.albums = m.albums.CommitFilter(); return m },
-			backspace:  func() Model { m.albums = m.albums.BackspaceFilter(); return m },
-			appendChar: func(ch rune) Model { m.albums = m.albums.AppendFilterChar(ch); return m },
-			isActive:   func() bool { return m.albums.filter.Active },
-			activate:   func() Model { m.albums = m.albums.ActivateFilter(); return m },
+			activate: func() Model {
+				m.albums.filter = m.albums.filter.Activate()
+				return m
+			},
+			commit: func() Model {
+				m.albums.filter = m.albums.filter.Commit()
+				return m
+			},
+			deactivate: func() Model {
+				m.albums.filter = m.albums.filter.Deactivate()
+				m.albums.cursor = 0
+				m.albums.scrollOffset = 0
+				return m
+			},
+			appendChar: func(ch rune) Model {
+				var changed bool
+				m.albums.filter, changed = m.albums.filter.AppendChar(ch)
+				if changed {
+					m.albums.cursor = 0
+					m.albums.scrollOffset = 0
+				}
+				return m
+			},
+			backspace: func() Model {
+				var changed bool
+				m.albums.filter, changed = m.albums.filter.Backspace()
+				if changed {
+					m.albums.cursor = 0
+					m.albums.scrollOffset = 0
+				}
+				return m
+			},
+			isActive: func() bool { return m.albums.filter.Active },
 		}
 	case viewQueue:
 		return &filterOps{
-			deactivate: func() Model { m.queue = m.queue.DeactivateFilter(); return m },
-			commit:     func() Model { m.queue = m.queue.CommitFilter(); return m },
-			backspace:  func() Model { m.queue = m.queue.BackspaceFilter(); return m },
-			appendChar: func(ch rune) Model { m.queue = m.queue.AppendFilterChar(ch); return m },
-			isActive:   func() bool { return m.queue.filter.Active },
-			activate:   func() Model { m.queue = m.queue.ActivateFilter(); return m },
+			activate: func() Model {
+				m.queue.filter = m.queue.filter.Activate()
+				return m
+			},
+			commit: func() Model {
+				m.queue.filter = m.queue.filter.Commit()
+				return m
+			},
+			deactivate: func() Model {
+				m.queue.filter = m.queue.filter.Deactivate()
+				m.queue.cursor = 0
+				m.queue.scrollOffset = 0
+				return m
+			},
+			appendChar: func(ch rune) Model {
+				var changed bool
+				m.queue.filter, changed = m.queue.filter.AppendChar(ch)
+				if changed {
+					m.queue.cursor = 0
+					m.queue.scrollOffset = 0
+				}
+				return m
+			},
+			backspace: func() Model {
+				var changed bool
+				m.queue.filter, changed = m.queue.filter.Backspace()
+				if changed {
+					m.queue.cursor = 0
+					m.queue.scrollOffset = 0
+				}
+				return m
+			},
+			isActive: func() bool { return m.queue.filter.Active },
 		}
 	case viewFavorites:
 		return &filterOps{
-			deactivate: func() Model { m.favorites = m.favorites.DeactivateFilter(); return m },
-			commit:     func() Model { m.favorites = m.favorites.CommitFilter(); return m },
-			backspace:  func() Model { m.favorites = m.favorites.BackspaceFilter(); return m },
-			appendChar: func(ch rune) Model { m.favorites = m.favorites.AppendFilterChar(ch); return m },
-			isActive:   func() bool { return m.favorites.filter.Active },
-			activate:   func() Model { m.favorites = m.favorites.ActivateFilter(); return m },
+			activate: func() Model {
+				m.favorites.filter = m.favorites.filter.Activate()
+				return m
+			},
+			commit: func() Model {
+				m.favorites.filter = m.favorites.filter.Commit()
+				return m
+			},
+			deactivate: func() Model {
+				m.favorites.filter = m.favorites.filter.Deactivate()
+				m.favorites.cursor = 0
+				m.favorites.scrollOffset = 0
+				return m
+			},
+			appendChar: func(ch rune) Model {
+				var changed bool
+				m.favorites.filter, changed = m.favorites.filter.AppendChar(ch)
+				if changed {
+					m.favorites.cursor = 0
+					m.favorites.scrollOffset = 0
+				}
+				return m
+			},
+			backspace: func() Model {
+				var changed bool
+				m.favorites.filter, changed = m.favorites.filter.Backspace()
+				if changed {
+					m.favorites.cursor = 0
+					m.favorites.scrollOffset = 0
+				}
+				return m
+			},
+			isActive: func() bool { return m.favorites.filter.Active },
 		}
 	default:
 		return nil

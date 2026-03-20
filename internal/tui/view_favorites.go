@@ -279,48 +279,6 @@ func (v FavoritesView) clampCursor() FavoritesView {
 	return v
 }
 
-// ActivateFilter sets the filter bar to active input mode.
-func (v FavoritesView) ActivateFilter() FavoritesView {
-	v.filter = v.filter.Activate()
-	return v
-}
-
-// CommitFilter exits input mode while keeping the current query visible.
-func (v FavoritesView) CommitFilter() FavoritesView {
-	v.filter = v.filter.Commit()
-	return v
-}
-
-// DeactivateFilter clears the query, exits input mode, and resets the cursor.
-func (v FavoritesView) DeactivateFilter() FavoritesView {
-	v.filter = v.filter.Deactivate()
-	v.cursor = 0
-	v.scrollOffset = 0
-	return v
-}
-
-// AppendFilterChar adds ch to the filter text and resets the cursor.
-func (v FavoritesView) AppendFilterChar(ch rune) FavoritesView {
-	var changed bool
-	v.filter, changed = v.filter.AppendChar(ch)
-	if changed {
-		v.cursor = 0
-		v.scrollOffset = 0
-	}
-	return v
-}
-
-// BackspaceFilter removes the last rune from the filter text.
-func (v FavoritesView) BackspaceFilter() FavoritesView {
-	var changed bool
-	v.filter, changed = v.filter.Backspace()
-	if changed {
-		v.cursor = 0
-		v.scrollOffset = 0
-	}
-	return v
-}
-
 // hasSelection reports whether any items are bulk-selected.
 func (v FavoritesView) hasSelection() bool {
 	return len(v.selectedItems) > 0

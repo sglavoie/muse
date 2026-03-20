@@ -200,55 +200,6 @@ func (v LibraryView) EnqueueSelected(qa libtui.QueueAppender, prevQueueLen int) 
 	return v, tea.Batch(cmds...)
 }
 
-// ActivateFilter sets the filter bar to active.
-func (v LibraryView) ActivateFilter() LibraryView {
-	v.filter = v.filter.Activate()
-	return v
-}
-
-// CommitFilter deactivates the filter bar input while keeping the current
-// filter text so the filtered results remain visible.
-func (v LibraryView) CommitFilter() LibraryView {
-	v.filter = v.filter.Commit()
-	return v
-}
-
-// DeactivateFilter clears the filter query, deactivates the filter bar, and
-// resets the cursor to 0.
-func (v LibraryView) DeactivateFilter() LibraryView {
-	v.filter = v.filter.Deactivate()
-	v.cursor = 0
-	v.scrollOffset = 0
-	return v.rebuildFilterCache()
-}
-
-// AppendFilterChar appends ch to the filter text and resets the cursor to 0.
-// It is a no-op when the filter bar is not active.
-func (v LibraryView) AppendFilterChar(ch rune) LibraryView {
-	var changed bool
-	v.filter, changed = v.filter.AppendChar(ch)
-	if !changed {
-		return v
-	}
-	v.cursor = 0
-	v.scrollOffset = 0
-	return v.rebuildFilterCache()
-}
-
-// BackspaceFilter removes the last rune from the filter text and resets the
-// cursor to 0. It is a no-op when the filter bar is not active or the text is
-// already empty.
-func (v LibraryView) BackspaceFilter() LibraryView {
-	var changed bool
-	v.filter, changed = v.filter.Backspace()
-	if !changed {
-		return v
-	}
-	v.cursor = 0
-	v.scrollOffset = 0
-	return v.rebuildFilterCache()
-}
-
 // formatCount formats n with comma separators (e.g. 1234 → "1,234").
 func formatCount(n int) string {
 	s := fmt.Sprintf("%d", n)

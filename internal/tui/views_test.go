@@ -907,7 +907,13 @@ func TestLibraryViewBackspaceFilter(t *testing.T) {
 		fuzzy:  library.FakeFuzzySearcher{},
 		filter: filter.State{Active: true, Text: "AB"},
 	}
-	v = v.BackspaceFilter()
+	var changed bool
+	v.filter, changed = v.filter.Backspace()
+	if changed {
+		v.cursor = 0
+		v.scrollOffset = 0
+		v = v.rebuildFilterCache()
+	}
 	if v.filter.Text != "A" {
 		t.Errorf("BackspaceFilter: expected 'A', got %q", v.filter.Text)
 	}
@@ -918,7 +924,7 @@ func TestLibraryViewBackspaceFilter(t *testing.T) {
 
 func TestLibraryViewBackspaceFilterInactiveNoOp(t *testing.T) {
 	v := LibraryView{filter: filter.State{Text: "AB"}}
-	v = v.BackspaceFilter()
+	v.filter, _ = v.filter.Backspace()
 	if v.filter.Text != "AB" {
 		t.Errorf("BackspaceFilter inactive: expected 'AB', got %q", v.filter.Text)
 	}
@@ -936,7 +942,10 @@ func TestLibraryViewDeactivateFilter(t *testing.T) {
 		filter: filter.State{Active: true, Text: "AB"},
 		cursor: 5,
 	}
-	v = v.DeactivateFilter()
+	v.filter = v.filter.Deactivate()
+	v.cursor = 0
+	v.scrollOffset = 0
+	v = v.rebuildFilterCache()
 	if v.filter.Active {
 		t.Error("DeactivateFilter: expected filter.Active=false")
 	}
@@ -1010,7 +1019,7 @@ func TestModelRemoveLibraryTrackByPath(t *testing.T) {
 
 func TestLibraryViewCommitFilter(t *testing.T) {
 	v := LibraryView{filter: filter.State{Active: true, Text: "test"}}
-	v = v.CommitFilter()
+	v.filter = v.filter.Commit()
 	if v.filter.Active {
 		t.Error("CommitFilter: expected filter.Active=false")
 	}
