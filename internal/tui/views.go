@@ -19,11 +19,6 @@ import (
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
-// playlistFallbackVisibleRows is the assumed number of visible rows when
-// the terminal height is unknown (zero). Used by ensureCursorVisible to
-// keep the cursor within the viewport before the first WindowSizeMsg.
-const playlistFallbackVisibleRows = 50
-
 // viewID identifies which primary view is active.
 type viewID int
 

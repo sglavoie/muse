@@ -13,8 +13,6 @@ import (
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
-const confirmationWindow = 2 * time.Second
-
 // handleScanProgressMsg updates the status bar with the current scan progress.
 func (m Model) handleScanProgressMsg(msg library.ScanProgressMsg) Model {
 	m.statusBar.handleScanProgress(msg)

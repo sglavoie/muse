@@ -302,32 +302,32 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		return m, nil, true
 	case actionSeekBack:
 		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SeekRelative(-5)
+			_ = cp.SeekRelative(-seekOffsetShort)
 			return m, m.sessionPositionCmd(), true
 		}
 		return m, nil, true
 	case actionSeekForward:
 		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SeekRelative(5)
+			_ = cp.SeekRelative(seekOffsetShort)
 			return m, m.sessionPositionCmd(), true
 		}
 		return m, nil, true
 	case actionSeekBackLong:
 		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SeekRelative(-30)
+			_ = cp.SeekRelative(-seekOffsetLong)
 			return m, m.sessionPositionCmd(), true
 		}
 		return m, nil, true
 	case actionSeekForwardLong:
 		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SeekRelative(30)
+			_ = cp.SeekRelative(seekOffsetLong)
 			return m, m.sessionPositionCmd(), true
 		}
 		return m, nil, true
 	case actionVolumeUp:
 		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SetVolumeRelative(5)
-			m.volume = clampVolume(m.volume + 5)
+			_ = cp.SetVolumeRelative(volumeIncrement)
+			m.volume = clampVolume(m.volume + volumeIncrement)
 			m.statusBar.notification = transientNotification{
 				msg:       fmt.Sprintf("Volume: %d%%", m.volume),
 				expiresAt: time.Now().Add(volumeFeedbackDuration),
@@ -336,8 +336,8 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		return m, nil, true
 	case actionVolumeDown:
 		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SetVolumeRelative(-5)
-			m.volume = clampVolume(m.volume - 5)
+			_ = cp.SetVolumeRelative(-volumeIncrement)
+			m.volume = clampVolume(m.volume - volumeIncrement)
 			m.statusBar.notification = transientNotification{
 				msg:       fmt.Sprintf("Volume: %d%%", m.volume),
 				expiresAt: time.Now().Add(volumeFeedbackDuration),

@@ -266,10 +266,6 @@ type favoritesLoadedMsg struct {
 	err      error
 }
 
-// scanBatchSize is the maximum number of tracks collected per batch before
-// returning a ScanBatchMsg to the update loop.
-const scanBatchSize = 100
-
 // watchBatchMsg carries tracks discovered by the filesystem watcher and paths
 // of files deleted/renamed-away. Unlike ScanBatchMsg, receiving this message
 // does not reset the library index: modified tracks are upserted by path and

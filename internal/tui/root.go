@@ -430,11 +430,6 @@ func (m *Model) SetRuntimeDir(dir string) {
 	m.runtimeDir = dir
 }
 
-// undoWindowDuration is the time after a destructive queue action during which
-// pressing 'u' will reverse the action. Only a single undo slot is maintained;
-// a new destructive action within the window replaces the prior slot.
-const undoWindowDuration = 5 * time.Second
-
 // pluralize returns singular when n == 1, plural otherwise.
 func pluralize(n int, singular, plural string) string {
 	if n == 1 {
@@ -497,14 +492,6 @@ func (m *Model) setUndoSlot(slot undoSlot, notification string) {
 		expiresAt: time.Now().Add(undoWindowDuration),
 	}
 }
-
-// positionSyncInterval is how often root polls the player for the current
-// playback position so that crash-resume can restore to the right offset.
-const positionSyncInterval = 5 * time.Second
-
-// sessionTickInterval is how often the periodic session ticker fires to persist
-// the current elapsed position to the session table during uninterrupted playback.
-const sessionTickInterval = 10 * time.Second
 
 // syncPositionCmd schedules one position-sync tick.
 func syncPositionCmd() tea.Cmd {

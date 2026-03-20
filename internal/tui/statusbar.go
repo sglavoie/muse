@@ -11,13 +11,6 @@ import (
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
-// transientDuration is how long a transient notification stays visible before
-// the 1-second tick clears it.
-const transientDuration = 5 * time.Second
-
-// volumeFeedbackDuration is how long a volume notification stays visible.
-const volumeFeedbackDuration = 2 * time.Second
-
 // transientNotification holds a single pending notification for the status bar
 // right zone. expiresAt is the time after which the notification should be
 // cleared by the tick handler. A zero expiresAt means no notification is set.

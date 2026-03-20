@@ -12,11 +12,6 @@ import (
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
-// queueConfirmationWindow is the duration of the two-press confirmation
-// gate for destructive queue actions (e.g. clear queue). A second press
-// within this window executes the action; after expiry the gate resets.
-const queueConfirmationWindow = 2 * time.Second
-
 // newQueueEntries builds QueueEntry values from matched tracks and DB row IDs.
 // source is the playlist name to record on each entry (empty for individual enqueues).
 func newQueueEntries(tracks []library.Track, ids []int64, source string) []QueueEntry {
