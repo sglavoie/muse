@@ -368,7 +368,7 @@ func (v View) Render() string {
 				padHighlight(t.Artist, cols.Artist, dt.artistPositions) + " " +
 				padHighlight(t.Title, cols.Title, dt.titlePositions) + " " +
 				padHighlight(t.Album, cols.Album, dt.albumPositions) + " " +
-				pad(dur, cols.Duration)
+				padLeft(dur, cols.Duration)
 		} else if len(dt.matchedIndexes) > 0 {
 			artistOffset, artistLen, titleOffset, titleLen, albumOffset, albumLen :=
 				searchFieldOffsetsAll(t.Artist, t.Title, t.Album)
@@ -379,7 +379,7 @@ func (v View) Render() string {
 				padHighlight(t.Artist, cols.Artist, artistPos) + " " +
 				padHighlight(t.Title, cols.Title, titlePos) + " " +
 				padHighlight(t.Album, cols.Album, albumPos) + " " +
-				pad(dur, cols.Duration)
+				padLeft(dur, cols.Duration)
 		} else {
 			row = markerStr + renderRow(num, t.Artist, t.Title, t.Album, dur, cols)
 		}
@@ -404,7 +404,28 @@ func renderRow(num, artist, title, album, duration string, cols Columns) string 
 		pad(artist, cols.Artist) + " " +
 		pad(title, cols.Title) + " " +
 		pad(album, cols.Album) + " " +
-		pad(duration, cols.Duration)
+		padLeft(duration, cols.Duration)
+}
+
+// padLeft returns s truncated or left-padded with spaces to exactly width runes
+// (i.e. right-aligned). Strings longer than width are truncated to width-1
+// runes followed by "…".
+func padLeft(s string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	runes := []rune(s)
+	n := len(runes)
+	if n > width {
+		if width == 1 {
+			return string(runes[:1])
+		}
+		return string(runes[:width-1]) + "…"
+	}
+	if n == width {
+		return s
+	}
+	return strings.Repeat(" ", width-n) + s
 }
 
 // pad returns s truncated or right-padded with spaces to exactly width runes.

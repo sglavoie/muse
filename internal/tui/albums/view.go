@@ -69,7 +69,7 @@ func (v View) visibleRows() int {
 			reserve = 1
 		}
 	default:
-		reserve = 2
+		reserve = 3
 	}
 	if v.SortIndicator != "" {
 		reserve++
@@ -278,7 +278,11 @@ func (v View) renderTracks() string {
 		return heading + v.filterSeparator() + "(no matches)"
 	}
 
-	cols := arttui.ComputeTrack(v.Width)
+	cols := ComputeTrack(v.Width)
+
+	header := v.Styles.ColHead.Render(
+		fmt.Sprintf("%-*s %-*s %-*s %*s",
+			cols.Position, "#", cols.Title, "Title", cols.Artist, "Artist", cols.Duration, "Time"))
 
 	maxRows := v.visibleRows()
 	start := min(v.ScrollOffset, len(items))
@@ -291,15 +295,17 @@ func (v View) renderTracks() string {
 		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
 		title := arttui.Truncate(t.Title, cols.Title)
 		title = fmt.Sprintf("%-*s", cols.Title, title)
+		artist := arttui.Truncate(t.Artist, cols.Artist)
+		artist = fmt.Sprintf("%-*s", cols.Artist, artist)
 		dur := arttui.FormatDuration(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
-		line := pos + " " + title + " " + dur
+		line := pos + " " + title + " " + artist + " " + dur
 		if absIdx == v.Cursor {
 			line = v.Styles.Accent.Render(line)
 		}
 		lines[i] = line
 	}
-	return heading + v.filterSeparator() + strings.Join(lines, "\n")
+	return heading + v.filterSeparator() + header + "\n" + strings.Join(lines, "\n")
 }
 
 // topFilterSeparator is like filterSeparator but without a leading newline,

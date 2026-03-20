@@ -401,12 +401,12 @@ func (v View) renderTracks() string {
 }
 
 func (v View) renderTrackRows(items []library.Track) string {
-	// Subtract 2 for the selection marker column so duration is not clipped.
-	cols := arttui.ComputeTrack(v.Width - 2)
+	cols := ComputeTrack(v.Width)
 
 	// Column header row.
 	header := v.Styles.ColHead.Render(
-		fmt.Sprintf("  %-*s %-*s %*s", cols.Position, "#", cols.Title, "Title", cols.Duration, "Time"))
+		fmt.Sprintf("  %-*s %-*s %-*s %-*s %*s",
+			cols.Position, "#", cols.Title, "Title", cols.Artist, "Artist", cols.Album, "Album", cols.Duration, "Time"))
 
 	maxRows := v.visibleRows()
 	start := min(v.ScrollOffset, len(items))
@@ -431,9 +431,13 @@ func (v View) renderTrackRows(items []library.Track) string {
 		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
 		title := arttui.Truncate(t.Title, cols.Title)
 		title = fmt.Sprintf("%-*s", cols.Title, title)
+		artist := arttui.Truncate(t.Artist, cols.Artist)
+		artist = fmt.Sprintf("%-*s", cols.Artist, artist)
+		album := arttui.Truncate(t.Album, cols.Album)
+		album = fmt.Sprintf("%-*s", cols.Album, album)
 		dur := arttui.FormatDuration(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
-		line := marker + pos + " " + title + " " + dur
+		line := marker + pos + " " + title + " " + artist + " " + album + " " + dur
 		if isFocused {
 			line = v.Styles.Accent.Render(line)
 		}

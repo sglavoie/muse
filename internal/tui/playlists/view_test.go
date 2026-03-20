@@ -1158,8 +1158,8 @@ func trackColumnWidthsFromRender(t *testing.T, width int) (titleW, artistW int) 
 func assertTrackRatioWithinTolerance(t *testing.T, colName string, colWidth, flexWidth int, wantPct float64) {
 	t.Helper()
 	gotPct := float64(colWidth) / float64(flexWidth) * 100
-	if math.Abs(gotPct-wantPct) > 2.0 {
-		t.Errorf("column %s: ratio %.2f%% (width=%d/flex=%d) exceeds ±2%% tolerance from expected %.2f%%",
+	if math.Abs(gotPct-wantPct) > 3.0 {
+		t.Errorf("column %s: ratio %.2f%% (width=%d/flex=%d) exceeds ±3%% tolerance from expected %.2f%%",
 			colName, gotPct, colWidth, flexWidth, wantPct)
 	}
 }

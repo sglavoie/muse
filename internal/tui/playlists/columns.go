@@ -5,7 +5,7 @@ const (
 	nameSep    = 2 // two spaces between name and count columns
 
 	trackMarkerFixed   = 2  // '●' glyph + separator space
-	trackPosFixed      = 4  // "999 " — position column
+	trackPosFixed      = 5  // "9999 " — supports up to 4-digit track numbers
 	trackDurationFixed = 10 // "mm:ss.xxx" — duration column
 	trackSepCount      = 4  // spaces between the five track columns
 

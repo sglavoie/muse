@@ -1205,8 +1205,10 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 	}
 
 	const (
-		posWidth = 4  // "> 1" .. ">999" or "   1".."  999"
-		durWidth = 10 // "59:59     " or "--:--     "
+		posWidth    = 5  // "> 1" .. ">9999" or "   1".."  9999"
+		durWidth    = 10 // "59:59" or "--:--" right-aligned
+		markerWidth = 2  // "● " or "▶ " or "  "
+		sepCount    = 5  // spaces between the 6 content columns
 	)
 
 	titleWidth := 20 // sensible fallback when width is unknown
@@ -1214,17 +1216,18 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 	albumWidth := 15
 	sourceWidth := 10
 	if v.width > 0 {
-		titleWidth = v.width * 30 / 100
-		artistWidth = v.width * 20 / 100
-		albumWidth = v.width * 20 / 100
-		sourceWidth = v.width * 10 / 100
+		fixed := posWidth + durWidth + markerWidth + sepCount
+		flex := v.width - fixed
+		if flex < 4 {
+			flex = 4
+		}
+		titleWidth = flex * 30 / 80
+		artistWidth = flex * 20 / 80
+		albumWidth = flex * 20 / 80
+		sourceWidth = flex - titleWidth - artistWidth - albumWidth // absorbs remainder
 	}
-	if titleWidth < 1 {
-		titleWidth = 1
-	}
-	if artistWidth < 1 {
-		artistWidth = 1
-	}
+	titleWidth = max(titleWidth, 1)
+	artistWidth = max(artistWidth, 1)
 	albumWidth = max(albumWidth, 1)
 	sourceWidth = max(sourceWidth, 1)
 
@@ -1249,8 +1252,8 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 			timeHead += ind
 		}
 	}
-	header := fmt.Sprintf("  %3s %-*s %-*s %-*s %-*s %-*s",
-		"#", titleWidth, titleHead, artistWidth, artistHead, albumWidth, albumHead, sourceWidth, sourceHead, durWidth, timeHead)
+	header := fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %*s",
+		posWidth, "#", titleWidth, titleHead, artistWidth, artistHead, albumWidth, albumHead, sourceWidth, sourceHead, durWidth, timeHead)
 
 	lines := make([]string, end-start)
 	for i := range end - start {
@@ -1281,7 +1284,7 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 		if isFocused {
 			cursorChar = ">"
 		}
-		pos := fmt.Sprintf("%s%3d", cursorChar, absIdx+1)
+		pos := fmt.Sprintf("%s%4d", cursorChar, absIdx+1)
 
 		title := truncateTitle(e.Title, titleWidth)
 		title = fmt.Sprintf("%-*s", titleWidth, title)
@@ -1295,7 +1298,7 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string) string {
 		source := truncateTitle(e.SourcePlaylist, sourceWidth)
 		source = fmt.Sprintf("%-*s", sourceWidth, source)
 
-		dur := fmt.Sprintf("%-*s", durWidth, formatQueueDuration(e.DurationMs))
+		dur := fmt.Sprintf("%*s", durWidth, formatQueueDuration(e.DurationMs))
 
 		line := markerStr + pos + " " + title + " " + artist + " " + album + " " + source + " " + dur
 		if e.Missing {

@@ -122,7 +122,7 @@ func (v View) visibleRows() int {
 			reserve = 1
 		}
 	default:
-		reserve = 2
+		reserve = 3
 	}
 	if v.SortIndicator != "" {
 		reserve++
@@ -444,6 +444,10 @@ func (v View) renderTracks() string {
 
 	cols := ComputeTrack(v.Width)
 
+	header := v.Styles.ColHead.Render(
+		fmt.Sprintf("%-*s %-*s %*s",
+			cols.Position, "#", cols.Title, "Title", cols.Duration, "Time"))
+
 	maxRows := v.visibleRows()
 	start := min(v.ScrollOffset, len(items))
 	end := min(len(items), start+maxRows)
@@ -463,7 +467,7 @@ func (v View) renderTracks() string {
 		}
 		lines[i] = line
 	}
-	return styledHeading + v.filterSeparator() + strings.Join(lines, "\n")
+	return styledHeading + v.filterSeparator() + header + "\n" + strings.Join(lines, "\n")
 }
 
 // filterSeparator returns the line between the heading and the item list.

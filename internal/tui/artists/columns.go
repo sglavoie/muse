@@ -1,7 +1,7 @@
 package artists
 
 const (
-	trackPosFixed      = 4  // "999 "
+	trackPosFixed      = 5  // "9999 " — supports up to 4-digit track numbers
 	trackDurationFixed = 10 // "mm:ss.xxx"
 	trackSepCount      = 2  // spaces between the three columns
 )
