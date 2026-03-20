@@ -632,6 +632,24 @@ func (m Model) activeViewContext() bindingContext {
 	return ctx
 }
 
+// setViewDimensions updates the width and height on all primary views.
+// height is reduced by 3 to leave room for the status bar and header rows.
+func (m *Model) setViewDimensions(width, height int) {
+	viewHeight := max(height-3, 0)
+	m.library.width = width
+	m.library.height = viewHeight
+	m.playlists.width = width
+	m.playlists.height = viewHeight
+	m.queue.width = width
+	m.queue.height = viewHeight
+	m.artists.width = width
+	m.artists.height = viewHeight
+	m.albums.width = width
+	m.albums.height = viewHeight
+	m.favorites.width = width
+	m.favorites.height = viewHeight
+}
+
 // Update handles incoming messages. Number keys 1/2/3/4 switch the active view;
 // Ctrl+c quits. q and Esc are intentionally ignored here — they are reserved
 // for in-view navigation.
@@ -640,18 +658,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.termWidth = msg.Width
 		m.termHeight = msg.Height
-		m.library.width = msg.Width
-		m.library.height = max(msg.Height-3, 0)
-		m.playlists.width = msg.Width
-		m.playlists.height = max(msg.Height-3, 0)
-		m.queue.width = msg.Width
-		m.queue.height = max(msg.Height-3, 0)
-		m.artists.width = msg.Width
-		m.artists.height = max(msg.Height-3, 0)
-		m.albums.width = msg.Width
-		m.albums.height = max(msg.Height-3, 0)
-		m.favorites.width = msg.Width
-		m.favorites.height = max(msg.Height-3, 0)
+		m.setViewDimensions(msg.Width, msg.Height)
 		if m.helpVisible {
 			m.helpViewport.SetWidth(msg.Width)
 			extraLines := 0
