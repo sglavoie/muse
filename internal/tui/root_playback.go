@@ -22,19 +22,19 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 			}
 		}
 	}
-	if m.preview != nil && m.previewPlayer != nil {
-		if elapsed, total, err := m.previewPlayer.ElapsedPosition(); err == nil {
-			m.preview.elapsed = elapsed
-			m.preview.total = total
+	if m.overlay.preview != nil && m.overlay.previewPlayer != nil {
+		if elapsed, total, err := m.overlay.previewPlayer.ElapsedPosition(); err == nil {
+			m.overlay.preview.elapsed = elapsed
+			m.overlay.preview.total = total
 		} else {
 			// Preview track ended or mpv died — auto-dismiss.
 			m = m.dismissPreview()
 		}
 	}
-	if m.nowPlayingInfo != nil {
-		m.nowPlayingInfo.elapsed = m.playback.elapsedSecs
-		m.nowPlayingInfo.total = m.playback.totalSecs
-		m.nowPlayingInfo.state = m.playback.state
+	if m.overlay.nowPlaying != nil {
+		m.overlay.nowPlaying.elapsed = m.playback.elapsedSecs
+		m.overlay.nowPlaying.total = m.playback.totalSecs
+		m.overlay.nowPlaying.state = m.playback.state
 	}
 	if !m.statusBar.notification.expiresAt.IsZero() && time.Now().After(m.statusBar.notification.expiresAt) {
 		m.statusBar.notification = transientNotification{}
@@ -140,8 +140,8 @@ func (m Model) handlePauseChangedMsg(msg PauseChangedMsg) (Model, tea.Cmd) {
 
 // handlePreviewStartedMsg stores the preview player and overlay state.
 func (m Model) handlePreviewStartedMsg(msg previewStartedMsg) Model {
-	m.previewPlayer = msg.player
-	m.preview = &msg.overlay
+	m.overlay.previewPlayer = msg.player
+	m.overlay.preview = &msg.overlay
 	return m
 }
 
@@ -153,11 +153,11 @@ func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
 	}
 	player.PlaySound(player.SoundError)
 	// Resume main player if we paused it.
-	if m.previewWasPlaying && m.player != nil {
+	if m.overlay.previewWasPlaying && m.player != nil {
 		_ = m.player.Play()
 		m.playback.state = PlaybackPlaying
 	}
-	m.previewWasPlaying = false
+	m.overlay.previewWasPlaying = false
 	return m
 }
 
@@ -184,8 +184,8 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 	switch action {
 	case actionTrackInfo:
-		if m.trackInfo != nil {
-			m.trackInfo = nil
+		if m.overlay.trackInfo != nil {
+			m.overlay.trackInfo = nil
 			return m, nil, true
 		}
 		track, ok := m.focusedTrackForPreview()
@@ -213,8 +213,8 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		}
 		return m, trackInfoCmd(m.appCtx, track.Path), true
 	case actionNowPlayingInfo:
-		if m.nowPlayingInfo != nil {
-			m.nowPlayingInfo = nil
+		if m.overlay.nowPlaying != nil {
+			m.overlay.nowPlaying = nil
 			return m, nil, true
 		}
 		if m.playback.state == PlaybackStopped || m.playback.state == PlaybackIdle {
@@ -247,10 +247,10 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 				}
 			}
 		}
-		m.nowPlayingInfo = &overlay
+		m.overlay.nowPlaying = &overlay
 		return m, nil, true
 	case actionPreview:
-		if m.preview != nil {
+		if m.overlay.preview != nil {
 			m = m.dismissPreview()
 			return m, nil, true
 		}
@@ -262,8 +262,8 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			}
 			return m, nil, true
 		}
-		m.previewWasPlaying = m.playback.state == PlaybackPlaying
-		if m.previewWasPlaying && m.player != nil {
+		m.overlay.previewWasPlaying = m.playback.state == PlaybackPlaying
+		if m.overlay.previewWasPlaying && m.player != nil {
 			_ = m.player.Pause()
 			m.playback.state = PlaybackPaused
 		}
@@ -455,15 +455,15 @@ func (m Model) startPreviewCmd(track library.Track) tea.Cmd {
 // dismissPreview stops the preview player, clears the overlay, and resumes
 // main playback if it was playing before the preview started.
 func (m Model) dismissPreview() Model {
-	if m.previewPlayer != nil {
-		_ = m.previewPlayer.Close()
+	if m.overlay.previewPlayer != nil {
+		_ = m.overlay.previewPlayer.Close()
 	}
-	m.preview = nil
-	m.previewPlayer = nil
-	if m.previewWasPlaying && m.player != nil {
+	m.overlay.preview = nil
+	m.overlay.previewPlayer = nil
+	if m.overlay.previewWasPlaying && m.player != nil {
 		_ = m.player.Play()
 		m.playback.state = PlaybackPlaying
 	}
-	m.previewWasPlaying = false
+	m.overlay.previewWasPlaying = false
 	return m
 }

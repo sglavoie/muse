@@ -613,14 +613,14 @@ func TestAlbumsBulkActionAtTrackLevel(t *testing.T) {
 
 	// Press 'a' to open destination picker.
 	m = pressKey(m, "a")
-	if m.destPicker == nil {
+	if m.overlay.destPicker == nil {
 		t.Fatal("expected destPicker to be non-nil after pressing 'a' at TrackLevel")
 	}
-	if len(m.destPickerTracks) != 1 {
-		t.Fatalf("expected 1 destPickerTrack, got %d", len(m.destPickerTracks))
+	if len(m.overlay.destPickerTracks) != 1 {
+		t.Fatalf("expected 1 destPickerTrack, got %d", len(m.overlay.destPickerTracks))
 	}
-	if m.destPickerTracks[0].Title != "Track A1" {
-		t.Errorf("expected destPickerTrack 'Track A1', got %q", m.destPickerTracks[0].Title)
+	if m.overlay.destPickerTracks[0].Title != "Track A1" {
+		t.Errorf("expected destPickerTrack 'Track A1', got %q", m.overlay.destPickerTracks[0].Title)
 	}
 }
 
@@ -632,11 +632,11 @@ func TestAlbumsBulkActionAtAlbumLevel(t *testing.T) {
 
 	// Press 'a' at AlbumLevel (focused on Alpha which has 2 tracks).
 	m = pressKey(m, "a")
-	if m.destPicker == nil {
+	if m.overlay.destPicker == nil {
 		t.Fatal("expected destPicker to be non-nil at AlbumLevel")
 	}
-	if len(m.destPickerTracks) != 2 {
-		t.Fatalf("expected 2 destPickerTracks (Alpha tracks), got %d", len(m.destPickerTracks))
+	if len(m.overlay.destPickerTracks) != 2 {
+		t.Fatalf("expected 2 destPickerTracks (Alpha tracks), got %d", len(m.overlay.destPickerTracks))
 	}
 }
 

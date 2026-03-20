@@ -153,11 +153,11 @@ func TestRootLibraryAOpensDestinationPickerNoSelection(t *testing.T) {
 	if cmd != nil {
 		t.Fatalf("'a' with no selection: expected nil cmd (modal open is synchronous), got %T", cmd)
 	}
-	if nm.destPicker == nil {
+	if nm.overlay.destPicker == nil {
 		t.Fatal("'a' with no selection: expected destPicker to be non-nil (modal open)")
 	}
-	if len(nm.destPickerTracks) != 1 || nm.destPickerTracks[0].Hash != "hash-one" {
-		t.Errorf("'a' with no selection: expected destPickerTracks to contain focused track, got %v", nm.destPickerTracks)
+	if len(nm.overlay.destPickerTracks) != 1 || nm.overlay.destPickerTracks[0].Hash != "hash-one" {
+		t.Errorf("'a' with no selection: expected destPickerTracks to contain focused track, got %v", nm.overlay.destPickerTracks)
 	}
 }
 
@@ -176,11 +176,11 @@ func TestRootLibraryAOpensDestinationPickerWithSelection(t *testing.T) {
 	if cmd != nil {
 		t.Fatalf("'a' with selection: expected nil cmd (modal open is synchronous), got %T", cmd)
 	}
-	if nm.destPicker == nil {
+	if nm.overlay.destPicker == nil {
 		t.Fatal("'a' with selection: expected destPicker to be non-nil (modal open)")
 	}
-	if len(nm.destPickerTracks) != 2 {
-		t.Errorf("'a' with selection: expected 2 destPickerTracks, got %d", len(nm.destPickerTracks))
+	if len(nm.overlay.destPickerTracks) != 2 {
+		t.Errorf("'a' with selection: expected 2 destPickerTracks, got %d", len(nm.overlay.destPickerTracks))
 	}
 }
 
@@ -198,7 +198,7 @@ func TestRootLibraryAWithSelectionEnqueuesAndClears(t *testing.T) {
 	// 'a' opens the destination picker.
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	nm := next.(Model)
-	if nm.destPicker == nil {
+	if nm.overlay.destPicker == nil {
 		t.Fatal("expected destPicker to be open after 'a'")
 	}
 
@@ -223,7 +223,7 @@ func TestRootLibraryAWithSelectionEnqueuesAndClears(t *testing.T) {
 	if _, ok := batchMsg.(BatchEnqueuedMsg); !ok {
 		t.Fatalf("expected BatchEnqueuedMsg, got %T", batchMsg)
 	}
-	if nm3.destPicker != nil {
+	if nm3.overlay.destPicker != nil {
 		t.Error("expected destPicker to be nil after confirmation")
 	}
 	if len(nm3.library.selectedHashes) != 0 {
@@ -240,7 +240,7 @@ func TestRootLibraryAEscDismissesModal(t *testing.T) {
 	// Open the modal.
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	nm := next.(Model)
-	if nm.destPicker == nil {
+	if nm.overlay.destPicker == nil {
 		t.Fatal("expected destPicker to be open after 'a'")
 	}
 
@@ -252,7 +252,7 @@ func TestRootLibraryAEscDismissesModal(t *testing.T) {
 	dismissMsg := escCmd()
 	next2, _ := nm.Update(dismissMsg)
 	nm2 := next2.(Model)
-	if nm2.destPicker != nil {
+	if nm2.overlay.destPicker != nil {
 		t.Error("expected destPicker to be nil after dismiss")
 	}
 }
@@ -301,7 +301,7 @@ func TestRootLibraryAConfirmPlaylistAddsToPlaylist(t *testing.T) {
 	if len(pa.calls[0].hashes) != 1 || pa.calls[0].hashes[0] != "hash-one" {
 		t.Errorf("expected hashes [hash-one], got %v", pa.calls[0].hashes)
 	}
-	if nm3.destPicker != nil {
+	if nm3.overlay.destPicker != nil {
 		t.Error("expected destPicker to be nil after confirmation")
 	}
 	if len(nm3.library.selectedHashes) != 0 {
@@ -326,11 +326,11 @@ func TestRootLibraryAConfirmPlaylistClearsSelectionAndNotifies(t *testing.T) {
 	// 'a' opens the destination picker with all 2 bulk-selected tracks staged.
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	nm := next.(Model)
-	if nm.destPicker == nil {
+	if nm.overlay.destPicker == nil {
 		t.Fatal("expected destPicker to be open after 'a'")
 	}
-	if len(nm.destPickerTracks) != 2 {
-		t.Fatalf("expected 2 destPickerTracks, got %d", len(nm.destPickerTracks))
+	if len(nm.overlay.destPickerTracks) != 2 {
+		t.Fatalf("expected 2 destPickerTracks, got %d", len(nm.overlay.destPickerTracks))
 	}
 
 	// 'j' moves cursor from Play Queue (0) to Chill Vibes (1).

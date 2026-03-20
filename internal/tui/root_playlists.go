@@ -376,9 +376,9 @@ func (m Model) handlePlaylistCreatedMsg(msg playlistCreatedMsg) (Model, tea.Cmd)
 
 	// If there are staged tracks from the destination picker, auto-add
 	// them to the newly created playlist.
-	if len(m.destPickerTracks) > 0 && m.playlistAdder != nil {
-		tracks := m.destPickerTracks
-		m.destPickerTracks = nil
+	if len(m.overlay.destPickerTracks) > 0 && m.playlistAdder != nil {
+		tracks := m.overlay.destPickerTracks
+		m.overlay.destPickerTracks = nil
 		pid := msg.id
 		pa := m.playlistAdder
 		pr := m.playlistRenamer
@@ -479,8 +479,8 @@ func (m Model) handleTracksAddedToPlaylistMsg(msg tracksAddedToPlaylistMsg) Mode
 
 // handleDestinationPickerDismissedMsg clears the destination picker and staged tracks.
 func (m Model) handleDestinationPickerDismissedMsg() Model {
-	m.destPicker = nil
-	m.destPickerTracks = nil
+	m.overlay.destPicker = nil
+	m.overlay.destPickerTracks = nil
 	return m
 }
 
@@ -488,7 +488,7 @@ func (m Model) handleDestinationPickerDismissedMsg() Model {
 // playlists view, and activates the inline create input. Staged tracks are
 // kept so they are auto-added after the playlist is created.
 func (m Model) handleDestinationPickerCreateMsg() Model {
-	m.destPicker = nil
+	m.overlay.destPicker = nil
 	m.library = m.library.ClearSelection()
 	m.activeView = viewPlaylists
 	m.playlists = m.playlists.startCreate()
@@ -498,9 +498,9 @@ func (m Model) handleDestinationPickerCreateMsg() Model {
 // handleDestinationPickedMsg processes a destination picker confirmation,
 // either enqueueing tracks to the play queue or adding them to a playlist.
 func (m Model) handleDestinationPickedMsg(msg pltui.DestinationPickedMsg) (Model, tea.Cmd) {
-	tracks := m.destPickerTracks
-	m.destPicker = nil
-	m.destPickerTracks = nil
+	tracks := m.overlay.destPickerTracks
+	m.overlay.destPicker = nil
+	m.overlay.destPickerTracks = nil
 	m.library = m.library.ClearSelection()
 	if msg.IsQueue {
 		// Append tracks to the play queue as a batch so only one sound plays.

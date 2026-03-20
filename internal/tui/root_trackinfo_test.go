@@ -37,7 +37,7 @@ func TestTrackInfoKeyNoTrack(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("expected nil command when no track focused")
 	}
-	if nm.trackInfo != nil {
+	if nm.overlay.trackInfo != nil {
 		t.Fatal("expected no overlay when no track focused")
 	}
 	if nm.statusBar.notification.msg != "No track to inspect" {
@@ -57,7 +57,7 @@ func TestTrackInfoKeyReturnsCmd(t *testing.T) {
 		t.Fatal("expected non-nil command for track info")
 	}
 	// Overlay should not be set yet — it's set when trackInfoMsg arrives.
-	if nm.trackInfo != nil {
+	if nm.overlay.trackInfo != nil {
 		t.Fatal("overlay should not be set before trackInfoMsg arrives")
 	}
 }
@@ -74,11 +74,11 @@ func TestTrackInfoMsgSuccess(t *testing.T) {
 	next, _ := m.Update(trackInfoMsg{path: "/music/song.flac", tags: tags})
 	nm := next.(Model)
 
-	if nm.trackInfo == nil {
+	if nm.overlay.trackInfo == nil {
 		t.Fatal("expected trackInfo overlay to be set")
 	}
-	if nm.trackInfo.path != "/music/song.flac" {
-		t.Errorf("expected path '/music/song.flac', got %q", nm.trackInfo.path)
+	if nm.overlay.trackInfo.path != "/music/song.flac" {
+		t.Errorf("expected path '/music/song.flac', got %q", nm.overlay.trackInfo.path)
 	}
 }
 
@@ -93,7 +93,7 @@ func TestTrackInfoMsgError(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.trackInfo != nil {
+	if nm.overlay.trackInfo != nil {
 		t.Fatal("expected no overlay on error")
 	}
 	if nm.statusBar.notification.msg == "" {
@@ -106,7 +106,7 @@ func TestTrackInfoMsgError(t *testing.T) {
 func TestTrackInfoToggleOff(t *testing.T) {
 	m := New(context.Background())
 	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"})
-	m.trackInfo = &overlay
+	m.overlay.trackInfo = &overlay
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'i', Text: "i"})
 	nm := next.(Model)
@@ -114,7 +114,7 @@ func TestTrackInfoToggleOff(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("expected nil command on dismiss")
 	}
-	if nm.trackInfo != nil {
+	if nm.overlay.trackInfo != nil {
 		t.Fatal("expected overlay to be dismissed on toggle")
 	}
 }
@@ -123,12 +123,12 @@ func TestTrackInfoToggleOff(t *testing.T) {
 func TestTrackInfoEscDismisses(t *testing.T) {
 	m := New(context.Background())
 	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"})
-	m.trackInfo = &overlay
+	m.overlay.trackInfo = &overlay
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	nm := next.(Model)
 
-	if nm.trackInfo != nil {
+	if nm.overlay.trackInfo != nil {
 		t.Fatal("expected overlay to be nil after Esc")
 	}
 }
@@ -138,7 +138,7 @@ func TestTrackInfoEscDismisses(t *testing.T) {
 func TestTrackInfoSwallowsKeys(t *testing.T) {
 	m := New(context.Background())
 	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"})
-	m.trackInfo = &overlay
+	m.overlay.trackInfo = &overlay
 	m.activeView = viewLibrary
 
 	// Press '3' (switch to queue) — should be swallowed.
@@ -148,7 +148,7 @@ func TestTrackInfoSwallowsKeys(t *testing.T) {
 	if nm.activeView != viewLibrary {
 		t.Fatalf("expected view to stay at library, got %d", nm.activeView)
 	}
-	if nm.trackInfo == nil {
+	if nm.overlay.trackInfo == nil {
 		t.Fatal("overlay should still be active after swallowed key")
 	}
 }
@@ -158,12 +158,12 @@ func TestTrackInfoSwallowsKeys(t *testing.T) {
 func TestTrackInfoCtrlCDismissesAndQuits(t *testing.T) {
 	m := New(context.Background())
 	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"})
-	m.trackInfo = &overlay
+	m.overlay.trackInfo = &overlay
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	nm := next.(Model)
 
-	if nm.trackInfo != nil {
+	if nm.overlay.trackInfo != nil {
 		t.Fatal("expected overlay to be dismissed on ctrl+c")
 	}
 	if cmd == nil {
@@ -179,7 +179,7 @@ func TestTrackInfoCtrlCDismissesAndQuits(t *testing.T) {
 func TestTrackInfoOverlayRenderedInView(t *testing.T) {
 	m := New(context.Background())
 	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "View Song"})
-	m.trackInfo = &overlay
+	m.overlay.trackInfo = &overlay
 	m.termWidth = 80
 	m.termHeight = 24
 
@@ -204,7 +204,7 @@ func TestTrackInfoPathUnknown(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("expected nil command for unknown path")
 	}
-	if nm.trackInfo != nil {
+	if nm.overlay.trackInfo != nil {
 		t.Fatal("expected no overlay for unknown path")
 	}
 	if nm.statusBar.notification.msg != "Track path unknown" {
@@ -217,7 +217,7 @@ func TestTrackInfoPathUnknown(t *testing.T) {
 func TestTrackInfoYankPath(t *testing.T) {
 	m := New(context.Background())
 	overlay := newTrackInfoOverlay("/music/artist/song.flac", map[string]any{"Title": "T"})
-	m.trackInfo = &overlay
+	m.overlay.trackInfo = &overlay
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
 	nm := next.(Model)
@@ -225,7 +225,7 @@ func TestTrackInfoYankPath(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("expected non-nil command for clipboard copy")
 	}
-	if nm.trackInfo == nil {
+	if nm.overlay.trackInfo == nil {
 		t.Fatal("overlay should remain active after yank")
 	}
 	if nm.statusBar.notification.msg != "Path copied to clipboard" {

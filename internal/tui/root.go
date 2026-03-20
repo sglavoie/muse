@@ -21,6 +21,18 @@ import (
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
+// overlayInfo groups all overlay and modal state.
+type overlayInfo struct {
+	preview           *PreviewOverlay
+	previewPlayer     player.Previewer
+	previewWasPlaying bool
+	nowPlaying        *NowPlayingOverlay
+	trackInfo         *TrackInfoOverlay
+	metadataEditor    *MetadataEditor
+	destPicker        *pltui.DestinationPickerModal
+	destPickerTracks  []library.Track
+}
+
 // undoInfo groups the fields that track pending destructive-action confirmations
 // and the reversible undo slot.
 type undoInfo struct {
@@ -105,27 +117,8 @@ type Model struct {
 	favoriteReader  favoriteReader       // may be nil; set via WithFavoriteReader
 	favoriteWriter  favoriteWriter       // may be nil; set via WithFavoriteWriter
 
-	// preview is non-nil while the preview overlay is active.
-	preview           *PreviewOverlay
-	previewPlayer     player.Previewer // separate mpv instance for preview
-	previewWasPlaying bool             // main player was playing before preview
-
-	// nowPlayingInfo is non-nil while the now-playing info overlay is active.
-	nowPlayingInfo *NowPlayingOverlay
-
-	// trackInfo is non-nil while the track info overlay is active.
-	trackInfo *TrackInfoOverlay
-
-	// metadataEditor is non-nil while the metadata editor overlay is active.
-	metadataEditor *MetadataEditor
+	overlay        overlayInfo     // all overlay and modal state
 	metadataWriter metadataUpdater // may be nil; set via SetMetadataWriter
-
-	// destPicker is non-nil while the destination picker modal is open.
-	// Root dispatches all keypresses to the modal while it is open.
-	destPicker *pltui.DestinationPickerModal
-	// destPickerTracks holds the tracks staged for the pending destination
-	// action. Populated when the modal opens; cleared on confirmation or dismiss.
-	destPickerTracks []library.Track
 
 	undo undoInfo // reversible undo slot and pending confirmation flags
 
@@ -730,7 +723,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		} else {
 			overlay := newTrackInfoOverlay(msg.path, msg.tags)
-			m.trackInfo = &overlay
+			m.overlay.trackInfo = &overlay
 		}
 
 	case TrackChangedMsg:
@@ -846,13 +839,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// While the now-playing info overlay is active, swallow all keys
 		// except ctrl+c (quit) and esc/I (dismiss).
-		if m.nowPlayingInfo != nil {
+		if m.overlay.nowPlaying != nil {
 			switch msg.String() {
 			case "ctrl+c":
-				m.nowPlayingInfo = nil
+				m.overlay.nowPlaying = nil
 				return m, tea.Quit
 			case "esc", "I":
-				m.nowPlayingInfo = nil
+				m.overlay.nowPlaying = nil
 				return m, nil
 			default:
 				return m, nil
@@ -860,27 +853,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// While the track info overlay is active, swallow all keys
 		// except ctrl+c (quit) and esc/i (dismiss).
-		if m.trackInfo != nil {
+		if m.overlay.trackInfo != nil {
 			switch msg.String() {
 			case "ctrl+c":
-				m.trackInfo = nil
+				m.overlay.trackInfo = nil
 				return m, tea.Quit
 			case "esc", "i":
-				m.trackInfo = nil
+				m.overlay.trackInfo = nil
 				return m, nil
 			case "y":
 				m.statusBar.notification = transientNotification{
 					msg:       "Path copied to clipboard",
 					expiresAt: time.Now().Add(transientDuration),
 				}
-				return m, tea.SetClipboard(m.trackInfo.path)
+				return m, tea.SetClipboard(m.overlay.trackInfo.path)
 			default:
 				return m, nil
 			}
 		}
 		// While the preview overlay is active, swallow all keys except
 		// ctrl+c (quit) and esc/P (dismiss preview).
-		if m.preview != nil {
+		if m.overlay.preview != nil {
 			switch msg.String() {
 			case "ctrl+c":
 				m = m.dismissPreview()
@@ -893,15 +886,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		// While the metadata editor overlay is active, route all keys to it.
-		if m.metadataEditor != nil {
+		if m.overlay.metadataEditor != nil {
 			if msg.String() == "ctrl+c" {
 				return m, tea.Quit
 			}
-			updated, act, cmd := m.metadataEditor.HandleKey(msg)
-			m.metadataEditor = &updated
+			updated, act, cmd := m.overlay.metadataEditor.HandleKey(msg)
+			m.overlay.metadataEditor = &updated
 			switch act {
 			case editorCancel:
-				m.metadataEditor = nil
+				m.overlay.metadataEditor = nil
 				return m, nil
 			case editorSave:
 				return m.handleMetadataSave()
@@ -926,12 +919,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// it instead of the normal registry. The modal dispatches its own Cmds
 		// (DestinationPickedMsg, DestinationPickerDismissedMsg, etc.) which are
 		// handled below in the non-KeyPressMsg cases.
-		if m.destPicker != nil {
+		if m.overlay.destPicker != nil {
 			if msg.String() == "ctrl+c" {
 				return m, tea.Quit
 			}
-			updated, cmd := m.destPicker.HandleKey(msg.String())
-			m.destPicker = &updated
+			updated, cmd := m.overlay.destPicker.HandleKey(msg.String())
+			m.overlay.destPicker = &updated
 			return m, cmd
 		}
 		return m.handleKeyAction(m.registry.resolve(m.activeViewContext(), msg.String()))
@@ -1034,16 +1027,16 @@ func (m Model) View() tea.View {
 			filterBar = "Search: " + m.helpSearchFilter.Text + "\n"
 		}
 		body = filterBar + m.helpViewport.View()
-	} else if m.nowPlayingInfo != nil {
-		body = m.nowPlayingInfo.Render(m.termWidth, m.termHeight, *m.styles)
-	} else if m.trackInfo != nil {
-		body = m.trackInfo.Render(m.termWidth, m.termHeight, *m.styles)
-	} else if m.preview != nil {
-		body = m.preview.Render(m.termWidth, m.termHeight, *m.styles)
-	} else if m.metadataEditor != nil {
-		body = m.metadataEditor.Render(m.termWidth, m.termHeight, *m.styles)
-	} else if m.destPicker != nil {
-		body = m.destPicker.Render(m.termWidth, m.termHeight, *m.styles)
+	} else if m.overlay.nowPlaying != nil {
+		body = m.overlay.nowPlaying.Render(m.termWidth, m.termHeight, *m.styles)
+	} else if m.overlay.trackInfo != nil {
+		body = m.overlay.trackInfo.Render(m.termWidth, m.termHeight, *m.styles)
+	} else if m.overlay.preview != nil {
+		body = m.overlay.preview.Render(m.termWidth, m.termHeight, *m.styles)
+	} else if m.overlay.metadataEditor != nil {
+		body = m.overlay.metadataEditor.Render(m.termWidth, m.termHeight, *m.styles)
+	} else if m.overlay.destPicker != nil {
+		body = m.overlay.destPicker.Render(m.termWidth, m.termHeight, *m.styles)
 	} else {
 		switch m.activeView {
 		case viewLibrary:
@@ -1062,7 +1055,7 @@ func (m Model) View() tea.View {
 	}
 
 	// Prepend the centralized title bar when showing a primary view.
-	if m.nowPlayingInfo == nil && m.trackInfo == nil && m.preview == nil && m.metadataEditor == nil && m.destPicker == nil && !m.helpVisible {
+	if m.overlay.nowPlaying == nil && m.overlay.trackInfo == nil && m.overlay.preview == nil && m.overlay.metadataEditor == nil && m.overlay.destPicker == nil && !m.helpVisible {
 		body = m.renderTitleBar() + "\n\n" + body
 	}
 
@@ -1209,8 +1202,8 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	case actionPrevView:
 		m = m.switchToView(prevView(m.activeView))
 	case actionQuit:
-		m.nowPlayingInfo = nil
-		m.trackInfo = nil
+		m.overlay.nowPlaying = nil
+		m.overlay.trackInfo = nil
 		m = m.dismissPreview()
 		return m, tea.Quit
 	case actionFilterBar:

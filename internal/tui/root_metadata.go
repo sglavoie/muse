@@ -69,7 +69,7 @@ func (m Model) handleMetadataKeyAction(a action) (Model, tea.Cmd, bool) {
 			albums = append(albums, t.Album)
 		}
 		ed := NewBulkMetadataEditor(hashes, commonValue(titles), commonValue(artists), commonValue(albums))
-		m.metadataEditor = &ed
+		m.overlay.metadataEditor = &ed
 		return m, nil, true
 	}
 
@@ -89,7 +89,7 @@ func (m Model) handleMetadataKeyAction(a action) (Model, tea.Cmd, bool) {
 		}
 	}
 	ed := NewMetadataEditor(track.Hash, track.Title, track.Artist, track.Album)
-	m.metadataEditor = &ed
+	m.overlay.metadataEditor = &ed
 	return m, nil, true
 }
 
@@ -110,7 +110,7 @@ func commonValue(vals []string) string {
 // handleMetadataSave reads values from the editor, updates in-memory state,
 // and returns a command to persist the change to the database.
 func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
-	ed := m.metadataEditor
+	ed := m.overlay.metadataEditor
 	if ed.IsBulk() {
 		return m.handleBulkMetadataSave()
 	}
@@ -120,7 +120,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	artist := ed.Artist()
 	album := ed.Album()
 
-	m.metadataEditor = nil
+	m.overlay.metadataEditor = nil
 
 	// Update in-memory library index.
 	m.library.index.UpdateMetadata(hash, title, artist, album)
@@ -152,9 +152,9 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 // handleBulkMetadataSave saves dirty fields from the bulk metadata editor to
 // all selected tracks, sets up an undo slot, and clears the selection.
 func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
-	ed := m.metadataEditor
+	ed := m.overlay.metadataEditor
 	dirtyTitle, dirtyArtist, dirtyAlbum := ed.DirtyFields()
-	m.metadataEditor = nil
+	m.overlay.metadataEditor = nil
 
 	if dirtyTitle == nil && dirtyArtist == nil && dirtyAlbum == nil {
 		m.statusBar.notification = transientNotification{

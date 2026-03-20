@@ -302,8 +302,8 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 		}
 		if len(tracks) > 0 {
 			modal := pltui.NewDestinationPicker(m.playlists.playlists)
-			m.destPicker = &modal
-			m.destPickerTracks = tracks
+			m.overlay.destPicker = &modal
+			m.overlay.destPickerTracks = tracks
 		}
 		return m, nil, true
 	case actionArtistOpen:

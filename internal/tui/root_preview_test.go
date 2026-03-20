@@ -81,13 +81,13 @@ func TestPreviewStartedMsgSetsOverlay(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.preview == nil {
+	if nm.overlay.preview == nil {
 		t.Fatal("expected preview overlay to be set")
 	}
-	if nm.preview.artist != "Test" || nm.preview.title != "Song" {
-		t.Fatalf("unexpected overlay content: %+v", *nm.preview)
+	if nm.overlay.preview.artist != "Test" || nm.overlay.preview.title != "Song" {
+		t.Fatalf("unexpected overlay content: %+v", *nm.overlay.preview)
 	}
-	if nm.previewPlayer != sp {
+	if nm.overlay.previewPlayer != sp {
 		t.Fatal("expected previewPlayer to be set")
 	}
 }
@@ -97,13 +97,13 @@ func TestPreviewStartedMsgSetsOverlay(t *testing.T) {
 func TestPreviewDismissWithEsc(t *testing.T) {
 	m := New(context.Background())
 	sp := &stubPreviewer{}
-	m.preview = &PreviewOverlay{artist: "A", title: "T"}
-	m.previewPlayer = sp
+	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.previewPlayer = sp
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	nm := next.(Model)
 
-	if nm.preview != nil {
+	if nm.overlay.preview != nil {
 		t.Fatal("expected preview to be nil after Esc")
 	}
 	if !sp.closeCalled {
@@ -116,13 +116,13 @@ func TestPreviewDismissWithEsc(t *testing.T) {
 func TestPreviewDismissWithP(t *testing.T) {
 	m := New(context.Background())
 	sp := &stubPreviewer{}
-	m.preview = &PreviewOverlay{artist: "A", title: "T"}
-	m.previewPlayer = sp
+	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.previewPlayer = sp
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'P', Text: "P"})
 	nm := next.(Model)
 
-	if nm.preview != nil {
+	if nm.overlay.preview != nil {
 		t.Fatal("expected preview to be nil after P")
 	}
 	if !sp.closeCalled {
@@ -134,8 +134,8 @@ func TestPreviewDismissWithP(t *testing.T) {
 // keys are swallowed (not processed).
 func TestPreviewSwallowsKeys(t *testing.T) {
 	m := New(context.Background())
-	m.preview = &PreviewOverlay{artist: "A", title: "T"}
-	m.previewPlayer = &stubPreviewer{}
+	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.previewPlayer = &stubPreviewer{}
 	m.activeView = viewLibrary
 
 	// Press '3' (switch to queue) — should be swallowed.
@@ -145,7 +145,7 @@ func TestPreviewSwallowsKeys(t *testing.T) {
 	if nm.activeView != viewLibrary {
 		t.Fatalf("expected view to stay at library while preview active, got %d", nm.activeView)
 	}
-	if nm.preview == nil {
+	if nm.overlay.preview == nil {
 		t.Fatal("preview should still be active after swallowed key")
 	}
 }
@@ -155,13 +155,13 @@ func TestPreviewSwallowsKeys(t *testing.T) {
 func TestPreviewCtrlCDismissesAndQuits(t *testing.T) {
 	m := New(context.Background())
 	sp := &stubPreviewer{}
-	m.preview = &PreviewOverlay{artist: "A", title: "T"}
-	m.previewPlayer = sp
+	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.previewPlayer = sp
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	nm := next.(Model)
 
-	if nm.preview != nil {
+	if nm.overlay.preview != nil {
 		t.Fatal("expected preview to be dismissed on ctrl+c")
 	}
 	if !sp.closeCalled {
@@ -182,20 +182,20 @@ func TestPreviewDismissResumesPlayback(t *testing.T) {
 	m := New(context.Background())
 	m.player = sp
 	m.playback.state = PlaybackPaused
-	m.previewWasPlaying = true
-	m.preview = &PreviewOverlay{artist: "A", title: "T"}
-	m.previewPlayer = &stubPreviewer{}
+	m.overlay.previewWasPlaying = true
+	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.previewPlayer = &stubPreviewer{}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	nm := next.(Model)
 
-	if nm.preview != nil {
+	if nm.overlay.preview != nil {
 		t.Fatal("expected preview to be dismissed")
 	}
 	if sp.playCalls != 1 {
 		t.Fatalf("expected 1 Play call to resume playback, got %d", sp.playCalls)
 	}
-	if nm.previewWasPlaying {
+	if nm.overlay.previewWasPlaying {
 		t.Fatal("expected previewWasPlaying to be reset to false")
 	}
 }
@@ -207,9 +207,9 @@ func TestPreviewDismissDoesNotResumeIfNotPlaying(t *testing.T) {
 	m := New(context.Background())
 	m.player = sp
 	m.playback.state = PlaybackPaused
-	m.previewWasPlaying = false
-	m.preview = &PreviewOverlay{artist: "A", title: "T"}
-	m.previewPlayer = &stubPreviewer{}
+	m.overlay.previewWasPlaying = false
+	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.previewPlayer = &stubPreviewer{}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	nm := next.(Model)
@@ -239,7 +239,7 @@ func TestPreviewStartErrorResumesPlayback(t *testing.T) {
 	sp := &stubPlayer{}
 	m := New(context.Background())
 	m.player = sp
-	m.previewWasPlaying = true
+	m.overlay.previewWasPlaying = true
 
 	next, _ := m.Update(previewStartErrorMsg{err: errTest("fail")})
 	nm := next.(Model)
@@ -247,7 +247,7 @@ func TestPreviewStartErrorResumesPlayback(t *testing.T) {
 	if sp.playCalls != 1 {
 		t.Fatalf("expected 1 Play call to resume, got %d", sp.playCalls)
 	}
-	if nm.previewWasPlaying {
+	if nm.overlay.previewWasPlaying {
 		t.Fatal("expected previewWasPlaying reset")
 	}
 }
@@ -256,7 +256,7 @@ func TestPreviewStartErrorResumesPlayback(t *testing.T) {
 // View() renders the preview overlay content.
 func TestPreviewOverlayRenderedInView(t *testing.T) {
 	m := New(context.Background())
-	m.preview = &PreviewOverlay{
+	m.overlay.preview = &PreviewOverlay{
 		artist:  "Preview Artist",
 		title:   "Preview Song",
 		elapsed: 30,
@@ -276,20 +276,20 @@ func TestPreviewOverlayRenderedInView(t *testing.T) {
 func TestPreviewTickUpdatesProgress(t *testing.T) {
 	m := New(context.Background())
 	sp := &stubPreviewer{elapsed: 45.5, total: 200.0}
-	m.preview = &PreviewOverlay{artist: "A", title: "T"}
-	m.previewPlayer = sp
+	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.previewPlayer = sp
 
 	next, _ := m.Update(tickMsg{})
 	nm := next.(Model)
 
-	if nm.preview == nil {
+	if nm.overlay.preview == nil {
 		t.Fatal("expected preview to still be active after tick")
 	}
-	if nm.preview.elapsed != 45.5 {
-		t.Errorf("expected elapsed=45.5, got %v", nm.preview.elapsed)
+	if nm.overlay.preview.elapsed != 45.5 {
+		t.Errorf("expected elapsed=45.5, got %v", nm.overlay.preview.elapsed)
 	}
-	if nm.preview.total != 200.0 {
-		t.Errorf("expected total=200.0, got %v", nm.preview.total)
+	if nm.overlay.preview.total != 200.0 {
+		t.Errorf("expected total=200.0, got %v", nm.overlay.preview.total)
 	}
 }
 
@@ -298,13 +298,13 @@ func TestPreviewTickUpdatesProgress(t *testing.T) {
 func TestPreviewTickAutoDismissOnError(t *testing.T) {
 	m := New(context.Background())
 	sp := &stubPreviewer{elapsedErr: errTest("eof")}
-	m.preview = &PreviewOverlay{artist: "A", title: "T"}
-	m.previewPlayer = sp
+	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.previewPlayer = sp
 
 	next, _ := m.Update(tickMsg{})
 	nm := next.(Model)
 
-	if nm.preview != nil {
+	if nm.overlay.preview != nil {
 		t.Fatal("expected preview to be auto-dismissed on ElapsedPosition error")
 	}
 }
@@ -376,7 +376,7 @@ func TestPreviewPausesMainPlayback(t *testing.T) {
 	if sp.pauseCalls != 1 {
 		t.Fatalf("expected 1 Pause call, got %d", sp.pauseCalls)
 	}
-	if !nm.previewWasPlaying {
+	if !nm.overlay.previewWasPlaying {
 		t.Fatal("expected previewWasPlaying to be set")
 	}
 	if nm.playback.state != PlaybackPaused {
