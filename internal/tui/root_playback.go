@@ -39,8 +39,8 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	if !m.statusBar.notification.expiresAt.IsZero() && time.Now().After(m.statusBar.notification.expiresAt) {
 		m.statusBar.notification = transientNotification{}
 	}
-	if m.clearQueuePending && time.Now().After(m.clearQueuePendingAt.Add(queueConfirmationWindow)) {
-		m.clearQueuePending = false
+	if m.undo.clearQueuePending && time.Now().After(m.undo.clearQueuePendingAt.Add(queueConfirmationWindow)) {
+		m.undo.clearQueuePending = false
 	}
 	return m, tickCmd()
 }

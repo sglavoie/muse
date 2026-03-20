@@ -246,8 +246,8 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 			}
 			n := len(m.playlists.selectedTrackIDs)
 			now := time.Now()
-			if m.bulkRemovePending && now.Before(m.bulkRemovePendingAt.Add(confirmationWindow)) {
-				m.bulkRemovePending = false
+			if m.undo.bulkRemovePending && now.Before(m.undo.bulkRemovePendingAt.Add(confirmationWindow)) {
+				m.undo.bulkRemovePending = false
 				// Capture removed entries and their indices for undo.
 				var removedEntries []db.PlaylistTrackRow
 				var removedIndices []int
@@ -292,8 +292,8 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 				player.PlaySound(player.SoundRemoved)
 				return m, nil, true
 			}
-			m.bulkRemovePending = true
-			m.bulkRemovePendingAt = now
+			m.undo.bulkRemovePending = true
+			m.undo.bulkRemovePendingAt = now
 			m.statusBar.notification = transientNotification{
 				msg:       fmt.Sprintf("Press a again to remove %d selected %s", n, pluralize(n, "track", "tracks")),
 				expiresAt: now.Add(confirmationWindow),

@@ -464,8 +464,8 @@ func TestPlaylistsBulkRemoveAtTrackLevel(t *testing.T) {
 	}
 
 	// Undo — should restore the removed tracks.
-	if nm2.undoSlot.kind != undoKindBulkRemovePlaylistTracks {
-		t.Fatalf("expected undo kind %d, got %d", undoKindBulkRemovePlaylistTracks, nm2.undoSlot.kind)
+	if nm2.undo.slot.kind != undoKindBulkRemovePlaylistTracks {
+		t.Fatalf("expected undo kind %d, got %d", undoKindBulkRemovePlaylistTracks, nm2.undo.slot.kind)
 	}
 	nm3 := nm2.handleUndo()
 	if len(nm3.playlists.tracks) != 3 {
@@ -1005,7 +1005,7 @@ func TestBulkActionInPlaylistsRequiresConfirmation(t *testing.T) {
 	if len(nm.playlists.tracks) != 3 {
 		t.Fatalf("first 'a' press should not remove tracks, got %d remaining", len(nm.playlists.tracks))
 	}
-	if !nm.bulkRemovePending {
+	if !nm.undo.bulkRemovePending {
 		t.Fatal("expected bulkRemovePending=true after first 'a' press")
 	}
 	if nm.statusBar.notification.msg == "" {
@@ -1022,7 +1022,7 @@ func TestBulkActionInPlaylistsRequiresConfirmation(t *testing.T) {
 	if nm2.playlists.tracks[0].ID != 30 {
 		t.Fatalf("expected remaining track ID=30, got ID=%d", nm2.playlists.tracks[0].ID)
 	}
-	if nm2.bulkRemovePending {
+	if nm2.undo.bulkRemovePending {
 		t.Fatal("expected bulkRemovePending=false after confirmed removal")
 	}
 	if nm2.playlists.selectedTrackIDs != nil {
@@ -1030,8 +1030,8 @@ func TestBulkActionInPlaylistsRequiresConfirmation(t *testing.T) {
 	}
 
 	// Undo — should restore the removed tracks.
-	if nm2.undoSlot.kind != undoKindBulkRemovePlaylistTracks {
-		t.Fatalf("expected undoSlot kind %d, got %d", undoKindBulkRemovePlaylistTracks, nm2.undoSlot.kind)
+	if nm2.undo.slot.kind != undoKindBulkRemovePlaylistTracks {
+		t.Fatalf("expected undoSlot kind %d, got %d", undoKindBulkRemovePlaylistTracks, nm2.undo.slot.kind)
 	}
 	nm3 := nm2.handleUndo()
 	if len(nm3.playlists.tracks) != 3 {

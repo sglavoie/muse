@@ -21,6 +21,16 @@ import (
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
+// undoInfo groups the fields that track pending destructive-action confirmations
+// and the reversible undo slot.
+type undoInfo struct {
+	slot                undoSlot
+	clearQueuePending   bool
+	clearQueuePendingAt time.Time
+	bulkRemovePending   bool
+	bulkRemovePendingAt time.Time
+}
+
 // playbackInfo groups the fields that describe the current playback state.
 type playbackInfo struct {
 	state       PlaybackState
@@ -117,26 +127,12 @@ type Model struct {
 	// action. Populated when the modal opens; cleared on confirmation or dismiss.
 	destPickerTracks []library.Track
 
-	// undoSlot holds the reversible state for the most recent destructive
-	// queue action. The slot is cleared after a successful undo or when a new
-	// destructive action replaces it before the window expires.
-	undoSlot undoSlot
+	undo undoInfo // reversible undo slot and pending confirmation flags
 
 	// missingTrackCount tracks how many queue entries were skipped due to
 	// missing files during the current playback session. Reset when playback
 	// ends or the queue is cleared.
 	missingTrackCount int
-
-	// clearQueuePending is true when the user has pressed 'C' once and is
-	// waiting for a second press to confirm clearing the queue.
-	clearQueuePending   bool
-	clearQueuePendingAt time.Time
-
-	// bulkRemovePending is true when the user has pressed 'a' once in
-	// Playlists view with selected tracks and is waiting for a second
-	// press to confirm removing them.
-	bulkRemovePending   bool
-	bulkRemovePendingAt time.Time
 
 	playback playbackInfo // current playback state, repeat, shuffle, volume, position
 
@@ -444,8 +440,8 @@ func pluralize(n int, singular, plural string) string {
 // time.AfterFunc purge via purgeFn. Returns the cancel channel that the new
 // undo slot should store.
 func (m *Model) scheduleSoftDelete(softDeleteFn func(), purgeFn func(beforeUnix int64)) chan struct{} {
-	if m.undoSlot.cancelPurge != nil {
-		close(m.undoSlot.cancelPurge)
+	if m.undo.slot.cancelPurge != nil {
+		close(m.undo.slot.cancelPurge)
 	}
 	cancel := make(chan struct{})
 	softDeleteTime := time.Now().Unix()
@@ -487,7 +483,7 @@ func (m Model) syncPlayerQueue() {
 // setUndoSlot replaces the current undo slot and sets a matching status-bar
 // notification that expires at the end of the undo window.
 func (m *Model) setUndoSlot(slot undoSlot, notification string) {
-	m.undoSlot = slot
+	m.undo.slot = slot
 	m.statusBar.notification = transientNotification{
 		msg:       notification,
 		expiresAt: time.Now().Add(undoWindowDuration),
@@ -1143,8 +1139,8 @@ func (m Model) renderStatusBar() string {
 // clearPendingConfirmations resets all two-press confirmation states.
 // Call this on any view switch or action that should cancel pending confirmations.
 func (m *Model) clearPendingConfirmations() {
-	m.clearQueuePending = false
-	m.bulkRemovePending = false
+	m.undo.clearQueuePending = false
+	m.undo.bulkRemovePending = false
 }
 
 // switchToView transitions to the given view, clearing pending confirmations,
