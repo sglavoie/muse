@@ -155,7 +155,9 @@ func handleFsEvent(event fsnotify.Event, pending map[string]bool, deleted map[st
 		if info.IsDir() {
 			// Register watches on the new directory tree and schedule a
 			// re-traversal of the entire subtree.
-			_ = addWatchesRecursive(w, path)
+			if err := addWatchesRecursive(w, path); err != nil {
+				slog.Debug("watcher: add recursive watches", "path", path, "err", err)
+			}
 			pending[path] = true
 		} else if isAudioFile(base) {
 			pending[path] = false
@@ -253,7 +255,9 @@ func addWatchesRecursive(w *fsnotify.Watcher, root string) error {
 			if strings.HasPrefix(d.Name(), ".") && path != root {
 				return filepath.SkipDir
 			}
-			_ = w.Add(path)
+			if err := w.Add(path); err != nil {
+				slog.Debug("watcher: add watch", "path", path, "err", err)
+			}
 		}
 		return nil
 	})

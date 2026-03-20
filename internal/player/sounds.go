@@ -3,6 +3,7 @@ package player
 import (
 	"context"
 	_ "embed"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,11 +64,15 @@ func SetSoundContext(ctx context.Context) {
 func ensureSoundFiles() {
 	soundOnce.Do(func() {
 		dir := filepath.Join(os.TempDir(), "muse-sounds")
-		_ = os.MkdirAll(dir, 0o755)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			slog.Debug("sounds: create dir", "err", err)
+		}
 		soundPaths = make(map[Sound]string, len(soundData))
 		for s, info := range soundData {
 			p := filepath.Join(dir, info.name)
-			_ = os.WriteFile(p, info.data, 0o644)
+			if err := os.WriteFile(p, info.data, 0o644); err != nil {
+				slog.Debug("sounds: write file", "name", info.name, "err", err)
+			}
 			soundPaths[s] = p
 		}
 	})
@@ -92,9 +97,15 @@ func PlaySound(s Sound) {
 	}
 	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 	cmd := exec.CommandContext(ctx, "mpv", "--no-video", "--no-terminal", "--really-quiet", path)
-	_ = cmd.Start()
+	if err := cmd.Start(); err != nil {
+		slog.Debug("sounds: start mpv", "err", err)
+		cancel()
+		return
+	}
 	go func() {
-		_ = cmd.Wait()
+		if err := cmd.Wait(); err != nil {
+			slog.Debug("sounds: mpv exited", "err", err)
+		}
 		cancel()
 	}()
 }

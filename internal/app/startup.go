@@ -274,8 +274,12 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 		if !missing {
 			if _, statErr := os.Stat(r.Path); os.IsNotExist(statErr) {
 				missing = true
-				_ = writer.MarkQueueEntryMissing(r.ID)
-				_ = writer.MarkTrackMissing(r.Hash)
+				if err := writer.MarkQueueEntryMissing(r.ID); err != nil {
+					slog.Warn("mark queue entry missing", "id", r.ID, "err", err)
+				}
+				if err := writer.MarkTrackMissing(r.Hash); err != nil {
+					slog.Warn("mark track missing", "hash", r.Hash, "err", err)
+				}
 			}
 		}
 		tuiEntries = append(tuiEntries, tui.QueueEntry{
