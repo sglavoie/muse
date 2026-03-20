@@ -408,6 +408,36 @@ func TestRootQueueLocalJDispatchesMoveTrackDownMsg(t *testing.T) {
 	}
 }
 
+// TestKWhileSortedProducesTransientNotification verifies that pressing 'K'
+// while the queue is sorted shows a "Cannot reorder" notification instead of
+// silently doing nothing.
+func TestKWhileSortedProducesTransientNotification(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Display: "A"},
+		{Path: "/music/b.flac", Display: "B"},
+	}
+	m.queue.cursor = 1
+	// Simulate a sorted queue by setting a non-nil displayOrder.
+	m.queue.displayOrder = []int{0, 1}
+
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'K', Text: "K"})
+	nm := next.(Model)
+	if cmd == nil {
+		t.Fatal("'K' while sorted: expected a cmd producing TransientNotifyMsg")
+	}
+	// Feed the message through Update so the notification is set.
+	next2, _ := nm.Update(cmd())
+	nm2 := next2.(Model)
+	if nm2.statusBar.notification.msg == "" {
+		t.Fatal("'K' while sorted: expected a transient notification to be set")
+	}
+	if !strings.Contains(nm2.statusBar.notification.msg, "Cannot reorder") {
+		t.Fatalf("'K' while sorted: unexpected notification %q", nm2.statusBar.notification.msg)
+	}
+}
+
 // TestMoveTrackUpMsgCallsReordererWithCorrectIDAndDirection verifies that
 // MoveTrackUpMsg swaps the TUI slice and calls ReorderQueueTrack with the
 // moved entry's ID and direction -1.

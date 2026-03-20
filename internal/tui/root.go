@@ -91,12 +91,12 @@ type Model struct {
 	libraryRoot string
 	extractor   library.MetadataExtractor
 
-	statusBar      StatusBar
-	termWidth      int
-	termHeight     int
-	registry       Registry
-	helpVisible    bool           // true while the help overlay is shown
-	helpViewport   viewport.Model // scrollable viewport for the help overlay
+	statusBar        StatusBar
+	termWidth        int
+	termHeight       int
+	registry         Registry
+	helpVisible      bool           // true while the help overlay is shown
+	helpViewport     viewport.Model // scrollable viewport for the help overlay
 	helpFiltered     bool           // true when showing only current-view keybindings
 	helpSearchFilter filter.State   // search filter state for the help overlay
 	prevActiveView   viewID         // the view that was active before help was opened
@@ -153,7 +153,7 @@ type Model struct {
 func New(ctx context.Context, opts ...Option) Model {
 	initialStyles := styles.NewStyles(true)
 	m := Model{
-		appCtx:   ctx,
+		appCtx:     ctx,
 		activeView: viewLibrary,
 		library:    LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
 		registry:   newRegistry(),
@@ -768,6 +768,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case MoveTrackDownMsg:
 		return m.handleMoveTrackDownMsg(msg)
+
+	case TransientNotifyMsg:
+		m.statusBar.notification = transientNotification{
+			msg:       string(msg),
+			expiresAt: time.Now().Add(transientDuration),
+		}
 
 	// --- Key handling ---
 

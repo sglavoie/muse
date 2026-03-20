@@ -264,13 +264,17 @@ func TestQueueFilterMoveDisabled(t *testing.T) {
 	q.scrollOffset = 0
 
 	_, cmd := q.HandleAction(actionMoveTrackDown)
-	if cmd != nil {
-		t.Error("move-down should be disabled when filter is active")
+	if cmd == nil {
+		t.Error("move-down when filtered should return a TransientNotifyMsg cmd")
+	} else if _, ok := cmd().(TransientNotifyMsg); !ok {
+		t.Error("move-down when filtered: expected TransientNotifyMsg")
 	}
 
 	q.cursor = 1
 	_, cmd = q.HandleAction(actionMoveTrackUp)
-	if cmd != nil {
-		t.Error("move-up should be disabled when filter is active")
+	if cmd == nil {
+		t.Error("move-up when filtered should return a TransientNotifyMsg cmd")
+	} else if _, ok := cmd().(TransientNotifyMsg); !ok {
+		t.Error("move-up when filtered: expected TransientNotifyMsg")
 	}
 }

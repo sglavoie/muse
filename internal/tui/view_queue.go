@@ -156,7 +156,7 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 	case actionMoveTrackUp:
 		if v.displayOrder != nil || v.filter.Text != "" {
 			// Move is disabled when queue is sorted or filtered.
-			return v, nil
+			return v, func() tea.Msg { return TransientNotifyMsg("Cannot reorder while sorted/filtered") }
 		}
 		if v.cursor > 0 {
 			idx := v.cursor
@@ -165,7 +165,7 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 	case actionMoveTrackDown:
 		if v.displayOrder != nil || v.filter.Text != "" {
 			// Move is disabled when queue is sorted or filtered.
-			return v, nil
+			return v, func() tea.Msg { return TransientNotifyMsg("Cannot reorder while sorted/filtered") }
 		}
 		if v.cursor < n-1 {
 			idx := v.cursor

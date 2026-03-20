@@ -453,15 +453,19 @@ func TestQueueMoveDisabledWhenSorted(t *testing.T) {
 	}
 
 	v2, cmd := v.HandleAction(actionMoveTrackDown)
-	if cmd != nil {
-		t.Error("move down should return nil cmd when sorted")
+	if cmd == nil {
+		t.Error("move down when sorted should return a TransientNotifyMsg cmd")
+	} else if _, ok := cmd().(TransientNotifyMsg); !ok {
+		t.Error("move down when sorted: expected TransientNotifyMsg")
 	}
 	_ = v2
 
 	v.cursor = 1
 	v3, cmd := v.HandleAction(actionMoveTrackUp)
-	if cmd != nil {
-		t.Error("move up should return nil cmd when sorted")
+	if cmd == nil {
+		t.Error("move up when sorted should return a TransientNotifyMsg cmd")
+	} else if _, ok := cmd().(TransientNotifyMsg); !ok {
+		t.Error("move up when sorted: expected TransientNotifyMsg")
 	}
 	_ = v3
 }
@@ -918,14 +922,18 @@ func TestQueueSortDisablesMoveUpDown(t *testing.T) {
 	}
 
 	_, cmd := v.HandleAction(actionMoveTrackDown)
-	if cmd != nil {
-		t.Error("move down should be disabled when sorted")
+	if cmd == nil {
+		t.Error("move down when sorted should return a TransientNotifyMsg cmd")
+	} else if _, ok := cmd().(TransientNotifyMsg); !ok {
+		t.Error("move down when sorted: expected TransientNotifyMsg")
 	}
 
 	v.cursor = 2
 	_, cmd = v.HandleAction(actionMoveTrackUp)
-	if cmd != nil {
-		t.Error("move up should be disabled when sorted")
+	if cmd == nil {
+		t.Error("move up when sorted should return a TransientNotifyMsg cmd")
+	} else if _, ok := cmd().(TransientNotifyMsg); !ok {
+		t.Error("move up when sorted: expected TransientNotifyMsg")
 	}
 }
 

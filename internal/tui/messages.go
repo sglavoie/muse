@@ -206,6 +206,11 @@ type MoveTrackDownMsg struct {
 	Index int
 }
 
+// TransientNotifyMsg carries a short message to display in the status bar as a
+// transient notification. Any component can dispatch it to surface a brief hint
+// or warning without going through root's internal notification helpers.
+type TransientNotifyMsg string
+
 // RepeatMode controls how the queue cycles at the end of play.
 type RepeatMode uint8
 
