@@ -132,9 +132,8 @@ func TestLowerRCyclesRepeatModeInNonPlaylistViews(t *testing.T) {
 // sessionWriter.WriteRepeatMode with the correct mode string on each press
 // and cycles in the order "none" → "all" → "one" → "none".
 func TestRepeatCycleCallsWriteRepeatMode(t *testing.T) {
-	m := New(context.Background())
 	sw := &stubSessionWriter{}
-	m.SetSessionWriter(sw)
+	m := New(context.Background(), WithSessionWriter(sw))
 
 	wantCalls := []string{"all", "one", "none"}
 

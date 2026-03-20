@@ -189,8 +189,7 @@ func TestRootLibraryAOpensDestinationPickerWithSelection(t *testing.T) {
 // queue and clears the bulk selection.
 func TestRootLibraryAWithSelectionEnqueuesAndClears(t *testing.T) {
 	be := &stubBatchEnqueuer{}
-	m := New(context.Background())
-	m.SetBatchEnqueuer(be)
+	m := New(context.Background(), WithBatchEnqueuer(be))
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
 	m.library.selectedHashes = map[string]struct{}{"hash-one": {}}
@@ -262,8 +261,7 @@ func TestRootLibraryAEscDismissesModal(t *testing.T) {
 // AddTracksToPlaylist with the correct playlist ID and hashes.
 func TestRootLibraryAConfirmPlaylistAddsToPlaylist(t *testing.T) {
 	pa := &stubPlaylistAdder{}
-	m := New(context.Background())
-	m.SetPlaylistAdder(pa)
+	m := New(context.Background(), WithPlaylistAdder(pa))
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 	m.playlists.playlists = []db.PlaylistRow{{ID: 7, Name: "Favourites"}}
 
@@ -316,8 +314,7 @@ func TestRootLibraryAConfirmPlaylistAddsToPlaylist(t *testing.T) {
 // the track count and playlist name once tracksAddedToPlaylistMsg is processed.
 func TestRootLibraryAConfirmPlaylistClearsSelectionAndNotifies(t *testing.T) {
 	pa := &stubPlaylistAdder{}
-	m := New(context.Background())
-	m.SetPlaylistAdder(pa)
+	m := New(context.Background(), WithPlaylistAdder(pa))
 	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
 	m.library.selectedHashes = map[string]struct{}{"hash-one": {}, "hash-two": {}}
@@ -415,8 +412,7 @@ func TestLibraryEscClearsCommittedFilter(t *testing.T) {
 // clears the filter.
 func TestLibraryEnterClearsCommittedFilter(t *testing.T) {
 	qa := &stubQueueAppender{}
-	m := New(context.Background())
-	m.SetQueueWriter(qa)
+	m := New(context.Background(), WithQueueWriter(qa))
 	m.library.index.Insert(library.Track{Artist: "Alice", Title: "Alpha", Hash: "h1"})
 	m.library.index.Insert(library.Track{Artist: "Bob", Title: "Beta", Hash: "h2"})
 

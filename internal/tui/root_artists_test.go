@@ -26,9 +26,7 @@ func sampleLibraryTracks() []library.Track {
 
 // newModelWithTracks creates a Model pre-loaded with sample tracks.
 func newModelWithTracks() Model {
-	m := New(context.Background())
-	m.SetLibraryTracks(sampleLibraryTracks())
-	return m
+	return New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
 }
 
 // pressKey sends a key press and returns the resulting Model.
@@ -124,9 +122,8 @@ func TestArtistsDrillDownToTracks(t *testing.T) {
 // TestArtistsEnqueueTrack verifies that pressing Enter at TrackLevel enqueues
 // the focused track.
 func TestArtistsEnqueueTrack(t *testing.T) {
-	m := newModelWithTracks()
 	qa := &stubQueueAppender{}
-	m.SetQueueWriter(qa)
+	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()), WithQueueWriter(qa))
 	m = pressKey(m, "4")
 
 	// Drill down: Alice -> Alpha -> tracks.
@@ -266,10 +263,9 @@ func TestArtistsViewNavigationKeys(t *testing.T) {
 // TestScanBatchRefreshesArtistList verifies that receiving a ScanBatchMsg
 // while at ArtistLevel re-derives the artist list.
 func TestScanBatchRefreshesArtistList(t *testing.T) {
-	m := New(context.Background())
-	m.SetLibraryTracks([]library.Track{
+	m := New(context.Background(), WithLibraryTracks([]library.Track{
 		{Artist: "Alice", Album: "Alpha", Title: "T1", Hash: "h1"},
-	})
+	}))
 
 	// Switch to artists view.
 	m = pressKey(m, "4")
@@ -291,11 +287,10 @@ func TestScanBatchRefreshesArtistList(t *testing.T) {
 // TestWatchBatchRefreshesArtistList verifies that receiving a watchBatchMsg
 // while at ArtistLevel re-derives the artist list.
 func TestWatchBatchRefreshesArtistList(t *testing.T) {
-	m := New(context.Background())
-	m.SetLibraryTracks([]library.Track{
+	m := New(context.Background(), WithLibraryTracks([]library.Track{
 		{Artist: "Alice", Album: "Alpha", Title: "T1", Hash: "h1", Path: "/a.flac"},
 		{Artist: "Bob", Album: "Beta", Title: "T2", Hash: "h2", Path: "/b.flac"},
-	})
+	}))
 
 	// Switch to artists view.
 	m = pressKey(m, "4")
@@ -318,12 +313,11 @@ func TestWatchBatchRefreshesArtistList(t *testing.T) {
 // TestArtistsClampCursorAfterShrink verifies that the cursor is clamped when
 // the artist list shrinks during a library update.
 func TestArtistsClampCursorAfterShrink(t *testing.T) {
-	m := New(context.Background())
-	m.SetLibraryTracks([]library.Track{
+	m := New(context.Background(), WithLibraryTracks([]library.Track{
 		{Artist: "Alice", Album: "Alpha", Title: "T1", Hash: "h1", Path: "/a.flac"},
 		{Artist: "Bob", Album: "Beta", Title: "T2", Hash: "h2", Path: "/b.flac"},
 		{Artist: "Charlie", Album: "Gamma", Title: "T3", Hash: "h3", Path: "/c.flac"},
-	})
+	}))
 
 	// Switch to artists view and move cursor to Charlie (index 2).
 	m = pressKey(m, "4")

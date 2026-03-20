@@ -14,8 +14,7 @@ import (
 func TestPauseEmitsSessionPositionWriteCmd(t *testing.T) {
 	p := &stubPlayer{}
 	sw := &stubSessionWriter{}
-	m := New(context.Background(), WithPlayer(p))
-	m.SetSessionWriter(sw)
+	m := New(context.Background(), WithPlayer(p), WithSessionWriter(sw))
 	m.playback.state = PlaybackPlaying
 	m.playback.currentHash = "abc123"
 	m.playback.elapsedSecs = 42.5 // 42500 ms
@@ -68,8 +67,7 @@ func TestSeekEmitsSessionPositionWriteCmd(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			p := &stubSeekPlayer{}
 			sw := &stubSessionWriter{}
-			m := New(context.Background(), WithPlayer(p))
-			m.SetSessionWriter(sw)
+			m := New(context.Background(), WithPlayer(p), WithSessionWriter(sw))
 			m.playback.currentHash = "seekhash"
 			m.playback.elapsedSecs = 10.0 // 10000 ms
 
@@ -96,8 +94,7 @@ func TestSeekEmitsSessionPositionWriteCmd(t *testing.T) {
 // track's hash and position 0 (start of track).
 func TestTrackChangedMsgEmitsSessionPositionWriteCmd(t *testing.T) {
 	sw := &stubSessionWriter{}
-	m := New(context.Background())
-	m.SetSessionWriter(sw)
+	m := New(context.Background(), WithSessionWriter(sw))
 	m.playback.elapsedSecs = 99.0 // must be reset to 0 before the cmd captures position
 
 	_, cmd := m.Update(TrackChangedMsg{
@@ -164,8 +161,7 @@ func TestSessionTickMsgReschedulesCmd(t *testing.T) {
 // write sub-cmd to confirm the correct value is captured.
 func TestSessionTickMsgWritesPositionWhenPlaying(t *testing.T) {
 	sw := &stubSessionWriter{}
-	m := New(context.Background())
-	m.SetSessionWriter(sw)
+	m := New(context.Background(), WithSessionWriter(sw))
 	m.playback.state = PlaybackPlaying
 	m.playback.currentHash = "abc123"
 	m.playback.elapsedSecs = 45.5 // 45500 ms
@@ -220,8 +216,7 @@ func TestSessionTickMsgSkipsWriteWhenNotPlaying(t *testing.T) {
 	states := []PlaybackState{PlaybackIdle, PlaybackPaused, PlaybackStopped}
 	for _, state := range states {
 		sw := &stubSessionWriter{}
-		m := New(context.Background())
-		m.SetSessionWriter(sw)
+		m := New(context.Background(), WithSessionWriter(sw))
 		m.playback.state = state
 		m.playback.currentHash = "abc123"
 		m.playback.elapsedSecs = 30.0

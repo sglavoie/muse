@@ -58,9 +58,8 @@ func TestAlbumsDrillDownToTracks(t *testing.T) {
 // TestAlbumsEnqueueTrack verifies that pressing Enter at TrackLevel enqueues
 // the focused track.
 func TestAlbumsEnqueueTrack(t *testing.T) {
-	m := newModelWithTracks()
 	qa := &stubQueueAppender{}
-	m.SetQueueWriter(qa)
+	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()), WithQueueWriter(qa))
 	m = pressKey(m, "5")
 
 	// Drill down to Alpha's tracks.
@@ -191,10 +190,9 @@ func TestAlbumsViewNavigationKeys(t *testing.T) {
 // TestScanBatchRefreshesAlbumList verifies that receiving a ScanBatchMsg
 // while at AlbumLevel re-derives the album list.
 func TestScanBatchRefreshesAlbumList(t *testing.T) {
-	m := New(context.Background())
-	m.SetLibraryTracks([]library.Track{
+	m := New(context.Background(), WithLibraryTracks([]library.Track{
 		{Artist: "Alice", Album: "Alpha", Title: "T1", Hash: "h1"},
-	})
+	}))
 
 	// Switch to albums view.
 	m = pressKey(m, "5")
@@ -216,11 +214,10 @@ func TestScanBatchRefreshesAlbumList(t *testing.T) {
 // TestWatchBatchRefreshesAlbumList verifies that receiving a watchBatchMsg
 // while at AlbumLevel re-derives the album list.
 func TestWatchBatchRefreshesAlbumList(t *testing.T) {
-	m := New(context.Background())
-	m.SetLibraryTracks([]library.Track{
+	m := New(context.Background(), WithLibraryTracks([]library.Track{
 		{Artist: "Alice", Album: "Alpha", Title: "T1", Hash: "h1", Path: "/a.flac"},
 		{Artist: "Bob", Album: "Beta", Title: "T2", Hash: "h2", Path: "/b.flac"},
-	})
+	}))
 
 	// Switch to albums view.
 	m = pressKey(m, "5")
@@ -243,12 +240,11 @@ func TestWatchBatchRefreshesAlbumList(t *testing.T) {
 // TestAlbumsClampCursorAfterShrink verifies that the cursor is clamped when
 // the album list shrinks during a library update.
 func TestAlbumsClampCursorAfterShrink(t *testing.T) {
-	m := New(context.Background())
-	m.SetLibraryTracks([]library.Track{
+	m := New(context.Background(), WithLibraryTracks([]library.Track{
 		{Artist: "Alice", Album: "Alpha", Title: "T1", Hash: "h1", Path: "/a.flac"},
 		{Artist: "Bob", Album: "Beta", Title: "T2", Hash: "h2", Path: "/b.flac"},
 		{Artist: "Charlie", Album: "Gamma", Title: "T3", Hash: "h3", Path: "/c.flac"},
-	})
+	}))
 
 	// Switch to albums view and move cursor to Gamma (index 2).
 	m = pressKey(m, "5")

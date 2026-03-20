@@ -196,8 +196,7 @@ func TestQueueFilterNoMatchesShowsMessage(t *testing.T) {
 // clears any active filter.
 func TestQueueFilterClearedOnClearQueue(t *testing.T) {
 	d := &stubQueueDequeuer{}
-	m := New(context.Background())
-	m.SetQueueDequeuer(d)
+	m := New(context.Background(), WithQueueDequeuer(d))
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/a.flac", Title: "Song", Artist: "Art"},

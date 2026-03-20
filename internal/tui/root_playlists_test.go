@@ -34,9 +34,8 @@ func TestPlaylistLocalCFiresCreateNotGlobalAction(t *testing.T) {
 // rendered view with the cursor positioned on the new entry.
 func TestPlaylistCreateFlowSuccess(t *testing.T) {
 	creator := &stubPlaylistCreator{nextID: 42}
-	m := New(context.Background())
+	m := New(context.Background(), WithPlaylistWriter(creator))
 	m.activeView = viewPlaylists
-	m.SetPlaylistWriter(creator)
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m = next.(Model)
 
@@ -86,9 +85,8 @@ func TestPlaylistCreateFlowSuccess(t *testing.T) {
 // creation discards the input without persisting anything.
 func TestPlaylistCreateFlowEscCancels(t *testing.T) {
 	creator := &stubPlaylistCreator{nextID: 1}
-	m := New(context.Background())
+	m := New(context.Background(), WithPlaylistWriter(creator))
 	m.activeView = viewPlaylists
-	m.SetPlaylistWriter(creator)
 
 	// Activate create mode.
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
@@ -116,9 +114,8 @@ func TestPlaylistCreateFlowEscCancels(t *testing.T) {
 // error cancels the input and surfaces a status bar notification.
 func TestPlaylistCreateFlowErrorShowsNotification(t *testing.T) {
 	creator := &stubPlaylistCreator{createErr: &errPlaylistCreate{msg: "db locked"}, nextID: 1}
-	m := New(context.Background())
+	m := New(context.Background(), WithPlaylistWriter(creator))
 	m.activeView = viewPlaylists
-	m.SetPlaylistWriter(creator)
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
 	m = next.(Model)
@@ -155,12 +152,10 @@ func TestPlaylistCreateFlowErrorShowsNotification(t *testing.T) {
 // instead of calling CreatePlaylist.
 func TestPlaylistCreateDuplicateNameShowsNotification(t *testing.T) {
 	creator := &stubPlaylistCreator{nextID: 42}
-	m := New(context.Background())
-	m.activeView = viewPlaylists
-	m.SetPlaylistWriter(creator)
-	m.SetPlaylists([]db.PlaylistRow{
+	m := New(context.Background(), WithPlaylistWriter(creator), WithPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Existing"},
-	})
+	}))
+	m.activeView = viewPlaylists
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m = next.(Model)
 
@@ -194,11 +189,10 @@ func TestPlaylistCreateDuplicateNameShowsNotification(t *testing.T) {
 // calling SetPlaylists causes each playlist's name and track count to appear
 // in the rendered output.
 func TestView2RendersPlaylistsNameAndCount(t *testing.T) {
-	m := New(context.Background())
-	m.SetPlaylists([]db.PlaylistRow{
+	m := New(context.Background(), WithPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Chill", TrackCount: 3},
 		{ID: 2, Name: "Workout", TrackCount: 8},
-	})
+	}))
 
 	// Give the model a realistic terminal width so names are not truncated.
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -219,18 +213,16 @@ func TestView2RendersPlaylistsNameAndCount(t *testing.T) {
 // TestPlaylistEscFromTrackLevelReturnsToList verifies that pressing Esc while
 // in TrackLevel transitions back to ListLevel and preserves the list cursor.
 func TestPlaylistEscFromTrackLevelReturnsToList(t *testing.T) {
-	m := New(context.Background())
-	m.SetPlaylists([]db.PlaylistRow{
-		{ID: 1, Name: "Alpha", TrackCount: 1},
-		{ID: 2, Name: "Beta", TrackCount: 1},
-		{ID: 3, Name: "Gamma", TrackCount: 1},
-	})
 	reader := &stubPlaylistTrackReader{
 		rows: []db.PlaylistTrackRow{
 			{Position: 1, Title: "Track One", Artist: "Artist", DurationMs: 60000},
 		},
 	}
-	m.SetPlaylistTrackReader(reader)
+	m := New(context.Background(), WithPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "Alpha", TrackCount: 1},
+		{ID: 2, Name: "Beta", TrackCount: 1},
+		{ID: 3, Name: "Gamma", TrackCount: 1},
+	}), WithPlaylistTrackReader(reader))
 
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	nm := next.(Model)
@@ -276,10 +268,9 @@ func TestPlaylistEscFromTrackLevelReturnsToList(t *testing.T) {
 // TestPlaylistEscAtListLevelIsNoOp verifies that pressing Esc while already at
 // ListLevel produces no visible state change and no error.
 func TestPlaylistEscAtListLevelIsNoOp(t *testing.T) {
-	m := New(context.Background())
-	m.SetPlaylists([]db.PlaylistRow{
+	m := New(context.Background(), WithPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Chill", TrackCount: 5},
-	})
+	}))
 
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	nm := next.(Model)
@@ -311,10 +302,9 @@ func TestPlaylistEscAtListLevelIsNoOp(t *testing.T) {
 // and processing that msg activates the inline rename input pre-populated with
 // the focused playlist's name.
 func TestPlaylistRAtListLevelActivatesRenameInput(t *testing.T) {
-	m := New(context.Background())
-	m.SetPlaylists([]db.PlaylistRow{
+	m := New(context.Background(), WithPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Chill Mix", TrackCount: 3},
-	})
+	}))
 
 	// Navigate to playlists view.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
@@ -347,16 +337,14 @@ func TestPlaylistRAtListLevelActivatesRenameInput(t *testing.T) {
 // playlists view is at TrackLevel does not activate the rename input — rename
 // only applies at list level.
 func TestPlaylistRAtTrackLevelIsNoOp(t *testing.T) {
-	m := New(context.Background())
-	m.SetPlaylists([]db.PlaylistRow{
-		{ID: 1, Name: "Chill Mix", TrackCount: 1},
-	})
 	reader := &stubPlaylistTrackReader{
 		rows: []db.PlaylistTrackRow{
 			{Position: 1, Title: "Track One", Artist: "Artist", DurationMs: 60000},
 		},
 	}
-	m.SetPlaylistTrackReader(reader)
+	m := New(context.Background(), WithPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "Chill Mix", TrackCount: 1},
+	}), WithPlaylistTrackReader(reader))
 
 	// Navigate to playlists view and open the playlist to reach TrackLevel.
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -384,17 +372,15 @@ func TestPlaylistRAtTrackLevelIsNoOp(t *testing.T) {
 // rendered output. After opening a playlist the track titles must appear in
 // the playlists panel.
 func TestPlaylistOpenRendersTrackTitles(t *testing.T) {
-	m := New(context.Background())
-	m.SetPlaylists([]db.PlaylistRow{
-		{ID: 1, Name: "Chill", TrackCount: 2},
-	})
 	reader := &stubPlaylistTrackReader{
 		rows: []db.PlaylistTrackRow{
 			{Position: 1, Title: "Ocean Waves", Artist: "Ambient Co", DurationMs: 240000},
 			{Position: 2, Title: "Forest Rain", Artist: "Nature Sounds", DurationMs: 180000},
 		},
 	}
-	m.SetPlaylistTrackReader(reader)
+	m := New(context.Background(), WithPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "Chill", TrackCount: 2},
+	}), WithPlaylistTrackReader(reader))
 
 	// Switch to the playlists view at a realistic width.
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -482,15 +468,12 @@ func TestPlaylistsBulkRemoveAtTrackLevel(t *testing.T) {
 // TestPlaylistDeleteClampsScrollOffset verifies that deleting a playlist when
 // the list is scrolled clamps scrollOffset so it does not point past the end.
 func TestPlaylistDeleteClampsScrollOffset(t *testing.T) {
-	m := New(context.Background())
-	m.activeView = viewPlaylists
 	pd := &stubPlaylistDeleter{}
-	m.SetPlaylistDeleter(pd)
-
-	m.SetPlaylists([]db.PlaylistRow{
+	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "A"},
 		{ID: 2, Name: "B"},
-	})
+	}))
+	m.activeView = viewPlaylists
 	// Simulate the view being scrolled past what will remain after deletion.
 	m.playlists.cursor = 1
 	m.playlists.scrollOffset = 1
@@ -510,14 +493,11 @@ func TestPlaylistDeleteClampsScrollOffset(t *testing.T) {
 // TestPlaylistDeleteAllClampsScrollOffsetToZero verifies that deleting the last
 // playlist resets scrollOffset to 0.
 func TestPlaylistDeleteAllClampsScrollOffsetToZero(t *testing.T) {
-	m := New(context.Background())
-	m.activeView = viewPlaylists
 	pd := &stubPlaylistDeleter{}
-	m.SetPlaylistDeleter(pd)
-
-	m.SetPlaylists([]db.PlaylistRow{
+	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "A"},
-	})
+	}))
+	m.activeView = viewPlaylists
 	m.playlists.cursor = 0
 	m.playlists.scrollOffset = 0
 
@@ -533,10 +513,9 @@ func TestPlaylistDeleteAllClampsScrollOffsetToZero(t *testing.T) {
 // TestPlaylistTrackDeleteClampsScrollOffset verifies that removing a track at
 // TrackLevel clamps scrollOffset so it does not point past the end.
 func TestPlaylistTrackDeleteClampsScrollOffset(t *testing.T) {
-	m := New(context.Background())
-	m.activeView = viewPlaylists
 	pd := &stubPlaylistDeleter{}
-	m.SetPlaylistDeleter(pd)
+	m := New(context.Background(), WithPlaylistDeleter(pd))
+	m.activeView = viewPlaylists
 
 	m.playlists.level = pltui.TrackLevel
 	m.playlists.tracks = []db.PlaylistTrackRow{
@@ -561,10 +540,9 @@ func TestPlaylistTrackDeleteClampsScrollOffset(t *testing.T) {
 // TestBulkRemovePlaylistTracksClampsScrollOffset verifies that bulk-removing
 // tracks clamps scrollOffset so it does not point past the end.
 func TestBulkRemovePlaylistTracksClampsScrollOffset(t *testing.T) {
-	m := New(context.Background())
-	m.activeView = viewPlaylists
 	pd := &stubPlaylistDeleter{}
-	m.SetPlaylistDeleter(pd)
+	m := New(context.Background(), WithPlaylistDeleter(pd))
+	m.activeView = viewPlaylists
 
 	m.playlists.level = pltui.TrackLevel
 	m.playlists.tracks = []db.PlaylistTrackRow{
@@ -593,10 +571,9 @@ func TestBulkRemovePlaylistTracksClampsScrollOffset(t *testing.T) {
 // selected track when a playlistDeleter is wired. Prior to the fix,
 // soft-deleted rows were never purged because no purge timer was scheduled.
 func TestBulkRemovePlaylistTracksSoftDeletesAndSchedulesPurge(t *testing.T) {
-	m := New(context.Background())
-	m.activeView = viewPlaylists
 	pd := &stubPlaylistDeleter{}
-	m.SetPlaylistDeleter(pd)
+	m := New(context.Background(), WithPlaylistDeleter(pd))
+	m.activeView = viewPlaylists
 
 	m.playlists.level = pltui.TrackLevel
 	m.playlists.tracks = []db.PlaylistTrackRow{
@@ -626,12 +603,10 @@ func TestBulkRemovePlaylistTracksSoftDeletesAndSchedulesPurge(t *testing.T) {
 // playlist with a name differing only in case from an existing one is rejected.
 func TestPlaylistCreateDuplicateNameCaseInsensitive(t *testing.T) {
 	creator := &stubPlaylistCreator{nextID: 42}
-	m := New(context.Background())
-	m.activeView = viewPlaylists
-	m.SetPlaylistWriter(creator)
-	m.SetPlaylists([]db.PlaylistRow{
+	m := New(context.Background(), WithPlaylistWriter(creator), WithPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Jazz"},
-	})
+	}))
+	m.activeView = viewPlaylists
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m = next.(Model)
 
@@ -665,13 +640,11 @@ func TestPlaylistCreateDuplicateNameCaseInsensitive(t *testing.T) {
 // playlist to a name differing only in case from another existing one is rejected.
 func TestPlaylistRenameDuplicateNameCaseInsensitive(t *testing.T) {
 	renamer := &stubPlaylistRenamer{}
-	m := New(context.Background())
-	m.activeView = viewPlaylists
-	m.SetPlaylistRenamer(renamer)
-	m.SetPlaylists([]db.PlaylistRow{
+	m := New(context.Background(), WithPlaylistRenamer(renamer), WithPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Rock"},
 		{ID: 2, Name: "Jazz"},
-	})
+	}))
+	m.activeView = viewPlaylists
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m = next.(Model)
 
@@ -708,18 +681,15 @@ func TestPlaylistRenameDuplicateNameCaseInsensitive(t *testing.T) {
 // TestUndoDeletePlaylistScrollsToRestoredEntry verifies that undoing a playlist
 // deletion adjusts scrollOffset so the restored entry is visible.
 func TestUndoDeletePlaylistScrollsToRestoredEntry(t *testing.T) {
-	m := New(context.Background())
-	m.activeView = viewPlaylists
 	pd := &stubPlaylistDeleter{}
-	m.SetPlaylistDeleter(pd)
-
-	m.SetPlaylists([]db.PlaylistRow{
+	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "A"},
 		{ID: 2, Name: "B"},
 		{ID: 3, Name: "C"},
 		{ID: 4, Name: "D"},
 		{ID: 5, Name: "E"},
-	})
+	}))
+	m.activeView = viewPlaylists
 	// Delete the first playlist.
 	m.playlists.cursor = 0
 	m.playlists.scrollOffset = 0
@@ -854,18 +824,16 @@ func TestPlaylistTrackCursorClampAtTop(t *testing.T) {
 // rename causes the entry to sort to a different position (because the list is
 // sorted alphabetically), scrollOffset is adjusted so the cursor is visible.
 func TestPlaylistRenamedMsgAdjustsScrollOffset(t *testing.T) {
-	m := New(context.Background())
-	m.activeView = viewPlaylists
-	// Use a small terminal so visibleRows is small (height=6 - 3 reserve = 3 visible rows).
-	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 6})
-	m = next.(Model)
-
 	// Populate 10 playlists named A through J. Cursor on "A" (index 0).
 	var playlists []db.PlaylistRow
 	for i := range 10 {
 		playlists = append(playlists, db.PlaylistRow{ID: int64(i + 1), Name: string(rune('A' + i))})
 	}
-	m.SetPlaylists(playlists)
+	m := New(context.Background(), WithPlaylists(playlists))
+	m.activeView = viewPlaylists
+	// Use a small terminal so visibleRows is small (height=6 - 3 reserve = 3 visible rows).
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 6})
+	m = next.(Model)
 	m.playlists.cursor = 0
 	m.playlists.scrollOffset = 0
 
@@ -895,18 +863,16 @@ func TestPlaylistRenamedMsgAdjustsScrollOffset(t *testing.T) {
 // creation causes the entry to sort to a position beyond the visible window,
 // scrollOffset is adjusted so the cursor is visible.
 func TestPlaylistCreatedMsgAdjustsScrollOffset(t *testing.T) {
-	m := New(context.Background())
-	m.activeView = viewPlaylists
-	// Small terminal: visibleRows = max(1, 6-3) = 3.
-	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 6})
-	m = next.(Model)
-
 	// Pre-populate 5 playlists named A through E.
 	var playlists []db.PlaylistRow
 	for i := range 5 {
 		playlists = append(playlists, db.PlaylistRow{ID: int64(i + 1), Name: string(rune('A' + i))})
 	}
-	m.SetPlaylists(playlists)
+	m := New(context.Background(), WithPlaylists(playlists))
+	m.activeView = viewPlaylists
+	// Small terminal: visibleRows = max(1, 6-3) = 3.
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 6})
+	m = next.(Model)
 	m.playlists.cursor = 0
 	m.playlists.scrollOffset = 0
 
@@ -985,10 +951,9 @@ func TestPlaylistTrackDeleteNoPanicWhenCursorOutOfBounds(t *testing.T) {
 // Playlists at TrackLevel with selected tracks shows a confirmation notification
 // on the first press, and executes the removal on the second press.
 func TestBulkActionInPlaylistsRequiresConfirmation(t *testing.T) {
-	m := New(context.Background())
-	m.activeView = viewPlaylists
 	pd := &stubPlaylistDeleter{}
-	m.SetPlaylistDeleter(pd)
+	m := New(context.Background(), WithPlaylistDeleter(pd))
+	m.activeView = viewPlaylists
 
 	m.playlists.level = pltui.TrackLevel
 	m.playlists.tracks = []db.PlaylistTrackRow{

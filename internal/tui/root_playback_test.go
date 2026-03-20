@@ -279,8 +279,7 @@ func TestClearQueueMsgResetsScrollOffset(t *testing.T) {
 func TestPlaybackEndedMsgRepeatAllRestartsQueue(t *testing.T) {
 	p := &stubPlayer{}
 	sw := &stubSessionWriter{}
-	m := New(context.Background(), WithPlayer(p))
-	m.SetSessionWriter(sw)
+	m := New(context.Background(), WithPlayer(p), WithSessionWriter(sw))
 	m.playback.state = PlaybackPlaying
 	m.playback.repeatMode = RepeatAll
 	m.queue.entries = []QueueEntry{
@@ -311,8 +310,7 @@ func TestPlaybackEndedMsgRepeatAllRestartsQueue(t *testing.T) {
 func TestPlaybackEndedMsgRepeatAllUpdatesCurrentTrackHash(t *testing.T) {
 	p := &stubPlayer{}
 	sw := &stubSessionWriter{}
-	m := New(context.Background(), WithPlayer(p))
-	m.SetSessionWriter(sw)
+	m := New(context.Background(), WithPlayer(p), WithSessionWriter(sw))
 	m.playback.state = PlaybackPlaying
 	m.playback.repeatMode = RepeatAll
 	m.playback.currentHash = "old-hash-last-track"
