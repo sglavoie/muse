@@ -248,6 +248,24 @@ type TrackChangedMsg struct {
 	Hash           string // content hash of the new track; used for session persistence
 }
 
+// favoriteToggledMsg carries the result of a single favorite toggle operation.
+type favoriteToggledMsg struct {
+	typ   string // "artist", "album", or "track"
+	value string
+	added bool // true if added, false if removed
+	count int  // new total count for the type (for status bar updates)
+	err   error
+}
+
+// favoritesLoadedMsg carries the favorites loaded for a specific category.
+type favoritesLoadedMsg struct {
+	category int // 0=artists, 1=albums, 2=tracks
+	artists  []string
+	albums   []string
+	tracks   []library.Track
+	err      error
+}
+
 // scanBatchSize is the maximum number of tracks collected per batch before
 // returning a ScanBatchMsg to the update loop.
 const scanBatchSize = 100

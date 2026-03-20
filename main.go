@@ -188,6 +188,8 @@ func main() {
 		tui.WithQueueReorderer(result.Writer),
 		tui.WithBatchEnqueuer(result.Writer),
 		tui.WithMetadataWriter(result.Writer),
+		tui.WithFavoriteReader(result.DB),
+		tui.WithFavoriteWriter(result.Writer),
 	)
 
 	// Apply all restored session state (queue, library, playlists,

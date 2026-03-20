@@ -11,6 +11,7 @@ import (
 	musiclib "github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
@@ -32,10 +33,11 @@ const (
 	viewQueue     viewID = 3
 	viewArtists   viewID = 4
 	viewAlbums    viewID = 5
+	viewFavorites viewID = 6
 )
 
 // viewOrder defines the tab-cycling order for primary views.
-var viewOrder = []viewID{viewLibrary, viewPlaylists, viewQueue, viewArtists, viewAlbums}
+var viewOrder = []viewID{viewLibrary, viewPlaylists, viewQueue, viewArtists, viewAlbums, viewFavorites}
 
 // viewName returns the display name for a viewID.
 func viewName(id viewID) string {
@@ -50,6 +52,8 @@ func viewName(id viewID) string {
 		return "Artists"
 	case viewAlbums:
 		return "Albums"
+	case viewFavorites:
+		return "Favorites"
 	default:
 		return ""
 	}
@@ -68,6 +72,8 @@ func viewToContext(id viewID) bindingContext {
 		return contextArtists
 	case viewAlbums:
 		return contextAlbums
+	case viewFavorites:
+		return contextFavorites
 	default:
 		return contextGlobal
 	}
@@ -458,6 +464,338 @@ func (v PlaylistsView) enqueueFocusedTrack(qa libtui.QueueAppender, prevQueueLen
 		id, err := qa.AppendTrack(track, playlistName)
 		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, SourcePlaylist: playlistName}
 	}
+}
+
+// FavoritesView wraps the favorites sub-panel state for the root model.
+// It holds the navigation level, cursor position, category counts, and
+// favorite item lists. Rendering is delegated to the favorites sub-package.
+type FavoritesView struct {
+	level        favtui.Level
+	cursor       int
+	scrollOffset int
+
+	category favtui.Category
+
+	// Category counts (shown at CategoryLevel).
+	artistCount int
+	albumCount  int
+	trackCount  int
+
+	// List items (populated at ListLevel).
+	artists []string
+	albums  []string
+	tracks  []musiclib.Track
+
+	// Drill-down tracks (populated at TrackLevel from a favorite artist/album).
+	drilldownTracks []musiclib.Track
+
+	// Saved cursors/scroll for each level (restored on back).
+	categoryCursor   int
+	listCursor       int
+	listScrollOffset int
+
+	width  int
+	height int
+
+	filter        filter.State
+	sortState     SortState
+	selectedItems map[int]struct{}
+}
+
+func (v FavoritesView) render(s styles.Styles) string {
+	var sortInd string
+	if v.sortState.Field != SortDefault {
+		sortInd = fmt.Sprintf("Sort: %s %s", SortFieldLabel(v.sortState.Field), SortDirIndicator(v.sortState.Dir))
+	}
+	fv := favtui.View{
+		Level:            v.level,
+		Cursor:           v.cursor,
+		ScrollOffset:     v.scrollOffset,
+		Category:         v.category,
+		ArtistCount:      v.artistCount,
+		AlbumCount:       v.albumCount,
+		TrackCount:       v.trackCount,
+		Artists:          v.artists,
+		Albums:           v.albums,
+		Tracks:           v.tracks,
+		DrilldownTracks:  v.drilldownTracks,
+		CategoryCursor:   v.categoryCursor,
+		ListCursor:       v.listCursor,
+		ListScrollOffset: v.listScrollOffset,
+		Width:            v.width,
+		Height:           v.height,
+		Styles:           s,
+		FilterActive:     v.filter.Active,
+		FilterText:       v.filter.Text,
+		SortIndicator:    sortInd,
+		SelectedItems:    v.selectedItems,
+	}
+	return fv.Render()
+}
+
+// HandleAction executes a pre-resolved favorites action dispatched by root.Update.
+func (v FavoritesView) HandleAction(a action) FavoritesView {
+	view := favtui.View{
+		Level:           v.level,
+		Cursor:          v.cursor,
+		ScrollOffset:    v.scrollOffset,
+		Category:        v.category,
+		Artists:         v.artists,
+		Albums:          v.albums,
+		Tracks:          v.tracks,
+		DrilldownTracks: v.drilldownTracks,
+		Height:          v.height,
+		FilterText:      v.filter.Text,
+	}
+	switch a {
+	case actionCursorUp:
+		view = view.CursorUp()
+	case actionCursorDown:
+		view = view.CursorDown()
+	case actionHalfPageDown:
+		view = view.HalfPageDown()
+	case actionHalfPageUp:
+		view = view.HalfPageUp()
+	case actionFullPageDown:
+		view = view.FullPageDown()
+	case actionFullPageUp:
+		view = view.FullPageUp()
+	case actionGoToTop:
+		view = view.GoToTop()
+	case actionGoToBottom:
+		view = view.GoToBottom()
+	}
+	v.cursor = view.Cursor
+	v.scrollOffset = view.ScrollOffset
+	return v
+}
+
+// back navigates one level up.
+func (v FavoritesView) back() FavoritesView {
+	view := favtui.View{
+		Level:            v.level,
+		Cursor:           v.cursor,
+		ScrollOffset:     v.scrollOffset,
+		Category:         v.category,
+		Artists:          v.artists,
+		Albums:           v.albums,
+		Tracks:           v.tracks,
+		DrilldownTracks:  v.drilldownTracks,
+		CategoryCursor:   v.categoryCursor,
+		ListCursor:       v.listCursor,
+		ListScrollOffset: v.listScrollOffset,
+	}
+	view = view.Back()
+	v.level = view.Level
+	v.cursor = view.Cursor
+	v.scrollOffset = view.ScrollOffset
+	v.artists = view.Artists
+	v.albums = view.Albums
+	v.tracks = view.Tracks
+	v.drilldownTracks = view.DrilldownTracks
+	v.filter = filter.State{}
+	v.sortState = SortState{}
+	v.selectedItems = nil
+	return v
+}
+
+// openTracks transitions from ListLevel to TrackLevel with the given tracks.
+func (v FavoritesView) openTracks(tracks []musiclib.Track) FavoritesView {
+	view := favtui.View{
+		Level:        v.level,
+		Cursor:       v.cursor,
+		ScrollOffset: v.scrollOffset,
+	}
+	view = view.OpenTracks(tracks)
+	v.level = view.Level
+	v.cursor = view.Cursor
+	v.scrollOffset = view.ScrollOffset
+	v.listCursor = view.ListCursor
+	v.listScrollOffset = view.ListScrollOffset
+	v.drilldownTracks = view.DrilldownTracks
+	v.filter = filter.State{}
+	v.sortState = SortState{}
+	v.selectedItems = nil
+	return v
+}
+
+// focusedArtist returns the artist name at the current cursor position and true.
+// When a filter is active it indexes into the filtered list.
+func (v FavoritesView) focusedArtist() (string, bool) {
+	if v.level != favtui.ListLevel || v.category != favtui.CategoryArtists {
+		return "", false
+	}
+	items := arttui.FilterStrings(v.artists, v.filter.Text)
+	if v.cursor < 0 || v.cursor >= len(items) {
+		return "", false
+	}
+	return items[v.cursor], true
+}
+
+// focusedAlbum returns the album name at the current cursor position and true.
+// When a filter is active it indexes into the filtered list.
+func (v FavoritesView) focusedAlbum() (string, bool) {
+	if v.level != favtui.ListLevel || v.category != favtui.CategoryAlbums {
+		return "", false
+	}
+	items := arttui.FilterStrings(v.albums, v.filter.Text)
+	if v.cursor < 0 || v.cursor >= len(items) {
+		return "", false
+	}
+	return items[v.cursor], true
+}
+
+// focusedTrack returns the track at the current cursor position and true.
+func (v FavoritesView) focusedTrack() (musiclib.Track, bool) {
+	var tracks []musiclib.Track
+	switch {
+	case v.level == favtui.TrackLevel:
+		tracks = arttui.FilterTracks(v.drilldownTracks, v.filter.Text)
+	case v.level == favtui.ListLevel && v.category == favtui.CategoryTracks:
+		tracks = arttui.FilterTracks(v.tracks, v.filter.Text)
+	default:
+		return musiclib.Track{}, false
+	}
+	if v.cursor < 0 || v.cursor >= len(tracks) {
+		return musiclib.Track{}, false
+	}
+	return tracks[v.cursor], true
+}
+
+// enqueueFocusedTrack returns a tea.Cmd that appends the focused track to the
+// play queue via qa. Returns nil when no track is focused.
+func (v FavoritesView) enqueueFocusedTrack(qa libtui.QueueAppender, prevQueueLen int) tea.Cmd {
+	track, ok := v.focusedTrack()
+	if !ok {
+		return nil
+	}
+	wasEmpty := prevQueueLen == 0
+	return func() tea.Msg {
+		id, err := qa.AppendTrack(track, "")
+		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty}
+	}
+}
+
+// recomputeFavoritesSort re-sorts the owned slices for the current level.
+func (v FavoritesView) recomputeFavoritesSort() FavoritesView {
+	if v.sortState.Field == SortDefault {
+		return v
+	}
+	switch v.level {
+	case favtui.ListLevel:
+		switch v.category {
+		case favtui.CategoryArtists:
+			if len(v.artists) > 0 {
+				v.artists = SortStrings(v.artists, v.sortState.Dir)
+			}
+		case favtui.CategoryAlbums:
+			if len(v.albums) > 0 {
+				v.albums = SortStrings(v.albums, v.sortState.Dir)
+			}
+		case favtui.CategoryTracks:
+			if sorted := SortTracks(v.tracks, v.sortState.Field, v.sortState.Dir); sorted != nil {
+				v.tracks = sorted
+			}
+		}
+	case favtui.TrackLevel:
+		if sorted := SortTracks(v.drilldownTracks, v.sortState.Field, v.sortState.Dir); sorted != nil {
+			v.drilldownTracks = sorted
+		}
+	}
+	return v
+}
+
+// clampCursor ensures the cursor is within the bounds of the current level's list.
+func (v FavoritesView) clampCursor() FavoritesView {
+	var n int
+	switch v.level {
+	case favtui.CategoryLevel:
+		n = 3
+	case favtui.ListLevel:
+		switch v.category {
+		case favtui.CategoryArtists:
+			n = len(v.artists)
+		case favtui.CategoryAlbums:
+			n = len(v.albums)
+		case favtui.CategoryTracks:
+			n = len(v.tracks)
+		}
+	case favtui.TrackLevel:
+		n = len(v.drilldownTracks)
+	}
+	if n == 0 {
+		v.cursor = 0
+		v.scrollOffset = 0
+	} else if v.cursor >= n {
+		v.cursor = n - 1
+	}
+	return v
+}
+
+// ActivateFilter sets the filter bar to active input mode.
+func (v FavoritesView) ActivateFilter() FavoritesView {
+	v.filter = v.filter.Activate()
+	return v
+}
+
+// CommitFilter exits input mode while keeping the current query visible.
+func (v FavoritesView) CommitFilter() FavoritesView {
+	v.filter = v.filter.Commit()
+	return v
+}
+
+// DeactivateFilter clears the query, exits input mode, and resets the cursor.
+func (v FavoritesView) DeactivateFilter() FavoritesView {
+	v.filter = v.filter.Deactivate()
+	v.cursor = 0
+	v.scrollOffset = 0
+	return v
+}
+
+// AppendFilterChar adds ch to the filter text and resets the cursor.
+func (v FavoritesView) AppendFilterChar(ch rune) FavoritesView {
+	var changed bool
+	v.filter, changed = v.filter.AppendChar(ch)
+	if changed {
+		v.cursor = 0
+		v.scrollOffset = 0
+	}
+	return v
+}
+
+// BackspaceFilter removes the last rune from the filter text.
+func (v FavoritesView) BackspaceFilter() FavoritesView {
+	var changed bool
+	v.filter, changed = v.filter.Backspace()
+	if changed {
+		v.cursor = 0
+		v.scrollOffset = 0
+	}
+	return v
+}
+
+// hasSelection reports whether any items are bulk-selected.
+func (v FavoritesView) hasSelection() bool {
+	return len(v.selectedItems) > 0
+}
+
+// clearSelection removes all bulk-selection markers.
+func (v FavoritesView) clearSelection() FavoritesView {
+	v.selectedItems = nil
+	return v
+}
+
+// toggleSelection toggles bulk-selection on the item at the given index.
+func (v FavoritesView) toggleSelection(idx int) FavoritesView {
+	if v.selectedItems == nil {
+		v.selectedItems = make(map[int]struct{})
+	}
+	if _, ok := v.selectedItems[idx]; ok {
+		delete(v.selectedItems, idx)
+	} else {
+		v.selectedItems[idx] = struct{}{}
+	}
+	return v
 }
 
 // clampAfterRemoval adjusts cursor and scrollOffset after items are removed

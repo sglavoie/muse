@@ -14,6 +14,7 @@ import (
 	"github.com/sglavoie/muse/internal/player"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
@@ -33,6 +34,7 @@ type Model struct {
 	queue     QueueView
 	artists   ArtistsView
 	albums    AlbumsView
+	favorites FavoritesView
 
 	// scanCh is the channel returned by library.Scan. It is nil when no scan
 	// is in progress or after the scan has completed.
@@ -79,6 +81,8 @@ type Model struct {
 	playlistDeleter playlistDeleter      // may be nil; set via SetPlaylistDeleter
 	playlistAdder   playlistTrackAdder   // may be nil; set via SetPlaylistAdder
 	batchEnqueuer   batchEnqueuer        // may be nil; set via SetBatchEnqueuer
+	favoriteReader  favoriteReader       // may be nil; set via WithFavoriteReader
+	favoriteWriter  favoriteWriter       // may be nil; set via WithFavoriteWriter
 
 	// preview is non-nil while the preview overlay is active.
 	preview           *PreviewOverlay
@@ -277,6 +281,16 @@ func WithQueueReorderer(r queueReorderer) Option {
 // WithBatchEnqueuer sets the batch enqueuer for bulk track insertion.
 func WithBatchEnqueuer(be batchEnqueuer) Option {
 	return func(m *Model) { m.batchEnqueuer = be }
+}
+
+// WithFavoriteReader sets the reader for loading favorites from the database.
+func WithFavoriteReader(r favoriteReader) Option {
+	return func(m *Model) { m.favoriteReader = r }
+}
+
+// WithFavoriteWriter sets the writer for persisting favorite add/remove operations.
+func WithFavoriteWriter(w favoriteWriter) Option {
+	return func(m *Model) { m.favoriteWriter = w }
 }
 
 // WithMetadataWriter sets the writer for persisting metadata edits.
@@ -649,6 +663,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.artists.height = max(msg.Height-3, 0)
 		m.albums.width = msg.Width
 		m.albums.height = max(msg.Height-3, 0)
+		m.favorites.width = msg.Width
+		m.favorites.height = max(msg.Height-3, 0)
 		if m.helpVisible {
 			m.helpViewport.SetWidth(msg.Width)
 			extraLines := 0
@@ -967,6 +983,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tracksAddedToPlaylistMsg:
 		m = m.handleTracksAddedToPlaylistMsg(msg)
 
+	case favoriteToggledMsg:
+		m = m.handleFavoriteToggledMsg(msg)
+
+	case favoritesLoadedMsg:
+		m = m.handleFavoritesLoadedMsg(msg)
+
 	case metadataEditedMsg:
 		// No-op: in-memory state was already updated synchronously in handleMetadataSave.
 
@@ -1043,6 +1065,8 @@ func (m Model) View() tea.View {
 			body = m.artists.render(*m.styles)
 		case viewAlbums:
 			body = m.albums.render(*m.styles)
+		case viewFavorites:
+			body = m.favorites.render(*m.styles)
 		}
 	}
 
@@ -1140,6 +1164,14 @@ func (m Model) switchToView(id viewID) Model {
 	if id == viewAlbums && len(m.albums.albums) == 0 {
 		m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
 	}
+	if id == viewFavorites && m.favoriteReader != nil {
+		a, al, t, err := m.favoriteReader.ReadFavoriteCounts()
+		if err == nil {
+			m.favorites.artistCount = a
+			m.favorites.albumCount = al
+			m.favorites.trackCount = t
+		}
+	}
 	return m
 }
 
@@ -1157,6 +1189,10 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	}
 	// Playback actions (root_playback.go).
 	if model, cmd, ok := m.handlePlaybackKeyAction(action); ok {
+		return model, cmd
+	}
+	// Favorites actions (root_favorites.go).
+	if model, cmd, ok := m.handleFavoriteKeyAction(action); ok {
 		return model, cmd
 	}
 	// Library / artist / album actions (root_library.go).
@@ -1198,6 +1234,8 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m = m.switchToView(viewArtists)
 	case actionSwitchAlbums:
 		m = m.switchToView(viewAlbums)
+	case actionSwitchFavorites:
+		m = m.switchToView(viewFavorites)
 	case actionCursorUp, actionCursorDown,
 		actionHalfPageDown, actionHalfPageUp,
 		actionFullPageDown, actionFullPageUp,
@@ -1211,6 +1249,8 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			m.artists = m.artists.HandleAction(action)
 		case viewAlbums:
 			m.albums = m.albums.HandleAction(action)
+		case viewFavorites:
+			m.favorites = m.favorites.HandleAction(action)
 		default:
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)
@@ -1221,6 +1261,10 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			m.library = m.library.HandleAction(action)
 		} else if m.activeView == viewPlaylists {
 			m.playlists = m.playlists.HandleAction(action)
+		} else if m.activeView == viewFavorites {
+			if m.favorites.level != favtui.CategoryLevel {
+				m.favorites = m.favorites.toggleSelection(m.favorites.cursor)
+			}
 		} else {
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)
@@ -1236,6 +1280,8 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			}
 		case viewPlaylists:
 			m.playlists.selectedTrackIDs = nil
+		case viewFavorites:
+			m.favorites = m.favorites.clearSelection()
 		}
 	case actionPlaylistRename:
 		return m, func() tea.Msg { return PlaylistRenameMsg{} }

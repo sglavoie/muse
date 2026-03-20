@@ -11,6 +11,7 @@ const (
 	contextQueue                           // applies only in the Queue view
 	contextArtists                         // applies only in the Artists view
 	contextAlbums                          // applies only in the Albums view
+	contextFavorites                       // applies only in the Favorites view
 	contextModals                          // applies only when a modal is active
 )
 
@@ -51,6 +52,12 @@ const (
 
 	actionSwitchArtists
 	actionSwitchAlbums
+	actionSwitchFavorites
+	actionToggleFavorite
+
+	// Favorites-local actions.
+	actionFavoritesOpen // enter: drill into category/list or enqueue track
+	actionFavoritesBack // esc: go back one level
 
 	// Library-local actions.
 	actionLibraryEnqueue        // enter: append the focused track to the play queue
@@ -139,6 +146,8 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "3", actionSwitchQueue)
 	r.register(contextGlobal, "4", actionSwitchArtists)
 	r.register(contextGlobal, "5", actionSwitchAlbums)
+	r.register(contextGlobal, "6", actionSwitchFavorites)
+	r.register(contextGlobal, "F", actionToggleFavorite)
 	r.register(contextGlobal, "R", actionRescan)
 	r.register(contextGlobal, "r", actionRepeatCycle)
 	r.register(contextGlobal, "z", actionShuffleToggle)
@@ -204,6 +213,15 @@ func newRegistry() Registry {
 	r.register(contextAlbums, "shift+enter", actionLibraryEnqueueReplace)
 	r.register(contextAlbums, "esc", actionAlbumBack)
 	r.register(contextAlbums, "a", actionBulkAction)
+
+	// Favorites-local bindings.
+	r.registerNavigation(contextFavorites)
+	r.register(contextFavorites, "enter", actionFavoritesOpen)
+	r.register(contextFavorites, "esc", actionFavoritesBack)
+	r.register(contextFavorites, "x", actionBulkSelectionToggle)
+	r.register(contextFavorites, "X", actionClearSelection)
+	r.register(contextFavorites, "a", actionBulkAction)
+	r.register(contextFavorites, "shift+enter", actionLibraryEnqueueReplace)
 
 	return r
 }

@@ -67,6 +67,8 @@ func helpSections() []helpSection {
 				{"3", "Switch to Queue"},
 				{"4", "Switch to Artists"},
 				{"5", "Switch to Albums"},
+			{"6", "Switch to Favorites"},
+			{"F", "Toggle favorite"},
 				{"tab / shift+tab", "Next / previous view"},
 				{"R", "Rescan library"},
 				{"r", "Cycle repeat mode"},
@@ -156,6 +158,19 @@ func helpSections() []helpSection {
 				{"K / J", "Move track up / down"},
 				{"f", "Focus now-playing track"},
 				{"S", "Save queue as playlist"},
+			},
+		},
+		{
+			title:   "Favorites",
+			context: contextFavorites,
+			entries: []helpEntry{
+				{"enter", "Open category / drill into tracks / enqueue"},
+				{"esc", "Back one level"},
+				{"F", "Remove from favorites"},
+				{"x", "Toggle bulk selection"},
+				{"X", "Clear selection"},
+				{"a", "Bulk remove selected"},
+				{"shift+enter", "Replace queue with track"},
 			},
 		},
 		{

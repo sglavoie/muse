@@ -418,6 +418,8 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 		return m.artists.focusedTrack()
 	case viewAlbums:
 		return m.albums.focusedTrack()
+	case viewFavorites:
+		return m.favorites.focusedTrack()
 	}
 	return library.Track{}, false
 }

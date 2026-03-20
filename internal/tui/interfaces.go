@@ -158,3 +158,17 @@ type sessionWriter interface {
 type metadataUpdater interface {
 	UpdateTrackMetadata(hash, title, artist, album string) error
 }
+
+// favoriteReader loads favorites from the database.
+type favoriteReader interface {
+	ReadFavoritesByType(typ string) ([]db.FavoriteRow, error)
+	ReadFavoriteCounts() (artists, albums, tracks int, err error)
+	IsFavorite(typ, value string) (bool, error)
+}
+
+// favoriteWriter persists favorite add/remove operations to the database.
+type favoriteWriter interface {
+	AddFavorite(typ, value string) error
+	RemoveFavorite(typ, value string) error
+	RemoveFavoritesByTypeAndValues(typ string, values []string) error
+}

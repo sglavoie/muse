@@ -5,8 +5,10 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
@@ -120,6 +122,25 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		}
 		return m, nil, true
 
+	case viewFavorites:
+		fields := favoritesSortFieldsForLevel(m.favorites)
+		if fields == nil {
+			return m, nil, false
+		}
+		next := CycleSortField(m.favorites.sortState.Field, fields)
+		m.favorites.sortState.Field = next
+		if next == SortDefault {
+			m.favorites.sortState.Dir = SortAsc
+		}
+		m.favorites = m.favorites.recomputeFavoritesSort()
+		m.favorites.cursor = 0
+		m.favorites.scrollOffset = 0
+		m.statusBar.notification = transientNotification{
+			msg:       sortNotification(m.favorites.sortState),
+			expiresAt: time.Now().Add(transientDuration),
+		}
+		return m, nil, true
+
 	default:
 		return m, nil, false
 	}
@@ -194,6 +215,17 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 		m = m.preserveAlbumsCursorOnDirChange(SortAsc)
 		m.statusBar.notification = transientNotification{
 			msg:       sortNotification(m.albums.sortState),
+			expiresAt: time.Now().Add(transientDuration),
+		}
+		return m, nil, true
+
+	case viewFavorites:
+		if m.favorites.sortState.Field == SortDefault {
+			return m, nil, false
+		}
+		m = m.preserveFavoritesCursorOnDirChange(SortAsc)
+		m.statusBar.notification = transientNotification{
+			msg:       sortNotification(m.favorites.sortState),
 			expiresAt: time.Now().Add(transientDuration),
 		}
 		return m, nil, true
@@ -282,6 +314,18 @@ func (m Model) handleSortDescOrPageDown() (tea.Model, tea.Cmd, bool) {
 		m.albums = m.albums.HandleAction(actionHalfPageDown)
 		return m, nil, true
 
+	case viewFavorites:
+		if m.favorites.sortState.Field != SortDefault {
+			m = m.preserveFavoritesCursorOnDirChange(SortDesc)
+			m.statusBar.notification = transientNotification{
+				msg:       sortNotification(m.favorites.sortState),
+				expiresAt: time.Now().Add(transientDuration),
+			}
+			return m, nil, true
+		}
+		m.favorites = m.favorites.HandleAction(actionHalfPageDown)
+		return m, nil, true
+
 	default:
 		return m, nil, false
 	}
@@ -321,6 +365,12 @@ func (m Model) resetAlbumsSort() Model {
 	return m
 }
 
+// resetFavoritesSort clears the favorites sort state.
+func (m Model) resetFavoritesSort() Model {
+	m.favorites.sortState = SortState{}
+	return m
+}
+
 // resetAllSorts clears sort state for all views.
 func (m Model) resetAllSorts() Model {
 	m = m.resetLibrarySort()
@@ -328,6 +378,7 @@ func (m Model) resetAllSorts() Model {
 	m = m.resetPlaylistsSort()
 	m = m.resetArtistsSort()
 	m = m.resetAlbumsSort()
+	m = m.resetFavoritesSort()
 	return m
 }
 
@@ -475,6 +526,97 @@ func albumsVisibleReserve(v AlbumsView) int {
 			reserve = 1
 		}
 	default:
+		reserve = 2
+	}
+	if v.sortState.Field != SortDefault {
+		reserve++
+	}
+	return reserve
+}
+
+// favoritesSortFieldsForLevel returns the sort field cycle for the current
+// favorites level. Returns nil at CategoryLevel (sorting not applicable).
+func favoritesSortFieldsForLevel(v FavoritesView) []SortField {
+	switch v.level {
+	case favtui.CategoryLevel:
+		return nil
+	case favtui.ListLevel:
+		switch v.category {
+		case favtui.CategoryArtists, favtui.CategoryAlbums:
+			return favListSortFields
+		case favtui.CategoryTracks:
+			return favTrackSortFields
+		}
+		return nil
+	case favtui.TrackLevel:
+		return favTrackSortFields
+	default:
+		return nil
+	}
+}
+
+// preserveFavoritesCursorOnDirChange changes the favorites sort direction while
+// keeping the focused item at its new position.
+func (m Model) preserveFavoritesCursorOnDirChange(dir SortDir) Model {
+	switch {
+	case m.favorites.level == favtui.ListLevel && (m.favorites.category == favtui.CategoryArtists || m.favorites.category == favtui.CategoryAlbums):
+		var name string
+		var items []string
+		if m.favorites.category == favtui.CategoryArtists {
+			items = arttui.FilterStrings(m.favorites.artists, m.favorites.filter.Text)
+		} else {
+			items = arttui.FilterStrings(m.favorites.albums, m.favorites.filter.Text)
+		}
+		if m.favorites.cursor >= 0 && m.favorites.cursor < len(items) {
+			name = items[m.favorites.cursor]
+		}
+		m.favorites.sortState.Dir = dir
+		m.favorites = m.favorites.recomputeFavoritesSort()
+		if m.favorites.category == favtui.CategoryArtists {
+			items = arttui.FilterStrings(m.favorites.artists, m.favorites.filter.Text)
+		} else {
+			items = arttui.FilterStrings(m.favorites.albums, m.favorites.filter.Text)
+		}
+		m.favorites.cursor = findStringPosition(items, name)
+	default:
+		// ListLevel+Tracks or TrackLevel: track-based sort.
+		var tracks []library.Track
+		if m.favorites.level == favtui.TrackLevel {
+			tracks = arttui.FilterTracks(m.favorites.drilldownTracks, m.favorites.filter.Text)
+		} else {
+			tracks = arttui.FilterTracks(m.favorites.tracks, m.favorites.filter.Text)
+		}
+		var focusedHash string
+		if m.favorites.cursor >= 0 && m.favorites.cursor < len(tracks) {
+			focusedHash = tracks[m.favorites.cursor].Hash
+		}
+		m.favorites.sortState.Dir = dir
+		m.favorites = m.favorites.recomputeFavoritesSort()
+		if m.favorites.level == favtui.TrackLevel {
+			tracks = arttui.FilterTracks(m.favorites.drilldownTracks, m.favorites.filter.Text)
+		} else {
+			tracks = arttui.FilterTracks(m.favorites.tracks, m.favorites.filter.Text)
+		}
+		m.favorites.cursor = findTrackHashPosition(tracks, focusedHash)
+	}
+	reserve := favoritesVisibleReserve(m.favorites)
+	m.favorites.scrollOffset = adjustScroll(m.favorites.cursor, m.favorites.scrollOffset, layout.VisibleRows(m.favorites.height, reserve))
+	return m
+}
+
+// favoritesVisibleReserve returns the line reserve for the favorites view's visibleRows.
+func favoritesVisibleReserve(v FavoritesView) int {
+	var reserve int
+	switch v.level {
+	case favtui.CategoryLevel:
+		// no extra reserve
+	case favtui.ListLevel:
+		if v.category == favtui.CategoryTracks {
+			reserve = 2
+		} else if v.filter.Active || v.filter.Text != "" {
+			reserve = 1
+		}
+	case favtui.TrackLevel:
 		reserve = 2
 	}
 	if v.sortState.Field != SortDefault {

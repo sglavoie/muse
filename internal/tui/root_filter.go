@@ -69,6 +69,15 @@ func (m Model) allFilterOps() *filterOps {
 			isActive:   func() bool { return m.queue.filter.Active },
 			activate:   func() Model { m.queue = m.queue.ActivateFilter(); return m },
 		}
+	case viewFavorites:
+		return &filterOps{
+			deactivate: func() Model { m.favorites = m.favorites.DeactivateFilter(); return m },
+			commit:     func() Model { m.favorites = m.favorites.CommitFilter(); return m },
+			backspace:  func() Model { m.favorites = m.favorites.BackspaceFilter(); return m },
+			appendChar: func(ch rune) Model { m.favorites = m.favorites.AppendFilterChar(ch); return m },
+			isActive:   func() bool { return m.favorites.filter.Active },
+			activate:   func() Model { m.favorites = m.favorites.ActivateFilter(); return m },
+		}
 	default:
 		return nil
 	}

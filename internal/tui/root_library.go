@@ -176,6 +176,8 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 				if m.playlists.level == pltui.TrackLevel {
 					cmd = m.playlists.enqueueFocusedTrack(m.queueWriter, 0)
 				}
+			case viewFavorites:
+				cmd = m.favorites.enqueueFocusedTrack(m.queueWriter, 0)
 			}
 			return m, cmd, true
 		}
