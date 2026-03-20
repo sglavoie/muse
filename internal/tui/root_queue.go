@@ -116,18 +116,8 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 	player.PlaySound(player.SoundEnqueued)
 	// Trigger immediate playback when the queue was previously empty and
 	// nothing is playing.
-	if msg.WasEmpty && m.playbackState == PlaybackIdle && m.player != nil {
-		if err := m.player.PlayFromIndex(0); err == nil {
-			m.playbackState = PlaybackPlaying
-			m.currentTrackHash = msg.Track.Hash
-			m.statusBar.artist = msg.Track.Artist
-			m.statusBar.title = msg.Track.Title
-			source := msg.SourcePlaylist
-			if source == "" {
-				source = "Queue"
-			}
-			m.statusBar.playlistSource = source
-		}
+	if msg.WasEmpty && m.playbackState == PlaybackIdle {
+		m = m.tryAutoPlay(msg.Track.Hash, msg.Track.Artist, msg.Track.Title, msg.SourcePlaylist)
 	}
 	return m
 }
@@ -167,15 +157,9 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 		}
 	}
 	// Trigger immediate playback when the queue was previously empty.
-	if msg.WasEmpty && m.playbackState == PlaybackIdle && m.player != nil {
-		if err := m.player.PlayFromIndex(0); err == nil {
-			m.playbackState = PlaybackPlaying
-			e := msg.Entries[0]
-			m.currentTrackHash = e.Hash
-			m.statusBar.artist = e.Artist
-			m.statusBar.title = e.Title
-			m.statusBar.playlistSource = msg.PlaylistName
-		}
+	if msg.WasEmpty && m.playbackState == PlaybackIdle {
+		e := msg.Entries[0]
+		m = m.tryAutoPlay(e.Hash, e.Artist, e.Title, msg.PlaylistName)
 	}
 	// Set up undo slot.
 	if m.undoSlot.cancelPurge != nil {
@@ -196,6 +180,32 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 	return m
 }
 
+// tryAutoPlay attempts to start playback from index 0 after an enqueue into an
+// empty queue. On failure it notifies the user and reverts to idle.
+func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
+	if m.player == nil {
+		return m
+	}
+	if err := m.player.PlayFromIndex(0); err != nil {
+		m.playbackState = PlaybackIdle
+		m.statusBar.notification = transientNotification{
+			msg:       "Playback failed: " + err.Error(),
+			expiresAt: time.Now().Add(transientDuration),
+		}
+		player.PlaySound(player.SoundError)
+		return m
+	}
+	m.playbackState = PlaybackPlaying
+	m.currentTrackHash = hash
+	m.statusBar.artist = artist
+	m.statusBar.title = title
+	if source == "" {
+		source = "Queue"
+	}
+	m.statusBar.playlistSource = source
+	return m
+}
+
 // handlePlayQueueIndexMsg starts playback from a specific queue index.
 func (m Model) handlePlayQueueIndexMsg(msg PlayQueueIndexMsg) Model {
 	if m.player != nil {
@@ -212,6 +222,13 @@ func (m Model) handlePlayQueueIndexMsg(msg PlayQueueIndexMsg) Model {
 				}
 				m.statusBar.playlistSource = source
 			}
+		} else {
+			m.playbackState = PlaybackIdle
+			m.statusBar.notification = transientNotification{
+				msg:       "Playback failed: " + err.Error(),
+				expiresAt: time.Now().Add(transientDuration),
+			}
+			player.PlaySound(player.SoundError)
 		}
 	}
 	return m
@@ -326,7 +343,9 @@ func (m Model) clearQueueForReplace() Model {
 	if len(m.queue.entries) > 0 && m.undoer != nil {
 		go func(undoer queueDequeuer) {
 			if _, err := undoer.ClearQueueSoft(); err == nil {
-				_ = undoer.PurgeDeletedQueueEntries(time.Now().Unix() + 1)
+				if err := undoer.PurgeDeletedQueueEntries(time.Now().Unix() + 1); err != nil {
+					slog.Error("purge deleted queue entries failed", "err", err)
+				}
 			}
 		}(m.undoer)
 	}
@@ -360,7 +379,9 @@ func (m Model) handleMoveTrackUpMsg(msg MoveTrackUpMsg) (Model, tea.Cmd) {
 			r := m.reorderer
 			id := entry.ID
 			return m, func() tea.Msg {
-				_ = r.ReorderQueueTrack(id, -1)
+				if err := r.ReorderQueueTrack(id, -1); err != nil {
+					slog.Error("reorder queue track failed", "id", id, "direction", -1, "err", err)
+				}
 				return nil
 			}
 		}
@@ -382,7 +403,9 @@ func (m Model) handleMoveTrackDownMsg(msg MoveTrackDownMsg) (Model, tea.Cmd) {
 			r := m.reorderer
 			id := entry.ID
 			return m, func() tea.Msg {
-				_ = r.ReorderQueueTrack(id, +1)
+				if err := r.ReorderQueueTrack(id, +1); err != nil {
+					slog.Error("reorder queue track failed", "id", id, "direction", +1, "err", err)
+				}
 				return nil
 			}
 		}

@@ -474,57 +474,57 @@ func (v View) renderTracks() string {
 // When the filter is active or committed it shows the query; otherwise it
 // returns a plain blank line.
 func (v View) filterSeparator() string {
-	var sortLine string
-	if v.SortIndicator != "" {
-		sortLine = "\n" + v.SortIndicator
-	}
-	if v.FilterActive {
-		if v.FilterText == "" {
-			return sortLine + "\nFilter: > \n"
-		}
-		ft := v.FilterText
-		maxLen := v.Width - len("Filter: > ") - 1
-		if maxLen > 0 && len([]rune(ft)) > maxLen {
-			ft = string([]rune(ft)[:maxLen-1]) + "…"
-		}
-		return sortLine + "\nFilter: > " + ft + "\n"
-	}
-	if v.FilterText != "" {
-		ft := v.FilterText
-		maxLen := v.Width - len("Filter: ") - 1
-		if maxLen > 0 && len([]rune(ft)) > maxLen {
-			ft = string([]rune(ft)[:maxLen-1]) + "…"
-		}
-		return sortLine + "\nFilter: " + ft + "\n"
-	}
-	return sortLine + "\n\n"
+	return v.buildFilterSeparator(true)
 }
 
 // topFilterSeparator is like filterSeparator but without a leading newline,
 // for use in top-level views where the title bar provides the spacing.
 func (v View) topFilterSeparator() string {
+	return v.buildFilterSeparator(false)
+}
+
+// buildFilterSeparator builds the filter/sort separator string. When
+// leadingNewline is true, sort and filter lines are prefixed with a newline
+// (used below a heading); when false the leading newline is omitted (used
+// at the top level where the title bar already provides spacing).
+func (v View) buildFilterSeparator(leadingNewline bool) string {
 	var prefix string
 	if v.SortIndicator != "" {
-		prefix = v.SortIndicator + "\n"
+		if leadingNewline {
+			prefix = "\n" + v.SortIndicator
+		} else {
+			prefix = v.SortIndicator + "\n"
+		}
 	}
 	if v.FilterActive {
+		sep := "\n"
+		if !leadingNewline {
+			sep = ""
+		}
 		if v.FilterText == "" {
-			return prefix + "Filter: > \n"
+			return prefix + sep + "Filter: > \n"
 		}
 		ft := v.FilterText
 		maxLen := v.Width - len("Filter: > ") - 1
 		if maxLen > 0 && len([]rune(ft)) > maxLen {
 			ft = string([]rune(ft)[:maxLen-1]) + "…"
 		}
-		return prefix + "Filter: > " + ft + "\n"
+		return prefix + sep + "Filter: > " + ft + "\n"
 	}
 	if v.FilterText != "" {
+		sep := "\n"
+		if !leadingNewline {
+			sep = ""
+		}
 		ft := v.FilterText
 		maxLen := v.Width - len("Filter: ") - 1
 		if maxLen > 0 && len([]rune(ft)) > maxLen {
 			ft = string([]rune(ft)[:maxLen-1]) + "…"
 		}
-		return prefix + "Filter: " + ft + "\n"
+		return prefix + sep + "Filter: " + ft + "\n"
+	}
+	if leadingNewline {
+		return prefix + "\n\n"
 	}
 	return prefix
 }

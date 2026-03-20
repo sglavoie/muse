@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"time"
 
@@ -95,6 +96,7 @@ func (m Model) handlePlaybackEndedMsg() Model {
 			m.totalSecs = 0
 			return m
 		}
+		slog.Warn("repeat-all playback failed", "err", "PlayFromIndex(0)")
 	}
 	m.playbackState = PlaybackIdle
 	m.elapsedSecs = 0

@@ -232,7 +232,9 @@ func main() {
 			actionName := ""
 			if data, err := os.ReadFile(cmdPath); err == nil {
 				actionName = strings.TrimSpace(string(data))
-				os.Remove(cmdPath)
+				if err := os.Remove(cmdPath); err != nil {
+					slog.Warn("remove command file failed", "path", cmdPath, "err", err)
+				}
 			}
 			p.Send(tui.RemoteActionMsg{ActionName: actionName})
 		}
@@ -272,7 +274,9 @@ func runRemoteAction(action string) error {
 		return fmt.Errorf("write command file: %w", err)
 	}
 	if err := os.Rename(tmpPath, cmdPath); err != nil {
-		os.Remove(tmpPath)
+		if rmErr := os.Remove(tmpPath); rmErr != nil {
+			slog.Warn("remove temp command file failed", "path", tmpPath, "err", rmErr)
+		}
 		return fmt.Errorf("rename command file: %w", err)
 	}
 
