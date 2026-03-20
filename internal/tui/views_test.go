@@ -184,10 +184,9 @@ func TestQueueRenderProportionalColumnWidths(t *testing.T) {
 // TestQueueRenderWindowSizeMsg verifies that sending a WindowSizeMsg to the
 // root model and then rendering does not panic and produces non-empty content.
 func TestQueueRenderWindowSizeMsg(t *testing.T) {
-	m := New(context.Background())
-	m.SetQueueEntries([]QueueEntry{
+	m := New(context.Background(), WithQueueEntries([]QueueEntry{
 		{Title: "Track", Artist: "Artist", DurationMs: 30_000, Position: 1000},
-	})
+	}))
 	// Switch to queue view.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '3', Text: "3"})
 	nm := next.(Model)
@@ -960,55 +959,49 @@ func TestLibraryViewDeactivateFilter(t *testing.T) {
 // --- Model setters ---
 
 func TestModelSetRepeatMode(t *testing.T) {
-	m := New(context.Background())
-	m.SetRepeatMode(RepeatAll)
+	m := New(context.Background(), WithRepeatMode(RepeatAll))
 	if m.playback.repeatMode != RepeatAll {
 		t.Errorf("SetRepeatMode: expected RepeatAll, got %v", m.playback.repeatMode)
 	}
 }
 
 func TestModelSetShuffle(t *testing.T) {
-	m := New(context.Background())
-	m.SetShuffle(true)
+	m := New(context.Background(), WithShuffle(true))
 	if !m.playback.shuffle {
 		t.Error("SetShuffle(true): expected shuffle=true")
 	}
 }
 
 func TestModelSetPlaybackState(t *testing.T) {
-	m := New(context.Background())
-	m.SetPlaybackState(PlaybackPaused)
+	m := New(context.Background(), WithPlaybackState(PlaybackPaused))
 	if m.playback.state != PlaybackPaused {
 		t.Errorf("SetPlaybackState: expected PlaybackPaused, got %v", m.playback.state)
 	}
 }
 
 func TestModelSetCurrentTrackHash(t *testing.T) {
-	m := New(context.Background())
-	m.SetCurrentTrackHash("abc123")
+	m := New(context.Background(), WithCurrentTrackHash("abc123"))
 	if m.playback.currentHash != "abc123" {
 		t.Errorf("SetCurrentTrackHash: expected 'abc123', got %q", m.playback.currentHash)
 	}
 }
 
 func TestModelSetLibraryTracks(t *testing.T) {
-	m := New(context.Background())
 	tracks := []library.Track{
 		{Artist: "A", Title: "T1", Hash: "h1"},
 		{Artist: "B", Title: "T2", Hash: "h2"},
 	}
-	m.SetLibraryTracks(tracks)
+	m := New(context.Background(), WithLibraryTracks(tracks))
 	if m.library.index.Len() != 2 {
 		t.Errorf("SetLibraryTracks: expected 2 tracks, got %d", m.library.index.Len())
 	}
 }
 
 func TestModelRemoveLibraryTrackByPath(t *testing.T) {
-	m := New(context.Background())
-	m.SetLibraryTracks([]library.Track{
+	m := New(context.Background(), WithLibraryTracks([]library.Track{
 		{Artist: "A", Title: "T1", Hash: "h1", Path: "/a.mp3"},
 		{Artist: "B", Title: "T2", Hash: "h2", Path: "/b.mp3"},
-	})
+	}))
 	m.RemoveLibraryTrackByPath("/a.mp3")
 	if m.library.index.Len() != 1 {
 		t.Errorf("RemoveLibraryTrackByPath: expected 1 track, got %d", m.library.index.Len())

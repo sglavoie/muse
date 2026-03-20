@@ -297,11 +297,10 @@ func TestCtrlCQuitsWhilePlaylistCreateActive(t *testing.T) {
 // TestCtrlCQuitsWhilePlaylistRenameActive verifies that ctrl+c dispatches
 // tea.Quit even when the inline playlist rename input is active.
 func TestCtrlCQuitsWhilePlaylistRenameActive(t *testing.T) {
-	m := New(context.Background())
-	m.activeView = viewPlaylists
-	m.SetPlaylists([]db.PlaylistRow{
+	m := New(context.Background(), WithPlaylists([]db.PlaylistRow{
 		{ID: 1, Name: "Test"},
-	})
+	}))
+	m.activeView = viewPlaylists
 
 	// Activate rename mode via PlaylistRenameMsg.
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})

@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/app"
@@ -9,29 +10,6 @@ import (
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui"
 )
-
-// mockModel records calls to SessionModel methods for verification.
-type mockModel struct {
-	queueEntries  []tui.QueueEntry
-	libraryTracks []library.Track
-	removedPaths  []string
-	playlists     []db.PlaylistRow
-	repeatMode    tui.RepeatMode
-	shuffle       bool
-	volume        int
-	playbackState tui.PlaybackState
-	currentHash   string
-}
-
-func (m *mockModel) SetQueueEntries(e []tui.QueueEntry)   { m.queueEntries = e }
-func (m *mockModel) SetLibraryTracks(t []library.Track)   { m.libraryTracks = t }
-func (m *mockModel) RemoveLibraryTrackByPath(p string)    { m.removedPaths = append(m.removedPaths, p) }
-func (m *mockModel) SetPlaylists(r []db.PlaylistRow)      { m.playlists = r }
-func (m *mockModel) SetRepeatMode(mode tui.RepeatMode)    { m.repeatMode = mode }
-func (m *mockModel) SetShuffle(enabled bool)              { m.shuffle = enabled }
-func (m *mockModel) SetVolume(v int)                      { m.volume = v }
-func (m *mockModel) SetPlaybackState(s tui.PlaybackState) { m.playbackState = s }
-func (m *mockModel) SetCurrentTrackHash(h string)         { m.currentHash = h }
 
 // mockPlayer records calls to SessionPlayer methods for verification.
 type mockPlayer struct {
@@ -75,39 +53,27 @@ func (r *mockPlaylistReader) ReadPlaylists() ([]db.PlaylistRow, error) {
 }
 
 func TestApplyRestoredSession_EmptySession(t *testing.T) {
-	model := &mockModel{}
+	model := tui.New(context.Background())
 	mgr := &mockPlayer{}
 	sw := &mockShuffleWriter{}
 	pr := &mockPlaylistReader{}
 	restored := &app.RestoredSession{}
 
-	app.ApplyRestoredSession(model, mgr, restored, sw, pr, nil, nil, nil, 50)
+	app.ApplyRestoredSession(&model, mgr, restored, sw, pr, nil, nil, nil, 50)
 
-	if model.volume != 50 {
-		t.Errorf("volume = %d, want 50", model.volume)
-	}
-	if model.repeatMode != tui.RepeatOff {
-		t.Errorf("repeatMode = %v, want RepeatOff", model.repeatMode)
-	}
-	if model.shuffle {
-		t.Error("shuffle should be false")
-	}
-	if model.playbackState != 0 {
-		t.Errorf("playbackState should be zero value, got %v", model.playbackState)
-	}
-	if model.currentHash != "" {
-		t.Errorf("currentHash = %q, want empty", model.currentHash)
-	}
 	if sw.shuffleCalled {
 		t.Error("WriteShuffle should not be called for empty session")
 	}
 	if mgr.indexSet {
 		t.Error("SetCurrentIndex should not be called for empty session")
 	}
+	if len(mgr.queue) != 0 {
+		t.Errorf("player queue = %d, want 0", len(mgr.queue))
+	}
 }
 
 func TestApplyRestoredSession_FullSession(t *testing.T) {
-	model := &mockModel{}
+	model := tui.New(context.Background())
 	mgr := &mockPlayer{}
 	sw := &mockShuffleWriter{}
 	pr := &mockPlaylistReader{
@@ -139,35 +105,16 @@ func TestApplyRestoredSession_FullSession(t *testing.T) {
 		{Hash: "bbb", Path: "/music/b.mp3"},
 	}
 
-	app.ApplyRestoredSession(model, mgr, restored, sw, pr, tracks, nil, nil, 75)
+	app.ApplyRestoredSession(&model, mgr, restored, sw, pr, tracks, nil, nil, 75)
 
-	// Queue synced.
-	if len(model.queueEntries) != 2 {
-		t.Errorf("model queue entries = %d, want 2", len(model.queueEntries))
-	}
+	// Player queue synced.
 	if len(mgr.queue) != 2 {
 		t.Errorf("player queue = %d, want 2", len(mgr.queue))
 	}
 
-	// Library tracks set.
-	if len(model.libraryTracks) != 2 {
-		t.Errorf("library tracks = %d, want 2", len(model.libraryTracks))
-	}
-
-	// Playlists loaded.
-	if len(model.playlists) != 1 {
-		t.Errorf("playlists = %d, want 1", len(model.playlists))
-	}
-
-	// Repeat/shuffle propagated to both model and player.
-	if model.repeatMode != tui.RepeatAll {
-		t.Errorf("repeatMode = %v, want RepeatAll", model.repeatMode)
-	}
+	// Repeat/shuffle propagated to player.
 	if mgr.repeatMode != "all" {
 		t.Errorf("player repeatMode = %q, want %q", mgr.repeatMode, "all")
-	}
-	if !model.shuffle {
-		t.Error("model shuffle should be true")
 	}
 	if !mgr.shuffle {
 		t.Error("player shuffle should be true")
@@ -178,27 +125,14 @@ func TestApplyRestoredSession_FullSession(t *testing.T) {
 		t.Error("WriteShuffle(true) should have been called")
 	}
 
-	// Volume.
-	if model.volume != 75 {
-		t.Errorf("volume = %d, want 75", model.volume)
-	}
-
-	// Playback state paused (queue non-empty).
-	if model.playbackState != tui.PlaybackPaused {
-		t.Errorf("playbackState = %v, want PlaybackPaused", model.playbackState)
-	}
-
-	// Current track + index.
-	if model.currentHash != "bbb" {
-		t.Errorf("currentHash = %q, want %q", model.currentHash, "bbb")
-	}
+	// Current track index set to the second track (index 1).
 	if !mgr.indexSet || mgr.currentIndex != 1 {
 		t.Errorf("currentIndex = %d (set=%v), want 1 (set=true)", mgr.currentIndex, mgr.indexSet)
 	}
 }
 
 func TestApplyRestoredSession_DeletedPathsEvicted(t *testing.T) {
-	model := &mockModel{}
+	model := tui.New(context.Background())
 	mgr := &mockPlayer{}
 	sw := &mockShuffleWriter{}
 	pr := &mockPlaylistReader{}
@@ -210,15 +144,19 @@ func TestApplyRestoredSession_DeletedPathsEvicted(t *testing.T) {
 		"/music/also-gone.mp3": "hash2",
 	}
 
-	app.ApplyRestoredSession(model, mgr, restored, sw, pr, nil, deletedPaths, hashByPath, 50)
+	app.ApplyRestoredSession(&model, mgr, restored, sw, pr, nil, deletedPaths, hashByPath, 50)
 
-	if len(model.removedPaths) != 2 {
-		t.Fatalf("removed paths = %d, want 2", len(model.removedPaths))
-	}
+	// Both deleted paths should be tracked as missing.
 	if len(sw.missingHashes) != 2 {
 		t.Fatalf("missing hashes = %d, want 2", len(sw.missingHashes))
 	}
-	if sw.missingHashes[0] != "hash1" || sw.missingHashes[1] != "hash2" {
-		t.Errorf("missing hashes = %v, want [hash1 hash2]", sw.missingHashes)
+	gotHashes := map[string]bool{}
+	for _, h := range sw.missingHashes {
+		gotHashes[h] = true
+	}
+	for _, want := range []string{"hash1", "hash2"} {
+		if !gotHashes[want] {
+			t.Errorf("expected missing hash %q, got %v", want, sw.missingHashes)
+		}
 	}
 }

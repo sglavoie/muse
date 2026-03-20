@@ -8,11 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// Deprecated: Use WithMetadataWriter option in New() instead.
-func (m *Model) SetMetadataWriter(w metadataUpdater) {
-	m.metadataWriter = w
-}
-
 // metadataEditedMsg is sent after the async DB write completes.
 type metadataEditedMsg struct {
 	err error

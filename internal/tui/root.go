@@ -104,21 +104,21 @@ type Model struct {
 	// player is the playback backend. It may be nil when playback is not
 	// available (e.g. in tests that do not exercise playback).
 	player          playPauser
-	queueWriter     libtui.QueueAppender // may be nil; set via SetQueueWriter
-	reorderer       queueReorderer       // may be nil; set via SetQueueReorderer
-	undoer          queueDequeuer        // may be nil; set via SetQueueDequeuer
-	sessionWriter   sessionWriter        // may be nil; set via SetSessionWriter
-	playlistReader  playlistTrackReader  // may be nil; set via SetPlaylistTrackReader
-	playlistWriter  playlistCreator      // may be nil; set via SetPlaylistWriter
-	playlistRenamer playlistRenamer      // may be nil; set via SetPlaylistRenamer
-	playlistDeleter playlistDeleter      // may be nil; set via SetPlaylistDeleter
-	playlistAdder   playlistTrackAdder   // may be nil; set via SetPlaylistAdder
-	batchEnqueuer   batchEnqueuer        // may be nil; set via SetBatchEnqueuer
+	queueWriter     libtui.QueueAppender // may be nil; set via WithQueueWriter
+	reorderer       queueReorderer       // may be nil; set via WithQueueReorderer
+	undoer          queueDequeuer        // may be nil; set via WithQueueDequeuer
+	sessionWriter   sessionWriter        // may be nil; set via WithSessionWriter
+	playlistReader  playlistTrackReader  // may be nil; set via WithPlaylistTrackReader
+	playlistWriter  playlistCreator      // may be nil; set via WithPlaylistWriter
+	playlistRenamer playlistRenamer      // may be nil; set via WithPlaylistRenamer
+	playlistDeleter playlistDeleter      // may be nil; set via WithPlaylistDeleter
+	playlistAdder   playlistTrackAdder   // may be nil; set via WithPlaylistAdder
+	batchEnqueuer   batchEnqueuer        // may be nil; set via WithBatchEnqueuer
 	favoriteReader  favoriteReader       // may be nil; set via WithFavoriteReader
 	favoriteWriter  favoriteWriter       // may be nil; set via WithFavoriteWriter
 
 	overlay        overlayInfo     // all overlay and modal state
-	metadataWriter metadataUpdater // may be nil; set via SetMetadataWriter
+	metadataWriter metadataUpdater // may be nil; set via WithMetadataWriter
 
 	undo undoInfo // reversible undo slot and pending confirmation flags
 
@@ -130,7 +130,7 @@ type Model struct {
 	playback playbackInfo // current playback state, repeat, shuffle, volume, position
 
 	// runtimeDir is the XDG_RUNTIME_DIR-based directory for ephemeral sockets
-	// (e.g. preview player). Set via SetRuntimeDir before tea.NewProgram.
+	// (e.g. preview player). Set via WithRuntimeDir before tea.NewProgram.
 	runtimeDir string
 
 	// styles holds the current lipgloss style set. Initialized to dark-safe
@@ -288,50 +288,48 @@ func WithMetadataWriter(w metadataUpdater) Option {
 	return func(m *Model) { m.metadataWriter = w }
 }
 
-// SetQueueEntries pre-populates the queue view with entries loaded from the
-// database before the first render. Call this on the Model returned by New
-// before passing it to tea.NewProgram, so that the queue view and the player
-// Manager share the same index-ordered entries from the start.
-func (m *Model) SetQueueEntries(entries []QueueEntry) {
-	m.queue.entries = entries
+// WithQueueEntries pre-populates the queue view with entries.
+func WithQueueEntries(entries []QueueEntry) Option {
+	return func(m *Model) { m.queue.entries = entries }
 }
 
-// Deprecated: Use WithQueueWriter option in New() instead.
-func (m *Model) SetQueueWriter(qa libtui.QueueAppender) {
-	m.queueWriter = qa
+// WithRepeatMode pre-sets the repeat mode.
+func WithRepeatMode(mode RepeatMode) Option {
+	return func(m *Model) { m.playback.repeatMode = mode }
 }
 
-// Deprecated: Use WithQueueReorderer option in New() instead.
-func (m *Model) SetQueueReorderer(r queueReorderer) {
-	m.reorderer = r
+// WithShuffle pre-sets the shuffle flag.
+func WithShuffle(enabled bool) Option {
+	return func(m *Model) { m.playback.shuffle = enabled }
 }
 
-// Deprecated: Use WithQueueDequeuer option in New() instead.
-func (m *Model) SetQueueDequeuer(qd queueDequeuer) {
-	m.undoer = qd
+// WithVolume pre-sets the volume level.
+func WithVolume(v int) Option {
+	return func(m *Model) { m.playback.volume = clampVolume(v) }
 }
 
-// Deprecated: Use WithSessionWriter option in New() instead.
-func (m *Model) SetSessionWriter(sw sessionWriter) {
-	m.sessionWriter = sw
+// WithPlaybackState pre-sets the playback state.
+func WithPlaybackState(state PlaybackState) Option {
+	return func(m *Model) { m.playback.state = state }
 }
 
-// SetRepeatMode pre-sets the repeat mode on a newly created Model. Call this
-// before passing the model to tea.NewProgram to restore persisted session state.
-func (m *Model) SetRepeatMode(mode RepeatMode) {
-	m.playback.repeatMode = mode
+// WithCurrentTrackHash pre-sets the current track hash.
+func WithCurrentTrackHash(hash string) Option {
+	return func(m *Model) { m.playback.currentHash = hash }
 }
 
-// SetShuffle pre-sets the shuffle flag on a newly created Model. Call this
-// before passing the model to tea.NewProgram to restore persisted session state.
-func (m *Model) SetShuffle(enabled bool) {
-	m.playback.shuffle = enabled
+// WithPlaylists pre-populates the playlists view.
+func WithPlaylists(rows []db.PlaylistRow) Option {
+	return func(m *Model) { m.playlists.playlists = rows }
 }
 
-// SetVolume pre-sets the volume level on a newly created Model. Call this
-// before passing the model to tea.NewProgram to initialise the tracked volume.
-func (m *Model) SetVolume(v int) {
-	m.playback.volume = clampVolume(v)
+// WithLibraryTracks pre-populates the library index from cached tracks.
+func WithLibraryTracks(tracks []library.Track) Option {
+	return func(m *Model) {
+		m.library.index.BulkLoad(tracks)
+		m.scanned = len(tracks)
+		m.scanTotal = len(tracks)
+	}
 }
 
 // clampVolume restricts v to the [0, 100] range.
@@ -345,79 +343,11 @@ func clampVolume(v int) int {
 	return v
 }
 
-// SetPlaybackState pre-sets the playback state on a newly created Model. Call
-// this with PlaybackPaused when restoring a session that has a non-empty queue,
-// so that the status bar and space-bar toggle reflect the correct state on the
-// first render.
-func (m *Model) SetPlaybackState(state PlaybackState) {
-	m.playback.state = state
-}
-
-// SetCurrentTrackHash pre-sets the current track hash on a newly created Model.
-// Call this when restoring session state so that the first session-position
-// write uses the correct hash.
-func (m *Model) SetCurrentTrackHash(hash string) {
-	m.playback.currentHash = hash
-}
-
-// SetPlaylists pre-populates the playlists view with rows loaded from the
-// database before the first render. Call this on the Model returned by New
-// before passing it to tea.NewProgram so that the playlist list is visible
-// immediately on first render.
-func (m *Model) SetPlaylists(rows []db.PlaylistRow) {
-	m.playlists.playlists = rows
-}
-
-// SetLibraryTracks pre-populates the library index from cached tracks loaded
-// from the database. Call this on the Model returned by New before passing it
-// to tea.NewProgram to show the full library immediately on first render
-// without waiting for the scan pipeline to complete.
-func (m *Model) SetLibraryTracks(tracks []library.Track) {
-	m.library.index.BulkLoad(tracks)
-	m.scanned = len(tracks)
-	m.scanTotal = len(tracks)
-}
-
 // RemoveLibraryTrackByPath removes a track from the in-memory library index
 // by its file path. Call this before starting the TUI to evict deleted files
 // discovered during the diff scan setup phase.
 func (m *Model) RemoveLibraryTrackByPath(path string) {
 	m.library.index.RemoveByPath(path)
-}
-
-// Deprecated: Use WithPlaylistTrackReader option in New() instead.
-func (m *Model) SetPlaylistTrackReader(r playlistTrackReader) {
-	m.playlistReader = r
-}
-
-// Deprecated: Use WithPlaylistWriter option in New() instead.
-func (m *Model) SetPlaylistWriter(w playlistCreator) {
-	m.playlistWriter = w
-}
-
-// Deprecated: Use WithPlaylistRenamer option in New() instead.
-func (m *Model) SetPlaylistRenamer(r playlistRenamer) {
-	m.playlistRenamer = r
-}
-
-// Deprecated: Use WithPlaylistDeleter option in New() instead.
-func (m *Model) SetPlaylistDeleter(d playlistDeleter) {
-	m.playlistDeleter = d
-}
-
-// Deprecated: Use WithPlaylistAdder option in New() instead.
-func (m *Model) SetPlaylistAdder(a playlistTrackAdder) {
-	m.playlistAdder = a
-}
-
-// Deprecated: Use WithBatchEnqueuer option in New() instead.
-func (m *Model) SetBatchEnqueuer(be batchEnqueuer) {
-	m.batchEnqueuer = be
-}
-
-// Deprecated: Use WithRuntimeDir option in New() instead.
-func (m *Model) SetRuntimeDir(dir string) {
-	m.runtimeDir = dir
 }
 
 // pluralize returns singular when n == 1, plural otherwise.
