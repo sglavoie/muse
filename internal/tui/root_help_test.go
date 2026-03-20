@@ -408,3 +408,26 @@ func TestEscResetsHelpFiltered(t *testing.T) {
 		t.Fatal("helpFiltered should be false after Esc")
 	}
 }
+
+// TestHelpSearchFilterNoMatchesShowsNoMatchesMessage verifies that when the
+// help search filter matches no entries, the overlay shows "(no matches)".
+func TestHelpSearchFilterNoMatchesShowsNoMatchesMessage(t *testing.T) {
+	m := New(context.Background())
+	m.termWidth = 80
+	m.termHeight = 100
+
+	// Open help, activate filter, type a nonsense query.
+	next, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
+	nm := next.(Model)
+	next, _ = nm.Update(tea.KeyPressMsg{Code: '/', Text: "/"})
+	nm = next.(Model)
+	for _, ch := range "zzzznonexistent" {
+		next, _ = nm.Update(tea.KeyPressMsg{Code: ch, Text: string(ch)})
+		nm = next.(Model)
+	}
+
+	v := nm.View()
+	if !strings.Contains(v.Content, "(no matches)") {
+		t.Fatalf("help overlay with no matching entries should show \"(no matches)\"; got:\n%s", ansi.Strip(v.Content))
+	}
+}

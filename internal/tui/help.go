@@ -67,8 +67,8 @@ func helpSections() []helpSection {
 				{"3", "Switch to Queue"},
 				{"4", "Switch to Artists"},
 				{"5", "Switch to Albums"},
-			{"6", "Switch to Favorites"},
-			{"F", "Toggle favorite"},
+				{"6", "Switch to Favorites"},
+				{"F", "Toggle favorite"},
 				{"tab / shift+tab", "Next / previous view"},
 				{"R", "Rescan library"},
 				{"r", "Cycle repeat mode"},
@@ -220,6 +220,10 @@ func (h HelpOverlay) render(s styles.Styles, sections []helpSection, title strin
 
 	var b strings.Builder
 	b.WriteString(s.Heading.Render(title) + "\n\n")
+	if len(sections) == 0 {
+		b.WriteString("  (no matches)\n")
+		return b.String()
+	}
 
 	for _, sec := range sections {
 		b.WriteString(s.Bold.Render(sec.title) + "\n")
