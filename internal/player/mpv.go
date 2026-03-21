@@ -91,6 +91,11 @@ type Manager struct {
 	// pause state.
 	pauseChangedFn func(paused bool)
 
+	// disconnectedFn is called at the start of handleRestart, before
+	// reconnection begins. Used to dispatch PlayerDisconnectedMsg into the
+	// Bubble Tea program so the TUI can reset stale playback state immediately.
+	disconnectedFn func()
+
 	// disconnectCh receives the first error when the IPC socket is detected
 	// as disconnected by the health-check goroutine. The channel is buffered
 	// (size 1) so the goroutine never blocks.
@@ -309,6 +314,15 @@ func (m *Manager) SetTrackChangedFunc(fn func(hash, artist, title, source string
 func (m *Manager) SetPauseChangedFunc(fn func(paused bool)) {
 	m.mu.Lock()
 	m.pauseChangedFn = fn
+	m.mu.Unlock()
+}
+
+// SetDisconnectedFunc sets a callback invoked at the start of handleRestart,
+// before reconnection begins. Use this to dispatch a PlayerDisconnectedMsg
+// into the Bubble Tea program so the TUI resets stale playback state.
+func (m *Manager) SetDisconnectedFunc(fn func()) {
+	m.mu.Lock()
+	m.disconnectedFn = fn
 	m.mu.Unlock()
 }
 
@@ -719,10 +733,14 @@ func (m *Manager) watchAndRestart() {
 func (m *Manager) handleRestart() {
 	m.mu.RLock()
 	fn := m.statusFn
+	disconnFn := m.disconnectedFn
 	path := m.lastTrackPath
 	elapsed := m.lastElapsed
 	m.mu.RUnlock()
 
+	if disconnFn != nil {
+		disconnFn()
+	}
 	if fn != nil {
 		fn("mpv disconnected, restarting…")
 	}

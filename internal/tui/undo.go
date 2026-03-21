@@ -1,0 +1,516 @@
+package tui
+
+import (
+	"fmt"
+	"log/slog"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/player"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+)
+
+// undoAction is the interface implemented by every reversible operation.
+// description() returns the "press u to undo" status-bar notification shown
+// when the action is created. perform() executes the actual undo logic.
+type undoAction interface {
+	kind() undoKind
+	perform(m Model) (Model, tea.Cmd)
+	description() string
+}
+
+// --- undoEnqueueAction ---
+
+// undoEnqueueAction reverts a single-track enqueue (undoKindEnqueue).
+type undoEnqueueAction struct {
+	id    int64
+	entry QueueEntry
+	idx   int
+}
+
+func (a undoEnqueueAction) kind() undoKind { return undoKindEnqueue }
+
+func (a undoEnqueueAction) description() string {
+	return "Added " + a.entry.Display + " — press u to undo"
+}
+
+func (a undoEnqueueAction) perform(m Model) (Model, tea.Cmd) {
+	if a.idx >= 0 && a.idx < len(m.queue.entries) {
+		entry := m.queue.entries[a.idx]
+		if m.undoer != nil {
+			if err := m.undoer.DequeueTrackSoft(entry.ID); err != nil {
+				slog.Warn("undo enqueue: soft-delete failed", "err", err)
+			}
+			undoer := m.undoer
+			softDeleteTime := time.Now().Unix()
+			time.AfterFunc(undoWindowDuration, func() {
+				if err := undoer.PurgeDeletedQueueEntries(softDeleteTime + 1); err != nil {
+					slog.Warn("undo enqueue: purge failed", "err", err)
+				}
+			})
+		}
+		m.queue.entries = append(m.queue.entries[:a.idx], m.queue.entries[a.idx+1:]...)
+		m.clampQueueCursorAndScroll()
+		if qr, ok := m.player.(playerQueueRemover); ok {
+			_ = qr.RemoveFromQueue(a.idx)
+		}
+	}
+	return m, nil
+}
+
+// --- undoDequeueAction ---
+
+// undoDequeueAction reverts a single-track dequeue (undoKindDequeue).
+type undoDequeueAction struct {
+	id    int64
+	entry QueueEntry
+	idx   int
+}
+
+func (a undoDequeueAction) kind() undoKind { return undoKindDequeue }
+
+func (a undoDequeueAction) description() string {
+	return "Track removed — press u to undo"
+}
+
+func (a undoDequeueAction) perform(m Model) (Model, tea.Cmd) {
+	if m.undoer != nil {
+		if err := m.undoer.UndoDequeue(a.id); err != nil {
+			slog.Warn("undo dequeue failed", "err", err)
+		}
+	}
+	idx := min(a.idx, len(m.queue.entries))
+	entries := make([]QueueEntry, len(m.queue.entries)+1)
+	copy(entries, m.queue.entries[:idx])
+	entries[idx] = a.entry
+	copy(entries[idx+1:], m.queue.entries[idx:])
+	m.queue.entries = entries
+	m.queue.cursor = idx
+	if m.queue.cursor < m.queue.scrollOffset {
+		m.queue.scrollOffset = m.queue.cursor
+	} else {
+		maxRows := m.queue.visibleRows()
+		if m.queue.cursor >= m.queue.scrollOffset+maxRows {
+			m.queue.scrollOffset = m.queue.cursor - maxRows + 1
+		}
+	}
+	m.syncPlayerQueue()
+	return m, nil
+}
+
+// --- undoClearAction ---
+
+// undoClearAction reverts a full queue clear (undoKindClear).
+type undoClearAction struct {
+	ids     []int64
+	entries []QueueEntry
+	tracks  []player.QueueTrack
+}
+
+func (a undoClearAction) kind() undoKind { return undoKindClear }
+
+func (a undoClearAction) description() string {
+	return "Queue cleared — press u to undo"
+}
+
+func (a undoClearAction) perform(m Model) (Model, tea.Cmd) {
+	if m.undoer != nil {
+		if err := m.undoer.UndoClearQueue(a.ids); err != nil {
+			slog.Warn("undo clear queue failed", "err", err)
+		}
+	}
+	m.queue.entries = a.entries
+	if qs, ok := m.player.(playerQueueSetter); ok {
+		qs.SetQueue(a.tracks)
+	}
+	return m, nil
+}
+
+// --- undoBulkDequeueAction ---
+
+// undoBulkDequeueAction reverts removal of multiple selected queue entries
+// (undoKindBulkDequeue).
+type undoBulkDequeueAction struct {
+	entries []QueueEntry
+	indices []int
+	ids     []int64
+}
+
+func (a undoBulkDequeueAction) kind() undoKind { return undoKindBulkDequeue }
+
+func (a undoBulkDequeueAction) description() string {
+	n := len(a.entries)
+	return fmt.Sprintf("%d %s removed — press u to undo", n, pluralize(n, "track", "tracks"))
+}
+
+func (a undoBulkDequeueAction) perform(m Model) (Model, tea.Cmd) {
+	if m.undoer != nil {
+		for _, id := range a.ids {
+			if err := m.undoer.UndoDequeue(id); err != nil {
+				slog.Warn("undo bulk dequeue failed", "err", err)
+			}
+		}
+	}
+	for i := range a.indices {
+		idx := min(a.indices[i], len(m.queue.entries))
+		entries := make([]QueueEntry, len(m.queue.entries)+1)
+		copy(entries, m.queue.entries[:idx])
+		entries[idx] = a.entries[i]
+		copy(entries[idx+1:], m.queue.entries[idx:])
+		m.queue.entries = entries
+	}
+	m.clampQueueCursorAndScroll()
+	m.syncPlayerQueue()
+	return m, nil
+}
+
+// --- undoBatchEnqueueAction ---
+
+// undoBatchEnqueueAction reverts a batch enqueue from a playlist
+// (undoKindBatchEnqueue).
+type undoBatchEnqueueAction struct {
+	ids          []int64
+	count        int
+	startIdx     int
+	playlistName string
+}
+
+func (a undoBatchEnqueueAction) kind() undoKind { return undoKindBatchEnqueue }
+
+func (a undoBatchEnqueueAction) description() string {
+	return fmt.Sprintf("Added %d %s from %s — press u to undo",
+		a.count, pluralize(a.count, "track", "tracks"), a.playlistName)
+}
+
+func (a undoBatchEnqueueAction) perform(m Model) (Model, tea.Cmd) {
+	if m.batchEnqueuer != nil {
+		if err := m.batchEnqueuer.DequeueTracksSoft(a.ids); err != nil {
+			slog.Warn("undo batch enqueue: soft-delete failed", "err", err)
+		}
+		if m.undoer != nil {
+			undoer := m.undoer
+			softDeleteTime := time.Now().Unix()
+			time.AfterFunc(undoWindowDuration, func() {
+				if err := undoer.PurgeDeletedQueueEntries(softDeleteTime + 1); err != nil {
+					slog.Warn("undo batch enqueue: purge failed", "err", err)
+				}
+			})
+		}
+	}
+	startIdx := a.startIdx
+	endIdx := startIdx + a.count
+	if endIdx > len(m.queue.entries) {
+		endIdx = len(m.queue.entries)
+	}
+	if startIdx < len(m.queue.entries) {
+		m.queue.entries = append(m.queue.entries[:startIdx], m.queue.entries[endIdx:]...)
+	}
+	m.clampQueueCursorAndScroll()
+	if qr, ok := m.player.(playerQueueRemover); ok {
+		for i := endIdx - 1; i >= startIdx; i-- {
+			_ = qr.RemoveFromQueue(i)
+		}
+	}
+	return m, nil
+}
+
+// --- undoDeletePlaylistAction ---
+
+// undoDeletePlaylistAction reverts a playlist soft-delete (undoKindDeletePlaylist).
+type undoDeletePlaylistAction struct {
+	entry db.PlaylistRow
+	idx   int
+}
+
+func (a undoDeletePlaylistAction) kind() undoKind { return undoKindDeletePlaylist }
+
+func (a undoDeletePlaylistAction) description() string {
+	return "Playlist deleted — press u to undo"
+}
+
+func (a undoDeletePlaylistAction) perform(m Model) (Model, tea.Cmd) {
+	if m.playlistDeleter != nil {
+		if err := m.playlistDeleter.UndoDeletePlaylist(a.entry.ID); err != nil {
+			slog.Warn("undo delete playlist failed", "err", err)
+		}
+	}
+	idx := min(a.idx, len(m.playlists.playlists))
+	playlists := make([]db.PlaylistRow, len(m.playlists.playlists)+1)
+	copy(playlists, m.playlists.playlists[:idx])
+	playlists[idx] = a.entry
+	copy(playlists[idx+1:], m.playlists.playlists[idx:])
+	m.playlists.playlists = playlists
+	m.playlists.cursor = idx
+	if m.playlists.cursor < m.playlists.scrollOffset {
+		m.playlists.scrollOffset = m.playlists.cursor
+	}
+	return m, nil
+}
+
+// --- undoRemovePlaylistTrackAction ---
+
+// undoRemovePlaylistTrackAction reverts removal of a single playlist track
+// (undoKindRemovePlaylistTrack).
+type undoRemovePlaylistTrackAction struct {
+	entry db.PlaylistTrackRow
+	idx   int
+}
+
+func (a undoRemovePlaylistTrackAction) kind() undoKind { return undoKindRemovePlaylistTrack }
+
+func (a undoRemovePlaylistTrackAction) description() string {
+	return "Track removed — press u to undo"
+}
+
+func (a undoRemovePlaylistTrackAction) perform(m Model) (Model, tea.Cmd) {
+	if m.playlistDeleter != nil {
+		if err := m.playlistDeleter.UndoRemovePlaylistTrack(a.entry.ID); err != nil {
+			slog.Warn("undo remove playlist track failed", "err", err)
+		}
+	}
+	idx := min(a.idx, len(m.playlists.tracks))
+	tracks := make([]db.PlaylistTrackRow, len(m.playlists.tracks)+1)
+	copy(tracks, m.playlists.tracks[:idx])
+	tracks[idx] = a.entry
+	copy(tracks[idx+1:], m.playlists.tracks[idx:])
+	m.playlists.tracks = tracks
+	m.playlists.cursor = idx
+	if m.playlists.cursor < m.playlists.scrollOffset {
+		m.playlists.scrollOffset = m.playlists.cursor
+	}
+	return m, nil
+}
+
+// --- undoBulkRemovePlaylistTracksAction ---
+
+// undoBulkRemovePlaylistTracksAction reverts removal of multiple selected
+// playlist tracks (undoKindBulkRemovePlaylistTracks).
+type undoBulkRemovePlaylistTracksAction struct {
+	entries []db.PlaylistTrackRow
+	indices []int
+}
+
+func (a undoBulkRemovePlaylistTracksAction) kind() undoKind {
+	return undoKindBulkRemovePlaylistTracks
+}
+
+func (a undoBulkRemovePlaylistTracksAction) description() string {
+	n := len(a.entries)
+	return fmt.Sprintf("%d %s removed — press u to undo", n, pluralize(n, "track", "tracks"))
+}
+
+func (a undoBulkRemovePlaylistTracksAction) perform(m Model) (Model, tea.Cmd) {
+	if m.playlistDeleter != nil {
+		for _, t := range a.entries {
+			if err := m.playlistDeleter.UndoRemovePlaylistTrack(t.ID); err != nil {
+				slog.Warn("undo bulk remove playlist track failed", "err", err)
+			}
+		}
+	}
+	for i := range a.indices {
+		idx := min(a.indices[i], len(m.playlists.tracks))
+		tracks := make([]db.PlaylistTrackRow, len(m.playlists.tracks)+1)
+		copy(tracks, m.playlists.tracks[:idx])
+		tracks[idx] = a.entries[i]
+		copy(tracks[idx+1:], m.playlists.tracks[idx:])
+		m.playlists.tracks = tracks
+	}
+	if m.playlists.cursor < 0 {
+		m.playlists.cursor = 0
+	} else if m.playlists.cursor >= len(m.playlists.tracks) {
+		m.playlists.cursor = len(m.playlists.tracks) - 1
+	}
+	if m.playlists.cursor < m.playlists.scrollOffset {
+		m.playlists.scrollOffset = m.playlists.cursor
+	}
+	return m, nil
+}
+
+// --- undoBulkEditMetadataAction ---
+
+// undoBulkEditMetadataAction reverts a bulk metadata edit (undoKindBulkEditMetadata).
+// originals maps track hash → {title, artist, album}.
+type undoBulkEditMetadataAction struct {
+	originals map[string][3]string
+}
+
+func (a undoBulkEditMetadataAction) kind() undoKind { return undoKindBulkEditMetadata }
+
+func (a undoBulkEditMetadataAction) description() string {
+	n := len(a.originals)
+	return fmt.Sprintf("Updated %d %s · u to undo", n, pluralize(n, "track", "tracks"))
+}
+
+func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
+	w := m.metadataWriter
+	for hash, orig := range a.originals {
+		m.library.index.UpdateMetadata(hash, orig[0], orig[1], orig[2])
+		display := fmt.Sprintf("%s – %s", orig[1], orig[0])
+		for i := range m.queue.entries {
+			if m.queue.entries[i].Hash == hash {
+				m.queue.entries[i].Title = orig[0]
+				m.queue.entries[i].Artist = orig[1]
+				m.queue.entries[i].Display = display
+			}
+		}
+	}
+	if w != nil {
+		originals := a.originals
+		go func() {
+			for h, orig := range originals {
+				if err := w.UpdateTrackMetadata(h, orig[0], orig[1], orig[2]); err != nil {
+					slog.Warn("undo bulk metadata edit: DB write failed", "hash", h, "err", err)
+				}
+			}
+		}()
+	}
+	n := len(a.originals)
+	m.statusBar.notification = newNotification(fmt.Sprintf("Undone metadata edit for %d %s", n, pluralize(n, "track", "tracks")))
+	return m, nil
+}
+
+// --- undoRemoveFavoriteAction ---
+
+// undoRemoveFavoriteAction reverts removal of a single favorite
+// (undoKindRemoveFavorite).
+type undoRemoveFavoriteAction struct {
+	typ      string
+	value    string
+	track    library.Track
+	idx      int
+	level    favtui.Level
+	category favtui.Category
+}
+
+func (a undoRemoveFavoriteAction) kind() undoKind { return undoKindRemoveFavorite }
+
+func (a undoRemoveFavoriteAction) description() string {
+	return fmt.Sprintf("Removed %s from favorites — press u to undo", a.typ)
+}
+
+func (a undoRemoveFavoriteAction) perform(m Model) (Model, tea.Cmd) {
+	if m.favoriteWriter != nil {
+		if err := m.favoriteWriter.AddFavorite(a.typ, a.value); err != nil {
+			slog.Warn("undo remove favorite failed", "err", err)
+		}
+	}
+	if a.typ == "track" && a.value != "" {
+		if m.favoriteHashes == nil {
+			m.favoriteHashes = make(map[string]struct{})
+		}
+		m.favoriteHashes[a.value] = struct{}{}
+	}
+	if m.activeView == viewFavorites && a.idx >= 0 &&
+		m.favorites.level == a.level {
+		switch a.level {
+		case favtui.ListLevel:
+			switch a.category {
+			case favtui.CategoryArtists:
+				m.favorites.artists = insertStringAt(m.favorites.artists, a.idx, a.value)
+				m.favorites.artistCount = len(m.favorites.artists)
+			case favtui.CategoryAlbums:
+				m.favorites.albums = insertStringAt(m.favorites.albums, a.idx, a.value)
+				m.favorites.albumCount = len(m.favorites.albums)
+			case favtui.CategoryTracks:
+				m.favorites.tracks = insertTrackAt(m.favorites.tracks, a.idx, a.track)
+				m.favorites.trackCount = len(m.favorites.tracks)
+			}
+			m.favorites.cursor = a.idx
+			m.favorites = m.favorites.clampCursor()
+		case favtui.TrackLevel:
+			m.favorites.drilldownTracks = insertTrackAt(m.favorites.drilldownTracks, a.idx, a.track)
+			m.favorites.cursor = a.idx
+			m.favorites = m.favorites.clampCursor()
+		}
+	}
+	if m.activeView == viewFavorites && m.favoriteReader != nil {
+		ac, al, t, err := m.favoriteReader.ReadFavoriteCounts()
+		if err == nil {
+			m.favorites.artistCount = ac
+			m.favorites.albumCount = al
+			m.favorites.trackCount = t
+		}
+	}
+	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: added %s back to favorites", a.typ))
+	return m, nil
+}
+
+// --- undoBulkRemoveFavoritesAction ---
+
+// undoBulkRemoveFavoritesAction reverts bulk removal of favorites
+// (undoKindBulkRemoveFavorites).
+type undoBulkRemoveFavoritesAction struct {
+	typ      string
+	values   []string
+	tracks   []library.Track
+	indices  []int
+	level    favtui.Level
+	category favtui.Category
+}
+
+func (a undoBulkRemoveFavoritesAction) kind() undoKind { return undoKindBulkRemoveFavorites }
+
+func (a undoBulkRemoveFavoritesAction) description() string {
+	n := len(a.values)
+	return fmt.Sprintf("Removed %d %ss from favorites — press u to undo", n, a.typ)
+}
+
+func (a undoBulkRemoveFavoritesAction) perform(m Model) (Model, tea.Cmd) {
+	if m.favoriteWriter != nil {
+		for _, v := range a.values {
+			if err := m.favoriteWriter.AddFavorite(a.typ, v); err != nil {
+				slog.Warn("undo bulk remove favorite failed", "err", err)
+			}
+		}
+	}
+	if a.typ == "track" {
+		if m.favoriteHashes == nil {
+			m.favoriteHashes = make(map[string]struct{})
+		}
+		for _, v := range a.values {
+			m.favoriteHashes[v] = struct{}{}
+		}
+	}
+	if m.activeView == viewFavorites && len(a.indices) > 0 &&
+		m.favorites.level == a.level {
+		switch a.level {
+		case favtui.ListLevel:
+			switch a.category {
+			case favtui.CategoryArtists:
+				for i, idx := range a.indices {
+					m.favorites.artists = insertStringAt(m.favorites.artists, min(idx, len(m.favorites.artists)), a.values[i])
+				}
+				m.favorites.artistCount = len(m.favorites.artists)
+			case favtui.CategoryAlbums:
+				for i, idx := range a.indices {
+					m.favorites.albums = insertStringAt(m.favorites.albums, min(idx, len(m.favorites.albums)), a.values[i])
+				}
+				m.favorites.albumCount = len(m.favorites.albums)
+			case favtui.CategoryTracks:
+				for i, idx := range a.indices {
+					m.favorites.tracks = insertTrackAt(m.favorites.tracks, min(idx, len(m.favorites.tracks)), a.tracks[i])
+				}
+				m.favorites.trackCount = len(m.favorites.tracks)
+			}
+			m.favorites = m.favorites.clampCursor()
+		case favtui.TrackLevel:
+			for i, idx := range a.indices {
+				m.favorites.drilldownTracks = insertTrackAt(m.favorites.drilldownTracks, min(idx, len(m.favorites.drilldownTracks)), a.tracks[i])
+			}
+			m.favorites = m.favorites.clampCursor()
+		}
+	}
+	if m.activeView == viewFavorites && m.favoriteReader != nil {
+		ac, al, t, err := m.favoriteReader.ReadFavoriteCounts()
+		if err == nil {
+			m.favorites.artistCount = ac
+			m.favorites.albumCount = al
+			m.favorites.trackCount = t
+		}
+	}
+	n := len(a.values)
+	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: added %d %s(s) back to favorites", n, a.typ))
+	return m, nil
+}

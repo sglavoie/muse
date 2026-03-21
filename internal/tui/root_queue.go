@@ -1,15 +1,12 @@
 package tui
 
 import (
-	"fmt"
 	"log/slog"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
-	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
@@ -95,14 +92,11 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 	if m.undo.slot.cancelPurge != nil {
 		close(m.undo.slot.cancelPurge)
 	}
-	m.undo.slot = undoSlot{
-		kind:         undoKindEnqueue,
-		expiresAt:    time.Now().Add(undoWindowDuration),
-		dequeueID:    msg.QueueID,
-		dequeueEntry: m.queue.entries[enqueueIdx],
-		dequeueIdx:   enqueueIdx,
-	}
-	m.statusBar.notification = newNotificationFor("Added " + display + " — press u to undo", undoWindowDuration)
+	m.setUndoSlot(undoEnqueueAction{
+		id:    msg.QueueID,
+		entry: m.queue.entries[enqueueIdx],
+		idx:   enqueueIdx,
+	}, nil)
 	player.PlaySound(player.SoundEnqueued)
 	// Trigger immediate playback when the queue was previously empty and
 	// nothing is playing.
@@ -149,14 +143,12 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 	if m.undo.slot.cancelPurge != nil {
 		close(m.undo.slot.cancelPurge)
 	}
-	m.undo.slot = undoSlot{
-		kind:          undoKindBatchEnqueue,
-		expiresAt:     time.Now().Add(undoWindowDuration),
-		batchIDs:      msg.QueueIDs,
-		batchCount:    len(msg.Entries),
-		batchStartIdx: batchStartIdx,
-	}
-	m.statusBar.notification = newNotificationFor(fmt.Sprintf("Added %d %s from %s — press u to undo", len(msg.Entries), pluralize(len(msg.Entries), "track", "tracks"), msg.PlaylistName), undoWindowDuration)
+	m.setUndoSlot(undoBatchEnqueueAction{
+		ids:          msg.QueueIDs,
+		count:        len(msg.Entries),
+		startIdx:     batchStartIdx,
+		playlistName: msg.PlaylistName,
+	}, nil)
 	player.PlaySound(player.SoundEnqueued)
 	return m
 }
@@ -226,14 +218,11 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 				}
 			},
 		)
-		m.setUndoSlot(undoSlot{
-			kind:         undoKindDequeue,
-			expiresAt:    time.Now().Add(undoWindowDuration),
-			cancelPurge:  cancel,
-			dequeueID:    entry.ID,
-			dequeueEntry: entry,
-			dequeueIdx:   msg.Index,
-		}, "Track removed — press u to undo")
+		m.setUndoSlot(undoDequeueAction{
+			id:    entry.ID,
+			entry: entry,
+			idx:   msg.Index,
+		}, cancel)
 		slog.Debug("track dequeued", "hash", entry.Hash, "position", msg.Index)
 		player.PlaySound(player.SoundRemoved)
 		m.queue.entries = append(m.queue.entries[:msg.Index], m.queue.entries[msg.Index+1:]...)
@@ -289,14 +278,11 @@ func (m Model) handleClearQueueMsg() Model {
 			}
 		},
 	)
-	m.setUndoSlot(undoSlot{
-		kind:         undoKindClear,
-		expiresAt:    time.Now().Add(undoWindowDuration),
-		cancelPurge:  cancel,
-		clearIDs:     clearIDs,
-		clearEntries: savedEntries,
-		clearTracks:  savedTracks,
-	}, "Queue cleared — press u to undo")
+	m.setUndoSlot(undoClearAction{
+		ids:     clearIDs,
+		entries: savedEntries,
+		tracks:  savedTracks,
+	}, cancel)
 	slog.Debug("queue cleared", "count", len(savedEntries))
 	player.PlaySound(player.SoundRemoved)
 	m.queue.entries = nil
@@ -391,326 +377,19 @@ func (m Model) handleMoveTrackDownMsg(msg MoveTrackDownMsg) (Model, tea.Cmd) {
 // handleUndo processes the UndoMsg by reversing the most recent destructive
 // action stored in the undo slot, if one exists and has not expired.
 func (m Model) handleUndo() Model {
-	if m.undo.slot.kind == undoNone || !time.Now().Before(m.undo.slot.expiresAt) {
+	if m.undo.slot.action == nil || !time.Now().Before(m.undo.slot.expiresAt) {
 		m.statusBar.notification = newNotification("Nothing to undo")
 		return m
 	}
-	// Cancel any in-flight purge timer from the undo slot being consumed.
-	// This must happen before the switch so that undo cases that schedule
-	// new purge timers do not have them immediately cancelled by the
-	// post-switch cleanup.
+	// Cancel any in-flight purge timer before delegating to perform(). This
+	// must happen first so that undo actions which schedule new purge timers
+	// do not have them immediately cancelled by the post-perform cleanup.
 	if m.undo.slot.cancelPurge != nil {
 		close(m.undo.slot.cancelPurge)
 		m.undo.slot.cancelPurge = nil
 	}
-	slog.Debug("queue undo", "kind", m.undo.slot.kind)
-	switch m.undo.slot.kind {
-	case undoKindEnqueue:
-		idx := m.undo.slot.dequeueIdx
-		if idx >= 0 && idx < len(m.queue.entries) {
-			entry := m.queue.entries[idx]
-			if m.undoer != nil {
-				if err := m.undoer.DequeueTrackSoft(entry.ID); err != nil {
-					slog.Warn("undo enqueue: soft-delete failed", "err", err)
-				}
-				undoer := m.undoer
-				softDeleteTime := time.Now().Unix()
-				time.AfterFunc(undoWindowDuration, func() {
-					if err := undoer.PurgeDeletedQueueEntries(softDeleteTime + 1); err != nil {
-						slog.Warn("undo enqueue: purge failed", "err", err)
-					}
-				})
-			}
-			m.queue.entries = append(m.queue.entries[:idx], m.queue.entries[idx+1:]...)
-			m.clampQueueCursorAndScroll()
-			if qr, ok := m.player.(playerQueueRemover); ok {
-				_ = qr.RemoveFromQueue(idx)
-			}
-		}
-	case undoKindDequeue:
-		if m.undoer != nil {
-			if err := m.undoer.UndoDequeue(m.undo.slot.dequeueID); err != nil {
-				slog.Warn("undo dequeue failed", "err", err)
-			}
-		}
-		idx := min(m.undo.slot.dequeueIdx, len(m.queue.entries))
-		entries := make([]QueueEntry, len(m.queue.entries)+1)
-		copy(entries, m.queue.entries[:idx])
-		entries[idx] = m.undo.slot.dequeueEntry
-		copy(entries[idx+1:], m.queue.entries[idx:])
-		m.queue.entries = entries
-		m.queue.cursor = idx
-		// Ensure the restored entry's cursor position is visible.
-		if m.queue.cursor < m.queue.scrollOffset {
-			m.queue.scrollOffset = m.queue.cursor
-		} else {
-			maxRows := m.queue.visibleRows()
-			if m.queue.cursor >= m.queue.scrollOffset+maxRows {
-				m.queue.scrollOffset = m.queue.cursor - maxRows + 1
-			}
-		}
-		// Rebuild the player's in-memory queue so it stays in sync with the
-		// TUI queue after the re-insertion.
-		m.syncPlayerQueue()
-	case undoKindClear:
-		if m.undoer != nil {
-			if err := m.undoer.UndoClearQueue(m.undo.slot.clearIDs); err != nil {
-				slog.Warn("undo clear queue failed", "err", err)
-			}
-		}
-		m.queue.entries = m.undo.slot.clearEntries
-		if qs, ok := m.player.(playerQueueSetter); ok {
-			qs.SetQueue(m.undo.slot.clearTracks)
-		}
-	case undoKindDeletePlaylist:
-		if m.playlistDeleter != nil {
-			if err := m.playlistDeleter.UndoDeletePlaylist(m.undo.slot.deletePlaylistEntry.ID); err != nil {
-				slog.Warn("undo delete playlist failed", "err", err)
-			}
-		}
-		idx := min(m.undo.slot.deletePlaylistIdx, len(m.playlists.playlists))
-		playlists := make([]db.PlaylistRow, len(m.playlists.playlists)+1)
-		copy(playlists, m.playlists.playlists[:idx])
-		playlists[idx] = m.undo.slot.deletePlaylistEntry
-		copy(playlists[idx+1:], m.playlists.playlists[idx:])
-		m.playlists.playlists = playlists
-		m.playlists.cursor = idx
-		if m.playlists.cursor < m.playlists.scrollOffset {
-			m.playlists.scrollOffset = m.playlists.cursor
-		}
-	case undoKindRemovePlaylistTrack:
-		if m.playlistDeleter != nil {
-			if err := m.playlistDeleter.UndoRemovePlaylistTrack(m.undo.slot.removeTrackEntry.ID); err != nil {
-				slog.Warn("undo remove playlist track failed", "err", err)
-			}
-		}
-		idx := min(m.undo.slot.removeTrackIdx, len(m.playlists.tracks))
-		tracks := make([]db.PlaylistTrackRow, len(m.playlists.tracks)+1)
-		copy(tracks, m.playlists.tracks[:idx])
-		tracks[idx] = m.undo.slot.removeTrackEntry
-		copy(tracks[idx+1:], m.playlists.tracks[idx:])
-		m.playlists.tracks = tracks
-		m.playlists.cursor = idx
-		if m.playlists.cursor < m.playlists.scrollOffset {
-			m.playlists.scrollOffset = m.playlists.cursor
-		}
-	case undoKindBatchEnqueue:
-		if m.batchEnqueuer != nil {
-			if err := m.batchEnqueuer.DequeueTracksSoft(m.undo.slot.batchIDs); err != nil {
-				slog.Warn("undo batch enqueue: soft-delete failed", "err", err)
-			}
-			if m.undoer != nil {
-				undoer := m.undoer
-				softDeleteTime := time.Now().Unix()
-				time.AfterFunc(undoWindowDuration, func() {
-					if err := undoer.PurgeDeletedQueueEntries(softDeleteTime + 1); err != nil {
-						slog.Warn("undo batch enqueue: purge failed", "err", err)
-					}
-				})
-			}
-		}
-		startIdx := m.undo.slot.batchStartIdx
-		endIdx := startIdx + m.undo.slot.batchCount
-		if endIdx > len(m.queue.entries) {
-			endIdx = len(m.queue.entries)
-		}
-		if startIdx < len(m.queue.entries) {
-			m.queue.entries = append(m.queue.entries[:startIdx], m.queue.entries[endIdx:]...)
-		}
-		m.clampQueueCursorAndScroll()
-		if qr, ok := m.player.(playerQueueRemover); ok {
-			for i := endIdx - 1; i >= startIdx; i-- {
-				_ = qr.RemoveFromQueue(i)
-			}
-		}
-	case undoKindBulkDequeue:
-		// Restore soft-deleted DB rows.
-		if m.undoer != nil {
-			for _, id := range m.undo.slot.bulkDequeueIDs {
-				if err := m.undoer.UndoDequeue(id); err != nil {
-					slog.Warn("undo bulk dequeue failed", "err", err)
-				}
-			}
-		}
-		// Re-insert entries at their original indices in forward order.
-		// Each insertion shifts later indices by one, which is exactly
-		// what we need since the stored indices are from the original
-		// (pre-removal) ordering.
-		for i := range m.undo.slot.bulkDequeueIndices {
-			idx := min(m.undo.slot.bulkDequeueIndices[i], len(m.queue.entries))
-			entries := make([]QueueEntry, len(m.queue.entries)+1)
-			copy(entries, m.queue.entries[:idx])
-			entries[idx] = m.undo.slot.bulkDequeueEntries[i]
-			copy(entries[idx+1:], m.queue.entries[idx:])
-			m.queue.entries = entries
-		}
-		m.clampQueueCursorAndScroll()
-		m.syncPlayerQueue()
-	case undoKindBulkEditMetadata:
-		w := m.metadataWriter
-		for hash, orig := range m.undo.slot.bulkEditOriginals {
-			m.library.index.UpdateMetadata(hash, orig[0], orig[1], orig[2])
-			display := fmt.Sprintf("%s – %s", orig[1], orig[0])
-			for i := range m.queue.entries {
-				if m.queue.entries[i].Hash == hash {
-					m.queue.entries[i].Title = orig[0]
-					m.queue.entries[i].Artist = orig[1]
-					m.queue.entries[i].Display = display
-				}
-			}
-		}
-		if w != nil {
-			originals := m.undo.slot.bulkEditOriginals
-			go func() {
-				for h, orig := range originals {
-					if err := w.UpdateTrackMetadata(h, orig[0], orig[1], orig[2]); err != nil {
-						slog.Warn("undo bulk metadata edit: DB write failed", "hash", h, "err", err)
-					}
-				}
-			}()
-		}
-		n := len(m.undo.slot.bulkEditOriginals)
-		m.statusBar.notification = newNotification(fmt.Sprintf("Undone metadata edit for %d %s", n, pluralize(n, "track", "tracks")))
-	case undoKindBulkRemovePlaylistTracks:
-		// Restore soft-deleted DB rows.
-		if m.playlistDeleter != nil {
-			for _, t := range m.undo.slot.bulkRemoveTrackEntries {
-				if err := m.playlistDeleter.UndoRemovePlaylistTrack(t.ID); err != nil {
-					slog.Warn("undo bulk remove playlist track failed", "err", err)
-				}
-			}
-		}
-		// Re-insert tracks at their original indices in forward order.
-		for i := range m.undo.slot.bulkRemoveTrackIndices {
-			idx := min(m.undo.slot.bulkRemoveTrackIndices[i], len(m.playlists.tracks))
-			tracks := make([]db.PlaylistTrackRow, len(m.playlists.tracks)+1)
-			copy(tracks, m.playlists.tracks[:idx])
-			tracks[idx] = m.undo.slot.bulkRemoveTrackEntries[i]
-			copy(tracks[idx+1:], m.playlists.tracks[idx:])
-			m.playlists.tracks = tracks
-		}
-		if m.playlists.cursor < 0 {
-			m.playlists.cursor = 0
-		} else if m.playlists.cursor >= len(m.playlists.tracks) {
-			m.playlists.cursor = len(m.playlists.tracks) - 1
-		}
-		if m.playlists.cursor < m.playlists.scrollOffset {
-			m.playlists.scrollOffset = m.playlists.cursor
-		}
-	case undoKindRemoveFavorite:
-		typ := m.undo.slot.removeFavType
-		value := m.undo.slot.removeFavValue
-		if m.favoriteWriter != nil {
-			if err := m.favoriteWriter.AddFavorite(typ, value); err != nil {
-				slog.Warn("undo remove favorite failed", "err", err)
-			}
-		}
-		// Restore in-memory hash set for tracks.
-		if typ == "track" && value != "" {
-			if m.favoriteHashes == nil {
-				m.favoriteHashes = make(map[string]struct{})
-			}
-			m.favoriteHashes[value] = struct{}{}
-		}
-		// Restore in-view state if still in matching Favorites view.
-		idx := m.undo.slot.removeFavIdx
-		if m.activeView == viewFavorites && idx >= 0 &&
-			m.favorites.level == m.undo.slot.removeFavLevel {
-			switch m.undo.slot.removeFavLevel {
-			case favtui.ListLevel:
-				switch m.undo.slot.removeFavCategory {
-				case favtui.CategoryArtists:
-					m.favorites.artists = insertStringAt(m.favorites.artists, idx, value)
-					m.favorites.artistCount = len(m.favorites.artists)
-				case favtui.CategoryAlbums:
-					m.favorites.albums = insertStringAt(m.favorites.albums, idx, value)
-					m.favorites.albumCount = len(m.favorites.albums)
-				case favtui.CategoryTracks:
-					m.favorites.tracks = insertTrackAt(m.favorites.tracks, idx, m.undo.slot.removeFavTrack)
-					m.favorites.trackCount = len(m.favorites.tracks)
-				}
-				m.favorites.cursor = idx
-				m.favorites = m.favorites.clampCursor()
-			case favtui.TrackLevel:
-				m.favorites.drilldownTracks = insertTrackAt(m.favorites.drilldownTracks, idx, m.undo.slot.removeFavTrack)
-				m.favorites.cursor = idx
-				m.favorites = m.favorites.clampCursor()
-			}
-		}
-		// Refresh counts if in Favorites view.
-		if m.activeView == viewFavorites && m.favoriteReader != nil {
-			a, al, t, err := m.favoriteReader.ReadFavoriteCounts()
-			if err == nil {
-				m.favorites.artistCount = a
-				m.favorites.albumCount = al
-				m.favorites.trackCount = t
-			}
-		}
-		m.statusBar.notification = newNotification(fmt.Sprintf("Undone: added %s back to favorites", typ))
-	case undoKindBulkRemoveFavorites:
-		typ := m.undo.slot.bulkRemoveFavType
-		values := m.undo.slot.bulkRemoveFavValues
-		if m.favoriteWriter != nil {
-			for _, v := range values {
-				if err := m.favoriteWriter.AddFavorite(typ, v); err != nil {
-					slog.Warn("undo bulk remove favorite failed", "err", err)
-				}
-			}
-		}
-		// Restore in-memory hash set for tracks.
-		if typ == "track" {
-			if m.favoriteHashes == nil {
-				m.favoriteHashes = make(map[string]struct{})
-			}
-			for _, v := range values {
-				m.favoriteHashes[v] = struct{}{}
-			}
-		}
-		// Restore in-view state if still in matching Favorites view.
-		indices := m.undo.slot.bulkRemoveFavIndices
-		if m.activeView == viewFavorites && len(indices) > 0 &&
-			m.favorites.level == m.undo.slot.bulkRemoveFavLevel {
-			switch m.undo.slot.bulkRemoveFavLevel {
-			case favtui.ListLevel:
-				switch m.undo.slot.bulkRemoveFavCategory {
-				case favtui.CategoryArtists:
-					for i, idx := range indices {
-						m.favorites.artists = insertStringAt(m.favorites.artists, min(idx, len(m.favorites.artists)), values[i])
-					}
-					m.favorites.artistCount = len(m.favorites.artists)
-				case favtui.CategoryAlbums:
-					for i, idx := range indices {
-						m.favorites.albums = insertStringAt(m.favorites.albums, min(idx, len(m.favorites.albums)), values[i])
-					}
-					m.favorites.albumCount = len(m.favorites.albums)
-				case favtui.CategoryTracks:
-					tracks := m.undo.slot.bulkRemoveFavTracks
-					for i, idx := range indices {
-						m.favorites.tracks = insertTrackAt(m.favorites.tracks, min(idx, len(m.favorites.tracks)), tracks[i])
-					}
-					m.favorites.trackCount = len(m.favorites.tracks)
-				}
-				m.favorites = m.favorites.clampCursor()
-			case favtui.TrackLevel:
-				tracks := m.undo.slot.bulkRemoveFavTracks
-				for i, idx := range indices {
-					m.favorites.drilldownTracks = insertTrackAt(m.favorites.drilldownTracks, min(idx, len(m.favorites.drilldownTracks)), tracks[i])
-				}
-				m.favorites = m.favorites.clampCursor()
-			}
-		}
-		// Refresh counts if in Favorites view.
-		if m.activeView == viewFavorites && m.favoriteReader != nil {
-			a, al, t, err := m.favoriteReader.ReadFavoriteCounts()
-			if err == nil {
-				m.favorites.artistCount = a
-				m.favorites.albumCount = al
-				m.favorites.trackCount = t
-			}
-		}
-		n := len(values)
-		m.statusBar.notification = newNotification(fmt.Sprintf("Undone: added %d %s(s) back to favorites", n, typ))
-	}
+	slog.Debug("queue undo", "kind", m.undo.slot.action.kind())
+	m, _ = m.undo.slot.action.perform(m)
 	m = m.resetQueueSort()
 	m = m.resetPlaylistsSort()
 	m.undo.slot = undoSlot{}
@@ -767,15 +446,11 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 			if len(m.queue.entries) == 0 {
 				m = m.resetPlaybackState()
 			}
-			n := len(removedIDs)
-			m.setUndoSlot(undoSlot{
-				kind:               undoKindBulkDequeue,
-				expiresAt:          time.Now().Add(undoWindowDuration),
-				cancelPurge:        cancel,
-				bulkDequeueEntries: removedEntries,
-				bulkDequeueIndices: removedIndices,
-				bulkDequeueIDs:     removedIDs,
-			}, fmt.Sprintf("%d %s removed — press u to undo", n, pluralize(n, "track", "tracks")))
+			m.setUndoSlot(undoBulkDequeueAction{
+				entries: removedEntries,
+				indices: removedIndices,
+				ids:     removedIDs,
+			}, cancel)
 			player.PlaySound(player.SoundRemoved)
 			return m, nil, true
 		}

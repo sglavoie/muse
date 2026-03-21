@@ -126,9 +126,6 @@ default_volume = 50
 		t.Fatal(err)
 	}
 
-	logger, buf := captureLog()
-	slog.SetDefault(logger)
-
 	cfg, _, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
@@ -142,9 +139,7 @@ default_volume = 50
 	if cfg.MusicDirectory != wantDir {
 		t.Errorf("MusicDirectory = %q, want %q", cfg.MusicDirectory, wantDir)
 	}
-	if !strings.Contains(buf.String(), "music_directory") {
-		t.Errorf("expected slog warning mentioning music_directory, got: %s", buf.String())
-	}
+	// Empty music_directory is silently treated as "not set"; no warning expected.
 }
 
 func TestLoad_InvalidTOML_UsesDefaults(t *testing.T) {

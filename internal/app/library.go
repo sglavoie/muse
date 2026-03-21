@@ -75,7 +75,14 @@ func LoadLibrary(ctx context.Context, database *db.DB, writer LibraryWriter,
 
 	// Diff scan: walk the filesystem and only process files that are new or
 	// have changed since the last scan. Deletions are returned synchronously.
-	rawScanCh, deletedPaths := library.DiffScan(ctx, musicDir, extractor, known)
+	rawScanCh, deletedPaths, walkErr := library.DiffScan(ctx, musicDir, extractor, known)
+	if walkErr != nil {
+		slog.Warn("diff scan: walk failed, skipping deletions", "err", walkErr)
+		deletedPaths = nil
+		empty := make(chan library.Track)
+		close(empty)
+		rawScanCh = empty
+	}
 
 	// Bridge new/changed tracks to both the DB and the TUI scan channel.
 	tuiScanCh := BridgeScanChannel(rawScanCh, writer, upsertBatchSize)

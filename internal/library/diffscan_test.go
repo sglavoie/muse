@@ -108,11 +108,9 @@ func TestFilteredWalk_AllNewFiles(t *testing.T) {
 	dir := t.TempDir()
 	paths := makeAudioFiles(t, dir, 5)
 
-	changedCh, deleted := FilteredWalk(context.Background(), dir,nil)
-
-	var changed []string
-	for p := range changedCh {
-		changed = append(changed, p)
+	changed, deleted, err := FilteredWalk(context.Background(), dir, nil)
+	if err != nil {
+		t.Fatalf("FilteredWalk: %v", err)
 	}
 
 	if len(deleted) != 0 {
@@ -139,11 +137,9 @@ func TestFilteredWalk_UnchangedFilesSkipped(t *testing.T) {
 		known[p] = KnownFile{ModTime: info.ModTime().Unix(), SizeBytes: info.Size()}
 	}
 
-	changedCh, deleted := FilteredWalk(context.Background(), dir,known)
-
-	var changed []string
-	for p := range changedCh {
-		changed = append(changed, p)
+	changed, deleted, err := FilteredWalk(context.Background(), dir, known)
+	if err != nil {
+		t.Fatalf("FilteredWalk: %v", err)
 	}
 
 	if len(deleted) != 0 {
@@ -169,10 +165,9 @@ func TestFilteredWalk_ModifiedFileIncluded(t *testing.T) {
 		paths[1]: {ModTime: info.ModTime().Unix(), SizeBytes: info.Size()},     // current
 	}
 
-	changedCh, deleted := FilteredWalk(context.Background(), dir,known)
-	var changed []string
-	for p := range changedCh {
-		changed = append(changed, p)
+	changed, deleted, err := FilteredWalk(context.Background(), dir, known)
+	if err != nil {
+		t.Fatalf("FilteredWalk: %v", err)
 	}
 
 	if len(deleted) != 0 {
@@ -199,10 +194,9 @@ func TestFilteredWalk_DeletedFileReported(t *testing.T) {
 		t.Fatalf("remove: %v", err)
 	}
 
-	changedCh, deleted := FilteredWalk(context.Background(), dir,known)
-	var changed []string
-	for p := range changedCh {
-		changed = append(changed, p)
+	changed, deleted, err := FilteredWalk(context.Background(), dir, known)
+	if err != nil {
+		t.Fatalf("FilteredWalk: %v", err)
 	}
 
 	if len(changed) != 0 {
@@ -221,7 +215,10 @@ func TestDiffScan_EmptyKnownIsFullScan(t *testing.T) {
 	makeAudioFiles(t, dir, n)
 
 	fe := &fakeExtractor{}
-	trackCh, deleted := DiffScan(context.Background(), dir, fe, nil)
+	trackCh, deleted, err := DiffScan(context.Background(), dir, fe, nil)
+	if err != nil {
+		t.Fatalf("DiffScan: %v", err)
+	}
 
 	var count int
 	for range trackCh {
@@ -249,7 +246,10 @@ func TestDiffScan_UnchangedFilesSkipped(t *testing.T) {
 	}
 
 	fe := &fakeExtractor{}
-	trackCh, deleted := DiffScan(context.Background(), dir, fe, known)
+	trackCh, deleted, err := DiffScan(context.Background(), dir, fe, known)
+	if err != nil {
+		t.Fatalf("DiffScan: %v", err)
+	}
 
 	var count int
 	for range trackCh {
@@ -281,7 +281,10 @@ func TestDiffScan_DeletedFilesReported(t *testing.T) {
 	}
 
 	fe := &fakeExtractor{}
-	trackCh, deleted := DiffScan(context.Background(), dir, fe, known)
+	trackCh, deleted, err := DiffScan(context.Background(), dir, fe, known)
+	if err != nil {
+		t.Fatalf("DiffScan: %v", err)
+	}
 	for range trackCh {
 	}
 
@@ -304,11 +307,7 @@ func TestFilteredWalk_HiddenFilesSkipped(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	changedCh, _ := FilteredWalk(context.Background(), dir,nil)
-	var changed []string
-	for p := range changedCh {
-		changed = append(changed, p)
-	}
+	changed, _, _ := FilteredWalk(context.Background(), dir, nil)
 
 	if len(changed) != 1 || changed[0] != visible {
 		t.Errorf("changed: got %v, want [%s]", changed, visible)
@@ -327,11 +326,7 @@ func TestFilteredWalk_NonAudioFilesIgnored(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	changedCh, _ := FilteredWalk(context.Background(), dir,nil)
-	var changed []string
-	for p := range changedCh {
-		changed = append(changed, p)
-	}
+	changed, _, _ := FilteredWalk(context.Background(), dir, nil)
 
 	if len(changed) != 1 || changed[0] != audio {
 		t.Errorf("changed: got %v, want [%s]", changed, audio)
@@ -352,34 +347,50 @@ func TestFilteredWalk_SizeMismatchTriggersRescan(t *testing.T) {
 		p: {ModTime: info.ModTime().Unix(), SizeBytes: info.Size() + 1},
 	}
 
-	changedCh, _ := FilteredWalk(context.Background(), dir,known)
-	var changed []string
-	for p := range changedCh {
-		changed = append(changed, p)
-	}
+	changed, _, _ := FilteredWalk(context.Background(), dir, known)
 
 	if len(changed) != 1 {
 		t.Errorf("changed: got %v, want 1 file (size mismatch)", changed)
 	}
 }
 
-// TestFilteredWalk_GoroutineCloses verifies the changed channel is always
-// closed even when the walk finds no changed files.
-func TestFilteredWalk_GoroutineCloses(t *testing.T) {
-	dir := t.TempDir()
-	paths := makeAudioFiles(t, dir, 3)
+// TestPathsToChan_ClosesWhenDone verifies the channel returned by pathsToChan
+// is always closed after all paths have been sent, even when the slice is empty.
+func TestPathsToChan_ClosesWhenDone(t *testing.T) {
+	paths := []string{"/a.mp3", "/b.mp3", "/c.mp3"}
 
-	known := make(map[string]KnownFile)
-	for _, p := range paths {
-		info, _ := os.Stat(p)
-		known[p] = KnownFile{ModTime: info.ModTime().Unix(), SizeBytes: info.Size()}
+	ch := pathsToChan(context.Background(), paths)
+
+	var got []string
+	for p := range ch {
+		got = append(got, p)
 	}
 
-	changedCh, _ := FilteredWalk(context.Background(), dir,known)
+	if len(got) != len(paths) {
+		t.Errorf("got %d paths, want %d", len(got), len(paths))
+	}
+}
 
+// TestPathsToChan_RespectsCtxCancellation verifies that pathsToChan stops
+// sending and closes the channel when the context is cancelled.
+func TestPathsToChan_RespectsCtxCancellation(t *testing.T) {
+	// Use a large slice so the goroutine is mid-send when we cancel.
+	paths := make([]string, 1000)
+	for i := range paths {
+		paths[i] = fmt.Sprintf("/track_%04d.mp3", i)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	ch := pathsToChan(ctx, paths)
+
+	// Consume one value then cancel, simulating an aborted pipeline.
+	<-ch
+	cancel()
+
+	// Drain the channel; it must close within a reasonable time.
 	done := make(chan struct{})
 	go func() {
-		for range changedCh {
+		for range ch {
 		}
 		close(done)
 	}()
@@ -387,6 +398,6 @@ func TestFilteredWalk_GoroutineCloses(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
-		t.Fatal("changed channel was not closed; possible goroutine leak")
+		t.Fatal("channel was not closed after context cancellation; possible goroutine leak")
 	}
 }

@@ -1,0 +1,77 @@
+package tui
+
+import (
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui/filter"
+)
+
+// handleHelpKeyPress handles key events while the help overlay is active.
+// Returns (model, cmd, true) when the key was consumed, (model, nil, false) to
+// fall through to global key handling (ctrl+c only).
+func (m Model) handleHelpKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
+	if !m.helpVisible {
+		return m, nil, false
+	}
+	if m.helpSearchFilter.Active {
+		// Filter input mode: capture typing.
+		switch msg.String() {
+		case "ctrl+c":
+			// Fall through to global key handling for quit.
+			return m, nil, false
+		case "esc":
+			m.helpSearchFilter = m.helpSearchFilter.Deactivate()
+			m.refreshHelpViewport()
+			return m, nil, true
+		case "enter", "/":
+			m.helpSearchFilter = m.helpSearchFilter.Commit()
+			m.refreshHelpViewport()
+			return m, nil, true
+		case "backspace":
+			var changed bool
+			m.helpSearchFilter, changed = m.helpSearchFilter.Backspace()
+			if changed {
+				m.refreshHelpViewport()
+			}
+			return m, nil, true
+		default:
+			if msg.Text != "" {
+				for _, ch := range msg.Text {
+					m.helpSearchFilter, _ = m.helpSearchFilter.AppendChar(ch)
+				}
+				m.refreshHelpViewport()
+			}
+			return m, nil, true
+		}
+	}
+	// Normal help overlay mode.
+	switch msg.String() {
+	case "ctrl+c":
+		// Fall through to global key handling for quit.
+		return m, nil, false
+	case "/":
+		m.helpSearchFilter = m.helpSearchFilter.Activate()
+		m.refreshHelpViewport()
+		return m, nil, true
+	case "esc":
+		if m.helpSearchFilter.Text != "" {
+			m.helpSearchFilter = filter.State{}
+			m.refreshHelpViewport()
+			return m, nil, true
+		}
+		m.helpVisible = false
+		m.helpViewport = viewport.Model{}
+		m.helpFiltered = false
+		m.helpSearchFilter = filter.State{}
+		m.activeView = m.prevActiveView
+		return m, nil, true
+	case "?":
+		m.helpFiltered = !m.helpFiltered
+		m.refreshHelpViewport()
+		return m, nil, true
+	default:
+		var cmd tea.Cmd
+		m.helpViewport, cmd = m.helpViewport.Update(msg)
+		return m, cmd, true
+	}
+}

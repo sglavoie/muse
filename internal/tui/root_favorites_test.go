@@ -93,13 +93,14 @@ func TestUndoRemoveFavorite_SingleFromFavoritesView(t *testing.T) {
 	m.favorites.artistCount = 2
 
 	m.undo.slot = undoSlot{
-		kind:              undoKindRemoveFavorite,
-		expiresAt:         time.Now().Add(undoWindowDuration),
-		removeFavType:     "artist",
-		removeFavValue:    "Bach",
-		removeFavIdx:      0,
-		removeFavLevel:    favtui.ListLevel,
-		removeFavCategory: favtui.CategoryArtists,
+		action: undoRemoveFavoriteAction{
+			typ:      "artist",
+			value:    "Bach",
+			idx:      0,
+			level:    favtui.ListLevel,
+			category: favtui.CategoryArtists,
+		},
+		expiresAt: time.Now().Add(undoWindowDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -114,7 +115,7 @@ func TestUndoRemoveFavorite_SingleFromFavoritesView(t *testing.T) {
 	if len(w.added) != 1 || w.added[0].typ != "artist" || w.added[0].value != "Bach" {
 		t.Fatalf("expected AddFavorite(artist, Bach), got %v", w.added)
 	}
-	if nm.undo.slot.kind != undoNone {
+	if nm.undo.slot.action != nil {
 		t.Fatal("undo slot must be cleared after successful undo")
 	}
 	if !strings.Contains(nm.statusBar.notification.msg, "artist") {
@@ -134,11 +135,12 @@ func TestUndoRemoveFavorite_TrackHashRestored(t *testing.T) {
 	m.favoriteHashes = map[string]struct{}{"hash-2": {}}
 
 	m.undo.slot = undoSlot{
-		kind:           undoKindRemoveFavorite,
-		expiresAt:      time.Now().Add(undoWindowDuration),
-		removeFavType:  "track",
-		removeFavValue: "hash-1",
-		removeFavIdx:   -1, // not from Favorites view
+		action: undoRemoveFavoriteAction{
+			typ:   "track",
+			value: "hash-1",
+			idx:   -1, // not from Favorites view
+		},
+		expiresAt: time.Now().Add(undoWindowDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -153,7 +155,7 @@ func TestUndoRemoveFavorite_TrackHashRestored(t *testing.T) {
 }
 
 // TestUndoRemoveFavorite_FromNonFavoritesView verifies that undo from a
-// non-Favorites view (removeFavIdx == -1) still calls AddFavorite on the DB
+// non-Favorites view (idx == -1) still calls AddFavorite on the DB
 // but does not modify any in-view lists.
 func TestUndoRemoveFavorite_FromNonFavoritesView(t *testing.T) {
 	w := &stubFavoriteWriter{}
@@ -161,11 +163,12 @@ func TestUndoRemoveFavorite_FromNonFavoritesView(t *testing.T) {
 	m.activeView = viewLibrary // not the Favorites view
 
 	m.undo.slot = undoSlot{
-		kind:           undoKindRemoveFavorite,
-		expiresAt:      time.Now().Add(undoWindowDuration),
-		removeFavType:  "artist",
-		removeFavValue: "Miles Davis",
-		removeFavIdx:   -1,
+		action: undoRemoveFavoriteAction{
+			typ:   "artist",
+			value: "Miles Davis",
+			idx:   -1,
+		},
+		expiresAt: time.Now().Add(undoWindowDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -203,14 +206,15 @@ func TestUndoBulkRemoveFavorites(t *testing.T) {
 	t4 := library.Track{Hash: "h4", Title: "T4"}
 
 	m.undo.slot = undoSlot{
-		kind:                  undoKindBulkRemoveFavorites,
-		expiresAt:             time.Now().Add(undoWindowDuration),
-		bulkRemoveFavType:     "track",
-		bulkRemoveFavValues:   []string{"h1", "h2", "h4"},
-		bulkRemoveFavTracks:   []library.Track{t1, t2, t4},
-		bulkRemoveFavIndices:  []int{1, 2, 4},
-		bulkRemoveFavLevel:    favtui.ListLevel,
-		bulkRemoveFavCategory: favtui.CategoryTracks,
+		action: undoBulkRemoveFavoritesAction{
+			typ:      "track",
+			values:   []string{"h1", "h2", "h4"},
+			tracks:   []library.Track{t1, t2, t4},
+			indices:  []int{1, 2, 4},
+			level:    favtui.ListLevel,
+			category: favtui.CategoryTracks,
+		},
+		expiresAt: time.Now().Add(undoWindowDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -229,7 +233,7 @@ func TestUndoBulkRemoveFavorites(t *testing.T) {
 	if len(w.added) != 3 {
 		t.Fatalf("expected 3 AddFavorite calls, got %d: %v", len(w.added), w.added)
 	}
-	if nm.undo.slot.kind != undoNone {
+	if nm.undo.slot.action != nil {
 		t.Fatal("undo slot must be cleared after successful undo")
 	}
 }
@@ -245,11 +249,12 @@ func TestUndoRemoveFavorite_Expired(t *testing.T) {
 	m.favorites.artists = []string{"Coltrane"}
 
 	m.undo.slot = undoSlot{
-		kind:           undoKindRemoveFavorite,
-		expiresAt:      time.Now().Add(-1 * time.Second), // already expired
-		removeFavType:  "artist",
-		removeFavValue: "Bach",
-		removeFavIdx:   0,
+		action: undoRemoveFavoriteAction{
+			typ:   "artist",
+			value: "Bach",
+			idx:   0,
+		},
+		expiresAt: time.Now().Add(-1 * time.Second), // already expired
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -279,13 +284,14 @@ func TestUndoRemoveFavorite_Superseded(t *testing.T) {
 	// Set up state: two artists were removed; only second slot remains.
 	m.favorites.artists = []string{}
 	m.undo.slot = undoSlot{
-		kind:              undoKindRemoveFavorite,
-		expiresAt:         time.Now().Add(undoWindowDuration),
-		removeFavType:     "artist",
-		removeFavValue:    "Coltrane", // second removal (supersedes first)
-		removeFavIdx:      0,
-		removeFavLevel:    favtui.ListLevel,
-		removeFavCategory: favtui.CategoryArtists,
+		action: undoRemoveFavoriteAction{
+			typ:      "artist",
+			value:    "Coltrane", // second removal (supersedes first)
+			idx:      0,
+			level:    favtui.ListLevel,
+			category: favtui.CategoryArtists,
+		},
+		expiresAt: time.Now().Add(undoWindowDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -299,7 +305,7 @@ func TestUndoRemoveFavorite_Superseded(t *testing.T) {
 		t.Fatalf("expected AddFavorite for 'Coltrane', got %q", w.added[0].value)
 	}
 	// Slot must be cleared — "Bach" cannot be undone.
-	if nm.undo.slot.kind != undoNone {
+	if nm.undo.slot.action != nil {
 		t.Fatal("undo slot must be cleared after successful undo")
 	}
 }

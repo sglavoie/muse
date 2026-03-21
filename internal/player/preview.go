@@ -2,6 +2,7 @@ package player
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -138,8 +139,11 @@ func (p *PreviewPlayer) ElapsedPosition() (elapsed, total float64, err error) {
 func (p *PreviewPlayer) Close() error {
 	p.cancel()
 
+	var errs []error
 	if p.client != nil {
-		_ = p.client.Close() // best-effort; subprocess is about to be killed
+		if err := p.client.Close(); err != nil {
+			errs = append(errs, err)
+		}
 		p.client = nil
 	}
 	if p.cmd != nil && p.cmd.Process != nil {
@@ -149,11 +153,14 @@ func (p *PreviewPlayer) Close() error {
 		case <-done:
 		case <-time.After(previewShutdownTimeout):
 			slog.Warn("preview mpv process did not exit within timeout, killing")
-			_ = p.cmd.Process.Kill()
+			if err := p.cmd.Process.Kill(); err != nil {
+				errs = append(errs, err)
+			}
 		}
 	}
 	if err := os.Remove(p.socketPath); err != nil && !os.IsNotExist(err) {
 		slog.Warn("preview: remove socket", "path", p.socketPath, "err", err)
+		errs = append(errs, err)
 	}
-	return nil
+	return errors.Join(errs...)
 }

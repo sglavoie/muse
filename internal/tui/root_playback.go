@@ -115,6 +115,17 @@ func (m Model) handlePlaybackEndedMsg() Model {
 	return m
 }
 
+// handlePlayerDisconnectedMsg resets TUI playback state when mpv disconnects
+// unexpectedly so the play/pause icon and progress bar are not stale during
+// the reconnection window.
+func (m Model) handlePlayerDisconnectedMsg() Model {
+	m.playback.state = PlaybackStopped
+	m.playback.elapsedSecs = 0
+	m.playback.totalSecs = 0
+	m.statusBar.notification = newNotification("mpv disconnected, restarting…")
+	return m
+}
+
 // handlePauseChangedMsg syncs the TUI playback state with mpv's actual pause
 // property. Guards prevent redundant transitions (e.g. user presses space →
 // TUI already updated → mpv confirms via event → no-op).
@@ -359,6 +370,42 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		return m, nil, true
 	}
 	return m, nil, false
+}
+
+// handleNowPlayingKeyPress handles key events while the now-playing overlay is
+// active. Returns (model, cmd, true) when the key was consumed.
+func (m Model) handleNowPlayingKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
+	if m.overlay.nowPlaying == nil {
+		return m, nil, false
+	}
+	switch msg.String() {
+	case "ctrl+c":
+		m.overlay.nowPlaying = nil
+		return m, tea.Quit, true
+	case "esc", "I":
+		m.overlay.nowPlaying = nil
+		return m, nil, true
+	default:
+		return m, nil, true
+	}
+}
+
+// handlePreviewKeyPress handles key events while the preview overlay is active.
+// Returns (model, cmd, true) when the key was consumed.
+func (m Model) handlePreviewKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
+	if m.overlay.preview == nil {
+		return m, nil, false
+	}
+	switch msg.String() {
+	case "ctrl+c":
+		m = m.dismissPreview()
+		return m, tea.Quit, true
+	case "esc", "P":
+		m = m.dismissPreview()
+		return m, nil, true
+	default:
+		return m, nil, true
+	}
 }
 
 // focusedTrackForPreview returns the track under the cursor in whichever view

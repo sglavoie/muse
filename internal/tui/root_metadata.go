@@ -3,7 +3,6 @@ package tui
 import (
 	"fmt"
 	"log/slog"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -43,6 +42,28 @@ func (m Model) bulkSelectedHashes() []string {
 	default:
 		return nil
 	}
+}
+
+// handleMetadataEditorKeyPress handles key events while the metadata editor
+// overlay is active. Returns (model, cmd, true) when the key was consumed.
+func (m Model) handleMetadataEditorKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
+	if m.overlay.metadataEditor == nil {
+		return m, nil, false
+	}
+	if msg.String() == "ctrl+c" {
+		return m, tea.Quit, true
+	}
+	updated, act, cmd := m.overlay.metadataEditor.HandleKey(msg)
+	m.overlay.metadataEditor = &updated
+	switch act {
+	case editorCancel:
+		m.overlay.metadataEditor = nil
+		return m, nil, true
+	case editorSave:
+		model, cmd := m.handleMetadataSave()
+		return model.(Model), cmd, true
+	}
+	return m, cmd, true
 }
 
 // handleMetadataKeyAction handles actionEditMetadata.
@@ -204,11 +225,9 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		m.playlists.selectedTrackIDs = nil
 	}
 
-	m.setUndoSlot(undoSlot{
-		kind:              undoKindBulkEditMetadata,
-		expiresAt:         time.Now().Add(undoWindowDuration),
-		bulkEditOriginals: originals,
-	}, fmt.Sprintf("Updated %d tracks · u to undo", len(originals)))
+	m.setUndoSlot(undoBulkEditMetadataAction{
+		originals: originals,
+	}, nil)
 
 	w := m.metadataWriter
 	if w == nil {

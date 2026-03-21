@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
@@ -447,6 +446,20 @@ func (m Model) handleTracksAddedToPlaylistMsg(msg tracksAddedToPlaylistMsg) Mode
 	return m
 }
 
+// handleDestPickerKeyPress handles key events while the destination picker
+// modal is open. Returns (model, cmd, true) when the key was consumed.
+func (m Model) handleDestPickerKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
+	if m.overlay.destPicker == nil {
+		return m, nil, false
+	}
+	if msg.String() == "ctrl+c" {
+		return m, tea.Quit, true
+	}
+	updated, cmd := m.overlay.destPicker.HandleKey(msg.String())
+	m.overlay.destPicker = &updated
+	return m, cmd, true
+}
+
 // handleDestinationPickerDismissedMsg clears the destination picker and staged tracks.
 func (m Model) handleDestinationPickerDismissedMsg() Model {
 	m.overlay.destPicker = nil
@@ -548,13 +561,10 @@ func (m Model) handlePlaylistDelete() (Model, tea.Cmd) {
 				}
 			},
 		)
-		m.setUndoSlot(undoSlot{
-			kind:                undoKindDeletePlaylist,
-			expiresAt:           time.Now().Add(undoWindowDuration),
-			cancelPurge:         cancel,
-			deletePlaylistEntry: entry,
-			deletePlaylistIdx:   idx,
-		}, "Playlist deleted — press u to undo")
+		m.setUndoSlot(undoDeletePlaylistAction{
+			entry: entry,
+			idx:   idx,
+		}, cancel)
 		player.PlaySound(player.SoundRemoved)
 		m.playlists.playlists = append(m.playlists.playlists[:idx], m.playlists.playlists[idx+1:]...)
 		m = m.resetPlaylistsSort()
@@ -596,15 +606,11 @@ func (m Model) handlePlaylistDelete() (Model, tea.Cmd) {
 			m = m.resetPlaylistsSort()
 			m.playlists.cursor, m.playlists.scrollOffset = clampAfterRemoval(
 				m.playlists.cursor, m.playlists.scrollOffset, len(m.playlists.tracks))
-			n := len(m.playlists.selectedTrackIDs)
 			m.playlists = m.playlists.clearTrackSelection()
-			m.setUndoSlot(undoSlot{
-				kind:                   undoKindBulkRemovePlaylistTracks,
-				expiresAt:              time.Now().Add(undoWindowDuration),
-				cancelPurge:            cancel,
-				bulkRemoveTrackEntries: removedEntries,
-				bulkRemoveTrackIndices: removedIndices,
-			}, fmt.Sprintf("%d %s removed — press u to undo", n, pluralize(n, "track", "tracks")))
+			m.setUndoSlot(undoBulkRemovePlaylistTracksAction{
+				entries: removedEntries,
+				indices: removedIndices,
+			}, cancel)
 			player.PlaySound(player.SoundRemoved)
 			return m, nil
 		}
@@ -630,13 +636,10 @@ func (m Model) handlePlaylistDelete() (Model, tea.Cmd) {
 				}
 			},
 		)
-		m.setUndoSlot(undoSlot{
-			kind:             undoKindRemovePlaylistTrack,
-			expiresAt:        time.Now().Add(undoWindowDuration),
-			cancelPurge:      cancel,
-			removeTrackEntry: entry,
-			removeTrackIdx:   idx,
-		}, "Track removed — press u to undo")
+		m.setUndoSlot(undoRemovePlaylistTrackAction{
+			entry: entry,
+			idx:   idx,
+		}, cancel)
 		player.PlaySound(player.SoundRemoved)
 		m.playlists.tracks = append(m.playlists.tracks[:idx], m.playlists.tracks[idx+1:]...)
 		m = m.resetPlaylistsSort()

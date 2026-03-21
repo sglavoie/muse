@@ -551,7 +551,7 @@ func TestUndoMsgRestoresDequeueWithinWindow(t *testing.T) {
 		t.Fatalf("UndoDequeue must be called with ID=20, got calls=%v", d.undoDequeueCallIDs)
 	}
 	// Undo slot must be cleared after restore.
-	if nm.undo.slot.kind != undoNone {
+	if nm.undo.slot.action != nil {
 		t.Fatal("undo slot must be cleared after a successful undo")
 	}
 }
@@ -598,17 +598,17 @@ func TestNewDestructiveActionReplacesUndoSlot(t *testing.T) {
 	// First dequeue: removes index 0 (ID=10).
 	next, _ := m.Update(DequeueTrackMsg{Index: 0})
 	nm := next.(Model)
-	firstSlotID := nm.undo.slot.dequeueID
+	firstSlotID := nm.undo.slot.action.(undoDequeueAction).id
 
 	// Second dequeue: removes index 0 of the remaining entries (ID=20).
 	next, _ = nm.Update(DequeueTrackMsg{Index: 0})
 	nm = next.(Model)
 
-	if nm.undo.slot.dequeueID == firstSlotID {
+	if nm.undo.slot.action.(undoDequeueAction).id == firstSlotID {
 		t.Fatal("second dequeue must replace the undo slot with the new entry's ID")
 	}
-	if nm.undo.slot.dequeueID != 20 {
-		t.Fatalf("undo slot must hold ID=20 after second dequeue, got %d", nm.undo.slot.dequeueID)
+	if nm.undo.slot.action.(undoDequeueAction).id != 20 {
+		t.Fatalf("undo slot must hold ID=20 after second dequeue, got %d", nm.undo.slot.action.(undoDequeueAction).id)
 	}
 }
 
@@ -639,7 +639,7 @@ func TestUndoMsgRestoresClearQueueWithinWindow(t *testing.T) {
 	if len(d.undoClearQueueCalls) != 1 {
 		t.Fatalf("UndoClearQueue must be called once, got %d calls", len(d.undoClearQueueCalls))
 	}
-	if nm.undo.slot.kind != undoNone {
+	if nm.undo.slot.action != nil {
 		t.Fatal("undo slot must be cleared after a successful undo")
 	}
 }
@@ -944,11 +944,8 @@ func TestUndoEnqueueClampsScrollOffset(t *testing.T) {
 	}
 	// Set up an undoKindEnqueue slot pointing at the last entry (index 1).
 	m.undo.slot = undoSlot{
-		kind:         undoKindEnqueue,
-		expiresAt:    time.Now().Add(undoWindowDuration),
-		dequeueID:    20,
-		dequeueEntry: m.queue.entries[1],
-		dequeueIdx:   1,
+		action:    undoEnqueueAction{id: 20, entry: m.queue.entries[1], idx: 1},
+		expiresAt: time.Now().Add(undoWindowDuration),
 	}
 	// Simulate a scrolled-down state.
 	m.queue.scrollOffset = 1
@@ -977,14 +974,16 @@ func TestUndoBatchEnqueueClampsScrollOffset(t *testing.T) {
 		{ID: 100, Path: "/b.flac", Display: "B"},
 		{ID: 101, Path: "/c.flac", Display: "C"},
 	}
-	// Set up an undoKindBatchEnqueue slot: entries at indices 1 and 2 were
+	// Set up an undoBatchEnqueueAction slot: entries at indices 1 and 2 were
 	// batch-enqueued.
 	m.undo.slot = undoSlot{
-		kind:          undoKindBatchEnqueue,
-		expiresAt:     time.Now().Add(undoWindowDuration),
-		batchIDs:      []int64{100, 101},
-		batchCount:    2,
-		batchStartIdx: 1,
+		action: undoBatchEnqueueAction{
+			ids:          []int64{100, 101},
+			count:        2,
+			startIdx:     1,
+			playlistName: "test",
+		},
+		expiresAt: time.Now().Add(undoWindowDuration),
 	}
 	// Simulate scrolled to the batch entries.
 	m.queue.scrollOffset = 2
@@ -1083,11 +1082,8 @@ func TestUndoEnqueueSchedulesPurge(t *testing.T) {
 		{ID: 20, Path: "/b.flac", Display: "B"},
 	}
 	m.undo.slot = undoSlot{
-		kind:         undoKindEnqueue,
-		expiresAt:    time.Now().Add(undoWindowDuration),
-		dequeueID:    20,
-		dequeueEntry: m.queue.entries[1],
-		dequeueIdx:   1,
+		action:    undoEnqueueAction{id: 20, entry: m.queue.entries[1], idx: 1},
+		expiresAt: time.Now().Add(undoWindowDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -1099,8 +1095,8 @@ func TestUndoEnqueueSchedulesPurge(t *testing.T) {
 			d.dequeueTrackSoftCalls)
 	}
 
-	// The undo slot must be cleared (kind == undoNone).
-	if nm.undo.slot.kind != undoNone {
+	// The undo slot must be cleared (action == nil).
+	if nm.undo.slot.action != nil {
 		t.Fatal("undo slot must be cleared after successful undo")
 	}
 
@@ -1127,11 +1123,12 @@ func TestUndoBatchEnqueueSchedulesPurge(t *testing.T) {
 		{ID: 101, Path: "/b.flac", Display: "B"},
 	}
 	m.undo.slot = undoSlot{
-		kind:          undoKindBatchEnqueue,
-		expiresAt:     time.Now().Add(undoWindowDuration),
-		batchIDs:      []int64{100, 101},
-		batchCount:    2,
-		batchStartIdx: 0,
+		action: undoBatchEnqueueAction{
+			ids:      []int64{100, 101},
+			count:    2,
+			startIdx: 0,
+		},
+		expiresAt: time.Now().Add(undoWindowDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -1147,7 +1144,7 @@ func TestUndoBatchEnqueueSchedulesPurge(t *testing.T) {
 	if nm.undo.slot.cancelPurge != nil {
 		t.Fatal("cleared undo slot must have nil cancelPurge")
 	}
-	if nm.undo.slot.kind != undoNone {
+	if nm.undo.slot.action != nil {
 		t.Fatal("undo slot must be cleared after successful undo")
 	}
 }
@@ -1239,11 +1236,8 @@ func TestUndoDequeueEnsuresCursorVisibility(t *testing.T) {
 	undoer := &stubQueueDequeuer{}
 	m.undoer = undoer
 	m.undo.slot = undoSlot{
-		kind:         undoKindDequeue,
-		expiresAt:    time.Now().Add(undoWindowDuration),
-		dequeueID:    dequeued.ID,
-		dequeueEntry: dequeued,
-		dequeueIdx:   15,
+		action:    undoDequeueAction{id: dequeued.ID, entry: dequeued, idx: 15},
+		expiresAt: time.Now().Add(undoWindowDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -1351,16 +1345,15 @@ func TestBulkDequeueCreatesUndoSlot(t *testing.T) {
 		t.Fatalf("remaining entries should be ID=10,30; got %d,%d",
 			nm.queue.entries[0].ID, nm.queue.entries[1].ID)
 	}
-	if nm.undo.slot.kind != undoKindBulkDequeue {
-		t.Fatalf("undo slot kind = %v, want undoKindBulkDequeue", nm.undo.slot.kind)
+	bulkAction, ok := nm.undo.slot.action.(undoBulkDequeueAction)
+	if !ok {
+		t.Fatalf("expected undoBulkDequeueAction, got %T", nm.undo.slot.action)
 	}
-	if len(nm.undo.slot.bulkDequeueIDs) != 2 ||
-		nm.undo.slot.bulkDequeueIDs[0] != 20 || nm.undo.slot.bulkDequeueIDs[1] != 40 {
-		t.Fatalf("bulkDequeueIDs = %v, want [20 40]", nm.undo.slot.bulkDequeueIDs)
+	if len(bulkAction.ids) != 2 || bulkAction.ids[0] != 20 || bulkAction.ids[1] != 40 {
+		t.Fatalf("bulkDequeueIDs = %v, want [20 40]", bulkAction.ids)
 	}
-	if len(nm.undo.slot.bulkDequeueIndices) != 2 ||
-		nm.undo.slot.bulkDequeueIndices[0] != 1 || nm.undo.slot.bulkDequeueIndices[1] != 3 {
-		t.Fatalf("bulkDequeueIndices = %v, want [1 3]", nm.undo.slot.bulkDequeueIndices)
+	if len(bulkAction.indices) != 2 || bulkAction.indices[0] != 1 || bulkAction.indices[1] != 3 {
+		t.Fatalf("bulkDequeueIndices = %v, want [1 3]", bulkAction.indices)
 	}
 	if !strings.Contains(nm.statusBar.notification.msg, "undo") {
 		t.Fatalf("notification should contain undo hint, got %q", nm.statusBar.notification.msg)
@@ -1420,7 +1413,7 @@ func TestUndoBulkDequeueRestoresEntries(t *testing.T) {
 		t.Fatal("expected SetQueue to be called after undo")
 	}
 	// Undo slot must be cleared.
-	if nm.undo.slot.kind != undoNone {
+	if nm.undo.slot.action != nil {
 		t.Fatal("undo slot must be cleared after successful bulk dequeue undo")
 	}
 }

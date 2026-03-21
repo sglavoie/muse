@@ -409,11 +409,18 @@ func (m Model) syncPlayerQueue() {
 	}
 }
 
-// setUndoSlot replaces the current undo slot and sets a matching status-bar
-// notification that expires at the end of the undo window.
-func (m *Model) setUndoSlot(slot undoSlot, notification string) {
-	m.undo.slot = slot
-	m.statusBar.notification = newNotificationFor(notification, undoWindowDuration)
+// setUndoSlot replaces the current undo slot and derives the status-bar
+// notification from action.description(). cancelPurge may be nil for actions
+// that do not schedule a soft-delete purge timer. The caller is responsible
+// for closing any existing cancelPurge before calling this (scheduleSoftDelete
+// handles that for soft-delete cases; direct callers must do it manually).
+func (m *Model) setUndoSlot(action undoAction, cancelPurge chan struct{}) {
+	m.undo.slot = undoSlot{
+		action:      action,
+		expiresAt:   time.Now().Add(undoWindowDuration),
+		cancelPurge: cancelPurge,
+	}
+	m.statusBar.notification = newNotificationFor(action.description(), undoWindowDuration)
 }
 
 // syncPositionCmd schedules one position-sync tick.
@@ -629,6 +636,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case MissingTrackMsg:
 		m = m.handleMissingTrackMsg(msg)
 
+	case PlayerDisconnectedMsg:
+		m = m.handlePlayerDisconnectedMsg()
+
 	case PlaybackEndedMsg:
 		m = m.handlePlaybackEndedMsg()
 		if m.playback.state == PlaybackPlaying {
@@ -705,127 +715,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Dismiss the first-run config notice on any keypress.
 		m.configCreated = false
 
-		if m.helpVisible {
-			if m.helpSearchFilter.Active {
-				// Filter input mode: capture typing.
-				switch msg.String() {
-				case "ctrl+c":
-					// Fall through to global key handling for quit.
-				case "esc":
-					m.helpSearchFilter = m.helpSearchFilter.Deactivate()
-					m.refreshHelpViewport()
-					return m, nil
-				case "enter", "/":
-					m.helpSearchFilter = m.helpSearchFilter.Commit()
-					m.refreshHelpViewport()
-					return m, nil
-				case "backspace":
-					var changed bool
-					m.helpSearchFilter, changed = m.helpSearchFilter.Backspace()
-					if changed {
-						m.refreshHelpViewport()
-					}
-					return m, nil
-				default:
-					if msg.Text != "" {
-						for _, ch := range msg.Text {
-							m.helpSearchFilter, _ = m.helpSearchFilter.AppendChar(ch)
-						}
-						m.refreshHelpViewport()
-					}
-					return m, nil
-				}
-			} else {
-				// Normal help overlay mode.
-				switch msg.String() {
-				case "ctrl+c":
-					// Fall through to global key handling for quit.
-				case "/":
-					m.helpSearchFilter = m.helpSearchFilter.Activate()
-					m.refreshHelpViewport()
-					return m, nil
-				case "esc":
-					if m.helpSearchFilter.Text != "" {
-						m.helpSearchFilter = filter.State{}
-						m.refreshHelpViewport()
-						return m, nil
-					}
-					m.helpVisible = false
-					m.helpViewport = viewport.Model{}
-					m.helpFiltered = false
-					m.helpSearchFilter = filter.State{}
-					m.activeView = m.prevActiveView
-					return m, nil
-				case "?":
-					m.helpFiltered = !m.helpFiltered
-					m.refreshHelpViewport()
-					return m, nil
-				default:
-					var cmd tea.Cmd
-					m.helpViewport, cmd = m.helpViewport.Update(msg)
-					return m, cmd
-				}
-			}
+		if m, cmd, ok := m.handleHelpKeyPress(msg); ok {
+			return m, cmd
 		}
-		// While the now-playing info overlay is active, swallow all keys
-		// except ctrl+c (quit) and esc/I (dismiss).
-		if m.overlay.nowPlaying != nil {
-			switch msg.String() {
-			case "ctrl+c":
-				m.overlay.nowPlaying = nil
-				return m, tea.Quit
-			case "esc", "I":
-				m.overlay.nowPlaying = nil
-				return m, nil
-			default:
-				return m, nil
-			}
+		if m, cmd, ok := m.handleNowPlayingKeyPress(msg); ok {
+			return m, cmd
 		}
-		// While the track info overlay is active, swallow all keys
-		// except ctrl+c (quit) and esc/i (dismiss).
-		if m.overlay.trackInfo != nil {
-			switch msg.String() {
-			case "ctrl+c":
-				m.overlay.trackInfo = nil
-				return m, tea.Quit
-			case "esc", "i":
-				m.overlay.trackInfo = nil
-				return m, nil
-			case "y":
-				m.statusBar.notification = newNotification("Path copied to clipboard")
-				return m, tea.SetClipboard(m.overlay.trackInfo.path)
-			default:
-				return m, nil
-			}
+		if m, cmd, ok := m.handleTrackInfoKeyPress(msg); ok {
+			return m, cmd
 		}
-		// While the preview overlay is active, swallow all keys except
-		// ctrl+c (quit) and esc/P (dismiss preview).
-		if m.overlay.preview != nil {
-			switch msg.String() {
-			case "ctrl+c":
-				m = m.dismissPreview()
-				return m, tea.Quit
-			case "esc", "P":
-				m = m.dismissPreview()
-				return m, nil
-			default:
-				return m, nil
-			}
+		if m, cmd, ok := m.handlePreviewKeyPress(msg); ok {
+			return m, cmd
 		}
-		// While the metadata editor overlay is active, route all keys to it.
-		if m.overlay.metadataEditor != nil {
-			if msg.String() == "ctrl+c" {
-				return m, tea.Quit
-			}
-			updated, act, cmd := m.overlay.metadataEditor.HandleKey(msg)
-			m.overlay.metadataEditor = &updated
-			switch act {
-			case editorCancel:
-				m.overlay.metadataEditor = nil
-				return m, nil
-			case editorSave:
-				return m.handleMetadataSave()
-			}
+		if m, cmd, ok := m.handleMetadataEditorKeyPress(msg); ok {
 			return m, cmd
 		}
 		// Filter bar interception (root_filter.go).
@@ -842,16 +744,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if model, cmd, ok := m.handleQueueSaveInput(msg); ok {
 			return model, cmd
 		}
-		// While the destination picker modal is open, route all keypresses to
-		// it instead of the normal registry. The modal dispatches its own Cmds
-		// (DestinationPickedMsg, DestinationPickerDismissedMsg, etc.) which are
-		// handled below in the non-KeyPressMsg cases.
-		if m.overlay.destPicker != nil {
-			if msg.String() == "ctrl+c" {
-				return m, tea.Quit
-			}
-			updated, cmd := m.overlay.destPicker.HandleKey(msg.String())
-			m.overlay.destPicker = &updated
+		if m, cmd, ok := m.handleDestPickerKeyPress(msg); ok {
 			return m, cmd
 		}
 		return m.handleKeyAction(m.registry.resolve(m.activeViewContext(), msg.String()))

@@ -180,9 +180,10 @@ func handleFsEvent(event fsnotify.Event, pending map[string]bool, deleted map[st
 	}
 }
 
-// rescan processes all entries in pending: audio files are hashed and extracted
-// individually (per-file ExifTool invocation); directory entries are traversed
-// recursively via Walk and each audio file found is processed individually.
+// rescan processes all entries in pending: audio files are hashed and then
+// extracted in a single batched ExifTool invocation. Directory entries are
+// traversed recursively via Walk. On batch failure, extractWithBinaryRetry
+// subdivides the batch and falls back to filename metadata for corrupt files.
 func rescan(ctx context.Context, pending map[string]bool, extractor MetadataExtractor, out chan<- WatchEvent) {
 	// Build a deduplicated set of audio file paths to process.
 	files := make(map[string]struct{})
@@ -197,6 +198,8 @@ func rescan(ctx context.Context, pending map[string]bool, extractor MetadataExtr
 		}
 	}
 
+	// Hash and stat every file, collecting HashedFile values for batch extraction.
+	var hashed []HashedFile
 	for path := range files {
 		select {
 		case <-ctx.Done():
@@ -214,31 +217,21 @@ func rescan(ctx context.Context, pending map[string]bool, extractor MetadataExtr
 			hf.ModTime = info.ModTime().Unix()
 			hf.SizeBytes = info.Size()
 		}
+		hashed = append(hashed, hf)
+	}
 
-		// Per-file ExifTool invocation (not batch mode).
-		tracks, err := extractor.Extract(ctx, []HashedFile{hf})
-		if err != nil {
-			// Apply the same filename fallback used by extractWithBinaryRetry so
-			// no track is ever silently dropped from the library.
-			base := filepath.Base(path)
-			stem := strings.TrimSuffix(base, filepath.Ext(base))
-			slog.Warn("watcher: metadata extraction failed, using filename fallback",
-				"path", path, "error", err)
-			tracks = []Track{{
-				Path:      path,
-				Hash:      hash,
-				Artist:    "Unknown Artist",
-				Title:     stem,
-				ModTime:   hf.ModTime,
-				SizeBytes: hf.SizeBytes,
-			}}
-		}
-		for _, t := range tracks {
-			select {
-			case <-ctx.Done():
-				return
-			case out <- WatchEvent{Track: t}:
-			}
+	if len(hashed) == 0 {
+		return
+	}
+
+	// Single batched ExifTool invocation; extractWithBinaryRetry handles
+	// subdivision and filename fallback on failure, mirroring the main scanner.
+	tracks := extractWithBinaryRetry(ctx, extractor, hashed)
+	for _, t := range tracks {
+		select {
+		case <-ctx.Done():
+			return
+		case out <- WatchEvent{Track: t}:
 		}
 	}
 }

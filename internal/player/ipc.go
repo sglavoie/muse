@@ -94,7 +94,9 @@ func (c *IPCClient) SendCommand(args ...any) (*ipcResponse, error) {
 
 	// Read lines until we find the matching response.
 	for {
-		_ = c.conn.SetReadDeadline(time.Now().Add(ipcReadTimeout))
+		if err := c.conn.SetReadDeadline(time.Now().Add(ipcReadTimeout)); err != nil {
+			return nil, fmt.Errorf("ipc: set deadline: %w", err)
+		}
 		line, err := c.reader.ReadBytes('\n')
 		if err != nil {
 			return nil, fmt.Errorf("ipc: read: %w", err)

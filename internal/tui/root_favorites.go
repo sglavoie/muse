@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
@@ -550,27 +549,23 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 	// Set undo slot for removals (before modifying in-memory slices).
 	if !msg.added {
 		if msg.count > 1 && len(msg.removedValues) > 0 {
-			m.setUndoSlot(undoSlot{
-				kind:                  undoKindBulkRemoveFavorites,
-				expiresAt:             time.Now().Add(undoWindowDuration),
-				bulkRemoveFavType:     msg.typ,
-				bulkRemoveFavValues:   msg.removedValues,
-				bulkRemoveFavTracks:   msg.removedTracks,
-				bulkRemoveFavIndices:  msg.removedIndices,
-				bulkRemoveFavLevel:    msg.favLevel,
-				bulkRemoveFavCategory: msg.favCategory,
-			}, note+" — press u to undo")
+			m.setUndoSlot(undoBulkRemoveFavoritesAction{
+				typ:      msg.typ,
+				values:   msg.removedValues,
+				tracks:   msg.removedTracks,
+				indices:  msg.removedIndices,
+				level:    msg.favLevel,
+				category: msg.favCategory,
+			}, nil)
 		} else {
-			m.setUndoSlot(undoSlot{
-				kind:              undoKindRemoveFavorite,
-				expiresAt:         time.Now().Add(undoWindowDuration),
-				removeFavType:     msg.typ,
-				removeFavValue:    msg.value,
-				removeFavTrack:    msg.removedTrack,
-				removeFavIdx:      msg.removedIdx,
-				removeFavLevel:    msg.favLevel,
-				removeFavCategory: msg.favCategory,
-			}, note+" — press u to undo")
+			m.setUndoSlot(undoRemoveFavoriteAction{
+				typ:      msg.typ,
+				value:    msg.value,
+				track:    msg.removedTrack,
+				idx:      msg.removedIdx,
+				level:    msg.favLevel,
+				category: msg.favCategory,
+			}, nil)
 		}
 	} else {
 		m.statusBar.notification = newNotification(note)

@@ -450,8 +450,8 @@ func TestPlaylistsBulkRemoveAtTrackLevel(t *testing.T) {
 	}
 
 	// Undo — should restore the removed tracks.
-	if nm2.undo.slot.kind != undoKindBulkRemovePlaylistTracks {
-		t.Fatalf("expected undo kind %d, got %d", undoKindBulkRemovePlaylistTracks, nm2.undo.slot.kind)
+	if _, ok := nm2.undo.slot.action.(undoBulkRemovePlaylistTracksAction); !ok {
+		t.Fatalf("expected undoBulkRemovePlaylistTracksAction, got %T", nm2.undo.slot.action)
 	}
 	nm3 := nm2.handleUndo()
 	if len(nm3.playlists.tracks) != 3 {
@@ -995,8 +995,8 @@ func TestBulkActionInPlaylistsRequiresConfirmation(t *testing.T) {
 	}
 
 	// Undo — should restore the removed tracks.
-	if nm2.undo.slot.kind != undoKindBulkRemovePlaylistTracks {
-		t.Fatalf("expected undoSlot kind %d, got %d", undoKindBulkRemovePlaylistTracks, nm2.undo.slot.kind)
+	if _, ok := nm2.undo.slot.action.(undoBulkRemovePlaylistTracksAction); !ok {
+		t.Fatalf("expected undoBulkRemovePlaylistTracksAction, got %T", nm2.undo.slot.action)
 	}
 	nm3 := nm2.handleUndo()
 	if len(nm3.playlists.tracks) != 3 {

@@ -103,12 +103,8 @@ func validate(raw rawConfig) Config {
 		} else {
 			cfg.MusicDirectory = raw.MusicDirectory
 		}
-	} else {
-		slog.Warn("invalid config value, using default",
-			"field", "music_directory",
-			"default", defaultMusicDirectory,
-		)
 	}
+	// empty means not set — use the default silently
 
 	cfg.MPVSocketPath = raw.MPVSocketPath
 

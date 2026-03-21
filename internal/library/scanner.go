@@ -31,16 +31,14 @@ type KnownFile struct {
 // FilteredWalk walks root, applying the same hidden-file, audio-extension, and
 // symlink rules as Walk, but skips files whose path exists in known with
 // matching mtime and size. It returns:
-//   - a channel of paths for files that are new or changed (closed when walk is done)
+//   - a slice of paths for files that are new or changed
 //   - a slice of paths from known that were not seen during the walk (deleted files)
-//
-// The walk runs synchronously before returning so that deleted paths are
-// computed deterministically. Changed paths are then streamed via the channel.
-func FilteredWalk(ctx context.Context, root string, known map[string]KnownFile) (<-chan string, []string) {
+//   - an error if the walk itself fails (callers should skip the deletion step)
+func FilteredWalk(ctx context.Context, root string, known map[string]KnownFile) ([]string, []string, error) {
 	seen := make(map[string]bool, len(known))
 	var changed []string
 
-	_ = walkAudioPaths(ctx, root, func(path string) error {
+	if err := walkAudioPaths(ctx, root, func(path string) error {
 		seen[path] = true
 		info, err := os.Stat(path)
 		if err != nil {
@@ -52,7 +50,9 @@ func FilteredWalk(ctx context.Context, root string, known map[string]KnownFile) 
 			changed = append(changed, path)
 		}
 		return nil
-	})
+	}); err != nil {
+		return nil, nil, err
+	}
 
 	// Compute deletions: known paths not seen during the walk.
 	var deleted []string
@@ -62,24 +62,37 @@ func FilteredWalk(ctx context.Context, root string, known map[string]KnownFile) 
 		}
 	}
 
-	// Stream changed paths asynchronously so callers can pipeline into HashWorkers.
+	return changed, deleted, nil
+}
+
+// pathsToChan streams paths into a buffered channel for HashWorkers consumption.
+// The goroutine respects ctx cancellation so callers can abort without leaks.
+func pathsToChan(ctx context.Context, paths []string) <-chan string {
 	ch := make(chan string, 64)
 	go func() {
 		defer close(ch)
-		for _, p := range changed {
-			ch <- p
+		for _, p := range paths {
+			select {
+			case ch <- p:
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
-
-	return ch, deleted
+	return ch
 }
 
 // DiffScan is like Scan but skips files whose path, mtime, and size match an
-// entry in known. It returns a channel of new or changed Track values and a
-// slice of paths that were in known but no longer exist on disk (deletions).
+// entry in known. It returns a channel of new or changed Track values, a
+// slice of paths that were in known but no longer exist on disk (deletions),
+// and an error if the walk fails. On walk failure, callers should skip
+// the deletion step (deleted will be nil).
 //
 // On first run (empty known map) DiffScan degrades to a full scan.
-func DiffScan(ctx context.Context, root string, extractor MetadataExtractor, known map[string]KnownFile) (<-chan Track, []string) {
-	changedCh, deleted := FilteredWalk(ctx, root, known)
-	return ExtractBatches(ctx, extractor, HashWorkers(changedCh)), deleted
+func DiffScan(ctx context.Context, root string, extractor MetadataExtractor, known map[string]KnownFile) (<-chan Track, []string, error) {
+	changed, deleted, err := FilteredWalk(ctx, root, known)
+	if err != nil {
+		return nil, nil, err
+	}
+	return ExtractBatches(ctx, extractor, HashWorkers(pathsToChan(ctx, changed))), deleted, nil
 }

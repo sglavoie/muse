@@ -3,7 +3,6 @@ package tui
 import (
 	"time"
 
-	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
@@ -27,10 +26,11 @@ const (
 	undoKindBulkRemoveFavorites               // multiple favorites bulk-removed (Favorites view)
 )
 
-// undoSlot holds the reversible state for the most recent destructive queue
-// action. Only one slot is maintained; a new action replaces the prior one.
+// undoSlot holds the reversible state for the most recent destructive action.
+// Only one slot is maintained; a new action replaces the prior one.
+// action is nil when no undo is available.
 type undoSlot struct {
-	kind      undoKind
+	action    undoAction
 	expiresAt time.Time
 
 	// cancelPurge is closed when this slot is superseded by a new destructive
@@ -39,57 +39,6 @@ type undoSlot struct {
 	// belong to a newer undo slot (e.g. same-second dequeue followed by another
 	// dequeue of the same DB row ID after an undo).
 	cancelPurge chan struct{}
-
-	// Dequeue fields — valid when kind == undoKindDequeue.
-	dequeueID    int64
-	dequeueEntry QueueEntry
-	dequeueIdx   int
-
-	// Clear fields — valid when kind == undoKindClear.
-	clearIDs     []int64
-	clearEntries []QueueEntry
-	clearTracks  []player.QueueTrack // parallel to clearEntries; used to restore player queue on undo
-
-	// DeletePlaylist fields — valid when kind == undoKindDeletePlaylist.
-	deletePlaylistEntry db.PlaylistRow
-	deletePlaylistIdx   int
-
-	// RemovePlaylistTrack fields — valid when kind == undoKindRemovePlaylistTrack.
-	removeTrackEntry db.PlaylistTrackRow
-	removeTrackIdx   int
-
-	// BatchEnqueue fields — valid when kind == undoKindBatchEnqueue.
-	batchIDs      []int64 // DB row IDs of all batch-enqueued entries
-	batchCount    int     // number of entries added
-	batchStartIdx int     // index of the first batch entry in queue.entries
-
-	// BulkDequeue fields — valid when kind == undoKindBulkDequeue.
-	bulkDequeueEntries []QueueEntry // removed entries in original order
-	bulkDequeueIndices []int        // original indices for re-insertion
-	bulkDequeueIDs     []int64      // DB IDs for undo
-
-	// BulkRemovePlaylistTracks fields — valid when kind == undoKindBulkRemovePlaylistTracks.
-	bulkRemoveTrackEntries []db.PlaylistTrackRow // removed tracks in original order
-	bulkRemoveTrackIndices []int                 // original indices for re-insertion
-
-	// BulkEditMetadata fields — valid when kind == undoKindBulkEditMetadata.
-	bulkEditOriginals map[string][3]string // hash → {title, artist, album}
-
-	// RemoveFavorite fields — valid when kind == undoKindRemoveFavorite.
-	removeFavType     string // "artist", "album", or "track"
-	removeFavValue    string
-	removeFavTrack    library.Track // full Track object (track type only, for in-view restore)
-	removeFavIdx      int           // index in unfiltered slice (-1 if not from Favorites view)
-	removeFavLevel    favtui.Level
-	removeFavCategory favtui.Category
-
-	// BulkRemoveFavorites fields — valid when kind == undoKindBulkRemoveFavorites.
-	bulkRemoveFavType     string
-	bulkRemoveFavValues   []string
-	bulkRemoveFavTracks   []library.Track // parallel to Values (track type only)
-	bulkRemoveFavIndices  []int           // original unfiltered indices for re-insertion
-	bulkRemoveFavLevel    favtui.Level
-	bulkRemoveFavCategory favtui.Category
 }
 
 // tickMsg is dispatched every second by tickCmd. It drives elapsed-time
@@ -130,6 +79,12 @@ type PlayQueueIndexMsg struct {
 // presses Enter on a missing track. Root handles it by showing a transient
 // notification explaining why playback cannot start.
 type MissingTrackSelectedMsg struct{}
+
+// PlayerDisconnectedMsg is dispatched when the mpv process crashes or its IPC
+// socket disconnects unexpectedly. Root handles it by resetting the TUI
+// playback state so the play/pause icon and progress bar don't remain stale
+// during the reconnection window.
+type PlayerDisconnectedMsg struct{}
 
 // PlaybackEndedMsg is dispatched by the player when auto-advance exhausts the
 // queue (no more playable entries). Root handles it by resetting the playback

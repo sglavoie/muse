@@ -282,13 +282,10 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 				m.playlists.cursor, m.playlists.scrollOffset = clampAfterRemoval(
 					m.playlists.cursor, m.playlists.scrollOffset, len(m.playlists.tracks))
 				m.playlists.selectedTrackIDs = nil
-				m.setUndoSlot(undoSlot{
-					kind:                   undoKindBulkRemovePlaylistTracks,
-					expiresAt:              time.Now().Add(undoWindowDuration),
-					cancelPurge:            cancel,
-					bulkRemoveTrackEntries: removedEntries,
-					bulkRemoveTrackIndices: removedIndices,
-				}, fmt.Sprintf("%d %s removed — press u to undo", n, pluralize(n, "track", "tracks")))
+				m.setUndoSlot(undoBulkRemovePlaylistTracksAction{
+					entries: removedEntries,
+					indices: removedIndices,
+				}, cancel)
 				player.PlaySound(player.SoundRemoved)
 				return m, nil, true
 			}
