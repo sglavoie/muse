@@ -3,7 +3,6 @@ package tui
 import (
 	"fmt"
 	"log/slog"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
@@ -43,20 +42,7 @@ func (a undoEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 			if err := m.undoer.DequeueTrackSoft(entry.ID); err != nil {
 				slog.Warn("undo enqueue: soft-delete failed", "err", err)
 			}
-			undoer := m.undoer
-			softDeleteTime := time.Now().Unix()
-			cancel := make(chan struct{})
-			m.undo.slot.cancelPurge = cancel
-			time.AfterFunc(undoWindowDuration, func() {
-				select {
-				case <-cancel:
-					return
-				default:
-					if err := undoer.PurgeDeletedQueueEntries(softDeleteTime + 1); err != nil {
-						slog.Warn("undo enqueue: purge failed", "err", err)
-					}
-				}
-			})
+			schedulePurge(&m.undo.slot, m.undoer.PurgeDeletedQueueEntries)
 		}
 		m.queue.entries = append(m.queue.entries[:a.idx], m.queue.entries[a.idx+1:]...)
 		m.clampQueueCursorAndScroll()
@@ -197,20 +183,7 @@ func (a undoBatchEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 			slog.Warn("undo batch enqueue: soft-delete failed", "err", err)
 		}
 		if m.undoer != nil {
-			undoer := m.undoer
-			softDeleteTime := time.Now().Unix()
-			cancel := make(chan struct{})
-			m.undo.slot.cancelPurge = cancel
-			time.AfterFunc(undoWindowDuration, func() {
-				select {
-				case <-cancel:
-					return
-				default:
-					if err := undoer.PurgeDeletedQueueEntries(softDeleteTime + 1); err != nil {
-						slog.Warn("undo batch enqueue: purge failed", "err", err)
-					}
-				}
-			})
+			schedulePurge(&m.undo.slot, m.undoer.PurgeDeletedQueueEntries)
 		}
 	}
 	startIdx := a.startIdx

@@ -401,6 +401,28 @@ func (m *Model) scheduleSoftDelete(softDeleteFn func(), purgeFn func(beforeUnix 
 	return cancel
 }
 
+// schedulePurge sets up a deferred purge of soft-deleted queue entries.
+// It closes any existing cancel channel on the slot, creates a new one,
+// and schedules purgeFn to run after undoWindowDuration.
+func schedulePurge(slot *undoSlot, purgeFn func(int64) error) {
+	if slot.cancelPurge != nil {
+		close(slot.cancelPurge)
+	}
+	cancel := make(chan struct{})
+	slot.cancelPurge = cancel
+	softDeleteTime := time.Now().Unix()
+	time.AfterFunc(undoWindowDuration, func() {
+		select {
+		case <-cancel:
+			return
+		default:
+			if err := purgeFn(softDeleteTime + 1); err != nil {
+				slog.Warn("purge failed", "err", err)
+			}
+		}
+	})
+}
+
 // syncPlayerQueue rebuilds the player's in-memory queue from the current TUI
 // queue entries. Call this after any operation that reorders the TUI queue
 // (e.g. MoveTrackUp/Down) so that the player's auto-advance resolves indices

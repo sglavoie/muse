@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -21,6 +22,16 @@ const (
 	ctrlSocketName    = "muse.ctrl"
 	remoteDialTimeout = 2 * time.Second
 )
+
+// knownActions is the authoritative set of remote action names accepted by the
+// control socket. It is also used by main to validate subcommand arguments.
+var knownActions = map[string]struct{}{
+	"toggle-play": {},
+	"volume-up":   {},
+	"volume-down": {},
+	"next":        {},
+	"previous":    {},
+}
 
 // startCommandListener creates a Unix domain socket at
 // $runtimeDir/muse.ctrl and dispatches incoming action names into the TUI
@@ -44,7 +55,10 @@ func startCommandListener(p *tea.Program, runtimeDir string) (net.Listener, erro
 		for {
 			conn, err := ln.Accept()
 			if err != nil {
-				// Listener closed during shutdown.
+				if errors.Is(err, net.ErrClosed) {
+					return
+				}
+				slog.Warn("control socket accept error", "err", err)
 				return
 			}
 			go handleRemoteConn(p, conn)
@@ -62,6 +76,10 @@ func handleRemoteConn(p *tea.Program, conn net.Conn) {
 	for scanner.Scan() {
 		action := strings.TrimSpace(scanner.Text())
 		if action == "" {
+			continue
+		}
+		if _, ok := knownActions[action]; !ok {
+			slog.Warn("unknown remote action", "action", action)
 			continue
 		}
 		p.Send(tui.RemoteActionMsg{ActionName: action})

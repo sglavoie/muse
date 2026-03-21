@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"log/slog"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
@@ -165,11 +166,15 @@ func (m Model) toggleFavoriteBulk(reader favoriteReader, writer favoriteWriter, 
 				continue
 			}
 			if isFav {
-				_ = writer.RemoveFavorite(typ, v)
+				if err := writer.RemoveFavorite(typ, v); err != nil {
+					slog.Warn("favorite remove failed", "err", err)
+				}
 				removed++
 				removedValues = append(removedValues, v)
 			} else {
-				_ = writer.AddFavorite(typ, v)
+				if err := writer.AddFavorite(typ, v); err != nil {
+					slog.Warn("favorite add failed", "err", err)
+				}
 				added++
 			}
 		}

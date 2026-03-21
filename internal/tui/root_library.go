@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -262,13 +263,17 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 					func() {
 						if pd != nil {
 							for _, t := range removedEntries {
-								_ = pd.RemovePlaylistTrackSoft(t.ID)
+								if err := pd.RemovePlaylistTrackSoft(t.ID); err != nil {
+									slog.Warn("playlist track soft-delete failed", "err", err)
+								}
 							}
 						}
 					},
 					func(before int64) {
 						if pd != nil {
-							_ = pd.PurgeDeletedPlaylistTracks(before)
+							if err := pd.PurgeDeletedPlaylistTracks(before); err != nil {
+								slog.Warn("playlist track purge failed", "err", err)
+							}
 						}
 					},
 				)

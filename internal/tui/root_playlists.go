@@ -552,12 +552,16 @@ func (m Model) handlePlaylistDelete() (Model, tea.Cmd) {
 		cancel := m.scheduleSoftDelete(
 			func() {
 				if pd != nil {
-					_ = pd.DeletePlaylistSoft(entry.ID)
+					if err := pd.DeletePlaylistSoft(entry.ID); err != nil {
+						slog.Warn("playlist soft-delete failed", "err", err)
+					}
 				}
 			},
 			func(before int64) {
 				if pd != nil {
-					_ = pd.PurgeDeletedPlaylists(before)
+					if err := pd.PurgeDeletedPlaylists(before); err != nil {
+						slog.Warn("playlist purge failed", "err", err)
+					}
 				}
 			},
 		)
@@ -586,13 +590,17 @@ func (m Model) handlePlaylistDelete() (Model, tea.Cmd) {
 				func() {
 					if pd != nil {
 						for _, t := range removedEntries {
-							_ = pd.RemovePlaylistTrackSoft(t.ID)
+							if err := pd.RemovePlaylistTrackSoft(t.ID); err != nil {
+								slog.Warn("playlist track soft-delete failed", "err", err)
+							}
 						}
 					}
 				},
 				func(before int64) {
 					if pd != nil {
-						_ = pd.PurgeDeletedPlaylistTracks(before)
+						if err := pd.PurgeDeletedPlaylistTracks(before); err != nil {
+							slog.Warn("playlist track purge failed", "err", err)
+						}
 					}
 				},
 			)
@@ -627,12 +635,16 @@ func (m Model) handlePlaylistDelete() (Model, tea.Cmd) {
 		cancel := m.scheduleSoftDelete(
 			func() {
 				if pd != nil {
-					_ = pd.RemovePlaylistTrackSoft(entry.ID)
+					if err := pd.RemovePlaylistTrackSoft(entry.ID); err != nil {
+						slog.Warn("playlist track soft-delete failed", "err", err)
+					}
 				}
 			},
 			func(before int64) {
 				if pd != nil {
-					_ = pd.PurgeDeletedPlaylistTracks(before)
+					if err := pd.PurgeDeletedPlaylistTracks(before); err != nil {
+						slog.Warn("playlist track purge failed", "err", err)
+					}
 				}
 			},
 		)

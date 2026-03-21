@@ -23,19 +23,6 @@ import (
 var Version = "dev"
 
 func main() {
-	// Handle subcommands before flag parsing.
-	if len(os.Args) > 1 {
-		switch os.Args[1] {
-		case "toggle-play", "volume-up", "volume-down", "next", "previous":
-			if err := runRemoteAction(os.Args[1]); err != nil {
-				fmt.Fprintf(os.Stderr, "muse %s: %v\n", os.Args[1], err)
-				os.Exit(1)
-			}
-			return
-		}
-	}
-
-	version := flag.Bool("version", false, "print version and exit")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: muse [command] [flags]\n\nCommands:\n")
 		fmt.Fprintf(os.Stderr, "  toggle-play   Toggle play/pause on the running instance\n")
@@ -46,17 +33,36 @@ func main() {
 		fmt.Fprintf(os.Stderr, "\nFlags:\n")
 		flag.PrintDefaults()
 	}
+
+	// Handle flags that should work regardless of position.
+	for _, arg := range os.Args[1:] {
+		switch arg {
+		case "--version", "-version":
+			fmt.Println(Version)
+			return
+		case "--help", "-h":
+			flag.Usage()
+			return
+		}
+	}
+
+	// Handle subcommands before flag parsing.
+	if len(os.Args) > 1 {
+		if _, ok := knownActions[os.Args[1]]; ok {
+			if err := runRemoteAction(os.Args[1]); err != nil {
+				fmt.Fprintf(os.Stderr, "muse %s: %v\n", os.Args[1], err)
+				os.Exit(1)
+			}
+			return
+		}
+	}
+
 	flag.Parse()
 
 	if flag.NArg() > 0 {
 		fmt.Fprintf(os.Stderr, "muse: unknown command %q\n", flag.Arg(0))
 		flag.Usage()
 		os.Exit(1)
-	}
-
-	if *version {
-		fmt.Println(Version)
-		os.Exit(0)
 	}
 
 	dirs, err := config.ResolveDirs()

@@ -156,7 +156,9 @@ func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
 	player.PlaySound(player.SoundError)
 	// Resume main player if we paused it.
 	if m.overlay.previewWasPlaying && m.player != nil {
-		_ = m.player.Play()
+		if err := m.player.Play(); err != nil {
+			slog.Debug("player resume failed", "err", err)
+		}
 		m.playback.state = PlaybackPlaying
 	}
 	m.overlay.previewWasPlaying = false
@@ -248,7 +250,9 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		}
 		m.overlay.previewWasPlaying = m.playback.state == PlaybackPlaying
 		if m.overlay.previewWasPlaying && m.player != nil {
-			_ = m.player.Pause()
+			if err := m.player.Pause(); err != nil {
+				slog.Debug("player pause failed", "err", err)
+			}
 			m.playback.state = PlaybackPaused
 		}
 		return m, m.startPreviewCmd(track), true
@@ -304,44 +308,60 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		return m, nil, true
 	case actionSeekBack:
 		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SeekRelative(-seekOffsetShort)
+			if err := cp.SeekRelative(-seekOffsetShort); err != nil {
+				slog.Debug("seek failed", "err", err)
+			}
 			return m, m.sessionPositionCmd(), true
 		}
 		return m, nil, true
 	case actionSeekForward:
 		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SeekRelative(seekOffsetShort)
+			if err := cp.SeekRelative(seekOffsetShort); err != nil {
+				slog.Debug("seek failed", "err", err)
+			}
 			return m, m.sessionPositionCmd(), true
 		}
 		return m, nil, true
 	case actionSeekBackLong:
 		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SeekRelative(-seekOffsetLong)
+			if err := cp.SeekRelative(-seekOffsetLong); err != nil {
+				slog.Debug("seek failed", "err", err)
+			}
 			return m, m.sessionPositionCmd(), true
 		}
 		return m, nil, true
 	case actionSeekForwardLong:
 		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SeekRelative(seekOffsetLong)
+			if err := cp.SeekRelative(seekOffsetLong); err != nil {
+				slog.Debug("seek failed", "err", err)
+			}
 			return m, m.sessionPositionCmd(), true
 		}
 		return m, nil, true
 	case actionVolumeUp:
 		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SetVolumeRelative(volumeIncrement)
+			if err := cp.SetVolumeRelative(volumeIncrement); err != nil {
+				slog.Debug("volume up failed", "err", err)
+			}
 			m.playback.volume = clampVolume(m.playback.volume + volumeIncrement)
 			if m.sessionWriter != nil {
-				_ = m.sessionWriter.WriteVolume(m.playback.volume)
+				if err := m.sessionWriter.WriteVolume(m.playback.volume); err != nil {
+					slog.Debug("write volume failed", "err", err)
+				}
 			}
 			m.statusBar.notification = newNotificationFor(fmt.Sprintf("Volume: %d%%", m.playback.volume), volumeFeedbackDuration)
 		}
 		return m, nil, true
 	case actionVolumeDown:
 		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.SetVolumeRelative(-volumeIncrement)
+			if err := cp.SetVolumeRelative(-volumeIncrement); err != nil {
+				slog.Debug("volume down failed", "err", err)
+			}
 			m.playback.volume = clampVolume(m.playback.volume - volumeIncrement)
 			if m.sessionWriter != nil {
-				_ = m.sessionWriter.WriteVolume(m.playback.volume)
+				if err := m.sessionWriter.WriteVolume(m.playback.volume); err != nil {
+					slog.Debug("write volume failed", "err", err)
+				}
 			}
 			m.statusBar.notification = newNotificationFor(fmt.Sprintf("Volume: %d%%", m.playback.volume), volumeFeedbackDuration)
 		}
@@ -356,20 +376,28 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			m.playback.repeatMode = RepeatOff
 		}
 		if rs, ok := m.player.(repeatShuffler); ok {
-			_ = rs.SetRepeat(m.playback.repeatMode.String())
+			if err := rs.SetRepeat(m.playback.repeatMode.String()); err != nil {
+				slog.Debug("set repeat failed", "err", err)
+			}
 		}
 		if m.sessionWriter != nil {
-			_ = m.sessionWriter.WriteRepeatMode(m.playback.repeatMode.String())
+			if err := m.sessionWriter.WriteRepeatMode(m.playback.repeatMode.String()); err != nil {
+				slog.Debug("write repeat mode failed", "err", err)
+			}
 		}
 		m.statusBar.notification = newNotificationFor("Repeat: "+m.playback.repeatMode.DisplayString(), volumeFeedbackDuration)
 		return m, nil, true
 	case actionShuffleToggle:
 		m.playback.shuffle = !m.playback.shuffle
 		if rs, ok := m.player.(repeatShuffler); ok {
-			_ = rs.SetShuffle(m.playback.shuffle)
+			if err := rs.SetShuffle(m.playback.shuffle); err != nil {
+				slog.Debug("set shuffle failed", "err", err)
+			}
 		}
 		if m.sessionWriter != nil {
-			_ = m.sessionWriter.WriteShuffle(m.playback.shuffle)
+			if err := m.sessionWriter.WriteShuffle(m.playback.shuffle); err != nil {
+				slog.Debug("write shuffle failed", "err", err)
+			}
 		}
 		label := "off"
 		if m.playback.shuffle {

@@ -209,12 +209,16 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 		cancel := m.scheduleSoftDelete(
 			func() {
 				if undoer != nil {
-					_ = undoer.DequeueTrackSoft(entry.ID)
+					if err := undoer.DequeueTrackSoft(entry.ID); err != nil {
+						slog.Warn("dequeue soft-delete failed", "err", err)
+					}
 				}
 			},
 			func(before int64) {
 				if undoer != nil {
-					_ = undoer.PurgeDeletedQueueEntries(before)
+					if err := undoer.PurgeDeletedQueueEntries(before); err != nil {
+						slog.Warn("queue purge failed", "err", err)
+					}
 				}
 			},
 		)
@@ -269,12 +273,18 @@ func (m Model) handleClearQueueMsg() Model {
 	cancel := m.scheduleSoftDelete(
 		func() {
 			if undoer != nil {
-				clearIDs, _ = undoer.ClearQueueSoft()
+				var err error
+				clearIDs, err = undoer.ClearQueueSoft()
+				if err != nil {
+					slog.Warn("queue clear soft-delete failed", "err", err)
+				}
 			}
 		},
 		func(before int64) {
 			if undoer != nil {
-				_ = undoer.PurgeDeletedQueueEntries(before)
+				if err := undoer.PurgeDeletedQueueEntries(before); err != nil {
+					slog.Warn("queue purge failed", "err", err)
+				}
 			}
 		},
 	)
@@ -427,13 +437,17 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 				func() {
 					if undoer != nil {
 						for _, id := range removedIDs {
-							_ = undoer.DequeueTrackSoft(id)
+							if err := undoer.DequeueTrackSoft(id); err != nil {
+								slog.Warn("dequeue soft-delete failed", "err", err)
+							}
 						}
 					}
 				},
 				func(before int64) {
 					if undoer != nil {
-						_ = undoer.PurgeDeletedQueueEntries(before)
+						if err := undoer.PurgeDeletedQueueEntries(before); err != nil {
+							slog.Warn("queue purge failed", "err", err)
+						}
 					}
 				},
 			)

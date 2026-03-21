@@ -5,6 +5,8 @@ linters:
   enable:
     - errcheck
     - errorlint
+    - gocritic
+    - gosec
     - govet
     - ineffassign
     - misspell
