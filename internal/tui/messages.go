@@ -207,6 +207,19 @@ func (r RepeatMode) String() string {
 	}
 }
 
+// DisplayString returns a user-friendly label for the repeat mode, suitable
+// for status bar notifications (e.g. "off" instead of the DB value "none").
+func (r RepeatMode) DisplayString() string {
+	switch r {
+	case RepeatAll:
+		return "all"
+	case RepeatOne:
+		return "one"
+	default:
+		return "off"
+	}
+}
+
 // PlaybackState represents the current playback status shown in the status bar.
 type PlaybackState int
 

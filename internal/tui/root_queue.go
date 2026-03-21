@@ -392,7 +392,12 @@ func (m Model) handleUndo() Model {
 	m, _ = m.undo.slot.action.perform(m)
 	m = m.resetQueueSort()
 	m = m.resetPlaylistsSort()
+	// Preserve any cancel channel set by perform() (e.g. enqueue undo
+	// schedules a purge timer that must be cancellable by the next
+	// destructive action).
+	pendingCancel := m.undo.slot.cancelPurge
 	m.undo.slot = undoSlot{}
+	m.undo.slot.cancelPurge = pendingCancel
 	return m
 }
 

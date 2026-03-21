@@ -1100,15 +1100,17 @@ func TestUndoEnqueueSchedulesPurge(t *testing.T) {
 		t.Fatal("undo slot must be cleared after successful undo")
 	}
 
-	// Wait for the purge timer to fire. The undo window is 5s; we use a much
-	// shorter wait because the timer was started with undoWindowDuration.
-	// In a real scenario we cannot wait 5s, so we verify the structural fix:
-	// the cancelPurge channel on the cleared undoSlot must be nil (not closed
-	// prematurely) so the timer can fire.
-	// The key assertion is that the undoSlot was zeroed without closing a
-	// cancel channel that would prevent the purge.
-	if nm.undo.slot.cancelPurge != nil {
-		t.Fatal("cleared undo slot must have nil cancelPurge")
+	// The purge timer's cancel channel must be preserved (non-nil) and open
+	// so the timer can fire. A subsequent destructive action will close it if
+	// needed, preventing stale purges from affecting newer undo operations.
+	if nm.undo.slot.cancelPurge == nil {
+		t.Fatal("cancelPurge must be preserved after undo so the purge timer can be cancelled by a future action")
+	}
+	// Verify the channel is open (not closed) by attempting a non-blocking receive.
+	select {
+	case <-nm.undo.slot.cancelPurge:
+		t.Fatal("cancelPurge must not be closed — the purge timer should still be able to fire")
+	default:
 	}
 }
 
@@ -1140,9 +1142,15 @@ func TestUndoBatchEnqueueSchedulesPurge(t *testing.T) {
 			len(be.dequeueTracksSoftIDs))
 	}
 
-	// The cleared undo slot must have nil cancelPurge so the timer fires.
-	if nm.undo.slot.cancelPurge != nil {
-		t.Fatal("cleared undo slot must have nil cancelPurge")
+	// The purge timer's cancel channel must be preserved (non-nil and open)
+	// so the timer can fire, and so a future action can cancel it if needed.
+	if nm.undo.slot.cancelPurge == nil {
+		t.Fatal("cancelPurge must be preserved after undo so the purge timer can be cancelled by a future action")
+	}
+	select {
+	case <-nm.undo.slot.cancelPurge:
+		t.Fatal("cancelPurge must not be closed — the purge timer should still be able to fire")
+	default:
 	}
 	if nm.undo.slot.action != nil {
 		t.Fatal("undo slot must be cleared after successful undo")

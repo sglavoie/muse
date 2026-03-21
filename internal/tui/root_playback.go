@@ -255,33 +255,51 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 	case actionPlayPause:
 		if m.player != nil {
 			if m.playback.state == PlaybackPlaying {
-				_ = m.player.Pause()
-				m.playback.state = PlaybackPaused
+				if err := m.player.Pause(); err != nil {
+					slog.Warn("pause failed", "err", err)
+					m.statusBar.notification = newNotification("Pause failed: " + err.Error())
+				} else {
+					m.playback.state = PlaybackPaused
+				}
 				return m, m.sessionPositionCmd(), true
 			} else if len(m.queue.entries) == 0 {
 				return m, nil, true
 			} else {
-				_ = m.player.Play()
-				m.playback.state = PlaybackPlaying
+				if err := m.player.Play(); err != nil {
+					slog.Warn("play failed", "err", err)
+					m.statusBar.notification = newNotification("Play failed: " + err.Error())
+				} else {
+					m.playback.state = PlaybackPlaying
+				}
 			}
 		}
 		return m, nil, true
 	case actionStop:
 		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.Stop()
-			m.playback.state = PlaybackStopped
-			m.playback.elapsedSecs = 0
-			m.playback.totalSecs = 0
+			if err := cp.Stop(); err != nil {
+				slog.Warn("stop failed", "err", err)
+				m.statusBar.notification = newNotification("Stop failed: " + err.Error())
+			} else {
+				m.playback.state = PlaybackStopped
+				m.playback.elapsedSecs = 0
+				m.playback.totalSecs = 0
+			}
 		}
 		return m, nil, true
 	case actionNext:
 		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.Next()
+			if err := cp.Next(); err != nil {
+				slog.Warn("next failed", "err", err)
+				m.statusBar.notification = newNotification("Next failed: " + err.Error())
+			}
 		}
 		return m, nil, true
 	case actionPrevious:
 		if cp, ok := m.player.(commandPlayer); ok {
-			_ = cp.Previous()
+			if err := cp.Previous(); err != nil {
+				slog.Warn("previous failed", "err", err)
+				m.statusBar.notification = newNotification("Previous failed: " + err.Error())
+			}
 		}
 		return m, nil, true
 	case actionSeekBack:
@@ -343,16 +361,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		if m.sessionWriter != nil {
 			_ = m.sessionWriter.WriteRepeatMode(m.playback.repeatMode.String())
 		}
-		var modeStr string
-		switch m.playback.repeatMode {
-		case RepeatOff:
-			modeStr = "off"
-		case RepeatAll:
-			modeStr = "all"
-		case RepeatOne:
-			modeStr = "one"
-		}
-		m.statusBar.notification = newNotificationFor("Repeat: "+modeStr, volumeFeedbackDuration)
+		m.statusBar.notification = newNotificationFor("Repeat: "+m.playback.repeatMode.DisplayString(), volumeFeedbackDuration)
 		return m, nil, true
 	case actionShuffleToggle:
 		m.playback.shuffle = !m.playback.shuffle

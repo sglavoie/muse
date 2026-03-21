@@ -1,14 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"log/slog"
+	"net"
 	"os"
-	"os/signal"
 	"path/filepath"
-	"strconv"
 	"strings"
-	"syscall"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -16,65 +17,76 @@ import (
 	"github.com/sglavoie/muse/internal/tui"
 )
 
-// startSignalListener listens for SIGUSR1 and dispatches remote playback
-// actions into the TUI program. The action name is read from
-// $runtimeDir/muse.cmd (written by runRemoteAction); a missing file (bare
-// kill -USR1) defaults to play/pause for backward compatibility.
-func startSignalListener(p *tea.Program, runtimeDir string) {
-	sigusr1 := make(chan os.Signal, 1)
-	signal.Notify(sigusr1, syscall.SIGUSR1)
+const (
+	ctrlSocketName    = "muse.ctrl"
+	remoteDialTimeout = 2 * time.Second
+)
+
+// startCommandListener creates a Unix domain socket at
+// $runtimeDir/muse.ctrl and dispatches incoming action names into the TUI
+// program. Each connection may send one newline-delimited action per line;
+// concurrent connections are handled safely because p.Send is goroutine-safe.
+// Returns the listener so the caller can Close it during shutdown.
+func startCommandListener(p *tea.Program, runtimeDir string) (net.Listener, error) {
+	sockPath := filepath.Join(runtimeDir, ctrlSocketName)
+
+	// Remove any stale socket left by a previous crash.
+	if err := os.Remove(sockPath); err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("remove stale control socket: %w", err)
+	}
+
+	ln, err := net.Listen("unix", sockPath)
+	if err != nil {
+		return nil, fmt.Errorf("listen on control socket: %w", err)
+	}
+
 	go func() {
-		cmdPath := filepath.Join(runtimeDir, "muse.cmd")
-		for range sigusr1 {
-			actionName := ""
-			if data, err := os.ReadFile(cmdPath); err == nil {
-				actionName = strings.TrimSpace(string(data))
-				if err := os.Remove(cmdPath); err != nil {
-					slog.Warn("remove command file failed", "path", cmdPath, "err", err)
-				}
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				// Listener closed during shutdown.
+				return
 			}
-			p.Send(tui.RemoteActionMsg{ActionName: actionName})
+			go handleRemoteConn(p, conn)
 		}
 	}()
+
+	return ln, nil
 }
 
-// runRemoteAction writes the action name to $RUNTIME/muse.cmd and sends
-// SIGUSR1 to the running muse process. The TUI's signal handler reads the
-// file and dispatches the action through handlePlaybackKeyAction, keeping
-// all playback logic (including Go-side queue indexing and TUI state sync)
-// in one place.
+// handleRemoteConn reads newline-delimited action names from a single
+// connection and dispatches each one into the TUI.
+func handleRemoteConn(p *tea.Program, conn net.Conn) {
+	defer conn.Close()
+	scanner := bufio.NewScanner(conn)
+	for scanner.Scan() {
+		action := strings.TrimSpace(scanner.Text())
+		if action == "" {
+			continue
+		}
+		p.Send(tui.RemoteActionMsg{ActionName: action})
+	}
+	if err := scanner.Err(); err != nil && err != io.EOF {
+		slog.Warn("remote connection read error", "err", err)
+	}
+}
+
+// runRemoteAction connects to the running muse instance's control socket and
+// sends the action name. The TUI's listener goroutine reads it and dispatches
+// the action through handlePlaybackKeyAction, keeping all playback logic
+// (including Go-side queue indexing and TUI state sync) in one place.
 func runRemoteAction(action string) error {
 	runtimeDir := config.ResolveRuntimeDir()
-	cmdPath := filepath.Join(runtimeDir, "muse.cmd")
-	pidPath := filepath.Join(runtimeDir, "muse.pid")
+	sockPath := filepath.Join(runtimeDir, ctrlSocketName)
 
-	// Atomic write: write to a temp file then rename.
-	tmpPath := cmdPath + ".tmp"
-	if err := os.WriteFile(tmpPath, []byte(action+"\n"), 0o600); err != nil {
-		return fmt.Errorf("write command file: %w", err)
+	conn, err := net.DialTimeout("unix", sockPath, remoteDialTimeout)
+	if err != nil {
+		return fmt.Errorf("connect to muse: %w (is muse running?)", err)
 	}
-	if err := os.Rename(tmpPath, cmdPath); err != nil {
-		if rmErr := os.Remove(tmpPath); rmErr != nil {
-			slog.Warn("remove temp command file failed", "path", tmpPath, "err", rmErr)
-		}
-		return fmt.Errorf("rename command file: %w", err)
-	}
+	defer conn.Close()
 
-	// Signal muse TUI to read the command file and dispatch the action.
-	data, err := os.ReadFile(pidPath)
-	if err != nil {
-		return fmt.Errorf("read PID file: %w", err)
-	}
-	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
-	if err != nil {
-		return fmt.Errorf("parse PID: %w", err)
-	}
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return fmt.Errorf("find process: %w", err)
-	}
-	if err := proc.Signal(syscall.SIGUSR1); err != nil {
-		return fmt.Errorf("send SIGUSR1: %w", err)
+	if _, err := fmt.Fprintln(conn, action); err != nil {
+		return fmt.Errorf("send command: %w", err)
 	}
 	return nil
 }

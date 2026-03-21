@@ -160,16 +160,6 @@ func NewManager() (*Manager, error) {
 	return m, nil
 }
 
-// defaultLaunch starts the mpv subprocess with --idle flag and IPC server.
-func defaultLaunch(ctx context.Context, socketPath string) (*exec.Cmd, error) {
-	args := append([]string{"--idle=yes", "--input-ipc-server=" + socketPath}, baseFlags...)
-	cmd := exec.CommandContext(ctx, "mpv", args...)
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("mpv: start: %w", err)
-	}
-	return cmd, nil
-}
-
 // SocketPath returns the resolved Unix domain socket path.
 func (m *Manager) SocketPath() string {
 	return m.socketPath
@@ -481,12 +471,11 @@ func (m *Manager) Start() error {
 		return fmt.Errorf("mpv: create runtime dir: %w", err)
 	}
 
-	launchFn := m.launchFn
-	if launchFn == nil {
-		launchFn = defaultLaunch
+	if m.launchFn == nil {
+		return fmt.Errorf("mpv: launchFn is nil; use NewManager to create a Manager")
 	}
 
-	cmd, err := launchFn(m.ctx, m.socketPath)
+	cmd, err := m.launchFn(m.ctx, m.socketPath)
 	if err != nil {
 		return err
 	}
@@ -582,6 +571,16 @@ func (m *Manager) pollUntilReady(ctx context.Context) {
 		}
 
 		time.Sleep(socketPollInterval)
+	}
+
+	// Timed out: drain queued commands and notify the caller.
+	slog.Warn("mpv: socket connection timed out", "socket", m.socketPath, "timeout", socketPollTimeout)
+	m.mu.Lock()
+	m.cmdQueue = nil
+	fn := m.statusFn
+	m.mu.Unlock()
+	if fn != nil {
+		fn("mpv: connection timed out")
 	}
 }
 
@@ -760,12 +759,14 @@ func (m *Manager) handleRestart() {
 		slog.Warn("player: remove socket", "path", m.socketPath, "err", err)
 	}
 
-	launchFn := m.launchFn
-	if launchFn == nil {
-		launchFn = defaultLaunch
+	if m.launchFn == nil {
+		if fn != nil {
+			fn("mpv: restart failed: launchFn is nil")
+		}
+		return
 	}
 
-	newCmd, err := launchFn(newCtx, m.socketPath)
+	newCmd, err := m.launchFn(newCtx, m.socketPath)
 	if err != nil {
 		if fn != nil {
 			fn("mpv: restart failed: " + err.Error())

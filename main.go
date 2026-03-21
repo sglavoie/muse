@@ -230,8 +230,11 @@ func main() {
 	})
 	mgr.SetMissingMarker(result.Writer)
 
-	// Listen for SIGUSR1 to dispatch remote playback actions.
-	startSignalListener(p, dirs.Runtime)
+	// Listen for remote commands on a Unix domain socket.
+	ctrlListener, err := startCommandListener(p, dirs.Runtime)
+	if err != nil {
+		slog.Warn("remote control unavailable", "err", err)
+	}
 
 	// When the signal context is cancelled (SIGTERM/SIGINT from outside),
 	// tell the TUI to quit so p.Run() returns and shutdown proceeds.
@@ -243,10 +246,16 @@ func main() {
 	if _, err := p.Run(); err != nil {
 		slog.Error("TUI error", "err", err)
 		fmt.Fprintf(os.Stderr, "muse: %v\n", err)
+		if ctrlListener != nil {
+			ctrlListener.Close()
+		}
 		// Still run shutdown to clean up resources.
 		app.Shutdown(shutdownDeps, app.ShutdownTimeout)
 		os.Exit(1)
 	}
 
+	if ctrlListener != nil {
+		ctrlListener.Close()
+	}
 	app.Shutdown(shutdownDeps, app.ShutdownTimeout)
 }

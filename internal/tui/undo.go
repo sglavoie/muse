@@ -45,9 +45,16 @@ func (a undoEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 			}
 			undoer := m.undoer
 			softDeleteTime := time.Now().Unix()
+			cancel := make(chan struct{})
+			m.undo.slot.cancelPurge = cancel
 			time.AfterFunc(undoWindowDuration, func() {
-				if err := undoer.PurgeDeletedQueueEntries(softDeleteTime + 1); err != nil {
-					slog.Warn("undo enqueue: purge failed", "err", err)
+				select {
+				case <-cancel:
+					return
+				default:
+					if err := undoer.PurgeDeletedQueueEntries(softDeleteTime + 1); err != nil {
+						slog.Warn("undo enqueue: purge failed", "err", err)
+					}
 				}
 			})
 		}
@@ -192,9 +199,16 @@ func (a undoBatchEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 		if m.undoer != nil {
 			undoer := m.undoer
 			softDeleteTime := time.Now().Unix()
+			cancel := make(chan struct{})
+			m.undo.slot.cancelPurge = cancel
 			time.AfterFunc(undoWindowDuration, func() {
-				if err := undoer.PurgeDeletedQueueEntries(softDeleteTime + 1); err != nil {
-					slog.Warn("undo batch enqueue: purge failed", "err", err)
+				select {
+				case <-cancel:
+					return
+				default:
+					if err := undoer.PurgeDeletedQueueEntries(softDeleteTime + 1); err != nil {
+						slog.Warn("undo batch enqueue: purge failed", "err", err)
+					}
 				}
 			})
 		}

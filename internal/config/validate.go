@@ -9,7 +9,6 @@ import (
 	"github.com/sglavoie/muse/internal/audio"
 )
 
-
 // ValidateMusicDir checks that the configured music directory exists and
 // contains at least one audio file or non-hidden subdirectory at the top level.
 // configPath is included in error messages so the user knows which file to edit.

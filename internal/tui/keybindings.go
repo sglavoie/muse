@@ -74,7 +74,7 @@ const (
 	actionClearQueue          // 'C': clear all entries from the queue
 	actionMoveTrackUp         // 'K': move selected track one position earlier
 	actionMoveTrackDown       // 'J': move selected track one position later
-	actionSaveQueueAsPlaylist  // 'S': save entire queue as a new playlist
+	actionSaveQueueAsPlaylist // 'S': save entire queue as a new playlist
 	actionFocusNowPlaying     // 'f': jump cursor to the currently playing track
 
 	// Playlists-local actions.
