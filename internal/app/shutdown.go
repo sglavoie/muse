@@ -55,8 +55,10 @@ type ShutdownDeps struct {
 //  1. Stop playback
 //  2. Terminate mpv process
 //  3. Flush pending DB writes (cancel writer context, wait for goroutine exit)
-//  4. Remove PID lockfile
-//  5. Delete mpv socket file
+//  4. Close database connection
+//  5. Release PID lockfile
+//  6. Delete mpv socket file
+//  7. Close log file (last, so all shutdown entries are captured)
 //
 // All steps are attempted regardless of prior errors so that resources are
 // always released. Errors from individual steps are logged at Warn level.
@@ -109,21 +111,21 @@ func shutdownSequence(deps ShutdownDeps) {
 	}
 	slog.Info("shutdown: db writes flushed")
 
-	// Step 3.5: Close the database connection now that all writes have drained.
+	// Step 4: Close the database connection now that all writes have drained.
 	slog.Info("shutdown: closing database")
 	if deps.CloseDB != nil {
 		deps.CloseDB()
 	}
 	slog.Info("shutdown: database closed")
 
-	// Step 4: Release PID lockfile.
+	// Step 5: Release PID lockfile.
 	slog.Info("shutdown: releasing lockfile")
 	if deps.Lockfile != nil {
 		deps.Lockfile.Release()
 	}
 	slog.Info("shutdown: lockfile released")
 
-	// Step 5: Delete mpv socket file.
+	// Step 6: Delete mpv socket file.
 	slog.Info("shutdown: removing mpv socket")
 	if deps.SocketPath != "" {
 		if err := os.Remove(deps.SocketPath); err != nil && !os.IsNotExist(err) {
@@ -132,7 +134,7 @@ func shutdownSequence(deps ShutdownDeps) {
 	}
 	slog.Info("shutdown: mpv socket removed")
 
-	// Step 6: Close log file last so all shutdown log entries are captured.
+	// Step 7: Close log file last so all shutdown log entries are captured.
 	if deps.CloseLog != nil {
 		deps.CloseLog()
 	}

@@ -422,6 +422,20 @@ func (m Model) syncPlayerQueue() {
 	}
 }
 
+// hasActiveOverlay reports whether any overlay or the help screen is
+// currently displayed. Used to suppress the title bar when an overlay
+// is active. Overlay priority (highest to lowest): help > nowPlaying >
+// trackInfo > preview > metadataEditor > destPicker. When adding a new
+// overlay, update this method and the View() rendering chain.
+func (m Model) hasActiveOverlay() bool {
+	return m.helpVisible ||
+		m.overlay.nowPlaying != nil ||
+		m.overlay.trackInfo != nil ||
+		m.overlay.preview != nil ||
+		m.overlay.metadataEditor != nil ||
+		m.overlay.destPicker != nil
+}
+
 // setUndoSlot replaces the current undo slot and derives the status-bar
 // notification from action.description(). cancelPurge may be nil for actions
 // that do not schedule a soft-delete purge timer. The caller is responsible
@@ -852,6 +866,7 @@ func (m *Model) refreshHelpViewport() {
 // When the help overlay is visible it replaces the body content entirely.
 func (m Model) View() tea.View {
 	var body string
+	// Render overlays in priority order (highest first). See hasActiveOverlay().
 	if m.helpVisible {
 		var filterBar string
 		if m.helpSearchFilter.Active {
@@ -888,7 +903,7 @@ func (m Model) View() tea.View {
 	}
 
 	// Prepend the centralized title bar when showing a primary view.
-	if m.overlay.nowPlaying == nil && m.overlay.trackInfo == nil && m.overlay.preview == nil && m.overlay.metadataEditor == nil && m.overlay.destPicker == nil && !m.helpVisible {
+	if !m.hasActiveOverlay() {
 		body = m.renderTitleBar() + "\n\n" + body
 	}
 

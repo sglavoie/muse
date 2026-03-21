@@ -11,6 +11,7 @@ const logFileName = "muse.log"
 
 var logPath string
 var logFile *os.File
+var logLevel slog.LevelVar
 
 // InitLogging opens (and truncates) the log file at $XDG_STATE_HOME/muse/muse.log,
 // sets the global slog default to a JSON handler at the given level, and stores
@@ -31,7 +32,8 @@ func InitLogging(stateDir string, level slog.Level) error {
 		return err
 	}
 
-	h := slog.NewJSONHandler(f, &slog.HandlerOptions{Level: level})
+	logLevel.Set(level)
+	h := slog.NewJSONHandler(f, &slog.HandlerOptions{Level: &logLevel})
 	slog.SetDefault(slog.New(h))
 	logPath = path
 	logFile = f
@@ -44,15 +46,10 @@ func LogPath() string {
 	return logPath
 }
 
-// SetLogLevel replaces the slog default handler with a new JSON handler at
-// the given level, reusing the already-open log file. Call this after loading
-// config so the file-configured level takes effect without re-truncating the log.
+// SetLogLevel atomically updates the active log level. Safe to call at any
+// time, including before InitLogging.
 func SetLogLevel(level slog.Level) {
-	if logFile == nil {
-		return
-	}
-	h := slog.NewJSONHandler(logFile, &slog.HandlerOptions{Level: level})
-	slog.SetDefault(slog.New(h))
+	logLevel.Set(level)
 }
 
 // ParseLogLevel converts a log-level string (as used in the config file) to

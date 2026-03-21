@@ -42,7 +42,7 @@ type RestoredSession struct {
 	// PositionMs is the elapsed playback position in milliseconds.
 	PositionMs int64
 
-	// Volume is the last-saved volume percentage (0–130).
+	// Volume is the last-saved volume percentage (0–100).
 	// Zero means no volume was persisted; callers should fall back to default.
 	Volume int
 }

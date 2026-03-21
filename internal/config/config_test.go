@@ -153,7 +153,7 @@ func TestLoad_InvalidTOML_UsesDefaults(t *testing.T) {
 	logger, _ := captureLog()
 	slog.SetDefault(logger)
 
-	cfg, _, _, err := Load(dir)
+	cfg, _, warnings, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -168,6 +168,9 @@ func TestLoad_InvalidTOML_UsesDefaults(t *testing.T) {
 	}
 	if cfg.DefaultVolume != defaultVolume {
 		t.Errorf("DefaultVolume = %d, want default", cfg.DefaultVolume)
+	}
+	if len(warnings) == 0 {
+		t.Error("expected at least one warning for invalid TOML")
 	}
 }
 

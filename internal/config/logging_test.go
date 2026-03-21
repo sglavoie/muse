@@ -283,11 +283,7 @@ func TestCloseLog(t *testing.T) {
 // --- SetLogLevel with nil logFile ---
 
 func TestSetLogLevel_NilLogFile(t *testing.T) {
-	saved := logFile
-	logFile = nil
-	defer func() { logFile = saved }()
-
-	// Must not panic.
+	// Must not panic when called before InitLogging.
 	SetLogLevel(slog.LevelDebug)
 }
 

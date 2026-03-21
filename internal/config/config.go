@@ -92,7 +92,8 @@ func Load(configDir string) (Config, bool, []string, error) {
 	if _, err := toml.DecodeFile(path, &raw); err != nil {
 		slog.Warn("failed to parse config file, using defaults", "path", path, "error", err)
 		fmt.Fprintf(os.Stderr, "muse: warning: failed to parse %s: %v (using defaults)\n", path, err)
-		return cfg, false, nil, nil
+		warnings := []string{fmt.Sprintf("failed to parse config: %v (using defaults)", err)}
+		return cfg, false, warnings, nil
 	}
 
 	cfg, warnings := validate(raw)
