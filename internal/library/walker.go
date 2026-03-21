@@ -11,7 +11,6 @@ import (
 	"github.com/sglavoie/muse/internal/audio"
 )
 
-
 // walkAudioPaths walks root applying the shared rules: skip hidden
 // files/dirs, follow file symlinks only, and filter by audio extension.
 // For each qualifying audio file path, it calls visit. If visit returns
@@ -65,14 +64,16 @@ func Walk(ctx context.Context, root string) <-chan string {
 	ch := make(chan string, 64)
 	go func() {
 		defer close(ch)
-		_ = walkAudioPaths(ctx, root, func(path string) error {
+		if err := walkAudioPaths(ctx, root, func(path string) error {
 			select {
 			case ch <- path:
 				return nil
 			case <-ctx.Done():
 				return filepath.SkipAll
 			}
-		})
+		}); err != nil && ctx.Err() == nil {
+			slog.Warn("walk: root traversal error", "root", root, "err", err)
+		}
 	}()
 	return ch
 }

@@ -239,7 +239,9 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 	if restored.CurrentHash != "" && deps.RestorePlayer != nil {
 		for _, pt := range restored.PlayerTracks {
 			if pt.Hash == restored.CurrentHash {
-				_ = deps.RestorePlayer(pt.Path, restored.PositionMs)
+				if err := deps.RestorePlayer(pt.Path, restored.PositionMs); err != nil {
+					slog.Warn("startup: restore player position", "path", pt.Path, "err", err)
+				}
 				break
 			}
 		}

@@ -25,7 +25,7 @@ func InitLogging(stateDir string, level slog.Level) error {
 	// file doesn't exist yet (first run), Rename returns an error we ignore.
 	_ = os.Rename(path, path+".prev")
 
-	f, err := os.Create(path) // truncates on every startup
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}

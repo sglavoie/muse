@@ -148,7 +148,8 @@ func (p *PreviewPlayer) Close() error {
 		select {
 		case <-done:
 		case <-time.After(previewShutdownTimeout):
-			slog.Warn("preview mpv process did not exit within timeout")
+			slog.Warn("preview mpv process did not exit within timeout, killing")
+			_ = p.cmd.Process.Kill()
 		}
 	}
 	if err := os.Remove(p.socketPath); err != nil && !os.IsNotExist(err) {

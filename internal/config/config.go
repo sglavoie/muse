@@ -149,7 +149,7 @@ func validate(raw rawConfig) Config {
 
 // writeDefaults serializes the default config to path as TOML.
 func writeDefaults(path string, cfg Config) error {
-	f, err := os.Create(path)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}

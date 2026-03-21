@@ -51,6 +51,12 @@ func main() {
 	}
 	flag.Parse()
 
+	if flag.NArg() > 0 {
+		fmt.Fprintf(os.Stderr, "muse: unknown command %q\n", flag.Arg(0))
+		flag.Usage()
+		os.Exit(1)
+	}
+
 	if *version {
 		fmt.Println(Version)
 		os.Exit(0)
@@ -119,7 +125,9 @@ func main() {
 			// Apply the configured default volume. SetVolumeAbsolute enqueues
 			// the command for replay once the IPC socket connects, so calling
 			// it here (before the socket is ready) is safe.
-			_ = mgr.SetVolumeAbsolute(float64(cfg.DefaultVolume))
+			if err := mgr.SetVolumeAbsolute(float64(cfg.DefaultVolume)); err != nil {
+				slog.Warn("startup: set default volume", "err", err)
+			}
 			return nil
 		},
 		RunScan: func(ctx context.Context, database *db.DB) error {

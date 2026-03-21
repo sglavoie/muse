@@ -530,7 +530,8 @@ func (m *Manager) Close() error {
 		select {
 		case <-done:
 		case <-time.After(shutdownTimeout):
-			slog.Warn("mpv process did not exit within timeout")
+			slog.Warn("mpv process did not exit within timeout, killing")
+			_ = cmd.Process.Kill()
 		}
 	}
 	return nil
