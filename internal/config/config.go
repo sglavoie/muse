@@ -6,9 +6,26 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
+
+const configTemplate = `# Path to your music library.
+music_directory = %q
+
+# Default playback volume (0-100).
+default_volume = %d
+
+# Log verbosity: debug, info, warn, error (case-insensitive).
+log_level = %q
+
+# Custom path for the mpv IPC socket (leave empty for default).
+# mpv_socket_path = ""
+
+# Extra flags passed to the mpv subprocess.
+# mpv_extra_flags = ["--audio-device=pulse"]
+`
 
 const (
 	defaultMusicDirectory = "~/Music"
@@ -51,8 +68,8 @@ func ConfigPath(configDir string) string {
 // Load reads the TOML config file at configDir/config.toml.
 // If the file does not exist it is created with default values.
 // Invalid field values are replaced with their defaults and a warning is logged.
-// Returns the config and whether the file was newly created.
-func Load(configDir string) (Config, bool, error) {
+// Returns the config, whether the file was newly created, any validation warnings, and any error.
+func Load(configDir string) (Config, bool, []string, error) {
 	path := filepath.Join(configDir, configFileName)
 
 	cfg := defaults()
@@ -60,26 +77,26 @@ func Load(configDir string) (Config, bool, error) {
 	_, err := os.Stat(path)
 	if errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(configDir, 0o700); err != nil {
-			return cfg, false, err
+			return cfg, false, nil, err
 		}
 		if err := writeDefaults(path, cfg); err != nil {
-			return cfg, false, err
+			return cfg, false, nil, err
 		}
-		return cfg, true, nil
+		return cfg, true, nil, nil
 	}
 	if err != nil {
-		return cfg, false, err
+		return cfg, false, nil, err
 	}
 
 	var raw rawConfig
 	if _, err := toml.DecodeFile(path, &raw); err != nil {
 		slog.Warn("failed to parse config file, using defaults", "path", path, "error", err)
 		fmt.Fprintf(os.Stderr, "muse: warning: failed to parse %s: %v (using defaults)\n", path, err)
-		return cfg, false, nil
+		return cfg, false, nil, nil
 	}
 
-	cfg = validate(raw)
-	return cfg, false, nil
+	cfg, warnings := validate(raw)
+	return cfg, false, warnings, nil
 }
 
 // rawConfig mirrors Config but uses pointer types for optional numeric fields
@@ -93,9 +110,11 @@ type rawConfig struct {
 }
 
 // validate checks each field and falls back to defaults for invalid values,
-// logging a warning for every field that is replaced.
-func validate(raw rawConfig) Config {
+// logging a warning for every field that is replaced. It also returns a slice
+// of human-readable warning strings for display in the TUI.
+func validate(raw rawConfig) (Config, []string) {
 	cfg := defaults()
+	var warnings []string
 
 	if raw.MusicDirectory != "" {
 		if expanded, err := expandTilde(raw.MusicDirectory); err == nil {
@@ -123,10 +142,12 @@ func validate(raw rawConfig) Config {
 				"value", v,
 				"default", defaultVolume,
 			)
+			warnings = append(warnings, fmt.Sprintf("default_volume %d is out of range (0-100), using %d", v, defaultVolume))
 		}
 	}
 	// nil means omitted — keep the default silently.
 
+	raw.LogLevel = strings.ToLower(raw.LogLevel)
 	switch raw.LogLevel {
 	case "debug", "info", "warn", "error":
 		cfg.LogLevel = raw.LogLevel
@@ -138,17 +159,19 @@ func validate(raw rawConfig) Config {
 			"value", raw.LogLevel,
 			"default", defaultLogLevel,
 		)
+		warnings = append(warnings, fmt.Sprintf("log_level %q is not recognized (use debug/info/warn/error), using %q", raw.LogLevel, defaultLogLevel))
 	}
 
-	return cfg
+	return cfg, warnings
 }
 
-// writeDefaults serializes the default config to path as TOML.
+// writeDefaults writes a commented TOML config to path using the values in cfg.
 func writeDefaults(path string, cfg Config) error {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	return toml.NewEncoder(f).Encode(cfg)
+	_, err = fmt.Fprintf(f, configTemplate, cfg.MusicDirectory, cfg.DefaultVolume, cfg.LogLevel)
+	return err
 }

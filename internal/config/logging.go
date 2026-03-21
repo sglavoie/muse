@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const logFileName = "muse.log"
@@ -55,8 +56,10 @@ func SetLogLevel(level slog.Level) {
 }
 
 // ParseLogLevel converts a log-level string (as used in the config file) to
-// its corresponding slog.Level. Unrecognised values default to Info.
+// its corresponding slog.Level. The comparison is case-insensitive.
+// Unrecognised values default to Info.
 func ParseLogLevel(s string) (slog.Level, bool) {
+	s = strings.ToLower(s)
 	switch s {
 	case "debug":
 		return slog.LevelDebug, true

@@ -35,7 +35,7 @@ func (l *Lockfile) Acquire() error {
 		// Lockfile exists — check whether the recorded PID is alive.
 		pid, parseErr := strconv.Atoi(strings.TrimSpace(string(existing)))
 		if parseErr == nil && isProcessAlive(pid) {
-			return fmt.Errorf("another instance is running (PID %d)", pid)
+			return fmt.Errorf("another instance is running (PID %d); quit it first or remove %s if the process is stale", pid, l.path)
 		}
 		// PID is dead or unreadable — reclaim the stale lockfile.
 		_ = os.Remove(l.path)

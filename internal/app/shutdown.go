@@ -3,9 +3,14 @@ package app
 import (
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/sglavoie/muse/internal/config"
 )
+
+// ShutdownTimeout is the maximum time allowed for graceful shutdown before
+// the process is forcibly terminated.
+const ShutdownTimeout = 10 * time.Second
 
 // ShutdownDeps holds injectable teardown operations for the graceful shutdown
 // sequence. Nil StopPlayback or TerminateMPV fields are treated as no-ops.
@@ -42,7 +47,11 @@ type ShutdownDeps struct {
 	CloseLog func()
 }
 
-// Shutdown executes the graceful teardown sequence in order:
+// Shutdown executes the graceful teardown sequence with a timeout. If the
+// sequence does not complete within timeout, the process is forcibly exited.
+// Pass ShutdownTimeout for the normal production timeout.
+//
+// The teardown sequence is:
 //  1. Stop playback
 //  2. Terminate mpv process
 //  3. Flush pending DB writes (cancel writer context, wait for goroutine exit)
@@ -51,7 +60,26 @@ type ShutdownDeps struct {
 //
 // All steps are attempted regardless of prior errors so that resources are
 // always released. Errors from individual steps are logged at Warn level.
-func Shutdown(deps ShutdownDeps) {
+func Shutdown(deps ShutdownDeps, timeout time.Duration) {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		shutdownSequence(deps)
+	}()
+	select {
+	case <-done:
+		return
+	case <-time.After(timeout):
+		slog.Error("shutdown timed out after " + timeout.String() + ", forcing exit")
+		if deps.CloseLog != nil {
+			deps.CloseLog()
+		}
+		os.Exit(1)
+	}
+}
+
+// shutdownSequence performs the ordered teardown steps.
+func shutdownSequence(deps ShutdownDeps) {
 	// Step 1: Stop playback.
 	slog.Info("shutdown: stopping playback")
 	if deps.StopPlayback != nil {

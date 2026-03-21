@@ -43,6 +43,9 @@ func TestLockfile_LivePIDBlocksLaunch(t *testing.T) {
 	if !strings.Contains(err.Error(), strconv.Itoa(os.Getpid())) {
 		t.Errorf("error should include the PID, got: %s", err.Error())
 	}
+	if !strings.Contains(err.Error(), lockfileName) {
+		t.Errorf("error should include the lockfile path, got: %s", err.Error())
+	}
 }
 
 func TestLockfile_StaleLockfileIsReclaimed(t *testing.T) {

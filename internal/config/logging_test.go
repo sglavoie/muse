@@ -204,7 +204,7 @@ func TestLogLevelFromConfig(t *testing.T) {
 		t.Fatalf("writing config file: %v", err)
 	}
 
-	cfg, _, err := Load(cfgDir)
+	cfg, _, _, err := Load(cfgDir)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -245,7 +245,7 @@ func TestParseLogLevel_AllValues(t *testing.T) {
 		{"info", slog.LevelInfo, true},
 		{"", slog.LevelInfo, true},
 		{"unknown", slog.LevelInfo, false},
-		{"DEBUG", slog.LevelInfo, false}, // case-sensitive: uppercase not recognized
+		{"DEBUG", slog.LevelDebug, true}, // case-insensitive: uppercase is accepted
 	}
 	for _, tc := range cases {
 		got, ok := ParseLogLevel(tc.input)

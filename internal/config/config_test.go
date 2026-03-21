@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/BurntSushi/toml"
 )
 
 // captureLog returns a logger that writes to a buffer and the buffer itself.
@@ -19,7 +21,7 @@ func captureLog() (*slog.Logger, *bytes.Buffer) {
 func TestLoad_MissingFile_CreatesDefaultConfig(t *testing.T) {
 	dir := t.TempDir()
 
-	cfg, created, err := Load(dir)
+	cfg, created, _, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -48,8 +50,8 @@ func TestLoad_MissingFile_CreatesDefaultConfig(t *testing.T) {
 func TestLoad_MissingFile_Idempotent(t *testing.T) {
 	dir := t.TempDir()
 
-	_, created1, _ := Load(dir)
-	_, created2, _ := Load(dir)
+	_, created1, _, _ := Load(dir)
+	_, created2, _, _ := Load(dir)
 
 	if !created1 {
 		t.Error("expected created=true on first load")
@@ -70,7 +72,7 @@ default_volume = 75
 		t.Fatal(err)
 	}
 
-	cfg, created, err := Load(dir)
+	cfg, created, _, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -102,7 +104,7 @@ default_volume = 999
 	logger, buf := captureLog()
 	slog.SetDefault(logger)
 
-	cfg, _, err := Load(dir)
+	cfg, _, _, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -126,7 +128,7 @@ default_volume = 50
 		t.Fatal(err)
 	}
 
-	cfg, _, err := Load(dir)
+	cfg, _, _, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -151,7 +153,7 @@ func TestLoad_InvalidTOML_UsesDefaults(t *testing.T) {
 	logger, _ := captureLog()
 	slog.SetDefault(logger)
 
-	cfg, _, err := Load(dir)
+	cfg, _, _, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -166,6 +168,126 @@ func TestLoad_InvalidTOML_UsesDefaults(t *testing.T) {
 	}
 	if cfg.DefaultVolume != defaultVolume {
 		t.Errorf("DefaultVolume = %d, want default", cfg.DefaultVolume)
+	}
+}
+
+func TestWriteDefaults_ContainsCommentsAndValidTOML(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	cfg := defaults()
+
+	if err := writeDefaults(path, cfg); err != nil {
+		t.Fatalf("writeDefaults: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading written file: %v", err)
+	}
+	content := string(data)
+
+	for _, comment := range []string{"# Path to your music library", "# Default playback volume"} {
+		if !strings.Contains(content, comment) {
+			t.Errorf("expected comment %q in output:\n%s", comment, content)
+		}
+	}
+
+	var parsed Config
+	if _, err := toml.DecodeFile(path, &parsed); err != nil {
+		t.Fatalf("output is not valid TOML: %v\n%s", err, content)
+	}
+	if parsed.DefaultVolume != cfg.DefaultVolume {
+		t.Errorf("DefaultVolume = %d, want %d", parsed.DefaultVolume, cfg.DefaultVolume)
+	}
+	if parsed.LogLevel != cfg.LogLevel {
+		t.Errorf("LogLevel = %q, want %q", parsed.LogLevel, cfg.LogLevel)
+	}
+}
+
+func TestLoad_InvalidVolume_ReturnsWarning(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+music_directory = "/home/user/Songs"
+default_volume = 150
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	logger, _ := captureLog()
+	slog.SetDefault(logger)
+
+	_, _, warnings, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if len(warnings) == 0 {
+		t.Fatal("expected warnings for out-of-range default_volume, got none")
+	}
+	found := false
+	for _, w := range warnings {
+		if strings.Contains(w, "default_volume") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected warning mentioning default_volume, got: %v", warnings)
+	}
+}
+
+func TestLoad_InvalidLogLevel_ReturnsWarning(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+log_level = "banana"
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	logger, _ := captureLog()
+	slog.SetDefault(logger)
+
+	_, _, warnings, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if len(warnings) == 0 {
+		t.Fatal("expected warnings for unrecognized log_level, got none")
+	}
+	found := false
+	for _, w := range warnings {
+		if strings.Contains(w, "log_level") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected warning mentioning log_level, got: %v", warnings)
+	}
+}
+
+func TestLoad_CaseInsensitiveLogLevel(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+log_level = "DEBUG"
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, _, warnings, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if len(warnings) != 0 {
+		t.Errorf("expected no warnings for case-variant log level, got: %v", warnings)
+	}
+	if cfg.LogLevel != "debug" {
+		t.Errorf("LogLevel = %q, want %q", cfg.LogLevel, "debug")
 	}
 }
 
@@ -186,7 +308,7 @@ music_directory = "/home/user/Songs"
 		t.Fatal(err)
 	}
 
-	cfg, _, err := Load(dir)
+	cfg, _, _, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -206,7 +328,7 @@ default_volume = 0
 		t.Fatal(err)
 	}
 
-	cfg, _, err := Load(dir)
+	cfg, _, _, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}

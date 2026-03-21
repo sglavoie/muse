@@ -57,10 +57,11 @@ type playbackInfo struct {
 // Model is the root Bubble Tea v2 model. It manages view switching between
 // Library, Playlists, Queue, and Artists panels, and renders a persistent status bar.
 type Model struct {
-	appCtx        context.Context // application-level context for subprocess lifecycle
-	activeView    viewID
-	configPath    string
-	configCreated bool
+	appCtx         context.Context // application-level context for subprocess lifecycle
+	activeView     viewID
+	configPath     string
+	configCreated  bool
+	configWarnings []string
 
 	library   LibraryView
 	playlists PlaylistsView
@@ -170,6 +171,12 @@ func New(ctx context.Context, opts ...Option) Model {
 	// Sync statusBar fields from model state.
 	m.statusBar.configPath = m.configPath
 	m.statusBar.configCreated = m.configCreated
+	if len(m.configWarnings) > 0 {
+		m.statusBar.notification = newNotificationFor(
+			"Config: "+strings.Join(m.configWarnings, "; "),
+			10*time.Second,
+		)
+	}
 	return m
 }
 
@@ -185,6 +192,12 @@ func WithConfigPath(path string, created bool) Option {
 		m.configPath = path
 		m.configCreated = created
 	}
+}
+
+// WithConfigWarnings sets config validation warnings to display as a TUI
+// notification on startup. Pass the warnings returned by config.Load.
+func WithConfigWarnings(warnings []string) Option {
+	return func(m *Model) { m.configWarnings = warnings }
 }
 
 // WithScanChannel sets the library scan channel. When non-nil, the TUI reads

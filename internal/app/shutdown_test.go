@@ -5,9 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/sglavoie/muse/internal/app"
 	"github.com/sglavoie/muse/internal/config"
@@ -62,7 +64,7 @@ func TestShutdownOrder(t *testing.T) {
 		SocketPath:     "",  // tested separately
 	}
 
-	app.Shutdown(deps)
+	app.Shutdown(deps, app.ShutdownTimeout)
 
 	got := rec.snapshot()
 
@@ -104,7 +106,7 @@ func TestShutdownDBWriterFlushedBeforeClose(t *testing.T) {
 		WaitDBWriter:   func() { rec.record("wait") },
 	}
 
-	app.Shutdown(deps)
+	app.Shutdown(deps, app.ShutdownTimeout)
 
 	got := rec.snapshot()
 
@@ -140,7 +142,7 @@ func TestShutdownLockfileRemoved(t *testing.T) {
 		t.Fatalf("lockfile missing before Shutdown: %v", err)
 	}
 
-	app.Shutdown(app.ShutdownDeps{Lockfile: lf})
+	app.Shutdown(app.ShutdownDeps{Lockfile: lf}, app.ShutdownTimeout)
 
 	if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
 		t.Error("lockfile was not removed during Shutdown")
@@ -156,7 +158,7 @@ func TestShutdownSocketRemoved(t *testing.T) {
 		t.Fatalf("create socket: %v", err)
 	}
 
-	app.Shutdown(app.ShutdownDeps{SocketPath: socketPath})
+	app.Shutdown(app.ShutdownDeps{SocketPath: socketPath}, app.ShutdownTimeout)
 
 	if _, err := os.Stat(socketPath); !os.IsNotExist(err) {
 		t.Error("mpv socket was not removed during Shutdown")
@@ -171,7 +173,7 @@ func TestShutdownSocketAlreadyGone(t *testing.T) {
 	socketPath := filepath.Join(t.TempDir(), "mpv.sock")
 
 	// Must not panic or log an error.
-	app.Shutdown(app.ShutdownDeps{SocketPath: socketPath})
+	app.Shutdown(app.ShutdownDeps{SocketPath: socketPath}, app.ShutdownTimeout)
 }
 
 // TestShutdownNilFieldsNoPanic confirms that all nil/empty fields are safe
@@ -180,7 +182,7 @@ func TestShutdownNilFieldsNoPanic(t *testing.T) {
 	installLogger(t)
 
 	// All fields nil/zero — must not panic.
-	app.Shutdown(app.ShutdownDeps{})
+	app.Shutdown(app.ShutdownDeps{}, app.ShutdownTimeout)
 }
 
 // TestShutdownAllStepsRunDespiteErrors verifies that a failure in an early
@@ -198,7 +200,7 @@ func TestShutdownAllStepsRunDespiteErrors(t *testing.T) {
 	}
 
 	// Must not panic or skip steps.
-	app.Shutdown(deps)
+	app.Shutdown(deps, app.ShutdownTimeout)
 
 	got := rec.snapshot()
 	for _, name := range []string{"stop", "terminate", "cancel", "wait"} {
@@ -245,7 +247,7 @@ func TestShutdownDBWriterDrainsOnShutdown(t *testing.T) {
 	app.Shutdown(app.ShutdownDeps{
 		CancelDBWriter: cancel,
 		WaitDBWriter:   w.Wait,
-	})
+	}, app.ShutdownTimeout)
 
 	var count int
 	if err := d.QueryRow("SELECT COUNT(*) FROM items").Scan(&count); err != nil {
@@ -280,7 +282,7 @@ func TestShutdownLockfileAndSocketOrdering(t *testing.T) {
 	app.Shutdown(app.ShutdownDeps{
 		Lockfile:   lf,
 		SocketPath: socketPath,
-	})
+	}, app.ShutdownTimeout)
 
 	lockPath := filepath.Join(dir, "muse.pid")
 	if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
@@ -288,5 +290,30 @@ func TestShutdownLockfileAndSocketOrdering(t *testing.T) {
 	}
 	if _, err := os.Stat(socketPath); !os.IsNotExist(err) {
 		t.Error("mpv socket still present after Shutdown")
+	}
+}
+
+// TestShutdownTimeout_ForcesExit verifies that Shutdown calls os.Exit(1) when
+// the sequence exceeds the timeout. It runs itself as a subprocess to safely
+// observe the exit code without terminating the test process.
+func TestShutdownTimeout_ForcesExit(t *testing.T) {
+	if os.Getenv("TEST_SHUTDOWN_TIMEOUT") == "1" {
+		// Subprocess mode: WaitDBWriter blocks forever, timeout is tiny.
+		block := make(chan struct{})
+		app.Shutdown(app.ShutdownDeps{
+			WaitDBWriter: func() { <-block },
+		}, 50*time.Millisecond)
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=TestShutdownTimeout_ForcesExit")
+	cmd.Env = append(os.Environ(), "TEST_SHUTDOWN_TIMEOUT=1")
+	err := cmd.Run()
+	if err == nil {
+		t.Fatal("expected non-zero exit, got nil")
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+		t.Errorf("expected exit code 1, got: %v", err)
 	}
 }

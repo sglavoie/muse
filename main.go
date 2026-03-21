@@ -74,7 +74,7 @@ func main() {
 	slog.Info("log file", "path", config.LogPath())
 
 	configPath := config.ConfigPath(dirs.Config)
-	cfg, configCreated, err := config.Load(dirs.Config)
+	cfg, configCreated, configWarnings, err := config.Load(dirs.Config)
 	if err != nil {
 		slog.Error("failed to load config", "err", err)
 		fmt.Fprintf(os.Stderr, "muse: load config: %v\n", err)
@@ -168,13 +168,14 @@ func main() {
 	if err != nil {
 		slog.Error("load library failed", "err", err)
 		fmt.Fprintf(os.Stderr, "muse: %v\n", err)
-		app.Shutdown(shutdownDeps)
+		app.Shutdown(shutdownDeps, app.ShutdownTimeout)
 		os.Exit(1)
 	}
 
 	adapter := db.NewPlaylistAdapter(result.DB, result.Writer)
 	model := tui.New(ctx,
 		tui.WithConfigPath(configPath, configCreated),
+		tui.WithConfigWarnings(configWarnings),
 		tui.WithScanChannel(libResult.TuiScanCh),
 		tui.WithWatchChannel(libResult.TuiWatchCh),
 		tui.WithLibraryRoot(cfg.MusicDirectory),
@@ -243,9 +244,9 @@ func main() {
 		slog.Error("TUI error", "err", err)
 		fmt.Fprintf(os.Stderr, "muse: %v\n", err)
 		// Still run shutdown to clean up resources.
-		app.Shutdown(shutdownDeps)
+		app.Shutdown(shutdownDeps, app.ShutdownTimeout)
 		os.Exit(1)
 	}
 
-	app.Shutdown(shutdownDeps)
+	app.Shutdown(shutdownDeps, app.ShutdownTimeout)
 }
