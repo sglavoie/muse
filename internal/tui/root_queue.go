@@ -434,11 +434,15 @@ func (m Model) handleUndo() Model {
 		if idx >= 0 && idx < len(m.queue.entries) {
 			entry := m.queue.entries[idx]
 			if m.undoer != nil {
-				_ = m.undoer.DequeueTrackSoft(entry.ID)
+				if err := m.undoer.DequeueTrackSoft(entry.ID); err != nil {
+					slog.Warn("undo enqueue: soft-delete failed", "err", err)
+				}
 				undoer := m.undoer
 				softDeleteTime := time.Now().Unix()
 				time.AfterFunc(undoWindowDuration, func() {
-					_ = undoer.PurgeDeletedQueueEntries(softDeleteTime + 1)
+					if err := undoer.PurgeDeletedQueueEntries(softDeleteTime + 1); err != nil {
+						slog.Warn("undo enqueue: purge failed", "err", err)
+					}
 				})
 			}
 			m.queue.entries = append(m.queue.entries[:idx], m.queue.entries[idx+1:]...)
@@ -449,7 +453,9 @@ func (m Model) handleUndo() Model {
 		}
 	case undoKindDequeue:
 		if m.undoer != nil {
-			_ = m.undoer.UndoDequeue(m.undo.slot.dequeueID)
+			if err := m.undoer.UndoDequeue(m.undo.slot.dequeueID); err != nil {
+				slog.Warn("undo dequeue failed", "err", err)
+			}
 		}
 		idx := min(m.undo.slot.dequeueIdx, len(m.queue.entries))
 		entries := make([]QueueEntry, len(m.queue.entries)+1)
@@ -469,23 +475,12 @@ func (m Model) handleUndo() Model {
 		}
 		// Rebuild the player's in-memory queue so it stays in sync with the
 		// TUI queue after the re-insertion.
-		if qs, ok := m.player.(playerQueueSetter); ok {
-			pt := make([]player.QueueTrack, len(m.queue.entries))
-			for i, e := range m.queue.entries {
-				pt[i] = player.QueueTrack{
-					Path:    e.Path,
-					Hash:    e.Hash,
-					QueueID: e.ID,
-					Artist:  e.Artist,
-					Title:   e.Title,
-					Source:  e.SourcePlaylist,
-				}
-			}
-			qs.SetQueue(pt)
-		}
+		m.syncPlayerQueue()
 	case undoKindClear:
 		if m.undoer != nil {
-			_ = m.undoer.UndoClearQueue(m.undo.slot.clearIDs)
+			if err := m.undoer.UndoClearQueue(m.undo.slot.clearIDs); err != nil {
+				slog.Warn("undo clear queue failed", "err", err)
+			}
 		}
 		m.queue.entries = m.undo.slot.clearEntries
 		if qs, ok := m.player.(playerQueueSetter); ok {
@@ -493,7 +488,9 @@ func (m Model) handleUndo() Model {
 		}
 	case undoKindDeletePlaylist:
 		if m.playlistDeleter != nil {
-			_ = m.playlistDeleter.UndoDeletePlaylist(m.undo.slot.deletePlaylistEntry.ID)
+			if err := m.playlistDeleter.UndoDeletePlaylist(m.undo.slot.deletePlaylistEntry.ID); err != nil {
+				slog.Warn("undo delete playlist failed", "err", err)
+			}
 		}
 		idx := min(m.undo.slot.deletePlaylistIdx, len(m.playlists.playlists))
 		playlists := make([]db.PlaylistRow, len(m.playlists.playlists)+1)
@@ -507,7 +504,9 @@ func (m Model) handleUndo() Model {
 		}
 	case undoKindRemovePlaylistTrack:
 		if m.playlistDeleter != nil {
-			_ = m.playlistDeleter.UndoRemovePlaylistTrack(m.undo.slot.removeTrackEntry.ID)
+			if err := m.playlistDeleter.UndoRemovePlaylistTrack(m.undo.slot.removeTrackEntry.ID); err != nil {
+				slog.Warn("undo remove playlist track failed", "err", err)
+			}
 		}
 		idx := min(m.undo.slot.removeTrackIdx, len(m.playlists.tracks))
 		tracks := make([]db.PlaylistTrackRow, len(m.playlists.tracks)+1)
@@ -521,12 +520,16 @@ func (m Model) handleUndo() Model {
 		}
 	case undoKindBatchEnqueue:
 		if m.batchEnqueuer != nil {
-			_ = m.batchEnqueuer.DequeueTracksSoft(m.undo.slot.batchIDs)
+			if err := m.batchEnqueuer.DequeueTracksSoft(m.undo.slot.batchIDs); err != nil {
+				slog.Warn("undo batch enqueue: soft-delete failed", "err", err)
+			}
 			if m.undoer != nil {
 				undoer := m.undoer
 				softDeleteTime := time.Now().Unix()
 				time.AfterFunc(undoWindowDuration, func() {
-					_ = undoer.PurgeDeletedQueueEntries(softDeleteTime + 1)
+					if err := undoer.PurgeDeletedQueueEntries(softDeleteTime + 1); err != nil {
+						slog.Warn("undo batch enqueue: purge failed", "err", err)
+					}
 				})
 			}
 		}
@@ -548,7 +551,9 @@ func (m Model) handleUndo() Model {
 		// Restore soft-deleted DB rows.
 		if m.undoer != nil {
 			for _, id := range m.undo.slot.bulkDequeueIDs {
-				_ = m.undoer.UndoDequeue(id)
+				if err := m.undoer.UndoDequeue(id); err != nil {
+					slog.Warn("undo bulk dequeue failed", "err", err)
+				}
 			}
 		}
 		// Re-insert entries at their original indices in forward order.
@@ -597,7 +602,9 @@ func (m Model) handleUndo() Model {
 		// Restore soft-deleted DB rows.
 		if m.playlistDeleter != nil {
 			for _, t := range m.undo.slot.bulkRemoveTrackEntries {
-				_ = m.playlistDeleter.UndoRemovePlaylistTrack(t.ID)
+				if err := m.playlistDeleter.UndoRemovePlaylistTrack(t.ID); err != nil {
+					slog.Warn("undo bulk remove playlist track failed", "err", err)
+				}
 			}
 		}
 		// Re-insert tracks at their original indices in forward order.
@@ -621,7 +628,9 @@ func (m Model) handleUndo() Model {
 		typ := m.undo.slot.removeFavType
 		value := m.undo.slot.removeFavValue
 		if m.favoriteWriter != nil {
-			_ = m.favoriteWriter.AddFavorite(typ, value)
+			if err := m.favoriteWriter.AddFavorite(typ, value); err != nil {
+				slog.Warn("undo remove favorite failed", "err", err)
+			}
 		}
 		// Restore in-memory hash set for tracks.
 		if typ == "track" && value != "" {
@@ -673,7 +682,9 @@ func (m Model) handleUndo() Model {
 		values := m.undo.slot.bulkRemoveFavValues
 		if m.favoriteWriter != nil {
 			for _, v := range values {
-				_ = m.favoriteWriter.AddFavorite(typ, v)
+				if err := m.favoriteWriter.AddFavorite(typ, v); err != nil {
+					slog.Warn("undo bulk remove favorite failed", "err", err)
+				}
 			}
 		}
 		// Restore in-memory hash set for tracks.

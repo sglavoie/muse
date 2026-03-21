@@ -2000,6 +2000,27 @@ func TestWriteRepeatMode_ValidModes(t *testing.T) {
 	}
 }
 
+// --- WriteVolume ---
+
+func TestWriteVolume(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	for _, pct := range []int{0, 50, 100, 130} {
+		if err := w.WriteVolume(pct); err != nil {
+			t.Fatalf("WriteVolume(%d): %v", pct, err)
+		}
+		var got float64
+		if err := d.QueryRow(`SELECT volume FROM session WHERE id=1`).Scan(&got); err != nil {
+			t.Fatalf("select volume: %v", err)
+		}
+		want := float64(pct) / 100.0
+		if got != want {
+			t.Errorf("volume = %v, want %v (pct=%d)", got, want, pct)
+		}
+	}
+}
+
 // --- PurgeDeletedPlaylists ---
 
 func TestPurgeDeletedPlaylists(t *testing.T) {

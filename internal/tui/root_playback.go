@@ -328,6 +328,9 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		if cp, ok := m.player.(commandPlayer); ok {
 			_ = cp.SetVolumeRelative(volumeIncrement)
 			m.playback.volume = clampVolume(m.playback.volume + volumeIncrement)
+			if m.sessionWriter != nil {
+				_ = m.sessionWriter.WriteVolume(m.playback.volume)
+			}
 			m.statusBar.notification = transientNotification{
 				msg:       fmt.Sprintf("Volume: %d%%", m.playback.volume),
 				expiresAt: time.Now().Add(volumeFeedbackDuration),
@@ -338,6 +341,9 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		if cp, ok := m.player.(commandPlayer); ok {
 			_ = cp.SetVolumeRelative(-volumeIncrement)
 			m.playback.volume = clampVolume(m.playback.volume - volumeIncrement)
+			if m.sessionWriter != nil {
+				_ = m.sessionWriter.WriteVolume(m.playback.volume)
+			}
 			m.statusBar.notification = transientNotification{
 				msg:       fmt.Sprintf("Volume: %d%%", m.playback.volume),
 				expiresAt: time.Now().Add(volumeFeedbackDuration),

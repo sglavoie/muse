@@ -129,8 +129,8 @@ func (s *stubVolumePlayer) SetVolumeRelative(delta float64) error {
 	return nil
 }
 
-// stubSessionWriter records WriteRepeatMode, WriteShuffle, and
-// UpdateSessionPosition calls for assertion in tests.
+// stubSessionWriter records WriteRepeatMode, WriteShuffle,
+// UpdateSessionPosition, and WriteVolume calls for assertion in tests.
 type stubSessionWriter struct {
 	calls         []string
 	shuffleCalls  []bool
@@ -138,6 +138,7 @@ type stubSessionWriter struct {
 		hash       string
 		positionMs int64
 	}
+	volumeCalls []int
 }
 
 func (s *stubSessionWriter) WriteRepeatMode(mode string) error {
@@ -155,6 +156,11 @@ func (s *stubSessionWriter) UpdateSessionPosition(hash string, positionMs int64)
 		hash       string
 		positionMs int64
 	}{hash, positionMs})
+	return nil
+}
+
+func (s *stubSessionWriter) WriteVolume(volume int) error {
+	s.volumeCalls = append(s.volumeCalls, volume)
 	return nil
 }
 

@@ -41,6 +41,10 @@ type RestoredSession struct {
 
 	// PositionMs is the elapsed playback position in milliseconds.
 	PositionMs int64
+
+	// Volume is the last-saved volume percentage (0–130).
+	// Zero means no volume was persisted; callers should fall back to default.
+	Volume int
 }
 
 // Deps holds injectable operations for the startup sequence. The LaunchMPV
@@ -316,11 +320,13 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 	var shuffle bool
 	var currentHash string
 	var positionMs int64
+	var volume int
 	if sess != nil {
 		repeatMode = parseRepeatMode(sess.RepeatMode)
 		shuffle = sess.Shuffle
 		currentHash = sess.CurrentHash
 		positionMs = sess.PositionMs
+		volume = int(sess.Volume * 100)
 	}
 
 	return &RestoredSession{
@@ -330,6 +336,7 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 		Shuffle:      shuffle,
 		CurrentHash:  currentHash,
 		PositionMs:   positionMs,
+		Volume:       volume,
 	}, nil
 }
 

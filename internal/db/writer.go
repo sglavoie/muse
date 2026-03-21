@@ -30,12 +30,14 @@ const (
 )
 
 // Compile-time check: *Writer must satisfy the sessionWriter interface
-// used by the TUI layer (WriteRepeatMode, WriteShuffle, UpdateSessionPosition).
-// This catches method-signature drift without requiring a runtime assignment.
+// used by the TUI layer (WriteRepeatMode, WriteShuffle, UpdateSessionPosition,
+// WriteVolume). This catches method-signature drift without requiring a runtime
+// assignment.
 var _ interface {
 	WriteRepeatMode(mode string) error
 	WriteShuffle(enabled bool) error
 	UpdateSessionPosition(hash string, positionMs int64) error
+	WriteVolume(volume int) error
 } = (*Writer)(nil)
 
 // Compile-time check: *Writer must implement UpsertBatch so that the
@@ -578,6 +580,19 @@ func (w *Writer) UpdateSessionPosition(hash string, positionMs int64) error {
 		_, err := db.Exec(
 			`UPDATE session SET current_hash=?, position_ms=?, updated_at=? WHERE id=1`,
 			hashArg, positionMs, time.Now().Unix(),
+		)
+		return err
+	})
+}
+
+// WriteVolume persists the volume percentage to the single session row.
+// volume is an integer percentage (0–130) that is converted to a float
+// (0.0–1.3) for storage in the DB volume column.
+func (w *Writer) WriteVolume(volume int) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(
+			`UPDATE session SET volume = ?, updated_at = ? WHERE id = 1`,
+			float64(volume)/100.0, time.Now().Unix(),
 		)
 		return err
 	})

@@ -77,7 +77,11 @@ func ApplyRestoredSession(
 		}
 	}
 	tui.WithShuffle(restored.Shuffle)(model)
-	tui.WithVolume(defaultVolume)(model)
+	vol := restored.Volume
+	if vol <= 0 {
+		vol = defaultVolume
+	}
+	tui.WithVolume(vol)(model)
 
 	// Propagate restored repeat/shuffle modes into mpv so its behaviour
 	// matches the status bar indicators from the first user interaction.

@@ -160,3 +160,25 @@ func TestApplyRestoredSession_DeletedPathsEvicted(t *testing.T) {
 		}
 	}
 }
+
+func TestApplyRestoredSession_VolumeRestored(t *testing.T) {
+	mgr := &mockPlayer{}
+	sw := &mockShuffleWriter{}
+	pr := &mockPlaylistReader{}
+
+	// When restored.Volume > 0 it should be applied instead of defaultVolume.
+	model := tui.New(context.Background())
+	restored := &app.RestoredSession{Volume: 70}
+	app.ApplyRestoredSession(&model, mgr, restored, sw, pr, nil, nil, nil, 50)
+	if model.Volume() != 70 {
+		t.Errorf("restored volume: got %d, want 70", model.Volume())
+	}
+
+	// When restored.Volume == 0 the defaultVolume should be used.
+	model2 := tui.New(context.Background())
+	restored2 := &app.RestoredSession{Volume: 0}
+	app.ApplyRestoredSession(&model2, mgr, restored2, sw, pr, nil, nil, nil, 50)
+	if model2.Volume() != 50 {
+		t.Errorf("default volume fallback: got %d, want 50", model2.Volume())
+	}
+}

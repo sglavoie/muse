@@ -311,6 +311,9 @@ func WithVolume(v int) Option {
 	return func(m *Model) { m.playback.volume = clampVolume(v) }
 }
 
+// Volume returns the current volume level as an integer percentage.
+func (m Model) Volume() int { return m.playback.volume }
+
 // WithPlaybackState pre-sets the playback state.
 func WithPlaybackState(state PlaybackState) Option {
 	return func(m *Model) { m.playback.state = state }

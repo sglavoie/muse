@@ -145,13 +145,15 @@ type playlistTrackAdder interface {
 }
 
 // sessionWriter is implemented by db.Writer. Root calls WriteRepeatMode after
-// each actionRepeatCycle, WriteShuffle after each actionShuffleToggle, and
-// UpdateSessionPosition on pause, seek, and track-change events to persist
-// state changes to the session table via the single-writer goroutine.
+// each actionRepeatCycle, WriteShuffle after each actionShuffleToggle,
+// UpdateSessionPosition on pause, seek, and track-change events, and
+// WriteVolume after each volume change to persist state changes to the session
+// table via the single-writer goroutine.
 type sessionWriter interface {
 	WriteRepeatMode(mode string) error
 	WriteShuffle(enabled bool) error
 	UpdateSessionPosition(hash string, positionMs int64) error
+	WriteVolume(volume int) error
 }
 
 // metadataUpdater persists user-edited metadata to the database.

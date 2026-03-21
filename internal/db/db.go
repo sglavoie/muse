@@ -68,6 +68,7 @@ type SessionRow struct {
 	Shuffle     bool
 	CurrentHash string
 	PositionMs  int64
+	Volume      float64
 }
 
 // DB wraps sql.DB with muse-specific setup.
@@ -139,9 +140,9 @@ func (d *DB) ReadSession() (*SessionRow, error) {
 	var currentHash sql.NullString
 	var shuffle int
 	err := d.QueryRow(`
-		SELECT repeat_mode, shuffle, current_hash, position_ms
+		SELECT repeat_mode, shuffle, current_hash, position_ms, volume
 		FROM session WHERE id = 1
-	`).Scan(&r.RepeatMode, &shuffle, &currentHash, &r.PositionMs)
+	`).Scan(&r.RepeatMode, &shuffle, &currentHash, &r.PositionMs, &r.Volume)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}

@@ -150,6 +150,38 @@ func TestRepeatCycleCallsWriteRepeatMode(t *testing.T) {
 	}
 }
 
+// TestVolumeUpDownCallsWriteVolume verifies that pressing '=' (volume up) and
+// '-' (volume down) each call sessionWriter.WriteVolume with the updated
+// volume percentage.
+func TestVolumeUpDownCallsWriteVolume(t *testing.T) {
+	p := &stubVolumePlayer{}
+	sw := &stubSessionWriter{}
+	m := New(context.Background(), WithPlayer(p), WithSessionWriter(sw))
+	m.playback.volume = 50
+
+	// Press '=' — volume up by volumeIncrement (5).
+	next, _ := m.Update(tea.KeyPressMsg{Code: '=', Text: "="})
+	nm := next.(Model)
+
+	if len(sw.volumeCalls) != 1 {
+		t.Fatalf("volume up: expected 1 WriteVolume call, got %d", len(sw.volumeCalls))
+	}
+	if sw.volumeCalls[0] != nm.playback.volume {
+		t.Errorf("volume up: WriteVolume(%d), model volume %d", sw.volumeCalls[0], nm.playback.volume)
+	}
+
+	// Press '-' — volume down by volumeIncrement (5).
+	next, _ = nm.Update(tea.KeyPressMsg{Code: '-', Text: "-"})
+	nm = next.(Model)
+
+	if len(sw.volumeCalls) != 2 {
+		t.Fatalf("volume down: expected 2 WriteVolume calls, got %d", len(sw.volumeCalls))
+	}
+	if sw.volumeCalls[1] != nm.playback.volume {
+		t.Errorf("volume down: WriteVolume(%d), model volume %d", sw.volumeCalls[1], nm.playback.volume)
+	}
+}
+
 // TestZTogglesShuffleGlobal verifies that pressing 'z' toggles the shuffle
 // field on the root model.
 func TestZTogglesShuffleGlobal(t *testing.T) {
