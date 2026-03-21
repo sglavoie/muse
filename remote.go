@@ -51,21 +51,26 @@ func startCommandListener(p *tea.Program, runtimeDir string) (net.Listener, erro
 		return nil, fmt.Errorf("listen on control socket: %w", err)
 	}
 
-	go func() {
-		for {
-			conn, err := ln.Accept()
-			if err != nil {
-				if errors.Is(err, net.ErrClosed) {
-					return
-				}
-				slog.Warn("control socket accept error", "err", err)
-				return
-			}
-			go handleRemoteConn(p, conn)
-		}
-	}()
+	go acceptLoop(p, ln)
 
 	return ln, nil
+}
+
+// acceptLoop runs the accept loop for a command listener. It exits cleanly
+// when ln is closed (net.ErrClosed) and continues on transient errors.
+func acceptLoop(p *tea.Program, ln net.Listener) {
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				return
+			}
+			slog.Warn("control socket accept error", "err", err)
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		go handleRemoteConn(p, conn)
+	}
 }
 
 // handleRemoteConn reads newline-delimited action names from a single

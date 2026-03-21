@@ -1791,3 +1791,79 @@ func TestManager_SetQueue_KeepsCurrentIndexWhenValid(t *testing.T) {
 		t.Errorf("currentIndex = %d, want 1 (unchanged)", idx)
 	}
 }
+
+// TestManager_EventReaderBlocksOnCallbacksReady verifies that startEventReader
+// does not dispatch track-changed events until SetCallbacksReady is called.
+func TestManager_EventReaderBlocksOnCallbacksReady(t *testing.T) {
+	sock := shortSockPath(t, "ev-ready")
+
+	// connDone is closed by the test to let the fake server goroutine exit.
+	connDone := make(chan struct{})
+	// eventSent is closed once the fake server has written the start-file event.
+	eventSent := make(chan struct{})
+
+	os.Remove(sock)
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { ln.Close(); os.Remove(sock) })
+
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		// Send a start-file event immediately (observe_property request from
+		// the event reader is buffered on the client side; we don't need to
+		// ACK it for the test to work).
+		_, _ = conn.Write([]byte(`{"event":"start-file"}` + "\n"))
+		close(eventSent)
+		// Hold the connection open until the test is done.
+		<-connDone
+	}()
+	defer close(connDone)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	trackFired := make(chan struct{}, 1)
+	m := &Manager{
+		socketPath:     sock,
+		ctx:            ctx,
+		cancel:         cancel,
+		callbacksReady: make(chan struct{}),
+		queue:          []QueueTrack{{Path: "/a.flac", Hash: "h0", Artist: "Art", Title: "Tit"}},
+		currentIndex:   0,
+		trackChangedFn: func(_, _, _, _ string) { trackFired <- struct{}{} },
+	}
+
+	go m.startEventReader(ctx)
+
+	// Wait for the fake server to confirm the event has been sent.
+	select {
+	case <-eventSent:
+	case <-time.After(2 * time.Second):
+		t.Fatal("fake server did not send start-file event in time")
+	}
+
+	// The callback must NOT have fired yet because callbacksReady is not closed.
+	select {
+	case <-trackFired:
+		t.Fatal("trackChangedFn fired before SetCallbacksReady was called")
+	case <-time.After(100 * time.Millisecond):
+		// correct: event reader is still blocked
+	}
+
+	// Signal that all callbacks are wired.
+	m.SetCallbacksReady()
+
+	// Now the event reader unblocks and processes the buffered start-file event.
+	select {
+	case <-trackFired:
+		// correct
+	case <-time.After(2 * time.Second):
+		t.Fatal("trackChangedFn did not fire after SetCallbacksReady")
+	}
+}

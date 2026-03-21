@@ -22,9 +22,49 @@ import (
 // Version is set at build time via -ldflags "-X main.Version=x.y.z".
 var Version = "dev"
 
+// runCheck validates the muse configuration and prerequisites without
+// launching the full TUI. It prints warnings and errors to stderr and returns
+// 0 on success or 1 if any check fails.
+func runCheck() int {
+	dirs, err := config.ResolveDirs()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: resolve dirs: %v\n", err)
+		return 1
+	}
+
+	cfg, _, warnings, err := config.Load(dirs.Config)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
+		return 1
+	}
+
+	for _, w := range warnings {
+		fmt.Fprintf(os.Stderr, "warning: %s\n", w)
+	}
+
+	exitCode := 0
+
+	configPath := config.ConfigPath(dirs.Config)
+	if err := config.ValidateMusicDir(cfg.MusicDirectory, configPath); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		exitCode = 1
+	}
+
+	if err := config.CheckPrereqs(context.Background()); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		exitCode = 1
+	}
+
+	if exitCode == 0 {
+		fmt.Println("ok")
+	}
+	return exitCode
+}
+
 func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: muse [command] [flags]\n\nCommands:\n")
+		fmt.Fprintf(os.Stderr, "  check         Validate config and prerequisites, then exit\n")
 		fmt.Fprintf(os.Stderr, "  toggle-play   Toggle play/pause on the running instance\n")
 		fmt.Fprintf(os.Stderr, "  next          Skip to the next track\n")
 		fmt.Fprintf(os.Stderr, "  previous      Skip to the previous track\n")
@@ -47,6 +87,10 @@ func main() {
 	}
 
 	// Handle subcommands before flag parsing.
+	if len(os.Args) > 1 && os.Args[1] == "check" {
+		os.Exit(runCheck())
+	}
+
 	if len(os.Args) > 1 {
 		if _, ok := knownActions[os.Args[1]]; ok {
 			if err := runRemoteAction(os.Args[1]); err != nil {
@@ -235,6 +279,7 @@ func main() {
 		p.Send(tui.PlayerDisconnectedMsg{})
 	})
 	mgr.SetMissingMarker(result.Writer)
+	mgr.SetCallbacksReady()
 
 	// Listen for remote commands on a Unix domain socket.
 	ctrlListener, err := startCommandListener(p, dirs.Runtime)
