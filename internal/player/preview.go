@@ -139,7 +139,7 @@ func (p *PreviewPlayer) Close() error {
 	p.cancel()
 
 	if p.client != nil {
-		_ = p.client.Close()
+		_ = p.client.Close() // best-effort; subprocess is about to be killed
 		p.client = nil
 	}
 	if p.cmd != nil && p.cmd.Process != nil {

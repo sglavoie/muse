@@ -34,6 +34,7 @@ type IPCClient struct {
 	conn    net.Conn
 	reader  *bufio.Reader
 	counter uint64
+	closed  bool
 }
 
 // NewIPCClient dials the given Unix domain socket and returns a ready client.
@@ -48,8 +49,13 @@ func NewIPCClient(socketPath string) (*IPCClient, error) {
 	}, nil
 }
 
-// Close closes the underlying connection.
+// Close closes the underlying connection. It sets a closed flag under the
+// mutex so that in-flight SendCommand calls see the closure, then closes the
+// connection outside the lock to unblock any reader blocked on ReadBytes.
 func (c *IPCClient) Close() error {
+	c.mu.Lock()
+	c.closed = true
+	c.mu.Unlock()
 	return c.conn.Close()
 }
 
@@ -61,6 +67,10 @@ func (c *IPCClient) Close() error {
 func (c *IPCClient) SendCommand(args ...any) (*ipcResponse, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	if c.closed {
+		return nil, fmt.Errorf("ipc: connection closed")
+	}
 
 	c.counter++
 	id := c.counter
