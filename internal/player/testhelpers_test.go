@@ -89,6 +89,31 @@ func handleConn(conn net.Conn, handler responseHandler) {
 	}
 }
 
+// silentServer starts a fake server that accepts connections but never writes
+// anything, simulating a hung mpv process for timeout testing.
+func silentServer(t *testing.T, socketPath string) {
+	t.Helper()
+	os.Remove(socketPath)
+	ln, err := net.Listen("unix", socketPath)
+	if err != nil {
+		t.Fatalf("silentServer: listen: %v", err)
+	}
+	t.Cleanup(func() {
+		ln.Close()
+		os.Remove(socketPath)
+	})
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			// Hold the connection open but never write anything.
+			t.Cleanup(func() { conn.Close() })
+		}
+	}()
+}
+
 // newTestClient starts a fake success server and returns a connected IPCClient.
 // Both the client and the listener are closed via t.Cleanup.
 func newTestClient(t *testing.T) *IPCClient {

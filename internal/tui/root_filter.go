@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"time"
-
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/tui/filter"
@@ -108,10 +106,7 @@ func (m Model) allFilterOps() *filterOps {
 func (m Model) handleFilterBarMsg() Model {
 	ops := m.allFilterOps()
 	if ops == nil {
-		m.statusBar.notification = transientNotification{
-			msg:       "Filter not available in this view",
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification("Filter not available in this view")
 		return m
 	}
 	if ops.isActive() {

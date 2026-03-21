@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestSendCommand_LoadFile(t *testing.T) {
@@ -118,6 +119,27 @@ func TestSendCommand_DebugLogsIPCWireMessages(t *testing.T) {
 	}
 	if !strings.Contains(out, "ipc recv") {
 		t.Errorf("expected 'ipc recv' in debug log, got:\n%s", out)
+	}
+}
+
+func TestSendCommand_ReturnsTimeoutWhenMPVHangs(t *testing.T) {
+	// Use a very short timeout so the test doesn't take 5 seconds.
+	prev := ipcReadTimeout
+	ipcReadTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { ipcReadTimeout = prev })
+
+	sock := shortSockPath(t, "mpv-hang")
+	silentServer(t, sock)
+
+	client, err := NewIPCClient(sock)
+	if err != nil {
+		t.Fatalf("NewIPCClient: %v", err)
+	}
+	defer client.Close()
+
+	_, err = client.SendCommand("loadfile", "/tmp/track.flac", "replace")
+	if err == nil {
+		t.Fatal("expected timeout error, got nil")
 	}
 }
 

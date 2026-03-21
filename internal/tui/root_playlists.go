@@ -141,10 +141,7 @@ func (m Model) handlePlaylistCreateInput(msg tea.KeyPressMsg) (Model, tea.Cmd, b
 		if !m.playlists.createInputIsEmpty() {
 			name := m.playlists.createInputValue()
 			if playlistNameExists(m.playlists.playlists, name, 0) {
-				m.statusBar.notification = transientNotification{
-					msg:       "A playlist with that name already exists",
-					expiresAt: time.Now().Add(transientDuration),
-				}
+				m.statusBar.notification = newNotification("A playlist with that name already exists")
 				return m, nil, true
 			}
 			if m.playlistWriter != nil {
@@ -195,10 +192,7 @@ func (m Model) handlePlaylistRenameInput(msg tea.KeyPressMsg) (Model, tea.Cmd, b
 				return m, nil, true
 			}
 			if playlistNameExists(m.playlists.playlists, name, pl.ID) {
-				m.statusBar.notification = transientNotification{
-					msg:       "A playlist with that name already exists",
-					expiresAt: time.Now().Add(transientDuration),
-				}
+				m.statusBar.notification = newNotification("A playlist with that name already exists")
 				return m, nil, true
 			}
 			if m.playlistRenamer != nil {
@@ -244,10 +238,7 @@ func (m Model) handleQueueSaveInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) 
 		if !m.queue.saveInputIsEmpty() {
 			name := m.queue.saveInputValue()
 			if playlistNameExists(m.playlists.playlists, name, 0) {
-				m.statusBar.notification = transientNotification{
-					msg:       "A playlist with that name already exists",
-					expiresAt: time.Now().Add(transientDuration),
-				}
+				m.statusBar.notification = newNotification("A playlist with that name already exists")
 				return m, nil, true
 			}
 			if m.playlistWriter != nil {
@@ -305,10 +296,7 @@ func (m Model) handlePlaylistTracksLoadedMsg(msg playlistTracksLoadedMsg) Model 
 // handlePlaylistTracksLoadErrorMsg shows a transient error notification for
 // a failed playlist track load.
 func (m Model) handlePlaylistTracksLoadErrorMsg(msg playlistTracksLoadErrorMsg) Model {
-	m.statusBar.notification = transientNotification{
-		msg:       "Failed to load playlist: " + msg.err.Error(),
-		expiresAt: time.Now().Add(transientDuration),
-	}
+	m.statusBar.notification = newNotification("Failed to load playlist: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
 }
@@ -343,10 +331,7 @@ func (m Model) handlePlaylistRenamedMsg(msg playlistRenamedMsg) Model {
 // error notification.
 func (m Model) handlePlaylistRenameErrorMsg(msg playlistRenameErrorMsg) Model {
 	m.playlists = m.playlists.cancelRename()
-	m.statusBar.notification = transientNotification{
-		msg:       "Failed to rename playlist: " + msg.err.Error(),
-		expiresAt: time.Now().Add(transientDuration),
-	}
+	m.statusBar.notification = newNotification("Failed to rename playlist: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
 }
@@ -414,10 +399,7 @@ func (m Model) handlePlaylistCreatedMsg(msg playlistCreatedMsg) (Model, tea.Cmd)
 // error notification.
 func (m Model) handlePlaylistCreateErrorMsg(msg playlistCreateErrorMsg) Model {
 	m.playlists = m.playlists.cancelCreate()
-	m.statusBar.notification = transientNotification{
-		msg:       "Failed to create playlist: " + msg.err.Error(),
-		expiresAt: time.Now().Add(transientDuration),
-	}
+	m.statusBar.notification = newNotification("Failed to create playlist: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
 }
@@ -432,10 +414,7 @@ func (m Model) handleQueueSavedAsPlaylistMsg(msg queueSavedAsPlaylistMsg) Model 
 	if msg.fromSelection {
 		source = "selection"
 	}
-	m.statusBar.notification = transientNotification{
-		msg:       fmt.Sprintf("Saved %s as %q (%d %s)", source, msg.playlistName, msg.count, pluralize(msg.count, "track", "tracks")),
-		expiresAt: time.Now().Add(transientDuration),
-	}
+	m.statusBar.notification = newNotification(fmt.Sprintf("Saved %s as %q (%d %s)", source, msg.playlistName, msg.count, pluralize(msg.count, "track", "tracks")))
 	player.PlaySound(player.SoundEnqueued)
 	return m
 }
@@ -444,20 +423,14 @@ func (m Model) handleQueueSavedAsPlaylistMsg(msg queueSavedAsPlaylistMsg) Model 
 // an error notification.
 func (m Model) handleQueueSaveAsPlaylistErrorMsg(msg queueSaveAsPlaylistErrorMsg) Model {
 	m.queue = m.queue.cancelSaveAsPlaylist()
-	m.statusBar.notification = transientNotification{
-		msg:       "Failed to save queue as playlist: " + msg.err.Error(),
-		expiresAt: time.Now().Add(transientDuration),
-	}
+	m.statusBar.notification = newNotification("Failed to save queue as playlist: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
 }
 
 // handlePlaylistAddErrorMsg shows an error notification for a failed track add.
 func (m Model) handlePlaylistAddErrorMsg(msg playlistAddErrorMsg) Model {
-	m.statusBar.notification = transientNotification{
-		msg:       "Failed to add tracks: " + msg.err.Error(),
-		expiresAt: time.Now().Add(transientDuration),
-	}
+	m.statusBar.notification = newNotification("Failed to add tracks: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
 }
@@ -469,10 +442,7 @@ func (m Model) handleTracksAddedToPlaylistMsg(msg tracksAddedToPlaylistMsg) Mode
 		m.playlists.playlists = msg.playlists
 		m = m.resetPlaylistsSort()
 	}
-	m.statusBar.notification = transientNotification{
-		msg:       fmt.Sprintf("%d %s added to %s", msg.count, pluralize(msg.count, "track", "tracks"), msg.playlistName),
-		expiresAt: time.Now().Add(transientDuration),
-	}
+	m.statusBar.notification = newNotification(fmt.Sprintf("%d %s added to %s", msg.count, pluralize(msg.count, "track", "tracks"), msg.playlistName))
 	player.PlaySound(player.SoundEnqueued)
 	return m
 }

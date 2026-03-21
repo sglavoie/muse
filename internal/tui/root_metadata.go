@@ -71,10 +71,7 @@ func (m Model) handleMetadataKeyAction(a action) (Model, tea.Cmd, bool) {
 	// Single-track path.
 	track, ok := m.focusedTrackForPreview()
 	if !ok {
-		m.statusBar.notification = transientNotification{
-			msg:       "No track to edit",
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification("No track to edit")
 		return m, nil, true
 	}
 	// Enrich with album from index if missing (Queue/Playlists case).
@@ -152,10 +149,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 	m.overlay.metadataEditor = nil
 
 	if dirtyTitle == nil && dirtyArtist == nil && dirtyAlbum == nil {
-		m.statusBar.notification = transientNotification{
-			msg:       "No changes",
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification("No changes")
 		return m, nil
 	}
 

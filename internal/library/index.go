@@ -9,6 +9,15 @@ const unknownArtist = "Unknown Artist"
 // The soft upper bound is 50,000 tracks.
 type LibraryIndex struct {
 	tracks []Track
+	byHash map[string]int // hash → index in tracks slice
+}
+
+// rebuildHashMap rebuilds the byHash map from the current tracks slice.
+func (idx *LibraryIndex) rebuildHashMap() {
+	idx.byHash = make(map[string]int, len(idx.tracks))
+	for i, t := range idx.tracks {
+		idx.byHash[t.Hash] = i
+	}
 }
 
 // Len returns the number of tracks in the index.
@@ -60,6 +69,7 @@ func (idx *LibraryIndex) Insert(t Track) {
 	idx.tracks = append(idx.tracks, Track{})
 	copy(idx.tracks[pos+1:], idx.tracks[pos:])
 	idx.tracks[pos] = t
+	idx.rebuildHashMap()
 }
 
 // BulkLoad replaces the index contents with the given tracks and sorts once.
@@ -71,6 +81,7 @@ func (idx *LibraryIndex) BulkLoad(tracks []Track) {
 	sort.Slice(idx.tracks, func(i, j int) bool {
 		return less(idx.tracks[i], idx.tracks[j])
 	})
+	idx.rebuildHashMap()
 }
 
 // RemoveByPath removes the first track whose Path equals path.
@@ -79,6 +90,7 @@ func (idx *LibraryIndex) RemoveByPath(path string) bool {
 	for i, t := range idx.tracks {
 		if t.Path == path {
 			idx.tracks = append(idx.tracks[:i], idx.tracks[i+1:]...)
+			idx.rebuildHashMap()
 			return true
 		}
 	}
@@ -92,13 +104,11 @@ func (idx *LibraryIndex) UpsertByPath(path string, t Track) {
 	idx.Insert(t)
 }
 
-// FindByHash returns the first track whose Hash equals hash.
+// FindByHash returns the track whose Hash equals hash.
 // Returns the track and true if found, or a zero Track and false otherwise.
 func (idx *LibraryIndex) FindByHash(hash string) (Track, bool) {
-	for _, t := range idx.tracks {
-		if t.Hash == hash {
-			return t, true
-		}
+	if i, ok := idx.byHash[hash]; ok && i < len(idx.tracks) {
+		return idx.tracks[i], true
 	}
 	return Track{}, false
 }

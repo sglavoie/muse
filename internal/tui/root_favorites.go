@@ -529,10 +529,7 @@ func loadFavoriteTrackHashes(reader favoriteReader) map[string]struct{} {
 // handleFavoriteToggledMsg processes the result of a favorite toggle operation.
 func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 	if msg.err != nil {
-		m.statusBar.notification = transientNotification{
-			msg:       fmt.Sprintf("Favorite error: %v", msg.err),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(fmt.Sprintf("Favorite error: %v", msg.err))
 		return m
 	}
 
@@ -576,10 +573,7 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 			}, note+" — press u to undo")
 		}
 	} else {
-		m.statusBar.notification = transientNotification{
-			msg:       note,
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(note)
 	}
 
 	// Update the in-memory favorite hash set for track toggles.
@@ -702,10 +696,7 @@ func insertTrackAt(tracks []library.Track, idx int, t library.Track) []library.T
 // handleFavoritesLoadedMsg processes the result of loading favorites for a category.
 func (m Model) handleFavoritesLoadedMsg(msg favoritesLoadedMsg) Model {
 	if msg.err != nil {
-		m.statusBar.notification = transientNotification{
-			msg:       fmt.Sprintf("Failed to load favorites: %v", msg.err),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(fmt.Sprintf("Failed to load favorites: %v", msg.err))
 		return m
 	}
 

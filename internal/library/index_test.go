@@ -397,6 +397,77 @@ func TestUpdateMetadata_NotFound(t *testing.T) {
 	}
 }
 
+// --- Hash map consistency ---
+
+func TestHashMapConsistency(t *testing.T) {
+	var idx LibraryIndex
+
+	// Insert: hash map must reflect new entry.
+	idx.Insert(Track{Hash: "h1", Artist: "A", Title: "t1", Path: "/a.flac"})
+	idx.Insert(Track{Hash: "h2", Artist: "B", Title: "t2", Path: "/b.flac"})
+	idx.Insert(Track{Hash: "h3", Artist: "C", Title: "t3", Path: "/c.flac"})
+
+	for _, h := range []string{"h1", "h2", "h3"} {
+		if _, ok := idx.FindByHash(h); !ok {
+			t.Errorf("after Insert: hash %q not found", h)
+		}
+	}
+
+	// Remove: removed hash must no longer be found.
+	idx.RemoveByPath("/b.flac")
+	if _, ok := idx.FindByHash("h2"); ok {
+		t.Error("after RemoveByPath: removed hash h2 still found")
+	}
+	if _, ok := idx.FindByHash("h1"); !ok {
+		t.Error("after RemoveByPath: h1 should still be found")
+	}
+
+	// UpdateMetadata: updated hash still findable, fields updated.
+	idx.UpdateMetadata("h1", "NewTitle", "NewArtist", "NewAlbum")
+	got, ok := idx.FindByHash("h1")
+	if !ok {
+		t.Fatal("after UpdateMetadata: h1 not found")
+	}
+	if got.Title != "NewTitle" || got.Artist != "NewArtist" || got.Album != "NewAlbum" {
+		t.Errorf("after UpdateMetadata: got %+v", got)
+	}
+
+	// BulkLoad: map rebuilt from scratch.
+	bulk := []Track{
+		{Hash: "x1", Artist: "X", Title: "t1"},
+		{Hash: "x2", Artist: "Y", Title: "t2"},
+	}
+	idx.BulkLoad(bulk)
+	for _, h := range []string{"x1", "x2"} {
+		if _, ok := idx.FindByHash(h); !ok {
+			t.Errorf("after BulkLoad: hash %q not found", h)
+		}
+	}
+	// Old hashes must be gone.
+	if _, ok := idx.FindByHash("h1"); ok {
+		t.Error("after BulkLoad: stale hash h1 still found")
+	}
+}
+
+func TestFindByHash_AfterRemove(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "a", Artist: "A", Title: "t1", Path: "/a.flac"})
+	idx.Insert(Track{Hash: "b", Artist: "B", Title: "t2", Path: "/b.flac"})
+	idx.Insert(Track{Hash: "c", Artist: "C", Title: "t3", Path: "/c.flac"})
+
+	idx.RemoveByPath("/b.flac")
+
+	if _, ok := idx.FindByHash("b"); ok {
+		t.Error("removed hash b should not be found")
+	}
+	if _, ok := idx.FindByHash("a"); !ok {
+		t.Error("hash a should still be found after removing b")
+	}
+	if _, ok := idx.FindByHash("c"); !ok {
+		t.Error("hash c should still be found after removing b")
+	}
+}
+
 func TestLibraryIndex_MemoryUnder25MB(t *testing.T) {
 	const n = 50_000
 

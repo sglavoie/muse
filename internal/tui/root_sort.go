@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
@@ -44,10 +43,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		if m.library.filter.Text != "" {
 			m.library = m.library.rebuildFilterCache()
 		}
-		m.statusBar.notification = transientNotification{
-			msg:       sortNotification(m.library.sortState),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(sortNotification(m.library.sortState))
 		return m, nil, true
 
 	case viewQueue:
@@ -62,10 +58,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.queue = m.queue.recomputeDisplayOrder()
 		m.queue.cursor = 0
 		m.queue.scrollOffset = 0
-		m.statusBar.notification = transientNotification{
-			msg:       sortNotification(m.queue.sortState),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(sortNotification(m.queue.sortState))
 		return m, nil, true
 
 	case viewPlaylists:
@@ -84,10 +77,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.playlists = m.playlists.recomputePlaylistSort()
 		m.playlists.cursor = 0
 		m.playlists.scrollOffset = 0
-		m.statusBar.notification = transientNotification{
-			msg:       sortNotification(m.playlists.sortState),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(sortNotification(m.playlists.sortState))
 		return m, nil, true
 
 	case viewArtists:
@@ -100,10 +90,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.artists = m.artists.recomputeArtistsSort()
 		m.artists.cursor = 0
 		m.artists.scrollOffset = 0
-		m.statusBar.notification = transientNotification{
-			msg:       sortNotification(m.artists.sortState),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(sortNotification(m.artists.sortState))
 		return m, nil, true
 
 	case viewAlbums:
@@ -116,10 +103,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.albums = m.albums.recomputeAlbumsSort()
 		m.albums.cursor = 0
 		m.albums.scrollOffset = 0
-		m.statusBar.notification = transientNotification{
-			msg:       sortNotification(m.albums.sortState),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(sortNotification(m.albums.sortState))
 		return m, nil, true
 
 	case viewFavorites:
@@ -135,10 +119,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.favorites = m.favorites.recomputeFavoritesSort()
 		m.favorites.cursor = 0
 		m.favorites.scrollOffset = 0
-		m.statusBar.notification = transientNotification{
-			msg:       sortNotification(m.favorites.sortState),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(sortNotification(m.favorites.sortState))
 		return m, nil, true
 
 	default:
@@ -165,10 +146,7 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 		}
 		m.library.cursor = m.library.findTrackPosition(focusedHash)
 		m.library.scrollOffset = adjustScroll(m.library.cursor, m.library.scrollOffset, layout.VisibleRows(m.library.height, 1))
-		m.statusBar.notification = transientNotification{
-			msg:       sortNotification(m.library.sortState),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(sortNotification(m.library.sortState))
 		return m, nil, true
 
 	case viewQueue:
@@ -180,10 +158,7 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 		m.queue = m.queue.recomputeDisplayOrder()
 		m.queue.cursor = m.queue.findEntryDisplayPosition(prevEntryIdx)
 		m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, layout.VisibleRows(m.queue.height, 2))
-		m.statusBar.notification = transientNotification{
-			msg:       sortNotification(m.queue.sortState),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(sortNotification(m.queue.sortState))
 		return m, nil, true
 
 	case viewPlaylists:
@@ -191,10 +166,7 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 			return m, nil, false
 		}
 		m = m.preservePlaylistCursorOnDirChange(SortAsc)
-		m.statusBar.notification = transientNotification{
-			msg:       sortNotification(m.playlists.sortState),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(sortNotification(m.playlists.sortState))
 		return m, nil, true
 
 	case viewArtists:
@@ -202,10 +174,7 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 			return m, nil, false
 		}
 		m = m.preserveArtistsCursorOnDirChange(SortAsc)
-		m.statusBar.notification = transientNotification{
-			msg:       sortNotification(m.artists.sortState),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(sortNotification(m.artists.sortState))
 		return m, nil, true
 
 	case viewAlbums:
@@ -213,10 +182,7 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 			return m, nil, false
 		}
 		m = m.preserveAlbumsCursorOnDirChange(SortAsc)
-		m.statusBar.notification = transientNotification{
-			msg:       sortNotification(m.albums.sortState),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(sortNotification(m.albums.sortState))
 		return m, nil, true
 
 	case viewFavorites:
@@ -224,10 +190,7 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 			return m, nil, false
 		}
 		m = m.preserveFavoritesCursorOnDirChange(SortAsc)
-		m.statusBar.notification = transientNotification{
-			msg:       sortNotification(m.favorites.sortState),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(sortNotification(m.favorites.sortState))
 		return m, nil, true
 
 	default:
@@ -252,10 +215,7 @@ func (m Model) handleSortDescOrPageDown() (tea.Model, tea.Cmd, bool) {
 			}
 			m.library.cursor = m.library.findTrackPosition(focusedHash)
 			m.library.scrollOffset = adjustScroll(m.library.cursor, m.library.scrollOffset, layout.VisibleRows(m.library.height, 1))
-			m.statusBar.notification = transientNotification{
-				msg:       sortNotification(m.library.sortState),
-				expiresAt: time.Now().Add(transientDuration),
-			}
+			m.statusBar.notification = newNotification(sortNotification(m.library.sortState))
 			return m, nil, true
 		}
 		m.library = m.library.HandleAction(actionHalfPageDown)
@@ -268,10 +228,7 @@ func (m Model) handleSortDescOrPageDown() (tea.Model, tea.Cmd, bool) {
 			m.queue = m.queue.recomputeDisplayOrder()
 			m.queue.cursor = m.queue.findEntryDisplayPosition(prevEntryIdx)
 			m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, layout.VisibleRows(m.queue.height, 2))
-			m.statusBar.notification = transientNotification{
-				msg:       sortNotification(m.queue.sortState),
-				expiresAt: time.Now().Add(transientDuration),
-			}
+			m.statusBar.notification = newNotification(sortNotification(m.queue.sortState))
 			return m, nil, true
 		}
 		var cmd tea.Cmd
@@ -281,10 +238,7 @@ func (m Model) handleSortDescOrPageDown() (tea.Model, tea.Cmd, bool) {
 	case viewPlaylists:
 		if m.playlists.sortState.Field != SortDefault {
 			m = m.preservePlaylistCursorOnDirChange(SortDesc)
-			m.statusBar.notification = transientNotification{
-				msg:       sortNotification(m.playlists.sortState),
-				expiresAt: time.Now().Add(transientDuration),
-			}
+			m.statusBar.notification = newNotification(sortNotification(m.playlists.sortState))
 			return m, nil, true
 		}
 		m.playlists = m.playlists.HandleAction(actionHalfPageDown)
@@ -293,10 +247,7 @@ func (m Model) handleSortDescOrPageDown() (tea.Model, tea.Cmd, bool) {
 	case viewArtists:
 		if m.artists.sortState.Field != SortDefault {
 			m = m.preserveArtistsCursorOnDirChange(SortDesc)
-			m.statusBar.notification = transientNotification{
-				msg:       sortNotification(m.artists.sortState),
-				expiresAt: time.Now().Add(transientDuration),
-			}
+			m.statusBar.notification = newNotification(sortNotification(m.artists.sortState))
 			return m, nil, true
 		}
 		m.artists = m.artists.HandleAction(actionHalfPageDown)
@@ -305,10 +256,7 @@ func (m Model) handleSortDescOrPageDown() (tea.Model, tea.Cmd, bool) {
 	case viewAlbums:
 		if m.albums.sortState.Field != SortDefault {
 			m = m.preserveAlbumsCursorOnDirChange(SortDesc)
-			m.statusBar.notification = transientNotification{
-				msg:       sortNotification(m.albums.sortState),
-				expiresAt: time.Now().Add(transientDuration),
-			}
+			m.statusBar.notification = newNotification(sortNotification(m.albums.sortState))
 			return m, nil, true
 		}
 		m.albums = m.albums.HandleAction(actionHalfPageDown)
@@ -317,10 +265,7 @@ func (m Model) handleSortDescOrPageDown() (tea.Model, tea.Cmd, bool) {
 	case viewFavorites:
 		if m.favorites.sortState.Field != SortDefault {
 			m = m.preserveFavoritesCursorOnDirChange(SortDesc)
-			m.statusBar.notification = transientNotification{
-				msg:       sortNotification(m.favorites.sortState),
-				expiresAt: time.Now().Add(transientDuration),
-			}
+			m.statusBar.notification = newNotification(sortNotification(m.favorites.sortState))
 			return m, nil, true
 		}
 		m.favorites = m.favorites.HandleAction(actionHalfPageDown)

@@ -413,10 +413,7 @@ func (m Model) syncPlayerQueue() {
 // notification that expires at the end of the undo window.
 func (m *Model) setUndoSlot(slot undoSlot, notification string) {
 	m.undo.slot = slot
-	m.statusBar.notification = transientNotification{
-		msg:       notification,
-		expiresAt: time.Now().Add(undoWindowDuration),
-	}
+	m.statusBar.notification = newNotificationFor(notification, undoWindowDuration)
 }
 
 // syncPositionCmd schedules one position-sync tick.
@@ -653,10 +650,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case trackInfoMsg:
 		if msg.err != nil {
-			m.statusBar.notification = transientNotification{
-				msg:       "Track info error: " + msg.err.Error(),
-				expiresAt: time.Now().Add(transientDuration),
-			}
+			m.statusBar.notification = newNotification("Track info error: " + msg.err.Error())
 		} else {
 			overlay := newTrackInfoOverlay(msg.path, msg.tags)
 			m.overlay.trackInfo = &overlay
@@ -682,10 +676,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.handlePlayQueueIndexMsg(msg)
 
 	case MissingTrackSelectedMsg:
-		m.statusBar.notification = transientNotification{
-			msg:       "Cannot play — file is missing",
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification("Cannot play — file is missing")
 
 	case DequeueTrackMsg:
 		m = m.handleDequeueTrackMsg(msg)
@@ -706,10 +697,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleMoveTrackDownMsg(msg)
 
 	case TransientNotifyMsg:
-		m.statusBar.notification = transientNotification{
-			msg:       string(msg),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(string(msg))
 
 	// --- Key handling ---
 
@@ -804,10 +792,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.overlay.trackInfo = nil
 				return m, nil
 			case "y":
-				m.statusBar.notification = transientNotification{
-					msg:       "Path copied to clipboard",
-					expiresAt: time.Now().Add(transientDuration),
-				}
+				m.statusBar.notification = newNotification("Path copied to clipboard")
 				return m, tea.SetClipboard(m.overlay.trackInfo.path)
 			default:
 				return m, nil

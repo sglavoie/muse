@@ -8,7 +8,12 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 )
+
+// ipcReadTimeout is the per-read deadline applied inside SendCommand.
+// Using a variable instead of a const allows tests to set a shorter value.
+var ipcReadTimeout = 5 * time.Second
 
 // ipcRequest is the JSON envelope sent to mpv over the Unix domain socket.
 type ipcRequest struct {
@@ -89,6 +94,7 @@ func (c *IPCClient) SendCommand(args ...any) (*ipcResponse, error) {
 
 	// Read lines until we find the matching response.
 	for {
+		_ = c.conn.SetReadDeadline(time.Now().Add(ipcReadTimeout))
 		line, err := c.reader.ReadBytes('\n')
 		if err != nil {
 			return nil, fmt.Errorf("ipc: read: %w", err)

@@ -61,10 +61,7 @@ func (m Model) resetPlaybackState() Model {
 // undo slot, and triggers playback if the queue was empty.
 func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 	if msg.Err != nil {
-		m.statusBar.notification = transientNotification{
-			msg:       "Failed to enqueue track: " + msg.Err.Error(),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification("Failed to enqueue track: " + msg.Err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}
@@ -105,10 +102,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 		dequeueEntry: m.queue.entries[enqueueIdx],
 		dequeueIdx:   enqueueIdx,
 	}
-	m.statusBar.notification = transientNotification{
-		msg:       "Added " + display + " — press u to undo",
-		expiresAt: time.Now().Add(undoWindowDuration),
-	}
+	m.statusBar.notification = newNotificationFor("Added " + display + " — press u to undo", undoWindowDuration)
 	player.PlaySound(player.SoundEnqueued)
 	// Trigger immediate playback when the queue was previously empty and
 	// nothing is playing.
@@ -122,18 +116,12 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 // to the queue and triggers playback if the queue was empty.
 func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 	if msg.Err != nil {
-		m.statusBar.notification = transientNotification{
-			msg:       "Failed to enqueue playlist: " + msg.Err.Error(),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification("Failed to enqueue playlist: " + msg.Err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}
 	if len(msg.Entries) == 0 {
-		m.statusBar.notification = transientNotification{
-			msg:       "Playlist is empty",
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification("Playlist is empty")
 		return m
 	}
 	batchStartIdx := len(m.queue.entries)
@@ -168,10 +156,7 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 		batchCount:    len(msg.Entries),
 		batchStartIdx: batchStartIdx,
 	}
-	m.statusBar.notification = transientNotification{
-		msg:       fmt.Sprintf("Added %d %s from %s — press u to undo", len(msg.Entries), pluralize(len(msg.Entries), "track", "tracks"), msg.PlaylistName),
-		expiresAt: time.Now().Add(undoWindowDuration),
-	}
+	m.statusBar.notification = newNotificationFor(fmt.Sprintf("Added %d %s from %s — press u to undo", len(msg.Entries), pluralize(len(msg.Entries), "track", "tracks"), msg.PlaylistName), undoWindowDuration)
 	player.PlaySound(player.SoundEnqueued)
 	return m
 }
@@ -184,10 +169,7 @@ func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
 	}
 	if err := m.player.PlayFromIndex(0); err != nil {
 		m.playback.state = PlaybackIdle
-		m.statusBar.notification = transientNotification{
-			msg:       "Playback failed: " + err.Error(),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification("Playback failed: " + err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}
@@ -220,10 +202,7 @@ func (m Model) handlePlayQueueIndexMsg(msg PlayQueueIndexMsg) Model {
 			}
 		} else {
 			m.playback.state = PlaybackIdle
-			m.statusBar.notification = transientNotification{
-				msg:       "Playback failed: " + err.Error(),
-				expiresAt: time.Now().Add(transientDuration),
-			}
+			m.statusBar.notification = newNotification("Playback failed: " + err.Error())
 			player.PlaySound(player.SoundError)
 		}
 	}
@@ -413,10 +392,7 @@ func (m Model) handleMoveTrackDownMsg(msg MoveTrackDownMsg) (Model, tea.Cmd) {
 // action stored in the undo slot, if one exists and has not expired.
 func (m Model) handleUndo() Model {
 	if m.undo.slot.kind == undoNone || !time.Now().Before(m.undo.slot.expiresAt) {
-		m.statusBar.notification = transientNotification{
-			msg:       "Nothing to undo",
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification("Nothing to undo")
 		return m
 	}
 	// Cancel any in-flight purge timer from the undo slot being consumed.
@@ -594,10 +570,7 @@ func (m Model) handleUndo() Model {
 			}()
 		}
 		n := len(m.undo.slot.bulkEditOriginals)
-		m.statusBar.notification = transientNotification{
-			msg:       fmt.Sprintf("Undone metadata edit for %d %s", n, pluralize(n, "track", "tracks")),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(fmt.Sprintf("Undone metadata edit for %d %s", n, pluralize(n, "track", "tracks")))
 	case undoKindBulkRemovePlaylistTracks:
 		// Restore soft-deleted DB rows.
 		if m.playlistDeleter != nil {
@@ -673,10 +646,7 @@ func (m Model) handleUndo() Model {
 				m.favorites.trackCount = t
 			}
 		}
-		m.statusBar.notification = transientNotification{
-			msg:       fmt.Sprintf("Undone: added %s back to favorites", typ),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(fmt.Sprintf("Undone: added %s back to favorites", typ))
 	case undoKindBulkRemoveFavorites:
 		typ := m.undo.slot.bulkRemoveFavType
 		values := m.undo.slot.bulkRemoveFavValues
@@ -739,10 +709,7 @@ func (m Model) handleUndo() Model {
 			}
 		}
 		n := len(values)
-		m.statusBar.notification = transientNotification{
-			msg:       fmt.Sprintf("Undone: added %d %s(s) back to favorites", n, typ),
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(fmt.Sprintf("Undone: added %d %s(s) back to favorites", n, typ))
 	}
 	m = m.resetQueueSort()
 	m = m.resetPlaylistsSort()
@@ -828,10 +795,7 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 		}
 		m.undo.clearQueuePending = true
 		m.undo.clearQueuePendingAt = now
-		m.statusBar.notification = transientNotification{
-			msg:       "Press C again to clear queue",
-			expiresAt: now.Add(queueConfirmationWindow),
-		}
+		m.statusBar.notification = newNotificationFor("Press C again to clear queue", queueConfirmationWindow)
 		return m, nil, true
 	case actionSelect,
 		actionMoveTrackUp, actionMoveTrackDown:
@@ -843,10 +807,7 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 	case actionSaveQueueAsPlaylist:
 		if len(m.queue.entries) == 0 {
-			m.statusBar.notification = transientNotification{
-				msg:       "Queue is empty — nothing to save",
-				expiresAt: time.Now().Add(transientDuration),
-			}
+			m.statusBar.notification = newNotification("Queue is empty — nothing to save")
 		} else {
 			fromSelection := m.queue.hasSelection()
 			m.queue = m.queue.startSaveAsPlaylist(fromSelection)

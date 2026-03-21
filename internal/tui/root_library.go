@@ -294,10 +294,10 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 			}
 			m.undo.bulkRemovePending = true
 			m.undo.bulkRemovePendingAt = now
-			m.statusBar.notification = transientNotification{
-				msg:       fmt.Sprintf("Press a again to remove %d selected %s", n, pluralize(n, "track", "tracks")),
-				expiresAt: now.Add(confirmationWindow),
-			}
+			m.statusBar.notification = newNotificationFor(
+				fmt.Sprintf("Press a again to remove %d selected %s", n, pluralize(n, "track", "tracks")),
+				confirmationWindow,
+			)
 			return m, nil, true
 		}
 		if len(tracks) > 0 {

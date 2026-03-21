@@ -19,6 +19,14 @@ type transientNotification struct {
 	expiresAt time.Time
 }
 
+func newNotification(msg string) transientNotification {
+	return transientNotification{msg: msg, expiresAt: time.Now().Add(transientDuration)}
+}
+
+func newNotificationFor(msg string, dur time.Duration) transientNotification {
+	return transientNotification{msg: msg, expiresAt: time.Now().Add(dur)}
+}
+
 // StatusBar manages the persistent status bar at the bottom of the screen.
 // notification holds a temporary message (e.g. scan progress, error) that
 // auto-dismisses after transientDuration via the 1-second tick handler.
@@ -60,16 +68,13 @@ func (s *StatusBar) handleScanProgress(msg library.ScanProgressMsg) {
 	} else {
 		text = fmt.Sprintf("Scanning… %s tracks", formatCount(msg.Scanned))
 	}
-	s.notification = transientNotification{msg: text, expiresAt: time.Now().Add(transientDuration)}
+	s.notification = newNotification(text)
 }
 
 // handleMissingTrack sets the transient notification to an error message
 // indicating that a track could not be found and was skipped.
 func (s *StatusBar) handleMissingTrack(path string) {
-	s.notification = transientNotification{
-		msg:       fmt.Sprintf("Error: track not found, skipped: %s", path),
-		expiresAt: time.Now().Add(transientDuration),
-	}
+	s.notification = newNotification(fmt.Sprintf("Error: track not found, skipped: %s", path))
 }
 
 // formatTime converts a duration in seconds to M:SS or H:MM:SS format.

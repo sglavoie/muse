@@ -64,10 +64,7 @@ func (m Model) handleSessionTickMsg() (Model, tea.Cmd) {
 
 // handlePlayerStatusMsg shows a transient player status notification.
 func (m Model) handlePlayerStatusMsg(msg PlayerStatusMsg) Model {
-	m.statusBar.notification = transientNotification{
-		msg:       msg.Text,
-		expiresAt: time.Now().Add(transientDuration),
-	}
+	m.statusBar.notification = newNotification(msg.Text)
 	return m
 }
 
@@ -112,10 +109,7 @@ func (m Model) handlePlaybackEndedMsg() Model {
 				m.missingTrackCount, pluralize(m.missingTrackCount, "track", "tracks"))
 		}
 		m.missingTrackCount = 0
-		m.statusBar.notification = transientNotification{
-			msg:       msg,
-			expiresAt: time.Now().Add(transientDuration),
-		}
+		m.statusBar.notification = newNotification(msg)
 		player.PlayQueueFinishedSound()
 	}
 	return m
@@ -147,10 +141,7 @@ func (m Model) handlePreviewStartedMsg(msg previewStartedMsg) Model {
 
 // handlePreviewStartErrorMsg notifies the user and resumes main playback.
 func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
-	m.statusBar.notification = transientNotification{
-		msg:       "Preview error: " + msg.err.Error(),
-		expiresAt: time.Now().Add(transientDuration),
-	}
+	m.statusBar.notification = newNotification("Preview error: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	// Resume main player if we paused it.
 	if m.overlay.previewWasPlaying && m.player != nil {
@@ -190,25 +181,16 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		}
 		track, ok := m.focusedTrackForPreview()
 		if !ok {
-			m.statusBar.notification = transientNotification{
-				msg:       "No track to inspect",
-				expiresAt: time.Now().Add(transientDuration),
-			}
+			m.statusBar.notification = newNotification("No track to inspect")
 			return m, nil, true
 		}
 		if track.Path == "" {
-			for _, t := range m.library.index.Tracks() {
-				if t.Hash == track.Hash {
-					track = t
-					break
-				}
+			if t, ok := m.library.index.FindByHash(track.Hash); ok {
+				track = t
 			}
 		}
 		if track.Path == "" {
-			m.statusBar.notification = transientNotification{
-				msg:       "Track path unknown",
-				expiresAt: time.Now().Add(transientDuration),
-			}
+			m.statusBar.notification = newNotification("Track path unknown")
 			return m, nil, true
 		}
 		return m, trackInfoCmd(m.appCtx, track.Path), true
@@ -218,10 +200,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			return m, nil, true
 		}
 		if m.playback.state == PlaybackStopped || m.playback.state == PlaybackIdle {
-			m.statusBar.notification = transientNotification{
-				msg:       "No track playing",
-				expiresAt: time.Now().Add(transientDuration),
-			}
+			m.statusBar.notification = newNotification("No track playing")
 			return m, nil, true
 		}
 		overlay := NowPlayingOverlay{
@@ -234,17 +213,14 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		// Enrich from library index — the status bar fields may be empty
 		// after a session restore, but the hash is always set.
 		if m.playback.currentHash != "" {
-			for _, t := range m.library.index.Tracks() {
-				if t.Hash == m.playback.currentHash {
-					if overlay.artist == "" {
-						overlay.artist = t.Artist
-					}
-					if overlay.title == "" {
-						overlay.title = t.Title
-					}
-					overlay.album = t.Album
-					break
+			if t, ok := m.library.index.FindByHash(m.playback.currentHash); ok {
+				if overlay.artist == "" {
+					overlay.artist = t.Artist
 				}
+				if overlay.title == "" {
+					overlay.title = t.Title
+				}
+				overlay.album = t.Album
 			}
 		}
 		m.overlay.nowPlaying = &overlay
@@ -256,10 +232,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		}
 		track, ok := m.focusedTrackForPreview()
 		if !ok {
-			m.statusBar.notification = transientNotification{
-				msg:       "No track to preview",
-				expiresAt: time.Now().Add(transientDuration),
-			}
+			m.statusBar.notification = newNotification("No track to preview")
 			return m, nil, true
 		}
 		m.overlay.previewWasPlaying = m.playback.state == PlaybackPlaying
@@ -331,10 +304,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			if m.sessionWriter != nil {
 				_ = m.sessionWriter.WriteVolume(m.playback.volume)
 			}
-			m.statusBar.notification = transientNotification{
-				msg:       fmt.Sprintf("Volume: %d%%", m.playback.volume),
-				expiresAt: time.Now().Add(volumeFeedbackDuration),
-			}
+			m.statusBar.notification = newNotificationFor(fmt.Sprintf("Volume: %d%%", m.playback.volume), volumeFeedbackDuration)
 		}
 		return m, nil, true
 	case actionVolumeDown:
@@ -344,10 +314,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			if m.sessionWriter != nil {
 				_ = m.sessionWriter.WriteVolume(m.playback.volume)
 			}
-			m.statusBar.notification = transientNotification{
-				msg:       fmt.Sprintf("Volume: %d%%", m.playback.volume),
-				expiresAt: time.Now().Add(volumeFeedbackDuration),
-			}
+			m.statusBar.notification = newNotificationFor(fmt.Sprintf("Volume: %d%%", m.playback.volume), volumeFeedbackDuration)
 		}
 		return m, nil, true
 	case actionRepeatCycle:
@@ -374,10 +341,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		case RepeatOne:
 			modeStr = "one"
 		}
-		m.statusBar.notification = transientNotification{
-			msg:       "Repeat: " + modeStr,
-			expiresAt: time.Now().Add(volumeFeedbackDuration),
-		}
+		m.statusBar.notification = newNotificationFor("Repeat: "+modeStr, volumeFeedbackDuration)
 		return m, nil, true
 	case actionShuffleToggle:
 		m.playback.shuffle = !m.playback.shuffle
@@ -391,10 +355,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		if m.playback.shuffle {
 			label = "on"
 		}
-		m.statusBar.notification = transientNotification{
-			msg:       "Shuffle: " + label,
-			expiresAt: time.Now().Add(volumeFeedbackDuration),
-		}
+		m.statusBar.notification = newNotificationFor("Shuffle: "+label, volumeFeedbackDuration)
 		return m, nil, true
 	}
 	return m, nil, false
