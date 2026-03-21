@@ -145,7 +145,12 @@ func (m Model) toggleFavoriteSingle(reader favoriteReader, writer favoriteWriter
 		} else {
 			err = writer.AddFavorite(typ, value)
 		}
-		return favoriteToggledMsg{typ: typ, value: value, added: !isFav, err: err}
+		msg := favoriteToggledMsg{typ: typ, value: value, added: !isFav, err: err}
+		if isFav {
+			// Removal from a non-Favorites view: no in-view index available.
+			msg.removedIdx = -1
+		}
+		return msg
 	}
 }
 
@@ -154,6 +159,7 @@ func (m Model) toggleFavoriteSingle(reader favoriteReader, writer favoriteWriter
 func (m Model) toggleFavoriteBulk(reader favoriteReader, writer favoriteWriter, typ string, values []string) tea.Cmd {
 	return func() tea.Msg {
 		var added, removed int
+		var removedValues []string
 		for _, v := range values {
 			isFav, err := reader.IsFavorite(typ, v)
 			if err != nil {
@@ -162,16 +168,22 @@ func (m Model) toggleFavoriteBulk(reader favoriteReader, writer favoriteWriter, 
 			if isFav {
 				_ = writer.RemoveFavorite(typ, v)
 				removed++
+				removedValues = append(removedValues, v)
 			} else {
 				_ = writer.AddFavorite(typ, v)
 				added++
 			}
 		}
-		return favoriteToggledMsg{
-			typ:   typ,
-			count: added + removed,
-			added: added > 0,
+		msg := favoriteToggledMsg{
+			typ:        typ,
+			count:      added + removed,
+			added:      added > 0,
+			removedIdx: -1,
 		}
+		if added == 0 && len(removedValues) > 0 {
+			msg.removedValues = removedValues
+		}
+		return msg
 	}
 }
 
@@ -190,27 +202,61 @@ func (m Model) handleFavoritesRemove() (Model, tea.Cmd, bool) {
 			if !ok {
 				return m, nil, true
 			}
+			removedIdx := m.favorites.cursor
+			favLevel := m.favorites.level
+			favCategory := m.favorites.category
 			return m, func() tea.Msg {
 				err := writer.RemoveFavorite("artist", name)
-				return favoriteToggledMsg{typ: "artist", value: name, added: false, err: err}
+				return favoriteToggledMsg{
+					typ:         "artist",
+					value:       name,
+					added:       false,
+					err:         err,
+					removedIdx:  removedIdx,
+					favLevel:    favLevel,
+					favCategory: favCategory,
+				}
 			}, true
 		case favtui.CategoryAlbums:
 			name, ok := m.favorites.focusedAlbum()
 			if !ok {
 				return m, nil, true
 			}
+			removedIdx := m.favorites.cursor
+			favLevel := m.favorites.level
+			favCategory := m.favorites.category
 			return m, func() tea.Msg {
 				err := writer.RemoveFavorite("album", name)
-				return favoriteToggledMsg{typ: "album", value: name, added: false, err: err}
+				return favoriteToggledMsg{
+					typ:         "album",
+					value:       name,
+					added:       false,
+					err:         err,
+					removedIdx:  removedIdx,
+					favLevel:    favLevel,
+					favCategory: favCategory,
+				}
 			}, true
 		case favtui.CategoryTracks:
 			track, ok := m.favorites.focusedTrack()
 			if !ok {
 				return m, nil, true
 			}
+			removedIdx := m.favorites.cursor
+			favLevel := m.favorites.level
+			favCategory := m.favorites.category
 			return m, func() tea.Msg {
 				err := writer.RemoveFavorite("track", track.Hash)
-				return favoriteToggledMsg{typ: "track", value: track.Hash, added: false, err: err}
+				return favoriteToggledMsg{
+					typ:          "track",
+					value:        track.Hash,
+					added:        false,
+					err:          err,
+					removedIdx:   removedIdx,
+					removedTrack: track,
+					favLevel:     favLevel,
+					favCategory:  favCategory,
+				}
 			}, true
 		}
 
@@ -219,9 +265,18 @@ func (m Model) handleFavoritesRemove() (Model, tea.Cmd, bool) {
 		if !ok {
 			return m, nil, true
 		}
+		removedIdx := m.favorites.cursor
 		return m, func() tea.Msg {
 			err := writer.RemoveFavorite("track", track.Hash)
-			return favoriteToggledMsg{typ: "track", value: track.Hash, added: false, err: err}
+			return favoriteToggledMsg{
+				typ:          "track",
+				value:        track.Hash,
+				added:        false,
+				err:          err,
+				removedIdx:   removedIdx,
+				removedTrack: track,
+				favLevel:     favtui.TrackLevel,
+			}
 		}, true
 	}
 
@@ -235,9 +290,14 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 	}
 	writer := m.favoriteWriter
 
+	favLevel := m.favorites.level
+	favCategory := m.favorites.category
+
 	switch m.favorites.level {
 	case favtui.ListLevel:
 		var values []string
+		var removedIndices []int
+		var removedTracks []library.Track
 		var typ string
 		switch m.favorites.category {
 		case favtui.CategoryArtists:
@@ -245,7 +305,14 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 			items := arttui.FilterStrings(m.favorites.artists, m.favorites.filter.Text)
 			for idx := range m.favorites.selectedItems {
 				if idx >= 0 && idx < len(items) {
-					values = append(values, items[idx])
+					val := items[idx]
+					values = append(values, val)
+					for i, a := range m.favorites.artists {
+						if a == val {
+							removedIndices = append(removedIndices, i)
+							break
+						}
+					}
 				}
 			}
 		case favtui.CategoryAlbums:
@@ -253,7 +320,14 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 			items := arttui.FilterStrings(m.favorites.albums, m.favorites.filter.Text)
 			for idx := range m.favorites.selectedItems {
 				if idx >= 0 && idx < len(items) {
-					values = append(values, items[idx])
+					val := items[idx]
+					values = append(values, val)
+					for i, a := range m.favorites.albums {
+						if a == val {
+							removedIndices = append(removedIndices, i)
+							break
+						}
+					}
 				}
 			}
 		case favtui.CategoryTracks:
@@ -261,7 +335,15 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 			items := arttui.FilterTracks(m.favorites.tracks, m.favorites.filter.Text)
 			for idx := range m.favorites.selectedItems {
 				if idx >= 0 && idx < len(items) {
-					values = append(values, items[idx].Hash)
+					t := items[idx]
+					values = append(values, t.Hash)
+					removedTracks = append(removedTracks, t)
+					for i, tr := range m.favorites.tracks {
+						if tr.Hash == t.Hash {
+							removedIndices = append(removedIndices, i)
+							break
+						}
+					}
 				}
 			}
 		}
@@ -271,15 +353,35 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 		m.favorites = m.favorites.clearSelection()
 		return m, func() tea.Msg {
 			err := writer.RemoveFavoritesByTypeAndValues(typ, values)
-			return favoriteToggledMsg{typ: typ, count: len(values), added: false, err: err}
+			return favoriteToggledMsg{
+				typ:            typ,
+				count:          len(values),
+				added:          false,
+				err:            err,
+				removedValues:  values,
+				removedTracks:  removedTracks,
+				removedIndices: removedIndices,
+				favLevel:       favLevel,
+				favCategory:    favCategory,
+			}
 		}, true
 
 	case favtui.TrackLevel:
 		items := arttui.FilterTracks(m.favorites.drilldownTracks, m.favorites.filter.Text)
 		var hashes []string
+		var removedTracks []library.Track
+		var removedIndices []int
 		for idx := range m.favorites.selectedItems {
 			if idx >= 0 && idx < len(items) {
-				hashes = append(hashes, items[idx].Hash)
+				t := items[idx]
+				hashes = append(hashes, t.Hash)
+				removedTracks = append(removedTracks, t)
+				for i, tr := range m.favorites.drilldownTracks {
+					if tr.Hash == t.Hash {
+						removedIndices = append(removedIndices, i)
+						break
+					}
+				}
 			}
 		}
 		if len(hashes) == 0 {
@@ -288,7 +390,17 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 		m.favorites = m.favorites.clearSelection()
 		return m, func() tea.Msg {
 			err := writer.RemoveFavoritesByTypeAndValues("track", hashes)
-			return favoriteToggledMsg{typ: "track", count: len(hashes), added: false, err: err}
+			return favoriteToggledMsg{
+				typ:            "track",
+				count:          len(hashes),
+				added:          false,
+				err:            err,
+				removedValues:  hashes,
+				removedTracks:  removedTracks,
+				removedIndices: removedIndices,
+				favLevel:       favLevel,
+				favCategory:    favCategory,
+			}
 		}, true
 	}
 
@@ -437,9 +549,37 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 	} else {
 		note = fmt.Sprintf("Removed %s from favorites", msg.typ)
 	}
-	m.statusBar.notification = transientNotification{
-		msg:       note,
-		expiresAt: time.Now().Add(transientDuration),
+
+	// Set undo slot for removals (before modifying in-memory slices).
+	if !msg.added {
+		if msg.count > 1 && len(msg.removedValues) > 0 {
+			m.setUndoSlot(undoSlot{
+				kind:                  undoKindBulkRemoveFavorites,
+				expiresAt:             time.Now().Add(undoWindowDuration),
+				bulkRemoveFavType:     msg.typ,
+				bulkRemoveFavValues:   msg.removedValues,
+				bulkRemoveFavTracks:   msg.removedTracks,
+				bulkRemoveFavIndices:  msg.removedIndices,
+				bulkRemoveFavLevel:    msg.favLevel,
+				bulkRemoveFavCategory: msg.favCategory,
+			}, note+" — press u to undo")
+		} else {
+			m.setUndoSlot(undoSlot{
+				kind:              undoKindRemoveFavorite,
+				expiresAt:         time.Now().Add(undoWindowDuration),
+				removeFavType:     msg.typ,
+				removeFavValue:    msg.value,
+				removeFavTrack:    msg.removedTrack,
+				removeFavIdx:      msg.removedIdx,
+				removeFavLevel:    msg.favLevel,
+				removeFavCategory: msg.favCategory,
+			}, note+" — press u to undo")
+		}
+	} else {
+		m.statusBar.notification = transientNotification{
+			msg:       note,
+			expiresAt: time.Now().Add(transientDuration),
+		}
 	}
 
 	// Update the in-memory favorite hash set for track toggles.
@@ -527,6 +667,36 @@ func removeTrackByHash(tracks []library.Track, hash string) []library.Track {
 		}
 	}
 	return tracks
+}
+
+// insertStringAt returns a new slice with s inserted at idx (clamped to len).
+func insertStringAt(items []string, idx int, s string) []string {
+	if idx < 0 {
+		idx = 0
+	}
+	if idx > len(items) {
+		idx = len(items)
+	}
+	result := make([]string, len(items)+1)
+	copy(result, items[:idx])
+	result[idx] = s
+	copy(result[idx+1:], items[idx:])
+	return result
+}
+
+// insertTrackAt returns a new slice with t inserted at idx (clamped to len).
+func insertTrackAt(tracks []library.Track, idx int, t library.Track) []library.Track {
+	if idx < 0 {
+		idx = 0
+	}
+	if idx > len(tracks) {
+		idx = len(tracks)
+	}
+	result := make([]library.Track, len(tracks)+1)
+	copy(result, tracks[:idx])
+	result[idx] = t
+	copy(result[idx+1:], tracks[idx:])
+	return result
 }
 
 // handleFavoritesLoadedMsg processes the result of loading favorites for a category.

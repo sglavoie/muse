@@ -6,6 +6,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 )
 
 // undoKind distinguishes which type of destructive action is reversible.
@@ -22,6 +23,8 @@ const (
 	undoKindBulkDequeue                       // multiple selected tracks removed via bulk dequeue
 	undoKindBulkRemovePlaylistTracks          // multiple selected tracks removed from playlist via 'a'
 	undoKindBulkEditMetadata                  // bulk metadata edit via 'M' with selection
+	undoKindRemoveFavorite                    // single favorite removed (any view)
+	undoKindBulkRemoveFavorites               // multiple favorites bulk-removed (Favorites view)
 )
 
 // undoSlot holds the reversible state for the most recent destructive queue
@@ -71,6 +74,22 @@ type undoSlot struct {
 
 	// BulkEditMetadata fields — valid when kind == undoKindBulkEditMetadata.
 	bulkEditOriginals map[string][3]string // hash → {title, artist, album}
+
+	// RemoveFavorite fields — valid when kind == undoKindRemoveFavorite.
+	removeFavType     string // "artist", "album", or "track"
+	removeFavValue    string
+	removeFavTrack    library.Track // full Track object (track type only, for in-view restore)
+	removeFavIdx      int           // index in unfiltered slice (-1 if not from Favorites view)
+	removeFavLevel    favtui.Level
+	removeFavCategory favtui.Category
+
+	// BulkRemoveFavorites fields — valid when kind == undoKindBulkRemoveFavorites.
+	bulkRemoveFavType     string
+	bulkRemoveFavValues   []string
+	bulkRemoveFavTracks   []library.Track // parallel to Values (track type only)
+	bulkRemoveFavIndices  []int           // original unfiltered indices for re-insertion
+	bulkRemoveFavLevel    favtui.Level
+	bulkRemoveFavCategory favtui.Category
 }
 
 // tickMsg is dispatched every second by tickCmd. It drives elapsed-time
@@ -260,6 +279,14 @@ type favoriteToggledMsg struct {
 	added bool // true if added, false if removed
 	count int  // new total count for the type (for status bar updates)
 	err   error
+
+	removedIdx     int             // pre-removal index in unfiltered slice (-1 if N/A)
+	removedTrack   library.Track   // the removed Track (for track type)
+	removedValues  []string        // all removed values (bulk)
+	removedTracks  []library.Track // all removed Track objects (bulk, track type)
+	removedIndices []int           // original unfiltered indices (bulk)
+	favLevel       favtui.Level
+	favCategory    favtui.Category
 }
 
 // favoritesLoadedMsg carries the favorites loaded for a specific category.

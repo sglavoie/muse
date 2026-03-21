@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
@@ -615,6 +616,121 @@ func (m Model) handleUndo() Model {
 		}
 		if m.playlists.cursor < m.playlists.scrollOffset {
 			m.playlists.scrollOffset = m.playlists.cursor
+		}
+	case undoKindRemoveFavorite:
+		typ := m.undo.slot.removeFavType
+		value := m.undo.slot.removeFavValue
+		if m.favoriteWriter != nil {
+			_ = m.favoriteWriter.AddFavorite(typ, value)
+		}
+		// Restore in-memory hash set for tracks.
+		if typ == "track" && value != "" {
+			if m.favoriteHashes == nil {
+				m.favoriteHashes = make(map[string]struct{})
+			}
+			m.favoriteHashes[value] = struct{}{}
+		}
+		// Restore in-view state if still in matching Favorites view.
+		idx := m.undo.slot.removeFavIdx
+		if m.activeView == viewFavorites && idx >= 0 &&
+			m.favorites.level == m.undo.slot.removeFavLevel {
+			switch m.undo.slot.removeFavLevel {
+			case favtui.ListLevel:
+				switch m.undo.slot.removeFavCategory {
+				case favtui.CategoryArtists:
+					m.favorites.artists = insertStringAt(m.favorites.artists, idx, value)
+					m.favorites.artistCount = len(m.favorites.artists)
+				case favtui.CategoryAlbums:
+					m.favorites.albums = insertStringAt(m.favorites.albums, idx, value)
+					m.favorites.albumCount = len(m.favorites.albums)
+				case favtui.CategoryTracks:
+					m.favorites.tracks = insertTrackAt(m.favorites.tracks, idx, m.undo.slot.removeFavTrack)
+					m.favorites.trackCount = len(m.favorites.tracks)
+				}
+				m.favorites.cursor = idx
+				m.favorites = m.favorites.clampCursor()
+			case favtui.TrackLevel:
+				m.favorites.drilldownTracks = insertTrackAt(m.favorites.drilldownTracks, idx, m.undo.slot.removeFavTrack)
+				m.favorites.cursor = idx
+				m.favorites = m.favorites.clampCursor()
+			}
+		}
+		// Refresh counts if in Favorites view.
+		if m.activeView == viewFavorites && m.favoriteReader != nil {
+			a, al, t, err := m.favoriteReader.ReadFavoriteCounts()
+			if err == nil {
+				m.favorites.artistCount = a
+				m.favorites.albumCount = al
+				m.favorites.trackCount = t
+			}
+		}
+		m.statusBar.notification = transientNotification{
+			msg:       fmt.Sprintf("Undone: added %s back to favorites", typ),
+			expiresAt: time.Now().Add(transientDuration),
+		}
+	case undoKindBulkRemoveFavorites:
+		typ := m.undo.slot.bulkRemoveFavType
+		values := m.undo.slot.bulkRemoveFavValues
+		if m.favoriteWriter != nil {
+			for _, v := range values {
+				_ = m.favoriteWriter.AddFavorite(typ, v)
+			}
+		}
+		// Restore in-memory hash set for tracks.
+		if typ == "track" {
+			if m.favoriteHashes == nil {
+				m.favoriteHashes = make(map[string]struct{})
+			}
+			for _, v := range values {
+				m.favoriteHashes[v] = struct{}{}
+			}
+		}
+		// Restore in-view state if still in matching Favorites view.
+		indices := m.undo.slot.bulkRemoveFavIndices
+		if m.activeView == viewFavorites && len(indices) > 0 &&
+			m.favorites.level == m.undo.slot.bulkRemoveFavLevel {
+			switch m.undo.slot.bulkRemoveFavLevel {
+			case favtui.ListLevel:
+				switch m.undo.slot.bulkRemoveFavCategory {
+				case favtui.CategoryArtists:
+					for i, idx := range indices {
+						m.favorites.artists = insertStringAt(m.favorites.artists, min(idx, len(m.favorites.artists)), values[i])
+					}
+					m.favorites.artistCount = len(m.favorites.artists)
+				case favtui.CategoryAlbums:
+					for i, idx := range indices {
+						m.favorites.albums = insertStringAt(m.favorites.albums, min(idx, len(m.favorites.albums)), values[i])
+					}
+					m.favorites.albumCount = len(m.favorites.albums)
+				case favtui.CategoryTracks:
+					tracks := m.undo.slot.bulkRemoveFavTracks
+					for i, idx := range indices {
+						m.favorites.tracks = insertTrackAt(m.favorites.tracks, min(idx, len(m.favorites.tracks)), tracks[i])
+					}
+					m.favorites.trackCount = len(m.favorites.tracks)
+				}
+				m.favorites = m.favorites.clampCursor()
+			case favtui.TrackLevel:
+				tracks := m.undo.slot.bulkRemoveFavTracks
+				for i, idx := range indices {
+					m.favorites.drilldownTracks = insertTrackAt(m.favorites.drilldownTracks, min(idx, len(m.favorites.drilldownTracks)), tracks[i])
+				}
+				m.favorites = m.favorites.clampCursor()
+			}
+		}
+		// Refresh counts if in Favorites view.
+		if m.activeView == viewFavorites && m.favoriteReader != nil {
+			a, al, t, err := m.favoriteReader.ReadFavoriteCounts()
+			if err == nil {
+				m.favorites.artistCount = a
+				m.favorites.albumCount = al
+				m.favorites.trackCount = t
+			}
+		}
+		n := len(values)
+		m.statusBar.notification = transientNotification{
+			msg:       fmt.Sprintf("Undone: added %d %s(s) back to favorites", n, typ),
+			expiresAt: time.Now().Add(transientDuration),
 		}
 	}
 	m = m.resetQueueSort()
