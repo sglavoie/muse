@@ -48,7 +48,7 @@ func indexIn(ss []string, sub string) int {
 	return -1
 }
 
-// TestShutdownOrder confirms that all five teardown steps are invoked and that
+// TestShutdownOrder confirms that all teardown steps are invoked and that
 // their execution order matches the specified sequence.
 func TestShutdownOrder(t *testing.T) {
 	installLogger(t)
@@ -56,8 +56,7 @@ func TestShutdownOrder(t *testing.T) {
 	rec := &stepRecorder{}
 
 	deps := app.ShutdownDeps{
-		StopPlayback:   func() error { rec.record("stop"); return nil },
-		TerminateMPV:   func() error { rec.record("terminate"); return nil },
+		ClosePlayer:    func() error { rec.record("close"); return nil },
 		CancelDBWriter: func() { rec.record("cancelDB") },
 		WaitDBWriter:   func() { rec.record("waitDB") },
 		Lockfile:       nil, // tested separately
@@ -68,7 +67,7 @@ func TestShutdownOrder(t *testing.T) {
 
 	got := rec.snapshot()
 
-	expected := []string{"stop", "terminate", "cancelDB", "waitDB"}
+	expected := []string{"close", "cancelDB", "waitDB"}
 	for _, name := range expected {
 		if indexIn(got, name) == -1 {
 			t.Errorf("step %q was not recorded; got %v", name, got)
@@ -76,8 +75,7 @@ func TestShutdownOrder(t *testing.T) {
 	}
 
 	checks := []struct{ before, after string }{
-		{"stop", "terminate"},
-		{"terminate", "cancelDB"},
+		{"close", "cancelDB"},
 		{"cancelDB", "waitDB"},
 	}
 	for _, c := range checks {
@@ -186,15 +184,14 @@ func TestShutdownNilFieldsNoPanic(t *testing.T) {
 }
 
 // TestShutdownAllStepsRunDespiteErrors verifies that a failure in an early
-// step (StopPlayback, TerminateMPV) does not abort subsequent steps.
+// step (ClosePlayer) does not abort subsequent steps.
 func TestShutdownAllStepsRunDespiteErrors(t *testing.T) {
 	installLogger(t)
 
 	rec := &stepRecorder{}
 
 	deps := app.ShutdownDeps{
-		StopPlayback:   func() error { rec.record("stop"); return errors.New("playback error") },
-		TerminateMPV:   func() error { rec.record("terminate"); return errors.New("mpv error") },
+		ClosePlayer:    func() error { rec.record("close"); return errors.New("player error") },
 		CancelDBWriter: func() { rec.record("cancel") },
 		WaitDBWriter:   func() { rec.record("wait") },
 	}
@@ -203,7 +200,7 @@ func TestShutdownAllStepsRunDespiteErrors(t *testing.T) {
 	app.Shutdown(deps, app.ShutdownTimeout)
 
 	got := rec.snapshot()
-	for _, name := range []string{"stop", "terminate", "cancel", "wait"} {
+	for _, name := range []string{"close", "cancel", "wait"} {
 		if indexIn(got, name) == -1 {
 			t.Errorf("step %q was skipped after earlier error; got %v", name, got)
 		}

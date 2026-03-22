@@ -33,10 +33,14 @@ func (m *Manager) startEventReader(ctx context.Context) {
 
 	// Subscribe to mpv's pause property so we learn about external pause
 	// toggles (e.g. AirPods hardware button via macOS media key routing).
-	observeCmd, _ := json.Marshal(map[string]any{
+	observeCmd, err := json.Marshal(map[string]any{
 		"command":    []any{"observe_property", 1, "pause"},
 		"request_id": 0,
 	})
+	if err != nil {
+		slog.Warn("mpv: event reader: failed to marshal observe command", "err", err)
+		return
+	}
 	observeCmd = append(observeCmd, '\n')
 	if _, err := conn.Write(observeCmd); err != nil {
 		slog.Warn("mpv: event reader: failed to observe pause property", "err", err)

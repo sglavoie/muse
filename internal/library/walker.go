@@ -35,6 +35,7 @@ func walkAudioPaths(ctx context.Context, root string, visit func(path string) er
 		if d.Type()&fs.ModeSymlink != 0 {
 			info, err := os.Stat(path)
 			if err != nil {
+				slog.Debug("skipping broken symlink", "path", path, "err", err)
 				return nil
 			}
 			if info.IsDir() {
@@ -85,10 +86,12 @@ func Walk(ctx context.Context, root string) <-chan string {
 // in a background goroutine to provide an early estimated total.
 func CountAudioFiles(ctx context.Context, root string) int {
 	count := 0
-	_ = walkAudioPaths(ctx, root, func(_ string) error {
+	if err := walkAudioPaths(ctx, root, func(_ string) error {
 		count++
 		return nil
-	})
+	}); err != nil && ctx.Err() == nil {
+		slog.Warn("count audio files: walk error", "root", root, "err", err)
+	}
 	return count
 }
 

@@ -193,7 +193,7 @@ func main() {
 	}
 
 	shutdownDeps := app.ShutdownDeps{
-		StopPlayback: func() error {
+		ClosePlayer: func() error {
 			if mgr != nil {
 				return mgr.Close()
 			}

@@ -251,4 +251,5 @@ func (w *Writer) drain() {
 			return
 		}
 	}
+	slog.Warn("db writer drain timed out, some writes may be lost")
 }

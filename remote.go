@@ -77,6 +77,7 @@ func acceptLoop(p *tea.Program, ln net.Listener) {
 // connection and dispatches each one into the TUI.
 func handleRemoteConn(p *tea.Program, conn net.Conn) {
 	defer conn.Close()
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
 		action := strings.TrimSpace(scanner.Text())

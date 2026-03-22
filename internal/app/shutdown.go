@@ -13,16 +13,13 @@ import (
 const ShutdownTimeout = 10 * time.Second
 
 // ShutdownDeps holds injectable teardown operations for the graceful shutdown
-// sequence. Nil StopPlayback or TerminateMPV fields are treated as no-ops.
+// sequence. A nil ClosePlayer field is treated as a no-op.
 // CancelDBWriter and WaitDBWriter should both be set whenever a DB writer was
 // started; omitting WaitDBWriter risks missing in-flight writes.
 type ShutdownDeps struct {
-	// StopPlayback halts the current playback session before the mpv process
-	// is terminated. Nil means no-op.
-	StopPlayback func() error
-
-	// TerminateMPV kills the mpv process. Nil means no-op.
-	TerminateMPV func() error
+	// ClosePlayer stops playback and terminates the mpv process.
+	// Nil means no-op.
+	ClosePlayer func() error
 
 	// CancelDBWriter cancels the context driving the DB writer goroutine,
 	// causing it to stop accepting new work.
@@ -52,13 +49,12 @@ type ShutdownDeps struct {
 // Pass ShutdownTimeout for the normal production timeout.
 //
 // The teardown sequence is:
-//  1. Stop playback
-//  2. Terminate mpv process
-//  3. Flush pending DB writes (cancel writer context, wait for goroutine exit)
-//  4. Close database connection
-//  5. Release PID lockfile
-//  6. Delete mpv socket file
-//  7. Close log file (last, so all shutdown entries are captured)
+//  1. Close the player (stop playback + terminate mpv)
+//  2. Flush pending DB writes (cancel writer context, wait for goroutine exit)
+//  3. Close database connection
+//  4. Release PID lockfile
+//  5. Delete mpv socket file
+//  6. Close log file (last, so all shutdown entries are captured)
 //
 // All steps are attempted regardless of prior errors so that resources are
 // always released. Errors from individual steps are logged at Warn level.
@@ -72,7 +68,7 @@ func Shutdown(deps ShutdownDeps, timeout time.Duration) {
 	case <-done:
 		return
 	case <-time.After(timeout):
-		slog.Error("shutdown timed out after " + timeout.String() + ", forcing exit")
+		slog.Error("shutdown timed out, forcing exit", "timeout", timeout)
 		if deps.CloseLog != nil {
 			deps.CloseLog()
 		}
@@ -82,25 +78,16 @@ func Shutdown(deps ShutdownDeps, timeout time.Duration) {
 
 // shutdownSequence performs the ordered teardown steps.
 func shutdownSequence(deps ShutdownDeps) {
-	// Step 1: Stop playback.
-	slog.Info("shutdown: stopping playback")
-	if deps.StopPlayback != nil {
-		if err := deps.StopPlayback(); err != nil {
-			slog.Warn("shutdown: stop playback", "err", err)
+	// Step 1: Close the player (stop playback + terminate mpv).
+	slog.Info("shutdown: closing player")
+	if deps.ClosePlayer != nil {
+		if err := deps.ClosePlayer(); err != nil {
+			slog.Warn("shutdown: close player", "err", err)
 		}
 	}
-	slog.Info("shutdown: playback stopped")
+	slog.Info("shutdown: player closed")
 
-	// Step 2: Terminate mpv process.
-	slog.Info("shutdown: terminating mpv")
-	if deps.TerminateMPV != nil {
-		if err := deps.TerminateMPV(); err != nil {
-			slog.Warn("shutdown: terminate mpv", "err", err)
-		}
-	}
-	slog.Info("shutdown: mpv terminated")
-
-	// Step 3: Flush pending DB writes by cancelling the writer context and
+	// Step 2: Flush pending DB writes by cancelling the writer context and
 	// waiting for the goroutine to drain and exit.
 	slog.Info("shutdown: flushing db writes")
 	if deps.CancelDBWriter != nil {
@@ -111,21 +98,21 @@ func shutdownSequence(deps ShutdownDeps) {
 	}
 	slog.Info("shutdown: db writes flushed")
 
-	// Step 4: Close the database connection now that all writes have drained.
+	// Step 3: Close the database connection now that all writes have drained.
 	slog.Info("shutdown: closing database")
 	if deps.CloseDB != nil {
 		deps.CloseDB()
 	}
 	slog.Info("shutdown: database closed")
 
-	// Step 5: Release PID lockfile.
+	// Step 4: Release PID lockfile.
 	slog.Info("shutdown: releasing lockfile")
 	if deps.Lockfile != nil {
 		deps.Lockfile.Release()
 	}
 	slog.Info("shutdown: lockfile released")
 
-	// Step 6: Delete mpv socket file.
+	// Step 5: Delete mpv socket file.
 	slog.Info("shutdown: removing mpv socket")
 	if deps.SocketPath != "" {
 		if err := os.Remove(deps.SocketPath); err != nil && !os.IsNotExist(err) {
@@ -134,7 +121,7 @@ func shutdownSequence(deps ShutdownDeps) {
 	}
 	slog.Info("shutdown: mpv socket removed")
 
-	// Step 7: Close log file last so all shutdown log entries are captured.
+	// Step 6: Close log file last so all shutdown log entries are captured.
 	if deps.CloseLog != nil {
 		deps.CloseLog()
 	}

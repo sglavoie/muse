@@ -49,6 +49,8 @@ func defaults() Config {
 	musicDir := defaultMusicDirectory
 	if expanded, err := expandTilde(musicDir); err == nil {
 		musicDir = expanded
+	} else {
+		slog.Warn("failed to expand ~ in default music directory", "err", err)
 	}
 	return Config{
 		MusicDirectory: musicDir,
