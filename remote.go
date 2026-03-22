@@ -60,17 +60,25 @@ func startCommandListener(p *tea.Program, runtimeDir string) (net.Listener, erro
 
 // acceptLoop runs the accept loop for a command listener. It exits cleanly
 // when ln is closed (net.ErrClosed) and continues on transient errors.
+// Logging is throttled after 5 consecutive failures to avoid flooding the log
+// if the socket file is deleted while muse is running.
 func acceptLoop(p *tea.Program, ln net.Listener) {
+	consecutiveErrs := 0
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
 			if errors.Is(err, net.ErrClosed) {
 				return
 			}
-			slog.Warn("control socket accept error", "err", err)
+			consecutiveErrs++
+			if consecutiveErrs <= 5 || consecutiveErrs%100 == 0 {
+				slog.Warn("control socket accept error",
+					"err", err, "consecutive", consecutiveErrs)
+			}
 			time.Sleep(acceptBackoff)
 			continue
 		}
+		consecutiveErrs = 0
 		go handleRemoteConn(p, conn)
 	}
 }

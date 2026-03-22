@@ -77,7 +77,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			m.mu.RLock()
 			idx := m.currentIndex
 			q := m.queue
-			fn := m.trackChangedFn
+			fn := m.callbacks.OnTrackChanged
 			m.mu.RUnlock()
 			if fn != nil && idx >= 0 && idx < len(q) {
 				t := q[idx]
@@ -95,7 +95,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			if err := m.PlayFromIndex(idx + 1); err != nil {
 				// Queue exhausted: notify the TUI so it can reset the toggle.
 				m.mu.RLock()
-				fn := m.playbackEndedFn
+				fn := m.callbacks.OnPlaybackEnded
 				m.mu.RUnlock()
 				if fn != nil {
 					fn()
@@ -111,7 +111,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 				continue
 			}
 			m.mu.RLock()
-			fn := m.pauseChangedFn
+			fn := m.callbacks.OnPauseChanged
 			m.mu.RUnlock()
 			if fn != nil {
 				fn(paused)

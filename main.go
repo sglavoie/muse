@@ -258,26 +258,17 @@ func main() {
 	p := tea.NewProgram(model)
 
 	// Wire player callbacks after p is created so events reach the TUI via Send.
-	mgr.SetMissingFileFunc(func(path string) {
-		p.Send(tui.MissingTrackMsg{Path: path})
-	})
-	mgr.SetStatusFunc(func(s string) {
-		p.Send(tui.PlayerStatusMsg{Text: s})
-	})
-	mgr.SetPlaybackEndedFunc(func() {
-		p.Send(tui.PlaybackEndedMsg{})
-	})
-	mgr.SetTrackChangedFunc(func(hash, artist, title, source string) {
-		p.Send(tui.TrackChangedMsg{Hash: hash, Artist: artist, Title: title, PlaylistSource: source})
-	})
-	mgr.SetPauseChangedFunc(func(paused bool) {
-		p.Send(tui.PauseChangedMsg{Paused: paused})
-	})
-	mgr.SetDisconnectedFunc(func() {
-		p.Send(tui.PlayerDisconnectedMsg{})
+	mgr.SetEventCallbacks(player.EventCallbacks{
+		OnStatus:        func(s string) { p.Send(tui.PlayerStatusMsg{Text: s}) },
+		OnMissingFile:   func(path string) { p.Send(tui.MissingTrackMsg{Path: path}) },
+		OnPlaybackEnded: func() { p.Send(tui.PlaybackEndedMsg{}) },
+		OnTrackChanged: func(hash, artist, title, source string) {
+			p.Send(tui.TrackChangedMsg{Hash: hash, Artist: artist, Title: title, PlaylistSource: source})
+		},
+		OnPauseChanged: func(paused bool) { p.Send(tui.PauseChangedMsg{Paused: paused}) },
+		OnDisconnected: func() { p.Send(tui.PlayerDisconnectedMsg{}) },
 	})
 	mgr.SetMissingMarker(result.Writer)
-	mgr.SetCallbacksReady()
 
 	// Listen for remote commands on a Unix domain socket.
 	ctrlListener, err := startCommandListener(p, dirs.Runtime)

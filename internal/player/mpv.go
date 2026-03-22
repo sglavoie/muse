@@ -40,6 +40,26 @@ type noopMarker struct{}
 func (noopMarker) MarkTrackMissing(_ string) error     { return nil }
 func (noopMarker) MarkQueueEntryMissing(_ int64) error { return nil }
 
+// EventCallbacks bundles the optional notification callbacks that the Manager
+// fires in response to mpv events. All fields are optional; nil callbacks are
+// silently skipped. Pass the struct to SetEventCallbacks once all callbacks are
+// wired — the call also unblocks the event reader.
+type EventCallbacks struct {
+	// OnStatus is called with transient status messages (e.g. "Connecting to mpv…").
+	OnStatus func(string)
+	// OnMissingFile is called with the file path when a missing track is detected.
+	OnMissingFile func(string)
+	// OnPlaybackEnded is called when auto-advance exhausts the queue.
+	OnPlaybackEnded func()
+	// OnTrackChanged is called when a new track starts (mpv "start-file" event).
+	// It receives the content hash, artist, title, and playlist source.
+	OnTrackChanged func(hash, artist, title, source string)
+	// OnPauseChanged is called when mpv's pause property changes.
+	OnPauseChanged func(paused bool)
+	// OnDisconnected is called at the start of handleRestart, before reconnection begins.
+	OnDisconnected func()
+}
+
 // Manager manages an mpv subprocess and its JSON-IPC connection.
 // It implements the Player interface. Commands issued after Start() but before
 // the IPC socket becomes ready are queued and replayed on connect. Commands
@@ -48,10 +68,10 @@ type Manager struct {
 	socketPath string
 	extraFlags []string // additional CLI flags appended to the mpv command
 
-	mu       sync.RWMutex
-	client   *IPCClient     // nil until the socket is connected
-	cmdQueue []func() error // nil = not started; non-nil = started, may have pending cmds
-	statusFn func(string)   // optional callback for transient status messages
+	mu        sync.RWMutex
+	client    *IPCClient     // nil until the socket is connected
+	cmdQueue  []func() error // nil = not started; non-nil = started, may have pending cmds
+	callbacks EventCallbacks // event notification callbacks; set via SetEventCallbacks
 
 	// queue is the ordered set of tracks available for playback. Set via
 	// SetQueue so that PlayFromIndex can resolve an index to a QueueTrack.
@@ -65,34 +85,6 @@ type Manager struct {
 	// marker persists missing-file state to the database. Set via
 	// SetMissingMarker. When nil, PlayFromIndex uses a no-op marker.
 	marker MissingMarker
-
-	// missingFileFn is called with the file path when a missing track is
-	// detected. Used to dispatch MissingTrackMsg into the Bubble Tea program.
-	missingFileFn func(string)
-
-	// playbackEndedFn is called when auto-advance exhausts the queue (i.e.
-	// PlayFromIndex returns ErrPlaybackFailed after an end-file/eof event).
-	// Used to dispatch PlaybackEndedMsg into the Bubble Tea program so that
-	// the TUI can reset its play/pause toggle to the correct idle state.
-	playbackEndedFn func()
-
-	// trackChangedFn is called when a new track starts (mpv "start-file"
-	// event). It receives the content hash, artist, title, and playlist
-	// source of the track resolved from the in-memory queue. Used to
-	// dispatch TrackChangedMsg into the Bubble Tea program so that the
-	// status bar and session hash stay correct during auto-advance.
-	trackChangedFn func(hash, artist, title, source string)
-
-	// pauseChangedFn is called when mpv's pause property changes (e.g. via
-	// hardware media keys routed by macOS). Used to dispatch PauseChangedMsg
-	// into the Bubble Tea program so the TUI stays in sync with mpv's actual
-	// pause state.
-	pauseChangedFn func(paused bool)
-
-	// disconnectedFn is called at the start of handleRestart, before
-	// reconnection begins. Used to dispatch PlayerDisconnectedMsg into the
-	// Bubble Tea program so the TUI can reset stale playback state immediately.
-	disconnectedFn func()
 
 	// disconnectCh receives the first error when the IPC socket is detected
 	// as disconnected by the health-check goroutine. The channel is buffered
@@ -117,10 +109,10 @@ type Manager struct {
 	rootCtx    context.Context
 	rootCancel context.CancelFunc
 
-	// callbacksReady is closed by SetCallbacksReady once all Set*Func
-	// callbacks have been wired. startEventReader blocks on this channel
-	// before entering the scan loop to prevent events from firing with
-	// nil callbacks.
+	// callbacksReady is closed by SetEventCallbacks once the callback
+	// struct has been stored. startEventReader blocks on this channel
+	// before entering the scan loop to prevent events from firing before
+	// the callbacks are wired.
 	callbacksReady chan struct{}
 
 	// launchFn starts the mpv subprocess. Tests replace this with a no-op
@@ -170,12 +162,14 @@ func (m *Manager) SocketPath() string {
 	return m.socketPath
 }
 
-// SetStatusFunc sets an optional callback invoked with transient status
-// messages (e.g. "Connecting to mpv…"). Call before Start.
-func (m *Manager) SetStatusFunc(fn func(string)) {
+// SetEventCallbacks stores the callback struct and unblocks the event reader.
+// Call once after all callbacks are wired; calling it more than once panics
+// (the callbacksReady channel is closed on the first call).
+func (m *Manager) SetEventCallbacks(cb EventCallbacks) {
 	m.mu.Lock()
-	m.statusFn = fn
+	m.callbacks = cb
 	m.mu.Unlock()
+	close(m.callbacksReady)
 }
 
 // SetCurrentPosition persists the current playback position for use in crash
@@ -268,60 +262,6 @@ func (m *Manager) RemoveFromQueue(index int) error {
 func (m *Manager) SetMissingMarker(marker MissingMarker) {
 	m.mu.Lock()
 	m.marker = marker
-	m.mu.Unlock()
-}
-
-// SetCallbacksReady signals that all Set*Func callbacks have been wired.
-// It must be called once after all callbacks are set; startEventReader blocks
-// until this is called (or the context is cancelled).
-func (m *Manager) SetCallbacksReady() { close(m.callbacksReady) }
-
-// SetMissingFileFunc sets a callback invoked with the file path whenever a
-// missing track is detected during PlayQueueEntry. Use this to dispatch a
-// MissingTrackMsg into the Bubble Tea program (e.g. p.Send).
-func (m *Manager) SetMissingFileFunc(fn func(string)) {
-	m.mu.Lock()
-	m.missingFileFn = fn
-	m.mu.Unlock()
-}
-
-// SetPlaybackEndedFunc sets a callback invoked when auto-advance exhausts the
-// queue (PlayFromIndex returns ErrPlaybackFailed after an end-file/eof event).
-// Use this to dispatch a PlaybackEndedMsg into the Bubble Tea program so the
-// TUI space-bar toggle stays synchronized with mpv's actual idle state.
-func (m *Manager) SetPlaybackEndedFunc(fn func()) {
-	m.mu.Lock()
-	m.playbackEndedFn = fn
-	m.mu.Unlock()
-}
-
-// SetTrackChangedFunc sets a callback invoked when a new track starts playing
-// (mpv "start-file" event). The callback receives the content hash, artist,
-// title, and playlist source resolved from the in-memory queue at
-// currentIndex. Use this to dispatch a TrackChangedMsg into the Bubble Tea
-// program so that the status bar and session hash are updated on auto-advance.
-func (m *Manager) SetTrackChangedFunc(fn func(hash, artist, title, source string)) {
-	m.mu.Lock()
-	m.trackChangedFn = fn
-	m.mu.Unlock()
-}
-
-// SetPauseChangedFunc sets a callback invoked when mpv's pause property changes
-// (e.g. via hardware media keys). The callback receives the new pause state.
-// Use this to dispatch a PauseChangedMsg into the Bubble Tea program so the TUI
-// stays in sync with mpv's actual pause state.
-func (m *Manager) SetPauseChangedFunc(fn func(paused bool)) {
-	m.mu.Lock()
-	m.pauseChangedFn = fn
-	m.mu.Unlock()
-}
-
-// SetDisconnectedFunc sets a callback invoked at the start of handleRestart,
-// before reconnection begins. Use this to dispatch a PlayerDisconnectedMsg
-// into the Bubble Tea program so the TUI resets stale playback state.
-func (m *Manager) SetDisconnectedFunc(fn func()) {
-	m.mu.Lock()
-	m.disconnectedFn = fn
 	m.mu.Unlock()
 }
 
@@ -510,7 +450,7 @@ func (m *Manager) enqueue(cmd func() error) error {
 		return ErrNotConnected
 	}
 	m.cmdQueue = append(m.cmdQueue, cmd)
-	fn := m.statusFn
+	fn := m.callbacks.OnStatus
 	m.mu.Unlock()
 
 	if fn != nil {
@@ -586,7 +526,7 @@ func (m *Manager) pollUntilReady(ctx context.Context) {
 	slog.Warn("mpv: socket connection timed out", "socket", m.socketPath, "timeout", socketPollTimeout)
 	m.mu.Lock()
 	m.cmdQueue = nil
-	fn := m.statusFn
+	fn := m.callbacks.OnStatus
 	m.mu.Unlock()
 	if fn != nil {
 		fn("mpv: connection timed out")
@@ -640,8 +580,8 @@ func (m *Manager) watchAndRestart() {
 // resume loadfile command, and begins polling for the new socket.
 func (m *Manager) handleRestart() {
 	m.mu.RLock()
-	fn := m.statusFn
-	disconnFn := m.disconnectedFn
+	fn := m.callbacks.OnStatus
+	disconnFn := m.callbacks.OnDisconnected
 	path := m.lastTrackPath
 	elapsed := m.lastElapsed
 	m.mu.RUnlock()
@@ -898,8 +838,8 @@ func (m *Manager) PlayQueueEntry(entry QueueTrack, marker MissingMarker) error {
 		}
 
 		m.mu.RLock()
-		fn := m.statusFn
-		mfn := m.missingFileFn
+		fn := m.callbacks.OnStatus
+		mfn := m.callbacks.OnMissingFile
 		m.mu.RUnlock()
 		if fn != nil {
 			fn("Missing file: " + entry.Path)

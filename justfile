@@ -53,6 +53,12 @@ cover:
 tidy:
     go mod tidy
 
+# Install git pre-commit hook (runs fmt-check and vet)
+hooks:
+    @printf '#!/bin/sh\njust fmt-check && go vet ./...\n' > .git/hooks/pre-commit
+    @chmod +x .git/hooks/pre-commit
+    @echo "pre-commit hook installed"
+
 # Remove build artifacts
 clean:
     rm -f muse

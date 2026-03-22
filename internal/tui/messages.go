@@ -63,8 +63,7 @@ type MissingTrackMsg struct {
 
 // PlayerStatusMsg carries a transient status string from the player backend
 // (e.g. "Connecting to mpv…" or "mpv disconnected, restarting…") into the
-// TUI status bar. Wire it by calling mgr.SetStatusFunc with a callback that
-// calls p.Send(PlayerStatusMsg{Text: s}).
+// TUI status bar. Wire it via the OnStatus callback in mgr.SetEventCallbacks.
 type PlayerStatusMsg struct {
 	Text string
 }

@@ -122,17 +122,18 @@ func TestManager_QueueDrainOnConnect(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	m := &Manager{
-		socketPath: sock,
-		ctx:        ctx,
-		cancel:     cancel,
+		socketPath:     sock,
+		ctx:            ctx,
+		cancel:         cancel,
+		callbacksReady: make(chan struct{}),
 	}
 	defer m.Close()
 
 	// Collect status messages emitted by the manager.
 	var statusMsgs []string
-	m.SetStatusFunc(func(msg string) {
+	m.SetEventCallbacks(EventCallbacks{OnStatus: func(msg string) {
 		statusMsgs = append(statusMsgs, msg)
-	})
+	}})
 
 	// Simulate Start() by initialising the queue without launching mpv.
 	m.mu.Lock()
@@ -345,15 +346,16 @@ func TestManager_PlayQueueEntry_MissingFile(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	m := &Manager{
-		socketPath: sock,
-		ctx:        ctx,
-		cancel:     cancel,
-		cmdQueue:   []func() error{}, // mark as started
+		socketPath:     sock,
+		ctx:            ctx,
+		cancel:         cancel,
+		cmdQueue:       []func() error{}, // mark as started
+		callbacksReady: make(chan struct{}),
 	}
 	defer m.Close()
 
 	var statusMsg string
-	m.SetStatusFunc(func(msg string) { statusMsg = msg })
+	m.SetEventCallbacks(EventCallbacks{OnStatus: func(msg string) { statusMsg = msg }})
 
 	// Connect the manager to a fake server so ipc() succeeds.
 	fakeServer(t, sock)
@@ -555,7 +557,7 @@ func TestManager_AutoRestart(t *testing.T) {
 		lastTrackPath: wantPath,
 		lastElapsed:   wantElapsed,
 	}
-	m.statusFn = func(msg string) {
+	m.callbacks.OnStatus = func(msg string) {
 		statusMu.Lock()
 		statusMsgs = append(statusMsgs, msg)
 		statusMu.Unlock()
@@ -1570,65 +1572,56 @@ func TestManager_SetMissingMarker(t *testing.T) {
 	}
 }
 
-func TestManager_SetMissingFileFunc(t *testing.T) {
+func TestManager_SetEventCallbacks(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	m := &Manager{ctx: ctx, cancel: cancel}
+	m := &Manager{ctx: ctx, cancel: cancel, callbacksReady: make(chan struct{})}
 	defer m.Close()
 
-	var called bool
-	m.SetMissingFileFunc(func(_ string) { called = true })
-
-	m.mu.RLock()
-	fn := m.missingFileFn
-	m.mu.RUnlock()
-	if fn == nil {
-		t.Fatal("SetMissingFileFunc did not set the func")
-	}
-	fn("/test")
-	if !called {
-		t.Error("missingFileFn was not invoked")
-	}
-}
-
-func TestManager_SetPlaybackEndedFunc(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	m := &Manager{ctx: ctx, cancel: cancel}
-	defer m.Close()
-
-	var called bool
-	m.SetPlaybackEndedFunc(func() { called = true })
-
-	m.mu.RLock()
-	fn := m.playbackEndedFn
-	m.mu.RUnlock()
-	if fn == nil {
-		t.Fatal("SetPlaybackEndedFunc did not set the func")
-	}
-	fn()
-	if !called {
-		t.Error("playbackEndedFn was not invoked")
-	}
-}
-
-func TestManager_SetTrackChangedFunc(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	m := &Manager{ctx: ctx, cancel: cancel}
-	defer m.Close()
-
+	var missingCalled bool
+	var endedCalled bool
 	var gotHash, gotArtist, gotTitle, gotSource string
-	m.SetTrackChangedFunc(func(h, a, tl, src string) {
-		gotHash, gotArtist, gotTitle, gotSource = h, a, tl, src
+
+	m.SetEventCallbacks(EventCallbacks{
+		OnMissingFile:   func(_ string) { missingCalled = true },
+		OnPlaybackEnded: func() { endedCalled = true },
+		OnTrackChanged: func(h, a, tl, src string) {
+			gotHash, gotArtist, gotTitle, gotSource = h, a, tl, src
+		},
 	})
 
 	m.mu.RLock()
-	fn := m.trackChangedFn
+	cb := m.callbacks
 	m.mu.RUnlock()
-	if fn == nil {
-		t.Fatal("SetTrackChangedFunc did not set the func")
+
+	if cb.OnMissingFile == nil {
+		t.Fatal("OnMissingFile not set")
 	}
-	fn("h1", "Artist", "Title", "My Playlist")
+	cb.OnMissingFile("/test")
+	if !missingCalled {
+		t.Error("OnMissingFile was not invoked")
+	}
+
+	if cb.OnPlaybackEnded == nil {
+		t.Fatal("OnPlaybackEnded not set")
+	}
+	cb.OnPlaybackEnded()
+	if !endedCalled {
+		t.Error("OnPlaybackEnded was not invoked")
+	}
+
+	if cb.OnTrackChanged == nil {
+		t.Fatal("OnTrackChanged not set")
+	}
+	cb.OnTrackChanged("h1", "Artist", "Title", "My Playlist")
 	if gotHash != "h1" || gotArtist != "Artist" || gotTitle != "Title" || gotSource != "My Playlist" {
-		t.Errorf("trackChangedFn args: got (%q, %q, %q, %q)", gotHash, gotArtist, gotTitle, gotSource)
+		t.Errorf("OnTrackChanged args: got (%q, %q, %q, %q)", gotHash, gotArtist, gotTitle, gotSource)
+	}
+
+	// Verify callbacksReady was closed.
+	select {
+	case <-m.callbacksReady:
+	default:
+		t.Error("callbacksReady was not closed by SetEventCallbacks")
 	}
 }
 
@@ -1793,7 +1786,7 @@ func TestManager_SetQueue_KeepsCurrentIndexWhenValid(t *testing.T) {
 }
 
 // TestManager_EventReaderBlocksOnCallbacksReady verifies that startEventReader
-// does not dispatch track-changed events until SetCallbacksReady is called.
+// does not dispatch track-changed events until SetEventCallbacks is called.
 func TestManager_EventReaderBlocksOnCallbacksReady(t *testing.T) {
 	sock := shortSockPath(t, "ev-ready")
 
@@ -1836,7 +1829,7 @@ func TestManager_EventReaderBlocksOnCallbacksReady(t *testing.T) {
 		callbacksReady: make(chan struct{}),
 		queue:          []QueueTrack{{Path: "/a.flac", Hash: "h0", Artist: "Art", Title: "Tit"}},
 		currentIndex:   0,
-		trackChangedFn: func(_, _, _, _ string) { trackFired <- struct{}{} },
+		callbacks:      EventCallbacks{OnTrackChanged: func(_, _, _, _ string) { trackFired <- struct{}{} }},
 	}
 
 	go m.startEventReader(ctx)
@@ -1851,19 +1844,20 @@ func TestManager_EventReaderBlocksOnCallbacksReady(t *testing.T) {
 	// The callback must NOT have fired yet because callbacksReady is not closed.
 	select {
 	case <-trackFired:
-		t.Fatal("trackChangedFn fired before SetCallbacksReady was called")
+		t.Fatal("OnTrackChanged fired before SetEventCallbacks was called")
 	case <-time.After(100 * time.Millisecond):
 		// correct: event reader is still blocked
 	}
 
-	// Signal that all callbacks are wired.
-	m.SetCallbacksReady()
+	// Signal that all callbacks are wired by closing callbacksReady
+	// (in production this is done by SetEventCallbacks).
+	close(m.callbacksReady)
 
 	// Now the event reader unblocks and processes the buffered start-file event.
 	select {
 	case <-trackFired:
 		// correct
 	case <-time.After(2 * time.Second):
-		t.Fatal("trackChangedFn did not fire after SetCallbacksReady")
+		t.Fatal("OnTrackChanged did not fire after callbacksReady closed")
 	}
 }
