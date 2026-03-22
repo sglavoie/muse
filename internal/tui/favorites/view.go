@@ -440,11 +440,12 @@ func (v View) renderTrackRows(items []library.Track) string {
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		line := marker + pos + " " + title + " " + artist + " " + album + " " + dur
 		_, isFav := v.FavoriteHashes[t.Hash]
-		if isFocused && isFav {
+		switch {
+		case isFocused && isFav:
 			line = v.Styles.FavoriteAccent.Render(line)
-		} else if isFocused {
+		case isFocused:
 			line = v.Styles.Accent.Render(line)
-		} else if isFav {
+		case isFav:
 			line = v.Styles.Favorite.Render(line)
 		}
 		lines[i] = line

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1235,7 +1236,7 @@ func TestUndoDequeueEnsuresCursorVisibility(t *testing.T) {
 	}
 	// Simulate: entry at index 15 was dequeued, so we have indices 0..14,16..19 (19 entries).
 	dequeued := entries[15]
-	m.queue.entries = append(entries[:15:15], entries[16:]...)
+	m.queue.entries = slices.Concat(entries[:15], entries[16:])
 
 	// Simulate user scrolled to the top of the queue.
 	m.queue.scrollOffset = 0

@@ -211,13 +211,12 @@ func (m *Manager) SetQueue(entries []QueueTrack) {
 // set to 0.
 func (m *Manager) SetCurrentIndex(index int) {
 	m.mu.Lock()
-	if len(m.queue) == 0 {
+	switch {
+	case len(m.queue) == 0, index < 0:
 		m.currentIndex = 0
-	} else if index < 0 {
-		m.currentIndex = 0
-	} else if index >= len(m.queue) {
+	case index >= len(m.queue):
 		m.currentIndex = len(m.queue) - 1
-	} else {
+	default:
 		m.currentIndex = index
 	}
 	m.mu.Unlock()

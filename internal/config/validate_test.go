@@ -34,7 +34,7 @@ func TestValidateMusicDir_PermissionDenied(t *testing.T) {
 	if err := os.Mkdir(restrictedDir, 0o000); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.Chmod(restrictedDir, 0o755) })
+	t.Cleanup(func() { os.Chmod(restrictedDir, 0o755) }) //nolint:gosec // G302: restoring perms in test cleanup
 
 	err := ValidateMusicDir(restrictedDir, configPath)
 	if err == nil {

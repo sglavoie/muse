@@ -364,13 +364,14 @@ func (v View) Render() string {
 
 		var row string
 		hasFieldPos := len(dt.artistPositions) > 0 || len(dt.titlePositions) > 0 || len(dt.albumPositions) > 0
-		if hasFieldPos {
+		switch {
+		case hasFieldPos:
 			row = markerStr + pad(num, cols.TrackNum) + " " +
 				padHighlight(t.Artist, cols.Artist, dt.artistPositions) + " " +
 				padHighlight(t.Title, cols.Title, dt.titlePositions) + " " +
 				padHighlight(t.Album, cols.Album, dt.albumPositions) + " " +
 				padLeft(dur, cols.Duration)
-		} else if len(dt.matchedIndexes) > 0 {
+		case len(dt.matchedIndexes) > 0:
 			artistOffset, artistLen, titleOffset, titleLen, albumOffset, albumLen :=
 				searchFieldOffsetsAll(t.Artist, t.Title, t.Album)
 			artistPos := fieldMatchPositions(dt.matchedIndexes, artistOffset, artistLen)
@@ -381,16 +382,17 @@ func (v View) Render() string {
 				padHighlight(t.Title, cols.Title, titlePos) + " " +
 				padHighlight(t.Album, cols.Album, albumPos) + " " +
 				padLeft(dur, cols.Duration)
-		} else {
+		default:
 			row = markerStr + renderRow(num, t.Artist, t.Title, t.Album, dur, cols)
 		}
 
 		_, isFav := v.FavoriteHashes[t.Hash]
-		if isFocused && isFav {
+		switch {
+		case isFocused && isFav:
 			row = v.Styles.FavoriteAccent.Render(row)
-		} else if isFocused {
+		case isFocused:
 			row = v.Styles.Accent.Render(row)
-		} else if isFav {
+		case isFav:
 			row = v.Styles.Favorite.Render(row)
 		}
 		lines[i] = row

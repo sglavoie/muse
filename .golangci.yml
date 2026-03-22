@@ -23,9 +23,17 @@ linters:
         - (net.Conn).Close
         - (net.Listener).Close
         - os.Remove
+        - os.RemoveAll
         - os.Setenv
         - os.Unsetenv
         - os.Chmod
+    gosec:
+      excludes:
+        - G104 # covered by errcheck linter
+        - G204 # subprocess commands are hardcoded ("mpv")
+        - G301 # directory permissions >0750 are fine in tests
+        - G304 # file paths come from config, not user input
+        - G306 # file permissions >0600 are fine in tests
     staticcheck:
       checks:
         - "all"

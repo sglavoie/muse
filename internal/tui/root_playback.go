@@ -258,7 +258,8 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		return m, m.startPreviewCmd(track), true
 	case actionPlayPause:
 		if m.player != nil {
-			if m.playback.state == PlaybackPlaying {
+			switch {
+			case m.playback.state == PlaybackPlaying:
 				if err := m.player.Pause(); err != nil {
 					slog.Warn("pause failed", "err", err)
 					m.statusBar.notification = newNotification("Pause failed: " + err.Error())
@@ -266,9 +267,9 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 					m.playback.state = PlaybackPaused
 				}
 				return m, m.sessionPositionCmd(), true
-			} else if len(m.queue.entries) == 0 {
+			case len(m.queue.entries) == 0:
 				return m, nil, true
-			} else {
+			default:
 				if err := m.player.Play(); err != nil {
 					slog.Warn("play failed", "err", err)
 					m.statusBar.notification = newNotification("Play failed: " + err.Error())

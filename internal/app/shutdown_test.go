@@ -224,7 +224,7 @@ func TestShutdownDBWriterDrainsOnShutdown(t *testing.T) {
 		t.Fatalf("create table: %v", err)
 	}
 
-	ctx, cancel := context.WithCancel(t.Context())
+	ctx, cancel := context.WithCancel(t.Context()) //nolint:gosec // G118: cancel is passed to Shutdown
 	w := db.NewWriter(ctx, d.DB)
 
 	const n = 5
@@ -303,7 +303,7 @@ func TestShutdownTimeout_ForcesExit(t *testing.T) {
 		return
 	}
 
-	cmd := exec.Command(os.Args[0], "-test.run=TestShutdownTimeout_ForcesExit")
+	cmd := exec.Command(os.Args[0], "-test.run=TestShutdownTimeout_ForcesExit") //nolint:gosec // G702: test re-executes itself
 	cmd.Env = append(os.Environ(), "TEST_SHUTDOWN_TIMEOUT=1")
 	err := cmd.Run()
 	if err == nil {

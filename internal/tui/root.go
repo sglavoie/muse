@@ -889,7 +889,8 @@ func (m *Model) refreshHelpViewport() {
 func (m Model) View() tea.View {
 	var body string
 	// Render overlays in priority order (highest first). See hasActiveOverlay().
-	if m.helpVisible {
+	switch {
+	case m.helpVisible:
 		var filterBar string
 		if m.helpSearchFilter.Active {
 			filterBar = "Search: > " + m.helpSearchFilter.Text + "\n"
@@ -897,17 +898,17 @@ func (m Model) View() tea.View {
 			filterBar = "Search: " + m.helpSearchFilter.Text + "\n"
 		}
 		body = filterBar + m.helpViewport.View()
-	} else if m.overlay.nowPlaying != nil {
+	case m.overlay.nowPlaying != nil:
 		body = m.overlay.nowPlaying.Render(m.termWidth, m.termHeight, *m.styles)
-	} else if m.overlay.trackInfo != nil {
+	case m.overlay.trackInfo != nil:
 		body = m.overlay.trackInfo.Render(m.termWidth, m.termHeight, *m.styles)
-	} else if m.overlay.preview != nil {
+	case m.overlay.preview != nil:
 		body = m.overlay.preview.Render(m.termWidth, m.termHeight, *m.styles)
-	} else if m.overlay.metadataEditor != nil {
+	case m.overlay.metadataEditor != nil:
 		body = m.overlay.metadataEditor.Render(m.termWidth, m.termHeight, *m.styles)
-	} else if m.overlay.destPicker != nil {
+	case m.overlay.destPicker != nil:
 		body = m.overlay.destPicker.Render(m.termWidth, m.termHeight, *m.styles)
-	} else {
+	default:
 		switch m.activeView {
 		case viewLibrary:
 			body = m.library.render(*m.styles, m.favoriteHashes)
@@ -1111,15 +1112,16 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 	case actionBulkSelectionToggle:
-		if m.activeView == viewLibrary {
+		switch m.activeView {
+		case viewLibrary:
 			m.library = m.library.HandleAction(action)
-		} else if m.activeView == viewPlaylists {
+		case viewPlaylists:
 			m.playlists = m.playlists.HandleAction(action)
-		} else if m.activeView == viewFavorites {
+		case viewFavorites:
 			if m.favorites.level != favtui.CategoryLevel {
 				m.favorites = m.favorites.toggleSelection(m.favorites.cursor)
 			}
-		} else {
+		default:
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)
 			return m, cmd

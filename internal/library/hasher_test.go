@@ -134,7 +134,7 @@ func TestHashWorkers_DrainAndClose(t *testing.T) {
 	const n = 8
 	paths := make([]string, n)
 	for i := range paths {
-		p := filepath.Join(dir, filepath.Join("track"+string(rune('0'+i))+".flac"))
+		p := filepath.Join(dir, "track"+string(rune('0'+i))+".flac")
 		writeFile(t, p, []byte("audio content for track"))
 		paths[i] = p
 	}
@@ -406,7 +406,7 @@ func TestHashWorkers_ManyFiles(t *testing.T) {
 	in := make(chan string, n)
 	expected := make(map[string]struct{}, n)
 	for i := range n {
-		p := filepath.Join(dir, filepath.Join("track_many_"+string(rune('A'+i%26))+string(rune('0'+i/26))+".flac"))
+		p := filepath.Join(dir, "track_many_"+string(rune('A'+i%26))+string(rune('0'+i/26))+".flac")
 		writeFile(t, p, makeBytes(1024+i, byte(i)))
 		in <- p
 		expected[p] = struct{}{}

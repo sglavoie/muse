@@ -46,7 +46,7 @@ var _ Previewer = (*PreviewPlayer)(nil)
 // parentCtx ties the player's lifecycle to the application: when the parent
 // context is cancelled the preview subprocess is also terminated.
 func NewPreviewPlayer(parentCtx context.Context, socketPath string) *PreviewPlayer {
-	ctx, cancel := context.WithCancel(parentCtx)
+	ctx, cancel := context.WithCancel(parentCtx) //nolint:gosec // G118: cancel is stored in PreviewPlayer
 	return &PreviewPlayer{
 		socketPath: socketPath,
 		ctx:        ctx,

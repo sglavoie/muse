@@ -539,15 +539,14 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 
 	// Build notification message.
 	var note string
-	if msg.count > 1 {
-		if msg.added {
-			note = fmt.Sprintf("Added %d %ss to favorites", msg.count, msg.typ)
-		} else {
-			note = fmt.Sprintf("Removed %d %ss from favorites", msg.count, msg.typ)
-		}
-	} else if msg.added {
+	switch {
+	case msg.count > 1 && msg.added:
+		note = fmt.Sprintf("Added %d %ss to favorites", msg.count, msg.typ)
+	case msg.count > 1:
+		note = fmt.Sprintf("Removed %d %ss from favorites", msg.count, msg.typ)
+	case msg.added:
 		note = fmt.Sprintf("Added %s to favorites", msg.typ)
-	} else {
+	default:
 		note = fmt.Sprintf("Removed %s from favorites", msg.typ)
 	}
 

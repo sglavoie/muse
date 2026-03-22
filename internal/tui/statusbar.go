@@ -171,7 +171,7 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 		if width > 0 {
 			visibleWidth := ansi.StringWidth(content)
 			if visibleWidth < width {
-				content = content + r(strings.Repeat(" ", width-visibleWidth))
+				content += r(strings.Repeat(" ", width-visibleWidth))
 			}
 		}
 		return content

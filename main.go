@@ -189,7 +189,8 @@ func main() {
 	if err != nil {
 		slog.Error("startup failed", "err", err)
 		fmt.Fprintf(os.Stderr, "muse: %v\n", err)
-		os.Exit(1)
+		cancel()
+		os.Exit(1) //nolint:gocritic // exitAfterDefer: cancel() called explicitly above
 	}
 
 	shutdownDeps := app.ShutdownDeps{

@@ -23,7 +23,7 @@ func shortTempDir(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.RemoveAll(dir) })
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
 	return dir
 }
 
@@ -75,7 +75,7 @@ func TestCommandListener_ValidAction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Fprintln(conn, "toggle-play")
+	_, _ = fmt.Fprintln(conn, "toggle-play")
 	conn.Close()
 
 	select {
@@ -105,7 +105,7 @@ func TestCommandListener_UnknownAction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Fprintln(conn, "not-a-real-action")
+	_, _ = fmt.Fprintln(conn, "not-a-real-action")
 	conn.Close()
 
 	// Unknown actions must not be dispatched to the program.
@@ -135,9 +135,9 @@ func TestCommandListener_EmptyLine(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Several blank lines followed by a valid action.
-	fmt.Fprintln(conn, "")
-	fmt.Fprintln(conn, "   ")
-	fmt.Fprintln(conn, "next")
+	_, _ = fmt.Fprintln(conn, "")
+	_, _ = fmt.Fprintln(conn, "   ")
+	_, _ = fmt.Fprintln(conn, "next")
 	conn.Close()
 
 	// The valid action after the empty lines must still be dispatched.
@@ -191,7 +191,7 @@ func TestCommandListener_TransientAcceptError(t *testing.T) {
 	if err != nil {
 		t.Fatal("accept loop stopped after transient errors:", err)
 	}
-	fmt.Fprintln(conn, "next")
+	_, _ = fmt.Fprintln(conn, "next")
 	conn.Close()
 
 	select {

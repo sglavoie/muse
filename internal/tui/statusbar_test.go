@@ -36,10 +36,8 @@ func TestRenderPlaybackStateGlyphs(t *testing.T) {
 					t.Errorf("state=%v: unexpected glyph %q in %q", tc.state, g, out)
 				}
 			}
-		} else {
-			if !strings.Contains(out, tc.wantGlyph) {
-				t.Errorf("state=%v: expected glyph %q in %q", tc.state, tc.wantGlyph, out)
-			}
+		} else if !strings.Contains(out, tc.wantGlyph) {
+			t.Errorf("state=%v: expected glyph %q in %q", tc.state, tc.wantGlyph, out)
 		}
 	}
 }

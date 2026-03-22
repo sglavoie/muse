@@ -25,6 +25,7 @@ test-pkg pkg:
 # Run the linter
 lint:
     go vet ./...
+    go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest run
 
 # Format all Go files
 fmt:

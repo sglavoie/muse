@@ -14,9 +14,7 @@ import (
 
 // watcherFactory creates a new fsnotify.Watcher. It is a variable so tests can
 // substitute a factory that returns an error to exercise graceful degradation.
-var watcherFactory = func() (*fsnotify.Watcher, error) {
-	return fsnotify.NewWatcher()
-}
+var watcherFactory = fsnotify.NewWatcher
 
 // DefaultDebounce is the default debounce window for filesystem events.
 const DefaultDebounce = 2500 * time.Millisecond

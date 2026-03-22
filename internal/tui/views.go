@@ -283,8 +283,7 @@ func (v PlaylistsView) focusedPlaylist() (db.PlaylistRow, bool) {
 
 // HandleAction executes a pre-resolved playlists action dispatched by root.Update.
 func (v PlaylistsView) HandleAction(a action) PlaylistsView {
-	switch a {
-	case actionBulkSelectionToggle:
+	if a == actionBulkSelectionToggle {
 		if v.level == pltui.TrackLevel && len(v.tracks) > 0 && v.cursor < len(v.tracks) {
 			id := v.tracks[v.trackIndex(v.cursor)].ID
 			view := pltui.View{SelectedTrackIDs: v.selectedTrackIDs}.ToggleBulkSelection(id)

@@ -149,7 +149,7 @@ func TestNoRawANSI(t *testing.T) {
 		}
 
 		fileCount++
-		src, readErr := os.ReadFile(path)
+		src, readErr := os.ReadFile(path) //nolint:gosec // G122: test walks its own tree, no symlink risk
 		if readErr != nil {
 			return readErr
 		}
@@ -289,7 +289,7 @@ func TestNoLipglossRenderHelpers(t *testing.T) {
 		}
 
 		fileCount++
-		src, readErr := os.ReadFile(path)
+		src, readErr := os.ReadFile(path) //nolint:gosec // G122: test walks its own tree, no symlink risk
 		if readErr != nil {
 			return readErr
 		}

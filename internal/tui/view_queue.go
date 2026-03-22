@@ -456,17 +456,18 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes ma
 
 		line := markerStr + pos + " " + title + " " + artist + " " + album + " " + source + " " + dur
 		_, isFav := favHashes[e.Hash]
-		if e.Missing {
+		switch {
+		case e.Missing:
 			lines[i] = s.Dim.Render(line + " [missing]")
-		} else if isFocused && isFav {
+		case isFocused && isFav:
 			lines[i] = s.FavoriteAccent.Render(line)
-		} else if isFocused {
+		case isFocused:
 			lines[i] = s.Accent.Render(line)
-		} else if isNowPlaying {
+		case isNowPlaying:
 			lines[i] = s.NowPlaying.Render(line)
-		} else if isFav {
+		case isFav:
 			lines[i] = s.Favorite.Render(line)
-		} else {
+		default:
 			lines[i] = line
 		}
 	}

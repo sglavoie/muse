@@ -302,11 +302,12 @@ func (v View) renderTracks() string {
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		line := pos + " " + title + " " + artist + " " + dur
 		_, isFav := v.FavoriteHashes[t.Hash]
-		if absIdx == v.Cursor && isFav {
+		switch {
+		case absIdx == v.Cursor && isFav:
 			line = v.Styles.FavoriteAccent.Render(line)
-		} else if absIdx == v.Cursor {
+		case absIdx == v.Cursor:
 			line = v.Styles.Accent.Render(line)
-		} else if isFav {
+		case isFav:
 			line = v.Styles.Favorite.Render(line)
 		}
 		lines[i] = line
