@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -65,12 +66,12 @@ type Deps struct {
 	// mpv exits, wg.Wait() inside Run will stall and the TUI will never start.
 	LaunchMPV func(ctx context.Context, socketPath string) error
 
-	// RunScan is called concurrently with LaunchMPV during step 6 of Run.
-	// In production (main.go) this is a no-op because the real library scan
+	// RunScan, when non-nil, is called concurrently with LaunchMPV during
+	// step 6 of Run. In production this is nil because the real library scan
 	// pipeline is launched by the caller after Run returns (the scan needs
 	// direct access to the Writer which is an internal implementation detail
-	// of Run). Injecting a real scan here in tests validates the concurrent
-	// execution contract between LaunchMPV and RunScan.
+	// of Run). Tests set RunScan to validate the concurrent execution
+	// contract between LaunchMPV and RunScan.
 	RunScan func(ctx context.Context, database *db.DB) error
 
 	// RestorePlayer, when non-nil, is called after LaunchMPV succeeds with
@@ -221,11 +222,13 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 		}
 	})
 
-	wg.Go(func() {
-		if err := deps.RunScan(ctx, database); err != nil {
-			errs <- fmt.Errorf("startup: scan: %w", err)
-		}
-	})
+	if deps.RunScan != nil {
+		wg.Go(func() {
+			if err := deps.RunScan(ctx, database); err != nil {
+				errs <- fmt.Errorf("startup: scan: %w", err)
+			}
+		})
+	}
 
 	wg.Wait()
 	close(errs)
@@ -326,7 +329,7 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 		shuffle = sess.Shuffle
 		currentHash = sess.CurrentHash
 		positionMs = sess.PositionMs
-		volume = int(sess.Volume * 100)
+		volume = int(math.Round(sess.Volume * 100))
 	}
 
 	return &RestoredSession{

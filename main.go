@@ -177,9 +177,6 @@ func main() {
 			}
 			return nil
 		},
-		RunScan: func(ctx context.Context, database *db.DB) error {
-			return nil
-		},
 		RestorePlayer: func(path string, positionMs int64) error {
 			return mgr.LoadFilePaused(path, positionMs)
 		},
@@ -287,6 +284,7 @@ func main() {
 	if err != nil {
 		slog.Warn("remote control unavailable", "err", err)
 	}
+	shutdownDeps.CtrlListener = ctrlListener
 
 	// When the signal context is cancelled (SIGTERM/SIGINT from outside),
 	// tell the TUI to quit so p.Run() returns and shutdown proceeds.
@@ -298,16 +296,9 @@ func main() {
 	if _, err := p.Run(); err != nil {
 		slog.Error("TUI error", "err", err)
 		fmt.Fprintf(os.Stderr, "muse: %v\n", err)
-		if ctrlListener != nil {
-			ctrlListener.Close()
-		}
-		// Still run shutdown to clean up resources.
 		app.Shutdown(shutdownDeps, app.ShutdownTimeout)
 		os.Exit(1)
 	}
 
-	if ctrlListener != nil {
-		ctrlListener.Close()
-	}
 	app.Shutdown(shutdownDeps, app.ShutdownTimeout)
 }

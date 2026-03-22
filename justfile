@@ -12,11 +12,11 @@ install:
 
 # Run all tests
 test:
-    go test -race ./...
+    go test -race -count=1 ./...
 
 # Run tests with verbose output
 test-v:
-    go test -race -v ./...
+    go test -race -count=1 -v ./...
 
 # Run tests for a specific package (e.g., just test-pkg internal/tui)
 test-pkg pkg:
@@ -48,6 +48,10 @@ cover:
     go test -race -coverprofile=coverage.out ./...
     go tool cover -html=coverage.out -o coverage.html
     @echo "coverage.html written"
+
+# Tidy module dependencies
+tidy:
+    go mod tidy
 
 # Remove build artifacts
 clean:

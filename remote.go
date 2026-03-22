@@ -21,6 +21,8 @@ import (
 const (
 	ctrlSocketName    = "muse.ctrl"
 	remoteDialTimeout = 2 * time.Second
+	remoteReadTimeout = 5 * time.Second
+	acceptBackoff     = 100 * time.Millisecond
 )
 
 // knownActions is the authoritative set of remote action names accepted by the
@@ -66,7 +68,7 @@ func acceptLoop(p *tea.Program, ln net.Listener) {
 				return
 			}
 			slog.Warn("control socket accept error", "err", err)
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(acceptBackoff)
 			continue
 		}
 		go handleRemoteConn(p, conn)
@@ -77,7 +79,7 @@ func acceptLoop(p *tea.Program, ln net.Listener) {
 // connection and dispatches each one into the TUI.
 func handleRemoteConn(p *tea.Program, conn net.Conn) {
 	defer conn.Close()
-	if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+	if err := conn.SetReadDeadline(time.Now().Add(remoteReadTimeout)); err != nil {
 		slog.Warn("remote: set read deadline", "err", err)
 		return
 	}

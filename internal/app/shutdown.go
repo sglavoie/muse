@@ -2,6 +2,7 @@ package app
 
 import (
 	"log/slog"
+	"net"
 	"os"
 	"time"
 
@@ -33,6 +34,11 @@ type ShutdownDeps struct {
 	// Nil means no-op.
 	CloseDB func()
 
+	// CtrlListener is the Unix domain socket listener for remote commands.
+	// Closed first during shutdown to stop accepting new commands. Nil means
+	// remote control was not started.
+	CtrlListener net.Listener
+
 	// Lockfile is the PID lockfile to release on shutdown.
 	Lockfile *config.Lockfile
 
@@ -49,6 +55,7 @@ type ShutdownDeps struct {
 // Pass ShutdownTimeout for the normal production timeout.
 //
 // The teardown sequence is:
+//  0. Close the remote control listener (stop accepting new commands)
 //  1. Close the player (stop playback + terminate mpv)
 //  2. Flush pending DB writes (cancel writer context, wait for goroutine exit)
 //  3. Close database connection
@@ -78,6 +85,15 @@ func Shutdown(deps ShutdownDeps, timeout time.Duration) {
 
 // shutdownSequence performs the ordered teardown steps.
 func shutdownSequence(deps ShutdownDeps) {
+	// Step 0: Close the remote control listener to stop accepting new commands.
+	if deps.CtrlListener != nil {
+		slog.Info("shutdown: closing control listener")
+		if err := deps.CtrlListener.Close(); err != nil {
+			slog.Warn("shutdown: close control listener", "err", err)
+		}
+		slog.Info("shutdown: control listener closed")
+	}
+
 	// Step 1: Close the player (stop playback + terminate mpv).
 	slog.Info("shutdown: closing player")
 	if deps.ClosePlayer != nil {
