@@ -67,6 +67,7 @@ type View struct {
 
 	SortIndicator  string // e.g. "Sort: Name ▲" — shown when non-empty
 	FavoriteHashes map[string]struct{}
+	SelectedHashes map[string]struct{}
 }
 
 // FilterStrings returns items whose lowercased form contains the lowercased
@@ -446,8 +447,9 @@ func (v View) renderTracks() string {
 	cols := ComputeTrack(v.Width)
 
 	header := v.Styles.ColHead.Render(
-		fmt.Sprintf("%-*s %-*s %*s",
-			cols.Position, "#", cols.Title, "Title", cols.Duration, "Time"))
+		strings.Repeat(" ", cols.SelectionMarker) +
+			fmt.Sprintf("%-*s %-*s %*s",
+				cols.Position, "#", cols.Title, "Title", cols.Duration, "Time"))
 
 	maxRows := v.visibleRows()
 	start := min(v.ScrollOffset, len(items))
@@ -456,18 +458,30 @@ func (v View) renderTracks() string {
 	lines := make([]string, end-start)
 	for i, t := range items[start:end] {
 		absIdx := start + i
+		isFocused := absIdx == v.Cursor
+		_, isSelected := v.SelectedHashes[t.Hash]
+
+		var markerStr string
+		switch {
+		case isSelected && isFocused:
+			markerStr = "● " // plain glyph; outer accent wrap provides styling
+		case isSelected:
+			markerStr = v.Styles.AccentMark.Render("●") + " "
+		default:
+			markerStr = "  "
+		}
 
 		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
 		title := Truncate(t.Title, cols.Title)
 		title = fmt.Sprintf("%-*s", cols.Title, title)
 		dur := FormatDuration(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
-		line := pos + " " + title + " " + dur
+		line := markerStr + pos + " " + title + " " + dur
 		_, isFav := v.FavoriteHashes[t.Hash]
 		switch {
-		case absIdx == v.Cursor && isFav:
+		case isFocused && isFav:
 			line = v.Styles.FavoriteAccent.Render(line)
-		case absIdx == v.Cursor:
+		case isFocused:
 			line = v.Styles.Accent.Render(line)
 		case isFav:
 			line = v.Styles.Favorite.Render(line)

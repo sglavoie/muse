@@ -225,7 +225,13 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 					tracks = arttui.DeriveTracks(allTracks, m.artists.selectedArtist, album)
 				}
 			case arttui.TrackLevel:
-				if t, ok := m.artists.focusedTrack(); ok {
+				if len(m.artists.selectedHashes) > 0 {
+					for _, t := range m.artists.tracks {
+						if _, ok := m.artists.selectedHashes[t.Hash]; ok {
+							tracks = append(tracks, t)
+						}
+					}
+				} else if t, ok := m.artists.focusedTrack(); ok {
 					tracks = []library.Track{t}
 				}
 			}
@@ -237,7 +243,13 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 					tracks = albtui.DeriveAlbumTracks(allTracks, album)
 				}
 			case albtui.TrackLevel:
-				if t, ok := m.albums.focusedTrack(); ok {
+				if len(m.albums.selectedHashes) > 0 {
+					for _, t := range m.albums.tracks {
+						if _, ok := m.albums.selectedHashes[t.Hash]; ok {
+							tracks = append(tracks, t)
+						}
+					}
+				} else if t, ok := m.albums.focusedTrack(); ok {
 					tracks = []library.Track{t}
 				}
 			}

@@ -456,3 +456,134 @@ func TestRenameUnknownArtistSentinel(t *testing.T) {
 		t.Errorf("expected artist=%q, got %q", arttui.UnknownArtist, ed.Artist())
 	}
 }
+
+// --- TestBulkMetadataEditFromArtistsTrackLevel ---
+
+// TestBulkMetadataEditFromArtistsTrackLevel verifies that bulkSelectedHashes
+// returns hashes from artists.selectedHashes when the Artists view is active.
+func TestBulkMetadataEditFromArtistsTrackLevel(t *testing.T) {
+	m := newModelWithTracks()
+	m = pressKey(m, "4")  // Artists view
+	m = pressEnter(m)     // AlbumLevel (Alice)
+	m = pressEnter(m)     // TrackLevel (Alpha)
+
+	if m.artists.level != arttui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.artists.level)
+	}
+
+	// Select h1 and h2 directly.
+	m.artists.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+
+	hashes := m.bulkSelectedHashes()
+	if len(hashes) != 2 {
+		t.Fatalf("bulkSelectedHashes: expected 2, got %d", len(hashes))
+	}
+
+	// Press M — should open bulk editor (2 hashes selected).
+	m = pressMKey(m)
+	if m.overlay.metadataEditor == nil {
+		t.Fatal("expected bulk metadataEditor to open with 2 selected tracks")
+	}
+	if !m.overlay.metadataEditor.IsBulk() {
+		t.Error("expected IsBulk=true for 2 selected tracks")
+	}
+	if len(m.overlay.metadataEditor.Hashes()) != 2 {
+		t.Errorf("expected 2 hashes in editor, got %d", len(m.overlay.metadataEditor.Hashes()))
+	}
+}
+
+// TestBulkMetadataEditClearsArtistsSelectionOnSave verifies that saving the
+// bulk metadata editor clears artists.selectedHashes.
+func TestBulkMetadataEditClearsArtistsSelectionOnSave(t *testing.T) {
+	m := newModelWithTracks()
+	m = pressKey(m, "4")
+	m = pressEnter(m)
+	m = pressEnter(m)
+
+	m.artists.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m = pressMKey(m)
+	if m.overlay.metadataEditor == nil {
+		t.Fatal("expected editor open")
+	}
+
+	// Make a change so the editor doesn't early-return "No changes".
+	m = typeIntoEditor(m, "X")
+
+	result, _ := m.handleMetadataSave()
+	m = result.(Model)
+
+	if len(m.artists.selectedHashes) != 0 {
+		t.Errorf("after bulk save: expected selectedHashes cleared, got %d", len(m.artists.selectedHashes))
+	}
+}
+
+// --- TestBulkMetadataEditFromAlbumsTrackLevel ---
+
+// TestBulkMetadataEditFromAlbumsTrackLevel verifies that bulkSelectedHashes
+// returns hashes from albums.selectedHashes when the Albums view is active.
+func TestBulkMetadataEditFromAlbumsTrackLevel(t *testing.T) {
+	m := newModelWithTracks()
+	m = pressKey(m, "5")  // Albums view
+	m = pressEnter(m)     // TrackLevel (Alpha)
+
+	if m.albums.level != albtui.AlbumLevel {
+		// On enter from AlbumLevel we go to TrackLevel.
+	}
+
+	// Select h1 and h2 directly.
+	m.albums.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+
+	hashes := m.bulkSelectedHashes()
+	if len(hashes) != 2 {
+		t.Fatalf("bulkSelectedHashes (albums): expected 2, got %d", len(hashes))
+	}
+
+	// Press M — should open bulk editor.
+	m = pressMKey(m)
+	if m.overlay.metadataEditor == nil {
+		t.Fatal("expected bulk metadataEditor to open with 2 selected tracks")
+	}
+	if !m.overlay.metadataEditor.IsBulk() {
+		t.Error("expected IsBulk=true for 2 selected tracks")
+	}
+}
+
+// TestBulkMetadataEditClearsAlbumsSelectionOnSave verifies that saving the
+// bulk metadata editor clears albums.selectedHashes.
+func TestBulkMetadataEditClearsAlbumsSelectionOnSave(t *testing.T) {
+	m := newModelWithTracks()
+	m = pressKey(m, "5")
+	m = pressEnter(m)
+
+	m.albums.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m = pressMKey(m)
+	if m.overlay.metadataEditor == nil {
+		t.Fatal("expected editor open")
+	}
+
+	// Make a change so the editor doesn't early-return "No changes".
+	m = typeIntoEditor(m, "X")
+
+	result, _ := m.handleMetadataSave()
+	m = result.(Model)
+
+	if len(m.albums.selectedHashes) != 0 {
+		t.Errorf("after bulk save: expected selectedHashes cleared, got %d", len(m.albums.selectedHashes))
+	}
+}
+
+// TestBulkSelectedHashesEmptyWhenNoSelection verifies that bulkSelectedHashes
+// returns nil when artists/albums have no selection.
+func TestBulkSelectedHashesEmptyWhenNoSelection(t *testing.T) {
+	m := newModelWithTracks()
+
+	m = pressKey(m, "4")
+	if hashes := m.bulkSelectedHashes(); hashes != nil {
+		t.Errorf("artists with no selection: expected nil, got %v", hashes)
+	}
+
+	m = pressKey(m, "5")
+	if hashes := m.bulkSelectedHashes(); hashes != nil {
+		t.Errorf("albums with no selection: expected nil, got %v", hashes)
+	}
+}

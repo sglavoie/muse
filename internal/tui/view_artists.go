@@ -37,8 +37,9 @@ type ArtistsView struct {
 	width  int
 	height int
 
-	filter    filter.State
-	sortState SortState
+	filter         filter.State
+	sortState      SortState
+	selectedHashes map[string]struct{}
 }
 
 // recomputeArtistsSort re-sorts the owned slices for the current level.
@@ -90,6 +91,7 @@ func (v ArtistsView) render(s styles.Styles, favHashes map[string]struct{}) stri
 		FilterText:         v.filter.Text,
 		SortIndicator:      sortInd,
 		FavoriteHashes:     favHashes,
+		SelectedHashes:     v.selectedHashes,
 	}
 	return av.Render()
 }
@@ -150,6 +152,7 @@ func (v ArtistsView) openAlbums(albums []string) ArtistsView {
 	v.albums = view.Albums
 	v.filter = filter.State{}
 	v.sortState = SortState{}
+	v.selectedHashes = nil
 	return v
 }
 
@@ -170,6 +173,7 @@ func (v ArtistsView) openTracks(tracks []musiclib.Track) ArtistsView {
 	v.tracks = view.Tracks
 	v.filter = filter.State{}
 	v.sortState = SortState{}
+	v.selectedHashes = nil
 	return v
 }
 
@@ -201,6 +205,7 @@ func (v ArtistsView) back() ArtistsView {
 	v.tracks = view.Tracks
 	v.filter = filter.State{}
 	v.sortState = SortState{}
+	v.selectedHashes = nil
 	return v
 }
 

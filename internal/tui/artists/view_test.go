@@ -682,3 +682,42 @@ func TestViewStylesCompileTimeAssertion(t *testing.T) {
 		t.Log("HasDark is true (unexpected for zero value but not an error)")
 	}
 }
+
+// --- selection marker tests ---
+
+// TestRenderTracksShowsSelectionMarker verifies that a selected track renders
+// the bullet marker (●) and an unselected track does not.
+func TestRenderTracksShowsSelectionMarker(t *testing.T) {
+	tracks := []library.Track{
+		{Title: "Selected", Hash: "h1", Duration: 60},
+		{Title: "Not Selected", Hash: "h2", Duration: 60},
+	}
+	v := View{
+		Level:          TrackLevel,
+		Width:          80,
+		Tracks:         tracks,
+		SelectedHashes: map[string]struct{}{"h1": {}},
+	}
+	out := v.Render()
+	if !strings.Contains(out, "●") {
+		t.Errorf("expected selection marker ● in output for selected track, got:\n%s", out)
+	}
+}
+
+// TestRenderTracksNoMarkersWhenNoneSelected verifies that when no tracks are
+// selected, the bullet marker does not appear in the rendered output.
+func TestRenderTracksNoMarkersWhenNoneSelected(t *testing.T) {
+	tracks := []library.Track{
+		{Title: "Track A", Hash: "h1", Duration: 60},
+		{Title: "Track B", Hash: "h2", Duration: 60},
+	}
+	v := View{
+		Level:  TrackLevel,
+		Width:  80,
+		Tracks: tracks,
+	}
+	out := v.Render()
+	if strings.Contains(out, "●") {
+		t.Errorf("did not expect selection marker ● when nothing is selected, got:\n%s", out)
+	}
+}

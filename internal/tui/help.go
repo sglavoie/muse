@@ -134,7 +134,9 @@ func helpSections() []helpSection {
 				{"enter", "Open albums / tracks / enqueue track"},
 				{"shift+enter", "Replace queue with track"},
 				{"esc", "Back one level"},
-				{"a", "Add focused item to queue or playlist"},
+				{"x", "Toggle bulk-selection on focused track"},
+				{"X", "Clear all bulk-selected tracks"},
+				{"a", "Add focused / selected tracks to queue or playlist"},
 			},
 		},
 		{
@@ -145,7 +147,9 @@ func helpSections() []helpSection {
 				{"enter", "Open tracks / enqueue track"},
 				{"shift+enter", "Replace queue with track"},
 				{"esc", "Back one level"},
-				{"a", "Add focused item to queue or playlist"},
+				{"x", "Toggle bulk-selection on focused track"},
+				{"X", "Clear all bulk-selected tracks"},
+				{"a", "Add focused / selected tracks to queue or playlist"},
 			},
 		},
 		{

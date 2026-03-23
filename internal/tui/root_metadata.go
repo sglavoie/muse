@@ -42,6 +42,24 @@ func (m Model) bulkSelectedHashes() []string {
 			}
 		}
 		return hashes
+	case viewArtists:
+		if len(m.artists.selectedHashes) == 0 {
+			return nil
+		}
+		hashes := make([]string, 0, len(m.artists.selectedHashes))
+		for h := range m.artists.selectedHashes {
+			hashes = append(hashes, h)
+		}
+		return hashes
+	case viewAlbums:
+		if len(m.albums.selectedHashes) == 0 {
+			return nil
+		}
+		hashes := make([]string, 0, len(m.albums.selectedHashes))
+		for h := range m.albums.selectedHashes {
+			hashes = append(hashes, h)
+		}
+		return hashes
 	default:
 		return nil
 	}
@@ -306,6 +324,10 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		}
 	case viewPlaylists:
 		m.playlists.selectedTrackIDs = nil
+	case viewArtists:
+		m.artists.selectedHashes = nil
+	case viewAlbums:
+		m.albums.selectedHashes = nil
 	}
 
 	m.setUndoSlot(undoBulkEditMetadataAction{

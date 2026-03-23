@@ -209,6 +209,8 @@ func newRegistry() Registry {
 	r.register(contextArtists, "enter", actionArtistOpen)
 	r.register(contextArtists, "shift+enter", actionLibraryEnqueueReplace)
 	r.register(contextArtists, "esc", actionArtistBack)
+	r.register(contextArtists, "x", actionBulkSelectionToggle)
+	r.register(contextArtists, "X", actionClearSelection)
 	r.register(contextArtists, "a", actionBulkAction)
 
 	// Albums-local bindings.
@@ -216,6 +218,8 @@ func newRegistry() Registry {
 	r.register(contextAlbums, "enter", actionAlbumOpen)
 	r.register(contextAlbums, "shift+enter", actionLibraryEnqueueReplace)
 	r.register(contextAlbums, "esc", actionAlbumBack)
+	r.register(contextAlbums, "x", actionBulkSelectionToggle)
+	r.register(contextAlbums, "X", actionClearSelection)
 	r.register(contextAlbums, "a", actionBulkAction)
 
 	// Favorites-local bindings.
