@@ -39,6 +39,8 @@ type AlbumsView struct {
 }
 
 // recomputeAlbumsSort re-sorts the owned slices for the current level.
+func (v *AlbumsView) setSize(w, h int) { v.width = w; v.height = h }
+
 func (v AlbumsView) recomputeAlbumsSort() AlbumsView {
 	if v.sortState.Field == SortDefault {
 		return v

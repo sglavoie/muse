@@ -49,6 +49,8 @@ type FavoritesView struct {
 	selectedItems map[int]struct{}
 }
 
+func (v *FavoritesView) setSize(w, h int) { v.width = w; v.height = h }
+
 func (v FavoritesView) render(s styles.Styles, favHashes map[string]struct{}) string {
 	var sortInd string
 	if v.sortState.Field != SortDefault {

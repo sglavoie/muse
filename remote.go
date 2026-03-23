@@ -19,20 +19,39 @@ import (
 )
 
 const (
-	ctrlSocketName    = "muse.ctrl"
-	remoteDialTimeout = 2 * time.Second
-	remoteReadTimeout = 5 * time.Second
-	acceptBackoff     = 100 * time.Millisecond
+	ctrlSocketName           = "muse.ctrl"
+	remoteDialTimeout        = 2 * time.Second
+	remoteReadTimeout        = 5 * time.Second
+	acceptBackoff            = 100 * time.Millisecond
+	maxConsecutiveAcceptErrs = 1000
 )
 
-// knownActions is the authoritative set of remote action names accepted by the
-// control socket. It is also used by main to validate subcommand arguments.
-var knownActions = map[string]struct{}{
-	"toggle-play": {},
-	"volume-up":   {},
-	"volume-down": {},
-	"next":        {},
-	"previous":    {},
+// remoteAction describes a single control-socket command.
+type remoteAction struct {
+	Name string
+	Desc string
+}
+
+// remoteActions is the authoritative list of remote action names accepted by
+// the control socket. It is also used by main to validate subcommand arguments
+// and to generate help text, so adding a new action here is the only change
+// required.
+var remoteActions = []remoteAction{
+	{"toggle-play", "Toggle play/pause on the running instance"},
+	{"next", "Skip to the next track"},
+	{"previous", "Skip to the previous track"},
+	{"volume-up", "Increase volume"},
+	{"volume-down", "Decrease volume"},
+}
+
+// isKnownAction reports whether name is a recognised remote action.
+func isKnownAction(name string) bool {
+	for _, a := range remoteActions {
+		if a.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // startCommandListener creates a Unix domain socket at
@@ -61,8 +80,14 @@ func startCommandListener(p *tea.Program, runtimeDir string) (net.Listener, erro
 // acceptLoop runs the accept loop for a command listener. It exits cleanly
 // when ln is closed (net.ErrClosed) and continues on transient errors.
 // Logging is throttled after 5 consecutive failures to avoid flooding the log
-// if the socket file is deleted while muse is running.
+// if the socket file is deleted while muse is running. After
+// maxConsecutiveAcceptErrs consecutive failures the loop gives up and returns
+// so the goroutine does not spin forever on a permanently broken socket.
 func acceptLoop(p *tea.Program, ln net.Listener) {
+	acceptLoopWithBackoff(p, ln, acceptBackoff)
+}
+
+func acceptLoopWithBackoff(p *tea.Program, ln net.Listener, backoff time.Duration) {
 	consecutiveErrs := 0
 	for {
 		conn, err := ln.Accept()
@@ -75,7 +100,14 @@ func acceptLoop(p *tea.Program, ln net.Listener) {
 				slog.Warn("control socket accept error",
 					"err", err, "consecutive", consecutiveErrs)
 			}
-			time.Sleep(acceptBackoff)
+			if consecutiveErrs >= maxConsecutiveAcceptErrs {
+				slog.Error("control socket: too many consecutive accept errors, disabling remote control",
+					"consecutive", consecutiveErrs)
+				return
+			}
+			if backoff > 0 {
+				time.Sleep(backoff)
+			}
 			continue
 		}
 		consecutiveErrs = 0
@@ -97,7 +129,7 @@ func handleRemoteConn(p *tea.Program, conn net.Conn) {
 		if action == "" {
 			continue
 		}
-		if _, ok := knownActions[action]; !ok {
+		if !isKnownAction(action) {
 			slog.Warn("unknown remote action", "action", action)
 			continue
 		}

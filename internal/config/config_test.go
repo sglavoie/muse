@@ -21,11 +21,11 @@ func captureLog() (*slog.Logger, *bytes.Buffer) {
 func TestLoad_MissingFile_CreatesDefaultConfig(t *testing.T) {
 	dir := t.TempDir()
 
-	cfg, created, _, err := Load(dir)
+	result, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if !created {
+	if !result.Created {
 		t.Error("expected created=true when config file did not exist")
 	}
 
@@ -34,11 +34,11 @@ func TestLoad_MissingFile_CreatesDefaultConfig(t *testing.T) {
 		t.Fatalf("UserHomeDir() error = %v", err2)
 	}
 	wantDir := filepath.Join(home, "Music")
-	if cfg.MusicDirectory != wantDir {
-		t.Errorf("MusicDirectory = %q, want %q", cfg.MusicDirectory, wantDir)
+	if result.Config.MusicDirectory != wantDir {
+		t.Errorf("MusicDirectory = %q, want %q", result.Config.MusicDirectory, wantDir)
 	}
-	if cfg.DefaultVolume != defaultVolume {
-		t.Errorf("DefaultVolume = %d, want %d", cfg.DefaultVolume, defaultVolume)
+	if result.Config.DefaultVolume != defaultVolume {
+		t.Errorf("DefaultVolume = %d, want %d", result.Config.DefaultVolume, defaultVolume)
 	}
 
 	// File must exist on disk after creation.
@@ -50,13 +50,13 @@ func TestLoad_MissingFile_CreatesDefaultConfig(t *testing.T) {
 func TestLoad_MissingFile_Idempotent(t *testing.T) {
 	dir := t.TempDir()
 
-	_, created1, _, _ := Load(dir)
-	_, created2, _, _ := Load(dir)
+	r1, _ := Load(dir)
+	r2, _ := Load(dir)
 
-	if !created1 {
+	if !r1.Created {
 		t.Error("expected created=true on first load")
 	}
-	if created2 {
+	if r2.Created {
 		t.Error("expected created=false on second load")
 	}
 }
@@ -72,22 +72,22 @@ default_volume = 75
 		t.Fatal(err)
 	}
 
-	cfg, created, _, err := Load(dir)
+	result, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if created {
+	if result.Created {
 		t.Error("expected created=false for existing file")
 	}
 
-	if cfg.MusicDirectory != "/home/user/Songs" {
-		t.Errorf("MusicDirectory = %q", cfg.MusicDirectory)
+	if result.Config.MusicDirectory != "/home/user/Songs" {
+		t.Errorf("MusicDirectory = %q", result.Config.MusicDirectory)
 	}
-	if len(cfg.MPVExtraFlags) != 2 || cfg.MPVExtraFlags[0] != "--no-video" {
-		t.Errorf("MPVExtraFlags = %v", cfg.MPVExtraFlags)
+	if len(result.Config.MPVExtraFlags) != 2 || result.Config.MPVExtraFlags[0] != "--no-video" {
+		t.Errorf("MPVExtraFlags = %v", result.Config.MPVExtraFlags)
 	}
-	if cfg.DefaultVolume != 75 {
-		t.Errorf("DefaultVolume = %d", cfg.DefaultVolume)
+	if result.Config.DefaultVolume != 75 {
+		t.Errorf("DefaultVolume = %d", result.Config.DefaultVolume)
 	}
 }
 
@@ -104,13 +104,13 @@ default_volume = 999
 	logger, buf := captureLog()
 	slog.SetDefault(logger)
 
-	cfg, _, _, err := Load(dir)
+	result, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.DefaultVolume != defaultVolume {
-		t.Errorf("DefaultVolume = %d, want default %d", cfg.DefaultVolume, defaultVolume)
+	if result.Config.DefaultVolume != defaultVolume {
+		t.Errorf("DefaultVolume = %d, want default %d", result.Config.DefaultVolume, defaultVolume)
 	}
 
 	if !strings.Contains(buf.String(), "default_volume") {
@@ -128,7 +128,7 @@ default_volume = 50
 		t.Fatal(err)
 	}
 
-	cfg, _, _, err := Load(dir)
+	result, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -138,8 +138,8 @@ default_volume = 50
 		t.Fatalf("UserHomeDir() error = %v", err2)
 	}
 	wantDir := filepath.Join(home, "Music")
-	if cfg.MusicDirectory != wantDir {
-		t.Errorf("MusicDirectory = %q, want %q", cfg.MusicDirectory, wantDir)
+	if result.Config.MusicDirectory != wantDir {
+		t.Errorf("MusicDirectory = %q, want %q", result.Config.MusicDirectory, wantDir)
 	}
 	// Empty music_directory is silently treated as "not set"; no warning expected.
 }
@@ -153,7 +153,7 @@ func TestLoad_InvalidTOML_UsesDefaults(t *testing.T) {
 	logger, _ := captureLog()
 	slog.SetDefault(logger)
 
-	cfg, _, warnings, err := Load(dir)
+	result, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
@@ -163,13 +163,13 @@ func TestLoad_InvalidTOML_UsesDefaults(t *testing.T) {
 		t.Fatalf("UserHomeDir() error = %v", err2)
 	}
 	wantDir := filepath.Join(home, "Music")
-	if cfg.MusicDirectory != wantDir {
-		t.Errorf("MusicDirectory = %q, want %q", cfg.MusicDirectory, wantDir)
+	if result.Config.MusicDirectory != wantDir {
+		t.Errorf("MusicDirectory = %q, want %q", result.Config.MusicDirectory, wantDir)
 	}
-	if cfg.DefaultVolume != defaultVolume {
-		t.Errorf("DefaultVolume = %d, want default", cfg.DefaultVolume)
+	if result.Config.DefaultVolume != defaultVolume {
+		t.Errorf("DefaultVolume = %d, want default", result.Config.DefaultVolume)
 	}
-	if len(warnings) == 0 {
+	if len(result.Warnings) == 0 {
 		t.Error("expected at least one warning for invalid TOML")
 	}
 }
@@ -220,23 +220,23 @@ default_volume = 150
 	logger, _ := captureLog()
 	slog.SetDefault(logger)
 
-	_, _, warnings, err := Load(dir)
+	result, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if len(warnings) == 0 {
+	if len(result.Warnings) == 0 {
 		t.Fatal("expected warnings for out-of-range default_volume, got none")
 	}
 	found := false
-	for _, w := range warnings {
+	for _, w := range result.Warnings {
 		if strings.Contains(w, "default_volume") {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("expected warning mentioning default_volume, got: %v", warnings)
+		t.Errorf("expected warning mentioning default_volume, got: %v", result.Warnings)
 	}
 }
 
@@ -252,23 +252,23 @@ log_level = "banana"
 	logger, _ := captureLog()
 	slog.SetDefault(logger)
 
-	_, _, warnings, err := Load(dir)
+	result, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if len(warnings) == 0 {
+	if len(result.Warnings) == 0 {
 		t.Fatal("expected warnings for unrecognized log_level, got none")
 	}
 	found := false
-	for _, w := range warnings {
+	for _, w := range result.Warnings {
 		if strings.Contains(w, "log_level") {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("expected warning mentioning log_level, got: %v", warnings)
+		t.Errorf("expected warning mentioning log_level, got: %v", result.Warnings)
 	}
 }
 
@@ -281,16 +281,16 @@ log_level = "DEBUG"
 		t.Fatal(err)
 	}
 
-	cfg, _, warnings, err := Load(dir)
+	result, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if len(warnings) != 0 {
-		t.Errorf("expected no warnings for case-variant log level, got: %v", warnings)
+	if len(result.Warnings) != 0 {
+		t.Errorf("expected no warnings for case-variant log level, got: %v", result.Warnings)
 	}
-	if cfg.LogLevel != "debug" {
-		t.Errorf("LogLevel = %q, want %q", cfg.LogLevel, "debug")
+	if result.Config.LogLevel != "debug" {
+		t.Errorf("LogLevel = %q, want %q", result.Config.LogLevel, "debug")
 	}
 }
 
@@ -311,13 +311,13 @@ music_directory = "/home/user/Songs"
 		t.Fatal(err)
 	}
 
-	cfg, _, _, err := Load(dir)
+	result, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.DefaultVolume != defaultVolume {
-		t.Errorf("DefaultVolume = %d, want default %d (omitted field should use default, not zero)", cfg.DefaultVolume, defaultVolume)
+	if result.Config.DefaultVolume != defaultVolume {
+		t.Errorf("DefaultVolume = %d, want default %d (omitted field should use default, not zero)", result.Config.DefaultVolume, defaultVolume)
 	}
 }
 
@@ -331,12 +331,12 @@ default_volume = 0
 		t.Fatal(err)
 	}
 
-	cfg, _, _, err := Load(dir)
+	result, err := Load(dir)
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.DefaultVolume != 0 {
-		t.Errorf("DefaultVolume = %d, want 0 (explicitly set to 0)", cfg.DefaultVolume)
+	if result.Config.DefaultVolume != 0 {
+		t.Errorf("DefaultVolume = %d, want 0 (explicitly set to 0)", result.Config.DefaultVolume)
 	}
 }

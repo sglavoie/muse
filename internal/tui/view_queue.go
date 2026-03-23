@@ -51,6 +51,8 @@ type QueueView struct {
 	filter              filter.State
 }
 
+func (v *QueueView) setSize(w, h int) { v.width = w; v.height = h }
+
 // recomputeDisplayOrder rebuilds the sorted display index mapping.
 func (v QueueView) recomputeDisplayOrder() QueueView {
 	v.displayOrder = SortQueueIndices(v.entries, v.sortState.Field, v.sortState.Dir)

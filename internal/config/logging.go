@@ -14,9 +14,14 @@ var logPath string
 var logFile *os.File
 var logLevel slog.LevelVar
 
-// InitLogging opens (and truncates) the log file at $XDG_STATE_HOME/muse/muse.log,
-// sets the global slog default to a JSON handler at the given level, and stores
-// the resolved path for later display.
+const logRotateSize = 5 * 1024 * 1024 // 5 MiB
+
+// InitLogging opens the log file at $XDG_STATE_HOME/muse/muse.log in append
+// mode so that log entries from multiple sessions accumulate in one file.
+// If the file exceeds logRotateSize it is renamed to muse.log.1 before
+// opening, keeping the total log data bounded.
+// Sets the global slog default to a JSON handler at the given level, and
+// stores the resolved path for later display.
 func InitLogging(stateDir string, level slog.Level) error {
 	if err := os.MkdirAll(stateDir, 0o700); err != nil {
 		return fmt.Errorf("init logging: create state dir: %w", err)
@@ -24,11 +29,12 @@ func InitLogging(stateDir string, level slog.Level) error {
 
 	path := filepath.Join(stateDir, logFileName)
 
-	// Preserve the previous session log for debugging. Best-effort: if the
-	// file doesn't exist yet (first run), Rename returns an error we ignore.
-	_ = os.Rename(path, path+".prev")
+	// Rotate if the current log exceeds the size threshold.
+	if fi, err := os.Stat(path); err == nil && fi.Size() >= logRotateSize {
+		_ = os.Rename(path, path+".1")
+	}
 
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return fmt.Errorf("init logging: open log file: %w", err)
 	}

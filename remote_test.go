@@ -204,6 +204,46 @@ func TestCommandListener_TransientAcceptError(t *testing.T) {
 	}
 }
 
+// alwaysErrListener is a net.Listener whose Accept always returns an error,
+// simulating a permanently broken socket (e.g. deleted socket file).
+type alwaysErrListener struct{ addr net.Addr }
+
+func (a *alwaysErrListener) Accept() (net.Conn, error) {
+	return nil, errors.New("permanent accept error")
+}
+func (a *alwaysErrListener) Close() error   { return nil }
+func (a *alwaysErrListener) Addr() net.Addr { return a.addr }
+
+func TestAcceptLoop_CircuitBreaker(t *testing.T) {
+	// Use a real Unix addr so Addr() returns something non-nil.
+	sockPath := filepath.Join(shortTempDir(t), "circuit.sock")
+	realLn, err := net.Listen("unix", sockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := realLn.Addr()
+	realLn.Close()
+
+	received := make(chan tui.RemoteActionMsg, 1)
+	p := newTestProgram(received)
+	go p.Run() //nolint:errcheck
+	defer p.Quit()
+
+	done := make(chan struct{})
+	go func() {
+		// Use zero backoff so the test completes quickly.
+		acceptLoopWithBackoff(p, &alwaysErrListener{addr: addr}, 0)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// acceptLoop exited after maxConsecutiveAcceptErrs — success.
+	case <-time.After(5 * time.Second):
+		t.Fatal("acceptLoop did not exit after reaching the circuit-breaker limit")
+	}
+}
+
 func TestRunRemoteAction(t *testing.T) {
 	// Arrange the runtime dir so that startCommandListener and runRemoteAction
 	// agree on the socket path. config.ResolveRuntimeDir() returns

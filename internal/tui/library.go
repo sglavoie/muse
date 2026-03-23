@@ -25,6 +25,8 @@ type LibraryView struct {
 	sortedTracks    []library.Track // cached sorted copy; nil when SortDefault
 }
 
+func (v *LibraryView) setSize(w, h int) { v.width = w; v.height = h }
+
 // render returns a string representation of the library panel with proportional
 // columnar layout. Column widths resize with the terminal width.
 func (v LibraryView) render(s styles.Styles, favHashes map[string]struct{}) string {

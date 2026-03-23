@@ -67,11 +67,17 @@ func ConfigPath(configDir string) string {
 	return filepath.Join(configDir, configFileName)
 }
 
+// LoadResult holds the output of a successful Load call.
+type LoadResult struct {
+	Config   Config
+	Created  bool
+	Warnings []string
+}
+
 // Load reads the TOML config file at configDir/config.toml.
 // If the file does not exist it is created with default values.
 // Invalid field values are replaced with their defaults and a warning is logged.
-// Returns the config, whether the file was newly created, any validation warnings, and any error.
-func Load(configDir string) (Config, bool, []string, error) {
+func Load(configDir string) (LoadResult, error) {
 	path := filepath.Join(configDir, configFileName)
 
 	cfg := defaults()
@@ -79,15 +85,15 @@ func Load(configDir string) (Config, bool, []string, error) {
 	_, err := os.Stat(path)
 	if errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(configDir, 0o700); err != nil {
-			return cfg, false, nil, err
+			return LoadResult{Config: cfg}, err
 		}
 		if err := writeDefaults(path, cfg); err != nil {
-			return cfg, false, nil, err
+			return LoadResult{Config: cfg}, err
 		}
-		return cfg, true, nil, nil
+		return LoadResult{Config: cfg, Created: true}, nil
 	}
 	if err != nil {
-		return cfg, false, nil, err
+		return LoadResult{Config: cfg}, err
 	}
 
 	var raw rawConfig
@@ -95,11 +101,11 @@ func Load(configDir string) (Config, bool, []string, error) {
 		slog.Warn("failed to parse config file, using defaults", "path", path, "error", err)
 		fmt.Fprintf(os.Stderr, "muse: warning: failed to parse %s: %v (using defaults)\n", path, err)
 		warnings := []string{fmt.Sprintf("failed to parse config: %v (using defaults)", err)}
-		return cfg, false, warnings, nil
+		return LoadResult{Config: cfg, Warnings: warnings}, nil
 	}
 
 	cfg, warnings := validate(raw)
-	return cfg, false, warnings, nil
+	return LoadResult{Config: cfg, Warnings: warnings}, nil
 }
 
 // rawConfig mirrors Config but uses pointer types for optional numeric fields

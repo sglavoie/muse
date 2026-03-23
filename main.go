@@ -32,20 +32,20 @@ func runCheck() int {
 		return 1
 	}
 
-	cfg, _, warnings, err := config.Load(dirs.Config)
+	loadResult, err := config.Load(dirs.Config)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
 		return 1
 	}
 
-	for _, w := range warnings {
+	for _, w := range loadResult.Warnings {
 		fmt.Fprintf(os.Stderr, "warning: %s\n", w)
 	}
 
 	exitCode := 0
 
 	configPath := config.ConfigPath(dirs.Config)
-	if err := config.ValidateMusicDir(cfg.MusicDirectory, configPath); err != nil {
+	if err := config.ValidateMusicDir(loadResult.Config.MusicDirectory, configPath); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		exitCode = 1
 	}
@@ -61,75 +61,28 @@ func runCheck() int {
 	return exitCode
 }
 
-func main() {
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: muse [command] [flags]\n\nCommands:\n")
-		fmt.Fprintf(os.Stderr, "  check         Validate config and prerequisites, then exit\n")
-		fmt.Fprintf(os.Stderr, "  toggle-play   Toggle play/pause on the running instance\n")
-		fmt.Fprintf(os.Stderr, "  next          Skip to the next track\n")
-		fmt.Fprintf(os.Stderr, "  previous      Skip to the previous track\n")
-		fmt.Fprintf(os.Stderr, "  volume-up     Increase volume\n")
-		fmt.Fprintf(os.Stderr, "  volume-down   Decrease volume\n")
-		fmt.Fprintf(os.Stderr, "\nFlags:\n")
-		flag.PrintDefaults()
-	}
-
-	// Handle flags that should work regardless of position.
-	for _, arg := range os.Args[1:] {
-		switch arg {
-		case "--version", "-version":
-			fmt.Println(Version)
-			return
-		case "--help", "-h":
-			flag.Usage()
-			return
-		}
-	}
-
-	// Handle subcommands before flag parsing.
-	if len(os.Args) > 1 && os.Args[1] == "check" {
-		os.Exit(runCheck())
-	}
-
-	if len(os.Args) > 1 {
-		if _, ok := knownActions[os.Args[1]]; ok {
-			if err := runRemoteAction(os.Args[1]); err != nil {
-				fmt.Fprintf(os.Stderr, "muse %s: %v\n", os.Args[1], err)
-				os.Exit(1)
-			}
-			return
-		}
-	}
-
-	flag.Parse()
-
-	if flag.NArg() > 0 {
-		fmt.Fprintf(os.Stderr, "muse: unknown command %q\n", flag.Arg(0))
-		flag.Usage()
-		os.Exit(1)
-	}
-
+// runTUI resolves dirs, initialises logging, loads config, and runs the full
+// TUI music player until it exits or ctx is cancelled.
+func runTUI(ctx context.Context) error {
 	dirs, err := config.ResolveDirs()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "muse: resolve dirs: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("resolve dirs: %w", err)
 	}
 
 	// Init logging before loading config so any config warnings are captured.
 	if err := config.InitLogging(dirs.State, slog.LevelInfo); err != nil {
-		fmt.Fprintf(os.Stderr, "muse: init logging: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("init logging: %w", err)
 	}
 	fmt.Println("log:", config.LogPath())
 	slog.Info("log file", "path", config.LogPath())
 
 	configPath := config.ConfigPath(dirs.Config)
-	cfg, configCreated, configWarnings, err := config.Load(dirs.Config)
+	cfgResult, err := config.Load(dirs.Config)
 	if err != nil {
 		slog.Error("failed to load config", "err", err)
-		fmt.Fprintf(os.Stderr, "muse: load config: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("load config: %w", err)
 	}
+	cfg := cfgResult.Config
 
 	// Apply the log level from config immediately so all subsequent log calls
 	// respect the file-configured verbosity without re-truncating the log.
@@ -141,12 +94,8 @@ func main() {
 
 	if err := config.ValidateMusicDir(cfg.MusicDirectory, configPath); err != nil {
 		slog.Error("invalid music directory", "err", err)
-		fmt.Fprintf(os.Stderr, "muse: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("%w", err)
 	}
-
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
 
 	player.SetSoundContext(ctx)
 
@@ -180,9 +129,7 @@ func main() {
 	result, err := app.Run(ctx, dirs, deps)
 	if err != nil {
 		slog.Error("startup failed", "err", err)
-		fmt.Fprintf(os.Stderr, "muse: %v\n", err)
-		cancel()
-		os.Exit(1) //nolint:gocritic // exitAfterDefer: cancel() called explicitly above
+		return err
 	}
 
 	shutdownDeps := app.ShutdownDeps{
@@ -210,15 +157,14 @@ func main() {
 	libResult, err := app.LoadLibrary(ctx, result.DB, result.Writer, cfg.MusicDirectory, extractor, upsertBatchSize)
 	if err != nil {
 		slog.Error("load library failed", "err", err)
-		fmt.Fprintf(os.Stderr, "muse: %v\n", err)
 		app.Shutdown(shutdownDeps, app.ShutdownTimeout)
-		os.Exit(1)
+		return err
 	}
 
 	adapter := db.NewPlaylistAdapter(result.DB, result.Writer)
 	model := tui.New(ctx,
-		tui.WithConfigPath(configPath, configCreated),
-		tui.WithConfigWarnings(configWarnings),
+		tui.WithConfigPath(configPath, cfgResult.Created),
+		tui.WithConfigWarnings(cfgResult.Warnings),
 		tui.WithScanChannel(libResult.TuiScanCh),
 		tui.WithWatchChannel(libResult.TuiWatchCh),
 		tui.WithLibraryRoot(cfg.MusicDirectory),
@@ -281,10 +227,66 @@ func main() {
 
 	if _, err := p.Run(); err != nil {
 		slog.Error("TUI error", "err", err)
-		fmt.Fprintf(os.Stderr, "muse: %v\n", err)
 		app.Shutdown(shutdownDeps, app.ShutdownTimeout)
-		os.Exit(1)
+		return err
 	}
 
 	app.Shutdown(shutdownDeps, app.ShutdownTimeout)
+	return nil
+}
+
+func main() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: muse [command] [flags]\n\nCommands:\n")
+		fmt.Fprintf(os.Stderr, "  %-14s %s\n", "check", "Validate config and prerequisites, then exit")
+		for _, a := range remoteActions {
+			fmt.Fprintf(os.Stderr, "  %-14s %s\n", a.Name, a.Desc)
+		}
+		fmt.Fprintf(os.Stderr, "\nFlags:\n")
+		flag.PrintDefaults()
+	}
+
+	// Handle flags that should work regardless of position.
+	for _, arg := range os.Args[1:] {
+		switch arg {
+		case "--version", "-version":
+			fmt.Println(Version)
+			return
+		case "--help", "-h":
+			flag.Usage()
+			return
+		}
+	}
+
+	// Handle subcommands before flag parsing.
+	if len(os.Args) > 1 && os.Args[1] == "check" {
+		os.Exit(runCheck())
+	}
+
+	if len(os.Args) > 1 {
+		if isKnownAction(os.Args[1]) {
+			if err := runRemoteAction(os.Args[1]); err != nil {
+				fmt.Fprintf(os.Stderr, "muse %s: %v\n", os.Args[1], err)
+				os.Exit(1)
+			}
+			return
+		}
+	}
+
+	flag.Parse()
+
+	if flag.NArg() > 0 {
+		fmt.Fprintf(os.Stderr, "muse: unknown command %q\n", flag.Arg(0))
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	if err := runTUI(ctx); err != nil {
+		cancel()
+		fmt.Fprintf(os.Stderr, "muse: %v\n", err)
+		os.Exit(1)
+	}
 }

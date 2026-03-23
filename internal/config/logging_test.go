@@ -38,7 +38,7 @@ func TestInitLogging_LogPathGetter(t *testing.T) {
 	}
 }
 
-func TestInitLogging_TruncatesOnStartup(t *testing.T) {
+func TestInitLogging_AppendsAcrossSessions(t *testing.T) {
 	dir := t.TempDir()
 	stateDir := filepath.Join(dir, "muse")
 
@@ -48,18 +48,61 @@ func TestInitLogging_TruncatesOnStartup(t *testing.T) {
 	}
 	slog.Info("first run message")
 
-	// Second init — file must be truncated (previous content gone).
+	// Flush by closing the file handle directly so the second init can read it.
+	CloseLog()
+
+	// Second init — previous content must still be present (append mode).
 	if err := InitLogging(stateDir, slog.LevelInfo); err != nil {
 		t.Fatalf("second InitLogging: %v", err)
 	}
+	slog.Info("second run message")
+	CloseLog()
 
 	path := filepath.Join(stateDir, logFileName)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("reading log file: %v", err)
 	}
-	if len(data) != 0 {
-		t.Errorf("expected empty file after truncation, got %d bytes", len(data))
+	lines := countJSONLines(data)
+	if lines < 2 {
+		t.Errorf("expected at least 2 log lines across sessions, got %d\ncontent: %s", lines, data)
+	}
+}
+
+func TestInitLogging_RotatesWhenOverSizeLimit(t *testing.T) {
+	dir := t.TempDir()
+	stateDir := filepath.Join(dir, "muse")
+
+	if err := os.MkdirAll(stateDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	path := filepath.Join(stateDir, logFileName)
+
+	// Write a file that exceeds the rotation threshold.
+	big := make([]byte, logRotateSize+1)
+	if err := os.WriteFile(path, big, 0o600); err != nil {
+		t.Fatalf("writing oversized log: %v", err)
+	}
+
+	if err := InitLogging(stateDir, slog.LevelInfo); err != nil {
+		t.Fatalf("InitLogging: %v", err)
+	}
+	CloseLog()
+
+	// The oversized file must have been rotated to muse.log.1.
+	rotated := path + ".1"
+	if _, err := os.Stat(rotated); err != nil {
+		t.Errorf("expected rotated log at %s, stat error: %v", rotated, err)
+	}
+
+	// The current log file must be smaller than the threshold.
+	fi, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat current log: %v", err)
+	}
+	if fi.Size() >= logRotateSize {
+		t.Errorf("current log is %d bytes, expected < %d after rotation", fi.Size(), logRotateSize)
 	}
 }
 
@@ -204,19 +247,19 @@ func TestLogLevelFromConfig(t *testing.T) {
 		t.Fatalf("writing config file: %v", err)
 	}
 
-	cfg, _, _, err := Load(cfgDir)
+	loadResult, err := Load(cfgDir)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if cfg.LogLevel != "debug" {
-		t.Fatalf("expected LogLevel=debug, got %q", cfg.LogLevel)
+	if loadResult.Config.LogLevel != "debug" {
+		t.Fatalf("expected LogLevel=debug, got %q", loadResult.Config.LogLevel)
 	}
 
 	// Init at Info so we start with a clean file, then apply the config level.
 	if err := InitLogging(stateDir, slog.LevelInfo); err != nil {
 		t.Fatalf("InitLogging: %v", err)
 	}
-	level, _ := ParseLogLevel(cfg.LogLevel)
+	level, _ := ParseLogLevel(loadResult.Config.LogLevel)
 	SetLogLevel(level)
 
 	slog.Debug("end-to-end debug message")

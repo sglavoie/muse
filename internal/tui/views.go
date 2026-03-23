@@ -112,6 +112,8 @@ type PlaylistsView struct {
 	sortedTrackOrder []int            // index permutation for track level (nil when default)
 }
 
+func (v *PlaylistsView) setSize(w, h int) { v.width = w; v.height = h }
+
 // effectivePlaylists returns the sorted playlists when sort is active,
 // otherwise the original playlists.
 func (v PlaylistsView) effectivePlaylists() []db.PlaylistRow {

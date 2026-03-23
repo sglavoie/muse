@@ -42,6 +42,8 @@ type ArtistsView struct {
 }
 
 // recomputeArtistsSort re-sorts the owned slices for the current level.
+func (v *ArtistsView) setSize(w, h int) { v.width = w; v.height = h }
+
 func (v ArtistsView) recomputeArtistsSort() ArtistsView {
 	if v.sortState.Field == SortDefault {
 		return v

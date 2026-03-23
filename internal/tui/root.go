@@ -610,22 +610,19 @@ func (m Model) activeViewContext() bindingContext {
 	return ctx
 }
 
+// resizable is implemented by every primary view that tracks its own
+// terminal dimensions.
+type resizable interface {
+	setSize(w, h int)
+}
+
 // setViewDimensions updates the width and height on all primary views.
 // height is reduced by 3 to leave room for the status bar and header rows.
 func (m *Model) setViewDimensions(width, height int) {
 	viewHeight := max(height-3, 0)
-	m.library.width = width
-	m.library.height = viewHeight
-	m.playlists.width = width
-	m.playlists.height = viewHeight
-	m.queue.width = width
-	m.queue.height = viewHeight
-	m.artists.width = width
-	m.artists.height = viewHeight
-	m.albums.width = width
-	m.albums.height = viewHeight
-	m.favorites.width = width
-	m.favorites.height = viewHeight
+	for _, v := range []resizable{&m.library, &m.playlists, &m.queue, &m.artists, &m.albums, &m.favorites} {
+		v.setSize(width, viewHeight)
+	}
 }
 
 // Update handles incoming messages. Number keys 1/2/3/4 switch the active view;
