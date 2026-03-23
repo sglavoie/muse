@@ -14,7 +14,6 @@ import (
 	"github.com/sglavoie/muse/internal/player"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
-	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
@@ -1058,8 +1057,16 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	if model, cmd, ok := m.handleQueueKeyAction(action); ok {
 		return model, cmd
 	}
+	// Playlist actions (root_playlists.go).
+	if model, cmd, ok := m.handlePlaylistKeyAction(action); ok {
+		return model, cmd
+	}
+	// Navigation actions (root_navigation.go).
+	if model, cmd, ok := m.handleNavigationAction(action); ok {
+		return model, cmd
+	}
 
-	// Navigation, view-switching, cursor, playlist, and remaining actions.
+	// View-switching and remaining actions.
 	switch action {
 	case actionHelp:
 		m.prevActiveView = m.activeView
@@ -1091,135 +1098,6 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m = m.switchToView(viewAlbums)
 	case actionSwitchFavorites:
 		m = m.switchToView(viewFavorites)
-	case actionCursorUp, actionCursorDown,
-		actionHalfPageDown, actionHalfPageUp,
-		actionFullPageDown, actionFullPageUp,
-		actionGoToTop, actionGoToBottom:
-		switch m.activeView {
-		case viewLibrary:
-			m.library = m.library.HandleAction(action)
-		case viewPlaylists:
-			m.playlists = m.playlists.HandleAction(action)
-		case viewArtists:
-			m.artists = m.artists.HandleAction(action)
-		case viewAlbums:
-			m.albums = m.albums.HandleAction(action)
-		case viewFavorites:
-			m.favorites = m.favorites.HandleAction(action)
-		default:
-			var cmd tea.Cmd
-			m.queue, cmd = m.queue.HandleAction(action)
-			return m, cmd
-		}
-	case actionBulkSelectionToggle:
-		switch m.activeView {
-		case viewLibrary:
-			m.library = m.library.HandleAction(action)
-		case viewPlaylists:
-			m.playlists = m.playlists.HandleAction(action)
-		case viewFavorites:
-			if m.favorites.level != favtui.CategoryLevel {
-				m.favorites = m.favorites.toggleSelection(m.favorites.cursor)
-			}
-		default:
-			var cmd tea.Cmd
-			m.queue, cmd = m.queue.HandleAction(action)
-			return m, cmd
-		}
-	case actionClearSelection:
-		switch m.activeView {
-		case viewLibrary:
-			m.library = m.library.ClearSelection()
-		case viewQueue:
-			for i := range m.queue.entries {
-				m.queue.entries[i].Selected = false
-			}
-		case viewPlaylists:
-			m.playlists.selectedTrackIDs = nil
-		case viewFavorites:
-			m.favorites = m.favorites.clearSelection()
-		}
-	case actionPlaylistRename:
-		return m, func() tea.Msg { return PlaylistRenameMsg{} }
-	case actionPlaylistCreate:
-		return m, func() tea.Msg { return PlaylistCreateMsg{} }
-	case actionPlaylistOpen:
-		if m.playlists.atListLevel() && m.playlistReader != nil {
-			pid, ok := m.playlists.focusedPlaylistID()
-			if ok {
-				reader := m.playlistReader
-				return m, func() tea.Msg {
-					tracks, err := reader.ReadPlaylistTracks(pid)
-					if err != nil {
-						return playlistTracksLoadErrorMsg{err: err}
-					}
-					return playlistTracksLoadedMsg{tracks: tracks}
-				}
-			}
-		} else if !m.playlists.atListLevel() && m.queueWriter != nil {
-			if cmd := m.playlists.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
-				return m, cmd
-			}
-		}
-	case actionPlaylistBack:
-		if !m.playlists.atListLevel() {
-			m.playlists = m.playlists.backToList()
-		}
-	case actionPlaylistEnqueueAll:
-		if m.batchEnqueuer == nil || m.playlistReader == nil {
-			break
-		}
-		var pid int64
-		var playlistName string
-		if m.playlists.atListLevel() {
-			pl, ok := m.playlists.focusedPlaylist()
-			if !ok {
-				break
-			}
-			pid = pl.ID
-			playlistName = pl.Name
-		} else {
-			if m.playlists.listCursor < 0 || m.playlists.listCursor >= len(m.playlists.playlists) {
-				break
-			}
-			pid = m.playlists.playlists[m.playlists.listCursor].ID
-			playlistName = m.playlists.playlists[m.playlists.listCursor].Name
-		}
-		reader := m.playlistReader
-		be := m.batchEnqueuer
-		wasEmpty := len(m.queue.entries) == 0
-		return m, func() tea.Msg {
-			rows, err := reader.ReadPlaylistTracks(pid)
-			if err != nil {
-				return BatchEnqueuedMsg{Err: err}
-			}
-			if len(rows) == 0 {
-				return BatchEnqueuedMsg{PlaylistName: playlistName}
-			}
-			tracks := make([]library.Track, len(rows))
-			for i, r := range rows {
-				tracks[i] = library.Track{
-					Hash:     r.Hash,
-					Path:     r.Path,
-					Artist:   r.Artist,
-					Title:    r.Title,
-					Album:    r.Album,
-					Duration: float64(r.DurationMs) / 1000,
-				}
-			}
-			ids, err := be.AppendTracks(tracks, playlistName)
-			if err != nil {
-				return BatchEnqueuedMsg{Err: err}
-			}
-			return BatchEnqueuedMsg{
-				Entries:      newQueueEntries(tracks, ids, playlistName),
-				QueueIDs:     ids,
-				WasEmpty:     wasEmpty,
-				PlaylistName: playlistName,
-			}
-		}
-	case actionPlaylistDelete:
-		return m.handlePlaylistDelete()
 	}
 	return m, nil
 }
