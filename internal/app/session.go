@@ -78,7 +78,7 @@ func ApplyRestoredSession(
 	}
 	tui.WithShuffle(restored.Shuffle)(model)
 	vol := restored.Volume
-	if vol <= 0 {
+	if vol < 0 {
 		vol = defaultVolume
 	}
 	tui.WithVolume(vol)(model)

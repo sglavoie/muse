@@ -44,7 +44,7 @@ type RestoredSession struct {
 	PositionMs int64
 
 	// Volume is the last-saved volume percentage (0–100).
-	// Zero means no volume was persisted; callers should fall back to default.
+	// Negative means no volume was persisted; callers should fall back to default.
 	Volume int
 }
 
@@ -323,7 +323,7 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 	var shuffle bool
 	var currentHash string
 	var positionMs int64
-	var volume int
+	var volume int = -1
 	if sess != nil {
 		repeatMode = parseRepeatMode(sess.RepeatMode)
 		shuffle = sess.Shuffle
