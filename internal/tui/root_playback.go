@@ -82,7 +82,9 @@ func (m Model) handleMissingTrackMsg(msg MissingTrackMsg) Model {
 // wrapping around in repeat-all mode.
 func (m Model) handlePlaybackEndedMsg() Model {
 	if m.playback.repeatMode == RepeatAll && len(m.queue.entries) > 0 && m.player != nil {
-		if err := m.player.PlayFromIndex(0); err == nil {
+		if err := m.player.PlayFromIndex(0); err != nil {
+			slog.Warn("repeat-all playback failed", "err", err)
+		} else {
 			m.playback.state = PlaybackPlaying
 			e := m.queue.entries[0]
 			m.playback.currentHash = e.Hash
@@ -93,7 +95,6 @@ func (m Model) handlePlaybackEndedMsg() Model {
 			m.playback.totalSecs = 0
 			return m
 		}
-		slog.Warn("repeat-all playback failed", "err", "PlayFromIndex(0)")
 	}
 	m.playback.state = PlaybackIdle
 	m.playback.elapsedSecs = 0
@@ -268,6 +269,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 				}
 				return m, m.sessionPositionCmd(), true
 			case len(m.queue.entries) == 0:
+				m.statusBar.notification = newNotification("Queue is empty")
 				return m, nil, true
 			default:
 				if err := m.player.Play(); err != nil {
