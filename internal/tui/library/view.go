@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
+
 	tea "charm.land/bubbletea/v2"
 	musiclib "github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/filter"
@@ -281,16 +283,16 @@ func (v View) Render() string {
 			separator = "Filter: > " + hint + "\n"
 		} else {
 			maxLen := v.Width - len("Filter: > ") - 1
-			if maxLen > 0 && len([]rune(ft)) > maxLen {
-				ft = string([]rune(ft)[:maxLen-1]) + "…"
+			if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
+				ft = ansi.Truncate(ft, maxLen-1, "…")
 			}
 			separator = "Filter: > " + ft + "\n"
 		}
 	} else if v.Filter.Text != "" {
 		ft := v.Filter.Text
 		maxLen := v.Width - len("Filter: ") - 1
-		if maxLen > 0 && len([]rune(ft)) > maxLen {
-			ft = string([]rune(ft)[:maxLen-1]) + "…"
+		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
+			ft = ansi.Truncate(ft, maxLen-1, "…")
 		}
 		separator = "Filter: " + ft + "\n"
 	}

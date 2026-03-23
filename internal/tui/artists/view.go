@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -529,8 +531,8 @@ func (v View) buildFilterSeparator(leadingNewline bool) string {
 		}
 		ft := v.FilterText
 		maxLen := v.Width - len("Filter: > ") - 1
-		if maxLen > 0 && len([]rune(ft)) > maxLen {
-			ft = string([]rune(ft)[:maxLen-1]) + "…"
+		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
+			ft = ansi.Truncate(ft, maxLen-1, "…")
 		}
 		return prefix + sep + "Filter: > " + ft + "\n"
 	}
@@ -541,8 +543,8 @@ func (v View) buildFilterSeparator(leadingNewline bool) string {
 		}
 		ft := v.FilterText
 		maxLen := v.Width - len("Filter: ") - 1
-		if maxLen > 0 && len([]rune(ft)) > maxLen {
-			ft = string([]rune(ft)[:maxLen-1]) + "…"
+		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
+			ft = ansi.Truncate(ft, maxLen-1, "…")
 		}
 		return prefix + sep + "Filter: " + ft + "\n"
 	}

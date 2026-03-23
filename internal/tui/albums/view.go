@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/sglavoie/muse/internal/library"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/layout"
@@ -342,16 +344,16 @@ func (v View) topFilterSeparator() string {
 		}
 		ft := v.FilterText
 		maxLen := v.Width - len("Filter: > ") - 1
-		if maxLen > 0 && len([]rune(ft)) > maxLen {
-			ft = string([]rune(ft)[:maxLen-1]) + "…"
+		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
+			ft = ansi.Truncate(ft, maxLen-1, "…")
 		}
 		return prefix + "Filter: > " + ft + "\n"
 	}
 	if v.FilterText != "" {
 		ft := v.FilterText
 		maxLen := v.Width - len("Filter: ") - 1
-		if maxLen > 0 && len([]rune(ft)) > maxLen {
-			ft = string([]rune(ft)[:maxLen-1]) + "…"
+		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
+			ft = ansi.Truncate(ft, maxLen-1, "…")
 		}
 		return prefix + "Filter: " + ft + "\n"
 	}
@@ -370,16 +372,16 @@ func (v View) filterSeparator() string {
 		}
 		ft := v.FilterText
 		maxLen := v.Width - len("Filter: > ") - 1
-		if maxLen > 0 && len([]rune(ft)) > maxLen {
-			ft = string([]rune(ft)[:maxLen-1]) + "…"
+		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
+			ft = ansi.Truncate(ft, maxLen-1, "…")
 		}
 		return sortLine + "\nFilter: > " + ft + "\n"
 	}
 	if v.FilterText != "" {
 		ft := v.FilterText
 		maxLen := v.Width - len("Filter: ") - 1
-		if maxLen > 0 && len([]rune(ft)) > maxLen {
-			ft = string([]rune(ft)[:maxLen-1]) + "…"
+		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
+			ft = ansi.Truncate(ft, maxLen-1, "…")
 		}
 		return sortLine + "\nFilter: " + ft + "\n"
 	}
