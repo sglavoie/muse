@@ -86,8 +86,8 @@ func FilterStrings(items []string, query string) []string {
 	return out
 }
 
-// FilterTracks returns tracks whose title contains query (case-insensitive).
-// Returns tracks unchanged when query is empty.
+// FilterTracks returns tracks whose title, artist, or album contains query
+// (case-insensitive). Returns tracks unchanged when query is empty.
 func FilterTracks(tracks []library.Track, query string) []library.Track {
 	if query == "" {
 		return tracks
@@ -95,7 +95,9 @@ func FilterTracks(tracks []library.Track, query string) []library.Track {
 	q := strings.ToLower(query)
 	var out []library.Track
 	for _, t := range tracks {
-		if strings.Contains(strings.ToLower(t.Title), q) {
+		if strings.Contains(strings.ToLower(t.Title), q) ||
+			strings.Contains(strings.ToLower(t.Artist), q) ||
+			strings.Contains(strings.ToLower(t.Album), q) {
 			out = append(out, t)
 		}
 	}

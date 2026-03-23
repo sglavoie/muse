@@ -566,19 +566,56 @@ func TestFilterStringsNoMatch(t *testing.T) {
 	}
 }
 
-func TestFilterTracksMatchesTitle(t *testing.T) {
+func TestFilterTracksMatchesTitleArtistAlbum(t *testing.T) {
 	tracks := []library.Track{
-		{Title: "Song About Love"},
-		{Title: "Hate Song"},
-		{Title: "Lovely Day"},
+		{Title: "Song About Love", Artist: "The Beatles", Album: "Abbey Road"},
+		{Title: "Hate Song", Artist: "Rival Sons", Album: "Feral Roots"},
+		{Title: "Lovely Day", Artist: "Bill Withers", Album: "Menagerie"},
+		{Title: "Ordinary", Artist: "Lovebirds", Album: "Midnight"},
+		{Title: "Waves", Artist: "Dean Lewis", Album: "Love Parade"},
 	}
-	got := FilterTracks(tracks, "love")
-	if len(got) != 2 {
-		t.Fatalf("FilterTracks: expected 2, got %d", len(got))
-	}
-	if got[0].Title != "Song About Love" || got[1].Title != "Lovely Day" {
-		t.Errorf("FilterTracks: unexpected results: %v", got)
-	}
+
+	t.Run("match by title", func(t *testing.T) {
+		got := FilterTracks(tracks, "love")
+		// "Song About Love" (title), "Lovely Day" (title), "Lovebirds" (artist), "Love Parade" (album)
+		if len(got) != 4 {
+			t.Fatalf("expected 4, got %d: %v", len(got), got)
+		}
+	})
+
+	t.Run("match by artist", func(t *testing.T) {
+		got := FilterTracks(tracks, "rival")
+		if len(got) != 1 {
+			t.Fatalf("expected 1, got %d", len(got))
+		}
+		if got[0].Artist != "Rival Sons" {
+			t.Errorf("expected artist 'Rival Sons', got %q", got[0].Artist)
+		}
+	})
+
+	t.Run("match by album", func(t *testing.T) {
+		got := FilterTracks(tracks, "feral")
+		if len(got) != 1 {
+			t.Fatalf("expected 1, got %d", len(got))
+		}
+		if got[0].Album != "Feral Roots" {
+			t.Errorf("expected album 'Feral Roots', got %q", got[0].Album)
+		}
+	})
+
+	t.Run("empty query returns all", func(t *testing.T) {
+		got := FilterTracks(tracks, "")
+		if len(got) != len(tracks) {
+			t.Errorf("expected %d, got %d", len(tracks), len(got))
+		}
+	})
+
+	t.Run("no match returns empty", func(t *testing.T) {
+		got := FilterTracks(tracks, "zzzzz")
+		if len(got) != 0 {
+			t.Errorf("expected 0, got %d", len(got))
+		}
+	})
 }
 
 func TestItemCountRespectsFilter(t *testing.T) {
