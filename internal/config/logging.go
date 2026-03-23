@@ -31,7 +31,9 @@ func InitLogging(stateDir string, level slog.Level) error {
 
 	// Rotate if the current log exceeds the size threshold.
 	if fi, err := os.Stat(path); err == nil && fi.Size() >= logRotateSize {
-		_ = os.Rename(path, path+".1") // log rotation is best-effort, non-blocking
+		_ = os.Remove(path + ".2")
+		_ = os.Rename(path+".1", path+".2")
+		_ = os.Rename(path, path+".1")
 	}
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
