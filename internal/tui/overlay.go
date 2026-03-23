@@ -80,7 +80,13 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 	if o.MaxInnerWidth > 0 && innerWidth > o.MaxInnerWidth {
 		innerWidth = o.MaxInnerWidth
 	}
+	if innerWidth < 1 {
+		innerWidth = 1
+	}
 	contentWidth := innerWidth - OverlayHPadding // padding inside borders
+	if contentWidth < 0 {
+		contentWidth = 0
+	}
 
 	var lines []string
 

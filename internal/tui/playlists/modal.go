@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -117,7 +118,7 @@ func (m DestinationPickerModal) Render(termWidth, termHeight int, s styles.Style
 
 	// Determine the display width of the box (first line = top border, all
 	// ASCII/Unicode single-width characters so byte-len equals display width).
-	boxW := len([]rune(boxLines[0]))
+	boxW := ansi.StringWidth(boxLines[0])
 	boxH := len(boxLines)
 
 	leftPad := 0
@@ -154,18 +155,24 @@ func (m DestinationPickerModal) buildBoxLines(termWidth int, s styles.Styles) []
 	const minInner = 24
 	innerWidth := minInner
 	const modalTitle = " Destination "
-	if len([]rune(modalTitle))+2 > innerWidth {
-		innerWidth = len([]rune(modalTitle)) + 2
+	if ansi.StringWidth(modalTitle)+2 > innerWidth {
+		innerWidth = ansi.StringWidth(modalTitle) + 2
 	}
 	for _, l := range labels {
-		if len([]rune(l))+4 > innerWidth {
-			innerWidth = len([]rune(l)) + 4
+		if ansi.StringWidth(l)+4 > innerWidth {
+			innerWidth = ansi.StringWidth(l) + 4
 		}
 	}
 	if maxInner := termWidth - 4; termWidth > 0 && innerWidth > maxInner {
 		innerWidth = maxInner
 	}
+	if innerWidth < 1 {
+		innerWidth = 1
+	}
 	contentWidth := innerWidth - 4 // characters available for the label inside a row
+	if contentWidth < 0 {
+		contentWidth = 0
+	}
 
 	var lines []string
 
@@ -173,7 +180,7 @@ func (m DestinationPickerModal) buildBoxLines(termWidth int, s styles.Styles) []
 	lines = append(lines, cornerTL+strings.Repeat(borderH, innerWidth)+cornerTR)
 
 	// Title row (centered in innerWidth).
-	titlePad := innerWidth - len([]rune(modalTitle))
+	titlePad := innerWidth - ansi.StringWidth(modalTitle)
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
 	lines = append(lines, borderV+strings.Repeat(" ", leftTP)+s.Heading.Render(modalTitle)+strings.Repeat(" ", rightTP)+borderV)
@@ -189,7 +196,7 @@ func (m DestinationPickerModal) buildBoxLines(termWidth int, s styles.Styles) []
 		}
 		// Truncate label if it exceeds the available content width.
 		display := label
-		if len([]rune(display)) > contentWidth {
+		if ansi.StringWidth(display) > contentWidth {
 			display = string([]rune(display)[:contentWidth-1]) + "…"
 		}
 		// Row content between the borders: " cursor label_padded " = innerWidth chars.
