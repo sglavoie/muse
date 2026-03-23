@@ -184,6 +184,15 @@ func New(ctx context.Context, opts ...Option) Model {
 // Volume returns the current volume level as an integer percentage.
 func (m Model) Volume() int { return m.playback.volume }
 
+// StatusBarArtist returns the current status bar artist string.
+func (m Model) StatusBarArtist() string { return m.statusBar.artist }
+
+// StatusBarTitle returns the current status bar title string.
+func (m Model) StatusBarTitle() string { return m.statusBar.title }
+
+// StatusBarPlaylistSource returns the current status bar playlist source string.
+func (m Model) StatusBarPlaylistSource() string { return m.statusBar.playlistSource }
+
 // RemoveLibraryTrackByPath removes a track from the in-memory library index
 // by its file path. Call this before starting the TUI to evict deleted files
 // discovered during the diff scan setup phase.

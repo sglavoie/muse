@@ -101,6 +101,16 @@ func ApplyRestoredSession(
 		for i, pt := range restored.PlayerTracks {
 			if pt.Hash == restored.CurrentHash {
 				mgr.SetCurrentIndex(i)
+				// Populate status bar from the queue entry so the first
+				// render shows track metadata instead of an empty bar.
+				if i < len(restored.QueueEntries) {
+					e := restored.QueueEntries[i]
+					source := e.SourcePlaylist
+					if source == "" {
+						source = "Queue"
+					}
+					tui.WithStatusBarTrack(e.Artist, e.Title, source)(model)
+				}
 				break
 			}
 		}

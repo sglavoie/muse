@@ -168,6 +168,16 @@ func WithCurrentTrackHash(hash string) Option {
 	return func(m *Model) { m.playback.currentHash = hash }
 }
 
+// WithStatusBarTrack pre-sets the status bar track metadata so the first
+// render after session restore shows artist, title, and playlist source.
+func WithStatusBarTrack(artist, title, source string) Option {
+	return func(m *Model) {
+		m.statusBar.artist = artist
+		m.statusBar.title = title
+		m.statusBar.playlistSource = source
+	}
+}
+
 // WithPlaylists pre-populates the playlists view.
 func WithPlaylists(rows []db.PlaylistRow) Option {
 	return func(m *Model) { m.playlists.playlists = rows }

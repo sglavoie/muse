@@ -83,8 +83,8 @@ func TestApplyRestoredSession_FullSession(t *testing.T) {
 	}
 
 	qe := []tui.QueueEntry{
-		{ID: 1, Hash: "aaa", Path: "/music/a.mp3"},
-		{ID: 2, Hash: "bbb", Path: "/music/b.mp3"},
+		{ID: 1, Hash: "aaa", Path: "/music/a.mp3", Artist: "Artist A", Title: "Song A", SourcePlaylist: "Rock"},
+		{ID: 2, Hash: "bbb", Path: "/music/b.mp3", Artist: "Artist B", Title: "Song B", SourcePlaylist: "Jazz"},
 	}
 	pt := []player.QueueTrack{
 		{Hash: "aaa", Path: "/music/a.mp3"},
@@ -128,6 +128,42 @@ func TestApplyRestoredSession_FullSession(t *testing.T) {
 	// Current track index set to the second track (index 1).
 	if !mgr.indexSet || mgr.currentIndex != 1 {
 		t.Errorf("currentIndex = %d (set=%v), want 1 (set=true)", mgr.currentIndex, mgr.indexSet)
+	}
+
+	// Status bar populated from the current track's queue entry.
+	if got := model.StatusBarArtist(); got != "Artist B" {
+		t.Errorf("status bar artist = %q, want %q", got, "Artist B")
+	}
+	if got := model.StatusBarTitle(); got != "Song B" {
+		t.Errorf("status bar title = %q, want %q", got, "Song B")
+	}
+	if got := model.StatusBarPlaylistSource(); got != "Jazz" {
+		t.Errorf("status bar source = %q, want %q", got, "Jazz")
+	}
+}
+
+func TestApplyRestoredSession_StatusBarFallbackSource(t *testing.T) {
+	model := tui.New(context.Background())
+	mgr := &mockPlayer{}
+	sw := &mockShuffleWriter{}
+	pr := &mockPlaylistReader{}
+
+	qe := []tui.QueueEntry{
+		{ID: 1, Hash: "aaa", Path: "/music/a.mp3", Artist: "Art", Title: "Song"},
+	}
+	pt := []player.QueueTrack{
+		{Hash: "aaa", Path: "/music/a.mp3"},
+	}
+	restored := &app.RestoredSession{
+		QueueEntries: qe,
+		PlayerTracks: pt,
+		CurrentHash:  "aaa",
+	}
+
+	app.ApplyRestoredSession(&model, mgr, restored, sw, pr, nil, nil, nil, 50)
+
+	if got := model.StatusBarPlaylistSource(); got != "Queue" {
+		t.Errorf("status bar source = %q, want %q", got, "Queue")
 	}
 }
 
