@@ -50,7 +50,7 @@ func Watch(ctx context.Context, root string, extractor MetadataExtractor, deboun
 	}
 
 	if err := addWatchesRecursive(w, root); err != nil {
-		w.Close()
+		_ = w.Close()
 		slog.Warn("watcher: failed to register directory watches; falling back to manual rescan", "err", err)
 		return closedWatchEventChan(), true, nil
 	}

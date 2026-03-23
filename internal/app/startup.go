@@ -169,7 +169,9 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 	}
 	// From here, failf must also close the database.
 	failf = func(format string, args ...any) (*RunResult, error) {
-		database.Close()
+		if cerr := database.Close(); cerr != nil {
+			slog.Warn("startup: failed to close database during cleanup", "err", cerr)
+		}
 		lf.Release()
 		return nil, fmt.Errorf(format, args...)
 	}
@@ -187,7 +189,9 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 	failf = func(format string, args ...any) (*RunResult, error) {
 		cancelWriter()
 		w.Wait()
-		database.Close()
+		if cerr := database.Close(); cerr != nil {
+			slog.Warn("startup: failed to close database during cleanup", "err", cerr)
+		}
 		lf.Release()
 		return nil, fmt.Errorf(format, args...)
 	}

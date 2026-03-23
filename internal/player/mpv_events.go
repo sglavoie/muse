@@ -26,7 +26,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 	go func() {
 		select {
 		case <-ctx.Done():
-			conn.Close()
+			_ = conn.Close()
 		case <-done:
 		}
 	}()
