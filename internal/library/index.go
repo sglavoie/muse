@@ -61,6 +61,30 @@ func less(a, b Track) bool {
 	return a.Title < b.Title
 }
 
+// adjustIndicesAfterInsert increments all hash-map entries at positions >= pos
+// by one, then records the new entry at pos. Call after splicing t into the
+// tracks slice but before returning from the mutating operation.
+func (idx *LibraryIndex) adjustIndicesAfterInsert(pos int, hash string) {
+	for h, i := range idx.byHash {
+		if i >= pos {
+			idx.byHash[h] = i + 1
+		}
+	}
+	idx.byHash[hash] = pos
+}
+
+// adjustIndicesAfterRemove deletes the removed hash and decrements all
+// hash-map entries at positions > pos by one. Call after removing the element
+// at pos from the tracks slice.
+func (idx *LibraryIndex) adjustIndicesAfterRemove(pos int, hash string) {
+	delete(idx.byHash, hash)
+	for h, i := range idx.byHash {
+		if i > pos {
+			idx.byHash[h] = i - 1
+		}
+	}
+}
+
 // Insert adds t into the index in sorted order using binary search.
 func (idx *LibraryIndex) Insert(t Track) {
 	pos := sort.Search(len(idx.tracks), func(i int) bool {
@@ -69,7 +93,10 @@ func (idx *LibraryIndex) Insert(t Track) {
 	idx.tracks = append(idx.tracks, Track{})
 	copy(idx.tracks[pos+1:], idx.tracks[pos:])
 	idx.tracks[pos] = t
-	idx.rebuildHashMap()
+	if idx.byHash == nil {
+		idx.byHash = make(map[string]int, 1)
+	}
+	idx.adjustIndicesAfterInsert(pos, t.Hash)
 }
 
 // BulkLoad replaces the index contents with the given tracks and sorts once.
@@ -89,8 +116,9 @@ func (idx *LibraryIndex) BulkLoad(tracks []Track) {
 func (idx *LibraryIndex) RemoveByPath(path string) bool {
 	for i, t := range idx.tracks {
 		if t.Path == path {
+			hash := t.Hash
 			idx.tracks = append(idx.tracks[:i], idx.tracks[i+1:]...)
-			idx.rebuildHashMap()
+			idx.adjustIndicesAfterRemove(i, hash)
 			return true
 		}
 	}
@@ -100,8 +128,25 @@ func (idx *LibraryIndex) RemoveByPath(path string) bool {
 // UpsertByPath removes any existing track with the given path then inserts t,
 // ensuring modified files replace their stale entries without creating duplicates.
 func (idx *LibraryIndex) UpsertByPath(path string, t Track) {
-	idx.RemoveByPath(path)
-	idx.Insert(t)
+	// Inline remove so we only do one incremental adjust per operation.
+	for i, old := range idx.tracks {
+		if old.Path == path {
+			idx.tracks = append(idx.tracks[:i], idx.tracks[i+1:]...)
+			idx.adjustIndicesAfterRemove(i, old.Hash)
+			break
+		}
+	}
+	// Inline insert.
+	pos := sort.Search(len(idx.tracks), func(i int) bool {
+		return !less(idx.tracks[i], t)
+	})
+	idx.tracks = append(idx.tracks, Track{})
+	copy(idx.tracks[pos+1:], idx.tracks[pos:])
+	idx.tracks[pos] = t
+	if idx.byHash == nil {
+		idx.byHash = make(map[string]int, 1)
+	}
+	idx.adjustIndicesAfterInsert(pos, t.Hash)
 }
 
 // FindByHash returns the track whose Hash equals hash.
@@ -120,13 +165,20 @@ func (idx *LibraryIndex) FindByHash(hash string) (Track, bool) {
 func (idx *LibraryIndex) UpdateMetadata(hash, title, artist, album string) bool {
 	for i, t := range idx.tracks {
 		if t.Hash == hash {
-			// Remove from current position.
+			// Remove from current position with one incremental adjust.
 			idx.tracks = append(idx.tracks[:i], idx.tracks[i+1:]...)
-			// Update fields and re-insert in sorted order.
+			idx.adjustIndicesAfterRemove(i, hash)
+			// Update fields and re-insert in sorted order with one incremental adjust.
 			t.Title = title
 			t.Artist = artist
 			t.Album = album
-			idx.Insert(t)
+			pos := sort.Search(len(idx.tracks), func(j int) bool {
+				return !less(idx.tracks[j], t)
+			})
+			idx.tracks = append(idx.tracks, Track{})
+			copy(idx.tracks[pos+1:], idx.tracks[pos:])
+			idx.tracks[pos] = t
+			idx.adjustIndicesAfterInsert(pos, hash)
 			return true
 		}
 	}

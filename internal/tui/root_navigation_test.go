@@ -3,8 +3,8 @@ package tui
 import (
 	"testing"
 
-	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
+	arttui "github.com/sglavoie/muse/internal/tui/artists"
 )
 
 // TestBulkSelectionToggleArtistsTrackLevel verifies that pressing x at
@@ -12,9 +12,9 @@ import (
 // and pressing x again removes it (toggle behaviour).
 func TestBulkSelectionToggleArtistsTrackLevel(t *testing.T) {
 	m := newModelWithTracks()
-	m = pressKey(m, "4")   // Artists view
-	m = pressEnter(m)      // ArtistLevel → AlbumLevel (Alice)
-	m = pressEnter(m)      // AlbumLevel → TrackLevel (Alpha)
+	m = pressKey(m, "4") // Artists view
+	m = pressEnter(m)    // ArtistLevel → AlbumLevel (Alice)
+	m = pressEnter(m)    // AlbumLevel → TrackLevel (Alpha)
 
 	if m.artists.level != arttui.TrackLevel {
 		t.Fatalf("expected TrackLevel, got %v", m.artists.level)
@@ -96,8 +96,8 @@ func TestBulkSelectionClearedOnBackArtists(t *testing.T) {
 // TrackLevel in the Albums view adds/removes the focused track hash.
 func TestBulkSelectionToggleAlbumsTrackLevel(t *testing.T) {
 	m := newModelWithTracks()
-	m = pressKey(m, "5")  // Albums view
-	m = pressEnter(m)     // AlbumLevel → TrackLevel (Alpha)
+	m = pressKey(m, "5") // Albums view
+	m = pressEnter(m)    // AlbumLevel → TrackLevel (Alpha)
 
 	if m.albums.level != albtui.TrackLevel {
 		t.Fatalf("expected TrackLevel, got %v", m.albums.level)

@@ -463,9 +463,9 @@ func TestRenameUnknownArtistSentinel(t *testing.T) {
 // returns hashes from artists.selectedHashes when the Artists view is active.
 func TestBulkMetadataEditFromArtistsTrackLevel(t *testing.T) {
 	m := newModelWithTracks()
-	m = pressKey(m, "4")  // Artists view
-	m = pressEnter(m)     // AlbumLevel (Alice)
-	m = pressEnter(m)     // TrackLevel (Alpha)
+	m = pressKey(m, "4") // Artists view
+	m = pressEnter(m)    // AlbumLevel (Alice)
+	m = pressEnter(m)    // TrackLevel (Alpha)
 
 	if m.artists.level != arttui.TrackLevel {
 		t.Fatalf("expected TrackLevel, got %v", m.artists.level)
@@ -523,12 +523,8 @@ func TestBulkMetadataEditClearsArtistsSelectionOnSave(t *testing.T) {
 // returns hashes from albums.selectedHashes when the Albums view is active.
 func TestBulkMetadataEditFromAlbumsTrackLevel(t *testing.T) {
 	m := newModelWithTracks()
-	m = pressKey(m, "5")  // Albums view
-	m = pressEnter(m)     // TrackLevel (Alpha)
-
-	if m.albums.level != albtui.AlbumLevel {
-		// On enter from AlbumLevel we go to TrackLevel.
-	}
+	m = pressKey(m, "5") // Albums view
+	m = pressEnter(m)    // TrackLevel (Alpha)
 
 	// Select h1 and h2 directly.
 	m.albums.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}

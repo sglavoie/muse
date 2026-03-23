@@ -468,6 +468,48 @@ func TestFindByHash_AfterRemove(t *testing.T) {
 	}
 }
 
+// TestHashMapConsistencyAfterInterleavedOps verifies that after a sequence of
+// Insert, Remove, Upsert, and UpdateMetadata calls the byHash map correctly
+// points to each track's actual position in the slice.
+func TestHashMapConsistencyAfterInterleavedOps(t *testing.T) {
+	assertConsistent := func(t *testing.T, idx *LibraryIndex) {
+		t.Helper()
+		tracks := idx.Tracks()
+		for i, tr := range tracks {
+			got, ok := idx.FindByHash(tr.Hash)
+			if !ok {
+				t.Errorf("hash %q not found in map (track at slice[%d])", tr.Hash, i)
+				continue
+			}
+			if got != tr {
+				t.Errorf("hash %q: map points to wrong track %+v, want %+v", tr.Hash, got, tr)
+			}
+		}
+	}
+
+	var idx LibraryIndex
+
+	idx.Insert(Track{Hash: "h1", Artist: "C", Title: "t1", Path: "/c.flac"})
+	idx.Insert(Track{Hash: "h2", Artist: "A", Title: "t2", Path: "/a.flac"})
+	idx.Insert(Track{Hash: "h3", Artist: "B", Title: "t3", Path: "/b.flac"})
+	assertConsistent(t, &idx)
+
+	idx.RemoveByPath("/a.flac")
+	assertConsistent(t, &idx)
+
+	idx.UpsertByPath("/c.flac", Track{Hash: "h1", Artist: "Z", Title: "t1-updated", Path: "/c.flac"})
+	assertConsistent(t, &idx)
+
+	idx.Insert(Track{Hash: "h4", Artist: "D", Title: "t4", Path: "/d.flac"})
+	assertConsistent(t, &idx)
+
+	idx.UpdateMetadata("h3", "t3-new", "AA", "AlbumX")
+	assertConsistent(t, &idx)
+
+	idx.RemoveByPath("/d.flac")
+	assertConsistent(t, &idx)
+}
+
 func TestLibraryIndex_MemoryUnder25MB(t *testing.T) {
 	const n = 50_000
 
