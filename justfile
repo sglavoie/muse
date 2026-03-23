@@ -53,9 +53,9 @@ cover:
 tidy:
     go mod tidy
 
-# Install git pre-commit hook (runs fmt-check and vet)
+# Install git pre-commit hook (runs fmt-check, vet, and lint)
 hooks:
-    @printf '#!/bin/sh\njust fmt-check && go vet ./...\n' > .git/hooks/pre-commit
+    @printf '#!/bin/sh\njust fmt-check && go vet ./... && golangci-lint run\n' > .git/hooks/pre-commit
     @chmod +x .git/hooks/pre-commit
     @echo "pre-commit hook installed"
 

@@ -11,11 +11,7 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
-
-	"github.com/sglavoie/muse/internal/config"
 )
-
-const mpvSockName = "mpv.sock"
 
 const (
 	defaultPingInterval    = 200 * time.Millisecond
@@ -68,10 +64,11 @@ type Manager struct {
 	socketPath string
 	extraFlags []string // additional CLI flags appended to the mpv command
 
-	mu        sync.RWMutex
-	client    *IPCClient     // nil until the socket is connected
-	cmdQueue  []func() error // nil = not started; non-nil = started, may have pending cmds
-	callbacks EventCallbacks // event notification callbacks; set via SetEventCallbacks
+	mu            sync.RWMutex
+	callbacksOnce sync.Once
+	client        *IPCClient     // nil until the socket is connected
+	cmdQueue      []func() error // nil = not started; non-nil = started, may have pending cmds
+	callbacks     EventCallbacks // event notification callbacks; set via SetEventCallbacks
 
 	// queue is the ordered set of tracks available for playback. Set via
 	// SetQueue so that PlayFromIndex can resolve an index to a QueueTrack.
@@ -120,17 +117,10 @@ type Manager struct {
 	launchFn func(ctx context.Context, socketPath string) (*exec.Cmd, error)
 }
 
-// NewManager creates a Manager with a socket path resolved via XDG dirs.
+// NewManager creates a Manager with the given socket path.
 // The caller is responsible for removing any stale socket file before calling
 // Start; app.Run handles this in step 2 (after the PID lockfile is acquired).
-func NewManager() (*Manager, error) {
-	dirs, err := config.ResolveDirs()
-	if err != nil {
-		return nil, fmt.Errorf("mpv: resolve XDG dirs: %w", err)
-	}
-
-	socketPath := filepath.Join(dirs.Runtime, mpvSockName)
-
+func NewManager(socketPath string) *Manager {
 	rootCtx, rootCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(rootCtx)
 	m := &Manager{
@@ -154,7 +144,7 @@ func NewManager() (*Manager, error) {
 		}
 		return cmd, nil
 	}
-	return m, nil
+	return m
 }
 
 // SocketPath returns the resolved Unix domain socket path.
@@ -163,13 +153,13 @@ func (m *Manager) SocketPath() string {
 }
 
 // SetEventCallbacks stores the callback struct and unblocks the event reader.
-// Call once after all callbacks are wired; calling it more than once panics
-// (the callbacksReady channel is closed on the first call).
+// Call once after all callbacks are wired. Subsequent calls update the
+// callbacks but do not re-signal readiness.
 func (m *Manager) SetEventCallbacks(cb EventCallbacks) {
 	m.mu.Lock()
 	m.callbacks = cb
 	m.mu.Unlock()
-	close(m.callbacksReady)
+	m.callbacksOnce.Do(func() { close(m.callbacksReady) })
 }
 
 // SetCurrentPosition persists the current playback position for use in crash
@@ -531,15 +521,6 @@ func (m *Manager) pollUntilReady(ctx context.Context) {
 	if fn != nil {
 		fn("mpv: connection timed out")
 	}
-}
-
-// SetSocketPath overrides the socket path used by Start and the event reader.
-// Call this before Start if the socket path must match an externally resolved
-// value (e.g. from app.Run).
-func (m *Manager) SetSocketPath(path string) {
-	m.mu.Lock()
-	m.socketPath = path
-	m.mu.Unlock()
 }
 
 // SetExtraFlags sets additional command-line flags appended to the mpv

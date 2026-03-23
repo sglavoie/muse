@@ -10,7 +10,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -71,29 +70,17 @@ func TestCleanStaleSocket_LiveSocket(t *testing.T) {
 }
 
 func TestNewManager_SocketPath(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("XDG_RUNTIME_DIR", tmp)
-
-	m, err := NewManager()
-	if err != nil {
-		t.Fatalf("NewManager: %v", err)
-	}
+	want := shortSockPath(t, "mgr-sockpath")
+	m := NewManager(want)
 	defer m.Close()
 
-	want := filepath.Join(tmp, "muse", "mpv.sock")
 	if m.SocketPath() != want {
 		t.Fatalf("socket path = %q, want %q", m.SocketPath(), want)
 	}
 }
 
 func TestManager_ErrNotConnected(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("XDG_RUNTIME_DIR", tmp)
-
-	m, err := NewManager()
-	if err != nil {
-		t.Fatalf("NewManager: %v", err)
-	}
+	m := NewManager(shortSockPath(t, "mgr-noconn"))
 	defer m.Close()
 
 	// Without calling Start (or before the socket is ready), all Player
@@ -1516,18 +1503,7 @@ func TestNoopMarkerDoesNotError(t *testing.T) {
 	}
 }
 
-// --- SetSocketPath / SetExtraFlags ---
-
-func TestManager_SetSocketPath(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	m := &Manager{ctx: ctx, cancel: cancel}
-	defer m.Close()
-
-	m.SetSocketPath("/tmp/custom.sock")
-	if m.SocketPath() != "/tmp/custom.sock" {
-		t.Errorf("SetSocketPath: got %q, want /tmp/custom.sock", m.SocketPath())
-	}
-}
+// --- SetExtraFlags ---
 
 func TestManager_SetExtraFlags(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1623,6 +1599,16 @@ func TestManager_SetEventCallbacks(t *testing.T) {
 	default:
 		t.Error("callbacksReady was not closed by SetEventCallbacks")
 	}
+}
+
+func TestSetEventCallbacks_Idempotent(t *testing.T) {
+	// Calling SetEventCallbacks twice must not panic.
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{ctx: ctx, cancel: cancel, callbacksReady: make(chan struct{})}
+	defer m.Close()
+
+	m.SetEventCallbacks(EventCallbacks{OnStatus: func(string) {}})
+	m.SetEventCallbacks(EventCallbacks{OnStatus: func(string) {}}) // must not panic
 }
 
 // --- ElapsedPosition ---

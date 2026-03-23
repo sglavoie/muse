@@ -159,12 +159,7 @@ func main() {
 	deps := app.Deps{
 		Config: cfg,
 		LaunchMPV: func(ctx context.Context, socketPath string) error {
-			var err error
-			mgr, err = player.NewManager()
-			if err != nil {
-				return fmt.Errorf("player: %w", err)
-			}
-			mgr.SetSocketPath(socketPath)
+			mgr = player.NewManager(socketPath)
 			mgr.SetExtraFlags(cfg.MPVExtraFlags)
 			if err := mgr.Start(); err != nil {
 				return err
