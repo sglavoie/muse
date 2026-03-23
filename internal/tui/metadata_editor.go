@@ -6,6 +6,7 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -246,7 +247,7 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	lines = append(lines, cornerTL+strings.Repeat(borderH, boxInner)+cornerTR)
 
 	// Title row (centered).
-	titlePad := boxInner - len([]rune(title))
+	titlePad := boxInner - ansi.StringWidth(title)
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
 	lines = append(lines, borderV+strings.Repeat(" ", leftTP)+s.Heading.Render(title)+strings.Repeat(" ", rightTP)+borderV)
@@ -264,7 +265,7 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 			padded = e.fields[i].View()
 		} else {
 			value := e.fields[i].Value()
-			visLen := len([]rune(value))
+			visLen := ansi.StringWidth(value)
 			if visLen < valueWidth {
 				padded = value + strings.Repeat(" ", valueWidth-visLen)
 			} else {
@@ -299,7 +300,7 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	lines = append(lines, hint)
 
 	// Center the box.
-	boxW := len([]rune(lines[0]))
+	boxW := ansi.StringWidth(lines[0])
 	boxH := len(lines)
 
 	leftPad := 0
