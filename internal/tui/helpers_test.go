@@ -1,16 +1,20 @@
 package tui
 
 import (
-	"os"
 	"testing"
 
 	"charm.land/lipgloss/v2"
 	"github.com/sglavoie/muse/internal/player"
+	"go.uber.org/goleak"
 )
 
 func TestMain(m *testing.M) {
 	player.Muted = true
-	os.Exit(m.Run())
+	goleak.VerifyTestMain(m,
+		// bubbletea Tick goroutine used in TUI tests; it blocks on a channel
+		// receive and is not stopped when the test model is discarded.
+		goleak.IgnoreTopFunction("charm.land/bubbletea/v2.Tick.func1"),
+	)
 }
 
 // styledText returns text wrapped with the given lipgloss style, producing

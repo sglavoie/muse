@@ -11,6 +11,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/pressly/goose/v3 v3.27.0
 	github.com/zeebo/blake3 v0.2.4
+	go.uber.org/goleak v1.3.0
 	modernc.org/sqlite v1.46.1
 )
 
