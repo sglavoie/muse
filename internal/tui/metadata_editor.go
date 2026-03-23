@@ -29,6 +29,15 @@ const (
 	editorCancel              // Esc was pressed
 )
 
+// editorMode controls which fields are shown and whether tab cycles between them.
+type editorMode int
+
+const (
+	editorModeDefault      editorMode = iota
+	editorModeRenameArtist            // single Artist field, bulk rename
+	editorModeRenameAlbum             // single Album field, bulk rename
+)
+
 // MetadataEditor is a fullscreen overlay for editing track metadata.
 type MetadataEditor struct {
 	hash          string
@@ -37,6 +46,8 @@ type MetadataEditor struct {
 	focused       metadataField
 	initialValues [metadataFieldCount]string // snapshot at open time
 	dirty         [metadataFieldCount]bool   // true when field differs from initial
+	mode          editorMode
+	renameTitle   string // custom dialog title, e.g. " ✎ Rename Artist "
 }
 
 // newField creates a focused textinput with the given initial value.
@@ -81,6 +92,43 @@ func NewBulkMetadataEditor(hashes []string, commonTitle, commonArtist, commonAlb
 	}
 }
 
+// NewArtistRenameEditor returns a MetadataEditor that shows only the Artist
+// field, pre-populated with artist. Saving applies the rename to all hashes.
+func NewArtistRenameEditor(hashes []string, artist string) MetadataEditor {
+	return MetadataEditor{
+		mode:          editorModeRenameArtist,
+		renameTitle:   " ✎ Rename Artist ",
+		hashes:        hashes,
+		focused:       fieldArtist,
+		initialValues: [metadataFieldCount]string{"", artist, ""},
+		fields: [metadataFieldCount]textinput.Model{
+			newField("", false),
+			newField(artist, true),
+			newField("", false),
+		},
+	}
+}
+
+// NewAlbumRenameEditor returns a MetadataEditor that shows only the Album
+// field, pre-populated with album. Saving applies the rename to all hashes.
+func NewAlbumRenameEditor(hashes []string, album string) MetadataEditor {
+	return MetadataEditor{
+		mode:          editorModeRenameAlbum,
+		renameTitle:   " ✎ Rename Album ",
+		hashes:        hashes,
+		focused:       fieldAlbum,
+		initialValues: [metadataFieldCount]string{"", "", album},
+		fields: [metadataFieldCount]textinput.Model{
+			newField("", false),
+			newField("", false),
+			newField(album, true),
+		},
+	}
+}
+
+// Mode returns the editor mode.
+func (e MetadataEditor) Mode() editorMode { return e.mode }
+
 // IsBulk reports whether this editor is in bulk mode (multiple tracks).
 func (e MetadataEditor) IsBulk() bool { return len(e.hashes) > 1 }
 
@@ -118,10 +166,16 @@ func (e MetadataEditor) HandleKey(msg tea.KeyPressMsg) (MetadataEditor, editorAc
 	case "esc":
 		return e, editorCancel, nil
 	case "tab":
+		if e.mode != editorModeDefault {
+			return e, editorNone, nil
+		}
 		e.fields[e.focused].Blur()
 		e.focused = (e.focused + 1) % metadataFieldCount
 		return e, editorNone, e.fields[e.focused].Focus()
 	case "shift+tab":
+		if e.mode != editorModeDefault {
+			return e, editorNone, nil
+		}
 		e.fields[e.focused].Blur()
 		e.focused = (e.focused + metadataFieldCount - 1) % metadataFieldCount
 		return e, editorNone, e.fields[e.focused].Focus()
@@ -182,8 +236,19 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	valueWidth := contentWidth - maxLabelW - 1
 
 	title := " ✎ Edit Metadata "
-	if e.IsBulk() {
+	if e.renameTitle != "" {
+		title = e.renameTitle
+	} else if e.IsBulk() {
 		title = fmt.Sprintf(" ✎ Edit Metadata (%d tracks) ", e.TrackCount())
+	}
+
+	// Determine which field indices to render.
+	renderFields := []int{int(fieldTitle), int(fieldArtist), int(fieldAlbum)}
+	switch e.mode {
+	case editorModeRenameArtist:
+		renderFields = []int{int(fieldArtist)}
+	case editorModeRenameAlbum:
+		renderFields = []int{int(fieldAlbum)}
 	}
 
 	var lines []string
@@ -201,7 +266,7 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	lines = append(lines, crossL+strings.Repeat(borderH, boxInner)+crossR)
 
 	// Field rows.
-	for i := range metadataFieldCount {
+	for _, i := range renderFields {
 		var padded string
 		if metadataField(i) == e.focused {
 			// View() renders at Width+1 visible chars (cursor adds 1),
@@ -230,11 +295,16 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	lines = append(lines, cornerBL+strings.Repeat(borderH, boxInner)+cornerBR)
 
 	// Hint.
-	hint := "  tab/shift+tab fields · enter save · esc cancel"
-	if e.IsBulk() {
-		anyDirty := e.dirty[0] || e.dirty[1] || e.dirty[2]
-		if anyDirty {
-			hint += " · * = will be applied"
+	var hint string
+	if e.mode != editorModeDefault {
+		hint = "  enter save · esc cancel"
+	} else {
+		hint = "  tab/shift+tab fields · enter save · esc cancel"
+		if e.IsBulk() {
+			anyDirty := e.dirty[0] || e.dirty[1] || e.dirty[2]
+			if anyDirty {
+				hint += " · * = will be applied"
+			}
 		}
 	}
 	lines = append(lines, hint)

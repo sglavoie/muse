@@ -339,10 +339,12 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 			if m.queue.entries[i].Hash == hash {
 				m.queue.entries[i].Title = orig[0]
 				m.queue.entries[i].Artist = orig[1]
+				m.queue.entries[i].Album = orig[2]
 				m.queue.entries[i].Display = display
 			}
 		}
 	}
+	m = m.refreshDerivedViews()
 	if w != nil {
 		originals := a.originals
 		go func() {

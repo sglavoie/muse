@@ -259,13 +259,13 @@ func main() {
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
 
 	if err := runTUI(ctx); err != nil {
 		cancel()
 		fmt.Fprintf(os.Stderr, "muse: %v\n", err)
 		os.Exit(1)
 	}
+	cancel()
 }
 
 // buildModel wires all dependencies into a tui.Model. It is extracted from

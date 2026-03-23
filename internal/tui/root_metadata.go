@@ -5,6 +5,9 @@ import (
 	"log/slog"
 
 	tea "charm.land/bubbletea/v2"
+
+	albtui "github.com/sglavoie/muse/internal/tui/albums"
+	arttui "github.com/sglavoie/muse/internal/tui/artists"
 )
 
 // metadataEditedMsg is sent after the async DB write completes.
@@ -89,6 +92,12 @@ func (m Model) handleMetadataKeyAction(a action) (Model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 
+	// Rename path: at artist or album level, open a focused rename editor.
+	if ed, ok := m.renameEditorForFocusedEntity(); ok {
+		m.overlay.metadataEditor = &ed
+		return m, nil, true
+	}
+
 	// Single-track path.
 	track, ok := m.focusedTrackForPreview()
 	if !ok {
@@ -120,11 +129,64 @@ func commonValue(vals []string) string {
 	return first
 }
 
+// renameEditorForFocusedEntity returns a rename MetadataEditor when the active
+// view and level support bulk renaming (Artists/Albums view at ArtistLevel or
+// AlbumLevel). Returns false if the current context is not renameable.
+func (m Model) renameEditorForFocusedEntity() (MetadataEditor, bool) {
+	tracks := m.library.index.Tracks()
+	switch m.activeView {
+	case viewArtists:
+		switch m.artists.level {
+		case arttui.ArtistLevel:
+			displayName, ok := m.artists.focusedArtist()
+			if !ok {
+				return MetadataEditor{}, false
+			}
+			rawName := arttui.RawName(displayName)
+			matching := arttui.DeriveArtistTracks(tracks, rawName)
+			hashes := make([]string, 0, len(matching))
+			for _, t := range matching {
+				hashes = append(hashes, t.Hash)
+			}
+			return NewArtistRenameEditor(hashes, displayName), true
+
+		case arttui.AlbumLevel:
+			displayName, ok := m.artists.focusedAlbum()
+			if !ok {
+				return MetadataEditor{}, false
+			}
+			rawAlbum := arttui.RawName(displayName)
+			matching := arttui.DeriveTracks(tracks, m.artists.selectedArtist, rawAlbum)
+			hashes := make([]string, 0, len(matching))
+			for _, t := range matching {
+				hashes = append(hashes, t.Hash)
+			}
+			return NewAlbumRenameEditor(hashes, displayName), true
+		}
+
+	case viewAlbums:
+		if m.albums.level == albtui.AlbumLevel {
+			displayName, ok := m.albums.focusedAlbum()
+			if !ok {
+				return MetadataEditor{}, false
+			}
+			rawAlbum := arttui.RawName(displayName)
+			matching := albtui.DeriveAlbumTracks(tracks, rawAlbum)
+			hashes := make([]string, 0, len(matching))
+			for _, t := range matching {
+				hashes = append(hashes, t.Hash)
+			}
+			return NewAlbumRenameEditor(hashes, displayName), true
+		}
+	}
+	return MetadataEditor{}, false
+}
+
 // handleMetadataSave reads values from the editor, updates in-memory state,
 // and returns a command to persist the change to the database.
 func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	ed := m.overlay.metadataEditor
-	if ed.IsBulk() {
+	if ed.IsBulk() || ed.Mode() != editorModeDefault {
 		return m.handleBulkMetadataSave()
 	}
 
@@ -160,6 +222,26 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 		}
 		return metadataEditedMsg{err: err}
 	}
+}
+
+// refreshDerivedViews updates the artists and albums lists derived from the
+// current library index. Call after any bulk metadata change that may have
+// renamed artists or albums.
+func (m Model) refreshDerivedViews() Model {
+	tracks := m.library.index.Tracks()
+	if m.artists.level == arttui.ArtistLevel {
+		m.artists.artists = arttui.DeriveArtists(tracks)
+		m.artists = m.artists.clampCursor()
+	}
+	if m.artists.level == arttui.AlbumLevel {
+		m.artists.albums = arttui.DeriveAlbums(tracks, m.artists.selectedArtist)
+		m.artists = m.artists.clampCursor()
+	}
+	if m.albums.level == albtui.AlbumLevel {
+		m.albums.albums = albtui.DeriveAllAlbums(tracks)
+		m.albums = m.albums.clampCursor()
+	}
+	return m
 }
 
 // handleBulkMetadataSave saves dirty fields from the bulk metadata editor to
@@ -206,6 +288,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 			if m.queue.entries[i].Hash == h {
 				m.queue.entries[i].Title = newTitle
 				m.queue.entries[i].Artist = newArtist
+				m.queue.entries[i].Album = newAlbum
 				m.queue.entries[i].Display = display
 			}
 		}
@@ -228,6 +311,56 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 	m.setUndoSlot(undoBulkEditMetadataAction{
 		originals: originals,
 	}, nil)
+
+	m = m.refreshDerivedViews()
+
+	// For rename mode, reposition the cursor on the new name and set a
+	// rename-specific notification.
+	switch ed.Mode() {
+	case editorModeRenameArtist:
+		if dirtyArtist != nil {
+			newName := *dirtyArtist
+			if newName == "" {
+				newName = arttui.UnknownArtist
+			}
+			for i, a := range m.artists.artists {
+				if a == newName {
+					m.artists.cursor = i
+					m.artists.scrollOffset = max(0, i-m.artists.height/2)
+					break
+				}
+			}
+		}
+		n := len(ed.Hashes())
+		m.statusBar.notification = newNotification(fmt.Sprintf("Renamed %d %s", n, pluralize(n, "track", "tracks")))
+	case editorModeRenameAlbum:
+		if dirtyAlbum != nil {
+			newName := *dirtyAlbum
+			if newName == "" {
+				newName = arttui.UnknownAlbum
+			}
+			switch m.activeView {
+			case viewArtists:
+				for i, a := range m.artists.albums {
+					if a == newName {
+						m.artists.cursor = i
+						m.artists.scrollOffset = max(0, i-m.artists.height/2)
+						break
+					}
+				}
+			case viewAlbums:
+				for i, a := range m.albums.albums {
+					if a == newName {
+						m.albums.cursor = i
+						m.albums.scrollOffset = max(0, i-m.albums.height/2)
+						break
+					}
+				}
+			}
+		}
+		n := len(ed.Hashes())
+		m.statusBar.notification = newNotification(fmt.Sprintf("Renamed %d %s", n, pluralize(n, "track", "tracks")))
+	}
 
 	w := m.metadataWriter
 	if w == nil {
