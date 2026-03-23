@@ -141,6 +141,7 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	barWarning := st.Warning.Background(bg)
 	barError := st.Error.Background(bg)
 	barBold := barText.Bold(true)
+	barDim := barText.Faint(true)
 
 	// r renders plain text with the StatusBar background+foreground.
 	r := func(s string) string { return barText.Render(s) }
@@ -207,8 +208,8 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	suffix := ""
 	suffixWidth := 0
 	if s.playlistSource != "" {
-		suffix += r("  " + s.playlistSource)
-		suffixWidth += 2 + ansi.StringWidth(s.playlistSource)
+		suffix += barDim.Render("  [" + s.playlistSource + "]")
+		suffixWidth += 2 + ansi.StringWidth(s.playlistSource) + 2
 	}
 	switch s.repeatMode {
 	case RepeatAll:
