@@ -23,6 +23,9 @@ type MetadataExtractor interface {
 // ExifToolExtractor implements MetadataExtractor using the exiftool binary.
 type ExifToolExtractor struct{}
 
+// Compile-time check that ExifToolExtractor implements MetadataExtractor.
+var _ MetadataExtractor = (*ExifToolExtractor)(nil)
+
 // exifRecord mirrors the per-file JSON object emitted by exiftool -json.
 type exifRecord struct {
 	SourceFile string  `json:"SourceFile"`

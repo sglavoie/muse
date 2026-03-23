@@ -7,6 +7,10 @@ var (
 	ErrNotConnected   = errors.New("player: not connected to mpv")
 	ErrPlaybackFailed = errors.New("player: playback command failed")
 	ErrMissingFile    = errors.New("player: audio file is missing from disk")
+	// ErrIPCTransport wraps low-level socket I/O and JSON encoding errors so
+	// callers can distinguish transport failures from mpv-reported errors
+	// (ErrPlaybackFailed) or connectivity state (ErrNotConnected).
+	ErrIPCTransport = errors.New("player: IPC transport error")
 )
 
 // MissingMarker persists the missing state for a track and its queue entries.

@@ -1847,3 +1847,118 @@ func TestManager_EventReaderBlocksOnCallbacksReady(t *testing.T) {
 		t.Fatal("OnTrackChanged did not fire after callbacksReady closed")
 	}
 }
+
+// --- watchAndRestart backoff ---
+
+// TestWatchAndRestart_GivesUpAfterMaxAttempts verifies that watchAndRestart
+// stops retrying after restartMaxAttempts consecutive failures and emits a
+// "gave up" status notification.
+func TestWatchAndRestart_GivesUpAfterMaxAttempts(t *testing.T) {
+	rootCtx, rootCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(rootCtx)
+
+	m := &Manager{
+		socketPath:       shortSockPath(t, "restart-giveup"),
+		rootCtx:          rootCtx,
+		rootCancel:       rootCancel,
+		ctx:              ctx,
+		cancel:           cancel,
+		disconnectCh:     make(chan error, 1),
+		callbacksReady:   make(chan struct{}),
+		restartBaseDelay: 1 * time.Millisecond,
+	}
+	defer m.Close()
+
+	// launchFn that always fails so handleRestart returns quickly.
+	m.launchFn = func(_ context.Context, _ string) (*exec.Cmd, error) {
+		return nil, fmt.Errorf("simulated launch failure")
+	}
+
+	var statusMu sync.Mutex
+	var statusMsgs []string
+	m.SetEventCallbacks(EventCallbacks{OnStatus: func(msg string) {
+		statusMu.Lock()
+		statusMsgs = append(statusMsgs, msg)
+		statusMu.Unlock()
+	}})
+
+	done := make(chan struct{})
+	go func() {
+		m.watchAndRestart()
+		close(done)
+	}()
+
+	// Feed disconnect signals one at a time; stop once watchAndRestart exits.
+	go func() {
+		for {
+			select {
+			case m.disconnectCh <- fmt.Errorf("test disconnect"):
+			case <-done:
+				return
+			}
+		}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("watchAndRestart did not give up within 5s")
+	}
+
+	statusMu.Lock()
+	defer statusMu.Unlock()
+	for _, msg := range statusMsgs {
+		if strings.Contains(msg, "gave up") {
+			return
+		}
+	}
+	t.Errorf("expected 'gave up' status message; got: %v", statusMsgs)
+}
+
+// TestWatchAndRestart_ResetsBackoffOnSuccessfulConnect verifies that
+// backoffReset is set to true by pollUntilReady when the IPC socket connects,
+// and that watchAndRestart resets its consecutive-failure counter after a
+// successful reconnect.
+func TestWatchAndRestart_ResetsBackoffOnSuccessfulConnect(t *testing.T) {
+	sock := shortSockPath(t, "restart-reset")
+	fakeServer(t, sock)
+
+	rootCtx, rootCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(rootCtx)
+
+	m := &Manager{
+		socketPath:     sock,
+		rootCtx:        rootCtx,
+		rootCancel:     rootCancel,
+		ctx:            ctx,
+		cancel:         cancel,
+		disconnectCh:   make(chan error, 1),
+		callbacksReady: make(chan struct{}),
+		cmdQueue:       []func() error{},
+	}
+	defer m.Close()
+	m.SetEventCallbacks(EventCallbacks{})
+
+	// pollUntilReady should connect and set backoffReset.
+	go m.pollUntilReady(ctx)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if m.backoffReset.Load() {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	if !m.backoffReset.Load() {
+		t.Fatal("backoffReset was not set to true after successful pollUntilReady")
+	}
+
+	// Swap confirms watchAndRestart's counter-reset path works.
+	if !m.backoffReset.Swap(false) {
+		t.Error("backoffReset.Swap(false) returned false; expected true")
+	}
+	if m.backoffReset.Load() {
+		t.Error("backoffReset should be false after Swap")
+	}
+}

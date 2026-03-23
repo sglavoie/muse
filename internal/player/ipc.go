@@ -74,7 +74,7 @@ func (c *IPCClient) SendCommand(args ...any) (*ipcResponse, error) {
 	defer c.mu.Unlock()
 
 	if c.closed {
-		return nil, fmt.Errorf("ipc: connection closed")
+		return nil, fmt.Errorf("%w: connection closed", ErrIPCTransport)
 	}
 
 	c.counter++
@@ -83,23 +83,23 @@ func (c *IPCClient) SendCommand(args ...any) (*ipcResponse, error) {
 
 	data, err := json.Marshal(req)
 	if err != nil {
-		return nil, fmt.Errorf("ipc: marshal: %w", err)
+		return nil, fmt.Errorf("%w: marshal: %w", ErrIPCTransport, err)
 	}
 	data = append(data, '\n')
 	slog.Debug("ipc send", "msg", strings.TrimRight(string(data), "\n"))
 
 	if _, err := c.conn.Write(data); err != nil {
-		return nil, fmt.Errorf("ipc: write: %w", err)
+		return nil, fmt.Errorf("%w: write: %w", ErrIPCTransport, err)
 	}
 
 	// Read lines until we find the matching response.
 	for {
 		if err := c.conn.SetReadDeadline(time.Now().Add(ipcReadTimeout)); err != nil {
-			return nil, fmt.Errorf("ipc: set deadline: %w", err)
+			return nil, fmt.Errorf("%w: set deadline: %w", ErrIPCTransport, err)
 		}
 		line, err := c.reader.ReadBytes('\n')
 		if err != nil {
-			return nil, fmt.Errorf("ipc: read: %w", err)
+			return nil, fmt.Errorf("%w: read: %w", ErrIPCTransport, err)
 		}
 		slog.Debug("ipc recv", "msg", strings.TrimRight(string(line), "\n"))
 

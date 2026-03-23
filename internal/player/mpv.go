@@ -10,15 +10,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
-)
-
-const (
-	defaultPingInterval    = 200 * time.Millisecond
-	shutdownTimeout        = 3 * time.Second
-	socketPollInterval     = 50 * time.Millisecond
-	socketPollTimeout      = 10 * time.Second
-	staleSocketDialTimeout = 200 * time.Millisecond
 )
 
 // baseFlags are always prepended to the mpv command line. They keep mpv in
@@ -91,6 +84,15 @@ type Manager struct {
 	// pingInterval controls how often the health-check goroutine pings mpv.
 	// Zero uses the production default (200 ms). Set a shorter value in tests.
 	pingInterval time.Duration
+
+	// restartBaseDelay overrides restartInitialDelay when non-zero.
+	// Set a shorter value in tests to avoid slow backoff waits.
+	restartBaseDelay time.Duration
+
+	// backoffReset is set to true by pollUntilReady when the IPC socket
+	// connects successfully, signalling watchAndRestart to reset its
+	// consecutive-failure counter.
+	backoffReset atomic.Bool
 
 	// lastTrackPath and lastElapsed hold the most recently persisted playback
 	// position, used to resume playback after an auto-restart.
@@ -499,6 +501,7 @@ func (m *Manager) pollUntilReady(ctx context.Context) {
 			m.mu.Unlock()
 
 			slog.Info("mpv connected", "socket", m.socketPath)
+			m.backoffReset.Store(true)
 			for _, cmd := range queue {
 				if err := cmd(); err != nil {
 					slog.Warn("mpv: queued command failed on replay", "err", err)
@@ -544,14 +547,43 @@ func (m *Manager) ipc() (*IPCClient, error) {
 }
 
 // watchAndRestart loops until the manager is closed, restarting mpv whenever
-// the health-check goroutine signals a disconnect on disconnectCh.
+// the health-check goroutine signals a disconnect on disconnectCh. It applies
+// exponential backoff between consecutive failures and gives up after
+// restartMaxAttempts attempts without a successful reconnect.
 func (m *Manager) watchAndRestart() {
+	initialDelay := m.restartBaseDelay
+	if initialDelay == 0 {
+		initialDelay = restartInitialDelay
+	}
+
+	var consecutiveFailures int
 	for {
 		select {
 		case <-m.rootCtx.Done():
 			return
 		case <-m.disconnectCh:
+			consecutiveFailures++
+			if consecutiveFailures > restartMaxAttempts {
+				m.mu.RLock()
+				fn := m.callbacks.OnStatus
+				m.mu.RUnlock()
+				if fn != nil {
+					fn("mpv: gave up after too many restart attempts")
+				}
+				return
+			}
+			if consecutiveFailures > 1 {
+				delay := min(initialDelay*time.Duration(1<<(consecutiveFailures-2)), restartMaxDelay)
+				select {
+				case <-m.rootCtx.Done():
+					return
+				case <-time.After(delay):
+				}
+			}
 			m.handleRestart()
+			if m.backoffReset.Swap(false) {
+				consecutiveFailures = 0
+			}
 		}
 	}
 }

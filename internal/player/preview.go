@@ -10,12 +10,6 @@ import (
 	"time"
 )
 
-const (
-	previewPollInterval    = 50 * time.Millisecond
-	previewPollTimeout     = 5 * time.Second
-	previewShutdownTimeout = 3 * time.Second
-)
-
 // Previewer controls a lightweight preview player that plays a single track
 // without affecting the main playback queue.
 type Previewer interface {

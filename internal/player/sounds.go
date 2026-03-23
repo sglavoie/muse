@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
-	"time"
 )
 
 //go:embed sounds/queue_finished.wav
@@ -95,7 +94,7 @@ func PlaySound(s Sound) {
 	if parent == nil {
 		parent = context.Background()
 	}
-	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
+	ctx, cancel := context.WithTimeout(parent, soundPlayTimeout)
 	cmd := exec.CommandContext(ctx, "mpv", "--no-video", "--no-terminal", "--really-quiet", path)
 	if err := cmd.Start(); err != nil {
 		slog.Debug("sounds: start mpv", "err", err)

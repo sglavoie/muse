@@ -143,6 +143,19 @@ func TestSendCommand_ReturnsTimeoutWhenMPVHangs(t *testing.T) {
 	}
 }
 
+func TestSendCommand_ClosedConnectionReturnsErrIPCTransport(t *testing.T) {
+	c := newTestClient(t)
+	c.Close() // marks closed=true and closes the underlying connection
+
+	_, err := c.SendCommand("loadfile", "/tmp/track.flac", "replace")
+	if err == nil {
+		t.Fatal("expected error for closed connection, got nil")
+	}
+	if !errors.Is(err, ErrIPCTransport) {
+		t.Fatalf("expected ErrIPCTransport, got %v", err)
+	}
+}
+
 func TestSendCommand_InfoLevelSuppressesIPCWireMessages(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))

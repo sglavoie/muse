@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -18,7 +19,7 @@ var logLevel slog.LevelVar
 // the resolved path for later display.
 func InitLogging(stateDir string, level slog.Level) error {
 	if err := os.MkdirAll(stateDir, 0o700); err != nil {
-		return err
+		return fmt.Errorf("init logging: create state dir: %w", err)
 	}
 
 	path := filepath.Join(stateDir, logFileName)
@@ -29,7 +30,7 @@ func InitLogging(stateDir string, level slog.Level) error {
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
-		return err
+		return fmt.Errorf("init logging: open log file: %w", err)
 	}
 
 	logLevel.Set(level)
