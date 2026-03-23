@@ -267,8 +267,7 @@ func TestPlaybackEndedMsgShowsNotificationWithEntriesPresent(t *testing.T) {
 }
 
 // TestPlayPauseOnEmptyQueueStaysIdle verifies that pressing space to play when
-// the queue is empty keeps playback idle (the persistent status bar hint is
-// shown via the queueEmpty field rather than a transient notification).
+// the queue is empty keeps playback idle and shows a transient notification.
 func TestPlayPauseOnEmptyQueueStaysIdle(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
@@ -280,9 +279,8 @@ func TestPlayPauseOnEmptyQueueStaysIdle(t *testing.T) {
 	if nm.playback.state != PlaybackIdle {
 		t.Fatalf("playback state must remain idle, got %v", nm.playback.state)
 	}
-	// No transient notification; the persistent hint is rendered via queueEmpty.
-	if nm.statusBar.notification.msg != "" {
-		t.Fatalf("expected no transient notification, got %q", nm.statusBar.notification.msg)
+	if nm.statusBar.notification.msg != "Queue is empty" {
+		t.Fatalf("expected 'Queue is empty' notification, got %q", nm.statusBar.notification.msg)
 	}
 }
 
