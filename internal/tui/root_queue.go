@@ -58,7 +58,7 @@ func (m Model) resetPlaybackState() Model {
 // undo slot, and triggers playback if the queue was empty.
 func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 	if msg.Err != nil {
-		m.statusBar.notification = newNotification("Failed to enqueue track: " + msg.Err.Error())
+		m.statusBar.notification = newNotification("Enqueue track failed: " + msg.Err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}
@@ -110,7 +110,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 // to the queue and triggers playback if the queue was empty.
 func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 	if msg.Err != nil {
-		m.statusBar.notification = newNotification("Failed to enqueue playlist: " + msg.Err.Error())
+		m.statusBar.notification = newNotification("Enqueue playlist failed: " + msg.Err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}
@@ -161,7 +161,7 @@ func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
 	}
 	if err := m.player.PlayFromIndex(0); err != nil {
 		m.playback.state = PlaybackIdle
-		m.statusBar.notification = newNotification("Playback failed: " + err.Error())
+		m.statusBar.notification = newNotification("Play failed: " + err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}
@@ -194,7 +194,7 @@ func (m Model) handlePlayQueueIndexMsg(msg PlayQueueIndexMsg) Model {
 			}
 		} else {
 			m.playback.state = PlaybackIdle
-			m.statusBar.notification = newNotification("Playback failed: " + err.Error())
+			m.statusBar.notification = newNotification("Play failed: " + err.Error())
 			player.PlaySound(player.SoundError)
 		}
 	}

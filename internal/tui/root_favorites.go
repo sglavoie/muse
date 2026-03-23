@@ -533,7 +533,7 @@ func loadFavoriteTrackHashes(reader favoriteReader) map[string]struct{} {
 // handleFavoriteToggledMsg processes the result of a favorite toggle operation.
 func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 	if msg.err != nil {
-		m.statusBar.notification = newNotification(fmt.Sprintf("Favorite error: %v", msg.err))
+		m.statusBar.notification = newNotification("Toggle favorite failed: " + msg.err.Error())
 		return m
 	}
 
@@ -695,7 +695,7 @@ func insertTrackAt(tracks []library.Track, idx int, t library.Track) []library.T
 // handleFavoritesLoadedMsg processes the result of loading favorites for a category.
 func (m Model) handleFavoritesLoadedMsg(msg favoritesLoadedMsg) Model {
 	if msg.err != nil {
-		m.statusBar.notification = newNotification(fmt.Sprintf("Failed to load favorites: %v", msg.err))
+		m.statusBar.notification = newNotification("Load favorites failed: " + msg.err.Error())
 		return m
 	}
 

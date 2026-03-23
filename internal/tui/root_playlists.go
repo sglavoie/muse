@@ -296,7 +296,7 @@ func (m Model) handlePlaylistTracksLoadedMsg(msg playlistTracksLoadedMsg) Model 
 // handlePlaylistTracksLoadErrorMsg shows a transient error notification for
 // a failed playlist track load.
 func (m Model) handlePlaylistTracksLoadErrorMsg(msg playlistTracksLoadErrorMsg) Model {
-	m.statusBar.notification = newNotification("Failed to load playlist: " + msg.err.Error())
+	m.statusBar.notification = newNotification("Load playlist failed: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
 }
@@ -331,7 +331,7 @@ func (m Model) handlePlaylistRenamedMsg(msg playlistRenamedMsg) Model {
 // error notification.
 func (m Model) handlePlaylistRenameErrorMsg(msg playlistRenameErrorMsg) Model {
 	m.playlists = m.playlists.cancelRename()
-	m.statusBar.notification = newNotification("Failed to rename playlist: " + msg.err.Error())
+	m.statusBar.notification = newNotification("Rename playlist failed: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
 }
@@ -399,7 +399,7 @@ func (m Model) handlePlaylistCreatedMsg(msg playlistCreatedMsg) (Model, tea.Cmd)
 // error notification.
 func (m Model) handlePlaylistCreateErrorMsg(msg playlistCreateErrorMsg) Model {
 	m.playlists = m.playlists.cancelCreate()
-	m.statusBar.notification = newNotification("Failed to create playlist: " + msg.err.Error())
+	m.statusBar.notification = newNotification("Create playlist failed: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
 }
@@ -423,14 +423,14 @@ func (m Model) handleQueueSavedAsPlaylistMsg(msg queueSavedAsPlaylistMsg) Model 
 // an error notification.
 func (m Model) handleQueueSaveAsPlaylistErrorMsg(msg queueSaveAsPlaylistErrorMsg) Model {
 	m.queue = m.queue.cancelSaveAsPlaylist()
-	m.statusBar.notification = newNotification("Failed to save queue as playlist: " + msg.err.Error())
+	m.statusBar.notification = newNotification("Save queue as playlist failed: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
 }
 
 // handlePlaylistAddErrorMsg shows an error notification for a failed track add.
 func (m Model) handlePlaylistAddErrorMsg(msg playlistAddErrorMsg) Model {
-	m.statusBar.notification = newNotification("Failed to add tracks: " + msg.err.Error())
+	m.statusBar.notification = newNotification("Add tracks failed: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
 }

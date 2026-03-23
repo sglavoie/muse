@@ -545,7 +545,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case trackInfoMsg:
 		if msg.err != nil {
-			m.statusBar.notification = newNotification("Track info error: " + msg.err.Error())
+			m.statusBar.notification = newNotification("Track info failed: " + msg.err.Error())
 		} else {
 			overlay := newTrackInfoOverlay(msg.path, msg.tags)
 			m.overlay.trackInfo = &overlay
