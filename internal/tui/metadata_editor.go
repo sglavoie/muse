@@ -142,15 +142,15 @@ func (e MetadataEditor) Hashes() []string { return e.hashes }
 // Non-dirty fields return nil.
 func (e MetadataEditor) DirtyFields() (title, artist, album *string) {
 	if e.dirty[fieldTitle] {
-		v := e.fields[fieldTitle].Value()
+		v := strings.TrimSpace(e.fields[fieldTitle].Value())
 		title = &v
 	}
 	if e.dirty[fieldArtist] {
-		v := e.fields[fieldArtist].Value()
+		v := strings.TrimSpace(e.fields[fieldArtist].Value())
 		artist = &v
 	}
 	if e.dirty[fieldAlbum] {
-		v := e.fields[fieldAlbum].Value()
+		v := strings.TrimSpace(e.fields[fieldAlbum].Value())
 		album = &v
 	}
 	return
@@ -202,17 +202,6 @@ func (e MetadataEditor) Hash() string { return e.hash }
 
 // Render produces a centered box with three labelled, editable fields.
 func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) string {
-	const (
-		borderH  = "─"
-		borderV  = "│"
-		cornerTL = "╭"
-		cornerTR = "╮"
-		cornerBL = "╰"
-		cornerBR = "╯"
-		crossL   = "├"
-		crossR   = "┤"
-	)
-
 	labels := [metadataFieldCount]string{"Title:", "Artist:", "Album:"}
 	if e.IsBulk() {
 		for i := range metadataFieldCount {

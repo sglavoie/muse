@@ -252,3 +252,26 @@ func TestRenameEditorEscReturnsCancel(t *testing.T) {
 		t.Errorf("expected editorCancel on Esc, got %v", action)
 	}
 }
+
+// TestDirtyFieldsTrimsWhitespace verifies that DirtyFields trims leading and
+// trailing whitespace from modified field values.
+func TestDirtyFieldsTrimsWhitespace(t *testing.T) {
+	ed := NewMetadataEditor("h1", "Alice", "", "")
+
+	// Type a trailing space — cursor starts at end, so this appends a space.
+	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: ' ', Text: " "})
+
+	title, artist, album := ed.DirtyFields()
+	if title == nil {
+		t.Fatal("expected title to be dirty after typing a space")
+	}
+	if *title != "Alice" {
+		t.Errorf("expected trimmed title %q, got %q", "Alice", *title)
+	}
+	if artist != nil {
+		t.Errorf("expected artist=nil (not dirty), got %q", *artist)
+	}
+	if album != nil {
+		t.Errorf("expected album=nil (not dirty), got %q", *album)
+	}
+}
