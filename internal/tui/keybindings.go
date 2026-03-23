@@ -54,6 +54,8 @@ const (
 	actionSwitchAlbums
 	actionSwitchFavorites
 	actionToggleFavorite
+	actionJumpToArtist // 'A': jump to Artists view positioned on focused item's artist
+	actionJumpToAlbum  // 'B': jump to Albums view positioned on focused item's album
 
 	// Favorites-local actions.
 	actionFavoritesOpen // enter: drill into category/list or enqueue track
@@ -163,6 +165,8 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "ctrl+s", actionSortCycle)
 	r.register(contextGlobal, "ctrl+a", actionSortAsc)
 	r.register(contextGlobal, "ctrl+d", actionSortDescOrPageDown)
+	r.register(contextGlobal, "A", actionJumpToArtist)
+	r.register(contextGlobal, "B", actionJumpToAlbum)
 
 	// Library-local bindings.
 	r.registerNavigation(contextLibrary)

@@ -69,6 +69,8 @@ func helpSections() []helpSection {
 				{"5", "Switch to Albums"},
 				{"6", "Switch to Favorites"},
 				{"F", "Toggle favorite"},
+				{"A", "Jump to artist"},
+				{"B", "Jump to album"},
 				{"tab / shift+tab", "Next / previous view"},
 				{"R", "Rescan library"},
 				{"r", "Cycle repeat mode"},

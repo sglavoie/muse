@@ -810,6 +810,16 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m = m.switchToView(viewAlbums)
 	case actionSwitchFavorites:
 		m = m.switchToView(viewFavorites)
+	case actionJumpToArtist:
+		artist, _ := m.focusedTrackMeta()
+		if artist != "" {
+			m = m.jumpToArtist(artist)
+		}
+	case actionJumpToAlbum:
+		_, album := m.focusedTrackMeta()
+		if album != "" {
+			m = m.jumpToAlbum(album)
+		}
 	}
 	return m, nil
 }
