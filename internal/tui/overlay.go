@@ -16,6 +16,15 @@ const (
 	// OverlayHPadding is the horizontal padding (in characters) inside each
 	// content row, split equally between left and right.
 	OverlayHPadding = 4
+
+	borderH  = "─"
+	borderV  = "│"
+	cornerTL = "╭"
+	cornerTR = "╮"
+	cornerBL = "╰"
+	cornerBR = "╯"
+	crossL   = "├"
+	crossR   = "┤"
 )
 
 // OverlayRow represents a single content row inside an OverlayBox.
@@ -38,17 +47,6 @@ type OverlayBox struct {
 // The caller passes the current terminal dimensions so the box is positioned
 // in the middle of the screen.
 func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
-	const (
-		borderH  = "─"
-		borderV  = "│"
-		cornerTL = "╭"
-		cornerTR = "╮"
-		cornerBL = "╰"
-		cornerBR = "╯"
-		crossL   = "├"
-		crossR   = "┤"
-	)
-
 	// Find the widest label for right-alignment.
 	maxLabelW := 0
 	for _, r := range o.Rows {
