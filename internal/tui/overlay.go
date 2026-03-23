@@ -94,7 +94,7 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 	lines = append(lines, cornerTL+strings.Repeat(borderH, innerWidth)+cornerTR)
 
 	// Title row (centered).
-	titlePad := innerWidth - ansi.StringWidth(o.Title)
+	titlePad := max(0, innerWidth-ansi.StringWidth(o.Title))
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
 	lines = append(lines, borderV+strings.Repeat(" ", leftTP)+s.Heading.Render(o.Title)+strings.Repeat(" ", rightTP)+borderV)
@@ -111,7 +111,7 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 		var row string
 		if r.Label != "" {
 			// Right-align the label, then left-align the value.
-			valueWidth := contentWidth - maxLabelW - 1 // 1 for the space between label and value
+			valueWidth := max(0, contentWidth-maxLabelW-1) // 1 for the space between label and value
 			truncated := truncateTitle(r.Text, valueWidth)
 			row = fmt.Sprintf("  %*s %-*s  ", maxLabelW, r.Label, valueWidth, truncated)
 		} else {

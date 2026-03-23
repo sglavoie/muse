@@ -180,7 +180,7 @@ func (m DestinationPickerModal) buildBoxLines(termWidth int, s styles.Styles) []
 	lines = append(lines, cornerTL+strings.Repeat(borderH, innerWidth)+cornerTR)
 
 	// Title row (centered in innerWidth).
-	titlePad := innerWidth - ansi.StringWidth(modalTitle)
+	titlePad := max(0, innerWidth-ansi.StringWidth(modalTitle))
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
 	lines = append(lines, borderV+strings.Repeat(" ", leftTP)+s.Heading.Render(modalTitle)+strings.Repeat(" ", rightTP)+borderV)
