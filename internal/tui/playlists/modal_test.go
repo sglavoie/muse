@@ -1,6 +1,7 @@
 package playlists
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
@@ -427,7 +428,7 @@ func TestModalReceivesPreSortedPlaylistsFromFakeReader(t *testing.T) {
 
 func TestModalBuildBoxLinesContainsBorders(t *testing.T) {
 	m := NewDestinationPicker(fakePlaylistRows("Alpha", "Beta"))
-	lines := m.buildBoxLines(styles.NewStyles(true))
+	lines := m.buildBoxLines(120, styles.NewStyles(true))
 
 	if len(lines) < 4 {
 		t.Fatalf("expected at least 4 box lines, got %d", len(lines))
@@ -450,7 +451,7 @@ func TestModalBuildBoxLinesContainsBorders(t *testing.T) {
 
 func TestModalBuildBoxLinesContainsTitle(t *testing.T) {
 	m := NewDestinationPicker(nil)
-	lines := m.buildBoxLines(styles.NewStyles(true))
+	lines := m.buildBoxLines(120, styles.NewStyles(true))
 
 	found := false
 	for _, l := range lines {
@@ -475,7 +476,7 @@ func containsStr(s, sub string) bool {
 
 func TestModalBuildBoxLinesContainsDestinations(t *testing.T) {
 	m := NewDestinationPicker(fakePlaylistRows("Chill", "Rock"))
-	lines := m.buildBoxLines(styles.NewStyles(true))
+	lines := m.buildBoxLines(120, styles.NewStyles(true))
 
 	foundQueue := false
 	foundChill := false
@@ -506,7 +507,7 @@ func TestModalBuildBoxLinesFocusedRowHasAccent(t *testing.T) {
 	m := NewDestinationPicker(fakePlaylistRows("Alpha"))
 	m.cursor = 0 // Play Queue focused
 	s := styles.NewStyles(true)
-	lines := m.buildBoxLines(s)
+	lines := m.buildBoxLines(120, s)
 
 	accentMarker := styledText(s.Accent, queueLabel)
 	if ansi.Strip(accentMarker) == accentMarker {
@@ -577,5 +578,20 @@ func TestModalHandleKeyIsImmutable(t *testing.T) {
 	m.HandleKey("j")
 	if m.cursor != original {
 		t.Errorf("HandleKey must not mutate receiver; cursor changed from %d to %d", original, m.cursor)
+	}
+}
+
+// TestBuildBoxLines_LongPlaylistNameClamped verifies that on a narrow terminal
+// the box width is clamped and long playlist names are truncated.
+func TestBuildBoxLines_LongPlaylistNameClamped(t *testing.T) {
+	longName := strings.Repeat("A", 100)
+	m := NewDestinationPicker(fakePlaylistRows(longName))
+	const termWidth = 40
+	lines := m.buildBoxLines(termWidth, styles.NewStyles(true))
+
+	// The first line is the top border: its rune length equals innerWidth + 2.
+	boxWidth := len([]rune(lines[0]))
+	if boxWidth > termWidth {
+		t.Errorf("box width %d exceeds terminal width %d", boxWidth, termWidth)
 	}
 }
