@@ -34,7 +34,10 @@ type KnownFile struct {
 //   - a slice of paths for files that are new or changed
 //   - a slice of paths from known that were not seen during the walk (deleted files)
 //   - an error if the walk itself fails (callers should skip the deletion step)
-func FilteredWalk(ctx context.Context, root string, known map[string]KnownFile) ([]string, []string, error) {
+//
+// onErr, when non-nil, is called for each non-fatal walk error so callers can
+// surface them to the user (e.g. permission denied on a subdirectory).
+func FilteredWalk(ctx context.Context, root string, known map[string]KnownFile, onErr func(error)) ([]string, []string, error) {
 	seen := make(map[string]bool, len(known))
 	var changed []string
 
@@ -50,7 +53,7 @@ func FilteredWalk(ctx context.Context, root string, known map[string]KnownFile) 
 			changed = append(changed, path)
 		}
 		return nil
-	}); err != nil {
+	}, onErr); err != nil {
 		return nil, nil, err
 	}
 
@@ -88,9 +91,12 @@ func pathsToChan(ctx context.Context, paths []string) <-chan string {
 // and an error if the walk fails. On walk failure, callers should skip
 // the deletion step (deleted will be nil).
 //
+// onErr, when non-nil, is called for each non-fatal walk error encountered
+// during the directory traversal (e.g. permission denied on a subdirectory).
+//
 // On first run (empty known map) DiffScan degrades to a full scan.
-func DiffScan(ctx context.Context, root string, extractor MetadataExtractor, known map[string]KnownFile) (<-chan Track, []string, error) {
-	changed, deleted, err := FilteredWalk(ctx, root, known)
+func DiffScan(ctx context.Context, root string, extractor MetadataExtractor, known map[string]KnownFile, onErr func(error)) (<-chan Track, []string, error) {
+	changed, deleted, err := FilteredWalk(ctx, root, known, onErr)
 	if err != nil {
 		return nil, nil, err
 	}

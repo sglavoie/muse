@@ -41,7 +41,7 @@ func (m *Model) clampQueueCursorAndScroll() {
 // in the model and status bar.
 func (m Model) resetPlaybackState() Model {
 	if cp, ok := m.player.(commandPlayer); ok {
-		_ = cp.Stop()
+		_ = cp.Stop() // stop before new playback, failure is non-fatal
 	}
 	m.playback.state = PlaybackIdle
 	m.playback.elapsedSecs = 0
@@ -233,7 +233,7 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 		m = m.resetQueueSort()
 		m.clampQueueCursorAndScroll()
 		if qr, ok := m.player.(playerQueueRemover); ok {
-			_ = qr.RemoveFromQueue(msg.Index)
+			_ = qr.RemoveFromQueue(msg.Index) // player queue sync is best-effort, TUI is source of truth
 		}
 		// If the dequeued track was the currently playing one, or the queue
 		// is now empty, stop playback and clear the status bar.
@@ -399,7 +399,7 @@ func (m Model) handleUndo() Model {
 		m.undo.slot.cancelPurge = nil
 	}
 	slog.Debug("queue undo", "kind", m.undo.slot.action.kind())
-	m, _ = m.undo.slot.action.perform(m)
+	m, _ = m.undo.slot.action.perform(m) // undo action may fail silently, user can retry
 	m = m.resetQueueSort()
 	m = m.resetPlaylistsSort()
 	// Preserve any cancel channel set by perform() (e.g. enqueue undo

@@ -466,7 +466,7 @@ func (m *Manager) Close() error {
 	m.mu.Unlock()
 
 	if c != nil {
-		_ = c.Close()
+		_ = c.Close() // cleanup on shutdown, conn already being replaced
 	}
 	if cmd != nil && cmd.Process != nil {
 		done := make(chan error, 1)
@@ -475,7 +475,9 @@ func (m *Manager) Close() error {
 		case <-done:
 		case <-time.After(shutdownTimeout):
 			slog.Warn("mpv process did not exit within timeout, killing")
-			_ = cmd.Process.Kill()
+			if err := cmd.Process.Kill(); err != nil {
+				slog.Debug("mpv kill after timeout", "err", err)
+			}
 		}
 	}
 	return nil
@@ -887,7 +889,7 @@ func cleanStaleSocket(socketPath string) error {
 	// Try to connect: success means a live process owns the socket.
 	conn, err := net.DialTimeout("unix", socketPath, staleSocketDialTimeout)
 	if err == nil {
-		_ = conn.Close()
+		_ = conn.Close() // best-effort close after health check; we only needed to verify the socket is live
 		return fmt.Errorf("socket %s is already in use by a live mpv instance", socketPath)
 	}
 

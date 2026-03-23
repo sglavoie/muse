@@ -20,7 +20,7 @@ test-v:
 
 # Run tests for a specific package (e.g., just test-pkg internal/tui)
 test-pkg pkg:
-    go test -v ./{{pkg}}/...
+    go test -race -count=1 -v ./{{pkg}}/...
 
 # Run the linter
 lint:
@@ -55,7 +55,7 @@ tidy:
 
 # Install git pre-commit hook (runs fmt-check, vet, and lint)
 hooks:
-    @printf '#!/bin/sh\njust fmt-check && go vet ./... && golangci-lint run\n' > .git/hooks/pre-commit
+    @printf '#!/bin/sh\njust fmt-check && go vet ./... && go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest run\n' > .git/hooks/pre-commit
     @chmod +x .git/hooks/pre-commit
     @echo "pre-commit hook installed"
 

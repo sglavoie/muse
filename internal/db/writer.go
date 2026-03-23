@@ -28,43 +28,39 @@ const (
 	queuePositionGap = 1000
 )
 
-// Compile-time check: *Writer must satisfy the sessionWriter interface
-// used by the TUI layer (WriteRepeatMode, WriteShuffle, UpdateSessionPosition,
-// WriteVolume). This catches method-signature drift without requiring a runtime
-// assignment.
-var _ interface {
+// SessionWriter persists session state (repeat mode, shuffle, position, volume).
+type SessionWriter interface {
 	WriteRepeatMode(mode string) error
 	WriteShuffle(enabled bool) error
 	UpdateSessionPosition(hash string, positionMs int64) error
 	WriteVolume(volume int) error
-} = (*Writer)(nil)
+}
 
-// Compile-time check: *Writer must implement UpsertBatch so that the
-// scan-to-DB bridge in main.go and any future consumer cannot diverge from
-// the actual method signature without a build failure.
-var _ interface {
-	UpsertBatch(tracks []library.Track) error
-} = (*Writer)(nil)
-
-// Compile-time check: *Writer must satisfy the queueDequeuer interface used
-// by the TUI layer (DequeueTrackSoft, UndoDequeue, ClearQueueSoft,
-// UndoClearQueue, PurgeDeletedQueueEntries). Mirrors the sessionWriter and
-// UpsertBatch assertions above to catch method-signature drift at build time.
-var _ interface {
+// QueueDequeuer handles soft-delete, undo, and purge for queue entries.
+type QueueDequeuer interface {
 	DequeueTrackSoft(id int64) error
 	UndoDequeue(id int64) error
 	ClearQueueSoft() ([]int64, error)
 	UndoClearQueue(ids []int64) error
 	PurgeDeletedQueueEntries(before int64) error
-} = (*Writer)(nil)
+}
 
-// Compile-time check: *Writer must satisfy the favoriteWriter interface used
-// by the TUI layer (AddFavorite, RemoveFavorite, RemoveFavoritesByTypeAndValues).
-var _ interface {
+// FavoriteWriter manages favorite entries.
+type FavoriteWriter interface {
 	AddFavorite(typ, value string) error
 	RemoveFavorite(typ, value string) error
 	RemoveFavoritesByTypeAndValues(typ string, values []string) error
-} = (*Writer)(nil)
+}
+
+// BatchUpserter persists scanned tracks in bulk.
+type BatchUpserter interface {
+	UpsertBatch(tracks []library.Track) error
+}
+
+var _ SessionWriter = (*Writer)(nil)
+var _ QueueDequeuer = (*Writer)(nil)
+var _ FavoriteWriter = (*Writer)(nil)
+var _ BatchUpserter = (*Writer)(nil)
 
 // writeCmd is a single unit of work sent to the writer goroutine.
 // The caller blocks on resp until the goroutine sends the result back.

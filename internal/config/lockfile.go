@@ -38,7 +38,7 @@ func (l *Lockfile) Acquire() error {
 			return fmt.Errorf("another instance is running (PID %d); quit it first or remove %s if the process is stale", pid, l.path)
 		}
 		// PID is dead or unreadable — reclaim the stale lockfile.
-		_ = os.Remove(l.path)
+		_ = os.Remove(l.path) // stale lockfile removal, non-critical if it fails
 	}
 
 	return os.WriteFile(l.path, []byte(strconv.Itoa(os.Getpid())+"\n"), 0o600)
@@ -46,7 +46,7 @@ func (l *Lockfile) Acquire() error {
 
 // Release removes the lockfile. It is a no-op if the file is already gone.
 func (l *Lockfile) Release() {
-	_ = os.Remove(l.path)
+	_ = os.Remove(l.path) // release is best-effort, process is exiting
 }
 
 // isProcessAlive returns true if the given PID is a live process, using

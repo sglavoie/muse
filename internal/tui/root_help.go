@@ -37,7 +37,7 @@ func (m Model) handleHelpKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
 		default:
 			if msg.Text != "" {
 				for _, ch := range msg.Text {
-					m.helpSearchFilter, _ = m.helpSearchFilter.AppendChar(ch)
+					m.helpSearchFilter, _ = m.helpSearchFilter.AppendChar(ch) // char append can't fail for printable runes
 				}
 				m.refreshHelpViewport()
 			}

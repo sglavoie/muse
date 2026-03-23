@@ -30,3 +30,10 @@ type ScanTotalMsg struct {
 
 // ScanDoneMsg signals that the scan has completed.
 type ScanDoneMsg struct{}
+
+// ScanErrorMsg is sent when the scanner encounters a non-fatal walk error
+// (e.g., permission denied on a subdirectory). The scan continues after
+// the error; this message is informational only.
+type ScanErrorMsg struct {
+	Err error
+}

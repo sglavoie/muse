@@ -48,7 +48,7 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 // handleSyncPositionMsg persists the current playback position via the player.
 func (m Model) handleSyncPositionMsg() (Model, tea.Cmd) {
 	if ps, ok := m.player.(positionSyncer); ok {
-		_ = ps.SyncPosition()
+		_ = ps.SyncPosition() // periodic sync, next tick will retry
 	}
 	return m, syncPositionCmd()
 }
@@ -490,7 +490,7 @@ func (m Model) startPreviewCmd(track library.Track) tea.Cmd {
 			return previewStartErrorMsg{err: err}
 		}
 		if err := pp.LoadAndPlay(track.Path); err != nil {
-			_ = pp.Close()
+			_ = pp.Close() // preview cleanup, player is being dismissed
 			return previewStartErrorMsg{err: err}
 		}
 		return previewStartedMsg{
@@ -508,12 +508,12 @@ func (m Model) startPreviewCmd(track library.Track) tea.Cmd {
 // main playback if it was playing before the preview started.
 func (m Model) dismissPreview() Model {
 	if m.overlay.previewPlayer != nil {
-		_ = m.overlay.previewPlayer.Close()
+		_ = m.overlay.previewPlayer.Close() // preview cleanup before new playback
 	}
 	m.overlay.preview = nil
 	m.overlay.previewPlayer = nil
 	if m.overlay.previewWasPlaying && m.player != nil {
-		_ = m.player.Play()
+		_ = m.player.Play() // resume after preview dismiss, status bar shows state
 		m.playback.state = PlaybackPlaying
 	}
 	m.overlay.previewWasPlaying = false

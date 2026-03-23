@@ -116,7 +116,8 @@ func acceptLoopWithBackoff(p *tea.Program, ln net.Listener, backoff time.Duratio
 }
 
 // handleRemoteConn reads newline-delimited action names from a single
-// connection and dispatches each one into the TUI.
+// connection, dispatches each one into the TUI, and writes "ok\n" back so the
+// sender knows the command was received.
 func handleRemoteConn(p *tea.Program, conn net.Conn) {
 	defer conn.Close()
 	if err := conn.SetReadDeadline(time.Now().Add(remoteReadTimeout)); err != nil {
@@ -131,19 +132,26 @@ func handleRemoteConn(p *tea.Program, conn net.Conn) {
 		}
 		if !isKnownAction(action) {
 			slog.Warn("unknown remote action", "action", action)
+			if err := conn.SetWriteDeadline(time.Now().Add(remoteReadTimeout)); err == nil {
+				_, _ = fmt.Fprintf(conn, "error: unknown action %q\n", action) // best-effort
+			}
 			continue
 		}
 		p.Send(tui.RemoteActionMsg{ActionName: action})
+		if err := conn.SetWriteDeadline(time.Now().Add(remoteReadTimeout)); err == nil {
+			_, _ = fmt.Fprintln(conn, "ok") // best-effort acknowledgment
+		}
 	}
 	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) {
 		slog.Warn("remote connection read error", "err", err)
 	}
 }
 
-// runRemoteAction connects to the running muse instance's control socket and
-// sends the action name. The TUI's listener goroutine reads it and dispatches
-// the action through handlePlaybackKeyAction, keeping all playback logic
-// (including Go-side queue indexing and TUI state sync) in one place.
+// runRemoteAction connects to the running muse instance's control socket,
+// sends the action name, and reads the acknowledgment. The TUI's listener
+// goroutine reads it and dispatches the action through handlePlaybackKeyAction,
+// keeping all playback logic (including Go-side queue indexing and TUI state
+// sync) in one place.
 func runRemoteAction(action string) error {
 	runtimeDir := config.ResolveRuntimeDir()
 	sockPath := filepath.Join(runtimeDir, ctrlSocketName)
@@ -156,6 +164,18 @@ func runRemoteAction(action string) error {
 
 	if _, err := fmt.Fprintln(conn, action); err != nil {
 		return fmt.Errorf("send command: %w", err)
+	}
+
+	// Read acknowledgment from the running instance. Use the same dial timeout
+	// so callers do not wait indefinitely if the server is stalled.
+	if err := conn.SetReadDeadline(time.Now().Add(remoteDialTimeout)); err != nil {
+		return nil // command was sent; ack read is best-effort
+	}
+	scanner := bufio.NewScanner(conn)
+	if scanner.Scan() {
+		if resp := scanner.Text(); resp != "ok" {
+			return fmt.Errorf("remote: %s", resp)
+		}
 	}
 	return nil
 }

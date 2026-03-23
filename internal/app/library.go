@@ -17,6 +17,11 @@ type LibraryResult struct {
 	// TuiScanCh delivers newly discovered/changed tracks to the TUI.
 	TuiScanCh <-chan library.Track
 
+	// TuiScanErrCh carries non-fatal walk errors from the initial diff scan
+	// (e.g. permission denied on a subdirectory). The channel is already closed
+	// when LoadLibrary returns; drain it with a range loop or a Cmd.
+	TuiScanErrCh <-chan library.ScanErrorMsg
+
 	// TuiWatchCh delivers filesystem watch events to the TUI.
 	TuiWatchCh <-chan library.WatchEvent
 
@@ -73,9 +78,22 @@ func LoadLibrary(ctx context.Context, database *db.DB, writer LibraryWriter,
 		}
 	}
 
+	// Collect non-fatal walk errors into a buffered channel so the TUI can
+	// surface them as status bar notifications. FilteredWalk runs synchronously
+	// inside DiffScan, so all errors are enqueued before DiffScan returns and
+	// we can close the channel immediately after.
+	scanErrCh := make(chan library.ScanErrorMsg, 32)
+	onWalkErr := func(err error) {
+		select {
+		case scanErrCh <- library.ScanErrorMsg{Err: err}:
+		default: // drop if buffer is full
+		}
+	}
+
 	// Diff scan: walk the filesystem and only process files that are new or
 	// have changed since the last scan. Deletions are returned synchronously.
-	rawScanCh, deletedPaths, walkErr := library.DiffScan(ctx, musicDir, extractor, known)
+	rawScanCh, deletedPaths, walkErr := library.DiffScan(ctx, musicDir, extractor, known, onWalkErr)
+	close(scanErrCh) // all walk errors have been enqueued; channel may be empty
 	if walkErr != nil {
 		slog.Warn("diff scan: walk failed, skipping deletions", "err", walkErr)
 		deletedPaths = nil
@@ -106,6 +124,7 @@ func LoadLibrary(ctx context.Context, database *db.DB, writer LibraryWriter,
 	return LibraryResult{
 		Tracks:        libraryTracks,
 		TuiScanCh:     tuiScanCh,
+		TuiScanErrCh:  scanErrCh,
 		TuiWatchCh:    tuiWatchCh,
 		DeletedPaths:  deletedPaths,
 		HashByPath:    hashByPath,

@@ -80,17 +80,9 @@ type queueReorderer interface {
 	ReorderQueueTrack(id int64, direction int) error
 }
 
-// queueDequeuer handles soft-delete, undo, and purge operations for queue
-// entries. Root performs a type assertion to detect it; tests use stubs.
-// When nil, destructive actions still update the in-memory TUI state but
-// skip all database operations.
-type queueDequeuer interface {
-	DequeueTrackSoft(id int64) error
-	UndoDequeue(id int64) error
-	ClearQueueSoft() ([]int64, error)
-	UndoClearQueue(ids []int64) error
-	PurgeDeletedQueueEntries(before int64) error
-}
+// queueDequeuer is the db.QueueDequeuer interface. Aliased here to keep
+// the tui package's dependency on db narrow and explicit.
+type queueDequeuer = db.QueueDequeuer
 
 // playlistTrackReader loads playlist tracks from the database. Root uses it
 // when the user opens a playlist to transition to TrackLevel. When nil,
@@ -144,17 +136,9 @@ type playlistTrackAdder interface {
 	AddTracksToPlaylist(playlistID int64, hashes []string) error
 }
 
-// sessionWriter is implemented by db.Writer. Root calls WriteRepeatMode after
-// each actionRepeatCycle, WriteShuffle after each actionShuffleToggle,
-// UpdateSessionPosition on pause, seek, and track-change events, and
-// WriteVolume after each volume change to persist state changes to the session
-// table via the single-writer goroutine.
-type sessionWriter interface {
-	WriteRepeatMode(mode string) error
-	WriteShuffle(enabled bool) error
-	UpdateSessionPosition(hash string, positionMs int64) error
-	WriteVolume(volume int) error
-}
+// sessionWriter is the db.SessionWriter interface. Aliased here to keep
+// the tui package's dependency on db narrow and explicit.
+type sessionWriter = db.SessionWriter
 
 // metadataUpdater persists user-edited metadata to the database.
 type metadataUpdater interface {
@@ -168,9 +152,6 @@ type favoriteReader interface {
 	IsFavorite(typ, value string) (bool, error)
 }
 
-// favoriteWriter persists favorite add/remove operations to the database.
-type favoriteWriter interface {
-	AddFavorite(typ, value string) error
-	RemoveFavorite(typ, value string) error
-	RemoveFavoritesByTypeAndValues(typ string, values []string) error
-}
+// favoriteWriter is the db.FavoriteWriter interface. Aliased here to keep
+// the tui package's dependency on db narrow and explicit.
+type favoriteWriter = db.FavoriteWriter

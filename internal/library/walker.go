@@ -15,14 +15,19 @@ import (
 // files/dirs, follow file symlinks only, and filter by audio extension.
 // For each qualifying audio file path, it calls visit. If visit returns
 // filepath.SkipDir or a non-nil error, the walk stops accordingly.
-// If ctx is cancelled, the walk stops early.
-func walkAudioPaths(ctx context.Context, root string, visit func(path string) error) error {
+// If ctx is cancelled, the walk stops early. onErr, when non-nil, is called
+// for each non-fatal walk error (e.g. permission denied on a subdirectory)
+// in addition to the slog.Warn that is always emitted.
+func walkAudioPaths(ctx context.Context, root string, visit func(path string) error, onErr func(error)) error {
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if ctx.Err() != nil {
 			return filepath.SkipAll
 		}
 		if err != nil {
 			slog.Warn("walk error", "path", path, "err", err)
+			if onErr != nil {
+				onErr(err)
+			}
 			return nil
 		}
 		name := d.Name()
@@ -72,7 +77,7 @@ func Walk(ctx context.Context, root string) <-chan string {
 			case <-ctx.Done():
 				return filepath.SkipAll
 			}
-		}); err != nil && ctx.Err() == nil {
+		}, nil); err != nil && ctx.Err() == nil {
 			slog.Warn("walk: root traversal error", "root", root, "err", err)
 		}
 	}()
@@ -89,7 +94,7 @@ func CountAudioFiles(ctx context.Context, root string) int {
 	if err := walkAudioPaths(ctx, root, func(_ string) error {
 		count++
 		return nil
-	}); err != nil && ctx.Err() == nil {
+	}, nil); err != nil && ctx.Err() == nil {
 		slog.Warn("count audio files: walk error", "root", root, "err", err)
 	}
 	return count

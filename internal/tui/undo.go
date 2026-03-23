@@ -47,7 +47,7 @@ func (a undoEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 		m.queue.entries = append(m.queue.entries[:a.idx], m.queue.entries[a.idx+1:]...)
 		m.clampQueueCursorAndScroll()
 		if qr, ok := m.player.(playerQueueRemover); ok {
-			_ = qr.RemoveFromQueue(a.idx)
+			_ = qr.RemoveFromQueue(a.idx) // player queue sync during undo, best-effort
 		}
 	}
 	return m, nil
@@ -197,7 +197,7 @@ func (a undoBatchEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 	m.clampQueueCursorAndScroll()
 	if qr, ok := m.player.(playerQueueRemover); ok {
 		for i := endIdx - 1; i >= startIdx; i-- {
-			_ = qr.RemoveFromQueue(i)
+			_ = qr.RemoveFromQueue(i) // player queue sync during batch undo, best-effort
 		}
 	}
 	return m, nil

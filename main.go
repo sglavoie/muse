@@ -162,30 +162,7 @@ func runTUI(ctx context.Context) error {
 	}
 
 	adapter := db.NewPlaylistAdapter(result.DB, result.Writer)
-	model := tui.New(ctx,
-		tui.WithConfigPath(configPath, cfgResult.Created),
-		tui.WithConfigWarnings(cfgResult.Warnings),
-		tui.WithScanChannel(libResult.TuiScanCh),
-		tui.WithWatchChannel(libResult.TuiWatchCh),
-		tui.WithLibraryRoot(cfg.MusicDirectory),
-		tui.WithExtractor(extractor),
-		tui.WithPlayer(mgr),
-		tui.WithWatchDegraded(libResult.WatchDegraded),
-		tui.WithRuntimeDir(dirs.Runtime),
-		tui.WithQueueWriter(result.Writer),
-		tui.WithQueueDequeuer(result.Writer),
-		tui.WithSessionWriter(result.Writer),
-		tui.WithPlaylistTrackReader(result.DB),
-		tui.WithPlaylistWriter(adapter),
-		tui.WithPlaylistRenamer(adapter),
-		tui.WithPlaylistDeleter(result.Writer),
-		tui.WithPlaylistAdder(result.Writer),
-		tui.WithQueueReorderer(result.Writer),
-		tui.WithBatchEnqueuer(result.Writer),
-		tui.WithMetadataWriter(result.Writer),
-		tui.WithFavoriteReader(result.DB),
-		tui.WithFavoriteWriter(result.Writer),
-	)
+	model := buildModel(ctx, cfg, configPath, cfgResult, result, libResult, dirs, extractor, adapter, mgr)
 
 	// Apply all restored session state (queue, library, playlists,
 	// repeat/shuffle/volume, current track) before tea.NewProgram so the
@@ -289,4 +266,45 @@ func main() {
 		fmt.Fprintf(os.Stderr, "muse: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// buildModel wires all dependencies into a tui.Model. It is extracted from
+// runTUI so that the surrounding setup and teardown code remains scannable.
+func buildModel(
+	ctx context.Context,
+	cfg config.Config,
+	configPath string,
+	cfgResult config.LoadResult,
+	result *app.RunResult,
+	libResult app.LibraryResult,
+	dirs config.Dirs,
+	extractor library.MetadataExtractor,
+	adapter *db.PlaylistAdapter,
+	mgr *player.Manager,
+) tui.Model {
+	return tui.New(ctx,
+		tui.WithConfigPath(configPath, cfgResult.Created),
+		tui.WithConfigWarnings(cfgResult.Warnings),
+		tui.WithScanChannel(libResult.TuiScanCh),
+		tui.WithScanErrChannel(libResult.TuiScanErrCh),
+		tui.WithWatchChannel(libResult.TuiWatchCh),
+		tui.WithLibraryRoot(cfg.MusicDirectory),
+		tui.WithExtractor(extractor),
+		tui.WithPlayer(mgr),
+		tui.WithWatchDegraded(libResult.WatchDegraded),
+		tui.WithRuntimeDir(dirs.Runtime),
+		tui.WithQueueWriter(result.Writer),
+		tui.WithQueueDequeuer(result.Writer),
+		tui.WithSessionWriter(result.Writer),
+		tui.WithPlaylistTrackReader(result.DB),
+		tui.WithPlaylistWriter(adapter),
+		tui.WithPlaylistRenamer(adapter),
+		tui.WithPlaylistDeleter(result.Writer),
+		tui.WithPlaylistAdder(result.Writer),
+		tui.WithQueueReorderer(result.Writer),
+		tui.WithBatchEnqueuer(result.Writer),
+		tui.WithMetadataWriter(result.Writer),
+		tui.WithFavoriteReader(result.DB),
+		tui.WithFavoriteWriter(result.Writer),
+	)
 }

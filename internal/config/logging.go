@@ -31,7 +31,7 @@ func InitLogging(stateDir string, level slog.Level) error {
 
 	// Rotate if the current log exceeds the size threshold.
 	if fi, err := os.Stat(path); err == nil && fi.Size() >= logRotateSize {
-		_ = os.Rename(path, path+".1")
+		_ = os.Rename(path, path+".1") // log rotation is best-effort, non-blocking
 	}
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
@@ -83,7 +83,7 @@ func ParseLogLevel(s string) (slog.Level, bool) {
 func CloseLog() {
 	if logFile != nil {
 		slog.Info("shutdown complete")
-		_ = logFile.Close()
+		_ = logFile.Close() // deferred close in error path, file will be GC'd
 		logFile = nil
 	}
 }
