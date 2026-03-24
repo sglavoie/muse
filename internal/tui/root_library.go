@@ -326,6 +326,7 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 					}
 				}
 				m.playlists.tracks = remaining
+				m = m.resetPlaylistsSort()
 				m.playlists.cursor, m.playlists.scrollOffset = clampAfterRemoval(
 					m.playlists.cursor, m.playlists.scrollOffset, len(m.playlists.tracks))
 				m.playlists.selectedTrackIDs = nil

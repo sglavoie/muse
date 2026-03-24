@@ -58,6 +58,7 @@ func (a undoEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 			_ = qr.RemoveFromQueue(realIdx) // player queue sync during undo, best-effort
 		}
 	}
+	m.statusBar.notification = newNotification("Undone: removed " + a.entry.Display)
 	return m, nil
 }
 
@@ -98,6 +99,7 @@ func (a undoDequeueAction) perform(m Model) (Model, tea.Cmd) {
 		}
 	}
 	m.syncPlayerQueue()
+	m.statusBar.notification = newNotification("Undone: restored removed track")
 	return m, nil
 }
 
@@ -126,6 +128,8 @@ func (a undoClearAction) perform(m Model) (Model, tea.Cmd) {
 	if qs, ok := m.player.(playerQueueSetter); ok {
 		qs.SetQueue(a.tracks)
 	}
+	n := len(a.entries)
+	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: restored %d %s", n, pluralize(n, "track", "tracks")))
 	return m, nil
 }
 
@@ -164,6 +168,8 @@ func (a undoBulkDequeueAction) perform(m Model) (Model, tea.Cmd) {
 	}
 	m.clampQueueCursorAndScroll()
 	m.syncPlayerQueue()
+	n := len(a.entries)
+	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: restored %d %s", n, pluralize(n, "track", "tracks")))
 	return m, nil
 }
 
@@ -217,6 +223,8 @@ func (a undoBatchEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 			_ = qr.RemoveFromQueue(removedPlayerIndices[i])
 		}
 	}
+	n := a.count
+	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: removed %d %s", n, pluralize(n, "track", "tracks")))
 	return m, nil
 }
 
@@ -250,6 +258,7 @@ func (a undoDeletePlaylistAction) perform(m Model) (Model, tea.Cmd) {
 	if m.playlists.cursor < m.playlists.scrollOffset {
 		m.playlists.scrollOffset = m.playlists.cursor
 	}
+	m.statusBar.notification = newNotification("Undone: restored playlist")
 	return m, nil
 }
 
@@ -284,6 +293,7 @@ func (a undoRemovePlaylistTrackAction) perform(m Model) (Model, tea.Cmd) {
 	if m.playlists.cursor < m.playlists.scrollOffset {
 		m.playlists.scrollOffset = m.playlists.cursor
 	}
+	m.statusBar.notification = newNotification("Undone: restored playlist track")
 	return m, nil
 }
 
@@ -329,6 +339,8 @@ func (a undoBulkRemovePlaylistTracksAction) perform(m Model) (Model, tea.Cmd) {
 	if m.playlists.cursor < m.playlists.scrollOffset {
 		m.playlists.scrollOffset = m.playlists.cursor
 	}
+	n := len(a.entries)
+	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: restored %d playlist %s", n, pluralize(n, "track", "tracks")))
 	return m, nil
 }
 

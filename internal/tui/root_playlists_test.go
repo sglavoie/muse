@@ -1011,6 +1011,48 @@ func TestBulkActionInPlaylistsRequiresConfirmation(t *testing.T) {
 	}
 }
 
+// TestBulkActionRemovalResetsSortState verifies that the bulk action removal
+// path (actionBulkAction with confirmation) resets the playlists sort state,
+// preventing stale sortedTrackOrder indices from causing out-of-bounds panics.
+func TestBulkActionRemovalResetsSortState(t *testing.T) {
+	pd := &stubPlaylistDeleter{}
+	m := New(context.Background(), WithPlaylistDeleter(pd))
+	m.activeView = viewPlaylists
+	m.playlists.level = pltui.TrackLevel
+	m.playlists.tracks = []db.PlaylistTrackRow{
+		{ID: 10, Position: 1, Title: "A", Artist: "X", DurationMs: 1000},
+		{ID: 20, Position: 2, Title: "B", Artist: "Y", DurationMs: 2000},
+		{ID: 30, Position: 3, Title: "C", Artist: "Z", DurationMs: 3000},
+	}
+	m.playlists.selectedTrackIDs = map[int64]struct{}{10: {}, 20: {}}
+
+	// Activate a sort so sortedTrackOrder is non-nil.
+	m.playlists.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.playlists = m.playlists.recomputePlaylistSort()
+	if m.playlists.sortedTrackOrder == nil {
+		t.Fatal("precondition: sortedTrackOrder should be non-nil after sort")
+	}
+
+	// First 'a' press — confirmation.
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	nm := next.(Model)
+
+	// Second 'a' press — removal.
+	next2, _ := nm.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	nm2 := next2.(Model)
+
+	if len(nm2.playlists.tracks) != 1 {
+		t.Fatalf("expected 1 track remaining, got %d", len(nm2.playlists.tracks))
+	}
+	// Sort state must be reset after the removal.
+	if nm2.playlists.sortState.Field != SortDefault {
+		t.Errorf("expected sort field reset to SortDefault, got %v", nm2.playlists.sortState.Field)
+	}
+	if nm2.playlists.sortedTrackOrder != nil {
+		t.Error("expected sortedTrackOrder to be nil after bulk removal with sort active")
+	}
+}
+
 // TestPlaylistDeleteWithSortActiveDeletesCorrectEntry verifies that deleting a
 // playlist when sort is active removes the correct entry (the one at the display
 // cursor in the sorted view) rather than the entry at the same index in the
@@ -1082,5 +1124,86 @@ func TestPlaylistDeleteWithSortActiveUndoRestoresCorrectEntry(t *testing.T) {
 	if nm.playlists.playlists[1].ID != 2 {
 		t.Fatalf("expected Alpha (ID=2) restored at canonical index 1, got ID=%d",
 			nm.playlists.playlists[1].ID)
+	}
+}
+
+// TestUndoDeletePlaylistShowsNotification verifies that undoing a playlist
+// deletion sets a confirmation notification in the status bar.
+func TestUndoDeletePlaylistShowsNotification(t *testing.T) {
+	pd := &stubPlaylistDeleter{}
+	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "A"},
+		{ID: 2, Name: "B"},
+	}))
+	m.activeView = viewPlaylists
+	m.playlists.cursor = 0
+
+	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	nm := next.(Model)
+
+	nm2 := nm.handleUndo()
+	if nm2.statusBar.notification.msg == "" {
+		t.Fatal("undo delete playlist must set a status bar notification")
+	}
+	if !strings.Contains(nm2.statusBar.notification.msg, "Undone") {
+		t.Errorf("expected undo notification containing 'Undone', got %q", nm2.statusBar.notification.msg)
+	}
+}
+
+// TestUndoRemovePlaylistTrackShowsNotification verifies that undoing a single
+// playlist track removal sets a confirmation notification in the status bar.
+func TestUndoRemovePlaylistTrackShowsNotification(t *testing.T) {
+	pd := &stubPlaylistDeleter{}
+	m := New(context.Background(), WithPlaylistDeleter(pd))
+	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
+		{ID: 10, Position: 1, Title: "Song A"},
+		{ID: 20, Position: 2, Title: "Song B"},
+	})
+
+	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	nm := next.(Model)
+
+	nm2 := nm.handleUndo()
+	if nm2.statusBar.notification.msg == "" {
+		t.Fatal("undo remove playlist track must set a status bar notification")
+	}
+	if !strings.Contains(nm2.statusBar.notification.msg, "Undone") {
+		t.Errorf("expected undo notification containing 'Undone', got %q", nm2.statusBar.notification.msg)
+	}
+}
+
+// TestUndoBulkRemovePlaylistTracksShowsNotification verifies that undoing a
+// bulk playlist track removal sets a confirmation notification in the status bar.
+func TestUndoBulkRemovePlaylistTracksShowsNotification(t *testing.T) {
+	pd := &stubPlaylistDeleter{}
+	m := New(context.Background(), WithPlaylistDeleter(pd))
+	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{
+		{ID: 10, Position: 1, Title: "Song A"},
+		{ID: 20, Position: 2, Title: "Song B"},
+		{ID: 30, Position: 3, Title: "Song C"},
+	})
+	m.playlists.selectedTrackIDs = map[int64]struct{}{10: {}, 20: {}}
+
+	m.setUndoSlot(undoBulkRemovePlaylistTracksAction{
+		entries: []db.PlaylistTrackRow{
+			{ID: 10, Position: 1, Title: "Song A"},
+			{ID: 20, Position: 2, Title: "Song B"},
+		},
+		indices: []int{0, 1},
+	}, nil)
+	// Simulate the removal (keep only track 30).
+	m.playlists.tracks = []db.PlaylistTrackRow{
+		{ID: 30, Position: 3, Title: "Song C"},
+	}
+
+	nm := m.handleUndo()
+	if nm.statusBar.notification.msg == "" {
+		t.Fatal("undo bulk remove playlist tracks must set a status bar notification")
+	}
+	if !strings.Contains(nm.statusBar.notification.msg, "Undone") {
+		t.Errorf("expected undo notification containing 'Undone', got %q", nm.statusBar.notification.msg)
+	}
+	if !strings.Contains(nm.statusBar.notification.msg, "2") {
+		t.Errorf("expected undo notification to mention count, got %q", nm.statusBar.notification.msg)
 	}
 }
