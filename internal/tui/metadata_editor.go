@@ -214,10 +214,7 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	maxLabelW := 8 // len("*Artist:")
 
 	// Box width: use most of the terminal width, capped at 80.
-	boxInner := min(termWidth-8, 80)
-	if boxInner < OverlayMinInnerWidth {
-		boxInner = OverlayMinInnerWidth
-	}
+	boxInner := max(min(termWidth-8, 80), OverlayMinInnerWidth)
 
 	contentWidth := boxInner - OverlayHPadding
 	valueWidth := contentWidth - maxLabelW - 1
