@@ -16,6 +16,7 @@ type SessionPlayer interface {
 	SetRepeat(mode string) error
 	SetShuffle(enabled bool) error
 	SetCurrentIndex(index int)
+	SetVolumeAbsolute(volume float64) error
 }
 
 // ShuffleWriter can regenerate shuffle positions in the database.
@@ -82,6 +83,14 @@ func ApplyRestoredSession(
 		vol = defaultVolume
 	}
 	tui.WithVolume(vol)(model)
+
+	// Propagate the restored volume to mpv so the actual playback volume
+	// matches the TUI display from the first interaction. SetVolumeAbsolute
+	// enqueues the command for replay once the IPC socket connects, so it
+	// is safe to call before the socket is ready.
+	if err := mgr.SetVolumeAbsolute(float64(vol)); err != nil {
+		slog.Debug("startup: set volume", "err", err)
+	}
 
 	// Propagate restored repeat/shuffle modes into mpv so its behaviour
 	// matches the status bar indicators from the first user interaction.

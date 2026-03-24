@@ -18,12 +18,19 @@ type mockPlayer struct {
 	shuffle      bool
 	currentIndex int
 	indexSet     bool
+	volume       float64
+	volumeSet    bool
 }
 
 func (p *mockPlayer) SetQueue(e []player.QueueTrack) { p.queue = e }
 func (p *mockPlayer) SetRepeat(mode string) error    { p.repeatMode = mode; return nil }
 func (p *mockPlayer) SetShuffle(enabled bool) error  { p.shuffle = enabled; return nil }
 func (p *mockPlayer) SetCurrentIndex(i int)          { p.currentIndex = i; p.indexSet = true }
+func (p *mockPlayer) SetVolumeAbsolute(v float64) error {
+	p.volume = v
+	p.volumeSet = true
+	return nil
+}
 
 // mockShuffleWriter records calls to ShuffleWriter.
 type mockShuffleWriter struct {
@@ -230,5 +237,35 @@ func TestApplyRestoredSession_MutedVolumePreserved(t *testing.T) {
 	app.ApplyRestoredSession(&model, mgr, restored, sw, pr, nil, nil, nil, 50)
 	if model.Volume() != 0 {
 		t.Errorf("muted volume: got %d, want 0", model.Volume())
+	}
+}
+
+func TestApplyRestoredSession_VolumeSentToPlayer(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		restoredVol   int
+		defaultVol    int
+		wantPlayerVol float64
+	}{
+		{"restored volume sent to player", 70, 50, 70},
+		{"default volume used when no session", -1, 50, 50},
+		{"muted volume sent to player", 0, 100, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mgr := &mockPlayer{}
+			sw := &mockShuffleWriter{}
+			pr := &mockPlaylistReader{}
+			model := tui.New(context.Background())
+			restored := &app.RestoredSession{Volume: tc.restoredVol}
+
+			app.ApplyRestoredSession(&model, mgr, restored, sw, pr, nil, nil, nil, tc.defaultVol)
+
+			if !mgr.volumeSet {
+				t.Fatal("SetVolumeAbsolute was not called on the player")
+			}
+			if mgr.volume != tc.wantPlayerVol {
+				t.Errorf("player volume = %v, want %v", mgr.volume, tc.wantPlayerVol)
+			}
+		})
 	}
 }

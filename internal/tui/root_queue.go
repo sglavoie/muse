@@ -30,6 +30,16 @@ func newQueueEntries(tracks []library.Track, ids []int64, source string) []Queue
 	return entries
 }
 
+// queueContainsHash reports whether any entry in entries has the given hash.
+func queueContainsHash(entries []QueueEntry, hash string) bool {
+	for _, e := range entries {
+		if e.Hash == hash {
+			return true
+		}
+	}
+	return false
+}
+
 // clampQueueCursorAndScroll adjusts the queue cursor and scroll offset so they
 // remain within bounds after entries have been removed.
 func (m *Model) clampQueueCursorAndScroll() {
@@ -235,9 +245,12 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 		if qr, ok := m.player.(playerQueueRemover); ok {
 			_ = qr.RemoveFromQueue(msg.Index) // player queue sync is best-effort, TUI is source of truth
 		}
-		// If the dequeued track was the currently playing one, or the queue
-		// is now empty, stop playback and clear the status bar.
-		if (entry.Hash != "" && entry.Hash == m.playback.currentHash) || len(m.queue.entries) == 0 {
+		// If the queue is now empty, or the currently-playing hash is no
+		// longer present in the remaining queue entries, stop playback.
+		// Comparing by hash presence (not entry identity) handles the case
+		// where the same track is enqueued multiple times: removing one
+		// instance does not stop playback if another instance remains.
+		if len(m.queue.entries) == 0 || (m.playback.currentHash != "" && !queueContainsHash(m.queue.entries, m.playback.currentHash)) {
 			m = m.resetPlaybackState()
 		}
 	}
@@ -461,8 +474,9 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 			m = m.resetQueueSort()
 			m.clampQueueCursorAndScroll()
 			m.syncPlayerQueue()
-			// If the queue is now empty, stop playback and clear status bar.
-			if len(m.queue.entries) == 0 {
+			// If the queue is now empty, or the currently-playing hash is no
+			// longer present in the remaining entries, stop playback.
+			if len(m.queue.entries) == 0 || (m.playback.currentHash != "" && !queueContainsHash(m.queue.entries, m.playback.currentHash)) {
 				m = m.resetPlaybackState()
 			}
 			m.setUndoSlot(undoBulkDequeueAction{
