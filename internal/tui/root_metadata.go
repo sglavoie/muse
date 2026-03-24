@@ -224,6 +224,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 		if m.queue.entries[i].Hash == hash {
 			m.queue.entries[i].Title = title
 			m.queue.entries[i].Artist = artist
+			m.queue.entries[i].Album = album
 			m.queue.entries[i].Display = display
 		}
 	}

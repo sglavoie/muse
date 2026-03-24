@@ -593,23 +593,37 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 	}
 
 	// If the Favorites view is active, refresh the in-view state after a removal.
+	// For bulk removals msg.value is empty and msg.removedValues holds the
+	// actual values to remove; for single removals msg.value is populated.
 	if m.activeView == viewFavorites && !msg.added {
+		valuesToRemove := msg.removedValues
+		if len(valuesToRemove) == 0 && msg.value != "" {
+			valuesToRemove = []string{msg.value}
+		}
 		switch m.favorites.level {
 		case favtui.ListLevel:
 			switch m.favorites.category {
 			case favtui.CategoryArtists:
-				m.favorites.artists = removeString(m.favorites.artists, msg.value)
+				for _, v := range valuesToRemove {
+					m.favorites.artists = removeString(m.favorites.artists, v)
+				}
 				m.favorites.artistCount = len(m.favorites.artists)
 			case favtui.CategoryAlbums:
-				m.favorites.albums = removeString(m.favorites.albums, msg.value)
+				for _, v := range valuesToRemove {
+					m.favorites.albums = removeString(m.favorites.albums, v)
+				}
 				m.favorites.albumCount = len(m.favorites.albums)
 			case favtui.CategoryTracks:
-				m.favorites.tracks = removeTrackByHash(m.favorites.tracks, msg.value)
+				for _, v := range valuesToRemove {
+					m.favorites.tracks = removeTrackByHash(m.favorites.tracks, v)
+				}
 				m.favorites.trackCount = len(m.favorites.tracks)
 			}
 			m.favorites = m.favorites.clampCursor()
 		case favtui.TrackLevel:
-			m.favorites.drilldownTracks = removeTrackByHash(m.favorites.drilldownTracks, msg.value)
+			for _, v := range valuesToRemove {
+				m.favorites.drilldownTracks = removeTrackByHash(m.favorites.drilldownTracks, v)
+			}
 			m.favorites = m.favorites.clampCursor()
 		}
 	}

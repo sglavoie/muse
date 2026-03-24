@@ -308,6 +308,47 @@ func TestRenameUpdatesQueueAlbum(t *testing.T) {
 	}
 }
 
+// --- TestSingleTrackMetadataSaveUpdatesQueueAlbum ---
+
+// TestSingleTrackMetadataSaveUpdatesQueueAlbum verifies that saving a
+// single-track metadata edit updates the Album field (not just Title and
+// Artist) on matching queue entries.
+func TestSingleTrackMetadataSaveUpdatesQueueAlbum(t *testing.T) {
+	m := newModelWithTracks()
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Hash: "h1", Title: "Track A1", Artist: "Alice", Album: "Alpha", Display: "Alice – Track A1"},
+		{Hash: "h4", Title: "Track G1", Artist: "Bob", Album: "Gamma", Display: "Bob – Track G1"},
+	}
+	m.queue.cursor = 0
+
+	// Open single-track metadata editor for h1.
+	ed := NewMetadataEditor("h1", "Track A1", "Alice", "Alpha")
+	m.overlay.metadataEditor = &ed
+
+	// Clear the album field and type a new one.
+	// Switch focus to album field (tab twice: title -> artist -> album).
+	ed2, _, _ := m.overlay.metadataEditor.HandleKey(tea.KeyPressMsg{Code: tea.KeyTab})
+	m.overlay.metadataEditor = &ed2
+	ed3, _, _ := m.overlay.metadataEditor.HandleKey(tea.KeyPressMsg{Code: tea.KeyTab})
+	m.overlay.metadataEditor = &ed3
+	// Erase "Alpha" (5 chars) and type new album name.
+	m = backspaceInEditor(m, 5)
+	m = typeIntoEditor(m, "NewAlbum")
+
+	result, _ := m.handleMetadataSave()
+	nm := result.(Model)
+
+	// Queue entry h1 should have Album updated to "NewAlbum".
+	if nm.queue.entries[0].Album != "NewAlbum" {
+		t.Errorf("queue entry h1: expected Album=%q, got %q", "NewAlbum", nm.queue.entries[0].Album)
+	}
+	// Queue entry h4 should be unaffected.
+	if nm.queue.entries[1].Album != "Gamma" {
+		t.Errorf("queue entry h4: expected Album=%q (unchanged), got %q", "Gamma", nm.queue.entries[1].Album)
+	}
+}
+
 // --- TestRenameUndo ---
 
 // TestRenameUndo verifies that undoing a rename restores original names in the
