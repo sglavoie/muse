@@ -1010,3 +1010,77 @@ func TestBulkActionInPlaylistsRequiresConfirmation(t *testing.T) {
 		}
 	}
 }
+
+// TestPlaylistDeleteWithSortActiveDeletesCorrectEntry verifies that deleting a
+// playlist when sort is active removes the correct entry (the one at the display
+// cursor in the sorted view) rather than the entry at the same index in the
+// unsorted canonical slice.
+func TestPlaylistDeleteWithSortActiveDeletesCorrectEntry(t *testing.T) {
+	pd := &stubPlaylistDeleter{}
+	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "Zebra"},
+		{ID: 2, Name: "Alpha"},
+		{ID: 3, Name: "Middle"},
+	}))
+	m.activeView = viewPlaylists
+	// Sort by name ascending: display order is Alpha(ID=2), Middle(ID=3), Zebra(ID=1).
+	m.playlists.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.playlists = m.playlists.recomputePlaylistSort()
+
+	// Place cursor on display row 0 (Alpha, ID=2).
+	m.playlists.cursor = 0
+
+	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	nm := next.(Model)
+
+	// The soft-delete call should target Alpha (ID=2), not Zebra (ID=1).
+	if len(pd.deletePlaylistSoftCalls) != 1 {
+		t.Fatalf("expected 1 soft-delete call, got %d", len(pd.deletePlaylistSoftCalls))
+	}
+	if pd.deletePlaylistSoftCalls[0] != 2 {
+		t.Fatalf("soft-delete should target ID=2 (Alpha), got ID=%d", pd.deletePlaylistSoftCalls[0])
+	}
+
+	// The canonical slice should have Alpha removed, leaving Zebra and Middle.
+	if len(nm.playlists.playlists) != 2 {
+		t.Fatalf("expected 2 playlists remaining, got %d", len(nm.playlists.playlists))
+	}
+	for _, p := range nm.playlists.playlists {
+		if p.ID == 2 {
+			t.Fatal("Alpha (ID=2) should have been removed from the canonical slice")
+		}
+	}
+}
+
+// TestPlaylistDeleteWithSortActiveUndoRestoresCorrectEntry verifies that
+// undoing a sorted-view playlist deletion restores the entry at the correct
+// position in the canonical (unsorted) slice.
+func TestPlaylistDeleteWithSortActiveUndoRestoresCorrectEntry(t *testing.T) {
+	pd := &stubPlaylistDeleter{}
+	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "Zebra"},
+		{ID: 2, Name: "Alpha"},
+		{ID: 3, Name: "Middle"},
+	}))
+	m.activeView = viewPlaylists
+	m.playlists.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.playlists = m.playlists.recomputePlaylistSort()
+	m.playlists.cursor = 0 // Alpha (ID=2)
+
+	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	nm := next.(Model)
+	if len(nm.playlists.playlists) != 2 {
+		t.Fatalf("expected 2 playlists after delete, got %d", len(nm.playlists.playlists))
+	}
+
+	// Undo the deletion.
+	nm = nm.handleUndo()
+	if len(nm.playlists.playlists) != 3 {
+		t.Fatalf("expected 3 playlists after undo, got %d", len(nm.playlists.playlists))
+	}
+	// Alpha should be restored at its original canonical index (1).
+	if nm.playlists.playlists[1].ID != 2 {
+		t.Fatalf("expected Alpha (ID=2) restored at canonical index 1, got ID=%d",
+			nm.playlists.playlists[1].ID)
+	}
+}

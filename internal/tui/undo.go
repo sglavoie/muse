@@ -36,18 +36,26 @@ func (a undoEnqueueAction) description() string {
 }
 
 func (a undoEnqueueAction) perform(m Model) (Model, tea.Cmd) {
-	if a.idx >= 0 && a.idx < len(m.queue.entries) {
-		entry := m.queue.entries[a.idx]
+	// Find the enqueued entry by its database ID rather than by positional
+	// index, because the queue may have been reordered since the enqueue.
+	realIdx := -1
+	for i, e := range m.queue.entries {
+		if e.ID == a.id {
+			realIdx = i
+			break
+		}
+	}
+	if realIdx >= 0 {
 		if m.undoer != nil {
-			if err := m.undoer.DequeueTrackSoft(entry.ID); err != nil {
+			if err := m.undoer.DequeueTrackSoft(a.id); err != nil {
 				slog.Warn("undo enqueue: soft-delete failed", "err", err)
 			}
 			schedulePurge(&m.undo.slot, m.undoer.PurgeDeletedQueueEntries)
 		}
-		m.queue.entries = append(m.queue.entries[:a.idx], m.queue.entries[a.idx+1:]...)
+		m.queue.entries = append(m.queue.entries[:realIdx], m.queue.entries[realIdx+1:]...)
 		m.clampQueueCursorAndScroll()
 		if qr, ok := m.player.(playerQueueRemover); ok {
-			_ = qr.RemoveFromQueue(a.idx) // player queue sync during undo, best-effort
+			_ = qr.RemoveFromQueue(realIdx) // player queue sync during undo, best-effort
 		}
 	}
 	return m, nil
@@ -186,18 +194,27 @@ func (a undoBatchEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 			schedulePurge(&m.undo.slot, m.undoer.PurgeDeletedQueueEntries)
 		}
 	}
-	startIdx := a.startIdx
-	endIdx := startIdx + a.count
-	if endIdx > len(m.queue.entries) {
-		endIdx = len(m.queue.entries)
+	// Build a set of IDs to remove so we match the correct entries even if
+	// the queue was reordered after the batch enqueue.
+	idSet := make(map[int64]struct{}, len(a.ids))
+	for _, id := range a.ids {
+		idSet[id] = struct{}{}
 	}
-	if startIdx < len(m.queue.entries) {
-		m.queue.entries = append(m.queue.entries[:startIdx], m.queue.entries[endIdx:]...)
+	var kept []QueueEntry
+	var removedPlayerIndices []int
+	for i, e := range m.queue.entries {
+		if _, ok := idSet[e.ID]; ok {
+			removedPlayerIndices = append(removedPlayerIndices, i)
+		} else {
+			kept = append(kept, e)
+		}
 	}
+	m.queue.entries = kept
 	m.clampQueueCursorAndScroll()
 	if qr, ok := m.player.(playerQueueRemover); ok {
-		for i := endIdx - 1; i >= startIdx; i-- {
-			_ = qr.RemoveFromQueue(i) // player queue sync during batch undo, best-effort
+		// Remove in reverse order so indices stay valid.
+		for i := len(removedPlayerIndices) - 1; i >= 0; i-- {
+			_ = qr.RemoveFromQueue(removedPlayerIndices[i])
 		}
 	}
 	return m, nil

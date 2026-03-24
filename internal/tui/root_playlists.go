@@ -541,14 +541,26 @@ func (m Model) handleDestinationPickedMsg(msg pltui.DestinationPickedMsg) (Model
 // playlists (at list level) or removing tracks (at track level, including bulk).
 func (m Model) handlePlaylistDelete() (Model, tea.Cmd) {
 	if m.playlists.atListLevel() {
-		if len(m.playlists.playlists) == 0 {
+		effective := m.playlists.effectivePlaylists()
+		if len(effective) == 0 {
 			return m, nil
 		}
-		idx := m.playlists.cursor
-		if idx < 0 || idx >= len(m.playlists.playlists) {
+		displayIdx := m.playlists.cursor
+		if displayIdx < 0 || displayIdx >= len(effective) {
 			return m, nil
 		}
-		entry := m.playlists.playlists[idx]
+		entry := effective[displayIdx]
+		// Find the entry's position in the canonical (unsorted) slice by ID.
+		canonicalIdx := -1
+		for i, p := range m.playlists.playlists {
+			if p.ID == entry.ID {
+				canonicalIdx = i
+				break
+			}
+		}
+		if canonicalIdx < 0 {
+			return m, nil
+		}
 		pd := m.playlistDeleter
 		cancel := m.scheduleSoftDelete(
 			func() {
@@ -568,10 +580,10 @@ func (m Model) handlePlaylistDelete() (Model, tea.Cmd) {
 		)
 		m.setUndoSlot(undoDeletePlaylistAction{
 			entry: entry,
-			idx:   idx,
+			idx:   canonicalIdx,
 		}, cancel)
 		player.PlaySound(player.SoundRemoved)
-		m.playlists.playlists = append(m.playlists.playlists[:idx], m.playlists.playlists[idx+1:]...)
+		m.playlists.playlists = append(m.playlists.playlists[:canonicalIdx], m.playlists.playlists[canonicalIdx+1:]...)
 		m = m.resetPlaylistsSort()
 		m.playlists.cursor, m.playlists.scrollOffset = clampAfterRemoval(
 			m.playlists.cursor, m.playlists.scrollOffset, len(m.playlists.playlists))

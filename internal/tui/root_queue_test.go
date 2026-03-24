@@ -1614,3 +1614,90 @@ func TestBulkDequeueLastInstanceOfHashStopsPlayback(t *testing.T) {
 		t.Errorf("currentHash = %q, want empty", nm.playback.currentHash)
 	}
 }
+
+// TestUndoEnqueueFindsEntryByIDAfterReorder verifies that undoing an enqueue
+// removes the correct entry even if the queue has been reordered since the
+// enqueue (i.e. the entry is no longer at its original index).
+func TestUndoEnqueueFindsEntryByIDAfterReorder(t *testing.T) {
+	d := &stubQueueDequeuer{}
+	m := New(context.Background(), WithQueueDequeuer(d))
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/a.flac", Hash: "aaa", Display: "A"},
+		{ID: 20, Path: "/b.flac", Hash: "bbb", Display: "B"},
+		{ID: 30, Path: "/c.flac", Hash: "ccc", Display: "C"},
+	}
+
+	// Simulate an enqueue of ID=30 at index 2, then a manual reorder so
+	// that ID=30 moves to index 0.
+	m.setUndoSlot(undoEnqueueAction{
+		id:    30,
+		entry: m.queue.entries[2],
+		idx:   2,
+	}, nil)
+
+	// Reorder: move ID=30 to front.
+	m.queue.entries = []QueueEntry{
+		{ID: 30, Path: "/c.flac", Hash: "ccc", Display: "C"},
+		{ID: 10, Path: "/a.flac", Hash: "aaa", Display: "A"},
+		{ID: 20, Path: "/b.flac", Hash: "bbb", Display: "B"},
+	}
+
+	nm := m.handleUndo()
+
+	// ID=30 should be removed, leaving only ID=10 and ID=20.
+	if len(nm.queue.entries) != 2 {
+		t.Fatalf("expected 2 entries after undo, got %d", len(nm.queue.entries))
+	}
+	for _, e := range nm.queue.entries {
+		if e.ID == 30 {
+			t.Fatal("ID=30 should have been removed by undo enqueue")
+		}
+	}
+	// Verify the DB soft-delete targeted the correct ID.
+	if len(d.dequeueTrackSoftCalls) != 1 || d.dequeueTrackSoftCalls[0] != 30 {
+		t.Fatalf("expected soft-delete of ID=30, got %v", d.dequeueTrackSoftCalls)
+	}
+}
+
+// TestUndoBatchEnqueueRemovesByIDNotPosition verifies that undoing a batch
+// enqueue removes entries by their database IDs, not by positional index range,
+// so that reordering after the enqueue does not cause wrong entries to be removed.
+func TestUndoBatchEnqueueRemovesByIDNotPosition(t *testing.T) {
+	be := &stubBatchEnqueuer{}
+	d := &stubQueueDequeuer{}
+	m := New(context.Background(), WithBatchEnqueuer(be), WithQueueDequeuer(d))
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Path: "/old.flac", Hash: "old", Display: "Old"},
+		{ID: 100, Path: "/x.flac", Hash: "xxx", Display: "X"},
+		{ID: 101, Path: "/y.flac", Hash: "yyy", Display: "Y"},
+	}
+
+	// Simulate a batch enqueue of IDs 100, 101 starting at index 1.
+	m.setUndoSlot(undoBatchEnqueueAction{
+		ids:          []int64{100, 101},
+		count:        2,
+		startIdx:     1,
+		playlistName: "Test",
+	}, nil)
+
+	// Reorder: move the batch entries to different positions.
+	m.queue.entries = []QueueEntry{
+		{ID: 101, Path: "/y.flac", Hash: "yyy", Display: "Y"},
+		{ID: 1, Path: "/old.flac", Hash: "old", Display: "Old"},
+		{ID: 100, Path: "/x.flac", Hash: "xxx", Display: "X"},
+	}
+
+	nm := m.handleUndo()
+
+	// Only ID=1 should remain.
+	if len(nm.queue.entries) != 1 {
+		t.Fatalf("expected 1 entry after batch undo, got %d", len(nm.queue.entries))
+	}
+	if nm.queue.entries[0].ID != 1 {
+		t.Fatalf("expected remaining entry to be ID=1, got ID=%d", nm.queue.entries[0].ID)
+	}
+	// Verify the DB soft-delete targeted the correct IDs.
+	if len(be.dequeueTracksSoftIDs) != 1 {
+		t.Fatalf("expected 1 batch soft-delete call, got %d", len(be.dequeueTracksSoftIDs))
+	}
+}
