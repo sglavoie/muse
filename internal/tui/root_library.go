@@ -235,8 +235,9 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 			switch m.artists.level {
 			case arttui.ArtistLevel:
 				if artist, ok := m.artists.focusedArtist(); ok {
+					raw := arttui.RawName(artist)
 					for _, t := range allTracks {
-						if t.Artist == artist {
+						if t.Artist == raw {
 							tracks = append(tracks, t)
 						}
 					}

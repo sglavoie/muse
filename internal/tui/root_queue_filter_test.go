@@ -277,3 +277,77 @@ func TestQueueFilterMoveDisabled(t *testing.T) {
 		t.Error("move-up when filtered: expected TransientNotifyMsg")
 	}
 }
+
+// TestQueueCursorClampedAgainstFilteredEntriesAfterDequeue verifies that
+// after dequeuing a track while a filter is active, the cursor is clamped
+// to the filtered entry count rather than the total entry count.
+func TestQueueCursorClampedAgainstFilteredEntriesAfterDequeue(t *testing.T) {
+	d := &stubQueueDequeuer{}
+	m := New(context.Background(), WithQueueDequeuer(d))
+	m.activeView = viewQueue
+
+	// 5 entries: 2 match filter "alpha", 3 don't.
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Path: "/a.flac", Hash: "ha", Title: "Alpha One", Artist: "A"},
+		{ID: 2, Path: "/b.flac", Hash: "hb", Title: "Beta", Artist: "B"},
+		{ID: 3, Path: "/c.flac", Hash: "hc", Title: "Alpha Two", Artist: "C"},
+		{ID: 4, Path: "/d.flac", Hash: "hd", Title: "Gamma", Artist: "D"},
+		{ID: 5, Path: "/e.flac", Hash: "he", Title: "Delta", Artist: "E"},
+	}
+
+	// Activate filter for "alpha" -> 2 visible entries.
+	m.queue.filter = m.queue.filter.Activate()
+	m.queue.filter.Text = "alpha"
+	m.queue.cursor = 1 // pointing at "Alpha Two" (index 1 in filtered)
+
+	// Dequeue "Alpha Two" (real index 2 in m.queue.entries).
+	next, _ := m.Update(DequeueTrackMsg{Index: 2})
+	nm := next.(Model)
+
+	// After dequeue, "Alpha Two" is gone. Filtered list has 1 entry ("Alpha One").
+	filtered := nm.queue.filteredEntries()
+	if len(filtered) != 1 {
+		t.Fatalf("expected 1 filtered entry after dequeue, got %d", len(filtered))
+	}
+
+	// Cursor must be clamped to 0 (the only filtered entry).
+	if nm.queue.cursor != 0 {
+		t.Errorf("cursor should be clamped to 0 after filtered dequeue, got %d", nm.queue.cursor)
+	}
+}
+
+// TestQueueCursorClampedAgainstFilteredEntriesAfterBulkDequeue verifies that
+// after bulk-dequeuing tracks while a filter is active, the cursor is clamped
+// to the filtered entry count.
+func TestQueueCursorClampedAgainstFilteredEntriesAfterBulkDequeue(t *testing.T) {
+	d := &stubQueueDequeuer{}
+	m := New(context.Background(), WithQueueDequeuer(d))
+	m.activeView = viewQueue
+
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Path: "/a.flac", Hash: "ha", Title: "Alpha One", Artist: "A", Selected: true},
+		{ID: 2, Path: "/b.flac", Hash: "hb", Title: "Beta", Artist: "B"},
+		{ID: 3, Path: "/c.flac", Hash: "hc", Title: "Alpha Two", Artist: "C", Selected: true},
+		{ID: 4, Path: "/d.flac", Hash: "hd", Title: "Gamma", Artist: "D"},
+	}
+
+	// Activate filter for "alpha" -> 2 visible entries, both selected.
+	m.queue.filter = m.queue.filter.Activate()
+	m.queue.filter.Text = "alpha"
+	m.queue.cursor = 1 // pointing at "Alpha Two" in filtered view
+
+	// Bulk dequeue all selected (actionDequeue with selection).
+	next, _ := m.handleKeyAction(actionDequeue)
+	nm := next.(Model)
+
+	// Both "Alpha" entries are removed. Filter "alpha" matches nothing.
+	filtered := nm.queue.filteredEntries()
+	if len(filtered) != 0 {
+		t.Fatalf("expected 0 filtered entries after bulk dequeue, got %d", len(filtered))
+	}
+
+	// Cursor must be 0 when filtered list is empty.
+	if nm.queue.cursor != 0 {
+		t.Errorf("cursor should be 0 when filtered list is empty, got %d", nm.queue.cursor)
+	}
+}

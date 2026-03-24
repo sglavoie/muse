@@ -41,10 +41,13 @@ func queueContainsHash(entries []QueueEntry, hash string) bool {
 }
 
 // clampQueueCursorAndScroll adjusts the queue cursor and scroll offset so they
-// remain within bounds after entries have been removed.
+// remain within bounds after entries have been removed. When a filter is active
+// the cursor indexes into the filtered list, so we clamp against the filtered
+// count rather than the full entry count.
 func (m *Model) clampQueueCursorAndScroll() {
+	n := len(m.queue.filteredEntries())
 	m.queue.cursor, m.queue.scrollOffset = clampAfterRemoval(
-		m.queue.cursor, m.queue.scrollOffset, len(m.queue.entries))
+		m.queue.cursor, m.queue.scrollOffset, n)
 }
 
 // resetPlaybackState stops the player and clears all playback-related fields

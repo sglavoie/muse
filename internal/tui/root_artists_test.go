@@ -792,3 +792,49 @@ func TestArtistsDrillDownPreservesWidthHeight(t *testing.T) {
 		t.Errorf("openTracks changed width/height: %d/%d", v.width, v.height)
 	}
 }
+
+// TestBulkActionArtistLevelUnknownArtistCollectsTracks verifies that the
+// actionBulkAction handler at ArtistLevel correctly collects tracks for the
+// "(unknown artist)" sentinel by converting it to an empty string for matching
+// against raw track metadata.
+func TestBulkActionArtistLevelUnknownArtistCollectsTracks(t *testing.T) {
+	tracks := []library.Track{
+		{Artist: "", Album: "NoArtist Album", Title: "Track UA1", Hash: "hu1", Path: "/ua1.flac"},
+		{Artist: "", Album: "NoArtist Album", Title: "Track UA2", Hash: "hu2", Path: "/ua2.flac"},
+		{Artist: "Alice", Album: "Alpha", Title: "Track A1", Hash: "h1", Path: "/a1.flac"},
+	}
+	m := New(context.Background(), WithLibraryTracks(tracks))
+	m.activeView = viewArtists
+	m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+	m.artists.level = arttui.ArtistLevel
+	m.artists.width = 80
+	m.artists.height = 40
+
+	// Find the "(unknown artist)" entry and position cursor on it.
+	unknownIdx := -1
+	for i, a := range m.artists.artists {
+		if a == arttui.UnknownArtist {
+			unknownIdx = i
+			break
+		}
+	}
+	if unknownIdx < 0 {
+		t.Fatal("expected (unknown artist) in artist list")
+	}
+	m.artists.cursor = unknownIdx
+
+	// Trigger bulk action. It should collect tracks with empty artist.
+	next, _, handled := m.handleLibraryKeyAction(actionBulkAction)
+	if !handled {
+		t.Fatal("actionBulkAction should be handled")
+	}
+	nm := next.(Model)
+
+	// The destination picker should be opened with the 2 unknown-artist tracks.
+	if nm.overlay.destPicker == nil {
+		t.Fatal("expected destination picker to be opened for unknown artist tracks")
+	}
+	if len(nm.overlay.destPickerTracks) != 2 {
+		t.Fatalf("expected 2 tracks for unknown artist, got %d", len(nm.overlay.destPickerTracks))
+	}
+}
