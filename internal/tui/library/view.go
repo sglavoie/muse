@@ -11,6 +11,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // QueueAppender appends a track to the persisted play queue. Implementations
@@ -368,22 +369,22 @@ func (v View) Render() string {
 		hasFieldPos := len(dt.artistPositions) > 0 || len(dt.titlePositions) > 0 || len(dt.albumPositions) > 0
 		switch {
 		case hasFieldPos:
-			row = markerStr + pad(num, cols.TrackNum) + " " +
+			row = markerStr + text.Pad(num, cols.TrackNum) + " " +
 				padHighlight(t.Artist, cols.Artist, dt.artistPositions) + " " +
 				padHighlight(t.Title, cols.Title, dt.titlePositions) + " " +
 				padHighlight(t.Album, cols.Album, dt.albumPositions) + " " +
-				padLeft(dur, cols.Duration)
+				text.PadLeft(dur, cols.Duration)
 		case len(dt.matchedIndexes) > 0:
 			artistOffset, artistLen, titleOffset, titleLen, albumOffset, albumLen :=
 				searchFieldOffsetsAll(t.Artist, t.Title, t.Album)
 			artistPos := fieldMatchPositions(dt.matchedIndexes, artistOffset, artistLen)
 			titlePos := fieldMatchPositions(dt.matchedIndexes, titleOffset, titleLen)
 			albumPos := fieldMatchPositions(dt.matchedIndexes, albumOffset, albumLen)
-			row = markerStr + pad(num, cols.TrackNum) + " " +
+			row = markerStr + text.Pad(num, cols.TrackNum) + " " +
 				padHighlight(t.Artist, cols.Artist, artistPos) + " " +
 				padHighlight(t.Title, cols.Title, titlePos) + " " +
 				padHighlight(t.Album, cols.Album, albumPos) + " " +
-				padLeft(dur, cols.Duration)
+				text.PadLeft(dur, cols.Duration)
 		default:
 			row = markerStr + renderRow(num, t.Artist, t.Title, t.Album, dur, cols)
 		}
@@ -408,46 +409,13 @@ func (v View) Render() string {
 // track number field.
 func renderRow(num, artist, title, album, duration string, cols Columns) string {
 	if cols.Artist == 0 {
-		return pad(num, cols.TrackNum)
+		return text.Pad(num, cols.TrackNum)
 	}
-	return pad(num, cols.TrackNum) + " " +
-		pad(artist, cols.Artist) + " " +
-		pad(title, cols.Title) + " " +
-		pad(album, cols.Album) + " " +
-		padLeft(duration, cols.Duration)
-}
-
-// padLeft returns s truncated or left-padded with spaces to exactly width display columns
-// (i.e. right-aligned). Strings longer than width are truncated to width-1
-// display columns followed by "…".
-func padLeft(s string, width int) string {
-	if width <= 0 {
-		return ""
-	}
-	n := ansi.StringWidth(s)
-	if n > width {
-		return ansi.Truncate(s, width, "…")
-	}
-	if n == width {
-		return s
-	}
-	return strings.Repeat(" ", width-n) + s
-}
-
-// pad returns s truncated or right-padded with spaces to exactly width display columns.
-// Strings longer than width are truncated to width-1 display columns followed by "…".
-func pad(s string, width int) string {
-	if width <= 0 {
-		return ""
-	}
-	n := ansi.StringWidth(s)
-	if n > width {
-		return ansi.Truncate(s, width, "…")
-	}
-	if n == width {
-		return s
-	}
-	return s + strings.Repeat(" ", width-n)
+	return text.Pad(num, cols.TrackNum) + " " +
+		text.Pad(artist, cols.Artist) + " " +
+		text.Pad(title, cols.Title) + " " +
+		text.Pad(album, cols.Album) + " " +
+		text.PadLeft(duration, cols.Duration)
 }
 
 // formatDuration converts a duration in seconds to M:SS or H:MM:SS format.

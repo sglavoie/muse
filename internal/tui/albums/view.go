@@ -11,6 +11,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // Level identifies the active navigation level inside the albums panel.
@@ -262,7 +263,7 @@ func (v View) renderAlbums() string {
 	lines := make([]string, end-start)
 	for i, name := range items[start:end] {
 		absIdx := start + i
-		display := arttui.Truncate(name, v.Width)
+		display := text.Truncate(name, v.Width)
 		display = fmt.Sprintf("%-*s", v.Width, display)
 		if absIdx == v.Cursor {
 			display = v.Styles.Accent.Render(display)
@@ -310,8 +311,8 @@ func (v View) renderTracks() string {
 		}
 
 		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
-		title := arttui.Pad(t.Title, cols.Title)
-		artist := arttui.Pad(t.Artist, cols.Artist)
+		title := text.Pad(t.Title, cols.Title)
+		artist := text.Pad(t.Artist, cols.Artist)
 		dur := arttui.FormatDuration(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		line := markerStr + pos + " " + title + " " + artist + " " + dur

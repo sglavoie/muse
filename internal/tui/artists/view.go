@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // Level identifies the active navigation level inside the artists panel.
@@ -397,7 +398,7 @@ func (v View) renderArtists() string {
 	lines := make([]string, end-start)
 	for i, name := range items[start:end] {
 		absIdx := start + i
-		display := Truncate(name, v.Width)
+		display := text.Truncate(name, v.Width)
 		display = fmt.Sprintf("%-*s", v.Width, display)
 		if absIdx == v.Cursor {
 			display = v.Styles.Accent.Render(display)
@@ -424,7 +425,7 @@ func (v View) renderAlbums() string {
 	lines := make([]string, end-start)
 	for i, name := range items[start:end] {
 		absIdx := start + i
-		display := Truncate(name, v.Width)
+		display := text.Truncate(name, v.Width)
 		display = fmt.Sprintf("%-*s", v.Width, display)
 		if absIdx == v.Cursor {
 			display = v.Styles.Accent.Render(display)
@@ -476,7 +477,7 @@ func (v View) renderTracks() string {
 		}
 
 		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
-		title := Pad(t.Title, cols.Title)
+		title := text.Pad(t.Title, cols.Title)
 		dur := FormatDuration(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		line := markerStr + pos + " " + title + " " + dur
@@ -567,45 +568,4 @@ func FormatDuration(seconds float64) string {
 		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
 	}
 	return fmt.Sprintf("%d:%02d", m, s)
-}
-
-// Truncate shortens s to at most maxLen display columns, appending "…" when
-// truncated. Returns an empty string when maxLen is zero or negative.
-func Truncate(s string, maxLen int) string {
-	if maxLen <= 0 {
-		return ""
-	}
-	if ansi.StringWidth(s) <= maxLen {
-		return s
-	}
-	if maxLen <= 1 {
-		return "…"
-	}
-	return ansi.Truncate(s, maxLen-1, "…")
-}
-
-// Pad truncates or right-pads s with spaces to exactly width display columns.
-func Pad(s string, width int) string {
-	if width <= 0 {
-		return ""
-	}
-	s = Truncate(s, width)
-	n := ansi.StringWidth(s)
-	if n < width {
-		return s + strings.Repeat(" ", width-n)
-	}
-	return s
-}
-
-// PadLeft truncates or left-pads s with spaces to exactly width display columns.
-func PadLeft(s string, width int) string {
-	if width <= 0 {
-		return ""
-	}
-	s = Truncate(s, width)
-	n := ansi.StringWidth(s)
-	if n < width {
-		return strings.Repeat(" ", width-n) + s
-	}
-	return s
 }

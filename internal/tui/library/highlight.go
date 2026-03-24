@@ -5,6 +5,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // searchFieldOffsetsAll returns the (offset, length) pairs for the artist,
@@ -45,7 +47,7 @@ func padHighlight(s string, width int, positions []int) string {
 		return ""
 	}
 	if len(positions) == 0 {
-		return pad(s, width)
+		return text.Pad(s, width)
 	}
 	runes := []rune(s)
 

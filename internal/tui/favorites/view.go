@@ -10,6 +10,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // Level identifies the active navigation level inside the favorites panel.
@@ -289,7 +290,7 @@ func (v View) renderCategories() string {
 
 	lines := make([]string, len(categories))
 	for i, name := range categories {
-		display := arttui.Truncate(name, v.Width)
+		display := text.Truncate(name, v.Width)
 		display = fmt.Sprintf("%-*s", v.Width, display)
 		if i == v.Cursor {
 			display = v.Styles.Accent.Render(display)
@@ -348,7 +349,7 @@ func (v View) renderList() string {
 			marker = "  "
 		}
 
-		display := arttui.Truncate(name, v.Width-2)
+		display := text.Truncate(name, v.Width-2)
 		display = fmt.Sprintf("%-*s", v.Width-2, display)
 		line := marker + display
 		if isFocused {
@@ -432,9 +433,9 @@ func (v View) renderTrackRows(items []library.Track) string {
 		}
 
 		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
-		title := arttui.Pad(t.Title, cols.Title)
-		artist := arttui.Pad(t.Artist, cols.Artist)
-		album := arttui.Pad(t.Album, cols.Album)
+		title := text.Pad(t.Title, cols.Title)
+		artist := text.Pad(t.Artist, cols.Artist)
+		album := text.Pad(t.Album, cols.Album)
 		dur := arttui.FormatDuration(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		line := marker + pos + " " + title + " " + artist + " " + album + " " + dur

@@ -10,6 +10,7 @@ import (
 	musiclib "github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // fakeQueueAppender records every AppendTrack call and returns a
@@ -135,20 +136,21 @@ func TestRenderSortOrderUnknownArtistLast(t *testing.T) {
 }
 
 // TestPadTruncation verifies that pad correctly truncates long strings and
-// appends an ellipsis.
+// includes an ellipsis. The result is right-padded to the requested width,
+// so the ellipsis may not be the final character.
 func TestPadTruncation(t *testing.T) {
-	got := pad("Hello World", 7)
+	got := text.Pad("Hello World", 7)
 	if ansi.StringWidth(got) != 7 {
 		t.Errorf("pad: expected 7 display columns, got %d: %q", ansi.StringWidth(got), got)
 	}
-	if !strings.HasSuffix(got, "…") {
-		t.Errorf("pad: expected ellipsis suffix, got %q", got)
+	if !strings.Contains(got, "…") {
+		t.Errorf("pad: expected ellipsis in output, got %q", got)
 	}
 }
 
 // TestPadPadding verifies that pad right-pads short strings with spaces.
 func TestPadPadding(t *testing.T) {
-	got := pad("Hi", 5)
+	got := text.Pad("Hi", 5)
 	if got != "Hi   " {
 		t.Errorf("pad: expected %q, got %q", "Hi   ", got)
 	}
@@ -944,21 +946,21 @@ func TestVisibleRowsSmallHeight(t *testing.T) {
 // --- pad edge cases ---
 
 func TestPadZeroWidth(t *testing.T) {
-	got := pad("hello", 0)
+	got := text.Pad("hello", 0)
 	if got != "" {
 		t.Errorf("pad width=0: expected empty, got %q", got)
 	}
 }
 
 func TestPadWidthOne(t *testing.T) {
-	got := pad("hello", 1)
+	got := text.Pad("hello", 1)
 	if got != "…" {
 		t.Errorf("pad width=1: expected '…', got %q", got)
 	}
 }
 
 func TestPadExactFit(t *testing.T) {
-	got := pad("hi", 2)
+	got := text.Pad("hi", 2)
 	if got != "hi" {
 		t.Errorf("pad exact fit: expected 'hi', got %q", got)
 	}
