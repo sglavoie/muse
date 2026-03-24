@@ -42,6 +42,9 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	if m.undo.clearQueuePending && time.Now().After(m.undo.clearQueuePendingAt.Add(queueConfirmationWindow)) {
 		m.undo.clearQueuePending = false
 	}
+	if m.undo.bulkRemovePending && time.Now().After(m.undo.bulkRemovePendingAt.Add(confirmationWindow)) {
+		m.undo.bulkRemovePending = false
+	}
 	return m, tickCmd()
 }
 

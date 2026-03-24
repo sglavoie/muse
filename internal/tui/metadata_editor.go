@@ -247,7 +247,7 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	lines = append(lines, cornerTL+strings.Repeat(borderH, boxInner)+cornerTR)
 
 	// Title row (centered).
-	titlePad := boxInner - ansi.StringWidth(title)
+	titlePad := max(0, boxInner-ansi.StringWidth(title))
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
 	lines = append(lines, borderV+strings.Repeat(" ", leftTP)+s.Heading.Render(title)+strings.Repeat(" ", rightTP)+borderV)

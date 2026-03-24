@@ -253,6 +253,27 @@ func TestRenameEditorEscReturnsCancel(t *testing.T) {
 	}
 }
 
+// TestMetadataEditorRenderNarrowTerminalNoPanic verifies that rendering with a
+// very narrow terminal (where the title is wider than boxInner) does not panic.
+// Before the fix, titlePad could go negative, causing strings.Repeat to panic.
+func TestMetadataEditorRenderNarrowTerminalNoPanic(t *testing.T) {
+	// Create an editor with many tracks so the title " ✎ Edit Metadata (50 tracks) "
+	// is wide enough to exceed boxInner on a tiny terminal.
+	hashes := make([]string, 50)
+	for i := range hashes {
+		hashes[i] = "hash"
+	}
+	ed := NewBulkMetadataEditor(hashes, "T", "A", "B")
+	s := newTestStyles()
+
+	// Render at 20 columns wide — the title is wider than this.
+	// This should not panic.
+	out := ed.Render(20, 10, s)
+	if out == "" {
+		t.Fatal("Render returned empty string for narrow terminal")
+	}
+}
+
 // TestDirtyFieldsTrimsWhitespace verifies that DirtyFields trims leading and
 // trailing whitespace from modified field values.
 func TestDirtyFieldsTrimsWhitespace(t *testing.T) {
