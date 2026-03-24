@@ -37,6 +37,11 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 	}
 	m.scanned += len(msg.Tracks)
 	m.statusBar.handleScanProgress(library.ScanProgressMsg{Scanned: m.scanned, Total: m.scanTotal})
+	// Recompute sorted tracks if a sort is active so the cached copy
+	// includes newly scanned tracks.
+	if m.library.sortState.Field != SortDefault {
+		m.library = m.library.recomputeSortedTracks()
+	}
 	// Invalidate the cached fuzzy-match results so that stale TrackIndex
 	// values from the previous index state cannot cause an out-of-bounds
 	// panic when the filter is active and the user navigates or renders.
@@ -72,13 +77,29 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 	for _, t := range msg.tracks {
 		m.library.index.UpsertByPath(t.Path, t)
 	}
+	// Recompute sorted tracks if a sort is active so the cached copy
+	// reflects insertions and deletions from the watcher.
+	if m.library.sortState.Field != SortDefault {
+		m.library = m.library.recomputeSortedTracks()
+	}
 	// Invalidate the cached fuzzy-match results so that stale TrackIndex
 	// values from the previous index state cannot cause an out-of-bounds
 	// panic when the filter is active and the user navigates or renders.
 	if m.library.filter.Text != "" {
 		m.library = m.library.rebuildFilterCache()
-		// Clamp cursor to the new (possibly shorter) match set.
+	}
+	// Clamp library cursor to the effective track count (filtered or
+	// unfiltered) so it cannot point beyond the end after deletions.
+	if m.library.filter.Text != "" && m.library.filteredMatches != nil {
 		n := len(m.library.filteredMatches)
+		if n == 0 {
+			m.library.cursor = 0
+			m.library.scrollOffset = 0
+		} else if m.library.cursor >= n {
+			m.library.cursor = n - 1
+		}
+	} else {
+		n := m.library.index.Len()
 		if n == 0 {
 			m.library.cursor = 0
 			m.library.scrollOffset = 0

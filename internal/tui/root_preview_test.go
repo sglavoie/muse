@@ -384,6 +384,54 @@ func TestPreviewPausesMainPlayback(t *testing.T) {
 	}
 }
 
+// TestFocusedTrackForPreview_QueueWithFilter verifies that
+// focusedTrackForPreview uses the filtered entry list when a queue filter
+// is active, rather than indexing into the unfiltered entries slice.
+func TestFocusedTrackForPreview_QueueWithFilter(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Hash: "h1", Path: "/a.flac", Artist: "Alice", Title: "Alpha", DurationMs: 3000},
+		{Hash: "h2", Path: "/b.flac", Artist: "Bob", Title: "Beta", DurationMs: 4000},
+		{Hash: "h3", Path: "/c.flac", Artist: "Carol", Title: "Charlie", DurationMs: 5000},
+	}
+	// Activate a filter that matches only "Bob".
+	m.queue.filter.Text = "bob"
+	m.queue.cursor = 0 // first (and only) filtered entry
+
+	track, ok := m.focusedTrackForPreview()
+	if !ok {
+		t.Fatal("expected track from filtered queue")
+	}
+	if track.Hash != "h2" {
+		t.Fatalf("expected hash h2 (Bob), got %q", track.Hash)
+	}
+}
+
+// TestFocusedTrackForPreview_QueueWithSort verifies that
+// focusedTrackForPreview respects the queue display order when sorted.
+func TestFocusedTrackForPreview_QueueWithSort(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Hash: "h1", Path: "/a.flac", Artist: "Zeta", Title: "Zulu", DurationMs: 3000},
+		{Hash: "h2", Path: "/b.flac", Artist: "Alpha", Title: "Able", DurationMs: 4000},
+	}
+	// Sort by artist ascending: Alpha first, then Zeta.
+	m.queue.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.queue = m.queue.recomputeDisplayOrder()
+	m.queue.cursor = 0 // first display entry after sort = Alpha
+
+	track, ok := m.focusedTrackForPreview()
+	if !ok {
+		t.Fatal("expected track from sorted queue")
+	}
+	// The first display entry after sorting by artist asc should be Alpha.
+	if track.Hash != "h2" {
+		t.Fatalf("expected hash h2 (Alpha), got %q", track.Hash)
+	}
+}
+
 // errTest is a simple error type for test assertions.
 type errTest string
 

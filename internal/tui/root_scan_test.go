@@ -392,3 +392,91 @@ func TestScanBatchInvalidatesFilterCache(t *testing.T) {
 		}
 	}
 }
+
+// TestWatchBatchClampsUnfilteredCursor verifies that when no filter is
+// active and the watcher deletes tracks, the library cursor is clamped
+// so it does not point past the end of the track list.
+func TestWatchBatchClampsUnfilteredCursor(t *testing.T) {
+	watchCh := make(chan library.WatchEvent, 1)
+	m := New(context.Background(), WithWatchChannel(watchCh))
+
+	// Seed three tracks.
+	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
+	m.library.index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
+	m.library.index.Insert(library.Track{Artist: "C", Title: "Charlie", Path: "/c", Hash: "h3"})
+
+	// Place cursor at the last track.
+	m.library.cursor = 2
+
+	// Delete two tracks, leaving only one.
+	next, _ := m.Update(watchBatchMsg{deleted: []string{"/b", "/c"}})
+	nm := next.(Model)
+
+	if nm.library.cursor >= nm.library.index.Len() {
+		t.Fatalf("cursor %d out of range for %d tracks",
+			nm.library.cursor, nm.library.index.Len())
+	}
+}
+
+// TestWatchBatchInvalidatesSortedTracks verifies that when a sort is
+// active and the watcher deletes tracks, the sorted cache is rebuilt
+// so it does not contain stale entries.
+func TestWatchBatchInvalidatesSortedTracks(t *testing.T) {
+	watchCh := make(chan library.WatchEvent, 1)
+	m := New(context.Background(), WithWatchChannel(watchCh))
+
+	// Seed three tracks.
+	m.library.index.Insert(library.Track{Artist: "C", Title: "Charlie", Path: "/c", Hash: "h3"})
+	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
+	m.library.index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
+
+	// Activate sort by artist ascending.
+	m.library.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.library = m.library.recomputeSortedTracks()
+	if len(m.library.sortedTracks) != 3 {
+		t.Fatalf("setup: expected 3 sorted tracks, got %d", len(m.library.sortedTracks))
+	}
+
+	// Delete one track.
+	next, _ := m.Update(watchBatchMsg{deleted: []string{"/b"}})
+	nm := next.(Model)
+
+	// The sorted cache must reflect the deletion.
+	if len(nm.library.sortedTracks) != 2 {
+		t.Fatalf("expected 2 sorted tracks after deletion, got %d", len(nm.library.sortedTracks))
+	}
+	for _, st := range nm.library.sortedTracks {
+		if st.Hash == "h2" {
+			t.Fatal("deleted track h2 still present in sortedTracks")
+		}
+	}
+}
+
+// TestScanBatchRecomputesSortedTracks verifies that when a sort is
+// active and new tracks arrive via a scan batch, the sorted cache is
+// rebuilt to include the new tracks.
+func TestScanBatchRecomputesSortedTracks(t *testing.T) {
+	m := New(context.Background())
+
+	// Seed two tracks and sort.
+	m.library.index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
+	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
+	m.library.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.library = m.library.recomputeSortedTracks()
+	if len(m.library.sortedTracks) != 2 {
+		t.Fatalf("setup: expected 2 sorted tracks, got %d", len(m.library.sortedTracks))
+	}
+
+	// Deliver a scan batch with one new track.
+	next, _ := m.Update(library.ScanBatchMsg{
+		Tracks: []library.Track{
+			{Artist: "C", Title: "Charlie", Path: "/c", Hash: "h3"},
+		},
+	})
+	nm := next.(Model)
+
+	// The sorted cache must include the new track.
+	if len(nm.library.sortedTracks) != 3 {
+		t.Fatalf("expected 3 sorted tracks after scan, got %d", len(nm.library.sortedTracks))
+	}
+}

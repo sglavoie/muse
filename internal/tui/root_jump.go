@@ -17,8 +17,8 @@ func (m Model) focusedTrackMeta() (artist, album string) {
 		}
 
 	case viewQueue:
-		if m.queue.cursor >= 0 && m.queue.cursor < len(m.queue.filteredEntries()) {
-			filtered := m.queue.filteredEntries()
+		filtered := m.queue.filteredEntries()
+		if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
 			e := filtered[m.queue.cursor]
 			return e.Artist, e.Album
 		}
