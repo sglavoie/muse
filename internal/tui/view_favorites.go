@@ -322,5 +322,9 @@ func clampAfterRemoval(cursor, scrollOffset, length int) (int, int) {
 	if scrollOffset > maxOffset {
 		scrollOffset = maxOffset
 	}
+	// Ensure the cursor is not above the visible window.
+	if scrollOffset > cursor {
+		scrollOffset = cursor
+	}
 	return cursor, scrollOffset
 }

@@ -185,13 +185,15 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 			var cmd tea.Cmd
 			switch m.activeView {
 			case viewLibrary:
-				m = m.clearQueueForReplace()
-				cmd = m.library.EnqueueFocused(m.queueWriter, 0)
-				if m.library.filter.Text != "" {
-					m.library.filter = m.library.filter.Deactivate()
-					m.library.cursor = 0
-					m.library.scrollOffset = 0
-					m.library = m.library.rebuildFilterCache()
+				if _, ok := m.library.view().FocusedTrack(); ok {
+					m = m.clearQueueForReplace()
+					cmd = m.library.EnqueueFocused(m.queueWriter, 0)
+					if m.library.filter.Text != "" {
+						m.library.filter = m.library.filter.Deactivate()
+						m.library.cursor = 0
+						m.library.scrollOffset = 0
+						m.library = m.library.rebuildFilterCache()
+					}
 				}
 			case viewArtists:
 				if m.artists.level == arttui.TrackLevel {
@@ -209,8 +211,10 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 					cmd = m.playlists.enqueueFocusedTrack(m.queueWriter, 0)
 				}
 			case viewFavorites:
-				m = m.clearQueueForReplace()
-				cmd = m.favorites.enqueueFocusedTrack(m.queueWriter, 0)
+				if _, ok := m.favorites.focusedTrack(); ok {
+					m = m.clearQueueForReplace()
+					cmd = m.favorites.enqueueFocusedTrack(m.queueWriter, 0)
+				}
 			}
 			return m, cmd, true
 		}

@@ -123,7 +123,7 @@ func TestQueueRenderMissingEntryDim(t *testing.T) {
 	if ansi.Strip(dimSample) == dimSample {
 		return // lipgloss produced no ANSI in this environment; skip style check
 	}
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if strings.Contains(ansi.Strip(line), "[missing]") {
 			if line == ansi.Strip(line) {
 				t.Error("missing entry must be rendered with dim ANSI styling")
@@ -345,8 +345,7 @@ func TestQueueRenderNonPlayingEntryHasNoPlayMarker(t *testing.T) {
 	out := v.render(styles.NewStyles(true), "other-hash", nil)
 	stripped := ansi.Strip(out)
 
-	lines := strings.Split(stripped, "\n")
-	for _, l := range lines {
+	for l := range strings.SplitSeq(stripped, "\n") {
 		if strings.Contains(l, "Normal") {
 			if strings.Contains(l, "▶") {
 				t.Errorf("non-playing entry must not contain ▶ marker; got: %q", l)
@@ -1077,6 +1076,46 @@ func TestOpenTracksSavesCanonicalCursorWhenSorted(t *testing.T) {
 		}
 	} else {
 		t.Fatalf("listCursor %d out of bounds (len=%d)", v.listCursor, len(v.playlists))
+	}
+}
+
+// TestClampAfterRemovalScrollOffsetAboveCursor verifies that clampAfterRemoval
+// pulls scrollOffset down to cursor when the removal leaves scrollOffset above
+// the cursor row, which would otherwise render the cursor outside the viewport.
+func TestClampAfterRemovalScrollOffsetAboveCursor(t *testing.T) {
+	// Scenario: cursor=0, scrollOffset=5, after removing items the list has 6
+	// entries. Without the fix, scrollOffset would remain 5 and cursor 0
+	// would be above the visible window.
+	cursor, scrollOffset := clampAfterRemoval(0, 5, 6)
+	if cursor != 0 {
+		t.Errorf("expected cursor=0, got %d", cursor)
+	}
+	if scrollOffset != 0 {
+		t.Errorf("expected scrollOffset=0 (clamped to cursor), got %d", scrollOffset)
+	}
+}
+
+// TestClampAfterRemovalScrollOffsetAtCursor verifies that when scrollOffset
+// equals cursor, no adjustment is needed.
+func TestClampAfterRemovalScrollOffsetAtCursor(t *testing.T) {
+	cursor, scrollOffset := clampAfterRemoval(3, 3, 10)
+	if cursor != 3 {
+		t.Errorf("expected cursor=3, got %d", cursor)
+	}
+	if scrollOffset != 3 {
+		t.Errorf("expected scrollOffset=3, got %d", scrollOffset)
+	}
+}
+
+// TestClampAfterRemovalEmptyList verifies both cursor and scrollOffset reset
+// to 0 for an empty list.
+func TestClampAfterRemovalEmptyList(t *testing.T) {
+	cursor, scrollOffset := clampAfterRemoval(5, 3, 0)
+	if cursor != 0 {
+		t.Errorf("expected cursor=0, got %d", cursor)
+	}
+	if scrollOffset != 0 {
+		t.Errorf("expected scrollOffset=0, got %d", scrollOffset)
 	}
 }
 
