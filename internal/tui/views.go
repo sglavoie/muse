@@ -374,9 +374,23 @@ func (v PlaylistsView) focusedPlaylistID() (int64, bool) {
 // and resetting the cursor to the first row. The current list cursor is saved
 // so it can be restored by backToList.
 func (v PlaylistsView) openTracks(tracks []db.PlaylistTrackRow) PlaylistsView {
+	// Translate the display cursor to a canonical (unsorted) index so that
+	// listCursor always indexes into v.playlists correctly, even when a
+	// sort is active at list level.
+	canonicalCursor := v.cursor
+	effective := v.effectivePlaylists()
+	if v.sortedPlaylists != nil && v.cursor >= 0 && v.cursor < len(effective) {
+		focusedID := effective[v.cursor].ID
+		for i, p := range v.playlists {
+			if p.ID == focusedID {
+				canonicalCursor = i
+				break
+			}
+		}
+	}
 	view := pltui.View{
 		Level:      v.level,
-		Cursor:     v.cursor,
+		Cursor:     canonicalCursor,
 		ListCursor: v.listCursor,
 	}.OpenTracks(tracks)
 	v.level = view.Level

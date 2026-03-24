@@ -142,10 +142,11 @@ func TestQueueFilterCursorStaysInBounds(t *testing.T) {
 		cursor: 2, // pointing at Gamma
 	}
 	q.filter = q.filter.Activate()
-	// Type "alpha" — only 1 match, cursor must reset to 0.
+	// Type "alpha" — only 1 match, cursor must be clamped to 0.
 	q.filter.Text = "alpha"
-	q.cursor = 0
-	q.scrollOffset = 0
+
+	// moveQueueCursor(0) clamps cursor to valid range without moving.
+	q = q.moveQueueCursor(0)
 
 	if q.cursor != 0 {
 		t.Fatalf("cursor should be 0 after filter narrows to 1 entry, got %d", q.cursor)

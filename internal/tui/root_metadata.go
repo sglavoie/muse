@@ -229,6 +229,9 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// Refresh derived views (Artists, Albums) so they reflect the edit.
+	m = m.refreshDerivedViews()
+
 	// Persist to database asynchronously.
 	w := m.metadataWriter
 	if w == nil {

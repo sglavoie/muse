@@ -1036,3 +1036,71 @@ func TestQueueBulkSelectionToggleNoPanicWhenCursorOutOfBounds(t *testing.T) {
 		t.Fatal("actionBulkSelectionToggle with out-of-bounds cursor must return nil cmd")
 	}
 }
+
+// TestOpenTracksSavesCanonicalCursorWhenSorted verifies that openTracks saves
+// the canonical (unsorted) playlist index as listCursor, not the display
+// cursor position from a sorted view. This ensures that listCursor can safely
+// index into v.playlists even after sort state is reset.
+func TestOpenTracksSavesCanonicalCursorWhenSorted(t *testing.T) {
+	v := PlaylistsView{
+		playlists: []db.PlaylistRow{
+			{ID: 10, Name: "Chill"},
+			{ID: 20, Name: "Ambient"},
+			{ID: 30, Name: "Beats"},
+		},
+		// Simulate an active name-ascending sort: Ambient(20), Beats(30), Chill(10).
+		sortedPlaylists: []db.PlaylistRow{
+			{ID: 20, Name: "Ambient"},
+			{ID: 30, Name: "Beats"},
+			{ID: 10, Name: "Chill"},
+		},
+		cursor: 2, // Display cursor on "Chill" (sorted position 2)
+		level:  pltui.ListLevel,
+	}
+
+	tracks := []db.PlaylistTrackRow{
+		{ID: 100, Hash: "h1", Title: "T1", Artist: "A1"},
+	}
+
+	v = v.openTracks(tracks)
+
+	// "Chill" has ID=10, which is at index 0 in the unsorted playlists slice.
+	// listCursor must be 0 (canonical), not 2 (display).
+	if v.listCursor != 0 {
+		t.Errorf("expected listCursor=0 (canonical index of Chill), got %d", v.listCursor)
+	}
+
+	// Verify the playlist name lookup using listCursor is correct.
+	if v.listCursor >= 0 && v.listCursor < len(v.playlists) {
+		if v.playlists[v.listCursor].Name != "Chill" {
+			t.Errorf("expected playlist name 'Chill' at listCursor, got %q", v.playlists[v.listCursor].Name)
+		}
+	} else {
+		t.Fatalf("listCursor %d out of bounds (len=%d)", v.listCursor, len(v.playlists))
+	}
+}
+
+// TestOpenTracksSavesDisplayCursorWhenUnsorted verifies that openTracks saves
+// the display cursor directly when no sort is active (identity mapping).
+func TestOpenTracksSavesDisplayCursorWhenUnsorted(t *testing.T) {
+	v := PlaylistsView{
+		playlists: []db.PlaylistRow{
+			{ID: 10, Name: "Chill"},
+			{ID: 20, Name: "Ambient"},
+			{ID: 30, Name: "Beats"},
+		},
+		cursor: 1, // Display cursor on "Ambient" (unsorted position 1)
+		level:  pltui.ListLevel,
+	}
+
+	tracks := []db.PlaylistTrackRow{
+		{ID: 100, Hash: "h1", Title: "T1", Artist: "A1"},
+	}
+
+	v = v.openTracks(tracks)
+
+	// Without sort, listCursor should be the display cursor value (1).
+	if v.listCursor != 1 {
+		t.Errorf("expected listCursor=1, got %d", v.listCursor)
+	}
+}

@@ -659,6 +659,55 @@ func TestMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
 	}
 }
 
+// TestSingleTrackMetadataSaveRefreshesDerivedViews verifies that saving a
+// single-track metadata edit refreshes the Artists and Albums views so they
+// reflect the change immediately without requiring a view switch.
+func TestSingleTrackMetadataSaveRefreshesDerivedViews(t *testing.T) {
+	m := newModelWithTracks()
+	// Derive artists and albums so we can check they get refreshed.
+	m = pressKey(m, "4") // Artists view — derives artist list
+	m = pressKey(m, "1") // Back to Library view
+
+	if len(m.artists.artists) != 3 {
+		t.Fatalf("precondition: expected 3 artists, got %d", len(m.artists.artists))
+	}
+
+	// Open single-track editor for h1 (Alice, Alpha, Track A1).
+	ed := NewMetadataEditor("h1", "Track A1", "Alice", "Alpha")
+	m.overlay.metadataEditor = &ed
+
+	// Change artist from "Alice" to "Zara" (new artist name).
+	// Navigate to artist field (tab once: title -> artist).
+	ed2, _, _ := m.overlay.metadataEditor.HandleKey(tea.KeyPressMsg{Code: tea.KeyTab})
+	m.overlay.metadataEditor = &ed2
+	m = backspaceInEditor(m, 5) // erase "Alice"
+	m = typeIntoEditor(m, "Zara")
+
+	result, _ := m.handleMetadataSave()
+	nm := result.(Model)
+
+	// Library index should reflect the change.
+	tr, ok := nm.library.index.FindByHash("h1")
+	if !ok {
+		t.Fatal("track h1 not found in library after save")
+	}
+	if tr.Artist != "Zara" {
+		t.Errorf("expected artist=%q, got %q", "Zara", tr.Artist)
+	}
+
+	// Artists list should be refreshed: "Zara" present as a new artist.
+	// Alice should still exist (she has tracks h2, h3).
+	foundZara := false
+	for _, a := range nm.artists.artists {
+		if a == "Zara" {
+			foundZara = true
+		}
+	}
+	if !foundZara {
+		t.Errorf("expected 'Zara' in artists list after single-track save; got: %v", nm.artists.artists)
+	}
+}
+
 // TestBulkMetadataSaveUsesTrackDisplayForQueueEntryDisplay verifies that bulk
 // metadata save also uses the trackDisplay format for queue entry displays.
 func TestBulkMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {

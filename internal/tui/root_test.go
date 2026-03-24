@@ -377,7 +377,6 @@ func TestBackgroundColorMsgReconstructsStyles(t *testing.T) {
 		{Title: "Lost Track", Artist: "Ghost", Missing: true},
 	}
 	nm.queue.width = 80
-	nm.activeView = viewQueue
 	rendered := nm.queue.render(*nm.styles, "", nil)
 
 	// The rendered output must show the "[missing]" label in the visible text.

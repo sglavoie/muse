@@ -204,9 +204,10 @@ func filteredHelpSections(ctx bindingContext) []helpSection {
 	// View-specific section first, then global sections.
 	var viewSpecific, global []helpSection
 	for _, sec := range all {
-		if sec.context == ctx {
+		switch sec.context {
+		case ctx:
 			viewSpecific = append(viewSpecific, sec)
-		} else if sec.context == contextGlobal {
+		case contextGlobal:
 			global = append(global, sec)
 		}
 	}
