@@ -147,3 +147,31 @@ func TestBridgeWatchChannel_DeleteUnknownPath(t *testing.T) {
 		t.Fatalf("expected no missing markers for unknown path, got %v", marker.hashes)
 	}
 }
+
+// TestBridgeWatchChannel_NewThenDelete verifies that a file discovered by the
+// watcher and then deleted within the same session is correctly marked missing.
+// Before the fix, hashByPath was never updated with new tracks, so the
+// deletion lookup would miss the hash.
+func TestBridgeWatchChannel_NewThenDelete(t *testing.T) {
+	raw := make(chan library.WatchEvent, 2)
+	// First: watcher discovers a new file.
+	raw <- library.WatchEvent{Track: library.Track{Hash: "new-hash", Path: "/new.mp3"}}
+	// Second: the same file is deleted.
+	raw <- library.WatchEvent{Deleted: true, Path: "/new.mp3"}
+	close(raw)
+
+	writer := &stubUpsertBatcher{}
+	marker := &stubMissingMarker{}
+	hashByPath := map[string]string{} // initially empty — file didn't exist at startup
+
+	ch := BridgeWatchChannel(raw, writer, marker, hashByPath, 10)
+
+	for range ch {
+	}
+
+	// The bridge should have updated hashByPath when it saw the new track,
+	// so the subsequent deletion can resolve the hash and mark it missing.
+	if len(marker.hashes) != 1 || marker.hashes[0] != "new-hash" {
+		t.Fatalf("expected missing marker called with [new-hash], got %v", marker.hashes)
+	}
+}

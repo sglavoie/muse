@@ -155,3 +155,35 @@ func TestValidateMusicDir_TildeExpansion(t *testing.T) {
 		t.Errorf("error should contain config path %q, got: %s", configPath, err.Error())
 	}
 }
+
+func TestExpandTilde(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skipf("cannot determine home directory: %v", err)
+	}
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"standalone tilde", "~", home},
+		{"tilde slash", "~/Music", filepath.Join(home, "Music")},
+		{"tilde slash nested", "~/a/b/c", filepath.Join(home, "a/b/c")},
+		{"absolute path unchanged", "/usr/local", "/usr/local"},
+		{"relative path unchanged", "relative/path", "relative/path"},
+		{"tilde user unchanged", "~otheruser/foo", "~otheruser/foo"},
+		{"empty string", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := expandTilde(tt.input)
+			if err != nil {
+				t.Fatalf("expandTilde(%q) error: %v", tt.input, err)
+			}
+			if got != tt.want {
+				t.Errorf("expandTilde(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}

@@ -84,6 +84,10 @@ func BridgeWatchChannel(raw <-chan library.WatchEvent, writer UpsertBatcher, mar
 				}
 			} else {
 				f.add(ev.Track)
+				// Keep the lookup map in sync so that a file created after
+				// startup and subsequently deleted can still be resolved to
+				// its content hash for the MarkTrackMissing call above.
+				hashByPath[ev.Track.Path] = ev.Track.Hash
 			}
 		}
 		f.drain()

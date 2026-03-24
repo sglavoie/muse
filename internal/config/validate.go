@@ -55,14 +55,20 @@ func ValidateMusicDir(musicDir, configPath string) error {
 	return nil
 }
 
-// expandTilde replaces a leading "~" with the current user's home directory.
+// expandTilde replaces a leading "~/" or a standalone "~" with the current
+// user's home directory. Paths like "~user/foo" (tilde followed by a username)
+// are returned unchanged because Go's os.UserHomeDir only resolves the current
+// user's home.
 func expandTilde(path string) (string, error) {
-	if !strings.HasPrefix(path, "~") {
+	if path == "~" {
+		return os.UserHomeDir()
+	}
+	if !strings.HasPrefix(path, "~/") {
 		return path, nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, path[1:]), nil
+	return filepath.Join(home, path[2:]), nil
 }

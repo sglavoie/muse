@@ -205,6 +205,9 @@ func (v LibraryView) EnqueueSelected(qa libtui.QueueAppender, prevQueueLen int) 
 
 // formatCount formats n with comma separators (e.g. 1234 → "1,234").
 func formatCount(n int) string {
+	if n < 0 {
+		return "-" + formatCount(-n)
+	}
 	s := fmt.Sprintf("%d", n)
 	if len(s) <= 3 {
 		return s
