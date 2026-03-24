@@ -867,9 +867,7 @@ func TestBulkActionArtistLevelUnknownArtistCollectsTracks(t *testing.T) {
 		{Artist: "Alice", Album: "Alpha", Title: "Track A1", Hash: "h1", Path: "/a1.flac"},
 	}
 	m := New(context.Background(), WithLibraryTracks(tracks))
-	m.activeView = viewArtists
-	m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
-	m.artists.level = arttui.ArtistLevel
+	m = pressKey(m, "4") // switches to viewArtists and derives artist list
 	m.artists.width = 80
 	m.artists.height = 40
 
