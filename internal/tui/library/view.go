@@ -417,20 +417,16 @@ func renderRow(num, artist, title, album, duration string, cols Columns) string 
 		padLeft(duration, cols.Duration)
 }
 
-// padLeft returns s truncated or left-padded with spaces to exactly width runes
+// padLeft returns s truncated or left-padded with spaces to exactly width display columns
 // (i.e. right-aligned). Strings longer than width are truncated to width-1
-// runes followed by "…".
+// display columns followed by "…".
 func padLeft(s string, width int) string {
 	if width <= 0 {
 		return ""
 	}
-	runes := []rune(s)
-	n := len(runes)
+	n := ansi.StringWidth(s)
 	if n > width {
-		if width == 1 {
-			return string(runes[:1])
-		}
-		return string(runes[:width-1]) + "…"
+		return ansi.Truncate(s, width, "…")
 	}
 	if n == width {
 		return s
@@ -438,19 +434,15 @@ func padLeft(s string, width int) string {
 	return strings.Repeat(" ", width-n) + s
 }
 
-// pad returns s truncated or right-padded with spaces to exactly width runes.
-// Strings longer than width are truncated to width-1 runes followed by "…".
+// pad returns s truncated or right-padded with spaces to exactly width display columns.
+// Strings longer than width are truncated to width-1 display columns followed by "…".
 func pad(s string, width int) string {
 	if width <= 0 {
 		return ""
 	}
-	runes := []rune(s)
-	n := len(runes)
+	n := ansi.StringWidth(s)
 	if n > width {
-		if width == 1 {
-			return string(runes[:1])
-		}
-		return string(runes[:width-1]) + "…"
+		return ansi.Truncate(s, width, "…")
 	}
 	if n == width {
 		return s

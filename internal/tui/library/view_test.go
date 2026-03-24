@@ -86,9 +86,9 @@ func TestRenderColumnsDoNotOverflow(t *testing.T) {
 		}
 
 		for _, line := range lines {
-			got := len([]rune(ansi.Strip(line)))
+			got := ansi.StringWidth(line)
 			if got != width {
-				t.Errorf("width=%d: row has %d runes, want %d: %q", width, got, width, line)
+				t.Errorf("width=%d: row has %d display columns, want %d: %q", width, got, width, line)
 			}
 		}
 	}
@@ -138,8 +138,8 @@ func TestRenderSortOrderUnknownArtistLast(t *testing.T) {
 // appends an ellipsis.
 func TestPadTruncation(t *testing.T) {
 	got := pad("Hello World", 7)
-	if len([]rune(got)) != 7 {
-		t.Errorf("pad: expected 7 runes, got %d: %q", len([]rune(got)), got)
+	if ansi.StringWidth(got) != 7 {
+		t.Errorf("pad: expected 7 display columns, got %d: %q", ansi.StringWidth(got), got)
 	}
 	if !strings.HasSuffix(got, "…") {
 		t.Errorf("pad: expected ellipsis suffix, got %q", got)
@@ -952,8 +952,8 @@ func TestPadZeroWidth(t *testing.T) {
 
 func TestPadWidthOne(t *testing.T) {
 	got := pad("hello", 1)
-	if got != "h" {
-		t.Errorf("pad width=1: expected 'h', got %q", got)
+	if got != "…" {
+		t.Errorf("pad width=1: expected '…', got %q", got)
 	}
 }
 
