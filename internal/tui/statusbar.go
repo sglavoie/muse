@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // transientNotification holds a single pending notification for the status bar
@@ -98,29 +99,7 @@ func formatTime(secs float64) string {
 // does not exceed maxWidth. When truncation occurs an ellipsis "…" (width 1)
 // is appended. Returns an empty string when maxWidth <= 0.
 func truncateTitle(s string, maxWidth int) string {
-	if maxWidth <= 0 {
-		return ""
-	}
-	if ansi.StringWidth(s) <= maxWidth {
-		return s
-	}
-	if maxWidth == 1 {
-		return "…"
-	}
-	// Accumulate display width rune-by-rune and truncate when the next
-	// rune would exceed the budget (reserving 1 column for "…").
-	budget := maxWidth - 1 // reserve space for ellipsis
-	w := 0
-	var out []rune
-	for _, r := range s {
-		rw := ansi.StringWidth(string(r))
-		if w+rw > budget {
-			break
-		}
-		w += rw
-		out = append(out, r)
-	}
-	return string(out) + "…"
+	return text.Truncate(s, maxWidth)
 }
 
 // render builds the full status bar string. The persistent left zone shows
