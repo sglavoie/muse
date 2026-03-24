@@ -497,3 +497,142 @@ func TestFavoritesClampCursor_EmptyFilteredList(t *testing.T) {
 		t.Errorf("expected scrollOffset=0, got %d", m.favorites.scrollOffset)
 	}
 }
+
+// TestSortBulkRemovalByIndex verifies that sortBulkRemovalByIndex sorts
+// parallel arrays by the index values in ascending order.
+func TestSortBulkRemovalByIndex(t *testing.T) {
+	t.Run("sorts values and indices", func(t *testing.T) {
+		values := []string{"c", "a", "b"}
+		indices := []int{5, 1, 3}
+		sortBulkRemovalByIndex(values, nil, indices)
+		wantValues := []string{"a", "b", "c"}
+		wantIndices := []int{1, 3, 5}
+		for i := range values {
+			if values[i] != wantValues[i] {
+				t.Errorf("values[%d] = %q, want %q", i, values[i], wantValues[i])
+			}
+			if indices[i] != wantIndices[i] {
+				t.Errorf("indices[%d] = %d, want %d", i, indices[i], wantIndices[i])
+			}
+		}
+	})
+
+	t.Run("sorts tracks in parallel", func(t *testing.T) {
+		values := []string{"h3", "h1", "h2"}
+		tracks := []library.Track{
+			{Hash: "h3", Title: "C"},
+			{Hash: "h1", Title: "A"},
+			{Hash: "h2", Title: "B"},
+		}
+		indices := []int{5, 1, 3}
+		sortBulkRemovalByIndex(values, tracks, indices)
+		wantHashes := []string{"h1", "h2", "h3"}
+		for i := range tracks {
+			if tracks[i].Hash != wantHashes[i] {
+				t.Errorf("tracks[%d].Hash = %q, want %q", i, tracks[i].Hash, wantHashes[i])
+			}
+		}
+	})
+
+	t.Run("single element is a no-op", func(t *testing.T) {
+		values := []string{"a"}
+		indices := []int{5}
+		sortBulkRemovalByIndex(values, nil, indices)
+		if values[0] != "a" || indices[0] != 5 {
+			t.Errorf("unexpected mutation of single-element slices")
+		}
+	})
+
+	t.Run("already sorted", func(t *testing.T) {
+		values := []string{"a", "b", "c"}
+		indices := []int{1, 3, 5}
+		sortBulkRemovalByIndex(values, nil, indices)
+		for i, want := range []string{"a", "b", "c"} {
+			if values[i] != want {
+				t.Errorf("values[%d] = %q, want %q", i, values[i], want)
+			}
+		}
+	})
+}
+
+// TestBulkFavoritesUndoReinsertionOrder verifies that bulk undo correctly
+// re-inserts items at their original positions when indices are sorted.
+func TestBulkFavoritesUndoReinsertionOrder(t *testing.T) {
+	// Start with artists [A, B, C, D, E].
+	// Remove B (idx 1) and D (idx 3).
+	// After removal: [A, C, E].
+	// Undo should restore to [A, B, C, D, E].
+	m := Model{
+		appCtx:     context.Background(),
+		activeView: viewFavorites,
+		favorites: FavoritesView{
+			level:    favtui.ListLevel,
+			category: favtui.CategoryArtists,
+			artists:  []string{"A", "C", "E"},
+		},
+	}
+
+	action := undoBulkRemoveFavoritesAction{
+		typ:      "artist",
+		values:   []string{"B", "D"}, // sorted by sortBulkRemovalByIndex
+		indices:  []int{1, 3},        // original positions, ascending
+		level:    favtui.ListLevel,
+		category: favtui.CategoryArtists,
+	}
+	m, _ = action.perform(m)
+
+	want := []string{"A", "B", "C", "D", "E"}
+	if len(m.favorites.artists) != len(want) {
+		t.Fatalf("got %d artists, want %d", len(m.favorites.artists), len(want))
+	}
+	for i, w := range want {
+		if m.favorites.artists[i] != w {
+			t.Errorf("artists[%d] = %q, want %q", i, m.favorites.artists[i], w)
+		}
+	}
+}
+
+// TestBulkFavoritesUndoReinsertionOrder_Unsorted verifies that without sorting,
+// the undo produces incorrect results (validating the fix is necessary).
+func TestBulkFavoritesUndoReinsertionOrder_Unsorted(t *testing.T) {
+	// Simulate what would happen if indices were in reverse order
+	// (as might come from map iteration): [3, 1]
+	// Start: [A, C, E] (after removing B at 1, D at 3)
+	// Insert D at min(3, 3)=3 -> [A, C, E, D]
+	// Insert B at min(1, 4)=1 -> [A, B, C, E, D] (wrong! D is at end)
+	m := Model{
+		appCtx:     context.Background(),
+		activeView: viewFavorites,
+		favorites: FavoritesView{
+			level:    favtui.ListLevel,
+			category: favtui.CategoryArtists,
+			artists:  []string{"A", "C", "E"},
+		},
+	}
+
+	// Reverse order (simulating bad map iteration).
+	action := undoBulkRemoveFavoritesAction{
+		typ:      "artist",
+		values:   []string{"D", "B"},
+		indices:  []int{3, 1},
+		level:    favtui.ListLevel,
+		category: favtui.CategoryArtists,
+	}
+	m, _ = action.perform(m)
+
+	// With unsorted indices, the result is NOT [A, B, C, D, E].
+	// This test documents that the undo algorithm requires sorted indices.
+	correct := []string{"A", "B", "C", "D", "E"}
+	isCorrect := len(m.favorites.artists) == len(correct)
+	if isCorrect {
+		for i, w := range correct {
+			if m.favorites.artists[i] != w {
+				isCorrect = false
+				break
+			}
+		}
+	}
+	if isCorrect {
+		t.Error("expected incorrect result with unsorted indices, but got correct result")
+	}
+}

@@ -797,7 +797,6 @@ func TestArtistsDrillDownPreservesWidthHeight(t *testing.T) {
 // the active filter rather than the raw list length.
 func TestArtistsClampCursor_WithFilter(t *testing.T) {
 	m := newModelWithTracks()
-	m.activeView = viewArtists
 	m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
 	m.artists.level = arttui.ArtistLevel
 	m.artists.filter.Text = "ali" // matches only "Alice"
@@ -818,7 +817,6 @@ func TestArtistsClampCursor_WithFilter(t *testing.T) {
 // scrollOffset down when it ends up above the cursor.
 func TestArtistsClampCursor_ScrollOffsetClamped(t *testing.T) {
 	m := newModelWithTracks()
-	m.activeView = viewArtists
 	m.artists.artists = []string{"Alice"}
 	m.artists.level = arttui.ArtistLevel
 	m.artists.cursor = 5

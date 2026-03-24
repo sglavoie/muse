@@ -113,8 +113,8 @@ func (w *Writer) UpdateSessionPosition(hash string, positionMs int64) error {
 }
 
 // WriteVolume persists the volume percentage to the single session row.
-// volume is an integer percentage (0–130) that is converted to a float
-// (0.0–1.3) for storage in the DB volume column.
+// volume is an integer percentage (0–100) that is converted to a float
+// (0.0–1.0) for storage in the DB volume column.
 func (w *Writer) WriteVolume(volume int) error {
 	return w.Exec(func(db *sql.DB) error {
 		_, err := db.Exec(

@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"log/slog"
+	"sort"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
@@ -354,6 +355,8 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 		if len(values) == 0 {
 			return m, nil, true
 		}
+		// Sort parallel arrays by index so undo re-insertion is correct.
+		sortBulkRemovalByIndex(values, removedTracks, removedIndices)
 		m.favorites = m.favorites.clearSelection()
 		return m, func() tea.Msg {
 			err := writer.RemoveFavoritesByTypeAndValues(typ, values)
@@ -391,6 +394,8 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 		if len(hashes) == 0 {
 			return m, nil, true
 		}
+		// Sort parallel arrays by index so undo re-insertion is correct.
+		sortBulkRemovalByIndex(hashes, removedTracks, removedIndices)
 		m.favorites = m.favorites.clearSelection()
 		return m, func() tea.Msg {
 			err := writer.RemoveFavoritesByTypeAndValues("track", hashes)
@@ -704,6 +709,40 @@ func insertTrackAt(tracks []library.Track, idx int, t library.Track) []library.T
 	result[idx] = t
 	copy(result[idx+1:], tracks[idx:])
 	return result
+}
+
+// sortBulkRemovalByIndex sorts values, tracks, and indices by the indices in
+// ascending order. This ensures that undo re-insertion (which processes indices
+// left-to-right) places items back at their correct positions, because each
+// insert shifts only items that come after the insertion point.
+func sortBulkRemovalByIndex(values []string, tracks []library.Track, indices []int) {
+	if len(indices) <= 1 {
+		return
+	}
+	// Build an index permutation and sort it by the index values.
+	perm := make([]int, len(indices))
+	for i := range perm {
+		perm[i] = i
+	}
+	sort.Slice(perm, func(a, b int) bool {
+		return indices[perm[a]] < indices[perm[b]]
+	})
+	// Apply the permutation to all parallel slices.
+	sortedValues := make([]string, len(values))
+	sortedIndices := make([]int, len(indices))
+	for i, p := range perm {
+		sortedValues[i] = values[p]
+		sortedIndices[i] = indices[p]
+	}
+	copy(values, sortedValues)
+	copy(indices, sortedIndices)
+	if len(tracks) == len(indices) {
+		sortedTracks := make([]library.Track, len(tracks))
+		for i, p := range perm {
+			sortedTracks[i] = tracks[p]
+		}
+		copy(tracks, sortedTracks)
+	}
 }
 
 // handleFavoritesLoadedMsg processes the result of loading favorites for a category.
