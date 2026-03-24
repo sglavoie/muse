@@ -85,7 +85,7 @@ func TestQueueViewRendersMissingEntryDimmed(t *testing.T) {
 	if ansi.Strip(dimSample) == dimSample {
 		return // lipgloss produced no ANSI in this environment; skip style check
 	}
-	for _, line := range strings.Split(got, "\n") {
+	for line := range strings.SplitSeq(got, "\n") {
 		if strings.Contains(ansi.Strip(line), "[missing]") {
 			if line == ansi.Strip(line) {
 				t.Error("missing entry must be rendered with dim ANSI styling")
@@ -1834,5 +1834,118 @@ func TestUndoBatchEnqueueShowsNotification(t *testing.T) {
 	}
 	if !strings.Contains(nm.statusBar.notification.msg, "Undone") {
 		t.Errorf("expected undo notification containing 'Undone', got %q", nm.statusBar.notification.msg)
+	}
+}
+
+// TestMoveTrackUpAdjustsScrollOffset verifies that moving a track up when the
+// cursor is at the top of the visible area adjusts scrollOffset so the cursor
+// remains visible.
+func TestMoveTrackUpAdjustsScrollOffset(t *testing.T) {
+	m := New(context.Background())
+	// Set up a queue with 10 entries and a small viewport.
+	m.queue.entries = make([]QueueEntry, 10)
+	for i := range m.queue.entries {
+		m.queue.entries[i] = QueueEntry{
+			ID:      int64(i + 1),
+			Path:    "/track" + string(rune('a'+i)) + ".flac",
+			Hash:    "hash" + string(rune('a'+i)),
+			Display: "Track " + string(rune('A'+i)),
+		}
+	}
+	m.queue.height = 7 // small enough that visibleRows() > 0 but < 10
+	m.queue.width = 80
+
+	// Position cursor and scroll so cursor is at the top of the viewport.
+	m.queue.cursor = 5
+	m.queue.scrollOffset = 5
+
+	// Move track at index 5 up — cursor should move to 4 and scrollOffset
+	// should follow.
+	m, _ = m.handleMoveTrackUpMsg(MoveTrackUpMsg{Index: 5})
+
+	if m.queue.cursor != 4 {
+		t.Errorf("expected cursor=4 after move up, got %d", m.queue.cursor)
+	}
+	if m.queue.scrollOffset > m.queue.cursor {
+		t.Errorf("scrollOffset (%d) must be <= cursor (%d) after move up",
+			m.queue.scrollOffset, m.queue.cursor)
+	}
+}
+
+// TestMoveTrackDownAdjustsScrollOffset verifies that moving a track down when
+// the cursor would go below the visible area adjusts scrollOffset so the
+// cursor remains visible.
+func TestMoveTrackDownAdjustsScrollOffset(t *testing.T) {
+	m := New(context.Background())
+	m.queue.entries = make([]QueueEntry, 10)
+	for i := range m.queue.entries {
+		m.queue.entries[i] = QueueEntry{
+			ID:      int64(i + 1),
+			Path:    "/track" + string(rune('a'+i)) + ".flac",
+			Hash:    "hash" + string(rune('a'+i)),
+			Display: "Track " + string(rune('A'+i)),
+		}
+	}
+	m.queue.height = 7 // visibleRows = 7 - 2 = 5
+	m.queue.width = 80
+	m.queue.scrollOffset = 0
+
+	maxRows := m.queue.visibleRows()
+	// Position cursor at the last visible row.
+	m.queue.cursor = maxRows - 1
+
+	// Move track down — cursor should move to maxRows and scrollOffset
+	// should increase.
+	m, _ = m.handleMoveTrackDownMsg(MoveTrackDownMsg{Index: m.queue.cursor})
+
+	if m.queue.cursor != maxRows {
+		t.Errorf("expected cursor=%d after move down, got %d", maxRows, m.queue.cursor)
+	}
+	if m.queue.cursor >= m.queue.scrollOffset+maxRows {
+		t.Errorf("cursor (%d) must be < scrollOffset+maxRows (%d) after move down",
+			m.queue.cursor, m.queue.scrollOffset+maxRows)
+	}
+}
+
+// TestClearQueueForReplaceClearsFilter verifies that clearQueueForReplace
+// deactivates the queue filter so the replacement entry is always visible.
+func TestClearQueueForReplaceClearsFilter(t *testing.T) {
+	m := New(context.Background())
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Path: "/a.flac", Hash: "aaa", Display: "A", Artist: "Art", Title: "A"},
+		{ID: 2, Path: "/b.flac", Hash: "bbb", Display: "B", Artist: "Brt", Title: "B"},
+	}
+	m.queue.filter.Active = true
+	m.queue.filter.Text = "art"
+
+	m = m.clearQueueForReplace()
+
+	if m.queue.filter.Active {
+		t.Error("filter.Active must be false after clearQueueForReplace")
+	}
+	if m.queue.filter.Text != "" {
+		t.Errorf("filter.Text must be empty after clearQueueForReplace, got %q", m.queue.filter.Text)
+	}
+	if len(m.queue.entries) != 0 {
+		t.Errorf("queue entries must be empty after clearQueueForReplace, got %d", len(m.queue.entries))
+	}
+}
+
+// TestQueueRenderNarrowWidthUsesMax verifies that the queue render function
+// uses max(flex, 4) to prevent negative column widths when the terminal is
+// very narrow.
+func TestQueueRenderNarrowWidthUsesMax(t *testing.T) {
+	s := styles.NewStyles(true)
+	v := QueueView{
+		entries: []QueueEntry{
+			{Hash: "aaa", Title: "T", Artist: "A", Album: "Al", DurationMs: 60000},
+		},
+		width:  10, // extremely narrow
+		height: 10,
+	}
+	// Render should not panic even with a very narrow width.
+	got := v.render(s, "", nil)
+	if got == "" {
+		t.Error("render must produce non-empty output even with narrow width")
 	}
 }

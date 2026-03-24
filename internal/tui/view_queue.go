@@ -249,9 +249,10 @@ func (v QueueView) updateSaveInput(msg tea.KeyPressMsg) (QueueView, tea.Cmd) {
 	return v, cmd
 }
 
-// saveInputValue returns the current save input buffer as a string.
+// saveInputValue returns the current save input buffer, trimmed of
+// leading/trailing whitespace to prevent names like "  hello  ".
 func (v QueueView) saveInputValue() string {
-	return v.saveInput.Value()
+	return strings.TrimSpace(v.saveInput.Value())
 }
 
 // saveInputIsEmpty reports whether the trimmed save input buffer is empty.
@@ -375,9 +376,7 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes ma
 	if v.width > 0 {
 		fixed := posWidth + durWidth + markerWidth + sepCount
 		flex := v.width - fixed
-		if flex < 4 {
-			flex = 4
-		}
+		flex = max(flex, 4)
 		titleWidth = flex * 30 / 80
 		artistWidth = flex * 20 / 80
 		albumWidth = flex * 20 / 80

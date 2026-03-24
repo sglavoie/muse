@@ -1207,3 +1207,122 @@ func TestUndoBulkRemovePlaylistTracksShowsNotification(t *testing.T) {
 		t.Errorf("expected undo notification to mention count, got %q", nm.statusBar.notification.msg)
 	}
 }
+
+// TestPlaylistCreateNameTrimsWhitespace verifies that leading and trailing
+// whitespace is stripped from the playlist name before persisting.
+func TestPlaylistCreateNameTrimsWhitespace(t *testing.T) {
+	creator := &stubPlaylistCreator{nextID: 99}
+	m := New(context.Background(), WithPlaylistWriter(creator))
+	m.activeView = viewPlaylists
+
+	// Activate the create input.
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	m = next.(Model)
+	if cmd != nil {
+		next, _ = m.Update(cmd())
+		m = next.(Model)
+	}
+
+	// Type a name with surrounding whitespace.
+	for _, ch := range "  MyList  " {
+		next, _ = m.Update(tea.KeyPressMsg{Code: ch, Text: string(ch)})
+		m = next.(Model)
+	}
+
+	// Press Enter.
+	next, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(Model)
+	if cmd == nil {
+		t.Fatal("Enter: expected non-nil cmd for CreatePlaylist")
+	}
+
+	// Execute the cmd and verify the created playlist name is trimmed.
+	result := cmd()
+	created, ok := result.(playlistCreatedMsg)
+	if !ok {
+		t.Fatalf("expected playlistCreatedMsg, got %T", result)
+	}
+	// The stub creator records the name passed to CreatePlaylist.
+	for _, p := range created.playlists {
+		if p.ID == 99 {
+			if p.Name != "MyList" {
+				t.Errorf("expected trimmed name 'MyList', got %q", p.Name)
+			}
+			return
+		}
+	}
+	t.Error("created playlist with ID 99 not found in playlistCreatedMsg.playlists")
+}
+
+// TestPlaylistRenameNameTrimsWhitespace verifies that leading and trailing
+// whitespace is stripped from the rename value before persisting.
+func TestPlaylistRenameNameTrimsWhitespace(t *testing.T) {
+	renamer := &stubPlaylistRenamer{
+		rows: []db.PlaylistRow{{ID: 1, Name: "Old"}},
+	}
+	m := New(context.Background(), WithPlaylistRenamer(renamer))
+	m.playlists.playlists = []db.PlaylistRow{{ID: 1, Name: "Old"}}
+	m.playlists.cursor = 0
+
+	// The renameInputValue method should trim whitespace.
+	m.playlists = m.playlists.startRename("Old")
+	// Clear and type new name with whitespace.
+	m.playlists.renameInput.SetValue("  NewName  ")
+
+	got := m.playlists.renameInputValue()
+	if got != "NewName" {
+		t.Errorf("expected trimmed rename value 'NewName', got %q", got)
+	}
+}
+
+// TestQueueSaveInputValueTrimsWhitespace verifies that leading and trailing
+// whitespace is stripped from the save-as-playlist input.
+func TestQueueSaveInputValueTrimsWhitespace(t *testing.T) {
+	m := New(context.Background())
+	m.queue.entries = []QueueEntry{
+		{Path: "/a.flac", Hash: "aaa", Display: "A"},
+	}
+	m.queue = m.queue.startSaveAsPlaylist(false)
+	m.queue.saveInput.SetValue("  SavedQueue  ")
+
+	got := m.queue.saveInputValue()
+	if got != "SavedQueue" {
+		t.Errorf("expected trimmed save value 'SavedQueue', got %q", got)
+	}
+}
+
+// TestPlaylistCreateDuplicateWithWhitespace verifies that a name with
+// surrounding whitespace is detected as a duplicate when a playlist with the
+// trimmed name already exists.
+func TestPlaylistCreateDuplicateWithWhitespace(t *testing.T) {
+	creator := &stubPlaylistCreator{nextID: 50}
+	m := New(context.Background(), WithPlaylistWriter(creator))
+	m.activeView = viewPlaylists
+	m.playlists.playlists = []db.PlaylistRow{{ID: 1, Name: "Existing"}}
+
+	// Activate the create input.
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	m = next.(Model)
+	if cmd != nil {
+		next, _ = m.Update(cmd())
+		m = next.(Model)
+	}
+
+	// Type the existing name with spaces around it.
+	for _, ch := range "  Existing  " {
+		next, _ = m.Update(tea.KeyPressMsg{Code: ch, Text: string(ch)})
+		m = next.(Model)
+	}
+
+	// Press Enter — should be rejected as a duplicate (the trimmed name
+	// matches the existing playlist). The result should be a nil cmd (no
+	// async creation) and a status bar notification about the duplicate.
+	next, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(Model)
+	if cmd != nil {
+		t.Fatal("Enter with duplicate name should not dispatch a create cmd")
+	}
+	if !strings.Contains(m.statusBar.notification.msg, "already exists") {
+		t.Errorf("expected duplicate notification, got %q", m.statusBar.notification.msg)
+	}
+}

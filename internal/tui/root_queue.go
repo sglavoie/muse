@@ -344,6 +344,7 @@ func (m Model) clearQueueForReplace() Model {
 	m.queue.entries = nil
 	m.queue.cursor = 0
 	m.queue.scrollOffset = 0
+	m.queue.filter = m.queue.filter.Deactivate()
 	m = m.resetQueueSort()
 	m = m.resetPlaybackState()
 	if qs, ok := m.player.(playerQueueSetter); ok {
@@ -359,6 +360,9 @@ func (m Model) handleMoveTrackUpMsg(msg MoveTrackUpMsg) (Model, tea.Cmd) {
 		entry := m.queue.entries[msg.Index]
 		m.queue.entries[msg.Index-1], m.queue.entries[msg.Index] = m.queue.entries[msg.Index], m.queue.entries[msg.Index-1]
 		m.queue.cursor = msg.Index - 1
+		if m.queue.cursor < m.queue.scrollOffset {
+			m.queue.scrollOffset = m.queue.cursor
+		}
 		m = m.resetQueueSort()
 		slog.Debug("track reordered", "hash", entry.Hash, "from", msg.Index, "to", msg.Index-1)
 		m.syncPlayerQueue()
@@ -383,6 +387,10 @@ func (m Model) handleMoveTrackDownMsg(msg MoveTrackDownMsg) (Model, tea.Cmd) {
 		entry := m.queue.entries[msg.Index]
 		m.queue.entries[msg.Index], m.queue.entries[msg.Index+1] = m.queue.entries[msg.Index+1], m.queue.entries[msg.Index]
 		m.queue.cursor = msg.Index + 1
+		maxRows := m.queue.visibleRows()
+		if maxRows > 0 && m.queue.cursor >= m.queue.scrollOffset+maxRows {
+			m.queue.scrollOffset = m.queue.cursor - maxRows + 1
+		}
 		m = m.resetQueueSort()
 		slog.Debug("track reordered", "hash", entry.Hash, "from", msg.Index, "to", msg.Index+1)
 		m.syncPlayerQueue()

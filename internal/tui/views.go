@@ -222,9 +222,10 @@ func (v PlaylistsView) updateCreateInput(msg tea.KeyPressMsg) (PlaylistsView, te
 	return v, cmd
 }
 
-// createInputValue returns the current create input buffer as a string.
+// createInputValue returns the current create input buffer, trimmed of
+// leading/trailing whitespace to prevent names like "  hello  ".
 func (v PlaylistsView) createInputValue() string {
-	return v.createInput.Value()
+	return strings.TrimSpace(v.createInput.Value())
 }
 
 // createInputIsEmpty reports whether the trimmed create input buffer is empty.
@@ -260,9 +261,10 @@ func (v PlaylistsView) updateRenameInput(msg tea.KeyPressMsg) (PlaylistsView, te
 	return v, cmd
 }
 
-// renameInputValue returns the current rename input buffer as a string.
+// renameInputValue returns the current rename input buffer, trimmed of
+// leading/trailing whitespace to prevent names like "  hello  ".
 func (v PlaylistsView) renameInputValue() string {
-	return v.renameInput.Value()
+	return strings.TrimSpace(v.renameInput.Value())
 }
 
 // renameInputIsEmpty reports whether the trimmed rename input buffer is empty.
