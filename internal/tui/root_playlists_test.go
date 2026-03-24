@@ -1297,7 +1297,7 @@ func TestQueueSaveInputValueTrimsWhitespace(t *testing.T) {
 func TestPlaylistCreateDuplicateWithWhitespace(t *testing.T) {
 	creator := &stubPlaylistCreator{nextID: 50}
 	m := New(context.Background(), WithPlaylistWriter(creator))
-	m.activeView = viewPlaylists
+	m = m.switchToView(viewPlaylists)
 	m.playlists.playlists = []db.PlaylistRow{{ID: 1, Name: "Existing"}}
 
 	// Activate the create input.

@@ -18,7 +18,7 @@ import (
 func TestFocusedTrackMeta_Library(t *testing.T) {
 	m := newModelWithTracks()
 	// Default active view is viewLibrary, cursor=0 → Alice/Alpha.
-	artist, album := m.focusedTrackMeta()
+	artist, album, _ := m.focusedTrackMeta()
 	if artist != "Alice" {
 		t.Errorf("artist: want %q, got %q", "Alice", artist)
 	}
@@ -32,7 +32,7 @@ func TestFocusedTrackMeta_Library(t *testing.T) {
 func TestFocusedTrackMeta_Library_SecondTrack(t *testing.T) {
 	m := newModelWithTracks()
 	m.library.cursor = 3 // Bob/Gamma/Track G1
-	artist, album := m.focusedTrackMeta()
+	artist, album, _ := m.focusedTrackMeta()
 	if artist != "Bob" {
 		t.Errorf("artist: want %q, got %q", "Bob", artist)
 	}
@@ -52,7 +52,7 @@ func TestFocusedTrackMeta_Queue(t *testing.T) {
 	}
 	m.queue.cursor = 0
 
-	artist, album := m.focusedTrackMeta()
+	artist, album, _ := m.focusedTrackMeta()
 	if artist != "Bob" {
 		t.Errorf("artist: want %q, got %q", "Bob", artist)
 	}
@@ -71,7 +71,7 @@ func TestFocusedTrackMeta_Queue_SecondEntry(t *testing.T) {
 	}
 	m.queue.cursor = 1
 
-	artist, album := m.focusedTrackMeta()
+	artist, album, _ := m.focusedTrackMeta()
 	if artist != "Alice" {
 		t.Errorf("artist: want %q, got %q", "Alice", artist)
 	}
@@ -94,7 +94,7 @@ func TestFocusedTrackMeta_ArtistsAtEachLevel(t *testing.T) {
 			cursor:  1, // Bob
 		}
 
-		artist, album := m.focusedTrackMeta()
+		artist, album, _ := m.focusedTrackMeta()
 		if artist != "Bob" {
 			t.Errorf("artist: want %q, got %q", "Bob", artist)
 		}
@@ -113,7 +113,7 @@ func TestFocusedTrackMeta_ArtistsAtEachLevel(t *testing.T) {
 			cursor:         1, // Beta
 		}
 
-		artist, album := m.focusedTrackMeta()
+		artist, album, _ := m.focusedTrackMeta()
 		if artist != "Alice" {
 			t.Errorf("artist: want %q, got %q", "Alice", artist)
 		}
@@ -131,7 +131,7 @@ func TestFocusedTrackMeta_ArtistsAtEachLevel(t *testing.T) {
 			cursor: 0,
 		}
 
-		artist, album := m.focusedTrackMeta()
+		artist, album, _ := m.focusedTrackMeta()
 		if artist != "Bob" {
 			t.Errorf("artist: want %q, got %q", "Bob", artist)
 		}
@@ -154,7 +154,7 @@ func TestFocusedTrackMeta_AlbumsAtEachLevel(t *testing.T) {
 			cursor: 1, // Gamma
 		}
 
-		artist, album := m.focusedTrackMeta()
+		artist, album, _ := m.focusedTrackMeta()
 		if artist != "" {
 			t.Errorf("artist: want empty, got %q", artist)
 		}
@@ -172,7 +172,7 @@ func TestFocusedTrackMeta_AlbumsAtEachLevel(t *testing.T) {
 			cursor: 1,
 		}
 
-		artist, album := m.focusedTrackMeta()
+		artist, album, _ := m.focusedTrackMeta()
 		if artist != "Alice" {
 			t.Errorf("artist: want %q, got %q", "Alice", artist)
 		}
@@ -196,7 +196,7 @@ func TestFocusedTrackMeta_FavoritesAtEachLevel(t *testing.T) {
 			cursor:   1,
 		}
 
-		artist, album := m.focusedTrackMeta()
+		artist, album, _ := m.focusedTrackMeta()
 		if artist != "Bob" {
 			t.Errorf("artist: want %q, got %q", "Bob", artist)
 		}
@@ -215,7 +215,7 @@ func TestFocusedTrackMeta_FavoritesAtEachLevel(t *testing.T) {
 			cursor:   1,
 		}
 
-		artist, album := m.focusedTrackMeta()
+		artist, album, _ := m.focusedTrackMeta()
 		if artist != "" {
 			t.Errorf("artist: want empty, got %q", artist)
 		}
@@ -234,7 +234,7 @@ func TestFocusedTrackMeta_FavoritesAtEachLevel(t *testing.T) {
 			cursor:   0,
 		}
 
-		artist, album := m.focusedTrackMeta()
+		artist, album, _ := m.focusedTrackMeta()
 		if artist != "Bob" {
 			t.Errorf("artist: want %q, got %q", "Bob", artist)
 		}
@@ -252,7 +252,7 @@ func TestFocusedTrackMeta_FavoritesAtEachLevel(t *testing.T) {
 			cursor:          0,
 		}
 
-		artist, album := m.focusedTrackMeta()
+		artist, album, _ := m.focusedTrackMeta()
 		if artist != "Charlie" {
 			t.Errorf("artist: want %q, got %q", "Charlie", artist)
 		}
@@ -262,22 +262,28 @@ func TestFocusedTrackMeta_FavoritesAtEachLevel(t *testing.T) {
 	})
 }
 
-// TestFocusedTrackMeta_EmptyView verifies that an empty library returns ("","").
+// TestFocusedTrackMeta_EmptyView verifies that an empty library returns ("","",false).
 func TestFocusedTrackMeta_EmptyView(t *testing.T) {
 	m := New(context.Background())
-	artist, album := m.focusedTrackMeta()
+	artist, album, found := m.focusedTrackMeta()
 	if artist != "" || album != "" {
 		t.Errorf("empty library: want (%q,%q), got (%q,%q)", "", "", artist, album)
 	}
+	if found {
+		t.Error("empty library: expected found=false")
+	}
 }
 
-// TestFocusedTrackMeta_QueueEmpty verifies that an empty queue returns ("","").
+// TestFocusedTrackMeta_QueueEmpty verifies that an empty queue returns ("","",false).
 func TestFocusedTrackMeta_QueueEmpty(t *testing.T) {
 	m := newModelWithTracks()
 	m.activeView = viewQueue
-	artist, album := m.focusedTrackMeta()
+	artist, album, found := m.focusedTrackMeta()
 	if artist != "" || album != "" {
 		t.Errorf("empty queue: want (%q,%q), got (%q,%q)", "", "", artist, album)
+	}
+	if found {
+		t.Error("empty queue: expected found=false")
 	}
 }
 
@@ -475,5 +481,87 @@ func TestJumpToAlbum_CentersScroll(t *testing.T) {
 	wantScroll := max(0, 15-m.albums.height/2)
 	if m.albums.scrollOffset != wantScroll {
 		t.Errorf("scrollOffset: want %d, got %d", wantScroll, m.albums.scrollOffset)
+	}
+}
+
+// TestFocusedTrackMeta_Found verifies that the found flag is true when a track
+// with empty artist/album metadata is focused.
+func TestFocusedTrackMeta_Found(t *testing.T) {
+	tracks := []library.Track{
+		{Artist: "", Album: "", Title: "No Meta", Hash: "h1", Path: "/a.flac"},
+	}
+	m := New(context.Background(), WithLibraryTracks(tracks))
+	artist, album, found := m.focusedTrackMeta()
+	if !found {
+		t.Error("expected found=true for track with empty artist/album")
+	}
+	if artist != "" {
+		t.Errorf("artist: want empty, got %q", artist)
+	}
+	if album != "" {
+		t.Errorf("album: want empty, got %q", album)
+	}
+}
+
+// TestJumpToArtist_EmptyArtistViaAction verifies that pressing the jump key on
+// a track with an empty artist field jumps to the "(unknown artist)" row in the
+// Artists view rather than being a no-op.
+func TestJumpToArtist_EmptyArtistViaAction(t *testing.T) {
+	tracks := []library.Track{
+		{Artist: "", Album: "Mystery", Title: "Anonymous", Hash: "h1", Path: "/a.flac"},
+		{Artist: "Bob", Album: "Gamma", Title: "Bob Track", Hash: "h2", Path: "/b.flac"},
+	}
+	m := New(context.Background(), WithLibraryTracks(tracks))
+	// Library index sorts unknown artists after named ones, so cursor 1 is
+	// the track with Artist=="".
+	m.library.cursor = 1
+
+	// Simulate the jump-to-artist logic from handleKeyAction.
+	artist, _, ok := m.focusedTrackMeta()
+	if !ok {
+		t.Fatal("expected focused track to be found")
+	}
+	if artist != "" {
+		t.Fatalf("expected empty artist, got %q", artist)
+	}
+	m = m.jumpToArtist(artist)
+
+	if m.activeView != viewArtists {
+		t.Errorf("activeView: want viewArtists, got %d", m.activeView)
+	}
+	if m.artists.artists[m.artists.cursor] != arttui.UnknownArtist {
+		t.Errorf("cursor on %q, want %q", m.artists.artists[m.artists.cursor], arttui.UnknownArtist)
+	}
+}
+
+// TestJumpToAlbum_EmptyAlbumViaAction verifies that pressing the jump key on
+// a track with an empty album field jumps to the "(unknown album)" row in the
+// Albums view rather than being a no-op.
+func TestJumpToAlbum_EmptyAlbumViaAction(t *testing.T) {
+	tracks := []library.Track{
+		{Artist: "Alice", Album: "", Title: "No Album", Hash: "h1", Path: "/a.flac"},
+		{Artist: "Bob", Album: "Gamma", Title: "Bob Track", Hash: "h2", Path: "/b.flac"},
+	}
+	m := New(context.Background(), WithLibraryTracks(tracks))
+	// Library index sorts unknown albums after named ones within the same
+	// artist. "Alice" (with empty album) sorts before "Bob" alphabetically,
+	// so Alice's track is at index 0.
+	m.library.cursor = 0
+
+	// Simulate the jump-to-album logic from handleKeyAction.
+	_, album, ok := m.focusedTrackMeta()
+	if !ok {
+		t.Fatal("expected focused track to be found")
+	}
+	if album != "" {
+		t.Fatalf("expected empty album, got %q", album)
+	}
+	m = m.jumpToAlbum(album)
+
+	if m.activeView != viewAlbums {
+		t.Errorf("activeView: want viewAlbums, got %d", m.activeView)
+	}
+	if m.albums.albums[m.albums.cursor] != arttui.UnknownAlbum {
+		t.Errorf("cursor on %q, want %q", m.albums.albums[m.albums.cursor], arttui.UnknownAlbum)
 	}
 }

@@ -7,37 +7,39 @@ import (
 )
 
 // focusedTrackMeta returns the artist and album of the focused item in the
-// active view. Either value may be empty if no meaningful context exists
-// (e.g., Artists view at ArtistLevel has no album context).
-func (m Model) focusedTrackMeta() (artist, album string) {
+// active view, plus a bool indicating whether any item is focused.  Either
+// value may be empty if no meaningful context exists (e.g., Artists view at
+// ArtistLevel has no album context), but found will be true as long as an
+// item exists under the cursor.
+func (m Model) focusedTrackMeta() (artist, album string, found bool) {
 	switch m.activeView {
 	case viewLibrary:
 		if track, ok := m.library.view().FocusedTrack(); ok {
-			return track.Artist, track.Album
+			return track.Artist, track.Album, true
 		}
 
 	case viewQueue:
 		filtered := m.queue.filteredEntries()
 		if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
 			e := filtered[m.queue.cursor]
-			return e.Artist, e.Album
+			return e.Artist, e.Album, true
 		}
 
 	case viewArtists:
 		switch m.artists.level {
 		case arttui.ArtistLevel:
 			if name, ok := m.artists.focusedArtist(); ok {
-				return name, ""
+				return name, "", true
 			}
 		case arttui.AlbumLevel:
 			album := ""
 			if name, ok := m.artists.focusedAlbum(); ok {
 				album = name
 			}
-			return m.artists.selectedArtist, album
+			return m.artists.selectedArtist, album, true
 		case arttui.TrackLevel:
 			if track, ok := m.artists.focusedTrack(); ok {
-				return track.Artist, track.Album
+				return track.Artist, track.Album, true
 			}
 		}
 
@@ -45,17 +47,17 @@ func (m Model) focusedTrackMeta() (artist, album string) {
 		switch m.albums.level {
 		case albtui.AlbumLevel:
 			if name, ok := m.albums.focusedAlbum(); ok {
-				return "", name
+				return "", name, true
 			}
 		case albtui.TrackLevel:
 			if track, ok := m.albums.focusedTrack(); ok {
-				return track.Artist, track.Album
+				return track.Artist, track.Album, true
 			}
 		}
 
 	case viewPlaylists:
 		if track, ok := m.playlists.focusedTrack(); ok {
-			return track.Artist, track.Album
+			return track.Artist, track.Album, true
 		}
 
 	case viewFavorites:
@@ -64,24 +66,24 @@ func (m Model) focusedTrackMeta() (artist, album string) {
 			switch m.favorites.category {
 			case favtui.CategoryArtists:
 				if name, ok := m.favorites.focusedArtist(); ok {
-					return name, ""
+					return name, "", true
 				}
 			case favtui.CategoryAlbums:
 				if name, ok := m.favorites.focusedAlbum(); ok {
-					return "", name
+					return "", name, true
 				}
 			case favtui.CategoryTracks:
 				if track, ok := m.favorites.focusedTrack(); ok {
-					return track.Artist, track.Album
+					return track.Artist, track.Album, true
 				}
 			}
 		case favtui.TrackLevel:
 			if track, ok := m.favorites.focusedTrack(); ok {
-				return track.Artist, track.Album
+				return track.Artist, track.Album, true
 			}
 		}
 	}
-	return "", ""
+	return "", "", false
 }
 
 // jumpToArtist switches to the Artists view with the cursor pre-positioned on
