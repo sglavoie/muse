@@ -636,3 +636,63 @@ func TestBulkFavoritesUndoReinsertionOrder_Unsorted(t *testing.T) {
 		t.Error("expected incorrect result with unsorted indices, but got correct result")
 	}
 }
+
+// TestFavoritesLoadedMsg_SavesCategoryCursor verifies that transitioning from
+// CategoryLevel to ListLevel via handleFavoritesLoadedMsg saves the category
+// cursor so that back() restores it correctly. Without the fix, categoryCursor
+// remained 0 and back() always returned to the first category regardless of
+// which one was opened.
+func TestFavoritesLoadedMsg_SavesCategoryCursor(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.CategoryLevel
+	// Position cursor on Albums (index 1).
+	m.favorites.cursor = 1
+
+	msg := favoritesLoadedMsg{
+		category: int(favtui.CategoryAlbums),
+		albums:   []string{"Jazz", "Rock"},
+	}
+	m = m.handleFavoritesLoadedMsg(msg)
+
+	if m.favorites.level != favtui.ListLevel {
+		t.Fatalf("expected ListLevel, got %d", m.favorites.level)
+	}
+	if m.favorites.categoryCursor != 1 {
+		t.Fatalf("expected categoryCursor=1 (Albums), got %d", m.favorites.categoryCursor)
+	}
+
+	// Now go back and verify the cursor is restored to the Albums category.
+	m.favorites = m.favorites.back()
+
+	if m.favorites.level != favtui.CategoryLevel {
+		t.Fatalf("expected CategoryLevel after back(), got %d", m.favorites.level)
+	}
+	if m.favorites.cursor != 1 {
+		t.Fatalf("expected cursor=1 (Albums) after back(), got %d", m.favorites.cursor)
+	}
+}
+
+// TestFavoritesLoadedMsg_SavesCategoryCursor_Tracks verifies the fix for
+// cursor=2 (Tracks category).
+func TestFavoritesLoadedMsg_SavesCategoryCursor_Tracks(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.CategoryLevel
+	m.favorites.cursor = 2 // Tracks
+
+	msg := favoritesLoadedMsg{
+		category: int(favtui.CategoryTracks),
+		tracks:   []library.Track{{Hash: "h1", Title: "Song"}},
+	}
+	m = m.handleFavoritesLoadedMsg(msg)
+
+	if m.favorites.categoryCursor != 2 {
+		t.Fatalf("expected categoryCursor=2 (Tracks), got %d", m.favorites.categoryCursor)
+	}
+
+	m.favorites = m.favorites.back()
+	if m.favorites.cursor != 2 {
+		t.Fatalf("expected cursor=2 after back(), got %d", m.favorites.cursor)
+	}
+}

@@ -762,6 +762,7 @@ func (m Model) handleFavoritesLoadedMsg(msg favoritesLoadedMsg) Model {
 	case favtui.CategoryTracks:
 		m.favorites.tracks = msg.tracks
 	}
+	m.favorites.categoryCursor = m.favorites.cursor
 	m.favorites.level = favtui.ListLevel
 	m.favorites.cursor = 0
 	m.favorites.scrollOffset = 0

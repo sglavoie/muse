@@ -321,6 +321,51 @@ music_directory = "/home/user/Songs"
 	}
 }
 
+func TestLoad_MPVSocketPath_TildeExpanded(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+music_directory = "/home/user/Songs"
+mpv_socket_path = "~/run/muse.sock"
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("UserHomeDir() error = %v", err)
+	}
+	want := filepath.Join(home, "run/muse.sock")
+	if result.Config.MPVSocketPath != want {
+		t.Errorf("MPVSocketPath = %q, want %q", result.Config.MPVSocketPath, want)
+	}
+}
+
+func TestLoad_MPVSocketPath_AbsoluteUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+music_directory = "/home/user/Songs"
+mpv_socket_path = "/tmp/muse.sock"
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if result.Config.MPVSocketPath != "/tmp/muse.sock" {
+		t.Errorf("MPVSocketPath = %q, want /tmp/muse.sock", result.Config.MPVSocketPath)
+	}
+}
+
 func TestLoad_ExplicitVolumeZero_Accepted(t *testing.T) {
 	dir := t.TempDir()
 	content := `

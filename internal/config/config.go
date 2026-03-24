@@ -134,7 +134,13 @@ func validate(raw rawConfig) (Config, []string) {
 	}
 	// empty means not set — use the default silently
 
-	cfg.MPVSocketPath = raw.MPVSocketPath
+	if raw.MPVSocketPath != "" {
+		if expanded, err := expandTilde(raw.MPVSocketPath); err == nil {
+			cfg.MPVSocketPath = expanded
+		} else {
+			cfg.MPVSocketPath = raw.MPVSocketPath
+		}
+	}
 
 	cfg.MPVExtraFlags = raw.MPVExtraFlags
 	if cfg.MPVExtraFlags == nil {
