@@ -19,9 +19,9 @@ func TestTruncate(t *testing.T) {
 		{"maxLen 1", "hello", 1, "…"},
 		{"shorter than maxLen", "hi", 10, "hi"},
 		{"exactly maxLen", "hello", 5, "hello"},
-		{"longer than maxLen", "hello world", 5, "hel…"},
-		{"wide chars CJK", "你好世界", 5, "你…"},
-		{"emoji truncated", "🎵🎶🎸🎹", 5, "🎵…"},
+		{"longer than maxLen", "hello world", 5, "hell…"},
+		{"wide chars CJK", "你好世界", 5, "你好…"},
+		{"emoji truncated", "🎵🎶🎸🎹", 5, "🎵🎶…"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -44,7 +44,7 @@ func TestPad(t *testing.T) {
 		{"width negative", "hello", -1, ""},
 		{"short string padded", "hi", 6, "hi    "},
 		{"exactly width", "hello", 5, "hello"},
-		{"long string truncated", "hello world", 5, "hel… "},
+		{"long string truncated", "hello world", 5, "hell…"},
 		{"wide chars padded", "你好", 6, "你好  "},
 	}
 	for _, tt := range tests {
@@ -74,7 +74,7 @@ func TestPadLeft(t *testing.T) {
 		{"width negative", "hello", -1, ""},
 		{"short string left-padded", "hi", 6, "    hi"},
 		{"exactly width", "hello", 5, "hello"},
-		{"long string truncated", "hello world", 5, " hel…"},
+		{"long string truncated", "hello world", 5, "hell…"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

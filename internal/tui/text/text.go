@@ -22,7 +22,7 @@ func Truncate(s string, maxLen int) string {
 	if maxLen <= 1 {
 		return "…"
 	}
-	return ansi.Truncate(s, maxLen-1, "…")
+	return ansi.Truncate(s, maxLen, "…")
 }
 
 // Pad truncates or right-pads s with spaces to exactly width display columns.
