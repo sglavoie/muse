@@ -351,7 +351,7 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 	w := m.metadataWriter
 	for hash, orig := range a.originals {
 		m.library.index.UpdateMetadata(hash, orig[0], orig[1], orig[2])
-		display := fmt.Sprintf("%s – %s", orig[1], orig[0])
+		display := trackDisplay(orig[1], orig[0], "")
 		for i := range m.queue.entries {
 			if m.queue.entries[i].Hash == hash {
 				m.queue.entries[i].Title = orig[0]

@@ -219,7 +219,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	m.library.index.UpdateMetadata(hash, title, artist, album)
 
 	// Update matching queue entries.
-	display := fmt.Sprintf("%s – %s", artist, title)
+	display := trackDisplay(artist, title, "")
 	for i := range m.queue.entries {
 		if m.queue.entries[i].Hash == hash {
 			m.queue.entries[i].Title = title
@@ -302,7 +302,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 
 		m.library.index.UpdateMetadata(h, newTitle, newArtist, newAlbum)
 
-		display := fmt.Sprintf("%s – %s", newArtist, newTitle)
+		display := trackDisplay(newArtist, newTitle, "")
 		for i := range m.queue.entries {
 			if m.queue.entries[i].Hash == h {
 				m.queue.entries[i].Title = newTitle

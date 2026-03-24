@@ -624,3 +624,70 @@ func TestBulkSelectedHashesEmptyWhenNoSelection(t *testing.T) {
 		t.Errorf("albums with no selection: expected nil, got %v", hashes)
 	}
 }
+
+// TestMetadataSaveUsesTrackDisplayForQueueEntryDisplay verifies that saving
+// a metadata edit uses the same display format as trackDisplay for queue
+// entries, handling missing artist/title gracefully instead of producing
+// a bare " - " separator.
+func TestMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
+	tests := []struct {
+		name          string
+		artist, title string
+		wantDisplay   string
+	}{
+		{"both", "Alice", "Song", "Alice – Song"},
+		{"only title", "", "Song", "Song"},
+		{"only artist", "Alice", "", "Alice"},
+		{"neither", "", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New(context.Background())
+			m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Old", Title: "Old", Album: "Old"})
+			m.queue.entries = []QueueEntry{
+				{ID: 1, Hash: "h1", Path: "/a.flac", Display: "Old – Old", Artist: "Old", Title: "Old", Album: "Old"},
+			}
+			// Open the editor for the track.
+			ed := NewMetadataEditor("h1", tt.title, tt.artist, "Album")
+			m.overlay.metadataEditor = &ed
+			result, _ := m.handleMetadataSave()
+			nm := result.(Model)
+			if nm.queue.entries[0].Display != tt.wantDisplay {
+				t.Errorf("expected Display=%q, got %q", tt.wantDisplay, nm.queue.entries[0].Display)
+			}
+		})
+	}
+}
+
+// TestBulkMetadataSaveUsesTrackDisplayForQueueEntryDisplay verifies that bulk
+// metadata save also uses the trackDisplay format for queue entry displays.
+func TestBulkMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Old", Title: "Old", Album: "A"})
+	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Old", Title: "Old", Album: "A"})
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "Old – Old", Artist: "Old", Title: "Old"},
+		{ID: 2, Hash: "h2", Path: "/b.flac", Display: "Old – Old", Artist: "Old", Title: "Old"},
+	}
+	m.activeView = viewQueue
+	m.queue.entries[0].Selected = true
+	m.queue.entries[1].Selected = true
+
+	// Open a bulk editor that clears the artist field.
+	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "Old", "Old", "A")
+	// Navigate to artist field, clear it.
+	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyTab})
+	for range 3 {
+		ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	}
+	m.overlay.metadataEditor = &ed
+
+	result, _ := m.handleMetadataSave()
+	nm := result.(Model)
+	// With empty artist, display should fall back to just the title.
+	for _, e := range nm.queue.entries {
+		if e.Display != "Old" {
+			t.Errorf("expected Display=%q (title only), got %q", "Old", e.Display)
+		}
+	}
+}

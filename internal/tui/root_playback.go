@@ -90,7 +90,11 @@ func (m Model) handlePlaybackEndedMsg() Model {
 			m.playback.currentHash = e.Hash
 			m.statusBar.artist = e.Artist
 			m.statusBar.title = e.Title
-			m.statusBar.playlistSource = "Queue"
+			source := e.SourcePlaylist
+			if source == "" {
+				source = "Queue"
+			}
+			m.statusBar.playlistSource = source
 			m.playback.elapsedSecs = 0
 			m.playback.totalSecs = 0
 			return m

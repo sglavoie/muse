@@ -406,6 +406,46 @@ func TestBatchEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 	}
 }
 
+// TestPlaybackEndedMsgRepeatAllPreservesSourcePlaylist verifies that when
+// RepeatAll wraps to the first track, the status bar uses the track's
+// SourcePlaylist (e.g. "My Playlist") instead of hard-coding "Queue".
+func TestPlaybackEndedMsgRepeatAllPreservesSourcePlaylist(t *testing.T) {
+	p := &stubPlayer{}
+	m := New(context.Background(), WithPlayer(p))
+	m.playback.state = PlaybackPlaying
+	m.playback.repeatMode = RepeatAll
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "A – One", Artist: "A", Title: "One", SourcePlaylist: "My Playlist"},
+		{ID: 2, Hash: "h2", Path: "/b.flac", Display: "B – Two", Artist: "B", Title: "Two", SourcePlaylist: "My Playlist"},
+	}
+
+	next, _ := m.Update(PlaybackEndedMsg{})
+	nm := next.(Model)
+
+	if nm.statusBar.playlistSource != "My Playlist" {
+		t.Fatalf("RepeatAll wrap: expected playlistSource=%q, got %q", "My Playlist", nm.statusBar.playlistSource)
+	}
+}
+
+// TestPlaybackEndedMsgRepeatAllFallsBackToQueue verifies that when
+// RepeatAll wraps to a track with no SourcePlaylist, the status bar shows "Queue".
+func TestPlaybackEndedMsgRepeatAllFallsBackToQueue(t *testing.T) {
+	p := &stubPlayer{}
+	m := New(context.Background(), WithPlayer(p))
+	m.playback.state = PlaybackPlaying
+	m.playback.repeatMode = RepeatAll
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "A – One", Artist: "A", Title: "One"},
+	}
+
+	next, _ := m.Update(PlaybackEndedMsg{})
+	nm := next.(Model)
+
+	if nm.statusBar.playlistSource != "Queue" {
+		t.Fatalf("RepeatAll wrap (no source): expected playlistSource=%q, got %q", "Queue", nm.statusBar.playlistSource)
+	}
+}
+
 // TestPlaybackEndedMsgRepeatAllEmptyQueueGoesIdle verifies that RepeatAll with
 // an empty queue still transitions to idle (no infinite restart loop).
 func TestPlaybackEndedMsgRepeatAllEmptyQueueGoesIdle(t *testing.T) {
