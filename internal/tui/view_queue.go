@@ -6,6 +6,7 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/layout"
@@ -479,10 +480,20 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes ma
 		if v.filter.Text == "" {
 			filterLine = "Filter: > \n"
 		} else {
-			filterLine = "Filter: > " + v.filter.Text + "\n"
+			ft := v.filter.Text
+			maxLen := v.width - len("Filter: > ") - 1
+			if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
+				ft = ansi.Truncate(ft, maxLen-1, "…")
+			}
+			filterLine = "Filter: > " + ft + "\n"
 		}
 	} else if v.filter.Text != "" {
-		filterLine = "Filter: " + v.filter.Text + "\n"
+		ft := v.filter.Text
+		maxLen := v.width - len("Filter: ") - 1
+		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
+			ft = ansi.Truncate(ft, maxLen-1, "…")
+		}
+		filterLine = "Filter: " + ft + "\n"
 	}
 
 	out := filterLine + s.ColHead.Render(header) + "\n" + strings.Join(lines, "\n")
