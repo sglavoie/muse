@@ -40,8 +40,8 @@ var remoteActions = []remoteAction{
 	{"toggle-play", "Toggle play/pause on the running instance"},
 	{"next", "Skip to the next track"},
 	{"previous", "Skip to the previous track"},
-	{"volume-up", "Increase volume"},
-	{"volume-down", "Decrease volume"},
+	{"volume-up", "Increase volume by 5%"},
+	{"volume-down", "Decrease volume by 5%"},
 }
 
 // isKnownAction reports whether name is a recognised remote action.

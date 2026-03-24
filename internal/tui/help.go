@@ -76,7 +76,7 @@ func helpSections() []helpSection {
 				{"r", "Cycle repeat mode"},
 				{"z", "Toggle shuffle"},
 				{"u", "Undo"},
-				{"/", "Filter (Library / Artists / Albums)"},
+				{"/", "Filter (Library / Queue / Artists / Albums / Favorites)"},
 				{"P", "Preview focused track"},
 				{"I", "Show now-playing info"},
 				{"i", "Show track info (exiftool)"},
@@ -156,6 +156,7 @@ func helpSections() []helpSection {
 			title:   "Queue",
 			context: contextQueue,
 			entries: []helpEntry{
+				{"/", "Filter queue"},
 				{"enter", "Play selected track"},
 				{"d", "Remove selected track"},
 				{"x", "Toggle bulk selection"},
@@ -170,6 +171,7 @@ func helpSections() []helpSection {
 			title:   "Favorites",
 			context: contextFavorites,
 			entries: []helpEntry{
+				{"/", "Filter current list"},
 				{"enter", "Open category / drill into tracks / enqueue"},
 				{"esc", "Back one level"},
 				{"F", "Remove from favorites"},
