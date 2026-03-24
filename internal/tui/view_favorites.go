@@ -255,7 +255,10 @@ func (v FavoritesView) recomputeFavoritesSort() FavoritesView {
 	return v
 }
 
-// clampCursor ensures the cursor is within the bounds of the current level's list.
+// clampCursor ensures the cursor is within the bounds of the current level's
+// effective (filtered) list. When a filter is active, the cursor indexes into
+// the filtered results, so the count must reflect the filtered length rather
+// than the raw backing-store length.
 func (v FavoritesView) clampCursor() FavoritesView {
 	var n int
 	switch v.level {
@@ -264,20 +267,24 @@ func (v FavoritesView) clampCursor() FavoritesView {
 	case favtui.ListLevel:
 		switch v.category {
 		case favtui.CategoryArtists:
-			n = len(v.artists)
+			n = len(arttui.FilterStrings(v.artists, v.filter.Text))
 		case favtui.CategoryAlbums:
-			n = len(v.albums)
+			n = len(arttui.FilterStrings(v.albums, v.filter.Text))
 		case favtui.CategoryTracks:
-			n = len(v.tracks)
+			n = len(arttui.FilterTracks(v.tracks, v.filter.Text))
 		}
 	case favtui.TrackLevel:
-		n = len(v.drilldownTracks)
+		n = len(arttui.FilterTracks(v.drilldownTracks, v.filter.Text))
 	}
 	if n == 0 {
 		v.cursor = 0
 		v.scrollOffset = 0
 	} else if v.cursor >= n {
 		v.cursor = n - 1
+	}
+	// Keep scrollOffset at or below cursor so the cursor is always visible.
+	if v.scrollOffset > v.cursor {
+		v.scrollOffset = v.cursor
 	}
 	return v
 }

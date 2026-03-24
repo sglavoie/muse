@@ -651,3 +651,69 @@ func TestAlbumsDrillDownPreservesWidthHeight(t *testing.T) {
 		t.Errorf("openTracks changed width/height: %d/%d", v.width, v.height)
 	}
 }
+
+// TestAlbumsClampCursor_WithFilter verifies that clampCursor accounts for
+// the active filter rather than the raw list length.
+func TestAlbumsClampCursor_WithFilter(t *testing.T) {
+	v := AlbumsView{
+		level:  albtui.AlbumLevel,
+		albums: []string{"Alpha", "Beta", "Delta", "Gamma"},
+	}
+	v.filter.Text = "al" // matches "Alpha" = 1 item
+	v.cursor = 3         // beyond filtered bounds
+	v.scrollOffset = 3
+
+	v = v.clampCursor()
+
+	if v.cursor != 0 {
+		t.Errorf("expected cursor=0 (only 1 filtered match), got %d", v.cursor)
+	}
+	if v.scrollOffset != 0 {
+		t.Errorf("expected scrollOffset=0, got %d", v.scrollOffset)
+	}
+}
+
+// TestAlbumsClampCursor_ScrollOffsetClamped verifies that clampCursor brings
+// scrollOffset down when it ends up above the cursor.
+func TestAlbumsClampCursor_ScrollOffsetClamped(t *testing.T) {
+	v := AlbumsView{
+		level:  albtui.AlbumLevel,
+		albums: []string{"Alpha"},
+	}
+	v.cursor = 5
+	v.scrollOffset = 10
+
+	v = v.clampCursor()
+
+	if v.cursor != 0 {
+		t.Errorf("expected cursor=0, got %d", v.cursor)
+	}
+	if v.scrollOffset != 0 {
+		t.Errorf("expected scrollOffset=0, got %d", v.scrollOffset)
+	}
+}
+
+// TestAlbumsClampCursor_TrackLevelWithFilter verifies clampCursor at
+// TrackLevel with an active filter.
+func TestAlbumsClampCursor_TrackLevelWithFilter(t *testing.T) {
+	v := AlbumsView{
+		level: albtui.TrackLevel,
+		tracks: []library.Track{
+			{Hash: "h1", Title: "Foo", Artist: "A"},
+			{Hash: "h2", Title: "Bar", Artist: "B"},
+			{Hash: "h3", Title: "Baz", Artist: "C"},
+		},
+	}
+	v.filter.Text = "ba" // matches "Bar", "Baz" = 2 items
+	v.cursor = 3         // beyond filtered bounds
+	v.scrollOffset = 3
+
+	v = v.clampCursor()
+
+	if v.cursor != 1 {
+		t.Errorf("expected cursor=1 (last filtered index), got %d", v.cursor)
+	}
+	if v.scrollOffset > v.cursor {
+		t.Errorf("scrollOffset %d should not be above cursor %d", v.scrollOffset, v.cursor)
+	}
+}

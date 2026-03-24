@@ -107,6 +107,10 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 			m.library.cursor = n - 1
 		}
 	}
+	// Keep scrollOffset at or below cursor so the cursor is always visible.
+	if m.library.scrollOffset > m.library.cursor {
+		m.library.scrollOffset = m.library.cursor
+	}
 	// Refresh the artists list when at ArtistLevel so the view stays
 	// current when the filesystem watcher detects changes.
 	if m.artists.level == arttui.ArtistLevel {

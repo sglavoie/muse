@@ -166,20 +166,26 @@ func (v AlbumsView) back() AlbumsView {
 }
 
 // clampCursor ensures the cursor is within the bounds of the current level's
-// list. Call after refreshing the album list when the library changes.
+// effective (filtered) list. Call after refreshing the album list when the
+// library changes. When a filter is active, the cursor indexes into the
+// filtered results, so the count must reflect the filtered length.
 func (v AlbumsView) clampCursor() AlbumsView {
 	var n int
 	switch v.level {
 	case albtui.TrackLevel:
-		n = len(v.tracks)
+		n = len(arttui.FilterTracks(v.tracks, v.filter.Text))
 	default:
-		n = len(v.albums)
+		n = len(arttui.FilterStrings(v.albums, v.filter.Text))
 	}
 	if n == 0 {
 		v.cursor = 0
 		v.scrollOffset = 0
 	} else if v.cursor >= n {
 		v.cursor = n - 1
+	}
+	// Keep scrollOffset at or below cursor so the cursor is always visible.
+	if v.scrollOffset > v.cursor {
+		v.scrollOffset = v.cursor
 	}
 	return v
 }

@@ -793,6 +793,71 @@ func TestArtistsDrillDownPreservesWidthHeight(t *testing.T) {
 	}
 }
 
+// TestArtistsClampCursor_WithFilter verifies that clampCursor accounts for
+// the active filter rather than the raw list length.
+func TestArtistsClampCursor_WithFilter(t *testing.T) {
+	m := newModelWithTracks()
+	m.activeView = viewArtists
+	m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+	m.artists.level = arttui.ArtistLevel
+	m.artists.filter.Text = "ali" // matches only "Alice"
+	m.artists.cursor = 2          // beyond filtered bounds
+	m.artists.scrollOffset = 2
+
+	m.artists = m.artists.clampCursor()
+
+	if m.artists.cursor != 0 {
+		t.Errorf("expected cursor=0 (only 1 filtered match), got %d", m.artists.cursor)
+	}
+	if m.artists.scrollOffset != 0 {
+		t.Errorf("expected scrollOffset=0, got %d", m.artists.scrollOffset)
+	}
+}
+
+// TestArtistsClampCursor_ScrollOffsetClamped verifies that clampCursor brings
+// scrollOffset down when it ends up above the cursor.
+func TestArtistsClampCursor_ScrollOffsetClamped(t *testing.T) {
+	m := newModelWithTracks()
+	m.activeView = viewArtists
+	m.artists.artists = []string{"Alice"}
+	m.artists.level = arttui.ArtistLevel
+	m.artists.cursor = 5
+	m.artists.scrollOffset = 10
+
+	m.artists = m.artists.clampCursor()
+
+	if m.artists.cursor != 0 {
+		t.Errorf("expected cursor=0, got %d", m.artists.cursor)
+	}
+	if m.artists.scrollOffset != 0 {
+		t.Errorf("expected scrollOffset=0, got %d", m.artists.scrollOffset)
+	}
+}
+
+// TestArtistsClampCursor_TrackLevelWithFilter verifies clampCursor at
+// TrackLevel with an active filter.
+func TestArtistsClampCursor_TrackLevelWithFilter(t *testing.T) {
+	m := newModelWithTracks()
+	m.artists.level = arttui.TrackLevel
+	m.artists.tracks = []library.Track{
+		{Hash: "h1", Title: "Foo", Artist: "A"},
+		{Hash: "h2", Title: "Bar", Artist: "B"},
+		{Hash: "h3", Title: "Baz", Artist: "C"},
+	}
+	m.artists.filter.Text = "ba" // matches "Bar", "Baz" = 2 items
+	m.artists.cursor = 3         // beyond filtered bounds
+	m.artists.scrollOffset = 3
+
+	m.artists = m.artists.clampCursor()
+
+	if m.artists.cursor != 1 {
+		t.Errorf("expected cursor=1 (last filtered index), got %d", m.artists.cursor)
+	}
+	if m.artists.scrollOffset > m.artists.cursor {
+		t.Errorf("scrollOffset %d should not be above cursor %d", m.artists.scrollOffset, m.artists.cursor)
+	}
+}
+
 // TestBulkActionArtistLevelUnknownArtistCollectsTracks verifies that the
 // actionBulkAction handler at ArtistLevel correctly collects tracks for the
 // "(unknown artist)" sentinel by converting it to an empty string for matching
