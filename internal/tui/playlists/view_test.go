@@ -930,8 +930,8 @@ func TestTruncateNegativeMaxLen(t *testing.T) {
 
 func TestTruncateMaxLenOne(t *testing.T) {
 	got := truncate("hello", 1)
-	if got != "h" {
-		t.Errorf("truncate maxLen=1: expected 'h', got %q", got)
+	if got != "…" {
+		t.Errorf("truncate maxLen=1: expected '…', got %q", got)
 	}
 }
 

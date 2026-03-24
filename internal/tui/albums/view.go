@@ -310,10 +310,8 @@ func (v View) renderTracks() string {
 		}
 
 		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
-		title := arttui.Truncate(t.Title, cols.Title)
-		title = fmt.Sprintf("%-*s", cols.Title, title)
-		artist := arttui.Truncate(t.Artist, cols.Artist)
-		artist = fmt.Sprintf("%-*s", cols.Artist, artist)
+		title := arttui.Pad(t.Title, cols.Title)
+		artist := arttui.Pad(t.Artist, cols.Artist)
 		dur := arttui.FormatDuration(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		line := markerStr + pos + " " + title + " " + artist + " " + dur

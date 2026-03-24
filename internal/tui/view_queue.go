@@ -443,17 +443,10 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes ma
 		}
 		pos := fmt.Sprintf("%s%4d", cursorChar, absIdx+1)
 
-		title := truncateTitle(e.Title, titleWidth)
-		title = fmt.Sprintf("%-*s", titleWidth, title)
-
-		artist := truncateTitle(e.Artist, artistWidth)
-		artist = fmt.Sprintf("%-*s", artistWidth, artist)
-
-		album := truncateTitle(e.Album, albumWidth)
-		album = fmt.Sprintf("%-*s", albumWidth, album)
-
-		source := truncateTitle(e.SourcePlaylist, sourceWidth)
-		source = fmt.Sprintf("%-*s", sourceWidth, source)
+		title := padQueue(e.Title, titleWidth)
+		artist := padQueue(e.Artist, artistWidth)
+		album := padQueue(e.Album, albumWidth)
+		source := padQueue(e.SourcePlaylist, sourceWidth)
 
 		dur := fmt.Sprintf("%*s", durWidth, formatQueueDuration(e.DurationMs))
 
@@ -512,4 +505,17 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes ma
 // "h:mm:ss" string. Returns "--:--" when ms is zero or negative.
 func formatQueueDuration(ms int64) string {
 	return FormatDurationMs(ms)
+}
+
+// padQueue truncates or right-pads s with spaces to exactly width display columns.
+func padQueue(s string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	s = truncateTitle(s, width)
+	n := ansi.StringWidth(s)
+	if n < width {
+		return s + strings.Repeat(" ", width-n)
+	}
+	return s
 }

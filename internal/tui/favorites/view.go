@@ -432,12 +432,9 @@ func (v View) renderTrackRows(items []library.Track) string {
 		}
 
 		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
-		title := arttui.Truncate(t.Title, cols.Title)
-		title = fmt.Sprintf("%-*s", cols.Title, title)
-		artist := arttui.Truncate(t.Artist, cols.Artist)
-		artist = fmt.Sprintf("%-*s", cols.Artist, artist)
-		album := arttui.Truncate(t.Album, cols.Album)
-		album = fmt.Sprintf("%-*s", cols.Album, album)
+		title := arttui.Pad(t.Title, cols.Title)
+		artist := arttui.Pad(t.Artist, cols.Artist)
+		album := arttui.Pad(t.Album, cols.Album)
 		dur := arttui.FormatDuration(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		line := marker + pos + " " + title + " " + artist + " " + album + " " + dur

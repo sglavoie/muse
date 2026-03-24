@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/layout"
@@ -268,8 +269,7 @@ func (v View) renderList() string {
 			lines = append(lines, v.renderRenameInputRow(cols))
 			continue
 		}
-		name := truncate(p.Name, cols.Name)
-		name = fmt.Sprintf("%-*s", cols.Name, name)
+		name := pad(p.Name, cols.Name)
 		count := fmt.Sprintf("(%d)", p.TrackCount)
 		count = fmt.Sprintf("%*s", cols.Count, count)
 		line := name + "  " + count
@@ -292,8 +292,7 @@ func (v View) renderList() string {
 // fitted to the same column widths as a normal playlist row.
 func (v View) renderCreateInputRow(cols Columns) string {
 	rowWidth := cols.Name + nameSep + cols.Count
-	display := truncate(v.CreateInput.View(), rowWidth)
-	display = fmt.Sprintf("%-*s", rowWidth, display)
+	display := pad(v.CreateInput.View(), rowWidth)
 	return v.Styles.Accent.Render(display)
 }
 
@@ -301,8 +300,7 @@ func (v View) renderCreateInputRow(cols Columns) string {
 // fitted to the same column widths as a normal playlist row.
 func (v View) renderRenameInputRow(cols Columns) string {
 	rowWidth := cols.Name + nameSep + cols.Count
-	display := truncate(v.RenameInput.View(), rowWidth)
-	display = fmt.Sprintf("%-*s", rowWidth, display)
+	display := pad(v.RenameInput.View(), rowWidth)
 	return v.Styles.Accent.Render(display)
 }
 
@@ -349,12 +347,9 @@ func (v View) renderTracks() string {
 		}
 
 		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
-		title := truncate(t.Title, cols.Title)
-		title = fmt.Sprintf("%-*s", cols.Title, title)
-		artist := truncate(t.Artist, cols.Artist)
-		artist = fmt.Sprintf("%-*s", cols.Artist, artist)
-		album := truncate(t.Album, cols.Album)
-		album = fmt.Sprintf("%-*s", cols.Album, album)
+		title := pad(t.Title, cols.Title)
+		artist := pad(t.Artist, cols.Artist)
+		album := pad(t.Album, cols.Album)
 		dur := formatDuration(t.DurationMs)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		line := markerStr + pos + " " + title + " " + artist + " " + album + " " + dur
@@ -393,12 +388,23 @@ func truncate(s string, maxLen int) string {
 	if maxLen <= 0 {
 		return ""
 	}
-	runes := []rune(s)
-	if len(runes) <= maxLen {
+	if ansi.StringWidth(s) <= maxLen {
 		return s
 	}
 	if maxLen <= 1 {
-		return string(runes[:maxLen])
+		return "…"
 	}
-	return string(runes[:maxLen-1]) + "…"
+	return ansi.Truncate(s, maxLen-1, "…")
+}
+
+func pad(s string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	s = truncate(s, width)
+	n := ansi.StringWidth(s)
+	if n < width {
+		return s + strings.Repeat(" ", width-n)
+	}
+	return s
 }
