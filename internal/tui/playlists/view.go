@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // Level identifies the active navigation level inside the playlist panel.
@@ -269,7 +269,7 @@ func (v View) renderList() string {
 			lines = append(lines, v.renderRenameInputRow(cols))
 			continue
 		}
-		name := pad(p.Name, cols.Name)
+		name := text.Pad(p.Name, cols.Name)
 		count := fmt.Sprintf("(%d)", p.TrackCount)
 		count = fmt.Sprintf("%*s", cols.Count, count)
 		line := name + "  " + count
@@ -292,7 +292,7 @@ func (v View) renderList() string {
 // fitted to the same column widths as a normal playlist row.
 func (v View) renderCreateInputRow(cols Columns) string {
 	rowWidth := cols.Name + nameSep + cols.Count
-	display := pad(v.CreateInput.View(), rowWidth)
+	display := text.Pad(v.CreateInput.View(), rowWidth)
 	return v.Styles.Accent.Render(display)
 }
 
@@ -300,7 +300,7 @@ func (v View) renderCreateInputRow(cols Columns) string {
 // fitted to the same column widths as a normal playlist row.
 func (v View) renderRenameInputRow(cols Columns) string {
 	rowWidth := cols.Name + nameSep + cols.Count
-	display := pad(v.RenameInput.View(), rowWidth)
+	display := text.Pad(v.RenameInput.View(), rowWidth)
 	return v.Styles.Accent.Render(display)
 }
 
@@ -347,10 +347,10 @@ func (v View) renderTracks() string {
 		}
 
 		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
-		title := pad(t.Title, cols.Title)
-		artist := pad(t.Artist, cols.Artist)
-		album := pad(t.Album, cols.Album)
-		dur := formatDuration(t.DurationMs)
+		title := text.Pad(t.Title, cols.Title)
+		artist := text.Pad(t.Artist, cols.Artist)
+		album := text.Pad(t.Album, cols.Album)
+		dur := text.FormatDurationMs(t.DurationMs)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		line := markerStr + pos + " " + title + " " + artist + " " + album + " " + dur
 		_, isFav := v.FavoriteHashes[t.Hash]
@@ -365,46 +365,4 @@ func (v View) renderTracks() string {
 		lines[i] = line
 	}
 	return v.Styles.Heading.Render("Tracks") + "\n\n" + header + "\n" + strings.Join(lines, "\n")
-}
-
-// formatDuration converts milliseconds to a "m:ss" or "h:mm:ss" string.
-func formatDuration(ms int64) string {
-	if ms <= 0 {
-		return "--:--"
-	}
-	totalSec := ms / 1000
-	h := totalSec / 3600
-	m := (totalSec % 3600) / 60
-	s := totalSec % 60
-	if h > 0 {
-		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
-	}
-	return fmt.Sprintf("%d:%02d", m, s)
-}
-
-// truncate shortens s to at most maxLen runes, appending "…" when truncated.
-// Returns an empty string when maxLen is zero or negative.
-func truncate(s string, maxLen int) string {
-	if maxLen <= 0 {
-		return ""
-	}
-	if ansi.StringWidth(s) <= maxLen {
-		return s
-	}
-	if maxLen <= 1 {
-		return "…"
-	}
-	return ansi.Truncate(s, maxLen-1, "…")
-}
-
-func pad(s string, width int) string {
-	if width <= 0 {
-		return ""
-	}
-	s = truncate(s, width)
-	n := ansi.StringWidth(s)
-	if n < width {
-		return s + strings.Repeat(" ", width-n)
-	}
-	return s
 }

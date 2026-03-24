@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // --- track-level rendering ---
@@ -889,56 +890,56 @@ func TestVisibleRowsTrackLevel(t *testing.T) {
 	}
 }
 
-// --- formatDuration edge cases ---
+// --- FormatDurationMs edge cases (via text package) ---
 
 func TestFormatDurationHours(t *testing.T) {
-	got := formatDuration(3661000) // 1h 1m 1s
+	got := text.FormatDurationMs(3661000) // 1h 1m 1s
 	if got != "1:01:01" {
-		t.Errorf("formatDuration hours: expected 1:01:01, got %s", got)
+		t.Errorf("FormatDurationMs hours: expected 1:01:01, got %s", got)
 	}
 }
 
 func TestFormatDurationZero(t *testing.T) {
-	got := formatDuration(0)
+	got := text.FormatDurationMs(0)
 	if got != "--:--" {
-		t.Errorf("formatDuration 0: expected --:--, got %s", got)
+		t.Errorf("FormatDurationMs 0: expected --:--, got %s", got)
 	}
 }
 
 func TestFormatDurationNegative(t *testing.T) {
-	got := formatDuration(-1000)
+	got := text.FormatDurationMs(-1000)
 	if got != "--:--" {
-		t.Errorf("formatDuration negative: expected --:--, got %s", got)
+		t.Errorf("FormatDurationMs negative: expected --:--, got %s", got)
 	}
 }
 
-// --- truncate edge cases ---
+// --- Truncate edge cases (via text package) ---
 
 func TestTruncateZeroMaxLen(t *testing.T) {
-	got := truncate("hello", 0)
+	got := text.Truncate("hello", 0)
 	if got != "" {
-		t.Errorf("truncate maxLen=0: expected empty, got %q", got)
+		t.Errorf("Truncate maxLen=0: expected empty, got %q", got)
 	}
 }
 
 func TestTruncateNegativeMaxLen(t *testing.T) {
-	got := truncate("hello", -1)
+	got := text.Truncate("hello", -1)
 	if got != "" {
-		t.Errorf("truncate maxLen=-1: expected empty, got %q", got)
+		t.Errorf("Truncate maxLen=-1: expected empty, got %q", got)
 	}
 }
 
 func TestTruncateMaxLenOne(t *testing.T) {
-	got := truncate("hello", 1)
+	got := text.Truncate("hello", 1)
 	if got != "…" {
-		t.Errorf("truncate maxLen=1: expected '…', got %q", got)
+		t.Errorf("Truncate maxLen=1: expected '…', got %q", got)
 	}
 }
 
 func TestTruncateNoTruncationNeeded(t *testing.T) {
-	got := truncate("hi", 5)
+	got := text.Truncate("hi", 5)
 	if got != "hi" {
-		t.Errorf("truncate no-op: expected 'hi', got %q", got)
+		t.Errorf("Truncate no-op: expected 'hi', got %q", got)
 	}
 }
 

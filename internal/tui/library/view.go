@@ -347,7 +347,7 @@ func (v View) Render() string {
 		absIdx := start + i
 		t := dt.track
 		num := fmt.Sprintf("%d", absIdx+1)
-		dur := formatDuration(t.Duration)
+		dur := text.FormatDurationSecs(t.Duration)
 
 		_, isSelected := v.SelectedHashes[t.Hash]
 		isFocused := absIdx == v.Cursor
@@ -416,22 +416,6 @@ func renderRow(num, artist, title, album, duration string, cols Columns) string 
 		text.Pad(title, cols.Title) + " " +
 		text.Pad(album, cols.Album) + " " +
 		text.PadLeft(duration, cols.Duration)
-}
-
-// formatDuration converts a duration in seconds to M:SS or H:MM:SS format.
-// Returns "--:--" when secs is zero or negative (unknown duration).
-func formatDuration(secs float64) string {
-	if secs <= 0 {
-		return "--:--"
-	}
-	total := int(secs)
-	h := total / 3600
-	m := (total % 3600) / 60
-	s := total % 60
-	if h > 0 {
-		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
-	}
-	return fmt.Sprintf("%d:%02d", m, s)
 }
 
 // formatCount formats n with comma separators (e.g. 1234 → "1,234").

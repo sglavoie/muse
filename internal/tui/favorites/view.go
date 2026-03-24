@@ -436,7 +436,7 @@ func (v View) renderTrackRows(items []library.Track) string {
 		title := text.Pad(t.Title, cols.Title)
 		artist := text.Pad(t.Artist, cols.Artist)
 		album := text.Pad(t.Album, cols.Album)
-		dur := arttui.FormatDuration(t.Duration)
+		dur := text.FormatDurationSecs(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		line := marker + pos + " " + title + " " + artist + " " + album + " " + dur
 		_, isFav := v.FavoriteHashes[t.Hash]

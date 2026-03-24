@@ -867,33 +867,33 @@ func TestCommitFilterDeactivatesButKeepsText(t *testing.T) {
 	}
 }
 
-// --- formatDuration ---
+// --- FormatDurationSecs (via text package) ---
 
 func TestFormatDurationMinutesSeconds(t *testing.T) {
-	got := formatDuration(185)
+	got := text.FormatDurationSecs(185)
 	if got != "3:05" {
-		t.Errorf("formatDuration(185): expected 3:05, got %s", got)
+		t.Errorf("FormatDurationSecs(185): expected 3:05, got %s", got)
 	}
 }
 
 func TestFormatDurationHours(t *testing.T) {
-	got := formatDuration(3661)
+	got := text.FormatDurationSecs(3661)
 	if got != "1:01:01" {
-		t.Errorf("formatDuration(3661): expected 1:01:01, got %s", got)
+		t.Errorf("FormatDurationSecs(3661): expected 1:01:01, got %s", got)
 	}
 }
 
 func TestFormatDurationZero(t *testing.T) {
-	got := formatDuration(0)
+	got := text.FormatDurationSecs(0)
 	if got != "--:--" {
-		t.Errorf("formatDuration(0): expected --:--, got %s", got)
+		t.Errorf("FormatDurationSecs(0): expected --:--, got %s", got)
 	}
 }
 
 func TestFormatDurationNegative(t *testing.T) {
-	got := formatDuration(-5)
+	got := text.FormatDurationSecs(-5)
 	if got != "--:--" {
-		t.Errorf("formatDuration(-5): expected --:--, got %s", got)
+		t.Errorf("FormatDurationSecs(-5): expected --:--, got %s", got)
 	}
 }
 

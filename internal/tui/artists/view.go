@@ -478,7 +478,7 @@ func (v View) renderTracks() string {
 
 		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
 		title := text.Pad(t.Title, cols.Title)
-		dur := FormatDuration(t.Duration)
+		dur := text.FormatDurationSecs(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		line := markerStr + pos + " " + title + " " + dur
 		_, isFav := v.FavoriteHashes[t.Hash]
@@ -552,20 +552,4 @@ func (v View) buildFilterSeparator(leadingNewline bool) string {
 		return prefix + "\n\n"
 	}
 	return prefix
-}
-
-// FormatDuration converts seconds (float64) to a "m:ss" or "h:mm:ss" string.
-func FormatDuration(seconds float64) string {
-	ms := int64(seconds * 1000)
-	if ms <= 0 {
-		return "--:--"
-	}
-	totalSec := ms / 1000
-	h := totalSec / 3600
-	m := (totalSec % 3600) / 60
-	s := totalSec % 60
-	if h > 0 {
-		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
-	}
-	return fmt.Sprintf("%d:%02d", m, s)
 }

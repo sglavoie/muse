@@ -313,7 +313,7 @@ func (v View) renderTracks() string {
 		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
 		title := text.Pad(t.Title, cols.Title)
 		artist := text.Pad(t.Artist, cols.Artist)
-		dur := arttui.FormatDuration(t.Duration)
+		dur := text.FormatDurationSecs(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		line := markerStr + pos + " " + title + " " + artist + " " + dur
 		_, isFav := v.FavoriteHashes[t.Hash]
