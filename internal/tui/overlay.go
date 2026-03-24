@@ -1,11 +1,11 @@
 package tui
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 const (
@@ -63,7 +63,7 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 			continue
 		}
 		if r.Label != "" {
-			rowTexts[i] = fmt.Sprintf("%*s %s", maxLabelW, r.Label, r.Text)
+			rowTexts[i] = text.PadLeft(r.Label, maxLabelW) + " " + r.Text
 		} else {
 			rowTexts[i] = r.Text
 		}
@@ -113,10 +113,13 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 			// Right-align the label, then left-align the value.
 			valueWidth := max(0, contentWidth-maxLabelW-1) // 1 for the space between label and value
 			truncated := truncateTitle(r.Text, valueWidth)
-			row = fmt.Sprintf("  %*s %-*s  ", maxLabelW, r.Label, valueWidth, truncated)
+			// Use text.PadLeft for the label and text.Pad for the value
+			// so that multi-byte characters are padded by display width,
+			// not byte count.
+			row = "  " + text.PadLeft(r.Label, maxLabelW) + " " + text.Pad(truncated, valueWidth) + "  "
 		} else {
 			truncated := truncateTitle(r.Text, contentWidth)
-			row = fmt.Sprintf("  %-*s  ", contentWidth, truncated)
+			row = "  " + text.Pad(truncated, contentWidth) + "  "
 		}
 		if r.Styled {
 			lines = append(lines, borderV+s.Accent.Render(row)+borderV)

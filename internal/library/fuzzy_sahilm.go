@@ -37,14 +37,16 @@ func (s SahilmFuzzySearcher) Search(query string, tracks []Track) []Match {
 		searchTerm = strings.ToLower(query)
 	}
 
+	searchRunes := []rune(searchTerm)
+
 	var matches []Match
 	for i, t := range tracks {
 		searchStr := t.Artist + " " + t.Title + " " + t.Album + " " + filepath.Base(t.Path)
-		idx := strings.Index(strings.ToLower(searchStr), searchTerm)
+		idx := runeIndex(strings.ToLower(searchStr), searchTerm)
 		if idx < 0 {
 			continue
 		}
-		indexes := make([]int, len(searchTerm))
+		indexes := make([]int, len(searchRunes))
 		for j := range indexes {
 			indexes[j] = idx + j
 		}
@@ -64,29 +66,29 @@ func (s SahilmFuzzySearcher) searchFieldSpecific(fq FilterQuery, tracks []Track)
 		ok := true
 
 		if fq.Artist != "" {
-			idx := strings.Index(strings.ToLower(t.Artist), strings.ToLower(fq.Artist))
+			idx := runeIndex(strings.ToLower(t.Artist), strings.ToLower(fq.Artist))
 			if idx < 0 {
 				ok = false
 			} else {
-				m.ArtistPositions = consecutiveIndexes(idx, len(fq.Artist))
+				m.ArtistPositions = consecutiveIndexes(idx, len([]rune(fq.Artist)))
 			}
 		}
 
 		if ok && fq.Title != "" {
-			idx := strings.Index(strings.ToLower(t.Title), strings.ToLower(fq.Title))
+			idx := runeIndex(strings.ToLower(t.Title), strings.ToLower(fq.Title))
 			if idx < 0 {
 				ok = false
 			} else {
-				m.TitlePositions = consecutiveIndexes(idx, len(fq.Title))
+				m.TitlePositions = consecutiveIndexes(idx, len([]rune(fq.Title)))
 			}
 		}
 
 		if ok && fq.Album != "" {
-			idx := strings.Index(strings.ToLower(t.Album), strings.ToLower(fq.Album))
+			idx := runeIndex(strings.ToLower(t.Album), strings.ToLower(fq.Album))
 			if idx < 0 {
 				ok = false
 			} else {
-				m.AlbumPositions = consecutiveIndexes(idx, len(fq.Album))
+				m.AlbumPositions = consecutiveIndexes(idx, len([]rune(fq.Album)))
 			}
 		}
 
@@ -102,6 +104,19 @@ func (s SahilmFuzzySearcher) searchFieldSpecific(fq FilterQuery, tracks []Track)
 		}
 	}
 	return matches
+}
+
+// runeIndex returns the rune (not byte) position of the first occurrence of
+// substr in s, or -1 if substr is not present. This is the rune-aware
+// equivalent of strings.Index, needed because highlight rendering works with
+// rune positions (padHighlight iterates over []rune).
+func runeIndex(s, substr string) int {
+	byteIdx := strings.Index(s, substr)
+	if byteIdx < 0 {
+		return -1
+	}
+	// Count runes in s[:byteIdx] to convert byte offset to rune offset.
+	return len([]rune(s[:byteIdx]))
 }
 
 // consecutiveIndexes returns a slice [start, start+1, ..., start+length-1].

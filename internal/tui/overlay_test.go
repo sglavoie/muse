@@ -79,3 +79,78 @@ func TestOverlayBoxRender_SmallTerminalNoPanic(t *testing.T) {
 		t.Error("expected non-empty output even with small terminal")
 	}
 }
+
+func TestOverlayBoxRender_MultiByteRowAlignment(t *testing.T) {
+	// All rows in an overlay box should have identical display width
+	// regardless of whether the content contains multi-byte characters.
+	box := OverlayBox{
+		Title: " Test ",
+		Rows: []OverlayRow{
+			{Text: "ASCII only row"},
+			{Text: "Björk — Jóga"}, // accented chars (2 bytes each)
+			{Text: "日本語テスト"},       // CJK chars (3 bytes, 2 display columns each)
+			{Label: "Artist:", Text: "Björk"},
+			{Label: "Title:", Text: "日本語"},
+		},
+	}
+	out := box.Render(80, 24, newTestStyles())
+	stripped := ansi.Strip(out)
+	lines := strings.Split(stripped, "\n")
+
+	// Find content lines (between the borders).
+	var contentLines []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, borderV) && strings.HasSuffix(line, borderV) {
+			contentLines = append(contentLines, line)
+		}
+	}
+
+	if len(contentLines) < 2 {
+		t.Fatalf("expected at least 2 content lines, got %d", len(contentLines))
+	}
+
+	// Every bordered line should have the same display width.
+	refWidth := ansi.StringWidth(contentLines[0])
+	for i, line := range contentLines[1:] {
+		w := ansi.StringWidth(line)
+		if w != refWidth {
+			t.Errorf("line %d display width = %d, want %d (same as line 0)\nline 0: %q\nline %d: %q",
+				i+1, w, refWidth, contentLines[0], i+1, line)
+		}
+	}
+}
+
+func TestOverlayBoxRender_LabelledRowsMultiByte(t *testing.T) {
+	// Verify labelled rows with multi-byte labels align correctly.
+	box := OverlayBox{
+		Title: " Box ",
+		Rows: []OverlayRow{
+			{Label: "Artist:", Text: "Data One"},
+			{Label: "Title:", Text: "Data Two"},
+		},
+	}
+	out := box.Render(80, 24, newTestStyles())
+	stripped := ansi.Strip(out)
+
+	// Both data rows should have the same display width.
+	lines := strings.Split(stripped, "\n")
+	var dataLines []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, borderV) && strings.HasSuffix(line, borderV) && strings.Contains(line, "Data") {
+			dataLines = append(dataLines, line)
+		}
+	}
+
+	if len(dataLines) != 2 {
+		t.Fatalf("expected 2 data lines, got %d", len(dataLines))
+	}
+
+	w0 := ansi.StringWidth(dataLines[0])
+	w1 := ansi.StringWidth(dataLines[1])
+	if w0 != w1 {
+		t.Errorf("labelled row widths differ: %d vs %d\nline 0: %q\nline 1: %q",
+			w0, w1, dataLines[0], dataLines[1])
+	}
+}

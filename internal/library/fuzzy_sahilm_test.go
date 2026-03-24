@@ -182,6 +182,106 @@ func TestSahilmFuzzySearcher_FieldSpecific(t *testing.T) {
 	})
 }
 
+func TestRuneIndex(t *testing.T) {
+	tests := []struct {
+		s, substr string
+		want      int
+	}{
+		{"hello world", "world", 6},
+		{"hello world", "xyz", -1},
+		{"hello", "hello", 0},
+		// Multi-byte: "Björk" has 'ö' (2 bytes in UTF-8) but is 1 rune.
+		// strings.Index would return byte offset 3 for "rk", but rune
+		// offset should be 3 as well since 'ö' is 1 rune. Let's test
+		// with a case where byte vs rune differs.
+		{"日本語テスト", "テスト", 3}, // 3 runes in, each is 3 bytes
+		{"aöb", "b", 2},      // byte offset=3 (ö is 2 bytes), rune offset=2
+		{"café", "fé", 2},    // byte offset=2 for 'f', rune offset=2; but 'é' makes it interesting
+		{"", "x", -1},
+		{"x", "", 0},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%s/%s", tt.s, tt.substr), func(t *testing.T) {
+			got := runeIndex(tt.s, tt.substr)
+			if got != tt.want {
+				t.Errorf("runeIndex(%q, %q) = %d, want %d", tt.s, tt.substr, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSahilmFuzzySearcher_MultiByteGeneral(t *testing.T) {
+	tracks := []Track{
+		{Artist: "Björk", Title: "Jóga", Album: "Homogenic", Path: "/music/joga.flac"},
+	}
+	s := SahilmFuzzySearcher{}
+
+	t.Run("MatchedIndexesAreRuneBased", func(t *testing.T) {
+		got := s.Search("jóga", tracks)
+		if len(got) != 1 {
+			t.Fatalf("expected 1 match, got %d", len(got))
+		}
+		// "Björk Jóga Homogenic joga.flac"
+		// Rune positions: B=0 j=1 ö=2 r=3 k=4 ' '=5 J=6 ó=7 g=8 a=9 ...
+		// "jóga" should match starting at rune index 6 (case-insensitive)
+		m := got[0]
+		if len(m.MatchedIndexes) != 4 {
+			t.Fatalf("expected 4 matched indexes, got %d: %v", len(m.MatchedIndexes), m.MatchedIndexes)
+		}
+		if m.MatchedIndexes[0] != 6 {
+			t.Errorf("first matched index = %d, want 6", m.MatchedIndexes[0])
+		}
+		// Verify consecutive: 6, 7, 8, 9
+		for i, idx := range m.MatchedIndexes {
+			if idx != 6+i {
+				t.Errorf("MatchedIndexes[%d] = %d, want %d", i, idx, 6+i)
+			}
+		}
+	})
+}
+
+func TestSahilmFuzzySearcher_MultiByteFieldSpecific(t *testing.T) {
+	tracks := []Track{
+		{Artist: "Björk", Title: "Jóga", Album: "Homogenic", Path: "/music/joga.flac"},
+	}
+	s := SahilmFuzzySearcher{}
+
+	t.Run("ArtistPositionsAreRuneBased", func(t *testing.T) {
+		got := s.Search("a:björk", tracks)
+		if len(got) != 1 {
+			t.Fatalf("expected 1 match, got %d", len(got))
+		}
+		m := got[0]
+		if len(m.ArtistPositions) != 5 {
+			t.Fatalf("expected 5 artist positions (björk has 5 runes), got %d: %v",
+				len(m.ArtistPositions), m.ArtistPositions)
+		}
+		// Should be consecutive starting at 0
+		for i, pos := range m.ArtistPositions {
+			if pos != i {
+				t.Errorf("ArtistPositions[%d] = %d, want %d", i, pos, i)
+			}
+		}
+	})
+
+	t.Run("TitlePositionsAreRuneBased", func(t *testing.T) {
+		got := s.Search("t:jóga", tracks)
+		if len(got) != 1 {
+			t.Fatalf("expected 1 match, got %d", len(got))
+		}
+		m := got[0]
+		if len(m.TitlePositions) != 4 {
+			t.Fatalf("expected 4 title positions (jóga has 4 runes), got %d: %v",
+				len(m.TitlePositions), m.TitlePositions)
+		}
+		for i, pos := range m.TitlePositions {
+			if pos != i {
+				t.Errorf("TitlePositions[%d] = %d, want %d", i, pos, i)
+			}
+		}
+	})
+}
+
 func TestSahilmFuzzySearcher_Performance(t *testing.T) {
 	const n = 10_000
 	tracks := make([]Track, n)
