@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // searchFieldOffsetsAll returns the (offset, length) pairs for the artist,
@@ -35,7 +36,7 @@ func fieldMatchPositions(matchedIndexes []int, fieldOffset, fieldLen int) []int 
 	return result
 }
 
-// padHighlight pads or truncates s to exactly width visible runes, applying
+// padHighlight pads or truncates s to exactly width display columns, applying
 // bold highlight to the runes at positions (0-indexed into s) that fall
 // within the visible portion. ANSI codes are inserted around highlighted
 // runes so the visible width is preserved.
@@ -47,19 +48,31 @@ func padHighlight(s string, width int, positions []int) string {
 		return pad(s, width)
 	}
 	runes := []rune(s)
-	n := len(runes)
 
+	// Determine how many runes fit within the display width budget.
+	totalWidth := ansi.StringWidth(s)
 	var content []rune
+	var contentWidth int
 	ellipsis := false
-	if n > width {
-		if width == 1 {
-			content = runes[:1]
-		} else {
-			content = runes[:width-1]
-			ellipsis = true
+	if totalWidth > width {
+		budget := width - 1 // reserve 1 column for "…"
+		w := 0
+		for i, r := range runes {
+			rw := ansi.StringWidth(string(r))
+			if w+rw > budget {
+				content = runes[:i]
+				break
+			}
+			w += rw
 		}
+		if content == nil {
+			content = runes[:0]
+		}
+		contentWidth = w
+		ellipsis = true
 	} else {
 		content = runes
+		contentWidth = totalWidth
 	}
 
 	posSet := make(map[int]struct{}, len(positions))
@@ -78,14 +91,10 @@ func padHighlight(s string, width int, positions []int) string {
 	}
 	if ellipsis {
 		b.WriteRune('…')
+		contentWidth++
 	}
-
-	visibleLen := len(content)
-	if ellipsis {
-		visibleLen++
-	}
-	if visibleLen < width {
-		b.WriteString(strings.Repeat(" ", width-visibleLen))
+	if contentWidth < width {
+		b.WriteString(strings.Repeat(" ", width-contentWidth))
 	}
 
 	return b.String()
