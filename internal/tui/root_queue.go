@@ -424,8 +424,7 @@ func (m Model) handleUndo() Model {
 	}
 	slog.Debug("queue undo", "kind", m.undo.slot.action.kind())
 	m, _ = m.undo.slot.action.perform(m) // undo action may fail silently, user can retry
-	m = m.resetQueueSort()
-	m = m.resetPlaylistsSort()
+	m = m.resetAllSorts()
 	// Preserve any cancel channel set by perform() (e.g. enqueue undo
 	// schedules a purge timer that must be cancellable by the next
 	// destructive action).

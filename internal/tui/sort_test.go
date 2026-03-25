@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
@@ -1524,12 +1525,12 @@ func TestArtistsVisibleReserve(t *testing.T) {
 		{
 			"album level no sort",
 			ArtistsView{level: arttui.AlbumLevel},
-			2,
+			3,
 		},
 		{
 			"album level with sort",
 			ArtistsView{level: arttui.AlbumLevel, sortState: SortState{Field: SortName}},
-			3,
+			4,
 		},
 	}
 	for _, tt := range tests {
@@ -1566,12 +1567,12 @@ func TestAlbumsVisibleReserve(t *testing.T) {
 		{
 			"track level no sort",
 			AlbumsView{level: albtui.TrackLevel},
-			2,
+			3,
 		},
 		{
 			"track level with sort",
 			AlbumsView{level: albtui.TrackLevel, sortState: SortState{Field: SortTitle}},
-			3,
+			4,
 		},
 	}
 	for _, tt := range tests {
@@ -1579,6 +1580,78 @@ func TestAlbumsVisibleReserve(t *testing.T) {
 			got := albumsVisibleReserve(tt.v)
 			if got != tt.want {
 				t.Errorf("albumsVisibleReserve = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFavoritesVisibleReserve(t *testing.T) {
+	tests := []struct {
+		name string
+		v    FavoritesView
+		want int
+	}{
+		{
+			"category level",
+			FavoritesView{level: favtui.CategoryLevel},
+			0,
+		},
+		{
+			"list level artists no filter no sort",
+			FavoritesView{level: favtui.ListLevel, category: favtui.CategoryArtists},
+			0,
+		},
+		{
+			"list level artists with filter",
+			FavoritesView{level: favtui.ListLevel, category: favtui.CategoryArtists, filter: filter.State{Active: true}},
+			1,
+		},
+		{
+			"list level artists with committed filter text",
+			FavoritesView{level: favtui.ListLevel, category: favtui.CategoryArtists, filter: filter.State{Text: "foo"}},
+			1,
+		},
+		{
+			"list level artists with sort",
+			FavoritesView{level: favtui.ListLevel, category: favtui.CategoryArtists, sortState: SortState{Field: SortName}},
+			1,
+		},
+		{
+			"list level artists with filter and sort",
+			FavoritesView{level: favtui.ListLevel, category: favtui.CategoryArtists, filter: filter.State{Active: true}, sortState: SortState{Field: SortName}},
+			2,
+		},
+		{
+			"list level tracks no filter no sort",
+			FavoritesView{level: favtui.ListLevel, category: favtui.CategoryTracks},
+			1,
+		},
+		{
+			"list level tracks with filter",
+			FavoritesView{level: favtui.ListLevel, category: favtui.CategoryTracks, filter: filter.State{Active: true}},
+			2,
+		},
+		{
+			"list level tracks with sort",
+			FavoritesView{level: favtui.ListLevel, category: favtui.CategoryTracks, sortState: SortState{Field: SortTitle}},
+			2,
+		},
+		{
+			"track level no sort",
+			FavoritesView{level: favtui.TrackLevel},
+			3,
+		},
+		{
+			"track level with sort",
+			FavoritesView{level: favtui.TrackLevel, sortState: SortState{Field: SortTitle}},
+			4,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := favoritesVisibleReserve(tt.v)
+			if got != tt.want {
+				t.Errorf("favoritesVisibleReserve = %d, want %d", got, tt.want)
 			}
 		})
 	}

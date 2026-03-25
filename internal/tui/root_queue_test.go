@@ -1931,6 +1931,54 @@ func TestClearQueueForReplaceClearsFilter(t *testing.T) {
 	}
 }
 
+// TestHandleUndoResetsAllSorts verifies that handleUndo resets sort state
+// for all views, not just queue and playlists. Before the fix, favorites,
+// artists, and albums sorts were left stale after undo.
+func TestHandleUndoResetsAllSorts(t *testing.T) {
+	d := &stubQueueDequeuer{}
+	m := New(context.Background(), WithQueueDequeuer(d))
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Path: "/a.flac", Hash: "aaa", Display: "A"},
+	}
+
+	// Set up an undo slot (dequeue).
+	m.setUndoSlot(undoDequeueAction{
+		id:    99,
+		entry: QueueEntry{ID: 99, Path: "/b.flac", Hash: "bbb", Display: "B"},
+		idx:   0,
+	}, nil)
+
+	// Activate sort state on all views.
+	m.library.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.queue.sortState = SortState{Field: SortTitle, Dir: SortDesc}
+	m.playlists.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.artists.sortState = SortState{Field: SortName, Dir: SortDesc}
+	m.albums.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.favorites.sortState = SortState{Field: SortTitle, Dir: SortDesc}
+
+	nm := m.handleUndo()
+
+	// All sort states should be reset to default.
+	if nm.library.sortState.Field != SortDefault {
+		t.Errorf("library sort not reset: got field %d", nm.library.sortState.Field)
+	}
+	if nm.queue.sortState.Field != SortDefault {
+		t.Errorf("queue sort not reset: got field %d", nm.queue.sortState.Field)
+	}
+	if nm.playlists.sortState.Field != SortDefault {
+		t.Errorf("playlists sort not reset: got field %d", nm.playlists.sortState.Field)
+	}
+	if nm.artists.sortState.Field != SortDefault {
+		t.Errorf("artists sort not reset: got field %d", nm.artists.sortState.Field)
+	}
+	if nm.albums.sortState.Field != SortDefault {
+		t.Errorf("albums sort not reset: got field %d", nm.albums.sortState.Field)
+	}
+	if nm.favorites.sortState.Field != SortDefault {
+		t.Errorf("favorites sort not reset: got field %d", nm.favorites.sortState.Field)
+	}
+}
+
 // TestQueueRenderNarrowWidthUsesMax verifies that the queue render function
 // uses max(flex, 4) to prevent negative column widths when the terminal is
 // very narrow.

@@ -446,6 +446,8 @@ func (m Model) preserveAlbumsCursorOnDirChange(dir SortDir) Model {
 }
 
 // artistsVisibleReserve returns the line reserve for the artists view's visibleRows.
+// The reserve must match artists.View.visibleRows() so that adjustScroll and
+// the cursor-movement helpers agree on how many rows are visible.
 func artistsVisibleReserve(v ArtistsView) int {
 	var reserve int
 	switch v.level {
@@ -454,7 +456,7 @@ func artistsVisibleReserve(v ArtistsView) int {
 			reserve = 1
 		}
 	default:
-		reserve = 2
+		reserve = 3
 	}
 	if v.sortState.Field != SortDefault {
 		reserve++
@@ -463,6 +465,8 @@ func artistsVisibleReserve(v ArtistsView) int {
 }
 
 // albumsVisibleReserve returns the line reserve for the albums view's visibleRows.
+// The reserve must match albums.View.visibleRows() so that adjustScroll and
+// the cursor-movement helpers agree on how many rows are visible.
 func albumsVisibleReserve(v AlbumsView) int {
 	var reserve int
 	switch v.level {
@@ -471,7 +475,7 @@ func albumsVisibleReserve(v AlbumsView) int {
 			reserve = 1
 		}
 	default:
-		reserve = 2
+		reserve = 3
 	}
 	if v.sortState.Field != SortDefault {
 		reserve++
@@ -550,6 +554,8 @@ func (m Model) preserveFavoritesCursorOnDirChange(dir SortDir) Model {
 }
 
 // favoritesVisibleReserve returns the line reserve for the favorites view's visibleRows.
+// The reserve must match favorites.View.visibleRows() so that adjustScroll and
+// the cursor-movement helpers agree on how many rows are visible.
 func favoritesVisibleReserve(v FavoritesView) int {
 	var reserve int
 	switch v.level {
@@ -557,12 +563,13 @@ func favoritesVisibleReserve(v FavoritesView) int {
 		// no extra reserve
 	case favtui.ListLevel:
 		if v.category == favtui.CategoryTracks {
-			reserve = 2
-		} else if v.filter.Active || v.filter.Text != "" {
-			reserve = 1
+			reserve = 1 // column header row
+		}
+		if v.filter.Active || v.filter.Text != "" {
+			reserve++
 		}
 	case favtui.TrackLevel:
-		reserve = 2
+		reserve = 3 // heading + separator + column header row
 	}
 	if v.sortState.Field != SortDefault {
 		reserve++
