@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
 // sampleLibraryTracks returns a set of sorted tracks suitable for artists
@@ -898,6 +899,81 @@ func TestBulkActionArtistLevelUnknownArtistCollectsTracks(t *testing.T) {
 	}
 	if len(nm.overlay.destPickerTracks) != 2 {
 		t.Fatalf("expected 2 tracks for unknown artist, got %d", len(nm.overlay.destPickerTracks))
+	}
+}
+
+// TestArtistsSelectedHashesClearedOnDestPickerConfirm verifies that
+// artists.selectedHashes is cleared when the destination picker is confirmed
+// via DestinationPickedMsg, preventing stale selection markers.
+func TestArtistsSelectedHashesClearedOnDestPickerConfirm(t *testing.T) {
+	be := &stubBatchEnqueuer{}
+	m := New(context.Background(), WithBatchEnqueuer(be), WithLibraryTracks(sampleLibraryTracks()))
+	m = pressKey(m, "4") // switch to Artists
+
+	// Drill down: Alice -> Alpha -> tracks.
+	m = pressEnter(m) // albums
+	m = pressEnter(m) // tracks
+
+	// Select the first track.
+	m = pressKey(m, "x")
+	if len(m.artists.selectedHashes) == 0 {
+		t.Fatal("expected at least one selected hash after 'x'")
+	}
+
+	// Open destination picker.
+	m = pressKey(m, "a")
+	if m.overlay.destPicker == nil {
+		t.Fatal("expected destPicker to be open after 'a'")
+	}
+
+	// Simulate DestinationPickedMsg (queue).
+	m2, _ := m.Update(pltui.DestinationPickedMsg{IsQueue: true})
+	nm := m2.(Model)
+	if len(nm.artists.selectedHashes) != 0 {
+		t.Errorf("expected artists.selectedHashes cleared after DestinationPickedMsg, got %v", nm.artists.selectedHashes)
+	}
+}
+
+// TestArtistsSelectedHashesClearedOnDestPickerDismiss verifies that
+// artists.selectedHashes is cleared when the destination picker is dismissed.
+func TestArtistsSelectedHashesClearedOnDestPickerDismiss(t *testing.T) {
+	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
+	m = pressKey(m, "4")
+	m = pressEnter(m) // albums
+	m = pressEnter(m) // tracks
+	m = pressKey(m, "x")
+
+	m = pressKey(m, "a")
+	if m.overlay.destPicker == nil {
+		t.Fatal("expected destPicker to be open")
+	}
+
+	m2, _ := m.Update(pltui.DestinationPickerDismissedMsg{})
+	nm := m2.(Model)
+	if len(nm.artists.selectedHashes) != 0 {
+		t.Errorf("expected artists.selectedHashes cleared after dismiss, got %v", nm.artists.selectedHashes)
+	}
+}
+
+// TestArtistsSelectedHashesClearedOnDestPickerCreate verifies that
+// artists.selectedHashes is cleared when the destination picker "create"
+// option is chosen.
+func TestArtistsSelectedHashesClearedOnDestPickerCreate(t *testing.T) {
+	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
+	m = pressKey(m, "4")
+	m = pressEnter(m) // albums
+	m = pressEnter(m) // tracks
+	m = pressKey(m, "x")
+
+	m = pressKey(m, "a")
+	if m.overlay.destPicker == nil {
+		t.Fatal("expected destPicker to be open")
+	}
+
+	m2, _ := m.Update(pltui.DestinationPickerCreateMsg{})
+	nm := m2.(Model)
+	if len(nm.artists.selectedHashes) != 0 {
+		t.Errorf("expected artists.selectedHashes cleared after create, got %v", nm.artists.selectedHashes)
 	}
 }
 

@@ -465,6 +465,9 @@ func (m Model) handleDestPickerKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bo
 func (m Model) handleDestinationPickerDismissedMsg() Model {
 	m.overlay.destPicker = nil
 	m.overlay.destPickerTracks = nil
+	m.library = m.library.ClearSelection()
+	m.artists.selectedHashes = nil
+	m.albums.selectedHashes = nil
 	return m
 }
 
@@ -474,6 +477,8 @@ func (m Model) handleDestinationPickerDismissedMsg() Model {
 func (m Model) handleDestinationPickerCreateMsg() Model {
 	m.overlay.destPicker = nil
 	m.library = m.library.ClearSelection()
+	m.artists.selectedHashes = nil
+	m.albums.selectedHashes = nil
 	m.activeView = viewPlaylists
 	m.playlists = m.playlists.startCreate()
 	return m
@@ -486,6 +491,8 @@ func (m Model) handleDestinationPickedMsg(msg pltui.DestinationPickedMsg) (Model
 	m.overlay.destPicker = nil
 	m.overlay.destPickerTracks = nil
 	m.library = m.library.ClearSelection()
+	m.artists.selectedHashes = nil
+	m.albums.selectedHashes = nil
 	if msg.IsQueue {
 		// Append tracks to the play queue as a batch so only one sound plays.
 		if m.batchEnqueuer != nil {
