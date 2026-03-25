@@ -238,7 +238,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	}
 
 	// Update the status bar when the currently-playing track was edited.
-	m.syncStatusBarMetadata(hash, artist, title)
+	m = m.syncStatusBarMetadata(hash, artist, title)
 
 	// Set up undo slot so the user can revert the single-track edit.
 	m.setUndoSlot(undoBulkEditMetadataAction{
@@ -265,11 +265,12 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 // syncStatusBarMetadata updates the status bar artist and title when the
 // currently-playing track (identified by hash) has been edited. This ensures
 // the persistent left zone reflects renamed metadata immediately.
-func (m *Model) syncStatusBarMetadata(hash, artist, title string) {
+func (m Model) syncStatusBarMetadata(hash, artist, title string) Model {
 	if m.playback.currentHash != "" && m.playback.currentHash == hash {
 		m.statusBar.artist = artist
 		m.statusBar.title = title
 	}
+	return m
 }
 
 // refreshDerivedViews updates the artists and albums lists derived from the
@@ -360,7 +361,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		}
 
 		// Update status bar when the currently-playing track was edited.
-		m.syncStatusBarMetadata(h, newArtist, newTitle)
+		m = m.syncStatusBarMetadata(h, newArtist, newTitle)
 
 		updates = append(updates, update{h, newTitle, newArtist, newAlbum})
 	}
