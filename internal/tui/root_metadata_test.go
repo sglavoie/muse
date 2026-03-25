@@ -740,3 +740,136 @@ func TestBulkMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
 		}
 	}
 }
+
+// --- TestRefreshDerivedViewsUpdatesArtistsTrackLevel ---
+
+// TestRefreshDerivedViewsUpdatesArtistsTrackLevel verifies that
+// refreshDerivedViews rebuilds the track list when the artists view is at
+// TrackLevel. Before this fix, tracks were stale after a metadata edit.
+func TestRefreshDerivedViewsUpdatesArtistsTrackLevel(t *testing.T) {
+	m := newModelWithTracks()
+	m = pressKey(m, "4") // switch to Artists view
+
+	// Drill down: Alice → Alpha → tracks.
+	m = pressEnter(m) // ArtistLevel → AlbumLevel
+	m = pressEnter(m) // AlbumLevel → TrackLevel
+	if m.artists.level != arttui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.artists.level)
+	}
+	if len(m.artists.tracks) != 2 {
+		t.Fatalf("expected 2 tracks at TrackLevel, got %d", len(m.artists.tracks))
+	}
+
+	// Directly rename one of Alice/Alpha's tracks to a new title via the
+	// library index, simulating what handleMetadataSave does.
+	m.library.index.UpdateMetadata("h1", "Renamed Track", "Alice", "Alpha")
+
+	// Before the fix, refreshDerivedViews would NOT update artists.tracks.
+	m = m.refreshDerivedViews()
+
+	// The track list should now reflect the renamed title.
+	found := false
+	for _, tr := range m.artists.tracks {
+		if tr.Hash == "h1" {
+			if tr.Title != "Renamed Track" {
+				t.Errorf("expected Title=%q, got %q", "Renamed Track", tr.Title)
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Error("track h1 not found in refreshed artists.tracks")
+	}
+}
+
+// --- TestRefreshDerivedViewsUpdatesAlbumsTrackLevel ---
+
+// TestRefreshDerivedViewsUpdatesAlbumsTrackLevel verifies that
+// refreshDerivedViews rebuilds the track list when the albums view is at
+// TrackLevel.
+func TestRefreshDerivedViewsUpdatesAlbumsTrackLevel(t *testing.T) {
+	m := newModelWithTracks()
+	m = pressKey(m, "5") // switch to Albums view
+
+	// Drill down: Alpha → tracks.
+	m = pressEnter(m) // AlbumLevel → TrackLevel
+	if m.albums.level != albtui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.albums.level)
+	}
+	if len(m.albums.tracks) < 1 {
+		t.Fatalf("expected at least 1 track at TrackLevel, got %d", len(m.albums.tracks))
+	}
+
+	// Rename title via the library index.
+	m.library.index.UpdateMetadata("h1", "Renamed Album Track", "Alice", "Alpha")
+
+	m = m.refreshDerivedViews()
+
+	found := false
+	for _, tr := range m.albums.tracks {
+		if tr.Hash == "h1" {
+			if tr.Title != "Renamed Album Track" {
+				t.Errorf("expected Title=%q, got %q", "Renamed Album Track", tr.Title)
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Error("track h1 not found in refreshed albums.tracks")
+	}
+}
+
+// --- TestRefreshDerivedViewsRebuildsLibrarySortCache ---
+
+// TestRefreshDerivedViewsRebuildsLibrarySortCache verifies that
+// refreshDerivedViews recomputes the library sort cache when sorting is active,
+// so that edited metadata appears in the correct position.
+func TestRefreshDerivedViewsRebuildsLibrarySortCache(t *testing.T) {
+	m := newModelWithTracks()
+
+	// Activate a sort by title ascending on the library view.
+	m.library.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.library = m.library.recomputeSortedTracks()
+	if m.library.sortedTracks == nil {
+		t.Fatal("expected sortedTracks to be non-nil after recomputeSortedTracks")
+	}
+
+	// Rename "Track A1" → "ZZZ Last" so it should move to the end of the
+	// sorted list.
+	m.library.index.UpdateMetadata("h1", "ZZZ Last", "Alice", "Alpha")
+
+	m = m.refreshDerivedViews()
+
+	if m.library.sortedTracks == nil {
+		t.Fatal("expected sortedTracks to remain non-nil after refreshDerivedViews")
+	}
+	last := m.library.sortedTracks[len(m.library.sortedTracks)-1]
+	if last.Hash != "h1" || last.Title != "ZZZ Last" {
+		t.Errorf("expected renamed track at end of sorted list, got hash=%q title=%q", last.Hash, last.Title)
+	}
+}
+
+// --- TestRefreshDerivedViewsRebuildsLibraryFilterCache ---
+
+// TestRefreshDerivedViewsRebuildsLibraryFilterCache verifies that
+// refreshDerivedViews recomputes the library filter cache when a filter is
+// active, so that a renamed track becomes discoverable under its new name.
+func TestRefreshDerivedViewsRebuildsLibraryFilterCache(t *testing.T) {
+	m := newModelWithTracks()
+
+	// Set an active filter for "Unique" — no tracks match yet.
+	m.library.filter.Text = "Unique"
+	m.library = m.library.rebuildFilterCache()
+	if len(m.library.filteredMatches) != 0 {
+		t.Fatalf("expected 0 filter matches before rename, got %d", len(m.library.filteredMatches))
+	}
+
+	// Rename a track to include "Unique" in the title.
+	m.library.index.UpdateMetadata("h1", "Unique Title", "Alice", "Alpha")
+
+	m = m.refreshDerivedViews()
+
+	if len(m.library.filteredMatches) == 0 {
+		t.Error("expected filter matches after renaming track to 'Unique Title', got 0")
+	}
+}

@@ -247,20 +247,38 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 }
 
 // refreshDerivedViews updates the artists and albums lists derived from the
-// current library index. Call after any bulk metadata change that may have
-// renamed artists or albums.
+// current library index. Call after any metadata change that may have renamed
+// artists, albums, or titles. Also rebuilds the library sort/filter caches so
+// that active sort orders and filter matches reflect the updated metadata.
 func (m Model) refreshDerivedViews() Model {
 	tracks := m.library.index.Tracks()
-	if m.artists.level == arttui.ArtistLevel {
+
+	// Refresh the library view's sorted and filtered caches so that an
+	// active sort order or filter query reflects the updated metadata.
+	if m.library.sortState.Field != SortDefault {
+		m.library = m.library.recomputeSortedTracks()
+	}
+	if m.library.filter.Text != "" {
+		m.library = m.library.rebuildFilterCache()
+	}
+
+	switch m.artists.level {
+	case arttui.ArtistLevel:
 		m.artists.artists = arttui.DeriveArtists(tracks)
 		m.artists = m.artists.clampCursor()
-	}
-	if m.artists.level == arttui.AlbumLevel {
+	case arttui.AlbumLevel:
 		m.artists.albums = arttui.DeriveAlbums(tracks, m.artists.selectedArtist)
 		m.artists = m.artists.clampCursor()
+	case arttui.TrackLevel:
+		m.artists.tracks = arttui.DeriveTracks(tracks, m.artists.selectedArtist, m.artists.selectedAlbum)
+		m.artists = m.artists.clampCursor()
 	}
-	if m.albums.level == albtui.AlbumLevel {
+	switch m.albums.level {
+	case albtui.AlbumLevel:
 		m.albums.albums = albtui.DeriveAllAlbums(tracks)
+		m.albums = m.albums.clampCursor()
+	case albtui.TrackLevel:
+		m.albums.tracks = albtui.DeriveAlbumTracks(tracks, m.albums.selectedAlbum)
 		m.albums = m.albums.clampCursor()
 	}
 	return m
