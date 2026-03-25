@@ -184,7 +184,11 @@ func (v LibraryView) EnqueueSelected(qa libtui.QueueAppender, prevQueueLen int) 
 	}
 	var cmds []tea.Cmd
 	queueLen := prevQueueLen
-	for _, t := range v.index.Tracks() {
+	tracks := v.index.Tracks()
+	if v.sortedTracks != nil {
+		tracks = v.sortedTracks
+	}
+	for _, t := range tracks {
 		if _, ok := v.selectedHashes[t.Hash]; !ok {
 			continue
 		}

@@ -119,6 +119,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.favorites = m.favorites.recomputeFavoritesSort()
 		m.favorites.cursor = 0
 		m.favorites.scrollOffset = 0
+		m.favorites.selectedItems = nil
 		m.statusBar.notification = newNotification(sortNotification(m.favorites.sortState))
 		return m, nil, true
 
@@ -554,6 +555,7 @@ func (m Model) preserveFavoritesCursorOnDirChange(dir SortDir) Model {
 		}
 		m.favorites.cursor = findTrackHashPosition(tracks, focusedHash)
 	}
+	m.favorites.selectedItems = nil
 	reserve := favoritesVisibleReserve(m.favorites)
 	m.favorites.scrollOffset = adjustScroll(m.favorites.cursor, m.favorites.scrollOffset, layout.VisibleRows(m.favorites.height, reserve))
 	return m

@@ -894,6 +894,52 @@ func TestLibraryViewEnqueueSelectedEmpty(t *testing.T) {
 	}
 }
 
+// TestLibraryViewEnqueueSelectedRespectsSortOrder verifies that EnqueueSelected
+// enqueues tracks in the sorted order (not the raw index order) when a sort is active.
+func TestLibraryViewEnqueueSelectedRespectsSortOrder(t *testing.T) {
+	var idx library.LibraryIndex
+	// Insert in raw order: B then A
+	idx.Insert(library.Track{Artist: "B", Title: "Beta", Hash: "hb"})
+	idx.Insert(library.Track{Artist: "A", Title: "Alpha", Hash: "ha"})
+
+	// Sort by title ascending: Alpha (ha) should come before Beta (hb)
+	sorted := SortTracks(idx.Tracks(), SortTitle, SortAsc)
+
+	v := LibraryView{
+		index:          idx,
+		sortState:      SortState{Field: SortTitle, Dir: SortAsc},
+		sortedTracks:   sorted,
+		selectedHashes: map[string]struct{}{"ha": {}, "hb": {}},
+	}
+	qa := &fakeQueueAppender{}
+	_, cmd := v.EnqueueSelected(qa, 0)
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd")
+	}
+
+	// Execute the batched command — each sub-cmd appends to qa.tracks.
+	msg := cmd()
+	// tea.Batch returns a batchMsg; execute each sub-cmd.
+	if batchMsg, ok := msg.(tea.BatchMsg); ok {
+		for _, c := range batchMsg {
+			if c != nil {
+				c()
+			}
+		}
+	}
+
+	if len(qa.tracks) != 2 {
+		t.Fatalf("expected 2 enqueued tracks, got %d", len(qa.tracks))
+	}
+	// With sort by title ascending, Alpha (ha) should be enqueued before Beta (hb).
+	if qa.tracks[0].Hash != "ha" {
+		t.Errorf("first enqueued track: expected hash=ha (Alpha), got %s (%s)", qa.tracks[0].Hash, qa.tracks[0].Title)
+	}
+	if qa.tracks[1].Hash != "hb" {
+		t.Errorf("second enqueued track: expected hash=hb (Beta), got %s (%s)", qa.tracks[1].Hash, qa.tracks[1].Title)
+	}
+}
+
 // --- LibraryView BackspaceFilter ---
 
 func TestLibraryViewBackspaceFilter(t *testing.T) {

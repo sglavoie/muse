@@ -815,3 +815,59 @@ func TestFavoritesFilterBackspaceClearsSelection(t *testing.T) {
 		t.Fatal("selectedItems should be nil after filter backspace")
 	}
 }
+
+// TestFavoritesSortCycleClearsSelection verifies that cycling the sort field
+// in the Favorites view clears the selectedItems map so that stale display
+// indices cannot refer to wrong items after the list is re-sorted.
+func TestFavoritesSortCycleClearsSelection(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryArtists
+	m.favorites.artists = []string{"Charlie", "Alpha", "Bravo"}
+	m.favorites.height = 20
+	m.favorites.selectedItems = map[int]struct{}{0: {}, 2: {}}
+
+	result, _, handled := m.handleSortCycle()
+	if !handled {
+		t.Fatal("handleSortCycle should handle favorites view")
+	}
+	rm := result.(Model)
+	if rm.favorites.selectedItems != nil {
+		t.Fatal("selectedItems should be nil after sort cycle")
+	}
+}
+
+// TestFavoritesSortDirChangeClearsSelection verifies that changing the sort
+// direction (asc/desc) in the Favorites view clears the selectedItems map.
+func TestFavoritesSortDirChangeClearsSelection(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryAlbums
+	m.favorites.albums = []string{"Zulu", "Mike", "Alpha"}
+	m.favorites.height = 20
+	m.favorites.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.favorites.selectedItems = map[int]struct{}{1: {}}
+
+	// Test ascending direction change.
+	result, _, handled := m.handleSortAsc()
+	if !handled {
+		t.Fatal("handleSortAsc should handle favorites view with active sort")
+	}
+	rm := result.(Model)
+	if rm.favorites.selectedItems != nil {
+		t.Fatal("selectedItems should be nil after sort asc")
+	}
+
+	// Reset selections and test descending via handleSortDescOrPageDown.
+	rm.favorites.selectedItems = map[int]struct{}{0: {}}
+	result2, _, handled2 := rm.handleSortDescOrPageDown()
+	if !handled2 {
+		t.Fatal("handleSortDescOrPageDown should handle favorites view with active sort")
+	}
+	rm2 := result2.(Model)
+	if rm2.favorites.selectedItems != nil {
+		t.Fatal("selectedItems should be nil after sort desc")
+	}
+}
