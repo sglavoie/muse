@@ -740,3 +740,78 @@ func TestFavoritesGoToBottomWithSortAccountsForReserve(t *testing.T) {
 			scrollNoSort, v2.scrollOffset)
 	}
 }
+
+// TestFavoritesFilterChangeClearsSelection verifies that changing the filter
+// text in the Favorites view clears the selectedItems map so that stale
+// display indices cannot refer to wrong items after the filtered list changes.
+func TestFavoritesFilterChangeClearsSelection(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryArtists
+	m.favorites.artists = []string{"Alpha", "Beta", "Gamma"}
+	m.favorites.selectedItems = map[int]struct{}{0: {}, 2: {}}
+
+	// Activate the filter bar.
+	m = m.handleFilterBarMsg()
+	if !m.favorites.filter.Active {
+		t.Fatal("filter should be active")
+	}
+
+	// Type a character — this changes the filter text.
+	ops := m.activeFilterOps()
+	if ops == nil {
+		t.Fatal("expected active filter ops for favorites")
+	}
+	m = ops.appendChar('a')
+	if m.favorites.selectedItems != nil {
+		t.Fatal("selectedItems should be nil after filter text change")
+	}
+}
+
+// TestFavoritesFilterDeactivateClearsSelection verifies that deactivating the
+// filter (Esc) clears the selectedItems map.
+func TestFavoritesFilterDeactivateClearsSelection(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryTracks
+	m.favorites.tracks = []library.Track{
+		{Hash: "a", Title: "Alpha"},
+		{Hash: "b", Title: "Beta"},
+	}
+	m.favorites.filter.Active = true
+	m.favorites.filter.Text = "al"
+	m.favorites.selectedItems = map[int]struct{}{0: {}}
+
+	ops := m.activeFilterOps()
+	if ops == nil {
+		t.Fatal("expected active filter ops")
+	}
+	m = ops.deactivate()
+	if m.favorites.selectedItems != nil {
+		t.Fatal("selectedItems should be nil after filter deactivation")
+	}
+}
+
+// TestFavoritesFilterBackspaceClearsSelection verifies that pressing backspace
+// in the filter clears the selectedItems map when the text changes.
+func TestFavoritesFilterBackspaceClearsSelection(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryAlbums
+	m.favorites.albums = []string{"Foo", "Bar", "Baz"}
+	m.favorites.filter.Active = true
+	m.favorites.filter.Text = "ba"
+	m.favorites.selectedItems = map[int]struct{}{0: {}, 1: {}}
+
+	ops := m.activeFilterOps()
+	if ops == nil {
+		t.Fatal("expected active filter ops")
+	}
+	m = ops.backspace()
+	if m.favorites.selectedItems != nil {
+		t.Fatal("selectedItems should be nil after filter backspace")
+	}
+}

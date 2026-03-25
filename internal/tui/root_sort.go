@@ -277,9 +277,15 @@ func (m Model) handleSortDescOrPageDown() (tea.Model, tea.Cmd, bool) {
 }
 
 // resetLibrarySort clears the library sort state and cached sorted tracks.
+// When a filter is active, the cached fuzzy-match results are rebuilt against
+// the unsorted track list so that TrackIndex values remain valid.
 func (m Model) resetLibrarySort() Model {
+	hadSort := m.library.sortState.Field != SortDefault
 	m.library.sortState = SortState{}
 	m.library.sortedTracks = nil
+	if hadSort && m.library.filter.Text != "" {
+		m.library = m.library.rebuildFilterCache()
+	}
 	return m
 }
 
