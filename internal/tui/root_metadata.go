@@ -6,8 +6,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	musiclib "github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
 // metadataEditedMsg is sent after the async DB write completes.
@@ -308,6 +311,35 @@ func (m Model) refreshDerivedViews() Model {
 		m.albums.tracks = albtui.DeriveAlbumTracks(tracks, m.albums.selectedAlbum)
 		m.albums = m.albums.clampCursor()
 	}
+
+	// Refresh playlist track metadata so the playlists view reflects edits.
+	if m.playlists.level == pltui.TrackLevel {
+		for i := range m.playlists.tracks {
+			if t, ok := m.library.index.FindByHash(m.playlists.tracks[i].Hash); ok {
+				m.playlists.tracks[i].Title = t.Title
+				m.playlists.tracks[i].Artist = t.Artist
+				m.playlists.tracks[i].Album = t.Album
+			}
+		}
+	}
+
+	// Refresh favorites track metadata so the favorites view reflects edits.
+	refreshTrackMetadata := func(ts []musiclib.Track) {
+		for i := range ts {
+			if t, ok := m.library.index.FindByHash(ts[i].Hash); ok {
+				ts[i].Title = t.Title
+				ts[i].Artist = t.Artist
+				ts[i].Album = t.Album
+			}
+		}
+	}
+	if m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks {
+		refreshTrackMetadata(m.favorites.tracks)
+	}
+	if m.favorites.level == favtui.TrackLevel {
+		refreshTrackMetadata(m.favorites.drilldownTracks)
+	}
+
 	return m
 }
 

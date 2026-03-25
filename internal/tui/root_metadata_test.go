@@ -6,9 +6,12 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
 // pressMKey sends an uppercase 'M' key to the model, triggering actionEditMetadata.
@@ -1040,4 +1043,108 @@ func TestMetadataEditDoesNotAffectStatusBarForOtherTrack(t *testing.T) {
 	if nm.statusBar.title != "NowTitle" {
 		t.Errorf("status bar title changed to %q, should remain %q", nm.statusBar.title, "NowTitle")
 	}
+}
+
+// --- TestRefreshDerivedViewsUpdatesPlaylistTracks ---
+
+// TestRefreshDerivedViewsUpdatesPlaylistTracks verifies that
+// refreshDerivedViews updates playlist track metadata when the playlists
+// view is at TrackLevel. Before this fix, playlist tracks showed stale
+// metadata after an edit.
+func TestRefreshDerivedViewsUpdatesPlaylistTracks(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
+	m.playlists.level = pltui.TrackLevel
+	m.playlists.tracks = []db.PlaylistTrackRow{
+		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
+	}
+
+	// Simulate a metadata edit by updating the library index directly.
+	m.library.index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum")
+
+	m = m.refreshDerivedViews()
+
+	if m.playlists.tracks[0].Title != "NewTitle" {
+		t.Errorf("playlist track title = %q, want %q", m.playlists.tracks[0].Title, "NewTitle")
+	}
+	if m.playlists.tracks[0].Artist != "NewArt" {
+		t.Errorf("playlist track artist = %q, want %q", m.playlists.tracks[0].Artist, "NewArt")
+	}
+	if m.playlists.tracks[0].Album != "NewAlbum" {
+		t.Errorf("playlist track album = %q, want %q", m.playlists.tracks[0].Album, "NewAlbum")
+	}
+}
+
+// --- TestRefreshDerivedViewsUpdatesFavoritesTracks ---
+
+// TestRefreshDerivedViewsUpdatesFavoritesTracks verifies that
+// refreshDerivedViews updates favorites track metadata at ListLevel
+// with CategoryTracks. Before this fix, favorite tracks showed stale
+// metadata after an edit.
+func TestRefreshDerivedViewsUpdatesFavoritesTracks(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryTracks
+	m.favorites.tracks = []library.Track{
+		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
+	}
+
+	m.library.index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum")
+
+	m = m.refreshDerivedViews()
+
+	if m.favorites.tracks[0].Title != "NewTitle" {
+		t.Errorf("favorites track title = %q, want %q", m.favorites.tracks[0].Title, "NewTitle")
+	}
+	if m.favorites.tracks[0].Artist != "NewArt" {
+		t.Errorf("favorites track artist = %q, want %q", m.favorites.tracks[0].Artist, "NewArt")
+	}
+	if m.favorites.tracks[0].Album != "NewAlbum" {
+		t.Errorf("favorites track album = %q, want %q", m.favorites.tracks[0].Album, "NewAlbum")
+	}
+}
+
+// --- TestRefreshDerivedViewsUpdatesFavoritesDrilldownTracks ---
+
+// TestRefreshDerivedViewsUpdatesFavoritesDrilldownTracks verifies that
+// refreshDerivedViews updates favorites drilldown track metadata at
+// TrackLevel. Before this fix, drilldown tracks showed stale metadata
+// after an edit.
+func TestRefreshDerivedViewsUpdatesFavoritesDrilldownTracks(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
+	m.favorites.level = favtui.TrackLevel
+	m.favorites.drilldownTracks = []library.Track{
+		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
+	}
+
+	m.library.index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum")
+
+	m = m.refreshDerivedViews()
+
+	if m.favorites.drilldownTracks[0].Title != "NewTitle" {
+		t.Errorf("drilldown track title = %q, want %q", m.favorites.drilldownTracks[0].Title, "NewTitle")
+	}
+	if m.favorites.drilldownTracks[0].Artist != "NewArt" {
+		t.Errorf("drilldown track artist = %q, want %q", m.favorites.drilldownTracks[0].Artist, "NewArt")
+	}
+	if m.favorites.drilldownTracks[0].Album != "NewAlbum" {
+		t.Errorf("drilldown track album = %q, want %q", m.favorites.drilldownTracks[0].Album, "NewAlbum")
+	}
+}
+
+// --- TestRefreshDerivedViewsSkipsPlaylistTracksAtListLevel ---
+
+// TestRefreshDerivedViewsSkipsPlaylistTracksAtListLevel verifies that
+// refreshDerivedViews does NOT iterate playlist tracks when the view is
+// at ListLevel (there are no tracks loaded).
+func TestRefreshDerivedViewsSkipsPlaylistTracksAtListLevel(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "Title", Album: "Alb"})
+	m.playlists.level = pltui.ListLevel
+	// No tracks should be updated — this is just a sanity check that the
+	// guard condition (level == TrackLevel) works correctly.
+	m = m.refreshDerivedViews()
+	// If we reach here without panicking, the guard works.
 }

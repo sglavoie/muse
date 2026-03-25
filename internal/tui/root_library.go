@@ -11,6 +11,7 @@ import (
 	"github.com/sglavoie/muse/internal/player"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
@@ -118,6 +119,43 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 	// Keep the player's in-memory queue in sync when entries changed.
 	if queueDirty {
 		m.syncPlayerQueue()
+	}
+	// Refresh playlist track metadata so the playlists view reflects
+	// watcher-detected changes.
+	if m.playlists.level == pltui.TrackLevel {
+		for _, t := range msg.tracks {
+			for i := range m.playlists.tracks {
+				if m.playlists.tracks[i].Hash == t.Hash {
+					m.playlists.tracks[i].Title = t.Title
+					m.playlists.tracks[i].Artist = t.Artist
+					m.playlists.tracks[i].Album = t.Album
+				}
+			}
+		}
+	}
+	// Refresh favorites track metadata so the favorites view reflects
+	// watcher-detected changes.
+	if m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks {
+		for _, t := range msg.tracks {
+			for i := range m.favorites.tracks {
+				if m.favorites.tracks[i].Hash == t.Hash {
+					m.favorites.tracks[i].Title = t.Title
+					m.favorites.tracks[i].Artist = t.Artist
+					m.favorites.tracks[i].Album = t.Album
+				}
+			}
+		}
+	}
+	if m.favorites.level == favtui.TrackLevel {
+		for _, t := range msg.tracks {
+			for i := range m.favorites.drilldownTracks {
+				if m.favorites.drilldownTracks[i].Hash == t.Hash {
+					m.favorites.drilldownTracks[i].Title = t.Title
+					m.favorites.drilldownTracks[i].Artist = t.Artist
+					m.favorites.drilldownTracks[i].Album = t.Album
+				}
+			}
+		}
 	}
 	// Recompute sorted tracks if a sort is active so the cached copy
 	// reflects insertions and deletions from the watcher.
