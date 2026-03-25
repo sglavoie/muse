@@ -85,6 +85,10 @@ func (v FavoritesView) render(s styles.Styles, favHashes map[string]struct{}) st
 
 // HandleAction executes a pre-resolved favorites action dispatched by root.Update.
 func (v FavoritesView) HandleAction(a action) FavoritesView {
+	var sortInd string
+	if v.sortState.Field != SortDefault {
+		sortInd = "active" // non-empty triggers reserve in visibleRows
+	}
 	view := favtui.View{
 		Level:           v.level,
 		Cursor:          v.cursor,
@@ -96,6 +100,7 @@ func (v FavoritesView) HandleAction(a action) FavoritesView {
 		DrilldownTracks: v.drilldownTracks,
 		Height:          v.height,
 		FilterText:      v.filter.Text,
+		SortIndicator:   sortInd,
 	}
 	switch a {
 	case actionCursorUp:

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -694,5 +695,48 @@ func TestFavoritesLoadedMsg_SavesCategoryCursor_Tracks(t *testing.T) {
 	m.favorites = m.favorites.back()
 	if m.favorites.cursor != 2 {
 		t.Fatalf("expected cursor=2 after back(), got %d", m.favorites.cursor)
+	}
+}
+
+// TestFavoritesGoToBottomWithSortAccountsForReserve verifies that GoToBottom
+// calculates the correct scroll offset when a sort is active. The sort
+// indicator takes one extra row, so visibleRows is one fewer.
+func TestFavoritesGoToBottomWithSortAccountsForReserve(t *testing.T) {
+	artists := make([]string, 20)
+	for i := range artists {
+		artists[i] = fmt.Sprintf("Artist_%02d", i)
+	}
+
+	// Without sort: Height=12, ListLevel with CategoryArtists no filter/sort ->
+	// reserve=0, visible=12.
+	v := FavoritesView{
+		level:    favtui.ListLevel,
+		category: favtui.CategoryArtists,
+		cursor:   0,
+		artists:  artists,
+		height:   12,
+	}
+	v = v.HandleAction(actionGoToBottom)
+	if v.cursor != 19 {
+		t.Fatalf("GoToBottom without sort: expected cursor=19, got %d", v.cursor)
+	}
+	scrollNoSort := v.scrollOffset
+
+	// With sort: reserve=1 (sort indicator), visible=11.
+	v2 := FavoritesView{
+		level:     favtui.ListLevel,
+		category:  favtui.CategoryArtists,
+		cursor:    0,
+		artists:   artists,
+		height:    12,
+		sortState: SortState{Field: SortTitle, Dir: SortAsc},
+	}
+	v2 = v2.HandleAction(actionGoToBottom)
+	if v2.cursor != 19 {
+		t.Fatalf("GoToBottom with sort: expected cursor=19, got %d", v2.cursor)
+	}
+	if v2.scrollOffset <= scrollNoSort {
+		t.Errorf("GoToBottom with sort: expected scrollOffset > %d (no-sort), got %d",
+			scrollNoSort, v2.scrollOffset)
 	}
 }

@@ -87,6 +87,10 @@ func (v AlbumsView) render(s styles.Styles, favHashes map[string]struct{}) strin
 
 // HandleAction executes a pre-resolved albums action dispatched by root.Update.
 func (v AlbumsView) HandleAction(a action) AlbumsView {
+	var sortInd string
+	if v.sortState.Field != SortDefault {
+		sortInd = "active" // non-empty triggers reserve in visibleRows
+	}
 	view := albtui.View{
 		Level:             v.level,
 		Cursor:            v.cursor,
@@ -97,6 +101,7 @@ func (v AlbumsView) HandleAction(a action) AlbumsView {
 		AlbumScrollOffset: v.albumScrollOffset,
 		Height:            v.height,
 		FilterText:        v.filter.Text,
+		SortIndicator:     sortInd,
 	}
 	switch a {
 	case actionCursorUp:

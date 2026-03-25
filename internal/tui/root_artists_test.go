@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -897,5 +898,48 @@ func TestBulkActionArtistLevelUnknownArtistCollectsTracks(t *testing.T) {
 	}
 	if len(nm.overlay.destPickerTracks) != 2 {
 		t.Fatalf("expected 2 tracks for unknown artist, got %d", len(nm.overlay.destPickerTracks))
+	}
+}
+
+// TestArtistsGoToBottomWithSortAccountsForReserve verifies that GoToBottom
+// calculates the correct scroll offset when a sort is active. The sort
+// indicator line takes one extra row, so visibleRows should be one fewer.
+func TestArtistsGoToBottomWithSortAccountsForReserve(t *testing.T) {
+	// Build 20 artists so we need scrolling.
+	artists := make([]string, 20)
+	for i := range artists {
+		artists[i] = fmt.Sprintf("Artist_%02d", i)
+	}
+
+	// Without sort: Height=12, ArtistLevel no filter no sort -> reserve=0, visible=12.
+	v := ArtistsView{
+		level:   arttui.ArtistLevel,
+		cursor:  0,
+		artists: artists,
+		height:  12,
+	}
+	v = v.HandleAction(actionGoToBottom)
+	if v.cursor != 19 {
+		t.Fatalf("GoToBottom without sort: expected cursor=19, got %d", v.cursor)
+	}
+	scrollNoSort := v.scrollOffset
+
+	// With sort: reserve=1 (sort indicator), visible=11.
+	v2 := ArtistsView{
+		level:     arttui.ArtistLevel,
+		cursor:    0,
+		artists:   artists,
+		height:    12,
+		sortState: SortState{Field: SortTitle, Dir: SortAsc},
+	}
+	v2 = v2.HandleAction(actionGoToBottom)
+	if v2.cursor != 19 {
+		t.Fatalf("GoToBottom with sort: expected cursor=19, got %d", v2.cursor)
+	}
+	// With sort active, one fewer row is visible, so scrollOffset must be
+	// one greater to keep the cursor visible.
+	if v2.scrollOffset <= scrollNoSort {
+		t.Errorf("GoToBottom with sort: expected scrollOffset > %d (no-sort), got %d",
+			scrollNoSort, v2.scrollOffset)
 	}
 }
