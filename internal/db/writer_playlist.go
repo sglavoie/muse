@@ -145,7 +145,7 @@ func (w *Writer) ReorderPlaylistTrack(playlistID, trackID int64, direction int) 
 
 		var currPos int64
 		if err := tx.QueryRow(
-			`SELECT position FROM playlist_tracks WHERE id=? AND playlist_id=?`,
+			`SELECT position FROM playlist_tracks WHERE id=? AND playlist_id=? AND deleted_at IS NULL`,
 			trackID, playlistID,
 		).Scan(&currPos); err != nil {
 			return err

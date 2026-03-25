@@ -397,6 +397,82 @@ func TestUpdateMetadata_NotFound(t *testing.T) {
 	}
 }
 
+// --- Insert dedup ---
+
+func TestInsert_DuplicateHashReplacesExisting(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "h1", Artist: "A", Title: "OldTitle", Path: "/a.flac"})
+	idx.Insert(Track{Hash: "h2", Artist: "B", Title: "t2", Path: "/b.flac"})
+
+	if idx.Len() != 2 {
+		t.Fatalf("expected 2 tracks, got %d", idx.Len())
+	}
+
+	// Re-insert h1 with updated metadata — should replace, not duplicate.
+	idx.Insert(Track{Hash: "h1", Artist: "A", Title: "NewTitle", Path: "/a.flac"})
+
+	if idx.Len() != 2 {
+		t.Fatalf("after re-insert: expected 2 tracks, got %d", idx.Len())
+	}
+
+	found, ok := idx.FindByHash("h1")
+	if !ok {
+		t.Fatal("h1 not found after re-insert")
+	}
+	if found.Title != "NewTitle" {
+		t.Errorf("expected Title=NewTitle, got %q", found.Title)
+	}
+
+	// Verify both hashes are findable.
+	if _, ok := idx.FindByHash("h2"); !ok {
+		t.Error("h2 not found after re-insert of h1")
+	}
+}
+
+func TestInsert_EmptyHashDoesNotDedup(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Artist: "A", Title: "t1"})
+	idx.Insert(Track{Artist: "B", Title: "t2"})
+
+	if idx.Len() != 2 {
+		t.Errorf("expected 2 tracks with empty hash, got %d", idx.Len())
+	}
+}
+
+func TestInsert_DuplicateHashReordersCorrectly(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "h1", Artist: "Zappa", Title: "Bobby Brown"})
+	idx.Insert(Track{Hash: "h2", Artist: "Miles", Title: "So What"})
+
+	if idx.Len() != 2 {
+		t.Fatalf("expected 2 tracks, got %d", idx.Len())
+	}
+
+	// Re-insert h1 with a different artist that changes sort position.
+	idx.Insert(Track{Hash: "h1", Artist: "Alice", Title: "Song"})
+
+	if idx.Len() != 2 {
+		t.Fatalf("after re-insert with new sort key: expected 2, got %d", idx.Len())
+	}
+
+	got := idx.Tracks()
+	// Alice < Miles in sort order.
+	if got[0].Artist != "Alice" {
+		t.Errorf("position 0: expected Alice, got %q", got[0].Artist)
+	}
+	if got[1].Artist != "Miles" {
+		t.Errorf("position 1: expected Miles, got %q", got[1].Artist)
+	}
+
+	// Verify both hashes are findable at correct positions.
+	if _, ok := idx.FindByHash("h1"); !ok {
+		t.Error("h1 not findable after re-insert")
+	}
+	if _, ok := idx.FindByHash("h2"); !ok {
+		t.Error("h2 not findable after re-insert")
+	}
+}
+
 // --- Hash map consistency ---
 
 func TestHashMapConsistency(t *testing.T) {

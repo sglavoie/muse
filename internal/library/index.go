@@ -86,7 +86,17 @@ func (idx *LibraryIndex) adjustIndicesAfterRemove(pos int, hash string) {
 }
 
 // Insert adds t into the index in sorted order using binary search.
+// If a track with the same non-empty hash already exists it is replaced
+// (removed then re-inserted) to prevent orphaned duplicates and an inflated
+// Len(). Tracks with an empty hash are always inserted without dedup.
 func (idx *LibraryIndex) Insert(t Track) {
+	// Remove any existing entry with the same hash to avoid duplicates.
+	if t.Hash != "" {
+		if oldPos, ok := idx.byHash[t.Hash]; ok && oldPos < len(idx.tracks) {
+			idx.tracks = append(idx.tracks[:oldPos], idx.tracks[oldPos+1:]...)
+			idx.adjustIndicesAfterRemove(oldPos, t.Hash)
+		}
+	}
 	pos := sort.Search(len(idx.tracks), func(i int) bool {
 		return !less(idx.tracks[i], t)
 	})

@@ -329,7 +329,7 @@ func (w *Writer) ReorderQueueTrack(trackID int64, direction int) error {
 
 		var currPos int64
 		if err := tx.QueryRow(
-			`SELECT position FROM queue WHERE id=?`,
+			`SELECT position FROM queue WHERE id=? AND deleted_at IS NULL`,
 			trackID,
 		).Scan(&currPos); err != nil {
 			return err

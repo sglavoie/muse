@@ -1262,6 +1262,74 @@ func TestReorderPlaylistTrack_SkipsSoftDeleted(t *testing.T) {
 	}
 }
 
+// TestReorderPlaylistTrack_SoftDeletedEntryIsNoOp verifies that attempting to
+// reorder a soft-deleted playlist_tracks entry returns sql.ErrNoRows (no row
+// with that ID and deleted_at IS NULL).
+func TestReorderPlaylistTrack_SoftDeletedEntryIsNoOp(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "trsd1", "/sd1")
+	seedTrack(t, d, "trsd2", "/sd2")
+	plID := seedPlaylist(t, d, "Playlist SD")
+	id1 := seedPlaylistTrack(t, d, plID, "trsd1", 1000)
+	id2 := seedPlaylistTrack(t, d, plID, "trsd2", 2000)
+
+	// Soft-delete id1.
+	now := time.Now().Unix()
+	if _, err := d.Exec(`UPDATE playlist_tracks SET deleted_at=? WHERE id=?`, now, id1); err != nil {
+		t.Fatalf("soft-delete: %v", err)
+	}
+
+	// Try to reorder the soft-deleted entry — should fail with sql.ErrNoRows.
+	err := w.ReorderPlaylistTrack(plID, id1, +1)
+	if err == nil {
+		t.Fatal("expected error when reordering soft-deleted entry, got nil")
+	}
+
+	// Verify id2 position is unchanged.
+	var p2 int64
+	if err := d.QueryRow(`SELECT position FROM playlist_tracks WHERE id=?`, id2).Scan(&p2); err != nil {
+		t.Fatalf("query id2: %v", err)
+	}
+	if p2 != 2000 {
+		t.Errorf("id2.position=%d; want 2000 (should be unchanged)", p2)
+	}
+}
+
+// TestReorderQueueTrack_SoftDeletedEntryIsNoOp verifies that attempting to
+// reorder a soft-deleted queue entry returns an error.
+func TestReorderQueueTrack_SoftDeletedEntryIsNoOp(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "qrsd1", "/qsd1")
+	seedTrack(t, d, "qrsd2", "/qsd2")
+	id1 := seedQueueEntry(t, d, "qrsd1", 1000)
+	id2 := seedQueueEntry(t, d, "qrsd2", 2000)
+
+	// Soft-delete id1.
+	now := time.Now().Unix()
+	if _, err := d.Exec(`UPDATE queue SET deleted_at=? WHERE id=?`, now, id1); err != nil {
+		t.Fatalf("soft-delete: %v", err)
+	}
+
+	// Try to reorder the soft-deleted entry — should fail.
+	err := w.ReorderQueueTrack(id1, +1)
+	if err == nil {
+		t.Fatal("expected error when reordering soft-deleted queue entry, got nil")
+	}
+
+	// Verify id2 position is unchanged.
+	var p2 int64
+	if err := d.QueryRow(`SELECT position FROM queue WHERE id=?`, id2).Scan(&p2); err != nil {
+		t.Fatalf("query id2: %v", err)
+	}
+	if p2 != 2000 {
+		t.Errorf("id2.position=%d; want 2000 (should be unchanged)", p2)
+	}
+}
+
 // TestPurgeDeletedPlaylistTracks verifies that rows with deleted_at before the
 // cutoff are removed, while rows at/after the cutoff and active rows remain.
 func TestPurgeDeletedPlaylistTracks(t *testing.T) {
