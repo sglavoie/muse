@@ -92,6 +92,12 @@ func (s SahilmFuzzySearcher) searchFieldSpecific(fq FilterQuery, tracks []Track)
 			}
 		}
 
+		if ok && fq.Genre != "" {
+			if !strings.Contains(strings.ToLower(t.Genre), strings.ToLower(fq.Genre)) {
+				ok = false
+			}
+		}
+
 		if ok && fq.General != "" {
 			searchStr := t.Artist + " " + t.Title + " " + t.Album + " " + filepath.Base(t.Path)
 			if !strings.Contains(strings.ToLower(searchStr), strings.ToLower(fq.General)) {

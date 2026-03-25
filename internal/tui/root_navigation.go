@@ -5,6 +5,7 @@ import (
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	gentui "github.com/sglavoie/muse/internal/tui/genres"
 )
 
 // handleNavigationAction handles cursor movement, selection toggle,
@@ -27,6 +28,8 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 			m.albums = m.albums.HandleAction(action)
 		case viewFavorites:
 			m.favorites = m.favorites.HandleAction(action)
+		case viewGenres:
+			m.genres = m.genres.HandleAction(action)
 		default:
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)
@@ -69,6 +72,19 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 					}
 				}
 			}
+		case viewGenres:
+			if m.genres.level == gentui.TrackLevel {
+				if t, ok := m.genres.focusedTrack(); ok {
+					if m.genres.selectedHashes == nil {
+						m.genres.selectedHashes = make(map[string]struct{})
+					}
+					if _, sel := m.genres.selectedHashes[t.Hash]; sel {
+						delete(m.genres.selectedHashes, t.Hash)
+					} else {
+						m.genres.selectedHashes[t.Hash] = struct{}{}
+					}
+				}
+			}
 		default:
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)
@@ -91,6 +107,8 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 			m.artists.selectedHashes = nil
 		case viewAlbums:
 			m.albums.selectedHashes = nil
+		case viewGenres:
+			m.genres.selectedHashes = nil
 		}
 		return m, nil, true
 	default:

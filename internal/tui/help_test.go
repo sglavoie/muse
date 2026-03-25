@@ -36,12 +36,13 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 		contextPlaylists: "Playlists",
 		contextArtists:   "Artists",
 		contextAlbums:    "Albums",
+		contextGenres:    "Genres",
 	}
 
 	// The "Navigation" section covers keys shared across Library, Queue, and
 	// Playlists. Merge its keys into each of those sections for the check.
-	if navKeys, ok := sectionKeys["Navigation (Library / Queue / Playlists / Artists / Albums)"]; ok {
-		for _, sec := range []string{"Library", "Queue", "Playlists", "Artists", "Albums"} {
+	if navKeys, ok := sectionKeys["Navigation (Library / Queue / Playlists / Artists / Albums / Genres)"]; ok {
+		for _, sec := range []string{"Library", "Queue", "Playlists", "Artists", "Albums", "Genres"} {
 			if sectionKeys[sec] == nil {
 				sectionKeys[sec] = make(map[string]bool)
 			}
@@ -80,13 +81,14 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 		"Playlists": contextPlaylists,
 		"Artists":   contextArtists,
 		"Albums":    contextAlbums,
+		"Genres":    contextGenres,
 	}
 	// Navigation keys are shared; check that each appears in at least one
-	// of the three view contexts.
-	navContexts := []bindingContext{contextLibrary, contextQueue, contextPlaylists, contextArtists, contextAlbums}
+	// of the view contexts.
+	navContexts := []bindingContext{contextLibrary, contextQueue, contextPlaylists, contextArtists, contextAlbums, contextGenres}
 	for _, sec := range sections {
 		ctx, directMatch := reverseCtx[sec.title]
-		isNav := sec.title == "Navigation (Library / Queue / Playlists / Artists / Albums)"
+		isNav := sec.title == "Navigation (Library / Queue / Playlists / Artists / Albums / Genres)"
 		if !directMatch && !isNav {
 			continue
 		}
@@ -177,7 +179,7 @@ func TestFilteredHelpSections(t *testing.T) {
 	// Should contain Global, Navigation, and Library — but not Queue, Playlists, etc.
 	allowed := map[string]bool{
 		"Global": true,
-		"Navigation (Library / Queue / Playlists / Artists / Albums)": true,
+		"Navigation (Library / Queue / Playlists / Artists / Albums / Genres)": true,
 		"Library": true,
 	}
 	for _, sec := range sections {

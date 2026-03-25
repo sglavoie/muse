@@ -326,7 +326,7 @@ func TestSingleTrackMetadataSaveUpdatesQueueAlbum(t *testing.T) {
 	m.queue.cursor = 0
 
 	// Open single-track metadata editor for h1.
-	ed := NewMetadataEditor("h1", "Track A1", "Alice", "Alpha")
+	ed := NewMetadataEditor("h1", "Track A1", "Alice", "Alpha", "")
 	m.overlay.metadataEditor = &ed
 
 	// Clear the album field and type a new one.
@@ -651,7 +651,7 @@ func TestMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
 				{ID: 1, Hash: "h1", Path: "/a.flac", Display: "Old – Old", Artist: "Old", Title: "Old", Album: "Old"},
 			}
 			// Open the editor for the track.
-			ed := NewMetadataEditor("h1", tt.title, tt.artist, "Album")
+			ed := NewMetadataEditor("h1", tt.title, tt.artist, "Album", "")
 			m.overlay.metadataEditor = &ed
 			result, _ := m.handleMetadataSave()
 			nm := result.(Model)
@@ -676,7 +676,7 @@ func TestSingleTrackMetadataSaveRefreshesDerivedViews(t *testing.T) {
 	}
 
 	// Open single-track editor for h1 (Alice, Alpha, Track A1).
-	ed := NewMetadataEditor("h1", "Track A1", "Alice", "Alpha")
+	ed := NewMetadataEditor("h1", "Track A1", "Alice", "Alpha", "")
 	m.overlay.metadataEditor = &ed
 
 	// Change artist from "Alice" to "Zara" (new artist name).
@@ -726,7 +726,7 @@ func TestBulkMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
 	m.queue.entries[1].Selected = true
 
 	// Open a bulk editor that clears the artist field.
-	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "Old", "Old", "A")
+	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "Old", "Old", "A", "")
 	// Navigate to artist field, clear it.
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyTab})
 	for range 3 {
@@ -765,7 +765,7 @@ func TestRefreshDerivedViewsUpdatesArtistsTrackLevel(t *testing.T) {
 
 	// Directly rename one of Alice/Alpha's tracks to a new title via the
 	// library index, simulating what handleMetadataSave does.
-	m.library.index.UpdateMetadata("h1", "Renamed Track", "Alice", "Alpha")
+	m.library.index.UpdateMetadata("h1", "Renamed Track", "Alice", "Alpha", "")
 
 	// Before the fix, refreshDerivedViews would NOT update artists.tracks.
 	m = m.refreshDerivedViews()
@@ -804,7 +804,7 @@ func TestRefreshDerivedViewsUpdatesAlbumsTrackLevel(t *testing.T) {
 	}
 
 	// Rename title via the library index.
-	m.library.index.UpdateMetadata("h1", "Renamed Album Track", "Alice", "Alpha")
+	m.library.index.UpdateMetadata("h1", "Renamed Album Track", "Alice", "Alpha", "")
 
 	m = m.refreshDerivedViews()
 
@@ -839,7 +839,7 @@ func TestRefreshDerivedViewsRebuildsLibrarySortCache(t *testing.T) {
 
 	// Rename "Track A1" → "ZZZ Last" so it should move to the end of the
 	// sorted list.
-	m.library.index.UpdateMetadata("h1", "ZZZ Last", "Alice", "Alpha")
+	m.library.index.UpdateMetadata("h1", "ZZZ Last", "Alice", "Alpha", "")
 
 	m = m.refreshDerivedViews()
 
@@ -868,7 +868,7 @@ func TestRefreshDerivedViewsRebuildsLibraryFilterCache(t *testing.T) {
 	}
 
 	// Rename a track to include "Unique" in the title.
-	m.library.index.UpdateMetadata("h1", "Unique Title", "Alice", "Alpha")
+	m.library.index.UpdateMetadata("h1", "Unique Title", "Alice", "Alpha", "")
 
 	m = m.refreshDerivedViews()
 
@@ -889,7 +889,7 @@ func TestSingleTrackMetadataSaveCreatesUndoSlot(t *testing.T) {
 		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "Old Artist – Old Title", Artist: "Old Artist", Title: "Old Title", Album: "Old Album"},
 	}
 
-	ed := NewMetadataEditor("h1", "New Title", "New Artist", "New Album")
+	ed := NewMetadataEditor("h1", "New Title", "New Artist", "New Album", "")
 	m.overlay.metadataEditor = &ed
 
 	result, _ := m.handleMetadataSave()
@@ -936,7 +936,7 @@ func TestMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	m.statusBar.artist = "OldArt"
 	m.statusBar.title = "OldTitle"
 
-	ed := NewMetadataEditor("playing", "NewTitle", "NewArt", "A")
+	ed := NewMetadataEditor("playing", "NewTitle", "NewArt", "A", "")
 	m.overlay.metadataEditor = &ed
 
 	result, _ := m.handleMetadataSave()
@@ -969,7 +969,7 @@ func TestBulkMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	}
 	m.activeView = viewQueue
 
-	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "OldT", "OldA", "A")
+	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "OldT", "OldA", "A", "")
 	// Type "X" into title to make it dirty.
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: 'X', Text: "X"})
 	m.overlay.metadataEditor = &ed
@@ -998,7 +998,7 @@ func TestMetadataUndoUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	m.statusBar.artist = "OrigArt"
 	m.statusBar.title = "OrigTitle"
 
-	ed := NewMetadataEditor("playing", "EditedTitle", "EditedArt", "A")
+	ed := NewMetadataEditor("playing", "EditedTitle", "EditedArt", "A", "")
 	m.overlay.metadataEditor = &ed
 
 	result, _ := m.handleMetadataSave()
@@ -1031,7 +1031,7 @@ func TestMetadataEditDoesNotAffectStatusBarForOtherTrack(t *testing.T) {
 	m.statusBar.artist = "NowArt"
 	m.statusBar.title = "NowTitle"
 
-	ed := NewMetadataEditor("other", "NewY", "NewX", "A")
+	ed := NewMetadataEditor("other", "NewY", "NewX", "A", "")
 	m.overlay.metadataEditor = &ed
 
 	result, _ := m.handleMetadataSave()
@@ -1060,7 +1060,7 @@ func TestRefreshDerivedViewsUpdatesPlaylistTracks(t *testing.T) {
 	}
 
 	// Simulate a metadata edit by updating the library index directly.
-	m.library.index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum")
+	m.library.index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum", "")
 
 	m = m.refreshDerivedViews()
 
@@ -1090,7 +1090,7 @@ func TestRefreshDerivedViewsUpdatesFavoritesTracks(t *testing.T) {
 		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
 	}
 
-	m.library.index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum")
+	m.library.index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum", "")
 
 	m = m.refreshDerivedViews()
 
@@ -1119,7 +1119,7 @@ func TestRefreshDerivedViewsUpdatesFavoritesDrilldownTracks(t *testing.T) {
 		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
 	}
 
-	m.library.index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum")
+	m.library.index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum", "")
 
 	m = m.refreshDerivedViews()
 

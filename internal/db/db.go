@@ -17,6 +17,7 @@ type TrackRow struct {
 	Title      string
 	Artist     string
 	Album      string
+	Genre      string
 	DurationMs int64
 	SizeBytes  int64
 	ModTime    int64
@@ -26,7 +27,7 @@ type TrackRow struct {
 // empty slice (not an error) when the table is empty.
 func (d *DB) ReadTracks() ([]TrackRow, error) {
 	rows, err := d.Query(`
-		SELECT hash, path, title, artist, album, duration_ms, size_bytes, mod_time
+		SELECT hash, path, title, artist, album, genre, duration_ms, size_bytes, mod_time
 		FROM tracks WHERE missing = 0
 	`)
 	if err != nil {
@@ -37,7 +38,7 @@ func (d *DB) ReadTracks() ([]TrackRow, error) {
 	var result []TrackRow
 	for rows.Next() {
 		var r TrackRow
-		if err := rows.Scan(&r.Hash, &r.Path, &r.Title, &r.Artist, &r.Album, &r.DurationMs, &r.SizeBytes, &r.ModTime); err != nil {
+		if err := rows.Scan(&r.Hash, &r.Path, &r.Title, &r.Artist, &r.Album, &r.Genre, &r.DurationMs, &r.SizeBytes, &r.ModTime); err != nil {
 			return nil, fmt.Errorf("db: read track row: %w", err)
 		}
 		result = append(result, r)

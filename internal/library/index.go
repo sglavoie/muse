@@ -168,11 +168,11 @@ func (idx *LibraryIndex) FindByHash(hash string) (Track, bool) {
 	return Track{}, false
 }
 
-// UpdateMetadata finds the track by hash, updates its Title, Artist, and Album,
-// then re-inserts it to maintain sort order (since the sort key includes Artist
-// and Title, the position may change). Returns true if the track was found and
-// updated.
-func (idx *LibraryIndex) UpdateMetadata(hash, title, artist, album string) bool {
+// UpdateMetadata finds the track by hash, updates its Title, Artist, Album, and
+// Genre, then re-inserts it to maintain sort order (since the sort key includes
+// Artist and Title, the position may change). Returns true if the track was
+// found and updated.
+func (idx *LibraryIndex) UpdateMetadata(hash, title, artist, album, genre string) bool {
 	for i, t := range idx.tracks {
 		if t.Hash == hash {
 			// Remove from current position with one incremental adjust.
@@ -182,6 +182,7 @@ func (idx *LibraryIndex) UpdateMetadata(hash, title, artist, album string) bool 
 			t.Title = title
 			t.Artist = artist
 			t.Album = album
+			t.Genre = genre
 			pos := sort.Search(len(idx.tracks), func(j int) bool {
 				return !less(idx.tracks[j], t)
 			})

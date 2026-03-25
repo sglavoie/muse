@@ -2149,7 +2149,7 @@ func TestUpdateTrackMetadata(t *testing.T) {
 		t.Fatalf("UpsertBatch: %v", err)
 	}
 
-	if err := w.UpdateTrackMetadata("hash-meta", "New Title", "New Artist", "New Album"); err != nil {
+	if err := w.UpdateTrackMetadata("hash-meta", "New Title", "New Artist", "New Album", ""); err != nil {
 		t.Fatalf("UpdateTrackMetadata: %v", err)
 	}
 
@@ -2187,7 +2187,7 @@ func TestUpsertBatch_PreservesUserEdited(t *testing.T) {
 	}
 
 	// Manually edit metadata (sets user_edited=1).
-	if err := w.UpdateTrackMetadata("hash-ue", "Edited Title", "Edited Artist", "Edited Album"); err != nil {
+	if err := w.UpdateTrackMetadata("hash-ue", "Edited Title", "Edited Artist", "Edited Album", ""); err != nil {
 		t.Fatalf("UpdateTrackMetadata: %v", err)
 	}
 

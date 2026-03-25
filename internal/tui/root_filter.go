@@ -97,6 +97,8 @@ func (m Model) allFilterOps() *filterOps {
 	case viewFavorites:
 		return makeFilterOps(&m, &m.favorites.filter, &m.favorites.cursor, &m.favorites.scrollOffset,
 			func() { m.favorites.selectedItems = nil })
+	case viewGenres:
+		return makeFilterOps(&m, &m.genres.filter, &m.genres.cursor, &m.genres.scrollOffset, nil)
 	default:
 		return nil
 	}

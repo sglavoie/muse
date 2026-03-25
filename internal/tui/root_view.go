@@ -59,6 +59,8 @@ func (m Model) View() tea.View {
 			body = m.albums.render(*m.styles, m.favoriteHashes)
 		case viewFavorites:
 			body = m.favorites.render(*m.styles, m.favoriteHashes)
+		case viewGenres:
+			body = m.genres.render(*m.styles, m.favoriteHashes)
 		}
 	}
 

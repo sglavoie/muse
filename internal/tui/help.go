@@ -68,6 +68,7 @@ func helpSections() []helpSection {
 				{"4", "Switch to Artists"},
 				{"5", "Switch to Albums"},
 				{"6", "Switch to Favorites"},
+				{"7", "Switch to Genres"},
 				{"F", "Toggle favorite"},
 				{"A", "Jump to artist"},
 				{"B", "Jump to album"},
@@ -76,7 +77,7 @@ func helpSections() []helpSection {
 				{"r", "Cycle repeat mode"},
 				{"z", "Toggle shuffle"},
 				{"u", "Undo"},
-				{"/", "Filter (Library / Queue / Artists / Albums / Favorites)"},
+				{"/", "Filter (Library / Queue / Artists / Albums / Favorites / Genres)"},
 				{"P", "Preview focused track"},
 				{"I", "Show now-playing info"},
 				{"i", "Show track info (exiftool)"},
@@ -88,7 +89,7 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Navigation (Library / Queue / Playlists / Artists / Albums)",
+			title:   "Navigation (Library / Queue / Playlists / Artists / Albums / Genres)",
 			context: contextGlobal,
 			entries: []helpEntry{
 				{"j / k / down / up", "Move cursor down / up"},
@@ -101,7 +102,7 @@ func helpSections() []helpSection {
 			title:   "Library",
 			context: contextLibrary,
 			entries: []helpEntry{
-				{"/", "Filter tracks"},
+				{"/", "Filter tracks (prefixes: a: t: l: g:)"},
 				{"enter", "Enqueue track"},
 				{"shift+enter", "Replace queue with track"},
 				{"esc", "Clear committed filter"},
@@ -145,6 +146,19 @@ func helpSections() []helpSection {
 			entries: []helpEntry{
 				{"/", "Filter current list"},
 				{"enter", "Open tracks / enqueue track"},
+				{"shift+enter", "Replace queue with track"},
+				{"esc", "Back one level"},
+				{"x", "Toggle bulk-selection on focused track"},
+				{"X", "Clear all bulk-selected tracks"},
+				{"a", "Add focused / selected tracks to queue or playlist"},
+			},
+		},
+		{
+			title:   "Genres",
+			context: contextGenres,
+			entries: []helpEntry{
+				{"/", "Filter current list"},
+				{"enter", "Open artists / tracks / enqueue track"},
 				{"shift+enter", "Replace queue with track"},
 				{"esc", "Back one level"},
 				{"x", "Toggle bulk-selection on focused track"},

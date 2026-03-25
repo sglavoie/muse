@@ -85,7 +85,7 @@ func TestRenameEditorDirtyFields(t *testing.T) {
 	// Simulate typing a new character.
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: 'x', Text: "x"})
 
-	title, artist, album := ed.DirtyFields()
+	title, artist, album, _ := ed.DirtyFields()
 	if title != nil {
 		t.Errorf("expected title dirty=nil, got %q", *title)
 	}
@@ -107,7 +107,7 @@ func TestRenameEditorAlbumDirtyFields(t *testing.T) {
 
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: 'z', Text: "z"})
 
-	title, artist, album := ed.DirtyFields()
+	title, artist, album, _ := ed.DirtyFields()
 	if title != nil {
 		t.Errorf("expected title dirty=nil, got %q", *title)
 	}
@@ -150,7 +150,7 @@ func TestRenameEditorHandleKeyTabNoOp(t *testing.T) {
 // TestDefaultEditorHandleKeyTabCycles verifies that tab does cycle fields in
 // the default (non-rename) mode, to avoid regressions.
 func TestDefaultEditorHandleKeyTabCycles(t *testing.T) {
-	ed := NewMetadataEditor("h1", "Title", "Artist", "Album")
+	ed := NewMetadataEditor("h1", "Title", "Artist", "Album", "")
 	if ed.focused != fieldTitle {
 		t.Fatalf("expected initial focus=fieldTitle, got %v", ed.focused)
 	}
@@ -224,11 +224,11 @@ func TestRenameAlbumEditorRender(t *testing.T) {
 // TestDefaultEditorRenderShowsAllFields verifies that the default (full) editor
 // still shows all three fields (regression guard).
 func TestDefaultEditorRenderShowsAllFields(t *testing.T) {
-	ed := NewMetadataEditor("h1", "My Title", "My Artist", "My Album")
+	ed := NewMetadataEditor("h1", "My Title", "My Artist", "My Album", "")
 	s := newTestStyles()
 	out := ansi.Strip(ed.Render(80, 24, s))
 
-	for _, want := range []string{"Title:", "Artist:", "Album:", "tab/shift+tab", "Edit Metadata"} {
+	for _, want := range []string{"Title:", "Artist:", "Album:", "Genre:", "tab/shift+tab", "Edit Metadata"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("expected %q in default editor output; got:\n%s", want, out)
 		}
@@ -263,7 +263,7 @@ func TestMetadataEditorRenderNarrowTerminalNoPanic(t *testing.T) {
 	for i := range hashes {
 		hashes[i] = "hash"
 	}
-	ed := NewBulkMetadataEditor(hashes, "T", "A", "B")
+	ed := NewBulkMetadataEditor(hashes, "T", "A", "B", "")
 	s := newTestStyles()
 
 	// Render at 20 columns wide — the title is wider than this.
@@ -277,12 +277,12 @@ func TestMetadataEditorRenderNarrowTerminalNoPanic(t *testing.T) {
 // TestDirtyFieldsTrimsWhitespace verifies that DirtyFields trims leading and
 // trailing whitespace from modified field values.
 func TestDirtyFieldsTrimsWhitespace(t *testing.T) {
-	ed := NewMetadataEditor("h1", "Alice", "", "")
+	ed := NewMetadataEditor("h1", "Alice", "", "", "")
 
 	// Type a trailing space — cursor starts at end, so this appends a space.
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: ' ', Text: " "})
 
-	title, artist, album := ed.DirtyFields()
+	title, artist, album, _ := ed.DirtyFields()
 	if title == nil {
 		t.Fatal("expected title to be dirty after typing a space")
 	}

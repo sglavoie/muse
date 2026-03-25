@@ -14,6 +14,7 @@ import (
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
@@ -68,6 +69,7 @@ type Model struct {
 	artists   ArtistsView
 	albums    AlbumsView
 	favorites FavoritesView
+	genres    GenresView
 
 	// scanCh is the channel returned by library.Scan. It is nil when no scan
 	// is in progress or after the scan has completed.
@@ -455,7 +457,7 @@ type resizable interface {
 // height is reduced by 3 to leave room for the status bar and header rows.
 func (m *Model) setViewDimensions(width, height int) {
 	viewHeight := max(height-3, 0)
-	for _, v := range []resizable{&m.library, &m.playlists, &m.queue, &m.artists, &m.albums, &m.favorites} {
+	for _, v := range []resizable{&m.library, &m.playlists, &m.queue, &m.artists, &m.albums, &m.favorites, &m.genres} {
 		v.setSize(width, viewHeight)
 	}
 }
@@ -495,6 +497,11 @@ func (m *Model) clampAllScrollOffsets() {
 	favReserve := favoritesVisibleReserve(m.favorites)
 	favMaxRows := layout.VisibleRows(m.favorites.height, favReserve)
 	m.favorites.scrollOffset = adjustScroll(m.favorites.cursor, m.favorites.scrollOffset, favMaxRows)
+
+	// Genres: reserve depends on level and filter/sort state.
+	genReserve := genresVisibleReserve(m.genres)
+	genMaxRows := layout.VisibleRows(m.genres.height, genReserve)
+	m.genres.scrollOffset = adjustScroll(m.genres.cursor, m.genres.scrollOffset, genMaxRows)
 }
 
 // Update handles incoming messages. Number keys 1/2/3/4 switch the active view;
@@ -778,6 +785,9 @@ func (m Model) switchToView(id viewID) Model {
 	if id == viewAlbums && len(m.albums.albums) == 0 {
 		m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
 	}
+	if id == viewGenres && len(m.genres.genres) == 0 {
+		m.genres.genres = gentui.DeriveGenres(m.library.index.Tracks())
+	}
 	if id == viewFavorites && m.favoriteReader != nil {
 		a, al, t, err := m.favoriteReader.ReadFavoriteCounts()
 		if err == nil {
@@ -858,6 +868,8 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m = m.switchToView(viewAlbums)
 	case actionSwitchFavorites:
 		m = m.switchToView(viewFavorites)
+	case actionSwitchGenres:
+		m = m.switchToView(viewGenres)
 	case actionJumpToArtist:
 		artist, _, ok := m.focusedTrackMeta()
 		if ok {

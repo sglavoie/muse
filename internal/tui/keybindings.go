@@ -12,6 +12,7 @@ const (
 	contextArtists                         // applies only in the Artists view
 	contextAlbums                          // applies only in the Albums view
 	contextFavorites                       // applies only in the Favorites view
+	contextGenres                          // applies only in the Genres view
 	contextModals                          // applies only when a modal is active
 )
 
@@ -96,6 +97,11 @@ const (
 	actionAlbumOpen // enter: drill into tracks or enqueue
 	actionAlbumBack // esc: go back one level
 
+	// Genres-local actions.
+	actionSwitchGenres
+	actionGenreOpen // enter: drill into artists/tracks or enqueue
+	actionGenreBack // esc: go back one level
+
 	// Bulk-selection action — triggered by 'a' when tracks are selected.
 	// actionBulkAction applies in Library (append selected tracks to queue).
 	actionBulkAction // 'a': apply context-appropriate bulk action and clear selection
@@ -149,6 +155,7 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "4", actionSwitchArtists)
 	r.register(contextGlobal, "5", actionSwitchAlbums)
 	r.register(contextGlobal, "6", actionSwitchFavorites)
+	r.register(contextGlobal, "7", actionSwitchGenres)
 	r.register(contextGlobal, "F", actionToggleFavorite)
 	r.register(contextGlobal, "R", actionRescan)
 	r.register(contextGlobal, "r", actionRepeatCycle)
@@ -221,6 +228,15 @@ func newRegistry() Registry {
 	r.register(contextAlbums, "x", actionBulkSelectionToggle)
 	r.register(contextAlbums, "X", actionClearSelection)
 	r.register(contextAlbums, "a", actionBulkAction)
+
+	// Genres-local bindings.
+	r.registerNavigation(contextGenres)
+	r.register(contextGenres, "enter", actionGenreOpen)
+	r.register(contextGenres, "shift+enter", actionLibraryEnqueueReplace)
+	r.register(contextGenres, "esc", actionGenreBack)
+	r.register(contextGenres, "x", actionBulkSelectionToggle)
+	r.register(contextGenres, "X", actionClearSelection)
+	r.register(contextGenres, "a", actionBulkAction)
 
 	// Favorites-local bindings.
 	r.registerNavigation(contextFavorites)

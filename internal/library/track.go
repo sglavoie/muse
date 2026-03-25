@@ -7,6 +7,7 @@ type Track struct {
 	Artist    string
 	Title     string
 	Album     string
+	Genre     string
 	Duration  float64 // seconds
 	ModTime   int64   // Unix timestamp of last modification
 	SizeBytes int64   // file size in bytes

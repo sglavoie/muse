@@ -388,8 +388,8 @@ func TestQueueRenderNowPlayingFavoriteStyle(t *testing.T) {
 	// The line must NOT contain the NowPlaying green foreground sequence
 	// but MUST contain the NowPlayingFavorite amber foreground sequence.
 	// Extract the ANSI escape prefix (everything before "REF") from each reference.
-	npPrefix := npRef[:strings.Index(npRef, "REF")]
-	npfPrefix := npfRef[:strings.Index(npfRef, "REF")]
+	npPrefix, _, _ := strings.Cut(npRef, "REF")
+	npfPrefix, _, _ := strings.Cut(npfRef, "REF")
 
 	if strings.Contains(rawLine, npPrefix) && npPrefix != npfPrefix {
 		t.Errorf("now-playing+favorite entry must not use NowPlaying style; got: %q", rawLine)

@@ -8,6 +8,7 @@ import (
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
@@ -123,6 +124,19 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.statusBar.notification = newNotification(sortNotification(m.favorites.sortState))
 		return m, nil, true
 
+	case viewGenres:
+		fields := genresSortFieldsForLevel(m.genres.level)
+		next := CycleSortField(m.genres.sortState.Field, fields)
+		m.genres.sortState.Field = next
+		if next == SortDefault {
+			m.genres.sortState.Dir = SortAsc
+		}
+		m.genres = m.genres.recomputeGenresSort()
+		m.genres.cursor = 0
+		m.genres.scrollOffset = 0
+		m.statusBar.notification = newNotification(sortNotification(m.genres.sortState))
+		return m, nil, true
+
 	default:
 		return m, nil, false
 	}
@@ -192,6 +206,14 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 		}
 		m = m.preserveFavoritesCursorOnDirChange(SortAsc)
 		m.statusBar.notification = newNotification(sortNotification(m.favorites.sortState))
+		return m, nil, true
+
+	case viewGenres:
+		if m.genres.sortState.Field == SortDefault {
+			return m, nil, false
+		}
+		m = m.preserveGenresCursorOnDirChange(SortAsc)
+		m.statusBar.notification = newNotification(sortNotification(m.genres.sortState))
 		return m, nil, true
 
 	default:
@@ -272,6 +294,15 @@ func (m Model) handleSortDescOrPageDown() (tea.Model, tea.Cmd, bool) {
 		m.favorites = m.favorites.HandleAction(actionHalfPageDown)
 		return m, nil, true
 
+	case viewGenres:
+		if m.genres.sortState.Field != SortDefault {
+			m = m.preserveGenresCursorOnDirChange(SortDesc)
+			m.statusBar.notification = newNotification(sortNotification(m.genres.sortState))
+			return m, nil, true
+		}
+		m.genres = m.genres.HandleAction(actionHalfPageDown)
+		return m, nil, true
+
 	default:
 		return m, nil, false
 	}
@@ -323,6 +354,12 @@ func (m Model) resetFavoritesSort() Model {
 	return m
 }
 
+// resetGenresSort clears the genres sort state.
+func (m Model) resetGenresSort() Model {
+	m.genres.sortState = SortState{}
+	return m
+}
+
 // resetAllSorts clears sort state for all views.
 func (m Model) resetAllSorts() Model {
 	m = m.resetLibrarySort()
@@ -331,6 +368,7 @@ func (m Model) resetAllSorts() Model {
 	m = m.resetArtistsSort()
 	m = m.resetAlbumsSort()
 	m = m.resetFavoritesSort()
+	m = m.resetGenresSort()
 	return m
 }
 
@@ -578,6 +616,79 @@ func favoritesVisibleReserve(v FavoritesView) int {
 		}
 	case favtui.TrackLevel:
 		reserve = 3 // heading + separator + column header row
+	}
+	if v.sortState.Field != SortDefault {
+		reserve++
+	}
+	return reserve
+}
+
+// genresSortFieldsForLevel returns the sort field cycle for the given genres level.
+func genresSortFieldsForLevel(level gentui.Level) []SortField {
+	switch level {
+	case gentui.GenreLevel:
+		return genreGenreSortFields
+	case gentui.ArtistLevel:
+		return genreArtistSortFields
+	case gentui.TrackLevel:
+		return genreTrackSortFields
+	default:
+		return genreGenreSortFields
+	}
+}
+
+// preserveGenresCursorOnDirChange changes the genres sort direction while
+// keeping the focused item at its new position.
+func (m Model) preserveGenresCursorOnDirChange(dir SortDir) Model {
+	switch m.genres.level {
+	case gentui.GenreLevel:
+		var name string
+		items := arttui.FilterStrings(m.genres.genres, m.genres.filter.Text)
+		if m.genres.cursor >= 0 && m.genres.cursor < len(items) {
+			name = items[m.genres.cursor]
+		}
+		m.genres.sortState.Dir = dir
+		m.genres = m.genres.recomputeGenresSort()
+		items = arttui.FilterStrings(m.genres.genres, m.genres.filter.Text)
+		m.genres.cursor = findStringPosition(items, name)
+	case gentui.ArtistLevel:
+		var name string
+		items := arttui.FilterStrings(m.genres.artists, m.genres.filter.Text)
+		if m.genres.cursor >= 0 && m.genres.cursor < len(items) {
+			name = items[m.genres.cursor]
+		}
+		m.genres.sortState.Dir = dir
+		m.genres = m.genres.recomputeGenresSort()
+		items = arttui.FilterStrings(m.genres.artists, m.genres.filter.Text)
+		m.genres.cursor = findStringPosition(items, name)
+	case gentui.TrackLevel:
+		var focusedHash string
+		items := arttui.FilterTracks(m.genres.tracks, m.genres.filter.Text)
+		if m.genres.cursor >= 0 && m.genres.cursor < len(items) {
+			focusedHash = items[m.genres.cursor].Hash
+		}
+		m.genres.sortState.Dir = dir
+		m.genres = m.genres.recomputeGenresSort()
+		items = arttui.FilterTracks(m.genres.tracks, m.genres.filter.Text)
+		m.genres.cursor = findTrackHashPosition(items, focusedHash)
+	}
+	reserve := genresVisibleReserve(m.genres)
+	m.genres.scrollOffset = adjustScroll(m.genres.cursor, m.genres.scrollOffset, layout.VisibleRows(m.genres.height, reserve))
+	return m
+}
+
+// genresVisibleReserve returns the line reserve for the genres view's visibleRows.
+// The reserve must match genres.View.visibleRows() so that adjustScroll and
+// the cursor-movement helpers agree on how many rows are visible.
+func genresVisibleReserve(v GenresView) int {
+	var reserve int
+	switch v.level {
+	case gentui.GenreLevel:
+		if v.filter.Active || v.filter.Text != "" {
+			reserve = 1
+		}
+	default:
+		reserve = 3
 	}
 	if v.sortState.Field != SortDefault {
 		reserve++

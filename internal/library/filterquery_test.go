@@ -93,6 +93,21 @@ func TestParseFilterQuery(t *testing.T) {
 			input: "  a:  beatles  ",
 			want:  FilterQuery{Artist: "beatles"},
 		},
+		{
+			name:  "ShortGenrePrefix",
+			input: "g:rock",
+			want:  FilterQuery{Genre: "rock"},
+		},
+		{
+			name:  "LongGenrePrefix",
+			input: "genre:electronic",
+			want:  FilterQuery{Genre: "electronic"},
+		},
+		{
+			name:  "GeneralArtistAndGenrePrefix",
+			input: "rock a:beatles g:pop",
+			want:  FilterQuery{General: "rock", Artist: "beatles", Genre: "pop"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -115,6 +130,9 @@ func TestFilterQuery_IsEmpty(t *testing.T) {
 	if (FilterQuery{Artist: "x"}).IsEmpty() {
 		t.Error("FilterQuery with Artist should not be empty")
 	}
+	if (FilterQuery{Genre: "x"}).IsEmpty() {
+		t.Error("FilterQuery with Genre should not be empty")
+	}
 }
 
 func TestFilterQuery_IsFieldSpecific(t *testing.T) {
@@ -129,5 +147,8 @@ func TestFilterQuery_IsFieldSpecific(t *testing.T) {
 	}
 	if !(FilterQuery{Album: "x"}).IsFieldSpecific() {
 		t.Error("Album query should be field-specific")
+	}
+	if !(FilterQuery{Genre: "x"}).IsFieldSpecific() {
+		t.Error("Genre query should be field-specific")
 	}
 }

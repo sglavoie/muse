@@ -10,22 +10,23 @@ type FilterQuery struct {
 	Artist  string
 	Title   string
 	Album   string
+	Genre   string
 }
 
 // IsEmpty reports whether all filter fields are empty.
 func (fq FilterQuery) IsEmpty() bool {
-	return fq.General == "" && fq.Artist == "" && fq.Title == "" && fq.Album == ""
+	return fq.General == "" && fq.Artist == "" && fq.Title == "" && fq.Album == "" && fq.Genre == ""
 }
 
-// IsFieldSpecific reports whether at least one of Artist, Title, or Album is set.
+// IsFieldSpecific reports whether at least one of Artist, Title, Album, or Genre is set.
 func (fq FilterQuery) IsFieldSpecific() bool {
-	return fq.Artist != "" || fq.Title != "" || fq.Album != ""
+	return fq.Artist != "" || fq.Title != "" || fq.Album != "" || fq.Genre != ""
 }
 
 // prefixSpec maps a recognized prefix to the FilterQuery field it targets.
 type prefixSpec struct {
 	prefix string
-	field  int // 0=Artist, 1=Title, 2=Album
+	field  int // 0=Artist, 1=Title, 2=Album, 3=Genre
 }
 
 // recognizedPrefixes lists all accepted filter prefixes, longest first so that
@@ -34,20 +35,22 @@ var recognizedPrefixes = []prefixSpec{
 	{"artist:", 0},
 	{"title:", 1},
 	{"album:", 2},
+	{"genre:", 3},
 	{"a:", 0},
 	{"t:", 1},
 	{"l:", 2},
+	{"g:", 3},
 }
 
 // ParseFilterQuery parses a raw filter string into a FilterQuery.
 //
-// Recognized prefixes (a:/artist:, t:/title:, l:/album:) are detected only at
-// position 0 or immediately after a space. Each prefix captures all text until
-// the next recognized prefix or end of string. Text before the first prefix
-// goes into General. Duplicate prefixes: last one wins.
+// Recognized prefixes (a:/artist:, t:/title:, l:/album:, g:/genre:) are
+// detected only at position 0 or immediately after a space. Each prefix
+// captures all text until the next recognized prefix or end of string. Text
+// before the first prefix goes into General. Duplicate prefixes: last one wins.
 func ParseFilterQuery(raw string) FilterQuery {
 	type segment struct {
-		field int // -1 = General, 0=Artist, 1=Title, 2=Album
+		field int // -1 = General, 0=Artist, 1=Title, 2=Album, 3=Genre
 		start int
 	}
 
@@ -106,6 +109,8 @@ func ParseFilterQuery(raw string) FilterQuery {
 			fq.Title = value
 		case 2:
 			fq.Album = value
+		case 3:
+			fq.Genre = value
 		}
 	}
 

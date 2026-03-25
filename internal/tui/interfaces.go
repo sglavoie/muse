@@ -142,7 +142,7 @@ type sessionWriter = db.SessionWriter
 
 // metadataUpdater persists user-edited metadata to the database.
 type metadataUpdater interface {
-	UpdateTrackMetadata(hash, title, artist, album string) error
+	UpdateTrackMetadata(hash, title, artist, album, genre string) error
 }
 
 // favoriteReader loads favorites from the database.

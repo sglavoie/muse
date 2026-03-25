@@ -18,6 +18,7 @@ const (
 	fieldTitle metadataField = iota
 	fieldArtist
 	fieldAlbum
+	fieldGenre
 	metadataFieldCount
 )
 
@@ -67,28 +68,30 @@ func newField(value string, focused bool) textinput.Model {
 }
 
 // NewMetadataEditor returns a MetadataEditor pre-populated with the given values.
-func NewMetadataEditor(hash, title, artist, album string) MetadataEditor {
+func NewMetadataEditor(hash, title, artist, album, genre string) MetadataEditor {
 	return MetadataEditor{
 		hash:          hash,
-		initialValues: [metadataFieldCount]string{title, artist, album},
+		initialValues: [metadataFieldCount]string{title, artist, album, genre},
 		fields: [metadataFieldCount]textinput.Model{
 			newField(title, true),
 			newField(artist, false),
 			newField(album, false),
+			newField(genre, false),
 		},
 	}
 }
 
 // NewBulkMetadataEditor returns a MetadataEditor for editing multiple tracks.
 // Common values are pre-populated; differing fields are left empty.
-func NewBulkMetadataEditor(hashes []string, commonTitle, commonArtist, commonAlbum string) MetadataEditor {
+func NewBulkMetadataEditor(hashes []string, commonTitle, commonArtist, commonAlbum, commonGenre string) MetadataEditor {
 	return MetadataEditor{
 		hashes:        hashes,
-		initialValues: [metadataFieldCount]string{commonTitle, commonArtist, commonAlbum},
+		initialValues: [metadataFieldCount]string{commonTitle, commonArtist, commonAlbum, commonGenre},
 		fields: [metadataFieldCount]textinput.Model{
 			newField(commonTitle, true),
 			newField(commonArtist, false),
 			newField(commonAlbum, false),
+			newField(commonGenre, false),
 		},
 	}
 }
@@ -141,7 +144,7 @@ func (e MetadataEditor) Hashes() []string { return e.hashes }
 
 // DirtyFields returns pointers to the new values for fields that were modified.
 // Non-dirty fields return nil.
-func (e MetadataEditor) DirtyFields() (title, artist, album *string) {
+func (e MetadataEditor) DirtyFields() (title, artist, album, genre *string) {
 	if e.dirty[fieldTitle] {
 		v := strings.TrimSpace(e.fields[fieldTitle].Value())
 		title = &v
@@ -153,6 +156,10 @@ func (e MetadataEditor) DirtyFields() (title, artist, album *string) {
 	if e.dirty[fieldAlbum] {
 		v := strings.TrimSpace(e.fields[fieldAlbum].Value())
 		album = &v
+	}
+	if e.dirty[fieldGenre] {
+		v := strings.TrimSpace(e.fields[fieldGenre].Value())
+		genre = &v
 	}
 	return
 }
@@ -198,12 +205,15 @@ func (e MetadataEditor) Artist() string { return e.fields[fieldArtist].Value() }
 // Album returns the current album value.
 func (e MetadataEditor) Album() string { return e.fields[fieldAlbum].Value() }
 
+// Genre returns the current genre value.
+func (e MetadataEditor) Genre() string { return e.fields[fieldGenre].Value() }
+
 // Hash returns the track hash this editor was opened for.
 func (e MetadataEditor) Hash() string { return e.hash }
 
-// Render produces a centered box with three labelled, editable fields.
+// Render produces a centered box with four labelled, editable fields.
 func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) string {
-	labels := [metadataFieldCount]string{"Title:", "Artist:", "Album:"}
+	labels := [metadataFieldCount]string{"Title:", "Artist:", "Album:", "Genre:"}
 	if e.IsBulk() {
 		for i := range metadataFieldCount {
 			if e.dirty[i] {
@@ -227,7 +237,7 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	}
 
 	// Determine which field indices to render.
-	renderFields := []int{int(fieldTitle), int(fieldArtist), int(fieldAlbum)}
+	renderFields := []int{int(fieldTitle), int(fieldArtist), int(fieldAlbum), int(fieldGenre)}
 	switch e.mode {
 	case editorModeRenameArtist:
 		renderFields = []int{int(fieldArtist)}
@@ -285,7 +295,7 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	} else {
 		hint = "  tab/shift+tab fields · enter save · esc cancel"
 		if e.IsBulk() {
-			anyDirty := e.dirty[0] || e.dirty[1] || e.dirty[2]
+			anyDirty := e.dirty[0] || e.dirty[1] || e.dirty[2] || e.dirty[3]
 			if anyDirty {
 				hint += " · * = will be applied"
 			}

@@ -12,6 +12,7 @@ import (
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
@@ -75,6 +76,20 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 		m.albums.tracks = albtui.DeriveAlbumTracks(scanTracks, m.albums.selectedAlbum)
 		m.albums = m.albums.recomputeAlbumsSort()
 		m.albums = m.albums.clampCursor()
+	}
+	switch m.genres.level {
+	case gentui.GenreLevel:
+		m.genres.genres = gentui.DeriveGenres(scanTracks)
+		m.genres.sortState = SortState{}
+		m.genres = m.genres.clampCursor()
+	case gentui.ArtistLevel:
+		m.genres.artists = gentui.DeriveGenreArtists(scanTracks, m.genres.selectedGenre)
+		m.genres = m.genres.recomputeGenresSort()
+		m.genres = m.genres.clampCursor()
+	case gentui.TrackLevel:
+		m.genres.tracks = gentui.DeriveGenreArtistTracks(scanTracks, m.genres.selectedGenre, m.genres.selectedArtist)
+		m.genres = m.genres.recomputeGenresSort()
+		m.genres = m.genres.clampCursor()
 	}
 	if m.scanCh != nil {
 		return m, waitForNextBatch(m.scanCh)
@@ -155,6 +170,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 					m.favorites.tracks[i].Title = t.Title
 					m.favorites.tracks[i].Artist = t.Artist
 					m.favorites.tracks[i].Album = t.Album
+					m.favorites.tracks[i].Genre = t.Genre
 				}
 			}
 		}
@@ -166,6 +182,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 					m.favorites.drilldownTracks[i].Title = t.Title
 					m.favorites.drilldownTracks[i].Artist = t.Artist
 					m.favorites.drilldownTracks[i].Album = t.Album
+					m.favorites.drilldownTracks[i].Genre = t.Genre
 				}
 			}
 		}
@@ -233,6 +250,20 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 		m.albums.tracks = albtui.DeriveAlbumTracks(allTracks, m.albums.selectedAlbum)
 		m.albums = m.albums.recomputeAlbumsSort()
 		m.albums = m.albums.clampCursor()
+	}
+	switch m.genres.level {
+	case gentui.GenreLevel:
+		m.genres.genres = gentui.DeriveGenres(allTracks)
+		m.genres.sortState = SortState{}
+		m.genres = m.genres.clampCursor()
+	case gentui.ArtistLevel:
+		m.genres.artists = gentui.DeriveGenreArtists(allTracks, m.genres.selectedGenre)
+		m.genres = m.genres.recomputeGenresSort()
+		m.genres = m.genres.clampCursor()
+	case gentui.TrackLevel:
+		m.genres.tracks = gentui.DeriveGenreArtistTracks(allTracks, m.genres.selectedGenre, m.genres.selectedArtist)
+		m.genres = m.genres.recomputeGenresSort()
+		m.genres = m.genres.clampCursor()
 	}
 	if m.watchCh != nil {
 		return m, waitForWatchBatch(m.watchCh)
@@ -330,6 +361,11 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 				if _, ok := m.favorites.focusedTrack(); ok {
 					m = m.clearQueueForReplace()
 					cmd = m.favorites.enqueueFocusedTrack(m.queueWriter, 0)
+				}
+			case viewGenres:
+				if _, ok := m.genres.focusedTrack(); ok {
+					m = m.clearQueueForReplace()
+					cmd = m.genres.enqueueFocusedTrack(m.queueWriter, 0)
 				}
 			}
 			return m, cmd, true
@@ -456,6 +492,28 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 				confirmationWindow,
 			)
 			return m, nil, true
+		case viewGenres:
+			allTracks := m.library.index.Tracks()
+			switch m.genres.level {
+			case gentui.GenreLevel:
+				if genre, ok := m.genres.focusedGenre(); ok {
+					tracks = gentui.DeriveGenreTracks(allTracks, genre)
+				}
+			case gentui.ArtistLevel:
+				if artist, ok := m.genres.focusedArtist(); ok {
+					tracks = gentui.DeriveGenreArtistTracks(allTracks, m.genres.selectedGenre, artist)
+				}
+			case gentui.TrackLevel:
+				if len(m.genres.selectedHashes) > 0 {
+					for _, t := range m.genres.tracks {
+						if _, ok := m.genres.selectedHashes[t.Hash]; ok {
+							tracks = append(tracks, t)
+						}
+					}
+				} else if t, ok := m.genres.focusedTrack(); ok {
+					tracks = []library.Track{t}
+				}
+			}
 		}
 		if len(tracks) > 0 {
 			modal := pltui.NewDestinationPicker(m.playlists.playlists)
@@ -518,6 +576,40 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 		return m, nil, true
 	case actionAlbumBack:
 		m.albums = m.albums.back()
+		return m, nil, true
+	case actionGenreOpen:
+		allTracks := m.library.index.Tracks()
+		switch m.genres.level {
+		case gentui.GenreLevel:
+			genre, ok := m.genres.focusedGenre()
+			if ok {
+				artists := gentui.DeriveGenreArtists(allTracks, genre)
+				m.genres.selectedGenre = genre
+				if len(artists) == 0 {
+					tracks := gentui.DeriveGenreTracks(allTracks, genre)
+					m.genres = m.genres.openArtists(nil)
+					m.genres = m.genres.openTracks(tracks)
+				} else {
+					m.genres = m.genres.openArtists(artists)
+				}
+			}
+		case gentui.ArtistLevel:
+			artist, ok := m.genres.focusedArtist()
+			if ok {
+				tracks := gentui.DeriveGenreArtistTracks(allTracks, m.genres.selectedGenre, artist)
+				m.genres.selectedArtist = artist
+				m.genres = m.genres.openTracks(tracks)
+			}
+		case gentui.TrackLevel:
+			if m.queueWriter != nil {
+				if cmd := m.genres.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
+					return m, cmd, true
+				}
+			}
+		}
+		return m, nil, true
+	case actionGenreBack:
+		m.genres = m.genres.back()
 		return m, nil, true
 	}
 	return m, nil, false

@@ -363,7 +363,7 @@ func TestUpdateMetadata_UpdatesAndResorts(t *testing.T) {
 	idx.Insert(Track{Hash: "aaa", Artist: "Zappa", Title: "Bobby Brown"})
 	idx.Insert(Track{Hash: "bbb", Artist: "Miles", Title: "So What"})
 
-	ok := idx.UpdateMetadata("aaa", "Piel", "Arca", "Kick")
+	ok := idx.UpdateMetadata("aaa", "Piel", "Arca", "Kick", "")
 	if !ok {
 		t.Fatal("UpdateMetadata: expected true for existing hash")
 	}
@@ -388,7 +388,7 @@ func TestUpdateMetadata_NotFound(t *testing.T) {
 	var idx LibraryIndex
 	idx.Insert(Track{Hash: "aaa", Artist: "A", Title: "t1"})
 
-	ok := idx.UpdateMetadata("zzz", "X", "Y", "Z")
+	ok := idx.UpdateMetadata("zzz", "X", "Y", "Z", "")
 	if ok {
 		t.Error("UpdateMetadata: expected false for non-existing hash")
 	}
@@ -499,7 +499,7 @@ func TestHashMapConsistency(t *testing.T) {
 	}
 
 	// UpdateMetadata: updated hash still findable, fields updated.
-	idx.UpdateMetadata("h1", "NewTitle", "NewArtist", "NewAlbum")
+	idx.UpdateMetadata("h1", "NewTitle", "NewArtist", "NewAlbum", "")
 	got, ok := idx.FindByHash("h1")
 	if !ok {
 		t.Fatal("after UpdateMetadata: h1 not found")
@@ -579,7 +579,7 @@ func TestHashMapConsistencyAfterInterleavedOps(t *testing.T) {
 	idx.Insert(Track{Hash: "h4", Artist: "D", Title: "t4", Path: "/d.flac"})
 	assertConsistent(t, &idx)
 
-	idx.UpdateMetadata("h3", "t3-new", "AA", "AlbumX")
+	idx.UpdateMetadata("h3", "t3-new", "AA", "AlbumX", "")
 	assertConsistent(t, &idx)
 
 	idx.RemoveByPath("/d.flac")

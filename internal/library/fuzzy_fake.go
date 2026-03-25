@@ -67,6 +67,12 @@ func (f FakeFuzzySearcher) searchFieldSpecific(fq FilterQuery, tracks []Track) [
 			}
 		}
 
+		if ok && fq.Genre != "" {
+			if !strings.Contains(strings.ToLower(t.Genre), strings.ToLower(fq.Genre)) {
+				ok = false
+			}
+		}
+
 		if ok && fq.General != "" {
 			q := strings.ToLower(fq.General)
 			if !strings.Contains(strings.ToLower(t.Artist), q) &&

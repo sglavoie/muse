@@ -10,6 +10,7 @@ import (
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
@@ -63,6 +64,15 @@ func (m Model) bulkSelectedHashes() []string {
 			hashes = append(hashes, h)
 		}
 		return hashes
+	case viewGenres:
+		if len(m.genres.selectedHashes) == 0 {
+			return nil
+		}
+		hashes := make([]string, 0, len(m.genres.selectedHashes))
+		for h := range m.genres.selectedHashes {
+			hashes = append(hashes, h)
+		}
+		return hashes
 	default:
 		return nil
 	}
@@ -98,7 +108,7 @@ func (m Model) handleMetadataKeyAction(a action) (Model, tea.Cmd, bool) {
 
 	// Bulk path: if multiple tracks are selected, open bulk editor.
 	if hashes := m.bulkSelectedHashes(); len(hashes) >= 2 {
-		var titles, artists, albums []string
+		var titles, artists, albums, genres []string
 		for _, h := range hashes {
 			t, ok := m.library.index.FindByHash(h)
 			if !ok {
@@ -107,8 +117,9 @@ func (m Model) handleMetadataKeyAction(a action) (Model, tea.Cmd, bool) {
 			titles = append(titles, t.Title)
 			artists = append(artists, t.Artist)
 			albums = append(albums, t.Album)
+			genres = append(genres, t.Genre)
 		}
-		ed := NewBulkMetadataEditor(hashes, commonValue(titles), commonValue(artists), commonValue(albums))
+		ed := NewBulkMetadataEditor(hashes, commonValue(titles), commonValue(artists), commonValue(albums), commonValue(genres))
 		m.overlay.metadataEditor = &ed
 		return m, nil, true
 	}
@@ -125,13 +136,14 @@ func (m Model) handleMetadataKeyAction(a action) (Model, tea.Cmd, bool) {
 		m.statusBar.notification = newNotification("No track to edit")
 		return m, nil, true
 	}
-	// Enrich with album from index if missing (Queue/Playlists case).
-	if track.Album == "" {
-		if full, found := m.library.index.FindByHash(track.Hash); found {
+	// Enrich album and genre from index if missing (Queue/Playlists case).
+	if full, found := m.library.index.FindByHash(track.Hash); found {
+		if track.Album == "" {
 			track.Album = full.Album
 		}
+		track.Genre = full.Genre
 	}
-	ed := NewMetadataEditor(track.Hash, track.Title, track.Artist, track.Album)
+	ed := NewMetadataEditor(track.Hash, track.Title, track.Artist, track.Album, track.Genre)
 	m.overlay.metadataEditor = &ed
 	return m, nil, true
 }
@@ -215,19 +227,21 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	title := ed.Title()
 	artist := ed.Artist()
 	album := ed.Album()
+	genre := ed.Genre()
 
 	m.overlay.metadataEditor = nil
 
 	// Capture original values before mutation for undo support.
-	var origTitle, origArtist, origAlbum string
+	var origTitle, origArtist, origAlbum, origGenre string
 	if t, ok := m.library.index.FindByHash(hash); ok {
 		origTitle = t.Title
 		origArtist = t.Artist
 		origAlbum = t.Album
+		origGenre = t.Genre
 	}
 
 	// Update in-memory library index.
-	m.library.index.UpdateMetadata(hash, title, artist, album)
+	m.library.index.UpdateMetadata(hash, title, artist, album, genre)
 
 	// Update matching queue entries.
 	display := trackDisplay(artist, title, "")
@@ -245,7 +259,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 
 	// Set up undo slot so the user can revert the single-track edit.
 	m.setUndoSlot(undoBulkEditMetadataAction{
-		originals: map[string][3]string{hash: {origTitle, origArtist, origAlbum}},
+		originals: map[string][4]string{hash: {origTitle, origArtist, origAlbum, origGenre}},
 	}, nil)
 
 	// Refresh derived views (Artists, Albums) so they reflect the edit.
@@ -257,7 +271,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m, func() tea.Msg {
-		err := w.UpdateTrackMetadata(hash, title, artist, album)
+		err := w.UpdateTrackMetadata(hash, title, artist, album, genre)
 		if err != nil {
 			slog.Warn("metadata edit: DB write failed", "hash", hash, "err", err)
 		}
@@ -316,6 +330,20 @@ func (m Model) refreshDerivedViews() Model {
 		m.albums = m.albums.recomputeAlbumsSort()
 		m.albums = m.albums.clampCursor()
 	}
+	switch m.genres.level {
+	case gentui.GenreLevel:
+		m.genres.genres = gentui.DeriveGenres(tracks)
+		m.genres = m.genres.recomputeGenresSort()
+		m.genres = m.genres.clampCursor()
+	case gentui.ArtistLevel:
+		m.genres.artists = gentui.DeriveGenreArtists(tracks, m.genres.selectedGenre)
+		m.genres = m.genres.recomputeGenresSort()
+		m.genres = m.genres.clampCursor()
+	case gentui.TrackLevel:
+		m.genres.tracks = gentui.DeriveGenreArtistTracks(tracks, m.genres.selectedGenre, m.genres.selectedArtist)
+		m.genres = m.genres.recomputeGenresSort()
+		m.genres = m.genres.clampCursor()
+	}
 
 	// Refresh playlist track metadata so the playlists view reflects edits.
 	if m.playlists.level == pltui.TrackLevel {
@@ -336,6 +364,7 @@ func (m Model) refreshDerivedViews() Model {
 				ts[i].Title = t.Title
 				ts[i].Artist = t.Artist
 				ts[i].Album = t.Album
+				ts[i].Genre = t.Genre
 			}
 		}
 	}
@@ -355,18 +384,18 @@ func (m Model) refreshDerivedViews() Model {
 // all selected tracks, sets up an undo slot, and clears the selection.
 func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 	ed := m.overlay.metadataEditor
-	dirtyTitle, dirtyArtist, dirtyAlbum := ed.DirtyFields()
+	dirtyTitle, dirtyArtist, dirtyAlbum, dirtyGenre := ed.DirtyFields()
 	m.overlay.metadataEditor = nil
 
-	if dirtyTitle == nil && dirtyArtist == nil && dirtyAlbum == nil {
+	if dirtyTitle == nil && dirtyArtist == nil && dirtyAlbum == nil && dirtyGenre == nil {
 		m.statusBar.notification = newNotification("No changes")
 		return m, nil
 	}
 
-	originals := make(map[string][3]string, len(ed.Hashes()))
+	originals := make(map[string][4]string, len(ed.Hashes()))
 
 	type update struct {
-		hash, title, artist, album string
+		hash, title, artist, album, genre string
 	}
 	var updates []update
 
@@ -375,9 +404,9 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		if !ok {
 			continue
 		}
-		originals[h] = [3]string{t.Title, t.Artist, t.Album}
+		originals[h] = [4]string{t.Title, t.Artist, t.Album, t.Genre}
 
-		newTitle, newArtist, newAlbum := t.Title, t.Artist, t.Album
+		newTitle, newArtist, newAlbum, newGenre := t.Title, t.Artist, t.Album, t.Genre
 		if dirtyTitle != nil {
 			newTitle = *dirtyTitle
 		}
@@ -387,8 +416,11 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		if dirtyAlbum != nil {
 			newAlbum = *dirtyAlbum
 		}
+		if dirtyGenre != nil {
+			newGenre = *dirtyGenre
+		}
 
-		m.library.index.UpdateMetadata(h, newTitle, newArtist, newAlbum)
+		m.library.index.UpdateMetadata(h, newTitle, newArtist, newAlbum, newGenre)
 
 		display := trackDisplay(newArtist, newTitle, "")
 		for i := range m.queue.entries {
@@ -403,7 +435,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		// Update status bar when the currently-playing track was edited.
 		m = m.syncStatusBarMetadata(h, newArtist, newTitle)
 
-		updates = append(updates, update{h, newTitle, newArtist, newAlbum})
+		updates = append(updates, update{h, newTitle, newArtist, newAlbum, newGenre})
 	}
 
 	// Clear bulk selection on the active view.
@@ -483,7 +515,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 	return m, func() tea.Msg {
 		var firstErr error
 		for _, u := range updates {
-			if err := w.UpdateTrackMetadata(u.hash, u.title, u.artist, u.album); err != nil {
+			if err := w.UpdateTrackMetadata(u.hash, u.title, u.artist, u.album, u.genre); err != nil {
 				slog.Warn("bulk metadata edit: DB write failed", "hash", u.hash, "err", err)
 				if firstErr == nil {
 					firstErr = err

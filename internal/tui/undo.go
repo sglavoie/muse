@@ -363,9 +363,9 @@ func (a undoBulkRemovePlaylistTracksAction) perform(m Model) (Model, tea.Cmd) {
 // --- undoBulkEditMetadataAction ---
 
 // undoBulkEditMetadataAction reverts a bulk metadata edit (undoKindBulkEditMetadata).
-// originals maps track hash → {title, artist, album}.
+// originals maps track hash → {title, artist, album, genre}.
 type undoBulkEditMetadataAction struct {
-	originals map[string][3]string
+	originals map[string][4]string
 }
 
 func (a undoBulkEditMetadataAction) kind() undoKind { return undoKindBulkEditMetadata }
@@ -378,7 +378,7 @@ func (a undoBulkEditMetadataAction) description() string {
 func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 	w := m.metadataWriter
 	for hash, orig := range a.originals {
-		m.library.index.UpdateMetadata(hash, orig[0], orig[1], orig[2])
+		m.library.index.UpdateMetadata(hash, orig[0], orig[1], orig[2], orig[3])
 		display := trackDisplay(orig[1], orig[0], "")
 		for i := range m.queue.entries {
 			if m.queue.entries[i].Hash == hash {
@@ -396,7 +396,7 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 		originals := a.originals
 		go func() {
 			for h, orig := range originals {
-				if err := w.UpdateTrackMetadata(h, orig[0], orig[1], orig[2]); err != nil {
+				if err := w.UpdateTrackMetadata(h, orig[0], orig[1], orig[2], orig[3]); err != nil {
 					slog.Warn("undo bulk metadata edit: DB write failed", "hash", h, "err", err)
 				}
 			}

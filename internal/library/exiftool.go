@@ -32,6 +32,7 @@ type exifRecord struct {
 	Artist     string  `json:"Artist"`
 	Title      string  `json:"Title"`
 	Album      string  `json:"Album"`
+	Genre      string  `json:"Genre"`
 	Duration   float64 `json:"Duration"`
 }
 
@@ -54,7 +55,7 @@ func (e ExifToolExtractor) Extract(ctx context.Context, files []HashedFile) ([]T
 	}
 
 	args := make([]string, 0, 5+len(paths))
-	args = append(args, "-json", "-Artist", "-Title", "-Album", "-Duration#")
+	args = append(args, "-json", "-Artist", "-Title", "-Album", "-Genre", "-Duration#")
 	args = append(args, paths...)
 
 	ctx, cancel := context.WithTimeout(ctx, extractTimeout)
@@ -91,6 +92,7 @@ func (e ExifToolExtractor) Extract(ctx context.Context, files []HashedFile) ([]T
 			Artist:    r.Artist,
 			Title:     r.Title,
 			Album:     r.Album,
+			Genre:     r.Genre,
 			Duration:  r.Duration,
 			ModTime:   hf.ModTime,
 			SizeBytes: hf.SizeBytes,

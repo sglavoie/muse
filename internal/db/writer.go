@@ -168,14 +168,14 @@ func (w *Writer) ClearTrackMissing(hash string) error {
 	})
 }
 
-// UpdateTrackMetadata updates the title, artist, and album for the track
+// UpdateTrackMetadata updates the title, artist, album, and genre for the track
 // identified by hash and sets user_edited=1 so that future rescans preserve
 // the manually edited metadata.
-func (w *Writer) UpdateTrackMetadata(hash, title, artist, album string) error {
+func (w *Writer) UpdateTrackMetadata(hash, title, artist, album, genre string) error {
 	return w.Exec(func(db *sql.DB) error {
 		_, err := db.Exec(
-			`UPDATE tracks SET title=?, artist=?, album=?, user_edited=1, updated_at=? WHERE hash=?`,
-			title, artist, album, time.Now().Unix(), hash,
+			`UPDATE tracks SET title=?, artist=?, album=?, genre=?, user_edited=1, updated_at=? WHERE hash=?`,
+			title, artist, album, genre, time.Now().Unix(), hash,
 		)
 		return err
 	})
@@ -203,19 +203,20 @@ func (w *Writer) UpsertBatch(tracks []library.Track) error {
 		for _, t := range tracks {
 			durationMs := int64(t.Duration * 1000)
 			_, err := tx.Exec(`
-				INSERT INTO tracks (hash, path, title, artist, album, duration_ms, size_bytes, mod_time, created_at, updated_at)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				INSERT INTO tracks (hash, path, title, artist, album, genre, duration_ms, size_bytes, mod_time, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				ON CONFLICT(hash) DO UPDATE SET
 					path        = excluded.path,
 					title       = CASE WHEN tracks.user_edited = 0 THEN excluded.title ELSE tracks.title END,
 					artist      = CASE WHEN tracks.user_edited = 0 THEN excluded.artist ELSE tracks.artist END,
 					album       = CASE WHEN tracks.user_edited = 0 THEN excluded.album ELSE tracks.album END,
+					genre       = CASE WHEN tracks.user_edited = 0 THEN excluded.genre ELSE tracks.genre END,
 					duration_ms = excluded.duration_ms,
 					size_bytes  = excluded.size_bytes,
 					mod_time    = excluded.mod_time,
 					missing     = 0,
 					updated_at  = excluded.updated_at`,
-				t.Hash, t.Path, t.Title, t.Artist, t.Album, durationMs, t.SizeBytes, t.ModTime, now, now,
+				t.Hash, t.Path, t.Title, t.Artist, t.Album, t.Genre, durationMs, t.SizeBytes, t.ModTime, now, now,
 			)
 			if err != nil {
 				return err
