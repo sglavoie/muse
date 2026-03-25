@@ -57,6 +57,12 @@ func (a undoEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 		if qr, ok := m.player.(playerQueueRemover); ok {
 			_ = qr.RemoveFromQueue(realIdx) // player queue sync during undo, best-effort
 		}
+		// If the queue is now empty or the currently-playing track was the
+		// one removed, stop playback so the status bar doesn't show a stale
+		// track that is no longer in the queue.
+		if len(m.queue.entries) == 0 || (m.playback.currentHash != "" && !queueContainsHash(m.queue.entries, m.playback.currentHash)) {
+			m = m.resetPlaybackState()
+		}
 	}
 	m.statusBar.notification = newNotification("Undone: removed " + a.entry.Display)
 	return m, nil
@@ -232,6 +238,12 @@ func (a undoBatchEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 		for i := len(removedPlayerIndices) - 1; i >= 0; i-- {
 			_ = qr.RemoveFromQueue(removedPlayerIndices[i])
 		}
+	}
+	// If the queue is now empty or the currently-playing track was among
+	// the removed entries, stop playback so the status bar doesn't show a
+	// stale track that is no longer in the queue.
+	if len(m.queue.entries) == 0 || (m.playback.currentHash != "" && !queueContainsHash(m.queue.entries, m.playback.currentHash)) {
+		m = m.resetPlaybackState()
 	}
 	n := a.count
 	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: removed %d %s", n, pluralize(n, "track", "tracks")))

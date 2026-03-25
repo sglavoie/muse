@@ -2043,3 +2043,155 @@ func TestUndoDequeueClampsCursorWithActiveFilter(t *testing.T) {
 		t.Errorf("cursor %d out of bounds for filtered count %d", nm.queue.cursor, len(filteredAfter))
 	}
 }
+
+// TestUndoEnqueueResetsPlaybackWhenPlayingTrackRemoved verifies that undoing
+// an enqueue stops playback when the removed track was the currently-playing
+// track. Without this fix the status bar shows a stale artist/title for a
+// track that is no longer in the queue.
+func TestUndoEnqueueResetsPlaybackWhenPlayingTrackRemoved(t *testing.T) {
+	d := &stubQueueDequeuer{}
+	p := &stubPlayerQueueRemover{}
+	m := New(context.Background(), WithQueueDequeuer(d), WithPlayer(p))
+	m.queue.entries = []QueueEntry{
+		{ID: 42, Path: "/song.flac", Hash: "abc123", Display: "Artist – Song"},
+	}
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "abc123"
+	m.statusBar.artist = "Artist"
+	m.statusBar.title = "Song"
+
+	m.setUndoSlot(undoEnqueueAction{
+		id:    42,
+		entry: m.queue.entries[0],
+		idx:   0,
+	}, nil)
+
+	nm := m.handleUndo()
+
+	if len(nm.queue.entries) != 0 {
+		t.Fatalf("expected empty queue after undo enqueue, got %d entries", len(nm.queue.entries))
+	}
+	if nm.playback.state != PlaybackIdle {
+		t.Errorf("expected PlaybackIdle after undo enqueue removed playing track, got %v", nm.playback.state)
+	}
+	if nm.playback.currentHash != "" {
+		t.Errorf("expected empty currentHash after undo enqueue, got %q", nm.playback.currentHash)
+	}
+	if nm.statusBar.artist != "" {
+		t.Errorf("expected empty status bar artist after undo enqueue, got %q", nm.statusBar.artist)
+	}
+	if nm.statusBar.title != "" {
+		t.Errorf("expected empty status bar title after undo enqueue, got %q", nm.statusBar.title)
+	}
+}
+
+// TestUndoEnqueueKeepsPlaybackWhenOtherTrackPlaying verifies that undoing an
+// enqueue does NOT stop playback when a different track is currently playing.
+func TestUndoEnqueueKeepsPlaybackWhenOtherTrackPlaying(t *testing.T) {
+	d := &stubQueueDequeuer{}
+	p := &stubPlayerQueueRemover{}
+	m := New(context.Background(), WithQueueDequeuer(d), WithPlayer(p))
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Path: "/a.flac", Hash: "aaa", Display: "A"},
+		{ID: 2, Path: "/b.flac", Hash: "bbb", Display: "B"},
+	}
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "aaa" // playing track A
+	m.statusBar.artist = "A"
+	m.statusBar.title = "Track A"
+
+	// Undo enqueue of track B (not the currently-playing track).
+	m.setUndoSlot(undoEnqueueAction{
+		id:    2,
+		entry: m.queue.entries[1],
+		idx:   1,
+	}, nil)
+
+	nm := m.handleUndo()
+
+	if len(nm.queue.entries) != 1 {
+		t.Fatalf("expected 1 entry after undo enqueue, got %d", len(nm.queue.entries))
+	}
+	if nm.playback.state != PlaybackPlaying {
+		t.Errorf("playback should remain Playing when a non-playing track is removed, got %v", nm.playback.state)
+	}
+	if nm.statusBar.artist != "A" {
+		t.Errorf("status bar artist should be unchanged, got %q", nm.statusBar.artist)
+	}
+}
+
+// TestUndoBatchEnqueueResetsPlaybackWhenQueueEmptied verifies that undoing a
+// batch enqueue stops playback when the removal empties the queue entirely.
+func TestUndoBatchEnqueueResetsPlaybackWhenQueueEmptied(t *testing.T) {
+	be := &stubBatchEnqueuer{}
+	d := &stubQueueDequeuer{}
+	p := &stubPlayerQueueRemover{}
+	m := New(context.Background(), WithBatchEnqueuer(be), WithQueueDequeuer(d), WithPlayer(p))
+	m.queue.entries = []QueueEntry{
+		{ID: 100, Path: "/x.flac", Hash: "xxx", Display: "X"},
+		{ID: 101, Path: "/y.flac", Hash: "yyy", Display: "Y"},
+	}
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "xxx"
+	m.statusBar.artist = "X-Artist"
+	m.statusBar.title = "X-Title"
+
+	m.setUndoSlot(undoBatchEnqueueAction{
+		ids:          []int64{100, 101},
+		count:        2,
+		startIdx:     0,
+		playlistName: "TestPL",
+	}, nil)
+
+	nm := m.handleUndo()
+
+	if len(nm.queue.entries) != 0 {
+		t.Fatalf("expected empty queue after undo batch enqueue, got %d", len(nm.queue.entries))
+	}
+	if nm.playback.state != PlaybackIdle {
+		t.Errorf("expected PlaybackIdle after undo batch enqueue emptied queue, got %v", nm.playback.state)
+	}
+	if nm.playback.currentHash != "" {
+		t.Errorf("expected empty currentHash after undo batch enqueue, got %q", nm.playback.currentHash)
+	}
+	if nm.statusBar.artist != "" {
+		t.Errorf("expected empty status bar artist, got %q", nm.statusBar.artist)
+	}
+}
+
+// TestUndoBatchEnqueueKeepsPlaybackWhenPlayingTrackSurvives verifies that
+// undoing a batch enqueue does NOT stop playback when the currently-playing
+// track was not part of the batch and remains in the queue.
+func TestUndoBatchEnqueueKeepsPlaybackWhenPlayingTrackSurvives(t *testing.T) {
+	be := &stubBatchEnqueuer{}
+	d := &stubQueueDequeuer{}
+	m := New(context.Background(), WithBatchEnqueuer(be), WithQueueDequeuer(d))
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Path: "/keeper.flac", Hash: "keep", Display: "Keeper"},
+		{ID: 100, Path: "/x.flac", Hash: "xxx", Display: "X"},
+		{ID: 101, Path: "/y.flac", Hash: "yyy", Display: "Y"},
+	}
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "keep" // playing track not in batch
+	m.statusBar.artist = "Keeper-Artist"
+	m.statusBar.title = "Keeper-Title"
+
+	m.setUndoSlot(undoBatchEnqueueAction{
+		ids:          []int64{100, 101},
+		count:        2,
+		startIdx:     1,
+		playlistName: "TestPL",
+	}, nil)
+
+	nm := m.handleUndo()
+
+	if len(nm.queue.entries) != 1 {
+		t.Fatalf("expected 1 entry after undo, got %d", len(nm.queue.entries))
+	}
+	if nm.playback.state != PlaybackPlaying {
+		t.Errorf("playback should remain Playing when playing track survives, got %v", nm.playback.state)
+	}
+	if nm.statusBar.artist != "Keeper-Artist" {
+		t.Errorf("status bar artist should be unchanged, got %q", nm.statusBar.artist)
+	}
+}
