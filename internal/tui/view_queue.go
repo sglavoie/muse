@@ -430,7 +430,7 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes ma
 		case isNowPlaying && isFocused:
 			markerStr = "▶ "
 		case isNowPlaying:
-			markerStr = s.Success.Render("▶") + " "
+			markerStr = "▶ "
 		default:
 			markerStr = "  "
 		}
@@ -458,6 +458,8 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes ma
 			lines[i] = s.FavoriteAccent.Render(line)
 		case isFocused:
 			lines[i] = s.Accent.Render(line)
+		case isNowPlaying && isFav:
+			lines[i] = s.NowPlayingFavorite.Render(line)
 		case isNowPlaying:
 			lines[i] = s.NowPlaying.Render(line)
 		case isFav:

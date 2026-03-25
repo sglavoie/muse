@@ -356,6 +356,49 @@ func TestQueueRenderNonPlayingEntryHasNoPlayMarker(t *testing.T) {
 	t.Fatal("entry must appear in the output")
 }
 
+// TestQueueRenderNowPlayingFavoriteStyle verifies that a track which is both
+// currently playing and a favorite gets the NowPlayingFavorite style (bold
+// amber) instead of the plain NowPlaying style (bold green).
+func TestQueueRenderNowPlayingFavoriteStyle(t *testing.T) {
+	v := makeQueue(120, []QueueEntry{
+		{Title: "Normal", Artist: "A", Hash: "aaa", DurationMs: 60_000},
+		{Title: "FavPlaying", Artist: "B", Hash: "bbb", DurationMs: 120_000},
+	})
+	v.cursor = 0 // cursor on first entry, not the playing+fav one
+	favs := map[string]struct{}{"bbb": {}}
+	s := styles.NewStyles(true) // dark mode
+	out := v.render(s, "bbb", favs)
+
+	// Render reference strings with each style so we can compare ANSI sequences.
+	npRef := s.NowPlaying.Render("REF")
+	npfRef := s.NowPlayingFavorite.Render("REF")
+
+	// Find the raw (non-stripped) line containing "FavPlaying".
+	var rawLine string
+	for l := range strings.SplitSeq(out, "\n") {
+		if strings.Contains(l, "FavPlaying") {
+			rawLine = l
+			break
+		}
+	}
+	if rawLine == "" {
+		t.Fatal("FavPlaying entry must appear in the output")
+	}
+
+	// The line must NOT contain the NowPlaying green foreground sequence
+	// but MUST contain the NowPlayingFavorite amber foreground sequence.
+	// Extract the ANSI escape prefix (everything before "REF") from each reference.
+	npPrefix := npRef[:strings.Index(npRef, "REF")]
+	npfPrefix := npfRef[:strings.Index(npfRef, "REF")]
+
+	if strings.Contains(rawLine, npPrefix) && npPrefix != npfPrefix {
+		t.Errorf("now-playing+favorite entry must not use NowPlaying style; got: %q", rawLine)
+	}
+	if !strings.Contains(rawLine, npfPrefix) {
+		t.Errorf("now-playing+favorite entry must use NowPlayingFavorite style; got: %q", rawLine)
+	}
+}
+
 // TestPlaylistsViewEnsureCursorVisibleAdjustsScroll verifies that
 // ensureCursorVisible moves scrollOffset when the cursor is beyond the
 // visible window (both above and below).
