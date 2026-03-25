@@ -248,6 +248,38 @@ func TestWindowSizeMsgPropagatesWidthToChildViews(t *testing.T) {
 	}
 }
 
+// TestWindowSizeShrinkClampsCursorVisibility verifies that when the terminal
+// shrinks, the scroll offset is adjusted so the cursor row remains visible
+// in all views. Without clamping, the cursor could disappear below the
+// viewport until the user presses a cursor key.
+func TestWindowSizeShrinkClampsCursorVisibility(t *testing.T) {
+	m := New(context.Background())
+	// Start with a tall terminal so we can position cursors far down.
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 80})
+	m = next.(Model)
+
+	// Populate the queue with enough entries and position cursor far down.
+	entries := make([]QueueEntry, 100)
+	for i := range entries {
+		entries[i] = QueueEntry{Path: "/music/" + string(rune('a'+i%26)) + ".flac", Display: "Track " + string(rune('a'+i%26))}
+	}
+	m.queue.entries = entries
+	m.queue.cursor = 70
+	m.queue.scrollOffset = 60
+	m.activeView = viewQueue
+
+	// Shrink the terminal significantly.
+	next, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
+	nm := next.(Model)
+
+	// viewHeight = 12-3 = 9, visibleRows = 9-2 = 7.
+	maxRows := nm.queue.visibleRows()
+	if nm.queue.cursor < nm.queue.scrollOffset || nm.queue.cursor >= nm.queue.scrollOffset+maxRows {
+		t.Fatalf("after shrink: queue cursor %d not visible with scrollOffset=%d maxRows=%d",
+			nm.queue.cursor, nm.queue.scrollOffset, maxRows)
+	}
+}
+
 // TestCtrlCQuitsWhileFilterBarActive verifies that ctrl+c dispatches tea.Quit
 // even when the library filter bar is active and intercepting all keypresses.
 func TestCtrlCQuitsWhileFilterBarActive(t *testing.T) {

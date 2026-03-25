@@ -420,6 +420,7 @@ func (v PlaylistsView) backToList() PlaylistsView {
 	v.cursor = view.Cursor
 	v.tracks = view.Tracks
 	v.scrollOffset = v.listScrollOffset // restore list-level scroll position
+	v.selectedTrackIDs = nil            // clear stale track-level selections
 	v.sortState = SortState{}
 	v.sortedPlaylists = nil
 	v.sortedTrackOrder = nil

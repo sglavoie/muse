@@ -448,6 +448,32 @@ func TestPlaylistsViewOpenTracksClearsStaleSelection(t *testing.T) {
 	}
 }
 
+// TestPlaylistsViewBackToListClearsStaleSelection verifies that navigating
+// back to ListLevel clears track-level selections. Without this, stale IDs
+// from the previous playlist could suppress single-track operations (e.g.
+// delete) in a subsequently opened playlist because hasTrackSelection would
+// return true even though no visible track is selected.
+func TestPlaylistsViewBackToListClearsStaleSelection(t *testing.T) {
+	v := PlaylistsView{
+		level:     pltui.TrackLevel,
+		playlists: make([]db.PlaylistRow, 5),
+		tracks:    []db.PlaylistTrackRow{{ID: 42, Title: "T1"}},
+		selectedTrackIDs: map[int64]struct{}{
+			42: {},
+		},
+	}
+
+	if !v.hasTrackSelection() {
+		t.Fatal("expected hasTrackSelection() == true before backToList")
+	}
+
+	v = v.backToList()
+
+	if v.hasTrackSelection() {
+		t.Errorf("expected hasTrackSelection() == false after backToList, got true (selectedTrackIDs=%v)", v.selectedTrackIDs)
+	}
+}
+
 // TestQueueRenderSelectedAndFocusedMarker verifies that a selected+focused
 // entry uses a plain "●" glyph (without inner ANSI reset) so the outer
 // reverse-video highlight covers the full row uniformly.

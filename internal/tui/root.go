@@ -14,6 +14,7 @@ import (
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/layout"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -459,6 +460,43 @@ func (m *Model) setViewDimensions(width, height int) {
 	}
 }
 
+// clampAllScrollOffsets adjusts the scroll offset for every view so that the
+// cursor remains visible after a terminal resize. Without this, shrinking the
+// terminal can leave the cursor below the visible viewport until the user
+// presses a cursor key.
+func (m *Model) clampAllScrollOffsets() {
+	// Library: reserve 1 line for column header.
+	libMaxRows := layout.VisibleRows(m.library.height, 1)
+	m.library.scrollOffset = adjustScroll(m.library.cursor, m.library.scrollOffset, libMaxRows)
+
+	// Queue: reserve 2 lines for column header + bottom margin.
+	queueMaxRows := m.queue.visibleRows()
+	m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, queueMaxRows)
+
+	// Playlists: reserve depends on level.
+	plReserve := 1
+	if m.playlists.level == pltui.TrackLevel {
+		plReserve = 4
+	}
+	plMaxRows := layout.VisibleRows(m.playlists.height, plReserve)
+	m.playlists.scrollOffset = adjustScroll(m.playlists.cursor, m.playlists.scrollOffset, plMaxRows)
+
+	// Artists: reserve depends on level and filter/sort state.
+	artReserve := artistsVisibleReserve(m.artists)
+	artMaxRows := layout.VisibleRows(m.artists.height, artReserve)
+	m.artists.scrollOffset = adjustScroll(m.artists.cursor, m.artists.scrollOffset, artMaxRows)
+
+	// Albums: reserve depends on level and filter/sort state.
+	albReserve := albumsVisibleReserve(m.albums)
+	albMaxRows := layout.VisibleRows(m.albums.height, albReserve)
+	m.albums.scrollOffset = adjustScroll(m.albums.cursor, m.albums.scrollOffset, albMaxRows)
+
+	// Favorites: reserve depends on level, category, filter, and sort state.
+	favReserve := favoritesVisibleReserve(m.favorites)
+	favMaxRows := layout.VisibleRows(m.favorites.height, favReserve)
+	m.favorites.scrollOffset = adjustScroll(m.favorites.cursor, m.favorites.scrollOffset, favMaxRows)
+}
+
 // Update handles incoming messages. Number keys 1/2/3/4 switch the active view;
 // Ctrl+c quits. q and Esc are intentionally ignored here — they are reserved
 // for in-view navigation.
@@ -468,6 +506,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.termWidth = msg.Width
 		m.termHeight = msg.Height
 		m.setViewDimensions(msg.Width, msg.Height)
+		m.clampAllScrollOffsets()
 		if m.helpVisible {
 			m.helpViewport.SetWidth(msg.Width)
 			extraLines := 0
