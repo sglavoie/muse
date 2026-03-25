@@ -873,3 +873,171 @@ func TestRefreshDerivedViewsRebuildsLibraryFilterCache(t *testing.T) {
 		t.Error("expected filter matches after renaming track to 'Unique Title', got 0")
 	}
 }
+
+// --- TestSingleTrackMetadataSaveCreatesUndoSlot ---
+
+// TestSingleTrackMetadataSaveCreatesUndoSlot verifies that saving a
+// single-track metadata edit populates the undo slot so the user can
+// revert the change with 'u'.
+func TestSingleTrackMetadataSaveCreatesUndoSlot(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Old Artist", Title: "Old Title", Album: "Old Album"})
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "Old Artist – Old Title", Artist: "Old Artist", Title: "Old Title", Album: "Old Album"},
+	}
+
+	ed := NewMetadataEditor("h1", "New Title", "New Artist", "New Album")
+	m.overlay.metadataEditor = &ed
+
+	result, _ := m.handleMetadataSave()
+	nm := result.(Model)
+
+	if nm.undo.slot.action == nil {
+		t.Fatal("expected undo slot to be populated after single-track metadata save")
+	}
+	if nm.undo.slot.action.kind() != undoKindBulkEditMetadata {
+		t.Errorf("expected undo kind %d, got %d", undoKindBulkEditMetadata, nm.undo.slot.action.kind())
+	}
+
+	// Verify the undo actually restores original values.
+	nm = nm.handleUndo()
+
+	tr, ok := nm.library.index.FindByHash("h1")
+	if !ok {
+		t.Fatal("track h1 not found after undo")
+	}
+	if tr.Title != "Old Title" {
+		t.Errorf("after undo: expected title=%q, got %q", "Old Title", tr.Title)
+	}
+	if tr.Artist != "Old Artist" {
+		t.Errorf("after undo: expected artist=%q, got %q", "Old Artist", tr.Artist)
+	}
+	if tr.Album != "Old Album" {
+		t.Errorf("after undo: expected album=%q, got %q", "Old Album", tr.Album)
+	}
+	// Queue entry should also be restored.
+	if nm.queue.entries[0].Title != "Old Title" {
+		t.Errorf("after undo: queue title=%q, want %q", nm.queue.entries[0].Title, "Old Title")
+	}
+}
+
+// --- TestMetadataEditUpdatesStatusBarForCurrentTrack ---
+
+// TestMetadataEditUpdatesStatusBarForCurrentTrack verifies that editing
+// the metadata of the currently-playing track immediately updates the
+// status bar artist and title.
+func TestMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "playing", Path: "/p.flac", Artist: "OldArt", Title: "OldTitle", Album: "A"})
+	m.playback.currentHash = "playing"
+	m.statusBar.artist = "OldArt"
+	m.statusBar.title = "OldTitle"
+
+	ed := NewMetadataEditor("playing", "NewTitle", "NewArt", "A")
+	m.overlay.metadataEditor = &ed
+
+	result, _ := m.handleMetadataSave()
+	nm := result.(Model)
+
+	if nm.statusBar.artist != "NewArt" {
+		t.Errorf("status bar artist = %q, want %q", nm.statusBar.artist, "NewArt")
+	}
+	if nm.statusBar.title != "NewTitle" {
+		t.Errorf("status bar title = %q, want %q", nm.statusBar.title, "NewTitle")
+	}
+}
+
+// --- TestBulkMetadataEditUpdatesStatusBarForCurrentTrack ---
+
+// TestBulkMetadataEditUpdatesStatusBarForCurrentTrack verifies that a
+// bulk metadata edit also updates the status bar when one of the edited
+// tracks is the currently-playing track.
+func TestBulkMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldA", Title: "OldT", Album: "A"})
+	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "OldA", Title: "OldT", Album: "A"})
+	m.playback.currentHash = "h2"
+	m.statusBar.artist = "OldA"
+	m.statusBar.title = "OldT"
+
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Artist: "OldA", Title: "OldT", Selected: true},
+		{ID: 2, Hash: "h2", Artist: "OldA", Title: "OldT", Selected: true},
+	}
+	m.activeView = viewQueue
+
+	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "OldT", "OldA", "A")
+	// Type "X" into title to make it dirty.
+	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: 'X', Text: "X"})
+	m.overlay.metadataEditor = &ed
+
+	result, _ := m.handleMetadataSave()
+	nm := result.(Model)
+
+	if nm.statusBar.artist != "OldA" {
+		t.Errorf("status bar artist = %q, want %q (unchanged)", nm.statusBar.artist, "OldA")
+	}
+	// Title should be updated to "OldTX" (appended X).
+	if nm.statusBar.title != "OldTX" {
+		t.Errorf("status bar title = %q, want %q", nm.statusBar.title, "OldTX")
+	}
+}
+
+// --- TestMetadataUndoUpdatesStatusBarForCurrentTrack ---
+
+// TestMetadataUndoUpdatesStatusBarForCurrentTrack verifies that undoing
+// a metadata edit restores the status bar to the original values when
+// the currently-playing track was part of the edit.
+func TestMetadataUndoUpdatesStatusBarForCurrentTrack(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "playing", Path: "/p.flac", Artist: "OrigArt", Title: "OrigTitle", Album: "A"})
+	m.playback.currentHash = "playing"
+	m.statusBar.artist = "OrigArt"
+	m.statusBar.title = "OrigTitle"
+
+	ed := NewMetadataEditor("playing", "EditedTitle", "EditedArt", "A")
+	m.overlay.metadataEditor = &ed
+
+	result, _ := m.handleMetadataSave()
+	nm := result.(Model)
+
+	// After save: status bar should show edited values.
+	if nm.statusBar.artist != "EditedArt" {
+		t.Fatalf("after save: status bar artist = %q, want %q", nm.statusBar.artist, "EditedArt")
+	}
+
+	// Undo should restore original status bar values.
+	nm = nm.handleUndo()
+
+	if nm.statusBar.artist != "OrigArt" {
+		t.Errorf("after undo: status bar artist = %q, want %q", nm.statusBar.artist, "OrigArt")
+	}
+	if nm.statusBar.title != "OrigTitle" {
+		t.Errorf("after undo: status bar title = %q, want %q", nm.statusBar.title, "OrigTitle")
+	}
+}
+
+// --- TestMetadataEditDoesNotAffectStatusBarForOtherTrack ---
+
+// TestMetadataEditDoesNotAffectStatusBarForOtherTrack verifies that editing
+// a track that is NOT the currently-playing one does not change the status bar.
+func TestMetadataEditDoesNotAffectStatusBarForOtherTrack(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "other", Path: "/o.flac", Artist: "X", Title: "Y", Album: "A"})
+	m.playback.currentHash = "playing"
+	m.statusBar.artist = "NowArt"
+	m.statusBar.title = "NowTitle"
+
+	ed := NewMetadataEditor("other", "NewY", "NewX", "A")
+	m.overlay.metadataEditor = &ed
+
+	result, _ := m.handleMetadataSave()
+	nm := result.(Model)
+
+	if nm.statusBar.artist != "NowArt" {
+		t.Errorf("status bar artist changed to %q, should remain %q", nm.statusBar.artist, "NowArt")
+	}
+	if nm.statusBar.title != "NowTitle" {
+		t.Errorf("status bar title changed to %q, should remain %q", nm.statusBar.title, "NowTitle")
+	}
+}

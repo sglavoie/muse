@@ -215,6 +215,14 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 
 	m.overlay.metadataEditor = nil
 
+	// Capture original values before mutation for undo support.
+	var origTitle, origArtist, origAlbum string
+	if t, ok := m.library.index.FindByHash(hash); ok {
+		origTitle = t.Title
+		origArtist = t.Artist
+		origAlbum = t.Album
+	}
+
 	// Update in-memory library index.
 	m.library.index.UpdateMetadata(hash, title, artist, album)
 
@@ -228,6 +236,14 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 			m.queue.entries[i].Display = display
 		}
 	}
+
+	// Update the status bar when the currently-playing track was edited.
+	m.syncStatusBarMetadata(hash, artist, title)
+
+	// Set up undo slot so the user can revert the single-track edit.
+	m.setUndoSlot(undoBulkEditMetadataAction{
+		originals: map[string][3]string{hash: {origTitle, origArtist, origAlbum}},
+	}, nil)
 
 	// Refresh derived views (Artists, Albums) so they reflect the edit.
 	m = m.refreshDerivedViews()
@@ -243,6 +259,16 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 			slog.Warn("metadata edit: DB write failed", "hash", hash, "err", err)
 		}
 		return metadataEditedMsg{err: err}
+	}
+}
+
+// syncStatusBarMetadata updates the status bar artist and title when the
+// currently-playing track (identified by hash) has been edited. This ensures
+// the persistent left zone reflects renamed metadata immediately.
+func (m *Model) syncStatusBarMetadata(hash, artist, title string) {
+	if m.playback.currentHash != "" && m.playback.currentHash == hash {
+		m.statusBar.artist = artist
+		m.statusBar.title = title
 	}
 }
 
@@ -332,6 +358,9 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 				m.queue.entries[i].Display = display
 			}
 		}
+
+		// Update status bar when the currently-playing track was edited.
+		m.syncStatusBarMetadata(h, newArtist, newTitle)
 
 		updates = append(updates, update{h, newTitle, newArtist, newAlbum})
 	}
