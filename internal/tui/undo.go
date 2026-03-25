@@ -90,6 +90,16 @@ func (a undoDequeueAction) perform(m Model) (Model, tea.Cmd) {
 	copy(entries[idx+1:], m.queue.entries[idx:])
 	m.queue.entries = entries
 	m.queue.cursor = idx
+	// When a filter is active the cursor must index into the filtered
+	// results, not the underlying entries slice. Clamp it so it stays
+	// valid even when the restored entry does not match the filter text.
+	n := len(m.queue.filteredEntries())
+	if n == 0 {
+		m.queue.cursor = 0
+		m.queue.scrollOffset = 0
+	} else if m.queue.cursor >= n {
+		m.queue.cursor = n - 1
+	}
 	if m.queue.cursor < m.queue.scrollOffset {
 		m.queue.scrollOffset = m.queue.cursor
 	} else {
@@ -255,9 +265,7 @@ func (a undoDeletePlaylistAction) perform(m Model) (Model, tea.Cmd) {
 	copy(playlists[idx+1:], m.playlists.playlists[idx:])
 	m.playlists.playlists = playlists
 	m.playlists.cursor = idx
-	if m.playlists.cursor < m.playlists.scrollOffset {
-		m.playlists.scrollOffset = m.playlists.cursor
-	}
+	m.playlists = m.playlists.ensureCursorVisible()
 	m.statusBar.notification = newNotification("Undone: restored playlist")
 	return m, nil
 }
@@ -290,9 +298,7 @@ func (a undoRemovePlaylistTrackAction) perform(m Model) (Model, tea.Cmd) {
 	copy(tracks[idx+1:], m.playlists.tracks[idx:])
 	m.playlists.tracks = tracks
 	m.playlists.cursor = idx
-	if m.playlists.cursor < m.playlists.scrollOffset {
-		m.playlists.scrollOffset = m.playlists.cursor
-	}
+	m.playlists = m.playlists.ensureCursorVisible()
 	m.statusBar.notification = newNotification("Undone: restored playlist track")
 	return m, nil
 }
@@ -336,9 +342,7 @@ func (a undoBulkRemovePlaylistTracksAction) perform(m Model) (Model, tea.Cmd) {
 	} else if m.playlists.cursor >= len(m.playlists.tracks) {
 		m.playlists.cursor = len(m.playlists.tracks) - 1
 	}
-	if m.playlists.cursor < m.playlists.scrollOffset {
-		m.playlists.scrollOffset = m.playlists.cursor
-	}
+	m.playlists = m.playlists.ensureCursorVisible()
 	n := len(a.entries)
 	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: restored %d playlist %s", n, pluralize(n, "track", "tracks")))
 	return m, nil

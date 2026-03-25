@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -1324,5 +1325,94 @@ func TestPlaylistCreateDuplicateWithWhitespace(t *testing.T) {
 	}
 	if !strings.Contains(m.statusBar.notification.msg, "already exists") {
 		t.Errorf("expected duplicate notification, got %q", m.statusBar.notification.msg)
+	}
+}
+
+// TestUndoDeletePlaylistCursorVisibleBelowViewport verifies that undoing a
+// playlist deletion adjusts scrollOffset when the restored cursor position
+// falls below the visible viewport (not just above it).
+func TestUndoDeletePlaylistCursorVisibleBelowViewport(t *testing.T) {
+	// Create 20 playlists so deletion + undo can exercise viewport bounds.
+	rows := make([]db.PlaylistRow, 20)
+	for i := range rows {
+		rows[i] = db.PlaylistRow{ID: int64(i + 1), Name: fmt.Sprintf("Playlist %02d", i+1)}
+	}
+
+	pd := &stubPlaylistDeleter{}
+	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists(rows))
+	m.activeView = viewPlaylists
+	m.playlists.height = 8 // small viewport
+
+	// Delete the last playlist (index 19).
+	m.playlists.cursor = 19
+	m.playlists.scrollOffset = 14
+	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	nm := next.(Model)
+
+	// Reset cursor and scroll to the top (simulating user navigated away).
+	nm.playlists.cursor = 0
+	nm.playlists.scrollOffset = 0
+
+	// Undo — the restored entry was at index 19, so cursor should be 19
+	// and scrollOffset must be adjusted so cursor is visible.
+	nm2 := nm.handleUndo()
+
+	if nm2.playlists.cursor != 19 {
+		t.Fatalf("expected cursor at 19 after undo, got %d", nm2.playlists.cursor)
+	}
+
+	reserve := 3
+	maxRows := max(1, nm2.playlists.height-reserve)
+	if nm2.playlists.cursor >= nm2.playlists.scrollOffset+maxRows {
+		t.Errorf("cursor %d not visible: scrollOffset=%d, maxRows=%d",
+			nm2.playlists.cursor, nm2.playlists.scrollOffset, maxRows)
+	}
+}
+
+// TestUndoRemovePlaylistTrackCursorVisibleBelowViewport verifies that undoing
+// a playlist track removal adjusts scrollOffset when the restored cursor
+// position falls below the visible viewport.
+func TestUndoRemovePlaylistTrackCursorVisibleBelowViewport(t *testing.T) {
+	// Create 20 playlist tracks.
+	tracks := make([]db.PlaylistTrackRow, 20)
+	for i := range tracks {
+		tracks[i] = db.PlaylistTrackRow{
+			ID:       int64(i + 1),
+			Position: int64(i + 1),
+			Title:    fmt.Sprintf("Track %02d", i+1),
+			Hash:     fmt.Sprintf("hash%d", i+1),
+		}
+	}
+
+	pd := &stubPlaylistDeleter{}
+	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{
+		{ID: 1, Name: "Test"},
+	}))
+	m.activeView = viewPlaylists
+	m = drillIntoPlaylistTrackLevel(m, tracks)
+	m.playlists.height = 8 // small viewport
+
+	// Delete the last track (index 19).
+	m.playlists.cursor = 19
+	m.playlists.scrollOffset = 14
+	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	nm := next.(Model)
+
+	// Reset cursor and scroll to the top.
+	nm.playlists.cursor = 0
+	nm.playlists.scrollOffset = 0
+
+	// Undo — restored track at index 19 should make cursor visible.
+	nm2 := nm.handleUndo()
+
+	if nm2.playlists.cursor != 19 {
+		t.Fatalf("expected cursor at 19 after undo, got %d", nm2.playlists.cursor)
+	}
+
+	reserve := 3
+	maxRows := max(1, nm2.playlists.height-reserve)
+	if nm2.playlists.cursor >= nm2.playlists.scrollOffset+maxRows {
+		t.Errorf("cursor %d not visible: scrollOffset=%d, maxRows=%d",
+			nm2.playlists.cursor, nm2.playlists.scrollOffset, maxRows)
 	}
 }

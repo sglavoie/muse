@@ -1997,3 +1997,49 @@ func TestQueueRenderNarrowWidthUsesMax(t *testing.T) {
 		t.Error("render must produce non-empty output even with narrow width")
 	}
 }
+
+// TestUndoDequeueClampsCursorWithActiveFilter verifies that undoing a dequeue
+// clamps the cursor against the filtered entry count when a filter is active
+// and the restored entry does not match the filter text.
+func TestUndoDequeueClampsCursorWithActiveFilter(t *testing.T) {
+	m := New(context.Background(), WithPlayer(&stubPlayer{}))
+	m.queue.height = 20
+
+	// Queue with 5 entries: 3 match "rock", 2 don't.
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Path: "/a.flac", Title: "Rock1", Artist: "Rock", Album: "rock"},
+		{ID: 2, Path: "/b.flac", Title: "Pop1", Artist: "Pop", Album: "pop"},
+		{ID: 3, Path: "/c.flac", Title: "Rock2", Artist: "Rock", Album: "rock"},
+		{ID: 4, Path: "/d.flac", Title: "Rock3", Artist: "Rock", Album: "rock"},
+	}
+
+	// Activate a filter for "rock" — 3 entries match (indices 0, 2, 3 in entries).
+	m.queue.filter.Text = "rock"
+	filtered := m.queue.filteredEntries()
+	if len(filtered) != 3 {
+		t.Fatalf("expected 3 filtered entries, got %d", len(filtered))
+	}
+	m.queue.cursor = 0
+
+	// Dequeued entry at real index 10 (far beyond current entries) that
+	// does NOT match filter. Simulating undo restoring it at a high index.
+	dequeued := QueueEntry{ID: 99, Path: "/z.flac", Title: "Jazz1", Artist: "Jazz", Album: "jazz"}
+
+	undoer := &stubQueueDequeuer{}
+	m.undoer = undoer
+	m.undo.slot = undoSlot{
+		action:    undoDequeueAction{id: dequeued.ID, entry: dequeued, idx: 10},
+		expiresAt: time.Now().Add(undoWindowDuration),
+	}
+
+	next, _ := m.Update(UndoMsg{})
+	nm := next.(Model)
+
+	// After undo, the entry is restored at idx 4 (clamped to len=4+1=5, but idx=min(10,4)=4).
+	// The filter "rock" now matches entries at indices 0, 2, 3 = 3 entries.
+	// Cursor was set to 4 (entries-space) but must be clamped to filtered count (3).
+	filteredAfter := nm.queue.filteredEntries()
+	if nm.queue.cursor >= len(filteredAfter) {
+		t.Errorf("cursor %d out of bounds for filtered count %d", nm.queue.cursor, len(filteredAfter))
+	}
+}
