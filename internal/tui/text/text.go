@@ -5,6 +5,7 @@ package text
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -39,9 +40,9 @@ func Pad(s string, width int) string {
 }
 
 // FormatDurationSecs converts seconds to M:SS or H:MM:SS format.
-// Returns "--:--" when secs is zero or negative.
+// Returns "--:--" when secs is zero, negative, NaN, or infinite.
 func FormatDurationSecs(secs float64) string {
-	if secs <= 0 {
+	if secs <= 0 || math.IsNaN(secs) || math.IsInf(secs, 0) {
 		return "--:--"
 	}
 	total := int(secs)

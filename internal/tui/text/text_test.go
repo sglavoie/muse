@@ -1,6 +1,7 @@
 package text
 
 import (
+	"math"
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
@@ -100,6 +101,9 @@ func TestFormatDurationSecs(t *testing.T) {
 	}{
 		{"zero", 0, "--:--"},
 		{"negative", -5.0, "--:--"},
+		{"NaN", math.NaN(), "--:--"},
+		{"positive infinity", math.Inf(1), "--:--"},
+		{"negative infinity", math.Inf(-1), "--:--"},
 		{"seconds only", 45.0, "0:45"},
 		{"minutes and seconds", 125.0, "2:05"},
 		{"hours", 3661.0, "1:01:01"},

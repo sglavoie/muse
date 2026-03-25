@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -80,9 +81,9 @@ func (s *StatusBar) handleMissingTrack(path string) {
 
 // formatTime converts a duration in seconds to M:SS or H:MM:SS format.
 // Unlike FormatDurationSecs, zero is treated as a valid position (start of
-// playback) and returns "0:00".
+// playback) and returns "0:00". NaN and infinite values are clamped to zero.
 func formatTime(secs float64) string {
-	if secs < 0 {
+	if secs < 0 || math.IsNaN(secs) || math.IsInf(secs, 0) {
 		secs = 0
 	}
 	total := int(secs)

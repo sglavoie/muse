@@ -32,11 +32,13 @@ func (m Model) focusedTrackMeta() (artist, album string, found bool) {
 				return name, "", true
 			}
 		case arttui.AlbumLevel:
-			album := ""
 			if name, ok := m.artists.focusedAlbum(); ok {
-				album = name
+				return m.artists.selectedArtist, name, true
 			}
-			return m.artists.selectedArtist, album, true
+			// No focused album (empty list) — still report the artist context.
+			if m.artists.selectedArtist != "" {
+				return m.artists.selectedArtist, "", true
+			}
 		case arttui.TrackLevel:
 			if track, ok := m.artists.focusedTrack(); ok {
 				return track.Artist, track.Album, true

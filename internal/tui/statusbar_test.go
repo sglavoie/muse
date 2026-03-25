@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"math"
 	"strings"
 	"testing"
 
@@ -305,6 +306,9 @@ func TestFormatTime(t *testing.T) {
 		{61.9, "1:01"},
 		{3600, "1:00:00"},
 		{3723.5, "1:02:03"},
+		{math.NaN(), "0:00"},
+		{math.Inf(1), "0:00"},
+		{math.Inf(-1), "0:00"},
 	}
 	for _, tc := range tests {
 		got := formatTime(tc.secs)

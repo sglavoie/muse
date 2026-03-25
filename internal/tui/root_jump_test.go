@@ -262,6 +262,49 @@ func TestFocusedTrackMeta_FavoritesAtEachLevel(t *testing.T) {
 	})
 }
 
+// TestFocusedTrackMeta_ArtistsAlbumLevelEmptyAlbums verifies that when the
+// album list is empty at AlbumLevel, the artist is still returned but the
+// album is empty, and found is true (artist context exists).
+func TestFocusedTrackMeta_ArtistsAlbumLevelEmptyAlbums(t *testing.T) {
+	m := newModelWithTracks()
+	m.activeView = viewArtists
+	m.artists = ArtistsView{
+		level:          arttui.AlbumLevel,
+		selectedArtist: "Alice",
+		albums:         nil, // empty album list
+		cursor:         0,
+	}
+
+	artist, album, found := m.focusedTrackMeta()
+	if !found {
+		t.Error("expected found=true when selectedArtist is set")
+	}
+	if artist != "Alice" {
+		t.Errorf("artist: want %q, got %q", "Alice", artist)
+	}
+	if album != "" {
+		t.Errorf("album: want empty, got %q", album)
+	}
+}
+
+// TestFocusedTrackMeta_ArtistsAlbumLevelNoArtist verifies that when both the
+// album list and selectedArtist are empty at AlbumLevel, found is false.
+func TestFocusedTrackMeta_ArtistsAlbumLevelNoArtist(t *testing.T) {
+	m := newModelWithTracks()
+	m.activeView = viewArtists
+	m.artists = ArtistsView{
+		level:          arttui.AlbumLevel,
+		selectedArtist: "",
+		albums:         nil,
+		cursor:         0,
+	}
+
+	_, _, found := m.focusedTrackMeta()
+	if found {
+		t.Error("expected found=false when both selectedArtist and albums are empty")
+	}
+}
+
 // TestFocusedTrackMeta_EmptyView verifies that an empty library returns ("","",false).
 func TestFocusedTrackMeta_EmptyView(t *testing.T) {
 	m := New(context.Background())
