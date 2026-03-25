@@ -522,3 +522,150 @@ func TestRescanClearsSelectionAndSort(t *testing.T) {
 		t.Errorf("sortedTracks should be nil after rescan, got %v", nm.library.sortedTracks)
 	}
 }
+
+// TestWatchBatchMarksQueueEntriesMissing verifies that when the watcher
+// reports deleted files, the corresponding queue entries are immediately
+// marked as Missing so they appear grayed out in the UI.
+func TestWatchBatchMarksQueueEntriesMissing(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{
+		Artist: "A", Title: "T1", Path: "/a.flac", Hash: "h1",
+	})
+	m.library.index.Insert(library.Track{
+		Artist: "B", Title: "T2", Path: "/b.flac", Hash: "h2",
+	})
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T1"},
+		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "B", Title: "T2"},
+	}
+
+	// Delete /a.flac via watcher.
+	next, _ := m.Update(watchBatchMsg{deleted: []string{"/a.flac"}})
+	nm := next.(Model)
+
+	if !nm.queue.entries[0].Missing {
+		t.Error("queue entry for /a.flac should be marked Missing after watcher deletion")
+	}
+	if nm.queue.entries[1].Missing {
+		t.Error("queue entry for /b.flac should NOT be marked Missing")
+	}
+}
+
+// TestWatchBatchUpdatesQueueMetadata verifies that when the watcher
+// reports a modified track, the queue entries for that track are updated
+// with the new metadata.
+func TestWatchBatchUpdatesQueueMetadata(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{
+		Artist: "OldArtist", Title: "OldTitle", Album: "OldAlbum",
+		Path: "/a.flac", Hash: "h1",
+	})
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac",
+			Artist: "OldArtist", Title: "OldTitle", Album: "OldAlbum",
+			Display: "OldArtist – OldTitle"},
+	}
+
+	// Watcher reports an update with new metadata.
+	next, _ := m.Update(watchBatchMsg{
+		tracks: []library.Track{
+			{Artist: "NewArtist", Title: "NewTitle", Album: "NewAlbum",
+				Path: "/a.flac", Hash: "h1"},
+		},
+	})
+	nm := next.(Model)
+
+	e := nm.queue.entries[0]
+	if e.Artist != "NewArtist" {
+		t.Errorf("expected Artist=%q, got %q", "NewArtist", e.Artist)
+	}
+	if e.Title != "NewTitle" {
+		t.Errorf("expected Title=%q, got %q", "NewTitle", e.Title)
+	}
+	if e.Album != "NewAlbum" {
+		t.Errorf("expected Album=%q, got %q", "NewAlbum", e.Album)
+	}
+	if e.Display != "NewArtist – NewTitle" {
+		t.Errorf("expected Display=%q, got %q", "NewArtist – NewTitle", e.Display)
+	}
+}
+
+// TestWatchBatchUpdatesStatusBarForCurrentTrack verifies that when the
+// watcher reports metadata changes for the currently-playing track, the
+// status bar is updated.
+func TestWatchBatchUpdatesStatusBarForCurrentTrack(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{
+		Artist: "OldArtist", Title: "OldTitle",
+		Path: "/a.flac", Hash: "h1",
+	})
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac",
+			Artist: "OldArtist", Title: "OldTitle"},
+	}
+	m.playback.currentHash = "h1"
+	m.statusBar.artist = "OldArtist"
+	m.statusBar.title = "OldTitle"
+
+	next, _ := m.Update(watchBatchMsg{
+		tracks: []library.Track{
+			{Artist: "NewArtist", Title: "NewTitle",
+				Path: "/a.flac", Hash: "h1"},
+		},
+	})
+	nm := next.(Model)
+
+	if nm.statusBar.artist != "NewArtist" {
+		t.Errorf("expected status bar artist=%q, got %q", "NewArtist", nm.statusBar.artist)
+	}
+	if nm.statusBar.title != "NewTitle" {
+		t.Errorf("expected status bar title=%q, got %q", "NewTitle", nm.statusBar.title)
+	}
+}
+
+// TestWatchBatchClearsMissingOnReappearance verifies that when a
+// previously-missing track reappears via the watcher (same hash, new
+// path), its queue entries have the Missing flag cleared.
+func TestWatchBatchClearsMissingOnReappearance(t *testing.T) {
+	m := New(context.Background())
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac",
+			Artist: "A", Title: "T1", Missing: true},
+	}
+
+	// Watcher reports the track as re-created.
+	next, _ := m.Update(watchBatchMsg{
+		tracks: []library.Track{
+			{Artist: "A", Title: "T1", Path: "/a.flac", Hash: "h1"},
+		},
+	})
+	nm := next.(Model)
+
+	if nm.queue.entries[0].Missing {
+		t.Error("queue entry should no longer be Missing after track reappears")
+	}
+}
+
+// TestWatchBatchSyncsPlayerQueue verifies that the player's in-memory
+// queue is rebuilt when the watcher updates queue entry metadata.
+func TestWatchBatchSyncsPlayerQueue(t *testing.T) {
+	sp := &stubPlayerQueueSyncer{}
+	m := New(context.Background(), WithPlayer(sp))
+	m.library.index.Insert(library.Track{
+		Artist: "Old", Title: "Old", Path: "/a.flac", Hash: "h1",
+	})
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Old", Title: "Old"},
+	}
+
+	next, _ := m.Update(watchBatchMsg{
+		tracks: []library.Track{
+			{Artist: "New", Title: "New", Path: "/a.flac", Hash: "h1"},
+		},
+	})
+	_ = next.(Model)
+
+	if len(sp.setQueueCalls) == 0 {
+		t.Fatal("expected SetQueue to be called after watcher metadata update")
+	}
+}

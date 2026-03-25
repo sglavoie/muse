@@ -74,8 +74,50 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 	for _, path := range msg.deleted {
 		m.library.index.RemoveByPath(path)
 	}
+	// Mark queue entries whose file was deleted as missing so they appear
+	// grayed out immediately rather than waiting until playback tries them.
+	if len(msg.deleted) > 0 {
+		deletedSet := make(map[string]struct{}, len(msg.deleted))
+		for _, p := range msg.deleted {
+			deletedSet[p] = struct{}{}
+		}
+		for i := range m.queue.entries {
+			if _, ok := deletedSet[m.queue.entries[i].Path]; ok {
+				m.queue.entries[i].Missing = true
+			}
+		}
+	}
 	for _, t := range msg.tracks {
 		m.library.index.UpsertByPath(t.Path, t)
+	}
+	// Update queue entries whose track metadata was refreshed by the watcher
+	// so the queue view stays in sync with on-disk changes.
+	queueDirty := false
+	for _, t := range msg.tracks {
+		display := trackDisplay(t.Artist, t.Title, t.Path)
+		for i := range m.queue.entries {
+			if m.queue.entries[i].Hash == t.Hash {
+				m.queue.entries[i].Title = t.Title
+				m.queue.entries[i].Artist = t.Artist
+				m.queue.entries[i].Album = t.Album
+				m.queue.entries[i].Display = display
+				queueDirty = true
+				// If the track was previously missing and the watcher
+				// now found it again (re-created file), clear the flag.
+				if m.queue.entries[i].Missing {
+					m.queue.entries[i].Missing = false
+				}
+			}
+		}
+		// If the currently-playing track was updated, refresh the status bar.
+		if m.playback.currentHash == t.Hash {
+			m.statusBar.artist = t.Artist
+			m.statusBar.title = t.Title
+		}
+	}
+	// Keep the player's in-memory queue in sync when entries changed.
+	if queueDirty {
+		m.syncPlayerQueue()
 	}
 	// Recompute sorted tracks if a sort is active so the cached copy
 	// reflects insertions and deletions from the watcher.
