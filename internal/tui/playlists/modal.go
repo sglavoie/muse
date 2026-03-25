@@ -1,13 +1,13 @@
 package playlists
 
 import (
-	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 const (
@@ -194,13 +194,11 @@ func (m DestinationPickerModal) buildBoxLines(termWidth int, s styles.Styles) []
 		if i == m.cursor {
 			cursorCh = ">"
 		}
-		// Truncate label if it exceeds the available content width.
-		display := label
-		if ansi.StringWidth(display) > contentWidth {
-			display = string([]rune(display)[:contentWidth-1]) + "…"
-		}
+		// Truncate and pad using display-width-aware helpers so that
+		// multi-byte characters (CJK, emoji) are handled correctly.
+		display := text.Pad(label, contentWidth)
 		// Row content between the borders: " cursor label_padded " = innerWidth chars.
-		rowContent := fmt.Sprintf(" %s %-*s ", cursorCh, contentWidth, display)
+		rowContent := " " + cursorCh + " " + display + " "
 		if i == m.cursor {
 			lines = append(lines, borderV+s.Accent.Render(rowContent)+borderV)
 		} else {

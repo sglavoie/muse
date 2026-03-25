@@ -595,3 +595,37 @@ func TestBuildBoxLines_LongPlaylistNameClamped(t *testing.T) {
 		t.Errorf("box width %d exceeds terminal width %d", boxWidth, termWidth)
 	}
 }
+
+// TestBuildBoxLines_VeryNarrowTerminalNoPanic verifies that buildBoxLines does
+// not panic when the terminal is extremely narrow (contentWidth could be 0).
+func TestBuildBoxLines_VeryNarrowTerminalNoPanic(t *testing.T) {
+	m := NewDestinationPicker(fakePlaylistRows("SomeName"))
+	for _, w := range []int{0, 1, 2, 3, 4, 5, 6} {
+		lines := m.buildBoxLines(w, styles.NewStyles(true))
+		if len(lines) == 0 {
+			t.Errorf("buildBoxLines(%d): expected non-empty output", w)
+		}
+	}
+}
+
+// TestBuildBoxLines_CJKLabelsAligned verifies that wide characters (CJK) in
+// playlist names produce rows with correct display-width alignment. Each
+// content row (between the vertical borders) must have the same display width.
+func TestBuildBoxLines_CJKLabelsAligned(t *testing.T) {
+	// "テスト" is 6 display columns (3 CJK chars × 2 cols each).
+	m := NewDestinationPicker(fakePlaylistRows("テスト"))
+	lines := m.buildBoxLines(80, styles.NewStyles(true))
+
+	// The top border line defines the expected box display width.
+	expectedWidth := ansi.StringWidth(lines[0])
+	for i, line := range lines {
+		// Skip the hint line (last line, outside the box).
+		if i == len(lines)-1 {
+			continue
+		}
+		got := ansi.StringWidth(ansi.Strip(line))
+		if got != expectedWidth {
+			t.Errorf("line %d: display width %d, expected %d\n  line: %q", i, got, expectedWidth, ansi.Strip(line))
+		}
+	}
+}
