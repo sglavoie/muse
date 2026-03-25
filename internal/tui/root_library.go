@@ -151,6 +151,9 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 			m.library.filter.Active = false
 			m.library.filter.Text = ""
 			m.library.filteredMatches = nil
+			m.library.selectedHashes = nil
+			m.library.sortState = SortState{}
+			m.library.sortedTracks = nil
 			m.scanCh = ch
 			m.scanning = true
 			m.scanned = 0

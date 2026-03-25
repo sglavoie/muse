@@ -473,6 +473,7 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 				Path:     e.Path,
 				Artist:   e.Artist,
 				Title:    e.Title,
+				Album:    e.Album,
 				Duration: float64(e.DurationMs) / 1000,
 			}, true
 		}

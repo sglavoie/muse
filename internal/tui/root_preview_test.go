@@ -432,6 +432,26 @@ func TestFocusedTrackForPreview_QueueWithSort(t *testing.T) {
 	}
 }
 
+// TestFocusedTrackForPreview_QueueIncludesAlbum verifies that
+// focusedTrackForPreview includes the Album field from queue entries
+// so preview and track-info overlays display the album name.
+func TestFocusedTrackForPreview_QueueIncludesAlbum(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Album: "MyAlbum", DurationMs: 5000},
+	}
+	m.queue.cursor = 0
+
+	track, ok := m.focusedTrackForPreview()
+	if !ok {
+		t.Fatal("expected track from queue")
+	}
+	if track.Album != "MyAlbum" {
+		t.Fatalf("expected Album %q, got %q", "MyAlbum", track.Album)
+	}
+}
+
 // errTest is a simple error type for test assertions.
 type errTest string
 

@@ -480,3 +480,45 @@ func TestScanBatchRecomputesSortedTracks(t *testing.T) {
 		t.Fatalf("expected 3 sorted tracks after scan, got %d", len(nm.library.sortedTracks))
 	}
 }
+
+// TestRescanClearsSelectionAndSort verifies that a manual rescan resets the
+// library selection, sort state, and sorted cache so stale state from the
+// previous library does not carry over.
+func TestRescanClearsSelectionAndSort(t *testing.T) {
+	// Provide a library root and extractor so the rescan action is not a no-op.
+	m := New(context.Background(),
+		WithLibraryRoot("/tmp"),
+		WithExtractor(&library.ExifToolExtractor{}),
+	)
+	// Seed a track, select it, and activate a sort.
+	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
+	m.library = m.library.ToggleBulkSelection("h1")
+	m.library.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.library = m.library.recomputeSortedTracks()
+
+	if len(m.library.selectedHashes) != 1 {
+		t.Fatalf("setup: expected 1 selected hash, got %d", len(m.library.selectedHashes))
+	}
+	if m.library.sortState.Field != SortArtist {
+		t.Fatal("setup: expected SortArtist sort field")
+	}
+	if m.library.sortedTracks == nil {
+		t.Fatal("setup: expected non-nil sortedTracks")
+	}
+
+	// Trigger rescan. We cannot actually run the full scan pipeline (needs
+	// mpv + exiftool), but we can dispatch the action and verify the model
+	// state was reset. The key mapping for rescan is "R" (Shift+r).
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
+	nm := next.(Model)
+
+	if nm.library.selectedHashes != nil {
+		t.Errorf("selectedHashes should be nil after rescan, got %v", nm.library.selectedHashes)
+	}
+	if nm.library.sortState.Field != SortDefault {
+		t.Errorf("sortState.Field should be SortDefault after rescan, got %v", nm.library.sortState.Field)
+	}
+	if nm.library.sortedTracks != nil {
+		t.Errorf("sortedTracks should be nil after rescan, got %v", nm.library.sortedTracks)
+	}
+}
