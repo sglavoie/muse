@@ -207,7 +207,10 @@ func (m Model) handleFavoritesRemove() (Model, tea.Cmd, bool) {
 			if !ok {
 				return m, nil, true
 			}
-			removedIdx := m.favorites.cursor
+			// Map the display cursor back to the raw slice index so that
+			// undo re-insertion lands at the correct position even when a
+			// filter is active (cursor indexes the filtered list).
+			removedIdx := indexOfString(m.favorites.artists, name)
 			favLevel := m.favorites.level
 			favCategory := m.favorites.category
 			return m, func() tea.Msg {
@@ -227,7 +230,7 @@ func (m Model) handleFavoritesRemove() (Model, tea.Cmd, bool) {
 			if !ok {
 				return m, nil, true
 			}
-			removedIdx := m.favorites.cursor
+			removedIdx := indexOfString(m.favorites.albums, name)
 			favLevel := m.favorites.level
 			favCategory := m.favorites.category
 			return m, func() tea.Msg {
@@ -247,7 +250,7 @@ func (m Model) handleFavoritesRemove() (Model, tea.Cmd, bool) {
 			if !ok {
 				return m, nil, true
 			}
-			removedIdx := m.favorites.cursor
+			removedIdx := indexOfTrackByHash(m.favorites.tracks, track.Hash)
 			favLevel := m.favorites.level
 			favCategory := m.favorites.category
 			return m, func() tea.Msg {
@@ -270,7 +273,7 @@ func (m Model) handleFavoritesRemove() (Model, tea.Cmd, bool) {
 		if !ok {
 			return m, nil, true
 		}
-		removedIdx := m.favorites.cursor
+		removedIdx := indexOfTrackByHash(m.favorites.drilldownTracks, track.Hash)
 		return m, func() tea.Msg {
 			err := writer.RemoveFavorite("track", track.Hash)
 			return favoriteToggledMsg{
@@ -659,6 +662,30 @@ func deduplicateTracksByHash(tracks []library.Track) []library.Track {
 		}
 	}
 	return result
+}
+
+// indexOfString returns the index of the first occurrence of s in items,
+// or 0 if not found. Used to translate a filtered display cursor back to
+// the raw slice position for correct undo re-insertion.
+func indexOfString(items []string, s string) int {
+	for i, v := range items {
+		if v == s {
+			return i
+		}
+	}
+	return 0
+}
+
+// indexOfTrackByHash returns the index of the first track with the given hash,
+// or 0 if not found. Used to translate a filtered display cursor back to
+// the raw slice position for correct undo re-insertion.
+func indexOfTrackByHash(tracks []library.Track, hash string) int {
+	for i, t := range tracks {
+		if t.Hash == hash {
+			return i
+		}
+	}
+	return 0
 }
 
 // removeString removes the first occurrence of s from items.

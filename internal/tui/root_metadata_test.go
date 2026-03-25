@@ -1137,6 +1137,62 @@ func TestRefreshDerivedViewsUpdatesFavoritesDrilldownTracks(t *testing.T) {
 // --- TestRefreshDerivedViewsSkipsPlaylistTracksAtListLevel ---
 
 // TestRefreshDerivedViewsSkipsPlaylistTracksAtListLevel verifies that
+// TestRefreshDerivedViewsResortsArtistsAfterEdit verifies that an active
+// sort on the Artists view is re-applied after refreshDerivedViews
+// re-derives the artist list from the library (e.g. after a metadata edit).
+func TestRefreshDerivedViewsResortsArtistsAfterEdit(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zebra", Title: "T1"})
+	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alpha", Title: "T2"})
+	m.library.index.Insert(library.Track{Hash: "h3", Path: "/c.flac", Artist: "Middle", Title: "T3"})
+	m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+	m.artists.level = arttui.ArtistLevel
+	// Activate descending sort on the artists view.
+	m.artists.sortState = SortState{Field: SortName, Dir: SortDesc}
+	m.artists = m.artists.recomputeArtistsSort()
+	// Descending should be: Zebra, Middle, Alpha.
+	if len(m.artists.artists) < 3 || m.artists.artists[0] != "Zebra" {
+		t.Fatalf("pre-check: expected descending [Zebra, Middle, Alpha], got %v", m.artists.artists)
+	}
+
+	// Now refresh — this re-derives artists from the library (default order)
+	// and must re-apply the active sort.
+	m = m.refreshDerivedViews()
+
+	if len(m.artists.artists) != 3 {
+		t.Fatalf("after refresh: expected 3 artists, got %d", len(m.artists.artists))
+	}
+	if m.artists.artists[0] != "Zebra" || m.artists.artists[1] != "Middle" || m.artists.artists[2] != "Alpha" {
+		t.Errorf("after refresh: expected descending [Zebra, Middle, Alpha], got %v", m.artists.artists)
+	}
+}
+
+// TestRefreshDerivedViewsResortsAlbumsAfterEdit verifies that an active
+// sort on the Albums view is re-applied after refreshDerivedViews.
+func TestRefreshDerivedViewsResortsAlbumsAfterEdit(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Album: "Zen", Title: "T1"})
+	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Art", Album: "Apex", Title: "T2"})
+	m.library.index.Insert(library.Track{Hash: "h3", Path: "/c.flac", Artist: "Art", Album: "Mid", Title: "T3"})
+	m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
+	m.albums.level = albtui.AlbumLevel
+	// Activate descending sort.
+	m.albums.sortState = SortState{Field: SortName, Dir: SortDesc}
+	m.albums = m.albums.recomputeAlbumsSort()
+	if len(m.albums.albums) < 3 || m.albums.albums[0] != "Zen" {
+		t.Fatalf("pre-check: expected descending [Zen, Mid, Apex], got %v", m.albums.albums)
+	}
+
+	m = m.refreshDerivedViews()
+
+	if len(m.albums.albums) != 3 {
+		t.Fatalf("after refresh: expected 3 albums, got %d", len(m.albums.albums))
+	}
+	if m.albums.albums[0] != "Zen" || m.albums.albums[1] != "Mid" || m.albums.albums[2] != "Apex" {
+		t.Errorf("after refresh: expected descending [Zen, Mid, Apex], got %v", m.albums.albums)
+	}
+}
+
 // refreshDerivedViews does NOT iterate playlist tracks when the view is
 // at ListLevel (there are no tracks loaded).
 func TestRefreshDerivedViewsSkipsPlaylistTracksAtListLevel(t *testing.T) {

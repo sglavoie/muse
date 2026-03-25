@@ -11,6 +11,36 @@ import (
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 )
 
+// TestIndexOfString verifies indexOfString returns the correct raw position.
+func TestIndexOfString(t *testing.T) {
+	items := []string{"Alpha", "Beta", "Charlie", "Delta"}
+	if got := indexOfString(items, "Charlie"); got != 2 {
+		t.Errorf("indexOfString(Charlie): expected 2, got %d", got)
+	}
+	if got := indexOfString(items, "Alpha"); got != 0 {
+		t.Errorf("indexOfString(Alpha): expected 0, got %d", got)
+	}
+	if got := indexOfString(items, "missing"); got != 0 {
+		t.Errorf("indexOfString(missing): expected 0, got %d", got)
+	}
+}
+
+// TestIndexOfTrackByHash verifies indexOfTrackByHash returns the correct raw position.
+func TestIndexOfTrackByHash(t *testing.T) {
+	tracks := []library.Track{
+		{Hash: "h1"}, {Hash: "h2"}, {Hash: "h3"},
+	}
+	if got := indexOfTrackByHash(tracks, "h3"); got != 2 {
+		t.Errorf("indexOfTrackByHash(h3): expected 2, got %d", got)
+	}
+	if got := indexOfTrackByHash(tracks, "h1"); got != 0 {
+		t.Errorf("indexOfTrackByHash(h1): expected 0, got %d", got)
+	}
+	if got := indexOfTrackByHash(tracks, "missing"); got != 0 {
+		t.Errorf("indexOfTrackByHash(missing): expected 0, got %d", got)
+	}
+}
+
 // TestInsertStringAt verifies insertStringAt for various insertion positions.
 func TestInsertStringAt(t *testing.T) {
 	tests := []struct {
@@ -744,6 +774,150 @@ func TestFavoritesGoToBottomWithSortAccountsForReserve(t *testing.T) {
 // TestFavoritesFilterChangeClearsSelection verifies that changing the filter
 // text in the Favorites view clears the selectedItems map so that stale
 // display indices cannot refer to wrong items after the filtered list changes.
+// TestFavoritesRemoveWithFilter_ArtistUsesRawIndex verifies that removing a
+// single favorite artist while a filter is active stores the raw slice index
+// (not the filtered cursor position) so that undo re-inserts at the correct
+// position.
+func TestFavoritesRemoveWithFilter_ArtistUsesRawIndex(t *testing.T) {
+	w := &stubFavoriteWriter{}
+	r := &stubFavoriteReader{favorites: map[string][]string{
+		"artist": {"Alpha", "Beta", "Charlie", "Delta"},
+	}}
+	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryArtists
+	m.favorites.artists = []string{"Alpha", "Beta", "Charlie", "Delta"}
+	m.favorites.artistCount = 4
+	// Filter to show only items containing "l" → ["Alpha", "Charlie", "Delta"]
+	// (Beta has no "l").
+	m.favorites.filter.Text = "l"
+	// Focus "Delta" which is at filtered index 2 but raw index 3.
+	m.favorites.cursor = 2
+
+	nm, cmd, handled := m.handleFavoritesRemove()
+	if !handled {
+		t.Fatal("handleFavoritesRemove should handle the action")
+	}
+	_ = nm // model is returned before the cmd fires
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd")
+	}
+	// Execute the cmd to get the favoriteToggledMsg.
+	msg := cmd().(favoriteToggledMsg)
+	if msg.removedIdx != 3 {
+		t.Errorf("removedIdx: expected 3 (raw index of Delta), got %d", msg.removedIdx)
+	}
+	if msg.value != "Delta" {
+		t.Errorf("value: expected 'Delta', got %q", msg.value)
+	}
+}
+
+// TestFavoritesRemoveWithFilter_TrackUsesRawIndex verifies that removing a
+// single favorite track while a filter is active stores the raw slice index.
+func TestFavoritesRemoveWithFilter_TrackUsesRawIndex(t *testing.T) {
+	w := &stubFavoriteWriter{}
+	r := &stubFavoriteReader{favorites: map[string][]string{
+		"track": {"h-alpha", "h-beta", "h-charlie"},
+	}}
+	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryTracks
+	m.favorites.tracks = []library.Track{
+		{Hash: "h-alpha", Title: "Alpha", Artist: "art1"},
+		{Hash: "h-beta", Title: "Beta", Artist: "art2"},
+		{Hash: "h-charlie", Title: "Charlie", Artist: "art3"},
+	}
+	m.favorites.trackCount = 3
+	// Filter to "ar" → matches all, but filter by title "ha":
+	// Filter to "Charlie" → ["Charlie"] at filtered index 0, raw index 2.
+	m.favorites.filter.Text = "charlie"
+	m.favorites.cursor = 0
+
+	nm, cmd, handled := m.handleFavoritesRemove()
+	if !handled {
+		t.Fatal("handleFavoritesRemove should handle the action")
+	}
+	_ = nm
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd")
+	}
+	msg := cmd().(favoriteToggledMsg)
+	if msg.removedIdx != 2 {
+		t.Errorf("removedIdx: expected 2 (raw index of h-charlie), got %d", msg.removedIdx)
+	}
+}
+
+// TestFavoritesRemoveWithFilter_DrilldownTrackUsesRawIndex verifies that
+// removing a favorite track at TrackLevel (drill-down) with an active filter
+// uses the raw drilldownTracks index, not the filtered cursor position.
+func TestFavoritesRemoveWithFilter_DrilldownTrackUsesRawIndex(t *testing.T) {
+	w := &stubFavoriteWriter{}
+	r := &stubFavoriteReader{favorites: map[string][]string{
+		"track": {"h1", "h2", "h3", "h4"},
+	}}
+	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.TrackLevel
+	m.favorites.drilldownTracks = []library.Track{
+		{Hash: "h1", Title: "Andante", Artist: "X"},
+		{Hash: "h2", Title: "Bolero", Artist: "Y"},
+		{Hash: "h3", Title: "Allegro", Artist: "Z"},
+		{Hash: "h4", Title: "Adagio", Artist: "W"},
+	}
+	// Filter to "a" → ["Andante", "Allegro", "Adagio"] at filtered indices 0,1,2
+	// which map to raw indices 0,2,3 respectively.
+	m.favorites.filter.Text = "a"
+	// Focus "Adagio" at filtered index 2, raw index 3.
+	m.favorites.cursor = 2
+
+	nm, cmd, handled := m.handleFavoritesRemove()
+	if !handled {
+		t.Fatal("handleFavoritesRemove should handle the action")
+	}
+	_ = nm
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd")
+	}
+	msg := cmd().(favoriteToggledMsg)
+	if msg.removedIdx != 3 {
+		t.Errorf("removedIdx: expected 3 (raw index of h4/Adagio), got %d", msg.removedIdx)
+	}
+}
+
+// TestFavoritesRemoveWithFilter_AlbumUsesRawIndex verifies that removing a
+// single favorite album while a filter is active stores the raw slice index.
+func TestFavoritesRemoveWithFilter_AlbumUsesRawIndex(t *testing.T) {
+	w := &stubFavoriteWriter{}
+	r := &stubFavoriteReader{favorites: map[string][]string{
+		"album": {"Jazz", "Rock", "Blues"},
+	}}
+	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryAlbums
+	m.favorites.albums = []string{"Jazz", "Rock", "Blues"}
+	m.favorites.albumCount = 3
+	// Filter to "lu" → only "Blues" matches, at filtered index 0, raw index 2.
+	m.favorites.filter.Text = "lu"
+	// Focus "Blues" at filtered index 0, raw index 2.
+	m.favorites.cursor = 0
+
+	nm, cmd, handled := m.handleFavoritesRemove()
+	if !handled {
+		t.Fatal("handleFavoritesRemove should handle the action")
+	}
+	_ = nm
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd")
+	}
+	msg := cmd().(favoriteToggledMsg)
+	if msg.removedIdx != 2 {
+		t.Errorf("removedIdx: expected 2 (raw index of Blues), got %d", msg.removedIdx)
+	}
+}
+
 func TestFavoritesFilterChangeClearsSelection(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewFavorites

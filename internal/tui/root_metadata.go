@@ -295,20 +295,25 @@ func (m Model) refreshDerivedViews() Model {
 	switch m.artists.level {
 	case arttui.ArtistLevel:
 		m.artists.artists = arttui.DeriveArtists(tracks)
+		m.artists = m.artists.recomputeArtistsSort()
 		m.artists = m.artists.clampCursor()
 	case arttui.AlbumLevel:
 		m.artists.albums = arttui.DeriveAlbums(tracks, m.artists.selectedArtist)
+		m.artists = m.artists.recomputeArtistsSort()
 		m.artists = m.artists.clampCursor()
 	case arttui.TrackLevel:
 		m.artists.tracks = arttui.DeriveTracks(tracks, m.artists.selectedArtist, m.artists.selectedAlbum)
+		m.artists = m.artists.recomputeArtistsSort()
 		m.artists = m.artists.clampCursor()
 	}
 	switch m.albums.level {
 	case albtui.AlbumLevel:
 		m.albums.albums = albtui.DeriveAllAlbums(tracks)
+		m.albums = m.albums.recomputeAlbumsSort()
 		m.albums = m.albums.clampCursor()
 	case albtui.TrackLevel:
 		m.albums.tracks = albtui.DeriveAlbumTracks(tracks, m.albums.selectedAlbum)
+		m.albums = m.albums.recomputeAlbumsSort()
 		m.albums = m.albums.clampCursor()
 	}
 
@@ -321,6 +326,7 @@ func (m Model) refreshDerivedViews() Model {
 				m.playlists.tracks[i].Album = t.Album
 			}
 		}
+		m.playlists = m.playlists.recomputePlaylistSort()
 	}
 
 	// Refresh favorites track metadata so the favorites view reflects edits.
@@ -335,9 +341,11 @@ func (m Model) refreshDerivedViews() Model {
 	}
 	if m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks {
 		refreshTrackMetadata(m.favorites.tracks)
+		m.favorites = m.favorites.recomputeFavoritesSort()
 	}
 	if m.favorites.level == favtui.TrackLevel {
 		refreshTrackMetadata(m.favorites.drilldownTracks)
+		m.favorites = m.favorites.recomputeFavoritesSort()
 	}
 
 	return m
