@@ -170,9 +170,7 @@ func (m DestinationPickerModal) buildBoxLines(termWidth int, s styles.Styles) []
 		innerWidth = 1
 	}
 	contentWidth := innerWidth - 4 // characters available for the label inside a row
-	if contentWidth < 0 {
-		contentWidth = 0
-	}
+	contentWidth = max(contentWidth, 0)
 
 	var lines []string
 
