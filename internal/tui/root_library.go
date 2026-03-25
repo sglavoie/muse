@@ -49,18 +49,31 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 	if m.library.filter.Text != "" {
 		m.library = m.library.rebuildFilterCache()
 	}
-	// Refresh the artists list when at ArtistLevel so the view stays
-	// current as the library grows during a scan.
-	if m.artists.level == arttui.ArtistLevel {
-		m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+	// Refresh artist/album derived views at all drill-down levels so
+	// the view stays current as the library grows during a scan.
+	scanTracks := m.library.index.Tracks()
+	switch m.artists.level {
+	case arttui.ArtistLevel:
+		m.artists.artists = arttui.DeriveArtists(scanTracks)
 		m.artists.sortState = SortState{}
 		m.artists = m.artists.clampCursor()
+	case arttui.AlbumLevel:
+		m.artists.albums = arttui.DeriveAlbums(scanTracks, m.artists.selectedArtist)
+		m.artists = m.artists.recomputeArtistsSort()
+		m.artists = m.artists.clampCursor()
+	case arttui.TrackLevel:
+		m.artists.tracks = arttui.DeriveTracks(scanTracks, m.artists.selectedArtist, m.artists.selectedAlbum)
+		m.artists = m.artists.recomputeArtistsSort()
+		m.artists = m.artists.clampCursor()
 	}
-	// Refresh the albums list when at AlbumLevel so the view stays
-	// current as the library grows during a scan.
-	if m.albums.level == albtui.AlbumLevel {
-		m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
+	switch m.albums.level {
+	case albtui.AlbumLevel:
+		m.albums.albums = albtui.DeriveAllAlbums(scanTracks)
 		m.albums.sortState = SortState{}
+		m.albums = m.albums.clampCursor()
+	case albtui.TrackLevel:
+		m.albums.tracks = albtui.DeriveAlbumTracks(scanTracks, m.albums.selectedAlbum)
+		m.albums = m.albums.recomputeAlbumsSort()
 		m.albums = m.albums.clampCursor()
 	}
 	if m.scanCh != nil {
@@ -191,18 +204,34 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 	if m.library.scrollOffset > m.library.cursor {
 		m.library.scrollOffset = m.library.cursor
 	}
-	// Refresh the artists list when at ArtistLevel so the view stays
-	// current when the filesystem watcher detects changes.
-	if m.artists.level == arttui.ArtistLevel {
-		m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+	// Refresh artist/album derived views so they stay current when the
+	// filesystem watcher detects changes. At deeper drill-down levels
+	// (AlbumLevel, TrackLevel) the owned slices must also be refreshed;
+	// otherwise the user sees stale metadata until they navigate away
+	// and back.
+	allTracks := m.library.index.Tracks()
+	switch m.artists.level {
+	case arttui.ArtistLevel:
+		m.artists.artists = arttui.DeriveArtists(allTracks)
 		m.artists.sortState = SortState{}
 		m.artists = m.artists.clampCursor()
+	case arttui.AlbumLevel:
+		m.artists.albums = arttui.DeriveAlbums(allTracks, m.artists.selectedArtist)
+		m.artists = m.artists.recomputeArtistsSort()
+		m.artists = m.artists.clampCursor()
+	case arttui.TrackLevel:
+		m.artists.tracks = arttui.DeriveTracks(allTracks, m.artists.selectedArtist, m.artists.selectedAlbum)
+		m.artists = m.artists.recomputeArtistsSort()
+		m.artists = m.artists.clampCursor()
 	}
-	// Refresh the albums list when at AlbumLevel so the view stays
-	// current when the filesystem watcher detects changes.
-	if m.albums.level == albtui.AlbumLevel {
-		m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
+	switch m.albums.level {
+	case albtui.AlbumLevel:
+		m.albums.albums = albtui.DeriveAllAlbums(allTracks)
 		m.albums.sortState = SortState{}
+		m.albums = m.albums.clampCursor()
+	case albtui.TrackLevel:
+		m.albums.tracks = albtui.DeriveAlbumTracks(allTracks, m.albums.selectedAlbum)
+		m.albums = m.albums.recomputeAlbumsSort()
 		m.albums = m.albums.clampCursor()
 	}
 	if m.watchCh != nil {
