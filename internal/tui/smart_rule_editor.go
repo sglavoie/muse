@@ -44,9 +44,9 @@ type SmartRuleEditor struct {
 	ruleCursor  int
 
 	// stepEditRule sub-form
-	editingRuleIdx int      // -1 = new rule, ≥0 = editing rules[idx]
-	ruleFieldIdx   int      // index into allRuleFields
-	ruleOpIdx      int      // index into validOpsForField(currentField)
+	editingRuleIdx int // -1 = new rule, ≥0 = editing rules[idx]
+	ruleFieldIdx   int // index into allRuleFields
+	ruleOpIdx      int // index into validOpsForField(currentField)
 	ruleValueInput textInput
 	editSubField   int // 0=field, 1=operator, 2=value
 
@@ -61,7 +61,7 @@ type SmartRuleEditor struct {
 var allRuleFields = []db.RuleField{
 	db.FieldArtist, db.FieldTitle, db.FieldAlbum, db.FieldGenre,
 	db.FieldDuration, db.FieldDateAdded, db.FieldPlayCount,
-	db.FieldPath, db.FieldSize, db.FieldFavorite,
+	db.FieldLastPlayed, db.FieldPath, db.FieldSize, db.FieldFavorite,
 }
 
 // sortByOptions are the selectable sort fields; index 0 means "no sort".
@@ -69,16 +69,17 @@ var sortByOptions = []string{"(default)", "artist", "title", "album", "duration"
 
 // ruleFieldLabels maps RuleField to a display name.
 var ruleFieldLabels = map[db.RuleField]string{
-	db.FieldArtist:    "Artist",
-	db.FieldTitle:     "Title",
-	db.FieldAlbum:     "Album",
-	db.FieldGenre:     "Genre",
-	db.FieldDuration:  "Duration (s)",
-	db.FieldDateAdded: "Date added",
-	db.FieldPlayCount: "Play count",
-	db.FieldPath:      "Path",
-	db.FieldSize:      "Size (bytes)",
-	db.FieldFavorite:  "Is favorite",
+	db.FieldArtist:     "Artist",
+	db.FieldTitle:      "Title",
+	db.FieldAlbum:      "Album",
+	db.FieldGenre:      "Genre",
+	db.FieldDuration:   "Duration (s)",
+	db.FieldDateAdded:  "Date added",
+	db.FieldPlayCount:  "Play count",
+	db.FieldLastPlayed: "Last played",
+	db.FieldPath:       "Path",
+	db.FieldSize:       "Size (bytes)",
+	db.FieldFavorite:   "Is favorite",
 }
 
 // ruleOpLabels maps RuleOperator to a display label.
@@ -99,7 +100,7 @@ func ruleFieldType(f db.RuleField) string {
 	switch f {
 	case db.FieldDuration, db.FieldPlayCount, db.FieldSize:
 		return "numeric"
-	case db.FieldDateAdded:
+	case db.FieldDateAdded, db.FieldLastPlayed:
 		return "date"
 	case db.FieldFavorite:
 		return "bool"
@@ -589,11 +590,12 @@ func (e SmartRuleEditor) renderSortStep(termWidth, termHeight int, s styles.Styl
 	}
 
 	var maxTracksText string
-	if e.sortCursor == 2 {
+	switch {
+	case e.sortCursor == 2:
 		maxTracksText = e.maxTracksInput.Render(10)
-	} else if strings.TrimSpace(e.maxTracksInput.Value()) == "" {
+	case strings.TrimSpace(e.maxTracksInput.Value()) == "":
 		maxTracksText = "(unlimited)"
-	} else {
+	default:
 		maxTracksText = e.maxTracksInput.Value()
 	}
 

@@ -113,8 +113,8 @@ type PlaylistsView struct {
 	renameInput      textinput.Model    // current value of the inline rename field
 	selectedTrackIDs map[int64]struct{} // bulk-selected playlist track row IDs at TrackLevel
 	sortState        SortState
-	sortedPlaylists  []db.PlaylistRow // sorted copy for list level (nil when default)
-	sortedTrackOrder []int            // index permutation for track level (nil when default)
+	sortedPlaylists  []db.PlaylistRow       // sorted copy for list level (nil when default)
+	sortedTrackOrder []int                  // index permutation for track level (nil when default)
 	smartQuery       *db.SmartPlaylistQuery // non-nil when TrackLevel shows a smart playlist
 }
 

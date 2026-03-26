@@ -87,6 +87,8 @@ func helpSections() []helpSection {
 				{"ctrl+d", "Sort descending (when sorting) / half-page down"},
 				{"?", "Show this help"},
 				{"ctrl+,", "Open settings"},
+				{"ctrl+g", "Show debug panel"},
+				{"L", "Listening stats"},
 			},
 		},
 		{

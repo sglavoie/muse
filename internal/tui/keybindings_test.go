@@ -159,6 +159,16 @@ func TestLibraryEscResolvesToFilterClear(t *testing.T) {
 	}
 }
 
+// TestDebugGlobalBinding verifies that 'ctrl+g' resolves to actionDebug in
+// the global context.
+func TestDebugGlobalBinding(t *testing.T) {
+	reg := newRegistry()
+	got := reg.resolve(contextGlobal, "ctrl+g")
+	if got != actionDebug {
+		t.Errorf("resolve(contextGlobal, \"ctrl+g\") = %v, want actionDebug", got)
+	}
+}
+
 // TestPlaylistsRShadowsGlobalRepeat verifies that 'r' resolves to
 // actionPlaylistRename (not actionRepeatCycle) when the Playlists view is
 // active, locking in the view-local shadowing behaviour.

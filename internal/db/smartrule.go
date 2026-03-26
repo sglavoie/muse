@@ -9,16 +9,17 @@ import (
 type RuleField string
 
 const (
-	FieldArtist    RuleField = "artist"
-	FieldTitle     RuleField = "title"
-	FieldAlbum     RuleField = "album"
-	FieldGenre     RuleField = "genre"
-	FieldDuration  RuleField = "duration"
-	FieldDateAdded RuleField = "date_added"
-	FieldPlayCount RuleField = "play_count"
-	FieldPath      RuleField = "path"
-	FieldSize      RuleField = "size"
-	FieldFavorite  RuleField = "is_favorite"
+	FieldArtist     RuleField = "artist"
+	FieldTitle      RuleField = "title"
+	FieldAlbum      RuleField = "album"
+	FieldGenre      RuleField = "genre"
+	FieldDuration   RuleField = "duration"
+	FieldDateAdded  RuleField = "date_added"
+	FieldPlayCount  RuleField = "play_count"
+	FieldPath       RuleField = "path"
+	FieldSize       RuleField = "size"
+	FieldFavorite   RuleField = "is_favorite"
+	FieldLastPlayed RuleField = "last_played"
 )
 
 // RuleOperator identifies the comparison operation for a leaf rule.
@@ -68,6 +69,7 @@ var validFields = map[RuleField]bool{
 	FieldArtist: true, FieldTitle: true, FieldAlbum: true, FieldGenre: true,
 	FieldDuration: true, FieldDateAdded: true, FieldPlayCount: true,
 	FieldPath: true, FieldSize: true, FieldFavorite: true,
+	FieldLastPlayed: true,
 }
 
 // validOperators is the set of recognised RuleOperator values.

@@ -110,25 +110,36 @@ type Model struct {
 	helpSearchFilter filter.State   // search filter state for the help overlay
 	prevActiveView   viewID         // the view that was active before help was opened
 
+	debugVisible  bool           // true while the debug panel is shown
+	debugViewport viewport.Model // scrollable viewport for the debug panel
+	debugPrevView viewID         // the view that was active before debug was opened
+
 	// player is the playback backend. It may be nil when playback is not
 	// available (e.g. in tests that do not exercise playback).
-	player          playPauser
-	queueWriter     libtui.QueueAppender // may be nil; set via WithQueueWriter
-	reorderer       queueReorderer       // may be nil; set via WithQueueReorderer
-	undoer          queueDequeuer        // may be nil; set via WithQueueDequeuer
-	sessionWriter   sessionWriter        // may be nil; set via WithSessionWriter
-	playlistReader  playlistTrackReader  // may be nil; set via WithPlaylistTrackReader
-	playlistWriter  playlistCreator      // may be nil; set via WithPlaylistWriter
-	playlistRenamer playlistRenamer      // may be nil; set via WithPlaylistRenamer
-	playlistDeleter playlistDeleter      // may be nil; set via WithPlaylistDeleter
-	playlistAdder   playlistTrackAdder   // may be nil; set via WithPlaylistAdder
-	batchEnqueuer   batchEnqueuer        // may be nil; set via WithBatchEnqueuer
-	favoriteReader  favoriteReader       // may be nil; set via WithFavoriteReader
-	favoriteWriter  favoriteWriter       // may be nil; set via WithFavoriteWriter
-	favoriteHashes  map[string]struct{}  // set of favorited track hashes for highlight
-	smartEval           smartPlaylistEvaluator  // may be nil; set via WithSmartPlaylistEvaluator
-	smartPlaylistWriter smartPlaylistWriter     // may be nil; set via WithSmartPlaylistWriter
-	playCountWriter     playCountIncrementer    // may be nil; set via WithPlayCountWriter
+	player              playPauser
+	queueWriter         libtui.QueueAppender   // may be nil; set via WithQueueWriter
+	reorderer           queueReorderer         // may be nil; set via WithQueueReorderer
+	undoer              queueDequeuer          // may be nil; set via WithQueueDequeuer
+	sessionWriter       sessionWriter          // may be nil; set via WithSessionWriter
+	playlistReader      playlistTrackReader    // may be nil; set via WithPlaylistTrackReader
+	playlistWriter      playlistCreator        // may be nil; set via WithPlaylistWriter
+	playlistRenamer     playlistRenamer        // may be nil; set via WithPlaylistRenamer
+	playlistDeleter     playlistDeleter        // may be nil; set via WithPlaylistDeleter
+	playlistAdder       playlistTrackAdder     // may be nil; set via WithPlaylistAdder
+	batchEnqueuer       batchEnqueuer          // may be nil; set via WithBatchEnqueuer
+	favoriteReader      favoriteReader         // may be nil; set via WithFavoriteReader
+	favoriteWriter      favoriteWriter         // may be nil; set via WithFavoriteWriter
+	favoriteHashes      map[string]struct{}    // set of favorited track hashes for highlight
+	smartEval           smartPlaylistEvaluator // may be nil; set via WithSmartPlaylistEvaluator
+	smartPlaylistWriter smartPlaylistWriter    // may be nil; set via WithSmartPlaylistWriter
+	playCountWriter     playCountIncrementer   // may be nil; set via WithPlayCountWriter
+	historyRecorder     playHistoryRecorder    // may be nil; set via WithHistoryRecorder
+	statsReader         listeningStatsReader   // may be nil; set via WithStatsReader
+
+	statsVisible  bool           // true while the listening stats overlay is shown
+	statsViewport viewport.Model // scrollable viewport for the stats overlay
+	statsPrevView viewID         // the view that was active before stats was opened
+	statsPeriod   int            // index into statsPeriods slice
 
 	overlay        overlayInfo     // all overlay and modal state
 	metadataWriter metadataUpdater // may be nil; set via WithMetadataWriter
@@ -533,6 +544,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.helpViewport.SetHeight(max(msg.Height-2-extraLines, 0))
 		}
+		if m.debugVisible {
+			m.debugViewport.SetWidth(msg.Width)
+			m.debugViewport.SetHeight(max(msg.Height-2, 0))
+		}
+		if m.statsVisible {
+			m.statsViewport.SetWidth(msg.Width)
+			m.statsViewport.SetHeight(max(msg.Height-3, 0))
+		}
 
 	case tea.BackgroundColorMsg:
 		s := styles.NewStyles(msg.IsDark())
@@ -663,6 +682,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m, cmd, ok := m.handleHelpKeyPress(msg); ok {
 			return m, cmd
 		}
+		if m, cmd, ok := m.handleDebugKeyPress(msg); ok {
+			return m, cmd
+		}
+		if m, cmd, ok := m.handleStatsKeyPress(msg); ok {
+			return m, cmd
+		}
 		if m, cmd, ok := m.handleSettingsKeyPress(msg); ok {
 			return m, cmd
 		}
@@ -746,6 +771,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case smartPlaylistCountsUpdatedMsg:
 		m = m.handleSmartPlaylistCountsUpdatedMsg(msg)
+
+	case listeningStatsMsg:
+		panel := StatsPanel{
+			stats:       msg.stats,
+			periodLabel: statsPeriods[m.statsPeriod].label,
+			err:         msg.err,
+		}
+		m.statsViewport.SetContent(panel.render(*m.styles))
+		m.statsViewport.SetYOffset(0)
 
 	case favoriteToggledMsg:
 		m = m.handleFavoriteToggledMsg(msg)
@@ -869,6 +903,20 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	switch action {
 	case actionSettings:
 		return m.handleSettingsOpen()
+	case actionDebug:
+		m.debugPrevView = m.activeView
+		m.debugVisible = true
+		m.debugViewport = viewport.New(viewport.WithWidth(m.termWidth), viewport.WithHeight(max(m.termHeight-2, 0)))
+		panel := collectDebugInfo(m)
+		m.debugViewport.SetContent(panel.render(*m.styles))
+		m.debugViewport.SetYOffset(0)
+	case actionStats:
+		m.statsPrevView = m.activeView
+		m.statsVisible = true
+		m.statsPeriod = 0
+		m.statsViewport = viewport.New(viewport.WithWidth(m.termWidth), viewport.WithHeight(max(m.termHeight-3, 0)))
+		m.statsViewport.SetYOffset(0)
+		return m, m.loadStatsCmd()
 	case actionHelp:
 		m.prevActiveView = m.activeView
 		m.helpVisible = true

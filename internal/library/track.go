@@ -2,14 +2,15 @@ package library
 
 // Track represents a single audio file in the library with its extracted metadata.
 type Track struct {
-	Path      string
-	Hash      string
-	Artist    string
-	Title     string
-	Album     string
-	Genre     string
-	Duration  float64 // seconds
-	ModTime   int64   // Unix timestamp of last modification
-	SizeBytes int64   // file size in bytes
-	PlayCount int
+	Path         string
+	Hash         string
+	Artist       string
+	Title        string
+	Album        string
+	Genre        string
+	Duration     float64 // seconds
+	ModTime      int64   // Unix timestamp of last modification
+	SizeBytes    int64   // file size in bytes
+	PlayCount    int
+	LastPlayedAt int64 // Unix timestamp of most recent play (0 if never played)
 }

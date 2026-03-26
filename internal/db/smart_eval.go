@@ -107,6 +107,14 @@ func buildLeaf(sb *strings.Builder, args *[]any, rule SmartRule) error {
 		*args = append(*args, rule.Value)
 		return nil
 
+	case FieldLastPlayed:
+		if rule.Operator == OpInLast {
+			sb.WriteString("t.last_played_at >= unixepoch('now') - (? * 86400)")
+			*args = append(*args, rule.Value)
+			return nil
+		}
+		return buildNumericOp(sb, args, "t.last_played_at", rule.Operator, rule.Value)
+
 	case FieldFavorite:
 		// Treat "equals true" / "equals 1" as EXISTS, anything else as NOT EXISTS.
 		exists := rule.Value == "true" || rule.Value == "1"

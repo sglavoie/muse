@@ -328,5 +328,7 @@ func buildModel(
 		tui.WithSmartPlaylistEvaluator(adapter),
 		tui.WithSmartPlaylistWriter(adapter),
 		tui.WithPlayCountWriter(result.Writer),
+		tui.WithHistoryRecorder(result.Writer),
+		tui.WithStatsReader(result.DB),
 	)
 }

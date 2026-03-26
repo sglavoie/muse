@@ -179,7 +179,7 @@ func TestEvalSmartPlaylist_PlayCount(t *testing.T) {
 
 func TestEvalSmartPlaylist_InLast(t *testing.T) {
 	d := openMigratedDB(t)
-	recentTime := time.Now().Unix() - 86400     // 1 day ago
+	recentTime := time.Now().Unix() - 86400 // 1 day ago
 	oldTime := time.Now().Unix() - 30*86400 // 30 days ago
 
 	insertFullTrack(t, d, "recent", "/r.flac", "Recent", "A", "B", "rock", 200000, 1000, recentTime)

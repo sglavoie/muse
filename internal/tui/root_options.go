@@ -156,6 +156,17 @@ func WithPlayCountWriter(w playCountIncrementer) Option {
 	return func(m *Model) { m.playCountWriter = w }
 }
 
+// WithHistoryRecorder sets the recorder for persisting play history rows.
+// When set, it is used instead of playCountWriter for recording plays.
+func WithHistoryRecorder(w playHistoryRecorder) Option {
+	return func(m *Model) { m.historyRecorder = w }
+}
+
+// WithStatsReader sets the reader for querying listening statistics.
+func WithStatsReader(r listeningStatsReader) Option {
+	return func(m *Model) { m.statsReader = r }
+}
+
 // WithSmartPlaylistWriter sets the writer for creating and updating smart playlists.
 func WithSmartPlaylistWriter(w smartPlaylistWriter) Option {
 	return func(m *Model) { m.smartPlaylistWriter = w }

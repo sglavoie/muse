@@ -63,16 +63,17 @@ func LoadLibrary(ctx context.Context, database *db.DB, writer LibraryWriter,
 	known := make(map[string]library.KnownFile, len(dbTracks))
 	for i, row := range dbTracks {
 		libraryTracks[i] = library.Track{
-			Hash:      row.Hash,
-			Path:      row.Path,
-			Title:     row.Title,
-			Artist:    row.Artist,
-			Album:     row.Album,
-			Genre:     row.Genre,
-			Duration:  float64(row.DurationMs) / 1000.0,
-			ModTime:   row.ModTime,
-			SizeBytes: row.SizeBytes,
-			PlayCount: int(row.PlayCount),
+			Hash:         row.Hash,
+			Path:         row.Path,
+			Title:        row.Title,
+			Artist:       row.Artist,
+			Album:        row.Album,
+			Genre:        row.Genre,
+			Duration:     float64(row.DurationMs) / 1000.0,
+			ModTime:      row.ModTime,
+			SizeBytes:    row.SizeBytes,
+			PlayCount:    int(row.PlayCount),
+			LastPlayedAt: row.LastPlayedAt,
 		}
 		known[row.Path] = library.KnownFile{
 			ModTime:   row.ModTime,

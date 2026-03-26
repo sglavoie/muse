@@ -155,6 +155,33 @@ func (w *Writer) IncrementPlayCount(hash string) error {
 	})
 }
 
+// RecordPlay inserts a play_history row and atomically increments play_count
+// and sets last_played_at on the tracks row. playedAt is a Unix timestamp;
+// listenedSecs is the actual number of seconds listened.
+func (w *Writer) RecordPlay(hash string, playedAt int64, listenedSecs int) error {
+	return w.Exec(func(db *sql.DB) error {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer rollback(tx)
+
+		if _, err := tx.Exec(
+			`INSERT INTO play_history (track_hash, played_at, listened_secs) VALUES (?, ?, ?)`,
+			hash, playedAt, listenedSecs,
+		); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(
+			`UPDATE tracks SET play_count = play_count + 1, last_played_at = ? WHERE hash = ?`,
+			playedAt, hash,
+		); err != nil {
+			return err
+		}
+		return tx.Commit()
+	})
+}
+
 // MarkTrackMissing sets missing=1 on the tracks row identified by hash and
 // updates its updated_at timestamp. It is a no-op if no row matches.
 func (w *Writer) MarkTrackMissing(hash string) error {

@@ -5,30 +5,166 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
 
+// ListeningStats holds aggregated listening data for a given time window.
+type ListeningStats struct {
+	TotalListenedSecs int
+	TotalPlays        int
+	TopArtists        []StatEntry // top 5 by play count
+	TopAlbums         []StatEntry
+	TopGenres         []StatEntry
+	TopTracks         []StatEntry
+	CurrentStreak     int // consecutive days with ≥1 play
+}
+
+// StatEntry holds an aggregated name/play-count/listening-time tuple.
+type StatEntry struct {
+	Name         string
+	PlayCount    int
+	ListenedSecs int
+}
+
+// ReadListeningStats returns aggregated listening statistics for plays recorded
+// at or after sinceUnix. Pass sinceUnix = 0 for all-time stats.
+func (d *DB) ReadListeningStats(sinceUnix int64) (ListeningStats, error) {
+	var stats ListeningStats
+
+	// 1. Totals
+	if err := d.QueryRow(
+		`SELECT COUNT(*), COALESCE(SUM(listened_secs), 0) FROM play_history WHERE played_at >= ?`,
+		sinceUnix,
+	).Scan(&stats.TotalPlays, &stats.TotalListenedSecs); err != nil {
+		return stats, fmt.Errorf("db: read listening stats totals: %w", err)
+	}
+
+	// 2. Top 5 artists
+	var err error
+	stats.TopArtists, err = readTopEntries(d,
+		`SELECT t.artist, COUNT(*), SUM(ph.listened_secs)
+		 FROM play_history ph JOIN tracks t ON ph.track_hash = t.hash
+		 WHERE ph.played_at >= ? GROUP BY t.artist ORDER BY COUNT(*) DESC LIMIT 5`,
+		sinceUnix)
+	if err != nil {
+		return stats, fmt.Errorf("db: read listening stats top artists: %w", err)
+	}
+
+	// 3. Top 5 albums
+	stats.TopAlbums, err = readTopEntries(d,
+		`SELECT t.album, COUNT(*), SUM(ph.listened_secs)
+		 FROM play_history ph JOIN tracks t ON ph.track_hash = t.hash
+		 WHERE ph.played_at >= ? GROUP BY t.album ORDER BY COUNT(*) DESC LIMIT 5`,
+		sinceUnix)
+	if err != nil {
+		return stats, fmt.Errorf("db: read listening stats top albums: %w", err)
+	}
+
+	// 4. Top 5 genres
+	stats.TopGenres, err = readTopEntries(d,
+		`SELECT t.genre, COUNT(*), SUM(ph.listened_secs)
+		 FROM play_history ph JOIN tracks t ON ph.track_hash = t.hash
+		 WHERE ph.played_at >= ? GROUP BY t.genre ORDER BY COUNT(*) DESC LIMIT 5`,
+		sinceUnix)
+	if err != nil {
+		return stats, fmt.Errorf("db: read listening stats top genres: %w", err)
+	}
+
+	// 5. Top 5 tracks
+	stats.TopTracks, err = readTopEntries(d,
+		`SELECT t.artist || ' — ' || t.title, COUNT(*), SUM(ph.listened_secs)
+		 FROM play_history ph JOIN tracks t ON ph.track_hash = t.hash
+		 WHERE ph.played_at >= ? GROUP BY ph.track_hash ORDER BY COUNT(*) DESC LIMIT 5`,
+		sinceUnix)
+	if err != nil {
+		return stats, fmt.Errorf("db: read listening stats top tracks: %w", err)
+	}
+
+	// 6. Current streak: count consecutive days (including today) that have ≥1 play
+	stats.CurrentStreak, err = readCurrentStreak(d)
+	if err != nil {
+		return stats, fmt.Errorf("db: read listening stats streak: %w", err)
+	}
+
+	return stats, nil
+}
+
+// readTopEntries runs a query that returns (name, play_count, listened_secs)
+// rows and collects them into a []StatEntry.
+func readTopEntries(d *DB, query string, arg int64) ([]StatEntry, error) {
+	rows, err := d.Query(query, arg)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []StatEntry
+	for rows.Next() {
+		var e StatEntry
+		if err := rows.Scan(&e.Name, &e.PlayCount, &e.ListenedSecs); err != nil {
+			return nil, err
+		}
+		result = append(result, e)
+	}
+	return result, rows.Err()
+}
+
+// readCurrentStreak counts consecutive days ending today (in local time) that
+// have at least one play_history row.
+func readCurrentStreak(d *DB) (int, error) {
+	rows, err := d.Query(
+		`SELECT DISTINCT date(played_at, 'unixepoch', 'localtime') AS day
+		 FROM play_history ORDER BY day DESC`,
+	)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	today := time.Now().Format("2006-01-02")
+	streak := 0
+	expected := today
+	for rows.Next() {
+		var day string
+		if err := rows.Scan(&day); err != nil {
+			return 0, err
+		}
+		if day != expected {
+			break
+		}
+		streak++
+		t, err := time.ParseInLocation("2006-01-02", day, time.Local)
+		if err != nil {
+			break
+		}
+		expected = t.AddDate(0, 0, -1).Format("2006-01-02")
+	}
+	return streak, rows.Err()
+}
+
 // TrackRow holds a single row from the tracks table. Used by ReadTracks to
 // return all cached tracks for pre-populating the library on startup.
 type TrackRow struct {
-	Hash       string
-	Path       string
-	Title      string
-	Artist     string
-	Album      string
-	Genre      string
-	DurationMs int64
-	SizeBytes  int64
-	ModTime    int64
-	PlayCount  int
+	Hash         string
+	Path         string
+	Title        string
+	Artist       string
+	Album        string
+	Genre        string
+	DurationMs   int64
+	SizeBytes    int64
+	ModTime      int64
+	PlayCount    int
+	LastPlayedAt int64
 }
 
 // ReadTracks returns all non-missing tracks from the tracks table. Returns an
 // empty slice (not an error) when the table is empty.
 func (d *DB) ReadTracks() ([]TrackRow, error) {
 	rows, err := d.Query(`
-		SELECT hash, path, title, artist, album, genre, duration_ms, size_bytes, mod_time, play_count
+		SELECT hash, path, title, artist, album, genre, duration_ms, size_bytes, mod_time, play_count, last_played_at
 		FROM tracks WHERE missing = 0
 	`)
 	if err != nil {
@@ -39,7 +175,7 @@ func (d *DB) ReadTracks() ([]TrackRow, error) {
 	var result []TrackRow
 	for rows.Next() {
 		var r TrackRow
-		if err := rows.Scan(&r.Hash, &r.Path, &r.Title, &r.Artist, &r.Album, &r.Genre, &r.DurationMs, &r.SizeBytes, &r.ModTime, &r.PlayCount); err != nil {
+		if err := rows.Scan(&r.Hash, &r.Path, &r.Title, &r.Artist, &r.Album, &r.Genre, &r.DurationMs, &r.SizeBytes, &r.ModTime, &r.PlayCount, &r.LastPlayedAt); err != nil {
 			return nil, fmt.Errorf("db: read track row: %w", err)
 		}
 		result = append(result, r)

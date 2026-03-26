@@ -987,6 +987,59 @@ func (m *Manager) PlayQueueEntry(entry QueueTrack, marker MissingMarker) error {
 	return err
 }
 
+// DebugInfo queries mpv for diagnostic properties and returns them as a
+// string map. Individual property failures set the value to "N/A" and do not
+// stop collection. Returns an empty map (not nil) with all values "N/A" when
+// mpv is not connected.
+func (m *Manager) DebugInfo() (map[string]string, error) {
+	result := map[string]string{
+		"codec":         "N/A",
+		"sample_rate":   "N/A",
+		"bitrate":       "N/A",
+		"audio_device":  "N/A",
+		"path":          "N/A",
+		"audio_filters": "",
+	}
+
+	c, err := m.ipc()
+	if err != nil {
+		return result, err
+	}
+
+	props := []struct {
+		key  string
+		prop string
+	}{
+		{"codec", "audio-codec-name"},
+		{"sample_rate", "audio-params/samplerate"},
+		{"bitrate", "audio-bitrate"},
+		{"audio_device", "audio-device"},
+		{"path", "path"},
+	}
+	for _, p := range props {
+		resp, err := c.SendCommand("get_property", p.prop)
+		if err == nil {
+			if s, ok := resp.Data.(string); ok {
+				result[p.key] = s
+			} else if resp.Data != nil {
+				result[p.key] = fmt.Sprintf("%v", resp.Data)
+			}
+		}
+	}
+
+	// Collect active audio filter names.
+	m.mu.RLock()
+	var filters []string
+	for name := range m.audioFilters {
+		filters = append(filters, name)
+	}
+	m.mu.RUnlock()
+	sort.Strings(filters)
+	result["audio_filters"] = strings.Join(filters, ", ")
+
+	return result, nil
+}
+
 // cleanStaleSocket removes the socket file at socketPath if it exists but no
 // live process is listening on it. Returns an error if a live process owns it.
 // Note: app.Run already removes any stale socket in step 2 (after acquiring

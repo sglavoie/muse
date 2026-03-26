@@ -94,11 +94,19 @@ func (m Model) handleMissingTrackMsg(msg MissingTrackMsg) Model {
 // handlePlaybackEndedMsg handles the end of the play queue, optionally
 // wrapping around in repeat-all mode.
 func (m Model) handlePlaybackEndedMsg() Model {
-	if m.playback.currentHash != "" && m.playCountWriter != nil &&
+	if m.playback.currentHash != "" &&
 		shouldCountPlay(m.playback.elapsedSecs, m.playback.totalSecs) {
-		pcw := m.playCountWriter
-		h := m.playback.currentHash
-		go func() { _ = pcw.IncrementPlayCount(h) }()
+		if m.historyRecorder != nil {
+			hr := m.historyRecorder
+			h := m.playback.currentHash
+			elapsed := int(m.playback.elapsedSecs)
+			now := time.Now().Unix()
+			go func() { _ = hr.RecordPlay(h, now, elapsed) }()
+		} else if m.playCountWriter != nil {
+			pcw := m.playCountWriter
+			h := m.playback.currentHash
+			go func() { _ = pcw.IncrementPlayCount(h) }()
+		}
 	}
 	if m.playback.repeatMode == RepeatAll && len(m.queue.entries) > 0 && m.player != nil {
 		if err := m.player.PlayFromIndex(0); err != nil {
@@ -193,6 +201,9 @@ func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
 // player advances to a new track.
 func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	previousHash := m.playback.currentHash
+	previousElapsed := m.playback.elapsedSecs // capture before zero
+	previousTotal := m.playback.totalSecs
+
 	m.playback.currentHash = msg.Hash
 	m.statusBar.artist = msg.Artist
 	m.statusBar.title = msg.Title
@@ -206,13 +217,23 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	m.playback.totalSecs = 0
 
 	var incrementCmd tea.Cmd
-	if previousHash != "" && m.playCountWriter != nil &&
-		shouldCountPlay(m.playback.elapsedSecs, m.playback.totalSecs) {
-		pcw := m.playCountWriter
-		h := previousHash
-		incrementCmd = func() tea.Msg {
-			_ = pcw.IncrementPlayCount(h)
-			return nil
+	if previousHash != "" && shouldCountPlay(previousElapsed, previousTotal) {
+		if m.historyRecorder != nil {
+			hr := m.historyRecorder
+			h := previousHash
+			elapsed := int(previousElapsed)
+			now := time.Now().Unix()
+			incrementCmd = func() tea.Msg {
+				_ = hr.RecordPlay(h, now, elapsed)
+				return nil
+			}
+		} else if m.playCountWriter != nil {
+			pcw := m.playCountWriter
+			h := previousHash
+			incrementCmd = func() tea.Msg {
+				_ = pcw.IncrementPlayCount(h)
+				return nil
+			}
 		}
 	}
 	return m, tea.Batch(m.sessionPositionCmd(), incrementCmd)

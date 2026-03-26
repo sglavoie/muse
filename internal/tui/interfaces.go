@@ -196,6 +196,13 @@ type playCountIncrementer interface {
 	IncrementPlayCount(hash string) error
 }
 
+// debugInfoProvider is implemented by player.Manager to expose diagnostic
+// properties for the debug panel. Root checks for it via type assertion so that
+// test stubs do not need to implement it.
+type debugInfoProvider interface {
+	DebugInfo() (map[string]string, error)
+}
+
 // smartPlaylistWriter creates and updates smart playlists in the database.
 // Root uses it when the SmartRuleEditor commits a new or edited smart playlist.
 // When nil, the commit is a no-op.
@@ -203,4 +210,17 @@ type smartPlaylistWriter interface {
 	CreateSmartPlaylist(name, queryJSON string) (int64, error)
 	UpdateSmartPlaylistQuery(id int64, queryJSON string) error
 	ReadPlaylists() ([]db.PlaylistRow, error)
+}
+
+// playHistoryRecorder records a completed play to the play_history table.
+// Root calls it instead of playCountIncrementer when available, because
+// RecordPlay atomically increments play_count AND sets last_played_at.
+type playHistoryRecorder interface {
+	RecordPlay(hash string, playedAt int64, listenedSecs int) error
+}
+
+// listeningStatsReader queries aggregated listening statistics from the
+// play_history table. Root uses it to populate the stats overlay (Session 3).
+type listeningStatsReader interface {
+	ReadListeningStats(sinceUnix int64) (db.ListeningStats, error)
 }

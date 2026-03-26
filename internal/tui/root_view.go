@@ -9,11 +9,13 @@ import (
 
 // hasActiveOverlay reports whether any overlay or the help screen is
 // currently displayed. Used to suppress the title bar when an overlay
-// is active. Overlay priority (highest to lowest): help > settings >
+// is active. Overlay priority (highest to lowest): help > debug > settings >
 // nowPlaying > trackInfo > preview > metadataEditor > destPicker. When
 // adding a new overlay, update this method and the View() rendering chain.
 func (m Model) hasActiveOverlay() bool {
 	return m.helpVisible ||
+		m.debugVisible ||
+		m.statsVisible ||
 		m.overlay.settings != nil ||
 		m.overlay.nowPlaying != nil ||
 		m.overlay.trackInfo != nil ||
@@ -37,6 +39,10 @@ func (m Model) View() tea.View {
 			filterBar = "Search: " + m.helpSearchFilter.Text + "\n"
 		}
 		body = filterBar + m.helpViewport.View()
+	case m.debugVisible:
+		body = m.debugViewport.View()
+	case m.statsVisible:
+		body = m.renderStatsOverlay()
 	case m.overlay.settings != nil:
 		body = m.overlay.settings.Render(m.termWidth, m.termHeight, *m.styles)
 	case m.overlay.nowPlaying != nil:

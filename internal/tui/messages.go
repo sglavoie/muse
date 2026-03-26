@@ -295,3 +295,10 @@ type smartPlaylistEditedMsg struct {
 type smartPlaylistCountsUpdatedMsg struct {
 	counts map[int64]int
 }
+
+// listeningStatsMsg is dispatched when the background DB read for listening
+// statistics completes. err is non-nil when the query failed.
+type listeningStatsMsg struct {
+	stats db.ListeningStats
+	err   error
+}
