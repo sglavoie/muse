@@ -1963,10 +1963,10 @@ func TestWatchAndRestart_ResetsBackoffOnSuccessfulConnect(t *testing.T) {
 	}
 }
 
-// --- SetAudioGain ---
+// --- SetNormalize ---
 
-func TestManager_SetAudioGain_Zero(t *testing.T) {
-	sock := shortSockPath(t, "gain-zero")
+func TestManager_SetNormalize_Enabled(t *testing.T) {
+	sock := shortSockPath(t, "norm-on")
 
 	var mu sync.Mutex
 	var received [][]any
@@ -1991,8 +1991,57 @@ func TestManager_SetAudioGain_Zero(t *testing.T) {
 	m.client = client
 	m.mu.Unlock()
 
-	if err := m.SetAudioGain(0); err != nil {
-		t.Fatalf("SetAudioGain(0): %v", err)
+	if err := m.SetNormalize(true); err != nil {
+		t.Fatalf("SetNormalize(true): %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	found := false
+	for _, args := range received {
+		if len(args) >= 3 {
+			if verb, _ := args[0].(string); verb == "set_property" {
+				if prop, _ := args[1].(string); prop == "af" {
+					if val, _ := args[2].(string); val == "lavfi=[loudnorm]" {
+						found = true
+					}
+				}
+			}
+		}
+	}
+	if !found {
+		t.Errorf("set_property af \"lavfi=[loudnorm]\" not sent; got %v", received)
+	}
+}
+
+func TestManager_SetNormalize_Disabled(t *testing.T) {
+	sock := shortSockPath(t, "norm-off")
+
+	var mu sync.Mutex
+	var received [][]any
+	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
+		if cmd, ok := req["command"].([]any); ok {
+			mu.Lock()
+			received = append(received, cmd)
+			mu.Unlock()
+		}
+		return successHandler(req)
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{socketPath: sock, ctx: ctx, cancel: cancel}
+	defer m.Close()
+
+	client, err := NewIPCClient(sock)
+	if err != nil {
+		t.Fatalf("NewIPCClient: %v", err)
+	}
+	m.mu.Lock()
+	m.client = client
+	m.mu.Unlock()
+
+	if err := m.SetNormalize(false); err != nil {
+		t.Fatalf("SetNormalize(false): %v", err)
 	}
 
 	mu.Lock()
@@ -2014,62 +2063,13 @@ func TestManager_SetAudioGain_Zero(t *testing.T) {
 	}
 }
 
-func TestManager_SetAudioGain_NonZero(t *testing.T) {
-	sock := shortSockPath(t, "gain-nz")
-
-	var mu sync.Mutex
-	var received [][]any
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		if cmd, ok := req["command"].([]any); ok {
-			mu.Lock()
-			received = append(received, cmd)
-			mu.Unlock()
-		}
-		return successHandler(req)
-	})
-
-	ctx, cancel := context.WithCancel(context.Background())
-	m := &Manager{socketPath: sock, ctx: ctx, cancel: cancel}
-	defer m.Close()
-
-	client, err := NewIPCClient(sock)
-	if err != nil {
-		t.Fatalf("NewIPCClient: %v", err)
-	}
-	m.mu.Lock()
-	m.client = client
-	m.mu.Unlock()
-
-	if err := m.SetAudioGain(-10); err != nil {
-		t.Fatalf("SetAudioGain(-10): %v", err)
-	}
-
-	mu.Lock()
-	defer mu.Unlock()
-	found := false
-	for _, args := range received {
-		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "af" {
-					if val, _ := args[2].(string); val == "lavfi=[volume=-10dB]" {
-						found = true
-					}
-				}
-			}
-		}
-	}
-	if !found {
-		t.Errorf("set_property af \"lavfi=[volume=-10dB]\" not sent; got %v", received)
-	}
-}
-
-func TestManager_SetAudioGain_NotConnectedQueues(t *testing.T) {
+func TestManager_SetNormalize_NotConnectedQueues(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	m := &Manager{ctx: ctx, cancel: cancel, cmdQueue: []func() error{}}
 	defer m.Close()
 
-	if err := m.SetAudioGain(-10); err != nil {
-		t.Fatalf("SetAudioGain queued: %v", err)
+	if err := m.SetNormalize(true); err != nil {
+		t.Fatalf("SetNormalize queued: %v", err)
 	}
 	m.mu.RLock()
 	n := len(m.cmdQueue)

@@ -51,8 +51,8 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 	cfg := m.overlay.settings.ToConfig(m.cfg)
 	m.cfg = cfg
 	m.overlay.settings = nil
-	if gs, ok := m.player.(audioGainSetter); ok {
-		_ = gs.SetAudioGain(m.cfg.GainDB)
+	if ns, ok := m.player.(audioNormalizer); ok {
+		_ = ns.SetNormalize(m.cfg.NormalizeVolume)
 	}
 	if m.configPath == "" {
 		return m, func() tea.Msg { return settingsSavedMsg{} }

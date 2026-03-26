@@ -11,6 +11,13 @@ import (
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
 // settingsTab identifies the active tab in the settings overlay.
 type settingsTab int
 
@@ -56,7 +63,7 @@ func NewSettingsOverlay(cfg config.Config) SettingsOverlay {
 		{Label: "Seek short", Value: int(cfg.SeekOffsetShort), Default: 5, Min: 1, Max: 60, Step: 1, Unit: "s"},
 		{Label: "Seek long", Value: int(cfg.SeekOffsetLong), Default: 30, Min: 5, Max: 300, Step: 5, Unit: "s"},
 		{Label: "Default volume", Value: cfg.DefaultVolume, Default: 100, Min: 0, Max: 100, Step: 5, Unit: "%"},
-		{Label: "Gain", Value: cfg.GainDB, Default: 0, Min: -30, Max: 30, Step: 1, Unit: "dB"},
+		{Label: "Normalize", Value: boolToInt(cfg.NormalizeVolume), Default: 0, Min: 0, Max: 1, Step: 1, Unit: ""},
 	}
 	o.fields[settingsTabDisplay] = []settingsField{
 		{Label: "Notification", Value: cfg.TransientDurationSecs, Default: 5, Min: 1, Max: 30, Step: 1, Unit: "s"},
@@ -121,7 +128,7 @@ func (o SettingsOverlay) ToConfig(base config.Config) config.Config {
 	cfg.SeekOffsetShort = float64(pb[1].Value)
 	cfg.SeekOffsetLong = float64(pb[2].Value)
 	cfg.DefaultVolume = pb[3].Value
-	cfg.GainDB = pb[4].Value
+	cfg.NormalizeVolume = pb[4].Value != 0
 	disp := o.fields[settingsTabDisplay]
 	cfg.TransientDurationSecs = disp[0].Value
 	cfg.VolumeFeedbackDurationSecs = disp[1].Value
@@ -176,7 +183,16 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 		}
 	}
 	for i, f := range o.fields[o.tab] {
-		spinner := fmt.Sprintf("< %d%s >", f.Value, f.Unit)
+		var spinner string
+		if f.Min == 0 && f.Max == 1 && f.Unit == "" {
+			label := "Off"
+			if f.Value != 0 {
+				label = "On"
+			}
+			spinner = fmt.Sprintf("< %s >", label)
+		} else {
+			spinner = fmt.Sprintf("< %d%s >", f.Value, f.Unit)
+		}
 		spinnerW := ansi.StringWidth(spinner)
 		gap := max(1, contentWidth-maxLabelW-spinnerW)
 		row := fmt.Sprintf("  %-*s%s%s  ", maxLabelW, f.Label, strings.Repeat(" ", gap), spinner)

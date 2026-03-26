@@ -810,21 +810,21 @@ func (m *Manager) SetVolumeAbsolute(volume float64) error {
 	return err
 }
 
-// SetAudioGain applies a fixed dB gain offset to all playback via mpv's lavfi
-// volume filter. When db is 0 the filter is cleared (no processing overhead).
-// The command is queued for replay if mpv is not yet connected.
-func (m *Manager) SetAudioGain(db int) error {
+// SetNormalize enables or disables real-time EBU R128 volume normalization via
+// mpv's lavfi loudnorm filter. The command is queued for replay if mpv is not
+// yet connected.
+func (m *Manager) SetNormalize(enabled bool) error {
 	c, err := m.ipc()
 	if errors.Is(err, ErrNotConnected) {
-		return m.enqueue(func() error { return m.SetAudioGain(db) })
+		return m.enqueue(func() error { return m.SetNormalize(enabled) })
 	}
 	if err != nil {
 		return err
 	}
-	if db == 0 {
-		_, err = c.SendCommand("set_property", "af", "")
+	if enabled {
+		_, err = c.SendCommand("set_property", "af", "lavfi=[loudnorm]")
 	} else {
-		_, err = c.SendCommand("set_property", "af", fmt.Sprintf("lavfi=[volume=%ddB]", db))
+		_, err = c.SendCommand("set_property", "af", "")
 	}
 	return err
 }

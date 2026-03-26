@@ -12,14 +12,14 @@ import (
 	"github.com/sglavoie/muse/internal/config"
 )
 
-// gainCapturingPlayer wraps a playPauser stub and records SetAudioGain calls.
-type gainCapturingPlayer struct {
+// normalizeCapturingPlayer wraps a playPauser stub and records SetNormalize calls.
+type normalizeCapturingPlayer struct {
 	playPauser
-	gainCalls []int
+	normalizeCalls []bool
 }
 
-func (g *gainCapturingPlayer) SetAudioGain(db int) error {
-	g.gainCalls = append(g.gainCalls, db)
+func (n *normalizeCapturingPlayer) SetNormalize(enabled bool) error {
+	n.normalizeCalls = append(n.normalizeCalls, enabled)
 	return nil
 }
 
@@ -153,9 +153,9 @@ func TestSettingsSavedMsgErrorShowsErrorNotification(t *testing.T) {
 	}
 }
 
-// TestSettingsSaveAppliesGainToPlayer verifies that ctrl+s calls SetAudioGain on the player.
-func TestSettingsSaveAppliesGainToPlayer(t *testing.T) {
-	stub := &gainCapturingPlayer{}
+// TestSettingsSaveAppliesNormalizeToPlayer verifies that ctrl+s calls SetNormalize on the player.
+func TestSettingsSaveAppliesNormalizeToPlayer(t *testing.T) {
+	stub := &normalizeCapturingPlayer{}
 	cfg := config.Defaults()
 	m := New(context.Background(), WithConfig(cfg), WithPlayer(stub))
 
@@ -163,14 +163,13 @@ func TestSettingsSaveAppliesGainToPlayer(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: ',', Mod: tea.ModCtrl})
 	nm := next.(Model)
 
-	// Navigate to the Gain field (index 4 on Playback tab) and increment it.
+	// Navigate to the Normalize field (index 4 on Playback tab) and toggle it on.
 	for range 4 {
 		next, _ = nm.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 		nm = next.(Model)
 	}
 	next, _ = nm.Update(tea.KeyPressMsg{Code: 'l', Text: "l"})
 	nm = next.(Model)
-	expectedGain := nm.overlay.settings.fields[settingsTabPlayback][4].Value
 
 	// Save.
 	next, _ = nm.Update(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
@@ -179,13 +178,13 @@ func TestSettingsSaveAppliesGainToPlayer(t *testing.T) {
 	if nm.overlay.settings != nil {
 		t.Fatal("ctrl+s: expected settings overlay to be nil after save")
 	}
-	if nm.cfg.GainDB != expectedGain {
-		t.Errorf("ctrl+s: expected cfg.GainDB=%d, got %d", expectedGain, nm.cfg.GainDB)
+	if !nm.cfg.NormalizeVolume {
+		t.Error("ctrl+s: expected cfg.NormalizeVolume=true")
 	}
-	if len(stub.gainCalls) == 0 {
-		t.Fatal("ctrl+s: expected SetAudioGain to be called")
+	if len(stub.normalizeCalls) == 0 {
+		t.Fatal("ctrl+s: expected SetNormalize to be called")
 	}
-	if stub.gainCalls[0] != expectedGain {
-		t.Errorf("ctrl+s: expected SetAudioGain(%d), got %d", expectedGain, stub.gainCalls[0])
+	if !stub.normalizeCalls[0] {
+		t.Error("ctrl+s: expected SetNormalize(true)")
 	}
 }

@@ -156,9 +156,9 @@ type favoriteReader interface {
 // the tui package's dependency on db narrow and explicit.
 type favoriteWriter = db.FavoriteWriter
 
-// audioGainSetter applies a fixed dB gain offset to all playback via the
-// player's audio filter chain. Root checks for it via type assertion on
-// settings save and is not required by test stubs.
-type audioGainSetter interface {
-	SetAudioGain(db int) error
+// audioNormalizer enables or disables real-time EBU R128 volume normalization
+// via the player's audio filter chain. Root checks for it via type assertion
+// on settings save and is not required by test stubs.
+type audioNormalizer interface {
+	SetNormalize(enabled bool) error
 }

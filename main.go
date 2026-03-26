@@ -119,9 +119,9 @@ func runTUI(ctx context.Context) error {
 			if err := mgr.SetVolumeAbsolute(float64(cfg.DefaultVolume)); err != nil {
 				slog.Warn("startup: set default volume", "err", err)
 			}
-			if cfg.GainDB != 0 {
-				if err := mgr.SetAudioGain(cfg.GainDB); err != nil {
-					slog.Warn("startup: set audio gain", "err", err)
+			if cfg.NormalizeVolume {
+				if err := mgr.SetNormalize(true); err != nil {
+					slog.Warn("startup: set normalize", "err", err)
 				}
 			}
 			return nil

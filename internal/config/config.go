@@ -41,8 +41,8 @@ log_level = %q
 # Duration in seconds for volume feedback notifications (1-10).
 # volume_feedback_duration_secs = 2
 
-# Fixed gain applied to all playback in dB (-30 to 30, 0 = off).
-# gain_db = 0
+# Enable real-time EBU R128 volume normalization (true/false).
+# normalize_volume = false
 `
 
 const (
@@ -55,7 +55,7 @@ const (
 	defaultSeekOffsetLong             = 30.0
 	defaultTransientDurationSecs      = 5
 	defaultVolumeFeedbackDurationSecs = 2
-	defaultGainDB                     = 0
+	defaultNormalizeVolume             = false
 )
 
 // Config holds all application configuration values.
@@ -70,7 +70,7 @@ type Config struct {
 	SeekOffsetLong             float64  `toml:"seek_offset_long"`
 	TransientDurationSecs      int      `toml:"transient_duration_secs"`
 	VolumeFeedbackDurationSecs int      `toml:"volume_feedback_duration_secs"`
-	GainDB                     int      `toml:"gain_db"`
+	NormalizeVolume            bool     `toml:"normalize_volume"`
 }
 
 // Defaults returns a Config populated with built-in default values.
@@ -98,7 +98,7 @@ func defaults() Config {
 		SeekOffsetLong:             defaultSeekOffsetLong,
 		TransientDurationSecs:      defaultTransientDurationSecs,
 		VolumeFeedbackDurationSecs: defaultVolumeFeedbackDurationSecs,
-		GainDB:                     defaultGainDB,
+		NormalizeVolume:            defaultNormalizeVolume,
 	}
 }
 
@@ -163,7 +163,7 @@ type rawConfig struct {
 	SeekOffsetLong             *float64 `toml:"seek_offset_long"`
 	TransientDurationSecs      *int     `toml:"transient_duration_secs"`
 	VolumeFeedbackDurationSecs *int     `toml:"volume_feedback_duration_secs"`
-	GainDB                     *int     `toml:"gain_db"`
+	NormalizeVolume            *bool    `toml:"normalize_volume"`
 }
 
 // validate checks each field and falls back to defaults for invalid values,
@@ -280,18 +280,8 @@ func validate(raw rawConfig) (Config, []string) {
 		}
 	}
 
-	if raw.GainDB != nil {
-		v := *raw.GainDB
-		if v >= -30 && v <= 30 {
-			cfg.GainDB = v
-		} else {
-			slog.Warn("invalid config value, using default",
-				"field", "gain_db",
-				"value", v,
-				"default", defaultGainDB,
-			)
-			warnings = append(warnings, fmt.Sprintf("gain_db %d is out of range (-30 to 30), using %d", v, defaultGainDB))
-		}
+	if raw.NormalizeVolume != nil {
+		cfg.NormalizeVolume = *raw.NormalizeVolume
 	}
 
 	raw.LogLevel = strings.ToLower(raw.LogLevel)
