@@ -409,8 +409,8 @@ func (v View) renderTrackRows(items []library.Track) string {
 
 	// Column header row.
 	header := v.Styles.ColHead.Render(
-		fmt.Sprintf("  %-*s %-*s %-*s %-*s %*s",
-			cols.Position, "#", cols.Title, "Title", cols.Artist, "Artist", cols.Album, "Album", cols.Duration, "Time"))
+		fmt.Sprintf("  %-*s %-*s %-*s %-*s %*s %*s",
+			cols.Position, "#", cols.Title, "Title", cols.Artist, "Artist", cols.Album, "Album", cols.Duration, "Time", cols.PlayCount, "Plays"))
 
 	maxRows := v.visibleRows()
 	start := min(v.ScrollOffset, len(items))
@@ -438,7 +438,8 @@ func (v View) renderTrackRows(items []library.Track) string {
 		album := text.Pad(t.Album, cols.Album)
 		dur := text.FormatDurationSecs(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
-		line := marker + pos + " " + title + " " + artist + " " + album + " " + dur
+		plays := fmt.Sprintf("%*d", cols.PlayCount, t.PlayCount)
+		line := marker + pos + " " + title + " " + artist + " " + album + " " + dur + " " + plays
 		_, isFav := v.FavoriteHashes[t.Hash]
 		switch {
 		case isFocused && isFav:

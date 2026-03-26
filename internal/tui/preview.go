@@ -9,11 +9,12 @@ import (
 // PreviewOverlay renders a centered overlay box showing preview track info
 // and live playback progress.
 type PreviewOverlay struct {
-	artist  string
-	title   string
-	album   string
-	elapsed float64
-	total   float64
+	artist    string
+	title     string
+	album     string
+	elapsed   float64
+	total     float64
+	playCount int
 }
 
 // Render produces a centered overlay string for the preview. The caller should
@@ -21,6 +22,6 @@ type PreviewOverlay struct {
 // of the screen.
 func (p PreviewOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
 	progress := fmt.Sprintf("▶ %s / %s", formatTime(p.elapsed), formatTime(p.total))
-	return renderTrackOverlay(p.title, p.artist, p.album, progress,
+	return renderTrackOverlay(p.title, p.artist, p.album, progress, p.playCount,
 		" ♪ Preview ", "P or esc to dismiss", termWidth, termHeight, s)
 }

@@ -273,6 +273,9 @@ func (e SmartRuleEditor) handleRulesKey(key string) (SmartRuleEditor, ruleEditor
 			e = e.startEditRule(e.ruleCursor)
 		}
 	case "right":
+		if len(e.rules) == 0 {
+			return e, ruleEditorNone
+		}
 		e.step = stepSort
 	case "a":
 		e = e.startNewRule()
@@ -521,10 +524,14 @@ func (e SmartRuleEditor) renderRulesStep(termWidth, termHeight int, s styles.Sty
 		}
 	}
 	rows = append(rows, OverlayRow{Blank: true})
+	hint := "a add · enter edit · d del · tab AND/OR · → next"
+	if len(e.rules) == 0 {
+		hint = "a add"
+	}
 	box := OverlayBox{
 		Title:         " Rules ",
 		Rows:          rows,
-		Hint:          "a add · enter edit · d del · tab AND/OR · → next",
+		Hint:          hint,
 		MaxInnerWidth: 60,
 	}
 	return box.Render(termWidth, termHeight, s)

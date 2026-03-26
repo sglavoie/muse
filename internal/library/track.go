@@ -11,4 +11,5 @@ type Track struct {
 	Duration  float64 // seconds
 	ModTime   int64   // Unix timestamp of last modification
 	SizeBytes int64   // file size in bytes
+	PlayCount int
 }

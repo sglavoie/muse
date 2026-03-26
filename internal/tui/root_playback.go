@@ -11,6 +11,16 @@ import (
 	"github.com/sglavoie/muse/internal/player"
 )
 
+// shouldCountPlay returns true when the user has listened to enough of the
+// track to count it as a play: at least 50% of the duration or 30 seconds,
+// whichever comes first.
+func shouldCountPlay(elapsedSecs, totalSecs float64) bool {
+	if totalSecs <= 0 || elapsedSecs <= 0 {
+		return false
+	}
+	return elapsedSecs >= 30 || elapsedSecs >= totalSecs*0.5
+}
+
 // handleTickMsg updates elapsed time for the main player, preview player, and
 // now-playing overlay, and clears expired status bar notifications.
 func (m Model) handleTickMsg() (Model, tea.Cmd) {
@@ -84,6 +94,12 @@ func (m Model) handleMissingTrackMsg(msg MissingTrackMsg) Model {
 // handlePlaybackEndedMsg handles the end of the play queue, optionally
 // wrapping around in repeat-all mode.
 func (m Model) handlePlaybackEndedMsg() Model {
+	if m.playback.currentHash != "" && m.playCountWriter != nil &&
+		shouldCountPlay(m.playback.elapsedSecs, m.playback.totalSecs) {
+		pcw := m.playCountWriter
+		h := m.playback.currentHash
+		go func() { _ = pcw.IncrementPlayCount(h) }()
+	}
 	if m.playback.repeatMode == RepeatAll && len(m.queue.entries) > 0 && m.player != nil {
 		if err := m.player.PlayFromIndex(0); err != nil {
 			slog.Warn("repeat-all playback failed", "err", err)
@@ -190,7 +206,8 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	m.playback.totalSecs = 0
 
 	var incrementCmd tea.Cmd
-	if previousHash != "" && m.playCountWriter != nil {
+	if previousHash != "" && m.playCountWriter != nil &&
+		shouldCountPlay(m.playback.elapsedSecs, m.playback.totalSecs) {
 		pcw := m.playCountWriter
 		h := previousHash
 		incrementCmd = func() tea.Msg {
@@ -225,7 +242,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			m.statusBar.notification = newNotification("Track path unknown")
 			return m, nil, true
 		}
-		return m, trackInfoCmd(m.appCtx, track.Path), true
+		return m, trackInfoCmd(m.appCtx, track.Path, track.PlayCount), true
 	case actionNowPlayingInfo:
 		if m.overlay.nowPlaying != nil {
 			m.overlay.nowPlaying = nil
@@ -253,6 +270,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 					overlay.title = t.Title
 				}
 				overlay.album = t.Album
+				overlay.playCount = t.PlayCount
 			}
 		}
 		m.overlay.nowPlaying = &overlay
@@ -479,17 +497,27 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 			if e.Missing {
 				return library.Track{}, false
 			}
-			return library.Track{
+			track := library.Track{
 				Hash:     e.Hash,
 				Path:     e.Path,
 				Artist:   e.Artist,
 				Title:    e.Title,
 				Album:    e.Album,
 				Duration: float64(e.DurationMs) / 1000,
-			}, true
+			}
+			if t, ok := m.library.index.FindByHash(e.Hash); ok {
+				track.PlayCount = t.PlayCount
+			}
+			return track, true
 		}
 	case viewPlaylists:
-		return m.playlists.focusedTrack()
+		track, ok := m.playlists.focusedTrack()
+		if ok && track.Hash != "" {
+			if t, found := m.library.index.FindByHash(track.Hash); found {
+				track.PlayCount = t.PlayCount
+			}
+		}
+		return track, ok
 	case viewArtists:
 		return m.artists.focusedTrack()
 	case viewAlbums:
@@ -520,9 +548,10 @@ func (m Model) startPreviewCmd(track library.Track) tea.Cmd {
 		return previewStartedMsg{
 			player: pp,
 			overlay: PreviewOverlay{
-				artist: track.Artist,
-				title:  track.Title,
-				album:  track.Album,
+				artist:    track.Artist,
+				title:     track.Title,
+				album:     track.Album,
+				playCount: track.PlayCount,
 			},
 		}
 	}

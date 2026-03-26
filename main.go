@@ -325,5 +325,8 @@ func buildModel(
 		tui.WithMetadataWriter(result.Writer),
 		tui.WithFavoriteReader(result.DB),
 		tui.WithFavoriteWriter(result.Writer),
+		tui.WithSmartPlaylistEvaluator(adapter),
+		tui.WithSmartPlaylistWriter(adapter),
+		tui.WithPlayCountWriter(result.Writer),
 	)
 }

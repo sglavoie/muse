@@ -52,7 +52,7 @@ func TestNewTrackInfoOverlay(t *testing.T) {
 		"FileSize":      "25 MB",
 		"AudioChannels": 2,
 	}
-	overlay := newTrackInfoOverlay("/music/test.flac", tags)
+	overlay := newTrackInfoOverlay("/music/test.flac", tags, 0)
 
 	if overlay.path != "/music/test.flac" {
 		t.Errorf("expected path '/music/test.flac', got %q", overlay.path)
@@ -109,17 +109,18 @@ func TestNewTrackInfoOverlay(t *testing.T) {
 }
 
 func TestNewTrackInfoOverlay_EmptyTags(t *testing.T) {
-	overlay := newTrackInfoOverlay("/music/empty.flac", map[string]any{})
+	overlay := newTrackInfoOverlay("/music/empty.flac", map[string]any{}, 0)
 
-	// Should have path row and blank separator, but no tag rows.
+	// Should have path row, blank separator, and play count row — but no tag rows.
 	nonBlankNonPath := 0
 	for _, row := range overlay.rows {
 		if !row.Blank && row.Label != "Path:" {
 			nonBlankNonPath++
 		}
 	}
-	if nonBlankNonPath != 0 {
-		t.Errorf("expected only path row for empty tags, got %d extra rows", nonBlankNonPath)
+	// Play Count is always appended (1 row).
+	if nonBlankNonPath != 1 {
+		t.Errorf("expected only path row and play count for empty tags, got %d extra rows", nonBlankNonPath)
 	}
 	if overlay.rows[0].Label != "Path:" || overlay.rows[0].Text != "/music/empty.flac" {
 		t.Errorf("expected path row, got %+v", overlay.rows[0])
@@ -132,7 +133,7 @@ func TestNewTrackInfoOverlay_MissingTagsSkipped(t *testing.T) {
 		"Title":  "Only Title",
 		"Artist": "Only Artist",
 	}
-	overlay := newTrackInfoOverlay("/music/sparse.flac", tags)
+	overlay := newTrackInfoOverlay("/music/sparse.flac", tags, 0)
 
 	labels := map[string]bool{}
 	for _, row := range overlay.rows {
@@ -161,7 +162,7 @@ func TestNewTrackInfoOverlay_AlternateKeys(t *testing.T) {
 		"NumChannels": 2,
 		"Date":        "2024",
 	}
-	overlay := newTrackInfoOverlay("/music/alt.flac", tags)
+	overlay := newTrackInfoOverlay("/music/alt.flac", tags, 0)
 
 	labels := map[string]string{}
 	for _, row := range overlay.rows {
@@ -186,7 +187,7 @@ func TestNewTrackInfoOverlay_BlankSeparators(t *testing.T) {
 		"Title":    "Song",
 		"FileType": "MP3",
 	}
-	overlay := newTrackInfoOverlay("/music/sep.flac", tags)
+	overlay := newTrackInfoOverlay("/music/sep.flac", tags, 0)
 
 	blankCount := 0
 	for _, row := range overlay.rows {

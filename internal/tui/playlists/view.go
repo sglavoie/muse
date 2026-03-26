@@ -276,9 +276,7 @@ func (v View) renderList() string {
 			// Smart playlists show a ⚡ glyph and either the evaluated track count
 			// (once known) or "(smart)" as a placeholder. TrackCount < 0 means the
 			// background evaluation has not yet returned.
-			// The glyph is 3 bytes (UTF-8) but renders as 1 column; pad Name by 2 to
-			// compensate so the count column stays aligned.
-			name = text.Pad("⚡ "+p.Name, cols.Name+2)
+			name = text.Pad("⚡ "+p.Name, cols.Name)
 			if p.TrackCount >= 0 {
 				count = fmt.Sprintf("%*s", cols.Count, fmt.Sprintf("(%d)", p.TrackCount))
 			} else {
@@ -321,12 +319,12 @@ func (v View) renderRenameInputRow(cols Columns) string {
 }
 
 func (v View) renderTracks() string {
-	heading := "Tracks"
+	heading := v.Styles.Heading.Render("Tracks")
 	if v.IsSmartPlaylist {
-		heading = "Tracks  " + v.Styles.Dim.Render("(smart playlist — read-only)")
+		heading += "  " + v.Styles.Dim.Render("(smart playlist — read-only)")
 	}
 	if len(v.Tracks) == 0 {
-		return v.Styles.Heading.Render(heading) + "\n\n(no tracks)"
+		return heading + "\n\n(no tracks)"
 	}
 
 	cols := ComputeTrack(v.Width)
@@ -384,5 +382,5 @@ func (v View) renderTracks() string {
 		}
 		lines[i] = line
 	}
-	return v.Styles.Heading.Render(heading) + "\n\n" + header + "\n" + strings.Join(lines, "\n")
+	return heading + "\n\n" + header + "\n" + strings.Join(lines, "\n")
 }
