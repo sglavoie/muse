@@ -25,23 +25,54 @@ log_level = %q
 
 # Extra flags passed to the mpv subprocess.
 # mpv_extra_flags = ["--audio-device=pulse"]
+
+# Volume step when pressing volume up/down (1-25%%).
+# volume_increment = 5
+
+# Short seek offset in seconds (1-60).
+# seek_offset_short = 5.0
+
+# Long seek offset in seconds (5-300).
+# seek_offset_long = 30.0
+
+# Duration in seconds for status bar notifications (1-30).
+# transient_duration_secs = 5
+
+# Duration in seconds for volume feedback notifications (1-10).
+# volume_feedback_duration_secs = 2
 `
 
 const (
-	defaultMusicDirectory = "~/Music"
-	defaultVolume         = 100
-	defaultLogLevel       = "info"
-	configFileName        = "config.toml"
+	defaultMusicDirectory             = "~/Music"
+	defaultVolume                     = 100
+	defaultLogLevel                   = "info"
+	configFileName                    = "config.toml"
+	defaultVolumeIncrement            = 5
+	defaultSeekOffsetShort            = 5.0
+	defaultSeekOffsetLong             = 30.0
+	defaultTransientDurationSecs      = 5
+	defaultVolumeFeedbackDurationSecs = 2
 )
 
 // Config holds all application configuration values.
 type Config struct {
-	MusicDirectory string   `toml:"music_directory"`
-	MPVSocketPath  string   `toml:"mpv_socket_path"`
-	MPVExtraFlags  []string `toml:"mpv_extra_flags"`
-	DefaultVolume  int      `toml:"default_volume"`
-	LogLevel       string   `toml:"log_level"`
+	MusicDirectory             string   `toml:"music_directory"`
+	MPVSocketPath              string   `toml:"mpv_socket_path"`
+	MPVExtraFlags              []string `toml:"mpv_extra_flags"`
+	DefaultVolume              int      `toml:"default_volume"`
+	LogLevel                   string   `toml:"log_level"`
+	VolumeIncrement            int      `toml:"volume_increment"`
+	SeekOffsetShort            float64  `toml:"seek_offset_short"`
+	SeekOffsetLong             float64  `toml:"seek_offset_long"`
+	TransientDurationSecs      int      `toml:"transient_duration_secs"`
+	VolumeFeedbackDurationSecs int      `toml:"volume_feedback_duration_secs"`
 }
+
+// Defaults returns a Config populated with built-in default values.
+// The MusicDirectory is returned with the tilde expanded to an absolute path.
+// It is exported so that callers that need a zero-dependency Config (e.g. tests
+// that do not exercise config file loading) can obtain sensible defaults.
+func Defaults() Config { return defaults() }
 
 // defaults returns a Config populated with built-in default values.
 // The MusicDirectory is returned with the tilde expanded to an absolute path.
@@ -53,10 +84,15 @@ func defaults() Config {
 		slog.Warn("failed to expand ~ in default music directory", "err", err)
 	}
 	return Config{
-		MusicDirectory: musicDir,
-		MPVExtraFlags:  []string{},
-		DefaultVolume:  defaultVolume,
-		LogLevel:       defaultLogLevel,
+		MusicDirectory:             musicDir,
+		MPVExtraFlags:              []string{},
+		DefaultVolume:              defaultVolume,
+		LogLevel:                   defaultLogLevel,
+		VolumeIncrement:            defaultVolumeIncrement,
+		SeekOffsetShort:            defaultSeekOffsetShort,
+		SeekOffsetLong:             defaultSeekOffsetLong,
+		TransientDurationSecs:      defaultTransientDurationSecs,
+		VolumeFeedbackDurationSecs: defaultVolumeFeedbackDurationSecs,
 	}
 }
 
@@ -111,11 +147,16 @@ func Load(configDir string) (LoadResult, error) {
 // rawConfig mirrors Config but uses pointer types for optional numeric fields
 // so that omitted TOML keys can be distinguished from explicit zero values.
 type rawConfig struct {
-	MusicDirectory string   `toml:"music_directory"`
-	MPVSocketPath  string   `toml:"mpv_socket_path"`
-	MPVExtraFlags  []string `toml:"mpv_extra_flags"`
-	DefaultVolume  *int     `toml:"default_volume"`
-	LogLevel       string   `toml:"log_level"`
+	MusicDirectory             string   `toml:"music_directory"`
+	MPVSocketPath              string   `toml:"mpv_socket_path"`
+	MPVExtraFlags              []string `toml:"mpv_extra_flags"`
+	DefaultVolume              *int     `toml:"default_volume"`
+	LogLevel                   string   `toml:"log_level"`
+	VolumeIncrement            *int     `toml:"volume_increment"`
+	SeekOffsetShort            *float64 `toml:"seek_offset_short"`
+	SeekOffsetLong             *float64 `toml:"seek_offset_long"`
+	TransientDurationSecs      *int     `toml:"transient_duration_secs"`
+	VolumeFeedbackDurationSecs *int     `toml:"volume_feedback_duration_secs"`
 }
 
 // validate checks each field and falls back to defaults for invalid values,
@@ -162,6 +203,76 @@ func validate(raw rawConfig) (Config, []string) {
 	}
 	// nil means omitted — keep the default silently.
 
+	if raw.VolumeIncrement != nil {
+		v := *raw.VolumeIncrement
+		if v >= 1 && v <= 25 {
+			cfg.VolumeIncrement = v
+		} else {
+			slog.Warn("invalid config value, using default",
+				"field", "volume_increment",
+				"value", v,
+				"default", defaultVolumeIncrement,
+			)
+			warnings = append(warnings, fmt.Sprintf("volume_increment %d is out of range (1-25), using %d", v, defaultVolumeIncrement))
+		}
+	}
+
+	if raw.SeekOffsetShort != nil {
+		v := *raw.SeekOffsetShort
+		if v >= 1.0 && v <= 60.0 {
+			cfg.SeekOffsetShort = v
+		} else {
+			slog.Warn("invalid config value, using default",
+				"field", "seek_offset_short",
+				"value", v,
+				"default", defaultSeekOffsetShort,
+			)
+			warnings = append(warnings, fmt.Sprintf("seek_offset_short %.1f is out of range (1-60), using %.1f", v, defaultSeekOffsetShort))
+		}
+	}
+
+	if raw.SeekOffsetLong != nil {
+		v := *raw.SeekOffsetLong
+		if v >= 5.0 && v <= 300.0 {
+			cfg.SeekOffsetLong = v
+		} else {
+			slog.Warn("invalid config value, using default",
+				"field", "seek_offset_long",
+				"value", v,
+				"default", defaultSeekOffsetLong,
+			)
+			warnings = append(warnings, fmt.Sprintf("seek_offset_long %.1f is out of range (5-300), using %.1f", v, defaultSeekOffsetLong))
+		}
+	}
+
+	if raw.TransientDurationSecs != nil {
+		v := *raw.TransientDurationSecs
+		if v >= 1 && v <= 30 {
+			cfg.TransientDurationSecs = v
+		} else {
+			slog.Warn("invalid config value, using default",
+				"field", "transient_duration_secs",
+				"value", v,
+				"default", defaultTransientDurationSecs,
+			)
+			warnings = append(warnings, fmt.Sprintf("transient_duration_secs %d is out of range (1-30), using %d", v, defaultTransientDurationSecs))
+		}
+	}
+
+	if raw.VolumeFeedbackDurationSecs != nil {
+		v := *raw.VolumeFeedbackDurationSecs
+		if v >= 1 && v <= 10 {
+			cfg.VolumeFeedbackDurationSecs = v
+		} else {
+			slog.Warn("invalid config value, using default",
+				"field", "volume_feedback_duration_secs",
+				"value", v,
+				"default", defaultVolumeFeedbackDurationSecs,
+			)
+			warnings = append(warnings, fmt.Sprintf("volume_feedback_duration_secs %d is out of range (1-10), using %d", v, defaultVolumeFeedbackDurationSecs))
+		}
+	}
+
 	raw.LogLevel = strings.ToLower(raw.LogLevel)
 	switch raw.LogLevel {
 	case "debug", "info", "warn", "error":
@@ -178,6 +289,17 @@ func validate(raw rawConfig) (Config, []string) {
 	}
 
 	return cfg, warnings
+}
+
+// Save writes cfg to path as TOML, replacing any existing file.
+// It is used to persist settings changes made via the in-app settings overlay.
+func Save(path string, cfg Config) error {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return toml.NewEncoder(f).Encode(cfg)
 }
 
 // writeDefaults writes a commented TOML config to path using the values in cfg.

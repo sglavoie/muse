@@ -283,6 +283,7 @@ func buildModel(
 	mgr *player.Manager,
 ) tui.Model {
 	return tui.New(ctx,
+		tui.WithConfig(cfg),
 		tui.WithConfigPath(configPath, cfgResult.Created),
 		tui.WithConfigWarnings(cfgResult.Warnings),
 		tui.WithScanChannel(libResult.TuiScanCh),

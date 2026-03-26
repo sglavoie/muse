@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
@@ -9,6 +10,13 @@ import (
 // Option configures optional dependencies on the Model. Pass options to New()
 // to wire dependencies at construction time rather than via separate Set* calls.
 type Option func(*Model)
+
+// WithConfig sets the application config on the Model so that runtime-tunable
+// values (volume step, seek offsets, notification durations) are sourced from
+// config rather than hardcoded constants.
+func WithConfig(cfg config.Config) Option {
+	return func(m *Model) { m.cfg = cfg }
+}
 
 // WithConfigPath sets the config file path and whether it was newly created.
 // The path is displayed in the status bar; configCreated triggers a transient

@@ -44,6 +44,7 @@ const (
 	actionUndo           // 'u': dispatch undo
 	actionFilterBar      // '/': activate filter bar in active view
 	actionHelp           // '?': show help overlay
+	actionSettings       // 'ctrl+,': open settings overlay
 	actionNextView       // tab: cycle to next view
 	actionPrevView       // shift+tab: cycle to previous view
 	actionPreview        // 'P': preview focused track
@@ -163,6 +164,7 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "u", actionUndo)
 	r.register(contextGlobal, "/", actionFilterBar)
 	r.register(contextGlobal, "?", actionHelp)
+	r.register(contextGlobal, "ctrl+,", actionSettings)
 	r.register(contextGlobal, "tab", actionNextView)
 	r.register(contextGlobal, "shift+tab", actionPrevView)
 	r.register(contextGlobal, "P", actionPreview)

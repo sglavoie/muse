@@ -385,3 +385,189 @@ default_volume = 0
 		t.Errorf("DefaultVolume = %d, want 0 (explicitly set to 0)", result.Config.DefaultVolume)
 	}
 }
+
+func TestLoad_NewFields_OmittedUsesDefaults(t *testing.T) {
+	dir := t.TempDir()
+	content := `music_directory = "/home/user/Songs"
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	cfg := result.Config
+
+	if cfg.VolumeIncrement != defaultVolumeIncrement {
+		t.Errorf("VolumeIncrement = %d, want %d", cfg.VolumeIncrement, defaultVolumeIncrement)
+	}
+	if cfg.SeekOffsetShort != defaultSeekOffsetShort {
+		t.Errorf("SeekOffsetShort = %v, want %v", cfg.SeekOffsetShort, defaultSeekOffsetShort)
+	}
+	if cfg.SeekOffsetLong != defaultSeekOffsetLong {
+		t.Errorf("SeekOffsetLong = %v, want %v", cfg.SeekOffsetLong, defaultSeekOffsetLong)
+	}
+	if cfg.TransientDurationSecs != defaultTransientDurationSecs {
+		t.Errorf("TransientDurationSecs = %d, want %d", cfg.TransientDurationSecs, defaultTransientDurationSecs)
+	}
+	if cfg.VolumeFeedbackDurationSecs != defaultVolumeFeedbackDurationSecs {
+		t.Errorf("VolumeFeedbackDurationSecs = %d, want %d", cfg.VolumeFeedbackDurationSecs, defaultVolumeFeedbackDurationSecs)
+	}
+}
+
+func TestLoad_NewFields_ValidValuesAccepted(t *testing.T) {
+	dir := t.TempDir()
+	content := `music_directory = "/home/user/Songs"
+volume_increment = 10
+seek_offset_short = 15.0
+seek_offset_long = 60.0
+transient_duration_secs = 8
+volume_feedback_duration_secs = 4
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if len(result.Warnings) != 0 {
+		t.Errorf("unexpected warnings: %v", result.Warnings)
+	}
+	cfg := result.Config
+	if cfg.VolumeIncrement != 10 {
+		t.Errorf("VolumeIncrement = %d, want 10", cfg.VolumeIncrement)
+	}
+	if cfg.SeekOffsetShort != 15.0 {
+		t.Errorf("SeekOffsetShort = %v, want 15.0", cfg.SeekOffsetShort)
+	}
+	if cfg.SeekOffsetLong != 60.0 {
+		t.Errorf("SeekOffsetLong = %v, want 60.0", cfg.SeekOffsetLong)
+	}
+	if cfg.TransientDurationSecs != 8 {
+		t.Errorf("TransientDurationSecs = %d, want 8", cfg.TransientDurationSecs)
+	}
+	if cfg.VolumeFeedbackDurationSecs != 4 {
+		t.Errorf("VolumeFeedbackDurationSecs = %d, want 4", cfg.VolumeFeedbackDurationSecs)
+	}
+}
+
+func TestLoad_NewFields_OutOfRange_FallsBackToDefault(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		field   string
+	}{
+		{"volume_increment too high", "volume_increment = 100\n", "volume_increment"},
+		{"volume_increment too low", "volume_increment = 0\n", "volume_increment"},
+		{"seek_offset_short too high", "seek_offset_short = 999.0\n", "seek_offset_short"},
+		{"seek_offset_short too low", "seek_offset_short = 0.5\n", "seek_offset_short"},
+		{"seek_offset_long too high", "seek_offset_long = 999.0\n", "seek_offset_long"},
+		{"seek_offset_long too low", "seek_offset_long = 1.0\n", "seek_offset_long"},
+		{"transient_duration_secs too high", "transient_duration_secs = 100\n", "transient_duration_secs"},
+		{"transient_duration_secs too low", "transient_duration_secs = 0\n", "transient_duration_secs"},
+		{"volume_feedback_duration_secs too high", "volume_feedback_duration_secs = 50\n", "volume_feedback_duration_secs"},
+		{"volume_feedback_duration_secs too low", "volume_feedback_duration_secs = 0\n", "volume_feedback_duration_secs"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(tt.content), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			result, err := Load(dir)
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+			found := false
+			for _, w := range result.Warnings {
+				if strings.Contains(w, tt.field) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("expected warning mentioning %q, got: %v", tt.field, result.Warnings)
+			}
+		})
+	}
+}
+
+func TestSave_RoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, configFileName)
+
+	original := Config{
+		MusicDirectory:             "/home/user/Music",
+		DefaultVolume:              75,
+		LogLevel:                   "debug",
+		MPVExtraFlags:              []string{},
+		VolumeIncrement:            10,
+		SeekOffsetShort:            15.0,
+		SeekOffsetLong:             60.0,
+		TransientDurationSecs:      8,
+		VolumeFeedbackDurationSecs: 4,
+	}
+
+	if err := Save(path, original); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() after Save() error = %v", err)
+	}
+	got := result.Config
+
+	if got.MusicDirectory != original.MusicDirectory {
+		t.Errorf("MusicDirectory = %q, want %q", got.MusicDirectory, original.MusicDirectory)
+	}
+	if got.DefaultVolume != original.DefaultVolume {
+		t.Errorf("DefaultVolume = %d, want %d", got.DefaultVolume, original.DefaultVolume)
+	}
+	if got.VolumeIncrement != original.VolumeIncrement {
+		t.Errorf("VolumeIncrement = %d, want %d", got.VolumeIncrement, original.VolumeIncrement)
+	}
+	if got.SeekOffsetShort != original.SeekOffsetShort {
+		t.Errorf("SeekOffsetShort = %v, want %v", got.SeekOffsetShort, original.SeekOffsetShort)
+	}
+	if got.SeekOffsetLong != original.SeekOffsetLong {
+		t.Errorf("SeekOffsetLong = %v, want %v", got.SeekOffsetLong, original.SeekOffsetLong)
+	}
+	if got.TransientDurationSecs != original.TransientDurationSecs {
+		t.Errorf("TransientDurationSecs = %d, want %d", got.TransientDurationSecs, original.TransientDurationSecs)
+	}
+	if got.VolumeFeedbackDurationSecs != original.VolumeFeedbackDurationSecs {
+		t.Errorf("VolumeFeedbackDurationSecs = %d, want %d", got.VolumeFeedbackDurationSecs, original.VolumeFeedbackDurationSecs)
+	}
+}
+
+func TestSave_OverwritesExistingFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, configFileName)
+
+	// Write an initial config.
+	if err := Save(path, Config{MusicDirectory: "/old", DefaultVolume: 50, MPVExtraFlags: []string{}, VolumeIncrement: 5, SeekOffsetShort: 5.0, SeekOffsetLong: 30.0, TransientDurationSecs: 5, VolumeFeedbackDurationSecs: 2}); err != nil {
+		t.Fatalf("first Save() error = %v", err)
+	}
+
+	// Overwrite with new values.
+	updated := Config{MusicDirectory: "/new", DefaultVolume: 80, MPVExtraFlags: []string{}, VolumeIncrement: 15, SeekOffsetShort: 10.0, SeekOffsetLong: 45.0, TransientDurationSecs: 3, VolumeFeedbackDurationSecs: 1}
+	if err := Save(path, updated); err != nil {
+		t.Fatalf("second Save() error = %v", err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if result.Config.DefaultVolume != 80 {
+		t.Errorf("DefaultVolume = %d, want 80", result.Config.DefaultVolume)
+	}
+	if result.Config.VolumeIncrement != 15 {
+		t.Errorf("VolumeIncrement = %d, want 15", result.Config.VolumeIncrement)
+	}
+}

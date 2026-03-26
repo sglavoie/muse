@@ -318,7 +318,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		return m, nil, true
 	case actionSeekBack:
 		if cp, ok := m.player.(commandPlayer); ok {
-			if err := cp.SeekRelative(-seekOffsetShort); err != nil {
+			if err := cp.SeekRelative(-m.cfg.SeekOffsetShort); err != nil {
 				slog.Debug("seek failed", "err", err)
 			}
 			return m, m.sessionPositionCmd(), true
@@ -326,7 +326,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		return m, nil, true
 	case actionSeekForward:
 		if cp, ok := m.player.(commandPlayer); ok {
-			if err := cp.SeekRelative(seekOffsetShort); err != nil {
+			if err := cp.SeekRelative(m.cfg.SeekOffsetShort); err != nil {
 				slog.Debug("seek failed", "err", err)
 			}
 			return m, m.sessionPositionCmd(), true
@@ -334,7 +334,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		return m, nil, true
 	case actionSeekBackLong:
 		if cp, ok := m.player.(commandPlayer); ok {
-			if err := cp.SeekRelative(-seekOffsetLong); err != nil {
+			if err := cp.SeekRelative(-m.cfg.SeekOffsetLong); err != nil {
 				slog.Debug("seek failed", "err", err)
 			}
 			return m, m.sessionPositionCmd(), true
@@ -342,7 +342,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		return m, nil, true
 	case actionSeekForwardLong:
 		if cp, ok := m.player.(commandPlayer); ok {
-			if err := cp.SeekRelative(seekOffsetLong); err != nil {
+			if err := cp.SeekRelative(m.cfg.SeekOffsetLong); err != nil {
 				slog.Debug("seek failed", "err", err)
 			}
 			return m, m.sessionPositionCmd(), true
@@ -350,30 +350,30 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		return m, nil, true
 	case actionVolumeUp:
 		if cp, ok := m.player.(commandPlayer); ok {
-			if err := cp.SetVolumeRelative(volumeIncrement); err != nil {
+			if err := cp.SetVolumeRelative(float64(m.cfg.VolumeIncrement)); err != nil {
 				slog.Debug("volume up failed", "err", err)
 			}
-			m.playback.volume = clampVolume(m.playback.volume + volumeIncrement)
+			m.playback.volume = clampVolume(m.playback.volume + m.cfg.VolumeIncrement)
 			if m.sessionWriter != nil {
 				if err := m.sessionWriter.WriteVolume(m.playback.volume); err != nil {
 					slog.Debug("write volume failed", "err", err)
 				}
 			}
-			m.statusBar.notification = newNotificationFor(fmt.Sprintf("Volume: %d%%", m.playback.volume), volumeFeedbackDuration)
+			m.statusBar.notification = newNotificationFor(fmt.Sprintf("Volume: %d%%", m.playback.volume), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second)
 		}
 		return m, nil, true
 	case actionVolumeDown:
 		if cp, ok := m.player.(commandPlayer); ok {
-			if err := cp.SetVolumeRelative(-volumeIncrement); err != nil {
+			if err := cp.SetVolumeRelative(-float64(m.cfg.VolumeIncrement)); err != nil {
 				slog.Debug("volume down failed", "err", err)
 			}
-			m.playback.volume = clampVolume(m.playback.volume - volumeIncrement)
+			m.playback.volume = clampVolume(m.playback.volume - m.cfg.VolumeIncrement)
 			if m.sessionWriter != nil {
 				if err := m.sessionWriter.WriteVolume(m.playback.volume); err != nil {
 					slog.Debug("write volume failed", "err", err)
 				}
 			}
-			m.statusBar.notification = newNotificationFor(fmt.Sprintf("Volume: %d%%", m.playback.volume), volumeFeedbackDuration)
+			m.statusBar.notification = newNotificationFor(fmt.Sprintf("Volume: %d%%", m.playback.volume), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second)
 		}
 		return m, nil, true
 	case actionRepeatCycle:
@@ -395,7 +395,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 				slog.Debug("write repeat mode failed", "err", err)
 			}
 		}
-		m.statusBar.notification = newNotificationFor("Repeat: "+m.playback.repeatMode.DisplayString(), volumeFeedbackDuration)
+		m.statusBar.notification = newNotificationFor("Repeat: "+m.playback.repeatMode.DisplayString(), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second)
 		return m, nil, true
 	case actionShuffleToggle:
 		m.playback.shuffle = !m.playback.shuffle
@@ -413,7 +413,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		if m.playback.shuffle {
 			label = "on"
 		}
-		m.statusBar.notification = newNotificationFor("Shuffle: "+label, volumeFeedbackDuration)
+		m.statusBar.notification = newNotificationFor("Shuffle: "+label, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second)
 		return m, nil, true
 	}
 	return m, nil, false

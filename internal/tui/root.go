@@ -9,6 +9,7 @@ import (
 
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
@@ -31,6 +32,7 @@ type overlayInfo struct {
 	metadataEditor    *MetadataEditor
 	destPicker        *pltui.DestinationPickerModal
 	destPickerTracks  []library.Track
+	settings          *SettingsOverlay
 }
 
 // undoInfo groups the fields that track pending destructive-action confirmations
@@ -59,6 +61,7 @@ type playbackInfo struct {
 type Model struct {
 	appCtx         context.Context // application-level context for subprocess lifecycle
 	activeView     viewID
+	cfg            config.Config
 	configPath     string
 	configCreated  bool
 	configWarnings []string
@@ -161,6 +164,7 @@ func New(ctx context.Context, opts ...Option) Model {
 	m := Model{
 		appCtx:     ctx,
 		activeView: viewLibrary,
+		cfg:        config.Defaults(),
 		library:    LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
 		registry:   newRegistry(),
 		styles:     &initialStyles,
@@ -642,11 +646,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// --- Key handling ---
 
+	case settingsSavedMsg:
+		m = m.handleSettingsSavedMsg(msg)
+
 	case tea.KeyPressMsg:
 		// Dismiss the first-run config notice on any keypress.
 		m.configCreated = false
 
 		if m, cmd, ok := m.handleHelpKeyPress(msg); ok {
+			return m, cmd
+		}
+		if m, cmd, ok := m.handleSettingsKeyPress(msg); ok {
 			return m, cmd
 		}
 		if m, cmd, ok := m.handleNowPlayingKeyPress(msg); ok {
@@ -838,6 +848,8 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 
 	// View-switching and remaining actions.
 	switch action {
+	case actionSettings:
+		return m.handleSettingsOpen()
 	case actionHelp:
 		m.prevActiveView = m.activeView
 		m.helpVisible = true

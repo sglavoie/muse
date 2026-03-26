@@ -33,19 +33,7 @@ const scanBatchSize = 100
 // the 1-second tick clears it.
 const transientDuration = 5 * time.Second
 
-// volumeFeedbackDuration is how long a volume notification stays visible.
-const volumeFeedbackDuration = 2 * time.Second
-
 // playlistFallbackVisibleRows is the assumed number of visible rows when
 // the terminal height is unknown (zero). Used by ensureCursorVisible to
 // keep the cursor within the viewport before the first WindowSizeMsg.
 const playlistFallbackVisibleRows = 50
-
-// volumeIncrement is the percentage step used when raising or lowering volume.
-const volumeIncrement = 5
-
-// seekOffsetShort is the number of seconds to seek for the short seek actions.
-const seekOffsetShort = 5.0
-
-// seekOffsetLong is the number of seconds to seek for the long seek actions.
-const seekOffsetLong = 30.0
