@@ -8,7 +8,20 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/sglavoie/muse/internal/config"
 )
+
+// gainCapturingPlayer wraps a playPauser stub and records SetAudioGain calls.
+type gainCapturingPlayer struct {
+	playPauser
+	gainCalls []int
+}
+
+func (g *gainCapturingPlayer) SetAudioGain(db int) error {
+	g.gainCalls = append(g.gainCalls, db)
+	return nil
+}
 
 // TestCtrlCommaOpensSettingsOverlay verifies that ctrl+, opens the settings overlay.
 func TestCtrlCommaOpensSettingsOverlay(t *testing.T) {
@@ -137,5 +150,42 @@ func TestSettingsSavedMsgErrorShowsErrorNotification(t *testing.T) {
 	nm := next.(Model)
 	if !strings.Contains(nm.statusBar.notification.msg, "failed") {
 		t.Errorf("settingsSavedMsg with error: expected 'failed' in notification, got %q", nm.statusBar.notification.msg)
+	}
+}
+
+// TestSettingsSaveAppliesGainToPlayer verifies that ctrl+s calls SetAudioGain on the player.
+func TestSettingsSaveAppliesGainToPlayer(t *testing.T) {
+	stub := &gainCapturingPlayer{}
+	cfg := config.Defaults()
+	m := New(context.Background(), WithConfig(cfg), WithPlayer(stub))
+
+	// Open settings overlay.
+	next, _ := m.Update(tea.KeyPressMsg{Code: ',', Mod: tea.ModCtrl})
+	nm := next.(Model)
+
+	// Navigate to the Gain field (index 4 on Playback tab) and increment it.
+	for range 4 {
+		next, _ = nm.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+		nm = next.(Model)
+	}
+	next, _ = nm.Update(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	nm = next.(Model)
+	expectedGain := nm.overlay.settings.fields[settingsTabPlayback][4].Value
+
+	// Save.
+	next, _ = nm.Update(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	nm = next.(Model)
+
+	if nm.overlay.settings != nil {
+		t.Fatal("ctrl+s: expected settings overlay to be nil after save")
+	}
+	if nm.cfg.GainDB != expectedGain {
+		t.Errorf("ctrl+s: expected cfg.GainDB=%d, got %d", expectedGain, nm.cfg.GainDB)
+	}
+	if len(stub.gainCalls) == 0 {
+		t.Fatal("ctrl+s: expected SetAudioGain to be called")
+	}
+	if stub.gainCalls[0] != expectedGain {
+		t.Errorf("ctrl+s: expected SetAudioGain(%d), got %d", expectedGain, stub.gainCalls[0])
 	}
 }

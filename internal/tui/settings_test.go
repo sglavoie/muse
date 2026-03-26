@@ -18,8 +18,8 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	o := NewSettingsOverlay(cfg)
 
 	pb := o.fields[settingsTabPlayback]
-	if len(pb) != 4 {
-		t.Fatalf("expected 4 playback fields, got %d", len(pb))
+	if len(pb) != 5 {
+		t.Fatalf("expected 5 playback fields, got %d", len(pb))
 	}
 	if pb[0].Value != cfg.VolumeIncrement {
 		t.Errorf("VolumeIncrement: expected %d, got %d", cfg.VolumeIncrement, pb[0].Value)
@@ -32,6 +32,9 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	}
 	if pb[3].Value != cfg.DefaultVolume {
 		t.Errorf("DefaultVolume: expected %d, got %d", cfg.DefaultVolume, pb[3].Value)
+	}
+	if pb[4].Value != cfg.GainDB {
+		t.Errorf("GainDB: expected %d, got %d", cfg.GainDB, pb[4].Value)
 	}
 
 	disp := o.fields[settingsTabDisplay]
@@ -231,6 +234,7 @@ func TestSettingsToConfigRoundTrip(t *testing.T) {
 	o.fields[settingsTabPlayback][1].Value = 15 // SeekOffsetShort
 	o.fields[settingsTabPlayback][2].Value = 60 // SeekOffsetLong
 	o.fields[settingsTabPlayback][3].Value = 80 // DefaultVolume
+	o.fields[settingsTabPlayback][4].Value = -5 // GainDB
 	o.fields[settingsTabDisplay][0].Value = 8   // TransientDurationSecs
 	o.fields[settingsTabDisplay][1].Value = 4   // VolumeFeedbackDurationSecs
 
@@ -247,6 +251,9 @@ func TestSettingsToConfigRoundTrip(t *testing.T) {
 	}
 	if got.DefaultVolume != 80 {
 		t.Errorf("DefaultVolume: expected 80, got %d", got.DefaultVolume)
+	}
+	if got.GainDB != -5 {
+		t.Errorf("GainDB: expected -5, got %d", got.GainDB)
 	}
 	if got.TransientDurationSecs != 8 {
 		t.Errorf("TransientDurationSecs: expected 8, got %d", got.TransientDurationSecs)
@@ -299,7 +306,7 @@ func TestSettingsRenderContainsFieldLabels(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults())
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))
-	for _, label := range []string{"Volume step", "Seek short", "Seek long", "Default volume"} {
+	for _, label := range []string{"Volume step", "Seek short", "Seek long", "Default volume", "Gain"} {
 		if !strings.Contains(out, label) {
 			t.Errorf("Render: expected field label %q in output", label)
 		}

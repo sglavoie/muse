@@ -571,3 +571,63 @@ func TestSave_OverwritesExistingFile(t *testing.T) {
 		t.Errorf("VolumeIncrement = %d, want 15", result.Config.VolumeIncrement)
 	}
 }
+
+func TestLoad_GainDB_Valid(t *testing.T) {
+	dir := t.TempDir()
+	content := "gain_db = -10\n"
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if result.Config.GainDB != -10 {
+		t.Errorf("GainDB = %d, want -10", result.Config.GainDB)
+	}
+	if len(result.Warnings) != 0 {
+		t.Errorf("unexpected warnings: %v", result.Warnings)
+	}
+}
+
+func TestLoad_GainDB_OutOfRange(t *testing.T) {
+	dir := t.TempDir()
+	content := "gain_db = 50\n"
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	logger, buf := captureLog()
+	slog.SetDefault(logger)
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if result.Config.GainDB != defaultGainDB {
+		t.Errorf("GainDB = %d, want default %d", result.Config.GainDB, defaultGainDB)
+	}
+	if !strings.Contains(buf.String(), "gain_db") {
+		t.Errorf("expected slog warning mentioning gain_db, got: %s", buf.String())
+	}
+	if len(result.Warnings) == 0 {
+		t.Error("expected at least one warning for out-of-range gain_db")
+	}
+}
+
+func TestLoad_GainDB_Omitted_UsesDefault(t *testing.T) {
+	dir := t.TempDir()
+	content := "default_volume = 80\n"
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if result.Config.GainDB != defaultGainDB {
+		t.Errorf("GainDB = %d, want default %d", result.Config.GainDB, defaultGainDB)
+	}
+}

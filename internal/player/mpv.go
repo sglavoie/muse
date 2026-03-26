@@ -810,6 +810,25 @@ func (m *Manager) SetVolumeAbsolute(volume float64) error {
 	return err
 }
 
+// SetAudioGain applies a fixed dB gain offset to all playback via mpv's lavfi
+// volume filter. When db is 0 the filter is cleared (no processing overhead).
+// The command is queued for replay if mpv is not yet connected.
+func (m *Manager) SetAudioGain(db int) error {
+	c, err := m.ipc()
+	if errors.Is(err, ErrNotConnected) {
+		return m.enqueue(func() error { return m.SetAudioGain(db) })
+	}
+	if err != nil {
+		return err
+	}
+	if db == 0 {
+		_, err = c.SendCommand("set_property", "af", "")
+	} else {
+		_, err = c.SendCommand("set_property", "af", fmt.Sprintf("lavfi=[volume=%ddB]", db))
+	}
+	return err
+}
+
 // Next advances to the next track in the queue using the Go-side index so
 // that the Manager (not mpv's internal playlist) owns sequencing.
 // Returns ErrNotConnected if Start has not been called.

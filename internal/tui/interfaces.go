@@ -155,3 +155,10 @@ type favoriteReader interface {
 // favoriteWriter is the db.FavoriteWriter interface. Aliased here to keep
 // the tui package's dependency on db narrow and explicit.
 type favoriteWriter = db.FavoriteWriter
+
+// audioGainSetter applies a fixed dB gain offset to all playback via the
+// player's audio filter chain. Root checks for it via type assertion on
+// settings save and is not required by test stubs.
+type audioGainSetter interface {
+	SetAudioGain(db int) error
+}

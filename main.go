@@ -119,6 +119,11 @@ func runTUI(ctx context.Context) error {
 			if err := mgr.SetVolumeAbsolute(float64(cfg.DefaultVolume)); err != nil {
 				slog.Warn("startup: set default volume", "err", err)
 			}
+			if cfg.GainDB != 0 {
+				if err := mgr.SetAudioGain(cfg.GainDB); err != nil {
+					slog.Warn("startup: set audio gain", "err", err)
+				}
+			}
 			return nil
 		},
 		RestorePlayer: func(path string, positionMs int64) error {
