@@ -27,10 +27,27 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 	switch action {
 	case settingsCancel:
 		m.overlay.settings = nil
+		if eq, ok := m.player.(equalizerSetter); ok {
+			_ = eq.SetEqualizer(m.cfg.EQEnabled, m.cfg.EQBands)
+		}
 		return m, nil, true
 	case settingsSave:
 		saved, cmd := m.handleSettingsSave()
 		return saved, cmd, true
+	case settingsEQLive:
+		if eq, ok := m.player.(equalizerSetter); ok {
+			enabled, bands := m.overlay.settings.EQState()
+			_ = eq.SetEqualizer(enabled, bands)
+		}
+		return m, nil, true
+	case settingsEQSave:
+		return m, nil, true
+	case settingsEQDelete:
+		if eq, ok := m.player.(equalizerSetter); ok {
+			enabled, bands := m.overlay.settings.EQState()
+			_ = eq.SetEqualizer(enabled, bands)
+		}
+		return m, nil, true
 	}
 	return m, nil, true
 }
@@ -56,6 +73,9 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 	}
 	if gt, ok := m.player.(gaplessToggler); ok {
 		_ = gt.SetGapless(m.cfg.GaplessAudio)
+	}
+	if eq, ok := m.player.(equalizerSetter); ok {
+		_ = eq.SetEqualizer(m.cfg.EQEnabled, m.cfg.EQBands)
 	}
 	if m.configPath == "" {
 		return m, func() tea.Msg { return settingsSavedMsg{} }

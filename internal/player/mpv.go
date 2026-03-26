@@ -871,6 +871,27 @@ func (m *Manager) SetNormalize(enabled bool) error {
 	return m.setFilter("loudnorm", "loudnorm", enabled)
 }
 
+// SetEqualizer enables or disables the 10-band parametric equalizer via mpv's
+// lavfi firequalizer filter. The command is queued for replay if mpv is not
+// yet connected.
+func (m *Manager) SetEqualizer(enabled bool, bands [10]int) error {
+	if !enabled {
+		return m.setFilter("equalizer", "", false)
+	}
+	return m.setFilter("equalizer", buildFireequalizerExpr(bands), true)
+}
+
+// buildFireequalizerExpr builds the lavfi firequalizer gain expression string
+// for the given 10 band gain values (in dB).
+func buildFireequalizerExpr(bands [10]int) string {
+	freqs := [10]int{31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000}
+	entries := make([]string, 0, 10)
+	for i, f := range freqs {
+		entries = append(entries, fmt.Sprintf("entry(%d,%d)", f, bands[i]))
+	}
+	return "firequalizer=gain_entry='" + strings.Join(entries, ";") + "'"
+}
+
 // SetGapless enables or disables gapless playback via mpv's gapless-audio
 // property. The command is queued for replay if mpv is not yet connected.
 func (m *Manager) SetGapless(enabled bool) error {

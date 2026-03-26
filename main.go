@@ -127,6 +127,11 @@ func runTUI(ctx context.Context) error {
 			if err := mgr.SetGapless(cfg.GaplessAudio); err != nil {
 				slog.Warn("startup: set gapless", "err", err)
 			}
+			if cfg.EQEnabled {
+				if err := mgr.SetEqualizer(true, cfg.EQBands); err != nil {
+					slog.Warn("startup: set equalizer", "err", err)
+				}
+			}
 			return nil
 		},
 		RestorePlayer: func(path string, positionMs int64) error {

@@ -46,6 +46,16 @@ log_level = %q
 
 # Enable real-time EBU R128 volume normalization (true/false).
 # normalize_volume = false
+
+# Equalizer settings.
+# eq_enabled = false
+# eq_preset = "flat"
+# eq_bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+#
+# [[eq_custom_presets]]
+# name = "My Preset"
+# key = "my_preset"
+# bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 `
 
 const (
@@ -58,24 +68,30 @@ const (
 	defaultSeekOffsetLong             = 30.0
 	defaultTransientDurationSecs      = 5
 	defaultVolumeFeedbackDurationSecs = 2
-	defaultNormalizeVolume             = false
-	defaultGaplessAudio                = true
+	defaultNormalizeVolume            = false
+	defaultGaplessAudio               = true
+	defaultEQEnabled                  = false
+	defaultEQPreset                   = "flat"
 )
 
 // Config holds all application configuration values.
 type Config struct {
-	MusicDirectory             string   `toml:"music_directory"`
-	MPVSocketPath              string   `toml:"mpv_socket_path"`
-	MPVExtraFlags              []string `toml:"mpv_extra_flags"`
-	DefaultVolume              int      `toml:"default_volume"`
-	LogLevel                   string   `toml:"log_level"`
-	VolumeIncrement            int      `toml:"volume_increment"`
-	SeekOffsetShort            float64  `toml:"seek_offset_short"`
-	SeekOffsetLong             float64  `toml:"seek_offset_long"`
-	TransientDurationSecs      int      `toml:"transient_duration_secs"`
-	VolumeFeedbackDurationSecs int      `toml:"volume_feedback_duration_secs"`
-	NormalizeVolume            bool     `toml:"normalize_volume"`
-	GaplessAudio               bool     `toml:"gapless_audio"`
+	MusicDirectory             string           `toml:"music_directory"`
+	MPVSocketPath              string           `toml:"mpv_socket_path"`
+	MPVExtraFlags              []string         `toml:"mpv_extra_flags"`
+	DefaultVolume              int              `toml:"default_volume"`
+	LogLevel                   string           `toml:"log_level"`
+	VolumeIncrement            int              `toml:"volume_increment"`
+	SeekOffsetShort            float64          `toml:"seek_offset_short"`
+	SeekOffsetLong             float64          `toml:"seek_offset_long"`
+	TransientDurationSecs      int              `toml:"transient_duration_secs"`
+	VolumeFeedbackDurationSecs int              `toml:"volume_feedback_duration_secs"`
+	NormalizeVolume            bool             `toml:"normalize_volume"`
+	GaplessAudio               bool             `toml:"gapless_audio"`
+	EQEnabled                  bool             `toml:"eq_enabled"`
+	EQPreset                   string           `toml:"eq_preset"`
+	EQBands                    [10]int          `toml:"eq_bands"`
+	EQCustomPresets            []EQCustomPreset `toml:"eq_custom_presets"`
 }
 
 // Defaults returns a Config populated with built-in default values.
@@ -105,6 +121,10 @@ func defaults() Config {
 		VolumeFeedbackDurationSecs: defaultVolumeFeedbackDurationSecs,
 		NormalizeVolume:            defaultNormalizeVolume,
 		GaplessAudio:               defaultGaplessAudio,
+		EQEnabled:                  defaultEQEnabled,
+		EQPreset:                   defaultEQPreset,
+		EQBands:                    [10]int{},
+		EQCustomPresets:            nil,
 	}
 }
 
@@ -159,18 +179,22 @@ func Load(configDir string) (LoadResult, error) {
 // rawConfig mirrors Config but uses pointer types for optional numeric fields
 // so that omitted TOML keys can be distinguished from explicit zero values.
 type rawConfig struct {
-	MusicDirectory             string   `toml:"music_directory"`
-	MPVSocketPath              string   `toml:"mpv_socket_path"`
-	MPVExtraFlags              []string `toml:"mpv_extra_flags"`
-	DefaultVolume              *int     `toml:"default_volume"`
-	LogLevel                   string   `toml:"log_level"`
-	VolumeIncrement            *int     `toml:"volume_increment"`
-	SeekOffsetShort            *float64 `toml:"seek_offset_short"`
-	SeekOffsetLong             *float64 `toml:"seek_offset_long"`
-	TransientDurationSecs      *int     `toml:"transient_duration_secs"`
-	VolumeFeedbackDurationSecs *int     `toml:"volume_feedback_duration_secs"`
-	NormalizeVolume            *bool    `toml:"normalize_volume"`
-	GaplessAudio               *bool    `toml:"gapless_audio"`
+	MusicDirectory             string           `toml:"music_directory"`
+	MPVSocketPath              string           `toml:"mpv_socket_path"`
+	MPVExtraFlags              []string         `toml:"mpv_extra_flags"`
+	DefaultVolume              *int             `toml:"default_volume"`
+	LogLevel                   string           `toml:"log_level"`
+	VolumeIncrement            *int             `toml:"volume_increment"`
+	SeekOffsetShort            *float64         `toml:"seek_offset_short"`
+	SeekOffsetLong             *float64         `toml:"seek_offset_long"`
+	TransientDurationSecs      *int             `toml:"transient_duration_secs"`
+	VolumeFeedbackDurationSecs *int             `toml:"volume_feedback_duration_secs"`
+	NormalizeVolume            *bool            `toml:"normalize_volume"`
+	GaplessAudio               *bool            `toml:"gapless_audio"`
+	EQEnabled                  *bool            `toml:"eq_enabled"`
+	EQPreset                   string           `toml:"eq_preset"`
+	EQBands                    *[10]int         `toml:"eq_bands"`
+	EQCustomPresets            []EQCustomPreset `toml:"eq_custom_presets"`
 }
 
 // validate checks each field and falls back to defaults for invalid values,
@@ -308,6 +332,64 @@ func validate(raw rawConfig) (Config, []string) {
 			"default", defaultLogLevel,
 		)
 		warnings = append(warnings, fmt.Sprintf("log_level %q is not recognized (use debug/info/warn/error), using %q", raw.LogLevel, defaultLogLevel))
+	}
+
+	if raw.EQEnabled != nil {
+		cfg.EQEnabled = *raw.EQEnabled
+	}
+
+	if raw.EQBands != nil {
+		for i, v := range raw.EQBands {
+			switch {
+			case v < -12:
+				cfg.EQBands[i] = -12
+			case v > 12:
+				cfg.EQBands[i] = 12
+			default:
+				cfg.EQBands[i] = v
+			}
+		}
+	}
+
+	// Validate and deduplicate custom presets, clamping their bands.
+	seen := make(map[string]bool)
+	for _, cp := range raw.EQCustomPresets {
+		if cp.Key == "" || seen[cp.Key] {
+			continue
+		}
+		seen[cp.Key] = true
+		clamped := cp.Bands
+		for i, v := range clamped {
+			if v < -12 {
+				clamped[i] = -12
+			} else if v > 12 {
+				clamped[i] = 12
+			}
+		}
+		cfg.EQCustomPresets = append(cfg.EQCustomPresets, EQCustomPreset{
+			Name:  cp.Name,
+			Key:   cp.Key,
+			Bands: clamped,
+		})
+	}
+
+	// Validate preset key: must match a known built-in or custom key.
+	if raw.EQPreset != "" {
+		allPresets := make([]EQPresetDef, 0, len(BuiltinEQPresets)+len(cfg.EQCustomPresets))
+		allPresets = append(allPresets, BuiltinEQPresets...)
+		for _, cp := range cfg.EQCustomPresets {
+			allPresets = append(allPresets, EQPresetDef{Key: cp.Key})
+		}
+		if EQPresetIndex(raw.EQPreset, allPresets) >= 0 {
+			cfg.EQPreset = raw.EQPreset
+		} else {
+			slog.Warn("invalid config value, using default",
+				"field", "eq_preset",
+				"value", raw.EQPreset,
+				"default", defaultEQPreset,
+			)
+			warnings = append(warnings, fmt.Sprintf("eq_preset %q is not a known preset key, using %q", raw.EQPreset, defaultEQPreset))
+		}
 	}
 
 	return cfg, warnings

@@ -168,3 +168,10 @@ type audioNormalizer interface {
 type gaplessToggler interface {
 	SetGapless(enabled bool) error
 }
+
+// equalizerSetter enables or disables the 10-band parametric equalizer via the
+// player. Root checks for it via type assertion on settings save and live
+// preview.
+type equalizerSetter interface {
+	SetEqualizer(enabled bool, bands [10]int) error
+}
