@@ -176,6 +176,7 @@ func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
 // handleTrackChangedMsg updates the status bar and playback state when the
 // player advances to a new track.
 func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
+	previousHash := m.playback.currentHash
 	m.playback.currentHash = msg.Hash
 	m.statusBar.artist = msg.Artist
 	m.statusBar.title = msg.Title
@@ -187,7 +188,17 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	m.playback.state = PlaybackPlaying
 	m.playback.elapsedSecs = 0
 	m.playback.totalSecs = 0
-	return m, m.sessionPositionCmd()
+
+	var incrementCmd tea.Cmd
+	if previousHash != "" && m.playCountWriter != nil {
+		pcw := m.playCountWriter
+		h := previousHash
+		incrementCmd = func() tea.Msg {
+			_ = pcw.IncrementPlayCount(h)
+			return nil
+		}
+	}
+	return m, tea.Batch(m.sessionPositionCmd(), incrementCmd)
 }
 
 // handlePlaybackKeyAction handles playback-related key actions (play/pause,

@@ -146,6 +146,21 @@ func WithMetadataWriter(w metadataUpdater) Option {
 	return func(m *Model) { m.metadataWriter = w }
 }
 
+// WithSmartPlaylistEvaluator sets the evaluator for smart playlist queries.
+func WithSmartPlaylistEvaluator(e smartPlaylistEvaluator) Option {
+	return func(m *Model) { m.smartEval = e }
+}
+
+// WithPlayCountWriter sets the writer for incrementing track play counts.
+func WithPlayCountWriter(w playCountIncrementer) Option {
+	return func(m *Model) { m.playCountWriter = w }
+}
+
+// WithSmartPlaylistWriter sets the writer for creating and updating smart playlists.
+func WithSmartPlaylistWriter(w smartPlaylistWriter) Option {
+	return func(m *Model) { m.smartPlaylistWriter = w }
+}
+
 // WithQueueEntries pre-populates the queue view with entries.
 func WithQueueEntries(entries []QueueEntry) Option {
 	return func(m *Model) { m.queue.entries = entries }

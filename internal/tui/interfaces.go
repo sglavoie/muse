@@ -181,3 +181,26 @@ type equalizerSetter interface {
 type stereoWideSetter interface {
 	SetStereoWide(enabled bool, amount int) error
 }
+
+// smartPlaylistEvaluator evaluates a SmartPlaylistQuery against the database
+// and returns the matching tracks. Root uses it when a smart playlist is
+// opened via actionPlaylistOpen. When nil, opening a smart playlist is a no-op.
+type smartPlaylistEvaluator interface {
+	EvalSmartPlaylist(db.SmartPlaylistQuery) ([]db.PlaylistTrackRow, error)
+}
+
+// playCountIncrementer increments a track's play count in the database.
+// Root calls it on TrackChangedMsg when the previous track hash is non-empty.
+// When nil, play counts are not persisted.
+type playCountIncrementer interface {
+	IncrementPlayCount(hash string) error
+}
+
+// smartPlaylistWriter creates and updates smart playlists in the database.
+// Root uses it when the SmartRuleEditor commits a new or edited smart playlist.
+// When nil, the commit is a no-op.
+type smartPlaylistWriter interface {
+	CreateSmartPlaylist(name, queryJSON string) (int64, error)
+	UpdateSmartPlaylistQuery(id int64, queryJSON string) error
+	ReadPlaylists() ([]db.PlaylistRow, error)
+}

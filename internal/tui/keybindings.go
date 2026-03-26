@@ -90,6 +90,10 @@ const (
 
 	actionPlaylistEnqueueAll // 'E': enqueue all tracks from the focused playlist
 
+	// Smart-playlist actions (keybindings wired in Session 3).
+	actionSmartPlaylistCreate // 'S': create a new smart playlist
+	actionSmartPlaylistEdit   // 'e': edit rules for the focused smart playlist
+
 	// Artists-local actions.
 	actionArtistOpen // enter: drill into albums/tracks or enqueue
 	actionArtistBack // esc: go back one level
@@ -212,6 +216,8 @@ func newRegistry() Registry {
 	r.register(contextPlaylists, "a", actionBulkAction)
 	r.register(contextPlaylists, "E", actionPlaylistEnqueueAll)
 	r.register(contextPlaylists, "shift+enter", actionLibraryEnqueueReplace)
+	r.register(contextPlaylists, "S", actionSmartPlaylistCreate)
+	r.register(contextPlaylists, "e", actionSmartPlaylistEdit)
 
 	// Artists-local bindings.
 	r.registerNavigation(contextArtists)

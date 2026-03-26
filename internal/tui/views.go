@@ -115,6 +115,7 @@ type PlaylistsView struct {
 	sortState        SortState
 	sortedPlaylists  []db.PlaylistRow // sorted copy for list level (nil when default)
 	sortedTrackOrder []int            // index permutation for track level (nil when default)
+	smartQuery       *db.SmartPlaylistQuery // non-nil when TrackLevel shows a smart playlist
 }
 
 func (v *PlaylistsView) setSize(w, h int) { v.width = w; v.height = h }
@@ -193,6 +194,7 @@ func (v PlaylistsView) render(s styles.Styles, favHashes map[string]struct{}) st
 		Renaming:         v.renaming,
 		RenameInput:      v.renameInput,
 		SelectedTrackIDs: v.selectedTrackIDs,
+		IsSmartPlaylist:  v.smartQuery != nil,
 	}
 	pv.Styles = s
 	pv.FavoriteHashes = favHashes
@@ -377,6 +379,17 @@ func (v PlaylistsView) focusedPlaylistID() (int64, bool) {
 	return pl[v.cursor].ID, true
 }
 
+// refreshTracks updates the track slice while staying at TrackLevel and clamps
+// the cursor to the new length. Unlike openTracks it does not reset the cursor
+// to 0 or save the list cursor, so it is suitable for in-place re-evaluation
+// of a smart playlist query.
+func (v PlaylistsView) refreshTracks(tracks []db.PlaylistTrackRow) PlaylistsView {
+	v.tracks = tracks
+	v.sortedTrackOrder = nil
+	v.cursor, v.scrollOffset = clampAfterRemoval(v.cursor, v.scrollOffset, len(tracks))
+	return v
+}
+
 // openTracks transitions the view to TrackLevel, storing the loaded tracks
 // and resetting the cursor to the first row. The current list cursor is saved
 // so it can be restored by backToList.
@@ -429,6 +442,7 @@ func (v PlaylistsView) backToList() PlaylistsView {
 	v.sortState = SortState{}
 	v.sortedPlaylists = nil
 	v.sortedTrackOrder = nil
+	v.smartQuery = nil
 	return v
 }
 

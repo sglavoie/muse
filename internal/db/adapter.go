@@ -29,3 +29,18 @@ func (a *PlaylistAdapter) RenamePlaylist(id int64, name string) error {
 func (a *PlaylistAdapter) ReadPlaylists() ([]PlaylistRow, error) {
 	return a.db.ReadPlaylists()
 }
+
+// EvalSmartPlaylist delegates to the read-only DB connection.
+func (a *PlaylistAdapter) EvalSmartPlaylist(q SmartPlaylistQuery) ([]PlaylistTrackRow, error) {
+	return a.db.EvalSmartPlaylist(q)
+}
+
+// CreateSmartPlaylist delegates to the writer goroutine.
+func (a *PlaylistAdapter) CreateSmartPlaylist(name, queryJSON string) (int64, error) {
+	return a.writer.CreateSmartPlaylist(name, queryJSON)
+}
+
+// UpdateSmartPlaylistQuery delegates to the writer goroutine.
+func (a *PlaylistAdapter) UpdateSmartPlaylistQuery(id int64, queryJSON string) error {
+	return a.writer.UpdateSmartPlaylistQuery(id, queryJSON)
+}

@@ -143,6 +143,18 @@ func (w *Writer) run(ctx context.Context) {
 	}
 }
 
+// IncrementPlayCount increments play_count by 1 for the track identified by
+// hash. It is a no-op if no row matches.
+func (w *Writer) IncrementPlayCount(hash string) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(
+			`UPDATE tracks SET play_count = play_count + 1 WHERE hash = ?`,
+			hash,
+		)
+		return err
+	})
+}
+
 // MarkTrackMissing sets missing=1 on the tracks row identified by hash and
 // updates its updated_at timestamp. It is a no-op if no row matches.
 func (w *Writer) MarkTrackMissing(hash string) error {

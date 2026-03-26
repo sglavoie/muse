@@ -42,6 +42,7 @@ type View struct {
 	SelectedTrackIDs map[int64]struct{} // bulk-selected playlist track row IDs
 	FavoriteHashes   map[string]struct{}
 	Styles           styles.Styles
+	IsSmartPlaylist  bool // true when the open playlist is a smart playlist (TrackLevel)
 }
 
 // visibleRows returns the maximum number of rows that fit on screen.
@@ -269,9 +270,24 @@ func (v View) renderList() string {
 			lines = append(lines, v.renderRenameInputRow(cols))
 			continue
 		}
-		name := text.Pad(p.Name, cols.Name)
-		count := fmt.Sprintf("(%d)", p.TrackCount)
-		count = fmt.Sprintf("%*s", cols.Count, count)
+		var name string
+		var count string
+		if p.IsSmart {
+			// Smart playlists show a ⚡ glyph and either the evaluated track count
+			// (once known) or "(smart)" as a placeholder. TrackCount < 0 means the
+			// background evaluation has not yet returned.
+			// The glyph is 3 bytes (UTF-8) but renders as 1 column; pad Name by 2 to
+			// compensate so the count column stays aligned.
+			name = text.Pad("⚡ "+p.Name, cols.Name+2)
+			if p.TrackCount >= 0 {
+				count = fmt.Sprintf("%*s", cols.Count, fmt.Sprintf("(%d)", p.TrackCount))
+			} else {
+				count = fmt.Sprintf("%*s", cols.Count, "(smart)")
+			}
+		} else {
+			name = text.Pad(p.Name, cols.Name)
+			count = fmt.Sprintf("%*s", cols.Count, fmt.Sprintf("(%d)", p.TrackCount))
+		}
 		line := name + "  " + count
 		if absIdx == v.Cursor {
 			line = v.Styles.Accent.Render(line)
@@ -305,8 +321,12 @@ func (v View) renderRenameInputRow(cols Columns) string {
 }
 
 func (v View) renderTracks() string {
+	heading := "Tracks"
+	if v.IsSmartPlaylist {
+		heading = "Tracks  " + v.Styles.Dim.Render("(smart playlist — read-only)")
+	}
 	if len(v.Tracks) == 0 {
-		return v.Styles.Heading.Render("Tracks") + "\n\n(no tracks)"
+		return v.Styles.Heading.Render(heading) + "\n\n(no tracks)"
 	}
 
 	cols := ComputeTrack(v.Width)
@@ -364,5 +384,5 @@ func (v View) renderTracks() string {
 		}
 		lines[i] = line
 	}
-	return v.Styles.Heading.Render("Tracks") + "\n\n" + header + "\n" + strings.Join(lines, "\n")
+	return v.Styles.Heading.Render(heading) + "\n\n" + header + "\n" + strings.Join(lines, "\n")
 }

@@ -33,6 +33,7 @@ type overlayInfo struct {
 	destPicker        *pltui.DestinationPickerModal
 	destPickerTracks  []library.Track
 	settings          *SettingsOverlay
+	smartRuleEditor   *SmartRuleEditor
 }
 
 // undoInfo groups the fields that track pending destructive-action confirmations
@@ -125,6 +126,9 @@ type Model struct {
 	favoriteReader  favoriteReader       // may be nil; set via WithFavoriteReader
 	favoriteWriter  favoriteWriter       // may be nil; set via WithFavoriteWriter
 	favoriteHashes  map[string]struct{}  // set of favorited track hashes for highlight
+	smartEval           smartPlaylistEvaluator  // may be nil; set via WithSmartPlaylistEvaluator
+	smartPlaylistWriter smartPlaylistWriter     // may be nil; set via WithSmartPlaylistWriter
+	playCountWriter     playCountIncrementer    // may be nil; set via WithPlayCountWriter
 
 	overlay        overlayInfo     // all overlay and modal state
 	metadataWriter metadataUpdater // may be nil; set via WithMetadataWriter
@@ -425,6 +429,9 @@ func (m Model) Init() tea.Cmd {
 	cmds = append(cmds, tickCmd())
 	cmds = append(cmds, sessionTickCmd())
 	cmds = append(cmds, tea.RequestBackgroundColor)
+	if cmd := evalSmartPlaylistCountsCmd(m.playlists.playlists, m.smartEval); cmd != nil {
+		cmds = append(cmds, cmd)
+	}
 	switch len(cmds) {
 	case 0:
 		return nil
@@ -671,6 +678,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m, cmd, ok := m.handleMetadataEditorKeyPress(msg); ok {
 			return m, cmd
 		}
+		if m, cmd, ok := m.handleSmartRuleEditorKeyPress(msg); ok {
+			return m, cmd
+		}
 		// Filter bar interception (root_filter.go).
 		if model, cmd, ok := m.handleFilterKeyPress(msg); ok {
 			return model, cmd
@@ -727,6 +737,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tracksAddedToPlaylistMsg:
 		m = m.handleTracksAddedToPlaylistMsg(msg)
+
+	case smartPlaylistCreatedMsg:
+		return m.handleSmartPlaylistCreatedMsg(msg)
+
+	case smartPlaylistEditedMsg:
+		return m.handleSmartPlaylistEditedMsg(msg)
+
+	case smartPlaylistCountsUpdatedMsg:
+		m = m.handleSmartPlaylistCountsUpdatedMsg(msg)
 
 	case favoriteToggledMsg:
 		m = m.handleFavoriteToggledMsg(msg)

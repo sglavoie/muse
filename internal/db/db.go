@@ -159,18 +159,28 @@ func (d *DB) ReadSession() (*SessionRow, error) {
 
 // PlaylistRow holds a single playlist entry with its active track count.
 // Used by ReadPlaylists to return typed results for the playlist list view.
+// IsSmart is true when the playlist is defined by a query (query IS NOT NULL).
+// When IsSmart is true, TrackCount is -1 (tracks are computed on demand) and
+// Query holds the raw JSON query string.
 type PlaylistRow struct {
 	ID         int64
 	Name       string
 	TrackCount int
+	IsSmart    bool
+	Query      string
 }
 
 // ReadPlaylists returns all active (non-deleted) playlists ordered
 // alphabetically by name (case-insensitive), each with its active track count.
+// For smart playlists (query IS NOT NULL), TrackCount is -1 and the raw JSON
+// query string is populated in the Query field.
 // Returns an empty slice (not an error) when no playlists exist.
 func (d *DB) ReadPlaylists() ([]PlaylistRow, error) {
 	rows, err := d.Query(`
-		SELECT p.id, p.name, COUNT(pt.id)
+		SELECT p.id, p.name,
+		       CASE WHEN p.query IS NOT NULL THEN -1 ELSE COUNT(pt.id) END,
+		       p.query IS NOT NULL,
+		       COALESCE(p.query, '')
 		FROM playlists p
 		LEFT JOIN playlist_tracks pt ON pt.playlist_id = p.id AND pt.deleted_at IS NULL
 		WHERE p.deleted_at IS NULL
@@ -185,9 +195,11 @@ func (d *DB) ReadPlaylists() ([]PlaylistRow, error) {
 	var result []PlaylistRow
 	for rows.Next() {
 		var r PlaylistRow
-		if err := rows.Scan(&r.ID, &r.Name, &r.TrackCount); err != nil {
+		var isSmart int
+		if err := rows.Scan(&r.ID, &r.Name, &r.TrackCount, &isSmart, &r.Query); err != nil {
 			return nil, fmt.Errorf("db: read playlist row: %w", err)
 		}
+		r.IsSmart = isSmart != 0
 		result = append(result, r)
 	}
 	return result, rows.Err()

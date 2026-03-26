@@ -3,6 +3,7 @@ package tui
 import (
 	"time"
 
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
@@ -272,4 +273,25 @@ type favoritesLoadedMsg struct {
 type watchBatchMsg struct {
 	tracks  []library.Track
 	deleted []string
+}
+
+// smartPlaylistCreatedMsg is dispatched after a successful CreateSmartPlaylist
+// call. It carries the new playlist's ID and the refreshed list so root can
+// reposition the cursor on the new entry.
+type smartPlaylistCreatedMsg struct {
+	id        int64
+	playlists []db.PlaylistRow
+}
+
+// smartPlaylistEditedMsg is dispatched after a successful
+// UpdateSmartPlaylistQuery call. It carries the refreshed playlist list.
+type smartPlaylistEditedMsg struct {
+	playlists []db.PlaylistRow
+}
+
+// smartPlaylistCountsUpdatedMsg carries actual track counts for smart
+// playlists, evaluated in the background by evalSmartPlaylistCountsCmd.
+// The counts map is keyed by playlist ID.
+type smartPlaylistCountsUpdatedMsg struct {
+	counts map[int64]int
 }
