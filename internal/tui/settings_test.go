@@ -15,7 +15,8 @@ import (
 
 func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	cfg := config.Defaults()
-	o := NewSettingsOverlay(cfg)
+	currentVolume := 75
+	o := NewSettingsOverlay(cfg, currentVolume)
 
 	pb := o.fields[settingsTabPlayback]
 	if len(pb) != 8 {
@@ -30,8 +31,8 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	if pb[2].Value != int(cfg.SeekOffsetLong) {
 		t.Errorf("SeekOffsetLong: expected %d, got %d", int(cfg.SeekOffsetLong), pb[2].Value)
 	}
-	if pb[3].Value != cfg.DefaultVolume {
-		t.Errorf("DefaultVolume: expected %d, got %d", cfg.DefaultVolume, pb[3].Value)
+	if pb[3].Value != currentVolume {
+		t.Errorf("DefaultVolume: expected %d, got %d", currentVolume, pb[3].Value)
 	}
 	if pb[4].Value != boolToInt(cfg.NormalizeVolume) {
 		t.Errorf("NormalizeVolume: expected %d, got %d", boolToInt(cfg.NormalizeVolume), pb[4].Value)
@@ -61,8 +62,19 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	}
 }
 
+func TestNewSettingsOverlayUsesCurrentVolume(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.DefaultVolume = 100
+	currentVolume := 75
+	o := NewSettingsOverlay(cfg, currentVolume)
+	pb := o.fields[settingsTabPlayback]
+	if pb[3].Value != 75 {
+		t.Errorf("expected Default volume field to show currentVolume 75, got %d", pb[3].Value)
+	}
+}
+
 func TestNewSettingsOverlayDefaultsTab(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	if o.tab != settingsTabPlayback {
 		t.Errorf("expected initial tab=settingsTabPlayback, got %v", o.tab)
 	}
@@ -74,7 +86,7 @@ func TestNewSettingsOverlayDefaultsTab(t *testing.T) {
 // --- Tab switching ---
 
 func TestSettingsTabSwitchForward(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	// Playback -> Equalizer
 	o, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
 	if o.tab != settingsTabEqualizer {
@@ -91,7 +103,7 @@ func TestSettingsTabSwitchForward(t *testing.T) {
 }
 
 func TestSettingsTabSwitchBackward(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	// Start at Playback, wrap backward to Display (last tab).
 	o, _ = o.HandleKey(tea.KeyPressMsg{Code: '[', Text: "["})
 	if o.tab != settingsTabDisplay {
@@ -100,7 +112,7 @@ func TestSettingsTabSwitchBackward(t *testing.T) {
 }
 
 func TestSettingsTabSwitchWraps(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	// Forward three times wraps back to Playback (3 tabs: Playback, Equalizer, Display).
 	o, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
 	o, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
@@ -111,7 +123,7 @@ func TestSettingsTabSwitchWraps(t *testing.T) {
 }
 
 func TestSettingsTabSwitchResetsCursor(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	// Move cursor down first.
 	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	if o.cursor != 1 {
@@ -127,7 +139,7 @@ func TestSettingsTabSwitchResetsCursor(t *testing.T) {
 // --- Cursor movement ---
 
 func TestSettingsCursorDownWraps(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	n := len(o.fields[o.tab])
 	for range n {
 		o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
@@ -138,7 +150,7 @@ func TestSettingsCursorDownWraps(t *testing.T) {
 }
 
 func TestSettingsCursorUpWraps(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'k', Text: "k"})
 	n := len(o.fields[o.tab])
 	if o.cursor != n-1 {
@@ -147,7 +159,7 @@ func TestSettingsCursorUpWraps(t *testing.T) {
 }
 
 func TestSettingsCursorArrowKeys(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	o, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyDown})
 	if o.cursor != 1 {
 		t.Errorf("down: expected cursor=1, got %d", o.cursor)
@@ -161,7 +173,7 @@ func TestSettingsCursorArrowKeys(t *testing.T) {
 // --- Value adjustment ---
 
 func TestSettingsIncrementValue(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	initial := o.fields[settingsTabPlayback][0].Value
 	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
 	got := o.fields[settingsTabPlayback][0].Value
@@ -174,7 +186,7 @@ func TestSettingsIncrementValue(t *testing.T) {
 }
 
 func TestSettingsDecrementValue(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	initial := o.fields[settingsTabPlayback][0].Value
 	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'h', Text: "h"})
 	got := o.fields[settingsTabPlayback][0].Value
@@ -184,7 +196,7 @@ func TestSettingsDecrementValue(t *testing.T) {
 }
 
 func TestSettingsIncrementClampsAtMax(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	f := &o.fields[settingsTabPlayback][0]
 	f.Value = f.Max
 	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
@@ -194,7 +206,7 @@ func TestSettingsIncrementClampsAtMax(t *testing.T) {
 }
 
 func TestSettingsDecrementClampsAtMin(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	f := &o.fields[settingsTabPlayback][0]
 	f.Value = f.Min
 	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'h', Text: "h"})
@@ -204,7 +216,7 @@ func TestSettingsDecrementClampsAtMin(t *testing.T) {
 }
 
 func TestSettingsArrowKeysAdjustValue(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	initial := o.fields[settingsTabPlayback][0].Value
 	o, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyRight})
 	if o.fields[settingsTabPlayback][0].Value != initial+1 {
@@ -219,7 +231,7 @@ func TestSettingsArrowKeysAdjustValue(t *testing.T) {
 // --- Actions ---
 
 func TestSettingsEscReturnsCancel(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	_, action := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if action != settingsCancel {
 		t.Errorf("esc: expected settingsCancel, got %v", action)
@@ -227,7 +239,7 @@ func TestSettingsEscReturnsCancel(t *testing.T) {
 }
 
 func TestSettingsCtrlSReturnsSave(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	_, action := o.HandleKey(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
 	if action != settingsSave {
 		t.Errorf("ctrl+s: expected settingsSave, got %v", action)
@@ -235,7 +247,7 @@ func TestSettingsCtrlSReturnsSave(t *testing.T) {
 }
 
 func TestSettingsCtrlCReturnsNone(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	_, action := o.HandleKey(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	if action != settingsNone {
 		t.Errorf("ctrl+c: expected settingsNone (fall-through), got %v", action)
@@ -246,7 +258,7 @@ func TestSettingsCtrlCReturnsNone(t *testing.T) {
 
 func TestSettingsToConfigRoundTrip(t *testing.T) {
 	base := config.Defaults()
-	o := NewSettingsOverlay(base)
+	o := NewSettingsOverlay(base, base.DefaultVolume)
 
 	// Modify a field directly.
 	o.fields[settingsTabPlayback][0].Value = 10 // VolumeIncrement
@@ -291,7 +303,7 @@ func TestSettingsToConfigPreservesOtherFields(t *testing.T) {
 	base.MusicDirectory = "/my/music"
 	base.MPVSocketPath = "/tmp/mpv.sock"
 
-	o := NewSettingsOverlay(base)
+	o := NewSettingsOverlay(base, base.DefaultVolume)
 	got := o.ToConfig(base)
 
 	if got.MusicDirectory != base.MusicDirectory {
@@ -305,7 +317,7 @@ func TestSettingsToConfigPreservesOtherFields(t *testing.T) {
 // --- Render ---
 
 func TestSettingsRenderContainsTitle(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	s := styles.NewStyles(true)
 	out := o.Render(80, 24, s)
 	stripped := ansi.Strip(out)
@@ -315,7 +327,7 @@ func TestSettingsRenderContainsTitle(t *testing.T) {
 }
 
 func TestSettingsRenderContainsTabNames(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))
 	for _, name := range []string{"Playback", "Equalizer", "Display"} {
@@ -326,7 +338,7 @@ func TestSettingsRenderContainsTabNames(t *testing.T) {
 }
 
 func TestSettingsRenderContainsFieldLabels(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))
 	for _, label := range []string{"Volume step", "Seek short", "Seek long", "Default volume", "Normalize", "Gapless"} {
@@ -337,7 +349,7 @@ func TestSettingsRenderContainsFieldLabels(t *testing.T) {
 }
 
 func TestSettingsRenderContainsBorderChars(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))
 	for _, ch := range []string{cornerTL, cornerBL, borderH, borderV} {
@@ -348,7 +360,7 @@ func TestSettingsRenderContainsBorderChars(t *testing.T) {
 }
 
 func TestSettingsRenderContainsHint(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))
 	if !strings.Contains(out, "ctrl+s save") {
@@ -357,7 +369,7 @@ func TestSettingsRenderContainsHint(t *testing.T) {
 }
 
 func TestSettingsRenderDisplayTab(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	o.tab = settingsTabDisplay
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))
@@ -369,7 +381,7 @@ func TestSettingsRenderDisplayTab(t *testing.T) {
 // --- EQ tab ---
 
 func TestEQTabFieldCount(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	eq := o.fields[settingsTabEqualizer]
 	// Enabled (1) + Preset (1) + 10 bands = 12
 	if len(eq) != 12 {
@@ -378,7 +390,7 @@ func TestEQTabFieldCount(t *testing.T) {
 }
 
 func TestEQTabPresetsPopulated(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	// Should have all built-in presets + "(Custom)" sentinel.
 	want := len(config.BuiltinEQPresets) + 1
 	if len(o.eqPresets) != want {
@@ -391,7 +403,7 @@ func TestEQTabPresetsPopulated(t *testing.T) {
 }
 
 func TestEQPresetFieldMaxMatchesSentinelIndex(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	presetField := o.fields[settingsTabEqualizer][1]
 	wantMax := len(o.eqPresets) - 1
 	if presetField.Max != wantMax {
@@ -402,7 +414,7 @@ func TestEQPresetFieldMaxMatchesSentinelIndex(t *testing.T) {
 func TestEQDefaultPresetIsFlatWhenConfigIsFlat(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.EQPreset = "flat"
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	presetIdx := o.fields[settingsTabEqualizer][1].Value
 	if o.eqPresets[presetIdx].Key != "flat" {
 		t.Errorf("default preset: expected key %q, got %q", "flat", o.eqPresets[presetIdx].Key)
@@ -412,7 +424,7 @@ func TestEQDefaultPresetIsFlatWhenConfigIsFlat(t *testing.T) {
 func TestEQUnknownPresetFallsBackToCustomSentinel(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.EQPreset = "nonexistent_preset"
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	presetIdx := o.fields[settingsTabEqualizer][1].Value
 	sentinelIdx := len(o.eqPresets) - 1
 	if presetIdx != sentinelIdx {
@@ -430,7 +442,7 @@ func switchToEQTab(o SettingsOverlay) SettingsOverlay {
 func TestEQPresetCyclingSnapssBands(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.EQPreset = "flat"
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	o = switchToEQTab(o)
 
 	// Move cursor to Preset field (index 1).
@@ -458,7 +470,7 @@ func TestEQPresetCyclingSnapssBands(t *testing.T) {
 func TestEQBandAdjustmentSwitchesToCustomSentinel(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.EQPreset = "flat"
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	o = switchToEQTab(o)
 
 	// Move cursor to first band field (index 2).
@@ -483,7 +495,7 @@ func TestEQBandAdjustmentSwitchesToCustomSentinel(t *testing.T) {
 }
 
 func TestEQEnabledToggleReturnsEQLive(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	o = switchToEQTab(o)
 	// cursor=0 is the Enabled field.
 	_, action := o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
@@ -497,7 +509,7 @@ func TestEQToConfigRoundTrip(t *testing.T) {
 	cfg.EQEnabled = true
 	cfg.EQPreset = "rock"
 	cfg.EQBands = [10]int{5, 4, 2, 0, -1, 0, 2, 3, 4, 5}
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 
 	got := o.ToConfig(cfg)
 
@@ -515,7 +527,7 @@ func TestEQToConfigRoundTrip(t *testing.T) {
 }
 
 func TestEQToConfigCustomSentinelKeyIsCustom(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	// Force preset field to sentinel index.
 	o.fields[settingsTabEqualizer][1].Value = len(o.eqPresets) - 1
 	got := o.ToConfig(config.Defaults())
@@ -528,7 +540,7 @@ func TestEQStateHelper(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.EQEnabled = true
 	cfg.EQBands = [10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 
 	enabled, bands := o.EQState()
 	if !enabled {
@@ -542,7 +554,7 @@ func TestEQStateHelper(t *testing.T) {
 }
 
 func TestEQRenderEqualizerTab(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	o.tab = settingsTabEqualizer
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 40, s))
@@ -556,7 +568,7 @@ func TestEQRenderEqualizerTab(t *testing.T) {
 func TestEQRenderShowsPresetName(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.EQPreset = "bass_boost"
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	o.tab = settingsTabEqualizer
 	o.cursor = 1 // Preset field
 	s := styles.NewStyles(true)
@@ -573,7 +585,7 @@ func TestCustomPresetsFromConfigPopulateOverlay(t *testing.T) {
 	cfg.EQCustomPresets = []config.EQCustomPreset{
 		{Name: "My Preset", Key: "my_preset", Bands: [10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}},
 	}
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 
 	// Should have built-ins + 1 custom + sentinel.
 	want := len(config.BuiltinEQPresets) + 1 + 1
@@ -596,7 +608,7 @@ func TestEQPresetCyclingIncludesCustomPresets(t *testing.T) {
 	cfg.EQCustomPresets = []config.EQCustomPreset{
 		{Name: "Night Mode", Key: "night_mode", Bands: [10]int{-2, -1, 0, 0, 0, 0, 0, 0, -1, -2}},
 	}
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	o = switchToEQTab(o)
 
 	// Move cursor to Preset field.
@@ -615,7 +627,7 @@ func TestEQPresetCyclingIncludesCustomPresets(t *testing.T) {
 }
 
 func TestEQSavePresetOpensNameInput(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	o = switchToEQTab(o)
 
 	o, action := o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
@@ -628,7 +640,7 @@ func TestEQSavePresetOpensNameInput(t *testing.T) {
 }
 
 func TestEQSavePresetTypingAndEnter(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	o = switchToEQTab(o)
 	initialPresetCount := len(o.eqPresets)
 
@@ -661,7 +673,7 @@ func TestEQSavePresetTypingAndEnter(t *testing.T) {
 }
 
 func TestEQSavePresetEmptyNameNoOp(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	o = switchToEQTab(o)
 	initialPresetCount := len(o.eqPresets)
 
@@ -677,7 +689,7 @@ func TestEQSavePresetEmptyNameNoOp(t *testing.T) {
 }
 
 func TestEQSavePresetEscCancels(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	o = switchToEQTab(o)
 	initialPresetCount := len(o.eqPresets)
 
@@ -700,7 +712,7 @@ func TestEQSavePresetSlugDedup(t *testing.T) {
 	cfg.EQCustomPresets = []config.EQCustomPreset{
 		{Name: "My Sound", Key: "my_sound", Bands: [10]int{}},
 	}
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	o = switchToEQTab(o)
 
 	// Save another preset with the same slug.
@@ -735,7 +747,7 @@ func TestEQSavePresetSlugDedup(t *testing.T) {
 func TestEQDeleteBuiltinPresetIgnored(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.EQPreset = "flat"
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	o = switchToEQTab(o)
 
 	// Preset field starts on Flat (built-in). Press D — should be ignored.
@@ -750,7 +762,7 @@ func TestEQDeleteBuiltinPresetIgnored(t *testing.T) {
 }
 
 func TestEQDeleteSentinelIgnored(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	o = switchToEQTab(o)
 
 	// Set preset to "(Custom)" sentinel.
@@ -770,7 +782,7 @@ func TestEQDeleteCustomPresetFlow(t *testing.T) {
 	cfg.EQCustomPresets = []config.EQCustomPreset{
 		{Name: "Night Mode", Key: "night_mode", Bands: [10]int{}},
 	}
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	o = switchToEQTab(o)
 	initialPresetCount := len(o.eqPresets)
 
@@ -814,7 +826,7 @@ func TestEQDeleteCustomPresetEscCancels(t *testing.T) {
 	cfg.EQCustomPresets = []config.EQCustomPreset{
 		{Name: "Night Mode", Key: "night_mode", Bands: [10]int{}},
 	}
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	o = switchToEQTab(o)
 	initialPresetCount := len(o.eqPresets)
 
@@ -840,7 +852,7 @@ func TestToConfigIncludesCustomPresets(t *testing.T) {
 	cfg.EQCustomPresets = []config.EQCustomPreset{
 		{Name: "My Sound", Key: "my_sound", Bands: [10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}},
 	}
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	got := o.ToConfig(cfg)
 
 	if len(got.EQCustomPresets) != 1 {
@@ -852,7 +864,7 @@ func TestToConfigIncludesCustomPresets(t *testing.T) {
 }
 
 func TestToConfigExcludesBuiltinsAndSentinel(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	got := o.ToConfig(config.Defaults())
 
 	if len(got.EQCustomPresets) != 0 {
@@ -861,7 +873,7 @@ func TestToConfigExcludesBuiltinsAndSentinel(t *testing.T) {
 }
 
 func TestEQRenderShowsNameInputPrompt(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	o.tab = settingsTabEqualizer
 	o.eqNameInput = &textInput{}
 	o.eqNameInput.HandleKey("M")
@@ -878,7 +890,7 @@ func TestEQRenderShowsDeleteConfirmation(t *testing.T) {
 	cfg.EQCustomPresets = []config.EQCustomPreset{
 		{Name: "Night Mode", Key: "night_mode", Bands: [10]int{}},
 	}
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	o.tab = settingsTabEqualizer
 	o.cursor = 1                                                           // Preset field
 	o.fields[settingsTabEqualizer][1].Value = len(config.BuiltinEQPresets) // custom preset index
@@ -894,7 +906,7 @@ func TestEQRenderShowsDeleteConfirmation(t *testing.T) {
 }
 
 func TestEQHintLineShowsOnEQTab(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	o.tab = settingsTabEqualizer
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 40, s))
@@ -982,7 +994,7 @@ func TestEQBandAtMinDoesNotResetPreset(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.EQPreset = "bass_boost"
 	cfg.EQBands = config.BuiltinEQPresets[1].Bands // Bass Boost bands
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	o = switchToEQTab(o)
 
 	// Move cursor to first band (index 2), which is 6 dB for Bass Boost.
@@ -1006,7 +1018,7 @@ func TestEQBandAtMaxDoesNotResetPreset(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.EQPreset = "bass_boost"
 	cfg.EQBands = config.BuiltinEQPresets[1].Bands
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	o = switchToEQTab(o)
 
 	// Move cursor to first band (index 2) and set to max.
@@ -1027,7 +1039,7 @@ func TestEQBandAtMaxDoesNotResetPreset(t *testing.T) {
 // --- Fix 2: saving preset with all-special-chars name is a no-op ---
 
 func TestEQSavePresetAllSpecialCharsNameNoOp(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	o = switchToEQTab(o)
 	initialPresetCount := len(o.eqPresets)
 
@@ -1050,7 +1062,7 @@ func TestEQSavePresetAllSpecialCharsNameNoOp(t *testing.T) {
 // --- Fix 3: EQ hint line includes j/k fields ---
 
 func TestEQHintLineIncludesJKFields(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	o.tab = settingsTabEqualizer
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 40, s))
@@ -1065,7 +1077,7 @@ func TestStereoWideFieldsInitializeFromConfig(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.StereoWideEnabled = true
 	cfg.StereoWideAmount = 20
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	pb := o.fields[settingsTabPlayback]
 	if pb[6].Value != 1 {
 		t.Errorf("StereoWideEnabled field: expected 1, got %d", pb[6].Value)
@@ -1079,7 +1091,7 @@ func TestStereoWideStateHelper(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.StereoWideEnabled = true
 	cfg.StereoWideAmount = 25
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	enabled, amount := o.StereoWideState()
 	if !enabled {
 		t.Error("StereoWideState: expected enabled=true")
@@ -1093,7 +1105,7 @@ func TestStereoWideToConfigRoundTrip(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.StereoWideEnabled = true
 	cfg.StereoWideAmount = 30
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	got := o.ToConfig(cfg)
 	if !got.StereoWideEnabled {
 		t.Error("ToConfig: expected StereoWideEnabled=true")
@@ -1104,7 +1116,7 @@ func TestStereoWideToConfigRoundTrip(t *testing.T) {
 }
 
 func TestStereoWideToggleReturnsLiveAction(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults())
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume)
 	// Navigate to cursor=6 (Stereo wide toggle).
 	for range 6 {
 		o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
@@ -1121,7 +1133,7 @@ func TestStereoWideToggleReturnsLiveAction(t *testing.T) {
 func TestStereoWideAmountAdjustReturnsLiveAction(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.StereoWideAmount = 20 // room to go up or down
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	// Navigate to cursor=7 (Width).
 	for range 7 {
 		o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
@@ -1138,7 +1150,7 @@ func TestStereoWideAmountAdjustReturnsLiveAction(t *testing.T) {
 func TestStereoWideRenderShowsTenthUnit(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.StereoWideAmount = 20
-	o := NewSettingsOverlay(cfg)
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume)
 	// Navigate to Width field so it's visible and active.
 	for range 7 {
 		o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})

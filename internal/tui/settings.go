@@ -43,13 +43,13 @@ type settingsField struct {
 type settingsAction int
 
 const (
-	settingsNone     settingsAction = iota
-	settingsSave                    // ctrl+s was pressed
-	settingsCancel                  // esc was pressed
-	settingsEQLive                  // live EQ preview on band/toggle change
-	settingsEQSave                  // custom preset saved
-	settingsEQDelete                // custom preset deleted
-	settingsStereoLive              // live stereo wide preview on toggle/amount change
+	settingsNone       settingsAction = iota
+	settingsSave                      // ctrl+s was pressed
+	settingsCancel                    // esc was pressed
+	settingsEQLive                    // live EQ preview on band/toggle change
+	settingsEQSave                    // custom preset saved
+	settingsEQDelete                  // custom preset deleted
+	settingsStereoLive                // live stereo wide preview on toggle/amount change
 )
 
 // SettingsOverlay is a centered overlay for editing runtime-tunable config values.
@@ -67,13 +67,13 @@ type SettingsOverlay struct {
 const eqCustomSentinelName = "(Custom)"
 
 // NewSettingsOverlay creates a SettingsOverlay pre-populated from cfg.
-func NewSettingsOverlay(cfg config.Config) SettingsOverlay {
+func NewSettingsOverlay(cfg config.Config, currentVolume int) SettingsOverlay {
 	o := SettingsOverlay{}
 	o.fields[settingsTabPlayback] = []settingsField{
 		{Label: "Volume step", Value: cfg.VolumeIncrement, Default: 5, Min: 1, Max: 25, Step: 1, Unit: "%"},
 		{Label: "Seek short", Value: int(cfg.SeekOffsetShort), Default: 5, Min: 1, Max: 60, Step: 1, Unit: "s"},
 		{Label: "Seek long", Value: int(cfg.SeekOffsetLong), Default: 30, Min: 5, Max: 300, Step: 5, Unit: "s"},
-		{Label: "Default volume", Value: cfg.DefaultVolume, Default: 100, Min: 0, Max: 100, Step: 5, Unit: "%"},
+		{Label: "Default volume", Value: currentVolume, Default: 100, Min: 0, Max: 100, Step: 5, Unit: "%"},
 		{Label: "Normalize", Value: boolToInt(cfg.NormalizeVolume), Default: 0, Min: 0, Max: 1, Step: 1, Unit: ""},
 		{Label: "Gapless", Value: boolToInt(cfg.GaplessAudio), Default: 1, Min: 0, Max: 1, Step: 1, Unit: ""},
 		{Label: "Stereo wide", Value: boolToInt(cfg.StereoWideEnabled), Default: 0, Min: 0, Max: 1, Step: 1, Unit: ""},
