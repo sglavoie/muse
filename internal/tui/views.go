@@ -27,7 +27,7 @@ const (
 )
 
 // viewOrder defines the tab-cycling order for primary views.
-var viewOrder = []viewID{viewLibrary, viewPlaylists, viewQueue, viewArtists, viewAlbums, viewFavorites, viewGenres}
+var viewOrder = []viewID{viewLibrary, viewPlaylists, viewQueue, viewArtists, viewAlbums, viewGenres, viewFavorites}
 
 // viewName returns the display name for a viewID.
 func viewName(id viewID) string {
