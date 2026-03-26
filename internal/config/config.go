@@ -41,6 +41,9 @@ log_level = %q
 # Duration in seconds for volume feedback notifications (1-10).
 # volume_feedback_duration_secs = 2
 
+# Enable gapless playback between tracks (true/false).
+# gapless_audio = true
+
 # Enable real-time EBU R128 volume normalization (true/false).
 # normalize_volume = false
 `
@@ -56,6 +59,7 @@ const (
 	defaultTransientDurationSecs      = 5
 	defaultVolumeFeedbackDurationSecs = 2
 	defaultNormalizeVolume             = false
+	defaultGaplessAudio                = true
 )
 
 // Config holds all application configuration values.
@@ -71,6 +75,7 @@ type Config struct {
 	TransientDurationSecs      int      `toml:"transient_duration_secs"`
 	VolumeFeedbackDurationSecs int      `toml:"volume_feedback_duration_secs"`
 	NormalizeVolume            bool     `toml:"normalize_volume"`
+	GaplessAudio               bool     `toml:"gapless_audio"`
 }
 
 // Defaults returns a Config populated with built-in default values.
@@ -99,6 +104,7 @@ func defaults() Config {
 		TransientDurationSecs:      defaultTransientDurationSecs,
 		VolumeFeedbackDurationSecs: defaultVolumeFeedbackDurationSecs,
 		NormalizeVolume:            defaultNormalizeVolume,
+		GaplessAudio:               defaultGaplessAudio,
 	}
 }
 
@@ -164,6 +170,7 @@ type rawConfig struct {
 	TransientDurationSecs      *int     `toml:"transient_duration_secs"`
 	VolumeFeedbackDurationSecs *int     `toml:"volume_feedback_duration_secs"`
 	NormalizeVolume            *bool    `toml:"normalize_volume"`
+	GaplessAudio               *bool    `toml:"gapless_audio"`
 }
 
 // validate checks each field and falls back to defaults for invalid values,
@@ -282,6 +289,10 @@ func validate(raw rawConfig) (Config, []string) {
 
 	if raw.NormalizeVolume != nil {
 		cfg.NormalizeVolume = *raw.NormalizeVolume
+	}
+
+	if raw.GaplessAudio != nil {
+		cfg.GaplessAudio = *raw.GaplessAudio
 	}
 
 	raw.LogLevel = strings.ToLower(raw.LogLevel)

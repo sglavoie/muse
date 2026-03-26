@@ -622,3 +622,51 @@ func TestLoad_NormalizeVolume_Omitted_UsesDefault(t *testing.T) {
 		t.Errorf("NormalizeVolume = %v, want default %v", result.Config.NormalizeVolume, defaultNormalizeVolume)
 	}
 }
+
+func TestLoad_GaplessAudio_False(t *testing.T) {
+	dir := t.TempDir()
+	content := "gapless_audio = false\n"
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if result.Config.GaplessAudio {
+		t.Errorf("GaplessAudio = true, want false")
+	}
+}
+
+func TestLoad_GaplessAudio_True(t *testing.T) {
+	dir := t.TempDir()
+	content := "gapless_audio = true\n"
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !result.Config.GaplessAudio {
+		t.Errorf("GaplessAudio = false, want true")
+	}
+}
+
+func TestLoad_GaplessAudio_Omitted_UsesDefault(t *testing.T) {
+	dir := t.TempDir()
+	content := "default_volume = 80\n"
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if result.Config.GaplessAudio != defaultGaplessAudio {
+		t.Errorf("GaplessAudio = %v, want default %v", result.Config.GaplessAudio, defaultGaplessAudio)
+	}
+}

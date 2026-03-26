@@ -124,6 +124,9 @@ func runTUI(ctx context.Context) error {
 					slog.Warn("startup: set normalize", "err", err)
 				}
 			}
+			if err := mgr.SetGapless(cfg.GaplessAudio); err != nil {
+				slog.Warn("startup: set gapless", "err", err)
+			}
 			return nil
 		},
 		RestorePlayer: func(path string, positionMs int64) error {

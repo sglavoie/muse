@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -81,6 +83,11 @@ type Manager struct {
 	// (size 1) so the goroutine never blocks.
 	disconnectCh chan error
 
+	// audioFilters tracks enabled lavfi filter expressions keyed by name
+	// (e.g. "loudnorm" → "loudnorm"). rebuildAudioFilters combines them
+	// into a single af property string.
+	audioFilters map[string]string
+
 	// pingInterval controls how often the health-check goroutine pings mpv.
 	// Zero uses the production default (200 ms). Set a shorter value in tests.
 	pingInterval time.Duration
@@ -133,6 +140,7 @@ func NewManager(socketPath string) *Manager {
 		cancel:         cancel,
 		disconnectCh:   make(chan error, 1),
 		callbacksReady: make(chan struct{}),
+		audioFilters:   make(map[string]string),
 	}
 	m.launchFn = func(ctx context.Context, socketPath string) (*exec.Cmd, error) {
 		m.mu.RLock()
@@ -810,22 +818,74 @@ func (m *Manager) SetVolumeAbsolute(volume float64) error {
 	return err
 }
 
-// SetNormalize enables or disables real-time EBU R128 volume normalization via
-// mpv's lavfi loudnorm filter. The command is queued for replay if mpv is not
-// yet connected.
-func (m *Manager) SetNormalize(enabled bool) error {
+// rebuildAudioFilters sends the current audioFilters map to mpv as a single
+// lavfi af property. Must be called without m.mu held (ipc() takes RLock).
+func (m *Manager) rebuildAudioFilters() error {
 	c, err := m.ipc()
+	if err != nil {
+		return err
+	}
+	if len(m.audioFilters) == 0 {
+		_, err = c.SendCommand("set_property", "af", "")
+		return err
+	}
+	names := make([]string, 0, len(m.audioFilters))
+	for name := range m.audioFilters {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	exprs := make([]string, 0, len(names))
+	for _, name := range names {
+		exprs = append(exprs, m.audioFilters[name])
+	}
+	_, err = c.SendCommand("set_property", "af", "lavfi=["+strings.Join(exprs, ",")+"]")
+	return err
+}
+
+// setFilter adds or removes a named lavfi filter expression and rebuilds the
+// af property. The map update is guarded by m.mu; rebuildAudioFilters uses
+// ipc() which takes its own RLock — no re-entry.
+func (m *Manager) setFilter(name, expr string, enabled bool) error {
+	m.mu.Lock()
+	if enabled {
+		m.audioFilters[name] = expr
+	} else {
+		delete(m.audioFilters, name)
+	}
+	m.mu.Unlock()
+
+	_, err := m.ipc()
 	if errors.Is(err, ErrNotConnected) {
-		return m.enqueue(func() error { return m.SetNormalize(enabled) })
+		return m.enqueue(func() error { return m.rebuildAudioFilters() })
 	}
 	if err != nil {
 		return err
 	}
-	if enabled {
-		_, err = c.SendCommand("set_property", "af", "lavfi=[loudnorm]")
-	} else {
-		_, err = c.SendCommand("set_property", "af", "")
+	return m.rebuildAudioFilters()
+}
+
+// SetNormalize enables or disables real-time EBU R128 volume normalization via
+// mpv's lavfi loudnorm filter. The command is queued for replay if mpv is not
+// yet connected.
+func (m *Manager) SetNormalize(enabled bool) error {
+	return m.setFilter("loudnorm", "loudnorm", enabled)
+}
+
+// SetGapless enables or disables gapless playback via mpv's gapless-audio
+// property. The command is queued for replay if mpv is not yet connected.
+func (m *Manager) SetGapless(enabled bool) error {
+	c, err := m.ipc()
+	if errors.Is(err, ErrNotConnected) {
+		return m.enqueue(func() error { return m.SetGapless(enabled) })
 	}
+	if err != nil {
+		return err
+	}
+	val := "no"
+	if enabled {
+		val = "yes"
+	}
+	_, err = c.SendCommand("set_property", "gapless-audio", val)
 	return err
 }
 

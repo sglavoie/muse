@@ -162,3 +162,9 @@ type favoriteWriter = db.FavoriteWriter
 type audioNormalizer interface {
 	SetNormalize(enabled bool) error
 }
+
+// gaplessToggler enables or disables gapless playback via the player.
+// Root checks for it via type assertion on settings save.
+type gaplessToggler interface {
+	SetGapless(enabled bool) error
+}

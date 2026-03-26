@@ -64,6 +64,7 @@ func NewSettingsOverlay(cfg config.Config) SettingsOverlay {
 		{Label: "Seek long", Value: int(cfg.SeekOffsetLong), Default: 30, Min: 5, Max: 300, Step: 5, Unit: "s"},
 		{Label: "Default volume", Value: cfg.DefaultVolume, Default: 100, Min: 0, Max: 100, Step: 5, Unit: "%"},
 		{Label: "Normalize", Value: boolToInt(cfg.NormalizeVolume), Default: 0, Min: 0, Max: 1, Step: 1, Unit: ""},
+		{Label: "Gapless", Value: boolToInt(cfg.GaplessAudio), Default: 1, Min: 0, Max: 1, Step: 1, Unit: ""},
 	}
 	o.fields[settingsTabDisplay] = []settingsField{
 		{Label: "Notification", Value: cfg.TransientDurationSecs, Default: 5, Min: 1, Max: 30, Step: 1, Unit: "s"},
@@ -129,6 +130,7 @@ func (o SettingsOverlay) ToConfig(base config.Config) config.Config {
 	cfg.SeekOffsetLong = float64(pb[2].Value)
 	cfg.DefaultVolume = pb[3].Value
 	cfg.NormalizeVolume = pb[4].Value != 0
+	cfg.GaplessAudio = pb[5].Value != 0
 	disp := o.fields[settingsTabDisplay]
 	cfg.TransientDurationSecs = disp[0].Value
 	cfg.VolumeFeedbackDurationSecs = disp[1].Value

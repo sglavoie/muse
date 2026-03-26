@@ -18,8 +18,8 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	o := NewSettingsOverlay(cfg)
 
 	pb := o.fields[settingsTabPlayback]
-	if len(pb) != 5 {
-		t.Fatalf("expected 5 playback fields, got %d", len(pb))
+	if len(pb) != 6 {
+		t.Fatalf("expected 6 playback fields, got %d", len(pb))
 	}
 	if pb[0].Value != cfg.VolumeIncrement {
 		t.Errorf("VolumeIncrement: expected %d, got %d", cfg.VolumeIncrement, pb[0].Value)
@@ -35,6 +35,18 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	}
 	if pb[4].Value != boolToInt(cfg.NormalizeVolume) {
 		t.Errorf("NormalizeVolume: expected %d, got %d", boolToInt(cfg.NormalizeVolume), pb[4].Value)
+	}
+	if pb[5].Label != "Gapless" {
+		t.Errorf("Gapless label: expected %q, got %q", "Gapless", pb[5].Label)
+	}
+	if pb[5].Default != 1 {
+		t.Errorf("Gapless Default: expected 1, got %d", pb[5].Default)
+	}
+	if pb[5].Min != 0 || pb[5].Max != 1 {
+		t.Errorf("Gapless Min/Max: expected 0/1, got %d/%d", pb[5].Min, pb[5].Max)
+	}
+	if pb[5].Value != boolToInt(cfg.GaplessAudio) {
+		t.Errorf("GaplessAudio: expected %d, got %d", boolToInt(cfg.GaplessAudio), pb[5].Value)
 	}
 
 	disp := o.fields[settingsTabDisplay]
@@ -234,7 +246,8 @@ func TestSettingsToConfigRoundTrip(t *testing.T) {
 	o.fields[settingsTabPlayback][1].Value = 15 // SeekOffsetShort
 	o.fields[settingsTabPlayback][2].Value = 60 // SeekOffsetLong
 	o.fields[settingsTabPlayback][3].Value = 80 // DefaultVolume
-	o.fields[settingsTabPlayback][4].Value = 1 // NormalizeVolume
+	o.fields[settingsTabPlayback][4].Value = 1  // NormalizeVolume
+	o.fields[settingsTabPlayback][5].Value = 0  // GaplessAudio (off)
 	o.fields[settingsTabDisplay][0].Value = 8   // TransientDurationSecs
 	o.fields[settingsTabDisplay][1].Value = 4   // VolumeFeedbackDurationSecs
 
@@ -254,6 +267,9 @@ func TestSettingsToConfigRoundTrip(t *testing.T) {
 	}
 	if !got.NormalizeVolume {
 		t.Errorf("NormalizeVolume: expected true, got false")
+	}
+	if got.GaplessAudio {
+		t.Errorf("GaplessAudio: expected false, got true")
 	}
 	if got.TransientDurationSecs != 8 {
 		t.Errorf("TransientDurationSecs: expected 8, got %d", got.TransientDurationSecs)
@@ -306,7 +322,7 @@ func TestSettingsRenderContainsFieldLabels(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults())
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))
-	for _, label := range []string{"Volume step", "Seek short", "Seek long", "Default volume", "Normalize"} {
+	for _, label := range []string{"Volume step", "Seek short", "Seek long", "Default volume", "Normalize", "Gapless"} {
 		if !strings.Contains(out, label) {
 			t.Errorf("Render: expected field label %q in output", label)
 		}

@@ -153,6 +153,17 @@ func TestSettingsSavedMsgErrorShowsErrorNotification(t *testing.T) {
 	}
 }
 
+// gaplessCapturingPlayer wraps a playPauser stub and records SetGapless calls.
+type gaplessCapturingPlayer struct {
+	playPauser
+	gaplessCalls []bool
+}
+
+func (g *gaplessCapturingPlayer) SetGapless(enabled bool) error {
+	g.gaplessCalls = append(g.gaplessCalls, enabled)
+	return nil
+}
+
 // TestSettingsSaveAppliesNormalizeToPlayer verifies that ctrl+s calls SetNormalize on the player.
 func TestSettingsSaveAppliesNormalizeToPlayer(t *testing.T) {
 	stub := &normalizeCapturingPlayer{}
@@ -186,5 +197,42 @@ func TestSettingsSaveAppliesNormalizeToPlayer(t *testing.T) {
 	}
 	if !stub.normalizeCalls[0] {
 		t.Error("ctrl+s: expected SetNormalize(true)")
+	}
+}
+
+// TestSettingsSaveAppliesGaplessToPlayer verifies that ctrl+s calls SetGapless on the player.
+func TestSettingsSaveAppliesGaplessToPlayer(t *testing.T) {
+	stub := &gaplessCapturingPlayer{}
+	cfg := config.Defaults()
+	m := New(context.Background(), WithConfig(cfg), WithPlayer(stub))
+
+	// Open settings overlay.
+	next, _ := m.Update(tea.KeyPressMsg{Code: ',', Mod: tea.ModCtrl})
+	nm := next.(Model)
+
+	// Navigate to the Gapless field (index 5 on Playback tab).
+	for range 5 {
+		next, _ = nm.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+		nm = next.(Model)
+	}
+	// Default is On (1); press 'h' to toggle to Off (0).
+	next, _ = nm.Update(tea.KeyPressMsg{Code: 'h', Text: "h"})
+	nm = next.(Model)
+
+	// Save.
+	next, _ = nm.Update(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	nm = next.(Model)
+
+	if nm.overlay.settings != nil {
+		t.Fatal("ctrl+s: expected settings overlay to be nil after save")
+	}
+	if nm.cfg.GaplessAudio {
+		t.Error("ctrl+s: expected cfg.GaplessAudio=false")
+	}
+	if len(stub.gaplessCalls) == 0 {
+		t.Fatal("ctrl+s: expected SetGapless to be called")
+	}
+	if stub.gaplessCalls[0] {
+		t.Error("ctrl+s: expected SetGapless(false)")
 	}
 }

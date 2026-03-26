@@ -54,6 +54,9 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 	if ns, ok := m.player.(audioNormalizer); ok {
 		_ = ns.SetNormalize(m.cfg.NormalizeVolume)
 	}
+	if gt, ok := m.player.(gaplessToggler); ok {
+		_ = gt.SetGapless(m.cfg.GaplessAudio)
+	}
 	if m.configPath == "" {
 		return m, func() tea.Msg { return settingsSavedMsg{} }
 	}
