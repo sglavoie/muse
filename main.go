@@ -132,6 +132,11 @@ func runTUI(ctx context.Context) error {
 					slog.Warn("startup: set equalizer", "err", err)
 				}
 			}
+			if cfg.StereoWideEnabled {
+				if err := mgr.SetStereoWide(true, cfg.StereoWideAmount); err != nil {
+					slog.Warn("startup: set stereo wide", "err", err)
+				}
+			}
 			return nil
 		},
 		RestorePlayer: func(path string, positionMs int64) error {

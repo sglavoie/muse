@@ -888,3 +888,59 @@ func TestSave_EQ_RoundTrip(t *testing.T) {
 		t.Errorf("custom preset key = %q, want %q", raw.EQCustomPresets[0].Key, "my_preset")
 	}
 }
+
+// --- Stereo wide config tests ---
+
+func TestLoad_StereoWide_Defaults_WhenOmitted(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte("default_volume = 80\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	cfg := result.Config
+	if cfg.StereoWideEnabled != false {
+		t.Errorf("StereoWideEnabled = %v, want false", cfg.StereoWideEnabled)
+	}
+	if cfg.StereoWideAmount != defaultStereoWideAmount {
+		t.Errorf("StereoWideAmount = %d, want %d", cfg.StereoWideAmount, defaultStereoWideAmount)
+	}
+}
+
+func TestLoad_StereoWide_FieldsLoaded(t *testing.T) {
+	dir := t.TempDir()
+	content := "stereo_wide_enabled = true\nstereo_wide_amount = 20\n"
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !result.Config.StereoWideEnabled {
+		t.Error("StereoWideEnabled = false, want true")
+	}
+	if result.Config.StereoWideAmount != 20 {
+		t.Errorf("StereoWideAmount = %d, want 20", result.Config.StereoWideAmount)
+	}
+}
+
+func TestLoad_StereoWide_AmountOutOfRange(t *testing.T) {
+	dir := t.TempDir()
+	content := "stereo_wide_amount = 99\n"
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if result.Config.StereoWideAmount != defaultStereoWideAmount {
+		t.Errorf("StereoWideAmount = %d, want default %d", result.Config.StereoWideAmount, defaultStereoWideAmount)
+	}
+	if len(result.Warnings) == 0 {
+		t.Error("expected a warning for out-of-range stereo_wide_amount")
+	}
+}

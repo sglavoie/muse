@@ -175,3 +175,9 @@ type gaplessToggler interface {
 type equalizerSetter interface {
 	SetEqualizer(enabled bool, bands [10]int) error
 }
+
+// stereoWideSetter enables or disables stereo widening via the player.
+// Root checks for it via type assertion on settings save and live preview.
+type stereoWideSetter interface {
+	SetStereoWide(enabled bool, amount int) error
+}

@@ -389,6 +389,122 @@ func TestEQSaveActionIsConsumed(t *testing.T) {
 	}
 }
 
+// stereoWideCapturingPlayer wraps a playPauser stub and records SetStereoWide calls.
+type stereoWideCapturingPlayer struct {
+	playPauser
+	calls []stereoWideCall
+}
+
+type stereoWideCall struct {
+	enabled bool
+	amount  int
+}
+
+func (s *stereoWideCapturingPlayer) SetStereoWide(enabled bool, amount int) error {
+	s.calls = append(s.calls, stereoWideCall{enabled: enabled, amount: amount})
+	return nil
+}
+
+// openSettingsOnPlaybackTab opens the settings overlay on the Playback tab.
+func openSettingsOnPlaybackTab(t *testing.T, m Model) Model {
+	t.Helper()
+	next, _ := m.Update(tea.KeyPressMsg{Code: ',', Mod: tea.ModCtrl})
+	nm := next.(Model)
+	if nm.overlay.settings.tab != settingsTabPlayback {
+		t.Fatalf("precondition: expected Playback tab, got %v", nm.overlay.settings.tab)
+	}
+	return nm
+}
+
+// TestStereoWideLivePreviewFiresOnToggle verifies SetStereoWide is called during live preview.
+func TestStereoWideLivePreviewFiresOnToggle(t *testing.T) {
+	stub := &stereoWideCapturingPlayer{}
+	cfg := config.Defaults()
+	m := New(context.Background(), WithConfig(cfg), WithPlayer(stub))
+	nm := openSettingsOnPlaybackTab(t, m)
+
+	// Navigate to cursor=6 (Stereo wide toggle).
+	for range 6 {
+		next, _ := nm.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+		nm = next.(Model)
+	}
+	next, _ := nm.Update(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	_ = next.(Model)
+
+	if len(stub.calls) == 0 {
+		t.Fatal("live preview: expected SetStereoWide to be called on toggle")
+	}
+}
+
+// TestStereoWideSaveAppliesSettingsToPlayer verifies ctrl+s calls SetStereoWide with saved values.
+func TestStereoWideSaveAppliesSettingsToPlayer(t *testing.T) {
+	stub := &stereoWideCapturingPlayer{}
+	cfg := config.Defaults()
+	cfg.StereoWideEnabled = true
+	cfg.StereoWideAmount = 20
+	m := New(context.Background(), WithConfig(cfg), WithPlayer(stub))
+	nm := openSettingsOnPlaybackTab(t, m)
+
+	// Save without changes.
+	next, _ := nm.Update(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	nm = next.(Model)
+
+	if nm.overlay.settings != nil {
+		t.Fatal("ctrl+s: expected settings overlay closed after save")
+	}
+	if len(stub.calls) == 0 {
+		t.Fatal("ctrl+s: expected SetStereoWide to be called on save")
+	}
+	last := stub.calls[len(stub.calls)-1]
+	if !last.enabled {
+		t.Error("ctrl+s: expected SetStereoWide called with enabled=true")
+	}
+	if last.amount != 20 {
+		t.Errorf("ctrl+s: expected SetStereoWide called with amount=20, got %d", last.amount)
+	}
+}
+
+// TestStereoWideCancelRevertsToSavedState verifies esc restores stereo wide to saved config values.
+func TestStereoWideCancelRevertsToSavedState(t *testing.T) {
+	stub := &stereoWideCapturingPlayer{}
+	cfg := config.Defaults()
+	cfg.StereoWideEnabled = false
+	cfg.StereoWideAmount = 10
+	m := New(context.Background(), WithConfig(cfg), WithPlayer(stub))
+	nm := openSettingsOnPlaybackTab(t, m)
+
+	// Navigate to Stereo wide toggle (cursor=6) and enable it.
+	for range 6 {
+		next, _ := nm.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+		nm = next.(Model)
+	}
+	next, _ := nm.Update(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	nm = next.(Model)
+
+	callsBefore := len(stub.calls)
+	if callsBefore == 0 {
+		t.Fatal("precondition: expected at least one SetStereoWide call from live preview")
+	}
+
+	// Cancel — should restore to original disabled state.
+	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	nm = next.(Model)
+
+	if nm.overlay.settings != nil {
+		t.Fatal("esc: expected settings overlay closed")
+	}
+	if len(stub.calls) <= callsBefore {
+		t.Fatal("esc: expected SetStereoWide to be called on cancel to restore state")
+	}
+	last := stub.calls[len(stub.calls)-1]
+	if last.enabled {
+		t.Error("esc: expected SetStereoWide called with enabled=false (original state)")
+	}
+	if last.amount != 10 {
+		t.Errorf("esc: expected SetStereoWide called with amount=10, got %d", last.amount)
+	}
+}
+
 // TestEQDeleteActionAppliesEqualizer verifies SetEqualizer is called after deleting a preset.
 func TestEQDeleteActionAppliesEqualizer(t *testing.T) {
 	stub := &equalizerCapturingPlayer{}

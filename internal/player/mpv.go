@@ -881,6 +881,17 @@ func (m *Manager) SetEqualizer(enabled bool, bands [10]int) error {
 	return m.setFilter("equalizer", buildFireequalizerExpr(bands), true)
 }
 
+// SetStereoWide enables or disables stereo widening via mpv's lavfi
+// extrastereo filter. amount is in tenths (10 = 1.0x passthrough).
+// The command is queued for replay if mpv is not yet connected.
+func (m *Manager) SetStereoWide(enabled bool, amount int) error {
+	if !enabled {
+		return m.setFilter("stereowide", "", false)
+	}
+	expr := fmt.Sprintf("extrastereo=m=%.1f", float64(amount)/10.0)
+	return m.setFilter("stereowide", expr, true)
+}
+
 // buildFireequalizerExpr builds the lavfi firequalizer gain expression string
 // for the given 10 band gain values (in dB).
 func buildFireequalizerExpr(bands [10]int) string {

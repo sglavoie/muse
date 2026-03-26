@@ -49,6 +49,7 @@ const (
 	settingsEQLive                  // live EQ preview on band/toggle change
 	settingsEQSave                  // custom preset saved
 	settingsEQDelete                // custom preset deleted
+	settingsStereoLive              // live stereo wide preview on toggle/amount change
 )
 
 // SettingsOverlay is a centered overlay for editing runtime-tunable config values.
@@ -75,6 +76,8 @@ func NewSettingsOverlay(cfg config.Config) SettingsOverlay {
 		{Label: "Default volume", Value: cfg.DefaultVolume, Default: 100, Min: 0, Max: 100, Step: 5, Unit: "%"},
 		{Label: "Normalize", Value: boolToInt(cfg.NormalizeVolume), Default: 0, Min: 0, Max: 1, Step: 1, Unit: ""},
 		{Label: "Gapless", Value: boolToInt(cfg.GaplessAudio), Default: 1, Min: 0, Max: 1, Step: 1, Unit: ""},
+		{Label: "Stereo wide", Value: boolToInt(cfg.StereoWideEnabled), Default: 0, Min: 0, Max: 1, Step: 1, Unit: ""},
+		{Label: "Width", Value: cfg.StereoWideAmount, Default: 10, Min: 0, Max: 40, Step: 1, Unit: "tenth"},
 	}
 
 	// Build the preset list: built-ins + custom presets + "(Custom)" sentinel.
@@ -121,6 +124,15 @@ func (o SettingsOverlay) EQState() (enabled bool, bands [10]int) {
 	for i := range 10 {
 		bands[i] = eq[i+2].Value
 	}
+	return
+}
+
+// StereoWideState returns the current stereo wide enabled flag and amount
+// from the overlay without triggering a full ToConfig merge. Used for live preview.
+func (o SettingsOverlay) StereoWideState() (enabled bool, amount int) {
+	pb := o.fields[settingsTabPlayback]
+	enabled = pb[6].Value != 0
+	amount = pb[7].Value
 	return
 }
 
@@ -188,6 +200,9 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 				if o.tab == settingsTabEqualizer {
 					return o, o.applyEQFieldChange()
 				}
+				if o.tab == settingsTabPlayback && (o.cursor == 6 || o.cursor == 7) {
+					return o, settingsStereoLive
+				}
 			}
 		}
 	case "l", "right":
@@ -201,6 +216,9 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 				o.dirty = true
 				if o.tab == settingsTabEqualizer {
 					return o, o.applyEQFieldChange()
+				}
+				if o.tab == settingsTabPlayback && (o.cursor == 6 || o.cursor == 7) {
+					return o, settingsStereoLive
 				}
 			}
 		}
@@ -319,6 +337,8 @@ func (o SettingsOverlay) ToConfig(base config.Config) config.Config {
 	cfg.DefaultVolume = pb[3].Value
 	cfg.NormalizeVolume = pb[4].Value != 0
 	cfg.GaplessAudio = pb[5].Value != 0
+	cfg.StereoWideEnabled = pb[6].Value != 0
+	cfg.StereoWideAmount = pb[7].Value
 
 	eq := o.fields[settingsTabEqualizer]
 	cfg.EQEnabled = eq[0].Value != 0
@@ -407,6 +427,8 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 				name = o.eqPresets[f.Value].Name
 			}
 			spinner = fmt.Sprintf("< %s >", name)
+		case f.Unit == "tenth":
+			spinner = fmt.Sprintf("< %.1fx >", float64(f.Value)/10.0)
 		default:
 			spinner = fmt.Sprintf("< %d%s >", f.Value, f.Unit)
 		}

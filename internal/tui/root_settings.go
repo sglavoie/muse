@@ -30,6 +30,9 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 		if eq, ok := m.player.(equalizerSetter); ok {
 			_ = eq.SetEqualizer(m.cfg.EQEnabled, m.cfg.EQBands)
 		}
+		if sw, ok := m.player.(stereoWideSetter); ok {
+			_ = sw.SetStereoWide(m.cfg.StereoWideEnabled, m.cfg.StereoWideAmount)
+		}
 		return m, nil, true
 	case settingsSave:
 		saved, cmd := m.handleSettingsSave()
@@ -38,6 +41,12 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 		if eq, ok := m.player.(equalizerSetter); ok {
 			enabled, bands := m.overlay.settings.EQState()
 			_ = eq.SetEqualizer(enabled, bands)
+		}
+		return m, nil, true
+	case settingsStereoLive:
+		if sw, ok := m.player.(stereoWideSetter); ok {
+			enabled, amount := m.overlay.settings.StereoWideState()
+			_ = sw.SetStereoWide(enabled, amount)
 		}
 		return m, nil, true
 	case settingsEQSave:
@@ -76,6 +85,9 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 	}
 	if eq, ok := m.player.(equalizerSetter); ok {
 		_ = eq.SetEqualizer(m.cfg.EQEnabled, m.cfg.EQBands)
+	}
+	if sw, ok := m.player.(stereoWideSetter); ok {
+		_ = sw.SetStereoWide(m.cfg.StereoWideEnabled, m.cfg.StereoWideAmount)
 	}
 	if m.configPath == "" {
 		return m, func() tea.Msg { return settingsSavedMsg{} }

@@ -18,8 +18,8 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	o := NewSettingsOverlay(cfg)
 
 	pb := o.fields[settingsTabPlayback]
-	if len(pb) != 6 {
-		t.Fatalf("expected 6 playback fields, got %d", len(pb))
+	if len(pb) != 8 {
+		t.Fatalf("expected 8 playback fields, got %d", len(pb))
 	}
 	if pb[0].Value != cfg.VolumeIncrement {
 		t.Errorf("VolumeIncrement: expected %d, got %d", cfg.VolumeIncrement, pb[0].Value)
@@ -1056,5 +1056,96 @@ func TestEQHintLineIncludesJKFields(t *testing.T) {
 	out := ansi.Strip(o.Render(80, 40, s))
 	if !strings.Contains(out, "j/k fields") {
 		t.Errorf("EQ tab hint: expected 'j/k fields' in output, got:\n%s", out)
+	}
+}
+
+// --- Stereo Wide ---
+
+func TestStereoWideFieldsInitializeFromConfig(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.StereoWideEnabled = true
+	cfg.StereoWideAmount = 20
+	o := NewSettingsOverlay(cfg)
+	pb := o.fields[settingsTabPlayback]
+	if pb[6].Value != 1 {
+		t.Errorf("StereoWideEnabled field: expected 1, got %d", pb[6].Value)
+	}
+	if pb[7].Value != 20 {
+		t.Errorf("StereoWideAmount field: expected 20, got %d", pb[7].Value)
+	}
+}
+
+func TestStereoWideStateHelper(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.StereoWideEnabled = true
+	cfg.StereoWideAmount = 25
+	o := NewSettingsOverlay(cfg)
+	enabled, amount := o.StereoWideState()
+	if !enabled {
+		t.Error("StereoWideState: expected enabled=true")
+	}
+	if amount != 25 {
+		t.Errorf("StereoWideState: expected amount=25, got %d", amount)
+	}
+}
+
+func TestStereoWideToConfigRoundTrip(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.StereoWideEnabled = true
+	cfg.StereoWideAmount = 30
+	o := NewSettingsOverlay(cfg)
+	got := o.ToConfig(cfg)
+	if !got.StereoWideEnabled {
+		t.Error("ToConfig: expected StereoWideEnabled=true")
+	}
+	if got.StereoWideAmount != 30 {
+		t.Errorf("ToConfig: expected StereoWideAmount=30, got %d", got.StereoWideAmount)
+	}
+}
+
+func TestStereoWideToggleReturnsLiveAction(t *testing.T) {
+	o := NewSettingsOverlay(config.Defaults())
+	// Navigate to cursor=6 (Stereo wide toggle).
+	for range 6 {
+		o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	}
+	if o.cursor != 6 {
+		t.Fatalf("precondition: expected cursor=6, got %d", o.cursor)
+	}
+	_, action := o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	if action != settingsStereoLive {
+		t.Errorf("stereo wide toggle: expected settingsStereoLive, got %v", action)
+	}
+}
+
+func TestStereoWideAmountAdjustReturnsLiveAction(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.StereoWideAmount = 20 // room to go up or down
+	o := NewSettingsOverlay(cfg)
+	// Navigate to cursor=7 (Width).
+	for range 7 {
+		o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	}
+	if o.cursor != 7 {
+		t.Fatalf("precondition: expected cursor=7, got %d", o.cursor)
+	}
+	_, action := o.HandleKey(tea.KeyPressMsg{Code: 'h', Text: "h"})
+	if action != settingsStereoLive {
+		t.Errorf("stereo wide amount: expected settingsStereoLive, got %v", action)
+	}
+}
+
+func TestStereoWideRenderShowsTenthUnit(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.StereoWideAmount = 20
+	o := NewSettingsOverlay(cfg)
+	// Navigate to Width field so it's visible and active.
+	for range 7 {
+		o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	}
+	s := styles.NewStyles(true)
+	out := ansi.Strip(o.Render(80, 24, s))
+	if !strings.Contains(out, "2.0x") {
+		t.Errorf("Render: expected '2.0x' for stereo amount=20, got:\n%s", out)
 	}
 }

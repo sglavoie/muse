@@ -56,6 +56,10 @@ log_level = %q
 # name = "My Preset"
 # key = "my_preset"
 # bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+# Stereo widening settings.
+# stereo_wide_enabled = false
+# stereo_wide_amount = 10
 `
 
 const (
@@ -72,6 +76,8 @@ const (
 	defaultGaplessAudio               = true
 	defaultEQEnabled                  = false
 	defaultEQPreset                   = "flat"
+	defaultStereoWideEnabled          = false
+	defaultStereoWideAmount           = 10 // 1.0x = passthrough
 )
 
 // Config holds all application configuration values.
@@ -92,6 +98,8 @@ type Config struct {
 	EQPreset                   string           `toml:"eq_preset"`
 	EQBands                    [10]int          `toml:"eq_bands"`
 	EQCustomPresets            []EQCustomPreset `toml:"eq_custom_presets"`
+	StereoWideEnabled          bool             `toml:"stereo_wide_enabled"`
+	StereoWideAmount           int              `toml:"stereo_wide_amount"`
 }
 
 // Defaults returns a Config populated with built-in default values.
@@ -125,6 +133,8 @@ func defaults() Config {
 		EQPreset:                   defaultEQPreset,
 		EQBands:                    [10]int{},
 		EQCustomPresets:            nil,
+		StereoWideEnabled:          defaultStereoWideEnabled,
+		StereoWideAmount:           defaultStereoWideAmount,
 	}
 }
 
@@ -195,6 +205,8 @@ type rawConfig struct {
 	EQPreset                   string           `toml:"eq_preset"`
 	EQBands                    *[10]int         `toml:"eq_bands"`
 	EQCustomPresets            []EQCustomPreset `toml:"eq_custom_presets"`
+	StereoWideEnabled          *bool            `toml:"stereo_wide_enabled"`
+	StereoWideAmount           *int             `toml:"stereo_wide_amount"`
 }
 
 // validate checks each field and falls back to defaults for invalid values,
@@ -389,6 +401,23 @@ func validate(raw rawConfig) (Config, []string) {
 				"default", defaultEQPreset,
 			)
 			warnings = append(warnings, fmt.Sprintf("eq_preset %q is not a known preset key, using %q", raw.EQPreset, defaultEQPreset))
+		}
+	}
+
+	if raw.StereoWideEnabled != nil {
+		cfg.StereoWideEnabled = *raw.StereoWideEnabled
+	}
+	if raw.StereoWideAmount != nil {
+		v := *raw.StereoWideAmount
+		if v >= 0 && v <= 40 {
+			cfg.StereoWideAmount = v
+		} else {
+			slog.Warn("invalid config value, using default",
+				"field", "stereo_wide_amount",
+				"value", v,
+				"default", defaultStereoWideAmount,
+			)
+			warnings = append(warnings, fmt.Sprintf("stereo_wide_amount %d is out of range (0-40), using %d", v, defaultStereoWideAmount))
 		}
 	}
 
