@@ -274,6 +274,82 @@ func TestMetadataEditorRenderNarrowTerminalNoPanic(t *testing.T) {
 	}
 }
 
+// TestMetadataEditorRenderWrapsLongValue verifies that both focused and
+// non-focused fields with text longer than valueWidth do not exceed the box
+// width. Focused fields scroll/clip; non-focused fields wrap to multiple rows.
+func TestMetadataEditorRenderWrapsLongValue(t *testing.T) {
+	longTitle := "This is a very long title that should definitely wrap to multiple lines in the metadata editor popup box"
+	termWidth := 88
+
+	t.Run("focused field does not overflow", func(t *testing.T) {
+		// Title is focused by default.
+		ed := NewMetadataEditor("h1", longTitle, "Artist", "Album", "Rock")
+		s := newTestStyles()
+
+		// Sub-case 1: cursor at end (default).
+		out := ansi.Strip(ed.Render(termWidth, 24, s))
+		for _, line := range strings.Split(out, "\n") {
+			w := ansi.StringWidth(line)
+			if w > termWidth {
+				t.Errorf("cursor-at-end: line exceeds terminal width %d (got %d): %q", termWidth, w, line)
+			}
+		}
+
+		// Sub-case 2: cursor moved to the middle of the text.
+		edMid := ed
+		for range 30 {
+			edMid, _, _ = edMid.HandleKey(tea.KeyPressMsg{Code: tea.KeyLeft})
+		}
+		outMid := ansi.Strip(edMid.Render(termWidth, 24, s))
+		for _, line := range strings.Split(outMid, "\n") {
+			w := ansi.StringWidth(line)
+			if w > termWidth {
+				t.Errorf("cursor-in-middle: line exceeds terminal width %d (got %d): %q", termWidth, w, line)
+			}
+		}
+	})
+
+	t.Run("non-focused field wraps correctly", func(t *testing.T) {
+		ed := NewMetadataEditor("h1", longTitle, "Artist", "Album", "Rock")
+		// Tab to Artist so Title is non-focused and will be wrapped.
+		ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: '\t'})
+
+		s := newTestStyles()
+		out := ansi.Strip(ed.Render(termWidth, 24, s))
+
+		outLines := strings.Split(out, "\n")
+
+		// The full title text must be present across wrapped lines.
+		flat := strings.Join(outLines, " ")
+		for _, word := range strings.Fields(longTitle) {
+			if !strings.Contains(flat, word) {
+				t.Errorf("expected word %q from title in output; got:\n%s", word, out)
+			}
+		}
+
+		// "Title:" label appears on exactly one line.
+		titleLabelCount := 0
+		for _, line := range outLines {
+			if strings.Contains(line, "Title:") {
+				titleLabelCount++
+			}
+		}
+		if titleLabelCount != 1 {
+			t.Errorf("expected Title: label on exactly 1 line, found %d", titleLabelCount)
+		}
+
+		// boxInner = min(88-8, 80) = 80; bordered lines are 82 chars wide.
+		// With centering: leftPad = (88-82)/2 = 3, so total = 85.
+		// No line should exceed termWidth.
+		for _, line := range outLines {
+			w := ansi.StringWidth(line)
+			if w > termWidth {
+				t.Errorf("non-focused: line exceeds terminal width %d (got %d): %q", termWidth, w, line)
+			}
+		}
+	})
+}
+
 // TestDirtyFieldsTrimsWhitespace verifies that DirtyFields trims leading and
 // trailing whitespace from modified field values.
 func TestDirtyFieldsTrimsWhitespace(t *testing.T) {

@@ -261,27 +261,33 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 
 	// Field rows.
 	for _, i := range renderFields {
-		var padded string
 		if metadataField(i) == e.focused {
 			// View() renders at Width+1 visible chars (cursor adds 1),
 			// so subtract 1 to fit exactly in valueWidth.
 			e.fields[i].SetWidth(valueWidth - 1)
-			padded = e.fields[i].View()
-		} else {
-			value := e.fields[i].Value()
-			visLen := ansi.StringWidth(value)
-			if visLen < valueWidth {
-				padded = value + strings.Repeat(" ", valueWidth-visLen)
-			} else {
-				padded = value
-			}
-		}
-
-		row := fmt.Sprintf("  %*s %s  ", maxLabelW, labels[i], padded)
-		if metadataField(i) == e.focused {
+			pos := e.fields[i].Position()
+			e.fields[i].CursorEnd()    // force viewport recomputation with new width
+			e.fields[i].SetCursor(pos) // restore cursor; viewport is now correctly sized
+			padded := e.fields[i].View()
+			row := fmt.Sprintf("  %*s %s  ", maxLabelW, labels[i], padded)
 			lines = append(lines, borderV+s.Accent.Render(row)+borderV)
 		} else {
-			lines = append(lines, borderV+row+borderV)
+			value := e.fields[i].Value()
+			wrapped := ansi.Wrap(value, valueWidth, " ")
+			wrapLines := strings.Split(wrapped, "\n")
+			for j, wl := range wrapLines {
+				visLen := ansi.StringWidth(wl)
+				if visLen < valueWidth {
+					wl += strings.Repeat(" ", valueWidth-visLen)
+				}
+				var row string
+				if j == 0 {
+					row = fmt.Sprintf("  %*s %s  ", maxLabelW, labels[i], wl)
+				} else {
+					row = fmt.Sprintf("  %*s %s  ", maxLabelW, "", wl)
+				}
+				lines = append(lines, borderV+row+borderV)
+			}
 		}
 	}
 
