@@ -145,14 +145,14 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	m.statusBar.title = ""
 	m.statusBar.playlistSource = ""
 	m.playback.currentHash = ""
+	msg := "Queue finished"
+	if m.missingTrackCount > 0 {
+		msg = fmt.Sprintf("Queue finished (%d %s skipped — missing files)",
+			m.missingTrackCount, pluralize(m.missingTrackCount, "track", "tracks"))
+	}
+	m.missingTrackCount = 0
+	m.statusBar.notification = newNotification(msg)
 	if m.playback.repeatMode == RepeatOff {
-		msg := "Queue finished"
-		if m.missingTrackCount > 0 {
-			msg = fmt.Sprintf("Queue finished (%d %s skipped — missing files)",
-				m.missingTrackCount, pluralize(m.missingTrackCount, "track", "tracks"))
-		}
-		m.missingTrackCount = 0
-		m.statusBar.notification = newNotification(msg)
 		player.PlayQueueFinishedSound()
 	}
 	return m, incrementCmd

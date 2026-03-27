@@ -11,6 +11,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
@@ -924,5 +925,44 @@ func TestScanBatchRefreshesAlbumTrackLevel(t *testing.T) {
 
 	if len(nm.albums.tracks) != 2 {
 		t.Errorf("expected 2 tracks after scan, got %d", len(nm.albums.tracks))
+	}
+}
+
+// TestRescanResetsGenresView verifies that triggering a rescan clears the
+// genres view's stale drill-down state (selectedGenre, selectedArtist) so
+// that stale references from the previous scan don't persist.
+func TestRescanResetsGenresView(t *testing.T) {
+	root := t.TempDir()
+	m := New(context.Background(), WithLibraryRoot(root), WithExtractor(stubExtractor{}))
+
+	// Set up genres view at ArtistLevel with a selected genre.
+	m.genres.level = gentui.ArtistLevel
+	m.genres.selectedGenre = "Rock"
+	m.genres.artists = []string{"Artist1", "Artist2"}
+	m.genres.cursor = 1
+	m.genres.scrollOffset = 0
+
+	// Trigger rescan.
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
+	nm := next.(Model)
+	if cmd == nil {
+		t.Fatal("rescan: expected non-nil cmd")
+	}
+
+	// Genres view must be reset to GenreLevel with no stale selection.
+	if nm.genres.level != gentui.GenreLevel {
+		t.Fatalf("rescan: expected genres level=GenreLevel, got %v", nm.genres.level)
+	}
+	if nm.genres.selectedGenre != "" {
+		t.Fatalf("rescan: expected selectedGenre='', got %q", nm.genres.selectedGenre)
+	}
+	if nm.genres.selectedArtist != "" {
+		t.Fatalf("rescan: expected selectedArtist='', got %q", nm.genres.selectedArtist)
+	}
+	if nm.genres.cursor != 0 {
+		t.Fatalf("rescan: expected genres cursor=0, got %d", nm.genres.cursor)
+	}
+	if len(nm.genres.artists) != 0 {
+		t.Fatalf("rescan: expected genres artists empty, got %d", len(nm.genres.artists))
 	}
 }
