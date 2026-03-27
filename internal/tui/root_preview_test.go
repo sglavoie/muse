@@ -252,6 +252,27 @@ func TestPreviewStartErrorResumesPlayback(t *testing.T) {
 	}
 }
 
+// TestPreviewStartErrorPlayResumeFailureKeepsPaused verifies that when
+// preview start fails and the resume Play() call also fails, the playback
+// state stays PlaybackPaused (not incorrectly set to PlaybackPlaying).
+func TestPreviewStartErrorPlayResumeFailureKeepsPaused(t *testing.T) {
+	fp := &stubFailingPlayer{playErr: errTest("resume failed")}
+	m := New(context.Background())
+	m.player = fp
+	m.playback.state = PlaybackPaused
+	m.overlay.previewWasPlaying = true
+
+	next, _ := m.Update(previewStartErrorMsg{err: errTest("preview fail")})
+	nm := next.(Model)
+
+	if nm.playback.state != PlaybackPaused {
+		t.Fatalf("expected PlaybackPaused when resume fails, got %v", nm.playback.state)
+	}
+	if nm.overlay.previewWasPlaying {
+		t.Fatal("expected previewWasPlaying reset even on resume failure")
+	}
+}
+
 // TestPreviewOverlayRenderedInView verifies that when preview is active,
 // View() renders the preview overlay content.
 func TestPreviewOverlayRenderedInView(t *testing.T) {

@@ -277,7 +277,9 @@ func TestClearQueueMsgResetsScrollOffset(t *testing.T) {
 
 // TestPlaybackEndedMsgRepeatAllRestartsQueue verifies that when repeat mode is
 // RepeatAll and the queue is non-empty, receiving PlaybackEndedMsg restarts
-// playback from index 0 instead of transitioning to idle.
+// playback from index 0 instead of transitioning to idle. Metadata is NOT
+// speculatively set from entries[0] because PlayFromIndex may skip missing
+// entries; the incoming TrackChangedMsg provides the correct metadata.
 func TestPlaybackEndedMsgRepeatAllRestartsQueue(t *testing.T) {
 	p := &stubPlayer{}
 	sw := &stubSessionWriter{}
@@ -289,7 +291,7 @@ func TestPlaybackEndedMsgRepeatAllRestartsQueue(t *testing.T) {
 		{ID: 2, Path: "/b.flac", Display: "B – Two", Artist: "B", Title: "Two"},
 	}
 
-	next, cmd := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(PlaybackEndedMsg{})
 	nm := next.(Model)
 
 	if nm.playback.state != PlaybackPlaying {
@@ -298,21 +300,18 @@ func TestPlaybackEndedMsgRepeatAllRestartsQueue(t *testing.T) {
 	if len(p.playFromIndexCalls) != 1 || p.playFromIndexCalls[0] != 0 {
 		t.Fatalf("RepeatAll + PlaybackEndedMsg: expected PlayFromIndex(0), got calls=%v", p.playFromIndexCalls)
 	}
-	if nm.statusBar.artist != "A" || nm.statusBar.title != "One" {
-		t.Fatalf("RepeatAll + PlaybackEndedMsg: status bar should show first track, got artist=%q title=%q", nm.statusBar.artist, nm.statusBar.title)
-	}
-	if cmd == nil {
-		t.Fatal("RepeatAll + PlaybackEndedMsg: expected a session-position cmd")
+	if nm.playback.elapsedSecs != 0 || nm.playback.totalSecs != 0 {
+		t.Fatalf("RepeatAll + PlaybackEndedMsg: expected elapsed/total reset to 0")
 	}
 }
 
-// TestPlaybackEndedMsgRepeatAllUpdatesCurrentTrackHash verifies that when
-// RepeatAll wraps back to track 0, currentTrackHash is updated to the first
-// track's hash so that the session-position write persists the correct hash.
-func TestPlaybackEndedMsgRepeatAllUpdatesCurrentTrackHash(t *testing.T) {
+// TestPlaybackEndedMsgRepeatAllDoesNotSpekulativelySetHash verifies that when
+// RepeatAll wraps back, currentTrackHash is NOT updated from entries[0]
+// because PlayFromIndex may skip missing entries. The TrackChangedMsg from
+// the event reader will set the correct hash once mpv starts the track.
+func TestPlaybackEndedMsgRepeatAllDoesNotSpekulativelySetHash(t *testing.T) {
 	p := &stubPlayer{}
-	sw := &stubSessionWriter{}
-	m := New(context.Background(), WithPlayer(p), WithSessionWriter(sw))
+	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = PlaybackPlaying
 	m.playback.repeatMode = RepeatAll
 	m.playback.currentHash = "old-hash-last-track"
@@ -321,22 +320,17 @@ func TestPlaybackEndedMsgRepeatAllUpdatesCurrentTrackHash(t *testing.T) {
 		{ID: 2, Hash: "hash-second", Path: "/b.flac", Display: "B", Artist: "B", Title: "Two"},
 	}
 
-	next, cmd := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playback.currentHash != "hash-first" {
-		t.Fatalf("RepeatAll wrap: expected currentTrackHash=%q, got %q", "hash-first", nm.playback.currentHash)
+	// currentHash should NOT be speculatively updated to entries[0].Hash,
+	// because PlayFromIndex(0) may have skipped missing entries and
+	// actually started a later track.
+	if nm.playback.currentHash != "old-hash-last-track" {
+		t.Fatalf("RepeatAll wrap: expected currentTrackHash to remain %q, got %q", "old-hash-last-track", nm.playback.currentHash)
 	}
-	// Execute the session-position cmd and verify the hash it persists.
-	if cmd == nil {
-		t.Fatal("RepeatAll wrap: expected a session-position cmd")
-	}
-	cmd()
-	if len(sw.positionCalls) != 1 {
-		t.Fatalf("expected 1 position call, got %d", len(sw.positionCalls))
-	}
-	if sw.positionCalls[0].hash != "hash-first" {
-		t.Fatalf("session position persisted wrong hash: got %q, want %q", sw.positionCalls[0].hash, "hash-first")
+	if nm.playback.state != PlaybackPlaying {
+		t.Fatalf("RepeatAll wrap: expected PlaybackPlaying, got %v", nm.playback.state)
 	}
 }
 
@@ -408,14 +402,16 @@ func TestBatchEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 	}
 }
 
-// TestPlaybackEndedMsgRepeatAllPreservesSourcePlaylist verifies that when
-// RepeatAll wraps to the first track, the status bar uses the track's
-// SourcePlaylist (e.g. "My Playlist") instead of hard-coding "Queue".
-func TestPlaybackEndedMsgRepeatAllPreservesSourcePlaylist(t *testing.T) {
+// TestPlaybackEndedMsgRepeatAllDoesNotSpekulativelySetSource verifies that
+// when RepeatAll wraps, the status bar source is NOT speculatively updated
+// from entries[0] because PlayFromIndex may skip missing entries. The
+// TrackChangedMsg from the event reader will set the correct source.
+func TestPlaybackEndedMsgRepeatAllDoesNotSpekulativelySetSource(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = PlaybackPlaying
 	m.playback.repeatMode = RepeatAll
+	m.statusBar.playlistSource = "Old Source"
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "A – One", Artist: "A", Title: "One", SourcePlaylist: "My Playlist"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Display: "B – Two", Artist: "B", Title: "Two", SourcePlaylist: "My Playlist"},
@@ -424,18 +420,21 @@ func TestPlaybackEndedMsgRepeatAllPreservesSourcePlaylist(t *testing.T) {
 	next, _ := m.Update(PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.statusBar.playlistSource != "My Playlist" {
-		t.Fatalf("RepeatAll wrap: expected playlistSource=%q, got %q", "My Playlist", nm.statusBar.playlistSource)
+	// Status bar source should remain unchanged; TrackChangedMsg will update it.
+	if nm.statusBar.playlistSource != "Old Source" {
+		t.Fatalf("RepeatAll wrap: expected playlistSource to remain %q, got %q", "Old Source", nm.statusBar.playlistSource)
 	}
 }
 
-// TestPlaybackEndedMsgRepeatAllFallsBackToQueue verifies that when
-// RepeatAll wraps to a track with no SourcePlaylist, the status bar shows "Queue".
-func TestPlaybackEndedMsgRepeatAllFallsBackToQueue(t *testing.T) {
+// TestPlaybackEndedMsgRepeatAllKeepsOldSource verifies that when
+// RepeatAll wraps, the status bar keeps its existing source until
+// TrackChangedMsg arrives with the correct metadata.
+func TestPlaybackEndedMsgRepeatAllKeepsOldSource(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = PlaybackPlaying
 	m.playback.repeatMode = RepeatAll
+	m.statusBar.playlistSource = "Queue"
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "A – One", Artist: "A", Title: "One"},
 	}
@@ -443,8 +442,9 @@ func TestPlaybackEndedMsgRepeatAllFallsBackToQueue(t *testing.T) {
 	next, _ := m.Update(PlaybackEndedMsg{})
 	nm := next.(Model)
 
+	// Source should remain unchanged; TrackChangedMsg will update it.
 	if nm.statusBar.playlistSource != "Queue" {
-		t.Fatalf("RepeatAll wrap (no source): expected playlistSource=%q, got %q", "Queue", nm.statusBar.playlistSource)
+		t.Fatalf("RepeatAll wrap: expected playlistSource to remain %q, got %q", "Queue", nm.statusBar.playlistSource)
 	}
 }
 
@@ -615,5 +615,44 @@ func TestDismissPreviewDoesNotResumeOnPlayError(t *testing.T) {
 	}
 	if nm.overlay.preview != nil {
 		t.Fatal("preview overlay should be cleared after dismiss")
+	}
+}
+
+// TestVolumeUpNoUpdateOnError verifies that the TUI volume and session are not
+// updated when the mpv SetVolumeRelative IPC call fails, preventing drift
+// between the displayed volume and mpv's actual volume.
+func TestVolumeUpNoUpdateOnError(t *testing.T) {
+	p := &stubFailingVolumePlayer{volumeErr: errors.New("mpv disconnected")}
+	sw := &stubSessionWriter{}
+	m := New(context.Background(), WithPlayer(p), WithSessionWriter(sw))
+	m.playback.volume = 50
+
+	next, _, _ := m.handlePlaybackKeyAction(actionVolumeUp)
+	nm := next.(Model)
+
+	if nm.playback.volume != 50 {
+		t.Fatalf("volume should stay at 50 on error, got %d", nm.playback.volume)
+	}
+	if len(sw.volumeCalls) != 0 {
+		t.Fatalf("session volume should not be written on error, got %d calls", len(sw.volumeCalls))
+	}
+}
+
+// TestVolumeDownNoUpdateOnError verifies that a failed SetVolumeRelative for
+// volume-down does not update the TUI volume or persist to the session.
+func TestVolumeDownNoUpdateOnError(t *testing.T) {
+	p := &stubFailingVolumePlayer{volumeErr: errors.New("mpv disconnected")}
+	sw := &stubSessionWriter{}
+	m := New(context.Background(), WithPlayer(p), WithSessionWriter(sw))
+	m.playback.volume = 50
+
+	next, _, _ := m.handlePlaybackKeyAction(actionVolumeDown)
+	nm := next.(Model)
+
+	if nm.playback.volume != 50 {
+		t.Fatalf("volume should stay at 50 on error, got %d", nm.playback.volume)
+	}
+	if len(sw.volumeCalls) != 0 {
+		t.Fatalf("session volume should not be written on error, got %d calls", len(sw.volumeCalls))
 	}
 }

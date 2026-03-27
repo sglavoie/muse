@@ -409,6 +409,17 @@ func (s *stubBatchEnqueuer) DequeueTracksSoft(ids []int64) error {
 	return nil
 }
 
+// stubFailingVolumePlayer extends stubCommandPlayer to return errors from
+// SetVolumeRelative, used to test volume-drift prevention.
+type stubFailingVolumePlayer struct {
+	stubCommandPlayer
+	volumeErr error
+}
+
+func (s *stubFailingVolumePlayer) SetVolumeRelative(float64) error {
+	return s.volumeErr
+}
+
 // stubFailingPlayer returns errors from Play() to test error paths.
 type stubFailingPlayer struct {
 	stubPlayer

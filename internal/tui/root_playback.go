@@ -119,16 +119,12 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 		if err := m.player.PlayFromIndex(0); err != nil {
 			slog.Warn("repeat-all playback failed", "err", err)
 		} else {
+			// PlayFromIndex(0) may skip missing entries at the start of
+			// the queue and actually begin playing a later track. Do not
+			// speculatively set currentHash/artist/title from entries[0];
+			// the incoming TrackChangedMsg will carry the correct metadata
+			// for whichever track mpv actually started.
 			m.playback.state = PlaybackPlaying
-			e := m.queue.entries[0]
-			m.playback.currentHash = e.Hash
-			m.statusBar.artist = e.Artist
-			m.statusBar.title = e.Title
-			source := e.SourcePlaylist
-			if source == "" {
-				source = "Queue"
-			}
-			m.statusBar.playlistSource = source
 			m.playback.elapsedSecs = 0
 			m.playback.totalSecs = 0
 			// Reset the missing counter at the start of a new repeat-all
@@ -152,9 +148,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	}
 	m.missingTrackCount = 0
 	m.statusBar.notification = newNotification(msg)
-	if m.playback.repeatMode == RepeatOff {
-		player.PlayQueueFinishedSound()
-	}
+	player.PlayQueueFinishedSound()
 	return m, incrementCmd
 }
 
@@ -201,8 +195,9 @@ func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
 	if m.overlay.previewWasPlaying && m.player != nil {
 		if err := m.player.Play(); err != nil {
 			slog.Debug("player resume failed", "err", err)
+		} else {
+			m.playback.state = PlaybackPlaying
 		}
-		m.playback.state = PlaybackPlaying
 	}
 	m.overlay.previewWasPlaying = false
 	return m
@@ -414,11 +409,12 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.SetVolumeRelative(float64(m.cfg.VolumeIncrement)); err != nil {
 				slog.Debug("volume up failed", "err", err)
-			}
-			m.playback.volume = clampVolume(m.playback.volume + m.cfg.VolumeIncrement)
-			if m.sessionWriter != nil {
-				if err := m.sessionWriter.WriteVolume(m.playback.volume); err != nil {
-					slog.Debug("write volume failed", "err", err)
+			} else {
+				m.playback.volume = clampVolume(m.playback.volume + m.cfg.VolumeIncrement)
+				if m.sessionWriter != nil {
+					if err := m.sessionWriter.WriteVolume(m.playback.volume); err != nil {
+						slog.Debug("write volume failed", "err", err)
+					}
 				}
 			}
 			m.statusBar.notification = newNotificationFor(fmt.Sprintf("Volume: %d%%", m.playback.volume), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second)
@@ -428,11 +424,12 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.SetVolumeRelative(-float64(m.cfg.VolumeIncrement)); err != nil {
 				slog.Debug("volume down failed", "err", err)
-			}
-			m.playback.volume = clampVolume(m.playback.volume - m.cfg.VolumeIncrement)
-			if m.sessionWriter != nil {
-				if err := m.sessionWriter.WriteVolume(m.playback.volume); err != nil {
-					slog.Debug("write volume failed", "err", err)
+			} else {
+				m.playback.volume = clampVolume(m.playback.volume - m.cfg.VolumeIncrement)
+				if m.sessionWriter != nil {
+					if err := m.sessionWriter.WriteVolume(m.playback.volume); err != nil {
+						slog.Debug("write volume failed", "err", err)
+					}
 				}
 			}
 			m.statusBar.notification = newNotificationFor(fmt.Sprintf("Volume: %d%%", m.playback.volume), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second)
