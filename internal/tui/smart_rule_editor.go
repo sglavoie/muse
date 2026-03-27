@@ -199,9 +199,12 @@ func (e SmartRuleEditor) buildQuery() db.SmartPlaylistQuery {
 	if sortBy == "(default)" {
 		sortBy = ""
 	}
-	sortDir := "asc"
-	if e.sortDir == 1 {
-		sortDir = "desc"
+	var sortDir string
+	if sortBy != "" {
+		sortDir = "asc"
+		if e.sortDir == 1 {
+			sortDir = "desc"
+		}
 	}
 	maxTracks := 0
 	if s := strings.TrimSpace(e.maxTracksInput.Value()); s != "" {

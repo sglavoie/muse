@@ -436,12 +436,52 @@ func TestEvalSmartPlaylist_SortByArtistDesc(t *testing.T) {
 	}
 }
 
+func TestEvalSmartPlaylist_SortByAlbumAsc(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "hZ", "/z.flac", "Z", "Zebra", "Bravo", "rock", 200000, 1000, now)
+	insertFullTrack(t, d, "hA", "/a.flac", "A", "Alpha", "Alpha", "rock", 200000, 1000, now)
+
+	q := db.SmartPlaylistQuery{
+		Root:    db.SmartRule{Field: db.FieldArtist, Operator: db.OpNotEquals, Value: "nobody"},
+		SortBy:  "album",
+		SortDir: "asc",
+	}
+	rows := evalQuery(t, d, q)
+	if len(rows) != 2 {
+		t.Fatalf("got %d rows, want 2", len(rows))
+	}
+	if rows[0].Hash != "hA" || rows[1].Hash != "hZ" {
+		t.Errorf("order wrong: got %v, want [hA, hZ]", hashes(rows))
+	}
+}
+
+func TestEvalSmartPlaylist_SortByAlbumDesc(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "hZ", "/z.flac", "Z", "Zebra", "Bravo", "rock", 200000, 1000, now)
+	insertFullTrack(t, d, "hA", "/a.flac", "A", "Alpha", "Alpha", "rock", 200000, 1000, now)
+
+	q := db.SmartPlaylistQuery{
+		Root:    db.SmartRule{Field: db.FieldArtist, Operator: db.OpNotEquals, Value: "nobody"},
+		SortBy:  "album",
+		SortDir: "desc",
+	}
+	rows := evalQuery(t, d, q)
+	if len(rows) != 2 {
+		t.Fatalf("got %d rows, want 2", len(rows))
+	}
+	if rows[0].Hash != "hZ" || rows[1].Hash != "hA" {
+		t.Errorf("order wrong: got %v, want [hZ, hA]", hashes(rows))
+	}
+}
+
 // --- MaxTracks ---
 
 func TestEvalSmartPlaylist_MaxTracks(t *testing.T) {
 	d := openMigratedDB(t)
 	now := time.Now().Unix()
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		hash := string(rune('a'+i)) + "_hash"
 		insertFullTrack(t, d, hash, "/"+hash+".flac", "T", "Artist", "B", "rock", 200000, 1000, now)
 	}

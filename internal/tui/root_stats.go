@@ -26,6 +26,9 @@ var statsPeriods = []struct {
 // sinceUnixForPeriod converts a period index to the unix timestamp cutoff.
 // Pass 0 for all-time (returns 0).
 func sinceUnixForPeriod(periodIdx int) int64 {
+	if periodIdx < 0 || periodIdx >= len(statsPeriods) {
+		return 0
+	}
 	p := statsPeriods[periodIdx]
 	now := time.Now()
 	switch p.sinceDays {

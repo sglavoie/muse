@@ -217,6 +217,8 @@ func orderByClause(q SmartPlaylistQuery) string {
 		col = "t.artist COLLATE NOCASE"
 	case "title":
 		col = "t.title COLLATE NOCASE"
+	case "album":
+		col = "t.album COLLATE NOCASE"
 	case "date_added":
 		col = "t.created_at"
 	case "duration":

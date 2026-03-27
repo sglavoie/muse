@@ -455,7 +455,7 @@ func TestModalBuildBoxLinesContainsTitle(t *testing.T) {
 
 	found := false
 	for _, l := range lines {
-		if containsStr(ansi.Strip(l), "Destination") {
+		if strings.Contains(ansi.Strip(l), "Destination") {
 			found = true
 			break
 		}
@@ -463,15 +463,6 @@ func TestModalBuildBoxLinesContainsTitle(t *testing.T) {
 	if !found {
 		t.Error("box lines must contain 'Destination' title")
 	}
-}
-
-func containsStr(s, sub string) bool {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
 }
 
 func TestModalBuildBoxLinesContainsDestinations(t *testing.T) {
@@ -482,13 +473,13 @@ func TestModalBuildBoxLinesContainsDestinations(t *testing.T) {
 	foundChill := false
 	foundRock := false
 	for _, l := range lines {
-		if containsStr(l, queueLabel) {
+		if strings.Contains(l, queueLabel) {
 			foundQueue = true
 		}
-		if containsStr(l, "Chill") {
+		if strings.Contains(l, "Chill") {
 			foundChill = true
 		}
-		if containsStr(l, "Rock") {
+		if strings.Contains(l, "Rock") {
 			foundRock = true
 		}
 	}
@@ -517,7 +508,7 @@ func TestModalBuildBoxLinesFocusedRowHasAccent(t *testing.T) {
 	found := false
 	for _, l := range lines {
 		stripped := ansi.Strip(l)
-		if containsStr(stripped, queueLabel) && l != stripped {
+		if strings.Contains(stripped, queueLabel) && l != stripped {
 			found = true
 			break
 		}
@@ -536,7 +527,7 @@ func TestModalRenderCentered(t *testing.T) {
 		t.Error("Render must have leading newlines for vertical centering")
 	}
 	// Should contain the box content
-	if !containsStr(ansi.Strip(out), "Destination") {
+	if !strings.Contains(ansi.Strip(out), "Destination") {
 		t.Error("Render output must contain 'Destination'")
 	}
 }
@@ -546,7 +537,7 @@ func TestModalRenderZeroDimensions(t *testing.T) {
 	out := m.Render(0, 0, styles.NewStyles(true))
 
 	// Should not panic and should contain content without centering
-	if !containsStr(ansi.Strip(out), "Destination") {
+	if !strings.Contains(ansi.Strip(out), "Destination") {
 		t.Error("Render(0,0) must still contain 'Destination'")
 	}
 }
