@@ -168,6 +168,17 @@ func (idx *LibraryIndex) FindByHash(hash string) (Track, bool) {
 	return Track{}, false
 }
 
+// IncrementPlayCount bumps PlayCount by 1 and sets LastPlayedAt for the
+// track identified by hash. Returns true if the track was found.
+func (idx *LibraryIndex) IncrementPlayCount(hash string, playedAt int64) bool {
+	if i, ok := idx.byHash[hash]; ok && i < len(idx.tracks) {
+		idx.tracks[i].PlayCount++
+		idx.tracks[i].LastPlayedAt = playedAt
+		return true
+	}
+	return false
+}
+
 // UpdateMetadata finds the track by hash, updates its Title, Artist, Album, and
 // Genre, then re-inserts it to maintain sort order (since the sort key includes
 // Artist and Title, the position may change). Returns true if the track was

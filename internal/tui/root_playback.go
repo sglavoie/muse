@@ -96,15 +96,15 @@ func (m Model) handleMissingTrackMsg(msg MissingTrackMsg) Model {
 func (m Model) handlePlaybackEndedMsg() Model {
 	if m.playback.currentHash != "" &&
 		shouldCountPlay(m.playback.elapsedSecs, m.playback.totalSecs) {
+		h := m.playback.currentHash
+		now := time.Now().Unix()
+		m.library.index.IncrementPlayCount(h, now)
 		if m.historyRecorder != nil {
 			hr := m.historyRecorder
-			h := m.playback.currentHash
 			elapsed := int(m.playback.elapsedSecs)
-			now := time.Now().Unix()
 			go func() { _ = hr.RecordPlay(h, now, elapsed) }()
 		} else if m.playCountWriter != nil {
 			pcw := m.playCountWriter
-			h := m.playback.currentHash
 			go func() { _ = pcw.IncrementPlayCount(h) }()
 		}
 	}
@@ -222,11 +222,12 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 
 	var incrementCmd tea.Cmd
 	if previousHash != "" && shouldCountPlay(previousElapsed, previousTotal) {
+		now := time.Now().Unix()
+		m.library.index.IncrementPlayCount(previousHash, now)
 		if m.historyRecorder != nil {
 			hr := m.historyRecorder
 			h := previousHash
 			elapsed := int(previousElapsed)
-			now := time.Now().Unix()
 			incrementCmd = func() tea.Msg {
 				_ = hr.RecordPlay(h, now, elapsed)
 				return nil

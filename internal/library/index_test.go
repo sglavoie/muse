@@ -136,6 +136,58 @@ func TestLess_IdenticalTracks(t *testing.T) {
 	}
 }
 
+// --- IncrementPlayCount ---
+
+func TestIncrementPlayCount_Found(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "aaa", Artist: "A", Title: "t1", PlayCount: 5})
+	idx.Insert(Track{Hash: "bbb", Artist: "B", Title: "t2", PlayCount: 0})
+
+	now := int64(1700000000)
+	if !idx.IncrementPlayCount("bbb", now) {
+		t.Fatal("IncrementPlayCount: expected true for existing hash")
+	}
+
+	got, ok := idx.FindByHash("bbb")
+	if !ok {
+		t.Fatal("track not found after IncrementPlayCount")
+	}
+	if got.PlayCount != 1 {
+		t.Errorf("expected PlayCount=1, got %d", got.PlayCount)
+	}
+	if got.LastPlayedAt != now {
+		t.Errorf("expected LastPlayedAt=%d, got %d", now, got.LastPlayedAt)
+	}
+
+	// Increment again.
+	if !idx.IncrementPlayCount("bbb", now+60) {
+		t.Fatal("second IncrementPlayCount: expected true")
+	}
+	got, _ = idx.FindByHash("bbb")
+	if got.PlayCount != 2 {
+		t.Errorf("expected PlayCount=2, got %d", got.PlayCount)
+	}
+	if got.LastPlayedAt != now+60 {
+		t.Errorf("expected LastPlayedAt=%d, got %d", now+60, got.LastPlayedAt)
+	}
+}
+
+func TestIncrementPlayCount_NotFound(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "aaa", Artist: "A", Title: "t1"})
+
+	if idx.IncrementPlayCount("zzz", 1700000000) {
+		t.Error("IncrementPlayCount: expected false for non-existing hash")
+	}
+}
+
+func TestIncrementPlayCount_EmptyIndex(t *testing.T) {
+	var idx LibraryIndex
+	if idx.IncrementPlayCount("aaa", 1700000000) {
+		t.Error("IncrementPlayCount on empty index: expected false")
+	}
+}
+
 // --- RemoveByPath ---
 
 func TestRemoveByPath_Exists(t *testing.T) {
