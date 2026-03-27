@@ -825,18 +825,28 @@ func (m *Manager) rebuildAudioFilters() error {
 	if err != nil {
 		return err
 	}
-	if len(m.audioFilters) == 0 {
+
+	// Snapshot the filter map under the lock so concurrent setFilter calls
+	// on the TUI goroutine cannot mutate the map while we iterate.
+	m.mu.RLock()
+	snapshot := make(map[string]string, len(m.audioFilters))
+	for k, v := range m.audioFilters {
+		snapshot[k] = v
+	}
+	m.mu.RUnlock()
+
+	if len(snapshot) == 0 {
 		_, err = c.SendCommand("set_property", "af", "")
 		return err
 	}
-	names := make([]string, 0, len(m.audioFilters))
-	for name := range m.audioFilters {
+	names := make([]string, 0, len(snapshot))
+	for name := range snapshot {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	exprs := make([]string, 0, len(names))
 	for _, name := range names {
-		exprs = append(exprs, m.audioFilters[name])
+		exprs = append(exprs, snapshot[name])
 	}
 	_, err = c.SendCommand("set_property", "af", "lavfi=["+strings.Join(exprs, ",")+"]")
 	return err

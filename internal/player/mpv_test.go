@@ -2798,3 +2798,56 @@ func TestManager_DebugInfo_AudioFilters(t *testing.T) {
 		t.Errorf("DebugInfo[\"audio_filters\"] = %q, expected it to contain \"loudnorm\"", info["audio_filters"])
 	}
 }
+
+// TestManager_RebuildAudioFilters_ConcurrentSetFilter exercises the data-race
+// fix in rebuildAudioFilters: one goroutine repeatedly calls setFilter
+// (modifying the audioFilters map under m.mu) while another calls
+// rebuildAudioFilters (reading the map). Under -race this would panic before
+// the snapshot-based fix.
+func TestManager_RebuildAudioFilters_ConcurrentSetFilter(t *testing.T) {
+	sock := shortSockPath(t, "race-af")
+	fakeServer(t, sock)
+
+	client, err := NewIPCClient(sock)
+	if err != nil {
+		t.Fatalf("NewIPCClient: %v", err)
+	}
+	t.Cleanup(func() { client.Close() })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{
+		socketPath:     sock,
+		ctx:            ctx,
+		cancel:         cancel,
+		audioFilters:   make(map[string]string),
+		callbacksReady: make(chan struct{}),
+	}
+	defer m.Close()
+
+	m.mu.Lock()
+	m.client = client
+	m.mu.Unlock()
+
+	// Run concurrent setFilter and rebuildAudioFilters calls. Under the
+	// race detector this will surface any unsynchronised map access.
+	const iterations = 50
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		for i := range iterations {
+			name := fmt.Sprintf("filter%d", i%3)
+			_ = m.setFilter(name, name+"=expr", i%2 == 0)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for range iterations {
+			_ = m.rebuildAudioFilters()
+		}
+	}()
+
+	wg.Wait()
+}

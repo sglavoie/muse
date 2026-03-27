@@ -517,3 +517,31 @@ func TestTickMsgKeepsBulkRemovePendingWithinWindow(t *testing.T) {
 		t.Fatal("expected bulkRemovePending=true while within confirmation window")
 	}
 }
+
+// TestRepeatAll_ResetsMissingTrackCount verifies that when repeat-all wraps
+// back to the beginning of the queue, the missingTrackCount is reset so it
+// does not accumulate across repeat cycles.
+func TestRepeatAll_ResetsMissingTrackCount(t *testing.T) {
+	p := &stubPlayer{}
+	m := New(context.Background(), WithPlayer(p))
+	m.playback.repeatMode = RepeatAll
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "h1"
+	m.playback.elapsedSecs = 60
+	m.playback.totalSecs = 120
+	m.missingTrackCount = 3 // simulate 3 missing files in this cycle
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T1"},
+		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "B", Title: "T2"},
+	}
+
+	next, _ := m.Update(PlaybackEndedMsg{})
+	nm := next.(Model)
+
+	if nm.playback.state != PlaybackPlaying {
+		t.Fatalf("expected PlaybackPlaying after repeat-all wrap, got %v", nm.playback.state)
+	}
+	if nm.missingTrackCount != 0 {
+		t.Errorf("missingTrackCount = %d after repeat-all wrap, want 0", nm.missingTrackCount)
+	}
+}

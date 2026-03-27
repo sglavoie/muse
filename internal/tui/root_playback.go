@@ -124,6 +124,10 @@ func (m Model) handlePlaybackEndedMsg() Model {
 			m.statusBar.playlistSource = source
 			m.playback.elapsedSecs = 0
 			m.playback.totalSecs = 0
+			// Reset the missing counter at the start of a new repeat-all
+			// cycle so it does not accumulate across loops and produce a
+			// stale count if the user later switches to repeat-off.
+			m.missingTrackCount = 0
 			return m
 		}
 	}
