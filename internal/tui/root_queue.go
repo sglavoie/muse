@@ -207,6 +207,12 @@ func (m Model) handlePlayQueueIndexMsg(msg PlayQueueIndexMsg) Model {
 			}
 		} else {
 			m.playback.state = PlaybackIdle
+			m.playback.currentHash = ""
+			m.playback.elapsedSecs = 0
+			m.playback.totalSecs = 0
+			m.statusBar.artist = ""
+			m.statusBar.title = ""
+			m.statusBar.playlistSource = ""
 			m.statusBar.notification = newNotification("Play failed: " + err.Error())
 			player.PlaySound(player.SoundError)
 		}

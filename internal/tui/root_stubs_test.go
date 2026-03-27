@@ -2,11 +2,16 @@ package tui
 
 import (
 	"context"
+	"errors"
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 )
+
+// errStubPlay is a sentinel error returned by stubPlayer.PlayFromIndex when
+// playFromIndexErr is set, used in tests that exercise play-failure paths.
+var errStubPlay = errors.New("stub play error")
 
 // stubFavoriteWriter records calls to AddFavorite, RemoveFavorite, and
 // RemoveFavoritesByTypeAndValues for assertion in undo-favorite tests.
@@ -71,6 +76,7 @@ type stubPlayer struct {
 	playCalls          int
 	pauseCalls         int
 	playFromIndexCalls []int
+	playFromIndexErr   error // when non-nil, PlayFromIndex returns this error
 }
 
 func (s *stubPlayer) Play() error {
@@ -85,7 +91,7 @@ func (s *stubPlayer) Pause() error {
 
 func (s *stubPlayer) PlayFromIndex(idx int) error {
 	s.playFromIndexCalls = append(s.playFromIndexCalls, idx)
-	return nil
+	return s.playFromIndexErr
 }
 
 // stubCommandPlayer extends stubPlayer with the commandPlayer interface so that

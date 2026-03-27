@@ -172,7 +172,7 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 		m.queue.sortState.Dir = SortAsc
 		m.queue = m.queue.recomputeDisplayOrder()
 		m.queue.cursor = m.queue.findEntryDisplayPosition(prevEntryIdx)
-		m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, layout.VisibleRows(m.queue.height, 2))
+		m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, m.queue.visibleRows())
 		m.statusBar.notification = newNotification(sortNotification(m.queue.sortState))
 		return m, nil, true
 
@@ -250,7 +250,7 @@ func (m Model) handleSortDescOrPageDown() (tea.Model, tea.Cmd, bool) {
 			m.queue.sortState.Dir = SortDesc
 			m.queue = m.queue.recomputeDisplayOrder()
 			m.queue.cursor = m.queue.findEntryDisplayPosition(prevEntryIdx)
-			m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, layout.VisibleRows(m.queue.height, 2))
+			m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, m.queue.visibleRows())
 			m.statusBar.notification = newNotification(sortNotification(m.queue.sortState))
 			return m, nil, true
 		}

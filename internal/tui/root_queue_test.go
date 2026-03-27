@@ -2195,3 +2195,94 @@ func TestUndoBatchEnqueueKeepsPlaybackWhenPlayingTrackSurvives(t *testing.T) {
 		t.Errorf("status bar artist should be unchanged, got %q", nm.statusBar.artist)
 	}
 }
+
+// TestQueueVisibleRowsAccountsForFilter verifies that visibleRows reserves an
+// extra line when the filter bar is active or has committed (non-empty) text.
+func TestQueueVisibleRowsAccountsForFilter(t *testing.T) {
+	q := QueueView{height: 20}
+	baseRows := q.visibleRows()
+
+	// Active filter should reduce visible rows by 1.
+	q.filter.Active = true
+	if got := q.visibleRows(); got != baseRows-1 {
+		t.Errorf("active filter: expected %d, got %d", baseRows-1, got)
+	}
+
+	// Committed (non-empty) filter text without active input.
+	q.filter.Active = false
+	q.filter.Text = "hello"
+	if got := q.visibleRows(); got != baseRows-1 {
+		t.Errorf("committed filter text: expected %d, got %d", baseRows-1, got)
+	}
+}
+
+// TestQueueVisibleRowsAccountsForSaveInput verifies that visibleRows reserves
+// an extra line when the save-as-playlist input is active.
+func TestQueueVisibleRowsAccountsForSaveInput(t *testing.T) {
+	q := QueueView{height: 20}
+	baseRows := q.visibleRows()
+
+	q.savingAsPlaylist = true
+	if got := q.visibleRows(); got != baseRows-1 {
+		t.Errorf("save input active: expected %d, got %d", baseRows-1, got)
+	}
+}
+
+// TestQueueVisibleRowsAccountsForBothFilterAndSave verifies that visibleRows
+// reserves lines for both filter and save input simultaneously.
+func TestQueueVisibleRowsAccountsForBothFilterAndSave(t *testing.T) {
+	q := QueueView{height: 20}
+	baseRows := q.visibleRows()
+
+	q.filter.Active = true
+	q.savingAsPlaylist = true
+	if got := q.visibleRows(); got != baseRows-2 {
+		t.Errorf("both filter and save: expected %d, got %d", baseRows-2, got)
+	}
+}
+
+// TestPlayQueueIndexMsgClearsStateOnFailure verifies that when PlayFromIndex
+// fails, handlePlayQueueIndexMsg clears stale status bar and playback fields.
+func TestPlayQueueIndexMsgClearsStateOnFailure(t *testing.T) {
+	p := &stubPlayer{playFromIndexErr: errStubPlay}
+	m := New(context.Background(), WithPlayer(p))
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Hash: "aaa", Display: "A", Artist: "Art", Title: "Ttl"},
+	}
+	// Pre-populate stale playback state as if another track was playing.
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "old-hash"
+	m.playback.elapsedSecs = 42
+	m.playback.totalSecs = 180
+	m.statusBar.artist = "Old Artist"
+	m.statusBar.title = "Old Title"
+	m.statusBar.playlistSource = "Old Playlist"
+
+	next, _ := m.Update(PlayQueueIndexMsg{Index: 0})
+	nm := next.(Model)
+
+	if nm.playback.state != PlaybackIdle {
+		t.Errorf("expected PlaybackIdle, got %v", nm.playback.state)
+	}
+	if nm.playback.currentHash != "" {
+		t.Errorf("expected empty currentHash, got %q", nm.playback.currentHash)
+	}
+	if nm.playback.elapsedSecs != 0 {
+		t.Errorf("expected elapsedSecs=0, got %f", nm.playback.elapsedSecs)
+	}
+	if nm.playback.totalSecs != 0 {
+		t.Errorf("expected totalSecs=0, got %f", nm.playback.totalSecs)
+	}
+	if nm.statusBar.artist != "" {
+		t.Errorf("expected empty artist, got %q", nm.statusBar.artist)
+	}
+	if nm.statusBar.title != "" {
+		t.Errorf("expected empty title, got %q", nm.statusBar.title)
+	}
+	if nm.statusBar.playlistSource != "" {
+		t.Errorf("expected empty playlistSource, got %q", nm.statusBar.playlistSource)
+	}
+	if nm.statusBar.notification.msg == "" {
+		t.Error("expected error notification")
+	}
+}

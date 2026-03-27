@@ -341,9 +341,18 @@ func (v QueueView) moveQueueCursor(delta int) QueueView {
 }
 
 // visibleRows returns the maximum number of queue entries that fit on screen.
-// Reserve 2 lines for the column header and bottom margin.
+// Reserve 2 lines for the column header and bottom margin, plus 1 extra when
+// the filter bar is visible (active or committed with non-empty text), and
+// 1 extra when the save-as-playlist input is active.
 func (v QueueView) visibleRows() int {
-	return layout.VisibleRows(v.height, 2)
+	reserve := 2
+	if v.filter.Active || v.filter.Text != "" {
+		reserve++
+	}
+	if v.savingAsPlaylist {
+		reserve++
+	}
+	return layout.VisibleRows(v.height, reserve)
 }
 
 // render builds the queue panel string using a 6-column layout:
