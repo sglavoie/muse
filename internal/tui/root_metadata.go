@@ -452,6 +452,8 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		m.artists.selectedHashes = nil
 	case viewAlbums:
 		m.albums.selectedHashes = nil
+	case viewGenres:
+		m.genres.selectedHashes = nil
 	}
 
 	m.setUndoSlot(undoBulkEditMetadataAction{

@@ -1193,6 +1193,44 @@ func TestRefreshDerivedViewsResortsAlbumsAfterEdit(t *testing.T) {
 	}
 }
 
+// TestBulkMetadataSaveClearsGenresSelection verifies that after a bulk
+// metadata edit from the genres view, genres.selectedHashes is cleared so
+// stale selection markers do not persist.
+func TestBulkMetadataSaveClearsGenresSelection(t *testing.T) {
+	tracks := []library.Track{
+		{Artist: "Alice", Album: "Alpha", Title: "Song 1", Genre: "Rock", Hash: "g1", Path: "/g1.flac"},
+		{Artist: "Alice", Album: "Alpha", Title: "Song 2", Genre: "Rock", Hash: "g2", Path: "/g2.flac"},
+	}
+	m := New(context.Background(), WithLibraryTracks(tracks))
+	m.activeView = viewGenres
+
+	// Simulate being at genre track level with two tracks selected.
+	m.genres.selectedHashes = map[string]struct{}{"g1": {}, "g2": {}}
+
+	// Open a bulk metadata editor for these two tracks.
+	ed := NewBulkMetadataEditor([]string{"g1", "g2"}, "Song 1", "Alice", "Alpha", "Rock")
+	// Type a new genre to make the field dirty.
+	genreMsg := tea.KeyPressMsg{Code: tea.KeyTab}
+	ed, _, _ = ed.HandleKey(genreMsg) // → artist
+	ed, _, _ = ed.HandleKey(genreMsg) // → album
+	ed, _, _ = ed.HandleKey(genreMsg) // → genre
+	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: 'P', Text: "P"})
+	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: 'o', Text: "o"})
+	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: 'p', Text: "p"})
+	m.overlay.metadataEditor = &ed
+
+	result, _ := m.handleMetadataSave()
+	m = result.(Model)
+
+	if len(m.genres.selectedHashes) != 0 {
+		t.Errorf("expected genres.selectedHashes to be cleared after bulk metadata save, got %v", m.genres.selectedHashes)
+	}
+}
+
 // refreshDerivedViews does NOT iterate playlist tracks when the view is
 // at ListLevel (there are no tracks loaded).
 func TestRefreshDerivedViewsSkipsPlaylistTracksAtListLevel(t *testing.T) {

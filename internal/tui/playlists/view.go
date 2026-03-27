@@ -162,6 +162,7 @@ func (v View) OpenTracks(tracks []db.PlaylistTrackRow) View {
 	v.Tracks = tracks
 	v.Level = TrackLevel
 	v.Cursor = 0
+	v.ScrollOffset = 0
 	return v
 }
 

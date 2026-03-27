@@ -232,6 +232,28 @@ func TestOpenTracksTransitionsToTrackLevel(t *testing.T) {
 	}
 }
 
+// TestOpenTracksResetsScrollOffset verifies that OpenTracks resets ScrollOffset
+// to 0, so a stale list-level scroll offset does not leak into track-level
+// navigation. This matches the behavior of albums, artists, and genres views.
+func TestOpenTracksResetsScrollOffset(t *testing.T) {
+	tracks := []db.PlaylistTrackRow{
+		{ID: 1, Position: 1, Title: "Song A"},
+		{ID: 2, Position: 2, Title: "Song B"},
+	}
+	v := View{
+		Level:        ListLevel,
+		Cursor:       5,
+		ScrollOffset: 3,
+		Playlists:    make([]db.PlaylistRow, 10),
+	}
+
+	v = v.OpenTracks(tracks)
+
+	if v.ScrollOffset != 0 {
+		t.Errorf("OpenTracks: expected ScrollOffset=0, got %d", v.ScrollOffset)
+	}
+}
+
 // TestBackToListRestoresCursorAndLevel verifies that BackToList transitions
 // back to ListLevel, restores the list cursor, and clears the track slice.
 func TestBackToListRestoresCursorAndLevel(t *testing.T) {
