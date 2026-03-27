@@ -159,16 +159,16 @@ func buildStringOp(sb *strings.Builder, args *[]any, col string, op RuleOperator
 		sb.WriteString(col + " != ?")
 		*args = append(*args, val)
 	case OpContains:
-		sb.WriteString(col + " LIKE ?")
+		sb.WriteString(col + " LIKE ? ESCAPE '\\'")
 		*args = append(*args, "%"+escapeLike(val)+"%")
 	case OpNotContains:
-		sb.WriteString(col + " NOT LIKE ?")
+		sb.WriteString(col + " NOT LIKE ? ESCAPE '\\'")
 		*args = append(*args, "%"+escapeLike(val)+"%")
 	case OpStartsWith:
-		sb.WriteString(col + " LIKE ?")
+		sb.WriteString(col + " LIKE ? ESCAPE '\\'")
 		*args = append(*args, escapeLike(val)+"%")
 	case OpEndsWith:
-		sb.WriteString(col + " LIKE ?")
+		sb.WriteString(col + " LIKE ? ESCAPE '\\'")
 		*args = append(*args, "%"+escapeLike(val))
 	default:
 		return fmt.Errorf("operator %q not valid for string field", op)

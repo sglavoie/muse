@@ -125,6 +125,68 @@ func TestEvalSmartPlaylist_TitleNotContains(t *testing.T) {
 	}
 }
 
+// --- LIKE ESCAPE tests ---
+
+func TestEvalSmartPlaylist_ContainsLiteralPercent(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "h1", "/a.flac", "100% Pure", "Artist", "Album", "rock", 200000, 1000, now)
+	insertFullTrack(t, d, "h2", "/b.flac", "Pure Gold", "Artist", "Album", "rock", 200000, 1000, now)
+
+	q := db.SmartPlaylistQuery{
+		Root: db.SmartRule{Field: db.FieldTitle, Operator: db.OpContains, Value: "%"},
+	}
+	rows := evalQuery(t, d, q)
+	if len(rows) != 1 || rows[0].Hash != "h1" {
+		t.Errorf("got %d rows (hashes: %v), want 1 row h1 (title containing literal %%)", len(rows), hashes(rows))
+	}
+}
+
+func TestEvalSmartPlaylist_ContainsLiteralUnderscore(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "h1", "/a.flac", "track_01", "Artist", "Album", "rock", 200000, 1000, now)
+	insertFullTrack(t, d, "h2", "/b.flac", "track-02", "Artist", "Album", "rock", 200000, 1000, now)
+
+	q := db.SmartPlaylistQuery{
+		Root: db.SmartRule{Field: db.FieldTitle, Operator: db.OpContains, Value: "_"},
+	}
+	rows := evalQuery(t, d, q)
+	if len(rows) != 1 || rows[0].Hash != "h1" {
+		t.Errorf("got %d rows (hashes: %v), want 1 row h1 (title containing literal _)", len(rows), hashes(rows))
+	}
+}
+
+func TestEvalSmartPlaylist_StartsWithLiteralPercent(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "h1", "/a.flac", "%special", "Artist", "Album", "rock", 200000, 1000, now)
+	insertFullTrack(t, d, "h2", "/b.flac", "normal", "Artist", "Album", "rock", 200000, 1000, now)
+
+	q := db.SmartPlaylistQuery{
+		Root: db.SmartRule{Field: db.FieldTitle, Operator: db.OpStartsWith, Value: "%"},
+	}
+	rows := evalQuery(t, d, q)
+	if len(rows) != 1 || rows[0].Hash != "h1" {
+		t.Errorf("got %d rows (hashes: %v), want 1 row h1 (title starting with literal %%)", len(rows), hashes(rows))
+	}
+}
+
+func TestEvalSmartPlaylist_NotContainsLiteralPercent(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "h1", "/a.flac", "100% Pure", "Artist", "Album", "rock", 200000, 1000, now)
+	insertFullTrack(t, d, "h2", "/b.flac", "Pure Gold", "Artist", "Album", "rock", 200000, 1000, now)
+
+	q := db.SmartPlaylistQuery{
+		Root: db.SmartRule{Field: db.FieldTitle, Operator: db.OpNotContains, Value: "%"},
+	}
+	rows := evalQuery(t, d, q)
+	if len(rows) != 1 || rows[0].Hash != "h2" {
+		t.Errorf("got %d rows (hashes: %v), want 1 row h2 (title not containing literal %%)", len(rows), hashes(rows))
+	}
+}
+
 // --- Numeric field tests ---
 
 func TestEvalSmartPlaylist_DurationLessThan(t *testing.T) {
