@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -543,5 +544,76 @@ func TestRepeatAll_ResetsMissingTrackCount(t *testing.T) {
 	}
 	if nm.missingTrackCount != 0 {
 		t.Errorf("missingTrackCount = %d after repeat-all wrap, want 0", nm.missingTrackCount)
+	}
+}
+
+// TestPlaybackEndedReturnsIncrementCmd verifies that handlePlaybackEndedMsg
+// returns a tea.Cmd for persisting the play count instead of using a bare
+// goroutine. This ensures the DB write is managed by the Bubble Tea runtime.
+func TestPlaybackEndedReturnsIncrementCmd(t *testing.T) {
+	hr := &stubHistoryRecorder{}
+	m := New(context.Background(), WithHistoryRecorder(hr))
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "h1"
+	m.playback.elapsedSecs = 60
+	m.playback.totalSecs = 120
+
+	next, cmd := m.Update(PlaybackEndedMsg{})
+	nm := next.(Model)
+
+	if nm.playback.state != PlaybackIdle {
+		t.Fatalf("expected PlaybackIdle, got %v", nm.playback.state)
+	}
+	if cmd == nil {
+		t.Fatal("handlePlaybackEndedMsg must return a non-nil cmd for play count persistence")
+	}
+	// Execute the cmd to trigger RecordPlay.
+	cmd()
+	if len(hr.calls) != 1 {
+		t.Fatalf("expected 1 RecordPlay call, got %d", len(hr.calls))
+	}
+	if hr.calls[0].hash != "h1" {
+		t.Errorf("RecordPlay hash = %q, want %q", hr.calls[0].hash, "h1")
+	}
+}
+
+// TestPlaybackEndedNoCmdWhenBelowThreshold verifies that no increment command
+// is returned when the listen duration is below the threshold.
+func TestPlaybackEndedNoCmdWhenBelowThreshold(t *testing.T) {
+	hr := &stubHistoryRecorder{}
+	m := New(context.Background(), WithHistoryRecorder(hr))
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "h1"
+	m.playback.elapsedSecs = 5
+	m.playback.totalSecs = 300 // 5 out of 300 = 1.7%, well below 50% and < 30s
+
+	next, cmd := m.Update(PlaybackEndedMsg{})
+	nm := next.(Model)
+
+	if nm.playback.state != PlaybackIdle {
+		t.Fatalf("expected PlaybackIdle, got %v", nm.playback.state)
+	}
+	if cmd != nil {
+		t.Fatal("expected nil cmd when listen duration is below threshold")
+	}
+}
+
+// TestDismissPreviewDoesNotResumeOnPlayError verifies that when the player's
+// Play() returns an error after preview dismissal, the playback state stays
+// paused instead of incorrectly transitioning to PlaybackPlaying.
+func TestDismissPreviewDoesNotResumeOnPlayError(t *testing.T) {
+	p := &stubFailingPlayer{playErr: errors.New("mpv disconnected")}
+	m := New(context.Background(), WithPlayer(p))
+	m.playback.state = PlaybackPaused
+	m.overlay.previewWasPlaying = true
+	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+
+	nm := m.dismissPreview()
+
+	if nm.playback.state != PlaybackPaused {
+		t.Fatalf("expected PlaybackPaused when resume fails, got %v", nm.playback.state)
+	}
+	if nm.overlay.preview != nil {
+		t.Fatal("preview overlay should be cleared after dismiss")
 	}
 }

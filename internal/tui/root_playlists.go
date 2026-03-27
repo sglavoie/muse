@@ -915,7 +915,7 @@ func (m Model) handleSmartRuleEditorKeyPress(msg tea.KeyPressMsg) (Model, tea.Cm
 					return TransientNotifyMsg("Smart playlist error: " + err.Error())
 				}
 				if isEdit {
-					if err := sw.UpdateSmartPlaylistQuery(editID, queryJSON); err != nil {
+					if err := sw.UpdateSmartPlaylistQuery(editID, name, queryJSON); err != nil {
 						return TransientNotifyMsg("Update failed: " + err.Error())
 					}
 					rows, err := sw.ReadPlaylists()

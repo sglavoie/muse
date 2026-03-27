@@ -93,7 +93,8 @@ func (m Model) handleMissingTrackMsg(msg MissingTrackMsg) Model {
 
 // handlePlaybackEndedMsg handles the end of the play queue, optionally
 // wrapping around in repeat-all mode.
-func (m Model) handlePlaybackEndedMsg() Model {
+func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
+	var incrementCmd tea.Cmd
 	if m.playback.currentHash != "" &&
 		shouldCountPlay(m.playback.elapsedSecs, m.playback.totalSecs) {
 		h := m.playback.currentHash
@@ -102,10 +103,16 @@ func (m Model) handlePlaybackEndedMsg() Model {
 		if m.historyRecorder != nil {
 			hr := m.historyRecorder
 			elapsed := int(m.playback.elapsedSecs)
-			go func() { _ = hr.RecordPlay(h, now, elapsed) }()
+			incrementCmd = func() tea.Msg {
+				_ = hr.RecordPlay(h, now, elapsed)
+				return nil
+			}
 		} else if m.playCountWriter != nil {
 			pcw := m.playCountWriter
-			go func() { _ = pcw.IncrementPlayCount(h) }()
+			incrementCmd = func() tea.Msg {
+				_ = pcw.IncrementPlayCount(h)
+				return nil
+			}
 		}
 	}
 	if m.playback.repeatMode == RepeatAll && len(m.queue.entries) > 0 && m.player != nil {
@@ -128,7 +135,7 @@ func (m Model) handlePlaybackEndedMsg() Model {
 			// cycle so it does not accumulate across loops and produce a
 			// stale count if the user later switches to repeat-off.
 			m.missingTrackCount = 0
-			return m
+			return m, incrementCmd
 		}
 	}
 	m.playback.state = PlaybackIdle
@@ -148,7 +155,7 @@ func (m Model) handlePlaybackEndedMsg() Model {
 		m.statusBar.notification = newNotification(msg)
 		player.PlayQueueFinishedSound()
 	}
-	return m
+	return m, incrementCmd
 }
 
 // handlePlayerDisconnectedMsg resets TUI playback state when mpv disconnects
@@ -592,8 +599,11 @@ func (m Model) dismissPreview() Model {
 	m.overlay.preview = nil
 	m.overlay.previewPlayer = nil
 	if m.overlay.previewWasPlaying && m.player != nil {
-		_ = m.player.Play() // resume after preview dismiss, status bar shows state
-		m.playback.state = PlaybackPlaying
+		if err := m.player.Play(); err != nil {
+			slog.Debug("player resume after preview failed", "err", err)
+		} else {
+			m.playback.state = PlaybackPlaying
+		}
 	}
 	m.overlay.previewWasPlaying = false
 	return m

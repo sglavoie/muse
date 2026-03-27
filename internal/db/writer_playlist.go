@@ -24,13 +24,13 @@ func (w *Writer) CreateSmartPlaylist(name, queryJSON string) (int64, error) {
 	return id, err
 }
 
-// UpdateSmartPlaylistQuery replaces the query JSON for the smart playlist
-// identified by id. It is a no-op if no row with that ID exists.
-func (w *Writer) UpdateSmartPlaylistQuery(id int64, queryJSON string) error {
+// UpdateSmartPlaylistQuery replaces the name and query JSON for the smart
+// playlist identified by id. It is a no-op if no row with that ID exists.
+func (w *Writer) UpdateSmartPlaylistQuery(id int64, name, queryJSON string) error {
 	return w.Exec(func(db *sql.DB) error {
 		_, err := db.Exec(
-			`UPDATE playlists SET query=?, updated_at=? WHERE id=?`,
-			queryJSON, time.Now().Unix(), id,
+			`UPDATE playlists SET name=?, query=?, updated_at=? WHERE id=?`,
+			name, queryJSON, time.Now().Unix(), id,
 		)
 		return err
 	})

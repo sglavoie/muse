@@ -608,7 +608,7 @@ func TestUpdateSmartPlaylistQuery(t *testing.T) {
 		Root: db.SmartRule{Field: db.FieldGenre, Operator: db.OpEquals, Value: "jazz"},
 	}
 	raw2, _ := db.MarshalSmartPlaylistQuery(q2)
-	if err := w.UpdateSmartPlaylistQuery(id, raw2); err != nil {
+	if err := w.UpdateSmartPlaylistQuery(id, "PL-Renamed", raw2); err != nil {
 		t.Fatalf("UpdateSmartPlaylistQuery: %v", err)
 	}
 
@@ -621,6 +621,9 @@ func TestUpdateSmartPlaylistQuery(t *testing.T) {
 	}
 	if playlists[0].Query != raw2 {
 		t.Errorf("Query = %q, want %q", playlists[0].Query, raw2)
+	}
+	if playlists[0].Name != "PL-Renamed" {
+		t.Errorf("Name = %q, want %q", playlists[0].Name, "PL-Renamed")
 	}
 }
 

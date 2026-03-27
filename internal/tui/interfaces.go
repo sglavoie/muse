@@ -208,7 +208,7 @@ type debugInfoProvider interface {
 // When nil, the commit is a no-op.
 type smartPlaylistWriter interface {
 	CreateSmartPlaylist(name, queryJSON string) (int64, error)
-	UpdateSmartPlaylistQuery(id int64, queryJSON string) error
+	UpdateSmartPlaylistQuery(id int64, name, queryJSON string) error
 	ReadPlaylists() ([]db.PlaylistRow, error)
 }
 

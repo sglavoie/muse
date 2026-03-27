@@ -601,9 +601,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.handlePlayerDisconnectedMsg()
 
 	case PlaybackEndedMsg:
-		m = m.handlePlaybackEndedMsg()
+		var cmd tea.Cmd
+		m, cmd = m.handlePlaybackEndedMsg()
 		if m.playback.state == PlaybackPlaying {
-			return m, m.sessionPositionCmd()
+			return m, tea.Batch(cmd, m.sessionPositionCmd())
+		}
+		if cmd != nil {
+			return m, cmd
 		}
 
 	case PauseChangedMsg:

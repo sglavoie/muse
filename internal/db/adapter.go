@@ -41,6 +41,6 @@ func (a *PlaylistAdapter) CreateSmartPlaylist(name, queryJSON string) (int64, er
 }
 
 // UpdateSmartPlaylistQuery delegates to the writer goroutine.
-func (a *PlaylistAdapter) UpdateSmartPlaylistQuery(id int64, queryJSON string) error {
-	return a.writer.UpdateSmartPlaylistQuery(id, queryJSON)
+func (a *PlaylistAdapter) UpdateSmartPlaylistQuery(id int64, name, queryJSON string) error {
+	return a.writer.UpdateSmartPlaylistQuery(id, name, queryJSON)
 }

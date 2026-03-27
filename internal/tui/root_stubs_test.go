@@ -408,3 +408,32 @@ func (s *stubBatchEnqueuer) DequeueTracksSoft(ids []int64) error {
 	s.dequeueTracksSoftIDs = append(s.dequeueTracksSoftIDs, cp)
 	return nil
 }
+
+// stubFailingPlayer returns errors from Play() to test error paths.
+type stubFailingPlayer struct {
+	stubPlayer
+	playErr error
+}
+
+func (s *stubFailingPlayer) Play() error {
+	s.playCalls++
+	return s.playErr
+}
+
+// stubHistoryRecorder records RecordPlay calls for assertion in tests.
+type stubHistoryRecorder struct {
+	calls []struct {
+		hash       string
+		playedAt   int64
+		listenedSs int
+	}
+}
+
+func (s *stubHistoryRecorder) RecordPlay(hash string, playedAt int64, listenedSecs int) error {
+	s.calls = append(s.calls, struct {
+		hash       string
+		playedAt   int64
+		listenedSs int
+	}{hash, playedAt, listenedSecs})
+	return nil
+}
