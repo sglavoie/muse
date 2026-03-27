@@ -4,6 +4,7 @@ import (
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	gentui "github.com/sglavoie/muse/internal/tui/genres"
 )
 
 // focusedTrackMeta returns the artist and album of the focused item in the
@@ -81,6 +82,17 @@ func (m Model) focusedTrackMeta() (artist, album string, found bool) {
 			}
 		case favtui.TrackLevel:
 			if track, ok := m.favorites.focusedTrack(); ok {
+				return track.Artist, track.Album, true
+			}
+		}
+	case viewGenres:
+		switch m.genres.level {
+		case gentui.ArtistLevel:
+			if name, ok := m.genres.focusedArtist(); ok {
+				return name, "", true
+			}
+		case gentui.TrackLevel:
+			if track, ok := m.genres.focusedTrack(); ok {
 				return track.Artist, track.Album, true
 			}
 		}

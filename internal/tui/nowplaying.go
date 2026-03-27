@@ -20,9 +20,14 @@ type NowPlayingOverlay struct {
 
 // Render produces a centered overlay string for the now-playing info.
 func (n NowPlayingOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
-	icon := "▶"
-	if n.state == PlaybackPaused {
+	var icon string
+	switch n.state {
+	case PlaybackPaused:
 		icon = "⏸"
+	case PlaybackStopped:
+		icon = "■"
+	default:
+		icon = "▶"
 	}
 	progress := fmt.Sprintf("%s %s / %s", icon, formatTime(n.elapsed), formatTime(n.total))
 	return renderTrackOverlay(n.title, n.artist, n.album, progress, n.playCount,

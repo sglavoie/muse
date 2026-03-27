@@ -84,6 +84,17 @@ func TestDebugViewContent(t *testing.T) {
 	}
 }
 
+// TestDebugPlaybackStopped verifies that the debug panel displays "stopped"
+// for the PlaybackStopped state instead of falling through to "idle".
+func TestDebugPlaybackStopped(t *testing.T) {
+	m := New(context.Background())
+	m.playback.state = PlaybackStopped
+	p := collectDebugInfo(m)
+	if p.playbackState != "stopped" {
+		t.Errorf("playbackState = %q; want %q", p.playbackState, "stopped")
+	}
+}
+
 // TestDebugNotOpenWhenOverlayActive verifies that ctrl+g is a no-op when
 // another overlay (settings) is already active.
 func TestDebugNotOpenWhenOverlayActive(t *testing.T) {

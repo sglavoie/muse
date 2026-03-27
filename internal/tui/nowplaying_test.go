@@ -86,6 +86,17 @@ func TestNowPlayingOverlay_PausedIcon(t *testing.T) {
 	}
 }
 
+func TestNowPlayingOverlay_StoppedIcon(t *testing.T) {
+	n := NowPlayingOverlay{artist: "A", title: "T", state: PlaybackStopped}
+	out := ansi.Strip(n.Render(80, 24, newTestStyles()))
+	if !strings.Contains(out, "■") {
+		t.Error("expected ■ icon for stopped state")
+	}
+	if strings.Contains(out, "▶") {
+		t.Error("stopped state should not show ▶ icon")
+	}
+}
+
 func TestNowPlayingOverlay_UnknownTrack(t *testing.T) {
 	n := NowPlayingOverlay{state: PlaybackPlaying}
 	out := ansi.Strip(n.Render(80, 24, newTestStyles()))

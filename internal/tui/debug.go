@@ -87,6 +87,8 @@ func collectDebugInfo(m Model) DebugPanel {
 		p.playbackState = "playing"
 	case PlaybackPaused:
 		p.playbackState = "paused"
+	case PlaybackStopped:
+		p.playbackState = "stopped"
 	default:
 		p.playbackState = "idle"
 	}
