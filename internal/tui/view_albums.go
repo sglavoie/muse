@@ -100,6 +100,7 @@ func (v AlbumsView) HandleAction(a action) AlbumsView {
 		AlbumCursor:       v.albumCursor,
 		AlbumScrollOffset: v.albumScrollOffset,
 		Height:            v.height,
+		FilterActive:      v.filter.Active,
 		FilterText:        v.filter.Text,
 		SortIndicator:     sortInd,
 	}

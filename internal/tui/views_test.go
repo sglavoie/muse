@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
@@ -1256,5 +1257,94 @@ func TestOpenTracksSavesDisplayCursorWhenUnsorted(t *testing.T) {
 	// Without sort, listCursor should be the display cursor value (1).
 	if v.listCursor != 1 {
 		t.Errorf("expected listCursor=1, got %d", v.listCursor)
+	}
+}
+
+// TestHandleActionReservesFilterBarLine_Artists verifies that ArtistsView.HandleAction
+// accounts for the filter bar line when computing visible rows, even when the
+// filter is active but the text is still empty (just opened with /).
+func TestHandleActionReservesFilterBarLine_Artists(t *testing.T) {
+	artists := make([]string, 20)
+	for i := range artists {
+		artists[i] = fmt.Sprintf("Artist %02d", i)
+	}
+	v := ArtistsView{
+		height:  12,
+		artists: artists,
+		filter:  filter.State{Active: true}, // filter bar open, no text
+	}
+	v = v.HandleAction(actionGoToBottom)
+	if v.cursor != 19 {
+		t.Fatalf("expected cursor=19, got %d", v.cursor)
+	}
+	// With filter bar active, visibleRows = max(1, 12-1) = 11.
+	// scrollOffset should be 19 - 11 + 1 = 9.
+	if v.scrollOffset != 9 {
+		t.Errorf("expected scrollOffset=9 (filter bar reserved), got %d", v.scrollOffset)
+	}
+}
+
+// TestHandleActionReservesFilterBarLine_Albums verifies the same fix for AlbumsView.
+func TestHandleActionReservesFilterBarLine_Albums(t *testing.T) {
+	albums := make([]string, 20)
+	for i := range albums {
+		albums[i] = fmt.Sprintf("Album %02d", i)
+	}
+	v := AlbumsView{
+		height: 12,
+		albums: albums,
+		filter: filter.State{Active: true},
+	}
+	v = v.HandleAction(actionGoToBottom)
+	if v.cursor != 19 {
+		t.Fatalf("expected cursor=19, got %d", v.cursor)
+	}
+	if v.scrollOffset != 9 {
+		t.Errorf("expected scrollOffset=9 (filter bar reserved), got %d", v.scrollOffset)
+	}
+}
+
+// TestHandleActionReservesFilterBarLine_Genres verifies the same fix for GenresView.
+func TestHandleActionReservesFilterBarLine_Genres(t *testing.T) {
+	genres := make([]string, 20)
+	for i := range genres {
+		genres[i] = fmt.Sprintf("Genre %02d", i)
+	}
+	v := GenresView{
+		height: 12,
+		genres: genres,
+		filter: filter.State{Active: true},
+	}
+	v = v.HandleAction(actionGoToBottom)
+	if v.cursor != 19 {
+		t.Fatalf("expected cursor=19, got %d", v.cursor)
+	}
+	if v.scrollOffset != 9 {
+		t.Errorf("expected scrollOffset=9 (filter bar reserved), got %d", v.scrollOffset)
+	}
+}
+
+// TestHandleActionReservesFilterBarLine_Favorites verifies the same fix for
+// FavoritesView at ListLevel with artists (where the filter bar adds 1 line).
+func TestHandleActionReservesFilterBarLine_Favorites(t *testing.T) {
+	artists := make([]string, 20)
+	for i := range artists {
+		artists[i] = fmt.Sprintf("FavArtist %02d", i)
+	}
+	v := FavoritesView{
+		height:   12,
+		level:    favtui.ListLevel,
+		category: favtui.CategoryArtists,
+		artists:  artists,
+		filter:   filter.State{Active: true},
+	}
+	v = v.HandleAction(actionGoToBottom)
+	if v.cursor != 19 {
+		t.Fatalf("expected cursor=19, got %d", v.cursor)
+	}
+	// ListLevel + CategoryArtists: reserve=0, +1 for filter = 1.
+	// visibleRows = max(1, 12-1) = 11, scrollOffset = 19 - 11 + 1 = 9.
+	if v.scrollOffset != 9 {
+		t.Errorf("expected scrollOffset=9 (filter bar reserved), got %d", v.scrollOffset)
 	}
 }

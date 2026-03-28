@@ -99,6 +99,7 @@ func (v FavoritesView) HandleAction(a action) FavoritesView {
 		Tracks:          v.tracks,
 		DrilldownTracks: v.drilldownTracks,
 		Height:          v.height,
+		FilterActive:    v.filter.Active,
 		FilterText:      v.filter.Text,
 		SortIndicator:   sortInd,
 	}

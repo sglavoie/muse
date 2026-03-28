@@ -114,6 +114,7 @@ func (v GenresView) HandleAction(a action) GenresView {
 		ArtistCursor:       v.artistCursor,
 		ArtistScrollOffset: v.artistScrollOffset,
 		Height:             v.height,
+		FilterActive:       v.filter.Active,
 		FilterText:         v.filter.Text,
 		SortIndicator:      sortInd,
 	}
