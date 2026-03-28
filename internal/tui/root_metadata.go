@@ -64,6 +64,29 @@ func (m Model) bulkSelectedHashes() []string {
 			hashes = append(hashes, h)
 		}
 		return hashes
+	case viewFavorites:
+		if len(m.favorites.selectedItems) == 0 {
+			return nil
+		}
+		var items []musiclib.Track
+		switch {
+		case m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks:
+			items = arttui.FilterTracks(m.favorites.tracks, m.favorites.filter.Text)
+		case m.favorites.level == favtui.TrackLevel:
+			items = arttui.FilterTracks(m.favorites.drilldownTracks, m.favorites.filter.Text)
+		default:
+			return nil // artist/album list levels have no track hashes
+		}
+		var hashes []string
+		for idx := range m.favorites.selectedItems {
+			if idx >= 0 && idx < len(items) {
+				hashes = append(hashes, items[idx].Hash)
+			}
+		}
+		if len(hashes) == 0 {
+			return nil
+		}
+		return hashes
 	case viewGenres:
 		if len(m.genres.selectedHashes) == 0 {
 			return nil
@@ -452,6 +475,8 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		m.artists.selectedHashes = nil
 	case viewAlbums:
 		m.albums.selectedHashes = nil
+	case viewFavorites:
+		m.favorites.selectedItems = nil
 	case viewGenres:
 		m.genres.selectedHashes = nil
 	}
