@@ -477,6 +477,7 @@ func (m Model) handleDestinationPickerDismissedMsg() Model {
 	m.library = m.library.ClearSelection()
 	m.artists.selectedHashes = nil
 	m.albums.selectedHashes = nil
+	m.genres.selectedHashes = nil
 	return m
 }
 
@@ -488,6 +489,7 @@ func (m Model) handleDestinationPickerCreateMsg() Model {
 	m.library = m.library.ClearSelection()
 	m.artists.selectedHashes = nil
 	m.albums.selectedHashes = nil
+	m.genres.selectedHashes = nil
 	m.activeView = viewPlaylists
 	m.playlists = m.playlists.startCreate()
 	return m
@@ -502,6 +504,7 @@ func (m Model) handleDestinationPickedMsg(msg pltui.DestinationPickedMsg) (Model
 	m.library = m.library.ClearSelection()
 	m.artists.selectedHashes = nil
 	m.albums.selectedHashes = nil
+	m.genres.selectedHashes = nil
 	if msg.IsQueue {
 		// Append tracks to the play queue as a batch so only one sound plays.
 		if m.batchEnqueuer != nil {
