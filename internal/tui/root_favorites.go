@@ -11,6 +11,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
@@ -123,6 +124,28 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 			}
 			// Single: focused track.
 			if t, ok := m.playlists.focusedTrack(); ok {
+				return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
+			}
+		}
+
+	case viewGenres:
+		switch m.genres.level {
+		case gentui.ArtistLevel:
+			if name, ok := m.genres.focusedArtist(); ok {
+				return m, m.toggleFavoriteSingle(reader, writer, "artist", name), true
+			}
+		case gentui.TrackLevel:
+			// Bulk: all selected hashes.
+			if len(m.genres.selectedHashes) > 0 {
+				hashes := make([]string, 0, len(m.genres.selectedHashes))
+				for h := range m.genres.selectedHashes {
+					hashes = append(hashes, h)
+				}
+				m.genres.selectedHashes = nil
+				return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
+			}
+			// Single: focused track.
+			if t, ok := m.genres.focusedTrack(); ok {
 				return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
 			}
 		}
