@@ -9,6 +9,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
@@ -1654,5 +1655,165 @@ func TestFavoritesVisibleReserve(t *testing.T) {
 				t.Errorf("favoritesVisibleReserve = %d, want %d", got, tt.want)
 			}
 		})
+	}
+}
+
+// TestSortCycleToDefaultRederivesArtists verifies that cycling the sort field
+// back to SortDefault on the artists view restores the original (library index)
+// order rather than leaving data in whatever sorted order it was last in.
+func TestSortCycleToDefaultRederivesArtists(t *testing.T) {
+	m := Model{}
+	m.activeView = viewArtists
+	m.library.index.Insert(library.Track{Artist: "B", Title: "T1", Path: "/b", Hash: "hb"})
+	m.library.index.Insert(library.Track{Artist: "A", Title: "T2", Path: "/a", Hash: "ha"})
+	m.library.index.Insert(library.Track{Artist: "C", Title: "T3", Path: "/c", Hash: "hc"})
+
+	m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+	original := make([]string, len(m.artists.artists))
+	copy(original, m.artists.artists)
+
+	m.artists.sortState = SortState{Field: SortName, Dir: SortDesc}
+	m.artists = m.artists.recomputeArtistsSort()
+
+	if len(m.artists.artists) > 1 && m.artists.artists[0] == original[0] {
+		t.Fatal("sort did not change the order — test is invalid")
+	}
+
+	result, _, _ := m.handleSortCycle()
+	m = result.(Model)
+
+	if m.artists.sortState.Field != SortDefault {
+		t.Fatalf("expected SortDefault after cycle, got %v", m.artists.sortState.Field)
+	}
+
+	for i, want := range original {
+		if i >= len(m.artists.artists) {
+			t.Fatalf("artists list too short: got %d, want %d", len(m.artists.artists), len(original))
+		}
+		if m.artists.artists[i] != want {
+			t.Errorf("artists[%d] = %q, want %q", i, m.artists.artists[i], want)
+		}
+	}
+}
+
+// TestSortCycleToDefaultRederivesAlbums verifies that cycling sort back to
+// SortDefault on the albums view restores the original order.
+func TestSortCycleToDefaultRederivesAlbums(t *testing.T) {
+	m := Model{}
+	m.activeView = viewAlbums
+	m.library.index.Insert(library.Track{Artist: "A", Album: "Zebra", Title: "T1", Path: "/1", Hash: "h1"})
+	m.library.index.Insert(library.Track{Artist: "A", Album: "Alpha", Title: "T2", Path: "/2", Hash: "h2"})
+	m.library.index.Insert(library.Track{Artist: "A", Album: "Mid", Title: "T3", Path: "/3", Hash: "h3"})
+
+	m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
+	original := make([]string, len(m.albums.albums))
+	copy(original, m.albums.albums)
+
+	m.albums.sortState = SortState{Field: SortName, Dir: SortDesc}
+	m.albums = m.albums.recomputeAlbumsSort()
+
+	if len(m.albums.albums) > 1 && m.albums.albums[0] == original[0] {
+		t.Fatal("sort did not change the order — test is invalid")
+	}
+
+	result, _, _ := m.handleSortCycle()
+	m = result.(Model)
+
+	if m.albums.sortState.Field != SortDefault {
+		t.Fatalf("expected SortDefault after cycle, got %v", m.albums.sortState.Field)
+	}
+
+	for i, want := range original {
+		if i >= len(m.albums.albums) {
+			t.Fatalf("albums list too short: got %d, want %d", len(m.albums.albums), len(original))
+		}
+		if m.albums.albums[i] != want {
+			t.Errorf("albums[%d] = %q, want %q", i, m.albums.albums[i], want)
+		}
+	}
+}
+
+// TestSortCycleToDefaultRederivesGenres verifies that cycling sort back to
+// SortDefault on the genres view restores the original order.
+func TestSortCycleToDefaultRederivesGenres(t *testing.T) {
+	m := Model{}
+	m.activeView = viewGenres
+	m.library.index.Insert(library.Track{Artist: "A", Genre: "Rock", Title: "T1", Path: "/1", Hash: "h1"})
+	m.library.index.Insert(library.Track{Artist: "A", Genre: "Jazz", Title: "T2", Path: "/2", Hash: "h2"})
+	m.library.index.Insert(library.Track{Artist: "A", Genre: "Blues", Title: "T3", Path: "/3", Hash: "h3"})
+
+	m.genres.genres = gentui.DeriveGenres(m.library.index.Tracks())
+	original := make([]string, len(m.genres.genres))
+	copy(original, m.genres.genres)
+
+	m.genres.sortState = SortState{Field: SortName, Dir: SortDesc}
+	m.genres = m.genres.recomputeGenresSort()
+
+	if len(m.genres.genres) > 1 && m.genres.genres[0] == original[0] {
+		t.Fatal("sort did not change the order — test is invalid")
+	}
+
+	result, _, _ := m.handleSortCycle()
+	m = result.(Model)
+
+	if m.genres.sortState.Field != SortDefault {
+		t.Fatalf("expected SortDefault after cycle, got %v", m.genres.sortState.Field)
+	}
+
+	for i, want := range original {
+		if i >= len(m.genres.genres) {
+			t.Fatalf("genres list too short: got %d, want %d", len(m.genres.genres), len(original))
+		}
+		if m.genres.genres[i] != want {
+			t.Errorf("genres[%d] = %q, want %q", i, m.genres.genres[i], want)
+		}
+	}
+}
+
+// TestSortCycleToDefaultRederivesFavoritesTracks verifies that cycling sort
+// back to SortDefault on the favorites track list restores library index order.
+func TestSortCycleToDefaultRederivesFavoritesTracks(t *testing.T) {
+	m := Model{}
+	m.activeView = viewFavorites
+	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "ha"})
+	m.library.index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "hb"})
+	m.library.index.Insert(library.Track{Artist: "C", Title: "Charlie", Path: "/c", Hash: "hc"})
+
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryTracks
+	allTracks := m.library.index.Tracks()
+	m.favorites.tracks = make([]library.Track, len(allTracks))
+	copy(m.favorites.tracks, allTracks)
+
+	originalOrder := make([]string, len(m.favorites.tracks))
+	for i, tr := range m.favorites.tracks {
+		originalOrder[i] = tr.Hash
+	}
+
+	// Sort by title descending to scramble.
+	m.favorites.sortState = SortState{Field: SortTitle, Dir: SortDesc}
+	m.favorites = m.favorites.recomputeFavoritesSort()
+
+	if m.favorites.tracks[0].Hash == originalOrder[0] {
+		t.Fatal("sort did not change the order — test is invalid")
+	}
+
+	// Cycle past SortTitle to get back to SortDefault.
+	// favoritesSortFieldsForLevel for ListLevel+CategoryTracks returns
+	// [SortDefault, SortArtist, SortTitle, SortAlbum, SortDuration, SortPath].
+	// Current field is SortTitle, so we need to cycle through the remaining
+	// fields to get back to SortDefault.
+	for m.favorites.sortState.Field != SortDefault {
+		result, _, _ := m.handleSortCycle()
+		m = result.(Model)
+	}
+
+	for i, wantHash := range originalOrder {
+		if i >= len(m.favorites.tracks) {
+			t.Fatalf("favorites tracks too short: got %d, want %d", len(m.favorites.tracks), len(originalOrder))
+		}
+		if m.favorites.tracks[i].Hash != wantHash {
+			t.Errorf("favorites.tracks[%d].Hash = %q, want %q", i, m.favorites.tracks[i].Hash, wantHash)
+		}
 	}
 }
