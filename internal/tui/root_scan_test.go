@@ -966,3 +966,48 @@ func TestRescanResetsGenresView(t *testing.T) {
 		t.Fatalf("rescan: expected genres artists empty, got %d", len(nm.genres.artists))
 	}
 }
+
+// TestScanBatchPreservesUserEditedOverlay verifies that handleScanBatchMsg
+// uses the userEditedOverlay to preserve manually edited metadata instead
+// of overwriting with raw scanned values.
+func TestScanBatchPreservesUserEditedOverlay(t *testing.T) {
+	m := New(context.Background())
+	m.userEditedOverlay = map[string]db.UserEditedRow{
+		"hash1": {Hash: "hash1", Title: "Edited Title", Artist: "Edited Artist", Album: "Edited Album", Genre: "Edited Genre"},
+	}
+
+	scanned := []library.Track{
+		{Hash: "hash1", Path: "/a.mp3", Title: "Scanned Title", Artist: "Scanned Artist", Album: "Scanned Album", Genre: "Scanned Genre"},
+		{Hash: "hash2", Path: "/b.mp3", Title: "B Title", Artist: "B Artist", Album: "B Album", Genre: "B Genre"},
+	}
+
+	next, _ := m.Update(library.ScanBatchMsg{Tracks: scanned})
+	nm := next.(Model)
+
+	// Track with user-edited overlay should have edited metadata.
+	t1, ok := nm.library.index.FindByHash("hash1")
+	if !ok {
+		t.Fatal("hash1 not found in index")
+	}
+	if t1.Title != "Edited Title" {
+		t.Errorf("hash1 Title = %q; want Edited Title", t1.Title)
+	}
+	if t1.Artist != "Edited Artist" {
+		t.Errorf("hash1 Artist = %q; want Edited Artist", t1.Artist)
+	}
+	if t1.Album != "Edited Album" {
+		t.Errorf("hash1 Album = %q; want Edited Album", t1.Album)
+	}
+	if t1.Genre != "Edited Genre" {
+		t.Errorf("hash1 Genre = %q; want Edited Genre", t1.Genre)
+	}
+
+	// Track without overlay should have scanned metadata.
+	t2, ok := nm.library.index.FindByHash("hash2")
+	if !ok {
+		t.Fatal("hash2 not found in index")
+	}
+	if t2.Title != "B Title" {
+		t.Errorf("hash2 Title = %q; want B Title", t2.Title)
+	}
+}

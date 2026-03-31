@@ -2224,3 +2224,57 @@ func TestUpsertBatch_PreservesUserEdited(t *testing.T) {
 		t.Errorf("album = %q; want Edited Album (user-edited metadata should be preserved)", album)
 	}
 }
+
+// TestReadUserEditedTracks verifies that ReadUserEditedTracks returns only
+// non-missing tracks whose metadata was manually edited.
+func TestReadUserEditedTracks(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	// Insert two tracks.
+	tracks := []library.Track{
+		{Hash: "hash-a", Path: "/a.mp3", Title: "A", Artist: "Art A", Album: "Alb A", Genre: "Rock"},
+		{Hash: "hash-b", Path: "/b.mp3", Title: "B", Artist: "Art B", Album: "Alb B", Genre: "Pop"},
+		{Hash: "hash-c", Path: "/c.mp3", Title: "C", Artist: "Art C", Album: "Alb C", Genre: "Jazz"},
+	}
+	if err := w.UpsertBatch(tracks); err != nil {
+		t.Fatalf("UpsertBatch: %v", err)
+	}
+
+	// Edit track A metadata (sets user_edited=1).
+	if err := w.UpdateTrackMetadata("hash-a", "Edited A", "Edited Art A", "Edited Alb A", "Edited Rock"); err != nil {
+		t.Fatalf("UpdateTrackMetadata(a): %v", err)
+	}
+	// Edit track C metadata (sets user_edited=1), then mark it missing.
+	if err := w.UpdateTrackMetadata("hash-c", "Edited C", "Edited Art C", "Edited Alb C", "Edited Jazz"); err != nil {
+		t.Fatalf("UpdateTrackMetadata(c): %v", err)
+	}
+	if err := w.MarkTrackMissing("hash-c"); err != nil {
+		t.Fatalf("MarkTrackMissing(c): %v", err)
+	}
+
+	// ReadUserEditedTracks should return only track A (edited + non-missing).
+	rows, err := d.ReadUserEditedTracks()
+	if err != nil {
+		t.Fatalf("ReadUserEditedTracks: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("got %d rows; want 1", len(rows))
+	}
+	r := rows[0]
+	if r.Hash != "hash-a" {
+		t.Errorf("Hash = %q; want hash-a", r.Hash)
+	}
+	if r.Title != "Edited A" {
+		t.Errorf("Title = %q; want Edited A", r.Title)
+	}
+	if r.Artist != "Edited Art A" {
+		t.Errorf("Artist = %q; want Edited Art A", r.Artist)
+	}
+	if r.Album != "Edited Alb A" {
+		t.Errorf("Album = %q; want Edited Alb A", r.Album)
+	}
+	if r.Genre != "Edited Rock" {
+		t.Errorf("Genre = %q; want Edited Rock", r.Genre)
+	}
+}

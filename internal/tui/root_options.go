@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"log/slog"
+
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
@@ -153,6 +155,26 @@ func WithScanWriter(w scanUpsertBatcher, batchSize int) Option {
 	return func(m *Model) {
 		m.scanWriter = w
 		m.upsertBatchSize = batchSize
+	}
+}
+
+// WithUserEditedReader sets the reader for user-edited track metadata and
+// eagerly loads the overlay map so the startup DiffScan path preserves edits.
+func WithUserEditedReader(r userEditedReader) Option {
+	return func(m *Model) {
+		m.userEditedReader = r
+		rows, err := r.ReadUserEditedTracks()
+		if err != nil {
+			slog.Warn("startup: read user-edited tracks", "err", err)
+			return
+		}
+		if len(rows) > 0 {
+			overlay := make(map[string]db.UserEditedRow, len(rows))
+			for _, row := range rows {
+				overlay[row.Hash] = row
+			}
+			m.userEditedOverlay = overlay
+		}
 	}
 }
 

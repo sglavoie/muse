@@ -230,3 +230,10 @@ type listeningStatsReader interface {
 type scanUpsertBatcher interface {
 	UpsertBatch([]library.Track) error
 }
+
+// userEditedReader reads user-edited track metadata from the database.
+// Used to build an overlay map so that rescan and watcher flows preserve
+// manually edited metadata in the in-memory index.
+type userEditedReader interface {
+	ReadUserEditedTracks() ([]db.UserEditedRow, error)
+}

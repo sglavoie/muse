@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/sglavoie/muse/internal/db"
 	musiclib "github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
@@ -288,6 +289,14 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	// Refresh derived views (Artists, Albums) so they reflect the edit.
 	m = m.refreshDerivedViews()
 
+	// Keep the user-edited overlay in sync so future rescans/watcher
+	// events preserve this edit in the in-memory index.
+	if m.userEditedOverlay != nil {
+		m.userEditedOverlay[hash] = db.UserEditedRow{
+			Hash: hash, Title: title, Artist: artist, Album: album, Genre: genre,
+		}
+	}
+
 	// Persist to database asynchronously.
 	w := m.metadataWriter
 	if w == nil {
@@ -533,6 +542,15 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		}
 		n := len(ed.Hashes())
 		m.statusBar.notification = newNotification(fmt.Sprintf("Renamed %d %s", n, pluralize(n, "track", "tracks")))
+	}
+
+	// Keep the user-edited overlay in sync for bulk edits.
+	if m.userEditedOverlay != nil {
+		for _, u := range updates {
+			m.userEditedOverlay[u.hash] = db.UserEditedRow{
+				Hash: u.hash, Title: u.title, Artist: u.artist, Album: u.album, Genre: u.genre,
+			}
+		}
 	}
 
 	w := m.metadataWriter

@@ -183,6 +183,38 @@ func (d *DB) ReadTracks() ([]TrackRow, error) {
 	return result, rows.Err()
 }
 
+// UserEditedRow holds the user-edited metadata for a single track.
+type UserEditedRow struct {
+	Hash   string
+	Title  string
+	Artist string
+	Album  string
+	Genre  string
+}
+
+// ReadUserEditedTracks returns metadata for all non-missing tracks whose
+// metadata was manually edited by the user (user_edited = 1).
+func (d *DB) ReadUserEditedTracks() ([]UserEditedRow, error) {
+	rows, err := d.Query(`
+		SELECT hash, title, artist, album, genre
+		FROM tracks WHERE user_edited = 1 AND missing = 0
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("db: read user-edited tracks: %w", err)
+	}
+	defer rows.Close()
+
+	var result []UserEditedRow
+	for rows.Next() {
+		var r UserEditedRow
+		if err := rows.Scan(&r.Hash, &r.Title, &r.Artist, &r.Album, &r.Genre); err != nil {
+			return nil, fmt.Errorf("db: read user-edited row: %w", err)
+		}
+		result = append(result, r)
+	}
+	return result, rows.Err()
+}
+
 // QueueRow holds a single queue entry joined with its track metadata.
 // Used by ReadQueue to return typed results that callers convert into
 // player.QueueTrack and tui.QueueEntry slices.

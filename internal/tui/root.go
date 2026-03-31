@@ -10,6 +10,7 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/config"
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
@@ -84,6 +85,14 @@ type Model struct {
 	scanning  bool
 	scanned   int
 	scanTotal int // estimated total from the parallel counting goroutine
+
+	// userEditedReader queries the DB for user-edited tracks so that
+	// rescan and watcher flows can preserve edited metadata in-memory.
+	userEditedReader userEditedReader
+	// userEditedOverlay caches user-edited metadata keyed by hash.
+	// Built at startup and before rescan; consulted when inserting
+	// scanned/watched tracks into the in-memory index.
+	userEditedOverlay map[string]db.UserEditedRow
 
 	// watchCh is the channel returned by library.Watch. It emits WatchEvents
 	// (track additions/updates and deletion notifications) and is nil when

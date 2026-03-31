@@ -334,5 +334,6 @@ func buildModel(
 		tui.WithHistoryRecorder(result.Writer),
 		tui.WithStatsReader(result.DB),
 		tui.WithScanWriter(result.Writer, upsertBatchSize),
+		tui.WithUserEditedReader(result.DB),
 	)
 }

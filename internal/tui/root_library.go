@@ -35,6 +35,12 @@ func (m Model) handleScanTotalMsg(msg library.ScanTotalMsg) Model {
 // derived views (artists, albums) as needed.
 func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 	for _, t := range msg.Tracks {
+		if edited, ok := m.userEditedOverlay[t.Hash]; ok {
+			t.Title = edited.Title
+			t.Artist = edited.Artist
+			t.Album = edited.Album
+			t.Genre = edited.Genre
+		}
 		m.library.index.Insert(t)
 	}
 	m.scanned += len(msg.Tracks)
@@ -116,7 +122,14 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 			}
 		}
 	}
-	for _, t := range msg.tracks {
+	for i, t := range msg.tracks {
+		if edited, ok := m.userEditedOverlay[t.Hash]; ok {
+			msg.tracks[i].Title = edited.Title
+			msg.tracks[i].Artist = edited.Artist
+			msg.tracks[i].Album = edited.Album
+			msg.tracks[i].Genre = edited.Genre
+			t = msg.tracks[i]
+		}
 		m.library.index.UpsertByPath(t.Path, t)
 	}
 	// Update queue entries whose track metadata was refreshed by the watcher
@@ -284,6 +297,22 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 	switch action {
 	case actionRescan:
 		if m.libraryRoot != "" && m.extractor != nil && !m.scanning {
+			// Refresh user-edited overlay so manually edited metadata
+			// survives the full rescan that is about to clear the index.
+			if m.userEditedReader != nil {
+				rows, err := m.userEditedReader.ReadUserEditedTracks()
+				if err != nil {
+					slog.Warn("rescan: read user-edited tracks", "err", err)
+				} else if len(rows) > 0 {
+					overlay := make(map[string]db.UserEditedRow, len(rows))
+					for _, r := range rows {
+						overlay[r.Hash] = r
+					}
+					m.userEditedOverlay = overlay
+				} else {
+					m.userEditedOverlay = nil
+				}
+			}
 			rawCh := library.Scan(m.appCtx, m.libraryRoot, m.extractor)
 			ch := m.bridgeScanChannel(rawCh)
 			m.library.index = library.LibraryIndex{}
