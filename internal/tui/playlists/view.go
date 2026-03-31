@@ -41,6 +41,8 @@ type View struct {
 	RenameInput      textinput.Model    // current value of the inline rename field
 	SelectedTrackIDs map[int64]struct{} // bulk-selected playlist track row IDs
 	FavoriteHashes   map[string]struct{}
+	FavoriteArtists  map[string]struct{}
+	FavoriteAlbums   map[string]struct{}
 	Styles           styles.Styles
 	IsSmartPlaylist  bool // true when the open playlist is a smart playlist (TrackLevel)
 }
@@ -366,20 +368,30 @@ func (v View) renderTracks() string {
 		}
 
 		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
-		title := text.Pad(t.Title, cols.Title)
-		artist := text.Pad(t.Artist, cols.Artist)
-		album := text.Pad(t.Album, cols.Album)
 		dur := text.FormatDurationMs(t.DurationMs)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
-		line := markerStr + pos + " " + title + " " + artist + " " + album + " " + dur
-		_, isFav := v.FavoriteHashes[t.Hash]
-		switch {
-		case isFocused && isFav:
-			line = v.Styles.FavoriteAccent.Render(line)
-		case isFocused:
+
+		// Per-cell favorite lookups.
+		_, isTrackFav := v.FavoriteHashes[t.Hash]
+		_, isArtistFav := v.FavoriteArtists[t.Artist]
+		_, isAlbumFav := v.FavoriteAlbums[t.Album]
+
+		titleStr := text.Pad(t.Title, cols.Title)
+		artistStr := text.Pad(t.Artist, cols.Artist)
+		albumStr := text.Pad(t.Album, cols.Album)
+		if isTrackFav {
+			titleStr = v.Styles.Favorite.Render(titleStr)
+		}
+		if isArtistFav {
+			artistStr = v.Styles.FavArtist.Render(artistStr)
+		}
+		if isAlbumFav {
+			albumStr = v.Styles.FavAlbum.Render(albumStr)
+		}
+
+		line := markerStr + pos + " " + titleStr + " " + artistStr + " " + albumStr + " " + dur
+		if isFocused {
 			line = v.Styles.Accent.Render(line)
-		case isFav:
-			line = v.Styles.Favorite.Render(line)
 		}
 		lines[i] = line
 	}

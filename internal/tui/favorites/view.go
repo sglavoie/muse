@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	lipgloss "charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/library"
@@ -73,7 +74,9 @@ type View struct {
 
 	// SelectedItems tracks bulk-selected items at ListLevel/TrackLevel.
 	SelectedItems  map[int]struct{}
-	FavoriteHashes map[string]struct{}
+	FavoriteHashes  map[string]struct{}
+	FavoriteArtists map[string]struct{}
+	FavoriteAlbums  map[string]struct{}
 }
 
 // EffectiveItems returns the list items filtered by FilterText for the current category.
@@ -333,10 +336,25 @@ func (v View) renderList() string {
 	start := min(v.ScrollOffset, len(items))
 	end := min(len(items), start+maxRows)
 
+	// Determine the favorite style for this category.
+	var favStyle, favAccentStyle lipgloss.Style
+	var favMap map[string]struct{}
+	switch v.Category {
+	case CategoryArtists:
+		favStyle = v.Styles.FavArtist
+		favAccentStyle = v.Styles.FavArtistAccent
+		favMap = v.FavoriteArtists
+	case CategoryAlbums:
+		favStyle = v.Styles.FavAlbum
+		favAccentStyle = v.Styles.FavAlbumAccent
+		favMap = v.FavoriteAlbums
+	}
+
 	lines := make([]string, end-start)
 	for i, name := range items[start:end] {
 		absIdx := start + i
 		isFocused := absIdx == v.Cursor
+		_, isFav := favMap[name]
 
 		var marker string
 		_, selected := v.SelectedItems[absIdx]
@@ -352,8 +370,13 @@ func (v View) renderList() string {
 		display := text.Truncate(name, v.Width-2)
 		display = fmt.Sprintf("%-*s", v.Width-2, display)
 		line := marker + display
-		if isFocused {
+		switch {
+		case isFocused && isFav:
+			line = favAccentStyle.Render(line)
+		case isFocused:
 			line = v.Styles.Accent.Render(line)
+		case isFav:
+			line = favStyle.Render(line)
 		}
 		lines[i] = line
 	}
@@ -433,21 +456,29 @@ func (v View) renderTrackRows(items []library.Track) string {
 		}
 
 		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
-		title := text.Pad(t.Title, cols.Title)
-		artist := text.Pad(t.Artist, cols.Artist)
-		album := text.Pad(t.Album, cols.Album)
+		titleStr := text.Pad(t.Title, cols.Title)
+		artistStr := text.Pad(t.Artist, cols.Artist)
+		albumStr := text.Pad(t.Album, cols.Album)
 		dur := text.FormatDurationSecs(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		plays := fmt.Sprintf("%*d", cols.PlayCount, t.PlayCount)
-		line := marker + pos + " " + title + " " + artist + " " + album + " " + dur + " " + plays
-		_, isFav := v.FavoriteHashes[t.Hash]
-		switch {
-		case isFocused && isFav:
-			line = v.Styles.FavoriteAccent.Render(line)
-		case isFocused:
+
+		_, isTrackFav := v.FavoriteHashes[t.Hash]
+		_, isArtistFav := v.FavoriteArtists[t.Artist]
+		_, isAlbumFav := v.FavoriteAlbums[t.Album]
+		if isTrackFav {
+			titleStr = v.Styles.Favorite.Render(titleStr)
+		}
+		if isArtistFav {
+			artistStr = v.Styles.FavArtist.Render(artistStr)
+		}
+		if isAlbumFav {
+			albumStr = v.Styles.FavAlbum.Render(albumStr)
+		}
+
+		line := marker + pos + " " + titleStr + " " + artistStr + " " + albumStr + " " + dur + " " + plays
+		if isFocused {
 			line = v.Styles.Accent.Render(line)
-		case isFav:
-			line = v.Styles.Favorite.Render(line)
 		}
 		lines[i] = line
 	}

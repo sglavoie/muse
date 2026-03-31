@@ -140,6 +140,8 @@ type Model struct {
 	favoriteReader      favoriteReader         // may be nil; set via WithFavoriteReader
 	favoriteWriter      favoriteWriter         // may be nil; set via WithFavoriteWriter
 	favoriteHashes      map[string]struct{}    // set of favorited track hashes for highlight
+	favoriteArtists     map[string]struct{}    // set of favorited artist names for highlight
+	favoriteAlbums      map[string]struct{}    // set of favorited album names for highlight
 	smartEval           smartPlaylistEvaluator // may be nil; set via WithSmartPlaylistEvaluator
 	smartPlaylistWriter smartPlaylistWriter    // may be nil; set via WithSmartPlaylistWriter
 	playCountWriter     playCountIncrementer   // may be nil; set via WithPlayCountWriter
@@ -204,6 +206,8 @@ func New(ctx context.Context, opts ...Option) Model {
 	m.scanning = m.scanCh != nil
 	// Pre-load the set of favorited track hashes for row highlighting.
 	m.favoriteHashes = loadFavoriteTrackHashes(m.favoriteReader)
+	m.favoriteArtists = loadFavoriteArtists(m.favoriteReader)
+	m.favoriteAlbums = loadFavoriteAlbums(m.favoriteReader)
 	// Sync statusBar fields from model state.
 	m.statusBar.configPath = m.configPath
 	m.statusBar.configCreated = m.configCreated

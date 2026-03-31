@@ -362,7 +362,7 @@ func (v QueueView) visibleRows() int {
 // Proportional columns resize on WindowSizeMsg; fixed-width columns are
 // constant. Missing entries are wrapped in ANSI dim escape codes so they
 // appear grayed out in the terminal.
-func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes map[string]struct{}) string {
+func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes, favArtists, favAlbums map[string]struct{}) string {
 	entries := v.filteredEntries()
 	if len(entries) == 0 {
 		if v.filter.Text != "" {
@@ -446,28 +446,50 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes ma
 
 		pos := fmt.Sprintf("%4d", absIdx+1)
 
-		title := padQueue(e.Title, titleWidth)
-		artist := padQueue(e.Artist, artistWidth)
-		album := padQueue(e.Album, albumWidth)
 		source := padQueue(e.SourcePlaylist, sourceWidth)
-
 		dur := fmt.Sprintf("%*s", durWidth, formatQueueDuration(e.DurationMs))
 
-		line := markerStr + pos + " " + title + " " + artist + " " + album + " " + source + " " + dur
-		_, isFav := favHashes[e.Hash]
+		// Per-cell favorite lookups.
+		_, isTrackFav := favHashes[e.Hash]
+		_, isArtistFav := favArtists[e.Artist]
+		_, isAlbumFav := favAlbums[e.Album]
+
+		// Style each text cell independently.
+		titleStr := padQueue(e.Title, titleWidth)
+		artistStr := padQueue(e.Artist, artistWidth)
+		albumStr := padQueue(e.Album, albumWidth)
+		if isNowPlaying {
+			titleStr = s.NowPlaying.Render(titleStr)
+			artistStr = s.NowPlaying.Render(artistStr)
+			albumStr = s.NowPlaying.Render(albumStr)
+			if isTrackFav {
+				titleStr = s.NowPlayingFavorite.Render(padQueue(e.Title, titleWidth))
+			}
+			if isArtistFav {
+				artistStr = s.NowPlayingFavArtist.Render(padQueue(e.Artist, artistWidth))
+			}
+			if isAlbumFav {
+				albumStr = s.NowPlayingFavAlbum.Render(padQueue(e.Album, albumWidth))
+			}
+		} else {
+			if isTrackFav {
+				titleStr = s.Favorite.Render(titleStr)
+			}
+			if isArtistFav {
+				artistStr = s.FavArtist.Render(artistStr)
+			}
+			if isAlbumFav {
+				albumStr = s.FavAlbum.Render(albumStr)
+			}
+		}
+
+		line := markerStr + pos + " " + titleStr + " " + artistStr + " " + albumStr + " " + source + " " + dur
 		switch {
 		case e.Missing:
-			lines[i] = s.Dim.Render(line + " [missing]")
-		case isFocused && isFav:
-			lines[i] = s.FavoriteAccent.Render(line)
+			plainLine := markerStr + pos + " " + padQueue(e.Title, titleWidth) + " " + padQueue(e.Artist, artistWidth) + " " + padQueue(e.Album, albumWidth) + " " + source + " " + dur
+			lines[i] = s.Dim.Render(plainLine + " [missing]")
 		case isFocused:
 			lines[i] = s.Accent.Render(line)
-		case isNowPlaying && isFav:
-			lines[i] = s.NowPlayingFavorite.Render(line)
-		case isNowPlaying:
-			lines[i] = s.NowPlaying.Render(line)
-		case isFav:
-			lines[i] = s.Favorite.Render(line)
 		default:
 			lines[i] = line
 		}

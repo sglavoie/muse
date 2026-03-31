@@ -69,8 +69,10 @@ type View struct {
 	FilterText   string
 
 	SortIndicator  string // e.g. "Sort: Name ▲" — shown when non-empty
-	FavoriteHashes map[string]struct{}
-	SelectedHashes map[string]struct{}
+	FavoriteHashes  map[string]struct{}
+	FavoriteArtists map[string]struct{}
+	FavoriteAlbums  map[string]struct{}
+	SelectedHashes  map[string]struct{}
 }
 
 // FilterStrings returns items whose lowercased form contains the lowercased
@@ -398,10 +400,16 @@ func (v View) renderArtists() string {
 	lines := make([]string, end-start)
 	for i, name := range items[start:end] {
 		absIdx := start + i
+		_, isFav := v.FavoriteArtists[name]
 		display := text.Truncate(name, v.Width)
 		display = fmt.Sprintf("%-*s", v.Width, display)
-		if absIdx == v.Cursor {
+		switch {
+		case absIdx == v.Cursor && isFav:
+			display = v.Styles.FavArtistAccent.Render(display)
+		case absIdx == v.Cursor:
 			display = v.Styles.Accent.Render(display)
+		case isFav:
+			display = v.Styles.FavArtist.Render(display)
 		}
 		lines[i] = display
 	}
@@ -425,10 +433,16 @@ func (v View) renderAlbums() string {
 	lines := make([]string, end-start)
 	for i, name := range items[start:end] {
 		absIdx := start + i
+		_, isFav := v.FavoriteAlbums[name]
 		display := text.Truncate(name, v.Width)
 		display = fmt.Sprintf("%-*s", v.Width, display)
-		if absIdx == v.Cursor {
+		switch {
+		case absIdx == v.Cursor && isFav:
+			display = v.Styles.FavAlbumAccent.Render(display)
+		case absIdx == v.Cursor:
 			display = v.Styles.Accent.Render(display)
+		case isFav:
+			display = v.Styles.FavAlbum.Render(display)
 		}
 		lines[i] = display
 	}
@@ -477,18 +491,18 @@ func (v View) renderTracks() string {
 		}
 
 		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
-		title := text.Pad(t.Title, cols.Title)
+		titleStr := text.Pad(t.Title, cols.Title)
 		dur := text.FormatDurationSecs(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
-		line := markerStr + pos + " " + title + " " + dur
-		_, isFav := v.FavoriteHashes[t.Hash]
-		switch {
-		case isFocused && isFav:
-			line = v.Styles.FavoriteAccent.Render(line)
-		case isFocused:
+
+		_, isTrackFav := v.FavoriteHashes[t.Hash]
+		if isTrackFav {
+			titleStr = v.Styles.Favorite.Render(titleStr)
+		}
+
+		line := markerStr + pos + " " + titleStr + " " + dur
+		if isFocused {
 			line = v.Styles.Accent.Render(line)
-		case isFav:
-			line = v.Styles.Favorite.Render(line)
 		}
 		lines[i] = line
 	}

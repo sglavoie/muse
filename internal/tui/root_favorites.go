@@ -565,6 +565,40 @@ func loadFavoriteTrackHashes(reader favoriteReader) map[string]struct{} {
 	return hashes
 }
 
+// loadFavoriteArtists reads all favorited artist names from the DB and
+// returns them as a set. Returns nil when reader is nil or on error.
+func loadFavoriteArtists(reader favoriteReader) map[string]struct{} {
+	if reader == nil {
+		return nil
+	}
+	rows, err := reader.ReadFavoritesByType("artist")
+	if err != nil {
+		return nil
+	}
+	artists := make(map[string]struct{}, len(rows))
+	for _, r := range rows {
+		artists[r.Value] = struct{}{}
+	}
+	return artists
+}
+
+// loadFavoriteAlbums reads all favorited album names from the DB and
+// returns them as a set. Returns nil when reader is nil or on error.
+func loadFavoriteAlbums(reader favoriteReader) map[string]struct{} {
+	if reader == nil {
+		return nil
+	}
+	rows, err := reader.ReadFavoritesByType("album")
+	if err != nil {
+		return nil
+	}
+	albums := make(map[string]struct{}, len(rows))
+	for _, r := range rows {
+		albums[r.Value] = struct{}{}
+	}
+	return albums
+}
+
 // handleFavoriteToggledMsg processes the result of a favorite toggle operation.
 func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 	if msg.err != nil {
@@ -636,6 +670,34 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 				m.favoriteHashes[msg.value] = struct{}{}
 			} else {
 				delete(m.favoriteHashes, msg.value)
+			}
+		}
+	}
+	if msg.typ == "artist" {
+		if msg.count > 1 {
+			m.favoriteArtists = loadFavoriteArtists(m.favoriteReader)
+		} else if msg.value != "" {
+			if m.favoriteArtists == nil {
+				m.favoriteArtists = make(map[string]struct{})
+			}
+			if msg.added {
+				m.favoriteArtists[msg.value] = struct{}{}
+			} else {
+				delete(m.favoriteArtists, msg.value)
+			}
+		}
+	}
+	if msg.typ == "album" {
+		if msg.count > 1 {
+			m.favoriteAlbums = loadFavoriteAlbums(m.favoriteReader)
+		} else if msg.value != "" {
+			if m.favoriteAlbums == nil {
+				m.favoriteAlbums = make(map[string]struct{})
+			}
+			if msg.added {
+				m.favoriteAlbums[msg.value] = struct{}{}
+			} else {
+				delete(m.favoriteAlbums, msg.value)
 			}
 		}
 	}

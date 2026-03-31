@@ -40,7 +40,7 @@ func makeQueue(width int, entries []QueueEntry) QueueView {
 // TestQueueRenderEmptyShowsPlaceholder verifies the empty-queue message.
 func TestQueueRenderEmptyShowsPlaceholder(t *testing.T) {
 	v := QueueView{}
-	got := v.render(styles.NewStyles(true), "", nil)
+	got := v.render(styles.NewStyles(true), "", nil, nil, nil)
 	if !strings.Contains(got, "empty") {
 		t.Fatalf("empty queue must show '(empty)'; got: %q", got)
 	}
@@ -53,7 +53,7 @@ func TestQueueRenderFourColumns(t *testing.T) {
 		{Title: "Song One", Artist: "Band A", DurationMs: 200_000, Position: 1000},
 		{Title: "Song Two", Artist: "Band B", DurationMs: 65_000, Position: 2000},
 	})
-	out := v.render(styles.NewStyles(true), "", nil)
+	out := v.render(styles.NewStyles(true), "", nil, nil, nil)
 
 	// Position column: index numbers should appear.
 	if !strings.Contains(out, "1") {
@@ -94,7 +94,7 @@ func TestQueueRenderAscendingOrder(t *testing.T) {
 		{Title: "Second", Artist: "B", DurationMs: 120_000, Position: 2000},
 		{Title: "Third", Artist: "C", DurationMs: 180_000, Position: 3000},
 	})
-	out := v.render(styles.NewStyles(true), "", nil)
+	out := v.render(styles.NewStyles(true), "", nil, nil, nil)
 	firstIdx := strings.Index(out, "First")
 	secondIdx := strings.Index(out, "Second")
 	thirdIdx := strings.Index(out, "Third")
@@ -114,7 +114,7 @@ func TestQueueRenderMissingEntryDim(t *testing.T) {
 		{Title: "Gone", Artist: "Nobody", DurationMs: 0, Missing: true, Position: 1000},
 	})
 	s := styles.NewStyles(true)
-	out := v.render(s, "", nil)
+	out := v.render(s, "", nil, nil, nil)
 	// Verify [missing] label appears in the output.
 	if !strings.Contains(out, "[missing]") {
 		t.Error("missing entry must contain '[missing]' label")
@@ -145,7 +145,7 @@ func TestQueueRenderSelectedNonFocusedRowUsesAccent(t *testing.T) {
 	// cursor=0 so entry at index 1 is selected but not focused.
 	v.cursor = 0
 	s := styles.NewStyles(true)
-	out := v.render(s, "", nil)
+	out := v.render(s, "", nil, nil, nil)
 
 	want := styledText(s.AccentMark, "●")
 	// Skip the style assertion if lipgloss emits no ANSI in this environment.
@@ -170,8 +170,8 @@ func TestQueueRenderProportionalColumnWidths(t *testing.T) {
 	narrow := makeQueue(80, []QueueEntry{entry})
 	wide := makeQueue(160, []QueueEntry{entry})
 
-	narrowOut := narrow.render(styles.NewStyles(true), "", nil)
-	wideOut := wide.render(styles.NewStyles(true), "", nil)
+	narrowOut := narrow.render(styles.NewStyles(true), "", nil, nil, nil)
+	wideOut := wide.render(styles.NewStyles(true), "", nil, nil, nil)
 
 	// Wide terminal should accommodate more of the long title / artist strings.
 	// Count how many T's appear in the title column.
@@ -291,7 +291,7 @@ func TestQueueRenderSelectedEntryShowsMarker(t *testing.T) {
 		{Title: "Normal", Artist: "A", DurationMs: 60_000, Selected: false},
 		{Title: "Selected", Artist: "B", DurationMs: 120_000, Selected: true},
 	})
-	out := v.render(styles.NewStyles(true), "", nil)
+	out := v.render(styles.NewStyles(true), "", nil, nil, nil)
 	if !strings.Contains(out, "●") {
 		t.Fatal("selected queue entry must show a ● marker")
 	}
@@ -303,7 +303,7 @@ func TestQueueRenderUnselectedEntryHasNoMarker(t *testing.T) {
 	v := makeQueue(120, []QueueEntry{
 		{Title: "Normal", Artist: "A", DurationMs: 60_000, Selected: false},
 	})
-	out := v.render(styles.NewStyles(true), "", nil)
+	out := v.render(styles.NewStyles(true), "", nil, nil, nil)
 	if strings.Contains(out, "●") {
 		t.Fatal("unselected queue entry must not show a ● marker")
 	}
@@ -317,7 +317,7 @@ func TestQueueRenderNowPlayingMarker(t *testing.T) {
 		{Title: "Playing", Artist: "B", Hash: "bbb", DurationMs: 120_000},
 	})
 	v.cursor = 0 // cursor on first entry, not the playing one
-	out := v.render(styles.NewStyles(true), "bbb", nil)
+	out := v.render(styles.NewStyles(true), "bbb", nil, nil, nil)
 	stripped := ansi.Strip(out)
 
 	// The playing entry's line must contain the ▶ marker.
@@ -343,7 +343,7 @@ func TestQueueRenderNonPlayingEntryHasNoPlayMarker(t *testing.T) {
 	v := makeQueue(120, []QueueEntry{
 		{Title: "Normal", Artist: "A", Hash: "aaa", DurationMs: 60_000},
 	})
-	out := v.render(styles.NewStyles(true), "other-hash", nil)
+	out := v.render(styles.NewStyles(true), "other-hash", nil, nil, nil)
 	stripped := ansi.Strip(out)
 
 	for l := range strings.SplitSeq(stripped, "\n") {
@@ -368,7 +368,7 @@ func TestQueueRenderNowPlayingFavoriteStyle(t *testing.T) {
 	v.cursor = 0 // cursor on first entry, not the playing+fav one
 	favs := map[string]struct{}{"bbb": {}}
 	s := styles.NewStyles(true) // dark mode
-	out := v.render(s, "bbb", favs)
+	out := v.render(s, "bbb", favs, nil, nil)
 
 	// Render reference strings with each style so we can compare ANSI sequences.
 	npRef := s.NowPlaying.Render("REF")
@@ -386,17 +386,17 @@ func TestQueueRenderNowPlayingFavoriteStyle(t *testing.T) {
 		t.Fatal("FavPlaying entry must appear in the output")
 	}
 
-	// The line must NOT contain the NowPlaying green foreground sequence
-	// but MUST contain the NowPlayingFavorite amber foreground sequence.
 	// Extract the ANSI escape prefix (everything before "REF") from each reference.
 	npPrefix, _, _ := strings.Cut(npRef, "REF")
 	npfPrefix, _, _ := strings.Cut(npfRef, "REF")
 
-	if strings.Contains(rawLine, npPrefix) && npPrefix != npfPrefix {
-		t.Errorf("now-playing+favorite entry must not use NowPlaying style; got: %q", rawLine)
-	}
+	// The title cell (track-favorited) must use NowPlayingFavorite (amber).
 	if !strings.Contains(rawLine, npfPrefix) {
-		t.Errorf("now-playing+favorite entry must use NowPlayingFavorite style; got: %q", rawLine)
+		t.Errorf("now-playing+favorite title cell must use NowPlayingFavorite style; got: %q", rawLine)
+	}
+	// Non-favorited cells (artist, album) still use plain NowPlaying (green).
+	if !strings.Contains(rawLine, npPrefix) {
+		t.Errorf("non-favorited cells of now-playing entry must use NowPlaying style; got: %q", rawLine)
 	}
 }
 
@@ -529,7 +529,7 @@ func TestQueueRenderSelectedAndFocusedMarker(t *testing.T) {
 		cursor: 0,
 		width:  120,
 	}
-	out := v.render(styles.NewStyles(true), "", nil)
+	out := v.render(styles.NewStyles(true), "", nil, nil, nil)
 	// The focused+selected line must contain "●" but must not contain the
 	// inner accent+reset pair that unfocused selected entries use.
 	lines := strings.Split(out, "\n")
@@ -1321,6 +1321,161 @@ func TestHandleActionReservesFilterBarLine_Genres(t *testing.T) {
 	}
 	if v.scrollOffset != 9 {
 		t.Errorf("expected scrollOffset=9 (filter bar reserved), got %d", v.scrollOffset)
+	}
+}
+
+// TestQueueRenderArtistOnlyFavoriteStyle verifies that when only the artist is
+// favorited, only the artist cell receives FavArtist (purple) styling and the
+// title cell does not receive Favorite (amber) styling.
+func TestQueueRenderArtistOnlyFavoriteStyle(t *testing.T) {
+	v := makeQueue(120, []QueueEntry{
+		{Title: "Song", Artist: "FavArtist", Album: "NormalAlbum", Hash: "aaa", DurationMs: 60_000},
+	})
+	v.cursor = 1 // not focused on the entry
+	favArtists := map[string]struct{}{"FavArtist": {}}
+	s := styles.NewStyles(true)
+	out := v.render(s, "", nil, favArtists, nil)
+
+	artistRef := s.FavArtist.Render("REF")
+	if ansi.Strip(artistRef) == artistRef {
+		return // no ANSI in this environment
+	}
+	artistPrefix, _, _ := strings.Cut(artistRef, "REF")
+	titleRef := s.Favorite.Render("REF")
+	titlePrefix, _, _ := strings.Cut(titleRef, "REF")
+
+	var rawLine string
+	for l := range strings.SplitSeq(out, "\n") {
+		if strings.Contains(l, "Song") {
+			rawLine = l
+			break
+		}
+	}
+	if rawLine == "" {
+		t.Fatal("entry must appear in output")
+	}
+	if !strings.Contains(rawLine, artistPrefix) {
+		t.Errorf("artist-only fav: artist cell must use FavArtist style; got: %q", rawLine)
+	}
+	if strings.Contains(rawLine, titlePrefix) {
+		t.Errorf("artist-only fav: title cell must NOT use Favorite style; got: %q", rawLine)
+	}
+}
+
+// TestQueueRenderAllThreeFavoritesStyle verifies that when track, artist, and
+// album are all favorited, each cell independently receives its own color style.
+func TestQueueRenderAllThreeFavoritesStyle(t *testing.T) {
+	v := makeQueue(120, []QueueEntry{
+		{Title: "Song", Artist: "FavArtist", Album: "FavAlbum", Hash: "favhash", DurationMs: 60_000},
+	})
+	v.cursor = 1 // not focused
+	favHashes := map[string]struct{}{"favhash": {}}
+	favArtists := map[string]struct{}{"FavArtist": {}}
+	favAlbums := map[string]struct{}{"FavAlbum": {}}
+	s := styles.NewStyles(true)
+	out := v.render(s, "", favHashes, favArtists, favAlbums)
+
+	titleRef := s.Favorite.Render("REF")
+	if ansi.Strip(titleRef) == titleRef {
+		return // no ANSI in this environment
+	}
+	titlePrefix, _, _ := strings.Cut(titleRef, "REF")
+	artistPrefix, _, _ := strings.Cut(s.FavArtist.Render("REF"), "REF")
+	albumPrefix, _, _ := strings.Cut(s.FavAlbum.Render("REF"), "REF")
+
+	var rawLine string
+	for l := range strings.SplitSeq(out, "\n") {
+		if strings.Contains(l, "Song") {
+			rawLine = l
+			break
+		}
+	}
+	if rawLine == "" {
+		t.Fatal("entry must appear in output")
+	}
+	if !strings.Contains(rawLine, titlePrefix) {
+		t.Errorf("all-3 fav: title cell must use Favorite style; got: %q", rawLine)
+	}
+	if !strings.Contains(rawLine, artistPrefix) {
+		t.Errorf("all-3 fav: artist cell must use FavArtist style; got: %q", rawLine)
+	}
+	if !strings.Contains(rawLine, albumPrefix) {
+		t.Errorf("all-3 fav: album cell must use FavAlbum style; got: %q", rawLine)
+	}
+}
+
+// TestQueueRenderFocusedWithFavoriteUsesAccentBackground verifies that a
+// focused+favorited row gets Accent background wrapping, while the inner
+// Favorite foreground color on the title cell is preserved.
+func TestQueueRenderFocusedWithFavoriteUsesAccentBackground(t *testing.T) {
+	v := makeQueue(120, []QueueEntry{
+		{Title: "FocFav", Artist: "A", Album: "B", Hash: "favhash", DurationMs: 60_000},
+	})
+	v.cursor = 0 // focused on the fav entry
+	favHashes := map[string]struct{}{"favhash": {}}
+	s := styles.NewStyles(true)
+	out := v.render(s, "", favHashes, nil, nil)
+
+	accentRef := s.Accent.Render("REF")
+	if ansi.Strip(accentRef) == accentRef {
+		return // no ANSI in this environment
+	}
+	accentPrefix, _, _ := strings.Cut(accentRef, "REF")
+	titleRef := s.Favorite.Render("REF")
+	titlePrefix, _, _ := strings.Cut(titleRef, "REF")
+
+	var rawLine string
+	for l := range strings.SplitSeq(out, "\n") {
+		if strings.Contains(l, "FocFav") {
+			rawLine = l
+			break
+		}
+	}
+	if rawLine == "" {
+		t.Fatal("focused entry must appear in output")
+	}
+	if !strings.Contains(rawLine, accentPrefix) {
+		t.Errorf("focused+fav row must use Accent background; got: %q", rawLine)
+	}
+	if !strings.Contains(rawLine, titlePrefix) {
+		t.Errorf("focused+fav row: title cell must retain Favorite color inside Accent wrap; got: %q", rawLine)
+	}
+}
+
+// TestFavoritesViewPerCellArtistFavoriteStyle verifies that in the favorites
+// track list, an artist-favorited row applies FavArtist to the artist cell
+// only and leaves the title cell unstyled.
+func TestFavoritesViewPerCellArtistFavoriteStyle(t *testing.T) {
+	tracks := []library.Track{
+		{Title: "Song", Artist: "FavArtist", Album: "SomeAlbum", Hash: "h1", Duration: 60},
+	}
+	s := styles.NewStyles(true)
+	fv := favtui.View{
+		Level:           favtui.ListLevel,
+		Category:        favtui.CategoryTracks,
+		Tracks:          tracks,
+		Width:           120,
+		Height:          40,
+		Styles:          s,
+		FavoriteHashes:  map[string]struct{}{},
+		FavoriteArtists: map[string]struct{}{"FavArtist": {}},
+		FavoriteAlbums:  map[string]struct{}{},
+	}
+	out := fv.Render()
+
+	artistRef := s.FavArtist.Render("REF")
+	if ansi.Strip(artistRef) == artistRef {
+		return // no ANSI in this environment
+	}
+	artistPrefix, _, _ := strings.Cut(artistRef, "REF")
+	titleRef := s.Favorite.Render("REF")
+	titlePrefix, _, _ := strings.Cut(titleRef, "REF")
+
+	if !strings.Contains(out, artistPrefix) {
+		t.Errorf("favorites view artist-only fav: artist cell must use FavArtist style; got:\n%s", ansi.Strip(out))
+	}
+	if strings.Contains(out, titlePrefix) {
+		t.Errorf("favorites view artist-only fav: title cell must NOT use Favorite style; got:\n%s", ansi.Strip(out))
 	}
 }
 

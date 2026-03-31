@@ -452,6 +452,18 @@ func (a undoRemoveFavoriteAction) perform(m Model) (Model, tea.Cmd) {
 		}
 		m.favoriteHashes[a.value] = struct{}{}
 	}
+	if a.typ == "artist" && a.value != "" {
+		if m.favoriteArtists == nil {
+			m.favoriteArtists = make(map[string]struct{})
+		}
+		m.favoriteArtists[a.value] = struct{}{}
+	}
+	if a.typ == "album" && a.value != "" {
+		if m.favoriteAlbums == nil {
+			m.favoriteAlbums = make(map[string]struct{})
+		}
+		m.favoriteAlbums[a.value] = struct{}{}
+	}
 	if m.activeView == viewFavorites && a.idx >= 0 &&
 		m.favorites.level == a.level {
 		switch a.level {
@@ -510,6 +522,12 @@ func (a undoAddFavoriteAction) perform(m Model) (Model, tea.Cmd) {
 	if a.typ == "track" && a.value != "" {
 		delete(m.favoriteHashes, a.value)
 	}
+	if a.typ == "artist" && a.value != "" {
+		delete(m.favoriteArtists, a.value)
+	}
+	if a.typ == "album" && a.value != "" {
+		delete(m.favoriteAlbums, a.value)
+	}
 	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: removed %s from favorites", a.typ))
 	return m, nil
 }
@@ -539,6 +557,16 @@ func (a undoBulkAddFavoritesAction) perform(m Model) (Model, tea.Cmd) {
 	if a.typ == "track" {
 		for _, v := range a.values {
 			delete(m.favoriteHashes, v)
+		}
+	}
+	if a.typ == "artist" {
+		for _, v := range a.values {
+			delete(m.favoriteArtists, v)
+		}
+	}
+	if a.typ == "album" {
+		for _, v := range a.values {
+			delete(m.favoriteAlbums, v)
 		}
 	}
 	n := len(a.values)
@@ -580,6 +608,22 @@ func (a undoBulkRemoveFavoritesAction) perform(m Model) (Model, tea.Cmd) {
 		}
 		for _, v := range a.values {
 			m.favoriteHashes[v] = struct{}{}
+		}
+	}
+	if a.typ == "artist" {
+		if m.favoriteArtists == nil {
+			m.favoriteArtists = make(map[string]struct{})
+		}
+		for _, v := range a.values {
+			m.favoriteArtists[v] = struct{}{}
+		}
+	}
+	if a.typ == "album" {
+		if m.favoriteAlbums == nil {
+			m.favoriteAlbums = make(map[string]struct{})
+		}
+		for _, v := range a.values {
+			m.favoriteAlbums[v] = struct{}{}
 		}
 	}
 	if m.activeView == viewFavorites && len(a.indices) > 0 &&

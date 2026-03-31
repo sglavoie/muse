@@ -66,7 +66,7 @@ func (v GenresView) recomputeGenresSort() GenresView {
 	return v
 }
 
-func (v GenresView) render(s styles.Styles, favHashes map[string]struct{}) string {
+func (v GenresView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}) string {
 	var sortInd string
 	if v.sortState.Field != SortDefault {
 		sortInd = fmt.Sprintf("Sort: %s %s", SortFieldLabel(v.sortState.Field), SortDirIndicator(v.sortState.Dir))
@@ -91,6 +91,8 @@ func (v GenresView) render(s styles.Styles, favHashes map[string]struct{}) strin
 		FilterText:         v.filter.Text,
 		SortIndicator:      sortInd,
 		FavoriteHashes:     favHashes,
+		FavoriteArtists:    favArtists,
+		FavoriteAlbums:     favAlbums,
 		SelectedHashes:     v.selectedHashes,
 	}
 	return gv.Render()

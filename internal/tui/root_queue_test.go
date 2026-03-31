@@ -76,7 +76,7 @@ func TestQueueViewRendersMissingEntryDimmed(t *testing.T) {
 		},
 	}
 	s := styles.NewStyles(true)
-	got := q.render(s, "", nil)
+	got := q.render(s, "", nil, nil, nil)
 	if !strings.Contains(got, "[missing]") {
 		t.Fatalf("missing entry must include [missing] label; got:\n%s", got)
 	}
@@ -1992,7 +1992,7 @@ func TestQueueRenderNarrowWidthUsesMax(t *testing.T) {
 		height: 10,
 	}
 	// Render should not panic even with a very narrow width.
-	got := v.render(s, "", nil)
+	got := v.render(s, "", nil, nil, nil)
 	if got == "" {
 		t.Error("render must produce non-empty output even with narrow width")
 	}

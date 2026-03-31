@@ -63,6 +63,8 @@ type View struct {
 	Fuzzy           musiclib.FuzzySearcher
 	SelectedHashes  map[string]struct{}
 	FavoriteHashes  map[string]struct{}
+	FavoriteArtists map[string]struct{}
+	FavoriteAlbums  map[string]struct{}
 	Styles          styles.Styles
 	OverrideTracks  []musiclib.Track // sorted tracks override; nil uses Index
 	SortField       int              // active sort field (0 = default/none)
@@ -365,38 +367,55 @@ func (v View) Render() string {
 			markerStr = "  "
 		}
 
-		var row string
+		// Build per-cell strings (padded / highlighted).
+		var artistStr, titleStr, albumStr string
 		hasFieldPos := len(dt.artistPositions) > 0 || len(dt.titlePositions) > 0 || len(dt.albumPositions) > 0
 		switch {
 		case hasFieldPos:
-			row = markerStr + text.Pad(num, cols.TrackNum) + " " +
-				padHighlight(t.Artist, cols.Artist, dt.artistPositions) + " " +
-				padHighlight(t.Title, cols.Title, dt.titlePositions) + " " +
-				padHighlight(t.Album, cols.Album, dt.albumPositions) + " " +
-				text.PadLeft(dur, cols.Duration)
+			artistStr = padHighlight(t.Artist, cols.Artist, dt.artistPositions)
+			titleStr = padHighlight(t.Title, cols.Title, dt.titlePositions)
+			albumStr = padHighlight(t.Album, cols.Album, dt.albumPositions)
 		case len(dt.matchedIndexes) > 0:
 			artistOffset, artistLen, titleOffset, titleLen, albumOffset, albumLen :=
 				searchFieldOffsetsAll(t.Artist, t.Title, t.Album)
 			artistPos := fieldMatchPositions(dt.matchedIndexes, artistOffset, artistLen)
 			titlePos := fieldMatchPositions(dt.matchedIndexes, titleOffset, titleLen)
 			albumPos := fieldMatchPositions(dt.matchedIndexes, albumOffset, albumLen)
-			row = markerStr + text.Pad(num, cols.TrackNum) + " " +
-				padHighlight(t.Artist, cols.Artist, artistPos) + " " +
-				padHighlight(t.Title, cols.Title, titlePos) + " " +
-				padHighlight(t.Album, cols.Album, albumPos) + " " +
-				text.PadLeft(dur, cols.Duration)
+			artistStr = padHighlight(t.Artist, cols.Artist, artistPos)
+			titleStr = padHighlight(t.Title, cols.Title, titlePos)
+			albumStr = padHighlight(t.Album, cols.Album, albumPos)
 		default:
-			row = markerStr + renderRow(num, t.Artist, t.Title, t.Album, dur, cols)
+			artistStr = text.Pad(t.Artist, cols.Artist)
+			titleStr = text.Pad(t.Title, cols.Title)
+			albumStr = text.Pad(t.Album, cols.Album)
 		}
 
-		_, isFav := v.FavoriteHashes[t.Hash]
-		switch {
-		case isFocused && isFav:
-			row = v.Styles.FavoriteAccent.Render(row)
-		case isFocused:
+		// Apply per-cell favorite foreground colors before row assembly.
+		_, isTrackFav := v.FavoriteHashes[t.Hash]
+		_, isArtistFav := v.FavoriteArtists[t.Artist]
+		_, isAlbumFav := v.FavoriteAlbums[t.Album]
+		if isTrackFav {
+			titleStr = v.Styles.Favorite.Render(titleStr)
+		}
+		if isArtistFav {
+			artistStr = v.Styles.FavArtist.Render(artistStr)
+		}
+		if isAlbumFav {
+			albumStr = v.Styles.FavAlbum.Render(albumStr)
+		}
+
+		var row string
+		if cols.Artist == 0 {
+			row = markerStr + text.Pad(num, cols.TrackNum)
+		} else {
+			row = markerStr + text.Pad(num, cols.TrackNum) + " " +
+				artistStr + " " + titleStr + " " + albumStr + " " +
+				text.PadLeft(dur, cols.Duration)
+		}
+
+		// Focused row: Accent sets only background so inner foreground codes survive.
+		if isFocused {
 			row = v.Styles.Accent.Render(row)
-		case isFav:
-			row = v.Styles.Favorite.Render(row)
 		}
 		lines[i] = row
 	}

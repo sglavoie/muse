@@ -14,8 +14,14 @@ type Styles struct {
 	Error              lipgloss.Style // red foreground for errors / stopped
 	NowPlaying         lipgloss.Style // bold green foreground for currently playing track
 	NowPlayingFavorite lipgloss.Style // bold amber/gold foreground for playing + favorited track
+	NowPlayingFavArtist lipgloss.Style // bold purple foreground for playing + favorited artist
+	NowPlayingFavAlbum  lipgloss.Style // bold cyan foreground for playing + favorited album
 	Favorite           lipgloss.Style // amber/gold foreground for favorited tracks
 	FavoriteAccent     lipgloss.Style // accent background + favorite foreground for focused favorites
+	FavArtist          lipgloss.Style // purple foreground for favorited artists
+	FavAlbum           lipgloss.Style // cyan foreground for favorited albums
+	FavArtistAccent    lipgloss.Style // accent background + purple foreground for focused favorited artists
+	FavAlbumAccent     lipgloss.Style // accent background + cyan foreground for focused favorited albums
 	ColHead            lipgloss.Style // bold + faint for column headers
 	StatusBar          lipgloss.Style // full-width status bar background + foreground
 	Badge              lipgloss.Style // single-char badge with lighter background (title bar view numbers)
@@ -37,10 +43,16 @@ func NewStyles(hasDark bool) Styles {
 		Success:            lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#50a14f"), lipgloss.Color("#98c379"))),
 		Warning:            lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
 		Error:              lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#e45649"), lipgloss.Color("#e06c75"))),
-		NowPlaying:         lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#50a14f"), lipgloss.Color("#98c379"))),
-		NowPlayingFavorite: lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
-		Favorite:           lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
-		FavoriteAccent:     lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#2c3e50"))).Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
+		NowPlaying:          lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#50a14f"), lipgloss.Color("#98c379"))),
+		NowPlayingFavorite:  lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
+		NowPlayingFavArtist: lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#a626a4"), lipgloss.Color("#c678dd"))),
+		NowPlayingFavAlbum:  lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#0184bc"), lipgloss.Color("#56b6c2"))),
+		Favorite:            lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
+		FavoriteAccent:      lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#2c3e50"))).Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
+		FavArtist:           lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#a626a4"), lipgloss.Color("#c678dd"))),
+		FavAlbum:            lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#0184bc"), lipgloss.Color("#56b6c2"))),
+		FavArtistAccent:     lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#2c3e50"))).Foreground(ld(lipgloss.Color("#a626a4"), lipgloss.Color("#c678dd"))),
+		FavAlbumAccent:      lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#2c3e50"))).Foreground(ld(lipgloss.Color("#0184bc"), lipgloss.Color("#56b6c2"))),
 		ColHead:            lipgloss.NewStyle().Bold(true).Faint(true).UnderlineStyle(lipgloss.UnderlineDotted),
 		StatusBar:          lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),
 		Badge:              lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),

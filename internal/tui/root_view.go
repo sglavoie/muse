@@ -60,19 +60,19 @@ func (m Model) View() tea.View {
 	default:
 		switch m.activeView {
 		case viewLibrary:
-			body = m.library.render(*m.styles, m.favoriteHashes)
+			body = m.library.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 		case viewPlaylists:
-			body = m.playlists.render(*m.styles, m.favoriteHashes)
+			body = m.playlists.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 		case viewQueue:
-			body = m.queue.render(*m.styles, m.playback.currentHash, m.favoriteHashes)
+			body = m.queue.render(*m.styles, m.playback.currentHash, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 		case viewArtists:
-			body = m.artists.render(*m.styles, m.favoriteHashes)
+			body = m.artists.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 		case viewAlbums:
-			body = m.albums.render(*m.styles, m.favoriteHashes)
+			body = m.albums.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 		case viewFavorites:
-			body = m.favorites.render(*m.styles, m.favoriteHashes)
+			body = m.favorites.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 		case viewGenres:
-			body = m.genres.render(*m.styles, m.favoriteHashes)
+			body = m.genres.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 		}
 	}
 

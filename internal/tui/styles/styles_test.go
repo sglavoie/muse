@@ -75,6 +75,36 @@ func TestNewStyles(t *testing.T) {
 		if statusBarOut == "" {
 			t.Errorf("NewStyles(%v).StatusBar.Render() returned empty string", hasDark)
 		}
+
+		favArtistOut := s.FavArtist.Render("x")
+		if favArtistOut == "" {
+			t.Errorf("NewStyles(%v).FavArtist.Render() returned empty string", hasDark)
+		}
+
+		favAlbumOut := s.FavAlbum.Render("x")
+		if favAlbumOut == "" {
+			t.Errorf("NewStyles(%v).FavAlbum.Render() returned empty string", hasDark)
+		}
+
+		favArtistAccentOut := s.FavArtistAccent.Render("x")
+		if favArtistAccentOut == "" {
+			t.Errorf("NewStyles(%v).FavArtistAccent.Render() returned empty string", hasDark)
+		}
+
+		favAlbumAccentOut := s.FavAlbumAccent.Render("x")
+		if favAlbumAccentOut == "" {
+			t.Errorf("NewStyles(%v).FavAlbumAccent.Render() returned empty string", hasDark)
+		}
+
+		nowPlayingFavArtistOut := s.NowPlayingFavArtist.Render("x")
+		if nowPlayingFavArtistOut == "" {
+			t.Errorf("NewStyles(%v).NowPlayingFavArtist.Render() returned empty string", hasDark)
+		}
+
+		nowPlayingFavAlbumOut := s.NowPlayingFavAlbum.Render("x")
+		if nowPlayingFavAlbumOut == "" {
+			t.Errorf("NewStyles(%v).NowPlayingFavAlbum.Render() returned empty string", hasDark)
+		}
 	}
 }
 
