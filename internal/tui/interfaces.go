@@ -145,6 +145,11 @@ type metadataUpdater interface {
 	UpdateTrackMetadata(hash, title, artist, album, genre string) error
 }
 
+// durationUpdater persists a manually edited track duration to the database.
+type durationUpdater interface {
+	UpdateTrackDuration(hash string, durationMs int64) error
+}
+
 // favoriteReader loads favorites from the database.
 type favoriteReader interface {
 	ReadFavoritesByType(typ string) ([]db.FavoriteRow, error)

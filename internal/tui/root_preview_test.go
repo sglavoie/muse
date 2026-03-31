@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
@@ -470,6 +471,138 @@ func TestFocusedTrackForPreview_QueueIncludesAlbum(t *testing.T) {
 	}
 	if track.Album != "MyAlbum" {
 		t.Fatalf("expected Album %q, got %q", "MyAlbum", track.Album)
+	}
+}
+
+// TestPreviewTickAutoFillsDurationWhenZero verifies that when a track has
+// Duration=0 and the preview player reports a valid total, the duration is
+// updated in the library index, queue entries, and the DB writer is called.
+func TestPreviewTickAutoFillsDurationWhenZero(t *testing.T) {
+	dw := &stubDurationWriter{}
+	m := New(context.Background(), WithDurationWriter(dw))
+	m.library.index.Insert(library.Track{
+		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 0,
+	})
+	m.queue.entries = []QueueEntry{
+		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", DurationMs: 0},
+	}
+	sp := &stubPreviewer{elapsed: 10.0, total: 225.0}
+	m.overlay.preview = &PreviewOverlay{hash: "h1", artist: "A", title: "T"}
+	m.overlay.previewPlayer = sp
+
+	nm, cmd := m.handleTickMsg()
+
+	// Library index should be updated.
+	if t2, ok := nm.library.index.FindByHash("h1"); !ok || t2.Duration != 225.0 {
+		t.Fatalf("expected library duration 225.0, got %v", t2.Duration)
+	}
+	// Queue entry should be updated.
+	if nm.queue.entries[0].DurationMs != 225000 {
+		t.Fatalf("expected queue DurationMs 225000, got %d", nm.queue.entries[0].DurationMs)
+	}
+	// Flag should be set.
+	if !nm.overlay.previewDurationFilled {
+		t.Fatal("expected previewDurationFilled to be set")
+	}
+	// DB write should be scheduled: execute each cmd in the batch, skipping
+	// the blocking tick command by running them concurrently with a timeout.
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd from tick with duration fill")
+	}
+	batch, ok := cmd().(tea.BatchMsg)
+	if !ok {
+		t.Fatal("expected BatchMsg from handleTickMsg")
+	}
+	for _, c := range batch {
+		if c == nil {
+			continue
+		}
+		// Execute non-tick cmds synchronously; skip the timer-based tick.
+		msg := make(chan tea.Msg, 1)
+		go func(fn tea.Cmd) { msg <- fn() }(c)
+		select {
+		case <-msg:
+		case <-time.After(50 * time.Millisecond):
+			// tick cmd is timer-based and will block; skip it
+		}
+	}
+	if len(dw.calls) != 1 {
+		t.Fatalf("expected 1 DB write call, got %d", len(dw.calls))
+	}
+	if dw.calls[0].hash != "h1" || dw.calls[0].durationMs != 225000 {
+		t.Fatalf("unexpected DB write: %+v", dw.calls[0])
+	}
+}
+
+// TestPreviewTickDoesNotOverwriteExistingDuration verifies that when a track
+// already has a non-zero Duration, no auto-fill occurs.
+func TestPreviewTickDoesNotOverwriteExistingDuration(t *testing.T) {
+	dw := &stubDurationWriter{}
+	m := New(context.Background(), WithDurationWriter(dw))
+	m.library.index.Insert(library.Track{
+		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 180.0,
+	})
+	m.queue.entries = []QueueEntry{
+		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", DurationMs: 180000},
+	}
+	sp := &stubPreviewer{elapsed: 10.0, total: 225.0}
+	m.overlay.preview = &PreviewOverlay{hash: "h1", artist: "A", title: "T"}
+	m.overlay.previewPlayer = sp
+
+	next, _ := m.Update(tickMsg{})
+	nm := next.(Model)
+
+	// Library index should NOT be changed.
+	if t2, ok := nm.library.index.FindByHash("h1"); !ok || t2.Duration != 180.0 {
+		t.Fatalf("expected library duration to stay 180.0, got %v", t2.Duration)
+	}
+	// Queue entry should NOT be changed.
+	if nm.queue.entries[0].DurationMs != 180000 {
+		t.Fatalf("expected queue DurationMs to stay 180000, got %d", nm.queue.entries[0].DurationMs)
+	}
+	// Flag should still be set (to skip future ticks).
+	if !nm.overlay.previewDurationFilled {
+		t.Fatal("expected previewDurationFilled to be set even when no overwrite")
+	}
+	// No DB writes.
+	if len(dw.calls) != 0 {
+		t.Fatalf("expected 0 DB write calls, got %d", len(dw.calls))
+	}
+}
+
+// TestPreviewTickFlagPreventsRepeatedWrites verifies that once
+// previewDurationFilled is true, subsequent ticks do not trigger more writes.
+func TestPreviewTickFlagPreventsRepeatedWrites(t *testing.T) {
+	dw := &stubDurationWriter{}
+	m := New(context.Background(), WithDurationWriter(dw))
+	m.library.index.Insert(library.Track{
+		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 0,
+	})
+	sp := &stubPreviewer{elapsed: 10.0, total: 225.0}
+	m.overlay.preview = &PreviewOverlay{hash: "h1", artist: "A", title: "T"}
+	m.overlay.previewPlayer = sp
+	m.overlay.previewDurationFilled = true // already filled
+
+	_, _ = m.Update(tickMsg{})
+
+	if len(dw.calls) != 0 {
+		t.Fatalf("expected 0 DB write calls on second tick, got %d", len(dw.calls))
+	}
+}
+
+// TestPreviewDismissResetsDurationFilledFlag verifies that dismissing a preview
+// resets the previewDurationFilled flag for the next preview session.
+func TestPreviewDismissResetsDurationFilledFlag(t *testing.T) {
+	m := New(context.Background())
+	m.overlay.preview = &PreviewOverlay{hash: "h1", artist: "A", title: "T"}
+	m.overlay.previewPlayer = &stubPreviewer{}
+	m.overlay.previewDurationFilled = true
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	nm := next.(Model)
+
+	if nm.overlay.previewDurationFilled {
+		t.Fatal("expected previewDurationFilled to be reset after dismiss")
 	}
 }
 

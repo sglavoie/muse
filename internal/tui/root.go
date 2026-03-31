@@ -25,9 +25,10 @@ import (
 
 // overlayInfo groups all overlay and modal state.
 type overlayInfo struct {
-	preview           *PreviewOverlay
-	previewPlayer     player.Previewer
-	previewWasPlaying bool
+	preview                *PreviewOverlay
+	previewPlayer          player.Previewer
+	previewWasPlaying      bool
+	previewDurationFilled  bool
 	nowPlaying        *NowPlayingOverlay
 	trackInfo         *TrackInfoOverlay
 	metadataEditor    *MetadataEditor
@@ -150,8 +151,9 @@ type Model struct {
 	statsPrevView viewID         // the view that was active before stats was opened
 	statsPeriod   int            // index into statsPeriods slice
 
-	overlay        overlayInfo     // all overlay and modal state
-	metadataWriter  metadataUpdater    // may be nil; set via WithMetadataWriter
+	overlay        overlayInfo        // all overlay and modal state
+	metadataWriter  metadataUpdater   // may be nil; set via WithMetadataWriter
+	durationWriter  durationUpdater   // may be nil; set via WithDurationWriter
 	scanWriter      scanUpsertBatcher // may be nil; set via WithScanWriter
 	upsertBatchSize int               // batch size for scan DB writes; set via WithScanWriter
 

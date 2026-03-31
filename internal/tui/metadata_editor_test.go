@@ -85,7 +85,7 @@ func TestRenameEditorDirtyFields(t *testing.T) {
 	// Simulate typing a new character.
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: 'x', Text: "x"})
 
-	title, artist, album, _ := ed.DirtyFields()
+	title, artist, album, _, _ := ed.DirtyFields()
 	if title != nil {
 		t.Errorf("expected title dirty=nil, got %q", *title)
 	}
@@ -107,7 +107,7 @@ func TestRenameEditorAlbumDirtyFields(t *testing.T) {
 
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: 'z', Text: "z"})
 
-	title, artist, album, _ := ed.DirtyFields()
+	title, artist, album, _, _ := ed.DirtyFields()
 	if title != nil {
 		t.Errorf("expected title dirty=nil, got %q", *title)
 	}
@@ -150,7 +150,7 @@ func TestRenameEditorHandleKeyTabNoOp(t *testing.T) {
 // TestDefaultEditorHandleKeyTabCycles verifies that tab does cycle fields in
 // the default (non-rename) mode, to avoid regressions.
 func TestDefaultEditorHandleKeyTabCycles(t *testing.T) {
-	ed := NewMetadataEditor("h1", "Title", "Artist", "Album", "")
+	ed := NewMetadataEditor("h1", "Title", "Artist", "Album", "", 0)
 	if ed.focused != fieldTitle {
 		t.Fatalf("expected initial focus=fieldTitle, got %v", ed.focused)
 	}
@@ -224,11 +224,11 @@ func TestRenameAlbumEditorRender(t *testing.T) {
 // TestDefaultEditorRenderShowsAllFields verifies that the default (full) editor
 // still shows all three fields (regression guard).
 func TestDefaultEditorRenderShowsAllFields(t *testing.T) {
-	ed := NewMetadataEditor("h1", "My Title", "My Artist", "My Album", "")
+	ed := NewMetadataEditor("h1", "My Title", "My Artist", "My Album", "", 0)
 	s := newTestStyles()
 	out := ansi.Strip(ed.Render(80, 24, s))
 
-	for _, want := range []string{"Title:", "Artist:", "Album:", "Genre:", "tab/shift+tab", "Edit Metadata"} {
+	for _, want := range []string{"Title:", "Artist:", "Album:", "Genre:", "Duration:", "tab/shift+tab", "Edit Metadata"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("expected %q in default editor output; got:\n%s", want, out)
 		}
@@ -263,7 +263,7 @@ func TestMetadataEditorRenderNarrowTerminalNoPanic(t *testing.T) {
 	for i := range hashes {
 		hashes[i] = "hash"
 	}
-	ed := NewBulkMetadataEditor(hashes, "T", "A", "B", "")
+	ed := NewBulkMetadataEditor(hashes, "T", "A", "B", "", "")
 	s := newTestStyles()
 
 	// Render at 20 columns wide — the title is wider than this.
@@ -283,7 +283,7 @@ func TestMetadataEditorRenderWrapsLongValue(t *testing.T) {
 
 	t.Run("focused field does not overflow", func(t *testing.T) {
 		// Title is focused by default.
-		ed := NewMetadataEditor("h1", longTitle, "Artist", "Album", "Rock")
+		ed := NewMetadataEditor("h1", longTitle, "Artist", "Album", "Rock", 0)
 		s := newTestStyles()
 
 		// Sub-case 1: cursor at end (default).
@@ -310,7 +310,7 @@ func TestMetadataEditorRenderWrapsLongValue(t *testing.T) {
 	})
 
 	t.Run("non-focused field wraps correctly", func(t *testing.T) {
-		ed := NewMetadataEditor("h1", longTitle, "Artist", "Album", "Rock")
+		ed := NewMetadataEditor("h1", longTitle, "Artist", "Album", "Rock", 0)
 		// Tab to Artist so Title is non-focused and will be wrapped.
 		ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: '\t'})
 
@@ -350,15 +350,156 @@ func TestMetadataEditorRenderWrapsLongValue(t *testing.T) {
 	})
 }
 
+// --- Duration parsing ---
+
+// TestParseDurationFromEditor verifies correct parsing of duration strings.
+func TestParseDurationFromEditor(t *testing.T) {
+	tests := []struct {
+		input   string
+		want    float64
+		wantErr bool
+	}{
+		{"", 0, false},
+		{"  ", 0, false},
+		{"0:00", 0, false},
+		{"3:45", 225, false},
+		{"1:02:30", 3750, false},
+		{"10:00", 600, false},
+		{"1:00:00", 3600, false},
+		{"abc", 0, true},
+		{"1:60", 0, true},  // seconds out of range
+		{"-1:00", 0, true}, // negative minutes
+		{"1:2:3:4", 0, true},
+	}
+	for _, tt := range tests {
+		got, err := parseDurationFromEditor(tt.input)
+		if tt.wantErr {
+			if err == nil {
+				t.Errorf("parseDurationFromEditor(%q): expected error, got nil (value=%v)", tt.input, got)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("parseDurationFromEditor(%q): unexpected error: %v", tt.input, err)
+			}
+			if got != tt.want {
+				t.Errorf("parseDurationFromEditor(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		}
+	}
+}
+
+// TestFormatDurationForEditor verifies correct formatting of duration values.
+func TestFormatDurationForEditor(t *testing.T) {
+	tests := []struct {
+		secs float64
+		want string
+	}{
+		{0, ""},
+		{-1, ""},
+		{225, "3:45"},
+		{3750, "1:02:30"},
+		{60, "1:00"},
+		{3661, "1:01:01"},
+	}
+	for _, tt := range tests {
+		got := formatDurationForEditor(tt.secs)
+		if got != tt.want {
+			t.Errorf("formatDurationForEditor(%v) = %q, want %q", tt.secs, got, tt.want)
+		}
+	}
+}
+
+// --- Duration field in editor ---
+
+// TestDefaultEditorTabCyclesFiveFields verifies that tab cycles through all
+// five fields including Duration.
+func TestDefaultEditorTabCyclesFiveFields(t *testing.T) {
+	ed := NewMetadataEditor("h1", "T", "A", "B", "G", 225)
+	// Should start at fieldTitle (0).
+	if ed.focused != fieldTitle {
+		t.Fatalf("expected initial focus=fieldTitle, got %v", ed.focused)
+	}
+	expectedCycle := []metadataField{fieldArtist, fieldAlbum, fieldGenre, fieldDuration, fieldTitle}
+	for i, want := range expectedCycle {
+		ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: '\t'})
+		if ed.focused != want {
+			t.Errorf("tab %d: expected %v, got %v", i+1, want, ed.focused)
+		}
+	}
+}
+
+// TestRenameEditorNoDisplayDuration verifies that rename editors (artist/album)
+// do not render the Duration field.
+func TestRenameEditorNoDisplayDuration(t *testing.T) {
+	s := newTestStyles()
+
+	artist := NewArtistRenameEditor([]string{"h1"}, "Alice")
+	out := ansi.Strip(artist.Render(80, 24, s))
+	if strings.Contains(out, "Duration:") {
+		t.Errorf("artist rename editor should not show Duration field; got:\n%s", out)
+	}
+
+	album := NewAlbumRenameEditor([]string{"h1"}, "Alpha")
+	out = ansi.Strip(album.Render(80, 24, s))
+	if strings.Contains(out, "Duration:") {
+		t.Errorf("album rename editor should not show Duration field; got:\n%s", out)
+	}
+}
+
+// TestDurationFieldPopulated verifies that NewMetadataEditor pre-populates
+// the Duration field when a non-zero duration is provided.
+func TestDurationFieldPopulated(t *testing.T) {
+	ed := NewMetadataEditor("h1", "T", "A", "B", "G", 225) // 3:45
+	if ed.Duration() != "3:45" {
+		t.Errorf("expected Duration()=%q, got %q", "3:45", ed.Duration())
+	}
+}
+
+// TestDurationFieldEmptyWhenZero verifies that NewMetadataEditor leaves the
+// Duration field empty when duration is 0.
+func TestDurationFieldEmptyWhenZero(t *testing.T) {
+	ed := NewMetadataEditor("h1", "T", "A", "B", "G", 0)
+	if ed.Duration() != "" {
+		t.Errorf("expected empty Duration(), got %q", ed.Duration())
+	}
+}
+
+// TestDurationDirtyFieldReturnsPointer verifies that editing the Duration
+// field marks it dirty and DirtyFields returns a non-nil pointer.
+func TestDurationDirtyFieldReturnsPointer(t *testing.T) {
+	ed := NewMetadataEditor("h1", "T", "A", "B", "G", 0)
+
+	// Tab to Duration field (4 tabs: title→artist→album→genre→duration).
+	for range 4 {
+		ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: '\t'})
+	}
+	if ed.focused != fieldDuration {
+		t.Fatalf("expected focus on fieldDuration, got %v", ed.focused)
+	}
+
+	// Type a valid duration.
+	for _, ch := range "3:45" {
+		ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: ch, Text: string(ch)})
+	}
+
+	_, _, _, _, dur := ed.DirtyFields()
+	if dur == nil {
+		t.Fatal("expected duration to be dirty, got nil")
+	}
+	if *dur != "3:45" {
+		t.Errorf("expected dirty duration %q, got %q", "3:45", *dur)
+	}
+}
+
 // TestDirtyFieldsTrimsWhitespace verifies that DirtyFields trims leading and
 // trailing whitespace from modified field values.
 func TestDirtyFieldsTrimsWhitespace(t *testing.T) {
-	ed := NewMetadataEditor("h1", "Alice", "", "", "")
+	ed := NewMetadataEditor("h1", "Alice", "", "", "", 0)
 
 	// Type a trailing space — cursor starts at end, so this appends a space.
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: ' ', Text: " "})
 
-	title, artist, album, _ := ed.DirtyFields()
+	title, artist, album, _, _ := ed.DirtyFields()
 	if title == nil {
 		t.Fatal("expected title to be dirty after typing a space")
 	}

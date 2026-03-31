@@ -9,6 +9,7 @@ import (
 // PreviewOverlay renders a centered overlay box showing preview track info
 // and live playback progress.
 type PreviewOverlay struct {
+	hash      string
 	artist    string
 	title     string
 	album     string

@@ -326,6 +326,7 @@ func buildModel(
 		tui.WithQueueReorderer(result.Writer),
 		tui.WithBatchEnqueuer(result.Writer),
 		tui.WithMetadataWriter(result.Writer),
+		tui.WithDurationWriter(result.Writer),
 		tui.WithFavoriteReader(result.DB),
 		tui.WithFavoriteWriter(result.Writer),
 		tui.WithSmartPlaylistEvaluator(adapter),

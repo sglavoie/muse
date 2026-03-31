@@ -179,6 +179,17 @@ func (idx *LibraryIndex) IncrementPlayCount(hash string, playedAt int64) bool {
 	return false
 }
 
+// UpdateDuration finds the track by hash and updates its Duration field in
+// place. No re-sort is needed because Duration is not part of the sort key.
+// Returns true if the track was found.
+func (idx *LibraryIndex) UpdateDuration(hash string, duration float64) bool {
+	if i, ok := idx.byHash[hash]; ok && i < len(idx.tracks) {
+		idx.tracks[i].Duration = duration
+		return true
+	}
+	return false
+}
+
 // UpdateMetadata finds the track by hash, updates its Title, Artist, Album, and
 // Genre, then re-inserts it to maintain sort order (since the sort key includes
 // Artist and Title, the position may change). Returns true if the track was

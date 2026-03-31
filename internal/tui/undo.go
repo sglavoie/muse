@@ -363,9 +363,9 @@ func (a undoBulkRemovePlaylistTracksAction) perform(m Model) (Model, tea.Cmd) {
 // --- undoBulkEditMetadataAction ---
 
 // undoBulkEditMetadataAction reverts a bulk metadata edit (undoKindBulkEditMetadata).
-// originals maps track hash → {title, artist, album, genre}.
+// originals maps track hash → {title, artist, album, genre, duration (M:SS or "")}.
 type undoBulkEditMetadataAction struct {
-	originals map[string][4]string
+	originals map[string][5]string
 }
 
 func (a undoBulkEditMetadataAction) kind() undoKind { return undoKindBulkEditMetadata }
@@ -376,28 +376,42 @@ func (a undoBulkEditMetadataAction) description() string {
 }
 
 func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
-	w := m.metadataWriter
+	mw := m.metadataWriter
+	dw := m.durationWriter
 	for hash, orig := range a.originals {
 		m.library.index.UpdateMetadata(hash, orig[0], orig[1], orig[2], orig[3])
+		origDur, _ := parseDurationFromEditor(orig[4])
+		m.library.index.UpdateDuration(hash, origDur)
 		display := trackDisplay(orig[1], orig[0], "")
+		origDurMs := int64(origDur * 1000)
 		for i := range m.queue.entries {
 			if m.queue.entries[i].Hash == hash {
 				m.queue.entries[i].Title = orig[0]
 				m.queue.entries[i].Artist = orig[1]
 				m.queue.entries[i].Album = orig[2]
 				m.queue.entries[i].Display = display
+				m.queue.entries[i].DurationMs = origDurMs
 			}
 		}
 		// Update status bar when the currently-playing track was reverted.
 		m = m.syncStatusBarMetadata(hash, orig[1], orig[0])
 	}
 	m = m.refreshDerivedViews()
-	if w != nil {
+	if mw != nil || dw != nil {
 		originals := a.originals
 		go func() {
 			for h, orig := range originals {
-				if err := w.UpdateTrackMetadata(h, orig[0], orig[1], orig[2], orig[3]); err != nil {
-					slog.Warn("undo bulk metadata edit: DB write failed", "hash", h, "err", err)
+				if mw != nil {
+					if err := mw.UpdateTrackMetadata(h, orig[0], orig[1], orig[2], orig[3]); err != nil {
+						slog.Warn("undo bulk metadata edit: DB write failed", "hash", h, "err", err)
+					}
+				}
+				if dw != nil {
+					origDur, _ := parseDurationFromEditor(orig[4])
+					origDurMs := int64(origDur * 1000)
+					if err := dw.UpdateTrackDuration(h, origDurMs); err != nil {
+						slog.Warn("undo bulk metadata edit: duration DB write failed", "hash", h, "err", err)
+					}
 				}
 			}
 		}()

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
@@ -19,6 +20,7 @@ const (
 	fieldArtist
 	fieldAlbum
 	fieldGenre
+	fieldDuration
 	metadataFieldCount
 )
 
@@ -39,6 +41,60 @@ const (
 	editorModeRenameArtist            // single Artist field, bulk rename
 	editorModeRenameAlbum             // single Album field, bulk rename
 )
+
+// formatDurationForEditor converts seconds to "M:SS" or "H:MM:SS" for display
+// in the editor. Returns "" when secs is 0 (unknown/missing duration).
+func formatDurationForEditor(secs float64) string {
+	if secs <= 0 {
+		return ""
+	}
+	total := int(secs)
+	h := total / 3600
+	m := (total % 3600) / 60
+	s := total % 60
+	if h > 0 {
+		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
+	}
+	return fmt.Sprintf("%d:%02d", m, s)
+}
+
+// parseDurationFromEditor parses "M:SS", "H:MM:SS", or "" back to seconds.
+// Returns 0, nil for an empty string. Returns an error for invalid input.
+func parseDurationFromEditor(s string) (float64, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, nil
+	}
+	parts := strings.Split(s, ":")
+	switch len(parts) {
+	case 2:
+		m, err := strconv.Atoi(parts[0])
+		if err != nil || m < 0 {
+			return 0, fmt.Errorf("invalid duration %q", s)
+		}
+		sec, err := strconv.Atoi(parts[1])
+		if err != nil || sec < 0 || sec > 59 {
+			return 0, fmt.Errorf("invalid duration %q", s)
+		}
+		return float64(m*60 + sec), nil
+	case 3:
+		h, err := strconv.Atoi(parts[0])
+		if err != nil || h < 0 {
+			return 0, fmt.Errorf("invalid duration %q", s)
+		}
+		m, err := strconv.Atoi(parts[1])
+		if err != nil || m < 0 || m > 59 {
+			return 0, fmt.Errorf("invalid duration %q", s)
+		}
+		sec, err := strconv.Atoi(parts[2])
+		if err != nil || sec < 0 || sec > 59 {
+			return 0, fmt.Errorf("invalid duration %q", s)
+		}
+		return float64(h*3600 + m*60 + sec), nil
+	default:
+		return 0, fmt.Errorf("invalid duration %q", s)
+	}
+}
 
 // MetadataEditor is a fullscreen overlay for editing track metadata.
 type MetadataEditor struct {
@@ -68,30 +124,33 @@ func newField(value string, focused bool) textinput.Model {
 }
 
 // NewMetadataEditor returns a MetadataEditor pre-populated with the given values.
-func NewMetadataEditor(hash, title, artist, album, genre string) MetadataEditor {
+func NewMetadataEditor(hash, title, artist, album, genre string, duration float64) MetadataEditor {
+	dur := formatDurationForEditor(duration)
 	return MetadataEditor{
 		hash:          hash,
-		initialValues: [metadataFieldCount]string{title, artist, album, genre},
+		initialValues: [metadataFieldCount]string{title, artist, album, genre, dur},
 		fields: [metadataFieldCount]textinput.Model{
 			newField(title, true),
 			newField(artist, false),
 			newField(album, false),
 			newField(genre, false),
+			newField(dur, false),
 		},
 	}
 }
 
 // NewBulkMetadataEditor returns a MetadataEditor for editing multiple tracks.
 // Common values are pre-populated; differing fields are left empty.
-func NewBulkMetadataEditor(hashes []string, commonTitle, commonArtist, commonAlbum, commonGenre string) MetadataEditor {
+func NewBulkMetadataEditor(hashes []string, commonTitle, commonArtist, commonAlbum, commonGenre, commonDuration string) MetadataEditor {
 	return MetadataEditor{
 		hashes:        hashes,
-		initialValues: [metadataFieldCount]string{commonTitle, commonArtist, commonAlbum, commonGenre},
+		initialValues: [metadataFieldCount]string{commonTitle, commonArtist, commonAlbum, commonGenre, commonDuration},
 		fields: [metadataFieldCount]textinput.Model{
 			newField(commonTitle, true),
 			newField(commonArtist, false),
 			newField(commonAlbum, false),
 			newField(commonGenre, false),
+			newField(commonDuration, false),
 		},
 	}
 }
@@ -104,10 +163,12 @@ func NewArtistRenameEditor(hashes []string, artist string) MetadataEditor {
 		renameTitle:   " ✎ Rename Artist ",
 		hashes:        hashes,
 		focused:       fieldArtist,
-		initialValues: [metadataFieldCount]string{"", artist, ""},
+		initialValues: [metadataFieldCount]string{"", artist, "", "", ""},
 		fields: [metadataFieldCount]textinput.Model{
 			newField("", false),
 			newField(artist, true),
+			newField("", false),
+			newField("", false),
 			newField("", false),
 		},
 	}
@@ -121,11 +182,13 @@ func NewAlbumRenameEditor(hashes []string, album string) MetadataEditor {
 		renameTitle:   " ✎ Rename Album ",
 		hashes:        hashes,
 		focused:       fieldAlbum,
-		initialValues: [metadataFieldCount]string{"", "", album},
+		initialValues: [metadataFieldCount]string{"", "", album, "", ""},
 		fields: [metadataFieldCount]textinput.Model{
 			newField("", false),
 			newField("", false),
 			newField(album, true),
+			newField("", false),
+			newField("", false),
 		},
 	}
 }
@@ -144,7 +207,7 @@ func (e MetadataEditor) Hashes() []string { return e.hashes }
 
 // DirtyFields returns pointers to the new values for fields that were modified.
 // Non-dirty fields return nil.
-func (e MetadataEditor) DirtyFields() (title, artist, album, genre *string) {
+func (e MetadataEditor) DirtyFields() (title, artist, album, genre, duration *string) {
 	if e.dirty[fieldTitle] {
 		v := strings.TrimSpace(e.fields[fieldTitle].Value())
 		title = &v
@@ -160,6 +223,10 @@ func (e MetadataEditor) DirtyFields() (title, artist, album, genre *string) {
 	if e.dirty[fieldGenre] {
 		v := strings.TrimSpace(e.fields[fieldGenre].Value())
 		genre = &v
+	}
+	if e.dirty[fieldDuration] {
+		v := strings.TrimSpace(e.fields[fieldDuration].Value())
+		duration = &v
 	}
 	return
 }
@@ -208,12 +275,15 @@ func (e MetadataEditor) Album() string { return e.fields[fieldAlbum].Value() }
 // Genre returns the current genre value.
 func (e MetadataEditor) Genre() string { return e.fields[fieldGenre].Value() }
 
+// Duration returns the current duration string value (e.g. "3:45").
+func (e MetadataEditor) Duration() string { return e.fields[fieldDuration].Value() }
+
 // Hash returns the track hash this editor was opened for.
 func (e MetadataEditor) Hash() string { return e.hash }
 
-// Render produces a centered box with four labelled, editable fields.
+// Render produces a centered box with five labelled, editable fields.
 func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) string {
-	labels := [metadataFieldCount]string{"Title:", "Artist:", "Album:", "Genre:"}
+	labels := [metadataFieldCount]string{"Title:", "Artist:", "Album:", "Genre:", "Duration:"}
 	if e.IsBulk() {
 		for i := range metadataFieldCount {
 			if e.dirty[i] {
@@ -221,7 +291,7 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 			}
 		}
 	}
-	maxLabelW := 8 // len("*Artist:")
+	maxLabelW := 10 // len("*Duration:")
 
 	// Box width: use most of the terminal width, capped at 80.
 	boxInner := max(min(termWidth-8, 80), OverlayMinInnerWidth)
@@ -237,7 +307,7 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	}
 
 	// Determine which field indices to render.
-	renderFields := []int{int(fieldTitle), int(fieldArtist), int(fieldAlbum), int(fieldGenre)}
+	renderFields := []int{int(fieldTitle), int(fieldArtist), int(fieldAlbum), int(fieldGenre), int(fieldDuration)}
 	switch e.mode {
 	case editorModeRenameArtist:
 		renderFields = []int{int(fieldArtist)}
@@ -301,7 +371,7 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	} else {
 		hint = "  tab/shift+tab fields · enter save · esc cancel"
 		if e.IsBulk() {
-			anyDirty := e.dirty[0] || e.dirty[1] || e.dirty[2] || e.dirty[3]
+			anyDirty := e.dirty[0] || e.dirty[1] || e.dirty[2] || e.dirty[3] || e.dirty[4]
 			if anyDirty {
 				hint += " · * = will be applied"
 			}

@@ -32,10 +32,30 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 			}
 		}
 	}
+	var previewDurationCmd tea.Cmd
 	if m.overlay.preview != nil && m.overlay.previewPlayer != nil {
 		if elapsed, total, err := m.overlay.previewPlayer.ElapsedPosition(); err == nil {
 			m.overlay.preview.elapsed = elapsed
 			m.overlay.preview.total = total
+			if !m.overlay.previewDurationFilled && total > 0 {
+				hash := m.overlay.preview.hash
+				if t, ok := m.library.index.FindByHash(hash); ok && t.Duration == 0 {
+					m.library.index.UpdateDuration(hash, total)
+					newDurationMs := int64(total * 1000)
+					for i := range m.queue.entries {
+						if m.queue.entries[i].Hash == hash {
+							m.queue.entries[i].DurationMs = newDurationMs
+						}
+					}
+					if dw := m.durationWriter; dw != nil {
+						previewDurationCmd = func() tea.Msg {
+							_ = dw.UpdateTrackDuration(hash, newDurationMs)
+							return nil
+						}
+					}
+				}
+				m.overlay.previewDurationFilled = true
+			}
 		} else {
 			// Preview track ended or mpv died — auto-dismiss.
 			m = m.dismissPreview()
@@ -55,7 +75,7 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	if m.undo.bulkRemovePending && time.Now().After(m.undo.bulkRemovePendingAt.Add(confirmationWindow)) {
 		m.undo.bulkRemovePending = false
 	}
-	return m, tickCmd()
+	return m, tea.Batch(tickCmd(), previewDurationCmd)
 }
 
 // handleSyncPositionMsg persists the current playback position via the player.
@@ -184,6 +204,7 @@ func (m Model) handlePauseChangedMsg(msg PauseChangedMsg) (Model, tea.Cmd) {
 func (m Model) handlePreviewStartedMsg(msg previewStartedMsg) Model {
 	m.overlay.previewPlayer = msg.player
 	m.overlay.preview = &msg.overlay
+	m.overlay.previewDurationFilled = false
 	return m
 }
 
@@ -578,6 +599,7 @@ func (m Model) startPreviewCmd(track library.Track) tea.Cmd {
 		return previewStartedMsg{
 			player: pp,
 			overlay: PreviewOverlay{
+				hash:      track.Hash,
 				artist:    track.Artist,
 				title:     track.Title,
 				album:     track.Album,
@@ -595,6 +617,7 @@ func (m Model) dismissPreview() Model {
 	}
 	m.overlay.preview = nil
 	m.overlay.previewPlayer = nil
+	m.overlay.previewDurationFilled = false
 	if m.overlay.previewWasPlaying && m.player != nil {
 		if err := m.player.Play(); err != nil {
 			slog.Debug("player resume after preview failed", "err", err)

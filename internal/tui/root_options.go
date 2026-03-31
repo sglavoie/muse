@@ -148,6 +148,11 @@ func WithMetadataWriter(w metadataUpdater) Option {
 	return func(m *Model) { m.metadataWriter = w }
 }
 
+// WithDurationWriter sets the writer for persisting track duration edits.
+func WithDurationWriter(w durationUpdater) Option {
+	return func(m *Model) { m.durationWriter = w }
+}
+
 // WithScanWriter sets the batch writer used to persist tracks discovered during
 // a manual rescan (Shift+R) to the database. Without this, rescanned tracks
 // exist only in the in-memory index and are lost on restart.

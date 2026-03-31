@@ -448,3 +448,18 @@ func (s *stubHistoryRecorder) RecordPlay(hash string, playedAt int64, listenedSe
 	}{hash, playedAt, listenedSecs})
 	return nil
 }
+
+type stubDurationWriter struct {
+	calls []struct {
+		hash       string
+		durationMs int64
+	}
+}
+
+func (s *stubDurationWriter) UpdateTrackDuration(hash string, durationMs int64) error {
+	s.calls = append(s.calls, struct {
+		hash       string
+		durationMs int64
+	}{hash, durationMs})
+	return nil
+}

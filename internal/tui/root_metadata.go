@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -132,7 +133,7 @@ func (m Model) handleMetadataKeyAction(a action) (Model, tea.Cmd, bool) {
 
 	// Bulk path: if multiple tracks are selected, open bulk editor.
 	if hashes := m.bulkSelectedHashes(); len(hashes) >= 2 {
-		var titles, artists, albums, genres []string
+		var titles, artists, albums, genres, durations []string
 		for _, h := range hashes {
 			t, ok := m.library.index.FindByHash(h)
 			if !ok {
@@ -142,8 +143,9 @@ func (m Model) handleMetadataKeyAction(a action) (Model, tea.Cmd, bool) {
 			artists = append(artists, t.Artist)
 			albums = append(albums, t.Album)
 			genres = append(genres, t.Genre)
+			durations = append(durations, formatDurationForEditor(t.Duration))
 		}
-		ed := NewBulkMetadataEditor(hashes, commonValue(titles), commonValue(artists), commonValue(albums), commonValue(genres))
+		ed := NewBulkMetadataEditor(hashes, commonValue(titles), commonValue(artists), commonValue(albums), commonValue(genres), commonValue(durations))
 		m.overlay.metadataEditor = &ed
 		return m, nil, true
 	}
@@ -167,7 +169,7 @@ func (m Model) handleMetadataKeyAction(a action) (Model, tea.Cmd, bool) {
 		}
 		track.Genre = full.Genre
 	}
-	ed := NewMetadataEditor(track.Hash, track.Title, track.Artist, track.Album, track.Genre)
+	ed := NewMetadataEditor(track.Hash, track.Title, track.Artist, track.Album, track.Genre, track.Duration)
 	m.overlay.metadataEditor = &ed
 	return m, nil, true
 }
@@ -252,29 +254,42 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	artist := ed.Artist()
 	album := ed.Album()
 	genre := ed.Genre()
+	durStr := strings.TrimSpace(ed.Duration())
+
+	// Validate duration before closing the editor.
+	newDuration, err := parseDurationFromEditor(durStr)
+	if err != nil {
+		m.statusBar.notification = newNotification(fmt.Sprintf("Invalid duration: %s", err))
+		return m, nil
+	}
 
 	m.overlay.metadataEditor = nil
 
 	// Capture original values before mutation for undo support.
 	var origTitle, origArtist, origAlbum, origGenre string
+	var origDuration float64
 	if t, ok := m.library.index.FindByHash(hash); ok {
 		origTitle = t.Title
 		origArtist = t.Artist
 		origAlbum = t.Album
 		origGenre = t.Genre
+		origDuration = t.Duration
 	}
 
 	// Update in-memory library index.
 	m.library.index.UpdateMetadata(hash, title, artist, album, genre)
+	m.library.index.UpdateDuration(hash, newDuration)
 
 	// Update matching queue entries.
 	display := trackDisplay(artist, title, "")
+	newDurationMs := int64(newDuration * 1000)
 	for i := range m.queue.entries {
 		if m.queue.entries[i].Hash == hash {
 			m.queue.entries[i].Title = title
 			m.queue.entries[i].Artist = artist
 			m.queue.entries[i].Album = album
 			m.queue.entries[i].Display = display
+			m.queue.entries[i].DurationMs = newDurationMs
 		}
 	}
 
@@ -283,7 +298,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 
 	// Set up undo slot so the user can revert the single-track edit.
 	m.setUndoSlot(undoBulkEditMetadataAction{
-		originals: map[string][4]string{hash: {origTitle, origArtist, origAlbum, origGenre}},
+		originals: map[string][5]string{hash: {origTitle, origArtist, origAlbum, origGenre, formatDurationForEditor(origDuration)}},
 	}, nil)
 
 	// Refresh derived views (Artists, Albums) so they reflect the edit.
@@ -298,16 +313,25 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	}
 
 	// Persist to database asynchronously.
-	w := m.metadataWriter
-	if w == nil {
-		return m, nil
-	}
+	mw := m.metadataWriter
+	dw := m.durationWriter
 	return m, func() tea.Msg {
-		err := w.UpdateTrackMetadata(hash, title, artist, album, genre)
-		if err != nil {
-			slog.Warn("metadata edit: DB write failed", "hash", hash, "err", err)
+		var firstErr error
+		if mw != nil {
+			if err := mw.UpdateTrackMetadata(hash, title, artist, album, genre); err != nil {
+				slog.Warn("metadata edit: DB write failed", "hash", hash, "err", err)
+				firstErr = err
+			}
 		}
-		return metadataEditedMsg{err: err}
+		if dw != nil {
+			if err := dw.UpdateTrackDuration(hash, newDurationMs); err != nil {
+				slog.Warn("metadata edit: duration DB write failed", "hash", hash, "err", err)
+				if firstErr == nil {
+					firstErr = err
+				}
+			}
+		}
+		return metadataEditedMsg{err: firstErr}
 	}
 }
 
@@ -416,18 +440,30 @@ func (m Model) refreshDerivedViews() Model {
 // all selected tracks, sets up an undo slot, and clears the selection.
 func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 	ed := m.overlay.metadataEditor
-	dirtyTitle, dirtyArtist, dirtyAlbum, dirtyGenre := ed.DirtyFields()
+	dirtyTitle, dirtyArtist, dirtyAlbum, dirtyGenre, dirtyDuration := ed.DirtyFields()
 	m.overlay.metadataEditor = nil
 
-	if dirtyTitle == nil && dirtyArtist == nil && dirtyAlbum == nil && dirtyGenre == nil {
+	if dirtyTitle == nil && dirtyArtist == nil && dirtyAlbum == nil && dirtyGenre == nil && dirtyDuration == nil {
 		m.statusBar.notification = newNotification("No changes")
 		return m, nil
 	}
 
-	originals := make(map[string][4]string, len(ed.Hashes()))
+	// Validate the duration string once before processing any tracks.
+	var newDuration float64
+	if dirtyDuration != nil {
+		var err error
+		newDuration, err = parseDurationFromEditor(*dirtyDuration)
+		if err != nil {
+			m.statusBar.notification = newNotification(fmt.Sprintf("Invalid duration: %s", err))
+			return m, nil
+		}
+	}
+
+	originals := make(map[string][5]string, len(ed.Hashes()))
 
 	type update struct {
 		hash, title, artist, album, genre string
+		durationMs                        int64
 	}
 	var updates []update
 
@@ -436,9 +472,10 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		if !ok {
 			continue
 		}
-		originals[h] = [4]string{t.Title, t.Artist, t.Album, t.Genre}
+		originals[h] = [5]string{t.Title, t.Artist, t.Album, t.Genre, formatDurationForEditor(t.Duration)}
 
 		newTitle, newArtist, newAlbum, newGenre := t.Title, t.Artist, t.Album, t.Genre
+		trackDuration := t.Duration
 		if dirtyTitle != nil {
 			newTitle = *dirtyTitle
 		}
@@ -451,9 +488,16 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		if dirtyGenre != nil {
 			newGenre = *dirtyGenre
 		}
+		if dirtyDuration != nil {
+			trackDuration = newDuration
+		}
 
 		m.library.index.UpdateMetadata(h, newTitle, newArtist, newAlbum, newGenre)
+		if dirtyDuration != nil {
+			m.library.index.UpdateDuration(h, trackDuration)
+		}
 
+		durationMs := int64(trackDuration * 1000)
 		display := trackDisplay(newArtist, newTitle, "")
 		for i := range m.queue.entries {
 			if m.queue.entries[i].Hash == h {
@@ -461,13 +505,16 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 				m.queue.entries[i].Artist = newArtist
 				m.queue.entries[i].Album = newAlbum
 				m.queue.entries[i].Display = display
+				if dirtyDuration != nil {
+					m.queue.entries[i].DurationMs = durationMs
+				}
 			}
 		}
 
 		// Update status bar when the currently-playing track was edited.
 		m = m.syncStatusBarMetadata(h, newArtist, newTitle)
 
-		updates = append(updates, update{h, newTitle, newArtist, newAlbum, newGenre})
+		updates = append(updates, update{h, newTitle, newArtist, newAlbum, newGenre, durationMs})
 	}
 
 	// Clear bulk selection on the active view.
@@ -553,17 +600,25 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		}
 	}
 
-	w := m.metadataWriter
-	if w == nil {
-		return m, nil
-	}
+	mw := m.metadataWriter
+	dw := m.durationWriter
 	return m, func() tea.Msg {
 		var firstErr error
 		for _, u := range updates {
-			if err := w.UpdateTrackMetadata(u.hash, u.title, u.artist, u.album, u.genre); err != nil {
-				slog.Warn("bulk metadata edit: DB write failed", "hash", u.hash, "err", err)
-				if firstErr == nil {
-					firstErr = err
+			if mw != nil {
+				if err := mw.UpdateTrackMetadata(u.hash, u.title, u.artist, u.album, u.genre); err != nil {
+					slog.Warn("bulk metadata edit: DB write failed", "hash", u.hash, "err", err)
+					if firstErr == nil {
+						firstErr = err
+					}
+				}
+			}
+			if dw != nil && dirtyDuration != nil {
+				if err := dw.UpdateTrackDuration(u.hash, u.durationMs); err != nil {
+					slog.Warn("bulk metadata edit: duration DB write failed", "hash", u.hash, "err", err)
+					if firstErr == nil {
+						firstErr = err
+					}
 				}
 			}
 		}

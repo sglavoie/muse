@@ -220,6 +220,18 @@ func (w *Writer) UpdateTrackMetadata(hash, title, artist, album, genre string) e
 	})
 }
 
+// UpdateTrackDuration updates the duration_ms for the track identified by hash.
+// It is a no-op if no row matches.
+func (w *Writer) UpdateTrackDuration(hash string, durationMs int64) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(
+			`UPDATE tracks SET duration_ms=?, updated_at=? WHERE hash=?`,
+			durationMs, time.Now().Unix(), hash,
+		)
+		return err
+	})
+}
+
 // UpsertBatch writes tracks into the tracks table inside a single transaction
 // using an INSERT … ON CONFLICT(hash) DO UPDATE so that existing rows are
 // updated in place without cascading deletes on their FK dependants (queue,

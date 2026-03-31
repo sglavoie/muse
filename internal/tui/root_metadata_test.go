@@ -326,7 +326,7 @@ func TestSingleTrackMetadataSaveUpdatesQueueAlbum(t *testing.T) {
 	m.queue.cursor = 0
 
 	// Open single-track metadata editor for h1.
-	ed := NewMetadataEditor("h1", "Track A1", "Alice", "Alpha", "")
+	ed := NewMetadataEditor("h1", "Track A1", "Alice", "Alpha", "", 0)
 	m.overlay.metadataEditor = &ed
 
 	// Clear the album field and type a new one.
@@ -651,7 +651,7 @@ func TestMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
 				{ID: 1, Hash: "h1", Path: "/a.flac", Display: "Old – Old", Artist: "Old", Title: "Old", Album: "Old"},
 			}
 			// Open the editor for the track.
-			ed := NewMetadataEditor("h1", tt.title, tt.artist, "Album", "")
+			ed := NewMetadataEditor("h1", tt.title, tt.artist, "Album", "", 0)
 			m.overlay.metadataEditor = &ed
 			result, _ := m.handleMetadataSave()
 			nm := result.(Model)
@@ -676,7 +676,7 @@ func TestSingleTrackMetadataSaveRefreshesDerivedViews(t *testing.T) {
 	}
 
 	// Open single-track editor for h1 (Alice, Alpha, Track A1).
-	ed := NewMetadataEditor("h1", "Track A1", "Alice", "Alpha", "")
+	ed := NewMetadataEditor("h1", "Track A1", "Alice", "Alpha", "", 0)
 	m.overlay.metadataEditor = &ed
 
 	// Change artist from "Alice" to "Zara" (new artist name).
@@ -726,7 +726,7 @@ func TestBulkMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
 	m.queue.entries[1].Selected = true
 
 	// Open a bulk editor that clears the artist field.
-	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "Old", "Old", "A", "")
+	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "Old", "Old", "A", "", "")
 	// Navigate to artist field, clear it.
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyTab})
 	for range 3 {
@@ -889,7 +889,7 @@ func TestSingleTrackMetadataSaveCreatesUndoSlot(t *testing.T) {
 		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "Old Artist – Old Title", Artist: "Old Artist", Title: "Old Title", Album: "Old Album"},
 	}
 
-	ed := NewMetadataEditor("h1", "New Title", "New Artist", "New Album", "")
+	ed := NewMetadataEditor("h1", "New Title", "New Artist", "New Album", "", 0)
 	m.overlay.metadataEditor = &ed
 
 	result, _ := m.handleMetadataSave()
@@ -936,7 +936,7 @@ func TestMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	m.statusBar.artist = "OldArt"
 	m.statusBar.title = "OldTitle"
 
-	ed := NewMetadataEditor("playing", "NewTitle", "NewArt", "A", "")
+	ed := NewMetadataEditor("playing", "NewTitle", "NewArt", "A", "", 0)
 	m.overlay.metadataEditor = &ed
 
 	result, _ := m.handleMetadataSave()
@@ -969,7 +969,7 @@ func TestBulkMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	}
 	m.activeView = viewQueue
 
-	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "OldT", "OldA", "A", "")
+	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "OldT", "OldA", "A", "", "")
 	// Type "X" into title to make it dirty.
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: 'X', Text: "X"})
 	m.overlay.metadataEditor = &ed
@@ -998,7 +998,7 @@ func TestMetadataUndoUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	m.statusBar.artist = "OrigArt"
 	m.statusBar.title = "OrigTitle"
 
-	ed := NewMetadataEditor("playing", "EditedTitle", "EditedArt", "A", "")
+	ed := NewMetadataEditor("playing", "EditedTitle", "EditedArt", "A", "", 0)
 	m.overlay.metadataEditor = &ed
 
 	result, _ := m.handleMetadataSave()
@@ -1031,7 +1031,7 @@ func TestMetadataEditDoesNotAffectStatusBarForOtherTrack(t *testing.T) {
 	m.statusBar.artist = "NowArt"
 	m.statusBar.title = "NowTitle"
 
-	ed := NewMetadataEditor("other", "NewY", "NewX", "A", "")
+	ed := NewMetadataEditor("other", "NewY", "NewX", "A", "", 0)
 	m.overlay.metadataEditor = &ed
 
 	result, _ := m.handleMetadataSave()
@@ -1208,7 +1208,7 @@ func TestBulkMetadataSaveClearsGenresSelection(t *testing.T) {
 	m.genres.selectedHashes = map[string]struct{}{"g1": {}, "g2": {}}
 
 	// Open a bulk metadata editor for these two tracks.
-	ed := NewBulkMetadataEditor([]string{"g1", "g2"}, "Song 1", "Alice", "Alpha", "Rock")
+	ed := NewBulkMetadataEditor([]string{"g1", "g2"}, "Song 1", "Alice", "Alpha", "Rock", "")
 	// Type a new genre to make the field dirty.
 	genreMsg := tea.KeyPressMsg{Code: tea.KeyTab}
 	ed, _, _ = ed.HandleKey(genreMsg) // → artist
@@ -1313,7 +1313,7 @@ func TestBulkMetadataSaveClearsFavoritesSelection(t *testing.T) {
 	m.favorites.selectedItems = map[int]struct{}{0: {}, 1: {}}
 
 	// Open bulk editor and type to make a dirty field.
-	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "", "Alice", "", "")
+	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "", "Alice", "", "", "")
 	m.overlay.metadataEditor = &ed
 	m = typeIntoEditor(m, "X")
 
