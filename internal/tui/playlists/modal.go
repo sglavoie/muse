@@ -148,9 +148,9 @@ func (m DestinationPickerModal) buildBoxLines(termWidth int, s styles.Styles) []
 	labels := m.destinations()
 
 	// Compute inner width: the number of characters between the │ borders.
-	// Row format: │ + " " + cursor(1) + " " + label_padded + " " + │
-	// The four non-label characters between the borders: " > " + " " = 4.
-	// So innerWidth = 4 + contentWidth, where contentWidth = label display width.
+	// Row format: │ + " " + label_padded + " " + │
+	// The two non-label characters between the borders: " " + " " = 2.
+	// So innerWidth = 2 + contentWidth, where contentWidth = label display width.
 	// Mirrors tui.OverlayMinInnerWidth (cannot import due to circular dep).
 	const minInner = 24
 	innerWidth := minInner
@@ -159,8 +159,8 @@ func (m DestinationPickerModal) buildBoxLines(termWidth int, s styles.Styles) []
 		innerWidth = ansi.StringWidth(modalTitle) + 2
 	}
 	for _, l := range labels {
-		if ansi.StringWidth(l)+4 > innerWidth {
-			innerWidth = ansi.StringWidth(l) + 4
+		if ansi.StringWidth(l)+2 > innerWidth {
+			innerWidth = ansi.StringWidth(l) + 2
 		}
 	}
 	if maxInner := termWidth - 4; termWidth > 0 && innerWidth > maxInner {
@@ -169,7 +169,7 @@ func (m DestinationPickerModal) buildBoxLines(termWidth int, s styles.Styles) []
 	if innerWidth < 1 {
 		innerWidth = 1
 	}
-	contentWidth := innerWidth - 4 // characters available for the label inside a row
+	contentWidth := innerWidth - 2 // characters available for the label inside a row
 	contentWidth = max(contentWidth, 0)
 
 	var lines []string
@@ -188,15 +188,11 @@ func (m DestinationPickerModal) buildBoxLines(termWidth int, s styles.Styles) []
 
 	// Destination rows.
 	for i, label := range labels {
-		cursorCh := " "
-		if i == m.cursor {
-			cursorCh = ">"
-		}
 		// Truncate and pad using display-width-aware helpers so that
 		// multi-byte characters (CJK, emoji) are handled correctly.
 		display := text.Pad(label, contentWidth)
-		// Row content between the borders: " cursor label_padded " = innerWidth chars.
-		rowContent := " " + cursorCh + " " + display + " "
+		// Row content between the borders: " label_padded " = innerWidth chars.
+		rowContent := " " + display + " "
 		if i == m.cursor {
 			lines = append(lines, borderV+s.Accent.Render(rowContent)+borderV)
 		} else {

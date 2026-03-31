@@ -372,7 +372,7 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes ma
 	}
 
 	const (
-		posWidth    = 5  // "> 1" .. ">9999" or "   1".."  9999"
+		posWidth    = 4  // "   1".."9999"
 		durWidth    = 10 // "59:59" or "--:--" right-aligned
 		markerWidth = 2  // "● " or "▶ " or "  "
 		sepCount    = 5  // spaces between the 6 content columns
@@ -444,12 +444,7 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes ma
 			markerStr = "  "
 		}
 
-		// Position column: cursor indicator (" " or ">") + right-aligned index.
-		cursorChar := " "
-		if isFocused {
-			cursorChar = ">"
-		}
-		pos := fmt.Sprintf("%s%4d", cursorChar, absIdx+1)
+		pos := fmt.Sprintf("%4d", absIdx+1)
 
 		title := padQueue(e.Title, titleWidth)
 		artist := padQueue(e.Artist, artistWidth)
