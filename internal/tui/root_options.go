@@ -146,6 +146,16 @@ func WithMetadataWriter(w metadataUpdater) Option {
 	return func(m *Model) { m.metadataWriter = w }
 }
 
+// WithScanWriter sets the batch writer used to persist tracks discovered during
+// a manual rescan (Shift+R) to the database. Without this, rescanned tracks
+// exist only in the in-memory index and are lost on restart.
+func WithScanWriter(w scanUpsertBatcher, batchSize int) Option {
+	return func(m *Model) {
+		m.scanWriter = w
+		m.upsertBatchSize = batchSize
+	}
+}
+
 // WithSmartPlaylistEvaluator sets the evaluator for smart playlist queries.
 func WithSmartPlaylistEvaluator(e smartPlaylistEvaluator) Option {
 	return func(m *Model) { m.smartEval = e }

@@ -135,6 +135,15 @@ func ExtractAllTags(ctx context.Context, path string) (map[string]any, error) {
 func extractWithBinaryRetry(ctx context.Context, extractor MetadataExtractor, files []HashedFile) []Track {
 	tracks, err := extractor.Extract(ctx, files)
 	if err == nil {
+		for i := range tracks {
+			if tracks[i].Title == "" {
+				base := filepath.Base(tracks[i].Path)
+				tracks[i].Title = base[:len(base)-len(filepath.Ext(base))]
+			}
+			if tracks[i].Artist == "" {
+				tracks[i].Artist = "Unknown Artist"
+			}
+		}
 		return tracks
 	}
 	if len(files) == 1 {

@@ -142,7 +142,9 @@ type Model struct {
 	statsPeriod   int            // index into statsPeriods slice
 
 	overlay        overlayInfo     // all overlay and modal state
-	metadataWriter metadataUpdater // may be nil; set via WithMetadataWriter
+	metadataWriter  metadataUpdater    // may be nil; set via WithMetadataWriter
+	scanWriter      scanUpsertBatcher // may be nil; set via WithScanWriter
+	upsertBatchSize int               // batch size for scan DB writes; set via WithScanWriter
 
 	undo undoInfo // reversible undo slot and pending confirmation flags
 

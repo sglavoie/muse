@@ -224,3 +224,9 @@ type playHistoryRecorder interface {
 type listeningStatsReader interface {
 	ReadListeningStats(sinceUnix int64) (db.ListeningStats, error)
 }
+
+// scanUpsertBatcher batches library track upserts during a rescan so that
+// newly discovered tracks are persisted to the database.
+type scanUpsertBatcher interface {
+	UpsertBatch([]library.Track) error
+}

@@ -284,7 +284,8 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 	switch action {
 	case actionRescan:
 		if m.libraryRoot != "" && m.extractor != nil && !m.scanning {
-			ch := library.Scan(m.appCtx, m.libraryRoot, m.extractor)
+			rawCh := library.Scan(m.appCtx, m.libraryRoot, m.extractor)
+			ch := m.bridgeScanChannel(rawCh)
 			m.library.index = library.LibraryIndex{}
 			m.library.cursor = 0
 			m.library.scrollOffset = 0
@@ -616,4 +617,36 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 		return m, nil, true
 	}
 	return m, nil, false
+}
+
+// bridgeScanChannel wraps raw with a goroutine that persists each track to the
+// database via m.scanWriter before forwarding it. When no scanWriter is
+// configured, the raw channel is returned as-is.
+func (m Model) bridgeScanChannel(raw <-chan library.Track) <-chan library.Track {
+	if m.scanWriter == nil {
+		return raw
+	}
+	ch := make(chan library.Track, 256)
+	go func() {
+		defer close(ch)
+		batch := make([]library.Track, 0, m.upsertBatchSize)
+		flush := func() {
+			if len(batch) == 0 {
+				return
+			}
+			if err := m.scanWriter.UpsertBatch(batch); err != nil {
+				slog.Warn("rescan: batch upsert", "err", err, "count", len(batch))
+			}
+			batch = batch[:0]
+		}
+		for t := range raw {
+			ch <- t
+			batch = append(batch, t)
+			if len(batch) >= m.upsertBatchSize {
+				flush()
+			}
+		}
+		flush()
+	}()
+	return ch
 }

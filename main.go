@@ -22,6 +22,10 @@ import (
 // Version is set at build time via -ldflags "-X main.Version=x.y.z".
 var Version = "dev"
 
+// upsertBatchSize is the number of tracks per database upsert batch during
+// library scanning and rescanning.
+const upsertBatchSize = 500
+
 // runCheck validates the muse configuration and prerequisites without
 // launching the full TUI. It prints warnings and errors to stderr and returns
 // 0 on success or 1 if any check fails.
@@ -171,7 +175,6 @@ func runTUI(ctx context.Context) error {
 
 	extractor := library.ExifToolExtractor{}
 
-	const upsertBatchSize = 500
 	libResult, err := app.LoadLibrary(ctx, result.DB, result.Writer, cfg.MusicDirectory, extractor, upsertBatchSize)
 	if err != nil {
 		slog.Error("load library failed", "err", err)
@@ -330,5 +333,6 @@ func buildModel(
 		tui.WithPlayCountWriter(result.Writer),
 		tui.WithHistoryRecorder(result.Writer),
 		tui.WithStatsReader(result.DB),
+		tui.WithScanWriter(result.Writer, upsertBatchSize),
 	)
 }

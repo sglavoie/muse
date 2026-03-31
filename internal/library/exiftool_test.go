@@ -550,6 +550,90 @@ func TestExifToolExtract_SkipsUnknownSourceFile(t *testing.T) {
 	}
 }
 
+// emptyFieldExtractor returns tracks with empty Title and Artist fields,
+// simulating exiftool output for files with no embedded metadata tags.
+type emptyFieldExtractor struct{}
+
+func (e *emptyFieldExtractor) Extract(_ context.Context, files []HashedFile) ([]Track, error) {
+	tracks := make([]Track, len(files))
+	for i, f := range files {
+		tracks[i] = Track{Path: f.Path, Hash: f.Hash}
+	}
+	return tracks, nil
+}
+
+var _ MetadataExtractor = (*emptyFieldExtractor)(nil)
+
+// TestBinaryRetry_EmptyMetadataFallback verifies that when an extractor
+// succeeds but returns tracks with empty Title and Artist (e.g. exiftool
+// reading an opus file with no embedded tags), extractWithBinaryRetry applies
+// filename-derived fallback metadata.
+func TestBinaryRetry_EmptyMetadataFallback(t *testing.T) {
+	files := []HashedFile{
+		{Path: "/music/Estas Tonne/INTERNAL FLIGHT (REMASTERED).opus", Hash: "abc123"},
+		{Path: "/music/artist/album/song.flac", Hash: "def456"},
+	}
+
+	tracks := extractWithBinaryRetry(context.Background(), &emptyFieldExtractor{}, files)
+
+	if len(tracks) != 2 {
+		t.Fatalf("expected 2 tracks, got %d", len(tracks))
+	}
+
+	// First track: title from filename stem, artist fallback.
+	if tracks[0].Title != "INTERNAL FLIGHT (REMASTERED)" {
+		t.Errorf("track[0] title: want %q, got %q", "INTERNAL FLIGHT (REMASTERED)", tracks[0].Title)
+	}
+	if tracks[0].Artist != "Unknown Artist" {
+		t.Errorf("track[0] artist: want %q, got %q", "Unknown Artist", tracks[0].Artist)
+	}
+
+	// Second track: title from filename stem, artist fallback.
+	if tracks[1].Title != "song" {
+		t.Errorf("track[1] title: want %q, got %q", "song", tracks[1].Title)
+	}
+	if tracks[1].Artist != "Unknown Artist" {
+		t.Errorf("track[1] artist: want %q, got %q", "Unknown Artist", tracks[1].Artist)
+	}
+}
+
+// TestBinaryRetry_PartialMetadataPreserved verifies that when an extractor
+// returns a track with a valid Artist but empty Title, only the missing field
+// gets the fallback — the existing Artist is preserved.
+func TestBinaryRetry_PartialMetadataPreserved(t *testing.T) {
+	ext := &partialFieldExtractor{artist: "Estas Tonne"}
+	files := []HashedFile{
+		{Path: "/music/INTERNAL FLIGHT.opus", Hash: "aaa"},
+	}
+
+	tracks := extractWithBinaryRetry(context.Background(), ext, files)
+
+	if len(tracks) != 1 {
+		t.Fatalf("expected 1 track, got %d", len(tracks))
+	}
+	if tracks[0].Artist != "Estas Tonne" {
+		t.Errorf("artist: want %q, got %q", "Estas Tonne", tracks[0].Artist)
+	}
+	if tracks[0].Title != "INTERNAL FLIGHT" {
+		t.Errorf("title: want %q (filename stem), got %q", "INTERNAL FLIGHT", tracks[0].Title)
+	}
+}
+
+// partialFieldExtractor returns tracks with a preset Artist but empty Title.
+type partialFieldExtractor struct {
+	artist string
+}
+
+func (p *partialFieldExtractor) Extract(_ context.Context, files []HashedFile) ([]Track, error) {
+	tracks := make([]Track, len(files))
+	for i, f := range files {
+		tracks[i] = Track{Path: f.Path, Hash: f.Hash, Artist: p.artist}
+	}
+	return tracks, nil
+}
+
+var _ MetadataExtractor = (*partialFieldExtractor)(nil)
+
 // TestExtractBatches_HashPreserved verifies that Track.Hash matches the
 // HashedFile.Hash that entered the pipeline.
 func TestExtractBatches_HashPreserved(t *testing.T) {
