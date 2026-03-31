@@ -183,7 +183,7 @@ func (m Model) toggleFavoriteSingle(reader favoriteReader, writer favoriteWriter
 func (m Model) toggleFavoriteBulk(reader favoriteReader, writer favoriteWriter, typ string, values []string) tea.Cmd {
 	return func() tea.Msg {
 		var added, removed int
-		var removedValues []string
+		var addedValues, removedValues []string
 		for _, v := range values {
 			isFav, err := reader.IsFavorite(typ, v)
 			if err != nil {
@@ -200,6 +200,7 @@ func (m Model) toggleFavoriteBulk(reader favoriteReader, writer favoriteWriter, 
 					slog.Warn("favorite add failed", "err", err)
 				}
 				added++
+				addedValues = append(addedValues, v)
 			}
 		}
 		msg := favoriteToggledMsg{
@@ -210,6 +211,9 @@ func (m Model) toggleFavoriteBulk(reader favoriteReader, writer favoriteWriter, 
 		}
 		if added == 0 && len(removedValues) > 0 {
 			msg.removedValues = removedValues
+		}
+		if removed == 0 && len(addedValues) > 0 {
+			msg.addedValues = addedValues
 		}
 		return msg
 	}
@@ -602,7 +606,20 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 				category: msg.favCategory,
 			}, nil)
 		}
+	} else if len(msg.addedValues) > 0 {
+		// Bulk pure-add: set undo slot so the user can remove all added items.
+		m.setUndoSlot(undoBulkAddFavoritesAction{
+			typ:    msg.typ,
+			values: msg.addedValues,
+		}, nil)
+	} else if msg.added && msg.value != "" {
+		// Single add: set undo slot.
+		m.setUndoSlot(undoAddFavoriteAction{
+			typ:   msg.typ,
+			value: msg.value,
+		}, nil)
 	} else {
+		// Mixed bulk (some added, some removed): notification only.
 		m.statusBar.notification = newNotification(note)
 	}
 

@@ -25,6 +25,8 @@ const (
 	undoKindBulkEditMetadata                  // bulk metadata edit via 'M' with selection
 	undoKindRemoveFavorite                    // single favorite removed (any view)
 	undoKindBulkRemoveFavorites               // multiple favorites bulk-removed (Favorites view)
+	undoKindAddFavorite                       // single favorite added (any non-Favorites view)
+	undoKindBulkAddFavorites                  // multiple favorites bulk-added (any non-Favorites view)
 )
 
 // undoSlot holds the reversible state for the most recent destructive action.
@@ -253,6 +255,7 @@ type favoriteToggledMsg struct {
 	removedValues  []string        // all removed values (bulk)
 	removedTracks  []library.Track // all removed Track objects (bulk, track type)
 	removedIndices []int           // original unfiltered indices (bulk)
+	addedValues    []string        // all added values (bulk add, for undo tracking)
 	favLevel       favtui.Level
 	favCategory    favtui.Category
 }

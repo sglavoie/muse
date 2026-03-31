@@ -487,6 +487,65 @@ func (a undoRemoveFavoriteAction) perform(m Model) (Model, tea.Cmd) {
 	return m, nil
 }
 
+// --- undoAddFavoriteAction ---
+
+// undoAddFavoriteAction reverts a single favorite addition (undoKindAddFavorite).
+type undoAddFavoriteAction struct {
+	typ   string
+	value string
+}
+
+func (a undoAddFavoriteAction) kind() undoKind { return undoKindAddFavorite }
+
+func (a undoAddFavoriteAction) description() string {
+	return fmt.Sprintf("Added %s to favorites — press u to undo", a.typ)
+}
+
+func (a undoAddFavoriteAction) perform(m Model) (Model, tea.Cmd) {
+	if m.favoriteWriter != nil {
+		if err := m.favoriteWriter.RemoveFavorite(a.typ, a.value); err != nil {
+			slog.Warn("undo add favorite failed", "err", err)
+		}
+	}
+	if a.typ == "track" && a.value != "" {
+		delete(m.favoriteHashes, a.value)
+	}
+	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: removed %s from favorites", a.typ))
+	return m, nil
+}
+
+// --- undoBulkAddFavoritesAction ---
+
+// undoBulkAddFavoritesAction reverts a bulk favorite addition
+// (undoKindBulkAddFavorites).
+type undoBulkAddFavoritesAction struct {
+	typ    string
+	values []string
+}
+
+func (a undoBulkAddFavoritesAction) kind() undoKind { return undoKindBulkAddFavorites }
+
+func (a undoBulkAddFavoritesAction) description() string {
+	n := len(a.values)
+	return fmt.Sprintf("Added %d %ss to favorites — press u to undo", n, a.typ)
+}
+
+func (a undoBulkAddFavoritesAction) perform(m Model) (Model, tea.Cmd) {
+	if m.favoriteWriter != nil {
+		if err := m.favoriteWriter.RemoveFavoritesByTypeAndValues(a.typ, a.values); err != nil {
+			slog.Warn("undo bulk add favorites failed", "err", err)
+		}
+	}
+	if a.typ == "track" {
+		for _, v := range a.values {
+			delete(m.favoriteHashes, v)
+		}
+	}
+	n := len(a.values)
+	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: removed %d %s(s) from favorites", n, a.typ))
+	return m, nil
+}
+
 // --- undoBulkRemoveFavoritesAction ---
 
 // undoBulkRemoveFavoritesAction reverts bulk removal of favorites
