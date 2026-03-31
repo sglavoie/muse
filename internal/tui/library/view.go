@@ -367,41 +367,42 @@ func (v View) Render() string {
 			markerStr = "  "
 		}
 
+		// Resolve per-cell favorite styles before building cell strings
+		// so that padHighlight can compose foreground color with bold.
+		_, isTrackFav := v.FavoriteHashes[t.Hash]
+		_, isArtistFav := v.FavoriteArtists[t.Artist]
+		_, isAlbumFav := v.FavoriteAlbums[t.Album]
+
 		// Build per-cell strings (padded / highlighted).
 		var artistStr, titleStr, albumStr string
 		hasFieldPos := len(dt.artistPositions) > 0 || len(dt.titlePositions) > 0 || len(dt.albumPositions) > 0
 		switch {
 		case hasFieldPos:
-			artistStr = padHighlight(t.Artist, cols.Artist, dt.artistPositions)
-			titleStr = padHighlight(t.Title, cols.Title, dt.titlePositions)
-			albumStr = padHighlight(t.Album, cols.Album, dt.albumPositions)
+			artistStr = padHighlight(t.Artist, cols.Artist, dt.artistPositions, favStyleFor(isArtistFav, v.Styles.FavArtist)...)
+			titleStr = padHighlight(t.Title, cols.Title, dt.titlePositions, favStyleFor(isTrackFav, v.Styles.Favorite)...)
+			albumStr = padHighlight(t.Album, cols.Album, dt.albumPositions, favStyleFor(isAlbumFav, v.Styles.FavAlbum)...)
 		case len(dt.matchedIndexes) > 0:
 			artistOffset, artistLen, titleOffset, titleLen, albumOffset, albumLen :=
 				searchFieldOffsetsAll(t.Artist, t.Title, t.Album)
 			artistPos := fieldMatchPositions(dt.matchedIndexes, artistOffset, artistLen)
 			titlePos := fieldMatchPositions(dt.matchedIndexes, titleOffset, titleLen)
 			albumPos := fieldMatchPositions(dt.matchedIndexes, albumOffset, albumLen)
-			artistStr = padHighlight(t.Artist, cols.Artist, artistPos)
-			titleStr = padHighlight(t.Title, cols.Title, titlePos)
-			albumStr = padHighlight(t.Album, cols.Album, albumPos)
+			artistStr = padHighlight(t.Artist, cols.Artist, artistPos, favStyleFor(isArtistFav, v.Styles.FavArtist)...)
+			titleStr = padHighlight(t.Title, cols.Title, titlePos, favStyleFor(isTrackFav, v.Styles.Favorite)...)
+			albumStr = padHighlight(t.Album, cols.Album, albumPos, favStyleFor(isAlbumFav, v.Styles.FavAlbum)...)
 		default:
 			artistStr = text.Pad(t.Artist, cols.Artist)
 			titleStr = text.Pad(t.Title, cols.Title)
 			albumStr = text.Pad(t.Album, cols.Album)
-		}
-
-		// Apply per-cell favorite foreground colors before row assembly.
-		_, isTrackFav := v.FavoriteHashes[t.Hash]
-		_, isArtistFav := v.FavoriteArtists[t.Artist]
-		_, isAlbumFav := v.FavoriteAlbums[t.Album]
-		if isTrackFav {
-			titleStr = v.Styles.Favorite.Render(titleStr)
-		}
-		if isArtistFav {
-			artistStr = v.Styles.FavArtist.Render(artistStr)
-		}
-		if isAlbumFav {
-			albumStr = v.Styles.FavAlbum.Render(albumStr)
+			if isTrackFav {
+				titleStr = v.Styles.Favorite.Render(titleStr)
+			}
+			if isArtistFav {
+				artistStr = v.Styles.FavArtist.Render(artistStr)
+			}
+			if isAlbumFav {
+				albumStr = v.Styles.FavAlbum.Render(albumStr)
+			}
 		}
 
 		var row string

@@ -38,15 +38,34 @@ func fieldMatchPositions(matchedIndexes []int, fieldOffset, fieldLen int) []int 
 	return result
 }
 
+// favStyleFor returns a single-element slice containing style when isFav is
+// true, or nil otherwise. It is meant to be spread into padHighlight's
+// variadic baseStyles parameter.
+func favStyleFor(isFav bool, style lipgloss.Style) []lipgloss.Style {
+	if isFav {
+		return []lipgloss.Style{style}
+	}
+	return nil
+}
+
 // padHighlight pads or truncates s to exactly width display columns, applying
 // bold highlight to the runes at positions (0-indexed into s) that fall
 // within the visible portion. ANSI codes are inserted around highlighted
 // runes so the visible width is preserved.
-func padHighlight(s string, width int, positions []int) string {
+//
+// An optional baseStyles parameter supplies a foreground style (e.g. a
+// favorite color) that is composed with the bold highlight. When provided,
+// matched characters are rendered with baseStyle+Bold and non-matched
+// characters are rendered with baseStyle alone, preventing inner SGR resets
+// from clearing the outer foreground color.
+func padHighlight(s string, width int, positions []int, baseStyles ...lipgloss.Style) string {
 	if width <= 0 {
 		return ""
 	}
 	if len(positions) == 0 {
+		if len(baseStyles) > 0 {
+			return baseStyles[0].Render(text.Pad(s, width))
+		}
 		return text.Pad(s, width)
 	}
 	runes := []rune(s)
@@ -82,21 +101,63 @@ func padHighlight(s string, width int, positions []int) string {
 		posSet[p] = struct{}{}
 	}
 
-	boldStyle := lipgloss.NewStyle().Bold(true)
-	var b strings.Builder
-	for i, r := range content {
-		if _, ok := posSet[i]; ok {
-			b.WriteString(boldStyle.Render(string(r)))
-		} else {
-			b.WriteRune(r)
-		}
+	hasBase := len(baseStyles) > 0
+	var base lipgloss.Style
+	if hasBase {
+		base = baseStyles[0]
 	}
+	boldStyle := lipgloss.NewStyle().Bold(true)
+	if hasBase {
+		boldStyle = base.Bold(true)
+	}
+
+	// Group consecutive characters of the same type (matched vs non-matched)
+	// into runs, rendering each run with a single .Render() call to minimise
+	// ANSI escape overhead.
+	var b strings.Builder
+	run := make([]rune, 0, len(content))
+	runBold := false
+
+	flushRun := func() {
+		if len(run) == 0 {
+			return
+		}
+		rs := string(run)
+		if runBold {
+			b.WriteString(boldStyle.Render(rs))
+		} else if hasBase {
+			b.WriteString(base.Render(rs))
+		} else {
+			b.WriteString(rs)
+		}
+		run = run[:0]
+	}
+
+	for i, r := range content {
+		_, isMatch := posSet[i]
+		if i > 0 && isMatch != runBold {
+			flushRun()
+		}
+		runBold = isMatch
+		run = append(run, r)
+	}
+	flushRun()
+
 	if ellipsis {
-		b.WriteRune('…')
+		if hasBase {
+			b.WriteString(base.Render("…"))
+		} else {
+			b.WriteRune('…')
+		}
 		contentWidth++
 	}
 	if contentWidth < width {
-		b.WriteString(strings.Repeat(" ", width-contentWidth))
+		pad := strings.Repeat(" ", width-contentWidth)
+		if hasBase {
+			b.WriteString(base.Render(pad))
+		} else {
+			b.WriteString(pad)
+		}
 	}
 
 	return b.String()

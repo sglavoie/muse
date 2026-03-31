@@ -367,7 +367,8 @@ func TestHighlightedRowContainsBoldANSI(t *testing.T) {
 	v = v.AppendFilterChar('A')
 	v = v.AppendFilterChar('l')
 	got := v.Render()
-	if !strings.Contains(got, styledText(lipgloss.NewStyle().Bold(true), "A")) && !strings.Contains(got, styledText(lipgloss.NewStyle().Bold(true), "l")) {
+	boldAl := styledText(lipgloss.NewStyle().Bold(true), "Al")
+	if !strings.Contains(got, boldAl) {
 		t.Errorf("rendered row should contain bold-styled match highlights, got:\n%q", got)
 	}
 }
@@ -1009,9 +1010,9 @@ func TestFieldSpecificAlbumHighlight(t *testing.T) {
 	v = v.AppendFilterChar(':')
 	v = v.AppendFilterChar('d')
 	got := v.Render()
-	boldD := styledText(lipgloss.NewStyle().Bold(true), "D")
-	if !strings.Contains(got, boldD) {
-		t.Errorf("expected bold 'D' in album column for field-specific query, got:\n%q", got)
+	boldDebut := styledText(lipgloss.NewStyle().Bold(true), "Debut")
+	if !strings.Contains(got, boldDebut) {
+		t.Errorf("expected bold 'Debut' in album column for field-specific query, got:\n%q", got)
 	}
 }
 
@@ -1142,10 +1143,10 @@ func TestFieldSpecificMatchedIndexesNil(t *testing.T) {
 		v = v.AppendFilterChar(ch)
 	}
 	got := v.Render()
-	// Artist should be highlighted
-	boldR := styledText(lipgloss.NewStyle().Bold(true), "R")
-	if !strings.Contains(got, boldR) {
-		t.Errorf("expected bold 'R' in artist column for field-specific query, got:\n%q", got)
+	// Artist should be highlighted (all 9 chars grouped into one bold run)
+	boldRadiohead := styledText(lipgloss.NewStyle().Bold(true), "Radiohead")
+	if !strings.Contains(got, boldRadiohead) {
+		t.Errorf("expected bold 'Radiohead' in artist column for field-specific query, got:\n%q", got)
 	}
 }
 
@@ -1255,8 +1256,47 @@ func TestGeneralSearchHighlightsAlbumColumn(t *testing.T) {
 		v = v.AppendFilterChar(ch)
 	}
 	got := v.Render()
-	boldD := styledText(lipgloss.NewStyle().Bold(true), "D")
-	if !strings.Contains(got, boldD) {
-		t.Errorf("expected bold 'D' in album column for general search matching album, got:\n%q", got)
+	boldDebut := styledText(lipgloss.NewStyle().Bold(true), "Debut")
+	if !strings.Contains(got, boldDebut) {
+		t.Errorf("expected bold 'Debut' in album column for general search matching album, got:\n%q", got)
+	}
+}
+
+// TestFavoriteColorSurvivesSearchHighlight verifies that a favorited artist's
+// foreground colour is preserved across bold-highlighted characters — the bug
+// where inner SGR resets from bold rendering cleared the outer favourite colour.
+func TestFavoriteColorSurvivesSearchHighlight(t *testing.T) {
+	tracks := []musiclib.Track{
+		{Artist: "Alice", Title: "Song One", Album: "Debut", Duration: 185},
+	}
+	idx := buildIndex(tracks)
+	// Match positions 0,1 in Artist → "Al" bold-highlighted.
+	fake := highlightFake{
+		results: []musiclib.Match{
+			{TrackIndex: 0, ArtistPositions: []int{0, 1}},
+		},
+	}
+	s := styles.NewStyles(true) // dark theme for deterministic colour codes
+	v := View{
+		Index:          idx,
+		Width:          80,
+		Height:         24,
+		Fuzzy:          fake,
+		Styles:         s,
+		FavoriteArtists: map[string]struct{}{"Alice": {}},
+	}
+	v = v.ActivateFilter()
+	v = v.AppendFilterChar('a')
+	v = v.AppendFilterChar('l')
+	got := v.Render()
+
+	// The artist column should contain bold+purple "Al" and plain purple "ice".
+	boldPurple := s.FavArtist.Bold(true)
+	plainPurple := s.FavArtist
+	if !strings.Contains(got, boldPurple.Render("Al")) {
+		t.Errorf("expected bold+FavArtist 'Al', got:\n%q", got)
+	}
+	if !strings.Contains(got, plainPurple.Render("ice")) {
+		t.Errorf("expected FavArtist 'ice' (non-bold remainder), got:\n%q", got)
 	}
 }

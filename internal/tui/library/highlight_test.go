@@ -1,6 +1,12 @@
 package library
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
+)
 
 func TestSearchFieldOffsetsAllBasic(t *testing.T) {
 	aOff, aLen, tOff, tLen, lOff, lLen := searchFieldOffsetsAll("Alice", "Song One", "Debut")
@@ -55,5 +61,63 @@ func TestFieldMatchPositionsIgnoresOutOfRange(t *testing.T) {
 	got := fieldMatchPositions(matchedIndexes, albumOff, albumLen)
 	if len(got) != 1 || got[0] != 0 {
 		t.Errorf("fieldMatchPositions filter: expected [0], got %v", got)
+	}
+}
+
+// TestPadHighlightNoBaseStyleBackwardCompat verifies that calling padHighlight
+// without a base style produces the same output as the original behaviour:
+// bold ANSI on matched chars, plain runes elsewhere.
+func TestPadHighlightNoBaseStyleBackwardCompat(t *testing.T) {
+	got := padHighlight("Hello", 10, []int{0, 1})
+	bold := lipgloss.NewStyle().Bold(true)
+	want := bold.Render("He") + "llo" + strings.Repeat(" ", 5)
+	if got != want {
+		t.Errorf("padHighlight without base style:\n got %q\nwant %q", got, want)
+	}
+}
+
+// TestPadHighlightWithBaseStylePreservesColor verifies that when a foreground
+// style is passed as base, both matched and non-matched characters carry the
+// foreground colour — preventing the inner bold reset from clearing it.
+func TestPadHighlightWithBaseStylePreservesColor(t *testing.T) {
+	purple := lipgloss.NewStyle().Foreground(lipgloss.Color("#c678dd"))
+	got := padHighlight("Alice", 10, []int{0, 1}, purple)
+
+	// The stripped (visible) text should be the same regardless of style.
+	stripped := ansi.Strip(got)
+	wantVisible := "Alice     "
+	if stripped != wantVisible {
+		t.Errorf("visible text: got %q, want %q", stripped, wantVisible)
+	}
+
+	// Bold+purple on "Al", plain purple on "ice", plain purple on padding.
+	boldPurple := purple.Bold(true)
+	if !strings.Contains(got, boldPurple.Render("Al")) {
+		t.Errorf("expected bold+purple 'Al' in output, got %q", got)
+	}
+	if !strings.Contains(got, purple.Render("ice")) {
+		t.Errorf("expected purple 'ice' in output, got %q", got)
+	}
+}
+
+// TestPadHighlightBaseStyleNoPositions verifies that a base style with no
+// matched positions wraps the entire padded string with the base style.
+func TestPadHighlightBaseStyleNoPositions(t *testing.T) {
+	purple := lipgloss.NewStyle().Foreground(lipgloss.Color("#c678dd"))
+	got := padHighlight("Hi", 5, nil, purple)
+	want := purple.Render("Hi   ")
+	if got != want {
+		t.Errorf("padHighlight base style, no positions:\n got %q\nwant %q", got, want)
+	}
+}
+
+// TestPadHighlightGroupsConsecutiveMatches verifies that consecutive matched
+// positions produce fewer ANSI sequences than per-character rendering.
+func TestPadHighlightGroupsConsecutiveMatches(t *testing.T) {
+	got := padHighlight("Hello", 10, []int{0, 1, 2})
+	bold := lipgloss.NewStyle().Bold(true)
+	// Should contain "Hel" as a single bold render, not three separate ones.
+	if !strings.Contains(got, bold.Render("Hel")) {
+		t.Errorf("expected grouped bold 'Hel', got %q", got)
 	}
 }
