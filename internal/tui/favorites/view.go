@@ -467,21 +467,25 @@ func (v View) renderTrackRows(items []library.Track) string {
 		_, isTrackFav := v.FavoriteHashes[t.Hash]
 		_, isArtistFav := v.FavoriteArtists[t.Artist]
 		_, isAlbumFav := v.FavoriteAlbums[t.Album]
-		if isTrackFav {
-			titleStr = v.Styles.Favorite.Render(titleStr)
-		}
-		if isArtistFav {
-			artistStr = v.Styles.FavArtist.Render(artistStr)
-		}
-		if isAlbumFav {
-			albumStr = v.Styles.FavAlbum.Render(albumStr)
-		}
-
-		line := marker + pos + " " + titleStr + " " + artistStr + " " + albumStr + " " + dur + " " + plays
 		if isFocused {
-			line = v.Styles.Accent.Render(line)
+			a := v.Styles.Accent
+			sep := a.Render(" ")
+			titleStr = styles.AccentFavRender(a, v.Styles.FavoriteAccent, isTrackFav, titleStr)
+			artistStr = styles.AccentFavRender(a, v.Styles.FavArtistAccent, isArtistFav, artistStr)
+			albumStr = styles.AccentFavRender(a, v.Styles.FavAlbumAccent, isAlbumFav, albumStr)
+			lines[i] = a.Render(marker+pos) + sep + titleStr + sep + artistStr + sep + albumStr + sep + a.Render(dur) + sep + a.Render(plays)
+		} else {
+			if isTrackFav {
+				titleStr = v.Styles.Favorite.Render(titleStr)
+			}
+			if isArtistFav {
+				artistStr = v.Styles.FavArtist.Render(artistStr)
+			}
+			if isAlbumFav {
+				albumStr = v.Styles.FavAlbum.Render(albumStr)
+			}
+			lines[i] = marker + pos + " " + titleStr + " " + artistStr + " " + albumStr + " " + dur + " " + plays
 		}
-		lines[i] = line
 	}
 	return header + "\n" + strings.Join(lines, "\n")
 }

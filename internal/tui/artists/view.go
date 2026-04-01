@@ -497,15 +497,17 @@ func (v View) renderTracks() string {
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 
 		_, isTrackFav := v.FavoriteHashes[t.Hash]
-		if isTrackFav {
-			titleStr = v.Styles.Favorite.Render(titleStr)
-		}
-
-		line := markerStr + pos + " " + titleStr + " " + dur
 		if isFocused {
-			line = v.Styles.Accent.Render(line)
+			a := v.Styles.Accent
+			sep := a.Render(" ")
+			titleStr = styles.AccentFavRender(a, v.Styles.FavoriteAccent, isTrackFav, titleStr)
+			lines[i] = a.Render(markerStr+pos) + sep + titleStr + sep + a.Render(dur)
+		} else {
+			if isTrackFav {
+				titleStr = v.Styles.Favorite.Render(titleStr)
+			}
+			lines[i] = markerStr + pos + " " + titleStr + " " + dur
 		}
-		lines[i] = line
 	}
 	return styledHeading + v.filterSeparator() + header + "\n" + strings.Join(lines, "\n")
 }

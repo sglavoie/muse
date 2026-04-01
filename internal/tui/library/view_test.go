@@ -1308,13 +1308,14 @@ func TestFavoriteColorSurvivesSearchHighlight(t *testing.T) {
 	v = v.AppendFilterChar('l')
 	got := v.Render()
 
-	// The artist column should contain bold+purple "Al" and plain purple "ice".
-	boldPurple := s.FavArtist.Bold(true)
-	plainPurple := s.FavArtist
-	if !strings.Contains(got, boldPurple.Render("Al")) {
-		t.Errorf("expected bold+FavArtist 'Al', got:\n%q", got)
+	// The first row is focused (cursor=0), so per-cell accent styling uses
+	// FavArtistAccent (combined fg+bg) as the base for padHighlight.
+	boldAccent := s.FavArtistAccent.Bold(true)
+	plainAccent := s.FavArtistAccent
+	if !strings.Contains(got, boldAccent.Render("Al")) {
+		t.Errorf("expected bold+FavArtistAccent 'Al', got:\n%q", got)
 	}
-	if !strings.Contains(got, plainPurple.Render("ice")) {
-		t.Errorf("expected FavArtist 'ice' (non-bold remainder), got:\n%q", got)
+	if !strings.Contains(got, plainAccent.Render("ice")) {
+		t.Errorf("expected FavArtistAccent 'ice' (non-bold remainder), got:\n%q", got)
 	}
 }

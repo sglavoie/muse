@@ -1418,13 +1418,13 @@ func TestQueueRenderFocusedWithFavoriteUsesAccentBackground(t *testing.T) {
 	s := styles.NewStyles(true)
 	out := v.render(s, "", favHashes, nil, nil)
 
-	accentRef := s.Accent.Render("REF")
-	if ansi.Strip(accentRef) == accentRef {
+	// With per-cell accent styling, a focused+fav title uses FavoriteAccent
+	// (combined foreground+background) rather than nesting Favorite inside Accent.
+	favAccentRef := s.FavoriteAccent.Render("REF")
+	if ansi.Strip(favAccentRef) == favAccentRef {
 		return // no ANSI in this environment
 	}
-	accentPrefix, _, _ := strings.Cut(accentRef, "REF")
-	titleRef := s.Favorite.Render("REF")
-	titlePrefix, _, _ := strings.Cut(titleRef, "REF")
+	favAccentPrefix, _, _ := strings.Cut(favAccentRef, "REF")
 
 	var rawLine string
 	for l := range strings.SplitSeq(out, "\n") {
@@ -1436,11 +1436,8 @@ func TestQueueRenderFocusedWithFavoriteUsesAccentBackground(t *testing.T) {
 	if rawLine == "" {
 		t.Fatal("focused entry must appear in output")
 	}
-	if !strings.Contains(rawLine, accentPrefix) {
-		t.Errorf("focused+fav row must use Accent background; got: %q", rawLine)
-	}
-	if !strings.Contains(rawLine, titlePrefix) {
-		t.Errorf("focused+fav row: title cell must retain Favorite color inside Accent wrap; got: %q", rawLine)
+	if !strings.Contains(rawLine, favAccentPrefix) {
+		t.Errorf("focused+fav row: title cell must use FavoriteAccent style; got: %q", rawLine)
 	}
 }
 
@@ -1465,19 +1462,21 @@ func TestFavoritesViewPerCellArtistFavoriteStyle(t *testing.T) {
 	}
 	out := fv.Render()
 
-	artistRef := s.FavArtist.Render("REF")
+	// The first (and only) row is focused (cursor=0), so per-cell accent
+	// styling uses FavArtistAccent for the artist cell.
+	artistRef := s.FavArtistAccent.Render("REF")
 	if ansi.Strip(artistRef) == artistRef {
 		return // no ANSI in this environment
 	}
 	artistPrefix, _, _ := strings.Cut(artistRef, "REF")
-	titleRef := s.Favorite.Render("REF")
+	titleRef := s.FavoriteAccent.Render("REF")
 	titlePrefix, _, _ := strings.Cut(titleRef, "REF")
 
 	if !strings.Contains(out, artistPrefix) {
-		t.Errorf("favorites view artist-only fav: artist cell must use FavArtist style; got:\n%s", ansi.Strip(out))
+		t.Errorf("favorites view artist-only fav: artist cell must use FavArtistAccent style; got:\n%s", ansi.Strip(out))
 	}
 	if strings.Contains(out, titlePrefix) {
-		t.Errorf("favorites view artist-only fav: title cell must NOT use Favorite style; got:\n%s", ansi.Strip(out))
+		t.Errorf("favorites view artist-only fav: title cell must NOT use FavoriteAccent style; got:\n%s", ansi.Strip(out))
 	}
 }
 

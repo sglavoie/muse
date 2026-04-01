@@ -463,10 +463,55 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes, f
 		_, isAlbumFav := favAlbums[e.Album]
 
 		// Style each text cell independently.
+		// When the row is focused, apply accent background to each cell
+		// individually rather than wrapping the whole row—nested
+		// Render calls produce ANSI resets that kill the outer background.
 		titleStr := padQueue(e.Title, titleWidth)
 		artistStr := padQueue(e.Artist, artistWidth)
 		albumStr := padQueue(e.Album, albumWidth)
-		if isNowPlaying {
+		if e.Missing {
+			plainLine := markerStr + pos + " " + padQueue(e.Title, titleWidth) + " " + padQueue(e.Artist, artistWidth) + " " + padQueue(e.Album, albumWidth) + " " + source + " " + dur
+			lines[i] = s.Dim.Render(plainLine + " [missing]")
+		} else if isFocused {
+			bg := s.Accent.GetBackground()
+			sep := s.Accent.Render(" ")
+			if isNowPlaying {
+				titleStr = s.NowPlaying.Background(bg).Render(titleStr)
+				artistStr = s.NowPlaying.Background(bg).Render(artistStr)
+				albumStr = s.NowPlaying.Background(bg).Render(albumStr)
+				if isTrackFav {
+					titleStr = s.NowPlayingFavorite.Background(bg).Render(padQueue(e.Title, titleWidth))
+				}
+				if isArtistFav {
+					artistStr = s.NowPlayingFavArtist.Background(bg).Render(padQueue(e.Artist, artistWidth))
+				}
+				if isAlbumFav {
+					albumStr = s.NowPlayingFavAlbum.Background(bg).Render(padQueue(e.Album, albumWidth))
+				}
+			} else {
+				if isTrackFav {
+					titleStr = s.FavoriteAccent.Render(titleStr)
+				} else {
+					titleStr = s.Accent.Render(titleStr)
+				}
+				if isArtistFav {
+					artistStr = s.FavArtistAccent.Render(artistStr)
+				} else {
+					artistStr = s.Accent.Render(artistStr)
+				}
+				if isAlbumFav {
+					albumStr = s.FavAlbumAccent.Render(albumStr)
+				} else {
+					albumStr = s.Accent.Render(albumStr)
+				}
+			}
+			markerStr = s.Accent.Render(markerStr)
+			pos = s.Accent.Render(pos)
+			source = s.Accent.Render(source)
+			dur = s.Accent.Render(dur)
+			line := markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + source + sep + dur
+			lines[i] = line
+		} else if isNowPlaying {
 			titleStr = s.NowPlaying.Render(titleStr)
 			artistStr = s.NowPlaying.Render(artistStr)
 			albumStr = s.NowPlaying.Render(albumStr)
@@ -479,6 +524,8 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes, f
 			if isAlbumFav {
 				albumStr = s.NowPlayingFavAlbum.Render(padQueue(e.Album, albumWidth))
 			}
+			line := markerStr + pos + " " + titleStr + " " + artistStr + " " + albumStr + " " + source + " " + dur
+			lines[i] = line
 		} else {
 			if isTrackFav {
 				titleStr = s.Favorite.Render(titleStr)
@@ -489,17 +536,7 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes, f
 			if isAlbumFav {
 				albumStr = s.FavAlbum.Render(albumStr)
 			}
-		}
-
-		line := markerStr + pos + " " + titleStr + " " + artistStr + " " + albumStr + " " + source + " " + dur
-		switch {
-		case e.Missing:
-			plainLine := markerStr + pos + " " + padQueue(e.Title, titleWidth) + " " + padQueue(e.Artist, artistWidth) + " " + padQueue(e.Album, albumWidth) + " " + source + " " + dur
-			lines[i] = s.Dim.Render(plainLine + " [missing]")
-		case isFocused:
-			lines[i] = s.Accent.Render(line)
-		default:
-			lines[i] = line
+			lines[i] = markerStr + pos + " " + titleStr + " " + artistStr + " " + albumStr + " " + source + " " + dur
 		}
 	}
 	// Filter bar line (above the column header, matching the pattern of other views).

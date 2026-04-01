@@ -380,40 +380,72 @@ func (v View) Render() string {
 		_, isAlbumFav := v.FavoriteAlbums[t.Album]
 
 		// Build per-cell strings (padded / highlighted).
+		// When the row is focused, apply accent background to each cell
+		// individually rather than wrapping the whole row—nested
+		// Render calls produce ANSI resets that kill the outer background.
 		var artistStr, titleStr, albumStr string
 		hasFieldPos := len(dt.artistPositions) > 0 || len(dt.titlePositions) > 0 || len(dt.albumPositions) > 0
+
+		// Choose the right style set based on focus state.
+		artistFavStyle := favStyleFor(isArtistFav, v.Styles.FavArtist)
+		titleFavStyle := favStyleFor(isTrackFav, v.Styles.Favorite)
+		albumFavStyle := favStyleFor(isAlbumFav, v.Styles.FavAlbum)
+		if isFocused {
+			artistFavStyle = accentStyleFor(isArtistFav, v.Styles.FavArtistAccent, v.Styles.Accent)
+			titleFavStyle = accentStyleFor(isTrackFav, v.Styles.FavoriteAccent, v.Styles.Accent)
+			albumFavStyle = accentStyleFor(isAlbumFav, v.Styles.FavAlbumAccent, v.Styles.Accent)
+		}
+
 		switch {
 		case hasFieldPos:
-			artistStr = padHighlight(t.Artist, cols.Artist, dt.artistPositions, favStyleFor(isArtistFav, v.Styles.FavArtist)...)
-			titleStr = padHighlight(t.Title, cols.Title, dt.titlePositions, favStyleFor(isTrackFav, v.Styles.Favorite)...)
-			albumStr = padHighlight(t.Album, cols.Album, dt.albumPositions, favStyleFor(isAlbumFav, v.Styles.FavAlbum)...)
+			artistStr = padHighlight(t.Artist, cols.Artist, dt.artistPositions, artistFavStyle...)
+			titleStr = padHighlight(t.Title, cols.Title, dt.titlePositions, titleFavStyle...)
+			albumStr = padHighlight(t.Album, cols.Album, dt.albumPositions, albumFavStyle...)
 		case len(dt.matchedIndexes) > 0:
 			artistOffset, artistLen, titleOffset, titleLen, albumOffset, albumLen :=
 				searchFieldOffsetsAll(t.Artist, t.Title, t.Album)
 			artistPos := fieldMatchPositions(dt.matchedIndexes, artistOffset, artistLen)
 			titlePos := fieldMatchPositions(dt.matchedIndexes, titleOffset, titleLen)
 			albumPos := fieldMatchPositions(dt.matchedIndexes, albumOffset, albumLen)
-			artistStr = padHighlight(t.Artist, cols.Artist, artistPos, favStyleFor(isArtistFav, v.Styles.FavArtist)...)
-			titleStr = padHighlight(t.Title, cols.Title, titlePos, favStyleFor(isTrackFav, v.Styles.Favorite)...)
-			albumStr = padHighlight(t.Album, cols.Album, albumPos, favStyleFor(isAlbumFav, v.Styles.FavAlbum)...)
+			artistStr = padHighlight(t.Artist, cols.Artist, artistPos, artistFavStyle...)
+			titleStr = padHighlight(t.Title, cols.Title, titlePos, titleFavStyle...)
+			albumStr = padHighlight(t.Album, cols.Album, albumPos, albumFavStyle...)
 		default:
 			artistStr = text.Pad(t.Artist, cols.Artist)
 			titleStr = text.Pad(t.Title, cols.Title)
 			albumStr = text.Pad(t.Album, cols.Album)
-			if isTrackFav {
-				titleStr = v.Styles.Favorite.Render(titleStr)
-			}
-			if isArtistFav {
-				artistStr = v.Styles.FavArtist.Render(artistStr)
-			}
-			if isAlbumFav {
-				albumStr = v.Styles.FavAlbum.Render(albumStr)
+			if isFocused {
+				artistStr = accentStyleFor(isArtistFav, v.Styles.FavArtistAccent, v.Styles.Accent)[0].Render(artistStr)
+				titleStr = accentStyleFor(isTrackFav, v.Styles.FavoriteAccent, v.Styles.Accent)[0].Render(titleStr)
+				albumStr = accentStyleFor(isAlbumFav, v.Styles.FavAlbumAccent, v.Styles.Accent)[0].Render(albumStr)
+			} else {
+				if isTrackFav {
+					titleStr = v.Styles.Favorite.Render(titleStr)
+				}
+				if isArtistFav {
+					artistStr = v.Styles.FavArtist.Render(artistStr)
+				}
+				if isAlbumFav {
+					albumStr = v.Styles.FavAlbum.Render(albumStr)
+				}
 			}
 		}
 
 		var row string
 		if cols.Artist == 0 {
-			row = markerStr + text.Pad(num, cols.TrackNum)
+			if isFocused {
+				row = v.Styles.Accent.Render(markerStr+text.Pad(num, cols.TrackNum))
+			} else {
+				row = markerStr + text.Pad(num, cols.TrackNum)
+			}
+		} else if isFocused {
+			sep := v.Styles.Accent.Render(" ")
+			numStr := v.Styles.Accent.Render(markerStr + text.Pad(num, cols.TrackNum))
+			durStr := v.Styles.Accent.Render(text.PadLeft(dur, cols.Duration))
+			row = numStr + sep + artistStr + sep + titleStr + sep + albumStr + sep + durStr
+			if cols.DateAdded > 0 {
+				row += sep + v.Styles.Accent.Render(text.Pad(dateAdded, cols.DateAdded))
+			}
 		} else {
 			row = markerStr + text.Pad(num, cols.TrackNum) + " " +
 				artistStr + " " + titleStr + " " + albumStr + " " +
@@ -423,10 +455,6 @@ func (v View) Render() string {
 			}
 		}
 
-		// Focused row: Accent sets only background so inner foreground codes survive.
-		if isFocused {
-			row = v.Styles.Accent.Render(row)
-		}
 		lines[i] = row
 	}
 

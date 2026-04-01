@@ -327,18 +327,21 @@ func (v View) renderTracks() string {
 
 		_, isTrackFav := v.FavoriteHashes[t.Hash]
 		_, isArtistFav := v.FavoriteArtists[t.Artist]
-		if isTrackFav {
-			titleStr = v.Styles.Favorite.Render(titleStr)
-		}
-		if isArtistFav {
-			artistStr = v.Styles.FavArtist.Render(artistStr)
-		}
-
-		line := markerStr + pos + " " + titleStr + " " + artistStr + " " + dur
 		if isFocused {
-			line = v.Styles.Accent.Render(line)
+			a := v.Styles.Accent
+			sep := a.Render(" ")
+			titleStr = styles.AccentFavRender(a, v.Styles.FavoriteAccent, isTrackFav, titleStr)
+			artistStr = styles.AccentFavRender(a, v.Styles.FavArtistAccent, isArtistFav, artistStr)
+			lines[i] = a.Render(markerStr+pos) + sep + titleStr + sep + artistStr + sep + a.Render(dur)
+		} else {
+			if isTrackFav {
+				titleStr = v.Styles.Favorite.Render(titleStr)
+			}
+			if isArtistFav {
+				artistStr = v.Styles.FavArtist.Render(artistStr)
+			}
+			lines[i] = markerStr + pos + " " + titleStr + " " + artistStr + " " + dur
 		}
-		lines[i] = line
 	}
 	return heading + v.filterSeparator() + header + "\n" + strings.Join(lines, "\n")
 }

@@ -59,3 +59,14 @@ func NewStyles(hasDark bool) Styles {
 		HasDark:             hasDark,
 	}
 }
+
+// AccentFavRender renders text with the accent background. When isFav is
+// true the combined foreground+background favorite accent style is used;
+// otherwise the plain accent background style is applied. This avoids
+// nesting Render calls whose ANSI resets would kill an outer background.
+func AccentFavRender(accent, favAccent lipgloss.Style, isFav bool, text string) string {
+	if isFav {
+		return favAccent.Render(text)
+	}
+	return accent.Render(text)
+}

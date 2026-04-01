@@ -48,6 +48,18 @@ func favStyleFor(isFav bool, style lipgloss.Style) []lipgloss.Style {
 	return nil
 }
 
+// accentStyleFor returns a single-element slice containing the appropriate
+// accent style for a focused row cell. When isFav is true the combined
+// foreground+background favorite accent style is returned; otherwise the
+// plain accent background style is used. This ensures every cell in a
+// focused row carries its own background, avoiding ANSI reset leakage.
+func accentStyleFor(isFav bool, favAccent, accent lipgloss.Style) []lipgloss.Style {
+	if isFav {
+		return []lipgloss.Style{favAccent}
+	}
+	return []lipgloss.Style{accent}
+}
+
 // padHighlight pads or truncates s to exactly width display columns, applying
 // bold highlight to the runes at positions (0-indexed into s) that fall
 // within the visible portion. ANSI codes are inserted around highlighted
