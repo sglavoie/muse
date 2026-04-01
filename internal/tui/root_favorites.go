@@ -65,6 +65,21 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 			return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
 		}
 
+	case viewRecentlyAdded:
+		// Bulk: all selected hashes.
+		if len(m.recentlyAdded.selectedHashes) > 0 {
+			hashes := make([]string, 0, len(m.recentlyAdded.selectedHashes))
+			for h := range m.recentlyAdded.selectedHashes {
+				hashes = append(hashes, h)
+			}
+			m.recentlyAdded.selectedHashes = nil
+			return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
+		}
+		// Single: focused track.
+		if t, ok := m.recentlyAdded.view().FocusedTrack(); ok {
+			return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
+		}
+
 	case viewArtists:
 		switch m.artists.level {
 		case arttui.ArtistLevel:
