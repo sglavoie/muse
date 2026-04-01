@@ -164,9 +164,12 @@ func (v View) moveCursor(delta int) View {
 }
 
 // visibleRows returns the maximum number of track rows that fit on screen.
-// Reserve 1 line for the column header.
 func (v View) visibleRows() int {
-	return layout.VisibleRows(v.Height, 1)
+	reserve := 1 // column header
+	if v.Filter.Active || v.Filter.Text != "" {
+		reserve++
+	}
+	return layout.VisibleRows(v.Height, reserve)
 }
 
 // filteredMatches returns the current fuzzy-match slice and whether a filter
