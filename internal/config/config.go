@@ -14,6 +14,10 @@ import (
 const configTemplate = `# Paths to your music library roots (supports multiple directories).
 music_directories = [%q]
 
+# Directory name patterns to exclude from the music library scan.
+# Matches any directory component in a file's path (exact, case-sensitive).
+# excluded_paths = ["Podcasts", "Audiobooks"]
+
 # Default playback volume (0-100).
 default_volume = %d
 
@@ -83,6 +87,7 @@ const (
 // Config holds all application configuration values.
 type Config struct {
 	MusicDirectories           []string         `toml:"music_directories"`
+	ExcludedPaths              []string         `toml:"excluded_paths"`
 	MusicDirectory             string           `toml:"-"` // legacy compat; always equals MusicDirectories[0]
 	MPVSocketPath              string           `toml:"mpv_socket_path"`
 	MPVExtraFlags              []string         `toml:"mpv_extra_flags"`
@@ -120,6 +125,7 @@ func defaults() Config {
 	}
 	return Config{
 		MusicDirectories:           []string{musicDir},
+		ExcludedPaths:              nil,
 		MusicDirectory:             musicDir,
 		MPVExtraFlags:              []string{},
 		DefaultVolume:              defaultVolume,
@@ -192,6 +198,7 @@ func Load(configDir string) (LoadResult, error) {
 // so that omitted TOML keys can be distinguished from explicit zero values.
 type rawConfig struct {
 	MusicDirectories           []string         `toml:"music_directories"`
+	ExcludedPaths              []string         `toml:"excluded_paths"`
 	MusicDirectory             string           `toml:"music_directory"` // legacy single-dir field
 	MPVSocketPath              string           `toml:"mpv_socket_path"`
 	MPVExtraFlags              []string         `toml:"mpv_extra_flags"`
@@ -248,6 +255,20 @@ func validate(raw rawConfig) (Config, []string) {
 		}
 	}
 	// empty means not set — use the default silently
+
+	// Dedup, trim, and clean excluded paths.
+	if len(raw.ExcludedPaths) > 0 {
+		seenExcl := make(map[string]bool, len(raw.ExcludedPaths))
+		var resolved []string
+		for _, p := range raw.ExcludedPaths {
+			trimmed := strings.TrimSpace(p)
+			if trimmed != "" && !seenExcl[trimmed] {
+				seenExcl[trimmed] = true
+				resolved = append(resolved, trimmed)
+			}
+		}
+		cfg.ExcludedPaths = resolved
+	}
 
 	if raw.MPVSocketPath != "" {
 		if expanded, err := expandTilde(raw.MPVSocketPath); err == nil {

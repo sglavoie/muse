@@ -41,7 +41,7 @@ func TestWalk_CaseInsensitiveExtensions(t *testing.T) {
 	mkfile(t, filepath.Join(dir, "song.OPUS"))
 	mkfile(t, filepath.Join(dir, "cover.jpg")) // not audio
 
-	got := collectNames(Walk(context.Background(), []string{dir}))
+	got := collectNames(Walk(context.Background(), []string{dir}, nil))
 	want := []string{"album.Flac", "song.OPUS", "track.MP3"}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
@@ -54,7 +54,7 @@ func TestWalk_SkipsHiddenFilesAndDirs(t *testing.T) {
 	mkfile(t, filepath.Join(dir, ".hidden.mp3"))
 	mkfile(t, filepath.Join(dir, ".hiddendir", "inside.mp3"))
 
-	got := collectNames(Walk(context.Background(), []string{dir}))
+	got := collectNames(Walk(context.Background(), []string{dir}, nil))
 	want := []string{"visible.mp3"}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
@@ -67,7 +67,7 @@ func TestWalk_NonAudioFilesDropped(t *testing.T) {
 	mkfile(t, filepath.Join(dir, "cover.jpg"))
 	mkfile(t, filepath.Join(dir, "notes.txt"))
 
-	got := collectNames(Walk(context.Background(), []string{dir}))
+	got := collectNames(Walk(context.Background(), []string{dir}, nil))
 	want := []string{"track.mp3"}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
@@ -83,7 +83,7 @@ func TestWalk_FileSymlinksFollowed(t *testing.T) {
 		t.Skip("symlinks not supported:", err)
 	}
 
-	got := collectNames(Walk(context.Background(), []string{dir}))
+	got := collectNames(Walk(context.Background(), []string{dir}, nil))
 	// Both the real file and the symlink should appear.
 	if !slices.Contains(got, "real.mp3") {
 		t.Errorf("real file missing: %v", got)
@@ -103,7 +103,7 @@ func TestWalk_DirSymlinksNotFollowed(t *testing.T) {
 		t.Skip("symlinks not supported:", err)
 	}
 
-	got := collectNames(Walk(context.Background(), []string{dir}))
+	got := collectNames(Walk(context.Background(), []string{dir}, nil))
 	// track.mp3 appears once (via subdir), not twice.
 	count := 0
 	for _, n := range got {
@@ -162,7 +162,7 @@ func TestCountAudioFiles(t *testing.T) {
 	mkfile(t, filepath.Join(dir, "sub", "d.ogg"))
 	mkfile(t, filepath.Join(dir, ".hidden.mp3"))
 
-	got := CountAudioFiles(context.Background(), []string{dir})
+	got := CountAudioFiles(context.Background(), []string{dir}, nil)
 	// a.mp3, b.flac, sub/d.ogg = 3 (hidden file excluded by walk)
 	if got != 3 {
 		t.Errorf("CountAudioFiles = %d, want 3", got)
@@ -171,7 +171,7 @@ func TestCountAudioFiles(t *testing.T) {
 
 func TestCountAudioFiles_EmptyDir(t *testing.T) {
 	dir := t.TempDir()
-	got := CountAudioFiles(context.Background(), []string{dir})
+	got := CountAudioFiles(context.Background(), []string{dir}, nil)
 	if got != 0 {
 		t.Errorf("CountAudioFiles empty dir = %d, want 0", got)
 	}
@@ -179,7 +179,7 @@ func TestCountAudioFiles_EmptyDir(t *testing.T) {
 
 func TestWalk_ChannelClosedOnCompletion(t *testing.T) {
 	dir := t.TempDir()
-	ch := Walk(context.Background(), []string{dir})
+	ch := Walk(context.Background(), []string{dir}, nil)
 	// Drain and confirm the channel is closed (range completes).
 	for range ch {
 	}
@@ -195,7 +195,7 @@ func TestWalk_MultipleRootsMergesResults(t *testing.T) {
 	mkfile(t, filepath.Join(dir1, "track_b.flac"))
 	mkfile(t, filepath.Join(dir2, "track_c.ogg"))
 
-	got := collectNames(Walk(context.Background(), []string{dir1, dir2}))
+	got := collectNames(Walk(context.Background(), []string{dir1, dir2}, nil))
 	want := []string{"track_a.mp3", "track_b.flac", "track_c.ogg"}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
@@ -212,8 +212,55 @@ func TestCountAudioFiles_SumsAcrossMultipleRoots(t *testing.T) {
 	mkfile(t, filepath.Join(dir2, "c.ogg"))
 	mkfile(t, filepath.Join(dir2, "d.opus"))
 
-	got := CountAudioFiles(context.Background(), []string{dir1, dir2})
+	got := CountAudioFiles(context.Background(), []string{dir1, dir2}, nil)
 	if got != 4 {
 		t.Errorf("CountAudioFiles two dirs = %d, want 4", got)
+	}
+}
+
+// --- Exclusion tests ---
+
+// TestWalk_ExcludedDirSkipsEntireSubtree verifies that Walk skips all files
+// inside a directory whose name matches an excluded pattern.
+func TestWalk_ExcludedDirSkipsEntireSubtree(t *testing.T) {
+	dir := t.TempDir()
+	mkfile(t, filepath.Join(dir, "Podcasts", "ep1.mp3"))
+	mkfile(t, filepath.Join(dir, "Podcasts", "sub", "ep2.mp3"))
+	mkfile(t, filepath.Join(dir, "Music", "track.mp3"))
+
+	got := collectNames(Walk(context.Background(), []string{dir}, []string{"Podcasts"}))
+	want := []string{"track.mp3"}
+	if !slices.Equal(got, want) {
+		t.Errorf("Walk with exclusion: got %v, want %v", got, want)
+	}
+}
+
+// TestWalk_ExclusionLeavesNonExcludedSiblings verifies that sibling
+// directories that don't match the exclusion pattern are still traversed.
+func TestWalk_ExclusionLeavesNonExcludedSiblings(t *testing.T) {
+	dir := t.TempDir()
+	mkfile(t, filepath.Join(dir, "Podcasts", "ep.mp3"))
+	mkfile(t, filepath.Join(dir, "Audiobooks", "chapter.flac"))
+	mkfile(t, filepath.Join(dir, "Music", "rock.ogg"))
+	mkfile(t, filepath.Join(dir, "Music", "jazz.flac"))
+
+	got := collectNames(Walk(context.Background(), []string{dir}, []string{"Podcasts", "Audiobooks"}))
+	want := []string{"jazz.flac", "rock.ogg"}
+	if !slices.Equal(got, want) {
+		t.Errorf("Walk multi-exclude: got %v, want %v", got, want)
+	}
+}
+
+// TestCountAudioFiles_WithExclusion verifies that excluded directories are not
+// counted.
+func TestCountAudioFiles_WithExclusion(t *testing.T) {
+	dir := t.TempDir()
+	mkfile(t, filepath.Join(dir, "Podcasts", "ep1.mp3"))
+	mkfile(t, filepath.Join(dir, "Podcasts", "ep2.mp3"))
+	mkfile(t, filepath.Join(dir, "Music", "track.mp3"))
+
+	got := CountAudioFiles(context.Background(), []string{dir}, []string{"Podcasts"})
+	if got != 1 {
+		t.Errorf("CountAudioFiles with exclusion = %d, want 1", got)
 	}
 }

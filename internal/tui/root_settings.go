@@ -71,12 +71,13 @@ func (m Model) handleSettingsOpen() (tea.Model, tea.Cmd) {
 
 // handleSettingsSave applies overlay values to config, writes to disk, and
 // returns a Cmd that dispatches settingsSavedMsg with the result.
-// If library directories changed, it also updates m.libraryRoots and triggers a rescan.
+// If library directories or excluded paths changed, it also updates m.libraryRoots and triggers a rescan.
 func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 	if m.overlay.settings == nil {
 		return m, nil
 	}
 	oldRoots := m.libraryRoots
+	oldExcluded := m.cfg.ExcludedPaths
 	cfg := m.overlay.settings.ToConfig(m.cfg)
 	m.cfg = cfg
 	m.overlay.settings = nil
@@ -101,8 +102,8 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 		saveCmd = func() tea.Msg { return settingsSavedMsg{err: config.Save(path, cfg)} }
 	}
 
-	// If library dirs changed, update roots and trigger a rescan.
-	if !slices.Equal(oldRoots, cfg.MusicDirectories) {
+	// If library dirs or excluded paths changed, update roots and trigger a rescan.
+	if !slices.Equal(oldRoots, cfg.MusicDirectories) || !slices.Equal(oldExcluded, cfg.ExcludedPaths) {
 		m.libraryRoots = cfg.MusicDirectories
 		_, rescanCmd, _ := m.handleLibraryKeyAction(actionRescan)
 		if rescanCmd != nil {

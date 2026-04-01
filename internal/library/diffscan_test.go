@@ -108,7 +108,7 @@ func TestFilteredWalk_AllNewFiles(t *testing.T) {
 	dir := t.TempDir()
 	paths := makeAudioFiles(t, dir, 5)
 
-	changed, deleted, err := FilteredWalk(context.Background(), []string{dir}, nil, nil)
+	changed, deleted, err := FilteredWalk(context.Background(), []string{dir}, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("FilteredWalk: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestFilteredWalk_UnchangedFilesSkipped(t *testing.T) {
 		known[p] = KnownFile{ModTime: info.ModTime().Unix(), SizeBytes: info.Size()}
 	}
 
-	changed, deleted, err := FilteredWalk(context.Background(), []string{dir}, known, nil)
+	changed, deleted, err := FilteredWalk(context.Background(), []string{dir}, nil, known, nil)
 	if err != nil {
 		t.Fatalf("FilteredWalk: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestFilteredWalk_ModifiedFileIncluded(t *testing.T) {
 		paths[1]: {ModTime: info.ModTime().Unix(), SizeBytes: info.Size()},     // current
 	}
 
-	changed, deleted, err := FilteredWalk(context.Background(), []string{dir}, known, nil)
+	changed, deleted, err := FilteredWalk(context.Background(), []string{dir}, nil, known, nil)
 	if err != nil {
 		t.Fatalf("FilteredWalk: %v", err)
 	}
@@ -194,7 +194,7 @@ func TestFilteredWalk_DeletedFileReported(t *testing.T) {
 		t.Fatalf("remove: %v", err)
 	}
 
-	changed, deleted, err := FilteredWalk(context.Background(), []string{dir}, known, nil)
+	changed, deleted, err := FilteredWalk(context.Background(), []string{dir}, nil, known, nil)
 	if err != nil {
 		t.Fatalf("FilteredWalk: %v", err)
 	}
@@ -215,7 +215,7 @@ func TestDiffScan_EmptyKnownIsFullScan(t *testing.T) {
 	makeAudioFiles(t, dir, n)
 
 	fe := &fakeExtractor{}
-	trackCh, deleted, err := DiffScan(context.Background(), []string{dir}, fe, nil, nil)
+	trackCh, deleted, err := DiffScan(context.Background(), []string{dir}, nil, fe, nil, nil)
 	if err != nil {
 		t.Fatalf("DiffScan: %v", err)
 	}
@@ -246,7 +246,7 @@ func TestDiffScan_UnchangedFilesSkipped(t *testing.T) {
 	}
 
 	fe := &fakeExtractor{}
-	trackCh, deleted, err := DiffScan(context.Background(), []string{dir}, fe, known, nil)
+	trackCh, deleted, err := DiffScan(context.Background(), []string{dir}, nil, fe, known, nil)
 	if err != nil {
 		t.Fatalf("DiffScan: %v", err)
 	}
@@ -281,7 +281,7 @@ func TestDiffScan_DeletedFilesReported(t *testing.T) {
 	}
 
 	fe := &fakeExtractor{}
-	trackCh, deleted, err := DiffScan(context.Background(), []string{dir}, fe, known, nil)
+	trackCh, deleted, err := DiffScan(context.Background(), []string{dir}, nil, fe, known, nil)
 	if err != nil {
 		t.Fatalf("DiffScan: %v", err)
 	}
@@ -307,7 +307,7 @@ func TestFilteredWalk_HiddenFilesSkipped(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	changed, _, _ := FilteredWalk(context.Background(), []string{dir}, nil, nil)
+	changed, _, _ := FilteredWalk(context.Background(), []string{dir}, nil, nil, nil)
 
 	if len(changed) != 1 || changed[0] != visible {
 		t.Errorf("changed: got %v, want [%s]", changed, visible)
@@ -326,7 +326,7 @@ func TestFilteredWalk_NonAudioFilesIgnored(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	changed, _, _ := FilteredWalk(context.Background(), []string{dir}, nil, nil)
+	changed, _, _ := FilteredWalk(context.Background(), []string{dir}, nil, nil, nil)
 
 	if len(changed) != 1 || changed[0] != audio {
 		t.Errorf("changed: got %v, want [%s]", changed, audio)
@@ -347,7 +347,7 @@ func TestFilteredWalk_SizeMismatchTriggersRescan(t *testing.T) {
 		p: {ModTime: info.ModTime().Unix(), SizeBytes: info.Size() + 1},
 	}
 
-	changed, _, _ := FilteredWalk(context.Background(), []string{dir}, known, nil)
+	changed, _, _ := FilteredWalk(context.Background(), []string{dir}, nil, known, nil)
 
 	if len(changed) != 1 {
 		t.Errorf("changed: got %v, want 1 file (size mismatch)", changed)
@@ -426,7 +426,7 @@ func TestFilteredWalk_MultipleRootsDeletedFileReported(t *testing.T) {
 		t.Fatalf("remove: %v", err)
 	}
 
-	_, deleted, err := FilteredWalk(context.Background(), []string{dir1, dir2}, known, nil)
+	_, deleted, err := FilteredWalk(context.Background(), []string{dir1, dir2}, nil, known, nil)
 	if err != nil {
 		t.Fatalf("FilteredWalk: %v", err)
 	}

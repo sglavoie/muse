@@ -41,7 +41,7 @@ type WatchEvent struct {
 // cancelled. If fsnotify setup fails (e.g. fd exhaustion on macOS), Watch
 // returns a pre-closed channel and a nil error: the watcher is inactive and the
 // caller should rely on manual rescan as the sole rescan mechanism.
-func Watch(ctx context.Context, roots []string, extractor MetadataExtractor, debounceDelay time.Duration) (<-chan WatchEvent, bool, error) {
+func Watch(ctx context.Context, roots []string, excludedPaths []string, extractor MetadataExtractor, debounceDelay time.Duration) (<-chan WatchEvent, bool, error) {
 	raiseFDLimit()
 
 	w, err := watcherFactory()
@@ -52,7 +52,7 @@ func Watch(ctx context.Context, roots []string, extractor MetadataExtractor, deb
 
 	degraded := false
 	for _, root := range roots {
-		if err := addWatchesRecursive(w, root); err != nil {
+		if err := addWatchesRecursive(w, root, excludedPaths); err != nil {
 			slog.Warn("watcher: failed to register directory watches for root", "root", root, "err", err)
 			degraded = true
 		}
@@ -64,7 +64,7 @@ func Watch(ctx context.Context, roots []string, extractor MetadataExtractor, deb
 	}
 
 	out := make(chan WatchEvent, 64)
-	go watchLoop(ctx, w, "", extractor, debounceDelay, out)
+	go watchLoop(ctx, w, excludedPaths, extractor, debounceDelay, out)
 	return out, false, nil
 }
 
@@ -77,7 +77,7 @@ func closedWatchEventChan() <-chan WatchEvent {
 }
 
 // watchLoop is the main event loop for the watcher goroutine.
-func watchLoop(ctx context.Context, w *fsnotify.Watcher, _ string, extractor MetadataExtractor, debounceDelay time.Duration, out chan<- WatchEvent) {
+func watchLoop(ctx context.Context, w *fsnotify.Watcher, excludedPaths []string, extractor MetadataExtractor, debounceDelay time.Duration, out chan<- WatchEvent) {
 	defer close(out)
 	defer w.Close()
 
@@ -103,7 +103,7 @@ func watchLoop(ctx context.Context, w *fsnotify.Watcher, _ string, extractor Met
 				return
 			}
 			slog.Debug("watcher: fsnotify event", "op", event.Op.String(), "path", event.Name)
-			handleFsEvent(event, pending, deleted, w)
+			handleFsEvent(event, excludedPaths, pending, deleted, w)
 			// Reset the debounce window.
 			if !debounceTimer.Stop() {
 				select {
@@ -132,7 +132,7 @@ func watchLoop(ctx context.Context, w *fsnotify.Watcher, _ string, extractor Met
 				case out <- WatchEvent{Deleted: true, Path: path}:
 				}
 			}
-			rescan(ctx, pending, extractor, out)
+			rescan(ctx, pending, excludedPaths, extractor, out)
 			pending = make(map[string]bool)
 			deleted = make(map[string]struct{})
 		}
@@ -142,12 +142,17 @@ func watchLoop(ctx context.Context, w *fsnotify.Watcher, _ string, extractor Met
 // handleFsEvent updates the pending rescan set and deleted set based on a
 // single fsnotify event. For Create events on directories, a new recursive
 // watch is also registered.
-func handleFsEvent(event fsnotify.Event, pending map[string]bool, deleted map[string]struct{}, w *fsnotify.Watcher) {
+func handleFsEvent(event fsnotify.Event, excludedPaths []string, pending map[string]bool, deleted map[string]struct{}, w *fsnotify.Watcher) {
 	path := event.Name
 	base := filepath.Base(path)
 
 	// Skip hidden files and directories (matching Walk's behaviour).
 	if strings.HasPrefix(base, ".") {
+		return
+	}
+
+	// Skip events for excluded directories.
+	if ShouldExclude(path, excludedPaths) {
 		return
 	}
 
@@ -161,7 +166,7 @@ func handleFsEvent(event fsnotify.Event, pending map[string]bool, deleted map[st
 		if info.IsDir() {
 			// Register watches on the new directory tree and schedule a
 			// re-traversal of the entire subtree.
-			if err := addWatchesRecursive(w, path); err != nil {
+			if err := addWatchesRecursive(w, path, excludedPaths); err != nil {
 				slog.Debug("watcher: add recursive watches", "path", path, "err", err)
 			}
 			pending[path] = true
@@ -190,13 +195,13 @@ func handleFsEvent(event fsnotify.Event, pending map[string]bool, deleted map[st
 // extracted in a single batched ExifTool invocation. Directory entries are
 // traversed recursively via Walk. On batch failure, extractWithBinaryRetry
 // subdivides the batch and falls back to filename metadata for corrupt files.
-func rescan(ctx context.Context, pending map[string]bool, extractor MetadataExtractor, out chan<- WatchEvent) {
+func rescan(ctx context.Context, pending map[string]bool, excludedPaths []string, extractor MetadataExtractor, out chan<- WatchEvent) {
 	// Build a deduplicated set of audio file paths to process.
 	files := make(map[string]struct{})
 	for path, isDir := range pending {
 		if isDir {
 			// Recursively collect audio files in the affected subtree.
-			for p := range Walk(ctx, []string{path}) {
+			for p := range Walk(ctx, []string{path}, excludedPaths) {
 				files[p] = struct{}{}
 			}
 		} else {
@@ -245,13 +250,17 @@ func rescan(ctx context.Context, pending map[string]bool, extractor MetadataExtr
 // addWatchesRecursive registers an fsnotify watch on root and every
 // subdirectory it contains. Errors on individual directories are ignored so
 // that a single unreadable directory does not abort the entire watch setup.
-func addWatchesRecursive(w *fsnotify.Watcher, root string) error {
+// Excluded directories are skipped and not registered for watching.
+func addWatchesRecursive(w *fsnotify.Watcher, root string, excludedPaths []string) error {
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil // skip unreadable entries
 		}
 		if d.IsDir() {
 			if strings.HasPrefix(d.Name(), ".") && path != root {
+				return filepath.SkipDir
+			}
+			if path != root && ShouldExclude(path, excludedPaths) {
 				return filepath.SkipDir
 			}
 			if err := w.Add(path); err != nil {

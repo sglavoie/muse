@@ -175,7 +175,7 @@ func runTUI(ctx context.Context) error {
 
 	extractor := library.ExifToolExtractor{}
 
-	libResult, err := app.LoadLibrary(ctx, result.DB, result.Writer, cfg.MusicDirectories, extractor, upsertBatchSize)
+	libResult, err := app.LoadLibrary(ctx, result.DB, result.Writer, cfg.MusicDirectories, cfg.ExcludedPaths, extractor, upsertBatchSize)
 	if err != nil {
 		slog.Error("load library failed", "err", err)
 		app.Shutdown(shutdownDeps, app.ShutdownTimeout)

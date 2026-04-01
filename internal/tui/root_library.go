@@ -314,7 +314,7 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 					m.userEditedOverlay = nil
 				}
 			}
-			rawCh := library.Scan(m.appCtx, m.libraryRoots, m.extractor)
+			rawCh := library.Scan(m.appCtx, m.libraryRoots, m.cfg.ExcludedPaths, m.extractor)
 			ch := m.bridgeScanChannel(rawCh)
 			m.library.index = library.LibraryIndex{}
 			m.library.cursor = 0
@@ -338,7 +338,7 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 			// Reset the genres view so stale selectedGenre/selectedArtist
 			// from the previous scan don't persist into the new scan.
 			m.genres = GenresView{width: m.genres.width, height: m.genres.height}
-			return m, tea.Batch(waitForNextBatch(ch), countAudioFiles(m.appCtx, m.libraryRoots)), true
+			return m, tea.Batch(waitForNextBatch(ch), countAudioFiles(m.appCtx, m.libraryRoots, m.cfg.ExcludedPaths)), true
 		}
 		return m, nil, true
 	case actionLibraryFilterClear:

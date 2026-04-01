@@ -367,9 +367,9 @@ func tickCmd() tea.Cmd {
 
 // countAudioFiles returns a Cmd that runs library.CountAudioFiles in a
 // background goroutine and dispatches a ScanTotalMsg when done.
-func countAudioFiles(ctx context.Context, roots []string) tea.Cmd {
+func countAudioFiles(ctx context.Context, roots []string, excludedPaths []string) tea.Cmd {
 	return func() tea.Msg {
-		return library.ScanTotalMsg{Total: library.CountAudioFiles(ctx, roots)}
+		return library.ScanTotalMsg{Total: library.CountAudioFiles(ctx, roots, excludedPaths)}
 	}
 }
 
@@ -442,7 +442,7 @@ func (m Model) Init() tea.Cmd {
 	if m.scanCh != nil {
 		cmds = append(cmds, waitForNextBatch(m.scanCh))
 		if len(m.libraryRoots) > 0 {
-			cmds = append(cmds, countAudioFiles(m.appCtx, m.libraryRoots))
+			cmds = append(cmds, countAudioFiles(m.appCtx, m.libraryRoots, m.cfg.ExcludedPaths))
 		}
 	}
 	if m.scanErrCh != nil {

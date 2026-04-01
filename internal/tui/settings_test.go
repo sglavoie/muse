@@ -1257,3 +1257,201 @@ func TestLibraryTabToConfigRoundTrip(t *testing.T) {
 		t.Errorf("MusicDirectory = %q, want %q", got.MusicDirectory, dirs[0])
 	}
 }
+
+// --- Excluded paths sub-view ---
+
+// TestExcludedSubViewToggle verifies that pressing 'e' on the Library tab
+// switches to the excluded paths sub-view.
+func TestExcludedSubViewToggle(t *testing.T) {
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	// Should start on Library tab, dirs sub-view.
+	if o.libSubView != libSubViewDirs {
+		t.Fatalf("initial libSubView: expected libSubViewDirs, got %v", o.libSubView)
+	}
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
+	if o.libSubView != libSubViewExcluded {
+		t.Errorf("'e': expected libSubViewExcluded, got %v", o.libSubView)
+	}
+}
+
+// TestExcludedSubViewEscReturnsToDir verifies that pressing 'esc' from the
+// excluded sub-view returns to the dirs sub-view instead of closing the overlay.
+func TestExcludedSubViewEscReturnsToDir(t *testing.T) {
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
+	if o.libSubView != libSubViewExcluded {
+		t.Fatalf("precondition: expected libSubViewExcluded")
+	}
+	o, action := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if o.libSubView != libSubViewDirs {
+		t.Errorf("esc: expected libSubViewDirs, got %v", o.libSubView)
+	}
+	if action != settingsNone {
+		t.Errorf("esc from excluded sub-view: expected settingsNone, got %v", action)
+	}
+}
+
+// TestExcludedPathAddViaInput verifies the full add-pattern flow.
+func TestExcludedPathAddViaInput(t *testing.T) {
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
+
+	// Open input with 'a'.
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	if o.exclPathInput == nil {
+		t.Fatal("'a': expected exclPathInput to be non-nil")
+	}
+
+	// Type "Podcasts".
+	for _, r := range "Podcasts" {
+		o, _ = o.HandleKey(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+
+	// Confirm with Enter.
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if o.exclPathInput != nil {
+		t.Error("Enter: expected exclPathInput to be nil after confirm")
+	}
+	if len(o.excludedPaths) != 1 || o.excludedPaths[0] != "Podcasts" {
+		t.Errorf("excludedPaths = %v, want [Podcasts]", o.excludedPaths)
+	}
+	if !o.dirty {
+		t.Error("expected dirty=true after adding a pattern")
+	}
+}
+
+// TestExcludedPathAddDuplicateIsNoop verifies that adding the same pattern
+// twice does not create a duplicate entry.
+func TestExcludedPathAddDuplicateIsNoop(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.ExcludedPaths = []string{"Podcasts"}
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	for _, r := range "Podcasts" {
+		o, _ = o.HandleKey(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if len(o.excludedPaths) != 1 {
+		t.Errorf("duplicate add: expected 1 entry, got %d: %v", len(o.excludedPaths), o.excludedPaths)
+	}
+}
+
+// TestExcludedPathAddInputEscCancels verifies that pressing esc in the input
+// discards the typed text.
+func TestExcludedPathAddInputEscCancels(t *testing.T) {
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	for _, r := range "Podcasts" {
+		o, _ = o.HandleKey(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if o.exclPathInput != nil {
+		t.Error("esc in input: expected exclPathInput to be nil")
+	}
+	if len(o.excludedPaths) != 0 {
+		t.Errorf("esc in input: expected 0 paths, got %d", len(o.excludedPaths))
+	}
+}
+
+// TestExcludedPathDeleteFlow verifies the full delete-confirmation flow.
+func TestExcludedPathDeleteFlow(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.ExcludedPaths = []string{"Podcasts", "Audiobooks"}
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
+	// cursor=0 points at "Podcasts".
+
+	// Press 'd' to start confirmation.
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	if !o.exclConfirmDel {
+		t.Fatal("'d': expected exclConfirmDel=true")
+	}
+
+	// Confirm with 'd'.
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	if o.exclConfirmDel {
+		t.Error("confirm: expected exclConfirmDel=false")
+	}
+	if len(o.excludedPaths) != 1 || o.excludedPaths[0] != "Audiobooks" {
+		t.Errorf("after delete: excludedPaths = %v, want [Audiobooks]", o.excludedPaths)
+	}
+}
+
+// TestExcludedPathDeleteEscCancels verifies that esc during the confirmation
+// cancels without removing the entry.
+func TestExcludedPathDeleteEscCancels(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.ExcludedPaths = []string{"Podcasts"}
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if o.exclConfirmDel {
+		t.Error("esc: expected exclConfirmDel=false")
+	}
+	if len(o.excludedPaths) != 1 {
+		t.Errorf("esc: expected 1 path, got %d", len(o.excludedPaths))
+	}
+}
+
+// TestExcludedPathsToConfigRoundTrip verifies that ToConfig copies
+// excludedPaths into ExcludedPaths.
+func TestExcludedPathsToConfigRoundTrip(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.ExcludedPaths = []string{"Podcasts", "Audiobooks"}
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	got := o.ToConfig(cfg)
+	if len(got.ExcludedPaths) != 2 {
+		t.Fatalf("ExcludedPaths: expected 2, got %d: %v", len(got.ExcludedPaths), got.ExcludedPaths)
+	}
+	if got.ExcludedPaths[0] != "Podcasts" || got.ExcludedPaths[1] != "Audiobooks" {
+		t.Errorf("ExcludedPaths = %v, want [Podcasts Audiobooks]", got.ExcludedPaths)
+	}
+}
+
+// TestTabSwitchResetsToLibSubViewDirs verifies that switching tabs resets the
+// library sub-view back to dirs.
+func TestTabSwitchResetsToLibSubViewDirs(t *testing.T) {
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	// Switch to excluded sub-view.
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
+	if o.libSubView != libSubViewExcluded {
+		t.Fatalf("precondition: expected libSubViewExcluded")
+	}
+	// Switch to Playback tab.
+	o, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
+	if o.libSubView != libSubViewDirs {
+		t.Errorf("tab switch: expected libSubView reset to libSubViewDirs, got %v", o.libSubView)
+	}
+}
+
+// TestExcludedPathsRenderNone verifies that the "(none)" placeholder appears
+// when the excluded paths list is empty.
+func TestExcludedPathsRenderNone(t *testing.T) {
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o.libSubView = libSubViewExcluded
+	s := styles.NewStyles(true)
+	out := ansi.Strip(o.Render(80, 24, s))
+	if !strings.Contains(out, "(none)") {
+		t.Errorf("Render excluded empty: expected '(none)' in output, got:\n%s", out)
+	}
+}
+
+// TestExcludedPathsRenderShowsPatterns verifies that patterns are shown in the
+// excluded paths sub-view.
+func TestExcludedPathsRenderShowsPatterns(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.ExcludedPaths = []string{"Podcasts", "Audiobooks"}
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o.libSubView = libSubViewExcluded
+	s := styles.NewStyles(true)
+	out := ansi.Strip(o.Render(80, 24, s))
+	if !strings.Contains(out, "Podcasts") {
+		t.Errorf("Render excluded: expected 'Podcasts' in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Audiobooks") {
+		t.Errorf("Render excluded: expected 'Audiobooks' in output, got:\n%s", out)
+	}
+}

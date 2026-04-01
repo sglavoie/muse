@@ -18,7 +18,7 @@ import (
 // If ctx is cancelled, the walk stops early. onErr, when non-nil, is called
 // for each non-fatal walk error (e.g. permission denied on a subdirectory)
 // in addition to the slog.Warn that is always emitted.
-func walkAudioPaths(ctx context.Context, root string, visit func(path string) error, onErr func(error)) error {
+func walkAudioPaths(ctx context.Context, root string, excludedPaths []string, visit func(path string) error, onErr func(error)) error {
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if ctx.Err() != nil {
 			return filepath.SkipAll
@@ -36,6 +36,9 @@ func walkAudioPaths(ctx context.Context, root string, visit func(path string) er
 				return filepath.SkipDir
 			}
 			return nil
+		}
+		if d.IsDir() && ShouldExclude(path, excludedPaths) {
+			return filepath.SkipDir
 		}
 		if d.Type()&fs.ModeSymlink != 0 {
 			info, err := os.Stat(path)
@@ -67,7 +70,8 @@ func walkAudioPaths(ctx context.Context, root string, visit func(path string) er
 // to the same channel which is closed when all walks complete or ctx is
 // cancelled. Hidden files and directories (names starting with '.') are
 // skipped. Symbolic links are followed for files but not for directories.
-func Walk(ctx context.Context, roots []string) <-chan string {
+// Directories whose name matches any entry in excludedPaths are skipped.
+func Walk(ctx context.Context, roots []string, excludedPaths []string) <-chan string {
 	ch := make(chan string, 64)
 	go func() {
 		defer close(ch)
@@ -75,7 +79,7 @@ func Walk(ctx context.Context, roots []string) <-chan string {
 			if ctx.Err() != nil {
 				return
 			}
-			if err := walkAudioPaths(ctx, root, func(path string) error {
+			if err := walkAudioPaths(ctx, root, excludedPaths, func(path string) error {
 				select {
 				case ch <- path:
 					return nil
@@ -95,13 +99,13 @@ func Walk(ctx context.Context, roots []string) <-chan string {
 // hidden-directory, and file-only-symlink rules as Walk so the count matches
 // what the scanner pipeline will process. Intended to be called in a
 // background goroutine to provide an early estimated total.
-func CountAudioFiles(ctx context.Context, roots []string) int {
+func CountAudioFiles(ctx context.Context, roots []string, excludedPaths []string) int {
 	count := 0
 	for _, root := range roots {
 		if ctx.Err() != nil {
 			break
 		}
-		if err := walkAudioPaths(ctx, root, func(_ string) error {
+		if err := walkAudioPaths(ctx, root, excludedPaths, func(_ string) error {
 			count++
 			return nil
 		}, nil); err != nil && ctx.Err() == nil {

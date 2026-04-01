@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -28,6 +29,14 @@ const (
 	settingsTabEqualizer                    // EQ settings
 	settingsTabDisplay                      // display settings
 	settingsTabCount
+)
+
+// librarySubView identifies which sub-view is active in the Library tab.
+type librarySubView int
+
+const (
+	libSubViewDirs     librarySubView = iota // directory management
+	libSubViewExcluded                       // excluded path patterns
 )
 
 // settingsField describes a single adjustable setting row.
@@ -65,10 +74,15 @@ type SettingsOverlay struct {
 	dirty        bool
 
 	// Library tab state.
-	libraryDirs   []string
-	libCursor     int
-	libDirInput   *textInput // non-nil when adding a directory
-	libConfirmDel bool       // true when showing directory delete confirmation
+	libSubView     librarySubView
+	libraryDirs    []string
+	libCursor      int
+	libDirInput    *textInput // non-nil when adding a directory
+	libConfirmDel  bool       // true when showing directory delete confirmation
+	excludedPaths  []string
+	exclCursor     int
+	exclPathInput  *textInput // non-nil when adding an excluded path pattern
+	exclConfirmDel bool       // true when showing delete confirmation for excluded paths
 }
 
 // eqCustomSentinelName is the display name of the transient "not a saved preset" state.
@@ -81,6 +95,10 @@ func NewSettingsOverlay(cfg config.Config, currentVolume int, musicDirs []string
 	// Copy library dirs.
 	o.libraryDirs = make([]string, len(musicDirs))
 	copy(o.libraryDirs, musicDirs)
+
+	// Copy excluded paths.
+	o.excludedPaths = make([]string, len(cfg.ExcludedPaths))
+	copy(o.excludedPaths, cfg.ExcludedPaths)
 
 	o.fields[settingsTabPlayback] = []settingsField{
 		{Label: "Volume step", Value: cfg.VolumeIncrement, Default: 5, Min: 1, Max: 25, Step: 1, Unit: "%"},
@@ -152,6 +170,50 @@ func (o SettingsOverlay) StereoWideState() (enabled bool, amount int) {
 // HandleKey processes a key event and returns the updated overlay and the resulting action.
 // ctrl+c returns settingsNone so the caller can fall through to root quit handling.
 func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settingsAction) {
+	// Excluded path input mode.
+	if o.tab == settingsTabLibrary && o.libSubView == libSubViewExcluded && o.exclPathInput != nil {
+		switch msg.String() {
+		case "enter":
+			pattern := strings.TrimSpace(o.exclPathInput.Value())
+			o.exclPathInput = nil
+			if pattern != "" {
+				if !slices.Contains(o.excludedPaths, pattern) {
+					o.excludedPaths = append(o.excludedPaths, pattern)
+					o.exclCursor = len(o.excludedPaths) - 1
+					o.dirty = true
+				}
+			}
+			return o, settingsNone
+		case "esc":
+			o.exclPathInput = nil
+			return o, settingsNone
+		default:
+			o.exclPathInput.HandleKey(msg.String())
+			return o, settingsNone
+		}
+	}
+
+	// Excluded path delete confirmation mode.
+	if o.tab == settingsTabLibrary && o.libSubView == libSubViewExcluded && o.exclConfirmDel {
+		switch msg.String() {
+		case "d", "enter":
+			if o.exclCursor < len(o.excludedPaths) {
+				o.excludedPaths = append(o.excludedPaths[:o.exclCursor], o.excludedPaths[o.exclCursor+1:]...)
+				if o.exclCursor >= len(o.excludedPaths) && o.exclCursor > 0 {
+					o.exclCursor = len(o.excludedPaths) - 1
+				}
+				o.dirty = true
+			}
+			o.exclConfirmDel = false
+			return o, settingsNone
+		case "esc":
+			o.exclConfirmDel = false
+			return o, settingsNone
+		default:
+			return o, settingsNone
+		}
+	}
+
 	// Library add mode: route all keys to the path text input.
 	if o.libDirInput != nil {
 		switch msg.String() {
@@ -235,13 +297,21 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 	case "[":
 		o.tab = (o.tab + settingsTabCount - 1) % settingsTabCount
 		o.cursor = 0
+		o.libSubView = libSubViewDirs
 	case "]":
 		o.tab = (o.tab + 1) % settingsTabCount
 		o.cursor = 0
+		o.libSubView = libSubViewDirs
 	case "j", "down":
 		if o.tab == settingsTabLibrary {
-			if n := len(o.libraryDirs); n > 0 {
-				o.libCursor = (o.libCursor + 1) % n
+			if o.libSubView == libSubViewExcluded {
+				if n := len(o.excludedPaths); n > 0 {
+					o.exclCursor = (o.exclCursor + 1) % n
+				}
+			} else {
+				if n := len(o.libraryDirs); n > 0 {
+					o.libCursor = (o.libCursor + 1) % n
+				}
 			}
 		} else {
 			if n := len(o.fields[o.tab]); n > 0 {
@@ -250,8 +320,14 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 		}
 	case "k", "up":
 		if o.tab == settingsTabLibrary {
-			if n := len(o.libraryDirs); n > 0 {
-				o.libCursor = (o.libCursor + n - 1) % n
+			if o.libSubView == libSubViewExcluded {
+				if n := len(o.excludedPaths); n > 0 {
+					o.exclCursor = (o.exclCursor + n - 1) % n
+				}
+			} else {
+				if n := len(o.libraryDirs); n > 0 {
+					o.libCursor = (o.libCursor + n - 1) % n
+				}
 			}
 		} else {
 			if n := len(o.fields[o.tab]); n > 0 {
@@ -294,7 +370,11 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 		}
 	case "a":
 		if o.tab == settingsTabLibrary {
-			o.libDirInput = &textInput{}
+			if o.libSubView == libSubViewExcluded {
+				o.exclPathInput = &textInput{}
+			} else {
+				o.libDirInput = &textInput{}
+			}
 			return o, settingsNone
 		}
 	case "s":
@@ -304,8 +384,14 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 		}
 	case "d":
 		if o.tab == settingsTabLibrary {
-			if len(o.libraryDirs) > 1 {
-				o.libConfirmDel = true
+			if o.libSubView == libSubViewExcluded {
+				if len(o.excludedPaths) > 0 {
+					o.exclConfirmDel = true
+				}
+			} else {
+				if len(o.libraryDirs) > 1 {
+					o.libConfirmDel = true
+				}
 			}
 			return o, settingsNone
 		}
@@ -319,7 +405,17 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 				}
 			}
 		}
+	case "e":
+		if o.tab == settingsTabLibrary && o.libSubView == libSubViewDirs {
+			o.libSubView = libSubViewExcluded
+			o.exclCursor = 0
+			return o, settingsNone
+		}
 	case "esc":
+		if o.tab == settingsTabLibrary && o.libSubView == libSubViewExcluded {
+			o.libSubView = libSubViewDirs
+			return o, settingsNone
+		}
 		return o, settingsCancel
 	case "ctrl+s":
 		return o, settingsSave
@@ -419,6 +515,10 @@ func (o SettingsOverlay) ToConfig(base config.Config) config.Config {
 		cfg.MusicDirectory = cfg.MusicDirectories[0]
 	}
 
+	// Excluded paths.
+	cfg.ExcludedPaths = make([]string, len(o.excludedPaths))
+	copy(cfg.ExcludedPaths, o.excludedPaths)
+
 	pb := o.fields[settingsTabPlayback]
 	cfg.VolumeIncrement = pb[0].Value
 	cfg.SeekOffsetShort = float64(pb[1].Value)
@@ -496,28 +596,57 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 
 	// Content rows.
 	if o.tab == settingsTabLibrary {
-		// Directory list.
-		for i, dir := range o.libraryDirs {
-			display := collapseHomeDir(dir)
-			displayW := ansi.StringWidth(display)
-			pad := max(0, contentWidth-displayW)
-			row := "  " + display + strings.Repeat(" ", pad) + "  "
-			if i == o.libCursor {
-				lines = append(lines, borderV+s.Accent.Render(row)+borderV)
-			} else {
-				lines = append(lines, borderV+row+borderV)
+		if o.libSubView == libSubViewExcluded {
+			// Excluded path patterns list.
+			if len(o.excludedPaths) == 0 && o.exclPathInput == nil {
+				row := "  (none)" + strings.Repeat(" ", max(0, contentWidth-6)) + "  "
+				lines = append(lines, borderV+s.Dim.Render(row)+borderV)
 			}
-		}
-		// Input or confirmation row.
-		if o.libDirInput != nil {
-			body := "Add dir: " + o.libDirInput.Render(contentWidth)
-			pad := max(0, contentWidth-ansi.StringWidth(body))
-			lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
-		} else if o.libConfirmDel && o.libCursor < len(o.libraryDirs) {
-			dirName := collapseHomeDir(o.libraryDirs[o.libCursor])
-			body := fmt.Sprintf("Delete %q? D/Enter=yes  Esc=no", dirName)
-			pad := max(0, contentWidth-ansi.StringWidth(body))
-			lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
+			for i, pattern := range o.excludedPaths {
+				patW := ansi.StringWidth(pattern)
+				pad := max(0, contentWidth-patW)
+				row := "  " + pattern + strings.Repeat(" ", pad) + "  "
+				if i == o.exclCursor {
+					lines = append(lines, borderV+s.Accent.Render(row)+borderV)
+				} else {
+					lines = append(lines, borderV+row+borderV)
+				}
+			}
+			// Input or confirmation row.
+			if o.exclPathInput != nil {
+				body := "Add pattern: " + o.exclPathInput.Render(contentWidth)
+				pad := max(0, contentWidth-ansi.StringWidth(body))
+				lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
+			} else if o.exclConfirmDel && o.exclCursor < len(o.excludedPaths) {
+				pattern := o.excludedPaths[o.exclCursor]
+				body := fmt.Sprintf("Delete %q? D/Enter=yes  Esc=no", pattern)
+				pad := max(0, contentWidth-ansi.StringWidth(body))
+				lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
+			}
+		} else {
+			// Directory list.
+			for i, dir := range o.libraryDirs {
+				display := collapseHomeDir(dir)
+				displayW := ansi.StringWidth(display)
+				pad := max(0, contentWidth-displayW)
+				row := "  " + display + strings.Repeat(" ", pad) + "  "
+				if i == o.libCursor {
+					lines = append(lines, borderV+s.Accent.Render(row)+borderV)
+				} else {
+					lines = append(lines, borderV+row+borderV)
+				}
+			}
+			// Input or confirmation row.
+			if o.libDirInput != nil {
+				body := "Add dir: " + o.libDirInput.Render(contentWidth)
+				pad := max(0, contentWidth-ansi.StringWidth(body))
+				lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
+			} else if o.libConfirmDel && o.libCursor < len(o.libraryDirs) {
+				dirName := collapseHomeDir(o.libraryDirs[o.libCursor])
+				body := fmt.Sprintf("Delete %q? D/Enter=yes  Esc=no", dirName)
+				pad := max(0, contentWidth-ansi.StringWidth(body))
+				lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
+			}
 		}
 	} else {
 		// Field rows.
@@ -577,7 +706,11 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	// Hint line.
 	switch o.tab {
 	case settingsTabLibrary:
-		lines = append(lines, "  a add · d delete · [/] tabs · j/k navigate · ctrl+s save · esc cancel")
+		if o.libSubView == libSubViewExcluded {
+			lines = append(lines, "  a add · d delete · [/] tabs · j/k navigate · ctrl+s save · esc back")
+		} else {
+			lines = append(lines, "  a add · d delete · e excluded · [/] tabs · j/k navigate · ctrl+s save · esc cancel")
+		}
 	case settingsTabEqualizer:
 		lines = append(lines, "  s save · d delete · [/] tabs · j/k fields · h/l adjust · ctrl+s save · esc cancel")
 	default:

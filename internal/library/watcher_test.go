@@ -53,7 +53,7 @@ func TestDebounce_CoalescesFastEvents(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ch, _, err := Watch(ctx, []string{root}, fe, debounce)
+	ch, _, err := Watch(ctx, []string{root}, nil, fe, debounce)
 	if err != nil {
 		t.Fatalf("Watch: %v", err)
 	}
@@ -98,7 +98,7 @@ func TestDebounce_RescansAfterWindow(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ch, _, err := Watch(ctx, []string{root}, fe, debounce)
+	ch, _, err := Watch(ctx, []string{root}, nil, fe, debounce)
 	if err != nil {
 		t.Fatalf("Watch: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestDebounce_NoRescanBeforeWindowElapses(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ch, _, err := Watch(ctx, []string{root}, fe, debounce)
+	ch, _, err := Watch(ctx, []string{root}, nil, fe, debounce)
 	if err != nil {
 		t.Fatalf("Watch: %v", err)
 	}
@@ -174,7 +174,7 @@ func TestRename_TreatedAsDeletePlusCreate(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ch, _, err := Watch(ctx, []string{root}, fe, debounce)
+	ch, _, err := Watch(ctx, []string{root}, nil, fe, debounce)
 	if err != nil {
 		t.Fatalf("Watch: %v", err)
 	}
@@ -211,7 +211,7 @@ func TestDirectoryEvent_TriggersSubtreeRescan(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ch, _, err := Watch(ctx, []string{root}, fe, debounce)
+	ch, _, err := Watch(ctx, []string{root}, nil, fe, debounce)
 	if err != nil {
 		t.Fatalf("Watch: %v", err)
 	}
@@ -254,7 +254,7 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 	t.Run("Create audio file adds to pending", func(t *testing.T) {
 		pending := make(map[string]bool)
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Create}, pending, deleted, w)
+		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Create}, nil, pending, deleted, w)
 		isDir, ok := pending[audioPath]
 		if !ok {
 			t.Errorf("expected %q in pending after Create event", audioPath)
@@ -267,7 +267,7 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 	t.Run("Write audio file adds to pending", func(t *testing.T) {
 		pending := make(map[string]bool)
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Write}, pending, deleted, w)
+		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Write}, nil, pending, deleted, w)
 		if _, ok := pending[audioPath]; !ok {
 			t.Errorf("expected %q in pending after Write event", audioPath)
 		}
@@ -276,7 +276,7 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 	t.Run("Rename removes from pending and adds to deleted", func(t *testing.T) {
 		pending := map[string]bool{audioPath: false}
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Rename}, pending, deleted, w)
+		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Rename}, nil, pending, deleted, w)
 		if _, ok := pending[audioPath]; ok {
 			t.Errorf("expected %q removed from pending after Rename event", audioPath)
 		}
@@ -288,7 +288,7 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 	t.Run("Remove removes from pending and adds to deleted", func(t *testing.T) {
 		pending := map[string]bool{audioPath: false}
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Remove}, pending, deleted, w)
+		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Remove}, nil, pending, deleted, w)
 		if _, ok := pending[audioPath]; ok {
 			t.Errorf("expected %q removed from pending after Remove event", audioPath)
 		}
@@ -302,7 +302,7 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 		mkfile(t, txtPath)
 		pending := make(map[string]bool)
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: txtPath, Op: fsnotify.Create}, pending, deleted, w)
+		handleFsEvent(fsnotify.Event{Name: txtPath, Op: fsnotify.Create}, nil, pending, deleted, w)
 		if _, ok := pending[txtPath]; ok {
 			t.Errorf("non-audio file should not be added to pending")
 		}
@@ -315,7 +315,7 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 		}
 		pending := make(map[string]bool)
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: dirPath, Op: fsnotify.Create}, pending, deleted, w)
+		handleFsEvent(fsnotify.Event{Name: dirPath, Op: fsnotify.Create}, nil, pending, deleted, w)
 		isDir, ok := pending[dirPath]
 		if !ok {
 			t.Errorf("expected %q in pending after directory Create", dirPath)
@@ -346,7 +346,7 @@ func TestWatchLoop_EmitsDebugForRawEvents(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ch, _, err := Watch(ctx, []string{root}, fe, debounce)
+	ch, _, err := Watch(ctx, []string{root}, nil, fe, debounce)
 	if err != nil {
 		t.Fatalf("Watch: %v", err)
 	}
@@ -392,7 +392,7 @@ func TestWatch_WatcherFactoryFailure_LogsWarningAndDegrades(t *testing.T) {
 	}
 	t.Cleanup(func() { watcherFactory = origFactory })
 
-	ch, _, err := Watch(t.Context(), []string{t.TempDir()}, &fakeExtractor{}, DefaultDebounce)
+	ch, _, err := Watch(t.Context(), []string{t.TempDir()}, nil, &fakeExtractor{}, DefaultDebounce)
 	if err != nil {
 		t.Fatalf("Watch returned error; want nil for degraded mode: %v", err)
 	}
@@ -430,7 +430,7 @@ func TestHandleFsEvent_SkipsHiddenFiles(t *testing.T) {
 		mkfile(t, hiddenAudio)
 		pending := make(map[string]bool)
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: hiddenAudio, Op: fsnotify.Create}, pending, deleted, w)
+		handleFsEvent(fsnotify.Event{Name: hiddenAudio, Op: fsnotify.Create}, nil, pending, deleted, w)
 		if _, ok := pending[hiddenAudio]; ok {
 			t.Errorf("hidden audio file should not be added to pending")
 		}
@@ -443,7 +443,7 @@ func TestHandleFsEvent_SkipsHiddenFiles(t *testing.T) {
 		}
 		pending := make(map[string]bool)
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: hiddenDir, Op: fsnotify.Create}, pending, deleted, w)
+		handleFsEvent(fsnotify.Event{Name: hiddenDir, Op: fsnotify.Create}, nil, pending, deleted, w)
 		if _, ok := pending[hiddenDir]; ok {
 			t.Errorf("hidden directory should not be added to pending")
 		}
@@ -454,7 +454,7 @@ func TestHandleFsEvent_SkipsHiddenFiles(t *testing.T) {
 		mkfile(t, hiddenAudio)
 		pending := make(map[string]bool)
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: hiddenAudio, Op: fsnotify.Write}, pending, deleted, w)
+		handleFsEvent(fsnotify.Event{Name: hiddenAudio, Op: fsnotify.Write}, nil, pending, deleted, w)
 		if _, ok := pending[hiddenAudio]; ok {
 			t.Errorf("hidden file Write should not be added to pending")
 		}
@@ -464,7 +464,7 @@ func TestHandleFsEvent_SkipsHiddenFiles(t *testing.T) {
 		hiddenAudio := filepath.Join(root, ".hidden.mp3")
 		pending := make(map[string]bool)
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: hiddenAudio, Op: fsnotify.Remove}, pending, deleted, w)
+		handleFsEvent(fsnotify.Event{Name: hiddenAudio, Op: fsnotify.Remove}, nil, pending, deleted, w)
 		if _, ok := deleted[hiddenAudio]; ok {
 			t.Errorf("hidden file Remove should not be added to deleted")
 		}
@@ -492,7 +492,7 @@ func TestAddWatchesRecursive_SkipsHiddenDirs(t *testing.T) {
 	}
 	defer w.Close()
 
-	if err := addWatchesRecursive(w, root); err != nil {
+	if err := addWatchesRecursive(w, root, nil); err != nil {
 		t.Fatalf("addWatchesRecursive: %v", err)
 	}
 
@@ -556,7 +556,7 @@ func TestRescan_PopulatesModTimeAndSizeBytes(t *testing.T) {
 	out := make(chan WatchEvent, 16)
 
 	pending := map[string]bool{p: false}
-	rescan(ctx, pending, ext, out)
+	rescan(ctx, pending, nil, ext, out)
 	close(out)
 
 	var tracks []Track
@@ -595,7 +595,7 @@ func TestWatchLoop_LogsWatcherErrors(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	ch, _, err := Watch(ctx, []string{root}, fe, debounce)
+	ch, _, err := Watch(ctx, []string{root}, nil, fe, debounce)
 	if err != nil {
 		t.Fatalf("Watch: %v", err)
 	}

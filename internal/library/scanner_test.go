@@ -34,7 +34,7 @@ func TestScan10kWallTime(t *testing.T) {
 
 	start := time.Now()
 	var count int
-	for range Scan(context.Background(), []string{dir}, &fakeExtractor{}) {
+	for range Scan(context.Background(), []string{dir}, nil, &fakeExtractor{}) {
 		count++
 	}
 	elapsed := time.Since(start)
@@ -62,7 +62,7 @@ func TestScanGoroutineLeak(t *testing.T) {
 	baseline := runtime.NumGoroutine()
 
 	// Drain the scan channel; its close is the scan-complete signal.
-	for range Scan(context.Background(), []string{dir}, &fakeExtractor{}) {
+	for range Scan(context.Background(), []string{dir}, nil, &fakeExtractor{}) {
 	}
 
 	// Allow any goroutine that closed a channel to finish its own exit.
@@ -86,7 +86,7 @@ func TestScanLogging_DebugPerTrack(t *testing.T) {
 	slog.SetDefault(slog.New(h))
 	defer slog.SetDefault(prev)
 
-	for range Scan(context.Background(), []string{dir}, &fakeExtractor{}) {
+	for range Scan(context.Background(), []string{dir}, nil, &fakeExtractor{}) {
 	}
 
 	var debugCount int
@@ -111,7 +111,7 @@ func TestScanLogging_InfoBatchProgress(t *testing.T) {
 	slog.SetDefault(slog.New(h))
 	defer slog.SetDefault(prev)
 
-	for range Scan(context.Background(), []string{dir}, &fakeExtractor{}) {
+	for range Scan(context.Background(), []string{dir}, nil, &fakeExtractor{}) {
 	}
 
 	found := false
@@ -140,7 +140,7 @@ func BenchmarkScan(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
 		var count int
-		for range Scan(context.Background(), []string{dir}, &fakeExtractor{}) {
+		for range Scan(context.Background(), []string{dir}, nil, &fakeExtractor{}) {
 			count++
 		}
 		if count != n {
