@@ -704,6 +704,24 @@ func TestPreviewDismissResetsDurationFilledFlag(t *testing.T) {
 	}
 }
 
+// TestFocusedTrackForPreview_RecentlyAdded verifies that
+// focusedTrackForPreview returns the focused track from the Recently Added view.
+func TestFocusedTrackForPreview_RecentlyAdded(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewRecentlyAdded
+	m.recentlyAdded.index.Insert(library.Track{
+		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T",
+	})
+
+	track, ok := m.focusedTrackForPreview()
+	if !ok {
+		t.Fatal("expected track from recently added view")
+	}
+	if track.Hash != "h1" || track.Artist != "A" {
+		t.Fatalf("unexpected track: %+v", track)
+	}
+}
+
 // errTest is a simple error type for test assertions.
 type errTest string
 
