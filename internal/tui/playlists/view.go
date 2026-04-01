@@ -269,10 +269,7 @@ func (v View) renderList() string {
 	cols := Compute(v.Width)
 
 	maxRows := v.visibleRows()
-	start := v.ScrollOffset
-	if start > len(v.Playlists) {
-		start = len(v.Playlists)
-	}
+	start := min(v.ScrollOffset, len(v.Playlists))
 	end := min(len(v.Playlists), start+maxRows)
 
 	var lines []string
@@ -372,10 +369,7 @@ func (v View) renderTracks() string {
 				cols.Duration, timeHead))
 
 	maxRows := v.visibleRows()
-	start := v.ScrollOffset
-	if start > len(v.Tracks) {
-		start = len(v.Tracks)
-	}
+	start := min(v.ScrollOffset, len(v.Tracks))
 	end := min(len(v.Tracks), start+maxRows)
 
 	lines := make([]string, end-start)

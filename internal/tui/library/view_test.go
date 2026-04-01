@@ -1280,6 +1280,18 @@ func TestGeneralSearchHighlightsAlbumColumn(t *testing.T) {
 	}
 }
 
+// TestRenderScrollOffsetBeyondTrackCount verifies that Render does not panic
+// when ScrollOffset exceeds the number of tracks (e.g. after tracks are removed).
+func TestRenderScrollOffsetBeyondTrackCount(t *testing.T) {
+	idx := buildIndex(sampleTracks) // 3 tracks
+	v := View{Index: idx, Width: 80, Height: 24, ScrollOffset: 100}
+	got := v.Render()
+	// The output should be the header + empty body (no panic, no crash).
+	if !strings.Contains(got, "Artist") {
+		t.Errorf("expected column header in render even with out-of-bounds scroll, got:\n%s", got)
+	}
+}
+
 // TestFavoriteColorSurvivesSearchHighlight verifies that a favorited artist's
 // foreground colour is preserved across bold-highlighted characters — the bug
 // where inner SGR resets from bold rendering cleared the outer favourite colour.

@@ -50,6 +50,9 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 	case viewRecentlyAdded:
 		next := CycleSortField(m.recentlyAdded.sortState.Field, recentlyAddedSortFields)
 		m.recentlyAdded.sortState.Field = next
+		if next == SortDefault {
+			m.recentlyAdded.sortState.Dir = SortAsc
+		}
 		m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
 		m.recentlyAdded.cursor = 0
 		m.recentlyAdded.scrollOffset = 0

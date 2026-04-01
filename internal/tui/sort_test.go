@@ -1889,3 +1889,31 @@ func TestSortCycleToDefaultRederivesFavoritesTracks(t *testing.T) {
 		}
 	}
 }
+
+// TestSortCycleRecentlyAddedHandled verifies that handleSortCycle handles the
+// recently added view and transitions from the initial SortDefault state to
+// SortDateAdded.
+func TestSortCycleRecentlyAddedHandled(t *testing.T) {
+	m := Model{}
+	m.activeView = viewRecentlyAdded
+	m.recentlyAdded.index.Insert(library.Track{Artist: "A", Title: "T1", Path: "/1", Hash: "h1"})
+
+	// Start at the initial default state.
+	m.recentlyAdded.sortState = SortState{Field: SortDefault, Dir: SortAsc}
+
+	result, _, handled := m.handleSortCycle()
+	if !handled {
+		t.Fatal("handleSortCycle should handle recently added view")
+	}
+	m = result.(Model)
+
+	if m.recentlyAdded.sortState.Field != SortDateAdded {
+		t.Fatalf("expected SortDateAdded after cycle from default, got %v", m.recentlyAdded.sortState.Field)
+	}
+	if m.recentlyAdded.cursor != 0 {
+		t.Errorf("expected cursor reset to 0, got %d", m.recentlyAdded.cursor)
+	}
+	if m.recentlyAdded.scrollOffset != 0 {
+		t.Errorf("expected scrollOffset reset to 0, got %d", m.recentlyAdded.scrollOffset)
+	}
+}

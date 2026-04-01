@@ -1168,6 +1168,39 @@ func TestRenderTracksShowsSequentialPositions(t *testing.T) {
 	}
 }
 
+// TestRenderListScrollOffsetBeyondCount verifies that renderList does not panic
+// when ScrollOffset exceeds the number of playlists (e.g. after playlists are removed).
+func TestRenderListScrollOffsetBeyondCount(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Width:        40,
+		ScrollOffset: 100,
+		Playlists: []db.PlaylistRow{
+			{ID: 1, Name: "Only"},
+		},
+	}
+	// Must not panic; the output is valid even if no items are visible
+	// (scroll offset is past all items).
+	_ = v.Render()
+}
+
+// TestRenderTracksScrollOffsetBeyondCount verifies that renderTracks does not
+// panic when ScrollOffset exceeds the number of tracks.
+func TestRenderTracksScrollOffsetBeyondCount(t *testing.T) {
+	v := View{
+		Level:        TrackLevel,
+		Width:        80,
+		ScrollOffset: 100,
+		Tracks: []db.PlaylistTrackRow{
+			{ID: 1, Position: 1, Title: "Song A", Artist: "X", DurationMs: 60000},
+		},
+	}
+	out := v.Render()
+	if !strings.Contains(out, "Tracks") {
+		t.Errorf("expected heading in output even with out-of-bounds scroll, got:\n%s", out)
+	}
+}
+
 // --- baseline column-ratio tests (40:35:25 Title:Artist:Album at TrackLevel) ---
 
 // trackColumnWidthsFromRender renders the playlists track view at the given

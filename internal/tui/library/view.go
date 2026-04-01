@@ -294,10 +294,7 @@ func (v View) Render() string {
 	}
 
 	maxRows := v.visibleRows()
-	start := v.ScrollOffset
-	if start > len(display) {
-		start = len(display)
-	}
+	start := min(v.ScrollOffset, len(display))
 	end := min(len(display), start+maxRows)
 
 	separator := ""
