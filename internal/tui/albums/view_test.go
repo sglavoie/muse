@@ -248,7 +248,7 @@ func TestRenderWithStyles(t *testing.T) {
 func TestFilterSeparatorActive(t *testing.T) {
 	v := View{FilterActive: true, FilterText: "test", Width: 80}
 	sep := v.filterSeparator()
-	if !strings.Contains(sep, "Filter: > test") {
+	if !strings.Contains(sep, "Filter: test") {
 		t.Errorf("expected filter prompt, got: %q", sep)
 	}
 }

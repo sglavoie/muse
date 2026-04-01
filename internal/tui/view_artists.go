@@ -89,6 +89,7 @@ func (v ArtistsView) render(s styles.Styles, favHashes, favArtists, favAlbums ma
 		Styles:             s,
 		FilterActive:       v.filter.Active,
 		FilterText:         v.filter.Text,
+		FilterView:         v.filter.View(),
 		SortIndicator:      sortInd,
 		FavoriteHashes:     favHashes,
 		FavoriteArtists:    favArtists,

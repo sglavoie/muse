@@ -88,7 +88,7 @@ func TestNewSettingsOverlayDefaultsTab(t *testing.T) {
 func TestSettingsTabSwitchForward(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	// Library -> Playback
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
 	if o.tab != settingsTabPlayback {
 		t.Errorf("']': expected settingsTabPlayback, got %v", o.tab)
 	}
@@ -96,7 +96,7 @@ func TestSettingsTabSwitchForward(t *testing.T) {
 		t.Errorf("']': expected cursor reset to 0, got %d", o.cursor)
 	}
 	// Playback -> Equalizer
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
 	if o.tab != settingsTabEqualizer {
 		t.Errorf("']' again: expected settingsTabEqualizer, got %v", o.tab)
 	}
@@ -105,7 +105,7 @@ func TestSettingsTabSwitchForward(t *testing.T) {
 func TestSettingsTabSwitchBackward(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	// Start at Library, wrap backward to Display (last tab).
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: '[', Text: "["})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: '[', Text: "["})
 	if o.tab != settingsTabDisplay {
 		t.Errorf("'[' from Library: expected wrap to settingsTabDisplay, got %v", o.tab)
 	}
@@ -114,10 +114,10 @@ func TestSettingsTabSwitchBackward(t *testing.T) {
 func TestSettingsTabSwitchWraps(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	// Forward four times wraps back to Library (4 tabs: Library, Playback, Equalizer, Display).
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
 	if o.tab != settingsTabLibrary {
 		t.Errorf("']' four times: expected wrap back to settingsTabLibrary, got %v", o.tab)
 	}
@@ -126,13 +126,13 @@ func TestSettingsTabSwitchWraps(t *testing.T) {
 func TestSettingsTabSwitchResetsCursor(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	// Switch to Playback tab first, then move cursor down.
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	if o.cursor != 1 {
 		t.Fatalf("precondition: expected cursor=1, got %d", o.cursor)
 	}
 	// Switch tab — cursor must reset.
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
 	if o.cursor != 0 {
 		t.Errorf("tab switch: expected cursor reset to 0, got %d", o.cursor)
 	}
@@ -145,7 +145,7 @@ func TestSettingsCursorDownWraps(t *testing.T) {
 	o.tab = settingsTabPlayback
 	n := len(o.fields[o.tab])
 	for range n {
-		o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
+		o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	}
 	if o.cursor != 0 {
 		t.Errorf("j*%d: expected wrap to cursor=0, got %d", n, o.cursor)
@@ -155,7 +155,7 @@ func TestSettingsCursorDownWraps(t *testing.T) {
 func TestSettingsCursorUpWraps(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	o.tab = settingsTabPlayback
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'k', Text: "k"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'k', Text: "k"})
 	n := len(o.fields[settingsTabPlayback])
 	if o.cursor != n-1 {
 		t.Errorf("k from 0: expected wrap to cursor=%d, got %d", n-1, o.cursor)
@@ -165,11 +165,11 @@ func TestSettingsCursorUpWraps(t *testing.T) {
 func TestSettingsCursorArrowKeys(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	o.tab = settingsTabPlayback
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyDown})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyDown})
 	if o.cursor != 1 {
 		t.Errorf("down: expected cursor=1, got %d", o.cursor)
 	}
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyUp})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyUp})
 	if o.cursor != 0 {
 		t.Errorf("up: expected cursor=0, got %d", o.cursor)
 	}
@@ -181,7 +181,7 @@ func TestSettingsIncrementValue(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	o.tab = settingsTabPlayback
 	initial := o.fields[settingsTabPlayback][0].Value
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
 	got := o.fields[settingsTabPlayback][0].Value
 	if got != initial+1 {
 		t.Errorf("l: expected value %d, got %d", initial+1, got)
@@ -195,7 +195,7 @@ func TestSettingsDecrementValue(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	o.tab = settingsTabPlayback
 	initial := o.fields[settingsTabPlayback][0].Value
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'h', Text: "h"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'h', Text: "h"})
 	got := o.fields[settingsTabPlayback][0].Value
 	if got != initial-1 {
 		t.Errorf("h: expected value %d, got %d", initial-1, got)
@@ -206,7 +206,7 @@ func TestSettingsIncrementClampsAtMax(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	f := &o.fields[settingsTabPlayback][0]
 	f.Value = f.Max
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
 	if o.fields[settingsTabPlayback][0].Value != f.Max {
 		t.Errorf("l at max: expected value clamped to %d, got %d", f.Max, o.fields[settingsTabPlayback][0].Value)
 	}
@@ -216,7 +216,7 @@ func TestSettingsDecrementClampsAtMin(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	f := &o.fields[settingsTabPlayback][0]
 	f.Value = f.Min
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'h', Text: "h"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'h', Text: "h"})
 	if o.fields[settingsTabPlayback][0].Value != f.Min {
 		t.Errorf("h at min: expected value clamped to %d, got %d", f.Min, o.fields[settingsTabPlayback][0].Value)
 	}
@@ -226,11 +226,11 @@ func TestSettingsArrowKeysAdjustValue(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	o.tab = settingsTabPlayback
 	initial := o.fields[settingsTabPlayback][0].Value
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyRight})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyRight})
 	if o.fields[settingsTabPlayback][0].Value != initial+1 {
 		t.Errorf("right: expected value %d, got %d", initial+1, o.fields[settingsTabPlayback][0].Value)
 	}
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyLeft})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyLeft})
 	if o.fields[settingsTabPlayback][0].Value != initial {
 		t.Errorf("left: expected value restored to %d, got %d", initial, o.fields[settingsTabPlayback][0].Value)
 	}
@@ -240,7 +240,7 @@ func TestSettingsArrowKeysAdjustValue(t *testing.T) {
 
 func TestSettingsEscReturnsCancel(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
-	_, action := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
+	_, action, _ := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if action != settingsCancel {
 		t.Errorf("esc: expected settingsCancel, got %v", action)
 	}
@@ -248,7 +248,7 @@ func TestSettingsEscReturnsCancel(t *testing.T) {
 
 func TestSettingsCtrlSReturnsSave(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
-	_, action := o.HandleKey(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	_, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
 	if action != settingsSave {
 		t.Errorf("ctrl+s: expected settingsSave, got %v", action)
 	}
@@ -256,7 +256,7 @@ func TestSettingsCtrlSReturnsSave(t *testing.T) {
 
 func TestSettingsCtrlCReturnsNone(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
-	_, action := o.HandleKey(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	_, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	if action != settingsNone {
 		t.Errorf("ctrl+c: expected settingsNone (fall-through), got %v", action)
 	}
@@ -455,13 +455,13 @@ func TestEQPresetCyclingSnapssBands(t *testing.T) {
 	o = switchToEQTab(o)
 
 	// Move cursor to Preset field (index 1).
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	if o.cursor != 1 {
 		t.Fatalf("precondition: expected cursor=1, got %d", o.cursor)
 	}
 
 	// Press 'l' to advance to Bass Boost preset.
-	o, action := o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
 	if action != settingsEQLive {
 		t.Errorf("preset cycle: expected settingsEQLive, got %v", action)
 	}
@@ -483,14 +483,14 @@ func TestEQBandAdjustmentSwitchesToCustomSentinel(t *testing.T) {
 	o = switchToEQTab(o)
 
 	// Move cursor to first band field (index 2).
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	if o.cursor != 2 {
 		t.Fatalf("precondition: expected cursor=2, got %d", o.cursor)
 	}
 
 	// Press 'l' to increase a band.
-	o, action := o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
 	if action != settingsEQLive {
 		t.Errorf("band adjust: expected settingsEQLive, got %v", action)
 	}
@@ -507,7 +507,7 @@ func TestEQEnabledToggleReturnsEQLive(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	o = switchToEQTab(o)
 	// cursor=0 is the Enabled field.
-	_, action := o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	_, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
 	if action != settingsEQLive {
 		t.Errorf("enabled toggle: expected settingsEQLive, got %v", action)
 	}
@@ -621,11 +621,11 @@ func TestEQPresetCyclingIncludesCustomPresets(t *testing.T) {
 	o = switchToEQTab(o)
 
 	// Move cursor to Preset field.
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 
 	// Cycle through all built-ins to reach the custom preset.
 	for range len(config.BuiltinEQPresets) {
-		o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
+		o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
 	}
 
 	presetIdx := o.fields[settingsTabEqualizer][1].Value
@@ -639,7 +639,7 @@ func TestEQSavePresetOpensNameInput(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	o = switchToEQTab(o)
 
-	o, action := o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
+	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
 	if action != settingsNone {
 		t.Errorf("S: expected settingsNone, got %v", action)
 	}
@@ -654,14 +654,14 @@ func TestEQSavePresetTypingAndEnter(t *testing.T) {
 	initialPresetCount := len(o.eqPresets)
 
 	// Open name input.
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
 
 	// Type "Hi".
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'H', Text: "H"})
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'i', Text: "i"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'H', Text: "H"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'i', Text: "i"})
 
 	// Press Enter.
-	o, action := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if action != settingsEQSave {
 		t.Errorf("Enter after typing: expected settingsEQSave, got %v", action)
 	}
@@ -687,8 +687,8 @@ func TestEQSavePresetEmptyNameNoOp(t *testing.T) {
 	initialPresetCount := len(o.eqPresets)
 
 	// Open name input and immediately press Enter.
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
-	o, action := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
+	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if action != settingsNone {
 		t.Errorf("Enter with empty name: expected settingsNone, got %v", action)
 	}
@@ -702,9 +702,9 @@ func TestEQSavePresetEscCancels(t *testing.T) {
 	o = switchToEQTab(o)
 	initialPresetCount := len(o.eqPresets)
 
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'X', Text: "X"})
-	o, action := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'X', Text: "X"})
+	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if action != settingsNone {
 		t.Errorf("Esc in name input: expected settingsNone, got %v", action)
 	}
@@ -725,11 +725,11 @@ func TestEQSavePresetSlugDedup(t *testing.T) {
 	o = switchToEQTab(o)
 
 	// Save another preset with the same slug.
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
 	for _, r := range "My Sound" {
-		o, _ = o.HandleKey(tea.KeyPressMsg{Code: rune(r), Text: string(r)})
+		o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: rune(r), Text: string(r)})
 	}
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	// Find the new preset.
 	var keys []string
@@ -760,8 +760,8 @@ func TestEQDeleteBuiltinPresetIgnored(t *testing.T) {
 	o = switchToEQTab(o)
 
 	// Preset field starts on Flat (built-in). Press D — should be ignored.
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"}) // cursor to Preset
-	o, action := o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"}) // cursor to Preset
+	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	if action != settingsNone {
 		t.Errorf("D on built-in: expected settingsNone, got %v", action)
 	}
@@ -776,8 +776,8 @@ func TestEQDeleteSentinelIgnored(t *testing.T) {
 
 	// Set preset to "(Custom)" sentinel.
 	o.fields[settingsTabEqualizer][1].Value = len(o.eqPresets) - 1
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"}) // cursor to Preset
-	o, action := o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"}) // cursor to Preset
+	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	if action != settingsNone {
 		t.Errorf("D on sentinel: expected settingsNone, got %v", action)
 	}
@@ -800,10 +800,10 @@ func TestEQDeleteCustomPresetFlow(t *testing.T) {
 	o.fields[settingsTabEqualizer][1].Value = customIdx
 
 	// Move cursor to Preset field.
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 
 	// Press D to start delete confirmation.
-	o, action := o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	if action != settingsNone {
 		t.Errorf("D: expected settingsNone, got %v", action)
 	}
@@ -812,7 +812,7 @@ func TestEQDeleteCustomPresetFlow(t *testing.T) {
 	}
 
 	// Confirm with D.
-	o, action = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	o, action, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	if action != settingsEQDelete {
 		t.Errorf("D confirm: expected settingsEQDelete, got %v", action)
 	}
@@ -841,10 +841,10 @@ func TestEQDeleteCustomPresetEscCancels(t *testing.T) {
 
 	customIdx := len(config.BuiltinEQPresets)
 	o.fields[settingsTabEqualizer][1].Value = customIdx
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"}) // start confirm
-	o, action := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"}) // start confirm
+	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if action != settingsNone {
 		t.Errorf("Esc in confirm: expected settingsNone, got %v", action)
 	}
@@ -884,9 +884,9 @@ func TestToConfigExcludesBuiltinsAndSentinel(t *testing.T) {
 func TestEQRenderShowsNameInputPrompt(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	o.tab = settingsTabEqualizer
-	o.eqNameInput = &textInput{}
-	o.eqNameInput.HandleKey("M")
-	o.eqNameInput.HandleKey("y")
+	input := newSettingsInput()
+	input.SetValue("My")
+	o.eqNameInput = input
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 40, s))
 	if !strings.Contains(out, "Save as:") {
@@ -927,75 +927,6 @@ func TestEQHintLineShowsOnEQTab(t *testing.T) {
 	}
 }
 
-// --- Text input ---
-
-func TestTextInputTyping(t *testing.T) {
-	ti := &textInput{}
-	ti.HandleKey("H")
-	ti.HandleKey("i")
-	if ti.Value() != "Hi" {
-		t.Errorf("typing: expected %q, got %q", "Hi", ti.Value())
-	}
-}
-
-func TestTextInputBackspace(t *testing.T) {
-	ti := &textInput{}
-	ti.HandleKey("H")
-	ti.HandleKey("i")
-	ti.HandleKey("backspace")
-	if ti.Value() != "H" {
-		t.Errorf("backspace: expected %q, got %q", "H", ti.Value())
-	}
-}
-
-func TestTextInputBackspaceAtStart(t *testing.T) {
-	ti := &textInput{}
-	ti.HandleKey("backspace") // no-op
-	if ti.Value() != "" {
-		t.Errorf("backspace at start: expected empty, got %q", ti.Value())
-	}
-}
-
-func TestTextInputLeftRight(t *testing.T) {
-	ti := &textInput{}
-	ti.HandleKey("A")
-	ti.HandleKey("B")
-	// cursor at end (2)
-	ti.HandleKey("left")
-	// cursor at 1
-	ti.HandleKey("A") // insert A between A and B
-	if ti.Value() != "AAB" {
-		t.Errorf("left+insert: expected %q, got %q", "AAB", ti.Value())
-	}
-}
-
-func TestTextInputRenderShowsCursor(t *testing.T) {
-	ti := &textInput{}
-	ti.HandleKey("H")
-	ti.HandleKey("i")
-	r := ti.Render(40)
-	if !strings.Contains(r, "|") {
-		t.Errorf("Render: expected cursor '|' in output, got %q", r)
-	}
-}
-
-func TestTextInputLeftAtStart(t *testing.T) {
-	ti := &textInput{}
-	ti.HandleKey("left") // no-op
-	if ti.cursor != 0 {
-		t.Errorf("left at start: expected cursor=0, got %d", ti.cursor)
-	}
-}
-
-func TestTextInputRightAtEnd(t *testing.T) {
-	ti := &textInput{}
-	ti.HandleKey("A")
-	cursorBefore := ti.cursor
-	ti.HandleKey("right") // no-op at end
-	if ti.cursor != cursorBefore {
-		t.Errorf("right at end: expected cursor=%d, got %d", cursorBefore, ti.cursor)
-	}
-}
 
 // --- Fix 1: h/l at min/max boundary should NOT reset preset to "(Custom)" ---
 
@@ -1012,7 +943,7 @@ func TestEQBandAtMinDoesNotResetPreset(t *testing.T) {
 	o.fields[settingsTabEqualizer][2].Value = -12
 
 	presetBefore := o.fields[settingsTabEqualizer][1].Value
-	o, action := o.HandleKey(tea.KeyPressMsg{Code: 'h', Text: "h"})
+	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'h', Text: "h"})
 
 	// Value didn't change, so preset should NOT have been touched.
 	if o.fields[settingsTabEqualizer][1].Value != presetBefore {
@@ -1035,7 +966,7 @@ func TestEQBandAtMaxDoesNotResetPreset(t *testing.T) {
 	o.fields[settingsTabEqualizer][2].Value = 12
 
 	presetBefore := o.fields[settingsTabEqualizer][1].Value
-	o, action := o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
 
 	if o.fields[settingsTabEqualizer][1].Value != presetBefore {
 		t.Errorf("l at max: preset changed from %d to %d", presetBefore, o.fields[settingsTabEqualizer][1].Value)
@@ -1053,11 +984,11 @@ func TestEQSavePresetAllSpecialCharsNameNoOp(t *testing.T) {
 	initialPresetCount := len(o.eqPresets)
 
 	// Open name input and type "!!!".
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: '!', Text: "!"})
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: '!', Text: "!"})
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: '!', Text: "!"})
-	o, action := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: '!', Text: "!"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: '!', Text: "!"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: '!', Text: "!"})
+	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	if action != settingsNone {
 		t.Errorf("Enter with all-special-chars name: expected settingsNone, got %v", action)
@@ -1129,12 +1060,12 @@ func TestStereoWideToggleReturnsLiveAction(t *testing.T) {
 	o.tab = settingsTabPlayback
 	// Navigate to cursor=6 (Stereo wide toggle).
 	for range 6 {
-		o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
+		o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	}
 	if o.cursor != 6 {
 		t.Fatalf("precondition: expected cursor=6, got %d", o.cursor)
 	}
-	_, action := o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	_, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
 	if action != settingsStereoLive {
 		t.Errorf("stereo wide toggle: expected settingsStereoLive, got %v", action)
 	}
@@ -1147,12 +1078,12 @@ func TestStereoWideAmountAdjustReturnsLiveAction(t *testing.T) {
 	o.tab = settingsTabPlayback
 	// Navigate to cursor=7 (Width).
 	for range 7 {
-		o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
+		o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	}
 	if o.cursor != 7 {
 		t.Fatalf("precondition: expected cursor=7, got %d", o.cursor)
 	}
-	_, action := o.HandleKey(tea.KeyPressMsg{Code: 'h', Text: "h"})
+	_, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'h', Text: "h"})
 	if action != settingsStereoLive {
 		t.Errorf("stereo wide amount: expected settingsStereoLive, got %v", action)
 	}
@@ -1165,7 +1096,7 @@ func TestStereoWideRenderShowsTenthUnit(t *testing.T) {
 	o.tab = settingsTabPlayback
 	// Navigate to Width field so it's visible and active.
 	for range 7 {
-		o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
+		o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	}
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))
@@ -1196,12 +1127,12 @@ func TestLibraryTabDeleteDirRemovesEntry(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, dirs)
 	// On Library tab by default; cursor is at 0.
 	// Press 'd' to start confirmation.
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	if !o.libConfirmDel {
 		t.Fatal("expected libConfirmDel=true after 'd'")
 	}
 	// Confirm deletion with 'd'.
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	if len(o.libraryDirs) != 1 {
 		t.Fatalf("expected 1 dir after delete, got %d: %v", len(o.libraryDirs), o.libraryDirs)
 	}
@@ -1216,7 +1147,7 @@ func TestLibraryTabDeleteRefusesIfOnlyOneDir(t *testing.T) {
 	dirs := []string{"/music/rock"}
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, dirs)
 	// Press 'd' — should not enter confirm mode since only one dir.
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	if o.libConfirmDel {
 		t.Error("expected libConfirmDel=false when only one directory remains")
 	}
@@ -1230,8 +1161,8 @@ func TestLibraryTabDeleteRefusesIfOnlyOneDir(t *testing.T) {
 func TestLibraryTabDeleteCancelRestoresList(t *testing.T) {
 	dirs := []string{"/music/rock", "/music/jazz"}
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, dirs)
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if o.libConfirmDel {
 		t.Error("expected libConfirmDel=false after esc")
 	}
@@ -1268,7 +1199,7 @@ func TestExcludedSubViewToggle(t *testing.T) {
 	if o.libSubView != libSubViewDirs {
 		t.Fatalf("initial libSubView: expected libSubViewDirs, got %v", o.libSubView)
 	}
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
 	if o.libSubView != libSubViewExcluded {
 		t.Errorf("'e': expected libSubViewExcluded, got %v", o.libSubView)
 	}
@@ -1278,11 +1209,11 @@ func TestExcludedSubViewToggle(t *testing.T) {
 // excluded sub-view returns to the dirs sub-view instead of closing the overlay.
 func TestExcludedSubViewEscReturnsToDir(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
 	if o.libSubView != libSubViewExcluded {
 		t.Fatalf("precondition: expected libSubViewExcluded")
 	}
-	o, action := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
+	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if o.libSubView != libSubViewDirs {
 		t.Errorf("esc: expected libSubViewDirs, got %v", o.libSubView)
 	}
@@ -1294,21 +1225,21 @@ func TestExcludedSubViewEscReturnsToDir(t *testing.T) {
 // TestExcludedPathAddViaInput verifies the full add-pattern flow.
 func TestExcludedPathAddViaInput(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
 
 	// Open input with 'a'.
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	if o.exclPathInput == nil {
 		t.Fatal("'a': expected exclPathInput to be non-nil")
 	}
 
 	// Type "Podcasts".
 	for _, r := range "Podcasts" {
-		o, _ = o.HandleKey(tea.KeyPressMsg{Code: r, Text: string(r)})
+		o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: r, Text: string(r)})
 	}
 
 	// Confirm with Enter.
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if o.exclPathInput != nil {
 		t.Error("Enter: expected exclPathInput to be nil after confirm")
 	}
@@ -1326,12 +1257,12 @@ func TestExcludedPathAddDuplicateIsNoop(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.ExcludedPaths = []string{"Podcasts"}
 	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	for _, r := range "Podcasts" {
-		o, _ = o.HandleKey(tea.KeyPressMsg{Code: r, Text: string(r)})
+		o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: r, Text: string(r)})
 	}
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if len(o.excludedPaths) != 1 {
 		t.Errorf("duplicate add: expected 1 entry, got %d: %v", len(o.excludedPaths), o.excludedPaths)
 	}
@@ -1341,12 +1272,12 @@ func TestExcludedPathAddDuplicateIsNoop(t *testing.T) {
 // discards the typed text.
 func TestExcludedPathAddInputEscCancels(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	for _, r := range "Podcasts" {
-		o, _ = o.HandleKey(tea.KeyPressMsg{Code: r, Text: string(r)})
+		o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: r, Text: string(r)})
 	}
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if o.exclPathInput != nil {
 		t.Error("esc in input: expected exclPathInput to be nil")
 	}
@@ -1360,17 +1291,17 @@ func TestExcludedPathDeleteFlow(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.ExcludedPaths = []string{"Podcasts", "Audiobooks"}
 	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
 	// cursor=0 points at "Podcasts".
 
 	// Press 'd' to start confirmation.
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	if !o.exclConfirmDel {
 		t.Fatal("'d': expected exclConfirmDel=true")
 	}
 
 	// Confirm with 'd'.
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	if o.exclConfirmDel {
 		t.Error("confirm: expected exclConfirmDel=false")
 	}
@@ -1385,9 +1316,9 @@ func TestExcludedPathDeleteEscCancels(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.ExcludedPaths = []string{"Podcasts"}
 	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if o.exclConfirmDel {
 		t.Error("esc: expected exclConfirmDel=false")
 	}
@@ -1416,12 +1347,12 @@ func TestExcludedPathsToConfigRoundTrip(t *testing.T) {
 func TestTabSwitchResetsToLibSubViewDirs(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	// Switch to excluded sub-view.
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
 	if o.libSubView != libSubViewExcluded {
 		t.Fatalf("precondition: expected libSubViewExcluded")
 	}
 	// Switch to Playback tab.
-	o, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
 	if o.libSubView != libSubViewDirs {
 		t.Errorf("tab switch: expected libSubView reset to libSubViewDirs, got %v", o.libSubView)
 	}

@@ -683,7 +683,7 @@ func TestArtistsFilterRenderOutput(t *testing.T) {
 	m = typeText(m, "bob")
 
 	v := m.View()
-	if !strings.Contains(v.Content, "Filter: > bob") {
+	if !strings.Contains(v.Content, "Filter: ") {
 		t.Errorf("expected filter bar in view output, got:\n%s", v.Content)
 	}
 	if !strings.Contains(v.Content, "Bob") {

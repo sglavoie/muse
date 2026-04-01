@@ -7,11 +7,20 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/bubbles/v2/textinput"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
+
+func newSettingsInput() *textinput.Model {
+	ti := textinput.New()
+	ti.Prompt = ""
+	ti.CharLimit = 0
+	ti.Focus()
+	return &ti
+}
 
 func boolToInt(b bool) int {
 	if b {
@@ -69,19 +78,19 @@ type SettingsOverlay struct {
 	cursor       int
 	fields       [settingsTabCount][]settingsField
 	eqPresets    []config.EQPresetDef
-	eqNameInput  *textInput // non-nil when prompting for preset name
-	eqConfirmDel bool       // true when showing delete confirmation
+	eqNameInput  *textinput.Model // non-nil when prompting for preset name
+	eqConfirmDel bool            // true when showing delete confirmation
 	dirty        bool
 
 	// Library tab state.
 	libSubView     librarySubView
 	libraryDirs    []string
 	libCursor      int
-	libDirInput    *textInput // non-nil when adding a directory
+	libDirInput    *textinput.Model // non-nil when adding a directory
 	libConfirmDel  bool       // true when showing directory delete confirmation
 	excludedPaths  []string
 	exclCursor     int
-	exclPathInput  *textInput // non-nil when adding an excluded path pattern
+	exclPathInput  *textinput.Model // non-nil when adding an excluded path pattern
 	exclConfirmDel bool       // true when showing delete confirmation for excluded paths
 }
 
@@ -169,7 +178,7 @@ func (o SettingsOverlay) StereoWideState() (enabled bool, amount int) {
 
 // HandleKey processes a key event and returns the updated overlay and the resulting action.
 // ctrl+c returns settingsNone so the caller can fall through to root quit handling.
-func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settingsAction) {
+func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settingsAction, tea.Cmd) {
 	// Excluded path input mode.
 	if o.tab == settingsTabLibrary && o.libSubView == libSubViewExcluded && o.exclPathInput != nil {
 		switch msg.String() {
@@ -183,13 +192,14 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 					o.dirty = true
 				}
 			}
-			return o, settingsNone
+			return o, settingsNone, nil
 		case "esc":
 			o.exclPathInput = nil
-			return o, settingsNone
+			return o, settingsNone, nil
 		default:
-			o.exclPathInput.HandleKey(msg.String())
-			return o, settingsNone
+			updated, cmd := o.exclPathInput.Update(msg)
+			o.exclPathInput = &updated
+			return o, settingsNone, cmd
 		}
 	}
 
@@ -205,12 +215,12 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 				o.dirty = true
 			}
 			o.exclConfirmDel = false
-			return o, settingsNone
+			return o, settingsNone, nil
 		case "esc":
 			o.exclConfirmDel = false
-			return o, settingsNone
+			return o, settingsNone, nil
 		default:
-			return o, settingsNone
+			return o, settingsNone, nil
 		}
 	}
 
@@ -228,13 +238,14 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 					o.dirty = true
 				}
 			}
-			return o, settingsNone
+			return o, settingsNone, nil
 		case "esc":
 			o.libDirInput = nil
-			return o, settingsNone
+			return o, settingsNone, nil
 		default:
-			o.libDirInput.HandleKey(msg.String())
-			return o, settingsNone
+			updated, cmd := o.libDirInput.Update(msg)
+			o.libDirInput = &updated
+			return o, settingsNone, cmd
 		}
 	}
 
@@ -250,12 +261,12 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 				o.dirty = true
 			}
 			o.libConfirmDel = false
-			return o, settingsNone
+			return o, settingsNone, nil
 		case "esc":
 			o.libConfirmDel = false
-			return o, settingsNone
+			return o, settingsNone, nil
 		default:
-			return o, settingsNone
+			return o, settingsNone, nil
 		}
 	}
 
@@ -266,15 +277,16 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 			name := o.eqNameInput.Value()
 			o.eqNameInput = nil
 			if name != "" && o.addCustomPreset(name) {
-				return o, settingsEQSave
+				return o, settingsEQSave, nil
 			}
-			return o, settingsNone
+			return o, settingsNone, nil
 		case "esc":
 			o.eqNameInput = nil
-			return o, settingsNone
+			return o, settingsNone, nil
 		default:
-			o.eqNameInput.HandleKey(msg.String())
-			return o, settingsNone
+			updated, cmd := o.eqNameInput.Update(msg)
+			o.eqNameInput = &updated
+			return o, settingsNone, cmd
 		}
 	}
 
@@ -284,12 +296,12 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 		case "d", "enter":
 			o.deleteCurrentPreset()
 			o.eqConfirmDel = false
-			return o, settingsEQDelete
+			return o, settingsEQDelete, nil
 		case "esc":
 			o.eqConfirmDel = false
-			return o, settingsNone
+			return o, settingsNone, nil
 		default:
-			return o, settingsNone
+			return o, settingsNone, nil
 		}
 	}
 
@@ -344,10 +356,10 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 				}
 				o.dirty = true
 				if o.tab == settingsTabEqualizer {
-					return o, o.applyEQFieldChange()
+					return o, o.applyEQFieldChange(), nil
 				}
 				if o.tab == settingsTabPlayback && (o.cursor == 6 || o.cursor == 7) {
-					return o, settingsStereoLive
+					return o, settingsStereoLive, nil
 				}
 			}
 		}
@@ -361,26 +373,26 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 				}
 				o.dirty = true
 				if o.tab == settingsTabEqualizer {
-					return o, o.applyEQFieldChange()
+					return o, o.applyEQFieldChange(), nil
 				}
 				if o.tab == settingsTabPlayback && (o.cursor == 6 || o.cursor == 7) {
-					return o, settingsStereoLive
+					return o, settingsStereoLive, nil
 				}
 			}
 		}
 	case "a":
 		if o.tab == settingsTabLibrary {
 			if o.libSubView == libSubViewExcluded {
-				o.exclPathInput = &textInput{}
+				o.exclPathInput = newSettingsInput()
 			} else {
-				o.libDirInput = &textInput{}
+				o.libDirInput = newSettingsInput()
 			}
-			return o, settingsNone
+			return o, settingsNone, nil
 		}
 	case "s":
 		if o.tab == settingsTabEqualizer {
-			o.eqNameInput = &textInput{}
-			return o, settingsNone
+			o.eqNameInput = newSettingsInput()
+			return o, settingsNone, nil
 		}
 	case "d":
 		if o.tab == settingsTabLibrary {
@@ -393,7 +405,7 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 					o.libConfirmDel = true
 				}
 			}
-			return o, settingsNone
+			return o, settingsNone, nil
 		}
 		if o.tab == settingsTabEqualizer {
 			presetIdx := o.fields[settingsTabEqualizer][1].Value
@@ -401,7 +413,7 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 				p := o.eqPresets[presetIdx]
 				if !p.Builtin && p.Key != "custom" {
 					o.eqConfirmDel = true
-					return o, settingsNone
+					return o, settingsNone, nil
 				}
 			}
 		}
@@ -409,18 +421,18 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 		if o.tab == settingsTabLibrary && o.libSubView == libSubViewDirs {
 			o.libSubView = libSubViewExcluded
 			o.exclCursor = 0
-			return o, settingsNone
+			return o, settingsNone, nil
 		}
 	case "esc":
 		if o.tab == settingsTabLibrary && o.libSubView == libSubViewExcluded {
 			o.libSubView = libSubViewDirs
-			return o, settingsNone
+			return o, settingsNone, nil
 		}
-		return o, settingsCancel
+		return o, settingsCancel, nil
 	case "ctrl+s":
-		return o, settingsSave
+		return o, settingsSave, nil
 	}
-	return o, settingsNone
+	return o, settingsNone, nil
 }
 
 // applyEQFieldChange returns the appropriate action after an h/l keypress on
@@ -614,7 +626,7 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 			}
 			// Input or confirmation row.
 			if o.exclPathInput != nil {
-				body := "Add pattern: " + o.exclPathInput.Render(contentWidth)
+				body := "Add pattern: " + o.exclPathInput.View()
 				pad := max(0, contentWidth-ansi.StringWidth(body))
 				lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
 			} else if o.exclConfirmDel && o.exclCursor < len(o.excludedPaths) {
@@ -638,7 +650,7 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 			}
 			// Input or confirmation row.
 			if o.libDirInput != nil {
-				body := "Add dir: " + o.libDirInput.Render(contentWidth)
+				body := "Add dir: " + o.libDirInput.View()
 				pad := max(0, contentWidth-ansi.StringWidth(body))
 				lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
 			} else if o.libConfirmDel && o.libCursor < len(o.libraryDirs) {
@@ -687,7 +699,7 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 			// On EQ tab, insert CRUD state row after the Preset field (index 1).
 			if o.tab == settingsTabEqualizer && i == 1 {
 				if o.eqNameInput != nil {
-					body := "Save as: " + o.eqNameInput.Render(contentWidth)
+					body := "Save as: " + o.eqNameInput.View()
 					pad := max(0, contentWidth-ansi.StringWidth(body))
 					lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
 				} else if o.eqConfirmDel && f.Value >= 0 && f.Value < len(o.eqPresets) {

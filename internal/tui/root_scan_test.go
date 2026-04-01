@@ -252,8 +252,8 @@ func TestRescanResetsCursorScrollOffsetAndFilter(t *testing.T) {
 		t.Fatalf("setup: expected cursor=10, got %d", nm.library.cursor)
 	}
 	// Activate a filter.
-	nm.library.filter = nm.library.filter.Activate()
-	nm.library.filter, _ = nm.library.filter.AppendChar('T')
+	nm.library.filter, _ = nm.library.filter.Activate()
+	nm.library.filter, _ = nm.library.filter.Update(tea.KeyPressMsg{Text: "T"})
 	nm.library.cursor = 0
 	nm.library.scrollOffset = 0
 	nm.library = nm.library.rebuildFilterCache()
@@ -312,8 +312,8 @@ func TestWatchBatchInvalidatesFilterCache(t *testing.T) {
 	m.library.index.Insert(library.Track{Artist: "C", Title: "Charlie", Path: "/c", Hash: "h3"})
 
 	// Activate and commit a filter that matches all three.
-	m.library.filter = m.library.filter.Activate()
-	m.library.filter, _ = m.library.filter.AppendChar('a') // matches Alpha, Beta, Charlie all contain 'a' in artist or title
+	m.library.filter, _ = m.library.filter.Activate()
+	m.library.filter, _ = m.library.filter.Update(tea.KeyPressMsg{Text: "a"}) // matches Alpha, Beta, Charlie all contain 'a' in artist or title
 	m.library.cursor = 0
 	m.library.scrollOffset = 0
 	m.library = m.library.rebuildFilterCache()
@@ -363,8 +363,8 @@ func TestScanBatchInvalidatesFilterCache(t *testing.T) {
 	// Seed two tracks and set up a filter.
 	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
-	m.library.filter = m.library.filter.Activate()
-	m.library.filter, _ = m.library.filter.AppendChar('a') // matches both via artist
+	m.library.filter, _ = m.library.filter.Activate()
+	m.library.filter, _ = m.library.filter.Update(tea.KeyPressMsg{Text: "a"}) // matches both via artist
 	m.library.cursor = 0
 	m.library.scrollOffset = 0
 	m.library = m.library.rebuildFilterCache()

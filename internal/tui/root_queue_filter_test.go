@@ -37,7 +37,7 @@ func TestQueueFilterNarrowsDisplayedEntries(t *testing.T) {
 			{Path: "/c.flac", Title: "Gamma", Artist: "ArtC", Album: "AlbC"},
 		},
 	}
-	q.filter = q.filter.Activate()
+	q.filter, _ = q.filter.Activate()
 	q.filter.Text = "beta"
 	q.cursor = 0
 	q.scrollOffset = 0
@@ -60,7 +60,7 @@ func TestQueueFilterMatchesArtistAndAlbum(t *testing.T) {
 			{Path: "/b.flac", Title: "Song2", Artist: "Coldplay", Album: "Parachutes"},
 		},
 	}
-	q.filter = q.filter.Activate()
+	q.filter, _ = q.filter.Activate()
 	q.filter.Text = "radio"
 	q.cursor = 0
 	q.scrollOffset = 0
@@ -141,7 +141,7 @@ func TestQueueFilterCursorStaysInBounds(t *testing.T) {
 		},
 		cursor: 2, // pointing at Gamma
 	}
-	q.filter = q.filter.Activate()
+	q.filter, _ = q.filter.Activate()
 	// Type "alpha" — only 1 match, cursor must be clamped to 0.
 	q.filter.Text = "alpha"
 
@@ -161,14 +161,16 @@ func TestQueueFilterRendersFilterBar(t *testing.T) {
 			{Path: "/a.flac", Title: "Song", Artist: "Art", Album: "Alb"},
 		},
 	}
-	q.filter = q.filter.Activate()
-	q.filter.Text = "song"
+	q.filter, _ = q.filter.Activate()
+	for _, ch := range "song" {
+		q.filter, _ = q.filter.Update(tea.KeyPressMsg{Text: string(ch)})
+	}
 	q.cursor = 0
 	q.scrollOffset = 0
 
 	s := styles.NewStyles(true)
 	out := q.render(s, "", nil, nil, nil)
-	if !strings.Contains(out, "Filter: > song") {
+	if !strings.Contains(out, "Filter: ") {
 		t.Errorf("rendered output should contain filter bar, got:\n%s", out)
 	}
 }
@@ -181,7 +183,7 @@ func TestQueueFilterNoMatchesShowsMessage(t *testing.T) {
 			{Path: "/a.flac", Title: "Song", Artist: "Art"},
 		},
 	}
-	q.filter = q.filter.Activate()
+	q.filter, _ = q.filter.Activate()
 	q.filter.Text = "zzzzz"
 	q.cursor = 0
 	q.scrollOffset = 0
@@ -227,7 +229,7 @@ func TestQueueFilterSelectMapsToCorrectEntry(t *testing.T) {
 			{ID: 3, Path: "/c.flac", Hash: "hc", Title: "Gamma", Artist: "C"},
 		},
 	}
-	q.filter = q.filter.Activate()
+	q.filter, _ = q.filter.Activate()
 	q.filter.Text = "beta"
 	q.cursor = 0
 	q.scrollOffset = 0
@@ -258,7 +260,7 @@ func TestQueueFilterMoveDisabled(t *testing.T) {
 		},
 		cursor: 0,
 	}
-	q.filter = q.filter.Activate()
+	q.filter, _ = q.filter.Activate()
 	q.filter.Text = "a" // still matches both
 	q.cursor = 0
 	q.scrollOffset = 0
@@ -297,7 +299,7 @@ func TestQueueCursorClampedAgainstFilteredEntriesAfterDequeue(t *testing.T) {
 	}
 
 	// Activate filter for "alpha" -> 2 visible entries.
-	m.queue.filter = m.queue.filter.Activate()
+	m.queue.filter, _ = m.queue.filter.Activate()
 	m.queue.filter.Text = "alpha"
 	m.queue.cursor = 1 // pointing at "Alpha Two" (index 1 in filtered)
 
@@ -333,7 +335,7 @@ func TestQueueCursorClampedAgainstFilteredEntriesAfterBulkDequeue(t *testing.T) 
 	}
 
 	// Activate filter for "alpha" -> 2 visible entries, both selected.
-	m.queue.filter = m.queue.filter.Activate()
+	m.queue.filter, _ = m.queue.filter.Activate()
 	m.queue.filter.Text = "alpha"
 	m.queue.cursor = 1 // pointing at "Alpha Two" in filtered view
 

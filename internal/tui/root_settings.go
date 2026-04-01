@@ -23,7 +23,7 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 	if msg.String() == "ctrl+c" {
 		return m, nil, false
 	}
-	updated, action := m.overlay.settings.HandleKey(msg)
+	updated, action, cmd := m.overlay.settings.HandleKey(msg)
 	m.overlay.settings = &updated
 	switch action {
 	case settingsCancel:
@@ -34,32 +34,32 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 		if sw, ok := m.player.(stereoWideSetter); ok {
 			_ = sw.SetStereoWide(m.cfg.StereoWideEnabled, m.cfg.StereoWideAmount)
 		}
-		return m, nil, true
+		return m, cmd, true
 	case settingsSave:
-		saved, cmd := m.handleSettingsSave()
-		return saved, cmd, true
+		saved, saveCmd := m.handleSettingsSave()
+		return saved, tea.Batch(cmd, saveCmd), true
 	case settingsEQLive:
 		if eq, ok := m.player.(equalizerSetter); ok {
 			enabled, bands := m.overlay.settings.EQState()
 			_ = eq.SetEqualizer(enabled, bands)
 		}
-		return m, nil, true
+		return m, cmd, true
 	case settingsStereoLive:
 		if sw, ok := m.player.(stereoWideSetter); ok {
 			enabled, amount := m.overlay.settings.StereoWideState()
 			_ = sw.SetStereoWide(enabled, amount)
 		}
-		return m, nil, true
+		return m, cmd, true
 	case settingsEQSave:
-		return m, nil, true
+		return m, cmd, true
 	case settingsEQDelete:
 		if eq, ok := m.player.(equalizerSetter); ok {
 			enabled, bands := m.overlay.settings.EQState()
 			_ = eq.SetEqualizer(enabled, bands)
 		}
-		return m, nil, true
+		return m, cmd, true
 	}
-	return m, nil, true
+	return m, cmd, true
 }
 
 // handleSettingsOpen creates a new SettingsOverlay from the current config.

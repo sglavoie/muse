@@ -1,21 +1,54 @@
 package filter
 
+import (
+	tea "charm.land/bubbletea/v2"
+	"charm.land/bubbles/v2/textinput"
+)
+
 // State holds the filter bar's active/text state. All methods use value
 // receivers and return modified copies so callers can write
 // v.filter = v.filter.Activate() without pointer aliasing concerns.
+//
+// Text is kept as a public field for backward compatibility; it is always
+// synced with the underlying textinput value after Update/Commit/Deactivate.
 type State struct {
-	Active bool
-	Text   string
+	Active      bool
+	Text        string          // current filter text; synced with input on every Update
+	input       textinput.Model // drives cursor, paste, and Bash keybindings when Active
+	initialized bool            // true once Activate() has seeded the textinput
+}
+
+// New returns a properly-initialized State with an empty filter.
+func New() State {
+	ti := textinput.New()
+	ti.Prompt = ""
+	ti.CharLimit = 0
+	return State{input: ti}
 }
 
 // Activate enters filter input mode, preserving any existing text.
-func (s State) Activate() State {
+// The textinput is re-initialized so the cursor starts at the end of the
+// current text. Returns a cmd to start the cursor blink animation.
+func (s State) Activate() (State, tea.Cmd) {
+	ti := textinput.New()
+	ti.Prompt = ""
+	ti.CharLimit = 0
+	ti.SetValue(s.Text)
+	s.input = ti
+	s.input.CursorEnd()
 	s.Active = true
-	return s
+	s.initialized = true
+	return s, s.input.Focus() //nolint:errcheck
 }
 
 // Commit exits input mode while keeping the current text visible.
+// When Activate() was never called (e.g. in tests constructing State directly),
+// Text is preserved as-is rather than being overwritten by the zero-value input.
 func (s State) Commit() State {
+	if s.initialized {
+		s.Text = s.input.Value()
+		s.input.Blur()
+	}
 	s.Active = false
 	return s
 }
@@ -24,27 +57,27 @@ func (s State) Commit() State {
 func (s State) Deactivate() State {
 	s.Active = false
 	s.Text = ""
+	s.input.SetValue("")
+	s.input.Blur()
 	return s
 }
 
-// AppendChar appends ch to the text. Returns the new state and true if the
-// text changed. It is a no-op when the filter is not active.
-func (s State) AppendChar(ch rune) (State, bool) {
+// Update handles a key press while the filter is active, delegating to the
+// embedded textinput for full paste, cursor, and Bash keybinding support.
+// It is a no-op when the filter is not active.
+func (s State) Update(msg tea.KeyPressMsg) (State, tea.Cmd) {
 	if !s.Active {
-		return s, false
+		return s, nil
 	}
-	s.Text += string(ch)
-	return s, true
+	var cmd tea.Cmd
+	s.input, cmd = s.input.Update(msg)
+	s.Text = s.input.Value()
+	return s, cmd
 }
 
-// Backspace removes the last rune from the text. Returns the new state and
-// true if the text changed. It is a no-op when the filter is not active or
-// the text is already empty.
-func (s State) Backspace() (State, bool) {
-	if !s.Active || len(s.Text) == 0 {
-		return s, false
-	}
-	runes := []rune(s.Text)
-	s.Text = string(runes[:len(runes)-1])
-	return s, true
+// View returns the textinput's rendered string for active filter display.
+// Only call this when Active is true; the textinput must have been focused
+// via Activate() for the cursor to render correctly.
+func (s State) View() string {
+	return s.input.View()
 }

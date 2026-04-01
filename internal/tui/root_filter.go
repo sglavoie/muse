@@ -12,10 +12,9 @@ import (
 type filterOps struct {
 	deactivate func() Model
 	commit     func() Model
-	backspace  func() Model
-	appendChar func(rune) Model
+	update     func(tea.KeyPressMsg) (Model, tea.Cmd)
 	isActive   func() bool
-	activate   func() Model
+	activate   func() (Model, tea.Cmd)
 }
 
 // activeFilterOps returns the filter operations for the currently active view,
@@ -31,13 +30,14 @@ func (m Model) activeFilterOps() *filterOps {
 // makeFilterOps builds a filterOps for a single view using pointers into the
 // model copy. f, cursor, and scrollOffset point into m's fields so that
 // mutations are visible when the closures return *m. rebuild is called after
-// any operation that changes the filter text (deactivate, appendChar,
-// backspace); pass nil if no cache rebuild is needed.
+// any operation that changes the filter text (deactivate, update with text
+// change); pass nil if no cache rebuild is needed.
 func makeFilterOps(m *Model, f *filter.State, cursor *int, scrollOffset *int, rebuild func()) *filterOps {
 	return &filterOps{
-		activate: func() Model {
-			*f = f.Activate()
-			return *m
+		activate: func() (Model, tea.Cmd) {
+			var cmd tea.Cmd
+			*f, cmd = f.Activate()
+			return *m, cmd
 		},
 		commit: func() Model {
 			*f = f.Commit()
@@ -52,29 +52,18 @@ func makeFilterOps(m *Model, f *filter.State, cursor *int, scrollOffset *int, re
 			}
 			return *m
 		},
-		appendChar: func(ch rune) Model {
-			var changed bool
-			*f, changed = f.AppendChar(ch)
-			if changed {
+		update: func(msg tea.KeyPressMsg) (Model, tea.Cmd) {
+			oldText := f.Text
+			var cmd tea.Cmd
+			*f, cmd = f.Update(msg)
+			if f.Text != oldText {
 				*cursor = 0
 				*scrollOffset = 0
 				if rebuild != nil {
 					rebuild()
 				}
 			}
-			return *m
-		},
-		backspace: func() Model {
-			var changed bool
-			*f, changed = f.Backspace()
-			if changed {
-				*cursor = 0
-				*scrollOffset = 0
-				if rebuild != nil {
-					rebuild()
-				}
-			}
-			return *m
+			return *m, cmd
 		},
 		isActive: func() bool { return f.Active },
 	}
@@ -106,14 +95,14 @@ func (m Model) allFilterOps() *filterOps {
 
 // handleFilterBarMsg toggles the filter bar in the active view, or shows a
 // transient notification if filtering is not supported in the current view.
-func (m Model) handleFilterBarMsg() Model {
+func (m Model) handleFilterBarMsg() (Model, tea.Cmd) {
 	ops := m.allFilterOps()
 	if ops == nil {
 		m.statusBar.notification = newNotification("Filter not available in this view")
-		return m
+		return m, nil
 	}
 	if ops.isActive() {
-		return ops.commit()
+		return ops.commit(), nil
 	}
 	return ops.activate()
 }
@@ -134,14 +123,10 @@ func (m Model) handleFilterKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) 
 		m = ops.deactivate()
 	case "enter", "/":
 		m = ops.commit()
-	case "backspace":
-		m = ops.backspace()
 	default:
-		if msg.Text != "" {
-			for _, ch := range msg.Text {
-				m = ops.appendChar(ch)
-			}
-		}
+		var cmd tea.Cmd
+		m, cmd = ops.update(msg)
+		return m, cmd, true
 	}
 	return m, nil, true
 }

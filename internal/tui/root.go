@@ -654,7 +654,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// --- Filter messages (root_filter.go) ---
 
 	case FilterBarMsg:
-		m = m.handleFilterBarMsg()
+		return m.handleFilterBarMsg()
 
 	// --- Queue messages (root_queue.go) ---
 

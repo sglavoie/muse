@@ -60,9 +60,7 @@ func TestBuildQuery_EmptyRulesCreatesValidGroup(t *testing.T) {
 
 func TestBuildQuery_MaxTracks(t *testing.T) {
 	e := newSmartRuleEditor()
-	for _, r := range "25" {
-		e.maxTracksInput.insertRune(r)
-	}
+	e.maxTracksInput.SetValue("25")
 	q := e.buildQuery()
 	if q.MaxTracks != 25 {
 		t.Errorf("MaxTracks: got %d, want 25", q.MaxTracks)
@@ -71,9 +69,7 @@ func TestBuildQuery_MaxTracks(t *testing.T) {
 
 func TestBuildQuery_MaxTracksInvalid(t *testing.T) {
 	e := newSmartRuleEditor()
-	for _, r := range "abc" {
-		e.maxTracksInput.insertRune(r)
-	}
+	e.maxTracksInput.SetValue("abc")
 	q := e.buildQuery()
 	if q.MaxTracks != 0 {
 		t.Errorf("MaxTracks: got %d, want 0 for invalid input", q.MaxTracks)

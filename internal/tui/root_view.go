@@ -34,7 +34,7 @@ func (m Model) View() tea.View {
 	case m.helpVisible:
 		var filterBar string
 		if m.helpSearchFilter.Active {
-			filterBar = "Search: > " + m.helpSearchFilter.Text + "\n"
+			filterBar = "Search: " + m.helpSearchFilter.View() + "\n"
 		} else if m.helpSearchFilter.Text != "" {
 			filterBar = "Search: " + m.helpSearchFilter.Text + "\n"
 		}

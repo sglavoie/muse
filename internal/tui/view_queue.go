@@ -497,16 +497,7 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes, f
 	// Filter bar line (above the column header, matching the pattern of other views).
 	var filterLine string
 	if v.filter.Active {
-		if v.filter.Text == "" {
-			filterLine = "Filter: > \n"
-		} else {
-			ft := v.filter.Text
-			maxLen := v.width - len("Filter: > ") - 1
-			if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
-				ft = ansi.Truncate(ft, maxLen-1, "…")
-			}
-			filterLine = "Filter: > " + ft + "\n"
-		}
+		filterLine = "Filter: " + v.filter.View() + "\n"
 	} else if v.filter.Text != "" {
 		ft := v.filter.Text
 		maxLen := v.width - len("Filter: ") - 1

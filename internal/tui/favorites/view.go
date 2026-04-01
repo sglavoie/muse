@@ -69,6 +69,7 @@ type View struct {
 
 	FilterActive bool
 	FilterText   string
+	FilterView   string // pre-rendered textinput view for active filter display
 
 	SortIndicator string
 
@@ -492,15 +493,11 @@ func (v View) filterSeparator() string {
 		sortLine = "\n" + v.SortIndicator
 	}
 	if v.FilterActive {
-		if v.FilterText == "" {
-			return sortLine + "\nFilter: > \n"
+		fv := v.FilterView
+		if fv == "" {
+			fv = v.FilterText
 		}
-		ft := v.FilterText
-		maxLen := v.Width - len("Filter: > ") - 1
-		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
-			ft = ansi.Truncate(ft, maxLen-1, "…")
-		}
-		return sortLine + "\nFilter: > " + ft + "\n"
+		return sortLine + "\nFilter: " + fv + "\n"
 	}
 	if v.FilterText != "" {
 		ft := v.FilterText

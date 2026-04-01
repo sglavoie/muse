@@ -5,6 +5,9 @@ import (
 	"strconv"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
+	"charm.land/bubbles/v2/textinput"
+
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -36,7 +39,7 @@ type SmartRuleEditor struct {
 	step editorStep
 
 	// stepName
-	nameInput textInput
+	nameInput textinput.Model
 
 	// stepRules
 	rules       []db.SmartRule
@@ -47,14 +50,14 @@ type SmartRuleEditor struct {
 	editingRuleIdx int // -1 = new rule, ≥0 = editing rules[idx]
 	ruleFieldIdx   int // index into allRuleFields
 	ruleOpIdx      int // index into validOpsForField(currentField)
-	ruleValueInput textInput
+	ruleValueInput textinput.Model
 	editSubField   int // 0=field, 1=operator, 2=value
 
 	// stepSort
 	sortCursor     int // 0=sortBy, 1=sortDir, 2=maxTracks
 	sortByIdx      int
 	sortDir        int // 0=asc, 1=desc
-	maxTracksInput textInput
+	maxTracksInput textinput.Model
 }
 
 // allRuleFields is the ordered list of selectable rule fields.
@@ -139,24 +142,60 @@ func ruleDisplayLabel(r db.SmartRule) string {
 	return fmt.Sprintf("%s %s %q", fieldLbl, opLbl, r.Value)
 }
 
+func newEditorInput(initial string) textinput.Model {
+	ti := textinput.New()
+	ti.Prompt = ""
+	ti.CharLimit = 0
+	if initial != "" {
+		ti.SetValue(initial)
+		ti.CursorEnd()
+	}
+	ti.Focus() //nolint:errcheck
+	return ti
+}
+
+func newEditorInputDigits(initial string) textinput.Model {
+	ti := textinput.New()
+	ti.Prompt = ""
+	ti.CharLimit = 0
+	ti.Validate = func(s string) error {
+		for _, r := range s {
+			if r < '0' || r > '9' {
+				return fmt.Errorf("digits only")
+			}
+		}
+		return nil
+	}
+	if initial != "" {
+		ti.SetValue(initial)
+		ti.CursorEnd()
+	}
+	return ti
+}
+
 // newSmartRuleEditor creates an empty editor for creating a new smart playlist.
 func newSmartRuleEditor() SmartRuleEditor {
 	return SmartRuleEditor{
 		conjunction:    db.ConjAnd,
 		editingRuleIdx: -1,
+		nameInput:      newEditorInput(""),
+		maxTracksInput: newEditorInputDigits(""),
 	}
 }
 
 // newSmartRuleEditorEdit creates an editor pre-populated for editing an existing playlist.
 func newSmartRuleEditorEdit(id int64, name string, q db.SmartPlaylistQuery) SmartRuleEditor {
+	maxTracksStr := ""
+	if q.MaxTracks > 0 {
+		maxTracksStr = strconv.Itoa(q.MaxTracks)
+	}
 	e := SmartRuleEditor{
 		isEdit:         true,
 		editID:         id,
 		conjunction:    db.ConjAnd,
 		editingRuleIdx: -1,
-	}
-	for _, r := range name {
-		e.nameInput.insertRune(r)
+		nameInput:      newEditorInput(name),
+		maxTracksInput: newEditorInputDigits(maxTracksStr),
 	}
 	if q.Root.Conjunction != "" {
 		e.conjunction = q.Root.Conjunction
@@ -170,12 +209,6 @@ func newSmartRuleEditorEdit(id int64, name string, q db.SmartPlaylistQuery) Smar
 	}
 	if q.SortDir == "desc" {
 		e.sortDir = 1
-	}
-	if q.MaxTracks > 0 {
-		s := strconv.Itoa(q.MaxTracks)
-		for _, r := range s {
-			e.maxTracksInput.insertRune(r)
-		}
 	}
 	return e
 }
@@ -237,37 +270,39 @@ func (e SmartRuleEditor) currentOp() db.RuleOperator {
 	return ops[e.ruleOpIdx]
 }
 
-// HandleKey processes a key press and returns the updated editor and result action.
-func (e SmartRuleEditor) HandleKey(key string) (SmartRuleEditor, ruleEditorAction) {
+// HandleKey processes a key press and returns the updated editor, result action, and any tea.Cmd.
+func (e SmartRuleEditor) HandleKey(msg tea.KeyPressMsg) (SmartRuleEditor, ruleEditorAction, tea.Cmd) {
 	switch e.step {
 	case stepName:
-		return e.handleNameKey(key)
+		return e.handleNameKey(msg)
 	case stepRules:
-		return e.handleRulesKey(key)
+		return e.handleRulesKey(msg)
 	case stepEditRule:
-		return e.handleEditRuleKey(key)
+		return e.handleEditRuleKey(msg)
 	case stepSort:
-		return e.handleSortKey(key)
+		return e.handleSortKey(msg)
 	}
-	return e, ruleEditorNone
+	return e, ruleEditorNone, nil
 }
 
-func (e SmartRuleEditor) handleNameKey(key string) (SmartRuleEditor, ruleEditorAction) {
-	switch key {
+func (e SmartRuleEditor) handleNameKey(msg tea.KeyPressMsg) (SmartRuleEditor, ruleEditorAction, tea.Cmd) {
+	switch msg.String() {
 	case "esc":
-		return e, ruleEditorClose
+		return e, ruleEditorClose, nil
 	case "enter":
 		if strings.TrimSpace(e.nameInput.Value()) != "" {
 			e.step = stepRules
 		}
+		return e, ruleEditorNone, nil
 	default:
-		e.nameInput.HandleKey(key)
+		updated, cmd := e.nameInput.Update(msg)
+		e.nameInput = updated
+		return e, ruleEditorNone, cmd
 	}
-	return e, ruleEditorNone
 }
 
-func (e SmartRuleEditor) handleRulesKey(key string) (SmartRuleEditor, ruleEditorAction) {
-	switch key {
+func (e SmartRuleEditor) handleRulesKey(msg tea.KeyPressMsg) (SmartRuleEditor, ruleEditorAction, tea.Cmd) {
+	switch msg.String() {
 	case "esc", "left":
 		e.step = stepName
 	case "enter":
@@ -278,7 +313,7 @@ func (e SmartRuleEditor) handleRulesKey(key string) (SmartRuleEditor, ruleEditor
 		}
 	case "right":
 		if len(e.rules) == 0 {
-			return e, ruleEditorNone
+			return e, ruleEditorNone, nil
 		}
 		e.step = stepSort
 	case "a":
@@ -305,14 +340,15 @@ func (e SmartRuleEditor) handleRulesKey(key string) (SmartRuleEditor, ruleEditor
 			e.ruleCursor--
 		}
 	}
-	return e, ruleEditorNone
+	return e, ruleEditorNone, nil
 }
 
 func (e SmartRuleEditor) startNewRule() SmartRuleEditor {
 	e.editingRuleIdx = -1
 	e.ruleFieldIdx = 0
 	e.ruleOpIdx = 0
-	e.ruleValueInput = textInput{}
+	e.ruleValueInput = newEditorInput("")
+	e.ruleValueInput.Blur()
 	e.editSubField = 0
 	e.step = stepEditRule
 	return e
@@ -339,50 +375,63 @@ func (e SmartRuleEditor) startEditRule(idx int) SmartRuleEditor {
 			break
 		}
 	}
-	e.ruleValueInput = textInput{}
-	for _, r := range rule.Value {
-		e.ruleValueInput.insertRune(r)
-	}
+	e.ruleValueInput = newEditorInput(rule.Value)
+	e.ruleValueInput.Blur()
 	e.editSubField = 0
 	e.step = stepEditRule
 	return e
 }
 
-func (e SmartRuleEditor) handleEditRuleKey(key string) (SmartRuleEditor, ruleEditorAction) {
+func (e SmartRuleEditor) handleEditRuleKey(msg tea.KeyPressMsg) (SmartRuleEditor, ruleEditorAction, tea.Cmd) {
 	if e.editSubField == 2 {
 		// Value input receives most keys.
-		switch key {
+		switch msg.String() {
 		case "esc":
+			e.ruleValueInput.Blur()
 			e.step = stepRules
 		case "enter":
+			e.ruleValueInput.Blur()
 			e = e.confirmEditRule()
 		case "tab", "down":
+			e.ruleValueInput.Blur()
 			e.editSubField = 0
 		case "shift+tab", "up":
+			e.ruleValueInput.Blur()
 			e.editSubField = 1
 		default:
-			e.ruleValueInput.HandleKey(key)
+			updated, cmd := e.ruleValueInput.Update(msg)
+			e.ruleValueInput = updated
+			return e, ruleEditorNone, cmd
 		}
-		return e, ruleEditorNone
+		return e, ruleEditorNone, nil
 	}
-	switch key {
+	switch msg.String() {
 	case "esc":
 		e.step = stepRules
 	case "enter":
 		e = e.confirmEditRule()
 	case "tab", "j", "down":
-		e.editSubField = (e.editSubField + 1) % 3
+		newSub := (e.editSubField + 1) % 3
+		if newSub == 2 {
+			e.ruleValueInput.Focus() //nolint:errcheck
+		}
+		e.editSubField = newSub
 	case "shift+tab", "k", "up":
-		e.editSubField = (e.editSubField + 2) % 3
+		newSub := (e.editSubField + 2) % 3
+		if newSub == 2 {
+			e.ruleValueInput.Focus() //nolint:errcheck
+		}
+		e.editSubField = newSub
 	case "left":
-		if e.editSubField == 0 {
+		switch e.editSubField {
+		case 0:
 			if e.ruleFieldIdx > 0 {
 				e.ruleFieldIdx--
 			} else {
 				e.ruleFieldIdx = len(allRuleFields) - 1
 			}
 			e.ruleOpIdx = 0 // reset operator when field changes
-		} else if e.editSubField == 1 {
+		case 1:
 			ops := validOpsForField(e.currentField())
 			if e.ruleOpIdx > 0 {
 				e.ruleOpIdx--
@@ -391,15 +440,16 @@ func (e SmartRuleEditor) handleEditRuleKey(key string) (SmartRuleEditor, ruleEdi
 			}
 		}
 	case "right":
-		if e.editSubField == 0 {
+		switch e.editSubField {
+		case 0:
 			e.ruleFieldIdx = (e.ruleFieldIdx + 1) % len(allRuleFields)
 			e.ruleOpIdx = 0
-		} else if e.editSubField == 1 {
+		case 1:
 			ops := validOpsForField(e.currentField())
 			e.ruleOpIdx = (e.ruleOpIdx + 1) % len(ops)
 		}
 	}
-	return e, ruleEditorNone
+	return e, ruleEditorNone, nil
 }
 
 func (e SmartRuleEditor) confirmEditRule() SmartRuleEditor {
@@ -420,56 +470,65 @@ func (e SmartRuleEditor) confirmEditRule() SmartRuleEditor {
 	return e
 }
 
-func (e SmartRuleEditor) handleSortKey(key string) (SmartRuleEditor, ruleEditorAction) {
+func (e SmartRuleEditor) handleSortKey(msg tea.KeyPressMsg) (SmartRuleEditor, ruleEditorAction, tea.Cmd) {
 	if e.sortCursor == 2 {
-		// maxTracks input: only accept digits and cursor/editing keys.
-		switch key {
+		// maxTracks input: ValidateFunc rejects non-digits; navigation keys are intercepted.
+		switch msg.String() {
 		case "esc":
+			e.maxTracksInput.Blur()
 			e.step = stepRules
 		case "enter":
-			return e, ruleEditorCommit
+			return e, ruleEditorCommit, nil
 		case "tab", "down":
+			e.maxTracksInput.Blur()
 			e.sortCursor = 0
 		case "shift+tab", "up":
+			e.maxTracksInput.Blur()
 			e.sortCursor = 1
-		case "left", "right":
-			e.maxTracksInput.HandleKey(key)
-		case "backspace", "ctrl+h", "delete":
-			e.maxTracksInput.HandleKey(key)
 		default:
-			if len(key) == 1 && key[0] >= '0' && key[0] <= '9' {
-				e.maxTracksInput.HandleKey(key)
-			}
+			updated, cmd := e.maxTracksInput.Update(msg)
+			e.maxTracksInput = updated
+			return e, ruleEditorNone, cmd
 		}
-		return e, ruleEditorNone
+		return e, ruleEditorNone, nil
 	}
-	switch key {
+	switch msg.String() {
 	case "esc":
 		e.step = stepRules
 	case "enter":
-		return e, ruleEditorCommit
+		return e, ruleEditorCommit, nil
 	case "tab", "j", "down":
-		e.sortCursor = (e.sortCursor + 1) % 3
+		newCursor := (e.sortCursor + 1) % 3
+		if newCursor == 2 {
+			e.maxTracksInput.Focus() //nolint:errcheck
+		}
+		e.sortCursor = newCursor
 	case "shift+tab", "k", "up":
-		e.sortCursor = (e.sortCursor + 2) % 3
+		newCursor := (e.sortCursor + 2) % 3
+		if newCursor == 2 {
+			e.maxTracksInput.Focus() //nolint:errcheck
+		}
+		e.sortCursor = newCursor
 	case "left":
-		if e.sortCursor == 0 {
+		switch e.sortCursor {
+		case 0:
 			if e.sortByIdx > 0 {
 				e.sortByIdx--
 			} else {
 				e.sortByIdx = len(sortByOptions) - 1
 			}
-		} else if e.sortCursor == 1 {
+		case 1:
 			e.sortDir = 1 - e.sortDir
 		}
 	case "right":
-		if e.sortCursor == 0 {
+		switch e.sortCursor {
+		case 0:
 			e.sortByIdx = (e.sortByIdx + 1) % len(sortByOptions)
-		} else if e.sortCursor == 1 {
+		case 1:
 			e.sortDir = 1 - e.sortDir
 		}
 	}
-	return e, ruleEditorNone
+	return e, ruleEditorNone, nil
 }
 
 // Render returns the centered overlay string for the current editor step.
@@ -496,7 +555,7 @@ func (e SmartRuleEditor) renderNameStep(termWidth, termHeight int, s styles.Styl
 		Title: title,
 		Rows: []OverlayRow{
 			{Blank: true},
-			{Label: "Name:", Text: e.nameInput.Render(40), Styled: true},
+			{Label: "Name:", Text: e.nameInput.View(), Styled: true},
 			{Blank: true},
 		},
 		Hint: "enter to continue · esc to cancel",
@@ -556,7 +615,7 @@ func (e SmartRuleEditor) renderEditRuleStep(termWidth, termHeight int, s styles.
 
 	var valueText string
 	if e.editSubField == 2 {
-		valueText = e.ruleValueInput.Render(30)
+		valueText = e.ruleValueInput.View()
 	} else {
 		v := e.ruleValueInput.Value()
 		if v == "" {
@@ -595,7 +654,7 @@ func (e SmartRuleEditor) renderSortStep(termWidth, termHeight int, s styles.Styl
 	var maxTracksText string
 	switch {
 	case e.sortCursor == 2:
-		maxTracksText = e.maxTracksInput.Render(10)
+		maxTracksText = e.maxTracksInput.View()
 	case strings.TrimSpace(e.maxTracksInput.Value()) == "":
 		maxTracksText = "(unlimited)"
 	default:

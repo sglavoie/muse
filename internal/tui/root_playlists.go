@@ -899,11 +899,12 @@ func (m Model) handleSmartRuleEditorKeyPress(msg tea.KeyPressMsg) (Model, tea.Cm
 	if msg.String() == "ctrl+c" {
 		return m, tea.Quit, true
 	}
-	updated, act := m.overlay.smartRuleEditor.HandleKey(msg.String())
+	updated, act, cmd := m.overlay.smartRuleEditor.HandleKey(msg)
 	m.overlay.smartRuleEditor = &updated
 	switch act {
 	case ruleEditorClose:
 		m.overlay.smartRuleEditor = nil
+		return m, cmd, true
 	case ruleEditorCommit:
 		name := updated.Name()
 		q := updated.buildQuery()
@@ -939,7 +940,7 @@ func (m Model) handleSmartRuleEditorKeyPress(msg tea.KeyPressMsg) (Model, tea.Cm
 			}, true
 		}
 	}
-	return m, nil, true
+	return m, cmd, true
 }
 
 // handleSmartPlaylistCreatedMsg updates the playlist list after a smart playlist

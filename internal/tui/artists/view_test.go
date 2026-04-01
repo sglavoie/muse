@@ -652,7 +652,7 @@ func TestRenderArtistsWithFilterShowsFilterBar(t *testing.T) {
 		FilterText:   "ali",
 	}
 	out := v.Render()
-	if !strings.Contains(out, "Filter: > ali") {
+	if !strings.Contains(out, "Filter: ali") {
 		t.Errorf("expected filter bar in output, got:\n%s", out)
 	}
 	if !strings.Contains(out, "Alice") {

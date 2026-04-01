@@ -27,21 +27,11 @@ func (m Model) handleHelpKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
 			m.helpSearchFilter = m.helpSearchFilter.Commit()
 			m.refreshHelpViewport()
 			return m, nil, true
-		case "backspace":
-			var changed bool
-			m.helpSearchFilter, changed = m.helpSearchFilter.Backspace()
-			if changed {
-				m.refreshHelpViewport()
-			}
-			return m, nil, true
 		default:
-			if msg.Text != "" {
-				for _, ch := range msg.Text {
-					m.helpSearchFilter, _ = m.helpSearchFilter.AppendChar(ch) // char append can't fail for printable runes
-				}
-				m.refreshHelpViewport()
-			}
-			return m, nil, true
+			var cmd tea.Cmd
+			m.helpSearchFilter, cmd = m.helpSearchFilter.Update(msg)
+			m.refreshHelpViewport()
+			return m, cmd, true
 		}
 	}
 	// Normal help overlay mode.
@@ -50,9 +40,10 @@ func (m Model) handleHelpKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
 		// Fall through to global key handling for quit.
 		return m, nil, false
 	case "/":
-		m.helpSearchFilter = m.helpSearchFilter.Activate()
+		var cmd tea.Cmd
+		m.helpSearchFilter, cmd = m.helpSearchFilter.Activate()
 		m.refreshHelpViewport()
-		return m, nil, true
+		return m, cmd, true
 	case "esc":
 		if m.helpSearchFilter.Text != "" {
 			m.helpSearchFilter = filter.State{}

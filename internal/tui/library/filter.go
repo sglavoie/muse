@@ -1,9 +1,12 @@
 package library
 
+import tea "charm.land/bubbletea/v2"
+
 // ActivateFilter sets the filter bar to active, ready to accept text input.
 // The existing Filter.Text is preserved so re-activation resumes the last query.
 func (v View) ActivateFilter() View {
-	v.Filter = v.Filter.Activate()
+	next, _ := v.Filter.Activate()
+	v.Filter = next
 	return v
 }
 
@@ -11,11 +14,12 @@ func (v View) ActivateFilter() View {
 // to 0 since the displayed track list changes with each keystroke. It is a
 // no-op when the filter bar is not active.
 func (v View) AppendFilterChar(ch rune) View {
-	next, changed := v.Filter.AppendChar(ch)
-	v.Filter = next
-	if changed {
-		v.Cursor = 0
+	if !v.Filter.Active {
+		return v
 	}
+	next, _ := v.Filter.Update(tea.KeyPressMsg{Text: string(ch)})
+	v.Filter = next
+	v.Cursor = 0
 	return v
 }
 
@@ -23,9 +27,13 @@ func (v View) AppendFilterChar(ch rune) View {
 // cursor to 0 when the text changes. It is a no-op when the filter bar is not
 // active or the text is already empty.
 func (v View) BackspaceFilter() View {
-	next, changed := v.Filter.Backspace()
+	if !v.Filter.Active {
+		return v
+	}
+	prev := v.Filter.Text
+	next, _ := v.Filter.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	v.Filter = next
-	if changed {
+	if v.Filter.Text != prev {
 		v.Cursor = 0
 	}
 	return v

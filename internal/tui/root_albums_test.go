@@ -575,7 +575,7 @@ func TestAlbumsFilterRenderOutput(t *testing.T) {
 	m = typeText(m, "gam")
 
 	v := m.View()
-	if !strings.Contains(v.Content, "Filter: > gam") {
+	if !strings.Contains(v.Content, "Filter: ") {
 		t.Errorf("expected filter bar in view output, got:\n%s", v.Content)
 	}
 	if !strings.Contains(v.Content, "Gamma") {

@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
@@ -928,7 +930,7 @@ func TestFavoritesFilterChangeClearsSelection(t *testing.T) {
 	m.favorites.selectedItems = map[int]struct{}{0: {}, 2: {}}
 
 	// Activate the filter bar.
-	m = m.handleFilterBarMsg()
+	m, _ = m.handleFilterBarMsg()
 	if !m.favorites.filter.Active {
 		t.Fatal("filter should be active")
 	}
@@ -938,7 +940,7 @@ func TestFavoritesFilterChangeClearsSelection(t *testing.T) {
 	if ops == nil {
 		t.Fatal("expected active filter ops for favorites")
 	}
-	m = ops.appendChar('a')
+	m, _ = ops.update(tea.KeyPressMsg{Text: "a"})
 	if m.favorites.selectedItems != nil {
 		t.Fatal("selectedItems should be nil after filter text change")
 	}
@@ -979,13 +981,14 @@ func TestFavoritesFilterBackspaceClearsSelection(t *testing.T) {
 	m.favorites.albums = []string{"Foo", "Bar", "Baz"}
 	m.favorites.filter.Active = true
 	m.favorites.filter.Text = "ba"
+	m.favorites.filter, _ = m.favorites.filter.Activate()
 	m.favorites.selectedItems = map[int]struct{}{0: {}, 1: {}}
 
 	ops := m.activeFilterOps()
 	if ops == nil {
 		t.Fatal("expected active filter ops")
 	}
-	m = ops.backspace()
+	m, _ = ops.update(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	if m.favorites.selectedItems != nil {
 		t.Fatal("selectedItems should be nil after filter backspace")
 	}

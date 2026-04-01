@@ -1016,14 +1016,16 @@ func TestLibraryViewBackspaceFilter(t *testing.T) {
 	var idx library.LibraryIndex
 	idx.Insert(library.Track{Artist: "A", Title: "T1", Hash: "h1"})
 
+	f := filter.State{Active: true, Text: "AB"}
+	f, _ = f.Activate() // seed textinput with "AB"
 	v := LibraryView{
 		index:  idx,
 		fuzzy:  library.FakeFuzzySearcher{},
-		filter: filter.State{Active: true, Text: "AB"},
+		filter: f,
 	}
-	var changed bool
-	v.filter, changed = v.filter.Backspace()
-	if changed {
+	prevText := v.filter.Text
+	v.filter, _ = v.filter.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	if v.filter.Text != prevText {
 		v.cursor = 0
 		v.scrollOffset = 0
 		v = v.rebuildFilterCache()
@@ -1038,7 +1040,7 @@ func TestLibraryViewBackspaceFilter(t *testing.T) {
 
 func TestLibraryViewBackspaceFilterInactiveNoOp(t *testing.T) {
 	v := LibraryView{filter: filter.State{Text: "AB"}}
-	v.filter, _ = v.filter.Backspace()
+	v.filter, _ = v.filter.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	if v.filter.Text != "AB" {
 		t.Errorf("BackspaceFilter inactive: expected 'AB', got %q", v.filter.Text)
 	}

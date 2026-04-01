@@ -319,8 +319,7 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 			m.library.index = library.LibraryIndex{}
 			m.library.cursor = 0
 			m.library.scrollOffset = 0
-			m.library.filter.Active = false
-			m.library.filter.Text = ""
+			m.library.filter = m.library.filter.Deactivate()
 			m.library.filteredMatches = nil
 			m.library.selectedHashes = nil
 			m.library.sortState = SortState{}

@@ -283,16 +283,11 @@ func (v View) Render() string {
 
 	separator := ""
 	if v.Filter.Active {
-		ft := v.Filter.Text
-		if ft == "" {
+		if v.Filter.Text == "" {
 			hint := v.Styles.Dim.Render("a: artist  t: title  l: album")
-			separator = "Filter: > " + hint + "\n"
+			separator = "Filter: " + hint + "\n"
 		} else {
-			maxLen := v.Width - len("Filter: > ") - 1
-			if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
-				ft = ansi.Truncate(ft, maxLen-1, "…")
-			}
-			separator = "Filter: > " + ft + "\n"
+			separator = "Filter: " + v.Filter.View() + "\n"
 		}
 	} else if v.Filter.Text != "" {
 		ft := v.Filter.Text

@@ -67,6 +67,7 @@ type View struct {
 
 	FilterActive bool
 	FilterText   string
+	FilterView   string // pre-rendered textinput view for active filter display
 
 	SortIndicator   string // e.g. "Sort: Name ▲" — shown when non-empty
 	FavoriteHashes  map[string]struct{}
@@ -540,15 +541,11 @@ func (v View) buildFilterSeparator(leadingNewline bool) string {
 		if !leadingNewline {
 			sep = ""
 		}
-		if v.FilterText == "" {
-			return prefix + sep + "Filter: > \n"
+		fv := v.FilterView
+		if fv == "" {
+			fv = v.FilterText
 		}
-		ft := v.FilterText
-		maxLen := v.Width - len("Filter: > ") - 1
-		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
-			ft = ansi.Truncate(ft, maxLen-1, "…")
-		}
-		return prefix + sep + "Filter: > " + ft + "\n"
+		return prefix + sep + "Filter: " + fv + "\n"
 	}
 	if v.FilterText != "" {
 		sep := "\n"
