@@ -35,6 +35,15 @@ func (m Model) bulkSelectedHashes() []string {
 			hashes = append(hashes, h)
 		}
 		return hashes
+	case viewRecentlyAdded:
+		if len(m.recentlyAdded.selectedHashes) == 0 {
+			return nil
+		}
+		hashes := make([]string, 0, len(m.recentlyAdded.selectedHashes))
+		for h := range m.recentlyAdded.selectedHashes {
+			hashes = append(hashes, h)
+		}
+		return hashes
 	case viewQueue:
 		return m.queue.selectedHashes()
 	case viewPlaylists:

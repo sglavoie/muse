@@ -927,7 +927,6 @@ func TestEQHintLineShowsOnEQTab(t *testing.T) {
 	}
 }
 
-
 // --- Fix 1: h/l at min/max boundary should NOT reset preset to "(Custom)" ---
 
 func TestEQBandAtMinDoesNotResetPreset(t *testing.T) {

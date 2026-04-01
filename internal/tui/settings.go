@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/config"
@@ -79,7 +79,7 @@ type SettingsOverlay struct {
 	fields       [settingsTabCount][]settingsField
 	eqPresets    []config.EQPresetDef
 	eqNameInput  *textinput.Model // non-nil when prompting for preset name
-	eqConfirmDel bool            // true when showing delete confirmation
+	eqConfirmDel bool             // true when showing delete confirmation
 	dirty        bool
 
 	// Library tab state.
@@ -87,11 +87,11 @@ type SettingsOverlay struct {
 	libraryDirs    []string
 	libCursor      int
 	libDirInput    *textinput.Model // non-nil when adding a directory
-	libConfirmDel  bool       // true when showing directory delete confirmation
+	libConfirmDel  bool             // true when showing directory delete confirmation
 	excludedPaths  []string
 	exclCursor     int
 	exclPathInput  *textinput.Model // non-nil when adding an excluded path pattern
-	exclConfirmDel bool       // true when showing delete confirmation for excluded paths
+	exclConfirmDel bool             // true when showing delete confirmation for excluded paths
 }
 
 // eqCustomSentinelName is the display name of the transient "not a saved preset" state.

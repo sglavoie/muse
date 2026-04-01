@@ -1,8 +1,8 @@
 package filter
 
 import (
-	tea "charm.land/bubbletea/v2"
 	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 )
 
 // State holds the filter bar's active/text state. All methods use value
@@ -38,7 +38,7 @@ func (s State) Activate() (State, tea.Cmd) {
 	s.input.CursorEnd()
 	s.Active = true
 	s.initialized = true
-	return s, s.input.Focus() //nolint:errcheck
+	return s, s.input.Focus()
 }
 
 // Commit exits input mode while keeping the current text visible.

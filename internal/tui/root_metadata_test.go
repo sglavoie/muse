@@ -1325,6 +1325,71 @@ func TestBulkMetadataSaveClearsFavoritesSelection(t *testing.T) {
 	}
 }
 
+// TestBulkSelectedHashesRecentlyAdded verifies that bulkSelectedHashes
+// returns hashes from recentlyAdded.selectedHashes when the Recently Added
+// view is active. Before this fix, viewRecentlyAdded was missing from the
+// switch and the function returned nil even with tracks selected.
+func TestBulkSelectedHashesRecentlyAdded(t *testing.T) {
+	m := newModelWithTracks()
+	m = pressKey(m, "8") // switch to Recently Added view
+
+	if m.activeView != viewRecentlyAdded {
+		t.Fatalf("expected viewRecentlyAdded, got %d", m.activeView)
+	}
+
+	// Select two tracks directly.
+	m.recentlyAdded.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+
+	hashes := m.bulkSelectedHashes()
+	if len(hashes) != 2 {
+		t.Fatalf("bulkSelectedHashes (recentlyAdded): expected 2, got %d", len(hashes))
+	}
+	hashSet := make(map[string]struct{}, len(hashes))
+	for _, h := range hashes {
+		hashSet[h] = struct{}{}
+	}
+	if _, ok := hashSet["h1"]; !ok {
+		t.Error("expected h1 in hashes")
+	}
+	if _, ok := hashSet["h2"]; !ok {
+		t.Error("expected h2 in hashes")
+	}
+}
+
+// TestBulkSelectedHashesRecentlyAddedEmptyReturnsNil verifies that
+// bulkSelectedHashes returns nil when no tracks are selected in the
+// Recently Added view.
+func TestBulkSelectedHashesRecentlyAddedEmptyReturnsNil(t *testing.T) {
+	m := newModelWithTracks()
+	m = pressKey(m, "8") // switch to Recently Added view
+
+	if hashes := m.bulkSelectedHashes(); hashes != nil {
+		t.Errorf("recentlyAdded with no selection: expected nil, got %v", hashes)
+	}
+}
+
+// TestBulkMetadataEditFromRecentlyAdded verifies that pressing M with
+// multiple selected tracks in the Recently Added view opens the bulk
+// metadata editor.
+func TestBulkMetadataEditFromRecentlyAdded(t *testing.T) {
+	m := newModelWithTracks()
+	m = pressKey(m, "8") // switch to Recently Added view
+
+	// Select two tracks.
+	m.recentlyAdded.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+
+	m = pressMKey(m)
+	if m.overlay.metadataEditor == nil {
+		t.Fatal("expected bulk metadataEditor to open with 2 selected tracks in Recently Added")
+	}
+	if !m.overlay.metadataEditor.IsBulk() {
+		t.Error("expected IsBulk=true for 2 selected tracks")
+	}
+	if len(m.overlay.metadataEditor.Hashes()) != 2 {
+		t.Errorf("expected 2 hashes in editor, got %d", len(m.overlay.metadataEditor.Hashes()))
+	}
+}
+
 // refreshDerivedViews does NOT iterate playlist tracks when the view is
 // at ListLevel (there are no tracks loaded).
 func TestRefreshDerivedViewsSkipsPlaylistTracksAtListLevel(t *testing.T) {

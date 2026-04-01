@@ -469,7 +469,7 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes, f
 		titleStr := padQueue(e.Title, titleWidth)
 		artistStr := padQueue(e.Artist, artistWidth)
 		albumStr := padQueue(e.Album, albumWidth)
-		if e.Missing {
+		if e.Missing { //nolint:gocritic // ifElseChain: branches have fundamentally different rendering logic
 			plainLine := markerStr + pos + " " + padQueue(e.Title, titleWidth) + " " + padQueue(e.Artist, artistWidth) + " " + padQueue(e.Album, albumWidth) + " " + source + " " + dur
 			lines[i] = s.Dim.Render(plainLine + " [missing]")
 		} else if isFocused {

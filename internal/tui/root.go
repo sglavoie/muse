@@ -70,14 +70,14 @@ type Model struct {
 	configCreated  bool
 	configWarnings []string
 
-	library   LibraryView
+	library       LibraryView
 	recentlyAdded LibraryView
-	playlists PlaylistsView
-	queue     QueueView
-	artists   ArtistsView
-	albums    AlbumsView
-	favorites FavoritesView
-	genres    GenresView
+	playlists     PlaylistsView
+	queue         QueueView
+	artists       ArtistsView
+	albums        AlbumsView
+	favorites     FavoritesView
+	genres        GenresView
 
 	// scanCh is the channel returned by library.Scan. It is nil when no scan
 	// is in progress or after the scan has completed.
@@ -198,13 +198,13 @@ type Model struct {
 func New(ctx context.Context, opts ...Option) Model {
 	initialStyles := styles.NewStyles(true)
 	m := Model{
-		appCtx:     ctx,
-		activeView: viewLibrary,
-		cfg:        config.Defaults(),
-		library:    LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
+		appCtx:        ctx,
+		activeView:    viewLibrary,
+		cfg:           config.Defaults(),
+		library:       LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
 		recentlyAdded: newRecentlyAddedView(),
-		registry:   newRegistry(),
-		styles:     &initialStyles,
+		registry:      newRegistry(),
+		styles:        &initialStyles,
 	}
 	for _, opt := range opts {
 		opt(&m)

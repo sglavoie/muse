@@ -13,7 +13,7 @@ import (
 type goToKind int
 
 const (
-	goToArtist   goToKind = iota
+	goToArtist goToKind = iota
 	goToAlbum
 	goToGenre
 	goToPlaylist
@@ -132,7 +132,7 @@ func (m GoToModal) findByShortcut(key string) (GoToOption, bool) {
 
 func (m GoToModal) confirmOption(opt GoToOption) tea.Cmd {
 	return func() tea.Msg {
-		return GoToPickedMsg{Kind: opt.Kind, Value: opt.Value}
+		return GoToPickedMsg(opt)
 	}
 }
 

@@ -553,6 +553,48 @@ func TestSortStrings(t *testing.T) {
 			t.Error("original slice was modified")
 		}
 	})
+
+	t.Run("sentinel unknown artist sorts last asc", func(t *testing.T) {
+		items := []string{"Charlie", "(unknown artist)", "Alpha"}
+		sorted := SortStrings(items, SortAsc)
+		if sorted[0] != "Alpha" {
+			t.Errorf("first should be Alpha, got %q", sorted[0])
+		}
+		if sorted[1] != "Charlie" {
+			t.Errorf("second should be Charlie, got %q", sorted[1])
+		}
+		if sorted[2] != "(unknown artist)" {
+			t.Errorf("last should be (unknown artist), got %q", sorted[2])
+		}
+	})
+
+	t.Run("sentinel unknown album sorts last desc", func(t *testing.T) {
+		items := []string{"(unknown album)", "Bravo", "Alpha"}
+		sorted := SortStrings(items, SortDesc)
+		if sorted[0] != "Bravo" {
+			t.Errorf("first should be Bravo, got %q", sorted[0])
+		}
+		if sorted[1] != "Alpha" {
+			t.Errorf("second should be Alpha, got %q", sorted[1])
+		}
+		if sorted[2] != "(unknown album)" {
+			t.Errorf("last should be (unknown album), got %q", sorted[2])
+		}
+	})
+
+	t.Run("sentinel unknown genre sorts last", func(t *testing.T) {
+		items := []string{"(unknown genre)", "Rock", "Jazz"}
+		sorted := SortStrings(items, SortAsc)
+		if sorted[0] != "Jazz" {
+			t.Errorf("first should be Jazz, got %q", sorted[0])
+		}
+		if sorted[1] != "Rock" {
+			t.Errorf("second should be Rock, got %q", sorted[1])
+		}
+		if sorted[2] != "(unknown genre)" {
+			t.Errorf("last should be (unknown genre), got %q", sorted[2])
+		}
+	})
 }
 
 func TestArtistsViewSortReset(t *testing.T) {

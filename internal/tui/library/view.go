@@ -449,9 +449,9 @@ func (v View) Render() string {
 		}
 
 		var row string
-		if cols.Artist == 0 {
+		if cols.Artist == 0 { //nolint:gocritic // ifElseChain: branches have fundamentally different rendering logic
 			if isFocused {
-				row = v.Styles.Accent.Render(markerStr+text.Pad(num, cols.TrackNum))
+				row = v.Styles.Accent.Render(markerStr + text.Pad(num, cols.TrackNum))
 			} else {
 				row = markerStr + text.Pad(num, cols.TrackNum)
 			}

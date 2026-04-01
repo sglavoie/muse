@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -150,7 +150,7 @@ func newEditorInput(initial string) textinput.Model {
 		ti.SetValue(initial)
 		ti.CursorEnd()
 	}
-	ti.Focus() //nolint:errcheck
+	ti.Focus()
 	return ti
 }
 
@@ -437,13 +437,13 @@ func (e SmartRuleEditor) handleEditRuleKey(msg tea.KeyPressMsg) (SmartRuleEditor
 	case "tab", "j", "down":
 		newSub := (e.editSubField + 1) % 3
 		if newSub == 2 {
-			e.ruleValueInput.Focus() //nolint:errcheck
+			e.ruleValueInput.Focus()
 		}
 		e.editSubField = newSub
 	case "shift+tab", "k", "up":
 		newSub := (e.editSubField + 2) % 3
 		if newSub == 2 {
-			e.ruleValueInput.Focus() //nolint:errcheck
+			e.ruleValueInput.Focus()
 		}
 		e.editSubField = newSub
 	case "left":
@@ -524,13 +524,13 @@ func (e SmartRuleEditor) handleSortKey(msg tea.KeyPressMsg) (SmartRuleEditor, ru
 	case "tab", "j", "down":
 		newCursor := (e.sortCursor + 1) % 3
 		if newCursor == 2 {
-			e.maxTracksInput.Focus() //nolint:errcheck
+			e.maxTracksInput.Focus()
 		}
 		e.sortCursor = newCursor
 	case "shift+tab", "k", "up":
 		newCursor := (e.sortCursor + 2) % 3
 		if newCursor == 2 {
-			e.maxTracksInput.Focus() //nolint:errcheck
+			e.maxTracksInput.Focus()
 		}
 		e.sortCursor = newCursor
 	case "left":

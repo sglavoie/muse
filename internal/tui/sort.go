@@ -106,7 +106,14 @@ func SortDirIndicator(dir SortDir) string {
 
 // isUnknownValue reports whether s is empty or a common unknown sentinel.
 func isUnknownValue(s string) bool {
-	return s == "" || strings.EqualFold(s, "Unknown Artist")
+	if s == "" {
+		return true
+	}
+	lower := strings.ToLower(s)
+	return lower == "unknown artist" ||
+		lower == "(unknown artist)" ||
+		lower == "(unknown album)" ||
+		lower == "(unknown genre)"
 }
 
 // SortTracks returns a sorted copy of tracks by the given field and direction.
