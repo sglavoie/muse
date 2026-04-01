@@ -243,6 +243,14 @@ func (v LibraryView) EnqueueFocused(qa libtui.QueueAppender, prevQueueLen int) t
 	return cmd
 }
 
+// PlayNextFocused dispatches a tea.Cmd that inserts the focused track right
+// after the currently playing track. insertAfter is the queue index to insert
+// at. Returns nil when the library is empty or the cursor is out of range.
+func (v LibraryView) PlayNextFocused(qa libtui.QueueAppender, prevQueueLen, insertAfter int) tea.Cmd {
+	_, cmd := v.view().PlayNextFocused(qa, prevQueueLen, insertAfter)
+	return cmd
+}
+
 // EnqueueSelected dispatches a tea.Cmd that appends all bulk-selected tracks to
 // the play queue via qa, in index order, then clears the selection. Returns the
 // updated view (with selection cleared) and a nil Cmd when no tracks are
@@ -267,7 +275,7 @@ func (v LibraryView) EnqueueSelected(qa libtui.QueueAppender, prevQueueLen int) 
 		queueLen++
 		cmds = append(cmds, func() tea.Msg {
 			id, err := qa.AppendTrack(track, "")
-			return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty}
+			return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, InsertAfter: -1}
 		})
 	}
 	v = v.ClearSelection()

@@ -407,6 +407,52 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 			return m, cmd, true
 		}
 		return m, nil, true
+	case actionPlayNext:
+		if m.queueWriter != nil {
+			insertIdx := m.playNextIndex()
+			prevLen := len(m.queue.entries)
+			var cmd tea.Cmd
+			switch m.activeView {
+			case viewLibrary:
+				cmd = m.library.PlayNextFocused(m.queueWriter, prevLen, insertIdx)
+				if m.library.filter.Text != "" {
+					m.library.filter = m.library.filter.Deactivate()
+					m.library.cursor = 0
+					m.library.scrollOffset = 0
+					m.library = m.library.rebuildFilterCache()
+				}
+			case viewRecentlyAdded:
+				cmd = m.recentlyAdded.PlayNextFocused(m.queueWriter, prevLen, insertIdx)
+				if m.recentlyAdded.filter.Text != "" {
+					m.recentlyAdded.filter = m.recentlyAdded.filter.Deactivate()
+					m.recentlyAdded.cursor = 0
+					m.recentlyAdded.scrollOffset = 0
+					m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
+				}
+			case viewArtists:
+				if m.artists.level == arttui.TrackLevel {
+					cmd = m.artists.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
+				}
+			case viewAlbums:
+				if m.albums.level == albtui.TrackLevel {
+					cmd = m.albums.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
+				}
+			case viewPlaylists:
+				if m.playlists.level == pltui.TrackLevel {
+					cmd = m.playlists.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
+				}
+			case viewFavorites:
+				if _, ok := m.favorites.focusedTrack(); ok {
+					cmd = m.favorites.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
+				}
+			case viewGenres:
+				if _, ok := m.genres.focusedTrack(); ok {
+					cmd = m.genres.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
+				}
+			}
+			return m, cmd, true
+		}
+		return m, nil, true
 	case actionLibraryEnqueueReplace:
 		if m.queueWriter != nil {
 			var cmd tea.Cmd

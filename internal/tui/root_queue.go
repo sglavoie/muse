@@ -67,8 +67,25 @@ func (m Model) resetPlaybackState() Model {
 	return m
 }
 
+// playNextIndex returns the queue index where a "play next" track should be
+// inserted: immediately after the currently playing track. When nothing is
+// playing, it returns 0 (front of queue).
+func (m Model) playNextIndex() int {
+	if m.playback.currentHash == "" {
+		return 0
+	}
+	for i, e := range m.queue.entries {
+		if e.Hash == m.playback.currentHash {
+			return i + 1
+		}
+	}
+	return 0
+}
+
 // handleTrackEnqueuedMsg adds a newly enqueued track to the queue, sets up an
-// undo slot, and triggers playback if the queue was empty.
+// undo slot, and triggers playback if the queue was empty. When InsertAfter is
+// >= 0 the track is inserted at that position ("play next") instead of being
+// appended to the end.
 func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 	if msg.Err != nil {
 		m.statusBar.notification = newNotification("Enqueue track failed: " + msg.Err.Error())
@@ -76,7 +93,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 		return m
 	}
 	display := trackDisplay(msg.Track.Artist, msg.Track.Title, msg.Track.Path)
-	m.queue.entries = append(m.queue.entries, QueueEntry{
+	entry := QueueEntry{
 		ID:             msg.QueueID,
 		Path:           msg.Track.Path,
 		Hash:           msg.Track.Hash,
@@ -86,22 +103,38 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 		Album:          msg.Track.Album,
 		DurationMs:     int64(msg.Track.Duration * 1000),
 		SourcePlaylist: msg.SourcePlaylist,
-	})
-	m = m.resetQueueSort()
-	slog.Debug("track enqueued", "hash", msg.Track.Hash, "position", len(m.queue.entries)-1)
-	// Keep the player's in-memory queue in sync.
-	if pa, ok := m.player.(playerQueueAppender); ok {
-		pa.AppendToQueue(player.QueueTrack{
-			Path:    msg.Track.Path,
-			Hash:    msg.Track.Hash,
-			QueueID: msg.QueueID,
-			Artist:  msg.Track.Artist,
-			Title:   msg.Track.Title,
-			Source:  msg.SourcePlaylist,
-		})
 	}
+	var enqueueIdx int
+	if msg.InsertAfter >= 0 && msg.InsertAfter <= len(m.queue.entries) {
+		// Insert at the requested position ("play next").
+		idx := msg.InsertAfter
+		entries := make([]QueueEntry, len(m.queue.entries)+1)
+		copy(entries, m.queue.entries[:idx])
+		entries[idx] = entry
+		copy(entries[idx+1:], m.queue.entries[idx:])
+		m.queue.entries = entries
+		enqueueIdx = idx
+		slog.Debug("track play-next", "hash", msg.Track.Hash, "position", idx)
+		m.syncPlayerQueue()
+	} else {
+		// Append to end (default enqueue).
+		m.queue.entries = append(m.queue.entries, entry)
+		enqueueIdx = len(m.queue.entries) - 1
+		slog.Debug("track enqueued", "hash", msg.Track.Hash, "position", enqueueIdx)
+		// Keep the player's in-memory queue in sync.
+		if pa, ok := m.player.(playerQueueAppender); ok {
+			pa.AppendToQueue(player.QueueTrack{
+				Path:    msg.Track.Path,
+				Hash:    msg.Track.Hash,
+				QueueID: msg.QueueID,
+				Artist:  msg.Track.Artist,
+				Title:   msg.Track.Title,
+				Source:  msg.SourcePlaylist,
+			})
+		}
+	}
+	m = m.resetQueueSort()
 	// Set up undo slot so the user can revert the enqueue.
-	enqueueIdx := len(m.queue.entries) - 1
 	if m.undo.slot.cancelPurge != nil {
 		close(m.undo.slot.cancelPurge)
 	}

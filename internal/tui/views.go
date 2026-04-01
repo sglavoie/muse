@@ -516,6 +516,24 @@ func (v PlaylistsView) enqueueFocusedTrack(qa libtui.QueueAppender, prevQueueLen
 	wasEmpty := prevQueueLen == 0
 	return func() tea.Msg {
 		id, err := qa.AppendTrack(track, playlistName)
-		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, SourcePlaylist: playlistName}
+		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, SourcePlaylist: playlistName, InsertAfter: -1}
+	}
+}
+
+// playNextFocusedTrack dispatches a tea.Cmd that inserts the focused track
+// right after the currently playing track via the InsertAfter field.
+func (v PlaylistsView) playNextFocusedTrack(qa libtui.QueueAppender, prevQueueLen, insertAfter int) tea.Cmd {
+	track, ok := v.focusedTrack()
+	if !ok {
+		return nil
+	}
+	var playlistName string
+	if v.listCursor >= 0 && v.listCursor < len(v.playlists) {
+		playlistName = v.playlists[v.listCursor].Name
+	}
+	wasEmpty := prevQueueLen == 0
+	return func() tea.Msg {
+		id, err := qa.AppendTrack(track, playlistName)
+		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, SourcePlaylist: playlistName, InsertAfter: insertAfter}
 	}
 }

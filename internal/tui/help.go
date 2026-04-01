@@ -107,6 +107,7 @@ func helpSections() []helpSection {
 			entries: []helpEntry{
 				{"/", "Filter tracks (prefixes: a: t: l: g:)"},
 				{"enter", "Enqueue track"},
+				{"N", "Play next (insert after current track)"},
 				{"shift+enter", "Replace queue with track"},
 				{"esc", "Clear committed filter"},
 				{"x", "Toggle bulk selection"},
@@ -120,6 +121,7 @@ func helpSections() []helpSection {
 			entries: []helpEntry{
 				{"/", "Filter tracks (prefixes: a: t: l: g:)"},
 				{"enter", "Enqueue track"},
+				{"N", "Play next (insert after current track)"},
 				{"shift+enter", "Replace queue with track"},
 				{"esc", "Clear committed filter"},
 				{"x", "Toggle bulk selection"},
@@ -132,6 +134,7 @@ func helpSections() []helpSection {
 			context: contextPlaylists,
 			entries: []helpEntry{
 				{"enter", "Open playlist / enqueue track"},
+				{"N", "Play next (insert after current track)"},
 				{"shift+enter", "Replace queue with track"},
 				{"esc", "Back to playlist list"},
 				{"r", "Rename playlist / refresh smart playlist (track level)"},
@@ -163,6 +166,7 @@ func helpSections() []helpSection {
 			entries: []helpEntry{
 				{"/", "Filter current list"},
 				{"enter", "Open albums / tracks / enqueue track"},
+				{"N", "Play next (insert after current track)"},
 				{"shift+enter", "Replace queue with track"},
 				{"esc", "Back one level"},
 				{"x", "Toggle bulk-selection on focused track"},
@@ -176,6 +180,7 @@ func helpSections() []helpSection {
 			entries: []helpEntry{
 				{"/", "Filter current list"},
 				{"enter", "Open tracks / enqueue track"},
+				{"N", "Play next (insert after current track)"},
 				{"shift+enter", "Replace queue with track"},
 				{"esc", "Back one level"},
 				{"x", "Toggle bulk-selection on focused track"},
@@ -189,6 +194,7 @@ func helpSections() []helpSection {
 			entries: []helpEntry{
 				{"/", "Filter current list"},
 				{"enter", "Open artists / tracks / enqueue track"},
+				{"N", "Play next (insert after current track)"},
 				{"shift+enter", "Replace queue with track"},
 				{"esc", "Back one level"},
 				{"x", "Toggle bulk-selection on focused track"},
@@ -217,6 +223,7 @@ func helpSections() []helpSection {
 			entries: []helpEntry{
 				{"/", "Filter current list"},
 				{"enter", "Open category / drill into tracks / enqueue"},
+				{"N", "Play next (insert after current track)"},
 				{"esc", "Back one level"},
 				{"F", "Remove from favorites"},
 				{"x", "Toggle bulk selection"},

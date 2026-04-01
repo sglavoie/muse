@@ -35,6 +35,7 @@ type TrackEnqueuedMsg struct {
 	Err            error
 	WasEmpty       bool   // true when the queue was empty before this enqueue
 	SourcePlaylist string // playlist name this track was enqueued from; empty for library enqueues
+	InsertAfter    int    // -1 = append (default enqueue), >= 0 = insert at this index ("play next")
 }
 
 // View renders the music library panel with proportional columnar layout.
@@ -231,7 +232,23 @@ func (v View) EnqueueFocused(qa QueueAppender, prevQueueLen int) (View, tea.Cmd)
 	wasEmpty := prevQueueLen == 0
 	return v, func() tea.Msg {
 		id, err := qa.AppendTrack(track, "")
-		return TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty}
+		return TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, InsertAfter: -1}
+	}
+}
+
+// PlayNextFocused dispatches a tea.Cmd that inserts the focused track into the
+// play queue at position insertAfter (immediately after the currently playing
+// track). The DB append is identical to EnqueueFocused; the root model handles
+// positional insertion via the InsertAfter field on TrackEnqueuedMsg.
+func (v View) PlayNextFocused(qa QueueAppender, prevQueueLen int, insertAfter int) (View, tea.Cmd) {
+	track, ok := v.FocusedTrack()
+	if !ok {
+		return v, nil
+	}
+	wasEmpty := prevQueueLen == 0
+	return v, func() tea.Msg {
+		id, err := qa.AppendTrack(track, "")
+		return TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, InsertAfter: insertAfter}
 	}
 }
 

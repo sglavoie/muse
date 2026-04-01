@@ -70,6 +70,7 @@ const (
 	actionLibraryEnqueue        // enter: append the focused track to the play queue
 	actionLibraryEnqueueReplace // shift+enter: clear queue and enqueue focused track
 	actionLibraryFilterClear    // esc: clear a committed filter in the library view
+	actionPlayNext              // 'N': insert the focused track right after the currently playing track
 
 	// Queue-local actions.
 	actionCursorUp
@@ -190,6 +191,7 @@ func newRegistry() Registry {
 	r.registerNavigation(contextLibrary)
 	r.register(contextLibrary, "enter", actionLibraryEnqueue)
 	r.register(contextLibrary, "shift+enter", actionLibraryEnqueueReplace)
+	r.register(contextLibrary, "N", actionPlayNext)
 	r.register(contextLibrary, "esc", actionLibraryFilterClear)
 	r.register(contextLibrary, "x", actionBulkSelectionToggle)
 	r.register(contextLibrary, "X", actionClearSelection)
@@ -199,6 +201,7 @@ func newRegistry() Registry {
 	r.registerNavigation(contextRecentlyAdded)
 	r.register(contextRecentlyAdded, "enter", actionLibraryEnqueue)
 	r.register(contextRecentlyAdded, "shift+enter", actionLibraryEnqueueReplace)
+	r.register(contextRecentlyAdded, "N", actionPlayNext)
 	r.register(contextRecentlyAdded, "esc", actionLibraryFilterClear)
 	r.register(contextRecentlyAdded, "x", actionBulkSelectionToggle)
 	r.register(contextRecentlyAdded, "X", actionClearSelection)
@@ -225,6 +228,7 @@ func newRegistry() Registry {
 	r.register(contextPlaylists, "enter", actionPlaylistOpen)
 	r.register(contextPlaylists, "esc", actionPlaylistBack)
 	r.register(contextPlaylists, "d", actionPlaylistDelete)
+	r.register(contextPlaylists, "N", actionPlayNext)
 	r.register(contextPlaylists, "x", actionBulkSelectionToggle)
 	r.register(contextPlaylists, "X", actionClearSelection)
 	r.register(contextPlaylists, "a", actionBulkAction)
@@ -237,6 +241,7 @@ func newRegistry() Registry {
 	r.registerNavigation(contextArtists)
 	r.register(contextArtists, "enter", actionArtistOpen)
 	r.register(contextArtists, "shift+enter", actionLibraryEnqueueReplace)
+	r.register(contextArtists, "N", actionPlayNext)
 	r.register(contextArtists, "esc", actionArtistBack)
 	r.register(contextArtists, "x", actionBulkSelectionToggle)
 	r.register(contextArtists, "X", actionClearSelection)
@@ -246,6 +251,7 @@ func newRegistry() Registry {
 	r.registerNavigation(contextAlbums)
 	r.register(contextAlbums, "enter", actionAlbumOpen)
 	r.register(contextAlbums, "shift+enter", actionLibraryEnqueueReplace)
+	r.register(contextAlbums, "N", actionPlayNext)
 	r.register(contextAlbums, "esc", actionAlbumBack)
 	r.register(contextAlbums, "x", actionBulkSelectionToggle)
 	r.register(contextAlbums, "X", actionClearSelection)
@@ -255,6 +261,7 @@ func newRegistry() Registry {
 	r.registerNavigation(contextGenres)
 	r.register(contextGenres, "enter", actionGenreOpen)
 	r.register(contextGenres, "shift+enter", actionLibraryEnqueueReplace)
+	r.register(contextGenres, "N", actionPlayNext)
 	r.register(contextGenres, "esc", actionGenreBack)
 	r.register(contextGenres, "x", actionBulkSelectionToggle)
 	r.register(contextGenres, "X", actionClearSelection)
@@ -264,6 +271,7 @@ func newRegistry() Registry {
 	r.registerNavigation(contextFavorites)
 	r.register(contextFavorites, "enter", actionFavoritesOpen)
 	r.register(contextFavorites, "esc", actionFavoritesBack)
+	r.register(contextFavorites, "N", actionPlayNext)
 	r.register(contextFavorites, "x", actionBulkSelectionToggle)
 	r.register(contextFavorites, "X", actionClearSelection)
 	r.register(contextFavorites, "a", actionBulkAction)

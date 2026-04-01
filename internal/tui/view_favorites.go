@@ -231,7 +231,21 @@ func (v FavoritesView) enqueueFocusedTrack(qa libtui.QueueAppender, prevQueueLen
 	wasEmpty := prevQueueLen == 0
 	return func() tea.Msg {
 		id, err := qa.AppendTrack(track, "")
-		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty}
+		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, InsertAfter: -1}
+	}
+}
+
+// playNextFocusedTrack dispatches a tea.Cmd that inserts the focused track
+// right after the currently playing track via the InsertAfter field.
+func (v FavoritesView) playNextFocusedTrack(qa libtui.QueueAppender, prevQueueLen, insertAfter int) tea.Cmd {
+	track, ok := v.focusedTrack()
+	if !ok {
+		return nil
+	}
+	wasEmpty := prevQueueLen == 0
+	return func() tea.Msg {
+		id, err := qa.AppendTrack(track, "")
+		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, InsertAfter: insertAfter}
 	}
 }
 
