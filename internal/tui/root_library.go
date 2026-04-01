@@ -135,13 +135,12 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 	for i, t := range msg.tracks {
 		t = m.preserveTrackMetadata(t)
 		if edited, ok := m.userEditedOverlay[t.Hash]; ok {
-			msg.tracks[i].Title = edited.Title
-			msg.tracks[i].Artist = edited.Artist
-			msg.tracks[i].Album = edited.Album
-			msg.tracks[i].Genre = edited.Genre
-			t = msg.tracks[i]
+			t.Title = edited.Title
+			t.Artist = edited.Artist
+			t.Album = edited.Album
+			t.Genre = edited.Genre
 		}
-		msg.tracks[i].CreatedAt = t.CreatedAt
+		msg.tracks[i] = t
 		m.library.index.UpsertByPath(t.Path, t)
 	}
 	m = m.syncRecentlyAddedFromLibrary()

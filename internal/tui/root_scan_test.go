@@ -1044,6 +1044,55 @@ func TestWatchBatchPreservesCreatedAtForUpdatedPath(t *testing.T) {
 	}
 }
 
+// TestWatchBatchPreservesMetadataWithUserEditedOverlay verifies that when a
+// watcher event arrives for a track that has a user-edited overlay AND had
+// its CreatedAt preserved by preserveTrackMetadata, both the overlay edits
+// and the preserved CreatedAt/Duration survive into the library index.
+func TestWatchBatchPreservesMetadataWithUserEditedOverlay(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{
+		Hash: "h1", Path: "/a.mp3",
+		Title: "Original", Artist: "OrigArtist", Album: "OrigAlbum",
+		CreatedAt: 42, Duration: 3.5,
+	})
+	m = m.syncRecentlyAddedFromLibrary()
+
+	m.userEditedOverlay = map[string]db.UserEditedRow{
+		"h1": {Hash: "h1", Title: "Edited Title", Artist: "Edited Artist", Album: "Edited Album", Genre: "Edited Genre"},
+	}
+
+	// Watcher reports an update with new scanned values (no CreatedAt, no Duration).
+	next, _ := m.Update(watchBatchMsg{
+		tracks: []library.Track{
+			{Hash: "h1", Path: "/a.mp3", Title: "Scanned", Artist: "ScannedArtist", Album: "ScannedAlbum"},
+		},
+	})
+	nm := next.(Model)
+
+	track, ok := nm.library.index.FindByHash("h1")
+	if !ok {
+		t.Fatal("h1 not found in index")
+	}
+	if track.Title != "Edited Title" {
+		t.Errorf("Title = %q; want %q", track.Title, "Edited Title")
+	}
+	if track.Artist != "Edited Artist" {
+		t.Errorf("Artist = %q; want %q", track.Artist, "Edited Artist")
+	}
+	if track.Album != "Edited Album" {
+		t.Errorf("Album = %q; want %q", track.Album, "Edited Album")
+	}
+	if track.Genre != "Edited Genre" {
+		t.Errorf("Genre = %q; want %q", track.Genre, "Edited Genre")
+	}
+	if track.CreatedAt != 42 {
+		t.Errorf("CreatedAt = %d; want 42 (preserved)", track.CreatedAt)
+	}
+	if track.Duration != 3.5 {
+		t.Errorf("Duration = %f; want 3.5 (preserved)", track.Duration)
+	}
+}
+
 // TestRescanSnapshotPreservesCreatedAtAndDuration verifies that a full rescan
 // (which clears the index) still preserves created_at and duration via the
 // pre-rescan snapshot.
