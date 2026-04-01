@@ -176,6 +176,28 @@ func (o SettingsOverlay) StereoWideState() (enabled bool, amount int) {
 	return
 }
 
+// ForwardMsg routes a generic tea.Msg to whichever text input is currently
+// active (excluded-path, library-dir, or EQ-name). Returns false if no input
+// is active. This enables paste and other multi-step textinput commands.
+func (o SettingsOverlay) ForwardMsg(msg tea.Msg) (SettingsOverlay, tea.Cmd, bool) {
+	if o.exclPathInput != nil {
+		updated, cmd := o.exclPathInput.Update(msg)
+		o.exclPathInput = &updated
+		return o, cmd, true
+	}
+	if o.libDirInput != nil {
+		updated, cmd := o.libDirInput.Update(msg)
+		o.libDirInput = &updated
+		return o, cmd, true
+	}
+	if o.eqNameInput != nil {
+		updated, cmd := o.eqNameInput.Update(msg)
+		o.eqNameInput = &updated
+		return o, cmd, true
+	}
+	return o, nil, false
+}
+
 // HandleKey processes a key event and returns the updated overlay and the resulting action.
 // ctrl+c returns settingsNone so the caller can fall through to root quit handling.
 func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settingsAction, tea.Cmd) {

@@ -240,6 +240,14 @@ func (v PlaylistsView) updateCreateInput(msg tea.KeyPressMsg) (PlaylistsView, te
 	return v, cmd
 }
 
+// updateCreateInputMsg forwards a generic tea.Msg to the textinput, enabling
+// paste and other multi-step commands.
+func (v PlaylistsView) updateCreateInputMsg(msg tea.Msg) (PlaylistsView, tea.Cmd) {
+	var cmd tea.Cmd
+	v.createInput, cmd = v.createInput.Update(msg)
+	return v, cmd
+}
+
 // createInputValue returns the current create input buffer, trimmed of
 // leading/trailing whitespace to prevent names like "  hello  ".
 func (v PlaylistsView) createInputValue() string {
@@ -274,6 +282,14 @@ func (v PlaylistsView) cancelRename() PlaylistsView {
 
 // updateRenameInput forwards a key message to the Bubbles textinput model.
 func (v PlaylistsView) updateRenameInput(msg tea.KeyPressMsg) (PlaylistsView, tea.Cmd) {
+	var cmd tea.Cmd
+	v.renameInput, cmd = v.renameInput.Update(msg)
+	return v, cmd
+}
+
+// updateRenameInputMsg forwards a generic tea.Msg to the textinput, enabling
+// paste and other multi-step commands.
+func (v PlaylistsView) updateRenameInputMsg(msg tea.Msg) (PlaylistsView, tea.Cmd) {
 	var cmd tea.Cmd
 	v.renameInput, cmd = v.renameInput.Update(msg)
 	return v, cmd

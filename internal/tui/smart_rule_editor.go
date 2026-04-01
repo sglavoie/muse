@@ -270,6 +270,30 @@ func (e SmartRuleEditor) currentOp() db.RuleOperator {
 	return ops[e.ruleOpIdx]
 }
 
+// ForwardMsg routes a generic tea.Msg to the currently focused text input.
+// Returns false if no text input is active in the current step.
+func (e SmartRuleEditor) ForwardMsg(msg tea.Msg) (SmartRuleEditor, tea.Cmd, bool) {
+	switch e.step {
+	case stepName:
+		updated, cmd := e.nameInput.Update(msg)
+		e.nameInput = updated
+		return e, cmd, true
+	case stepEditRule:
+		if e.editSubField == 2 {
+			updated, cmd := e.ruleValueInput.Update(msg)
+			e.ruleValueInput = updated
+			return e, cmd, true
+		}
+	case stepSort:
+		if e.sortCursor == 2 {
+			updated, cmd := e.maxTracksInput.Update(msg)
+			e.maxTracksInput = updated
+			return e, cmd, true
+		}
+	}
+	return e, nil, false
+}
+
 // HandleKey processes a key press and returns the updated editor, result action, and any tea.Cmd.
 func (e SmartRuleEditor) HandleKey(msg tea.KeyPressMsg) (SmartRuleEditor, ruleEditorAction, tea.Cmd) {
 	switch e.step {

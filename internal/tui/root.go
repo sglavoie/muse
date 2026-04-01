@@ -824,6 +824,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case pltui.DestinationPickedMsg:
 		return m.handleDestinationPickedMsg(msg)
+
+	default:
+		if m, cmd, ok := m.forwardToActiveInput(msg); ok {
+			return m, cmd
+		}
 	}
 	return m, nil
 }

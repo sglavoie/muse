@@ -75,6 +75,18 @@ func (s State) Update(msg tea.KeyPressMsg) (State, tea.Cmd) {
 	return s, cmd
 }
 
+// UpdateMsg is like Update but accepts a generic tea.Msg so that non-key
+// messages (e.g. paste results) can reach the underlying textinput.
+func (s State) UpdateMsg(msg tea.Msg) (State, tea.Cmd) {
+	if !s.Active {
+		return s, nil
+	}
+	var cmd tea.Cmd
+	s.input, cmd = s.input.Update(msg)
+	s.Text = s.input.Value()
+	return s, cmd
+}
+
 // View returns the textinput's rendered string for active filter display.
 // Only call this when Active is true; the textinput must have been focused
 // via Activate() for the cursor to render correctly.

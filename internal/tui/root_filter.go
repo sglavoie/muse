@@ -13,6 +13,7 @@ type filterOps struct {
 	deactivate func() Model
 	commit     func() Model
 	update     func(tea.KeyPressMsg) (Model, tea.Cmd)
+	updateMsg  func(tea.Msg) (Model, tea.Cmd)
 	isActive   func() bool
 	activate   func() (Model, tea.Cmd)
 }
@@ -56,6 +57,19 @@ func makeFilterOps(m *Model, f *filter.State, cursor *int, scrollOffset *int, re
 			oldText := f.Text
 			var cmd tea.Cmd
 			*f, cmd = f.Update(msg)
+			if f.Text != oldText {
+				*cursor = 0
+				*scrollOffset = 0
+				if rebuild != nil {
+					rebuild()
+				}
+			}
+			return *m, cmd
+		},
+		updateMsg: func(msg tea.Msg) (Model, tea.Cmd) {
+			oldText := f.Text
+			var cmd tea.Cmd
+			*f, cmd = f.UpdateMsg(msg)
 			if f.Text != oldText {
 				*cursor = 0
 				*scrollOffset = 0

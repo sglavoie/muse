@@ -263,6 +263,15 @@ func (e MetadataEditor) HandleKey(msg tea.KeyPressMsg) (MetadataEditor, editorAc
 	return e, editorNone, cmd
 }
 
+// ForwardMsg routes a generic tea.Msg to the focused text input field.
+// This enables paste and other multi-step textinput commands.
+func (e MetadataEditor) ForwardMsg(msg tea.Msg) (MetadataEditor, tea.Cmd) {
+	var cmd tea.Cmd
+	e.fields[e.focused], cmd = e.fields[e.focused].Update(msg)
+	e.dirty[e.focused] = e.fields[e.focused].Value() != e.initialValues[e.focused]
+	return e, cmd
+}
+
 // Title returns the current title value.
 func (e MetadataEditor) Title() string { return e.fields[fieldTitle].Value() }
 

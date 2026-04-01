@@ -249,6 +249,14 @@ func (v QueueView) updateSaveInput(msg tea.KeyPressMsg) (QueueView, tea.Cmd) {
 	return v, cmd
 }
 
+// updateSaveInputMsg forwards a generic tea.Msg to the textinput, enabling
+// paste and other multi-step commands.
+func (v QueueView) updateSaveInputMsg(msg tea.Msg) (QueueView, tea.Cmd) {
+	var cmd tea.Cmd
+	v.saveInput, cmd = v.saveInput.Update(msg)
+	return v, cmd
+}
+
 // saveInputValue returns the current save input buffer, trimmed of
 // leading/trailing whitespace to prevent names like "  hello  ".
 func (v QueueView) saveInputValue() string {
