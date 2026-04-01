@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
 // --- focusedTrackMeta ---
@@ -669,5 +671,212 @@ func TestFocusedTrackMeta_GenresGenreLevel(t *testing.T) {
 	_, _, found := m.focusedTrackMeta()
 	if found {
 		t.Error("expected found=false at Genres GenreLevel")
+	}
+}
+
+// --- jumpToGenre ---
+
+func TestJumpToGenre(t *testing.T) {
+	tracks := []library.Track{
+		{Artist: "Alice", Album: "Alpha", Genre: "Rock", Title: "T1", Hash: "h1", Path: "/a.flac"},
+		{Artist: "Bob", Album: "Beta", Genre: "Jazz", Title: "T2", Hash: "h2", Path: "/b.flac"},
+	}
+	m := New(context.Background(), WithLibraryTracks(tracks))
+	m = m.jumpToGenre("Jazz")
+
+	if m.activeView != viewGenres {
+		t.Errorf("activeView: want viewGenres(%d), got %d", viewGenres, m.activeView)
+	}
+	if m.genres.level != gentui.GenreLevel {
+		t.Errorf("level: want GenreLevel, got %v", m.genres.level)
+	}
+	// Genres are sorted alphabetically: Jazz, Rock
+	if m.genres.cursor != 0 {
+		t.Errorf("cursor: want 0 (Jazz), got %d", m.genres.cursor)
+	}
+}
+
+func TestJumpToGenre_NotFound(t *testing.T) {
+	m := newModelWithTracks()
+	original := m.activeView
+	m = m.jumpToGenre("Nonexistent")
+	if m.activeView != original {
+		t.Errorf("no-op expected: activeView changed to %d", m.activeView)
+	}
+}
+
+func TestJumpToGenre_UnknownGenre(t *testing.T) {
+	tracks := []library.Track{
+		{Artist: "Alice", Album: "Alpha", Genre: "", Title: "T1", Hash: "h1", Path: "/a.flac"},
+		{Artist: "Bob", Album: "Beta", Genre: "Rock", Title: "T2", Hash: "h2", Path: "/b.flac"},
+	}
+	m := New(context.Background(), WithLibraryTracks(tracks))
+	m = m.jumpToGenre("")
+
+	if m.activeView != viewGenres {
+		t.Errorf("activeView: want viewGenres, got %d", m.activeView)
+	}
+	// "(unknown genre)" sorts after "Rock"
+	if m.genres.cursor != 1 {
+		t.Errorf("cursor: want 1 (unknown genre), got %d", m.genres.cursor)
+	}
+}
+
+// --- jumpToPlaylist ---
+
+func TestJumpToPlaylist(t *testing.T) {
+	m := newModelWithTracks()
+	m.playlists.playlists = []db.PlaylistRow{
+		{ID: 1, Name: "Alpha"},
+		{ID: 2, Name: "Beta"},
+		{ID: 3, Name: "Gamma"},
+	}
+	m = m.jumpToPlaylist("Beta")
+
+	if m.activeView != viewPlaylists {
+		t.Errorf("activeView: want viewPlaylists(%d), got %d", viewPlaylists, m.activeView)
+	}
+	if m.playlists.level != pltui.ListLevel {
+		t.Errorf("level: want ListLevel, got %v", m.playlists.level)
+	}
+	if m.playlists.cursor != 1 {
+		t.Errorf("cursor: want 1 (Beta), got %d", m.playlists.cursor)
+	}
+}
+
+func TestJumpToPlaylist_NotFound(t *testing.T) {
+	m := newModelWithTracks()
+	m.playlists.playlists = []db.PlaylistRow{
+		{ID: 1, Name: "Alpha"},
+	}
+	original := m.activeView
+	m = m.jumpToPlaylist("Nonexistent")
+	if m.activeView != original {
+		t.Errorf("no-op expected: activeView changed to %d", m.activeView)
+	}
+}
+
+// --- focusedGoToContext ---
+
+func TestFocusedGoToContext_Library(t *testing.T) {
+	tracks := []library.Track{
+		{Artist: "Alice", Album: "Alpha", Genre: "Rock", Title: "T1", Hash: "h1", Path: "/a.flac"},
+	}
+	m := New(context.Background(), WithLibraryTracks(tracks))
+	ctx := m.focusedGoToContext()
+	if !ctx.found {
+		t.Fatal("expected found=true")
+	}
+	if ctx.artist != "Alice" {
+		t.Errorf("artist: want Alice, got %q", ctx.artist)
+	}
+	if ctx.album != "Alpha" {
+		t.Errorf("album: want Alpha, got %q", ctx.album)
+	}
+	if ctx.genre != "Rock" {
+		t.Errorf("genre: want Rock, got %q", ctx.genre)
+	}
+}
+
+func TestFocusedGoToContext_Queue(t *testing.T) {
+	tracks := []library.Track{
+		{Artist: "Bob", Album: "Beta", Genre: "Jazz", Title: "T1", Hash: "h1", Path: "/b.flac"},
+	}
+	m := New(context.Background(), WithLibraryTracks(tracks))
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Artist: "Bob", Album: "Beta", Hash: "h1", SourcePlaylist: "MyPL"},
+	}
+	m.queue.cursor = 0
+	ctx := m.focusedGoToContext()
+	if !ctx.found {
+		t.Fatal("expected found=true")
+	}
+	if ctx.genre != "Jazz" {
+		t.Errorf("genre: want Jazz (from library lookup), got %q", ctx.genre)
+	}
+	if ctx.sourcePlaylist != "MyPL" {
+		t.Errorf("sourcePlaylist: want MyPL, got %q", ctx.sourcePlaylist)
+	}
+}
+
+// --- buildGoToOptions ---
+
+func TestBuildGoToOptions_Library(t *testing.T) {
+	tracks := []library.Track{
+		{Artist: "Alice", Album: "Alpha", Genre: "Rock", Title: "T1", Hash: "h1", Path: "/a.flac"},
+	}
+	m := New(context.Background(), WithLibraryTracks(tracks))
+	ctx := m.focusedGoToContext()
+	opts := m.buildGoToOptions(ctx)
+
+	// Should have: Album, Artist, Genre
+	if len(opts) != 3 {
+		t.Fatalf("want 3 options, got %d", len(opts))
+	}
+	if opts[0].Kind != goToAlbum {
+		t.Errorf("opts[0]: want goToAlbum, got %v", opts[0].Kind)
+	}
+	if opts[1].Kind != goToArtist {
+		t.Errorf("opts[1]: want goToArtist, got %v", opts[1].Kind)
+	}
+	if opts[2].Kind != goToGenre {
+		t.Errorf("opts[2]: want goToGenre, got %v", opts[2].Kind)
+	}
+}
+
+func TestBuildGoToOptions_QueueWithSource(t *testing.T) {
+	tracks := []library.Track{
+		{Artist: "Bob", Album: "Beta", Genre: "Jazz", Title: "T1", Hash: "h1", Path: "/b.flac"},
+	}
+	m := New(context.Background(), WithLibraryTracks(tracks))
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{Artist: "Bob", Album: "Beta", Hash: "h1", SourcePlaylist: "MyPL"},
+	}
+	m.queue.cursor = 0
+	ctx := m.focusedGoToContext()
+	opts := m.buildGoToOptions(ctx)
+
+	// Should have: Album, Artist, Genre, Source
+	if len(opts) != 4 {
+		t.Fatalf("want 4 options, got %d", len(opts))
+	}
+	if opts[3].Kind != goToPlaylist || opts[3].Value != "MyPL" {
+		t.Errorf("opts[3]: want goToPlaylist/MyPL, got %v/%q", opts[3].Kind, opts[3].Value)
+	}
+}
+
+func TestBuildGoToOptions_MultiGenre(t *testing.T) {
+	tracks := []library.Track{
+		{Artist: "Alice", Album: "Alpha", Genre: "Rock, Jazz", Title: "T1", Hash: "h1", Path: "/a.flac"},
+	}
+	m := New(context.Background(), WithLibraryTracks(tracks))
+	ctx := m.focusedGoToContext()
+	opts := m.buildGoToOptions(ctx)
+
+	// Should have: Album, Artist, Genre(Jazz), Genre(Rock)
+	// SplitGenres sorts alphabetically.
+	if len(opts) != 4 {
+		t.Fatalf("want 4 options, got %d", len(opts))
+	}
+	if opts[2].Kind != goToGenre || opts[2].Value != "Jazz" {
+		t.Errorf("opts[2]: want goToGenre/Jazz, got %v/%q", opts[2].Kind, opts[2].Value)
+	}
+	if opts[3].Kind != goToGenre || opts[3].Value != "Rock" {
+		t.Errorf("opts[3]: want goToGenre/Rock, got %v/%q", opts[3].Kind, opts[3].Value)
+	}
+}
+
+func TestBuildGoToOptions_EmptyFieldsSkipped(t *testing.T) {
+	tracks := []library.Track{
+		{Artist: "", Album: "", Genre: "", Title: "T1", Hash: "h1", Path: "/a.flac"},
+	}
+	m := New(context.Background(), WithLibraryTracks(tracks))
+	ctx := m.focusedGoToContext()
+	opts := m.buildGoToOptions(ctx)
+
+	if len(opts) != 0 {
+		t.Errorf("want 0 options for empty metadata, got %d", len(opts))
 	}
 }

@@ -34,6 +34,7 @@ type overlayInfo struct {
 	metadataEditor        *MetadataEditor
 	destPicker            *pltui.DestinationPickerModal
 	destPickerTracks      []library.Track
+	goTo                  *GoToModal
 	settings              *SettingsOverlay
 	smartRuleEditor       *SmartRuleEditor
 }
@@ -746,6 +747,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if model, cmd, ok := m.handleQueueSaveInput(msg); ok {
 			return model, cmd
 		}
+		if m, cmd, ok := m.handleGoToKeyPress(msg); ok {
+			return m, cmd
+		}
 		if m, cmd, ok := m.handleDestPickerKeyPress(msg); ok {
 			return m, cmd
 		}
@@ -815,6 +819,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case metadataEditedMsg:
 		// No-op: in-memory state was already updated synchronously in handleMetadataSave.
+
+	case GoToDismissedMsg:
+		m.overlay.goTo = nil
+
+	case GoToPickedMsg:
+		m.overlay.goTo = nil
+		switch msg.Kind {
+		case goToArtist:
+			m = m.jumpToArtist(msg.Value)
+		case goToAlbum:
+			m = m.jumpToAlbum(msg.Value)
+		case goToGenre:
+			m = m.jumpToGenre(msg.Value)
+		case goToPlaylist:
+			m = m.jumpToPlaylist(msg.Value)
+		}
 
 	case pltui.DestinationPickerDismissedMsg:
 		m = m.handleDestinationPickerDismissedMsg()
@@ -982,15 +1002,14 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m = m.switchToView(viewRecentlyAdded)
 	case actionSwitchGenres:
 		m = m.switchToView(viewGenres)
-	case actionJumpToArtist:
-		artist, _, ok := m.focusedTrackMeta()
-		if ok {
-			m = m.jumpToArtist(artist)
-		}
-	case actionJumpToAlbum:
-		_, album, ok := m.focusedTrackMeta()
-		if ok {
-			m = m.jumpToAlbum(album)
+	case actionGoTo:
+		ctx := m.focusedGoToContext()
+		if ctx.found {
+			options := m.buildGoToOptions(ctx)
+			if len(options) > 0 {
+				modal := NewGoToModal(options)
+				m.overlay.goTo = &modal
+			}
 		}
 	}
 	return m, nil

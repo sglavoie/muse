@@ -22,6 +22,7 @@ func (m Model) hasActiveOverlay() bool {
 		m.overlay.preview != nil ||
 		m.overlay.metadataEditor != nil ||
 		m.overlay.destPicker != nil ||
+		m.overlay.goTo != nil ||
 		m.overlay.smartRuleEditor != nil
 }
 
@@ -55,6 +56,8 @@ func (m Model) View() tea.View {
 		body = m.overlay.metadataEditor.Render(m.termWidth, m.termHeight, *m.styles)
 	case m.overlay.destPicker != nil:
 		body = m.overlay.destPicker.Render(m.termWidth, m.termHeight, *m.styles)
+	case m.overlay.goTo != nil:
+		body = m.overlay.goTo.Render(m.termWidth, m.termHeight, *m.styles)
 	case m.overlay.smartRuleEditor != nil:
 		body = m.overlay.smartRuleEditor.Render(m.termWidth, m.termHeight, *m.styles)
 	default:
