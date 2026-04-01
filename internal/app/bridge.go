@@ -2,6 +2,7 @@ package app
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/sglavoie/muse/internal/library"
 )
@@ -27,6 +28,13 @@ type batchFlusher struct {
 	batch []library.Track
 	size  int
 	flush func([]library.Track) error
+}
+
+func ensureCreatedAt(track library.Track) library.Track {
+	if track.CreatedAt == 0 {
+		track.CreatedAt = time.Now().Unix()
+	}
+	return track
 }
 
 func (f *batchFlusher) add(t library.Track) {
@@ -55,6 +63,7 @@ func BridgeScanChannel(raw <-chan library.Track, writer UpsertBatcher, batchSize
 		defer close(ch)
 		f := &batchFlusher{size: batchSize, flush: writer.UpsertBatch}
 		for t := range raw {
+			t = ensureCreatedAt(t)
 			ch <- t
 			f.add(t)
 		}
@@ -83,6 +92,7 @@ func BridgeWatchChannel(raw <-chan library.WatchEvent, writer UpsertBatcher, mar
 					}
 				}
 			} else {
+				ev.Track = ensureCreatedAt(ev.Track)
 				f.add(ev.Track)
 				// Keep the lookup map in sync so that a file created after
 				// startup and subsequently deleted can still be resolved to

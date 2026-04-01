@@ -47,6 +47,18 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.statusBar.notification = newNotification(sortNotification(m.library.sortState))
 		return m, nil, true
 
+	case viewRecentlyAdded:
+		next := CycleSortField(m.recentlyAdded.sortState.Field, recentlyAddedSortFields)
+		m.recentlyAdded.sortState.Field = next
+		m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
+		m.recentlyAdded.cursor = 0
+		m.recentlyAdded.scrollOffset = 0
+		if m.recentlyAdded.filter.Text != "" {
+			m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
+		}
+		m.statusBar.notification = newNotification(sortNotification(m.recentlyAdded.sortState))
+		return m, nil, true
+
 	case viewQueue:
 		if m.queue.savingAsPlaylist {
 			return m, nil, false
@@ -168,6 +180,21 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 		m.statusBar.notification = newNotification(sortNotification(m.library.sortState))
 		return m, nil, true
 
+	case viewRecentlyAdded:
+		var focusedHash string
+		if t, ok := m.recentlyAdded.view().FocusedTrack(); ok {
+			focusedHash = t.Hash
+		}
+		m.recentlyAdded.sortState.Dir = SortAsc
+		m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
+		if m.recentlyAdded.filter.Text != "" {
+			m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
+		}
+		m.recentlyAdded.cursor = m.recentlyAdded.findTrackPosition(focusedHash)
+		m.recentlyAdded.scrollOffset = adjustScroll(m.recentlyAdded.cursor, m.recentlyAdded.scrollOffset, layout.VisibleRows(m.recentlyAdded.height, 1))
+		m.statusBar.notification = newNotification(sortNotification(m.recentlyAdded.sortState))
+		return m, nil, true
+
 	case viewQueue:
 		if m.queue.sortState.Field == SortDefault {
 			return m, nil, false
@@ -248,6 +275,21 @@ func (m Model) handleSortDescOrPageDown() (tea.Model, tea.Cmd, bool) {
 		m.library = m.library.HandleAction(actionHalfPageDown)
 		return m, nil, true
 
+	case viewRecentlyAdded:
+		var focusedHash string
+		if t, ok := m.recentlyAdded.view().FocusedTrack(); ok {
+			focusedHash = t.Hash
+		}
+		m.recentlyAdded.sortState.Dir = SortDesc
+		m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
+		if m.recentlyAdded.filter.Text != "" {
+			m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
+		}
+		m.recentlyAdded.cursor = m.recentlyAdded.findTrackPosition(focusedHash)
+		m.recentlyAdded.scrollOffset = adjustScroll(m.recentlyAdded.cursor, m.recentlyAdded.scrollOffset, layout.VisibleRows(m.recentlyAdded.height, 1))
+		m.statusBar.notification = newNotification(sortNotification(m.recentlyAdded.sortState))
+		return m, nil, true
+
 	case viewQueue:
 		if m.queue.sortState.Field != SortDefault {
 			prevEntryIdx := m.queue.entryIndex(m.queue.cursor)
@@ -325,6 +367,16 @@ func (m Model) resetLibrarySort() Model {
 	return m
 }
 
+// resetRecentlyAddedSort restores the fixed Date Added sort state.
+func (m Model) resetRecentlyAddedSort() Model {
+	m.recentlyAdded.sortState = SortState{Field: SortDateAdded, Dir: SortDesc}
+	m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
+	if m.recentlyAdded.filter.Text != "" {
+		m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
+	}
+	return m
+}
+
 // resetQueueSort clears the queue sort state and display order.
 func (m Model) resetQueueSort() Model {
 	m.queue.sortState = SortState{}
@@ -367,6 +419,7 @@ func (m Model) resetGenresSort() Model {
 // resetAllSorts clears sort state for all views.
 func (m Model) resetAllSorts() Model {
 	m = m.resetLibrarySort()
+	m = m.resetRecentlyAddedSort()
 	m = m.resetQueueSort()
 	m = m.resetPlaylistsSort()
 	m = m.resetArtistsSort()

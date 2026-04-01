@@ -7,6 +7,7 @@ type bindingContext int
 const (
 	contextGlobal    bindingContext = iota // applies in every view
 	contextLibrary                         // applies only in the Library view
+	contextRecentlyAdded                   // applies only in the Recently Added view
 	contextPlaylists                       // applies only in the Playlists view
 	contextQueue                           // applies only in the Queue view
 	contextArtists                         // applies only in the Artists view
@@ -57,6 +58,7 @@ const (
 	actionSwitchArtists
 	actionSwitchAlbums
 	actionSwitchFavorites
+	actionSwitchRecentlyAdded
 	actionToggleFavorite
 	actionJumpToArtist // 'A': jump to Artists view positioned on focused item's artist
 	actionJumpToAlbum  // 'B': jump to Albums view positioned on focused item's album
@@ -163,6 +165,7 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "5", actionSwitchAlbums)
 	r.register(contextGlobal, "6", actionSwitchGenres)
 	r.register(contextGlobal, "7", actionSwitchFavorites)
+	r.register(contextGlobal, "8", actionSwitchRecentlyAdded)
 	r.register(contextGlobal, "F", actionToggleFavorite)
 	r.register(contextGlobal, "R", actionRescan)
 	r.register(contextGlobal, "r", actionRepeatCycle)
@@ -193,6 +196,15 @@ func newRegistry() Registry {
 	r.register(contextLibrary, "x", actionBulkSelectionToggle)
 	r.register(contextLibrary, "X", actionClearSelection)
 	r.register(contextLibrary, "a", actionBulkAction)
+
+	// Recently Added-local bindings.
+	r.registerNavigation(contextRecentlyAdded)
+	r.register(contextRecentlyAdded, "enter", actionLibraryEnqueue)
+	r.register(contextRecentlyAdded, "shift+enter", actionLibraryEnqueueReplace)
+	r.register(contextRecentlyAdded, "esc", actionLibraryFilterClear)
+	r.register(contextRecentlyAdded, "x", actionBulkSelectionToggle)
+	r.register(contextRecentlyAdded, "X", actionClearSelection)
+	r.register(contextRecentlyAdded, "a", actionBulkAction)
 
 	// Queue-local bindings.
 	r.registerNavigation(contextQueue)

@@ -279,6 +279,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	// Update in-memory library index.
 	m.library.index.UpdateMetadata(hash, title, artist, album, genre)
 	m.library.index.UpdateDuration(hash, newDuration)
+	m = m.syncRecentlyAddedFromLibrary()
 
 	// Update matching queue entries.
 	display := trackDisplay(artist, title, "")
@@ -516,11 +517,14 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 
 		updates = append(updates, update{h, newTitle, newArtist, newAlbum, newGenre, durationMs})
 	}
+	m = m.syncRecentlyAddedFromLibrary()
 
 	// Clear bulk selection on the active view.
 	switch m.activeView {
 	case viewLibrary:
 		m.library.selectedHashes = nil
+	case viewRecentlyAdded:
+		m.recentlyAdded.selectedHashes = nil
 	case viewQueue:
 		for i := range m.queue.entries {
 			m.queue.entries[i].Selected = false

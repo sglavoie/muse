@@ -3,6 +3,7 @@ package library
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/x/ansi"
 
@@ -69,6 +70,7 @@ type View struct {
 	OverrideTracks  []musiclib.Track // sorted tracks override; nil uses Index
 	SortField       int              // active sort field (0 = default/none)
 	SortDir         int              // 0 = asc, 1 = desc
+	ShowDateAdded   bool
 }
 
 // tracks returns the override tracks if set, otherwise the index tracks.
@@ -315,9 +317,12 @@ func (v View) Render() string {
 	}
 
 	cols := Compute(v.Width)
+	if v.ShowDateAdded {
+		cols = ComputeWithDateAdded(v.Width)
+	}
 
 	// Append sort indicator to the active column header.
-	artistH, titleH, albumH, timeH := "Artist", "Title", "Album", "Time"
+	artistH, titleH, albumH, timeH, dateAddedH := "Artist", "Title", "Album", "Time", "Added"
 	if v.SortField != 0 {
 		ind := "▲"
 		if v.SortDir == 1 {
@@ -332,9 +337,11 @@ func (v View) Render() string {
 			albumH += ind
 		case 4: // SortDuration
 			timeH += ind
+		case 5: // SortDateAdded
+			dateAddedH += ind
 		}
 	}
-	header := v.Styles.ColHead.Render(strings.Repeat(" ", cols.SelectionMarker) + renderRow("#", artistH, titleH, albumH, timeH, cols))
+	header := v.Styles.ColHead.Render(strings.Repeat(" ", cols.SelectionMarker) + renderRow("#", artistH, titleH, albumH, timeH, dateAddedH, cols))
 
 	if start >= end {
 		noMatches := "No matches"
@@ -348,6 +355,7 @@ func (v View) Render() string {
 		t := dt.track
 		num := fmt.Sprintf("%d", absIdx+1)
 		dur := text.FormatDurationSecs(t.Duration)
+		dateAdded := formatDateAdded(t.CreatedAt)
 
 		_, isSelected := v.SelectedHashes[t.Hash]
 		isFocused := absIdx == v.Cursor
@@ -410,6 +418,9 @@ func (v View) Render() string {
 			row = markerStr + text.Pad(num, cols.TrackNum) + " " +
 				artistStr + " " + titleStr + " " + albumStr + " " +
 				text.PadLeft(dur, cols.Duration)
+			if cols.DateAdded > 0 {
+				row += " " + text.Pad(dateAdded, cols.DateAdded)
+			}
 		}
 
 		// Focused row: Accent sets only background so inner foreground codes survive.
@@ -425,15 +436,26 @@ func (v View) Render() string {
 // renderRow formats a single row with each field padded or truncated to its
 // column width. When cols.Artist is zero the layout degenerates to just the
 // track number field.
-func renderRow(num, artist, title, album, duration string, cols Columns) string {
+func renderRow(num, artist, title, album, duration, dateAdded string, cols Columns) string {
 	if cols.Artist == 0 {
 		return text.Pad(num, cols.TrackNum)
 	}
-	return text.Pad(num, cols.TrackNum) + " " +
+	row := text.Pad(num, cols.TrackNum) + " " +
 		text.Pad(artist, cols.Artist) + " " +
 		text.Pad(title, cols.Title) + " " +
 		text.Pad(album, cols.Album) + " " +
 		text.PadLeft(duration, cols.Duration)
+	if cols.DateAdded > 0 {
+		row += " " + text.Pad(dateAdded, cols.DateAdded)
+	}
+	return row
+}
+
+func formatDateAdded(createdAt int64) string {
+	if createdAt <= 0 {
+		return "--"
+	}
+	return time.Unix(createdAt, 0).Local().Format("2006-01-02")
 }
 
 // formatCount formats n with comma separators (e.g. 1234 → "1,234").

@@ -17,6 +17,7 @@ const (
 	SortTitle                       // track title
 	SortAlbum                       // album name
 	SortDuration                    // track duration
+	SortDateAdded                   // library created-at timestamp
 	SortName                        // for string lists (artist names, album names)
 	SortTrackCount                  // for playlist list level
 	SortSource                      // for queue (source playlist)
@@ -39,6 +40,7 @@ type SortState struct {
 // Sort field cycles per view+level.
 var (
 	librarySortFields       = []SortField{SortDefault, SortArtist, SortTitle, SortAlbum, SortDuration}
+	recentlyAddedSortFields = []SortField{SortDateAdded}
 	queueSortFields         = []SortField{SortDefault, SortTitle, SortArtist, SortAlbum, SortDuration, SortSource}
 	playlistListSortFields  = []SortField{SortDefault, SortName, SortTrackCount}
 	playlistTrackSortFields = []SortField{SortDefault, SortTitle, SortArtist, SortDuration}
@@ -81,6 +83,8 @@ func SortFieldLabel(f SortField) string {
 		return "Album"
 	case SortDuration:
 		return "Duration"
+	case SortDateAdded:
+		return "Date Added"
 	case SortName:
 		return "Name"
 	case SortTrackCount:
@@ -128,6 +132,11 @@ func SortTracks(tracks []library.Track, field SortField, dir SortDir) []library.
 				return a.Duration < b.Duration
 			}
 			return a.Duration > b.Duration
+		case SortDateAdded:
+			if dir == SortAsc {
+				return a.CreatedAt < b.CreatedAt
+			}
+			return a.CreatedAt > b.CreatedAt
 		default:
 			return false
 		}

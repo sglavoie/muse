@@ -9,6 +9,7 @@ type Track struct {
 	Album        string
 	Genre        string
 	Duration     float64 // seconds
+	CreatedAt    int64   // Unix timestamp when the track was first added to the library
 	ModTime      int64   // Unix timestamp of last modification
 	SizeBytes    int64   // file size in bytes
 	PlayCount    int

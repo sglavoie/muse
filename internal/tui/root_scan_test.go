@@ -1011,3 +1011,35 @@ func TestScanBatchPreservesUserEditedOverlay(t *testing.T) {
 		t.Errorf("hash2 Title = %q; want B Title", t2.Title)
 	}
 }
+
+func TestScanBatchStampsCreatedAtForNewTrack(t *testing.T) {
+	m := New(context.Background())
+
+	next, _ := m.Update(library.ScanBatchMsg{Tracks: []library.Track{{Hash: "hash1", Path: "/a.mp3", Title: "A"}}})
+	nm := next.(Model)
+
+	track, ok := nm.library.index.FindByHash("hash1")
+	if !ok {
+		t.Fatal("hash1 not found in index")
+	}
+	if track.CreatedAt == 0 {
+		t.Fatal("expected created_at to be stamped for new scan track")
+	}
+}
+
+func TestWatchBatchPreservesCreatedAtForUpdatedPath(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "oldhash", Path: "/a.mp3", Title: "Old", CreatedAt: 123})
+	m = m.syncRecentlyAddedFromLibrary()
+
+	next, _ := m.Update(watchBatchMsg{tracks: []library.Track{{Hash: "newhash", Path: "/a.mp3", Title: "New"}}})
+	nm := next.(Model)
+
+	track, ok := nm.library.index.FindByHash("newhash")
+	if !ok {
+		t.Fatal("newhash not found in index")
+	}
+	if track.CreatedAt != 123 {
+		t.Fatalf("created_at: got %d, want 123", track.CreatedAt)
+	}
+}

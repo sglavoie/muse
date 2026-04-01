@@ -70,6 +70,7 @@ type Model struct {
 	configWarnings []string
 
 	library   LibraryView
+	recentlyAdded LibraryView
 	playlists PlaylistsView
 	queue     QueueView
 	artists   ArtistsView
@@ -196,6 +197,7 @@ func New(ctx context.Context, opts ...Option) Model {
 		activeView: viewLibrary,
 		cfg:        config.Defaults(),
 		library:    LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
+		recentlyAdded: newRecentlyAddedView(),
 		registry:   newRegistry(),
 		styles:     &initialStyles,
 	}
@@ -208,6 +210,7 @@ func New(ctx context.Context, opts ...Option) Model {
 	m.favoriteHashes = loadFavoriteTrackHashes(m.favoriteReader)
 	m.favoriteArtists = loadFavoriteArtists(m.favoriteReader)
 	m.favoriteAlbums = loadFavoriteAlbums(m.favoriteReader)
+	m = m.syncRecentlyAddedFromLibrary()
 	// Sync statusBar fields from model state.
 	m.statusBar.configPath = m.configPath
 	m.statusBar.configCreated = m.configCreated
@@ -237,6 +240,8 @@ func (m Model) StatusBarPlaylistSource() string { return m.statusBar.playlistSou
 // discovered during the diff scan setup phase.
 func (m *Model) RemoveLibraryTrackByPath(path string) {
 	m.library.index.RemoveByPath(path)
+	updated := m.syncRecentlyAddedFromLibrary()
+	m.recentlyAdded = updated.recentlyAdded
 }
 
 // pluralize returns singular when n == 1, plural otherwise.
@@ -496,7 +501,7 @@ type resizable interface {
 // height is reduced by 3 to leave room for the status bar and header rows.
 func (m *Model) setViewDimensions(width, height int) {
 	viewHeight := max(height-3, 0)
-	for _, v := range []resizable{&m.library, &m.playlists, &m.queue, &m.artists, &m.albums, &m.favorites, &m.genres} {
+	for _, v := range []resizable{&m.library, &m.recentlyAdded, &m.playlists, &m.queue, &m.artists, &m.albums, &m.favorites, &m.genres} {
 		v.setSize(width, viewHeight)
 	}
 }
@@ -968,6 +973,8 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m = m.switchToView(viewAlbums)
 	case actionSwitchFavorites:
 		m = m.switchToView(viewFavorites)
+	case actionSwitchRecentlyAdded:
+		m = m.switchToView(viewRecentlyAdded)
 	case actionSwitchGenres:
 		m = m.switchToView(viewGenres)
 	case actionJumpToArtist:

@@ -73,6 +73,8 @@ func (m Model) View() tea.View {
 			body = m.favorites.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 		case viewGenres:
 			body = m.genres.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
+		case viewRecentlyAdded:
+			body = m.recentlyAdded.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 		}
 	}
 

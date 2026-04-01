@@ -139,6 +139,21 @@ func TestSortTracks(t *testing.T) {
 		}
 	})
 
+	t.Run("sort by date added desc", func(t *testing.T) {
+		dateTracks := []library.Track{
+			{Title: "Old", CreatedAt: 10},
+			{Title: "Newest", CreatedAt: 30},
+			{Title: "Mid", CreatedAt: 20},
+		}
+		sorted := SortTracks(dateTracks, SortDateAdded, SortDesc)
+		if sorted[0].Title != "Newest" {
+			t.Errorf("first should be Newest, got %q", sorted[0].Title)
+		}
+		if sorted[2].Title != "Old" {
+			t.Errorf("last should be Old, got %q", sorted[2].Title)
+		}
+	})
+
 	t.Run("sort default returns nil", func(t *testing.T) {
 		sorted := SortTracks(tracks, SortDefault, SortAsc)
 		if sorted != nil {
@@ -171,6 +186,7 @@ func TestSortFieldLabel(t *testing.T) {
 		{SortTitle, "Title"},
 		{SortAlbum, "Album"},
 		{SortDuration, "Duration"},
+		{SortDateAdded, "Date Added"},
 		{SortName, "Name"},
 		{SortTrackCount, "Track Count"},
 		{SortSource, "Source"},

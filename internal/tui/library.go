@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/layout"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -13,6 +14,7 @@ import (
 // LibraryView renders the music library panel backed by a sorted LibraryIndex.
 type LibraryView struct {
 	index           library.LibraryIndex
+	sourceTracks    []library.Track
 	width           int
 	height          int
 	cursor          int // zero-based index of the focused track row
@@ -23,6 +25,7 @@ type LibraryView struct {
 	selectedHashes  map[string]struct{} // bulk-selected track hashes
 	sortState       SortState
 	sortedTracks    []library.Track // cached sorted copy; nil when SortDefault
+	showDateAdded   bool
 }
 
 func (v *LibraryView) setSize(w, h int) { v.width = w; v.height = h }
@@ -38,6 +41,21 @@ func (v LibraryView) render(s styles.Styles, favHashes, favArtists, favAlbums ma
 	return lv.Render()
 }
 
+func newRecentlyAddedView() LibraryView {
+	return LibraryView{
+		fuzzy:         library.SahilmFuzzySearcher{},
+		sortState:     SortState{Field: SortDateAdded, Dir: SortDesc},
+		showDateAdded: true,
+	}
+}
+
+func (v LibraryView) baseTracks() []library.Track {
+	if v.sourceTracks != nil {
+		return v.sourceTracks
+	}
+	return v.index.Tracks()
+}
+
 // view returns a fully-populated libtui.View from the current LibraryView state.
 func (v LibraryView) view() libtui.View {
 	lv := libtui.View{
@@ -50,11 +68,14 @@ func (v LibraryView) view() libtui.View {
 		FilteredMatches: v.filteredMatches,
 		Fuzzy:           v.fuzzy,
 		SelectedHashes:  v.selectedHashes,
+		ShowDateAdded:   v.showDateAdded,
 	}
 	if v.sortState.Field != SortDefault {
 		lv.OverrideTracks = v.sortedTracks
 		lv.SortField = int(v.sortState.Field)
 		lv.SortDir = int(v.sortState.Dir)
+	} else if v.sourceTracks != nil {
+		lv.OverrideTracks = v.sourceTracks
 	}
 	return lv
 }
@@ -66,7 +87,7 @@ func (v LibraryView) recomputeSortedTracks() LibraryView {
 		v.sortedTracks = nil
 		return v
 	}
-	v.sortedTracks = SortTracks(v.index.Tracks(), v.sortState.Field, v.sortState.Dir)
+	v.sortedTracks = SortTracks(v.baseTracks(), v.sortState.Field, v.sortState.Dir)
 	return v
 }
 
@@ -75,7 +96,7 @@ func (v LibraryView) recomputeSortedTracks() LibraryView {
 // cached slice instead of re-running the fuzzy search on every frame.
 func (v LibraryView) rebuildFilterCache() LibraryView {
 	if v.filter.Text != "" && v.fuzzy != nil {
-		tracks := v.index.Tracks()
+		tracks := v.baseTracks()
 		if v.sortedTracks != nil {
 			tracks = v.sortedTracks
 		}
@@ -94,7 +115,7 @@ func (v LibraryView) findTrackPosition(hash string) int {
 	}
 	tracks := v.sortedTracks
 	if tracks == nil {
-		tracks = v.index.Tracks()
+		tracks = v.baseTracks()
 	}
 	if v.filter.Text != "" && v.filteredMatches != nil {
 		for i, m := range v.filteredMatches {
@@ -133,6 +154,53 @@ func (v LibraryView) ToggleBulkSelection(hash string) LibraryView {
 func (v LibraryView) ClearSelection() LibraryView {
 	v.selectedHashes = nil
 	return v
+}
+
+func (v LibraryView) trackCount() int {
+	if v.filter.Text != "" && v.filteredMatches != nil {
+		return len(v.filteredMatches)
+	}
+	if v.sortedTracks != nil {
+		return len(v.sortedTracks)
+	}
+	return len(v.baseTracks())
+}
+
+func (v LibraryView) clampCursor() LibraryView {
+	count := v.trackCount()
+	if count == 0 {
+		v.cursor = 0
+		v.scrollOffset = 0
+		return v
+	}
+	if v.cursor >= count {
+		v.cursor = count - 1
+	}
+	if v.cursor < 0 {
+		v.cursor = 0
+	}
+	reserve := 1
+	if v.filter.Active || v.filter.Text != "" {
+		reserve++
+	}
+	v.scrollOffset = adjustScroll(v.cursor, v.scrollOffset, layout.VisibleRows(v.height, reserve))
+	return v
+}
+
+func (m Model) syncRecentlyAddedFromLibrary() Model {
+	m.recentlyAdded.sourceTracks = m.library.index.Tracks()
+	if m.recentlyAdded.fuzzy == nil {
+		m.recentlyAdded.fuzzy = library.SahilmFuzzySearcher{}
+	}
+	if m.recentlyAdded.sortState.Field == SortDefault {
+		m.recentlyAdded.sortState = SortState{Field: SortDateAdded, Dir: SortDesc}
+	}
+	m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
+	if m.recentlyAdded.filter.Text != "" {
+		m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
+	}
+	m.recentlyAdded = m.recentlyAdded.clampCursor()
+	return m
 }
 
 // HandleAction executes a pre-resolved library action dispatched by root.Update.
@@ -186,7 +254,7 @@ func (v LibraryView) EnqueueSelected(qa libtui.QueueAppender, prevQueueLen int) 
 	}
 	var cmds []tea.Cmd
 	queueLen := prevQueueLen
-	tracks := v.index.Tracks()
+	tracks := v.baseTracks()
 	if v.sortedTracks != nil {
 		tracks = v.sortedTracks
 	}

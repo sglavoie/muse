@@ -253,6 +253,10 @@ func (w *Writer) UpsertBatch(tracks []library.Track) error {
 		now := time.Now().Unix()
 		for _, t := range tracks {
 			durationMs := int64(t.Duration * 1000)
+			createdAt := t.CreatedAt
+			if createdAt == 0 {
+				createdAt = now
+			}
 			_, err := tx.Exec(`
 				INSERT INTO tracks (hash, path, title, artist, album, genre, duration_ms, size_bytes, mod_time, created_at, updated_at)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -267,7 +271,7 @@ func (w *Writer) UpsertBatch(tracks []library.Track) error {
 					mod_time    = excluded.mod_time,
 					missing     = 0,
 					updated_at  = excluded.updated_at`,
-				t.Hash, t.Path, t.Title, t.Artist, t.Album, t.Genre, durationMs, t.SizeBytes, t.ModTime, now, now,
+				t.Hash, t.Path, t.Title, t.Artist, t.Album, t.Genre, durationMs, t.SizeBytes, t.ModTime, createdAt, now,
 			)
 			if err != nil {
 				return err

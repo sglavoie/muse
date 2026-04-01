@@ -396,6 +396,7 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 		// Update status bar when the currently-playing track was reverted.
 		m = m.syncStatusBarMetadata(hash, orig[1], orig[0])
 	}
+	m = m.syncRecentlyAddedFromLibrary()
 	m = m.refreshDerivedViews()
 	if mw != nil || dw != nil {
 		originals := a.originals

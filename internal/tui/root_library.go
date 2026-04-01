@@ -35,6 +35,7 @@ func (m Model) handleScanTotalMsg(msg library.ScanTotalMsg) Model {
 // derived views (artists, albums) as needed.
 func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 	for _, t := range msg.Tracks {
+		t = m.preserveTrackCreatedAt(t)
 		if edited, ok := m.userEditedOverlay[t.Hash]; ok {
 			t.Title = edited.Title
 			t.Artist = edited.Artist
@@ -50,6 +51,7 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 	if m.library.sortState.Field != SortDefault {
 		m.library = m.library.recomputeSortedTracks()
 	}
+	m = m.syncRecentlyAddedFromLibrary()
 	// Invalidate the cached fuzzy-match results so that stale TrackIndex
 	// values from the previous index state cannot cause an out-of-bounds
 	// panic when the filter is active and the user navigates or renders.
@@ -123,6 +125,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 		}
 	}
 	for i, t := range msg.tracks {
+		t = m.preserveTrackCreatedAt(t)
 		if edited, ok := m.userEditedOverlay[t.Hash]; ok {
 			msg.tracks[i].Title = edited.Title
 			msg.tracks[i].Artist = edited.Artist
@@ -130,8 +133,10 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 			msg.tracks[i].Genre = edited.Genre
 			t = msg.tracks[i]
 		}
+		msg.tracks[i].CreatedAt = t.CreatedAt
 		m.library.index.UpsertByPath(t.Path, t)
 	}
+	m = m.syncRecentlyAddedFromLibrary()
 	// Update queue entries whose track metadata was refreshed by the watcher
 	// so the queue view stays in sync with on-disk changes.
 	queueDirty := false
@@ -324,6 +329,9 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 			m.library.selectedHashes = nil
 			m.library.sortState = SortState{}
 			m.library.sortedTracks = nil
+			m.recentlyAdded = newRecentlyAddedView()
+			m.recentlyAdded.width = m.library.width
+			m.recentlyAdded.height = m.library.height
 			m.scanCh = ch
 			m.scanning = true
 			m.scanned = 0
@@ -341,21 +349,43 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 		}
 		return m, nil, true
 	case actionLibraryFilterClear:
-		if m.library.filter.Text != "" {
-			m.library.filter = m.library.filter.Deactivate()
-			m.library.cursor = 0
-			m.library.scrollOffset = 0
-			m.library = m.library.rebuildFilterCache()
-		}
-		return m, nil, true
-	case actionLibraryEnqueue:
-		if m.queueWriter != nil {
-			cmd := m.library.EnqueueFocused(m.queueWriter, len(m.queue.entries))
+		switch m.activeView {
+		case viewLibrary:
 			if m.library.filter.Text != "" {
 				m.library.filter = m.library.filter.Deactivate()
 				m.library.cursor = 0
 				m.library.scrollOffset = 0
 				m.library = m.library.rebuildFilterCache()
+			}
+		case viewRecentlyAdded:
+			if m.recentlyAdded.filter.Text != "" {
+				m.recentlyAdded.filter = m.recentlyAdded.filter.Deactivate()
+				m.recentlyAdded.cursor = 0
+				m.recentlyAdded.scrollOffset = 0
+				m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
+			}
+		}
+		return m, nil, true
+	case actionLibraryEnqueue:
+		if m.queueWriter != nil {
+			var cmd tea.Cmd
+			switch m.activeView {
+			case viewLibrary:
+				cmd = m.library.EnqueueFocused(m.queueWriter, len(m.queue.entries))
+				if m.library.filter.Text != "" {
+					m.library.filter = m.library.filter.Deactivate()
+					m.library.cursor = 0
+					m.library.scrollOffset = 0
+					m.library = m.library.rebuildFilterCache()
+				}
+			case viewRecentlyAdded:
+				cmd = m.recentlyAdded.EnqueueFocused(m.queueWriter, len(m.queue.entries))
+				if m.recentlyAdded.filter.Text != "" {
+					m.recentlyAdded.filter = m.recentlyAdded.filter.Deactivate()
+					m.recentlyAdded.cursor = 0
+					m.recentlyAdded.scrollOffset = 0
+					m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
+				}
 			}
 			return m, cmd, true
 		}
@@ -373,6 +403,17 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 						m.library.cursor = 0
 						m.library.scrollOffset = 0
 						m.library = m.library.rebuildFilterCache()
+					}
+				}
+			case viewRecentlyAdded:
+				if _, ok := m.recentlyAdded.view().FocusedTrack(); ok {
+					m = m.clearQueueForReplace()
+					cmd = m.recentlyAdded.EnqueueFocused(m.queueWriter, 0)
+					if m.recentlyAdded.filter.Text != "" {
+						m.recentlyAdded.filter = m.recentlyAdded.filter.Deactivate()
+						m.recentlyAdded.cursor = 0
+						m.recentlyAdded.scrollOffset = 0
+						m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
 					}
 				}
 			case viewArtists:
@@ -418,6 +459,20 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 				if t, ok := m.library.view().FocusedTrack(); ok {
 					tracks = []library.Track{t}
 				}
+			}
+		case viewRecentlyAdded:
+			trackOrder := m.recentlyAdded.baseTracks()
+			if m.recentlyAdded.sortedTracks != nil {
+				trackOrder = m.recentlyAdded.sortedTracks
+			}
+			if len(m.recentlyAdded.selectedHashes) > 0 {
+				for _, t := range trackOrder {
+					if _, ok := m.recentlyAdded.selectedHashes[t.Hash]; ok {
+						tracks = append(tracks, t)
+					}
+				}
+			} else if t, ok := m.recentlyAdded.view().FocusedTrack(); ok {
+				tracks = []library.Track{t}
 			}
 		case viewArtists:
 			allTracks := m.library.index.Tracks()
@@ -678,4 +733,19 @@ func (m Model) bridgeScanChannel(raw <-chan library.Track) <-chan library.Track 
 		flush()
 	}()
 	return ch
+}
+
+func (m Model) preserveTrackCreatedAt(track library.Track) library.Track {
+	if existing, ok := m.library.index.FindByHash(track.Hash); ok && existing.CreatedAt != 0 {
+		track.CreatedAt = existing.CreatedAt
+		return track
+	}
+	if existing, ok := m.library.index.FindByPath(track.Path); ok && existing.CreatedAt != 0 {
+		track.CreatedAt = existing.CreatedAt
+		return track
+	}
+	if track.CreatedAt == 0 {
+		track.CreatedAt = time.Now().Unix()
+	}
+	return track
 }

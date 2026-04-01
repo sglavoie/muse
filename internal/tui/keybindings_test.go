@@ -149,6 +149,16 @@ func TestSwitchAlbumsGlobalBinding(t *testing.T) {
 	}
 }
 
+// TestSwitchRecentlyAddedGlobalBinding verifies that '8' resolves to
+// actionSwitchRecentlyAdded in the global context.
+func TestSwitchRecentlyAddedGlobalBinding(t *testing.T) {
+	reg := newRegistry()
+	got := reg.resolve(contextGlobal, "8")
+	if got != actionSwitchRecentlyAdded {
+		t.Errorf("resolve(contextGlobal, \"8\") = %v, want actionSwitchRecentlyAdded", got)
+	}
+}
+
 // TestLibraryEscResolvesToFilterClear verifies that 'esc' in the library
 // context resolves to actionLibraryFilterClear.
 func TestLibraryEscResolvesToFilterClear(t *testing.T) {

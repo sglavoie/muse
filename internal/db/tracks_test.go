@@ -83,6 +83,32 @@ func TestReadTracks_ReturnsUpsertedTracks(t *testing.T) {
 	if r1.ModTime != now {
 		t.Errorf("mod_time: got %d, want %d", r1.ModTime, now)
 	}
+	if r1.CreatedAt == 0 {
+		t.Error("created_at: expected non-zero value")
+	}
+}
+
+func TestUpsertBatch_PreservesCreatedAtOnReupsert(t *testing.T) {
+	d := openMigratedDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	if err := w.UpsertBatch([]library.Track{{Hash: "hash1", Path: "/music/a.flac", Title: "One", Artist: "Artist", CreatedAt: 111}}); err != nil {
+		t.Fatalf("initial UpsertBatch: %v", err)
+	}
+	if err := w.UpsertBatch([]library.Track{{Hash: "hash1", Path: "/music/a.flac", Title: "Updated", Artist: "Artist", CreatedAt: 999}}); err != nil {
+		t.Fatalf("re-upsert UpsertBatch: %v", err)
+	}
+
+	rows, err := d.ReadTracks()
+	if err != nil {
+		t.Fatalf("ReadTracks: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("got %d rows, want 1", len(rows))
+	}
+	if rows[0].CreatedAt != 111 {
+		t.Fatalf("created_at: got %d, want 111", rows[0].CreatedAt)
+	}
 }
 
 func TestReadTracks_ExcludesMissing(t *testing.T) {

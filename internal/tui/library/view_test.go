@@ -4,6 +4,7 @@ import (
 	"math"
 	"strings"
 	"testing"
+	"time"
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -132,6 +133,22 @@ func TestRenderSortOrderUnknownArtistLast(t *testing.T) {
 	}
 	if alicePos > unknownPos {
 		t.Errorf("expected named artists before Unknown Artist; alice at %d, unknown at %d", alicePos, unknownPos)
+	}
+}
+
+func TestRenderShowsDateAddedColumnWhenEnabled(t *testing.T) {
+	tracks := []musiclib.Track{
+		{Artist: "Alice", Title: "Song One", Album: "Debut", Duration: 185, CreatedAt: 1711929600},
+	}
+	idx := buildIndex(tracks)
+	v := View{Index: idx, Width: 100, Height: 10, ShowDateAdded: true}
+	got := ansi.Strip(v.Render())
+	wantDate := time.Unix(1711929600, 0).Local().Format("2006-01-02")
+	if !strings.Contains(got, "Added") {
+		t.Fatalf("expected Added header in render, got:\n%s", got)
+	}
+	if !strings.Contains(got, wantDate) {
+		t.Fatalf("expected formatted date in render, got:\n%s", got)
 	}
 }
 

@@ -168,6 +168,17 @@ func (idx *LibraryIndex) FindByHash(hash string) (Track, bool) {
 	return Track{}, false
 }
 
+// FindByPath returns the first track whose Path equals path.
+// Returns the track and true if found, or a zero Track and false otherwise.
+func (idx *LibraryIndex) FindByPath(path string) (Track, bool) {
+	for _, t := range idx.tracks {
+		if t.Path == path {
+			return t, true
+		}
+	}
+	return Track{}, false
+}
+
 // IncrementPlayCount bumps PlayCount by 1 and sets LastPlayedAt for the
 // track identified by hash. Returns true if the track was found.
 func (idx *LibraryIndex) IncrementPlayCount(hash string, playedAt int64) bool {

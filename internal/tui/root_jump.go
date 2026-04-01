@@ -19,6 +19,11 @@ func (m Model) focusedTrackMeta() (artist, album string, found bool) {
 			return track.Artist, track.Album, true
 		}
 
+	case viewRecentlyAdded:
+		if track, ok := m.recentlyAdded.view().FocusedTrack(); ok {
+			return track.Artist, track.Album, true
+		}
+
 	case viewQueue:
 		filtered := m.queue.filteredEntries()
 		if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {

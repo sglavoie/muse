@@ -41,6 +41,7 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 				hash := m.overlay.preview.hash
 				if t, ok := m.library.index.FindByHash(hash); ok && t.Duration == 0 {
 					m.library.index.UpdateDuration(hash, total)
+					m = m.syncRecentlyAddedFromLibrary()
 					newDurationMs := int64(total * 1000)
 					for i := range m.queue.entries {
 						if m.queue.entries[i].Hash == hash {

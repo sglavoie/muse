@@ -67,8 +67,9 @@ func helpSections() []helpSection {
 				{"3", "Switch to Queue"},
 				{"4", "Switch to Artists"},
 				{"5", "Switch to Albums"},
-				{"6", "Switch to Favorites"},
-				{"7", "Switch to Genres"},
+				{"6", "Switch to Genres"},
+				{"7", "Switch to Favorites"},
+				{"8", "Switch to Recently Added"},
 				{"F", "Toggle favorite"},
 				{"A", "Jump to artist"},
 				{"B", "Jump to album"},
@@ -92,7 +93,7 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Navigation (Library / Queue / Playlists / Artists / Albums / Genres)",
+			title:   "Navigation (Library / Queue / Playlists / Artists / Albums / Genres / Recently Added)",
 			context: contextGlobal,
 			entries: []helpEntry{
 				{"j / k / down / up", "Move cursor down / up"},
@@ -112,6 +113,21 @@ func helpSections() []helpSection {
 				{"x", "Toggle bulk selection"},
 				{"X", "Clear bulk selection"},
 				{"a", "Add to queue or playlist"},
+			},
+		},
+		{
+			title:   "Recently Added",
+			context: contextRecentlyAdded,
+			entries: []helpEntry{
+				{"/", "Filter tracks (prefixes: a: t: l: g:)"},
+				{"enter", "Enqueue track"},
+				{"shift+enter", "Replace queue with track"},
+				{"esc", "Clear committed filter"},
+				{"x", "Toggle bulk selection"},
+				{"X", "Clear bulk selection"},
+				{"a", "Add to queue or playlist"},
+				{"ctrl+a", "Sort ascending by date added"},
+				{"ctrl+d", "Sort descending by date added"},
 			},
 		},
 		{

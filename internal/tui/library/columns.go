@@ -4,7 +4,9 @@ const (
 	selectionMarkerFixed = 2 // '●' glyph + separator space
 	trackNumFixed        = 5
 	durationFixed        = 10
+	dateAddedFixed       = 10
 	sepCount             = 4 // spaces separating the five content columns
+	sepCountWithDate     = 5 // spaces separating the six content columns
 
 	artistRatio = 30
 	titleRatio  = 35
@@ -21,6 +23,7 @@ type Columns struct {
 	Title           int // proportional: ~35% of flex; absorbs rounding remainder
 	Album           int // proportional: ~25% of flex
 	Duration        int // fixed: durationFixed chars
+	DateAdded       int // fixed: dateAddedFixed chars; zero when column hidden
 }
 
 // Compute calculates column widths for the given total terminal width.
@@ -50,5 +53,29 @@ func Compute(totalWidth int) Columns {
 		Title:           title,
 		Album:           album,
 		Duration:        durationFixed,
+	}
+}
+
+// ComputeWithDateAdded calculates widths for the library-style track table
+// when a fixed Date Added column is displayed.
+func ComputeWithDateAdded(totalWidth int) Columns {
+	minWidth := selectionMarkerFixed + trackNumFixed + durationFixed + dateAddedFixed + sepCountWithDate
+	if totalWidth <= minWidth {
+		return Columns{SelectionMarker: selectionMarkerFixed, TrackNum: min(totalWidth, trackNumFixed)}
+	}
+
+	flex := totalWidth - selectionMarkerFixed - trackNumFixed - durationFixed - dateAddedFixed - sepCountWithDate
+	artist := flex * artistRatio / totalRatio
+	album := flex * albumRatio / totalRatio
+	title := flex - artist - album
+
+	return Columns{
+		SelectionMarker: selectionMarkerFixed,
+		TrackNum:        trackNumFixed,
+		Artist:          artist,
+		Title:           title,
+		Album:           album,
+		Duration:        durationFixed,
+		DateAdded:       dateAddedFixed,
 	}
 }
