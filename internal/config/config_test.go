@@ -1130,6 +1130,41 @@ func TestLoad_ExcludedPaths_EmptyEntriesRemoved(t *testing.T) {
 	}
 }
 
+func TestLoad_ExcludedPaths_TrailingSlashCleaned(t *testing.T) {
+	dir := t.TempDir()
+	content := `excluded_paths = ["/Users/me/Music/ai/"]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if len(result.Config.ExcludedPaths) != 1 {
+		t.Fatalf("ExcludedPaths: expected 1, got %d", len(result.Config.ExcludedPaths))
+	}
+	if result.Config.ExcludedPaths[0] != "/Users/me/Music/ai" {
+		t.Errorf("ExcludedPaths[0] = %q, want trailing slash cleaned", result.Config.ExcludedPaths[0])
+	}
+}
+
+func TestLoad_ExcludedPaths_ComponentPreserved(t *testing.T) {
+	dir := t.TempDir()
+	content := `excluded_paths = ["Podcasts"]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if len(result.Config.ExcludedPaths) != 1 || result.Config.ExcludedPaths[0] != "Podcasts" {
+		t.Errorf("ExcludedPaths = %v, want [Podcasts] unchanged", result.Config.ExcludedPaths)
+	}
+}
+
 func TestLoad_ExcludedPaths_Omitted_IsNil(t *testing.T) {
 	dir := t.TempDir()
 	content := `default_volume = 80

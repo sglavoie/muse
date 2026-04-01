@@ -72,3 +72,45 @@ func TestShouldExclude_FileNameNotMatchedAsDir(t *testing.T) {
 		t.Error("expected true: filename component is also checked")
 	}
 }
+
+func TestShouldExclude_FullPathPrefix(t *testing.T) {
+	got := ShouldExclude("/Users/me/Music/ai/sub/file.wav", []string{"/Users/me/Music/ai"})
+	if !got {
+		t.Error("expected true: full directory path should match files underneath")
+	}
+}
+
+func TestShouldExclude_FullPathWithTrailingSlash(t *testing.T) {
+	got := ShouldExclude("/Users/me/Music/ai/file.wav", []string{"/Users/me/Music/ai/"})
+	if !got {
+		t.Error("expected true: trailing slash should be handled")
+	}
+}
+
+func TestShouldExclude_FullPathNoFalsePrefix(t *testing.T) {
+	got := ShouldExclude("/Users/me/Music/aiden/file.wav", []string{"/Users/me/Music/ai"})
+	if got {
+		t.Error("expected false: /Music/ai must not match /Music/aiden")
+	}
+}
+
+func TestShouldExclude_FullPathExactDir(t *testing.T) {
+	got := ShouldExclude("/Users/me/Music/ai", []string{"/Users/me/Music/ai"})
+	if !got {
+		t.Error("expected true: exact directory match")
+	}
+}
+
+func TestShouldExclude_MixedPatterns(t *testing.T) {
+	patterns := []string{"/Users/me/Music/ai", "Podcasts"}
+
+	if !ShouldExclude("/Users/me/Music/ai/file.wav", patterns) {
+		t.Error("expected true: prefix match on full path")
+	}
+	if !ShouldExclude("/other/Podcasts/ep.mp3", patterns) {
+		t.Error("expected true: component match on Podcasts")
+	}
+	if ShouldExclude("/other/Music/track.mp3", patterns) {
+		t.Error("expected false: neither pattern matches")
+	}
+}

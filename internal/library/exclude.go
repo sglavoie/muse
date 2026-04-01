@@ -2,24 +2,40 @@ package library
 
 import (
 	"path/filepath"
-	"slices"
 	"strings"
 )
 
 // ShouldExclude reports whether path should be excluded based on the
-// excludedPaths patterns. Each pattern is matched exactly (case-sensitive)
-// against every component in path (both directory segments and the final
-// element). Returns false immediately when excludedPaths is empty.
+// excludedPaths patterns. A pattern containing a path separator is treated as
+// a directory prefix: it matches when path starts with pattern+"/" or equals
+// the pattern exactly. A pattern without a separator is matched exactly
+// (case-sensitive) against every component in path (both directory segments
+// and the final element). Returns false immediately when excludedPaths is empty.
 func ShouldExclude(path string, excludedPaths []string) bool {
 	if len(excludedPaths) == 0 {
 		return false
 	}
-	for part := range strings.SplitSeq(path, string(filepath.Separator)) {
+
+	sep := string(filepath.Separator)
+
+	for _, pattern := range excludedPaths {
+		if !strings.Contains(pattern, sep) {
+			continue
+		}
+		clean := strings.TrimRight(pattern, sep)
+		if strings.HasPrefix(path, clean+sep) || path == clean {
+			return true
+		}
+	}
+
+	for part := range strings.SplitSeq(path, sep) {
 		if part == "" || part == "." {
 			continue
 		}
-		if slices.Contains(excludedPaths, part) {
-			return true
+		for _, pattern := range excludedPaths {
+			if !strings.Contains(pattern, sep) && part == pattern {
+				return true
+			}
 		}
 	}
 	return false

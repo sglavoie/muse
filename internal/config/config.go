@@ -256,13 +256,22 @@ func validate(raw rawConfig) (Config, []string) {
 	}
 	// empty means not set — use the default silently
 
-	// Dedup, trim, and clean excluded paths.
+	// Dedup, trim, expand, and clean excluded paths.
 	if len(raw.ExcludedPaths) > 0 {
 		seenExcl := make(map[string]bool, len(raw.ExcludedPaths))
 		var resolved []string
 		for _, p := range raw.ExcludedPaths {
 			trimmed := strings.TrimSpace(p)
-			if trimmed != "" && !seenExcl[trimmed] {
+			if trimmed == "" {
+				continue
+			}
+			if expanded, err := expandTilde(trimmed); err == nil {
+				trimmed = expanded
+			}
+			if strings.Contains(trimmed, string(filepath.Separator)) {
+				trimmed = filepath.Clean(trimmed)
+			}
+			if !seenExcl[trimmed] {
 				seenExcl[trimmed] = true
 				resolved = append(resolved, trimmed)
 			}
