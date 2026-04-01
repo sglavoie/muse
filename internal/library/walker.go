@@ -62,40 +62,51 @@ func walkAudioPaths(ctx context.Context, root string, visit func(path string) er
 	})
 }
 
-// Walk walks root recursively, sending audio file paths to the returned channel.
-// It runs in a single goroutine and closes the channel when the walk completes
-// or ctx is cancelled. Hidden files and directories (names starting with '.')
-// are skipped. Symbolic links are followed for files but not for directories.
-func Walk(ctx context.Context, root string) <-chan string {
+// Walk walks each root in roots recursively, sending audio file paths to the
+// returned channel. Roots are walked sequentially in order; all paths are sent
+// to the same channel which is closed when all walks complete or ctx is
+// cancelled. Hidden files and directories (names starting with '.') are
+// skipped. Symbolic links are followed for files but not for directories.
+func Walk(ctx context.Context, roots []string) <-chan string {
 	ch := make(chan string, 64)
 	go func() {
 		defer close(ch)
-		if err := walkAudioPaths(ctx, root, func(path string) error {
-			select {
-			case ch <- path:
-				return nil
-			case <-ctx.Done():
-				return filepath.SkipAll
+		for _, root := range roots {
+			if ctx.Err() != nil {
+				return
 			}
-		}, nil); err != nil && ctx.Err() == nil {
-			slog.Warn("walk: root traversal error", "root", root, "err", err)
+			if err := walkAudioPaths(ctx, root, func(path string) error {
+				select {
+				case ch <- path:
+					return nil
+				case <-ctx.Done():
+					return filepath.SkipAll
+				}
+			}, nil); err != nil && ctx.Err() == nil {
+				slog.Warn("walk: root traversal error", "root", root, "err", err)
+			}
 		}
 	}()
 	return ch
 }
 
-// CountAudioFiles walks root using stat-only directory traversal and returns
-// the number of audio files matching audio.Extensions. It applies the same
-// hidden-file, hidden-directory, and file-only-symlink rules as Walk so the
-// count matches what the scanner pipeline will process. Intended to be called
-// in a background goroutine to provide an early estimated total.
-func CountAudioFiles(ctx context.Context, root string) int {
+// CountAudioFiles walks each root in roots and returns the total number of
+// audio files matching audio.Extensions. It applies the same hidden-file,
+// hidden-directory, and file-only-symlink rules as Walk so the count matches
+// what the scanner pipeline will process. Intended to be called in a
+// background goroutine to provide an early estimated total.
+func CountAudioFiles(ctx context.Context, roots []string) int {
 	count := 0
-	if err := walkAudioPaths(ctx, root, func(_ string) error {
-		count++
-		return nil
-	}, nil); err != nil && ctx.Err() == nil {
-		slog.Warn("count audio files: walk error", "root", root, "err", err)
+	for _, root := range roots {
+		if ctx.Err() != nil {
+			break
+		}
+		if err := walkAudioPaths(ctx, root, func(_ string) error {
+			count++
+			return nil
+		}, nil); err != nil && ctx.Err() == nil {
+			slog.Warn("count audio files: walk error", "root", root, "err", err)
+		}
 	}
 	return count
 }

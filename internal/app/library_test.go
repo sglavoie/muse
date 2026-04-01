@@ -48,7 +48,7 @@ func TestLoadLibrary_EmptyDB(t *testing.T) {
 	defer result.DB.Close()
 
 	ctx, cancel := context.WithCancel(t.Context())
-	libResult, err := app.LoadLibrary(ctx, result.DB, result.Writer, musicDir, stubExtractor{}, 100)
+	libResult, err := app.LoadLibrary(ctx, result.DB, result.Writer, []string{musicDir}, stubExtractor{}, 100)
 	if err != nil {
 		cancel()
 		t.Fatalf("LoadLibrary: %v", err)
@@ -87,7 +87,7 @@ func TestLoadLibrary_WithExistingTracks(t *testing.T) {
 	insertTrack(t, result.DB, "hash1", trackPath, "Artist", "Title")
 
 	ctx, cancel := context.WithCancel(t.Context())
-	libResult, err := app.LoadLibrary(ctx, result.DB, result.Writer, musicDir, stubExtractor{}, 100)
+	libResult, err := app.LoadLibrary(ctx, result.DB, result.Writer, []string{musicDir}, stubExtractor{}, 100)
 	if err != nil {
 		cancel()
 		t.Fatalf("LoadLibrary: %v", err)
@@ -122,7 +122,7 @@ func TestLoadLibrary_DeletedPathsDetected(t *testing.T) {
 	insertTrack(t, result.DB, "hash-gone", missingPath, "A", "T")
 
 	ctx, cancel := context.WithCancel(t.Context())
-	libResult, err := app.LoadLibrary(ctx, result.DB, result.Writer, musicDir, stubExtractor{}, 100)
+	libResult, err := app.LoadLibrary(ctx, result.DB, result.Writer, []string{musicDir}, stubExtractor{}, 100)
 	if err != nil {
 		cancel()
 		t.Fatalf("LoadLibrary: %v", err)

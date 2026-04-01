@@ -123,11 +123,12 @@ func padHighlight(s string, width int, positions []int, baseStyles ...lipgloss.S
 			return
 		}
 		rs := string(run)
-		if runBold {
+		switch {
+		case runBold:
 			b.WriteString(boldStyle.Render(rs))
-		} else if hasBase {
+		case hasBase:
 			b.WriteString(base.Render(rs))
-		} else {
+		default:
 			b.WriteString(rs)
 		}
 		run = run[:0]

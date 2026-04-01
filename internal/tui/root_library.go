@@ -296,24 +296,25 @@ func (m Model) handleScanDoneMsg() Model {
 func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 	switch action {
 	case actionRescan:
-		if m.libraryRoot != "" && m.extractor != nil && !m.scanning {
+		if len(m.libraryRoots) > 0 && m.extractor != nil && !m.scanning {
 			// Refresh user-edited overlay so manually edited metadata
 			// survives the full rescan that is about to clear the index.
 			if m.userEditedReader != nil {
 				rows, err := m.userEditedReader.ReadUserEditedTracks()
-				if err != nil {
+				switch {
+				case err != nil:
 					slog.Warn("rescan: read user-edited tracks", "err", err)
-				} else if len(rows) > 0 {
+				case len(rows) > 0:
 					overlay := make(map[string]db.UserEditedRow, len(rows))
 					for _, r := range rows {
 						overlay[r.Hash] = r
 					}
 					m.userEditedOverlay = overlay
-				} else {
+				default:
 					m.userEditedOverlay = nil
 				}
 			}
-			rawCh := library.Scan(m.appCtx, m.libraryRoot, m.extractor)
+			rawCh := library.Scan(m.appCtx, m.libraryRoots, m.extractor)
 			ch := m.bridgeScanChannel(rawCh)
 			m.library.index = library.LibraryIndex{}
 			m.library.cursor = 0
@@ -337,7 +338,7 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 			// Reset the genres view so stale selectedGenre/selectedArtist
 			// from the previous scan don't persist into the new scan.
 			m.genres = GenresView{width: m.genres.width, height: m.genres.height}
-			return m, tea.Batch(waitForNextBatch(ch), countAudioFiles(m.appCtx, m.libraryRoot)), true
+			return m, tea.Batch(waitForNextBatch(ch), countAudioFiles(m.appCtx, m.libraryRoots)), true
 		}
 		return m, nil, true
 	case actionLibraryFilterClear:

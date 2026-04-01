@@ -52,7 +52,7 @@ func TestGlobalBindingFiresWhenNoViewLocalBinding(t *testing.T) {
 	for _, tc := range views {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
-			m := New(context.Background(), WithLibraryRoot(root), WithExtractor(stubExtractor{}))
+			m := New(context.Background(), WithLibraryRoots([]string{root}), WithExtractor(stubExtractor{}))
 			m.activeView = tc.viewID
 
 			_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})

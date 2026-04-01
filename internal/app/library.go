@@ -49,7 +49,7 @@ type LibraryWriter interface {
 // LibraryResult contains everything needed to populate the TUI and keep it
 // updated.
 func LoadLibrary(ctx context.Context, database *db.DB, writer LibraryWriter,
-	musicDir string, extractor library.MetadataExtractor,
+	musicDirs []string, extractor library.MetadataExtractor,
 	upsertBatchSize int) (LibraryResult, error) {
 
 	// Load the cached library from the database for instant startup display.
@@ -95,7 +95,7 @@ func LoadLibrary(ctx context.Context, database *db.DB, writer LibraryWriter,
 
 	// Diff scan: walk the filesystem and only process files that are new or
 	// have changed since the last scan. Deletions are returned synchronously.
-	rawScanCh, deletedPaths, walkErr := library.DiffScan(ctx, musicDir, extractor, known, onWalkErr)
+	rawScanCh, deletedPaths, walkErr := library.DiffScan(ctx, musicDirs, extractor, known, onWalkErr)
 	close(scanErrCh) // all walk errors have been enqueued; channel may be empty
 	if walkErr != nil {
 		slog.Warn("diff scan: walk failed, skipping deletions", "err", walkErr)
@@ -115,7 +115,7 @@ func LoadLibrary(ctx context.Context, database *db.DB, writer LibraryWriter,
 		hashByPath[t.Path] = t.Hash
 	}
 
-	rawWatchCh, watchDegraded, watchErr := library.Watch(ctx, musicDir, extractor, library.DefaultDebounce)
+	rawWatchCh, watchDegraded, watchErr := library.Watch(ctx, musicDirs, extractor, library.DefaultDebounce)
 	if watchErr != nil {
 		slog.Error("failed to start file watcher", "err", watchErr)
 	}

@@ -102,7 +102,7 @@ func TestViewStatusBarShowsScanProgress(t *testing.T) {
 // configured library root returns a non-nil background cmd and does not block.
 func TestRescanHotkeyReturnsCmd(t *testing.T) {
 	root := t.TempDir()
-	m := New(context.Background(), WithLibraryRoot(root), WithExtractor(stubExtractor{}))
+	m := New(context.Background(), WithLibraryRoots([]string{root}), WithExtractor(stubExtractor{}))
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
 	if cmd == nil {
 		t.Fatal("R key: expected non-nil cmd for rescan, got nil")
@@ -115,7 +115,7 @@ func TestRescanHotkeyIsNoOpWhenScanning(t *testing.T) {
 	ch := make(chan library.Track)
 	defer close(ch)
 	root := t.TempDir()
-	m := New(context.Background(), WithScanChannel(ch), WithLibraryRoot(root), WithExtractor(stubExtractor{}))
+	m := New(context.Background(), WithScanChannel(ch), WithLibraryRoots([]string{root}), WithExtractor(stubExtractor{}))
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
 	if cmd != nil {
 		t.Fatal("R key during active scan must return nil cmd")
@@ -137,7 +137,7 @@ func TestRescanHotkeyIsNoOpWithoutRoot(t *testing.T) {
 // populate it with only the new tracks, effectively removing deleted ones.
 func TestRescanResetsIndexAndAddsNewTracks(t *testing.T) {
 	root := t.TempDir()
-	m := New(context.Background(), WithLibraryRoot(root), WithExtractor(stubExtractor{}))
+	m := New(context.Background(), WithLibraryRoots([]string{root}), WithExtractor(stubExtractor{}))
 
 	// Seed two initial tracks.
 	next, _ := m.Update(library.ScanBatchMsg{Tracks: []library.Track{
@@ -235,7 +235,7 @@ func TestScanProgressVisibleDuringScanAndAutoDismissed(t *testing.T) {
 // index.
 func TestRescanResetsCursorScrollOffsetAndFilter(t *testing.T) {
 	root := t.TempDir()
-	m := New(context.Background(), WithLibraryRoot(root), WithExtractor(stubExtractor{}))
+	m := New(context.Background(), WithLibraryRoots([]string{root}), WithExtractor(stubExtractor{}))
 
 	// Seed tracks and move the cursor down.
 	tracks := make([]library.Track, 20)
@@ -289,7 +289,7 @@ func TestRescanResetsCursorScrollOffsetAndFilter(t *testing.T) {
 // library root triggers a rescan, while lowercase 'r' does not.
 func TestShiftRFiresRescan(t *testing.T) {
 	root := t.TempDir()
-	m := New(context.Background(), WithLibraryRoot(root), WithExtractor(stubExtractor{}))
+	m := New(context.Background(), WithLibraryRoots([]string{root}), WithExtractor(stubExtractor{}))
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
 	if cmd == nil {
@@ -491,7 +491,7 @@ func TestScanBatchRecomputesSortedTracks(t *testing.T) {
 func TestRescanClearsSelectionAndSort(t *testing.T) {
 	// Provide a library root and extractor so the rescan action is not a no-op.
 	m := New(context.Background(),
-		WithLibraryRoot("/tmp"),
+		WithLibraryRoots([]string{"/tmp"}),
 		WithExtractor(&library.ExifToolExtractor{}),
 	)
 	// Seed a track, select it, and activate a sort.
@@ -933,7 +933,7 @@ func TestScanBatchRefreshesAlbumTrackLevel(t *testing.T) {
 // that stale references from the previous scan don't persist.
 func TestRescanResetsGenresView(t *testing.T) {
 	root := t.TempDir()
-	m := New(context.Background(), WithLibraryRoot(root), WithExtractor(stubExtractor{}))
+	m := New(context.Background(), WithLibraryRoots([]string{root}), WithExtractor(stubExtractor{}))
 
 	// Set up genres view at ArtistLevel with a selected genre.
 	m.genres.level = gentui.ArtistLevel

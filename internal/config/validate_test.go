@@ -12,7 +12,7 @@ func TestValidateMusicDir_MissingDirectory(t *testing.T) {
 	configPath := filepath.Join(tmp, "config.toml")
 	missingDir := filepath.Join(tmp, "no-such-dir")
 
-	err := ValidateMusicDir(missingDir, configPath)
+	err := ValidateMusicDirs([]string{missingDir}, configPath)
 	if err == nil {
 		t.Fatal("expected error for missing directory, got nil")
 	}
@@ -36,7 +36,7 @@ func TestValidateMusicDir_PermissionDenied(t *testing.T) {
 	}
 	t.Cleanup(func() { os.Chmod(restrictedDir, 0o755) }) //nolint:gosec // G302: restoring perms in test cleanup
 
-	err := ValidateMusicDir(restrictedDir, configPath)
+	err := ValidateMusicDirs([]string{restrictedDir}, configPath)
 	if err == nil {
 		t.Fatal("expected error for permission-denied directory, got nil")
 	}
@@ -59,7 +59,7 @@ func TestValidateMusicDir_OnlyNonAudioFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := ValidateMusicDir(musicDir, configPath)
+	err := ValidateMusicDirs([]string{musicDir}, configPath)
 	if err == nil {
 		t.Fatal("expected error for directory with only non-audio files, got nil")
 	}
@@ -76,7 +76,7 @@ func TestValidateMusicDir_EmptyDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := ValidateMusicDir(emptyDir, configPath)
+	err := ValidateMusicDirs([]string{emptyDir}, configPath)
 	if err == nil {
 		t.Fatal("expected error for empty directory, got nil")
 	}
@@ -99,7 +99,7 @@ func TestValidateMusicDir_ValidDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ValidateMusicDir(musicDir, configPath); err != nil {
+	if err := ValidateMusicDirs([]string{musicDir}, configPath); err != nil {
 		t.Errorf("expected no error for valid directory, got: %s", err.Error())
 	}
 }
@@ -116,7 +116,7 @@ func TestValidateMusicDir_ValidDirectoryWithSubdirs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ValidateMusicDir(musicDir, configPath); err != nil {
+	if err := ValidateMusicDirs([]string{musicDir}, configPath); err != nil {
 		t.Errorf("expected no error for directory with subdirectories, got: %s", err.Error())
 	}
 }
@@ -132,7 +132,7 @@ func TestValidateMusicDir_OnlyHiddenDirs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := ValidateMusicDir(musicDir, configPath)
+	err := ValidateMusicDirs([]string{musicDir}, configPath)
 	if err == nil {
 		t.Fatal("expected error for directory with only hidden subdirectories, got nil")
 	}
@@ -147,12 +147,49 @@ func TestValidateMusicDir_TildeExpansion(t *testing.T) {
 
 	// Using a tilde path that resolves to a non-existent directory ensures
 	// tilde expansion runs without depending on real home dir contents.
-	err := ValidateMusicDir("~/no-such-music-dir-xyz", configPath)
+	err := ValidateMusicDirs([]string{"~/no-such-music-dir-xyz"}, configPath)
 	if err == nil {
 		t.Fatal("expected error for missing tilde-expanded directory, got nil")
 	}
 	if !strings.Contains(err.Error(), configPath) {
 		t.Errorf("error should contain config path %q, got: %s", configPath, err.Error())
+	}
+}
+
+// TestValidateMusicDirs_MultipleDirectoriesSomeInvalid verifies that when
+// multiple directories are validated and some are invalid, the error message
+// lists all the bad ones.
+func TestValidateMusicDirs_MultipleDirectoriesSomeInvalid(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "config.toml")
+
+	// Create one valid dir with an audio file.
+	validDir := filepath.Join(tmp, "valid")
+	if err := os.Mkdir(validDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(validDir, "song.mp3"), []byte{}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Two invalid dirs: missing and empty.
+	missingDir := filepath.Join(tmp, "no-such-dir")
+	emptyDir := filepath.Join(tmp, "empty")
+	if err := os.Mkdir(emptyDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	err := ValidateMusicDirs([]string{validDir, missingDir, emptyDir}, configPath)
+	if err == nil {
+		t.Fatal("expected error for dirs with some invalid entries, got nil")
+	}
+	// Error should mention the missing dir.
+	if !strings.Contains(err.Error(), "does not exist") && !strings.Contains(err.Error(), "no-such-dir") {
+		t.Errorf("error should mention missing dir, got: %s", err.Error())
+	}
+	// Error should mention the empty dir.
+	if !strings.Contains(err.Error(), "empty") {
+		t.Errorf("error should mention empty dir, got: %s", err.Error())
 	}
 }
 

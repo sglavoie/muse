@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -22,9 +23,10 @@ func boolToInt(b bool) int {
 type settingsTab int
 
 const (
-	settingsTabPlayback  settingsTab = iota
-	settingsTabEqualizer             // inserted between Playback and Display
-	settingsTabDisplay
+	settingsTabLibrary   settingsTab = iota // directory management
+	settingsTabPlayback                     // playback settings
+	settingsTabEqualizer                    // EQ settings
+	settingsTabDisplay                      // display settings
 	settingsTabCount
 )
 
@@ -61,14 +63,25 @@ type SettingsOverlay struct {
 	eqNameInput  *textInput // non-nil when prompting for preset name
 	eqConfirmDel bool       // true when showing delete confirmation
 	dirty        bool
+
+	// Library tab state.
+	libraryDirs   []string
+	libCursor     int
+	libDirInput   *textInput // non-nil when adding a directory
+	libConfirmDel bool       // true when showing directory delete confirmation
 }
 
 // eqCustomSentinelName is the display name of the transient "not a saved preset" state.
 const eqCustomSentinelName = "(Custom)"
 
 // NewSettingsOverlay creates a SettingsOverlay pre-populated from cfg.
-func NewSettingsOverlay(cfg config.Config, currentVolume int) SettingsOverlay {
+func NewSettingsOverlay(cfg config.Config, currentVolume int, musicDirs []string) SettingsOverlay {
 	o := SettingsOverlay{}
+
+	// Copy library dirs.
+	o.libraryDirs = make([]string, len(musicDirs))
+	copy(o.libraryDirs, musicDirs)
+
 	o.fields[settingsTabPlayback] = []settingsField{
 		{Label: "Volume step", Value: cfg.VolumeIncrement, Default: 5, Min: 1, Max: 25, Step: 1, Unit: "%"},
 		{Label: "Seek short", Value: int(cfg.SeekOffsetShort), Default: 5, Min: 1, Max: 60, Step: 1, Unit: "s"},
@@ -139,6 +152,51 @@ func (o SettingsOverlay) StereoWideState() (enabled bool, amount int) {
 // HandleKey processes a key event and returns the updated overlay and the resulting action.
 // ctrl+c returns settingsNone so the caller can fall through to root quit handling.
 func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settingsAction) {
+	// Library add mode: route all keys to the path text input.
+	if o.libDirInput != nil {
+		switch msg.String() {
+		case "enter":
+			path := o.libDirInput.Value()
+			o.libDirInput = nil
+			if path != "" {
+				expanded := expandTildeSettings(path)
+				if _, err := os.Stat(expanded); err == nil {
+					o.libraryDirs = append(o.libraryDirs, expanded)
+					o.libCursor = len(o.libraryDirs) - 1
+					o.dirty = true
+				}
+			}
+			return o, settingsNone
+		case "esc":
+			o.libDirInput = nil
+			return o, settingsNone
+		default:
+			o.libDirInput.HandleKey(msg.String())
+			return o, settingsNone
+		}
+	}
+
+	// Library delete confirmation mode.
+	if o.libConfirmDel {
+		switch msg.String() {
+		case "d", "enter":
+			if len(o.libraryDirs) > 1 {
+				o.libraryDirs = append(o.libraryDirs[:o.libCursor], o.libraryDirs[o.libCursor+1:]...)
+				if o.libCursor >= len(o.libraryDirs) {
+					o.libCursor = len(o.libraryDirs) - 1
+				}
+				o.dirty = true
+			}
+			o.libConfirmDel = false
+			return o, settingsNone
+		case "esc":
+			o.libConfirmDel = false
+			return o, settingsNone
+		default:
+			return o, settingsNone
+		}
+	}
+
 	// Text input mode: all keys route to the name input.
 	if o.eqNameInput != nil {
 		switch msg.String() {
@@ -181,15 +239,27 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 		o.tab = (o.tab + 1) % settingsTabCount
 		o.cursor = 0
 	case "j", "down":
-		if n := len(o.fields[o.tab]); n > 0 {
-			o.cursor = (o.cursor + 1) % n
+		if o.tab == settingsTabLibrary {
+			if n := len(o.libraryDirs); n > 0 {
+				o.libCursor = (o.libCursor + 1) % n
+			}
+		} else {
+			if n := len(o.fields[o.tab]); n > 0 {
+				o.cursor = (o.cursor + 1) % n
+			}
 		}
 	case "k", "up":
-		if n := len(o.fields[o.tab]); n > 0 {
-			o.cursor = (o.cursor + n - 1) % n
+		if o.tab == settingsTabLibrary {
+			if n := len(o.libraryDirs); n > 0 {
+				o.libCursor = (o.libCursor + n - 1) % n
+			}
+		} else {
+			if n := len(o.fields[o.tab]); n > 0 {
+				o.cursor = (o.cursor + n - 1) % n
+			}
 		}
 	case "h", "left":
-		if len(o.fields[o.tab]) > 0 {
+		if o.tab != settingsTabLibrary && len(o.fields[o.tab]) > 0 {
 			f := &o.fields[o.tab][o.cursor]
 			if f.Value > f.Min {
 				f.Value -= f.Step
@@ -206,7 +276,7 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 			}
 		}
 	case "l", "right":
-		if len(o.fields[o.tab]) > 0 {
+		if o.tab != settingsTabLibrary && len(o.fields[o.tab]) > 0 {
 			f := &o.fields[o.tab][o.cursor]
 			if f.Value < f.Max {
 				f.Value += f.Step
@@ -222,12 +292,23 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, settin
 				}
 			}
 		}
+	case "a":
+		if o.tab == settingsTabLibrary {
+			o.libDirInput = &textInput{}
+			return o, settingsNone
+		}
 	case "s":
 		if o.tab == settingsTabEqualizer {
 			o.eqNameInput = &textInput{}
 			return o, settingsNone
 		}
 	case "d":
+		if o.tab == settingsTabLibrary {
+			if len(o.libraryDirs) > 1 {
+				o.libConfirmDel = true
+			}
+			return o, settingsNone
+		}
 		if o.tab == settingsTabEqualizer {
 			presetIdx := o.fields[settingsTabEqualizer][1].Value
 			if presetIdx >= 0 && presetIdx < len(o.eqPresets) {
@@ -330,6 +411,14 @@ func (o *SettingsOverlay) deleteCurrentPreset() {
 // ToConfig merges the overlay's field values back into a copy of base.
 func (o SettingsOverlay) ToConfig(base config.Config) config.Config {
 	cfg := base
+
+	// Library dirs.
+	if len(o.libraryDirs) > 0 {
+		cfg.MusicDirectories = make([]string, len(o.libraryDirs))
+		copy(cfg.MusicDirectories, o.libraryDirs)
+		cfg.MusicDirectory = cfg.MusicDirectories[0]
+	}
+
 	pb := o.fields[settingsTabPlayback]
 	cfg.VolumeIncrement = pb[0].Value
 	cfg.SeekOffsetShort = float64(pb[1].Value)
@@ -386,7 +475,7 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	lines = append(lines, crossL+strings.Repeat(borderH, boxInner)+crossR)
 
 	// Tab bar row.
-	tabNames := [settingsTabCount]string{"Playback", "Equalizer", "Display"}
+	tabNames := [settingsTabCount]string{"Library", "Playback", "Equalizer", "Display"}
 	var tabParts []string
 	for i := range settingsTabCount {
 		name := tabNames[i]
@@ -405,52 +494,79 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	// Separator below tab bar.
 	lines = append(lines, crossL+strings.Repeat(borderH, boxInner)+crossR)
 
-	// Field rows.
-	maxLabelW := 0
-	for _, f := range o.fields[o.tab] {
-		if lw := len(f.Label); lw > maxLabelW {
-			maxLabelW = lw
-		}
-	}
-	for i, f := range o.fields[o.tab] {
-		var spinner string
-		switch {
-		case f.Min == 0 && f.Max == 1 && f.Unit == "":
-			label := "Off"
-			if f.Value != 0 {
-				label = "On"
+	// Content rows.
+	if o.tab == settingsTabLibrary {
+		// Directory list.
+		for i, dir := range o.libraryDirs {
+			display := collapseHomeDir(dir)
+			displayW := ansi.StringWidth(display)
+			pad := max(0, contentWidth-displayW)
+			row := "  " + display + strings.Repeat(" ", pad) + "  "
+			if i == o.libCursor {
+				lines = append(lines, borderV+s.Accent.Render(row)+borderV)
+			} else {
+				lines = append(lines, borderV+row+borderV)
 			}
-			spinner = fmt.Sprintf("< %s >", label)
-		case f.Unit == "preset":
-			name := eqCustomSentinelName
-			if f.Value >= 0 && f.Value < len(o.eqPresets) {
-				name = o.eqPresets[f.Value].Name
+		}
+		// Input or confirmation row.
+		if o.libDirInput != nil {
+			body := "Add dir: " + o.libDirInput.Render(contentWidth)
+			pad := max(0, contentWidth-ansi.StringWidth(body))
+			lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
+		} else if o.libConfirmDel && o.libCursor < len(o.libraryDirs) {
+			dirName := collapseHomeDir(o.libraryDirs[o.libCursor])
+			body := fmt.Sprintf("Delete %q? D/Enter=yes  Esc=no", dirName)
+			pad := max(0, contentWidth-ansi.StringWidth(body))
+			lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
+		}
+	} else {
+		// Field rows.
+		maxLabelW := 0
+		for _, f := range o.fields[o.tab] {
+			if lw := len(f.Label); lw > maxLabelW {
+				maxLabelW = lw
 			}
-			spinner = fmt.Sprintf("< %s >", name)
-		case f.Unit == "tenth":
-			spinner = fmt.Sprintf("< %.1fx >", float64(f.Value)/10.0)
-		default:
-			spinner = fmt.Sprintf("< %d%s >", f.Value, f.Unit)
 		}
-		spinnerW := ansi.StringWidth(spinner)
-		gap := max(1, contentWidth-maxLabelW-spinnerW)
-		row := fmt.Sprintf("  %-*s%s%s  ", maxLabelW, f.Label, strings.Repeat(" ", gap), spinner)
-		if i == o.cursor {
-			lines = append(lines, borderV+s.Accent.Render(row)+borderV)
-		} else {
-			lines = append(lines, borderV+row+borderV)
-		}
-		// On EQ tab, insert CRUD state row after the Preset field (index 1).
-		if o.tab == settingsTabEqualizer && i == 1 {
-			if o.eqNameInput != nil {
-				body := "Save as: " + o.eqNameInput.Render(contentWidth)
-				pad := max(0, contentWidth-ansi.StringWidth(body))
-				lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
-			} else if o.eqConfirmDel && f.Value >= 0 && f.Value < len(o.eqPresets) {
-				presetName := o.eqPresets[f.Value].Name
-				body := fmt.Sprintf("Delete %q? D/Enter=yes  Esc=no", presetName)
-				pad := max(0, contentWidth-ansi.StringWidth(body))
-				lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
+		for i, f := range o.fields[o.tab] {
+			var spinner string
+			switch {
+			case f.Min == 0 && f.Max == 1 && f.Unit == "":
+				label := "Off"
+				if f.Value != 0 {
+					label = "On"
+				}
+				spinner = fmt.Sprintf("< %s >", label)
+			case f.Unit == "preset":
+				name := eqCustomSentinelName
+				if f.Value >= 0 && f.Value < len(o.eqPresets) {
+					name = o.eqPresets[f.Value].Name
+				}
+				spinner = fmt.Sprintf("< %s >", name)
+			case f.Unit == "tenth":
+				spinner = fmt.Sprintf("< %.1fx >", float64(f.Value)/10.0)
+			default:
+				spinner = fmt.Sprintf("< %d%s >", f.Value, f.Unit)
+			}
+			spinnerW := ansi.StringWidth(spinner)
+			gap := max(1, contentWidth-maxLabelW-spinnerW)
+			row := fmt.Sprintf("  %-*s%s%s  ", maxLabelW, f.Label, strings.Repeat(" ", gap), spinner)
+			if i == o.cursor {
+				lines = append(lines, borderV+s.Accent.Render(row)+borderV)
+			} else {
+				lines = append(lines, borderV+row+borderV)
+			}
+			// On EQ tab, insert CRUD state row after the Preset field (index 1).
+			if o.tab == settingsTabEqualizer && i == 1 {
+				if o.eqNameInput != nil {
+					body := "Save as: " + o.eqNameInput.Render(contentWidth)
+					pad := max(0, contentWidth-ansi.StringWidth(body))
+					lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
+				} else if o.eqConfirmDel && f.Value >= 0 && f.Value < len(o.eqPresets) {
+					presetName := o.eqPresets[f.Value].Name
+					body := fmt.Sprintf("Delete %q? D/Enter=yes  Esc=no", presetName)
+					pad := max(0, contentWidth-ansi.StringWidth(body))
+					lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
+				}
 			}
 		}
 	}
@@ -459,9 +575,12 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	lines = append(lines, cornerBL+strings.Repeat(borderH, boxInner)+cornerBR)
 
 	// Hint line.
-	if o.tab == settingsTabEqualizer {
+	switch o.tab {
+	case settingsTabLibrary:
+		lines = append(lines, "  a add · d delete · [/] tabs · j/k navigate · ctrl+s save · esc cancel")
+	case settingsTabEqualizer:
 		lines = append(lines, "  s save · d delete · [/] tabs · j/k fields · h/l adjust · ctrl+s save · esc cancel")
-	} else {
+	default:
 		lines = append(lines, "  [/] tabs · j/k fields · h/l adjust · ctrl+s save · esc cancel")
 	}
 
@@ -485,4 +604,37 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 		b.WriteString(prefix + line + "\n")
 	}
 	return b.String()
+}
+
+// collapseHomeDir replaces the home directory prefix with "~" for display.
+func collapseHomeDir(path string) string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return path
+	}
+	if path == home {
+		return "~"
+	}
+	if strings.HasPrefix(path, home+"/") {
+		return "~" + path[len(home):]
+	}
+	return path
+}
+
+// expandTildeSettings expands a leading "~" to the user's home directory.
+func expandTildeSettings(path string) string {
+	if !strings.HasPrefix(path, "~") {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	if len(path) == 1 {
+		return home
+	}
+	if path[1] == '/' {
+		return home + path[1:]
+	}
+	return path
 }

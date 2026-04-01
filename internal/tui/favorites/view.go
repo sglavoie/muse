@@ -73,7 +73,7 @@ type View struct {
 	SortIndicator string
 
 	// SelectedItems tracks bulk-selected items at ListLevel/TrackLevel.
-	SelectedItems  map[int]struct{}
+	SelectedItems   map[int]struct{}
 	FavoriteHashes  map[string]struct{}
 	FavoriteArtists map[string]struct{}
 	FavoriteAlbums  map[string]struct{}

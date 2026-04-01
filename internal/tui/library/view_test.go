@@ -967,9 +967,8 @@ func TestPadExactFit(t *testing.T) {
 	}
 }
 
-// TestVisibleRowsSameWithAndWithoutFilter verifies that visibleRows returns
-// the same value regardless of whether a filter is active. The column header
-// always consumes exactly 1 line, so the number of data rows should not change.
+// TestVisibleRowsSameWithAndWithoutFilter verifies that visibleRows reserves
+// one extra row for the filter bar when a filter is active or has text.
 func TestVisibleRowsSameWithAndWithoutFilter(t *testing.T) {
 	h := 24
 	noFilter := View{Height: h}
@@ -977,11 +976,13 @@ func TestVisibleRowsSameWithAndWithoutFilter(t *testing.T) {
 	withActiveFilter := View{Height: h, Filter: filter.State{Active: true, Text: "abc"}}
 
 	base := noFilter.visibleRows()
-	if got := withFilter.visibleRows(); got != base {
-		t.Errorf("visibleRows with committed filter: got %d, want %d (same as no filter)", got, base)
+	// When filter has text or is active, the filter bar consumes one extra row.
+	wantFiltered := base - 1
+	if got := withFilter.visibleRows(); got != wantFiltered {
+		t.Errorf("visibleRows with committed filter: got %d, want %d (base-1 for filter bar)", got, wantFiltered)
 	}
-	if got := withActiveFilter.visibleRows(); got != base {
-		t.Errorf("visibleRows with active filter: got %d, want %d (same as no filter)", got, base)
+	if got := withActiveFilter.visibleRows(); got != wantFiltered {
+		t.Errorf("visibleRows with active filter: got %d, want %d (base-1 for filter bar)", got, wantFiltered)
 	}
 }
 
@@ -1278,11 +1279,11 @@ func TestFavoriteColorSurvivesSearchHighlight(t *testing.T) {
 	}
 	s := styles.NewStyles(true) // dark theme for deterministic colour codes
 	v := View{
-		Index:          idx,
-		Width:          80,
-		Height:         24,
-		Fuzzy:          fake,
-		Styles:         s,
+		Index:           idx,
+		Width:           80,
+		Height:          24,
+		Fuzzy:           fake,
+		Styles:          s,
 		FavoriteArtists: map[string]struct{}{"Alice": {}},
 	}
 	v = v.ActivateFilter()

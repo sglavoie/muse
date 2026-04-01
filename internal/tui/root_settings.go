@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -63,17 +64,19 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 
 // handleSettingsOpen creates a new SettingsOverlay from the current config.
 func (m Model) handleSettingsOpen() (tea.Model, tea.Cmd) {
-	overlay := NewSettingsOverlay(m.cfg, m.playback.volume)
+	overlay := NewSettingsOverlay(m.cfg, m.playback.volume, m.cfg.MusicDirectories)
 	m.overlay.settings = &overlay
 	return m, nil
 }
 
 // handleSettingsSave applies overlay values to config, writes to disk, and
 // returns a Cmd that dispatches settingsSavedMsg with the result.
+// If library directories changed, it also updates m.libraryRoots and triggers a rescan.
 func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 	if m.overlay.settings == nil {
 		return m, nil
 	}
+	oldRoots := m.libraryRoots
 	cfg := m.overlay.settings.ToConfig(m.cfg)
 	m.cfg = cfg
 	m.overlay.settings = nil
@@ -89,13 +92,25 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 	if sw, ok := m.player.(stereoWideSetter); ok {
 		_ = sw.SetStereoWide(m.cfg.StereoWideEnabled, m.cfg.StereoWideAmount)
 	}
+
+	var saveCmd tea.Cmd
 	if m.configPath == "" {
-		return m, func() tea.Msg { return settingsSavedMsg{} }
+		saveCmd = func() tea.Msg { return settingsSavedMsg{} }
+	} else {
+		path := m.configPath
+		saveCmd = func() tea.Msg { return settingsSavedMsg{err: config.Save(path, cfg)} }
 	}
-	path := m.configPath
-	return m, func() tea.Msg {
-		return settingsSavedMsg{err: config.Save(path, cfg)}
+
+	// If library dirs changed, update roots and trigger a rescan.
+	if !slices.Equal(oldRoots, cfg.MusicDirectories) {
+		m.libraryRoots = cfg.MusicDirectories
+		_, rescanCmd, _ := m.handleLibraryKeyAction(actionRescan)
+		if rescanCmd != nil {
+			return m, tea.Batch(saveCmd, rescanCmd)
+		}
 	}
+
+	return m, saveCmd
 }
 
 // handleSettingsSavedMsg shows a notification after config.Save completes.

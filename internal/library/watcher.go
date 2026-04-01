@@ -28,19 +28,20 @@ type WatchEvent struct {
 	Path    string // populated when Deleted==true; the deleted/renamed-away path
 }
 
-// Watch watches root for filesystem changes and triggers incremental rescans
-// through the scanner pipeline. Events within debounceDelay are coalesced into
-// a single rescan trigger. Rename/move events are treated as delete-plus-create:
-// the Rename event for the old path emits a deletion WatchEvent and the
-// subsequent Create event for the new path drives the rescan. Directory-level
-// events trigger a recursive re-traversal of the affected subtree via Walk.
-// Each affected file is extracted with a per-file ExifTool invocation (not batched).
+// Watch watches each root in roots for filesystem changes and triggers
+// incremental rescans through the scanner pipeline. Events within debounceDelay
+// are coalesced into a single rescan trigger. Rename/move events are treated as
+// delete-plus-create: the Rename event for the old path emits a deletion
+// WatchEvent and the subsequent Create event for the new path drives the
+// rescan. Directory-level events trigger a recursive re-traversal of the
+// affected subtree via Walk. Each affected file is extracted with a per-file
+// ExifTool invocation (not batched).
 //
 // The returned channel emits WatchEvent values and is closed when ctx is
 // cancelled. If fsnotify setup fails (e.g. fd exhaustion on macOS), Watch
 // returns a pre-closed channel and a nil error: the watcher is inactive and the
 // caller should rely on manual rescan as the sole rescan mechanism.
-func Watch(ctx context.Context, root string, extractor MetadataExtractor, debounceDelay time.Duration) (<-chan WatchEvent, bool, error) {
+func Watch(ctx context.Context, roots []string, extractor MetadataExtractor, debounceDelay time.Duration) (<-chan WatchEvent, bool, error) {
 	raiseFDLimit()
 
 	w, err := watcherFactory()
@@ -49,14 +50,21 @@ func Watch(ctx context.Context, root string, extractor MetadataExtractor, deboun
 		return closedWatchEventChan(), true, nil
 	}
 
-	if err := addWatchesRecursive(w, root); err != nil {
+	degraded := false
+	for _, root := range roots {
+		if err := addWatchesRecursive(w, root); err != nil {
+			slog.Warn("watcher: failed to register directory watches for root", "root", root, "err", err)
+			degraded = true
+		}
+	}
+	if degraded && len(roots) > 0 {
 		_ = w.Close()
-		slog.Warn("watcher: failed to register directory watches; falling back to manual rescan", "err", err)
+		slog.Warn("watcher: falling back to manual rescan due to watch registration failures")
 		return closedWatchEventChan(), true, nil
 	}
 
 	out := make(chan WatchEvent, 64)
-	go watchLoop(ctx, w, root, extractor, debounceDelay, out)
+	go watchLoop(ctx, w, "", extractor, debounceDelay, out)
 	return out, false, nil
 }
 
@@ -188,7 +196,7 @@ func rescan(ctx context.Context, pending map[string]bool, extractor MetadataExtr
 	for path, isDir := range pending {
 		if isDir {
 			// Recursively collect audio files in the affected subtree.
-			for p := range Walk(ctx, path) {
+			for p := range Walk(ctx, []string{path}) {
 				files[p] = struct{}{}
 			}
 		} else {

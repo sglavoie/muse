@@ -620,39 +620,38 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 	}
 
 	// Set undo slot for removals (before modifying in-memory slices).
-	if !msg.added {
-		if msg.count > 1 && len(msg.removedValues) > 0 {
-			m.setUndoSlot(undoBulkRemoveFavoritesAction{
-				typ:      msg.typ,
-				values:   msg.removedValues,
-				tracks:   msg.removedTracks,
-				indices:  msg.removedIndices,
-				level:    msg.favLevel,
-				category: msg.favCategory,
-			}, nil)
-		} else {
-			m.setUndoSlot(undoRemoveFavoriteAction{
-				typ:      msg.typ,
-				value:    msg.value,
-				track:    msg.removedTrack,
-				idx:      msg.removedIdx,
-				level:    msg.favLevel,
-				category: msg.favCategory,
-			}, nil)
-		}
-	} else if len(msg.addedValues) > 0 {
+	switch {
+	case !msg.added && msg.count > 1 && len(msg.removedValues) > 0:
+		m.setUndoSlot(undoBulkRemoveFavoritesAction{
+			typ:      msg.typ,
+			values:   msg.removedValues,
+			tracks:   msg.removedTracks,
+			indices:  msg.removedIndices,
+			level:    msg.favLevel,
+			category: msg.favCategory,
+		}, nil)
+	case !msg.added:
+		m.setUndoSlot(undoRemoveFavoriteAction{
+			typ:      msg.typ,
+			value:    msg.value,
+			track:    msg.removedTrack,
+			idx:      msg.removedIdx,
+			level:    msg.favLevel,
+			category: msg.favCategory,
+		}, nil)
+	case len(msg.addedValues) > 0:
 		// Bulk pure-add: set undo slot so the user can remove all added items.
 		m.setUndoSlot(undoBulkAddFavoritesAction{
 			typ:    msg.typ,
 			values: msg.addedValues,
 		}, nil)
-	} else if msg.added && msg.value != "" {
+	case msg.added && msg.value != "":
 		// Single add: set undo slot.
 		m.setUndoSlot(undoAddFavoriteAction{
 			typ:   msg.typ,
 			value: msg.value,
 		}, nil)
-	} else {
+	default:
 		// Mixed bulk (some added, some removed): notification only.
 		m.statusBar.notification = newNotification(note)
 	}

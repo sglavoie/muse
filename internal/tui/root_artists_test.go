@@ -347,8 +347,8 @@ func TestRescanClearsArtistsView(t *testing.T) {
 		t.Fatalf("expected 3 artists, got %d", len(m.artists.artists))
 	}
 
-	// Simulate rescan: set libraryRoot and extractor to enable rescan.
-	m.libraryRoot = "/tmp/music"
+	// Simulate rescan: set libraryRoots and extractor to enable rescan.
+	m.libraryRoots = []string{"/tmp/music"}
 	m.extractor = stubExtractor{}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'R', Mod: tea.ModShift, Text: "R"})

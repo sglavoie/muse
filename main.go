@@ -49,7 +49,7 @@ func runCheck() int {
 	exitCode := 0
 
 	configPath := config.ConfigPath(dirs.Config)
-	if err := config.ValidateMusicDir(loadResult.Config.MusicDirectory, configPath); err != nil {
+	if err := config.ValidateMusicDirs(loadResult.Config.MusicDirectories, configPath); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		exitCode = 1
 	}
@@ -96,7 +96,7 @@ func runTUI(ctx context.Context) error {
 	}
 	config.SetLogLevel(logLevel)
 
-	if err := config.ValidateMusicDir(cfg.MusicDirectory, configPath); err != nil {
+	if err := config.ValidateMusicDirs(cfg.MusicDirectories, configPath); err != nil {
 		slog.Error("invalid music directory", "err", err)
 		return fmt.Errorf("%w", err)
 	}
@@ -175,7 +175,7 @@ func runTUI(ctx context.Context) error {
 
 	extractor := library.ExifToolExtractor{}
 
-	libResult, err := app.LoadLibrary(ctx, result.DB, result.Writer, cfg.MusicDirectory, extractor, upsertBatchSize)
+	libResult, err := app.LoadLibrary(ctx, result.DB, result.Writer, cfg.MusicDirectories, extractor, upsertBatchSize)
 	if err != nil {
 		slog.Error("load library failed", "err", err)
 		app.Shutdown(shutdownDeps, app.ShutdownTimeout)
@@ -310,7 +310,7 @@ func buildModel(
 		tui.WithScanChannel(libResult.TuiScanCh),
 		tui.WithScanErrChannel(libResult.TuiScanErrCh),
 		tui.WithWatchChannel(libResult.TuiWatchCh),
-		tui.WithLibraryRoot(cfg.MusicDirectory),
+		tui.WithLibraryRoots(cfg.MusicDirectories),
 		tui.WithExtractor(extractor),
 		tui.WithPlayer(mgr),
 		tui.WithWatchDegraded(libResult.WatchDegraded),

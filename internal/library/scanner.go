@@ -5,7 +5,7 @@ import (
 	"os"
 )
 
-// Scan runs the three-stage scanner pipeline for root and returns a channel
+// Scan runs the three-stage scanner pipeline for roots and returns a channel
 // that receives Track values as batches complete:
 //
 //  1. A single walker goroutine emits audio file paths into a buffered channel.
@@ -17,8 +17,8 @@ import (
 // The returned channel is closed once the walk has finished and all hash and
 // ExifTool goroutines have drained, signalling scan-complete. Callers drain
 // the channel with a range loop; channel close is the completion signal.
-func Scan(ctx context.Context, root string, extractor MetadataExtractor) <-chan Track {
-	return ExtractBatches(ctx, extractor, HashWorkers(Walk(ctx, root)))
+func Scan(ctx context.Context, roots []string, extractor MetadataExtractor) <-chan Track {
+	return ExtractBatches(ctx, extractor, HashWorkers(Walk(ctx, roots)))
 }
 
 // KnownFile holds the cached stat info for a file that is already in the DB.
@@ -28,33 +28,38 @@ type KnownFile struct {
 	SizeBytes int64 // file size in bytes
 }
 
-// FilteredWalk walks root, applying the same hidden-file, audio-extension, and
-// symlink rules as Walk, but skips files whose path exists in known with
-// matching mtime and size. It returns:
+// FilteredWalk walks each root in roots, applying the same hidden-file,
+// audio-extension, and symlink rules as Walk, but skips files whose path
+// exists in known with matching mtime and size. It returns:
 //   - a slice of paths for files that are new or changed
 //   - a slice of paths from known that were not seen during the walk (deleted files)
-//   - an error if the walk itself fails (callers should skip the deletion step)
+//   - an error if any walk itself fails (callers should skip the deletion step)
 //
 // onErr, when non-nil, is called for each non-fatal walk error so callers can
 // surface them to the user (e.g. permission denied on a subdirectory).
-func FilteredWalk(ctx context.Context, root string, known map[string]KnownFile, onErr func(error)) ([]string, []string, error) {
+func FilteredWalk(ctx context.Context, roots []string, known map[string]KnownFile, onErr func(error)) ([]string, []string, error) {
 	seen := make(map[string]bool, len(known))
 	var changed []string
 
-	if err := walkAudioPaths(ctx, root, func(path string) error {
-		seen[path] = true
-		info, err := os.Stat(path)
-		if err != nil {
-			changed = append(changed, path)
+	for _, root := range roots {
+		if ctx.Err() != nil {
+			break
+		}
+		if err := walkAudioPaths(ctx, root, func(path string) error {
+			seen[path] = true
+			info, err := os.Stat(path)
+			if err != nil {
+				changed = append(changed, path)
+				return nil
+			}
+			kf, exists := known[path]
+			if !exists || info.ModTime().Unix() != kf.ModTime || info.Size() != kf.SizeBytes {
+				changed = append(changed, path)
+			}
 			return nil
+		}, onErr); err != nil {
+			return nil, nil, err
 		}
-		kf, exists := known[path]
-		if !exists || info.ModTime().Unix() != kf.ModTime || info.Size() != kf.SizeBytes {
-			changed = append(changed, path)
-		}
-		return nil
-	}, onErr); err != nil {
-		return nil, nil, err
 	}
 
 	// Compute deletions: known paths not seen during the walk.
@@ -95,8 +100,8 @@ func pathsToChan(ctx context.Context, paths []string) <-chan string {
 // during the directory traversal (e.g. permission denied on a subdirectory).
 //
 // On first run (empty known map) DiffScan degrades to a full scan.
-func DiffScan(ctx context.Context, root string, extractor MetadataExtractor, known map[string]KnownFile, onErr func(error)) (<-chan Track, []string, error) {
-	changed, deleted, err := FilteredWalk(ctx, root, known, onErr)
+func DiffScan(ctx context.Context, roots []string, extractor MetadataExtractor, known map[string]KnownFile, onErr func(error)) (<-chan Track, []string, error) {
+	changed, deleted, err := FilteredWalk(ctx, roots, known, onErr)
 	if err != nil {
 		return nil, nil, err
 	}

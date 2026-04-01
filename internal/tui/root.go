@@ -25,17 +25,17 @@ import (
 
 // overlayInfo groups all overlay and modal state.
 type overlayInfo struct {
-	preview                *PreviewOverlay
-	previewPlayer          player.Previewer
-	previewWasPlaying      bool
-	previewDurationFilled  bool
-	nowPlaying        *NowPlayingOverlay
-	trackInfo         *TrackInfoOverlay
-	metadataEditor    *MetadataEditor
-	destPicker        *pltui.DestinationPickerModal
-	destPickerTracks  []library.Track
-	settings          *SettingsOverlay
-	smartRuleEditor   *SmartRuleEditor
+	preview               *PreviewOverlay
+	previewPlayer         player.Previewer
+	previewWasPlaying     bool
+	previewDurationFilled bool
+	nowPlaying            *NowPlayingOverlay
+	trackInfo             *TrackInfoOverlay
+	metadataEditor        *MetadataEditor
+	destPicker            *pltui.DestinationPickerModal
+	destPickerTracks      []library.Track
+	settings              *SettingsOverlay
+	smartRuleEditor       *SmartRuleEditor
 }
 
 // undoInfo groups the fields that track pending destructive-action confirmations
@@ -105,10 +105,10 @@ type Model struct {
 	// to use manual rescan.
 	watchDegraded bool
 
-	// libraryRoot and extractor are required for manual rescan. When
-	// libraryRoot is empty the rescan hotkey is a no-op.
-	libraryRoot string
-	extractor   library.MetadataExtractor
+	// libraryRoots and extractor are required for manual rescan. When
+	// libraryRoots is empty the rescan hotkey is a no-op.
+	libraryRoots []string
+	extractor    library.MetadataExtractor
 
 	statusBar        StatusBar
 	termWidth        int
@@ -153,7 +153,7 @@ type Model struct {
 	statsPrevView viewID         // the view that was active before stats was opened
 	statsPeriod   int            // index into statsPeriods slice
 
-	overlay        overlayInfo        // all overlay and modal state
+	overlay         overlayInfo       // all overlay and modal state
 	metadataWriter  metadataUpdater   // may be nil; set via WithMetadataWriter
 	durationWriter  durationUpdater   // may be nil; set via WithDurationWriter
 	scanWriter      scanUpsertBatcher // may be nil; set via WithScanWriter
@@ -186,7 +186,7 @@ type Model struct {
 //	model := tui.New(ctx,
 //	    tui.WithConfigPath(path, true),
 //	    tui.WithScanChannel(scanCh),
-//	    tui.WithLibraryRoot(root),
+//	    tui.WithLibraryRoots(roots),
 //	    tui.WithPlayer(mgr),
 //	)
 func New(ctx context.Context, opts ...Option) Model {
@@ -367,9 +367,9 @@ func tickCmd() tea.Cmd {
 
 // countAudioFiles returns a Cmd that runs library.CountAudioFiles in a
 // background goroutine and dispatches a ScanTotalMsg when done.
-func countAudioFiles(ctx context.Context, root string) tea.Cmd {
+func countAudioFiles(ctx context.Context, roots []string) tea.Cmd {
 	return func() tea.Msg {
-		return library.ScanTotalMsg{Total: library.CountAudioFiles(ctx, root)}
+		return library.ScanTotalMsg{Total: library.CountAudioFiles(ctx, roots)}
 	}
 }
 
@@ -441,8 +441,8 @@ func (m Model) Init() tea.Cmd {
 	// tea.KeyPressMsg handler) instead of an auto-clear timer.
 	if m.scanCh != nil {
 		cmds = append(cmds, waitForNextBatch(m.scanCh))
-		if m.libraryRoot != "" {
-			cmds = append(cmds, countAudioFiles(m.appCtx, m.libraryRoot))
+		if len(m.libraryRoots) > 0 {
+			cmds = append(cmds, countAudioFiles(m.appCtx, m.libraryRoots))
 		}
 	}
 	if m.scanErrCh != nil {

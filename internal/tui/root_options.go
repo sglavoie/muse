@@ -56,10 +56,10 @@ func WithWatchChannel(ch <-chan library.WatchEvent) Option {
 	return func(m *Model) { m.watchCh = ch }
 }
 
-// WithLibraryRoot sets the music library root directory. Required for the
+// WithLibraryRoots sets the music library root directories. Required for the
 // manual rescan hotkey and the parallel file-count goroutine.
-func WithLibraryRoot(root string) Option {
-	return func(m *Model) { m.libraryRoot = root }
+func WithLibraryRoots(roots []string) Option {
+	return func(m *Model) { m.libraryRoots = roots }
 }
 
 // WithExtractor sets the metadata extractor used during manual rescans.

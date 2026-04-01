@@ -9,10 +9,25 @@ import (
 	"github.com/sglavoie/muse/internal/audio"
 )
 
-// ValidateMusicDir checks that the configured music directory exists and
+// ValidateMusicDirs checks that each configured music directory exists and
 // contains at least one audio file or non-hidden subdirectory at the top level.
 // configPath is included in error messages so the user knows which file to edit.
-func ValidateMusicDir(musicDir, configPath string) error {
+// All directories are validated; errors from any are collected and returned together.
+func ValidateMusicDirs(dirs []string, configPath string) error {
+	var errs []string
+	for _, musicDir := range dirs {
+		if err := validateMusicDir(musicDir, configPath); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+	if len(errs) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%s", strings.Join(errs, "; "))
+}
+
+// validateMusicDir validates a single music directory.
+func validateMusicDir(musicDir, configPath string) error {
 	expanded, err := expandTilde(musicDir)
 	if err != nil {
 		return fmt.Errorf("music directory is not accessible; edit %s to set a valid path: %w", configPath, err)

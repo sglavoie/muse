@@ -11,8 +11,8 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-const configTemplate = `# Path to your music library.
-music_directory = %q
+const configTemplate = `# Paths to your music library roots (supports multiple directories).
+music_directories = [%q]
 
 # Default playback volume (0-100).
 default_volume = %d
@@ -82,7 +82,8 @@ const (
 
 // Config holds all application configuration values.
 type Config struct {
-	MusicDirectory             string           `toml:"music_directory"`
+	MusicDirectories           []string         `toml:"music_directories"`
+	MusicDirectory             string           `toml:"-"` // legacy compat; always equals MusicDirectories[0]
 	MPVSocketPath              string           `toml:"mpv_socket_path"`
 	MPVExtraFlags              []string         `toml:"mpv_extra_flags"`
 	DefaultVolume              int              `toml:"default_volume"`
@@ -118,6 +119,7 @@ func defaults() Config {
 		slog.Warn("failed to expand ~ in default music directory", "err", err)
 	}
 	return Config{
+		MusicDirectories:           []string{musicDir},
 		MusicDirectory:             musicDir,
 		MPVExtraFlags:              []string{},
 		DefaultVolume:              defaultVolume,
@@ -189,7 +191,8 @@ func Load(configDir string) (LoadResult, error) {
 // rawConfig mirrors Config but uses pointer types for optional numeric fields
 // so that omitted TOML keys can be distinguished from explicit zero values.
 type rawConfig struct {
-	MusicDirectory             string           `toml:"music_directory"`
+	MusicDirectories           []string         `toml:"music_directories"`
+	MusicDirectory             string           `toml:"music_directory"` // legacy single-dir field
 	MPVSocketPath              string           `toml:"mpv_socket_path"`
 	MPVExtraFlags              []string         `toml:"mpv_extra_flags"`
 	DefaultVolume              *int             `toml:"default_volume"`
@@ -216,11 +219,32 @@ func validate(raw rawConfig) (Config, []string) {
 	cfg := defaults()
 	var warnings []string
 
-	if raw.MusicDirectory != "" {
-		if expanded, err := expandTilde(raw.MusicDirectory); err == nil {
-			cfg.MusicDirectory = expanded
-		} else {
-			cfg.MusicDirectory = raw.MusicDirectory
+	// Resolve music directories: prefer music_directories, fall back to
+	// legacy music_directory, then use the built-in default.
+	var rawDirs []string
+	switch {
+	case len(raw.MusicDirectories) > 0:
+		rawDirs = raw.MusicDirectories
+	case raw.MusicDirectory != "":
+		rawDirs = []string{raw.MusicDirectory}
+	}
+	if len(rawDirs) > 0 {
+		seen := make(map[string]bool, len(rawDirs))
+		var resolved []string
+		for _, d := range rawDirs {
+			expanded, err := expandTilde(d)
+			if err != nil {
+				expanded = d
+			}
+			clean := filepath.Clean(expanded)
+			if !seen[clean] {
+				seen[clean] = true
+				resolved = append(resolved, expanded)
+			}
+		}
+		if len(resolved) > 0 {
+			cfg.MusicDirectories = resolved
+			cfg.MusicDirectory = resolved[0]
 		}
 	}
 	// empty means not set — use the default silently
@@ -442,6 +466,10 @@ func writeDefaults(path string, cfg Config) error {
 		return err
 	}
 	defer f.Close()
-	_, err = fmt.Fprintf(f, configTemplate, cfg.MusicDirectory, cfg.DefaultVolume, cfg.LogLevel)
+	firstDir := cfg.MusicDirectory
+	if len(cfg.MusicDirectories) > 0 {
+		firstDir = cfg.MusicDirectories[0]
+	}
+	_, err = fmt.Fprintf(f, configTemplate, firstDir, cfg.DefaultVolume, cfg.LogLevel)
 	return err
 }

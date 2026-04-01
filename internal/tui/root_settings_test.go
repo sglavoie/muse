@@ -170,11 +170,11 @@ func TestSettingsSaveAppliesNormalizeToPlayer(t *testing.T) {
 	cfg := config.Defaults()
 	m := New(context.Background(), WithConfig(cfg), WithPlayer(stub))
 
-	// Open settings overlay.
-	next, _ := m.Update(tea.KeyPressMsg{Code: ',', Mod: tea.ModCtrl})
-	nm := next.(Model)
+	// Open settings overlay and switch to Playback tab.
+	nm := openSettingsOnPlaybackTab(t, m)
 
 	// Navigate to the Normalize field (index 4 on Playback tab) and toggle it on.
+	var next tea.Model
 	for range 4 {
 		next, _ = nm.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 		nm = next.(Model)
@@ -206,11 +206,11 @@ func TestSettingsSaveAppliesGaplessToPlayer(t *testing.T) {
 	cfg := config.Defaults()
 	m := New(context.Background(), WithConfig(cfg), WithPlayer(stub))
 
-	// Open settings overlay.
-	next, _ := m.Update(tea.KeyPressMsg{Code: ',', Mod: tea.ModCtrl})
-	nm := next.(Model)
+	// Open settings overlay and switch to Playback tab.
+	nm := openSettingsOnPlaybackTab(t, m)
 
 	// Navigate to the Gapless field (index 5 on Playback tab).
+	var next tea.Model
 	for range 5 {
 		next, _ = nm.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 		nm = next.(Model)
@@ -258,7 +258,9 @@ func openSettingsOnEQTab(t *testing.T, m Model) Model {
 	t.Helper()
 	next, _ := m.Update(tea.KeyPressMsg{Code: ',', Mod: tea.ModCtrl})
 	nm := next.(Model)
-	// Advance one tab to reach Equalizer (Playback -> Equalizer).
+	// Advance two tabs to reach Equalizer (Library -> Playback -> Equalizer).
+	next, _ = nm.Update(tea.KeyPressMsg{Code: ']', Text: "]"})
+	nm = next.(Model)
 	next, _ = nm.Update(tea.KeyPressMsg{Code: ']', Text: "]"})
 	nm = next.(Model)
 	if nm.overlay.settings.tab != settingsTabEqualizer {
@@ -410,6 +412,9 @@ func openSettingsOnPlaybackTab(t *testing.T, m Model) Model {
 	t.Helper()
 	next, _ := m.Update(tea.KeyPressMsg{Code: ',', Mod: tea.ModCtrl})
 	nm := next.(Model)
+	// Advance one tab from Library to Playback.
+	next, _ = nm.Update(tea.KeyPressMsg{Code: ']', Text: "]"})
+	nm = next.(Model)
 	if nm.overlay.settings.tab != settingsTabPlayback {
 		t.Fatalf("precondition: expected Playback tab, got %v", nm.overlay.settings.tab)
 	}

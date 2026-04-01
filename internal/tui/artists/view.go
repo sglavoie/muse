@@ -68,7 +68,7 @@ type View struct {
 	FilterActive bool
 	FilterText   string
 
-	SortIndicator  string // e.g. "Sort: Name ▲" — shown when non-empty
+	SortIndicator   string // e.g. "Sort: Name ▲" — shown when non-empty
 	FavoriteHashes  map[string]struct{}
 	FavoriteArtists map[string]struct{}
 	FavoriteAlbums  map[string]struct{}

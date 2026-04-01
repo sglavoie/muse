@@ -275,7 +275,7 @@ func TestRescanClearsAlbumsView(t *testing.T) {
 	}
 
 	// Simulate rescan: set libraryRoot and extractor to enable rescan.
-	m.libraryRoot = "/tmp/music"
+	m.libraryRoots = []string{"/tmp/music"}
 	m.extractor = stubExtractor{}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'R', Mod: tea.ModShift, Text: "R"})

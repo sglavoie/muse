@@ -189,7 +189,7 @@ func TestWriteDefaults_ContainsCommentsAndValidTOML(t *testing.T) {
 	}
 	content := string(data)
 
-	for _, comment := range []string{"# Path to your music library", "# Default playback volume"} {
+	for _, comment := range []string{"# Paths to your music library roots", "# Default playback volume"} {
 		if !strings.Contains(content, comment) {
 			t.Errorf("expected comment %q in output:\n%s", comment, content)
 		}
@@ -501,6 +501,7 @@ func TestSave_RoundTrip(t *testing.T) {
 	path := filepath.Join(dir, configFileName)
 
 	original := Config{
+		MusicDirectories:           []string{"/home/user/Music"},
 		MusicDirectory:             "/home/user/Music",
 		DefaultVolume:              75,
 		LogLevel:                   "debug",
@@ -522,8 +523,8 @@ func TestSave_RoundTrip(t *testing.T) {
 	}
 	got := result.Config
 
-	if got.MusicDirectory != original.MusicDirectory {
-		t.Errorf("MusicDirectory = %q, want %q", got.MusicDirectory, original.MusicDirectory)
+	if len(got.MusicDirectories) == 0 || got.MusicDirectories[0] != original.MusicDirectories[0] {
+		t.Errorf("MusicDirectories[0] = %q, want %q", got.MusicDirectories, original.MusicDirectories[0])
 	}
 	if got.DefaultVolume != original.DefaultVolume {
 		t.Errorf("DefaultVolume = %d, want %d", got.DefaultVolume, original.DefaultVolume)
@@ -569,6 +570,114 @@ func TestSave_OverwritesExistingFile(t *testing.T) {
 	}
 	if result.Config.VolumeIncrement != 15 {
 		t.Errorf("VolumeIncrement = %d, want 15", result.Config.VolumeIncrement)
+	}
+}
+
+// TestLoad_LegacyMusicDirectoryMigratestoMusicDirectories verifies that a
+// config with only the legacy music_directory field is loaded into
+// MusicDirectories correctly, enabling backward compatibility.
+func TestLoad_LegacyMusicDirectoryMigratestoMusicDirectories(t *testing.T) {
+	dir := t.TempDir()
+	content := `music_directory = "/home/user/Songs"
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if len(result.Config.MusicDirectories) != 1 {
+		t.Fatalf("MusicDirectories: expected 1 entry, got %d", len(result.Config.MusicDirectories))
+	}
+	if result.Config.MusicDirectories[0] != "/home/user/Songs" {
+		t.Errorf("MusicDirectories[0] = %q, want %q", result.Config.MusicDirectories[0], "/home/user/Songs")
+	}
+	if result.Config.MusicDirectory != "/home/user/Songs" {
+		t.Errorf("MusicDirectory = %q, want %q", result.Config.MusicDirectory, "/home/user/Songs")
+	}
+}
+
+// TestLoad_BothFieldsPresentMergesAndDeduplicates verifies that when both
+// music_directories and music_directory are present, music_directories takes
+// precedence and duplicates are removed after filepath.Clean.
+func TestLoad_BothFieldsPresentMergesAndDeduplicates(t *testing.T) {
+	dir := t.TempDir()
+	content := `music_directories = ["/home/user/Music", "/home/user/Music/"]
+music_directory = "/home/user/Songs"
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	// music_directories takes precedence; duplicate path should be deduplicated.
+	dirs := result.Config.MusicDirectories
+	if len(dirs) != 1 {
+		t.Fatalf("MusicDirectories: expected 1 after dedup, got %d: %v", len(dirs), dirs)
+	}
+	if dirs[0] != "/home/user/Music" {
+		t.Errorf("MusicDirectories[0] = %q, want %q", dirs[0], "/home/user/Music")
+	}
+}
+
+// TestSave_WritesMusicDirectoriesNotMusicDirectory verifies that Save writes
+// music_directories and not the legacy music_directory key.
+func TestSave_WritesMusicDirectoriesNotMusicDirectory(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, configFileName)
+
+	cfg := defaults()
+	cfg.MusicDirectories = []string{"/my/library"}
+	cfg.MusicDirectory = "/my/library"
+
+	if err := Save(path, cfg); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	content := string(data)
+
+	if !strings.Contains(content, "music_directories") {
+		t.Error("Save: expected 'music_directories' key in output")
+	}
+	// The legacy key must not appear in saved output (it's tagged toml:"-").
+	if strings.Contains(content, "music_directory =") {
+		t.Error("Save: unexpected legacy 'music_directory' key in output")
+	}
+}
+
+// TestLoad_TildeExpansionInMusicDirectories verifies that tilde-prefixed paths
+// in music_directories are expanded to the user's home directory.
+func TestLoad_TildeExpansionInMusicDirectories(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("cannot determine home directory")
+	}
+	dir := t.TempDir()
+	content := `music_directories = ["~/Music"]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	expected := filepath.Join(home, "Music")
+	if len(result.Config.MusicDirectories) == 0 || result.Config.MusicDirectories[0] != expected {
+		t.Errorf("MusicDirectories[0] = %v, want %q", result.Config.MusicDirectories, expected)
 	}
 }
 

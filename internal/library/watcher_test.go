@@ -53,7 +53,7 @@ func TestDebounce_CoalescesFastEvents(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ch, _, err := Watch(ctx, root, fe, debounce)
+	ch, _, err := Watch(ctx, []string{root}, fe, debounce)
 	if err != nil {
 		t.Fatalf("Watch: %v", err)
 	}
@@ -98,7 +98,7 @@ func TestDebounce_RescansAfterWindow(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ch, _, err := Watch(ctx, root, fe, debounce)
+	ch, _, err := Watch(ctx, []string{root}, fe, debounce)
 	if err != nil {
 		t.Fatalf("Watch: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestDebounce_NoRescanBeforeWindowElapses(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ch, _, err := Watch(ctx, root, fe, debounce)
+	ch, _, err := Watch(ctx, []string{root}, fe, debounce)
 	if err != nil {
 		t.Fatalf("Watch: %v", err)
 	}
@@ -174,7 +174,7 @@ func TestRename_TreatedAsDeletePlusCreate(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ch, _, err := Watch(ctx, root, fe, debounce)
+	ch, _, err := Watch(ctx, []string{root}, fe, debounce)
 	if err != nil {
 		t.Fatalf("Watch: %v", err)
 	}
@@ -211,7 +211,7 @@ func TestDirectoryEvent_TriggersSubtreeRescan(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ch, _, err := Watch(ctx, root, fe, debounce)
+	ch, _, err := Watch(ctx, []string{root}, fe, debounce)
 	if err != nil {
 		t.Fatalf("Watch: %v", err)
 	}
@@ -346,7 +346,7 @@ func TestWatchLoop_EmitsDebugForRawEvents(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ch, _, err := Watch(ctx, root, fe, debounce)
+	ch, _, err := Watch(ctx, []string{root}, fe, debounce)
 	if err != nil {
 		t.Fatalf("Watch: %v", err)
 	}
@@ -392,7 +392,7 @@ func TestWatch_WatcherFactoryFailure_LogsWarningAndDegrades(t *testing.T) {
 	}
 	t.Cleanup(func() { watcherFactory = origFactory })
 
-	ch, _, err := Watch(t.Context(), t.TempDir(), &fakeExtractor{}, DefaultDebounce)
+	ch, _, err := Watch(t.Context(), []string{t.TempDir()}, &fakeExtractor{}, DefaultDebounce)
 	if err != nil {
 		t.Fatalf("Watch returned error; want nil for degraded mode: %v", err)
 	}
@@ -595,7 +595,7 @@ func TestWatchLoop_LogsWatcherErrors(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	ch, _, err := Watch(ctx, root, fe, debounce)
+	ch, _, err := Watch(ctx, []string{root}, fe, debounce)
 	if err != nil {
 		t.Fatalf("Watch: %v", err)
 	}
