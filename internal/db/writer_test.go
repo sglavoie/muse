@@ -2225,6 +2225,62 @@ func TestUpsertBatch_PreservesUserEdited(t *testing.T) {
 	}
 }
 
+// TestUpsertBatch_PreservesNonZeroDuration verifies that a rescan with
+// duration=0 does not overwrite an existing non-zero duration in the database.
+func TestUpsertBatch_PreservesNonZeroDuration(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	// Insert track with known duration (e.g. set via preview).
+	initial := library.Track{Hash: "hash-dur", Path: "/a.mp3", Title: "A", Duration: 120.5}
+	if err := w.UpsertBatch([]library.Track{initial}); err != nil {
+		t.Fatalf("first UpsertBatch: %v", err)
+	}
+
+	// Rescan with duration=0 (scanner couldn't extract it).
+	rescanned := library.Track{Hash: "hash-dur", Path: "/a.mp3", Title: "A", Duration: 0}
+	if err := w.UpsertBatch([]library.Track{rescanned}); err != nil {
+		t.Fatalf("second UpsertBatch: %v", err)
+	}
+
+	var durationMs int64
+	if err := d.QueryRow(
+		`SELECT duration_ms FROM tracks WHERE hash='hash-dur'`,
+	).Scan(&durationMs); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if durationMs != 120500 {
+		t.Errorf("duration_ms = %d; want 120500 (non-zero duration should be preserved when scanner returns 0)", durationMs)
+	}
+}
+
+// TestUpsertBatch_UpdatesNonZeroDuration verifies that a rescan with a new
+// non-zero duration does overwrite the existing duration.
+func TestUpsertBatch_UpdatesNonZeroDuration(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	initial := library.Track{Hash: "hash-dur2", Path: "/b.mp3", Title: "B", Duration: 60.0}
+	if err := w.UpsertBatch([]library.Track{initial}); err != nil {
+		t.Fatalf("first UpsertBatch: %v", err)
+	}
+
+	rescanned := library.Track{Hash: "hash-dur2", Path: "/b.mp3", Title: "B", Duration: 75.0}
+	if err := w.UpsertBatch([]library.Track{rescanned}); err != nil {
+		t.Fatalf("second UpsertBatch: %v", err)
+	}
+
+	var durationMs int64
+	if err := d.QueryRow(
+		`SELECT duration_ms FROM tracks WHERE hash='hash-dur2'`,
+	).Scan(&durationMs); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if durationMs != 75000 {
+		t.Errorf("duration_ms = %d; want 75000 (non-zero duration should update)", durationMs)
+	}
+}
+
 // TestReadUserEditedTracks verifies that ReadUserEditedTracks returns only
 // non-missing tracks whose metadata was manually edited.
 func TestReadUserEditedTracks(t *testing.T) {

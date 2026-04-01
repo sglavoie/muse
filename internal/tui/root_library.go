@@ -16,6 +16,14 @@ import (
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
+// rescanEntry holds per-track values snapshotted before a full rescan clears
+// the in-memory library index. Used to restore created_at and duration when
+// the scanner cannot provide them (e.g. duration=0 for tag-less files).
+type rescanEntry struct {
+	CreatedAt int64
+	Duration  float64
+}
+
 // handleScanProgressMsg updates the status bar with the current scan progress.
 func (m Model) handleScanProgressMsg(msg library.ScanProgressMsg) Model {
 	m.statusBar.handleScanProgress(msg)
@@ -35,7 +43,7 @@ func (m Model) handleScanTotalMsg(msg library.ScanTotalMsg) Model {
 // derived views (artists, albums) as needed.
 func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 	for _, t := range msg.Tracks {
-		t = m.preserveTrackCreatedAt(t)
+		t = m.preserveTrackMetadata(t)
 		if edited, ok := m.userEditedOverlay[t.Hash]; ok {
 			t.Title = edited.Title
 			t.Artist = edited.Artist
@@ -125,7 +133,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 		}
 	}
 	for i, t := range msg.tracks {
-		t = m.preserveTrackCreatedAt(t)
+		t = m.preserveTrackMetadata(t)
 		if edited, ok := m.userEditedOverlay[t.Hash]; ok {
 			msg.tracks[i].Title = edited.Title
 			msg.tracks[i].Artist = edited.Artist
@@ -293,6 +301,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 func (m Model) handleScanDoneMsg() Model {
 	m.scanning = false
 	m.scanCh = nil
+	m.rescanSnapshot = nil
 	return m
 }
 
@@ -319,6 +328,14 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 					m.userEditedOverlay = nil
 				}
 			}
+			// Snapshot created_at and duration before clearing the index
+			// so preserveTrackMetadata can restore them for rescanned tracks.
+			tracks := m.library.index.Tracks()
+			snap := make(map[string]rescanEntry, len(tracks))
+			for _, t := range tracks {
+				snap[t.Hash] = rescanEntry{CreatedAt: t.CreatedAt, Duration: t.Duration}
+			}
+			m.rescanSnapshot = snap
 			rawCh := library.Scan(m.appCtx, m.libraryRoots, m.cfg.ExcludedPaths, m.extractor)
 			ch := m.bridgeScanChannel(rawCh)
 			m.library.index = library.LibraryIndex{}
@@ -735,14 +752,36 @@ func (m Model) bridgeScanChannel(raw <-chan library.Track) <-chan library.Track 
 	return ch
 }
 
-func (m Model) preserveTrackCreatedAt(track library.Track) library.Track {
-	if existing, ok := m.library.index.FindByHash(track.Hash); ok && existing.CreatedAt != 0 {
-		track.CreatedAt = existing.CreatedAt
+func (m Model) preserveTrackMetadata(track library.Track) library.Track {
+	// Try the live index first (works for watcher-driven inserts where the
+	// index has not been cleared).
+	if existing, ok := m.library.index.FindByHash(track.Hash); ok {
+		if existing.CreatedAt != 0 {
+			track.CreatedAt = existing.CreatedAt
+		}
+		if track.Duration == 0 && existing.Duration != 0 {
+			track.Duration = existing.Duration
+		}
 		return track
 	}
-	if existing, ok := m.library.index.FindByPath(track.Path); ok && existing.CreatedAt != 0 {
-		track.CreatedAt = existing.CreatedAt
+	if existing, ok := m.library.index.FindByPath(track.Path); ok {
+		if existing.CreatedAt != 0 {
+			track.CreatedAt = existing.CreatedAt
+		}
+		if track.Duration == 0 && existing.Duration != 0 {
+			track.Duration = existing.Duration
+		}
 		return track
+	}
+	// Fall back to the pre-rescan snapshot (index was cleared for a full
+	// rescan but we captured these values beforehand).
+	if entry, ok := m.rescanSnapshot[track.Hash]; ok {
+		if entry.CreatedAt != 0 {
+			track.CreatedAt = entry.CreatedAt
+		}
+		if track.Duration == 0 && entry.Duration != 0 {
+			track.Duration = entry.Duration
+		}
 	}
 	if track.CreatedAt == 0 {
 		track.CreatedAt = time.Now().Unix()

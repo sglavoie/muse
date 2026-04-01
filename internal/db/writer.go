@@ -236,7 +236,8 @@ func (w *Writer) UpdateTrackDuration(hash string, durationMs int64) error {
 // using an INSERT … ON CONFLICT(hash) DO UPDATE so that existing rows are
 // updated in place without cascading deletes on their FK dependants (queue,
 // playlist_tracks). created_at is preserved on conflict; all other fields are
-// updated to the values supplied by the scanner. Duration is converted from
+// updated to the values supplied by the scanner. Duration is preserved when
+// the scanner returns 0 (e.g. tag-less files). Duration is converted from
 // seconds (float64) to milliseconds (int64).
 // UpsertBatch is a no-op when tracks is empty.
 func (w *Writer) UpsertBatch(tracks []library.Track) error {
@@ -266,7 +267,7 @@ func (w *Writer) UpsertBatch(tracks []library.Track) error {
 					artist      = CASE WHEN tracks.user_edited = 0 THEN excluded.artist ELSE tracks.artist END,
 					album       = CASE WHEN tracks.user_edited = 0 THEN excluded.album ELSE tracks.album END,
 					genre       = CASE WHEN tracks.user_edited = 0 THEN excluded.genre ELSE tracks.genre END,
-					duration_ms = excluded.duration_ms,
+					duration_ms = CASE WHEN excluded.duration_ms > 0 THEN excluded.duration_ms ELSE tracks.duration_ms END,
 					size_bytes  = excluded.size_bytes,
 					mod_time    = excluded.mod_time,
 					missing     = 0,
