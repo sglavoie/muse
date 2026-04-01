@@ -1038,11 +1038,11 @@ func TestFavoritesSortDirChangeClearsSelection(t *testing.T) {
 		t.Fatal("selectedItems should be nil after sort asc")
 	}
 
-	// Reset selections and test descending via handleSortDescOrPageDown.
+	// Reset selections and test descending via handleSortDesc.
 	rm.favorites.selectedItems = map[int]struct{}{0: {}}
-	result2, _, handled2 := rm.handleSortDescOrPageDown()
+	result2, _, handled2 := rm.handleSortDesc()
 	if !handled2 {
-		t.Fatal("handleSortDescOrPageDown should handle favorites view with active sort")
+		t.Fatal("handleSortDesc should handle favorites view with active sort")
 	}
 	rm2 := result2.(Model)
 	if rm2.favorites.selectedItems != nil {

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/library"
 )
 
 // TestViewLocalBindingTakesPrecedenceOverGlobal verifies that when the active
@@ -284,6 +285,55 @@ func TestSeekCoarseForwardKey(t *testing.T) {
 
 	if len(p.seekDeltas) != 1 || p.seekDeltas[0] != 30 {
 		t.Fatalf("shift+right: expected SeekRelative(30), got deltas=%v", p.seekDeltas)
+	}
+}
+
+func TestShiftArrowKeysControlSortDirection(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewLibrary
+
+	next, _ := m.Update(library.ScanBatchMsg{Tracks: []library.Track{
+		{Hash: "h1", Path: "/music/beta.flac", Artist: "Bravo", Title: "Beta"},
+		{Hash: "h2", Path: "/music/alpha.flac", Artist: "Alpha", Title: "Alpha"},
+	}})
+	m = next.(Model)
+	m.library.height = 12
+
+	next, _ = m.Update(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	nm := next.(Model)
+	if nm.library.sortState.Field == SortDefault {
+		t.Fatal("ctrl+s should activate a non-default library sort field")
+	}
+
+	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift})
+	nm = next.(Model)
+	if nm.library.sortState.Dir != SortDesc {
+		t.Fatalf("shift+down: expected SortDesc, got %v", nm.library.sortState.Dir)
+	}
+
+	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift})
+	nm = next.(Model)
+	if nm.library.sortState.Dir != SortAsc {
+		t.Fatalf("shift+up: expected SortAsc, got %v", nm.library.sortState.Dir)
+	}
+}
+
+func TestQueueHalfPageNavigationUsesCtrlDAndCtrlU(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewQueue
+	m.queue.height = 14
+	m.queue.entries = make([]QueueEntry, 20)
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
+	nm := next.(Model)
+	if nm.queue.cursor != 6 {
+		t.Fatalf("ctrl+d: expected cursor 6, got %d", nm.queue.cursor)
+	}
+
+	next, _ = nm.Update(tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
+	nm = next.(Model)
+	if nm.queue.cursor != 0 {
+		t.Fatalf("ctrl+u: expected cursor 0, got %d", nm.queue.cursor)
 	}
 }
 

@@ -22,8 +22,8 @@ func (m Model) handleSortAction(a action) (tea.Model, tea.Cmd, bool) {
 		return m.handleSortCycle()
 	case actionSortAsc:
 		return m.handleSortAsc()
-	case actionSortDescOrPageDown:
-		return m.handleSortDescOrPageDown()
+	case actionSortDesc:
+		return m.handleSortDesc()
 	default:
 		return m, nil, false
 	}
@@ -252,27 +252,26 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 	}
 }
 
-// handleSortDescOrPageDown sets descending sort when sort is active, otherwise
-// dispatches half-page-down.
-func (m Model) handleSortDescOrPageDown() (tea.Model, tea.Cmd, bool) {
+// handleSortDesc sets the sort direction to descending for the active view.
+// The focused item is preserved at its new position after re-sort.
+func (m Model) handleSortDesc() (tea.Model, tea.Cmd, bool) {
 	switch m.activeView {
 	case viewLibrary:
-		if m.library.sortState.Field != SortDefault {
-			var focusedHash string
-			if t, ok := m.library.view().FocusedTrack(); ok {
-				focusedHash = t.Hash
-			}
-			m.library.sortState.Dir = SortDesc
-			m.library = m.library.recomputeSortedTracks()
-			if m.library.filter.Text != "" {
-				m.library = m.library.rebuildFilterCache()
-			}
-			m.library.cursor = m.library.findTrackPosition(focusedHash)
-			m.library.scrollOffset = adjustScroll(m.library.cursor, m.library.scrollOffset, layout.VisibleRows(m.library.height, 1))
-			m.statusBar.notification = newNotification(sortNotification(m.library.sortState))
-			return m, nil, true
+		if m.library.sortState.Field == SortDefault {
+			return m, nil, false
 		}
-		m.library = m.library.HandleAction(actionHalfPageDown)
+		var focusedHash string
+		if t, ok := m.library.view().FocusedTrack(); ok {
+			focusedHash = t.Hash
+		}
+		m.library.sortState.Dir = SortDesc
+		m.library = m.library.recomputeSortedTracks()
+		if m.library.filter.Text != "" {
+			m.library = m.library.rebuildFilterCache()
+		}
+		m.library.cursor = m.library.findTrackPosition(focusedHash)
+		m.library.scrollOffset = adjustScroll(m.library.cursor, m.library.scrollOffset, layout.VisibleRows(m.library.height, 1))
+		m.statusBar.notification = newNotification(sortNotification(m.library.sortState))
 		return m, nil, true
 
 	case viewRecentlyAdded:
@@ -291,62 +290,55 @@ func (m Model) handleSortDescOrPageDown() (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewQueue:
-		if m.queue.sortState.Field != SortDefault {
-			prevEntryIdx := m.queue.entryIndex(m.queue.cursor)
-			m.queue.sortState.Dir = SortDesc
-			m.queue = m.queue.recomputeDisplayOrder()
-			m.queue.cursor = m.queue.findEntryDisplayPosition(prevEntryIdx)
-			m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, m.queue.visibleRows())
-			m.statusBar.notification = newNotification(sortNotification(m.queue.sortState))
-			return m, nil, true
+		if m.queue.sortState.Field == SortDefault {
+			return m, nil, false
 		}
-		var cmd tea.Cmd
-		m.queue, cmd = m.queue.HandleAction(actionHalfPageDown)
-		return m, cmd, true
+		prevEntryIdx := m.queue.entryIndex(m.queue.cursor)
+		m.queue.sortState.Dir = SortDesc
+		m.queue = m.queue.recomputeDisplayOrder()
+		m.queue.cursor = m.queue.findEntryDisplayPosition(prevEntryIdx)
+		m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, m.queue.visibleRows())
+		m.statusBar.notification = newNotification(sortNotification(m.queue.sortState))
+		return m, nil, true
 
 	case viewPlaylists:
-		if m.playlists.sortState.Field != SortDefault {
-			m = m.preservePlaylistCursorOnDirChange(SortDesc)
-			m.statusBar.notification = newNotification(sortNotification(m.playlists.sortState))
-			return m, nil, true
+		if m.playlists.sortState.Field == SortDefault {
+			return m, nil, false
 		}
-		m.playlists = m.playlists.HandleAction(actionHalfPageDown)
+		m = m.preservePlaylistCursorOnDirChange(SortDesc)
+		m.statusBar.notification = newNotification(sortNotification(m.playlists.sortState))
 		return m, nil, true
 
 	case viewArtists:
-		if m.artists.sortState.Field != SortDefault {
-			m = m.preserveArtistsCursorOnDirChange(SortDesc)
-			m.statusBar.notification = newNotification(sortNotification(m.artists.sortState))
-			return m, nil, true
+		if m.artists.sortState.Field == SortDefault {
+			return m, nil, false
 		}
-		m.artists = m.artists.HandleAction(actionHalfPageDown)
+		m = m.preserveArtistsCursorOnDirChange(SortDesc)
+		m.statusBar.notification = newNotification(sortNotification(m.artists.sortState))
 		return m, nil, true
 
 	case viewAlbums:
-		if m.albums.sortState.Field != SortDefault {
-			m = m.preserveAlbumsCursorOnDirChange(SortDesc)
-			m.statusBar.notification = newNotification(sortNotification(m.albums.sortState))
-			return m, nil, true
+		if m.albums.sortState.Field == SortDefault {
+			return m, nil, false
 		}
-		m.albums = m.albums.HandleAction(actionHalfPageDown)
+		m = m.preserveAlbumsCursorOnDirChange(SortDesc)
+		m.statusBar.notification = newNotification(sortNotification(m.albums.sortState))
 		return m, nil, true
 
 	case viewFavorites:
-		if m.favorites.sortState.Field != SortDefault {
-			m = m.preserveFavoritesCursorOnDirChange(SortDesc)
-			m.statusBar.notification = newNotification(sortNotification(m.favorites.sortState))
-			return m, nil, true
+		if m.favorites.sortState.Field == SortDefault {
+			return m, nil, false
 		}
-		m.favorites = m.favorites.HandleAction(actionHalfPageDown)
+		m = m.preserveFavoritesCursorOnDirChange(SortDesc)
+		m.statusBar.notification = newNotification(sortNotification(m.favorites.sortState))
 		return m, nil, true
 
 	case viewGenres:
-		if m.genres.sortState.Field != SortDefault {
-			m = m.preserveGenresCursorOnDirChange(SortDesc)
-			m.statusBar.notification = newNotification(sortNotification(m.genres.sortState))
-			return m, nil, true
+		if m.genres.sortState.Field == SortDefault {
+			return m, nil, false
 		}
-		m.genres = m.genres.HandleAction(actionHalfPageDown)
+		m = m.preserveGenresCursorOnDirChange(SortDesc)
+		m.statusBar.notification = newNotification(sortNotification(m.genres.sortState))
 		return m, nil, true
 
 	default:

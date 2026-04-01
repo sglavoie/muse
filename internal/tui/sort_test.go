@@ -379,9 +379,9 @@ func TestSortPlaylists(t *testing.T) {
 
 func TestSortPlaylistTrackIndices(t *testing.T) {
 	tracks := []db.PlaylistTrackRow{
-		{ID: 1, Title: "Zulu", Artist: "Charlie", DurationMs: 3000},
-		{ID: 2, Title: "Alpha", Artist: "Bravo", DurationMs: 1000},
-		{ID: 3, Title: "Mike", Artist: "Alpha", DurationMs: 2000},
+		{ID: 1, Title: "Zulu", Artist: "Charlie", Album: "Gamma", DurationMs: 3000},
+		{ID: 2, Title: "Alpha", Artist: "Bravo", Album: "Beta", DurationMs: 1000},
+		{ID: 3, Title: "Mike", Artist: "Alpha", Album: "Alpha", DurationMs: 2000},
 	}
 
 	t.Run("sort by title asc", func(t *testing.T) {
@@ -417,6 +417,19 @@ func TestSortPlaylistTrackIndices(t *testing.T) {
 		}
 		if tracks[order[2]].DurationMs != 1000 {
 			t.Errorf("last should have 1000ms, got %d", tracks[order[2]].DurationMs)
+		}
+	})
+
+	t.Run("sort by album asc", func(t *testing.T) {
+		order := SortPlaylistTrackIndices(tracks, SortAlbum, SortAsc)
+		if tracks[order[0]].Album != "Alpha" {
+			t.Errorf("first should be Alpha, got %q", tracks[order[0]].Album)
+		}
+		if tracks[order[1]].Album != "Beta" {
+			t.Errorf("second should be Beta, got %q", tracks[order[1]].Album)
+		}
+		if tracks[order[2]].Album != "Gamma" {
+			t.Errorf("third should be Gamma, got %q", tracks[order[2]].Album)
 		}
 	})
 
@@ -1404,7 +1417,7 @@ func TestSortCyclePlaylistListFields(t *testing.T) {
 
 func TestSortCyclePlaylistTrackFields(t *testing.T) {
 	state := SortState{Field: SortDefault}
-	expected := []SortField{SortTitle, SortArtist, SortDuration, SortDefault}
+	expected := []SortField{SortTitle, SortArtist, SortAlbum, SortDuration, SortDefault}
 	for _, want := range expected {
 		state.Field = CycleSortField(state.Field, playlistTrackSortFields)
 		if state.Field != want {
@@ -1477,8 +1490,8 @@ func TestSortKeybindingsRegistered(t *testing.T) {
 		want action
 	}{
 		{"ctrl+s", actionSortCycle},
-		{"ctrl+a", actionSortAsc},
-		{"ctrl+d", actionSortDescOrPageDown},
+		{"shift+up", actionSortAsc},
+		{"shift+down", actionSortDesc},
 	}
 	for _, tt := range tests {
 		got := reg.resolve(contextGlobal, tt.key)
@@ -1491,24 +1504,25 @@ func TestSortKeybindingsRegistered(t *testing.T) {
 func TestCtrlDResolvesCorrectlyPerContext(t *testing.T) {
 	reg := newRegistry()
 
-	// ctrl+d should resolve to actionSortDescOrPageDown in all view contexts
-	// because it's registered globally and not overridden per-view.
+	// ctrl+d should resolve to shared half-page navigation in all row contexts.
 	contexts := []struct {
 		name string
 		ctx  bindingContext
 	}{
 		{"library", contextLibrary},
+		{"recently added", contextRecentlyAdded},
 		{"queue", contextQueue},
 		{"playlists", contextPlaylists},
 		{"artists", contextArtists},
 		{"albums", contextAlbums},
-		{"global", contextGlobal},
+		{"favorites", contextFavorites},
+		{"genres", contextGenres},
 	}
 
 	for _, tc := range contexts {
 		got := reg.resolve(tc.ctx, "ctrl+d")
-		if got != actionSortDescOrPageDown {
-			t.Errorf("resolve(%s, ctrl+d) = %v, want actionSortDescOrPageDown", tc.name, got)
+		if got != actionHalfPageDown {
+			t.Errorf("resolve(%s, ctrl+d) = %v, want actionHalfPageDown", tc.name, got)
 		}
 	}
 }

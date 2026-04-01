@@ -5,16 +5,16 @@ package tui
 type bindingContext int
 
 const (
-	contextGlobal    bindingContext = iota // applies in every view
-	contextLibrary                         // applies only in the Library view
-	contextRecentlyAdded                   // applies only in the Recently Added view
-	contextPlaylists                       // applies only in the Playlists view
-	contextQueue                           // applies only in the Queue view
-	contextArtists                         // applies only in the Artists view
-	contextAlbums                          // applies only in the Albums view
-	contextFavorites                       // applies only in the Favorites view
-	contextGenres                          // applies only in the Genres view
-	contextModals                          // applies only when a modal is active
+	contextGlobal        bindingContext = iota // applies in every view
+	contextLibrary                             // applies only in the Library view
+	contextRecentlyAdded                       // applies only in the Recently Added view
+	contextPlaylists                           // applies only in the Playlists view
+	contextQueue                               // applies only in the Queue view
+	contextArtists                             // applies only in the Artists view
+	contextAlbums                              // applies only in the Albums view
+	contextFavorites                           // applies only in the Favorites view
+	contextGenres                              // applies only in the Genres view
+	contextModals                              // applies only when a modal is active
 )
 
 // action represents a named TUI action that a key binding triggers.
@@ -124,9 +124,9 @@ const (
 	actionGoToBottom   // G: move cursor to the last row
 
 	// Sort actions.
-	actionSortCycle          // ctrl+s: cycle to next sort field
-	actionSortAsc            // ctrl+a: set sort direction to ascending
-	actionSortDescOrPageDown // ctrl+d: set descending if sort active, else half-page-down
+	actionSortCycle // ctrl+s: cycle to next sort field
+	actionSortAsc   // shift+up: set sort direction to ascending
+	actionSortDesc  // shift+down: set sort direction to descending
 )
 
 // registryKey is the composite map key for registry lookups.
@@ -183,8 +183,8 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "M", actionEditMetadata)
 	r.register(contextGlobal, "i", actionTrackInfo)
 	r.register(contextGlobal, "ctrl+s", actionSortCycle)
-	r.register(contextGlobal, "ctrl+a", actionSortAsc)
-	r.register(contextGlobal, "ctrl+d", actionSortDescOrPageDown)
+	r.register(contextGlobal, "shift+up", actionSortAsc)
+	r.register(contextGlobal, "shift+down", actionSortDesc)
 	r.register(contextGlobal, "A", actionJumpToArtist)
 	r.register(contextGlobal, "B", actionJumpToAlbum)
 
@@ -281,7 +281,7 @@ func (r *Registry) registerNavigation(ctx bindingContext) {
 	r.register(ctx, "k", actionCursorUp)
 	r.register(ctx, "up", actionCursorUp)
 	r.register(ctx, "down", actionCursorDown)
-	// ctrl+d is registered globally as actionSortDescOrPageDown (dual behavior).
+	r.register(ctx, "ctrl+d", actionHalfPageDown)
 	r.register(ctx, "ctrl+u", actionHalfPageUp)
 	r.register(ctx, "ctrl+f", actionFullPageDown)
 	r.register(ctx, "ctrl+b", actionFullPageUp)

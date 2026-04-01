@@ -43,7 +43,7 @@ var (
 	recentlyAddedSortFields = []SortField{SortDateAdded}
 	queueSortFields         = []SortField{SortDefault, SortTitle, SortArtist, SortAlbum, SortDuration, SortSource}
 	playlistListSortFields  = []SortField{SortDefault, SortName, SortTrackCount}
-	playlistTrackSortFields = []SortField{SortDefault, SortTitle, SortArtist, SortDuration}
+	playlistTrackSortFields = []SortField{SortDefault, SortTitle, SortArtist, SortAlbum, SortDuration}
 	artistArtistSortFields  = []SortField{SortDefault, SortName}
 	artistAlbumSortFields   = []SortField{SortDefault, SortName}
 	artistTrackSortFields   = []SortField{SortDefault, SortTitle, SortDuration}
@@ -219,6 +219,8 @@ func SortPlaylistTrackIndices(tracks []db.PlaylistTrackRow, field SortField, dir
 			return compareStringsUnknownLast(ta.Title, tb.Title, dir)
 		case SortArtist:
 			return compareStringsUnknownLast(ta.Artist, tb.Artist, dir)
+		case SortAlbum:
+			return compareStringsUnknownLast(ta.Album, tb.Album, dir)
 		case SortDuration:
 			if dir == SortAsc {
 				return ta.DurationMs < tb.DurationMs

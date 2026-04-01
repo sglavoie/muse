@@ -30,20 +30,21 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 	// contextModals dismiss is handled in root.Update directly and is
 	// intentionally absent from the registry.
 	ctxSection := map[bindingContext]string{
-		contextGlobal:    "Global",
-		contextLibrary:   "Library",
+		contextGlobal:        "Global",
+		contextLibrary:       "Library",
 		contextRecentlyAdded: "Recently Added",
-		contextQueue:     "Queue",
-		contextPlaylists: "Playlists",
-		contextArtists:   "Artists",
-		contextAlbums:    "Albums",
-		contextGenres:    "Genres",
+		contextQueue:         "Queue",
+		contextPlaylists:     "Playlists",
+		contextArtists:       "Artists",
+		contextAlbums:        "Albums",
+		contextFavorites:     "Favorites",
+		contextGenres:        "Genres",
 	}
 
-	// The "Navigation" section covers keys shared across Library, Queue, and
-	// Playlists. Merge its keys into each of those sections for the check.
-	if navKeys, ok := sectionKeys["Navigation (Library / Queue / Playlists / Artists / Albums / Genres / Recently Added)"]; ok {
-		for _, sec := range []string{"Library", "Recently Added", "Queue", "Playlists", "Artists", "Albums", "Genres"} {
+	// The "Navigation" section covers keys shared across all row-based views.
+	// Merge its keys into each of those sections for the check.
+	if navKeys, ok := sectionKeys["Navigation (Library / Queue / Playlists / Artists / Albums / Favorites / Genres / Recently Added)"]; ok {
+		for _, sec := range []string{"Library", "Recently Added", "Queue", "Playlists", "Artists", "Albums", "Favorites", "Genres"} {
 			if sectionKeys[sec] == nil {
 				sectionKeys[sec] = make(map[string]bool)
 			}
@@ -76,21 +77,22 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 	// across Library, Queue, and Playlists — each key must exist in at least
 	// one of those contexts.
 	reverseCtx := map[string]bindingContext{
-		"Global":    contextGlobal,
-		"Library":   contextLibrary,
+		"Global":         contextGlobal,
+		"Library":        contextLibrary,
 		"Recently Added": contextRecentlyAdded,
-		"Queue":     contextQueue,
-		"Playlists": contextPlaylists,
-		"Artists":   contextArtists,
-		"Albums":    contextAlbums,
-		"Genres":    contextGenres,
+		"Queue":          contextQueue,
+		"Playlists":      contextPlaylists,
+		"Artists":        contextArtists,
+		"Albums":         contextAlbums,
+		"Favorites":      contextFavorites,
+		"Genres":         contextGenres,
 	}
 	// Navigation keys are shared; check that each appears in at least one
 	// of the view contexts.
-	navContexts := []bindingContext{contextLibrary, contextRecentlyAdded, contextQueue, contextPlaylists, contextArtists, contextAlbums, contextGenres}
+	navContexts := []bindingContext{contextLibrary, contextRecentlyAdded, contextQueue, contextPlaylists, contextArtists, contextAlbums, contextFavorites, contextGenres}
 	for _, sec := range sections {
 		ctx, directMatch := reverseCtx[sec.title]
-		isNav := sec.title == "Navigation (Library / Queue / Playlists / Artists / Albums / Genres / Recently Added)"
+		isNav := sec.title == "Navigation (Library / Queue / Playlists / Artists / Albums / Favorites / Genres / Recently Added)"
 		if !directMatch && !isNav {
 			continue
 		}
@@ -182,7 +184,7 @@ func TestFilteredHelpSections(t *testing.T) {
 	// Should contain Global, Navigation, and Library — but not Queue, Playlists, etc.
 	allowed := map[string]bool{
 		"Global": true,
-		"Navigation (Library / Queue / Playlists / Artists / Albums / Genres / Recently Added)": true,
+		"Navigation (Library / Queue / Playlists / Artists / Albums / Favorites / Genres / Recently Added)": true,
 		"Library": true,
 	}
 	for _, sec := range sections {

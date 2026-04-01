@@ -17,13 +17,13 @@ import (
 type viewID int
 
 const (
-	viewLibrary   viewID = 1
-	viewPlaylists viewID = 2
-	viewQueue     viewID = 3
-	viewArtists   viewID = 4
-	viewAlbums    viewID = 5
-	viewFavorites viewID = 6
-	viewGenres    viewID = 7
+	viewLibrary       viewID = 1
+	viewPlaylists     viewID = 2
+	viewQueue         viewID = 3
+	viewArtists       viewID = 4
+	viewAlbums        viewID = 5
+	viewFavorites     viewID = 6
+	viewGenres        viewID = 7
 	viewRecentlyAdded viewID = 8
 )
 
@@ -200,6 +200,10 @@ func (v PlaylistsView) render(s styles.Styles, favHashes, favArtists, favAlbums 
 		RenameInput:      v.renameInput,
 		SelectedTrackIDs: v.selectedTrackIDs,
 		IsSmartPlaylist:  v.smartQuery != nil,
+	}
+	if v.sortState.Field != SortDefault {
+		pv.SortField = SortFieldLabel(v.sortState.Field)
+		pv.SortDir = SortDirIndicator(v.sortState.Dir)
 	}
 	pv.Styles = s
 	pv.FavoriteHashes = favHashes

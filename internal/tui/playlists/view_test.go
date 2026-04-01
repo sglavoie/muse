@@ -43,6 +43,27 @@ func TestRenderTracksShowsColumns(t *testing.T) {
 	}
 }
 
+func TestRenderTracksShowsSortArrowInActiveHeader(t *testing.T) {
+	v := View{
+		Level:     TrackLevel,
+		Width:     80,
+		SortField: "Title",
+		SortDir:   "▲",
+		Tracks: []db.PlaylistTrackRow{
+			{Position: 1, Title: "Song A", Artist: "Artist X", Album: "Album P", DurationMs: 183000},
+		},
+	}
+	out := v.Render()
+	if !strings.Contains(out, "Title▲") {
+		t.Fatalf("expected active playlist sort header to show Title▲, got:\n%s", out)
+	}
+	for _, unwanted := range []string{"Artist▲", "Album▲", "Time▲"} {
+		if strings.Contains(out, unwanted) {
+			t.Fatalf("expected only the active playlist header to show an arrow, found %q in:\n%s", unwanted, out)
+		}
+	}
+}
+
 func TestRenderTracksAscendingPositionOrder(t *testing.T) {
 	v := View{
 		Level: TrackLevel,
@@ -194,6 +215,21 @@ func TestRenderListShowsNameAndCount(t *testing.T) {
 	}
 	if !strings.Contains(out, "(12)") {
 		t.Errorf("expected '(12)' in output, got:\n%s", out)
+	}
+}
+
+func TestRenderListShowsSortIndicatorWhenSorted(t *testing.T) {
+	v := View{
+		Width:     40,
+		SortField: "Name",
+		SortDir:   "▼",
+		Playlists: []db.PlaylistRow{
+			{ID: 1, Name: "Chill", TrackCount: 5},
+		},
+	}
+	out := v.Render()
+	if !strings.Contains(out, "Sort: Name ▼") {
+		t.Fatalf("expected playlist list sort indicator in output, got:\n%s", out)
 	}
 }
 

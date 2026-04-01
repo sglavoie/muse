@@ -45,13 +45,19 @@ type View struct {
 	FavoriteAlbums   map[string]struct{}
 	Styles           styles.Styles
 	IsSmartPlaylist  bool // true when the open playlist is a smart playlist (TrackLevel)
+	SortField        string
+	SortDir          string
 }
 
 // visibleRows returns the maximum number of rows that fit on screen.
-// Reserve 1 line for the list level, 4 for the track level ("Tracks"
-// heading + blank line + header row + 1 padding).
+// Reserve 1 line for the list level plus 1 extra when a sort indicator is
+// shown, or 4 for the track level ("Tracks" heading + blank line + header
+// row + 1 padding).
 func (v View) visibleRows() int {
 	reserve := 1
+	if v.Level == ListLevel && v.SortField != "" {
+		reserve++
+	}
 	if v.Level == TrackLevel {
 		reserve = 4
 	}
@@ -254,7 +260,10 @@ func (v View) Render() string {
 
 func (v View) renderList() string {
 	if len(v.Playlists) == 0 && !v.Creating {
-		return "(no playlists)"
+		if v.SortField == "" {
+			return "(no playlists)"
+		}
+		return v.renderListSortIndicator() + "\n(no playlists)"
 	}
 
 	cols := Compute(v.Width)
@@ -302,7 +311,15 @@ func (v View) renderList() string {
 	if v.Creating && len(v.Playlists) == 0 {
 		lines = append(lines, v.renderCreateInputRow(cols))
 	}
-	return strings.Join(lines, "\n")
+	out := strings.Join(lines, "\n")
+	if v.SortField != "" {
+		out = v.renderListSortIndicator() + "\n" + out
+	}
+	return out
+}
+
+func (v View) renderListSortIndicator() string {
+	return v.Styles.Dim.Render(fmt.Sprintf("Sort: %s %s", v.SortField, v.SortDir))
 }
 
 // renderCreateInputRow renders the inline text input as a highlighted row
@@ -331,15 +348,28 @@ func (v View) renderTracks() string {
 	}
 
 	cols := ComputeTrack(v.Width)
+	titleHead, artistHead, albumHead, timeHead := "Title", "Artist", "Album", "Time"
+	if v.SortField != "" {
+		switch v.SortField {
+		case "Title":
+			titleHead += v.SortDir
+		case "Artist":
+			artistHead += v.SortDir
+		case "Album":
+			albumHead += v.SortDir
+		case "Duration":
+			timeHead += v.SortDir
+		}
+	}
 
 	header := v.Styles.ColHead.Render(
 		strings.Repeat(" ", cols.Marker) +
 			fmt.Sprintf("%-*s %-*s %-*s %-*s %*s",
 				cols.Position, "#",
-				cols.Title, "Title",
-				cols.Artist, "Artist",
-				cols.Album, "Album",
-				cols.Duration, "Time"))
+				cols.Title, titleHead,
+				cols.Artist, artistHead,
+				cols.Album, albumHead,
+				cols.Duration, timeHead))
 
 	maxRows := v.visibleRows()
 	start := v.ScrollOffset
