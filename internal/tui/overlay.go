@@ -89,24 +89,24 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 		contentWidth = 0
 	}
 
-	var lines []string
+	var boxLines []string
 
 	// Top border.
-	lines = append(lines, cornerTL+strings.Repeat(borderH, innerWidth)+cornerTR)
+	boxLines = append(boxLines, cornerTL+strings.Repeat(borderH, innerWidth)+cornerTR)
 
 	// Title row (centered).
 	titlePad := max(0, innerWidth-ansi.StringWidth(o.Title))
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
-	lines = append(lines, borderV+strings.Repeat(" ", leftTP)+s.Heading.Render(o.Title)+strings.Repeat(" ", rightTP)+borderV)
+	boxLines = append(boxLines, borderV+strings.Repeat(" ", leftTP)+s.Heading.Render(o.Title)+strings.Repeat(" ", rightTP)+borderV)
 
 	// Separator.
-	lines = append(lines, crossL+strings.Repeat(borderH, innerWidth)+crossR)
+	boxLines = append(boxLines, crossL+strings.Repeat(borderH, innerWidth)+crossR)
 
 	// Content rows.
 	for _, r := range o.Rows {
 		if r.Blank {
-			lines = append(lines, borderV+strings.Repeat(" ", innerWidth)+borderV)
+			boxLines = append(boxLines, borderV+strings.Repeat(" ", innerWidth)+borderV)
 			continue
 		}
 		var row string
@@ -123,40 +123,46 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 			row = "  " + text.Pad(truncated, contentWidth) + "  "
 		}
 		if r.Styled {
-			lines = append(lines, borderV+s.Accent.Render(row)+borderV)
+			boxLines = append(boxLines, borderV+s.Accent.Render(row)+borderV)
 		} else {
-			lines = append(lines, borderV+row+borderV)
+			boxLines = append(boxLines, borderV+row+borderV)
 		}
 	}
 
 	// Bottom border.
-	lines = append(lines, cornerBL+strings.Repeat(borderH, innerWidth)+cornerBR)
-
-	// Hint.
-	if o.Hint != "" {
-		lines = append(lines, "  "+o.Hint)
-	}
+	boxLines = append(boxLines, cornerBL+strings.Repeat(borderH, innerWidth)+cornerBR)
 
 	// Center the box.
-	boxW := ansi.StringWidth(lines[0])
-	boxH := len(lines)
+	boxW := ansi.StringWidth(boxLines[0])
+	boxH := len(boxLines)
+	if o.Hint != "" {
+		boxH++
+	}
 
-	leftPad := 0
+	leftPadBox := 0
 	if termWidth > boxW {
-		leftPad = (termWidth - boxW) / 2
+		leftPadBox = (termWidth - boxW) / 2
 	}
 	topPad := 0
 	if termHeight > boxH {
 		topPad = (termHeight - boxH) / 2
 	}
 
-	prefix := strings.Repeat(" ", leftPad)
+	boxPrefix := strings.Repeat(" ", leftPadBox)
 	var b strings.Builder
 	for range topPad {
 		b.WriteByte('\n')
 	}
-	for _, line := range lines {
-		b.WriteString(prefix + line + "\n")
+	for _, line := range boxLines {
+		b.WriteString(boxPrefix + line + "\n")
+	}
+	if o.Hint != "" {
+		hintPad := 0
+		hintWidth := ansi.StringWidth(o.Hint)
+		if termWidth > hintWidth {
+			hintPad = (termWidth - hintWidth) / 2
+		}
+		b.WriteString(strings.Repeat(" ", hintPad) + o.Hint + "\n")
 	}
 	return b.String()
 }

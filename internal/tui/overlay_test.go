@@ -48,6 +48,22 @@ func TestOverlayBoxRender_ContainsHint(t *testing.T) {
 	}
 }
 
+func TestOverlayBoxRender_CentersHintIndependently(t *testing.T) {
+	box := OverlayBox{
+		Title: " T ",
+		Rows:  []OverlayRow{{Text: "x"}},
+		Hint:  "esc to dismiss",
+	}
+	stripped := ansi.Strip(box.Render(80, 24, newTestStyles()))
+	lines := strings.Split(strings.TrimRight(stripped, "\n"), "\n")
+	hintLine := lines[len(lines)-1]
+	leadingSpaces := len(hintLine) - len(strings.TrimLeft(hintLine, " "))
+	want := (80 - len("esc to dismiss")) / 2
+	if leadingSpaces != want {
+		t.Fatalf("hint leading spaces = %d, want %d\noutput:\n%s", leadingSpaces, want, stripped)
+	}
+}
+
 func TestOverlayBoxRender_VerticalCentering(t *testing.T) {
 	box := OverlayBox{
 		Title: " T ",

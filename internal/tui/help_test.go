@@ -164,6 +164,7 @@ func TestHelpOverlayRendersRepresentativeEntries(t *testing.T) {
 		// Modals entries
 		{"Modals", "esc"},
 		{"Modals", "Dismiss"},
+		{"Modals", "Preview pause / seek"},
 	}
 
 	for _, c := range checks {

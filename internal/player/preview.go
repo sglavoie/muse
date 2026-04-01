@@ -15,6 +15,8 @@ import (
 type Previewer interface {
 	Start() error
 	LoadAndPlay(path string) error
+	TogglePause() error
+	SeekRelative(seconds float64) error
 	ElapsedPosition() (elapsed, total float64, err error)
 	Close() error
 }
@@ -98,6 +100,24 @@ func (p *PreviewPlayer) LoadAndPlay(path string) error {
 		return ErrNotConnected
 	}
 	_, err := p.client.SendCommand("loadfile", path, "replace", 0, "pause=no")
+	return err
+}
+
+// TogglePause toggles the preview player's pause state.
+func (p *PreviewPlayer) TogglePause() error {
+	if p.client == nil {
+		return ErrNotConnected
+	}
+	_, err := p.client.SendCommand("cycle", "pause")
+	return err
+}
+
+// SeekRelative seeks the preview player by the given relative offset.
+func (p *PreviewPlayer) SeekRelative(seconds float64) error {
+	if p.client == nil {
+		return ErrNotConnected
+	}
+	_, err := p.client.SendCommand("seek", seconds, "relative")
 	return err
 }
 

@@ -220,6 +220,7 @@ func helpSections() []helpSection {
 			context: contextModals,
 			entries: []helpEntry{
 				{"esc", "Dismiss modal or close this help overlay"},
+				{"space / left / right / shift+left / shift+right", "Preview pause / seek"},
 				{"/", "Search keybindings"},
 				{"j / k", "Move cursor down / up (destination picker)"},
 				{"enter", "Confirm selection (destination picker)"},

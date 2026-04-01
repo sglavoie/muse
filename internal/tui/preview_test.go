@@ -35,7 +35,10 @@ func TestPreviewOverlayRender_BasicContent(t *testing.T) {
 	if !strings.Contains(stripped, "1:23") || !strings.Contains(stripped, "4:56") {
 		t.Error("expected formatted elapsed/total times in output")
 	}
-	if !strings.Contains(stripped, "P or esc to dismiss") {
+	if !strings.Contains(stripped, "space pause") {
+		t.Error("expected pause hint in output")
+	}
+	if !strings.Contains(stripped, "P/esc dismiss") {
 		t.Error("expected dismiss hint in output")
 	}
 }

@@ -530,6 +530,42 @@ func (m Model) handlePreviewKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool)
 	case "esc", "P":
 		m = m.dismissPreview()
 		return m, nil, true
+	case "space":
+		if m.overlay.previewPlayer != nil {
+			if err := m.overlay.previewPlayer.TogglePause(); err != nil {
+				slog.Debug("preview pause toggle failed", "err", err)
+				m.statusBar.notification = newNotification("Preview pause failed: " + err.Error())
+			}
+		}
+		return m, nil, true
+	case "left":
+		if m.overlay.previewPlayer != nil {
+			if err := m.overlay.previewPlayer.SeekRelative(-m.cfg.SeekOffsetShort); err != nil {
+				slog.Debug("preview seek failed", "offset", -m.cfg.SeekOffsetShort, "err", err)
+			}
+		}
+		return m, nil, true
+	case "right":
+		if m.overlay.previewPlayer != nil {
+			if err := m.overlay.previewPlayer.SeekRelative(m.cfg.SeekOffsetShort); err != nil {
+				slog.Debug("preview seek failed", "offset", m.cfg.SeekOffsetShort, "err", err)
+			}
+		}
+		return m, nil, true
+	case "shift+left":
+		if m.overlay.previewPlayer != nil {
+			if err := m.overlay.previewPlayer.SeekRelative(-m.cfg.SeekOffsetLong); err != nil {
+				slog.Debug("preview seek failed", "offset", -m.cfg.SeekOffsetLong, "err", err)
+			}
+		}
+		return m, nil, true
+	case "shift+right":
+		if m.overlay.previewPlayer != nil {
+			if err := m.overlay.previewPlayer.SeekRelative(m.cfg.SeekOffsetLong); err != nil {
+				slog.Debug("preview seek failed", "offset", m.cfg.SeekOffsetLong, "err", err)
+			}
+		}
+		return m, nil, true
 	default:
 		return m, nil, true
 	}

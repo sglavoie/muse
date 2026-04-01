@@ -40,9 +40,81 @@ func TestPreviewPlayer_LoadAndPlay(t *testing.T) {
 	}
 }
 
+func TestPreviewPlayer_TogglePause(t *testing.T) {
+	sock := shortSockPath(t, "preview-toggle-pause")
+	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
+		cmd, _ := req["command"].([]any)
+		if len(cmd) != 2 || cmd[0] != "cycle" || cmd[1] != "pause" {
+			t.Fatalf("unexpected command: %#v", cmd)
+		}
+		return successHandler(req)
+	})
+
+	p := NewPreviewPlayer(context.Background(), sock)
+	p.launchFn = func(ctx context.Context, socketPath string) (*exec.Cmd, error) {
+		return nil, nil
+	}
+	if err := p.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(func() { p.Close() })
+
+	if err := p.TogglePause(); err != nil {
+		t.Fatalf("TogglePause: %v", err)
+	}
+}
+
+func TestPreviewPlayer_SeekRelative(t *testing.T) {
+	sock := shortSockPath(t, "preview-seek")
+	want := -12.5
+	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
+		cmd, _ := req["command"].([]any)
+		if len(cmd) != 3 || cmd[0] != "seek" || cmd[2] != "relative" {
+			t.Fatalf("unexpected command: %#v", cmd)
+		}
+		got, ok := cmd[1].(float64)
+		if !ok {
+			t.Fatalf("seek delta type = %T, want float64", cmd[1])
+		}
+		if got != want {
+			t.Fatalf("seek delta = %v, want %v", got, want)
+		}
+		return successHandler(req)
+	})
+
+	p := NewPreviewPlayer(context.Background(), sock)
+	p.launchFn = func(ctx context.Context, socketPath string) (*exec.Cmd, error) {
+		return nil, nil
+	}
+	if err := p.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(func() { p.Close() })
+
+	if err := p.SeekRelative(want); err != nil {
+		t.Fatalf("SeekRelative: %v", err)
+	}
+}
+
 func TestPreviewPlayer_LoadAndPlay_NotConnected(t *testing.T) {
 	p := NewPreviewPlayer(context.Background(), "/tmp/nonexistent.sock")
 	err := p.LoadAndPlay("/tmp/test.mp3")
+	if !errors.Is(err, ErrNotConnected) {
+		t.Fatalf("expected ErrNotConnected, got: %v", err)
+	}
+}
+
+func TestPreviewPlayer_TogglePause_NotConnected(t *testing.T) {
+	p := NewPreviewPlayer(context.Background(), "/tmp/nonexistent.sock")
+	err := p.TogglePause()
+	if !errors.Is(err, ErrNotConnected) {
+		t.Fatalf("expected ErrNotConnected, got: %v", err)
+	}
+}
+
+func TestPreviewPlayer_SeekRelative_NotConnected(t *testing.T) {
+	p := NewPreviewPlayer(context.Background(), "/tmp/nonexistent.sock")
+	err := p.SeekRelative(5)
 	if !errors.Is(err, ErrNotConnected) {
 		t.Fatalf("expected ErrNotConnected, got: %v", err)
 	}
