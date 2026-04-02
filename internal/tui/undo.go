@@ -279,6 +279,75 @@ func (a undoBatchEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 	return m, nil
 }
 
+// --- undoPasteAction ---
+
+// undoPasteAction reverts a queue paste by removing the pasted entries
+// (undoKindPaste). It mirrors undoBatchEnqueueAction: soft-deletes the pasted
+// IDs and removes matching entries from the in-memory queue.
+type undoPasteAction struct {
+	ids   []int64
+	count int
+}
+
+func (a undoPasteAction) kind() undoKind { return undoKindPaste }
+
+func (a undoPasteAction) description() string {
+	return fmt.Sprintf("Pasted %d %s — press u to undo", a.count, pluralize(a.count, "track", "tracks"))
+}
+
+func (a undoPasteAction) perform(m Model) (Model, tea.Cmd) {
+	if m.batchEnqueuer != nil {
+		if err := m.batchEnqueuer.DequeueTracksSoft(a.ids); err != nil {
+			slog.Warn("undo paste: soft-delete failed", "err", err)
+		}
+		if m.undoer != nil {
+			schedulePurge(&m.undo.slot, m.undoer.PurgeDeletedQueueEntries)
+		}
+	}
+	idSet := make(map[int64]struct{}, len(a.ids))
+	for _, id := range a.ids {
+		idSet[id] = struct{}{}
+	}
+	var kept []QueueEntry
+	var removedPlayerIndices []int
+	for i, e := range m.queue.entries {
+		if _, ok := idSet[e.ID]; ok {
+			removedPlayerIndices = append(removedPlayerIndices, i)
+		} else {
+			kept = append(kept, e)
+		}
+	}
+	m.queue.entries = kept
+	m.clampQueueCursorAndScroll()
+	if m.playback.currentIndex >= 0 {
+		removedBefore := 0
+		removedCurrent := false
+		for _, ri := range removedPlayerIndices {
+			if ri < m.playback.currentIndex {
+				removedBefore++
+			} else if ri == m.playback.currentIndex {
+				removedCurrent = true
+			}
+		}
+		if removedCurrent {
+			m.playback.currentIndex = -1
+		} else {
+			m.playback.currentIndex -= removedBefore
+		}
+	}
+	if qr, ok := m.player.(playerQueueRemover); ok {
+		for i := len(removedPlayerIndices) - 1; i >= 0; i-- {
+			_ = qr.RemoveFromQueue(removedPlayerIndices[i])
+		}
+	}
+	if len(m.queue.entries) == 0 || (m.playback.currentHash != "" && !queueContainsHash(m.queue.entries, m.playback.currentHash)) {
+		m = m.resetPlaybackState()
+	}
+	n := a.count
+	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: removed %d pasted %s", n, pluralize(n, "track", "tracks")))
+	return m, nil
+}
+
 // --- undoDeletePlaylistAction ---
 
 // undoDeletePlaylistAction reverts a playlist soft-delete (undoKindDeletePlaylist).

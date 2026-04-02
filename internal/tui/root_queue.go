@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -578,6 +579,78 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 	case actionFocusNowPlaying:
 		m.queue = m.queue.FocusNowPlaying(m.playback.currentIndex)
 		return m, nil, true
+	case actionYank:
+		filtered := m.queue.filteredEntries()
+		if len(filtered) == 0 {
+			return m, nil, true
+		}
+		if m.queue.hasSelection() {
+			var buf []QueueEntry
+			for _, e := range m.queue.entries {
+				if e.Selected {
+					buf = append(buf, e)
+				}
+			}
+			m.yankBuffer = buf
+		} else if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
+			e := filtered[m.queue.cursor]
+			idx := m.queue.realEntryIndex(e)
+			m.yankBuffer = []QueueEntry{m.queue.entries[idx]}
+		}
+		if n := len(m.yankBuffer); n > 0 {
+			m.statusBar.notification = newNotification(fmt.Sprintf("Yanked %d track(s)", n))
+		}
+		return m, nil, true
+
+	case actionPaste:
+		if len(m.yankBuffer) == 0 {
+			m.statusBar.notification = newNotification("Nothing to paste")
+			return m, nil, true
+		}
+		if m.queue.displayOrder != nil || m.queue.filter.Text != "" {
+			m.statusBar.notification = newNotification("Cannot paste while sorted/filtered")
+			return m, nil, true
+		}
+		if m.queueWriter == nil {
+			return m, nil, true
+		}
+		insertPos := m.queue.cursor + 1
+		if insertPos > len(m.queue.entries) {
+			insertPos = len(m.queue.entries)
+		}
+		buf := make([]QueueEntry, len(m.yankBuffer))
+		copy(buf, m.yankBuffer)
+		writer := m.queueWriter
+		return m, func() tea.Msg {
+			var entries []QueueEntry
+			for _, e := range buf {
+				t := library.Track{
+					Path:     e.Path,
+					Hash:     e.Hash,
+					Artist:   e.Artist,
+					Title:    e.Title,
+					Album:    e.Album,
+					Duration: float64(e.DurationMs) / 1000,
+				}
+				id, err := writer.AppendTrack(t, e.SourcePlaylist)
+				if err != nil {
+					return QueuePastedMsg{Err: err}
+				}
+				entries = append(entries, QueueEntry{
+					ID:             id,
+					Path:           e.Path,
+					Hash:           e.Hash,
+					Display:        e.Display,
+					Artist:         e.Artist,
+					Title:          e.Title,
+					Album:          e.Album,
+					DurationMs:     e.DurationMs,
+					SourcePlaylist: e.SourcePlaylist,
+				})
+			}
+			return QueuePastedMsg{Entries: entries, InsertPos: insertPos}
+		}, true
+
 	case actionSaveQueueAsPlaylist:
 		if len(m.queue.entries) == 0 {
 			m.statusBar.notification = newNotification("Queue is empty — nothing to save")
@@ -588,4 +661,50 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 	return m, nil, false
+}
+
+// handleQueuePastedMsg splices pasted entries into the queue, syncs the player,
+// and adjusts the playback index.
+func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
+	if msg.Err != nil {
+		m.statusBar.notification = newNotification("Paste failed: " + msg.Err.Error())
+		player.PlaySound(player.SoundError)
+		return m
+	}
+	if len(msg.Entries) == 0 {
+		return m
+	}
+	insertPos := msg.InsertPos
+	if insertPos > len(m.queue.entries) {
+		insertPos = len(m.queue.entries)
+	}
+	newEntries := make([]QueueEntry, 0, len(m.queue.entries)+len(msg.Entries))
+	newEntries = append(newEntries, m.queue.entries[:insertPos]...)
+	newEntries = append(newEntries, msg.Entries...)
+	newEntries = append(newEntries, m.queue.entries[insertPos:]...)
+	m.queue.entries = newEntries
+	m = m.resetQueueSort()
+	if m.playback.currentIndex >= 0 && insertPos <= m.playback.currentIndex {
+		m.playback.currentIndex += len(msg.Entries)
+	}
+	m.syncPlayerQueue()
+	m.queue.cursor = insertPos + len(msg.Entries) - 1
+	maxRows := m.queue.visibleRows()
+	if maxRows > 0 && m.queue.cursor >= m.queue.scrollOffset+maxRows {
+		m.queue.scrollOffset = m.queue.cursor - maxRows + 1
+	}
+	// Set up undo slot so the user can revert the paste.
+	pastedIDs := make([]int64, len(msg.Entries))
+	for i, e := range msg.Entries {
+		pastedIDs[i] = e.ID
+	}
+	if m.undo.slot.cancelPurge != nil {
+		close(m.undo.slot.cancelPurge)
+	}
+	m.setUndoSlot(undoPasteAction{
+		ids:   pastedIDs,
+		count: len(msg.Entries),
+	}, nil)
+	player.PlaySound(player.SoundEnqueued)
+	return m
 }

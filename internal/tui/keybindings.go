@@ -84,6 +84,8 @@ const (
 	actionMoveTrackDown       // 'J': move selected track one position later
 	actionSaveQueueAsPlaylist // 'S': save entire queue as a new playlist
 	actionFocusNowPlaying     // 'f': jump cursor to the currently playing track
+	actionYank                // ctrl+y: copy focused/selected tracks to yank buffer
+	actionPaste               // ctrl+p: paste yanked tracks below cursor
 
 	// Playlists-local actions.
 	actionPlaylistRename
@@ -218,6 +220,8 @@ func newRegistry() Registry {
 	r.register(contextQueue, "J", actionMoveTrackDown)
 	r.register(contextQueue, "S", actionSaveQueueAsPlaylist)
 	r.register(contextQueue, "f", actionFocusNowPlaying)
+	r.register(contextQueue, "ctrl+y", actionYank)
+	r.register(contextQueue, "ctrl+p", actionPaste)
 
 	// Playlists-local bindings.
 	// 'r' is bound to rename here, shadowing the global repeat-cycle binding

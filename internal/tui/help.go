@@ -215,6 +215,8 @@ func helpSections() []helpSection {
 				{"K / J", "Move track up / down"},
 				{"f", "Focus now-playing track"},
 				{"S", "Save queue as playlist"},
+			{"ctrl+y", "Yank (copy) focused / selected tracks"},
+			{"ctrl+p", "Paste yanked tracks below cursor"},
 			},
 		},
 		{

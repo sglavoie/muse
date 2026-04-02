@@ -166,7 +166,8 @@ type Model struct {
 	scanWriter      scanUpsertBatcher // may be nil; set via WithScanWriter
 	upsertBatchSize int               // batch size for scan DB writes; set via WithScanWriter
 
-	undo undoInfo // reversible undo slot and pending confirmation flags
+	undo       undoInfo      // reversible undo slot and pending confirmation flags
+	yankBuffer []QueueEntry // clipboard for queue yank/paste; persists until next yank
 
 	// missingTrackCount tracks how many queue entries were skipped due to
 	// missing files during the current playback session. Reset when playback
@@ -680,6 +681,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case MoveTrackDownMsg:
 		return m.handleMoveTrackDownMsg(msg)
+
+	case QueuePastedMsg:
+		m = m.handleQueuePastedMsg(msg)
 
 	case TransientNotifyMsg:
 		m.statusBar.notification = newNotification(string(msg))

@@ -27,6 +27,7 @@ const (
 	undoKindBulkRemoveFavorites               // multiple favorites bulk-removed (Favorites view)
 	undoKindAddFavorite                       // single favorite added (any non-Favorites view)
 	undoKindBulkAddFavorites                  // multiple favorites bulk-added (any non-Favorites view)
+	undoKindPaste                             // tracks pasted into queue via ctrl+p
 )
 
 // undoSlot holds the reversible state for the most recent destructive action.
@@ -180,6 +181,14 @@ type MoveTrackUpMsg struct {
 // queue view to move the entry at Index one position later.
 type MoveTrackDownMsg struct {
 	Index int
+}
+
+// QueuePastedMsg carries the result of a paste operation. The entries have
+// fresh DB IDs and are ready to be spliced into the in-memory queue.
+type QueuePastedMsg struct {
+	Entries   []QueueEntry
+	InsertPos int   // position in entries slice to insert at
+	Err       error
 }
 
 // TransientNotifyMsg carries a short message to display in the status bar as a
