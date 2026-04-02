@@ -1,0 +1,249 @@
+package player
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
+	"os"
+	"sync"
+	"testing"
+	"time"
+)
+
+func TestCleanStaleSocket_NoFile(t *testing.T) {
+	path := shortSockPath(t, "stale-nofile")
+	if err := cleanStaleSocket(path); err != nil {
+		t.Fatalf("expected nil for missing socket, got %v", err)
+	}
+}
+
+func TestCleanStaleSocket_StaleSocket(t *testing.T) {
+	path := shortSockPath(t, "stale-orphan")
+
+	// Create a listener then close it — the socket file remains.
+	ln, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln.Close()
+
+	if err := cleanStaleSocket(path); err != nil {
+		t.Fatalf("expected nil (stale socket removed), got %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatal("stale socket file should have been removed")
+	}
+}
+
+func TestCleanStaleSocket_LiveSocket(t *testing.T) {
+	path := shortSockPath(t, "stale-live")
+
+	ln, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		ln.Close()
+		os.Remove(path)
+	}()
+
+	// Accept connections so the dial in cleanStaleSocket succeeds.
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			conn.Close()
+		}
+	}()
+
+	if err := cleanStaleSocket(path); err == nil {
+		t.Fatal("expected error for live socket, got nil")
+	}
+}
+
+func TestNewManager_SocketPath(t *testing.T) {
+	want := shortSockPath(t, "mgr-sockpath")
+	m := NewManager(want)
+	defer m.Close()
+
+	if m.SocketPath() != want {
+		t.Fatalf("socket path = %q, want %q", m.SocketPath(), want)
+	}
+}
+
+func TestManager_ErrNotConnected(t *testing.T) {
+	m := NewManager(shortSockPath(t, "mgr-noconn"))
+	defer m.Close()
+
+	// Without calling Start (or before the socket is ready), all Player
+	// methods must return ErrNotConnected.
+	checks := []struct {
+		name string
+		fn   func() error
+	}{
+		{"Play", m.Play},
+		{"Pause", m.Pause},
+		{"Stop", m.Stop},
+		{"SeekRelative", func() error { return m.SeekRelative(5) }},
+		{"SetVolumeRelative", func() error { return m.SetVolumeRelative(5) }},
+		{"Next", m.Next},
+		{"Previous", m.Previous},
+	}
+	for _, tc := range checks {
+		if err := tc.fn(); !errors.Is(err, ErrNotConnected) {
+			t.Errorf("%s: want ErrNotConnected, got %v", tc.name, err)
+		}
+	}
+}
+
+func TestManager_QueueDrainOnConnect(t *testing.T) {
+	sock := shortSockPath(t, "mgr-drain")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{
+		socketPath:     sock,
+		ctx:            ctx,
+		cancel:         cancel,
+		callbacksReady: make(chan struct{}),
+	}
+	defer m.Close()
+
+	// Collect status messages emitted by the manager.
+	var statusMsgs []string
+	m.SetEventCallbacks(EventCallbacks{OnStatus: func(msg string) {
+		statusMsgs = append(statusMsgs, msg)
+	}})
+
+	// Simulate Start() by initialising the queue without launching mpv.
+	m.mu.Lock()
+	m.cmdQueue = []func() error{}
+	m.mu.Unlock()
+
+	// Queue Play and Pause before the server is ready.
+	if err := m.Play(); err != nil {
+		t.Fatalf("Play before ready: want nil (queued), got %v", err)
+	}
+	if err := m.Pause(); err != nil {
+		t.Fatalf("Pause before ready: want nil (queued), got %v", err)
+	}
+	if len(statusMsgs) != 2 {
+		t.Fatalf("expected 2 status messages, got %d: %v", len(statusMsgs), statusMsgs)
+	}
+	for _, msg := range statusMsgs {
+		if msg != "Connecting to mpv…" {
+			t.Errorf("unexpected status message %q", msg)
+		}
+	}
+
+	// Track commands received by the fake server.
+	var mu sync.Mutex
+	var received []string
+	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
+		if cmd, ok := req["command"].([]any); ok && len(cmd) > 0 {
+			mu.Lock()
+			received = append(received, fmt.Sprintf("%v", cmd[0]))
+			mu.Unlock()
+		}
+		return successHandler(req)
+	})
+
+	// pollUntilReady connects and drains the queue.
+	go m.pollUntilReady(ctx)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		n := len(received)
+		mu.Unlock()
+		if n >= 2 {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(received) < 2 {
+		t.Fatalf("expected 2 queued commands replayed, got %d: %v", len(received), received)
+	}
+}
+
+func TestManager_HealthCheckDetectsDisconnect(t *testing.T) {
+	sock := shortSockPath(t, "hc-disc")
+
+	os.Remove(sock)
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { ln.Close(); os.Remove(sock) })
+
+	// connClosed is closed after the server deliberately drops the connection.
+	connClosed := make(chan struct{})
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		// Handle two ping requests, then close the connection.
+		dec := json.NewDecoder(conn)
+		enc := json.NewEncoder(conn)
+		for range 2 {
+			var req map[string]any
+			if err := dec.Decode(&req); err != nil {
+				break
+			}
+			_ = enc.Encode(successHandler(req))
+		}
+		conn.Close()
+		close(connClosed)
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{
+		socketPath:   sock,
+		ctx:          ctx,
+		cancel:       cancel,
+		disconnectCh: make(chan error, 1),
+		pingInterval: 50 * time.Millisecond,
+	}
+	defer m.Close()
+
+	client, err := NewIPCClient(sock)
+	if err != nil {
+		t.Fatalf("NewIPCClient: %v", err)
+	}
+	m.mu.Lock()
+	m.client = client
+	m.mu.Unlock()
+
+	go m.healthCheck(ctx, client)
+
+	// Wait for the server to close the connection.
+	select {
+	case <-connClosed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("server did not close connection in time")
+	}
+
+	// The health-check goroutine must surface the disconnect within a few ping intervals.
+	select {
+	case gotErr := <-m.disconnectCh:
+		if gotErr == nil {
+			t.Error("expected non-nil disconnect error")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("health check did not detect disconnect within 1s")
+	}
+
+	m.mu.RLock()
+	c := m.client
+	m.mu.RUnlock()
+	if c != nil {
+		t.Error("expected m.client to be nil after disconnect")
+	}
+}
