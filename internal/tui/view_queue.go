@@ -28,6 +28,7 @@ type QueueEntry struct {
 	DurationMs     int64  // track duration in milliseconds from the database
 	Position       int64  // gapped-integer queue position from the database
 	SourcePlaylist string // playlist name this entry was enqueued from; empty for individual enqueues
+	origIdx        int    // index in the unfiltered/unsorted entries slice; set by filteredEntries
 }
 
 // QueueView renders the playback queue panel.
@@ -285,6 +286,7 @@ func (v QueueView) filteredEntries() []QueueEntry {
 			idx = v.displayOrder[i]
 		}
 		ordered[i] = v.entries[idx]
+		ordered[i].origIdx = idx
 	}
 
 	if v.filter.Text == "" {
@@ -303,16 +305,16 @@ func (v QueueView) filteredEntries() []QueueEntry {
 }
 
 // FocusNowPlaying moves the cursor to the entry whose Hash matches
-// currentTrackHash and adjusts the scroll offset to center it in the viewport.
-// Returns v unchanged if no match is found or hash is empty.
-func (v QueueView) FocusNowPlaying(currentTrackHash string) QueueView {
-	if currentTrackHash == "" {
+// currentPlayingIndex and adjusts the scroll offset to center it in the viewport.
+// Returns v unchanged if no match is found or index is negative.
+func (v QueueView) FocusNowPlaying(currentPlayingIndex int) QueueView {
+	if currentPlayingIndex < 0 {
 		return v
 	}
 	filtered := v.filteredEntries()
 	idx := -1
 	for i, e := range filtered {
-		if e.Hash == currentTrackHash {
+		if e.origIdx == currentPlayingIndex {
 			idx = i
 			break
 		}
@@ -370,7 +372,7 @@ func (v QueueView) visibleRows() int {
 // Proportional columns resize on WindowSizeMsg; fixed-width columns are
 // constant. Missing entries are wrapped in ANSI dim escape codes so they
 // appear grayed out in the terminal.
-func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes, favArtists, favAlbums map[string]struct{}) string {
+func (v QueueView) render(s styles.Styles, currentPlayingIndex int, favHashes, favArtists, favAlbums map[string]struct{}) string {
 	entries := v.filteredEntries()
 	if len(entries) == 0 {
 		if v.filter.Text != "" {
@@ -434,7 +436,7 @@ func (v QueueView) render(s styles.Styles, currentTrackHash string, favHashes, f
 		e := entries[absIdx]
 		isFocused := absIdx == v.cursor
 
-		isNowPlaying := currentTrackHash != "" && e.Hash == currentTrackHash
+		isNowPlaying := currentPlayingIndex >= 0 && e.origIdx == currentPlayingIndex
 
 		// Selection marker: matches Library and Playlists style.
 		// Now-playing track gets a "▶" marker when not bulk-selected.

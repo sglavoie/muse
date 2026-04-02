@@ -162,6 +162,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	m.statusBar.title = ""
 	m.statusBar.playlistSource = ""
 	m.playback.currentHash = ""
+	m.playback.currentIndex = -1
 	msg := "Queue finished"
 	if m.missingTrackCount > 0 {
 		msg = fmt.Sprintf("Queue finished (%d %s skipped — missing files)",
@@ -233,6 +234,7 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	previousTotal := m.playback.totalSecs
 
 	m.playback.currentHash = msg.Hash
+	m.playback.currentIndex = msg.Index
 	m.statusBar.artist = msg.Artist
 	m.statusBar.title = msg.Title
 	source := msg.PlaylistSource

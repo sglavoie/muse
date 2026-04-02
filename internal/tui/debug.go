@@ -99,16 +99,7 @@ func collectDebugInfo(m Model) DebugPanel {
 	p.queueLen = len(m.queue.entries)
 	p.missingCount = m.missingTrackCount
 
-	// Find current queue index by hash.
-	p.currentIndex = -1
-	if m.playback.currentHash != "" {
-		for i, e := range m.queue.entries {
-			if e.Hash == m.playback.currentHash {
-				p.currentIndex = i
-				break
-			}
-		}
-	}
+	p.currentIndex = m.playback.currentIndex
 
 	// Library & data.
 	p.trackTotal = m.library.index.Len()

@@ -437,7 +437,7 @@ func TestBackgroundColorMsgReconstructsStyles(t *testing.T) {
 		{Title: "Lost Track", Artist: "Ghost", Missing: true},
 	}
 	nm.queue.width = 80
-	rendered := nm.queue.render(*nm.styles, "", nil, nil, nil)
+	rendered := nm.queue.render(*nm.styles, -1, nil, nil, nil)
 
 	// The rendered output must show the "[missing]" label in the visible text.
 	if !strings.Contains(ansi.Strip(rendered), "[missing]") {

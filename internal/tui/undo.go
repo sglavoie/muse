@@ -57,6 +57,12 @@ func (a undoEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 		if qr, ok := m.player.(playerQueueRemover); ok {
 			_ = qr.RemoveFromQueue(realIdx) // player queue sync during undo, best-effort
 		}
+		// Adjust currentIndex after the removal.
+		if realIdx < m.playback.currentIndex {
+			m.playback.currentIndex--
+		} else if realIdx == m.playback.currentIndex {
+			m.playback.currentIndex = -1
+		}
 		// If the queue is now empty or the currently-playing track was the
 		// one removed, stop playback so the status bar doesn't show a stale
 		// track that is no longer in the queue.
@@ -95,6 +101,9 @@ func (a undoDequeueAction) perform(m Model) (Model, tea.Cmd) {
 	entries[idx] = a.entry
 	copy(entries[idx+1:], m.queue.entries[idx:])
 	m.queue.entries = entries
+	if m.playback.currentIndex >= 0 && idx <= m.playback.currentIndex {
+		m.playback.currentIndex++
+	}
 	m.queue.cursor = idx
 	// When a filter is active the cursor must index into the filtered
 	// results, not the underlying entries slice. Clamp it so it stays
@@ -181,6 +190,9 @@ func (a undoBulkDequeueAction) perform(m Model) (Model, tea.Cmd) {
 		entries[idx] = a.entries[i]
 		copy(entries[idx+1:], m.queue.entries[idx:])
 		m.queue.entries = entries
+		if m.playback.currentIndex >= 0 && idx <= m.playback.currentIndex {
+			m.playback.currentIndex++
+		}
 	}
 	m.clampQueueCursorAndScroll()
 	m.syncPlayerQueue()
@@ -233,6 +245,23 @@ func (a undoBatchEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 	}
 	m.queue.entries = kept
 	m.clampQueueCursorAndScroll()
+	// Recompute currentIndex: count how many removed entries were before it.
+	if m.playback.currentIndex >= 0 {
+		removedBefore := 0
+		removedCurrent := false
+		for _, ri := range removedPlayerIndices {
+			if ri < m.playback.currentIndex {
+				removedBefore++
+			} else if ri == m.playback.currentIndex {
+				removedCurrent = true
+			}
+		}
+		if removedCurrent {
+			m.playback.currentIndex = -1
+		} else {
+			m.playback.currentIndex -= removedBefore
+		}
+	}
 	if qr, ok := m.player.(playerQueueRemover); ok {
 		// Remove in reverse order so indices stay valid.
 		for i := len(removedPlayerIndices) - 1; i >= 0; i-- {

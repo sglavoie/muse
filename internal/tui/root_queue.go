@@ -63,6 +63,7 @@ func (m Model) resetPlaybackState() Model {
 	m.statusBar.title = ""
 	m.statusBar.playlistSource = ""
 	m.playback.currentHash = ""
+	m.playback.currentIndex = -1
 	m.missingTrackCount = 0
 	return m
 }
@@ -71,15 +72,10 @@ func (m Model) resetPlaybackState() Model {
 // inserted: immediately after the currently playing track. When nothing is
 // playing, it returns 0 (front of queue).
 func (m Model) playNextIndex() int {
-	if m.playback.currentHash == "" {
+	if m.playback.currentIndex < 0 || m.playback.currentIndex >= len(m.queue.entries) {
 		return 0
 	}
-	for i, e := range m.queue.entries {
-		if e.Hash == m.playback.currentHash {
-			return i + 1
-		}
-	}
-	return 0
+	return m.playback.currentIndex + 1
 }
 
 // handleTrackEnqueuedMsg adds a newly enqueued track to the queue, sets up an
@@ -115,6 +111,9 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 		m.queue.entries = entries
 		enqueueIdx = idx
 		slog.Debug("track play-next", "hash", msg.Track.Hash, "position", idx)
+		if m.playback.currentIndex >= 0 && idx <= m.playback.currentIndex {
+			m.playback.currentIndex++
+		}
 		m.syncPlayerQueue()
 	} else {
 		// Append to end (default enqueue).
@@ -213,6 +212,7 @@ func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
 	}
 	m.playback.state = PlaybackPlaying
 	m.playback.currentHash = hash
+	m.playback.currentIndex = 0
 	m.statusBar.artist = artist
 	m.statusBar.title = title
 	if source == "" {
@@ -230,6 +230,7 @@ func (m Model) handlePlayQueueIndexMsg(msg PlayQueueIndexMsg) Model {
 			if msg.Index < len(m.queue.entries) {
 				e := m.queue.entries[msg.Index]
 				m.playback.currentHash = e.Hash
+				m.playback.currentIndex = msg.Index
 				m.statusBar.artist = e.Artist
 				m.statusBar.title = e.Title
 				source := e.SourcePlaylist
@@ -241,6 +242,7 @@ func (m Model) handlePlayQueueIndexMsg(msg PlayQueueIndexMsg) Model {
 		} else {
 			m.playback.state = PlaybackIdle
 			m.playback.currentHash = ""
+			m.playback.currentIndex = -1
 			m.playback.elapsedSecs = 0
 			m.playback.totalSecs = 0
 			m.statusBar.artist = ""
@@ -287,11 +289,15 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 		if qr, ok := m.player.(playerQueueRemover); ok {
 			_ = qr.RemoveFromQueue(msg.Index) // player queue sync is best-effort, TUI is source of truth
 		}
+		// Adjust currentIndex after the removal so the rendering
+		// highlight stays on the correct entry.
+		if msg.Index < m.playback.currentIndex {
+			m.playback.currentIndex--
+		} else if msg.Index == m.playback.currentIndex {
+			m.playback.currentIndex = -1
+		}
 		// If the queue is now empty, or the currently-playing hash is no
 		// longer present in the remaining queue entries, stop playback.
-		// Comparing by hash presence (not entry identity) handles the case
-		// where the same track is enqueued multiple times: removing one
-		// instance does not stop playback if another instance remains.
 		if len(m.queue.entries) == 0 || (m.playback.currentHash != "" && !queueContainsHash(m.queue.entries, m.playback.currentHash)) {
 			m = m.resetPlaybackState()
 		}
@@ -405,6 +411,11 @@ func (m Model) handleMoveTrackUpMsg(msg MoveTrackUpMsg) (Model, tea.Cmd) {
 		m = m.resetQueueSort()
 		slog.Debug("track reordered", "hash", entry.Hash, "from", msg.Index, "to", msg.Index-1)
 		m.syncPlayerQueue()
+		if m.playback.currentIndex == msg.Index {
+			m.playback.currentIndex = msg.Index - 1
+		} else if m.playback.currentIndex == msg.Index-1 {
+			m.playback.currentIndex = msg.Index
+		}
 		if m.reorderer != nil {
 			r := m.reorderer
 			id := entry.ID
@@ -433,6 +444,11 @@ func (m Model) handleMoveTrackDownMsg(msg MoveTrackDownMsg) (Model, tea.Cmd) {
 		m = m.resetQueueSort()
 		slog.Debug("track reordered", "hash", entry.Hash, "from", msg.Index, "to", msg.Index+1)
 		m.syncPlayerQueue()
+		if m.playback.currentIndex == msg.Index {
+			m.playback.currentIndex = msg.Index + 1
+		} else if m.playback.currentIndex == msg.Index+1 {
+			m.playback.currentIndex = msg.Index
+		}
 		if m.reorderer != nil {
 			r := m.reorderer
 			id := entry.ID
@@ -560,7 +576,7 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 		m.queue, cmd = m.queue.HandleAction(action)
 		return m, cmd, true
 	case actionFocusNowPlaying:
-		m.queue = m.queue.FocusNowPlaying(m.playback.currentHash)
+		m.queue = m.queue.FocusNowPlaying(m.playback.currentIndex)
 		return m, nil, true
 	case actionSaveQueueAsPlaylist:
 		if len(m.queue.entries) == 0 {

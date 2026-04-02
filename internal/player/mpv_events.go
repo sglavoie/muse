@@ -81,7 +81,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			m.mu.RUnlock()
 			if fn != nil && idx >= 0 && idx < len(q) {
 				t := q[idx]
-				fn(t.Hash, t.Artist, t.Title, t.Source)
+				fn(t.Hash, t.Artist, t.Title, t.Source, idx)
 			}
 		case "end-file":
 			reason, _ := raw["reason"].(string)

@@ -51,13 +51,14 @@ type undoInfo struct {
 
 // playbackInfo groups the fields that describe the current playback state.
 type playbackInfo struct {
-	state       PlaybackState
-	repeatMode  RepeatMode
-	shuffle     bool
-	volume      int
-	currentHash string
-	elapsedSecs float64
-	totalSecs   float64
+	state        PlaybackState
+	repeatMode   RepeatMode
+	shuffle      bool
+	volume       int
+	currentHash  string
+	currentIndex int // index into queue entries; -1 = nothing playing
+	elapsedSecs  float64
+	totalSecs    float64
 }
 
 // Model is the root Bubble Tea v2 model. It manages view switching between
@@ -202,6 +203,7 @@ func New(ctx context.Context, opts ...Option) Model {
 		activeView:    viewLibrary,
 		cfg:           config.Defaults(),
 		library:       LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
+		playback:      playbackInfo{currentIndex: -1},
 		recentlyAdded: newRecentlyAddedView(),
 		registry:      newRegistry(),
 		styles:        &initialStyles,

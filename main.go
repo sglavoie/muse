@@ -201,8 +201,8 @@ func runTUI(ctx context.Context) error {
 		OnStatus:        func(s string) { p.Send(tui.PlayerStatusMsg{Text: s}) },
 		OnMissingFile:   func(path string) { p.Send(tui.MissingTrackMsg{Path: path}) },
 		OnPlaybackEnded: func() { p.Send(tui.PlaybackEndedMsg{}) },
-		OnTrackChanged: func(hash, artist, title, source string) {
-			p.Send(tui.TrackChangedMsg{Hash: hash, Artist: artist, Title: title, PlaylistSource: source})
+		OnTrackChanged: func(hash, artist, title, source string, index int) {
+			p.Send(tui.TrackChangedMsg{Hash: hash, Artist: artist, Title: title, PlaylistSource: source, Index: index})
 		},
 		OnPauseChanged: func(paused bool) { p.Send(tui.PauseChangedMsg{Paused: paused}) },
 		OnDisconnected: func() { p.Send(tui.PlayerDisconnectedMsg{}) },

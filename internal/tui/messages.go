@@ -240,6 +240,7 @@ type TrackChangedMsg struct {
 	Title          string
 	PlaylistSource string // "Queue" or a named playlist name; defaults to "Queue" if empty
 	Hash           string // content hash of the new track; used for session persistence
+	Index          int    // queue index of the new track; used for now-playing highlight
 }
 
 // favoriteToggledMsg carries the result of a single favorite toggle operation.

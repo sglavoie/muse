@@ -681,19 +681,19 @@ func TestPlayNextIndexReturnsCorrectPosition(t *testing.T) {
 	}
 
 	tests := []struct {
-		name        string
-		currentHash string
-		want        int
+		name         string
+		currentIndex int
+		want         int
 	}{
-		{"nothing playing", "", 0},
-		{"playing first", "h1", 1},
-		{"playing middle", "h2", 2},
-		{"playing last", "h3", 3},
-		{"hash not found", "unknown", 0},
+		{"nothing playing", -1, 0},
+		{"playing first", 0, 1},
+		{"playing middle", 1, 2},
+		{"playing last", 2, 3},
+		{"index out of range", 99, 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m.playback.currentHash = tt.currentHash
+			m.playback.currentIndex = tt.currentIndex
 			got := m.playNextIndex()
 			if got != tt.want {
 				t.Errorf("playNextIndex()=%d, want %d", got, tt.want)

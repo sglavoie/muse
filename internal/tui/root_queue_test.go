@@ -76,7 +76,7 @@ func TestQueueViewRendersMissingEntryDimmed(t *testing.T) {
 		},
 	}
 	s := styles.NewStyles(true)
-	got := q.render(s, "", nil, nil, nil)
+	got := q.render(s, -1, nil, nil, nil)
 	if !strings.Contains(got, "[missing]") {
 		t.Fatalf("missing entry must include [missing] label; got:\n%s", got)
 	}
@@ -1471,6 +1471,7 @@ func TestFocusNowPlayingMovesCursorToCurrentTrack(t *testing.T) {
 		{Path: "/music/e.flac", Hash: "eee", Display: "E"},
 	}
 	m.playback.currentHash = "ccc"
+	m.playback.currentIndex = 2
 	m.queue.cursor = 0 // cursor starts at top
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'f', Text: "f"})
@@ -1992,7 +1993,7 @@ func TestQueueRenderNarrowWidthUsesMax(t *testing.T) {
 		height: 10,
 	}
 	// Render should not panic even with a very narrow width.
-	got := v.render(s, "", nil, nil, nil)
+	got := v.render(s, -1, nil, nil, nil)
 	if got == "" {
 		t.Error("render must produce non-empty output even with narrow width")
 	}

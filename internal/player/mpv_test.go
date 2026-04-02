@@ -1560,7 +1560,7 @@ func TestManager_SetEventCallbacks(t *testing.T) {
 	m.SetEventCallbacks(EventCallbacks{
 		OnMissingFile:   func(_ string) { missingCalled = true },
 		OnPlaybackEnded: func() { endedCalled = true },
-		OnTrackChanged: func(h, a, tl, src string) {
+		OnTrackChanged: func(h, a, tl, src string, _ int) {
 			gotHash, gotArtist, gotTitle, gotSource = h, a, tl, src
 		},
 	})
@@ -1588,7 +1588,7 @@ func TestManager_SetEventCallbacks(t *testing.T) {
 	if cb.OnTrackChanged == nil {
 		t.Fatal("OnTrackChanged not set")
 	}
-	cb.OnTrackChanged("h1", "Artist", "Title", "My Playlist")
+	cb.OnTrackChanged("h1", "Artist", "Title", "My Playlist", 0)
 	if gotHash != "h1" || gotArtist != "Artist" || gotTitle != "Title" || gotSource != "My Playlist" {
 		t.Errorf("OnTrackChanged args: got (%q, %q, %q, %q)", gotHash, gotArtist, gotTitle, gotSource)
 	}
@@ -1815,7 +1815,7 @@ func TestManager_EventReaderBlocksOnCallbacksReady(t *testing.T) {
 		callbacksReady: make(chan struct{}),
 		queue:          []QueueTrack{{Path: "/a.flac", Hash: "h0", Artist: "Art", Title: "Tit"}},
 		currentIndex:   0,
-		callbacks:      EventCallbacks{OnTrackChanged: func(_, _, _, _ string) { trackFired <- struct{}{} }},
+		callbacks:      EventCallbacks{OnTrackChanged: func(_, _, _, _ string, _ int) { trackFired <- struct{}{} }},
 	}
 
 	go m.startEventReader(ctx)
