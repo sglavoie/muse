@@ -380,6 +380,12 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 				m.recentlyAdded.scrollOffset = 0
 				m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
 			}
+		case viewQueue:
+			if m.queue.filter.Text != "" {
+				m.queue.filter = m.queue.filter.Deactivate()
+				m.queue.cursor = 0
+				m.queue.scrollOffset = 0
+			}
 		}
 		return m, nil, true
 	case actionLibraryEnqueue:

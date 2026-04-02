@@ -208,6 +208,7 @@ func helpSections() []helpSection {
 			context: contextQueue,
 			entries: []helpEntry{
 				{"/", "Filter queue"},
+				{"esc", "Clear committed filter"},
 				{"enter", "Play selected track"},
 				{"d", "Remove selected track"},
 				{"x", "Toggle bulk selection"},

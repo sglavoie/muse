@@ -235,6 +235,9 @@ func New(ctx context.Context, opts ...Option) Model {
 // Volume returns the current volume level as an integer percentage.
 func (m Model) Volume() int { return m.playback.volume }
 
+// PlaybackCurrentIndex returns the current queue index for the playing track.
+func (m Model) PlaybackCurrentIndex() int { return m.playback.currentIndex }
+
 // StatusBarArtist returns the current status bar artist string.
 func (m Model) StatusBarArtist() string { return m.statusBar.artist }
 

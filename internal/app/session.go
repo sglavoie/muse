@@ -110,6 +110,7 @@ func ApplyRestoredSession(
 		for i, pt := range restored.PlayerTracks {
 			if pt.Hash == restored.CurrentHash {
 				mgr.SetCurrentIndex(i)
+				tui.WithCurrentIndex(i)(model)
 				// Populate status bar from the queue entry so the first
 				// render shows track metadata instead of an empty bar.
 				if i < len(restored.QueueEntries) {

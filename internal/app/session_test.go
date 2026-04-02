@@ -137,6 +137,11 @@ func TestApplyRestoredSession_FullSession(t *testing.T) {
 		t.Errorf("currentIndex = %d (set=%v), want 1 (set=true)", mgr.currentIndex, mgr.indexSet)
 	}
 
+	// TUI model's currentIndex should also be set so FocusNowPlaying works.
+	if got := model.PlaybackCurrentIndex(); got != 1 {
+		t.Errorf("model PlaybackCurrentIndex = %d, want 1", got)
+	}
+
 	// Status bar populated from the current track's queue entry.
 	if got := model.StatusBarArtist(); got != "Artist B" {
 		t.Errorf("status bar artist = %q, want %q", got, "Artist B")

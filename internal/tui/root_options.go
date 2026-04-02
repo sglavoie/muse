@@ -239,6 +239,12 @@ func WithCurrentTrackHash(hash string) Option {
 	return func(m *Model) { m.playback.currentHash = hash }
 }
 
+// WithCurrentIndex pre-sets the current queue index so that
+// FocusNowPlaying works immediately after session restore.
+func WithCurrentIndex(index int) Option {
+	return func(m *Model) { m.playback.currentIndex = index }
+}
+
 // WithStatusBarTrack pre-sets the status bar track metadata so the first
 // render after session restore shows artist, title, and playlist source.
 func WithStatusBarTrack(artist, title, source string) Option {

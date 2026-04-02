@@ -224,6 +224,7 @@ func newRegistry() Registry {
 	r.register(contextQueue, "f", actionFocusNowPlaying)
 	r.register(contextQueue, "ctrl+y", actionYank)
 	r.register(contextQueue, "ctrl+p", actionPaste)
+	r.register(contextQueue, "esc", actionLibraryFilterClear)
 
 	// Playlists-local bindings.
 	// 'r' is bound to rename here, shadowing the global repeat-cycle binding

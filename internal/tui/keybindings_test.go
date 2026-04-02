@@ -173,6 +173,16 @@ func TestLibraryEscResolvesToFilterClear(t *testing.T) {
 	}
 }
 
+// TestQueueEscResolvesToFilterClear verifies that 'esc' in the queue
+// context resolves to actionLibraryFilterClear.
+func TestQueueEscResolvesToFilterClear(t *testing.T) {
+	reg := newRegistry()
+	got := reg.resolve(contextQueue, "esc")
+	if got != actionLibraryFilterClear {
+		t.Errorf("resolve(contextQueue, \"esc\") = %v, want actionLibraryFilterClear", got)
+	}
+}
+
 // TestDebugGlobalBinding verifies that 'ctrl+g' resolves to actionDebug in
 // the global context.
 func TestDebugGlobalBinding(t *testing.T) {
