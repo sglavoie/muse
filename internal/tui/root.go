@@ -559,26 +559,7 @@ func (m *Model) clampAllScrollOffsets() {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.termWidth = msg.Width
-		m.termHeight = msg.Height
-		m.setViewDimensions(msg.Width, msg.Height)
-		m.clampAllScrollOffsets()
-		if m.helpVisible {
-			m.helpViewport.SetWidth(msg.Width)
-			extraLines := 0
-			if m.helpSearchFilter.Active || m.helpSearchFilter.Text != "" {
-				extraLines = 1
-			}
-			m.helpViewport.SetHeight(max(msg.Height-2-extraLines, 0))
-		}
-		if m.debugVisible {
-			m.debugViewport.SetWidth(msg.Width)
-			m.debugViewport.SetHeight(max(msg.Height-2, 0))
-		}
-		if m.statsVisible {
-			m.statsViewport.SetWidth(msg.Width)
-			m.statsViewport.SetHeight(max(msg.Height-3, 0))
-		}
+		m = m.handleWindowSizeMsg(msg)
 
 	case tea.BackgroundColorMsg:
 		s := styles.NewStyles(msg.IsDark())
@@ -707,57 +688,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.handleSettingsSavedMsg(msg)
 
 	case tea.KeyPressMsg:
-		// Dismiss the first-run config notice on any keypress.
-		m.configCreated = false
-
-		if m, cmd, ok := m.handleHelpKeyPress(msg); ok {
-			return m, cmd
-		}
-		if m, cmd, ok := m.handleDebugKeyPress(msg); ok {
-			return m, cmd
-		}
-		if m, cmd, ok := m.handleStatsKeyPress(msg); ok {
-			return m, cmd
-		}
-		if m, cmd, ok := m.handleSettingsKeyPress(msg); ok {
-			return m, cmd
-		}
-		if m, cmd, ok := m.handleNowPlayingKeyPress(msg); ok {
-			return m, cmd
-		}
-		if m, cmd, ok := m.handleTrackInfoKeyPress(msg); ok {
-			return m, cmd
-		}
-		if m, cmd, ok := m.handlePreviewKeyPress(msg); ok {
-			return m, cmd
-		}
-		if m, cmd, ok := m.handleMetadataEditorKeyPress(msg); ok {
-			return m, cmd
-		}
-		if m, cmd, ok := m.handleSmartRuleEditorKeyPress(msg); ok {
-			return m, cmd
-		}
-		// Filter bar interception (root_filter.go).
-		if model, cmd, ok := m.handleFilterKeyPress(msg); ok {
-			return model, cmd
-		}
-		// Playlist inline input interception (root_playlists.go).
-		if model, cmd, ok := m.handlePlaylistCreateInput(msg); ok {
-			return model, cmd
-		}
-		if model, cmd, ok := m.handlePlaylistRenameInput(msg); ok {
-			return model, cmd
-		}
-		if model, cmd, ok := m.handleQueueSaveInput(msg); ok {
-			return model, cmd
-		}
-		if m, cmd, ok := m.handleGoToKeyPress(msg); ok {
-			return m, cmd
-		}
-		if m, cmd, ok := m.handleDestPickerKeyPress(msg); ok {
-			return m, cmd
-		}
-		return m.handleKeyAction(m.registry.resolve(m.activeViewContext(), msg.String()))
+		return m.handleKeyPressMsg(msg)
 
 	// --- Playlist messages (root_playlists.go) ---
 
@@ -850,9 +781,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleDestinationPickedMsg(msg)
 
 	default:
-		if m, cmd, ok := m.forwardToActiveInput(msg); ok {
-			return m, cmd
-		}
+		return m.handleUnhandledMsg(msg)
 	}
 	return m, nil
 }

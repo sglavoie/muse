@@ -71,6 +71,33 @@ func TestUpdateEscDoesNotQuit(t *testing.T) {
 	}
 }
 
+func TestUpdateKeyPressDismissesConfigCreatedNotice(t *testing.T) {
+	m := New(context.Background())
+	m.configCreated = true
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
+	nm := next.(Model)
+
+	if nm.configCreated {
+		t.Fatal("keypress should dismiss first-run config notice before routing")
+	}
+	if !nm.helpVisible {
+		t.Fatal("keypress should still route normally after dismissing config notice")
+	}
+}
+
+func TestHandleUnhandledMsgForwardsToActiveInput(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewQueue
+	m.queue = m.queue.startSaveAsPlaylist(false)
+
+	next, _ := m.handleUnhandledMsg(tea.KeyPressMsg{Code: 'n', Text: "n"})
+	nm := next.(Model)
+	if got := nm.queue.saveInput.Value(); got != "n" {
+		t.Fatalf("expected forwarded message to update queue save input, got %q", got)
+	}
+}
+
 func TestViewReturnsTeaView(t *testing.T) {
 	m := New(context.Background())
 	v := m.View()
