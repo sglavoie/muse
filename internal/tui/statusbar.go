@@ -126,23 +126,25 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	// r renders plain text with the StatusBar background+foreground.
 	r := func(s string) string { return barText.Render(s) }
 
-	// --- Right side (always shown) ---
+	// --- Right side (notification badge, right-aligned) ---
+	notif := st.StatusNotification
+	notifErr := st.StatusNotificationError
 	var rightSegments []string
 	if s.configCreated {
-		rightSegments = append(rightSegments, r(fmt.Sprintf("config created: %s", s.configPath)))
+		rightSegments = append(rightSegments, notif.Render(fmt.Sprintf(" config created: %s ", s.configPath)))
 	}
 	if s.watchDegraded {
-		rightSegments = append(rightSegments, barWarning.Render("File watcher unavailable — press r to rescan manually"))
+		rightSegments = append(rightSegments, notifErr.Render(" File watcher unavailable — press r to rescan manually "))
 	}
 	if s.notification.msg != "" {
 		msg := s.notification.msg
 		if strings.HasPrefix(msg, "Error:") {
-			rightSegments = append(rightSegments, barError.Render(msg))
+			rightSegments = append(rightSegments, notifErr.Render(" "+msg+" "))
 		} else {
-			rightSegments = append(rightSegments, r(msg))
+			rightSegments = append(rightSegments, notif.Render(" "+msg+" "))
 		}
 	}
-	right := strings.Join(rightSegments, r("  |  "))
+	right := strings.Join(rightSegments, r(" "))
 
 	// rightWidth is the visible width of the right zone for truncation math.
 	rightWidth := ansi.StringWidth(right)
@@ -158,16 +160,34 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 		return content
 	}
 
+	// rightAlign builds a full-width line with left content and right-aligned notification.
+	rightAlign := func(left string) string {
+		if rightWidth == 0 {
+			return pad(left)
+		}
+		if width == 0 {
+			// Unconstrained: append notification after a small gap.
+			if left == "" {
+				return right
+			}
+			return left + r("  ") + right
+		}
+		leftW := ansi.StringWidth(left)
+		gap := width - leftW - rightWidth
+		if gap > 0 {
+			return left + r(strings.Repeat(" ", gap)) + right
+		}
+		// Terminal too narrow — just concatenate and pad.
+		return pad(left + right)
+	}
+
 	// --- Persistent left zone ---
 	if s.playbackState == PlaybackIdle && s.queueEmpty {
 		hint := r("Queue is empty — press 1 to browse Library")
-		if right != "" {
-			return pad(hint + r("  |  ") + right)
-		}
-		return pad(hint)
+		return rightAlign(hint)
 	}
 	if s.playbackState == PlaybackIdle && s.artist == "" && s.title == "" {
-		return pad(right)
+		return rightAlign("")
 	}
 
 	stateIcon := ""
@@ -242,11 +262,11 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	title := s.title
 	if width > 0 && s.title != "" {
 		// Calculate how many runes are available for the title.
-		// Full line: prefix + sep + title + suffix + timeDisplay + "  |  " + right
-		const sepStr = "  |  "
+		// Full line: prefix + sep + title + suffix + timeDisplay + gap(min 2) + right
+		const minGap = 2
 		fixedWidth := prefixWidth + sepWidth +
 			suffixWidth + timeDisplayWidth +
-			ansi.StringWidth(sepStr) + rightWidth
+			minGap + rightWidth
 		available := width - fixedWidth
 		title = truncateTitle(s.title, available)
 	}
@@ -267,7 +287,7 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	left := strings.Join(parts, "")
 
 	if ansi.StringWidth(left) == 0 {
-		return pad(right)
+		return rightAlign("")
 	}
-	return pad(left + r("  |  ") + right)
+	return rightAlign(left)
 }

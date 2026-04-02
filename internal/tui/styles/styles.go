@@ -23,8 +23,10 @@ type Styles struct {
 	FavArtistAccent     lipgloss.Style // accent background + purple foreground for focused favorited artists
 	FavAlbumAccent      lipgloss.Style // accent background + cyan foreground for focused favorited albums
 	ColHead             lipgloss.Style // bold + faint for column headers
-	StatusBar           lipgloss.Style // full-width status bar background + foreground
-	Badge               lipgloss.Style // single-char badge with lighter background (title bar view numbers)
+	StatusBar               lipgloss.Style // full-width status bar background + foreground
+	StatusNotification      lipgloss.Style // notification badge: amber on contrasting bg
+	StatusNotificationError lipgloss.Style // error notification: red on contrasting bg
+	Badge                   lipgloss.Style // single-char badge with lighter background (title bar view numbers)
 	HasDark             bool
 }
 
@@ -54,8 +56,10 @@ func NewStyles(hasDark bool) Styles {
 		FavArtistAccent:     lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#2c3e50"))).Foreground(ld(lipgloss.Color("#a626a4"), lipgloss.Color("#c678dd"))),
 		FavAlbumAccent:      lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#2c3e50"))).Foreground(ld(lipgloss.Color("#0184bc"), lipgloss.Color("#56b6c2"))),
 		ColHead:             lipgloss.NewStyle().Bold(true).Faint(true).UnderlineStyle(lipgloss.UnderlineDotted),
-		StatusBar:           lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),
-		Badge:               lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),
+		StatusBar:               lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),
+		StatusNotification:      lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#3b4252"))).Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
+		StatusNotificationError: lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#3b4252"))).Foreground(ld(lipgloss.Color("#e45649"), lipgloss.Color("#e06c75"))),
+		Badge:                   lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),
 		HasDark:             hasDark,
 	}
 }
