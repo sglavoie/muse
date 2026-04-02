@@ -121,7 +121,10 @@ func (m Model) handleFilterBarMsg() (Model, tea.Cmd) {
 	if ops.isActive() {
 		return ops.commit(), nil
 	}
-	return ops.activate()
+	// Activating the filter changes the visible list, so exit visual mode.
+	result, cmd := ops.activate()
+	result = exitVisualMode(result)
+	return result, cmd
 }
 
 // handleFilterKeyPress intercepts keypresses when a filter bar is active in

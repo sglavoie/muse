@@ -150,6 +150,7 @@ func (m Model) renderStatusBar() string {
 	sb.repeatMode = m.playback.repeatMode
 	sb.shuffle = m.playback.shuffle
 	sb.stopAfterCurrent = m.playback.stopAfterCurrent
+	sb.visualMode = m.visual.active
 	sb.configCreated = m.configCreated
 	sb.watchDegraded = m.watchDegraded
 	sb.queueEmpty = len(m.queue.entries) == 0

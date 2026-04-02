@@ -13,6 +13,13 @@ import (
 // Returns (model, cmd, true) when the action was consumed.
 func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 	switch action {
+	case actionVisualMode:
+		if m.visual.active {
+			m = exitVisualMode(m)
+		} else {
+			m = enterVisualMode(m)
+		}
+		return m, nil, true
 	case actionCursorUp, actionCursorDown,
 		actionHalfPageDown, actionHalfPageUp,
 		actionFullPageDown, actionFullPageUp,
@@ -35,7 +42,13 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 		default:
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)
+			if m.visual.active {
+				m = updateVisualSelection(m)
+			}
 			return m, cmd, true
+		}
+		if m.visual.active {
+			m = updateVisualSelection(m)
 		}
 		return m, nil, true
 	case actionBulkSelectionToggle:
@@ -96,6 +109,7 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 		}
 		return m, nil, true
 	case actionClearSelection:
+		m = exitVisualMode(m)
 		switch m.activeView {
 		case viewLibrary:
 			m.library = m.library.ClearSelection()

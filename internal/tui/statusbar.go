@@ -48,10 +48,11 @@ type StatusBar struct {
 	playlistSource string
 
 	// Playback mode fields — injected by renderStatusBar from the root Model.
-	playbackState PlaybackState
-	repeatMode    RepeatMode
+	playbackState    PlaybackState
+	repeatMode       RepeatMode
 	shuffle          bool
 	stopAfterCurrent bool
+	visualMode       bool
 	queueEmpty       bool
 
 	// elapsed and total are pre-formatted MM:SS strings injected by
@@ -226,6 +227,10 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	}
 	if s.stopAfterCurrent {
 		suffix += barBold.Render("  N")
+		suffixWidth += 2 + 1
+	}
+	if s.visualMode {
+		suffix += barBold.Render("  V")
 		suffixWidth += 2 + 1
 	}
 

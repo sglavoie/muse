@@ -169,6 +169,7 @@ type Model struct {
 	upsertBatchSize int               // batch size for scan DB writes; set via WithScanWriter
 
 	undo       undoInfo      // reversible undo slot and pending confirmation flags
+	visual     visualState  // Vim-like visual line selection mode state
 	yankBuffer []QueueEntry // clipboard for queue yank/paste; persists until next yank
 
 	// missingTrackCount tracks how many queue entries were skipped due to
@@ -836,6 +837,7 @@ func (m *Model) clearPendingConfirmations() {
 func (m Model) switchToView(id viewID) Model {
 	m.clearPendingConfirmations()
 	m = m.resetAllSorts()
+	m = exitVisualMode(m)
 	m.activeView = id
 	if id == viewArtists && len(m.artists.artists) == 0 {
 		m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())

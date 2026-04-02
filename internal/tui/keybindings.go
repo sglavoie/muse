@@ -81,6 +81,7 @@ const (
 	actionDequeue             // 'd': remove the selected track from the queue
 	actionBulkSelectionToggle // 'x': toggle bulk-selection on the selected entry
 	actionClearSelection      // 'X': clear all bulk-selected entries
+	actionVisualMode          // 'v': toggle visual line selection mode
 	actionClearQueue          // 'C': clear all entries from the queue
 	actionMoveTrackUp         // 'K': move selected track one position earlier
 	actionMoveTrackDown       // 'J': move selected track one position later
@@ -201,6 +202,7 @@ func newRegistry() Registry {
 	r.register(contextLibrary, "esc", actionLibraryFilterClear)
 	r.register(contextLibrary, "x", actionBulkSelectionToggle)
 	r.register(contextLibrary, "X", actionClearSelection)
+	r.register(contextLibrary, "v", actionVisualMode)
 	r.register(contextLibrary, "a", actionBulkAction)
 
 	// Recently Added-local bindings.
@@ -211,6 +213,7 @@ func newRegistry() Registry {
 	r.register(contextRecentlyAdded, "esc", actionLibraryFilterClear)
 	r.register(contextRecentlyAdded, "x", actionBulkSelectionToggle)
 	r.register(contextRecentlyAdded, "X", actionClearSelection)
+	r.register(contextRecentlyAdded, "v", actionVisualMode)
 	r.register(contextRecentlyAdded, "a", actionBulkAction)
 
 	// Queue-local bindings.
@@ -219,6 +222,7 @@ func newRegistry() Registry {
 	r.register(contextQueue, "d", actionDequeue)
 	r.register(contextQueue, "x", actionBulkSelectionToggle)
 	r.register(contextQueue, "X", actionClearSelection)
+	r.register(contextQueue, "v", actionVisualMode)
 	r.register(contextQueue, "C", actionClearQueue)
 	r.register(contextQueue, "K", actionMoveTrackUp)
 	r.register(contextQueue, "J", actionMoveTrackDown)
@@ -240,6 +244,7 @@ func newRegistry() Registry {
 	r.register(contextPlaylists, "N", actionPlayNext)
 	r.register(contextPlaylists, "x", actionBulkSelectionToggle)
 	r.register(contextPlaylists, "X", actionClearSelection)
+	r.register(contextPlaylists, "v", actionVisualMode)
 	r.register(contextPlaylists, "a", actionBulkAction)
 	r.register(contextPlaylists, "E", actionPlaylistEnqueueAll)
 	r.register(contextPlaylists, "shift+enter", actionLibraryEnqueueReplace)
@@ -254,6 +259,7 @@ func newRegistry() Registry {
 	r.register(contextArtists, "esc", actionArtistBack)
 	r.register(contextArtists, "x", actionBulkSelectionToggle)
 	r.register(contextArtists, "X", actionClearSelection)
+	r.register(contextArtists, "v", actionVisualMode)
 	r.register(contextArtists, "a", actionBulkAction)
 
 	// Albums-local bindings.
@@ -264,6 +270,7 @@ func newRegistry() Registry {
 	r.register(contextAlbums, "esc", actionAlbumBack)
 	r.register(contextAlbums, "x", actionBulkSelectionToggle)
 	r.register(contextAlbums, "X", actionClearSelection)
+	r.register(contextAlbums, "v", actionVisualMode)
 	r.register(contextAlbums, "a", actionBulkAction)
 
 	// Genres-local bindings.
@@ -274,6 +281,7 @@ func newRegistry() Registry {
 	r.register(contextGenres, "esc", actionGenreBack)
 	r.register(contextGenres, "x", actionBulkSelectionToggle)
 	r.register(contextGenres, "X", actionClearSelection)
+	r.register(contextGenres, "v", actionVisualMode)
 	r.register(contextGenres, "a", actionBulkAction)
 
 	// Favorites-local bindings.
@@ -283,6 +291,7 @@ func newRegistry() Registry {
 	r.register(contextFavorites, "N", actionPlayNext)
 	r.register(contextFavorites, "x", actionBulkSelectionToggle)
 	r.register(contextFavorites, "X", actionClearSelection)
+	r.register(contextFavorites, "v", actionVisualMode)
 	r.register(contextFavorites, "a", actionBulkAction)
 	r.register(contextFavorites, "shift+enter", actionLibraryEnqueueReplace)
 

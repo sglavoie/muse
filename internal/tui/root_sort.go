@@ -19,10 +19,13 @@ import (
 func (m Model) handleSortAction(a action) (tea.Model, tea.Cmd, bool) {
 	switch a {
 	case actionSortCycle:
+		m = exitVisualMode(m)
 		return m.handleSortCycle()
 	case actionSortAsc:
+		m = exitVisualMode(m)
 		return m.handleSortAsc()
 	case actionSortDesc:
+		m = exitVisualMode(m)
 		return m.handleSortDesc()
 	default:
 		return m, nil, false
