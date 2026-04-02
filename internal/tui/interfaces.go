@@ -66,6 +66,14 @@ type repeatShuffler interface {
 	SetShuffle(bool) error
 }
 
+// stopAfterToggler enables or disables "stop after current track" mode in
+// the player. Root checks for it via type assertion so that test stubs only
+// need to implement playPauser.
+type stopAfterToggler interface {
+	SetStopAfterCurrent(bool)
+	StopAfterCurrent() bool
+}
+
 // elapsedReader is implemented by player.Manager to provide the current
 // elapsed playback position and total track duration. Root queries it on
 // each 1-second tick to keep the status bar time display current.

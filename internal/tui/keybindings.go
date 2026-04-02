@@ -52,8 +52,9 @@ const (
 	actionPrevView       // shift+tab: cycle to previous view
 	actionPreview        // 'P': preview focused track
 	actionNowPlayingInfo // 'I': show now-playing info overlay
-	actionEditMetadata   // 'M': edit metadata of focused track
-	actionTrackInfo      // 'i': show track info overlay (exiftool)
+	actionEditMetadata      // 'M': edit metadata of focused track
+	actionTrackInfo         // 'i': show track info overlay (exiftool)
+	actionStopAfterCurrent  // ctrl+n: toggle "stop after current track"
 
 	actionSwitchArtists
 	actionSwitchAlbums
@@ -188,6 +189,7 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "shift+up", actionSortAsc)
 	r.register(contextGlobal, "shift+down", actionSortDesc)
 	r.register(contextGlobal, "o", actionGoTo)
+	r.register(contextGlobal, "ctrl+n", actionStopAfterCurrent)
 
 	// Library-local bindings.
 	r.registerNavigation(contextLibrary)

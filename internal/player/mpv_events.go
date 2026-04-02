@@ -89,9 +89,22 @@ func (m *Manager) startEventReader(ctx context.Context) {
 				// "stop", "replace", "quit", "error" — do not auto-advance.
 				continue
 			}
-			m.mu.RLock()
+			m.mu.Lock()
+			stopAfter := m.stopAfterCurrent
+			if stopAfter {
+				m.stopAfterCurrent = false
+			}
 			idx := m.currentIndex
-			m.mu.RUnlock()
+			m.mu.Unlock()
+			if stopAfter {
+				m.mu.RLock()
+				fn := m.callbacks.OnPlaybackEnded
+				m.mu.RUnlock()
+				if fn != nil {
+					fn()
+				}
+				continue
+			}
 			if err := m.PlayFromIndex(idx + 1); err != nil {
 				// Queue exhausted: notify the TUI so it can reset the toggle.
 				m.mu.RLock()

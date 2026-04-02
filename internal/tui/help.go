@@ -76,6 +76,7 @@ func helpSections() []helpSection {
 				{"R", "Rescan library"},
 				{"r", "Cycle repeat mode"},
 				{"z", "Toggle shuffle"},
+				{"ctrl+n", "Stop after current track"},
 				{"u", "Undo"},
 				{"/", "Filter (Library / Queue / Artists / Albums / Favorites / Genres / Recently Added)"},
 				{"P", "Preview focused track"},

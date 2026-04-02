@@ -56,9 +56,10 @@ type playbackInfo struct {
 	shuffle      bool
 	volume       int
 	currentHash  string
-	currentIndex int // index into queue entries; -1 = nothing playing
-	elapsedSecs  float64
-	totalSecs    float64
+	currentIndex     int // index into queue entries; -1 = nothing playing
+	elapsedSecs      float64
+	totalSecs        float64
+	stopAfterCurrent bool // true when "stop after current track" is armed
 }
 
 // Model is the root Bubble Tea v2 model. It manages view switching between

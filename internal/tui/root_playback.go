@@ -115,6 +115,9 @@ func (m Model) handleMissingTrackMsg(msg MissingTrackMsg) Model {
 // handlePlaybackEndedMsg handles the end of the play queue, optionally
 // wrapping around in repeat-all mode.
 func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
+	wasStopAfter := m.playback.stopAfterCurrent
+	m.playback.stopAfterCurrent = false
+
 	var incrementCmd tea.Cmd
 	if m.playback.currentHash != "" &&
 		shouldCountPlay(m.playback.elapsedSecs, m.playback.totalSecs) {
@@ -136,7 +139,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 			}
 		}
 	}
-	if m.playback.repeatMode == RepeatAll && len(m.queue.entries) > 0 && m.player != nil {
+	if !wasStopAfter && m.playback.repeatMode == RepeatAll && len(m.queue.entries) > 0 && m.player != nil {
 		if err := m.player.PlayFromIndex(0); err != nil {
 			slog.Warn("repeat-all playback failed", "err", err)
 		} else {
@@ -163,10 +166,14 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	m.statusBar.playlistSource = ""
 	m.playback.currentHash = ""
 	m.playback.currentIndex = -1
-	msg := "Queue finished"
-	if m.missingTrackCount > 0 {
+	var msg string
+	if wasStopAfter {
+		msg = "Stopped after track"
+	} else if m.missingTrackCount > 0 {
 		msg = fmt.Sprintf("Queue finished (%d %s skipped — missing files)",
 			m.missingTrackCount, pluralize(m.missingTrackCount, "track", "tracks"))
+	} else {
+		msg = "Queue finished"
 	}
 	m.missingTrackCount = 0
 	m.statusBar.notification = newNotification(msg)
@@ -378,6 +385,12 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 				m.playback.state = PlaybackStopped
 				m.playback.elapsedSecs = 0
 				m.playback.totalSecs = 0
+				if m.playback.stopAfterCurrent {
+					m.playback.stopAfterCurrent = false
+					if sat, ok := m.player.(stopAfterToggler); ok {
+						sat.SetStopAfterCurrent(false)
+					}
+				}
 			}
 		}
 		return m, nil, true
@@ -497,6 +510,21 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			label = "on"
 		}
 		m.statusBar.notification = newNotificationFor("Shuffle: "+label, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second)
+		return m, nil, true
+	case actionStopAfterCurrent:
+		if m.playback.state != PlaybackPlaying && m.playback.state != PlaybackPaused {
+			m.statusBar.notification = newNotification("No track playing")
+			return m, nil, true
+		}
+		m.playback.stopAfterCurrent = !m.playback.stopAfterCurrent
+		if sat, ok := m.player.(stopAfterToggler); ok {
+			sat.SetStopAfterCurrent(m.playback.stopAfterCurrent)
+		}
+		label := "off"
+		if m.playback.stopAfterCurrent {
+			label = "on"
+		}
+		m.statusBar.notification = newNotificationFor("Stop after current: "+label, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second)
 		return m, nil, true
 	}
 	return m, nil, false

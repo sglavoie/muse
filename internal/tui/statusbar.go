@@ -50,8 +50,9 @@ type StatusBar struct {
 	// Playback mode fields — injected by renderStatusBar from the root Model.
 	playbackState PlaybackState
 	repeatMode    RepeatMode
-	shuffle       bool
-	queueEmpty    bool
+	shuffle          bool
+	stopAfterCurrent bool
+	queueEmpty       bool
 
 	// elapsed and total are pre-formatted MM:SS strings injected by
 	// renderStatusBar. Both must be non-empty to show the time display.
@@ -221,6 +222,10 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	}
 	if s.shuffle {
 		suffix += barBold.Render("  S")
+		suffixWidth += 2 + 1
+	}
+	if s.stopAfterCurrent {
+		suffix += barBold.Render("  N")
 		suffixWidth += 2 + 1
 	}
 

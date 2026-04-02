@@ -74,6 +74,11 @@ type Manager struct {
 	// auto-advance.
 	currentIndex int
 
+	// stopAfterCurrent, when true, causes the event reader to fire
+	// OnPlaybackEnded instead of auto-advancing on the next EOF.
+	// The flag is cleared atomically after it fires.
+	stopAfterCurrent bool
+
 	// marker persists missing-file state to the database. Set via
 	// SetMissingMarker. When nil, PlayFromIndex uses a no-op marker.
 	marker MissingMarker
@@ -956,6 +961,22 @@ func (m *Manager) Previous() error {
 		return ErrNotConnected
 	}
 	return m.PlayFromIndex(idx - 1)
+}
+
+// SetStopAfterCurrent enables or disables "stop after current track" mode.
+// When enabled, the next end-file EOF event fires OnPlaybackEnded instead of
+// calling PlayFromIndex(idx+1). The flag auto-resets after firing.
+func (m *Manager) SetStopAfterCurrent(v bool) {
+	m.mu.Lock()
+	m.stopAfterCurrent = v
+	m.mu.Unlock()
+}
+
+// StopAfterCurrent returns whether "stop after current track" mode is enabled.
+func (m *Manager) StopAfterCurrent() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.stopAfterCurrent
 }
 
 // PlayQueueEntry stats the file at entry.Path before loading it into mpv.
