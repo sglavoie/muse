@@ -708,3 +708,69 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 	player.PlaySound(player.SoundEnqueued)
 	return m
 }
+
+// buildQueueSummary computes aggregate statistics from the current queue
+// entries and playback position.
+func (m Model) buildQueueSummary() *QueueSummaryOverlay {
+	artists := make(map[string]struct{})
+	albums := make(map[string]struct{})
+	sources := make(map[string]struct{})
+	var totalMs int64
+	var remainMs int64
+	var remainN int
+
+	for i, e := range m.queue.entries {
+		totalMs += e.DurationMs
+		if e.Artist != "" {
+			artists[e.Artist] = struct{}{}
+		}
+		if e.Album != "" {
+			albums[e.Album] = struct{}{}
+		}
+		if e.SourcePlaylist != "" {
+			sources[e.SourcePlaylist] = struct{}{}
+		}
+		if m.playback.currentIndex >= 0 && i > m.playback.currentIndex {
+			remainMs += e.DurationMs
+			remainN++
+		}
+	}
+
+	// Add remaining time of the currently playing track.
+	if m.playback.currentIndex >= 0 &&
+		(m.playback.state == PlaybackPlaying || m.playback.state == PlaybackPaused) {
+		leftSecs := m.playback.totalSecs - m.playback.elapsedSecs
+		if leftSecs > 0 {
+			remainMs += int64(leftSecs * 1000)
+			remainN++
+		}
+	}
+
+	return &QueueSummaryOverlay{
+		tracks:   len(m.queue.entries),
+		artists:  len(artists),
+		albums:   len(albums),
+		sources:  len(sources),
+		remainMs: remainMs,
+		remainN:  remainN,
+		totalMs:  totalMs,
+	}
+}
+
+// handleQueueSummaryKeyPress handles key events while the queue summary
+// overlay is active. Returns (model, cmd, true) when the key was consumed.
+func (m Model) handleQueueSummaryKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
+	if m.overlay.queueSummary == nil {
+		return m, nil, false
+	}
+	switch msg.String() {
+	case "ctrl+c":
+		m.overlay.queueSummary = nil
+		return m, tea.Quit, true
+	case "esc", "q":
+		m.overlay.queueSummary = nil
+		return m, nil, true
+	default:
+		return m, nil, true
+	}
+}

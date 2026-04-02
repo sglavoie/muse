@@ -18,6 +18,7 @@ func (m Model) hasActiveOverlay() bool {
 		m.statsVisible ||
 		m.overlay.settings != nil ||
 		m.overlay.nowPlaying != nil ||
+		m.overlay.queueSummary != nil ||
 		m.overlay.trackInfo != nil ||
 		m.overlay.preview != nil ||
 		m.overlay.metadataEditor != nil ||
@@ -48,6 +49,8 @@ func (m Model) View() tea.View {
 		body = m.overlay.settings.Render(m.termWidth, m.termHeight, *m.styles)
 	case m.overlay.nowPlaying != nil:
 		body = m.overlay.nowPlaying.Render(m.termWidth, m.termHeight, *m.styles)
+	case m.overlay.queueSummary != nil:
+		body = m.overlay.queueSummary.Render(m.termWidth, m.termHeight, *m.styles)
 	case m.overlay.trackInfo != nil:
 		body = m.overlay.trackInfo.Render(m.termWidth, m.termHeight, *m.styles)
 	case m.overlay.preview != nil:

@@ -90,6 +90,7 @@ func helpSections() []helpSection {
 				{"ctrl+,", "Open settings"},
 				{"ctrl+g", "Show debug panel"},
 				{"L", "Listening stats"},
+				{"q", "Queue summary"},
 			},
 		},
 		{

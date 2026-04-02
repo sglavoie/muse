@@ -30,6 +30,7 @@ type overlayInfo struct {
 	previewWasPlaying     bool
 	previewDurationFilled bool
 	nowPlaying            *NowPlayingOverlay
+	queueSummary          *QueueSummaryOverlay
 	trackInfo             *TrackInfoOverlay
 	metadataEditor        *MetadataEditor
 	destPicker            *pltui.DestinationPickerModal
@@ -911,6 +912,12 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m.statsViewport = viewport.New(viewport.WithWidth(m.termWidth), viewport.WithHeight(max(m.termHeight-3, 0)))
 		m.statsViewport.SetYOffset(0)
 		return m, m.loadStatsCmd()
+	case actionQueueSummary:
+		if m.overlay.queueSummary != nil {
+			m.overlay.queueSummary = nil
+		} else {
+			m.overlay.queueSummary = m.buildQueueSummary()
+		}
 	case actionHelp:
 		m.prevActiveView = m.activeView
 		m.helpVisible = true
@@ -924,6 +931,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m = m.switchToView(prevView(m.activeView))
 	case actionQuit:
 		m.overlay.nowPlaying = nil
+		m.overlay.queueSummary = nil
 		m.overlay.trackInfo = nil
 		m = m.dismissPreview()
 		return m, tea.Quit
