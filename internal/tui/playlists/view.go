@@ -30,6 +30,7 @@ type View struct {
 	Level            Level
 	Cursor           int
 	ListCursor       int // saved list cursor; restored when BackToList is called
+	ListScrollOffset int // saved list scroll offset; restored when BackToList is called
 	ScrollOffset     int // first visible row index
 	Playlists        []db.PlaylistRow
 	Tracks           []db.PlaylistTrackRow // populated when Level == TrackLevel
@@ -167,6 +168,7 @@ func (v View) moveCursor(delta int) View {
 // restored by BackToList. The cursor is reset to 0 for track-level navigation.
 func (v View) OpenTracks(tracks []db.PlaylistTrackRow) View {
 	v.ListCursor = v.Cursor
+	v.ListScrollOffset = v.ScrollOffset
 	v.Tracks = tracks
 	v.Level = TrackLevel
 	v.Cursor = 0
@@ -180,6 +182,7 @@ func (v View) OpenTracks(tracks []db.PlaylistTrackRow) View {
 func (v View) BackToList() View {
 	v.Level = ListLevel
 	v.Cursor = v.ListCursor
+	v.ScrollOffset = v.ListScrollOffset
 	v.Tracks = nil
 	return v
 }
