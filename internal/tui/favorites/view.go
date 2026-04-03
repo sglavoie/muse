@@ -294,8 +294,7 @@ func (v View) renderCategories() string {
 
 	lines := make([]string, len(categories))
 	for i, name := range categories {
-		display := text.Truncate(name, v.Width)
-		display = fmt.Sprintf("%-*s", v.Width, display)
+		display := text.Pad(name, v.Width)
 		if i == v.Cursor {
 			display = v.Styles.Accent.Render(display)
 		}
@@ -368,8 +367,7 @@ func (v View) renderList() string {
 			marker = "  "
 		}
 
-		display := text.Truncate(name, v.Width-2)
-		display = fmt.Sprintf("%-*s", v.Width-2, display)
+		display := text.Pad(name, v.Width-2)
 		line := marker + display
 		switch {
 		case isFocused && isFav:

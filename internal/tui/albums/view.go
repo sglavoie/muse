@@ -267,8 +267,7 @@ func (v View) renderAlbums() string {
 	for i, name := range items[start:end] {
 		absIdx := start + i
 		_, isFav := v.FavoriteAlbums[name]
-		display := text.Truncate(name, v.Width)
-		display = fmt.Sprintf("%-*s", v.Width, display)
+		display := text.Pad(name, v.Width)
 		switch {
 		case absIdx == v.Cursor && isFav:
 			display = v.Styles.FavAlbumAccent.Render(display)
