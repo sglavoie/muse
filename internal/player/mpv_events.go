@@ -83,6 +83,11 @@ func (m *Manager) startEventReader(ctx context.Context) {
 				t := q[idx]
 				fn(t.Hash, t.Artist, t.Title, t.Source, idx)
 			}
+
+			// Safety net: ensure the next track is always prefetched after a
+			// file starts. Covers mpv restarts (loadFileAt) and any edge
+			// case where prefetch was not triggered elsewhere. Idempotent.
+			go m.prefetchNext()
 		case "end-file":
 			reason, _ := raw["reason"].(string)
 			if reason != "eof" {
@@ -95,6 +100,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 				m.stopAfterCurrent = false
 			}
 			idx := m.currentIndex
+			prefetchedIdx := m.prefetchedIndex
 			m.mu.Unlock()
 			if stopAfter {
 				m.mu.RLock()
@@ -105,6 +111,22 @@ func (m *Manager) startEventReader(ctx context.Context) {
 				}
 				continue
 			}
+
+			// If the next track was prefetched, mpv has already started
+			// transitioning to it gaplessly. Just advance bookkeeping
+			// and prefetch the track after that — do NOT send a new
+			// loadfile replace which would destroy the gapless transition.
+			if prefetchedIdx == idx+1 {
+				m.mu.Lock()
+				m.currentIndex = prefetchedIdx
+				m.prefetchedIndex = -1
+				m.prefetchedPath = ""
+				m.mu.Unlock()
+				go m.prefetchNext()
+				continue
+			}
+
+			// Fallback: no prefetch available, load next track directly.
 			if err := m.PlayFromIndex(idx + 1); err != nil {
 				// Queue exhausted: notify the TUI so it can reset the toggle.
 				m.mu.RLock()

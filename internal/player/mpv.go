@@ -129,6 +129,19 @@ type Manager struct {
 	// launchFn starts the mpv subprocess. Tests replace this with a no-op
 	// that returns (nil, nil) while providing their own fake socket server.
 	launchFn func(ctx context.Context, socketPath string) (*exec.Cmd, error)
+
+	// gaplessEnabled tracks whether gapless playback is active; when false
+	// the prefetch mechanism is skipped entirely.
+	gaplessEnabled bool
+
+	// prefetchedIndex is the queue index of the track currently appended to
+	// mpv's internal playlist as position 2 (the "next" track). -1 means
+	// nothing is prefetched.
+	prefetchedIndex int
+
+	// prefetchedPath is the file path of the prefetched track, used for
+	// staleness checks so prefetchNext is idempotent.
+	prefetchedPath string
 }
 
 // NewManager creates a Manager with the given socket path.
@@ -138,14 +151,15 @@ func NewManager(socketPath string) *Manager {
 	rootCtx, rootCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(rootCtx)
 	m := &Manager{
-		socketPath:     socketPath,
-		rootCtx:        rootCtx,
-		rootCancel:     rootCancel,
-		ctx:            ctx,
-		cancel:         cancel,
-		disconnectCh:   make(chan error, 1),
-		callbacksReady: make(chan struct{}),
-		audioFilters:   make(map[string]string),
+		socketPath:      socketPath,
+		rootCtx:         rootCtx,
+		rootCancel:      rootCancel,
+		ctx:             ctx,
+		cancel:          cancel,
+		disconnectCh:    make(chan error, 1),
+		callbacksReady:  make(chan struct{}),
+		audioFilters:    make(map[string]string),
+		prefetchedIndex: -1,
 	}
 	m.launchFn = func(ctx context.Context, socketPath string) (*exec.Cmd, error) {
 		m.mu.RLock()
@@ -201,6 +215,8 @@ func (m *Manager) SetQueue(entries []QueueTrack) {
 		}
 	}
 	m.mu.Unlock()
+	m.clearPrefetch()
+	go m.prefetchNext()
 }
 
 // SetCurrentIndex sets the current queue index used by Next, Previous, and
@@ -228,6 +244,7 @@ func (m *Manager) AppendToQueue(entry QueueTrack) {
 	m.mu.Lock()
 	m.queue = append(m.queue, entry)
 	m.mu.Unlock()
+	go m.prefetchNext()
 }
 
 // RemoveFromQueue removes the queue entry at index from the in-memory queue
@@ -239,11 +256,15 @@ func (m *Manager) AppendToQueue(entry QueueTrack) {
 // negative or >= len(m.queue).
 func (m *Manager) RemoveFromQueue(index int) error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 
 	if index < 0 || index >= len(m.queue) {
+		m.mu.Unlock()
 		return fmt.Errorf("index %d out of range", index)
 	}
+
+	hadPrefetch := m.prefetchedIndex >= 0
+	m.prefetchedIndex = -1
+	m.prefetchedPath = ""
 
 	m.queue = append(m.queue[:index], m.queue[index+1:]...)
 	if index < m.currentIndex {
@@ -258,6 +279,14 @@ func (m *Manager) RemoveFromQueue(index int) error {
 	} else if len(m.queue) == 0 {
 		m.currentIndex = 0
 	}
+	m.mu.Unlock()
+
+	if hadPrefetch {
+		if c, err := m.ipc(); err == nil {
+			_, _ = c.SendCommand("playlist-remove", 1)
+		}
+	}
+	go m.prefetchNext()
 
 	return nil
 }
@@ -308,6 +337,13 @@ func (m *Manager) ElapsedPosition() (elapsed, total float64, err error) {
 // calling missingFileFn for each skipped entry. Returns ErrPlaybackFailed if
 // index is out of range or no playable entry exists from index onward.
 func (m *Manager) PlayFromIndex(index int) error {
+	// Reset prefetch state — the loadfile replace in PlayQueueEntry
+	// implicitly clears mpv's playlist to a single entry.
+	m.mu.Lock()
+	m.prefetchedIndex = -1
+	m.prefetchedPath = ""
+	m.mu.Unlock()
+
 	m.mu.RLock()
 	queue := m.queue
 	marker := m.marker
@@ -328,6 +364,7 @@ func (m *Manager) PlayFromIndex(index int) error {
 			m.mu.Lock()
 			m.currentIndex = i
 			m.mu.Unlock()
+			go m.prefetchNext()
 			return nil
 		}
 		if !errors.Is(err, ErrMissingFile) {
@@ -628,6 +665,8 @@ func (m *Manager) handleRestart() {
 	m.ctx = newCtx
 	m.cancel = newCancel
 	m.cmdQueue = []func() error{} // non-nil = started, allow queueing
+	m.prefetchedIndex = -1
+	m.prefetchedPath = ""
 	m.mu.Unlock()
 
 	// Remove any stale socket file left by the crashed process so the new
@@ -668,8 +707,11 @@ func (m *Manager) handleRestart() {
 
 // SetRepeat configures mpv's repeat behaviour. mode is the string form of
 // RepeatMode: "none" disables looping, "all" loops the playlist, "one" loops
-// the current file. The command is queued for replay if mpv is not yet
-// connected.
+// the current file. Repeat-all is driven entirely by the TUI calling
+// PlayFromIndex(0) on queue exhaustion; we keep loop-playlist=no so that
+// the prefetch mechanism (2-entry mpv playlist) is not disrupted by mpv's
+// internal playlist looping. The command is queued for replay if mpv is not
+// yet connected.
 func (m *Manager) SetRepeat(mode string) error {
 	c, err := m.ipc()
 	if errors.Is(err, ErrNotConnected) {
@@ -680,7 +722,10 @@ func (m *Manager) SetRepeat(mode string) error {
 	}
 	switch mode {
 	case "all":
-		if _, err = c.SendCommand("set_property", "loop-playlist", "inf"); err != nil {
+		// Do NOT set loop-playlist=inf; with gapless prefetch mpv's
+		// playlist has 2 entries and looping would replay them instead
+		// of letting Go advance. Repeat-all is handled by the TUI.
+		if _, err = c.SendCommand("set_property", "loop-playlist", "no"); err != nil {
 			return err
 		}
 		_, err = c.SendCommand("set_property", "loop-file", "no")
@@ -933,7 +978,102 @@ func (m *Manager) SetGapless(enabled bool) error {
 		val = "yes"
 	}
 	_, err = c.SendCommand("set_property", "gapless-audio", val)
-	return err
+	if err != nil {
+		return err
+	}
+	_, err = c.SendCommand("set_property", "prefetch-playlist", val)
+	if err != nil {
+		return err
+	}
+	m.mu.Lock()
+	m.gaplessEnabled = enabled
+	m.mu.Unlock()
+	if enabled {
+		go m.prefetchNext()
+	} else {
+		m.clearPrefetch()
+	}
+	return nil
+}
+
+// prefetchNext appends the next playable queue entry to mpv's internal
+// playlist so that gapless-audio can crossfade into it. The method is
+// best-effort: errors are logged but not propagated. It is safe to call
+// from any goroutine; calls are idempotent.
+func (m *Manager) prefetchNext() {
+	m.mu.RLock()
+	idx := m.currentIndex
+	queue := m.queue
+	gapless := m.gaplessEnabled
+	stop := m.stopAfterCurrent
+	curPrefIdx := m.prefetchedIndex
+	curPrefPath := m.prefetchedPath
+	m.mu.RUnlock()
+
+	if !gapless || stop {
+		m.clearPrefetch()
+		return
+	}
+
+	// Walk forward from currentIndex+1 to find the next playable file.
+	nextIdx := -1
+	nextPath := ""
+	for i := idx + 1; i < len(queue); i++ {
+		if _, err := os.Stat(queue[i].Path); err == nil {
+			nextIdx = i
+			nextPath = queue[i].Path
+			break
+		}
+	}
+	if nextIdx < 0 {
+		// No playable next entry; clear any stale prefetch.
+		m.clearPrefetch()
+		return
+	}
+
+	// Already prefetched the correct track — nothing to do.
+	if curPrefIdx == nextIdx && curPrefPath == nextPath {
+		return
+	}
+
+	c, err := m.ipc()
+	if err != nil {
+		return
+	}
+
+	// Remove a stale prefetch before appending the correct one.
+	if curPrefIdx >= 0 {
+		_, _ = c.SendCommand("playlist-remove", 1)
+	}
+
+	if _, err := c.SendCommand("loadfile", nextPath, "append"); err != nil {
+		slog.Warn("mpv: prefetch next failed", "path", nextPath, "err", err)
+		return
+	}
+
+	m.mu.Lock()
+	m.prefetchedIndex = nextIdx
+	m.prefetchedPath = nextPath
+	m.mu.Unlock()
+}
+
+// clearPrefetch removes the prefetched entry from mpv's internal playlist
+// and resets the tracking state. Safe to call when nothing is prefetched.
+func (m *Manager) clearPrefetch() {
+	m.mu.Lock()
+	had := m.prefetchedIndex >= 0
+	m.prefetchedIndex = -1
+	m.prefetchedPath = ""
+	m.mu.Unlock()
+
+	if !had {
+		return
+	}
+	c, err := m.ipc()
+	if err != nil {
+		return
+	}
+	_, _ = c.SendCommand("playlist-remove", 1)
 }
 
 // Next advances to the next track in the queue using the Go-side index so
@@ -970,6 +1110,11 @@ func (m *Manager) SetStopAfterCurrent(v bool) {
 	m.mu.Lock()
 	m.stopAfterCurrent = v
 	m.mu.Unlock()
+	if v {
+		m.clearPrefetch()
+	} else {
+		go m.prefetchNext()
+	}
 }
 
 // StopAfterCurrent returns whether "stop after current track" mode is enabled.
