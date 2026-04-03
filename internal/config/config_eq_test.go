@@ -1,0 +1,225 @@
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/BurntSushi/toml"
+)
+
+func TestLoad_EQ_Defaults_WhenOmitted(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte("default_volume = 80\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	cfg := result.Config
+	if cfg.EQEnabled {
+		t.Error("EQEnabled should default to false")
+	}
+	if cfg.EQPreset != defaultEQPreset {
+		t.Errorf("EQPreset = %q, want %q", cfg.EQPreset, defaultEQPreset)
+	}
+	for i, v := range cfg.EQBands {
+		if v != 0 {
+			t.Errorf("EQBands[%d] = %d, want 0", i, v)
+		}
+	}
+	if len(cfg.EQCustomPresets) != 0 {
+		t.Errorf("EQCustomPresets len = %d, want 0", len(cfg.EQCustomPresets))
+	}
+}
+
+func TestLoad_EQ_FieldsLoaded(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+eq_enabled = true
+eq_preset = "rock"
+eq_bands = [5, 4, 2, 0, -1, 0, 2, 3, 4, 5]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	cfg := result.Config
+	if !cfg.EQEnabled {
+		t.Error("EQEnabled should be true")
+	}
+	if cfg.EQPreset != "rock" {
+		t.Errorf("EQPreset = %q, want %q", cfg.EQPreset, "rock")
+	}
+	want := [10]int{5, 4, 2, 0, -1, 0, 2, 3, 4, 5}
+	if cfg.EQBands != want {
+		t.Errorf("EQBands = %v, want %v", cfg.EQBands, want)
+	}
+}
+
+func TestLoad_EQ_BandsClamped(t *testing.T) {
+	dir := t.TempDir()
+	content := "eq_bands = [100, -100, 0, 0, 0, 0, 0, 0, 0, 0]\n"
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if result.Config.EQBands[0] != 12 {
+		t.Errorf("EQBands[0] = %d, want 12 (clamped)", result.Config.EQBands[0])
+	}
+	if result.Config.EQBands[1] != -12 {
+		t.Errorf("EQBands[1] = %d, want -12 (clamped)", result.Config.EQBands[1])
+	}
+}
+
+func TestLoad_EQ_InvalidPreset_FallsBackToFlat(t *testing.T) {
+	dir := t.TempDir()
+	content := "eq_preset = \"does_not_exist\"\n"
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if result.Config.EQPreset != defaultEQPreset {
+		t.Errorf("EQPreset = %q, want %q on invalid key", result.Config.EQPreset, defaultEQPreset)
+	}
+	if len(result.Warnings) == 0 {
+		t.Error("expected a warning for unknown eq_preset")
+	}
+}
+
+func TestLoad_EQ_CustomPreset_RoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+eq_preset = "my_sound"
+
+[[eq_custom_presets]]
+name = "My Sound"
+key = "my_sound"
+bands = [3, 1, 0, -2, 0, 0, 1, 2, 3, 4]
+
+[[eq_custom_presets]]
+name = "Late Night"
+key = "late_night"
+bands = [-2, -1, 0, 2, 3, 2, 0, -1, -3, -4]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	cfg := result.Config
+	if len(cfg.EQCustomPresets) != 2 {
+		t.Fatalf("EQCustomPresets len = %d, want 2", len(cfg.EQCustomPresets))
+	}
+	if cfg.EQCustomPresets[0].Key != "my_sound" {
+		t.Errorf("EQCustomPresets[0].Key = %q, want %q", cfg.EQCustomPresets[0].Key, "my_sound")
+	}
+	if cfg.EQCustomPresets[1].Key != "late_night" {
+		t.Errorf("EQCustomPresets[1].Key = %q, want %q", cfg.EQCustomPresets[1].Key, "late_night")
+	}
+	if cfg.EQPreset != "my_sound" {
+		t.Errorf("EQPreset = %q, want %q", cfg.EQPreset, "my_sound")
+	}
+}
+
+func TestLoad_EQ_CustomPresets_Deduplicated(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[[eq_custom_presets]]
+name = "Dup"
+key = "dup"
+bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+[[eq_custom_presets]]
+name = "Dup Again"
+key = "dup"
+bands = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if len(result.Config.EQCustomPresets) != 1 {
+		t.Errorf("EQCustomPresets len = %d, want 1 after dedup", len(result.Config.EQCustomPresets))
+	}
+}
+
+func TestLoad_EQ_CustomPreset_BandsClamped(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[[eq_custom_presets]]
+name = "Over"
+key = "over"
+bands = [99, -99, 0, 0, 0, 0, 0, 0, 0, 0]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if len(result.Config.EQCustomPresets) != 1 {
+		t.Fatalf("EQCustomPresets len = %d, want 1", len(result.Config.EQCustomPresets))
+	}
+	p := result.Config.EQCustomPresets[0]
+	if p.Bands[0] != 12 {
+		t.Errorf("custom preset band[0] = %d, want 12 (clamped)", p.Bands[0])
+	}
+	if p.Bands[1] != -12 {
+		t.Errorf("custom preset band[1] = %d, want -12 (clamped)", p.Bands[1])
+	}
+}
+
+func TestSave_EQ_RoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, configFileName)
+	cfg := defaults()
+	cfg.EQEnabled = true
+	cfg.EQPreset = "bass_boost"
+	cfg.EQBands = [10]int{6, 5, 4, 2, 0, 0, 0, 0, 0, 0}
+	cfg.EQCustomPresets = []EQCustomPreset{
+		{Name: "My Preset", Key: "my_preset", Bands: [10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}},
+	}
+	if err := Save(path, cfg); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	var raw rawConfig
+	if _, err := toml.DecodeFile(path, &raw); err != nil {
+		t.Fatalf("DecodeFile() error = %v", err)
+	}
+	if raw.EQEnabled == nil || !*raw.EQEnabled {
+		t.Error("EQEnabled not persisted")
+	}
+	if raw.EQPreset != "bass_boost" {
+		t.Errorf("EQPreset = %q, want %q", raw.EQPreset, "bass_boost")
+	}
+	if raw.EQBands == nil {
+		t.Fatal("EQBands not persisted")
+	}
+	if raw.EQBands[0] != 6 {
+		t.Errorf("EQBands[0] = %d, want 6", raw.EQBands[0])
+	}
+	if len(raw.EQCustomPresets) != 1 {
+		t.Fatalf("EQCustomPresets len = %d, want 1", len(raw.EQCustomPresets))
+	}
+	if raw.EQCustomPresets[0].Key != "my_preset" {
+		t.Errorf("custom preset key = %q, want %q", raw.EQCustomPresets[0].Key, "my_preset")
+	}
+}
