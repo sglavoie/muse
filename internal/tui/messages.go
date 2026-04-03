@@ -187,7 +187,7 @@ type MoveTrackDownMsg struct {
 // fresh DB IDs and are ready to be spliced into the in-memory queue.
 type QueuePastedMsg struct {
 	Entries   []QueueEntry
-	InsertPos int   // position in entries slice to insert at
+	InsertPos int // position in entries slice to insert at
 	Err       error
 }
 

@@ -1,8 +1,8 @@
 package tui
 
 import (
-	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
+	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"

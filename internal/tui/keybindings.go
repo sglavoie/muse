@@ -40,22 +40,22 @@ const (
 	actionSwitchPlaylists
 	actionSwitchQueue
 	actionRescan
-	actionRepeatCycle    // 'r': cycle repeat mode off→all→one→off
-	actionShuffleToggle  // 'z': toggle shuffle mode
-	actionUndo           // 'u': dispatch undo
-	actionFilterBar      // '/': activate filter bar in active view
-	actionHelp           // '?': show help overlay
-	actionSettings       // 'ctrl+,': open settings overlay
-	actionDebug          // 'ctrl+g': show debug panel
-	actionStats          // 'L': show listening stats overlay
-	actionNextView       // tab: cycle to next view
-	actionPrevView       // shift+tab: cycle to previous view
-	actionPreview        // 'P': preview focused track
-	actionNowPlayingInfo // 'I': show now-playing info overlay
-	actionEditMetadata      // 'M': edit metadata of focused track
-	actionTrackInfo         // 'i': show track info overlay (exiftool)
-	actionStopAfterCurrent  // ctrl+n: toggle "stop after current track"
-	actionQueueSummary      // 'q': show queue summary overlay
+	actionRepeatCycle      // 'r': cycle repeat mode off→all→one→off
+	actionShuffleToggle    // 'z': toggle shuffle mode
+	actionUndo             // 'u': dispatch undo
+	actionFilterBar        // '/': activate filter bar in active view
+	actionHelp             // '?': show help overlay
+	actionSettings         // 'ctrl+,': open settings overlay
+	actionDebug            // 'ctrl+g': show debug panel
+	actionStats            // 'L': show listening stats overlay
+	actionNextView         // tab: cycle to next view
+	actionPrevView         // shift+tab: cycle to previous view
+	actionPreview          // 'P': preview focused track
+	actionNowPlayingInfo   // 'I': show now-playing info overlay
+	actionEditMetadata     // 'M': edit metadata of focused track
+	actionTrackInfo        // 'i': show track info overlay (exiftool)
+	actionStopAfterCurrent // ctrl+n: toggle "stop after current track"
+	actionQueueSummary     // 'q': show queue summary overlay
 
 	actionSwitchArtists
 	actionSwitchAlbums

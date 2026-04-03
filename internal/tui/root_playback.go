@@ -167,12 +167,13 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	m.playback.currentHash = ""
 	m.playback.currentIndex = -1
 	var msg string
-	if wasStopAfter {
+	switch {
+	case wasStopAfter:
 		msg = "Stopped after track"
-	} else if m.missingTrackCount > 0 {
+	case m.missingTrackCount > 0:
 		msg = fmt.Sprintf("Queue finished (%d %s skipped — missing files)",
 			m.missingTrackCount, pluralize(m.missingTrackCount, "track", "tracks"))
-	} else {
+	default:
 		msg = "Queue finished"
 	}
 	m.missingTrackCount = 0

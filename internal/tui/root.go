@@ -52,11 +52,11 @@ type undoInfo struct {
 
 // playbackInfo groups the fields that describe the current playback state.
 type playbackInfo struct {
-	state        PlaybackState
-	repeatMode   RepeatMode
-	shuffle      bool
-	volume       int
-	currentHash  string
+	state            PlaybackState
+	repeatMode       RepeatMode
+	shuffle          bool
+	volume           int
+	currentHash      string
 	currentIndex     int // index into queue entries; -1 = nothing playing
 	elapsedSecs      float64
 	totalSecs        float64
@@ -168,7 +168,7 @@ type Model struct {
 	scanWriter      scanUpsertBatcher // may be nil; set via WithScanWriter
 	upsertBatchSize int               // batch size for scan DB writes; set via WithScanWriter
 
-	undo       undoInfo      // reversible undo slot and pending confirmation flags
+	undo       undoInfo     // reversible undo slot and pending confirmation flags
 	visual     visualState  // Vim-like visual line selection mode state
 	yankBuffer []QueueEntry // clipboard for queue yank/paste; persists until next yank
 
