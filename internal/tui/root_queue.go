@@ -615,8 +615,7 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 			m.yankBuffer = buf
 		} else if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
 			e := filtered[m.queue.cursor]
-			idx := m.queue.realEntryIndex(e)
-			m.yankBuffer = []QueueEntry{m.queue.entries[idx]}
+			m.yankBuffer = []QueueEntry{m.queue.entries[e.origIdx]}
 		}
 		if n := len(m.yankBuffer); n > 0 {
 			m.statusBar.notification = newNotification(fmt.Sprintf("Yanked %d track(s)", n))

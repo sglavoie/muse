@@ -589,6 +589,86 @@ func TestQueueRenderAllThreeFavoritesStyle(t *testing.T) {
 	}
 }
 
+// TestFilteredEntriesStaleDisplayOrder verifies that filteredEntries does not
+// panic when displayOrder has a different length than entries (stale sort).
+func TestFilteredEntriesStaleDisplayOrder(t *testing.T) {
+	v := QueueView{
+		entries: []QueueEntry{
+			{Title: "A", Artist: "X"},
+			{Title: "B", Artist: "Y"},
+			{Title: "C", Artist: "Z"},
+		},
+		displayOrder: []int{1, 0}, // stale: only 2 elements for 3 entries
+	}
+	// Must not panic; stale displayOrder is discarded.
+	got := v.filteredEntries()
+	if len(got) != 3 {
+		t.Fatalf("expected 3 entries, got %d", len(got))
+	}
+	// After discarding stale displayOrder, order should be identity.
+	for i, e := range got {
+		if e.origIdx != i {
+			t.Errorf("entry %d: origIdx = %d, want %d", i, e.origIdx, i)
+		}
+	}
+}
+
+// TestFilteredEntriesOrigIdx verifies that origIdx is set correctly by
+// filteredEntries with and without a displayOrder.
+func TestFilteredEntriesOrigIdx(t *testing.T) {
+	v := QueueView{
+		entries: []QueueEntry{
+			{Title: "A", Artist: "X"},
+			{Title: "B", Artist: "Y"},
+			{Title: "C", Artist: "Z"},
+		},
+	}
+	// Without sort: origIdx should match position.
+	got := v.filteredEntries()
+	for i, e := range got {
+		if e.origIdx != i {
+			t.Errorf("unsorted entry %d: origIdx = %d, want %d", i, e.origIdx, i)
+		}
+	}
+
+	// With sort (reverse): origIdx should map back to the real entry.
+	v.displayOrder = []int{2, 1, 0}
+	got = v.filteredEntries()
+	if got[0].origIdx != 2 || got[1].origIdx != 1 || got[2].origIdx != 0 {
+		t.Errorf("sorted origIdx: got %d,%d,%d; want 2,1,0",
+			got[0].origIdx, got[1].origIdx, got[2].origIdx)
+	}
+}
+
+// TestHandleActionSelectUsesOrigIdx verifies that actionSelect dispatches
+// PlayQueueIndexMsg with the correct underlying entry index when a display
+// order is active.
+func TestHandleActionSelectUsesOrigIdx(t *testing.T) {
+	v := QueueView{
+		entries: []QueueEntry{
+			{ID: 1, Path: "/a", Hash: "ha", Title: "A", Artist: "X"},
+			{ID: 2, Path: "/b", Hash: "hb", Title: "B", Artist: "Y"},
+			{ID: 3, Path: "/c", Hash: "hc", Title: "C", Artist: "Z"},
+		},
+		displayOrder: []int{2, 1, 0}, // reversed
+		cursor:       0,              // display row 0 → entry 2
+		height:       20,
+	}
+	v2, cmd := v.HandleAction(actionSelect)
+	_ = v2
+	if cmd == nil {
+		t.Fatal("actionSelect should return a command")
+	}
+	msg := cmd()
+	pqm, ok := msg.(PlayQueueIndexMsg)
+	if !ok {
+		t.Fatalf("expected PlayQueueIndexMsg, got %T", msg)
+	}
+	if pqm.Index != 2 {
+		t.Errorf("PlayQueueIndexMsg.Index = %d, want 2 (underlying entry index)", pqm.Index)
+	}
+}
+
 // TestQueueRenderFocusedWithFavoriteUsesAccentBackground verifies that a
 // focused+favorited row gets Accent background wrapping while preserving the
 // favorite title color.

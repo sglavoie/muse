@@ -235,7 +235,7 @@ func selectRange(m Model, lo, hi int) Model {
 			if i < 0 || i >= len(filtered) {
 				continue
 			}
-			idx := m.queue.realEntryIndex(filtered[i])
+			idx := filtered[i].origIdx
 			if idx >= 0 && idx < len(m.queue.entries) {
 				m.queue.entries[idx].Selected = true
 			}

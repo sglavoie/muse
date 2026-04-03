@@ -137,7 +137,7 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 	case actionSelect:
 		if v.cursor >= 0 && v.cursor < n {
 			e := filtered[v.cursor]
-			idx := v.realEntryIndex(e)
+			idx := e.origIdx
 			if !e.Missing {
 				return v, func() tea.Msg { return PlayQueueIndexMsg{Index: idx} }
 			}
@@ -146,13 +146,13 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 	case actionDequeue:
 		if v.cursor >= 0 && v.cursor < n {
 			e := filtered[v.cursor]
-			idx := v.realEntryIndex(e)
+			idx := e.origIdx
 			return v, func() tea.Msg { return DequeueTrackMsg{Index: idx} }
 		}
 	case actionBulkSelectionToggle:
 		if v.cursor >= 0 && v.cursor < n {
 			e := filtered[v.cursor]
-			idx := v.realEntryIndex(e)
+			idx := e.origIdx
 			return v, func() tea.Msg { return BulkSelectionToggleMsg{Index: idx} }
 		}
 	case actionClearQueue:
@@ -177,17 +177,6 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 		}
 	}
 	return v, nil
-}
-
-// realEntryIndex returns the index of entry e in the underlying v.entries slice.
-// It matches by Path+Hash to handle entries that may appear multiple times.
-func (v QueueView) realEntryIndex(e QueueEntry) int {
-	for i, ee := range v.entries {
-		if ee.Path == e.Path && ee.Hash == e.Hash && ee.ID == e.ID {
-			return i
-		}
-	}
-	return 0
 }
 
 // markMissing marks all entries whose Path matches as missing.
@@ -279,6 +268,11 @@ func (v QueueView) filteredEntries() []QueueEntry {
 	}
 
 	// Build display-ordered slice.
+	// Guard against a stale displayOrder whose length no longer matches
+	// entries (e.g. a track was enqueued/dequeued between sort recomputes).
+	if v.displayOrder != nil && len(v.displayOrder) != n {
+		v.displayOrder = nil
+	}
 	ordered := make([]QueueEntry, n)
 	for i := range n {
 		idx := i
