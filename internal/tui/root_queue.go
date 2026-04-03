@@ -412,9 +412,10 @@ func (m Model) handleMoveTrackUpMsg(msg MoveTrackUpMsg) (Model, tea.Cmd) {
 		m = m.resetQueueSort()
 		slog.Debug("track reordered", "hash", entry.Hash, "from", msg.Index, "to", msg.Index-1)
 		m.syncPlayerQueue()
-		if m.playback.currentIndex == msg.Index {
+		switch m.playback.currentIndex {
+		case msg.Index:
 			m.playback.currentIndex = msg.Index - 1
-		} else if m.playback.currentIndex == msg.Index-1 {
+		case msg.Index - 1:
 			m.playback.currentIndex = msg.Index
 		}
 		if m.reorderer != nil {
@@ -445,9 +446,10 @@ func (m Model) handleMoveTrackDownMsg(msg MoveTrackDownMsg) (Model, tea.Cmd) {
 		m = m.resetQueueSort()
 		slog.Debug("track reordered", "hash", entry.Hash, "from", msg.Index, "to", msg.Index+1)
 		m.syncPlayerQueue()
-		if m.playback.currentIndex == msg.Index {
+		switch m.playback.currentIndex {
+		case msg.Index:
 			m.playback.currentIndex = msg.Index + 1
-		} else if m.playback.currentIndex == msg.Index+1 {
+		case msg.Index + 1:
 			m.playback.currentIndex = msg.Index
 		}
 		if m.reorderer != nil {
@@ -540,6 +542,25 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 			m = m.resetQueueSort()
 			m.clampQueueCursorAndScroll()
 			m.syncPlayerQueue()
+			// Adjust currentIndex: count how many removed entries were
+			// before (or at) the currently-playing position so the
+			// now-playing highlight stays on the correct entry.
+			if m.playback.currentIndex >= 0 {
+				removedBefore := 0
+				removedCurrent := false
+				for _, ri := range removedIndices {
+					if ri < m.playback.currentIndex {
+						removedBefore++
+					} else if ri == m.playback.currentIndex {
+						removedCurrent = true
+					}
+				}
+				if removedCurrent {
+					m.playback.currentIndex = -1
+				} else {
+					m.playback.currentIndex -= removedBefore
+				}
+			}
 			// If the queue is now empty, or the currently-playing hash is no
 			// longer present in the remaining entries, stop playback.
 			if len(m.queue.entries) == 0 || (m.playback.currentHash != "" && !queueContainsHash(m.queue.entries, m.playback.currentHash)) {
@@ -614,10 +635,7 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 		if m.queueWriter == nil {
 			return m, nil, true
 		}
-		insertPos := m.queue.cursor + 1
-		if insertPos > len(m.queue.entries) {
-			insertPos = len(m.queue.entries)
-		}
+		insertPos := min(m.queue.cursor+1, len(m.queue.entries))
 		buf := make([]QueueEntry, len(m.yankBuffer))
 		copy(buf, m.yankBuffer)
 		writer := m.queueWriter
@@ -674,10 +692,7 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 	if len(msg.Entries) == 0 {
 		return m
 	}
-	insertPos := msg.InsertPos
-	if insertPos > len(m.queue.entries) {
-		insertPos = len(m.queue.entries)
-	}
+	insertPos := min(msg.InsertPos, len(m.queue.entries))
 	newEntries := make([]QueueEntry, 0, len(m.queue.entries)+len(msg.Entries))
 	newEntries = append(newEntries, m.queue.entries[:insertPos]...)
 	newEntries = append(newEntries, msg.Entries...)

@@ -2287,3 +2287,58 @@ func TestPlayQueueIndexMsgClearsStateOnFailure(t *testing.T) {
 		t.Error("expected error notification")
 	}
 }
+
+// TestBulkDequeueAdjustsCurrentIndex verifies that bulk-dequeueing selected
+// entries adjusts playback.currentIndex so the now-playing highlight stays on
+// the correct entry.
+func TestBulkDequeueAdjustsCurrentIndex(t *testing.T) {
+	d := &stubQueueDequeuer{}
+	m := New(context.Background(), WithQueueDequeuer(d))
+	m.activeView = viewQueue
+	m.playback.currentIndex = 3
+	m.playback.currentHash = "ddd"
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/a.flac", Display: "A", Hash: "aaa", Selected: true},
+		{ID: 20, Path: "/b.flac", Display: "B", Hash: "bbb"},
+		{ID: 30, Path: "/c.flac", Display: "C", Hash: "ccc", Selected: true},
+		{ID: 40, Path: "/d.flac", Display: "D", Hash: "ddd"},
+		{ID: 50, Path: "/e.flac", Display: "E", Hash: "eee"},
+	}
+
+	// Press 'd' to bulk dequeue entries at indices 0 and 2.
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	nm := next.(Model)
+
+	if len(nm.queue.entries) != 3 {
+		t.Fatalf("after bulk dequeue: expected 3 entries, got %d", len(nm.queue.entries))
+	}
+	// Two entries before currentIndex=3 were removed, so new index should be 1.
+	if nm.playback.currentIndex != 1 {
+		t.Errorf("currentIndex = %d, want 1 (adjusted after removing 2 entries before it)", nm.playback.currentIndex)
+	}
+}
+
+// TestBulkDequeueCurrentTrackSelectedResetsIndex verifies that bulk-dequeueing
+// the currently-playing entry sets currentIndex to -1.
+func TestBulkDequeueCurrentTrackSelectedResetsIndex(t *testing.T) {
+	d := &stubQueueDequeuer{}
+	m := New(context.Background(), WithQueueDequeuer(d))
+	m.activeView = viewQueue
+	m.playback.currentIndex = 1
+	m.playback.currentHash = "bbb"
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/a.flac", Display: "A", Hash: "aaa"},
+		{ID: 20, Path: "/b.flac", Display: "B", Hash: "bbb", Selected: true},
+		{ID: 30, Path: "/c.flac", Display: "C", Hash: "ccc"},
+	}
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	nm := next.(Model)
+
+	if len(nm.queue.entries) != 2 {
+		t.Fatalf("after bulk dequeue: expected 2 entries, got %d", len(nm.queue.entries))
+	}
+	if nm.playback.currentIndex != -1 {
+		t.Errorf("currentIndex = %d, want -1 (currently-playing track was removed)", nm.playback.currentIndex)
+	}
+}
