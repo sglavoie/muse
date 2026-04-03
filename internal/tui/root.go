@@ -273,6 +273,7 @@ func pluralize(n int, singular, plural string) string {
 func (m *Model) scheduleSoftDelete(softDeleteFn func(), purgeFn func(beforeUnix int64)) chan struct{} {
 	if m.undo.slot.cancelPurge != nil {
 		close(m.undo.slot.cancelPurge)
+		m.undo.slot.cancelPurge = nil
 	}
 	cancel := make(chan struct{})
 	softDeleteTime := time.Now().Unix()
@@ -335,10 +336,12 @@ func (m Model) syncPlayerQueue() {
 
 // setUndoSlot replaces the current undo slot and derives the status-bar
 // notification from action.description(). cancelPurge may be nil for actions
-// that do not schedule a soft-delete purge timer. The caller is responsible
-// for closing any existing cancelPurge before calling this (scheduleSoftDelete
-// handles that for soft-delete cases; direct callers must do it manually).
+// that do not schedule a soft-delete purge timer. Any previous slot's purge
+// channel is closed automatically so callers need not manage its lifecycle.
 func (m *Model) setUndoSlot(action undoAction, cancelPurge chan struct{}) {
+	if m.undo.slot.cancelPurge != nil {
+		close(m.undo.slot.cancelPurge)
+	}
 	m.undo.slot = undoSlot{
 		action:      action,
 		expiresAt:   time.Now().Add(undoWindowDuration),

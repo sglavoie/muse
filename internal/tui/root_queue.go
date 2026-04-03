@@ -135,9 +135,6 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 	}
 	m = m.resetQueueSort()
 	// Set up undo slot so the user can revert the enqueue.
-	if m.undo.slot.cancelPurge != nil {
-		close(m.undo.slot.cancelPurge)
-	}
 	m.setUndoSlot(undoEnqueueAction{
 		id:    msg.QueueID,
 		entry: m.queue.entries[enqueueIdx],
@@ -186,9 +183,6 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 		m = m.tryAutoPlay(e.Hash, e.Artist, e.Title, msg.PlaylistName)
 	}
 	// Set up undo slot.
-	if m.undo.slot.cancelPurge != nil {
-		close(m.undo.slot.cancelPurge)
-	}
 	m.setUndoSlot(undoBatchEnqueueAction{
 		ids:          msg.QueueIDs,
 		count:        len(msg.Entries),
@@ -711,9 +705,6 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 	pastedIDs := make([]int64, len(msg.Entries))
 	for i, e := range msg.Entries {
 		pastedIDs[i] = e.ID
-	}
-	if m.undo.slot.cancelPurge != nil {
-		close(m.undo.slot.cancelPurge)
 	}
 	m.setUndoSlot(undoPasteAction{
 		ids:   pastedIDs,
