@@ -137,6 +137,11 @@ type Manager struct {
 	// prefetchedPath is the file path of the prefetched track, used for
 	// staleness checks so prefetchNext is idempotent.
 	prefetchedPath string
+
+	// prefetchMu serializes prefetchNext and clearPrefetch so that
+	// concurrent goroutines cannot both read prefetchedIndex == -1 and
+	// both append the same track, creating a duplicate playlist entry.
+	prefetchMu sync.Mutex
 }
 
 // NewManager creates a Manager with the given socket path.

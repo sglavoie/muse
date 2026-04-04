@@ -139,6 +139,9 @@ func (m *Manager) PlayFromIndex(index int) error {
 // best-effort: errors are logged but not propagated. It is safe to call
 // from any goroutine; calls are idempotent.
 func (m *Manager) prefetchNext() {
+	m.prefetchMu.Lock()
+	defer m.prefetchMu.Unlock()
+
 	m.mu.RLock()
 	idx := m.currentIndex
 	queue := m.queue
@@ -149,7 +152,7 @@ func (m *Manager) prefetchNext() {
 	m.mu.RUnlock()
 
 	if !gapless || stop {
-		m.clearPrefetch()
+		m.doClearPrefetch()
 		return
 	}
 
@@ -163,7 +166,7 @@ func (m *Manager) prefetchNext() {
 		}
 	}
 	if nextIdx < 0 {
-		m.clearPrefetch()
+		m.doClearPrefetch()
 		return
 	}
 
@@ -194,6 +197,14 @@ func (m *Manager) prefetchNext() {
 // clearPrefetch removes the prefetched entry from mpv's internal playlist
 // and resets the tracking state. Safe to call when nothing is prefetched.
 func (m *Manager) clearPrefetch() {
+	m.prefetchMu.Lock()
+	defer m.prefetchMu.Unlock()
+	m.doClearPrefetch()
+}
+
+// doClearPrefetch is the inner implementation of clearPrefetch. The caller
+// must hold prefetchMu.
+func (m *Manager) doClearPrefetch() {
 	m.mu.Lock()
 	had := m.prefetchedIndex >= 0
 	m.prefetchedIndex = -1

@@ -122,6 +122,16 @@ func (m *Manager) startEventReader(ctx context.Context) {
 				m.prefetchedIndex = -1
 				m.prefetchedPath = ""
 				m.mu.Unlock()
+
+				// Remove the completed track (position 0) from mpv's
+				// playlist so it stays at 2 entries instead of growing
+				// unbounded across gapless transitions.
+				go func() {
+					if c, err := m.ipc(); err == nil {
+						_, _ = c.SendCommand("playlist-remove", 0)
+					}
+				}()
+
 				go m.prefetchNext()
 				continue
 			}

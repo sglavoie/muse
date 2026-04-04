@@ -657,3 +657,45 @@ func TestQueueMutation_InvalidatesPrefetch(t *testing.T) {
 		t.Errorf("prefetchedIndex = %d, want -1 after RemoveFromQueue", m.prefetchedIndex)
 	}
 }
+
+// TestPrefetchNext_ConcurrentNoDuplicate verifies that two concurrent
+// prefetchNext calls produce exactly one loadfile-append command, not two.
+// Before the prefetchMu fix, both goroutines would read prefetchedIndex == -1
+// and both append the same track, creating a duplicate playlist entry.
+func TestPrefetchNext_ConcurrentNoDuplicate(t *testing.T) {
+	var mu sync.Mutex
+	var received [][]any
+	m := newConnectedManager(t, "prefetch-race", &mu, &received)
+
+	pathA := tempFile(t, "a*.flac")
+	pathB := tempFile(t, "b*.flac")
+
+	m.mu.Lock()
+	m.gaplessEnabled = true
+	m.queue = []QueueTrack{
+		{Path: pathA, Hash: "h0", QueueID: 1},
+		{Path: pathB, Hash: "h1", QueueID: 2},
+	}
+	m.currentIndex = 0
+	m.mu.Unlock()
+
+	// Launch two concurrent prefetchNext calls — the race scenario.
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() { defer wg.Done(); m.prefetchNext() }()
+	go func() { defer wg.Done(); m.prefetchNext() }()
+	wg.Wait()
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	var appendCount int
+	for _, cmd := range received {
+		if isLoadfileAppend(cmd) {
+			appendCount++
+		}
+	}
+	if appendCount != 1 {
+		t.Errorf("expected exactly 1 loadfile append, got %d; commands: %v", appendCount, received)
+	}
+}
