@@ -319,3 +319,187 @@ func TestVisibleRowsSortIndicator(t *testing.T) {
 		t.Errorf("want 19 (20-1 for sort indicator), got %d", got)
 	}
 }
+
+// ---------- DeriveGenreTracks ----------
+
+func TestDeriveGenreTracks(t *testing.T) {
+	ts := tracks(
+		struct{ genre, artist, title string }{"Rock", "Alice", "t1"},
+		struct{ genre, artist, title string }{"Jazz", "Bob", "t2"},
+		struct{ genre, artist, title string }{"Rock; Jazz", "Carol", "t3"},
+		struct{ genre, artist, title string }{"Pop", "Dave", "t4"},
+	)
+	got := DeriveGenreTracks(ts, "Rock")
+	if len(got) != 2 {
+		t.Fatalf("want 2 tracks, got %d: %v", len(got), got)
+	}
+	if got[0].Title != "t1" || got[1].Title != "t3" {
+		t.Errorf("unexpected tracks: %v", got)
+	}
+}
+
+func TestDeriveGenreTracks_UnknownGenre(t *testing.T) {
+	ts := tracks(
+		struct{ genre, artist, title string }{"", "Alice", "t1"},
+		struct{ genre, artist, title string }{"Rock", "Bob", "t2"},
+		struct{ genre, artist, title string }{"", "Carol", "t3"},
+	)
+	got := DeriveGenreTracks(ts, UnknownGenre)
+	if len(got) != 2 {
+		t.Fatalf("want 2 tracks, got %d", len(got))
+	}
+	if got[0].Title != "t1" || got[1].Title != "t3" {
+		t.Errorf("unexpected tracks: %v", got)
+	}
+}
+
+func TestDeriveGenreTracks_NoMatches(t *testing.T) {
+	ts := tracks(
+		struct{ genre, artist, title string }{"Rock", "Alice", "t1"},
+	)
+	got := DeriveGenreTracks(ts, "Jazz")
+	if len(got) != 0 {
+		t.Errorf("want 0 tracks, got %d", len(got))
+	}
+}
+
+// ---------- RawGenre ----------
+
+func TestRawGenre_Unknown(t *testing.T) {
+	if got := RawGenre(UnknownGenre); got != "" {
+		t.Errorf("expected empty string, got %q", got)
+	}
+}
+
+func TestRawGenre_Normal(t *testing.T) {
+	if got := RawGenre("Rock"); got != "Rock" {
+		t.Errorf("expected Rock, got %q", got)
+	}
+}
+
+// ---------- Cursor navigation edge cases ----------
+
+func TestCursorDown_AtBottom(t *testing.T) {
+	v := View{
+		Level:  GenreLevel,
+		Genres: []string{"A", "B", "C"},
+		Cursor: 2,
+		Height: 20,
+	}
+	v2 := v.CursorDown()
+	if v2.Cursor != 2 {
+		t.Errorf("expected cursor=2 at bottom, got %d", v2.Cursor)
+	}
+}
+
+func TestCursorUp_AtTop(t *testing.T) {
+	v := View{
+		Level:  GenreLevel,
+		Genres: []string{"A", "B"},
+		Cursor: 0,
+	}
+	v2 := v.CursorUp()
+	if v2.Cursor != 0 {
+		t.Errorf("expected cursor=0 at top, got %d", v2.Cursor)
+	}
+}
+
+func TestGoToBottom_WithScroll(t *testing.T) {
+	v := View{
+		Level:  GenreLevel,
+		Genres: []string{"A", "B", "C", "D", "E"},
+		Cursor: 0,
+		Height: 3,
+	}
+	v2 := v.GoToBottom()
+	if v2.Cursor != 4 {
+		t.Errorf("expected cursor=4, got %d", v2.Cursor)
+	}
+	if v2.ScrollOffset < 2 {
+		t.Errorf("expected scrollOffset >= 2, got %d", v2.ScrollOffset)
+	}
+}
+
+func TestGoToTop_ResetsScroll(t *testing.T) {
+	v := View{
+		Level:        GenreLevel,
+		Genres:       []string{"A", "B", "C", "D"},
+		Cursor:       3,
+		ScrollOffset: 2,
+	}
+	v2 := v.GoToTop()
+	if v2.Cursor != 0 || v2.ScrollOffset != 0 {
+		t.Errorf("expected cursor=0 scroll=0, got cursor=%d scroll=%d", v2.Cursor, v2.ScrollOffset)
+	}
+}
+
+func TestMoveCursor_EmptyGenres(t *testing.T) {
+	v := View{Level: GenreLevel, Genres: nil, Height: 20}
+	v2 := v.moveCursor(5)
+	if v2.Cursor != 0 {
+		t.Errorf("expected cursor=0 for empty, got %d", v2.Cursor)
+	}
+}
+
+func TestHalfPageDown(t *testing.T) {
+	v := View{
+		Level:  GenreLevel,
+		Genres: []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"},
+		Cursor: 0,
+		Height: 6,
+	}
+	v2 := v.HalfPageDown()
+	if v2.Cursor != 3 {
+		t.Errorf("expected cursor=3, got %d", v2.Cursor)
+	}
+}
+
+// ---------- visibleRows with filter at GenreLevel ----------
+
+func TestVisibleRowsGenreLevelWithFilterText(t *testing.T) {
+	v := View{Level: GenreLevel, Height: 20, FilterText: "roc"}
+	if got := v.visibleRows(); got != 19 {
+		t.Errorf("want 19 (filter text reserves 1 row), got %d", got)
+	}
+}
+
+// ---------- EffectiveArtists / EffectiveTracks ----------
+
+func TestEffectiveArtists(t *testing.T) {
+	v := View{
+		Level:   ArtistLevel,
+		Artists: []string{"Alice", "Bob", "Carol"},
+	}
+	got := v.EffectiveArtists()
+	if len(got) != 3 {
+		t.Errorf("expected 3, got %d", len(got))
+	}
+}
+
+func TestEffectiveArtistsFiltered(t *testing.T) {
+	v := View{
+		Level:      ArtistLevel,
+		Artists:    []string{"Alice", "Bob", "Carol"},
+		FilterText: "bob",
+	}
+	got := v.EffectiveArtists()
+	if len(got) != 1 || got[0] != "Bob" {
+		t.Errorf("expected [Bob], got %v", got)
+	}
+}
+
+func TestEffectiveTracksFiltered(t *testing.T) {
+	ts := tracks(
+		struct{ genre, artist, title string }{"Rock", "Alice", "hello"},
+		struct{ genre, artist, title string }{"Rock", "Bob", "world"},
+	)
+	v := View{
+		Level:      TrackLevel,
+		Tracks:     ts,
+		FilterText: "hel",
+	}
+	got := v.EffectiveTracks()
+	if len(got) != 1 || got[0].Title != "hello" {
+		t.Errorf("expected [hello], got %v", got)
+	}
+}
