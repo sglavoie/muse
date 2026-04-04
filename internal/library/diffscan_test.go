@@ -59,16 +59,6 @@ func TestBulkLoad_ReplacesExistingContent(t *testing.T) {
 	}
 }
 
-// TestBulkLoad_Empty verifies BulkLoad with an empty slice leaves a clean index.
-func TestBulkLoad_Empty(t *testing.T) {
-	var idx LibraryIndex
-	idx.Insert(Track{Artist: "A", Title: "T", Hash: "h", Path: "/t.flac"})
-	idx.BulkLoad(nil)
-	if idx.Len() != 0 {
-		t.Errorf("Len: got %d, want 0 after BulkLoad(nil)", idx.Len())
-	}
-}
-
 // BenchmarkBulkLoad measures BulkLoad vs N individual Inserts for 50,000 tracks.
 func BenchmarkBulkLoad(b *testing.B) {
 	const n = 50_000

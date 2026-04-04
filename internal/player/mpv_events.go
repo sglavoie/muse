@@ -112,11 +112,14 @@ func (m *Manager) startEventReader(ctx context.Context) {
 				continue
 			}
 
-			// If the next track was prefetched, mpv has already started
-			// transitioning to it gaplessly. Just advance bookkeeping
-			// and prefetch the track after that — do NOT send a new
-			// loadfile replace which would destroy the gapless transition.
-			if prefetchedIdx == idx+1 {
+			// If a track was prefetched (any index after the current one),
+			// mpv has already started transitioning to it gaplessly.
+			// Just advance bookkeeping and prefetch the track after
+			// that — do NOT send a new loadfile replace which would
+			// destroy the gapless transition. The prefetched index may
+			// be > idx+1 when intermediate tracks were missing on disk
+			// and skipped by prefetchNext.
+			if prefetchedIdx >= 0 && prefetchedIdx > idx {
 				m.mu.Lock()
 				m.currentIndex = prefetchedIdx
 				m.prefetchedIndex = -1

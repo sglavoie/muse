@@ -638,6 +638,123 @@ func TestHashMapConsistencyAfterInterleavedOps(t *testing.T) {
 	assertConsistent(t, &idx)
 }
 
+// --- FindByPath ---
+
+func TestFindByPath_Found(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "h1", Artist: "A", Title: "t1", Path: "/a.flac"})
+	idx.Insert(Track{Hash: "h2", Artist: "B", Title: "t2", Path: "/b.flac"})
+	idx.Insert(Track{Hash: "h3", Artist: "C", Title: "t3", Path: "/c.flac"})
+
+	got, ok := idx.FindByPath("/b.flac")
+	if !ok {
+		t.Fatal("FindByPath: expected true for existing path")
+	}
+	if got.Hash != "h2" || got.Artist != "B" {
+		t.Errorf("FindByPath returned wrong track: %+v", got)
+	}
+}
+
+func TestFindByPath_NotFound(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "h1", Artist: "A", Title: "t1", Path: "/a.flac"})
+
+	_, ok := idx.FindByPath("/nonexistent.flac")
+	if ok {
+		t.Error("FindByPath: expected false for non-existing path")
+	}
+}
+
+func TestFindByPath_EmptyIndex(t *testing.T) {
+	var idx LibraryIndex
+	_, ok := idx.FindByPath("/a.flac")
+	if ok {
+		t.Error("FindByPath on empty index: expected false")
+	}
+}
+
+// --- UpdateDuration ---
+
+func TestUpdateDuration_Found(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "h1", Artist: "A", Title: "t1", Duration: 0})
+	idx.Insert(Track{Hash: "h2", Artist: "B", Title: "t2", Duration: 100})
+
+	if !idx.UpdateDuration("h1", 42.5) {
+		t.Fatal("UpdateDuration: expected true for existing hash")
+	}
+	got, ok := idx.FindByHash("h1")
+	if !ok {
+		t.Fatal("track not found after UpdateDuration")
+	}
+	if got.Duration != 42.5 {
+		t.Errorf("expected Duration=42.5, got %f", got.Duration)
+	}
+	// Other track should be unaffected.
+	got2, _ := idx.FindByHash("h2")
+	if got2.Duration != 100 {
+		t.Errorf("h2 Duration changed unexpectedly: %f", got2.Duration)
+	}
+}
+
+func TestUpdateDuration_NotFound(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "h1", Artist: "A", Title: "t1"})
+
+	if idx.UpdateDuration("nonexistent", 99) {
+		t.Error("UpdateDuration: expected false for non-existing hash")
+	}
+}
+
+func TestUpdateDuration_EmptyIndex(t *testing.T) {
+	var idx LibraryIndex
+	if idx.UpdateDuration("h1", 42) {
+		t.Error("UpdateDuration on empty index: expected false")
+	}
+}
+
+func TestUpdateDuration_DoesNotChangeSortOrder(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "h1", Artist: "B", Title: "t1", Duration: 0})
+	idx.Insert(Track{Hash: "h2", Artist: "A", Title: "t2", Duration: 100})
+
+	idx.UpdateDuration("h1", 999)
+	got := idx.Tracks()
+	// Sort order is by artist: A before B.
+	if got[0].Artist != "A" || got[1].Artist != "B" {
+		t.Errorf("UpdateDuration changed sort order: %v", got)
+	}
+}
+
+// --- BulkLoad edge cases ---
+
+func TestBulkLoad_EmptyClearsIndex(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "h1", Artist: "A", Title: "t1"})
+	idx.BulkLoad(nil)
+	if idx.Len() != 0 {
+		t.Errorf("BulkLoad(nil): expected 0 tracks, got %d", idx.Len())
+	}
+	if _, ok := idx.FindByHash("h1"); ok {
+		t.Error("BulkLoad(nil): stale hash should not be found")
+	}
+}
+
+func TestBulkLoad_DoesNotModifyInput(t *testing.T) {
+	input := []Track{
+		{Hash: "h2", Artist: "Zappa", Title: "t2"},
+		{Hash: "h1", Artist: "Arca", Title: "t1"},
+	}
+	origFirst := input[0].Artist
+
+	var idx LibraryIndex
+	idx.BulkLoad(input)
+
+	if input[0].Artist != origFirst {
+		t.Error("BulkLoad modified the input slice")
+	}
+}
+
 func TestLibraryIndex_MemoryUnder25MB(t *testing.T) {
 	const n = 50_000
 

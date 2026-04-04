@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -61,11 +62,9 @@ func waitForCommand(t *testing.T, mu *sync.Mutex, received *[][]any, match func(
 	deadline := time.After(timeout)
 	for {
 		mu.Lock()
-		for _, cmd := range *received {
-			if match(cmd) {
-				mu.Unlock()
-				return
-			}
+		if slices.ContainsFunc(*received, match) {
+			mu.Unlock()
+			return
 		}
 		mu.Unlock()
 		select {
@@ -380,6 +379,81 @@ func TestEndFileEOF_UsesPrefetchedPath(t *testing.T) {
 	}
 }
 
+// TestEndFileEOF_UsesPrefetchedPath_SkipsMissing verifies that when the
+// prefetched track is at idx+2 (because idx+1 was missing on disk), the
+// gapless transition still works: currentIndex advances to prefetchedIndex
+// instead of falling through to the loadfile-replace fallback path.
+func TestEndFileEOF_UsesPrefetchedPath_SkipsMissing(t *testing.T) {
+	sock := shortSockPath(t, "eof-pf-skip")
+
+	connDone := make(chan struct{})
+
+	os.Remove(sock)
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { ln.Close(); os.Remove(sock) })
+
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		_, _ = conn.Write([]byte(`{"event":"end-file","reason":"eof"}` + "\n"))
+		<-connDone
+	}()
+	defer close(connDone)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pathA := tempFile(t, "a*.flac")
+	pathC := tempFile(t, "c*.flac")
+
+	m := &Manager{
+		socketPath:     sock,
+		ctx:            ctx,
+		cancel:         cancel,
+		callbacksReady: make(chan struct{}),
+		gaplessEnabled: true,
+		// idx+1 ("/missing.flac") was missing, so prefetchNext picked idx+2.
+		prefetchedIndex: 2,
+		prefetchedPath:  pathC,
+		queue: []QueueTrack{
+			{Path: pathA, Hash: "h0", QueueID: 1},
+			{Path: "/missing.flac", Hash: "h1", QueueID: 2},
+			{Path: pathC, Hash: "h2", QueueID: 3},
+		},
+		currentIndex: 0,
+		callbacks: EventCallbacks{
+			OnTrackChanged:  func(_, _, _, _ string, _ int) {},
+			OnPlaybackEnded: func() {},
+			OnStatus:        func(string) {},
+			OnMissingFile:   func(string) {},
+		},
+	}
+	close(m.callbacksReady)
+
+	go m.startEventReader(ctx)
+
+	// Wait for the event reader to process the end-file event.
+	time.Sleep(200 * time.Millisecond)
+
+	m.mu.RLock()
+	idx := m.currentIndex
+	prefIdx := m.prefetchedIndex
+	m.mu.RUnlock()
+
+	if idx != 2 {
+		t.Errorf("currentIndex = %d, want 2 (should skip missing idx+1)", idx)
+	}
+	if prefIdx != -1 {
+		t.Errorf("prefetchedIndex = %d, want -1 (cleared after use)", prefIdx)
+	}
+}
+
 func TestEndFileEOF_FallbackWhenNoPrefetch(t *testing.T) {
 	sock := shortSockPath(t, "eof-fallback")
 
@@ -655,6 +729,112 @@ func TestQueueMutation_InvalidatesPrefetch(t *testing.T) {
 	defer m.mu.RUnlock()
 	if m.prefetchedIndex != -1 {
 		t.Errorf("prefetchedIndex = %d, want -1 after RemoveFromQueue", m.prefetchedIndex)
+	}
+}
+
+// TestPrefetchNext_SkipsMissingFiles verifies that prefetchNext skips
+// intermediate files that do not exist on disk and prefetches the first
+// playable entry after the current index.
+func TestPrefetchNext_SkipsMissingFiles(t *testing.T) {
+	var mu sync.Mutex
+	var received [][]any
+	m := newConnectedManager(t, "prefetch-skipmiss", &mu, &received)
+
+	pathA := tempFile(t, "a*.flac")
+	pathC := tempFile(t, "c*.flac")
+
+	m.mu.Lock()
+	m.gaplessEnabled = true
+	m.queue = []QueueTrack{
+		{Path: pathA, Hash: "h0", QueueID: 1},
+		{Path: "/nonexistent1.flac", Hash: "h1", QueueID: 2},
+		{Path: "/nonexistent2.flac", Hash: "h2", QueueID: 3},
+		{Path: pathC, Hash: "h3", QueueID: 4},
+	}
+	m.currentIndex = 0
+	m.mu.Unlock()
+
+	m.prefetchNext()
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	found := false
+	for _, cmd := range received {
+		if isLoadfileAppend(cmd) {
+			path, _ := cmd[1].(string)
+			if path == pathC {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Errorf("expected loadfile %s append (skipping missing); got %v", pathC, received)
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.prefetchedIndex != 3 {
+		t.Errorf("prefetchedIndex = %d, want 3", m.prefetchedIndex)
+	}
+	if m.prefetchedPath != pathC {
+		t.Errorf("prefetchedPath = %q, want %q", m.prefetchedPath, pathC)
+	}
+}
+
+// TestPrefetchNext_ReplacesStale verifies that when the prefetched entry
+// becomes stale (e.g. after a queue mutation changes the next track),
+// prefetchNext removes the old entry and appends the new one.
+func TestPrefetchNext_ReplacesStale(t *testing.T) {
+	var mu sync.Mutex
+	var received [][]any
+	m := newConnectedManager(t, "prefetch-stale", &mu, &received)
+
+	pathA := tempFile(t, "a*.flac")
+	pathB := tempFile(t, "b*.flac")
+	pathC := tempFile(t, "c*.flac")
+
+	m.mu.Lock()
+	m.gaplessEnabled = true
+	m.queue = []QueueTrack{
+		{Path: pathA, Hash: "h0", QueueID: 1},
+		{Path: pathB, Hash: "h1", QueueID: 2},
+		{Path: pathC, Hash: "h2", QueueID: 3},
+	}
+	m.currentIndex = 0
+	m.prefetchedIndex = 1
+	m.prefetchedPath = pathB
+	m.mu.Unlock()
+
+	// Simulate that the next track changed to pathC (index 2).
+	m.mu.Lock()
+	m.queue[1].Path = "/now-missing.flac"
+	m.prefetchedIndex = -1
+	m.prefetchedPath = ""
+	m.mu.Unlock()
+
+	m.prefetchNext()
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	found := false
+	for _, cmd := range received {
+		if isLoadfileAppend(cmd) {
+			path, _ := cmd[1].(string)
+			if path == pathC {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Errorf("expected loadfile %s append; got %v", pathC, received)
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.prefetchedIndex != 2 {
+		t.Errorf("prefetchedIndex = %d, want 2", m.prefetchedIndex)
 	}
 }
 
