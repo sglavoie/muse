@@ -49,7 +49,7 @@ type QueueView struct {
 	savingFromSelection bool            // true when saving only bulk-selected entries (not the full queue)
 	saveInput           textinput.Model // current value of the inline save field
 	sortState           SortState
-	displayOrder        []int               // nil when sort inactive (identity mapping)
+	displayOrder        []int // nil when sort inactive (identity mapping)
 	filter              filter.State
 	tagFilterHashes     map[string]struct{} // non-nil when a cross-view tag filter is active
 }

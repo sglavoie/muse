@@ -24,7 +24,7 @@ type LibraryView struct {
 	fuzzy           library.FuzzySearcher
 	selectedHashes  map[string]struct{} // bulk-selected track hashes
 	sortState       SortState
-	sortedTracks    []library.Track     // cached sorted copy; nil when SortDefault
+	sortedTracks    []library.Track // cached sorted copy; nil when SortDefault
 	showDateAdded   bool
 	showPlayedAt    bool
 	tagFilterHashes map[string]struct{} // non-nil when a cross-view tag filter is active

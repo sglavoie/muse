@@ -9,10 +9,10 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	musiclib "github.com/sglavoie/muse/internal/library"
-	libtui "github.com/sglavoie/muse/internal/tui/library"
-	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // TagsView wraps the tags sub-panel state for the root model.
@@ -24,9 +24,9 @@ type TagsView struct {
 	cursor       int
 	scrollOffset int
 
-	tags      []db.TagRow
-	tagCounts map[int64]int        // tag ID → track count; loaded on switch or mutation
-	tracks    []db.PlaylistTrackRow // populated when level == TrackLevel
+	tags        []db.TagRow
+	tagCounts   map[int64]int         // tag ID → track count; loaded on switch or mutation
+	tracks      []db.PlaylistTrackRow // populated when level == TrackLevel
 	selectedTag db.TagRow
 
 	// Saved cursors/scroll for tag level (restored on back).
@@ -97,15 +97,15 @@ func (v TagsView) HandleAction(a action) TagsView {
 		sortInd = "active"
 	}
 	view := tagtui.View{
-		Level:        v.level,
-		Cursor:       v.cursor,
-		ScrollOffset: v.scrollOffset,
-		Tags:         v.tags,
-		TagCounts:    v.tagCounts,
-		Tracks:       v.tracks,
-		Height:       v.height,
-		FilterActive: v.filter.Active,
-		FilterText:   v.filter.Text,
+		Level:         v.level,
+		Cursor:        v.cursor,
+		ScrollOffset:  v.scrollOffset,
+		Tags:          v.tags,
+		TagCounts:     v.tagCounts,
+		Tracks:        v.tracks,
+		Height:        v.height,
+		FilterActive:  v.filter.Active,
+		FilterText:    v.filter.Text,
 		SortIndicator: sortInd,
 	}
 	switch a {
@@ -252,20 +252,6 @@ func (v TagsView) enqueueFocusedTrack(qa libtui.QueueAppender, prevQueueLen int)
 	}
 }
 
-// playNextFocusedTrack dispatches a tea.Cmd that inserts the focused track
-// right after the currently playing track.
-func (v TagsView) playNextFocusedTrack(qa libtui.QueueAppender, prevQueueLen, insertAfter int) tea.Cmd {
-	track, ok := v.focusedTrackAsLibTrack()
-	if !ok {
-		return nil
-	}
-	wasEmpty := prevQueueLen == 0
-	return func() tea.Msg {
-		id, err := qa.AppendTrack(track, "")
-		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, InsertAfter: insertAfter}
-	}
-}
-
 // isCreating reports whether the inline create input is active.
 func (v TagsView) isCreating() bool { return v.creating }
 
@@ -288,11 +274,6 @@ func (v TagsView) cancelCreate() TagsView {
 // createInputValue returns the trimmed create input buffer.
 func (v TagsView) createInputValue() string {
 	return strings.TrimSpace(v.createInput.Value())
-}
-
-// createInputIsEmpty reports whether the trimmed create input buffer is empty.
-func (v TagsView) createInputIsEmpty() bool {
-	return strings.TrimSpace(v.createInput.Value()) == ""
 }
 
 // updateCreateInput forwards a key message to the Bubbles textinput model.
@@ -335,11 +316,6 @@ func (v TagsView) renameInputValue() string {
 	return strings.TrimSpace(v.renameInput.Value())
 }
 
-// renameInputIsEmpty reports whether the trimmed rename input buffer is empty.
-func (v TagsView) renameInputIsEmpty() bool {
-	return strings.TrimSpace(v.renameInput.Value()) == ""
-}
-
 // updateRenameInput forwards a key message to the Bubbles textinput model.
 func (v TagsView) updateRenameInput(msg tea.KeyPressMsg) (TagsView, tea.Cmd) {
 	var cmd tea.Cmd
@@ -354,5 +330,3 @@ func (v TagsView) updateRenameInputMsg(msg tea.Msg) (TagsView, tea.Cmd) {
 	return v, cmd
 }
 
-// atTagLevel reports whether the view is currently showing the tag list.
-func (v TagsView) atTagLevel() bool { return v.level == tagtui.TagLevel }

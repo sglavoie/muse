@@ -1,12 +1,12 @@
 package tags
 
 const (
-	trackDurationFixed  = 10 // "mm:ss.xxx"
-	trackSepCount       = 3  // spaces between four columns
+	trackDurationFixed   = 10 // "mm:ss.xxx"
+	trackSepCount        = 3  // spaces between four columns
 	selectionMarkerFixed = 2  // '●' + space
-	minTitleWidth       = 10
-	minArtistWidth      = 10
-	minAlbumWidth       = 8
+	minTitleWidth        = 10
+	minArtistWidth       = 10
+	minAlbumWidth        = 8
 )
 
 // TrackColumns holds computed character widths for the tag track-level view

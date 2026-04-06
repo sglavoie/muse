@@ -15,7 +15,7 @@ const (
 	contextFavorites                           // applies only in the Favorites view
 	contextGenres                              // applies only in the Genres view
 	contextHistory                             // applies only in the History view
-	contextTags                               // applies only in the Tags view
+	contextTags                                // applies only in the Tags view
 	contextModals                              // applies only when a modal is active
 )
 

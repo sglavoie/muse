@@ -49,14 +49,14 @@ type undoInfo struct {
 
 // playbackInfo groups the fields that describe the current playback state.
 type playbackInfo struct {
-	state            PlaybackState
-	repeatMode       RepeatMode
-	shuffle          bool
-	volume           int
-	currentHash      string
-	currentIndex     int // index into queue entries; -1 = nothing playing
-	elapsedSecs      float64
-	totalSecs        float64
+	state             PlaybackState
+	repeatMode        RepeatMode
+	shuffle           bool
+	volume            int
+	currentHash       string
+	currentIndex      int // index into queue entries; -1 = nothing playing
+	elapsedSecs       float64
+	totalSecs         float64
 	stopAfterCurrent  bool // true when "stop after current track" is armed
 	durationCorrected bool // true once mpv duration has been compared/corrected for the current track
 }

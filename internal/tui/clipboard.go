@@ -21,12 +21,12 @@ func copyToClipboard(ctx context.Context, text string) tea.Cmd {
 	return func() tea.Msg {
 		var cmd *exec.Cmd
 		if runtime.GOOS == "darwin" {
-			cmd = exec.CommandContext(ctx, "pbcopy") //nolint:gosec
+			cmd = exec.CommandContext(ctx, "pbcopy")
 		} else {
 			if _, err := exec.LookPath("xclip"); err == nil {
-				cmd = exec.CommandContext(ctx, "xclip", "-selection", "clipboard") //nolint:gosec
+				cmd = exec.CommandContext(ctx, "xclip", "-selection", "clipboard")
 			} else {
-				cmd = exec.CommandContext(ctx, "xsel", "--clipboard", "--input") //nolint:gosec
+				cmd = exec.CommandContext(ctx, "xsel", "--clipboard", "--input")
 			}
 		}
 		cmd.Stdin = bytes.NewBufferString(text)

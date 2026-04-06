@@ -110,11 +110,11 @@ func TestEndFileEOF_UsesPrefetchedPath_SkipsMissing(t *testing.T) {
 	pathC := tempFile(t, "c*.flac")
 
 	m := &Manager{
-		socketPath:     sock,
-		ctx:            ctx,
-		cancel:         cancel,
-		callbacksReady: make(chan struct{}),
-		gaplessEnabled: true,
+		socketPath:      sock,
+		ctx:             ctx,
+		cancel:          cancel,
+		callbacksReady:  make(chan struct{}),
+		gaplessEnabled:  true,
 		prefetchedIndex: 2,
 		prefetchedPath:  pathC,
 		queue: []QueueTrack{

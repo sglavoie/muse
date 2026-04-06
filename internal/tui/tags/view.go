@@ -30,11 +30,11 @@ type View struct {
 	Cursor       int
 	ScrollOffset int
 
-	Tags           []db.TagRow
-	TagCounts      map[int64]int // tag ID → track count
-	Tracks         []db.PlaylistTrackRow
-	SelectedTag    db.TagRow
-	TagCursor      int // saved tag cursor for restoring on Back
+	Tags            []db.TagRow
+	TagCounts       map[int64]int // tag ID → track count
+	Tracks          []db.PlaylistTrackRow
+	SelectedTag     db.TagRow
+	TagCursor       int // saved tag cursor for restoring on Back
 	TagScrollOffset int // saved tag scroll offset for restoring on Back
 
 	Width  int

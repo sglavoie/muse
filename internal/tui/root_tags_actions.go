@@ -8,12 +8,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/db"
-	"github.com/sglavoie/muse/internal/tui/styles"
 	musiclib "github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	"github.com/sglavoie/muse/internal/tui/styles"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -625,18 +625,6 @@ func (m Model) refreshTagsViewAfterCreate(msg tagCreatedMsg) Model {
 	return m
 }
 
-// loadTagCountsCmd returns a Cmd that loads tag counts from the DB.
-func (m Model) loadTagCountsCmd() tea.Cmd {
-	tr := m.tagReader
-	if tr == nil {
-		return nil
-	}
-	return func() tea.Msg {
-		counts, err := tr.ReadTagCounts()
-		return tagViewCountsLoadedMsg{counts: counts, err: err}
-	}
-}
-
 // handleTagEnqueueAll2 processes tagEnqueueAllMsg: updates the queue state.
 func (m Model) handleTagEnqueueAll2(msg tagEnqueueAllMsg) Model {
 	if msg.err != nil {
@@ -773,33 +761,3 @@ func (m Model) buildTagsLine(hash string) string {
 	return strings.Join(parts, "  ")
 }
 
-// loadTrackTagsCmd returns a Cmd that loads all track-tag assignments from
-// the DB into the in-memory trackTags cache (called on startup and after tag
-// mutations that require a full cache refresh).
-func (m Model) loadTrackTagsCmd() tea.Cmd {
-	tr := m.tagReader
-	if tr == nil {
-		return nil
-	}
-	return func() tea.Msg {
-		tags, err := tr.ReadTags()
-		if err != nil {
-			return tagsRefreshedMsg{err: err}
-		}
-		trackTags := make(map[string]map[int64]struct{})
-		for _, tag := range tags {
-			hashes, herr := tr.ReadTrackHashesByTag(tag.ID)
-			if herr != nil {
-				slog.Warn("load track tags: read hashes failed", "tagID", tag.ID, "err", herr)
-				continue
-			}
-			for _, h := range hashes {
-				if trackTags[h] == nil {
-					trackTags[h] = make(map[int64]struct{})
-				}
-				trackTags[h][tag.ID] = struct{}{}
-			}
-		}
-		return tagsRefreshedMsg{tags: tags, trackTags: trackTags}
-	}
-}

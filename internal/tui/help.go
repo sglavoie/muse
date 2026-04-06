@@ -80,7 +80,7 @@ func helpSections() []helpSection {
 				{"z", "Toggle shuffle"},
 				{"ctrl+n", "Stop after current track"},
 				{"u", "Undo"},
-				{"/", "Filter (Library / Queue / Artists / Albums / Favorites / Genres / Recently Added / History)"},
+				{"/", "Filter (Library / Queue / Artists / Albums / Favorites / Genres / Recently Added / History / Tags)"},
 				{"P", "Preview focused track"},
 				{"I", "Show now-playing info"},
 				{"i", "Show track info (exiftool)"},

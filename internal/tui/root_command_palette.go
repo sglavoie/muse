@@ -25,7 +25,7 @@ type commandPaletteActionMsg struct {
 type configToggleField int
 
 const (
-	toggleNormalize   configToggleField = iota
+	toggleNormalize configToggleField = iota
 	toggleEQ
 	toggleStereoWide
 )
@@ -370,7 +370,7 @@ func (m Model) handleRandomAlbumMsg() (Model, tea.Cmd) {
 		m.statusBar.notification = newNotification("Library is empty")
 		return m, nil
 	}
-	idx := rand.IntN(len(m.albums.albums))
+	idx := rand.IntN(len(m.albums.albums)) //nolint:gosec // non-security random for UI navigation
 	m.albums.cursor = idx
 	m.albums.scrollOffset = max(0, idx-m.albums.height/2)
 	m.albums = m.albums.clampCursor()
@@ -385,7 +385,7 @@ func (m Model) handleRandomArtistMsg() (Model, tea.Cmd) {
 		m.statusBar.notification = newNotification("Library is empty")
 		return m, nil
 	}
-	idx := rand.IntN(len(m.artists.artists))
+	idx := rand.IntN(len(m.artists.artists)) //nolint:gosec // non-security random for UI navigation
 	m.artists.cursor = idx
 	m.artists.scrollOffset = max(0, idx-m.artists.height/2)
 	m.artists = m.artists.clampCursor()
@@ -435,7 +435,7 @@ func (m Model) shufflePlaylistFromTracks() (Model, tea.Cmd) {
 	tracks := make([]db.PlaylistTrackRow, len(m.playlists.tracks))
 	copy(tracks, m.playlists.tracks)
 	for i := len(tracks) - 1; i > 0; i-- {
-		j := rand.IntN(i + 1)
+		j := rand.IntN(i + 1) //nolint:gosec // non-security random for playlist shuffle
 		tracks[i], tracks[j] = tracks[j], tracks[i]
 	}
 	m.playlists.tracks = tracks
@@ -494,7 +494,7 @@ func (m Model) shufflePlaylistFromList() (Model, tea.Cmd) {
 			return TransientNotifyMsg("Playlist too small to shuffle")
 		}
 		for i := len(tracks) - 1; i > 0; i-- {
-			j := rand.IntN(i + 1)
+			j := rand.IntN(i + 1) //nolint:gosec // non-security random for playlist shuffle
 			tracks[i], tracks[j] = tracks[j], tracks[i]
 		}
 		if shuffler != nil {
