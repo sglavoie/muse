@@ -1,16 +1,13 @@
 package tui
 
 import (
-	"fmt"
 	"log/slog"
-	"sort"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
-	"github.com/sglavoie/muse/internal/tui/filter"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
@@ -51,7 +48,6 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 	// Determine the favorite type and value(s) based on the active view.
 	switch m.activeView {
 	case viewLibrary:
-		// Bulk: all selected hashes.
 		if len(m.library.selectedHashes) > 0 {
 			hashes := make([]string, 0, len(m.library.selectedHashes))
 			for h := range m.library.selectedHashes {
@@ -60,13 +56,11 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 			m.library.selectedHashes = nil
 			return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
 		}
-		// Single: focused track.
 		if t, ok := m.library.view().FocusedTrack(); ok {
 			return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
 		}
 
 	case viewRecentlyAdded:
-		// Bulk: all selected hashes.
 		if len(m.recentlyAdded.selectedHashes) > 0 {
 			hashes := make([]string, 0, len(m.recentlyAdded.selectedHashes))
 			for h := range m.recentlyAdded.selectedHashes {
@@ -75,7 +69,6 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 			m.recentlyAdded.selectedHashes = nil
 			return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
 		}
-		// Single: focused track.
 		if t, ok := m.recentlyAdded.view().FocusedTrack(); ok {
 			return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
 		}
@@ -109,7 +102,6 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 		}
 
 	case viewQueue:
-		// Bulk: all selected entries.
 		if m.queue.hasSelection() {
 			hashes := m.queue.selectedHashes()
 			for i := range m.queue.entries {
@@ -117,7 +109,6 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 			}
 			return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
 		}
-		// Single: focused track.
 		filtered := m.queue.filteredEntries()
 		if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
 			e := filtered[m.queue.cursor]
@@ -126,7 +117,6 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 
 	case viewPlaylists:
 		if m.playlists.level == pltui.TrackLevel {
-			// Bulk: all selected tracks.
 			if m.playlists.hasTrackSelection() {
 				var hashes []string
 				for _, t := range m.playlists.tracks {
@@ -137,7 +127,6 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 				m.playlists.selectedTrackIDs = nil
 				return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
 			}
-			// Single: focused track.
 			if t, ok := m.playlists.focusedTrack(); ok {
 				return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
 			}
@@ -150,7 +139,6 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 				return m, m.toggleFavoriteSingle(reader, writer, "artist", name), true
 			}
 		case gentui.TrackLevel:
-			// Bulk: all selected hashes.
 			if len(m.genres.selectedHashes) > 0 {
 				hashes := make([]string, 0, len(m.genres.selectedHashes))
 				for h := range m.genres.selectedHashes {
@@ -159,7 +147,6 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 				m.genres.selectedHashes = nil
 				return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
 			}
-			// Single: focused track.
 			if t, ok := m.genres.focusedTrack(); ok {
 				return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
 			}
@@ -186,7 +173,6 @@ func (m Model) toggleFavoriteSingle(reader favoriteReader, writer favoriteWriter
 		}
 		msg := favoriteToggledMsg{typ: typ, value: value, added: !isFav, err: err}
 		if isFav {
-			// Removal from a non-Favorites view: no in-view index available.
 			msg.removedIdx = -1
 		}
 		return msg
@@ -249,9 +235,6 @@ func (m Model) handleFavoritesRemove() (Model, tea.Cmd, bool) {
 			if !ok {
 				return m, nil, true
 			}
-			// Map the display cursor back to the raw slice index so that
-			// undo re-insertion lands at the correct position even when a
-			// filter is active (cursor indexes the filtered list).
 			removedIdx := indexOfString(m.favorites.artists, name)
 			favLevel := m.favorites.level
 			favCategory := m.favorites.category
@@ -400,7 +383,6 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 		if len(values) == 0 {
 			return m, nil, true
 		}
-		// Sort parallel arrays by index so undo re-insertion is correct.
 		sortBulkRemovalByIndex(values, removedTracks, removedIndices)
 		m.favorites = m.favorites.clearSelection()
 		return m, func() tea.Msg {
@@ -439,7 +421,6 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 		if len(hashes) == 0 {
 			return m, nil, true
 		}
-		// Sort parallel arrays by index so undo re-insertion is correct.
 		sortBulkRemovalByIndex(hashes, removedTracks, removedIndices)
 		m.favorites = m.favorites.clearSelection()
 		return m, func() tea.Msg {
@@ -502,7 +483,6 @@ func (m Model) handleFavoritesOpen() (Model, tea.Cmd, bool) {
 				if err != nil {
 					return favoritesLoadedMsg{category: int(category), err: err}
 				}
-				// Resolve track hashes to full Track objects from the library.
 				hashSet := make(map[string]struct{}, len(rows))
 				for _, r := range rows {
 					hashSet[r.Value] = struct{}{}
@@ -522,7 +502,6 @@ func (m Model) handleFavoritesOpen() (Model, tea.Cmd, bool) {
 
 	case favtui.ListLevel:
 		if m.favorites.category == favtui.CategoryTracks {
-			// At ListLevel with tracks, enqueue the focused track.
 			if m.queueWriter != nil {
 				if cmd := m.favorites.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
 					return m, cmd, true
@@ -530,7 +509,6 @@ func (m Model) handleFavoritesOpen() (Model, tea.Cmd, bool) {
 			}
 			return m, nil, true
 		}
-		// For Artists/Albums, drill down into tracks.
 		tracks := m.library.index.Tracks()
 		switch m.favorites.category {
 		case favtui.CategoryArtists:
@@ -551,7 +529,6 @@ func (m Model) handleFavoritesOpen() (Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case favtui.TrackLevel:
-		// Enqueue focused track.
 		if m.queueWriter != nil {
 			if cmd := m.favorites.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
 				return m, cmd, true
@@ -561,356 +538,4 @@ func (m Model) handleFavoritesOpen() (Model, tea.Cmd, bool) {
 	}
 
 	return m, nil, true
-}
-
-// loadFavoriteTrackHashes reads all favorited track hashes from the DB and
-// returns them as a set. Returns nil when reader is nil or on error.
-func loadFavoriteTrackHashes(reader favoriteReader) map[string]struct{} {
-	if reader == nil {
-		return nil
-	}
-	rows, err := reader.ReadFavoritesByType("track")
-	if err != nil {
-		return nil
-	}
-	hashes := make(map[string]struct{}, len(rows))
-	for _, r := range rows {
-		hashes[r.Value] = struct{}{}
-	}
-	return hashes
-}
-
-// loadFavoriteArtists reads all favorited artist names from the DB and
-// returns them as a set. Returns nil when reader is nil or on error.
-func loadFavoriteArtists(reader favoriteReader) map[string]struct{} {
-	if reader == nil {
-		return nil
-	}
-	rows, err := reader.ReadFavoritesByType("artist")
-	if err != nil {
-		return nil
-	}
-	artists := make(map[string]struct{}, len(rows))
-	for _, r := range rows {
-		artists[r.Value] = struct{}{}
-	}
-	return artists
-}
-
-// loadFavoriteAlbums reads all favorited album names from the DB and
-// returns them as a set. Returns nil when reader is nil or on error.
-func loadFavoriteAlbums(reader favoriteReader) map[string]struct{} {
-	if reader == nil {
-		return nil
-	}
-	rows, err := reader.ReadFavoritesByType("album")
-	if err != nil {
-		return nil
-	}
-	albums := make(map[string]struct{}, len(rows))
-	for _, r := range rows {
-		albums[r.Value] = struct{}{}
-	}
-	return albums
-}
-
-// handleFavoriteToggledMsg processes the result of a favorite toggle operation.
-func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
-	if msg.err != nil {
-		m.statusBar.notification = newNotification("Toggle favorite failed: " + msg.err.Error())
-		return m
-	}
-
-	// Build notification message.
-	var note string
-	switch {
-	case msg.count > 1 && msg.added:
-		note = fmt.Sprintf("Added %d %ss to favorites", msg.count, msg.typ)
-	case msg.count > 1:
-		note = fmt.Sprintf("Removed %d %ss from favorites", msg.count, msg.typ)
-	case msg.added:
-		note = fmt.Sprintf("Added %s to favorites", msg.typ)
-	default:
-		note = fmt.Sprintf("Removed %s from favorites", msg.typ)
-	}
-
-	// Set undo slot for removals (before modifying in-memory slices).
-	switch {
-	case !msg.added && msg.count > 1 && len(msg.removedValues) > 0:
-		m.setUndoSlot(undoBulkRemoveFavoritesAction{
-			typ:      msg.typ,
-			values:   msg.removedValues,
-			tracks:   msg.removedTracks,
-			indices:  msg.removedIndices,
-			level:    msg.favLevel,
-			category: msg.favCategory,
-		}, nil)
-	case !msg.added:
-		m.setUndoSlot(undoRemoveFavoriteAction{
-			typ:      msg.typ,
-			value:    msg.value,
-			track:    msg.removedTrack,
-			idx:      msg.removedIdx,
-			level:    msg.favLevel,
-			category: msg.favCategory,
-		}, nil)
-	case len(msg.addedValues) > 0:
-		// Bulk pure-add: set undo slot so the user can remove all added items.
-		m.setUndoSlot(undoBulkAddFavoritesAction{
-			typ:    msg.typ,
-			values: msg.addedValues,
-		}, nil)
-	case msg.added && msg.value != "":
-		// Single add: set undo slot.
-		m.setUndoSlot(undoAddFavoriteAction{
-			typ:   msg.typ,
-			value: msg.value,
-		}, nil)
-	default:
-		// Mixed bulk (some added, some removed): notification only.
-		m.statusBar.notification = newNotification(note)
-	}
-
-	// Update the in-memory favorite hash set for track toggles.
-	if msg.typ == "track" {
-		if msg.count > 1 {
-			// Bulk toggle: reload from DB to get accurate state.
-			m.favoriteHashes = loadFavoriteTrackHashes(m.favoriteReader)
-		} else if msg.value != "" {
-			if m.favoriteHashes == nil {
-				m.favoriteHashes = make(map[string]struct{})
-			}
-			if msg.added {
-				m.favoriteHashes[msg.value] = struct{}{}
-			} else {
-				delete(m.favoriteHashes, msg.value)
-			}
-		}
-	}
-	if msg.typ == "artist" {
-		if msg.count > 1 {
-			m.favoriteArtists = loadFavoriteArtists(m.favoriteReader)
-		} else if msg.value != "" {
-			if m.favoriteArtists == nil {
-				m.favoriteArtists = make(map[string]struct{})
-			}
-			if msg.added {
-				m.favoriteArtists[msg.value] = struct{}{}
-			} else {
-				delete(m.favoriteArtists, msg.value)
-			}
-		}
-	}
-	if msg.typ == "album" {
-		if msg.count > 1 {
-			m.favoriteAlbums = loadFavoriteAlbums(m.favoriteReader)
-		} else if msg.value != "" {
-			if m.favoriteAlbums == nil {
-				m.favoriteAlbums = make(map[string]struct{})
-			}
-			if msg.added {
-				m.favoriteAlbums[msg.value] = struct{}{}
-			} else {
-				delete(m.favoriteAlbums, msg.value)
-			}
-		}
-	}
-
-	// If the Favorites view is active, refresh the in-view state after a removal.
-	// For bulk removals msg.value is empty and msg.removedValues holds the
-	// actual values to remove; for single removals msg.value is populated.
-	if m.activeView == viewFavorites && !msg.added {
-		valuesToRemove := msg.removedValues
-		if len(valuesToRemove) == 0 && msg.value != "" {
-			valuesToRemove = []string{msg.value}
-		}
-		switch m.favorites.level {
-		case favtui.ListLevel:
-			switch m.favorites.category {
-			case favtui.CategoryArtists:
-				for _, v := range valuesToRemove {
-					m.favorites.artists = removeString(m.favorites.artists, v)
-				}
-				m.favorites.artistCount = len(m.favorites.artists)
-			case favtui.CategoryAlbums:
-				for _, v := range valuesToRemove {
-					m.favorites.albums = removeString(m.favorites.albums, v)
-				}
-				m.favorites.albumCount = len(m.favorites.albums)
-			case favtui.CategoryTracks:
-				for _, v := range valuesToRemove {
-					m.favorites.tracks = removeTrackByHash(m.favorites.tracks, v)
-				}
-				m.favorites.trackCount = len(m.favorites.tracks)
-			}
-			m.favorites = m.favorites.clampCursor()
-		case favtui.TrackLevel:
-			for _, v := range valuesToRemove {
-				m.favorites.drilldownTracks = removeTrackByHash(m.favorites.drilldownTracks, v)
-			}
-			m.favorites = m.favorites.clampCursor()
-		}
-	}
-
-	// Refresh counts if we're on the Favorites view (even at CategoryLevel).
-	if m.activeView == viewFavorites && m.favoriteReader != nil {
-		a, al, t, err := m.favoriteReader.ReadFavoriteCounts()
-		if err == nil {
-			m.favorites.artistCount = a
-			m.favorites.albumCount = al
-			m.favorites.trackCount = t
-		}
-	}
-
-	return m
-}
-
-// deduplicateTracksByHash removes duplicate tracks (same hash) keeping the
-// first occurrence. This prevents duplicates when the library contains the same
-// album or artist tracks from multiple scan paths.
-func deduplicateTracksByHash(tracks []library.Track) []library.Track {
-	seen := make(map[string]struct{}, len(tracks))
-	result := make([]library.Track, 0, len(tracks))
-	for _, t := range tracks {
-		if _, ok := seen[t.Hash]; !ok {
-			seen[t.Hash] = struct{}{}
-			result = append(result, t)
-		}
-	}
-	return result
-}
-
-// indexOfString returns the index of the first occurrence of s in items,
-// or 0 if not found. Used to translate a filtered display cursor back to
-// the raw slice position for correct undo re-insertion.
-func indexOfString(items []string, s string) int {
-	for i, v := range items {
-		if v == s {
-			return i
-		}
-	}
-	return 0
-}
-
-// indexOfTrackByHash returns the index of the first track with the given hash,
-// or 0 if not found. Used to translate a filtered display cursor back to
-// the raw slice position for correct undo re-insertion.
-func indexOfTrackByHash(tracks []library.Track, hash string) int {
-	for i, t := range tracks {
-		if t.Hash == hash {
-			return i
-		}
-	}
-	return 0
-}
-
-// removeString removes the first occurrence of s from items.
-func removeString(items []string, s string) []string {
-	for i, v := range items {
-		if v == s {
-			return append(items[:i], items[i+1:]...)
-		}
-	}
-	return items
-}
-
-// removeTrackByHash removes the first track with the given hash.
-func removeTrackByHash(tracks []library.Track, hash string) []library.Track {
-	for i, t := range tracks {
-		if t.Hash == hash {
-			return append(tracks[:i], tracks[i+1:]...)
-		}
-	}
-	return tracks
-}
-
-// insertStringAt returns a new slice with s inserted at idx (clamped to len).
-func insertStringAt(items []string, idx int, s string) []string {
-	if idx < 0 {
-		idx = 0
-	}
-	if idx > len(items) {
-		idx = len(items)
-	}
-	result := make([]string, len(items)+1)
-	copy(result, items[:idx])
-	result[idx] = s
-	copy(result[idx+1:], items[idx:])
-	return result
-}
-
-// insertTrackAt returns a new slice with t inserted at idx (clamped to len).
-func insertTrackAt(tracks []library.Track, idx int, t library.Track) []library.Track {
-	if idx < 0 {
-		idx = 0
-	}
-	if idx > len(tracks) {
-		idx = len(tracks)
-	}
-	result := make([]library.Track, len(tracks)+1)
-	copy(result, tracks[:idx])
-	result[idx] = t
-	copy(result[idx+1:], tracks[idx:])
-	return result
-}
-
-// sortBulkRemovalByIndex sorts values, tracks, and indices by the indices in
-// ascending order. This ensures that undo re-insertion (which processes indices
-// left-to-right) places items back at their correct positions, because each
-// insert shifts only items that come after the insertion point.
-func sortBulkRemovalByIndex(values []string, tracks []library.Track, indices []int) {
-	if len(indices) <= 1 {
-		return
-	}
-	// Build an index permutation and sort it by the index values.
-	perm := make([]int, len(indices))
-	for i := range perm {
-		perm[i] = i
-	}
-	sort.Slice(perm, func(a, b int) bool {
-		return indices[perm[a]] < indices[perm[b]]
-	})
-	// Apply the permutation to all parallel slices.
-	sortedValues := make([]string, len(values))
-	sortedIndices := make([]int, len(indices))
-	for i, p := range perm {
-		sortedValues[i] = values[p]
-		sortedIndices[i] = indices[p]
-	}
-	copy(values, sortedValues)
-	copy(indices, sortedIndices)
-	if len(tracks) == len(indices) {
-		sortedTracks := make([]library.Track, len(tracks))
-		for i, p := range perm {
-			sortedTracks[i] = tracks[p]
-		}
-		copy(tracks, sortedTracks)
-	}
-}
-
-// handleFavoritesLoadedMsg processes the result of loading favorites for a category.
-func (m Model) handleFavoritesLoadedMsg(msg favoritesLoadedMsg) Model {
-	if msg.err != nil {
-		m.statusBar.notification = newNotification("Load favorites failed: " + msg.err.Error())
-		return m
-	}
-
-	category := favtui.Category(msg.category)
-	m.favorites.category = category
-	switch category {
-	case favtui.CategoryArtists:
-		m.favorites.artists = msg.artists
-	case favtui.CategoryAlbums:
-		m.favorites.albums = msg.albums
-	case favtui.CategoryTracks:
-		m.favorites.tracks = msg.tracks
-	}
-	m.favorites.categoryCursor = m.favorites.cursor
-	m.favorites.level = favtui.ListLevel
-	m.favorites.cursor = 0
-	m.favorites.scrollOffset = 0
-	m.favorites.filter = filter.State{}
-	m.favorites.sortState = SortState{}
-	m.favorites.selectedItems = nil
-	return m
 }

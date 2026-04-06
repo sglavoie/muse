@@ -52,8 +52,9 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 		close(work)
 
 		type result struct {
-			fix       *library.DurationFix // non-nil means correction needed
-			verified  bool                 // true means mark as verified without fix
+			hash       string
+			durationMs int64
+			verified   bool // true = confirm existing duration; false = correct it
 		}
 
 		results := make(chan result, len(tracks))
@@ -74,9 +75,9 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 						diff = -diff
 					}
 					if diff > 2000 {
-						results <- result{fix: &library.DurationFix{Hash: t.Hash, DurationMs: probedMs}}
+						results <- result{hash: t.Hash, durationMs: probedMs}
 					} else {
-						results <- result{verified: true, fix: &library.DurationFix{Hash: t.Hash}}
+						results <- result{hash: t.Hash, verified: true}
 					}
 				}
 			})
@@ -91,21 +92,21 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 		corrected := 0
 		for r := range results {
 			checked++
-			if r.fix != nil && r.verified {
-				if err := writer.MarkDurationVerified(r.fix.Hash); err != nil {
-					slog.Warn("duration audit: mark verified", "hash", r.fix.Hash, "err", err)
+			if r.verified {
+				if err := writer.MarkDurationVerified(r.hash); err != nil {
+					slog.Warn("duration audit: mark verified", "hash", r.hash, "err", err)
 				}
-			} else if r.fix != nil {
-				if err := writer.VerifyTrackDuration(r.fix.Hash, r.fix.DurationMs); err != nil {
-					slog.Warn("duration audit: verify track duration", "hash", r.fix.Hash, "err", err)
-					continue
-				}
-				corrected++
-				select {
-				case out <- *r.fix:
-				case <-ctx.Done():
-					return
-				}
+				continue
+			}
+			if err := writer.VerifyTrackDuration(r.hash, r.durationMs); err != nil {
+				slog.Warn("duration audit: verify track duration", "hash", r.hash, "err", err)
+				continue
+			}
+			corrected++
+			select {
+			case out <- library.DurationFix{Hash: r.hash, DurationMs: r.durationMs}:
+			case <-ctx.Done():
+				return
 			}
 		}
 
