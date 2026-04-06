@@ -187,7 +187,9 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		return m.handleTagMerge()
 	case actionGoTo:
 		ctx := m.focusedGoToContext()
-		if ctx.found {
+		if !ctx.found {
+			m.statusBar.notification = newNotification("No track focused")
+		} else {
 			options := m.buildGoToOptions(ctx)
 			if len(options) > 0 {
 				modal := NewGoToModal(options)
