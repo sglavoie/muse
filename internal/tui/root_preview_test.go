@@ -632,9 +632,10 @@ func TestPreviewTickAutoFillsDurationWhenZero(t *testing.T) {
 	}
 }
 
-// TestPreviewTickDoesNotOverwriteExistingDuration verifies that when a track
-// already has a non-zero Duration, no auto-fill occurs.
-func TestPreviewTickDoesNotOverwriteExistingDuration(t *testing.T) {
+// TestPreviewTickCorrectsWrongDuration verifies that when a track has a
+// non-zero Duration that differs significantly from mpv's reported total,
+// the duration is corrected in the library index, queue, and DB.
+func TestPreviewTickCorrectsWrongDuration(t *testing.T) {
 	dw := &stubDurationWriter{}
 	m := New(context.Background(), WithDurationWriter(dw))
 	m.library.index.Insert(library.Track{
@@ -647,20 +648,76 @@ func TestPreviewTickDoesNotOverwriteExistingDuration(t *testing.T) {
 	m.overlay.preview = &PreviewOverlay{hash: "h1", artist: "A", title: "T"}
 	m.overlay.previewPlayer = sp
 
+	nm, cmd := m.handleTickMsg()
+
+	// Library index should be corrected to mpv value.
+	if t2, ok := nm.library.index.FindByHash("h1"); !ok || t2.Duration != 225.0 {
+		t.Fatalf("expected library duration 225.0, got %v", t2.Duration)
+	}
+	// Queue entry should be corrected.
+	if nm.queue.entries[0].DurationMs != 225000 {
+		t.Fatalf("expected queue DurationMs 225000, got %d", nm.queue.entries[0].DurationMs)
+	}
+	// Flag should be set.
+	if !nm.overlay.previewDurationFilled {
+		t.Fatal("expected previewDurationFilled to be set")
+	}
+	// DB write should be scheduled.
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd from tick with duration correction")
+	}
+	batch, ok := cmd().(tea.BatchMsg)
+	if !ok {
+		t.Fatal("expected BatchMsg from handleTickMsg")
+	}
+	for _, c := range batch {
+		if c == nil {
+			continue
+		}
+		msg := make(chan tea.Msg, 1)
+		go func(fn tea.Cmd) { msg <- fn() }(c)
+		select {
+		case <-msg:
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+	if len(dw.calls) != 1 {
+		t.Fatalf("expected 1 DB write call, got %d", len(dw.calls))
+	}
+	if dw.calls[0].hash != "h1" || dw.calls[0].durationMs != 225000 {
+		t.Fatalf("unexpected DB write: %+v", dw.calls[0])
+	}
+}
+
+// TestPreviewTickSkipsCloseEnoughDuration verifies that when the stored
+// duration is within 2 seconds of the mpv-reported total, no correction occurs.
+func TestPreviewTickSkipsCloseEnoughDuration(t *testing.T) {
+	dw := &stubDurationWriter{}
+	m := New(context.Background(), WithDurationWriter(dw))
+	m.library.index.Insert(library.Track{
+		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 180.5,
+	})
+	m.queue.entries = []QueueEntry{
+		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", DurationMs: 180500},
+	}
+	sp := &stubPreviewer{elapsed: 10.0, total: 180.0}
+	m.overlay.preview = &PreviewOverlay{hash: "h1", artist: "A", title: "T"}
+	m.overlay.previewPlayer = sp
+
 	next, _ := m.Update(tickMsg{})
 	nm := next.(Model)
 
-	// Library index should NOT be changed.
-	if t2, ok := nm.library.index.FindByHash("h1"); !ok || t2.Duration != 180.0 {
-		t.Fatalf("expected library duration to stay 180.0, got %v", t2.Duration)
+	// Library index should NOT be changed (difference is only 0.5s).
+	if t2, ok := nm.library.index.FindByHash("h1"); !ok || t2.Duration != 180.5 {
+		t.Fatalf("expected library duration to stay 180.5, got %v", t2.Duration)
 	}
 	// Queue entry should NOT be changed.
-	if nm.queue.entries[0].DurationMs != 180000 {
-		t.Fatalf("expected queue DurationMs to stay 180000, got %d", nm.queue.entries[0].DurationMs)
+	if nm.queue.entries[0].DurationMs != 180500 {
+		t.Fatalf("expected queue DurationMs to stay 180500, got %d", nm.queue.entries[0].DurationMs)
 	}
 	// Flag should still be set (to skip future ticks).
 	if !nm.overlay.previewDurationFilled {
-		t.Fatal("expected previewDurationFilled to be set even when no overwrite")
+		t.Fatal("expected previewDurationFilled to be set even when no correction needed")
 	}
 	// No DB writes.
 	if len(dw.calls) != 0 {

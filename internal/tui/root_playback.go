@@ -24,12 +24,17 @@ func shouldCountPlay(elapsedSecs, totalSecs float64) bool {
 // handleTickMsg updates elapsed time for the main player, preview player, and
 // now-playing overlay, and clears expired status bar notifications.
 func (m Model) handleTickMsg() (Model, tea.Cmd) {
+	var mainDurationCmd tea.Cmd
 	if m.playback.state == PlaybackPlaying || m.playback.state == PlaybackPaused {
 		if er, ok := m.player.(elapsedReader); ok {
 			if elapsed, total, err := er.ElapsedPosition(); err == nil {
 				m.playback.elapsedSecs = elapsed
 				m.playback.totalSecs = total
 			}
+		}
+		if !m.playback.durationCorrected && m.playback.totalSecs > 0 && m.playback.currentHash != "" {
+			m, mainDurationCmd = m.correctStoredDuration(m.playback.currentHash, m.playback.totalSecs)
+			m.playback.durationCorrected = true
 		}
 	}
 	var previewDurationCmd tea.Cmd
@@ -38,23 +43,7 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 			m.overlay.preview.elapsed = elapsed
 			m.overlay.preview.total = total
 			if !m.overlay.previewDurationFilled && total > 0 {
-				hash := m.overlay.preview.hash
-				if t, ok := m.library.index.FindByHash(hash); ok && t.Duration == 0 {
-					m.library.index.UpdateDuration(hash, total)
-					m = m.syncRecentlyAddedFromLibrary()
-					newDurationMs := int64(total * 1000)
-					for i := range m.queue.entries {
-						if m.queue.entries[i].Hash == hash {
-							m.queue.entries[i].DurationMs = newDurationMs
-						}
-					}
-					if dw := m.durationWriter; dw != nil {
-						previewDurationCmd = func() tea.Msg {
-							_ = dw.UpdateTrackDuration(hash, newDurationMs)
-							return nil
-						}
-					}
-				}
+				m, previewDurationCmd = m.correctStoredDuration(m.overlay.preview.hash, total)
 				m.overlay.previewDurationFilled = true
 			}
 		} else {
@@ -76,7 +65,43 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	if m.undo.bulkRemovePending && time.Now().After(m.undo.bulkRemovePendingAt.Add(confirmationWindow)) {
 		m.undo.bulkRemovePending = false
 	}
-	return m, tea.Batch(tickCmd(), previewDurationCmd)
+	return m, tea.Batch(tickCmd(), previewDurationCmd, mainDurationCmd)
+}
+
+// correctStoredDuration compares the mpv-reported total with the stored library
+// duration and, if they differ by more than 2 seconds (or the stored value is
+// zero), updates the library index, queue entries, and returns a tea.Cmd that
+// persists the correction to the database.
+func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.Cmd) {
+	const threshold = 2.0 // seconds
+	t, ok := m.library.index.FindByHash(hash)
+	if !ok || (t.Duration == 0 && mpvTotal <= 0) {
+		return m, nil
+	}
+	diff := t.Duration - mpvTotal
+	if diff < 0 {
+		diff = -diff
+	}
+	if t.Duration != 0 && diff <= threshold {
+		return m, nil
+	}
+
+	m.library.index.UpdateDuration(hash, mpvTotal)
+	m = m.syncRecentlyAddedFromLibrary()
+	newDurationMs := int64(mpvTotal * 1000)
+	for i := range m.queue.entries {
+		if m.queue.entries[i].Hash == hash {
+			m.queue.entries[i].DurationMs = newDurationMs
+		}
+	}
+	var cmd tea.Cmd
+	if dw := m.durationWriter; dw != nil {
+		cmd = func() tea.Msg {
+			_ = dw.UpdateTrackDuration(hash, newDurationMs)
+			return nil
+		}
+	}
+	return m, cmd
 }
 
 // handleSyncPositionMsg persists the current playback position via the player.
@@ -253,6 +278,7 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	m.playback.state = PlaybackPlaying
 	m.playback.elapsedSecs = 0
 	m.playback.totalSecs = 0
+	m.playback.durationCorrected = false
 
 	var incrementCmd tea.Cmd
 	if previousHash != "" && shouldCountPlay(previousElapsed, previousTotal) {
