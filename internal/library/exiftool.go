@@ -54,7 +54,7 @@ func (e ExifToolExtractor) Extract(ctx context.Context, files []HashedFile) ([]T
 		fileByPath[f.Path] = f
 	}
 
-	args := make([]string, 0, 5+len(paths))
+	args := make([]string, 0, 6+len(paths))
 	args = append(args, "-json", "-Artist", "-Title", "-Album", "-Genre", "-Duration#")
 	args = append(args, paths...)
 

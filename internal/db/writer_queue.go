@@ -191,6 +191,16 @@ func (w *Writer) RenumberQueuePositions() error {
 		// rows (including soft-deleted), so any soft-deleted row at a position
 		// in the range [1000, len(active)*1000] must be moved first.
 		maxNewPos := int64(len(active)) * queuePositionGap
+
+		// Find the highest position across ALL rows so we can place
+		// relocated soft-deleted rows safely above every existing position.
+		var globalMax int64
+		if err := tx.QueryRow(
+			`SELECT COALESCE(MAX(position), 0) FROM queue`,
+		).Scan(&globalMax); err != nil {
+			return err
+		}
+
 		softRows, err := tx.Query(
 			`SELECT id, position FROM queue WHERE deleted_at IS NOT NULL AND position >= 1000 AND position <= ?`,
 			maxNewPos,
@@ -213,9 +223,14 @@ func (w *Writer) RenumberQueuePositions() error {
 		if err := softRows.Err(); err != nil {
 			return err
 		}
-		// Move conflicting soft-deleted rows above the renumber range.
-		for _, r := range conflicting {
-			safePos := maxNewPos + r.position
+		// Move conflicting soft-deleted rows above every existing position
+		// to guarantee no collisions with other soft-deleted rows.
+		safeBase := globalMax
+		if safeBase < maxNewPos {
+			safeBase = maxNewPos
+		}
+		for i, r := range conflicting {
+			safePos := safeBase + int64(i+1)*queuePositionGap
 			if _, err := tx.Exec(`UPDATE queue SET position=? WHERE id=?`, safePos, r.id); err != nil {
 				return err
 			}

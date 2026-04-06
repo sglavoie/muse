@@ -173,14 +173,14 @@ func TestExtractAllTags_NonexistentFile(t *testing.T) {
 }
 
 // TestExifToolExtractor_BatchSize verifies that ExtractBatches correctly
-// dispatches a real exiftool batch when batchSize files accumulate.
+// dispatches a real exiftool batch when exiftoolBatchSize files accumulate.
 func TestExifToolExtractor_BatchSize(t *testing.T) {
 	if _, err := exec.LookPath("exiftool"); err != nil {
 		t.Skip("exiftool not found on PATH: " + err.Error())
 	}
 
 	dir := t.TempDir()
-	const n = batchSize + 2
+	const n = exiftoolBatchSize + 2
 	in := make(chan HashedFile, n)
 	for i := range n {
 		p := filepath.Join(dir, fmt.Sprintf("batch%04d.wav", i))

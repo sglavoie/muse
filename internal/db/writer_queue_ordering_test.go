@@ -288,3 +288,68 @@ func TestRenumberQueuePositions_SoftDeletedConflict(t *testing.T) {
 		t.Errorf("active positions = %v; want %v", activePos, want)
 	}
 }
+
+// TestRenumberQueuePositions_SoftDeletedConflictAboveRange verifies that
+// RenumberQueuePositions succeeds even when soft-deleted rows exist both in
+// the renumber range AND above it, which would cause a unique constraint
+// violation if relocated rows were placed at maxNewPos+originalPos instead
+// of above the global maximum.
+func TestRenumberQueuePositions_SoftDeletedConflictAboveRange(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "conflict2", "/c2")
+	now := time.Now().Unix()
+
+	if _, err := d.Exec(`DROP INDEX IF EXISTS queue_pos_idx`); err != nil {
+		t.Fatalf("drop index: %v", err)
+	}
+
+	// Two active rows with identical positions -> triggers renumber.
+	for _, pos := range []int{500, 500} {
+		if _, err := d.Exec(
+			`INSERT INTO queue (track_hash, position, added_at) VALUES ('conflict2', ?, ?)`,
+			pos, now,
+		); err != nil {
+			t.Fatalf("insert active row: %v", err)
+		}
+	}
+
+	// Soft-deleted rows at positions 1000, 2000 (in the renumber range)
+	// AND at 3000, 4000 (above maxNewPos=2000, which would collide with
+	// the old safePos=maxNewPos+r.position calculation).
+	for _, pos := range []int{1000, 2000, 3000, 4000} {
+		if _, err := d.Exec(
+			`INSERT INTO queue (track_hash, position, added_at, deleted_at) VALUES ('conflict2', ?, ?, ?)`,
+			pos, now, now,
+		); err != nil {
+			t.Fatalf("insert soft-deleted row pos=%d: %v", pos, err)
+		}
+	}
+
+	if err := w.RenumberQueuePositions(); err != nil {
+		t.Fatalf("RenumberQueuePositions: %v", err)
+	}
+
+	rows, err := d.Query(`SELECT position, deleted_at IS NULL FROM queue ORDER BY position`)
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	defer rows.Close()
+
+	var activePos []int64
+	for rows.Next() {
+		var pos int64
+		var active int
+		if err := rows.Scan(&pos, &active); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		if active == 1 {
+			activePos = append(activePos, pos)
+		}
+	}
+
+	if want := []int64{1000, 2000}; !slices.Equal(activePos, want) {
+		t.Errorf("active positions = %v; want %v", activePos, want)
+	}
+}
