@@ -183,7 +183,13 @@ func runTUI(ctx context.Context) error {
 	}
 
 	adapter := db.NewPlaylistAdapter(result.DB, result.Writer)
-	model := buildModel(ctx, cfg, configPath, cfgResult, result, libResult, dirs, extractor, adapter, mgr)
+
+	var auditCh <-chan library.DurationFix
+	if library.FFProbeAvailable() {
+		auditCh = app.RunDurationAudit(ctx, result.DB, result.Writer)
+	}
+
+	model := buildModel(ctx, cfg, configPath, cfgResult, result, libResult, dirs, extractor, adapter, mgr, auditCh)
 
 	// Apply all restored session state (queue, library, playlists,
 	// repeat/shuffle/volume, current track) before tea.NewProgram so the
@@ -302,6 +308,7 @@ func buildModel(
 	extractor library.MetadataExtractor,
 	adapter *db.PlaylistAdapter,
 	mgr *player.Manager,
+	auditCh <-chan library.DurationFix,
 ) tui.Model {
 	return tui.New(ctx,
 		tui.WithConfig(cfg),
@@ -336,5 +343,6 @@ func buildModel(
 		tui.WithStatsReader(result.DB),
 		tui.WithScanWriter(result.Writer, upsertBatchSize),
 		tui.WithUserEditedReader(result.DB),
+		tui.WithDurationAuditChannel(auditCh),
 	)
 }

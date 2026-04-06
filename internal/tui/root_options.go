@@ -56,6 +56,12 @@ func WithWatchChannel(ch <-chan library.WatchEvent) Option {
 	return func(m *Model) { m.watchCh = ch }
 }
 
+// WithDurationAuditChannel sets the channel that delivers corrected durations
+// from the background ffprobe audit. When nil, no audit is performed.
+func WithDurationAuditChannel(ch <-chan library.DurationFix) Option {
+	return func(m *Model) { m.auditCh = ch }
+}
+
 // WithLibraryRoots sets the music library root directories. Required for the
 // manual rescan hotkey and the parallel file-count goroutine.
 func WithLibraryRoots(roots []string) Option {

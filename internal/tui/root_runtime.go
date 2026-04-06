@@ -179,6 +179,26 @@ func waitForScanErr(ch <-chan library.ScanErrorMsg) tea.Cmd {
 	}
 }
 
+// waitForAuditBatch returns a Cmd that reads up to scanBatchSize fixes from
+// the audit channel and dispatches a DurationAuditBatchMsg. When the channel
+// closes with remaining fixes it dispatches them; on an empty close it
+// dispatches DurationAuditDoneMsg to signal completion.
+func waitForAuditBatch(ch <-chan library.DurationFix) tea.Cmd {
+	return func() tea.Msg {
+		var fixes []library.DurationFix
+		for fix := range ch {
+			fixes = append(fixes, fix)
+			if len(fixes) >= scanBatchSize {
+				return library.DurationAuditBatchMsg{Fixes: fixes}
+			}
+		}
+		if len(fixes) > 0 {
+			return library.DurationAuditBatchMsg{Fixes: fixes}
+		}
+		return library.DurationAuditDoneMsg{}
+	}
+}
+
 // waitForWatchBatch returns a Cmd that reads up to scanBatchSize events from
 // the watcher channel and dispatches a watchBatchMsg carrying both new/updated
 // tracks and deleted paths. When the channel closes (context cancelled) it
@@ -219,6 +239,9 @@ func (m Model) Init() tea.Cmd {
 	}
 	if m.watchCh != nil {
 		cmds = append(cmds, waitForWatchBatch(m.watchCh))
+	}
+	if m.auditCh != nil {
+		cmds = append(cmds, waitForAuditBatch(m.auditCh))
 	}
 	if _, ok := m.player.(positionSyncer); ok {
 		cmds = append(cmds, syncPositionCmd())

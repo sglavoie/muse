@@ -33,6 +33,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case watchBatchMsg:
 		return m.handleWatchBatchMsg(msg)
 
+	case library.DurationAuditBatchMsg:
+		return m.handleDurationAuditBatchMsg(msg)
+
+	case library.DurationAuditDoneMsg:
+		return m.handleDurationAuditDoneMsg(msg)
+
 	case library.ScanDoneMsg:
 		m = m.handleScanDoneMsg()
 

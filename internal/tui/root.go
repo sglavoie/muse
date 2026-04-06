@@ -103,6 +103,10 @@ type Model struct {
 	// watching is disabled.
 	watchCh <-chan library.WatchEvent
 
+	// auditCh receives DurationFix values from the background duration audit
+	// goroutine. It is nil when ffprobe is unavailable or the audit is done.
+	auditCh <-chan library.DurationFix
+
 	// watchDegraded is true when the filesystem watcher could not be started
 	// (e.g. fd exhaustion). The status bar shows a notice so the user knows
 	// to use manual rescan.

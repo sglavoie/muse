@@ -474,6 +474,37 @@ func (d *DB) ReadFavoriteCounts() (artists, albums, tracks int, err error) {
 	return artists, albums, tracks, rows.Err()
 }
 
+// UnverifiedTrack holds the fields needed by the duration audit for a single
+// track whose duration has not yet been confirmed by ffprobe.
+type UnverifiedTrack struct {
+	Hash       string
+	Path       string
+	DurationMs int64
+}
+
+// ReadUnverifiedDurations returns all non-missing tracks whose duration_verified
+// flag is 0. Returns an empty slice (not an error) when none exist.
+func (d *DB) ReadUnverifiedDurations() ([]UnverifiedTrack, error) {
+	rows, err := d.Query(`
+		SELECT hash, path, duration_ms
+		FROM tracks WHERE duration_verified = 0 AND missing = 0
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("db: read unverified durations: %w", err)
+	}
+	defer rows.Close()
+
+	var result []UnverifiedTrack
+	for rows.Next() {
+		var r UnverifiedTrack
+		if err := rows.Scan(&r.Hash, &r.Path, &r.DurationMs); err != nil {
+			return nil, fmt.Errorf("db: read unverified track row: %w", err)
+		}
+		result = append(result, r)
+	}
+	return result, rows.Err()
+}
+
 // IsFavorite reports whether a favorite with the given type and value exists.
 func (d *DB) IsFavorite(typ, value string) (bool, error) {
 	var count int

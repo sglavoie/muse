@@ -270,8 +270,9 @@ func (w *Writer) UpsertBatch(tracks []library.Track) error {
 					duration_ms = CASE WHEN excluded.duration_ms > 0 THEN excluded.duration_ms ELSE tracks.duration_ms END,
 					size_bytes  = excluded.size_bytes,
 					mod_time    = excluded.mod_time,
-					missing     = 0,
-					updated_at  = excluded.updated_at`,
+					missing            = 0,
+					duration_verified  = 0,
+					updated_at         = excluded.updated_at`,
 				t.Hash, t.Path, t.Title, t.Artist, t.Album, t.Genre, durationMs, t.SizeBytes, t.ModTime, createdAt, now,
 			)
 			if err != nil {
@@ -279,6 +280,32 @@ func (w *Writer) UpsertBatch(tracks []library.Track) error {
 			}
 		}
 		return tx.Commit()
+	})
+}
+
+// VerifyTrackDuration updates duration_ms to the given value and sets
+// duration_verified=1 for the track identified by hash. Used when ffprobe
+// reports a duration that differs materially from the stored value.
+func (w *Writer) VerifyTrackDuration(hash string, durationMs int64) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(
+			`UPDATE tracks SET duration_ms = ?, duration_verified = 1 WHERE hash = ?`,
+			durationMs, hash,
+		)
+		return err
+	})
+}
+
+// MarkDurationVerified sets duration_verified=1 for the track identified by
+// hash without changing the stored duration. Used when ffprobe confirms the
+// existing duration is accurate.
+func (w *Writer) MarkDurationVerified(hash string) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(
+			`UPDATE tracks SET duration_verified = 1 WHERE hash = ?`,
+			hash,
+		)
+		return err
 	})
 }
 
