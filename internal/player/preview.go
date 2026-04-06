@@ -99,7 +99,7 @@ func (p *PreviewPlayer) LoadAndPlay(path string) error {
 	if p.client == nil {
 		return ErrNotConnected
 	}
-	_, err := p.client.SendCommand("loadfile", path, "replace", 0, "pause=no")
+	_, err := p.client.SendCommand(cmdLoadfile, path, "replace", 0, "pause=no")
 	return err
 }
 
@@ -108,7 +108,7 @@ func (p *PreviewPlayer) TogglePause() error {
 	if p.client == nil {
 		return ErrNotConnected
 	}
-	_, err := p.client.SendCommand("cycle", "pause")
+	_, err := p.client.SendCommand(cmdCycle, propPause)
 	return err
 }
 
@@ -117,7 +117,7 @@ func (p *PreviewPlayer) SeekRelative(seconds float64) error {
 	if p.client == nil {
 		return ErrNotConnected
 	}
-	_, err := p.client.SendCommand("seek", seconds, "relative")
+	_, err := p.client.SendCommand(cmdSeek, seconds, "relative")
 	return err
 }
 
@@ -127,7 +127,7 @@ func (p *PreviewPlayer) ElapsedPosition() (elapsed, total float64, err error) {
 		return 0, 0, ErrNotConnected
 	}
 
-	posResp, err := p.client.SendCommand("get_property", "time-pos")
+	posResp, err := p.client.SendCommand(cmdGetProperty, propTimePos)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -136,7 +136,7 @@ func (p *PreviewPlayer) ElapsedPosition() (elapsed, total float64, err error) {
 		return 0, 0, fmt.Errorf("preview: time-pos: expected float64, got %T", posResp.Data)
 	}
 
-	durResp, err := p.client.SendCommand("get_property", "duration")
+	durResp, err := p.client.SendCommand(cmdGetProperty, propDuration)
 	if err != nil {
 		return 0, 0, err
 	}

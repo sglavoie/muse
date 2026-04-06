@@ -34,4 +34,31 @@ const (
 	restartMaxAttempts  = 10
 )
 
+// mpv IPC command names.
+const (
+	cmdAdd             = "add"
+	cmdCycle           = "cycle"
+	cmdGetProperty     = "get_property"
+	cmdLoadfile        = "loadfile"
+	cmdObserveProperty = "observe_property"
+	cmdPlaylistRemove  = "playlist-remove"
+	cmdSeek            = "seek"
+	cmdSetProperty     = "set_property"
+)
+
+// mpv property names used with get_property / set_property / observe_property.
+const (
+	propAF               = "af"
+	propDuration         = "duration"
+	propGaplessAudio     = "gapless-audio"
+	propLoopFile         = "loop-file"
+	propLoopPlaylist     = "loop-playlist"
+	propPath             = "path"
+	propPause            = "pause"
+	propPrefetchPlaylist = "prefetch-playlist"
+	propShuffle          = "shuffle"
+	propTimePos          = "time-pos"
+	propVolume           = "volume"
+)
+
 // ipcReadTimeout lives in ipc.go as a var to allow test overrides.

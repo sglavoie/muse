@@ -27,20 +27,20 @@ func (m *Manager) SetRepeat(mode string) error {
 	}
 	switch mode {
 	case "all":
-		if _, err = c.SendCommand("set_property", "loop-playlist", "no"); err != nil {
+		if _, err = c.SendCommand(cmdSetProperty, propLoopPlaylist, "no"); err != nil {
 			return err
 		}
-		_, err = c.SendCommand("set_property", "loop-file", "no")
+		_, err = c.SendCommand(cmdSetProperty, propLoopFile, "no")
 	case "one":
-		if _, err = c.SendCommand("set_property", "loop-file", "inf"); err != nil {
+		if _, err = c.SendCommand(cmdSetProperty, propLoopFile, "inf"); err != nil {
 			return err
 		}
-		_, err = c.SendCommand("set_property", "loop-playlist", "no")
+		_, err = c.SendCommand(cmdSetProperty, propLoopPlaylist, "no")
 	default:
-		if _, err = c.SendCommand("set_property", "loop-playlist", "no"); err != nil {
+		if _, err = c.SendCommand(cmdSetProperty, propLoopPlaylist, "no"); err != nil {
 			return err
 		}
-		_, err = c.SendCommand("set_property", "loop-file", "no")
+		_, err = c.SendCommand(cmdSetProperty, propLoopFile, "no")
 	}
 	return err
 }
@@ -55,7 +55,7 @@ func (m *Manager) SetShuffle(enabled bool) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.SendCommand("set_property", "shuffle", enabled)
+	_, err = c.SendCommand(cmdSetProperty, propShuffle, enabled)
 	return err
 }
 
@@ -68,7 +68,7 @@ func (m *Manager) Play() error {
 	if err != nil {
 		return err
 	}
-	_, err = c.SendCommand("set_property", "pause", false)
+	_, err = c.SendCommand(cmdSetProperty, propPause, false)
 	return err
 }
 
@@ -81,7 +81,7 @@ func (m *Manager) Pause() error {
 	if err != nil {
 		return err
 	}
-	_, err = c.SendCommand("set_property", "pause", true)
+	_, err = c.SendCommand(cmdSetProperty, propPause, true)
 	return err
 }
 
@@ -94,10 +94,10 @@ func (m *Manager) Stop() error {
 	if err != nil {
 		return err
 	}
-	if _, err = c.SendCommand("set_property", "pause", true); err != nil {
+	if _, err = c.SendCommand(cmdSetProperty, propPause, true); err != nil {
 		return err
 	}
-	_, err = c.SendCommand("seek", 0, "absolute")
+	_, err = c.SendCommand(cmdSeek, 0, "absolute")
 	return err
 }
 
@@ -110,7 +110,7 @@ func (m *Manager) SeekRelative(seconds float64) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.SendCommand("seek", seconds, "relative")
+	_, err = c.SendCommand(cmdSeek, seconds, "relative")
 	return err
 }
 
@@ -123,7 +123,7 @@ func (m *Manager) SetVolumeRelative(delta float64) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.SendCommand("add", "volume", delta)
+	_, err = c.SendCommand(cmdAdd, propVolume, delta)
 	return err
 }
 
@@ -138,7 +138,7 @@ func (m *Manager) SetVolumeAbsolute(volume float64) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.SendCommand("set_property", "volume", volume)
+	_, err = c.SendCommand(cmdSetProperty, propVolume, volume)
 	return err
 }
 
@@ -156,7 +156,7 @@ func (m *Manager) rebuildAudioFilters() error {
 	m.mu.RUnlock()
 
 	if len(snapshot) == 0 {
-		_, err = c.SendCommand("set_property", "af", "")
+		_, err = c.SendCommand(cmdSetProperty, propAF, "")
 		return err
 	}
 	names := make([]string, 0, len(snapshot))
@@ -168,7 +168,7 @@ func (m *Manager) rebuildAudioFilters() error {
 	for _, name := range names {
 		exprs = append(exprs, snapshot[name])
 	}
-	_, err = c.SendCommand("set_property", "af", "lavfi=["+strings.Join(exprs, ",")+"]")
+	_, err = c.SendCommand(cmdSetProperty, propAF, "lavfi=["+strings.Join(exprs, ",")+"]")
 	return err
 }
 
@@ -246,11 +246,11 @@ func (m *Manager) SetGapless(enabled bool) error {
 	if enabled {
 		val = "yes"
 	}
-	_, err = c.SendCommand("set_property", "gapless-audio", val)
+	_, err = c.SendCommand(cmdSetProperty, propGaplessAudio, val)
 	if err != nil {
 		return err
 	}
-	_, err = c.SendCommand("set_property", "prefetch-playlist", val)
+	_, err = c.SendCommand(cmdSetProperty, propPrefetchPlaylist, val)
 	if err != nil {
 		return err
 	}

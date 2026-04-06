@@ -34,7 +34,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 	// Subscribe to mpv's pause property so we learn about external pause
 	// toggles (e.g. AirPods hardware button via macOS media key routing).
 	observeCmd, err := json.Marshal(map[string]any{
-		"command":    []any{"observe_property", 1, "pause"},
+		"command":    []any{cmdObserveProperty, 1, propPause},
 		"request_id": 0,
 	})
 	if err != nil {
@@ -131,7 +131,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 				// unbounded across gapless transitions.
 				go func() {
 					if c, err := m.ipc(); err == nil {
-						_, _ = c.SendCommand("playlist-remove", 0)
+						_, _ = c.SendCommand(cmdPlaylistRemove, 0)
 					}
 				}()
 
@@ -151,7 +151,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			}
 		case "property-change":
 			name, _ := raw["name"].(string)
-			if name != "pause" {
+			if name != propPause {
 				continue
 			}
 			paused, ok := raw["data"].(bool)

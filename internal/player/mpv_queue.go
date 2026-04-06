@@ -90,7 +90,7 @@ func (m *Manager) RemoveFromQueue(index int) error {
 
 	if hadPrefetch {
 		if c, err := m.ipc(); err == nil {
-			_, _ = c.SendCommand("playlist-remove", 1)
+			_, _ = c.SendCommand(cmdPlaylistRemove, 1)
 		}
 	}
 	go m.prefetchNext()
@@ -185,10 +185,10 @@ func (m *Manager) prefetchNext() {
 	}
 
 	if curPrefIdx >= 0 {
-		_, _ = c.SendCommand("playlist-remove", 1)
+		_, _ = c.SendCommand(cmdPlaylistRemove, 1)
 	}
 
-	if _, err := c.SendCommand("loadfile", nextPath, "append"); err != nil {
+	if _, err := c.SendCommand(cmdLoadfile, nextPath, "append"); err != nil {
 		slog.Warn("mpv: prefetch next failed", "path", nextPath, "err", err)
 		return
 	}
@@ -223,7 +223,7 @@ func (m *Manager) doClearPrefetch() {
 	if err != nil {
 		return
 	}
-	_, _ = c.SendCommand("playlist-remove", 1)
+	_, _ = c.SendCommand(cmdPlaylistRemove, 1)
 }
 
 // Next advances to the next track in the queue using the Go-side index so
@@ -309,6 +309,6 @@ func (m *Manager) PlayQueueEntry(entry QueueTrack, marker MissingMarker) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.SendCommand("loadfile", entry.Path, "replace", 0, "pause=no")
+	_, err = c.SendCommand(cmdLoadfile, entry.Path, "replace", 0, "pause=no")
 	return err
 }

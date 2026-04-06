@@ -263,10 +263,10 @@ func (m *Manager) DebugInfo() (map[string]string, error) {
 		{"sample_rate", "audio-params/samplerate"},
 		{"bitrate", "audio-bitrate"},
 		{"audio_device", "audio-device"},
-		{"path", "path"},
+		{"path", propPath},
 	}
 	for _, p := range props {
-		resp, err := c.SendCommand("get_property", p.prop)
+		resp, err := c.SendCommand(cmdGetProperty, p.prop)
 		if err == nil {
 			if s, ok := resp.Data.(string); ok {
 				result[p.key] = s

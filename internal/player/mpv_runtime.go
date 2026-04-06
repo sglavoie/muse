@@ -21,7 +21,7 @@ func (m *Manager) ElapsedPosition() (elapsed, total float64, err error) {
 		return 0, 0, ipcErr
 	}
 
-	posResp, err := c.SendCommand("get_property", "time-pos")
+	posResp, err := c.SendCommand(cmdGetProperty, propTimePos)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -30,7 +30,7 @@ func (m *Manager) ElapsedPosition() (elapsed, total float64, err error) {
 		return 0, 0, fmt.Errorf("mpv: time-pos: expected float64, got %T", posResp.Data)
 	}
 
-	durResp, err := c.SendCommand("get_property", "duration")
+	durResp, err := c.SendCommand(cmdGetProperty, propDuration)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -51,13 +51,13 @@ func (m *Manager) SyncPosition() error {
 		return err
 	}
 
-	pathResp, err := c.SendCommand("get_property", "path")
+	pathResp, err := c.SendCommand(cmdGetProperty, propPath)
 	if err != nil {
 		return err
 	}
 	path, _ := pathResp.Data.(string)
 
-	posResp, err := c.SendCommand("get_property", "time-pos")
+	posResp, err := c.SendCommand(cmdGetProperty, propTimePos)
 	if err != nil {
 		return err
 	}
@@ -352,7 +352,7 @@ func (m *Manager) LoadFilePaused(path string, positionMs int64) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.SendCommand("loadfile", path, "replace", 0, fmt.Sprintf("start=%g,pause=yes", elapsedSecs))
+	_, err = c.SendCommand(cmdLoadfile, path, "replace", 0, fmt.Sprintf("start=%g,pause=yes", elapsedSecs))
 	return err
 }
 
@@ -363,6 +363,6 @@ func (m *Manager) loadFileAt(path string, elapsed float64) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.SendCommand("loadfile", path, "replace", 0, fmt.Sprintf("start=%g,pause=no", elapsed))
+	_, err = c.SendCommand(cmdLoadfile, path, "replace", 0, fmt.Sprintf("start=%g,pause=no", elapsed))
 	return err
 }
