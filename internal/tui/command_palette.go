@@ -13,8 +13,13 @@ import (
 
 // PaletteCommand describes a single entry in the command palette.
 type PaletteCommand struct {
-	Name string
-	Exec func() tea.Cmd
+	Name    string
+	Exec    func() tea.Cmd
+	Enabled func() bool // nil means always enabled
+}
+
+func (c PaletteCommand) isEnabled() bool {
+	return c.Enabled == nil || c.Enabled()
 }
 
 // CommandPalettePickedMsg is dispatched when the user confirms a command.
@@ -186,12 +191,19 @@ func (cp CommandPalette) buildBoxLines(termWidth int, s styles.Styles) []string 
 		noMatch := text.Pad("(no matches)", contentWidth)
 		lines = append(lines, cpBorderV+" "+noMatch+" "+cpBorderV)
 	} else {
+		dimItalic := s.Dim.Italic(true)
+		accentDim := s.Accent.Faint(true).Italic(true)
 		for i, cmd := range cp.filtered {
 			display := text.Pad(cmd.Name, contentWidth)
 			rowContent := " " + display + " "
-			if i == cp.cursor {
+			switch {
+			case i == cp.cursor && !cmd.isEnabled():
+				lines = append(lines, cpBorderV+accentDim.Render(rowContent)+cpBorderV)
+			case i == cp.cursor:
 				lines = append(lines, cpBorderV+s.Accent.Render(rowContent)+cpBorderV)
-			} else {
+			case !cmd.isEnabled():
+				lines = append(lines, cpBorderV+dimItalic.Render(rowContent)+cpBorderV)
+			default:
 				lines = append(lines, cpBorderV+rowContent+cpBorderV)
 			}
 		}

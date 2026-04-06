@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/db"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
@@ -47,6 +48,10 @@ type queueShuffleMsg struct{}
 // occurrence of each track hash).
 type queueDedupMsg struct{}
 
+// playlistShuffleMsg requests an in-place Fisher-Yates shuffle of the
+// focused playlist's tracks.
+type playlistShuffleMsg struct{}
+
 // jumpToNowPlayingMsg switches to Library view with the cursor on the
 // currently-playing track.
 type jumpToNowPlayingMsg struct{}
@@ -78,6 +83,8 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		},
 	})
 
+	trackFocused := func() bool { _, _, _, found := m.focusedTrackForPalette(); return found }
+
 	// Reveal in Finder / file manager.
 	cmds = append(cmds, PaletteCommand{
 		Name: "Reveal in Finder",
@@ -88,6 +95,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 			}
 			return revealFile(m.appCtx, path)
 		},
+		Enabled: trackFocused,
 	})
 
 	// Copy track info ("Artist – Title") to clipboard.
@@ -101,6 +109,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 			text := fmt.Sprintf("%s \u2013 %s", artist, title)
 			return copyToClipboard(m.appCtx, text)
 		},
+		Enabled: trackFocused,
 	})
 
 	// Copy file path to clipboard.
@@ -113,6 +122,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 			}
 			return copyToClipboard(m.appCtx, path)
 		},
+		Enabled: trackFocused,
 	})
 
 	// Audio toggles.
@@ -153,19 +163,41 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		Exec: func() tea.Cmd {
 			return func() tea.Msg { return jumpToNowPlayingMsg{} }
 		},
+		Enabled: func() bool { return m.playback.currentHash != "" },
 	})
 
 	// Queue manipulation.
+	queueHasTracks := func() bool { return len(m.queue.entries) > 1 }
 	cmds = append(cmds, PaletteCommand{
 		Name: "Shuffle queue in place",
 		Exec: func() tea.Cmd {
 			return func() tea.Msg { return queueShuffleMsg{} }
 		},
+		Enabled: queueHasTracks,
 	})
 	cmds = append(cmds, PaletteCommand{
 		Name: "Remove queue duplicates",
 		Exec: func() tea.Cmd {
 			return func() tea.Msg { return queueDedupMsg{} }
+		},
+		Enabled: queueHasTracks,
+	})
+
+	// Playlist manipulation.
+	cmds = append(cmds, PaletteCommand{
+		Name: "Shuffle playlist in place",
+		Exec: func() tea.Cmd {
+			return func() tea.Msg { return playlistShuffleMsg{} }
+		},
+		Enabled: func() bool {
+			if m.activeView != viewPlaylists {
+				return false
+			}
+			if m.playlists.atListLevel() {
+				pl, ok := m.playlists.focusedPlaylist()
+				return ok && !pl.IsSmart && pl.TrackCount > 1
+			}
+			return m.playlists.smartQuery == nil && len(m.playlists.tracks) > 1
 		},
 	})
 
@@ -330,6 +362,106 @@ func (m Model) handleJumpToNowPlayingMsg() (Model, tea.Cmd) {
 	m.library.cursor = pos
 	m.library = m.library.clampCursor()
 	return m, nil
+}
+
+// handlePlaylistShuffleMsg applies a Fisher-Yates shuffle to the focused
+// playlist's tracks, either in-memory (TrackLevel) or via background load
+// (ListLevel), and persists the new order when a playlistShuffler is available.
+func (m Model) handlePlaylistShuffleMsg() (Model, tea.Cmd) {
+	if m.activeView != viewPlaylists {
+		m.statusBar.notification = newNotification("No playlist focused")
+		return m, nil
+	}
+	if m.playlists.atListLevel() {
+		return m.shufflePlaylistFromList()
+	}
+	return m.shufflePlaylistFromTracks()
+}
+
+func (m Model) shufflePlaylistFromTracks() (Model, tea.Cmd) {
+	if m.playlists.smartQuery != nil {
+		m.statusBar.notification = newNotification("Cannot shuffle smart playlist")
+		return m, nil
+	}
+	if len(m.playlists.tracks) <= 1 {
+		m.statusBar.notification = newNotification("Playlist too small to shuffle")
+		return m, nil
+	}
+
+	tracks := make([]db.PlaylistTrackRow, len(m.playlists.tracks))
+	copy(tracks, m.playlists.tracks)
+	for i := len(tracks) - 1; i > 0; i-- {
+		j := rand.IntN(i + 1)
+		tracks[i], tracks[j] = tracks[j], tracks[i]
+	}
+	m.playlists.tracks = tracks
+	m = m.resetPlaylistsSort()
+
+	n := len(tracks)
+	m.statusBar.notification = newNotification(fmt.Sprintf("Playlist shuffled (%d tracks)", n))
+
+	var playlistID int64
+	if m.playlists.listCursor >= 0 && m.playlists.listCursor < len(m.playlists.playlists) {
+		playlistID = m.playlists.playlists[m.playlists.listCursor].ID
+	}
+
+	if playlistID > 0 {
+		if shuffler, ok := m.playlistDeleter.(playlistShuffler); ok {
+			ids := make([]int64, n)
+			for i, t := range tracks {
+				ids[i] = t.ID
+			}
+			pid := playlistID
+			return m, func() tea.Msg { _ = shuffler.SetPlaylistOrder(pid, ids); return nil }
+		}
+	}
+	return m, nil
+}
+
+func (m Model) shufflePlaylistFromList() (Model, tea.Cmd) {
+	pl, ok := m.playlists.focusedPlaylist()
+	if !ok {
+		m.statusBar.notification = newNotification("No playlist focused")
+		return m, nil
+	}
+	if pl.IsSmart {
+		m.statusBar.notification = newNotification("Cannot shuffle smart playlist")
+		return m, nil
+	}
+	if pl.TrackCount <= 1 {
+		m.statusBar.notification = newNotification("Playlist too small to shuffle")
+		return m, nil
+	}
+	if m.playlistReader == nil {
+		return m, nil
+	}
+
+	reader := m.playlistReader
+	var shuffler playlistShuffler
+	if s, ok := m.playlistDeleter.(playlistShuffler); ok {
+		shuffler = s
+	}
+	pid := pl.ID
+	name := pl.Name
+
+	return m, func() tea.Msg {
+		tracks, err := reader.ReadPlaylistTracks(pid)
+		if err != nil || len(tracks) <= 1 {
+			return TransientNotifyMsg("Playlist too small to shuffle")
+		}
+		for i := len(tracks) - 1; i > 0; i-- {
+			j := rand.IntN(i + 1)
+			tracks[i], tracks[j] = tracks[j], tracks[i]
+		}
+		if shuffler != nil {
+			ids := make([]int64, len(tracks))
+			for i, t := range tracks {
+				ids[i] = t.ID
+			}
+			_ = shuffler.SetPlaylistOrder(pid, ids)
+		}
+		return TransientNotifyMsg(fmt.Sprintf("Shuffled %q (%d tracks)", name, len(tracks)))
+	}
 }
 
 // handleCommandPaletteKeyPress intercepts key presses when the command palette is active.

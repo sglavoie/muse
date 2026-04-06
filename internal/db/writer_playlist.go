@@ -217,6 +217,86 @@ func (w *Writer) ReorderPlaylistTrack(playlistID, trackID int64, direction int) 
 	})
 }
 
+// SetPlaylistOrder reorders the tracks of a playlist by assigning new gapped
+// positions in the order given by ids (which are playlist_tracks.id values).
+// Soft-deleted rows that would collide with the new positions are relocated
+// first. This is the playlist equivalent of SetQueueOrder.
+func (w *Writer) SetPlaylistOrder(playlistID int64, ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return w.Exec(func(db *sql.DB) error {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer rollback(tx)
+
+		n := int64(len(ids))
+		maxNewPos := n * queuePositionGap
+
+		var globalMax int64
+		if err := tx.QueryRow(
+			`SELECT COALESCE(MAX(position), 0) FROM playlist_tracks WHERE playlist_id=?`,
+			playlistID,
+		).Scan(&globalMax); err != nil {
+			return err
+		}
+
+		type prow struct{ id, position int64 }
+		rows, err := tx.Query(
+			`SELECT id, position FROM playlist_tracks
+			 WHERE playlist_id=? AND deleted_at IS NOT NULL
+			   AND position >= ? AND position <= ?`,
+			playlistID, queuePositionGap, maxNewPos,
+		)
+		if err != nil {
+			return err
+		}
+		var conflicting []prow
+		for rows.Next() {
+			var r prow
+			if err := rows.Scan(&r.id, &r.position); err != nil {
+				rows.Close()
+				return err
+			}
+			if r.position%queuePositionGap == 0 {
+				conflicting = append(conflicting, r)
+			}
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		safeBase := max(globalMax, maxNewPos)
+
+		for i, r := range conflicting {
+			safePos := safeBase + int64(i+1)*queuePositionGap
+			if _, err := tx.Exec(`UPDATE playlist_tracks SET position=? WHERE id=?`, safePos, r.id); err != nil {
+				return err
+			}
+		}
+
+		tempBase := safeBase + int64(len(conflicting)+1)*queuePositionGap
+		for i, id := range ids {
+			tmpPos := tempBase + int64(i)*queuePositionGap
+			if _, err := tx.Exec(`UPDATE playlist_tracks SET position=? WHERE id=?`, tmpPos, id); err != nil {
+				return err
+			}
+		}
+
+		for i, id := range ids {
+			pos := int64(i+1) * queuePositionGap
+			if _, err := tx.Exec(`UPDATE playlist_tracks SET position=? WHERE id=?`, pos, id); err != nil {
+				return err
+			}
+		}
+
+		return tx.Commit()
+	})
+}
+
 // PurgeDeletedPlaylistTracks physically removes all playlist_tracks rows whose
 // deleted_at is non-NULL and strictly less than the before Unix timestamp.
 // Call this once the undo window has expired to reclaim space.

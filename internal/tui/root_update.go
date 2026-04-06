@@ -260,6 +260,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case queueDedupMsg:
 		return m.handleQueueDedupMsg()
 
+	case playlistShuffleMsg:
+		return m.handlePlaylistShuffleMsg()
+
 	case pltui.DestinationPickerDismissedMsg:
 		m = m.handleDestinationPickerDismissedMsg()
 
