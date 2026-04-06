@@ -31,6 +31,7 @@ type overlayInfo struct {
 	goTo                  *GoToModal
 	settings              *SettingsOverlay
 	smartRuleEditor       *SmartRuleEditor
+	commandPalette        *CommandPalette
 }
 
 // undoInfo groups the fields that track pending destructive-action confirmations
@@ -65,6 +66,7 @@ type Model struct {
 	cfg            config.Config
 	configPath     string
 	configCreated  bool
+	dataDir        string // XDG data directory (contains muse.db); set via WithDataDir
 	configWarnings []string
 
 	library       LibraryView

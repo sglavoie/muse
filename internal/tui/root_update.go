@@ -223,6 +223,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m = m.jumpToPlaylist(msg.Value)
 		}
 
+	case CommandPaletteDismissedMsg:
+		m.overlay.commandPalette = nil
+
+	case CommandPalettePickedMsg:
+		m.overlay.commandPalette = nil
+		if msg.Command.Exec != nil {
+			return m, msg.Command.Exec()
+		}
+
+	case commandPaletteActionMsg:
+		return m.handleKeyAction(msg.action)
+
 	case pltui.DestinationPickerDismissedMsg:
 		m = m.handleDestinationPickerDismissedMsg()
 

@@ -24,7 +24,8 @@ func (m Model) hasActiveOverlay() bool {
 		m.overlay.metadataEditor != nil ||
 		m.overlay.destPicker != nil ||
 		m.overlay.goTo != nil ||
-		m.overlay.smartRuleEditor != nil
+		m.overlay.smartRuleEditor != nil ||
+		m.overlay.commandPalette != nil
 }
 
 // View renders the active panel and a status bar, returning a tea.View.
@@ -61,6 +62,8 @@ func (m Model) View() tea.View {
 		body = m.overlay.destPicker.Render(m.termWidth, m.termHeight, *m.styles)
 	case m.overlay.goTo != nil:
 		body = m.overlay.goTo.Render(m.termWidth, m.termHeight, *m.styles)
+	case m.overlay.commandPalette != nil:
+		body = m.overlay.commandPalette.Render(m.termWidth, m.termHeight, *m.styles)
 	case m.overlay.smartRuleEditor != nil:
 		body = m.overlay.smartRuleEditor.Render(m.termWidth, m.termHeight, *m.styles)
 	default:

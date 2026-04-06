@@ -20,6 +20,7 @@ var orderedKeyPressHandlers = []keyPressHandler{
 	Model.handlePlaylistRenameInput,
 	Model.handleQueueSaveInput,
 	Model.handleGoToKeyPress,
+	Model.handleCommandPaletteKeyPress,
 	Model.handleDestPickerKeyPress,
 }
 

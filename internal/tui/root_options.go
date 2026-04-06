@@ -89,6 +89,11 @@ func WithRuntimeDir(dir string) Option {
 	return func(m *Model) { m.runtimeDir = dir }
 }
 
+// WithDataDir sets the XDG data directory that contains the SQLite database.
+func WithDataDir(dir string) Option {
+	return func(m *Model) { m.dataDir = dir }
+}
+
 // WithQueueWriter sets the QueueAppender for persisting enqueued tracks.
 func WithQueueWriter(w libtui.QueueAppender) Option {
 	return func(m *Model) { m.queueWriter = w }

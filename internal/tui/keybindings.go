@@ -56,6 +56,7 @@ const (
 	actionTrackInfo        // 'i': show track info overlay (exiftool)
 	actionStopAfterCurrent // ctrl+n: toggle "stop after current track"
 	actionQueueSummary     // 'q': show queue summary overlay
+	actionCommandPalette   // ':': open command palette
 
 	actionSwitchArtists
 	actionSwitchAlbums
@@ -193,6 +194,7 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "o", actionGoTo)
 	r.register(contextGlobal, "ctrl+n", actionStopAfterCurrent)
 	r.register(contextGlobal, "q", actionQueueSummary)
+	r.register(contextGlobal, ":", actionCommandPalette)
 
 	// Library-local bindings.
 	r.registerNavigation(contextLibrary)

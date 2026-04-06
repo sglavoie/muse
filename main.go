@@ -322,6 +322,7 @@ func buildModel(
 		tui.WithPlayer(mgr),
 		tui.WithWatchDegraded(libResult.WatchDegraded),
 		tui.WithRuntimeDir(dirs.Runtime),
+		tui.WithDataDir(dirs.Data),
 		tui.WithQueueWriter(result.Writer),
 		tui.WithQueueDequeuer(result.Writer),
 		tui.WithSessionWriter(result.Writer),
