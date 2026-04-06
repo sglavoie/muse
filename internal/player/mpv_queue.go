@@ -72,7 +72,12 @@ func (m *Manager) RemoveFromQueue(index int) error {
 	m.prefetchedIndex = -1
 	m.prefetchedPath = ""
 
-	m.queue = append(m.queue[:index], m.queue[index+1:]...)
+	// Build a new backing array so that any concurrent reader that captured
+	// the old slice header via RLock is not affected by this mutation.
+	newQ := make([]QueueTrack, 0, len(m.queue)-1)
+	newQ = append(newQ, m.queue[:index]...)
+	newQ = append(newQ, m.queue[index+1:]...)
+	m.queue = newQ
 	if index < m.currentIndex {
 		m.currentIndex--
 	}
