@@ -250,7 +250,7 @@ func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
 	// Resume main player if we paused it.
 	if m.overlay.previewWasPlaying && m.player != nil {
 		if err := m.player.Play(); err != nil {
-			slog.Debug("player resume failed", "err", err)
+			slog.Warn("player resume failed", "err", err)
 		} else {
 			m.playback.state = PlaybackPlaying
 		}
@@ -375,7 +375,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		m.overlay.previewWasPlaying = m.playback.state == PlaybackPlaying
 		if m.overlay.previewWasPlaying && m.player != nil {
 			if err := m.player.Pause(); err != nil {
-				slog.Debug("player pause failed", "err", err)
+				slog.Warn("player pause failed", "err", err)
 			}
 			m.playback.state = PlaybackPaused
 		}
@@ -441,7 +441,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 	case actionSeekBack:
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.SeekRelative(-m.cfg.SeekOffsetShort); err != nil {
-				slog.Debug("seek failed", "err", err)
+				slog.Warn("seek failed", "err", err)
 			}
 			return m, m.sessionPositionCmd(), true
 		}
@@ -449,7 +449,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 	case actionSeekForward:
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.SeekRelative(m.cfg.SeekOffsetShort); err != nil {
-				slog.Debug("seek failed", "err", err)
+				slog.Warn("seek failed", "err", err)
 			}
 			return m, m.sessionPositionCmd(), true
 		}
@@ -457,7 +457,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 	case actionSeekBackLong:
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.SeekRelative(-m.cfg.SeekOffsetLong); err != nil {
-				slog.Debug("seek failed", "err", err)
+				slog.Warn("seek failed", "err", err)
 			}
 			return m, m.sessionPositionCmd(), true
 		}
@@ -465,7 +465,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 	case actionSeekForwardLong:
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.SeekRelative(m.cfg.SeekOffsetLong); err != nil {
-				slog.Debug("seek failed", "err", err)
+				slog.Warn("seek failed", "err", err)
 			}
 			return m, m.sessionPositionCmd(), true
 		}
@@ -473,12 +473,12 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 	case actionVolumeUp:
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.SetVolumeRelative(float64(m.cfg.VolumeIncrement)); err != nil {
-				slog.Debug("volume up failed", "err", err)
+				slog.Warn("volume up failed", "err", err)
 			} else {
 				m.playback.volume = clampVolume(m.playback.volume + m.cfg.VolumeIncrement)
 				if m.sessionWriter != nil {
 					if err := m.sessionWriter.WriteVolume(m.playback.volume); err != nil {
-						slog.Debug("write volume failed", "err", err)
+						slog.Warn("write volume failed", "err", err)
 					}
 				}
 			}
@@ -488,12 +488,12 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 	case actionVolumeDown:
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.SetVolumeRelative(-float64(m.cfg.VolumeIncrement)); err != nil {
-				slog.Debug("volume down failed", "err", err)
+				slog.Warn("volume down failed", "err", err)
 			} else {
 				m.playback.volume = clampVolume(m.playback.volume - m.cfg.VolumeIncrement)
 				if m.sessionWriter != nil {
 					if err := m.sessionWriter.WriteVolume(m.playback.volume); err != nil {
-						slog.Debug("write volume failed", "err", err)
+						slog.Warn("write volume failed", "err", err)
 					}
 				}
 			}
@@ -511,12 +511,12 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		}
 		if rs, ok := m.player.(repeatShuffler); ok {
 			if err := rs.SetRepeat(m.playback.repeatMode.String()); err != nil {
-				slog.Debug("set repeat failed", "err", err)
+				slog.Warn("set repeat failed", "err", err)
 			}
 		}
 		if m.sessionWriter != nil {
 			if err := m.sessionWriter.WriteRepeatMode(m.playback.repeatMode.String()); err != nil {
-				slog.Debug("write repeat mode failed", "err", err)
+				slog.Warn("write repeat mode failed", "err", err)
 			}
 		}
 		m.statusBar.notification = newNotificationFor("Repeat: "+m.playback.repeatMode.DisplayString(), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second)
@@ -525,12 +525,12 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		m.playback.shuffle = !m.playback.shuffle
 		if rs, ok := m.player.(repeatShuffler); ok {
 			if err := rs.SetShuffle(m.playback.shuffle); err != nil {
-				slog.Debug("set shuffle failed", "err", err)
+				slog.Warn("set shuffle failed", "err", err)
 			}
 		}
 		if m.sessionWriter != nil {
 			if err := m.sessionWriter.WriteShuffle(m.playback.shuffle); err != nil {
-				slog.Debug("write shuffle failed", "err", err)
+				slog.Warn("write shuffle failed", "err", err)
 			}
 		}
 		label := "off"
@@ -592,7 +592,7 @@ func (m Model) handlePreviewKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool)
 	case "space":
 		if m.overlay.previewPlayer != nil {
 			if err := m.overlay.previewPlayer.TogglePause(); err != nil {
-				slog.Debug("preview pause toggle failed", "err", err)
+				slog.Warn("preview pause toggle failed", "err", err)
 				m.statusBar.notification = newNotification("Preview pause failed: " + err.Error())
 			}
 		}
@@ -600,28 +600,28 @@ func (m Model) handlePreviewKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool)
 	case "left":
 		if m.overlay.previewPlayer != nil {
 			if err := m.overlay.previewPlayer.SeekRelative(-m.cfg.SeekOffsetShort); err != nil {
-				slog.Debug("preview seek failed", "offset", -m.cfg.SeekOffsetShort, "err", err)
+				slog.Warn("preview seek failed", "offset", -m.cfg.SeekOffsetShort, "err", err)
 			}
 		}
 		return m, nil, true
 	case "right":
 		if m.overlay.previewPlayer != nil {
 			if err := m.overlay.previewPlayer.SeekRelative(m.cfg.SeekOffsetShort); err != nil {
-				slog.Debug("preview seek failed", "offset", m.cfg.SeekOffsetShort, "err", err)
+				slog.Warn("preview seek failed", "offset", m.cfg.SeekOffsetShort, "err", err)
 			}
 		}
 		return m, nil, true
 	case "shift+left":
 		if m.overlay.previewPlayer != nil {
 			if err := m.overlay.previewPlayer.SeekRelative(-m.cfg.SeekOffsetLong); err != nil {
-				slog.Debug("preview seek failed", "offset", -m.cfg.SeekOffsetLong, "err", err)
+				slog.Warn("preview seek failed", "offset", -m.cfg.SeekOffsetLong, "err", err)
 			}
 		}
 		return m, nil, true
 	case "shift+right":
 		if m.overlay.previewPlayer != nil {
 			if err := m.overlay.previewPlayer.SeekRelative(m.cfg.SeekOffsetLong); err != nil {
-				slog.Debug("preview seek failed", "offset", m.cfg.SeekOffsetLong, "err", err)
+				slog.Warn("preview seek failed", "offset", m.cfg.SeekOffsetLong, "err", err)
 			}
 		}
 		return m, nil, true
@@ -721,7 +721,7 @@ func (m Model) dismissPreview() Model {
 	m.overlay.previewDurationFilled = false
 	if m.overlay.previewWasPlaying && m.player != nil {
 		if err := m.player.Play(); err != nil {
-			slog.Debug("player resume after preview failed", "err", err)
+			slog.Warn("player resume after preview failed", "err", err)
 		} else {
 			m.playback.state = PlaybackPlaying
 		}

@@ -66,7 +66,7 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 				for t := range work {
 					dur, err := probeFn(ctx, t.Path)
 					if err != nil {
-						slog.Debug("duration audit: ffprobe failed, skipping", "path", t.Path, "err", err)
+						slog.Warn("duration audit: ffprobe failed, skipping", "path", t.Path, "err", err)
 						continue
 					}
 					probedMs := int64(math.Round(dur * 1000))
