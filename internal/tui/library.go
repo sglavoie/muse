@@ -24,9 +24,10 @@ type LibraryView struct {
 	fuzzy           library.FuzzySearcher
 	selectedHashes  map[string]struct{} // bulk-selected track hashes
 	sortState       SortState
-	sortedTracks    []library.Track // cached sorted copy; nil when SortDefault
+	sortedTracks    []library.Track     // cached sorted copy; nil when SortDefault
 	showDateAdded   bool
 	showPlayedAt    bool
+	tagFilterHashes map[string]struct{} // non-nil when a cross-view tag filter is active
 }
 
 func (v *LibraryView) setSize(w, h int) { v.width = w; v.height = h }
@@ -59,10 +60,22 @@ func newHistoryView() LibraryView {
 }
 
 func (v LibraryView) baseTracks() []library.Track {
+	var all []library.Track
 	if v.sourceTracks != nil {
-		return v.sourceTracks
+		all = v.sourceTracks
+	} else {
+		all = v.index.Tracks()
 	}
-	return v.index.Tracks()
+	if len(v.tagFilterHashes) == 0 {
+		return all
+	}
+	filtered := make([]library.Track, 0, len(all))
+	for _, t := range all {
+		if _, ok := v.tagFilterHashes[t.Hash]; ok {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered
 }
 
 // view returns a fully-populated libtui.View from the current LibraryView state.

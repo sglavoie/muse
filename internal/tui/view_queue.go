@@ -49,8 +49,9 @@ type QueueView struct {
 	savingFromSelection bool            // true when saving only bulk-selected entries (not the full queue)
 	saveInput           textinput.Model // current value of the inline save field
 	sortState           SortState
-	displayOrder        []int // nil when sort inactive (identity mapping)
+	displayOrder        []int               // nil when sort inactive (identity mapping)
 	filter              filter.State
+	tagFilterHashes     map[string]struct{} // non-nil when a cross-view tag filter is active
 }
 
 func (v *QueueView) setSize(w, h int) { v.width = w; v.height = h }
@@ -281,6 +282,17 @@ func (v QueueView) filteredEntries() []QueueEntry {
 		}
 		ordered[i] = v.entries[idx]
 		ordered[i].origIdx = idx
+	}
+
+	// Apply cross-view tag filter first.
+	if len(v.tagFilterHashes) > 0 {
+		tagFiltered := make([]QueueEntry, 0, len(ordered))
+		for _, e := range ordered {
+			if _, ok := v.tagFilterHashes[e.Hash]; ok {
+				tagFiltered = append(tagFiltered, e)
+			}
+		}
+		ordered = tagFiltered
 	}
 
 	if v.filter.Text == "" {

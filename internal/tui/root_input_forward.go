@@ -13,6 +13,8 @@ var orderedInputForwarders = []inputMsgForwarder{
 	Model.forwardPlaylistCreateMsg,
 	Model.forwardPlaylistRenameMsg,
 	Model.forwardQueueSaveMsg,
+	Model.forwardTagCreateMsg,
+	Model.forwardTagRenameMsg,
 }
 
 // forwardToActiveInput routes a generic tea.Msg to whichever text input is
@@ -100,6 +102,24 @@ func (m Model) forwardQueueSaveMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
 	if m.queue.isSavingAsPlaylist() && m.activeView == viewQueue {
 		var cmd tea.Cmd
 		m.queue, cmd = m.queue.updateSaveInputMsg(msg)
+		return m, cmd, true
+	}
+	return m, nil, false
+}
+
+func (m Model) forwardTagCreateMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
+	if m.tagsView.isCreating() && m.activeView == viewTags {
+		var cmd tea.Cmd
+		m.tagsView, cmd = m.tagsView.updateCreateInputMsg(msg)
+		return m, cmd, true
+	}
+	return m, nil, false
+}
+
+func (m Model) forwardTagRenameMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
+	if m.tagsView.isRenaming() && m.activeView == viewTags {
+		var cmd tea.Cmd
+		m.tagsView, cmd = m.tagsView.updateRenameInputMsg(msg)
 		return m, cmd, true
 	}
 	return m, nil, false

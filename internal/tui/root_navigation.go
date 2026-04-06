@@ -41,6 +41,8 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 			m.favorites = m.favorites.HandleAction(action)
 		case viewGenres:
 			m.genres = m.genres.HandleAction(action)
+		case viewTags:
+			m.tagsView = m.tagsView.HandleAction(action)
 		default:
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)

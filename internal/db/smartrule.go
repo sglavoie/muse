@@ -20,6 +20,7 @@ const (
 	FieldSize       RuleField = "size"
 	FieldFavorite   RuleField = "is_favorite"
 	FieldLastPlayed RuleField = "last_played"
+	FieldTag        RuleField = "has_tag"
 )
 
 // RuleOperator identifies the comparison operation for a leaf rule.
@@ -69,7 +70,7 @@ var validFields = map[RuleField]bool{
 	FieldArtist: true, FieldTitle: true, FieldAlbum: true, FieldGenre: true,
 	FieldDuration: true, FieldDateAdded: true, FieldPlayCount: true,
 	FieldPath: true, FieldSize: true, FieldFavorite: true,
-	FieldLastPlayed: true,
+	FieldLastPlayed: true, FieldTag: true,
 }
 
 // validOperators is the set of recognised RuleOperator values.

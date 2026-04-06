@@ -339,11 +339,12 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			return m, nil, true
 		}
 		overlay := NowPlayingOverlay{
-			artist:  m.statusBar.artist,
-			title:   m.statusBar.title,
-			elapsed: m.playback.elapsedSecs,
-			total:   m.playback.totalSecs,
-			state:   m.playback.state,
+			artist:   m.statusBar.artist,
+			title:    m.statusBar.title,
+			elapsed:  m.playback.elapsedSecs,
+			total:    m.playback.totalSecs,
+			state:    m.playback.state,
+			tagsLine: m.buildTagsLine(m.playback.currentHash),
 		}
 		// Enrich from library index — the status bar fields may be empty
 		// after a session restore, but the hash is always set.
@@ -684,6 +685,7 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 func (m Model) startPreviewCmd(track library.Track) tea.Cmd {
 	ctx := m.appCtx
 	runtimeDir := m.runtimeDir
+	tagsLine := m.buildTagsLine(track.Hash)
 	return func() tea.Msg {
 		socketPath := filepath.Join(runtimeDir, "muse-preview.sock")
 		pp := player.NewPreviewPlayer(ctx, socketPath)
@@ -702,6 +704,7 @@ func (m Model) startPreviewCmd(track library.Track) tea.Cmd {
 				title:     track.Title,
 				album:     track.Album,
 				playCount: track.PlayCount,
+				tagsLine:  tagsLine,
 			},
 		}
 	}

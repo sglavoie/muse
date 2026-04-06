@@ -225,6 +225,32 @@ func WithSmartPlaylistWriter(w smartPlaylistWriter) Option {
 	return func(m *Model) { m.smartPlaylistWriter = w }
 }
 
+// WithTagReader sets the reader for loading tag data and eagerly populates the
+// in-memory tag cache on startup.
+func WithTagReader(r tagReader) Option {
+	return func(m *Model) {
+		m.tagReader = r
+		tags, err := r.ReadTags()
+		if err != nil {
+			slog.Warn("startup: read tags", "err", err)
+			return
+		}
+		m.tags = tags
+		m.tagNames = make(map[int64]string, len(tags))
+		m.tagColors = make(map[int64]string, len(tags))
+		for _, t := range tags {
+			m.tagNames[t.ID] = t.Name
+			m.tagColors[t.ID] = t.Color
+		}
+	}
+}
+
+// WithTagWriter sets the writer for persisting tag mutations (create, rename,
+// delete, toggle).
+func WithTagWriter(w tagWriter) Option {
+	return func(m *Model) { m.tagWriter = w }
+}
+
 // WithQueueEntries pre-populates the queue view with entries.
 func WithQueueEntries(entries []QueueEntry) Option {
 	return func(m *Model) { m.queue.entries = entries }

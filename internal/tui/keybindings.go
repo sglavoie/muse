@@ -15,6 +15,7 @@ const (
 	contextFavorites                           // applies only in the Favorites view
 	contextGenres                              // applies only in the Genres view
 	contextHistory                             // applies only in the History view
+	contextTags                               // applies only in the Tags view
 	contextModals                              // applies only when a modal is active
 )
 
@@ -58,6 +59,8 @@ const (
 	actionStopAfterCurrent // ctrl+n: toggle "stop after current track"
 	actionQueueSummary     // 'q': show queue summary overlay
 	actionCommandPalette   // ':': open command palette
+	actionTagPicker        // 't': open tag picker overlay
+	actionTagFilter        // ctrl+t: open/clear cross-view tag filter
 
 	actionSwitchArtists
 	actionSwitchAlbums
@@ -135,6 +138,16 @@ const (
 	actionSortCycle // ctrl+s: cycle to next sort field
 	actionSortAsc   // shift+up: set sort direction to ascending
 	actionSortDesc  // shift+down: set sort direction to descending
+
+	// Tags view actions.
+	actionSwitchTags    // '0': switch to Tags view
+	actionTagOpen       // enter: drill into tag tracks (or enqueue at TrackLevel)
+	actionTagBack       // backspace/h: go back to tag list
+	actionTagCreate     // 'c': create a new tag (inline input)
+	actionTagRename     // 'r': rename the focused tag (inline input)
+	actionTagDelete     // 'd': soft-delete the focused tag (5s undo)
+	actionTagEnqueueAll // 'E': enqueue all tracks with the focused tag
+	actionTagMerge      // 'm': merge focused tag into another (opens merge picker)
 )
 
 // registryKey is the composite map key for registry lookups.
@@ -175,6 +188,7 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "7", actionSwitchFavorites)
 	r.register(contextGlobal, "8", actionSwitchRecentlyAdded)
 	r.register(contextGlobal, "9", actionSwitchHistory)
+	r.register(contextGlobal, "0", actionSwitchTags)
 	r.register(contextGlobal, "F", actionToggleFavorite)
 	r.register(contextGlobal, "R", actionRescan)
 	r.register(contextGlobal, "r", actionRepeatCycle)
@@ -198,6 +212,8 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "ctrl+n", actionStopAfterCurrent)
 	r.register(contextGlobal, "q", actionQueueSummary)
 	r.register(contextGlobal, ":", actionCommandPalette)
+	r.register(contextGlobal, "t", actionTagPicker)
+	r.register(contextGlobal, "ctrl+t", actionTagFilter)
 
 	// Library-local bindings.
 	r.registerNavigation(contextLibrary)
@@ -299,6 +315,24 @@ func newRegistry() Registry {
 	r.register(contextGenres, "X", actionClearSelection)
 	r.register(contextGenres, "v", actionVisualMode)
 	r.register(contextGenres, "a", actionBulkAction)
+
+	// Tags-local bindings.
+	// 'r' shadows global repeat-cycle; 'd' shadows global (none); 'c' is new.
+	r.registerNavigation(contextTags)
+	r.register(contextTags, "enter", actionTagOpen)
+	r.register(contextTags, "backspace", actionTagBack)
+	r.register(contextTags, "h", actionTagBack)
+	r.register(contextTags, "c", actionTagCreate)
+	r.register(contextTags, "r", actionTagRename)
+	r.register(contextTags, "d", actionTagDelete)
+	r.register(contextTags, "E", actionTagEnqueueAll)
+	r.register(contextTags, "m", actionTagMerge)
+	r.register(contextTags, "N", actionPlayNext)
+	r.register(contextTags, "x", actionBulkSelectionToggle)
+	r.register(contextTags, "X", actionClearSelection)
+	r.register(contextTags, "v", actionVisualMode)
+	r.register(contextTags, "esc", actionTagBack)
+	r.register(contextTags, "F", actionToggleFavorite)
 
 	// Favorites-local bindings.
 	r.registerNavigation(contextFavorites)

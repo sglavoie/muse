@@ -346,5 +346,7 @@ func buildModel(
 		tui.WithScanWriter(result.Writer, upsertBatchSize),
 		tui.WithUserEditedReader(result.DB),
 		tui.WithDurationAuditChannel(auditCh),
+		tui.WithTagReader(result.DB),
+		tui.WithTagWriter(result.Writer),
 	)
 }

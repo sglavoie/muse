@@ -74,3 +74,18 @@ func AccentFavRender(accent, favAccent lipgloss.Style, isFav bool, text string) 
 	}
 	return accent.Render(text)
 }
+
+// TagColorStyle returns a foreground-only lipgloss.Style for the given hex
+// color string (e.g. "#ff6600"). When hex is empty the returned style is the
+// zero value (unstyled — callers get plain text).
+func TagColorStyle(hex string) lipgloss.Style {
+	if hex == "" {
+		return lipgloss.NewStyle()
+	}
+	return lipgloss.NewStyle().Foreground(lipgloss.Color(hex))
+}
+
+// ColoredDot renders "●" in the given tag color, or plain "●" when color is empty.
+func ColoredDot(tagColor string) string {
+	return TagColorStyle(tagColor).Render("●")
+}

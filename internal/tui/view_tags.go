@@ -1,0 +1,358 @@
+package tui
+
+import (
+	"fmt"
+	"strings"
+
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/db"
+	musiclib "github.com/sglavoie/muse/internal/library"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
+	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/styles"
+)
+
+// TagsView wraps the tags sub-panel state for the root model.
+// It holds the navigation level, cursor position, tag list, tag counts, and
+// (at TrackLevel) the tracks of the selected tag. Rendering is delegated to
+// the tags sub-package.
+type TagsView struct {
+	level        tagtui.Level
+	cursor       int
+	scrollOffset int
+
+	tags      []db.TagRow
+	tagCounts map[int64]int        // tag ID → track count; loaded on switch or mutation
+	tracks    []db.PlaylistTrackRow // populated when level == TrackLevel
+	selectedTag db.TagRow
+
+	// Saved cursors/scroll for tag level (restored on back).
+	tagCursor       int
+	tagScrollOffset int
+
+	width  int
+	height int
+
+	filter         filter.State
+	sortState      SortState
+	selectedHashes map[string]struct{}
+
+	// Inline create/rename input state.
+	creating    bool
+	createInput textinput.Model
+	renaming    bool
+	renameInput textinput.Model
+}
+
+func (v *TagsView) setSize(w, h int) { v.width = w; v.height = h }
+
+func (v TagsView) render(s styles.Styles, favHashes map[string]struct{}) string {
+	var sortInd string
+	if v.sortState.Field != SortDefault {
+		sortInd = fmt.Sprintf("Sort: %s %s", SortFieldLabel(v.sortState.Field), SortDirIndicator(v.sortState.Dir))
+	}
+
+	var createInputStr, renameInputStr string
+	if v.creating {
+		createInputStr = v.createInput.Value()
+	}
+	if v.renaming {
+		renameInputStr = v.renameInput.Value()
+	}
+
+	tv := tagtui.View{
+		Level:           v.level,
+		Cursor:          v.cursor,
+		ScrollOffset:    v.scrollOffset,
+		Tags:            v.tags,
+		TagCounts:       v.tagCounts,
+		Tracks:          v.tracks,
+		SelectedTag:     v.selectedTag,
+		TagCursor:       v.tagCursor,
+		TagScrollOffset: v.tagScrollOffset,
+		Width:           v.width,
+		Height:          v.height,
+		Styles:          s,
+		FilterActive:    v.filter.Active,
+		FilterText:      v.filter.Text,
+		FilterView:      v.filter.View(),
+		SortIndicator:   sortInd,
+		FavoriteHashes:  favHashes,
+		SelectedHashes:  v.selectedHashes,
+		Creating:        v.creating,
+		CreateInput:     createInputStr,
+		Renaming:        v.renaming,
+		RenameInput:     renameInputStr,
+	}
+	return tv.Render()
+}
+
+// HandleAction executes a pre-resolved tags action dispatched by root.Update.
+func (v TagsView) HandleAction(a action) TagsView {
+	var sortInd string
+	if v.sortState.Field != SortDefault {
+		sortInd = "active"
+	}
+	view := tagtui.View{
+		Level:        v.level,
+		Cursor:       v.cursor,
+		ScrollOffset: v.scrollOffset,
+		Tags:         v.tags,
+		TagCounts:    v.tagCounts,
+		Tracks:       v.tracks,
+		Height:       v.height,
+		FilterActive: v.filter.Active,
+		FilterText:   v.filter.Text,
+		SortIndicator: sortInd,
+	}
+	switch a {
+	case actionCursorUp:
+		view = view.CursorUp()
+	case actionCursorDown:
+		view = view.CursorDown()
+	case actionHalfPageDown:
+		view = view.HalfPageDown()
+	case actionHalfPageUp:
+		view = view.HalfPageUp()
+	case actionFullPageDown:
+		view = view.FullPageDown()
+	case actionFullPageUp:
+		view = view.FullPageUp()
+	case actionGoToTop:
+		view = view.GoToTop()
+	case actionGoToBottom:
+		view = view.GoToBottom()
+	}
+	v.cursor = view.Cursor
+	v.scrollOffset = view.ScrollOffset
+	return v
+}
+
+// openTracks transitions the view to TrackLevel with the given track list.
+// The current tag cursor and scroll offset are saved for restoration by back.
+func (v TagsView) openTracks(tag db.TagRow, tracks []db.PlaylistTrackRow) TagsView {
+	view := tagtui.View{
+		Level:        v.level,
+		Cursor:       v.cursor,
+		ScrollOffset: v.scrollOffset,
+	}
+	view = view.OpenTracks(tag, tracks)
+	v.level = view.Level
+	v.cursor = view.Cursor
+	v.scrollOffset = view.ScrollOffset
+	v.tagCursor = view.TagCursor
+	v.tagScrollOffset = view.TagScrollOffset
+	v.selectedTag = view.SelectedTag
+	v.tracks = view.Tracks
+	v.filter = filter.State{}
+	v.sortState = SortState{}
+	v.selectedHashes = nil
+	return v
+}
+
+// back navigates one level up to TagLevel.
+func (v TagsView) back() TagsView {
+	view := tagtui.View{
+		Level:           v.level,
+		Cursor:          v.cursor,
+		ScrollOffset:    v.scrollOffset,
+		TagCursor:       v.tagCursor,
+		TagScrollOffset: v.tagScrollOffset,
+		Tracks:          v.tracks,
+	}
+	view = view.Back()
+	v.level = view.Level
+	v.cursor = view.Cursor
+	v.scrollOffset = view.ScrollOffset
+	v.tracks = view.Tracks
+	v.filter = filter.State{}
+	v.sortState = SortState{}
+	v.selectedHashes = nil
+	return v
+}
+
+// clampCursor ensures the cursor is within the bounds of the effective list.
+func (v TagsView) clampCursor() TagsView {
+	var n int
+	if v.level == tagtui.TrackLevel {
+		filtered := tagtui.View{Tracks: v.tracks, FilterText: v.filter.Text}.EffectiveTracks()
+		n = len(filtered)
+	} else {
+		filtered := tagtui.View{Tags: v.tags, FilterText: v.filter.Text}.EffectiveTags()
+		n = len(filtered)
+	}
+	if n == 0 {
+		v.cursor = 0
+		v.scrollOffset = 0
+	} else if v.cursor >= n {
+		v.cursor = n - 1
+	}
+	if v.scrollOffset > v.cursor {
+		v.scrollOffset = v.cursor
+	}
+	return v
+}
+
+// focusedTag returns the tag at the current cursor position and true.
+// Returns a zero value and false when not at TagLevel or list is empty.
+func (v TagsView) focusedTag() (db.TagRow, bool) {
+	if v.level != tagtui.TagLevel {
+		return db.TagRow{}, false
+	}
+	items := tagtui.View{Tags: v.tags, FilterText: v.filter.Text}.EffectiveTags()
+	if v.cursor < 0 || v.cursor >= len(items) {
+		return db.TagRow{}, false
+	}
+	return items[v.cursor], true
+}
+
+// focusedTrack returns the track at the current cursor position and true.
+// Returns false when not at TrackLevel or list is empty.
+func (v TagsView) focusedTrack() (db.PlaylistTrackRow, bool) {
+	if v.level != tagtui.TrackLevel {
+		return db.PlaylistTrackRow{}, false
+	}
+	items := tagtui.View{Tracks: v.tracks, FilterText: v.filter.Text}.EffectiveTracks()
+	if v.cursor < 0 || v.cursor >= len(items) {
+		return db.PlaylistTrackRow{}, false
+	}
+	return items[v.cursor], true
+}
+
+// focusedTrackAsLibTrack returns the focused track converted to musiclib.Track.
+func (v TagsView) focusedTrackAsLibTrack() (musiclib.Track, bool) {
+	t, ok := v.focusedTrack()
+	if !ok {
+		return musiclib.Track{}, false
+	}
+	return musiclib.Track{
+		Hash:     t.Hash,
+		Path:     t.Path,
+		Artist:   t.Artist,
+		Title:    t.Title,
+		Album:    t.Album,
+		Duration: float64(t.DurationMs) / 1000,
+	}, true
+}
+
+// enqueueFocusedTrack returns a tea.Cmd that appends the focused track to the
+// play queue. Returns nil when not at TrackLevel or no track is focused.
+func (v TagsView) enqueueFocusedTrack(qa libtui.QueueAppender, prevQueueLen int) tea.Cmd {
+	track, ok := v.focusedTrackAsLibTrack()
+	if !ok {
+		return nil
+	}
+	wasEmpty := prevQueueLen == 0
+	return func() tea.Msg {
+		id, err := qa.AppendTrack(track, "")
+		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, InsertAfter: -1}
+	}
+}
+
+// playNextFocusedTrack dispatches a tea.Cmd that inserts the focused track
+// right after the currently playing track.
+func (v TagsView) playNextFocusedTrack(qa libtui.QueueAppender, prevQueueLen, insertAfter int) tea.Cmd {
+	track, ok := v.focusedTrackAsLibTrack()
+	if !ok {
+		return nil
+	}
+	wasEmpty := prevQueueLen == 0
+	return func() tea.Msg {
+		id, err := qa.AppendTrack(track, "")
+		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, InsertAfter: insertAfter}
+	}
+}
+
+// isCreating reports whether the inline create input is active.
+func (v TagsView) isCreating() bool { return v.creating }
+
+// startCreate activates the inline create input with an empty buffer.
+func (v TagsView) startCreate() TagsView {
+	ti := textinput.New()
+	ti.Focus()
+	v.creating = true
+	v.createInput = ti
+	return v
+}
+
+// cancelCreate dismisses the inline create input without persisting.
+func (v TagsView) cancelCreate() TagsView {
+	v.creating = false
+	v.createInput = textinput.Model{}
+	return v
+}
+
+// createInputValue returns the trimmed create input buffer.
+func (v TagsView) createInputValue() string {
+	return strings.TrimSpace(v.createInput.Value())
+}
+
+// createInputIsEmpty reports whether the trimmed create input buffer is empty.
+func (v TagsView) createInputIsEmpty() bool {
+	return strings.TrimSpace(v.createInput.Value()) == ""
+}
+
+// updateCreateInput forwards a key message to the Bubbles textinput model.
+func (v TagsView) updateCreateInput(msg tea.KeyPressMsg) (TagsView, tea.Cmd) {
+	var cmd tea.Cmd
+	v.createInput, cmd = v.createInput.Update(msg)
+	return v, cmd
+}
+
+// updateCreateInputMsg forwards a generic tea.Msg to the textinput.
+func (v TagsView) updateCreateInputMsg(msg tea.Msg) (TagsView, tea.Cmd) {
+	var cmd tea.Cmd
+	v.createInput, cmd = v.createInput.Update(msg)
+	return v, cmd
+}
+
+// isRenaming reports whether the inline rename input is active.
+func (v TagsView) isRenaming() bool { return v.renaming }
+
+// startRename activates the inline rename input pre-populated with currentName.
+func (v TagsView) startRename(currentName string) TagsView {
+	ti := textinput.New()
+	ti.SetValue(currentName)
+	ti.CursorEnd()
+	ti.Focus()
+	v.renaming = true
+	v.renameInput = ti
+	return v
+}
+
+// cancelRename dismisses the inline rename input without persisting.
+func (v TagsView) cancelRename() TagsView {
+	v.renaming = false
+	v.renameInput = textinput.Model{}
+	return v
+}
+
+// renameInputValue returns the trimmed rename input buffer.
+func (v TagsView) renameInputValue() string {
+	return strings.TrimSpace(v.renameInput.Value())
+}
+
+// renameInputIsEmpty reports whether the trimmed rename input buffer is empty.
+func (v TagsView) renameInputIsEmpty() bool {
+	return strings.TrimSpace(v.renameInput.Value()) == ""
+}
+
+// updateRenameInput forwards a key message to the Bubbles textinput model.
+func (v TagsView) updateRenameInput(msg tea.KeyPressMsg) (TagsView, tea.Cmd) {
+	var cmd tea.Cmd
+	v.renameInput, cmd = v.renameInput.Update(msg)
+	return v, cmd
+}
+
+// updateRenameInputMsg forwards a generic tea.Msg to the textinput.
+func (v TagsView) updateRenameInputMsg(msg tea.Msg) (TagsView, tea.Cmd) {
+	var cmd tea.Cmd
+	v.renameInput, cmd = v.renameInput.Update(msg)
+	return v, cmd
+}
+
+// atTagLevel reports whether the view is currently showing the tag list.
+func (v TagsView) atTagLevel() bool { return v.level == tagtui.TagLevel }

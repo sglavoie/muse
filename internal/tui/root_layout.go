@@ -5,6 +5,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/tui/layout"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // activeViewContext maps the current activeView to its bindingContext so that
@@ -28,7 +29,7 @@ type resizable interface {
 // height is reduced by 3 to leave room for the status bar and header rows.
 func (m *Model) setViewDimensions(width, height int) {
 	viewHeight := max(height-3, 0)
-	for _, view := range []resizable{&m.library, &m.recentlyAdded, &m.history, &m.playlists, &m.queue, &m.artists, &m.albums, &m.favorites, &m.genres} {
+	for _, view := range []resizable{&m.library, &m.recentlyAdded, &m.history, &m.playlists, &m.queue, &m.artists, &m.albums, &m.favorites, &m.genres, &m.tagsView} {
 		view.setSize(width, viewHeight)
 	}
 }
@@ -67,4 +68,25 @@ func (m *Model) clampAllScrollOffsets() {
 	genReserve := genresVisibleReserve(m.genres)
 	genMaxRows := layout.VisibleRows(m.genres.height, genReserve)
 	m.genres.scrollOffset = adjustScroll(m.genres.cursor, m.genres.scrollOffset, genMaxRows)
+
+	tagReserve := tagsVisibleReserve(m.tagsView)
+	tagMaxRows := layout.VisibleRows(m.tagsView.height, tagReserve)
+	m.tagsView.scrollOffset = adjustScroll(m.tagsView.cursor, m.tagsView.scrollOffset, tagMaxRows)
+}
+
+// tagsVisibleReserve returns the number of header rows to reserve in the tags view.
+func tagsVisibleReserve(v TagsView) int {
+	var reserve int
+	switch v.level {
+	case tagtui.TagLevel:
+		if v.filter.Active || v.filter.Text != "" {
+			reserve = 1
+		}
+	default: // TrackLevel
+		reserve = 3 // heading + separator + column header
+	}
+	if v.sortState.Field != SortDefault {
+		reserve++
+	}
+	return reserve
 }

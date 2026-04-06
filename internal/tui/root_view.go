@@ -25,7 +25,10 @@ func (m Model) hasActiveOverlay() bool {
 		m.overlay.destPicker != nil ||
 		m.overlay.goTo != nil ||
 		m.overlay.smartRuleEditor != nil ||
-		m.overlay.commandPalette != nil
+		m.overlay.commandPalette != nil ||
+		m.overlay.tagPicker != nil ||
+		m.overlay.tagMergePicker != nil ||
+		m.overlay.tagFilterPicker != nil
 }
 
 // View renders the active panel and a status bar, returning a tea.View.
@@ -66,6 +69,12 @@ func (m Model) View() tea.View {
 		body = m.overlay.commandPalette.Render(m.termWidth, m.termHeight, *m.styles)
 	case m.overlay.smartRuleEditor != nil:
 		body = m.overlay.smartRuleEditor.Render(m.termWidth, m.termHeight, *m.styles)
+	case m.overlay.tagPicker != nil:
+		body = m.overlay.tagPicker.Render(m.termWidth, m.termHeight, *m.styles)
+	case m.overlay.tagMergePicker != nil:
+		body = m.overlay.tagMergePicker.Render(m.termWidth, m.termHeight, *m.styles)
+	case m.overlay.tagFilterPicker != nil:
+		body = m.overlay.tagFilterPicker.Render(m.termWidth, m.termHeight, *m.styles)
 	default:
 		switch m.activeView {
 		case viewLibrary:
@@ -86,6 +95,8 @@ func (m Model) View() tea.View {
 			body = m.recentlyAdded.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 		case viewHistory:
 			body = m.history.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
+		case viewTags:
+			body = m.tagsView.render(*m.styles, m.favoriteHashes)
 		}
 	}
 
@@ -158,6 +169,9 @@ func (m Model) renderStatusBar() string {
 	sb.visualMode = m.visual.active
 	sb.configCreated = m.configCreated
 	sb.watchDegraded = m.watchDegraded
+	if m.activeTagFilter != nil {
+		sb.activeTagName = m.tagNames[*m.activeTagFilter]
+	}
 	sb.queueEmpty = len(m.queue.entries) == 0
 	if m.playback.elapsedSecs > 0 || m.playback.totalSecs > 0 {
 		sb.elapsed = formatTime(m.playback.elapsedSecs)

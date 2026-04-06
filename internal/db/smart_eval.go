@@ -128,6 +128,18 @@ func buildLeaf(sb *strings.Builder, args *[]any, rule SmartRule) error {
 		}
 		return nil
 
+	case FieldTag:
+		// OpEquals: track has the tag with the given name.
+		// OpNotEquals: track does NOT have the tag with the given name.
+		const subq = "EXISTS (SELECT 1 FROM track_tags tt JOIN tags tg ON tt.tag_id = tg.id WHERE tt.track_hash = t.hash AND tg.name = ? AND tg.deleted_at IS NULL)"
+		if rule.Operator == OpNotEquals {
+			sb.WriteString("NOT " + subq)
+		} else {
+			sb.WriteString(subq)
+		}
+		*args = append(*args, rule.Value)
+		return nil
+
 	default:
 		return fmt.Errorf("unknown field %q", rule.Field)
 	}

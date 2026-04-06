@@ -16,6 +16,7 @@ type NowPlayingOverlay struct {
 	total     float64
 	state     PlaybackState
 	playCount int
+	tagsLine  string // pre-rendered colored tag names; empty when none
 }
 
 // Render produces a centered overlay string for the now-playing info.
@@ -30,6 +31,6 @@ func (n NowPlayingOverlay) Render(termWidth, termHeight int, s styles.Styles) st
 		icon = "▶"
 	}
 	progress := fmt.Sprintf("%s %s / %s", icon, formatTime(n.elapsed), formatTime(n.total))
-	return renderTrackOverlay(n.title, n.artist, n.album, progress, n.playCount,
+	return renderTrackOverlay(n.title, n.artist, n.album, progress, n.playCount, n.tagsLine,
 		" ♪ Now Playing ", "I or esc to dismiss", termWidth, termHeight, s)
 }

@@ -28,6 +28,8 @@ const (
 	undoKindAddFavorite                       // single favorite added (any non-Favorites view)
 	undoKindBulkAddFavorites                  // multiple favorites bulk-added (any non-Favorites view)
 	undoKindPaste                             // tracks pasted into queue via ctrl+p
+	undoKindTagToggle                         // tag assigned to / removed from track(s)
+	undoKindDeleteTag                         // tag soft-deleted from Tags view
 )
 
 // undoSlot holds the reversible state for the most recent destructive action.
@@ -314,4 +316,96 @@ type smartPlaylistCountsUpdatedMsg struct {
 type listeningStatsMsg struct {
 	stats db.ListeningStats
 	err   error
+}
+
+// tagPickerDismissedMsg is dispatched when the tag picker overlay is closed
+// without making any changes.
+type tagPickerDismissedMsg struct{}
+
+// tagToggledMsg is dispatched when a tag toggle (add or remove) completes.
+// wasAdd is true when the tag was added; false when removed. hashes lists all
+// affected track hashes. err is non-nil when the DB write failed.
+type tagToggledMsg struct {
+	tagID  int64
+	hashes []string
+	wasAdd bool
+	err    error
+}
+
+// tagCreatedMsg is dispatched when a new tag is successfully created from the
+// tag picker's inline "Create" entry. id is the newly-inserted tag ID.
+type tagCreatedMsg struct {
+	id   int64
+	name string
+	err  error
+}
+
+// tagsRefreshedMsg carries the full tag list and per-track tag map after any
+// tag mutation (create, delete, toggle). Root uses it to replace the in-memory
+// cache atomically.
+type tagsRefreshedMsg struct {
+	tags      []db.TagRow
+	trackTags map[string]map[int64]struct{}
+	err       error
+}
+
+// tagViewTracksLoadedMsg carries the tracks for a tag drill-down.
+type tagViewTracksLoadedMsg struct {
+	tag    db.TagRow
+	tracks []db.PlaylistTrackRow
+	counts map[int64]int
+	err    error
+}
+
+// tagViewCountsLoadedMsg carries refreshed tag counts after a mutation.
+type tagViewCountsLoadedMsg struct {
+	counts map[int64]int
+	err    error
+}
+
+// tagRenamedMsg carries the result of a RenameTag call.
+type tagRenamedMsg struct {
+	id   int64
+	name string
+	err  error
+}
+
+// tagDeletedMsg carries the result of a DeleteTagSoft call.
+type tagDeletedMsg struct {
+	tag db.TagRow // the tag that was soft-deleted (for undo)
+	idx int       // position in the effective list (for undo cursor restoration)
+	err error
+}
+
+// tagEnqueueAllMsg carries the result of an "enqueue all tracks for tag" operation.
+type tagEnqueueAllMsg struct {
+	tagName  string
+	count    int
+	ids      []int64
+	wasEmpty bool
+	err      error
+}
+
+// tagMergedMsg carries the result of a MergeTags call.
+type tagMergedMsg struct {
+	src  db.TagRow
+	dest db.TagRow
+	err  error
+}
+
+// openTagFilterPickerMsg requests opening the tag filter picker overlay.
+type openTagFilterPickerMsg struct{}
+
+// clearTagFilterMsg requests clearing the active cross-view tag filter.
+type clearTagFilterMsg struct{}
+
+// removeAllTagsFromTrackMsg requests removing all tags from the focused track.
+type removeAllTagsFromTrackMsg struct {
+	hash string
+}
+
+// enqueueByTagMsg requests enqueueing all tracks for a specific tag ID.
+type enqueueByTagMsg struct {
+	tagID int64
+	name  string
 }

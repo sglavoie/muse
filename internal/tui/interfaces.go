@@ -270,3 +270,28 @@ type scanUpsertBatcher interface {
 type userEditedReader interface {
 	ReadUserEditedTracks() ([]db.UserEditedRow, error)
 }
+
+// tagReader loads tag data from the database. Root uses it to populate the
+// in-memory tag cache on startup and to refresh it after any mutation.
+type tagReader interface {
+	ReadTags() ([]db.TagRow, error)
+	ReadTagsForTrack(hash string) ([]db.TagRow, error)
+	ReadTrackHashesByTag(tagID int64) ([]string, error)
+	ReadTracksByTag(tagID int64) ([]db.PlaylistTrackRow, error)
+	ReadTagCounts() (map[int64]int, error)
+}
+
+// tagWriter persists tag mutations to the database. Root uses it when the
+// user creates, renames, deletes, or toggles tags from the tag picker overlay.
+type tagWriter interface {
+	CreateTag(name, color string) (int64, error)
+	RenameTag(id int64, name string) error
+	UpdateTagColor(id int64, color string) error
+	DeleteTagSoft(id int64) error
+	UndoDeleteTag(id int64) error
+	AddTrackTag(hash string, tagID int64) error
+	RemoveTrackTag(hash string, tagID int64) error
+	AddTrackTagBulk(hashes []string, tagID int64) error
+	RemoveTrackTagBulk(hashes []string, tagID int64) error
+	MergeTags(sourceID, destID int64) error
+}

@@ -32,6 +32,9 @@ type overlayInfo struct {
 	settings              *SettingsOverlay
 	smartRuleEditor       *SmartRuleEditor
 	commandPalette        *CommandPalette
+	tagPicker             *TagPicker
+	tagMergePicker        *TagMergePicker
+	tagFilterPicker       *TagFilterPicker
 }
 
 // undoInfo groups the fields that track pending destructive-action confirmations
@@ -78,6 +81,7 @@ type Model struct {
 	albums        AlbumsView
 	favorites     FavoritesView
 	genres        GenresView
+	tagsView      TagsView
 
 	// scanCh is the channel returned by library.Scan. It is nil when no scan
 	// is in progress or after the scan has completed.
@@ -158,6 +162,19 @@ type Model struct {
 	historyRecorder     playHistoryRecorder    // may be nil; set via WithHistoryRecorder
 	historyReader       playHistoryReader      // may be nil; set via WithHistoryReader
 	statsReader         listeningStatsReader   // may be nil; set via WithStatsReader
+	tagReader           tagReader              // may be nil; set via WithTagReader
+	tagWriter           tagWriter              // may be nil; set via WithTagWriter
+
+	// Tag in-memory cache — loaded on startup, refreshed on any mutation.
+	tags      []db.TagRow
+	trackTags map[string]map[int64]struct{} // hash → set of tag IDs
+	tagNames  map[int64]string              // id → name (quick display lookup)
+	tagColors map[int64]string              // id → color hex
+
+	// activeTagFilter, when non-nil, restricts track-displaying views to only
+	// show tracks that carry the given tag ID. Set via ctrl+t; cleared by
+	// pressing ctrl+t again or esc in the tag filter picker.
+	activeTagFilter *int64
 
 	statsVisible  bool           // true while the listening stats overlay is shown
 	statsViewport viewport.Model // scrollable viewport for the stats overlay

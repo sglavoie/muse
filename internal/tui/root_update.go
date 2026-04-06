@@ -232,6 +232,67 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, msg.Command.Exec()
 		}
 
+	case tagPickerDismissedMsg:
+		m.overlay.tagPicker = nil
+
+	case TagPickerToggleMsg:
+		return m.handleTagPickerToggle(msg)
+
+	case TagPickerCreateMsg:
+		return m.handleTagPickerCreate(msg)
+
+	case tagCreatedMsg:
+		m = m.refreshTagsViewAfterCreate(msg)
+		return m.handleTagCreated(msg)
+
+	case tagToggledMsg:
+		return m.handleTagToggled(msg)
+
+	case tagsRefreshedMsg:
+		m = m.handleTagsRefreshed(msg)
+
+	case tagViewTracksLoadedMsg:
+		m = m.handleTagViewTracksLoaded(msg)
+
+	case tagViewCountsLoadedMsg:
+		m = m.handleTagViewCountsLoaded(msg)
+
+	case tagRenamedMsg:
+		m = m.handleTagRenamed(msg)
+
+	case tagDeletedMsg:
+		m = m.handleTagDeleted(msg)
+
+	case tagEnqueueAllMsg:
+		m = m.handleTagEnqueueAll2(msg)
+
+	case tagMergeDismissedMsg:
+		m.overlay.tagMergePicker = nil
+
+	case tagMergePickedMsg:
+		return m.handleTagMergePicked(msg)
+
+	case tagMergedMsg:
+		return m.handleTagMerged(msg)
+
+	case tagFilterPickedMsg:
+		return m.handleTagFilterPicked(msg)
+
+	case tagFilterDismissedMsg:
+		m = m.handleTagFilterDismissed()
+
+	case openTagFilterPickerMsg:
+		return m.handleOpenTagFilterPicker()
+
+	case clearTagFilterMsg:
+		m = m.clearTagFilter()
+
+	case removeAllTagsFromTrackMsg:
+		return m.handleRemoveAllTagsFromTrack(msg)
+
+	case enqueueByTagMsg:
+		return m.handleEnqueueByTag(msg)
+
 	case commandPaletteActionMsg:
 		return m.handleKeyAction(msg.action)
 

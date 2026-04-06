@@ -22,6 +22,11 @@ var orderedKeyPressHandlers = []keyPressHandler{
 	Model.handleGoToKeyPress,
 	Model.handleCommandPaletteKeyPress,
 	Model.handleDestPickerKeyPress,
+	Model.handleTagPickerKeyPress,
+	Model.handleTagFilterPickerKeyPress,
+	Model.handleTagMergeKeyPress,
+	Model.handleTagCreateInputKeyPress,
+	Model.handleTagRenameInputKeyPress,
 }
 
 // routeKeyPress applies root key interception in a single explicit order.

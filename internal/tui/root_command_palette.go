@@ -201,6 +201,50 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		},
 	})
 
+	// Tag filter.
+	cmds = append(cmds, PaletteCommand{
+		Name: "Filter by tag…",
+		Exec: func() tea.Cmd {
+			return func() tea.Msg { return openTagFilterPickerMsg{} }
+		},
+		Enabled: func() bool { return len(m.tags) > 0 },
+	})
+	if m.activeTagFilter != nil {
+		cmds = append(cmds, PaletteCommand{
+			Name: "Clear tag filter",
+			Exec: func() tea.Cmd {
+				return func() tea.Msg { return clearTagFilterMsg{} }
+			},
+		})
+	}
+
+	// Remove all tags from the focused track.
+	cmds = append(cmds, PaletteCommand{
+		Name: "Remove all tags from track",
+		Exec: func() tea.Cmd {
+			hash := m.focusedTrackHash()
+			if hash == "" {
+				return func() tea.Msg { return TransientNotifyMsg("No track focused") }
+			}
+			return func() tea.Msg { return removeAllTagsFromTrackMsg{hash: hash} }
+		},
+		Enabled: func() bool {
+			hash := m.focusedTrackHash()
+			return hash != "" && len(m.trackTags[hash]) > 0
+		},
+	})
+
+	// Per-tag enqueue entries.
+	for _, tag := range m.tags {
+		t := tag // capture
+		cmds = append(cmds, PaletteCommand{
+			Name: "Enqueue tag: " + t.Name,
+			Exec: func() tea.Cmd {
+				return func() tea.Msg { return enqueueByTagMsg{tagID: t.ID, name: t.Name} }
+			},
+		})
+	}
+
 	return cmds
 }
 

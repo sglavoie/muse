@@ -168,9 +168,9 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 }
 
 // renderTrackOverlay builds an OverlayBox for a track (preview or now-playing)
-// and renders it centered. Callers provide the pre-formatted progress line and
-// box chrome (title, hint).
-func renderTrackOverlay(title, artist, album, progressLine string, playCount int, boxTitle, hint string,
+// and renders it centered. Callers provide the pre-formatted progress line,
+// box chrome (title, hint), and an optional tagsLine (empty = no Tags row).
+func renderTrackOverlay(title, artist, album, progressLine string, playCount int, tagsLine, boxTitle, hint string,
 	termWidth, termHeight int, s styles.Styles) string {
 	if title == "" {
 		title = "(unknown title)"
@@ -186,6 +186,9 @@ func renderTrackOverlay(title, artist, album, progressLine string, playCount int
 		rows = append(rows, OverlayRow{Label: "Album:", Text: album})
 	}
 	rows = append(rows, OverlayRow{Label: "Play Count:", Text: strconv.Itoa(playCount)})
+	if tagsLine != "" {
+		rows = append(rows, OverlayRow{Label: "Tags:", Text: tagsLine, Styled: true})
+	}
 	rows = append(rows, OverlayRow{Blank: true})
 	rows = append(rows, OverlayRow{Text: progressLine, Styled: true})
 

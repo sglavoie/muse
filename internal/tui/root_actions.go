@@ -71,6 +71,14 @@ func (m Model) switchToView(id viewID) Model {
 		m.history.sourceTracks = tracks
 		m.history = m.history.recomputeSortedTracks()
 	}
+	if id == viewTags {
+		// Sync global tag list into the tags view and load counts if needed.
+		m = m.syncTagsViewTags()
+		if m.tagsView.tagCounts == nil && m.tagReader != nil {
+			counts, _ := m.tagReader.ReadTagCounts()
+			m.tagsView.tagCounts = counts
+		}
+	}
 	return m
 }
 
@@ -161,6 +169,22 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m = m.switchToView(viewHistory)
 	case actionSwitchGenres:
 		m = m.switchToView(viewGenres)
+	case actionSwitchTags:
+		m = m.switchToView(viewTags)
+	case actionTagOpen:
+		return m.handleTagOpen()
+	case actionTagBack:
+		m = m.handleTagBack()
+	case actionTagCreate:
+		return m.handleTagCreate()
+	case actionTagRename:
+		return m.handleTagRename()
+	case actionTagDelete:
+		return m.handleTagDelete()
+	case actionTagEnqueueAll:
+		return m.handleTagEnqueueAll()
+	case actionTagMerge:
+		return m.handleTagMerge()
 	case actionGoTo:
 		ctx := m.focusedGoToContext()
 		if ctx.found {
@@ -177,6 +201,10 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			m.overlay.commandPalette = &palette
 			return m, cmd
 		}
+	case actionTagPicker:
+		return m.openTagPicker()
+	case actionTagFilter:
+		return m.handleTagFilterAction()
 	}
 	return m, nil
 }
