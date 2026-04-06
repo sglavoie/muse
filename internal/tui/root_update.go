@@ -235,6 +235,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case commandPaletteActionMsg:
 		return m.handleKeyAction(msg.action)
 
+	case clipboardResultMsg:
+		if msg.err != nil {
+			m.statusBar.notification = newNotification("Copy failed: " + msg.err.Error())
+		} else {
+			m.statusBar.notification = newNotification("Copied: " + msg.text)
+		}
+
+	case configToggleMsg:
+		return m.handleConfigToggleMsg(msg)
+
+	case randomAlbumMsg:
+		return m.handleRandomAlbumMsg()
+
+	case randomArtistMsg:
+		return m.handleRandomArtistMsg()
+
+	case jumpToNowPlayingMsg:
+		return m.handleJumpToNowPlayingMsg()
+
+	case queueShuffleMsg:
+		return m.handleQueueShuffleMsg()
+
+	case queueDedupMsg:
+		return m.handleQueueDedupMsg()
+
 	case pltui.DestinationPickerDismissedMsg:
 		m = m.handleDestinationPickerDismissedMsg()
 

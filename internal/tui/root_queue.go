@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"log/slog"
+	"math/rand/v2"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -778,4 +779,130 @@ func (m Model) handleQueueSummaryKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, 
 	default:
 		return m, nil, true
 	}
+}
+
+// handleQueueShuffleMsg applies a Fisher-Yates shuffle to the in-memory queue,
+// updates the current-playing index, syncs the player queue, and persists the
+// new order to the database when a queueShuffler is available.
+func (m Model) handleQueueShuffleMsg() (Model, tea.Cmd) {
+	if len(m.queue.entries) <= 1 {
+		m.statusBar.notification = newNotification("Queue too small to shuffle")
+		return m, nil
+	}
+
+	entries := make([]QueueEntry, len(m.queue.entries))
+	copy(entries, m.queue.entries)
+	for i := len(entries) - 1; i > 0; i-- {
+		j := rand.IntN(i + 1)
+		entries[i], entries[j] = entries[j], entries[i]
+	}
+	m.queue.entries = entries
+
+	// Re-locate the now-playing track in the shuffled slice.
+	m.playback.currentIndex = -1
+	if m.playback.currentHash != "" {
+		for i, e := range m.queue.entries {
+			if e.Hash == m.playback.currentHash {
+				m.playback.currentIndex = i
+				break
+			}
+		}
+	}
+
+	m = m.resetQueueSort()
+	m.syncPlayerQueue()
+
+	n := len(m.queue.entries)
+	m.statusBar.notification = newNotification(fmt.Sprintf("Queue shuffled (%d tracks)", n))
+
+	if shuffler, ok := m.reorderer.(queueShuffler); ok {
+		ids := make([]int64, len(m.queue.entries))
+		for i, e := range m.queue.entries {
+			ids[i] = e.ID
+		}
+		return m, func() tea.Msg { _ = shuffler.SetQueueOrder(ids); return nil }
+	}
+	return m, nil
+}
+
+// handleQueueDedupMsg removes duplicate queue entries, keeping the first
+// occurrence of each track hash. Removed entries are soft-deleted with undo
+// support.
+func (m Model) handleQueueDedupMsg() (Model, tea.Cmd) {
+	seen := make(map[string]struct{})
+	var keep []QueueEntry
+	var removedEntries []QueueEntry
+	var removedIndices []int
+	var removedIDs []int64
+
+	for i, e := range m.queue.entries {
+		if _, ok := seen[e.Hash]; ok {
+			removedEntries = append(removedEntries, e)
+			removedIndices = append(removedIndices, i)
+			removedIDs = append(removedIDs, e.ID)
+		} else {
+			seen[e.Hash] = struct{}{}
+			keep = append(keep, e)
+		}
+	}
+
+	if len(removedIDs) == 0 {
+		m.statusBar.notification = newNotification("No duplicates found")
+		return m, nil
+	}
+
+	m.queue.entries = keep
+	m = m.resetQueueSort()
+	m.clampQueueCursorAndScroll()
+	m.syncPlayerQueue()
+
+	// Adjust currentIndex after removal.
+	if m.playback.currentIndex >= 0 {
+		removedBefore := 0
+		removedCurrent := false
+		for _, ri := range removedIndices {
+			if ri < m.playback.currentIndex {
+				removedBefore++
+			} else if ri == m.playback.currentIndex {
+				removedCurrent = true
+			}
+		}
+		if removedCurrent {
+			m.playback.currentIndex = -1
+		} else {
+			m.playback.currentIndex -= removedBefore
+		}
+	}
+
+	// Stop playback if the now-playing track was among the removed entries.
+	if m.playback.currentHash != "" && !queueContainsHash(m.queue.entries, m.playback.currentHash) {
+		m = m.resetPlaybackState()
+	}
+
+	undoer := m.undoer
+	cancel := m.scheduleSoftDelete(
+		func() {
+			if undoer != nil {
+				for _, id := range removedIDs {
+					if err := undoer.DequeueTrackSoft(id); err != nil {
+						slog.Warn("dequeue soft-delete failed", "err", err)
+					}
+				}
+			}
+		},
+		func(before int64) {
+			if undoer != nil {
+				if err := undoer.PurgeDeletedQueueEntries(before); err != nil {
+					slog.Warn("queue purge failed", "err", err)
+				}
+			}
+		},
+	)
+	m.setUndoSlot(undoBulkDequeueAction{
+		entries: removedEntries,
+		indices: removedIndices,
+		ids:     removedIDs,
+	}, cancel)
+	player.PlaySound(player.SoundRemoved)
+	return m, nil
 }

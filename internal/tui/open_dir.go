@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 
 	tea "charm.land/bubbletea/v2"
@@ -18,6 +19,23 @@ func openDir(ctx context.Context, dir string) tea.Cmd {
 		}
 		//nolint:gosec // dir comes from resolved XDG paths, not user input
 		_ = exec.CommandContext(ctx, name, dir).Start()
+		return nil
+	}
+}
+
+// revealFile returns a tea.Cmd that reveals the given file in the OS file
+// manager. On macOS it uses "open -R", on Linux it opens the parent directory
+// with "xdg-open".
+func revealFile(ctx context.Context, path string) tea.Cmd {
+	return func() tea.Msg {
+		if runtime.GOOS == "darwin" {
+			//nolint:gosec // path comes from library index, not user input
+			_ = exec.CommandContext(ctx, "open", "-R", path).Start()
+		} else {
+			dir := filepath.Dir(path)
+			//nolint:gosec // dir is derived from library index path
+			_ = exec.CommandContext(ctx, "xdg-open", dir).Start()
+		}
 		return nil
 	}
 }

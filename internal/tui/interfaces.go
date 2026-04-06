@@ -88,6 +88,13 @@ type queueReorderer interface {
 	ReorderQueueTrack(id int64, direction int) error
 }
 
+// queueShuffler persists a full queue reorder (e.g. Fisher-Yates shuffle).
+// Root checks for it via type assertion on the reorderer field. When nil, the
+// in-memory shuffle is still applied but not written to the database.
+type queueShuffler interface {
+	SetQueueOrder(ids []int64) error
+}
+
 // queueDequeuer is the db.QueueDequeuer interface. Aliased here to keep
 // the tui package's dependency on db narrow and explicit.
 type queueDequeuer = db.QueueDequeuer

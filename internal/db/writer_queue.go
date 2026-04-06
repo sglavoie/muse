@@ -225,10 +225,7 @@ func (w *Writer) RenumberQueuePositions() error {
 		}
 		// Move conflicting soft-deleted rows above every existing position
 		// to guarantee no collisions with other soft-deleted rows.
-		safeBase := globalMax
-		if safeBase < maxNewPos {
-			safeBase = maxNewPos
-		}
+		safeBase := max(globalMax, maxNewPos)
 		for i, r := range conflicting {
 			safePos := safeBase + int64(i+1)*queuePositionGap
 			if _, err := tx.Exec(`UPDATE queue SET position=? WHERE id=?`, safePos, r.id); err != nil {
@@ -326,6 +323,99 @@ func (w *Writer) PurgeDeletedQueueEntries(before int64) error {
 			`DELETE FROM queue WHERE deleted_at IS NOT NULL AND deleted_at < ?`, before,
 		)
 		return err
+	})
+}
+
+// SetQueueOrder assigns sequential positions (1000, 2000, 3000…) to the active
+// queue rows in the order given by ids. Any soft-deleted rows whose positions
+// would collide with the new range are relocated to a safe zone above the
+// current global maximum first. Active rows not listed in ids are untouched.
+func (w *Writer) SetQueueOrder(ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return w.Exec(func(db *sql.DB) error {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer rollback(tx)
+
+		n := int64(len(ids))
+		maxNewPos := n * queuePositionGap
+
+		// Find the global maximum position across all rows (including soft-deleted)
+		// so we can compute a safe relocation zone above it.
+		var globalMax int64
+		if err := tx.QueryRow(
+			`SELECT COALESCE(MAX(position), 0) FROM queue`,
+		).Scan(&globalMax); err != nil {
+			return err
+		}
+
+		// Collect soft-deleted rows whose positions fall within [queuePositionGap,
+		// maxNewPos] and are exact multiples of queuePositionGap — these would
+		// conflict with the new sequential positions.
+		type qrow struct{ id, position int64 }
+		rows, err := tx.Query(
+			`SELECT id, position FROM queue
+			 WHERE deleted_at IS NOT NULL
+			   AND position >= ?
+			   AND position <= ?`,
+			queuePositionGap, maxNewPos,
+		)
+		if err != nil {
+			return err
+		}
+		var conflicting []qrow
+		for rows.Next() {
+			var r qrow
+			if err := rows.Scan(&r.id, &r.position); err != nil {
+				rows.Close()
+				return err
+			}
+			if r.position%queuePositionGap == 0 {
+				conflicting = append(conflicting, r)
+			}
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		// Phase 1: Move all target rows to a temporary zone strictly above
+		// globalMax. This clears the 1000…N*1000 range of any potential
+		// collisions between active rows regardless of their current positions.
+		safeBase := max(globalMax, maxNewPos)
+
+		// Move conflicting soft-deleted rows first (they stay above safeBase).
+		for i, r := range conflicting {
+			safePos := safeBase + int64(i+1)*queuePositionGap
+			if _, err := tx.Exec(`UPDATE queue SET position=? WHERE id=?`, safePos, r.id); err != nil {
+				return err
+			}
+		}
+
+		// Move all target active rows to a temporary zone above the safe base so
+		// that phase 2 assignments never collide with pre-existing positions.
+		tempBase := safeBase + int64(len(conflicting)+1)*queuePositionGap
+		for i, id := range ids {
+			tmpPos := tempBase + int64(i)*queuePositionGap
+			if _, err := tx.Exec(`UPDATE queue SET position=? WHERE id=?`, tmpPos, id); err != nil {
+				return err
+			}
+		}
+
+		// Phase 2: Assign final positions 1000, 2000, …, N*1000 in the given
+		// order. The range is now free of conflicts.
+		for i, id := range ids {
+			pos := int64(i+1) * queuePositionGap
+			if _, err := tx.Exec(`UPDATE queue SET position=? WHERE id=?`, pos, id); err != nil {
+				return err
+			}
+		}
+
+		return tx.Commit()
 	})
 }
 
