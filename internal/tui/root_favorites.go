@@ -539,14 +539,14 @@ func (m Model) handleFavoritesOpen() (Model, tea.Cmd, bool) {
 				return m, nil, true
 			}
 			derived := deduplicateTracksByHash(arttui.DeriveArtistTracks(tracks, name))
-			m.favorites = m.favorites.openTracks(derived)
+			m.favorites = m.favorites.openTracks(derived, name)
 		case favtui.CategoryAlbums:
 			name, ok := m.favorites.focusedAlbum()
 			if !ok {
 				return m, nil, true
 			}
 			derived := deduplicateTracksByHash(albtui.DeriveAlbumTracks(tracks, name))
-			m.favorites = m.favorites.openTracks(derived)
+			m.favorites = m.favorites.openTracks(derived, name)
 		}
 		return m, nil, true
 

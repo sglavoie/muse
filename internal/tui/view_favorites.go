@@ -35,6 +35,7 @@ type FavoritesView struct {
 
 	// Drill-down tracks (populated at TrackLevel from a favorite artist/album).
 	drilldownTracks []musiclib.Track
+	drilldownName   string // heading text for TrackLevel (artist or album name)
 
 	// Saved cursors/scroll for each level (restored on back).
 	categoryCursor   int
@@ -68,6 +69,7 @@ func (v FavoritesView) render(s styles.Styles, favHashes, favArtists, favAlbums 
 		Albums:           v.albums,
 		Tracks:           v.tracks,
 		DrilldownTracks:  v.drilldownTracks,
+		DrilldownName:    v.drilldownName,
 		CategoryCursor:   v.categoryCursor,
 		ListCursor:       v.listCursor,
 		ListScrollOffset: v.listScrollOffset,
@@ -101,6 +103,7 @@ func (v FavoritesView) HandleAction(a action) FavoritesView {
 		Albums:          v.albums,
 		Tracks:          v.tracks,
 		DrilldownTracks: v.drilldownTracks,
+		DrilldownName:   v.drilldownName,
 		Height:          v.height,
 		FilterActive:    v.filter.Active,
 		FilterText:      v.filter.Text,
@@ -152,6 +155,7 @@ func (v FavoritesView) back() FavoritesView {
 	v.albums = view.Albums
 	v.tracks = view.Tracks
 	v.drilldownTracks = view.DrilldownTracks
+	v.drilldownName = ""
 	v.filter = filter.State{}
 	v.sortState = SortState{}
 	v.selectedItems = nil
@@ -159,7 +163,9 @@ func (v FavoritesView) back() FavoritesView {
 }
 
 // openTracks transitions from ListLevel to TrackLevel with the given tracks.
-func (v FavoritesView) openTracks(tracks []musiclib.Track) FavoritesView {
+// name is the resolved display name for the heading (e.g. the artist or album
+// name that was selected, correctly resolved from the possibly-filtered list).
+func (v FavoritesView) openTracks(tracks []musiclib.Track, name string) FavoritesView {
 	view := favtui.View{
 		Level:        v.level,
 		Cursor:       v.cursor,
@@ -172,6 +178,7 @@ func (v FavoritesView) openTracks(tracks []musiclib.Track) FavoritesView {
 	v.listCursor = view.ListCursor
 	v.listScrollOffset = view.ListScrollOffset
 	v.drilldownTracks = view.DrilldownTracks
+	v.drilldownName = name
 	v.filter = filter.State{}
 	v.sortState = SortState{}
 	v.selectedItems = nil

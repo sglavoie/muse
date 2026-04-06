@@ -1,6 +1,7 @@
 package favorites
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
@@ -487,6 +488,46 @@ func TestCursorDown_AdjustsScroll(t *testing.T) {
 	}
 	if v2.ScrollOffset < 1 {
 		t.Errorf("expected scrollOffset >= 1, got %d", v2.ScrollOffset)
+	}
+}
+
+// --- DrilldownName heading ---
+
+// TestRenderTracks_UsesDrilldownNameForHeading verifies that the TrackLevel
+// heading uses DrilldownName rather than reconstructing it from the cursor
+// position, which would be incorrect when the drill-down was initiated from
+// a filtered list.
+func TestRenderTracks_UsesDrilldownNameForHeading(t *testing.T) {
+	v := View{
+		Level:           TrackLevel,
+		Category:        CategoryArtists,
+		Width:           80,
+		Height:          20,
+		DrilldownTracks: sampleTracks(3),
+		DrilldownName:   "Correct Artist",
+		Artists:         []string{"Alice", "Bob", "Carol", "Correct Artist"},
+		ListCursor:      0, // points to "Alice" in the unfiltered list
+	}
+	out := v.Render()
+	if !strings.Contains(out, "Correct Artist") {
+		t.Errorf("expected heading to contain DrilldownName 'Correct Artist', got:\n%s", out)
+	}
+}
+
+// TestRenderTracks_EmptyDrilldownNameFallback verifies that when DrilldownName
+// is empty the heading renders without panicking.
+func TestRenderTracks_EmptyDrilldownNameFallback(t *testing.T) {
+	v := View{
+		Level:           TrackLevel,
+		Category:        CategoryArtists,
+		Width:           80,
+		Height:          20,
+		DrilldownTracks: sampleTracks(2),
+	}
+	// Should not panic and should produce output.
+	out := v.Render()
+	if out == "" {
+		t.Error("expected non-empty render output")
 	}
 }
 

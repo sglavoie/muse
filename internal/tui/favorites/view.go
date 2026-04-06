@@ -57,6 +57,7 @@ type View struct {
 
 	// Drill-down tracks (populated at TrackLevel from a favorite artist/album).
 	DrilldownTracks []library.Track
+	DrilldownName   string // heading text for TrackLevel (artist or album name)
 
 	// Saved cursors/scroll for each level (restored on Back).
 	CategoryCursor   int
@@ -396,24 +397,7 @@ func (v View) renderTrackList() string {
 }
 
 func (v View) renderTracks() string {
-	var headingText string
-	switch v.Category {
-	case CategoryArtists:
-		items := v.EffectiveItems()
-		if v.ListCursor >= 0 && v.ListCursor < len(items) {
-			headingText = items[v.ListCursor]
-		} else if v.ListCursor >= 0 && v.ListCursor < len(v.Artists) {
-			headingText = v.Artists[v.ListCursor]
-		}
-	case CategoryAlbums:
-		items := v.EffectiveItems()
-		if v.ListCursor >= 0 && v.ListCursor < len(items) {
-			headingText = items[v.ListCursor]
-		} else if v.ListCursor >= 0 && v.ListCursor < len(v.Albums) {
-			headingText = v.Albums[v.ListCursor]
-		}
-	}
-	heading := v.Styles.Heading.Render(headingText)
+	heading := v.Styles.Heading.Render(v.DrilldownName)
 
 	items := v.EffectiveTracks()
 	if len(v.DrilldownTracks) == 0 {
