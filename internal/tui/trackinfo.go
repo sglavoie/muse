@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -13,16 +15,17 @@ import (
 // trackInfoMsg carries the result of an async exiftool invocation.
 type trackInfoMsg struct {
 	path      string
+	hash      string
 	tags      map[string]any
 	err       error
 	playCount int
 }
 
 // trackInfoCmd returns a tea.Cmd that extracts all exiftool tags for path.
-func trackInfoCmd(ctx context.Context, path string, playCount int) tea.Cmd {
+func trackInfoCmd(ctx context.Context, path, hash string, playCount int) tea.Cmd {
 	return func() tea.Msg {
 		tags, err := library.ExtractAllTags(ctx, path)
-		return trackInfoMsg{path: path, tags: tags, err: err, playCount: playCount}
+		return trackInfoMsg{path: path, hash: hash, tags: tags, err: err, playCount: playCount}
 	}
 }
 
@@ -85,7 +88,7 @@ var tagGroups = [][]tagSpec{
 }
 
 // newTrackInfoOverlay builds a TrackInfoOverlay from exiftool tags.
-func newTrackInfoOverlay(path string, tags map[string]any, playCount int) TrackInfoOverlay {
+func newTrackInfoOverlay(path string, tags map[string]any, playCount int, userTags []db.TagRow) TrackInfoOverlay {
 	rows := []OverlayRow{
 		{Label: "Path:", Text: path},
 		{Blank: true},
@@ -113,6 +116,14 @@ func newTrackInfoOverlay(path string, tags map[string]any, playCount int) TrackI
 
 	rows = append(rows, OverlayRow{Blank: true})
 	rows = append(rows, OverlayRow{Label: "Play Count:", Text: strconv.Itoa(playCount)})
+
+	if len(userTags) > 0 {
+		names := make([]string, len(userTags))
+		for i, t := range userTags {
+			names[i] = t.Name
+		}
+		rows = append(rows, OverlayRow{Label: "Tags:", Text: strings.Join(names, ", ")})
+	}
 
 	return TrackInfoOverlay{path: path, rows: rows}
 }

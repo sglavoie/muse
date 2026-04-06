@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/db"
 )
 
 func TestTrackInfoOverlayRender(t *testing.T) {
@@ -52,7 +53,7 @@ func TestNewTrackInfoOverlay(t *testing.T) {
 		"FileSize":      "25 MB",
 		"AudioChannels": 2,
 	}
-	overlay := newTrackInfoOverlay("/music/test.flac", tags, 0)
+	overlay := newTrackInfoOverlay("/music/test.flac", tags, 0, nil)
 
 	if overlay.path != "/music/test.flac" {
 		t.Errorf("expected path '/music/test.flac', got %q", overlay.path)
@@ -109,7 +110,7 @@ func TestNewTrackInfoOverlay(t *testing.T) {
 }
 
 func TestNewTrackInfoOverlay_EmptyTags(t *testing.T) {
-	overlay := newTrackInfoOverlay("/music/empty.flac", map[string]any{}, 0)
+	overlay := newTrackInfoOverlay("/music/empty.flac", map[string]any{}, 0, nil)
 
 	// Should have path row, blank separator, and play count row — but no tag rows.
 	nonBlankNonPath := 0
@@ -133,7 +134,7 @@ func TestNewTrackInfoOverlay_MissingTagsSkipped(t *testing.T) {
 		"Title":  "Only Title",
 		"Artist": "Only Artist",
 	}
-	overlay := newTrackInfoOverlay("/music/sparse.flac", tags, 0)
+	overlay := newTrackInfoOverlay("/music/sparse.flac", tags, 0, nil)
 
 	labels := map[string]bool{}
 	for _, row := range overlay.rows {
@@ -162,7 +163,7 @@ func TestNewTrackInfoOverlay_AlternateKeys(t *testing.T) {
 		"NumChannels": 2,
 		"Date":        "2024",
 	}
-	overlay := newTrackInfoOverlay("/music/alt.flac", tags, 0)
+	overlay := newTrackInfoOverlay("/music/alt.flac", tags, 0, nil)
 
 	labels := map[string]string{}
 	for _, row := range overlay.rows {
@@ -187,7 +188,7 @@ func TestNewTrackInfoOverlay_BlankSeparators(t *testing.T) {
 		"Title":    "Song",
 		"FileType": "MP3",
 	}
-	overlay := newTrackInfoOverlay("/music/sep.flac", tags, 0)
+	overlay := newTrackInfoOverlay("/music/sep.flac", tags, 0, nil)
 
 	blankCount := 0
 	for _, row := range overlay.rows {
@@ -198,5 +199,39 @@ func TestNewTrackInfoOverlay_BlankSeparators(t *testing.T) {
 	// At least the separator after the path row, plus one between the groups.
 	if blankCount < 2 {
 		t.Errorf("expected at least 2 blank separators, got %d", blankCount)
+	}
+}
+
+func TestNewTrackInfoOverlay_WithUserTags(t *testing.T) {
+	userTags := []db.TagRow{
+		{ID: 1, Name: "chill"},
+		{ID: 2, Name: "workout"},
+	}
+	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "Song"}, 5, userTags)
+
+	var tagsRow OverlayRow
+	found := false
+	for _, row := range overlay.rows {
+		if row.Label == "Tags:" {
+			tagsRow = row
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected Tags: row in overlay")
+	}
+	if tagsRow.Text != "chill, workout" {
+		t.Errorf("expected 'chill, workout', got %q", tagsRow.Text)
+	}
+}
+
+func TestNewTrackInfoOverlay_NoUserTags(t *testing.T) {
+	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "Song"}, 0, nil)
+
+	for _, row := range overlay.rows {
+		if row.Label == "Tags:" {
+			t.Fatal("Tags: row should not appear when there are no user tags")
+		}
 	}
 }

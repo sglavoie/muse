@@ -105,7 +105,7 @@ func TestTrackInfoMsgError(t *testing.T) {
 // dismisses it.
 func TestTrackInfoToggleOff(t *testing.T) {
 	m := New(context.Background())
-	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"}, 0)
+	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"}, 0, nil)
 	m.overlay.trackInfo = &overlay
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'i', Text: "i"})
@@ -122,7 +122,7 @@ func TestTrackInfoToggleOff(t *testing.T) {
 // TestTrackInfoEscDismisses verifies that Esc dismisses the overlay.
 func TestTrackInfoEscDismisses(t *testing.T) {
 	m := New(context.Background())
-	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"}, 0)
+	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"}, 0, nil)
 	m.overlay.trackInfo = &overlay
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
@@ -137,7 +137,7 @@ func TestTrackInfoEscDismisses(t *testing.T) {
 // other keys are swallowed.
 func TestTrackInfoSwallowsKeys(t *testing.T) {
 	m := New(context.Background())
-	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"}, 0)
+	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"}, 0, nil)
 	m.overlay.trackInfo = &overlay
 	m.activeView = viewLibrary
 
@@ -157,7 +157,7 @@ func TestTrackInfoSwallowsKeys(t *testing.T) {
 // the overlay and returns a quit command.
 func TestTrackInfoCtrlCDismissesAndQuits(t *testing.T) {
 	m := New(context.Background())
-	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"}, 0)
+	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"}, 0, nil)
 	m.overlay.trackInfo = &overlay
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
@@ -178,7 +178,7 @@ func TestTrackInfoCtrlCDismissesAndQuits(t *testing.T) {
 // active, View() renders its content.
 func TestTrackInfoOverlayRenderedInView(t *testing.T) {
 	m := New(context.Background())
-	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "View Song"}, 0)
+	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "View Song"}, 0, nil)
 	m.overlay.trackInfo = &overlay
 	m.termWidth = 80
 	m.termHeight = 24
@@ -216,7 +216,7 @@ func TestTrackInfoPathUnknown(t *testing.T) {
 // is active returns a clipboard command and shows a notification.
 func TestTrackInfoYankPath(t *testing.T) {
 	m := New(context.Background())
-	overlay := newTrackInfoOverlay("/music/artist/song.flac", map[string]any{"Title": "T"}, 0)
+	overlay := newTrackInfoOverlay("/music/artist/song.flac", map[string]any{"Title": "T"}, 0, nil)
 	m.overlay.trackInfo = &overlay
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})

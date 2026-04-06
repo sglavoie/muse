@@ -328,7 +328,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			m.statusBar.notification = newNotification("Track path unknown")
 			return m, nil, true
 		}
-		return m, trackInfoCmd(m.appCtx, track.Path, track.PlayCount), true
+		return m, trackInfoCmd(m.appCtx, track.Path, track.Hash, track.PlayCount), true
 	case actionNowPlayingInfo:
 		if m.overlay.nowPlaying != nil {
 			m.overlay.nowPlaying = nil

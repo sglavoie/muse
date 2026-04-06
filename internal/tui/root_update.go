@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
@@ -93,7 +94,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.statusBar.notification = newNotification("Track info failed: " + msg.err.Error())
 		} else {
-			overlay := newTrackInfoOverlay(msg.path, msg.tags, msg.playCount)
+			var userTags []db.TagRow
+			if m.tagReader != nil && msg.hash != "" {
+				userTags, _ = m.tagReader.ReadTagsForTrack(msg.hash)
+			}
+			overlay := newTrackInfoOverlay(msg.path, msg.tags, msg.playCount, userTags)
 			m.overlay.trackInfo = &overlay
 		}
 
