@@ -175,3 +175,40 @@ func TestBridgeWatchChannel_NewThenDelete(t *testing.T) {
 		t.Fatalf("expected missing marker called with [new-hash], got %v", marker.hashes)
 	}
 }
+
+// TestBridgeWatchChannel_CreatedAtSetBeforeForward verifies that the TUI
+// channel receives watch events with CreatedAt already populated (via
+// ensureCreatedAt), not the raw zero value. Before the fix, the event was
+// forwarded to the channel before ensureCreatedAt was applied.
+func TestBridgeWatchChannel_CreatedAtSetBeforeForward(t *testing.T) {
+	raw := make(chan library.WatchEvent, 1)
+	raw <- library.WatchEvent{Track: library.Track{Hash: "t1", Path: "/t1.mp3"}}
+	close(raw)
+
+	writer := &stubUpsertBatcher{}
+	marker := &stubMissingMarker{}
+	hashByPath := map[string]string{}
+
+	ch := BridgeWatchChannel(raw, writer, marker, hashByPath, 10)
+
+	ev := <-ch
+	if ev.Track.CreatedAt == 0 {
+		t.Error("TUI channel received event with CreatedAt=0; ensureCreatedAt was not applied before forwarding")
+	}
+}
+
+// TestBridgeScanChannel_CreatedAtSetBeforeForward verifies that the TUI
+// channel receives scan tracks with CreatedAt already populated.
+func TestBridgeScanChannel_CreatedAtSetBeforeForward(t *testing.T) {
+	raw := make(chan library.Track, 1)
+	raw <- library.Track{Hash: "s1", Path: "/s1.mp3"}
+	close(raw)
+
+	writer := &stubUpsertBatcher{}
+	ch := BridgeScanChannel(raw, writer, 10)
+
+	track := <-ch
+	if track.CreatedAt == 0 {
+		t.Error("TUI channel received track with CreatedAt=0; ensureCreatedAt was not applied before forwarding")
+	}
+}

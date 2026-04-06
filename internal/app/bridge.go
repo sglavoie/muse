@@ -83,8 +83,8 @@ func BridgeWatchChannel(raw <-chan library.WatchEvent, writer UpsertBatcher, mar
 		defer close(ch)
 		f := &batchFlusher{size: batchSize, flush: writer.UpsertBatch}
 		for ev := range raw {
-			ch <- ev
 			if ev.Deleted {
+				ch <- ev
 				f.drain()
 				if hash, ok := hashByPath[ev.Path]; ok {
 					if err := marker.MarkTrackMissing(hash); err != nil {
@@ -93,6 +93,7 @@ func BridgeWatchChannel(raw <-chan library.WatchEvent, writer UpsertBatcher, mar
 				}
 			} else {
 				ev.Track = ensureCreatedAt(ev.Track)
+				ch <- ev
 				f.add(ev.Track)
 				// Keep the lookup map in sync so that a file created after
 				// startup and subsequently deleted can still be resolved to
