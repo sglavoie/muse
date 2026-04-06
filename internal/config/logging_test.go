@@ -323,6 +323,37 @@ func TestCloseLog(t *testing.T) {
 	CloseLog()
 }
 
+// --- InitLogging closes previous file handle ---
+
+func TestInitLogging_ClosesOldFileOnReinit(t *testing.T) {
+	dir := t.TempDir()
+	stateDir := filepath.Join(dir, "muse")
+
+	prev := slog.Default()
+	t.Cleanup(func() {
+		slog.SetDefault(prev)
+		CloseLog()
+	})
+
+	// First init — opens a file handle.
+	if err := InitLogging(stateDir, slog.LevelInfo); err != nil {
+		t.Fatalf("first InitLogging: %v", err)
+	}
+	firstFile := logFile
+
+	// Second init without an explicit CloseLog — the old handle must be
+	// closed automatically to avoid leaking file descriptors.
+	if err := InitLogging(stateDir, slog.LevelInfo); err != nil {
+		t.Fatalf("second InitLogging: %v", err)
+	}
+
+	// Writing to the old handle should fail because it was closed.
+	_, err := firstFile.Write([]byte("should fail"))
+	if err == nil {
+		t.Error("expected error writing to old log file handle after reinit, got nil (file descriptor leaked)")
+	}
+}
+
 // --- SetLogLevel with nil logFile ---
 
 func TestSetLogLevel_NilLogFile(t *testing.T) {

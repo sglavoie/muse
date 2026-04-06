@@ -485,8 +485,12 @@ func Save(path string, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	return toml.NewEncoder(f).Encode(cfg)
+	encErr := toml.NewEncoder(f).Encode(cfg)
+	closeErr := f.Close()
+	if encErr != nil {
+		return encErr
+	}
+	return closeErr
 }
 
 // writeDefaults writes a commented TOML config to path using the values in cfg.
@@ -495,11 +499,14 @@ func writeDefaults(path string, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 	firstDir := cfg.MusicDirectory
 	if len(cfg.MusicDirectories) > 0 {
 		firstDir = cfg.MusicDirectories[0]
 	}
-	_, err = fmt.Fprintf(f, configTemplate, firstDir, cfg.DefaultVolume, cfg.LogLevel)
-	return err
+	_, writeErr := fmt.Fprintf(f, configTemplate, firstDir, cfg.DefaultVolume, cfg.LogLevel)
+	closeErr := f.Close()
+	if writeErr != nil {
+		return writeErr
+	}
+	return closeErr
 }

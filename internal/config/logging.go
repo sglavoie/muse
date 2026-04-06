@@ -23,6 +23,13 @@ const logRotateSize = 5 * 1024 * 1024 // 5 MiB
 // Sets the global slog default to a JSON handler at the given level, and
 // stores the resolved path for later display.
 func InitLogging(stateDir string, level slog.Level) error {
+	// Close any previously opened log file to avoid leaking file handles
+	// when InitLogging is called more than once (e.g. after a config reload).
+	if logFile != nil {
+		_ = logFile.Close()
+		logFile = nil
+	}
+
 	if err := os.MkdirAll(stateDir, 0o700); err != nil {
 		return fmt.Errorf("init logging: create state dir: %w", err)
 	}
