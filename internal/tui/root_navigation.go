@@ -29,6 +29,8 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 			m.library = m.library.HandleAction(action)
 		case viewRecentlyAdded:
 			m.recentlyAdded = m.recentlyAdded.HandleAction(action)
+		case viewHistory:
+			m.history = m.history.HandleAction(action)
 		case viewPlaylists:
 			m.playlists = m.playlists.HandleAction(action)
 		case viewArtists:
@@ -57,6 +59,8 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 			m.library = m.library.HandleAction(action)
 		case viewRecentlyAdded:
 			m.recentlyAdded = m.recentlyAdded.HandleAction(action)
+		case viewHistory:
+			m.history = m.history.HandleAction(action)
 		case viewPlaylists:
 			m.playlists = m.playlists.HandleAction(action)
 		case viewFavorites:
@@ -115,6 +119,8 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 			m.library = m.library.ClearSelection()
 		case viewRecentlyAdded:
 			m.recentlyAdded = m.recentlyAdded.ClearSelection()
+		case viewHistory:
+			m.history = m.history.ClearSelection()
 		case viewQueue:
 			for i := range m.queue.entries {
 				m.queue.entries[i].Selected = false

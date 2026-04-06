@@ -673,6 +673,8 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 		return m.genres.focusedTrack()
 	case viewRecentlyAdded:
 		return m.recentlyAdded.view().FocusedTrack()
+	case viewHistory:
+		return m.history.view().FocusedTrack()
 	}
 	return library.Track{}, false
 }

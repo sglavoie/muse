@@ -44,6 +44,15 @@ func (m Model) bulkSelectedHashes() []string {
 			hashes = append(hashes, h)
 		}
 		return hashes
+	case viewHistory:
+		if len(m.history.selectedHashes) == 0 {
+			return nil
+		}
+		hashes := make([]string, 0, len(m.history.selectedHashes))
+		for h := range m.history.selectedHashes {
+			hashes = append(hashes, h)
+		}
+		return hashes
 	case viewQueue:
 		return m.queue.selectedHashes()
 	case viewPlaylists:
@@ -534,6 +543,8 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		m.library.selectedHashes = nil
 	case viewRecentlyAdded:
 		m.recentlyAdded.selectedHashes = nil
+	case viewHistory:
+		m.history.selectedHashes = nil
 	case viewQueue:
 		for i := range m.queue.entries {
 			m.queue.entries[i].Selected = false

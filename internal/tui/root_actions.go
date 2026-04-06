@@ -66,6 +66,11 @@ func (m Model) switchToView(id viewID) Model {
 			m.favorites.trackCount = trackCount
 		}
 	}
+	if id == viewHistory && m.historyReader != nil && len(m.history.baseTracks()) == 0 {
+		tracks, _ := m.historyReader.ReadPlayHistory(500)
+		m.history.sourceTracks = tracks
+		m.history = m.history.recomputeSortedTracks()
+	}
 	return m
 }
 
@@ -152,6 +157,8 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m = m.switchToView(viewFavorites)
 	case actionSwitchRecentlyAdded:
 		m = m.switchToView(viewRecentlyAdded)
+	case actionSwitchHistory:
+		m = m.switchToView(viewHistory)
 	case actionSwitchGenres:
 		m = m.switchToView(viewGenres)
 	case actionGoTo:

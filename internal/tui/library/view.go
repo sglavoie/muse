@@ -72,6 +72,7 @@ type View struct {
 	SortField       int              // active sort field (0 = default/none)
 	SortDir         int              // 0 = asc, 1 = desc
 	ShowDateAdded   bool
+	ShowPlayedAt    bool
 }
 
 // tracks returns the override tracks if set, otherwise the index tracks.
@@ -331,12 +332,19 @@ func (v View) Render() string {
 	}
 
 	cols := Compute(v.Width)
-	if v.ShowDateAdded {
+	switch {
+	case v.ShowPlayedAt:
+		cols = ComputeWithPlayedAt(v.Width)
+	case v.ShowDateAdded:
 		cols = ComputeWithDateAdded(v.Width)
 	}
 
 	// Append sort indicator to the active column header.
-	artistH, titleH, albumH, timeH, dateAddedH := "Artist", "Title", "Album", "Time", "Added"
+	dateColLabel := "Added"
+	if v.ShowPlayedAt {
+		dateColLabel = "Played"
+	}
+	artistH, titleH, albumH, timeH, dateAddedH := "Artist", "Title", "Album", "Time", dateColLabel
 	if v.SortField != 0 {
 		ind := "▲"
 		if v.SortDir == 1 {
@@ -352,6 +360,8 @@ func (v View) Render() string {
 		case 4: // SortDuration
 			timeH += ind
 		case 5: // SortDateAdded
+			dateAddedH += ind
+		case 9: // SortLastPlayed
 			dateAddedH += ind
 		}
 	}
@@ -369,7 +379,12 @@ func (v View) Render() string {
 		t := dt.track
 		num := fmt.Sprintf("%d", absIdx+1)
 		dur := text.FormatDurationSecs(t.Duration)
-		dateAdded := formatDateAdded(t.CreatedAt)
+		var dateAdded string
+		if v.ShowPlayedAt {
+			dateAdded = formatPlayedAt(t.LastPlayedAt)
+		} else {
+			dateAdded = formatDateAdded(t.CreatedAt)
+		}
 
 		_, isSelected := v.SelectedHashes[t.Hash]
 		isFocused := absIdx == v.Cursor
@@ -498,6 +513,13 @@ func formatDateAdded(createdAt int64) string {
 		return "--"
 	}
 	return time.Unix(createdAt, 0).Local().Format("2006-01-02")
+}
+
+func formatPlayedAt(ts int64) string {
+	if ts <= 0 {
+		return "--"
+	}
+	return time.Unix(ts, 0).Local().Format("2006-01-02 15:04")
 }
 
 // formatCount formats n with comma separators (e.g. 1234 → "1,234").

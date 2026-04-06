@@ -21,6 +21,7 @@ const (
 	SortName                        // for string lists (artist names, album names)
 	SortTrackCount                  // for playlist list level
 	SortSource                      // for queue (source playlist)
+	SortLastPlayed                  // for history tab (played_at timestamp)
 )
 
 // SortDir is the sort direction.
@@ -41,6 +42,7 @@ type SortState struct {
 var (
 	librarySortFields       = []SortField{SortDefault, SortArtist, SortTitle, SortAlbum, SortDuration}
 	recentlyAddedSortFields = []SortField{SortDateAdded}
+	historySortFields       = []SortField{SortLastPlayed}
 	queueSortFields         = []SortField{SortDefault, SortTitle, SortArtist, SortAlbum, SortDuration, SortSource}
 	playlistListSortFields  = []SortField{SortDefault, SortName, SortTrackCount}
 	playlistTrackSortFields = []SortField{SortDefault, SortTitle, SortArtist, SortAlbum, SortDuration}
@@ -91,6 +93,8 @@ func SortFieldLabel(f SortField) string {
 		return "Track Count"
 	case SortSource:
 		return "Source"
+	case SortLastPlayed:
+		return "Last Played"
 	default:
 		return "unknown"
 	}
@@ -144,6 +148,11 @@ func SortTracks(tracks []library.Track, field SortField, dir SortDir) []library.
 				return a.CreatedAt < b.CreatedAt
 			}
 			return a.CreatedAt > b.CreatedAt
+		case SortLastPlayed:
+			if dir == SortAsc {
+				return a.LastPlayedAt < b.LastPlayedAt
+			}
+			return a.LastPlayedAt > b.LastPlayedAt
 		default:
 			return false
 		}

@@ -62,6 +62,16 @@ func (m Model) resetGenresSort() Model {
 	return m
 }
 
+// resetHistorySort restores the fixed Last Played sort state.
+func (m Model) resetHistorySort() Model {
+	m.history.sortState = SortState{Field: SortLastPlayed, Dir: SortDesc}
+	m.history = m.history.recomputeSortedTracks()
+	if m.history.filter.Text != "" {
+		m.history = m.history.rebuildFilterCache()
+	}
+	return m
+}
+
 // resetAllSorts clears sort state for all views.
 func (m Model) resetAllSorts() Model {
 	m = m.resetLibrarySort()
@@ -72,5 +82,6 @@ func (m Model) resetAllSorts() Model {
 	m = m.resetAlbumsSort()
 	m = m.resetFavoritesSort()
 	m = m.resetGenresSort()
+	m = m.resetHistorySort()
 	return m
 }

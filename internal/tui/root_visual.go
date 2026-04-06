@@ -32,6 +32,8 @@ func activeViewCursor(m Model) int {
 		return m.library.cursor
 	case viewRecentlyAdded:
 		return m.recentlyAdded.cursor
+	case viewHistory:
+		return m.history.cursor
 	case viewPlaylists:
 		return m.playlists.cursor
 	case viewQueue:
@@ -138,6 +140,15 @@ func visualListLen(m Model) int {
 			return len(v.sortedTracks)
 		}
 		return len(v.baseTracks())
+	case viewHistory:
+		v := m.history
+		if v.filter.Text != "" && v.filteredMatches != nil {
+			return len(v.filteredMatches)
+		}
+		if v.sortedTracks != nil {
+			return len(v.sortedTracks)
+		}
+		return len(v.baseTracks())
 	case viewQueue:
 		return len(m.queue.filteredEntries())
 	case viewPlaylists:
@@ -174,6 +185,8 @@ func takeSnapshot(m Model) selectionSnapshot {
 		snap.hashes = cloneStringSet(m.library.selectedHashes)
 	case viewRecentlyAdded:
 		snap.hashes = cloneStringSet(m.recentlyAdded.selectedHashes)
+	case viewHistory:
+		snap.hashes = cloneStringSet(m.history.selectedHashes)
 	case viewQueue:
 		for i, e := range m.queue.entries {
 			if e.Selected {
@@ -204,6 +217,8 @@ func restoreSnapshot(m Model) Model {
 		m.library.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 	case viewRecentlyAdded:
 		m.recentlyAdded.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
+	case viewHistory:
+		m.history.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 	case viewQueue:
 		for i := range m.queue.entries {
 			m.queue.entries[i].Selected = m.visual.snapshot.queueSel[i]
@@ -229,6 +244,8 @@ func selectRange(m Model, lo, hi int) Model {
 		m.library = libSelectRange(m.library, lo, hi)
 	case viewRecentlyAdded:
 		m.recentlyAdded = libSelectRange(m.recentlyAdded, lo, hi)
+	case viewHistory:
+		m.history = libSelectRange(m.history, lo, hi)
 	case viewQueue:
 		filtered := m.queue.filteredEntries()
 		for i := lo; i <= hi; i++ {

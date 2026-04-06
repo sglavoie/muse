@@ -408,6 +408,14 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 					m.recentlyAdded.scrollOffset = 0
 					m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
 				}
+			case viewHistory:
+				cmd = m.history.EnqueueFocused(m.queueWriter, len(m.queue.entries))
+				if m.history.filter.Text != "" {
+					m.history.filter = m.history.filter.Deactivate()
+					m.history.cursor = 0
+					m.history.scrollOffset = 0
+					m.history = m.history.rebuildFilterCache()
+				}
 			}
 			return m, cmd, true
 		}
@@ -433,6 +441,14 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 					m.recentlyAdded.cursor = 0
 					m.recentlyAdded.scrollOffset = 0
 					m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
+				}
+			case viewHistory:
+				cmd = m.history.PlayNextFocused(m.queueWriter, prevLen, insertIdx)
+				if m.history.filter.Text != "" {
+					m.history.filter = m.history.filter.Deactivate()
+					m.history.cursor = 0
+					m.history.scrollOffset = 0
+					m.history = m.history.rebuildFilterCache()
 				}
 			case viewArtists:
 				if m.artists.level == arttui.TrackLevel {
@@ -482,6 +498,17 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 						m.recentlyAdded.cursor = 0
 						m.recentlyAdded.scrollOffset = 0
 						m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
+					}
+				}
+			case viewHistory:
+				if _, ok := m.history.view().FocusedTrack(); ok {
+					m = m.clearQueueForReplace()
+					cmd = m.history.EnqueueFocused(m.queueWriter, 0)
+					if m.history.filter.Text != "" {
+						m.history.filter = m.history.filter.Deactivate()
+						m.history.cursor = 0
+						m.history.scrollOffset = 0
+						m.history = m.history.rebuildFilterCache()
 					}
 				}
 			case viewArtists:
@@ -540,6 +567,20 @@ func (m Model) handleLibraryKeyAction(action action) (tea.Model, tea.Cmd, bool) 
 					}
 				}
 			} else if t, ok := m.recentlyAdded.view().FocusedTrack(); ok {
+				tracks = []library.Track{t}
+			}
+		case viewHistory:
+			historyOrder := m.history.baseTracks()
+			if m.history.sortedTracks != nil {
+				historyOrder = m.history.sortedTracks
+			}
+			if len(m.history.selectedHashes) > 0 {
+				for _, t := range historyOrder {
+					if _, ok := m.history.selectedHashes[t.Hash]; ok {
+						tracks = append(tracks, t)
+					}
+				}
+			} else if t, ok := m.history.view().FocusedTrack(); ok {
 				tracks = []library.Track{t}
 			}
 		case viewArtists:

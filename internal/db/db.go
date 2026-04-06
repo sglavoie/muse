@@ -8,6 +8,8 @@ import (
 	"time"
 
 	_ "modernc.org/sqlite"
+
+	"github.com/sglavoie/muse/internal/library"
 )
 
 // ListeningStats holds aggregated listening data for a given time window.
@@ -513,6 +515,44 @@ func (d *DB) IsFavorite(typ, value string) (bool, error) {
 		return false, fmt.Errorf("db: is favorite: %w", err)
 	}
 	return count > 0, nil
+}
+
+// ReadPlayHistory returns the most recent play events joined with track
+// metadata, ordered by played_at descending. Each row represents one play
+// event; the same track may appear multiple times. LastPlayedAt is set to the
+// per-event played_at timestamp. Pass limit ≤ 0 to use the default of 500.
+func (d *DB) ReadPlayHistory(limit int) ([]library.Track, error) {
+	if limit <= 0 {
+		limit = 500
+	}
+	rows, err := d.Query(`
+		SELECT t.path, t.hash, t.artist, t.title, t.album, t.genre,
+		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
+		       t.play_count, ph.played_at
+		FROM play_history ph
+		JOIN tracks t ON ph.track_hash = t.hash
+		ORDER BY ph.played_at DESC
+		LIMIT ?`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("db: read play history: %w", err)
+	}
+	defer rows.Close()
+
+	var result []library.Track
+	for rows.Next() {
+		var t library.Track
+		var durationMs int64
+		if err := rows.Scan(
+			&t.Path, &t.Hash, &t.Artist, &t.Title, &t.Album, &t.Genre,
+			&durationMs, &t.CreatedAt, &t.ModTime, &t.SizeBytes,
+			&t.PlayCount, &t.LastPlayedAt,
+		); err != nil {
+			return nil, fmt.Errorf("db: read play history row: %w", err)
+		}
+		t.Duration = float64(durationMs) / 1000
+		result = append(result, t)
+	}
+	return result, rows.Err()
 }
 
 // configure applies the required PRAGMA settings.

@@ -14,6 +14,7 @@ const (
 	contextAlbums                              // applies only in the Albums view
 	contextFavorites                           // applies only in the Favorites view
 	contextGenres                              // applies only in the Genres view
+	contextHistory                             // applies only in the History view
 	contextModals                              // applies only when a modal is active
 )
 
@@ -62,6 +63,7 @@ const (
 	actionSwitchAlbums
 	actionSwitchFavorites
 	actionSwitchRecentlyAdded
+	actionSwitchHistory
 	actionToggleFavorite
 	actionGoTo // 'o': open Go To navigation popup
 
@@ -172,6 +174,7 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "6", actionSwitchGenres)
 	r.register(contextGlobal, "7", actionSwitchFavorites)
 	r.register(contextGlobal, "8", actionSwitchRecentlyAdded)
+	r.register(contextGlobal, "9", actionSwitchHistory)
 	r.register(contextGlobal, "F", actionToggleFavorite)
 	r.register(contextGlobal, "R", actionRescan)
 	r.register(contextGlobal, "r", actionRepeatCycle)
@@ -217,6 +220,17 @@ func newRegistry() Registry {
 	r.register(contextRecentlyAdded, "X", actionClearSelection)
 	r.register(contextRecentlyAdded, "v", actionVisualMode)
 	r.register(contextRecentlyAdded, "a", actionBulkAction)
+
+	// History-local bindings.
+	r.registerNavigation(contextHistory)
+	r.register(contextHistory, "enter", actionLibraryEnqueue)
+	r.register(contextHistory, "shift+enter", actionLibraryEnqueueReplace)
+	r.register(contextHistory, "N", actionPlayNext)
+	r.register(contextHistory, "esc", actionLibraryFilterClear)
+	r.register(contextHistory, "x", actionBulkSelectionToggle)
+	r.register(contextHistory, "X", actionClearSelection)
+	r.register(contextHistory, "v", actionVisualMode)
+	r.register(contextHistory, "a", actionBulkAction)
 
 	// Queue-local bindings.
 	r.registerNavigation(contextQueue)

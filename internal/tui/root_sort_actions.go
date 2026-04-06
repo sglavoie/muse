@@ -60,6 +60,21 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.statusBar.notification = newNotification(sortNotification(m.recentlyAdded.sortState))
 		return m, nil, true
 
+	case viewHistory:
+		next := CycleSortField(m.history.sortState.Field, historySortFields)
+		m.history.sortState.Field = next
+		if next == SortDefault {
+			m.history.sortState.Dir = SortAsc
+		}
+		m.history = m.history.recomputeSortedTracks()
+		m.history.cursor = 0
+		m.history.scrollOffset = 0
+		if m.history.filter.Text != "" {
+			m.history = m.history.rebuildFilterCache()
+		}
+		m.statusBar.notification = newNotification(sortNotification(m.history.sortState))
+		return m, nil, true
+
 	case viewQueue:
 		if m.queue.savingAsPlaylist {
 			return m, nil, false
@@ -196,6 +211,21 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 		m.statusBar.notification = newNotification(sortNotification(m.recentlyAdded.sortState))
 		return m, nil, true
 
+	case viewHistory:
+		var focusedHash string
+		if t, ok := m.history.view().FocusedTrack(); ok {
+			focusedHash = t.Hash
+		}
+		m.history.sortState.Dir = SortAsc
+		m.history = m.history.recomputeSortedTracks()
+		if m.history.filter.Text != "" {
+			m.history = m.history.rebuildFilterCache()
+		}
+		m.history.cursor = m.history.findTrackPosition(focusedHash)
+		m.history.scrollOffset = adjustScroll(m.history.cursor, m.history.scrollOffset, layout.VisibleRows(m.history.height, 1))
+		m.statusBar.notification = newNotification(sortNotification(m.history.sortState))
+		return m, nil, true
+
 	case viewQueue:
 		if m.queue.sortState.Field == SortDefault {
 			return m, nil, false
@@ -288,6 +318,21 @@ func (m Model) handleSortDesc() (tea.Model, tea.Cmd, bool) {
 		m.recentlyAdded.cursor = m.recentlyAdded.findTrackPosition(focusedHash)
 		m.recentlyAdded.scrollOffset = adjustScroll(m.recentlyAdded.cursor, m.recentlyAdded.scrollOffset, layout.VisibleRows(m.recentlyAdded.height, 1))
 		m.statusBar.notification = newNotification(sortNotification(m.recentlyAdded.sortState))
+		return m, nil, true
+
+	case viewHistory:
+		var focusedHash string
+		if t, ok := m.history.view().FocusedTrack(); ok {
+			focusedHash = t.Hash
+		}
+		m.history.sortState.Dir = SortDesc
+		m.history = m.history.recomputeSortedTracks()
+		if m.history.filter.Text != "" {
+			m.history = m.history.rebuildFilterCache()
+		}
+		m.history.cursor = m.history.findTrackPosition(focusedHash)
+		m.history.scrollOffset = adjustScroll(m.history.cursor, m.history.scrollOffset, layout.VisibleRows(m.history.height, 1))
+		m.statusBar.notification = newNotification(sortNotification(m.history.sortState))
 		return m, nil, true
 
 	case viewQueue:

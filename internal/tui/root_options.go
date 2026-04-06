@@ -210,6 +210,11 @@ func WithHistoryRecorder(w playHistoryRecorder) Option {
 	return func(m *Model) { m.historyRecorder = w }
 }
 
+// WithHistoryReader sets the reader for lazily loading the play history tab.
+func WithHistoryReader(r playHistoryReader) Option {
+	return func(m *Model) { m.historyReader = r }
+}
+
 // WithStatsReader sets the reader for querying listening statistics.
 func WithStatsReader(r listeningStatsReader) Option {
 	return func(m *Model) { m.statsReader = r }

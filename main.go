@@ -341,6 +341,7 @@ func buildModel(
 		tui.WithSmartPlaylistWriter(adapter),
 		tui.WithPlayCountWriter(result.Writer),
 		tui.WithHistoryRecorder(result.Writer),
+		tui.WithHistoryReader(result.DB),
 		tui.WithStatsReader(result.DB),
 		tui.WithScanWriter(result.Writer, upsertBatchSize),
 		tui.WithUserEditedReader(result.DB),

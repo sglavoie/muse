@@ -28,7 +28,7 @@ type resizable interface {
 // height is reduced by 3 to leave room for the status bar and header rows.
 func (m *Model) setViewDimensions(width, height int) {
 	viewHeight := max(height-3, 0)
-	for _, view := range []resizable{&m.library, &m.recentlyAdded, &m.playlists, &m.queue, &m.artists, &m.albums, &m.favorites, &m.genres} {
+	for _, view := range []resizable{&m.library, &m.recentlyAdded, &m.history, &m.playlists, &m.queue, &m.artists, &m.albums, &m.favorites, &m.genres} {
 		view.setSize(width, viewHeight)
 	}
 }
@@ -38,6 +38,9 @@ func (m *Model) setViewDimensions(width, height int) {
 func (m *Model) clampAllScrollOffsets() {
 	libMaxRows := layout.VisibleRows(m.library.height, 1)
 	m.library.scrollOffset = adjustScroll(m.library.cursor, m.library.scrollOffset, libMaxRows)
+
+	histMaxRows := layout.VisibleRows(m.history.height, 1)
+	m.history.scrollOffset = adjustScroll(m.history.cursor, m.history.scrollOffset, histMaxRows)
 
 	queueMaxRows := m.queue.visibleRows()
 	m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, queueMaxRows)

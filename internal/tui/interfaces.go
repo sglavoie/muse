@@ -239,6 +239,12 @@ type playHistoryRecorder interface {
 	RecordPlay(hash string, playedAt int64, listenedSecs int) error
 }
 
+// playHistoryReader loads raw play history rows from the database. Root uses
+// it to lazily populate the History tab (view 9) on first switch.
+type playHistoryReader interface {
+	ReadPlayHistory(limit int) ([]library.Track, error)
+}
+
 // listeningStatsReader queries aggregated listening statistics from the
 // play_history table. Root uses it to populate the stats overlay (Session 3).
 type listeningStatsReader interface {

@@ -94,6 +94,9 @@ func (m Model) allFilterOps() *filterOps {
 	case viewRecentlyAdded:
 		return makeFilterOps(&m, &m.recentlyAdded.filter, &m.recentlyAdded.cursor, &m.recentlyAdded.scrollOffset,
 			func() { m.recentlyAdded = m.recentlyAdded.rebuildFilterCache() })
+	case viewHistory:
+		return makeFilterOps(&m, &m.history.filter, &m.history.cursor, &m.history.scrollOffset,
+			func() { m.history = m.history.rebuildFilterCache() })
 	case viewArtists:
 		return makeFilterOps(&m, &m.artists.filter, &m.artists.cursor, &m.artists.scrollOffset, nil)
 	case viewAlbums:

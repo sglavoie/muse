@@ -26,6 +26,7 @@ type LibraryView struct {
 	sortState       SortState
 	sortedTracks    []library.Track // cached sorted copy; nil when SortDefault
 	showDateAdded   bool
+	showPlayedAt    bool
 }
 
 func (v *LibraryView) setSize(w, h int) { v.width = w; v.height = h }
@@ -49,6 +50,14 @@ func newRecentlyAddedView() LibraryView {
 	}
 }
 
+func newHistoryView() LibraryView {
+	return LibraryView{
+		fuzzy:        library.SahilmFuzzySearcher{},
+		sortState:    SortState{Field: SortLastPlayed, Dir: SortDesc},
+		showPlayedAt: true,
+	}
+}
+
 func (v LibraryView) baseTracks() []library.Track {
 	if v.sourceTracks != nil {
 		return v.sourceTracks
@@ -69,6 +78,7 @@ func (v LibraryView) view() libtui.View {
 		Fuzzy:           v.fuzzy,
 		SelectedHashes:  v.selectedHashes,
 		ShowDateAdded:   v.showDateAdded,
+		ShowPlayedAt:    v.showPlayedAt,
 	}
 	if v.sortState.Field != SortDefault {
 		lv.OverrideTracks = v.sortedTracks

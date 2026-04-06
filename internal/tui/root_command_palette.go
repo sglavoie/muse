@@ -187,6 +187,11 @@ func (m Model) focusedTrackForPalette() (path, artist, title string, found bool)
 			return track.Path, track.Artist, track.Title, true
 		}
 
+	case viewHistory:
+		if track, ok := m.history.view().FocusedTrack(); ok {
+			return track.Path, track.Artist, track.Title, true
+		}
+
 	case viewQueue:
 		filtered := m.queue.filteredEntries()
 		if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {

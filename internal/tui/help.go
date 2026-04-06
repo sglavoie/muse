@@ -70,6 +70,7 @@ func helpSections() []helpSection {
 				{"6", "Switch to Genres"},
 				{"7", "Switch to Favorites"},
 				{"8", "Switch to Recently Added"},
+				{"9", "Switch to History"},
 				{"F", "Toggle favorite"},
 				{"o", "Go To (artist/album/genre/source)"},
 				{"tab / shift+tab", "Next / previous view"},
@@ -78,7 +79,7 @@ func helpSections() []helpSection {
 				{"z", "Toggle shuffle"},
 				{"ctrl+n", "Stop after current track"},
 				{"u", "Undo"},
-				{"/", "Filter (Library / Queue / Artists / Albums / Favorites / Genres / Recently Added)"},
+				{"/", "Filter (Library / Queue / Artists / Albums / Favorites / Genres / Recently Added / History)"},
 				{"P", "Preview focused track"},
 				{"I", "Show now-playing info"},
 				{"i", "Show track info (exiftool)"},
@@ -95,7 +96,7 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Navigation (Library / Queue / Playlists / Artists / Albums / Favorites / Genres / Recently Added)",
+			title:   "Navigation (Library / Queue / Playlists / Artists / Albums / Favorites / Genres / Recently Added / History)",
 			context: contextGlobal,
 			entries: []helpEntry{
 				{"j / k / down / up", "Move cursor down / up"},
@@ -122,6 +123,21 @@ func helpSections() []helpSection {
 		{
 			title:   "Recently Added",
 			context: contextRecentlyAdded,
+			entries: []helpEntry{
+				{"/", "Filter tracks (prefixes: a: t: l: g:)"},
+				{"enter", "Enqueue track"},
+				{"N", "Play next (insert after current track)"},
+				{"shift+enter", "Replace queue with track"},
+				{"esc", "Clear committed filter"},
+				{"x", "Toggle bulk selection"},
+				{"X", "Clear bulk selection"},
+				{"v", "Toggle visual line selection mode"},
+				{"a", "Add to queue or playlist"},
+			},
+		},
+		{
+			title:   "History",
+			context: contextHistory,
 			entries: []helpEntry{
 				{"/", "Filter tracks (prefixes: a: t: l: g:)"},
 				{"enter", "Enqueue track"},

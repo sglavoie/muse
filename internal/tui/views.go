@@ -25,10 +25,11 @@ const (
 	viewFavorites     viewID = 6
 	viewGenres        viewID = 7
 	viewRecentlyAdded viewID = 8
+	viewHistory       viewID = 9
 )
 
 // viewOrder defines the tab-cycling order for primary views.
-var viewOrder = []viewID{viewLibrary, viewPlaylists, viewQueue, viewArtists, viewAlbums, viewGenres, viewFavorites, viewRecentlyAdded}
+var viewOrder = []viewID{viewLibrary, viewPlaylists, viewQueue, viewArtists, viewAlbums, viewGenres, viewFavorites, viewRecentlyAdded, viewHistory}
 
 // viewName returns the display name for a viewID.
 func viewName(id viewID) string {
@@ -49,6 +50,8 @@ func viewName(id viewID) string {
 		return "Genres"
 	case viewRecentlyAdded:
 		return "Recently Added"
+	case viewHistory:
+		return "History"
 	default:
 		return ""
 	}
@@ -73,6 +76,8 @@ func viewToContext(id viewID) bindingContext {
 		return contextGenres
 	case viewRecentlyAdded:
 		return contextRecentlyAdded
+	case viewHistory:
+		return contextHistory
 	default:
 		return contextGlobal
 	}

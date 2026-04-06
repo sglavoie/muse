@@ -26,6 +26,11 @@ func (m Model) focusedTrackMeta() (artist, album string, found bool) {
 			return track.Artist, track.Album, true
 		}
 
+	case viewHistory:
+		if track, ok := m.history.view().FocusedTrack(); ok {
+			return track.Artist, track.Album, true
+		}
+
 	case viewQueue:
 		filtered := m.queue.filteredEntries()
 		if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
@@ -276,6 +281,11 @@ func (m Model) focusedGoToContext() goToContext {
 			return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
 		}
 
+	case viewHistory:
+		if track, ok := m.history.view().FocusedTrack(); ok {
+			return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
+		}
+
 	case viewQueue:
 		filtered := m.queue.filteredEntries()
 		if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
@@ -451,7 +461,7 @@ func (m Model) buildGoToOptions(ctx goToContext) []GoToOption {
 	}
 
 	switch m.activeView {
-	case viewLibrary, viewRecentlyAdded:
+	case viewLibrary, viewRecentlyAdded, viewHistory:
 		addAlbum()
 		addArtist()
 		addGenres()

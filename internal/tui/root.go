@@ -71,6 +71,7 @@ type Model struct {
 
 	library       LibraryView
 	recentlyAdded LibraryView
+	history       LibraryView
 	playlists     PlaylistsView
 	queue         QueueView
 	artists       ArtistsView
@@ -155,6 +156,7 @@ type Model struct {
 	smartPlaylistWriter smartPlaylistWriter    // may be nil; set via WithSmartPlaylistWriter
 	playCountWriter     playCountIncrementer   // may be nil; set via WithPlayCountWriter
 	historyRecorder     playHistoryRecorder    // may be nil; set via WithHistoryRecorder
+	historyReader       playHistoryReader      // may be nil; set via WithHistoryReader
 	statsReader         listeningStatsReader   // may be nil; set via WithStatsReader
 
 	statsVisible  bool           // true while the listening stats overlay is shown
@@ -209,6 +211,7 @@ func New(ctx context.Context, opts ...Option) Model {
 		library:       LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
 		playback:      playbackInfo{currentIndex: -1},
 		recentlyAdded: newRecentlyAddedView(),
+		history:       newHistoryView(),
 		registry:      newRegistry(),
 		styles:        &initialStyles,
 	}
