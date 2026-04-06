@@ -151,15 +151,15 @@ func (tp TagPicker) HandleKey(key string, msg tea.KeyPressMsg) (TagPicker, tea.C
 	case "esc":
 		return tp, func() tea.Msg { return tagPickerDismissedMsg{} }
 
-	case "up", "k":
+	case "up", "ctrl+k", "ctrl+p":
 		if tp.cursor > 0 {
 			tp.cursor--
 		}
 		return tp, nil
 
-	case "down", "j":
+	case "down", "ctrl+j", "ctrl+n":
 		maxCursor := len(tp.filtered) - 1
-		if tp.focusedOnCreate() || tp.filterText() != "" {
+		if tp.focusedOnCreate() {
 			// When a "+Create" row is visible, the create option is at the end.
 			maxCursor = 0 // no filtered items; create is the only option
 		}
@@ -168,16 +168,8 @@ func (tp TagPicker) HandleKey(key string, msg tea.KeyPressMsg) (TagPicker, tea.C
 		}
 		return tp, nil
 
-	case "enter", " ":
+	case "enter", "space":
 		return tp.handleToggleOrCreate()
-
-	case "n", "c":
-		// Create new tag using the current filter text as the initial name.
-		name := strings.TrimSpace(tp.filterText())
-		if name != "" {
-			return tp, func() tea.Msg { return TagPickerCreateMsg{Name: name} }
-		}
-		return tp, nil
 
 	default:
 		var cmd tea.Cmd
@@ -358,7 +350,7 @@ func (tp TagPicker) buildBoxLines(termWidth int, s styles.Styles) []string {
 	lines = append(lines, tpCornerBL+strings.Repeat(tpBorderH, innerWidth)+tpCornerBR)
 
 	// Hint line.
-	hint := "space toggle · n/c create · esc close"
+	hint := "space toggle · enter select/create · esc close"
 	if tp.IsBulk() {
 		hint = "~ partial → assign all · " + hint
 	}
