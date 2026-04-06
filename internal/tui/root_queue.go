@@ -793,7 +793,7 @@ func (m Model) handleQueueShuffleMsg() (Model, tea.Cmd) {
 	entries := make([]QueueEntry, len(m.queue.entries))
 	copy(entries, m.queue.entries)
 	for i := len(entries) - 1; i > 0; i-- {
-		j := rand.IntN(i + 1)
+		j := rand.IntN(i + 1) //nolint:gosec // non-security random for queue shuffle
 		entries[i], entries[j] = entries[j], entries[i]
 	}
 	m.queue.entries = entries

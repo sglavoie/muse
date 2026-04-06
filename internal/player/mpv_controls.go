@@ -3,8 +3,11 @@ package player
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
+
+	"github.com/sglavoie/muse/internal/config"
 )
 
 // SetRepeat configures mpv's repeat behaviour. mode is the string form of
@@ -149,9 +152,7 @@ func (m *Manager) rebuildAudioFilters() error {
 
 	m.mu.RLock()
 	snapshot := make(map[string]string, len(m.audioFilters))
-	for k, v := range m.audioFilters {
-		snapshot[k] = v
-	}
+	maps.Copy(snapshot, m.audioFilters)
 	m.mu.RUnlock()
 
 	if len(snapshot) == 0 {
@@ -224,9 +225,8 @@ func (m *Manager) SetStereoWide(enabled bool, amount int) error {
 // buildFireequalizerExpr builds the lavfi firequalizer gain expression string
 // for the given 10 band gain values (in dB).
 func buildFireequalizerExpr(bands [10]int) string {
-	freqs := [10]int{31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000}
 	entries := make([]string, 0, 10)
-	for i, f := range freqs {
+	for i, f := range config.EQFrequencies {
 		entries = append(entries, fmt.Sprintf("entry(%d,%d)", f, bands[i]))
 	}
 	return "firequalizer=gain_entry='" + strings.Join(entries, ";") + "'"

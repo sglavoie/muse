@@ -329,4 +329,3 @@ func (v TagsView) updateRenameInputMsg(msg tea.Msg) (TagsView, tea.Cmd) {
 	v.renameInput, cmd = v.renameInput.Update(msg)
 	return v, cmd
 }
-

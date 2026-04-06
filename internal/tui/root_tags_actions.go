@@ -760,4 +760,3 @@ func (m Model) buildTagsLine(hash string) string {
 	}
 	return strings.Join(parts, "  ")
 }
-
