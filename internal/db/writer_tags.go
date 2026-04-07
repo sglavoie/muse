@@ -145,6 +145,7 @@ func (w *Writer) RemoveTrackTagBulk(hashes []string, tagID int64) error {
 				return err
 			}
 		}
+
 		return tx.Commit()
 	})
 }
@@ -188,3 +189,4 @@ func (w *Writer) MergeTags(sourceID, destID int64) error {
 		return tx.Commit()
 	})
 }
+

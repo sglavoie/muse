@@ -56,17 +56,19 @@ type View struct {
 	RenameInput string // current value of the inline rename field
 }
 
-// EffectiveTags returns the tag list filtered by FilterText.
+// EffectiveTags returns the tag list filtered by FilterText, excluding tags
+// with no associated tracks.
 func (v View) EffectiveTags() []db.TagRow {
-	if v.FilterText == "" {
-		return v.Tags
-	}
 	q := strings.ToLower(v.FilterText)
 	var result []db.TagRow
 	for _, t := range v.Tags {
-		if strings.Contains(strings.ToLower(t.Name), q) {
-			result = append(result, t)
+		if v.TagCounts != nil && v.TagCounts[t.ID] == 0 {
+			continue
 		}
+		if q != "" && !strings.Contains(strings.ToLower(t.Name), q) {
+			continue
+		}
+		result = append(result, t)
 	}
 	return result
 }

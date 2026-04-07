@@ -181,7 +181,7 @@ func (v TagsView) clampCursor() TagsView {
 		filtered := tagtui.View{Tracks: v.tracks, FilterText: v.filter.Text}.EffectiveTracks()
 		n = len(filtered)
 	} else {
-		filtered := tagtui.View{Tags: v.tags, FilterText: v.filter.Text}.EffectiveTags()
+		filtered := tagtui.View{Tags: v.tags, TagCounts: v.tagCounts, FilterText: v.filter.Text}.EffectiveTags()
 		n = len(filtered)
 	}
 	if n == 0 {
@@ -202,7 +202,7 @@ func (v TagsView) focusedTag() (db.TagRow, bool) {
 	if v.level != tagtui.TagLevel {
 		return db.TagRow{}, false
 	}
-	items := tagtui.View{Tags: v.tags, FilterText: v.filter.Text}.EffectiveTags()
+	items := tagtui.View{Tags: v.tags, TagCounts: v.tagCounts, FilterText: v.filter.Text}.EffectiveTags()
 	if v.cursor < 0 || v.cursor >= len(items) {
 		return db.TagRow{}, false
 	}
