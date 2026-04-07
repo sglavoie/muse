@@ -1,0 +1,80 @@
+package db_test
+
+import (
+	"testing"
+	"time"
+
+	"github.com/sglavoie/muse/internal/db"
+)
+
+// insertFullTrack inserts a track with all metadata fields. durationMs is in
+// milliseconds, sizeBytes in bytes. createdAt is a Unix timestamp.
+func insertFullTrack(t *testing.T, d *db.DB, hash, path, title, artist, album, genre string, durationMs, sizeBytes, createdAt int64) {
+	t.Helper()
+	now := time.Now().Unix()
+	_, err := d.Exec(`
+		INSERT INTO tracks (hash, path, title, artist, album, genre, duration_ms, size_bytes, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		hash, path, title, artist, album, genre, durationMs, sizeBytes, createdAt, now,
+	)
+	if err != nil {
+		t.Fatalf("insertFullTrack: %v", err)
+	}
+}
+
+func insertFavoriteTrack(t *testing.T, d *db.DB, hash string) {
+	t.Helper()
+	now := time.Now().Unix()
+	_, err := d.Exec(`INSERT INTO favorites (type, value, created_at) VALUES ('track', ?, ?)`, hash, now)
+	if err != nil {
+		t.Fatalf("insertFavoriteTrack: %v", err)
+	}
+}
+
+func setPlayCount(t *testing.T, d *db.DB, hash string, count int) {
+	t.Helper()
+	_, err := d.Exec(`UPDATE tracks SET play_count = ? WHERE hash = ?`, count, hash)
+	if err != nil {
+		t.Fatalf("setPlayCount: %v", err)
+	}
+}
+
+func evalQuery(t *testing.T, d *db.DB, q db.SmartPlaylistQuery) []db.PlaylistTrackRow {
+	t.Helper()
+	rows, err := d.EvalSmartPlaylist(q)
+	if err != nil {
+		t.Fatalf("EvalSmartPlaylist: %v", err)
+	}
+	return rows
+}
+
+func hashes(rows []db.PlaylistTrackRow) []string {
+	out := make([]string, len(rows))
+	for i, r := range rows {
+		out[i] = r.Hash
+	}
+	return out
+}
+
+func newWriter(t *testing.T, d *db.DB) *db.Writer {
+	t.Helper()
+	w := db.NewWriter(t.Context(), d.DB)
+	t.Cleanup(w.Wait)
+	return w
+}
+
+func insertTag(t *testing.T, d *db.DB, w *db.Writer, name string) int64 {
+	t.Helper()
+	id, err := w.CreateTag(name, "")
+	if err != nil {
+		t.Fatalf("CreateTag(%q): %v", name, err)
+	}
+	return id
+}
+
+func tagTrack(t *testing.T, w *db.Writer, hash string, tagID int64) {
+	t.Helper()
+	if err := w.AddTrackTag(hash, tagID); err != nil {
+		t.Fatalf("AddTrackTag(%q, %d): %v", hash, tagID, err)
+	}
+}

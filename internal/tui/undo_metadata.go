@@ -1,0 +1,67 @@
+package tui
+
+import (
+	"fmt"
+	"log/slog"
+
+	tea "charm.land/bubbletea/v2"
+)
+
+// undoBulkEditMetadataAction reverts a bulk metadata edit (undoKindBulkEditMetadata).
+// originals maps track hash → {title, artist, album, genre, duration (M:SS or "")}.
+type undoBulkEditMetadataAction struct {
+	originals map[string][5]string
+}
+
+func (a undoBulkEditMetadataAction) kind() undoKind { return undoKindBulkEditMetadata }
+
+func (a undoBulkEditMetadataAction) description() string {
+	n := len(a.originals)
+	return fmt.Sprintf("Updated %d %s · u to undo", n, pluralize(n, "track", "tracks"))
+}
+
+func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
+	mw := m.metadataWriter
+	dw := m.durationWriter
+	for hash, orig := range a.originals {
+		m.library.index.UpdateMetadata(hash, orig[0], orig[1], orig[2], orig[3])
+		origDur, _ := parseDurationFromEditor(orig[4])
+		m.library.index.UpdateDuration(hash, origDur)
+		display := trackDisplay(orig[1], orig[0], "")
+		origDurMs := int64(origDur * 1000)
+		for i := range m.queue.entries {
+			if m.queue.entries[i].Hash == hash {
+				m.queue.entries[i].Title = orig[0]
+				m.queue.entries[i].Artist = orig[1]
+				m.queue.entries[i].Album = orig[2]
+				m.queue.entries[i].Display = display
+				m.queue.entries[i].DurationMs = origDurMs
+			}
+		}
+		m = m.syncStatusBarMetadata(hash, orig[1], orig[0])
+	}
+	m = m.syncRecentlyAddedFromLibrary()
+	m = m.refreshDerivedViews()
+	if mw != nil || dw != nil {
+		originals := a.originals
+		go func() {
+			for h, orig := range originals {
+				if mw != nil {
+					if err := mw.UpdateTrackMetadata(h, orig[0], orig[1], orig[2], orig[3]); err != nil {
+						slog.Warn("undo bulk metadata edit: DB write failed", "hash", h, "err", err)
+					}
+				}
+				if dw != nil {
+					origDur, _ := parseDurationFromEditor(orig[4])
+					origDurMs := int64(origDur * 1000)
+					if err := dw.UpdateTrackDuration(h, origDurMs); err != nil {
+						slog.Warn("undo bulk metadata edit: duration DB write failed", "hash", h, "err", err)
+					}
+				}
+			}
+		}()
+	}
+	n := len(a.originals)
+	m.statusBar.notification = newNotification(fmt.Sprintf("Undone metadata edit for %d %s", n, pluralize(n, "track", "tracks")))
+	return m, nil
+}
