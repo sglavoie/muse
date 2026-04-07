@@ -157,6 +157,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m = m.switchToView(viewPlaylists)
 	case actionSwitchQueue:
 		m = m.switchToView(viewQueue)
+		m.queue = m.queue.FocusNowPlaying(m.playback.currentIndex)
 	case actionSwitchArtists:
 		m = m.switchToView(viewArtists)
 	case actionSwitchAlbums:
