@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/db"
 )
 
 // handleTagPickerKeyPress intercepts key presses when the tag picker is open.
@@ -69,7 +71,14 @@ func (m Model) handleTagPickerToggle(msg TagPickerToggleMsg) (Model, tea.Cmd) {
 		m.overlay.tagPicker = &updated
 	}
 
-	m.setUndoSlot(undoTagToggleAction{tagID: tagID, hashes: hashes, wasAdd: add}, nil)
+	var tag db.TagRow
+	for _, t := range m.tags {
+		if t.ID == tagID {
+			tag = t
+			break
+		}
+	}
+	m.setUndoSlot(undoTagToggleAction{tagID: tagID, hashes: hashes, wasAdd: add, tag: tag}, nil)
 
 	return m, func() tea.Msg {
 		var err error
@@ -89,7 +98,15 @@ func (m Model) handleTagPickerToggle(msg TagPickerToggleMsg) (Model, tea.Cmd) {
 		if err != nil {
 			slog.Warn("tag toggle: DB write failed", "tagID", tagID, "add", add, "err", err)
 		}
-		return tagToggledMsg{tagID: tagID, hashes: hashes, wasAdd: add, err: err}
+		var autoDeleted bool
+		if err == nil && !add {
+			if deleted, delErr := tw.DeleteTagIfEmpty(tagID); delErr != nil {
+				slog.Warn("tag toggle: auto-delete empty tag failed", "tagID", tagID, "err", delErr)
+			} else {
+				autoDeleted = deleted
+			}
+		}
+		return tagToggledMsg{tagID: tagID, hashes: hashes, wasAdd: add, autoDeleted: autoDeleted, err: err}
 	}
 }
 
@@ -136,23 +153,27 @@ func (m Model) handleTagCreated(msg tagCreatedMsg) (Model, tea.Cmd) {
 }
 
 // handleTagToggled processes tagToggledMsg: reverts the optimistic update on
-// error, and is a no-op on success (the cache was already updated optimistically).
+// error, removes auto-deleted tags from caches, and is otherwise a no-op on
+// success (the cache was already updated optimistically).
 func (m Model) handleTagToggled(msg tagToggledMsg) (Model, tea.Cmd) {
-	if msg.err == nil {
+	if msg.err != nil {
+		m = m.applyTagToggle(msg.tagID, msg.hashes, !msg.wasAdd)
+		if m.overlay.tagPicker != nil {
+			var prevState checkState
+			if msg.wasAdd {
+				prevState = checkUnchecked
+			} else {
+				prevState = checkChecked
+			}
+			updated := m.overlay.tagPicker.UpdateItemState(msg.tagID, prevState)
+			m.overlay.tagPicker = &updated
+		}
+		m.statusBar.notification = newNotification("Tag toggle failed: " + msg.err.Error())
 		return m, nil
 	}
-	m = m.applyTagToggle(msg.tagID, msg.hashes, !msg.wasAdd)
-	if m.overlay.tagPicker != nil {
-		var prevState checkState
-		if msg.wasAdd {
-			prevState = checkUnchecked
-		} else {
-			prevState = checkChecked
-		}
-		updated := m.overlay.tagPicker.UpdateItemState(msg.tagID, prevState)
-		m.overlay.tagPicker = &updated
+	if msg.autoDeleted {
+		m = m.removeTagFromCaches(msg.tagID)
 	}
-	m.statusBar.notification = newNotification("Tag toggle failed: " + msg.err.Error())
 	return m, nil
 }
 

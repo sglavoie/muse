@@ -252,6 +252,9 @@ func (m Model) Init() tea.Cmd {
 	if cmd := evalSmartPlaylistCountsCmd(m.playlists.playlists, m.smartEval); cmd != nil {
 		cmds = append(cmds, cmd)
 	}
+	if cmd := purgeEmptyTagsCmd(m.tags, m.tagReader, m.tagWriter); cmd != nil {
+		cmds = append(cmds, cmd)
+	}
 	switch len(cmds) {
 	case 0:
 		return nil

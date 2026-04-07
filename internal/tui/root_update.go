@@ -253,6 +253,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tagToggledMsg:
 		return m.handleTagToggled(msg)
 
+	case emptyTagsPurgedMsg:
+		for _, id := range msg.tagIDs {
+			m = m.removeTagFromCaches(id)
+		}
+
+	case allTagsRemovedMsg:
+		for _, id := range msg.autoDeletedTagIDs {
+			m = m.removeTagFromCaches(id)
+		}
+		m.statusBar.notification = newNotification("All tags removed from track")
+
 	case tagsRefreshedMsg:
 		m = m.handleTagsRefreshed(msg)
 

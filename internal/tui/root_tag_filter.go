@@ -14,11 +14,12 @@ func (m Model) handleTagFilterAction() (Model, tea.Cmd) {
 	if m.activeTagFilter != nil {
 		return m.clearTagFilter(), nil
 	}
-	if len(m.tags) == 0 {
+	tags := nonEmptyTags(m.tags, m.tagsView.tagCounts)
+	if len(tags) == 0 {
 		m.statusBar.notification = newNotification("No tags defined")
 		return m, nil
 	}
-	picker := NewTagFilterPicker(m.tags)
+	picker := NewTagFilterPicker(tags)
 	m.overlay.tagFilterPicker = &picker
 	return m, nil
 }
@@ -106,11 +107,12 @@ func (m Model) buildTagFilterHashes(tagID int64) map[string]struct{} {
 
 // handleOpenTagFilterPicker opens the tag filter picker (used from palette).
 func (m Model) handleOpenTagFilterPicker() (Model, tea.Cmd) {
-	if len(m.tags) == 0 {
+	tags := nonEmptyTags(m.tags, m.tagsView.tagCounts)
+	if len(tags) == 0 {
 		m.statusBar.notification = newNotification("No tags defined")
 		return m, nil
 	}
-	picker := NewTagFilterPicker(m.tags)
+	picker := NewTagFilterPicker(tags)
 	m.overlay.tagFilterPicker = &picker
 	return m, nil
 }
@@ -148,12 +150,19 @@ func (m Model) handleRemoveAllTagsFromTrack(msg removeAllTagsFromTrackMsg) (Mode
 		return m, nil
 	}
 	return m, func() tea.Msg {
+		var autoDeleted []int64
 		for _, id := range ids {
 			if err := tw.RemoveTrackTag(hash, id); err != nil {
 				slog.Warn("remove all tags: DB write failed", "hash", hash, "tagID", id, "err", err)
+				continue
+			}
+			if deleted, err := tw.DeleteTagIfEmpty(id); err != nil {
+				slog.Warn("remove all tags: auto-delete empty tag failed", "tagID", id, "err", err)
+			} else if deleted {
+				autoDeleted = append(autoDeleted, id)
 			}
 		}
-		return TransientNotifyMsg("All tags removed from track")
+		return allTagsRemovedMsg{hash: hash, autoDeletedTagIDs: autoDeleted}
 	}
 }
 

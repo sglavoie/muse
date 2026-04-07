@@ -150,6 +150,37 @@ func (w *Writer) RemoveTrackTagBulk(hashes []string, tagID int64) error {
 	})
 }
 
+// DeleteTagIfEmpty soft-deletes the tag when it has no remaining non-missing
+// tracks. Returns true when the tag was deleted, false when tracks still exist.
+// It is safe to call for a tag that still has tracks (no-op).
+func (w *Writer) DeleteTagIfEmpty(tagID int64) (bool, error) {
+	var deleted bool
+	err := w.Exec(func(db *sql.DB) error {
+		var count int
+		if err := db.QueryRow(`
+			SELECT COUNT(*) FROM track_tags tt
+			JOIN tracks t ON tt.track_hash = t.hash
+			WHERE tt.tag_id = ? AND t.missing = 0
+		`, tagID).Scan(&count); err != nil {
+			return err
+		}
+		if count > 0 {
+			return nil
+		}
+		res, err := db.Exec(
+			`UPDATE tags SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL`,
+			time.Now().Unix(), tagID,
+		)
+		if err != nil {
+			return err
+		}
+		n, _ := res.RowsAffected()
+		deleted = n > 0
+		return nil
+	})
+	return deleted, err
+}
+
 // MergeTags re-points all track_tags rows from sourceID to destID and
 // soft-deletes the source tag, all within a single transaction. Rows that
 // would create a duplicate (track_hash, destID) pair are silently ignored via

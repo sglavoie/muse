@@ -1,7 +1,10 @@
 package tui
 
 import (
+	"log/slog"
 	"strings"
+
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/db"
 	musiclib "github.com/sglavoie/muse/internal/library"
@@ -148,6 +151,48 @@ func (m Model) rebuildTagCache(tags []db.TagRow) Model {
 	return m
 }
 
+// nonEmptyTags returns the subset of tags that have at least one non-missing
+// track according to tagCounts. When tagCounts is nil all tags are returned.
+func nonEmptyTags(tags []db.TagRow, counts map[int64]int) []db.TagRow {
+	if counts == nil {
+		return tags
+	}
+	filtered := make([]db.TagRow, 0, len(tags))
+	for _, t := range tags {
+		if counts[t.ID] > 0 {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered
+}
+
+// removeTagFromCaches removes a single tag from m.tags and m.tagsView.tags,
+// then rebuilds the lookup maps. Used when a tag is auto-deleted because it
+// became empty.
+func (m Model) removeTagFromCaches(tagID int64) Model {
+	filtered := make([]db.TagRow, 0, len(m.tags))
+	for _, t := range m.tags {
+		if t.ID != tagID {
+			filtered = append(filtered, t)
+		}
+	}
+	m = m.rebuildTagCache(filtered)
+
+	tvFiltered := make([]db.TagRow, 0, len(m.tagsView.tags))
+	for _, t := range m.tagsView.tags {
+		if t.ID != tagID {
+			tvFiltered = append(tvFiltered, t)
+		}
+	}
+	m.tagsView.tags = tvFiltered
+	m.tagsView = m.tagsView.clampCursor()
+
+	if m.tagsView.tagCounts != nil {
+		delete(m.tagsView.tagCounts, tagID)
+	}
+	return m
+}
+
 // syncTagsViewTags copies the global tag list into the tags view on switch.
 func (m Model) syncTagsViewTags() Model {
 	m.tagsView.tags = m.tags
@@ -190,4 +235,34 @@ func (m Model) buildTagsLine(hash string) string {
 		parts = append(parts, dot+" "+tag.Name)
 	}
 	return strings.Join(parts, "  ")
+}
+
+// purgeEmptyTagsCmd returns a tea.Cmd that soft-deletes any tags with zero
+// non-missing tracks. Runs once at startup to clean up pre-existing orphans.
+func purgeEmptyTagsCmd(tags []db.TagRow, tr tagReader, tw tagWriter) tea.Cmd {
+	if tr == nil || tw == nil || len(tags) == 0 {
+		return nil
+	}
+	return func() tea.Msg {
+		counts, err := tr.ReadTagCounts()
+		if err != nil {
+			slog.Warn("startup: read tag counts for purge", "err", err)
+			return nil
+		}
+		var purged []int64
+		for _, t := range tags {
+			if counts[t.ID] == 0 {
+				if deleted, err := tw.DeleteTagIfEmpty(t.ID); err != nil {
+					slog.Warn("startup: auto-delete empty tag", "id", t.ID, "err", err)
+				} else if deleted {
+					purged = append(purged, t.ID)
+				}
+			}
+		}
+		if len(purged) == 0 {
+			return nil
+		}
+		slog.Info("startup: purged empty tags", "count", len(purged))
+		return emptyTagsPurgedMsg{tagIDs: purged}
+	}
 }

@@ -288,6 +288,7 @@ type tagWriter interface {
 	RenameTag(id int64, name string) error
 	UpdateTagColor(id int64, color string) error
 	DeleteTagSoft(id int64) error
+	DeleteTagIfEmpty(tagID int64) (bool, error)
 	UndoDeleteTag(id int64) error
 	AddTrackTag(hash string, tagID int64) error
 	RemoveTrackTag(hash string, tagID int64) error

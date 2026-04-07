@@ -207,7 +207,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		Exec: func() tea.Cmd {
 			return func() tea.Msg { return openTagFilterPickerMsg{} }
 		},
-		Enabled: func() bool { return len(m.tags) > 0 },
+		Enabled: func() bool { return len(nonEmptyTags(m.tags, m.tagsView.tagCounts)) > 0 },
 	})
 	if m.activeTagFilter != nil {
 		cmds = append(cmds, PaletteCommand{
@@ -234,8 +234,11 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		},
 	})
 
-	// Per-tag enqueue entries.
+	// Per-tag enqueue entries (skip empty tags, mirroring the Tags view).
 	for _, tag := range m.tags {
+		if m.tagsView.tagCounts != nil && m.tagsView.tagCounts[tag.ID] == 0 {
+			continue
+		}
 		t := tag // capture
 		cmds = append(cmds, PaletteCommand{
 			Name: "Enqueue tag: " + t.Name,

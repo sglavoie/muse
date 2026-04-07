@@ -344,6 +344,90 @@ func TestRemoveTrackTagBulk_EmptyNoop(t *testing.T) {
 	}
 }
 
+// --- DeleteTagIfEmpty ---
+
+func TestDeleteTagIfEmpty_DeletesWhenNoTracks(t *testing.T) {
+	d, w := openTagDB(t)
+
+	id, err := w.CreateTag("empty-tag", "")
+	if err != nil {
+		t.Fatalf("CreateTag: %v", err)
+	}
+
+	deleted, err := w.DeleteTagIfEmpty(id)
+	if err != nil {
+		t.Fatalf("DeleteTagIfEmpty: %v", err)
+	}
+	if !deleted {
+		t.Error("expected deleted=true for tag with no tracks")
+	}
+
+	tags, _ := d.ReadTags()
+	if len(tags) != 0 {
+		t.Errorf("got %d tags, want 0 after auto-delete", len(tags))
+	}
+}
+
+func TestDeleteTagIfEmpty_KeepsWhenTracksExist(t *testing.T) {
+	d, w := openTagDB(t)
+	seedTrack(t, d, "h1", "/a.flac")
+
+	id, _ := w.CreateTag("has-tracks", "")
+	_ = w.AddTrackTag("h1", id)
+
+	deleted, err := w.DeleteTagIfEmpty(id)
+	if err != nil {
+		t.Fatalf("DeleteTagIfEmpty: %v", err)
+	}
+	if deleted {
+		t.Error("expected deleted=false for tag with tracks")
+	}
+
+	tags, _ := d.ReadTags()
+	if len(tags) != 1 {
+		t.Errorf("got %d tags, want 1", len(tags))
+	}
+}
+
+func TestDeleteTagIfEmpty_DeletesAfterLastTrackRemoved(t *testing.T) {
+	d, w := openTagDB(t)
+	seedTrack(t, d, "h1", "/a.flac")
+
+	id, _ := w.CreateTag("single", "")
+	_ = w.AddTrackTag("h1", id)
+	_ = w.RemoveTrackTag("h1", id)
+
+	deleted, err := w.DeleteTagIfEmpty(id)
+	if err != nil {
+		t.Fatalf("DeleteTagIfEmpty: %v", err)
+	}
+	if !deleted {
+		t.Error("expected deleted=true after last track removed")
+	}
+
+	tags, _ := d.ReadTags()
+	if len(tags) != 0 {
+		t.Errorf("got %d tags, want 0", len(tags))
+	}
+}
+
+func TestDeleteTagIfEmpty_SkipsAlreadyDeleted(t *testing.T) {
+	_, w := openTagDB(t)
+
+	id, _ := w.CreateTag("already-gone", "")
+	_ = w.DeleteTagSoft(id)
+
+	// Should return false — the tag is already soft-deleted, the WHERE clause
+	// includes "deleted_at IS NULL".
+	deleted, err := w.DeleteTagIfEmpty(id)
+	if err != nil {
+		t.Fatalf("DeleteTagIfEmpty: %v", err)
+	}
+	if deleted {
+		t.Error("expected deleted=false for already-soft-deleted tag")
+	}
+}
+
 // --- MergeTags ---
 
 func TestMergeTags_MovesTrackTags(t *testing.T) {

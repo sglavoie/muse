@@ -326,10 +326,11 @@ type tagPickerDismissedMsg struct{}
 // wasAdd is true when the tag was added; false when removed. hashes lists all
 // affected track hashes. err is non-nil when the DB write failed.
 type tagToggledMsg struct {
-	tagID  int64
-	hashes []string
-	wasAdd bool
-	err    error
+	tagID       int64
+	hashes      []string
+	wasAdd      bool
+	autoDeleted bool // tag was auto-soft-deleted because it became empty
+	err         error
 }
 
 // tagCreatedMsg is dispatched when a new tag is successfully created from the
@@ -402,6 +403,20 @@ type clearTagFilterMsg struct{}
 // removeAllTagsFromTrackMsg requests removing all tags from the focused track.
 type removeAllTagsFromTrackMsg struct {
 	hash string
+}
+
+// allTagsRemovedMsg is dispatched after the "remove all tags from track"
+// operation completes. autoDeletedTagIDs lists tags that were soft-deleted
+// because they became empty.
+type allTagsRemovedMsg struct {
+	hash              string
+	autoDeletedTagIDs []int64
+}
+
+// emptyTagsPurgedMsg is dispatched after the startup cleanup of empty tags.
+// tagIDs lists the tags that were auto-deleted.
+type emptyTagsPurgedMsg struct {
+	tagIDs []int64
 }
 
 // enqueueByTagMsg requests enqueueing all tracks for a specific tag ID.

@@ -11,10 +11,12 @@ import (
 // undoTagToggleAction reverts a tag assignment or removal (undoKindTagToggle).
 // wasAdd is true when the original action added the tag; undo removes it.
 // wasAdd is false when the original action removed the tag; undo re-adds it.
+// tag stores the TagRow for cache restoration when the tag was auto-deleted.
 type undoTagToggleAction struct {
 	tagID  int64
 	hashes []string
 	wasAdd bool
+	tag    db.TagRow // stored for cache restoration on undo of auto-deleted tag
 }
 
 func (a undoTagToggleAction) kind() undoKind { return undoKindTagToggle }
@@ -32,16 +34,35 @@ func (a undoTagToggleAction) perform(m Model) (Model, tea.Cmd) {
 	if tw == nil {
 		return m, nil
 	}
-	tagID, hashes, wasAdd := a.tagID, a.hashes, a.wasAdd
-	return m, func() tea.Msg {
-		var err error
-		if wasAdd {
-			err = tw.RemoveTrackTagBulk(hashes, tagID)
-		} else {
-			err = tw.AddTrackTagBulk(hashes, tagID)
+
+	if a.wasAdd {
+		// Undo add → remove.
+		if err := tw.RemoveTrackTagBulk(a.hashes, a.tagID); err != nil {
+			slog.Warn("undo tag toggle: remove failed", "tagID", a.tagID, "err", err)
 		}
-		return tagToggledMsg{tagID: tagID, hashes: hashes, wasAdd: !wasAdd, err: err}
+		m = m.applyTagToggle(a.tagID, a.hashes, false)
+	} else {
+		// Undo remove → re-add. Restore soft-deleted tag first (harmless
+		// no-op when the tag was not actually auto-deleted).
+		if err := tw.UndoDeleteTag(a.tagID); err != nil {
+			slog.Warn("undo tag toggle: restore tag failed", "tagID", a.tagID, "err", err)
+		}
+		if err := tw.AddTrackTagBulk(a.hashes, a.tagID); err != nil {
+			slog.Warn("undo tag toggle: re-add failed", "tagID", a.tagID, "err", err)
+		}
+		m = m.applyTagToggle(a.tagID, a.hashes, true)
+		// If the tag was removed from the cache (auto-deleted), restore it.
+		if _, found := m.tagNames[a.tagID]; !found {
+			restored := make([]db.TagRow, len(m.tags)+1)
+			copy(restored, m.tags)
+			restored[len(m.tags)] = a.tag
+			m = m.rebuildTagCache(restored)
+			m.tagsView.tags = m.tags
+		}
 	}
+
+	m.statusBar.notification = newNotification("Undone: tag toggle")
+	return m, nil
 }
 
 // undoDeleteTagAction reverts a tag soft-delete (undoKindDeleteTag).
