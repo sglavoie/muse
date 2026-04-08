@@ -220,4 +220,3 @@ func (w *Writer) MergeTags(sourceID, destID int64) error {
 		return tx.Commit()
 	})
 }
-
