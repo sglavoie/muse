@@ -197,6 +197,9 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewRecentlyAdded:
+		if m.recentlyAdded.sortState.Field == SortDefault {
+			return m, nil, false
+		}
 		var focusedHash string
 		if t, ok := m.recentlyAdded.view().FocusedTrack(); ok {
 			focusedHash = t.Hash
@@ -212,6 +215,9 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewHistory:
+		if m.history.sortState.Field == SortDefault {
+			return m, nil, false
+		}
 		var focusedHash string
 		if t, ok := m.history.view().FocusedTrack(); ok {
 			focusedHash = t.Hash
@@ -306,6 +312,9 @@ func (m Model) handleSortDesc() (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewRecentlyAdded:
+		if m.recentlyAdded.sortState.Field == SortDefault {
+			return m, nil, false
+		}
 		var focusedHash string
 		if t, ok := m.recentlyAdded.view().FocusedTrack(); ok {
 			focusedHash = t.Hash
@@ -321,6 +330,9 @@ func (m Model) handleSortDesc() (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewHistory:
+		if m.history.sortState.Field == SortDefault {
+			return m, nil, false
+		}
 		var focusedHash string
 		if t, ok := m.history.view().FocusedTrack(); ok {
 			focusedHash = t.Hash

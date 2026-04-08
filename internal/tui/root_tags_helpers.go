@@ -39,6 +39,22 @@ func (m Model) selectedTrackHashes() []string {
 		return hashMapToSlice(m.recentlyAdded.selectedHashes)
 	case viewHistory:
 		return hashMapToSlice(m.history.selectedHashes)
+	case viewQueue:
+		var hashes []string
+		for _, e := range m.queue.entries {
+			if e.Selected {
+				hashes = append(hashes, e.Hash)
+			}
+		}
+		return hashes
+	case viewArtists:
+		return hashMapToSlice(m.artists.selectedHashes)
+	case viewAlbums:
+		return hashMapToSlice(m.albums.selectedHashes)
+	case viewGenres:
+		return hashMapToSlice(m.genres.selectedHashes)
+	case viewTags:
+		return hashMapToSlice(m.tagsView.selectedHashes)
 	}
 	return nil
 }
