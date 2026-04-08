@@ -27,7 +27,7 @@ func (m *Model) refreshHelpViewport() {
 	if m.helpSearchFilter.Text != "" {
 		sections = searchHelpSections(sections, m.helpSearchFilter.Text)
 	}
-	m.helpViewport.SetContent(HelpOverlay{}.render(*m.styles, sections, title))
+	m.helpViewport.SetContent(HelpOverlay{}.render(*m.styles, sections, title, m.termWidth))
 	m.helpViewport.SetYOffset(0)
 	extraLines := 0
 	if m.helpSearchFilter.Active || m.helpSearchFilter.Text != "" {

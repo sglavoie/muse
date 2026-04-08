@@ -317,19 +317,53 @@ func filteredHelpSections(ctx bindingContext) []helpSection {
 	return append(viewSpecific, global...)
 }
 
-// render builds the help overlay string: a title, context-grouped keybinding
-// sections with section headers, and the log file path at the bottom.
-func (h HelpOverlay) render(s styles.Styles, sections []helpSection, title string) string {
-	// Find the longest key string across all sections for column alignment.
-	maxKeyLen := 0
-	for _, sec := range sections {
-		for _, e := range sec.entries {
-			if len(e.key) > maxKeyLen {
-				maxKeyLen = len(e.key)
-			}
+// wrapText word-wraps text to fit within maxWidth. Lines after the first are
+// prefixed with indent spaces. If maxWidth is too small for even one word,
+// words are placed one per line without breaking mid-word.
+func wrapText(text string, maxWidth, indent int) string {
+	raw := strings.Fields(text)
+	if len(raw) == 0 {
+		return ""
+	}
+
+	// Merge standalone "/" with the following word so separators like
+	// "Library / Queue / Artists" never leave "/" alone on a line.
+	words := make([]string, 0, len(raw))
+	for i := 0; i < len(raw); i++ {
+		if raw[i] == "/" && i+1 < len(raw) {
+			words = append(words, "/ "+raw[i+1])
+			i++
+		} else {
+			words = append(words, raw[i])
 		}
 	}
 
+	pad := strings.Repeat(" ", indent)
+	var b strings.Builder
+	lineLen := 0
+
+	for i, w := range words {
+		if i == 0 {
+			b.WriteString(w)
+			lineLen = len(w)
+			continue
+		}
+		// Would adding this word (plus a space) exceed the limit?
+		if lineLen+1+len(w) > maxWidth {
+			b.WriteString("\n" + pad + w)
+			lineLen = len(w)
+		} else {
+			b.WriteString(" " + w)
+			lineLen += 1 + len(w)
+		}
+	}
+	return b.String()
+}
+
+// render builds the help overlay string: a title, context-grouped keybinding
+// sections with section headers, and the log file path at the bottom.
+// When width > 0, long descriptions and section titles are word-wrapped.
+func (h HelpOverlay) render(s styles.Styles, sections []helpSection, title string, width int) string {
 	var b strings.Builder
 	b.WriteString(s.Heading.Render(title) + "\n\n")
 	if len(sections) == 0 {
@@ -338,9 +372,30 @@ func (h HelpOverlay) render(s styles.Styles, sections []helpSection, title strin
 	}
 
 	for _, sec := range sections {
-		b.WriteString(s.Bold.Render(sec.title) + "\n")
+		if width > 0 {
+			b.WriteString(s.Bold.Render(wrapText(sec.title, width, 2)) + "\n")
+		} else {
+			b.WriteString(s.Bold.Render(sec.title) + "\n")
+		}
+
+		// Compute maxKeyLen per section so each section aligns independently.
+		maxKeyLen := 0
 		for _, e := range sec.entries {
-			fmt.Fprintf(&b, "  %-*s  %s\n", maxKeyLen, e.key, e.desc)
+			if len(e.key) > maxKeyLen {
+				maxKeyLen = len(e.key)
+			}
+		}
+		// descCol is the column where descriptions start: "  " + key + "  ".
+		descCol := 2 + maxKeyLen + 2
+
+		for _, e := range sec.entries {
+			if width > 0 && descCol+len(e.desc) > width {
+				descWidth := max(width-descCol, 1)
+				wrapped := wrapText(e.desc, descWidth, descCol)
+				fmt.Fprintf(&b, "  %-*s  %s\n", maxKeyLen, e.key, wrapped)
+			} else {
+				fmt.Fprintf(&b, "  %-*s  %s\n", maxKeyLen, e.key, e.desc)
+			}
 		}
 		b.WriteString("\n")
 	}

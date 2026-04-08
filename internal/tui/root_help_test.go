@@ -83,7 +83,7 @@ func TestUpdateEscWhenHelpNotVisibleDoesNotQuit(t *testing.T) {
 func TestViewHelpOverlayContainsSectionHeaders(t *testing.T) {
 	m := New(context.Background())
 	m.termWidth = 80
-	m.termHeight = 200
+	m.termHeight = 500
 	next, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
 	nm := next.(Model)
 

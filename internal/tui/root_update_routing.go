@@ -9,11 +9,7 @@ func (m Model) handleWindowSizeMsg(msg tea.WindowSizeMsg) Model {
 	m.clampAllScrollOffsets()
 	if m.helpVisible {
 		m.helpViewport.SetWidth(msg.Width)
-		extraLines := 0
-		if m.helpSearchFilter.Active || m.helpSearchFilter.Text != "" {
-			extraLines = 1
-		}
-		m.helpViewport.SetHeight(max(msg.Height-2-extraLines, 0))
+		m.refreshHelpViewport()
 	}
 	if m.debugVisible {
 		m.debugViewport.SetWidth(msg.Width)

@@ -131,7 +131,7 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 
 func TestHelpOverlayRendersAllSectionHeaders(t *testing.T) {
 	h := HelpOverlay{}
-	out := h.render(styles.Styles{}, helpSections(), "Keybindings")
+	out := h.render(styles.Styles{}, helpSections(), "Keybindings", 0)
 
 	for _, header := range []string{"Global", "Library", "Playlists", "Artists", "Albums", "Queue", "Modals"} {
 		if !strings.Contains(out, header) {
@@ -142,7 +142,7 @@ func TestHelpOverlayRendersAllSectionHeaders(t *testing.T) {
 
 func TestHelpOverlayRendersRepresentativeEntries(t *testing.T) {
 	h := HelpOverlay{}
-	out := h.render(styles.Styles{}, helpSections(), "Keybindings")
+	out := h.render(styles.Styles{}, helpSections(), "Keybindings", 0)
 
 	checks := []struct {
 		section string
@@ -263,9 +263,90 @@ func TestSearchHelpSectionsEmptyQuery(t *testing.T) {
 	}
 }
 
+func TestWrapText(t *testing.T) {
+	tests := []struct {
+		name     string
+		text     string
+		maxWidth int
+		indent   int
+		want     string
+	}{
+		{
+			name:     "no wrap needed",
+			text:     "short text",
+			maxWidth: 20,
+			indent:   4,
+			want:     "short text",
+		},
+		{
+			name:     "wraps at word boundary",
+			text:     "Filter (Library / Queue / Artists)",
+			maxWidth: 25,
+			indent:   4,
+			want:     "Filter (Library / Queue\n    / Artists)",
+		},
+		{
+			name:     "empty text",
+			text:     "",
+			maxWidth: 20,
+			indent:   4,
+			want:     "",
+		},
+		{
+			name:     "single long word",
+			text:     "superlongword",
+			maxWidth: 5,
+			indent:   2,
+			want:     "superlongword",
+		},
+		{
+			name:     "multiple wraps",
+			text:     "one two three four five",
+			maxWidth: 10,
+			indent:   2,
+			want:     "one two\n  three four\n  five",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := wrapText(tt.text, tt.maxWidth, tt.indent)
+			if got != tt.want {
+				t.Errorf("wrapText(%q, %d, %d)\n got: %q\nwant: %q", tt.text, tt.maxWidth, tt.indent, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHelpOverlayWrapsLongDescriptions(t *testing.T) {
+	sections := []helpSection{
+		{
+			title:   "Test Section With A Very Long Title That Should Wrap",
+			context: contextGlobal,
+			entries: []helpEntry{
+				{"key", "Short desc"},
+				{"/", "Filter (Library / Queue / Artists / Albums / Favorites / Genres)"},
+			},
+		},
+	}
+	// Width 50 should force both the title and the long description to wrap.
+	out := HelpOverlay{}.render(styles.Styles{}, sections, "Help", 50)
+
+	// The long description should be split across lines.
+	lines := strings.Split(out, "\n")
+	for _, line := range lines {
+		if len(line) > 50 {
+			t.Errorf("line exceeds width 50 (%d chars): %q", len(line), line)
+		}
+	}
+	// The short description should remain intact on one line.
+	if !strings.Contains(out, "Short desc") {
+		t.Error("short description missing from output")
+	}
+}
+
 func TestFilteredHelpRender(t *testing.T) {
 	sections := filteredHelpSections(contextQueue)
-	out := HelpOverlay{}.render(styles.Styles{}, sections, "Keybindings — Queue")
+	out := HelpOverlay{}.render(styles.Styles{}, sections, "Keybindings — Queue", 0)
 
 	// Check that Queue section is present as a standalone section header.
 	if !strings.Contains(out, "\nQueue\n") {
