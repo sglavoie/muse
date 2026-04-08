@@ -172,7 +172,7 @@ func (p *PreviewPlayer) Close() error {
 			}
 		}
 	}
-	if err := os.Remove(p.socketPath); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(p.socketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		slog.Warn("preview: remove socket", "path", p.socketPath, "err", err)
 		errs = append(errs, err)
 	}

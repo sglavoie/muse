@@ -63,7 +63,7 @@ func startCommandListener(p *tea.Program, runtimeDir string) (net.Listener, erro
 	sockPath := filepath.Join(runtimeDir, ctrlSocketName)
 
 	// Remove any stale socket left by a previous crash.
-	if err := os.Remove(sockPath); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(sockPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("remove stale control socket: %w", err)
 	}
 

@@ -1,6 +1,7 @@
 package player
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -12,7 +13,7 @@ import (
 // the PID lockfile), so this function is not called during normal startup.
 // It is retained for tests and for any caller that needs the liveness check.
 func cleanStaleSocket(socketPath string) error {
-	if _, err := os.Stat(socketPath); os.IsNotExist(err) {
+	if _, err := os.Stat(socketPath); errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
 

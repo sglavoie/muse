@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math"
@@ -285,7 +286,7 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 	for _, r := range rows {
 		missing := r.Missing
 		if !missing {
-			if _, statErr := os.Stat(r.Path); os.IsNotExist(statErr) {
+			if _, statErr := os.Stat(r.Path); errors.Is(statErr, os.ErrNotExist) {
 				missing = true
 				if err := writer.MarkQueueEntryMissing(r.ID); err != nil {
 					slog.Warn("mark queue entry missing", "id", r.ID, "err", err)
@@ -378,7 +379,7 @@ func parseRepeatMode(s string) tui.RepeatMode {
 // removeStaleSocket removes the mpv socket file if it exists. A missing file
 // is not an error.
 func removeStaleSocket(path string) error {
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("remove stale mpv socket %q: %w", path, err)
 	}
 	return nil

@@ -306,7 +306,7 @@ func (m *Manager) handleRestart() {
 	m.prefetchedPath = ""
 	m.mu.Unlock()
 
-	if err := os.Remove(m.socketPath); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(m.socketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		slog.Warn("player: remove socket", "path", m.socketPath, "err", err)
 	}
 

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -35,10 +36,10 @@ func validateMusicDir(musicDir, configPath string) error {
 
 	entries, err := os.ReadDir(expanded)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("music directory %q does not exist; edit %s to set a valid path", expanded, configPath)
 		}
-		if os.IsPermission(err) {
+		if errors.Is(err, os.ErrPermission) {
 			return fmt.Errorf("music directory %q: permission denied; edit %s to set a valid path", expanded, configPath)
 		}
 		return fmt.Errorf("music directory %q cannot be read; edit %s to set a valid path: %w", expanded, configPath, err)
