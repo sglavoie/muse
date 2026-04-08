@@ -138,6 +138,80 @@ func TestManager_PlayQueueEntry_MissingFile(t *testing.T) {
 	}
 }
 
+// TestManager_PlayQueueEntry_InaccessibleFile verifies that PlayQueueEntry
+// returns ErrMissingFile when os.Stat fails with a non-"not exist" error
+// (e.g. permission denied), rather than falling through to load the file.
+func TestManager_PlayQueueEntry_InaccessibleFile(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("test requires non-root to trigger permission errors")
+	}
+
+	sock := shortSockPath(t, "pqe-noperm")
+
+	// Create a file inside a directory, then revoke the directory's execute
+	// permission so os.Stat on the file returns a permission error.
+	dir := t.TempDir()
+	filePath := dir + "/track.flac"
+	if err := os.WriteFile(filePath, []byte("data"), 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if err := os.Chmod(dir, 0o000); err != nil {
+		t.Fatalf("Chmod: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) }) //nolint:gosec // restoring dir permissions requires 0o700
+
+	// Verify that the file is genuinely inaccessible (permission error, not
+	// "not exist") before testing the player code path.
+	if _, err := os.Stat(filePath); err == nil {
+		t.Fatal("expected os.Stat to fail on inaccessible file")
+	} else if os.IsNotExist(err) {
+		t.Fatalf("expected permission error, got not-exist: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{
+		socketPath:     sock,
+		ctx:            ctx,
+		cancel:         cancel,
+		cmdQueue:       []func() error{},
+		callbacksReady: make(chan struct{}),
+	}
+	defer m.Close()
+
+	var statusMsg string
+	m.SetEventCallbacks(EventCallbacks{OnStatus: func(msg string) { statusMsg = msg }})
+
+	fakeServer(t, sock)
+	client, err := NewIPCClient(sock)
+	if err != nil {
+		t.Fatalf("NewIPCClient: %v", err)
+	}
+	m.mu.Lock()
+	m.client = client
+	m.mu.Unlock()
+
+	marker := &mockMarker{}
+	entry := QueueTrack{
+		Path:    filePath,
+		Hash:    "perm-denied",
+		QueueID: 99,
+	}
+
+	gotErr := m.PlayQueueEntry(entry, marker)
+	if !errors.Is(gotErr, ErrMissingFile) {
+		t.Fatalf("PlayQueueEntry: want ErrMissingFile for inaccessible file, got %v", gotErr)
+	}
+	if marker.trackHash != "perm-denied" {
+		t.Errorf("MarkTrackMissing called with %q, want %q", marker.trackHash, "perm-denied")
+	}
+	if marker.queueID != 99 {
+		t.Errorf("MarkQueueEntryMissing called with %d, want 99", marker.queueID)
+	}
+	if statusMsg == "" {
+		t.Error("expected a status message for the inaccessible file, got none")
+	}
+}
+
 func TestManager_PlayQueueEntry_PresentFile(t *testing.T) {
 	sock := shortSockPath(t, "pqe-present")
 

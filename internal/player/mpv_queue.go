@@ -275,13 +275,14 @@ func (m *Manager) StopAfterCurrent() bool {
 }
 
 // PlayQueueEntry stats the file at entry.Path before loading it into mpv.
-// If the file is absent it marks the track and queue entry as missing via
-// marker, emits a transient status message, and returns ErrMissingFile without
-// touching mpv — the caller should skip to the next queue entry.
+// If the file is inaccessible (missing, permission denied, etc.) it marks the
+// track and queue entry as missing via marker, emits a transient status
+// message, and returns ErrMissingFile without touching mpv — the caller should
+// skip to the next queue entry.
 // If the file is present it sends a loadfile command to mpv (queued if not yet
 // connected).
 func (m *Manager) PlayQueueEntry(entry QueueTrack, marker MissingMarker) error {
-	if _, err := os.Stat(entry.Path); os.IsNotExist(err) {
+	if _, err := os.Stat(entry.Path); err != nil {
 		if err := marker.MarkTrackMissing(entry.Hash); err != nil {
 			slog.Error("mpv: mark track missing", "hash", entry.Hash, "err", err)
 		}
