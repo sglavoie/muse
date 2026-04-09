@@ -277,6 +277,184 @@ func TestManager_EventReaderBlocksOnCallbacksReady(t *testing.T) {
 	}
 }
 
+// TestEventReader_EmitsTrackInfoOnConnect verifies that startEventReader
+// emits OnTrackChanged immediately after callbacksReady so the TUI always
+// gets track info even when the start-file event was missed (race during
+// reconnect or session restore).
+func TestEventReader_EmitsTrackInfoOnConnect(t *testing.T) {
+	sock := shortSockPath(t, "ev-init-emit")
+
+	connDone := make(chan struct{})
+	os.Remove(sock)
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { ln.Close(); os.Remove(sock) })
+
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		// Do NOT send start-file — the test verifies that the initial
+		// emit fires even without it.
+		<-connDone
+	}()
+	defer close(connDone)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	type trackInfo struct {
+		hash, artist, title, source string
+		index                       int
+	}
+	got := make(chan trackInfo, 2)
+	m := &Manager{
+		socketPath:     sock,
+		ctx:            ctx,
+		cancel:         cancel,
+		callbacksReady: make(chan struct{}),
+		queue: []QueueTrack{
+			{Path: "/a.flac", Hash: "h1", Artist: "Art1", Title: "Tit1", Source: "PL"},
+		},
+		currentIndex: 0,
+		callbacks: EventCallbacks{
+			OnTrackChanged: func(h, a, tl, src string, idx int) {
+				got <- trackInfo{h, a, tl, src, idx}
+			},
+		},
+	}
+
+	go m.startEventReader(ctx)
+	close(m.callbacksReady)
+
+	select {
+	case info := <-got:
+		if info.hash != "h1" || info.artist != "Art1" || info.title != "Tit1" || info.source != "PL" || info.index != 0 {
+			t.Errorf("unexpected track info: %+v", info)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("OnTrackChanged not emitted on event reader connect")
+	}
+}
+
+// TestEventReader_SkipsEmitWhenNoTrack verifies that startEventReader does
+// NOT emit OnTrackChanged when currentIndex is out of range.
+func TestEventReader_SkipsEmitWhenNoTrack(t *testing.T) {
+	sock := shortSockPath(t, "ev-no-emit")
+
+	connDone := make(chan struct{})
+	os.Remove(sock)
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { ln.Close(); os.Remove(sock) })
+
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		<-connDone
+	}()
+	defer close(connDone)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	fired := make(chan struct{}, 1)
+	m := &Manager{
+		socketPath:     sock,
+		ctx:            ctx,
+		cancel:         cancel,
+		callbacksReady: make(chan struct{}),
+		queue:          nil,
+		currentIndex:   -1,
+		callbacks: EventCallbacks{
+			OnTrackChanged: func(_, _, _, _ string, _ int) {
+				fired <- struct{}{}
+			},
+		},
+	}
+
+	go m.startEventReader(ctx)
+	close(m.callbacksReady)
+
+	select {
+	case <-fired:
+		t.Fatal("OnTrackChanged should not fire when queue is empty / index < 0")
+	case <-time.After(200 * time.Millisecond):
+		// correct
+	}
+}
+
+// TestEventReader_TracksPauseState verifies that the event reader updates
+// lastPaused when it receives a property-change event for the pause property.
+func TestEventReader_TracksPauseState(t *testing.T) {
+	sock := shortSockPath(t, "ev-pause-track")
+
+	connDone := make(chan struct{})
+	os.Remove(sock)
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { ln.Close(); os.Remove(sock) })
+
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		// Send a pause property-change event.
+		_, _ = conn.Write([]byte(`{"event":"property-change","name":"pause","data":true}` + "\n"))
+		<-connDone
+	}()
+	defer close(connDone)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pauseReceived := make(chan bool, 1)
+	m := &Manager{
+		socketPath:     sock,
+		ctx:            ctx,
+		cancel:         cancel,
+		callbacksReady: make(chan struct{}),
+		callbacks: EventCallbacks{
+			OnPauseChanged: func(paused bool) {
+				pauseReceived <- paused
+			},
+		},
+		currentIndex: -1,
+	}
+
+	go m.startEventReader(ctx)
+	close(m.callbacksReady)
+
+	select {
+	case paused := <-pauseReceived:
+		if !paused {
+			t.Errorf("expected paused=true, got false")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("OnPauseChanged not called")
+	}
+
+	m.mu.RLock()
+	got := m.lastPaused
+	m.mu.RUnlock()
+	if !got {
+		t.Error("lastPaused should be true after receiving pause=true property-change")
+	}
+}
+
 // TestWatchAndRestart_GivesUpAfterMaxAttempts verifies that watchAndRestart
 // stops retrying after restartMaxAttempts consecutive failures and emits a
 // "gave up" status notification.

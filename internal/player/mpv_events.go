@@ -55,6 +55,19 @@ func (m *Manager) startEventReader(ctx context.Context) {
 		return
 	}
 
+	// Emit the current track info immediately so the TUI gets a
+	// TrackChangedMsg even when the start-file event fired before this
+	// reader connected (race during reconnect / session restore).
+	m.mu.RLock()
+	idx := m.currentIndex
+	q := m.queue
+	fn := m.callbacks.OnTrackChanged
+	m.mu.RUnlock()
+	if fn != nil && idx >= 0 && idx < len(q) {
+		t := q[idx]
+		fn(t.Hash, t.Artist, t.Title, t.Source, idx)
+	}
+
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
 		var raw map[string]any
@@ -158,9 +171,10 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			if !ok {
 				continue
 			}
-			m.mu.RLock()
+			m.mu.Lock()
+			m.lastPaused = paused
 			fn := m.callbacks.OnPauseChanged
-			m.mu.RUnlock()
+			m.mu.Unlock()
 			if fn != nil {
 				fn(paused)
 			}

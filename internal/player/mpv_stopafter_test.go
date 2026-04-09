@@ -59,7 +59,7 @@ func TestStopAfterCurrent_EventReaderStops(t *testing.T) {
 	defer cancel()
 
 	endedCh := make(chan struct{}, 1)
-	trackChangedCh := make(chan struct{}, 1)
+	trackChangedCount := make(chan struct{}, 4)
 
 	m := &Manager{
 		socketPath:       sock,
@@ -74,12 +74,20 @@ func TestStopAfterCurrent_EventReaderStops(t *testing.T) {
 		currentIndex: 0,
 		callbacks: EventCallbacks{
 			OnPlaybackEnded: func() { endedCh <- struct{}{} },
-			OnTrackChanged:  func(_, _, _, _ string, _ int) { trackChangedCh <- struct{}{} },
+			OnTrackChanged:  func(_, _, _, _ string, _ int) { trackChangedCount <- struct{}{} },
 		},
 	}
 	close(m.callbacksReady)
 
 	go m.startEventReader(ctx)
+
+	// The event reader emits an initial OnTrackChanged on connect to sync
+	// track info (covers the reconnect race). Drain it.
+	select {
+	case <-trackChangedCount:
+	case <-time.After(2 * time.Second):
+		t.Fatal("initial OnTrackChanged did not fire")
+	}
 
 	select {
 	case <-eventSent:
@@ -95,10 +103,10 @@ func TestStopAfterCurrent_EventReaderStops(t *testing.T) {
 		t.Fatal("OnPlaybackEnded did not fire")
 	}
 
-	// OnTrackChanged should NOT fire (no auto-advance).
+	// No additional OnTrackChanged should fire (no auto-advance).
 	select {
-	case <-trackChangedCh:
-		t.Error("OnTrackChanged should not fire when stopAfterCurrent is set")
+	case <-trackChangedCount:
+		t.Error("OnTrackChanged should not fire for auto-advance when stopAfterCurrent is set")
 	case <-time.After(100 * time.Millisecond):
 		// correct
 	}

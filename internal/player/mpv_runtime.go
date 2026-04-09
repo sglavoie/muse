@@ -287,6 +287,7 @@ func (m *Manager) handleRestart() {
 	disconnFn := m.callbacks.OnDisconnected
 	path := m.lastTrackPath
 	elapsed := m.lastElapsed
+	paused := m.lastPaused
 	m.mu.RUnlock()
 
 	if disconnFn != nil {
@@ -330,7 +331,7 @@ func (m *Manager) handleRestart() {
 
 	if path != "" {
 		if err := m.enqueue(func() error {
-			return m.loadFileAt(path, elapsed)
+			return m.loadFileAt(path, elapsed, paused)
 		}); err != nil {
 			slog.Warn("mpv: failed to enqueue resume command", "err", err)
 		}
@@ -357,12 +358,18 @@ func (m *Manager) LoadFilePaused(path string, positionMs int64) error {
 }
 
 // loadFileAt sends mpv a loadfile command with a start= option to resume
-// playback at the given elapsed time (in seconds).
-func (m *Manager) loadFileAt(path string, elapsed float64) error {
+// playback at the given elapsed time (in seconds). When paused is true the
+// file is loaded in the paused state so the user's pause is preserved
+// across auto-restarts.
+func (m *Manager) loadFileAt(path string, elapsed float64, paused bool) error {
 	c, err := m.ipc()
 	if err != nil {
 		return err
 	}
-	_, err = c.SendCommand(cmdLoadfile, path, "replace", 0, fmt.Sprintf("start=%g,pause=no", elapsed))
+	pauseOpt := "no"
+	if paused {
+		pauseOpt = "yes"
+	}
+	_, err = c.SendCommand(cmdLoadfile, path, "replace", 0, fmt.Sprintf("start=%g,pause=%s", elapsed, pauseOpt))
 	return err
 }

@@ -106,6 +106,11 @@ type Manager struct {
 	lastTrackPath string
 	lastElapsed   float64
 
+	// lastPaused tracks whether playback was paused when the connection was
+	// last active, so auto-restart can preserve the pause state instead of
+	// unconditionally resuming.
+	lastPaused bool
+
 	cmd    *exec.Cmd
 	ctx    context.Context    // scoped to the current mpv subprocess; replaced on restart
 	cancel context.CancelFunc // cancels the current subprocess context
