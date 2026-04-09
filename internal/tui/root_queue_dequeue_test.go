@@ -294,11 +294,6 @@ func TestBulkDequeueCreatesUndoSlot(t *testing.T) {
 		t.Fatalf("DequeueTrackSoft calls = %d, want 2", len(d.dequeueTrackSoftCalls))
 	}
 }
-
-// TestFocusNowPlayingMovesCursorToCurrentTrack verifies that pressing "f" in
-// the queue view moves the cursor to the entry matching currentTrackHash.
-// TestFocusNowPlayingNoOpWhenNothingPlaying lives in root_queue_actions_test.go.
-
 // TestDequeueDuplicateHashKeepsPlayback verifies that removing a queue entry
 // whose hash matches the currently-playing track does NOT stop playback when
 // another entry with the same hash remains in the queue.

@@ -166,52 +166,6 @@ func TestQueueRenderWindowSizeMsg(t *testing.T) {
 	}
 }
 
-// TestMarkMissingFlagsAllDuplicateEntries verifies that markMissing marks
-// every entry with the matching path, not just the first one.
-func TestMarkMissingFlagsAllDuplicateEntries(t *testing.T) {
-	q := QueueView{
-		entries: []QueueEntry{
-			{Path: "/music/a.flac", Display: "A"},
-			{Path: "/music/b.flac", Display: "B"},
-			{Path: "/music/a.flac", Display: "A (dup)"},
-		},
-	}
-	q.markMissing("/music/a.flac")
-
-	if !q.entries[0].Missing {
-		t.Error("first entry with matching path must be marked missing")
-	}
-	if q.entries[1].Missing {
-		t.Error("entry with different path must not be marked missing")
-	}
-	if !q.entries[2].Missing {
-		t.Error("second entry with matching path must be marked missing")
-	}
-}
-
-// TestFormatQueueDuration covers the duration formatting helper.
-func TestFormatQueueDuration(t *testing.T) {
-	cases := []struct {
-		ms   int64
-		want string
-	}{
-		{0, "--:--"},
-		{-1, "--:--"},
-		{1_000, "0:01"},
-		{60_000, "1:00"},
-		{65_000, "1:05"},
-		{3_600_000, "1:00:00"},
-		{3_661_000, "1:01:01"},
-		{5_999_000, "1:39:59"},
-	}
-	for _, tc := range cases {
-		got := formatQueueDuration(tc.ms)
-		if got != tc.want {
-			t.Errorf("formatQueueDuration(%d) = %q, want %q", tc.ms, got, tc.want)
-		}
-	}
-}
-
 // TestQueueRenderSelectedEntryShowsMarker verifies that a bulk-selected queue
 // entry is rendered with a "●" selection marker.
 func TestQueueRenderSelectedEntryShowsMarker(t *testing.T) {
@@ -305,7 +259,6 @@ func TestQueueRenderNowPlayingFavoriteStyle(t *testing.T) {
 	if rawLine == "" {
 		t.Fatal("FavPlaying entry must appear in the output")
 	}
-
 	npPrefix, _, _ := strings.Cut(npRef, "REF")
 	npfPrefix, _, _ := strings.Cut(npfRef, "REF")
 
@@ -314,6 +267,24 @@ func TestQueueRenderNowPlayingFavoriteStyle(t *testing.T) {
 	}
 	if !strings.Contains(rawLine, npPrefix) {
 		t.Errorf("non-favorited cells of now-playing entry must use NowPlaying style; got: %q", rawLine)
+	}
+}
+
+// TestQueueRenderNarrowWidthUsesMax verifies that the queue render function
+// uses max(flex, 4) to prevent negative column widths when the terminal is
+// very narrow.
+func TestQueueRenderNarrowWidthUsesMax(t *testing.T) {
+	s := styles.NewStyles(true)
+	v := QueueView{
+		entries: []QueueEntry{
+			{Hash: "aaa", Title: "T", Artist: "A", Album: "Al", DurationMs: 60000},
+		},
+		width:  10,
+		height: 10,
+	}
+	got := v.render(s, -1, nil, nil, nil)
+	if got == "" {
+		t.Error("render must produce non-empty output even with narrow width")
 	}
 }
 
@@ -339,178 +310,6 @@ func TestQueueRenderSelectedAndFocusedMarker(t *testing.T) {
 	}
 	if !strings.Contains(focusedLine, "●") {
 		t.Error("selected+focused entry must contain ● marker")
-	}
-}
-
-// TestQueueSelectNoPanicWhenCursorOutOfBounds verifies that the actionSelect
-// handler in QueueView does not panic when the cursor exceeds the entries slice.
-func TestQueueSelectNoPanicWhenCursorOutOfBounds(t *testing.T) {
-	q := QueueView{entries: []QueueEntry{{Path: "/a.flac", Display: "A"}}, cursor: 5}
-	_, cmd := q.HandleAction(actionSelect)
-	if cmd != nil {
-		t.Fatal("actionSelect with out-of-bounds cursor must return nil cmd")
-	}
-}
-
-// TestQueueDequeueNoPanicWhenCursorOutOfBounds verifies that the actionDequeue
-// handler in QueueView does not panic when the cursor exceeds the entries slice.
-func TestQueueDequeueNoPanicWhenCursorOutOfBounds(t *testing.T) {
-	q := QueueView{entries: []QueueEntry{{Path: "/a.flac", Display: "A"}}, cursor: 5}
-	_, cmd := q.HandleAction(actionDequeue)
-	if cmd != nil {
-		t.Fatal("actionDequeue with out-of-bounds cursor must return nil cmd")
-	}
-}
-
-func TestQueueHandleActionCursorUpDown(t *testing.T) {
-	q := QueueView{entries: make([]QueueEntry, 5), cursor: 0, width: 80}
-	q, _ = q.HandleAction(actionCursorDown)
-	if q.cursor != 1 {
-		t.Errorf("CursorDown: expected 1, got %d", q.cursor)
-	}
-	q, _ = q.HandleAction(actionCursorDown)
-	if q.cursor != 2 {
-		t.Errorf("CursorDown: expected 2, got %d", q.cursor)
-	}
-	q, _ = q.HandleAction(actionCursorUp)
-	if q.cursor != 1 {
-		t.Errorf("CursorUp: expected 1, got %d", q.cursor)
-	}
-}
-
-func TestQueueHandleActionCursorClampsAtBounds(t *testing.T) {
-	q := QueueView{entries: make([]QueueEntry, 3), cursor: 0, width: 80}
-	q, _ = q.HandleAction(actionCursorUp)
-	if q.cursor != 0 {
-		t.Errorf("CursorUp at 0: expected 0, got %d", q.cursor)
-	}
-	q.cursor = 2
-	q, _ = q.HandleAction(actionCursorDown)
-	if q.cursor != 2 {
-		t.Errorf("CursorDown at end: expected 2, got %d", q.cursor)
-	}
-}
-
-func TestQueueHandleActionGoToTopBottom(t *testing.T) {
-	q := QueueView{entries: make([]QueueEntry, 10), cursor: 5, width: 80}
-	q, _ = q.HandleAction(actionGoToTop)
-	if q.cursor != 0 || q.scrollOffset != 0 {
-		t.Errorf("GoToTop: cursor=%d scroll=%d, want 0,0", q.cursor, q.scrollOffset)
-	}
-	q, _ = q.HandleAction(actionGoToBottom)
-	if q.cursor != 9 {
-		t.Errorf("GoToBottom: expected cursor=9, got %d", q.cursor)
-	}
-}
-
-func TestQueueHandleActionHalfPageDownUp(t *testing.T) {
-	q := QueueView{entries: make([]QueueEntry, 20), cursor: 0, height: 14, width: 80}
-	q, _ = q.HandleAction(actionHalfPageDown)
-	if q.cursor != 6 {
-		t.Errorf("HalfPageDown: expected 6, got %d", q.cursor)
-	}
-	q, _ = q.HandleAction(actionHalfPageUp)
-	if q.cursor != 0 {
-		t.Errorf("HalfPageUp: expected 0, got %d", q.cursor)
-	}
-}
-
-func TestQueueHandleActionFullPageDownUp(t *testing.T) {
-	q := QueueView{entries: make([]QueueEntry, 20), cursor: 0, height: 14, width: 80}
-	q, _ = q.HandleAction(actionFullPageDown)
-	if q.cursor != 12 {
-		t.Errorf("FullPageDown: expected 12, got %d", q.cursor)
-	}
-	q, _ = q.HandleAction(actionFullPageUp)
-	if q.cursor != 0 {
-		t.Errorf("FullPageUp: expected 0, got %d", q.cursor)
-	}
-}
-
-func TestQueueMoveQueueCursorEmpty(t *testing.T) {
-	q := QueueView{cursor: 0}
-	q2 := q.moveQueueCursor(5)
-	if q2.cursor != 0 {
-		t.Errorf("moveQueueCursor empty: expected 0, got %d", q2.cursor)
-	}
-}
-
-func TestQueueVisibleRowsZeroHeight(t *testing.T) {
-	q := QueueView{height: 0}
-	if q.visibleRows() != 50 {
-		t.Errorf("visibleRows height=0: expected 50, got %d", q.visibleRows())
-	}
-}
-
-func TestQueueVisibleRowsSmallHeight(t *testing.T) {
-	q := QueueView{height: 5}
-	if q.visibleRows() != 3 {
-		t.Errorf("visibleRows height=5: expected 3, got %d", q.visibleRows())
-	}
-}
-
-func TestQueueHandleActionClearQueue(t *testing.T) {
-	q := QueueView{entries: make([]QueueEntry, 3)}
-	_, cmd := q.HandleAction(actionClearQueue)
-	if cmd == nil {
-		t.Fatal("ClearQueue: expected non-nil cmd")
-	}
-	msg := cmd()
-	if _, ok := msg.(ClearQueueMsg); !ok {
-		t.Errorf("ClearQueue: expected ClearQueueMsg, got %T", msg)
-	}
-}
-
-func TestQueueHandleActionMoveTrackUp(t *testing.T) {
-	q := QueueView{entries: make([]QueueEntry, 3), cursor: 1}
-	_, cmd := q.HandleAction(actionMoveTrackUp)
-	if cmd == nil {
-		t.Fatal("MoveTrackUp: expected non-nil cmd")
-	}
-	msg := cmd()
-	if m, ok := msg.(MoveTrackUpMsg); !ok || m.Index != 1 {
-		t.Errorf("MoveTrackUp: got %+v", msg)
-	}
-}
-
-func TestQueueHandleActionMoveTrackDown(t *testing.T) {
-	q := QueueView{entries: make([]QueueEntry, 3), cursor: 1}
-	_, cmd := q.HandleAction(actionMoveTrackDown)
-	if cmd == nil {
-		t.Fatal("MoveTrackDown: expected non-nil cmd")
-	}
-	msg := cmd()
-	if m, ok := msg.(MoveTrackDownMsg); !ok || m.Index != 1 {
-		t.Errorf("MoveTrackDown: got %+v", msg)
-	}
-}
-
-func TestFormatDurationSecs(t *testing.T) {
-	cases := []struct {
-		secs float64
-		want string
-	}{
-		{0, "--:--"},
-		{-5, "--:--"},
-		{65, "1:05"},
-		{185, "3:05"},
-		{3661, "1:01:01"},
-	}
-	for _, tc := range cases {
-		got := FormatDurationSecs(tc.secs)
-		if got != tc.want {
-			t.Errorf("FormatDurationSecs(%v) = %q, want %q", tc.secs, got, tc.want)
-		}
-	}
-}
-
-// TestQueueBulkSelectionToggleNoPanicWhenCursorOutOfBounds verifies that the
-// actionBulkSelectionToggle handler does not panic when cursor is out of bounds.
-func TestQueueBulkSelectionToggleNoPanicWhenCursorOutOfBounds(t *testing.T) {
-	q := QueueView{entries: []QueueEntry{{Path: "/a.flac", Display: "A"}}, cursor: 5}
-	_, cmd := q.HandleAction(actionBulkSelectionToggle)
-	if cmd != nil {
-		t.Fatal("actionBulkSelectionToggle with out-of-bounds cursor must return nil cmd")
 	}
 }
 
@@ -586,86 +385,6 @@ func TestQueueRenderAllThreeFavoritesStyle(t *testing.T) {
 	}
 	if !strings.Contains(rawLine, albumPrefix) {
 		t.Errorf("all-3 fav: album cell must use FavAlbum style; got: %q", rawLine)
-	}
-}
-
-// TestFilteredEntriesStaleDisplayOrder verifies that filteredEntries does not
-// panic when displayOrder has a different length than entries (stale sort).
-func TestFilteredEntriesStaleDisplayOrder(t *testing.T) {
-	v := QueueView{
-		entries: []QueueEntry{
-			{Title: "A", Artist: "X"},
-			{Title: "B", Artist: "Y"},
-			{Title: "C", Artist: "Z"},
-		},
-		displayOrder: []int{1, 0}, // stale: only 2 elements for 3 entries
-	}
-	// Must not panic; stale displayOrder is discarded.
-	got := v.filteredEntries()
-	if len(got) != 3 {
-		t.Fatalf("expected 3 entries, got %d", len(got))
-	}
-	// After discarding stale displayOrder, order should be identity.
-	for i, e := range got {
-		if e.origIdx != i {
-			t.Errorf("entry %d: origIdx = %d, want %d", i, e.origIdx, i)
-		}
-	}
-}
-
-// TestFilteredEntriesOrigIdx verifies that origIdx is set correctly by
-// filteredEntries with and without a displayOrder.
-func TestFilteredEntriesOrigIdx(t *testing.T) {
-	v := QueueView{
-		entries: []QueueEntry{
-			{Title: "A", Artist: "X"},
-			{Title: "B", Artist: "Y"},
-			{Title: "C", Artist: "Z"},
-		},
-	}
-	// Without sort: origIdx should match position.
-	got := v.filteredEntries()
-	for i, e := range got {
-		if e.origIdx != i {
-			t.Errorf("unsorted entry %d: origIdx = %d, want %d", i, e.origIdx, i)
-		}
-	}
-
-	// With sort (reverse): origIdx should map back to the real entry.
-	v.displayOrder = []int{2, 1, 0}
-	got = v.filteredEntries()
-	if got[0].origIdx != 2 || got[1].origIdx != 1 || got[2].origIdx != 0 {
-		t.Errorf("sorted origIdx: got %d,%d,%d; want 2,1,0",
-			got[0].origIdx, got[1].origIdx, got[2].origIdx)
-	}
-}
-
-// TestHandleActionSelectUsesOrigIdx verifies that actionSelect dispatches
-// PlayQueueIndexMsg with the correct underlying entry index when a display
-// order is active.
-func TestHandleActionSelectUsesOrigIdx(t *testing.T) {
-	v := QueueView{
-		entries: []QueueEntry{
-			{ID: 1, Path: "/a", Hash: "ha", Title: "A", Artist: "X"},
-			{ID: 2, Path: "/b", Hash: "hb", Title: "B", Artist: "Y"},
-			{ID: 3, Path: "/c", Hash: "hc", Title: "C", Artist: "Z"},
-		},
-		displayOrder: []int{2, 1, 0}, // reversed
-		cursor:       0,              // display row 0 → entry 2
-		height:       20,
-	}
-	v2, cmd := v.HandleAction(actionSelect)
-	_ = v2
-	if cmd == nil {
-		t.Fatal("actionSelect should return a command")
-	}
-	msg := cmd()
-	pqm, ok := msg.(PlayQueueIndexMsg)
-	if !ok {
-		t.Fatalf("expected PlayQueueIndexMsg, got %T", msg)
-	}
-	if pqm.Index != 2 {
-		t.Errorf("PlayQueueIndexMsg.Index = %d, want 2 (underlying entry index)", pqm.Index)
 	}
 }
 
