@@ -1,33 +1,9 @@
 package library
 
 import (
-	"fmt"
-	"os"
 	"path/filepath"
-	"runtime"
-	"sync/atomic"
 	"testing"
 )
-
-// writeFile creates a file at path (creating parent dirs) with the given content.
-func writeFile(t *testing.T, path string, content []byte) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("writeFile MkdirAll: %v", err)
-	}
-	if err := os.WriteFile(path, content, 0o644); err != nil {
-		t.Fatalf("writeFile WriteFile: %v", err)
-	}
-}
-
-// makeBytes returns a byte slice of length n filled with the given byte value.
-func makeBytes(n int, b byte) []byte {
-	buf := make([]byte, n)
-	for i := range buf {
-		buf[i] = b
-	}
-	return buf
-}
 
 // TestHashFile_SmallFile verifies that a file under 2 MB produces a stable,
 // non-empty fingerprint.
@@ -44,7 +20,7 @@ func TestHashFile_SmallFile(t *testing.T) {
 		t.Fatal("expected non-empty hash")
 	}
 
-	// Call again — must be identical (deterministic).
+	// Call again -- must be identical (deterministic).
 	h2, err := HashFile(path)
 	if err != nil {
 		t.Fatalf("HashFile error on second call: %v", err)
@@ -58,7 +34,7 @@ func TestHashFile_SmallFile(t *testing.T) {
 // content produce the same hash (regardless of read strategy).
 func TestHashFile_SmallFileConsistency(t *testing.T) {
 	dir := t.TempDir()
-	content := makeBytes(512*1024, 0xAB) // 512 KB — well under threshold
+	content := makeBytes(512*1024, 0xAB) // 512 KB -- well under threshold
 
 	p1 := filepath.Join(dir, "a.flac")
 	p2 := filepath.Join(dir, "b.flac")
@@ -106,7 +82,7 @@ func TestHashFile_LargeFile(t *testing.T) {
 // same size but different content produce different hashes.
 func TestHashFile_SizeAloneDoesNotEqualise(t *testing.T) {
 	dir := t.TempDir()
-	size := 3 * 1024 * 1024 // 3 MB — both files same size
+	size := 3 * 1024 * 1024 // 3 MB -- both files same size
 
 	p1 := filepath.Join(dir, "c.flac")
 	p2 := filepath.Join(dir, "d.flac")
@@ -126,72 +102,6 @@ func TestHashFile_SizeAloneDoesNotEqualise(t *testing.T) {
 	}
 }
 
-// TestHashWorkers_DrainAndClose verifies that HashWorkers drains every path
-// from the input channel and closes the output channel on completion.
-func TestHashWorkers_DrainAndClose(t *testing.T) {
-	dir := t.TempDir()
-
-	const n = 8
-	paths := make([]string, n)
-	for i := range paths {
-		p := filepath.Join(dir, "track"+string(rune('0'+i))+".flac")
-		writeFile(t, p, []byte("audio content for track"))
-		paths[i] = p
-	}
-
-	in := make(chan string, n)
-	for _, p := range paths {
-		in <- p
-	}
-	close(in)
-
-	var got []HashedFile
-	for hf := range HashWorkers(in) {
-		got = append(got, hf)
-	}
-
-	if len(got) != n {
-		t.Fatalf("expected %d HashedFile values, got %d", n, len(got))
-	}
-	for _, hf := range got {
-		if hf.Hash == "" {
-			t.Errorf("empty hash for path %q", hf.Path)
-		}
-	}
-}
-
-// TestHashWorkers_SkipsErrors verifies that non-existent paths are silently
-// skipped and do not block the pipeline or reduce valid results below the
-// count of files that actually exist.
-func TestHashWorkers_SkipsErrors(t *testing.T) {
-	dir := t.TempDir()
-
-	validPaths := []string{
-		filepath.Join(dir, "a.flac"),
-		filepath.Join(dir, "b.flac"),
-	}
-	for _, p := range validPaths {
-		writeFile(t, p, []byte("real audio"))
-	}
-
-	in := make(chan string, 4)
-	in <- filepath.Join(dir, "does_not_exist.flac")
-	for _, p := range validPaths {
-		in <- p
-	}
-	in <- filepath.Join(dir, "also_missing.flac")
-	close(in)
-
-	var got []HashedFile
-	for hf := range HashWorkers(in) {
-		got = append(got, hf)
-	}
-
-	if len(got) != len(validPaths) {
-		t.Fatalf("expected %d results (valid files only), got %d", len(validPaths), len(got))
-	}
-}
-
 // TestHashFile_LargeFileDifferentSizes verifies that the size suffix
 // distinguishes files that share the same first+last 1 MB bytes but differ in
 // total size (content in the middle).
@@ -205,7 +115,7 @@ func TestHashFile_LargeFileDifferentSizes(t *testing.T) {
 
 	// file1: chunk + middle1 + chunk
 	content1 := append(append(append([]byte{}, chunk...), middle1...), chunk...)
-	// file2: chunk + middle2 + chunk  (same boundaries, different size)
+	// file2: chunk + middle2 + chunk (same boundaries, different size)
 	content2 := append(append(append([]byte{}, chunk...), middle2...), chunk...)
 
 	p1 := filepath.Join(dir, "e.flac")
@@ -322,7 +232,7 @@ func TestHashFile_BoundaryFullVsPartialDistinct(t *testing.T) {
 }
 
 // TestHashFile_SmallFileSingleByteMutation verifies that files under 2 MB use
-// full-file hashing: mutating any single byte — at the start, middle, or end —
+// full-file hashing: mutating any single byte -- at the start, middle, or end --
 // must produce a different hash than the baseline.
 //
 // The middle-byte position (partialThreshold/2) is the critical case: a
@@ -366,7 +276,7 @@ func TestHashFile_SmallFileSingleByteMutation(t *testing.T) {
 				t.Fatalf("HashFile(mutated %s): %v", pos.name, err)
 			}
 			if h == hBase {
-				t.Errorf("mutating %s (index %d) did not change the hash — full-file hashing not in effect", pos.name, pos.idx)
+				t.Errorf("mutating %s (index %d) did not change the hash -- full-file hashing not in effect", pos.name, pos.idx)
 			}
 		})
 	}
@@ -397,49 +307,15 @@ func TestHashFile_NonExistentFile(t *testing.T) {
 	}
 }
 
-// TestHashWorkers_ManyFiles verifies that HashWorkers correctly processes a
-// larger batch of files concurrently and closes the output channel afterwards.
-func TestHashWorkers_ManyFiles(t *testing.T) {
-	dir := t.TempDir()
-
-	const n = 50
-	in := make(chan string, n)
-	expected := make(map[string]struct{}, n)
-	for i := range n {
-		p := filepath.Join(dir, "track_many_"+string(rune('A'+i%26))+string(rune('0'+i/26))+".flac")
-		writeFile(t, p, makeBytes(1024+i, byte(i)))
-		in <- p
-		expected[p] = struct{}{}
-	}
-	close(in)
-
-	seen := make(map[string]struct{}, n)
-	for hf := range HashWorkers(in) {
-		if hf.Hash == "" {
-			t.Errorf("empty hash for %q", hf.Path)
-		}
-		seen[hf.Path] = struct{}{}
-	}
-
-	if len(seen) != n {
-		t.Fatalf("expected %d results, got %d", n, len(seen))
-	}
-	for p := range expected {
-		if _, ok := seen[p]; !ok {
-			t.Errorf("path %q missing from HashWorkers output", p)
-		}
-	}
-}
-
 // TestHashFile_MiddleMutationPreservesHash verifies the core partial-hash
 // contract: mutating only the middle bytes of a >= 2 MB file leaves the hash
 // unchanged, while mutating the first or last 1 MB changes it.
 //
 // File layout (3 MB total):
 //
-//	[0x00, chunkSize)       — first chunk  (0xAA)
-//	[chunkSize, 2*chunkSize) — middle chunk (0x00 baseline / 0xFF mutated)
-//	[2*chunkSize, 3*chunkSize) — last chunk  (0xBB)
+//	[0x00, chunkSize)         - first chunk  (0xAA)
+//	[chunkSize, 2*chunkSize)  - middle chunk (0x00 baseline / 0xFF mutated)
+//	[2*chunkSize, 3*chunkSize) - last chunk  (0xBB)
 func TestHashFile_MiddleMutationPreservesHash(t *testing.T) {
 	dir := t.TempDir()
 
@@ -499,82 +375,5 @@ func TestHashFile_MiddleMutationPreservesHash(t *testing.T) {
 	// Last-chunk mutation MUST change the hash.
 	if hBase == hLast {
 		t.Errorf("last-chunk mutation did not change hash: %q", hBase)
-	}
-}
-
-// TestHashWorkers_OutputClosedOnEmptyInput verifies that HashWorkers closes
-// the output channel immediately when the input channel is empty and closed.
-func TestHashWorkers_OutputClosedOnEmptyInput(t *testing.T) {
-	in := make(chan string)
-	close(in)
-
-	count := 0
-	for range HashWorkers(in) {
-		count++
-	}
-	if count != 0 {
-		t.Fatalf("expected 0 results for empty input, got %d", count)
-	}
-}
-
-// TestHashWorkers_WorkerCountEqualsNumCPU verifies that hashWorkersN launches
-// exactly n goroutines running concurrently. Each injected hashFn signals a
-// "ready" channel before blocking on a gate channel. The test drains the ready
-// channel n times (ensuring all n workers are simultaneously at the gate),
-// then closes the gate to release them. An atomic peak counter tracks the
-// maximum observed concurrency.
-func TestHashWorkers_WorkerCountEqualsNumCPU(t *testing.T) {
-	n := runtime.NumCPU()
-
-	// ready is signalled by each worker once it has incremented the active
-	// counter and is about to block. This lets the test know all n workers
-	// are concurrently in-flight before releasing the gate.
-	ready := make(chan struct{}, n)
-	// gate blocks each worker until all are ready.
-	gate := make(chan struct{})
-
-	var active atomic.Int64
-	var peak atomic.Int64
-
-	hashFn := func(_ string) (string, error) {
-		cur := active.Add(1)
-		// Update peak via a compare-and-swap loop.
-		for {
-			old := peak.Load()
-			if cur <= old {
-				break
-			}
-			if peak.CompareAndSwap(old, cur) {
-				break
-			}
-		}
-		ready <- struct{}{} // signal: this worker is at the gate
-		<-gate              // wait for release
-		active.Add(-1)
-		return "fakehash", nil
-	}
-
-	// Feed exactly n paths so every worker gets exactly one job.
-	in := make(chan string, n)
-	for i := range n {
-		in <- fmt.Sprintf("fakepath_%d", i)
-	}
-	close(in)
-
-	out := hashWorkersN(n, in, hashFn)
-
-	// Wait until all n workers have signalled ready (all are at the gate).
-	for range n {
-		<-ready
-	}
-	// Release all workers simultaneously.
-	close(gate)
-
-	// Drain output to let all goroutines finish.
-	for range out {
-	}
-
-	if got := int(peak.Load()); got != n {
-		t.Fatalf("peak concurrent workers = %d, want %d (runtime.NumCPU())", got, n)
 	}
 }
