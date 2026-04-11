@@ -292,90 +292,12 @@ func validate(raw rawConfig) (Config, []string) {
 		cfg.MPVExtraFlags = []string{}
 	}
 
-	if raw.DefaultVolume != nil {
-		v := *raw.DefaultVolume
-		if v >= 0 && v <= 100 {
-			cfg.DefaultVolume = v
-		} else {
-			slog.Warn("invalid config value, using default",
-				"field", "default_volume",
-				"value", v,
-				"default", defaultVolume,
-			)
-			warnings = append(warnings, fmt.Sprintf("default_volume %d is out of range (0-100), using %d", v, defaultVolume))
-		}
-	}
-	// nil means omitted — keep the default silently.
-
-	if raw.VolumeIncrement != nil {
-		v := *raw.VolumeIncrement
-		if v >= 1 && v <= 25 {
-			cfg.VolumeIncrement = v
-		} else {
-			slog.Warn("invalid config value, using default",
-				"field", "volume_increment",
-				"value", v,
-				"default", defaultVolumeIncrement,
-			)
-			warnings = append(warnings, fmt.Sprintf("volume_increment %d is out of range (1-25), using %d", v, defaultVolumeIncrement))
-		}
-	}
-
-	if raw.SeekOffsetShort != nil {
-		v := *raw.SeekOffsetShort
-		if v >= 1.0 && v <= 60.0 {
-			cfg.SeekOffsetShort = v
-		} else {
-			slog.Warn("invalid config value, using default",
-				"field", "seek_offset_short",
-				"value", v,
-				"default", defaultSeekOffsetShort,
-			)
-			warnings = append(warnings, fmt.Sprintf("seek_offset_short %.1f is out of range (1-60), using %.1f", v, defaultSeekOffsetShort))
-		}
-	}
-
-	if raw.SeekOffsetLong != nil {
-		v := *raw.SeekOffsetLong
-		if v >= 5.0 && v <= 300.0 {
-			cfg.SeekOffsetLong = v
-		} else {
-			slog.Warn("invalid config value, using default",
-				"field", "seek_offset_long",
-				"value", v,
-				"default", defaultSeekOffsetLong,
-			)
-			warnings = append(warnings, fmt.Sprintf("seek_offset_long %.1f is out of range (5-300), using %.1f", v, defaultSeekOffsetLong))
-		}
-	}
-
-	if raw.TransientDurationSecs != nil {
-		v := *raw.TransientDurationSecs
-		if v >= 1 && v <= 30 {
-			cfg.TransientDurationSecs = v
-		} else {
-			slog.Warn("invalid config value, using default",
-				"field", "transient_duration_secs",
-				"value", v,
-				"default", defaultTransientDurationSecs,
-			)
-			warnings = append(warnings, fmt.Sprintf("transient_duration_secs %d is out of range (1-30), using %d", v, defaultTransientDurationSecs))
-		}
-	}
-
-	if raw.VolumeFeedbackDurationSecs != nil {
-		v := *raw.VolumeFeedbackDurationSecs
-		if v >= 1 && v <= 10 {
-			cfg.VolumeFeedbackDurationSecs = v
-		} else {
-			slog.Warn("invalid config value, using default",
-				"field", "volume_feedback_duration_secs",
-				"value", v,
-				"default", defaultVolumeFeedbackDurationSecs,
-			)
-			warnings = append(warnings, fmt.Sprintf("volume_feedback_duration_secs %d is out of range (1-10), using %d", v, defaultVolumeFeedbackDurationSecs))
-		}
-	}
+	validateIntRange(raw.DefaultVolume, 0, 100, "default_volume", defaultVolume, &cfg.DefaultVolume, &warnings)
+	validateIntRange(raw.VolumeIncrement, 1, 25, "volume_increment", defaultVolumeIncrement, &cfg.VolumeIncrement, &warnings)
+	validateFloatRange(raw.SeekOffsetShort, 1, 60, "seek_offset_short", defaultSeekOffsetShort, &cfg.SeekOffsetShort, &warnings)
+	validateFloatRange(raw.SeekOffsetLong, 5, 300, "seek_offset_long", defaultSeekOffsetLong, &cfg.SeekOffsetLong, &warnings)
+	validateIntRange(raw.TransientDurationSecs, 1, 30, "transient_duration_secs", defaultTransientDurationSecs, &cfg.TransientDurationSecs, &warnings)
+	validateIntRange(raw.VolumeFeedbackDurationSecs, 1, 10, "volume_feedback_duration_secs", defaultVolumeFeedbackDurationSecs, &cfg.VolumeFeedbackDurationSecs, &warnings)
 
 	if raw.NormalizeVolume != nil {
 		cfg.NormalizeVolume = *raw.NormalizeVolume
@@ -461,21 +383,40 @@ func validate(raw rawConfig) (Config, []string) {
 	if raw.StereoWideEnabled != nil {
 		cfg.StereoWideEnabled = *raw.StereoWideEnabled
 	}
-	if raw.StereoWideAmount != nil {
-		v := *raw.StereoWideAmount
-		if v >= 0 && v <= 40 {
-			cfg.StereoWideAmount = v
-		} else {
-			slog.Warn("invalid config value, using default",
-				"field", "stereo_wide_amount",
-				"value", v,
-				"default", defaultStereoWideAmount,
-			)
-			warnings = append(warnings, fmt.Sprintf("stereo_wide_amount %d is out of range (0-40), using %d", v, defaultStereoWideAmount))
-		}
-	}
+	validateIntRange(raw.StereoWideAmount, 0, 40, "stereo_wide_amount", defaultStereoWideAmount, &cfg.StereoWideAmount, &warnings)
 
 	return cfg, warnings
+}
+
+// validateIntRange checks an optional int pointer against [lo, hi].
+// When the value is in range it is written to *dst; when out of range a
+// warning is logged and appended to *warnings; when ptr is nil the default
+// is kept silently.
+func validateIntRange(ptr *int, lo, hi int, field string, dflt int, dst *int, warnings *[]string) {
+	if ptr == nil {
+		return
+	}
+	v := *ptr
+	if v >= lo && v <= hi {
+		*dst = v
+		return
+	}
+	slog.Warn("invalid config value, using default", "field", field, "value", v, "default", dflt)
+	*warnings = append(*warnings, fmt.Sprintf("%s %d is out of range (%d-%d), using %d", field, v, lo, hi, dflt))
+}
+
+// validateFloatRange is the float64 analogue of validateIntRange.
+func validateFloatRange(ptr *float64, lo, hi float64, field string, dflt float64, dst *float64, warnings *[]string) {
+	if ptr == nil {
+		return
+	}
+	v := *ptr
+	if v >= lo && v <= hi {
+		*dst = v
+		return
+	}
+	slog.Warn("invalid config value, using default", "field", field, "value", v, "default", dflt)
+	*warnings = append(*warnings, fmt.Sprintf("%s %.1f is out of range (%.0f-%.0f), using %.1f", field, v, lo, hi, dflt))
 }
 
 // Save writes cfg to path as TOML, replacing any existing file.
