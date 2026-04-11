@@ -21,11 +21,7 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 
 	switch m.activeView {
 	case viewLibrary:
-		if len(m.library.selectedHashes) > 0 {
-			hashes := make([]string, 0, len(m.library.selectedHashes))
-			for h := range m.library.selectedHashes {
-				hashes = append(hashes, h)
-			}
+		if hashes := hashMapToSlice(m.library.selectedHashes); len(hashes) > 0 {
 			m.library.selectedHashes = nil
 			return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
 		}
@@ -34,11 +30,7 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 		}
 
 	case viewRecentlyAdded:
-		if len(m.recentlyAdded.selectedHashes) > 0 {
-			hashes := make([]string, 0, len(m.recentlyAdded.selectedHashes))
-			for h := range m.recentlyAdded.selectedHashes {
-				hashes = append(hashes, h)
-			}
+		if hashes := hashMapToSlice(m.recentlyAdded.selectedHashes); len(hashes) > 0 {
 			m.recentlyAdded.selectedHashes = nil
 			return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
 		}
@@ -112,11 +104,7 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 				return m, m.toggleFavoriteSingle(reader, writer, "artist", name), true
 			}
 		case gentui.TrackLevel:
-			if len(m.genres.selectedHashes) > 0 {
-				hashes := make([]string, 0, len(m.genres.selectedHashes))
-				for h := range m.genres.selectedHashes {
-					hashes = append(hashes, h)
-				}
+			if hashes := hashMapToSlice(m.genres.selectedHashes); len(hashes) > 0 {
 				m.genres.selectedHashes = nil
 				return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
 			}

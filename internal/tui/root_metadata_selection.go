@@ -15,32 +15,11 @@ import (
 func (m Model) bulkSelectedHashes() []string {
 	switch m.activeView {
 	case viewLibrary:
-		if len(m.library.selectedHashes) == 0 {
-			return nil
-		}
-		hashes := make([]string, 0, len(m.library.selectedHashes))
-		for h := range m.library.selectedHashes {
-			hashes = append(hashes, h)
-		}
-		return hashes
+		return hashMapToSlice(m.library.selectedHashes)
 	case viewRecentlyAdded:
-		if len(m.recentlyAdded.selectedHashes) == 0 {
-			return nil
-		}
-		hashes := make([]string, 0, len(m.recentlyAdded.selectedHashes))
-		for h := range m.recentlyAdded.selectedHashes {
-			hashes = append(hashes, h)
-		}
-		return hashes
+		return hashMapToSlice(m.recentlyAdded.selectedHashes)
 	case viewHistory:
-		if len(m.history.selectedHashes) == 0 {
-			return nil
-		}
-		hashes := make([]string, 0, len(m.history.selectedHashes))
-		for h := range m.history.selectedHashes {
-			hashes = append(hashes, h)
-		}
-		return hashes
+		return hashMapToSlice(m.history.selectedHashes)
 	case viewQueue:
 		return m.queue.selectedHashes()
 	case viewPlaylists:
@@ -55,23 +34,9 @@ func (m Model) bulkSelectedHashes() []string {
 		}
 		return hashes
 	case viewArtists:
-		if len(m.artists.selectedHashes) == 0 {
-			return nil
-		}
-		hashes := make([]string, 0, len(m.artists.selectedHashes))
-		for h := range m.artists.selectedHashes {
-			hashes = append(hashes, h)
-		}
-		return hashes
+		return hashMapToSlice(m.artists.selectedHashes)
 	case viewAlbums:
-		if len(m.albums.selectedHashes) == 0 {
-			return nil
-		}
-		hashes := make([]string, 0, len(m.albums.selectedHashes))
-		for h := range m.albums.selectedHashes {
-			hashes = append(hashes, h)
-		}
-		return hashes
+		return hashMapToSlice(m.albums.selectedHashes)
 	case viewFavorites:
 		if len(m.favorites.selectedItems) == 0 {
 			return nil
@@ -96,14 +61,7 @@ func (m Model) bulkSelectedHashes() []string {
 		}
 		return hashes
 	case viewGenres:
-		if len(m.genres.selectedHashes) == 0 {
-			return nil
-		}
-		hashes := make([]string, 0, len(m.genres.selectedHashes))
-		for h := range m.genres.selectedHashes {
-			hashes = append(hashes, h)
-		}
-		return hashes
+		return hashMapToSlice(m.genres.selectedHashes)
 	default:
 		return nil
 	}
