@@ -173,6 +173,19 @@ func (v LibraryView) ToggleBulkSelection(hash string) LibraryView {
 	return v
 }
 
+// ClearFilter deactivates the filter bar, resets cursor/scroll, and rebuilds
+// the filter cache. It is a no-op when no filter text is active.
+func (v LibraryView) ClearFilter() LibraryView {
+	if v.filter.Text == "" {
+		return v
+	}
+	v.filter = v.filter.Deactivate()
+	v.cursor = 0
+	v.scrollOffset = 0
+	v = v.rebuildFilterCache()
+	return v
+}
+
 // ClearSelection removes all bulk-selection markers.
 func (v LibraryView) ClearSelection() LibraryView {
 	v.selectedHashes = nil

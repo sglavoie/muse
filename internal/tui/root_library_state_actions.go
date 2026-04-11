@@ -61,13 +61,9 @@ func (m Model) handleLibraryStateAction(action action) (tea.Model, tea.Cmd, bool
 	case actionLibraryFilterClear:
 		switch m.activeView {
 		case viewLibrary:
-			if m.library.filter.Text != "" {
-				m.clearLibraryFilter()
-			}
+			m.library = m.library.ClearFilter()
 		case viewRecentlyAdded:
-			if m.recentlyAdded.filter.Text != "" {
-				m.clearRecentlyAddedFilter()
-			}
+			m.recentlyAdded = m.recentlyAdded.ClearFilter()
 		case viewQueue:
 			if m.queue.filter.Text != "" {
 				m.queue.filter = m.queue.filter.Deactivate()
@@ -79,25 +75,4 @@ func (m Model) handleLibraryStateAction(action action) (tea.Model, tea.Cmd, bool
 	default:
 		return m, nil, false
 	}
-}
-
-func (m *Model) clearLibraryFilter() {
-	m.library.filter = m.library.filter.Deactivate()
-	m.library.cursor = 0
-	m.library.scrollOffset = 0
-	m.library = m.library.rebuildFilterCache()
-}
-
-func (m *Model) clearRecentlyAddedFilter() {
-	m.recentlyAdded.filter = m.recentlyAdded.filter.Deactivate()
-	m.recentlyAdded.cursor = 0
-	m.recentlyAdded.scrollOffset = 0
-	m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
-}
-
-func (m *Model) clearHistoryFilter() {
-	m.history.filter = m.history.filter.Deactivate()
-	m.history.cursor = 0
-	m.history.scrollOffset = 0
-	m.history = m.history.rebuildFilterCache()
 }
