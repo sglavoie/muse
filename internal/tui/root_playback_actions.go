@@ -141,67 +141,17 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		}
 		return m, nil, true
 	case actionSeekBack:
-		if cp, ok := m.player.(commandPlayer); ok {
-			if err := cp.SeekRelative(-m.cfg.SeekOffsetShort); err != nil {
-				slog.Warn("seek failed", "err", err)
-			}
-			return m, m.sessionPositionCmd(), true
-		}
-		return m, nil, true
+		return m.handleSeek(-m.cfg.SeekOffsetShort)
 	case actionSeekForward:
-		if cp, ok := m.player.(commandPlayer); ok {
-			if err := cp.SeekRelative(m.cfg.SeekOffsetShort); err != nil {
-				slog.Warn("seek failed", "err", err)
-			}
-			return m, m.sessionPositionCmd(), true
-		}
-		return m, nil, true
+		return m.handleSeek(m.cfg.SeekOffsetShort)
 	case actionSeekBackLong:
-		if cp, ok := m.player.(commandPlayer); ok {
-			if err := cp.SeekRelative(-m.cfg.SeekOffsetLong); err != nil {
-				slog.Warn("seek failed", "err", err)
-			}
-			return m, m.sessionPositionCmd(), true
-		}
-		return m, nil, true
+		return m.handleSeek(-m.cfg.SeekOffsetLong)
 	case actionSeekForwardLong:
-		if cp, ok := m.player.(commandPlayer); ok {
-			if err := cp.SeekRelative(m.cfg.SeekOffsetLong); err != nil {
-				slog.Warn("seek failed", "err", err)
-			}
-			return m, m.sessionPositionCmd(), true
-		}
-		return m, nil, true
+		return m.handleSeek(m.cfg.SeekOffsetLong)
 	case actionVolumeUp:
-		if cp, ok := m.player.(commandPlayer); ok {
-			if err := cp.SetVolumeRelative(float64(m.cfg.VolumeIncrement)); err != nil {
-				slog.Warn("volume up failed", "err", err)
-			} else {
-				m.playback.volume = clampVolume(m.playback.volume + m.cfg.VolumeIncrement)
-				if m.sessionWriter != nil {
-					if err := m.sessionWriter.WriteVolume(m.playback.volume); err != nil {
-						slog.Warn("write volume failed", "err", err)
-					}
-				}
-			}
-			m.statusBar.notification = newNotificationFor(fmt.Sprintf("Volume: %d%%", m.playback.volume), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second)
-		}
-		return m, nil, true
+		return m.handleVolume(1)
 	case actionVolumeDown:
-		if cp, ok := m.player.(commandPlayer); ok {
-			if err := cp.SetVolumeRelative(-float64(m.cfg.VolumeIncrement)); err != nil {
-				slog.Warn("volume down failed", "err", err)
-			} else {
-				m.playback.volume = clampVolume(m.playback.volume - m.cfg.VolumeIncrement)
-				if m.sessionWriter != nil {
-					if err := m.sessionWriter.WriteVolume(m.playback.volume); err != nil {
-						slog.Warn("write volume failed", "err", err)
-					}
-				}
-			}
-			m.statusBar.notification = newNotificationFor(fmt.Sprintf("Volume: %d%%", m.playback.volume), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second)
-		}
-		return m, nil, true
+		return m.handleVolume(-1)
 	case actionRepeatCycle:
 		switch m.playback.repeatMode {
 		case RepeatOff:
@@ -258,4 +208,34 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		return m, nil, true
 	}
 	return m, nil, false
+}
+
+func (m Model) handleSeek(seconds float64) (tea.Model, tea.Cmd, bool) {
+	if cp, ok := m.player.(commandPlayer); ok {
+		if err := cp.SeekRelative(seconds); err != nil {
+			slog.Warn("seek failed", "err", err)
+		}
+		return m, m.sessionPositionCmd(), true
+	}
+	return m, nil, true
+}
+
+func (m Model) handleVolume(sign int) (tea.Model, tea.Cmd, bool) {
+	cp, ok := m.player.(commandPlayer)
+	if !ok {
+		return m, nil, true
+	}
+	delta := sign * m.cfg.VolumeIncrement
+	if err := cp.SetVolumeRelative(float64(delta)); err != nil {
+		slog.Warn("volume change failed", "err", err)
+	} else {
+		m.playback.volume = clampVolume(m.playback.volume + delta)
+		if m.sessionWriter != nil {
+			if err := m.sessionWriter.WriteVolume(m.playback.volume); err != nil {
+				slog.Warn("write volume failed", "err", err)
+			}
+		}
+	}
+	m.statusBar.notification = newNotificationFor(fmt.Sprintf("Volume: %d%%", m.playback.volume), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second)
+	return m, nil, true
 }
