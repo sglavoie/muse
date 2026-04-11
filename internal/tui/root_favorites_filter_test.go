@@ -251,9 +251,9 @@ func TestFavoritesSortDirChangeClearsSelection(t *testing.T) {
 	m.favorites.sortState = SortState{Field: SortTitle, Dir: SortAsc}
 	m.favorites.selectedItems = map[int]struct{}{1: {}}
 
-	result, _, handled := m.handleSortAsc()
+	result, _, handled := m.handleSortDir(SortAsc)
 	if !handled {
-		t.Fatal("handleSortAsc should handle favorites view with active sort")
+		t.Fatal("handleSortDir(SortAsc) should handle favorites view with active sort")
 	}
 	rm := result.(Model)
 	if rm.favorites.selectedItems != nil {
@@ -261,9 +261,9 @@ func TestFavoritesSortDirChangeClearsSelection(t *testing.T) {
 	}
 
 	rm.favorites.selectedItems = map[int]struct{}{0: {}}
-	result2, _, handled2 := rm.handleSortDesc()
+	result2, _, handled2 := rm.handleSortDir(SortDesc)
 	if !handled2 {
-		t.Fatal("handleSortDesc should handle favorites view with active sort")
+		t.Fatal("handleSortDir(SortDesc) should handle favorites view with active sort")
 	}
 	rm2 := result2.(Model)
 	if rm2.favorites.selectedItems != nil {

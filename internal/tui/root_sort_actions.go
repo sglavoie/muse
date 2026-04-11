@@ -18,10 +18,10 @@ func (m Model) handleSortAction(a action) (tea.Model, tea.Cmd, bool) {
 		return m.handleSortCycle()
 	case actionSortAsc:
 		m = exitVisualMode(m)
-		return m.handleSortAsc()
+		return m.handleSortDir(SortAsc)
 	case actionSortDesc:
 		m = exitVisualMode(m)
-		return m.handleSortDesc()
+		return m.handleSortDir(SortDesc)
 	default:
 		return m, nil, false
 	}
@@ -174,9 +174,9 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 	}
 }
 
-// handleSortAsc sets the sort direction to ascending for the active view.
-// The focused item is preserved at its new position after re-sort.
-func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
+// handleSortDir sets the sort direction for the active view, preserving the
+// focused item at its new position after re-sort.
+func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 	switch m.activeView {
 	case viewLibrary:
 		if m.library.sortState.Field == SortDefault {
@@ -186,7 +186,7 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 		if t, ok := m.library.view().FocusedTrack(); ok {
 			focusedHash = t.Hash
 		}
-		m.library.sortState.Dir = SortAsc
+		m.library.sortState.Dir = dir
 		m.library = m.library.recomputeSortedTracks()
 		if m.library.filter.Text != "" {
 			m.library = m.library.rebuildFilterCache()
@@ -204,7 +204,7 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 		if t, ok := m.recentlyAdded.view().FocusedTrack(); ok {
 			focusedHash = t.Hash
 		}
-		m.recentlyAdded.sortState.Dir = SortAsc
+		m.recentlyAdded.sortState.Dir = dir
 		m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
 		if m.recentlyAdded.filter.Text != "" {
 			m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
@@ -222,7 +222,7 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 		if t, ok := m.history.view().FocusedTrack(); ok {
 			focusedHash = t.Hash
 		}
-		m.history.sortState.Dir = SortAsc
+		m.history.sortState.Dir = dir
 		m.history = m.history.recomputeSortedTracks()
 		if m.history.filter.Text != "" {
 			m.history = m.history.rebuildFilterCache()
@@ -237,7 +237,7 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 			return m, nil, false
 		}
 		prevEntryIdx := m.queue.entryIndex(m.queue.cursor)
-		m.queue.sortState.Dir = SortAsc
+		m.queue.sortState.Dir = dir
 		m.queue = m.queue.recomputeDisplayOrder()
 		m.queue.cursor = m.queue.findEntryDisplayPosition(prevEntryIdx)
 		m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, m.queue.visibleRows())
@@ -248,7 +248,7 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 		if m.playlists.sortState.Field == SortDefault {
 			return m, nil, false
 		}
-		m = m.preservePlaylistCursorOnDirChange(SortAsc)
+		m = m.preservePlaylistCursorOnDirChange(dir)
 		m.statusBar.notification = newNotification(sortNotification(m.playlists.sortState))
 		return m, nil, true
 
@@ -256,7 +256,7 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 		if m.artists.sortState.Field == SortDefault {
 			return m, nil, false
 		}
-		m = m.preserveArtistsCursorOnDirChange(SortAsc)
+		m = m.preserveArtistsCursorOnDirChange(dir)
 		m.statusBar.notification = newNotification(sortNotification(m.artists.sortState))
 		return m, nil, true
 
@@ -264,7 +264,7 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 		if m.albums.sortState.Field == SortDefault {
 			return m, nil, false
 		}
-		m = m.preserveAlbumsCursorOnDirChange(SortAsc)
+		m = m.preserveAlbumsCursorOnDirChange(dir)
 		m.statusBar.notification = newNotification(sortNotification(m.albums.sortState))
 		return m, nil, true
 
@@ -272,7 +272,7 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 		if m.favorites.sortState.Field == SortDefault {
 			return m, nil, false
 		}
-		m = m.preserveFavoritesCursorOnDirChange(SortAsc)
+		m = m.preserveFavoritesCursorOnDirChange(dir)
 		m.statusBar.notification = newNotification(sortNotification(m.favorites.sortState))
 		return m, nil, true
 
@@ -280,122 +280,7 @@ func (m Model) handleSortAsc() (tea.Model, tea.Cmd, bool) {
 		if m.genres.sortState.Field == SortDefault {
 			return m, nil, false
 		}
-		m = m.preserveGenresCursorOnDirChange(SortAsc)
-		m.statusBar.notification = newNotification(sortNotification(m.genres.sortState))
-		return m, nil, true
-
-	default:
-		return m, nil, false
-	}
-}
-
-// handleSortDesc sets the sort direction to descending for the active view.
-// The focused item is preserved at its new position after re-sort.
-func (m Model) handleSortDesc() (tea.Model, tea.Cmd, bool) {
-	switch m.activeView {
-	case viewLibrary:
-		if m.library.sortState.Field == SortDefault {
-			return m, nil, false
-		}
-		var focusedHash string
-		if t, ok := m.library.view().FocusedTrack(); ok {
-			focusedHash = t.Hash
-		}
-		m.library.sortState.Dir = SortDesc
-		m.library = m.library.recomputeSortedTracks()
-		if m.library.filter.Text != "" {
-			m.library = m.library.rebuildFilterCache()
-		}
-		m.library.cursor = m.library.findTrackPosition(focusedHash)
-		m.library.scrollOffset = adjustScroll(m.library.cursor, m.library.scrollOffset, layout.VisibleRows(m.library.height, 1))
-		m.statusBar.notification = newNotification(sortNotification(m.library.sortState))
-		return m, nil, true
-
-	case viewRecentlyAdded:
-		if m.recentlyAdded.sortState.Field == SortDefault {
-			return m, nil, false
-		}
-		var focusedHash string
-		if t, ok := m.recentlyAdded.view().FocusedTrack(); ok {
-			focusedHash = t.Hash
-		}
-		m.recentlyAdded.sortState.Dir = SortDesc
-		m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
-		if m.recentlyAdded.filter.Text != "" {
-			m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
-		}
-		m.recentlyAdded.cursor = m.recentlyAdded.findTrackPosition(focusedHash)
-		m.recentlyAdded.scrollOffset = adjustScroll(m.recentlyAdded.cursor, m.recentlyAdded.scrollOffset, layout.VisibleRows(m.recentlyAdded.height, 1))
-		m.statusBar.notification = newNotification(sortNotification(m.recentlyAdded.sortState))
-		return m, nil, true
-
-	case viewHistory:
-		if m.history.sortState.Field == SortDefault {
-			return m, nil, false
-		}
-		var focusedHash string
-		if t, ok := m.history.view().FocusedTrack(); ok {
-			focusedHash = t.Hash
-		}
-		m.history.sortState.Dir = SortDesc
-		m.history = m.history.recomputeSortedTracks()
-		if m.history.filter.Text != "" {
-			m.history = m.history.rebuildFilterCache()
-		}
-		m.history.cursor = m.history.findTrackPosition(focusedHash)
-		m.history.scrollOffset = adjustScroll(m.history.cursor, m.history.scrollOffset, layout.VisibleRows(m.history.height, 1))
-		m.statusBar.notification = newNotification(sortNotification(m.history.sortState))
-		return m, nil, true
-
-	case viewQueue:
-		if m.queue.sortState.Field == SortDefault {
-			return m, nil, false
-		}
-		prevEntryIdx := m.queue.entryIndex(m.queue.cursor)
-		m.queue.sortState.Dir = SortDesc
-		m.queue = m.queue.recomputeDisplayOrder()
-		m.queue.cursor = m.queue.findEntryDisplayPosition(prevEntryIdx)
-		m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, m.queue.visibleRows())
-		m.statusBar.notification = newNotification(sortNotification(m.queue.sortState))
-		return m, nil, true
-
-	case viewPlaylists:
-		if m.playlists.sortState.Field == SortDefault {
-			return m, nil, false
-		}
-		m = m.preservePlaylistCursorOnDirChange(SortDesc)
-		m.statusBar.notification = newNotification(sortNotification(m.playlists.sortState))
-		return m, nil, true
-
-	case viewArtists:
-		if m.artists.sortState.Field == SortDefault {
-			return m, nil, false
-		}
-		m = m.preserveArtistsCursorOnDirChange(SortDesc)
-		m.statusBar.notification = newNotification(sortNotification(m.artists.sortState))
-		return m, nil, true
-
-	case viewAlbums:
-		if m.albums.sortState.Field == SortDefault {
-			return m, nil, false
-		}
-		m = m.preserveAlbumsCursorOnDirChange(SortDesc)
-		m.statusBar.notification = newNotification(sortNotification(m.albums.sortState))
-		return m, nil, true
-
-	case viewFavorites:
-		if m.favorites.sortState.Field == SortDefault {
-			return m, nil, false
-		}
-		m = m.preserveFavoritesCursorOnDirChange(SortDesc)
-		m.statusBar.notification = newNotification(sortNotification(m.favorites.sortState))
-		return m, nil, true
-
-	case viewGenres:
-		if m.genres.sortState.Field == SortDefault {
-			return m, nil, false
-		}
-		m = m.preserveGenresCursorOnDirChange(SortDesc)
+		m = m.preserveGenresCursorOnDirChange(dir)
 		m.statusBar.notification = newNotification(sortNotification(m.genres.sortState))
 		return m, nil, true
 
