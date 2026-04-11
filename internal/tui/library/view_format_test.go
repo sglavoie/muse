@@ -57,34 +57,6 @@ func TestFormatDurationNegative(t *testing.T) {
 	}
 }
 
-func TestFormatCountSmall(t *testing.T) {
-	got := formatCount(42)
-	if got != "42" {
-		t.Errorf("formatCount(42): expected 42, got %s", got)
-	}
-}
-
-func TestFormatCountThousands(t *testing.T) {
-	got := formatCount(1234)
-	if got != "1,234" {
-		t.Errorf("formatCount(1234): expected 1,234, got %s", got)
-	}
-}
-
-func TestFormatCountMillions(t *testing.T) {
-	got := formatCount(1234567)
-	if got != "1,234,567" {
-		t.Errorf("formatCount(1234567): expected 1,234,567, got %s", got)
-	}
-}
-
-func TestFormatCountExactlyThousand(t *testing.T) {
-	got := formatCount(1000)
-	if got != "1,000" {
-		t.Errorf("formatCount(1000): expected 1,000, got %s", got)
-	}
-}
-
 func TestPadZeroWidth(t *testing.T) {
 	got := text.Pad("hello", 0)
 	if got != "" {

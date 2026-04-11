@@ -2,6 +2,7 @@ package player
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 )
@@ -231,7 +232,7 @@ func TestManager_Next_NotStarted(t *testing.T) {
 	defer m.Close()
 
 	err := m.Next()
-	if err != ErrNotConnected {
+	if !errors.Is(err, ErrNotConnected) {
 		t.Errorf("Next before Start: want ErrNotConnected, got %v", err)
 	}
 }
@@ -244,7 +245,7 @@ func TestManager_Previous_NotStarted(t *testing.T) {
 	defer m.Close()
 
 	err := m.Previous()
-	if err != ErrNotConnected {
+	if !errors.Is(err, ErrNotConnected) {
 		t.Errorf("Previous before Start: want ErrNotConnected, got %v", err)
 	}
 }

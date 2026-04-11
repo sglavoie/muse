@@ -413,42 +413,19 @@ func (v PlaylistsView) focusedTrack() (musiclib.Track, bool) {
 	}, true
 }
 
-// enqueueFocusedTrack returns a tea.Cmd that appends the focused track to the
-// play queue via qa. prevQueueLen is used to set WasEmpty on the returned
-// TrackEnqueuedMsg so the root model can trigger immediate playback when needed.
-// Returns nil when the view is not at TrackLevel or no track is focused.
-// The source playlist name is carried through to the DB and TrackEnqueuedMsg.
 func (v PlaylistsView) enqueueFocusedTrack(qa libtui.QueueAppender, prevQueueLen int) tea.Cmd {
 	track, ok := v.focusedTrack()
-	if !ok {
-		return nil
-	}
-	// Determine the source playlist name from the saved list cursor.
-	var playlistName string
-	if v.listCursor >= 0 && v.listCursor < len(v.playlists) {
-		playlistName = v.playlists[v.listCursor].Name
-	}
-	wasEmpty := prevQueueLen == 0
-	return func() tea.Msg {
-		id, err := qa.AppendTrack(track, playlistName)
-		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, SourcePlaylist: playlistName, InsertAfter: -1}
-	}
+	return libtui.EnqueueTrackCmd(track, ok, qa, prevQueueLen, v.sourcePlaylistName(), -1)
 }
 
-// playNextFocusedTrack dispatches a tea.Cmd that inserts the focused track
-// right after the currently playing track via the InsertAfter field.
 func (v PlaylistsView) playNextFocusedTrack(qa libtui.QueueAppender, prevQueueLen, insertAfter int) tea.Cmd {
 	track, ok := v.focusedTrack()
-	if !ok {
-		return nil
-	}
-	var playlistName string
+	return libtui.EnqueueTrackCmd(track, ok, qa, prevQueueLen, v.sourcePlaylistName(), insertAfter)
+}
+
+func (v PlaylistsView) sourcePlaylistName() string {
 	if v.listCursor >= 0 && v.listCursor < len(v.playlists) {
-		playlistName = v.playlists[v.listCursor].Name
+		return v.playlists[v.listCursor].Name
 	}
-	wasEmpty := prevQueueLen == 0
-	return func() tea.Msg {
-		id, err := qa.AppendTrack(track, playlistName)
-		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, SourcePlaylist: playlistName, InsertAfter: insertAfter}
-	}
+	return ""
 }

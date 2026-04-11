@@ -25,25 +25,6 @@ func TestFormatQueueDuration(t *testing.T) {
 	}
 }
 
-func TestFormatDurationSecs(t *testing.T) {
-	cases := []struct {
-		secs float64
-		want string
-	}{
-		{0, "--:--"},
-		{-5, "--:--"},
-		{65, "1:05"},
-		{185, "3:05"},
-		{3661, "1:01:01"},
-	}
-	for _, tc := range cases {
-		got := FormatDurationSecs(tc.secs)
-		if got != tc.want {
-			t.Errorf("FormatDurationSecs(%v) = %q, want %q", tc.secs, got, tc.want)
-		}
-	}
-}
-
 func TestQueueMoveQueueCursorEmpty(t *testing.T) {
 	q := QueueView{cursor: 0}
 	q2 := q.moveQueueCursor(5)

@@ -1,6 +1,25 @@
 package library
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+	musiclib "github.com/sglavoie/muse/internal/library"
+)
+
+// EnqueueTrackCmd builds a tea.Cmd that appends track to the play queue.
+// Returns nil when ok is false (no focused track). sourcePlaylist identifies
+// the playlist the track was enqueued from; pass "" for non-playlist views.
+// insertAfter controls positional insertion: -1 appends, >= 0 inserts after
+// that queue index.
+func EnqueueTrackCmd(track musiclib.Track, ok bool, qa QueueAppender, prevQueueLen int, sourcePlaylist string, insertAfter int) tea.Cmd {
+	if !ok {
+		return nil
+	}
+	wasEmpty := prevQueueLen == 0
+	return func() tea.Msg {
+		id, err := qa.AppendTrack(track, sourcePlaylist)
+		return TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, SourcePlaylist: sourcePlaylist, InsertAfter: insertAfter}
+	}
+}
 
 // EnqueueFocused dispatches a tea.Cmd that appends the focused track to the
 // play queue via qa. prevQueueLen is the number of entries in the queue before
@@ -9,14 +28,7 @@ import tea "charm.land/bubbletea/v2"
 // library is empty or the cursor is out of range.
 func (v View) EnqueueFocused(qa QueueAppender, prevQueueLen int) (View, tea.Cmd) {
 	track, ok := v.FocusedTrack()
-	if !ok {
-		return v, nil
-	}
-	wasEmpty := prevQueueLen == 0
-	return v, func() tea.Msg {
-		id, err := qa.AppendTrack(track, "")
-		return TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, InsertAfter: -1}
-	}
+	return v, EnqueueTrackCmd(track, ok, qa, prevQueueLen, "", -1)
 }
 
 // PlayNextFocused dispatches a tea.Cmd that inserts the focused track into the
@@ -25,12 +37,5 @@ func (v View) EnqueueFocused(qa QueueAppender, prevQueueLen int) (View, tea.Cmd)
 // positional insertion via the InsertAfter field on TrackEnqueuedMsg.
 func (v View) PlayNextFocused(qa QueueAppender, prevQueueLen int, insertAfter int) (View, tea.Cmd) {
 	track, ok := v.FocusedTrack()
-	if !ok {
-		return v, nil
-	}
-	wasEmpty := prevQueueLen == 0
-	return v, func() tea.Msg {
-		id, err := qa.AppendTrack(track, "")
-		return TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, InsertAfter: insertAfter}
-	}
+	return v, EnqueueTrackCmd(track, ok, qa, prevQueueLen, "", insertAfter)
 }

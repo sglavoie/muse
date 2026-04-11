@@ -13,11 +13,6 @@ type FilterQuery struct {
 	Genre   string
 }
 
-// IsEmpty reports whether all filter fields are empty.
-func (fq FilterQuery) IsEmpty() bool {
-	return fq.General == "" && fq.Artist == "" && fq.Title == "" && fq.Album == "" && fq.Genre == ""
-}
-
 // IsFieldSpecific reports whether at least one of Artist, Title, Album, or Genre is set.
 func (fq FilterQuery) IsFieldSpecific() bool {
 	return fq.Artist != "" || fq.Title != "" || fq.Album != "" || fq.Genre != ""

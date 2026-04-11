@@ -225,30 +225,12 @@ func (v AlbumsView) focusedTrack() (musiclib.Track, bool) {
 	return items[v.cursor], true
 }
 
-// enqueueFocusedTrack returns a tea.Cmd that appends the focused track to the
-// play queue via qa. Returns nil when no track is focused.
 func (v AlbumsView) enqueueFocusedTrack(qa libtui.QueueAppender, prevQueueLen int) tea.Cmd {
 	track, ok := v.focusedTrack()
-	if !ok {
-		return nil
-	}
-	wasEmpty := prevQueueLen == 0
-	return func() tea.Msg {
-		id, err := qa.AppendTrack(track, "")
-		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, InsertAfter: -1}
-	}
+	return libtui.EnqueueTrackCmd(track, ok, qa, prevQueueLen, "", -1)
 }
 
-// playNextFocusedTrack dispatches a tea.Cmd that inserts the focused track
-// right after the currently playing track via the InsertAfter field.
 func (v AlbumsView) playNextFocusedTrack(qa libtui.QueueAppender, prevQueueLen, insertAfter int) tea.Cmd {
 	track, ok := v.focusedTrack()
-	if !ok {
-		return nil
-	}
-	wasEmpty := prevQueueLen == 0
-	return func() tea.Msg {
-		id, err := qa.AppendTrack(track, "")
-		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, InsertAfter: insertAfter}
-	}
+	return libtui.EnqueueTrackCmd(track, ok, qa, prevQueueLen, "", insertAfter)
 }

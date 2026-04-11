@@ -238,18 +238,9 @@ func (v TagsView) focusedTrackAsLibTrack() (musiclib.Track, bool) {
 	}, true
 }
 
-// enqueueFocusedTrack returns a tea.Cmd that appends the focused track to the
-// play queue. Returns nil when not at TrackLevel or no track is focused.
 func (v TagsView) enqueueFocusedTrack(qa libtui.QueueAppender, prevQueueLen int) tea.Cmd {
 	track, ok := v.focusedTrackAsLibTrack()
-	if !ok {
-		return nil
-	}
-	wasEmpty := prevQueueLen == 0
-	return func() tea.Msg {
-		id, err := qa.AppendTrack(track, "")
-		return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, InsertAfter: -1}
-	}
+	return libtui.EnqueueTrackCmd(track, ok, qa, prevQueueLen, "", -1)
 }
 
 // isCreating reports whether the inline create input is active.

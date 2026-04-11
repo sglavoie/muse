@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // render builds the queue panel string using a 6-column layout:
@@ -200,7 +201,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, favHashes, f
 // formatQueueDuration converts a duration in milliseconds to a "m:ss" or
 // "h:mm:ss" string. Returns "--:--" when ms is zero or negative.
 func formatQueueDuration(ms int64) string {
-	return FormatDurationMs(ms)
+	return text.FormatDurationMs(ms)
 }
 
 // padQueue truncates or right-pads s with spaces to exactly width display columns.

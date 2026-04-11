@@ -120,21 +120,6 @@ func TestParseFilterQuery(t *testing.T) {
 	}
 }
 
-func TestFilterQuery_IsEmpty(t *testing.T) {
-	if !(FilterQuery{}).IsEmpty() {
-		t.Error("zero FilterQuery should be empty")
-	}
-	if (FilterQuery{General: "x"}).IsEmpty() {
-		t.Error("FilterQuery with General should not be empty")
-	}
-	if (FilterQuery{Artist: "x"}).IsEmpty() {
-		t.Error("FilterQuery with Artist should not be empty")
-	}
-	if (FilterQuery{Genre: "x"}).IsEmpty() {
-		t.Error("FilterQuery with Genre should not be empty")
-	}
-}
-
 func TestFilterQuery_IsFieldSpecific(t *testing.T) {
 	if (FilterQuery{General: "x"}).IsFieldSpecific() {
 		t.Error("General-only query should not be field-specific")

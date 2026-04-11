@@ -272,20 +272,3 @@ func formatPlayedAt(ts int64) string {
 	}
 	return time.Unix(ts, 0).Local().Format("2006-01-02 15:04")
 }
-
-// formatCount formats n with comma separators (e.g. 1234 -> "1,234").
-func formatCount(n int) string {
-	s := fmt.Sprintf("%d", n)
-	if len(s) <= 3 {
-		return s
-	}
-	offset := len(s) % 3
-	var result []byte
-	for i := range len(s) {
-		if i > 0 && (i-offset)%3 == 0 {
-			result = append(result, ',')
-		}
-		result = append(result, s[i])
-	}
-	return string(result)
-}
