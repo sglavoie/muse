@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
@@ -123,32 +124,11 @@ func updateVisualSelection(m Model) Model {
 func visualListLen(m Model) int {
 	switch m.visual.view {
 	case viewLibrary:
-		v := m.library
-		if v.filter.Text != "" && v.filteredMatches != nil {
-			return len(v.filteredMatches)
-		}
-		if v.sortedTracks != nil {
-			return len(v.sortedTracks)
-		}
-		return len(v.baseTracks())
+		return m.library.trackCount()
 	case viewRecentlyAdded:
-		v := m.recentlyAdded
-		if v.filter.Text != "" && v.filteredMatches != nil {
-			return len(v.filteredMatches)
-		}
-		if v.sortedTracks != nil {
-			return len(v.sortedTracks)
-		}
-		return len(v.baseTracks())
+		return m.recentlyAdded.trackCount()
 	case viewHistory:
-		v := m.history
-		if v.filter.Text != "" && v.filteredMatches != nil {
-			return len(v.filteredMatches)
-		}
-		if v.sortedTracks != nil {
-			return len(v.sortedTracks)
-		}
-		return len(v.baseTracks())
+		return m.history.trackCount()
 	case viewQueue:
 		return len(m.queue.filteredEntries())
 	case viewPlaylists:
@@ -272,54 +252,15 @@ func selectRange(m Model, lo, hi int) Model {
 		}
 	case viewArtists:
 		if m.artists.level == arttui.TrackLevel {
-			tracks := arttui.FilterTracks(m.artists.tracks, m.artists.filter.Text)
-			for i := lo; i <= hi; i++ {
-				if i < 0 || i >= len(tracks) {
-					continue
-				}
-				hash := tracks[i].Hash
-				if hash == "" {
-					continue
-				}
-				if m.artists.selectedHashes == nil {
-					m.artists.selectedHashes = make(map[string]struct{})
-				}
-				m.artists.selectedHashes[hash] = struct{}{}
-			}
+			m.artists.selectedHashes = hashSelectRange(m.artists.selectedHashes, m.artists.tracks, m.artists.filter.Text, lo, hi)
 		}
 	case viewAlbums:
 		if m.albums.level == albtui.TrackLevel {
-			tracks := arttui.FilterTracks(m.albums.tracks, m.albums.filter.Text)
-			for i := lo; i <= hi; i++ {
-				if i < 0 || i >= len(tracks) {
-					continue
-				}
-				hash := tracks[i].Hash
-				if hash == "" {
-					continue
-				}
-				if m.albums.selectedHashes == nil {
-					m.albums.selectedHashes = make(map[string]struct{})
-				}
-				m.albums.selectedHashes[hash] = struct{}{}
-			}
+			m.albums.selectedHashes = hashSelectRange(m.albums.selectedHashes, m.albums.tracks, m.albums.filter.Text, lo, hi)
 		}
 	case viewGenres:
 		if m.genres.level == gentui.TrackLevel {
-			tracks := arttui.FilterTracks(m.genres.tracks, m.genres.filter.Text)
-			for i := lo; i <= hi; i++ {
-				if i < 0 || i >= len(tracks) {
-					continue
-				}
-				hash := tracks[i].Hash
-				if hash == "" {
-					continue
-				}
-				if m.genres.selectedHashes == nil {
-					m.genres.selectedHashes = make(map[string]struct{})
-				}
-				m.genres.selectedHashes[hash] = struct{}{}
-			}
+			m.genres.selectedHashes = hashSelectRange(m.genres.selectedHashes, m.genres.tracks, m.genres.filter.Text, lo, hi)
 		}
 	case viewFavorites:
 		if m.favorites.level != favtui.CategoryLevel {
@@ -366,6 +307,26 @@ func libSelectRange(v LibraryView, lo, hi int) LibraryView {
 		v.selectedHashes[hash] = struct{}{}
 	}
 	return v
+}
+
+// hashSelectRange selects track hashes at display indices [lo, hi] from
+// filtered tracks, returning the updated selection map.
+func hashSelectRange(sel map[string]struct{}, tracks []library.Track, filterText string, lo, hi int) map[string]struct{} {
+	filtered := arttui.FilterTracks(tracks, filterText)
+	for i := lo; i <= hi; i++ {
+		if i < 0 || i >= len(filtered) {
+			continue
+		}
+		hash := filtered[i].Hash
+		if hash == "" {
+			continue
+		}
+		if sel == nil {
+			sel = make(map[string]struct{})
+		}
+		sel[hash] = struct{}{}
+	}
+	return sel
 }
 
 // cloneStringSet returns a deep copy of a map[string]struct{}, or nil if empty.
