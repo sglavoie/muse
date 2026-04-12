@@ -30,11 +30,29 @@ func (m Model) resetQueueSort() Model {
 	return m
 }
 
+// preserveQueueSort recomputes displayOrder if a sort is active, otherwise
+// leaves the queue in insertion-order mode.
+func (m Model) preserveQueueSort() Model {
+	if m.queue.sortState.Field != SortDefault {
+		m.queue = m.queue.recomputeDisplayOrder()
+	}
+	return m
+}
+
 // resetPlaylistsSort clears the playlists sort state and sorted caches.
 func (m Model) resetPlaylistsSort() Model {
 	m.playlists.sortState = SortState{}
 	m.playlists.sortedPlaylists = nil
 	m.playlists.sortedTrackOrder = nil
+	return m
+}
+
+// preservePlaylistsSort recomputes playlist sort caches if a sort is active,
+// otherwise leaves the view in default order.
+func (m Model) preservePlaylistsSort() Model {
+	if m.playlists.sortState.Field != SortDefault {
+		m.playlists = m.playlists.recomputePlaylistSort()
+	}
 	return m
 }
 

@@ -10,7 +10,7 @@ import (
 // background count evaluation so the list shows actual track counts.
 func (m Model) handleSmartPlaylistCreatedMsg(msg smartPlaylistCreatedMsg) (Model, tea.Cmd) {
 	m.playlists.playlists = msg.playlists
-	m = m.resetPlaylistsSort()
+	m = m.preservePlaylistsSort()
 	for i, p := range msg.playlists {
 		if p.ID == msg.id {
 			m.playlists.cursor = i
@@ -26,7 +26,7 @@ func (m Model) handleSmartPlaylistCreatedMsg(msg smartPlaylistCreatedMsg) (Model
 // query is edited and triggers a background count evaluation.
 func (m Model) handleSmartPlaylistEditedMsg(msg smartPlaylistEditedMsg) (Model, tea.Cmd) {
 	m.playlists.playlists = msg.playlists
-	m = m.resetPlaylistsSort()
+	m = m.preservePlaylistsSort()
 	m.playlists = m.playlists.ensureCursorVisible()
 	m.statusBar.notification = newNotification("Smart playlist updated")
 	return m, evalSmartPlaylistCountsCmd(msg.playlists, m.smartEval)

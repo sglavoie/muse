@@ -45,7 +45,7 @@ func (m Model) handlePlaylistRenameMsg() Model {
 // and repositions the cursor on the renamed playlist.
 func (m Model) handlePlaylistRenamedMsg(msg playlistRenamedMsg) Model {
 	m.playlists.playlists = msg.playlists
-	m = m.resetPlaylistsSort()
+	m = m.preservePlaylistsSort()
 	m.playlists = m.playlists.cancelRename()
 	for i, p := range msg.playlists {
 		if p.ID == msg.id {
@@ -79,7 +79,7 @@ func (m Model) handlePlaylistCreateMsg() Model {
 // tracks from the destination picker.
 func (m Model) handlePlaylistCreatedMsg(msg playlistCreatedMsg) (Model, tea.Cmd) {
 	m.playlists.playlists = msg.playlists
-	m = m.resetPlaylistsSort()
+	m = m.preservePlaylistsSort()
 	m.playlists = m.playlists.cancelCreate()
 	for i, p := range msg.playlists {
 		if p.ID == msg.id {
@@ -136,7 +136,7 @@ func (m Model) handlePlaylistCreateErrorMsg(msg playlistCreateErrorMsg) Model {
 func (m Model) handleQueueSavedAsPlaylistMsg(msg queueSavedAsPlaylistMsg) Model {
 	m.queue = m.queue.cancelSaveAsPlaylist()
 	m.playlists.playlists = msg.playlists
-	m = m.resetPlaylistsSort()
+	m = m.preservePlaylistsSort()
 	source := "queue"
 	if msg.fromSelection {
 		source = "selection"
@@ -167,7 +167,7 @@ func (m Model) handlePlaylistAddErrorMsg(msg playlistAddErrorMsg) Model {
 func (m Model) handleTracksAddedToPlaylistMsg(msg tracksAddedToPlaylistMsg) Model {
 	if msg.playlists != nil {
 		m.playlists.playlists = msg.playlists
-		m = m.resetPlaylistsSort()
+		m = m.preservePlaylistsSort()
 	}
 	m.statusBar.notification = newNotification(fmt.Sprintf("%d %s added to %s", msg.count, pluralize(msg.count, "track", "tracks"), msg.playlistName))
 	player.PlaySound(player.SoundEnqueued)

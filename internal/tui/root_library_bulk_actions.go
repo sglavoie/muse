@@ -241,7 +241,7 @@ func (m *Model) handlePlaylistBulkRemove() bool {
 			}
 		}
 		m.playlists.tracks = remaining
-		*m = m.resetPlaylistsSort()
+		*m = m.preservePlaylistsSort()
 		m.playlists.cursor, m.playlists.scrollOffset = clampAfterRemoval(
 			m.playlists.cursor, m.playlists.scrollOffset, len(m.playlists.tracks))
 		m.playlists.selectedTrackIDs = nil

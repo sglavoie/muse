@@ -54,7 +54,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 			appender.AppendToQueue(queueTrackFromEntry(entry))
 		}
 	}
-	m = m.resetQueueSort()
+	m = m.preserveQueueSort()
 	m.setUndoSlot(undoEnqueueAction{
 		id:    msg.QueueID,
 		entry: m.queue.entries[enqueueIdx],
@@ -81,7 +81,7 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 	}
 	batchStartIdx := len(m.queue.entries)
 	m.queue.entries = append(m.queue.entries, msg.Entries...)
-	m = m.resetQueueSort()
+	m = m.preserveQueueSort()
 	if appender, ok := m.player.(playerQueueAppender); ok {
 		for _, entry := range msg.Entries {
 			appender.AppendToQueue(queueTrackFromEntry(entry))
@@ -173,7 +173,7 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 		slog.Debug("track dequeued", "hash", entry.Hash, "position", msg.Index)
 		player.PlaySound(player.SoundRemoved)
 		m.queue.entries = append(m.queue.entries[:msg.Index], m.queue.entries[msg.Index+1:]...)
-		m = m.resetQueueSort()
+		m = m.preserveQueueSort()
 		m.clampQueueCursorAndScroll()
 		if remover, ok := m.player.(playerQueueRemover); ok {
 			_ = remover.RemoveFromQueue(msg.Index) // player queue sync is best-effort, TUI is source of truth
@@ -345,7 +345,7 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 	newEntries = append(newEntries, msg.Entries...)
 	newEntries = append(newEntries, m.queue.entries[insertPos:]...)
 	m.queue.entries = newEntries
-	m = m.resetQueueSort()
+	m = m.preserveQueueSort()
 	if m.playback.currentIndex >= 0 && insertPos <= m.playback.currentIndex {
 		m.playback.currentIndex += len(msg.Entries)
 	}
@@ -435,7 +435,7 @@ func (m Model) handleQueueDedupMsg() (Model, tea.Cmd) {
 	}
 
 	m.queue.entries = keep
-	m = m.resetQueueSort()
+	m = m.preserveQueueSort()
 	m.clampQueueCursorAndScroll()
 	m.syncPlayerQueue()
 	m.adjustPlaybackIndexAfterRemovals(removedIndices)

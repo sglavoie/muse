@@ -75,7 +75,7 @@ func (m Model) handleSelectedQueueDequeueAction() (tea.Model, tea.Cmd, bool) {
 		}
 	}
 	m.queue.entries = remaining
-	m = m.resetQueueSort()
+	m = m.preserveQueueSort()
 	m.clampQueueCursorAndScroll()
 	m.syncPlayerQueue()
 	m.adjustPlaybackIndexAfterRemovals(removedIndices)

@@ -51,7 +51,7 @@ func (m Model) handlePlaylistDelete() (Model, tea.Cmd) {
 		m.setUndoSlot(undoDeletePlaylistAction{entry: entry, idx: canonicalIdx}, cancel)
 		player.PlaySound(player.SoundRemoved)
 		m.playlists.playlists = append(m.playlists.playlists[:canonicalIdx], m.playlists.playlists[canonicalIdx+1:]...)
-		m = m.resetPlaylistsSort()
+		m = m.preservePlaylistsSort()
 		m.playlists.cursor, m.playlists.scrollOffset = clampAfterRemoval(
 			m.playlists.cursor, m.playlists.scrollOffset, len(m.playlists.playlists))
 	} else {
@@ -93,7 +93,7 @@ func (m Model) handlePlaylistDelete() (Model, tea.Cmd) {
 				}
 			}
 			m.playlists.tracks = remaining
-			m = m.resetPlaylistsSort()
+			m = m.preservePlaylistsSort()
 			m.playlists.cursor, m.playlists.scrollOffset = clampAfterRemoval(
 				m.playlists.cursor, m.playlists.scrollOffset, len(m.playlists.tracks))
 			m.playlists = m.playlists.clearTrackSelection()
@@ -130,7 +130,7 @@ func (m Model) handlePlaylistDelete() (Model, tea.Cmd) {
 		m.setUndoSlot(undoRemovePlaylistTrackAction{entry: entry, idx: idx}, cancel)
 		player.PlaySound(player.SoundRemoved)
 		m.playlists.tracks = append(m.playlists.tracks[:idx], m.playlists.tracks[idx+1:]...)
-		m = m.resetPlaylistsSort()
+		m = m.preservePlaylistsSort()
 		m.playlists.cursor, m.playlists.scrollOffset = clampAfterRemoval(
 			m.playlists.cursor, m.playlists.scrollOffset, len(m.playlists.tracks))
 	}

@@ -274,11 +274,11 @@ func TestBulkActionRemovalResetsSortState(t *testing.T) {
 	if len(nm2.playlists.tracks) != 1 {
 		t.Fatalf("expected 1 track remaining, got %d", len(nm2.playlists.tracks))
 	}
-	if nm2.playlists.sortState.Field != SortDefault {
-		t.Errorf("expected sort field reset to SortDefault, got %v", nm2.playlists.sortState.Field)
+	if nm2.playlists.sortState.Field != SortTitle {
+		t.Errorf("expected sort field preserved as SortTitle, got %v", nm2.playlists.sortState.Field)
 	}
-	if nm2.playlists.sortedTrackOrder != nil {
-		t.Error("expected sortedTrackOrder to be nil after bulk removal with sort active")
+	if nm2.playlists.sortedTrackOrder == nil {
+		t.Error("expected sortedTrackOrder to be recomputed after bulk removal with sort active")
 	}
 }
 
