@@ -94,6 +94,16 @@ func (p *PreviewPlayer) Start() error {
 	return fmt.Errorf("preview: timed out waiting for mpv socket at %s", p.socketPath)
 }
 
+// SetAudioFilter sets the af (audio filter) property on the preview mpv
+// instance. Use "lavfi=[loudnorm]" to enable EBU R128 normalization.
+func (p *PreviewPlayer) SetAudioFilter(filter string) error {
+	if p.client == nil {
+		return ErrNotConnected
+	}
+	_, err := p.client.SendCommand(cmdSetProperty, propAF, filter)
+	return err
+}
+
 // LoadAndPlay loads a file and starts playback immediately.
 func (p *PreviewPlayer) LoadAndPlay(path string) error {
 	if p.client == nil {

@@ -137,11 +137,17 @@ func (m Model) startPreviewCmd(track library.Track) tea.Cmd {
 	ctx := m.appCtx
 	runtimeDir := m.runtimeDir
 	tagsLine := m.buildTagsLine(track.Hash)
+	normalize := m.cfg.NormalizeVolume
 	return func() tea.Msg {
 		socketPath := filepath.Join(runtimeDir, "muse-preview.sock")
 		pp := player.NewPreviewPlayer(ctx, socketPath)
 		if err := pp.Start(); err != nil {
 			return previewStartErrorMsg{err: err}
+		}
+		if normalize {
+			if err := pp.SetAudioFilter("lavfi=[loudnorm]"); err != nil {
+				slog.Warn("preview: set normalize", "err", err)
+			}
 		}
 		if err := pp.LoadAndPlay(track.Path); err != nil {
 			_ = pp.Close()

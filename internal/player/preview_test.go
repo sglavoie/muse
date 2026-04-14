@@ -96,6 +96,38 @@ func TestPreviewPlayer_SeekRelative(t *testing.T) {
 	}
 }
 
+func TestPreviewPlayer_SetAudioFilter(t *testing.T) {
+	sock := shortSockPath(t, "preview-af")
+	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
+		cmd, _ := req["command"].([]any)
+		if len(cmd) != 3 || cmd[0] != "set_property" || cmd[1] != "af" || cmd[2] != "lavfi=[loudnorm]" {
+			t.Fatalf("unexpected command: %#v", cmd)
+		}
+		return successHandler(req)
+	})
+
+	p := NewPreviewPlayer(context.Background(), sock)
+	p.launchFn = func(ctx context.Context, socketPath string) (*exec.Cmd, error) {
+		return nil, nil
+	}
+	if err := p.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(func() { p.Close() })
+
+	if err := p.SetAudioFilter("lavfi=[loudnorm]"); err != nil {
+		t.Fatalf("SetAudioFilter: %v", err)
+	}
+}
+
+func TestPreviewPlayer_SetAudioFilter_NotConnected(t *testing.T) {
+	p := NewPreviewPlayer(context.Background(), "/tmp/nonexistent.sock")
+	err := p.SetAudioFilter("lavfi=[loudnorm]")
+	if !errors.Is(err, ErrNotConnected) {
+		t.Fatalf("expected ErrNotConnected, got: %v", err)
+	}
+}
+
 func TestPreviewPlayer_LoadAndPlay_NotConnected(t *testing.T) {
 	p := NewPreviewPlayer(context.Background(), "/tmp/nonexistent.sock")
 	err := p.LoadAndPlay("/tmp/test.mp3")
