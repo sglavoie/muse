@@ -141,8 +141,11 @@ type TagPickerToggleMsg struct {
 }
 
 // TagPickerCreateMsg is dispatched when the user requests a new tag be created.
+// Hashes carries the picker's current target tracks so that the create handler
+// can assign the new tag to them atomically.
 type TagPickerCreateMsg struct {
-	Name string
+	Name   string
+	Hashes []string
 }
 
 // HandleKey processes a key press inside the tag picker.
@@ -186,7 +189,8 @@ func (tp TagPicker) handleToggleOrCreate() (TagPicker, tea.Cmd) {
 		if name == "" {
 			return tp, nil
 		}
-		return tp, func() tea.Msg { return TagPickerCreateMsg{Name: name} }
+		hashes := tp.Hashes()
+		return tp, func() tea.Msg { return TagPickerCreateMsg{Name: name, Hashes: hashes} }
 	}
 
 	item, ok := tp.focusedItem()

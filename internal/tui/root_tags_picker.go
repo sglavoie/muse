@@ -124,13 +124,25 @@ func (m Model) handleTagPickerCreate(msg TagPickerCreateMsg) (Model, tea.Cmd) {
 		return m, nil
 	}
 
+	hashes := msg.Hashes
 	return m, func() tea.Msg {
 		id, err := tw.CreateTag(name, "")
 		if err != nil {
 			slog.Warn("tag picker: create tag failed", "name", name, "err", err)
 			return tagCreatedMsg{err: err}
 		}
-		return tagCreatedMsg{id: id, name: name}
+		if len(hashes) == 1 {
+			if addErr := tw.AddTrackTag(hashes[0], id); addErr != nil {
+				slog.Warn("tag picker: assign created tag failed", "id", id, "err", addErr)
+				return tagCreatedMsg{id: id, name: name, hashes: hashes, err: addErr}
+			}
+		} else if len(hashes) > 1 {
+			if addErr := tw.AddTrackTagBulk(hashes, id); addErr != nil {
+				slog.Warn("tag picker: assign created tag failed (bulk)", "id", id, "err", addErr)
+				return tagCreatedMsg{id: id, name: name, hashes: hashes, err: addErr}
+			}
+		}
+		return tagCreatedMsg{id: id, name: name, hashes: hashes}
 	}
 }
 
@@ -147,6 +159,14 @@ func (m Model) handleTagCreated(msg tagCreatedMsg) (Model, tea.Cmd) {
 		if err == nil {
 			m = m.rebuildTagCache(tags)
 		}
+	}
+
+	if len(msg.hashes) > 0 && msg.id != 0 {
+		m = m.applyTagToggle(msg.id, msg.hashes, true)
+		if m.tagsView.tagCounts == nil {
+			m.tagsView.tagCounts = make(map[int64]int)
+		}
+		m.tagsView.tagCounts[msg.id] = len(msg.hashes)
 	}
 
 	return m.openTagPicker()

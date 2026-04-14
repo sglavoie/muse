@@ -334,11 +334,14 @@ type tagToggledMsg struct {
 }
 
 // tagCreatedMsg is dispatched when a new tag is successfully created from the
-// tag picker's inline "Create" entry. id is the newly-inserted tag ID.
+// tag picker's inline "Create" entry. id is the newly-inserted tag ID. hashes
+// are the track hashes the tag was also assigned to as part of the create
+// (empty when the tag was created standalone from the Tags view).
 type tagCreatedMsg struct {
-	id   int64
-	name string
-	err  error
+	id     int64
+	name   string
+	hashes []string
+	err    error
 }
 
 // tagsRefreshedMsg carries the full tag list and per-track tag map after any
