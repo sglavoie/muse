@@ -8,6 +8,7 @@ build:
 
 # Install muse to $GOPATH/bin
 install:
+    rm -f $GOPATH/bin/muse
     go install .
 
 # Run all tests

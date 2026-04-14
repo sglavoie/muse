@@ -79,7 +79,27 @@ func (m Model) refreshTagsViewAfterCreate(msg tagCreatedMsg) Model {
 			m.tagsView.tags = tags
 		}
 		counts, _ := m.tagReader.ReadTagCounts()
+		if counts == nil {
+			counts = make(map[int64]int)
+		}
 		m.tagsView.tagCounts = counts
+	}
+	// Ensure the new tag appears in the view even if the DB read returned
+	// stale data (WAL snapshot isolation on the read connection).
+	if msg.id != 0 {
+		found := false
+		for _, t := range m.tagsView.tags {
+			if t.ID == msg.id {
+				found = true
+				break
+			}
+		}
+		if !found {
+			m.tagsView.tags = append(m.tagsView.tags, db.TagRow{ID: msg.id, Name: msg.name})
+		}
+		if m.tagsView.tagCounts[msg.id] == 0 && len(msg.hashes) > 0 {
+			m.tagsView.tagCounts[msg.id] = len(msg.hashes)
+		}
 	}
 	return m
 }

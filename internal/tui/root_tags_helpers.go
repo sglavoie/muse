@@ -155,6 +155,16 @@ func (m Model) applyTagToggle(tagID int64, hashes []string, add bool) Model {
 	return m
 }
 
+// hasTag reports whether m.tags already contains a tag with the given ID.
+func (m Model) hasTag(id int64) bool {
+	for _, t := range m.tags {
+		if t.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 // rebuildTagCache replaces the in-memory tag list and lookup maps.
 func (m Model) rebuildTagCache(tags []db.TagRow) Model {
 	m.tags = tags

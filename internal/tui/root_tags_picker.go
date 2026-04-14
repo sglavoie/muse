@@ -161,6 +161,15 @@ func (m Model) handleTagCreated(msg tagCreatedMsg) (Model, tea.Cmd) {
 		}
 	}
 
+	// Ensure the new tag is in m.tags even if the DB read above returned
+	// stale data (WAL snapshot isolation). Without this, syncTagsViewTags
+	// would overwrite the correct m.tagsView.tags on view switch.
+	if msg.id != 0 && !m.hasTag(msg.id) {
+		m.tags = append(m.tags, db.TagRow{ID: msg.id, Name: msg.name})
+		m.tagNames[msg.id] = msg.name
+		m.tagColors[msg.id] = ""
+	}
+
 	if len(msg.hashes) > 0 && msg.id != 0 {
 		m = m.applyTagToggle(msg.id, msg.hashes, true)
 		if m.tagsView.tagCounts == nil {
