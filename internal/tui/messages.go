@@ -28,6 +28,7 @@ const (
 	undoKindAddFavorite                       // single favorite added (any non-Favorites view)
 	undoKindBulkAddFavorites                  // multiple favorites bulk-added (any non-Favorites view)
 	undoKindPaste                             // tracks pasted into queue via ctrl+p
+	undoKindCutPaste                          // tracks moved via cut (ctrl+x) then paste
 	undoKindTagToggle                         // tag assigned to / removed from track(s)
 	undoKindDeleteTag                         // tag soft-deleted from Tags view
 )
@@ -189,7 +190,8 @@ type MoveTrackDownMsg struct {
 // fresh DB IDs and are ready to be spliced into the in-memory queue.
 type QueuePastedMsg struct {
 	Entries   []QueueEntry
-	InsertPos int // position in entries slice to insert at
+	InsertPos int     // position in entries slice to insert at
+	CutIDs    []int64 // original DB IDs to remove (non-nil for cut-paste)
 	Err       error
 }
 

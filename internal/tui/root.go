@@ -193,6 +193,7 @@ type Model struct {
 	undo       undoInfo     // reversible undo slot and pending confirmation flags
 	visual     visualState  // Vim-like visual line selection mode state
 	yankBuffer []QueueEntry // clipboard for queue yank/paste; persists until next yank
+	yankIsCut  bool         // true when the buffer was populated via cut (ctrl+x)
 
 	// missingTrackCount tracks how many queue entries were skipped due to
 	// missing files during the current playback session. Reset when playback

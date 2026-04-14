@@ -246,7 +246,8 @@ func helpSections() []helpSection {
 				{"f", "Focus now-playing track"},
 				{"S", "Save queue as playlist"},
 				{"ctrl+y", "Yank (copy) focused / selected tracks"},
-				{"ctrl+p", "Paste yanked tracks below cursor"},
+				{"ctrl+x", "Cut focused / selected tracks (move on paste)"},
+			{"ctrl+p", "Paste yanked / cut tracks below cursor"},
 			},
 		},
 		{

@@ -362,19 +362,95 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 		m.playback.queueExhausted = false
 	}
 
+	// If this is a cut-paste, remove the original entries.
+	var removedOriginals []QueueEntry
+	var removedOriginalIndices []int
+	if len(msg.CutIDs) > 0 {
+		cutIDSet := make(map[int64]struct{}, len(msg.CutIDs))
+		for _, id := range msg.CutIDs {
+			cutIDSet[id] = struct{}{}
+		}
+		// Freshly pasted entries have new IDs, so they won't match cutIDs.
+		var kept []QueueEntry
+		for i, e := range m.queue.entries {
+			if _, isCut := cutIDSet[e.ID]; isCut {
+				removedOriginals = append(removedOriginals, e)
+				removedOriginalIndices = append(removedOriginalIndices, i)
+				continue
+			}
+			kept = append(kept, e)
+		}
+		m.queue.entries = kept
+		if m.batchEnqueuer != nil {
+			if err := m.batchEnqueuer.DequeueTracksSoft(msg.CutIDs); err != nil {
+				slog.Warn("cut-paste: soft-delete originals failed", "err", err)
+			}
+			if m.undoer != nil {
+				schedulePurge(&m.undo.slot, m.undoer.PurgeDeletedQueueEntries)
+			}
+		}
+		// Adjust playback index for removed originals.
+		if m.playback.currentIndex >= 0 && len(removedOriginalIndices) > 0 {
+			removedBefore := 0
+			removedCurrent := false
+			for _, ri := range removedOriginalIndices {
+				if ri < m.playback.currentIndex {
+					removedBefore++
+				} else if ri == m.playback.currentIndex {
+					removedCurrent = true
+				}
+			}
+			if removedCurrent {
+				m.playback.currentIndex = -1
+			} else {
+				m.playback.currentIndex -= removedBefore
+			}
+		}
+		if qr, ok := m.player.(playerQueueRemover); ok {
+			for i := len(removedOriginalIndices) - 1; i >= 0; i-- {
+				_ = qr.RemoveFromQueue(removedOriginalIndices[i])
+			}
+		}
+		m.syncPlayerQueue()
+		m.yankIsCut = false
+	}
+
 	m.queue.cursor = insertPos + len(msg.Entries) - 1
+	// Adjust cursor for removed entries that were before the cursor.
+	if len(removedOriginalIndices) > 0 {
+		removedBeforeCursor := 0
+		for _, ri := range removedOriginalIndices {
+			if ri < m.queue.cursor+len(removedOriginalIndices) {
+				removedBeforeCursor++
+			}
+		}
+		m.queue.cursor -= removedBeforeCursor
+		if m.queue.cursor < 0 {
+			m.queue.cursor = 0
+		}
+	}
 	maxRows := m.queue.visibleRows()
 	if maxRows > 0 && m.queue.cursor >= m.queue.scrollOffset+maxRows {
 		m.queue.scrollOffset = m.queue.cursor - maxRows + 1
 	}
+	m.clampQueueCursorAndScroll()
 	pastedIDs := make([]int64, len(msg.Entries))
 	for i, entry := range msg.Entries {
 		pastedIDs[i] = entry.ID
 	}
-	m.setUndoSlot(undoPasteAction{
-		ids:   pastedIDs,
-		count: len(msg.Entries),
-	}, nil)
+	if len(msg.CutIDs) > 0 {
+		m.setUndoSlot(undoCutPasteAction{
+			pastedIDs:       pastedIDs,
+			originalEntries: removedOriginals,
+			originalIndices: removedOriginalIndices,
+			count:           len(msg.Entries),
+		}, nil)
+	} else {
+		m.setUndoSlot(undoPasteAction{
+			ids:   pastedIDs,
+			count: len(msg.Entries),
+		}, nil)
+	}
 	player.PlaySound(player.SoundEnqueued)
 	return m
 }

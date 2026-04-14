@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 )
 
@@ -307,5 +308,109 @@ func (a undoPasteAction) perform(m Model) (Model, tea.Cmd) {
 	}
 	n := a.count
 	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: removed %d pasted %s", n, pluralize(n, "track", "tracks")))
+	return m, nil
+}
+
+// undoCutPasteAction reverts a cut-paste by removing the pasted copies and
+// re-inserting the originals at their previous positions.
+type undoCutPasteAction struct {
+	pastedIDs       []int64      // fresh DB IDs of pasted copies to remove
+	originalEntries []QueueEntry // cut entries to restore
+	originalIndices []int        // their original queue positions (before the cut)
+	count           int
+}
+
+func (a undoCutPasteAction) kind() undoKind { return undoKindCutPaste }
+
+func (a undoCutPasteAction) description() string {
+	return fmt.Sprintf("Moved %d %s — press u to undo", a.count, pluralize(a.count, "track", "tracks"))
+}
+
+func (a undoCutPasteAction) perform(m Model) (Model, tea.Cmd) {
+	// 1. Remove the pasted copies (same logic as undoPasteAction).
+	if m.batchEnqueuer != nil {
+		if err := m.batchEnqueuer.DequeueTracksSoft(a.pastedIDs); err != nil {
+			slog.Warn("undo cut-paste: soft-delete pasted failed", "err", err)
+		}
+		if m.undoer != nil {
+			schedulePurge(&m.undo.slot, m.undoer.PurgeDeletedQueueEntries)
+		}
+	}
+	pastedIDSet := make(map[int64]struct{}, len(a.pastedIDs))
+	for _, id := range a.pastedIDs {
+		pastedIDSet[id] = struct{}{}
+	}
+	var kept []QueueEntry
+	var removedPlayerIndices []int
+	for i, e := range m.queue.entries {
+		if _, ok := pastedIDSet[e.ID]; ok {
+			removedPlayerIndices = append(removedPlayerIndices, i)
+		} else {
+			kept = append(kept, e)
+		}
+	}
+	m.queue.entries = kept
+	if m.playback.currentIndex >= 0 {
+		removedBefore := 0
+		removedCurrent := false
+		for _, ri := range removedPlayerIndices {
+			if ri < m.playback.currentIndex {
+				removedBefore++
+			} else if ri == m.playback.currentIndex {
+				removedCurrent = true
+			}
+		}
+		if removedCurrent {
+			m.playback.currentIndex = -1
+		} else {
+			m.playback.currentIndex -= removedBefore
+		}
+	}
+	if qr, ok := m.player.(playerQueueRemover); ok {
+		for i := len(removedPlayerIndices) - 1; i >= 0; i-- {
+			_ = qr.RemoveFromQueue(removedPlayerIndices[i])
+		}
+	}
+
+	// 2. Re-insert the originals at their saved positions.
+	// Insert in ascending index order to keep positions correct.
+	for i, idx := range a.originalIndices {
+		pos := idx
+		if pos > len(m.queue.entries) {
+			pos = len(m.queue.entries)
+		}
+		entry := a.originalEntries[i]
+		// Re-append to DB to get a fresh ID.
+		if m.queueWriter != nil {
+			track := library.Track{
+				Path:     entry.Path,
+				Hash:     entry.Hash,
+				Artist:   entry.Artist,
+				Title:    entry.Title,
+				Album:    entry.Album,
+				Duration: float64(entry.DurationMs) / 1000,
+			}
+			if id, err := m.queueWriter.AppendTrack(track, entry.SourcePlaylist); err == nil {
+				entry.ID = id
+			}
+		}
+		newEntries := make([]QueueEntry, 0, len(m.queue.entries)+1)
+		newEntries = append(newEntries, m.queue.entries[:pos]...)
+		newEntries = append(newEntries, entry)
+		newEntries = append(newEntries, m.queue.entries[pos:]...)
+		m.queue.entries = newEntries
+		// Adjust playback index for the insertion.
+		if m.playback.currentIndex >= 0 && pos <= m.playback.currentIndex {
+			m.playback.currentIndex++
+		}
+	}
+
+	m.clampQueueCursorAndScroll()
+	m.syncPlayerQueue()
+	if len(m.queue.entries) == 0 || (m.playback.currentHash != "" && !queueContainsHash(m.queue.entries, m.playback.currentHash)) {
+		m = m.resetPlaybackState()
+	}
+	n := a.count
+	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: restored %d moved %s", n, pluralize(n, "track", "tracks")))
 	return m, nil
 }

@@ -95,6 +95,7 @@ const (
 	actionFocusNowPlaying     // 'f': jump cursor to the currently playing track
 	actionYank                // ctrl+y: copy focused/selected tracks to yank buffer
 	actionPaste               // ctrl+p: paste yanked tracks below cursor
+	actionCut                 // ctrl+x: cut focused/selected tracks (move on paste)
 
 	// Playlists-local actions.
 	actionPlaylistRename
@@ -261,6 +262,7 @@ func newRegistry() Registry {
 	r.register(contextQueue, "S", actionSaveQueueAsPlaylist)
 	r.register(contextQueue, "f", actionFocusNowPlaying)
 	r.register(contextQueue, "ctrl+y", actionYank)
+	r.register(contextQueue, "ctrl+x", actionCut)
 	r.register(contextQueue, "ctrl+p", actionPaste)
 	r.register(contextQueue, "esc", actionLibraryFilterClear)
 

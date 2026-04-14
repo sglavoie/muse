@@ -89,7 +89,7 @@ func (m Model) handleSelectedQueueDequeueAction() (tea.Model, tea.Cmd, bool) {
 	return m, nil, true
 }
 
-func (m Model) queuePasteCmd(insertPos int, entries []QueueEntry) tea.Cmd {
+func (m Model) queuePasteCmd(insertPos int, entries []QueueEntry, cutIDs []int64) tea.Cmd {
 	writer := m.queueWriter
 	return func() tea.Msg {
 		pastedEntries := make([]QueueEntry, 0, len(entries))
@@ -109,7 +109,7 @@ func (m Model) queuePasteCmd(insertPos int, entries []QueueEntry) tea.Cmd {
 			entry.ID = id
 			pastedEntries = append(pastedEntries, entry)
 		}
-		return QueuePastedMsg{Entries: pastedEntries, InsertPos: insertPos}
+		return QueuePastedMsg{Entries: pastedEntries, InsertPos: insertPos, CutIDs: cutIDs}
 	}
 }
 
@@ -167,8 +167,45 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 			entry := filtered[m.queue.cursor]
 			m.yankBuffer = []QueueEntry{m.queue.entries[entry.origIdx]}
 		}
+		m.yankIsCut = false
+		for i := range m.yankBuffer {
+			m.yankBuffer[i].Selected = false
+		}
+		for i := range m.queue.entries {
+			m.queue.entries[i].Selected = false
+		}
+		m = exitVisualMode(m)
 		if n := len(m.yankBuffer); n > 0 {
 			m.statusBar.notification = newNotification(fmt.Sprintf("Yanked %d track(s)", n))
+		}
+		return m, nil, true
+	case actionCut:
+		filtered := m.queue.filteredEntries()
+		if len(filtered) == 0 {
+			return m, nil, true
+		}
+		if m.queue.hasSelection() {
+			var buffer []QueueEntry
+			for _, entry := range m.queue.entries {
+				if entry.Selected {
+					buffer = append(buffer, entry)
+				}
+			}
+			m.yankBuffer = buffer
+		} else if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
+			entry := filtered[m.queue.cursor]
+			m.yankBuffer = []QueueEntry{m.queue.entries[entry.origIdx]}
+		}
+		m.yankIsCut = true
+		for i := range m.yankBuffer {
+			m.yankBuffer[i].Selected = false
+		}
+		for i := range m.queue.entries {
+			m.queue.entries[i].Selected = false
+		}
+		m = exitVisualMode(m)
+		if n := len(m.yankBuffer); n > 0 {
+			m.statusBar.notification = newNotification(fmt.Sprintf("Cut %d track(s)", n))
 		}
 		return m, nil, true
 	case actionPaste:
@@ -186,7 +223,14 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 		insertPos := min(m.queue.cursor+1, len(m.queue.entries))
 		buffer := make([]QueueEntry, len(m.yankBuffer))
 		copy(buffer, m.yankBuffer)
-		return m, m.queuePasteCmd(insertPos, buffer), true
+		var cutIDs []int64
+		if m.yankIsCut {
+			cutIDs = make([]int64, len(m.yankBuffer))
+			for i, e := range m.yankBuffer {
+				cutIDs[i] = e.ID
+			}
+		}
+		return m, m.queuePasteCmd(insertPos, buffer, cutIDs), true
 	case actionSaveQueueAsPlaylist:
 		if len(m.queue.entries) == 0 {
 			m.statusBar.notification = newNotification("Queue is empty — nothing to save")
