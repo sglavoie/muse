@@ -3,6 +3,7 @@ package tui
 import (
 	"log/slog"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -264,7 +265,8 @@ func (m Model) buildTagsLine(hash string) string {
 }
 
 // purgeEmptyTagsCmd returns a tea.Cmd that soft-deletes any tags with zero
-// non-missing tracks. Runs once at startup to clean up pre-existing orphans.
+// non-missing tracks, then hard-deletes all soft-deleted tags. Runs once at
+// startup to clean up orphans left over from previous sessions.
 func purgeEmptyTagsCmd(tags []db.TagRow, tr tagReader, tw tagWriter) tea.Cmd {
 	if tr == nil || tw == nil || len(tags) == 0 {
 		return nil
@@ -284,6 +286,10 @@ func purgeEmptyTagsCmd(tags []db.TagRow, tr tagReader, tw tagWriter) tea.Cmd {
 					purged = append(purged, t.ID)
 				}
 			}
+		}
+		// Hard-delete all soft-deleted tags (no undo window at startup).
+		if err := tw.PurgeDeletedTags(time.Now().Unix() + 1); err != nil {
+			slog.Warn("startup: hard-delete soft-deleted tags", "err", err)
 		}
 		if len(purged) == 0 {
 			return nil

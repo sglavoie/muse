@@ -64,6 +64,9 @@ func (m Model) handleTagDeleted(msg tagDeletedMsg) Model {
 		m.statusBar.notification = newNotification("Delete tag failed: " + msg.err.Error())
 		return m
 	}
+	if m.tagWriter != nil {
+		schedulePurge(&m.undo.slot, m.tagWriter.PurgeDeletedTags)
+	}
 	m.statusBar.notification = newNotification("Tag deleted — press u to undo")
 	return m
 }

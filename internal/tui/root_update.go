@@ -262,6 +262,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		for _, id := range msg.autoDeletedTagIDs {
 			m = m.removeTagFromCaches(id)
 		}
+		if len(msg.autoDeletedTagIDs) > 0 && m.tagWriter != nil {
+			schedulePurge(&m.undo.slot, m.tagWriter.PurgeDeletedTags)
+		}
 		m.statusBar.notification = newNotification("All tags removed from track")
 
 	case tagsRefreshedMsg:

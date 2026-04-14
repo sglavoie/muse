@@ -506,6 +506,7 @@ func (s *stubTagWriter) RenameTag(_ int64, _ string) error          { return nil
 func (s *stubTagWriter) UpdateTagColor(_ int64, _ string) error     { return nil }
 func (s *stubTagWriter) DeleteTagSoft(_ int64) error                { return nil }
 func (s *stubTagWriter) DeleteTagIfEmpty(_ int64) (bool, error)     { return false, nil }
+func (s *stubTagWriter) PurgeDeletedTags(_ int64) error             { return nil }
 func (s *stubTagWriter) UndoDeleteTag(_ int64) error                { return nil }
 func (s *stubTagWriter) AddTrackTag(hash string, tagID int64) error {
 	s.addTrackCalls = append(s.addTrackCalls, struct{ hash string; tagID int64 }{hash, tagID})
