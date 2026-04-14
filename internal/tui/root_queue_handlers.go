@@ -173,6 +173,10 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 		slog.Debug("track dequeued", "hash", entry.Hash, "position", msg.Index)
 		player.PlaySound(player.SoundRemoved)
 		m.queue.entries = append(m.queue.entries[:msg.Index], m.queue.entries[msg.Index+1:]...)
+		for i := range m.queue.entries {
+			m.queue.entries[i].Selected = false
+		}
+		m = exitVisualMode(m)
 		m = m.preserveQueueSort()
 		m.clampQueueCursorAndScroll()
 		if remover, ok := m.player.(playerQueueRemover); ok {

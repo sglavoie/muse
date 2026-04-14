@@ -753,3 +753,55 @@ func TestCutPasteSecondPasteDuplicates(t *testing.T) {
 		t.Fatalf("expected 5 entries after second paste (duplicate), got %d", len(m.queue.entries))
 	}
 }
+
+// TestUndoCutPasteThenPasteMoves verifies that after cut → paste → undo → paste,
+// the tracks are moved (not duplicated). The undo must restore yankIsCut and
+// update yankBuffer IDs to match the re-inserted originals.
+func TestUndoCutPasteThenPasteMoves(t *testing.T) {
+	qa := &stubQueueAppender{}
+	be := &stubBatchEnqueuer{}
+	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
+	m.activeView = viewQueue
+	m.queue.entries = sampleQueueEntries() // [A=101, B=102, C=103, D=104]
+	m.queue.cursor = 0
+
+	// Cut A.
+	rm, _, _ := m.handleQueueKeyAction(actionCut)
+	m = rm.(Model)
+
+	// Paste after D.
+	m.queue.cursor = 3
+	rm, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	m = rm.(Model)
+	msg := cmd().(QueuePastedMsg)
+	m = m.handleQueuePastedMsg(msg)
+
+	// Undo the cut-paste.
+	next, _ := m.Update(UndoMsg{})
+	m = next.(Model)
+
+	if !m.yankIsCut {
+		t.Fatal("yankIsCut should be restored after undo")
+	}
+	if len(m.queue.entries) != 4 {
+		t.Fatalf("expected 4 entries after undo, got %d", len(m.queue.entries))
+	}
+
+	// Paste again after C — should move, not duplicate.
+	m.queue.cursor = 2
+	rm, cmd, _ = m.handleQueueKeyAction(actionPaste)
+	m = rm.(Model)
+	msg = cmd().(QueuePastedMsg)
+	m = m.handleQueuePastedMsg(msg)
+
+	if len(m.queue.entries) != 4 {
+		t.Fatalf("expected 4 entries after re-paste (move), got %d", len(m.queue.entries))
+	}
+	// A should now be after C: [B, C, A, D].
+	wantOrder := []string{"h2", "h3", "h1", "h4"}
+	for i, want := range wantOrder {
+		if m.queue.entries[i].Hash != want {
+			t.Errorf("entry[%d] hash = %q, want %q", i, m.queue.entries[i].Hash, want)
+		}
+	}
+}

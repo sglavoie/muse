@@ -75,6 +75,7 @@ func (m Model) handleSelectedQueueDequeueAction() (tea.Model, tea.Cmd, bool) {
 		}
 	}
 	m.queue.entries = remaining
+	m = exitVisualMode(m)
 	m = m.preserveQueueSort()
 	m.clampQueueCursorAndScroll()
 	m.syncPlayerQueue()

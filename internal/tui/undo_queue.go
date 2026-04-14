@@ -374,6 +374,7 @@ func (a undoCutPasteAction) perform(m Model) (Model, tea.Cmd) {
 
 	// 2. Re-insert the originals at their saved positions.
 	// Insert in ascending index order to keep positions correct.
+	restoredIDs := make([]int64, len(a.originalEntries))
 	for i, idx := range a.originalIndices {
 		pos := idx
 		if pos > len(m.queue.entries) {
@@ -392,6 +393,7 @@ func (a undoCutPasteAction) perform(m Model) (Model, tea.Cmd) {
 			}
 			if id, err := m.queueWriter.AppendTrack(track, entry.SourcePlaylist); err == nil {
 				entry.ID = id
+				restoredIDs[i] = id
 			}
 		}
 		newEntries := make([]QueueEntry, 0, len(m.queue.entries)+1)
@@ -402,6 +404,14 @@ func (a undoCutPasteAction) perform(m Model) (Model, tea.Cmd) {
 		// Adjust playback index for the insertion.
 		if m.playback.currentIndex >= 0 && pos <= m.playback.currentIndex {
 			m.playback.currentIndex++
+		}
+	}
+
+	// Restore cut state so a subsequent paste moves instead of duplicating.
+	m.yankIsCut = true
+	for i := range m.yankBuffer {
+		if i < len(restoredIDs) && restoredIDs[i] != 0 {
+			m.yankBuffer[i].ID = restoredIDs[i]
 		}
 	}
 
