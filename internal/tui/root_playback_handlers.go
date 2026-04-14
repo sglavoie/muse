@@ -177,6 +177,23 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 		}
 	}
 
+	// If the queue was concurrently extended (e.g. a paste was processed
+	// before this message arrived), resume playback instead of stopping.
+	if !wasStopAfter && m.player != nil && m.playback.currentIndex >= 0 &&
+		m.playback.currentIndex+1 < len(m.queue.entries) {
+		if err := m.player.PlayFromIndex(m.playback.currentIndex + 1); err == nil {
+			m.playback.state = PlaybackPlaying
+			m.playback.elapsedSecs = 0
+			m.playback.totalSecs = 0
+			return m, incrementCmd
+		}
+	}
+
+	// Mark queue as exhausted so a subsequent paste can auto-resume.
+	if !wasStopAfter {
+		m.playback.queueExhausted = true
+	}
+
 	m.playback.state = PlaybackIdle
 	m.playback.elapsedSecs = 0
 	m.playback.totalSecs = 0
@@ -262,6 +279,7 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 
 	m.playback.currentHash = msg.Hash
 	m.playback.currentIndex = msg.Index
+	m.playback.queueExhausted = false
 	m.statusBar.artist = msg.Artist
 	m.statusBar.title = msg.Title
 	source := msg.PlaylistSource

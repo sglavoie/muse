@@ -418,3 +418,62 @@ func TestUndoPasteAdjustsCurrentIndex(t *testing.T) {
 		t.Errorf("expected currentIndex 2 after undo, got %d", m.playback.currentIndex)
 	}
 }
+
+// TestPasteResumesPlaybackWhenQueueExhausted verifies that pasting tracks after
+// the queue was exhausted (PlaybackEndedMsg already processed) auto-resumes
+// playback from the first pasted entry.
+func TestPasteResumesPlaybackWhenQueueExhausted(t *testing.T) {
+	p := &stubPlayerQueueSyncer{}
+	qa := &stubQueueAppender{}
+	m := New(context.Background(), WithPlayer(p), WithQueueWriter(qa))
+	m.activeView = viewQueue
+	m.queue.entries = sampleQueueEntries()[:2] // [A, B]
+	m.queue.cursor = 1                         // cursor on B (last)
+	m.playback.state = PlaybackIdle
+	m.playback.currentIndex = -1
+	m.playback.queueExhausted = true // queue ran out
+
+	m.yankBuffer = []QueueEntry{sampleQueueEntries()[2]} // yank C
+
+	_, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	msg := cmd().(QueuePastedMsg)
+	m = m.handleQueuePastedMsg(msg)
+
+	if m.playback.state != PlaybackPlaying {
+		t.Fatalf("expected PlaybackPlaying after paste with exhausted queue, got %v", m.playback.state)
+	}
+	// Should call PlayFromIndex(2) — the insert position.
+	if len(p.playFromIndexCalls) != 1 || p.playFromIndexCalls[0] != 2 {
+		t.Fatalf("expected PlayFromIndex(2), got calls=%v", p.playFromIndexCalls)
+	}
+	if m.playback.queueExhausted {
+		t.Fatal("queueExhausted should be cleared after auto-resume")
+	}
+}
+
+// TestPasteDoesNotResumeWhenUserStopped verifies that pasting tracks when
+// playback is idle but NOT due to queue exhaustion does not auto-resume.
+func TestPasteDoesNotResumeWhenUserStopped(t *testing.T) {
+	p := &stubPlayerQueueSyncer{}
+	qa := &stubQueueAppender{}
+	m := New(context.Background(), WithPlayer(p), WithQueueWriter(qa))
+	m.activeView = viewQueue
+	m.queue.entries = sampleQueueEntries()[:2]
+	m.queue.cursor = 1
+	m.playback.state = PlaybackIdle
+	m.playback.currentIndex = -1
+	m.playback.queueExhausted = false // user stopped, not exhausted
+
+	m.yankBuffer = []QueueEntry{sampleQueueEntries()[2]}
+
+	_, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	msg := cmd().(QueuePastedMsg)
+	m = m.handleQueuePastedMsg(msg)
+
+	if m.playback.state != PlaybackIdle {
+		t.Fatalf("expected PlaybackIdle (user-stopped), got %v", m.playback.state)
+	}
+	if len(p.playFromIndexCalls) != 0 {
+		t.Fatalf("expected no PlayFromIndex calls, got %v", p.playFromIndexCalls)
+	}
+}

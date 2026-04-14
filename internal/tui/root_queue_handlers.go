@@ -350,6 +350,18 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 		m.playback.currentIndex += len(msg.Entries)
 	}
 	m.syncPlayerQueue()
+
+	// If the queue was exhausted and we just pasted tracks, resume playback
+	// from the first pasted entry.
+	if m.playback.queueExhausted && m.playback.state == PlaybackIdle && m.player != nil {
+		if err := m.player.PlayFromIndex(insertPos); err == nil {
+			m.playback.state = PlaybackPlaying
+			m.playback.elapsedSecs = 0
+			m.playback.totalSecs = 0
+		}
+		m.playback.queueExhausted = false
+	}
+
 	m.queue.cursor = insertPos + len(msg.Entries) - 1
 	maxRows := m.queue.visibleRows()
 	if maxRows > 0 && m.queue.cursor >= m.queue.scrollOffset+maxRows {
