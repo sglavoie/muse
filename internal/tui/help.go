@@ -389,12 +389,13 @@ func (h HelpOverlay) render(s styles.Styles, sections []helpSection, title strin
 		descCol := 2 + maxKeyLen + 2
 
 		for _, e := range sec.entries {
+			styledKey := s.HelpKey.Render(fmt.Sprintf("%-*s", maxKeyLen, e.key))
 			if width > 0 && descCol+len(e.desc) > width {
 				descWidth := max(width-descCol, 1)
 				wrapped := wrapText(e.desc, descWidth, descCol)
-				fmt.Fprintf(&b, "  %-*s  %s\n", maxKeyLen, e.key, wrapped)
+				fmt.Fprintf(&b, "  %s  %s\n", styledKey, s.Dim.Render(wrapped))
 			} else {
-				fmt.Fprintf(&b, "  %-*s  %s\n", maxKeyLen, e.key, e.desc)
+				fmt.Fprintf(&b, "  %s  %s\n", styledKey, s.Dim.Render(e.desc))
 			}
 		}
 		b.WriteString("\n")

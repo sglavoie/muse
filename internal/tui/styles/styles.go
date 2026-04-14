@@ -27,6 +27,7 @@ type Styles struct {
 	StatusNotification      lipgloss.Style // notification badge: amber on contrasting bg
 	StatusNotificationError lipgloss.Style // error notification: red on contrasting bg
 	Badge                   lipgloss.Style // single-char badge with lighter background (title bar view numbers)
+	HelpKey                 lipgloss.Style // bold accent foreground for keybinding keys in help overlay
 	HasDark                 bool
 }
 
@@ -60,6 +61,7 @@ func NewStyles(hasDark bool) Styles {
 		StatusNotification:      lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#3b4252"))).Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
 		StatusNotificationError: lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#3b4252"))).Foreground(ld(lipgloss.Color("#e45649"), lipgloss.Color("#e06c75"))),
 		Badge:                   lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),
+		HelpKey:                 lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#4078f2"), lipgloss.Color("#61afef"))),
 		HasDark:                 hasDark,
 	}
 }
