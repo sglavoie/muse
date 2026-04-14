@@ -12,11 +12,13 @@ import (
 )
 
 // rescanEntry holds per-track values snapshotted before a full rescan clears
-// the in-memory library index. Used to restore created_at and duration when
-// the scanner cannot provide them (e.g. duration=0 for tag-less files).
+// the in-memory library index. Used to restore created_at, duration, and
+// play stats when the scanner cannot provide them.
 type rescanEntry struct {
-	CreatedAt int64
-	Duration  float64
+	CreatedAt    int64
+	Duration     float64
+	PlayCount    int
+	LastPlayedAt int64
 }
 
 // handleScanProgressMsg updates the status bar with the current scan progress.
@@ -158,6 +160,12 @@ func (m Model) preserveTrackMetadata(track library.Track) library.Track {
 		if track.Duration == 0 && existing.Duration != 0 {
 			track.Duration = existing.Duration
 		}
+		if existing.PlayCount > track.PlayCount {
+			track.PlayCount = existing.PlayCount
+		}
+		if existing.LastPlayedAt > track.LastPlayedAt {
+			track.LastPlayedAt = existing.LastPlayedAt
+		}
 		return track
 	}
 	if existing, ok := m.library.index.FindByPath(track.Path); ok {
@@ -166,6 +174,12 @@ func (m Model) preserveTrackMetadata(track library.Track) library.Track {
 		}
 		if track.Duration == 0 && existing.Duration != 0 {
 			track.Duration = existing.Duration
+		}
+		if existing.PlayCount > track.PlayCount {
+			track.PlayCount = existing.PlayCount
+		}
+		if existing.LastPlayedAt > track.LastPlayedAt {
+			track.LastPlayedAt = existing.LastPlayedAt
 		}
 		return track
 	}
@@ -177,6 +191,12 @@ func (m Model) preserveTrackMetadata(track library.Track) library.Track {
 		}
 		if track.Duration == 0 && entry.Duration != 0 {
 			track.Duration = entry.Duration
+		}
+		if entry.PlayCount > track.PlayCount {
+			track.PlayCount = entry.PlayCount
+		}
+		if entry.LastPlayedAt > track.LastPlayedAt {
+			track.LastPlayedAt = entry.LastPlayedAt
 		}
 	}
 	if track.CreatedAt == 0 {

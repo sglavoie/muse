@@ -184,7 +184,7 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 
 	// Start the single-writer goroutine. The caller owns writerCtx and must
 	// call CancelWriter then Writer.Wait during shutdown.
-	writerCtx, cancelWriter := context.WithCancel(ctx)
+	writerCtx, cancelWriter := context.WithCancel(context.Background())
 	w := db.NewWriter(writerCtx, database.DB)
 	// From here, failf must also stop the writer before closing the DB.
 	failf = func(format string, args ...any) (*RunResult, error) {

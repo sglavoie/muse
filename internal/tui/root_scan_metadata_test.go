@@ -84,7 +84,7 @@ func TestRescanSnapshotPreservesCreatedAtAndDuration(t *testing.T) {
 	tracks := m.library.index.Tracks()
 	snap := make(map[string]rescanEntry, len(tracks))
 	for _, track := range tracks {
-		snap[track.Hash] = rescanEntry{CreatedAt: track.CreatedAt, Duration: track.Duration}
+		snap[track.Hash] = rescanEntry{CreatedAt: track.CreatedAt, Duration: track.Duration, PlayCount: track.PlayCount, LastPlayedAt: track.LastPlayedAt}
 	}
 	m.rescanSnapshot = snap
 
@@ -122,7 +122,7 @@ func TestRescanSnapshotAllowsNonZeroDurationUpdate(t *testing.T) {
 	tracks := m.library.index.Tracks()
 	snap := make(map[string]rescanEntry, len(tracks))
 	for _, track := range tracks {
-		snap[track.Hash] = rescanEntry{CreatedAt: track.CreatedAt, Duration: track.Duration}
+		snap[track.Hash] = rescanEntry{CreatedAt: track.CreatedAt, Duration: track.Duration, PlayCount: track.PlayCount, LastPlayedAt: track.LastPlayedAt}
 	}
 	m.rescanSnapshot = snap
 	m.library.index = library.LibraryIndex{}
@@ -139,5 +139,66 @@ func TestRescanSnapshotAllowsNonZeroDurationUpdate(t *testing.T) {
 	}
 	if track.Duration != 90.0 {
 		t.Errorf("Duration = %f; want 90.0 (non-zero scanned duration should take precedence)", track.Duration)
+	}
+}
+
+// TestScanBatchPreservesPlayCount verifies that when a diff scan re-inserts a
+// track that already exists in the index, PlayCount and LastPlayedAt are
+// preserved from the existing entry (the scanner does not know about play stats).
+func TestScanBatchPreservesPlayCount(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{
+		Hash: "hash1", Path: "/a.mp3", Title: "A", Artist: "Art",
+		PlayCount: 5, LastPlayedAt: 1700000000,
+	})
+
+	next, _ := m.Update(library.ScanBatchMsg{Tracks: []library.Track{
+		{Hash: "hash1", Path: "/a.mp3", Title: "A", Artist: "Art"},
+	}})
+	nm := next.(Model)
+
+	track, ok := nm.library.index.FindByHash("hash1")
+	if !ok {
+		t.Fatal("hash1 not found in index")
+	}
+	if track.PlayCount != 5 {
+		t.Errorf("PlayCount = %d; want 5 (should be preserved from existing entry)", track.PlayCount)
+	}
+	if track.LastPlayedAt != 1700000000 {
+		t.Errorf("LastPlayedAt = %d; want 1700000000", track.LastPlayedAt)
+	}
+}
+
+// TestRescanSnapshotPreservesPlayCount verifies that after a full rescan clears
+// the index, PlayCount and LastPlayedAt are restored from the snapshot.
+func TestRescanSnapshotPreservesPlayCount(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{
+		Hash: "hash1", Path: "/a.mp3", Title: "A",
+		CreatedAt: 1000, PlayCount: 3, LastPlayedAt: 1700000000,
+	})
+
+	tracks := m.library.index.Tracks()
+	snap := make(map[string]rescanEntry, len(tracks))
+	for _, track := range tracks {
+		snap[track.Hash] = rescanEntry{CreatedAt: track.CreatedAt, Duration: track.Duration, PlayCount: track.PlayCount, LastPlayedAt: track.LastPlayedAt}
+	}
+	m.rescanSnapshot = snap
+	m.library.index = library.LibraryIndex{}
+
+	next, _ := m.Update(library.ScanBatchMsg{Tracks: []library.Track{
+		{Hash: "hash1", Path: "/a.mp3", Title: "A", CreatedAt: 0},
+	}})
+	nm := next.(Model)
+
+	track, ok := nm.library.index.FindByHash("hash1")
+	if !ok {
+		t.Fatal("hash1 not found in index")
+	}
+	if track.PlayCount != 3 {
+		t.Errorf("PlayCount = %d; want 3 (should be preserved from snapshot)", track.PlayCount)
+	}
+	if track.LastPlayedAt != 1700000000 {
+		t.Errorf("LastPlayedAt = %d; want 1700000000", track.LastPlayedAt)
 	}
 }

@@ -194,6 +194,8 @@ func TestRepeatAll_ResetsMissingTrackCount(t *testing.T) {
 	m.playback.currentHash = "h1"
 	m.playback.elapsedSecs = 60
 	m.playback.totalSecs = 120
+	m.playback.peakElapsedSecs = 60
+	m.playback.peakTotalSecs = 120
 	m.missingTrackCount = 3 // simulate 3 missing files in this cycle
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T1"},
@@ -221,6 +223,8 @@ func TestPlaybackEndedReturnsIncrementCmd(t *testing.T) {
 	m.playback.currentHash = "h1"
 	m.playback.elapsedSecs = 60
 	m.playback.totalSecs = 120
+	m.playback.peakElapsedSecs = 60
+	m.playback.peakTotalSecs = 120
 
 	next, cmd := m.Update(PlaybackEndedMsg{})
 	nm := next.(Model)
@@ -250,6 +254,8 @@ func TestPlaybackEndedNoCmdWhenBelowThreshold(t *testing.T) {
 	m.playback.currentHash = "h1"
 	m.playback.elapsedSecs = 5
 	m.playback.totalSecs = 300 // 5 out of 300 = 1.7%, well below 50% and < 30s
+	m.playback.peakElapsedSecs = 5
+	m.playback.peakTotalSecs = 300
 
 	next, cmd := m.Update(PlaybackEndedMsg{})
 	nm := next.(Model)
@@ -348,5 +354,74 @@ func TestTrackChangedClearsQueueExhausted(t *testing.T) {
 
 	if nm.playback.queueExhausted {
 		t.Fatal("expected queueExhausted=false after TrackChangedMsg")
+	}
+}
+
+// TestTrackChangedUsesPeakForPlayCount verifies that handleTrackChangedMsg
+// uses the peak elapsed values (not the current ones) to decide whether to
+// count a play. This protects against the tick race where a gapless transition
+// causes the tick to report the new track's near-zero position.
+func TestTrackChangedUsesPeakForPlayCount(t *testing.T) {
+	hr := &stubHistoryRecorder{}
+	m := New(context.Background(), WithHistoryRecorder(hr))
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "old-hash"
+	// Simulate race: tick clobbered elapsedSecs to ~0, but peak retains the real value.
+	m.playback.elapsedSecs = 0.5
+	m.playback.totalSecs = 300.0
+	m.playback.peakElapsedSecs = 180.0
+	m.playback.peakTotalSecs = 200.0
+
+	next, cmd := m.Update(TrackChangedMsg{Hash: "new-hash", Index: 1, Artist: "B", Title: "T2"})
+	_ = next.(Model)
+
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd for play count increment")
+	}
+	cmd()
+	if len(hr.calls) != 1 || hr.calls[0].hash != "old-hash" {
+		t.Fatalf("expected RecordPlay for old-hash, got %+v", hr.calls)
+	}
+}
+
+// TestTrackChangedResetsPeak verifies that peak elapsed fields are reset when
+// the track changes.
+func TestTrackChangedResetsPeak(t *testing.T) {
+	m := New(context.Background())
+	m.playback.peakElapsedSecs = 180.0
+	m.playback.peakTotalSecs = 200.0
+
+	next, _ := m.Update(TrackChangedMsg{Hash: "h2", Index: 0, Artist: "B", Title: "T2"})
+	nm := next.(Model)
+
+	if nm.playback.peakElapsedSecs != 0 {
+		t.Fatalf("expected peakElapsedSecs reset to 0, got %v", nm.playback.peakElapsedSecs)
+	}
+	if nm.playback.peakTotalSecs != 0 {
+		t.Fatalf("expected peakTotalSecs reset to 0, got %v", nm.playback.peakTotalSecs)
+	}
+}
+
+// TestPlaybackEndedUsesPeakForPlayCount verifies that handlePlaybackEndedMsg
+// uses the peak elapsed values for the play count check.
+func TestPlaybackEndedUsesPeakForPlayCount(t *testing.T) {
+	hr := &stubHistoryRecorder{}
+	m := New(context.Background(), WithHistoryRecorder(hr))
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "h1"
+	// Simulate race: current values clobbered, peak intact.
+	m.playback.elapsedSecs = 0.2
+	m.playback.totalSecs = 300.0
+	m.playback.peakElapsedSecs = 60.0
+	m.playback.peakTotalSecs = 120.0
+
+	_, cmd := m.Update(PlaybackEndedMsg{})
+
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd for play count increment")
+	}
+	cmd()
+	if len(hr.calls) != 1 || hr.calls[0].hash != "h1" {
+		t.Fatalf("expected RecordPlay for h1, got %+v", hr.calls)
 	}
 }

@@ -31,7 +31,7 @@ func (m Model) handleLibraryStateAction(action action) (tea.Model, tea.Cmd, bool
 			tracks := m.library.index.Tracks()
 			snap := make(map[string]rescanEntry, len(tracks))
 			for _, t := range tracks {
-				snap[t.Hash] = rescanEntry{CreatedAt: t.CreatedAt, Duration: t.Duration}
+				snap[t.Hash] = rescanEntry{CreatedAt: t.CreatedAt, Duration: t.Duration, PlayCount: t.PlayCount, LastPlayedAt: t.LastPlayedAt}
 			}
 			m.rescanSnapshot = snap
 

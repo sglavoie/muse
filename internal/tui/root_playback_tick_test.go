@@ -168,3 +168,42 @@ func TestTrackChangedResetsCorrectFlag(t *testing.T) {
 		t.Fatal("expected durationCorrected to be reset after track change")
 	}
 }
+
+// TestTickMsgUpdatesPeakElapsed verifies that the tick handler updates the
+// peak elapsed fields when the elapsed value increases.
+func TestTickMsgUpdatesPeakElapsed(t *testing.T) {
+	sp := &stubElapsedReader{elapsed: 45.0, total: 200.0}
+	m := New(context.Background(), WithPlayer(sp))
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "h1"
+
+	nm, _ := m.handleTickMsg()
+
+	if nm.playback.peakElapsedSecs != 45.0 {
+		t.Fatalf("expected peakElapsedSecs=45.0, got %v", nm.playback.peakElapsedSecs)
+	}
+	if nm.playback.peakTotalSecs != 200.0 {
+		t.Fatalf("expected peakTotalSecs=200.0, got %v", nm.playback.peakTotalSecs)
+	}
+}
+
+// TestTickMsgDoesNotDecreasePeak verifies that the peak does not decrease when
+// the tick reports a smaller elapsed value (e.g. after a gapless transition
+// where mpv is already playing the next track).
+func TestTickMsgDoesNotDecreasePeak(t *testing.T) {
+	sp := &stubElapsedReader{elapsed: 0.5, total: 300.0}
+	m := New(context.Background(), WithPlayer(sp))
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "h1"
+	m.playback.peakElapsedSecs = 180.0
+	m.playback.peakTotalSecs = 200.0
+
+	nm, _ := m.handleTickMsg()
+
+	if nm.playback.peakElapsedSecs != 180.0 {
+		t.Fatalf("expected peakElapsedSecs to stay 180.0, got %v", nm.playback.peakElapsedSecs)
+	}
+	if nm.playback.peakTotalSecs != 200.0 {
+		t.Fatalf("expected peakTotalSecs to stay 200.0, got %v", nm.playback.peakTotalSecs)
+	}
+}

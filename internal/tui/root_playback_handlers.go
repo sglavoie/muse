@@ -28,6 +28,10 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 			if elapsed, total, err := er.ElapsedPosition(); err == nil {
 				m.playback.elapsedSecs = elapsed
 				m.playback.totalSecs = total
+				if elapsed > m.playback.peakElapsedSecs {
+					m.playback.peakElapsedSecs = elapsed
+					m.playback.peakTotalSecs = total
+				}
 			}
 		}
 		if !m.playback.durationCorrected && m.playback.totalSecs > 0 && m.playback.currentHash != "" {
@@ -145,21 +149,25 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 
 	var incrementCmd tea.Cmd
 	if m.playback.currentHash != "" &&
-		shouldCountPlay(m.playback.elapsedSecs, m.playback.totalSecs) {
+		shouldCountPlay(m.playback.peakElapsedSecs, m.playback.peakTotalSecs) {
 		h := m.playback.currentHash
 		now := time.Now().Unix()
 		m.library.index.IncrementPlayCount(h, now)
 		if m.historyRecorder != nil {
 			hr := m.historyRecorder
-			elapsed := int(m.playback.elapsedSecs)
+			elapsed := int(m.playback.peakElapsedSecs)
 			incrementCmd = func() tea.Msg {
-				_ = hr.RecordPlay(h, now, elapsed)
+				if err := hr.RecordPlay(h, now, elapsed); err != nil {
+					slog.Warn("play count: RecordPlay failed", "hash", h, "err", err)
+				}
 				return nil
 			}
 		} else if m.playCountWriter != nil {
 			pcw := m.playCountWriter
 			incrementCmd = func() tea.Msg {
-				_ = pcw.IncrementPlayCount(h)
+				if err := pcw.IncrementPlayCount(h); err != nil {
+					slog.Warn("play count: IncrementPlayCount failed", "hash", h, "err", err)
+				}
 				return nil
 			}
 		}
@@ -172,6 +180,8 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 			m.playback.state = PlaybackPlaying
 			m.playback.elapsedSecs = 0
 			m.playback.totalSecs = 0
+			m.playback.peakElapsedSecs = 0
+			m.playback.peakTotalSecs = 0
 			m.missingTrackCount = 0
 			return m, incrementCmd
 		}
@@ -185,6 +195,8 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 			m.playback.state = PlaybackPlaying
 			m.playback.elapsedSecs = 0
 			m.playback.totalSecs = 0
+			m.playback.peakElapsedSecs = 0
+			m.playback.peakTotalSecs = 0
 			return m, incrementCmd
 		}
 	}
@@ -197,6 +209,8 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	m.playback.state = PlaybackIdle
 	m.playback.elapsedSecs = 0
 	m.playback.totalSecs = 0
+	m.playback.peakElapsedSecs = 0
+	m.playback.peakTotalSecs = 0
 	m.statusBar.artist = ""
 	m.statusBar.title = ""
 	m.statusBar.playlistSource = ""
@@ -226,6 +240,8 @@ func (m Model) handlePlayerDisconnectedMsg() Model {
 	m.playback.state = PlaybackStopped
 	m.playback.elapsedSecs = 0
 	m.playback.totalSecs = 0
+	m.playback.peakElapsedSecs = 0
+	m.playback.peakTotalSecs = 0
 	m.statusBar.notification = newNotification("mpv disconnected, restarting…")
 	return m
 }
@@ -274,8 +290,8 @@ func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
 // player advances to a new track.
 func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	previousHash := m.playback.currentHash
-	previousElapsed := m.playback.elapsedSecs
-	previousTotal := m.playback.totalSecs
+	previousElapsed := m.playback.peakElapsedSecs
+	previousTotal := m.playback.peakTotalSecs
 
 	m.playback.currentHash = msg.Hash
 	m.playback.currentIndex = msg.Index
@@ -290,6 +306,8 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	m.playback.state = PlaybackPlaying
 	m.playback.elapsedSecs = 0
 	m.playback.totalSecs = 0
+	m.playback.peakElapsedSecs = 0
+	m.playback.peakTotalSecs = 0
 	m.playback.durationCorrected = false
 
 	var incrementCmd tea.Cmd
@@ -301,14 +319,18 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 			h := previousHash
 			elapsed := int(previousElapsed)
 			incrementCmd = func() tea.Msg {
-				_ = hr.RecordPlay(h, now, elapsed)
+				if err := hr.RecordPlay(h, now, elapsed); err != nil {
+					slog.Warn("play count: RecordPlay failed", "hash", h, "err", err)
+				}
 				return nil
 			}
 		} else if m.playCountWriter != nil {
 			pcw := m.playCountWriter
 			h := previousHash
 			incrementCmd = func() tea.Msg {
-				_ = pcw.IncrementPlayCount(h)
+				if err := pcw.IncrementPlayCount(h); err != nil {
+					slog.Warn("play count: IncrementPlayCount failed", "hash", h, "err", err)
+				}
 				return nil
 			}
 		}
