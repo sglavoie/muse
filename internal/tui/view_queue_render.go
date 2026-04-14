@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -17,7 +18,7 @@ import (
 // Proportional columns resize on WindowSizeMsg; fixed-width columns are
 // constant. Missing entries are wrapped in ANSI dim escape codes so they
 // appear grayed out in the terminal.
-func (v QueueView) render(s styles.Styles, currentPlayingIndex int, favHashes, favArtists, favAlbums map[string]struct{}) string {
+func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackState PlaybackState, favHashes, favArtists, favAlbums map[string]struct{}) string {
 	entries := v.filteredEntries()
 	if len(entries) == 0 {
 		if v.filter.Text != "" {
@@ -81,6 +82,9 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, favHashes, f
 		isFocused := absIdx == v.cursor
 		isNowPlaying := currentPlayingIndex >= 0 && e.origIdx == currentPlayingIndex
 
+		// Determine the now-playing icon and style based on playback state.
+		npIcon, npStyle := nowPlayingIndicator(s, playbackState)
+
 		var markerStr string
 		switch {
 		case e.Selected && isFocused:
@@ -88,9 +92,9 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, favHashes, f
 		case e.Selected:
 			markerStr = s.AccentMark.Render("●") + " "
 		case isNowPlaying && isFocused:
-			markerStr = "▶ "
+			markerStr = npIcon + " "
 		case isNowPlaying:
-			markerStr = "▶ "
+			markerStr = npStyle.Render(npIcon) + " "
 		default:
 			markerStr = "  "
 		}
@@ -113,17 +117,18 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, favHashes, f
 			bg := s.Accent.GetBackground()
 			sep := s.Accent.Render(" ")
 			if isNowPlaying {
-				titleStr = s.NowPlaying.Background(bg).Render(titleStr)
-				artistStr = s.NowPlaying.Background(bg).Render(artistStr)
-				albumStr = s.NowPlaying.Background(bg).Render(albumStr)
+				npText, npFav, npFavArtist, npFavAlbum := nowPlayingTextStyles(s, playbackState)
+				titleStr = npText.Background(bg).Render(titleStr)
+				artistStr = npText.Background(bg).Render(artistStr)
+				albumStr = npText.Background(bg).Render(albumStr)
 				if isTrackFav {
-					titleStr = s.NowPlayingFavorite.Background(bg).Render(padQueue(e.Title, titleWidth))
+					titleStr = npFav.Background(bg).Render(padQueue(e.Title, titleWidth))
 				}
 				if isArtistFav {
-					artistStr = s.NowPlayingFavArtist.Background(bg).Render(padQueue(e.Artist, artistWidth))
+					artistStr = npFavArtist.Background(bg).Render(padQueue(e.Artist, artistWidth))
 				}
 				if isAlbumFav {
-					albumStr = s.NowPlayingFavAlbum.Background(bg).Render(padQueue(e.Album, albumWidth))
+					albumStr = npFavAlbum.Background(bg).Render(padQueue(e.Album, albumWidth))
 				}
 			} else {
 				if isTrackFav {
@@ -148,17 +153,18 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, favHashes, f
 			dur = s.Accent.Render(dur)
 			lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + source + sep + dur
 		} else if isNowPlaying {
-			titleStr = s.NowPlaying.Render(titleStr)
-			artistStr = s.NowPlaying.Render(artistStr)
-			albumStr = s.NowPlaying.Render(albumStr)
+			npText, npFav, npFavArtist, npFavAlbum := nowPlayingTextStyles(s, playbackState)
+			titleStr = npText.Render(titleStr)
+			artistStr = npText.Render(artistStr)
+			albumStr = npText.Render(albumStr)
 			if isTrackFav {
-				titleStr = s.NowPlayingFavorite.Render(padQueue(e.Title, titleWidth))
+				titleStr = npFav.Render(padQueue(e.Title, titleWidth))
 			}
 			if isArtistFav {
-				artistStr = s.NowPlayingFavArtist.Render(padQueue(e.Artist, artistWidth))
+				artistStr = npFavArtist.Render(padQueue(e.Artist, artistWidth))
 			}
 			if isAlbumFav {
-				albumStr = s.NowPlayingFavAlbum.Render(padQueue(e.Album, albumWidth))
+				albumStr = npFavAlbum.Render(padQueue(e.Album, albumWidth))
 			}
 			lines[i] = markerStr + pos + " " + titleStr + " " + artistStr + " " + albumStr + " " + source + " " + dur
 		} else {
@@ -196,6 +202,38 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, favHashes, f
 		out += "\n" + s.Accent.Render(prompt) + v.saveInput.View()
 	}
 	return out
+}
+
+// nowPlayingIndicator returns the icon string and its style for the
+// now-playing marker based on the current playback state. The returned icon
+// is unstyled so callers can apply additional styling (e.g. Accent background).
+func nowPlayingIndicator(s styles.Styles, state PlaybackState) (icon string, style lipgloss.Style) {
+	switch state {
+	case PlaybackPaused:
+		return "⏸", s.Warning
+	case PlaybackStopped:
+		return "■", s.Error
+	default:
+		return "▶", s.Success
+	}
+}
+
+// nowPlayingTextStyles returns the text styles for the now-playing row based
+// on playback state. Returns (base, favorite, favArtist, favAlbum) styles.
+// When playing, these are the standard NowPlaying* styles (green). When
+// paused or stopped, the base style shifts to Warning (gold) or Error (red)
+// while favorite styles are preserved since they already carry distinct colors.
+func nowPlayingTextStyles(s styles.Styles, state PlaybackState) (base, fav, favArtist, favAlbum lipgloss.Style) {
+	switch state {
+	case PlaybackPaused:
+		base = s.Warning.Bold(true)
+		return base, s.NowPlayingFavorite, s.NowPlayingFavArtist, s.NowPlayingFavAlbum
+	case PlaybackStopped:
+		base = s.Error.Bold(true)
+		return base, s.NowPlayingFavorite, s.NowPlayingFavArtist, s.NowPlayingFavAlbum
+	default:
+		return s.NowPlaying, s.NowPlayingFavorite, s.NowPlayingFavArtist, s.NowPlayingFavAlbum
+	}
 }
 
 // formatQueueDuration converts a duration in milliseconds to a "m:ss" or

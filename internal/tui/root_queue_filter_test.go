@@ -224,7 +224,7 @@ func TestQueueFilterRendersFilterBar(t *testing.T) {
 	q.scrollOffset = 0
 
 	s := styles.NewStyles(true)
-	out := q.render(s, -1, nil, nil, nil)
+	out := q.render(s, -1, PlaybackIdle, nil, nil, nil)
 	if !strings.Contains(out, "Filter: ") {
 		t.Errorf("rendered output should contain filter bar, got:\n%s", out)
 	}
@@ -244,7 +244,7 @@ func TestQueueFilterNoMatchesShowsMessage(t *testing.T) {
 	q.scrollOffset = 0
 
 	s := styles.NewStyles(true)
-	out := q.render(s, -1, nil, nil, nil)
+	out := q.render(s, -1, PlaybackIdle, nil, nil, nil)
 	if !strings.Contains(out, "(no matches)") {
 		t.Errorf("expected '(no matches)' when filter has no results, got:\n%s", out)
 	}
