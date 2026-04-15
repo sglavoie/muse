@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 )
 
@@ -128,6 +129,42 @@ func TestFocusedTrackForPreview_QueueIncludesAlbum(t *testing.T) {
 	}
 }
 
+// TestFocusedTrackForPreview_Tags verifies that focusedTrackForPreview
+// returns the focused track from the Tags view at TrackLevel.
+func TestFocusedTrackForPreview_Tags(t *testing.T) {
+	m := newTagsTrackLevelModel()
+	m.tagsView.cursor = 1 // "Tag Track 2" by artist "B"
+
+	track, ok := m.focusedTrackForPreview()
+	if !ok {
+		t.Fatal("expected track from tags view")
+	}
+	if track.Hash != "th2" {
+		t.Errorf("hash: want th2, got %q", track.Hash)
+	}
+	if track.Artist != "B" {
+		t.Errorf("artist: want B, got %q", track.Artist)
+	}
+	if track.Duration != 200.0 {
+		t.Errorf("duration: want 200.0, got %v", track.Duration)
+	}
+}
+
+// TestFocusedTrackForPreview_TagsTagLevel verifies that focusedTrackForPreview
+// returns false when the Tags view is at TagLevel (no track focused).
+func TestFocusedTrackForPreview_TagsTagLevel(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewTags
+	// level defaults to TagLevel
+	m.tagsView.tags = []db.TagRow{{ID: 1, Name: "T1"}}
+	m.tagsView.tagCounts = map[int64]int{1: 3}
+
+	_, ok := m.focusedTrackForPreview()
+	if ok {
+		t.Fatal("expected false at TagLevel")
+	}
+}
+
 // TestFocusedTrackForPreview_RecentlyAdded verifies that
 // focusedTrackForPreview returns the focused track from the Recently Added view.
 func TestFocusedTrackForPreview_RecentlyAdded(t *testing.T) {
@@ -143,5 +180,46 @@ func TestFocusedTrackForPreview_RecentlyAdded(t *testing.T) {
 	}
 	if track.Hash != "h1" || track.Artist != "A" {
 		t.Fatalf("unexpected track: %+v", track)
+	}
+}
+
+// TestFocusedTrackForPalette_Tags verifies that focusedTrackForPalette
+// returns the focused track's path, artist, and title from the Tags view.
+func TestFocusedTrackForPalette_Tags(t *testing.T) {
+	m := newTagsTrackLevelModel()
+	m.tagsView.cursor = 0 // "Tag Track 1" by artist "A", path not set in helper
+
+	// Set a path on the track so we can verify it
+	m.tagsView.tracks[0] = db.PlaylistTrackRow{
+		ID: 1, Hash: "th1", Title: "Tag Track 1", Artist: "A", Album: "X",
+		DurationMs: 180000, Path: "/tag1.flac",
+	}
+
+	path, artist, title, found := m.focusedTrackForPalette()
+	if !found {
+		t.Fatal("expected found=true for Tags track level")
+	}
+	if path != "/tag1.flac" {
+		t.Errorf("path: want /tag1.flac, got %q", path)
+	}
+	if artist != "A" {
+		t.Errorf("artist: want A, got %q", artist)
+	}
+	if title != "Tag Track 1" {
+		t.Errorf("title: want Tag Track 1, got %q", title)
+	}
+}
+
+// TestFocusedTrackForPalette_TagsTagLevel verifies that
+// focusedTrackForPalette returns false at TagLevel.
+func TestFocusedTrackForPalette_TagsTagLevel(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewTags
+	m.tagsView.tags = []db.TagRow{{ID: 1, Name: "T1"}}
+	m.tagsView.tagCounts = map[int64]int{1: 3}
+
+	_, _, _, found := m.focusedTrackForPalette()
+	if found {
+		t.Fatal("expected found=false at TagLevel")
 	}
 }

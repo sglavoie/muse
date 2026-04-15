@@ -7,6 +7,7 @@ import (
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // bulkSelectedHashes returns the hashes of all bulk-selected tracks for the
@@ -170,6 +171,16 @@ func (m Model) refreshDerivedViews() Model {
 			}
 		}
 	}
+	if m.tagsView.level == tagtui.TrackLevel {
+		for i := range m.tagsView.tracks {
+			if t, ok := m.library.index.FindByHash(m.tagsView.tracks[i].Hash); ok {
+				m.tagsView.tracks[i].Title = t.Title
+				m.tagsView.tracks[i].Artist = t.Artist
+				m.tagsView.tracks[i].Album = t.Album
+			}
+		}
+	}
+
 	if m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks {
 		refreshTrackMetadata(m.favorites.tracks)
 		m.favorites = m.favorites.recomputeFavoritesSort()

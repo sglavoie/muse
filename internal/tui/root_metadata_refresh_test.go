@@ -10,6 +10,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // TestRefreshDerivedViewsUpdatesArtistsTrackLevel verifies that
@@ -239,6 +240,40 @@ func TestRefreshDerivedViewsResortsAlbumsAfterEdit(t *testing.T) {
 	if m.albums.albums[0] != "Zen" || m.albums.albums[1] != "Mid" || m.albums.albums[2] != "Apex" {
 		t.Errorf("after refresh: expected descending [Zen, Mid, Apex], got %v", m.albums.albums)
 	}
+}
+
+// TestRefreshDerivedViewsUpdatesTagsTracks verifies that
+// refreshDerivedViews updates tags view track metadata at TrackLevel.
+func TestRefreshDerivedViewsUpdatesTagsTracks(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "th1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
+	m.tagsView.level = tagtui.TrackLevel
+	m.tagsView.tracks = []db.PlaylistTrackRow{
+		{ID: 1, Hash: "th1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
+	}
+
+	m.library.index.UpdateMetadata("th1", "NewTitle", "NewArt", "NewAlbum", "")
+	m = m.refreshDerivedViews()
+
+	if m.tagsView.tracks[0].Title != "NewTitle" {
+		t.Errorf("tags track title = %q, want %q", m.tagsView.tracks[0].Title, "NewTitle")
+	}
+	if m.tagsView.tracks[0].Artist != "NewArt" {
+		t.Errorf("tags track artist = %q, want %q", m.tagsView.tracks[0].Artist, "NewArt")
+	}
+	if m.tagsView.tracks[0].Album != "NewAlbum" {
+		t.Errorf("tags track album = %q, want %q", m.tagsView.tracks[0].Album, "NewAlbum")
+	}
+}
+
+// TestRefreshDerivedViewsSkipsTagsTracksAtTagLevel verifies that
+// refreshDerivedViews skips tags track metadata refresh at TagLevel.
+func TestRefreshDerivedViewsSkipsTagsTracksAtTagLevel(t *testing.T) {
+	m := New(context.Background())
+	m.tagsView.level = tagtui.TagLevel
+	m.tagsView.tags = []db.TagRow{{ID: 1, Name: "T1"}}
+	// Should not panic with empty tracks at TagLevel.
+	m = m.refreshDerivedViews()
 }
 
 // TestRefreshDerivedViewsSkipsPlaylistTracksAtListLevel verifies that

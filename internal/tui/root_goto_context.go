@@ -176,6 +176,15 @@ func (m Model) focusedGoToContext() goToContext {
 				return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
 			}
 		}
+
+	case viewTags:
+		if track, ok := m.tagsView.focusedTrack(); ok {
+			ctx := goToContext{artist: track.Artist, album: track.Album, found: true}
+			if libTrack, found := m.library.index.FindByHash(track.Hash); found {
+				ctx.genre = libTrack.Genre
+			}
+			return ctx
+		}
 	}
 
 	return goToContext{}
@@ -275,6 +284,11 @@ func (m Model) buildGoToOptions(ctx goToContext) []GoToOption {
 			addArtist()
 			addGenres()
 		}
+
+	case viewTags:
+		addAlbum()
+		addArtist()
+		addGenres()
 	}
 
 	return opts

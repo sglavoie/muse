@@ -358,6 +358,25 @@ func TestBulkSelectedHashesTags(t *testing.T) {
 	}
 }
 
+// TestBulkMetadataSaveClearsTagsSelection verifies that saving a bulk
+// metadata edit from the Tags view clears tagsView.selectedHashes.
+func TestBulkMetadataSaveClearsTagsSelection(t *testing.T) {
+	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
+	m.activeView = viewTags
+	m.tagsView.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+
+	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "", "Alice", "", "", "")
+	m.overlay.metadataEditor = &ed
+	m = typeIntoEditor(m, "X")
+
+	result, _ := m.handleMetadataSave()
+	nm := result.(Model)
+
+	if nm.tagsView.selectedHashes != nil {
+		t.Errorf("expected tagsView.selectedHashes to be cleared, got %v", nm.tagsView.selectedHashes)
+	}
+}
+
 func TestBulkSelectedHashesTagsEmptyReturnsNil(t *testing.T) {
 	m := newModelWithTracks()
 	m.activeView = viewTags

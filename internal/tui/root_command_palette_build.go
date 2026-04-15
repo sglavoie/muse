@@ -262,6 +262,10 @@ func (m Model) focusedTrackForPalette() (path, artist, title string, found bool)
 				return track.Path, track.Artist, track.Title, true
 			}
 		}
+	case viewTags:
+		if track, ok := m.tagsView.focusedTrack(); ok {
+			return track.Path, track.Artist, track.Title, true
+		}
 	}
 
 	return "", "", "", false

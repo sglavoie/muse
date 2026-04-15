@@ -4,7 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 func TestFocusedGoToContext_Library(t *testing.T) {
@@ -94,6 +96,71 @@ func TestBuildGoToOptions_MultiGenre(t *testing.T) {
 	}
 	if opts[3].Kind != goToGenre || opts[3].Value != "Rock" {
 		t.Errorf("opts[3]: want goToGenre/Rock, got %v/%q", opts[3].Kind, opts[3].Value)
+	}
+}
+
+func TestFocusedGoToContext_Tags(t *testing.T) {
+	tracks := []library.Track{{Artist: "Alice", Album: "Alpha", Genre: "Rock", Title: "T1", Hash: "th1", Path: "/a.flac"}}
+	m := New(context.Background(), WithLibraryTracks(tracks))
+	m.activeView = viewTags
+	m.tagsView.level = tagtui.TrackLevel
+	m.tagsView.tracks = []db.PlaylistTrackRow{
+		{ID: 1, Hash: "th1", Artist: "Alice", Album: "Alpha", Title: "T1", Path: "/a.flac"},
+	}
+	m.tagsView.cursor = 0
+
+	ctx := m.focusedGoToContext()
+	if !ctx.found {
+		t.Fatal("expected found=true")
+	}
+	if ctx.artist != "Alice" {
+		t.Errorf("artist: want Alice, got %q", ctx.artist)
+	}
+	if ctx.album != "Alpha" {
+		t.Errorf("album: want Alpha, got %q", ctx.album)
+	}
+	if ctx.genre != "Rock" {
+		t.Errorf("genre: want Rock (from library lookup), got %q", ctx.genre)
+	}
+}
+
+func TestFocusedGoToContext_TagsTagLevel(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewTags
+	// level defaults to TagLevel
+	m.tagsView.tags = []db.TagRow{{ID: 1, Name: "T1"}}
+	m.tagsView.tagCounts = map[int64]int{1: 3}
+
+	ctx := m.focusedGoToContext()
+	if ctx.found {
+		t.Fatal("expected found=false at TagLevel")
+	}
+}
+
+func TestBuildGoToOptions_Tags(t *testing.T) {
+	tracks := []library.Track{{Artist: "Alice", Album: "Alpha", Genre: "Rock", Title: "T1", Hash: "th1", Path: "/a.flac"}}
+	m := New(context.Background(), WithLibraryTracks(tracks))
+	m.activeView = viewTags
+	m.tagsView.level = tagtui.TrackLevel
+	m.tagsView.tracks = []db.PlaylistTrackRow{
+		{ID: 1, Hash: "th1", Artist: "Alice", Album: "Alpha", Title: "T1", Path: "/a.flac"},
+	}
+	m.tagsView.cursor = 0
+
+	ctx := m.focusedGoToContext()
+	opts := m.buildGoToOptions(ctx)
+
+	if len(opts) != 3 {
+		t.Fatalf("want 3 options, got %d", len(opts))
+	}
+	if opts[0].Kind != goToAlbum {
+		t.Errorf("opts[0]: want goToAlbum, got %v", opts[0].Kind)
+	}
+	if opts[1].Kind != goToArtist {
+		t.Errorf("opts[1]: want goToArtist, got %v", opts[1].Kind)
+	}
+	if opts[2].Kind != goToGenre {
+		t.Errorf("opts[2]: want goToGenre, got %v", opts[2].Kind)
 	}
 }
 

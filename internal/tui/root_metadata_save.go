@@ -201,6 +201,8 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		m.favorites.selectedItems = nil
 	case viewGenres:
 		m.genres.selectedHashes = nil
+	case viewTags:
+		m.tagsView.selectedHashes = nil
 	}
 
 	m.setUndoSlot(undoBulkEditMetadataAction{
