@@ -40,6 +40,9 @@ func (m *Model) clampAllScrollOffsets() {
 	libMaxRows := layout.VisibleRows(m.library.height, 1)
 	m.library.scrollOffset = adjustScroll(m.library.cursor, m.library.scrollOffset, libMaxRows)
 
+	raMaxRows := layout.VisibleRows(m.recentlyAdded.height, 1)
+	m.recentlyAdded.scrollOffset = adjustScroll(m.recentlyAdded.cursor, m.recentlyAdded.scrollOffset, raMaxRows)
+
 	histMaxRows := layout.VisibleRows(m.history.height, 1)
 	m.history.scrollOffset = adjustScroll(m.history.cursor, m.history.scrollOffset, histMaxRows)
 

@@ -40,12 +40,13 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 		contextAlbums:        "Albums",
 		contextFavorites:     "Favorites",
 		contextGenres:        "Genres",
+		contextTags:          "Tags",
 	}
 
 	// The "Navigation" section covers keys shared across all row-based views.
 	// Merge its keys into each of those sections for the check.
 	if navKeys, ok := sectionKeys["Navigation (Library / Queue / Playlists / Artists / Albums / Favorites / Genres / Recently Added / History)"]; ok {
-		for _, sec := range []string{"Library", "Recently Added", "History", "Queue", "Playlists", "Artists", "Albums", "Favorites", "Genres"} {
+		for _, sec := range []string{"Library", "Recently Added", "History", "Queue", "Playlists", "Artists", "Albums", "Favorites", "Genres", "Tags"} {
 			if sectionKeys[sec] == nil {
 				sectionKeys[sec] = make(map[string]bool)
 			}
@@ -88,10 +89,11 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 		"Albums":         contextAlbums,
 		"Favorites":      contextFavorites,
 		"Genres":         contextGenres,
+		"Tags":           contextTags,
 	}
 	// Navigation keys are shared; check that each appears in at least one
 	// of the view contexts.
-	navContexts := []bindingContext{contextLibrary, contextRecentlyAdded, contextHistory, contextQueue, contextPlaylists, contextArtists, contextAlbums, contextFavorites, contextGenres}
+	navContexts := []bindingContext{contextLibrary, contextRecentlyAdded, contextHistory, contextQueue, contextPlaylists, contextArtists, contextAlbums, contextFavorites, contextGenres, contextTags}
 	for _, sec := range sections {
 		ctx, directMatch := reverseCtx[sec.title]
 		isNav := sec.title == "Navigation (Library / Queue / Playlists / Artists / Albums / Favorites / Genres / Recently Added / History)"

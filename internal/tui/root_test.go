@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"image/color"
 	"strings"
 	"testing"
@@ -11,7 +12,9 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/layout"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 func TestUpdateViewSwitching(t *testing.T) {
@@ -305,6 +308,54 @@ func TestWindowSizeShrinkClampsCursorVisibility(t *testing.T) {
 	if nm.queue.cursor < nm.queue.scrollOffset || nm.queue.cursor >= nm.queue.scrollOffset+maxRows {
 		t.Fatalf("after shrink: queue cursor %d not visible with scrollOffset=%d maxRows=%d",
 			nm.queue.cursor, nm.queue.scrollOffset, maxRows)
+	}
+}
+
+// TestWindowSizeShrinkClampsRecentlyAddedScroll verifies that when the terminal
+// shrinks, the recentlyAdded scroll offset is adjusted so the cursor remains
+// visible. This is a regression test: the recentlyAdded view was previously
+// omitted from clampAllScrollOffsets.
+func TestWindowSizeShrinkClampsRecentlyAddedScroll(t *testing.T) {
+	m := New(context.Background())
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 80})
+	m = next.(Model)
+
+	// Populate recentlyAdded with enough tracks.
+	tracks := make([]library.Track, 100)
+	for i := range tracks {
+		tracks[i] = library.Track{Hash: fmt.Sprintf("h%d", i), Title: fmt.Sprintf("Track %d", i)}
+	}
+	m.recentlyAdded.sourceTracks = tracks
+	m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
+	m.recentlyAdded.cursor = 70
+	m.recentlyAdded.scrollOffset = 60
+	m.activeView = viewRecentlyAdded
+
+	// Shrink the terminal significantly.
+	next, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
+	nm := next.(Model)
+
+	maxRows := layout.VisibleRows(nm.recentlyAdded.height, 1)
+	if nm.recentlyAdded.cursor < nm.recentlyAdded.scrollOffset ||
+		nm.recentlyAdded.cursor >= nm.recentlyAdded.scrollOffset+maxRows {
+		t.Fatalf("after shrink: recentlyAdded cursor %d not visible with scrollOffset=%d maxRows=%d",
+			nm.recentlyAdded.cursor, nm.recentlyAdded.scrollOffset, maxRows)
+	}
+}
+
+// TestTitleBarTagsBadgeShowsZero verifies that the Tags view (10th view) shows
+// badge "0" matching its actual keybinding, not "10".
+func TestTitleBarTagsBadgeShowsZero(t *testing.T) {
+	m := New(context.Background())
+	s := styles.NewStyles(true)
+	m.styles = &s
+	m.termWidth = 200 // wide enough for the full layout
+	m.activeView = viewTags
+
+	out := m.renderTitleBar()
+	// The Tags badge must show "0", not "10".
+	if strings.Contains(out, "10") {
+		t.Errorf("title bar should show badge '0' for Tags, not '10': got %q", out)
 	}
 }
 

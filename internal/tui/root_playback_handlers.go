@@ -310,6 +310,26 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	m.playback.peakTotalSecs = 0
 	m.playback.durationCorrected = false
 
+	// Refresh the now-playing overlay with the new track's metadata.
+	if m.overlay.nowPlaying != nil {
+		m.overlay.nowPlaying.artist = msg.Artist
+		m.overlay.nowPlaying.title = msg.Title
+		m.overlay.nowPlaying.elapsed = 0
+		m.overlay.nowPlaying.total = 0
+		m.overlay.nowPlaying.state = PlaybackPlaying
+		m.overlay.nowPlaying.tagsLine = m.buildTagsLine(msg.Hash)
+		if t, ok := m.library.index.FindByHash(msg.Hash); ok {
+			if m.overlay.nowPlaying.artist == "" {
+				m.overlay.nowPlaying.artist = t.Artist
+			}
+			if m.overlay.nowPlaying.title == "" {
+				m.overlay.nowPlaying.title = t.Title
+			}
+			m.overlay.nowPlaying.album = t.Album
+			m.overlay.nowPlaying.playCount = t.PlayCount
+		}
+	}
+
 	var incrementCmd tea.Cmd
 	if previousHash != "" && shouldCountPlay(previousElapsed, previousTotal) {
 		now := time.Now().Unix()

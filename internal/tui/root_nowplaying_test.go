@@ -207,6 +207,52 @@ func TestNowPlayingOverlayRenderedInView(t *testing.T) {
 	}
 }
 
+// TestNowPlayingTrackChangeRefreshesOverlay verifies that when the track
+// changes while the now-playing overlay is open, the overlay's artist, title,
+// album, and state are updated to reflect the new track.
+func TestNowPlayingTrackChangeRefreshesOverlay(t *testing.T) {
+	m := setupPlayingModel(t)
+	m.overlay.nowPlaying = &NowPlayingOverlay{
+		artist:  "Test Artist",
+		title:   "Test Song",
+		album:   "Test Album",
+		elapsed: 30,
+		total:   180,
+		state:   PlaybackPlaying,
+	}
+	// Insert a second track.
+	m.library.index.Insert(library.Track{
+		Hash: "h2", Path: "/b.flac", Artist: "New Artist", Title: "New Song", Album: "New Album",
+	})
+
+	next, _ := m.Update(TrackChangedMsg{
+		Hash:   "h2",
+		Index:  1,
+		Artist: "New Artist",
+		Title:  "New Song",
+	})
+	nm := next.(Model)
+
+	if nm.overlay.nowPlaying == nil {
+		t.Fatal("expected overlay to remain active after track change")
+	}
+	if nm.overlay.nowPlaying.artist != "New Artist" {
+		t.Errorf("expected artist 'New Artist', got %q", nm.overlay.nowPlaying.artist)
+	}
+	if nm.overlay.nowPlaying.title != "New Song" {
+		t.Errorf("expected title 'New Song', got %q", nm.overlay.nowPlaying.title)
+	}
+	if nm.overlay.nowPlaying.album != "New Album" {
+		t.Errorf("expected album 'New Album', got %q", nm.overlay.nowPlaying.album)
+	}
+	if nm.overlay.nowPlaying.elapsed != 0 {
+		t.Errorf("expected elapsed=0 after track change, got %v", nm.overlay.nowPlaying.elapsed)
+	}
+	if nm.overlay.nowPlaying.state != PlaybackPlaying {
+		t.Errorf("expected state PlaybackPlaying, got %v", nm.overlay.nowPlaying.state)
+	}
+}
+
 // TestNowPlayingSessionRestore verifies that the overlay picks up artist/title
 // from the library index when statusBar fields are empty (session restore case).
 func TestNowPlayingSessionRestore(t *testing.T) {

@@ -138,7 +138,7 @@ func (m Model) renderTitleBar() string {
 		// Wide layout: show all tabs with numbered badges.
 		var parts []string
 		for i, id := range viewOrder {
-			badge := m.styles.Badge.Render(fmt.Sprintf("%d", i+1))
+			badge := m.styles.Badge.Render(fmt.Sprintf("%d", (i+1)%10))
 			name := viewName(id)
 			if id == m.activeView {
 				parts = append(parts, badge+" "+m.styles.Heading.Render(name))
