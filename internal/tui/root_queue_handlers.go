@@ -424,7 +424,7 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 	if len(removedOriginalIndices) > 0 {
 		removedBeforeCursor := 0
 		for _, ri := range removedOriginalIndices {
-			if ri < m.queue.cursor+len(removedOriginalIndices) {
+			if ri < m.queue.cursor {
 				removedBeforeCursor++
 			}
 		}
