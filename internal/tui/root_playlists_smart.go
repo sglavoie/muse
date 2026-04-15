@@ -11,7 +11,7 @@ import (
 func (m Model) handleSmartPlaylistCreatedMsg(msg smartPlaylistCreatedMsg) (Model, tea.Cmd) {
 	m.playlists.playlists = msg.playlists
 	m = m.preservePlaylistsSort()
-	for i, p := range msg.playlists {
+	for i, p := range m.playlists.effectivePlaylists() {
 		if p.ID == msg.id {
 			m.playlists.cursor = i
 			break
@@ -42,6 +42,8 @@ func (m Model) handleSmartPlaylistCountsUpdatedMsg(msg smartPlaylistCountsUpdate
 			}
 		}
 	}
+	// Recompute the sorted copy so it reflects the updated counts and order.
+	m = m.preservePlaylistsSort()
 	return m
 }
 

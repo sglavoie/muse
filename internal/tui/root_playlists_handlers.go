@@ -47,7 +47,7 @@ func (m Model) handlePlaylistRenamedMsg(msg playlistRenamedMsg) Model {
 	m.playlists.playlists = msg.playlists
 	m = m.preservePlaylistsSort()
 	m.playlists = m.playlists.cancelRename()
-	for i, p := range msg.playlists {
+	for i, p := range m.playlists.effectivePlaylists() {
 		if p.ID == msg.id {
 			m.playlists.cursor = i
 			break
@@ -81,7 +81,7 @@ func (m Model) handlePlaylistCreatedMsg(msg playlistCreatedMsg) (Model, tea.Cmd)
 	m.playlists.playlists = msg.playlists
 	m = m.preservePlaylistsSort()
 	m.playlists = m.playlists.cancelCreate()
-	for i, p := range msg.playlists {
+	for i, p := range m.playlists.effectivePlaylists() {
 		if p.ID == msg.id {
 			m.playlists.cursor = i
 			break
