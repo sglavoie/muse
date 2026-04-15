@@ -718,6 +718,55 @@ func TestUndoCutPasteRestoresOriginals(t *testing.T) {
 	}
 }
 
+// TestUndoCutPasteMultipleNonAdjacentRestoresOrder verifies that cutting
+// multiple non-adjacent tracks, pasting them elsewhere, and then undoing
+// restores the original queue order. This catches a bug where the undo used
+// post-insert indices instead of pre-paste positions.
+func TestUndoCutPasteMultipleNonAdjacentRestoresOrder(t *testing.T) {
+	qa := &stubQueueAppender{}
+	be := &stubBatchEnqueuer{}
+	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
+	m.activeView = viewQueue
+	m.queue.entries = sampleQueueEntries() // [A(101), B(102), C(103), D(104)]
+
+	// Bulk-select B and D (indices 1, 3).
+	m.queue.entries[1].Selected = true
+	m.queue.entries[3].Selected = true
+
+	// Cut the selection.
+	rm, _, _ := m.handleQueueKeyAction(actionCut)
+	m = rm.(Model)
+	if len(m.yankBuffer) != 2 {
+		t.Fatalf("expected 2 cut entries, got %d", len(m.yankBuffer))
+	}
+
+	// Paste after A (cursor=0 → insertPos=1). Queue is [A, C] before paste.
+	m.queue.cursor = 0
+	rm, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	m = rm.(Model)
+	msg := cmd().(QueuePastedMsg)
+	m = m.handleQueuePastedMsg(msg)
+
+	if len(m.queue.entries) != 4 {
+		t.Fatalf("expected 4 entries after cut-paste, got %d", len(m.queue.entries))
+	}
+
+	// Undo the cut-paste.
+	next, _ := m.Update(UndoMsg{})
+	m = next.(Model)
+
+	if len(m.queue.entries) != 4 {
+		t.Fatalf("expected 4 entries after undo, got %d", len(m.queue.entries))
+	}
+	// Original order should be restored: A, B, C, D.
+	wantOrder := []string{"h1", "h2", "h3", "h4"}
+	for i, want := range wantOrder {
+		if m.queue.entries[i].Hash != want {
+			t.Errorf("entry[%d] hash = %q, want %q", i, m.queue.entries[i].Hash, want)
+		}
+	}
+}
+
 // TestCutPasteSecondPasteDuplicates verifies that after a cut-paste, a second
 // paste duplicates instead of moving (cut state is cleared).
 func TestCutPasteSecondPasteDuplicates(t *testing.T) {

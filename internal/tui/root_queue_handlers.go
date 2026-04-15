@@ -443,10 +443,23 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 		pastedIDs[i] = entry.ID
 	}
 	if len(msg.CutIDs) > 0 {
+		// Convert post-insert indices back to pre-paste positions so that
+		// undo re-inserts originals at the correct spots. Pasted entries
+		// occupied [insertPos, insertPos+pasteCount), so any original
+		// index >= insertPos+pasteCount was shifted right by pasteCount.
+		prePasteIndices := make([]int, len(removedOriginalIndices))
+		pasteCount := len(msg.Entries)
+		for i, ri := range removedOriginalIndices {
+			if ri >= insertPos+pasteCount {
+				prePasteIndices[i] = ri - pasteCount
+			} else {
+				prePasteIndices[i] = ri
+			}
+		}
 		m.setUndoSlot(undoCutPasteAction{
 			pastedIDs:       pastedIDs,
 			originalEntries: removedOriginals,
-			originalIndices: removedOriginalIndices,
+			originalIndices: prePasteIndices,
 			count:           len(msg.Entries),
 		}, nil)
 	} else {
