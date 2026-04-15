@@ -7,6 +7,7 @@ import (
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // visualState holds the state for Vim-like visual line selection mode.
@@ -47,6 +48,8 @@ func activeViewCursor(m Model) int {
 		return m.favorites.cursor
 	case viewGenres:
 		return m.genres.cursor
+	case viewTags:
+		return m.tagsView.cursor
 	}
 	return 0
 }
@@ -75,6 +78,10 @@ func enterVisualMode(m Model) Model {
 		}
 	case viewPlaylists:
 		if m.playlists.level != pltui.TrackLevel {
+			return m
+		}
+	case viewTags:
+		if m.tagsView.level != tagtui.TrackLevel {
 			return m
 		}
 	}
@@ -153,6 +160,10 @@ func visualListLen(m Model) int {
 				return len(arttui.FilterTracks(m.favorites.tracks, m.favorites.filter.Text))
 			}
 		}
+	case viewTags:
+		if m.tagsView.level == tagtui.TrackLevel {
+			return len(tagtui.View{Tracks: m.tagsView.tracks, FilterText: m.tagsView.filter.Text}.EffectiveTracks())
+		}
 	}
 	return 0
 }
@@ -186,6 +197,8 @@ func takeSnapshot(m Model) selectionSnapshot {
 		snap.hashes = cloneStringSet(m.genres.selectedHashes)
 	case viewFavorites:
 		snap.favIdxSet = cloneIntSet(m.favorites.selectedItems)
+	case viewTags:
+		snap.hashes = cloneStringSet(m.tagsView.selectedHashes)
 	}
 	return snap
 }
@@ -213,6 +226,8 @@ func restoreSnapshot(m Model) Model {
 		m.genres.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 	case viewFavorites:
 		m.favorites.selectedItems = cloneIntSet(m.visual.snapshot.favIdxSet)
+	case viewTags:
+		m.tagsView.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 	}
 	return m
 }
@@ -269,6 +284,23 @@ func selectRange(m Model, lo, hi int) Model {
 					m.favorites.selectedItems = make(map[int]struct{})
 				}
 				m.favorites.selectedItems[i] = struct{}{}
+			}
+		}
+	case viewTags:
+		if m.tagsView.level == tagtui.TrackLevel {
+			tracks := tagtui.View{Tracks: m.tagsView.tracks, FilterText: m.tagsView.filter.Text}.EffectiveTracks()
+			for i := lo; i <= hi; i++ {
+				if i < 0 || i >= len(tracks) {
+					continue
+				}
+				hash := tracks[i].Hash
+				if hash == "" {
+					continue
+				}
+				if m.tagsView.selectedHashes == nil {
+					m.tagsView.selectedHashes = make(map[string]struct{})
+				}
+				m.tagsView.selectedHashes[hash] = struct{}{}
 			}
 		}
 	}

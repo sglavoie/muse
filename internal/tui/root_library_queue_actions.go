@@ -78,6 +78,10 @@ func (m Model) handleLibraryPlayNextAction() (tea.Model, tea.Cmd, bool) {
 		if _, ok := m.genres.focusedTrack(); ok {
 			cmd = m.genres.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
 		}
+	case viewTags:
+		if _, ok := m.tagsView.focusedTrack(); ok {
+			cmd = m.tagsView.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
+		}
 	}
 	return m, cmd, true
 }

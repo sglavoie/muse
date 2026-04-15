@@ -6,6 +6,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // handleNavigationAction handles cursor movement, selection toggle,
@@ -108,6 +109,19 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 					}
 				}
 			}
+		case viewTags:
+			if m.tagsView.level == tagtui.TrackLevel {
+				if t, ok := m.tagsView.focusedTrack(); ok {
+					if m.tagsView.selectedHashes == nil {
+						m.tagsView.selectedHashes = make(map[string]struct{})
+					}
+					if _, sel := m.tagsView.selectedHashes[t.Hash]; sel {
+						delete(m.tagsView.selectedHashes, t.Hash)
+					} else {
+						m.tagsView.selectedHashes[t.Hash] = struct{}{}
+					}
+				}
+			}
 		default:
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)
@@ -137,6 +151,8 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 			m.albums.selectedHashes = nil
 		case viewGenres:
 			m.genres.selectedHashes = nil
+		case viewTags:
+			m.tagsView.selectedHashes = nil
 		}
 		return m, nil, true
 	default:

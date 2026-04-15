@@ -243,6 +243,11 @@ func (v TagsView) enqueueFocusedTrack(qa libtui.QueueAppender, prevQueueLen int)
 	return libtui.EnqueueTrackCmd(track, ok, qa, prevQueueLen, "", -1)
 }
 
+func (v TagsView) playNextFocusedTrack(qa libtui.QueueAppender, prevQueueLen, insertAfter int) tea.Cmd {
+	track, ok := v.focusedTrackAsLibTrack()
+	return libtui.EnqueueTrackCmd(track, ok, qa, prevQueueLen, "", insertAfter)
+}
+
 // isCreating reports whether the inline create input is active.
 func (v TagsView) isCreating() bool { return v.creating }
 
