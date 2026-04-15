@@ -82,7 +82,7 @@ func (tp TagFilterPicker) HandleKey(key string) (TagFilterPicker, tea.Cmd) {
 			tp = tp.refilter()
 		}
 	default:
-		if len(key) == 1 {
+		if len([]rune(key)) == 1 {
 			tp.filter += key
 			tp = tp.refilter()
 		}

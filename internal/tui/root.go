@@ -59,9 +59,9 @@ type playbackInfo struct {
 	totalSecs         float64
 	peakElapsedSecs   float64 // high-water mark: max elapsed seen for current track
 	peakTotalSecs     float64 // total duration corresponding to peakElapsedSecs
-	stopAfterCurrent  bool // true when "stop after current track" is armed
-	durationCorrected bool // true once mpv duration has been compared/corrected for the current track
-	queueExhausted    bool // true when playback stopped because the queue ran out of tracks
+	stopAfterCurrent  bool    // true when "stop after current track" is armed
+	durationCorrected bool    // true once mpv duration has been compared/corrected for the current track
+	queueExhausted    bool    // true when playback stopped because the queue ran out of tracks
 }
 
 // Model is the root Bubble Tea v2 model. It manages view switching between

@@ -105,12 +105,14 @@ func (tp TagMergePicker) handlePickKey(key string) (TagMergePicker, tea.Cmd) {
 		tp.step = tagMergeStepConfirming
 	case "backspace":
 		if len(tp.filter) > 0 {
-			tp.filter = tp.filter[:len([]rune(tp.filter))-1]
+			runes := []rune(tp.filter)
+			tp.filter = string(runes[:len(runes)-1])
 			tp = tp.refilter()
 		}
 	default:
 		// Typing characters filters the list.
-		if len(key) == 1 {
+		runes := []rune(key)
+		if len(runes) == 1 {
 			tp.filter += key
 			tp = tp.refilter()
 		}
