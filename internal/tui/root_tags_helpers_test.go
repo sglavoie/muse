@@ -2,9 +2,13 @@ package tui
 
 import (
 	"context"
+	"sort"
 	"testing"
 
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
 func TestSelectedTrackHashes_Queue(t *testing.T) {
@@ -172,5 +176,79 @@ func TestTagPickerHashes_BulkFromArtists(t *testing.T) {
 	}
 	if len(hashes) != 2 {
 		t.Fatalf("expected 2 hashes, got %d", len(hashes))
+	}
+}
+
+func TestSelectedTrackHashes_Playlists(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewPlaylists
+	m.playlists.level = pltui.TrackLevel
+	m.playlists.tracks = []db.PlaylistTrackRow{
+		{ID: 1, Hash: "hp1"},
+		{ID: 2, Hash: "hp2"},
+		{ID: 3, Hash: "hp3"},
+	}
+	m.playlists.selectedTrackIDs = map[int64]struct{}{1: {}, 3: {}}
+
+	got := m.selectedTrackHashes()
+	if len(got) != 2 {
+		t.Fatalf("expected 2 selected hashes, got %d", len(got))
+	}
+	set := map[string]struct{}{}
+	for _, h := range got {
+		set[h] = struct{}{}
+	}
+	for _, want := range []string{"hp1", "hp3"} {
+		if _, ok := set[want]; !ok {
+			t.Errorf("expected hash %q in result", want)
+		}
+	}
+}
+
+func TestSelectedTrackHashes_FavoritesTrackLevel(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.TrackLevel
+	m.favorites.drilldownTracks = []library.Track{
+		{Hash: "hf1", Title: "Fav A"},
+		{Hash: "hf2", Title: "Fav B"},
+	}
+	m.favorites.selectedItems = map[int]struct{}{0: {}, 1: {}}
+
+	got := m.selectedTrackHashes()
+	if len(got) != 2 {
+		t.Fatalf("expected 2 selected hashes, got %d", len(got))
+	}
+}
+
+func TestSelectedTrackHashes_FavoritesListLevelTracks(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryTracks
+	m.favorites.tracks = []library.Track{
+		{Hash: "hf1", Title: "Fav A"},
+		{Hash: "hf2", Title: "Fav B"},
+	}
+	m.favorites.selectedItems = map[int]struct{}{1: {}}
+
+	got := m.selectedTrackHashes()
+	if len(got) != 1 {
+		t.Fatalf("expected 1 selected hash, got %d", len(got))
+	}
+	if got[0] != "hf2" {
+		t.Errorf("expected hash 'hf2', got %q", got[0])
+	}
+}
+
+func TestHashMapToSlice_Sorted(t *testing.T) {
+	m := map[string]struct{}{
+		"c": {},
+		"a": {},
+		"b": {},
+	}
+	got := hashMapToSlice(m)
+	if !sort.StringsAreSorted(got) {
+		t.Errorf("expected sorted output, got %v", got)
 	}
 }

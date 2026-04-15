@@ -8,6 +8,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // handleToggleFavorite handles the 'F' key across all views.
@@ -109,6 +110,26 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 				return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
 			}
 			if t, ok := m.genres.focusedTrack(); ok {
+				return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
+			}
+		}
+
+	case viewHistory:
+		if hashes := hashMapToSlice(m.history.selectedHashes); len(hashes) > 0 {
+			m.history.selectedHashes = nil
+			return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
+		}
+		if t, ok := m.history.view().FocusedTrack(); ok {
+			return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
+		}
+
+	case viewTags:
+		if m.tagsView.level == tagtui.TrackLevel {
+			if hashes := hashMapToSlice(m.tagsView.selectedHashes); len(hashes) > 0 {
+				m.tagsView.selectedHashes = nil
+				return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
+			}
+			if t, ok := m.tagsView.focusedTrack(); ok {
 				return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
 			}
 		}

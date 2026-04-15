@@ -62,6 +62,8 @@ func (m Model) bulkSelectedHashes() []string {
 		return hashes
 	case viewGenres:
 		return hashMapToSlice(m.genres.selectedHashes)
+	case viewTags:
+		return hashMapToSlice(m.tagsView.selectedHashes)
 	default:
 		return nil
 	}

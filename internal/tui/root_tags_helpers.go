@@ -2,6 +2,7 @@ package tui
 
 import (
 	"log/slog"
+	"sort"
 	"strings"
 	"time"
 
@@ -52,6 +53,37 @@ func (m Model) selectedTrackHashes() []string {
 		return hashMapToSlice(m.artists.selectedHashes)
 	case viewAlbums:
 		return hashMapToSlice(m.albums.selectedHashes)
+	case viewPlaylists:
+		if len(m.playlists.selectedTrackIDs) == 0 {
+			return nil
+		}
+		hashes := make([]string, 0, len(m.playlists.selectedTrackIDs))
+		for _, t := range m.playlists.tracks {
+			if _, ok := m.playlists.selectedTrackIDs[t.ID]; ok {
+				hashes = append(hashes, t.Hash)
+			}
+		}
+		return hashes
+	case viewFavorites:
+		if len(m.favorites.selectedItems) == 0 {
+			return nil
+		}
+		var items []musiclib.Track
+		switch {
+		case m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks:
+			items = arttui.FilterTracks(m.favorites.tracks, m.favorites.filter.Text)
+		case m.favorites.level == favtui.TrackLevel:
+			items = arttui.FilterTracks(m.favorites.drilldownTracks, m.favorites.filter.Text)
+		default:
+			return nil
+		}
+		var hashes []string
+		for idx := range m.favorites.selectedItems {
+			if idx >= 0 && idx < len(items) {
+				hashes = append(hashes, items[idx].Hash)
+			}
+		}
+		return hashes
 	case viewGenres:
 		return hashMapToSlice(m.genres.selectedHashes)
 	case viewTags:
@@ -60,7 +92,7 @@ func (m Model) selectedTrackHashes() []string {
 	return nil
 }
 
-// hashMapToSlice converts a hash set to an ordered slice.
+// hashMapToSlice converts a hash set to a sorted slice.
 func hashMapToSlice(m map[string]struct{}) []string {
 	if len(m) == 0 {
 		return nil
@@ -69,6 +101,7 @@ func hashMapToSlice(m map[string]struct{}) []string {
 	for k := range m {
 		s = append(s, k)
 	}
+	sort.Strings(s)
 	return s
 }
 

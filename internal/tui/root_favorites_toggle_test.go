@@ -4,8 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // TestToggleFavorite_GenresArtistLevel verifies that pressing 'F' at Genres
@@ -146,5 +148,133 @@ func TestToggleFavorite_GenresGenreLevelNoop(t *testing.T) {
 	}
 	if len(w.added) != 0 {
 		t.Fatal("no AddFavorite should be called at GenreLevel")
+	}
+}
+
+func TestToggleFavorite_HistorySingle(t *testing.T) {
+	w := &stubFavoriteWriter{}
+	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
+	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
+	m.activeView = viewHistory
+	m.history.sourceTracks = []library.Track{
+		{Hash: "h1", Title: "Song A"},
+		{Hash: "h2", Title: "Song B"},
+	}
+	m.history = m.history.recomputeSortedTracks()
+	m.history.cursor = 0
+
+	_, cmd, handled := m.handleToggleFavorite()
+	if !handled {
+		t.Fatal("handleToggleFavorite should handle viewHistory")
+	}
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd")
+	}
+	msg := cmd().(favoriteToggledMsg)
+	if msg.typ != "track" {
+		t.Errorf("expected typ='track', got %q", msg.typ)
+	}
+	if !msg.added {
+		t.Error("expected added=true")
+	}
+}
+
+func TestToggleFavorite_HistoryBulk(t *testing.T) {
+	w := &stubFavoriteWriter{}
+	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
+	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
+	m.activeView = viewHistory
+	m.history.sourceTracks = []library.Track{
+		{Hash: "h1", Title: "Song A"},
+		{Hash: "h2", Title: "Song B"},
+	}
+	m.history = m.history.recomputeSortedTracks()
+	m.history.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+
+	nm, cmd, handled := m.handleToggleFavorite()
+	if !handled {
+		t.Fatal("handleToggleFavorite should handle viewHistory with bulk selection")
+	}
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd")
+	}
+	if nm.history.selectedHashes != nil {
+		t.Fatal("selectedHashes should be nil after bulk toggle")
+	}
+	msg := cmd().(favoriteToggledMsg)
+	if msg.count != 2 {
+		t.Errorf("expected count=2, got %d", msg.count)
+	}
+}
+
+func TestToggleFavorite_TagsTrackLevelSingle(t *testing.T) {
+	w := &stubFavoriteWriter{}
+	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
+	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
+	m.activeView = viewTags
+	m.tagsView.level = tagtui.TrackLevel
+	m.tagsView.tracks = []db.PlaylistTrackRow{
+		{Hash: "ht1", Title: "Tag Song A"},
+		{Hash: "ht2", Title: "Tag Song B"},
+	}
+	m.tagsView.cursor = 1
+
+	_, cmd, handled := m.handleToggleFavorite()
+	if !handled {
+		t.Fatal("handleToggleFavorite should handle viewTags at TrackLevel")
+	}
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd")
+	}
+	msg := cmd().(favoriteToggledMsg)
+	if msg.typ != "track" {
+		t.Errorf("expected typ='track', got %q", msg.typ)
+	}
+	if msg.value != "ht2" {
+		t.Errorf("expected value='ht2', got %q", msg.value)
+	}
+}
+
+func TestToggleFavorite_TagsTrackLevelBulk(t *testing.T) {
+	w := &stubFavoriteWriter{}
+	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
+	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
+	m.activeView = viewTags
+	m.tagsView.level = tagtui.TrackLevel
+	m.tagsView.tracks = []db.PlaylistTrackRow{
+		{Hash: "ht1", Title: "Tag Song A"},
+		{Hash: "ht2", Title: "Tag Song B"},
+	}
+	m.tagsView.selectedHashes = map[string]struct{}{"ht1": {}, "ht2": {}}
+
+	nm, cmd, handled := m.handleToggleFavorite()
+	if !handled {
+		t.Fatal("handleToggleFavorite should handle viewTags at TrackLevel with bulk selection")
+	}
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd")
+	}
+	if nm.tagsView.selectedHashes != nil {
+		t.Fatal("selectedHashes should be nil after bulk toggle")
+	}
+	msg := cmd().(favoriteToggledMsg)
+	if msg.count != 2 {
+		t.Errorf("expected count=2, got %d", msg.count)
+	}
+}
+
+func TestToggleFavorite_TagsTagLevelNoop(t *testing.T) {
+	w := &stubFavoriteWriter{}
+	r := &stubFavoriteReader{favorites: map[string][]string{}}
+	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
+	m.activeView = viewTags
+	m.tagsView.level = tagtui.TagLevel
+
+	_, cmd, handled := m.handleToggleFavorite()
+	if !handled {
+		t.Fatal("handleToggleFavorite should return handled=true")
+	}
+	if cmd != nil {
+		t.Fatal("expected nil cmd at TagLevel")
 	}
 }

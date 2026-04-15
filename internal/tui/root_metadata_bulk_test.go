@@ -336,3 +336,33 @@ func TestBulkMetadataEditFromRecentlyAdded(t *testing.T) {
 		t.Errorf("expected 2 hashes in editor, got %d", len(m.overlay.metadataEditor.Hashes()))
 	}
 }
+
+func TestBulkSelectedHashesTags(t *testing.T) {
+	m := newModelWithTracks()
+	m.activeView = viewTags
+	m.tagsView.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+
+	hashes := m.bulkSelectedHashes()
+	if len(hashes) != 2 {
+		t.Fatalf("bulkSelectedHashes (tags): expected 2, got %d", len(hashes))
+	}
+	hashSet := make(map[string]struct{}, len(hashes))
+	for _, h := range hashes {
+		hashSet[h] = struct{}{}
+	}
+	if _, ok := hashSet["h1"]; !ok {
+		t.Error("expected h1 in hashes")
+	}
+	if _, ok := hashSet["h2"]; !ok {
+		t.Error("expected h2 in hashes")
+	}
+}
+
+func TestBulkSelectedHashesTagsEmptyReturnsNil(t *testing.T) {
+	m := newModelWithTracks()
+	m.activeView = viewTags
+
+	if hashes := m.bulkSelectedHashes(); hashes != nil {
+		t.Errorf("tags with no selection: expected nil, got %v", hashes)
+	}
+}
