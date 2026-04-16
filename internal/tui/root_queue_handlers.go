@@ -182,8 +182,22 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 		if remover, ok := m.player.(playerQueueRemover); ok {
 			_ = remover.RemoveFromQueue(msg.Index) // player queue sync is best-effort, TUI is source of truth
 		}
+		wasCurrent := msg.Index == m.playback.currentIndex
 		m.adjustPlaybackIndexAfterRemoval(msg.Index)
-		m = m.stopPlaybackIfCurrentMissing()
+		if wasCurrent && len(m.queue.entries) > 0 {
+			// The player's in-flight gapless prefetch will carry playback to
+			// the next track. Do NOT call resetPlaybackState here — it would
+			// invoke player.Stop() which globally pauses mpv, and that
+			// paused state persists across subsequent gapless transitions,
+			// causing every next track to start paused until relaunch.
+			// Clear only the TUI bookkeeping; start-file will repopulate it.
+			m.playback.currentHash = ""
+			m.statusBar.artist = ""
+			m.statusBar.title = ""
+			m.statusBar.playlistSource = ""
+		} else {
+			m = m.stopPlaybackIfCurrentMissing()
+		}
 	}
 	return m
 }

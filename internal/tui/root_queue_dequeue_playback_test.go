@@ -108,3 +108,78 @@ func TestDequeueLastInstanceOfHashStopsPlayback(t *testing.T) {
 		t.Errorf("currentHash = %q, want empty", nm.playback.currentHash)
 	}
 }
+
+// TestDequeueCurrentIndexNonEmptyQueueDoesNotStop is the regression guard for
+// the global-pause bug. When the user removes the currently-playing track
+// (msg.Index == playback.currentIndex) and other entries remain, the player's
+// gapless prefetch must carry playback forward. Calling player.Stop() in this
+// path globally pauses mpv, which poisons every subsequent gapless transition
+// until the app is restarted.
+func TestDequeueCurrentIndexNonEmptyQueueDoesNotStop(t *testing.T) {
+	p := &stubPlayerQueueRemover{}
+	m := New(context.Background(), WithPlayer(p))
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "abc123"
+	m.playback.currentIndex = 0 // currently playing track at index 0
+	m.statusBar.artist = "Artist"
+	m.statusBar.title = "Title"
+	m.statusBar.playlistSource = "Queue"
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/music/a.flac", Display: "A", Hash: "abc123"},
+		{ID: 20, Path: "/music/b.flac", Display: "B", Hash: "other"},
+		{ID: 30, Path: "/music/c.flac", Display: "C", Hash: "third"},
+	}
+
+	next, _ := m.Update(DequeueTrackMsg{Index: 0})
+	nm := next.(Model)
+
+	if p.stopCalls != 0 {
+		t.Errorf("Stop must NOT be called when removing currently-playing track with non-empty remaining queue, got %d calls", p.stopCalls)
+	}
+	if nm.playback.state != PlaybackPlaying {
+		t.Errorf("playbackState = %v, want PlaybackPlaying (gapless prefetch carries playback forward)", nm.playback.state)
+	}
+	// TUI bookkeeping is cleared; start-file event will repopulate it when the
+	// gapless transition lands.
+	if nm.playback.currentHash != "" {
+		t.Errorf("currentHash = %q, want empty (will be repopulated by start-file)", nm.playback.currentHash)
+	}
+	if nm.statusBar.artist != "" {
+		t.Errorf("statusBar.artist = %q, want empty", nm.statusBar.artist)
+	}
+	if nm.statusBar.title != "" {
+		t.Errorf("statusBar.title = %q, want empty", nm.statusBar.title)
+	}
+	if nm.statusBar.playlistSource != "" {
+		t.Errorf("statusBar.playlistSource = %q, want empty", nm.statusBar.playlistSource)
+	}
+}
+
+// TestDequeueCurrentIndexEmptyQueueStopsPlayback verifies that removing the
+// currently-playing track when it is the only entry leaves the queue empty and
+// calls Stop() (nothing to play, full reset is appropriate).
+func TestDequeueCurrentIndexEmptyQueueStopsPlayback(t *testing.T) {
+	p := &stubPlayerQueueRemover{}
+	m := New(context.Background(), WithPlayer(p))
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "abc123"
+	m.playback.currentIndex = 0
+	m.statusBar.artist = "Artist"
+	m.statusBar.title = "Title"
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/music/a.flac", Display: "A", Hash: "abc123"},
+	}
+
+	next, _ := m.Update(DequeueTrackMsg{Index: 0})
+	nm := next.(Model)
+
+	if p.stopCalls != 1 {
+		t.Errorf("Stop must be called exactly once when removing last queue entry, got %d calls", p.stopCalls)
+	}
+	if nm.playback.state != PlaybackIdle {
+		t.Errorf("playbackState = %v, want PlaybackIdle (queue empty)", nm.playback.state)
+	}
+	if nm.playback.currentHash != "" {
+		t.Errorf("currentHash = %q, want empty", nm.playback.currentHash)
+	}
+}
