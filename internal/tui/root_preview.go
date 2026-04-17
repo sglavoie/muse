@@ -128,7 +128,14 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 	case viewHistory:
 		return m.history.view().FocusedTrack()
 	case viewTags:
-		return m.tagsView.focusedTrackAsLibTrack()
+		track, ok := m.tagsView.focusedTrackAsLibTrack()
+		if ok && track.Hash != "" {
+			if t, found := m.library.index.FindByHash(track.Hash); found {
+				track.PlayCount = t.PlayCount
+				track.Genre = t.Genre
+			}
+		}
+		return track, ok
 	}
 	return library.Track{}, false
 }

@@ -150,6 +150,36 @@ func TestFocusedTrackForPreview_Tags(t *testing.T) {
 	}
 }
 
+// TestFocusedTrackForPreview_TagsEnrichesFromIndex verifies that
+// focusedTrackForPreview enriches PlayCount and Genre from the library index
+// when the Tags view is active. Without the enrichment a preview or track-info
+// overlay would show 0 plays and an empty genre.
+func TestFocusedTrackForPreview_TagsEnrichesFromIndex(t *testing.T) {
+	m := newTagsTrackLevelModel()
+	m.tagsView.cursor = 0 // "Tag Track 1", hash "th1"
+
+	// Seed the library index with PlayCount and Genre for the same hash.
+	m.library.index.Insert(library.Track{
+		Hash:      "th1",
+		Path:      "/tag1.flac",
+		Artist:    "A",
+		Title:     "Tag Track 1",
+		PlayCount: 42,
+		Genre:     "Jazz",
+	})
+
+	track, ok := m.focusedTrackForPreview()
+	if !ok {
+		t.Fatal("expected track from tags view")
+	}
+	if track.PlayCount != 42 {
+		t.Errorf("PlayCount: want 42, got %d", track.PlayCount)
+	}
+	if track.Genre != "Jazz" {
+		t.Errorf("Genre: want Jazz, got %q", track.Genre)
+	}
+}
+
 // TestFocusedTrackForPreview_TagsTagLevel verifies that focusedTrackForPreview
 // returns false when the Tags view is at TagLevel (no track focused).
 func TestFocusedTrackForPreview_TagsTagLevel(t *testing.T) {
