@@ -82,9 +82,27 @@ type PlayQueueIndexMsg struct {
 }
 
 // MissingTrackSelectedMsg is dispatched by the queue view when the user
-// presses Enter on a missing track. Root handles it by showing a transient
-// notification explaining why playback cannot start.
-type MissingTrackSelectedMsg struct{}
+// presses Enter on a track whose file is gone (either already flagged
+// .Missing or detected via an os.Stat pre-flight check). Root handles it
+// by showing a transient warning and removing the entry from the queue
+// and the database.
+type MissingTrackSelectedMsg struct {
+	Index int
+	Path  string
+	Hash  string
+}
+
+// playFromIndexResultMsg carries the outcome of an asynchronous
+// player.PlayFromIndex call dispatched by handlePlayQueueIndexMsg. It
+// allows the Update loop to react to playback failures (including the
+// race where a file disappears between the pre-flight stat and the mpv
+// loadfile command) without blocking the Bubble Tea main goroutine.
+type playFromIndexResultMsg struct {
+	Index int
+	Path  string
+	Hash  string
+	Err   error
+}
 
 // PlayerDisconnectedMsg is dispatched when the mpv process crashes or its IPC
 // socket disconnects unexpectedly. Root handles it by resetting the TUI

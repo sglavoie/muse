@@ -115,10 +115,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.handleBatchEnqueuedMsg(msg)
 
 	case PlayQueueIndexMsg:
-		m = m.handlePlayQueueIndexMsg(msg)
+		return m.handlePlayQueueIndexMsg(msg)
+
+	case playFromIndexResultMsg:
+		m = m.handlePlayFromIndexResultMsg(msg)
 
 	case MissingTrackSelectedMsg:
-		m.statusBar.notification = newNotification("Cannot play — file is missing")
+		return m.handleMissingTrackSelectedMsg(msg)
 
 	case DequeueTrackMsg:
 		m = m.handleDequeueTrackMsg(msg)

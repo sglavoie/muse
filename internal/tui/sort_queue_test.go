@@ -228,6 +228,7 @@ func TestQueueSortDisablesMoveUpDown(t *testing.T) {
 }
 
 func TestQueueSortSelectCorrectEntry(t *testing.T) {
+	stubFileExistsTrue(t)
 	v := QueueView{
 		entries: []QueueEntry{
 			{ID: 1, Hash: "h1", Title: "Zulu"},

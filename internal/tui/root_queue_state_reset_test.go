@@ -110,7 +110,8 @@ func TestClearQueueForReplaceClearsFilter(t *testing.T) {
 }
 
 // TestPlayQueueIndexMsgClearsStateOnFailure verifies that when PlayFromIndex
-// fails, handlePlayQueueIndexMsg clears stale status bar and playback fields.
+// fails, the TUI clears stale status bar and playback fields via the async
+// playFromIndexResultMsg round-trip.
 func TestPlayQueueIndexMsgClearsStateOnFailure(t *testing.T) {
 	p := &stubPlayer{playFromIndexErr: errStubPlay}
 	m := New(context.Background(), WithPlayer(p))
@@ -123,7 +124,17 @@ func TestPlayQueueIndexMsgClearsStateOnFailure(t *testing.T) {
 	m.statusBar.title = "Old Title"
 	m.statusBar.playlistSource = "Old Playlist"
 
-	next, _ := m.Update(PlayQueueIndexMsg{Index: 0})
+	next, cmd := m.Update(PlayQueueIndexMsg{Index: 0})
+	if cmd == nil {
+		t.Fatal("PlayQueueIndexMsg must return an async Cmd")
+	}
+	// Drive the async Cmd and route its result back through Update so
+	// handlePlayFromIndexResultMsg can reset playback state on failure.
+	resultMsg := cmd()
+	if _, ok := resultMsg.(playFromIndexResultMsg); !ok {
+		t.Fatalf("expected playFromIndexResultMsg, got %T", resultMsg)
+	}
+	next, _ = next.(Model).Update(resultMsg)
 	nm := next.(Model)
 
 	if nm.playback.state != PlaybackIdle {

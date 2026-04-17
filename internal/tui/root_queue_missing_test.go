@@ -2,6 +2,9 @@ package tui
 
 import (
 	"context"
+	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -26,33 +29,124 @@ func TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError(t *testing.T) {
 	}
 }
 
-// TestSelectMissingTrackEmitsMissingTrackSelectedMsg verifies that pressing
-// enter on a missing queue entry emits MissingTrackSelectedMsg and that root
-// handles it by setting a transient notification.
-func TestSelectMissingTrackEmitsMissingTrackSelectedMsg(t *testing.T) {
+// TestSelectMissingTrackRemovesEntry verifies that pressing Enter on a
+// track already flagged .Missing emits MissingTrackSelectedMsg with the
+// entry's fields populated, and that root handles it by removing the
+// entry from the queue, issuing a warning, and scheduling a
+// soft-delete + immediate purge via the injected queueDequeuer.
+func TestSelectMissingTrackRemovesEntry(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
 	m.queue.entries = []QueueEntry{
-		{Path: "/music/gone.flac", Display: "Artist - Gone", Missing: true, Hash: "abc123"},
+		{ID: 42, Path: "/music/gone.flac", Display: "Artist - Gone", Missing: true, Hash: "abc123"},
 	}
 	m.queue.cursor = 0
+	dequeuer := &stubQueueDequeuer{}
+	m.undoer = dequeuer
 
 	v, cmd := m.queue.HandleAction(actionSelect)
 	m.queue = v
 	if cmd == nil {
 		t.Fatal("expected a command from selecting a missing track")
 	}
-	msg := cmd()
-	if _, ok := msg.(MissingTrackSelectedMsg); !ok {
-		t.Fatalf("expected MissingTrackSelectedMsg, got %T", msg)
+	msg, ok := cmd().(MissingTrackSelectedMsg)
+	if !ok {
+		t.Fatalf("expected MissingTrackSelectedMsg, got %T", cmd())
+	}
+	if msg.Index != 0 || msg.Path != "/music/gone.flac" || msg.Hash != "abc123" {
+		t.Fatalf("unexpected MissingTrackSelectedMsg fields: %+v", msg)
 	}
 
-	next, _ := m.Update(msg)
+	next, resultCmd := m.Update(msg)
 	nm := next.(Model)
 	if nm.statusBar.notification.msg == "" {
 		t.Fatal("MissingTrackSelectedMsg must set a transient notification")
 	}
 	if !strings.Contains(nm.statusBar.notification.msg, "missing") {
+		t.Errorf("unexpected notification: %s", nm.statusBar.notification.msg)
+	}
+	if len(nm.queue.entries) != 0 {
+		t.Fatalf("queue must be empty after removal, got %d entries", len(nm.queue.entries))
+	}
+	if resultCmd == nil {
+		t.Fatal("expected a DB cleanup Cmd")
+	}
+	resultCmd()
+	if len(dequeuer.dequeueTrackSoftCalls) != 1 || dequeuer.dequeueTrackSoftCalls[0] != 42 {
+		t.Errorf("DequeueTrackSoft calls = %v, want [42]", dequeuer.dequeueTrackSoftCalls)
+	}
+	if len(dequeuer.purgeBeforeCalls) != 1 {
+		t.Errorf("PurgeDeletedQueueEntries calls = %d, want 1", len(dequeuer.purgeBeforeCalls))
+	}
+}
+
+// TestSelectDeletedFilePreflightStatDispatchesMissing verifies that
+// pressing Enter on a queue entry whose file has been deleted from disk
+// — but that has not yet been flagged .Missing by the debounced
+// watcher — triggers the pre-flight stat check and emits
+// MissingTrackSelectedMsg instead of PlayQueueIndexMsg. This prevents
+// the synchronous player.PlayFromIndex call that caused the UI freeze.
+func TestSelectDeletedFilePreflightStatDispatchesMissing(t *testing.T) {
+	tmpDir := t.TempDir()
+	deletedPath := filepath.Join(tmpDir, "gone.flac")
+	if err := os.WriteFile(deletedPath, []byte("x"), 0o644); err != nil {
+		t.Fatalf("seed file: %v", err)
+	}
+	if err := os.Remove(deletedPath); err != nil {
+		t.Fatalf("remove seed file: %v", err)
+	}
+
+	m := New(context.Background())
+	m.activeView = viewQueue
+	// Missing=false — the watcher hasn't flagged it yet (2.5s debounce).
+	m.queue.entries = []QueueEntry{
+		{ID: 7, Path: deletedPath, Display: "Artist - Gone", Hash: "zzz"},
+	}
+	m.queue.cursor = 0
+
+	v, cmd := m.queue.HandleAction(actionSelect)
+	m.queue = v
+	if cmd == nil {
+		t.Fatal("expected a command from actionSelect")
+	}
+	switch msg := cmd().(type) {
+	case MissingTrackSelectedMsg:
+		if msg.Index != 0 || msg.Path != deletedPath || msg.Hash != "zzz" {
+			t.Fatalf("unexpected MissingTrackSelectedMsg fields: %+v", msg)
+		}
+	case PlayQueueIndexMsg:
+		t.Fatalf("pre-flight stat must route deleted file to removal; got PlayQueueIndexMsg")
+	default:
+		t.Fatalf("unexpected message type %T", msg)
+	}
+}
+
+// TestPlayFromIndexResultMsgErrorResetsPlayback verifies that a
+// playFromIndexResultMsg carrying an error (e.g. the race where the file
+// vanished between the pre-flight stat and mpv loadfile) resets
+// playback state and surfaces a notification instead of leaving the UI
+// stuck in the optimistic "playing" state.
+func TestPlayFromIndexResultMsgErrorResetsPlayback(t *testing.T) {
+	m := New(context.Background())
+	m.playback.state = PlaybackPlaying
+	m.playback.currentIndex = 3
+	m.playback.currentHash = "abc"
+	m.statusBar.artist = "Artist"
+	m.statusBar.title = "Title"
+
+	next, _ := m.Update(playFromIndexResultMsg{Index: 3, Err: errors.New("boom")})
+	nm := next.(Model)
+
+	if nm.playback.state != PlaybackIdle {
+		t.Errorf("playback state = %v, want PlaybackIdle", nm.playback.state)
+	}
+	if nm.playback.currentIndex != -1 {
+		t.Errorf("currentIndex = %d, want -1", nm.playback.currentIndex)
+	}
+	if nm.statusBar.notification.msg == "" {
+		t.Fatal("expected a notification on play failure")
+	}
+	if !strings.Contains(nm.statusBar.notification.msg, "Play failed") {
 		t.Errorf("unexpected notification: %s", nm.statusBar.notification.msg)
 	}
 }

@@ -277,6 +277,7 @@ func TestQueueFilterClearedOnClearQueue(t *testing.T) {
 // while filter is active dispatches PlayQueueIndexMsg with the correct
 // underlying entry index.
 func TestQueueFilterSelectMapsToCorrectEntry(t *testing.T) {
+	stubFileExistsTrue(t)
 	q := QueueView{
 		entries: []QueueEntry{
 			{ID: 1, Path: "/a.flac", Hash: "ha", Title: "Alpha", Artist: "A"},

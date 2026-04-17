@@ -2,6 +2,18 @@ package tui
 
 import "testing"
 
+// stubFileExistsTrue replaces the package-level fileExists check with
+// one that always returns true for the duration of the test. Tests that
+// exercise actionSelect with synthetic paths use this helper so the
+// pre-flight stat does not short-circuit Enter → PlayQueueIndexMsg into
+// the missing-track removal path.
+func stubFileExistsTrue(t *testing.T) {
+	t.Helper()
+	saved := fileExists
+	fileExists = func(string) bool { return true }
+	t.Cleanup(func() { fileExists = saved })
+}
+
 // TestMarkMissingFlagsAllDuplicateEntries verifies that markMissing marks
 // every entry with the matching path, not just the first one.
 func TestMarkMissingFlagsAllDuplicateEntries(t *testing.T) {
@@ -160,6 +172,7 @@ func TestQueueBulkSelectionToggleNoPanicWhenCursorOutOfBounds(t *testing.T) {
 // PlayQueueIndexMsg with the correct underlying entry index when a display
 // order is active.
 func TestHandleActionSelectUsesOrigIdx(t *testing.T) {
+	stubFileExistsTrue(t)
 	v := QueueView{
 		entries: []QueueEntry{
 			{ID: 1, Path: "/a", Hash: "ha", Title: "A", Artist: "X"},
@@ -190,6 +203,7 @@ func TestHandleActionSelectUsesOrigIdx(t *testing.T) {
 // index. Root routes Enter -> actionSelect via the registry and calls
 // HandleAction, so this is the code path exercised in production.
 func TestQueueViewHandleActionEnterSendsPlayQueueIndexMsg(t *testing.T) {
+	stubFileExistsTrue(t)
 	q := QueueView{
 		entries: []QueueEntry{
 			{Path: "/music/a.flac", Display: "Artist - A"},

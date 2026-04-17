@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"os"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
@@ -55,10 +56,17 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 		if v.cursor >= 0 && v.cursor < n {
 			e := filtered[v.cursor]
 			idx := e.origIdx
-			if !e.Missing {
-				return v, func() tea.Msg { return PlayQueueIndexMsg{Index: idx} }
+			// Pre-flight stat: the fsnotify watcher is debounced, so a file
+			// the user deleted moments ago may still appear playable here.
+			// Short-circuiting to the removal path avoids calling the player
+			// (and mpv IPC) synchronously from the Update goroutine, which
+			// would freeze the UI.
+			if e.Missing || !fileExists(e.Path) {
+				return v, func() tea.Msg {
+					return MissingTrackSelectedMsg{Index: idx, Path: e.Path, Hash: e.Hash}
+				}
 			}
-			return v, func() tea.Msg { return MissingTrackSelectedMsg{} }
+			return v, func() tea.Msg { return PlayQueueIndexMsg{Index: idx} }
 		}
 	case actionDequeue:
 		if v.cursor >= 0 && v.cursor < n {
@@ -92,6 +100,16 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 		}
 	}
 	return v, nil
+}
+
+// fileExists reports whether the given path can be stat'd. It returns
+// false for any error, including permission-denied: the caller treats a
+// non-stat'able path as "cannot play" regardless of the underlying cause.
+// Declared as a var so tests that exercise actionSelect with synthetic
+// paths can stub the check without creating real temp files.
+var fileExists = func(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // markMissing marks all entries whose Path matches as missing.

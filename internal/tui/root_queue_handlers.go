@@ -123,25 +123,38 @@ func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
 }
 
 // handlePlayQueueIndexMsg starts playback from a specific queue index.
-func (m Model) handlePlayQueueIndexMsg(msg PlayQueueIndexMsg) Model {
-	if m.player != nil {
-		if err := m.player.PlayFromIndex(msg.Index); err == nil {
-			m.playback.state = PlaybackPlaying
-			if msg.Index < len(m.queue.entries) {
-				entry := m.queue.entries[msg.Index]
-				m.playback.currentHash = entry.Hash
-				m.playback.currentIndex = msg.Index
-				m.statusBar.artist = entry.Artist
-				m.statusBar.title = entry.Title
-				m.statusBar.playlistSource = queueSourceName(entry.SourcePlaylist)
-			}
-		} else {
-			m = m.resetPlaybackState()
-			m.statusBar.notification = newNotification("Play failed: " + err.Error())
-			player.PlaySound(player.SoundError)
-		}
+// The actual player.PlayFromIndex call runs in a goroutine (via tea.Cmd)
+// so that synchronous mpv IPC, DB writes, and tea.Program.Send() from
+// inside the player never block the Update goroutine. A successful call
+// is followed up by a TrackChangedMsg from the player's start-file
+// event; a failure surfaces as playFromIndexResultMsg so the TUI can
+// recover (including removal when the file disappeared mid-flight).
+func (m Model) handlePlayQueueIndexMsg(msg PlayQueueIndexMsg) (Model, tea.Cmd) {
+	if m.player == nil {
+		return m, nil
 	}
-	return m
+	if msg.Index < 0 || msg.Index >= len(m.queue.entries) {
+		return m, nil
+	}
+	entry := m.queue.entries[msg.Index]
+	// Optimistic UI update: show the track as playing immediately. The
+	// player will either confirm via TrackChangedMsg or we'll reset
+	// state from the result handler if PlayFromIndex fails.
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = entry.Hash
+	m.playback.currentIndex = msg.Index
+	m.statusBar.artist = entry.Artist
+	m.statusBar.title = entry.Title
+	m.statusBar.playlistSource = queueSourceName(entry.SourcePlaylist)
+
+	p := m.player
+	idx := msg.Index
+	path := entry.Path
+	hash := entry.Hash
+	return m, func() tea.Msg {
+		err := p.PlayFromIndex(idx)
+		return playFromIndexResultMsg{Index: idx, Path: path, Hash: hash, Err: err}
+	}
 }
 
 // handleDequeueTrackMsg removes a track from the queue with undo support.

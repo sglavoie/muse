@@ -22,8 +22,12 @@ func TestRootUpdatePlayQueueIndexMsgCallsPlayerPlayFromIndex(t *testing.T) {
 	}
 
 	_, cmd := m.Update(PlayQueueIndexMsg{Index: 1})
-	if cmd != nil {
-		t.Fatal("PlayQueueIndexMsg must not return a follow-up cmd")
+	if cmd == nil {
+		t.Fatal("PlayQueueIndexMsg must dispatch PlayFromIndex asynchronously via a Cmd")
+	}
+	// Execute the async Cmd to drive the player.
+	if result := cmd(); result == nil {
+		t.Fatal("async play Cmd must return a playFromIndexResultMsg")
 	}
 	if len(p.playFromIndexCalls) != 1 || p.playFromIndexCalls[0] != 1 {
 		t.Fatalf("expected PlayFromIndex(1), got calls=%v", p.playFromIndexCalls)
@@ -34,6 +38,7 @@ func TestRootUpdatePlayQueueIndexMsgCallsPlayerPlayFromIndex(t *testing.T) {
 // flow: pressing Enter while the queue view is active returns a Cmd that emits
 // PlayQueueIndexMsg, and a subsequent Update call invokes PlayFromIndex.
 func TestRootUpdateEnterInQueueViewDelegatesToQueueUpdate(t *testing.T) {
+	stubFileExistsTrue(t)
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
 	m.activeView = viewQueue
@@ -53,9 +58,10 @@ func TestRootUpdateEnterInQueueViewDelegatesToQueueUpdate(t *testing.T) {
 	}
 	// Feed the message back to root to trigger playback.
 	_, cmd2 := m.Update(msg)
-	if cmd2 != nil {
-		t.Fatal("PlayQueueIndexMsg must not return a follow-up cmd")
+	if cmd2 == nil {
+		t.Fatal("PlayQueueIndexMsg must dispatch PlayFromIndex asynchronously via a Cmd")
 	}
+	cmd2() // execute the async Cmd
 	if len(p.playFromIndexCalls) != 1 || p.playFromIndexCalls[0] != 0 {
 		t.Fatalf("expected PlayFromIndex(0), got calls=%v", p.playFromIndexCalls)
 	}
