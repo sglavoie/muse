@@ -64,6 +64,8 @@ func (m Model) handleLibraryStateAction(action action) (tea.Model, tea.Cmd, bool
 			m.library = m.library.ClearFilter()
 		case viewRecentlyAdded:
 			m.recentlyAdded = m.recentlyAdded.ClearFilter()
+		case viewHistory:
+			m.history = m.history.ClearFilter()
 		case viewQueue:
 			if m.queue.filter.Text != "" {
 				m.queue.filter = m.queue.filter.Deactivate()

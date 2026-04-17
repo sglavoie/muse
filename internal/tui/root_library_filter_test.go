@@ -67,6 +67,36 @@ func TestLibraryEnterClearsCommittedFilter(t *testing.T) {
 	}
 }
 
+// TestHistoryEscClearsCommittedFilter verifies that pressing Esc while the
+// History view has a committed filter clears the filter text.
+func TestHistoryEscClearsCommittedFilter(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewHistory
+	m.history.sourceTracks = []library.Track{
+		{Artist: "Alice", Title: "Alpha", Hash: "h1"},
+		{Artist: "Bob", Title: "Beta", Hash: "h2"},
+	}
+
+	m = pressSlash(m)
+	m = typeText(m, "ali")
+	m = pressEnter(m)
+
+	if m.history.filter.Text != "ali" {
+		t.Fatalf("expected committed filterText \"ali\", got %q", m.history.filter.Text)
+	}
+	if m.history.filter.Active {
+		t.Fatal("expected filterActive=false after commit")
+	}
+
+	m = pressEsc(m)
+	if m.history.filter.Text != "" {
+		t.Errorf("expected filterText cleared after Esc, got %q", m.history.filter.Text)
+	}
+	if m.history.filter.Active {
+		t.Error("expected filterActive=false after Esc")
+	}
+}
+
 // TestFilterBarMsgIgnoredOutsideLibraryView verifies that pressing '/' while on
 // the playlists view does not activate the library filter bar. Before the fix,
 // FilterBarMsg always toggled the library filter regardless of the active view,
