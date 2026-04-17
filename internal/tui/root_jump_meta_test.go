@@ -4,11 +4,13 @@ import (
 	"context"
 	"testing"
 
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // TestFocusedTrackMeta_Library verifies that the library cursor drives the
@@ -404,5 +406,46 @@ func TestFocusedTrackMeta_GenresGenreLevel(t *testing.T) {
 	_, _, found := m.focusedTrackMeta()
 	if found {
 		t.Error("expected found=false at Genres GenreLevel")
+	}
+}
+
+// TestFocusedTrackMeta_TagsTrackLevel verifies that focusedTrackMeta returns
+// the artist and album of the focused track when the Tags view is at TrackLevel.
+func TestFocusedTrackMeta_TagsTrackLevel(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewTags
+	m.tagsView = TagsView{
+		level: tagtui.TrackLevel,
+		tracks: []db.PlaylistTrackRow{
+			{Hash: "h1", Artist: "TagArtist", Album: "TagAlbum", Title: "TagSong"},
+		},
+		cursor: 0,
+	}
+
+	artist, album, found := m.focusedTrackMeta()
+	if !found {
+		t.Fatal("expected found=true at Tags TrackLevel")
+	}
+	if artist != "TagArtist" {
+		t.Errorf("artist: want %q, got %q", "TagArtist", artist)
+	}
+	if album != "TagAlbum" {
+		t.Errorf("album: want %q, got %q", "TagAlbum", album)
+	}
+}
+
+// TestFocusedTrackMeta_TagsTagLevel verifies that focusedTrackMeta returns
+// not-found at TagLevel since tags are not tracks.
+func TestFocusedTrackMeta_TagsTagLevel(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewTags
+	m.tagsView = TagsView{
+		level: tagtui.TagLevel,
+		tags:  []db.TagRow{{ID: 1, Name: "MyTag"}},
+	}
+
+	_, _, found := m.focusedTrackMeta()
+	if found {
+		t.Error("expected found=false at Tags TagLevel")
 	}
 }

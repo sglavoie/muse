@@ -253,6 +253,48 @@ func TestNowPlayingTrackChangeRefreshesOverlay(t *testing.T) {
 	}
 }
 
+// TestNowPlayingTrackChangeClearsStaleAlbum verifies that when the overlay is
+// open and the track changes to one not in the library index, the album and
+// playCount fields are reset to zero values instead of retaining stale data
+// from the previous track.
+func TestNowPlayingTrackChangeClearsStaleAlbum(t *testing.T) {
+	m := setupPlayingModel(t)
+	m.overlay.nowPlaying = &NowPlayingOverlay{
+		artist:    "Test Artist",
+		title:     "Test Song",
+		album:     "Test Album",
+		playCount: 42,
+		elapsed:   30,
+		total:     180,
+		state:     PlaybackPlaying,
+	}
+
+	// Send a TrackChangedMsg with a hash that is NOT in the library index.
+	next, _ := m.Update(TrackChangedMsg{
+		Hash:   "unknown-hash",
+		Index:  99,
+		Artist: "Mystery Artist",
+		Title:  "Mystery Song",
+	})
+	nm := next.(Model)
+
+	if nm.overlay.nowPlaying == nil {
+		t.Fatal("expected overlay to remain active after track change")
+	}
+	if nm.overlay.nowPlaying.artist != "Mystery Artist" {
+		t.Errorf("expected artist 'Mystery Artist', got %q", nm.overlay.nowPlaying.artist)
+	}
+	if nm.overlay.nowPlaying.title != "Mystery Song" {
+		t.Errorf("expected title 'Mystery Song', got %q", nm.overlay.nowPlaying.title)
+	}
+	if nm.overlay.nowPlaying.album != "" {
+		t.Errorf("expected album to be cleared, got %q", nm.overlay.nowPlaying.album)
+	}
+	if nm.overlay.nowPlaying.playCount != 0 {
+		t.Errorf("expected playCount to be cleared, got %d", nm.overlay.nowPlaying.playCount)
+	}
+}
+
 // TestNowPlayingSessionRestore verifies that the overlay picks up artist/title
 // from the library index when statusBar fields are empty (session restore case).
 func TestNowPlayingSessionRestore(t *testing.T) {

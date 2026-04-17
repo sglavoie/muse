@@ -389,6 +389,8 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	if m.overlay.nowPlaying != nil {
 		m.overlay.nowPlaying.artist = msg.Artist
 		m.overlay.nowPlaying.title = msg.Title
+		m.overlay.nowPlaying.album = ""
+		m.overlay.nowPlaying.playCount = 0
 		m.overlay.nowPlaying.elapsed = 0
 		m.overlay.nowPlaying.total = 0
 		m.overlay.nowPlaying.state = PlaybackPlaying
