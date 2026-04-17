@@ -11,8 +11,10 @@ import (
 	"github.com/sglavoie/muse/internal/player"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 func (m Model) handleLibraryBulkAction(action action) (tea.Model, tea.Cmd, bool) {
@@ -47,6 +49,10 @@ func (m Model) bulkActionTracks() []library.Track {
 		return m.bulkAlbumTracks()
 	case viewGenres:
 		return m.bulkGenreTracks()
+	case viewFavorites:
+		return m.bulkFavoriteTracks()
+	case viewTags:
+		return m.bulkTagTracks()
 	default:
 		return nil
 	}
@@ -191,6 +197,74 @@ func (m Model) bulkGenreTracks() []library.Track {
 		if track, ok := m.genres.focusedTrack(); ok {
 			return []library.Track{track}
 		}
+	}
+	return nil
+}
+
+func (m Model) bulkFavoriteTracks() []library.Track {
+	switch {
+	case m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks:
+		if len(m.favorites.selectedItems) > 0 {
+			items := arttui.FilterTracks(m.favorites.tracks, m.favorites.filter.Text)
+			var tracks []library.Track
+			for idx := range m.favorites.selectedItems {
+				if idx >= 0 && idx < len(items) {
+					tracks = append(tracks, items[idx])
+				}
+			}
+			return tracks
+		}
+		if track, ok := m.favorites.focusedTrack(); ok {
+			return []library.Track{track}
+		}
+	case m.favorites.level == favtui.TrackLevel:
+		if len(m.favorites.selectedItems) > 0 {
+			items := arttui.FilterTracks(m.favorites.drilldownTracks, m.favorites.filter.Text)
+			var tracks []library.Track
+			for idx := range m.favorites.selectedItems {
+				if idx >= 0 && idx < len(items) {
+					tracks = append(tracks, items[idx])
+				}
+			}
+			return tracks
+		}
+		if track, ok := m.favorites.focusedTrack(); ok {
+			return []library.Track{track}
+		}
+	}
+	return nil
+}
+
+func (m Model) bulkTagTracks() []library.Track {
+	if m.tagsView.level != tagtui.TrackLevel {
+		return nil
+	}
+	items := tagtui.View{Tracks: m.tagsView.tracks, FilterText: m.tagsView.filter.Text}.EffectiveTracks()
+	if len(m.tagsView.selectedHashes) > 0 {
+		var tracks []library.Track
+		for _, t := range items {
+			if _, ok := m.tagsView.selectedHashes[t.Hash]; ok {
+				tracks = append(tracks, library.Track{
+					Hash:     t.Hash,
+					Path:     t.Path,
+					Artist:   t.Artist,
+					Title:    t.Title,
+					Album:    t.Album,
+					Duration: float64(t.DurationMs) / 1000,
+				})
+			}
+		}
+		return tracks
+	}
+	if t, ok := m.tagsView.focusedTrack(); ok {
+		return []library.Track{{
+			Hash:     t.Hash,
+			Path:     t.Path,
+			Artist:   t.Artist,
+			Title:    t.Title,
+			Album:    t.Album,
+			Duration: float64(t.DurationMs) / 1000,
+		}}
 	}
 	return nil
 }

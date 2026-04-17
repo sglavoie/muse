@@ -80,6 +80,12 @@ func (m Model) resetGenresSort() Model {
 	return m
 }
 
+// resetTagsSort clears the tags sort state.
+func (m Model) resetTagsSort() Model {
+	m.tagsView.sortState = SortState{}
+	return m
+}
+
 // resetHistorySort restores the fixed Last Played sort state.
 func (m Model) resetHistorySort() Model {
 	m.history.sortState = SortState{Field: SortLastPlayed, Dir: SortDesc}
@@ -100,6 +106,7 @@ func (m Model) resetAllSorts() Model {
 	m = m.resetAlbumsSort()
 	m = m.resetFavoritesSort()
 	m = m.resetGenresSort()
+	m = m.resetTagsSort()
 	m = m.resetHistorySort()
 	return m
 }

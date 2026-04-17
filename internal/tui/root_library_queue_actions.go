@@ -136,6 +136,11 @@ func (m Model) handleLibraryEnqueueReplaceAction() (tea.Model, tea.Cmd, bool) {
 			m = m.clearQueueForReplace()
 			cmd = m.genres.enqueueFocusedTrack(m.queueWriter, 0)
 		}
+	case viewTags:
+		if _, ok := m.tagsView.focusedTrack(); ok {
+			m = m.clearQueueForReplace()
+			cmd = m.tagsView.enqueueFocusedTrack(m.queueWriter, 0)
+		}
 	}
 	return m, cmd, true
 }
