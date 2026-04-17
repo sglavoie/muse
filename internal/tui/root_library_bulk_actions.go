@@ -239,7 +239,7 @@ func (m Model) bulkTagTracks() []library.Track {
 	if m.tagsView.level != tagtui.TrackLevel {
 		return nil
 	}
-	items := tagtui.View{Tracks: m.tagsView.tracks, FilterText: m.tagsView.filter.Text}.EffectiveTracks()
+	items := m.tagsView.displayTracks()
 	if len(m.tagsView.selectedHashes) > 0 {
 		var tracks []library.Track
 		for _, t := range items {

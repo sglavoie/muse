@@ -56,6 +56,7 @@ var (
 	genreGenreSortFields    = []SortField{SortDefault, SortName}
 	genreArtistSortFields   = []SortField{SortDefault, SortName}
 	genreTrackSortFields    = []SortField{SortDefault, SortTitle, SortDuration}
+	tagsTrackSortFields     = []SortField{SortDefault, SortTitle, SortArtist, SortAlbum, SortDuration}
 )
 
 // CycleSortField advances to the next field in the cycle, wrapping around.

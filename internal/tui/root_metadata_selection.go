@@ -179,6 +179,7 @@ func (m Model) refreshDerivedViews() Model {
 				m.tagsView.tracks[i].Album = t.Album
 			}
 		}
+		m.tagsView = m.tagsView.recomputeTagsSort()
 	}
 
 	if m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks {

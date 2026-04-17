@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
@@ -8,6 +9,7 @@ import (
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // artistsSortFieldsForLevel returns the sort field cycle for the given artists level.
@@ -332,4 +334,49 @@ func genresVisibleReserve(v GenresView) int {
 		reserve++
 	}
 	return reserve
+}
+
+// tagsSortFieldsForLevel returns the sort field cycle for the given tags level.
+// Returns nil at TagLevel (sorting not applicable to the tag list).
+func tagsSortFieldsForLevel(level tagtui.Level) []SortField {
+	switch level {
+	case tagtui.TrackLevel:
+		return tagsTrackSortFields
+	default:
+		return nil
+	}
+}
+
+// preserveTagsCursorOnDirChange changes the tags sort direction while keeping
+// the focused item at its new position.
+func (m Model) preserveTagsCursorOnDirChange(dir SortDir) Model {
+	if m.tagsView.level != tagtui.TrackLevel {
+		return m
+	}
+	items := m.tagsView.displayTracks()
+	var focusedHash string
+	if m.tagsView.cursor >= 0 && m.tagsView.cursor < len(items) {
+		focusedHash = items[m.tagsView.cursor].Hash
+	}
+	m.tagsView.sortState.Dir = dir
+	m.tagsView = m.tagsView.recomputeTagsSort()
+	items = m.tagsView.displayTracks()
+	m.tagsView.cursor = findPlaylistTrackHashPosition(items, focusedHash)
+	reserve := tagsVisibleReserve(m.tagsView)
+	m.tagsView.scrollOffset = adjustScroll(m.tagsView.cursor, m.tagsView.scrollOffset, layout.VisibleRows(m.tagsView.height, reserve))
+	return m
+}
+
+// findPlaylistTrackHashPosition returns the index of the track with the given
+// hash in a PlaylistTrackRow slice, or 0 if not found.
+func findPlaylistTrackHashPosition(tracks []db.PlaylistTrackRow, hash string) int {
+	if hash == "" {
+		return 0
+	}
+	for i, t := range tracks {
+		if t.Hash == hash {
+			return i
+		}
+	}
+	return 0
 }

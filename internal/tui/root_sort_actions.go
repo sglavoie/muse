@@ -169,6 +169,23 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.statusBar.notification = newNotification(sortNotification(m.genres.sortState))
 		return m, nil, true
 
+	case viewTags:
+		fields := tagsSortFieldsForLevel(m.tagsView.level)
+		if fields == nil {
+			return m, nil, false
+		}
+		next := CycleSortField(m.tagsView.sortState.Field, fields)
+		m.tagsView.sortState.Field = next
+		if next == SortDefault {
+			m.tagsView.sortState.Dir = SortAsc
+		}
+		m.tagsView = m.tagsView.recomputeTagsSort()
+		m.tagsView.cursor = 0
+		m.tagsView.scrollOffset = 0
+		m.tagsView.selectedHashes = nil
+		m.statusBar.notification = newNotification(sortNotification(m.tagsView.sortState))
+		return m, nil, true
+
 	default:
 		return m, nil, false
 	}
@@ -282,6 +299,14 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 		}
 		m = m.preserveGenresCursorOnDirChange(dir)
 		m.statusBar.notification = newNotification(sortNotification(m.genres.sortState))
+		return m, nil, true
+
+	case viewTags:
+		if m.tagsView.sortState.Field == SortDefault {
+			return m, nil, false
+		}
+		m = m.preserveTagsCursorOnDirChange(dir)
+		m.statusBar.notification = newNotification(sortNotification(m.tagsView.sortState))
 		return m, nil, true
 
 	default:

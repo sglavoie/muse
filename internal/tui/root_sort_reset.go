@@ -83,6 +83,7 @@ func (m Model) resetGenresSort() Model {
 // resetTagsSort clears the tags sort state.
 func (m Model) resetTagsSort() Model {
 	m.tagsView.sortState = SortState{}
+	m.tagsView.sortedTrackOrder = nil
 	return m
 }
 

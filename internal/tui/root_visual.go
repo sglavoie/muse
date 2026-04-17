@@ -162,7 +162,7 @@ func visualListLen(m Model) int {
 		}
 	case viewTags:
 		if m.tagsView.level == tagtui.TrackLevel {
-			return len(tagtui.View{Tracks: m.tagsView.tracks, FilterText: m.tagsView.filter.Text}.EffectiveTracks())
+			return len(m.tagsView.displayTracks())
 		}
 	}
 	return 0
@@ -288,7 +288,7 @@ func selectRange(m Model, lo, hi int) Model {
 		}
 	case viewTags:
 		if m.tagsView.level == tagtui.TrackLevel {
-			tracks := tagtui.View{Tracks: m.tagsView.tracks, FilterText: m.tagsView.filter.Text}.EffectiveTracks()
+			tracks := m.tagsView.displayTracks()
 			for i := lo; i <= hi; i++ {
 				if i < 0 || i >= len(tracks) {
 					continue

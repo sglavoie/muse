@@ -36,9 +36,10 @@ type TagsView struct {
 	width  int
 	height int
 
-	filter         filter.State
-	sortState      SortState
-	selectedHashes map[string]struct{}
+	filter           filter.State
+	sortState        SortState
+	sortedTrackOrder []int // permutation for sorted track display; nil = natural order
+	selectedHashes   map[string]struct{}
 
 	// Inline create/rename input state.
 	creating    bool
@@ -63,13 +64,22 @@ func (v TagsView) render(s styles.Styles, favHashes map[string]struct{}) string 
 		renameInputStr = v.renameInput.Value()
 	}
 
+	tracks := v.tracks
+	if v.sortedTrackOrder != nil {
+		reordered := make([]db.PlaylistTrackRow, len(v.tracks))
+		for i, idx := range v.sortedTrackOrder {
+			reordered[i] = v.tracks[idx]
+		}
+		tracks = reordered
+	}
+
 	tv := tagtui.View{
 		Level:           v.level,
 		Cursor:          v.cursor,
 		ScrollOffset:    v.scrollOffset,
 		Tags:            v.tags,
 		TagCounts:       v.tagCounts,
-		Tracks:          v.tracks,
+		Tracks:          tracks,
 		SelectedTag:     v.selectedTag,
 		TagCursor:       v.tagCursor,
 		TagScrollOffset: v.tagScrollOffset,
@@ -149,6 +159,7 @@ func (v TagsView) openTracks(tag db.TagRow, tracks []db.PlaylistTrackRow) TagsVi
 	v.tracks = view.Tracks
 	v.filter = filter.State{}
 	v.sortState = SortState{}
+	v.sortedTrackOrder = nil
 	v.selectedHashes = nil
 	return v
 }
@@ -170,6 +181,7 @@ func (v TagsView) back() TagsView {
 	v.tracks = view.Tracks
 	v.filter = filter.State{}
 	v.sortState = SortState{}
+	v.sortedTrackOrder = nil
 	v.selectedHashes = nil
 	return v
 }
@@ -178,8 +190,7 @@ func (v TagsView) back() TagsView {
 func (v TagsView) clampCursor() TagsView {
 	var n int
 	if v.level == tagtui.TrackLevel {
-		filtered := tagtui.View{Tracks: v.tracks, FilterText: v.filter.Text}.EffectiveTracks()
-		n = len(filtered)
+		n = len(v.displayTracks())
 	} else {
 		filtered := tagtui.View{Tags: v.tags, TagCounts: v.tagCounts, FilterText: v.filter.Text}.EffectiveTags()
 		n = len(filtered)
@@ -192,6 +203,16 @@ func (v TagsView) clampCursor() TagsView {
 	}
 	if v.scrollOffset > v.cursor {
 		v.scrollOffset = v.cursor
+	}
+	return v
+}
+
+// recomputeTagsSort rebuilds the sorted track order cache.
+func (v TagsView) recomputeTagsSort() TagsView {
+	if v.level == tagtui.TrackLevel {
+		v.sortedTrackOrder = SortPlaylistTrackIndices(v.tracks, v.sortState.Field, v.sortState.Dir)
+	} else {
+		v.sortedTrackOrder = nil
 	}
 	return v
 }
@@ -209,13 +230,26 @@ func (v TagsView) focusedTag() (db.TagRow, bool) {
 	return items[v.cursor], true
 }
 
+// displayTracks returns tracks in display order (sorted then filtered).
+func (v TagsView) displayTracks() []db.PlaylistTrackRow {
+	tracks := v.tracks
+	if v.sortedTrackOrder != nil {
+		reordered := make([]db.PlaylistTrackRow, len(v.tracks))
+		for i, idx := range v.sortedTrackOrder {
+			reordered[i] = v.tracks[idx]
+		}
+		tracks = reordered
+	}
+	return tagtui.View{Tracks: tracks, FilterText: v.filter.Text}.EffectiveTracks()
+}
+
 // focusedTrack returns the track at the current cursor position and true.
 // Returns false when not at TrackLevel or list is empty.
 func (v TagsView) focusedTrack() (db.PlaylistTrackRow, bool) {
 	if v.level != tagtui.TrackLevel {
 		return db.PlaylistTrackRow{}, false
 	}
-	items := tagtui.View{Tracks: v.tracks, FilterText: v.filter.Text}.EffectiveTracks()
+	items := v.displayTracks()
 	if v.cursor < 0 || v.cursor >= len(items) {
 		return db.PlaylistTrackRow{}, false
 	}
