@@ -172,6 +172,16 @@ func (m Model) refreshDerivedViews() Model {
 		}
 	}
 
+	if len(m.recentlyAdded.sourceTracks) > 0 {
+		refreshTrackMetadata(m.recentlyAdded.sourceTracks)
+		if m.recentlyAdded.sortState.Field != SortDefault {
+			m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
+		}
+		if m.recentlyAdded.filter.Text != "" {
+			m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
+		}
+	}
+
 	if len(m.history.sourceTracks) > 0 {
 		refreshTrackMetadata(m.history.sourceTracks)
 		if m.history.sortState.Field != SortDefault {
