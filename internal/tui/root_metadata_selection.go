@@ -171,6 +171,17 @@ func (m Model) refreshDerivedViews() Model {
 			}
 		}
 	}
+
+	if len(m.history.sourceTracks) > 0 {
+		refreshTrackMetadata(m.history.sourceTracks)
+		if m.history.sortState.Field != SortDefault {
+			m.history = m.history.recomputeSortedTracks()
+		}
+		if m.history.filter.Text != "" {
+			m.history = m.history.rebuildFilterCache()
+		}
+	}
+
 	if m.tagsView.level == tagtui.TrackLevel {
 		for i := range m.tagsView.tracks {
 			if t, ok := m.library.index.FindByHash(m.tagsView.tracks[i].Hash); ok {
