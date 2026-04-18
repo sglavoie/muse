@@ -63,6 +63,16 @@ func (m Model) handleTagMerged(msg tagMergedMsg) (Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Update the in-memory trackTags cache: remap source → dest so that
+	// tag dots and the tag picker reflect the merge immediately.
+	for hash, tagIDs := range m.trackTags {
+		if _, has := tagIDs[msg.src.ID]; has {
+			delete(tagIDs, msg.src.ID)
+			tagIDs[msg.dest.ID] = struct{}{}
+			m.trackTags[hash] = tagIDs
+		}
+	}
+
 	if m.tagReader != nil {
 		tags, err := m.tagReader.ReadTags()
 		if err == nil {
