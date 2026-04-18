@@ -149,6 +149,19 @@ func (m Model) handleRemoveAllTagsFromTrack(msg removeAllTagsFromTrackMsg) (Mode
 		if m.queue.tagFilterHashes != nil {
 			delete(m.queue.tagFilterHashes, hash)
 		}
+		// Rebuild sort/filter caches and clamp cursors: the effective
+		// track list may have shrunk because baseTracks() re-evaluates
+		// tagFilterHashes, invalidating the cached sortedTracks.
+		m.library = m.library.recomputeSortedTracks()
+		m.library = m.library.rebuildFilterCache()
+		m.library = m.library.clampCursor()
+		m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
+		m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
+		m.recentlyAdded = m.recentlyAdded.clampCursor()
+		m.history = m.history.recomputeSortedTracks()
+		m.history = m.history.rebuildFilterCache()
+		m.history = m.history.clampCursor()
+		m.clampQueueCursorAndScroll()
 	}
 
 	tw := m.tagWriter

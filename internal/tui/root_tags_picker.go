@@ -60,6 +60,51 @@ func (m Model) handleTagPickerToggle(msg TagPickerToggleMsg) (Model, tea.Cmd) {
 	tagID, hashes, add := msg.TagID, msg.Hashes, msg.Add
 	m = m.applyTagToggle(tagID, hashes, add)
 
+	// Update cross-view tag filter when the toggled tag is the active filter.
+	if m.activeTagFilter != nil && tagID == *m.activeTagFilter {
+		if add {
+			for _, h := range hashes {
+				if m.library.tagFilterHashes != nil {
+					m.library.tagFilterHashes[h] = struct{}{}
+				}
+				if m.recentlyAdded.tagFilterHashes != nil {
+					m.recentlyAdded.tagFilterHashes[h] = struct{}{}
+				}
+				if m.history.tagFilterHashes != nil {
+					m.history.tagFilterHashes[h] = struct{}{}
+				}
+				if m.queue.tagFilterHashes != nil {
+					m.queue.tagFilterHashes[h] = struct{}{}
+				}
+			}
+		} else {
+			for _, h := range hashes {
+				if m.library.tagFilterHashes != nil {
+					delete(m.library.tagFilterHashes, h)
+				}
+				if m.recentlyAdded.tagFilterHashes != nil {
+					delete(m.recentlyAdded.tagFilterHashes, h)
+				}
+				if m.history.tagFilterHashes != nil {
+					delete(m.history.tagFilterHashes, h)
+				}
+				if m.queue.tagFilterHashes != nil {
+					delete(m.queue.tagFilterHashes, h)
+				}
+			}
+		}
+		m.library = m.library.recomputeSortedTracks()
+		m.library = m.library.rebuildFilterCache()
+		m.library = m.library.clampCursor()
+		m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
+		m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
+		m.recentlyAdded = m.recentlyAdded.clampCursor()
+		m.history = m.history.recomputeSortedTracks()
+		m.history = m.history.rebuildFilterCache()
+		m.history = m.history.clampCursor()
+		m.clampQueueCursorAndScroll()
+	}
+
 	if m.overlay.tagPicker != nil {
 		var newState checkState
 		if add {
