@@ -179,9 +179,12 @@ func (m Model) handleDestinationPickerDismissedMsg() Model {
 	m.overlay.destPicker = nil
 	m.overlay.destPickerTracks = nil
 	m.library = m.library.ClearSelection()
+	m.recentlyAdded = m.recentlyAdded.ClearSelection()
+	m.history = m.history.ClearSelection()
 	m.artists.selectedHashes = nil
 	m.albums.selectedHashes = nil
 	m.genres.selectedHashes = nil
+	m.tagsView.selectedHashes = nil
 	return m
 }
 
@@ -191,9 +194,12 @@ func (m Model) handleDestinationPickerDismissedMsg() Model {
 func (m Model) handleDestinationPickerCreateMsg() Model {
 	m.overlay.destPicker = nil
 	m.library = m.library.ClearSelection()
+	m.recentlyAdded = m.recentlyAdded.ClearSelection()
+	m.history = m.history.ClearSelection()
 	m.artists.selectedHashes = nil
 	m.albums.selectedHashes = nil
 	m.genres.selectedHashes = nil
+	m.tagsView.selectedHashes = nil
 	m.activeView = viewPlaylists
 	m.playlists = m.playlists.startCreate()
 	return m
@@ -206,9 +212,12 @@ func (m Model) handleDestinationPickedMsg(msg pltui.DestinationPickedMsg) (Model
 	m.overlay.destPicker = nil
 	m.overlay.destPickerTracks = nil
 	m.library = m.library.ClearSelection()
+	m.recentlyAdded = m.recentlyAdded.ClearSelection()
+	m.history = m.history.ClearSelection()
 	m.artists.selectedHashes = nil
 	m.albums.selectedHashes = nil
 	m.genres.selectedHashes = nil
+	m.tagsView.selectedHashes = nil
 	if msg.IsQueue {
 		if m.batchEnqueuer != nil {
 			be := m.batchEnqueuer

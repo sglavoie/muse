@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // TestWatchBatchInvalidatesFilterCache verifies that a watchBatchMsg that
@@ -334,5 +335,39 @@ func TestWatchBatchPreservesMetadataWithUserEditedOverlay(t *testing.T) {
 	}
 	if track.Duration != 3.5 {
 		t.Errorf("Duration = %f; want 3.5 (preserved)", track.Duration)
+	}
+}
+
+// TestWatchBatchUpdatesTagsTrackMetadata verifies that when the watcher
+// reports metadata changes for a track currently shown in the Tags
+// track-level view, the tagsView.tracks slice is updated in place.
+func TestWatchBatchUpdatesTagsTrackMetadata(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{
+		Artist: "OldArtist", Title: "OldTitle", Album: "OldAlbum",
+		Path: "/a.flac", Hash: "h1",
+	})
+	m.tagsView.level = tagtui.TrackLevel
+	m.tagsView.tracks = []db.PlaylistTrackRow{
+		{Hash: "h1", Path: "/a.flac", Artist: "OldArtist", Title: "OldTitle", Album: "OldAlbum"},
+	}
+
+	next, _ := m.Update(watchBatchMsg{
+		tracks: []library.Track{
+			{Artist: "NewArtist", Title: "NewTitle", Album: "NewAlbum",
+				Path: "/a.flac", Hash: "h1"},
+		},
+	})
+	nm := next.(Model)
+
+	tr := nm.tagsView.tracks[0]
+	if tr.Artist != "NewArtist" {
+		t.Errorf("expected tags track Artist=%q, got %q", "NewArtist", tr.Artist)
+	}
+	if tr.Title != "NewTitle" {
+		t.Errorf("expected tags track Title=%q, got %q", "NewTitle", tr.Title)
+	}
+	if tr.Album != "NewAlbum" {
+		t.Errorf("expected tags track Album=%q, got %q", "NewAlbum", tr.Album)
 	}
 }

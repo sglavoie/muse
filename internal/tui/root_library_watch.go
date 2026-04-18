@@ -7,6 +7,7 @@ import (
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // handleWatchBatchMsg processes filesystem watcher events, removing deleted
@@ -104,6 +105,19 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 					m.favorites.drilldownTracks[i].Artist = t.Artist
 					m.favorites.drilldownTracks[i].Album = t.Album
 					m.favorites.drilldownTracks[i].Genre = t.Genre
+				}
+			}
+		}
+	}
+	// Refresh tags track metadata so the tags view reflects
+	// watcher-detected changes.
+	if m.tagsView.level == tagtui.TrackLevel {
+		for _, t := range msg.tracks {
+			for i := range m.tagsView.tracks {
+				if m.tagsView.tracks[i].Hash == t.Hash {
+					m.tagsView.tracks[i].Title = t.Title
+					m.tagsView.tracks[i].Artist = t.Artist
+					m.tagsView.tracks[i].Album = t.Album
 				}
 			}
 		}
