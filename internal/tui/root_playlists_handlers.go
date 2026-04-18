@@ -184,6 +184,7 @@ func (m Model) handleDestinationPickerDismissedMsg() Model {
 	m.artists.selectedHashes = nil
 	m.albums.selectedHashes = nil
 	m.genres.selectedHashes = nil
+	m.favorites.selectedItems = nil
 	m.tagsView.selectedHashes = nil
 	return m
 }
@@ -199,6 +200,7 @@ func (m Model) handleDestinationPickerCreateMsg() Model {
 	m.artists.selectedHashes = nil
 	m.albums.selectedHashes = nil
 	m.genres.selectedHashes = nil
+	m.favorites.selectedItems = nil
 	m.tagsView.selectedHashes = nil
 	m.activeView = viewPlaylists
 	m.playlists = m.playlists.startCreate()
@@ -217,6 +219,7 @@ func (m Model) handleDestinationPickedMsg(msg pltui.DestinationPickedMsg) (Model
 	m.artists.selectedHashes = nil
 	m.albums.selectedHashes = nil
 	m.genres.selectedHashes = nil
+	m.favorites.selectedItems = nil
 	m.tagsView.selectedHashes = nil
 	if msg.IsQueue {
 		if m.batchEnqueuer != nil {
