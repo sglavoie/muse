@@ -225,6 +225,109 @@ func TestTrackEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 	}
 }
 
+// TestTrackEnqueuedResumesPlaybackOnQueueExhausted verifies that when the
+// queue has been exhausted (finished playing all tracks) and a new track is
+// enqueued, playback auto-resumes from the new track even though WasEmpty is
+// false (old entries are still present).
+func TestTrackEnqueuedResumesPlaybackOnQueueExhausted(t *testing.T) {
+	p := &stubPlayer{}
+	m := New(context.Background(), WithPlayer(p))
+	// Simulate exhausted queue: playback stopped, old entries remain.
+	m.playback.state = PlaybackIdle
+	m.playback.queueExhausted = true
+	m.playback.currentIndex = -1
+	m.playback.currentHash = ""
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "old-hash", Path: "/music/old.flac", Display: "Old"},
+	}
+
+	track := library.Track{Hash: "new-hash", Artist: "New", Title: "Track", Path: "/music/new.flac"}
+	msg := libtui.TrackEnqueuedMsg{Track: track, QueueID: 2, WasEmpty: false, InsertAfter: -1}
+	next, _ := m.Update(msg)
+	nm := next.(Model)
+
+	if nm.playback.state != PlaybackPlaying {
+		t.Fatalf("expected PlaybackPlaying after exhausted-queue enqueue, got %v", nm.playback.state)
+	}
+	if nm.playback.queueExhausted {
+		t.Fatal("queueExhausted should be cleared after auto-resume")
+	}
+	// Should play from the newly enqueued track's index (appended at end).
+	if len(p.playFromIndexCalls) != 1 || p.playFromIndexCalls[0] != 1 {
+		t.Fatalf("expected PlayFromIndex(1), got calls=%v", p.playFromIndexCalls)
+	}
+	if nm.playback.currentHash != "new-hash" {
+		t.Fatalf("expected currentHash=%q, got %q", "new-hash", nm.playback.currentHash)
+	}
+}
+
+// TestBatchEnqueuedResumesPlaybackOnQueueExhausted verifies that when the
+// queue has been exhausted and a batch of tracks is enqueued, playback
+// auto-resumes from the first new track.
+func TestBatchEnqueuedResumesPlaybackOnQueueExhausted(t *testing.T) {
+	p := &stubPlayer{}
+	m := New(context.Background(), WithPlayer(p))
+	// Simulate exhausted queue.
+	m.playback.state = PlaybackIdle
+	m.playback.queueExhausted = true
+	m.playback.currentIndex = -1
+	m.playback.currentHash = ""
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "old-hash", Path: "/music/old.flac", Display: "Old"},
+	}
+
+	entries := []QueueEntry{
+		{ID: 10, Hash: "batch-a", Path: "/a.flac", Display: "A", Artist: "A", Title: "Song A"},
+		{ID: 11, Hash: "batch-b", Path: "/b.flac", Display: "B", Artist: "B", Title: "Song B"},
+	}
+	msg := BatchEnqueuedMsg{
+		Entries:      entries,
+		QueueIDs:     []int64{10, 11},
+		WasEmpty:     false,
+		PlaylistName: "Test",
+	}
+	next, _ := m.Update(msg)
+	nm := next.(Model)
+
+	if nm.playback.state != PlaybackPlaying {
+		t.Fatalf("expected PlaybackPlaying after exhausted-queue batch enqueue, got %v", nm.playback.state)
+	}
+	if nm.playback.queueExhausted {
+		t.Fatal("queueExhausted should be cleared after auto-resume")
+	}
+	// Should play from index 1 (first newly appended entry).
+	if len(p.playFromIndexCalls) != 1 || p.playFromIndexCalls[0] != 1 {
+		t.Fatalf("expected PlayFromIndex(1), got calls=%v", p.playFromIndexCalls)
+	}
+	if nm.playback.currentHash != "batch-a" {
+		t.Fatalf("expected currentHash=%q, got %q", "batch-a", nm.playback.currentHash)
+	}
+}
+
+// TestTrackEnqueuedDoesNotResumeWhenNotExhausted verifies that a regular
+// enqueue into a non-empty, non-exhausted queue does not trigger auto-play.
+func TestTrackEnqueuedDoesNotResumeWhenNotExhausted(t *testing.T) {
+	p := &stubPlayer{}
+	m := New(context.Background(), WithPlayer(p))
+	m.playback.state = PlaybackIdle
+	m.playback.queueExhausted = false
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "old-hash", Path: "/music/old.flac", Display: "Old"},
+	}
+
+	track := library.Track{Hash: "new-hash", Artist: "New", Title: "Track", Path: "/music/new.flac"}
+	msg := libtui.TrackEnqueuedMsg{Track: track, QueueID: 2, WasEmpty: false, InsertAfter: -1}
+	next, _ := m.Update(msg)
+	nm := next.(Model)
+
+	if nm.playback.state != PlaybackIdle {
+		t.Fatalf("expected PlaybackIdle (no auto-resume), got %v", nm.playback.state)
+	}
+	if len(p.playFromIndexCalls) != 0 {
+		t.Fatalf("expected no PlayFromIndex call, got calls=%v", p.playFromIndexCalls)
+	}
+}
+
 // TestBatchEnqueuedAutoPlayUpdatesCurrentTrackHash verifies that when a batch
 // enqueue into an empty queue triggers auto-play, currentTrackHash is set to
 // the first entry's hash.
