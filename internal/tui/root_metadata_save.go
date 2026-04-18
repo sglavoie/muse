@@ -65,6 +65,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	}
 
 	m = m.syncStatusBarMetadata(hash, artist, title)
+	m = m.preserveQueueSort()
 
 	m.setUndoSlot(undoBulkEditMetadataAction{
 		originals: map[string][5]string{hash: {origTitle, origArtist, origAlbum, origGenre, formatDurationForEditor(origDuration)}},
@@ -179,6 +180,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		updates = append(updates, update{h, newTitle, newArtist, newAlbum, newGenre, durationMs})
 	}
 	m = m.syncRecentlyAddedFromLibrary()
+	m = m.preserveQueueSort()
 
 	switch m.activeView {
 	case viewLibrary:

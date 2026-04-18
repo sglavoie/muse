@@ -69,6 +69,27 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 	// Keep the player's in-memory queue in sync when entries changed.
 	if queueDirty {
 		m.syncPlayerQueue()
+		m = m.preserveQueueSort()
+	}
+	// Refresh history track metadata so the history view reflects
+	// watcher-detected changes.
+	if len(m.history.sourceTracks) > 0 {
+		for _, t := range msg.tracks {
+			for i := range m.history.sourceTracks {
+				if m.history.sourceTracks[i].Hash == t.Hash {
+					m.history.sourceTracks[i].Title = t.Title
+					m.history.sourceTracks[i].Artist = t.Artist
+					m.history.sourceTracks[i].Album = t.Album
+					m.history.sourceTracks[i].Genre = t.Genre
+				}
+			}
+		}
+		if m.history.sortState.Field != SortDefault {
+			m.history = m.history.recomputeSortedTracks()
+		}
+		if m.history.filter.Text != "" {
+			m.history = m.history.rebuildFilterCache()
+		}
 	}
 	// Refresh playlist track metadata so the playlists view reflects
 	// watcher-detected changes.
@@ -82,6 +103,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 				}
 			}
 		}
+		m = m.preservePlaylistsSort()
 	}
 	// Refresh favorites track metadata so the favorites view reflects
 	// watcher-detected changes.
@@ -96,6 +118,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 				}
 			}
 		}
+		m.favorites = m.favorites.recomputeFavoritesSort()
 	}
 	if m.favorites.level == favtui.TrackLevel {
 		for _, t := range msg.tracks {
@@ -108,6 +131,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 				}
 			}
 		}
+		m.favorites = m.favorites.recomputeFavoritesSort()
 	}
 	// Refresh tags track metadata so the tags view reflects
 	// watcher-detected changes.
@@ -121,6 +145,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 				}
 			}
 		}
+		m.tagsView = m.tagsView.recomputeTagsSort()
 	}
 	// Recompute sorted tracks if a sort is active so the cached copy
 	// reflects insertions and deletions from the watcher.

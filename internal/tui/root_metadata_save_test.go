@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
 // TestMetadataSaveUsesTrackDisplayForQueueEntryDisplay verifies that saving
@@ -120,5 +122,87 @@ func TestSingleTrackMetadataSaveCreatesUndoSlot(t *testing.T) {
 	}
 	if nm.queue.entries[0].Title != "Old Title" {
 		t.Errorf("after undo: queue title=%q, want %q", nm.queue.entries[0].Title, "Old Title")
+	}
+}
+
+// TestMetadataSavePreservesQueueSort verifies that saving a metadata edit
+// recomputes the queue display order when a sort is active.
+func TestMetadataSavePreservesQueueSort(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "Song1"})
+	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "Song2"})
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "Song1"},
+		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "Song2"},
+	}
+	// Sort queue by artist ascending: Alice, Zara → displayOrder = [1, 0]
+	m.queue.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.queue = m.queue.recomputeDisplayOrder()
+
+	if len(m.queue.displayOrder) != 2 {
+		t.Fatalf("precondition: expected displayOrder len 2, got %d", len(m.queue.displayOrder))
+	}
+
+	// Edit h1 artist from "Zara" to "Aaron" — should sort before "Alice"
+	ed := NewMetadataEditor("h1", "Song1", "Aaron", "", "", 0)
+	m.overlay.metadataEditor = &ed
+	result, _ := m.handleMetadataSave()
+	nm := result.(Model)
+
+	if nm.queue.displayOrder == nil {
+		t.Fatal("expected displayOrder to be non-nil after metadata save with active sort")
+	}
+	// After re-sort: Aaron(h1)=0, Alice(h2)=1 → displayOrder = [0, 1]
+	if nm.queue.displayOrder[0] != 0 {
+		t.Errorf("expected displayOrder[0]=0 (Aaron), got %d", nm.queue.displayOrder[0])
+	}
+}
+
+// TestBulkMetadataSavePreservesQueueSort verifies that saving a bulk metadata
+// edit recomputes the queue display order when a sort is active.
+func TestBulkMetadataSavePreservesQueueSort(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "Song1"})
+	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Bob", Title: "Song2"})
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "Song1"},
+		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Bob", Title: "Song2"},
+	}
+	m.queue.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.queue = m.queue.recomputeDisplayOrder()
+
+	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "CommonTitle", "", "", "", "")
+	m.overlay.metadataEditor = &ed
+	result, _ := m.handleMetadataSave()
+	nm := result.(Model)
+
+	if nm.queue.displayOrder == nil {
+		t.Fatal("expected displayOrder to be non-nil after bulk metadata save with active sort")
+	}
+}
+
+// TestMetadataSavePreservesPlaylistSort verifies that saving a metadata edit
+// recomputes playlist sort when at track level with a sort active.
+func TestMetadataSavePreservesPlaylistSort(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
+	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"})
+	m.playlists.level = pltui.TrackLevel
+	m.playlists.tracks = []db.PlaylistTrackRow{
+		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"},
+		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"},
+	}
+	m.playlists.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.playlists = m.playlists.recomputePlaylistSort()
+
+	// Edit h1 artist — this goes through refreshDerivedViews which should
+	// recompute the playlist sort.
+	ed := NewMetadataEditor("h1", "T1", "Aaron", "", "", 0)
+	m.overlay.metadataEditor = &ed
+	result, _ := m.handleMetadataSave()
+	nm := result.(Model)
+
+	if nm.playlists.sortedTrackOrder == nil {
+		t.Fatal("expected sortedTrackOrder to be non-nil after metadata save with active playlist sort")
 	}
 }
