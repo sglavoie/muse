@@ -54,14 +54,16 @@ func NewIPCClient(socketPath string) (*IPCClient, error) {
 	}, nil
 }
 
-// Close closes the underlying connection. It sets a closed flag under the
-// mutex so that in-flight SendCommand calls see the closure, then closes the
-// connection outside the lock to unblock any reader blocked on ReadBytes.
+// Close closes the underlying connection. It closes the connection first to
+// unblock any reader blocked on ReadBytes in SendCommand, then sets the closed
+// flag under the mutex so subsequent SendCommand calls return immediately.
+// net.Conn.Close is safe to call concurrently with Read/Write.
 func (c *IPCClient) Close() error {
+	err := c.conn.Close()
 	c.mu.Lock()
 	c.closed = true
 	c.mu.Unlock()
-	return c.conn.Close()
+	return err
 }
 
 // SendCommand encodes args as an mpv JSON-IPC request, writes it to the

@@ -156,6 +156,53 @@ func TestSendCommand_ClosedConnectionReturnsErrIPCTransport(t *testing.T) {
 	}
 }
 
+func TestClose_UnblocksSendCommand(t *testing.T) {
+	// Use a long read timeout so the test proves Close() unblocks the
+	// reader rather than the read deadline expiring first.
+	prev := ipcReadTimeout
+	ipcReadTimeout = 10 * time.Second
+	t.Cleanup(func() { ipcReadTimeout = prev })
+
+	sock := shortSockPath(t, "mpv-close")
+	silentServer(t, sock) // accepts but never writes, so SendCommand blocks
+
+	client, err := NewIPCClient(sock)
+	if err != nil {
+		t.Fatalf("NewIPCClient: %v", err)
+	}
+
+	// Start SendCommand in background; it will block in ReadBytes because
+	// the server never sends a response.
+	sendDone := make(chan struct{})
+	go func() {
+		defer close(sendDone)
+		_, _ = client.SendCommand("get_property", "volume")
+	}()
+
+	// Give SendCommand time to enter the read loop.
+	time.Sleep(50 * time.Millisecond)
+
+	// Close must return quickly by closing the connection first.
+	closeDone := make(chan error, 1)
+	go func() {
+		closeDone <- client.Close()
+	}()
+
+	select {
+	case <-closeDone:
+		// Success: Close returned promptly.
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Close() blocked for >500ms; expected it to return immediately")
+	}
+
+	// SendCommand must also unblock once the connection is closed.
+	select {
+	case <-sendDone:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("SendCommand did not unblock after Close()")
+	}
+}
+
 func TestSendCommand_InfoLevelSuppressesIPCWireMessages(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))
