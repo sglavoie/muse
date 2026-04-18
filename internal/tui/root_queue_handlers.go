@@ -515,6 +515,10 @@ func (m Model) handleQueueShuffleMsg() (Model, tea.Cmd) {
 		entries[i], entries[j] = entries[j], entries[i]
 	}
 	m.queue.entries = entries
+	for i := range m.queue.entries {
+		m.queue.entries[i].Selected = false
+	}
+	m = exitVisualMode(m)
 
 	m.playback.currentIndex = -1
 	if m.playback.currentHash != "" {
@@ -567,6 +571,10 @@ func (m Model) handleQueueDedupMsg() (Model, tea.Cmd) {
 	}
 
 	m.queue.entries = keep
+	for i := range m.queue.entries {
+		m.queue.entries[i].Selected = false
+	}
+	m = exitVisualMode(m)
 	m = m.preserveQueueSort()
 	m.clampQueueCursorAndScroll()
 	m.syncPlayerQueue()
