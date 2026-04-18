@@ -50,6 +50,10 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 				return m, m.toggleFavoriteSingle(reader, writer, "album", name), true
 			}
 		case arttui.TrackLevel:
+			if hashes := hashMapToSlice(m.artists.selectedHashes); len(hashes) > 0 {
+				m.artists.selectedHashes = nil
+				return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
+			}
 			if t, ok := m.artists.focusedTrack(); ok {
 				return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
 			}
@@ -62,6 +66,10 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 				return m, m.toggleFavoriteSingle(reader, writer, "album", name), true
 			}
 		case albtui.TrackLevel:
+			if hashes := hashMapToSlice(m.albums.selectedHashes); len(hashes) > 0 {
+				m.albums.selectedHashes = nil
+				return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
+			}
 			if t, ok := m.albums.focusedTrack(); ok {
 				return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
 			}
