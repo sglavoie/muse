@@ -190,7 +190,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 	switch m.artists.level {
 	case arttui.ArtistLevel:
 		m.artists.artists = arttui.DeriveArtists(allTracks)
-		m.artists.sortState = SortState{}
+		m.artists = m.artists.recomputeArtistsSort()
 		m.artists = m.artists.clampCursor()
 	case arttui.AlbumLevel:
 		m.artists.albums = arttui.DeriveAlbums(allTracks, m.artists.selectedArtist)
@@ -204,7 +204,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 	switch m.albums.level {
 	case albtui.AlbumLevel:
 		m.albums.albums = albtui.DeriveAllAlbums(allTracks)
-		m.albums.sortState = SortState{}
+		m.albums = m.albums.recomputeAlbumsSort()
 		m.albums = m.albums.clampCursor()
 	case albtui.TrackLevel:
 		m.albums.tracks = albtui.DeriveAlbumTracks(allTracks, m.albums.selectedAlbum)
@@ -214,7 +214,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 	switch m.genres.level {
 	case gentui.GenreLevel:
 		m.genres.genres = gentui.DeriveGenres(allTracks)
-		m.genres.sortState = SortState{}
+		m.genres = m.genres.recomputeGenresSort()
 		m.genres = m.genres.clampCursor()
 	case gentui.ArtistLevel:
 		m.genres.artists = gentui.DeriveGenreArtists(allTracks, m.genres.selectedGenre)
