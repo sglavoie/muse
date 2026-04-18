@@ -56,27 +56,45 @@ func (m Model) preservePlaylistsSort() Model {
 	return m
 }
 
-// resetArtistsSort clears the artists sort state.
+// resetArtistsSort clears the artists sort state. When a non-default sort was
+// active the backing slices were sorted in-place, so re-derive from the library
+// index to restore the original order.
 func (m Model) resetArtistsSort() Model {
+	hadSort := m.artists.sortState.Field != SortDefault
 	m.artists.sortState = SortState{}
+	if hadSort {
+		m = m.rederiveArtistsData()
+	}
 	return m
 }
 
-// resetAlbumsSort clears the albums sort state.
+// resetAlbumsSort clears the albums sort state. See resetArtistsSort.
 func (m Model) resetAlbumsSort() Model {
+	hadSort := m.albums.sortState.Field != SortDefault
 	m.albums.sortState = SortState{}
+	if hadSort {
+		m = m.rederiveAlbumsData()
+	}
 	return m
 }
 
-// resetFavoritesSort clears the favorites sort state.
+// resetFavoritesSort clears the favorites sort state. See resetArtistsSort.
 func (m Model) resetFavoritesSort() Model {
+	hadSort := m.favorites.sortState.Field != SortDefault
 	m.favorites.sortState = SortState{}
+	if hadSort {
+		m = m.rederiveFavoritesData()
+	}
 	return m
 }
 
-// resetGenresSort clears the genres sort state.
+// resetGenresSort clears the genres sort state. See resetArtistsSort.
 func (m Model) resetGenresSort() Model {
+	hadSort := m.genres.sortState.Field != SortDefault
 	m.genres.sortState = SortState{}
+	if hadSort {
+		m = m.rederiveGenresData()
+	}
 	return m
 }
 

@@ -140,6 +140,12 @@ func (m Model) handleRemoveAllTagsFromTrack(msg removeAllTagsFromTrackMsg) (Mode
 		if m.library.tagFilterHashes != nil {
 			delete(m.library.tagFilterHashes, hash)
 		}
+		if m.recentlyAdded.tagFilterHashes != nil {
+			delete(m.recentlyAdded.tagFilterHashes, hash)
+		}
+		if m.history.tagFilterHashes != nil {
+			delete(m.history.tagFilterHashes, hash)
+		}
 		if m.queue.tagFilterHashes != nil {
 			delete(m.queue.tagFilterHashes, hash)
 		}
