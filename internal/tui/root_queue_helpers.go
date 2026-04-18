@@ -72,12 +72,20 @@ func (m Model) resetPlaybackState() Model {
 	m.playback.state = PlaybackIdle
 	m.playback.elapsedSecs = 0
 	m.playback.totalSecs = 0
+	m.playback.peakElapsedSecs = 0
+	m.playback.peakTotalSecs = 0
+	m.playback.durationCorrected = false
+	m.playback.stopAfterCurrent = false
+	m.playback.queueExhausted = false
 	m.statusBar.artist = ""
 	m.statusBar.title = ""
 	m.statusBar.playlistSource = ""
 	m.playback.currentHash = ""
 	m.playback.currentIndex = -1
 	m.missingTrackCount = 0
+	if sat, ok := m.player.(stopAfterToggler); ok {
+		sat.SetStopAfterCurrent(false)
+	}
 	return m
 }
 

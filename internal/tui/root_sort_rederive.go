@@ -39,12 +39,38 @@ func (m Model) rederiveAlbumsData() Model {
 }
 
 // rederiveFavoritesData rebuilds the favorites view's track lists from the
-// library index so the original order is restored.
+// library index so the original order is restored. For artist/album lists
+// at ListLevel the data is re-loaded from the database because the in-place
+// sort replaces the slice and the original created_at DESC order cannot be
+// recovered from the library index alone.
 func (m Model) rederiveFavoritesData() Model {
 	tracks := m.library.index.Tracks()
 	switch m.favorites.level {
 	case favtui.ListLevel:
-		if m.favorites.category == favtui.CategoryTracks {
+		switch m.favorites.category {
+		case favtui.CategoryArtists:
+			if m.favoriteReader != nil {
+				rows, err := m.favoriteReader.ReadFavoritesByType("artist")
+				if err == nil {
+					artists := make([]string, len(rows))
+					for i, r := range rows {
+						artists[i] = r.Value
+					}
+					m.favorites.artists = artists
+				}
+			}
+		case favtui.CategoryAlbums:
+			if m.favoriteReader != nil {
+				rows, err := m.favoriteReader.ReadFavoritesByType("album")
+				if err == nil {
+					albums := make([]string, len(rows))
+					for i, r := range rows {
+						albums[i] = r.Value
+					}
+					m.favorites.albums = albums
+				}
+			}
+		case favtui.CategoryTracks:
 			hashSet := make(map[string]struct{}, len(m.favorites.tracks))
 			for _, t := range m.favorites.tracks {
 				hashSet[t.Hash] = struct{}{}
