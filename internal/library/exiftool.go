@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -27,13 +30,113 @@ type ExifToolExtractor struct{}
 var _ MetadataExtractor = (*ExifToolExtractor)(nil)
 
 // exifRecord mirrors the per-file JSON object emitted by exiftool -json.
+// A custom UnmarshalJSON handles type mismatches that exiftool can produce
+// (e.g. Duration as a string like "0:03:45", or Artist/Genre as arrays)
+// so that a single unusual file does not fail json.Unmarshal for the entire
+// batch and trigger expensive binary-retry subdivision.
 type exifRecord struct {
-	SourceFile string  `json:"SourceFile"`
-	Artist     string  `json:"Artist"`
-	Title      string  `json:"Title"`
-	Album      string  `json:"Album"`
-	Genre      string  `json:"Genre"`
-	Duration   float64 `json:"Duration"`
+	SourceFile string
+	Artist     string
+	Title      string
+	Album      string
+	Genre      string
+	Duration   float64
+}
+
+// UnmarshalJSON decodes an exiftool JSON record, coercing fields that may
+// arrive as unexpected types:
+//   - string fields (Artist, Title, Album, Genre) accept arrays by joining
+//     elements with "; ".
+//   - Duration accepts both numeric values and "HH:MM:SS" / "MM:SS" strings.
+func (r *exifRecord) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	r.SourceFile = coerceString(raw["SourceFile"])
+	r.Artist = coerceString(raw["Artist"])
+	r.Title = coerceString(raw["Title"])
+	r.Album = coerceString(raw["Album"])
+	r.Genre = coerceString(raw["Genre"])
+	r.Duration = coerceFloat(raw["Duration"])
+	return nil
+}
+
+// coerceString extracts a string from a JSON value that may be a string,
+// a number, or an array of strings. Arrays are joined with "; ".
+func coerceString(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	// Try string first (most common).
+	var s string
+	if json.Unmarshal(raw, &s) == nil {
+		return s
+	}
+	// Try array of strings (e.g. multi-value Genre tags).
+	var arr []string
+	if json.Unmarshal(raw, &arr) == nil {
+		return strings.Join(arr, "; ")
+	}
+	// Try number (rare for text fields but possible).
+	var f float64
+	if json.Unmarshal(raw, &f) == nil {
+		return fmt.Sprintf("%g", f)
+	}
+	return ""
+}
+
+// coerceFloat extracts a float64 from a JSON value that may be a number or
+// a duration string. Supported string formats: "HH:MM:SS", "MM:SS", and
+// plain numeric strings like "123.45".
+func coerceFloat(raw json.RawMessage) float64 {
+	if len(raw) == 0 {
+		return 0
+	}
+	// Try number first (most common with -Duration#).
+	var f float64
+	if json.Unmarshal(raw, &f) == nil {
+		return f
+	}
+	// Try string: could be "HH:MM:SS", "MM:SS", or a numeric string.
+	var s string
+	if json.Unmarshal(raw, &s) != nil {
+		return 0
+	}
+	return parseDurationString(s)
+}
+
+// parseDurationString converts a duration string to seconds. It handles:
+//   - "HH:MM:SS" or "HH:MM:SS.mmm"
+//   - "MM:SS" or "MM:SS.mmm"
+//   - plain numeric strings like "123.45"
+func parseDurationString(s string) float64 {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0
+	}
+	// Try colon-separated format.
+	parts := strings.Split(s, ":")
+	switch len(parts) {
+	case 3: // HH:MM:SS
+		h, err1 := strconv.ParseFloat(parts[0], 64)
+		m, err2 := strconv.ParseFloat(parts[1], 64)
+		sec, err3 := strconv.ParseFloat(parts[2], 64)
+		if err1 == nil && err2 == nil && err3 == nil {
+			return h*3600 + m*60 + sec
+		}
+	case 2: // MM:SS
+		m, err1 := strconv.ParseFloat(parts[0], 64)
+		sec, err2 := strconv.ParseFloat(parts[1], 64)
+		if err1 == nil && err2 == nil {
+			return m*60 + sec
+		}
+	}
+	// Try plain numeric.
+	if f, err := strconv.ParseFloat(s, 64); err == nil {
+		return f
+	}
+	return 0
 }
 
 // Extract invokes exiftool -json on the provided files and returns one Track
