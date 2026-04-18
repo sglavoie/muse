@@ -65,8 +65,10 @@ func (a undoRemoveFavoriteAction) perform(m Model) (Model, tea.Cmd) {
 				m.favorites.tracks = insertTrackAt(m.favorites.tracks, a.idx, a.track)
 				m.favorites.trackCount = len(m.favorites.tracks)
 			}
-			m.favorites.cursor = a.idx
-			m.favorites = m.favorites.clampCursor()
+			if m.favorites.category == a.category {
+				m.favorites.cursor = a.idx
+				m.favorites = m.favorites.clampCursor()
+			}
 		case favtui.TrackLevel:
 			m.favorites.drilldownTracks = insertTrackAt(m.favorites.drilldownTracks, a.idx, a.track)
 			m.favorites.cursor = a.idx
@@ -227,7 +229,9 @@ func (a undoBulkRemoveFavoritesAction) perform(m Model) (Model, tea.Cmd) {
 				}
 				m.favorites.trackCount = len(m.favorites.tracks)
 			}
-			m.favorites = m.favorites.clampCursor()
+			if m.favorites.category == a.category {
+				m.favorites = m.favorites.clampCursor()
+			}
 		case favtui.TrackLevel:
 			for i, idx := range a.indices {
 				m.favorites.drilldownTracks = insertTrackAt(m.favorites.drilldownTracks, min(idx, len(m.favorites.drilldownTracks)), a.tracks[i])
