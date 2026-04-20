@@ -101,6 +101,19 @@ func (m *Manager) Stop() error {
 	return err
 }
 
+// SeekAbsolute seeks to an absolute position in seconds within the current track.
+func (m *Manager) SeekAbsolute(seconds float64) error {
+	c, err := m.ipc()
+	if errors.Is(err, ErrNotConnected) {
+		return m.enqueue(func() error { return m.SeekAbsolute(seconds) })
+	}
+	if err != nil {
+		return err
+	}
+	_, err = c.SendCommand(cmdSeek, seconds, "absolute")
+	return err
+}
+
 // SeekRelative seeks forward (positive) or backward (negative) by seconds.
 func (m *Manager) SeekRelative(seconds float64) error {
 	c, err := m.ipc()

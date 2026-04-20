@@ -20,6 +20,7 @@ type playPauser interface {
 // implement playPauser.
 type commandPlayer interface {
 	Stop() error
+	SeekAbsolute(seconds float64) error
 	SeekRelative(seconds float64) error
 	SetVolumeRelative(delta float64) error
 	Next() error

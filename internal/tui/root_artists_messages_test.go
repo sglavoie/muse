@@ -87,7 +87,7 @@ func TestRescanClearsArtistsView(t *testing.T) {
 	m.libraryRoots = []string{"/tmp/music"}
 	m.extractor = stubExtractor{}
 
-	next, _ := m.Update(tea.KeyPressMsg{Code: 'R', Mod: tea.ModShift, Text: "R"})
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
 	m = next.(Model)
 
 	if len(m.artists.artists) != 0 {

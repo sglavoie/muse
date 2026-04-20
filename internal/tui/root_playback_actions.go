@@ -124,6 +124,15 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			}
 		}
 		return m, nil, true
+	case actionResetPosition:
+		if cp, ok := m.player.(commandPlayer); ok {
+			if err := cp.SeekAbsolute(0); err != nil {
+				slog.Warn("reset position failed", "err", err)
+			} else {
+				m.playback.elapsedSecs = 0
+			}
+		}
+		return m, m.sessionPositionCmd(), true
 	case actionNext:
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.Next(); err != nil {

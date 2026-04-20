@@ -30,6 +30,7 @@ const (
 	actionQuit
 	actionPlayPause
 	actionStop
+	actionResetPosition
 	actionNext
 	actionPrevious
 	actionSeekBack
@@ -191,7 +192,8 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "9", actionSwitchHistory)
 	r.register(contextGlobal, "0", actionSwitchTags)
 	r.register(contextGlobal, "F", actionToggleFavorite)
-	r.register(contextGlobal, "R", actionRescan)
+	r.register(contextGlobal, "ctrl+r", actionRescan)
+	r.register(contextGlobal, "R", actionResetPosition)
 	r.register(contextGlobal, "r", actionRepeatCycle)
 	r.register(contextGlobal, "z", actionShuffleToggle)
 	r.register(contextGlobal, "u", actionUndo)

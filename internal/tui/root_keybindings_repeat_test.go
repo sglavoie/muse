@@ -38,8 +38,8 @@ func TestViewLocalBindingTakesPrecedenceOverGlobal(t *testing.T) {
 // TestGlobalBindingFiresWhenNoViewLocalBinding verifies that keys not
 // overridden by the active view still trigger their global action.
 //
-// The Library and Queue views have no local binding for 'R', so pressing 'R'
-// in those views falls through to the global actionRescan.
+// The Library and Queue views have no local binding for 'ctrl+r', so pressing
+// ctrl+r in those views falls through to the global actionRescan.
 func TestGlobalBindingFiresWhenNoViewLocalBinding(t *testing.T) {
 	views := []struct {
 		name   string
@@ -54,9 +54,9 @@ func TestGlobalBindingFiresWhenNoViewLocalBinding(t *testing.T) {
 			m := New(context.Background(), WithLibraryRoots([]string{root}), WithExtractor(stubExtractor{}))
 			m.activeView = tc.viewID
 
-			_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
+			_, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
 			if cmd == nil {
-				t.Fatalf("%s: global 'R' must return a rescan cmd when no view-local binding exists", tc.name)
+				t.Fatalf("%s: global 'ctrl+r' must return a rescan cmd when no view-local binding exists", tc.name)
 			}
 		})
 	}

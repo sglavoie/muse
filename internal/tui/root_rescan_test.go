@@ -15,7 +15,7 @@ import (
 func TestRescanHotkeyReturnsCmd(t *testing.T) {
 	root := t.TempDir()
 	m := New(context.Background(), WithLibraryRoots([]string{root}), WithExtractor(stubExtractor{}))
-	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
 	if cmd == nil {
 		t.Fatal("R key: expected non-nil cmd for rescan, got nil")
 	}
@@ -28,7 +28,7 @@ func TestRescanHotkeyIsNoOpWhenScanning(t *testing.T) {
 	defer close(ch)
 	root := t.TempDir()
 	m := New(context.Background(), WithScanChannel(ch), WithLibraryRoots([]string{root}), WithExtractor(stubExtractor{}))
-	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
 	if cmd != nil {
 		t.Fatal("R key during active scan must return nil cmd")
 	}
@@ -38,7 +38,7 @@ func TestRescanHotkeyIsNoOpWhenScanning(t *testing.T) {
 // root is configured returns nil.
 func TestRescanHotkeyIsNoOpWithoutRoot(t *testing.T) {
 	m := New(context.Background())
-	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
 	if cmd != nil {
 		t.Fatal("R key without library root must return nil cmd")
 	}
@@ -62,7 +62,7 @@ func TestRescanResetsIndexAndAddsNewTracks(t *testing.T) {
 	}
 
 	// Trigger rescan — index must be reset immediately.
-	next, cmd := nm.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
+	next, cmd := nm.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
 	nm = next.(Model)
 	if cmd == nil {
 		t.Fatal("rescan: expected non-nil cmd")
@@ -118,7 +118,7 @@ func TestRescanResetsCursorScrollOffsetAndFilter(t *testing.T) {
 	}
 
 	// Trigger rescan.
-	next, cmd := nm.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
+	next, cmd := nm.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
 	nm = next.(Model)
 	if cmd == nil {
 		t.Fatal("rescan: expected non-nil cmd")
@@ -140,15 +140,15 @@ func TestRescanResetsCursorScrollOffsetAndFilter(t *testing.T) {
 	}
 }
 
-// TestShiftRFiresRescan verifies that pressing 'R' (Shift+r) with a configured
-// library root triggers a rescan, while lowercase 'r' does not.
-func TestShiftRFiresRescan(t *testing.T) {
+// TestCtrlRFiresRescan verifies that pressing ctrl+r with a configured
+// library root triggers a rescan.
+func TestCtrlRFiresRescan(t *testing.T) {
 	root := t.TempDir()
 	m := New(context.Background(), WithLibraryRoots([]string{root}), WithExtractor(stubExtractor{}))
 
-	_, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
 	if cmd == nil {
-		t.Fatal("R key: expected non-nil rescan cmd")
+		t.Fatal("ctrl+r: expected non-nil rescan cmd")
 	}
 }
 
@@ -180,7 +180,7 @@ func TestRescanClearsSelectionAndSort(t *testing.T) {
 	// Trigger rescan. We cannot actually run the full scan pipeline (needs
 	// mpv + exiftool), but we can dispatch the action and verify the model
 	// state was reset. The key mapping for rescan is "R" (Shift+r).
-	next, _ := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
 	nm := next.(Model)
 
 	if nm.library.selectedHashes != nil {
@@ -209,7 +209,7 @@ func TestRescanResetsGenresView(t *testing.T) {
 	m.genres.scrollOffset = 0
 
 	// Trigger rescan.
-	next, cmd := m.Update(tea.KeyPressMsg{Code: 'R', Text: "R"})
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
 	nm := next.(Model)
 	if cmd == nil {
 		t.Fatal("rescan: expected non-nil cmd")

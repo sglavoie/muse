@@ -106,6 +106,7 @@ func (s *stubCommandPlayer) Stop() error {
 	return nil
 }
 
+func (s *stubCommandPlayer) SeekAbsolute(float64) error      { return nil }
 func (s *stubCommandPlayer) SeekRelative(float64) error      { return nil }
 func (s *stubCommandPlayer) SetVolumeRelative(float64) error { return nil }
 func (s *stubCommandPlayer) Next() error                     { return nil }
@@ -222,7 +223,8 @@ type stubSeekPlayer struct {
 	prevCalls  int
 }
 
-func (s *stubSeekPlayer) Stop() error { return nil }
+func (s *stubSeekPlayer) Stop() error              { return nil }
+func (s *stubSeekPlayer) SeekAbsolute(float64) error { return nil }
 func (s *stubSeekPlayer) SeekRelative(d float64) error {
 	s.seekDeltas = append(s.seekDeltas, d)
 	return nil
