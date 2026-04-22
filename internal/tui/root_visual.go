@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"sort"
+
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
@@ -395,4 +397,14 @@ func cloneIntSet(s map[int]struct{}) map[int]struct{} {
 		out[k] = struct{}{}
 	}
 	return out
+}
+
+// sortedIntSetKeys returns the keys of an int set in ascending order.
+func sortedIntSetKeys(s map[int]struct{}) []int {
+	keys := make([]int, 0, len(s))
+	for k := range s {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
+	return keys
 }

@@ -207,7 +207,7 @@ func (m Model) bulkFavoriteTracks() []library.Track {
 		if len(m.favorites.selectedItems) > 0 {
 			items := arttui.FilterTracks(m.favorites.tracks, m.favorites.filter.Text)
 			var tracks []library.Track
-			for idx := range m.favorites.selectedItems {
+			for _, idx := range sortedIntSetKeys(m.favorites.selectedItems) {
 				if idx >= 0 && idx < len(items) {
 					tracks = append(tracks, items[idx])
 				}
@@ -221,7 +221,7 @@ func (m Model) bulkFavoriteTracks() []library.Track {
 		if len(m.favorites.selectedItems) > 0 {
 			items := arttui.FilterTracks(m.favorites.drilldownTracks, m.favorites.filter.Text)
 			var tracks []library.Track
-			for idx := range m.favorites.selectedItems {
+			for _, idx := range sortedIntSetKeys(m.favorites.selectedItems) {
 				if idx >= 0 && idx < len(items) {
 					tracks = append(tracks, items[idx])
 				}

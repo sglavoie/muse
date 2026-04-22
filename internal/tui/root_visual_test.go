@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 )
 
 // makeNTracks returns n tracks with sequential hashes h0..h(n-1) in a stable
@@ -302,5 +303,59 @@ func TestVisualModeFilterActivationExits(t *testing.T) {
 
 	if m.visual.active {
 		t.Fatal("expected visual mode to exit when filter bar is activated")
+	}
+}
+
+// TestSortedIntSetKeysOrder verifies that sortedIntSetKeys returns keys in
+// ascending order.
+func TestSortedIntSetKeysOrder(t *testing.T) {
+	s := map[int]struct{}{5: {}, 1: {}, 3: {}, 0: {}, 9: {}}
+	keys := sortedIntSetKeys(s)
+	want := []int{0, 1, 3, 5, 9}
+	if len(keys) != len(want) {
+		t.Fatalf("len = %d, want %d", len(keys), len(want))
+	}
+	for i, k := range keys {
+		if k != want[i] {
+			t.Errorf("keys[%d] = %d, want %d", i, k, want[i])
+		}
+	}
+}
+
+// TestSortedIntSetKeysEmpty verifies the helper handles an empty set.
+func TestSortedIntSetKeysEmpty(t *testing.T) {
+	keys := sortedIntSetKeys(nil)
+	if len(keys) != 0 {
+		t.Fatalf("expected empty slice, got %v", keys)
+	}
+}
+
+// TestBulkFavoriteTracksReturnsDeterministicOrder verifies that
+// bulkFavoriteTracks returns tracks in display order (ascending index),
+// not in non-deterministic map iteration order.
+func TestBulkFavoriteTracksReturnsDeterministicOrder(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryTracks
+	m.favorites.tracks = []library.Track{
+		{Hash: "h0", Title: "T0", Artist: "A"},
+		{Hash: "h1", Title: "T1", Artist: "A"},
+		{Hash: "h2", Title: "T2", Artist: "A"},
+		{Hash: "h3", Title: "T3", Artist: "A"},
+		{Hash: "h4", Title: "T4", Artist: "A"},
+	}
+	m.favorites.selectedItems = map[int]struct{}{4: {}, 1: {}, 3: {}}
+
+	// Run many times to catch non-determinism.
+	for i := 0; i < 50; i++ {
+		tracks := m.bulkFavoriteTracks()
+		if len(tracks) != 3 {
+			t.Fatalf("iter %d: expected 3 tracks, got %d", i, len(tracks))
+		}
+		if tracks[0].Hash != "h1" || tracks[1].Hash != "h3" || tracks[2].Hash != "h4" {
+			t.Fatalf("iter %d: wrong order: %s, %s, %s (want h1, h3, h4)",
+				i, tracks[0].Hash, tracks[1].Hash, tracks[2].Hash)
+		}
 	}
 }

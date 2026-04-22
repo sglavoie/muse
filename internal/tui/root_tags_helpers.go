@@ -78,7 +78,7 @@ func (m Model) selectedTrackHashes() []string {
 			return nil
 		}
 		var hashes []string
-		for idx := range m.favorites.selectedItems {
+		for _, idx := range sortedIntSetKeys(m.favorites.selectedItems) {
 			if idx >= 0 && idx < len(items) {
 				hashes = append(hashes, items[idx].Hash)
 			}
