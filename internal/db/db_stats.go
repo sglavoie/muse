@@ -109,12 +109,23 @@ func readCurrentStreak(d *DB) (int, error) {
 	defer rows.Close()
 
 	today := time.Now().Format("2006-01-02")
+	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 	streak := 0
-	expected := today
+	expected := ""
 	for rows.Next() {
 		var day string
 		if err := rows.Scan(&day); err != nil {
 			return 0, err
+		}
+		// On the first row, accept either today or yesterday as the
+		// streak start. This way a streak is not broken just because
+		// the user has not played anything yet today.
+		if expected == "" {
+			if day == today || day == yesterday {
+				expected = day
+			} else {
+				break
+			}
 		}
 		if day != expected {
 			break

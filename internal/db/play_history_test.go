@@ -201,6 +201,89 @@ func TestEvalSmartPlaylist_LastPlayedInLast(t *testing.T) {
 	}
 }
 
+// --- Streak calculation ---
+
+func TestReadListeningStats_StreakToday(t *testing.T) {
+	d := openMigratedDB(t)
+	insertTrack(t, d, "h1", "/a.flac")
+
+	// Insert plays for today, yesterday, and the day before.
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, time.Local).Unix()
+	yesterday := time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, time.Local).AddDate(0, 0, -1).Unix()
+	twoDaysAgo := time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, time.Local).AddDate(0, 0, -2).Unix()
+
+	for _, ts := range []int64{today, yesterday, twoDaysAgo} {
+		if _, err := d.Exec(
+			`INSERT INTO play_history (track_hash, played_at, listened_secs) VALUES (?, ?, ?)`,
+			"h1", ts, 60,
+		); err != nil {
+			t.Fatalf("insert play_history: %v", err)
+		}
+	}
+
+	stats, err := d.ReadListeningStats(0)
+	if err != nil {
+		t.Fatalf("ReadListeningStats: %v", err)
+	}
+	if stats.CurrentStreak != 3 {
+		t.Errorf("CurrentStreak = %d, want 3", stats.CurrentStreak)
+	}
+}
+
+func TestReadListeningStats_StreakStartingYesterday(t *testing.T) {
+	d := openMigratedDB(t)
+	insertTrack(t, d, "h1", "/a.flac")
+
+	// Insert plays for yesterday and the day before, but NOT today.
+	// The streak should still be 2.
+	now := time.Now()
+	yesterday := time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, time.Local).AddDate(0, 0, -1).Unix()
+	twoDaysAgo := time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, time.Local).AddDate(0, 0, -2).Unix()
+
+	for _, ts := range []int64{yesterday, twoDaysAgo} {
+		if _, err := d.Exec(
+			`INSERT INTO play_history (track_hash, played_at, listened_secs) VALUES (?, ?, ?)`,
+			"h1", ts, 60,
+		); err != nil {
+			t.Fatalf("insert play_history: %v", err)
+		}
+	}
+
+	stats, err := d.ReadListeningStats(0)
+	if err != nil {
+		t.Fatalf("ReadListeningStats: %v", err)
+	}
+	if stats.CurrentStreak != 2 {
+		t.Errorf("CurrentStreak = %d, want 2 (streak should count from yesterday)", stats.CurrentStreak)
+	}
+}
+
+func TestReadListeningStats_StreakBroken(t *testing.T) {
+	d := openMigratedDB(t)
+	insertTrack(t, d, "h1", "/a.flac")
+
+	// Insert a play only 3 days ago — no play today or yesterday.
+	// The streak should be 0.
+	now := time.Now()
+	threeDaysAgo := time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, time.Local).AddDate(0, 0, -3).Unix()
+
+	if _, err := d.Exec(
+		`INSERT INTO play_history (track_hash, played_at, listened_secs) VALUES (?, ?, ?)`,
+		"h1", threeDaysAgo, 60,
+	); err != nil {
+		t.Fatalf("insert play_history: %v", err)
+	}
+
+	stats, err := d.ReadListeningStats(0)
+	if err != nil {
+		t.Fatalf("ReadListeningStats: %v", err)
+	}
+	if stats.CurrentStreak != 0 {
+		t.Errorf("CurrentStreak = %d, want 0 (streak broken — no play today or yesterday)", stats.CurrentStreak)
+	}
+}
+
 func TestEvalSmartPlaylist_LastPlayedGreaterThan(t *testing.T) {
 	d := openMigratedDB(t)
 	now := time.Now().Unix()
