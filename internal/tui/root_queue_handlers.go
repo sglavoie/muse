@@ -504,12 +504,17 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 				prePasteIndices[i] = ri
 			}
 		}
+		// Preserve the cancel channel set by schedulePurge above so that
+		// setUndoSlot does not immediately cancel the pending purge of the
+		// soft-deleted originals.
+		cutPurgeCancel := m.undo.slot.cancelPurge
+		m.undo.slot.cancelPurge = nil // prevent setUndoSlot from closing it
 		m.setUndoSlot(undoCutPasteAction{
 			pastedIDs:       pastedIDs,
 			originalEntries: removedOriginals,
 			originalIndices: prePasteIndices,
 			count:           len(msg.Entries),
-		}, nil)
+		}, cutPurgeCancel)
 	} else {
 		m.setUndoSlot(undoPasteAction{
 			ids:   pastedIDs,
