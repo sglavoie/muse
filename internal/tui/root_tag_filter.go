@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"log/slog"
 
 	tea "charm.land/bubbletea/v2"
@@ -198,7 +199,7 @@ func (m Model) handleEnqueueByTag(msg enqueueByTagMsg) (Model, tea.Cmd) {
 	return m, func() tea.Msg {
 		rows, err := tr.ReadTracksByTag(tagID)
 		if err != nil {
-			return TransientNotifyMsg("Enqueue failed: " + err.Error())
+			return BatchEnqueuedMsg{Err: fmt.Errorf("enqueue tag: %w", err)}
 		}
 		libTracks := make([]library.Track, len(rows))
 		for i, r := range rows {
@@ -213,8 +214,13 @@ func (m Model) handleEnqueueByTag(msg enqueueByTagMsg) (Model, tea.Cmd) {
 		}
 		ids, err := be.AppendTracks(libTracks, name)
 		if err != nil {
-			return TransientNotifyMsg("Enqueue failed: " + err.Error())
+			return BatchEnqueuedMsg{Err: fmt.Errorf("enqueue tag: %w", err)}
 		}
-		return tagEnqueueAllMsg{tagName: name, count: len(libTracks), ids: ids, wasEmpty: wasEmpty}
+		return BatchEnqueuedMsg{
+			Entries:      newQueueEntries(libTracks, ids, name),
+			QueueIDs:     ids,
+			WasEmpty:     wasEmpty,
+			PlaylistName: name,
+		}
 	}
 }

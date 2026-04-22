@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"fmt"
-
 	"github.com/sglavoie/muse/internal/db"
 )
 
@@ -104,22 +102,5 @@ func (m Model) refreshTagsViewAfterCreate(msg tagCreatedMsg) Model {
 			m.tagsView.tagCounts[msg.id] = len(msg.hashes)
 		}
 	}
-	return m
-}
-
-// handleTagEnqueueAll2 processes tagEnqueueAllMsg: updates the queue state.
-func (m Model) handleTagEnqueueAll2(msg tagEnqueueAllMsg) Model {
-	if msg.err != nil {
-		m.statusBar.notification = newNotification("Enqueue failed: " + msg.err.Error())
-		return m
-	}
-	if msg.count == 0 {
-		m.statusBar.notification = newNotification("No tracks to enqueue")
-		return m
-	}
-	n := msg.count
-	word := pluralize(n, "track", "tracks")
-	m.statusBar.notification = newNotification(
-		fmt.Sprintf("Enqueued %d %s from tag %q", n, word, msg.tagName))
 	return m
 }

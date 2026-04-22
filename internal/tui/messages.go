@@ -401,15 +401,6 @@ type tagDeletedMsg struct {
 	err error
 }
 
-// tagEnqueueAllMsg carries the result of an "enqueue all tracks for tag" operation.
-type tagEnqueueAllMsg struct {
-	tagName  string
-	count    int
-	ids      []int64
-	wasEmpty bool
-	err      error
-}
-
 // tagMergedMsg carries the result of a MergeTags call.
 type tagMergedMsg struct {
 	src  db.TagRow

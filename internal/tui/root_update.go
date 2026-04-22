@@ -285,9 +285,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tagDeletedMsg:
 		m = m.handleTagDeleted(msg)
 
-	case tagEnqueueAllMsg:
-		m = m.handleTagEnqueueAll2(msg)
-
 	case tagMergeDismissedMsg:
 		m.overlay.tagMergePicker = nil
 
