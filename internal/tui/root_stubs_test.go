@@ -223,7 +223,7 @@ type stubSeekPlayer struct {
 	prevCalls  int
 }
 
-func (s *stubSeekPlayer) Stop() error              { return nil }
+func (s *stubSeekPlayer) Stop() error                { return nil }
 func (s *stubSeekPlayer) SeekAbsolute(float64) error { return nil }
 func (s *stubSeekPlayer) SeekRelative(d float64) error {
 	s.seekDeltas = append(s.seekDeltas, d)

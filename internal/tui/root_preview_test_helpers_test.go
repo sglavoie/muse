@@ -42,10 +42,10 @@ type stubPreviewMainPlayer struct {
 	seekCalls  []float64
 }
 
-func (s *stubPreviewMainPlayer) Play() error  { return nil }
-func (s *stubPreviewMainPlayer) Pause() error { s.pauseCalls++; return nil }
-func (s *stubPreviewMainPlayer) Stop() error                        { return nil }
-func (s *stubPreviewMainPlayer) SeekAbsolute(float64) error         { return nil }
+func (s *stubPreviewMainPlayer) Play() error                { return nil }
+func (s *stubPreviewMainPlayer) Pause() error               { s.pauseCalls++; return nil }
+func (s *stubPreviewMainPlayer) Stop() error                { return nil }
+func (s *stubPreviewMainPlayer) SeekAbsolute(float64) error { return nil }
 func (s *stubPreviewMainPlayer) SeekRelative(seconds float64) error {
 	s.seekCalls = append(s.seekCalls, seconds)
 	return nil
