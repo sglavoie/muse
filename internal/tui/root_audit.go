@@ -29,7 +29,7 @@ func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (M
 // and marks the audit as complete by nilling the channel.
 func (m Model) handleDurationAuditDoneMsg(msg library.DurationAuditDoneMsg) (Model, tea.Cmd) {
 	if msg.Corrected > 0 {
-		m.statusBar.notification = newNotification(
+		m.statusBar.notify(
 			fmt.Sprintf("Duration audit: corrected %d %s", msg.Corrected,
 				pluralize(msg.Corrected, "track", "tracks")),
 		)

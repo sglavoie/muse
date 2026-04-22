@@ -120,7 +120,7 @@ func (m Model) allFilterOps() *filterOps {
 func (m Model) handleFilterBarMsg() (Model, tea.Cmd) {
 	ops := m.allFilterOps()
 	if ops == nil {
-		m.statusBar.notification = newNotification("Filter not available in this view")
+		m.statusBar.notify("Filter not available in this view")
 		return m, nil
 	}
 	if ops.isActive() {

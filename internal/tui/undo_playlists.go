@@ -34,7 +34,7 @@ func (a undoDeletePlaylistAction) perform(m Model) (Model, tea.Cmd) {
 	m.playlists.playlists = playlists
 	m.playlists.cursor = idx
 	m.playlists = m.playlists.ensureCursorVisible()
-	m.statusBar.notification = newNotification("Undone: restored playlist")
+	m.statusBar.notify("Undone: restored playlist")
 	return m, nil
 }
 
@@ -65,7 +65,7 @@ func (a undoRemovePlaylistTrackAction) perform(m Model) (Model, tea.Cmd) {
 	m.playlists.tracks = tracks
 	m.playlists.cursor = idx
 	m.playlists = m.playlists.ensureCursorVisible()
-	m.statusBar.notification = newNotification("Undone: restored playlist track")
+	m.statusBar.notify("Undone: restored playlist track")
 	return m, nil
 }
 
@@ -108,6 +108,6 @@ func (a undoBulkRemovePlaylistTracksAction) perform(m Model) (Model, tea.Cmd) {
 	}
 	m.playlists = m.playlists.ensureCursorVisible()
 	n := len(a.entries)
-	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: restored %d playlist %s", n, pluralize(n, "track", "tracks")))
+	m.statusBar.notify(fmt.Sprintf("Undone: restored %d playlist %s", n, pluralize(n, "track", "tracks")))
 	return m, nil
 }

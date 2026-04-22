@@ -127,7 +127,7 @@ func (m Model) handleSessionTickMsg() (Model, tea.Cmd) {
 
 // handlePlayerStatusMsg shows a transient player status notification.
 func (m Model) handlePlayerStatusMsg(msg PlayerStatusMsg) Model {
-	m.statusBar.notification = newNotification(msg.Text)
+	m.statusBar.notify(msg.Text)
 	return m
 }
 
@@ -151,17 +151,17 @@ func (m Model) handleMissingTrackMsg(msg MissingTrackMsg) Model {
 func (m Model) handleMissingTrackSelectedMsg(msg MissingTrackSelectedMsg) (Model, tea.Cmd) {
 	idx := msg.Index
 	if idx < 0 || idx >= len(m.queue.entries) {
-		m.statusBar.notification = newNotification("Cannot play — file is missing")
+		m.statusBar.notify("Cannot play — file is missing")
 		return m, nil
 	}
 	entry := m.queue.entries[idx]
 	// Guard against a stale index (queue mutated between dispatch and Update).
 	if msg.Path != "" && entry.Path != msg.Path {
-		m.statusBar.notification = newNotification("Cannot play — file is missing")
+		m.statusBar.notify("Cannot play — file is missing")
 		return m, nil
 	}
 
-	m.statusBar.notification = newNotification("Removed — file missing: " + entry.Display)
+	m.statusBar.notify("Removed — file missing: " + entry.Display)
 	player.PlaySound(player.SoundError)
 
 	m.queue.entries = append(m.queue.entries[:idx], m.queue.entries[idx+1:]...)
@@ -211,7 +211,7 @@ func (m Model) handlePlayFromIndexResultMsg(msg playFromIndexResultMsg) Model {
 		return m
 	}
 	m = m.resetPlaybackState()
-	m.statusBar.notification = newNotification("Play failed: " + msg.Err.Error())
+	m.statusBar.notify("Play failed: " + msg.Err.Error())
 	player.PlaySound(player.SoundError)
 	return m
 }
@@ -303,7 +303,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 		msg = "Queue finished"
 	}
 	m.missingTrackCount = 0
-	m.statusBar.notification = newNotification(msg)
+	m.statusBar.notify(msg)
 	player.PlayQueueFinishedSound()
 	return m, incrementCmd
 }
@@ -317,7 +317,7 @@ func (m Model) handlePlayerDisconnectedMsg() Model {
 	m.playback.totalSecs = 0
 	m.playback.peakElapsedSecs = 0
 	m.playback.peakTotalSecs = 0
-	m.statusBar.notification = newNotification("mpv disconnected, restarting…")
+	m.statusBar.notify("mpv disconnected, restarting…")
 	return m
 }
 
@@ -348,7 +348,7 @@ func (m Model) handlePreviewStartedMsg(msg previewStartedMsg) Model {
 
 // handlePreviewStartErrorMsg notifies the user and resumes main playback.
 func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
-	m.statusBar.notification = newNotification("Preview error: " + msg.err.Error())
+	m.statusBar.notify("Preview error: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	if m.overlay.previewWasPlaying && m.player != nil {
 		if err := m.player.Play(); err != nil {

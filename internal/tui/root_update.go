@@ -44,7 +44,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.handleScanDoneMsg()
 
 	case library.ScanErrorMsg:
-		m.statusBar.notification = newNotification(fmt.Sprintf("Scan error: %v", msg.Err))
+		m.statusBar.notify(fmt.Sprintf("Scan error: %v", msg.Err))
 		if m.scanErrCh != nil {
 			return m, waitForScanErr(m.scanErrCh)
 		}
@@ -92,7 +92,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case trackInfoMsg:
 		if msg.err != nil {
-			m.statusBar.notification = newNotification("Track info failed: " + msg.err.Error())
+			m.statusBar.notify("Track info failed: " + msg.err.Error())
 		} else {
 			var userTags []db.TagRow
 			if m.tagReader != nil && msg.hash != "" {
@@ -145,7 +145,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.handleQueuePastedMsg(msg)
 
 	case TransientNotifyMsg:
-		m.statusBar.notification = newNotification(string(msg))
+		m.statusBar.notify(string(msg))
 
 	case settingsSavedMsg:
 		m = m.handleSettingsSavedMsg(msg)
@@ -268,7 +268,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(msg.autoDeletedTagIDs) > 0 && m.tagWriter != nil {
 			schedulePurge(&m.undo.slot, m.tagWriter.PurgeDeletedTags)
 		}
-		m.statusBar.notification = newNotification("All tags removed from track")
+		m.statusBar.notify("All tags removed from track")
 
 	case tagsRefreshedMsg:
 		m = m.handleTagsRefreshed(msg)
@@ -317,9 +317,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case clipboardResultMsg:
 		if msg.err != nil {
-			m.statusBar.notification = newNotification("Copy failed: " + msg.err.Error())
+			m.statusBar.notify("Copy failed: " + msg.err.Error())
 		} else {
-			m.statusBar.notification = newNotification("Copied: " + msg.text)
+			m.statusBar.notify("Copied: " + msg.text)
 		}
 
 	case configToggleMsg:

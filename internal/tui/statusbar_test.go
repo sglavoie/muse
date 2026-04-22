@@ -4,6 +4,7 @@ import (
 	"math"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -402,5 +403,37 @@ func TestTruncateTitle(t *testing.T) {
 		if got != tc.expected {
 			t.Errorf("truncateTitle(%q, %d) = %q, want %q", tc.input, tc.max, got, tc.expected)
 		}
+	}
+}
+
+// TestNotifyUsesConfiguredDuration verifies that StatusBar.notify respects the
+// configured transientDur instead of hardcoding 5 seconds.
+func TestNotifyUsesConfiguredDuration(t *testing.T) {
+	sb := StatusBar{transientDur: 15 * time.Second}
+	before := time.Now()
+	sb.notify("test message")
+
+	if sb.notification.msg != "test message" {
+		t.Errorf("expected msg %q, got %q", "test message", sb.notification.msg)
+	}
+	// Expiry should be ~15s from now, not ~5s.
+	expiry := sb.notification.expiresAt
+	diff := expiry.Sub(before)
+	if diff < 14*time.Second || diff > 16*time.Second {
+		t.Errorf("expected expiry ~15s from now, got %v", diff)
+	}
+}
+
+// TestNotifyFallsBackToDefault verifies that StatusBar.notify falls back to the
+// 5-second default constant when transientDur is zero (unset).
+func TestNotifyFallsBackToDefault(t *testing.T) {
+	sb := StatusBar{} // transientDur is zero
+	before := time.Now()
+	sb.notify("fallback test")
+
+	expiry := sb.notification.expiresAt
+	diff := expiry.Sub(before)
+	if diff < 4*time.Second || diff > 6*time.Second {
+		t.Errorf("expected expiry ~5s (fallback) from now, got %v", diff)
 	}
 }

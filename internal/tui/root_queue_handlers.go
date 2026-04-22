@@ -17,7 +17,7 @@ import (
 // appended to the end.
 func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 	if msg.Err != nil {
-		m.statusBar.notification = newNotification("Enqueue track failed: " + msg.Err.Error())
+		m.statusBar.notify("Enqueue track failed: " + msg.Err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}
@@ -81,12 +81,12 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 // to the queue and triggers playback if the queue was empty.
 func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 	if msg.Err != nil {
-		m.statusBar.notification = newNotification("Enqueue playlist failed: " + msg.Err.Error())
+		m.statusBar.notify("Enqueue playlist failed: " + msg.Err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}
 	if len(msg.Entries) == 0 {
-		m.statusBar.notification = newNotification("Playlist is empty")
+		m.statusBar.notify("Playlist is empty")
 		return m
 	}
 	batchStartIdx := len(m.queue.entries)
@@ -130,7 +130,7 @@ func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
 	}
 	if err := m.player.PlayFromIndex(0); err != nil {
 		m.playback.state = PlaybackIdle
-		m.statusBar.notification = newNotification("Play failed: " + err.Error())
+		m.statusBar.notify("Play failed: " + err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}
@@ -384,7 +384,7 @@ func (m Model) handleMoveTrackDownMsg(msg MoveTrackDownMsg) (Model, tea.Cmd) {
 // and adjusts the playback index.
 func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 	if msg.Err != nil {
-		m.statusBar.notification = newNotification("Paste failed: " + msg.Err.Error())
+		m.statusBar.notify("Paste failed: " + msg.Err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}
@@ -530,7 +530,7 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 // new order to the database when a queueShuffler is available.
 func (m Model) handleQueueShuffleMsg() (Model, tea.Cmd) {
 	if len(m.queue.entries) <= 1 {
-		m.statusBar.notification = newNotification("Queue too small to shuffle")
+		m.statusBar.notify("Queue too small to shuffle")
 		return m, nil
 	}
 
@@ -558,7 +558,7 @@ func (m Model) handleQueueShuffleMsg() (Model, tea.Cmd) {
 
 	m = m.resetQueueSort()
 	m.syncPlayerQueue()
-	m.statusBar.notification = newNotification(fmt.Sprintf("Queue shuffled (%d tracks)", len(m.queue.entries)))
+	m.statusBar.notify(fmt.Sprintf("Queue shuffled (%d tracks)", len(m.queue.entries)))
 
 	if shuffler, ok := m.reorderer.(queueShuffler); ok {
 		ids := make([]int64, len(m.queue.entries))
@@ -592,7 +592,7 @@ func (m Model) handleQueueDedupMsg() (Model, tea.Cmd) {
 	}
 
 	if len(removedIDs) == 0 {
-		m.statusBar.notification = newNotification("No duplicates found")
+		m.statusBar.notify("No duplicates found")
 		return m, nil
 	}
 

@@ -83,7 +83,7 @@ func (a undoRemoveFavoriteAction) perform(m Model) (Model, tea.Cmd) {
 			m.favorites.trackCount = t
 		}
 	}
-	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: added %s back to favorites", a.typ))
+	m.statusBar.notify(fmt.Sprintf("Undone: added %s back to favorites", a.typ))
 	return m, nil
 }
 
@@ -114,7 +114,7 @@ func (a undoAddFavoriteAction) perform(m Model) (Model, tea.Cmd) {
 	if a.typ == "album" && a.value != "" {
 		delete(m.favoriteAlbums, a.value)
 	}
-	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: removed %s from favorites", a.typ))
+	m.statusBar.notify(fmt.Sprintf("Undone: removed %s from favorites", a.typ))
 	return m, nil
 }
 
@@ -154,7 +154,7 @@ func (a undoBulkAddFavoritesAction) perform(m Model) (Model, tea.Cmd) {
 		}
 	}
 	n := len(a.values)
-	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: removed %d %s(s) from favorites", n, a.typ))
+	m.statusBar.notify(fmt.Sprintf("Undone: removed %d %s(s) from favorites", n, a.typ))
 	return m, nil
 }
 
@@ -248,6 +248,6 @@ func (a undoBulkRemoveFavoritesAction) perform(m Model) (Model, tea.Cmd) {
 		}
 	}
 	n := len(a.values)
-	m.statusBar.notification = newNotification(fmt.Sprintf("Undone: added %d %s(s) back to favorites", n, a.typ))
+	m.statusBar.notify(fmt.Sprintf("Undone: added %d %s(s) back to favorites", n, a.typ))
 	return m, nil
 }

@@ -5,9 +5,12 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/sglavoie/muse/internal/config"
 )
 
 // TestCtrlCommaOpensSettingsOverlay verifies that ctrl+, opens the settings overlay.
@@ -137,5 +140,46 @@ func TestSettingsSavedMsgErrorShowsErrorNotification(t *testing.T) {
 	nm := next.(Model)
 	if !strings.Contains(nm.statusBar.notification.msg, "failed") {
 		t.Errorf("settingsSavedMsg with error: expected 'failed' in notification, got %q", nm.statusBar.notification.msg)
+	}
+}
+
+// TestSettingsSaveUpdatesTransientDur verifies that saving settings with a
+// different TransientDurationSecs propagates the new duration to the status bar
+// so that future notifications use the configured expiry.
+func TestSettingsSaveUpdatesTransientDur(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.TransientDurationSecs = 5
+	m := New(context.Background(), WithConfig(cfg))
+
+	if m.statusBar.transientDur != 5*time.Second {
+		t.Fatalf("initial transientDur: expected 5s, got %v", m.statusBar.transientDur)
+	}
+
+	// Open settings and switch to the Display tab using "]" (bracket key).
+	next, _ := m.Update(tea.KeyPressMsg{Code: ',', Mod: tea.ModCtrl})
+	nm := next.(Model)
+
+	// Navigate to Display tab (tab 3 = settingsTabDisplay) using "]".
+	for range int(settingsTabDisplay) {
+		next, _ = nm.Update(tea.KeyPressMsg{Code: ']', Text: "]"})
+		nm = next.(Model)
+	}
+
+	// Increment the Notification duration field (first field in Display tab).
+	// "l" increases the value by the step amount (1s each press).
+	for range 5 {
+		next, _ = nm.Update(tea.KeyPressMsg{Code: 'l', Text: "l"})
+		nm = next.(Model)
+	}
+
+	// Save.
+	next, _ = nm.Update(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	nm = next.(Model)
+
+	if nm.cfg.TransientDurationSecs != 10 {
+		t.Errorf("expected TransientDurationSecs=10 after save, got %d", nm.cfg.TransientDurationSecs)
+	}
+	if nm.statusBar.transientDur != 10*time.Second {
+		t.Errorf("expected statusBar.transientDur=10s after save, got %v", nm.statusBar.transientDur)
 	}
 }

@@ -17,7 +17,7 @@ func (m Model) handleTagFilterAction() (Model, tea.Cmd) {
 	}
 	tags := nonEmptyTags(m.tags, m.tagsView.tagCounts)
 	if len(tags) == 0 {
-		m.statusBar.notification = newNotification("No tags defined")
+		m.statusBar.notify("No tags defined")
 		return m, nil
 	}
 	picker := NewTagFilterPicker(tags)
@@ -45,7 +45,7 @@ func (m Model) handleTagFilterPicked(msg tagFilterPickedMsg) (Model, tea.Cmd) {
 	tagID := msg.tag.ID
 	m.activeTagFilter = &tagID
 	m = m.applyTagFilterToViews()
-	m.statusBar.notification = newNotification("Filtering by tag: " + msg.tag.Name)
+	m.statusBar.notify("Filtering by tag: " + msg.tag.Name)
 	return m, nil
 }
 
@@ -59,7 +59,7 @@ func (m Model) handleTagFilterDismissed() Model {
 func (m Model) clearTagFilter() Model {
 	m.activeTagFilter = nil
 	m = m.applyTagFilterToViews()
-	m.statusBar.notification = newNotification("Tag filter cleared")
+	m.statusBar.notify("Tag filter cleared")
 	return m
 }
 
@@ -110,7 +110,7 @@ func (m Model) buildTagFilterHashes(tagID int64) map[string]struct{} {
 func (m Model) handleOpenTagFilterPicker() (Model, tea.Cmd) {
 	tags := nonEmptyTags(m.tags, m.tagsView.tagCounts)
 	if len(tags) == 0 {
-		m.statusBar.notification = newNotification("No tags defined")
+		m.statusBar.notify("No tags defined")
 		return m, nil
 	}
 	picker := NewTagFilterPicker(tags)
@@ -123,7 +123,7 @@ func (m Model) handleRemoveAllTagsFromTrack(msg removeAllTagsFromTrackMsg) (Mode
 	hash := msg.hash
 	tagIDs := m.trackTags[hash]
 	if len(tagIDs) == 0 {
-		m.statusBar.notification = newNotification("Track has no tags")
+		m.statusBar.notify("Track has no tags")
 		return m, nil
 	}
 
@@ -191,7 +191,7 @@ func (m Model) handleEnqueueByTag(msg enqueueByTagMsg) (Model, tea.Cmd) {
 	tr := m.tagReader
 	be := m.batchEnqueuer
 	if tr == nil || be == nil {
-		m.statusBar.notification = newNotification("Enqueue not available")
+		m.statusBar.notify("Enqueue not available")
 		return m, nil
 	}
 	wasEmpty := len(m.queue.entries) == 0

@@ -10,7 +10,7 @@ import (
 // handleFavoriteToggledMsg processes the result of a favorite toggle operation.
 func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 	if msg.err != nil {
-		m.statusBar.notification = newNotification("Toggle favorite failed: " + msg.err.Error())
+		m.statusBar.notify("Toggle favorite failed: " + msg.err.Error())
 		return m
 	}
 
@@ -56,7 +56,7 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 			value: msg.value,
 		}, nil)
 	default:
-		m.statusBar.notification = newNotification(note)
+		m.statusBar.notify(note)
 	}
 
 	if msg.typ == "track" {
@@ -150,7 +150,7 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 // handleFavoritesLoadedMsg processes the result of loading favorites for a category.
 func (m Model) handleFavoritesLoadedMsg(msg favoritesLoadedMsg) Model {
 	if msg.err != nil {
-		m.statusBar.notification = newNotification("Load favorites failed: " + msg.err.Error())
+		m.statusBar.notify("Load favorites failed: " + msg.err.Error())
 		return m
 	}
 

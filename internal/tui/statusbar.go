@@ -21,17 +21,24 @@ type transientNotification struct {
 	expiresAt time.Time
 }
 
-func newNotification(msg string) transientNotification {
-	return transientNotification{msg: msg, expiresAt: time.Now().Add(transientDuration)}
-}
-
 func newNotificationFor(msg string, dur time.Duration) transientNotification {
 	return transientNotification{msg: msg, expiresAt: time.Now().Add(dur)}
 }
 
+// notify sets a transient notification using the configured transient duration.
+// Falls back to the default 5s constant when transientDur is zero (e.g. in
+// tests that do not set config).
+func (s *StatusBar) notify(msg string) {
+	dur := s.transientDur
+	if dur == 0 {
+		dur = transientDuration
+	}
+	s.notification = transientNotification{msg: msg, expiresAt: time.Now().Add(dur)}
+}
+
 // StatusBar manages the persistent status bar at the bottom of the screen.
 // notification holds a temporary message (e.g. scan progress, error) that
-// auto-dismisses after transientDuration via the 1-second tick handler.
+// auto-dismisses after transientDur via the 1-second tick handler.
 //
 // The persistent left zone shows playback state, track artist/title, active
 // playlist source, and repeat/shuffle mode indicators. The right zone shows
@@ -41,6 +48,7 @@ type StatusBar struct {
 	configPath    string
 	watchDegraded bool
 	notification  transientNotification
+	transientDur  time.Duration // configurable notification duration
 
 	// Persistent left zone fields — set during Update when track/state changes.
 	artist         string
@@ -76,13 +84,13 @@ func (s *StatusBar) handleScanProgress(msg library.ScanProgressMsg) {
 	} else {
 		text = fmt.Sprintf("Scanning… %s tracks", formatCount(msg.Scanned))
 	}
-	s.notification = newNotification(text)
+	s.notify(text)
 }
 
 // handleMissingTrack sets the transient notification to an error message
 // indicating that a track could not be found and was skipped.
 func (s *StatusBar) handleMissingTrack(path string) {
-	s.notification = newNotification(fmt.Sprintf("Error: track not found, skipped: %s", path))
+	s.notify(fmt.Sprintf("Error: track not found, skipped: %s", path))
 }
 
 // formatTime converts a duration in seconds to M:SS or H:MM:SS format.

@@ -62,6 +62,6 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 		}()
 	}
 	n := len(a.originals)
-	m.statusBar.notification = newNotification(fmt.Sprintf("Undone metadata edit for %d %s", n, pluralize(n, "track", "tracks")))
+	m.statusBar.notify(fmt.Sprintf("Undone metadata edit for %d %s", n, pluralize(n, "track", "tracks")))
 	return m, nil
 }

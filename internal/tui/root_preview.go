@@ -44,7 +44,7 @@ func (m Model) handlePreviewKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool)
 		if m.overlay.previewPlayer != nil {
 			if err := m.overlay.previewPlayer.TogglePause(); err != nil {
 				slog.Warn("preview pause toggle failed", "err", err)
-				m.statusBar.notification = newNotification("Preview pause failed: " + err.Error())
+				m.statusBar.notify("Preview pause failed: " + err.Error())
 			}
 		}
 		return m, nil, true

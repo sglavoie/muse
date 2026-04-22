@@ -7,7 +7,7 @@ import (
 // handleTagViewTracksLoaded processes tagViewTracksLoadedMsg.
 func (m Model) handleTagViewTracksLoaded(msg tagViewTracksLoadedMsg) Model {
 	if msg.err != nil {
-		m.statusBar.notification = newNotification("Load tracks failed: " + msg.err.Error())
+		m.statusBar.notify("Load tracks failed: " + msg.err.Error())
 		return m
 	}
 	m.tagsView = m.tagsView.openTracks(msg.tag, msg.tracks)
@@ -29,7 +29,7 @@ func (m Model) handleTagViewCountsLoaded(msg tagViewCountsLoadedMsg) Model {
 // handleTagRenamed processes tagRenamedMsg: updates the in-memory tag list.
 func (m Model) handleTagRenamed(msg tagRenamedMsg) Model {
 	if msg.err != nil {
-		m.statusBar.notification = newNotification("Rename failed: " + msg.err.Error())
+		m.statusBar.notify("Rename failed: " + msg.err.Error())
 		return m
 	}
 	for i := range m.tagsView.tags {
@@ -45,7 +45,7 @@ func (m Model) handleTagRenamed(msg tagRenamedMsg) Model {
 		}
 	}
 	m.tagNames[msg.id] = msg.name
-	m.statusBar.notification = newNotification("Tag renamed to " + msg.name)
+	m.statusBar.notify("Tag renamed to " + msg.name)
 	return m
 }
 
@@ -59,13 +59,13 @@ func (m Model) handleTagDeleted(msg tagDeletedMsg) Model {
 		copy(restored[idx+1:], m.tagsView.tags[idx:])
 		m.tagsView.tags = restored
 		m = m.rebuildTagCache(append(m.tags, msg.tag))
-		m.statusBar.notification = newNotification("Delete tag failed: " + msg.err.Error())
+		m.statusBar.notify("Delete tag failed: " + msg.err.Error())
 		return m
 	}
 	if m.tagWriter != nil {
 		schedulePurge(&m.undo.slot, m.tagWriter.PurgeDeletedTags)
 	}
-	m.statusBar.notification = newNotification("Tag deleted — press u to undo")
+	m.statusBar.notify("Tag deleted — press u to undo")
 	return m
 }
 

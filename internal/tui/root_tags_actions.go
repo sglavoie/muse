@@ -24,7 +24,7 @@ func (m Model) handleTagOpen() (Model, tea.Cmd) {
 		}
 		tr := m.tagReader
 		if tr == nil {
-			m.statusBar.notification = newNotification("Tag reader not available")
+			m.statusBar.notify("Tag reader not available")
 			return m, nil
 		}
 		return m, func() tea.Msg {
@@ -131,7 +131,7 @@ func (m Model) handleTagEnqueueAll() (Model, tea.Cmd) {
 	tr := m.tagReader
 	be := m.batchEnqueuer
 	if tr == nil || be == nil {
-		m.statusBar.notification = newNotification("Enqueue not available")
+		m.statusBar.notify("Enqueue not available")
 		return m, nil
 	}
 	wasEmpty := len(m.queue.entries) == 0

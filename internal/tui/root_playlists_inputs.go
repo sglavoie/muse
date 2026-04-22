@@ -19,7 +19,7 @@ func (m Model) handlePlaylistCreateInput(msg tea.KeyPressMsg) (Model, tea.Cmd, b
 		if !m.playlists.createInputIsEmpty() {
 			name := m.playlists.createInputValue()
 			if playlistNameExists(m.playlists.playlists, name, 0) {
-				m.statusBar.notification = newNotification("A playlist with that name already exists")
+				m.statusBar.notify("A playlist with that name already exists")
 				return m, nil, true
 			}
 			if m.playlistWriter != nil {
@@ -70,7 +70,7 @@ func (m Model) handlePlaylistRenameInput(msg tea.KeyPressMsg) (Model, tea.Cmd, b
 				return m, nil, true
 			}
 			if playlistNameExists(m.playlists.playlists, name, pl.ID) {
-				m.statusBar.notification = newNotification("A playlist with that name already exists")
+				m.statusBar.notify("A playlist with that name already exists")
 				return m, nil, true
 			}
 			if m.playlistRenamer != nil {
@@ -116,7 +116,7 @@ func (m Model) handleQueueSaveInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) 
 		if !m.queue.saveInputIsEmpty() {
 			name := m.queue.saveInputValue()
 			if playlistNameExists(m.playlists.playlists, name, 0) {
-				m.statusBar.notification = newNotification("A playlist with that name already exists")
+				m.statusBar.notify("A playlist with that name already exists")
 				return m, nil, true
 			}
 			if m.playlistWriter != nil {

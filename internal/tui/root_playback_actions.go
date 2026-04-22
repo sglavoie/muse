@@ -20,7 +20,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		}
 		track, ok := m.focusedTrackForPreview()
 		if !ok {
-			m.statusBar.notification = newNotification("No track to inspect")
+			m.statusBar.notify("No track to inspect")
 			return m, nil, true
 		}
 		if track.Path == "" {
@@ -29,7 +29,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			}
 		}
 		if track.Path == "" {
-			m.statusBar.notification = newNotification("Track path unknown")
+			m.statusBar.notify("Track path unknown")
 			return m, nil, true
 		}
 		return m, trackInfoCmd(m.appCtx, track.Path, track.Hash, track.PlayCount), true
@@ -39,7 +39,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			return m, nil, true
 		}
 		if m.playback.state == PlaybackStopped || m.playback.state == PlaybackIdle {
-			m.statusBar.notification = newNotification("No track playing")
+			m.statusBar.notify("No track playing")
 			return m, nil, true
 		}
 		overlay := NowPlayingOverlay{
@@ -71,7 +71,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		}
 		track, ok := m.focusedTrackForPreview()
 		if !ok {
-			m.statusBar.notification = newNotification("No track to preview")
+			m.statusBar.notify("No track to preview")
 			return m, nil, true
 		}
 		m.overlay.previewWasPlaying = m.playback.state == PlaybackPlaying
@@ -88,18 +88,18 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			case m.playback.state == PlaybackPlaying:
 				if err := m.player.Pause(); err != nil {
 					slog.Warn("pause failed", "err", err)
-					m.statusBar.notification = newNotification("Pause failed: " + err.Error())
+					m.statusBar.notify("Pause failed: " + err.Error())
 				} else {
 					m.playback.state = PlaybackPaused
 				}
 				return m, m.sessionPositionCmd(), true
 			case len(m.queue.entries) == 0:
-				m.statusBar.notification = newNotification("Queue is empty")
+				m.statusBar.notify("Queue is empty")
 				return m, nil, true
 			default:
 				if err := m.player.Play(); err != nil {
 					slog.Warn("play failed", "err", err)
-					m.statusBar.notification = newNotification("Play failed: " + err.Error())
+					m.statusBar.notify("Play failed: " + err.Error())
 				} else {
 					m.playback.state = PlaybackPlaying
 				}
@@ -110,7 +110,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.Stop(); err != nil {
 				slog.Warn("stop failed", "err", err)
-				m.statusBar.notification = newNotification("Stop failed: " + err.Error())
+				m.statusBar.notify("Stop failed: " + err.Error())
 			} else {
 				m.playback.state = PlaybackStopped
 				m.playback.elapsedSecs = 0
@@ -137,7 +137,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.Next(); err != nil {
 				slog.Warn("next failed", "err", err)
-				m.statusBar.notification = newNotification("Next failed: " + err.Error())
+				m.statusBar.notify("Next failed: " + err.Error())
 			}
 		}
 		return m, nil, true
@@ -145,7 +145,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.Previous(); err != nil {
 				slog.Warn("previous failed", "err", err)
-				m.statusBar.notification = newNotification("Previous failed: " + err.Error())
+				m.statusBar.notify("Previous failed: " + err.Error())
 			}
 		}
 		return m, nil, true
@@ -202,7 +202,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		return m, nil, true
 	case actionStopAfterCurrent:
 		if m.playback.state != PlaybackPlaying && m.playback.state != PlaybackPaused {
-			m.statusBar.notification = newNotification("No track playing")
+			m.statusBar.notify("No track playing")
 			return m, nil, true
 		}
 		m.playback.stopAfterCurrent = !m.playback.stopAfterCurrent

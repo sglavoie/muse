@@ -247,6 +247,7 @@ func New(ctx context.Context, opts ...Option) Model {
 	m.favoriteAlbums = loadFavoriteAlbums(m.favoriteReader)
 	m = m.syncRecentlyAddedFromLibrary()
 	// Sync statusBar fields from model state.
+	m.statusBar.transientDur = time.Duration(m.cfg.TransientDurationSecs) * time.Second
 	m.statusBar.configPath = m.configPath
 	m.statusBar.configCreated = m.configCreated
 	if len(m.configWarnings) > 0 {

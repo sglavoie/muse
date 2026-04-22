@@ -80,6 +80,7 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 	oldExcluded := m.cfg.ExcludedPaths
 	cfg := m.overlay.settings.ToConfig(m.cfg)
 	m.cfg = cfg
+	m.statusBar.transientDur = time.Duration(cfg.TransientDurationSecs) * time.Second
 	m.overlay.settings = nil
 	if ns, ok := m.player.(audioNormalizer); ok {
 		_ = ns.SetNormalize(m.cfg.NormalizeVolume)
@@ -117,7 +118,7 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 // handleSettingsSavedMsg shows a notification after config.Save completes.
 func (m Model) handleSettingsSavedMsg(msg settingsSavedMsg) Model {
 	if msg.err != nil {
-		m.statusBar.notification = newNotification("Settings save failed: " + msg.err.Error())
+		m.statusBar.notify("Settings save failed: " + msg.err.Error())
 	} else {
 		m.statusBar.notification = newNotificationFor(
 			"Settings saved",

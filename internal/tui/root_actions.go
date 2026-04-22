@@ -189,7 +189,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	case actionGoTo:
 		ctx := m.focusedGoToContext()
 		if !ctx.found {
-			m.statusBar.notification = newNotification("No track focused")
+			m.statusBar.notify("No track focused")
 		} else {
 			options := m.buildGoToOptions(ctx)
 			if len(options) > 0 {

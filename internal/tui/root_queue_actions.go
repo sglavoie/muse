@@ -14,7 +14,7 @@ import (
 // action stored in the undo slot, if one exists and has not expired.
 func (m Model) handleUndo() Model {
 	if m.undo.slot.action == nil || !time.Now().Before(m.undo.slot.expiresAt) {
-		m.statusBar.notification = newNotification("Nothing to undo")
+		m.statusBar.notify("Nothing to undo")
 		return m
 	}
 	// Cancel any in-flight purge timer before delegating to perform(). This
@@ -177,7 +177,7 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 		}
 		m = exitVisualMode(m)
 		if n := len(m.yankBuffer); n > 0 {
-			m.statusBar.notification = newNotification(fmt.Sprintf("Yanked %d track(s)", n))
+			m.statusBar.notify(fmt.Sprintf("Yanked %d track(s)", n))
 		}
 		return m, nil, true
 	case actionCut:
@@ -206,16 +206,16 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 		}
 		m = exitVisualMode(m)
 		if n := len(m.yankBuffer); n > 0 {
-			m.statusBar.notification = newNotification(fmt.Sprintf("Cut %d track(s)", n))
+			m.statusBar.notify(fmt.Sprintf("Cut %d track(s)", n))
 		}
 		return m, nil, true
 	case actionPaste:
 		if len(m.yankBuffer) == 0 {
-			m.statusBar.notification = newNotification("Nothing to paste")
+			m.statusBar.notify("Nothing to paste")
 			return m, nil, true
 		}
 		if m.queue.displayOrder != nil || m.queue.filter.Text != "" {
-			m.statusBar.notification = newNotification("Cannot paste while sorted/filtered")
+			m.statusBar.notify("Cannot paste while sorted/filtered")
 			return m, nil, true
 		}
 		if m.queueWriter == nil {
@@ -234,7 +234,7 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 		return m, m.queuePasteCmd(insertPos, buffer, cutIDs), true
 	case actionSaveQueueAsPlaylist:
 		if len(m.queue.entries) == 0 {
-			m.statusBar.notification = newNotification("Queue is empty — nothing to save")
+			m.statusBar.notify("Queue is empty — nothing to save")
 		} else {
 			fromSelection := m.queue.hasSelection()
 			m.queue = m.queue.startSaveAsPlaylist(fromSelection)

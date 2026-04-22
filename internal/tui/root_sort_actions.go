@@ -42,7 +42,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		if m.library.filter.Text != "" {
 			m.library = m.library.rebuildFilterCache()
 		}
-		m.statusBar.notification = newNotification(sortNotification(m.library.sortState))
+		m.statusBar.notify(sortNotification(m.library.sortState))
 		return m, nil, true
 
 	case viewRecentlyAdded:
@@ -57,7 +57,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		if m.recentlyAdded.filter.Text != "" {
 			m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
 		}
-		m.statusBar.notification = newNotification(sortNotification(m.recentlyAdded.sortState))
+		m.statusBar.notify(sortNotification(m.recentlyAdded.sortState))
 		return m, nil, true
 
 	case viewHistory:
@@ -72,7 +72,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		if m.history.filter.Text != "" {
 			m.history = m.history.rebuildFilterCache()
 		}
-		m.statusBar.notification = newNotification(sortNotification(m.history.sortState))
+		m.statusBar.notify(sortNotification(m.history.sortState))
 		return m, nil, true
 
 	case viewQueue:
@@ -87,7 +87,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.queue = m.queue.recomputeDisplayOrder()
 		m.queue.cursor = 0
 		m.queue.scrollOffset = 0
-		m.statusBar.notification = newNotification(sortNotification(m.queue.sortState))
+		m.statusBar.notify(sortNotification(m.queue.sortState))
 		return m, nil, true
 
 	case viewPlaylists:
@@ -106,7 +106,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.playlists = m.playlists.recomputePlaylistSort()
 		m.playlists.cursor = 0
 		m.playlists.scrollOffset = 0
-		m.statusBar.notification = newNotification(sortNotification(m.playlists.sortState))
+		m.statusBar.notify(sortNotification(m.playlists.sortState))
 		return m, nil, true
 
 	case viewArtists:
@@ -120,7 +120,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.artists = m.artists.recomputeArtistsSort()
 		m.artists.cursor = 0
 		m.artists.scrollOffset = 0
-		m.statusBar.notification = newNotification(sortNotification(m.artists.sortState))
+		m.statusBar.notify(sortNotification(m.artists.sortState))
 		return m, nil, true
 
 	case viewAlbums:
@@ -134,7 +134,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.albums = m.albums.recomputeAlbumsSort()
 		m.albums.cursor = 0
 		m.albums.scrollOffset = 0
-		m.statusBar.notification = newNotification(sortNotification(m.albums.sortState))
+		m.statusBar.notify(sortNotification(m.albums.sortState))
 		return m, nil, true
 
 	case viewFavorites:
@@ -152,7 +152,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.favorites.cursor = 0
 		m.favorites.scrollOffset = 0
 		m.favorites.selectedItems = nil
-		m.statusBar.notification = newNotification(sortNotification(m.favorites.sortState))
+		m.statusBar.notify(sortNotification(m.favorites.sortState))
 		return m, nil, true
 
 	case viewGenres:
@@ -166,7 +166,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.genres = m.genres.recomputeGenresSort()
 		m.genres.cursor = 0
 		m.genres.scrollOffset = 0
-		m.statusBar.notification = newNotification(sortNotification(m.genres.sortState))
+		m.statusBar.notify(sortNotification(m.genres.sortState))
 		return m, nil, true
 
 	case viewTags:
@@ -183,7 +183,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.tagsView.cursor = 0
 		m.tagsView.scrollOffset = 0
 		m.tagsView.selectedHashes = nil
-		m.statusBar.notification = newNotification(sortNotification(m.tagsView.sortState))
+		m.statusBar.notify(sortNotification(m.tagsView.sortState))
 		return m, nil, true
 
 	default:
@@ -210,7 +210,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 		}
 		m.library.cursor = m.library.findTrackPosition(focusedHash)
 		m.library.scrollOffset = adjustScroll(m.library.cursor, m.library.scrollOffset, layout.VisibleRows(m.library.height, 1))
-		m.statusBar.notification = newNotification(sortNotification(m.library.sortState))
+		m.statusBar.notify(sortNotification(m.library.sortState))
 		return m, nil, true
 
 	case viewRecentlyAdded:
@@ -228,7 +228,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 		}
 		m.recentlyAdded.cursor = m.recentlyAdded.findTrackPosition(focusedHash)
 		m.recentlyAdded.scrollOffset = adjustScroll(m.recentlyAdded.cursor, m.recentlyAdded.scrollOffset, layout.VisibleRows(m.recentlyAdded.height, 1))
-		m.statusBar.notification = newNotification(sortNotification(m.recentlyAdded.sortState))
+		m.statusBar.notify(sortNotification(m.recentlyAdded.sortState))
 		return m, nil, true
 
 	case viewHistory:
@@ -246,7 +246,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 		}
 		m.history.cursor = m.history.findTrackPosition(focusedHash)
 		m.history.scrollOffset = adjustScroll(m.history.cursor, m.history.scrollOffset, layout.VisibleRows(m.history.height, 1))
-		m.statusBar.notification = newNotification(sortNotification(m.history.sortState))
+		m.statusBar.notify(sortNotification(m.history.sortState))
 		return m, nil, true
 
 	case viewQueue:
@@ -258,7 +258,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 		m.queue = m.queue.recomputeDisplayOrder()
 		m.queue.cursor = m.queue.findEntryDisplayPosition(prevEntryIdx)
 		m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, m.queue.visibleRows())
-		m.statusBar.notification = newNotification(sortNotification(m.queue.sortState))
+		m.statusBar.notify(sortNotification(m.queue.sortState))
 		return m, nil, true
 
 	case viewPlaylists:
@@ -266,7 +266,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 			return m, nil, false
 		}
 		m = m.preservePlaylistCursorOnDirChange(dir)
-		m.statusBar.notification = newNotification(sortNotification(m.playlists.sortState))
+		m.statusBar.notify(sortNotification(m.playlists.sortState))
 		return m, nil, true
 
 	case viewArtists:
@@ -274,7 +274,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 			return m, nil, false
 		}
 		m = m.preserveArtistsCursorOnDirChange(dir)
-		m.statusBar.notification = newNotification(sortNotification(m.artists.sortState))
+		m.statusBar.notify(sortNotification(m.artists.sortState))
 		return m, nil, true
 
 	case viewAlbums:
@@ -282,7 +282,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 			return m, nil, false
 		}
 		m = m.preserveAlbumsCursorOnDirChange(dir)
-		m.statusBar.notification = newNotification(sortNotification(m.albums.sortState))
+		m.statusBar.notify(sortNotification(m.albums.sortState))
 		return m, nil, true
 
 	case viewFavorites:
@@ -290,7 +290,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 			return m, nil, false
 		}
 		m = m.preserveFavoritesCursorOnDirChange(dir)
-		m.statusBar.notification = newNotification(sortNotification(m.favorites.sortState))
+		m.statusBar.notify(sortNotification(m.favorites.sortState))
 		return m, nil, true
 
 	case viewGenres:
@@ -298,7 +298,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 			return m, nil, false
 		}
 		m = m.preserveGenresCursorOnDirChange(dir)
-		m.statusBar.notification = newNotification(sortNotification(m.genres.sortState))
+		m.statusBar.notify(sortNotification(m.genres.sortState))
 		return m, nil, true
 
 	case viewTags:
@@ -306,7 +306,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 			return m, nil, false
 		}
 		m = m.preserveTagsCursorOnDirChange(dir)
-		m.statusBar.notification = newNotification(sortNotification(m.tagsView.sortState))
+		m.statusBar.notify(sortNotification(m.tagsView.sortState))
 		return m, nil, true
 
 	default:
