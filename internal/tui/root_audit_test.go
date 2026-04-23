@@ -116,3 +116,65 @@ func TestDurationAuditNilChannelSkipsInit(t *testing.T) {
 		t.Error("expected auditCh to be nil when no audit channel option is provided")
 	}
 }
+
+// TestDurationAuditBatchSyncsRecentlyAdded verifies that a duration audit
+// batch updates the recently-added view's cached source tracks so that the
+// duration column does not show stale pre-audit values.
+func TestDurationAuditBatchSyncsRecentlyAdded(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0, CreatedAt: 100})
+	m = m.syncRecentlyAddedFromLibrary()
+
+	// Sanity: recently-added should have the old duration.
+	if len(m.recentlyAdded.sourceTracks) == 0 {
+		t.Fatal("recentlyAdded.sourceTracks is empty after sync")
+	}
+	if m.recentlyAdded.sourceTracks[0].Duration != 120.0 {
+		t.Fatalf("pre-audit recentlyAdded duration: got %f, want 120.0", m.recentlyAdded.sourceTracks[0].Duration)
+	}
+
+	next, _ := m.Update(library.DurationAuditBatchMsg{
+		Fixes: []library.DurationFix{{Hash: "h1", DurationMs: 240000}},
+	})
+	nm := next.(Model)
+
+	if len(nm.recentlyAdded.sourceTracks) == 0 {
+		t.Fatal("recentlyAdded.sourceTracks is empty after audit batch")
+	}
+	got := nm.recentlyAdded.sourceTracks[0].Duration
+	if got != 240.0 {
+		t.Errorf("recentlyAdded duration after audit: got %f, want 240.0", got)
+	}
+}
+
+// TestDurationAuditBatchRecomputesSortedLibrary verifies that when the library
+// has an active sort, the sorted tracks cache is rebuilt after an audit batch
+// so that duration-based sort orders reflect the corrected values.
+func TestDurationAuditBatchRecomputesSortedLibrary(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 300.0})
+	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 100.0})
+	// Sort by duration ascending: h2 (100) should come before h1 (300).
+	m.library.sortState = SortState{Field: SortDuration, Dir: SortAsc}
+	m.library = m.library.recomputeSortedTracks()
+	if len(m.library.sortedTracks) != 2 {
+		t.Fatalf("sorted tracks length: got %d, want 2", len(m.library.sortedTracks))
+	}
+	if m.library.sortedTracks[0].Hash != "h2" {
+		t.Fatalf("pre-audit sorted[0] hash: got %s, want h2", m.library.sortedTracks[0].Hash)
+	}
+
+	// Audit corrects h2's duration to 500, which should flip the order.
+	next, _ := m.Update(library.DurationAuditBatchMsg{
+		Fixes: []library.DurationFix{{Hash: "h2", DurationMs: 500000}},
+	})
+	nm := next.(Model)
+
+	if len(nm.library.sortedTracks) != 2 {
+		t.Fatalf("sorted tracks length after audit: got %d, want 2", len(nm.library.sortedTracks))
+	}
+	// After correction h1=300, h2=500 → ascending: h1 first.
+	if nm.library.sortedTracks[0].Hash != "h1" {
+		t.Errorf("post-audit sorted[0] hash: got %s, want h1 (sort order should reflect corrected duration)", nm.library.sortedTracks[0].Hash)
+	}
+}

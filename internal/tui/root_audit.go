@@ -9,7 +9,9 @@ import (
 
 // handleDurationAuditBatchMsg applies a batch of ffprobe-corrected durations
 // to the in-memory library index and any matching queue entries, then
-// re-schedules the next batch read.
+// re-schedules the next batch read. Derived views that cache track data
+// (recently-added, sorted library, history, etc.) are refreshed so their
+// duration columns stay in sync.
 func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (Model, tea.Cmd) {
 	for _, fix := range msg.Fixes {
 		m.library.index.UpdateDuration(fix.Hash, float64(fix.DurationMs)/1000)
@@ -18,6 +20,13 @@ func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (M
 				m.queue.entries[i].DurationMs = fix.DurationMs
 			}
 		}
+	}
+	m = m.syncRecentlyAddedFromLibrary()
+	if m.library.sortState.Field != SortDefault {
+		m.library = m.library.recomputeSortedTracks()
+	}
+	if m.library.filter.Text != "" {
+		m.library = m.library.rebuildFilterCache()
 	}
 	if m.auditCh != nil {
 		return m, waitForAuditBatch(m.auditCh)
