@@ -156,6 +156,7 @@ func (m Model) refreshDerivedViews() Model {
 				m.playlists.tracks[i].Title = t.Title
 				m.playlists.tracks[i].Artist = t.Artist
 				m.playlists.tracks[i].Album = t.Album
+				m.playlists.tracks[i].DurationMs = int64(t.Duration * 1000)
 			}
 		}
 		m.playlists = m.playlists.recomputePlaylistSort()
@@ -168,6 +169,7 @@ func (m Model) refreshDerivedViews() Model {
 				ts[i].Artist = t.Artist
 				ts[i].Album = t.Album
 				ts[i].Genre = t.Genre
+				ts[i].Duration = t.Duration
 			}
 		}
 	}
@@ -198,6 +200,7 @@ func (m Model) refreshDerivedViews() Model {
 				m.tagsView.tracks[i].Title = t.Title
 				m.tagsView.tracks[i].Artist = t.Artist
 				m.tagsView.tracks[i].Album = t.Album
+				m.tagsView.tracks[i].DurationMs = int64(t.Duration * 1000)
 			}
 		}
 		m.tagsView = m.tagsView.recomputeTagsSort()

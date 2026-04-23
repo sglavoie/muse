@@ -443,3 +443,52 @@ func TestRefreshDerivedViewsRebuildsRecentlyAddedFilterCache(t *testing.T) {
 		t.Error("expected filter matches after renaming track to 'Unique Title', got 0")
 	}
 }
+
+// TestRefreshDerivedViewsUpdatesDuration verifies that refreshDerivedViews
+// propagates duration changes from the library index to history, playlist,
+// favorites, and tags tracks.
+func TestRefreshDerivedViewsUpdatesDuration(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
+
+	m.history.sourceTracks = []library.Track{
+		{Hash: "h1", Path: "/a.flac", Duration: 120},
+	}
+	m.recentlyAdded.sourceTracks = []library.Track{
+		{Hash: "h1", Path: "/a.flac", Duration: 120},
+	}
+	m.playlists.level = pltui.TrackLevel
+	m.playlists.tracks = []db.PlaylistTrackRow{
+		{ID: 1, Hash: "h1", Path: "/a.flac", DurationMs: 120_000},
+	}
+	m.tagsView.level = tagtui.TrackLevel
+	m.tagsView.tracks = []db.PlaylistTrackRow{
+		{ID: 1, Hash: "h1", Path: "/a.flac", DurationMs: 120_000},
+	}
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryTracks
+	m.favorites.tracks = []library.Track{
+		{Hash: "h1", Path: "/a.flac", Duration: 120},
+	}
+
+	// Update the library index duration (simulating a duration audit or
+	// watcher correction).
+	m.library.index.UpdateDuration("h1", 200)
+	m = m.refreshDerivedViews()
+
+	if m.history.sourceTracks[0].Duration != 200 {
+		t.Errorf("history Duration = %v, want 200", m.history.sourceTracks[0].Duration)
+	}
+	if m.recentlyAdded.sourceTracks[0].Duration != 200 {
+		t.Errorf("recentlyAdded Duration = %v, want 200", m.recentlyAdded.sourceTracks[0].Duration)
+	}
+	if m.playlists.tracks[0].DurationMs != 200_000 {
+		t.Errorf("playlists DurationMs = %d, want 200000", m.playlists.tracks[0].DurationMs)
+	}
+	if m.tagsView.tracks[0].DurationMs != 200_000 {
+		t.Errorf("tags DurationMs = %d, want 200000", m.tagsView.tracks[0].DurationMs)
+	}
+	if m.favorites.tracks[0].Duration != 200 {
+		t.Errorf("favorites Duration = %v, want 200", m.favorites.tracks[0].Duration)
+	}
+}

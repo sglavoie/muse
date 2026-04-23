@@ -51,6 +51,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 				m.queue.entries[i].Title = t.Title
 				m.queue.entries[i].Artist = t.Artist
 				m.queue.entries[i].Album = t.Album
+				m.queue.entries[i].DurationMs = int64(t.Duration * 1000)
 				m.queue.entries[i].Display = display
 				queueDirty = true
 				// If the track was previously missing and the watcher
@@ -81,6 +82,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 					m.history.sourceTracks[i].Artist = t.Artist
 					m.history.sourceTracks[i].Album = t.Album
 					m.history.sourceTracks[i].Genre = t.Genre
+					m.history.sourceTracks[i].Duration = t.Duration
 				}
 			}
 		}
@@ -100,6 +102,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 					m.playlists.tracks[i].Title = t.Title
 					m.playlists.tracks[i].Artist = t.Artist
 					m.playlists.tracks[i].Album = t.Album
+					m.playlists.tracks[i].DurationMs = int64(t.Duration * 1000)
 				}
 			}
 		}
@@ -115,6 +118,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 					m.favorites.tracks[i].Artist = t.Artist
 					m.favorites.tracks[i].Album = t.Album
 					m.favorites.tracks[i].Genre = t.Genre
+					m.favorites.tracks[i].Duration = t.Duration
 				}
 			}
 		}
@@ -128,6 +132,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 					m.favorites.drilldownTracks[i].Artist = t.Artist
 					m.favorites.drilldownTracks[i].Album = t.Album
 					m.favorites.drilldownTracks[i].Genre = t.Genre
+					m.favorites.drilldownTracks[i].Duration = t.Duration
 				}
 			}
 		}
@@ -142,6 +147,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 					m.tagsView.tracks[i].Title = t.Title
 					m.tagsView.tracks[i].Artist = t.Artist
 					m.tagsView.tracks[i].Album = t.Album
+					m.tagsView.tracks[i].DurationMs = int64(t.Duration * 1000)
 				}
 			}
 		}
