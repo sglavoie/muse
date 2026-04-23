@@ -7,6 +7,12 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/player"
+	albtui "github.com/sglavoie/muse/internal/tui/albums"
+	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // shouldCountPlay returns true when the user has listened to enough of the
@@ -95,6 +101,60 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 	for i := range m.queue.entries {
 		if m.queue.entries[i].Hash == hash {
 			m.queue.entries[i].DurationMs = newDurationMs
+		}
+	}
+	for i := range m.history.sourceTracks {
+		if m.history.sourceTracks[i].Hash == hash {
+			m.history.sourceTracks[i].Duration = mpvTotal
+		}
+	}
+	if m.playlists.level == pltui.TrackLevel {
+		for i := range m.playlists.tracks {
+			if m.playlists.tracks[i].Hash == hash {
+				m.playlists.tracks[i].DurationMs = newDurationMs
+			}
+		}
+	}
+	if m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks {
+		for i := range m.favorites.tracks {
+			if m.favorites.tracks[i].Hash == hash {
+				m.favorites.tracks[i].Duration = mpvTotal
+			}
+		}
+	}
+	if m.favorites.level == favtui.TrackLevel {
+		for i := range m.favorites.drilldownTracks {
+			if m.favorites.drilldownTracks[i].Hash == hash {
+				m.favorites.drilldownTracks[i].Duration = mpvTotal
+			}
+		}
+	}
+	if m.tagsView.level == tagtui.TrackLevel {
+		for i := range m.tagsView.tracks {
+			if m.tagsView.tracks[i].Hash == hash {
+				m.tagsView.tracks[i].DurationMs = newDurationMs
+			}
+		}
+	}
+	if m.artists.level == arttui.TrackLevel {
+		for i := range m.artists.tracks {
+			if m.artists.tracks[i].Hash == hash {
+				m.artists.tracks[i].Duration = mpvTotal
+			}
+		}
+	}
+	if m.albums.level == albtui.TrackLevel {
+		for i := range m.albums.tracks {
+			if m.albums.tracks[i].Hash == hash {
+				m.albums.tracks[i].Duration = mpvTotal
+			}
+		}
+	}
+	if m.genres.level == gentui.TrackLevel {
+		for i := range m.genres.tracks {
+			if m.genres.tracks[i].Hash == hash {
+				m.genres.tracks[i].Duration = mpvTotal
+			}
 		}
 	}
 

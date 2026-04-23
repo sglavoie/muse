@@ -6,7 +6,14 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	albtui "github.com/sglavoie/muse/internal/tui/albums"
+	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // TestMainPlaybackTickCorrectsDuration verifies that when mpv reports a
@@ -205,5 +212,96 @@ func TestTickMsgDoesNotDecreasePeak(t *testing.T) {
 	}
 	if nm.playback.peakTotalSecs != 200.0 {
 		t.Fatalf("expected peakTotalSecs to stay 200.0, got %v", nm.playback.peakTotalSecs)
+	}
+}
+
+// TestCorrectStoredDurationSyncsDerivedViews verifies that correctStoredDuration
+// propagates the corrected duration to history, playlist, favorites, and tags
+// views so they don't show stale values.
+func TestCorrectStoredDurationSyncsDerivedViews(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
+	m.history.sourceTracks = []library.Track{{Hash: "h1", Duration: 360.0}}
+	m.playlists.level = pltui.TrackLevel
+	m.playlists.tracks = []db.PlaylistTrackRow{{Hash: "h1", DurationMs: 360000}}
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryTracks
+	m.favorites.tracks = []library.Track{{Hash: "h1", Duration: 360.0}}
+	m.tagsView.level = tagtui.TrackLevel
+	m.tagsView.tracks = []db.PlaylistTrackRow{{Hash: "h1", DurationMs: 360000}}
+
+	nm, _ := m.correctStoredDuration("h1", 180.0)
+
+	if nm.history.sourceTracks[0].Duration != 180.0 {
+		t.Errorf("history duration: got %f, want 180.0", nm.history.sourceTracks[0].Duration)
+	}
+	if nm.playlists.tracks[0].DurationMs != 180000 {
+		t.Errorf("playlist DurationMs: got %d, want 180000", nm.playlists.tracks[0].DurationMs)
+	}
+	if nm.favorites.tracks[0].Duration != 180.0 {
+		t.Errorf("favorites duration: got %f, want 180.0", nm.favorites.tracks[0].Duration)
+	}
+	if nm.tagsView.tracks[0].DurationMs != 180000 {
+		t.Errorf("tags DurationMs: got %d, want 180000", nm.tagsView.tracks[0].DurationMs)
+	}
+}
+
+// TestCorrectStoredDurationSyncsFavoritesDrilldown verifies that
+// correctStoredDuration propagates to favorites drilldown tracks at TrackLevel.
+func TestCorrectStoredDurationSyncsFavoritesDrilldown(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
+	m.favorites.level = favtui.TrackLevel
+	m.favorites.drilldownTracks = []library.Track{{Hash: "h1", Duration: 360.0}}
+
+	nm, _ := m.correctStoredDuration("h1", 180.0)
+
+	if nm.favorites.drilldownTracks[0].Duration != 180.0 {
+		t.Errorf("favorites drilldown duration: got %f, want 180.0", nm.favorites.drilldownTracks[0].Duration)
+	}
+}
+
+// TestCorrectStoredDurationSyncsArtistsTracks verifies that correctStoredDuration
+// propagates to artists tracks at TrackLevel.
+func TestCorrectStoredDurationSyncsArtistsTracks(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Album: "X", Duration: 360.0})
+	m.artists.level = arttui.TrackLevel
+	m.artists.tracks = []library.Track{{Hash: "h1", Artist: "A", Album: "X", Duration: 360.0}}
+
+	nm, _ := m.correctStoredDuration("h1", 180.0)
+
+	if nm.artists.tracks[0].Duration != 180.0 {
+		t.Errorf("artists track duration: got %f, want 180.0", nm.artists.tracks[0].Duration)
+	}
+}
+
+// TestCorrectStoredDurationSyncsAlbumsTracks verifies that correctStoredDuration
+// propagates to albums tracks at TrackLevel.
+func TestCorrectStoredDurationSyncsAlbumsTracks(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Album: "X", Duration: 360.0})
+	m.albums.level = albtui.TrackLevel
+	m.albums.tracks = []library.Track{{Hash: "h1", Artist: "A", Album: "X", Duration: 360.0}}
+
+	nm, _ := m.correctStoredDuration("h1", 180.0)
+
+	if nm.albums.tracks[0].Duration != 180.0 {
+		t.Errorf("albums track duration: got %f, want 180.0", nm.albums.tracks[0].Duration)
+	}
+}
+
+// TestCorrectStoredDurationSyncsGenresTracks verifies that correctStoredDuration
+// propagates to genres tracks at TrackLevel.
+func TestCorrectStoredDurationSyncsGenresTracks(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Genre: "Rock", Duration: 360.0})
+	m.genres.level = gentui.TrackLevel
+	m.genres.tracks = []library.Track{{Hash: "h1", Artist: "A", Genre: "Rock", Duration: 360.0}}
+
+	nm, _ := m.correctStoredDuration("h1", 180.0)
+
+	if nm.genres.tracks[0].Duration != 180.0 {
+		t.Errorf("genres track duration: got %f, want 180.0", nm.genres.tracks[0].Duration)
 	}
 }

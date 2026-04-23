@@ -4,7 +4,14 @@ import (
 	"context"
 	"testing"
 
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	albtui "github.com/sglavoie/muse/internal/tui/albums"
+	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // TestDurationAuditBatchUpdatesIndex verifies that a DurationAuditBatchMsg
@@ -147,6 +154,78 @@ func TestDurationAuditBatchSyncsRecentlyAdded(t *testing.T) {
 	}
 }
 
+// TestDurationAuditBatchSyncsHistoryTracks verifies that a duration audit
+// batch propagates corrected durations to history source tracks.
+func TestDurationAuditBatchSyncsHistoryTracks(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
+	m.history.sourceTracks = []library.Track{{Hash: "h1", Path: "/a.mp3", Duration: 120.0}}
+
+	next, _ := m.Update(library.DurationAuditBatchMsg{
+		Fixes: []library.DurationFix{{Hash: "h1", DurationMs: 240000}},
+	})
+	nm := next.(Model)
+
+	if nm.history.sourceTracks[0].Duration != 240.0 {
+		t.Errorf("history duration after audit: got %f, want 240.0", nm.history.sourceTracks[0].Duration)
+	}
+}
+
+// TestDurationAuditBatchSyncsPlaylistTracks verifies that a duration audit
+// batch propagates corrected durations to playlist tracks at TrackLevel.
+func TestDurationAuditBatchSyncsPlaylistTracks(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
+	m.playlists.level = pltui.TrackLevel
+	m.playlists.tracks = []db.PlaylistTrackRow{{Hash: "h1", DurationMs: 120000}}
+
+	next, _ := m.Update(library.DurationAuditBatchMsg{
+		Fixes: []library.DurationFix{{Hash: "h1", DurationMs: 240000}},
+	})
+	nm := next.(Model)
+
+	if nm.playlists.tracks[0].DurationMs != 240000 {
+		t.Errorf("playlist track DurationMs after audit: got %d, want 240000", nm.playlists.tracks[0].DurationMs)
+	}
+}
+
+// TestDurationAuditBatchSyncsFavoritesTracks verifies that a duration audit
+// batch propagates corrected durations to favorites tracks.
+func TestDurationAuditBatchSyncsFavoritesTracks(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryTracks
+	m.favorites.tracks = []library.Track{{Hash: "h1", Duration: 120.0}}
+
+	next, _ := m.Update(library.DurationAuditBatchMsg{
+		Fixes: []library.DurationFix{{Hash: "h1", DurationMs: 240000}},
+	})
+	nm := next.(Model)
+
+	if nm.favorites.tracks[0].Duration != 240.0 {
+		t.Errorf("favorites track duration after audit: got %f, want 240.0", nm.favorites.tracks[0].Duration)
+	}
+}
+
+// TestDurationAuditBatchSyncsTagsTracks verifies that a duration audit
+// batch propagates corrected durations to tags tracks at TrackLevel.
+func TestDurationAuditBatchSyncsTagsTracks(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
+	m.tagsView.level = tagtui.TrackLevel
+	m.tagsView.tracks = []db.PlaylistTrackRow{{Hash: "h1", DurationMs: 120000}}
+
+	next, _ := m.Update(library.DurationAuditBatchMsg{
+		Fixes: []library.DurationFix{{Hash: "h1", DurationMs: 240000}},
+	})
+	nm := next.(Model)
+
+	if nm.tagsView.tracks[0].DurationMs != 240000 {
+		t.Errorf("tags track DurationMs after audit: got %d, want 240000", nm.tagsView.tracks[0].DurationMs)
+	}
+}
+
 // TestDurationAuditBatchRecomputesSortedLibrary verifies that when the library
 // has an active sort, the sorted tracks cache is rebuilt after an audit batch
 // so that duration-based sort orders reflect the corrected values.
@@ -176,5 +255,64 @@ func TestDurationAuditBatchRecomputesSortedLibrary(t *testing.T) {
 	// After correction h1=300, h2=500 → ascending: h1 first.
 	if nm.library.sortedTracks[0].Hash != "h1" {
 		t.Errorf("post-audit sorted[0] hash: got %s, want h1 (sort order should reflect corrected duration)", nm.library.sortedTracks[0].Hash)
+	}
+}
+
+// TestDurationAuditBatchSyncsArtistsTracks verifies that a duration audit
+// batch propagates corrected durations to artists tracks at TrackLevel.
+func TestDurationAuditBatchSyncsArtistsTracks(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Artist: "A", Album: "X", Duration: 120.0})
+	m.artists.level = arttui.TrackLevel
+	m.artists.selectedArtist = "A"
+	m.artists.selectedAlbum = "X"
+	m.artists.tracks = []library.Track{{Hash: "h1", Artist: "A", Album: "X", Duration: 120.0}}
+
+	next, _ := m.Update(library.DurationAuditBatchMsg{
+		Fixes: []library.DurationFix{{Hash: "h1", DurationMs: 240000}},
+	})
+	nm := next.(Model)
+
+	if nm.artists.tracks[0].Duration != 240.0 {
+		t.Errorf("artists track duration after audit: got %f, want 240.0", nm.artists.tracks[0].Duration)
+	}
+}
+
+// TestDurationAuditBatchSyncsAlbumsTracks verifies that a duration audit
+// batch propagates corrected durations to albums tracks at TrackLevel.
+func TestDurationAuditBatchSyncsAlbumsTracks(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Artist: "A", Album: "X", Duration: 120.0})
+	m.albums.level = albtui.TrackLevel
+	m.albums.selectedAlbum = "X"
+	m.albums.tracks = []library.Track{{Hash: "h1", Artist: "A", Album: "X", Duration: 120.0}}
+
+	next, _ := m.Update(library.DurationAuditBatchMsg{
+		Fixes: []library.DurationFix{{Hash: "h1", DurationMs: 240000}},
+	})
+	nm := next.(Model)
+
+	if nm.albums.tracks[0].Duration != 240.0 {
+		t.Errorf("albums track duration after audit: got %f, want 240.0", nm.albums.tracks[0].Duration)
+	}
+}
+
+// TestDurationAuditBatchSyncsGenresTracks verifies that a duration audit
+// batch propagates corrected durations to genres tracks at TrackLevel.
+func TestDurationAuditBatchSyncsGenresTracks(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Artist: "A", Genre: "Rock", Duration: 120.0})
+	m.genres.level = gentui.TrackLevel
+	m.genres.selectedGenre = "Rock"
+	m.genres.selectedArtist = "A"
+	m.genres.tracks = []library.Track{{Hash: "h1", Artist: "A", Genre: "Rock", Duration: 120.0}}
+
+	next, _ := m.Update(library.DurationAuditBatchMsg{
+		Fixes: []library.DurationFix{{Hash: "h1", DurationMs: 240000}},
+	})
+	nm := next.(Model)
+
+	if nm.genres.tracks[0].Duration != 240.0 {
+		t.Errorf("genres track duration after audit: got %f, want 240.0", nm.genres.tracks[0].Duration)
 	}
 }
