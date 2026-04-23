@@ -91,6 +91,66 @@ func TestShufflePreservesPlaybackIndex(t *testing.T) {
 	}
 }
 
+// TestDedupRelocatesPlaybackIndex verifies that after dedup the playback
+// index points to the surviving first copy of the currently-playing track,
+// even when playback was on a later duplicate that got removed.
+func TestDedupRelocatesPlaybackIndex(t *testing.T) {
+	d := &stubQueueDequeuer{}
+	m := New(context.Background(), WithQueueDequeuer(d))
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "a", Display: "A1"},
+		{ID: 2, Hash: "b", Display: "B"},
+		{ID: 3, Hash: "a", Display: "A2"}, // duplicate — currently playing
+	}
+	m.playback.currentHash = "a"
+	m.playback.currentIndex = 2 // playing the duplicate
+
+	m, _ = m.handleQueueDedupMsg()
+
+	if len(m.queue.entries) != 2 {
+		t.Fatalf("expected 2 entries after dedup, got %d", len(m.queue.entries))
+	}
+	// currentIndex must now point to the surviving first copy (index 0).
+	if m.playback.currentIndex != 0 {
+		t.Errorf("currentIndex = %d, want 0 (surviving first copy)", m.playback.currentIndex)
+	}
+	if m.queue.entries[m.playback.currentIndex].Hash != "a" {
+		t.Errorf("entry at currentIndex has hash %q, want \"a\"",
+			m.queue.entries[m.playback.currentIndex].Hash)
+	}
+}
+
+// TestDedupPreservesPlaybackIndexNonDuplicate verifies that when the
+// currently-playing entry is NOT a duplicate, its index is correctly
+// adjusted after earlier entries are removed by dedup.
+func TestDedupPreservesPlaybackIndexNonDuplicate(t *testing.T) {
+	d := &stubQueueDequeuer{}
+	m := New(context.Background(), WithQueueDequeuer(d))
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "a", Display: "A1"},
+		{ID: 2, Hash: "a", Display: "A2"}, // duplicate, removed
+		{ID: 3, Hash: "b", Display: "B"},  // currently playing
+	}
+	m.playback.currentHash = "b"
+	m.playback.currentIndex = 2
+
+	m, _ = m.handleQueueDedupMsg()
+
+	if len(m.queue.entries) != 2 {
+		t.Fatalf("expected 2 entries after dedup, got %d", len(m.queue.entries))
+	}
+	// "b" was at index 2, one duplicate before it was removed, so new index = 1.
+	if m.playback.currentIndex != 1 {
+		t.Errorf("currentIndex = %d, want 1", m.playback.currentIndex)
+	}
+	if m.queue.entries[m.playback.currentIndex].Hash != "b" {
+		t.Errorf("entry at currentIndex has hash %q, want \"b\"",
+			m.queue.entries[m.playback.currentIndex].Hash)
+	}
+}
+
 // TestDedupRemovesDuplicatesKeepsFirst verifies that dedup keeps the first
 // occurrence and removes subsequent duplicates.
 func TestDedupRemovesDuplicatesKeepsFirst(t *testing.T) {

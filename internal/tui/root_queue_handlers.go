@@ -610,7 +610,20 @@ func (m Model) handleQueueDedupMsg() (Model, tea.Cmd) {
 	m = m.preserveQueueSort()
 	m.clampQueueCursorAndScroll()
 	m.syncPlayerQueue()
-	m.adjustPlaybackIndexAfterRemovals(removedIndices)
+
+	// Re-locate the currently-playing entry by hash rather than using
+	// index arithmetic.  Dedup keeps the first occurrence of each hash,
+	// so if playback was on a later duplicate that got removed the old
+	// index is stale.  Searching by hash mirrors handleQueueShuffleMsg.
+	if m.playback.currentHash != "" {
+		m.playback.currentIndex = -1
+		for i, entry := range m.queue.entries {
+			if entry.Hash == m.playback.currentHash {
+				m.playback.currentIndex = i
+				break
+			}
+		}
+	}
 	m = m.stopPlaybackIfCurrentMissing()
 
 	undoer := m.undoer
