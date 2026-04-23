@@ -407,9 +407,15 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 	// from the first pasted entry.
 	if m.playback.queueExhausted && m.playback.state == PlaybackIdle && m.player != nil {
 		if err := m.player.PlayFromIndex(insertPos); err == nil {
+			entry := msg.Entries[0]
 			m.playback.state = PlaybackPlaying
+			m.playback.currentHash = entry.Hash
+			m.playback.currentIndex = insertPos
 			m.playback.elapsedSecs = 0
 			m.playback.totalSecs = 0
+			m.statusBar.artist = entry.Artist
+			m.statusBar.title = entry.Title
+			m.statusBar.playlistSource = queueSourceName(entry.SourcePlaylist)
 		}
 		m.playback.queueExhausted = false
 	}

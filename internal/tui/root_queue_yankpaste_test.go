@@ -421,7 +421,8 @@ func TestUndoPasteAdjustsCurrentIndex(t *testing.T) {
 
 // TestPasteResumesPlaybackWhenQueueExhausted verifies that pasting tracks after
 // the queue was exhausted (PlaybackEndedMsg already processed) auto-resumes
-// playback from the first pasted entry.
+// playback from the first pasted entry and populates all playback bookkeeping
+// (currentHash, currentIndex, status bar).
 func TestPasteResumesPlaybackWhenQueueExhausted(t *testing.T) {
 	p := &stubPlayerQueueSyncer{}
 	qa := &stubQueueAppender{}
@@ -448,6 +449,21 @@ func TestPasteResumesPlaybackWhenQueueExhausted(t *testing.T) {
 	}
 	if m.playback.queueExhausted {
 		t.Fatal("queueExhausted should be cleared after auto-resume")
+	}
+	// The pasted entry's metadata must be reflected in playback state and
+	// status bar so the UI is correct immediately (before TrackChangedMsg).
+	pastedEntry := msg.Entries[0]
+	if m.playback.currentHash != pastedEntry.Hash {
+		t.Errorf("currentHash = %q, want %q", m.playback.currentHash, pastedEntry.Hash)
+	}
+	if m.playback.currentIndex != 2 {
+		t.Errorf("currentIndex = %d, want 2", m.playback.currentIndex)
+	}
+	if m.statusBar.artist != pastedEntry.Artist {
+		t.Errorf("statusBar.artist = %q, want %q", m.statusBar.artist, pastedEntry.Artist)
+	}
+	if m.statusBar.title != pastedEntry.Title {
+		t.Errorf("statusBar.title = %q, want %q", m.statusBar.title, pastedEntry.Title)
 	}
 }
 
