@@ -93,12 +93,18 @@ func (v LibraryView) view() libtui.View {
 		ShowDateAdded:   v.showDateAdded,
 		ShowPlayedAt:    v.showPlayedAt,
 	}
-	if v.sortState.Field != SortDefault {
+	switch {
+	case v.sortState.Field != SortDefault:
 		lv.OverrideTracks = v.sortedTracks
 		lv.SortField = int(v.sortState.Field)
 		lv.SortDir = int(v.sortState.Dir)
-	} else if v.sourceTracks != nil {
+	case v.sourceTracks != nil:
 		lv.OverrideTracks = v.sourceTracks
+	case len(v.tagFilterHashes) > 0:
+		// When a tag filter is active but no sort/source override exists,
+		// explicitly pass the filtered track list so the inner View uses
+		// the correct (smaller) set for navigation and rendering.
+		lv.OverrideTracks = v.baseTracks()
 	}
 	return lv
 }

@@ -120,6 +120,67 @@ func TestRemoveAllTagsFromTrack_ClampsCursorsAfterFilterShrink(t *testing.T) {
 	}
 }
 
+// TestLibraryView_TagFilterDefaultSort_FocusedTrack verifies that when a tag
+// filter is active on the library view with default sort (no explicit sort
+// field), FocusedTrack returns the correct filtered track — not a track from
+// the unfiltered index. This was a bug: view() did not propagate
+// tagFilterHashes to the inner libtui.View when sortState was SortDefault and
+// sourceTracks was nil.
+func TestLibraryView_TagFilterDefaultSort_FocusedTrack(t *testing.T) {
+	m := New(context.Background())
+	// Insert three tracks; only h2 will pass the tag filter.
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A"})
+	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "B"})
+	m.library.index.Insert(library.Track{Hash: "h3", Path: "/c.flac", Artist: "C"})
+
+	// Ensure default sort (zero value).
+	if m.library.sortState.Field != SortDefault {
+		t.Fatal("expected library sort to be SortDefault")
+	}
+
+	// Apply a tag filter that only includes h2.
+	m.library.tagFilterHashes = map[string]struct{}{"h2": {}}
+
+	// trackCount should reflect the filtered list.
+	if got := m.library.trackCount(); got != 1 {
+		t.Fatalf("expected trackCount=1 with tag filter, got %d", got)
+	}
+
+	// Cursor at 0 should focus on the only filtered track (h2).
+	m.library.cursor = 0
+	lv := m.library.view()
+	track, ok := lv.FocusedTrack()
+	if !ok {
+		t.Fatal("FocusedTrack returned false; expected a track")
+	}
+	if track.Hash != "h2" {
+		t.Errorf("FocusedTrack returned hash=%q, want %q", track.Hash, "h2")
+	}
+
+}
+
+// TestLibraryView_TagFilterDefaultSort_GoToBottom verifies that GoToBottom
+// with a tag filter and default sort stops at the last filtered track, not
+// the last track in the full index.
+func TestLibraryView_TagFilterDefaultSort_GoToBottom(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac"})
+	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac"})
+	m.library.index.Insert(library.Track{Hash: "h3", Path: "/c.flac"})
+	m.library.index.Insert(library.Track{Hash: "h4", Path: "/d.flac"})
+
+	// Tag filter passes only h1 and h3 (2 tracks).
+	m.library.tagFilterHashes = map[string]struct{}{"h1": {}, "h3": {}}
+	m.library.height = 100 // large enough to show all
+
+	m.library = m.library.HandleAction(actionGoToBottom)
+
+	// Cursor should be at index 1 (last of 2 filtered tracks), not 3.
+	if m.library.cursor != 1 {
+		t.Errorf("cursor after GoToBottom=%d, want 1", m.library.cursor)
+	}
+}
+
 func copyHashSet(src map[string]struct{}) map[string]struct{} {
 	dst := make(map[string]struct{}, len(src))
 	for k, v := range src {
