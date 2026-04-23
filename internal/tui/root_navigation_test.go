@@ -165,3 +165,79 @@ func TestBulkSelectionClearedOnBackAlbums(t *testing.T) {
 		t.Errorf("after back: expected selectedHashes cleared, got %d", len(m.albums.selectedHashes))
 	}
 }
+
+// TestVisualModeExitedOnArtistBack verifies that pressing esc at TrackLevel
+// in the Artists view exits visual mode.
+func TestVisualModeExitedOnArtistBack(t *testing.T) {
+	m := newModelWithTracks()
+	m = pressKey(m, "4") // Artists view
+	m = pressEnter(m)    // AlbumLevel
+	m = pressEnter(m)    // TrackLevel
+
+	if m.artists.level != arttui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.artists.level)
+	}
+
+	m = pressKey(m, "v") // enter visual mode
+	if !m.visual.active {
+		t.Fatal("precondition: expected visual mode active")
+	}
+
+	m = pressEsc(m) // back to AlbumLevel
+	if m.visual.active {
+		t.Error("expected visual mode exited on artist back")
+	}
+}
+
+// TestVisualModeExitedOnAlbumBack verifies that pressing esc at TrackLevel
+// in the Albums view exits visual mode.
+func TestVisualModeExitedOnAlbumBack(t *testing.T) {
+	m := newModelWithTracks()
+	m = pressKey(m, "5") // Albums view
+	m = pressEnter(m)    // TrackLevel
+
+	if m.albums.level != albtui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.albums.level)
+	}
+
+	m = pressKey(m, "v")
+	if !m.visual.active {
+		t.Fatal("precondition: expected visual mode active")
+	}
+
+	m = pressEsc(m)
+	if m.visual.active {
+		t.Error("expected visual mode exited on album back")
+	}
+}
+
+// TestVisualModeExitedOnFilterClear verifies that clearing a committed filter
+// with esc in the library view exits visual mode.
+func TestVisualModeExitedOnFilterClear(t *testing.T) {
+	m := newModelWithTracks()
+	m = pressKey(m, "1") // Library view
+
+	// Activate filter, type text, commit.
+	m = pressSlash(m)
+	m = typeText(m, "Alice")
+	m = pressEnter(m) // commit filter
+
+	if m.library.filter.Text != "Alice" {
+		t.Fatalf("precondition: expected committed filter, got %q", m.library.filter.Text)
+	}
+
+	// Enter visual mode on the filtered list.
+	m = pressKey(m, "v")
+	if !m.visual.active {
+		t.Fatal("precondition: expected visual mode active")
+	}
+
+	// Press esc to clear the committed filter.
+	m = pressEsc(m)
+	if m.visual.active {
+		t.Error("expected visual mode exited on filter clear")
+	}
+	if m.library.filter.Text != "" {
+		t.Errorf("expected filter text cleared, got %q", m.library.filter.Text)
+	}
+}

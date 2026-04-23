@@ -194,6 +194,7 @@ func (m Model) handlePlaylistKeyAction(action action) (Model, tea.Cmd, bool) {
 		return m, nil, true
 	case actionPlaylistBack:
 		if !m.playlists.atListLevel() {
+			m = exitVisualMode(m)
 			m.playlists = m.playlists.backToList()
 		}
 		return m, nil, true

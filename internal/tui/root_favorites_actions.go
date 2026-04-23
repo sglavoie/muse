@@ -12,6 +12,7 @@ func (m Model) handleFavoriteKeyAction(action action) (Model, tea.Cmd, bool) {
 		return m.handleFavoritesOpen()
 	case actionFavoritesBack:
 		if m.activeView == viewFavorites {
+			m = exitVisualMode(m)
 			m.favorites = m.favorites.back()
 			return m, nil, true
 		}

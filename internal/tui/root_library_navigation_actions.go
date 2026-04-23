@@ -12,16 +12,19 @@ func (m Model) handleLibraryNavigationAction(action action) (tea.Model, tea.Cmd,
 	case actionArtistOpen:
 		return m.handleArtistOpenAction()
 	case actionArtistBack:
+		m = exitVisualMode(m)
 		m.artists = m.artists.back()
 		return m, nil, true
 	case actionAlbumOpen:
 		return m.handleAlbumOpenAction()
 	case actionAlbumBack:
+		m = exitVisualMode(m)
 		m.albums = m.albums.back()
 		return m, nil, true
 	case actionGenreOpen:
 		return m.handleGenreOpenAction()
 	case actionGenreBack:
+		m = exitVisualMode(m)
 		m.genres = m.genres.back()
 		return m, nil, true
 	default:

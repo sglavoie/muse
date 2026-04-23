@@ -47,6 +47,7 @@ func (m Model) handleTagBack() Model {
 	if m.activeView != viewTags {
 		return m
 	}
+	m = exitVisualMode(m)
 	m.tagsView = m.tagsView.back()
 	return m
 }
