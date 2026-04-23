@@ -104,6 +104,8 @@ func (m Model) resetQueueState() Model {
 	m.queue.cursor = 0
 	m.queue.scrollOffset = 0
 	m.queue.filter = m.queue.filter.Deactivate()
+	m.queue.savingAsPlaylist = false
+	m.queue.savingFromSelection = false
 	return m.resetQueueSort()
 }
 

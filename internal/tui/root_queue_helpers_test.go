@@ -106,6 +106,87 @@ func TestResetPlaybackStateNoPlayerPanic(t *testing.T) {
 	}
 }
 
+// TestResetQueueStateClearsSaveAsPlaylist verifies that resetQueueState clears
+// the savingAsPlaylist and savingFromSelection flags so that a stale inline
+// save input does not persist after the queue is emptied.
+func TestResetQueueStateClearsSaveAsPlaylist(t *testing.T) {
+	m := New(context.Background())
+	m.queue.entries = []QueueEntry{{ID: 1, Path: "/a.flac", Display: "A"}}
+	m.queue.savingAsPlaylist = true
+	m.queue.savingFromSelection = true
+
+	m = m.resetQueueState()
+
+	if m.queue.savingAsPlaylist {
+		t.Error("savingAsPlaylist should be false after resetQueueState")
+	}
+	if m.queue.savingFromSelection {
+		t.Error("savingFromSelection should be false after resetQueueState")
+	}
+	if len(m.queue.entries) != 0 {
+		t.Errorf("entries should be nil after resetQueueState, got %d", len(m.queue.entries))
+	}
+}
+
+// TestSwitchViewCancelsSaveAsPlaylist verifies that switching away from the
+// queue view cancels the active save-as-playlist input so the stale inline
+// input does not persist when the user returns to the queue view.
+func TestSwitchViewCancelsSaveAsPlaylist(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{{ID: 1, Path: "/a.flac", Display: "A"}}
+	m.queue.savingAsPlaylist = true
+	m.queue.savingFromSelection = true
+
+	m = m.switchToView(viewLibrary)
+
+	if m.queue.savingAsPlaylist {
+		t.Error("savingAsPlaylist should be false after switchToView")
+	}
+	if m.queue.savingFromSelection {
+		t.Error("savingFromSelection should be false after switchToView")
+	}
+	if m.activeView != viewLibrary {
+		t.Errorf("activeView = %v, want viewLibrary", m.activeView)
+	}
+}
+
+// TestSwitchViewCancelsPlaylistInlineInputs verifies that switching away from
+// the playlists view cancels active inline create and rename inputs.
+func TestSwitchViewCancelsPlaylistInlineInputs(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewPlaylists
+	m.playlists.creating = true
+	m.playlists.renaming = true
+
+	m = m.switchToView(viewLibrary)
+
+	if m.playlists.creating {
+		t.Error("playlists.creating should be false after switchToView")
+	}
+	if m.playlists.renaming {
+		t.Error("playlists.renaming should be false after switchToView")
+	}
+}
+
+// TestSwitchViewCancelsTagInlineInputs verifies that switching away from the
+// tags view cancels active inline create and rename inputs.
+func TestSwitchViewCancelsTagInlineInputs(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewTags
+	m.tagsView.creating = true
+	m.tagsView.renaming = true
+
+	m = m.switchToView(viewLibrary)
+
+	if m.tagsView.creating {
+		t.Error("tagsView.creating should be false after switchToView")
+	}
+	if m.tagsView.renaming {
+		t.Error("tagsView.renaming should be false after switchToView")
+	}
+}
+
 // TestClearQueueClearsStopAfterCurrent verifies the end-to-end flow: enabling
 // stop-after-current, clearing the queue, and then checking the flag is reset.
 // This is the specific user-facing bug that was fixed.

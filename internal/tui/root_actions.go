@@ -48,6 +48,21 @@ func (m Model) switchToView(id viewID) Model {
 	m.clearPendingConfirmations()
 	m = m.resetAllSorts()
 	m = exitVisualMode(m)
+	if m.queue.savingAsPlaylist {
+		m.queue = m.queue.cancelSaveAsPlaylist()
+	}
+	if m.playlists.creating {
+		m.playlists = m.playlists.cancelCreate()
+	}
+	if m.playlists.renaming {
+		m.playlists = m.playlists.cancelRename()
+	}
+	if m.tagsView.creating {
+		m.tagsView = m.tagsView.cancelCreate()
+	}
+	if m.tagsView.renaming {
+		m.tagsView = m.tagsView.cancelRename()
+	}
 	m.activeView = id
 	if id == viewArtists && len(m.artists.artists) == 0 {
 		m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())

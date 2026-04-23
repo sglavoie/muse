@@ -2,6 +2,8 @@ package tui
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -204,5 +206,32 @@ func TestMetadataSavePreservesPlaylistSort(t *testing.T) {
 
 	if nm.playlists.sortedTrackOrder == nil {
 		t.Fatal("expected sortedTrackOrder to be non-nil after metadata save with active playlist sort")
+	}
+}
+
+// TestMetadataEditedMsgErrorNotifiesUser verifies that a metadataEditedMsg
+// with err != nil shows a notification instead of being silently dropped.
+func TestMetadataEditedMsgErrorNotifiesUser(t *testing.T) {
+	m := New(context.Background())
+	msg := metadataEditedMsg{err: errors.New("disk full")}
+	result, _ := m.Update(msg)
+	nm := result.(Model)
+	if !strings.Contains(nm.statusBar.notification.msg, "Metadata save failed") {
+		t.Errorf("expected notification about metadata save failure, got %q", nm.statusBar.notification.msg)
+	}
+	if !strings.Contains(nm.statusBar.notification.msg, "disk full") {
+		t.Errorf("expected error detail in notification, got %q", nm.statusBar.notification.msg)
+	}
+}
+
+// TestMetadataEditedMsgSuccessNoNotification verifies that a metadataEditedMsg
+// without an error does not produce a notification.
+func TestMetadataEditedMsgSuccessNoNotification(t *testing.T) {
+	m := New(context.Background())
+	msg := metadataEditedMsg{err: nil}
+	result, _ := m.Update(msg)
+	nm := result.(Model)
+	if nm.statusBar.notification.msg != "" {
+		t.Errorf("expected no notification on success, got %q", nm.statusBar.notification.msg)
 	}
 }

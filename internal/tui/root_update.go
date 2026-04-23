@@ -214,6 +214,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.handleFavoritesLoadedMsg(msg)
 
 	case metadataEditedMsg:
+		if msg.err != nil {
+			m.statusBar.notify("Metadata save failed: " + msg.err.Error())
+		}
 
 	case GoToDismissedMsg:
 		m.overlay.goTo = nil
