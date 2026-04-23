@@ -5,6 +5,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/sglavoie/muse/internal/library"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 )
 
 // TestUndoAddFavorite_SingleFromLibraryView verifies that undoing a single
@@ -54,6 +57,110 @@ func TestUndoAddFavorite_TrackHashRemoved(t *testing.T) {
 	}
 	if _, ok := nm.favoriteHashes["hash-2"]; !ok {
 		t.Fatal("expected hash-2 to remain in favoriteHashes")
+	}
+}
+
+// TestUndoAddFavorite_RemovesFromViewList verifies that undoing a single
+// track add while viewing favorites removes the track from the in-memory
+// view list so it disappears immediately.
+func TestUndoAddFavorite_RemovesFromViewList(t *testing.T) {
+	w := &stubFavoriteWriter{}
+	r := &stubFavoriteReader{favorites: map[string][]string{
+		"track": {"h2"},
+	}}
+	m := New(context.Background(), WithFavoriteWriter(w), WithFavoriteReader(r))
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryTracks
+	m.favorites.tracks = []library.Track{
+		{Hash: "h1", Title: "T1"},
+		{Hash: "h2", Title: "T2"},
+	}
+	m.favorites.trackCount = 2
+	m.favoriteHashes = map[string]struct{}{"h1": {}, "h2": {}}
+
+	m.undo.slot = undoSlot{
+		action:    undoAddFavoriteAction{typ: "track", value: "h1"},
+		expiresAt: time.Now().Add(undoWindowDuration),
+	}
+
+	next, _ := m.Update(UndoMsg{})
+	nm := next.(Model)
+
+	if len(nm.favorites.tracks) != 1 {
+		t.Fatalf("expected 1 track after undo add, got %d", len(nm.favorites.tracks))
+	}
+	if nm.favorites.tracks[0].Hash != "h2" {
+		t.Fatalf("expected remaining track h2, got %s", nm.favorites.tracks[0].Hash)
+	}
+}
+
+// TestUndoAddFavorite_RemovesArtistFromViewList verifies that undoing a single
+// artist add while viewing the artists list removes it from the view.
+func TestUndoAddFavorite_RemovesArtistFromViewList(t *testing.T) {
+	w := &stubFavoriteWriter{}
+	r := &stubFavoriteReader{favorites: map[string][]string{
+		"artist": {"Bach"},
+	}}
+	m := New(context.Background(), WithFavoriteWriter(w), WithFavoriteReader(r))
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryArtists
+	m.favorites.artists = []string{"Bach", "Davis"}
+	m.favorites.artistCount = 2
+	m.favoriteArtists = map[string]struct{}{"Bach": {}, "Davis": {}}
+
+	m.undo.slot = undoSlot{
+		action:    undoAddFavoriteAction{typ: "artist", value: "Davis"},
+		expiresAt: time.Now().Add(undoWindowDuration),
+	}
+
+	next, _ := m.Update(UndoMsg{})
+	nm := next.(Model)
+
+	if len(nm.favorites.artists) != 1 {
+		t.Fatalf("expected 1 artist after undo add, got %d", len(nm.favorites.artists))
+	}
+	if nm.favorites.artists[0] != "Bach" {
+		t.Fatalf("expected remaining artist Bach, got %s", nm.favorites.artists[0])
+	}
+}
+
+// TestUndoBulkAddFavorites_RemovesFromViewList verifies that undoing a bulk
+// track add while viewing favorites removes all tracks from the view.
+func TestUndoBulkAddFavorites_RemovesFromViewList(t *testing.T) {
+	w := &stubFavoriteWriter{}
+	r := &stubFavoriteReader{favorites: map[string][]string{
+		"track": {"h2"},
+	}}
+	m := New(context.Background(), WithFavoriteWriter(w), WithFavoriteReader(r))
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryTracks
+	m.favorites.tracks = []library.Track{
+		{Hash: "h1", Title: "T1"},
+		{Hash: "h2", Title: "T2"},
+		{Hash: "h3", Title: "T3"},
+	}
+	m.favorites.trackCount = 3
+	m.favoriteHashes = map[string]struct{}{"h1": {}, "h2": {}, "h3": {}}
+
+	m.undo.slot = undoSlot{
+		action: undoBulkAddFavoritesAction{
+			typ:    "track",
+			values: []string{"h1", "h3"},
+		},
+		expiresAt: time.Now().Add(undoWindowDuration),
+	}
+
+	next, _ := m.Update(UndoMsg{})
+	nm := next.(Model)
+
+	if len(nm.favorites.tracks) != 1 {
+		t.Fatalf("expected 1 track after undo bulk add, got %d", len(nm.favorites.tracks))
+	}
+	if nm.favorites.tracks[0].Hash != "h2" {
+		t.Fatalf("expected remaining track h2, got %s", nm.favorites.tracks[0].Hash)
 	}
 }
 

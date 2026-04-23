@@ -114,6 +114,38 @@ func (a undoAddFavoriteAction) perform(m Model) (Model, tea.Cmd) {
 	if a.typ == "album" && a.value != "" {
 		delete(m.favoriteAlbums, a.value)
 	}
+	if m.activeView == viewFavorites {
+		switch m.favorites.level {
+		case favtui.ListLevel:
+			switch {
+			case a.typ == "artist" && m.favorites.category == favtui.CategoryArtists:
+				m.favorites.artists = removeString(m.favorites.artists, a.value)
+				m.favorites.artistCount = len(m.favorites.artists)
+			case a.typ == "album" && m.favorites.category == favtui.CategoryAlbums:
+				m.favorites.albums = removeString(m.favorites.albums, a.value)
+				m.favorites.albumCount = len(m.favorites.albums)
+			case a.typ == "track" && m.favorites.category == favtui.CategoryTracks:
+				m.favorites.tracks = removeTrackByHash(m.favorites.tracks, a.value)
+				m.favorites.trackCount = len(m.favorites.tracks)
+			}
+			m.favorites.selectedItems = nil
+			m.favorites = m.favorites.clampCursor()
+		case favtui.TrackLevel:
+			if a.typ == "track" {
+				m.favorites.drilldownTracks = removeTrackByHash(m.favorites.drilldownTracks, a.value)
+				m.favorites.selectedItems = nil
+				m.favorites = m.favorites.clampCursor()
+			}
+		}
+		if m.favoriteReader != nil {
+			ac, al, t, err := m.favoriteReader.ReadFavoriteCounts()
+			if err == nil {
+				m.favorites.artistCount = ac
+				m.favorites.albumCount = al
+				m.favorites.trackCount = t
+			}
+		}
+	}
 	m.statusBar.notify(fmt.Sprintf("Undone: removed %s from favorites", a.typ))
 	return m, nil
 }
@@ -151,6 +183,46 @@ func (a undoBulkAddFavoritesAction) perform(m Model) (Model, tea.Cmd) {
 	if a.typ == "album" {
 		for _, v := range a.values {
 			delete(m.favoriteAlbums, v)
+		}
+	}
+	if m.activeView == viewFavorites {
+		switch m.favorites.level {
+		case favtui.ListLevel:
+			switch {
+			case a.typ == "artist" && m.favorites.category == favtui.CategoryArtists:
+				for _, v := range a.values {
+					m.favorites.artists = removeString(m.favorites.artists, v)
+				}
+				m.favorites.artistCount = len(m.favorites.artists)
+			case a.typ == "album" && m.favorites.category == favtui.CategoryAlbums:
+				for _, v := range a.values {
+					m.favorites.albums = removeString(m.favorites.albums, v)
+				}
+				m.favorites.albumCount = len(m.favorites.albums)
+			case a.typ == "track" && m.favorites.category == favtui.CategoryTracks:
+				for _, v := range a.values {
+					m.favorites.tracks = removeTrackByHash(m.favorites.tracks, v)
+				}
+				m.favorites.trackCount = len(m.favorites.tracks)
+			}
+			m.favorites.selectedItems = nil
+			m.favorites = m.favorites.clampCursor()
+		case favtui.TrackLevel:
+			if a.typ == "track" {
+				for _, v := range a.values {
+					m.favorites.drilldownTracks = removeTrackByHash(m.favorites.drilldownTracks, v)
+				}
+				m.favorites.selectedItems = nil
+				m.favorites = m.favorites.clampCursor()
+			}
+		}
+		if m.favoriteReader != nil {
+			ac, al, t, err := m.favoriteReader.ReadFavoriteCounts()
+			if err == nil {
+				m.favorites.artistCount = ac
+				m.favorites.albumCount = al
+				m.favorites.trackCount = t
+			}
 		}
 	}
 	n := len(a.values)

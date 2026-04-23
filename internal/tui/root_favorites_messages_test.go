@@ -166,3 +166,67 @@ func TestFavoritesLoadedMsg_SavesCategoryCursor_Tracks(t *testing.T) {
 		t.Fatalf("expected cursor=2 after back(), got %d", m.favorites.cursor)
 	}
 }
+
+// TestSingleFavoriteRemoval_ClearsSelectedItems verifies that removing a
+// single favorite from the view clears the index-based selectedItems map so
+// stale indices do not point at wrong items after the list shifts.
+func TestSingleFavoriteRemoval_ClearsSelectedItems(t *testing.T) {
+	r := &stubFavoriteReader{favorites: map[string][]string{
+		"track": {"h1", "h3"},
+	}}
+	m := New(context.Background(), WithFavoriteReader(r))
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryTracks
+	m.favorites.tracks = []library.Track{
+		{Hash: "h1", Title: "T1"},
+		{Hash: "h2", Title: "T2"},
+		{Hash: "h3", Title: "T3"},
+	}
+	m.favorites.trackCount = 3
+	m.favorites.selectedItems = map[int]struct{}{0: {}, 2: {}}
+
+	msg := favoriteToggledMsg{
+		typ:         "track",
+		value:       "h2",
+		count:       1,
+		added:       false,
+		favLevel:    favtui.ListLevel,
+		favCategory: favtui.CategoryTracks,
+	}
+	nm := m.handleFavoriteToggledMsg(msg)
+
+	if nm.favorites.selectedItems != nil {
+		t.Fatalf("expected selectedItems to be nil after removal, got %v", nm.favorites.selectedItems)
+	}
+}
+
+// TestBulkFavoriteRemoval_ClearsSelectedItems_TrackLevel verifies that bulk
+// removal at TrackLevel clears selectedItems.
+func TestBulkFavoriteRemoval_ClearsSelectedItems_TrackLevel(t *testing.T) {
+	r := &stubFavoriteReader{favorites: map[string][]string{
+		"track": {"h1"},
+	}}
+	m := New(context.Background(), WithFavoriteReader(r))
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.TrackLevel
+	m.favorites.drilldownTracks = []library.Track{
+		{Hash: "h1", Title: "T1"},
+		{Hash: "h2", Title: "T2"},
+		{Hash: "h3", Title: "T3"},
+	}
+	m.favorites.selectedItems = map[int]struct{}{0: {}, 1: {}}
+
+	msg := favoriteToggledMsg{
+		typ:           "track",
+		count:         2,
+		added:         false,
+		removedValues: []string{"h1", "h3"},
+		favLevel:      favtui.TrackLevel,
+	}
+	nm := m.handleFavoriteToggledMsg(msg)
+
+	if nm.favorites.selectedItems != nil {
+		t.Fatalf("expected selectedItems to be nil after bulk removal, got %v", nm.favorites.selectedItems)
+	}
+}
