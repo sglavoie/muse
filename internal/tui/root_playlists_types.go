@@ -12,8 +12,9 @@ import (
 // When isRefresh is true the view is already at TrackLevel and the cursor is
 // clamped in-place rather than reset to 0 (smart playlist refresh via 'r').
 type playlistTracksLoadedMsg struct {
-	tracks    []db.PlaylistTrackRow
-	isRefresh bool
+	tracks     []db.PlaylistTrackRow
+	isRefresh  bool
+	playlistID int64 // playlist that was loaded; used to discard stale results
 }
 
 // playlistTracksLoadErrorMsg carries an error from a failed ReadPlaylistTracks

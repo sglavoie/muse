@@ -36,6 +36,7 @@ type PlaylistsView struct {
 	sortedPlaylists  []db.PlaylistRow       // sorted copy for list level (nil when default)
 	sortedTrackOrder []int                  // index permutation for track level (nil when default)
 	smartQuery       *db.SmartPlaylistQuery // non-nil when TrackLevel shows a smart playlist
+	pendingLoadID    int64                  // playlist ID of a pending async track load; 0 when idle
 }
 
 func (v *PlaylistsView) setSize(w, h int) { v.width = w; v.height = h }
@@ -385,6 +386,7 @@ func (v PlaylistsView) backToList() PlaylistsView {
 	v.sortedPlaylists = nil
 	v.sortedTrackOrder = nil
 	v.smartQuery = nil
+	v.pendingLoadID = 0 // discard any in-flight async track load
 	return v
 }
 

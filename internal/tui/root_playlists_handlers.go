@@ -13,7 +13,13 @@ import (
 
 // handlePlaylistTracksLoadedMsg transitions the playlists view to TrackLevel,
 // or refreshes the track list in-place when msg.isRefresh is true.
+// The message carries a playlistID so we can discard stale results that arrive
+// after the user navigated away (back to list or opened a different playlist).
 func (m Model) handlePlaylistTracksLoadedMsg(msg playlistTracksLoadedMsg) Model {
+	// Discard stale results: the user navigated away or opened a different playlist.
+	if msg.playlistID != 0 && msg.playlistID != m.playlists.pendingLoadID {
+		return m
+	}
 	if msg.isRefresh {
 		m.playlists = m.playlists.refreshTracks(msg.tracks)
 		m.statusBar.notify("Smart playlist refreshed")

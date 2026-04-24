@@ -145,12 +145,13 @@ func (m Model) handlePlaylistKeyAction(action action) (Model, tea.Cmd, bool) {
 		if !m.playlists.atListLevel() && m.playlists.smartQuery != nil && m.smartEval != nil {
 			q := *m.playlists.smartQuery
 			evaluator := m.smartEval
+			pid := m.playlists.pendingLoadID
 			return m, func() tea.Msg {
 				tracks, err := evaluator.EvalSmartPlaylist(q)
 				if err != nil {
 					return playlistTracksLoadErrorMsg{err: err}
 				}
-				return playlistTracksLoadedMsg{tracks: tracks, isRefresh: true}
+				return playlistTracksLoadedMsg{tracks: tracks, isRefresh: true, playlistID: pid}
 			}, true
 		}
 		return m, func() tea.Msg { return PlaylistRenameMsg{} }, true
@@ -166,23 +167,26 @@ func (m Model) handlePlaylistKeyAction(action action) (Model, tea.Cmd, bool) {
 						return m, func() tea.Msg { return playlistTracksLoadErrorMsg{err: err} }, true
 					}
 					m.playlists.smartQuery = &q
+					m.playlists.pendingLoadID = pl.ID
 					evaluator := m.smartEval
+					pid := pl.ID
 					return m, func() tea.Msg {
 						tracks, err := evaluator.EvalSmartPlaylist(q)
 						if err != nil {
 							return playlistTracksLoadErrorMsg{err: err}
 						}
-						return playlistTracksLoadedMsg{tracks: tracks}
+						return playlistTracksLoadedMsg{tracks: tracks, playlistID: pid}
 					}, true
 				} else if !pl.IsSmart && m.playlistReader != nil {
 					pid := pl.ID
+					m.playlists.pendingLoadID = pid
 					reader := m.playlistReader
 					return m, func() tea.Msg {
 						tracks, err := reader.ReadPlaylistTracks(pid)
 						if err != nil {
 							return playlistTracksLoadErrorMsg{err: err}
 						}
-						return playlistTracksLoadedMsg{tracks: tracks}
+						return playlistTracksLoadedMsg{tracks: tracks, playlistID: pid}
 					}, true
 				}
 			}
