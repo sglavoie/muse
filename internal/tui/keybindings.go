@@ -335,6 +335,7 @@ func newRegistry() Registry {
 	r.register(contextTags, "x", actionBulkSelectionToggle)
 	r.register(contextTags, "X", actionClearSelection)
 	r.register(contextTags, "v", actionVisualMode)
+	r.register(contextTags, "a", actionBulkAction)
 	r.register(contextTags, "esc", actionTagBack)
 	r.register(contextTags, "F", actionToggleFavorite)
 

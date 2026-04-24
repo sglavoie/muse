@@ -397,7 +397,7 @@ type tagRenamedMsg struct {
 // tagDeletedMsg carries the result of a DeleteTagSoft call.
 type tagDeletedMsg struct {
 	tag db.TagRow // the tag that was soft-deleted (for undo)
-	idx int       // position in the effective list (for undo cursor restoration)
+	idx int       // canonical position in the unfiltered list (for undo/error recovery)
 	err error
 }
 

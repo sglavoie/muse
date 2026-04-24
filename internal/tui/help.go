@@ -285,6 +285,7 @@ func helpSections() []helpSection {
 				{"x", "Toggle bulk selection"},
 				{"X", "Clear bulk selection"},
 				{"v", "Toggle visual line selection mode"},
+				{"a", "Add selected tracks to playlist"},
 				{"/", "Filter"},
 				{"u", "Undo last tag operation"},
 			},

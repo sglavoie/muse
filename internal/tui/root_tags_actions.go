@@ -89,7 +89,16 @@ func (m Model) handleTagDelete() (Model, tea.Cmd) {
 	if !ok {
 		return m, nil
 	}
-	idx := m.tagsView.cursor
+
+	// Find the canonical index in the unfiltered tag list so undo can
+	// re-insert at the correct position even when a filter is active.
+	canonicalIdx := 0
+	for i, t := range m.tagsView.tags {
+		if t.ID == tag.ID {
+			canonicalIdx = i
+			break
+		}
+	}
 
 	newTags := make([]db.TagRow, 0, len(m.tagsView.tags)-1)
 	for _, t := range m.tagsView.tags {
@@ -108,7 +117,7 @@ func (m Model) handleTagDelete() (Model, tea.Cmd) {
 	}
 	m = m.rebuildTagCache(newGlobalTags)
 
-	m.setUndoSlot(undoDeleteTagAction{tag: tag, idx: idx}, nil)
+	m.setUndoSlot(undoDeleteTagAction{tag: tag, idx: canonicalIdx}, nil)
 
 	tw := m.tagWriter
 	return m, func() tea.Msg {
@@ -116,7 +125,7 @@ func (m Model) handleTagDelete() (Model, tea.Cmd) {
 		if tw != nil {
 			err = tw.DeleteTagSoft(tag.ID)
 		}
-		return tagDeletedMsg{tag: tag, idx: idx, err: err}
+		return tagDeletedMsg{tag: tag, idx: canonicalIdx, err: err}
 	}
 }
 
