@@ -78,8 +78,8 @@ func (m Model) handleSelectedQueueDequeueAction() (tea.Model, tea.Cmd, bool) {
 	m = exitVisualMode(m)
 	m = m.preserveQueueSort()
 	m.clampQueueCursorAndScroll()
-	m.syncPlayerQueue()
 	m.adjustPlaybackIndexAfterRemovals(removedIndices)
+	m.syncPlayerQueue()
 	m = m.stopPlaybackIfCurrentMissing()
 	m.setUndoSlot(undoBulkDequeueAction{
 		entries: removedEntries,

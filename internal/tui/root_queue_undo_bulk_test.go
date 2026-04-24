@@ -56,6 +56,40 @@ func TestUndoBulkDequeueRestoresEntries(t *testing.T) {
 	}
 }
 
+// TestBulkDequeueSyncsPlayerIndexAfterAdjustment verifies that the player's
+// current index is set to the adjusted value (not the stale pre-removal value)
+// after bulk-dequeuing entries before the currently playing track.
+func TestBulkDequeueSyncsPlayerIndexAfterAdjustment(t *testing.T) {
+	p := &stubPlayerQueueSyncer{}
+	d := &stubQueueDequeuer{}
+	m := New(context.Background(), WithPlayer(p), WithQueueDequeuer(d))
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/a.flac", Hash: "ha", Display: "A", Selected: true},
+		{ID: 20, Path: "/b.flac", Hash: "hb", Display: "B", Selected: true},
+		{ID: 30, Path: "/c.flac", Hash: "hc", Display: "C"},
+		{ID: 40, Path: "/d.flac", Hash: "hd", Display: "D"},
+	}
+	m.playback.currentIndex = 3
+	m.playback.currentHash = "hd"
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
+	nm := next.(Model)
+
+	// After removing indices 0 and 1, the track at index 3 should now be at index 1.
+	if nm.playback.currentIndex != 1 {
+		t.Fatalf("after bulk dequeue: expected currentIndex 1, got %d", nm.playback.currentIndex)
+	}
+	// Verify the player received the adjusted index (1), not the stale index (3).
+	if len(p.setCurrentIndexCalls) == 0 {
+		t.Fatal("SetCurrentIndex must be called after bulk dequeue")
+	}
+	lastIdx := p.setCurrentIndexCalls[len(p.setCurrentIndexCalls)-1]
+	if lastIdx != 1 {
+		t.Fatalf("SetCurrentIndex: want 1, got %d", lastIdx)
+	}
+}
+
 // TestUndoBulkDequeueExpiredIsNoOp verifies that undoing a bulk dequeue after
 // the undo window has expired shows "Nothing to undo" and does not restore entries.
 func TestUndoBulkDequeueExpiredIsNoOp(t *testing.T) {
