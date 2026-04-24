@@ -329,6 +329,34 @@ func (m *Manager) handleRestart() {
 	m.cmd = newCmd
 	m.mu.Unlock()
 
+	// Re-apply audio filters (normalize, EQ, stereo wide) that were active
+	// before the crash. The audioFilters map survives the restart; mpv's
+	// fresh process does not have them, so we must replay them.
+	m.mu.RLock()
+	hasFilters := len(m.audioFilters) > 0
+	gapless := m.gaplessEnabled
+	m.mu.RUnlock()
+	if hasFilters {
+		if err := m.enqueue(func() error { return m.rebuildAudioFilters() }); err != nil {
+			slog.Warn("mpv: failed to enqueue audio filters on restart", "err", err)
+		}
+	}
+	if gapless {
+		if err := m.enqueue(func() error {
+			c, ipcErr := m.ipc()
+			if ipcErr != nil {
+				return ipcErr
+			}
+			if _, err := c.SendCommand(cmdSetProperty, propGaplessAudio, "yes"); err != nil {
+				return err
+			}
+			_, err := c.SendCommand(cmdSetProperty, propPrefetchPlaylist, "yes")
+			return err
+		}); err != nil {
+			slog.Warn("mpv: failed to enqueue gapless on restart", "err", err)
+		}
+	}
+
 	if path != "" {
 		if err := m.enqueue(func() error {
 			return m.loadFileAt(path, elapsed, paused)
