@@ -235,3 +235,45 @@ func TestMoveTrackDownAdjustsScrollOffset(t *testing.T) {
 			m.queue.cursor, m.queue.scrollOffset+maxRows)
 	}
 }
+
+// TestMoveTrackUpExitsVisualMode verifies that moving a track up exits
+// visual mode so the index-based selection snapshot does not become stale.
+func TestMoveTrackUpExitsVisualMode(t *testing.T) {
+	qa := &stubQueueAppender{}
+	m := New(context.Background(), WithQueueWriter(qa))
+	m.activeView = viewQueue
+	m.queue.entries = sampleQueueEntries()
+	m.queue.cursor = 1
+
+	m = doVisual(m)
+	if !m.visual.active {
+		t.Fatal("expected visual mode active after entering")
+	}
+
+	m, _ = m.handleMoveTrackUpMsg(MoveTrackUpMsg{Index: 1})
+
+	if m.visual.active {
+		t.Fatal("expected visual mode to exit after move-up")
+	}
+}
+
+// TestMoveTrackDownExitsVisualMode verifies that moving a track down exits
+// visual mode so the index-based selection snapshot does not become stale.
+func TestMoveTrackDownExitsVisualMode(t *testing.T) {
+	qa := &stubQueueAppender{}
+	m := New(context.Background(), WithQueueWriter(qa))
+	m.activeView = viewQueue
+	m.queue.entries = sampleQueueEntries()
+	m.queue.cursor = 1
+
+	m = doVisual(m)
+	if !m.visual.active {
+		t.Fatal("expected visual mode active after entering")
+	}
+
+	m, _ = m.handleMoveTrackDownMsg(MoveTrackDownMsg{Index: 1})
+
+	if m.visual.active {
+		t.Fatal("expected visual mode to exit after move-down")
+	}
+}

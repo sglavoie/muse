@@ -171,6 +171,7 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 			return m, nil, true
 		}
 		sortBulkRemovalByIndex(values, removedTracks, removedIndices)
+		m = exitVisualMode(m)
 		m.favorites = m.favorites.clearSelection()
 		return m, func() tea.Msg {
 			err := writer.RemoveFavoritesByTypeAndValues(typ, values)
@@ -209,6 +210,7 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 			return m, nil, true
 		}
 		sortBulkRemovalByIndex(hashes, removedTracks, removedIndices)
+		m = exitVisualMode(m)
 		m.favorites = m.favorites.clearSelection()
 		return m, func() tea.Msg {
 			err := writer.RemoveFavoritesByTypeAndValues("track", hashes)

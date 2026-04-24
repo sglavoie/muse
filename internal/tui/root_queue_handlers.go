@@ -339,6 +339,7 @@ func (m Model) clearQueueForReplace() Model {
 // the reorder.
 func (m Model) handleMoveTrackUpMsg(msg MoveTrackUpMsg) (Model, tea.Cmd) {
 	if msg.Index > 0 && msg.Index < len(m.queue.entries) {
+		m = exitVisualMode(m)
 		entry := m.queue.entries[msg.Index]
 		m.queue.entries[msg.Index-1], m.queue.entries[msg.Index] = m.queue.entries[msg.Index], m.queue.entries[msg.Index-1]
 		m.queue.cursor = msg.Index - 1
@@ -372,6 +373,7 @@ func (m Model) handleMoveTrackUpMsg(msg MoveTrackUpMsg) (Model, tea.Cmd) {
 // the reorder.
 func (m Model) handleMoveTrackDownMsg(msg MoveTrackDownMsg) (Model, tea.Cmd) {
 	if msg.Index >= 0 && msg.Index < len(m.queue.entries)-1 {
+		m = exitVisualMode(m)
 		entry := m.queue.entries[msg.Index]
 		m.queue.entries[msg.Index], m.queue.entries[msg.Index+1] = m.queue.entries[msg.Index+1], m.queue.entries[msg.Index]
 		m.queue.cursor = msg.Index + 1

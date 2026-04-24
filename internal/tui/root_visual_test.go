@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
 // makeNTracks returns n tracks with sequential hashes h0..h(n-1) in a stable
@@ -357,5 +359,72 @@ func TestBulkFavoriteTracksReturnsDeterministicOrder(t *testing.T) {
 			t.Fatalf("iter %d: wrong order: %s, %s, %s (want h1, h3, h4)",
 				i, tracks[0].Hash, tracks[1].Hash, tracks[2].Hash)
 		}
+	}
+}
+
+// TestPlaylistBulkDeleteExitsVisualMode verifies that bulk-deleting tracks in
+// the playlists view exits visual mode so the stale snapshot does not
+// re-select removed items on the next cursor move.
+func TestPlaylistBulkDeleteExitsVisualMode(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewPlaylists
+	m.playlists.level = pltui.TrackLevel
+	m.playlists.tracks = []db.PlaylistTrackRow{
+		{ID: 1, Title: "T1", Artist: "A", DurationMs: 1000},
+		{ID: 2, Title: "T2", Artist: "A", DurationMs: 1000},
+		{ID: 3, Title: "T3", Artist: "A", DurationMs: 1000},
+	}
+	m.playlists.cursor = 0
+
+	// Enter visual mode and extend the selection to two tracks.
+	m = doVisual(m)
+	m = doNav(m, actionCursorDown) // visual range: 0..1
+	if !m.visual.active {
+		t.Fatal("expected visual mode active before delete")
+	}
+
+	// Manually select the tracks covered by visual range.
+	m.playlists.selectedTrackIDs = map[int64]struct{}{1: {}, 2: {}}
+
+	// Delete via the playlist delete handler (bulk path).
+	m, _ = m.handlePlaylistDelete()
+
+	if m.visual.active {
+		t.Fatal("expected visual mode to exit after playlist bulk delete")
+	}
+	if len(m.playlists.tracks) != 1 {
+		t.Fatalf("expected 1 track remaining, got %d", len(m.playlists.tracks))
+	}
+}
+
+// TestFavoritesBulkActionExitsVisualMode verifies that the favorites bulk
+// remove action exits visual mode so the stale index-based snapshot does
+// not re-select removed items on the next cursor move.
+func TestFavoritesBulkActionExitsVisualMode(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryTracks
+	m.favorites.tracks = []library.Track{
+		{Hash: "h0", Title: "T0", Artist: "A"},
+		{Hash: "h1", Title: "T1", Artist: "A"},
+		{Hash: "h2", Title: "T2", Artist: "A"},
+	}
+	m.favorites.cursor = 0
+
+	// Enter visual mode and extend selection.
+	m = doVisual(m)
+	m = doNav(m, actionCursorDown) // visual range: 0..1
+	if !m.visual.active {
+		t.Fatal("expected visual mode active before bulk action")
+	}
+
+	// Provide a no-op writer so handleFavoritesBulkAction does not panic.
+	m.favoriteWriter = &stubFavoriteWriter{}
+
+	m, _, _ = m.handleFavoritesBulkAction()
+
+	if m.visual.active {
+		t.Fatal("expected visual mode to exit after favorites bulk action")
 	}
 }

@@ -318,6 +318,7 @@ func (m *Model) handlePlaylistBulkRemove() bool {
 		*m = m.preservePlaylistsSort()
 		m.playlists.cursor, m.playlists.scrollOffset = clampAfterRemoval(
 			m.playlists.cursor, m.playlists.scrollOffset, len(m.playlists.tracks))
+		*m = exitVisualMode(*m)
 		m.playlists.selectedTrackIDs = nil
 		m.setUndoSlot(undoBulkRemovePlaylistTracksAction{entries: removedEntries, indices: removedIndices}, cancel)
 		player.PlaySound(player.SoundRemoved)

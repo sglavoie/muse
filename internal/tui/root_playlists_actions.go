@@ -96,6 +96,7 @@ func (m Model) handlePlaylistDelete() (Model, tea.Cmd) {
 			m = m.preservePlaylistsSort()
 			m.playlists.cursor, m.playlists.scrollOffset = clampAfterRemoval(
 				m.playlists.cursor, m.playlists.scrollOffset, len(m.playlists.tracks))
+			m = exitVisualMode(m)
 			m.playlists = m.playlists.clearTrackSelection()
 			m.setUndoSlot(undoBulkRemovePlaylistTracksAction{entries: removedEntries, indices: removedIndices}, cancel)
 			player.PlaySound(player.SoundRemoved)
