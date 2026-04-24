@@ -81,13 +81,26 @@ func TestDurationAuditBatchNilChannelReturnsNilCmd(t *testing.T) {
 	}
 }
 
-// TestDurationAuditDoneShowsNotification verifies that when corrected > 0 a
-// status bar notification is set.
+// TestDurationAuditDoneShowsNotification verifies that when corrections were
+// applied in preceding batches, a status bar notification is shown on done.
 func TestDurationAuditDoneShowsNotification(t *testing.T) {
 	ch := make(chan library.DurationFix)
 	m := New(context.Background(), WithDurationAuditChannel(ch))
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
+	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 200.0})
+	m.library.index.Insert(library.Track{Hash: "h3", Path: "/c.mp3", Duration: 300.0})
 
-	next, _ := m.Update(library.DurationAuditDoneMsg{Checked: 10, Corrected: 3})
+	// Simulate batch with 3 corrections arriving before the done message.
+	next, _ := m.Update(library.DurationAuditBatchMsg{
+		Fixes: []library.DurationFix{
+			{Hash: "h1", DurationMs: 240000},
+			{Hash: "h2", DurationMs: 250000},
+			{Hash: "h3", DurationMs: 350000},
+		},
+	})
+	m = next.(Model)
+
+	next, _ = m.Update(library.DurationAuditDoneMsg{})
 	nm := next.(Model)
 
 	if nm.statusBar.notification.msg == "" {
@@ -95,6 +108,50 @@ func TestDurationAuditDoneShowsNotification(t *testing.T) {
 	}
 	if nm.auditCh != nil {
 		t.Error("expected auditCh to be nil after DurationAuditDoneMsg")
+	}
+	if nm.auditCorrected != 0 {
+		t.Errorf("expected auditCorrected to be reset to 0, got %d", nm.auditCorrected)
+	}
+}
+
+// TestDurationAuditCorrectedAccumulatesAcrossBatches verifies that the
+// auditCorrected counter sums fixes from multiple batch messages.
+func TestDurationAuditCorrectedAccumulatesAcrossBatches(t *testing.T) {
+	ch := make(chan library.DurationFix)
+	m := New(context.Background(), WithDurationAuditChannel(ch))
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 100.0})
+	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 200.0})
+	m.library.index.Insert(library.Track{Hash: "h3", Path: "/c.mp3", Duration: 300.0})
+
+	// First batch: 1 correction.
+	next, _ := m.Update(library.DurationAuditBatchMsg{
+		Fixes: []library.DurationFix{{Hash: "h1", DurationMs: 150000}},
+	})
+	m = next.(Model)
+	if m.auditCorrected != 1 {
+		t.Fatalf("after batch 1: auditCorrected = %d, want 1", m.auditCorrected)
+	}
+
+	// Second batch: 2 corrections.
+	next, _ = m.Update(library.DurationAuditBatchMsg{
+		Fixes: []library.DurationFix{
+			{Hash: "h2", DurationMs: 250000},
+			{Hash: "h3", DurationMs: 350000},
+		},
+	})
+	m = next.(Model)
+	if m.auditCorrected != 3 {
+		t.Fatalf("after batch 2: auditCorrected = %d, want 3", m.auditCorrected)
+	}
+
+	// Done: notification should mention 3.
+	next, _ = m.Update(library.DurationAuditDoneMsg{})
+	nm := next.(Model)
+	if nm.statusBar.notification.msg == "" {
+		t.Error("expected notification after 3 corrections")
+	}
+	if nm.auditCorrected != 0 {
+		t.Errorf("auditCorrected should be reset after done, got %d", nm.auditCorrected)
 	}
 }
 
@@ -104,7 +161,7 @@ func TestDurationAuditDoneSilentWhenNone(t *testing.T) {
 	ch := make(chan library.DurationFix)
 	m := New(context.Background(), WithDurationAuditChannel(ch))
 
-	next, _ := m.Update(library.DurationAuditDoneMsg{Checked: 5, Corrected: 0})
+	next, _ := m.Update(library.DurationAuditDoneMsg{})
 	nm := next.(Model)
 
 	if nm.statusBar.notification.msg != "" {

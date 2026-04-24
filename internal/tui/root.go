@@ -115,7 +115,8 @@ type Model struct {
 
 	// auditCh receives DurationFix values from the background duration audit
 	// goroutine. It is nil when ffprobe is unavailable or the audit is done.
-	auditCh <-chan library.DurationFix
+	auditCh        <-chan library.DurationFix
+	auditCorrected int // number of tracks corrected across all audit batches
 
 	// watchDegraded is true when the filesystem watcher could not be started
 	// (e.g. fd exhaustion). The status bar shows a notice so the user knows

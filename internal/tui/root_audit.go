@@ -19,6 +19,7 @@ import (
 // (recently-added, sorted library, history, etc.) are refreshed so their
 // duration columns stay in sync.
 func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (Model, tea.Cmd) {
+	m.auditCorrected += len(msg.Fixes)
 	for _, fix := range msg.Fixes {
 		m.library.index.UpdateDuration(fix.Hash, float64(fix.DurationMs)/1000)
 		for i := range m.queue.entries {
@@ -118,13 +119,15 @@ func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (M
 
 // handleDurationAuditDoneMsg shows a notification when tracks were corrected
 // and marks the audit as complete by nilling the channel.
-func (m Model) handleDurationAuditDoneMsg(msg library.DurationAuditDoneMsg) (Model, tea.Cmd) {
-	if msg.Corrected > 0 {
+func (m Model) handleDurationAuditDoneMsg(_ library.DurationAuditDoneMsg) (Model, tea.Cmd) {
+	corrected := m.auditCorrected
+	if corrected > 0 {
 		m.statusBar.notify(
-			fmt.Sprintf("Duration audit: corrected %d %s", msg.Corrected,
-				pluralize(msg.Corrected, "track", "tracks")),
+			fmt.Sprintf("Duration audit: corrected %d %s", corrected,
+				pluralize(corrected, "track", "tracks")),
 		)
 	}
 	m.auditCh = nil
+	m.auditCorrected = 0
 	return m, nil
 }
