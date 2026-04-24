@@ -37,6 +37,36 @@ func TestEvalSmartPlaylist_DurationGreaterThan(t *testing.T) {
 	}
 }
 
+// TestEvalSmartPlaylist_DurationSubSecondPrecision verifies that the duration
+// filter uses real division (not integer division) so that sub-second values
+// are compared correctly. Before the fix, duration_ms / 1000 performed integer
+// truncation, causing 185500 ms to compare as 185 s instead of 185.5 s.
+func TestEvalSmartPlaylist_DurationSubSecondPrecision(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	// 185500 ms = 185.5 seconds
+	insertFullTrack(t, d, "precise", "/p.flac", "Precise", "A", "B", "rock", 185500, 1000, now)
+
+	// "greater_than 185": with real division 185.5 > 185 → should match.
+	// With integer truncation 185 > 185 → would NOT match (false negative).
+	q := db.SmartPlaylistQuery{
+		Root: db.SmartRule{Field: db.FieldDuration, Operator: db.OpGreaterThan, Value: "185"},
+	}
+	rows := evalQuery(t, d, q)
+	if len(rows) != 1 || rows[0].Hash != "precise" {
+		t.Errorf("greater_than 185: got %d rows (hashes: %v), want 1 (precise)", len(rows), hashes(rows))
+	}
+
+	// "less_than 186": with real division 185.5 < 186 → should match.
+	q2 := db.SmartPlaylistQuery{
+		Root: db.SmartRule{Field: db.FieldDuration, Operator: db.OpLessThan, Value: "186"},
+	}
+	rows2 := evalQuery(t, d, q2)
+	if len(rows2) != 1 || rows2[0].Hash != "precise" {
+		t.Errorf("less_than 186: got %d rows (hashes: %v), want 1 (precise)", len(rows2), hashes(rows2))
+	}
+}
+
 func TestEvalSmartPlaylist_PlayCount(t *testing.T) {
 	d := openMigratedDB(t)
 	now := time.Now().Unix()

@@ -88,8 +88,10 @@ func buildLeaf(sb *strings.Builder, args *[]any, rule SmartRule) error {
 		return buildStringOp(sb, args, col, rule.Operator, rule.Value)
 
 	case FieldDuration:
-		// duration_ms / 1000 gives seconds; value is expected in seconds.
-		return buildNumericOp(sb, args, "t.duration_ms / 1000", rule.Operator, rule.Value)
+		// duration_ms / 1000.0 gives seconds as a real; value is expected in seconds.
+		// Using 1000.0 (not 1000) forces SQLite to perform real division so that
+		// sub-second precision is preserved in comparisons.
+		return buildNumericOp(sb, args, "t.duration_ms / 1000.0", rule.Operator, rule.Value)
 
 	case FieldSize:
 		return buildNumericOp(sb, args, "t.size_bytes", rule.Operator, rule.Value)
