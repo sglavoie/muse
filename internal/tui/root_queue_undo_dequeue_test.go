@@ -118,6 +118,11 @@ func TestUndoMsgRestoresClearQueueWithinWindow(t *testing.T) {
 	if len(d.undoClearQueueCalls) != 1 {
 		t.Fatalf("UndoClearQueue must be called once, got %d calls", len(d.undoClearQueueCalls))
 	}
+	// Verify the IDs passed to UndoClearQueue match the original entry IDs.
+	gotIDs := d.undoClearQueueCalls[0]
+	if len(gotIDs) != 2 || gotIDs[0] != 10 || gotIDs[1] != 20 {
+		t.Fatalf("UndoClearQueue called with IDs %v, want [10 20]", gotIDs)
+	}
 	if nm.undo.slot.action != nil {
 		t.Fatal("undo slot must be cleared after a successful undo")
 	}

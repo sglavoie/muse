@@ -174,6 +174,11 @@ func (m Model) handlePlayQueueIndexMsg(msg PlayQueueIndexMsg) (Model, tea.Cmd) {
 	m.playback.state = PlaybackPlaying
 	m.playback.currentHash = entry.Hash
 	m.playback.currentIndex = msg.Index
+	m.playback.elapsedSecs = 0
+	m.playback.totalSecs = 0
+	m.playback.peakElapsedSecs = 0
+	m.playback.peakTotalSecs = 0
+	m.playback.durationCorrected = false
 	m.statusBar.artist = entry.Artist
 	m.statusBar.title = entry.Title
 	m.statusBar.playlistSource = queueSourceName(entry.SourcePlaylist)
@@ -263,14 +268,19 @@ func (m Model) handleClearQueueMsg() Model {
 	for i, entry := range savedEntries {
 		savedTracks[i] = queueTrackFromEntry(entry)
 	}
-	var clearIDs []int64
+	// Collect entry IDs before scheduling the goroutine so the undo action
+	// receives the correct slice immediately. Previously clearIDs was captured
+	// after scheduleSoftDelete returned but before the goroutine ran, resulting
+	// in a nil slice that made UndoClearQueue a no-op.
+	entryIDs := make([]int64, len(savedEntries))
+	for i, e := range savedEntries {
+		entryIDs[i] = e.ID
+	}
 	undoer := m.undoer
 	cancel := m.scheduleSoftDelete(
 		func() {
 			if undoer != nil {
-				var err error
-				clearIDs, err = undoer.ClearQueueSoft()
-				if err != nil {
+				if _, err := undoer.ClearQueueSoft(); err != nil {
 					slog.Warn("queue clear soft-delete failed", "err", err)
 				}
 			}
@@ -284,7 +294,7 @@ func (m Model) handleClearQueueMsg() Model {
 		},
 	)
 	m.setUndoSlot(undoClearAction{
-		ids:     clearIDs,
+		ids:     entryIDs,
 		entries: savedEntries,
 		tracks:  savedTracks,
 	}, cancel)

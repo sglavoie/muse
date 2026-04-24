@@ -162,3 +162,47 @@ func TestPlayQueueIndexMsgClearsStateOnFailure(t *testing.T) {
 		t.Error("expected error notification")
 	}
 }
+
+// TestPlayQueueIndexResetsPlaybackFields verifies that handlePlayQueueIndexMsg
+// resets elapsed, total, peak, and durationCorrected so stale values from the
+// previous track do not leak into the optimistic UI update window.
+func TestPlayQueueIndexResetsPlaybackFields(t *testing.T) {
+	p := &stubPlayer{}
+	m := New(context.Background(), WithPlayer(p))
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Path: "/a.flac", Hash: "aaa", Display: "A", Artist: "Art1", Title: "T1"},
+		{ID: 2, Path: "/b.flac", Hash: "bbb", Display: "B", Artist: "Art2", Title: "T2"},
+	}
+	// Simulate mid-playback state from the first track.
+	m.playback.state = PlaybackPlaying
+	m.playback.currentHash = "aaa"
+	m.playback.currentIndex = 0
+	m.playback.elapsedSecs = 120
+	m.playback.totalSecs = 300
+	m.playback.peakElapsedSecs = 120
+	m.playback.peakTotalSecs = 300
+	m.playback.durationCorrected = true
+
+	// User jumps to the second track.
+	next, _ := m.Update(PlayQueueIndexMsg{Index: 1})
+	nm := next.(Model)
+
+	if nm.playback.elapsedSecs != 0 {
+		t.Errorf("elapsedSecs = %v, want 0", nm.playback.elapsedSecs)
+	}
+	if nm.playback.totalSecs != 0 {
+		t.Errorf("totalSecs = %v, want 0", nm.playback.totalSecs)
+	}
+	if nm.playback.peakElapsedSecs != 0 {
+		t.Errorf("peakElapsedSecs = %v, want 0", nm.playback.peakElapsedSecs)
+	}
+	if nm.playback.peakTotalSecs != 0 {
+		t.Errorf("peakTotalSecs = %v, want 0", nm.playback.peakTotalSecs)
+	}
+	if nm.playback.durationCorrected {
+		t.Error("durationCorrected should be false")
+	}
+	if nm.playback.currentHash != "bbb" {
+		t.Errorf("currentHash = %q, want %q", nm.playback.currentHash, "bbb")
+	}
+}
