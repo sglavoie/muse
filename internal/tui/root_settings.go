@@ -106,9 +106,9 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 	// If library dirs or excluded paths changed, update roots and trigger a rescan.
 	if !slices.Equal(oldRoots, cfg.MusicDirectories) || !slices.Equal(oldExcluded, cfg.ExcludedPaths) {
 		m.libraryRoots = cfg.MusicDirectories
-		_, rescanCmd, _ := m.handleLibraryKeyAction(actionRescan)
+		rescanModel, rescanCmd, _ := m.handleLibraryKeyAction(actionRescan)
 		if rescanCmd != nil {
-			return m, tea.Batch(saveCmd, rescanCmd)
+			return rescanModel.(Model), tea.Batch(saveCmd, rescanCmd)
 		}
 	}
 
