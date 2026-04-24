@@ -42,7 +42,7 @@ func (m Model) handleConfigToggleMsg(msg configToggleMsg) (Model, tea.Cmd) {
 		return m, nil
 	}
 	path, cfg := m.configPath, m.cfg
-	return m, func() tea.Msg { _ = config.Save(path, cfg); return nil }
+	return m, func() tea.Msg { return settingsSavedMsg{err: config.Save(path, cfg)} }
 }
 
 // onOff returns "On" when b is true, "Off" otherwise.
