@@ -50,6 +50,14 @@ type playerQueueRemover interface {
 	RemoveFromQueue(index int) error
 }
 
+// playerIndexSetter is an optional interface for updating the player's current
+// queue index after the TUI reorders or deduplicates the queue. Without this,
+// the player's auto-advance uses a stale index causing skipped or repeated
+// tracks after shuffle, dedup, move, or paste operations.
+type playerIndexSetter interface {
+	SetCurrentIndex(index int)
+}
+
 // positionSyncer is implemented by player.Manager. Root uses it to
 // periodically persist the current playback position for crash-resume.
 type positionSyncer interface {

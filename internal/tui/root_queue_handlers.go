@@ -345,13 +345,13 @@ func (m Model) handleMoveTrackUpMsg(msg MoveTrackUpMsg) (Model, tea.Cmd) {
 		}
 		m = m.resetQueueSort()
 		slog.Debug("track reordered", "hash", entry.Hash, "from", msg.Index, "to", msg.Index-1)
-		m.syncPlayerQueue()
 		switch m.playback.currentIndex {
 		case msg.Index:
 			m.playback.currentIndex = msg.Index - 1
 		case msg.Index - 1:
 			m.playback.currentIndex = msg.Index
 		}
+		m.syncPlayerQueue()
 		if m.reorderer != nil {
 			reorderer := m.reorderer
 			id := entry.ID
@@ -379,13 +379,13 @@ func (m Model) handleMoveTrackDownMsg(msg MoveTrackDownMsg) (Model, tea.Cmd) {
 		}
 		m = m.resetQueueSort()
 		slog.Debug("track reordered", "hash", entry.Hash, "from", msg.Index, "to", msg.Index+1)
-		m.syncPlayerQueue()
 		switch m.playback.currentIndex {
 		case msg.Index:
 			m.playback.currentIndex = msg.Index + 1
 		case msg.Index + 1:
 			m.playback.currentIndex = msg.Index
 		}
+		m.syncPlayerQueue()
 		if m.reorderer != nil {
 			reorderer := m.reorderer
 			id := entry.ID

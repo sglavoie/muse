@@ -332,13 +332,14 @@ func (s *stubPlayerQueueRemover) RemoveFromQueue(index int) error {
 	return nil
 }
 
-// stubPlayerQueueSyncer extends stubPlayer with playerQueueSetter and
-// playerQueueRemover so undo tests can verify the player queue is rebuilt
-// after undoing a dequeue.
+// stubPlayerQueueSyncer extends stubPlayer with playerQueueSetter,
+// playerQueueRemover, and playerIndexSetter so undo tests can verify the
+// player queue and current index are rebuilt after undoing a dequeue.
 type stubPlayerQueueSyncer struct {
 	stubPlayer
 	setQueueCalls        [][]player.QueueTrack
 	removeFromQueueCalls []int
+	setCurrentIndexCalls []int
 }
 
 func (s *stubPlayerQueueSyncer) SetQueue(tracks []player.QueueTrack) {
@@ -350,6 +351,10 @@ func (s *stubPlayerQueueSyncer) SetQueue(tracks []player.QueueTrack) {
 func (s *stubPlayerQueueSyncer) RemoveFromQueue(index int) error {
 	s.removeFromQueueCalls = append(s.removeFromQueueCalls, index)
 	return nil
+}
+
+func (s *stubPlayerQueueSyncer) SetCurrentIndex(index int) {
+	s.setCurrentIndexCalls = append(s.setCurrentIndexCalls, index)
 }
 
 // stubPlaylistDeleter records calls to playlist/track soft-delete, undo, and

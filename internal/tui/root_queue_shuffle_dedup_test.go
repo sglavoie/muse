@@ -151,6 +151,91 @@ func TestDedupPreservesPlaybackIndexNonDuplicate(t *testing.T) {
 	}
 }
 
+// TestShuffleSyncsPlayerCurrentIndex verifies that the player's current index
+// is updated after a shuffle so auto-advance uses the correct position.
+func TestShuffleSyncsPlayerCurrentIndex(t *testing.T) {
+	ps := &stubPlayerQueueSyncer{}
+	m := New(context.Background(), WithPlayer(ps))
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "a", Display: "A"},
+		{ID: 2, Hash: "b", Display: "B"},
+		{ID: 3, Hash: "c", Display: "C"},
+	}
+	m.playback.currentHash = "b"
+	m.playback.currentIndex = 1
+
+	m, _ = m.handleQueueShuffleMsg()
+
+	if len(ps.setCurrentIndexCalls) == 0 {
+		t.Fatal("SetCurrentIndex was never called after shuffle")
+	}
+	lastIdx := ps.setCurrentIndexCalls[len(ps.setCurrentIndexCalls)-1]
+	if lastIdx != m.playback.currentIndex {
+		t.Errorf("player index = %d, TUI index = %d; they should match after shuffle",
+			lastIdx, m.playback.currentIndex)
+	}
+}
+
+// TestDedupSyncsPlayerCurrentIndex verifies that the player's current index
+// is updated after dedup so auto-advance uses the correct position.
+func TestDedupSyncsPlayerCurrentIndex(t *testing.T) {
+	ps := &stubPlayerQueueSyncer{}
+	d := &stubQueueDequeuer{}
+	m := New(context.Background(), WithPlayer(ps), WithQueueDequeuer(d))
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "a", Display: "A1"},
+		{ID: 2, Hash: "b", Display: "B"},
+		{ID: 3, Hash: "a", Display: "A2"}, // duplicate
+	}
+	m.playback.currentHash = "b"
+	m.playback.currentIndex = 1
+
+	m, _ = m.handleQueueDedupMsg()
+
+	if len(ps.setCurrentIndexCalls) == 0 {
+		t.Fatal("SetCurrentIndex was never called after dedup")
+	}
+	lastIdx := ps.setCurrentIndexCalls[len(ps.setCurrentIndexCalls)-1]
+	if lastIdx != m.playback.currentIndex {
+		t.Errorf("player index = %d, TUI index = %d; they should match after dedup",
+			lastIdx, m.playback.currentIndex)
+	}
+}
+
+// TestMoveTrackSyncsPlayerCurrentIndex verifies that the player's current index
+// is updated after moving a track up/down.
+func TestMoveTrackSyncsPlayerCurrentIndex(t *testing.T) {
+	ps := &stubPlayerQueueSyncer{}
+	r := &stubQueueReorderer{}
+	m := New(context.Background(), WithPlayer(ps), WithQueueReorderer(r))
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Hash: "ha", Artist: "A", Title: "Ta"},
+		{ID: 20, Hash: "hb", Artist: "B", Title: "Tb"},
+		{ID: 30, Hash: "hc", Artist: "C", Title: "Tc"},
+	}
+	m.playback.currentHash = "ha"
+	m.playback.currentIndex = 0
+	m.queue.cursor = 0
+
+	// Move the playing track down.
+	m, _ = m.handleMoveTrackDownMsg(MoveTrackDownMsg{Index: 0})
+
+	if len(ps.setCurrentIndexCalls) == 0 {
+		t.Fatal("SetCurrentIndex was never called after move-down")
+	}
+	lastIdx := ps.setCurrentIndexCalls[len(ps.setCurrentIndexCalls)-1]
+	if lastIdx != m.playback.currentIndex {
+		t.Errorf("player index = %d, TUI index = %d; they should match after move-down",
+			lastIdx, m.playback.currentIndex)
+	}
+	if m.playback.currentIndex != 1 {
+		t.Errorf("TUI index = %d, want 1 after moving playing track down", m.playback.currentIndex)
+	}
+}
+
 // TestDedupRemovesDuplicatesKeepsFirst verifies that dedup keeps the first
 // occurrence and removes subsequent duplicates.
 func TestDedupRemovesDuplicatesKeepsFirst(t *testing.T) {

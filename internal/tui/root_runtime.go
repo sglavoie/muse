@@ -79,9 +79,10 @@ func schedulePurge(slot *undoSlot, purgeFn func(int64) error) {
 }
 
 // syncPlayerQueue rebuilds the player's in-memory queue from the current TUI
-// queue entries. Call this after any operation that reorders the TUI queue
-// (e.g. MoveTrackUp/Down) so that the player's auto-advance resolves indices
-// against the same ordering the user sees.
+// queue entries and updates the player's current index to match the TUI's
+// playback index. Call this after any operation that reorders the TUI queue
+// (e.g. MoveTrackUp/Down, shuffle, dedup) so that the player's auto-advance
+// resolves indices against the same ordering the user sees.
 func (m Model) syncPlayerQueue() {
 	if qs, ok := m.player.(playerQueueSetter); ok {
 		pt := make([]player.QueueTrack, len(m.queue.entries))
@@ -96,6 +97,11 @@ func (m Model) syncPlayerQueue() {
 			}
 		}
 		qs.SetQueue(pt)
+	}
+	// Keep the player's current index in sync so that auto-advance after
+	// shuffle, dedup, move, or paste uses the correct position.
+	if is, ok := m.player.(playerIndexSetter); ok {
+		is.SetCurrentIndex(m.playback.currentIndex)
 	}
 }
 
