@@ -290,6 +290,35 @@ func TestHandleUndoResetsAllSorts(t *testing.T) {
 	}
 }
 
+// TestUndoExitsVisualMode verifies that performing an undo exits visual mode
+// to prevent stale anchor/snapshot from referencing shifted indices.
+func TestUndoExitsVisualMode(t *testing.T) {
+	d := &stubQueueDequeuer{}
+	m := New(context.Background(), WithQueueDequeuer(d))
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/music/a.flac", Display: "A"},
+		{ID: 20, Path: "/music/b.flac", Display: "B"},
+		{ID: 30, Path: "/music/c.flac", Display: "C"},
+	}
+
+	// Dequeue entry at index 1 to set up an undo slot.
+	next, _ := m.Update(DequeueTrackMsg{Index: 1})
+	nm := next.(Model)
+
+	// Enter visual mode after the dequeue (simulating user entering visual
+	// mode while an undo slot is pending).
+	nm.activeView = viewQueue
+	nm.visual = visualState{active: true, view: viewQueue, anchor: 0}
+
+	// Perform undo — visual mode must be exited.
+	next, _ = nm.Update(UndoMsg{})
+	nm = next.(Model)
+
+	if nm.visual.active {
+		t.Fatal("visual mode must be exited after undo to prevent stale anchor/snapshot")
+	}
+}
+
 // TestUndoDequeueClampsCursorWithActiveFilter verifies that undoing a dequeue
 // clamps the cursor against the filtered entry count when a filter is active.
 func TestUndoDequeueClampsCursorWithActiveFilter(t *testing.T) {
