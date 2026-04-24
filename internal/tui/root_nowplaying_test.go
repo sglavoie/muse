@@ -18,6 +18,10 @@ func setupPlayingModel(t *testing.T) Model {
 	m.playback.elapsedSecs = 30
 	m.playback.totalSecs = 180
 	m.playback.currentHash = "h1"
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Test Artist", Title: "Test Song"},
+		{ID: 2, Hash: "h2", Path: "/b.flac"},
+	}
 	m.library.index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "Test Artist", Title: "Test Song", Album: "Test Album",
 	})

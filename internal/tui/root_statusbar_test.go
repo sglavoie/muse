@@ -82,6 +82,7 @@ func TestStatusBarShowsPlaybackStateIndicator(t *testing.T) {
 // the status bar's artist, title, and playlist source.
 func TestTrackChangedMsgUpdatesStatusBar(t *testing.T) {
 	m := New(context.Background())
+	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
 
 	next, _ := m.Update(TrackChangedMsg{
 		Artist:         "New Artist",
@@ -109,6 +110,7 @@ func TestTrackChangedMsgUpdatesStatusBar(t *testing.T) {
 // TrackChangedMsg with an empty PlaylistSource defaults to "Queue".
 func TestTrackChangedMsgDefaultsPlaylistSourceToQueue(t *testing.T) {
 	m := New(context.Background())
+	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
 	next, _ := m.Update(TrackChangedMsg{Artist: "A", Title: "T"})
 	nm := next.(Model)
 	v := nm.View()

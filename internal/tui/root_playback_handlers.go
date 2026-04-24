@@ -446,12 +446,37 @@ func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
 // handleTrackChangedMsg updates the status bar and playback state when the
 // player advances to a new track.
 func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
+	// Guard: discard stale TrackChangedMsg that arrives after the queue was
+	// cleared (e.g. mpv's gapless prefetch fired a start-file event before
+	// the clear was processed). Without this check the TUI would resurrect
+	// playback state on an empty queue, showing a playing status bar with
+	// no corresponding queue entry.
+	if len(m.queue.entries) == 0 {
+		return m, nil
+	}
+
 	previousHash := m.playback.currentHash
 	previousElapsed := m.playback.peakElapsedSecs
 	previousTotal := m.playback.peakTotalSecs
 
 	m.playback.currentHash = msg.Hash
-	m.playback.currentIndex = msg.Index
+	// Clamp index to queue bounds in case the queue shrank between the mpv
+	// event dispatch and TUI processing (e.g. dequeue raced with gapless
+	// transition).
+	idx := msg.Index
+	if idx < 0 || idx >= len(m.queue.entries) {
+		idx = -1
+		for i, e := range m.queue.entries {
+			if e.Hash == msg.Hash {
+				idx = i
+				break
+			}
+		}
+		if idx < 0 {
+			idx = 0
+		}
+	}
+	m.playback.currentIndex = idx
 	m.playback.queueExhausted = false
 	m.statusBar.artist = msg.Artist
 	m.statusBar.title = msg.Title

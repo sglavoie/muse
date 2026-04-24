@@ -166,6 +166,7 @@ func TestMainPlaybackTickCorrectOnceOnly(t *testing.T) {
 func TestTrackChangedResetsCorrectFlag(t *testing.T) {
 	m := New(context.Background())
 	m.playback.durationCorrected = true
+	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h2", Path: "/b.flac"}}
 
 	nm, _ := m.handleTrackChangedMsg(TrackChangedMsg{
 		Hash: "h2", Index: 0, Artist: "B", Title: "T2",

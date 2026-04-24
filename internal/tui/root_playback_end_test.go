@@ -371,6 +371,10 @@ func TestTrackChangedUsesPeakForPlayCount(t *testing.T) {
 	m.playback.totalSecs = 300.0
 	m.playback.peakElapsedSecs = 180.0
 	m.playback.peakTotalSecs = 200.0
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "old-hash", Path: "/a.flac"},
+		{ID: 2, Hash: "new-hash", Path: "/b.flac"},
+	}
 
 	next, cmd := m.Update(TrackChangedMsg{Hash: "new-hash", Index: 1, Artist: "B", Title: "T2"})
 	_ = next.(Model)
@@ -390,6 +394,7 @@ func TestTrackChangedResetsPeak(t *testing.T) {
 	m := New(context.Background())
 	m.playback.peakElapsedSecs = 180.0
 	m.playback.peakTotalSecs = 200.0
+	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h2", Path: "/b.flac"}}
 
 	next, _ := m.Update(TrackChangedMsg{Hash: "h2", Index: 0, Artist: "B", Title: "T2"})
 	nm := next.(Model)
@@ -399,6 +404,56 @@ func TestTrackChangedResetsPeak(t *testing.T) {
 	}
 	if nm.playback.peakTotalSecs != 0 {
 		t.Fatalf("expected peakTotalSecs reset to 0, got %v", nm.playback.peakTotalSecs)
+	}
+}
+
+// TestTrackChangedDiscardedOnEmptyQueue verifies that a stale TrackChangedMsg
+// arriving after queue clear is silently discarded rather than resurrecting
+// playback state on an empty queue.
+func TestTrackChangedDiscardedOnEmptyQueue(t *testing.T) {
+	m := New(context.Background())
+	m.playback.state = PlaybackIdle
+	m.playback.currentIndex = -1
+	m.playback.currentHash = ""
+	// Queue is empty (was just cleared).
+	m.queue.entries = nil
+
+	next, cmd := m.Update(TrackChangedMsg{Hash: "stale", Index: 3, Artist: "A", Title: "T"})
+	nm := next.(Model)
+
+	if nm.playback.state != PlaybackIdle {
+		t.Fatalf("expected PlaybackIdle after stale TrackChangedMsg on empty queue, got %v", nm.playback.state)
+	}
+	if nm.playback.currentHash != "" {
+		t.Fatalf("expected empty currentHash, got %q", nm.playback.currentHash)
+	}
+	if nm.playback.currentIndex != -1 {
+		t.Fatalf("expected currentIndex=-1, got %d", nm.playback.currentIndex)
+	}
+	if cmd != nil {
+		t.Fatal("expected nil cmd for discarded TrackChangedMsg")
+	}
+}
+
+// TestTrackChangedClampsOutOfBoundsIndex verifies that when the mpv event
+// carries an index beyond the current queue length (e.g. dequeue raced with
+// gapless transition), the handler falls back to a hash-based lookup.
+func TestTrackChangedClampsOutOfBoundsIndex(t *testing.T) {
+	m := New(context.Background())
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac"},
+		{ID: 2, Hash: "h2", Path: "/b.flac"},
+	}
+
+	// Index 5 is out of bounds; hash "h2" is at position 1.
+	next, _ := m.Update(TrackChangedMsg{Hash: "h2", Index: 5, Artist: "B", Title: "T2"})
+	nm := next.(Model)
+
+	if nm.playback.currentIndex != 1 {
+		t.Fatalf("expected currentIndex=1 (hash lookup fallback), got %d", nm.playback.currentIndex)
+	}
+	if nm.playback.currentHash != "h2" {
+		t.Fatalf("expected currentHash=%q, got %q", "h2", nm.playback.currentHash)
 	}
 }
 

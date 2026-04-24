@@ -96,6 +96,7 @@ func TestTrackChangedMsgEmitsSessionPositionWriteCmd(t *testing.T) {
 	sw := &stubSessionWriter{}
 	m := New(context.Background(), WithSessionWriter(sw))
 	m.playback.elapsedSecs = 99.0 // must be reset to 0 before the cmd captures position
+	m.queue.entries = []QueueEntry{{ID: 1, Hash: "newhash", Path: "/a.flac"}}
 
 	_, cmd := m.Update(TrackChangedMsg{
 		Artist: "Artist",
@@ -122,6 +123,7 @@ func TestTrackChangedMsgEmitsSessionPositionWriteCmd(t *testing.T) {
 // correct hash.
 func TestTrackChangedMsgStoresCurrentTrackHash(t *testing.T) {
 	m := New(context.Background())
+	m.queue.entries = []QueueEntry{{ID: 1, Hash: "testhash", Path: "/a.flac"}}
 
 	next, _ := m.Update(TrackChangedMsg{Artist: "A", Title: "T", Hash: "testhash"})
 	nm := next.(Model)
@@ -135,6 +137,7 @@ func TestTrackChangedMsgStoresCurrentTrackHash(t *testing.T) {
 // TrackChangedMsg without a session writer returns nil cmd (no-op write path).
 func TestTrackChangedMsgWithoutSessionWriterReturnsNilCmd(t *testing.T) {
 	m := New(context.Background())
+	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h", Path: "/a.flac"}}
 
 	_, cmd := m.Update(TrackChangedMsg{Artist: "A", Title: "T", Hash: "h"})
 	if cmd != nil {
