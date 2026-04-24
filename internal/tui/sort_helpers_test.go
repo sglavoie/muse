@@ -420,6 +420,141 @@ func TestSortCyclePlaylistTrackFields(t *testing.T) {
 	}
 }
 
+func TestSortTracksZeroDurationSortsLast(t *testing.T) {
+	tracks := []library.Track{
+		{Hash: "1", Duration: 0},
+		{Hash: "2", Duration: 200},
+		{Hash: "3", Duration: 100},
+		{Hash: "4", Duration: 0},
+	}
+	t.Run("asc", func(t *testing.T) {
+		sorted := SortTracks(tracks, SortDuration, SortAsc)
+		if sorted[0].Hash != "3" {
+			t.Errorf("first should be h3 (100), got %s", sorted[0].Hash)
+		}
+		if sorted[1].Hash != "2" {
+			t.Errorf("second should be h2 (200), got %s", sorted[1].Hash)
+		}
+		if sorted[2].Duration != 0 || sorted[3].Duration != 0 {
+			t.Error("zero-duration tracks should be last")
+		}
+	})
+	t.Run("desc", func(t *testing.T) {
+		sorted := SortTracks(tracks, SortDuration, SortDesc)
+		if sorted[0].Hash != "2" {
+			t.Errorf("first should be h2 (200), got %s", sorted[0].Hash)
+		}
+		if sorted[1].Hash != "3" {
+			t.Errorf("second should be h3 (100), got %s", sorted[1].Hash)
+		}
+		if sorted[2].Duration != 0 || sorted[3].Duration != 0 {
+			t.Error("zero-duration tracks should be last")
+		}
+	})
+}
+
+func TestSortQueueIndicesZeroDurationSortsLast(t *testing.T) {
+	entries := []QueueEntry{
+		{Title: "A", DurationMs: 0},
+		{Title: "B", DurationMs: 5000},
+		{Title: "C", DurationMs: 2000},
+	}
+	t.Run("asc", func(t *testing.T) {
+		order := SortQueueIndices(entries, SortDuration, SortAsc)
+		if entries[order[0]].Title != "C" {
+			t.Errorf("first should be C (2000ms), got %s", entries[order[0]].Title)
+		}
+		if entries[order[1]].Title != "B" {
+			t.Errorf("second should be B (5000ms), got %s", entries[order[1]].Title)
+		}
+		if entries[order[2]].DurationMs != 0 {
+			t.Error("zero-duration entry should be last")
+		}
+	})
+	t.Run("desc", func(t *testing.T) {
+		order := SortQueueIndices(entries, SortDuration, SortDesc)
+		if entries[order[0]].Title != "B" {
+			t.Errorf("first should be B (5000ms), got %s", entries[order[0]].Title)
+		}
+		if entries[order[1]].Title != "C" {
+			t.Errorf("second should be C (2000ms), got %s", entries[order[1]].Title)
+		}
+		if entries[order[2]].DurationMs != 0 {
+			t.Error("zero-duration entry should be last")
+		}
+	})
+}
+
+func TestSortPlaylistTrackIndicesZeroDurationSortsLast(t *testing.T) {
+	tracks := []db.PlaylistTrackRow{
+		{Hash: "h1", Title: "A", DurationMs: 0},
+		{Hash: "h2", Title: "B", DurationMs: 3000},
+		{Hash: "h3", Title: "C", DurationMs: 1000},
+	}
+	order := SortPlaylistTrackIndices(tracks, SortDuration, SortAsc)
+	if tracks[order[0]].Hash != "h3" {
+		t.Errorf("first should be h3 (1000ms), got %s", tracks[order[0]].Hash)
+	}
+	if tracks[order[1]].Hash != "h2" {
+		t.Errorf("second should be h2 (3000ms), got %s", tracks[order[1]].Hash)
+	}
+	if tracks[order[2]].DurationMs != 0 {
+		t.Error("zero-duration track should be last")
+	}
+}
+
+func TestCompareDurationsZeroLast(t *testing.T) {
+	tests := []struct {
+		a, b float64
+		dir  SortDir
+		want bool
+	}{
+		{100, 200, SortAsc, true},
+		{200, 100, SortAsc, false},
+		{100, 200, SortDesc, false},
+		{200, 100, SortDesc, true},
+		{0, 100, SortAsc, false},  // zero after known
+		{0, 100, SortDesc, false}, // zero after known
+		{100, 0, SortAsc, true},   // known before zero
+		{100, 0, SortDesc, true},  // known before zero
+		{0, 0, SortAsc, false},    // stable
+		{0, 0, SortDesc, false},   // stable
+	}
+	for _, tt := range tests {
+		got := compareDurationsZeroLast(tt.a, tt.b, tt.dir)
+		if got != tt.want {
+			t.Errorf("compareDurationsZeroLast(%v, %v, %v) = %v, want %v",
+				tt.a, tt.b, tt.dir, got, tt.want)
+		}
+	}
+}
+
+func TestCompareDurationMsZeroLast(t *testing.T) {
+	tests := []struct {
+		a, b int64
+		dir  SortDir
+		want bool
+	}{
+		{1000, 2000, SortAsc, true},
+		{2000, 1000, SortAsc, false},
+		{1000, 2000, SortDesc, false},
+		{2000, 1000, SortDesc, true},
+		{0, 1000, SortAsc, false},
+		{0, 1000, SortDesc, false},
+		{1000, 0, SortAsc, true},
+		{1000, 0, SortDesc, true},
+		{0, 0, SortAsc, false},
+		{0, 0, SortDesc, false},
+	}
+	for _, tt := range tests {
+		got := compareDurationMsZeroLast(tt.a, tt.b, tt.dir)
+		if got != tt.want {
+			t.Errorf("compareDurationMsZeroLast(%v, %v, %v) = %v, want %v",
+				tt.a, tt.b, tt.dir, got, tt.want)
+		}
+	}
+}
+
 func TestSortTracksStableOrder(t *testing.T) {
 	tracks := []library.Track{
 		{Hash: "1", Artist: "Same", Title: "B"},

@@ -140,10 +140,7 @@ func SortTracks(tracks []library.Track, field SortField, dir SortDir) []library.
 		case SortAlbum:
 			return compareStringsUnknownLast(a.Album, b.Album, dir)
 		case SortDuration:
-			if dir == SortAsc {
-				return a.Duration < b.Duration
-			}
-			return a.Duration > b.Duration
+			return compareDurationsZeroLast(a.Duration, b.Duration, dir)
 		case SortDateAdded:
 			if dir == SortAsc {
 				return a.CreatedAt < b.CreatedAt
@@ -181,10 +178,7 @@ func SortQueueIndices(entries []QueueEntry, field SortField, dir SortDir) []int 
 		case SortAlbum:
 			return compareStringsUnknownLast(ea.Album, eb.Album, dir)
 		case SortDuration:
-			if dir == SortAsc {
-				return ea.DurationMs < eb.DurationMs
-			}
-			return ea.DurationMs > eb.DurationMs
+			return compareDurationMsZeroLast(ea.DurationMs, eb.DurationMs, dir)
 		case SortSource:
 			return compareStringsUnknownLast(ea.SourcePlaylist, eb.SourcePlaylist, dir)
 		default:
@@ -239,10 +233,7 @@ func SortPlaylistTrackIndices(tracks []db.PlaylistTrackRow, field SortField, dir
 		case SortAlbum:
 			return compareStringsUnknownLast(ta.Album, tb.Album, dir)
 		case SortDuration:
-			if dir == SortAsc {
-				return ta.DurationMs < tb.DurationMs
-			}
-			return ta.DurationMs > tb.DurationMs
+			return compareDurationMsZeroLast(ta.DurationMs, tb.DurationMs, dir)
 		default:
 			return false
 		}
@@ -306,6 +297,41 @@ func findPlaylistPosition(playlists []db.PlaylistRow, id int64) int {
 		}
 	}
 	return 0
+}
+
+// compareDurationsZeroLast compares two float64 durations, pushing zero
+// (unknown) values to the end regardless of sort direction. This matches
+// the behaviour of compareStringsUnknownLast for string fields.
+func compareDurationsZeroLast(a, b float64, dir SortDir) bool {
+	aZero := a <= 0
+	bZero := b <= 0
+	if aZero != bZero {
+		return bZero // known before unknown, always
+	}
+	if aZero && bZero {
+		return false // stable
+	}
+	if dir == SortAsc {
+		return a < b
+	}
+	return a > b
+}
+
+// compareDurationMsZeroLast compares two int64 durations in milliseconds,
+// pushing zero (unknown) values to the end regardless of sort direction.
+func compareDurationMsZeroLast(a, b int64, dir SortDir) bool {
+	aZero := a <= 0
+	bZero := b <= 0
+	if aZero != bZero {
+		return bZero // known before unknown, always
+	}
+	if aZero && bZero {
+		return false // stable
+	}
+	if dir == SortAsc {
+		return a < b
+	}
+	return a > b
 }
 
 // compareStringsUnknownLast compares two strings, pushing unknown/empty values
