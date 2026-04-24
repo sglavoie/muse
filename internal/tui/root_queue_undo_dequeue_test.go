@@ -128,6 +128,45 @@ func TestUndoMsgRestoresClearQueueWithinWindow(t *testing.T) {
 	}
 }
 
+// TestUndoClearQueueRestoresPlaybackIndex verifies that undoing a queue clear
+// restores the playback index, hash, and syncs the player's current index.
+func TestUndoClearQueueRestoresPlaybackIndex(t *testing.T) {
+	p := &stubPlayerQueueSyncer{}
+	d := &stubQueueDequeuer{clearQueueSoftResult: []int64{10, 20}}
+	m := New(context.Background(), WithPlayer(p), WithQueueDequeuer(d))
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/music/a.flac", Hash: "ha", Artist: "A", Title: "Ta"},
+		{ID: 20, Path: "/music/b.flac", Hash: "hb", Artist: "B", Title: "Tb"},
+	}
+	m.playback.currentIndex = 1
+	m.playback.currentHash = "hb"
+	m.playback.state = PlaybackPlaying
+
+	next, _ := m.Update(ClearQueueMsg{})
+	nm := next.(Model)
+	if nm.playback.currentIndex != -1 {
+		t.Fatalf("after clear: expected currentIndex -1, got %d", nm.playback.currentIndex)
+	}
+
+	next, _ = nm.Update(UndoMsg{})
+	nm = next.(Model)
+
+	if nm.playback.currentIndex != 1 {
+		t.Fatalf("after undo clear: expected currentIndex 1, got %d", nm.playback.currentIndex)
+	}
+	if nm.playback.currentHash != "hb" {
+		t.Fatalf("after undo clear: expected currentHash %q, got %q", "hb", nm.playback.currentHash)
+	}
+	// Verify the player's SetCurrentIndex was called with the restored index.
+	if len(p.setCurrentIndexCalls) == 0 {
+		t.Fatal("SetCurrentIndex must be called on undo clear")
+	}
+	lastIdx := p.setCurrentIndexCalls[len(p.setCurrentIndexCalls)-1]
+	if lastIdx != 1 {
+		t.Fatalf("SetCurrentIndex: want 1, got %d", lastIdx)
+	}
+}
+
 // TestUndoMsgWithNoSlotIsNoOp verifies that UndoMsg when no destructive action
 // has been performed is a no-op.
 func TestUndoMsgWithNoSlotIsNoOp(t *testing.T) {

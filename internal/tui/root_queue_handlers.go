@@ -294,9 +294,11 @@ func (m Model) handleClearQueueMsg() Model {
 		},
 	)
 	m.setUndoSlot(undoClearAction{
-		ids:     entryIDs,
-		entries: savedEntries,
-		tracks:  savedTracks,
+		ids:        entryIDs,
+		entries:    savedEntries,
+		tracks:     savedTracks,
+		savedIndex: m.playback.currentIndex,
+		savedHash:  m.playback.currentHash,
 	}, cancel)
 	slog.Debug("queue cleared", "count", len(savedEntries))
 	player.PlaySound(player.SoundRemoved)

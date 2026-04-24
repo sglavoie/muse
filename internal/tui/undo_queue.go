@@ -108,9 +108,11 @@ func (a undoDequeueAction) perform(m Model) (Model, tea.Cmd) {
 
 // undoClearAction reverts a full queue clear (undoKindClear).
 type undoClearAction struct {
-	ids     []int64
-	entries []QueueEntry
-	tracks  []player.QueueTrack
+	ids        []int64
+	entries    []QueueEntry
+	tracks     []player.QueueTrack
+	savedIndex int    // playback index at the time of clear
+	savedHash  string // currently-playing track hash at the time of clear
 }
 
 func (a undoClearAction) kind() undoKind { return undoKindClear }
@@ -126,8 +128,13 @@ func (a undoClearAction) perform(m Model) (Model, tea.Cmd) {
 		}
 	}
 	m.queue.entries = a.entries
+	m.playback.currentIndex = a.savedIndex
+	m.playback.currentHash = a.savedHash
 	if qs, ok := m.player.(playerQueueSetter); ok {
 		qs.SetQueue(a.tracks)
+	}
+	if is, ok := m.player.(playerIndexSetter); ok {
+		is.SetCurrentIndex(a.savedIndex)
 	}
 	n := len(a.entries)
 	m.statusBar.notify(fmt.Sprintf("Undone: restored %d %s", n, pluralize(n, "track", "tracks")))
