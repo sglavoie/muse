@@ -209,7 +209,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 			m.library = m.library.rebuildFilterCache()
 		}
 		m.library.cursor = m.library.findTrackPosition(focusedHash)
-		m.library.scrollOffset = adjustScroll(m.library.cursor, m.library.scrollOffset, layout.VisibleRows(m.library.height, 1))
+		m.library.scrollOffset = adjustScroll(m.library.cursor, m.library.scrollOffset, layout.VisibleRows(m.library.height, libraryViewVisibleReserve(m.library)))
 		m.statusBar.notify(sortNotification(m.library.sortState))
 		return m, nil, true
 
@@ -227,7 +227,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 			m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
 		}
 		m.recentlyAdded.cursor = m.recentlyAdded.findTrackPosition(focusedHash)
-		m.recentlyAdded.scrollOffset = adjustScroll(m.recentlyAdded.cursor, m.recentlyAdded.scrollOffset, layout.VisibleRows(m.recentlyAdded.height, 1))
+		m.recentlyAdded.scrollOffset = adjustScroll(m.recentlyAdded.cursor, m.recentlyAdded.scrollOffset, layout.VisibleRows(m.recentlyAdded.height, libraryViewVisibleReserve(m.recentlyAdded)))
 		m.statusBar.notify(sortNotification(m.recentlyAdded.sortState))
 		return m, nil, true
 
@@ -245,7 +245,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 			m.history = m.history.rebuildFilterCache()
 		}
 		m.history.cursor = m.history.findTrackPosition(focusedHash)
-		m.history.scrollOffset = adjustScroll(m.history.cursor, m.history.scrollOffset, layout.VisibleRows(m.history.height, 1))
+		m.history.scrollOffset = adjustScroll(m.history.cursor, m.history.scrollOffset, layout.VisibleRows(m.history.height, libraryViewVisibleReserve(m.history)))
 		m.statusBar.notify(sortNotification(m.history.sortState))
 		return m, nil, true
 

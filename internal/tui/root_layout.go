@@ -4,7 +4,6 @@ import (
 	"log/slog"
 
 	"github.com/sglavoie/muse/internal/tui/layout"
-	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -37,22 +36,22 @@ func (m *Model) setViewDimensions(width, height int) {
 // clampAllScrollOffsets adjusts the scroll offset for every view so that the
 // cursor remains visible after a terminal resize.
 func (m *Model) clampAllScrollOffsets() {
-	libMaxRows := layout.VisibleRows(m.library.height, 1)
+	libReserve := libraryViewVisibleReserve(m.library)
+	libMaxRows := layout.VisibleRows(m.library.height, libReserve)
 	m.library.scrollOffset = adjustScroll(m.library.cursor, m.library.scrollOffset, libMaxRows)
 
-	raMaxRows := layout.VisibleRows(m.recentlyAdded.height, 1)
+	raReserve := libraryViewVisibleReserve(m.recentlyAdded)
+	raMaxRows := layout.VisibleRows(m.recentlyAdded.height, raReserve)
 	m.recentlyAdded.scrollOffset = adjustScroll(m.recentlyAdded.cursor, m.recentlyAdded.scrollOffset, raMaxRows)
 
-	histMaxRows := layout.VisibleRows(m.history.height, 1)
+	histReserve := libraryViewVisibleReserve(m.history)
+	histMaxRows := layout.VisibleRows(m.history.height, histReserve)
 	m.history.scrollOffset = adjustScroll(m.history.cursor, m.history.scrollOffset, histMaxRows)
 
 	queueMaxRows := m.queue.visibleRows()
 	m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, queueMaxRows)
 
-	plReserve := 1
-	if m.playlists.level == pltui.TrackLevel {
-		plReserve = 4
-	}
+	plReserve := playlistsVisibleReserve(m.playlists)
 	plMaxRows := layout.VisibleRows(m.playlists.height, plReserve)
 	m.playlists.scrollOffset = adjustScroll(m.playlists.cursor, m.playlists.scrollOffset, plMaxRows)
 

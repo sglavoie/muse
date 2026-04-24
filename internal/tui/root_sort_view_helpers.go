@@ -91,7 +91,8 @@ func (m Model) preservePlaylistCursorOnDirChange(dir SortDir) Model {
 		m.playlists = m.playlists.recomputePlaylistSort()
 		m.playlists.cursor = m.playlists.findTrackDisplayPosition(prevTrackIdx)
 	}
-	m.playlists.scrollOffset = adjustScroll(m.playlists.cursor, m.playlists.scrollOffset, layout.VisibleRows(m.playlists.height, 1))
+	plReserve := playlistsVisibleReserve(m.playlists)
+	m.playlists.scrollOffset = adjustScroll(m.playlists.cursor, m.playlists.scrollOffset, layout.VisibleRows(m.playlists.height, plReserve))
 	return m
 }
 
@@ -253,6 +254,31 @@ func (m Model) preserveGenresCursorOnDirChange(dir SortDir) Model {
 	reserve := genresVisibleReserve(m.genres)
 	m.genres.scrollOffset = adjustScroll(m.genres.cursor, m.genres.scrollOffset, layout.VisibleRows(m.genres.height, reserve))
 	return m
+}
+
+// libraryViewVisibleReserve returns the line reserve for a LibraryView's visibleRows.
+// The reserve must match library.View.visibleRows() so that adjustScroll and
+// the cursor-movement helpers agree on how many rows are visible.
+func libraryViewVisibleReserve(v LibraryView) int {
+	reserve := 1 // column header
+	if v.filter.Active || v.filter.Text != "" {
+		reserve++
+	}
+	return reserve
+}
+
+// playlistsVisibleReserve returns the line reserve for the playlists view's visibleRows.
+// The reserve must match playlists.View.visibleRows() so that adjustScroll and
+// the cursor-movement helpers agree on how many rows are visible.
+func playlistsVisibleReserve(v PlaylistsView) int {
+	reserve := 1
+	if v.level == pltui.ListLevel && v.sortState.Field != SortDefault {
+		reserve++
+	}
+	if v.level == pltui.TrackLevel {
+		reserve = 4
+	}
+	return reserve
 }
 
 // artistsVisibleReserve returns the line reserve for the artists view's visibleRows.
