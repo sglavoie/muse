@@ -248,7 +248,7 @@ func (m Model) handleTagToggled(msg tagToggledMsg) (Model, tea.Cmd) {
 	if msg.autoDeleted {
 		m = m.removeTagFromCaches(msg.tagID)
 		if m.tagWriter != nil {
-			schedulePurge(&m.undo.slot, m.tagWriter.PurgeDeletedTags)
+			scheduleStandalonePurge(m.tagWriter.PurgeDeletedTags)
 		}
 	}
 	return m, nil

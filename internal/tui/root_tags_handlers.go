@@ -49,7 +49,9 @@ func (m Model) handleTagRenamed(msg tagRenamedMsg) Model {
 	return m
 }
 
-// handleTagDeleted processes tagDeletedMsg: shows notification or reverts on error.
+// handleTagDeleted processes tagDeletedMsg: reverts on error or no-ops on
+// success (the purge is now scheduled synchronously in handleTagDelete via
+// scheduleSoftDelete).
 func (m Model) handleTagDeleted(msg tagDeletedMsg) Model {
 	if msg.err != nil {
 		idx := min(msg.idx, len(m.tagsView.tags))
@@ -62,10 +64,6 @@ func (m Model) handleTagDeleted(msg tagDeletedMsg) Model {
 		m.statusBar.notify("Delete tag failed: " + msg.err.Error())
 		return m
 	}
-	if m.tagWriter != nil {
-		schedulePurge(&m.undo.slot, m.tagWriter.PurgeDeletedTags)
-	}
-	m.statusBar.notify("Tag deleted — press u to undo")
 	return m
 }
 

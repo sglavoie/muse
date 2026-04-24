@@ -2,10 +2,12 @@ package tui
 
 import (
 	"fmt"
+	"log/slog"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/player"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -117,16 +119,27 @@ func (m Model) handleTagDelete() (Model, tea.Cmd) {
 	}
 	m = m.rebuildTagCache(newGlobalTags)
 
-	m.setUndoSlot(undoDeleteTagAction{tag: tag, idx: canonicalIdx}, nil)
-
 	tw := m.tagWriter
-	return m, func() tea.Msg {
-		var err error
-		if tw != nil {
-			err = tw.DeleteTagSoft(tag.ID)
-		}
-		return tagDeletedMsg{tag: tag, idx: canonicalIdx, err: err}
-	}
+	cancel := m.scheduleSoftDelete(
+		func() {
+			if tw != nil {
+				if err := tw.DeleteTagSoft(tag.ID); err != nil {
+					slog.Warn("tag soft-delete failed", "id", tag.ID, "err", err)
+				}
+			}
+		},
+		func(before int64) {
+			if tw != nil {
+				if err := tw.PurgeDeletedTags(before); err != nil {
+					slog.Warn("tag purge failed", "err", err)
+				}
+			}
+		},
+	)
+
+	m.setUndoSlot(undoDeleteTagAction{tag: tag, idx: canonicalIdx}, cancel)
+	player.PlaySound(player.SoundRemoved)
+	return m, nil
 }
 
 // handleTagEnqueueAll enqueues all tracks for the focused tag.

@@ -43,6 +43,19 @@ func (m *Model) scheduleSoftDelete(softDeleteFn func(), purgeFn func(beforeUnix 
 	return cancel
 }
 
+// scheduleStandalonePurge schedules a deferred hard-delete of soft-deleted
+// rows that are NOT tied to an undo slot (e.g. auto-deleted tags). Unlike
+// schedulePurge, it does not touch the undo slot's cancel channel, so it
+// cannot corrupt an unrelated undo operation's purge timer.
+func scheduleStandalonePurge(purgeFn func(int64) error) {
+	softDeleteTime := time.Now().Unix()
+	time.AfterFunc(undoWindowDuration, func() {
+		if err := purgeFn(softDeleteTime + 1); err != nil {
+			slog.Warn("standalone purge failed", "err", err)
+		}
+	})
+}
+
 // schedulePurge sets up a deferred purge of soft-deleted queue entries.
 // It closes any existing cancel channel on the slot, creates a new one,
 // and schedules purgeFn to run after undoWindowDuration.
