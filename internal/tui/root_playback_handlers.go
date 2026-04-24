@@ -126,6 +126,7 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 				m.playlists.tracks[i].DurationMs = newDurationMs
 			}
 		}
+		m = m.preservePlaylistsSort()
 	}
 	if m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks {
 		for i := range m.favorites.tracks {
@@ -133,6 +134,7 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 				m.favorites.tracks[i].Duration = mpvTotal
 			}
 		}
+		m.favorites = m.favorites.recomputeFavoritesSort()
 	}
 	if m.favorites.level == favtui.TrackLevel {
 		for i := range m.favorites.drilldownTracks {
@@ -140,6 +142,7 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 				m.favorites.drilldownTracks[i].Duration = mpvTotal
 			}
 		}
+		m.favorites = m.favorites.recomputeFavoritesSort()
 	}
 	if m.tagsView.level == tagtui.TrackLevel {
 		for i := range m.tagsView.tracks {
@@ -147,6 +150,7 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 				m.tagsView.tracks[i].DurationMs = newDurationMs
 			}
 		}
+		m.tagsView = m.tagsView.recomputeTagsSort()
 	}
 	if m.artists.level == arttui.TrackLevel {
 		for i := range m.artists.tracks {
@@ -154,6 +158,7 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 				m.artists.tracks[i].Duration = mpvTotal
 			}
 		}
+		m.artists = m.artists.recomputeArtistsSort()
 	}
 	if m.albums.level == albtui.TrackLevel {
 		for i := range m.albums.tracks {
@@ -161,6 +166,7 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 				m.albums.tracks[i].Duration = mpvTotal
 			}
 		}
+		m.albums = m.albums.recomputeAlbumsSort()
 	}
 	if m.genres.level == gentui.TrackLevel {
 		for i := range m.genres.tracks {
@@ -168,6 +174,7 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 				m.genres.tracks[i].Duration = mpvTotal
 			}
 		}
+		m.genres = m.genres.recomputeGenresSort()
 	}
 
 	var cmd tea.Cmd

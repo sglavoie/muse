@@ -360,3 +360,83 @@ func TestCorrectStoredDurationRebuildsHistorySortCache(t *testing.T) {
 		t.Errorf("expected h1 first after correction, got %v", nm.history.sortedTracks[0].Hash)
 	}
 }
+
+// TestCorrectStoredDurationRebuildsArtistsSortCache verifies that
+// correctStoredDuration recomputes the artists track sort cache when a
+// duration sort is active.
+func TestCorrectStoredDurationRebuildsArtistsSortCache(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Duration: 360.0})
+	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "A", Duration: 100.0})
+	m.artists.level = arttui.TrackLevel
+	m.artists.tracks = []library.Track{
+		{Hash: "h1", Artist: "A", Duration: 360.0},
+		{Hash: "h2", Artist: "A", Duration: 100.0},
+	}
+	m.artists.sortState = SortState{Field: SortDuration, Dir: SortAsc}
+	m.artists = m.artists.recomputeArtistsSort()
+
+	// Before: h2 (100s) < h1 (360s).
+	if m.artists.tracks[0].Hash != "h2" {
+		t.Fatal("pre-condition: expected h2 first in duration-asc sort")
+	}
+
+	nm, _ := m.correctStoredDuration("h1", 50.0)
+
+	// After: h1 (50s) < h2 (100s).
+	if nm.artists.tracks[0].Hash != "h1" {
+		t.Errorf("expected h1 first after correction, got %v", nm.artists.tracks[0].Hash)
+	}
+}
+
+// TestCorrectStoredDurationRebuildsAlbumsSortCache verifies that
+// correctStoredDuration recomputes the albums track sort cache when a
+// duration sort is active.
+func TestCorrectStoredDurationRebuildsAlbumsSortCache(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Album: "X", Duration: 360.0})
+	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "A", Album: "X", Duration: 100.0})
+	m.albums.level = albtui.TrackLevel
+	m.albums.tracks = []library.Track{
+		{Hash: "h1", Artist: "A", Album: "X", Duration: 360.0},
+		{Hash: "h2", Artist: "A", Album: "X", Duration: 100.0},
+	}
+	m.albums.sortState = SortState{Field: SortDuration, Dir: SortAsc}
+	m.albums = m.albums.recomputeAlbumsSort()
+
+	if m.albums.tracks[0].Hash != "h2" {
+		t.Fatal("pre-condition: expected h2 first in duration-asc sort")
+	}
+
+	nm, _ := m.correctStoredDuration("h1", 50.0)
+
+	if nm.albums.tracks[0].Hash != "h1" {
+		t.Errorf("expected h1 first after correction, got %v", nm.albums.tracks[0].Hash)
+	}
+}
+
+// TestCorrectStoredDurationRebuildsGenresSortCache verifies that
+// correctStoredDuration recomputes the genres track sort cache when a
+// duration sort is active.
+func TestCorrectStoredDurationRebuildsGenresSortCache(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Genre: "Rock", Duration: 360.0})
+	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "A", Genre: "Rock", Duration: 100.0})
+	m.genres.level = gentui.TrackLevel
+	m.genres.tracks = []library.Track{
+		{Hash: "h1", Artist: "A", Genre: "Rock", Duration: 360.0},
+		{Hash: "h2", Artist: "A", Genre: "Rock", Duration: 100.0},
+	}
+	m.genres.sortState = SortState{Field: SortDuration, Dir: SortAsc}
+	m.genres = m.genres.recomputeGenresSort()
+
+	if m.genres.tracks[0].Hash != "h2" {
+		t.Fatal("pre-condition: expected h2 first in duration-asc sort")
+	}
+
+	nm, _ := m.correctStoredDuration("h1", 50.0)
+
+	if nm.genres.tracks[0].Hash != "h1" {
+		t.Errorf("expected h1 first after correction, got %v", nm.genres.tracks[0].Hash)
+	}
+}
