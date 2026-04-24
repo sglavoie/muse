@@ -99,9 +99,12 @@ func readTopEntries(d *DB, query string, arg int64) ([]StatEntry, error) {
 }
 
 func readCurrentStreak(d *DB) (int, error) {
+	// LIMIT 366 bounds the result set: streaks longer than a year are
+	// extremely unlikely, and without a limit SQLite must materialise every
+	// distinct play day before the Go-side loop can break on the first gap.
 	rows, err := d.Query(
 		`SELECT DISTINCT date(played_at, 'unixepoch', 'localtime') AS day
-		 FROM play_history ORDER BY day DESC`,
+		 FROM play_history ORDER BY day DESC LIMIT 366`,
 	)
 	if err != nil {
 		return 0, err
