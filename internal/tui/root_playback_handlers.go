@@ -317,6 +317,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 			m.playback.totalSecs = 0
 			m.playback.peakElapsedSecs = 0
 			m.playback.peakTotalSecs = 0
+			m.playback.durationCorrected = false
 			m.missingTrackCount = 0
 			return m, incrementCmd
 		}
@@ -332,6 +333,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 			m.playback.totalSecs = 0
 			m.playback.peakElapsedSecs = 0
 			m.playback.peakTotalSecs = 0
+			m.playback.durationCorrected = false
 			return m, incrementCmd
 		}
 	}
@@ -346,6 +348,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	m.playback.totalSecs = 0
 	m.playback.peakElapsedSecs = 0
 	m.playback.peakTotalSecs = 0
+	m.playback.durationCorrected = false
 	m.statusBar.artist = ""
 	m.statusBar.title = ""
 	m.statusBar.playlistSource = ""

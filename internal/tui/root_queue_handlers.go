@@ -68,6 +68,11 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 			m.playback.state = PlaybackPlaying
 			m.playback.currentHash = msg.Track.Hash
 			m.playback.currentIndex = enqueueIdx
+			m.playback.elapsedSecs = 0
+			m.playback.totalSecs = 0
+			m.playback.peakElapsedSecs = 0
+			m.playback.peakTotalSecs = 0
+			m.playback.durationCorrected = false
 			m.statusBar.artist = msg.Track.Artist
 			m.statusBar.title = msg.Track.Title
 			m.statusBar.playlistSource = queueSourceName(msg.SourcePlaylist)
@@ -106,6 +111,11 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 			m.playback.state = PlaybackPlaying
 			m.playback.currentHash = entry.Hash
 			m.playback.currentIndex = batchStartIdx
+			m.playback.elapsedSecs = 0
+			m.playback.totalSecs = 0
+			m.playback.peakElapsedSecs = 0
+			m.playback.peakTotalSecs = 0
+			m.playback.durationCorrected = false
 			m.statusBar.artist = entry.Artist
 			m.statusBar.title = entry.Title
 			m.statusBar.playlistSource = queueSourceName(msg.PlaylistName)
@@ -413,6 +423,9 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 			m.playback.currentIndex = insertPos
 			m.playback.elapsedSecs = 0
 			m.playback.totalSecs = 0
+			m.playback.peakElapsedSecs = 0
+			m.playback.peakTotalSecs = 0
+			m.playback.durationCorrected = false
 			m.statusBar.artist = entry.Artist
 			m.statusBar.title = entry.Title
 			m.statusBar.playlistSource = queueSourceName(entry.SourcePlaylist)
