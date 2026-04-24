@@ -61,6 +61,9 @@ func (cp CommandPalette) HandleKey(key string, msg tea.KeyPressMsg) (CommandPale
 	case "enter":
 		if cp.cursor >= 0 && cp.cursor < len(cp.filtered) {
 			picked := cp.filtered[cp.cursor]
+			if !picked.isEnabled() {
+				return cp, nil
+			}
 			return cp, func() tea.Msg { return CommandPalettePickedMsg{Command: picked} }
 		}
 	case "up", "ctrl+k", "ctrl+p":

@@ -127,6 +127,23 @@ func TestCommandPaletteEnterConfirms(t *testing.T) {
 	}
 }
 
+func TestCommandPaletteEnterSkipsDisabledCommand(t *testing.T) {
+	cmds := []PaletteCommand{
+		{Name: "Enabled cmd"},
+		{Name: "Disabled cmd", Enabled: func() bool { return false }},
+	}
+	cp, _ := NewCommandPalette(cmds)
+	// "Disabled cmd" sorts after "Enabled cmd"; cursor on it.
+	cp.cursor = 0 // "Disabled cmd" (alphabetically first: D < E)
+	if cp.filtered[0].Name != "Disabled cmd" {
+		t.Fatalf("expected Disabled cmd at index 0, got %q", cp.filtered[0].Name)
+	}
+	_, cmd := cp.HandleKey("enter", tea.KeyPressMsg{})
+	if cmd != nil {
+		t.Fatal("expected nil cmd for disabled command, got non-nil")
+	}
+}
+
 // --- esc dismisses ---
 
 func TestCommandPaletteEscDismisses(t *testing.T) {
