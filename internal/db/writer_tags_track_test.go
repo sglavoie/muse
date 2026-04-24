@@ -136,3 +136,57 @@ func TestRemoveTrackTagBulk_EmptyNoop(t *testing.T) {
 		t.Fatalf("RemoveTrackTagBulk empty: %v", err)
 	}
 }
+
+func TestRemoveAllTrackTags(t *testing.T) {
+	d, w := openTagDB(t)
+	seedTrack(t, d, "h1", "/a.flac")
+
+	id1, _ := w.CreateTag("chill", "")
+	id2, _ := w.CreateTag("focus", "")
+	_ = w.AddTrackTag("h1", id1)
+	_ = w.AddTrackTag("h1", id2)
+
+	// Verify both tags are assigned.
+	tags, _ := d.ReadTagsForTrack("h1")
+	if len(tags) != 2 {
+		t.Fatalf("setup: got %d tags, want 2", len(tags))
+	}
+
+	if err := w.RemoveAllTrackTags("h1"); err != nil {
+		t.Fatalf("RemoveAllTrackTags: %v", err)
+	}
+
+	tags, _ = d.ReadTagsForTrack("h1")
+	if len(tags) != 0 {
+		t.Errorf("got %d tags after RemoveAllTrackTags, want 0", len(tags))
+	}
+}
+
+func TestRemoveAllTrackTags_NoOp(t *testing.T) {
+	_, w := openTagDB(t)
+
+	// Should not error on a non-existent track.
+	if err := w.RemoveAllTrackTags("nonexistent"); err != nil {
+		t.Fatalf("RemoveAllTrackTags no-op: %v", err)
+	}
+}
+
+func TestRemoveAllTrackTags_DoesNotAffectOtherTracks(t *testing.T) {
+	d, w := openTagDB(t)
+	seedTrack(t, d, "h1", "/a.flac")
+	seedTrack(t, d, "h2", "/b.flac")
+
+	id, _ := w.CreateTag("shared", "")
+	_ = w.AddTrackTag("h1", id)
+	_ = w.AddTrackTag("h2", id)
+
+	if err := w.RemoveAllTrackTags("h1"); err != nil {
+		t.Fatalf("RemoveAllTrackTags: %v", err)
+	}
+
+	// h2 should still have the tag.
+	tags, _ := d.ReadTagsForTrack("h2")
+	if len(tags) != 1 {
+		t.Errorf("h2: got %d tags, want 1 (unaffected)", len(tags))
+	}
+}

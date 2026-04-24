@@ -302,6 +302,7 @@ type tagWriter interface {
 	UndoDeleteTag(id int64) error
 	AddTrackTag(hash string, tagID int64) error
 	RemoveTrackTag(hash string, tagID int64) error
+	RemoveAllTrackTags(hash string) error
 	AddTrackTagBulk(hashes []string, tagID int64) error
 	RemoveTrackTagBulk(hashes []string, tagID int64) error
 	MergeTags(sourceID, destID int64) error

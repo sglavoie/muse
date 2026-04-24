@@ -170,12 +170,14 @@ func (m Model) handleRemoveAllTagsFromTrack(msg removeAllTagsFromTrackMsg) (Mode
 		return m, nil
 	}
 	return m, func() tea.Msg {
+		// Remove all tag assignments in a single DB call instead of N
+		// individual RemoveTrackTag calls through the serialized writer.
+		if err := tw.RemoveAllTrackTags(hash); err != nil {
+			slog.Warn("remove all tags: DB write failed", "hash", hash, "err", err)
+			return allTagsRemovedMsg{hash: hash}
+		}
 		var autoDeleted []int64
 		for _, id := range ids {
-			if err := tw.RemoveTrackTag(hash, id); err != nil {
-				slog.Warn("remove all tags: DB write failed", "hash", hash, "tagID", id, "err", err)
-				continue
-			}
 			if deleted, err := tw.DeleteTagIfEmpty(id); err != nil {
 				slog.Warn("remove all tags: auto-delete empty tag failed", "tagID", id, "err", err)
 			} else if deleted {

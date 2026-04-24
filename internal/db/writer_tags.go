@@ -85,6 +85,15 @@ func (w *Writer) AddTrackTag(hash string, tagID int64) error {
 	})
 }
 
+// RemoveAllTrackTags removes every tag assignment for the given track hash
+// inside a single transaction. It is a no-op when the track has no tags.
+func (w *Writer) RemoveAllTrackTags(hash string) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(`DELETE FROM track_tags WHERE track_hash = ?`, hash)
+		return err
+	})
+}
+
 // RemoveTrackTag removes the assignment of a tag from a track. It is a no-op
 // when no matching row exists.
 func (w *Writer) RemoveTrackTag(hash string, tagID int64) error {

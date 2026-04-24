@@ -529,6 +529,7 @@ func (s *stubTagWriter) AddTrackTag(hash string, tagID int64) error {
 	return nil
 }
 func (s *stubTagWriter) RemoveTrackTag(_ string, _ int64) error { return nil }
+func (s *stubTagWriter) RemoveAllTrackTags(_ string) error      { return nil }
 func (s *stubTagWriter) AddTrackTagBulk(hashes []string, tagID int64) error {
 	s.addBulkCalls = append(s.addBulkCalls, struct {
 		hashes []string

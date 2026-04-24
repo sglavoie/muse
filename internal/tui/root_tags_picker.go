@@ -223,7 +223,14 @@ func (m Model) handleTagCreated(msg tagCreatedMsg) (Model, tea.Cmd) {
 		m.tagsView.tagCounts[msg.id] = len(msg.hashes)
 	}
 
-	return m.openTagPicker()
+	// Re-open the tag picker only when it was already active (i.e. the
+	// create originated from the picker's "+ Create" row). When the create
+	// came from the inline Tags-view input, no picker is open and we must
+	// not spawn one.
+	if m.overlay.tagPicker != nil {
+		return m.openTagPicker()
+	}
+	return m, nil
 }
 
 // handleTagToggled processes tagToggledMsg: reverts the optimistic update on

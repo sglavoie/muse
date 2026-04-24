@@ -293,6 +293,52 @@ func TestTagPickerToggleAdd_UpdatesTagFilterHashes(t *testing.T) {
 	}
 }
 
+// TestInlineTagCreate_DoesNotOpenPicker verifies that creating a tag via the
+// inline Tags-view input (pressing 'c') does NOT open the tag picker overlay.
+// Before the fix, handleTagCreated unconditionally called openTagPicker(),
+// which would flash "No track focused" or open an unwanted overlay.
+func TestInlineTagCreate_DoesNotOpenPicker(t *testing.T) {
+	const tagName = "inlinetag"
+
+	tr := &stubTagReader{
+		tags:      []db.TagRow{{ID: 1, Name: tagName}},
+		tagCounts: map[int64]int{1: 0},
+	}
+	tw := &stubTagWriter{}
+
+	m := New(context.Background(),
+		WithTagReader(tr),
+		WithTagWriter(tw),
+	)
+	m.activeView = viewTags
+	m.tagsView.level = tagtui.TagLevel
+
+	// No tag picker is open (inline create does not use the picker).
+	if m.overlay.tagPicker != nil {
+		t.Fatal("precondition: tag picker should not be open")
+	}
+
+	// Simulate inline create result.
+	msg := tagCreatedMsg{id: 1, name: tagName}
+
+	m = m.refreshTagsViewAfterCreate(msg)
+	m, cmd := m.handleTagCreated(msg)
+
+	// The tag picker must NOT be opened.
+	if m.overlay.tagPicker != nil {
+		t.Error("tag picker was opened after inline create; expected nil")
+	}
+	// No command should be returned (no picker to re-open).
+	if cmd != nil {
+		t.Error("handleTagCreated returned a non-nil cmd for inline create")
+	}
+
+	// The tag should still be in the cache.
+	if !m.hasTag(1) {
+		t.Error("inline-created tag not found in m.tags")
+	}
+}
+
 func copyTagHash(src map[string]struct{}) map[string]struct{} {
 	dst := make(map[string]struct{}, len(src))
 	for k, v := range src {
