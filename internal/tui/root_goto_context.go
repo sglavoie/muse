@@ -19,8 +19,7 @@ type goToContext struct {
 }
 
 // focusedGoToContext extracts the full metadata from the focused item in the
-// active view for use by the Go To popup. It extends focusedTrackMeta with
-// genre and source-playlist data.
+// active view for use by the Go To popup.
 func (m Model) focusedGoToContext() goToContext {
 	switch m.activeView {
 	case viewLibrary:

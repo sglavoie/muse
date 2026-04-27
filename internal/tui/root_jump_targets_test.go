@@ -216,14 +216,14 @@ func TestJumpToArtist_EmptyArtistViaAction(t *testing.T) {
 	// the track with Artist=="".
 	m.library.cursor = 1
 
-	artist, _, ok := m.focusedTrackMeta()
-	if !ok {
+	ctx := m.focusedGoToContext()
+	if !ctx.found {
 		t.Fatal("expected focused track to be found")
 	}
-	if artist != "" {
-		t.Fatalf("expected empty artist, got %q", artist)
+	if ctx.artist != "" {
+		t.Fatalf("expected empty artist, got %q", ctx.artist)
 	}
-	m = m.jumpToArtist(artist)
+	m = m.jumpToArtist(ctx.artist)
 
 	if m.activeView != viewArtists {
 		t.Errorf("activeView: want viewArtists, got %d", m.activeView)
@@ -247,14 +247,14 @@ func TestJumpToAlbum_EmptyAlbumViaAction(t *testing.T) {
 	// so Alice's track is at index 0.
 	m.library.cursor = 0
 
-	_, album, ok := m.focusedTrackMeta()
-	if !ok {
+	ctx := m.focusedGoToContext()
+	if !ctx.found {
 		t.Fatal("expected focused track to be found")
 	}
-	if album != "" {
-		t.Fatalf("expected empty album, got %q", album)
+	if ctx.album != "" {
+		t.Fatalf("expected empty album, got %q", ctx.album)
 	}
-	m = m.jumpToAlbum(album)
+	m = m.jumpToAlbum(ctx.album)
 
 	if m.activeView != viewAlbums {
 		t.Errorf("activeView: want viewAlbums, got %d", m.activeView)
