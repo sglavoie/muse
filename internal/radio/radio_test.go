@@ -21,14 +21,6 @@ func seedFrom(t library.Track, genres []string, tagIDs map[int64]struct{}) SeedT
 	}
 }
 
-func hashes(tracks []library.Track) map[string]struct{} {
-	m := make(map[string]struct{}, len(tracks))
-	for _, t := range tracks {
-		m[t.Hash] = struct{}{}
-	}
-	return m
-}
-
 // --- ScoreAll tests ---
 
 func TestScoreAll_SeedExcluded(t *testing.T) {
