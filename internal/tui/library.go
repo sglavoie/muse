@@ -109,6 +109,45 @@ func (v LibraryView) view() libtui.View {
 	return lv
 }
 
+// cycleSortField advances to the next sort field from the given list, resets
+// the cursor, and recomputes the sorted/filtered caches. It returns the
+// updated view and the new SortState for notification purposes.
+func (v LibraryView) cycleSortField(fields []SortField) (LibraryView, SortState) {
+	next := CycleSortField(v.sortState.Field, fields)
+	v.sortState.Field = next
+	if next == SortDefault {
+		v.sortState.Dir = SortAsc
+	}
+	v = v.recomputeSortedTracks()
+	v.cursor = 0
+	v.scrollOffset = 0
+	if v.filter.Text != "" {
+		v = v.rebuildFilterCache()
+	}
+	return v, v.sortState
+}
+
+// applySortDir sets the sort direction, preserving the focused track position.
+// Returns (updated view, sort state, true) when applied, or (v, zero, false)
+// when the current sort field is SortDefault.
+func (v LibraryView) applySortDir(dir SortDir) (LibraryView, SortState, bool) {
+	if v.sortState.Field == SortDefault {
+		return v, SortState{}, false
+	}
+	var focusedHash string
+	if t, ok := v.view().FocusedTrack(); ok {
+		focusedHash = t.Hash
+	}
+	v.sortState.Dir = dir
+	v = v.recomputeSortedTracks()
+	if v.filter.Text != "" {
+		v = v.rebuildFilterCache()
+	}
+	v.cursor = v.findTrackPosition(focusedHash)
+	v.scrollOffset = adjustScroll(v.cursor, v.scrollOffset, layout.VisibleRows(v.height, libraryViewVisibleReserve(v)))
+	return v, v.sortState, true
+}
+
 // recomputeSortedTracks rebuilds the sorted tracks cache based on the current
 // sort state. When sorting is default, the cache is cleared.
 func (v LibraryView) recomputeSortedTracks() LibraryView {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/sglavoie/muse/internal/tui/layout"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
@@ -29,50 +28,21 @@ func (m Model) handleSortAction(a action) (tea.Model, tea.Cmd, bool) {
 
 // handleSortCycle cycles to the next sort field for the active view.
 func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
+	var ss SortState
 	switch m.activeView {
 	case viewLibrary:
-		next := CycleSortField(m.library.sortState.Field, librarySortFields)
-		m.library.sortState.Field = next
-		if next == SortDefault {
-			m.library.sortState.Dir = SortAsc
-		}
-		m.library = m.library.recomputeSortedTracks()
-		m.library.cursor = 0
-		m.library.scrollOffset = 0
-		if m.library.filter.Text != "" {
-			m.library = m.library.rebuildFilterCache()
-		}
-		m.statusBar.notify(sortNotification(m.library.sortState))
+		m.library, ss = m.library.cycleSortField(librarySortFields)
+		m.statusBar.notify(sortNotification(ss))
 		return m, nil, true
 
 	case viewRecentlyAdded:
-		next := CycleSortField(m.recentlyAdded.sortState.Field, recentlyAddedSortFields)
-		m.recentlyAdded.sortState.Field = next
-		if next == SortDefault {
-			m.recentlyAdded.sortState.Dir = SortAsc
-		}
-		m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
-		m.recentlyAdded.cursor = 0
-		m.recentlyAdded.scrollOffset = 0
-		if m.recentlyAdded.filter.Text != "" {
-			m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
-		}
-		m.statusBar.notify(sortNotification(m.recentlyAdded.sortState))
+		m.recentlyAdded, ss = m.recentlyAdded.cycleSortField(recentlyAddedSortFields)
+		m.statusBar.notify(sortNotification(ss))
 		return m, nil, true
 
 	case viewHistory:
-		next := CycleSortField(m.history.sortState.Field, historySortFields)
-		m.history.sortState.Field = next
-		if next == SortDefault {
-			m.history.sortState.Dir = SortAsc
-		}
-		m.history = m.history.recomputeSortedTracks()
-		m.history.cursor = 0
-		m.history.scrollOffset = 0
-		if m.history.filter.Text != "" {
-			m.history = m.history.rebuildFilterCache()
-		}
-		m.statusBar.notify(sortNotification(m.history.sortState))
+		m.history, ss = m.history.cycleSortField(historySortFields)
+		m.statusBar.notify(sortNotification(ss))
 		return m, nil, true
 
 	case viewQueue:
@@ -196,57 +166,30 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 	switch m.activeView {
 	case viewLibrary:
-		if m.library.sortState.Field == SortDefault {
+		var ss SortState
+		var ok bool
+		if m.library, ss, ok = m.library.applySortDir(dir); !ok {
 			return m, nil, false
 		}
-		var focusedHash string
-		if t, ok := m.library.view().FocusedTrack(); ok {
-			focusedHash = t.Hash
-		}
-		m.library.sortState.Dir = dir
-		m.library = m.library.recomputeSortedTracks()
-		if m.library.filter.Text != "" {
-			m.library = m.library.rebuildFilterCache()
-		}
-		m.library.cursor = m.library.findTrackPosition(focusedHash)
-		m.library.scrollOffset = adjustScroll(m.library.cursor, m.library.scrollOffset, layout.VisibleRows(m.library.height, libraryViewVisibleReserve(m.library)))
-		m.statusBar.notify(sortNotification(m.library.sortState))
+		m.statusBar.notify(sortNotification(ss))
 		return m, nil, true
 
 	case viewRecentlyAdded:
-		if m.recentlyAdded.sortState.Field == SortDefault {
+		var ss SortState
+		var ok bool
+		if m.recentlyAdded, ss, ok = m.recentlyAdded.applySortDir(dir); !ok {
 			return m, nil, false
 		}
-		var focusedHash string
-		if t, ok := m.recentlyAdded.view().FocusedTrack(); ok {
-			focusedHash = t.Hash
-		}
-		m.recentlyAdded.sortState.Dir = dir
-		m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
-		if m.recentlyAdded.filter.Text != "" {
-			m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
-		}
-		m.recentlyAdded.cursor = m.recentlyAdded.findTrackPosition(focusedHash)
-		m.recentlyAdded.scrollOffset = adjustScroll(m.recentlyAdded.cursor, m.recentlyAdded.scrollOffset, layout.VisibleRows(m.recentlyAdded.height, libraryViewVisibleReserve(m.recentlyAdded)))
-		m.statusBar.notify(sortNotification(m.recentlyAdded.sortState))
+		m.statusBar.notify(sortNotification(ss))
 		return m, nil, true
 
 	case viewHistory:
-		if m.history.sortState.Field == SortDefault {
+		var ss SortState
+		var ok bool
+		if m.history, ss, ok = m.history.applySortDir(dir); !ok {
 			return m, nil, false
 		}
-		var focusedHash string
-		if t, ok := m.history.view().FocusedTrack(); ok {
-			focusedHash = t.Hash
-		}
-		m.history.sortState.Dir = dir
-		m.history = m.history.recomputeSortedTracks()
-		if m.history.filter.Text != "" {
-			m.history = m.history.rebuildFilterCache()
-		}
-		m.history.cursor = m.history.findTrackPosition(focusedHash)
-		m.history.scrollOffset = adjustScroll(m.history.cursor, m.history.scrollOffset, layout.VisibleRows(m.history.height, libraryViewVisibleReserve(m.history)))
-		m.statusBar.notify(sortNotification(m.history.sortState))
+		m.statusBar.notify(sortNotification(ss))
 		return m, nil, true
 
 	case viewQueue:
