@@ -230,15 +230,7 @@ func (v GenresView) clampCursor() GenresView {
 	default:
 		n = len(arttui.FilterStrings(v.genres, v.filter.Text))
 	}
-	if n == 0 {
-		v.cursor = 0
-		v.scrollOffset = 0
-	} else if v.cursor >= n {
-		v.cursor = n - 1
-	}
-	if v.scrollOffset > v.cursor {
-		v.scrollOffset = v.cursor
-	}
+	v.cursor, v.scrollOffset = clampCursorToCount(v.cursor, v.scrollOffset, n)
 	return v
 }
 

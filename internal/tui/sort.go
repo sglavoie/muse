@@ -255,6 +255,22 @@ func SortStrings(items []string, dir SortDir) []string {
 	return sorted
 }
 
+// clampCursorToCount constrains cursor and scrollOffset to a list of count
+// items. When count is 0 both values reset to 0. Otherwise cursor is clamped
+// to [0, count-1] and scrollOffset is pulled down to cursor when it exceeds it.
+func clampCursorToCount(cursor, scrollOffset, count int) (int, int) {
+	if count == 0 {
+		return 0, 0
+	}
+	if cursor >= count {
+		cursor = count - 1
+	}
+	if scrollOffset > cursor {
+		scrollOffset = cursor
+	}
+	return cursor, scrollOffset
+}
+
 // adjustScroll adjusts scrollOffset so that cursor is within the visible window.
 func adjustScroll(cursor, scrollOffset, maxRows int) int {
 	if cursor < scrollOffset {

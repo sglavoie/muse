@@ -195,15 +195,7 @@ func (v TagsView) clampCursor() TagsView {
 		filtered := tagtui.View{Tags: v.tags, TagCounts: v.tagCounts, FilterText: v.filter.Text}.EffectiveTags()
 		n = len(filtered)
 	}
-	if n == 0 {
-		v.cursor = 0
-		v.scrollOffset = 0
-	} else if v.cursor >= n {
-		v.cursor = n - 1
-	}
-	if v.scrollOffset > v.cursor {
-		v.scrollOffset = v.cursor
-	}
+	v.cursor, v.scrollOffset = clampCursorToCount(v.cursor, v.scrollOffset, n)
 	return v
 }
 

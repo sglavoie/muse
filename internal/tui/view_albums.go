@@ -186,16 +186,7 @@ func (v AlbumsView) clampCursor() AlbumsView {
 	default:
 		n = len(arttui.FilterStrings(v.albums, v.filter.Text))
 	}
-	if n == 0 {
-		v.cursor = 0
-		v.scrollOffset = 0
-	} else if v.cursor >= n {
-		v.cursor = n - 1
-	}
-	// Keep scrollOffset at or below cursor so the cursor is always visible.
-	if v.scrollOffset > v.cursor {
-		v.scrollOffset = v.cursor
-	}
+	v.cursor, v.scrollOffset = clampCursorToCount(v.cursor, v.scrollOffset, n)
 	return v
 }
 
