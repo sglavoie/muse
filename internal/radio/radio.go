@@ -134,11 +134,14 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 	for len(result) < n && len(pool) > 0 {
 		// Collect eligible indices (not at artist cap) and total weight.
 		eligible := make([]int, 0, len(pool))
+		weights := make([]float64, 0, len(pool))
 		totalWeight := 0.0
 		for i, ts := range pool {
 			if artistCount[ts.Track.Artist] < maxPerArtist {
+				weight := math.Max(ts.Score, 0.1)
 				eligible = append(eligible, i)
-				totalWeight += math.Max(ts.Score, 0.1)
+				weights = append(weights, weight)
+				totalWeight += weight
 			}
 		}
 
@@ -155,8 +158,8 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 		r := (float64(randomWeight.Uint64()) / float64(1<<53)) * totalWeight
 		pickedIdx := eligible[len(eligible)-1] // fallback to last eligible
 		cumulative := 0.0
-		for _, i := range eligible {
-			cumulative += math.Max(pool[i].Score, 0.1)
+		for j, i := range eligible {
+			cumulative += weights[j]
 			if r < cumulative {
 				pickedIdx = i
 				break
