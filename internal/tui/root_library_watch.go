@@ -2,6 +2,7 @@ package tui
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
@@ -13,14 +14,31 @@ import (
 // handleWatchBatchMsg processes filesystem watcher events, removing deleted
 // tracks and upserting changed ones.
 func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
-	for _, path := range msg.deleted {
+	m = m.watchApplyDeletes(msg.deleted)
+	m, msg.tracks = m.watchUpsertTracks(msg.tracks)
+	m = m.syncRecentlyAddedFromLibrary()
+	m = m.watchSyncQueueMetadata(msg.tracks)
+	m = m.watchSyncHistoryMetadata(msg.tracks)
+	m = m.watchSyncPlaylistMetadata(msg.tracks)
+	m = m.watchSyncFavoritesMetadata(msg.tracks)
+	m = m.watchSyncTagsMetadata(msg.tracks)
+	m = m.watchRecomputeLibrary()
+	m = m.watchRefreshDerivedViews()
+	if m.watchCh != nil {
+		return m, waitForWatchBatch(m.watchCh)
+	}
+	return m, nil
+}
+
+// watchApplyDeletes removes deleted paths from the library index and marks
+// the corresponding queue entries as missing.
+func (m Model) watchApplyDeletes(deleted []string) Model {
+	for _, path := range deleted {
 		m.library.index.RemoveByPath(path)
 	}
-	// Mark queue entries whose file was deleted as missing so they appear
-	// grayed out immediately rather than waiting until playback tries them.
-	if len(msg.deleted) > 0 {
-		deletedSet := make(map[string]struct{}, len(msg.deleted))
-		for _, p := range msg.deleted {
+	if len(deleted) > 0 {
+		deletedSet := make(map[string]struct{}, len(deleted))
+		for _, p := range deleted {
 			deletedSet[p] = struct{}{}
 		}
 		for i := range m.queue.entries {
@@ -29,7 +47,14 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 			}
 		}
 	}
-	for i, t := range msg.tracks {
+	return m
+}
+
+// watchUpsertTracks applies user-edited overlays and preserved metadata, then
+// upserts each track into the library index. It returns the updated model and
+// the (possibly modified) track slice for downstream consumers.
+func (m Model) watchUpsertTracks(tracks []library.Track) (Model, []library.Track) {
+	for i, t := range tracks {
 		t = m.preserveTrackMetadata(t)
 		if edited, ok := m.userEditedOverlay[t.Hash]; ok {
 			t.Title = edited.Title
@@ -37,14 +62,18 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 			t.Album = edited.Album
 			t.Genre = edited.Genre
 		}
-		msg.tracks[i] = t
+		tracks[i] = t
 		m.library.index.UpsertByPath(t.Path, t)
 	}
-	m = m.syncRecentlyAddedFromLibrary()
-	// Update queue entries whose track metadata was refreshed by the watcher
-	// so the queue view stays in sync with on-disk changes.
+	return m, tracks
+}
+
+// watchSyncQueueMetadata updates in-memory queue entries whose track metadata
+// was refreshed by the watcher, keeping the queue view in sync with on-disk
+// changes.
+func (m Model) watchSyncQueueMetadata(tracks []library.Track) Model {
 	queueDirty := false
-	for _, t := range msg.tracks {
+	for _, t := range tracks {
 		display := trackDisplay(t.Artist, t.Title, t.Path)
 		for i := range m.queue.entries {
 			if m.queue.entries[i].Hash == t.Hash {
@@ -54,64 +83,75 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 				m.queue.entries[i].DurationMs = int64(t.Duration * 1000)
 				m.queue.entries[i].Display = display
 				queueDirty = true
-				// If the track was previously missing and the watcher
-				// now found it again (re-created file), clear the flag.
 				if m.queue.entries[i].Missing {
 					m.queue.entries[i].Missing = false
 				}
 			}
 		}
-		// If the currently-playing track was updated, refresh the status bar.
 		if m.playback.currentHash == t.Hash {
 			m.statusBar.artist = t.Artist
 			m.statusBar.title = t.Title
 		}
 	}
-	// Keep the player's in-memory queue in sync when entries changed.
 	if queueDirty {
 		m.syncPlayerQueue()
 		m = m.preserveQueueSort()
 	}
-	// Refresh history track metadata so the history view reflects
-	// watcher-detected changes.
-	if len(m.history.sourceTracks) > 0 {
-		for _, t := range msg.tracks {
-			for i := range m.history.sourceTracks {
-				if m.history.sourceTracks[i].Hash == t.Hash {
-					m.history.sourceTracks[i].Title = t.Title
-					m.history.sourceTracks[i].Artist = t.Artist
-					m.history.sourceTracks[i].Album = t.Album
-					m.history.sourceTracks[i].Genre = t.Genre
-					m.history.sourceTracks[i].Duration = t.Duration
-				}
+	return m
+}
+
+// watchSyncHistoryMetadata refreshes history track metadata so the history
+// view reflects watcher-detected changes.
+func (m Model) watchSyncHistoryMetadata(tracks []library.Track) Model {
+	if len(m.history.sourceTracks) == 0 {
+		return m
+	}
+	for _, t := range tracks {
+		for i := range m.history.sourceTracks {
+			if m.history.sourceTracks[i].Hash == t.Hash {
+				m.history.sourceTracks[i].Title = t.Title
+				m.history.sourceTracks[i].Artist = t.Artist
+				m.history.sourceTracks[i].Album = t.Album
+				m.history.sourceTracks[i].Genre = t.Genre
+				m.history.sourceTracks[i].Duration = t.Duration
 			}
 		}
-		if m.history.sortState.Field != SortDefault {
-			m.history = m.history.recomputeSortedTracks()
-		}
-		if m.history.filter.Text != "" {
-			m.history = m.history.rebuildFilterCache()
-		}
 	}
-	// Refresh playlist track metadata so the playlists view reflects
-	// watcher-detected changes.
-	if m.playlists.level == pltui.TrackLevel {
-		for _, t := range msg.tracks {
-			for i := range m.playlists.tracks {
-				if m.playlists.tracks[i].Hash == t.Hash {
-					m.playlists.tracks[i].Title = t.Title
-					m.playlists.tracks[i].Artist = t.Artist
-					m.playlists.tracks[i].Album = t.Album
-					m.playlists.tracks[i].DurationMs = int64(t.Duration * 1000)
-				}
+	if m.history.sortState.Field != SortDefault {
+		m.history = m.history.recomputeSortedTracks()
+	}
+	if m.history.filter.Text != "" {
+		m.history = m.history.rebuildFilterCache()
+	}
+	return m
+}
+
+// watchSyncPlaylistMetadata refreshes playlist track metadata so the
+// playlists view reflects watcher-detected changes.
+func (m Model) watchSyncPlaylistMetadata(tracks []library.Track) Model {
+	if m.playlists.level != pltui.TrackLevel {
+		return m
+	}
+	for _, t := range tracks {
+		for i := range m.playlists.tracks {
+			if m.playlists.tracks[i].Hash == t.Hash {
+				m.playlists.tracks[i].Title = t.Title
+				m.playlists.tracks[i].Artist = t.Artist
+				m.playlists.tracks[i].Album = t.Album
+				m.playlists.tracks[i].DurationMs = int64(t.Duration * 1000)
 			}
 		}
-		m = m.preservePlaylistsSort()
 	}
-	// Refresh favorites track metadata so the favorites view reflects
-	// watcher-detected changes.
+	m = m.preservePlaylistsSort()
+	return m
+}
+
+// watchSyncFavoritesMetadata refreshes favorites track metadata (both the
+// top-level track list and the drill-down track list) so the favorites view
+// reflects watcher-detected changes.
+func (m Model) watchSyncFavoritesMetadata(tracks []library.Track) Model {
 	if m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks {
-		for _, t := range msg.tracks {
+		for _, t := range tracks {
 			for i := range m.favorites.tracks {
 				if m.favorites.tracks[i].Hash == t.Hash {
 					m.favorites.tracks[i].Title = t.Title
@@ -125,7 +165,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 		m.favorites = m.favorites.recomputeFavoritesSort()
 	}
 	if m.favorites.level == favtui.TrackLevel {
-		for _, t := range msg.tracks {
+		for _, t := range tracks {
 			for i := range m.favorites.drilldownTracks {
 				if m.favorites.drilldownTracks[i].Hash == t.Hash {
 					m.favorites.drilldownTracks[i].Title = t.Title
@@ -138,34 +178,38 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 		}
 		m.favorites = m.favorites.recomputeFavoritesSort()
 	}
-	// Refresh tags track metadata so the tags view reflects
-	// watcher-detected changes.
-	if m.tagsView.level == tagtui.TrackLevel {
-		for _, t := range msg.tracks {
-			for i := range m.tagsView.tracks {
-				if m.tagsView.tracks[i].Hash == t.Hash {
-					m.tagsView.tracks[i].Title = t.Title
-					m.tagsView.tracks[i].Artist = t.Artist
-					m.tagsView.tracks[i].Album = t.Album
-					m.tagsView.tracks[i].DurationMs = int64(t.Duration * 1000)
-				}
+	return m
+}
+
+// watchSyncTagsMetadata refreshes tags track metadata so the tags view
+// reflects watcher-detected changes.
+func (m Model) watchSyncTagsMetadata(tracks []library.Track) Model {
+	if m.tagsView.level != tagtui.TrackLevel {
+		return m
+	}
+	for _, t := range tracks {
+		for i := range m.tagsView.tracks {
+			if m.tagsView.tracks[i].Hash == t.Hash {
+				m.tagsView.tracks[i].Title = t.Title
+				m.tagsView.tracks[i].Artist = t.Artist
+				m.tagsView.tracks[i].Album = t.Album
+				m.tagsView.tracks[i].DurationMs = int64(t.Duration * 1000)
 			}
 		}
-		m.tagsView = m.tagsView.recomputeTagsSort()
 	}
-	// Recompute sorted tracks if a sort is active so the cached copy
-	// reflects insertions and deletions from the watcher.
+	m.tagsView = m.tagsView.recomputeTagsSort()
+	return m
+}
+
+// watchRecomputeLibrary recomputes sorted tracks, filter cache, and clamps
+// the library cursor after watcher-driven insertions and deletions.
+func (m Model) watchRecomputeLibrary() Model {
 	if m.library.sortState.Field != SortDefault {
 		m.library = m.library.recomputeSortedTracks()
 	}
-	// Invalidate the cached fuzzy-match results so that stale TrackIndex
-	// values from the previous index state cannot cause an out-of-bounds
-	// panic when the filter is active and the user navigates or renders.
 	if m.library.filter.Text != "" {
 		m.library = m.library.rebuildFilterCache()
 	}
-	// Clamp library cursor to the effective track count (filtered or
-	// unfiltered) so it cannot point beyond the end after deletions.
 	if m.library.filter.Text != "" && m.library.filteredMatches != nil {
 		n := len(m.library.filteredMatches)
 		if n == 0 {
@@ -183,15 +227,15 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 			m.library.cursor = n - 1
 		}
 	}
-	// Keep scrollOffset at or below cursor so the cursor is always visible.
 	if m.library.scrollOffset > m.library.cursor {
 		m.library.scrollOffset = m.library.cursor
 	}
-	// Refresh artist/album derived views so they stay current when the
-	// filesystem watcher detects changes. At deeper drill-down levels
-	// (AlbumLevel, TrackLevel) the owned slices must also be refreshed;
-	// otherwise the user sees stale metadata until they navigate away
-	// and back.
+	return m
+}
+
+// watchRefreshDerivedViews refreshes artist, album, and genre derived views
+// so they stay current when the filesystem watcher detects changes.
+func (m Model) watchRefreshDerivedViews() Model {
 	allTracks := m.library.index.Tracks()
 	switch m.artists.level {
 	case arttui.ArtistLevel:
@@ -231,8 +275,5 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 		m.genres = m.genres.recomputeGenresSort()
 		m.genres = m.genres.clampCursor()
 	}
-	if m.watchCh != nil {
-		return m, waitForWatchBatch(m.watchCh)
-	}
-	return m, nil
+	return m
 }
