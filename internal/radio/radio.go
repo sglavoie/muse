@@ -1,8 +1,9 @@
 package radio
 
 import (
+	cryptorand "crypto/rand"
 	"math"
-	"math/rand/v2"
+	"math/big"
 	"sort"
 
 	"github.com/sglavoie/muse/internal/library"
@@ -145,8 +146,13 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 			break
 		}
 
-		// Weighted random pick.
-		r := rand.Float64() * totalWeight
+		maxWeight := new(big.Int).SetUint64(1 << 53)
+		randomWeight, err := cryptorand.Int(cryptorand.Reader, maxWeight)
+		if err != nil {
+			break
+		}
+
+		r := (float64(randomWeight.Uint64()) / float64(1<<53)) * totalWeight
 		pickedIdx := eligible[len(eligible)-1] // fallback to last eligible
 		cumulative := 0.0
 		for _, i := range eligible {
