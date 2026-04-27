@@ -5,8 +5,6 @@ import (
 	"log/slog"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/sglavoie/muse/internal/db"
-	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
@@ -288,19 +286,4 @@ func (m Model) handleDestPickerKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bo
 	updated, cmd := m.overlay.destPicker.HandleKey(msg.String())
 	m.overlay.destPicker = &updated
 	return m, cmd, true
-}
-
-func playlistTracksToLibraryTracks(rows []db.PlaylistTrackRow) []library.Track {
-	tracks := make([]library.Track, len(rows))
-	for i, r := range rows {
-		tracks[i] = library.Track{
-			Hash:     r.Hash,
-			Path:     r.Path,
-			Artist:   r.Artist,
-			Title:    r.Title,
-			Album:    r.Album,
-			Duration: float64(r.DurationMs) / 1000,
-		}
-	}
-	return tracks
 }

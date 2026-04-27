@@ -270,7 +270,7 @@ func (m Model) handlePlaylistKeyAction(action action) (Model, tea.Cmd, bool) {
 				if len(rows) == 0 {
 					return BatchEnqueuedMsg{PlaylistName: playlistName}
 				}
-				tracks := playlistTracksToLibraryTracks(rows)
+				tracks := playlistRowsToLibTracks(rows)
 				ids, err := be.AppendTracks(tracks, playlistName)
 				if err != nil {
 					return BatchEnqueuedMsg{Err: err}
@@ -297,7 +297,7 @@ func (m Model) handlePlaylistKeyAction(action action) (Model, tea.Cmd, bool) {
 			if len(rows) == 0 {
 				return BatchEnqueuedMsg{PlaylistName: playlistName}
 			}
-			tracks := playlistTracksToLibraryTracks(rows)
+			tracks := playlistRowsToLibTracks(rows)
 			ids, err := be.AppendTracks(tracks, playlistName)
 			if err != nil {
 				return BatchEnqueuedMsg{Err: err}

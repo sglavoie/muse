@@ -53,15 +53,9 @@ type FavoriteWriter interface {
 	RemoveFavoritesByTypeAndValues(typ string, values []string) error
 }
 
-// BatchUpserter persists scanned tracks in bulk.
-type BatchUpserter interface {
-	UpsertBatch(tracks []library.Track) error
-}
-
 var _ SessionWriter = (*Writer)(nil)
 var _ QueueDequeuer = (*Writer)(nil)
 var _ FavoriteWriter = (*Writer)(nil)
-var _ BatchUpserter = (*Writer)(nil)
 
 // writeCmd is a single unit of work sent to the writer goroutine.
 // The caller blocks on resp until the goroutine sends the result back.
