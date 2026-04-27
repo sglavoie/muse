@@ -35,6 +35,18 @@ func (m Model) handleLibraryBulkAction(action action) (tea.Model, tea.Cmd, bool)
 	return m, nil, true
 }
 
+// collectSelectedTracks returns tracks whose Hash is in the selected set,
+// preserving the order of the input slice.
+func collectSelectedTracks(tracks []library.Track, selected map[string]struct{}) []library.Track {
+	out := make([]library.Track, 0, len(selected))
+	for _, t := range tracks {
+		if _, ok := selected[t.Hash]; ok {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
 func (m Model) bulkActionTracks() []library.Track {
 	switch m.activeView {
 	case viewLibrary:
@@ -60,13 +72,7 @@ func (m Model) bulkActionTracks() []library.Track {
 
 func (m Model) bulkLibraryTracks() []library.Track {
 	if len(m.library.selectedHashes) > 0 {
-		var tracks []library.Track
-		for _, track := range m.library.index.Tracks() {
-			if _, ok := m.library.selectedHashes[track.Hash]; ok {
-				tracks = append(tracks, track)
-			}
-		}
-		return tracks
+		return collectSelectedTracks(m.library.index.Tracks(), m.library.selectedHashes)
 	}
 	if track, ok := m.library.view().FocusedTrack(); ok {
 		return []library.Track{track}
@@ -80,13 +86,7 @@ func (m Model) bulkRecentlyAddedTracks() []library.Track {
 		trackOrder = m.recentlyAdded.sortedTracks
 	}
 	if len(m.recentlyAdded.selectedHashes) > 0 {
-		var tracks []library.Track
-		for _, track := range trackOrder {
-			if _, ok := m.recentlyAdded.selectedHashes[track.Hash]; ok {
-				tracks = append(tracks, track)
-			}
-		}
-		return tracks
+		return collectSelectedTracks(trackOrder, m.recentlyAdded.selectedHashes)
 	}
 	if track, ok := m.recentlyAdded.view().FocusedTrack(); ok {
 		return []library.Track{track}
@@ -100,13 +100,7 @@ func (m Model) bulkHistoryTracks() []library.Track {
 		historyOrder = m.history.sortedTracks
 	}
 	if len(m.history.selectedHashes) > 0 {
-		var tracks []library.Track
-		for _, track := range historyOrder {
-			if _, ok := m.history.selectedHashes[track.Hash]; ok {
-				tracks = append(tracks, track)
-			}
-		}
-		return tracks
+		return collectSelectedTracks(historyOrder, m.history.selectedHashes)
 	}
 	if track, ok := m.history.view().FocusedTrack(); ok {
 		return []library.Track{track}
@@ -134,13 +128,7 @@ func (m Model) bulkArtistTracks() []library.Track {
 		}
 	case arttui.TrackLevel:
 		if len(m.artists.selectedHashes) > 0 {
-			var tracks []library.Track
-			for _, track := range m.artists.tracks {
-				if _, ok := m.artists.selectedHashes[track.Hash]; ok {
-					tracks = append(tracks, track)
-				}
-			}
-			return tracks
+			return collectSelectedTracks(m.artists.tracks, m.artists.selectedHashes)
 		}
 		if track, ok := m.artists.focusedTrack(); ok {
 			return []library.Track{track}
@@ -158,13 +146,7 @@ func (m Model) bulkAlbumTracks() []library.Track {
 		}
 	case albtui.TrackLevel:
 		if len(m.albums.selectedHashes) > 0 {
-			var tracks []library.Track
-			for _, track := range m.albums.tracks {
-				if _, ok := m.albums.selectedHashes[track.Hash]; ok {
-					tracks = append(tracks, track)
-				}
-			}
-			return tracks
+			return collectSelectedTracks(m.albums.tracks, m.albums.selectedHashes)
 		}
 		if track, ok := m.albums.focusedTrack(); ok {
 			return []library.Track{track}
@@ -186,13 +168,7 @@ func (m Model) bulkGenreTracks() []library.Track {
 		}
 	case gentui.TrackLevel:
 		if len(m.genres.selectedHashes) > 0 {
-			var tracks []library.Track
-			for _, track := range m.genres.tracks {
-				if _, ok := m.genres.selectedHashes[track.Hash]; ok {
-					tracks = append(tracks, track)
-				}
-			}
-			return tracks
+			return collectSelectedTracks(m.genres.tracks, m.genres.selectedHashes)
 		}
 		if track, ok := m.genres.focusedTrack(); ok {
 			return []library.Track{track}
