@@ -32,6 +32,7 @@ const (
 type SessionWriter interface {
 	WriteRepeatMode(mode string) error
 	WriteShuffle(enabled bool) error
+	WriteRadioMode(enabled bool) error
 	UpdateSessionPosition(hash string, positionMs int64) error
 	WriteVolume(volume int) error
 }

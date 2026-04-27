@@ -38,6 +38,13 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		},
 	})
 
+	cmds = append(cmds, PaletteCommand{
+		Name: "Toggle radio mode (Auto-DJ)",
+		Exec: func() tea.Cmd {
+			return func() tea.Msg { return commandPaletteActionMsg{action: actionRadioToggle} }
+		},
+	})
+
 	trackFocused := func() bool { _, _, _, found := m.focusedTrackForPalette(); return found }
 
 	cmds = append(cmds, PaletteCommand{

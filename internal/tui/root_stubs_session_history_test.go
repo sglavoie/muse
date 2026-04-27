@@ -1,11 +1,12 @@
 package tui
 
-// stubSessionWriter records WriteRepeatMode, WriteShuffle,
+// stubSessionWriter records WriteRepeatMode, WriteShuffle, WriteRadioMode,
 // UpdateSessionPosition, and WriteVolume calls for assertion in tests.
 type stubSessionWriter struct {
-	calls         []string
-	shuffleCalls  []bool
-	positionCalls []struct {
+	calls          []string
+	shuffleCalls   []bool
+	radioModeCalls []bool
+	positionCalls  []struct {
 		hash       string
 		positionMs int64
 	}
@@ -19,6 +20,11 @@ func (s *stubSessionWriter) WriteRepeatMode(mode string) error {
 
 func (s *stubSessionWriter) WriteShuffle(enabled bool) error {
 	s.shuffleCalls = append(s.shuffleCalls, enabled)
+	return nil
+}
+
+func (s *stubSessionWriter) WriteRadioMode(enabled bool) error {
+	s.radioModeCalls = append(s.radioModeCalls, enabled)
 	return nil
 }
 

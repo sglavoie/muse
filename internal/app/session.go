@@ -78,6 +78,7 @@ func ApplyRestoredSession(
 		}
 	}
 	tui.WithShuffle(restored.Shuffle)(model)
+	tui.WithRadioMode(restored.RadioMode)(model)
 	vol := restored.Volume
 	if vol < 0 {
 		vol = defaultVolume

@@ -215,6 +215,8 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		}
 		m.statusBar.notification = newNotificationFor("Stop after current: "+label, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second)
 		return m, nil, true
+	case actionRadioToggle:
+		return m.radioToggle()
 	}
 	return m, nil, false
 }

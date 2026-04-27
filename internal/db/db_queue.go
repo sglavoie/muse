@@ -26,6 +26,7 @@ type QueueRow struct {
 type SessionRow struct {
 	RepeatMode  string
 	Shuffle     bool
+	RadioMode   bool
 	CurrentHash string
 	PositionMs  int64
 	Volume      float64
@@ -71,10 +72,11 @@ func (d *DB) ReadSession() (*SessionRow, error) {
 	var row SessionRow
 	var currentHash sql.NullString
 	var shuffle int
+	var radioMode int
 	err := d.QueryRow(`
-		SELECT repeat_mode, shuffle, current_hash, position_ms, volume
+		SELECT repeat_mode, shuffle, radio_mode, current_hash, position_ms, volume
 		FROM session WHERE id = 1
-	`).Scan(&row.RepeatMode, &shuffle, &currentHash, &row.PositionMs, &row.Volume)
+	`).Scan(&row.RepeatMode, &shuffle, &radioMode, &currentHash, &row.PositionMs, &row.Volume)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -82,6 +84,7 @@ func (d *DB) ReadSession() (*SessionRow, error) {
 		return nil, fmt.Errorf("db: read session: %w", err)
 	}
 	row.Shuffle = shuffle != 0
+	row.RadioMode = radioMode != 0
 	if currentHash.Valid {
 		row.CurrentHash = currentHash.String
 	}

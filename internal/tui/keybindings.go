@@ -62,6 +62,7 @@ const (
 	actionCommandPalette   // ':': open command palette
 	actionTagPicker        // 't': open tag picker overlay
 	actionTagFilter        // ctrl+t: open/clear cross-view tag filter
+	actionRadioToggle      // 'A': toggle radio / auto-DJ mode
 
 	actionSwitchArtists
 	actionSwitchAlbums
@@ -217,6 +218,7 @@ func newRegistry() Registry {
 	r.register(contextGlobal, ":", actionCommandPalette)
 	r.register(contextGlobal, "t", actionTagPicker)
 	r.register(contextGlobal, "ctrl+t", actionTagFilter)
+	r.register(contextGlobal, "A", actionRadioToggle)
 
 	// Library-local bindings.
 	r.registerNavigation(contextLibrary)

@@ -202,6 +202,7 @@ type Model struct {
 	missingTrackCount int
 
 	playback playbackInfo // current playback state, repeat, shuffle, volume, position
+	radio    radioState  // auto-DJ / radio mode state
 
 	// runtimeDir is the XDG_RUNTIME_DIR-based directory for ephemeral sockets
 	// (e.g. preview player). Set via WithRuntimeDir before tea.NewProgram.

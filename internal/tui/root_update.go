@@ -315,6 +315,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case enqueueByTagMsg:
 		return m.handleEnqueueByTag(msg)
 
+	case RadioBatchEnqueuedMsg:
+		return m.handleRadioBatchEnqueuedMsg(msg)
+
 	case commandPaletteActionMsg:
 		return m.handleKeyAction(msg.action)
 

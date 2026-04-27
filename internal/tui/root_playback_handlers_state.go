@@ -71,6 +71,27 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 		}
 	}
 
+	// Radio mode: enqueue a new batch if enabled and guards pass.
+	if !wasStopAfter {
+		if cmd := m.radioMaybeEnqueueCmd(); cmd != nil {
+			m.playback.queueExhausted = true
+			m.playback.state = PlaybackIdle
+			m.playback.elapsedSecs = 0
+			m.playback.totalSecs = 0
+			m.playback.peakElapsedSecs = 0
+			m.playback.peakTotalSecs = 0
+			m.playback.durationCorrected = false
+			m.statusBar.artist = ""
+			m.statusBar.title = ""
+			m.statusBar.playlistSource = ""
+			m.playback.currentHash = ""
+			m.playback.currentIndex = -1
+			m.missingTrackCount = 0
+			player.PlayQueueFinishedSound()
+			return m, tea.Batch(incrementCmd, cmd)
+		}
+	}
+
 	// Mark queue as exhausted so a subsequent paste can auto-resume.
 	if !wasStopAfter {
 		m.playback.queueExhausted = true
@@ -253,5 +274,9 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 			}
 		}
 	}
-	return m, tea.Batch(m.sessionPositionCmd(), incrementCmd)
+	// Radio mode: update seed and check low-water-mark.
+	m.radio.seedHash = msg.Hash
+	radioCmd := m.radioMaybeEnqueueCmd()
+
+	return m, tea.Batch(m.sessionPositionCmd(), incrementCmd, radioCmd)
 }

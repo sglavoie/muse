@@ -125,6 +125,21 @@ func (w *Writer) WriteVolume(volume int) error {
 	})
 }
 
+// WriteRadioMode persists the radio mode flag to the single session row.
+func (w *Writer) WriteRadioMode(enabled bool) error {
+	return w.Exec(func(db *sql.DB) error {
+		radioVal := 0
+		if enabled {
+			radioVal = 1
+		}
+		_, err := db.Exec(
+			`UPDATE session SET radio_mode=?, updated_at=? WHERE id=1`,
+			radioVal, time.Now().Unix(),
+		)
+		return err
+	})
+}
+
 // WriteRepeatMode persists the repeat mode to the single session row.
 // mode must be one of "none", "all", or "one" (matching the DB CHECK constraint).
 func (w *Writer) WriteRepeatMode(mode string) error {

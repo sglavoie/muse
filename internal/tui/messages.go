@@ -438,3 +438,13 @@ type enqueueByTagMsg struct {
 	tagID int64
 	name  string
 }
+
+// RadioBatchEnqueuedMsg carries the result of a radio auto-enqueue batch.
+// Root handles it by appending entries to the queue and optionally
+// starting playback when the queue was exhausted.
+type RadioBatchEnqueuedMsg struct {
+	Entries  []QueueEntry
+	QueueIDs []int64
+	WasEmpty bool
+	Err      error
+}

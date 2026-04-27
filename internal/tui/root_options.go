@@ -266,6 +266,11 @@ func WithShuffle(enabled bool) Option {
 	return func(m *Model) { m.playback.shuffle = enabled }
 }
 
+// WithRadioMode pre-sets the radio mode flag.
+func WithRadioMode(enabled bool) Option {
+	return func(m *Model) { m.radio.enabled = enabled }
+}
+
 // WithVolume pre-sets the volume level.
 func WithVolume(v int) Option {
 	return func(m *Model) { m.playback.volume = clampVolume(v) }

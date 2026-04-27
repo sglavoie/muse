@@ -44,6 +44,9 @@ type RestoredSession struct {
 	// PositionMs is the elapsed playback position in milliseconds.
 	PositionMs int64
 
+	// RadioMode from the persisted session row (default: false).
+	RadioMode bool
+
 	// Volume is the last-saved volume percentage (0–100).
 	// Negative means no volume was persisted; callers should fall back to default.
 	Volume int
@@ -326,12 +329,14 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 
 	var repeatMode tui.RepeatMode
 	var shuffle bool
+	var radioMode bool
 	var currentHash string
 	var positionMs int64
 	var volume int = -1
 	if sess != nil {
 		repeatMode = parseRepeatMode(sess.RepeatMode)
 		shuffle = sess.Shuffle
+		radioMode = sess.RadioMode
 		currentHash = sess.CurrentHash
 		positionMs = sess.PositionMs
 		volume = int(math.Round(sess.Volume * 100))
@@ -342,6 +347,7 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 		PlayerTracks: playerTracks,
 		RepeatMode:   repeatMode,
 		Shuffle:      shuffle,
+		RadioMode:    radioMode,
 		CurrentHash:  currentHash,
 		PositionMs:   positionMs,
 		Volume:       volume,

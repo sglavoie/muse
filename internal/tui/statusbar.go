@@ -71,6 +71,10 @@ type StatusBar struct {
 	// activeTagName is non-empty when a cross-view tag filter is active.
 	// Injected by renderStatusBar from the root Model.
 	activeTagName string
+
+	// radioMode is true when Auto-DJ / radio mode is active.
+	// Injected by renderStatusBar from the root Model.
+	radioMode bool
 }
 
 // handleScanProgress sets the transient notification to a formatted progress
@@ -240,6 +244,10 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	if s.stopAfterCurrent {
 		suffix += barBold.Render("  N")
 		suffixWidth += 2 + 1
+	}
+	if s.radioMode {
+		suffix += barBold.Render("  DJ")
+		suffixWidth += 2 + 2
 	}
 	if s.visualMode {
 		suffix += barBold.Render("  V")
