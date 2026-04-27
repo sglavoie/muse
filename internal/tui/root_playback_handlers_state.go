@@ -9,37 +9,47 @@ import (
 	"github.com/sglavoie/muse/internal/player"
 )
 
+func (m Model) playCountIncrementCmd(hash string, elapsedSecs, totalSecs float64) tea.Cmd {
+	if hash == "" || !shouldCountPlay(elapsedSecs, totalSecs) {
+		return nil
+	}
+
+	now := time.Now().Unix()
+	m.library.index.IncrementPlayCount(hash, now)
+	if m.historyRecorder != nil {
+		hr := m.historyRecorder
+		elapsed := int(elapsedSecs)
+		return func() tea.Msg {
+			if err := hr.RecordPlay(hash, now, elapsed); err != nil {
+				slog.Warn("play count: RecordPlay failed", "hash", hash, "err", err)
+			}
+			return nil
+		}
+	}
+	if m.playCountWriter != nil {
+		pcw := m.playCountWriter
+		return func() tea.Msg {
+			if err := pcw.IncrementPlayCount(hash); err != nil {
+				slog.Warn("play count: IncrementPlayCount failed", "hash", hash, "err", err)
+			}
+			return nil
+		}
+	}
+
+	return nil
+}
+
 // handlePlaybackEndedMsg handles the end of the play queue, optionally
 // wrapping around in repeat-all mode.
 func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	wasStopAfter := m.playback.stopAfterCurrent
 	m.playback.stopAfterCurrent = false
 
-	var incrementCmd tea.Cmd
-	if m.playback.currentHash != "" &&
-		shouldCountPlay(m.playback.peakElapsedSecs, m.playback.peakTotalSecs) {
-		h := m.playback.currentHash
-		now := time.Now().Unix()
-		m.library.index.IncrementPlayCount(h, now)
-		if m.historyRecorder != nil {
-			hr := m.historyRecorder
-			elapsed := int(m.playback.peakElapsedSecs)
-			incrementCmd = func() tea.Msg {
-				if err := hr.RecordPlay(h, now, elapsed); err != nil {
-					slog.Warn("play count: RecordPlay failed", "hash", h, "err", err)
-				}
-				return nil
-			}
-		} else if m.playCountWriter != nil {
-			pcw := m.playCountWriter
-			incrementCmd = func() tea.Msg {
-				if err := pcw.IncrementPlayCount(h); err != nil {
-					slog.Warn("play count: IncrementPlayCount failed", "hash", h, "err", err)
-				}
-				return nil
-			}
-		}
-	}
+	incrementCmd := m.playCountIncrementCmd(
+		m.playback.currentHash,
+		m.playback.peakElapsedSecs,
+		m.playback.peakTotalSecs,
+	)
 
 	if !wasStopAfter && m.playback.repeatMode == RepeatAll && len(m.queue.entries) > 0 && m.player != nil {
 		if err := m.player.PlayFromIndex(0); err != nil {
@@ -226,31 +236,7 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 		}
 	}
 
-	var incrementCmd tea.Cmd
-	if previousHash != "" && shouldCountPlay(previousElapsed, previousTotal) {
-		now := time.Now().Unix()
-		m.library.index.IncrementPlayCount(previousHash, now)
-		if m.historyRecorder != nil {
-			hr := m.historyRecorder
-			h := previousHash
-			elapsed := int(previousElapsed)
-			incrementCmd = func() tea.Msg {
-				if err := hr.RecordPlay(h, now, elapsed); err != nil {
-					slog.Warn("play count: RecordPlay failed", "hash", h, "err", err)
-				}
-				return nil
-			}
-		} else if m.playCountWriter != nil {
-			pcw := m.playCountWriter
-			h := previousHash
-			incrementCmd = func() tea.Msg {
-				if err := pcw.IncrementPlayCount(h); err != nil {
-					slog.Warn("play count: IncrementPlayCount failed", "hash", h, "err", err)
-				}
-				return nil
-			}
-		}
-	}
+	incrementCmd := m.playCountIncrementCmd(previousHash, previousElapsed, previousTotal)
 	// Radio mode: update seed and check low-water-mark.
 	m.radio.seedHash = msg.Hash
 	radioCmd := m.radioMaybeEnqueueCmd()
