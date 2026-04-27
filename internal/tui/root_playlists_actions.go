@@ -181,44 +181,7 @@ func (m Model) handlePlaylistKeyAction(action action) (Model, tea.Cmd, bool) {
 	case actionPlaylistCreate:
 		return m, func() tea.Msg { return PlaylistCreateMsg{} }, true
 	case actionPlaylistOpen:
-		if m.playlists.atListLevel() {
-			pl, ok := m.playlists.focusedPlaylist()
-			if ok {
-				if pl.IsSmart && m.smartEval != nil {
-					q, err := db.ParseSmartPlaylistQuery(pl.Query)
-					if err != nil {
-						return m, func() tea.Msg { return playlistTracksLoadErrorMsg{err: err} }, true
-					}
-					m.playlists.smartQuery = &q
-					m.playlists.pendingLoadID = pl.ID
-					evaluator := m.smartEval
-					pid := pl.ID
-					return m, func() tea.Msg {
-						tracks, err := evaluator.EvalSmartPlaylist(q)
-						if err != nil {
-							return playlistTracksLoadErrorMsg{err: err}
-						}
-						return playlistTracksLoadedMsg{tracks: tracks, playlistID: pid}
-					}, true
-				} else if !pl.IsSmart && m.playlistReader != nil {
-					pid := pl.ID
-					m.playlists.pendingLoadID = pid
-					reader := m.playlistReader
-					return m, func() tea.Msg {
-						tracks, err := reader.ReadPlaylistTracks(pid)
-						if err != nil {
-							return playlistTracksLoadErrorMsg{err: err}
-						}
-						return playlistTracksLoadedMsg{tracks: tracks, playlistID: pid}
-					}, true
-				}
-			}
-		} else if !m.playlists.atListLevel() && m.queueWriter != nil {
-			if cmd := m.playlists.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
-				return m, cmd, true
-			}
-		}
-		return m, nil, true
+		return m.handlePlaylistOpen()
 	case actionPlaylistBack:
 		if !m.playlists.atListLevel() {
 			m = exitVisualMode(m)
@@ -226,89 +189,7 @@ func (m Model) handlePlaylistKeyAction(action action) (Model, tea.Cmd, bool) {
 		}
 		return m, nil, true
 	case actionPlaylistEnqueueAll:
-		if m.batchEnqueuer == nil {
-			return m, nil, true
-		}
-		var isSmart bool
-		var smartQuery *db.SmartPlaylistQuery
-		var pid int64
-		var playlistName string
-		if m.playlists.atListLevel() {
-			pl, ok := m.playlists.focusedPlaylist()
-			if !ok {
-				return m, nil, true
-			}
-			pid = pl.ID
-			playlistName = pl.Name
-			isSmart = pl.IsSmart
-			if isSmart {
-				q, err := db.ParseSmartPlaylistQuery(pl.Query)
-				if err != nil || m.smartEval == nil {
-					return m, nil, true
-				}
-				smartQuery = &q
-			}
-		} else {
-			if m.playlists.listCursor < 0 || m.playlists.listCursor >= len(m.playlists.playlists) {
-				return m, nil, true
-			}
-			pid = m.playlists.playlists[m.playlists.listCursor].ID
-			playlistName = m.playlists.playlists[m.playlists.listCursor].Name
-			isSmart = m.playlists.smartQuery != nil
-			smartQuery = m.playlists.smartQuery
-		}
-		if isSmart && smartQuery != nil {
-			evaluator := m.smartEval
-			q := *smartQuery
-			be := m.batchEnqueuer
-			wasEmpty := len(m.queue.entries) == 0
-			return m, func() tea.Msg {
-				rows, err := evaluator.EvalSmartPlaylist(q)
-				if err != nil {
-					return BatchEnqueuedMsg{Err: err}
-				}
-				if len(rows) == 0 {
-					return BatchEnqueuedMsg{PlaylistName: playlistName}
-				}
-				tracks := playlistRowsToLibTracks(rows)
-				ids, err := be.AppendTracks(tracks, playlistName)
-				if err != nil {
-					return BatchEnqueuedMsg{Err: err}
-				}
-				return BatchEnqueuedMsg{
-					Entries:      newQueueEntries(tracks, ids, playlistName),
-					QueueIDs:     ids,
-					WasEmpty:     wasEmpty,
-					PlaylistName: playlistName,
-				}
-			}, true
-		}
-		if m.playlistReader == nil {
-			return m, nil, true
-		}
-		reader := m.playlistReader
-		be := m.batchEnqueuer
-		wasEmpty := len(m.queue.entries) == 0
-		return m, func() tea.Msg {
-			rows, err := reader.ReadPlaylistTracks(pid)
-			if err != nil {
-				return BatchEnqueuedMsg{Err: err}
-			}
-			if len(rows) == 0 {
-				return BatchEnqueuedMsg{PlaylistName: playlistName}
-			}
-			tracks := playlistRowsToLibTracks(rows)
-			ids, err := be.AppendTracks(tracks, playlistName)
-			if err != nil {
-				return BatchEnqueuedMsg{Err: err}
-			}
-			return BatchEnqueuedMsg{
-				Entries:      newQueueEntries(tracks, ids, playlistName),
-				QueueIDs:     ids,
-				WasEmpty:     wasEmpty,
-				PlaylistName: playlistName,
-			}
-		}, true
+		return m.handlePlaylistEnqueueAll()
 	case actionPlaylistDelete:
 		m, cmd := m.handlePlaylistDelete()
 		return m, cmd, true
@@ -335,6 +216,162 @@ func (m Model) handlePlaylistKeyAction(action action) (Model, tea.Cmd, bool) {
 	default:
 		return m, nil, false
 	}
+}
+
+// handlePlaylistOpen opens a playlist (loading tracks) or enqueues the focused
+// track when already inside a playlist at track level.
+func (m Model) handlePlaylistOpen() (Model, tea.Cmd, bool) {
+	if !m.playlists.atListLevel() {
+		if m.queueWriter != nil {
+			if cmd := m.playlists.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
+				return m, cmd, true
+			}
+		}
+		return m, nil, true
+	}
+
+	pl, ok := m.playlists.focusedPlaylist()
+	if !ok {
+		return m, nil, true
+	}
+
+	if pl.IsSmart && m.smartEval != nil {
+		return m.openSmartPlaylist(pl)
+	}
+	if !pl.IsSmart && m.playlistReader != nil {
+		return m.openRegularPlaylist(pl)
+	}
+	return m, nil, true
+}
+
+func (m Model) openSmartPlaylist(pl db.PlaylistRow) (Model, tea.Cmd, bool) {
+	q, err := db.ParseSmartPlaylistQuery(pl.Query)
+	if err != nil {
+		return m, func() tea.Msg { return playlistTracksLoadErrorMsg{err: err} }, true
+	}
+	m.playlists.smartQuery = &q
+	m.playlists.pendingLoadID = pl.ID
+	evaluator := m.smartEval
+	pid := pl.ID
+	return m, func() tea.Msg {
+		tracks, err := evaluator.EvalSmartPlaylist(q)
+		if err != nil {
+			return playlistTracksLoadErrorMsg{err: err}
+		}
+		return playlistTracksLoadedMsg{tracks: tracks, playlistID: pid}
+	}, true
+}
+
+func (m Model) openRegularPlaylist(pl db.PlaylistRow) (Model, tea.Cmd, bool) {
+	pid := pl.ID
+	m.playlists.pendingLoadID = pid
+	reader := m.playlistReader
+	return m, func() tea.Msg {
+		tracks, err := reader.ReadPlaylistTracks(pid)
+		if err != nil {
+			return playlistTracksLoadErrorMsg{err: err}
+		}
+		return playlistTracksLoadedMsg{tracks: tracks, playlistID: pid}
+	}, true
+}
+
+// handlePlaylistEnqueueAll enqueues all tracks from the focused or open
+// playlist into the play queue.
+func (m Model) handlePlaylistEnqueueAll() (Model, tea.Cmd, bool) {
+	if m.batchEnqueuer == nil {
+		return m, nil, true
+	}
+
+	pid, playlistName, isSmart, smartQuery, ok := m.resolvePlaylistForEnqueue()
+	if !ok {
+		return m, nil, true
+	}
+
+	if isSmart && smartQuery != nil {
+		return m.enqueueSmartPlaylist(*smartQuery, playlistName)
+	}
+	if m.playlistReader == nil {
+		return m, nil, true
+	}
+	return m.enqueueRegularPlaylist(pid, playlistName)
+}
+
+// resolvePlaylistForEnqueue identifies the target playlist for enqueue-all,
+// whether the user is at list level (focused playlist) or track level (open
+// playlist). Returns false when no valid playlist can be determined.
+func (m Model) resolvePlaylistForEnqueue() (pid int64, name string, isSmart bool, smartQuery *db.SmartPlaylistQuery, ok bool) {
+	if m.playlists.atListLevel() {
+		pl, found := m.playlists.focusedPlaylist()
+		if !found {
+			return 0, "", false, nil, false
+		}
+		if pl.IsSmart {
+			q, err := db.ParseSmartPlaylistQuery(pl.Query)
+			if err != nil || m.smartEval == nil {
+				return 0, "", false, nil, false
+			}
+			return pl.ID, pl.Name, true, &q, true
+		}
+		return pl.ID, pl.Name, false, nil, true
+	}
+
+	if m.playlists.listCursor < 0 || m.playlists.listCursor >= len(m.playlists.playlists) {
+		return 0, "", false, nil, false
+	}
+	entry := m.playlists.playlists[m.playlists.listCursor]
+	return entry.ID, entry.Name, m.playlists.smartQuery != nil, m.playlists.smartQuery, true
+}
+
+func (m Model) enqueueSmartPlaylist(q db.SmartPlaylistQuery, playlistName string) (Model, tea.Cmd, bool) {
+	evaluator := m.smartEval
+	be := m.batchEnqueuer
+	wasEmpty := len(m.queue.entries) == 0
+	return m, func() tea.Msg {
+		rows, err := evaluator.EvalSmartPlaylist(q)
+		if err != nil {
+			return BatchEnqueuedMsg{Err: err}
+		}
+		if len(rows) == 0 {
+			return BatchEnqueuedMsg{PlaylistName: playlistName}
+		}
+		tracks := playlistRowsToLibTracks(rows)
+		ids, err := be.AppendTracks(tracks, playlistName)
+		if err != nil {
+			return BatchEnqueuedMsg{Err: err}
+		}
+		return BatchEnqueuedMsg{
+			Entries:      newQueueEntries(tracks, ids, playlistName),
+			QueueIDs:     ids,
+			WasEmpty:     wasEmpty,
+			PlaylistName: playlistName,
+		}
+	}, true
+}
+
+func (m Model) enqueueRegularPlaylist(pid int64, playlistName string) (Model, tea.Cmd, bool) {
+	reader := m.playlistReader
+	be := m.batchEnqueuer
+	wasEmpty := len(m.queue.entries) == 0
+	return m, func() tea.Msg {
+		rows, err := reader.ReadPlaylistTracks(pid)
+		if err != nil {
+			return BatchEnqueuedMsg{Err: err}
+		}
+		if len(rows) == 0 {
+			return BatchEnqueuedMsg{PlaylistName: playlistName}
+		}
+		tracks := playlistRowsToLibTracks(rows)
+		ids, err := be.AppendTracks(tracks, playlistName)
+		if err != nil {
+			return BatchEnqueuedMsg{Err: err}
+		}
+		return BatchEnqueuedMsg{
+			Entries:      newQueueEntries(tracks, ids, playlistName),
+			QueueIDs:     ids,
+			WasEmpty:     wasEmpty,
+			PlaylistName: playlistName,
+		}
+	}, true
 }
 
 // handleSmartRuleEditorKeyPress routes key events to the smart rule editor
