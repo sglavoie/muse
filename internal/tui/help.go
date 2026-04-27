@@ -80,7 +80,7 @@ func helpSections() []helpSection {
 				{"r", "Cycle repeat mode"},
 				{"z", "Toggle shuffle"},
 				{"ctrl+n", "Stop after current track"},
-			{"A", "Toggle radio mode (Auto-DJ)"},
+				{"A", "Toggle radio mode (Auto-DJ)"},
 				{"u", "Undo"},
 				{"/", "Filter (Library / Queue / Artists / Albums / Favorites / Genres / Recently Added / History / Tags)"},
 				{"P", "Preview focused track"},

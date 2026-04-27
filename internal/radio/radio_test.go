@@ -166,7 +166,7 @@ func TestScoreAll_FavoriteBoost(t *testing.T) {
 
 func TestScoreAll_DurationBoost(t *testing.T) {
 	seed := track("s1", "", "", "", 180)
-	within := track("t1", "", "", "", 200) // 200/180 ≈ 1.11, within ±30%
+	within := track("t1", "", "", "", 200)  // 200/180 ≈ 1.11, within ±30%
 	outside := track("t2", "", "", "", 300) // 300/180 ≈ 1.67, outside ±30%
 	input := ScoreInput{
 		Seed:      seedFrom(seed, nil, nil),
@@ -228,9 +228,9 @@ func TestScoreAll_QueuePenalty(t *testing.T) {
 func TestScoreAll_SortedDescending(t *testing.T) {
 	seed := track("s1", "ArtistA", "AlbumA", "Rock", 180)
 	t1 := track("t1", "ArtistA", "AlbumA", "Rock", 180) // artist+album+genre+dur = 5+3+10+1 = 19
-	t2 := track("t2", "ArtistA", "", "Rock", 180)        // artist+genre+dur = 5+10+1 = 16
-	t3 := track("t3", "", "", "Rock", 0)                  // genre only = 10
-	t4 := track("t4", "", "", "Jazz", 0)                  // no match = 0
+	t2 := track("t2", "ArtistA", "", "Rock", 180)       // artist+genre+dur = 5+10+1 = 16
+	t3 := track("t3", "", "", "Rock", 0)                // genre only = 10
+	t4 := track("t4", "", "", "Jazz", 0)                // no match = 0
 	input := ScoreInput{
 		Seed:      seedFrom(seed, []string{"Rock"}, nil),
 		AllTracks: []library.Track{t4, t2, t4, t3, t1},
@@ -313,7 +313,7 @@ func TestPickBatch_ArtistCap(t *testing.T) {
 	// With n=5, maxArtistFraction=0.4 → max 2 per artist (ceil(5*0.4)=2).
 	var tracks []library.Track
 	for i := 0; i < 8; i++ {
-		tracks = append(tracks, library.Track{Hash: string(rune('a'+i)), Artist: "ArtistA", Genre: "Rock"})
+		tracks = append(tracks, library.Track{Hash: string(rune('a' + i)), Artist: "ArtistA", Genre: "Rock"})
 	}
 	tracks = append(tracks, library.Track{Hash: "x1", Artist: "ArtistB", Genre: "Rock"})
 	tracks = append(tracks, library.Track{Hash: "x2", Artist: "ArtistB", Genre: "Rock"})
