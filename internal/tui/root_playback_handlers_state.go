@@ -46,11 +46,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 			slog.Warn("repeat-all playback failed", "err", err)
 		} else {
 			m.playback.state = PlaybackPlaying
-			m.playback.elapsedSecs = 0
-			m.playback.totalSecs = 0
-			m.playback.peakElapsedSecs = 0
-			m.playback.peakTotalSecs = 0
-			m.playback.durationCorrected = false
+			m = m.resetPlaybackProgress()
 			m.missingTrackCount = 0
 			return m, incrementCmd
 		}
@@ -62,11 +58,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 		m.playback.currentIndex+1 < len(m.queue.entries) {
 		if err := m.player.PlayFromIndex(m.playback.currentIndex + 1); err == nil {
 			m.playback.state = PlaybackPlaying
-			m.playback.elapsedSecs = 0
-			m.playback.totalSecs = 0
-			m.playback.peakElapsedSecs = 0
-			m.playback.peakTotalSecs = 0
-			m.playback.durationCorrected = false
+			m = m.resetPlaybackProgress()
 			return m, incrementCmd
 		}
 	}
@@ -76,11 +68,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 		if cmd := m.radioMaybeEnqueueCmd(); cmd != nil {
 			m.playback.queueExhausted = true
 			m.playback.state = PlaybackIdle
-			m.playback.elapsedSecs = 0
-			m.playback.totalSecs = 0
-			m.playback.peakElapsedSecs = 0
-			m.playback.peakTotalSecs = 0
-			m.playback.durationCorrected = false
+			m = m.resetPlaybackProgress()
 			m.statusBar.artist = ""
 			m.statusBar.title = ""
 			m.statusBar.playlistSource = ""
@@ -98,11 +86,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	}
 
 	m.playback.state = PlaybackIdle
-	m.playback.elapsedSecs = 0
-	m.playback.totalSecs = 0
-	m.playback.peakElapsedSecs = 0
-	m.playback.peakTotalSecs = 0
-	m.playback.durationCorrected = false
+	m = m.resetPlaybackProgress()
 	m.statusBar.artist = ""
 	m.statusBar.title = ""
 	m.statusBar.playlistSource = ""
@@ -130,10 +114,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 // the reconnection window.
 func (m Model) handlePlayerDisconnectedMsg() Model {
 	m.playback.state = PlaybackStopped
-	m.playback.elapsedSecs = 0
-	m.playback.totalSecs = 0
-	m.playback.peakElapsedSecs = 0
-	m.playback.peakTotalSecs = 0
+	m = m.resetPlaybackProgress()
 	m.statusBar.notify("mpv disconnected, restarting…")
 	return m
 }
@@ -221,11 +202,7 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	}
 	m.statusBar.playlistSource = source
 	m.playback.state = PlaybackPlaying
-	m.playback.elapsedSecs = 0
-	m.playback.totalSecs = 0
-	m.playback.peakElapsedSecs = 0
-	m.playback.peakTotalSecs = 0
-	m.playback.durationCorrected = false
+	m = m.resetPlaybackProgress()
 
 	// Refresh the now-playing overlay with the new track's metadata.
 	if m.overlay.nowPlaying != nil {

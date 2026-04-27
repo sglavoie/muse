@@ -70,11 +70,7 @@ func (m Model) resetPlaybackState() Model {
 		_ = cp.Stop() // stop before new playback, failure is non-fatal
 	}
 	m.playback.state = PlaybackIdle
-	m.playback.elapsedSecs = 0
-	m.playback.totalSecs = 0
-	m.playback.peakElapsedSecs = 0
-	m.playback.peakTotalSecs = 0
-	m.playback.durationCorrected = false
+	m = m.resetPlaybackProgress()
 	m.playback.stopAfterCurrent = false
 	m.playback.queueExhausted = false
 	m.statusBar.artist = ""
@@ -86,6 +82,15 @@ func (m Model) resetPlaybackState() Model {
 	if sat, ok := m.player.(stopAfterToggler); ok {
 		sat.SetStopAfterCurrent(false)
 	}
+	return m
+}
+
+func (m Model) resetPlaybackProgress() Model {
+	m.playback.elapsedSecs = 0
+	m.playback.totalSecs = 0
+	m.playback.peakElapsedSecs = 0
+	m.playback.peakTotalSecs = 0
+	m.playback.durationCorrected = false
 	return m
 }
 

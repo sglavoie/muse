@@ -189,11 +189,7 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 			m.playback.state = PlaybackPlaying
 			m.playback.currentHash = entry.Hash
 			m.playback.currentIndex = batchStartIdx
-			m.playback.elapsedSecs = 0
-			m.playback.totalSecs = 0
-			m.playback.peakElapsedSecs = 0
-			m.playback.peakTotalSecs = 0
-			m.playback.durationCorrected = false
+			m = m.resetPlaybackProgress()
 			m.statusBar.artist = entry.Artist
 			m.statusBar.title = entry.Title
 			m.statusBar.playlistSource = queueSourceName("Radio")
