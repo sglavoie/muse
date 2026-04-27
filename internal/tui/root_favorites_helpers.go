@@ -6,55 +6,42 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 )
 
-// loadFavoriteTrackHashes reads all favorited track hashes from the DB and
+// loadFavoriteSet reads all favorited values of the given type from the DB and
 // returns them as a set. Returns nil when reader is nil or on error.
-func loadFavoriteTrackHashes(reader favoriteReader) map[string]struct{} {
+func loadFavoriteSet(reader favoriteReader, typ string) map[string]struct{} {
 	if reader == nil {
 		return nil
 	}
-	rows, err := reader.ReadFavoritesByType("track")
+	rows, err := reader.ReadFavoritesByType(typ)
 	if err != nil {
 		return nil
 	}
-	hashes := make(map[string]struct{}, len(rows))
+	set := make(map[string]struct{}, len(rows))
 	for _, r := range rows {
-		hashes[r.Value] = struct{}{}
+		set[r.Value] = struct{}{}
 	}
-	return hashes
+	return set
 }
 
-// loadFavoriteArtists reads all favorited artist names from the DB and
-// returns them as a set. Returns nil when reader is nil or on error.
-func loadFavoriteArtists(reader favoriteReader) map[string]struct{} {
-	if reader == nil {
-		return nil
+// updateFavoriteCache updates a favorite-set cache after a toggle operation.
+// For bulk operations (count > 1) the entire set is reloaded; for single
+// operations the value is added to or removed from the existing map.
+func updateFavoriteCache(cache *map[string]struct{}, reader favoriteReader, typ string, msg favoriteToggledMsg) {
+	if msg.count > 1 {
+		*cache = loadFavoriteSet(reader, typ)
+		return
 	}
-	rows, err := reader.ReadFavoritesByType("artist")
-	if err != nil {
-		return nil
+	if msg.value == "" {
+		return
 	}
-	artists := make(map[string]struct{}, len(rows))
-	for _, r := range rows {
-		artists[r.Value] = struct{}{}
+	if *cache == nil {
+		*cache = make(map[string]struct{})
 	}
-	return artists
-}
-
-// loadFavoriteAlbums reads all favorited album names from the DB and
-// returns them as a set. Returns nil when reader is nil or on error.
-func loadFavoriteAlbums(reader favoriteReader) map[string]struct{} {
-	if reader == nil {
-		return nil
+	if msg.added {
+		(*cache)[msg.value] = struct{}{}
+	} else {
+		delete(*cache, msg.value)
 	}
-	rows, err := reader.ReadFavoritesByType("album")
-	if err != nil {
-		return nil
-	}
-	albums := make(map[string]struct{}, len(rows))
-	for _, r := range rows {
-		albums[r.Value] = struct{}{}
-	}
-	return albums
 }
 
 // deduplicateTracksByHash removes duplicate tracks (same hash) keeping the

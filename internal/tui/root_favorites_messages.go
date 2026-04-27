@@ -59,47 +59,13 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 		m.statusBar.notify(note)
 	}
 
-	if msg.typ == "track" {
-		if msg.count > 1 {
-			m.favoriteHashes = loadFavoriteTrackHashes(m.favoriteReader)
-		} else if msg.value != "" {
-			if m.favoriteHashes == nil {
-				m.favoriteHashes = make(map[string]struct{})
-			}
-			if msg.added {
-				m.favoriteHashes[msg.value] = struct{}{}
-			} else {
-				delete(m.favoriteHashes, msg.value)
-			}
-		}
-	}
-	if msg.typ == "artist" {
-		if msg.count > 1 {
-			m.favoriteArtists = loadFavoriteArtists(m.favoriteReader)
-		} else if msg.value != "" {
-			if m.favoriteArtists == nil {
-				m.favoriteArtists = make(map[string]struct{})
-			}
-			if msg.added {
-				m.favoriteArtists[msg.value] = struct{}{}
-			} else {
-				delete(m.favoriteArtists, msg.value)
-			}
-		}
-	}
-	if msg.typ == "album" {
-		if msg.count > 1 {
-			m.favoriteAlbums = loadFavoriteAlbums(m.favoriteReader)
-		} else if msg.value != "" {
-			if m.favoriteAlbums == nil {
-				m.favoriteAlbums = make(map[string]struct{})
-			}
-			if msg.added {
-				m.favoriteAlbums[msg.value] = struct{}{}
-			} else {
-				delete(m.favoriteAlbums, msg.value)
-			}
-		}
+	switch msg.typ {
+	case "track":
+		updateFavoriteCache(&m.favoriteHashes, m.favoriteReader, "track", msg)
+	case "artist":
+		updateFavoriteCache(&m.favoriteArtists, m.favoriteReader, "artist", msg)
+	case "album":
+		updateFavoriteCache(&m.favoriteAlbums, m.favoriteReader, "album", msg)
 	}
 
 	if m.activeView == viewFavorites && !msg.added {

@@ -6,6 +6,93 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 )
 
+// TestLoadFavoriteSet verifies loadFavoriteSet returns the correct set for
+// different favorite types.
+func TestLoadFavoriteSet(t *testing.T) {
+	t.Run("returns set for type", func(t *testing.T) {
+		r := &stubFavoriteReader{favorites: map[string][]string{
+			"track":  {"h1", "h2"},
+			"artist": {"Bach"},
+		}}
+		got := loadFavoriteSet(r, "track")
+		if len(got) != 2 {
+			t.Fatalf("expected 2 entries, got %d", len(got))
+		}
+		if _, ok := got["h1"]; !ok {
+			t.Error("expected h1 in set")
+		}
+		if _, ok := got["h2"]; !ok {
+			t.Error("expected h2 in set")
+		}
+	})
+
+	t.Run("nil reader returns nil", func(t *testing.T) {
+		got := loadFavoriteSet(nil, "track")
+		if got != nil {
+			t.Fatalf("expected nil, got %v", got)
+		}
+	})
+
+	t.Run("empty type returns empty set", func(t *testing.T) {
+		r := &stubFavoriteReader{favorites: map[string][]string{
+			"track": {"h1"},
+		}}
+		got := loadFavoriteSet(r, "artist")
+		if len(got) != 0 {
+			t.Fatalf("expected empty set, got %d entries", len(got))
+		}
+	})
+}
+
+// TestUpdateFavoriteCache verifies the cache update helper for single and bulk
+// operations.
+func TestUpdateFavoriteCache(t *testing.T) {
+	t.Run("single add to nil cache", func(t *testing.T) {
+		var cache map[string]struct{}
+		msg := favoriteToggledMsg{value: "h1", added: true, count: 1}
+		updateFavoriteCache(&cache, nil, "track", msg)
+		if _, ok := cache["h1"]; !ok {
+			t.Fatal("expected h1 in cache after add")
+		}
+	})
+
+	t.Run("single remove from cache", func(t *testing.T) {
+		cache := map[string]struct{}{"h1": {}, "h2": {}}
+		msg := favoriteToggledMsg{value: "h1", added: false, count: 1}
+		updateFavoriteCache(&cache, nil, "track", msg)
+		if _, ok := cache["h1"]; ok {
+			t.Fatal("expected h1 removed from cache")
+		}
+		if _, ok := cache["h2"]; !ok {
+			t.Fatal("expected h2 still in cache")
+		}
+	})
+
+	t.Run("bulk reloads from reader", func(t *testing.T) {
+		cache := map[string]struct{}{"old": {}}
+		r := &stubFavoriteReader{favorites: map[string][]string{
+			"artist": {"Bach", "Davis"},
+		}}
+		msg := favoriteToggledMsg{count: 2, added: true}
+		updateFavoriteCache(&cache, r, "artist", msg)
+		if len(cache) != 2 {
+			t.Fatalf("expected 2 entries after bulk reload, got %d", len(cache))
+		}
+		if _, ok := cache["Bach"]; !ok {
+			t.Error("expected Bach in cache")
+		}
+	})
+
+	t.Run("empty value is no-op for single", func(t *testing.T) {
+		cache := map[string]struct{}{"h1": {}}
+		msg := favoriteToggledMsg{value: "", added: true, count: 1}
+		updateFavoriteCache(&cache, nil, "track", msg)
+		if len(cache) != 1 {
+			t.Fatalf("expected cache unchanged, got %d entries", len(cache))
+		}
+	})
+}
+
 // TestIndexOfString verifies indexOfString returns the correct raw position.
 func TestIndexOfString(t *testing.T) {
 	items := []string{"Alpha", "Beta", "Charlie", "Delta"}

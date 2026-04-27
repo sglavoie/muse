@@ -243,9 +243,9 @@ func New(ctx context.Context, opts ...Option) Model {
 	// Derive scanning state from scanCh after options are applied.
 	m.scanning = m.scanCh != nil
 	// Pre-load the set of favorited track hashes for row highlighting.
-	m.favoriteHashes = loadFavoriteTrackHashes(m.favoriteReader)
-	m.favoriteArtists = loadFavoriteArtists(m.favoriteReader)
-	m.favoriteAlbums = loadFavoriteAlbums(m.favoriteReader)
+	m.favoriteHashes = loadFavoriteSet(m.favoriteReader, "track")
+	m.favoriteArtists = loadFavoriteSet(m.favoriteReader, "artist")
+	m.favoriteAlbums = loadFavoriteSet(m.favoriteReader, "album")
 	m = m.syncRecentlyAddedFromLibrary()
 	// Sync statusBar fields from model state.
 	m.statusBar.transientDur = time.Duration(m.cfg.TransientDurationSecs) * time.Second
