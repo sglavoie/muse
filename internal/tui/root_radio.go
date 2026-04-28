@@ -123,9 +123,9 @@ func (m Model) radioEnqueueCmd() tea.Cmd {
 	}
 
 	wasEmpty := len(m.queue.entries) == 0
-	allTracks := m.library.index.Tracks()
-	trackTags := m.trackTags
-	favoriteHashes := m.favoriteHashes
+	allTracks := snapshotTracks(m.library.index.Tracks())
+	trackTags := snapshotTrackTags(m.trackTags)
+	favoriteHashes := snapshotStringSet(m.favoriteHashes)
 	be := m.batchEnqueuer
 
 	return func() tea.Msg {

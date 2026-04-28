@@ -21,7 +21,7 @@ func (m Model) handleFavoritesOpen() (Model, tea.Cmd, bool) {
 		}
 		category := favtui.Category(m.favorites.cursor)
 		reader := m.favoriteReader
-		libraryTracks := m.library.index.Tracks()
+		libraryTracks := snapshotTracks(m.library.index.Tracks())
 		return m, func() tea.Msg {
 			switch category {
 			case favtui.CategoryArtists:

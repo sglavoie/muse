@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/library"
 )
 
 // TestResetPlaybackStateClearsAllFields verifies that resetPlaybackState zeros
@@ -208,5 +210,77 @@ func TestClearQueueClearsStopAfterCurrent(t *testing.T) {
 	}
 	if p.stopAfter {
 		t.Error("player stopAfter should be cleared after ClearQueueMsg")
+	}
+}
+
+func TestSnapshotTracksIsIndependent(t *testing.T) {
+	src := []library.Track{
+		{Hash: "a", Artist: "A"},
+		{Hash: "b", Artist: "B"},
+	}
+	dst := snapshotTracks(src)
+
+	// Mutate source — destination must be unaffected.
+	src[0].Artist = "CHANGED"
+
+	if len(dst) != 2 {
+		t.Fatalf("dst len = %d, want 2", len(dst))
+	}
+	if dst[0].Artist != "A" {
+		t.Errorf("dst[0].Artist = %q, want %q", dst[0].Artist, "A")
+	}
+}
+
+func TestSnapshotStringSetIsIndependent(t *testing.T) {
+	src := map[string]struct{}{"x": {}, "y": {}}
+	dst := snapshotStringSet(src)
+
+	src["z"] = struct{}{}
+	delete(src, "x")
+
+	if _, ok := dst["x"]; !ok {
+		t.Error("dst should still contain 'x'")
+	}
+	if _, ok := dst["z"]; ok {
+		t.Error("dst should not contain 'z'")
+	}
+	if len(dst) != 2 {
+		t.Errorf("dst len = %d, want 2", len(dst))
+	}
+}
+
+func TestSnapshotStringSetNil(t *testing.T) {
+	if got := snapshotStringSet(nil); got != nil {
+		t.Errorf("expected nil, got %v", got)
+	}
+}
+
+func TestSnapshotTrackTagsIsIndependent(t *testing.T) {
+	src := map[string]map[int64]struct{}{
+		"h1": {10: {}, 20: {}},
+		"h2": {30: {}},
+	}
+	dst := snapshotTrackTags(src)
+
+	// Mutate outer map.
+	src["h3"] = map[int64]struct{}{99: {}}
+	delete(src, "h1")
+	// Mutate inner map.
+	src["h2"][40] = struct{}{}
+
+	if _, ok := dst["h1"]; !ok {
+		t.Error("dst should still contain h1")
+	}
+	if _, ok := dst["h3"]; ok {
+		t.Error("dst should not contain h3")
+	}
+	if len(dst["h2"]) != 1 {
+		t.Errorf("dst[h2] len = %d, want 1", len(dst["h2"]))
+	}
+}
+
+func TestSnapshotTrackTagsNil(t *testing.T) {
+	if got := snapshotTrackTags(nil); got != nil {
+		t.Errorf("expected nil, got %v", got)
 	}
 }

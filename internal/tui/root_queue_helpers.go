@@ -142,6 +142,43 @@ func (m *Model) adjustPlaybackIndexAfterRemovals(indices []int) {
 	m.playback.currentIndex -= removedBefore
 }
 
+// snapshotTracks returns a shallow copy of the track slice so that a goroutine
+// can safely iterate without racing against index mutations in the Update loop.
+func snapshotTracks(src []library.Track) []library.Track {
+	dst := make([]library.Track, len(src))
+	copy(dst, src)
+	return dst
+}
+
+// snapshotStringSet returns a copy of a map[string]struct{} for goroutine-safe reads.
+func snapshotStringSet(src map[string]struct{}) map[string]struct{} {
+	if src == nil {
+		return nil
+	}
+	dst := make(map[string]struct{}, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
+}
+
+// snapshotTrackTags deep-copies the trackTags map (hash → tag-ID set) so that
+// a goroutine can read it without racing against applyTagToggle in the Update loop.
+func snapshotTrackTags(src map[string]map[int64]struct{}) map[string]map[int64]struct{} {
+	if src == nil {
+		return nil
+	}
+	dst := make(map[string]map[int64]struct{}, len(src))
+	for hash, inner := range src {
+		cp := make(map[int64]struct{}, len(inner))
+		for id, v := range inner {
+			cp[id] = v
+		}
+		dst[hash] = cp
+	}
+	return dst
+}
+
 func (m Model) stopPlaybackIfCurrentMissing() Model {
 	if len(m.queue.entries) == 0 {
 		return m.resetPlaybackState()
