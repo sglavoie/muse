@@ -171,85 +171,95 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 		m.playback.currentIndex += len(msg.Entries)
 	}
 	m.syncPlayerQueue()
+	m = m.resumeExhaustedPlayback(insertPos, msg.Entries[0])
 
-	// If the queue was exhausted and we just pasted tracks, resume playback
-	// from the first pasted entry.
-	if m.playback.queueExhausted && m.playback.state == PlaybackIdle && m.player != nil {
-		if err := m.player.PlayFromIndex(insertPos); err == nil {
-			entry := msg.Entries[0]
-			m.playback.state = PlaybackPlaying
-			m.playback.currentHash = entry.Hash
-			m.playback.currentIndex = insertPos
-			m.playback.elapsedSecs = 0
-			m.playback.totalSecs = 0
-			m.playback.peakElapsedSecs = 0
-			m.playback.peakTotalSecs = 0
-			m.playback.durationCorrected = false
-			m.statusBar.artist = entry.Artist
-			m.statusBar.title = entry.Title
-			m.statusBar.playlistSource = queueSourceName(entry.SourcePlaylist)
-		}
-		m.playback.queueExhausted = false
-	}
-
-	// If this is a cut-paste, remove the original entries.
 	var removedOriginals []QueueEntry
 	var removedOriginalIndices []int
 	if len(msg.CutIDs) > 0 {
-		cutIDSet := make(map[int64]struct{}, len(msg.CutIDs))
-		for _, id := range msg.CutIDs {
-			cutIDSet[id] = struct{}{}
-		}
-		// Freshly pasted entries have new IDs, so they won't match cutIDs.
-		var kept []QueueEntry
-		for i, e := range m.queue.entries {
-			if _, isCut := cutIDSet[e.ID]; isCut {
-				removedOriginals = append(removedOriginals, e)
-				removedOriginalIndices = append(removedOriginalIndices, i)
-				continue
-			}
-			kept = append(kept, e)
-		}
-		m.queue.entries = kept
-		if m.batchEnqueuer != nil {
-			if err := m.batchEnqueuer.DequeueTracksSoft(msg.CutIDs); err != nil {
-				slog.Warn("cut-paste: soft-delete originals failed", "err", err)
-			}
-			if m.undoer != nil {
-				schedulePurge(&m.undo.slot, m.undoer.PurgeDeletedQueueEntries)
-			}
-		}
-		// Adjust playback index for removed originals.
-		if m.playback.currentIndex >= 0 && len(removedOriginalIndices) > 0 {
-			removedBefore := 0
-			removedCurrent := false
-			for _, ri := range removedOriginalIndices {
-				if ri < m.playback.currentIndex {
-					removedBefore++
-				} else if ri == m.playback.currentIndex {
-					removedCurrent = true
-				}
-			}
-			if removedCurrent {
-				m.playback.currentIndex = -1
-			} else {
-				m.playback.currentIndex -= removedBefore
-			}
-		}
-		if qr, ok := m.player.(playerQueueRemover); ok {
-			for i := len(removedOriginalIndices) - 1; i >= 0; i-- {
-				_ = qr.RemoveFromQueue(removedOriginalIndices[i])
-			}
-		}
-		m.syncPlayerQueue()
-		m.yankIsCut = false
+		removedOriginals, removedOriginalIndices = m.removeCutOriginals(msg.CutIDs)
 	}
 
 	m.queue.cursor = insertPos + len(msg.Entries) - 1
-	// Adjust cursor for removed entries that were before the cursor.
-	if len(removedOriginalIndices) > 0 {
+	m = m.adjustCursorForRemovedEntries(removedOriginalIndices)
+	m.clampQueueCursorAndScroll()
+
+	pastedIDs := make([]int64, len(msg.Entries))
+	for i, entry := range msg.Entries {
+		pastedIDs[i] = entry.ID
+	}
+	m.setupPasteUndo(pastedIDs, msg.Entries, msg.CutIDs, removedOriginals, removedOriginalIndices, insertPos)
+	player.PlaySound(player.SoundEnqueued)
+	return m
+}
+
+// resumeExhaustedPlayback starts playback from the given entry when the queue
+// was previously exhausted.
+func (m Model) resumeExhaustedPlayback(insertPos int, entry QueueEntry) Model {
+	if !m.playback.queueExhausted || m.playback.state != PlaybackIdle || m.player == nil {
+		return m
+	}
+	if err := m.player.PlayFromIndex(insertPos); err == nil {
+		m.playback.state = PlaybackPlaying
+		m.playback.currentHash = entry.Hash
+		m.playback.currentIndex = insertPos
+		m.playback.elapsedSecs = 0
+		m.playback.totalSecs = 0
+		m.playback.peakElapsedSecs = 0
+		m.playback.peakTotalSecs = 0
+		m.playback.durationCorrected = false
+		m.statusBar.artist = entry.Artist
+		m.statusBar.title = entry.Title
+		m.statusBar.playlistSource = queueSourceName(entry.SourcePlaylist)
+	}
+	m.playback.queueExhausted = false
+	return m
+}
+
+// removeCutOriginals removes the original cut entries from the queue,
+// soft-deletes them in the DB, adjusts the playback index, and syncs the
+// player. It returns the removed entries and their indices.
+func (m *Model) removeCutOriginals(cutIDs []int64) ([]QueueEntry, []int) {
+	cutIDSet := make(map[int64]struct{}, len(cutIDs))
+	for _, id := range cutIDs {
+		cutIDSet[id] = struct{}{}
+	}
+	// Freshly pasted entries have new IDs, so they won't match cutIDs.
+	var kept, removed []QueueEntry
+	var removedIndices []int
+	for i, e := range m.queue.entries {
+		if _, isCut := cutIDSet[e.ID]; isCut {
+			removed = append(removed, e)
+			removedIndices = append(removedIndices, i)
+			continue
+		}
+		kept = append(kept, e)
+	}
+	m.queue.entries = kept
+	if m.batchEnqueuer != nil {
+		if err := m.batchEnqueuer.DequeueTracksSoft(cutIDs); err != nil {
+			slog.Warn("cut-paste: soft-delete originals failed", "err", err)
+		}
+		if m.undoer != nil {
+			schedulePurge(&m.undo.slot, m.undoer.PurgeDeletedQueueEntries)
+		}
+	}
+	m.adjustPlaybackIndexAfterRemovals(removedIndices)
+	if qr, ok := m.player.(playerQueueRemover); ok {
+		for i := len(removedIndices) - 1; i >= 0; i-- {
+			_ = qr.RemoveFromQueue(removedIndices[i])
+		}
+	}
+	m.syncPlayerQueue()
+	m.yankIsCut = false
+	return removed, removedIndices
+}
+
+// adjustCursorForRemovedEntries shifts the queue cursor to account for entries
+// that were removed before it, and ensures scroll visibility.
+func (m Model) adjustCursorForRemovedEntries(removedIndices []int) Model {
+	if len(removedIndices) > 0 {
 		removedBeforeCursor := 0
-		for _, ri := range removedOriginalIndices {
+		for _, ri := range removedIndices {
 			if ri < m.queue.cursor {
 				removedBeforeCursor++
 			}
@@ -263,42 +273,40 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 	if maxRows > 0 && m.queue.cursor >= m.queue.scrollOffset+maxRows {
 		m.queue.scrollOffset = m.queue.cursor - maxRows + 1
 	}
-	m.clampQueueCursorAndScroll()
-	pastedIDs := make([]int64, len(msg.Entries))
-	for i, entry := range msg.Entries {
-		pastedIDs[i] = entry.ID
-	}
-	if len(msg.CutIDs) > 0 {
-		// Convert post-insert indices back to pre-paste positions so that
-		// undo re-inserts originals at the correct spots. Pasted entries
-		// occupied [insertPos, insertPos+pasteCount), so any original
-		// index >= insertPos+pasteCount was shifted right by pasteCount.
-		prePasteIndices := make([]int, len(removedOriginalIndices))
-		pasteCount := len(msg.Entries)
-		for i, ri := range removedOriginalIndices {
-			if ri >= insertPos+pasteCount {
-				prePasteIndices[i] = ri - pasteCount
-			} else {
-				prePasteIndices[i] = ri
-			}
-		}
-		// Preserve the cancel channel set by schedulePurge above so that
-		// setUndoSlot does not immediately cancel the pending purge of the
-		// soft-deleted originals.
-		cutPurgeCancel := m.undo.slot.cancelPurge
-		m.undo.slot.cancelPurge = nil // prevent setUndoSlot from closing it
-		m.setUndoSlot(undoCutPasteAction{
-			pastedIDs:       pastedIDs,
-			originalEntries: removedOriginals,
-			originalIndices: prePasteIndices,
-			count:           len(msg.Entries),
-		}, cutPurgeCancel)
-	} else {
+	return m
+}
+
+// setupPasteUndo configures the undo slot for a paste or cut-paste operation.
+func (m *Model) setupPasteUndo(pastedIDs []int64, pastedEntries []QueueEntry, cutIDs []int64, removedOriginals []QueueEntry, removedOriginalIndices []int, insertPos int) {
+	if len(cutIDs) == 0 {
 		m.setUndoSlot(undoPasteAction{
 			ids:   pastedIDs,
-			count: len(msg.Entries),
+			count: len(pastedEntries),
 		}, nil)
+		return
 	}
-	player.PlaySound(player.SoundEnqueued)
-	return m
+	// Convert post-insert indices back to pre-paste positions so that
+	// undo re-inserts originals at the correct spots. Pasted entries
+	// occupied [insertPos, insertPos+pasteCount), so any original
+	// index >= insertPos+pasteCount was shifted right by pasteCount.
+	prePasteIndices := make([]int, len(removedOriginalIndices))
+	pasteCount := len(pastedEntries)
+	for i, ri := range removedOriginalIndices {
+		if ri >= insertPos+pasteCount {
+			prePasteIndices[i] = ri - pasteCount
+		} else {
+			prePasteIndices[i] = ri
+		}
+	}
+	// Preserve the cancel channel set by schedulePurge above so that
+	// setUndoSlot does not immediately cancel the pending purge of the
+	// soft-deleted originals.
+	cutPurgeCancel := m.undo.slot.cancelPurge
+	m.undo.slot.cancelPurge = nil // prevent setUndoSlot from closing it
+	m.setUndoSlot(undoCutPasteAction{
+		pastedIDs:       pastedIDs,
+		originalEntries: removedOriginals,
+		originalIndices: prePasteIndices,
+		count:           len(pastedEntries),
+	}, cutPurgeCancel)
 }
