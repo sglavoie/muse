@@ -42,7 +42,11 @@ func (m Model) radioToggle() (tea.Model, tea.Cmd, bool) {
 		time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second,
 	)
 	if m.radio.enabled {
-		return m, m.radioMaybeEnqueueCmd(), true
+		cmd := m.radioMaybeEnqueueCmd()
+		if cmd != nil {
+			m.radio.enqueuePending = true
+		}
+		return m, cmd, true
 	}
 	return m, nil, true
 }
@@ -78,7 +82,6 @@ func (m Model) radioMaybeEnqueueCmd() tea.Cmd {
 	if m.radioRemainingCount() > radioLowWaterMark {
 		return nil
 	}
-	m.radio.enqueuePending = true
 	return m.radioEnqueueCmd()
 }
 

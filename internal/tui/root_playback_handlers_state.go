@@ -76,6 +76,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	// Radio mode: enqueue a new batch if enabled and guards pass.
 	if !wasStopAfter {
 		if cmd := m.radioMaybeEnqueueCmd(); cmd != nil {
+			m.radio.enqueuePending = true
 			m.playback.queueExhausted = true
 			m.playback.state = PlaybackIdle
 			m = m.resetPlaybackProgress()
@@ -240,6 +241,9 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	// Radio mode: update seed and check low-water-mark.
 	m.radio.seedHash = msg.Hash
 	radioCmd := m.radioMaybeEnqueueCmd()
+	if radioCmd != nil {
+		m.radio.enqueuePending = true
+	}
 
 	return m, tea.Batch(m.sessionPositionCmd(), incrementCmd, radioCmd)
 }

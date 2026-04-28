@@ -155,6 +155,85 @@ func TestWithRadioMode(t *testing.T) {
 	}
 }
 
+// TestRadioEnqueuePendingSetByTrackChanged verifies that processing a
+// TrackChangedMsg with radio enabled and remaining <= radioLowWaterMark sets
+// enqueuePending on the returned model. This is a regression test for a
+// value-receiver bug where the mutation was lost.
+func TestRadioEnqueuePendingSetByTrackChanged(t *testing.T) {
+	be := &stubBatchEnqueuer{}
+	m := newModelWithTracks()
+	m.batchEnqueuer = be
+	m.radio.enabled = true
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a1.flac", Artist: "Alice", Title: "Track A1"},
+	}
+	m.playback.state = PlaybackPlaying
+	m.playback.currentIndex = 0
+
+	next, _ := m.Update(TrackChangedMsg{Hash: "h1", Artist: "Alice", Title: "Track A1", Index: 0})
+	nm := next.(Model)
+
+	if !nm.radio.enqueuePending {
+		t.Error("expected enqueuePending=true after TrackChangedMsg with remaining <= radioLowWaterMark")
+	}
+}
+
+// TestRadioNoDuplicateBatch verifies that a second TrackChangedMsg does not
+// trigger another radio batch while one is already in flight.
+func TestRadioNoDuplicateBatch(t *testing.T) {
+	be := &stubBatchEnqueuer{}
+	m := newModelWithTracks()
+	m.batchEnqueuer = be
+	m.radio.enabled = true
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a1.flac", Artist: "Alice", Title: "Track A1"},
+		{ID: 2, Hash: "h2", Path: "/a2.flac", Artist: "Alice", Title: "Track A2"},
+	}
+	m.playback.state = PlaybackPlaying
+	m.playback.currentIndex = 0
+
+	// First TrackChangedMsg triggers a radio batch.
+	next, cmd1 := m.Update(TrackChangedMsg{Hash: "h1", Artist: "Alice", Title: "Track A1", Index: 0})
+	m = next.(Model)
+	if cmd1 == nil {
+		t.Fatal("expected non-nil cmd (radio batch) from first TrackChangedMsg")
+	}
+	if !m.radio.enqueuePending {
+		t.Fatal("expected enqueuePending=true after first TrackChangedMsg")
+	}
+
+	// Second TrackChangedMsg should NOT trigger another batch.
+	next, _ = m.Update(TrackChangedMsg{Hash: "h2", Artist: "Alice", Title: "Track A2", Index: 1})
+	m = next.(Model)
+
+	cmd := m.radioMaybeEnqueueCmd()
+	if cmd != nil {
+		t.Error("expected nil radio cmd while enqueuePending=true (duplicate batch suppressed)")
+	}
+}
+
+// TestRadioEnqueuePendingSetByToggle verifies that enabling radio mode with
+// remaining <= radioLowWaterMark sets enqueuePending on the returned model.
+func TestRadioEnqueuePendingSetByToggle(t *testing.T) {
+	be := &stubBatchEnqueuer{}
+	m := newModelWithTracks()
+	m.batchEnqueuer = be
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a1.flac"},
+	}
+	m.playback.currentIndex = 0
+
+	rm, _, _ := m.handlePlaybackKeyAction(actionRadioToggle)
+	nm := rm.(Model)
+
+	if !nm.radio.enabled {
+		t.Fatal("expected radio.enabled=true after toggle")
+	}
+	if !nm.radio.enqueuePending {
+		t.Error("expected enqueuePending=true after enabling radio with remaining <= radioLowWaterMark")
+	}
+}
+
 // TestRadioStatusBarIndicator verifies that the status bar shows the DJ
 // indicator when radio mode is active.
 func TestRadioStatusBarIndicator(t *testing.T) {
