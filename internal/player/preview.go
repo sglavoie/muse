@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 )
 
@@ -53,7 +54,7 @@ func NewPreviewPlayer(parentCtx context.Context, socketPath string) *PreviewPlay
 // Start launches the mpv subprocess in idle mode and blocks until the IPC
 // socket is ready or a 5-second timeout elapses.
 func (p *PreviewPlayer) Start() error {
-	if err := os.MkdirAll(os.TempDir(), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(p.socketPath), 0o700); err != nil {
 		return fmt.Errorf("preview: create dir: %w", err)
 	}
 

@@ -146,6 +146,14 @@ func (idx *LibraryIndex) UpsertByPath(path string, t Track) {
 			break
 		}
 	}
+	// Remove any existing entry with the same hash to avoid duplicates,
+	// mirroring the dedup logic in Insert.
+	if t.Hash != "" {
+		if oldPos, ok := idx.byHash[t.Hash]; ok && oldPos < len(idx.tracks) {
+			idx.tracks = append(idx.tracks[:oldPos], idx.tracks[oldPos+1:]...)
+			idx.adjustIndicesAfterRemove(oldPos, t.Hash)
+		}
+	}
 	// Inline insert.
 	pos := sort.Search(len(idx.tracks), func(i int) bool {
 		return !less(idx.tracks[i], t)

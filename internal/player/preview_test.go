@@ -3,7 +3,9 @@ package player
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 )
 
@@ -29,6 +31,26 @@ func TestPreviewPlayer_Start(t *testing.T) {
 	p := newTestPreviewPlayer(t)
 	if p.client == nil {
 		t.Fatal("expected client to be connected after Start")
+	}
+}
+
+func TestPreviewPlayer_Start_CreatesSocketParentDir(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "nested", "subdir")
+	sock := filepath.Join(dir, "preview.sock")
+
+	p := NewPreviewPlayer(context.Background(), sock)
+	p.launchFn = func(ctx context.Context, socketPath string) (*exec.Cmd, error) {
+		// Verify the parent directory was created before launch.
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			t.Fatal("expected parent directory to be created before mpv launch")
+		}
+		// Return an error to stop Start early — we only care about dir creation.
+		return nil, errors.New("intentional stop")
+	}
+	_ = p.Start() // error expected from launchFn
+
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		t.Fatal("Start did not create the socket parent directory")
 	}
 }
 

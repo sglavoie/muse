@@ -234,6 +234,33 @@ func TestInsert_DuplicateHashReordersCorrectly(t *testing.T) {
 	}
 }
 
+func TestUpsertByPath_DuplicateHashDeduplicates(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "h1", Artist: "A", Title: "t1", Path: "/a.flac"})
+	idx.Insert(Track{Hash: "h2", Artist: "B", Title: "t2", Path: "/b.flac"})
+
+	// Upsert /a.flac with a hash that already exists at /b.flac.
+	// Without dedup, /b.flac's hash entry gets overwritten and it becomes
+	// unfindable by hash, orphaning it in the index.
+	idx.UpsertByPath("/a.flac", Track{Hash: "h2", Artist: "A", Title: "t1-new", Path: "/a.flac"})
+
+	// The duplicate should have been removed, leaving only the upserted track.
+	if idx.Len() != 1 {
+		t.Fatalf("expected 1 track after upsert with duplicate hash, got %d", idx.Len())
+	}
+
+	found, ok := idx.FindByHash("h2")
+	if !ok {
+		t.Fatal("h2 not findable after upsert")
+	}
+	if found.Path != "/a.flac" {
+		t.Errorf("expected path /a.flac, got %q", found.Path)
+	}
+	if found.Title != "t1-new" {
+		t.Errorf("expected title t1-new, got %q", found.Title)
+	}
+}
+
 func TestUpdateDuration_Found(t *testing.T) {
 	var idx LibraryIndex
 	idx.Insert(Track{Hash: "h1", Artist: "A", Title: "t1", Duration: 0})
