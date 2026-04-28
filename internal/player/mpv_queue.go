@@ -17,7 +17,7 @@ func (m *Manager) SetQueue(entries []QueueTrack) {
 		if len(m.queue) > 0 {
 			m.currentIndex = len(m.queue) - 1
 		} else {
-			m.currentIndex = 0
+			m.currentIndex = -1
 		}
 	}
 	m.mu.Unlock()
@@ -28,12 +28,14 @@ func (m *Manager) SetQueue(entries []QueueTrack) {
 // SetCurrentIndex sets the current queue index used by Next, Previous, and
 // auto-advance. Call this during session restore after SetQueue so that
 // navigation starts from the correct position rather than defaulting to 0.
-// The index is clamped to [0, len(queue)-1]; if the queue is empty it is
-// set to 0.
+// The index is clamped to [0, len(queue)-1]; negative indices are clamped
+// to 0. If the queue is empty, currentIndex is set to -1.
 func (m *Manager) SetCurrentIndex(index int) {
 	m.mu.Lock()
 	switch {
-	case len(m.queue) == 0, index < 0:
+	case len(m.queue) == 0:
+		m.currentIndex = -1
+	case index < 0:
 		m.currentIndex = 0
 	case index >= len(m.queue):
 		m.currentIndex = len(m.queue) - 1
@@ -84,7 +86,7 @@ func (m *Manager) RemoveFromQueue(index int) error {
 	if len(m.queue) > 0 && m.currentIndex >= len(m.queue) {
 		m.currentIndex = len(m.queue) - 1
 	} else if len(m.queue) == 0 {
-		m.currentIndex = 0
+		m.currentIndex = -1
 	}
 	m.mu.Unlock()
 

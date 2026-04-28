@@ -88,7 +88,7 @@ func TestManager_RemoveFromQueue(t *testing.T) {
 		}
 	})
 
-	t.Run("remove only entry resets currentIndex to 0", func(t *testing.T) {
+	t.Run("remove only entry resets currentIndex to -1", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		q := []QueueTrack{
 			{Path: "/a.flac", Hash: "h0", QueueID: 1},
@@ -102,8 +102,8 @@ func TestManager_RemoveFromQueue(t *testing.T) {
 		if got := len(m.queue); got != 0 {
 			t.Errorf("queue len = %d, want 0", got)
 		}
-		if m.currentIndex != 0 {
-			t.Errorf("currentIndex = %d, want 0", m.currentIndex)
+		if m.currentIndex != -1 {
+			t.Errorf("currentIndex = %d, want -1", m.currentIndex)
 		}
 	})
 

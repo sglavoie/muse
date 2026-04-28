@@ -64,8 +64,8 @@ func TestManager_SetQueue_EmptyQueue(t *testing.T) {
 	idx := m.currentIndex
 	m.mu.RUnlock()
 
-	if idx != 0 {
-		t.Errorf("currentIndex = %d after SetQueue(nil), want 0", idx)
+	if idx != -1 {
+		t.Errorf("currentIndex = %d after SetQueue(nil), want -1", idx)
 	}
 }
 
@@ -117,15 +117,15 @@ func TestManager_SetCurrentIndex(t *testing.T) {
 		}
 	})
 
-	t.Run("empty queue sets 0", func(t *testing.T) {
+	t.Run("empty queue sets -1", func(t *testing.T) {
 		m := makeManager(0, 0)
 		defer m.Close()
 		m.SetCurrentIndex(5)
 		m.mu.RLock()
 		got := m.currentIndex
 		m.mu.RUnlock()
-		if got != 0 {
-			t.Errorf("currentIndex = %d, want 0", got)
+		if got != -1 {
+			t.Errorf("currentIndex = %d, want -1", got)
 		}
 	})
 }
