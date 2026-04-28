@@ -392,6 +392,39 @@ func TestPathsToChan_RespectsCtxCancellation(t *testing.T) {
 	}
 }
 
+// TestFilteredWalk_CancelledContextNilDeletions verifies that when the context
+// is cancelled during the walk, FilteredWalk returns nil deletions so that the
+// caller does not erroneously mark still-existing files as missing.
+func TestFilteredWalk_CancelledContextNilDeletions(t *testing.T) {
+	dir1 := t.TempDir()
+	dir2 := t.TempDir()
+
+	makeAudioFiles(t, dir1, 3)
+	paths2 := makeAudioFiles(t, dir2, 3)
+
+	// Build a known map that includes files from dir2. An uncancelled walk
+	// would see all of them and not report any deletions.
+	known := make(map[string]KnownFile)
+	for _, p := range paths2 {
+		info, _ := os.Stat(p)
+		known[p] = KnownFile{ModTime: info.ModTime().Unix(), SizeBytes: info.Size()}
+	}
+
+	// Cancel the context before calling FilteredWalk so the walk of dir2 is
+	// skipped. Without the fix, all dir2 paths would be falsely reported as
+	// deleted because the walk never visited them.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, deleted, err := FilteredWalk(ctx, []string{dir1, dir2}, nil, known, nil)
+	if err != nil {
+		t.Fatalf("FilteredWalk: %v", err)
+	}
+	if deleted != nil {
+		t.Errorf("deleted: got %v, want nil (context cancelled)", deleted)
+	}
+}
+
 // TestFilteredWalk_MultipleRootsDeletedFileReported verifies that a path in
 // the known map from one root and not the other is correctly reported as
 // deleted when it no longer exists on disk.

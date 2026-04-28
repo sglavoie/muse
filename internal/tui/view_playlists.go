@@ -245,6 +245,11 @@ func (v PlaylistsView) HandleAction(a action) PlaylistsView {
 		}
 		return v
 	}
+	var sortField, sortDir string
+	if v.sortState.Field != SortDefault {
+		sortField = SortFieldLabel(v.sortState.Field)
+		sortDir = SortDirIndicator(v.sortState.Dir)
+	}
 	view := pltui.View{
 		Level:        v.level,
 		Cursor:       v.cursor,
@@ -252,6 +257,8 @@ func (v PlaylistsView) HandleAction(a action) PlaylistsView {
 		Height:       v.height,
 		Playlists:    v.playlists,
 		Tracks:       v.tracks,
+		SortField:    sortField,
+		SortDir:      sortDir,
 	}
 	switch a {
 	case actionCursorUp:

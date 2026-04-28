@@ -89,8 +89,11 @@ func (w *Writer) ClearQueueSoft() ([]int64, error) {
 			return err
 		}
 
+		if err := tx.Commit(); err != nil {
+			return err
+		}
 		ids = collected
-		return tx.Commit()
+		return nil
 	})
 	return ids, err
 }

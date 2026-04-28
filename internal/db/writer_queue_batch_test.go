@@ -71,6 +71,30 @@ func TestAppendTracks_EmptySlice(t *testing.T) {
 	}
 }
 
+// TestAppendTracks_NilIdsOnError verifies that AppendTracks returns nil IDs
+// when the transaction fails mid-way (e.g. FK constraint violation). Before the
+// fix, partial IDs from the rolled-back transaction were returned to the caller.
+func TestAppendTracks_NilIdsOnError(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	// Seed only the first track. The second track has no matching tracks row,
+	// so the FK constraint on queue.track_hash will reject the insert.
+	seedTrack(t, d, "ok1", "/ok1.mp3")
+
+	tracks := []library.Track{
+		{Hash: "ok1", Path: "/ok1.mp3"},
+		{Hash: "missing_fk", Path: "/missing.mp3"}, // no tracks row
+	}
+	ids, err := w.AppendTracks(tracks, "")
+	if err == nil {
+		t.Fatal("expected error from FK constraint violation, got nil")
+	}
+	if ids != nil {
+		t.Errorf("expected nil ids on error, got %v", ids)
+	}
+}
+
 func TestDequeueTracksSoft_BatchSoftDelete(t *testing.T) {
 	d := openMigratedTestDB(t)
 	w := db.NewWriter(t.Context(), d.DB)

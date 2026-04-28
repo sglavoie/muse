@@ -197,6 +197,28 @@ func TestBridgeWatchChannel_CreatedAtSetBeforeForward(t *testing.T) {
 	}
 }
 
+// TestBridgeWatchChannel_DoesNotMutateCallerMap verifies that
+// BridgeWatchChannel copies the hashByPath map instead of writing to the
+// caller's map. Before the fix, the goroutine wrote new entries into the
+// shared map, which could race with concurrent readers on the caller side.
+func TestBridgeWatchChannel_DoesNotMutateCallerMap(t *testing.T) {
+	raw := make(chan library.WatchEvent, 1)
+	raw <- library.WatchEvent{Track: library.Track{Hash: "new-hash", Path: "/new.mp3"}}
+	close(raw)
+
+	writer := &stubUpsertBatcher{}
+	marker := &stubMissingMarker{}
+	callerMap := map[string]string{}
+
+	ch := BridgeWatchChannel(raw, writer, marker, callerMap, 10)
+	for range ch {
+	}
+
+	if _, ok := callerMap["/new.mp3"]; ok {
+		t.Error("BridgeWatchChannel mutated the caller's hashByPath map; expected it to use a copy")
+	}
+}
+
 // TestBridgeScanChannel_CreatedAtSetBeforeForward verifies that the TUI
 // channel receives scan tracks with CreatedAt already populated.
 func TestBridgeScanChannel_CreatedAtSetBeforeForward(t *testing.T) {

@@ -325,7 +325,7 @@ func (v View) renderTracks() string {
 			a := v.Styles.Accent
 			sep := a.Render(" ")
 			titleStr = styles.AccentFavRender(a, v.Styles.FavoriteAccent, isTrackFav, titleStr)
-			lines[i] = a.Render(markerStr+titleStr) + sep + a.Render(artistStr) + sep + a.Render(albumStr) + sep + a.Render(durStr)
+			lines[i] = a.Render(markerStr) + titleStr + sep + a.Render(artistStr) + sep + a.Render(albumStr) + sep + a.Render(durStr)
 		} else {
 			if isTrackFav {
 				titleStr = v.Styles.Favorite.Render(titleStr)

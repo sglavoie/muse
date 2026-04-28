@@ -62,6 +62,14 @@ func FilteredWalk(ctx context.Context, roots []string, excludedPaths []string, k
 		}
 	}
 
+	// When the context was cancelled the walk is incomplete: some known paths
+	// may not have been visited. Reporting them as deleted would cause the
+	// caller to mark still-existing files as missing in the database. Return
+	// nil deletions so the caller skips the deletion step.
+	if ctx.Err() != nil {
+		return changed, nil, nil
+	}
+
 	// Compute deletions: known paths not seen during the walk.
 	var deleted []string
 	for path := range known {

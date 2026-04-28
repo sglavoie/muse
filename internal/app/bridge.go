@@ -78,6 +78,13 @@ func BridgeScanChannel(raw <-chan library.Track, writer UpsertBatcher, batchSize
 // hashByPath maps file paths to content hashes for deletion lookups. The
 // returned channel is closed when raw is exhausted.
 func BridgeWatchChannel(raw <-chan library.WatchEvent, writer UpsertBatcher, marker MissingMarker, hashByPath map[string]string, batchSize int) <-chan library.WatchEvent {
+	// Copy the map so the goroutine owns its own mutable state and does not
+	// race with callers that may still read the original map.
+	localMap := make(map[string]string, len(hashByPath))
+	for k, v := range hashByPath {
+		localMap[k] = v
+	}
+
 	ch := make(chan library.WatchEvent, watchChannelBuffer)
 	go func() {
 		defer close(ch)
@@ -86,7 +93,7 @@ func BridgeWatchChannel(raw <-chan library.WatchEvent, writer UpsertBatcher, mar
 			if ev.Deleted {
 				ch <- ev
 				f.drain()
-				if hash, ok := hashByPath[ev.Path]; ok {
+				if hash, ok := localMap[ev.Path]; ok {
 					if err := marker.MarkTrackMissing(hash); err != nil {
 						slog.Warn("watcher: mark deleted track missing", "path", ev.Path, "err", err)
 					}
@@ -98,7 +105,7 @@ func BridgeWatchChannel(raw <-chan library.WatchEvent, writer UpsertBatcher, mar
 				// Keep the lookup map in sync so that a file created after
 				// startup and subsequently deleted can still be resolved to
 				// its content hash for the MarkTrackMissing call above.
-				hashByPath[ev.Track.Path] = ev.Track.Hash
+				localMap[ev.Track.Path] = ev.Track.Hash
 			}
 		}
 		f.drain()

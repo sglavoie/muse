@@ -70,10 +70,6 @@ func (m *Manager) RemoveFromQueue(index int) error {
 		return fmt.Errorf("index %d out of range", index)
 	}
 
-	hadPrefetch := m.prefetchedIndex >= 0
-	m.prefetchedIndex = -1
-	m.prefetchedPath = ""
-
 	// Build a new backing array so that any concurrent reader that captured
 	// the old slice header via RLock is not affected by this mutation.
 	newQ := make([]QueueTrack, 0, len(m.queue)-1)
@@ -90,11 +86,9 @@ func (m *Manager) RemoveFromQueue(index int) error {
 	}
 	m.mu.Unlock()
 
-	if hadPrefetch {
-		if c, err := m.ipc(); err == nil {
-			_, _ = c.SendCommand(cmdPlaylistRemove, 1)
-		}
-	}
+	// Clear the prefetch under prefetchMu so that the playlist-remove
+	// cannot race with a concurrent prefetchNext appending a new entry.
+	m.clearPrefetch()
 	go m.prefetchNext()
 
 	return nil
@@ -106,10 +100,7 @@ func (m *Manager) RemoveFromQueue(index int) error {
 // calling missingFileFn for each skipped entry. Returns ErrPlaybackFailed if
 // index is out of range or no playable entry exists from index onward.
 func (m *Manager) PlayFromIndex(index int) error {
-	m.mu.Lock()
-	m.prefetchedIndex = -1
-	m.prefetchedPath = ""
-	m.mu.Unlock()
+	m.clearPrefetch()
 
 	m.mu.RLock()
 	queue := m.queue

@@ -55,6 +55,7 @@ func (w *Writer) AppendTracks(tracks []library.Track, sourcePlaylist string) ([]
 		}
 
 		now := time.Now().Unix()
+		collected := make([]int64, 0, len(tracks))
 		for _, t := range tracks {
 			maxPos += queuePositionGap
 			res, err := tx.Exec(
@@ -68,9 +69,13 @@ func (w *Writer) AppendTracks(tracks []library.Track, sourcePlaylist string) ([]
 			if err != nil {
 				return err
 			}
-			ids = append(ids, id)
+			collected = append(collected, id)
 		}
-		return tx.Commit()
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		ids = collected
+		return nil
 	})
 	return ids, err
 }
