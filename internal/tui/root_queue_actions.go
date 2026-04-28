@@ -49,13 +49,18 @@ func (m Model) handleSelectedQueueDequeueAction() (tea.Model, tea.Cmd, bool) {
 		}
 	}
 
+	batchDel := m.batchEnqueuer
 	undoer := m.undoer
 	cancel := m.scheduleSoftDelete(
 		func() {
-			if undoer != nil {
+			if batchDel != nil {
+				if err := batchDel.DequeueTracksSoft(removedIDs); err != nil {
+					slog.Warn("bulk dequeue soft-delete failed", "err", err)
+				}
+			} else if undoer != nil {
 				for _, id := range removedIDs {
 					if err := undoer.DequeueTrackSoft(id); err != nil {
-						slog.Warn("dequeue soft-delete failed", "err", err)
+						slog.Warn("bulk dequeue soft-delete failed", "err", err)
 					}
 				}
 			}

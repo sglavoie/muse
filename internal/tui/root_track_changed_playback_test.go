@@ -100,6 +100,33 @@ func TestTrackChangedDiscardedOnEmptyQueue(t *testing.T) {
 	}
 }
 
+// TestTrackChangedHashNotInQueueUsesNegativeIndex verifies that when the mpv
+// event carries a hash that does not match any queue entry (e.g. the track was
+// dequeued between the mpv event and TUI processing), currentIndex is set to
+// -1 rather than incorrectly falling back to 0.
+func TestTrackChangedHashNotInQueueUsesNegativeIndex(t *testing.T) {
+	m := New(context.Background())
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "A", Title: "One"},
+		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "B", Title: "Two"},
+	}
+
+	// Hash "gone" is not in the queue; index 5 is out of bounds.
+	next, _ := m.Update(TrackChangedMsg{Hash: "gone", Index: 5, Artist: "G", Title: "Gone"})
+	nm := next.(Model)
+
+	if nm.playback.currentIndex != -1 {
+		t.Fatalf("expected currentIndex=-1 when hash not in queue, got %d", nm.playback.currentIndex)
+	}
+	// Status bar should still be updated with the message metadata.
+	if nm.statusBar.artist != "G" {
+		t.Errorf("expected artist %q, got %q", "G", nm.statusBar.artist)
+	}
+	if nm.statusBar.title != "Gone" {
+		t.Errorf("expected title %q, got %q", "Gone", nm.statusBar.title)
+	}
+}
+
 // TestTrackChangedClampsOutOfBoundsIndex verifies that when the mpv event
 // carries an index beyond the current queue length (e.g. dequeue raced with
 // gapless transition), the handler falls back to a hash-based lookup.

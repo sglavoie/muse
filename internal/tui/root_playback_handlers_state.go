@@ -199,9 +199,10 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 				break
 			}
 		}
-		if idx < 0 {
-			idx = 0
-		}
+		// When the hash is not found in the queue, keep idx = -1 rather
+		// than falling back to 0. This prevents currentIndex from pointing
+		// at an unrelated track while still updating the status bar with
+		// the metadata from the message.
 	}
 	m.playback.currentIndex = idx
 	m.playback.queueExhausted = false
