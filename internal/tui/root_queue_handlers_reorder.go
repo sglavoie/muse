@@ -87,6 +87,14 @@ func (m Model) handleQueueShuffleMsg() (Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Capture the currently-playing entry's database ID before shuffling.
+	// Using the ID (unique per queue row) instead of the hash avoids
+	// misidentifying the entry when the queue contains duplicate tracks.
+	var currentID int64
+	if m.playback.currentIndex >= 0 && m.playback.currentIndex < len(m.queue.entries) {
+		currentID = m.queue.entries[m.playback.currentIndex].ID
+	}
+
 	entries := make([]QueueEntry, len(m.queue.entries))
 	copy(entries, m.queue.entries)
 	for i := len(entries) - 1; i > 0; i-- {
@@ -100,9 +108,9 @@ func (m Model) handleQueueShuffleMsg() (Model, tea.Cmd) {
 	m = exitVisualMode(m)
 
 	m.playback.currentIndex = -1
-	if m.playback.currentHash != "" {
+	if currentID != 0 {
 		for i, entry := range m.queue.entries {
-			if entry.Hash == m.playback.currentHash {
+			if entry.ID == currentID {
 				m.playback.currentIndex = i
 				break
 			}

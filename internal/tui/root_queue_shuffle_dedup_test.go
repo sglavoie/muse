@@ -91,6 +91,33 @@ func TestShufflePreservesPlaybackIndex(t *testing.T) {
 	}
 }
 
+// TestShufflePreservesPlaybackIndexDuplicateHashes verifies that when the
+// queue contains duplicate hashes, shuffle relocates the playback index to
+// the exact entry (by database ID) that was playing, not just the first
+// entry with the same hash.
+func TestShufflePreservesPlaybackIndexDuplicateHashes(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "a", Display: "A1"},
+		{ID: 2, Hash: "a", Display: "A2"},
+		{ID: 3, Hash: "a", Display: "A3"},
+	}
+	// Playback is on the second copy (ID=2).
+	m.playback.currentHash = "a"
+	m.playback.currentIndex = 1
+
+	m, _ = m.handleQueueShuffleMsg()
+
+	if m.playback.currentIndex < 0 || m.playback.currentIndex >= len(m.queue.entries) {
+		t.Fatalf("currentIndex out of bounds: %d", m.playback.currentIndex)
+	}
+	got := m.queue.entries[m.playback.currentIndex]
+	if got.ID != 2 {
+		t.Errorf("currentIndex points to entry ID=%d, want ID=2 (the exact playing entry)", got.ID)
+	}
+}
+
 // TestDedupRelocatesPlaybackIndex verifies that after dedup the playback
 // index points to the surviving first copy of the currently-playing track,
 // even when playback was on a later duplicate that got removed.
