@@ -5,6 +5,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/radio"
 )
@@ -13,6 +14,7 @@ import (
 type radioState struct {
 	enabled        bool
 	seedHash       string
+	syntheticSeed  *radio.SeedTrack // non-nil = use directly instead of hash lookup
 	enqueuePending bool
 	recentHashes   []string // ring buffer, cap radioRecentCap
 }
@@ -36,6 +38,8 @@ func (m Model) radioToggle() (tea.Model, tea.Cmd, bool) {
 	if m.radio.enabled {
 		label = "on"
 		m.radio.seedHash = m.playback.currentHash
+	} else {
+		m.radio.syntheticSeed = nil
 	}
 	m.statusBar.notification = newNotificationFor(
 		"Radio mode: "+label,
@@ -93,23 +97,26 @@ func (m Model) radioEnqueueCmd() tea.Cmd {
 		return nil
 	}
 
-	seedHash := m.radio.seedHash
-	if seedHash == "" {
-		seedHash = m.playback.currentHash
-	}
-
 	seed := radio.SeedTrack{}
-	if t, ok := m.library.index.FindByHash(seedHash); ok {
-		seed.Hash = t.Hash
-		seed.Artist = t.Artist
-		seed.Album = t.Album
-		seed.Genres = library.SplitGenres(t.Genre)
-		seed.Duration = t.Duration
-		if tags, ok2 := m.trackTags[seedHash]; ok2 {
-			seed.TagIDs = tags
+	if m.radio.syntheticSeed != nil {
+		seed = *m.radio.syntheticSeed
+	} else {
+		seedHash := m.radio.seedHash
+		if seedHash == "" {
+			seedHash = m.playback.currentHash
 		}
-	} else if seedHash != "" {
-		seed.Hash = seedHash
+		if t, ok := m.library.index.FindByHash(seedHash); ok {
+			seed.Hash = t.Hash
+			seed.Artist = t.Artist
+			seed.Album = t.Album
+			seed.Genres = library.SplitGenres(t.Genre)
+			seed.Duration = t.Duration
+			if tags, ok2 := m.trackTags[seedHash]; ok2 {
+				seed.TagIDs = tags
+			}
+		} else if seedHash != "" {
+			seed.Hash = seedHash
+		}
 	}
 
 	recentSet := make(map[string]struct{}, len(m.radio.recentHashes))
@@ -126,16 +133,55 @@ func (m Model) radioEnqueueCmd() tea.Cmd {
 	allTracks := snapshotTracks(m.library.index.Tracks())
 	trackTags := snapshotTrackTags(m.trackTags)
 	favoriteHashes := snapshotStringSet(m.favoriteHashes)
+	dismissedHashes := snapshotStringSet(m.dismissedHashes)
 	be := m.batchEnqueuer
+	recReader := m.recReader
 
 	return func() tea.Msg {
+		// Two-pass scoring: first pass with metadata only to narrow candidates,
+		// then load behavioral data for top 3*batchSize pool before final score.
+		completionRates := map[string]float64{}
+		coOccurrences := map[string]int{}
+		timeGenreBonus := map[string]float64{}
+		if recReader != nil && seed.Hash != "" {
+			initial := radio.ScoreAll(radio.ScoreInput{
+				Seed:            seed,
+				AllTracks:       allTracks,
+				TrackTags:       trackTags,
+				FavoriteHashes:  favoriteHashes,
+				RecentHashes:    recentSet,
+				QueueHashes:     queueSet,
+				DismissedHashes: dismissedHashes,
+			})
+			topN := min(3*radioBatchSize, len(initial))
+			topHashes := make([]string, topN)
+			for i := 0; i < topN; i++ {
+				topHashes[i] = initial[i].Track.Hash
+			}
+			if rates, err := recReader.ReadCompletionRates(topHashes); err == nil && rates != nil {
+				completionRates = rates
+			}
+			if coOccs, err := recReader.ReadSessionCoOccurrences(seed.Hash, 100); err == nil {
+				for _, c := range coOccs {
+					coOccurrences[c.Hash] = c.Count
+				}
+			}
+			if affinities, err := recReader.ReadHourGenreAffinities(); err == nil {
+				timeGenreBonus = buildTimeGenreBonus(affinities, time.Now().Hour())
+			}
+		}
+
 		scored := radio.ScoreAll(radio.ScoreInput{
-			Seed:           seed,
-			AllTracks:      allTracks,
-			TrackTags:      trackTags,
-			FavoriteHashes: favoriteHashes,
-			RecentHashes:   recentSet,
-			QueueHashes:    queueSet,
+			Seed:            seed,
+			AllTracks:       allTracks,
+			TrackTags:       trackTags,
+			FavoriteHashes:  favoriteHashes,
+			RecentHashes:    recentSet,
+			QueueHashes:     queueSet,
+			DismissedHashes: dismissedHashes,
+			CompletionRates: completionRates,
+			CoOccurrences:   coOccurrences,
+			TimeGenreBonus:  timeGenreBonus,
 		})
 		picked := radio.PickBatch(scored, radioBatchSize, 0.4)
 		if len(picked) == 0 {
@@ -152,6 +198,27 @@ func (m Model) radioEnqueueCmd() tea.Cmd {
 			WasEmpty: wasEmpty,
 		}
 	}
+}
+
+// buildTimeGenreBonus converts hour-genre affinity rows into a bonus map for
+// the given hour. The top genre for the hour receives +3 and the runner-up
+// receives +1. Affinities must be pre-sorted by (hour, count DESC) as returned
+// by ReadHourGenreAffinities.
+func buildTimeGenreBonus(affinities []db.HourGenreAffinity, hour int) map[string]float64 {
+	bonus := make(map[string]float64)
+	bonusValues := [2]float64{3, 1}
+	rank := 0
+	for _, a := range affinities {
+		if a.Hour != hour {
+			continue
+		}
+		bonus[a.Genre] = bonusValues[rank]
+		rank++
+		if rank >= len(bonusValues) {
+			break
+		}
+	}
+	return bonus
 }
 
 // handleRadioBatchEnqueuedMsg appends radio-picked tracks to the queue,

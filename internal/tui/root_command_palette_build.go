@@ -45,6 +45,19 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		},
 	})
 
+	cmds = append(cmds, PaletteCommand{
+		Name: "Go to Mixes",
+		Exec: func() tea.Cmd {
+			return func() tea.Msg { return commandPaletteActionMsg{action: actionSwitchMixes} }
+		},
+	})
+
+	cmds = append(cmds, PaletteCommand{
+		Name:    "Refresh mixes",
+		Exec:    m.loadMixCountsCmd,
+		Enabled: func() bool { return m.recReader != nil },
+	})
+
 	trackFocused := func() bool { _, _, _, found := m.focusedTrackForPalette(); return found }
 
 	cmds = append(cmds, PaletteCommand{
@@ -272,6 +285,10 @@ func (m Model) focusedTrackForPalette() (path, artist, title string, found bool)
 	case viewTags:
 		if track, ok := m.tagsView.focusedTrack(); ok {
 			return track.Path, track.Artist, track.Title, true
+		}
+	case viewMixes:
+		if t := m.mixes.focusedTrack(); t != nil {
+			return t.Path, t.Artist, t.Title, true
 		}
 	}
 

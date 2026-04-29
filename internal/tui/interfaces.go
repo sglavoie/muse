@@ -252,7 +252,7 @@ type smartPlaylistWriter interface {
 // Root calls it instead of playCountIncrementer when available, because
 // RecordPlay atomically increments play_count AND sets last_played_at.
 type playHistoryRecorder interface {
-	RecordPlay(hash string, playedAt int64, listenedSecs int) error
+	RecordPlay(hash string, playedAt int64, listenedSecs int, durationSecs float64) error
 }
 
 // playHistoryReader loads raw play history rows from the database. Root uses
@@ -264,7 +264,7 @@ type playHistoryReader interface {
 // listeningStatsReader queries aggregated listening statistics from the
 // play_history table. Root uses it to populate the stats overlay (Session 3).
 type listeningStatsReader interface {
-	ReadListeningStats(sinceUnix int64) (db.ListeningStats, error)
+	ReadListeningStats(sinceUnix int64, mixCfg db.MixCountConfig) (db.ListeningStats, error)
 }
 
 // scanUpsertBatcher batches library track upserts during a rescan so that
@@ -288,6 +288,44 @@ type tagReader interface {
 	ReadTrackHashesByTag(tagID int64) ([]string, error)
 	ReadTracksByTag(tagID int64) ([]db.PlaylistTrackRow, error)
 	ReadTagCounts() (map[int64]int, error)
+}
+
+// recommendationReader provides recommendation mix queries and behavioral
+// signals used by MixesView and Auto-DJ scoring.
+type recommendationReader interface {
+	HasSufficientHistory(minCount int) (bool, error)
+	ReadRediscoverMix(minPlays, ageDays, limit int) ([]library.Track, error)
+	ReadHiddenGemsMix(maxPlays, topArtists, topGenres, limit int) ([]library.Track, error)
+	ReadOnRepeatMix(minPlays, windowDays, limit int) ([]library.Track, error)
+	ReadDeepCutsMix(minPlays, maxPlays int, minCompletion float64, limit int) ([]library.Track, error)
+	ReadNeverPlayedMix(limit int) ([]library.Track, error)
+	ReadCompletionRates(hashes []string) (map[string]float64, error)
+	ReadSessionCoOccurrences(seedHash string, limit int) ([]db.SessionCoOccurrence, error)
+	ReadHourGenreAffinities() ([]db.HourGenreAffinity, error)
+	ReadAllMixProgress() (map[db.MixID]db.MixProgress, error)
+}
+
+// dismissalReader loads the set of dismissed track hashes from the database.
+// Root uses it on startup to pre-populate the in-memory dismissedHashes set.
+type dismissalReader interface {
+	ReadDismissedTrackHashes() (map[string]struct{}, error)
+}
+
+// dismissalWriter is the db.DismissalWriter interface. Aliased here to keep
+// the tui package's dependency on db narrow and explicit.
+type dismissalWriter = db.DismissalWriter
+
+// cachedMixReader reads pre-computed mix memberships from the
+// recommendation_cache table. Root uses it as a fast path in loadMixCmd and
+// loadMixCountsCmd, falling back to live queries when the cache is empty.
+type cachedMixReader interface {
+	ReadCachedMix(mixID, limit int) ([]library.Track, error)
+}
+
+// recommendationCacheRebuilder pre-computes mix memberships and writes them to
+// recommendation_cache. Root fires this asynchronously after every N plays.
+type recommendationCacheRebuilder interface {
+	RebuildRecommendationCache(entries []db.CacheEntry) error
 }
 
 // tagWriter persists tag mutations to the database. Root uses it when the

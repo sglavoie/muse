@@ -44,6 +44,8 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 			m.genres = m.genres.HandleAction(action)
 		case viewTags:
 			m.tagsView = m.tagsView.HandleAction(action)
+		case viewMixes:
+			m.mixes = m.mixes.handleCursorAction(action)
 		default:
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)
@@ -122,6 +124,19 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 					}
 				}
 			}
+		case viewMixes:
+			if m.mixes.level == 1 {
+				if t := m.mixes.focusedTrack(); t != nil {
+					if m.mixes.trackView.selectedHashes == nil {
+						m.mixes.trackView.selectedHashes = make(map[string]struct{})
+					}
+					if _, sel := m.mixes.trackView.selectedHashes[t.Hash]; sel {
+						delete(m.mixes.trackView.selectedHashes, t.Hash)
+					} else {
+						m.mixes.trackView.selectedHashes[t.Hash] = struct{}{}
+					}
+				}
+			}
 		default:
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)
@@ -153,6 +168,8 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 			m.genres.selectedHashes = nil
 		case viewTags:
 			m.tagsView.selectedHashes = nil
+		case viewMixes:
+			m.mixes.trackView.selectedHashes = nil
 		}
 		return m, nil, true
 	default:

@@ -65,6 +65,11 @@ func (m Model) bulkSelectedHashes() []string {
 		return hashMapToSlice(m.genres.selectedHashes)
 	case viewTags:
 		return hashMapToSlice(m.tagsView.selectedHashes)
+	case viewMixes:
+		if m.mixes.level == 1 {
+			return hashMapToSlice(m.mixes.trackView.selectedHashes)
+		}
+		return nil
 	default:
 		return nil
 	}
@@ -213,6 +218,18 @@ func (m Model) refreshDerivedViews() Model {
 	if m.favorites.level == favtui.TrackLevel {
 		refreshTrackMetadata(m.favorites.drilldownTracks)
 		m.favorites = m.favorites.recomputeFavoritesSort()
+	}
+
+	if m.mixes.level == 1 {
+		if cached, ok := m.mixes.cachedMixes[m.mixes.activeMix]; ok {
+			refreshTrackMetadata(cached)
+		}
+		if m.mixes.trackView.sortState.Field != SortDefault {
+			m.mixes.trackView = m.mixes.trackView.recomputeSortedTracks()
+		}
+		if m.mixes.trackView.filter.Text != "" {
+			m.mixes.trackView = m.mixes.trackView.rebuildFilterCache()
+		}
 	}
 
 	return m

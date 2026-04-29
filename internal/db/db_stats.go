@@ -5,6 +5,44 @@ import (
 	"time"
 )
 
+// MixCountConfig holds the thresholds used by ReadMixCounts.
+// Populate from config.MixesConfig at the call site.
+type MixCountConfig struct {
+	RediscoverMinPlays    int
+	RediscoverAgeDays     int
+	HiddenGemsMaxPlays    int
+	HiddenGemsTopArtists  int
+	HiddenGemsTopGenres   int
+	OnRepeatMinPlays      int
+	OnRepeatWindowDays    int
+	DeepCutsMinPlays      int
+	DeepCutsMaxPlays      int
+	DeepCutsMinCompletion float64
+}
+
+// DefaultMixCountConfig returns thresholds matching the default config values.
+func DefaultMixCountConfig() MixCountConfig {
+	return MixCountConfig{
+		RediscoverMinPlays:    10,
+		RediscoverAgeDays:     90,
+		HiddenGemsMaxPlays:    2,
+		HiddenGemsTopArtists:  20,
+		HiddenGemsTopGenres:   10,
+		OnRepeatMinPlays:      3,
+		OnRepeatWindowDays:    7,
+		DeepCutsMinPlays:      1,
+		DeepCutsMaxPlays:      5,
+		DeepCutsMinCompletion: 0.8,
+	}
+}
+
+// MixStatEntry records a mix name and how many tracks currently qualify.
+type MixStatEntry struct {
+	Name        string
+	TrackCount  int
+	Description string
+}
+
 // ListeningStats holds aggregated listening data for a given time window.
 type ListeningStats struct {
 	TotalListenedSecs int
@@ -13,7 +51,8 @@ type ListeningStats struct {
 	TopAlbums         []StatEntry
 	TopGenres         []StatEntry
 	TopTracks         []StatEntry
-	CurrentStreak     int // consecutive days with ≥1 play
+	CurrentStreak     int            // consecutive days with ≥1 play
+	MixStats          []MixStatEntry // always all-time, independent of period
 }
 
 // StatEntry holds an aggregated name/play-count/listening-time tuple.
@@ -24,8 +63,9 @@ type StatEntry struct {
 }
 
 // ReadListeningStats returns aggregated listening statistics for plays recorded
-// at or after sinceUnix. Pass sinceUnix = 0 for all-time stats.
-func (d *DB) ReadListeningStats(sinceUnix int64) (ListeningStats, error) {
+// at or after sinceUnix. Pass sinceUnix = 0 for all-time stats. Mix counts are
+// always all-time and use thresholds from mixCfg.
+func (d *DB) ReadListeningStats(sinceUnix int64, mixCfg MixCountConfig) (ListeningStats, error) {
 	var stats ListeningStats
 
 	if err := d.QueryRow(
@@ -77,7 +117,87 @@ func (d *DB) ReadListeningStats(sinceUnix int64) (ListeningStats, error) {
 		return stats, fmt.Errorf("db: read listening stats streak: %w", err)
 	}
 
+	stats.MixStats, err = d.ReadMixCounts(mixCfg)
+	if err != nil {
+		return stats, fmt.Errorf("db: read listening stats mix counts: %w", err)
+	}
+
 	return stats, nil
+}
+
+// ReadMixCounts returns a count of qualifying tracks for each recommendation
+// mix, using the thresholds in cfg. Mix counts are always all-time.
+func (d *DB) ReadMixCounts(cfg MixCountConfig) ([]MixStatEntry, error) {
+	entries := []MixStatEntry{
+		{Name: "Rediscover", Description: "Tracks you loved but haven't played in 90+ days"},
+		{Name: "Hidden Gems", Description: "Unplayed tracks by your favorite artists"},
+		{Name: "On Repeat", Description: "Your most played tracks this week"},
+		{Name: "Deep Cuts", Description: "Tracks you always listen to completion"},
+		{Name: "Never Played", Description: "Tracks you might like but haven't tried"},
+	}
+
+	cutoff := time.Now().Add(-time.Duration(cfg.RediscoverAgeDays) * 24 * time.Hour).Unix()
+	if err := d.QueryRow(
+		`SELECT COUNT(*) FROM tracks WHERE play_count >= ? AND last_played_at < ? AND last_played_at > 0`,
+		cfg.RediscoverMinPlays, cutoff,
+	).Scan(&entries[0].TrackCount); err != nil {
+		return nil, fmt.Errorf("db: read mix counts rediscover: %w", err)
+	}
+
+	if err := d.QueryRow(`
+		SELECT COUNT(*) FROM tracks t
+		WHERE t.play_count <= ?
+		AND (
+		    t.artist IN (
+		        SELECT t2.artist FROM play_history ph JOIN tracks t2 ON ph.track_hash = t2.hash
+		        GROUP BY t2.artist ORDER BY COUNT(*) DESC LIMIT ?
+		    )
+		    OR EXISTS (
+		        SELECT 1 FROM track_genres tg WHERE tg.track_hash = t.hash
+		        AND tg.genre IN (
+		            SELECT tg2.genre FROM play_history ph
+		            JOIN track_genres tg2 ON ph.track_hash = tg2.track_hash
+		            GROUP BY tg2.genre ORDER BY COUNT(*) DESC LIMIT ?
+		        )
+		    )
+		)`,
+		cfg.HiddenGemsMaxPlays, cfg.HiddenGemsTopArtists, cfg.HiddenGemsTopGenres,
+	).Scan(&entries[1].TrackCount); err != nil {
+		return nil, fmt.Errorf("db: read mix counts hidden gems: %w", err)
+	}
+
+	windowStart := time.Now().Add(-time.Duration(cfg.OnRepeatWindowDays) * 24 * time.Hour).Unix()
+	if err := d.QueryRow(`
+		SELECT COUNT(*) FROM (
+		    SELECT t.hash FROM tracks t
+		    JOIN play_history ph ON ph.track_hash = t.hash
+		    WHERE ph.played_at >= ?
+		    GROUP BY t.hash HAVING COUNT(*) >= ?
+		) sub`,
+		windowStart, cfg.OnRepeatMinPlays,
+	).Scan(&entries[2].TrackCount); err != nil {
+		return nil, fmt.Errorf("db: read mix counts on repeat: %w", err)
+	}
+
+	if err := d.QueryRow(`
+		SELECT COUNT(*) FROM (
+		    SELECT t.hash FROM tracks t
+		    JOIN play_history ph ON ph.track_hash = t.hash
+		    WHERE t.play_count BETWEEN ? AND ?
+		    GROUP BY t.hash HAVING AVG(ph.completion_rate) >= ?
+		) sub`,
+		cfg.DeepCutsMinPlays, cfg.DeepCutsMaxPlays, cfg.DeepCutsMinCompletion,
+	).Scan(&entries[3].TrackCount); err != nil {
+		return nil, fmt.Errorf("db: read mix counts deep cuts: %w", err)
+	}
+
+	if err := d.QueryRow(
+		`SELECT COUNT(*) FROM tracks WHERE play_count = 0`,
+	).Scan(&entries[4].TrackCount); err != nil {
+		return nil, fmt.Errorf("db: read mix counts never played: %w", err)
+	}
+
+	return entries, nil
 }
 
 func readTopEntries(d *DB, query string, arg int64) ([]StatEntry, error) {

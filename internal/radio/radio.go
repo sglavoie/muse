@@ -21,12 +21,16 @@ type SeedTrack struct {
 
 // ScoreInput bundles all data needed to score a library against a seed.
 type ScoreInput struct {
-	Seed           SeedTrack
-	AllTracks      []library.Track
-	TrackTags      map[string]map[int64]struct{}
-	FavoriteHashes map[string]struct{}
-	RecentHashes   map[string]struct{}
-	QueueHashes    map[string]struct{}
+	Seed            SeedTrack
+	AllTracks       []library.Track
+	TrackTags       map[string]map[int64]struct{}
+	FavoriteHashes  map[string]struct{}
+	RecentHashes    map[string]struct{}
+	QueueHashes     map[string]struct{}
+	DismissedHashes map[string]struct{} // tracks dismissed from recommendation mixes
+	CompletionRates map[string]float64  // hash -> avg completion 0.0-1.0; nil = not loaded
+	CoOccurrences   map[string]int      // hash -> co-occurrence count with seed; nil = not loaded
+	TimeGenreBonus  map[string]float64  // genre -> bonus for current hour; nil = disabled
 }
 
 // TrackScore pairs a track with its computed relevance score.
@@ -90,6 +94,34 @@ func ScoreAll(input ScoreInput) []TrackScore {
 			}
 		}
 
+		// Time-of-day genre affinity: variable bonus per matching genre.
+		if input.TimeGenreBonus != nil {
+			for _, cg := range candidateGenres {
+				if bonus, ok := input.TimeGenreBonus[cg]; ok {
+					score += bonus
+				}
+			}
+		}
+
+		// Completion rate: +4 for high listeners, -3 for skippers.
+		if input.CompletionRates != nil {
+			if rate, ok := input.CompletionRates[track.Hash]; ok {
+				if rate >= 0.8 {
+					score += 4
+				}
+				if rate <= 0.3 {
+					score -= 3
+				}
+			}
+		}
+
+		// Session co-occurrence with seed: +6 when played together 2+ times.
+		if input.CoOccurrences != nil {
+			if count, ok := input.CoOccurrences[track.Hash]; ok && count >= 2 {
+				score += 6
+			}
+		}
+
 		// Recent history penalty: -50.
 		if _, ok := input.RecentHashes[track.Hash]; ok {
 			score -= 50
@@ -97,6 +129,11 @@ func ScoreAll(input ScoreInput) []TrackScore {
 
 		// Queue penalty: -100.
 		if _, ok := input.QueueHashes[track.Hash]; ok {
+			score -= 100
+		}
+
+		// Dismissed penalty: -100.
+		if _, ok := input.DismissedHashes[track.Hash]; ok {
 			score -= 100
 		}
 

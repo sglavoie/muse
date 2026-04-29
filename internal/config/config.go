@@ -53,6 +53,20 @@ log_level = %q
 # Stereo widening settings.
 # stereo_wide_enabled = false
 # stereo_wide_amount = 10
+
+# Recommendation mix thresholds.
+# [mixes]
+# rediscover_min_plays = 10
+# rediscover_age_days = 90
+# hidden_gems_max_plays = 2
+# hidden_gems_top_artists = 20
+# hidden_gems_top_genres = 10
+# on_repeat_min_plays = 3
+# on_repeat_window_days = 7
+# deep_cuts_min_plays = 1
+# deep_cuts_max_plays = 5
+# deep_cuts_min_completion = 0.8
+# sufficient_history_count = 20
 `
 
 const (
@@ -71,7 +85,49 @@ const (
 	defaultEQPreset                   = "flat"
 	defaultStereoWideEnabled          = false
 	defaultStereoWideAmount           = 10 // 1.0x = passthrough
+
+	defaultMixRediscoverMinPlays    = 10
+	defaultMixRediscoverAgeDays     = 90
+	defaultMixHiddenGemsMaxPlays    = 2
+	defaultMixHiddenGemsTopArtists  = 20
+	defaultMixHiddenGemsTopGenres   = 10
+	defaultMixOnRepeatMinPlays      = 3
+	defaultMixOnRepeatWindowDays    = 7
+	defaultMixDeepCutsMinPlays      = 1
+	defaultMixDeepCutsMaxPlays      = 5
+	defaultMixDeepCutsMinCompletion = 0.8
+	defaultMixSufficientHistory     = 20
 )
+
+// MixesConfig holds thresholds for the recommendation mix queries.
+type MixesConfig struct {
+	RediscoverMinPlays     int     `toml:"rediscover_min_plays"`
+	RediscoverAgeDays      int     `toml:"rediscover_age_days"`
+	HiddenGemsMaxPlays     int     `toml:"hidden_gems_max_plays"`
+	HiddenGemsTopArtists   int     `toml:"hidden_gems_top_artists"`
+	HiddenGemsTopGenres    int     `toml:"hidden_gems_top_genres"`
+	OnRepeatMinPlays       int     `toml:"on_repeat_min_plays"`
+	OnRepeatWindowDays     int     `toml:"on_repeat_window_days"`
+	DeepCutsMinPlays       int     `toml:"deep_cuts_min_plays"`
+	DeepCutsMaxPlays       int     `toml:"deep_cuts_max_plays"`
+	DeepCutsMinCompletion  float64 `toml:"deep_cuts_min_completion"`
+	SufficientHistoryCount int     `toml:"sufficient_history_count"`
+}
+
+// rawMixesConfig mirrors MixesConfig with pointer types for optional fields.
+type rawMixesConfig struct {
+	RediscoverMinPlays     *int     `toml:"rediscover_min_plays"`
+	RediscoverAgeDays      *int     `toml:"rediscover_age_days"`
+	HiddenGemsMaxPlays     *int     `toml:"hidden_gems_max_plays"`
+	HiddenGemsTopArtists   *int     `toml:"hidden_gems_top_artists"`
+	HiddenGemsTopGenres    *int     `toml:"hidden_gems_top_genres"`
+	OnRepeatMinPlays       *int     `toml:"on_repeat_min_plays"`
+	OnRepeatWindowDays     *int     `toml:"on_repeat_window_days"`
+	DeepCutsMinPlays       *int     `toml:"deep_cuts_min_plays"`
+	DeepCutsMaxPlays       *int     `toml:"deep_cuts_max_plays"`
+	DeepCutsMinCompletion  *float64 `toml:"deep_cuts_min_completion"`
+	SufficientHistoryCount *int     `toml:"sufficient_history_count"`
+}
 
 // Config holds all application configuration values.
 type Config struct {
@@ -95,6 +151,7 @@ type Config struct {
 	EQCustomPresets            []EQCustomPreset `toml:"eq_custom_presets"`
 	StereoWideEnabled          bool             `toml:"stereo_wide_enabled"`
 	StereoWideAmount           int              `toml:"stereo_wide_amount"`
+	Mixes                      MixesConfig      `toml:"mixes"`
 }
 
 // LoadResult holds the output of a successful Load call.
@@ -127,4 +184,5 @@ type rawConfig struct {
 	EQCustomPresets            []EQCustomPreset `toml:"eq_custom_presets"`
 	StereoWideEnabled          *bool            `toml:"stereo_wide_enabled"`
 	StereoWideAmount           *int             `toml:"stereo_wide_amount"`
+	Mixes                      rawMixesConfig   `toml:"mixes"`
 }

@@ -110,6 +110,14 @@ func (m Model) allFilterOps() *filterOps {
 		return makeFilterOps(&m, &m.genres.filter, &m.genres.cursor, &m.genres.scrollOffset, nil)
 	case viewTags:
 		return makeFilterOps(&m, &m.tagsView.filter, &m.tagsView.cursor, &m.tagsView.scrollOffset, nil)
+	case viewMixes:
+		if m.mixes.level != 1 {
+			return nil
+		}
+		return makeFilterOps(&m, &m.mixes.trackView.filter,
+			&m.mixes.trackView.cursor,
+			&m.mixes.trackView.scrollOffset,
+			func() { m.mixes.trackView = m.mixes.trackView.rebuildFilterCache() })
 	default:
 		return nil
 	}

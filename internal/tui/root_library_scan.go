@@ -129,12 +129,20 @@ func (m Model) bridgeScanChannel(raw <-chan library.Track) <-chan library.Track 
 	go func() {
 		defer close(ch)
 		batch := make([]library.Track, 0, m.upsertBatchSize)
+		type genrePopulator interface {
+			PopulateTrackGenres([]library.Track) error
+		}
 		flush := func() {
 			if len(batch) == 0 {
 				return
 			}
 			if err := m.scanWriter.UpsertBatch(batch); err != nil {
 				slog.Warn("rescan: batch upsert", "err", err, "count", len(batch))
+			}
+			if gp, ok := m.scanWriter.(genrePopulator); ok {
+				if err := gp.PopulateTrackGenres(batch); err != nil {
+					slog.Warn("rescan: batch genre populate", "err", err, "count", len(batch))
+				}
 			}
 			batch = batch[:0]
 		}

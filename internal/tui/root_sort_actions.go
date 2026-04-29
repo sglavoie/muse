@@ -156,6 +156,16 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.statusBar.notify(sortNotification(m.tagsView.sortState))
 		return m, nil, true
 
+	case viewMixes:
+		if m.mixes.level != 1 {
+			return m, nil, false
+		}
+		m.mixes.trackView, _ = m.mixes.trackView.cycleSortField(librarySortFields)
+		m.mixes.trackView.cursor = 0
+		m.mixes.trackView.scrollOffset = 0
+		m.statusBar.notify(sortNotification(m.mixes.trackView.sortState))
+		return m, nil, true
+
 	default:
 		return m, nil, false
 	}

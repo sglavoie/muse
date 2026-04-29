@@ -173,6 +173,19 @@ func validate(raw rawConfig) (Config, []string) {
 	}
 	validateIntRange(raw.StereoWideAmount, 0, 40, "stereo_wide_amount", defaultStereoWideAmount, &cfg.StereoWideAmount, &warnings)
 
+	rm := raw.Mixes
+	validateIntRange(rm.RediscoverMinPlays, 1, 1000, "mixes.rediscover_min_plays", defaultMixRediscoverMinPlays, &cfg.Mixes.RediscoverMinPlays, &warnings)
+	validateIntRange(rm.RediscoverAgeDays, 7, 365, "mixes.rediscover_age_days", defaultMixRediscoverAgeDays, &cfg.Mixes.RediscoverAgeDays, &warnings)
+	validateIntRange(rm.HiddenGemsMaxPlays, 0, 50, "mixes.hidden_gems_max_plays", defaultMixHiddenGemsMaxPlays, &cfg.Mixes.HiddenGemsMaxPlays, &warnings)
+	validateIntRange(rm.HiddenGemsTopArtists, 1, 100, "mixes.hidden_gems_top_artists", defaultMixHiddenGemsTopArtists, &cfg.Mixes.HiddenGemsTopArtists, &warnings)
+	validateIntRange(rm.HiddenGemsTopGenres, 1, 100, "mixes.hidden_gems_top_genres", defaultMixHiddenGemsTopGenres, &cfg.Mixes.HiddenGemsTopGenres, &warnings)
+	validateIntRange(rm.OnRepeatMinPlays, 1, 100, "mixes.on_repeat_min_plays", defaultMixOnRepeatMinPlays, &cfg.Mixes.OnRepeatMinPlays, &warnings)
+	validateIntRange(rm.OnRepeatWindowDays, 1, 90, "mixes.on_repeat_window_days", defaultMixOnRepeatWindowDays, &cfg.Mixes.OnRepeatWindowDays, &warnings)
+	validateIntRange(rm.DeepCutsMinPlays, 1, 100, "mixes.deep_cuts_min_plays", defaultMixDeepCutsMinPlays, &cfg.Mixes.DeepCutsMinPlays, &warnings)
+	validateIntRange(rm.DeepCutsMaxPlays, 1, 1000, "mixes.deep_cuts_max_plays", defaultMixDeepCutsMaxPlays, &cfg.Mixes.DeepCutsMaxPlays, &warnings)
+	validateFloatRange(rm.DeepCutsMinCompletion, 0.0, 1.0, "mixes.deep_cuts_min_completion", defaultMixDeepCutsMinCompletion, &cfg.Mixes.DeepCutsMinCompletion, &warnings)
+	validateIntRange(rm.SufficientHistoryCount, 1, 10000, "mixes.sufficient_history_count", defaultMixSufficientHistory, &cfg.Mixes.SufficientHistoryCount, &warnings)
+
 	return cfg, warnings
 }
 

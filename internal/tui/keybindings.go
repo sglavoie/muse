@@ -17,6 +17,7 @@ const (
 	contextHistory                             // applies only in the History view
 	contextTags                                // applies only in the Tags view
 	contextModals                              // applies only when a modal is active
+	contextMixes                               // applies only in the Mixes view
 )
 
 // action represents a named TUI action that a key binding triggers.
@@ -151,6 +152,16 @@ const (
 	actionTagDelete     // 'd': soft-delete the focused tag (5s undo)
 	actionTagEnqueueAll // 'E': enqueue all tracks with the focused tag
 	actionTagMerge      // 'm': merge focused tag into another (opens merge picker)
+
+	// Mixes-local actions.
+	actionSwitchMixes       // palette / tab; no number-key shortcut (11th view)
+	actionMixOpen           // enter: drill into mix track list
+	actionMixBack           // esc: go back from track list to mix list
+	actionMixEnqueueAll     // 'E': enqueue all tracks from the focused mix
+	actionSaveMixAsPlaylist // 'S': save current mix as a static playlist
+	actionMixRadioSeed      // 'A': start radio seeded from the focused mix's aggregate metadata
+	actionMixDismiss        // 'x': dismiss focused track from recommendations
+	actionMixUndismiss      // 'X': undismiss focused track
 )
 
 // registryKey is the composite map key for registry lookups.
@@ -340,6 +351,22 @@ func newRegistry() Registry {
 	r.register(contextTags, "a", actionBulkAction)
 	r.register(contextTags, "esc", actionTagBack)
 	r.register(contextTags, "F", actionToggleFavorite)
+
+	// Mixes-local bindings.
+	// No number-key shortcut (11th view); access via tab or command palette.
+	r.registerNavigation(contextMixes)
+	r.register(contextMixes, "enter", actionMixOpen)
+	r.register(contextMixes, "esc", actionMixBack)
+	r.register(contextMixes, "e", actionLibraryEnqueue)
+	r.register(contextMixes, "E", actionMixEnqueueAll)
+	r.register(contextMixes, "N", actionPlayNext)
+	r.register(contextMixes, "x", actionMixDismiss)
+	r.register(contextMixes, "X", actionMixUndismiss)
+	r.register(contextMixes, "v", actionVisualMode)
+	r.register(contextMixes, "a", actionBulkAction)
+	r.register(contextMixes, "s", actionSortCycle)
+	r.register(contextMixes, "S", actionSaveMixAsPlaylist)
+	r.register(contextMixes, "A", actionMixRadioSeed)
 
 	// Favorites-local bindings.
 	r.registerNavigation(contextFavorites)

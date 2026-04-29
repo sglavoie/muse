@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -51,6 +52,13 @@ type DebugPanel struct {
 	configWarningsCount int
 	undoAction          string
 	undoExpiresAt       time.Time
+
+	// Recommendation section
+	insufficientData  bool
+	playsSinceRefresh int
+	mixCount          int
+	cachedMixCounts   map[string]int // mix name -> cached track count
+	totalCachedTracks int
 }
 
 // collectDebugInfo snapshots all diagnostic state from m into a DebugPanel.
@@ -132,6 +140,18 @@ func collectDebugInfo(m Model) DebugPanel {
 		p.undoAction = "none"
 	}
 
+	// Recommendations.
+	p.insufficientData = m.mixes.insufficientData
+	p.playsSinceRefresh = m.mixes.playsSinceRefresh
+	p.mixCount = len(m.mixes.mixes)
+	p.cachedMixCounts = make(map[string]int)
+	for _, mix := range m.mixes.mixes {
+		if cached, ok := m.mixes.cachedMixes[mix.ID]; ok {
+			p.cachedMixCounts[mix.Name] = len(cached)
+			p.totalCachedTracks += len(cached)
+		}
+	}
+
 	return p
 }
 
@@ -175,6 +195,27 @@ func (p DebugPanel) render(s styles.Styles) string {
 	undoStr := p.undoAction
 	if p.undoAction != "none" && !p.undoExpiresAt.IsZero() {
 		undoStr = fmt.Sprintf("%s (expires %s)", p.undoAction, p.undoExpiresAt.Format("15:04:05"))
+	}
+
+	insufficientStr := "no"
+	if p.insufficientData {
+		insufficientStr = "yes"
+	}
+
+	mixNames := make([]string, 0, len(p.cachedMixCounts))
+	for name := range p.cachedMixCounts {
+		mixNames = append(mixNames, name)
+	}
+	sort.Strings(mixNames)
+
+	recRows := []row{
+		{"insufficient_data", insufficientStr},
+		{"plays_since_refresh", fmt.Sprintf("%d", p.playsSinceRefresh)},
+		{"mixes", fmt.Sprintf("%d", p.mixCount)},
+		{"total_cached", fmt.Sprintf("%d", p.totalCachedTracks)},
+	}
+	for _, name := range mixNames {
+		recRows = append(recRows, row{"  " + name, fmt.Sprintf("%d", p.cachedMixCounts[name])})
 	}
 
 	sections := []section{
@@ -233,6 +274,10 @@ func (p DebugPanel) render(s styles.Styles) string {
 				{"config_warnings", fmt.Sprintf("%d", p.configWarningsCount)},
 				{"undo", undoStr},
 			},
+		},
+		{
+			title: "Recommendations",
+			rows:  recRows,
 		},
 	}
 

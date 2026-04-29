@@ -36,6 +36,10 @@ func (m Model) handleLibraryEnqueueAction() (tea.Model, tea.Cmd, bool) {
 	case viewHistory:
 		cmd = m.history.EnqueueFocused(m.queueWriter, len(m.queue.entries))
 		m.history = m.history.ClearFilter()
+	case viewMixes:
+		if m.mixes.level == 1 {
+			cmd = m.mixes.trackView.EnqueueFocused(m.queueWriter, len(m.queue.entries))
+		}
 	}
 	return m, cmd, true
 }

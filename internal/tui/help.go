@@ -292,6 +292,28 @@ func helpSections() []helpSection {
 			},
 		},
 		{
+			title:   "Mixes",
+			context: contextMixes,
+			entries: []helpEntry{
+				{"enter", "Open mix / enqueue track"},
+				{"esc", "Back to mix list"},
+				{"e", "Enqueue focused track"},
+				{"E", "Enqueue all tracks in mix"},
+				{"N", "Play next (insert after current track)"},
+				{"x", "Toggle bulk selection"},
+				{"X", "Clear bulk selection"},
+				{"v", "Toggle visual line selection mode"},
+				{"a", "Add selected tracks to queue or playlist"},
+				{"s", "Cycle sort field (track level)"},
+				{"S", "Save current mix as a static playlist"},
+				{"A", "Start radio seeded from this mix"},
+				{"/", "Filter tracks (track level)"},
+				{"j / k / down / up", "Move cursor down / up"},
+				{"ctrl+d / ctrl+u", "Half-page down / up"},
+				{"g / G", "Go to top / bottom"},
+			},
+		},
+		{
 			// Note: "esc" here also dismisses the help overlay itself, which is
 			// handled at the root level (outside the keybinding registry). The
 			// Modals section covers any future modal dialogs as well.

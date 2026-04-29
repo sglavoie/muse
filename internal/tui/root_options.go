@@ -220,6 +220,35 @@ func WithStatsReader(r listeningStatsReader) Option {
 	return func(m *Model) { m.statsReader = r }
 }
 
+// WithRecommendationReader sets the reader for Auto-DJ behavioral signals
+// (completion rates and session co-occurrences).
+func WithRecommendationReader(r recommendationReader) Option {
+	return func(m *Model) { m.recReader = r }
+}
+
+// WithDismissalReader sets the reader for loading dismissed track hashes.
+func WithDismissalReader(r dismissalReader) Option {
+	return func(m *Model) { m.dismissalReader = r }
+}
+
+// WithDismissalWriter sets the writer for persisting track dismiss/undismiss operations.
+func WithDismissalWriter(w dismissalWriter) Option {
+	return func(m *Model) { m.dismissalWriter = w }
+}
+
+// WithCacheReader sets the reader for loading pre-computed mix memberships
+// from recommendation_cache. When set, loadMixCmd tries the cache first and
+// falls back to live queries only when the cache is empty.
+func WithCacheReader(r cachedMixReader) Option {
+	return func(m *Model) { m.cacheReader = r }
+}
+
+// WithCacheRebuilder sets the writer for rebuilding recommendation_cache.
+// Root fires an async rebuild after every N plays when this is set.
+func WithCacheRebuilder(w recommendationCacheRebuilder) Option {
+	return func(m *Model) { m.cacheRebuilder = w }
+}
+
 // WithSmartPlaylistWriter sets the writer for creating and updating smart playlists.
 func WithSmartPlaylistWriter(w smartPlaylistWriter) Option {
 	return func(m *Model) { m.smartPlaylistWriter = w }

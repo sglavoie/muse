@@ -64,6 +64,9 @@ func (m Model) switchToView(id viewID) Model {
 		m.tagsView = m.tagsView.cancelRename()
 	}
 	m.activeView = id
+	if id == viewMixes && len(m.mixes.mixes) == 0 {
+		m.mixes.mixes = append([]MixInfo(nil), mixDefs...)
+	}
 	if id == viewArtists && len(m.artists.artists) == 0 {
 		m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
 	}
@@ -155,9 +158,25 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m.helpViewport = viewport.New(viewport.WithWidth(m.termWidth), viewport.WithHeight(m.termHeight-2))
 		m.refreshHelpViewport()
 	case actionNextView:
-		m = m.switchToView(nextView(m.activeView))
+		next := nextView(m.activeView)
+		var mixCmd tea.Cmd
+		if next == viewMixes {
+			mixCmd = m.mixesMaybeLoadCmd()
+		}
+		m = m.switchToView(next)
+		if mixCmd != nil {
+			return m, mixCmd
+		}
 	case actionPrevView:
-		m = m.switchToView(prevView(m.activeView))
+		prev := prevView(m.activeView)
+		var mixCmd tea.Cmd
+		if prev == viewMixes {
+			mixCmd = m.mixesMaybeLoadCmd()
+		}
+		m = m.switchToView(prev)
+		if mixCmd != nil {
+			return m, mixCmd
+		}
 	case actionQuit:
 		m.overlay.nowPlaying = nil
 		m.overlay.queueSummary = nil
@@ -187,6 +206,10 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m = m.switchToView(viewGenres)
 	case actionSwitchTags:
 		m = m.switchToView(viewTags)
+	case actionSwitchMixes:
+		cmd := m.mixesMaybeLoadCmd()
+		m = m.switchToView(viewMixes)
+		return m, cmd
 	case actionTagOpen:
 		return m.handleTagOpen()
 	case actionTagBack:
@@ -201,6 +224,20 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		return m.handleTagEnqueueAll()
 	case actionTagMerge:
 		return m.handleTagMerge()
+	case actionMixOpen:
+		return m.handleMixOpen()
+	case actionMixBack:
+		m = m.handleMixBack()
+	case actionMixEnqueueAll:
+		return m.handleMixEnqueueAll()
+	case actionSaveMixAsPlaylist:
+		return m.handleMixesSaveMixAsPlaylist()
+	case actionMixRadioSeed:
+		return m.handleMixesRadioSeed()
+	case actionMixDismiss:
+		return m.handleMixDismiss()
+	case actionMixUndismiss:
+		return m.handleMixUndismiss()
 	case actionGoTo:
 		ctx := m.focusedGoToContext()
 		if !ctx.found {

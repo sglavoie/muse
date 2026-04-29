@@ -2,10 +2,12 @@ package db
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"time"
 
 	"github.com/sglavoie/muse/internal/library"
@@ -26,6 +28,11 @@ const (
 	// (move up/down) to be expressed as simple position swaps without
 	// renumbering the entire queue.
 	queuePositionGap = 1000
+
+	// sessionGapSecs is the inactivity threshold used to detect a new
+	// listening session. Plays separated by more than this many seconds
+	// are assigned a fresh session ID.
+	sessionGapSecs = 1800
 )
 
 // SessionWriter persists session state (repeat mode, shuffle, position, volume).
@@ -53,9 +60,16 @@ type FavoriteWriter interface {
 	RemoveFavoritesByTypeAndValues(typ string, values []string) error
 }
 
+// DismissalWriter manages recommendation dismissal entries.
+type DismissalWriter interface {
+	DismissTrack(hash string) error
+	UndismissTrack(hash string) error
+}
+
 var _ SessionWriter = (*Writer)(nil)
 var _ QueueDequeuer = (*Writer)(nil)
 var _ FavoriteWriter = (*Writer)(nil)
+var _ DismissalWriter = (*Writer)(nil)
 
 // writeCmd is a single unit of work sent to the writer goroutine.
 // The caller blocks on resp until the goroutine sends the result back.
@@ -71,6 +85,12 @@ type Writer struct {
 	db   *sql.DB
 	cmds chan writeCmd
 	done chan struct{}
+
+	// Session tracking state. Only read/written inside Exec closures (writer
+	// goroutine) or before the goroutine starts (initSessionState). No mutex
+	// required.
+	lastSessionID string
+	lastPlayedAt  int64
 }
 
 // NewWriter creates a Writer and starts its background goroutine. The goroutine
@@ -82,8 +102,29 @@ func NewWriter(ctx context.Context, db *sql.DB) *Writer {
 		cmds: make(chan writeCmd, writerChannelBuffer),
 		done: make(chan struct{}),
 	}
+	w.initSessionState()
 	go w.run(ctx)
 	return w
+}
+
+// initSessionState queries the most recent play_history row to restore
+// lastSessionID and lastPlayedAt after a restart. Called once before the
+// writer goroutine starts, so no locking is needed.
+func (w *Writer) initSessionState() {
+	var sessionID sql.NullString
+	var playedAt int64
+	row := w.db.QueryRow(
+		`SELECT session_id, played_at FROM play_history
+		 WHERE session_id IS NOT NULL
+		 ORDER BY played_at DESC LIMIT 1`,
+	)
+	if err := row.Scan(&sessionID, &playedAt); err != nil {
+		return // no rows or migration not yet applied — start fresh
+	}
+	if sessionID.Valid {
+		w.lastSessionID = sessionID.String
+		w.lastPlayedAt = playedAt
+	}
 }
 
 // Exec submits fn to the writer goroutine and blocks until it completes.
@@ -152,8 +193,13 @@ func (w *Writer) IncrementPlayCount(hash string) error {
 
 // RecordPlay inserts a play_history row and atomically increments play_count
 // and sets last_played_at on the tracks row. playedAt is a Unix timestamp;
-// listenedSecs is the actual number of seconds listened.
-func (w *Writer) RecordPlay(hash string, playedAt int64, listenedSecs int) error {
+// listenedSecs is the actual number of seconds listened; durationSecs is the
+// total track duration in seconds (used to compute completion_rate).
+func (w *Writer) RecordPlay(hash string, playedAt int64, listenedSecs int, durationSecs float64) error {
+	completionRate := 0.0
+	if durationSecs > 0 {
+		completionRate = math.Min(1.0, float64(listenedSecs)/durationSecs)
+	}
 	return w.Exec(func(db *sql.DB) error {
 		tx, err := db.Begin()
 		if err != nil {
@@ -161,9 +207,33 @@ func (w *Writer) RecordPlay(hash string, playedAt int64, listenedSecs int) error
 		}
 		defer rollback(tx)
 
+		// Determine session ID. Runs inside the writer goroutine, so
+		// w.lastSessionID and w.lastPlayedAt are safe to read/write.
+		sessionID := w.lastSessionID
+		if sessionID == "" || playedAt-w.lastPlayedAt > sessionGapSecs {
+			var randBuf [4]byte
+			if _, err := rand.Read(randBuf[:]); err != nil {
+				return fmt.Errorf("session rand: %w", err)
+			}
+			sessionID = fmt.Sprintf("%d-%x", playedAt, randBuf)
+			if _, err := tx.Exec(
+				`INSERT INTO listening_sessions (id, started_at, ended_at) VALUES (?, ?, ?)`,
+				sessionID, playedAt, playedAt,
+			); err != nil {
+				return err
+			}
+		} else {
+			if _, err := tx.Exec(
+				`UPDATE listening_sessions SET ended_at = ? WHERE id = ?`,
+				playedAt, sessionID,
+			); err != nil {
+				return err
+			}
+		}
+
 		if _, err := tx.Exec(
-			`INSERT INTO play_history (track_hash, played_at, listened_secs) VALUES (?, ?, ?)`,
-			hash, playedAt, listenedSecs,
+			`INSERT INTO play_history (track_hash, played_at, listened_secs, completion_rate, session_id) VALUES (?, ?, ?, ?, ?)`,
+			hash, playedAt, listenedSecs, completionRate, sessionID,
 		); err != nil {
 			return err
 		}
@@ -172,6 +242,39 @@ func (w *Writer) RecordPlay(hash string, playedAt int64, listenedSecs int) error
 			playedAt, hash,
 		); err != nil {
 			return err
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		w.lastSessionID = sessionID
+		w.lastPlayedAt = playedAt
+		return nil
+	})
+}
+
+// PopulateTrackGenres inserts (track_hash, genre) rows into track_genres for
+// each genre in each track. Existing rows are ignored (INSERT OR IGNORE).
+// Tracks with no genre are silently skipped.
+func (w *Writer) PopulateTrackGenres(tracks []library.Track) error {
+	if len(tracks) == 0 {
+		return nil
+	}
+	return w.Exec(func(db *sql.DB) error {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer rollback(tx)
+		for _, t := range tracks {
+			genres := library.SplitGenres(t.Genre)
+			for _, g := range genres {
+				if _, err := tx.Exec(
+					`INSERT OR IGNORE INTO track_genres (track_hash, genre) VALUES (?, ?)`,
+					t.Hash, g,
+				); err != nil {
+					return err
+				}
+			}
 		}
 		return tx.Commit()
 	})

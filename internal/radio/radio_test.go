@@ -363,6 +363,126 @@ func TestPickBatch_NoDuplicates(t *testing.T) {
 	}
 }
 
+func TestScoreAll_CompletionRateHighBoost(t *testing.T) {
+	seed := track("s1", "", "", "", 0)
+	high := track("t1", "", "", "", 0)
+	low := track("t2", "", "", "", 0)
+	input := ScoreInput{
+		Seed:      seedFrom(seed, nil, nil),
+		AllTracks: []library.Track{low, high},
+		CompletionRates: map[string]float64{
+			"t1": 0.9, // >= 0.8 → +4
+			"t2": 0.2, // <= 0.3 → -3
+		},
+	}
+	got := ScoreAll(input)
+	if got[0].Track.Hash != "t1" {
+		t.Errorf("high completion rate track should rank first, got %s", got[0].Track.Hash)
+	}
+	if got[0].Score != 4 {
+		t.Errorf("expected high completion score +4, got %f", got[0].Score)
+	}
+	if got[1].Score != -3 {
+		t.Errorf("expected low completion score -3, got %f", got[1].Score)
+	}
+}
+
+func TestScoreAll_CompletionRateNilSafe(t *testing.T) {
+	seed := track("s1", "", "", "", 0)
+	t1 := track("t1", "", "", "", 0)
+	input := ScoreInput{
+		Seed:            seedFrom(seed, nil, nil),
+		AllTracks:       []library.Track{t1},
+		CompletionRates: nil,
+	}
+	got := ScoreAll(input)
+	if len(got) != 1 || got[0].Score != 0 {
+		t.Errorf("nil CompletionRates should not affect score, got %v", got)
+	}
+}
+
+func TestScoreAll_CoOccurrenceBoost(t *testing.T) {
+	seed := track("s1", "", "", "", 0)
+	coPlayed := track("t1", "", "", "", 0) // co-occurred 3 times → +6
+	rare := track("t2", "", "", "", 0)     // co-occurred 1 time → no boost
+	none := track("t3", "", "", "", 0)     // no entry
+	input := ScoreInput{
+		Seed:          seedFrom(seed, nil, nil),
+		AllTracks:     []library.Track{none, rare, coPlayed},
+		CoOccurrences: map[string]int{"t1": 3, "t2": 1},
+	}
+	got := ScoreAll(input)
+	if got[0].Track.Hash != "t1" {
+		t.Errorf("co-occurrence track should rank first, got %s", got[0].Track.Hash)
+	}
+	if got[0].Score != 6 {
+		t.Errorf("expected co-occurrence score +6, got %f", got[0].Score)
+	}
+	// rare (count=1) and none both score 0
+	for _, ts := range got[1:] {
+		if ts.Score != 0 {
+			t.Errorf("track %s with count<2 should score 0, got %f", ts.Track.Hash, ts.Score)
+		}
+	}
+}
+
+func TestScoreAll_CoOccurrenceNilSafe(t *testing.T) {
+	seed := track("s1", "", "", "", 0)
+	t1 := track("t1", "", "", "", 0)
+	input := ScoreInput{
+		Seed:          seedFrom(seed, nil, nil),
+		AllTracks:     []library.Track{t1},
+		CoOccurrences: nil,
+	}
+	got := ScoreAll(input)
+	if len(got) != 1 || got[0].Score != 0 {
+		t.Errorf("nil CoOccurrences should not affect score, got %v", got)
+	}
+}
+
+func TestScoreAll_TimeGenreBonusBoost(t *testing.T) {
+	seed := track("s1", "", "", "", 0)
+	// t1 has genre "Rock" which gets +3 bonus; t2 has "Jazz" (+1); t3 has "Pop" (no entry).
+	t1 := track("t1", "", "", "Rock", 0)
+	t2 := track("t2", "", "", "Jazz", 0)
+	t3 := track("t3", "", "", "Pop", 0)
+	input := ScoreInput{
+		Seed:           seedFrom(seed, nil, nil),
+		AllTracks:      []library.Track{t3, t2, t1},
+		TimeGenreBonus: map[string]float64{"Rock": 3, "Jazz": 1},
+	}
+	got := ScoreAll(input)
+	if got[0].Track.Hash != "t1" {
+		t.Errorf("expected t1 (Rock +3) to rank first, got %s", got[0].Track.Hash)
+	}
+	if got[0].Score != 3 {
+		t.Errorf("expected score 3 for top genre bonus, got %f", got[0].Score)
+	}
+	if got[1].Track.Hash != "t2" {
+		t.Errorf("expected t2 (Jazz +1) to rank second, got %s", got[1].Track.Hash)
+	}
+	if got[1].Score != 1 {
+		t.Errorf("expected score 1 for runner-up genre bonus, got %f", got[1].Score)
+	}
+	if got[2].Score != 0 {
+		t.Errorf("expected score 0 for Pop (no bonus), got %f", got[2].Score)
+	}
+}
+
+func TestScoreAll_TimeGenreBonusNilSafe(t *testing.T) {
+	seed := track("s1", "", "", "", 0)
+	t1 := track("t1", "", "", "Rock", 0)
+	input := ScoreInput{
+		Seed:           seedFrom(seed, nil, nil),
+		AllTracks:      []library.Track{t1},
+		TimeGenreBonus: nil,
+	}
+	got := ScoreAll(input)
+	if len(got) != 1 || got[0].Score != 0 {
+		t.Errorf("nil TimeGenreBonus should not affect score, got %v", got)
+	}
+}
+
 func TestPickBatch_FromPool(t *testing.T) {
 	// With 10 tracks and n=3, only the top min(9, 10)=9 are eligible.
 	// Verify all returned tracks came from the input scored slice.

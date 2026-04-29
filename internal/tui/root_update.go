@@ -318,6 +318,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case RadioBatchEnqueuedMsg:
 		return m.handleRadioBatchEnqueuedMsg(msg)
 
+	case mixCountsLoadedMsg:
+		m = m.handleMixCountsLoadedMsg(msg)
+
+	case mixLoadedMsg:
+		m = m.handleMixLoadedMsg(msg)
+
+	case recommendationCacheRebuiltMsg:
+		// Cache rebuilt; no additional state change needed — playsSinceRefresh
+		// is already reset by handleMixCountsLoadedMsg which fires in parallel.
+
+	case mixSavedAsPlaylistMsg:
+		m = m.handleMixSavedAsPlaylistMsg(msg)
+
+	case mixSaveAsPlaylistErrorMsg:
+		m.statusBar.notify("Save mix failed: " + msg.err.Error())
+
+	case mixDismissedMsg:
+		m = m.handleMixDismissedMsg(msg)
+
+	case mixDismissErrorMsg:
+		m.statusBar.notify("Dismiss failed: " + msg.err.Error())
+
+	case mixUndismissedMsg:
+		m = m.handleMixUndismissedMsg(msg)
+
+	case mixUndismissErrorMsg:
+		m.statusBar.notify("Undismiss failed: " + msg.err.Error())
+
 	case commandPaletteActionMsg:
 		return m.handleKeyAction(msg.action)
 

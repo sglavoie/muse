@@ -40,6 +40,19 @@ func defaults() Config {
 		EQCustomPresets:            nil,
 		StereoWideEnabled:          defaultStereoWideEnabled,
 		StereoWideAmount:           defaultStereoWideAmount,
+		Mixes: MixesConfig{
+			RediscoverMinPlays:     defaultMixRediscoverMinPlays,
+			RediscoverAgeDays:      defaultMixRediscoverAgeDays,
+			HiddenGemsMaxPlays:     defaultMixHiddenGemsMaxPlays,
+			HiddenGemsTopArtists:   defaultMixHiddenGemsTopArtists,
+			HiddenGemsTopGenres:    defaultMixHiddenGemsTopGenres,
+			OnRepeatMinPlays:       defaultMixOnRepeatMinPlays,
+			OnRepeatWindowDays:     defaultMixOnRepeatWindowDays,
+			DeepCutsMinPlays:       defaultMixDeepCutsMinPlays,
+			DeepCutsMaxPlays:       defaultMixDeepCutsMaxPlays,
+			DeepCutsMinCompletion:  defaultMixDeepCutsMinCompletion,
+			SufficientHistoryCount: defaultMixSufficientHistory,
+		},
 	}
 }
 

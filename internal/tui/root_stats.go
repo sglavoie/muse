@@ -88,6 +88,7 @@ func (p StatsPanel) render(s styles.Styles) string {
 	writeTopList(&sb, s, "Top Albums", p.stats.TopAlbums)
 	writeTopList(&sb, s, "Top Genres", p.stats.TopGenres)
 	writeTopList(&sb, s, "Most Played Tracks", p.stats.TopTracks)
+	writeMixStats(&sb, s, "Your Mixes", p.stats.MixStats)
 
 	return sb.String()
 }
@@ -110,6 +111,25 @@ func writeTopList(sb *strings.Builder, s styles.Styles, heading string, entries 
 			s.Dim.Render(fmt.Sprintf("×%d", e.PlayCount)),
 			s.Dim.Render(formatListeningTime(e.ListenedSecs)),
 		)
+	}
+	sb.WriteString("\n")
+}
+
+// writeMixStats appends a "Your Mixes" section showing qualifying track counts.
+func writeMixStats(sb *strings.Builder, s styles.Styles, heading string, entries []db.MixStatEntry) {
+	if len(entries) == 0 {
+		return
+	}
+	sb.WriteString(s.Bold.Render(heading))
+	sb.WriteString("\n")
+	for _, e := range entries {
+		if e.TrackCount > 0 {
+			fmt.Fprintf(sb, "  %s  %s\n", e.Name,
+				s.Dim.Render(fmt.Sprintf("%d tracks", e.TrackCount)))
+		} else {
+			fmt.Fprintf(sb, "  %s  %s\n", e.Name,
+				s.Dim.Render("Not enough data"))
+		}
 	}
 	sb.WriteString("\n")
 }
@@ -142,8 +162,21 @@ func (m Model) loadStatsCmd() tea.Cmd {
 		}
 	}
 	since := sinceUnixForPeriod(m.statsPeriod)
+	mx := m.cfg.Mixes
+	mixCfg := db.MixCountConfig{
+		RediscoverMinPlays:    mx.RediscoverMinPlays,
+		RediscoverAgeDays:     mx.RediscoverAgeDays,
+		HiddenGemsMaxPlays:    mx.HiddenGemsMaxPlays,
+		HiddenGemsTopArtists:  mx.HiddenGemsTopArtists,
+		HiddenGemsTopGenres:   mx.HiddenGemsTopGenres,
+		OnRepeatMinPlays:      mx.OnRepeatMinPlays,
+		OnRepeatWindowDays:    mx.OnRepeatWindowDays,
+		DeepCutsMinPlays:      mx.DeepCutsMinPlays,
+		DeepCutsMaxPlays:      mx.DeepCutsMaxPlays,
+		DeepCutsMinCompletion: mx.DeepCutsMinCompletion,
+	}
 	return func() tea.Msg {
-		stats, err := m.statsReader.ReadListeningStats(since)
+		stats, err := m.statsReader.ReadListeningStats(since, mixCfg)
 		return listeningStatsMsg{stats: stats, err: err}
 	}
 }

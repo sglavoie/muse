@@ -97,6 +97,8 @@ func (m Model) View() tea.View {
 			body = m.history.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 		case viewTags:
 			body = m.tagsView.render(*m.styles, m.favoriteHashes)
+		case viewMixes:
+			body = m.mixes.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 		}
 	}
 
@@ -128,7 +130,10 @@ func (m Model) renderTitleBar() string {
 	sep := "  "
 	fullWidth := chevronWidth
 	for i, id := range viewOrder {
-		fullWidth += badgeWidth + len(viewName(id))
+		if i < 10 {
+			fullWidth += badgeWidth
+		}
+		fullWidth += len(viewName(id))
 		if i < len(viewOrder)-1 {
 			fullWidth += len(sep)
 		}
@@ -138,13 +143,23 @@ func (m Model) renderTitleBar() string {
 		// Wide layout: show all tabs with numbered badges.
 		var parts []string
 		for i, id := range viewOrder {
-			badge := m.styles.Badge.Render(fmt.Sprintf("%d", (i+1)%10))
 			name := viewName(id)
-			if id == m.activeView {
-				parts = append(parts, badge+" "+m.styles.Heading.Render(name))
+			var entry string
+			if i < 10 {
+				badge := m.styles.Badge.Render(fmt.Sprintf("%d", (i+1)%10))
+				if id == m.activeView {
+					entry = badge + " " + m.styles.Heading.Render(name)
+				} else {
+					entry = badge + " " + m.styles.Dim.Render(name)
+				}
 			} else {
-				parts = append(parts, badge+" "+m.styles.Dim.Render(name))
+				if id == m.activeView {
+					entry = m.styles.Heading.Render(name)
+				} else {
+					entry = m.styles.Dim.Render(name)
+				}
 			}
+			parts = append(parts, entry)
 		}
 		return m.styles.Dim.Render("‹ ") + strings.Join(parts, sep) + m.styles.Dim.Render(" ›")
 	}

@@ -44,18 +44,20 @@ func (s *stubSessionWriter) WriteVolume(volume int) error {
 // stubHistoryRecorder records RecordPlay calls for assertion in tests.
 type stubHistoryRecorder struct {
 	calls []struct {
-		hash       string
-		playedAt   int64
-		listenedSs int
+		hash         string
+		playedAt     int64
+		listenedSs   int
+		durationSecs float64
 	}
 }
 
-func (s *stubHistoryRecorder) RecordPlay(hash string, playedAt int64, listenedSecs int) error {
+func (s *stubHistoryRecorder) RecordPlay(hash string, playedAt int64, listenedSecs int, durationSecs float64) error {
 	s.calls = append(s.calls, struct {
-		hash       string
-		playedAt   int64
-		listenedSs int
-	}{hash, playedAt, listenedSecs})
+		hash         string
+		playedAt     int64
+		listenedSs   int
+		durationSecs float64
+	}{hash, playedAt, listenedSecs, durationSecs})
 	return nil
 }
 

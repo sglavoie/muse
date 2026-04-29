@@ -16,7 +16,7 @@ func TestRecordPlay_InsertsHistoryRow(t *testing.T) {
 	w := newWriter(t, d)
 
 	playedAt := time.Now().Unix()
-	if err := w.RecordPlay("h1", playedAt, 120); err != nil {
+	if err := w.RecordPlay("h1", playedAt, 120, 0); err != nil {
 		t.Fatalf("RecordPlay: %v", err)
 	}
 
@@ -36,7 +36,7 @@ func TestRecordPlay_IncrementsPlayCount(t *testing.T) {
 
 	now := time.Now().Unix()
 	for range 3 {
-		if err := w.RecordPlay("h1", now, 90); err != nil {
+		if err := w.RecordPlay("h1", now, 90, 0); err != nil {
 			t.Fatalf("RecordPlay: %v", err)
 		}
 	}
@@ -56,7 +56,7 @@ func TestRecordPlay_SetsLastPlayedAt(t *testing.T) {
 	w := newWriter(t, d)
 
 	playedAt := time.Now().Unix()
-	if err := w.RecordPlay("h1", playedAt, 60); err != nil {
+	if err := w.RecordPlay("h1", playedAt, 60, 0); err != nil {
 		t.Fatalf("RecordPlay: %v", err)
 	}
 
@@ -74,7 +74,7 @@ func TestRecordPlay_SetsLastPlayedAt(t *testing.T) {
 func TestReadListeningStats_Empty(t *testing.T) {
 	d := openMigratedDB(t)
 
-	stats, err := d.ReadListeningStats(0)
+	stats, err := d.ReadListeningStats(0, db.DefaultMixCountConfig())
 	if err != nil {
 		t.Fatalf("ReadListeningStats: %v", err)
 	}
@@ -95,14 +95,14 @@ func TestReadListeningStats_Totals(t *testing.T) {
 	w := newWriter(t, d)
 
 	now := time.Now().Unix()
-	if err := w.RecordPlay("h1", now, 120); err != nil {
+	if err := w.RecordPlay("h1", now, 120, 0); err != nil {
 		t.Fatalf("RecordPlay: %v", err)
 	}
-	if err := w.RecordPlay("h1", now+1, 80); err != nil {
+	if err := w.RecordPlay("h1", now+1, 80, 0); err != nil {
 		t.Fatalf("RecordPlay: %v", err)
 	}
 
-	stats, err := d.ReadListeningStats(0)
+	stats, err := d.ReadListeningStats(0, db.DefaultMixCountConfig())
 	if err != nil {
 		t.Fatalf("ReadListeningStats: %v", err)
 	}
@@ -121,16 +121,16 @@ func TestReadListeningStats_SinceFilter(t *testing.T) {
 
 	old := time.Now().Add(-48 * time.Hour).Unix()
 	recent := time.Now().Unix()
-	if err := w.RecordPlay("h1", old, 100); err != nil {
+	if err := w.RecordPlay("h1", old, 100, 0); err != nil {
 		t.Fatalf("RecordPlay old: %v", err)
 	}
-	if err := w.RecordPlay("h1", recent, 50); err != nil {
+	if err := w.RecordPlay("h1", recent, 50, 0); err != nil {
 		t.Fatalf("RecordPlay recent: %v", err)
 	}
 
 	// since = yesterday: only the recent play should count
 	yesterday := time.Now().Add(-24 * time.Hour).Unix()
-	stats, err := d.ReadListeningStats(yesterday)
+	stats, err := d.ReadListeningStats(yesterday, db.DefaultMixCountConfig())
 	if err != nil {
 		t.Fatalf("ReadListeningStats: %v", err)
 	}
@@ -151,15 +151,15 @@ func TestReadListeningStats_TopArtists(t *testing.T) {
 
 	w := newWriter(t, d)
 	for range 3 {
-		if err := w.RecordPlay("h1", now, 60); err != nil {
+		if err := w.RecordPlay("h1", now, 60, 0); err != nil {
 			t.Fatalf("RecordPlay h1: %v", err)
 		}
 	}
-	if err := w.RecordPlay("h2", now, 60); err != nil {
+	if err := w.RecordPlay("h2", now, 60, 0); err != nil {
 		t.Fatalf("RecordPlay h2: %v", err)
 	}
 
-	stats, err := d.ReadListeningStats(0)
+	stats, err := d.ReadListeningStats(0, db.DefaultMixCountConfig())
 	if err != nil {
 		t.Fatalf("ReadListeningStats: %v", err)
 	}
@@ -222,7 +222,7 @@ func TestReadListeningStats_StreakToday(t *testing.T) {
 		}
 	}
 
-	stats, err := d.ReadListeningStats(0)
+	stats, err := d.ReadListeningStats(0, db.DefaultMixCountConfig())
 	if err != nil {
 		t.Fatalf("ReadListeningStats: %v", err)
 	}
@@ -250,7 +250,7 @@ func TestReadListeningStats_StreakStartingYesterday(t *testing.T) {
 		}
 	}
 
-	stats, err := d.ReadListeningStats(0)
+	stats, err := d.ReadListeningStats(0, db.DefaultMixCountConfig())
 	if err != nil {
 		t.Fatalf("ReadListeningStats: %v", err)
 	}
@@ -275,7 +275,7 @@ func TestReadListeningStats_StreakBroken(t *testing.T) {
 		t.Fatalf("insert play_history: %v", err)
 	}
 
-	stats, err := d.ReadListeningStats(0)
+	stats, err := d.ReadListeningStats(0, db.DefaultMixCountConfig())
 	if err != nil {
 		t.Fatalf("ReadListeningStats: %v", err)
 	}
@@ -307,5 +307,64 @@ func TestEvalSmartPlaylist_LastPlayedGreaterThan(t *testing.T) {
 	rows := evalQuery(t, d, q)
 	if len(rows) != 1 || rows[0].Hash != "h1" {
 		t.Errorf("got %d rows (hashes: %v), want 1 row with hash h1", len(rows), hashes(rows))
+	}
+}
+
+// --- RecordPlay completion_rate ---
+
+func TestRecordPlay_CompletionRate_Computed(t *testing.T) {
+	d := openMigratedDB(t)
+	insertTrack(t, d, "h1", "/a.flac")
+	w := newWriter(t, d)
+
+	// 60 seconds listened out of 120 seconds = 0.5 completion rate.
+	if err := w.RecordPlay("h1", time.Now().Unix(), 60, 120.0); err != nil {
+		t.Fatalf("RecordPlay: %v", err)
+	}
+
+	var rate float64
+	if err := d.QueryRow(`SELECT completion_rate FROM play_history WHERE track_hash = ?`, "h1").Scan(&rate); err != nil {
+		t.Fatalf("query completion_rate: %v", err)
+	}
+	if rate != 0.5 {
+		t.Errorf("completion_rate = %f, want 0.5", rate)
+	}
+}
+
+func TestRecordPlay_CompletionRate_ZeroDuration(t *testing.T) {
+	d := openMigratedDB(t)
+	insertTrack(t, d, "h1", "/a.flac")
+	w := newWriter(t, d)
+
+	// Zero duration: completion_rate must be 0, not NaN or panic.
+	if err := w.RecordPlay("h1", time.Now().Unix(), 60, 0); err != nil {
+		t.Fatalf("RecordPlay: %v", err)
+	}
+
+	var rate float64
+	if err := d.QueryRow(`SELECT completion_rate FROM play_history WHERE track_hash = ?`, "h1").Scan(&rate); err != nil {
+		t.Fatalf("query completion_rate: %v", err)
+	}
+	if rate != 0.0 {
+		t.Errorf("completion_rate = %f, want 0.0 for zero duration", rate)
+	}
+}
+
+func TestRecordPlay_CompletionRate_CapsAt1(t *testing.T) {
+	d := openMigratedDB(t)
+	insertTrack(t, d, "h1", "/a.flac")
+	w := newWriter(t, d)
+
+	// Listened longer than the track duration (e.g. due to clock drift) — capped at 1.0.
+	if err := w.RecordPlay("h1", time.Now().Unix(), 180, 120.0); err != nil {
+		t.Fatalf("RecordPlay: %v", err)
+	}
+
+	var rate float64
+	if err := d.QueryRow(`SELECT completion_rate FROM play_history WHERE track_hash = ?`, "h1").Scan(&rate); err != nil {
+		t.Fatalf("query completion_rate: %v", err)
+	}
+	if rate != 1.0 {
+		t.Errorf("completion_rate = %f, want 1.0 (capped)", rate)
 	}
 }

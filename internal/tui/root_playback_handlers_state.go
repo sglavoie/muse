@@ -19,8 +19,9 @@ func (m Model) playCountIncrementCmd(hash string, elapsedSecs, totalSecs float64
 	if m.historyRecorder != nil {
 		hr := m.historyRecorder
 		elapsed := int(elapsedSecs)
+		duration := totalSecs
 		return func() tea.Msg {
-			if err := hr.RecordPlay(hash, now, elapsed); err != nil {
+			if err := hr.RecordPlay(hash, now, elapsed, duration); err != nil {
 				slog.Warn("play count: RecordPlay failed", "hash", hash, "err", err)
 			}
 			return nil
@@ -44,6 +45,10 @@ func (m Model) playCountIncrementCmd(hash string, elapsedSecs, totalSecs float64
 func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	wasStopAfter := m.playback.stopAfterCurrent
 	m.playback.stopAfterCurrent = false
+
+	if m.playback.currentHash != "" && shouldCountPlay(m.playback.peakElapsedSecs, m.playback.peakTotalSecs) {
+		m.mixes.playsSinceRefresh++
+	}
 
 	incrementCmd := m.playCountIncrementCmd(
 		m.playback.currentHash,
@@ -238,6 +243,9 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 		}
 	}
 
+	if previousHash != "" && shouldCountPlay(previousElapsed, previousTotal) {
+		m.mixes.playsSinceRefresh++
+	}
 	incrementCmd := m.playCountIncrementCmd(previousHash, previousElapsed, previousTotal)
 	// Radio mode: update seed and check low-water-mark.
 	m.radio.seedHash = msg.Hash

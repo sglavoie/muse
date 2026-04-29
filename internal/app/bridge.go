@@ -22,12 +22,22 @@ type MissingMarker interface {
 	MarkTrackMissing(hash string) error
 }
 
+// GenrePopulator populates the track_genres junction table after an upsert
+// batch. Implementations that satisfy this interface will have their
+// PopulateTrackGenres method called automatically by the bridge after each
+// batch flush.
+type GenrePopulator interface {
+	PopulateTrackGenres([]library.Track) error
+}
+
 // batchFlusher accumulates library.Track values and flushes them in batches
-// to a caller-provided function (typically DB upsert).
+// to a caller-provided function (typically DB upsert). If populate is non-nil,
+// it is called after each successful flush (e.g. to populate track_genres).
 type batchFlusher struct {
-	batch []library.Track
-	size  int
-	flush func([]library.Track) error
+	batch    []library.Track
+	size     int
+	flush    func([]library.Track) error
+	populate func([]library.Track) error
 }
 
 func ensureCreatedAt(track library.Track) library.Track {
@@ -51,17 +61,28 @@ func (f *batchFlusher) drain() {
 	if err := f.flush(f.batch); err != nil {
 		slog.Warn("batch flush", "err", err, "count", len(f.batch))
 	}
+	if f.populate != nil {
+		if err := f.populate(f.batch); err != nil {
+			slog.Warn("batch genre populate", "err", err, "count", len(f.batch))
+		}
+	}
 	f.batch = f.batch[:0]
 }
 
 // BridgeScanChannel reads tracks from raw, forwards each to the returned
 // channel, and batches upserts via writer. The returned channel is closed
 // when raw is exhausted and any remaining batch has been flushed.
+// If writer also implements GenrePopulator, PopulateTrackGenres is called
+// after each batch flush to keep the track_genres junction table current.
 func BridgeScanChannel(raw <-chan library.Track, writer UpsertBatcher, batchSize int) <-chan library.Track {
+	var populate func([]library.Track) error
+	if gp, ok := writer.(GenrePopulator); ok {
+		populate = gp.PopulateTrackGenres
+	}
 	ch := make(chan library.Track, scanChannelBuffer)
 	go func() {
 		defer close(ch)
-		f := &batchFlusher{size: batchSize, flush: writer.UpsertBatch}
+		f := &batchFlusher{size: batchSize, flush: writer.UpsertBatch, populate: populate}
 		for t := range raw {
 			t = ensureCreatedAt(t)
 			ch <- t
@@ -77,6 +98,8 @@ func BridgeScanChannel(raw <-chan library.Track, writer UpsertBatcher, batchSize
 // for upsert; deleted tracks are marked missing in the database via marker.
 // hashByPath maps file paths to content hashes for deletion lookups. The
 // returned channel is closed when raw is exhausted.
+// If writer also implements GenrePopulator, PopulateTrackGenres is called
+// after each batch flush to keep the track_genres junction table current.
 func BridgeWatchChannel(raw <-chan library.WatchEvent, writer UpsertBatcher, marker MissingMarker, hashByPath map[string]string, batchSize int) <-chan library.WatchEvent {
 	// Copy the map so the goroutine owns its own mutable state and does not
 	// race with callers that may still read the original map.
@@ -85,10 +108,15 @@ func BridgeWatchChannel(raw <-chan library.WatchEvent, writer UpsertBatcher, mar
 		localMap[k] = v
 	}
 
+	var populate func([]library.Track) error
+	if gp, ok := writer.(GenrePopulator); ok {
+		populate = gp.PopulateTrackGenres
+	}
+
 	ch := make(chan library.WatchEvent, watchChannelBuffer)
 	go func() {
 		defer close(ch)
-		f := &batchFlusher{size: batchSize, flush: writer.UpsertBatch}
+		f := &batchFlusher{size: batchSize, flush: writer.UpsertBatch, populate: populate}
 		for ev := range raw {
 			if ev.Deleted {
 				ch <- ev

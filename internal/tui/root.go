@@ -85,6 +85,7 @@ type Model struct {
 	favorites     FavoritesView
 	genres        GenresView
 	tagsView      TagsView
+	mixes         MixesView
 
 	// scanCh is the channel returned by library.Scan. It is nil when no scan
 	// is in progress or after the scan has completed.
@@ -145,29 +146,35 @@ type Model struct {
 	// player is the playback backend. It may be nil when playback is not
 	// available (e.g. in tests that do not exercise playback).
 	player              playPauser
-	queueWriter         libtui.QueueAppender   // may be nil; set via WithQueueWriter
-	reorderer           queueReorderer         // may be nil; set via WithQueueReorderer
-	undoer              queueDequeuer          // may be nil; set via WithQueueDequeuer
-	sessionWriter       sessionWriter          // may be nil; set via WithSessionWriter
-	playlistReader      playlistTrackReader    // may be nil; set via WithPlaylistTrackReader
-	playlistWriter      playlistCreator        // may be nil; set via WithPlaylistWriter
-	playlistRenamer     playlistRenamer        // may be nil; set via WithPlaylistRenamer
-	playlistDeleter     playlistDeleter        // may be nil; set via WithPlaylistDeleter
-	playlistAdder       playlistTrackAdder     // may be nil; set via WithPlaylistAdder
-	batchEnqueuer       batchEnqueuer          // may be nil; set via WithBatchEnqueuer
-	favoriteReader      favoriteReader         // may be nil; set via WithFavoriteReader
-	favoriteWriter      favoriteWriter         // may be nil; set via WithFavoriteWriter
-	favoriteHashes      map[string]struct{}    // set of favorited track hashes for highlight
-	favoriteArtists     map[string]struct{}    // set of favorited artist names for highlight
-	favoriteAlbums      map[string]struct{}    // set of favorited album names for highlight
-	smartEval           smartPlaylistEvaluator // may be nil; set via WithSmartPlaylistEvaluator
-	smartPlaylistWriter smartPlaylistWriter    // may be nil; set via WithSmartPlaylistWriter
-	playCountWriter     playCountIncrementer   // may be nil; set via WithPlayCountWriter
-	historyRecorder     playHistoryRecorder    // may be nil; set via WithHistoryRecorder
-	historyReader       playHistoryReader      // may be nil; set via WithHistoryReader
-	statsReader         listeningStatsReader   // may be nil; set via WithStatsReader
-	tagReader           tagReader              // may be nil; set via WithTagReader
-	tagWriter           tagWriter              // may be nil; set via WithTagWriter
+	queueWriter         libtui.QueueAppender         // may be nil; set via WithQueueWriter
+	reorderer           queueReorderer               // may be nil; set via WithQueueReorderer
+	undoer              queueDequeuer                // may be nil; set via WithQueueDequeuer
+	sessionWriter       sessionWriter                // may be nil; set via WithSessionWriter
+	playlistReader      playlistTrackReader          // may be nil; set via WithPlaylistTrackReader
+	playlistWriter      playlistCreator              // may be nil; set via WithPlaylistWriter
+	playlistRenamer     playlistRenamer              // may be nil; set via WithPlaylistRenamer
+	playlistDeleter     playlistDeleter              // may be nil; set via WithPlaylistDeleter
+	playlistAdder       playlistTrackAdder           // may be nil; set via WithPlaylistAdder
+	batchEnqueuer       batchEnqueuer                // may be nil; set via WithBatchEnqueuer
+	favoriteReader      favoriteReader               // may be nil; set via WithFavoriteReader
+	favoriteWriter      favoriteWriter               // may be nil; set via WithFavoriteWriter
+	favoriteHashes      map[string]struct{}          // set of favorited track hashes for highlight
+	favoriteArtists     map[string]struct{}          // set of favorited artist names for highlight
+	favoriteAlbums      map[string]struct{}          // set of favorited album names for highlight
+	smartEval           smartPlaylistEvaluator       // may be nil; set via WithSmartPlaylistEvaluator
+	smartPlaylistWriter smartPlaylistWriter          // may be nil; set via WithSmartPlaylistWriter
+	playCountWriter     playCountIncrementer         // may be nil; set via WithPlayCountWriter
+	historyRecorder     playHistoryRecorder          // may be nil; set via WithHistoryRecorder
+	historyReader       playHistoryReader            // may be nil; set via WithHistoryReader
+	statsReader         listeningStatsReader         // may be nil; set via WithStatsReader
+	recReader           recommendationReader         // may be nil; set via WithRecommendationReader
+	dismissalReader     dismissalReader              // may be nil; set via WithDismissalReader
+	dismissalWriter     dismissalWriter              // may be nil; set via WithDismissalWriter
+	dismissedHashes     map[string]struct{}          // set of dismissed track hashes
+	cacheReader         cachedMixReader              // may be nil; set via WithCacheReader
+	cacheRebuilder      recommendationCacheRebuilder // may be nil; set via WithCacheRebuilder
+	tagReader           tagReader                    // may be nil; set via WithTagReader
+	tagWriter           tagWriter                    // may be nil; set via WithTagWriter
 
 	// Tag in-memory cache — loaded on startup, refreshed on any mutation.
 	tags      []db.TagRow
@@ -247,6 +254,8 @@ func New(ctx context.Context, opts ...Option) Model {
 	m.favoriteHashes = loadFavoriteSet(m.favoriteReader, "track")
 	m.favoriteArtists = loadFavoriteSet(m.favoriteReader, "artist")
 	m.favoriteAlbums = loadFavoriteSet(m.favoriteReader, "album")
+	// Pre-load dismissed track hashes so mixes filter them on first load.
+	m.dismissedHashes = loadDismissedSet(m.dismissalReader)
 	m = m.syncRecentlyAddedFromLibrary()
 	// Sync statusBar fields from model state.
 	m.statusBar.transientDur = time.Duration(m.cfg.TransientDurationSecs) * time.Second
