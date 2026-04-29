@@ -27,14 +27,14 @@ func TestRegistry_order(t *testing.T) {
 		t.Fatalf("Registry() returned %d defs, want %d", len(defs), len(want))
 	}
 	for i, d := range defs {
-		if d.Info.ID != want[i] {
-			t.Errorf("Registry()[%d].Info.ID = %v, want %v", i, d.Info.ID, want[i])
+		if d.ID != want[i] {
+			t.Errorf("Registry()[%d].ID = %v, want %v", i, d.ID, want[i])
 		}
-		if d.Info.Name == "" {
-			t.Errorf("Registry()[%d].Info.Name is empty", i)
+		if d.Name == "" {
+			t.Errorf("Registry()[%d].Name is empty", i)
 		}
-		if d.Info.Description == "" {
-			t.Errorf("Registry()[%d].Info.Description is empty", i)
+		if d.Description == "" {
+			t.Errorf("Registry()[%d].Description is empty", i)
 		}
 	}
 }
@@ -42,10 +42,10 @@ func TestRegistry_order(t *testing.T) {
 func TestRegistry_uniqueIDs(t *testing.T) {
 	seen := make(map[recommendation.MixID]bool)
 	for _, d := range recommendation.Registry() {
-		if seen[d.Info.ID] {
-			t.Errorf("duplicate MixID %v in Registry()", d.Info.ID)
+		if seen[d.ID] {
+			t.Errorf("duplicate MixID %v in Registry()", d.ID)
 		}
-		seen[d.Info.ID] = true
+		seen[d.ID] = true
 	}
 }
 

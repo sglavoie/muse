@@ -14,15 +14,6 @@ import (
 // compatibility so callers using tui.MixInfo continue to compile unchanged.
 type MixInfo = recommendation.MixInfo
 
-// mixDefs defines the fixed set of recommendation mixes in display order.
-var mixDefs = []MixInfo{
-	{ID: db.MixRediscover, Name: "Rediscover", Description: "Tracks you loved but haven't played in 90+ days"},
-	{ID: db.MixHiddenGems, Name: "Hidden Gems", Description: "Unplayed tracks by your favorite artists"},
-	{ID: db.MixOnRepeat, Name: "On Repeat", Description: "Your most played tracks this week"},
-	{ID: db.MixDeepCuts, Name: "Deep Cuts", Description: "Tracks you always listen to completion"},
-	{ID: db.MixNeverPlayed, Name: "Never Played", Description: "Tracks you might like but haven't tried"},
-}
-
 // MixesView manages the two-level Mixes panel: a list of recommendation mixes
 // at level 0, and the track list for the selected mix at level 1.
 type MixesView struct {

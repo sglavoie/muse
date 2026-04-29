@@ -262,6 +262,18 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 		m.statusBar.notify(sortNotification(m.tagsView.sortState))
 		return m, nil, true
 
+	case viewMixes:
+		if m.mixes.level != 1 {
+			return m, nil, false
+		}
+		var ss SortState
+		var ok bool
+		if m.mixes.trackView, ss, ok = m.mixes.trackView.applySortDir(dir); !ok {
+			return m, nil, false
+		}
+		m.statusBar.notify(sortNotification(ss))
+		return m, nil, true
+
 	default:
 		return m, nil, false
 	}

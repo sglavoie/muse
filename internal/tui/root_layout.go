@@ -28,7 +28,7 @@ type resizable interface {
 // height is reduced by 3 to leave room for the status bar and header rows.
 func (m *Model) setViewDimensions(width, height int) {
 	viewHeight := max(height-3, 0)
-	for _, view := range []resizable{&m.library, &m.recentlyAdded, &m.history, &m.playlists, &m.queue, &m.artists, &m.albums, &m.favorites, &m.genres, &m.tagsView} {
+	for _, view := range []resizable{&m.library, &m.recentlyAdded, &m.history, &m.playlists, &m.queue, &m.artists, &m.albums, &m.favorites, &m.genres, &m.tagsView, &m.mixes} {
 		view.setSize(width, viewHeight)
 	}
 }
@@ -74,6 +74,13 @@ func (m *Model) clampAllScrollOffsets() {
 	tagReserve := tagsVisibleReserve(m.tagsView)
 	tagMaxRows := layout.VisibleRows(m.tagsView.height, tagReserve)
 	m.tagsView.scrollOffset = adjustScroll(m.tagsView.cursor, m.tagsView.scrollOffset, tagMaxRows)
+
+	if m.mixes.level == 1 {
+		mixReserve := libraryViewVisibleReserve(m.mixes.trackView)
+		mixMaxRows := layout.VisibleRows(m.mixes.height, mixReserve)
+		m.mixes.trackView.scrollOffset = adjustScroll(
+			m.mixes.trackView.cursor, m.mixes.trackView.scrollOffset, mixMaxRows)
+	}
 }
 
 // tagsVisibleReserve returns the number of header rows to reserve in the tags view.

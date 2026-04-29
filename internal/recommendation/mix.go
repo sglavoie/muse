@@ -20,12 +20,6 @@ type MixInfo struct {
 	Progress    string // shown instead of generic message when TrackCount == 0
 }
 
-// MixDef pairs a MixInfo display descriptor with its identifier.
-// Used by Registry to enumerate the full set of mixes in display order.
-type MixDef struct {
-	Info MixInfo
-}
-
 // CacheEntry is a single pre-computed mix membership row for
 // recommendation_cache.
 type CacheEntry struct {
@@ -35,12 +29,12 @@ type CacheEntry struct {
 }
 
 // Registry returns the fixed set of recommendation mixes in display order.
-func Registry() []MixDef {
-	return []MixDef{
-		{Info: MixInfo{ID: MixRediscover, Name: "Rediscover", Description: "Tracks you loved but haven't played in 90+ days"}},
-		{Info: MixInfo{ID: MixHiddenGems, Name: "Hidden Gems", Description: "Unplayed tracks by your favorite artists"}},
-		{Info: MixInfo{ID: MixOnRepeat, Name: "On Repeat", Description: "Your most played tracks this week"}},
-		{Info: MixInfo{ID: MixDeepCuts, Name: "Deep Cuts", Description: "Tracks you always listen to completion"}},
-		{Info: MixInfo{ID: MixNeverPlayed, Name: "Never Played", Description: "Tracks you might like but haven't tried"}},
+func Registry() []MixInfo {
+	return []MixInfo{
+		{ID: MixRediscover, Name: "Rediscover", Description: "Tracks you loved but haven't played in 90+ days"},
+		{ID: MixHiddenGems, Name: "Hidden Gems", Description: "Unplayed tracks by your favorite artists"},
+		{ID: MixOnRepeat, Name: "On Repeat", Description: "Your most played tracks this week"},
+		{ID: MixDeepCuts, Name: "Deep Cuts", Description: "Tracks you always listen to completion"},
+		{ID: MixNeverPlayed, Name: "Never Played", Description: "Tracks you might like but haven't tried"},
 	}
 }

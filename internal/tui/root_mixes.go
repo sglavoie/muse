@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/radio"
+	"github.com/sglavoie/muse/internal/recommendation"
 )
 
 // mixCountsLoadedMsg carries the per-mix track counts returned by
@@ -131,7 +132,7 @@ func (m Model) loadMixCountsCmd() tea.Cmd {
 			return mixCountsLoadedMsg{insufficient: true, progress: progress}
 		}
 
-		counts := make(map[db.MixID]int, len(mixDefs))
+		counts := make(map[db.MixID]int, len(recommendation.Registry()))
 		loaders := []struct {
 			id   db.MixID
 			load func(int) ([]library.Track, error)

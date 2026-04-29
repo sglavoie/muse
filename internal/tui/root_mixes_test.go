@@ -7,6 +7,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/recommendation"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -81,7 +82,7 @@ func TestMixesViewSwitchLazyLoad(t *testing.T) {
 		t.Fatal("expected loadMixCountsCmd when mixes not yet initialized")
 	}
 
-	// After the switch, mixes are populated from mixDefs.
+	// After the switch, mixes are populated from recommendation.Registry().
 	m = m.switchToView(viewMixes)
 	if len(m.mixes.mixes) == 0 {
 		t.Fatal("expected mixes to be populated after switchToView")
@@ -160,7 +161,7 @@ func TestMixesViewTrackEnqueue(t *testing.T) {
 		WithQueueWriter(qa),
 	)
 	m = m.switchToView(viewMixes)
-	m.mixes.mixes = append([]MixInfo(nil), mixDefs...)
+	m.mixes.mixes = append([]MixInfo(nil), recommendation.Registry()...)
 	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
 	m.mixes.selectedMix = 0
 	m, _ = m.handleMixOpen()
@@ -262,7 +263,7 @@ func TestMixesViewCacheInvalidation(t *testing.T) {
 	m := newMixesModel(true, sampleMixTracks())
 	m = m.switchToView(viewMixes)
 	// Simulate mixes already loaded and 5 plays accumulated.
-	m.mixes.mixes = append([]MixInfo(nil), mixDefs...)
+	m.mixes.mixes = append([]MixInfo(nil), recommendation.Registry()...)
 	m.mixes.playsSinceRefresh = 5
 
 	cmd := m.mixesMaybeLoadCmd()
@@ -277,7 +278,7 @@ func TestMixesViewCacheInvalidation(t *testing.T) {
 func TestMixesViewNoReloadBelowThreshold(t *testing.T) {
 	m := newMixesModel(true, sampleMixTracks())
 	m = m.switchToView(viewMixes)
-	m.mixes.mixes = append([]MixInfo(nil), mixDefs...)
+	m.mixes.mixes = append([]MixInfo(nil), recommendation.Registry()...)
 	m.mixes.playsSinceRefresh = 4
 
 	cmd := m.mixesMaybeLoadCmd()
@@ -461,7 +462,7 @@ func TestMixesRadioSeedEnable(t *testing.T) {
 	tracks := sampleMixTracks()
 	m := newMixesModel(true, tracks)
 	m = m.switchToView(viewMixes)
-	m.mixes.mixes = append([]MixInfo(nil), mixDefs...)
+	m.mixes.mixes = append([]MixInfo(nil), recommendation.Registry()...)
 	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
 	m.mixes.selectedMix = 0
 	m, _ = m.handleMixOpen()
@@ -489,7 +490,7 @@ func TestMixesRadioSeedDisable(t *testing.T) {
 	tracks := sampleMixTracks()
 	m := newMixesModel(true, tracks)
 	m = m.switchToView(viewMixes)
-	m.mixes.mixes = append([]MixInfo(nil), mixDefs...)
+	m.mixes.mixes = append([]MixInfo(nil), recommendation.Registry()...)
 	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
 	m.mixes.selectedMix = 0
 	m, _ = m.handleMixOpen()
@@ -517,7 +518,7 @@ func TestMixesRadioSeedDisable(t *testing.T) {
 func TestMixesRadioSeedEmptyFallback(t *testing.T) {
 	m := newMixesModel(true, nil)
 	m = m.switchToView(viewMixes)
-	m.mixes.mixes = append([]MixInfo(nil), mixDefs...)
+	m.mixes.mixes = append([]MixInfo(nil), recommendation.Registry()...)
 	// No cached tracks for the active mix.
 
 	m2, _ := m.handleMixesRadioSeed()
@@ -555,5 +556,138 @@ func TestMixesViewFilteredHelp(t *testing.T) {
 	}
 	if sections[0].title != "Mixes" {
 		t.Errorf("expected Mixes section first, got %q", sections[0].title)
+	}
+}
+
+// stubDismissalWriter records DismissTrack and UndismissTrack calls.
+type stubDismissalWriter struct {
+	dismissed   []string
+	undismissed []string
+}
+
+func (s *stubDismissalWriter) DismissTrack(hash string) error {
+	s.dismissed = append(s.dismissed, hash)
+	return nil
+}
+
+func (s *stubDismissalWriter) UndismissTrack(hash string) error {
+	s.undismissed = append(s.undismissed, hash)
+	return nil
+}
+
+// setupMixesAtTrackLevel returns a Model at level 1 with sampleMixTracks loaded
+// for MixRediscover. opts are applied after the recommendation reader.
+func setupMixesAtTrackLevel(opts ...Option) Model {
+	tracks := sampleMixTracks()
+	allOpts := []Option{WithRecommendationReader(&stubRecReader{sufficient: true, tracks: tracks})}
+	allOpts = append(allOpts, opts...)
+	m := New(context.Background(), allOpts...)
+	m = m.switchToView(viewMixes)
+	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
+	m.mixes.selectedMix = 0
+	m, _ = m.handleMixOpen()
+	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
+	return m
+}
+
+// TestMixesDismissRoundTrip verifies the full dismiss flow: cmd fires,
+// mixDismissedMsg is returned, hash lands in dismissedHashes, and the track
+// is removed from both cachedMixes and trackView.sourceTracks.
+func TestMixesDismissRoundTrip(t *testing.T) {
+	stub := &stubDismissalWriter{}
+	m := setupMixesAtTrackLevel(WithDismissalWriter(stub))
+	// cursor is at 0 → focused track is mx1.
+
+	m, cmd := m.handleMixDismiss()
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd from handleMixDismiss")
+	}
+
+	rawMsg := cmd()
+	msg, ok := rawMsg.(mixDismissedMsg)
+	if !ok {
+		t.Fatalf("expected mixDismissedMsg, got %T", rawMsg)
+	}
+	if msg.hash != "mx1" {
+		t.Errorf("expected hash mx1, got %q", msg.hash)
+	}
+
+	m = m.handleMixDismissedMsg(msg)
+
+	if _, found := m.dismissedHashes["mx1"]; !found {
+		t.Error("expected mx1 in dismissedHashes after dismiss")
+	}
+	for _, tr := range m.mixes.cachedMixes[db.MixRediscover] {
+		if tr.Hash == "mx1" {
+			t.Error("expected mx1 removed from cachedMixes after dismiss")
+		}
+	}
+	for _, tr := range m.mixes.trackView.sourceTracks {
+		if tr.Hash == "mx1" {
+			t.Error("expected mx1 removed from trackView.sourceTracks after dismiss")
+		}
+	}
+	if len(stub.dismissed) != 1 || stub.dismissed[0] != "mx1" {
+		t.Errorf("expected stub to record dismiss for mx1, got %v", stub.dismissed)
+	}
+}
+
+// TestMixesUndismissRoundTrip verifies the full undismiss flow: cmd fires,
+// mixUndismissedMsg is returned, and hash is removed from dismissedHashes.
+func TestMixesUndismissRoundTrip(t *testing.T) {
+	stub := &stubDismissalWriter{}
+	m := setupMixesAtTrackLevel(WithDismissalWriter(stub))
+	// Pre-seed dismissedHashes with mx1 to simulate a prior dismiss.
+	m.dismissedHashes = map[string]struct{}{"mx1": {}}
+	// cursor is at 0 → focused track is mx1.
+
+	m, cmd := m.handleMixUndismiss()
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd from handleMixUndismiss")
+	}
+
+	rawMsg := cmd()
+	msg, ok := rawMsg.(mixUndismissedMsg)
+	if !ok {
+		t.Fatalf("expected mixUndismissedMsg, got %T", rawMsg)
+	}
+	if msg.hash != "mx1" {
+		t.Errorf("expected hash mx1, got %q", msg.hash)
+	}
+
+	m = m.handleMixUndismissedMsg(msg)
+
+	if _, found := m.dismissedHashes["mx1"]; found {
+		t.Error("expected mx1 removed from dismissedHashes after undismiss")
+	}
+	if len(stub.undismissed) != 1 || stub.undismissed[0] != "mx1" {
+		t.Errorf("expected stub to record undismiss for mx1, got %v", stub.undismissed)
+	}
+}
+
+// TestMixesDismissNotAtTrackLevel verifies that handleMixDismiss is a no-op
+// at mix list level (level 0).
+func TestMixesDismissNotAtTrackLevel(t *testing.T) {
+	m := newMixesModel(true, sampleMixTracks())
+	m = m.switchToView(viewMixes)
+	// level is 0 (list level) by default after switchToView.
+
+	_, cmd := m.handleMixDismiss()
+
+	if cmd != nil {
+		t.Error("expected nil cmd from handleMixDismiss at list level")
+	}
+}
+
+// TestMixesDismissNilWriter verifies graceful no-op when no dismissal writer
+// is wired.
+func TestMixesDismissNilWriter(t *testing.T) {
+	// setupMixesAtTrackLevel does not wire a DismissalWriter by default.
+	m := setupMixesAtTrackLevel()
+
+	_, cmd := m.handleMixDismiss()
+
+	if cmd != nil {
+		t.Error("expected nil cmd from handleMixDismiss when writer not wired")
 	}
 }

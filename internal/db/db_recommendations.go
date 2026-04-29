@@ -153,24 +153,28 @@ func (d *DB) ReadDeepCutsMix(minPlays, maxPlays int, minCompletion float64, limi
 // Genre affinity uses the track_genres junction table for exact matching.
 func (d *DB) ReadNeverPlayedMix(limit int) ([]library.Track, error) {
 	rows, err := d.Query(`
+		WITH artist_plays AS (
+		    SELECT t.artist, COUNT(*) AS cnt
+		    FROM play_history ph
+		    JOIN tracks t ON ph.track_hash = t.hash
+		    GROUP BY t.artist
+		),
+		genre_plays AS (
+		    SELECT tg.genre, COUNT(*) AS cnt
+		    FROM play_history ph
+		    JOIN track_genres tg ON ph.track_hash = tg.track_hash
+		    GROUP BY tg.genre
+		)
 		SELECT t.path, t.hash, t.artist, t.title, t.album, t.genre,
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
 		       t.play_count, t.last_played_at,
-		       (
-		           SELECT COUNT(*)
-		           FROM play_history ph2
-		           JOIN tracks t2 ON ph2.track_hash = t2.hash
-		           WHERE t2.artist = t.artist
-		       ) +
-		       (
-		           SELECT COUNT(*)
-		           FROM play_history ph3
-		           JOIN track_genres tg2 ON ph3.track_hash = tg2.track_hash
-		           JOIN track_genres tg ON tg.genre = tg2.genre
-		           WHERE tg.track_hash = t.hash
-		       ) AS affinity
+		       COALESCE(ap.cnt, 0) + COALESCE(SUM(gp.cnt), 0) AS affinity
 		FROM tracks t
+		LEFT JOIN artist_plays ap ON ap.artist = t.artist
+		LEFT JOIN track_genres tg ON tg.track_hash = t.hash
+		LEFT JOIN genre_plays gp ON gp.genre = tg.genre
 		WHERE t.play_count = 0
+		GROUP BY t.hash
 		ORDER BY affinity DESC
 		LIMIT ?`, limit)
 	if err != nil {

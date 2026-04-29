@@ -3,6 +3,7 @@ package tui
 import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/recommendation"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/filter"
@@ -65,7 +66,7 @@ func (m Model) switchToView(id viewID) Model {
 	}
 	m.activeView = id
 	if id == viewMixes && len(m.mixes.mixes) == 0 {
-		m.mixes.mixes = append([]MixInfo(nil), mixDefs...)
+		m.mixes.mixes = append([]MixInfo(nil), recommendation.Registry()...)
 	}
 	if id == viewArtists && len(m.artists.artists) == 0 {
 		m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
