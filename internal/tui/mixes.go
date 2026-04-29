@@ -65,16 +65,16 @@ func (v *MixesView) focusedMix() *MixInfo {
 }
 
 // focusedTrack returns the focused track at level 1, or nil when not at track level.
+// It delegates to the embedded trackView which accounts for filter and sort state.
 func (v *MixesView) focusedTrack() *library.Track {
 	if v.level != 1 {
 		return nil
 	}
-	tracks := v.trackView.sourceTracks
-	if len(tracks) == 0 || v.trackView.cursor < 0 || v.trackView.cursor >= len(tracks) {
+	track, ok := v.trackView.view().FocusedTrack()
+	if !ok {
 		return nil
 	}
-	t := tracks[v.trackView.cursor]
-	return &t
+	return &track
 }
 
 // openMix transitions to level 1 and loads cached tracks for the given mix.

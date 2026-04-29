@@ -65,7 +65,7 @@ func (d *DB) ReadHiddenGemsMix(maxPlays, topArtists, topGenres, limit int) ([]li
 		return nil, fmt.Errorf("db: read hidden gems mix (top genres): %w", err)
 	}
 	if len(artists) == 0 && len(genres) == 0 {
-		return nil, nil
+		return []library.Track{}, nil
 	}
 
 	var conditions []string

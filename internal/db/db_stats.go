@@ -203,7 +203,7 @@ func (d *DB) ReadMixCounts(cfg MixCountConfig) ([]MixStatEntry, error) {
 func readTopEntries(d *DB, query string, arg int64) ([]StatEntry, error) {
 	rows, err := d.Query(query, arg)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("db: read top entries: %w", err)
 	}
 	defer rows.Close()
 
@@ -211,7 +211,7 @@ func readTopEntries(d *DB, query string, arg int64) ([]StatEntry, error) {
 	for rows.Next() {
 		var entry StatEntry
 		if err := rows.Scan(&entry.Name, &entry.PlayCount, &entry.ListenedSecs); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("db: scan top entry: %w", err)
 		}
 		result = append(result, entry)
 	}

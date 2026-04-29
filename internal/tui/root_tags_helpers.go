@@ -167,6 +167,10 @@ func (m Model) focusedTrackHash() string {
 				return track.Hash
 			}
 		}
+	case viewMixes:
+		if t := m.mixes.focusedTrack(); t != nil {
+			return t.Hash
+		}
 	}
 	return ""
 }
