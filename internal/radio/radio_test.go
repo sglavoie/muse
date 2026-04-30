@@ -328,6 +328,23 @@ func TestPickBatch_ArtistCap(t *testing.T) {
 	}
 }
 
+func TestPickBatch_EmptyArtistBypassesCap(t *testing.T) {
+	// Tracks with Artist="" should not be grouped under a single artist cap.
+	// With n=5, maxArtistFraction=0.4 → maxPerArtist=2.
+	// If all 6 candidates have empty artists, we should still get 5 (not 2).
+	var scored []TrackScore
+	for i := 0; i < 6; i++ {
+		scored = append(scored, TrackScore{
+			Track: library.Track{Hash: string(rune('a' + i)), Artist: ""},
+			Score: 10,
+		})
+	}
+	result := PickBatch(scored, 5, 0.4)
+	if len(result) != 5 {
+		t.Errorf("expected 5 tracks with empty artists, got %d", len(result))
+	}
+}
+
 func TestPickBatch_EmptyInput(t *testing.T) {
 	if got := PickBatch(nil, 5, 0.4); got != nil {
 		t.Errorf("expected nil for empty scored input, got %v", got)

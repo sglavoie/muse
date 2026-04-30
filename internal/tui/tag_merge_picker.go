@@ -49,7 +49,7 @@ func NewTagMergePicker(src db.TagRow, all []db.TagRow) TagMergePicker {
 		}
 	}
 	tp := TagMergePicker{src: src, dests: dests}
-	tp.refilter()
+	tp = tp.refilter()
 	return tp
 }
 

@@ -41,11 +41,9 @@ func (v View) visibleRows() int {
 	case CategoryLevel:
 		// No chrome needed for the 3-row category view.
 	case ListLevel:
+		reserve = 2 // heading + separator (blank line or filter line)
 		if v.Category == CategoryTracks {
-			reserve = 1 // column header row
-		}
-		if v.FilterActive || v.FilterText != "" {
-			reserve++
+			reserve++ // column header row
 		}
 	default:
 		reserve = 3 // heading + separator + column header row

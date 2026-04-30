@@ -32,6 +32,34 @@ func TestAdjustScroll(t *testing.T) {
 	}
 }
 
+func TestClampCursorToCount(t *testing.T) {
+	tests := []struct {
+		name             string
+		cursor, scroll   int
+		count            int
+		wantCur, wantScr int
+	}{
+		{"zero count", 5, 3, 0, 0, 0},
+		{"cursor within range", 2, 0, 5, 2, 0},
+		{"cursor past end", 10, 0, 5, 4, 0},
+		{"cursor negative", -1, 0, 5, 0, 0},
+		{"scroll past cursor", 2, 4, 5, 2, 2},
+		{"scroll negative", 2, -1, 5, 2, 0},
+		{"both negative", -3, -2, 5, 0, 0},
+		{"single item", 0, 0, 1, 0, 0},
+		{"single item cursor past", 5, 3, 1, 0, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotCur, gotScr := clampCursorToCount(tt.cursor, tt.scroll, tt.count)
+			if gotCur != tt.wantCur || gotScr != tt.wantScr {
+				t.Errorf("clampCursorToCount(%d, %d, %d) = (%d, %d), want (%d, %d)",
+					tt.cursor, tt.scroll, tt.count, gotCur, gotScr, tt.wantCur, tt.wantScr)
+			}
+		})
+	}
+}
+
 func TestFindStringPosition(t *testing.T) {
 	items := []string{"Alpha", "Bravo", "Charlie"}
 	if findStringPosition(items, "Bravo") != 1 {

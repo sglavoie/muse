@@ -328,11 +328,9 @@ func favoritesVisibleReserve(v FavoritesView) int {
 	case favtui.CategoryLevel:
 		// no extra reserve
 	case favtui.ListLevel:
+		reserve = 2 // heading + separator (blank line or filter line)
 		if v.category == favtui.CategoryTracks {
-			reserve = 1
-		}
-		if v.filter.Active || v.filter.Text != "" {
-			reserve++
+			reserve++ // column header row
 		}
 	case favtui.TrackLevel:
 		reserve = 3

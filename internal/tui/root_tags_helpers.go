@@ -88,6 +88,11 @@ func (m Model) selectedTrackHashes() []string {
 		return hashMapToSlice(m.genres.selectedHashes)
 	case viewTags:
 		return hashMapToSlice(m.tagsView.selectedHashes)
+	case viewMixes:
+		if m.mixes.level == 1 {
+			return hashMapToSlice(m.mixes.trackView.selectedHashes)
+		}
+		return nil
 	}
 	return nil
 }

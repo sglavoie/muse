@@ -247,7 +247,21 @@ func (m Model) handleMixLoadedMsg(msg mixLoadedMsg) Model {
 	}
 	m.mixes.cachedMixes[msg.mixID] = tracks
 	if m.activeView == viewMixes && m.mixes.level == 1 && m.mixes.activeMix == msg.mixID {
-		m.mixes.openMix(msg.mixID)
+		if len(m.mixes.trackView.sourceTracks) == 0 {
+			// Initial population: no user state to preserve.
+			m.mixes.openMix(msg.mixID)
+		} else {
+			// Re-load while user is already browsing: update tracks
+			// in place to preserve cursor, sort, and filter state.
+			m.mixes.trackView.sourceTracks = tracks
+			if m.mixes.trackView.sortState.Field != SortDefault {
+				m.mixes.trackView = m.mixes.trackView.recomputeSortedTracks()
+			}
+			if m.mixes.trackView.filter.Text != "" {
+				m.mixes.trackView = m.mixes.trackView.rebuildFilterCache()
+			}
+			m.mixes.trackView = m.mixes.trackView.clampCursor()
+		}
 	}
 	return m
 }
@@ -507,9 +521,18 @@ func (m Model) handleMixDismissedMsg(msg mixDismissedMsg) Model {
 	if tracks, ok := m.mixes.cachedMixes[m.mixes.activeMix]; ok {
 		updated := removeTrackByHash(tracks, msg.hash)
 		m.mixes.cachedMixes[m.mixes.activeMix] = updated
-		// Refresh the track view if currently open on this mix.
+		// Refresh the track view if currently open on this mix, preserving
+		// cursor position, sort state, filter text, and selection (bug: the
+		// previous openMix call reset all of these).
 		if m.activeView == viewMixes && m.mixes.level == 1 {
-			m.mixes.openMix(m.mixes.activeMix)
+			m.mixes.trackView.sourceTracks = updated
+			if m.mixes.trackView.sortState.Field != SortDefault {
+				m.mixes.trackView = m.mixes.trackView.recomputeSortedTracks()
+			}
+			if m.mixes.trackView.filter.Text != "" {
+				m.mixes.trackView = m.mixes.trackView.rebuildFilterCache()
+			}
+			m.mixes.trackView = m.mixes.trackView.clampCursor()
 		}
 	}
 	m.statusBar.notify("Dismissed — won't appear in future mixes")

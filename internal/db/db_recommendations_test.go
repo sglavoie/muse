@@ -807,6 +807,175 @@ func TestReadSessionCoOccurrences_CountOrdering(t *testing.T) {
 	}
 }
 
+// --- Missing-track exclusion across all mixes ---
+
+func markMissing(t *testing.T, d *db.DB, hash string) {
+	t.Helper()
+	if _, err := d.Exec(`UPDATE tracks SET missing = 1 WHERE hash = ?`, hash); err != nil {
+		t.Fatalf("markMissing(%q): %v", hash, err)
+	}
+}
+
+func TestReadRediscoverMix_ExcludesMissingTracks(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "h1", "/a.flac", "Song1", "Artist", "Album", "Rock", 180000, 5000000, now)
+
+	ninetyOneDaysAgo := now - 91*86400
+	if _, err := d.Exec(`UPDATE tracks SET play_count = 10, last_played_at = ? WHERE hash = ?`, ninetyOneDaysAgo, "h1"); err != nil {
+		t.Fatalf("update h1: %v", err)
+	}
+
+	// Sanity: h1 would qualify before marking missing.
+	tracks, err := d.ReadRediscoverMix(10, 90, 10)
+	if err != nil {
+		t.Fatalf("ReadRediscoverMix: %v", err)
+	}
+	if len(tracks) != 1 {
+		t.Fatalf("precondition: expected 1 qualifying track, got %d", len(tracks))
+	}
+
+	markMissing(t, d, "h1")
+
+	tracks, err = d.ReadRediscoverMix(10, 90, 10)
+	if err != nil {
+		t.Fatalf("ReadRediscoverMix after missing: %v", err)
+	}
+	if len(tracks) != 0 {
+		t.Errorf("ReadRediscoverMix returned %d tracks, want 0 (track is missing)", len(tracks))
+	}
+}
+
+func TestReadOnRepeatMix_ExcludesMissingTracks(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "h1", "/a.flac", "Song1", "Artist", "Album", "Rock", 180000, 5000000, now)
+	w := newWriter(t, d)
+
+	for i := range 3 {
+		if err := w.RecordPlay("h1", now-int64(i*3600), 60, 180); err != nil {
+			t.Fatalf("RecordPlay: %v", err)
+		}
+	}
+
+	tracks, err := d.ReadOnRepeatMix(3, 7, 10)
+	if err != nil {
+		t.Fatalf("ReadOnRepeatMix: %v", err)
+	}
+	if len(tracks) != 1 {
+		t.Fatalf("precondition: expected 1 qualifying track, got %d", len(tracks))
+	}
+
+	markMissing(t, d, "h1")
+
+	tracks, err = d.ReadOnRepeatMix(3, 7, 10)
+	if err != nil {
+		t.Fatalf("ReadOnRepeatMix after missing: %v", err)
+	}
+	if len(tracks) != 0 {
+		t.Errorf("ReadOnRepeatMix returned %d tracks, want 0 (track is missing)", len(tracks))
+	}
+}
+
+func TestReadDeepCutsMix_ExcludesMissingTracks(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "h1", "/a.flac", "Song1", "Artist", "Album", "Rock", 180000, 5000000, now)
+	w := newWriter(t, d)
+
+	for i := range 2 {
+		if err := w.RecordPlay("h1", now+int64(i), 162, 180); err != nil {
+			t.Fatalf("RecordPlay: %v", err)
+		}
+	}
+	if _, err := d.Exec(`UPDATE tracks SET play_count = 2 WHERE hash = ?`, "h1"); err != nil {
+		t.Fatalf("update play_count: %v", err)
+	}
+
+	tracks, err := d.ReadDeepCutsMix(1, 5, 0.8, 10)
+	if err != nil {
+		t.Fatalf("ReadDeepCutsMix: %v", err)
+	}
+	if len(tracks) != 1 {
+		t.Fatalf("precondition: expected 1 qualifying track, got %d", len(tracks))
+	}
+
+	markMissing(t, d, "h1")
+
+	tracks, err = d.ReadDeepCutsMix(1, 5, 0.8, 10)
+	if err != nil {
+		t.Fatalf("ReadDeepCutsMix after missing: %v", err)
+	}
+	if len(tracks) != 0 {
+		t.Errorf("ReadDeepCutsMix returned %d tracks, want 0 (track is missing)", len(tracks))
+	}
+}
+
+func TestReadNeverPlayedMix_ExcludesMissingTracks(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "h1", "/a.flac", "Song1", "Artist", "Album", "Rock", 180000, 5000000, now)
+
+	tracks, err := d.ReadNeverPlayedMix(10)
+	if err != nil {
+		t.Fatalf("ReadNeverPlayedMix: %v", err)
+	}
+	if len(tracks) != 1 {
+		t.Fatalf("precondition: expected 1 qualifying track, got %d", len(tracks))
+	}
+
+	markMissing(t, d, "h1")
+
+	tracks, err = d.ReadNeverPlayedMix(10)
+	if err != nil {
+		t.Fatalf("ReadNeverPlayedMix after missing: %v", err)
+	}
+	if len(tracks) != 0 {
+		t.Errorf("ReadNeverPlayedMix returned %d tracks, want 0 (track is missing)", len(tracks))
+	}
+}
+
+func TestReadHiddenGemsMix_ExcludesMissingTracks(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "h1", "/a.flac", "Song1", "ArtistA", "Album", "Rock", 180000, 5000000, now)
+	insertFullTrack(t, d, "h2", "/b.flac", "Song2", "ArtistA", "Album", "Rock", 180000, 5000000, now)
+	w := newWriter(t, d)
+
+	if err := w.RecordPlay("h1", now, 60, 180); err != nil {
+		t.Fatalf("RecordPlay: %v", err)
+	}
+	if _, err := d.Exec(`UPDATE tracks SET play_count = 3 WHERE hash = ?`, "h1"); err != nil {
+		t.Fatalf("update h1: %v", err)
+	}
+
+	tracks, err := d.ReadHiddenGemsMix(2, 20, 10, 10)
+	if err != nil {
+		t.Fatalf("ReadHiddenGemsMix: %v", err)
+	}
+	foundH2 := false
+	for _, tr := range tracks {
+		if tr.Hash == "h2" {
+			foundH2 = true
+		}
+	}
+	if !foundH2 {
+		t.Fatalf("precondition: expected h2 in results")
+	}
+
+	markMissing(t, d, "h2")
+
+	tracks, err = d.ReadHiddenGemsMix(2, 20, 10, 10)
+	if err != nil {
+		t.Fatalf("ReadHiddenGemsMix after missing: %v", err)
+	}
+	for _, tr := range tracks {
+		if tr.Hash == "h2" {
+			t.Errorf("ReadHiddenGemsMix returned h2, want excluded (track is missing)")
+		}
+	}
+}
+
 // --- ReadHourGenreAffinities ---
 
 func TestReadHourGenreAffinities_Empty(t *testing.T) {

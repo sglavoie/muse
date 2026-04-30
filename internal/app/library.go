@@ -119,6 +119,12 @@ func LoadLibrary(ctx context.Context, database *db.DB, writer LibraryWriter,
 	rawWatchCh, watchDegraded, watchErr := library.Watch(ctx, musicDirs, excludedPaths, extractor, library.DefaultDebounce)
 	if watchErr != nil {
 		slog.Error("failed to start file watcher", "err", watchErr)
+		watchDegraded = true
+		if rawWatchCh == nil {
+			empty := make(chan library.WatchEvent)
+			close(empty)
+			rawWatchCh = empty
+		}
 	}
 
 	// Bridge watcher events to both the DB (for persistence) and the TUI

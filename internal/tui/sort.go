@@ -262,8 +262,14 @@ func clampCursorToCount(cursor, scrollOffset, count int) (int, int) {
 	if count == 0 {
 		return 0, 0
 	}
+	if cursor < 0 {
+		cursor = 0
+	}
 	if cursor >= count {
 		cursor = count - 1
+	}
+	if scrollOffset < 0 {
+		scrollOffset = 0
 	}
 	if scrollOffset > cursor {
 		scrollOffset = cursor

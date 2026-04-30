@@ -113,7 +113,8 @@ func TestHandleActionReservesFilterBarLine_Favorites(t *testing.T) {
 	if v.cursor != 19 {
 		t.Fatalf("expected cursor=19, got %d", v.cursor)
 	}
-	if v.scrollOffset != 9 {
-		t.Errorf("expected scrollOffset=9 (filter bar reserved), got %d", v.scrollOffset)
+	// visibleRows = 12-2 = 10, scrollOffset = 19-10+1 = 10
+	if v.scrollOffset != 10 {
+		t.Errorf("expected scrollOffset=10 (heading+separator reserved), got %d", v.scrollOffset)
 	}
 }

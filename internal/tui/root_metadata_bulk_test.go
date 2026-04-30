@@ -385,3 +385,27 @@ func TestBulkSelectedHashesTagsEmptyReturnsNil(t *testing.T) {
 		t.Errorf("tags with no selection: expected nil, got %v", hashes)
 	}
 }
+
+// TestBulkMetadataSaveClearsMixesSelection verifies that saving a bulk
+// metadata edit from the Mixes view clears trackView.selectedHashes.
+func TestBulkMetadataSaveClearsMixesSelection(t *testing.T) {
+	tracks := []library.Track{
+		{Hash: "mx1", Title: "Mix 1", Artist: "ArtX", Path: "/mx1.flac"},
+		{Hash: "mx2", Title: "Mix 2", Artist: "ArtX", Path: "/mx2.flac"},
+	}
+	m := New(context.Background(), WithLibraryTracks(tracks))
+	m.activeView = viewMixes
+	m.mixes.level = 1
+	m.mixes.trackView.selectedHashes = map[string]struct{}{"mx1": {}, "mx2": {}}
+
+	ed := NewBulkMetadataEditor([]string{"mx1", "mx2"}, "", "ArtX", "", "", "")
+	m.overlay.metadataEditor = &ed
+	m = typeIntoEditor(m, "X")
+
+	result, _ := m.handleMetadataSave()
+	nm := result.(Model)
+
+	if nm.mixes.trackView.selectedHashes != nil {
+		t.Errorf("expected mixes trackView.selectedHashes to be cleared, got %v", nm.mixes.trackView.selectedHashes)
+	}
+}

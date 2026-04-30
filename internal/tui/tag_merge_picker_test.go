@@ -6,6 +6,26 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 )
 
+func TestNewTagMergePickerInitializesFiltered(t *testing.T) {
+	src := db.TagRow{ID: 1, Name: "src"}
+	all := []db.TagRow{
+		src,
+		{ID: 2, Name: "alpha"},
+		{ID: 3, Name: "beta"},
+	}
+	tp := NewTagMergePicker(src, all)
+
+	// NewTagMergePicker must populate filtered so that all non-src destinations
+	// are visible. Before the fix, refilter()'s return value was discarded,
+	// leaving filtered nil.
+	if len(tp.filtered) != 2 {
+		t.Fatalf("expected 2 filtered destinations, got %d", len(tp.filtered))
+	}
+	if tp.filtered[0] != 0 || tp.filtered[1] != 1 {
+		t.Errorf("unexpected filtered indices: %v", tp.filtered)
+	}
+}
+
 func TestTagMergePickerBackspaceMultibyte(t *testing.T) {
 	src := db.TagRow{ID: 1, Name: "src"}
 	all := []db.TagRow{

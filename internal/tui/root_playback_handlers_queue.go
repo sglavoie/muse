@@ -60,11 +60,12 @@ func (m Model) handleMissingTrackSelectedMsg(msg MissingTrackSelectedMsg) (Model
 	wasCurrent := idx == m.playback.currentIndex
 	m.adjustPlaybackIndexAfterRemoval(idx)
 	if wasCurrent {
-		m.playback.currentHash = ""
-		m.statusBar.artist = ""
-		m.statusBar.title = ""
-		m.statusBar.playlistSource = ""
-		m = m.stopPlaybackIfCurrentMissing()
+		// The track was the currently-playing entry and its file is gone.
+		// stopPlaybackIfCurrentMissing cannot detect this because
+		// adjustPlaybackIndexAfterRemoval already set currentIndex to -1.
+		// Reset playback state directly to avoid leaving the UI in a
+		// stale PlaybackPlaying state with no valid current track.
+		m = m.resetPlaybackState()
 	}
 
 	id := entry.ID

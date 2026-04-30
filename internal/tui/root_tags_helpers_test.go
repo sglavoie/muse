@@ -241,6 +241,42 @@ func TestSelectedTrackHashes_FavoritesListLevelTracks(t *testing.T) {
 	}
 }
 
+func TestSelectedTrackHashes_Mixes(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewMixes
+	m.mixes.level = 1
+	m.mixes.trackView.selectedHashes = map[string]struct{}{
+		"mx1": {},
+		"mx2": {},
+	}
+
+	got := m.selectedTrackHashes()
+	if len(got) != 2 {
+		t.Fatalf("expected 2 selected hashes from mixes, got %d", len(got))
+	}
+	set := map[string]struct{}{}
+	for _, h := range got {
+		set[h] = struct{}{}
+	}
+	for _, want := range []string{"mx1", "mx2"} {
+		if _, ok := set[want]; !ok {
+			t.Errorf("expected hash %q in result", want)
+		}
+	}
+}
+
+func TestSelectedTrackHashes_MixesListLevel(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewMixes
+	// level 0 = list level, no track selection should be returned.
+	m.mixes.level = 0
+
+	got := m.selectedTrackHashes()
+	if got != nil {
+		t.Errorf("expected nil at mixes list level, got %v", got)
+	}
+}
+
 func TestHashMapToSlice_Sorted(t *testing.T) {
 	m := map[string]struct{}{
 		"c": {},

@@ -112,8 +112,9 @@ func TestHalfPageDown(t *testing.T) {
 		Height:   6,
 	}
 	v2 := v.HalfPageDown()
-	if v2.Cursor != 3 {
-		t.Errorf("expected cursor=3 (half of 6), got %d", v2.Cursor)
+	// visibleRows = 6-2 = 4, half = 2
+	if v2.Cursor != 2 {
+		t.Errorf("expected cursor=2 (half of 4), got %d", v2.Cursor)
 	}
 }
 
@@ -127,8 +128,9 @@ func TestFullPageUp(t *testing.T) {
 		Height:       6,
 	}
 	v2 := v.FullPageUp()
-	if v2.Cursor != 3 {
-		t.Errorf("expected cursor=3 (9-6), got %d", v2.Cursor)
+	// visibleRows = 6-2 = 4, cursor = 9-4 = 5
+	if v2.Cursor != 5 {
+		t.Errorf("expected cursor=5 (9-4), got %d", v2.Cursor)
 	}
 }
 

@@ -177,6 +177,11 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 	var removedOriginalIndices []int
 	if len(msg.CutIDs) > 0 {
 		removedOriginals, removedOriginalIndices = m.removeCutOriginals(msg.CutIDs)
+		// removeCutOriginals shrinks m.queue.entries, invalidating the
+		// displayOrder computed by preserveQueueSort above. Recompute so
+		// the sorted view stays consistent instead of silently dropping
+		// back to insertion order.
+		m = m.preserveQueueSort()
 	}
 
 	m.queue.cursor = insertPos + len(msg.Entries) - 1

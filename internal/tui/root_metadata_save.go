@@ -205,6 +205,10 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		m.genres.selectedHashes = nil
 	case viewTags:
 		m.tagsView.selectedHashes = nil
+	case viewMixes:
+		if m.mixes.level == 1 {
+			m.mixes.trackView.selectedHashes = nil
+		}
 	}
 
 	m.setUndoSlot(undoBulkEditMetadataAction{

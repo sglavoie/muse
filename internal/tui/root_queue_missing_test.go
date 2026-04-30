@@ -121,6 +121,52 @@ func TestSelectDeletedFilePreflightStatDispatchesMissing(t *testing.T) {
 	}
 }
 
+// TestSelectMissingCurrentTrackResetsPlayback verifies that removing a
+// missing track that is the currently-playing entry fully resets the
+// playback state. Before the fix, stopPlaybackIfCurrentMissing was
+// called after currentHash was already cleared, causing it to return
+// early and leave playback.state stuck at PlaybackPlaying with no
+// valid current track.
+func TestSelectMissingCurrentTrackResetsPlayback(t *testing.T) {
+	p := &stubPlayerQueueRemover{}
+	m := New(context.Background(), WithPlayer(p))
+	m.playback.state = PlaybackPlaying
+	m.playback.currentIndex = 0
+	m.playback.currentHash = "abc123"
+	m.statusBar.artist = "Artist"
+	m.statusBar.title = "Title"
+	m.statusBar.playlistSource = "Queue"
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Path: "/music/gone.flac", Display: "Gone", Hash: "abc123", Missing: true},
+		{ID: 20, Path: "/music/ok.flac", Display: "OK", Hash: "other"},
+	}
+
+	next, _ := m.Update(MissingTrackSelectedMsg{Index: 0, Path: "/music/gone.flac", Hash: "abc123"})
+	nm := next.(Model)
+
+	if nm.playback.state != PlaybackIdle {
+		t.Errorf("playback.state = %v, want PlaybackIdle", nm.playback.state)
+	}
+	if nm.playback.currentIndex != -1 {
+		t.Errorf("playback.currentIndex = %d, want -1", nm.playback.currentIndex)
+	}
+	if nm.playback.currentHash != "" {
+		t.Errorf("playback.currentHash = %q, want empty", nm.playback.currentHash)
+	}
+	if nm.statusBar.artist != "" {
+		t.Errorf("statusBar.artist = %q, want empty", nm.statusBar.artist)
+	}
+	if nm.statusBar.title != "" {
+		t.Errorf("statusBar.title = %q, want empty", nm.statusBar.title)
+	}
+	if len(nm.queue.entries) != 1 {
+		t.Fatalf("queue should have 1 entry, got %d", len(nm.queue.entries))
+	}
+	if p.stopCalls != 1 {
+		t.Errorf("Stop must be called once to halt playback, got %d calls", p.stopCalls)
+	}
+}
+
 // TestPlayFromIndexResultMsgErrorResetsPlayback verifies that a
 // playFromIndexResultMsg carrying an error (e.g. the race where the file
 // vanished between the pre-flight stat and mpv loadfile) resets

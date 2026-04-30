@@ -41,7 +41,7 @@ func (d *DB) ReadRediscoverMix(minPlays, ageDays, limit int) ([]library.Track, e
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
 		       t.play_count, t.last_played_at
 		FROM tracks t
-		WHERE t.play_count >= ? AND t.last_played_at < ? AND t.last_played_at > 0
+		WHERE t.missing = 0 AND t.play_count >= ? AND t.last_played_at < ? AND t.last_played_at > 0
 		ORDER BY t.play_count DESC
 		LIMIT ?`, minPlays, cutoff, limit)
 	if err != nil {
@@ -92,7 +92,7 @@ func (d *DB) ReadHiddenGemsMix(maxPlays, topArtists, topGenres, limit int) ([]li
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
 		       t.play_count, t.last_played_at
 		FROM tracks t
-		WHERE t.play_count <= ? AND (` + strings.Join(conditions, " OR ") + `)
+		WHERE t.missing = 0 AND t.play_count <= ? AND (` + strings.Join(conditions, " OR ") + `)
 		ORDER BY RANDOM()
 		LIMIT ?`
 
@@ -115,7 +115,7 @@ func (d *DB) ReadOnRepeatMix(minPlays, windowDays, limit int) ([]library.Track, 
 		       COUNT(*) AS recent_count
 		FROM tracks t
 		JOIN play_history ph ON ph.track_hash = t.hash
-		WHERE ph.played_at >= ?
+		WHERE t.missing = 0 AND ph.played_at >= ?
 		GROUP BY t.hash
 		HAVING COUNT(*) >= ?
 		ORDER BY recent_count DESC
@@ -136,7 +136,7 @@ func (d *DB) ReadDeepCutsMix(minPlays, maxPlays int, minCompletion float64, limi
 		       t.play_count, t.last_played_at
 		FROM tracks t
 		JOIN play_history ph ON ph.track_hash = t.hash
-		WHERE t.play_count BETWEEN ? AND ?
+		WHERE t.missing = 0 AND t.play_count BETWEEN ? AND ?
 		GROUP BY t.hash
 		HAVING AVG(ph.completion_rate) >= ?
 		ORDER BY t.play_count ASC
@@ -173,7 +173,7 @@ func (d *DB) ReadNeverPlayedMix(limit int) ([]library.Track, error) {
 		LEFT JOIN artist_plays ap ON ap.artist = t.artist
 		LEFT JOIN track_genres tg ON tg.track_hash = t.hash
 		LEFT JOIN genre_plays gp ON gp.genre = tg.genre
-		WHERE t.play_count = 0
+		WHERE t.missing = 0 AND t.play_count = 0
 		GROUP BY t.hash
 		ORDER BY affinity DESC
 		LIMIT ?`, limit)

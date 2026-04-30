@@ -22,7 +22,7 @@ func (d *DB) ReadAllMixProgress() (map[MixID]MixProgress, error) {
 	// Rediscover: tracks with play_count >= 10 (need ≥1 unheard in 90+ days).
 	var rediscoverCount int
 	if err := d.QueryRow(
-		`SELECT COUNT(*) FROM tracks WHERE play_count >= 10`,
+		`SELECT COUNT(*) FROM tracks WHERE missing = 0 AND play_count >= 10`,
 	).Scan(&rediscoverCount); err != nil {
 		return nil, fmt.Errorf("db: mix progress rediscover: %w", err)
 	}

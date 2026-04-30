@@ -299,6 +299,8 @@ func (m *Manager) handleRestart() {
 
 	m.mu.Lock()
 	m.cancel()
+	oldCmd := m.cmd
+	m.cmd = nil
 	newCtx, newCancel := context.WithCancel(m.rootCtx)
 	m.ctx = newCtx
 	m.cancel = newCancel
@@ -306,6 +308,11 @@ func (m *Manager) handleRestart() {
 	m.prefetchedIndex = -1
 	m.prefetchedPath = ""
 	m.mu.Unlock()
+
+	// Reap the old mpv process so it does not remain as a zombie.
+	if oldCmd != nil && oldCmd.Process != nil {
+		_ = oldCmd.Wait()
+	}
 
 	if err := os.Remove(m.socketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		slog.Warn("player: remove socket", "path", m.socketPath, "err", err)

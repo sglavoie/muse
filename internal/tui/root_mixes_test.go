@@ -691,3 +691,115 @@ func TestMixesDismissNilWriter(t *testing.T) {
 		t.Error("expected nil cmd from handleMixDismiss when writer not wired")
 	}
 }
+
+// TestMixesDismissPreservesCursorAndSort verifies that dismissing a track
+// preserves the cursor position (clamped), sort state, and filter text
+// instead of resetting the entire trackView.
+func TestMixesDismissPreservesCursorAndSort(t *testing.T) {
+	tracks := []library.Track{
+		{Hash: "mx1", Title: "Alpha", Artist: "ArtistX", Path: "/mx1.flac", Duration: 180},
+		{Hash: "mx2", Title: "Beta", Artist: "ArtistX", Path: "/mx2.flac", Duration: 120},
+		{Hash: "mx3", Title: "Gamma", Artist: "ArtistY", Path: "/mx3.flac", Duration: 240},
+	}
+	stub := &stubDismissalWriter{}
+	allOpts := []Option{
+		WithRecommendationReader(&stubRecReader{sufficient: true, tracks: tracks}),
+		WithDismissalWriter(stub),
+	}
+	m := New(context.Background(), allOpts...)
+	m = m.switchToView(viewMixes)
+	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
+	m.mixes.selectedMix = 0
+	m, _ = m.handleMixOpen()
+	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
+
+	// Move cursor to last track (index 2 → mx3).
+	m.mixes.trackView.cursor = 2
+
+	// Apply a sort so we can verify it's preserved.
+	m.mixes.trackView.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.mixes.trackView = m.mixes.trackView.recomputeSortedTracks()
+
+	// Dismiss mx3 (the focused track at index 2).
+	m, cmd := m.handleMixDismiss()
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd from handleMixDismiss")
+	}
+	rawMsg := cmd()
+	msg := rawMsg.(mixDismissedMsg)
+	m = m.handleMixDismissedMsg(msg)
+
+	// Sort state must be preserved.
+	if m.mixes.trackView.sortState.Field != SortTitle {
+		t.Errorf("sort field reset: got %v, want SortTitle", m.mixes.trackView.sortState.Field)
+	}
+	if m.mixes.trackView.sortState.Dir != SortAsc {
+		t.Errorf("sort dir reset: got %v, want SortAsc", m.mixes.trackView.sortState.Dir)
+	}
+
+	// Cursor must be clamped to the new list length (2 tracks left, max index 1).
+	if m.mixes.trackView.cursor > 1 {
+		t.Errorf("cursor not clamped: got %d, want <= 1 (only 2 tracks remain)", m.mixes.trackView.cursor)
+	}
+
+	// Source tracks must have exactly 2 entries.
+	if len(m.mixes.trackView.sourceTracks) != 2 {
+		t.Errorf("sourceTracks length: got %d, want 2", len(m.mixes.trackView.sourceTracks))
+	}
+
+	// Sorted tracks must also have 2 entries.
+	if len(m.mixes.trackView.sortedTracks) != 2 {
+		t.Errorf("sortedTracks length: got %d, want 2", len(m.mixes.trackView.sortedTracks))
+	}
+}
+
+// TestMixesReloadPreservesCursorAndSort verifies that a mixLoadedMsg arriving
+// while the user is already browsing the same mix preserves cursor, sort, and
+// filter instead of resetting the trackView.
+func TestMixesReloadPreservesCursorAndSort(t *testing.T) {
+	tracks := []library.Track{
+		{Hash: "mx1", Title: "Alpha", Artist: "ArtistX", Path: "/mx1.flac", Duration: 180},
+		{Hash: "mx2", Title: "Beta", Artist: "ArtistX", Path: "/mx2.flac", Duration: 120},
+		{Hash: "mx3", Title: "Gamma", Artist: "ArtistY", Path: "/mx3.flac", Duration: 240},
+	}
+	m := newMixesModel(true, tracks)
+	m = m.switchToView(viewMixes)
+	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
+	m.mixes.selectedMix = 0
+	m, _ = m.handleMixOpen()
+	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
+
+	// User moves cursor and applies sort while browsing.
+	m.mixes.trackView.cursor = 1
+	m.mixes.trackView.sortState = SortState{Field: SortDuration, Dir: SortDesc}
+	m.mixes.trackView = m.mixes.trackView.recomputeSortedTracks()
+
+	// Simulate an async re-load arriving for the same mix with updated tracks.
+	reloaded := []library.Track{
+		{Hash: "mx1", Title: "Alpha Reloaded", Artist: "ArtistX", Path: "/mx1.flac", Duration: 180},
+		{Hash: "mx2", Title: "Beta Reloaded", Artist: "ArtistX", Path: "/mx2.flac", Duration: 120},
+		{Hash: "mx3", Title: "Gamma Reloaded", Artist: "ArtistY", Path: "/mx3.flac", Duration: 240},
+	}
+	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: reloaded})
+
+	// Sort state must be preserved.
+	if m.mixes.trackView.sortState.Field != SortDuration {
+		t.Errorf("sort field reset: got %v, want SortDuration", m.mixes.trackView.sortState.Field)
+	}
+	if m.mixes.trackView.sortState.Dir != SortDesc {
+		t.Errorf("sort dir reset: got %v, want SortDesc", m.mixes.trackView.sortState.Dir)
+	}
+
+	// Cursor must be preserved (still within range).
+	if m.mixes.trackView.cursor != 1 {
+		t.Errorf("cursor changed: got %d, want 1", m.mixes.trackView.cursor)
+	}
+
+	// Source tracks must reflect the reloaded data.
+	if len(m.mixes.trackView.sourceTracks) != 3 {
+		t.Fatalf("sourceTracks length: got %d, want 3", len(m.mixes.trackView.sourceTracks))
+	}
+	if m.mixes.trackView.sourceTracks[0].Title != "Alpha Reloaded" {
+		t.Errorf("expected reloaded title, got %q", m.mixes.trackView.sourceTracks[0].Title)
+	}
+}

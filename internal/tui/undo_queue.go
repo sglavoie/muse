@@ -40,6 +40,7 @@ func (a undoEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 			schedulePurge(&m.undo.slot, m.undoer.PurgeDeletedQueueEntries)
 		}
 		m.queue.entries = append(m.queue.entries[:realIdx], m.queue.entries[realIdx+1:]...)
+		m = m.preserveQueueSort()
 		m.clampQueueCursorAndScroll()
 		if qr, ok := m.player.(playerQueueRemover); ok {
 			_ = qr.RemoveFromQueue(realIdx) // player queue sync during undo, best-effort
@@ -82,6 +83,7 @@ func (a undoDequeueAction) perform(m Model) (Model, tea.Cmd) {
 	entries[idx] = a.entry
 	copy(entries[idx+1:], m.queue.entries[idx:])
 	m.queue.entries = entries
+	m = m.preserveQueueSort()
 	if m.playback.currentIndex >= 0 && idx <= m.playback.currentIndex {
 		m.playback.currentIndex++
 	}
@@ -175,6 +177,7 @@ func (a undoBulkDequeueAction) perform(m Model) (Model, tea.Cmd) {
 			m.playback.currentIndex++
 		}
 	}
+	m = m.preserveQueueSort()
 	m.clampQueueCursorAndScroll()
 	m.syncPlayerQueue()
 	n := len(a.entries)
@@ -221,6 +224,7 @@ func (a undoBatchEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 		}
 	}
 	m.queue.entries = kept
+	m = m.preserveQueueSort()
 	m.clampQueueCursorAndScroll()
 	if m.playback.currentIndex >= 0 {
 		removedBefore := 0
@@ -288,6 +292,7 @@ func (a undoPasteAction) perform(m Model) (Model, tea.Cmd) {
 		}
 	}
 	m.queue.entries = kept
+	m = m.preserveQueueSort()
 	m.clampQueueCursorAndScroll()
 	if m.playback.currentIndex >= 0 {
 		removedBefore := 0
@@ -422,6 +427,7 @@ func (a undoCutPasteAction) perform(m Model) (Model, tea.Cmd) {
 		}
 	}
 
+	m = m.preserveQueueSort()
 	m.clampQueueCursorAndScroll()
 	m.syncPlayerQueue()
 	if len(m.queue.entries) == 0 || (m.playback.currentHash != "" && !queueContainsHash(m.queue.entries, m.playback.currentHash)) {

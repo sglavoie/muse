@@ -148,6 +148,34 @@ func TestBridgeWatchChannel_DeleteUnknownPath(t *testing.T) {
 	}
 }
 
+// TestBridgeWatchChannel_ClosedInput verifies that BridgeWatchChannel
+// terminates cleanly when the input channel is already closed (the fallback
+// used when the filesystem watcher fails to start). Without this, a nil
+// channel would block the goroutine forever.
+func TestBridgeWatchChannel_ClosedInput(t *testing.T) {
+	raw := make(chan library.WatchEvent)
+	close(raw)
+
+	writer := &stubUpsertBatcher{}
+	marker := &stubMissingMarker{}
+	ch := BridgeWatchChannel(raw, writer, marker, nil, 10)
+
+	var got []library.WatchEvent
+	for ev := range ch {
+		got = append(got, ev)
+	}
+
+	if len(got) != 0 {
+		t.Fatalf("expected 0 events, got %d", len(got))
+	}
+	if len(writer.batches) != 0 {
+		t.Fatalf("expected 0 batches, got %d", len(writer.batches))
+	}
+	if len(marker.hashes) != 0 {
+		t.Fatalf("expected 0 missing markers, got %v", marker.hashes)
+	}
+}
+
 // TestBridgeWatchChannel_NewThenDelete verifies that a file discovered by the
 // watcher and then deleted within the same session is correctly marked missing.
 // Before the fix, hashByPath was never updated with new tracks, so the

@@ -174,7 +174,7 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 		weights := make([]float64, 0, len(pool))
 		totalWeight := 0.0
 		for i, ts := range pool {
-			if artistCount[ts.Track.Artist] < maxPerArtist {
+			if ts.Track.Artist == "" || artistCount[ts.Track.Artist] < maxPerArtist {
 				weight := math.Max(ts.Score, 0.1)
 				eligible = append(eligible, i)
 				weights = append(weights, weight)

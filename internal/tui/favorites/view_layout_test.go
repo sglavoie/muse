@@ -12,15 +12,15 @@ func TestVisibleRows_CategoryLevel(t *testing.T) {
 
 func TestVisibleRows_ListLevel_ArtistsNoFilter(t *testing.T) {
 	v := View{Level: ListLevel, Category: CategoryArtists, Height: 20}
-	if got := v.visibleRows(); got != 20 {
-		t.Errorf("expected 20, got %d", got)
+	if got := v.visibleRows(); got != 18 {
+		t.Errorf("expected 18, got %d", got)
 	}
 }
 
 func TestVisibleRows_ListLevel_TracksCategory(t *testing.T) {
 	v := View{Level: ListLevel, Category: CategoryTracks, Height: 20}
-	if got := v.visibleRows(); got != 19 {
-		t.Errorf("expected 19, got %d", got)
+	if got := v.visibleRows(); got != 17 {
+		t.Errorf("expected 17, got %d", got)
 	}
 }
 

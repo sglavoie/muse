@@ -138,7 +138,7 @@ func (d *DB) ReadMixCounts(cfg MixCountConfig) ([]MixStatEntry, error) {
 
 	cutoff := time.Now().Add(-time.Duration(cfg.RediscoverAgeDays) * 24 * time.Hour).Unix()
 	if err := d.QueryRow(
-		`SELECT COUNT(*) FROM tracks WHERE play_count >= ? AND last_played_at < ? AND last_played_at > 0`,
+		`SELECT COUNT(*) FROM tracks WHERE missing = 0 AND play_count >= ? AND last_played_at < ? AND last_played_at > 0`,
 		cfg.RediscoverMinPlays, cutoff,
 	).Scan(&entries[0].TrackCount); err != nil {
 		return nil, fmt.Errorf("db: read mix counts rediscover: %w", err)
@@ -146,7 +146,7 @@ func (d *DB) ReadMixCounts(cfg MixCountConfig) ([]MixStatEntry, error) {
 
 	if err := d.QueryRow(`
 		SELECT COUNT(*) FROM tracks t
-		WHERE t.play_count <= ?
+		WHERE t.missing = 0 AND t.play_count <= ?
 		AND (
 		    t.artist IN (
 		        SELECT t2.artist FROM play_history ph JOIN tracks t2 ON ph.track_hash = t2.hash
@@ -192,7 +192,7 @@ func (d *DB) ReadMixCounts(cfg MixCountConfig) ([]MixStatEntry, error) {
 	}
 
 	if err := d.QueryRow(
-		`SELECT COUNT(*) FROM tracks WHERE play_count = 0`,
+		`SELECT COUNT(*) FROM tracks WHERE missing = 0 AND play_count = 0`,
 	).Scan(&entries[4].TrackCount); err != nil {
 		return nil, fmt.Errorf("db: read mix counts never played: %w", err)
 	}
