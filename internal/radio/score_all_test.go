@@ -6,23 +6,6 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 )
 
-func track(hash, artist, album, genre string, dur float64) library.Track {
-	return library.Track{Hash: hash, Artist: artist, Album: album, Genre: genre, Duration: dur}
-}
-
-func seedFrom(t library.Track, genres []string, tagIDs map[int64]struct{}) SeedTrack {
-	return SeedTrack{
-		Hash:     t.Hash,
-		Artist:   t.Artist,
-		Album:    t.Album,
-		Genres:   genres,
-		Duration: t.Duration,
-		TagIDs:   tagIDs,
-	}
-}
-
-// --- ScoreAll tests ---
-
 func TestScoreAll_SeedExcluded(t *testing.T) {
 	seed := track("s1", "ArtistA", "AlbumA", "Rock", 180)
 	other := track("t1", "ArtistB", "AlbumB", "Jazz", 200)
@@ -158,8 +141,8 @@ func TestScoreAll_FavoriteBoost(t *testing.T) {
 
 func TestScoreAll_DurationBoost(t *testing.T) {
 	seed := track("s1", "", "", "", 180)
-	within := track("t1", "", "", "", 200)  // 200/180 ≈ 1.11, within ±30%
-	outside := track("t2", "", "", "", 300) // 300/180 ≈ 1.67, outside ±30%
+	within := track("t1", "", "", "", 200)
+	outside := track("t2", "", "", "", 300)
 	input := ScoreInput{
 		Seed:      seedFrom(seed, nil, nil),
 		AllTracks: []library.Track{outside, within},
@@ -183,7 +166,6 @@ func TestScoreAll_RecentHistoryPenalty(t *testing.T) {
 		RecentHashes: map[string]struct{}{"t1": {}},
 	}
 	got := ScoreAll(input)
-	// fresh has score 15 (genre+artist), recent has 15-50 = -35
 	if got[0].Track.Hash != "t2" {
 		t.Errorf("fresh track should rank above recent-history track")
 	}
@@ -193,7 +175,6 @@ func TestScoreAll_RecentHistoryPenalty(t *testing.T) {
 			recentScore = ts.Score
 		}
 	}
-	// genre+artist+duration(+1) = 16, minus recent penalty 50 = -34
 	if recentScore != -34 {
 		t.Errorf("expected recent penalty score -34, got %f", recentScore)
 	}
@@ -219,10 +200,10 @@ func TestScoreAll_QueuePenalty(t *testing.T) {
 
 func TestScoreAll_SortedDescending(t *testing.T) {
 	seed := track("s1", "ArtistA", "AlbumA", "Rock", 180)
-	t1 := track("t1", "ArtistA", "AlbumA", "Rock", 180) // artist+album+genre+dur = 5+3+10+1 = 19
-	t2 := track("t2", "ArtistA", "", "Rock", 180)       // artist+genre+dur = 5+10+1 = 16
-	t3 := track("t3", "", "", "Rock", 0)                // genre only = 10
-	t4 := track("t4", "", "", "Jazz", 0)                // no match = 0
+	t1 := track("t1", "ArtistA", "AlbumA", "Rock", 180)
+	t2 := track("t2", "ArtistA", "", "Rock", 180)
+	t3 := track("t3", "", "", "Rock", 0)
+	t4 := track("t4", "", "", "Jazz", 0)
 	input := ScoreInput{
 		Seed:      seedFrom(seed, []string{"Rock"}, nil),
 		AllTracks: []library.Track{t4, t2, t4, t3, t1},
@@ -264,122 +245,6 @@ func TestScoreAll_NoMetadata(t *testing.T) {
 	}
 }
 
-// --- PickBatch tests ---
-
-func TestPickBatch_BasicCount(t *testing.T) {
-	tracks := make([]library.Track, 10)
-	for i := range tracks {
-		tracks[i] = library.Track{Hash: string(rune('a' + i)), Artist: "ArtistX"}
-	}
-	scored := ScoreAll(ScoreInput{
-		Seed:      SeedTrack{Hash: "seed"},
-		AllTracks: tracks,
-	})
-	result := PickBatch(scored, 5, 0.4)
-	if len(result) > 5 {
-		t.Errorf("expected at most 5 tracks, got %d", len(result))
-	}
-	if len(result) == 0 {
-		t.Errorf("expected non-empty result")
-	}
-}
-
-func TestPickBatch_SmallLibrary(t *testing.T) {
-	// Fewer candidates than batch size.
-	tracks := []library.Track{
-		{Hash: "t1", Artist: "ArtistA"},
-		{Hash: "t2", Artist: "ArtistB"},
-	}
-	scored := ScoreAll(ScoreInput{
-		Seed:      SeedTrack{Hash: "seed"},
-		AllTracks: tracks,
-	})
-	result := PickBatch(scored, 10, 0.4)
-	if len(result) > 2 {
-		t.Errorf("small library: expected at most 2 tracks, got %d", len(result))
-	}
-}
-
-func TestPickBatch_ArtistCap(t *testing.T) {
-	// 8 tracks all from ArtistA, 2 from ArtistB.
-	// With n=5, maxArtistFraction=0.4 → max 2 per artist (ceil(5*0.4)=2).
-	var tracks []library.Track
-	for i := 0; i < 8; i++ {
-		tracks = append(tracks, library.Track{Hash: string(rune('a' + i)), Artist: "ArtistA", Genre: "Rock"})
-	}
-	tracks = append(tracks, library.Track{Hash: "x1", Artist: "ArtistB", Genre: "Rock"})
-	tracks = append(tracks, library.Track{Hash: "x2", Artist: "ArtistB", Genre: "Rock"})
-
-	scored := ScoreAll(ScoreInput{
-		Seed:      SeedTrack{Hash: "seed", Genres: []string{"Rock"}},
-		AllTracks: tracks,
-	})
-	result := PickBatch(scored, 5, 0.4)
-
-	artistCounts := make(map[string]int)
-	for _, tr := range result {
-		artistCounts[tr.Artist]++
-	}
-	maxPerArtist := 2 // ceil(5 * 0.4)
-	for artist, cnt := range artistCounts {
-		if cnt > maxPerArtist {
-			t.Errorf("artist %q appears %d times (max %d)", artist, cnt, maxPerArtist)
-		}
-	}
-}
-
-func TestPickBatch_EmptyArtistBypassesCap(t *testing.T) {
-	// Tracks with Artist="" should not be grouped under a single artist cap.
-	// With n=5, maxArtistFraction=0.4 → maxPerArtist=2.
-	// If all 6 candidates have empty artists, we should still get 5 (not 2).
-	var scored []TrackScore
-	for i := 0; i < 6; i++ {
-		scored = append(scored, TrackScore{
-			Track: library.Track{Hash: string(rune('a' + i)), Artist: ""},
-			Score: 10,
-		})
-	}
-	result := PickBatch(scored, 5, 0.4)
-	if len(result) != 5 {
-		t.Errorf("expected 5 tracks with empty artists, got %d", len(result))
-	}
-}
-
-func TestPickBatch_EmptyInput(t *testing.T) {
-	if got := PickBatch(nil, 5, 0.4); got != nil {
-		t.Errorf("expected nil for empty scored input, got %v", got)
-	}
-	if got := PickBatch([]TrackScore{}, 5, 0.4); got != nil {
-		t.Errorf("expected nil for empty scored input, got %v", got)
-	}
-}
-
-func TestPickBatch_ZeroN(t *testing.T) {
-	scored := []TrackScore{{Track: library.Track{Hash: "t1"}, Score: 10}}
-	if got := PickBatch(scored, 0, 0.4); got != nil {
-		t.Errorf("expected nil for n=0, got %v", got)
-	}
-}
-
-func TestPickBatch_NoDuplicates(t *testing.T) {
-	tracks := make([]library.Track, 20)
-	for i := range tracks {
-		tracks[i] = library.Track{Hash: string(rune('a' + i)), Artist: "ArtistA"}
-	}
-	scored := ScoreAll(ScoreInput{
-		Seed:      SeedTrack{Hash: "seed"},
-		AllTracks: tracks,
-	})
-	result := PickBatch(scored, 5, 1.0) // no artist cap
-	seen := make(map[string]bool)
-	for _, tr := range result {
-		if seen[tr.Hash] {
-			t.Errorf("duplicate track %s in batch", tr.Hash)
-		}
-		seen[tr.Hash] = true
-	}
-}
-
 func TestScoreAll_CompletionRateHighBoost(t *testing.T) {
 	seed := track("s1", "", "", "", 0)
 	high := track("t1", "", "", "", 0)
@@ -388,8 +253,8 @@ func TestScoreAll_CompletionRateHighBoost(t *testing.T) {
 		Seed:      seedFrom(seed, nil, nil),
 		AllTracks: []library.Track{low, high},
 		CompletionRates: map[string]float64{
-			"t1": 0.9, // >= 0.8 → +4
-			"t2": 0.2, // <= 0.3 → -3
+			"t1": 0.9,
+			"t2": 0.2,
 		},
 	}
 	got := ScoreAll(input)
@@ -420,9 +285,9 @@ func TestScoreAll_CompletionRateNilSafe(t *testing.T) {
 
 func TestScoreAll_CoOccurrenceBoost(t *testing.T) {
 	seed := track("s1", "", "", "", 0)
-	coPlayed := track("t1", "", "", "", 0) // co-occurred 3 times → +6
-	rare := track("t2", "", "", "", 0)     // co-occurred 1 time → no boost
-	none := track("t3", "", "", "", 0)     // no entry
+	coPlayed := track("t1", "", "", "", 0)
+	rare := track("t2", "", "", "", 0)
+	none := track("t3", "", "", "", 0)
 	input := ScoreInput{
 		Seed:          seedFrom(seed, nil, nil),
 		AllTracks:     []library.Track{none, rare, coPlayed},
@@ -435,7 +300,6 @@ func TestScoreAll_CoOccurrenceBoost(t *testing.T) {
 	if got[0].Score != 6 {
 		t.Errorf("expected co-occurrence score +6, got %f", got[0].Score)
 	}
-	// rare (count=1) and none both score 0
 	for _, ts := range got[1:] {
 		if ts.Score != 0 {
 			t.Errorf("track %s with count<2 should score 0, got %f", ts.Track.Hash, ts.Score)
@@ -459,7 +323,6 @@ func TestScoreAll_CoOccurrenceNilSafe(t *testing.T) {
 
 func TestScoreAll_TimeGenreBonusBoost(t *testing.T) {
 	seed := track("s1", "", "", "", 0)
-	// t1 has genre "Rock" which gets +3 bonus; t2 has "Jazz" (+1); t3 has "Pop" (no entry).
 	t1 := track("t1", "", "", "Rock", 0)
 	t2 := track("t2", "", "", "Jazz", 0)
 	t3 := track("t3", "", "", "Pop", 0)
@@ -497,28 +360,5 @@ func TestScoreAll_TimeGenreBonusNilSafe(t *testing.T) {
 	got := ScoreAll(input)
 	if len(got) != 1 || got[0].Score != 0 {
 		t.Errorf("nil TimeGenreBonus should not affect score, got %v", got)
-	}
-}
-
-func TestPickBatch_FromPool(t *testing.T) {
-	// With 10 tracks and n=3, only the top min(9, 10)=9 are eligible.
-	// Verify all returned tracks came from the input scored slice.
-	tracks := make([]library.Track, 10)
-	for i := range tracks {
-		tracks[i] = library.Track{Hash: string(rune('a' + i)), Artist: "ArtistX"}
-	}
-	scored := ScoreAll(ScoreInput{
-		Seed:      SeedTrack{Hash: "seed"},
-		AllTracks: tracks,
-	})
-	validHashes := make(map[string]struct{}, len(scored))
-	for _, ts := range scored {
-		validHashes[ts.Track.Hash] = struct{}{}
-	}
-	result := PickBatch(scored, 3, 0.4)
-	for _, tr := range result {
-		if _, ok := validHashes[tr.Hash]; !ok {
-			t.Errorf("track %s not in scored pool", tr.Hash)
-		}
 	}
 }
