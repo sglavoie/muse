@@ -149,8 +149,14 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 		m.undo.clearQueuePendingAt = now
 		m.statusBar.notification = newNotificationFor("Press C again to clear queue", queueConfirmationWindow)
 		return m, nil, true
-	case actionSelect,
-		actionMoveTrackUp, actionMoveTrackDown:
+	case actionSelect:
+		var cmd tea.Cmd
+		m.queue, cmd = m.queue.HandleAction(action)
+		return m, cmd, true
+	case actionMoveTrackUp, actionMoveTrackDown:
+		if m.activeView != viewQueue {
+			return m, nil, false
+		}
 		var cmd tea.Cmd
 		m.queue, cmd = m.queue.HandleAction(action)
 		return m, cmd, true
