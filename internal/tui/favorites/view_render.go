@@ -34,8 +34,11 @@ func (v View) renderCategories() string {
 	lines := make([]string, len(categories))
 	for i, name := range categories {
 		display := text.Pad(name, v.Width)
+		isOdd := i%2 == 1
 		if i == v.Cursor {
 			display = v.Styles.Accent.Render(display)
+		} else if isOdd {
+			display = lipgloss.NewStyle().Background(v.Styles.ZebraBg).Render(display)
 		}
 		lines[i] = display
 	}
@@ -108,13 +111,16 @@ func (v View) renderList() string {
 
 		display := text.Pad(name, v.Width-2)
 		line := marker + display
+		isOdd := absIdx%2 == 1
 		switch {
 		case isFocused && isFav:
 			line = favAccentStyle.Render(line)
 		case isFocused:
 			line = v.Styles.Accent.Render(line)
 		case isFav:
-			line = favStyle.Render(line)
+			line = styles.WithZebraBg(favStyle, v.Styles.ZebraBg, isOdd).Render(line)
+		case isOdd:
+			line = lipgloss.NewStyle().Background(v.Styles.ZebraBg).Render(line)
 		}
 		lines[i] = line
 	}
@@ -164,6 +170,7 @@ func (v View) renderTrackRows(items []library.Track) string {
 	for i, t := range items[start:end] {
 		absIdx := start + i
 		isFocused := absIdx == v.Cursor
+		isNowPlaying := v.NowPlayingHash != "" && t.Hash == v.NowPlayingHash
 
 		var marker string
 		_, selected := v.SelectedItems[absIdx]
@@ -194,17 +201,56 @@ func (v View) renderTrackRows(items []library.Track) string {
 			artistStr = styles.AccentFavRender(a, v.Styles.FavArtistAccent, isArtistFav, artistStr)
 			albumStr = styles.AccentFavRender(a, v.Styles.FavAlbumAccent, isAlbumFav, albumStr)
 			lines[i] = a.Render(marker+pos) + sep + titleStr + sep + artistStr + sep + albumStr + sep + a.Render(dur) + sep + a.Render(plays)
-		} else {
+		} else if isNowPlaying {
+			np := v.Styles.NowPlayingRow
+			sep := np.Render(" ")
 			if isTrackFav {
-				titleStr = v.Styles.Favorite.Render(titleStr)
+				titleStr = v.Styles.NowPlayingRowFavorite.Render(titleStr)
+			} else {
+				titleStr = np.Render(titleStr)
 			}
 			if isArtistFav {
-				artistStr = v.Styles.FavArtist.Render(artistStr)
+				artistStr = v.Styles.NowPlayingRowFavArtist.Render(artistStr)
+			} else {
+				artistStr = np.Render(artistStr)
 			}
 			if isAlbumFav {
-				albumStr = v.Styles.FavAlbum.Render(albumStr)
+				albumStr = v.Styles.NowPlayingRowFavAlbum.Render(albumStr)
+			} else {
+				albumStr = np.Render(albumStr)
 			}
-			lines[i] = marker + pos + " " + titleStr + " " + artistStr + " " + albumStr + " " + dur + " " + plays
+			lines[i] = np.Render(marker+pos) + sep + titleStr + sep + artistStr + sep + albumStr + sep + np.Render(dur) + sep + np.Render(plays)
+		} else {
+			isOdd := absIdx%2 == 1
+			if isTrackFav {
+				titleStr = styles.WithZebraBg(v.Styles.Favorite, v.Styles.ZebraBg, isOdd).Render(titleStr)
+			}
+			if isArtistFav {
+				artistStr = styles.WithZebraBg(v.Styles.FavArtist, v.Styles.ZebraBg, isOdd).Render(artistStr)
+			}
+			if isAlbumFav {
+				albumStr = styles.WithZebraBg(v.Styles.FavAlbum, v.Styles.ZebraBg, isOdd).Render(albumStr)
+			}
+			if isOdd {
+				zb := lipgloss.NewStyle().Background(v.Styles.ZebraBg)
+				if !isTrackFav {
+					titleStr = zb.Render(titleStr)
+				}
+				if !isArtistFav {
+					artistStr = zb.Render(artistStr)
+				}
+				if !isAlbumFav {
+					albumStr = zb.Render(albumStr)
+				}
+				markerPart := zb.Render(marker)
+				posPart := styles.WithZebraBg(v.Styles.Dim, v.Styles.ZebraBg, isOdd).Render(pos)
+				durPart := styles.WithZebraBg(v.Styles.Dim, v.Styles.ZebraBg, isOdd).Render(dur)
+				playsPart := zb.Render(plays)
+				sep := zb.Render(" ")
+				lines[i] = markerPart + posPart + sep + titleStr + sep + artistStr + sep + albumStr + sep + durPart + sep + playsPart
+			} else {
+				lines[i] = marker + v.Styles.Dim.Render(pos) + " " + titleStr + " " + artistStr + " " + albumStr + " " + v.Styles.Dim.Render(dur) + " " + plays
+			}
 		}
 	}
 	return header + "\n" + strings.Join(lines, "\n")

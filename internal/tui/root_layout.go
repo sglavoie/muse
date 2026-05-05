@@ -25,9 +25,9 @@ type resizable interface {
 }
 
 // setViewDimensions updates the width and height on all primary views.
-// height is reduced by 3 to leave room for the status bar and header rows.
+// height is reduced by 4 to leave room for the status bar, separator, and header rows.
 func (m *Model) setViewDimensions(width, height int) {
-	viewHeight := max(height-3, 0)
+	viewHeight := max(height-4, 0)
 	for _, view := range []resizable{&m.library, &m.recentlyAdded, &m.history, &m.playlists, &m.queue, &m.artists, &m.albums, &m.favorites, &m.genres, &m.tagsView, &m.mixes} {
 		view.setSize(width, viewHeight)
 	}

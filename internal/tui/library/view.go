@@ -64,6 +64,7 @@ type View struct {
 	SortDir         int              // 0 = asc, 1 = desc
 	ShowDateAdded   bool
 	ShowPlayedAt    bool
+	NowPlayingHash  string // hash of the currently playing track; empty when nothing is playing
 }
 
 // tracks returns the override tracks if set, otherwise the index tracks.

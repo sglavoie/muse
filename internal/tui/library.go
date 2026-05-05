@@ -34,12 +34,13 @@ func (v *LibraryView) setSize(w, h int) { v.width = w; v.height = h }
 
 // render returns a string representation of the library panel with proportional
 // columnar layout. Column widths resize with the terminal width.
-func (v LibraryView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}) string {
+func (v LibraryView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash string) string {
 	lv := v.view()
 	lv.Styles = s
 	lv.FavoriteHashes = favHashes
 	lv.FavoriteArtists = favArtists
 	lv.FavoriteAlbums = favAlbums
+	lv.NowPlayingHash = nowPlayingHash
 	return lv.Render()
 }
 

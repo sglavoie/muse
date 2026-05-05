@@ -50,7 +50,7 @@ type TagsView struct {
 
 func (v *TagsView) setSize(w, h int) { v.width = w; v.height = h }
 
-func (v TagsView) render(s styles.Styles, favHashes map[string]struct{}) string {
+func (v TagsView) render(s styles.Styles, favHashes map[string]struct{}, nowPlayingHash string) string {
 	var sortInd string
 	if v.sortState.Field != SortDefault {
 		sortInd = fmt.Sprintf("Sort: %s %s", SortFieldLabel(v.sortState.Field), SortDirIndicator(v.sortState.Dir))
@@ -92,6 +92,7 @@ func (v TagsView) render(s styles.Styles, favHashes map[string]struct{}) string 
 		SortIndicator:   sortInd,
 		FavoriteHashes:  favHashes,
 		SelectedHashes:  v.selectedHashes,
+		NowPlayingHash:  nowPlayingHash,
 		Creating:        v.creating,
 		CreateInput:     createInputStr,
 		Renaming:        v.renaming,

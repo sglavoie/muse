@@ -154,30 +154,56 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + source + sep + dur
 		} else if isNowPlaying {
 			npText, npFav, npFavArtist, npFavAlbum := nowPlayingTextStyles(s, playbackState)
-			titleStr = npText.Render(titleStr)
-			artistStr = npText.Render(artistStr)
-			albumStr = npText.Render(albumStr)
+			nb := lipgloss.NewStyle().Background(s.NowPlayingBg)
+			titleStr = npText.Background(s.NowPlayingBg).Render(titleStr)
+			artistStr = npText.Background(s.NowPlayingBg).Render(artistStr)
+			albumStr = npText.Background(s.NowPlayingBg).Render(albumStr)
 			if isTrackFav {
-				titleStr = npFav.Render(padQueue(e.Title, titleWidth))
+				titleStr = npFav.Background(s.NowPlayingBg).Render(padQueue(e.Title, titleWidth))
 			}
 			if isArtistFav {
-				artistStr = npFavArtist.Render(padQueue(e.Artist, artistWidth))
+				artistStr = npFavArtist.Background(s.NowPlayingBg).Render(padQueue(e.Artist, artistWidth))
 			}
 			if isAlbumFav {
-				albumStr = npFavAlbum.Render(padQueue(e.Album, albumWidth))
+				albumStr = npFavAlbum.Background(s.NowPlayingBg).Render(padQueue(e.Album, albumWidth))
 			}
-			lines[i] = markerStr + pos + " " + titleStr + " " + artistStr + " " + albumStr + " " + source + " " + dur
+			markerStr = nb.Render(markerStr)
+			pos = nb.Render(pos)
+			source = nb.Render(source)
+			dur = nb.Render(dur)
+			sep := nb.Render(" ")
+			lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + source + sep + dur
 		} else {
+			isOdd := absIdx%2 == 1
 			if isTrackFav {
-				titleStr = s.Favorite.Render(titleStr)
+				titleStr = styles.WithZebraBg(s.Favorite, s.ZebraBg, isOdd).Render(titleStr)
 			}
 			if isArtistFav {
-				artistStr = s.FavArtist.Render(artistStr)
+				artistStr = styles.WithZebraBg(s.FavArtist, s.ZebraBg, isOdd).Render(artistStr)
 			}
 			if isAlbumFav {
-				albumStr = s.FavAlbum.Render(albumStr)
+				albumStr = styles.WithZebraBg(s.FavAlbum, s.ZebraBg, isOdd).Render(albumStr)
 			}
-			lines[i] = markerStr + pos + " " + titleStr + " " + artistStr + " " + albumStr + " " + source + " " + dur
+			if isOdd {
+				zb := lipgloss.NewStyle().Background(s.ZebraBg)
+				if !isTrackFav {
+					titleStr = zb.Render(titleStr)
+				}
+				if !isArtistFav {
+					artistStr = zb.Render(artistStr)
+				}
+				if !isAlbumFav {
+					albumStr = zb.Render(albumStr)
+				}
+				markerStr = zb.Render(markerStr)
+				pos = styles.WithZebraBg(s.Dim, s.ZebraBg, isOdd).Render(pos)
+				source = zb.Render(source)
+				dur = styles.WithZebraBg(s.Dim, s.ZebraBg, isOdd).Render(dur)
+				sep := zb.Render(" ")
+				lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + source + sep + dur
+			} else {
+				lines[i] = markerStr + s.Dim.Render(pos) + " " + titleStr + " " + artistStr + " " + albumStr + " " + source + " " + s.Dim.Render(dur)
+			}
 		}
 	}
 

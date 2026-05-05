@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -27,8 +28,11 @@ func (v View) renderGenres() string {
 	for i, name := range items[start:end] {
 		absIdx := start + i
 		display := text.Pad(name, v.Width)
+		isOdd := absIdx%2 == 1
 		if absIdx == v.Cursor {
 			display = v.Styles.Accent.Render(display)
+		} else if isOdd {
+			display = lipgloss.NewStyle().Background(v.Styles.ZebraBg).Render(display)
 		}
 		lines[i] = display
 	}
@@ -54,13 +58,16 @@ func (v View) renderArtists() string {
 		absIdx := start + i
 		_, isFav := v.FavoriteArtists[name]
 		display := text.Pad(name, v.Width)
+		isOdd := absIdx%2 == 1
 		switch {
 		case absIdx == v.Cursor && isFav:
 			display = v.Styles.FavArtistAccent.Render(display)
 		case absIdx == v.Cursor:
 			display = v.Styles.Accent.Render(display)
 		case isFav:
-			display = v.Styles.FavArtist.Render(display)
+			display = styles.WithZebraBg(v.Styles.FavArtist, v.Styles.ZebraBg, isOdd).Render(display)
+		case isOdd:
+			display = lipgloss.NewStyle().Background(v.Styles.ZebraBg).Render(display)
 		}
 		lines[i] = display
 	}
@@ -95,6 +102,7 @@ func (v View) renderTracks() string {
 	for i, t := range items[start:end] {
 		absIdx := start + i
 		isFocused := absIdx == v.Cursor
+		isNowPlaying := v.NowPlayingHash != "" && t.Hash == v.NowPlayingHash
 		_, isSelected := v.SelectedHashes[t.Hash]
 
 		var markerStr string
@@ -118,11 +126,33 @@ func (v View) renderTracks() string {
 			sep := a.Render(" ")
 			titleStr = styles.AccentFavRender(a, v.Styles.FavoriteAccent, isTrackFav, titleStr)
 			lines[i] = a.Render(markerStr+pos) + sep + titleStr + sep + a.Render(dur)
-		} else {
+		} else if isNowPlaying {
+			np := v.Styles.NowPlayingRow
+			sep := np.Render(" ")
 			if isTrackFav {
-				titleStr = v.Styles.Favorite.Render(titleStr)
+				titleStr = v.Styles.NowPlayingRowFavorite.Render(titleStr)
+			} else {
+				titleStr = np.Render(titleStr)
 			}
-			lines[i] = markerStr + pos + " " + titleStr + " " + dur
+			lines[i] = np.Render(markerStr+pos) + sep + titleStr + sep + np.Render(dur)
+		} else {
+			isOdd := absIdx%2 == 1
+			if isTrackFav {
+				titleStr = styles.WithZebraBg(v.Styles.Favorite, v.Styles.ZebraBg, isOdd).Render(titleStr)
+			}
+			if isOdd {
+				zb := lipgloss.NewStyle().Background(v.Styles.ZebraBg)
+				if !isTrackFav {
+					titleStr = zb.Render(titleStr)
+				}
+				markerPart := zb.Render(markerStr)
+				posPart := styles.WithZebraBg(v.Styles.Dim, v.Styles.ZebraBg, isOdd).Render(pos)
+				durPart := styles.WithZebraBg(v.Styles.Dim, v.Styles.ZebraBg, isOdd).Render(dur)
+				sep := zb.Render(" ")
+				lines[i] = markerPart + posPart + sep + titleStr + sep + durPart
+			} else {
+				lines[i] = markerStr + v.Styles.Dim.Render(pos) + " " + titleStr + " " + v.Styles.Dim.Render(dur)
+			}
 		}
 	}
 	return styledHeading + v.filterSeparator() + header + "\n" + strings.Join(lines, "\n")

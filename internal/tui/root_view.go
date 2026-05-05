@@ -78,41 +78,48 @@ func (m Model) View() tea.View {
 	default:
 		switch m.activeView {
 		case viewLibrary:
-			body = m.library.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
+			body = m.library.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
 		case viewPlaylists:
-			body = m.playlists.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
+			body = m.playlists.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
 		case viewQueue:
 			body = m.queue.render(*m.styles, m.playback.currentIndex, m.playback.state, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 		case viewArtists:
-			body = m.artists.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
+			body = m.artists.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
 		case viewAlbums:
-			body = m.albums.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
+			body = m.albums.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
 		case viewFavorites:
-			body = m.favorites.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
+			body = m.favorites.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
 		case viewGenres:
-			body = m.genres.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
+			body = m.genres.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
 		case viewRecentlyAdded:
-			body = m.recentlyAdded.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
+			body = m.recentlyAdded.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
 		case viewHistory:
-			body = m.history.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
+			body = m.history.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
 		case viewTags:
-			body = m.tagsView.render(*m.styles, m.favoriteHashes)
+			body = m.tagsView.render(*m.styles, m.favoriteHashes, m.playback.currentHash)
 		case viewMixes:
-			body = m.mixes.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
+			body = m.mixes.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
 		}
 	}
 
 	// Prepend the centralized title bar when showing a primary view.
 	if !m.hasActiveOverlay() {
-		body = m.renderTitleBar() + "\n\n" + body
+		tabSep := m.styles.Dim.Render(strings.Repeat("─", m.termWidth))
+		body = m.renderTitleBar() + "\n" + tabSep + "\n" + body
 	}
 
 	statusBar := m.renderStatusBar()
 	bodyLines := strings.Count(body, "\n") + 1
-	if padding := m.termHeight - bodyLines - 1; padding > 0 {
+	if padding := m.termHeight - bodyLines - 2; padding > 0 {
 		body += strings.Repeat("\n", padding)
 	}
-	content := body + "\n" + statusBar
+	var sep string
+	if m.playback.elapsedSecs > 0 || m.playback.totalSecs > 0 {
+		sep = renderProgressBar(m.playback.elapsedSecs, m.playback.totalSecs, m.termWidth, *m.styles)
+	} else {
+		sep = m.styles.Dim.Render(strings.Repeat("─", m.termWidth))
+	}
+	content := body + "\n" + sep + "\n" + statusBar
 	v := tea.NewView(content)
 	v.AltScreen = true
 	return v
@@ -120,7 +127,8 @@ func (m Model) View() tea.View {
 
 // renderTitleBar builds the centralized title bar showing view names with
 // chevrons and numbered badges. When the terminal is wide enough all views
-// are shown; otherwise only the previous, active, and next views are displayed.
+// are shown; otherwise a centered window of as many tabs as fit is displayed,
+// with abbreviated labels for long view names.
 func (m Model) renderTitleBar() string {
 	// Compute the width needed to show all tabs:
 	// "‹ " + "1 Name1  2 Name2  ...  N NameN" + " ›"
@@ -164,12 +172,70 @@ func (m Model) renderTitleBar() string {
 		return m.styles.Dim.Render("‹ ") + strings.Join(parts, sep) + m.styles.Dim.Render(" ›")
 	}
 
-	// Narrow layout: previous, active, next (no badges).
-	prev := prevView(m.activeView)
-	next := nextView(m.activeView)
-	return m.styles.Dim.Render("‹ "+viewName(prev)) +
-		"  " + m.styles.Heading.Render(viewName(m.activeView)) + "  " +
-		m.styles.Dim.Render(viewName(next)+" ›")
+	// Narrow layout: show as many tabs as fit, centered on the active view.
+	// Use abbreviated labels for views with long names.
+	shortNames := map[viewID]string{
+		viewRecentlyAdded: "Recent",
+	}
+	getName := func(id viewID) string {
+		if short, ok := shortNames[id]; ok {
+			return short
+		}
+		return viewName(id)
+	}
+
+	activeIdx := 0
+	for i, id := range viewOrder {
+		if id == m.activeView {
+			activeIdx = i
+			break
+		}
+	}
+
+	available := m.termWidth - chevronWidth
+	left := activeIdx
+	right := activeIdx
+	used := len(getName(viewOrder[activeIdx]))
+
+	for {
+		tryLeft := left > 0
+		tryRight := right < len(viewOrder)-1
+		if !tryLeft && !tryRight {
+			break
+		}
+		expanded := false
+		if tryRight {
+			w := len(sep) + len(getName(viewOrder[right+1]))
+			if used+w <= available {
+				right++
+				used += w
+				expanded = true
+			}
+		}
+		if tryLeft {
+			w := len(sep) + len(getName(viewOrder[left-1]))
+			if used+w <= available {
+				left--
+				used += w
+				expanded = true
+			}
+		}
+		if !expanded {
+			break
+		}
+	}
+
+	var narrowParts []string
+	for i := left; i <= right; i++ {
+		id := viewOrder[i]
+		name := getName(id)
+		if id == m.activeView {
+			narrowParts = append(narrowParts, m.styles.Heading.Render(name))
+		} else {
+			narrowParts = append(narrowParts, m.styles.Dim.Render(name))
+		}
+	}
+	return m.styles.Dim.Render("‹ ") + strings.Join(narrowParts, sep) + m.styles.Dim.Render(" ›")
 }
 
 // renderStatusBar builds the status bar line shown at the bottom of the view.
@@ -193,5 +259,7 @@ func (m Model) renderStatusBar() string {
 		sb.elapsed = formatTime(m.playback.elapsedSecs)
 		sb.total = formatTime(m.playback.totalSecs)
 	}
+	sb.elapsedSecs = m.playback.elapsedSecs
+	sb.totalSecs = m.playback.totalSecs
 	return sb.render(m.termWidth, *m.styles)
 }

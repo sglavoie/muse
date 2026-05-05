@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/library"
@@ -54,6 +55,7 @@ type View struct {
 	FavoriteArtists map[string]struct{}
 	FavoriteAlbums  map[string]struct{}
 	SelectedHashes  map[string]struct{}
+	NowPlayingHash  string // hash of the currently playing track; empty when nothing is playing
 }
 
 // EffectiveAlbums returns the album list filtered by FilterText.
@@ -268,13 +270,16 @@ func (v View) renderAlbums() string {
 		absIdx := start + i
 		_, isFav := v.FavoriteAlbums[name]
 		display := text.Pad(name, v.Width)
+		isOdd := absIdx%2 == 1
 		switch {
 		case absIdx == v.Cursor && isFav:
 			display = v.Styles.FavAlbumAccent.Render(display)
 		case absIdx == v.Cursor:
 			display = v.Styles.Accent.Render(display)
 		case isFav:
-			display = v.Styles.FavAlbum.Render(display)
+			display = styles.WithZebraBg(v.Styles.FavAlbum, v.Styles.ZebraBg, isOdd).Render(display)
+		case isOdd:
+			display = lipgloss.NewStyle().Background(v.Styles.ZebraBg).Render(display)
 		}
 		lines[i] = display
 	}
@@ -306,6 +311,7 @@ func (v View) renderTracks() string {
 	for i, t := range items[start:end] {
 		absIdx := start + i
 		isFocused := absIdx == v.Cursor
+		isNowPlaying := v.NowPlayingHash != "" && t.Hash == v.NowPlayingHash
 		_, isSelected := v.SelectedHashes[t.Hash]
 
 		var markerStr string
@@ -332,14 +338,44 @@ func (v View) renderTracks() string {
 			titleStr = styles.AccentFavRender(a, v.Styles.FavoriteAccent, isTrackFav, titleStr)
 			artistStr = styles.AccentFavRender(a, v.Styles.FavArtistAccent, isArtistFav, artistStr)
 			lines[i] = a.Render(markerStr+pos) + sep + titleStr + sep + artistStr + sep + a.Render(dur)
-		} else {
+		} else if isNowPlaying {
+			np := v.Styles.NowPlayingRow
+			sep := np.Render(" ")
 			if isTrackFav {
-				titleStr = v.Styles.Favorite.Render(titleStr)
+				titleStr = v.Styles.NowPlayingRowFavorite.Render(titleStr)
+			} else {
+				titleStr = np.Render(titleStr)
 			}
 			if isArtistFav {
-				artistStr = v.Styles.FavArtist.Render(artistStr)
+				artistStr = v.Styles.NowPlayingRowFavArtist.Render(artistStr)
+			} else {
+				artistStr = np.Render(artistStr)
 			}
-			lines[i] = markerStr + pos + " " + titleStr + " " + artistStr + " " + dur
+			lines[i] = np.Render(markerStr+pos) + sep + titleStr + sep + artistStr + sep + np.Render(dur)
+		} else {
+			isOdd := absIdx%2 == 1
+			if isTrackFav {
+				titleStr = styles.WithZebraBg(v.Styles.Favorite, v.Styles.ZebraBg, isOdd).Render(titleStr)
+			}
+			if isArtistFav {
+				artistStr = styles.WithZebraBg(v.Styles.FavArtist, v.Styles.ZebraBg, isOdd).Render(artistStr)
+			}
+			if isOdd {
+				zb := lipgloss.NewStyle().Background(v.Styles.ZebraBg)
+				if !isTrackFav {
+					titleStr = zb.Render(titleStr)
+				}
+				if !isArtistFav {
+					artistStr = zb.Render(artistStr)
+				}
+				markerPart := zb.Render(markerStr)
+				posPart := styles.WithZebraBg(v.Styles.Dim, v.Styles.ZebraBg, isOdd).Render(pos)
+				durPart := styles.WithZebraBg(v.Styles.Dim, v.Styles.ZebraBg, isOdd).Render(dur)
+				sep := zb.Render(" ")
+				lines[i] = markerPart + posPart + sep + titleStr + sep + artistStr + sep + durPart
+			} else {
+				lines[i] = markerStr + v.Styles.Dim.Render(pos) + " " + titleStr + " " + artistStr + " " + v.Styles.Dim.Render(dur)
+			}
 		}
 	}
 	return heading + v.filterSeparator() + header + "\n" + strings.Join(lines, "\n")

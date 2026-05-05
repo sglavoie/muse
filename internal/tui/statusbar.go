@@ -68,6 +68,11 @@ type StatusBar struct {
 	elapsed string
 	total   string
 
+	// elapsedSecs and totalSecs are the raw float64 values injected by
+	// renderStatusBar for use in renderProgressBar.
+	elapsedSecs float64
+	totalSecs   float64
+
 	// activeTagName is non-empty when a cross-view tag filter is active.
 	// Injected by renderStatusBar from the root Model.
 	activeTagName string
@@ -112,6 +117,28 @@ func formatTime(secs float64) string {
 		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
 	}
 	return fmt.Sprintf("%d:%02d", m, s)
+}
+
+// renderProgressBar builds a full-width progress bar string. The filled portion
+// uses "█" styled with ProgressFilled; the empty portion uses "░" with
+// ProgressEmpty. elapsed/total are seconds; fraction is clamped to [0,1].
+func renderProgressBar(elapsed, total float64, width int, st styles.Styles) string {
+	frac := 0.0
+	if total > 0 {
+		frac = elapsed / total
+		if frac < 0 {
+			frac = 0
+		} else if frac > 1 {
+			frac = 1
+		}
+	}
+	filled := int(math.Round(frac * float64(width)))
+	if filled > width {
+		filled = width
+	}
+	empty := width - filled
+	return st.ProgressFilled.Render(strings.Repeat("█", filled)) +
+		st.ProgressEmpty.Render(strings.Repeat("░", empty))
 }
 
 // truncateTitle shortens s so its display width (measured in terminal columns)
@@ -212,13 +239,13 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	stateIconWidth := 0
 	switch s.playbackState {
 	case PlaybackPlaying:
-		stateIcon = barSuccess.Render("▶")
+		stateIcon = barSuccess.Bold(true).Render("▶")
 		stateIconWidth = 1
 	case PlaybackPaused:
-		stateIcon = barWarning.Render("⏸")
+		stateIcon = barWarning.Bold(true).Render("⏸")
 		stateIconWidth = 1
 	case PlaybackStopped:
-		stateIcon = barError.Render("■")
+		stateIcon = barError.Bold(true).Render("■")
 		stateIconWidth = 1
 	}
 
@@ -277,7 +304,7 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	case stateIcon != "" && s.artist != "":
 		prefix = stateIcon + r(" "+s.artist)
 		prefixWidth = stateIconWidth + 1 + ansi.StringWidth(s.artist)
-		sep = " – "
+		sep = " — "
 		sepWidth = 3
 	case stateIcon != "":
 		prefix = stateIcon
@@ -285,7 +312,7 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	case s.artist != "":
 		prefix = r(s.artist)
 		prefixWidth = ansi.StringWidth(s.artist)
-		sep = " – "
+		sep = " — "
 		sepWidth = 3
 	}
 	// sep is only meaningful when there is a title; clear it otherwise.

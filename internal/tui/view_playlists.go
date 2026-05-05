@@ -88,7 +88,7 @@ func (v PlaylistsView) recomputePlaylistSort() PlaylistsView {
 	return v
 }
 
-func (v PlaylistsView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}) string {
+func (v PlaylistsView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash string) string {
 	playlists := v.playlists
 	if v.sortedPlaylists != nil {
 		playlists = v.sortedPlaylists
@@ -125,6 +125,7 @@ func (v PlaylistsView) render(s styles.Styles, favHashes, favArtists, favAlbums 
 	pv.FavoriteHashes = favHashes
 	pv.FavoriteArtists = favArtists
 	pv.FavoriteAlbums = favAlbums
+	pv.NowPlayingHash = nowPlayingHash
 	return pv.Render()
 }
 

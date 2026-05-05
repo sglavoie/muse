@@ -70,4 +70,5 @@ type View struct {
 	FavoriteHashes  map[string]struct{}
 	FavoriteArtists map[string]struct{}
 	FavoriteAlbums  map[string]struct{}
+	NowPlayingHash  string // hash of the currently playing track; empty when nothing is playing
 }

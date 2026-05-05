@@ -138,7 +138,7 @@ func TestWindowSizeShrinkClampsCursorVisibility(t *testing.T) {
 	next, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
 	nm := next.(Model)
 
-	// viewHeight = 12-3 = 9, visibleRows = 9-2 = 7.
+	// viewHeight = 12-4 = 8, visibleRows = 8-2 = 6.
 	maxRows := nm.queue.visibleRows()
 	if nm.queue.cursor < nm.queue.scrollOffset || nm.queue.cursor >= nm.queue.scrollOffset+maxRows {
 		t.Fatalf("after shrink: queue cursor %d not visible with scrollOffset=%d maxRows=%d",

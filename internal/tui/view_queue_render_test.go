@@ -246,8 +246,8 @@ func TestQueueRenderNowPlayingFavoriteStyle(t *testing.T) {
 	s := styles.NewStyles(true)
 	out := v.render(s, 1, PlaybackPlaying, favs, nil, nil)
 
-	npRef := s.NowPlaying.Render("REF")
-	npfRef := s.NowPlayingFavorite.Render("REF")
+	npRef := s.NowPlaying.Background(s.NowPlayingBg).Render("REF")
+	npfRef := s.NowPlayingFavorite.Background(s.NowPlayingBg).Render("REF")
 
 	var rawLine string
 	for l := range strings.SplitSeq(out, "\n") {

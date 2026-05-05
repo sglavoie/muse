@@ -66,6 +66,7 @@ type View struct {
 	FavoriteArtists map[string]struct{}
 	FavoriteAlbums  map[string]struct{}
 	SelectedHashes  map[string]struct{}
+	NowPlayingHash  string // hash of the currently playing track; empty when nothing is playing
 }
 
 // Render returns the string representation of the artists panel.

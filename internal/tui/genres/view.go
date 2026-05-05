@@ -56,6 +56,7 @@ type View struct {
 	FavoriteArtists map[string]struct{}
 	FavoriteAlbums  map[string]struct{}
 	SelectedHashes  map[string]struct{}
+	NowPlayingHash  string // hash of the currently playing track; empty when nothing is playing
 }
 
 // RawGenre converts the unknown sentinel back to an empty string for matching

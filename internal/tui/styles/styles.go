@@ -1,6 +1,10 @@
 package styles
 
-import "charm.land/lipgloss/v2"
+import (
+	"image/color"
+
+	"charm.land/lipgloss/v2"
+)
 
 // Styles holds the shared lipgloss styles used across TUI views.
 type Styles struct {
@@ -28,6 +32,14 @@ type Styles struct {
 	StatusNotificationError lipgloss.Style // error notification: red on contrasting bg
 	Badge                   lipgloss.Style // single-char badge with lighter background (title bar view numbers)
 	HelpKey                 lipgloss.Style // bold accent foreground for keybinding keys in help overlay
+	ProgressFilled          lipgloss.Style // accent-colored "█" blocks for filled portion of progress bar
+	ProgressEmpty           lipgloss.Style // dim "░" blocks for empty portion of progress bar
+	ZebraBg                 color.Color
+	NowPlayingBg            color.Color
+	NowPlayingRow           lipgloss.Style // bold green fg + amber bg for now-playing row (non-focused)
+	NowPlayingRowFavorite   lipgloss.Style // bold amber/gold fg + amber bg for now-playing + favorited track
+	NowPlayingRowFavArtist  lipgloss.Style // bold purple fg + amber bg for now-playing + favorited artist
+	NowPlayingRowFavAlbum   lipgloss.Style // bold cyan fg + amber bg for now-playing + favorited album
 	HasDark                 bool
 }
 
@@ -62,6 +74,14 @@ func NewStyles(hasDark bool) Styles {
 		StatusNotificationError: lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#3b4252"))).Foreground(ld(lipgloss.Color("#e45649"), lipgloss.Color("#e06c75"))),
 		Badge:                   lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),
 		HelpKey:                 lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#4078f2"), lipgloss.Color("#61afef"))),
+		ProgressFilled:          lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#4078f2"), lipgloss.Color("#61afef"))),
+		ProgressEmpty:           lipgloss.NewStyle().Faint(true),
+		ZebraBg:                 ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#2a2e36")),
+		NowPlayingBg:            ld(lipgloss.Color("#fff8e8"), lipgloss.Color("#2e2a1f")),
+		NowPlayingRow:           lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#50a14f"), lipgloss.Color("#98c379"))).Background(ld(lipgloss.Color("#fff8e8"), lipgloss.Color("#2e2a1f"))),
+		NowPlayingRowFavorite:   lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))).Background(ld(lipgloss.Color("#fff8e8"), lipgloss.Color("#2e2a1f"))),
+		NowPlayingRowFavArtist:  lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#a626a4"), lipgloss.Color("#c678dd"))).Background(ld(lipgloss.Color("#fff8e8"), lipgloss.Color("#2e2a1f"))),
+		NowPlayingRowFavAlbum:   lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#0184bc"), lipgloss.Color("#56b6c2"))).Background(ld(lipgloss.Color("#fff8e8"), lipgloss.Color("#2e2a1f"))),
 		HasDark:                 hasDark,
 	}
 }
@@ -90,4 +110,12 @@ func TagColorStyle(hex string) lipgloss.Style {
 // ColoredDot renders "●" in the given tag color, or plain "●" when color is empty.
 func ColoredDot(tagColor string) string {
 	return TagColorStyle(tagColor).Render("●")
+}
+
+// WithZebraBg returns style with ZebraBg background when isOdd, else style unchanged.
+func WithZebraBg(style lipgloss.Style, zebraBg color.Color, isOdd bool) lipgloss.Style {
+	if isOdd {
+		return style.Background(zebraBg)
+	}
+	return style
 }

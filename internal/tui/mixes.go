@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/lipgloss/v2"
+
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/recommendation"
@@ -125,7 +127,7 @@ func (v MixesView) handleCursorAction(a action) MixesView {
 // render returns a string representation of the Mixes view.
 // At level 0, it shows the list of mixes with name, description, and count.
 // At level 1, it delegates to the embedded trackView.
-func (v MixesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}) string {
+func (v MixesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash string) string {
 	if v.level == 1 {
 		if len(v.trackView.sourceTracks) == 0 {
 			for _, mix := range v.mixes {
@@ -135,7 +137,7 @@ func (v MixesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[
 			}
 			return s.Dim.Render("No tracks match yet — keep listening!")
 		}
-		return v.trackView.render(s, favHashes, favArtists, favAlbums)
+		return v.trackView.render(s, favHashes, favArtists, favAlbums, nowPlayingHash)
 	}
 
 	if v.insufficientData {
@@ -169,9 +171,15 @@ func (v MixesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[
 		if focused {
 			lines = append(lines, s.Accent.Render(row))
 		} else {
+			isOdd := i%2 == 1
 			name := mix.Name
 			rest := strings.TrimPrefix(row, cursor+name)
-			lines = append(lines, cursor+s.Bold.Render(name)+s.Dim.Render(rest))
+			if isOdd {
+				zb := lipgloss.NewStyle().Background(s.ZebraBg)
+				lines = append(lines, zb.Render(cursor)+s.Bold.Background(s.ZebraBg).Render(name)+s.Dim.Background(s.ZebraBg).Render(rest))
+			} else {
+				lines = append(lines, cursor+s.Bold.Render(name)+s.Dim.Render(rest))
+			}
 		}
 	}
 	return strings.Join(lines, "\n")
