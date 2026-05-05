@@ -173,6 +173,8 @@ func helpSections() []helpSection {
 				{"E", "Enqueue all tracks from playlist"},
 				{"S", "Create smart playlist"},
 				{"e", "Edit smart playlist rules"},
+				{"K", "Move track up"},
+				{"J", "Move track down"},
 			},
 		},
 		{

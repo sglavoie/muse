@@ -199,6 +199,12 @@ func (m Model) handlePlaylistKeyAction(action action) (Model, tea.Cmd, bool) {
 			m.overlay.smartRuleEditor = &editor
 		}
 		return m, nil, true
+	case actionMoveTrackUp:
+		m, cmd := m.handlePlaylistMoveTrackUp()
+		return m, cmd, true
+	case actionMoveTrackDown:
+		m, cmd := m.handlePlaylistMoveTrackDown()
+		return m, cmd, true
 	case actionSmartPlaylistEdit:
 		if m.activeView == viewPlaylists && m.playlists.atListLevel() {
 			pl, ok := m.playlists.focusedPlaylist()

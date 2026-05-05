@@ -299,6 +299,8 @@ func newRegistry() Registry {
 	r.register(contextPlaylists, "shift+enter", actionLibraryEnqueueReplace)
 	r.register(contextPlaylists, "S", actionSmartPlaylistCreate)
 	r.register(contextPlaylists, "e", actionSmartPlaylistEdit)
+	r.register(contextPlaylists, "K", actionMoveTrackUp)
+	r.register(contextPlaylists, "J", actionMoveTrackDown)
 
 	// Artists-local bindings.
 	r.registerNavigation(contextArtists)

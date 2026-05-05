@@ -160,6 +160,12 @@ type playlistShuffler interface {
 	SetPlaylistOrder(playlistID int64, ids []int64) error
 }
 
+// playlistTrackReorderer persists adjacent-item swaps for playlist track order.
+// Root checks for it via type assertion on the playlistDeleter field.
+type playlistTrackReorderer interface {
+	ReorderPlaylistTrack(playlistID, trackID int64, direction int) error
+}
+
 // playlistTrackAdder appends tracks to a playlist by hash. Root uses it when
 // the user confirms a destination-picker modal selection pointing to a playlist.
 // When nil, the playlist append path of the destination picker is a no-op.
