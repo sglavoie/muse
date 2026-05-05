@@ -28,12 +28,19 @@ func TestPlaybackEndedReturnsIncrementCmd(t *testing.T) {
 		t.Fatal("handlePlaybackEndedMsg must return a non-nil cmd for play count persistence")
 	}
 	// Execute the cmd to trigger RecordPlay.
-	cmd()
+	result := cmd()
 	if len(hr.calls) != 1 {
 		t.Fatalf("expected 1 RecordPlay call, got %d", len(hr.calls))
 	}
 	if hr.calls[0].hash != "h1" {
 		t.Errorf("RecordPlay hash = %q, want %q", hr.calls[0].hash, "h1")
+	}
+	prm, ok := result.(playRecordedMsg)
+	if !ok {
+		t.Fatalf("expected playRecordedMsg, got %T", result)
+	}
+	if prm.Hash != "h1" {
+		t.Errorf("playRecordedMsg.Hash = %q, want %q", prm.Hash, "h1")
 	}
 }
 
@@ -78,8 +85,11 @@ func TestPlaybackEndedUsesPeakForPlayCount(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd for play count increment")
 	}
-	cmd()
+	result := cmd()
 	if len(hr.calls) != 1 || hr.calls[0].hash != "h1" {
 		t.Fatalf("expected RecordPlay for h1, got %+v", hr.calls)
+	}
+	if _, ok := result.(playRecordedMsg); !ok {
+		t.Fatalf("expected playRecordedMsg, got %T", result)
 	}
 }

@@ -85,10 +85,13 @@ func (m Model) switchToView(id viewID) Model {
 			m.favorites.trackCount = trackCount
 		}
 	}
-	if id == viewHistory && m.historyReader != nil && len(m.history.baseTracks()) == 0 {
+	if id == viewHistory && m.historyReader != nil {
 		tracks, _ := m.historyReader.ReadPlayHistory(500)
 		m.history.sourceTracks = tracks
 		m.history = m.history.recomputeSortedTracks()
+		if m.history.filter.Text != "" {
+			m.history = m.history.rebuildFilterCache()
+		}
 	}
 	if id == viewTags {
 		// Sync global tag list into the tags view and load counts if needed.

@@ -48,6 +48,13 @@ type undoSlot struct {
 	cancelPurge chan struct{}
 }
 
+// playRecordedMsg is dispatched after a successful RecordPlay call so the
+// History view can be updated in realtime without a full DB reload.
+type playRecordedMsg struct {
+	Hash     string
+	PlayedAt int64
+}
+
 // tickMsg is dispatched every second by tickCmd. It drives elapsed-time
 // display updates and transient-notification expiry checks.
 type tickMsg struct{}

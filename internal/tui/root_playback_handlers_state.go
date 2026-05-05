@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 )
 
@@ -23,8 +24,9 @@ func (m Model) playCountIncrementCmd(hash string, elapsedSecs, totalSecs float64
 		return func() tea.Msg {
 			if err := hr.RecordPlay(hash, now, elapsed, duration); err != nil {
 				slog.Warn("play count: RecordPlay failed", "hash", hash, "err", err)
+				return nil
 			}
-			return nil
+			return playRecordedMsg{Hash: hash, PlayedAt: now}
 		}
 	}
 	if m.playCountWriter != nil {
@@ -255,4 +257,37 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	}
 
 	return m, tea.Batch(m.sessionPositionCmd(), incrementCmd, radioCmd)
+}
+
+// handlePlayRecordedMsg prepends the just-played track to the in-memory
+// history view so it updates in realtime without a full DB reload.
+func (m Model) handlePlayRecordedMsg(msg playRecordedMsg) Model {
+	// If history has never been loaded, skip — the next view switch will
+	// load fresh data from DB.
+	if len(m.history.sourceTracks) == 0 {
+		return m
+	}
+
+	t, ok := m.library.index.FindByHash(msg.Hash)
+	if !ok {
+		return m
+	}
+	t.LastPlayedAt = msg.PlayedAt
+
+	// Prepend and cap at 500 entries.
+	const maxHistory = 500
+	tracks := make([]library.Track, 0, min(len(m.history.sourceTracks)+1, maxHistory))
+	tracks = append(tracks, t)
+	limit := len(m.history.sourceTracks)
+	if limit > maxHistory-1 {
+		limit = maxHistory - 1
+	}
+	tracks = append(tracks, m.history.sourceTracks[:limit]...)
+	m.history.sourceTracks = tracks
+
+	m.history = m.history.recomputeSortedTracks()
+	if m.history.filter.Text != "" {
+		m.history = m.history.rebuildFilterCache()
+	}
+	return m
 }

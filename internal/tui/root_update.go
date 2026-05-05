@@ -105,6 +105,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case TrackChangedMsg:
 		return m.handleTrackChangedMsg(msg)
 
+	case playRecordedMsg:
+		m = m.handlePlayRecordedMsg(msg)
+
 	case FilterBarMsg:
 		return m.handleFilterBarMsg()
 
