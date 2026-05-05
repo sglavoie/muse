@@ -246,8 +246,8 @@ func TestQueueRenderNowPlayingFavoriteStyle(t *testing.T) {
 	s := styles.NewStyles(true)
 	out := v.render(s, 1, PlaybackPlaying, favs, nil, nil)
 
-	npRef := s.NowPlaying.Background(s.NowPlayingBg).Render("REF")
 	npfRef := s.NowPlayingFavorite.Background(s.NowPlayingBg).Render("REF")
+	artistRef := s.TextPrimary.Background(s.NowPlayingBg).Render("REF")
 
 	var rawLine string
 	for l := range strings.SplitSeq(out, "\n") {
@@ -259,14 +259,14 @@ func TestQueueRenderNowPlayingFavoriteStyle(t *testing.T) {
 	if rawLine == "" {
 		t.Fatal("FavPlaying entry must appear in the output")
 	}
-	npPrefix, _, _ := strings.Cut(npRef, "REF")
 	npfPrefix, _, _ := strings.Cut(npfRef, "REF")
+	artistPrefix, _, _ := strings.Cut(artistRef, "REF")
 
 	if !strings.Contains(rawLine, npfPrefix) {
 		t.Errorf("now-playing+favorite title cell must use NowPlayingFavorite style; got: %q", rawLine)
 	}
-	if !strings.Contains(rawLine, npPrefix) {
-		t.Errorf("non-favorited cells of now-playing entry must use NowPlaying style; got: %q", rawLine)
+	if !strings.Contains(rawLine, artistPrefix) {
+		t.Errorf("non-favorited artist cell of now-playing entry must use TextPrimary+NowPlayingBg style; got: %q", rawLine)
 	}
 }
 

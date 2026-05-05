@@ -105,6 +105,26 @@ func TestNewStyles(t *testing.T) {
 		if nowPlayingFavAlbumOut == "" {
 			t.Errorf("NewStyles(%v).NowPlayingFavAlbum.Render() returned empty string", hasDark)
 		}
+
+		textPrimaryOut := s.TextPrimary.Render("x")
+		if textPrimaryOut == "" {
+			t.Errorf("NewStyles(%v).TextPrimary.Render() returned empty string", hasDark)
+		}
+
+		textSecondaryOut := s.TextSecondary.Render("x")
+		if textSecondaryOut == "" {
+			t.Errorf("NewStyles(%v).TextSecondary.Render() returned empty string", hasDark)
+		}
+
+		textTertiaryOut := s.TextTertiary.Render("x")
+		if textTertiaryOut == "" {
+			t.Errorf("NewStyles(%v).TextTertiary.Render() returned empty string", hasDark)
+		}
+
+		nowPlayingTitleOut := s.NowPlayingTitle.Render("x")
+		if nowPlayingTitleOut == "" {
+			t.Errorf("NewStyles(%v).NowPlayingTitle.Render() returned empty string", hasDark)
+		}
 	}
 }
 

@@ -176,9 +176,9 @@ func (v MixesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[
 			rest := strings.TrimPrefix(row, cursor+name)
 			if isOdd {
 				zb := lipgloss.NewStyle().Background(s.ZebraBg)
-				lines = append(lines, zb.Render(cursor)+s.Bold.Background(s.ZebraBg).Render(name)+s.Dim.Background(s.ZebraBg).Render(rest))
+				lines = append(lines, zb.Render(cursor)+s.TextPrimary.Bold(true).Background(s.ZebraBg).Render(name)+s.TextTertiary.Background(s.ZebraBg).Render(rest))
 			} else {
-				lines = append(lines, cursor+s.Bold.Render(name)+s.Dim.Render(rest))
+				lines = append(lines, cursor+s.TextPrimary.Bold(true).Render(name)+s.TextTertiary.Render(rest))
 			}
 		}
 	}

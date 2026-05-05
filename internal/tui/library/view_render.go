@@ -161,6 +161,10 @@ func (v View) Render() string {
 			markerStr = "● "
 		case isSelected:
 			markerStr = v.Styles.AccentMark.Render("●") + " "
+		case isFocused:
+			markerStr = "▎ "
+		case isNowPlaying:
+			markerStr = "♪ "
 		default:
 			markerStr = "  "
 		}
@@ -171,7 +175,7 @@ func (v View) Render() string {
 
 		var artistStr, titleStr, albumStr string
 		hasFieldPos := len(dt.artistPositions) > 0 || len(dt.titlePositions) > 0 || len(dt.albumPositions) > 0
-		sameArtist := v.SortField == 1 && t.Artist == prevArtist && prevArtist != ""
+		sameArtist := t.Artist == prevArtist && prevArtist != ""
 
 		artistFavStyle := favStyleFor(isArtistFav, v.Styles.FavArtist)
 		titleFavStyle := favStyleFor(isTrackFav, v.Styles.Favorite)
@@ -205,23 +209,16 @@ func (v View) Render() string {
 				titleStr = accentStyleFor(isTrackFav, v.Styles.FavoriteAccent, v.Styles.Accent)[0].Render(titleStr)
 				albumStr = accentStyleFor(isAlbumFav, v.Styles.FavAlbumAccent, v.Styles.Accent)[0].Render(albumStr)
 			} else if isNowPlaying {
-				switch {
-				case isTrackFav:
-					titleStr = v.Styles.NowPlayingRowFavorite.Render(titleStr)
-				default:
-					titleStr = v.Styles.NowPlayingRow.Render(titleStr)
-				}
-				switch {
-				case isArtistFav:
+				titleStr = v.Styles.NowPlayingTitle.Render(titleStr)
+				if isArtistFav {
 					artistStr = v.Styles.NowPlayingRowFavArtist.Render(artistStr)
-				default:
-					artistStr = v.Styles.NowPlayingRow.Render(artistStr)
+				} else {
+					artistStr = v.Styles.TextPrimary.Background(v.Styles.NowPlayingBg).Render(artistStr)
 				}
-				switch {
-				case isAlbumFav:
+				if isAlbumFav {
 					albumStr = v.Styles.NowPlayingRowFavAlbum.Render(albumStr)
-				default:
-					albumStr = v.Styles.NowPlayingRow.Render(albumStr)
+				} else {
+					albumStr = v.Styles.TextSecondary.Background(v.Styles.NowPlayingBg).Render(albumStr)
 				}
 			} else {
 				if isTrackFav {
@@ -234,7 +231,7 @@ func (v View) Render() string {
 					albumStr = styles.WithZebraBg(v.Styles.FavAlbum, v.Styles.ZebraBg, isOdd).Render(albumStr)
 				}
 				if sameArtist && !isArtistFav {
-					artistStr = styles.WithZebraBg(v.Styles.Dim, v.Styles.ZebraBg, isOdd).Render(artistStr)
+					artistStr = styles.WithZebraBg(v.Styles.TextTertiary, v.Styles.ZebraBg, isOdd).Render(artistStr)
 				}
 			}
 		}
@@ -247,7 +244,7 @@ func (v View) Render() string {
 				row = markerStr + text.Pad(num, cols.TrackNum)
 			}
 		} else if isFocused {
-			sep := v.Styles.Accent.Render(" ")
+			sep := v.Styles.Accent.Render("  ")
 			numStr := v.Styles.Accent.Render(markerStr + text.Pad(num, cols.TrackNum))
 			durStr := v.Styles.Accent.Render(text.PadLeft(dur, cols.Duration))
 			row = numStr + sep + artistStr + sep + titleStr + sep + albumStr + sep + durStr
@@ -256,7 +253,7 @@ func (v View) Render() string {
 			}
 		} else if isNowPlaying {
 			np := v.Styles.NowPlayingRow
-			sep := np.Render(" ")
+			sep := np.Render("  ")
 			numStr := np.Render(markerStr + text.Pad(num, cols.TrackNum))
 			durStr := np.Render(text.PadLeft(dur, cols.Duration))
 			row = numStr + sep + artistStr + sep + titleStr + sep + albumStr + sep + durStr
@@ -267,28 +264,37 @@ func (v View) Render() string {
 			if isOdd {
 				zb := lipgloss.NewStyle().Background(v.Styles.ZebraBg)
 				if !isTrackFav {
-					titleStr = zb.Render(titleStr)
+					titleStr = styles.WithZebraBg(v.Styles.TextPrimary, v.Styles.ZebraBg, true).Render(titleStr)
 				}
 				if !isArtistFav && !sameArtist {
-					artistStr = zb.Render(artistStr)
+					artistStr = styles.WithZebraBg(v.Styles.TextPrimary, v.Styles.ZebraBg, true).Render(artistStr)
 				}
 				if !isAlbumFav {
-					albumStr = zb.Render(albumStr)
+					albumStr = styles.WithZebraBg(v.Styles.TextSecondary, v.Styles.ZebraBg, true).Render(albumStr)
 				}
 				markerPart := zb.Render(markerStr)
-				numPart := styles.WithZebraBg(v.Styles.Dim, v.Styles.ZebraBg, isOdd).Render(text.Pad(num, cols.TrackNum))
-				durPart := styles.WithZebraBg(v.Styles.Dim, v.Styles.ZebraBg, isOdd).Render(text.PadLeft(dur, cols.Duration))
-				sep := zb.Render(" ")
+				numPart := styles.WithZebraBg(v.Styles.TextTertiary, v.Styles.ZebraBg, isOdd).Render(text.Pad(num, cols.TrackNum))
+				durPart := styles.WithZebraBg(v.Styles.TextTertiary, v.Styles.ZebraBg, isOdd).Render(text.PadLeft(dur, cols.Duration))
+				sep := zb.Render("  ")
 				row = markerPart + numPart + sep + artistStr + sep + titleStr + sep + albumStr + sep + durPart
 				if cols.DateAdded > 0 {
 					row += sep + zb.Render(text.Pad(dateAdded, cols.DateAdded))
 				}
 			} else {
-				row = markerStr + v.Styles.Dim.Render(text.Pad(num, cols.TrackNum)) + " " +
-					artistStr + " " + titleStr + " " + albumStr + " " +
-					v.Styles.Dim.Render(text.PadLeft(dur, cols.Duration))
+				if !isTrackFav {
+					titleStr = v.Styles.TextPrimary.Render(titleStr)
+				}
+				if !isArtistFav && !sameArtist {
+					artistStr = v.Styles.TextPrimary.Render(artistStr)
+				}
+				if !isAlbumFav {
+					albumStr = v.Styles.TextSecondary.Render(albumStr)
+				}
+				row = markerStr + v.Styles.TextTertiary.Render(text.Pad(num, cols.TrackNum)) + "  " +
+					artistStr + "  " + titleStr + "  " + albumStr + "  " +
+					v.Styles.TextTertiary.Render(text.PadLeft(dur, cols.Duration))
 				if cols.DateAdded > 0 {
-					row += " " + text.Pad(dateAdded, cols.DateAdded)
+					row += "  " + text.Pad(dateAdded, cols.DateAdded)
 				}
 			}
 		}
@@ -307,13 +313,13 @@ func renderRow(num, artist, title, album, duration, dateAdded string, cols Colum
 	if cols.Artist == 0 {
 		return text.Pad(num, cols.TrackNum)
 	}
-	row := text.Pad(num, cols.TrackNum) + " " +
-		text.Pad(artist, cols.Artist) + " " +
-		text.Pad(title, cols.Title) + " " +
-		text.Pad(album, cols.Album) + " " +
+	row := text.Pad(num, cols.TrackNum) + "  " +
+		text.Pad(artist, cols.Artist) + "  " +
+		text.Pad(title, cols.Title) + "  " +
+		text.Pad(album, cols.Album) + "  " +
 		text.PadLeft(duration, cols.Duration)
 	if cols.DateAdded > 0 {
-		row += " " + text.Pad(dateAdded, cols.DateAdded)
+		row += "  " + text.Pad(dateAdded, cols.DateAdded)
 	}
 	return row
 }

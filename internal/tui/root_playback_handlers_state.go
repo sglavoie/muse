@@ -215,6 +215,9 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	m.playback.queueExhausted = false
 	m.statusBar.artist = msg.Artist
 	m.statusBar.title = msg.Title
+	if t, ok := m.library.index.FindByHash(msg.Hash); ok {
+		m.statusBar.album = t.Album
+	}
 	source := msg.PlaylistSource
 	if source == "" {
 		source = "Queue"

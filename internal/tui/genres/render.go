@@ -111,6 +111,10 @@ func (v View) renderTracks() string {
 			markerStr = "● "
 		case isSelected:
 			markerStr = v.Styles.AccentMark.Render("●") + " "
+		case isFocused:
+			markerStr = "▎ "
+		case isNowPlaying:
+			markerStr = "♪ "
 		default:
 			markerStr = "  "
 		}
@@ -129,11 +133,7 @@ func (v View) renderTracks() string {
 		} else if isNowPlaying {
 			np := v.Styles.NowPlayingRow
 			sep := np.Render(" ")
-			if isTrackFav {
-				titleStr = v.Styles.NowPlayingRowFavorite.Render(titleStr)
-			} else {
-				titleStr = np.Render(titleStr)
-			}
+			titleStr = v.Styles.NowPlayingTitle.Render(titleStr)
 			lines[i] = np.Render(markerStr+pos) + sep + titleStr + sep + np.Render(dur)
 		} else {
 			isOdd := absIdx%2 == 1
@@ -143,15 +143,18 @@ func (v View) renderTracks() string {
 			if isOdd {
 				zb := lipgloss.NewStyle().Background(v.Styles.ZebraBg)
 				if !isTrackFav {
-					titleStr = zb.Render(titleStr)
+					titleStr = styles.WithZebraBg(v.Styles.TextPrimary, v.Styles.ZebraBg, true).Render(titleStr)
 				}
 				markerPart := zb.Render(markerStr)
-				posPart := styles.WithZebraBg(v.Styles.Dim, v.Styles.ZebraBg, isOdd).Render(pos)
-				durPart := styles.WithZebraBg(v.Styles.Dim, v.Styles.ZebraBg, isOdd).Render(dur)
+				posPart := styles.WithZebraBg(v.Styles.TextTertiary, v.Styles.ZebraBg, isOdd).Render(pos)
+				durPart := styles.WithZebraBg(v.Styles.TextTertiary, v.Styles.ZebraBg, isOdd).Render(dur)
 				sep := zb.Render(" ")
 				lines[i] = markerPart + posPart + sep + titleStr + sep + durPart
 			} else {
-				lines[i] = markerStr + v.Styles.Dim.Render(pos) + " " + titleStr + " " + v.Styles.Dim.Render(dur)
+				if !isTrackFav {
+					titleStr = v.Styles.TextPrimary.Render(titleStr)
+				}
+				lines[i] = markerStr + v.Styles.TextTertiary.Render(pos) + " " + titleStr + " " + v.Styles.TextTertiary.Render(dur)
 			}
 		}
 	}

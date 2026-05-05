@@ -104,7 +104,7 @@ func (m Model) View() tea.View {
 
 	// Prepend the centralized title bar when showing a primary view.
 	if !m.hasActiveOverlay() {
-		tabSep := m.styles.Dim.Render(strings.Repeat("─", m.termWidth))
+		tabSep := m.styles.TextTertiary.Render(strings.Repeat("─", m.termWidth))
 		body = m.renderTitleBar() + "\n" + tabSep + "\n" + body
 	}
 
@@ -113,13 +113,7 @@ func (m Model) View() tea.View {
 	if padding := m.termHeight - bodyLines - 2; padding > 0 {
 		body += strings.Repeat("\n", padding)
 	}
-	var sep string
-	if m.playback.elapsedSecs > 0 || m.playback.totalSecs > 0 {
-		sep = renderProgressBar(m.playback.elapsedSecs, m.playback.totalSecs, m.termWidth, *m.styles)
-	} else {
-		sep = m.styles.Dim.Render(strings.Repeat("─", m.termWidth))
-	}
-	content := body + "\n" + sep + "\n" + statusBar
+	content := body + "\n" + statusBar
 	v := tea.NewView(content)
 	v.AltScreen = true
 	return v
@@ -158,18 +152,18 @@ func (m Model) renderTitleBar() string {
 				if id == m.activeView {
 					entry = badge + " " + m.styles.Heading.Render(name)
 				} else {
-					entry = badge + " " + m.styles.Dim.Render(name)
+					entry = badge + " " + m.styles.TextTertiary.Render(name)
 				}
 			} else {
 				if id == m.activeView {
 					entry = m.styles.Heading.Render(name)
 				} else {
-					entry = m.styles.Dim.Render(name)
+					entry = m.styles.TextTertiary.Render(name)
 				}
 			}
 			parts = append(parts, entry)
 		}
-		return m.styles.Dim.Render("‹ ") + strings.Join(parts, sep) + m.styles.Dim.Render(" ›")
+		return m.styles.TextTertiary.Render("‹ ") + strings.Join(parts, sep) + m.styles.TextTertiary.Render(" ›")
 	}
 
 	// Narrow layout: show as many tabs as fit, centered on the active view.
@@ -232,10 +226,10 @@ func (m Model) renderTitleBar() string {
 		if id == m.activeView {
 			narrowParts = append(narrowParts, m.styles.Heading.Render(name))
 		} else {
-			narrowParts = append(narrowParts, m.styles.Dim.Render(name))
+			narrowParts = append(narrowParts, m.styles.TextTertiary.Render(name))
 		}
 	}
-	return m.styles.Dim.Render("‹ ") + strings.Join(narrowParts, sep) + m.styles.Dim.Render(" ›")
+	return m.styles.TextTertiary.Render("‹ ") + strings.Join(narrowParts, sep) + m.styles.TextTertiary.Render(" ›")
 }
 
 // renderStatusBar builds the status bar line shown at the bottom of the view.

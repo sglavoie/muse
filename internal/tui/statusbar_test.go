@@ -354,28 +354,87 @@ func TestRenderNoTimeDisplayWhenBothZero(t *testing.T) {
 	}
 }
 
-// TestRenderTimeDisplayIncludedInTruncationBudget verifies that the time
-// display runes are factored into the title truncation so the full line fits
-// within the specified width.
-func TestRenderTimeDisplayIncludedInTruncationBudget(t *testing.T) {
+// TestRenderTimeDisplayOnLine2 verifies that time display is on line 2 and
+// that line 1 fits within the specified width.
+func TestRenderTimeDisplayOnLine2(t *testing.T) {
 	sb := StatusBar{
 		artist:        "Artist",
 		title:         "A Very Long Track Title That Should Be Truncated",
 		playbackState: PlaybackPlaying,
 		elapsed:       "01:23",
 		total:         "04:56",
+		elapsedSecs:   83,
+		totalSecs:     296,
 	}
 
 	out := sb.render(60, styles.Styles{})
 
-	if !strings.Contains(out, "01:23 / 04:56") {
-		t.Errorf("time display missing with width constraint: got %q", out)
+	lines := strings.SplitN(out, "\n", 2)
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 lines in render output, got %d: %q", len(lines), out)
 	}
-	if !strings.Contains(out, "…") {
-		t.Errorf("title should be truncated to fit width with time display: got %q", out)
+	if !strings.Contains(lines[1], "01:23 / 04:56") {
+		t.Errorf("time display should be on line 2: got %q", lines[1])
 	}
-	if ansi.StringWidth(out) > 60 {
-		t.Errorf("output visual width exceeds %d: width=%d, got %q", 60, ansi.StringWidth(out), out)
+	if !strings.Contains(lines[0], "…") {
+		t.Errorf("title should be truncated on line 1: got %q", lines[0])
+	}
+	if ansi.StringWidth(lines[0]) > 60 {
+		t.Errorf("line 1 visual width exceeds %d: width=%d, got %q", 60, ansi.StringWidth(lines[0]), lines[0])
+	}
+}
+
+// TestRenderAlbumAppearsOnLine2 verifies that album name appears on line 2
+// when elapsedSecs > 0.
+func TestRenderAlbumAppearsOnLine2(t *testing.T) {
+	sb := StatusBar{
+		artist:        "Artist",
+		title:         "Title",
+		album:         "My Album",
+		playbackState: PlaybackPlaying,
+		elapsed:       "1:00",
+		total:         "3:30",
+		elapsedSecs:   60,
+		totalSecs:     210,
+	}
+
+	out := sb.render(0, styles.Styles{})
+
+	lines := strings.SplitN(out, "\n", 2)
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 lines in render output, got %d: %q", len(lines), out)
+	}
+	if strings.Contains(lines[0], "My Album") {
+		t.Errorf("album should not appear on line 1: got %q", lines[0])
+	}
+	if !strings.Contains(lines[1], "My Album") {
+		t.Errorf("album should appear on line 2: got %q", lines[1])
+	}
+}
+
+// TestRenderProgressBarOnLine2 verifies that the progress bar is rendered on
+// line 2 (filling the remaining width) when elapsedSecs > 0.
+func TestRenderProgressBarOnLine2(t *testing.T) {
+	sb := StatusBar{
+		artist:        "Artist",
+		title:         "Title",
+		album:         "Album",
+		playbackState: PlaybackPlaying,
+		elapsed:       "0:30",
+		total:         "1:00",
+		elapsedSecs:   30,
+		totalSecs:     60,
+	}
+
+	out := sb.render(40, styles.Styles{})
+
+	lines := strings.SplitN(out, "\n", 2)
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 lines, got %d: %q", len(lines), out)
+	}
+	// Progress bar uses █ (filled) and ░ (empty); at least one should be present.
+	if !strings.Contains(lines[1], "█") && !strings.Contains(lines[1], "░") {
+		t.Errorf("line 2 should contain progress bar glyphs: got %q", lines[1])
 	}
 }
 

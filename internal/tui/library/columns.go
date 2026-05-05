@@ -6,8 +6,8 @@ const (
 	durationFixed        = 10
 	dateAddedFixed       = 10
 	playedAtFixed        = 16
-	sepCount             = 4 // spaces separating the five content columns
-	sepCountWithDate     = 5 // spaces separating the six content columns
+	sepCount             = 8  // 2-char gaps × 4 separators between five content columns
+	sepCountWithDate     = 10 // 2-char gaps × 5 separators between six content columns
 
 	artistRatio = 30
 	titleRatio  = 35

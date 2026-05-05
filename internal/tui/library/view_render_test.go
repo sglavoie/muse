@@ -232,6 +232,37 @@ func TestHighlightedPositionsWithinArtistColumn(t *testing.T) {
 	}
 }
 
+// TestDuplicateArtistDimmedRegardlessOfSortField verifies that consecutive
+// tracks sharing an artist receive TextTertiary styling on the second
+// occurrence regardless of which column is sorted (previously only triggered
+// when SortField == 1).
+func TestDuplicateArtistDimmedRegardlessOfSortField(t *testing.T) {
+	tracks := []musiclib.Track{
+		{Artist: "Alice", Title: "AAA", Album: "Debut", Duration: 185},
+		{Artist: "Alice", Title: "BBB", Album: "Debut", Duration: 200},
+	}
+	idx := buildIndex(tracks)
+	s := styles.NewStyles(true)
+	// SortField=2 means sort-by-title, not sort-by-artist — dedup must still
+	// apply under the new unconditional sameArtist check.
+	v := View{Index: idx, Width: 80, Height: 24, Styles: s, SortField: 2}
+	got := v.Render()
+	lines := strings.Split(got, "\n")
+	if len(lines) < 3 {
+		t.Fatalf("want ≥3 lines (header + 2 tracks), got %d", len(lines))
+	}
+	row2 := lines[2] // absIdx=1 (isOdd=true), duplicate Alice
+	// Duplicate artist must be styled with TextTertiary + ZebraBg.
+	styled := styles.WithZebraBg(s.TextTertiary, s.ZebraBg, true).Render("Alice")
+	if styled == "Alice" {
+		t.Skip("lipgloss produced no ANSI output in this environment")
+	}
+	ansiCode := strings.SplitN(styled, "Alice", 2)[0]
+	if !strings.Contains(row2, ansiCode) {
+		t.Errorf("expected TextTertiary+ZebraBg ANSI for duplicate artist; row: %q", row2)
+	}
+}
+
 // TestGeneralSearchHighlightsAlbumColumn verifies that when a general search
 // matches text within the album field, the album column now shows bold
 // highlights (previously album was not highlighted at all).

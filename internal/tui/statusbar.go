@@ -53,6 +53,7 @@ type StatusBar struct {
 	// Persistent left zone fields — set during Update when track/state changes.
 	artist         string
 	title          string
+	album          string
 	playlistSource string
 
 	// Playback mode fields — injected by renderStatusBar from the root Model.
@@ -171,6 +172,14 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	// r renders plain text with the StatusBar background+foreground.
 	r := func(s string) string { return barText.Render(s) }
 
+	// dimLine returns a full-width dim separator used as the line-2 fallback.
+	dimLine := func() string {
+		if width > 0 {
+			return st.Dim.Render(strings.Repeat("─", width))
+		}
+		return st.Dim.Render("─")
+	}
+
 	// --- Right side (notification badge, right-aligned) ---
 	notif := st.StatusNotification
 	notifErr := st.StatusNotificationError
@@ -229,10 +238,10 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	// --- Persistent left zone ---
 	if s.playbackState == PlaybackIdle && s.queueEmpty {
 		hint := r("Queue is empty — press 1 to browse Library")
-		return rightAlign(hint)
+		return rightAlign(hint) + "\n" + dimLine()
 	}
 	if s.playbackState == PlaybackIdle && s.artist == "" && s.title == "" {
-		return rightAlign("")
+		return rightAlign("") + "\n" + dimLine()
 	}
 
 	stateIcon := ""
@@ -286,14 +295,6 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 		suffixWidth += ansi.StringWidth(label)
 	}
 
-	// Build the time display appended after the suffix.
-	timeDisplay := ""
-	timeDisplayWidth := 0
-	if s.elapsed != "" && s.total != "" {
-		timeDisplay = r("  " + s.elapsed + " / " + s.total)
-		timeDisplayWidth = 2 + len(s.elapsed) + 3 + len(s.total)
-	}
-
 	// Build the prefix that precedes the title: glyph and artist.
 	// Format: "[glyph] artist – title" or subsets when fields are absent.
 	prefix := ""
@@ -324,10 +325,10 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	title := s.title
 	if width > 0 && s.title != "" {
 		// Calculate how many runes are available for the title.
-		// Full line: prefix + sep + title + suffix + timeDisplay + gap(min 2) + right
+		// Full line: prefix + sep + title + suffix + gap(min 2) + right
 		const minGap = 2
 		fixedWidth := prefixWidth + sepWidth +
-			suffixWidth + timeDisplayWidth +
+			suffixWidth +
 			minGap + rightWidth
 		available := width - fixedWidth
 		title = truncateTitle(s.title, available)
@@ -344,12 +345,53 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	if title != "" {
 		parts = append(parts, r(title))
 	}
-	parts = append(parts, suffix, timeDisplay)
+	parts = append(parts, suffix)
 
 	left := strings.Join(parts, "")
 
+	var line1 string
 	if ansi.StringWidth(left) == 0 {
-		return rightAlign("")
+		line1 = rightAlign("")
+	} else {
+		line1 = rightAlign(left)
 	}
-	return rightAlign(left)
+
+	// --- Line 2: album · time + progress bar ---
+	const line2Pad = 1
+	var line2 string
+	if s.elapsed != "" && s.total != "" {
+		albumPart := ""
+		albumW := 0
+		if s.album != "" {
+			albumPart = st.TextSecondary.Background(bg).Render(s.album)
+			albumW = ansi.StringWidth(s.album)
+		}
+		timePart := ""
+		timeW := 0
+		if s.elapsed != "" && s.total != "" {
+			timePart = r(s.elapsed + " / " + s.total)
+			timeW = len(s.elapsed) + 3 + len(s.total)
+		}
+		dotPart := ""
+		dotW := 0
+		if albumW > 0 && timeW > 0 {
+			dotPart = r(" · ")
+			dotW = 3
+		}
+		left2 := r(strings.Repeat(" ", line2Pad)) + albumPart + dotPart + timePart + r(" ")
+		leftW2 := line2Pad + albumW + dotW + timeW + 1
+		if width > 0 {
+			pbWidth := width - leftW2 - line2Pad
+			if pbWidth < 0 {
+				pbWidth = 0
+			}
+			line2 = left2 + renderProgressBar(s.elapsedSecs, s.totalSecs, pbWidth, st) + r(strings.Repeat(" ", line2Pad))
+		} else {
+			line2 = left2
+		}
+	} else {
+		line2 = dimLine()
+	}
+
+	return line1 + "\n" + line2
 }

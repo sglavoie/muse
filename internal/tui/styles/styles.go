@@ -6,6 +6,72 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+// Surface layer colors — backgrounds for status bar, zebra stripe, and accent selection.
+const (
+	colorSurfaceL0Dark  = "#16161e" // L0: status bar background
+	colorSurfaceL0Light = "#d8dae0"
+	colorSurfaceL2Dark  = "#24283b" // L2: zebra stripe background
+	colorSurfaceL2Light = "#e4e6eb"
+	colorSurfaceAccentDark  = "#283347" // accent / selection background
+	colorSurfaceAccentLight = "#d0d7e3"
+	colorSurfaceNotifDark  = "#3b4252" // notification badge background
+	colorSurfaceNotifLight = "#d0d7e3"
+)
+
+// Now-playing warm background colors.
+const (
+	colorNowPlayingBgDark  = "#2e2a1f"
+	colorNowPlayingBgLight = "#fff8e8"
+)
+
+// Accent colors — highlights, focus rings, progress bar, active tabs.
+const (
+	colorAccentPrimaryDark   = "#7aa2f7"
+	colorAccentPrimaryLight  = "#4078f2"
+	colorAccentUnderlineDark  = "#3a5fa8" // Heading underline complement for #7aa2f7
+	colorAccentUnderlineLight = "#6a9edb"
+)
+
+// Now-playing amber — title column foreground for the playing row.
+const (
+	colorAmberDark  = "#e0af68"
+	colorAmberLight = "#986801"
+)
+
+// Status bar foreground text.
+const (
+	colorFgStatusBarDark  = "#abb2bf"
+	colorFgStatusBarLight = "#383a42"
+)
+
+// Semantic state foreground colors.
+const (
+	colorFgSuccessLight = "#50a14f"
+	colorFgSuccessDark  = "#98c379"
+	colorFgWarningLight = "#986801"
+	colorFgWarningDark  = "#e5c07b"
+	colorFgErrorLight   = "#e45649"
+	colorFgErrorDark    = "#e06c75"
+)
+
+// Text hierarchy foreground colors — primary, secondary, tertiary.
+const (
+	colorTextPrimaryLight   = "#343b58"
+	colorTextPrimaryDark    = "#c0caf5"
+	colorTextSecondaryLight = "#6172a9"
+	colorTextSecondaryDark  = "#a9b1d6"
+	colorTextTertiaryLight  = "#9ca0b0"
+	colorTextTertiaryDark   = "#565f89"
+)
+
+// Favorite / special-label foreground colors.
+const (
+	colorFgFavArtistLight = "#a626a4"
+	colorFgFavArtistDark  = "#c678dd"
+	colorFgFavAlbumLight  = "#0184bc"
+	colorFgFavAlbumDark   = "#56b6c2"
+)
+
 // Styles holds the shared lipgloss styles used across TUI views.
 type Styles struct {
 	Dim                     lipgloss.Style
@@ -26,7 +92,7 @@ type Styles struct {
 	FavAlbum                lipgloss.Style // cyan foreground for favorited albums
 	FavArtistAccent         lipgloss.Style // accent background + purple foreground for focused favorited artists
 	FavAlbumAccent          lipgloss.Style // accent background + cyan foreground for focused favorited albums
-	ColHead                 lipgloss.Style // bold + faint for column headers
+	ColHead                 lipgloss.Style // bold + tertiary foreground + dotted underline for column headers
 	StatusBar               lipgloss.Style // full-width status bar background + foreground
 	StatusNotification      lipgloss.Style // notification badge: amber on contrasting bg
 	StatusNotificationError lipgloss.Style // error notification: red on contrasting bg
@@ -34,6 +100,10 @@ type Styles struct {
 	HelpKey                 lipgloss.Style // bold accent foreground for keybinding keys in help overlay
 	ProgressFilled          lipgloss.Style // accent-colored "█" blocks for filled portion of progress bar
 	ProgressEmpty           lipgloss.Style // dim "░" blocks for empty portion of progress bar
+	TextPrimary             lipgloss.Style // primary text: artist, title columns
+	TextSecondary           lipgloss.Style // secondary text: album column
+	TextTertiary            lipgloss.Style // tertiary text: track numbers, durations, inactive tabs
+	NowPlayingTitle         lipgloss.Style // amber fg + warm bg for title column in the now-playing row
 	ZebraBg                 color.Color
 	NowPlayingBg            color.Color
 	NowPlayingRow           lipgloss.Style // bold green fg + amber bg for now-playing row (non-focused)
@@ -47,41 +117,47 @@ type Styles struct {
 func NewStyles(hasDark bool) Styles {
 	ld := lipgloss.LightDark(hasDark)
 	return Styles{
-		Dim:        lipgloss.NewStyle().Faint(true),
-		Accent:     lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#2c3e50"))),
-		AccentMark: lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#4078f2"), lipgloss.Color("#61afef"))),
-		Bold:       lipgloss.NewStyle().Bold(true),
+		Dim:    lipgloss.NewStyle().Faint(true),
+		Accent: lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceAccentLight), lipgloss.Color(colorSurfaceAccentDark))),
+		AccentMark: lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorAccentPrimaryLight), lipgloss.Color(colorAccentPrimaryDark))),
+		Bold:   lipgloss.NewStyle().Bold(true),
 		Heading: lipgloss.NewStyle().Bold(true).
 			UnderlineStyle(lipgloss.UnderlineDouble).
-			UnderlineColor(ld(lipgloss.Color("#6a9edb"), lipgloss.Color("#3a6fbf"))).
-			Foreground(ld(lipgloss.Color("#4078f2"), lipgloss.Color("#61afef"))),
-		Success:                 lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#50a14f"), lipgloss.Color("#98c379"))),
-		Warning:                 lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
-		Error:                   lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#e45649"), lipgloss.Color("#e06c75"))),
-		NowPlaying:              lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#50a14f"), lipgloss.Color("#98c379"))),
-		NowPlayingFavorite:      lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
-		NowPlayingFavArtist:     lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#a626a4"), lipgloss.Color("#c678dd"))),
-		NowPlayingFavAlbum:      lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#0184bc"), lipgloss.Color("#56b6c2"))),
-		Favorite:                lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
-		FavoriteAccent:          lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#2c3e50"))).Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
-		FavArtist:               lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#a626a4"), lipgloss.Color("#c678dd"))),
-		FavAlbum:                lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#0184bc"), lipgloss.Color("#56b6c2"))),
-		FavArtistAccent:         lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#2c3e50"))).Foreground(ld(lipgloss.Color("#a626a4"), lipgloss.Color("#c678dd"))),
-		FavAlbumAccent:          lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#2c3e50"))).Foreground(ld(lipgloss.Color("#0184bc"), lipgloss.Color("#56b6c2"))),
-		ColHead:                 lipgloss.NewStyle().Bold(true).Faint(true).UnderlineStyle(lipgloss.UnderlineDotted),
-		StatusBar:               lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),
-		StatusNotification:      lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#3b4252"))).Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))),
-		StatusNotificationError: lipgloss.NewStyle().Background(ld(lipgloss.Color("#d0d7e3"), lipgloss.Color("#3b4252"))).Foreground(ld(lipgloss.Color("#e45649"), lipgloss.Color("#e06c75"))),
-		Badge:                   lipgloss.NewStyle().Background(ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#282c34"))).Foreground(ld(lipgloss.Color("#383a42"), lipgloss.Color("#abb2bf"))),
-		HelpKey:                 lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#4078f2"), lipgloss.Color("#61afef"))),
-		ProgressFilled:          lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#4078f2"), lipgloss.Color("#61afef"))),
+			UnderlineColor(ld(lipgloss.Color(colorAccentUnderlineLight), lipgloss.Color(colorAccentUnderlineDark))).
+			Foreground(ld(lipgloss.Color(colorAccentPrimaryLight), lipgloss.Color(colorAccentPrimaryDark))),
+		Success:                 lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgSuccessLight), lipgloss.Color(colorFgSuccessDark))),
+		Warning:                 lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgWarningLight), lipgloss.Color(colorFgWarningDark))),
+		Error:                   lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgErrorLight), lipgloss.Color(colorFgErrorDark))),
+		NowPlaying:              lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgSuccessLight), lipgloss.Color(colorFgSuccessDark))),
+		NowPlayingFavorite:      lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgWarningLight), lipgloss.Color(colorFgWarningDark))),
+		NowPlayingFavArtist:     lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgFavArtistLight), lipgloss.Color(colorFgFavArtistDark))),
+		NowPlayingFavAlbum:      lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgFavAlbumLight), lipgloss.Color(colorFgFavAlbumDark))),
+		Favorite:                lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgWarningLight), lipgloss.Color(colorFgWarningDark))),
+		FavoriteAccent:          lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceAccentLight), lipgloss.Color(colorSurfaceAccentDark))).Foreground(ld(lipgloss.Color(colorFgWarningLight), lipgloss.Color(colorFgWarningDark))),
+		FavArtist:               lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgFavArtistLight), lipgloss.Color(colorFgFavArtistDark))),
+		FavAlbum:                lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgFavAlbumLight), lipgloss.Color(colorFgFavAlbumDark))),
+		FavArtistAccent:         lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceAccentLight), lipgloss.Color(colorSurfaceAccentDark))).Foreground(ld(lipgloss.Color(colorFgFavArtistLight), lipgloss.Color(colorFgFavArtistDark))),
+		FavAlbumAccent:          lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceAccentLight), lipgloss.Color(colorSurfaceAccentDark))).Foreground(ld(lipgloss.Color(colorFgFavAlbumLight), lipgloss.Color(colorFgFavAlbumDark))),
+		ColHead: lipgloss.NewStyle().Bold(true).
+			Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))).
+			UnderlineStyle(lipgloss.UnderlineDotted),
+		StatusBar:               lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceL0Light), lipgloss.Color(colorSurfaceL0Dark))).Foreground(ld(lipgloss.Color(colorFgStatusBarLight), lipgloss.Color(colorFgStatusBarDark))),
+		StatusNotification:      lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceNotifLight), lipgloss.Color(colorSurfaceNotifDark))).Foreground(ld(lipgloss.Color(colorFgWarningLight), lipgloss.Color(colorFgWarningDark))),
+		StatusNotificationError: lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceNotifLight), lipgloss.Color(colorSurfaceNotifDark))).Foreground(ld(lipgloss.Color(colorFgErrorLight), lipgloss.Color(colorFgErrorDark))),
+		Badge:                   lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceL0Light), lipgloss.Color(colorSurfaceL0Dark))).Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))),
+		HelpKey:                 lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorAccentPrimaryLight), lipgloss.Color(colorAccentPrimaryDark))),
+		ProgressFilled:          lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorAccentPrimaryLight), lipgloss.Color(colorAccentPrimaryDark))),
 		ProgressEmpty:           lipgloss.NewStyle().Faint(true),
-		ZebraBg:                 ld(lipgloss.Color("#e8eaed"), lipgloss.Color("#2a2e36")),
-		NowPlayingBg:            ld(lipgloss.Color("#fff8e8"), lipgloss.Color("#2e2a1f")),
-		NowPlayingRow:           lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#50a14f"), lipgloss.Color("#98c379"))).Background(ld(lipgloss.Color("#fff8e8"), lipgloss.Color("#2e2a1f"))),
-		NowPlayingRowFavorite:   lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#986801"), lipgloss.Color("#e5c07b"))).Background(ld(lipgloss.Color("#fff8e8"), lipgloss.Color("#2e2a1f"))),
-		NowPlayingRowFavArtist:  lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#a626a4"), lipgloss.Color("#c678dd"))).Background(ld(lipgloss.Color("#fff8e8"), lipgloss.Color("#2e2a1f"))),
-		NowPlayingRowFavAlbum:   lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color("#0184bc"), lipgloss.Color("#56b6c2"))).Background(ld(lipgloss.Color("#fff8e8"), lipgloss.Color("#2e2a1f"))),
+		TextPrimary:             lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorTextPrimaryLight), lipgloss.Color(colorTextPrimaryDark))),
+		TextSecondary:           lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorTextSecondaryLight), lipgloss.Color(colorTextSecondaryDark))),
+		TextTertiary:            lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))),
+		NowPlayingTitle:         lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorAmberLight), lipgloss.Color(colorAmberDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
+		ZebraBg:                 ld(lipgloss.Color(colorSurfaceL2Light), lipgloss.Color(colorSurfaceL2Dark)),
+		NowPlayingBg:            ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark)),
+		NowPlayingRow:           lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgSuccessLight), lipgloss.Color(colorFgSuccessDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
+		NowPlayingRowFavorite:   lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgWarningLight), lipgloss.Color(colorFgWarningDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
+		NowPlayingRowFavArtist:  lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgFavArtistLight), lipgloss.Color(colorFgFavArtistDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
+		NowPlayingRowFavAlbum:   lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgFavAlbumLight), lipgloss.Color(colorFgFavAlbumDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
 		HasDark:                 hasDark,
 	}
 }
