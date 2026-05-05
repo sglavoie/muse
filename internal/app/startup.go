@@ -311,6 +311,8 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 			DurationMs:     r.DurationMs,
 			Position:       r.Position,
 			SourcePlaylist: r.SourcePlaylist,
+			TrackNumber:    r.TrackNumber,
+			DiscNumber:     r.DiscNumber,
 		})
 		playerTracks = append(playerTracks, player.QueueTrack{
 			Path:    r.Path,

@@ -21,6 +21,8 @@ type TrackRow struct {
 	ModTime      int64
 	PlayCount    int
 	LastPlayedAt int64
+	TrackNumber  int
+	DiscNumber   int
 }
 
 // UserEditedRow holds the user-edited metadata for a single track.
@@ -44,7 +46,7 @@ type UnverifiedTrack struct {
 // empty slice (not an error) when the table is empty.
 func (d *DB) ReadTracks() ([]TrackRow, error) {
 	rows, err := d.Query(`
-		SELECT hash, path, title, artist, album, genre, duration_ms, created_at, size_bytes, mod_time, play_count, last_played_at
+		SELECT hash, path, title, artist, album, genre, duration_ms, created_at, size_bytes, mod_time, play_count, last_played_at, track_number, disc_number
 		FROM tracks WHERE missing = 0
 	`)
 	if err != nil {
@@ -55,7 +57,7 @@ func (d *DB) ReadTracks() ([]TrackRow, error) {
 	var result []TrackRow
 	for rows.Next() {
 		var row TrackRow
-		if err := rows.Scan(&row.Hash, &row.Path, &row.Title, &row.Artist, &row.Album, &row.Genre, &row.DurationMs, &row.CreatedAt, &row.SizeBytes, &row.ModTime, &row.PlayCount, &row.LastPlayedAt); err != nil {
+		if err := rows.Scan(&row.Hash, &row.Path, &row.Title, &row.Artist, &row.Album, &row.Genre, &row.DurationMs, &row.CreatedAt, &row.SizeBytes, &row.ModTime, &row.PlayCount, &row.LastPlayedAt, &row.TrackNumber, &row.DiscNumber); err != nil {
 			return nil, fmt.Errorf("db: read track row: %w", err)
 		}
 		result = append(result, row)
@@ -120,7 +122,7 @@ func (d *DB) ReadPlayHistory(limit int) ([]library.Track, error) {
 	rows, err := d.Query(`
 		SELECT t.path, t.hash, t.artist, t.title, t.album, t.genre,
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
-		       t.play_count, ph.played_at
+		       t.play_count, t.track_number, t.disc_number, ph.played_at
 		FROM play_history ph
 		JOIN tracks t ON ph.track_hash = t.hash
 		ORDER BY ph.played_at DESC
@@ -137,7 +139,7 @@ func (d *DB) ReadPlayHistory(limit int) ([]library.Track, error) {
 		if err := rows.Scan(
 			&track.Path, &track.Hash, &track.Artist, &track.Title, &track.Album, &track.Genre,
 			&durationMs, &track.CreatedAt, &track.ModTime, &track.SizeBytes,
-			&track.PlayCount, &track.LastPlayedAt,
+			&track.PlayCount, &track.TrackNumber, &track.DiscNumber, &track.LastPlayedAt,
 		); err != nil {
 			return nil, fmt.Errorf("db: read play history row: %w", err)
 		}

@@ -39,7 +39,7 @@ func (d *DB) ReadRediscoverMix(minPlays, ageDays, limit int) ([]library.Track, e
 	rows, err := d.Query(`
 		SELECT t.path, t.hash, t.artist, t.title, t.album, t.genre,
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
-		       t.play_count, t.last_played_at
+		       t.play_count, t.last_played_at, t.track_number, t.disc_number
 		FROM tracks t
 		WHERE t.missing = 0 AND t.play_count >= ? AND t.last_played_at < ? AND t.last_played_at > 0
 		ORDER BY t.play_count DESC
@@ -90,7 +90,7 @@ func (d *DB) ReadHiddenGemsMix(maxPlays, topArtists, topGenres, limit int) ([]li
 	query := `
 		SELECT t.path, t.hash, t.artist, t.title, t.album, t.genre,
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
-		       t.play_count, t.last_played_at
+		       t.play_count, t.last_played_at, t.track_number, t.disc_number
 		FROM tracks t
 		WHERE t.missing = 0 AND t.play_count <= ? AND (` + strings.Join(conditions, " OR ") + `)
 		ORDER BY RANDOM()
@@ -111,7 +111,7 @@ func (d *DB) ReadOnRepeatMix(minPlays, windowDays, limit int) ([]library.Track, 
 	rows, err := d.Query(`
 		SELECT t.path, t.hash, t.artist, t.title, t.album, t.genre,
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
-		       t.play_count, t.last_played_at,
+		       t.play_count, t.last_played_at, t.track_number, t.disc_number,
 		       COUNT(*) AS recent_count
 		FROM tracks t
 		JOIN play_history ph ON ph.track_hash = t.hash
@@ -133,7 +133,7 @@ func (d *DB) ReadDeepCutsMix(minPlays, maxPlays int, minCompletion float64, limi
 	rows, err := d.Query(`
 		SELECT t.path, t.hash, t.artist, t.title, t.album, t.genre,
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
-		       t.play_count, t.last_played_at
+		       t.play_count, t.last_played_at, t.track_number, t.disc_number
 		FROM tracks t
 		JOIN play_history ph ON ph.track_hash = t.hash
 		WHERE t.missing = 0 AND t.play_count BETWEEN ? AND ?
@@ -167,7 +167,7 @@ func (d *DB) ReadNeverPlayedMix(limit int) ([]library.Track, error) {
 		)
 		SELECT t.path, t.hash, t.artist, t.title, t.album, t.genre,
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
-		       t.play_count, t.last_played_at,
+		       t.play_count, t.last_played_at, t.track_number, t.disc_number,
 		       COALESCE(ap.cnt, 0) + COALESCE(SUM(gp.cnt), 0) AS affinity
 		FROM tracks t
 		LEFT JOIN artist_plays ap ON ap.artist = t.artist
@@ -348,7 +348,7 @@ func scanTrackRows(rows interface {
 		if err := rows.Scan(
 			&track.Path, &track.Hash, &track.Artist, &track.Title, &track.Album, &track.Genre,
 			&durationMs, &track.CreatedAt, &track.ModTime, &track.SizeBytes,
-			&track.PlayCount, &track.LastPlayedAt,
+			&track.PlayCount, &track.LastPlayedAt, &track.TrackNumber, &track.DiscNumber,
 		); err != nil {
 			return nil, fmt.Errorf("db: scan track row: %w", err)
 		}
@@ -377,7 +377,7 @@ func scanTrackRowsWithExtra(rows interface {
 		dest := []any{
 			&track.Path, &track.Hash, &track.Artist, &track.Title, &track.Album, &track.Genre,
 			&durationMs, &track.CreatedAt, &track.ModTime, &track.SizeBytes,
-			&track.PlayCount, &track.LastPlayedAt,
+			&track.PlayCount, &track.LastPlayedAt, &track.TrackNumber, &track.DiscNumber,
 		}
 		dest = append(dest, extra...)
 		if err := rows.Scan(dest...); err != nil {

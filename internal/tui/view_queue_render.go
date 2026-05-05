@@ -99,7 +99,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			markerStr = "  "
 		}
 
-		pos := fmt.Sprintf("%4d", absIdx+1)
+		pos := fmt.Sprintf("%4s", text.FormatTrackPos(e.TrackNumber, e.DiscNumber, absIdx+1))
 		source := padQueue(e.SourcePlaylist, sourceWidth)
 		dur := fmt.Sprintf("%*s", durWidth, formatQueueDuration(e.DurationMs))
 

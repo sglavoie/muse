@@ -113,7 +113,7 @@ func (v View) renderTracks() string {
 			markerStr = "  "
 		}
 
-		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
+		pos := fmt.Sprintf("%-*s", cols.Position, text.FormatTrackPos(track.TrackNumber, track.DiscNumber, absIdx+1))
 		titleStr := text.Pad(track.Title, cols.Title)
 		dur := fmt.Sprintf("%*s", cols.Duration, text.FormatDurationSecs(track.Duration))
 

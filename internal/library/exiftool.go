@@ -41,6 +41,8 @@ type exifRecord struct {
 	Album      string
 	Genre      string
 	Duration   float64
+	Track      string
+	DiscNumber string
 }
 
 // UnmarshalJSON decodes an exiftool JSON record, coercing fields that may
@@ -59,6 +61,8 @@ func (r *exifRecord) UnmarshalJSON(data []byte) error {
 	r.Album = coerceString(raw["Album"])
 	r.Genre = coerceString(raw["Genre"])
 	r.Duration = coerceFloat(raw["Duration"])
+	r.Track = coerceString(raw["Track"])
+	r.DiscNumber = coerceString(raw["DiscNumber"])
 	return nil
 }
 
@@ -139,6 +143,23 @@ func parseDurationString(s string) float64 {
 	return 0
 }
 
+// parseTrackNumber parses a track/disc number string from exiftool, which may
+// be a plain integer ("3"), a fraction ("3/12"), or empty. Returns 0 on failure.
+func parseTrackNumber(s string) int {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0
+	}
+	if idx := strings.Index(s, "/"); idx >= 0 {
+		s = s[:idx]
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(s))
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
 // Extract invokes exiftool -json on the provided files and returns one Track
 // per file. Each Track carries the hash from its corresponding HashedFile.
 // The -Duration# flag requests numeric (seconds) duration output.
@@ -157,8 +178,8 @@ func (e ExifToolExtractor) Extract(ctx context.Context, files []HashedFile) ([]T
 		fileByPath[f.Path] = f
 	}
 
-	args := make([]string, 0, 6+len(paths))
-	args = append(args, "-json", "-Artist", "-Title", "-Album", "-Genre", "-Duration#")
+	args := make([]string, 0, 8+len(paths))
+	args = append(args, "-json", "-Artist", "-Title", "-Album", "-Genre", "-Duration#", "-Track", "-DiscNumber")
 	args = append(args, paths...)
 
 	ctx, cancel := context.WithTimeout(ctx, extractTimeout)
@@ -190,15 +211,17 @@ func (e ExifToolExtractor) Extract(ctx context.Context, files []HashedFile) ([]T
 			continue
 		}
 		tracks = append(tracks, Track{
-			Path:      r.SourceFile,
-			Hash:      hf.Hash,
-			Artist:    r.Artist,
-			Title:     r.Title,
-			Album:     r.Album,
-			Genre:     r.Genre,
-			Duration:  r.Duration,
-			ModTime:   hf.ModTime,
-			SizeBytes: hf.SizeBytes,
+			Path:        r.SourceFile,
+			Hash:        hf.Hash,
+			Artist:      r.Artist,
+			Title:       r.Title,
+			Album:       r.Album,
+			Genre:       r.Genre,
+			Duration:    r.Duration,
+			ModTime:     hf.ModTime,
+			SizeBytes:   hf.SizeBytes,
+			TrackNumber: parseTrackNumber(r.Track),
+			DiscNumber:  parseTrackNumber(r.DiscNumber),
 		})
 	}
 	return tracks, nil

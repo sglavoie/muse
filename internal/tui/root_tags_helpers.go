@@ -273,12 +273,14 @@ func playlistRowsToLibTracks(rows []db.PlaylistTrackRow) []musiclib.Track {
 	tracks := make([]musiclib.Track, len(rows))
 	for i, r := range rows {
 		tracks[i] = musiclib.Track{
-			Hash:     r.Hash,
-			Path:     r.Path,
-			Artist:   r.Artist,
-			Title:    r.Title,
-			Album:    r.Album,
-			Duration: float64(r.DurationMs) / 1000,
+			Hash:        r.Hash,
+			Path:        r.Path,
+			Artist:      r.Artist,
+			Title:       r.Title,
+			Album:       r.Album,
+			Duration:    float64(r.DurationMs) / 1000,
+			TrackNumber: r.TrackNumber,
+			DiscNumber:  r.DiscNumber,
 		}
 	}
 	return tracks

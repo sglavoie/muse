@@ -135,7 +135,7 @@ func (v View) Render() string {
 	for i, dt := range display[start:end] {
 		absIdx := start + i
 		t := dt.track
-		num := fmt.Sprintf("%d", absIdx+1)
+		num := text.FormatTrackPos(t.TrackNumber, t.DiscNumber, absIdx+1)
 		dur := text.FormatDurationSecs(t.Duration)
 		var dateAdded string
 		if v.ShowPlayedAt {

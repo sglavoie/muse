@@ -19,14 +19,16 @@ type PlaylistRow struct {
 // track metadata. Used by ReadPlaylistTracks to return typed results for the
 // playlist track-level view.
 type PlaylistTrackRow struct {
-	ID         int64 // playlist_tracks row ID; required for soft-delete operations
-	Position   int64
-	Title      string
-	Artist     string
-	Album      string
-	DurationMs int64
-	Hash       string // BLAKE3 content hash; required for enqueue operations
-	Path       string // file path; required for enqueue operations
+	ID          int64 // playlist_tracks row ID; required for soft-delete operations
+	Position    int64
+	Title       string
+	Artist      string
+	Album       string
+	DurationMs  int64
+	Hash        string // BLAKE3 content hash; required for enqueue operations
+	Path        string // file path; required for enqueue operations
+	TrackNumber int
+	DiscNumber  int
 }
 
 // ReadPlaylists returns all active (non-deleted) playlists ordered
@@ -69,7 +71,7 @@ func (d *DB) ReadPlaylists() ([]PlaylistRow, error) {
 // an error) when the playlist has no tracks.
 func (d *DB) ReadPlaylistTracks(playlistID int64) ([]PlaylistTrackRow, error) {
 	rows, err := d.Query(`
-		SELECT pt.id, pt.position, t.title, t.artist, t.album, t.duration_ms, t.hash, t.path
+		SELECT pt.id, pt.position, t.title, t.artist, t.album, t.duration_ms, t.hash, t.path, t.track_number, t.disc_number
 		FROM playlist_tracks pt
 		JOIN tracks t ON pt.track_hash = t.hash
 		WHERE pt.playlist_id = ? AND pt.deleted_at IS NULL
@@ -83,7 +85,7 @@ func (d *DB) ReadPlaylistTracks(playlistID int64) ([]PlaylistTrackRow, error) {
 	var result []PlaylistTrackRow
 	for rows.Next() {
 		var row PlaylistTrackRow
-		if err := rows.Scan(&row.ID, &row.Position, &row.Title, &row.Artist, &row.Album, &row.DurationMs, &row.Hash, &row.Path); err != nil {
+		if err := rows.Scan(&row.ID, &row.Position, &row.Title, &row.Artist, &row.Album, &row.DurationMs, &row.Hash, &row.Path, &row.TrackNumber, &row.DiscNumber); err != nil {
 			return nil, fmt.Errorf("db: read playlist track row: %w", err)
 		}
 		result = append(result, row)

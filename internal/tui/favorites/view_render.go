@@ -176,7 +176,7 @@ func (v View) renderTrackRows(items []library.Track) string {
 			marker = "  "
 		}
 
-		pos := fmt.Sprintf("%-*d", cols.Position, absIdx+1)
+		pos := fmt.Sprintf("%-*s", cols.Position, text.FormatTrackPos(t.TrackNumber, t.DiscNumber, absIdx+1))
 		titleStr := text.Pad(t.Title, cols.Title)
 		artistStr := text.Pad(t.Artist, cols.Artist)
 		albumStr := text.Pad(t.Album, cols.Album)

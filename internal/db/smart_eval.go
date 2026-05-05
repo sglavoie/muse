@@ -13,7 +13,7 @@ func (d *DB) EvalSmartPlaylist(q SmartPlaylistQuery) ([]PlaylistTrackRow, error)
 	var args []any
 
 	sb.WriteString(`
-		SELECT 0, 0, t.title, t.artist, t.album, t.duration_ms, t.hash, t.path
+		SELECT 0, 0, t.title, t.artist, t.album, t.duration_ms, t.hash, t.path, t.track_number, t.disc_number
 		FROM tracks t
 		WHERE t.missing = 0`)
 
@@ -41,7 +41,7 @@ func (d *DB) EvalSmartPlaylist(q SmartPlaylistQuery) ([]PlaylistTrackRow, error)
 	var result []PlaylistTrackRow
 	for rows.Next() {
 		var r PlaylistTrackRow
-		if err := rows.Scan(&r.ID, &r.Position, &r.Title, &r.Artist, &r.Album, &r.DurationMs, &r.Hash, &r.Path); err != nil {
+		if err := rows.Scan(&r.ID, &r.Position, &r.Title, &r.Artist, &r.Album, &r.DurationMs, &r.Hash, &r.Path, &r.TrackNumber, &r.DiscNumber); err != nil {
 			return nil, fmt.Errorf("db: eval smart playlist row: %w", err)
 		}
 		result = append(result, r)

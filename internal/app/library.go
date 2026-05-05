@@ -75,6 +75,8 @@ func LoadLibrary(ctx context.Context, database *db.DB, writer LibraryWriter,
 			SizeBytes:    row.SizeBytes,
 			PlayCount:    int(row.PlayCount),
 			LastPlayedAt: row.LastPlayedAt,
+			TrackNumber:  row.TrackNumber,
+			DiscNumber:   row.DiscNumber,
 		}
 		known[row.Path] = library.KnownFile{
 			ModTime:   row.ModTime,

@@ -14,7 +14,7 @@ func (d *DB) ReadCachedMix(mixID, limit int) ([]library.Track, error) {
 	rows, err := d.Query(`
 		SELECT t.path, t.hash, t.artist, t.title, t.album, t.genre,
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
-		       t.play_count, t.last_played_at
+		       t.play_count, t.last_played_at, t.track_number, t.disc_number
 		FROM tracks t
 		JOIN recommendation_cache rc ON rc.track_hash = t.hash
 		WHERE rc.mix_id = ? AND t.missing = 0

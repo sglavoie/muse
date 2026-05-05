@@ -14,4 +14,6 @@ type Track struct {
 	SizeBytes    int64   // file size in bytes
 	PlayCount    int
 	LastPlayedAt int64 // Unix timestamp of most recent play (0 if never played)
+	TrackNumber  int   // 0 = unknown
+	DiscNumber   int   // 0 = unknown
 }

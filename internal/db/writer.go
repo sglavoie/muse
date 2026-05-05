@@ -357,21 +357,23 @@ func (w *Writer) UpsertBatch(tracks []library.Track) error {
 				createdAt = now
 			}
 			_, err := tx.Exec(`
-				INSERT INTO tracks (hash, path, title, artist, album, genre, duration_ms, size_bytes, mod_time, created_at, updated_at)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				INSERT INTO tracks (hash, path, title, artist, album, genre, duration_ms, size_bytes, mod_time, created_at, updated_at, track_number, disc_number)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				ON CONFLICT(hash) DO UPDATE SET
-					path        = excluded.path,
-					title       = CASE WHEN tracks.user_edited = 0 THEN excluded.title ELSE tracks.title END,
-					artist      = CASE WHEN tracks.user_edited = 0 THEN excluded.artist ELSE tracks.artist END,
-					album       = CASE WHEN tracks.user_edited = 0 THEN excluded.album ELSE tracks.album END,
-					genre       = CASE WHEN tracks.user_edited = 0 THEN excluded.genre ELSE tracks.genre END,
-					duration_ms = CASE WHEN excluded.duration_ms > 0 THEN excluded.duration_ms ELSE tracks.duration_ms END,
-					size_bytes  = excluded.size_bytes,
-					mod_time    = excluded.mod_time,
+					path         = excluded.path,
+					title        = CASE WHEN tracks.user_edited = 0 THEN excluded.title ELSE tracks.title END,
+					artist       = CASE WHEN tracks.user_edited = 0 THEN excluded.artist ELSE tracks.artist END,
+					album        = CASE WHEN tracks.user_edited = 0 THEN excluded.album ELSE tracks.album END,
+					genre        = CASE WHEN tracks.user_edited = 0 THEN excluded.genre ELSE tracks.genre END,
+					track_number = CASE WHEN tracks.user_edited = 0 THEN excluded.track_number ELSE tracks.track_number END,
+					disc_number  = CASE WHEN tracks.user_edited = 0 THEN excluded.disc_number ELSE tracks.disc_number END,
+					duration_ms  = CASE WHEN excluded.duration_ms > 0 THEN excluded.duration_ms ELSE tracks.duration_ms END,
+					size_bytes   = excluded.size_bytes,
+					mod_time     = excluded.mod_time,
 					missing            = 0,
 					duration_verified  = 0,
 					updated_at         = excluded.updated_at`,
-				t.Hash, t.Path, t.Title, t.Artist, t.Album, t.Genre, durationMs, t.SizeBytes, t.ModTime, createdAt, now,
+				t.Hash, t.Path, t.Title, t.Artist, t.Album, t.Genre, durationMs, t.SizeBytes, t.ModTime, createdAt, now, t.TrackNumber, t.DiscNumber,
 			)
 			if err != nil {
 				return err

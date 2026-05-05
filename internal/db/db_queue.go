@@ -19,6 +19,8 @@ type QueueRow struct {
 	DurationMs     int64
 	Position       int64
 	SourcePlaylist string
+	TrackNumber    int
+	DiscNumber     int
 }
 
 // SessionRow holds the persisted session state from the single session row.
@@ -42,7 +44,7 @@ type SessionRow struct {
 func (d *DB) ReadQueue() ([]QueueRow, error) {
 	rows, err := d.Query(`
 		SELECT q.id, t.hash, t.path, t.artist, t.title, t.album, q.missing,
-		       t.duration_ms, q.position, q.source_playlist
+		       t.duration_ms, q.position, q.source_playlist, t.track_number, t.disc_number
 		FROM queue q
 		JOIN tracks t ON q.track_hash = t.hash
 		WHERE q.deleted_at IS NULL
@@ -57,7 +59,7 @@ func (d *DB) ReadQueue() ([]QueueRow, error) {
 	for rows.Next() {
 		var row QueueRow
 		var missing int
-		if err := rows.Scan(&row.ID, &row.Hash, &row.Path, &row.Artist, &row.Title, &row.Album, &missing, &row.DurationMs, &row.Position, &row.SourcePlaylist); err != nil {
+		if err := rows.Scan(&row.ID, &row.Hash, &row.Path, &row.Artist, &row.Title, &row.Album, &missing, &row.DurationMs, &row.Position, &row.SourcePlaylist, &row.TrackNumber, &row.DiscNumber); err != nil {
 			return nil, fmt.Errorf("db: read queue row: %w", err)
 		}
 		row.Missing = missing != 0

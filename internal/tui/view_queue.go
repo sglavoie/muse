@@ -21,6 +21,8 @@ type QueueEntry struct {
 	DurationMs     int64  // track duration in milliseconds from the database
 	Position       int64  // gapped-integer queue position from the database
 	SourcePlaylist string // playlist name this entry was enqueued from; empty for individual enqueues
+	TrackNumber    int    // track number from audio metadata; 0 = unknown
+	DiscNumber     int    // disc number from audio metadata; 0 = unknown
 	origIdx        int    // index in the unfiltered/unsorted entries slice; set by filteredEntries
 }
 

@@ -6,6 +6,7 @@ package text
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -75,4 +76,18 @@ func PadLeft(s string, width int) string {
 		return strings.Repeat(" ", width-n) + s
 	}
 	return s
+}
+
+// FormatTrackPos returns the display string for a track's position column.
+// When trackNum is 0 (unknown), it falls back to the sequential fallback index.
+// When discNum > 1, it formats as "D.TT" (e.g. "2.03" for disc 2, track 3).
+// Otherwise it returns the bare track number.
+func FormatTrackPos(trackNum, discNum, fallback int) string {
+	if trackNum == 0 {
+		return strconv.Itoa(fallback)
+	}
+	if discNum > 1 {
+		return fmt.Sprintf("%d.%02d", discNum, trackNum)
+	}
+	return strconv.Itoa(trackNum)
 }
