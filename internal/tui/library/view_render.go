@@ -161,6 +161,8 @@ func (v View) Render() string {
 			markerStr = "● "
 		case isSelected:
 			markerStr = v.Styles.AccentMark.Render("●") + " "
+		case isFocused && isNowPlaying:
+			markerStr = "♪ "
 		case isFocused:
 			markerStr = "▎ "
 		case isNowPlaying:

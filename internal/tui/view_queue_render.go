@@ -91,10 +91,12 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			markerStr = "● "
 		case e.Selected:
 			markerStr = s.AccentMark.Render("●") + " "
+		case isFocused && isNowPlaying:
+			markerStr = npIcon + " "
 		case isFocused:
 			markerStr = "▎ "
 		case isNowPlaying:
-			markerStr = npStyle.Render(npIcon) + " "
+			markerStr = npIcon + " "
 		default:
 			markerStr = "  "
 		}
@@ -167,7 +169,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			if isAlbumFav {
 				albumStr = npFavAlbum.Background(s.NowPlayingBg).Render(padQueue(e.Album, albumWidth))
 			}
-			markerStr = nb.Render(markerStr)
+			markerStr = npStyle.Background(s.NowPlayingBg).Render(npIcon) + nb.Render(" ")
 			pos = nb.Render(pos)
 			source = nb.Render(source)
 			dur = nb.Render(dur)

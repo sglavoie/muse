@@ -181,6 +181,8 @@ func (v View) renderTrackRows(items []library.Track) string {
 			marker = "● "
 		case selected:
 			marker = v.Styles.AccentMark.Render("●") + " "
+		case isFocused && isNowPlaying:
+			marker = "♪ "
 		case isFocused:
 			marker = "▎ "
 		case isNowPlaying:

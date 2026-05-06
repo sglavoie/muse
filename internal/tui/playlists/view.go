@@ -393,6 +393,8 @@ func (v View) renderTracks() string {
 			markerStr = "● " // plain glyph; outer accent wrap provides styling
 		case isSelected:
 			markerStr = v.Styles.AccentMark.Render("●") + " "
+		case isFocused && isNowPlaying:
+			markerStr = "♪ "
 		case isFocused:
 			markerStr = "▎ "
 		case isNowPlaying:
