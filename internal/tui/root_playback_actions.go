@@ -97,11 +97,19 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 				m.statusBar.notify("Queue is empty")
 				return m, nil, true
 			default:
-				if err := m.player.Play(); err != nil {
-					slog.Warn("play failed", "err", err)
-					m.statusBar.notify("Play failed: " + err.Error())
+				if m.playback.state == PlaybackPaused {
+					if err := m.player.Play(); err != nil {
+						slog.Warn("play failed", "err", err)
+						m.statusBar.notify("Play failed: " + err.Error())
+					} else {
+						m.playback.state = PlaybackPlaying
+					}
 				} else {
-					m.playback.state = PlaybackPlaying
+					idx := m.playback.currentIndex
+					if idx < 0 || idx >= len(m.queue.entries) {
+						idx = 0
+					}
+					return m, func() tea.Msg { return PlayQueueIndexMsg{Index: idx} }, true
 				}
 			}
 		}

@@ -309,21 +309,27 @@ func TestPlayPauseOnEmptyQueueStaysIdle(t *testing.T) {
 }
 
 // TestPlayPauseWithTracksInQueuePlaysNormally verifies that space to play when
-// the queue has entries proceeds normally (no empty-queue hint).
+// the queue has entries proceeds normally (no empty-queue hint). From idle,
+// playback is started via PlayQueueIndexMsg dispatch rather than a direct
+// Play() call.
 func TestPlayPauseWithTracksInQueuePlaysNormally(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
 	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
 	m.playback.state = PlaybackIdle
 
-	next, _ := m.Update(tea.KeyPressMsg{Code: ' ', Text: " "})
+	next, cmd := m.Update(tea.KeyPressMsg{Code: ' ', Text: " "})
 	nm := next.(Model)
 
 	if nm.statusBar.notification.msg == "Queue is empty — enqueue tracks from Library (key 1)" {
 		t.Fatal("empty-queue hint must not appear when queue has entries")
 	}
-	if nm.playback.state != PlaybackPlaying {
-		t.Fatalf("expected PlaybackPlaying after play with non-empty queue, got %v", nm.playback.state)
+	if cmd == nil {
+		t.Fatal("expected a Cmd dispatching PlayQueueIndexMsg, got nil")
+	}
+	msg := cmd()
+	if _, ok := msg.(PlayQueueIndexMsg); !ok {
+		t.Fatalf("expected PlayQueueIndexMsg, got %T", msg)
 	}
 }
 

@@ -276,6 +276,9 @@ func (m Model) Volume() int { return m.playback.volume }
 // PlaybackCurrentIndex returns the current queue index for the playing track.
 func (m Model) PlaybackCurrentIndex() int { return m.playback.currentIndex }
 
+// PlaybackStateValue returns the current playback state.
+func (m Model) PlaybackStateValue() PlaybackState { return m.playback.state }
+
 // StatusBarArtist returns the current status bar artist string.
 func (m Model) StatusBarArtist() string { return m.statusBar.artist }
 

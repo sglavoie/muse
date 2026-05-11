@@ -102,10 +102,6 @@ func ApplyRestoredSession(
 		slog.Debug("startup: set shuffle", "err", err)
 	}
 
-	if len(restored.QueueEntries) > 0 {
-		tui.WithPlaybackState(tui.PlaybackPaused)(model)
-	}
-
 	if restored.CurrentHash != "" {
 		tui.WithCurrentTrackHash(restored.CurrentHash)(model)
 		for i, pt := range restored.PlayerTracks {

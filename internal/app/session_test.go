@@ -142,6 +142,11 @@ func TestApplyRestoredSession_FullSession(t *testing.T) {
 		t.Errorf("model PlaybackCurrentIndex = %d, want 1", got)
 	}
 
+	// Playback state should remain idle (no track loaded in mpv yet).
+	if got := model.PlaybackStateValue(); got != tui.PlaybackIdle {
+		t.Errorf("playback state = %v, want PlaybackIdle", got)
+	}
+
 	// Status bar populated from the current track's queue entry.
 	if got := model.StatusBarArtist(); got != "Artist B" {
 		t.Errorf("status bar artist = %q, want %q", got, "Artist B")
