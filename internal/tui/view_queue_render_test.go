@@ -113,7 +113,7 @@ func TestQueueRenderSelectedNonFocusedRowUsesAccent(t *testing.T) {
 	s := styles.NewStyles(true)
 	out := v.render(s, -1, PlaybackIdle, nil, nil, nil)
 
-	want := styledText(s.AccentMark, "●")
+	want := styledText(s.AccentMark.Background(s.SelectionBg), "●")
 	if ansi.Strip(want) == want {
 		return
 	}

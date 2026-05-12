@@ -136,6 +136,31 @@ func TestFocusNowPlayingMovesCursorToCurrentTrack(t *testing.T) {
 	}
 }
 
+// TestFocusNowPlayingFromOtherView verifies that pressing "f" from a non-Queue
+// view switches to the Queue view and focuses the currently playing track.
+func TestFocusNowPlayingFromOtherView(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewLibrary
+	m.queue.entries = []QueueEntry{
+		{Path: "/music/a.flac", Hash: "aaa", Display: "A"},
+		{Path: "/music/b.flac", Hash: "bbb", Display: "B"},
+		{Path: "/music/c.flac", Hash: "ccc", Display: "C"},
+	}
+	m.playback.currentHash = "bbb"
+	m.playback.currentIndex = 1
+	m.queue.cursor = 0
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'f', Text: "f"})
+	nm := next.(Model)
+
+	if nm.activeView != viewQueue {
+		t.Errorf("f from Library: expected activeView=viewQueue, got %d", nm.activeView)
+	}
+	if nm.queue.cursor != 1 {
+		t.Errorf("f from Library: expected cursor 1 (track bbb), got %d", nm.queue.cursor)
+	}
+}
+
 // TestFocusNowPlayingNoOpWhenNothingPlaying verifies that pressing "f" does
 // nothing when no track is currently playing (empty currentTrackHash).
 func TestFocusNowPlayingNoOpWhenNothingPlaying(t *testing.T) {

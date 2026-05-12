@@ -316,7 +316,7 @@ func (v View) renderTracks() string {
 		case isSelected && isFocused:
 			markerStr = "● "
 		case isSelected:
-			markerStr = v.Styles.AccentMark.Render("●") + " "
+			markerStr = "● "
 		case isFocused && isNowPlaying:
 			markerStr = "♪ "
 		case isFocused:
@@ -361,7 +361,12 @@ func (v View) renderTracks() string {
 				if !isTrackFav {
 					titleStr = styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(titleStr)
 				}
-				markerPart := zb.Render(markerStr)
+				var markerPart string
+				if isSelected {
+					markerPart = v.Styles.AccentMark.Background(rowBg).Render("●") + zb.Render(" ")
+				} else {
+					markerPart = zb.Render(markerStr)
+				}
 				artistPart := styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(artistStr)
 				albumPart := styles.WithZebraBg(v.Styles.TextSecondary, rowBg, true).Render(albumStr)
 				durPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(durStr)

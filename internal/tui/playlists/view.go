@@ -392,7 +392,7 @@ func (v View) renderTracks() string {
 		case isSelected && isFocused:
 			markerStr = "● " // plain glyph; outer accent wrap provides styling
 		case isSelected:
-			markerStr = v.Styles.AccentMark.Render("●") + " "
+			markerStr = "● "
 		case isFocused && isNowPlaying:
 			markerStr = "♪ "
 		case isFocused:
@@ -465,7 +465,12 @@ func (v View) renderTracks() string {
 				if !isAlbumFav {
 					albumStr = styles.WithZebraBg(v.Styles.TextSecondary, rowBg, true).Render(albumStr)
 				}
-				markerPart := zb.Render(markerStr)
+				var markerPart string
+				if isSelected {
+					markerPart = v.Styles.AccentMark.Background(rowBg).Render("●") + zb.Render(" ")
+				} else {
+					markerPart = zb.Render(markerStr)
+				}
 				posPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(pos)
 				durPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(dur)
 				sep := zb.Render(" ")

@@ -116,11 +116,11 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 		case e.Selected && isFocused:
 			markerStr = "● "
 		case e.Selected:
-			markerStr = s.AccentMark.Render("●") + " "
+			markerStr = "● "
 		case isFocused && isNowPlaying:
 			markerStr = npIcon + " "
 		case isFocused:
-			markerStr = s.AccentMark.Render("▎") + " "
+			markerStr = "▎ "
 		case isNowPlaying:
 			markerStr = npIcon + " "
 		default:
@@ -248,7 +248,11 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 				if !isAlbumFav {
 					albumStr = styles.WithZebraBg(s.TextSecondary, rowBg, true).Render(albumStr)
 				}
-				markerStr = rb.Render(markerStr)
+				if e.Selected {
+					markerStr = s.AccentMark.Background(rowBg).Render("●") + rb.Render(" ")
+				} else {
+					markerStr = rb.Render(markerStr)
+				}
 				pos = styles.WithZebraBg(s.TextTertiary, rowBg, true).Render(pos)
 				source = rb.Render(source)
 				dur = styles.WithZebraBg(s.TextTertiary, rowBg, true).Render(dur)

@@ -95,6 +95,7 @@ func helpSections() []helpSection {
 				{"ctrl+g", "Show debug panel"},
 				{"L", "Listening stats"},
 				{"q", "Queue summary"},
+				{"f", "Focus now-playing track in queue"},
 			},
 		},
 		{
@@ -218,7 +219,6 @@ func helpSections() []helpSection {
 				{"v", "Toggle visual line selection mode"},
 				{"C", "Clear queue"},
 				{"K / J", "Move track up / down"},
-				{"f", "Focus now-playing track"},
 				{"S", "Save queue as playlist"},
 				{"ctrl+y", "Yank (copy) focused / selected tracks"},
 				{"ctrl+x", "Cut focused / selected tracks (move on paste)"},

@@ -104,9 +104,9 @@ func (v View) renderList() string {
 		case selected && isFocused:
 			marker = "● "
 		case selected:
-			marker = v.Styles.AccentMark.Render("●") + " "
+			marker = "● "
 		case isFocused:
-			marker = v.Styles.AccentMark.Render("▎") + " "
+			marker = "▎ "
 		default:
 			marker = "  "
 		}
@@ -120,9 +120,12 @@ func (v View) renderList() string {
 		case isFocused:
 			line = v.Styles.Accent.Render(line)
 		case selected && isFav:
-			line = styles.WithZebraBg(favStyle, v.Styles.SelectionBg, true).Render(line)
+			sb := lipgloss.NewStyle().Background(v.Styles.SelectionBg)
+			line = v.Styles.AccentMark.Background(v.Styles.SelectionBg).Render("●") + sb.Render(" ") +
+				styles.WithZebraBg(favStyle, v.Styles.SelectionBg, true).Render(display)
 		case selected:
-			line = lipgloss.NewStyle().Background(v.Styles.SelectionBg).Render(line)
+			sb := lipgloss.NewStyle().Background(v.Styles.SelectionBg)
+			line = v.Styles.AccentMark.Background(v.Styles.SelectionBg).Render("●") + sb.Render(" "+display)
 		case isFav:
 			line = styles.WithZebraBg(favStyle, v.Styles.ZebraBg, isOdd).Render(line)
 		case isOdd:
@@ -192,7 +195,7 @@ func (v View) renderTrackRows(items []library.Track) string {
 		case selected && isFocused:
 			marker = "● "
 		case selected:
-			marker = v.Styles.AccentMark.Render("●") + " "
+			marker = "● "
 		case isFocused && isNowPlaying:
 			marker = "♪ "
 		case isFocused:
@@ -269,7 +272,12 @@ func (v View) renderTrackRows(items []library.Track) string {
 				if !isAlbumFav {
 					albumStr = styles.WithZebraBg(v.Styles.TextSecondary, rowBg, true).Render(albumStr)
 				}
-				markerPart := rb.Render(marker)
+				var markerPart string
+				if selected {
+					markerPart = v.Styles.AccentMark.Background(rowBg).Render("●") + rb.Render(" ")
+				} else {
+					markerPart = rb.Render(marker)
+				}
 				posPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(pos)
 				durPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(dur)
 				playsPart := rb.Render(plays)

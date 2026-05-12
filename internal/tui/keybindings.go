@@ -63,6 +63,7 @@ const (
 	actionTagPicker        // 't': open tag picker overlay
 	actionTagFilter        // ctrl+t: open/clear cross-view tag filter
 	actionRadioToggle      // 'A': toggle radio / auto-DJ mode
+	actionFocusNowPlaying  // 'f': jump cursor to the currently playing track
 
 	actionSwitchBrowse
 	actionSwitchArtists  // legacy — no longer bound to a key; kept for existing dispatch cases
@@ -97,7 +98,6 @@ const (
 	actionMoveTrackUp         // 'K': move selected track one position earlier
 	actionMoveTrackDown       // 'J': move selected track one position later
 	actionSaveQueueAsPlaylist // 'S': save entire queue as a new playlist
-	actionFocusNowPlaying     // 'f': jump cursor to the currently playing track
 	actionYank                // ctrl+y: copy focused/selected tracks to yank buffer
 	actionPaste               // ctrl+p: paste yanked tracks below cursor
 	actionCut                 // ctrl+x: cut focused/selected tracks (move on paste)
@@ -229,6 +229,7 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "t", actionTagPicker)
 	r.register(contextGlobal, "ctrl+t", actionTagFilter)
 	r.register(contextGlobal, "A", actionRadioToggle)
+	r.register(contextGlobal, "f", actionFocusNowPlaying)
 
 	// Library-local bindings.
 	r.registerNavigation(contextLibrary)
@@ -254,7 +255,6 @@ func newRegistry() Registry {
 	r.register(contextQueue, "K", actionMoveTrackUp)
 	r.register(contextQueue, "J", actionMoveTrackDown)
 	r.register(contextQueue, "S", actionSaveQueueAsPlaylist)
-	r.register(contextQueue, "f", actionFocusNowPlaying)
 	r.register(contextQueue, "ctrl+y", actionYank)
 	r.register(contextQueue, "ctrl+x", actionCut)
 	r.register(contextQueue, "ctrl+p", actionPaste)
