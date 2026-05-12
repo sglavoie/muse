@@ -100,28 +100,28 @@ func (m Model) watchSyncQueueMetadata(tracks []library.Track) Model {
 	return m
 }
 
-// watchSyncHistoryMetadata refreshes history track metadata so the history
-// view reflects watcher-detected changes.
+// watchSyncHistoryMetadata refreshes history track metadata so the library
+// History mode view reflects watcher-detected changes.
 func (m Model) watchSyncHistoryMetadata(tracks []library.Track) Model {
-	if len(m.history.sourceTracks) == 0 {
+	if m.library.mode != LibraryModeHistory || len(m.library.sourceTracks) == 0 {
 		return m
 	}
 	for _, t := range tracks {
-		for i := range m.history.sourceTracks {
-			if m.history.sourceTracks[i].Hash == t.Hash {
-				m.history.sourceTracks[i].Title = t.Title
-				m.history.sourceTracks[i].Artist = t.Artist
-				m.history.sourceTracks[i].Album = t.Album
-				m.history.sourceTracks[i].Genre = t.Genre
-				m.history.sourceTracks[i].Duration = t.Duration
+		for i := range m.library.sourceTracks {
+			if m.library.sourceTracks[i].Hash == t.Hash {
+				m.library.sourceTracks[i].Title = t.Title
+				m.library.sourceTracks[i].Artist = t.Artist
+				m.library.sourceTracks[i].Album = t.Album
+				m.library.sourceTracks[i].Genre = t.Genre
+				m.library.sourceTracks[i].Duration = t.Duration
 			}
 		}
 	}
-	if m.history.sortState.Field != SortDefault {
-		m.history = m.history.recomputeSortedTracks()
+	if m.library.sortState.Field != SortDefault {
+		m.library = m.library.recomputeSortedTracks()
 	}
-	if m.history.filter.Text != "" {
-		m.history = m.history.rebuildFilterCache()
+	if m.library.filter.Text != "" {
+		m.library = m.library.rebuildFilterCache()
 	}
 	return m
 }

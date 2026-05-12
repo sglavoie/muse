@@ -120,10 +120,7 @@ func (m Model) handleSettingsSavedMsg(msg settingsSavedMsg) Model {
 	if msg.err != nil {
 		m.statusBar.notify("Settings save failed: " + msg.err.Error())
 	} else {
-		m.statusBar.notification = newNotificationFor(
-			"Settings saved",
-			time.Duration(m.cfg.TransientDurationSecs)*time.Second,
-		)
+		m.statusBar.pushMsg("Settings saved", time.Duration(m.cfg.TransientDurationSecs)*time.Second, notifNormal)
 	}
 	return m
 }

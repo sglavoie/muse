@@ -226,13 +226,13 @@ func TestPlaybackEndedMsgShowsQueueFinishedWhenEmptyRepeatOff(t *testing.T) {
 	next, _ := m.Update(PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.statusBar.notification.msg != "Queue finished" {
-		t.Fatalf("expected 'Queue finished' notification, got %q", nm.statusBar.notification.msg)
+	if nm.statusBar.topNotification().msg != "Queue finished" {
+		t.Fatalf("expected 'Queue finished' notification, got %q", nm.statusBar.topNotification().msg)
 	}
-	if nm.statusBar.notification.expiresAt.IsZero() {
+	if nm.statusBar.topNotification().expiresAt.IsZero() {
 		t.Fatal("Queue finished notification must have a non-zero expiry")
 	}
-	if nm.statusBar.notification.expiresAt.Before(time.Now().Add(4 * time.Second)) {
+	if nm.statusBar.topNotification().expiresAt.Before(time.Now().Add(4 * time.Second)) {
 		t.Fatal("Queue finished notification expiry must be ~5 seconds from now")
 	}
 }
@@ -249,8 +249,8 @@ func TestPlaybackEndedMsgShowsNotificationWhenRepeatAllFallsThrough(t *testing.T
 	next, _ := m.Update(PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.statusBar.notification.msg != "Queue finished" {
-		t.Fatalf("expected 'Queue finished' when repeat-all falls through, got %q", nm.statusBar.notification.msg)
+	if nm.statusBar.topNotification().msg != "Queue finished" {
+		t.Fatalf("expected 'Queue finished' when repeat-all falls through, got %q", nm.statusBar.topNotification().msg)
 	}
 }
 
@@ -268,8 +268,8 @@ func TestPlaybackEndedMsgNoSoundWhenRepeatNotOff(t *testing.T) {
 	nm := next.(Model)
 
 	// Notification is shown (fallthrough behavior).
-	if nm.statusBar.notification.msg != "Queue finished" {
-		t.Fatalf("expected 'Queue finished', got %q", nm.statusBar.notification.msg)
+	if nm.statusBar.topNotification().msg != "Queue finished" {
+		t.Fatalf("expected 'Queue finished', got %q", nm.statusBar.topNotification().msg)
 	}
 }
 
@@ -285,8 +285,8 @@ func TestPlaybackEndedMsgShowsNotificationWithEntriesPresent(t *testing.T) {
 	next, _ := m.Update(PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.statusBar.notification.msg != "Queue finished" {
-		t.Fatalf("expected %q, got %q", "Queue finished", nm.statusBar.notification.msg)
+	if nm.statusBar.topNotification().msg != "Queue finished" {
+		t.Fatalf("expected %q, got %q", "Queue finished", nm.statusBar.topNotification().msg)
 	}
 }
 
@@ -303,8 +303,8 @@ func TestPlayPauseOnEmptyQueueStaysIdle(t *testing.T) {
 	if nm.playback.state != PlaybackIdle {
 		t.Fatalf("playback state must remain idle, got %v", nm.playback.state)
 	}
-	if nm.statusBar.notification.msg != "Queue is empty" {
-		t.Fatalf("expected 'Queue is empty' notification, got %q", nm.statusBar.notification.msg)
+	if nm.statusBar.topNotification().msg != "Queue is empty" {
+		t.Fatalf("expected 'Queue is empty' notification, got %q", nm.statusBar.topNotification().msg)
 	}
 }
 
@@ -321,7 +321,7 @@ func TestPlayPauseWithTracksInQueuePlaysNormally(t *testing.T) {
 	next, cmd := m.Update(tea.KeyPressMsg{Code: ' ', Text: " "})
 	nm := next.(Model)
 
-	if nm.statusBar.notification.msg == "Queue is empty — enqueue tracks from Library (key 1)" {
+	if nm.statusBar.topNotification().msg == "Queue is empty — enqueue tracks from Library (key 1)" {
 		t.Fatal("empty-queue hint must not appear when queue has entries")
 	}
 	if cmd == nil {
@@ -339,16 +339,15 @@ func TestPlayPauseWithTracksInQueuePlaysNormally(t *testing.T) {
 func TestTransientNotificationClearsAfterTickPastExpiry(t *testing.T) {
 	m := New(context.Background())
 	// Set a notification that is already expired.
-	m.statusBar.notification = transientNotification{
-		msg:       "some transient message",
-		expiresAt: time.Now().Add(-1 * time.Second),
+	m.statusBar.notifications = []transientNotification{
+		{msg: "some transient message", expiresAt: time.Now().Add(-1 * time.Second)},
 	}
 
 	next, _ := m.Update(tickMsg{})
 	nm := next.(Model)
 
-	if nm.statusBar.notification.msg != "" {
-		t.Fatalf("notification must be cleared after tick past expiry, got %q", nm.statusBar.notification.msg)
+	if nm.statusBar.topNotification().msg != "" {
+		t.Fatalf("notification must be cleared after tick past expiry, got %q", nm.statusBar.topNotification().msg)
 	}
 }
 
@@ -357,16 +356,15 @@ func TestTransientNotificationClearsAfterTickPastExpiry(t *testing.T) {
 func TestTransientNotificationPersistsBeforeExpiry(t *testing.T) {
 	m := New(context.Background())
 	// Set a notification that expires well in the future.
-	m.statusBar.notification = transientNotification{
-		msg:       "fresh message",
-		expiresAt: time.Now().Add(10 * time.Second),
+	m.statusBar.notifications = []transientNotification{
+		{msg: "fresh message", expiresAt: time.Now().Add(10 * time.Second)},
 	}
 
 	next, _ := m.Update(tickMsg{})
 	nm := next.(Model)
 
-	if nm.statusBar.notification.msg != "fresh message" {
-		t.Fatalf("notification must not be cleared before expiry, got %q", nm.statusBar.notification.msg)
+	if nm.statusBar.topNotification().msg != "fresh message" {
+		t.Fatalf("notification must not be cleared before expiry, got %q", nm.statusBar.topNotification().msg)
 	}
 }
 
@@ -378,19 +376,18 @@ func TestNewerNotificationOverwritesOlderResettingExpiry(t *testing.T) {
 
 	// First notification, nearly expired.
 	oldExpiry := time.Now().Add(500 * time.Millisecond)
-	m.statusBar.notification = transientNotification{
-		msg:       "old message",
-		expiresAt: oldExpiry,
+	m.statusBar.notifications = []transientNotification{
+		{msg: "old message", expiresAt: oldExpiry},
 	}
 
 	// Second notification via PlayerStatusMsg overwrites the first.
 	next, _ := m.Update(PlayerStatusMsg{Text: "new message"})
 	nm := next.(Model)
 
-	if nm.statusBar.notification.msg != "new message" {
-		t.Fatalf("new notification must overwrite old, got %q", nm.statusBar.notification.msg)
+	if nm.statusBar.topNotification().msg != "new message" {
+		t.Fatalf("new notification must overwrite old, got %q", nm.statusBar.topNotification().msg)
 	}
-	if !nm.statusBar.notification.expiresAt.After(oldExpiry) {
+	if !nm.statusBar.topNotification().expiresAt.After(oldExpiry) {
 		t.Fatal("new notification must reset expiry to a later time than the old one")
 	}
 }
@@ -406,7 +403,7 @@ func TestDequeueShowsUndoHintInStatusBar(t *testing.T) {
 	next, _ := m.Update(DequeueTrackMsg{Index: 0})
 	nm := next.(Model)
 
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Fatal("dequeue: status bar must show an undo hint immediately after DequeueTrackMsg")
 	}
 	v := nm.View()
@@ -427,7 +424,7 @@ func TestClearQueueShowsUndoHintInStatusBar(t *testing.T) {
 	next, _ := m.Update(ClearQueueMsg{})
 	nm := next.(Model)
 
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Fatal("clear queue: status bar must show an undo hint immediately after ClearQueueMsg")
 	}
 	v := nm.View()

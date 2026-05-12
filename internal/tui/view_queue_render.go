@@ -94,7 +94,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 		case isFocused && isNowPlaying:
 			markerStr = npIcon + " "
 		case isFocused:
-			markerStr = "▎ "
+			markerStr = s.AccentMark.Render("▎") + " "
 		case isNowPlaying:
 			markerStr = npIcon + " "
 		default:

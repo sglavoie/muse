@@ -52,8 +52,8 @@ func TestUndoRemoveFavorite_SingleFromFavoritesView(t *testing.T) {
 	if nm.undo.slot.action != nil {
 		t.Fatal("undo slot must be cleared after successful undo")
 	}
-	if !strings.Contains(nm.statusBar.notification.msg, "artist") {
-		t.Errorf("expected notification mentioning 'artist', got %q", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "artist") {
+		t.Errorf("expected notification mentioning 'artist', got %q", nm.statusBar.topNotification().msg)
 	}
 }
 
@@ -198,8 +198,8 @@ func TestUndoRemoveFavorite_Expired(t *testing.T) {
 	if len(nm.favorites.artists) != 1 {
 		t.Fatalf("artists list must be unchanged, got %v", nm.favorites.artists)
 	}
-	if !strings.Contains(nm.statusBar.notification.msg, "Nothing to undo") {
-		t.Errorf("expected 'Nothing to undo' notification, got %q", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "Nothing to undo") {
+		t.Errorf("expected 'Nothing to undo' notification, got %q", nm.statusBar.topNotification().msg)
 	}
 }
 

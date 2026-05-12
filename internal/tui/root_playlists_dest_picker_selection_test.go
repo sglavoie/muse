@@ -94,39 +94,29 @@ func TestDestPickerClearsFavoritesSelection(t *testing.T) {
 
 // TestDestPickerClearsRecentlyAddedAndHistorySelection verifies that
 // dismissing, creating from, or confirming a destination picker clears
-// the recentlyAdded and history views' bulk selections.
+// the library view's bulk selections (used for both Recently Added and History modes).
 func TestDestPickerClearsRecentlyAddedAndHistorySelection(t *testing.T) {
 	m := New(context.Background())
-	m.recentlyAdded.selectedHashes = map[string]struct{}{"h1": {}}
-	m.history.selectedHashes = map[string]struct{}{"h2": {}}
+	m.library.selectedHashes = map[string]struct{}{"h1": {}}
 
 	t.Run("dismissed", func(t *testing.T) {
 		got := m.handleDestinationPickerDismissedMsg()
-		if got.recentlyAdded.selectedHashes != nil {
-			t.Error("recentlyAdded selectedHashes should be nil after dismiss")
-		}
-		if got.history.selectedHashes != nil {
-			t.Error("history selectedHashes should be nil after dismiss")
+		if got.library.selectedHashes != nil {
+			t.Error("library selectedHashes should be nil after dismiss")
 		}
 	})
 
 	t.Run("create", func(t *testing.T) {
 		got := m.handleDestinationPickerCreateMsg()
-		if got.recentlyAdded.selectedHashes != nil {
-			t.Error("recentlyAdded selectedHashes should be nil after create")
-		}
-		if got.history.selectedHashes != nil {
-			t.Error("history selectedHashes should be nil after create")
+		if got.library.selectedHashes != nil {
+			t.Error("library selectedHashes should be nil after create")
 		}
 	})
 
 	t.Run("picked", func(t *testing.T) {
 		got, _ := m.handleDestinationPickedMsg(pltui.DestinationPickedMsg{IsQueue: true})
-		if got.recentlyAdded.selectedHashes != nil {
-			t.Error("recentlyAdded selectedHashes should be nil after pick")
-		}
-		if got.history.selectedHashes != nil {
-			t.Error("history selectedHashes should be nil after pick")
+		if got.library.selectedHashes != nil {
+			t.Error("library selectedHashes should be nil after pick")
 		}
 	})
 }

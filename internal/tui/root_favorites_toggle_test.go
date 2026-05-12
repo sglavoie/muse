@@ -157,17 +157,18 @@ func TestToggleFavorite_HistorySingle(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewHistory
-	m.history.sourceTracks = []library.Track{
+	m.library.mode = LibraryModeHistory
+	m.activeView = viewLibrary
+	m.library.sourceTracks = []library.Track{
 		{Hash: "h1", Title: "Song A"},
 		{Hash: "h2", Title: "Song B"},
 	}
-	m.history = m.history.recomputeSortedTracks()
-	m.history.cursor = 0
+	m.library = m.library.recomputeSortedTracks()
+	m.library.cursor = 0
 
 	_, cmd, handled := m.handleToggleFavorite()
 	if !handled {
-		t.Fatal("handleToggleFavorite should handle viewHistory")
+		t.Fatal("handleToggleFavorite should handle viewLibrary (history mode)")
 	}
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd")
@@ -185,22 +186,23 @@ func TestToggleFavorite_HistoryBulk(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewHistory
-	m.history.sourceTracks = []library.Track{
+	m.library.mode = LibraryModeHistory
+	m.activeView = viewLibrary
+	m.library.sourceTracks = []library.Track{
 		{Hash: "h1", Title: "Song A"},
 		{Hash: "h2", Title: "Song B"},
 	}
-	m.history = m.history.recomputeSortedTracks()
-	m.history.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.library = m.library.recomputeSortedTracks()
+	m.library.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	nm, cmd, handled := m.handleToggleFavorite()
 	if !handled {
-		t.Fatal("handleToggleFavorite should handle viewHistory with bulk selection")
+		t.Fatal("handleToggleFavorite should handle viewLibrary (history mode) with bulk selection")
 	}
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd")
 	}
-	if nm.history.selectedHashes != nil {
+	if nm.library.selectedHashes != nil {
 		t.Fatal("selectedHashes should be nil after bulk toggle")
 	}
 	msg := cmd().(favoriteToggledMsg)

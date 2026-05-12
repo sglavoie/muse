@@ -5,19 +5,17 @@ package tui
 type bindingContext int
 
 const (
-	contextGlobal        bindingContext = iota // applies in every view
-	contextLibrary                             // applies only in the Library view
-	contextRecentlyAdded                       // applies only in the Recently Added view
-	contextPlaylists                           // applies only in the Playlists view
-	contextQueue                               // applies only in the Queue view
-	contextArtists                             // applies only in the Artists view
-	contextAlbums                              // applies only in the Albums view
-	contextFavorites                           // applies only in the Favorites view
-	contextGenres                              // applies only in the Genres view
-	contextHistory                             // applies only in the History view
-	contextTags                                // applies only in the Tags view
-	contextModals                              // applies only when a modal is active
-	contextMixes                               // applies only in the Mixes view
+	contextGlobal    bindingContext = iota // applies in every view
+	contextLibrary                         // applies only in the Library view
+	contextPlaylists                       // applies only in the Playlists view
+	contextQueue                           // applies only in the Queue view
+	contextArtists                         // applies only in the Artists view
+	contextAlbums                          // applies only in the Albums view
+	contextFavorites                       // applies only in the Favorites view
+	contextGenres                          // applies only in the Genres view
+	contextTags                            // applies only in the Tags view
+	contextModals                          // applies only when a modal is active
+	contextMixes                           // applies only in the Mixes view
 )
 
 // action represents a named TUI action that a key binding triggers.
@@ -68,9 +66,8 @@ const (
 	actionSwitchArtists
 	actionSwitchAlbums
 	actionSwitchFavorites
-	actionSwitchRecentlyAdded
-	actionSwitchHistory
 	actionToggleFavorite
+	actionLibraryModeNext // ctrl+l: cycle Library sub-mode (All → Recent → History → All)
 	actionGoTo // 'o': open Go To navigation popup
 
 	// Favorites-local actions.
@@ -144,7 +141,7 @@ const (
 	actionSortDesc  // shift+down: set sort direction to descending
 
 	// Tags view actions.
-	actionSwitchTags    // '0': switch to Tags view
+	actionSwitchTags    // '8': switch to Tags view
 	actionTagOpen       // enter: drill into tag tracks (or enqueue at TrackLevel)
 	actionTagBack       // backspace/h: go back to tag list
 	actionTagCreate     // 'c': create a new tag (inline input)
@@ -154,7 +151,7 @@ const (
 	actionTagMerge      // 'm': merge focused tag into another (opens merge picker)
 
 	// Mixes-local actions.
-	actionSwitchMixes       // palette / tab; no number-key shortcut (11th view)
+	actionSwitchMixes       // '9': switch to Mixes view
 	actionMixOpen           // enter: drill into mix track list
 	actionMixBack           // esc: go back from track list to mix list
 	actionMixEnqueueAll     // 'E': enqueue all tracks from the focused mix
@@ -200,9 +197,8 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "5", actionSwitchAlbums)
 	r.register(contextGlobal, "6", actionSwitchGenres)
 	r.register(contextGlobal, "7", actionSwitchFavorites)
-	r.register(contextGlobal, "8", actionSwitchRecentlyAdded)
-	r.register(contextGlobal, "9", actionSwitchHistory)
-	r.register(contextGlobal, "0", actionSwitchTags)
+	r.register(contextGlobal, "8", actionSwitchTags)
+	r.register(contextGlobal, "9", actionSwitchMixes)
 	r.register(contextGlobal, "F", actionToggleFavorite)
 	r.register(contextGlobal, "ctrl+r", actionRescan)
 	r.register(contextGlobal, "R", actionResetPosition)
@@ -241,28 +237,7 @@ func newRegistry() Registry {
 	r.register(contextLibrary, "X", actionClearSelection)
 	r.register(contextLibrary, "v", actionVisualMode)
 	r.register(contextLibrary, "a", actionBulkAction)
-
-	// Recently Added-local bindings.
-	r.registerNavigation(contextRecentlyAdded)
-	r.register(contextRecentlyAdded, "enter", actionLibraryEnqueue)
-	r.register(contextRecentlyAdded, "shift+enter", actionLibraryEnqueueReplace)
-	r.register(contextRecentlyAdded, "N", actionPlayNext)
-	r.register(contextRecentlyAdded, "esc", actionLibraryFilterClear)
-	r.register(contextRecentlyAdded, "x", actionBulkSelectionToggle)
-	r.register(contextRecentlyAdded, "X", actionClearSelection)
-	r.register(contextRecentlyAdded, "v", actionVisualMode)
-	r.register(contextRecentlyAdded, "a", actionBulkAction)
-
-	// History-local bindings.
-	r.registerNavigation(contextHistory)
-	r.register(contextHistory, "enter", actionLibraryEnqueue)
-	r.register(contextHistory, "shift+enter", actionLibraryEnqueueReplace)
-	r.register(contextHistory, "N", actionPlayNext)
-	r.register(contextHistory, "esc", actionLibraryFilterClear)
-	r.register(contextHistory, "x", actionBulkSelectionToggle)
-	r.register(contextHistory, "X", actionClearSelection)
-	r.register(contextHistory, "v", actionVisualMode)
-	r.register(contextHistory, "a", actionBulkAction)
+	r.register(contextLibrary, "ctrl+l", actionLibraryModeNext)
 
 	// Queue-local bindings.
 	r.registerNavigation(contextQueue)

@@ -30,15 +30,6 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 			return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
 		}
 
-	case viewRecentlyAdded:
-		if hashes := hashMapToSlice(m.recentlyAdded.selectedHashes); len(hashes) > 0 {
-			m.recentlyAdded.selectedHashes = nil
-			return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
-		}
-		if t, ok := m.recentlyAdded.view().FocusedTrack(); ok {
-			return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
-		}
-
 	case viewArtists:
 		switch m.artists.level {
 		case arttui.ArtistLevel:
@@ -120,15 +111,6 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 			if t, ok := m.genres.focusedTrack(); ok {
 				return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
 			}
-		}
-
-	case viewHistory:
-		if hashes := hashMapToSlice(m.history.selectedHashes); len(hashes) > 0 {
-			m.history.selectedHashes = nil
-			return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
-		}
-		if t, ok := m.history.view().FocusedTrack(); ok {
-			return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
 		}
 
 	case viewTags:

@@ -114,7 +114,7 @@ func TestUndoBulkDequeueExpiredIsNoOp(t *testing.T) {
 	if len(d.undoDequeueCallIDs) != 0 {
 		t.Fatalf("UndoDequeue must not be called after expiry, got %v", d.undoDequeueCallIDs)
 	}
-	if !strings.Contains(nm.statusBar.notification.msg, "Nothing to undo") {
-		t.Fatalf("expected 'Nothing to undo' notification, got %q", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "Nothing to undo") {
+		t.Fatalf("expected 'Nothing to undo' notification, got %q", nm.statusBar.topNotification().msg)
 	}
 }

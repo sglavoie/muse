@@ -30,8 +30,8 @@ func TestCutSingleTrack(t *testing.T) {
 	if !m.yankIsCut {
 		t.Error("yankIsCut should be true after cut")
 	}
-	if !strings.Contains(m.statusBar.notification.msg, "Cut") {
-		t.Errorf("expected 'Cut' in notification, got %q", m.statusBar.notification.msg)
+	if !strings.Contains(m.statusBar.topNotification().msg, "Cut") {
+		t.Errorf("expected 'Cut' in notification, got %q", m.statusBar.topNotification().msg)
 	}
 	// Queue should not be modified yet (deferred to paste).
 	if len(m.queue.entries) != 4 {

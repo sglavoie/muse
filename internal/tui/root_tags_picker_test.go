@@ -216,14 +216,11 @@ func TestTagPickerToggleRemove_UpdatesTagFilterHashes(t *testing.T) {
 	// Both tracks pass the tag filter.
 	hashes := map[string]struct{}{"h1": {}, "h2": {}}
 	m.library.tagFilterHashes = copyTagHash(hashes)
-	m.recentlyAdded.tagFilterHashes = copyTagHash(hashes)
-	m.history.tagFilterHashes = copyTagHash(hashes)
 	m.queue.tagFilterHashes = copyTagHash(hashes)
 	m.queue.entries = []QueueEntry{{Hash: "h1"}, {Hash: "h2"}}
 
 	// Cursor on last item.
 	m.library.cursor = 1
-	m.recentlyAdded.cursor = 1
 	m.queue.cursor = 1
 
 	// Remove tag 42 from h2 via the picker.
@@ -236,9 +233,6 @@ func TestTagPickerToggleRemove_UpdatesTagFilterHashes(t *testing.T) {
 	// h2 should be removed from tagFilterHashes on all views.
 	if _, ok := m.library.tagFilterHashes["h2"]; ok {
 		t.Error("h2 should be removed from library.tagFilterHashes")
-	}
-	if _, ok := m.recentlyAdded.tagFilterHashes["h2"]; ok {
-		t.Error("h2 should be removed from recentlyAdded.tagFilterHashes")
 	}
 	if _, ok := m.queue.tagFilterHashes["h2"]; ok {
 		t.Error("h2 should be removed from queue.tagFilterHashes")
@@ -275,7 +269,6 @@ func TestTagPickerToggleAdd_UpdatesTagFilterHashes(t *testing.T) {
 	// Only h1 passes the tag filter initially.
 	hashes := map[string]struct{}{"h1": {}}
 	m.library.tagFilterHashes = copyTagHash(hashes)
-	m.recentlyAdded.tagFilterHashes = copyTagHash(hashes)
 
 	// Add tag 42 to h2 via the picker.
 	m, _ = m.handleTagPickerToggle(TagPickerToggleMsg{
@@ -287,9 +280,6 @@ func TestTagPickerToggleAdd_UpdatesTagFilterHashes(t *testing.T) {
 	// h2 should now be in tagFilterHashes on all views.
 	if _, ok := m.library.tagFilterHashes["h2"]; !ok {
 		t.Error("h2 should be added to library.tagFilterHashes")
-	}
-	if _, ok := m.recentlyAdded.tagFilterHashes["h2"]; !ok {
-		t.Error("h2 should be added to recentlyAdded.tagFilterHashes")
 	}
 }
 

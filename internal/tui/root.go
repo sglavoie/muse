@@ -71,14 +71,13 @@ type Model struct {
 	activeView     viewID
 	cfg            config.Config
 	configPath     string
-	configCreated  bool
-	dataDir        string // XDG data directory (contains muse.db); set via WithDataDir
+	configCreated    bool
+	welcomeDismissed bool
+	dataDir          string // XDG data directory (contains muse.db); set via WithDataDir
 	configWarnings []string
 
-	library       LibraryView
-	recentlyAdded LibraryView
-	history       LibraryView
-	playlists     PlaylistsView
+	library   LibraryView
+	playlists PlaylistsView
 	queue         QueueView
 	artists       ArtistsView
 	albums        AlbumsView
@@ -198,10 +197,11 @@ type Model struct {
 	scanWriter      scanUpsertBatcher // may be nil; set via WithScanWriter
 	upsertBatchSize int               // batch size for scan DB writes; set via WithScanWriter
 
-	undo       undoInfo     // reversible undo slot and pending confirmation flags
-	visual     visualState  // Vim-like visual line selection mode state
-	yankBuffer []QueueEntry // clipboard for queue yank/paste; persists until next yank
-	yankIsCut  bool         // true when the buffer was populated via cut (ctrl+x)
+	undo            undoInfo     // reversible undo slot and pending confirmation flags
+	confirmationBar string       // when non-empty, rendered as a full-width warning between body and status bar
+	visual          visualState  // Vim-like visual line selection mode state
+	yankBuffer      []QueueEntry // clipboard for queue yank/paste; persists until next yank
+	yankIsCut       bool         // true when the buffer was populated via cut (ctrl+x)
 
 	// missingTrackCount tracks how many queue entries were skipped due to
 	// missing files during the current playback session. Reset when playback
@@ -238,11 +238,9 @@ func New(ctx context.Context, opts ...Option) Model {
 		appCtx:        ctx,
 		activeView:    viewLibrary,
 		cfg:           config.Defaults(),
-		library:       LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
-		playback:      playbackInfo{currentIndex: -1},
-		recentlyAdded: newRecentlyAddedView(),
-		history:       newHistoryView(),
-		registry:      newRegistry(),
+		library:  LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
+		playback: playbackInfo{currentIndex: -1},
+		registry: newRegistry(),
 		styles:        &initialStyles,
 	}
 	for _, opt := range opts {
@@ -262,10 +260,7 @@ func New(ctx context.Context, opts ...Option) Model {
 	m.statusBar.configPath = m.configPath
 	m.statusBar.configCreated = m.configCreated
 	if len(m.configWarnings) > 0 {
-		m.statusBar.notification = newNotificationFor(
-			"Config: "+strings.Join(m.configWarnings, "; "),
-			10*time.Second,
-		)
+		m.statusBar.pushMsg("Config: "+strings.Join(m.configWarnings, "; "), 10*time.Second, notifNormal)
 	}
 	return m
 }
@@ -293,6 +288,5 @@ func (m Model) StatusBarPlaylistSource() string { return m.statusBar.playlistSou
 // discovered during the diff scan setup phase.
 func (m *Model) RemoveLibraryTrackByPath(path string) {
 	m.library.index.RemoveByPath(path)
-	updated := m.syncRecentlyAddedFromLibrary()
-	m.recentlyAdded = updated.recentlyAdded
+	*m = m.syncRecentlyAddedFromLibrary()
 }

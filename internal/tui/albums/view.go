@@ -49,6 +49,7 @@ type View struct {
 	FilterActive bool
 	FilterText   string
 	FilterView   string // pre-rendered textinput view for active filter display
+	FilterHint   string // shown instead of cursor when filter is active and empty
 
 	SortIndicator   string // e.g. "Sort: Name ▲" — shown when non-empty
 	FavoriteHashes  map[string]struct{}
@@ -323,7 +324,7 @@ func (v View) renderTracks() string {
 		case isFocused && isNowPlaying:
 			markerStr = "♪ "
 		case isFocused:
-			markerStr = "▎ "
+			markerStr = v.Styles.AccentMark.Render("▎") + " "
 		case isNowPlaying:
 			markerStr = "♪ "
 		default:
@@ -397,6 +398,9 @@ func (v View) topFilterSeparator() string {
 		prefix = v.SortIndicator + "\n"
 	}
 	if v.FilterActive {
+		if v.FilterText == "" && v.FilterHint != "" {
+			return prefix + "Filter: " + v.Styles.Dim.Render(v.FilterHint) + "\n"
+		}
 		fv := v.FilterView
 		if fv == "" {
 			fv = v.FilterText
@@ -421,6 +425,9 @@ func (v View) filterSeparator() string {
 		sortLine = "\n" + v.SortIndicator
 	}
 	if v.FilterActive {
+		if v.FilterText == "" && v.FilterHint != "" {
+			return sortLine + "\nFilter: " + v.Styles.Dim.Render(v.FilterHint) + "\n"
+		}
 		fv := v.FilterView
 		if fv == "" {
 			fv = v.FilterText

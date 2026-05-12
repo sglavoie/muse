@@ -13,9 +13,10 @@ import (
 
 // PaletteCommand describes a single entry in the command palette.
 type PaletteCommand struct {
-	Name    string
-	Exec    func() tea.Cmd
-	Enabled func() bool // nil means always enabled
+	Name     string
+	Shortcut string      // optional keyboard shortcut shown right-aligned in the palette
+	Exec     func() tea.Cmd
+	Enabled  func() bool // nil means always enabled
 }
 
 func (c PaletteCommand) isEnabled() bool {
@@ -145,14 +146,26 @@ func (cp CommandPalette) buildBoxLines(termWidth int, s styles.Styles) []string 
 	const modalTitle = " Command Palette "
 	const minInner = 30
 
-	// Compute inner width from title, filter, and command names.
+	// Compute max shortcut width across filtered commands.
+	maxShortcutWidth := 0
+	for _, c := range cp.filtered {
+		if w := ansi.StringWidth(c.Shortcut); w > maxShortcutWidth {
+			maxShortcutWidth = w
+		}
+	}
+	shortcutExtra := 0
+	if maxShortcutWidth > 0 {
+		shortcutExtra = maxShortcutWidth + 2 // 2-space gap between name and shortcut
+	}
+
+	// Compute inner width from title, filter, and command names + shortcuts.
 	innerWidth := minInner
 	if ansi.StringWidth(modalTitle)+2 > innerWidth {
 		innerWidth = ansi.StringWidth(modalTitle) + 2
 	}
 	for _, c := range cp.filtered {
-		if ansi.StringWidth(c.Name)+4 > innerWidth {
-			innerWidth = ansi.StringWidth(c.Name) + 4
+		if ansi.StringWidth(c.Name)+4+shortcutExtra > innerWidth {
+			innerWidth = ansi.StringWidth(c.Name) + 4 + shortcutExtra
 		}
 	}
 	if maxInner := termWidth - 4; termWidth > 0 && innerWidth > maxInner {
@@ -197,8 +210,15 @@ func (cp CommandPalette) buildBoxLines(termWidth int, s styles.Styles) []string 
 		dimItalic := s.Dim.Italic(true)
 		accentDim := s.Accent.Faint(true).Italic(true)
 		for i, cmd := range cp.filtered {
-			display := text.Pad(cmd.Name, contentWidth)
-			rowContent := " " + display + " "
+			var rowContent string
+			if maxShortcutWidth > 0 {
+				nameWidth := max(0, contentWidth-maxShortcutWidth-2)
+				name := text.Pad(cmd.Name, nameWidth)
+				sc := text.PadLeft(cmd.Shortcut, maxShortcutWidth)
+				rowContent = " " + name + "  " + s.Dim.Render(sc) + " "
+			} else {
+				rowContent = " " + text.Pad(cmd.Name, contentWidth) + " "
+			}
 			switch {
 			case i == cp.cursor && !cmd.isEnabled():
 				lines = append(lines, cpBorderV+accentDim.Render(rowContent)+cpBorderV)

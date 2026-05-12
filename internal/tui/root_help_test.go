@@ -86,6 +86,9 @@ func TestViewHelpOverlayContainsSectionHeaders(t *testing.T) {
 	m.termHeight = 500
 	next, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
 	nm := next.(Model)
+	// Help opens filtered by default; press ? again to see all sections.
+	next, _ = nm.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
+	nm = next.(Model)
 
 	v := nm.View()
 	for _, header := range []string{"Global", "Library", "Playlists", "Queue", "Modals"} {
@@ -130,25 +133,25 @@ func TestEscRestoringViewDoesNotAlterPlaybackOrScanState(t *testing.T) {
 func TestQuestionMarkTogglesHelpFiltered(t *testing.T) {
 	m := New(context.Background())
 
-	// Open help.
+	// Open help — defaults to filtered view.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
 	nm := next.(Model)
-	if nm.helpFiltered {
-		t.Fatal("helpFiltered should be false when help first opens")
+	if !nm.helpFiltered {
+		t.Fatal("helpFiltered should be true when help first opens")
 	}
 
-	// Press ? again to toggle to filtered.
+	// Press ? again to toggle to unfiltered (all sections).
+	next, _ = nm.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
+	nm = next.(Model)
+	if nm.helpFiltered {
+		t.Fatal("helpFiltered should be false after first ? toggle")
+	}
+
+	// Press ? again to toggle back to filtered.
 	next, _ = nm.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
 	nm = next.(Model)
 	if !nm.helpFiltered {
-		t.Fatal("helpFiltered should be true after first ? toggle")
-	}
-
-	// Press ? again to toggle back.
-	next, _ = nm.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
-	nm = next.(Model)
-	if nm.helpFiltered {
-		t.Fatal("helpFiltered should be false after second ? toggle")
+		t.Fatal("helpFiltered should be true after second ? toggle")
 	}
 }
 
@@ -161,11 +164,7 @@ func TestHelpFilteredShowsViewSections(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: '3', Text: "3"})
 	nm := next.(Model)
 
-	// Open help.
-	next, _ = nm.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
-	nm = next.(Model)
-
-	// Toggle to filtered.
+	// Open help — defaults to filtered view.
 	next, _ = nm.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
 	nm = next.(Model)
 
@@ -356,13 +355,9 @@ func TestHelpSearchFilterCombinesWithViewFilter(t *testing.T) {
 	m.termWidth = 80
 	m.termHeight = 100
 
-	// Switch to Queue, open help.
+	// Switch to Queue, open help — defaults to filtered view.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '3', Text: "3"})
 	nm := next.(Model)
-	next, _ = nm.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
-	nm = next.(Model)
-
-	// Toggle view filter with ?.
 	next, _ = nm.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
 	nm = next.(Model)
 	if !nm.helpFiltered {
@@ -392,11 +387,9 @@ func TestHelpSearchFilterCombinesWithViewFilter(t *testing.T) {
 func TestEscResetsHelpFiltered(t *testing.T) {
 	m := New(context.Background())
 
-	// Open help and toggle filter on.
+	// Open help — defaults to filtered view.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
 	nm := next.(Model)
-	next, _ = nm.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
-	nm = next.(Model)
 	if !nm.helpFiltered {
 		t.Fatal("precondition: helpFiltered should be true")
 	}

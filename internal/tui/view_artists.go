@@ -90,6 +90,12 @@ func (v ArtistsView) render(s styles.Styles, favHashes, favArtists, favAlbums ma
 		FilterActive:       v.filter.Active,
 		FilterText:         v.filter.Text,
 		FilterView:         v.filter.View(),
+		FilterHint:         func() string {
+			if v.level == arttui.TrackLevel {
+				return "a: artist  t: title  l: album"
+			}
+			return ""
+		}(),
 		SortIndicator:      sortInd,
 		FavoriteHashes:     favHashes,
 		FavoriteArtists:    favArtists,

@@ -27,16 +27,6 @@ func (m Model) focusedGoToContext() goToContext {
 			return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
 		}
 
-	case viewRecentlyAdded:
-		if track, ok := m.recentlyAdded.view().FocusedTrack(); ok {
-			return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
-		}
-
-	case viewHistory:
-		if track, ok := m.history.view().FocusedTrack(); ok {
-			return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
-		}
-
 	case viewQueue:
 		filtered := m.queue.filteredEntries()
 		if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
@@ -218,7 +208,7 @@ func (m Model) buildGoToOptions(ctx goToContext) []GoToOption {
 	}
 
 	switch m.activeView {
-	case viewLibrary, viewRecentlyAdded, viewHistory:
+	case viewLibrary:
 		addAlbum()
 		addArtist()
 		addGenres()

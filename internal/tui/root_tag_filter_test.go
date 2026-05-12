@@ -9,8 +9,7 @@ import (
 
 // TestRemoveAllTagsFromTrack_ClearsAllTagFilterHashes verifies that
 // handleRemoveAllTagsFromTrack removes the track hash from tagFilterHashes
-// on all four views (library, recentlyAdded, history, queue) when a
-// cross-view tag filter is active.
+// on all views (library, queue) when a cross-view tag filter is active.
 func TestRemoveAllTagsFromTrack_ClearsAllTagFilterHashes(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac"})
@@ -22,23 +21,15 @@ func TestRemoveAllTagsFromTrack_ClearsAllTagFilterHashes(t *testing.T) {
 		"h1": {tagID: {}},
 	}
 
-	// Simulate an active tag filter on all four views.
+	// Simulate an active tag filter on all views.
 	hashes := map[string]struct{}{"h1": {}}
 	m.library.tagFilterHashes = copyHashSet(hashes)
-	m.recentlyAdded.tagFilterHashes = copyHashSet(hashes)
-	m.history.tagFilterHashes = copyHashSet(hashes)
 	m.queue.tagFilterHashes = copyHashSet(hashes)
 
 	m, _ = m.handleRemoveAllTagsFromTrack(removeAllTagsFromTrackMsg{hash: "h1"})
 
 	if _, ok := m.library.tagFilterHashes["h1"]; ok {
 		t.Error("h1 should be removed from library.tagFilterHashes")
-	}
-	if _, ok := m.recentlyAdded.tagFilterHashes["h1"]; ok {
-		t.Error("h1 should be removed from recentlyAdded.tagFilterHashes")
-	}
-	if _, ok := m.history.tagFilterHashes["h1"]; ok {
-		t.Error("h1 should be removed from history.tagFilterHashes")
 	}
 	if _, ok := m.queue.tagFilterHashes["h1"]; ok {
 		t.Error("h1 should be removed from queue.tagFilterHashes")
@@ -77,15 +68,11 @@ func TestRemoveAllTagsFromTrack_ClampsCursorsAfterFilterShrink(t *testing.T) {
 	// Both tracks pass the tag filter.
 	hashes := map[string]struct{}{"h1": {}, "h2": {}}
 	m.library.tagFilterHashes = copyHashSet(hashes)
-	m.recentlyAdded.tagFilterHashes = copyHashSet(hashes)
-	m.history.tagFilterHashes = copyHashSet(hashes)
 	m.queue.tagFilterHashes = copyHashSet(hashes)
 	m.queue.entries = []QueueEntry{{Hash: "h1"}, {Hash: "h2"}}
 
 	// Place cursor on the last item (index 1) in all views.
 	m.library.cursor = 1
-	m.recentlyAdded.cursor = 1
-	m.history.cursor = 1
 	m.queue.cursor = 1
 
 	// Remove all tags from h2 — it will be removed from tagFilterHashes,
@@ -99,15 +86,6 @@ func TestRemoveAllTagsFromTrack_ClampsCursorsAfterFilterShrink(t *testing.T) {
 	}
 	if m.library.cursor >= libCount {
 		t.Errorf("library cursor=%d out of bounds (count=%d)", m.library.cursor, libCount)
-	}
-
-	// RecentlyAdded: same check.
-	raCount := m.recentlyAdded.trackCount()
-	if raCount != 1 {
-		t.Fatalf("expected recentlyAdded trackCount=1, got %d", raCount)
-	}
-	if m.recentlyAdded.cursor >= raCount {
-		t.Errorf("recentlyAdded cursor=%d out of bounds (count=%d)", m.recentlyAdded.cursor, raCount)
 	}
 
 	// Queue: filteredEntries shrinks because h2 is no longer in tagFilterHashes.

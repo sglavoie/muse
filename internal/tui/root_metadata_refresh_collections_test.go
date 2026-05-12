@@ -137,10 +137,8 @@ func TestRefreshDerivedViewsUpdatesDuration(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
 
-	m.history.sourceTracks = []library.Track{
-		{Hash: "h1", Path: "/a.flac", Duration: 120},
-	}
-	m.recentlyAdded.sourceTracks = []library.Track{
+	m.library.mode = LibraryModeHistory
+	m.library.sourceTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Duration: 120},
 	}
 	m.playlists.level = pltui.TrackLevel
@@ -162,11 +160,8 @@ func TestRefreshDerivedViewsUpdatesDuration(t *testing.T) {
 	m.library.index.UpdateDuration("h1", 200)
 	m = m.refreshDerivedViews()
 
-	if m.history.sourceTracks[0].Duration != 200 {
-		t.Errorf("history Duration = %v, want 200", m.history.sourceTracks[0].Duration)
-	}
-	if m.recentlyAdded.sourceTracks[0].Duration != 200 {
-		t.Errorf("recentlyAdded Duration = %v, want 200", m.recentlyAdded.sourceTracks[0].Duration)
+	if m.library.sourceTracks[0].Duration != 200 {
+		t.Errorf("library sourceTracks Duration = %v, want 200", m.library.sourceTracks[0].Duration)
 	}
 	if m.playlists.tracks[0].DurationMs != 200_000 {
 		t.Errorf("playlists DurationMs = %d, want 200000", m.playlists.tracks[0].DurationMs)

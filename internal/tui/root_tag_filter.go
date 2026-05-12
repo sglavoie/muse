@@ -76,18 +76,6 @@ func (m Model) applyTagFilterToViews() Model {
 	m.library.cursor = 0
 	m.library.scrollOffset = 0
 
-	m.recentlyAdded.tagFilterHashes = hashes
-	m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
-	m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
-	m.recentlyAdded.cursor = 0
-	m.recentlyAdded.scrollOffset = 0
-
-	m.history.tagFilterHashes = hashes
-	m.history = m.history.recomputeSortedTracks()
-	m.history = m.history.rebuildFilterCache()
-	m.history.cursor = 0
-	m.history.scrollOffset = 0
-
 	m.queue.tagFilterHashes = hashes
 	m.queue.cursor = 0
 	m.queue.scrollOffset = 0
@@ -141,12 +129,6 @@ func (m Model) handleRemoveAllTagsFromTrack(msg removeAllTagsFromTrackMsg) (Mode
 		if m.library.tagFilterHashes != nil {
 			delete(m.library.tagFilterHashes, hash)
 		}
-		if m.recentlyAdded.tagFilterHashes != nil {
-			delete(m.recentlyAdded.tagFilterHashes, hash)
-		}
-		if m.history.tagFilterHashes != nil {
-			delete(m.history.tagFilterHashes, hash)
-		}
 		if m.queue.tagFilterHashes != nil {
 			delete(m.queue.tagFilterHashes, hash)
 		}
@@ -156,12 +138,6 @@ func (m Model) handleRemoveAllTagsFromTrack(msg removeAllTagsFromTrackMsg) (Mode
 		m.library = m.library.recomputeSortedTracks()
 		m.library = m.library.rebuildFilterCache()
 		m.library = m.library.clampCursor()
-		m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
-		m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
-		m.recentlyAdded = m.recentlyAdded.clampCursor()
-		m.history = m.history.recomputeSortedTracks()
-		m.history = m.history.rebuildFilterCache()
-		m.history = m.history.clampCursor()
 		m.clampQueueCursorAndScroll()
 	}
 

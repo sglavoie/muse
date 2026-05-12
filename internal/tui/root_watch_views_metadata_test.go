@@ -97,11 +97,12 @@ func TestWatchBatchMsgUpdatesFavoritesDrilldownTracks(t *testing.T) {
 func TestWatchBatchUpdatesHistoryTracks(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum", Genre: "OldGenre"})
-	m.history.sourceTracks = []library.Track{
+	m.library.mode = LibraryModeHistory
+	m.library.sourceTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum", Genre: "OldGenre"},
 	}
-	m.history.sortState = SortState{Field: SortTitle, Dir: SortAsc}
-	m.history = m.history.recomputeSortedTracks()
+	m.library.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.library = m.library.recomputeSortedTracks()
 
 	next, _ := m.Update(watchBatchMsg{
 		tracks: []library.Track{
@@ -110,13 +111,13 @@ func TestWatchBatchUpdatesHistoryTracks(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.history.sourceTracks[0].Title != "NewTitle" {
-		t.Errorf("history track title = %q, want %q", nm.history.sourceTracks[0].Title, "NewTitle")
+	if nm.library.sourceTracks[0].Title != "NewTitle" {
+		t.Errorf("history track title = %q, want %q", nm.library.sourceTracks[0].Title, "NewTitle")
 	}
-	if nm.history.sourceTracks[0].Artist != "NewArt" {
-		t.Errorf("history track artist = %q, want %q", nm.history.sourceTracks[0].Artist, "NewArt")
+	if nm.library.sourceTracks[0].Artist != "NewArt" {
+		t.Errorf("history track artist = %q, want %q", nm.library.sourceTracks[0].Artist, "NewArt")
 	}
-	if nm.history.sourceTracks[0].Genre != "NewGenre" {
-		t.Errorf("history track genre = %q, want %q", nm.history.sourceTracks[0].Genre, "NewGenre")
+	if nm.library.sourceTracks[0].Genre != "NewGenre" {
+		t.Errorf("history track genre = %q, want %q", nm.library.sourceTracks[0].Genre, "NewGenre")
 	}
 }

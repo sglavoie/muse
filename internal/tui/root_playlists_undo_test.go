@@ -43,11 +43,11 @@ func TestUndoDeletePlaylistShowsNotification(t *testing.T) {
 	nm := next.(Model)
 
 	nm2 := nm.handleUndo()
-	if nm2.statusBar.notification.msg == "" {
+	if nm2.statusBar.topNotification().msg == "" {
 		t.Fatal("undo delete playlist must set a status bar notification")
 	}
-	if !strings.Contains(nm2.statusBar.notification.msg, "Undone") {
-		t.Errorf("expected undo notification containing 'Undone', got %q", nm2.statusBar.notification.msg)
+	if !strings.Contains(nm2.statusBar.topNotification().msg, "Undone") {
+		t.Errorf("expected undo notification containing 'Undone', got %q", nm2.statusBar.topNotification().msg)
 	}
 }
 
@@ -62,11 +62,11 @@ func TestUndoRemovePlaylistTrackShowsNotification(t *testing.T) {
 	nm := next.(Model)
 
 	nm2 := nm.handleUndo()
-	if nm2.statusBar.notification.msg == "" {
+	if nm2.statusBar.topNotification().msg == "" {
 		t.Fatal("undo remove playlist track must set a status bar notification")
 	}
-	if !strings.Contains(nm2.statusBar.notification.msg, "Undone") {
-		t.Errorf("expected undo notification containing 'Undone', got %q", nm2.statusBar.notification.msg)
+	if !strings.Contains(nm2.statusBar.topNotification().msg, "Undone") {
+		t.Errorf("expected undo notification containing 'Undone', got %q", nm2.statusBar.topNotification().msg)
 	}
 }
 
@@ -85,14 +85,14 @@ func TestUndoBulkRemovePlaylistTracksShowsNotification(t *testing.T) {
 	m.playlists.tracks = []db.PlaylistTrackRow{{ID: 30, Position: 3, Title: "Song C"}}
 
 	nm := m.handleUndo()
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Fatal("undo bulk remove playlist tracks must set a status bar notification")
 	}
-	if !strings.Contains(nm.statusBar.notification.msg, "Undone") {
-		t.Errorf("expected undo notification containing 'Undone', got %q", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "Undone") {
+		t.Errorf("expected undo notification containing 'Undone', got %q", nm.statusBar.topNotification().msg)
 	}
-	if !strings.Contains(nm.statusBar.notification.msg, "2") {
-		t.Errorf("expected undo notification to mention count, got %q", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "2") {
+		t.Errorf("expected undo notification to mention count, got %q", nm.statusBar.topNotification().msg)
 	}
 }
 

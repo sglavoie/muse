@@ -5,6 +5,7 @@ import tea "charm.land/bubbletea/v2"
 type keyPressHandler func(Model, tea.KeyPressMsg) (Model, tea.Cmd, bool)
 
 var orderedKeyPressHandlers = []keyPressHandler{
+	Model.handleWelcomeKeyPress,
 	Model.handleHelpKeyPress,
 	Model.handleDebugKeyPress,
 	Model.handleStatsKeyPress,

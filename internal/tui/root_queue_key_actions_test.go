@@ -69,8 +69,8 @@ func TestRootQueueLocalCDispatchesClearQueueMsg(t *testing.T) {
 	if !m.undo.clearQueuePending {
 		t.Fatal("clearQueuePending should be true after first 'C'")
 	}
-	if m.statusBar.notification.msg != "Press C again to clear queue" {
-		t.Fatalf("expected confirmation hint, got %q", m.statusBar.notification.msg)
+	if m.statusBar.topNotification().msg != "Press C again to clear queue" {
+		t.Fatalf("expected confirmation hint, got %q", m.statusBar.topNotification().msg)
 	}
 
 	_, cmd = m.Update(tea.KeyPressMsg{Code: 'C', Text: "C"})

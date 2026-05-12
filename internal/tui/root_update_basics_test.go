@@ -93,7 +93,7 @@ func TestViewSwitchingCompletesUnder50ms(t *testing.T) {
 	}{
 		{tea.KeyPressMsg{Code: '2', Text: "2"}, viewPlaylists},
 		{tea.KeyPressMsg{Code: '3', Text: "3"}, viewQueue},
-		{tea.KeyPressMsg{Code: '8', Text: "8"}, viewRecentlyAdded},
+		{tea.KeyPressMsg{Code: '8', Text: "8"}, viewTags},
 		{tea.KeyPressMsg{Code: '1', Text: "1"}, viewLibrary},
 	}
 

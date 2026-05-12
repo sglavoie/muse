@@ -41,6 +41,7 @@ func (m *Model) refreshHelpViewport() {
 func (m *Model) clearPendingConfirmations() {
 	m.undo.clearQueuePending = false
 	m.undo.bulkRemovePending = false
+	m.confirmationBar = ""
 }
 
 // switchToView transitions to the given view, clearing pending confirmations,
@@ -85,12 +86,12 @@ func (m Model) switchToView(id viewID) Model {
 			m.favorites.trackCount = trackCount
 		}
 	}
-	if id == viewHistory && m.historyReader != nil {
-		tracks, _ := m.historyReader.ReadPlayHistory(500)
-		m.history.sourceTracks = tracks
-		m.history = m.history.recomputeSortedTracks()
-		if m.history.filter.Text != "" {
-			m.history = m.history.rebuildFilterCache()
+	if id == viewLibrary {
+		switch m.library.mode {
+		case LibraryModeRecent:
+			m = m.syncRecentlyAddedFromLibrary()
+		case LibraryModeHistory:
+			m = m.loadLibraryHistoryData()
 		}
 	}
 	if id == viewTags {
@@ -102,6 +103,39 @@ func (m Model) switchToView(id viewID) Model {
 		}
 	}
 	return m
+}
+
+// loadLibraryHistoryData loads play history from historyReader into the Library
+// view's source tracks when in History mode.
+func (m Model) loadLibraryHistoryData() Model {
+	if m.historyReader == nil {
+		return m
+	}
+	tracks, _ := m.historyReader.ReadPlayHistory(500)
+	m.library.sourceTracks = tracks
+	m.library = m.library.recomputeSortedTracks()
+	if m.library.filter.Text != "" {
+		m.library = m.library.rebuildFilterCache()
+	}
+	return m
+}
+
+// handleLibraryModeNext cycles the Library view through its three modes:
+// All → Recent → History → All, loading mode-specific data as needed.
+func (m Model) handleLibraryModeNext() (Model, tea.Cmd) {
+	next := (m.library.mode + 1) % 3
+	m.library = m.library.switchMode(next)
+	switch next {
+	case LibraryModeRecent:
+		m = m.syncRecentlyAddedFromLibrary()
+		m.statusBar.notifyInfo("Library: Recently Added")
+	case LibraryModeHistory:
+		m = m.loadLibraryHistoryData()
+		m.statusBar.notifyInfo("Library: History")
+	default:
+		m.statusBar.notifyInfo("Library: All tracks")
+	}
+	return m, nil
 }
 
 // handleKeyAction dispatches a resolved KeyAction to the appropriate handler.
@@ -157,7 +191,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	case actionHelp:
 		m.prevActiveView = m.activeView
 		m.helpVisible = true
-		m.helpFiltered = false
+		m.helpFiltered = true
 		m.helpSearchFilter = filter.State{}
 		m.helpViewport = viewport.New(viewport.WithWidth(m.termWidth), viewport.WithHeight(m.termHeight-2))
 		m.refreshHelpViewport()
@@ -202,10 +236,8 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m = m.switchToView(viewAlbums)
 	case actionSwitchFavorites:
 		m = m.switchToView(viewFavorites)
-	case actionSwitchRecentlyAdded:
-		m = m.switchToView(viewRecentlyAdded)
-	case actionSwitchHistory:
-		m = m.switchToView(viewHistory)
+	case actionLibraryModeNext:
+		return m.handleLibraryModeNext()
 	case actionSwitchGenres:
 		m = m.switchToView(viewGenres)
 	case actionSwitchTags:

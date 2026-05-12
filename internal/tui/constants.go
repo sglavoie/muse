@@ -5,7 +5,7 @@ import "time"
 // undoWindowDuration is the time after a destructive queue action during which
 // pressing 'u' will reverse the action. Only a single undo slot is maintained;
 // a new destructive action within the window replaces the prior slot.
-const undoWindowDuration = 5 * time.Second
+const undoWindowDuration = 10 * time.Second
 
 // positionSyncInterval is how often root polls the player for the current
 // playback position so that crash-resume can restore to the right offset.

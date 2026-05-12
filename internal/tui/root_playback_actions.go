@@ -188,7 +188,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 				slog.Warn("write repeat mode failed", "err", err)
 			}
 		}
-		m.statusBar.notification = newNotificationFor("Repeat: "+m.playback.repeatMode.DisplayString(), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second)
+		m.statusBar.pushMsg("Repeat: "+m.playback.repeatMode.DisplayString(), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 		return m, nil, true
 	case actionShuffleToggle:
 		m.playback.shuffle = !m.playback.shuffle
@@ -206,7 +206,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		if m.playback.shuffle {
 			label = "on"
 		}
-		m.statusBar.notification = newNotificationFor("Shuffle: "+label, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second)
+		m.statusBar.pushMsg("Shuffle: "+label, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 		return m, nil, true
 	case actionStopAfterCurrent:
 		if m.playback.state != PlaybackPlaying && m.playback.state != PlaybackPaused {
@@ -221,7 +221,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		if m.playback.stopAfterCurrent {
 			label = "on"
 		}
-		m.statusBar.notification = newNotificationFor("Stop after current: "+label, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second)
+		m.statusBar.pushMsg("Stop after current: "+label, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 		return m, nil, true
 	case actionRadioToggle:
 		return m.radioToggle()
@@ -255,6 +255,6 @@ func (m Model) handleVolume(sign int) (tea.Model, tea.Cmd, bool) {
 			}
 		}
 	}
-	m.statusBar.notification = newNotificationFor(fmt.Sprintf("Volume: %d%%", m.playback.volume), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second)
+	m.statusBar.pushMsg(fmt.Sprintf("Volume: %d%%", m.playback.volume), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 	return m, nil, true
 }

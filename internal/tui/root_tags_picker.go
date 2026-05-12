@@ -67,12 +67,6 @@ func (m Model) handleTagPickerToggle(msg TagPickerToggleMsg) (Model, tea.Cmd) {
 				if m.library.tagFilterHashes != nil {
 					m.library.tagFilterHashes[h] = struct{}{}
 				}
-				if m.recentlyAdded.tagFilterHashes != nil {
-					m.recentlyAdded.tagFilterHashes[h] = struct{}{}
-				}
-				if m.history.tagFilterHashes != nil {
-					m.history.tagFilterHashes[h] = struct{}{}
-				}
 				if m.queue.tagFilterHashes != nil {
 					m.queue.tagFilterHashes[h] = struct{}{}
 				}
@@ -82,12 +76,6 @@ func (m Model) handleTagPickerToggle(msg TagPickerToggleMsg) (Model, tea.Cmd) {
 				if m.library.tagFilterHashes != nil {
 					delete(m.library.tagFilterHashes, h)
 				}
-				if m.recentlyAdded.tagFilterHashes != nil {
-					delete(m.recentlyAdded.tagFilterHashes, h)
-				}
-				if m.history.tagFilterHashes != nil {
-					delete(m.history.tagFilterHashes, h)
-				}
 				if m.queue.tagFilterHashes != nil {
 					delete(m.queue.tagFilterHashes, h)
 				}
@@ -96,12 +84,6 @@ func (m Model) handleTagPickerToggle(msg TagPickerToggleMsg) (Model, tea.Cmd) {
 		m.library = m.library.recomputeSortedTracks()
 		m.library = m.library.rebuildFilterCache()
 		m.library = m.library.clampCursor()
-		m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
-		m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
-		m.recentlyAdded = m.recentlyAdded.clampCursor()
-		m.history = m.history.recomputeSortedTracks()
-		m.history = m.history.rebuildFilterCache()
-		m.history = m.history.clampCursor()
 		m.clampQueueCursorAndScroll()
 	}
 

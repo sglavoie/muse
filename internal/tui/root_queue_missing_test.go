@@ -21,7 +21,7 @@ func TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError(t *testing.T) {
 	next, _ := m.Update(MissingTrackMsg{Path: "/music/song.flac"})
 	nm := next.(Model)
 
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Fatal("MissingTrackMsg must set a transient status bar error message")
 	}
 	if !nm.queue.entries[0].Missing {
@@ -59,11 +59,11 @@ func TestSelectMissingTrackRemovesEntry(t *testing.T) {
 
 	next, resultCmd := m.Update(msg)
 	nm := next.(Model)
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Fatal("MissingTrackSelectedMsg must set a transient notification")
 	}
-	if !strings.Contains(nm.statusBar.notification.msg, "missing") {
-		t.Errorf("unexpected notification: %s", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "missing") {
+		t.Errorf("unexpected notification: %s", nm.statusBar.topNotification().msg)
 	}
 	if len(nm.queue.entries) != 0 {
 		t.Fatalf("queue must be empty after removal, got %d entries", len(nm.queue.entries))
@@ -189,10 +189,10 @@ func TestPlayFromIndexResultMsgErrorResetsPlayback(t *testing.T) {
 	if nm.playback.currentIndex != -1 {
 		t.Errorf("currentIndex = %d, want -1", nm.playback.currentIndex)
 	}
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Fatal("expected a notification on play failure")
 	}
-	if !strings.Contains(nm.statusBar.notification.msg, "Play failed") {
-		t.Errorf("unexpected notification: %s", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "Play failed") {
+		t.Errorf("unexpected notification: %s", nm.statusBar.topNotification().msg)
 	}
 }

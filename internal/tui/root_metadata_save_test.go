@@ -216,11 +216,11 @@ func TestMetadataEditedMsgErrorNotifiesUser(t *testing.T) {
 	msg := metadataEditedMsg{err: errors.New("disk full")}
 	result, _ := m.Update(msg)
 	nm := result.(Model)
-	if !strings.Contains(nm.statusBar.notification.msg, "Metadata save failed") {
-		t.Errorf("expected notification about metadata save failure, got %q", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "Metadata save failed") {
+		t.Errorf("expected notification about metadata save failure, got %q", nm.statusBar.topNotification().msg)
 	}
-	if !strings.Contains(nm.statusBar.notification.msg, "disk full") {
-		t.Errorf("expected error detail in notification, got %q", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "disk full") {
+		t.Errorf("expected error detail in notification, got %q", nm.statusBar.topNotification().msg)
 	}
 }
 
@@ -231,7 +231,7 @@ func TestMetadataEditedMsgSuccessNoNotification(t *testing.T) {
 	msg := metadataEditedMsg{err: nil}
 	result, _ := m.Update(msg)
 	nm := result.(Model)
-	if nm.statusBar.notification.msg != "" {
-		t.Errorf("expected no notification on success, got %q", nm.statusBar.notification.msg)
+	if nm.statusBar.topNotification().msg != "" {
+		t.Errorf("expected no notification on success, got %q", nm.statusBar.topNotification().msg)
 	}
 }

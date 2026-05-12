@@ -37,10 +37,6 @@ func (m Model) selectedTrackHashes() []string {
 	switch m.activeView {
 	case viewLibrary:
 		return hashMapToSlice(m.library.selectedHashes)
-	case viewRecentlyAdded:
-		return hashMapToSlice(m.recentlyAdded.selectedHashes)
-	case viewHistory:
-		return hashMapToSlice(m.history.selectedHashes)
 	case viewQueue:
 		var hashes []string
 		for _, e := range m.queue.entries {
@@ -116,14 +112,6 @@ func (m Model) focusedTrackHash() string {
 	switch m.activeView {
 	case viewLibrary:
 		if track, ok := m.library.view().FocusedTrack(); ok {
-			return track.Hash
-		}
-	case viewRecentlyAdded:
-		if track, ok := m.recentlyAdded.view().FocusedTrack(); ok {
-			return track.Hash
-		}
-	case viewHistory:
-		if track, ok := m.history.view().FocusedTrack(); ok {
 			return track.Hash
 		}
 	case viewQueue:

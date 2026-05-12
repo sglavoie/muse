@@ -20,11 +20,11 @@ func TestUndoDequeueShowsNotification(t *testing.T) {
 	next, _ = nm.Update(UndoMsg{})
 	nm = next.(Model)
 
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Fatal("undo dequeue must set a status bar notification")
 	}
-	if !strings.Contains(nm.statusBar.notification.msg, "Undone") {
-		t.Errorf("expected undo notification containing 'Undone', got %q", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "Undone") {
+		t.Errorf("expected undo notification containing 'Undone', got %q", nm.statusBar.topNotification().msg)
 	}
 }
 
@@ -38,11 +38,11 @@ func TestUndoEnqueueShowsNotification(t *testing.T) {
 
 	nm := m.handleUndo()
 
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Fatal("undo enqueue must set a status bar notification")
 	}
-	if !strings.Contains(nm.statusBar.notification.msg, "Undone") {
-		t.Errorf("expected undo notification containing 'Undone', got %q", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "Undone") {
+		t.Errorf("expected undo notification containing 'Undone', got %q", nm.statusBar.topNotification().msg)
 	}
 }
 
@@ -64,14 +64,14 @@ func TestUndoClearQueueShowsNotification(t *testing.T) {
 
 	nm := m.handleUndo()
 
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Fatal("undo clear must set a status bar notification")
 	}
-	if !strings.Contains(nm.statusBar.notification.msg, "Undone") {
-		t.Errorf("expected undo notification containing 'Undone', got %q", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "Undone") {
+		t.Errorf("expected undo notification containing 'Undone', got %q", nm.statusBar.topNotification().msg)
 	}
-	if !strings.Contains(nm.statusBar.notification.msg, "2") {
-		t.Errorf("expected undo notification to mention track count, got %q", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "2") {
+		t.Errorf("expected undo notification to mention track count, got %q", nm.statusBar.topNotification().msg)
 	}
 }
 
@@ -89,11 +89,11 @@ func TestUndoBulkDequeueShowsNotification(t *testing.T) {
 
 	nm := m.handleUndo()
 
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Fatal("undo bulk dequeue must set a status bar notification")
 	}
-	if !strings.Contains(nm.statusBar.notification.msg, "Undone") {
-		t.Errorf("expected undo notification containing 'Undone', got %q", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "Undone") {
+		t.Errorf("expected undo notification containing 'Undone', got %q", nm.statusBar.topNotification().msg)
 	}
 }
 
@@ -117,10 +117,10 @@ func TestUndoBatchEnqueueShowsNotification(t *testing.T) {
 
 	nm := m.handleUndo()
 
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Fatal("undo batch enqueue must set a status bar notification")
 	}
-	if !strings.Contains(nm.statusBar.notification.msg, "Undone") {
-		t.Errorf("expected undo notification containing 'Undone', got %q", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "Undone") {
+		t.Errorf("expected undo notification containing 'Undone', got %q", nm.statusBar.topNotification().msg)
 	}
 }

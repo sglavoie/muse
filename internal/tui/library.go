@@ -11,6 +11,23 @@ import (
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
+// LibraryMode identifies the sub-mode of the Library view.
+type LibraryMode uint8
+
+const (
+	LibraryModeAll     LibraryMode = iota // standard Library (all tracks, default sort)
+	LibraryModeRecent                      // Recently Added (sorted by date added)
+	LibraryModeHistory                     // History (sorted by last played)
+)
+
+// libraryModeSnapshot saves per-mode cursor/scroll/filter state for restoration
+// when the user cycles back to a previously visited mode.
+type libraryModeSnapshot struct {
+	cursor int
+	scroll int
+	filter filter.State
+}
+
 // LibraryView renders the music library panel backed by a sorted LibraryIndex.
 type LibraryView struct {
 	index           library.LibraryIndex
@@ -28,6 +45,8 @@ type LibraryView struct {
 	showDateAdded   bool
 	showPlayedAt    bool
 	tagFilterHashes map[string]struct{} // non-nil when a cross-view tag filter is active
+	mode            LibraryMode
+	modeState       [3]libraryModeSnapshot // saved cursor/scroll/filter per mode
 }
 
 func (v *LibraryView) setSize(w, h int) { v.width = w; v.height = h }
@@ -58,6 +77,51 @@ func newHistoryView() LibraryView {
 		sortState:    SortState{Field: SortLastPlayed, Dir: SortDesc},
 		showPlayedAt: true,
 	}
+}
+
+// switchMode transitions the view to the given mode, saving the current
+// cursor/scroll/filter and restoring the saved state for the target mode.
+// sourceTracks for History mode must be populated by the caller after this
+// returns (it requires the historyReader which LibraryView does not hold).
+func (v LibraryView) switchMode(to LibraryMode) LibraryView {
+	v.modeState[v.mode] = libraryModeSnapshot{
+		cursor: v.cursor,
+		scroll: v.scrollOffset,
+		filter: v.filter,
+	}
+	v.mode = to
+	saved := v.modeState[to]
+	v.cursor = saved.cursor
+	v.scrollOffset = saved.scroll
+	v.filter = saved.filter
+	v.filteredMatches = nil
+	v.selectedHashes = nil
+
+	switch to {
+	case LibraryModeAll:
+		v.showDateAdded = false
+		v.showPlayedAt = false
+		v.sourceTracks = nil
+		v.sortState = SortState{}
+		v.sortedTracks = nil
+	case LibraryModeRecent:
+		v.showDateAdded = true
+		v.showPlayedAt = false
+		// sourceTracks is set by syncRecentlyAddedFromLibrary after this call
+		v.sortState = SortState{Field: SortDateAdded, Dir: SortDesc}
+		v.sortedTracks = nil
+	case LibraryModeHistory:
+		v.showDateAdded = false
+		v.showPlayedAt = true
+		// sourceTracks is loaded by the caller via historyReader
+		v.sortState = SortState{Field: SortLastPlayed, Dir: SortDesc}
+		v.sortedTracks = nil
+	}
+
+	if v.filter.Text != "" {
+		v = v.rebuildFilterCache()
+	}
+	return v
 }
 
 func (v LibraryView) baseTracks() []library.Track {
@@ -269,19 +333,25 @@ func (v LibraryView) clampCursor() LibraryView {
 	return v
 }
 
+// syncRecentlyAddedFromLibrary refreshes the library view's source tracks when
+// the Library is in Recent mode. It is a no-op in other modes (data is loaded
+// lazily when the user switches to that mode).
 func (m Model) syncRecentlyAddedFromLibrary() Model {
-	m.recentlyAdded.sourceTracks = m.library.index.Tracks()
-	if m.recentlyAdded.fuzzy == nil {
-		m.recentlyAdded.fuzzy = library.SahilmFuzzySearcher{}
+	if m.library.mode != LibraryModeRecent {
+		return m
 	}
-	if m.recentlyAdded.sortState.Field == SortDefault {
-		m.recentlyAdded.sortState = SortState{Field: SortDateAdded, Dir: SortDesc}
+	m.library.sourceTracks = m.library.index.Tracks()
+	if m.library.fuzzy == nil {
+		m.library.fuzzy = library.SahilmFuzzySearcher{}
 	}
-	m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
-	if m.recentlyAdded.filter.Text != "" {
-		m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
+	if m.library.sortState.Field == SortDefault {
+		m.library.sortState = SortState{Field: SortDateAdded, Dir: SortDesc}
 	}
-	m.recentlyAdded = m.recentlyAdded.clampCursor()
+	m.library = m.library.recomputeSortedTracks()
+	if m.library.filter.Text != "" {
+		m.library = m.library.rebuildFilterCache()
+	}
+	m.library = m.library.clampCursor()
 	return m
 }
 

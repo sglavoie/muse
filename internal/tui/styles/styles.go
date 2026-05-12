@@ -12,7 +12,7 @@ const (
 	colorSurfaceL0Light = "#d8dae0"
 	colorSurfaceL2Dark  = "#24283b" // L2: zebra stripe background
 	colorSurfaceL2Light = "#e4e6eb"
-	colorSurfaceAccentDark  = "#283347" // accent / selection background
+	colorSurfaceAccentDark  = "#2e3d55" // accent / selection background
 	colorSurfaceAccentLight = "#d0d7e3"
 	colorSurfaceNotifDark  = "#3b4252" // notification badge background
 	colorSurfaceNotifLight = "#d0d7e3"

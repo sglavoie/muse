@@ -28,7 +28,7 @@ type resizable interface {
 // height is reduced by 4 to leave room for the status bar, separator, and header rows.
 func (m *Model) setViewDimensions(width, height int) {
 	viewHeight := max(height-4, 0)
-	for _, view := range []resizable{&m.library, &m.recentlyAdded, &m.history, &m.playlists, &m.queue, &m.artists, &m.albums, &m.favorites, &m.genres, &m.tagsView, &m.mixes} {
+	for _, view := range []resizable{&m.library, &m.playlists, &m.queue, &m.artists, &m.albums, &m.favorites, &m.genres, &m.tagsView, &m.mixes} {
 		view.setSize(width, viewHeight)
 	}
 }
@@ -39,14 +39,6 @@ func (m *Model) clampAllScrollOffsets() {
 	libReserve := libraryViewVisibleReserve(m.library)
 	libMaxRows := layout.VisibleRows(m.library.height, libReserve)
 	m.library.scrollOffset = adjustScroll(m.library.cursor, m.library.scrollOffset, libMaxRows)
-
-	raReserve := libraryViewVisibleReserve(m.recentlyAdded)
-	raMaxRows := layout.VisibleRows(m.recentlyAdded.height, raReserve)
-	m.recentlyAdded.scrollOffset = adjustScroll(m.recentlyAdded.cursor, m.recentlyAdded.scrollOffset, raMaxRows)
-
-	histReserve := libraryViewVisibleReserve(m.history)
-	histMaxRows := layout.VisibleRows(m.history.height, histReserve)
-	m.history.scrollOffset = adjustScroll(m.history.cursor, m.history.scrollOffset, histMaxRows)
 
 	queueMaxRows := m.queue.visibleRows()
 	m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, queueMaxRows)

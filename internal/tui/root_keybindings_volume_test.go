@@ -25,8 +25,8 @@ func TestEqualKeyFiresVolumeUp(t *testing.T) {
 	if nm.playback.volume != 55 {
 		t.Fatalf("= key: expected volume=55, got %d", nm.playback.volume)
 	}
-	if nm.statusBar.notification.msg != "Volume: 55%" {
-		t.Fatalf("= key: expected notification 'Volume: 55%%', got %q", nm.statusBar.notification.msg)
+	if nm.statusBar.topNotification().msg != "Volume: 55%" {
+		t.Fatalf("= key: expected notification 'Volume: 55%%', got %q", nm.statusBar.topNotification().msg)
 	}
 }
 
@@ -79,8 +79,8 @@ func TestMinusKeyFiresVolumeDown(t *testing.T) {
 	if nm.playback.volume != 45 {
 		t.Fatalf("- key: expected volume=45, got %d", nm.playback.volume)
 	}
-	if nm.statusBar.notification.msg != "Volume: 45%" {
-		t.Fatalf("- key: expected notification 'Volume: 45%%', got %q", nm.statusBar.notification.msg)
+	if nm.statusBar.topNotification().msg != "Volume: 45%" {
+		t.Fatalf("- key: expected notification 'Volume: 45%%', got %q", nm.statusBar.topNotification().msg)
 	}
 }
 
@@ -96,8 +96,8 @@ func TestVolumeUpClampsAt100(t *testing.T) {
 	if nm.playback.volume != 100 {
 		t.Fatalf("volume up from 95: expected 100, got %d", nm.playback.volume)
 	}
-	if nm.statusBar.notification.msg != "Volume: 100%" {
-		t.Fatalf("expected notification 'Volume: 100%%', got %q", nm.statusBar.notification.msg)
+	if nm.statusBar.topNotification().msg != "Volume: 100%" {
+		t.Fatalf("expected notification 'Volume: 100%%', got %q", nm.statusBar.topNotification().msg)
 	}
 }
 
@@ -127,8 +127,8 @@ func TestVolumeDownClampsAt0(t *testing.T) {
 	if nm.playback.volume != 0 {
 		t.Fatalf("volume down from 5: expected 0, got %d", nm.playback.volume)
 	}
-	if nm.statusBar.notification.msg != "Volume: 0%" {
-		t.Fatalf("expected notification 'Volume: 0%%', got %q", nm.statusBar.notification.msg)
+	if nm.statusBar.topNotification().msg != "Volume: 0%" {
+		t.Fatalf("expected notification 'Volume: 0%%', got %q", nm.statusBar.topNotification().msg)
 	}
 }
 
@@ -142,7 +142,7 @@ func TestVolumeNotificationUsesShorterExpiry(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: '=', Text: "="})
 	nm := next.(Model)
 
-	expiry := nm.statusBar.notification.expiresAt
+	expiry := nm.statusBar.topNotification().expiresAt
 	// The expiry should be roughly 2s from now, not 5s. Allow 1s tolerance.
 	if d := time.Until(expiry); d > 3*time.Second || d < 1*time.Second {
 		t.Fatalf("volume notification expiry: expected ~2s from now, got %v", d)

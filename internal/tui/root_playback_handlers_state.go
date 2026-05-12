@@ -263,11 +263,10 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 }
 
 // handlePlayRecordedMsg prepends the just-played track to the in-memory
-// history view so it updates in realtime without a full DB reload.
+// library History mode so it updates in realtime without a full DB reload.
 func (m Model) handlePlayRecordedMsg(msg playRecordedMsg) Model {
-	// If history has never been loaded, skip — the next view switch will
-	// load fresh data from DB.
-	if len(m.history.sourceTracks) == 0 {
+	// Only update when History mode is active and has been loaded.
+	if m.library.mode != LibraryModeHistory || len(m.library.sourceTracks) == 0 {
 		return m
 	}
 
@@ -279,18 +278,18 @@ func (m Model) handlePlayRecordedMsg(msg playRecordedMsg) Model {
 
 	// Prepend and cap at 500 entries.
 	const maxHistory = 500
-	tracks := make([]library.Track, 0, min(len(m.history.sourceTracks)+1, maxHistory))
+	tracks := make([]library.Track, 0, min(len(m.library.sourceTracks)+1, maxHistory))
 	tracks = append(tracks, t)
-	limit := len(m.history.sourceTracks)
+	limit := len(m.library.sourceTracks)
 	if limit > maxHistory-1 {
 		limit = maxHistory - 1
 	}
-	tracks = append(tracks, m.history.sourceTracks[:limit]...)
-	m.history.sourceTracks = tracks
+	tracks = append(tracks, m.library.sourceTracks[:limit]...)
+	m.library.sourceTracks = tracks
 
-	m.history = m.history.recomputeSortedTracks()
-	if m.history.filter.Text != "" {
-		m.history = m.history.rebuildFilterCache()
+	m.library = m.library.recomputeSortedTracks()
+	if m.library.filter.Text != "" {
+		m.library = m.library.rebuildFilterCache()
 	}
 	return m
 }

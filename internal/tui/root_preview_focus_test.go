@@ -199,8 +199,9 @@ func TestFocusedTrackForPreview_TagsTagLevel(t *testing.T) {
 // focusedTrackForPreview returns the focused track from the Recently Added view.
 func TestFocusedTrackForPreview_RecentlyAdded(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewRecentlyAdded
-	m.recentlyAdded.index.Insert(library.Track{
+	m.library.mode = LibraryModeRecent
+	m.activeView = viewLibrary
+	m.library.index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T",
 	})
 

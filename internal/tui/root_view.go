@@ -9,11 +9,12 @@ import (
 
 // hasActiveOverlay reports whether any overlay or the help screen is
 // currently displayed. Used to suppress the title bar when an overlay
-// is active. Overlay priority (highest to lowest): help > debug > settings >
-// nowPlaying > trackInfo > preview > metadataEditor > destPicker. When
-// adding a new overlay, update this method and the View() rendering chain.
+// is active. Overlay priority (highest to lowest): welcome > help > debug >
+// settings > nowPlaying > trackInfo > preview > metadataEditor > destPicker.
+// When adding a new overlay, update this method and the View() rendering chain.
 func (m Model) hasActiveOverlay() bool {
-	return m.helpVisible ||
+	return (m.configCreated && !m.welcomeDismissed) ||
+		m.helpVisible ||
 		m.debugVisible ||
 		m.statsVisible ||
 		m.overlay.settings != nil ||
@@ -37,6 +38,8 @@ func (m Model) View() tea.View {
 	var body string
 	// Render overlays in priority order (highest first). See hasActiveOverlay().
 	switch {
+	case m.configCreated && !m.welcomeDismissed:
+		body = m.renderWelcomeOverlay()
 	case m.helpVisible:
 		var filterBar string
 		if m.helpSearchFilter.Active {
@@ -91,10 +94,6 @@ func (m Model) View() tea.View {
 			body = m.favorites.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
 		case viewGenres:
 			body = m.genres.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
-		case viewRecentlyAdded:
-			body = m.recentlyAdded.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
-		case viewHistory:
-			body = m.history.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
 		case viewTags:
 			body = m.tagsView.render(*m.styles, m.favoriteHashes, m.playback.currentHash)
 		case viewMixes:
@@ -110,10 +109,20 @@ func (m Model) View() tea.View {
 
 	statusBar := m.renderStatusBar()
 	bodyLines := strings.Count(body, "\n") + 1
-	if padding := m.termHeight - bodyLines - 2; padding > 0 {
+	confirmExtra := 0
+	if m.confirmationBar != "" {
+		confirmExtra = 1
+	}
+	if padding := m.termHeight - bodyLines - 2 - confirmExtra; padding > 0 {
 		body += strings.Repeat("\n", padding)
 	}
-	content := body + "\n" + statusBar
+	var content string
+	if m.confirmationBar != "" {
+		confirmLine := m.styles.Warning.Width(m.termWidth).Render("  " + m.confirmationBar)
+		content = body + "\n" + confirmLine + "\n" + statusBar
+	} else {
+		content = body + "\n" + statusBar
+	}
 	v := tea.NewView(content)
 	v.AltScreen = true
 	return v
@@ -135,28 +144,36 @@ func (m Model) renderTitleBar() string {
 		if i < 10 {
 			fullWidth += badgeWidth
 		}
-		fullWidth += len(viewName(id))
+		fullWidth += len(m.viewDisplayName(id))
 		if i < len(viewOrder)-1 {
 			fullWidth += len(sep)
 		}
+	}
+
+	filterBadge := ""
+	if m.hasCommittedFilter() {
+		filterBadge += m.styles.Dim.Render(" [filtered]")
+	}
+	if m.activeTagFilter != nil {
+		filterBadge += m.styles.Dim.Render(" [tag: " + m.tagNames[*m.activeTagFilter] + "]")
 	}
 
 	if m.termWidth >= fullWidth {
 		// Wide layout: show all tabs with numbered badges.
 		var parts []string
 		for i, id := range viewOrder {
-			name := viewName(id)
+			name := m.viewDisplayName(id)
 			var entry string
 			if i < 10 {
 				badge := m.styles.Badge.Render(fmt.Sprintf("%d", (i+1)%10))
 				if id == m.activeView {
-					entry = badge + " " + m.styles.Heading.Render(name)
+					entry = badge + " " + m.styles.Heading.Render(name) + filterBadge
 				} else {
 					entry = badge + " " + m.styles.TextTertiary.Render(name)
 				}
 			} else {
 				if id == m.activeView {
-					entry = m.styles.Heading.Render(name)
+					entry = m.styles.Heading.Render(name) + filterBadge
 				} else {
 					entry = m.styles.TextTertiary.Render(name)
 				}
@@ -168,12 +185,14 @@ func (m Model) renderTitleBar() string {
 
 	// Narrow layout: show as many tabs as fit, centered on the active view.
 	// Use abbreviated labels for views with long names.
-	shortNames := map[viewID]string{
-		viewRecentlyAdded: "Recent",
-	}
 	getName := func(id viewID) string {
-		if short, ok := shortNames[id]; ok {
-			return short
+		if id == viewLibrary {
+			switch m.library.mode {
+			case LibraryModeRecent:
+				return "Recent"
+			case LibraryModeHistory:
+				return "History"
+			}
 		}
 		return viewName(id)
 	}
@@ -224,7 +243,7 @@ func (m Model) renderTitleBar() string {
 		id := viewOrder[i]
 		name := getName(id)
 		if id == m.activeView {
-			narrowParts = append(narrowParts, m.styles.Heading.Render(name))
+			narrowParts = append(narrowParts, m.styles.Heading.Render(name)+filterBadge)
 		} else {
 			narrowParts = append(narrowParts, m.styles.TextTertiary.Render(name))
 		}
@@ -255,5 +274,47 @@ func (m Model) renderStatusBar() string {
 	}
 	sb.elapsedSecs = m.playback.elapsedSecs
 	sb.totalSecs = m.playback.totalSecs
+	sb.yankCount = len(m.yankBuffer)
+	sb.yankIsCut = m.yankIsCut
+	switch m.activeView {
+	case viewLibrary:
+		sb.selectionCount = len(m.library.selectedHashes)
+	case viewQueue:
+		sb.selectionCount = len(m.queue.selectedHashes())
+	case viewArtists:
+		sb.selectionCount = len(m.artists.selectedHashes)
+	case viewAlbums:
+		sb.selectionCount = len(m.albums.selectedHashes)
+	case viewGenres:
+		sb.selectionCount = len(m.genres.selectedHashes)
+	case viewFavorites:
+		sb.selectionCount = len(m.favorites.selectedItems)
+	}
+	if m.undo.slot.action != nil {
+		sb.undoExpiresAt = m.undo.slot.expiresAt
+	}
 	return sb.render(m.termWidth, *m.styles)
+}
+
+// hasCommittedFilter reports whether the active view has a committed
+// (non-empty, non-active) text filter applied.
+func (m Model) hasCommittedFilter() bool {
+	committed := func(text string, active bool) bool { return text != "" && !active }
+	switch m.activeView {
+	case viewLibrary:
+		return committed(m.library.filter.Text, m.library.filter.Active)
+	case viewQueue:
+		return committed(m.queue.filter.Text, m.queue.filter.Active)
+	case viewArtists:
+		return committed(m.artists.filter.Text, m.artists.filter.Active)
+	case viewAlbums:
+		return committed(m.albums.filter.Text, m.albums.filter.Active)
+	case viewGenres:
+		return committed(m.genres.filter.Text, m.genres.filter.Active)
+	case viewFavorites:
+		return committed(m.favorites.filter.Text, m.favorites.filter.Active)
+	case viewTags:
+		return committed(m.tagsView.filter.Text, m.tagsView.filter.Active)
+	}
+	return false
 }

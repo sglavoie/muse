@@ -158,7 +158,7 @@ func TestPlayQueueIndexMsgClearsStateOnFailure(t *testing.T) {
 	if nm.statusBar.playlistSource != "" {
 		t.Errorf("expected empty playlistSource, got %q", nm.statusBar.playlistSource)
 	}
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Error("expected error notification")
 	}
 }

@@ -123,10 +123,6 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 		return m.favorites.focusedTrack()
 	case viewGenres:
 		return m.genres.focusedTrack()
-	case viewRecentlyAdded:
-		return m.recentlyAdded.view().FocusedTrack()
-	case viewHistory:
-		return m.history.view().FocusedTrack()
 	case viewTags:
 		track, ok := m.tagsView.focusedTrackAsLibTrack()
 		if ok && track.Hash != "" {

@@ -105,11 +105,13 @@ func TestViewStatusBarHidesScanProgressWhenDone(t *testing.T) {
 	// ScanDoneMsg stops scanning but does not clear the notification.
 	next, _ = nm.Update(library.ScanDoneMsg{})
 	nm = next.(Model)
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Fatal("notification must still be set immediately after ScanDoneMsg")
 	}
 	// Manually expire the notification to simulate 5 seconds passing.
-	nm.statusBar.notification.expiresAt = nm.statusBar.notification.expiresAt.Add(-10 * time.Second)
+	if len(nm.statusBar.notifications) > 0 {
+		nm.statusBar.notifications[0].expiresAt = time.Now().Add(-10 * time.Second)
+	}
 	// Tick fires → expiry check clears the notification.
 	next, _ = nm.Update(tickMsg{})
 	nm = next.(Model)
@@ -136,12 +138,14 @@ func TestScanProgressVisibleDuringScanAndAutoDismissed(t *testing.T) {
 	// ScanDoneMsg stops scanning but notification is still set.
 	next, _ = nm.Update(library.ScanDoneMsg{})
 	nm = next.(Model)
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Fatal("scan progress notification must persist immediately after ScanDoneMsg")
 	}
 
 	// Expire the notification and fire a tick.
-	nm.statusBar.notification.expiresAt = nm.statusBar.notification.expiresAt.Add(-10 * time.Second)
+	if len(nm.statusBar.notifications) > 0 {
+		nm.statusBar.notifications[0].expiresAt = time.Now().Add(-10 * time.Second)
+	}
 	next, _ = nm.Update(tickMsg{})
 	nm = next.(Model)
 	v = nm.View()

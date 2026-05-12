@@ -1,24 +1,29 @@
 package tui
 
-// resetLibrarySort clears the library sort state and cached sorted tracks.
-// When a filter is active, the cached fuzzy-match results are rebuilt against
-// the unsorted track list so that TrackIndex values remain valid.
+// resetLibrarySort resets the library sort state to the mode's default.
+// For LibraryModeAll this clears any custom sort; for Recent and History modes
+// it restores their fixed sort (Date Added and Last Played respectively).
 func (m Model) resetLibrarySort() Model {
-	hadSort := m.library.sortState.Field != SortDefault
-	m.library.sortState = SortState{}
-	m.library.sortedTracks = nil
-	if hadSort && m.library.filter.Text != "" {
-		m.library = m.library.rebuildFilterCache()
-	}
-	return m
-}
-
-// resetRecentlyAddedSort restores the fixed Date Added sort state.
-func (m Model) resetRecentlyAddedSort() Model {
-	m.recentlyAdded.sortState = SortState{Field: SortDateAdded, Dir: SortDesc}
-	m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
-	if m.recentlyAdded.filter.Text != "" {
-		m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
+	switch m.library.mode {
+	case LibraryModeRecent:
+		m.library.sortState = SortState{Field: SortDateAdded, Dir: SortDesc}
+		m.library = m.library.recomputeSortedTracks()
+		if m.library.filter.Text != "" {
+			m.library = m.library.rebuildFilterCache()
+		}
+	case LibraryModeHistory:
+		m.library.sortState = SortState{Field: SortLastPlayed, Dir: SortDesc}
+		m.library = m.library.recomputeSortedTracks()
+		if m.library.filter.Text != "" {
+			m.library = m.library.rebuildFilterCache()
+		}
+	default: // LibraryModeAll
+		hadSort := m.library.sortState.Field != SortDefault
+		m.library.sortState = SortState{}
+		m.library.sortedTracks = nil
+		if hadSort && m.library.filter.Text != "" {
+			m.library = m.library.rebuildFilterCache()
+		}
 	}
 	return m
 }
@@ -105,20 +110,9 @@ func (m Model) resetTagsSort() Model {
 	return m
 }
 
-// resetHistorySort restores the fixed Last Played sort state.
-func (m Model) resetHistorySort() Model {
-	m.history.sortState = SortState{Field: SortLastPlayed, Dir: SortDesc}
-	m.history = m.history.recomputeSortedTracks()
-	if m.history.filter.Text != "" {
-		m.history = m.history.rebuildFilterCache()
-	}
-	return m
-}
-
 // resetAllSorts clears sort state for all views.
 func (m Model) resetAllSorts() Model {
 	m = m.resetLibrarySort()
-	m = m.resetRecentlyAddedSort()
 	m = m.resetQueueSort()
 	m = m.resetPlaylistsSort()
 	m = m.resetArtistsSort()
@@ -126,6 +120,5 @@ func (m Model) resetAllSorts() Model {
 	m = m.resetFavoritesSort()
 	m = m.resetGenresSort()
 	m = m.resetTagsSort()
-	m = m.resetHistorySort()
 	return m
 }

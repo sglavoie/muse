@@ -27,8 +27,8 @@ func TestRadioToggleOnOff(t *testing.T) {
 	if len(sw.radioModeCalls) != 1 || !sw.radioModeCalls[0] {
 		t.Errorf("expected WriteRadioMode(true), got radioModeCalls=%v", sw.radioModeCalls)
 	}
-	if !strings.Contains(m.statusBar.notification.msg, "on") {
-		t.Errorf("expected notification containing 'on', got %q", m.statusBar.notification.msg)
+	if !strings.Contains(m.statusBar.topNotification().msg, "on") {
+		t.Errorf("expected notification containing 'on', got %q", m.statusBar.topNotification().msg)
 	}
 
 	// Toggle off.
@@ -40,8 +40,8 @@ func TestRadioToggleOnOff(t *testing.T) {
 	if len(sw.radioModeCalls) != 2 || sw.radioModeCalls[1] {
 		t.Errorf("expected WriteRadioMode(false), got radioModeCalls=%v", sw.radioModeCalls)
 	}
-	if !strings.Contains(m.statusBar.notification.msg, "off") {
-		t.Errorf("expected notification containing 'off', got %q", m.statusBar.notification.msg)
+	if !strings.Contains(m.statusBar.topNotification().msg, "off") {
+		t.Errorf("expected notification containing 'off', got %q", m.statusBar.topNotification().msg)
 	}
 }
 

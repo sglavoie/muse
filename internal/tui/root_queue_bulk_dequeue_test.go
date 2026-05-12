@@ -41,8 +41,8 @@ func TestBulkDequeueCreatesUndoSlot(t *testing.T) {
 	if len(bulkAction.indices) != 2 || bulkAction.indices[0] != 1 || bulkAction.indices[1] != 3 {
 		t.Fatalf("bulkDequeueIndices = %v, want [1 3]", bulkAction.indices)
 	}
-	if !strings.Contains(nm.statusBar.notification.msg, "undo") {
-		t.Fatalf("notification should contain undo hint, got %q", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "undo") {
+		t.Fatalf("notification should contain undo hint, got %q", nm.statusBar.topNotification().msg)
 	}
 	if len(d.dequeueTrackSoftCalls) != 2 {
 		t.Fatalf("DequeueTrackSoft calls = %d, want 2", len(d.dequeueTrackSoftCalls))

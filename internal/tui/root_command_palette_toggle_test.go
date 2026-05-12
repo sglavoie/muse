@@ -59,10 +59,10 @@ func TestConfigToggleMsg_NotifyContent(t *testing.T) {
 	m.cfg.NormalizeVolume = false
 
 	result, _ := m.handleConfigToggleMsg(configToggleMsg{field: toggleNormalize})
-	if !strings.Contains(result.statusBar.notification.msg, "normalization") {
-		t.Errorf("expected 'normalization' in notification, got %q", result.statusBar.notification.msg)
+	if !strings.Contains(result.statusBar.topNotification().msg, "normalization") {
+		t.Errorf("expected 'normalization' in notification, got %q", result.statusBar.topNotification().msg)
 	}
-	if !strings.Contains(result.statusBar.notification.msg, "On") {
-		t.Errorf("expected 'On' in notification, got %q", result.statusBar.notification.msg)
+	if !strings.Contains(result.statusBar.topNotification().msg, "On") {
+		t.Errorf("expected 'On' in notification, got %q", result.statusBar.topNotification().msg)
 	}
 }

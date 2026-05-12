@@ -70,11 +70,11 @@ func TestTrackEnqueuedMsgWithErrorShowsNotification(t *testing.T) {
 	next, _ := m.Update(msg)
 	nm := next.(Model)
 
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Fatal("TrackEnqueuedMsg with error must set a notification")
 	}
-	if !strings.Contains(nm.statusBar.notification.msg, "db locked") {
-		t.Fatalf("notification must contain the error message, got %q", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "db locked") {
+		t.Fatalf("notification must contain the error message, got %q", nm.statusBar.topNotification().msg)
 	}
 	// Queue must not have grown.
 	if len(nm.queue.entries) != 0 {

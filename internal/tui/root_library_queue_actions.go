@@ -30,12 +30,6 @@ func (m Model) handleLibraryEnqueueAction() (tea.Model, tea.Cmd, bool) {
 	case viewLibrary:
 		cmd = m.library.EnqueueFocused(m.queueWriter, len(m.queue.entries))
 		m.library = m.library.ClearFilter()
-	case viewRecentlyAdded:
-		cmd = m.recentlyAdded.EnqueueFocused(m.queueWriter, len(m.queue.entries))
-		m.recentlyAdded = m.recentlyAdded.ClearFilter()
-	case viewHistory:
-		cmd = m.history.EnqueueFocused(m.queueWriter, len(m.queue.entries))
-		m.history = m.history.ClearFilter()
 	case viewMixes:
 		if m.mixes.level == 1 {
 			cmd = m.mixes.trackView.EnqueueFocused(m.queueWriter, len(m.queue.entries))
@@ -56,12 +50,6 @@ func (m Model) handleLibraryPlayNextAction() (tea.Model, tea.Cmd, bool) {
 	case viewLibrary:
 		cmd = m.library.PlayNextFocused(m.queueWriter, prevLen, insertIdx)
 		m.library = m.library.ClearFilter()
-	case viewRecentlyAdded:
-		cmd = m.recentlyAdded.PlayNextFocused(m.queueWriter, prevLen, insertIdx)
-		m.recentlyAdded = m.recentlyAdded.ClearFilter()
-	case viewHistory:
-		cmd = m.history.PlayNextFocused(m.queueWriter, prevLen, insertIdx)
-		m.history = m.history.ClearFilter()
 	case viewArtists:
 		if m.artists.level == arttui.TrackLevel {
 			cmd = m.artists.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
@@ -102,18 +90,6 @@ func (m Model) handleLibraryEnqueueReplaceAction() (tea.Model, tea.Cmd, bool) {
 			m = m.clearQueueForReplace()
 			cmd = m.library.EnqueueFocused(m.queueWriter, 0)
 			m.library = m.library.ClearFilter()
-		}
-	case viewRecentlyAdded:
-		if _, ok := m.recentlyAdded.view().FocusedTrack(); ok {
-			m = m.clearQueueForReplace()
-			cmd = m.recentlyAdded.EnqueueFocused(m.queueWriter, 0)
-			m.recentlyAdded = m.recentlyAdded.ClearFilter()
-		}
-	case viewHistory:
-		if _, ok := m.history.view().FocusedTrack(); ok {
-			m = m.clearQueueForReplace()
-			cmd = m.history.EnqueueFocused(m.queueWriter, 0)
-			m.history = m.history.ClearFilter()
 		}
 	case viewArtists:
 		if m.artists.level == arttui.TrackLevel {

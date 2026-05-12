@@ -145,8 +145,8 @@ func TestPlaybackEndedMsgRepeatOffShowsNotification(t *testing.T) {
 	if nm.playback.state != PlaybackIdle {
 		t.Fatalf("RepeatOff + PlaybackEndedMsg: expected PlaybackIdle, got %v", nm.playback.state)
 	}
-	if !strings.Contains(nm.statusBar.notification.msg, "Queue finished") {
-		t.Fatalf("RepeatOff + PlaybackEndedMsg: expected 'Queue finished' notification, got %q", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "Queue finished") {
+		t.Fatalf("RepeatOff + PlaybackEndedMsg: expected 'Queue finished' notification, got %q", nm.statusBar.topNotification().msg)
 	}
 }
 

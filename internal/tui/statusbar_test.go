@@ -157,37 +157,37 @@ func TestRenderRepeatAndShuffleIndicators(t *testing.T) {
 		t.Errorf("expected no R/S when both off: got %q", out)
 	}
 
-	// Repeat all (RepeatAll shows "R").
+	// Repeat all (RepeatAll shows "Repeat").
 	sbR := base
 	sbR.repeatMode = RepeatAll
 	out = sbR.render(0, styles.Styles{})
-	if !strings.Contains(out, "  R") {
-		t.Errorf("expected R indicator: got %q", out)
+	if !strings.Contains(out, "  Repeat") {
+		t.Errorf("expected Repeat indicator: got %q", out)
 	}
-	if strings.Contains(out, "  S") {
-		t.Errorf("unexpected S indicator: got %q", out)
+	if strings.Contains(out, "  Shuffle") {
+		t.Errorf("unexpected Shuffle indicator: got %q", out)
 	}
 
-	// Repeat one (RepeatOne shows "R1").
+	// Repeat one (RepeatOne shows "Repeat 1").
 	sbR1 := base
 	sbR1.repeatMode = RepeatOne
 	out = sbR1.render(0, styles.Styles{})
-	if !strings.Contains(out, "  R1") {
-		t.Errorf("expected R1 indicator: got %q", out)
+	if !strings.Contains(out, "  Repeat 1") {
+		t.Errorf("expected Repeat 1 indicator: got %q", out)
 	}
-	if strings.Contains(out, "  S") {
-		t.Errorf("unexpected S indicator: got %q", out)
+	if strings.Contains(out, "  Shuffle") {
+		t.Errorf("unexpected Shuffle indicator: got %q", out)
 	}
 
 	// Shuffle on.
 	sbS := base
 	sbS.shuffle = true
 	out = sbS.render(0, styles.Styles{})
-	if !strings.Contains(out, "  S") {
-		t.Errorf("expected S indicator: got %q", out)
+	if !strings.Contains(out, "  Shuffle") {
+		t.Errorf("expected Shuffle indicator: got %q", out)
 	}
-	if strings.Contains(out, "  R") {
-		t.Errorf("unexpected R indicator: got %q", out)
+	if strings.Contains(out, "  Repeat") {
+		t.Errorf("unexpected Repeat indicator: got %q", out)
 	}
 }
 
@@ -199,7 +199,7 @@ func TestRenderTransientDoesNotOverwritePersistent(t *testing.T) {
 		artist:        "Persistent Artist",
 		title:         "Persistent Title",
 		playbackState: PlaybackPlaying,
-		notification:  transientNotification{msg: "Scanning… 100 tracks"},
+		notifications: []transientNotification{{msg: "Scanning… 100 tracks"}},
 	}
 
 	out := sb.render(0, styles.Styles{})
@@ -226,7 +226,7 @@ func TestRenderTransientVisibleWithWidthConstraint(t *testing.T) {
 		artist:        "My Artist",
 		title:         "A Very Long Title Indeed",
 		playbackState: PlaybackPlaying,
-		notification:  transientNotification{msg: "Some notification"},
+		notifications: []transientNotification{{msg: "Some notification"}},
 	}
 
 	out := sb.render(45, styles.Styles{})
@@ -472,12 +472,12 @@ func TestNotifyUsesConfiguredDuration(t *testing.T) {
 	before := time.Now()
 	sb.notify("test message")
 
-	if sb.notification.msg != "test message" {
-		t.Errorf("expected msg %q, got %q", "test message", sb.notification.msg)
+	top := sb.topNotification()
+	if top.msg != "test message" {
+		t.Errorf("expected msg %q, got %q", "test message", top.msg)
 	}
 	// Expiry should be ~15s from now, not ~5s.
-	expiry := sb.notification.expiresAt
-	diff := expiry.Sub(before)
+	diff := top.expiresAt.Sub(before)
 	if diff < 14*time.Second || diff > 16*time.Second {
 		t.Errorf("expected expiry ~15s from now, got %v", diff)
 	}
@@ -490,8 +490,8 @@ func TestNotifyFallsBackToDefault(t *testing.T) {
 	before := time.Now()
 	sb.notify("fallback test")
 
-	expiry := sb.notification.expiresAt
-	diff := expiry.Sub(before)
+	top := sb.topNotification()
+	diff := top.expiresAt.Sub(before)
 	if diff < 4*time.Second || diff > 6*time.Second {
 		t.Errorf("expected expiry ~5s (fallback) from now, got %v", diff)
 	}

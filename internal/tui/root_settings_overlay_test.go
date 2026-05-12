@@ -128,7 +128,7 @@ func TestSettingsSavedMsgShowsNotification(t *testing.T) {
 	m := New(context.Background())
 	next, _ := m.Update(settingsSavedMsg{})
 	nm := next.(Model)
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Error("settingsSavedMsg: expected notification to be set")
 	}
 }
@@ -138,8 +138,8 @@ func TestSettingsSavedMsgErrorShowsErrorNotification(t *testing.T) {
 	m := New(context.Background())
 	next, _ := m.Update(settingsSavedMsg{err: errors.New("save error")})
 	nm := next.(Model)
-	if !strings.Contains(nm.statusBar.notification.msg, "failed") {
-		t.Errorf("settingsSavedMsg with error: expected 'failed' in notification, got %q", nm.statusBar.notification.msg)
+	if !strings.Contains(nm.statusBar.topNotification().msg, "failed") {
+		t.Errorf("settingsSavedMsg with error: expected 'failed' in notification, got %q", nm.statusBar.topNotification().msg)
 	}
 }
 

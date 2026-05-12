@@ -13,27 +13,106 @@ import (
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
+// notifPriority controls which notification wins when multiple are queued.
+// Higher values win; the queue evicts the lowest-priority entry when full.
+type notifPriority uint8
+
+const (
+	notifInfo   notifPriority = iota // scan progress, sort, volume, mode toggles
+	notifNormal                      // action results, errors, undo prompts
+	notifUndo                        // reserved: never-overwritten slot (unused — kept for future use)
+)
+
 // transientNotification holds a single pending notification for the status bar
 // right zone. expiresAt is the time after which the notification should be
 // cleared by the tick handler. A zero expiresAt means no notification is set.
 type transientNotification struct {
 	msg       string
 	expiresAt time.Time
+	priority  notifPriority
 }
 
-func newNotificationFor(msg string, dur time.Duration) transientNotification {
-	return transientNotification{msg: msg, expiresAt: time.Now().Add(dur)}
+// pushMsg enqueues a notification with an explicit duration and priority.
+// The queue is capped at 5 entries; when full the lowest-priority oldest entry
+// is evicted. If all existing entries outrank the incoming one it is dropped.
+func (s *StatusBar) pushMsg(msg string, dur time.Duration, priority notifPriority) {
+	const maxQueue = 5
+	n := transientNotification{msg: msg, expiresAt: time.Now().Add(dur), priority: priority}
+	// Prune expired entries first to make room.
+	s.pruneNotifications()
+	if len(s.notifications) < maxQueue {
+		s.notifications = append(s.notifications, n)
+		return
+	}
+	// At capacity — evict the lowest-priority oldest entry (lowest index wins tie).
+	evictIdx := -1
+	var evictPrio notifPriority
+	for i, existing := range s.notifications {
+		if evictIdx < 0 || existing.priority < evictPrio {
+			evictIdx = i
+			evictPrio = existing.priority
+		}
+	}
+	if evictIdx >= 0 && evictPrio <= priority {
+		s.notifications = append(s.notifications[:evictIdx], s.notifications[evictIdx+1:]...)
+		s.notifications = append(s.notifications, n)
+	}
+	// If all existing entries outrank the incoming one, drop it silently.
 }
 
-// notify sets a transient notification using the configured transient duration.
-// Falls back to the default 5s constant when transientDur is zero (e.g. in
-// tests that do not set config).
+// isExpired reports whether n has expired. A zero expiresAt is treated as
+// "no expiry" and is never expired (used for direct-assignment test helpers).
+func (n transientNotification) isExpired() bool {
+	return !n.expiresAt.IsZero() && time.Now().After(n.expiresAt)
+}
+
+// pruneNotifications removes expired entries from the notifications queue.
+func (s *StatusBar) pruneNotifications() {
+	i := 0
+	for _, notif := range s.notifications {
+		if !notif.isExpired() {
+			s.notifications[i] = notif
+			i++
+		}
+	}
+	s.notifications = s.notifications[:i]
+}
+
+// topNotification returns the highest-priority non-expired notification, or
+// a zero value when the queue is empty or all entries have expired.
+// Among entries with equal priority, the last-pushed one wins.
+func (s StatusBar) topNotification() transientNotification {
+	var top transientNotification
+	for _, notif := range s.notifications {
+		if notif.isExpired() {
+			continue
+		}
+		if top.msg == "" || notif.priority >= top.priority {
+			top = notif
+		}
+	}
+	return top
+}
+
+// notify enqueues a notifNormal notification using the configured transient
+// duration. Falls back to the default 5s constant when transientDur is zero
+// (e.g. in tests that do not set config).
 func (s *StatusBar) notify(msg string) {
 	dur := s.transientDur
 	if dur == 0 {
 		dur = transientDuration
 	}
-	s.notification = transientNotification{msg: msg, expiresAt: time.Now().Add(dur)}
+	s.pushMsg(msg, dur, notifNormal)
+}
+
+// notifyInfo enqueues a notifInfo notification (scan, sort, volume, mode
+// toggles). These yield to notifNormal when both are queued.
+func (s *StatusBar) notifyInfo(msg string) {
+	dur := s.transientDur
+	if dur == 0 {
+		dur = transientDuration
+	}
+	s.pushMsg(msg, dur, notifInfo)
 }
 
 // StatusBar manages the persistent status bar at the bottom of the screen.
@@ -47,8 +126,12 @@ type StatusBar struct {
 	configCreated bool
 	configPath    string
 	watchDegraded bool
-	notification  transientNotification
+	notifications []transientNotification
 	transientDur  time.Duration // configurable notification duration
+
+	// undoExpiresAt is set by renderStatusBar when an undo slot is active.
+	// The render() method appends a seconds countdown to the undo notification.
+	undoExpiresAt time.Time
 
 	// Persistent left zone fields — set during Update when track/state changes.
 	artist         string
@@ -81,6 +164,11 @@ type StatusBar struct {
 	// radioMode is true when Auto-DJ / radio mode is active.
 	// Injected by renderStatusBar from the root Model.
 	radioMode bool
+
+	// yankCount, yankIsCut, and selectionCount are injected by renderStatusBar.
+	yankCount      int
+	yankIsCut      bool
+	selectionCount int
 }
 
 // handleScanProgress sets the transient notification to a formatted progress
@@ -94,7 +182,7 @@ func (s *StatusBar) handleScanProgress(msg library.ScanProgressMsg) {
 	} else {
 		text = fmt.Sprintf("Scanning… %s tracks", formatCount(msg.Scanned))
 	}
-	s.notify(text)
+	s.notifyInfo(text)
 }
 
 // handleMissingTrack sets the transient notification to an error message
@@ -190,8 +278,13 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	if s.watchDegraded {
 		rightSegments = append(rightSegments, notifErr.Render(" File watcher unavailable — press r to rescan manually "))
 	}
-	if s.notification.msg != "" {
-		msg := s.notification.msg
+	if top := s.topNotification(); top.msg != "" {
+		msg := top.msg
+		if !s.undoExpiresAt.IsZero() {
+			if remaining := s.undoExpiresAt.Sub(time.Now()); remaining > 0 {
+				msg = fmt.Sprintf("%s (%ds)", msg, int(math.Ceil(remaining.Seconds())))
+			}
+		}
 		if strings.HasPrefix(msg, "Error:") {
 			rightSegments = append(rightSegments, notifErr.Render(" "+msg+" "))
 		} else {
@@ -258,41 +351,103 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 		stateIconWidth = 1
 	}
 
-	// Build the suffix that follows the title: playlist source, repeat, shuffle.
+	// Build the suffix that follows the title: playlist source, mode indicators.
 	suffix := ""
 	suffixWidth := 0
 	if s.playlistSource != "" {
 		suffix += barDim.Render("  [" + s.playlistSource + "]")
 		suffixWidth += 2 + ansi.StringWidth(s.playlistSource) + 2
 	}
+
+	// Build readable mode labels grouped into playback and editorial categories.
+	var playback []string
 	switch s.repeatMode {
 	case RepeatAll:
-		suffix += barBold.Render("  R")
-		suffixWidth += 2 + 1
+		playback = append(playback, "Repeat")
 	case RepeatOne:
-		suffix += barBold.Render("  R1")
-		suffixWidth += 2 + 2
+		playback = append(playback, "Repeat 1")
 	}
 	if s.shuffle {
-		suffix += barBold.Render("  S")
-		suffixWidth += 2 + 1
+		playback = append(playback, "Shuffle")
 	}
 	if s.stopAfterCurrent {
-		suffix += barBold.Render("  N")
-		suffixWidth += 2 + 1
+		playback = append(playback, "Stop Next")
 	}
 	if s.radioMode {
-		suffix += barBold.Render("  DJ")
-		suffixWidth += 2 + 2
+		playback = append(playback, "Auto-DJ")
 	}
+
+	var editorial []string
 	if s.visualMode {
-		suffix += barBold.Render("  V")
-		suffixWidth += 2 + 1
+		editorial = append(editorial, "Visual")
 	}
 	if s.activeTagName != "" {
-		label := "  Tag: " + s.activeTagName
-		suffix += barBold.Render(label)
-		suffixWidth += ansi.StringWidth(label)
+		editorial = append(editorial, "Tag: "+s.activeTagName)
+	}
+	if s.yankCount > 0 {
+		if s.yankIsCut {
+			editorial = append(editorial, fmt.Sprintf("Cut: %d", s.yankCount))
+		} else {
+			editorial = append(editorial, fmt.Sprintf("Yank: %d", s.yankCount))
+		}
+	}
+	if s.selectionCount > 0 {
+		editorial = append(editorial, fmt.Sprintf("Sel: %d", s.selectionCount))
+	}
+
+	if len(playback) > 0 || len(editorial) > 0 {
+		var groups []string
+		if len(playback) > 0 {
+			groups = append(groups, strings.Join(playback, " "))
+		}
+		if len(editorial) > 0 {
+			groups = append(groups, strings.Join(editorial, " "))
+		}
+		modesText := strings.Join(groups, " │ ")
+		modesDisplayWidth := 2 + ansi.StringWidth(modesText) // 2 = leading "  "
+
+		// Fall back to abbreviated single-letter codes when readable labels would
+		// exceed 40% of terminal width, avoiding crowding on narrow terminals.
+		if width > 0 && modesDisplayWidth > width*2/5 {
+			var abbrev []string
+			switch s.repeatMode {
+			case RepeatAll:
+				abbrev = append(abbrev, "R")
+			case RepeatOne:
+				abbrev = append(abbrev, "R1")
+			}
+			if s.shuffle {
+				abbrev = append(abbrev, "S")
+			}
+			if s.stopAfterCurrent {
+				abbrev = append(abbrev, "N")
+			}
+			if s.radioMode {
+				abbrev = append(abbrev, "DJ")
+			}
+			if s.visualMode {
+				abbrev = append(abbrev, "V")
+			}
+			if s.activeTagName != "" {
+				abbrev = append(abbrev, "Tag:"+s.activeTagName)
+			}
+			if s.yankCount > 0 {
+				if s.yankIsCut {
+					abbrev = append(abbrev, fmt.Sprintf("Cut:%d", s.yankCount))
+				} else {
+					abbrev = append(abbrev, fmt.Sprintf("Y:%d", s.yankCount))
+				}
+			}
+			if s.selectionCount > 0 {
+				abbrev = append(abbrev, fmt.Sprintf("Sel:%d", s.selectionCount))
+			}
+			abbrevText := strings.Join(abbrev, " ")
+			suffix += barBold.Render("  " + abbrevText)
+			suffixWidth += 2 + ansi.StringWidth(abbrevText)
+		} else {
+			suffix += barBold.Render("  " + modesText)
+			suffixWidth += modesDisplayWidth
+		}
 	}
 
 	// Build the prefix that precedes the title: glyph and artist.

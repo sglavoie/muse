@@ -214,7 +214,7 @@ func TestBulkActionInPlaylistsRequiresConfirmation(t *testing.T) {
 	if !nm.undo.bulkRemovePending {
 		t.Fatal("expected bulkRemovePending=true after first 'a' press")
 	}
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Fatal("expected a confirmation notification after first 'a' press")
 	}
 

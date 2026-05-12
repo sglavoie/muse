@@ -42,17 +42,17 @@ func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (M
 	for _, fix := range msg.Fixes {
 		fixMap[fix.Hash] = fix.DurationMs
 	}
-	if len(m.history.sourceTracks) > 0 {
-		for i := range m.history.sourceTracks {
-			if ms, ok := fixMap[m.history.sourceTracks[i].Hash]; ok {
-				m.history.sourceTracks[i].Duration = float64(ms) / 1000
+	if m.library.mode == LibraryModeHistory && len(m.library.sourceTracks) > 0 {
+		for i := range m.library.sourceTracks {
+			if ms, ok := fixMap[m.library.sourceTracks[i].Hash]; ok {
+				m.library.sourceTracks[i].Duration = float64(ms) / 1000
 			}
 		}
-		if m.history.sortState.Field != SortDefault {
-			m.history = m.history.recomputeSortedTracks()
+		if m.library.sortState.Field != SortDefault {
+			m.library = m.library.recomputeSortedTracks()
 		}
-		if m.history.filter.Text != "" {
-			m.history = m.history.rebuildFilterCache()
+		if m.library.filter.Text != "" {
+			m.library = m.library.rebuildFilterCache()
 		}
 	}
 	if m.playlists.level == pltui.TrackLevel {

@@ -62,14 +62,15 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 		m.overlay.nowPlaying.total = m.playback.totalSecs
 		m.overlay.nowPlaying.state = m.playback.state
 	}
-	if !m.statusBar.notification.expiresAt.IsZero() && time.Now().After(m.statusBar.notification.expiresAt) {
-		m.statusBar.notification = transientNotification{}
-	}
-	if m.undo.clearQueuePending && time.Now().After(m.undo.clearQueuePendingAt.Add(queueConfirmationWindow)) {
+	m.statusBar.pruneNotifications()
+	now := time.Now()
+	if m.undo.clearQueuePending && now.After(m.undo.clearQueuePendingAt.Add(queueConfirmationWindow)) {
 		m.undo.clearQueuePending = false
+		m.confirmationBar = ""
 	}
-	if m.undo.bulkRemovePending && time.Now().After(m.undo.bulkRemovePendingAt.Add(confirmationWindow)) {
+	if m.undo.bulkRemovePending && now.After(m.undo.bulkRemovePendingAt.Add(confirmationWindow)) {
 		m.undo.bulkRemovePending = false
+		m.confirmationBar = ""
 	}
 	return m, tea.Batch(tickCmd(), previewDurationCmd, mainDurationCmd)
 }
@@ -106,16 +107,18 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 			m.queue.entries[i].DurationMs = newDurationMs
 		}
 	}
-	for i := range m.history.sourceTracks {
-		if m.history.sourceTracks[i].Hash == hash {
-			m.history.sourceTracks[i].Duration = mpvTotal
+	if m.library.mode == LibraryModeHistory {
+		for i := range m.library.sourceTracks {
+			if m.library.sourceTracks[i].Hash == hash {
+				m.library.sourceTracks[i].Duration = mpvTotal
+			}
 		}
-	}
-	if m.history.sortState.Field != SortDefault {
-		m.history = m.history.recomputeSortedTracks()
-	}
-	if m.history.filter.Text != "" {
-		m.history = m.history.rebuildFilterCache()
+		if m.library.sortState.Field != SortDefault {
+			m.library = m.library.recomputeSortedTracks()
+		}
+		if m.library.filter.Text != "" {
+			m.library = m.library.rebuildFilterCache()
+		}
 	}
 	if m.playlists.level == pltui.TrackLevel {
 		for i := range m.playlists.tracks {

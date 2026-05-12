@@ -71,7 +71,7 @@ func TestMixesRadioSeedEnable(t *testing.T) {
 	if m2.radio.seedHash != "" {
 		t.Errorf("expected seedHash to be empty for synthetic seed, got %q", m2.radio.seedHash)
 	}
-	if m2.statusBar.notification.msg == "" {
+	if m2.statusBar.topNotification().msg == "" {
 		t.Error("expected a status notification")
 	}
 }

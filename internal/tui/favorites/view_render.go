@@ -106,7 +106,7 @@ func (v View) renderList() string {
 		case selected:
 			marker = v.Styles.AccentMark.Render("●") + " "
 		case isFocused:
-			marker = "▎ "
+			marker = v.Styles.AccentMark.Render("▎") + " "
 		default:
 			marker = "  "
 		}
@@ -276,6 +276,9 @@ func (v View) filterSeparator() string {
 		sortLine = "\n" + v.SortIndicator
 	}
 	if v.FilterActive {
+		if v.FilterText == "" && v.FilterHint != "" {
+			return sortLine + "\nFilter: " + v.Styles.Dim.Render(v.FilterHint) + "\n"
+		}
 		fv := v.FilterView
 		if fv == "" {
 			fv = v.FilterText

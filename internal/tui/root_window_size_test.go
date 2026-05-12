@@ -147,33 +147,33 @@ func TestWindowSizeShrinkClampsCursorVisibility(t *testing.T) {
 }
 
 // TestWindowSizeShrinkClampsRecentlyAddedScroll verifies that when the terminal
-// shrinks, the recentlyAdded scroll offset is adjusted so the cursor remains
-// visible. This is a regression test: the recentlyAdded view was previously
-// omitted from clampAllScrollOffsets.
+// shrinks, the library (recently added mode) scroll offset is adjusted so the
+// cursor remains visible.
 func TestWindowSizeShrinkClampsRecentlyAddedScroll(t *testing.T) {
 	m := New(context.Background())
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 80})
 	m = next.(Model)
 
-	// Populate recentlyAdded with enough tracks.
+	// Populate library (recently added mode) with enough tracks.
 	tracks := make([]library.Track, 100)
 	for i := range tracks {
 		tracks[i] = library.Track{Hash: fmt.Sprintf("h%d", i), Title: fmt.Sprintf("Track %d", i)}
 	}
-	m.recentlyAdded.sourceTracks = tracks
-	m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
-	m.recentlyAdded.cursor = 70
-	m.recentlyAdded.scrollOffset = 60
-	m.activeView = viewRecentlyAdded
+	m.library.mode = LibraryModeRecent
+	m.library.sourceTracks = tracks
+	m.library = m.library.recomputeSortedTracks()
+	m.library.cursor = 70
+	m.library.scrollOffset = 60
+	m.activeView = viewLibrary
 
 	// Shrink the terminal significantly.
 	next, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
 	nm := next.(Model)
 
-	maxRows := layout.VisibleRows(nm.recentlyAdded.height, 1)
-	if nm.recentlyAdded.cursor < nm.recentlyAdded.scrollOffset ||
-		nm.recentlyAdded.cursor >= nm.recentlyAdded.scrollOffset+maxRows {
-		t.Fatalf("after shrink: recentlyAdded cursor %d not visible with scrollOffset=%d maxRows=%d",
-			nm.recentlyAdded.cursor, nm.recentlyAdded.scrollOffset, maxRows)
+	maxRows := layout.VisibleRows(nm.library.height, 1)
+	if nm.library.cursor < nm.library.scrollOffset ||
+		nm.library.cursor >= nm.library.scrollOffset+maxRows {
+		t.Fatalf("after shrink: library cursor %d not visible with scrollOffset=%d maxRows=%d",
+			nm.library.cursor, nm.library.scrollOffset, maxRows)
 	}
 }

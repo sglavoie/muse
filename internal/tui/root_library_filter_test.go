@@ -71,8 +71,9 @@ func TestLibraryEnterClearsCommittedFilter(t *testing.T) {
 // History view has a committed filter clears the filter text.
 func TestHistoryEscClearsCommittedFilter(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewHistory
-	m.history.sourceTracks = []library.Track{
+	m.library.mode = LibraryModeHistory
+	m.activeView = viewLibrary
+	m.library.sourceTracks = []library.Track{
 		{Artist: "Alice", Title: "Alpha", Hash: "h1"},
 		{Artist: "Bob", Title: "Beta", Hash: "h2"},
 	}
@@ -81,18 +82,18 @@ func TestHistoryEscClearsCommittedFilter(t *testing.T) {
 	m = typeText(m, "ali")
 	m = pressEnter(m)
 
-	if m.history.filter.Text != "ali" {
-		t.Fatalf("expected committed filterText \"ali\", got %q", m.history.filter.Text)
+	if m.library.filter.Text != "ali" {
+		t.Fatalf("expected committed filterText \"ali\", got %q", m.library.filter.Text)
 	}
-	if m.history.filter.Active {
+	if m.library.filter.Active {
 		t.Fatal("expected filterActive=false after commit")
 	}
 
 	m = pressEsc(m)
-	if m.history.filter.Text != "" {
-		t.Errorf("expected filterText cleared after Esc, got %q", m.history.filter.Text)
+	if m.library.filter.Text != "" {
+		t.Errorf("expected filterText cleared after Esc, got %q", m.library.filter.Text)
 	}
-	if m.history.filter.Active {
+	if m.library.filter.Active {
 		t.Error("expected filterActive=false after Esc")
 	}
 }
@@ -126,7 +127,7 @@ func TestFilterBarMsgIgnoredOutsideLibraryView(t *testing.T) {
 	if nm.library.filter.Active {
 		t.Error("library filterActive should remain false when FilterBarMsg is sent on playlists view")
 	}
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Error("FilterBarMsg on playlists view should set a transient notification")
 	}
 }

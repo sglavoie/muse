@@ -37,7 +37,8 @@ func TestWatchBatchUpdatesQueueDuration(t *testing.T) {
 func TestWatchBatchUpdatesHistoryDuration(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
-	m.history.sourceTracks = []library.Track{
+	m.library.mode = LibraryModeHistory
+	m.library.sourceTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Duration: 120},
 	}
 
@@ -48,8 +49,8 @@ func TestWatchBatchUpdatesHistoryDuration(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.history.sourceTracks[0].Duration != 200 {
-		t.Errorf("history track Duration = %v, want 200", nm.history.sourceTracks[0].Duration)
+	if nm.library.sourceTracks[0].Duration != 200 {
+		t.Errorf("history track Duration = %v, want 200", nm.library.sourceTracks[0].Duration)
 	}
 }
 

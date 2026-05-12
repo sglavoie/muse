@@ -189,7 +189,7 @@ func TestCtrlDResolvesCorrectlyPerContext(t *testing.T) {
 		ctx  bindingContext
 	}{
 		{"library", contextLibrary},
-		{"recently added", contextRecentlyAdded},
+		{"library", contextLibrary},
 		{"queue", contextQueue},
 		{"playlists", contextPlaylists},
 		{"artists", contextArtists},
@@ -353,10 +353,11 @@ func TestSortCycleToDefaultRederivesFavoritesTracks(t *testing.T) {
 
 func TestSortCycleRecentlyAddedHandled(t *testing.T) {
 	m := Model{}
-	m.activeView = viewRecentlyAdded
-	m.recentlyAdded.index.Insert(library.Track{Artist: "A", Title: "T1", Path: "/1", Hash: "h1"})
+	m.library.mode = LibraryModeRecent
+	m.activeView = viewLibrary
+	m.library.index.Insert(library.Track{Artist: "A", Title: "T1", Path: "/1", Hash: "h1"})
 
-	m.recentlyAdded.sortState = SortState{Field: SortDefault, Dir: SortAsc}
+	m.library.sortState = SortState{Field: SortDefault, Dir: SortAsc}
 
 	result, _, handled := m.handleSortCycle()
 	if !handled {
@@ -364,13 +365,13 @@ func TestSortCycleRecentlyAddedHandled(t *testing.T) {
 	}
 	m = result.(Model)
 
-	if m.recentlyAdded.sortState.Field != SortDateAdded {
-		t.Fatalf("expected SortDateAdded after cycle from default, got %v", m.recentlyAdded.sortState.Field)
+	if m.library.sortState.Field != SortDateAdded {
+		t.Fatalf("expected SortDateAdded after cycle from default, got %v", m.library.sortState.Field)
 	}
-	if m.recentlyAdded.cursor != 0 {
-		t.Errorf("expected cursor reset to 0, got %d", m.recentlyAdded.cursor)
+	if m.library.cursor != 0 {
+		t.Errorf("expected cursor reset to 0, got %d", m.library.cursor)
 	}
-	if m.recentlyAdded.scrollOffset != 0 {
-		t.Errorf("expected scrollOffset reset to 0, got %d", m.recentlyAdded.scrollOffset)
+	if m.library.scrollOffset != 0 {
+		t.Errorf("expected scrollOffset reset to 0, got %d", m.library.scrollOffset)
 	}
 }

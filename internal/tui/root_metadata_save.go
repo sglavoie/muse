@@ -185,10 +185,6 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 	switch m.activeView {
 	case viewLibrary:
 		m.library.selectedHashes = nil
-	case viewRecentlyAdded:
-		m.recentlyAdded.selectedHashes = nil
-	case viewHistory:
-		m.history.selectedHashes = nil
 	case viewQueue:
 		for i := range m.queue.entries {
 			m.queue.entries[i].Selected = false

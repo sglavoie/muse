@@ -164,7 +164,7 @@ func (v View) Render() string {
 		case isFocused && isNowPlaying:
 			markerStr = "♪ "
 		case isFocused:
-			markerStr = "▎ "
+			markerStr = v.Styles.AccentMark.Render("▎") + " "
 		case isNowPlaying:
 			markerStr = "♪ "
 		default:

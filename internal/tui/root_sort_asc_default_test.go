@@ -21,26 +21,21 @@ func TestSortDirNoopWhenDefault(t *testing.T) {
 
 	tests := []struct {
 		name string
-		view viewID
+		mode LibraryMode
 		dir  SortDir
 	}{
-		{"RecentlyAdded/Asc", viewRecentlyAdded, SortAsc},
-		{"History/Asc", viewHistory, SortAsc},
-		{"RecentlyAdded/Desc", viewRecentlyAdded, SortDesc},
-		{"History/Desc", viewHistory, SortDesc},
+		{"RecentlyAdded/Asc", LibraryModeRecent, SortAsc},
+		{"History/Asc", LibraryModeHistory, SortAsc},
+		{"RecentlyAdded/Desc", LibraryModeRecent, SortDesc},
+		{"History/Desc", LibraryModeHistory, SortDesc},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := New(context.Background(), WithLibraryTracks(tracks))
-			m.activeView = tt.view
-
-			switch tt.view {
-			case viewRecentlyAdded:
-				m.recentlyAdded.sortState = SortState{Field: SortDefault, Dir: tt.dir}
-			case viewHistory:
-				m.history.sortState = SortState{Field: SortDefault, Dir: tt.dir}
-			}
+			m.library.mode = tt.mode
+			m.activeView = viewLibrary
+			m.library.sortState = SortState{Field: SortDefault, Dir: tt.dir}
 
 			_, _, consumed := m.handleSortDir(tt.dir)
 			if consumed {

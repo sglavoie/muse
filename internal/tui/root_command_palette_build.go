@@ -32,21 +32,24 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 	}
 
 	cmds = append(cmds, PaletteCommand{
-		Name: "Show debug panel",
+		Name:     "Show debug panel",
+		Shortcut: "ctrl+g",
 		Exec: func() tea.Cmd {
 			return func() tea.Msg { return commandPaletteActionMsg{action: actionDebug} }
 		},
 	})
 
 	cmds = append(cmds, PaletteCommand{
-		Name: "Toggle radio mode (Auto-DJ)",
+		Name:     "Toggle radio mode (Auto-DJ)",
+		Shortcut: "A",
 		Exec: func() tea.Cmd {
 			return func() tea.Msg { return commandPaletteActionMsg{action: actionRadioToggle} }
 		},
 	})
 
 	cmds = append(cmds, PaletteCommand{
-		Name: "Go to Mixes",
+		Name:     "Go to Mixes",
+		Shortcut: "tab",
 		Exec: func() tea.Cmd {
 			return func() tea.Msg { return commandPaletteActionMsg{action: actionSwitchMixes} }
 		},
@@ -170,7 +173,8 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 	})
 
 	cmds = append(cmds, PaletteCommand{
-		Name: "Filter by tag…",
+		Name:     "Filter by tag…",
+		Shortcut: "ctrl+t",
 		Exec: func() tea.Cmd {
 			return func() tea.Msg { return openTagFilterPickerMsg{} }
 		},
@@ -178,7 +182,8 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 	})
 	if m.activeTagFilter != nil {
 		cmds = append(cmds, PaletteCommand{
-			Name: "Clear tag filter",
+			Name:     "Clear tag filter",
+			Shortcut: "ctrl+t",
 			Exec: func() tea.Cmd {
 				return func() tea.Msg { return clearTagFilterMsg{} }
 			},
@@ -223,16 +228,6 @@ func (m Model) focusedTrackForPalette() (path, artist, title string, found bool)
 	switch m.activeView {
 	case viewLibrary:
 		if track, ok := m.library.view().FocusedTrack(); ok {
-			return track.Path, track.Artist, track.Title, true
-		}
-
-	case viewRecentlyAdded:
-		if track, ok := m.recentlyAdded.view().FocusedTrack(); ok {
-			return track.Path, track.Artist, track.Title, true
-		}
-
-	case viewHistory:
-		if track, ok := m.history.view().FocusedTrack(); ok {
 			return track.Path, track.Artist, track.Title, true
 		}
 

@@ -50,6 +50,7 @@ type View struct {
 	FilterActive bool
 	FilterText   string
 	FilterView   string // pre-rendered textinput view for active filter display
+	FilterHint   string // shown instead of cursor when filter is active and empty
 
 	SortIndicator   string // e.g. "Sort: Name ▲" — shown when non-empty
 	FavoriteHashes  map[string]struct{}

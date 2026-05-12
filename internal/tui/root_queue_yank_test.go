@@ -26,8 +26,8 @@ func TestYankSingleTrack(t *testing.T) {
 	if m.yankBuffer[0].Hash != "h2" {
 		t.Errorf("expected yanked hash 'h2', got %q", m.yankBuffer[0].Hash)
 	}
-	if !strings.Contains(m.statusBar.notification.msg, "1 track") {
-		t.Errorf("expected notification about 1 track, got %q", m.statusBar.notification.msg)
+	if !strings.Contains(m.statusBar.topNotification().msg, "1 track") {
+		t.Errorf("expected notification about 1 track, got %q", m.statusBar.topNotification().msg)
 	}
 }
 
@@ -54,8 +54,8 @@ func TestYankBulkSelection(t *testing.T) {
 	if m.yankBuffer[0].Hash != "h1" || m.yankBuffer[1].Hash != "h3" {
 		t.Errorf("yanked entries out of order: %q, %q", m.yankBuffer[0].Hash, m.yankBuffer[1].Hash)
 	}
-	if !strings.Contains(m.statusBar.notification.msg, "2 track") {
-		t.Errorf("expected notification about 2 tracks, got %q", m.statusBar.notification.msg)
+	if !strings.Contains(m.statusBar.topNotification().msg, "2 track") {
+		t.Errorf("expected notification about 2 tracks, got %q", m.statusBar.topNotification().msg)
 	}
 }
 

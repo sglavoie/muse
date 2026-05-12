@@ -103,7 +103,7 @@ func TestDurationAuditDoneShowsNotification(t *testing.T) {
 	next, _ = m.Update(library.DurationAuditDoneMsg{})
 	nm := next.(Model)
 
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Error("expected a non-empty notification after audit with corrections, got empty")
 	}
 	if nm.auditCh != nil {
@@ -147,7 +147,7 @@ func TestDurationAuditCorrectedAccumulatesAcrossBatches(t *testing.T) {
 	// Done: notification should mention 3.
 	next, _ = m.Update(library.DurationAuditDoneMsg{})
 	nm := next.(Model)
-	if nm.statusBar.notification.msg == "" {
+	if nm.statusBar.topNotification().msg == "" {
 		t.Error("expected notification after 3 corrections")
 	}
 	if nm.auditCorrected != 0 {
@@ -164,8 +164,8 @@ func TestDurationAuditDoneSilentWhenNone(t *testing.T) {
 	next, _ := m.Update(library.DurationAuditDoneMsg{})
 	nm := next.(Model)
 
-	if nm.statusBar.notification.msg != "" {
-		t.Errorf("expected no notification when corrected=0, got %q", nm.statusBar.notification.msg)
+	if nm.statusBar.topNotification().msg != "" {
+		t.Errorf("expected no notification when corrected=0, got %q", nm.statusBar.topNotification().msg)
 	}
 	if nm.auditCh != nil {
 		t.Error("expected auditCh to be nil after DurationAuditDoneMsg")
@@ -182,19 +182,20 @@ func TestDurationAuditNilChannelSkipsInit(t *testing.T) {
 }
 
 // TestDurationAuditBatchSyncsRecentlyAdded verifies that a duration audit
-// batch updates the recently-added view's cached source tracks so that the
+// batch updates the library's Recent mode source tracks so that the
 // duration column does not show stale pre-audit values.
 func TestDurationAuditBatchSyncsRecentlyAdded(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0, CreatedAt: 100})
+	m.library = m.library.switchMode(LibraryModeRecent)
 	m = m.syncRecentlyAddedFromLibrary()
 
-	// Sanity: recently-added should have the old duration.
-	if len(m.recentlyAdded.sourceTracks) == 0 {
-		t.Fatal("recentlyAdded.sourceTracks is empty after sync")
+	// Sanity: library sourceTracks should have the old duration.
+	if len(m.library.sourceTracks) == 0 {
+		t.Fatal("library.sourceTracks is empty after sync")
 	}
-	if m.recentlyAdded.sourceTracks[0].Duration != 120.0 {
-		t.Fatalf("pre-audit recentlyAdded duration: got %f, want 120.0", m.recentlyAdded.sourceTracks[0].Duration)
+	if m.library.sourceTracks[0].Duration != 120.0 {
+		t.Fatalf("pre-audit library Recent duration: got %f, want 120.0", m.library.sourceTracks[0].Duration)
 	}
 
 	next, _ := m.Update(library.DurationAuditBatchMsg{
@@ -202,29 +203,30 @@ func TestDurationAuditBatchSyncsRecentlyAdded(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if len(nm.recentlyAdded.sourceTracks) == 0 {
-		t.Fatal("recentlyAdded.sourceTracks is empty after audit batch")
+	if len(nm.library.sourceTracks) == 0 {
+		t.Fatal("library.sourceTracks is empty after audit batch")
 	}
-	got := nm.recentlyAdded.sourceTracks[0].Duration
+	got := nm.library.sourceTracks[0].Duration
 	if got != 240.0 {
-		t.Errorf("recentlyAdded duration after audit: got %f, want 240.0", got)
+		t.Errorf("library Recent duration after audit: got %f, want 240.0", got)
 	}
 }
 
 // TestDurationAuditBatchSyncsHistoryTracks verifies that a duration audit
-// batch propagates corrected durations to history source tracks.
+// batch propagates corrected durations to library History mode source tracks.
 func TestDurationAuditBatchSyncsHistoryTracks(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
-	m.history.sourceTracks = []library.Track{{Hash: "h1", Path: "/a.mp3", Duration: 120.0}}
+	m.library = m.library.switchMode(LibraryModeHistory)
+	m.library.sourceTracks = []library.Track{{Hash: "h1", Path: "/a.mp3", Duration: 120.0}}
 
 	next, _ := m.Update(library.DurationAuditBatchMsg{
 		Fixes: []library.DurationFix{{Hash: "h1", DurationMs: 240000}},
 	})
 	nm := next.(Model)
 
-	if nm.history.sourceTracks[0].Duration != 240.0 {
-		t.Errorf("history duration after audit: got %f, want 240.0", nm.history.sourceTracks[0].Duration)
+	if nm.library.sourceTracks[0].Duration != 240.0 {
+		t.Errorf("library History duration after audit: got %f, want 240.0", nm.library.sourceTracks[0].Duration)
 	}
 }
 

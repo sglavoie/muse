@@ -222,7 +222,8 @@ func TestTickMsgDoesNotDecreasePeak(t *testing.T) {
 func TestCorrectStoredDurationSyncsDerivedViews(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
-	m.history.sourceTracks = []library.Track{{Hash: "h1", Duration: 360.0}}
+	m.library.mode = LibraryModeHistory
+	m.library.sourceTracks = []library.Track{{Hash: "h1", Duration: 360.0}}
 	m.playlists.level = pltui.TrackLevel
 	m.playlists.tracks = []db.PlaylistTrackRow{{Hash: "h1", DurationMs: 360000}}
 	m.favorites.level = favtui.ListLevel
@@ -233,8 +234,8 @@ func TestCorrectStoredDurationSyncsDerivedViews(t *testing.T) {
 
 	nm, _ := m.correctStoredDuration("h1", 180.0)
 
-	if nm.history.sourceTracks[0].Duration != 180.0 {
-		t.Errorf("history duration: got %f, want 180.0", nm.history.sourceTracks[0].Duration)
+	if nm.library.sourceTracks[0].Duration != 180.0 {
+		t.Errorf("history duration: got %f, want 180.0", nm.library.sourceTracks[0].Duration)
 	}
 	if nm.playlists.tracks[0].DurationMs != 180000 {
 		t.Errorf("playlist DurationMs: got %d, want 180000", nm.playlists.tracks[0].DurationMs)
@@ -339,26 +340,27 @@ func TestCorrectStoredDurationRebuildsLibrarySortCache(t *testing.T) {
 func TestCorrectStoredDurationRebuildsHistorySortCache(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
-	m.history.sourceTracks = []library.Track{
+	m.library.mode = LibraryModeHistory
+	m.library.sourceTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Duration: 360.0},
 		{Hash: "h2", Path: "/b.flac", Duration: 100.0},
 	}
-	m.history.sortState = SortState{Field: SortDuration, Dir: SortAsc}
-	m.history = m.history.recomputeSortedTracks()
+	m.library.sortState = SortState{Field: SortDuration, Dir: SortAsc}
+	m.library = m.library.recomputeSortedTracks()
 
 	// Before: h2 (100s) < h1 (360s).
-	if m.history.sortedTracks[0].Hash != "h2" {
+	if m.library.sortedTracks[0].Hash != "h2" {
 		t.Fatal("pre-condition: expected h2 first")
 	}
 
 	nm, _ := m.correctStoredDuration("h1", 50.0)
 
 	// After: h1 (50s) < h2 (100s).
-	if nm.history.sortedTracks == nil {
+	if nm.library.sortedTracks == nil {
 		t.Fatal("expected history sortedTracks non-nil")
 	}
-	if nm.history.sortedTracks[0].Hash != "h1" {
-		t.Errorf("expected h1 first after correction, got %v", nm.history.sortedTracks[0].Hash)
+	if nm.library.sortedTracks[0].Hash != "h1" {
+		t.Errorf("expected h1 first after correction, got %v", nm.library.sortedTracks[0].Hash)
 	}
 }
 

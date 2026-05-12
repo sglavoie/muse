@@ -118,7 +118,7 @@ func (m *Model) setUndoSlot(action undoAction, cancelPurge chan struct{}) {
 		expiresAt:   time.Now().Add(undoWindowDuration),
 		cancelPurge: cancelPurge,
 	}
-	m.statusBar.notification = newNotificationFor(action.description(), undoWindowDuration)
+	m.statusBar.pushMsg(action.description(), undoWindowDuration, notifNormal)
 }
 
 // syncPositionCmd schedules one position-sync tick.

@@ -12,24 +12,25 @@ import (
 func TestRefreshDerivedViewsUpdatesHistoryTracks(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum", Genre: "OldGenre"})
-	m.history.sourceTracks = []library.Track{
+	m.library.mode = LibraryModeHistory
+	m.library.sourceTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum", Genre: "OldGenre"},
 	}
 
 	m.library.index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum", "NewGenre")
 	m = m.refreshDerivedViews()
 
-	if m.history.sourceTracks[0].Title != "NewTitle" {
-		t.Errorf("history track title = %q, want %q", m.history.sourceTracks[0].Title, "NewTitle")
+	if m.library.sourceTracks[0].Title != "NewTitle" {
+		t.Errorf("history track title = %q, want %q", m.library.sourceTracks[0].Title, "NewTitle")
 	}
-	if m.history.sourceTracks[0].Artist != "NewArt" {
-		t.Errorf("history track artist = %q, want %q", m.history.sourceTracks[0].Artist, "NewArt")
+	if m.library.sourceTracks[0].Artist != "NewArt" {
+		t.Errorf("history track artist = %q, want %q", m.library.sourceTracks[0].Artist, "NewArt")
 	}
-	if m.history.sourceTracks[0].Album != "NewAlbum" {
-		t.Errorf("history track album = %q, want %q", m.history.sourceTracks[0].Album, "NewAlbum")
+	if m.library.sourceTracks[0].Album != "NewAlbum" {
+		t.Errorf("history track album = %q, want %q", m.library.sourceTracks[0].Album, "NewAlbum")
 	}
-	if m.history.sourceTracks[0].Genre != "NewGenre" {
-		t.Errorf("history track genre = %q, want %q", m.history.sourceTracks[0].Genre, "NewGenre")
+	if m.library.sourceTracks[0].Genre != "NewGenre" {
+		t.Errorf("history track genre = %q, want %q", m.library.sourceTracks[0].Genre, "NewGenre")
 	}
 }
 
@@ -39,21 +40,22 @@ func TestRefreshDerivedViewsRebuildsHistorySortCache(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "Bravo", Album: "Alb"})
 	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Art", Title: "Alpha", Album: "Alb"})
-	m.history.sourceTracks = []library.Track{
+	m.library.mode = LibraryModeHistory
+	m.library.sourceTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "Bravo", Album: "Alb"},
 		{Hash: "h2", Path: "/b.flac", Artist: "Art", Title: "Alpha", Album: "Alb"},
 	}
-	m.history.sortState = SortState{Field: SortTitle, Dir: SortAsc}
-	m.history = m.history.recomputeSortedTracks()
+	m.library.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.library = m.library.recomputeSortedTracks()
 
 	// Rename h1 so it sorts last.
 	m.library.index.UpdateMetadata("h1", "Zulu", "Art", "Alb", "")
 	m = m.refreshDerivedViews()
 
-	if m.history.sortedTracks == nil {
+	if m.library.sortedTracks == nil {
 		t.Fatal("expected sortedTracks to be non-nil after refreshDerivedViews")
 	}
-	last := m.history.sortedTracks[len(m.history.sortedTracks)-1]
+	last := m.library.sortedTracks[len(m.library.sortedTracks)-1]
 	if last.Hash != "h1" || last.Title != "Zulu" {
 		t.Errorf("expected renamed track at end of sorted list, got hash=%q title=%q", last.Hash, last.Title)
 	}
@@ -65,19 +67,20 @@ func TestRefreshDerivedViewsRebuildsHistorySortCache(t *testing.T) {
 func TestRefreshDerivedViewsRebuildsHistoryFilterCache(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "OldTitle", Album: "Alb"})
-	m.history.sourceTracks = []library.Track{
+	m.library.mode = LibraryModeHistory
+	m.library.sourceTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "OldTitle", Album: "Alb"},
 	}
-	m.history.filter.Text = "Unique"
-	m.history = m.history.rebuildFilterCache()
-	if len(m.history.filteredMatches) != 0 {
-		t.Fatalf("expected 0 filter matches before rename, got %d", len(m.history.filteredMatches))
+	m.library.filter.Text = "Unique"
+	m.library = m.library.rebuildFilterCache()
+	if len(m.library.filteredMatches) != 0 {
+		t.Fatalf("expected 0 filter matches before rename, got %d", len(m.library.filteredMatches))
 	}
 
 	m.library.index.UpdateMetadata("h1", "Unique Title", "Art", "Alb", "")
 	m = m.refreshDerivedViews()
 
-	if len(m.history.filteredMatches) == 0 {
+	if len(m.library.filteredMatches) == 0 {
 		t.Error("expected filter matches after renaming track to 'Unique Title', got 0")
 	}
 }
@@ -86,7 +89,8 @@ func TestRefreshDerivedViewsRebuildsHistoryFilterCache(t *testing.T) {
 // refreshDerivedViews does not panic when history has no source tracks.
 func TestRefreshDerivedViewsSkipsHistoryWhenEmpty(t *testing.T) {
 	m := New(context.Background())
-	m.history.sourceTracks = nil
+	m.library.mode = LibraryModeHistory
+	m.library.sourceTracks = nil
 	m = m.refreshDerivedViews()
 }
 
@@ -95,24 +99,25 @@ func TestRefreshDerivedViewsSkipsHistoryWhenEmpty(t *testing.T) {
 func TestRefreshDerivedViewsUpdatesRecentlyAddedTracks(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum", Genre: "OldGenre"})
-	m.recentlyAdded.sourceTracks = []library.Track{
+	m.library.mode = LibraryModeRecent
+	m.library.sourceTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum", Genre: "OldGenre"},
 	}
 
 	m.library.index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum", "NewGenre")
 	m = m.refreshDerivedViews()
 
-	if m.recentlyAdded.sourceTracks[0].Title != "NewTitle" {
-		t.Errorf("recentlyAdded track title = %q, want %q", m.recentlyAdded.sourceTracks[0].Title, "NewTitle")
+	if m.library.sourceTracks[0].Title != "NewTitle" {
+		t.Errorf("recentlyAdded track title = %q, want %q", m.library.sourceTracks[0].Title, "NewTitle")
 	}
-	if m.recentlyAdded.sourceTracks[0].Artist != "NewArt" {
-		t.Errorf("recentlyAdded track artist = %q, want %q", m.recentlyAdded.sourceTracks[0].Artist, "NewArt")
+	if m.library.sourceTracks[0].Artist != "NewArt" {
+		t.Errorf("recentlyAdded track artist = %q, want %q", m.library.sourceTracks[0].Artist, "NewArt")
 	}
-	if m.recentlyAdded.sourceTracks[0].Album != "NewAlbum" {
-		t.Errorf("recentlyAdded track album = %q, want %q", m.recentlyAdded.sourceTracks[0].Album, "NewAlbum")
+	if m.library.sourceTracks[0].Album != "NewAlbum" {
+		t.Errorf("recentlyAdded track album = %q, want %q", m.library.sourceTracks[0].Album, "NewAlbum")
 	}
-	if m.recentlyAdded.sourceTracks[0].Genre != "NewGenre" {
-		t.Errorf("recentlyAdded track genre = %q, want %q", m.recentlyAdded.sourceTracks[0].Genre, "NewGenre")
+	if m.library.sourceTracks[0].Genre != "NewGenre" {
+		t.Errorf("recentlyAdded track genre = %q, want %q", m.library.sourceTracks[0].Genre, "NewGenre")
 	}
 }
 
@@ -122,20 +127,21 @@ func TestRefreshDerivedViewsRebuildsRecentlyAddedSortCache(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "Bravo", Album: "Alb"})
 	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Art", Title: "Alpha", Album: "Alb"})
-	m.recentlyAdded.sourceTracks = []library.Track{
+	m.library.mode = LibraryModeRecent
+	m.library.sourceTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "Bravo", Album: "Alb"},
 		{Hash: "h2", Path: "/b.flac", Artist: "Art", Title: "Alpha", Album: "Alb"},
 	}
-	m.recentlyAdded.sortState = SortState{Field: SortTitle, Dir: SortAsc}
-	m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
+	m.library.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.library = m.library.recomputeSortedTracks()
 
 	m.library.index.UpdateMetadata("h1", "Zulu", "Art", "Alb", "")
 	m = m.refreshDerivedViews()
 
-	if m.recentlyAdded.sortedTracks == nil {
+	if m.library.sortedTracks == nil {
 		t.Fatal("expected sortedTracks to be non-nil after refreshDerivedViews")
 	}
-	last := m.recentlyAdded.sortedTracks[len(m.recentlyAdded.sortedTracks)-1]
+	last := m.library.sortedTracks[len(m.library.sortedTracks)-1]
 	if last.Hash != "h1" || last.Title != "Zulu" {
 		t.Errorf("expected renamed track at end of sorted list, got hash=%q title=%q", last.Hash, last.Title)
 	}
@@ -147,20 +153,21 @@ func TestRefreshDerivedViewsRebuildsRecentlyAddedSortCache(t *testing.T) {
 func TestRefreshDerivedViewsRebuildsRecentlyAddedFilterCache(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "OldTitle", Album: "Alb"})
-	m.recentlyAdded.sourceTracks = []library.Track{
+	m.library.mode = LibraryModeRecent
+	m.library.sourceTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "OldTitle", Album: "Alb"},
 	}
-	m.recentlyAdded.fuzzy = library.SahilmFuzzySearcher{}
-	m.recentlyAdded.filter.Text = "Unique"
-	m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
-	if len(m.recentlyAdded.filteredMatches) != 0 {
-		t.Fatalf("expected 0 filter matches before rename, got %d", len(m.recentlyAdded.filteredMatches))
+	m.library.fuzzy = library.SahilmFuzzySearcher{}
+	m.library.filter.Text = "Unique"
+	m.library = m.library.rebuildFilterCache()
+	if len(m.library.filteredMatches) != 0 {
+		t.Fatalf("expected 0 filter matches before rename, got %d", len(m.library.filteredMatches))
 	}
 
 	m.library.index.UpdateMetadata("h1", "Unique Title", "Art", "Alb", "")
 	m = m.refreshDerivedViews()
 
-	if len(m.recentlyAdded.filteredMatches) == 0 {
+	if len(m.library.filteredMatches) == 0 {
 		t.Error("expected filter matches after renaming track to 'Unique Title', got 0")
 	}
 }

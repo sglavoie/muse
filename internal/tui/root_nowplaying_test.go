@@ -74,8 +74,8 @@ func TestNowPlayingKeyIdleShowsNotification(t *testing.T) {
 	if nm.overlay.nowPlaying != nil {
 		t.Fatal("expected no overlay when idle")
 	}
-	if nm.statusBar.notification.msg != "No track playing" {
-		t.Fatalf("expected 'No track playing' notification, got %q", nm.statusBar.notification.msg)
+	if nm.statusBar.topNotification().msg != "No track playing" {
+		t.Fatalf("expected 'No track playing' notification, got %q", nm.statusBar.topNotification().msg)
 	}
 }
 
@@ -91,8 +91,8 @@ func TestNowPlayingKeyStoppedShowsNotification(t *testing.T) {
 	if nm.overlay.nowPlaying != nil {
 		t.Fatal("expected no overlay when stopped")
 	}
-	if nm.statusBar.notification.msg != "No track playing" {
-		t.Fatalf("expected 'No track playing' notification, got %q", nm.statusBar.notification.msg)
+	if nm.statusBar.topNotification().msg != "No track playing" {
+		t.Fatalf("expected 'No track playing' notification, got %q", nm.statusBar.topNotification().msg)
 	}
 }
 

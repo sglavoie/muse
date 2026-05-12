@@ -114,7 +114,7 @@ func (v View) renderTracks() string {
 		case isFocused && isNowPlaying:
 			markerStr = "♪ "
 		case isFocused:
-			markerStr = "▎ "
+			markerStr = v.Styles.AccentMark.Render("▎") + " "
 		case isNowPlaying:
 			markerStr = "♪ "
 		default:
@@ -187,6 +187,9 @@ func (v View) buildFilterSeparator(leadingNewline bool) string {
 		sep := "\n"
 		if !leadingNewline {
 			sep = ""
+		}
+		if v.FilterText == "" && v.FilterHint != "" {
+			return prefix + sep + "Filter: " + v.Styles.Dim.Render(v.FilterHint) + "\n"
 		}
 		fv := v.FilterView
 		if fv == "" {

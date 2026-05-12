@@ -51,10 +51,6 @@ func (m Model) bulkActionTracks() []library.Track {
 	switch m.activeView {
 	case viewLibrary:
 		return m.bulkLibraryTracks()
-	case viewRecentlyAdded:
-		return m.bulkRecentlyAddedTracks()
-	case viewHistory:
-		return m.bulkHistoryTracks()
 	case viewArtists:
 		return m.bulkArtistTracks()
 	case viewAlbums:
@@ -71,38 +67,14 @@ func (m Model) bulkActionTracks() []library.Track {
 }
 
 func (m Model) bulkLibraryTracks() []library.Track {
+	trackOrder := m.library.baseTracks()
+	if m.library.sortedTracks != nil {
+		trackOrder = m.library.sortedTracks
+	}
 	if len(m.library.selectedHashes) > 0 {
-		return collectSelectedTracks(m.library.index.Tracks(), m.library.selectedHashes)
+		return collectSelectedTracks(trackOrder, m.library.selectedHashes)
 	}
 	if track, ok := m.library.view().FocusedTrack(); ok {
-		return []library.Track{track}
-	}
-	return nil
-}
-
-func (m Model) bulkRecentlyAddedTracks() []library.Track {
-	trackOrder := m.recentlyAdded.baseTracks()
-	if m.recentlyAdded.sortedTracks != nil {
-		trackOrder = m.recentlyAdded.sortedTracks
-	}
-	if len(m.recentlyAdded.selectedHashes) > 0 {
-		return collectSelectedTracks(trackOrder, m.recentlyAdded.selectedHashes)
-	}
-	if track, ok := m.recentlyAdded.view().FocusedTrack(); ok {
-		return []library.Track{track}
-	}
-	return nil
-}
-
-func (m Model) bulkHistoryTracks() []library.Track {
-	historyOrder := m.history.baseTracks()
-	if m.history.sortedTracks != nil {
-		historyOrder = m.history.sortedTracks
-	}
-	if len(m.history.selectedHashes) > 0 {
-		return collectSelectedTracks(historyOrder, m.history.selectedHashes)
-	}
-	if track, ok := m.history.view().FocusedTrack(); ok {
 		return []library.Track{track}
 	}
 	return nil
@@ -303,9 +275,8 @@ func (m *Model) handlePlaylistBulkRemove() bool {
 
 	m.undo.bulkRemovePending = true
 	m.undo.bulkRemovePendingAt = now
-	m.statusBar.notification = newNotificationFor(
-		fmt.Sprintf("Press a again to remove %d selected %s", n, pluralize(n, "track", "tracks")),
-		confirmationWindow,
-	)
+	confirmMsg := fmt.Sprintf("Press a again to remove %d selected %s", n, pluralize(n, "track", "tracks"))
+	m.confirmationBar = confirmMsg
+	m.statusBar.notify(confirmMsg)
 	return true
 }

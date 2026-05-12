@@ -17,10 +17,6 @@ func (m Model) bulkSelectedHashes() []string {
 	switch m.activeView {
 	case viewLibrary:
 		return hashMapToSlice(m.library.selectedHashes)
-	case viewRecentlyAdded:
-		return hashMapToSlice(m.recentlyAdded.selectedHashes)
-	case viewHistory:
-		return hashMapToSlice(m.history.selectedHashes)
 	case viewQueue:
 		return m.queue.selectedHashes()
 	case viewPlaylists:
@@ -179,23 +175,13 @@ func (m Model) refreshDerivedViews() Model {
 		}
 	}
 
-	if len(m.recentlyAdded.sourceTracks) > 0 {
-		refreshTrackMetadata(m.recentlyAdded.sourceTracks)
-		if m.recentlyAdded.sortState.Field != SortDefault {
-			m.recentlyAdded = m.recentlyAdded.recomputeSortedTracks()
+	if m.library.mode != LibraryModeAll && len(m.library.sourceTracks) > 0 {
+		refreshTrackMetadata(m.library.sourceTracks)
+		if m.library.sortState.Field != SortDefault {
+			m.library = m.library.recomputeSortedTracks()
 		}
-		if m.recentlyAdded.filter.Text != "" {
-			m.recentlyAdded = m.recentlyAdded.rebuildFilterCache()
-		}
-	}
-
-	if len(m.history.sourceTracks) > 0 {
-		refreshTrackMetadata(m.history.sourceTracks)
-		if m.history.sortState.Field != SortDefault {
-			m.history = m.history.recomputeSortedTracks()
-		}
-		if m.history.filter.Text != "" {
-			m.history = m.history.rebuildFilterCache()
+		if m.library.filter.Text != "" {
+			m.library = m.library.rebuildFilterCache()
 		}
 	}
 

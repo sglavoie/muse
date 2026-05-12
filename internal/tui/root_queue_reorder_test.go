@@ -28,11 +28,11 @@ func TestKWhileSortedProducesTransientNotification(t *testing.T) {
 	}
 	next2, _ := nm.Update(cmd())
 	nm2 := next2.(Model)
-	if nm2.statusBar.notification.msg == "" {
+	if nm2.statusBar.topNotification().msg == "" {
 		t.Fatal("'K' while sorted: expected a transient notification to be set")
 	}
-	if !strings.Contains(nm2.statusBar.notification.msg, "Cannot reorder") {
-		t.Fatalf("'K' while sorted: unexpected notification %q", nm2.statusBar.notification.msg)
+	if !strings.Contains(nm2.statusBar.topNotification().msg, "Cannot reorder") {
+		t.Fatalf("'K' while sorted: unexpected notification %q", nm2.statusBar.topNotification().msg)
 	}
 }
 

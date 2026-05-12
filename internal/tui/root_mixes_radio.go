@@ -104,10 +104,7 @@ func (m Model) handleMixesRadioSeed() (Model, tea.Cmd) {
 			slog.Warn("session: write radio mode", "err", err)
 		}
 	}
-	m.statusBar.notification = newNotificationFor(
-		"Radio: seeded from "+mixName,
-		time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second,
-	)
+	m.statusBar.pushMsg("Radio: seeded from "+mixName, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 	cmd := m.radioMaybeEnqueueCmd()
 	if cmd != nil {
 		m.radio.enqueuePending = true

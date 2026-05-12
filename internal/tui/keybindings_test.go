@@ -153,13 +153,13 @@ func TestSwitchAlbumsGlobalBinding(t *testing.T) {
 	}
 }
 
-// TestSwitchRecentlyAddedGlobalBinding verifies that '8' resolves to
-// actionSwitchRecentlyAdded in the global context.
-func TestSwitchRecentlyAddedGlobalBinding(t *testing.T) {
+// TestSwitchTagsGlobalBinding verifies that '8' resolves to
+// actionSwitchTags in the global context.
+func TestSwitchTagsGlobalBinding(t *testing.T) {
 	reg := newRegistry()
 	got := reg.resolve(contextGlobal, "8")
-	if got != actionSwitchRecentlyAdded {
-		t.Errorf("resolve(contextGlobal, \"8\") = %v, want actionSwitchRecentlyAdded", got)
+	if got != actionSwitchTags {
+		t.Errorf("resolve(contextGlobal, \"8\") = %v, want actionSwitchTags", got)
 	}
 }
 

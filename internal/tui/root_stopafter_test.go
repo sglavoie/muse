@@ -37,8 +37,8 @@ func TestStopAfterCurrentToggleOnOff(t *testing.T) {
 	if !p.stopAfter {
 		t.Error("expected player stopAfter to be true")
 	}
-	if !strings.Contains(m.statusBar.notification.msg, "on") {
-		t.Errorf("expected notification containing 'on', got %q", m.statusBar.notification.msg)
+	if !strings.Contains(m.statusBar.topNotification().msg, "on") {
+		t.Errorf("expected notification containing 'on', got %q", m.statusBar.topNotification().msg)
 	}
 
 	// Toggle off.
@@ -50,8 +50,8 @@ func TestStopAfterCurrentToggleOnOff(t *testing.T) {
 	if p.stopAfter {
 		t.Error("expected player stopAfter to be false")
 	}
-	if !strings.Contains(m.statusBar.notification.msg, "off") {
-		t.Errorf("expected notification containing 'off', got %q", m.statusBar.notification.msg)
+	if !strings.Contains(m.statusBar.topNotification().msg, "off") {
+		t.Errorf("expected notification containing 'off', got %q", m.statusBar.topNotification().msg)
 	}
 }
 
@@ -70,8 +70,8 @@ func TestStopAfterCurrentRequiresPlayback(t *testing.T) {
 	if m.playback.stopAfterCurrent {
 		t.Error("flag should remain false when idle")
 	}
-	if !strings.Contains(m.statusBar.notification.msg, "No track playing") {
-		t.Errorf("expected 'No track playing' notification, got %q", m.statusBar.notification.msg)
+	if !strings.Contains(m.statusBar.topNotification().msg, "No track playing") {
+		t.Errorf("expected 'No track playing' notification, got %q", m.statusBar.topNotification().msg)
 	}
 }
 
@@ -88,8 +88,8 @@ func TestStopAfterCurrentResetsOnPlaybackEnded(t *testing.T) {
 	if nm.playback.stopAfterCurrent {
 		t.Error("expected stopAfterCurrent to be cleared after PlaybackEndedMsg")
 	}
-	if nm.statusBar.notification.msg != "Stopped after track" {
-		t.Errorf("expected 'Stopped after track' notification, got %q", nm.statusBar.notification.msg)
+	if nm.statusBar.topNotification().msg != "Stopped after track" {
+		t.Errorf("expected 'Stopped after track' notification, got %q", nm.statusBar.topNotification().msg)
 	}
 	if nm.playback.state != PlaybackIdle {
 		t.Errorf("expected PlaybackIdle, got %v", nm.playback.state)

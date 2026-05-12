@@ -277,17 +277,14 @@ func TestBulkMetadataSaveClearsFavoritesSelection(t *testing.T) {
 }
 
 // TestBulkSelectedHashesRecentlyAdded verifies that bulkSelectedHashes
-// returns hashes from recentlyAdded.selectedHashes when the Recently Added
-// view is active.
+// returns hashes from library.selectedHashes when the Library view is active
+// in Recently Added mode.
 func TestBulkSelectedHashesRecentlyAdded(t *testing.T) {
 	m := newModelWithTracks()
-	m = pressKey(m, "8")
+	m.library.mode = LibraryModeRecent
+	m.activeView = viewLibrary
 
-	if m.activeView != viewRecentlyAdded {
-		t.Fatalf("expected viewRecentlyAdded, got %d", m.activeView)
-	}
-
-	m.recentlyAdded.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.library.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	hashes := m.bulkSelectedHashes()
 	if len(hashes) != 2 {
@@ -310,7 +307,8 @@ func TestBulkSelectedHashesRecentlyAdded(t *testing.T) {
 // Recently Added view.
 func TestBulkSelectedHashesRecentlyAddedEmptyReturnsNil(t *testing.T) {
 	m := newModelWithTracks()
-	m = pressKey(m, "8")
+	m.library.mode = LibraryModeRecent
+	m.activeView = viewLibrary
 
 	if hashes := m.bulkSelectedHashes(); hashes != nil {
 		t.Errorf("recentlyAdded with no selection: expected nil, got %v", hashes)
@@ -322,8 +320,9 @@ func TestBulkSelectedHashesRecentlyAddedEmptyReturnsNil(t *testing.T) {
 // metadata editor.
 func TestBulkMetadataEditFromRecentlyAdded(t *testing.T) {
 	m := newModelWithTracks()
-	m = pressKey(m, "8")
-	m.recentlyAdded.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.library.mode = LibraryModeRecent
+	m.activeView = viewLibrary
+	m.library.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	m = pressMKey(m)
 	if m.overlay.metadataEditor == nil {
