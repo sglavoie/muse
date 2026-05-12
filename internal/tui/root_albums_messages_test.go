@@ -15,17 +15,17 @@ func TestScanBatchRefreshesAlbumList(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks([]library.Track{{Artist: "Alice", Album: "Alpha", Title: "T1", Hash: "h1"}}))
 
 	// Switch to albums view.
-	m = pressKey(m, "5")
-	if len(m.albums.albums) != 1 {
-		t.Fatalf("expected 1 album initially, got %d", len(m.albums.albums))
+	m = switchToAlbumsMode(m)
+	if len(m.browse.albums.albums) != 1 {
+		t.Fatalf("expected 1 album initially, got %d", len(m.browse.albums.albums))
 	}
 
 	// Simulate a scan batch adding a new album.
 	next, _ := m.Update(library.ScanBatchMsg{Tracks: []library.Track{{Artist: "Bob", Album: "Beta", Title: "T2", Hash: "h2"}}})
 	m = next.(Model)
 
-	if len(m.albums.albums) != 2 {
-		t.Fatalf("expected 2 albums after scan batch, got %d", len(m.albums.albums))
+	if len(m.browse.albums.albums) != 2 {
+		t.Fatalf("expected 2 albums after scan batch, got %d", len(m.browse.albums.albums))
 	}
 }
 
@@ -38,20 +38,20 @@ func TestWatchBatchRefreshesAlbumList(t *testing.T) {
 	}))
 
 	// Switch to albums view.
-	m = pressKey(m, "5")
-	if len(m.albums.albums) != 2 {
-		t.Fatalf("expected 2 albums initially, got %d", len(m.albums.albums))
+	m = switchToAlbumsMode(m)
+	if len(m.browse.albums.albums) != 2 {
+		t.Fatalf("expected 2 albums initially, got %d", len(m.browse.albums.albums))
 	}
 
 	// Simulate the watch deleting Bob's track.
 	next, _ := m.Update(watchBatchMsg{deleted: []string{"/b.flac"}})
 	m = next.(Model)
 
-	if len(m.albums.albums) != 1 {
-		t.Fatalf("expected 1 album after watch batch, got %d", len(m.albums.albums))
+	if len(m.browse.albums.albums) != 1 {
+		t.Fatalf("expected 1 album after watch batch, got %d", len(m.browse.albums.albums))
 	}
-	if m.albums.albums[0] != "Alpha" {
-		t.Errorf("expected remaining album='Alpha', got %q", m.albums.albums[0])
+	if m.browse.albums.albums[0] != "Alpha" {
+		t.Errorf("expected remaining album='Alpha', got %q", m.browse.albums.albums[0])
 	}
 }
 
@@ -65,19 +65,19 @@ func TestAlbumsClampCursorAfterShrink(t *testing.T) {
 	}))
 
 	// Switch to albums view and move cursor to Gamma (index 2).
-	m = pressKey(m, "5")
+	m = switchToAlbumsMode(m)
 	m = pressKey(m, "j")
 	m = pressKey(m, "j")
-	if m.albums.cursor != 2 {
-		t.Fatalf("expected cursor=2, got %d", m.albums.cursor)
+	if m.browse.albums.cursor != 2 {
+		t.Fatalf("expected cursor=2, got %d", m.browse.albums.cursor)
 	}
 
 	// Delete Charlie — cursor should clamp to index 1.
 	next, _ := m.Update(watchBatchMsg{deleted: []string{"/c.flac"}})
 	m = next.(Model)
 
-	if m.albums.cursor != 1 {
-		t.Errorf("expected cursor clamped to 1, got %d", m.albums.cursor)
+	if m.browse.albums.cursor != 1 {
+		t.Errorf("expected cursor clamped to 1, got %d", m.browse.albums.cursor)
 	}
 }
 
@@ -85,9 +85,9 @@ func TestAlbumsClampCursorAfterShrink(t *testing.T) {
 // view state so it gets re-derived from the new library.
 func TestRescanClearsAlbumsView(t *testing.T) {
 	m := newModelWithTracks()
-	m = pressKey(m, "5")
-	if len(m.albums.albums) != 4 {
-		t.Fatalf("expected 4 albums, got %d", len(m.albums.albums))
+	m = switchToAlbumsMode(m)
+	if len(m.browse.albums.albums) != 4 {
+		t.Fatalf("expected 4 albums, got %d", len(m.browse.albums.albums))
 	}
 
 	// Simulate rescan: set libraryRoot and extractor to enable rescan.
@@ -97,10 +97,10 @@ func TestRescanClearsAlbumsView(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
 	m = next.(Model)
 
-	if len(m.albums.albums) != 0 {
-		t.Errorf("expected empty album list after rescan, got %d", len(m.albums.albums))
+	if len(m.browse.albums.albums) != 0 {
+		t.Errorf("expected empty album list after rescan, got %d", len(m.browse.albums.albums))
 	}
-	if m.albums.level != albtui.AlbumLevel {
-		t.Errorf("expected AlbumLevel after rescan, got %v", m.albums.level)
+	if m.browse.albums.level != albtui.AlbumLevel {
+		t.Errorf("expected AlbumLevel after rescan, got %v", m.browse.albums.level)
 	}
 }

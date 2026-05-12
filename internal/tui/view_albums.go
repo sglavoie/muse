@@ -81,7 +81,7 @@ func (v AlbumsView) render(s styles.Styles, favHashes, favArtists, favAlbums map
 		FilterView:        v.filter.View(),
 		FilterHint:        func() string {
 			if v.level == albtui.TrackLevel {
-				return "a: artist  t: title  l: album"
+				return "a: artist  t: title  l: album  g: genre"
 			}
 			return ""
 		}(),

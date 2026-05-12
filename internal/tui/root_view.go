@@ -86,14 +86,10 @@ func (m Model) View() tea.View {
 			body = m.playlists.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
 		case viewQueue:
 			body = m.queue.render(*m.styles, m.playback.currentIndex, m.playback.state, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
-		case viewArtists:
-			body = m.artists.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
-		case viewAlbums:
-			body = m.albums.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
+		case viewBrowse:
+			body = m.browse.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
 		case viewFavorites:
 			body = m.favorites.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
-		case viewGenres:
-			body = m.genres.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
 		case viewTags:
 			body = m.tagsView.render(*m.styles, m.favoriteHashes, m.playback.currentHash)
 		case viewMixes:
@@ -139,14 +135,40 @@ func (m Model) renderTitleBar() string {
 	const chevronWidth = 4 // "‹ " + " ›"
 	const badgeWidth = 2   // digit + space before name
 	sep := "  "
+
+	// Queue now-playing indicator (2 display cols; shown only when Queue is not active).
+	queueIndicator := ""
+	if m.activeView != viewQueue {
+		switch {
+		case m.playback.state == PlaybackPlaying && m.playback.currentIndex >= 0:
+			queueIndicator = " ♪"
+		case m.playback.state == PlaybackPaused:
+			queueIndicator = " ⏸"
+		}
+	}
+
+	// groupAfter marks which tabs close a logical group (separator inserted after them).
+	groupAfter := map[viewID]bool{viewQueue: true, viewFavorites: true}
+
 	fullWidth := chevronWidth
 	for i, id := range viewOrder {
 		if i < 10 {
 			fullWidth += badgeWidth
 		}
-		fullWidth += len(m.viewDisplayName(id))
+		nameLen := len(m.viewDisplayName(id))
+		if id == m.activeView {
+			nameLen += 2 // " " + name + " " padding in ActiveTab style
+		}
+		if id == viewQueue && queueIndicator != "" {
+			nameLen += 2 // " ♪" or " ⏸" (1 space + 1 display-column symbol)
+		}
+		fullWidth += nameLen
 		if i < len(viewOrder)-1 {
-			fullWidth += len(sep)
+			if groupAfter[id] {
+				fullWidth += 3 // " │ "
+			} else {
+				fullWidth += len(sep)
+			}
 		}
 	}
 
@@ -167,20 +189,39 @@ func (m Model) renderTitleBar() string {
 			if i < 10 {
 				badge := m.styles.Badge.Render(fmt.Sprintf("%d", (i+1)%10))
 				if id == m.activeView {
-					entry = badge + " " + m.styles.Heading.Render(name) + filterBadge
+					entry = badge + " " + m.styles.ActiveTab.Render(" "+name+" ") + filterBadge
 				} else {
 					entry = badge + " " + m.styles.TextTertiary.Render(name)
 				}
 			} else {
 				if id == m.activeView {
-					entry = m.styles.Heading.Render(name) + filterBadge
+					entry = m.styles.ActiveTab.Render(" "+name+" ") + filterBadge
 				} else {
 					entry = m.styles.TextTertiary.Render(name)
 				}
 			}
+			if id == viewQueue && queueIndicator != "" {
+				if m.playback.state == PlaybackPlaying {
+					entry += m.styles.Success.Render(queueIndicator)
+				} else {
+					entry += m.styles.Warning.Render(queueIndicator)
+				}
+			}
 			parts = append(parts, entry)
 		}
-		return m.styles.TextTertiary.Render("‹ ") + strings.Join(parts, sep) + m.styles.TextTertiary.Render(" ›")
+		groupSep := m.styles.Dim.Render(" │ ")
+		var b strings.Builder
+		for i, part := range parts {
+			if i > 0 {
+				if groupAfter[viewOrder[i-1]] {
+					b.WriteString(groupSep)
+				} else {
+					b.WriteString(sep)
+				}
+			}
+			b.WriteString(part)
+		}
+		return m.styles.TextTertiary.Render("‹ ") + b.String() + m.styles.TextTertiary.Render(" ›")
 	}
 
 	// Narrow layout: show as many tabs as fit, centered on the active view.
@@ -208,7 +249,7 @@ func (m Model) renderTitleBar() string {
 	available := m.termWidth - chevronWidth
 	left := activeIdx
 	right := activeIdx
-	used := len(getName(viewOrder[activeIdx]))
+	used := len(getName(viewOrder[activeIdx])) + 2 // +2 for ActiveTab " " padding
 
 	for {
 		tryLeft := left > 0
@@ -243,7 +284,7 @@ func (m Model) renderTitleBar() string {
 		id := viewOrder[i]
 		name := getName(id)
 		if id == m.activeView {
-			narrowParts = append(narrowParts, m.styles.Heading.Render(name)+filterBadge)
+			narrowParts = append(narrowParts, m.styles.ActiveTab.Render(" "+name+" ")+filterBadge)
 		} else {
 			narrowParts = append(narrowParts, m.styles.TextTertiary.Render(name))
 		}
@@ -268,6 +309,11 @@ func (m Model) renderStatusBar() string {
 		sb.activeTagName = m.tagNames[*m.activeTagFilter]
 	}
 	sb.queueEmpty = len(m.queue.entries) == 0
+	if m.playback.state == PlaybackPlaying && m.playback.currentIndex >= 0 && len(m.queue.entries) > 0 {
+		sb.queuePosition = fmt.Sprintf("%d of %d", m.playback.currentIndex+1, len(m.queue.entries))
+	} else {
+		sb.queuePosition = ""
+	}
 	if m.playback.elapsedSecs > 0 || m.playback.totalSecs > 0 {
 		sb.elapsed = formatTime(m.playback.elapsedSecs)
 		sb.total = formatTime(m.playback.totalSecs)
@@ -281,12 +327,15 @@ func (m Model) renderStatusBar() string {
 		sb.selectionCount = len(m.library.selectedHashes)
 	case viewQueue:
 		sb.selectionCount = len(m.queue.selectedHashes())
-	case viewArtists:
-		sb.selectionCount = len(m.artists.selectedHashes)
-	case viewAlbums:
-		sb.selectionCount = len(m.albums.selectedHashes)
-	case viewGenres:
-		sb.selectionCount = len(m.genres.selectedHashes)
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			sb.selectionCount = len(m.browse.artists.selectedHashes)
+		case BrowseModeAlbums:
+			sb.selectionCount = len(m.browse.albums.selectedHashes)
+		case BrowseModeGenres:
+			sb.selectionCount = len(m.browse.genres.selectedHashes)
+		}
 	case viewFavorites:
 		sb.selectionCount = len(m.favorites.selectedItems)
 	}
@@ -305,12 +354,15 @@ func (m Model) hasCommittedFilter() bool {
 		return committed(m.library.filter.Text, m.library.filter.Active)
 	case viewQueue:
 		return committed(m.queue.filter.Text, m.queue.filter.Active)
-	case viewArtists:
-		return committed(m.artists.filter.Text, m.artists.filter.Active)
-	case viewAlbums:
-		return committed(m.albums.filter.Text, m.albums.filter.Active)
-	case viewGenres:
-		return committed(m.genres.filter.Text, m.genres.filter.Active)
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			return committed(m.browse.artists.filter.Text, m.browse.artists.filter.Active)
+		case BrowseModeAlbums:
+			return committed(m.browse.albums.filter.Text, m.browse.albums.filter.Active)
+		case BrowseModeGenres:
+			return committed(m.browse.genres.filter.Text, m.browse.genres.filter.Active)
+		}
 	case viewFavorites:
 		return committed(m.favorites.filter.Text, m.favorites.filter.Active)
 	case viewTags:

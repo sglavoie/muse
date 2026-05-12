@@ -16,6 +16,8 @@ const (
 	colorSurfaceAccentLight = "#d0d7e3"
 	colorSurfaceNotifDark  = "#3b4252" // notification badge background
 	colorSurfaceNotifLight = "#d0d7e3"
+	colorSelectionBgDark  = "#1f2438" // bulk-selection tint: between L0 and ZebraBg, blue-shifted
+	colorSelectionBgLight = "#dcdfe8"
 )
 
 // Now-playing warm background colors.
@@ -42,6 +44,14 @@ const (
 const (
 	colorFgStatusBarDark  = "#abb2bf"
 	colorFgStatusBarLight = "#383a42"
+)
+
+// Status bar playback-state background tints.
+const (
+	colorStatusBarPlayingBgDark  = "#1a1a16" // warm tint when playing
+	colorStatusBarPlayingBgLight = "#ddd8d0"
+	colorStatusBarStoppedBgDark  = "#161a1e" // cool tint when stopped
+	colorStatusBarStoppedBgLight = "#d0d4d8"
 )
 
 // Semantic state foreground colors.
@@ -79,6 +89,7 @@ type Styles struct {
 	AccentMark              lipgloss.Style // foreground-only accent for "●" marker on non-focused rows
 	Bold                    lipgloss.Style
 	Heading                 lipgloss.Style // bold + blue + double-underlined for section titles
+	ActiveTab               lipgloss.Style // bold + accent bg + white fg for the active tab in the title bar
 	Success                 lipgloss.Style // green foreground for playing state
 	Warning                 lipgloss.Style // gold foreground for paused state
 	Error                   lipgloss.Style // red foreground for errors / stopped
@@ -94,8 +105,14 @@ type Styles struct {
 	FavAlbumAccent          lipgloss.Style // accent background + cyan foreground for focused favorited albums
 	ColHead                 lipgloss.Style // bold + tertiary foreground + dotted underline for column headers
 	StatusBar               lipgloss.Style // full-width status bar background + foreground
+	StatusBarPlayingBg      lipgloss.Style // warm bg + status bar fg when playing
+	StatusBarStoppedBg      lipgloss.Style // cool bg + status bar fg when stopped
 	StatusNotification      lipgloss.Style // notification badge: amber on contrasting bg
 	StatusNotificationError lipgloss.Style // error notification: red on contrasting bg
+	ModeRepeat              lipgloss.Style // bold accent blue fg for Repeat mode label
+	ModeShuffle             lipgloss.Style // bold success green fg for Shuffle mode label
+	ModeStopAfter           lipgloss.Style // bold warning amber fg for Stop Next mode label
+	ModeRadio               lipgloss.Style // bold purple fg for Auto-DJ mode label
 	Badge                   lipgloss.Style // single-char badge with lighter background (title bar view numbers)
 	HelpKey                 lipgloss.Style // bold accent foreground for keybinding keys in help overlay
 	ProgressFilled          lipgloss.Style // accent-colored "█" blocks for filled portion of progress bar
@@ -105,6 +122,7 @@ type Styles struct {
 	TextTertiary            lipgloss.Style // tertiary text: track numbers, durations, inactive tabs
 	NowPlayingTitle         lipgloss.Style // amber fg + warm bg for title column in the now-playing row
 	ZebraBg                 color.Color
+	SelectionBg             color.Color
 	NowPlayingBg            color.Color
 	NowPlayingRow           lipgloss.Style // bold green fg + amber bg for now-playing row (non-focused)
 	NowPlayingRowFavorite   lipgloss.Style // bold amber/gold fg + amber bg for now-playing + favorited track
@@ -125,6 +143,9 @@ func NewStyles(hasDark bool) Styles {
 			UnderlineStyle(lipgloss.UnderlineDouble).
 			UnderlineColor(ld(lipgloss.Color(colorAccentUnderlineLight), lipgloss.Color(colorAccentUnderlineDark))).
 			Foreground(ld(lipgloss.Color(colorAccentPrimaryLight), lipgloss.Color(colorAccentPrimaryDark))),
+		ActiveTab: lipgloss.NewStyle().Bold(true).
+			Background(ld(lipgloss.Color(colorAccentPrimaryLight), lipgloss.Color(colorAccentPrimaryDark))).
+			Foreground(lipgloss.Color("#ffffff")),
 		Success:                 lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgSuccessLight), lipgloss.Color(colorFgSuccessDark))),
 		Warning:                 lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgWarningLight), lipgloss.Color(colorFgWarningDark))),
 		Error:                   lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgErrorLight), lipgloss.Color(colorFgErrorDark))),
@@ -142,8 +163,14 @@ func NewStyles(hasDark bool) Styles {
 			Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))).
 			UnderlineStyle(lipgloss.UnderlineDotted),
 		StatusBar:               lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceL0Light), lipgloss.Color(colorSurfaceL0Dark))).Foreground(ld(lipgloss.Color(colorFgStatusBarLight), lipgloss.Color(colorFgStatusBarDark))),
+		StatusBarPlayingBg:      lipgloss.NewStyle().Background(ld(lipgloss.Color(colorStatusBarPlayingBgLight), lipgloss.Color(colorStatusBarPlayingBgDark))).Foreground(ld(lipgloss.Color(colorFgStatusBarLight), lipgloss.Color(colorFgStatusBarDark))),
+		StatusBarStoppedBg:      lipgloss.NewStyle().Background(ld(lipgloss.Color(colorStatusBarStoppedBgLight), lipgloss.Color(colorStatusBarStoppedBgDark))).Foreground(ld(lipgloss.Color(colorFgStatusBarLight), lipgloss.Color(colorFgStatusBarDark))),
 		StatusNotification:      lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceNotifLight), lipgloss.Color(colorSurfaceNotifDark))).Foreground(ld(lipgloss.Color(colorFgWarningLight), lipgloss.Color(colorFgWarningDark))),
 		StatusNotificationError: lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceNotifLight), lipgloss.Color(colorSurfaceNotifDark))).Foreground(ld(lipgloss.Color(colorFgErrorLight), lipgloss.Color(colorFgErrorDark))),
+		ModeRepeat:              lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorAccentPrimaryLight), lipgloss.Color(colorAccentPrimaryDark))),
+		ModeShuffle:             lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgSuccessLight), lipgloss.Color(colorFgSuccessDark))),
+		ModeStopAfter:           lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgWarningLight), lipgloss.Color(colorFgWarningDark))),
+		ModeRadio:               lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgFavArtistLight), lipgloss.Color(colorFgFavArtistDark))),
 		Badge:                   lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceL0Light), lipgloss.Color(colorSurfaceL0Dark))).Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))),
 		HelpKey:                 lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorAccentPrimaryLight), lipgloss.Color(colorAccentPrimaryDark))),
 		ProgressFilled:          lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorAccentPrimaryLight), lipgloss.Color(colorAccentPrimaryDark))),
@@ -153,6 +180,7 @@ func NewStyles(hasDark bool) Styles {
 		TextTertiary:            lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))),
 		NowPlayingTitle:         lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorAmberLight), lipgloss.Color(colorAmberDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
 		ZebraBg:                 ld(lipgloss.Color(colorSurfaceL2Light), lipgloss.Color(colorSurfaceL2Dark)),
+		SelectionBg:             ld(lipgloss.Color(colorSelectionBgLight), lipgloss.Color(colorSelectionBgDark)),
 		NowPlayingBg:            ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark)),
 		NowPlayingRow:           lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgSuccessLight), lipgloss.Color(colorFgSuccessDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
 		NowPlayingRowFavorite:   lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgWarningLight), lipgloss.Color(colorFgWarningDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),

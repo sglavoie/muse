@@ -39,7 +39,7 @@ func TestRenderColumnsDoNotOverflow(t *testing.T) {
 func TestRenderEmptyIndex(t *testing.T) {
 	v := View{Width: 80, Height: 24}
 	got := v.Render()
-	if got != "(no tracks)" {
+	if !strings.Contains(got, "No music found") {
 		t.Errorf("unexpected empty render: %q", got)
 	}
 }

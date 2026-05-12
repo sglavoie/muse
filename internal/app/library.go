@@ -35,6 +35,10 @@ type LibraryResult struct {
 	// WatchDegraded is true when the filesystem watcher fell back to
 	// polling mode (e.g. on unsupported filesystems).
 	WatchDegraded bool
+
+	// FreshLibrary is true when no tracks existed in the database before
+	// the scan. Used to trigger first-launch UX (sort by recently added).
+	FreshLibrary bool
 }
 
 // LibraryWriter is the subset of db.Writer used by LoadLibrary for persisting
@@ -141,5 +145,6 @@ func LoadLibrary(ctx context.Context, database *db.DB, writer LibraryWriter,
 		DeletedPaths:  deletedPaths,
 		HashByPath:    hashByPath,
 		WatchDegraded: watchDegraded,
+		FreshLibrary:  len(dbTracks) == 0,
 	}, nil
 }

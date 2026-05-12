@@ -37,14 +37,9 @@ type overlayInfo struct {
 	tagFilterPicker       *TagFilterPicker
 }
 
-// undoInfo groups the fields that track pending destructive-action confirmations
-// and the reversible undo slot.
+// undoInfo holds the reversible undo slot.
 type undoInfo struct {
-	slot                undoSlot
-	clearQueuePending   bool
-	clearQueuePendingAt time.Time
-	bulkRemovePending   bool
-	bulkRemovePendingAt time.Time
+	slot undoSlot
 }
 
 // playbackInfo groups the fields that describe the current playback state.
@@ -79,10 +74,9 @@ type Model struct {
 	library   LibraryView
 	playlists PlaylistsView
 	queue         QueueView
-	artists       ArtistsView
-	albums        AlbumsView
+	queueDirty    bool // true when queue has unsaved mutations since last save-as-playlist or clear
+	browse        BrowseView
 	favorites     FavoritesView
-	genres        GenresView
 	tagsView      TagsView
 	mixes         MixesView
 
@@ -208,6 +202,19 @@ type Model struct {
 	// ends or the queue is cleared.
 	missingTrackCount int
 
+	// sessionTracksPlayed and sessionListenSecs accumulate across the lifetime
+	// of the program. Printed to stderr as a session summary on quit.
+	sessionTracksPlayed int
+	sessionListenSecs   float64
+
+	// sessionCount is the number of times the app has been launched (including
+	// the current session). Set via WithSessionCount. Used to show one-time tips.
+	sessionCount int
+
+	// freshLibrary is true when this is the first-ever library scan. Set via
+	// WithFreshLibrary to switch to Recently Added mode on first launch.
+	freshLibrary bool
+
 	playback playbackInfo // current playback state, repeat, shuffle, volume, position
 	radio    radioState   // auto-DJ / radio mode state
 
@@ -254,6 +261,9 @@ func New(ctx context.Context, opts ...Option) Model {
 	m.favoriteAlbums = loadFavoriteSet(m.favoriteReader, "album")
 	// Pre-load dismissed track hashes so mixes filter them on first load.
 	m.dismissedHashes = loadDismissedSet(m.dismissalReader)
+	if m.freshLibrary {
+		m.library = m.library.switchMode(LibraryModeRecent)
+	}
 	m = m.syncRecentlyAddedFromLibrary()
 	// Sync statusBar fields from model state.
 	m.statusBar.transientDur = time.Duration(m.cfg.TransientDurationSecs) * time.Second
@@ -261,6 +271,9 @@ func New(ctx context.Context, opts ...Option) Model {
 	m.statusBar.configCreated = m.configCreated
 	if len(m.configWarnings) > 0 {
 		m.statusBar.pushMsg("Config: "+strings.Join(m.configWarnings, "; "), 10*time.Second, notifNormal)
+	}
+	if m.sessionCount > 0 && m.sessionCount <= 3 {
+		m.statusBar.pushMsg("Tip: press : to open command palette", 10*time.Second, notifInfo)
 	}
 	return m
 }
@@ -282,6 +295,12 @@ func (m Model) StatusBarTitle() string { return m.statusBar.title }
 
 // StatusBarPlaylistSource returns the current status bar playlist source string.
 func (m Model) StatusBarPlaylistSource() string { return m.statusBar.playlistSource }
+
+// SessionTracksPlayed returns the number of tracks counted as played this session.
+func (m Model) SessionTracksPlayed() int { return m.sessionTracksPlayed }
+
+// SessionListenSecs returns the accumulated listening time in seconds this session.
+func (m Model) SessionListenSecs() float64 { return m.sessionListenSecs }
 
 // RemoveLibraryTrackByPath removes a track from the in-memory library index
 // by its file path. Call this before starting the TUI to evict deleted files

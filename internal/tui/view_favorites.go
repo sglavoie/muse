@@ -81,7 +81,7 @@ func (v FavoritesView) render(s styles.Styles, favHashes, favArtists, favAlbums 
 		FilterView:       v.filter.View(),
 		FilterHint:       func() string {
 			if v.level == favtui.TrackLevel || (v.level == favtui.ListLevel && v.category == favtui.CategoryTracks) {
-				return "a: artist  t: title  l: album"
+				return "a: artist  t: title  l: album  g: genre"
 			}
 			return ""
 		}(),

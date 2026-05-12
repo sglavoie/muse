@@ -62,6 +62,7 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 			m = m.stopPlaybackIfCurrentMissing()
 		}
 	}
+	m.queueDirty = true
 	return m
 }
 
@@ -121,6 +122,7 @@ func (m Model) handleClearQueueMsg() Model {
 	if setter, ok := m.player.(playerQueueSetter); ok {
 		setter.SetQueue(nil)
 	}
+	m.queueDirty = false
 	return m
 }
 
@@ -146,6 +148,7 @@ func (m Model) clearQueueForReplace() Model {
 	if setter, ok := m.player.(playerQueueSetter); ok {
 		setter.SetQueue(nil)
 	}
+	m.queueDirty = false
 	return m
 }
 
@@ -193,6 +196,7 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 		pastedIDs[i] = entry.ID
 	}
 	m.setupPasteUndo(pastedIDs, msg.Entries, msg.CutIDs, removedOriginals, removedOriginalIndices, insertPos)
+	m.queueDirty = true
 	player.PlaySound(player.SoundEnqueued)
 	return m
 }

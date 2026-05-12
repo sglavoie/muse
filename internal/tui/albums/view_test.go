@@ -67,8 +67,8 @@ func TestDeriveAlbumTracksNoMatch(t *testing.T) {
 func TestRenderAlbumsEmpty(t *testing.T) {
 	v := View{Level: AlbumLevel}
 	out := v.Render()
-	if !strings.Contains(out, "no albums") {
-		t.Fatalf("expected '(no albums)' in output, got:\n%s", out)
+	if !strings.Contains(out, "No albums") {
+		t.Fatalf("expected albums empty hint in output, got:\n%s", out)
 	}
 }
 
@@ -111,8 +111,8 @@ func TestRenderTracksShowsTitles(t *testing.T) {
 func TestRenderTracksEmpty(t *testing.T) {
 	v := View{Level: TrackLevel, SelectedAlbum: "Alpha"}
 	out := v.Render()
-	if !strings.Contains(out, "no tracks") {
-		t.Fatalf("expected '(no tracks)' in output, got:\n%s", out)
+	if !strings.Contains(out, "No tracks") {
+		t.Fatalf("expected tracks empty hint in output, got:\n%s", out)
 	}
 }
 

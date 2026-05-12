@@ -165,6 +165,10 @@ type StatusBar struct {
 	// Injected by renderStatusBar from the root Model.
 	radioMode bool
 
+	// queuePosition is the formatted "N of M" queue position string injected
+	// by renderStatusBar. Empty when nothing is playing.
+	queuePosition string
+
 	// yankCount, yankIsCut, and selectionCount are injected by renderStatusBar.
 	yankCount      int
 	yankIsCut      bool
@@ -248,14 +252,44 @@ func truncateTitle(s string, maxWidth int) string {
 func (s StatusBar) render(width int, st styles.Styles) string {
 	// Every text segment must carry the StatusBar background so that inner
 	// ANSI resets (\e[0m) don't leave gaps with the terminal default bg.
-	bg := st.StatusBar.GetBackground()
-	fg := st.StatusBar.GetForeground()
+	// The base style shifts slightly for playing (warm) and stopped (cool).
+	var baseSb lipgloss.Style
+	switch s.playbackState {
+	case PlaybackPlaying:
+		baseSb = st.StatusBarPlayingBg
+	case PlaybackStopped:
+		baseSb = st.StatusBarStoppedBg
+	default:
+		baseSb = st.StatusBar
+	}
+	bg := baseSb.GetBackground()
+	fg := baseSb.GetForeground()
 	barText := lipgloss.NewStyle().Background(bg).Foreground(fg)
 	barSuccess := st.Success.Background(bg)
 	barWarning := st.Warning.Background(bg)
 	barError := st.Error.Background(bg)
 	barBold := barText.Bold(true)
 	barDim := barText.Faint(true)
+	barModeRepeat    := st.ModeRepeat.Background(bg)
+	barModeShuffle   := st.ModeShuffle.Background(bg)
+	barModeStopAfter := st.ModeStopAfter.Background(bg)
+	barModeRadio     := st.ModeRadio.Background(bg)
+
+	// modeStyle returns the colored bold style for a given mode label text.
+	modeStyle := func(label string) lipgloss.Style {
+		switch label {
+		case "Repeat", "Repeat 1", "R", "R1":
+			return barModeRepeat
+		case "Shuffle", "S":
+			return barModeShuffle
+		case "Stop Next", "N":
+			return barModeStopAfter
+		case "Auto-DJ", "DJ":
+			return barModeRadio
+		default:
+			return barBold
+		}
+	}
 
 	// r renders plain text with the StatusBar background+foreground.
 	r := func(s string) string { return barText.Render(s) }
@@ -442,29 +476,54 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 				abbrev = append(abbrev, fmt.Sprintf("Sel:%d", s.selectionCount))
 			}
 			abbrevText := strings.Join(abbrev, " ")
-			suffix += barBold.Render("  " + abbrevText)
+			var renderedAbbrev []string
+			for _, a := range abbrev {
+				renderedAbbrev = append(renderedAbbrev, modeStyle(a).Render(a))
+			}
+			suffix += r("  ") + strings.Join(renderedAbbrev, r(" "))
 			suffixWidth += 2 + ansi.StringWidth(abbrevText)
 		} else {
-			suffix += barBold.Render("  " + modesText)
+			var renderedPlayback []string
+			for _, p := range playback {
+				renderedPlayback = append(renderedPlayback, modeStyle(p).Render(p))
+			}
+			var renderedEditorial []string
+			for _, e := range editorial {
+				renderedEditorial = append(renderedEditorial, barBold.Render(e))
+			}
+			var renderedGroups []string
+			if len(renderedPlayback) > 0 {
+				renderedGroups = append(renderedGroups, strings.Join(renderedPlayback, r(" ")))
+			}
+			if len(renderedEditorial) > 0 {
+				renderedGroups = append(renderedGroups, strings.Join(renderedEditorial, r(" ")))
+			}
+			suffix += r("  ") + strings.Join(renderedGroups, r(" │ "))
 			suffixWidth += modesDisplayWidth
 		}
 	}
 
-	// Build the prefix that precedes the title: glyph and artist.
-	// Format: "[glyph] artist – title" or subsets when fields are absent.
+	// Build the prefix that precedes the title: glyph, queue position, and artist.
+	// Format: "[glyph] (N of M) artist – title" or subsets when fields are absent.
+	qp := ""
+	qpWidth := 0
+	if s.queuePosition != "" {
+		qp = barDim.Render(" (" + s.queuePosition + ")")
+		qpWidth = ansi.StringWidth(" (" + s.queuePosition + ")")
+	}
 	prefix := ""
 	prefixWidth := 0
 	sep := ""
 	sepWidth := 0
 	switch {
 	case stateIcon != "" && s.artist != "":
-		prefix = stateIcon + r(" "+s.artist)
-		prefixWidth = stateIconWidth + 1 + ansi.StringWidth(s.artist)
+		prefix = stateIcon + qp + r(" "+s.artist)
+		prefixWidth = stateIconWidth + qpWidth + 1 + ansi.StringWidth(s.artist)
 		sep = " — "
 		sepWidth = 3
 	case stateIcon != "":
-		prefix = stateIcon
-		prefixWidth = stateIconWidth
+		prefix = stateIcon + qp
+		prefixWidth = stateIconWidth + qpWidth
 	case s.artist != "":
 		prefix = r(s.artist)
 		prefixWidth = ansi.StringWidth(s.artist)

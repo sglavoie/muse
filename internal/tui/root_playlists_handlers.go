@@ -145,6 +145,7 @@ func (m Model) handleQueueSavedAsPlaylistMsg(msg queueSavedAsPlaylistMsg) Model 
 	if msg.fromSelection {
 		source = "selection"
 	}
+	m.queueDirty = false
 	m.statusBar.notify(fmt.Sprintf("Saved %s as %q (%d %s)", source, msg.playlistName, msg.count, pluralize(msg.count, "track", "tracks")))
 	player.PlaySound(player.SoundEnqueued)
 	return m
@@ -183,9 +184,9 @@ func (m Model) handleDestinationPickerDismissedMsg() Model {
 	m.overlay.destPicker = nil
 	m.overlay.destPickerTracks = nil
 	m.library = m.library.ClearSelection()
-	m.artists.selectedHashes = nil
-	m.albums.selectedHashes = nil
-	m.genres.selectedHashes = nil
+	m.browse.artists.selectedHashes = nil
+	m.browse.albums.selectedHashes = nil
+	m.browse.genres.selectedHashes = nil
 	m.favorites.selectedItems = nil
 	m.tagsView.selectedHashes = nil
 	return m
@@ -197,9 +198,9 @@ func (m Model) handleDestinationPickerDismissedMsg() Model {
 func (m Model) handleDestinationPickerCreateMsg() Model {
 	m.overlay.destPicker = nil
 	m.library = m.library.ClearSelection()
-	m.artists.selectedHashes = nil
-	m.albums.selectedHashes = nil
-	m.genres.selectedHashes = nil
+	m.browse.artists.selectedHashes = nil
+	m.browse.albums.selectedHashes = nil
+	m.browse.genres.selectedHashes = nil
 	m.favorites.selectedItems = nil
 	m.tagsView.selectedHashes = nil
 	m.activeView = viewPlaylists
@@ -214,9 +215,9 @@ func (m Model) handleDestinationPickedMsg(msg pltui.DestinationPickedMsg) (Model
 	m.overlay.destPicker = nil
 	m.overlay.destPickerTracks = nil
 	m.library = m.library.ClearSelection()
-	m.artists.selectedHashes = nil
-	m.albums.selectedHashes = nil
-	m.genres.selectedHashes = nil
+	m.browse.artists.selectedHashes = nil
+	m.browse.albums.selectedHashes = nil
+	m.browse.genres.selectedHashes = nil
 	m.favorites.selectedItems = nil
 	m.tagsView.selectedHashes = nil
 	if msg.IsQueue {

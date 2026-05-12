@@ -30,10 +30,16 @@ func (m Model) bulkSelectedHashes() []string {
 			}
 		}
 		return hashes
-	case viewArtists:
-		return hashMapToSlice(m.artists.selectedHashes)
-	case viewAlbums:
-		return hashMapToSlice(m.albums.selectedHashes)
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			return hashMapToSlice(m.browse.artists.selectedHashes)
+		case BrowseModeAlbums:
+			return hashMapToSlice(m.browse.albums.selectedHashes)
+		case BrowseModeGenres:
+			return hashMapToSlice(m.browse.genres.selectedHashes)
+		}
+		return nil
 	case viewFavorites:
 		if len(m.favorites.selectedItems) == 0 {
 			return nil
@@ -57,8 +63,6 @@ func (m Model) bulkSelectedHashes() []string {
 			return nil
 		}
 		return hashes
-	case viewGenres:
-		return hashMapToSlice(m.genres.selectedHashes)
 	case viewTags:
 		return hashMapToSlice(m.tagsView.selectedHashes)
 	case viewMixes:
@@ -110,45 +114,45 @@ func (m Model) refreshDerivedViews() Model {
 		m.library = m.library.rebuildFilterCache()
 	}
 
-	switch m.artists.level {
+	switch m.browse.artists.level {
 	case arttui.ArtistLevel:
-		m.artists.artists = arttui.DeriveArtists(tracks)
-		m.artists = m.artists.recomputeArtistsSort()
-		m.artists = m.artists.clampCursor()
+		m.browse.artists.artists = arttui.DeriveArtists(tracks)
+		m.browse.artists = m.browse.artists.recomputeArtistsSort()
+		m.browse.artists = m.browse.artists.clampCursor()
 	case arttui.AlbumLevel:
-		m.artists.albums = arttui.DeriveAlbums(tracks, m.artists.selectedArtist)
-		m.artists = m.artists.recomputeArtistsSort()
-		m.artists = m.artists.clampCursor()
+		m.browse.artists.albums = arttui.DeriveAlbums(tracks, m.browse.artists.selectedArtist)
+		m.browse.artists = m.browse.artists.recomputeArtistsSort()
+		m.browse.artists = m.browse.artists.clampCursor()
 	case arttui.TrackLevel:
-		m.artists.tracks = arttui.DeriveTracks(tracks, m.artists.selectedArtist, m.artists.selectedAlbum)
-		m.artists = m.artists.recomputeArtistsSort()
-		m.artists = m.artists.clampCursor()
+		m.browse.artists.tracks = arttui.DeriveTracks(tracks, m.browse.artists.selectedArtist, m.browse.artists.selectedAlbum)
+		m.browse.artists = m.browse.artists.recomputeArtistsSort()
+		m.browse.artists = m.browse.artists.clampCursor()
 	}
 
-	switch m.albums.level {
+	switch m.browse.albums.level {
 	case albtui.AlbumLevel:
-		m.albums.albums = albtui.DeriveAllAlbums(tracks)
-		m.albums = m.albums.recomputeAlbumsSort()
-		m.albums = m.albums.clampCursor()
+		m.browse.albums.albums = albtui.DeriveAllAlbums(tracks)
+		m.browse.albums = m.browse.albums.recomputeAlbumsSort()
+		m.browse.albums = m.browse.albums.clampCursor()
 	case albtui.TrackLevel:
-		m.albums.tracks = albtui.DeriveAlbumTracks(tracks, m.albums.selectedAlbum)
-		m.albums = m.albums.recomputeAlbumsSort()
-		m.albums = m.albums.clampCursor()
+		m.browse.albums.tracks = albtui.DeriveAlbumTracks(tracks, m.browse.albums.selectedAlbum)
+		m.browse.albums = m.browse.albums.recomputeAlbumsSort()
+		m.browse.albums = m.browse.albums.clampCursor()
 	}
 
-	switch m.genres.level {
+	switch m.browse.genres.level {
 	case gentui.GenreLevel:
-		m.genres.genres = gentui.DeriveGenres(tracks)
-		m.genres = m.genres.recomputeGenresSort()
-		m.genres = m.genres.clampCursor()
+		m.browse.genres.genres = gentui.DeriveGenres(tracks)
+		m.browse.genres = m.browse.genres.recomputeGenresSort()
+		m.browse.genres = m.browse.genres.clampCursor()
 	case gentui.ArtistLevel:
-		m.genres.artists = gentui.DeriveGenreArtists(tracks, m.genres.selectedGenre)
-		m.genres = m.genres.recomputeGenresSort()
-		m.genres = m.genres.clampCursor()
+		m.browse.genres.artists = gentui.DeriveGenreArtists(tracks, m.browse.genres.selectedGenre)
+		m.browse.genres = m.browse.genres.recomputeGenresSort()
+		m.browse.genres = m.browse.genres.clampCursor()
 	case gentui.TrackLevel:
-		m.genres.tracks = gentui.DeriveGenreArtistTracks(tracks, m.genres.selectedGenre, m.genres.selectedArtist)
-		m.genres = m.genres.recomputeGenresSort()
-		m.genres = m.genres.clampCursor()
+		m.browse.genres.tracks = gentui.DeriveGenreArtistTracks(tracks, m.browse.genres.selectedGenre, m.browse.genres.selectedArtist)
+		m.browse.genres = m.browse.genres.recomputeGenresSort()
+		m.browse.genres = m.browse.genres.clampCursor()
 	}
 
 	if m.playlists.level == pltui.TrackLevel {

@@ -133,33 +133,33 @@ func TestAlbumsBindingsResolve(t *testing.T) {
 	}
 }
 
-// TestSwitchArtistsGlobalBinding verifies that '4' resolves to
-// actionSwitchArtists in the global context.
-func TestSwitchArtistsGlobalBinding(t *testing.T) {
+// TestSwitchBrowseGlobalBinding verifies that '4' resolves to
+// actionSwitchBrowse in the global context.
+func TestSwitchBrowseGlobalBinding(t *testing.T) {
 	reg := newRegistry()
 	got := reg.resolve(contextGlobal, "4")
-	if got != actionSwitchArtists {
-		t.Errorf("resolve(contextGlobal, \"4\") = %v, want actionSwitchArtists", got)
+	if got != actionSwitchBrowse {
+		t.Errorf("resolve(contextGlobal, \"4\") = %v, want actionSwitchBrowse", got)
 	}
 }
 
-// TestSwitchAlbumsGlobalBinding verifies that '5' resolves to
-// actionSwitchAlbums in the global context.
-func TestSwitchAlbumsGlobalBinding(t *testing.T) {
+// TestSwitchFavoritesGlobalBinding verifies that '5' resolves to
+// actionSwitchFavorites in the global context.
+func TestSwitchFavoritesGlobalBinding(t *testing.T) {
 	reg := newRegistry()
 	got := reg.resolve(contextGlobal, "5")
-	if got != actionSwitchAlbums {
-		t.Errorf("resolve(contextGlobal, \"5\") = %v, want actionSwitchAlbums", got)
+	if got != actionSwitchFavorites {
+		t.Errorf("resolve(contextGlobal, \"5\") = %v, want actionSwitchFavorites", got)
 	}
 }
 
-// TestSwitchTagsGlobalBinding verifies that '8' resolves to
+// TestSwitchTagsGlobalBinding verifies that '6' resolves to
 // actionSwitchTags in the global context.
 func TestSwitchTagsGlobalBinding(t *testing.T) {
 	reg := newRegistry()
-	got := reg.resolve(contextGlobal, "8")
+	got := reg.resolve(contextGlobal, "6")
 	if got != actionSwitchTags {
-		t.Errorf("resolve(contextGlobal, \"8\") = %v, want actionSwitchTags", got)
+		t.Errorf("resolve(contextGlobal, \"6\") = %v, want actionSwitchTags", got)
 	}
 }
 

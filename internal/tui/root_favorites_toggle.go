@@ -30,39 +30,56 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 			return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
 		}
 
-	case viewArtists:
-		switch m.artists.level {
-		case arttui.ArtistLevel:
-			if name, ok := m.artists.focusedArtist(); ok {
-				return m, m.toggleFavoriteSingle(reader, writer, "artist", name), true
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			switch m.browse.artists.level {
+			case arttui.ArtistLevel:
+				if name, ok := m.browse.artists.focusedArtist(); ok {
+					return m, m.toggleFavoriteSingle(reader, writer, "artist", name), true
+				}
+			case arttui.AlbumLevel:
+				if name, ok := m.browse.artists.focusedAlbum(); ok {
+					return m, m.toggleFavoriteSingle(reader, writer, "album", name), true
+				}
+			case arttui.TrackLevel:
+				if hashes := hashMapToSlice(m.browse.artists.selectedHashes); len(hashes) > 0 {
+					m.browse.artists.selectedHashes = nil
+					return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
+				}
+				if t, ok := m.browse.artists.focusedTrack(); ok {
+					return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
+				}
 			}
-		case arttui.AlbumLevel:
-			if name, ok := m.artists.focusedAlbum(); ok {
-				return m, m.toggleFavoriteSingle(reader, writer, "album", name), true
+		case BrowseModeAlbums:
+			switch m.browse.albums.level {
+			case albtui.AlbumLevel:
+				if name, ok := m.browse.albums.focusedAlbum(); ok {
+					return m, m.toggleFavoriteSingle(reader, writer, "album", name), true
+				}
+			case albtui.TrackLevel:
+				if hashes := hashMapToSlice(m.browse.albums.selectedHashes); len(hashes) > 0 {
+					m.browse.albums.selectedHashes = nil
+					return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
+				}
+				if t, ok := m.browse.albums.focusedTrack(); ok {
+					return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
+				}
 			}
-		case arttui.TrackLevel:
-			if hashes := hashMapToSlice(m.artists.selectedHashes); len(hashes) > 0 {
-				m.artists.selectedHashes = nil
-				return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
-			}
-			if t, ok := m.artists.focusedTrack(); ok {
-				return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
-			}
-		}
-
-	case viewAlbums:
-		switch m.albums.level {
-		case albtui.AlbumLevel:
-			if name, ok := m.albums.focusedAlbum(); ok {
-				return m, m.toggleFavoriteSingle(reader, writer, "album", name), true
-			}
-		case albtui.TrackLevel:
-			if hashes := hashMapToSlice(m.albums.selectedHashes); len(hashes) > 0 {
-				m.albums.selectedHashes = nil
-				return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
-			}
-			if t, ok := m.albums.focusedTrack(); ok {
-				return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
+		case BrowseModeGenres:
+			switch m.browse.genres.level {
+			case gentui.ArtistLevel:
+				if name, ok := m.browse.genres.focusedArtist(); ok {
+					return m, m.toggleFavoriteSingle(reader, writer, "artist", name), true
+				}
+			case gentui.TrackLevel:
+				if hashes := hashMapToSlice(m.browse.genres.selectedHashes); len(hashes) > 0 {
+					m.browse.genres.selectedHashes = nil
+					return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
+				}
+				if t, ok := m.browse.genres.focusedTrack(); ok {
+					return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
+				}
 			}
 		}
 
@@ -93,22 +110,6 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 				return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
 			}
 			if t, ok := m.playlists.focusedTrack(); ok {
-				return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
-			}
-		}
-
-	case viewGenres:
-		switch m.genres.level {
-		case gentui.ArtistLevel:
-			if name, ok := m.genres.focusedArtist(); ok {
-				return m, m.toggleFavoriteSingle(reader, writer, "artist", name), true
-			}
-		case gentui.TrackLevel:
-			if hashes := hashMapToSlice(m.genres.selectedHashes); len(hashes) > 0 {
-				m.genres.selectedHashes = nil
-				return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
-			}
-			if t, ok := m.genres.focusedTrack(); ok {
 				return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
 			}
 		}

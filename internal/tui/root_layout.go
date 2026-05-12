@@ -9,13 +9,31 @@ import (
 
 // activeViewContext maps the current activeView to its bindingContext so that
 // the registry can check view-local bindings before falling back to global.
+// For viewBrowse, the real sub-context (contextArtists/Albums/Genres) is resolved
+// based on the active browse mode so that sub-view keybindings work correctly.
 func (m Model) activeViewContext() bindingContext {
+	if m.activeView == viewBrowse {
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			return contextArtists
+		case BrowseModeAlbums:
+			return contextAlbums
+		case BrowseModeGenres:
+			return contextGenres
+		}
+	}
 	ctx := viewToContext(m.activeView)
 	if ctx == contextGlobal {
 		slog.Warn("activeViewContext: unhandled viewID, falling back to global bindings",
 			"viewID", int(m.activeView))
 	}
 	return ctx
+}
+
+// effectiveView returns the active view ID for dispatch purposes.
+// All handlers now use m.activeView directly, so this is a simple passthrough.
+func (m Model) effectiveView() viewID {
+	return m.activeView
 }
 
 // resizable is implemented by every primary view that tracks its own
@@ -28,7 +46,7 @@ type resizable interface {
 // height is reduced by 4 to leave room for the status bar, separator, and header rows.
 func (m *Model) setViewDimensions(width, height int) {
 	viewHeight := max(height-4, 0)
-	for _, view := range []resizable{&m.library, &m.playlists, &m.queue, &m.artists, &m.albums, &m.favorites, &m.genres, &m.tagsView, &m.mixes} {
+	for _, view := range []resizable{&m.library, &m.playlists, &m.queue, &m.browse, &m.favorites, &m.tagsView, &m.mixes} {
 		view.setSize(width, viewHeight)
 	}
 }
@@ -47,21 +65,21 @@ func (m *Model) clampAllScrollOffsets() {
 	plMaxRows := layout.VisibleRows(m.playlists.height, plReserve)
 	m.playlists.scrollOffset = adjustScroll(m.playlists.cursor, m.playlists.scrollOffset, plMaxRows)
 
-	artReserve := artistsVisibleReserve(m.artists)
-	artMaxRows := layout.VisibleRows(m.artists.height, artReserve)
-	m.artists.scrollOffset = adjustScroll(m.artists.cursor, m.artists.scrollOffset, artMaxRows)
+	artReserve := artistsVisibleReserve(m.browse.artists)
+	artMaxRows := layout.VisibleRows(m.browse.artists.height, artReserve)
+	m.browse.artists.scrollOffset = adjustScroll(m.browse.artists.cursor, m.browse.artists.scrollOffset, artMaxRows)
 
-	albReserve := albumsVisibleReserve(m.albums)
-	albMaxRows := layout.VisibleRows(m.albums.height, albReserve)
-	m.albums.scrollOffset = adjustScroll(m.albums.cursor, m.albums.scrollOffset, albMaxRows)
+	albReserve := albumsVisibleReserve(m.browse.albums)
+	albMaxRows := layout.VisibleRows(m.browse.albums.height, albReserve)
+	m.browse.albums.scrollOffset = adjustScroll(m.browse.albums.cursor, m.browse.albums.scrollOffset, albMaxRows)
 
 	favReserve := favoritesVisibleReserve(m.favorites)
 	favMaxRows := layout.VisibleRows(m.favorites.height, favReserve)
 	m.favorites.scrollOffset = adjustScroll(m.favorites.cursor, m.favorites.scrollOffset, favMaxRows)
 
-	genReserve := genresVisibleReserve(m.genres)
-	genMaxRows := layout.VisibleRows(m.genres.height, genReserve)
-	m.genres.scrollOffset = adjustScroll(m.genres.cursor, m.genres.scrollOffset, genMaxRows)
+	genReserve := genresVisibleReserve(m.browse.genres)
+	genMaxRows := layout.VisibleRows(m.browse.genres.height, genReserve)
+	m.browse.genres.scrollOffset = adjustScroll(m.browse.genres.cursor, m.browse.genres.scrollOffset, genMaxRows)
 
 	tagReserve := tagsVisibleReserve(m.tagsView)
 	tagMaxRows := layout.VisibleRows(m.tagsView.height, tagReserve)

@@ -322,18 +322,18 @@ func TestDurationAuditBatchRecomputesSortedLibrary(t *testing.T) {
 func TestDurationAuditBatchSyncsArtistsTracks(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Artist: "A", Album: "X", Duration: 120.0})
-	m.artists.level = arttui.TrackLevel
-	m.artists.selectedArtist = "A"
-	m.artists.selectedAlbum = "X"
-	m.artists.tracks = []library.Track{{Hash: "h1", Artist: "A", Album: "X", Duration: 120.0}}
+	m.browse.artists.level = arttui.TrackLevel
+	m.browse.artists.selectedArtist = "A"
+	m.browse.artists.selectedAlbum = "X"
+	m.browse.artists.tracks = []library.Track{{Hash: "h1", Artist: "A", Album: "X", Duration: 120.0}}
 
 	next, _ := m.Update(library.DurationAuditBatchMsg{
 		Fixes: []library.DurationFix{{Hash: "h1", DurationMs: 240000}},
 	})
 	nm := next.(Model)
 
-	if nm.artists.tracks[0].Duration != 240.0 {
-		t.Errorf("artists track duration after audit: got %f, want 240.0", nm.artists.tracks[0].Duration)
+	if nm.browse.artists.tracks[0].Duration != 240.0 {
+		t.Errorf("artists track duration after audit: got %f, want 240.0", nm.browse.artists.tracks[0].Duration)
 	}
 }
 
@@ -342,17 +342,17 @@ func TestDurationAuditBatchSyncsArtistsTracks(t *testing.T) {
 func TestDurationAuditBatchSyncsAlbumsTracks(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Artist: "A", Album: "X", Duration: 120.0})
-	m.albums.level = albtui.TrackLevel
-	m.albums.selectedAlbum = "X"
-	m.albums.tracks = []library.Track{{Hash: "h1", Artist: "A", Album: "X", Duration: 120.0}}
+	m.browse.albums.level = albtui.TrackLevel
+	m.browse.albums.selectedAlbum = "X"
+	m.browse.albums.tracks = []library.Track{{Hash: "h1", Artist: "A", Album: "X", Duration: 120.0}}
 
 	next, _ := m.Update(library.DurationAuditBatchMsg{
 		Fixes: []library.DurationFix{{Hash: "h1", DurationMs: 240000}},
 	})
 	nm := next.(Model)
 
-	if nm.albums.tracks[0].Duration != 240.0 {
-		t.Errorf("albums track duration after audit: got %f, want 240.0", nm.albums.tracks[0].Duration)
+	if nm.browse.albums.tracks[0].Duration != 240.0 {
+		t.Errorf("albums track duration after audit: got %f, want 240.0", nm.browse.albums.tracks[0].Duration)
 	}
 }
 
@@ -361,17 +361,17 @@ func TestDurationAuditBatchSyncsAlbumsTracks(t *testing.T) {
 func TestDurationAuditBatchSyncsGenresTracks(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Artist: "A", Genre: "Rock", Duration: 120.0})
-	m.genres.level = gentui.TrackLevel
-	m.genres.selectedGenre = "Rock"
-	m.genres.selectedArtist = "A"
-	m.genres.tracks = []library.Track{{Hash: "h1", Artist: "A", Genre: "Rock", Duration: 120.0}}
+	m.browse.genres.level = gentui.TrackLevel
+	m.browse.genres.selectedGenre = "Rock"
+	m.browse.genres.selectedArtist = "A"
+	m.browse.genres.tracks = []library.Track{{Hash: "h1", Artist: "A", Genre: "Rock", Duration: 120.0}}
 
 	next, _ := m.Update(library.DurationAuditBatchMsg{
 		Fixes: []library.DurationFix{{Hash: "h1", DurationMs: 240000}},
 	})
 	nm := next.(Model)
 
-	if nm.genres.tracks[0].Duration != 240.0 {
-		t.Errorf("genres track duration after audit: got %f, want 240.0", nm.genres.tracks[0].Duration)
+	if nm.browse.genres.tracks[0].Duration != 240.0 {
+		t.Errorf("genres track duration after audit: got %f, want 240.0", nm.browse.genres.tracks[0].Duration)
 	}
 }

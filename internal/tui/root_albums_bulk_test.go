@@ -12,12 +12,12 @@ import (
 // opens the destination picker with the focused track.
 func TestAlbumsBulkActionAtTrackLevel(t *testing.T) {
 	m := newModelWithTracks()
-	m = pressKey(m, "5")
+	m = switchToAlbumsMode(m)
 
 	// Drill down: Alpha -> tracks.
 	m = pressEnter(m) // -> TrackLevel
-	if m.albums.level != albtui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.albums.level)
+	if m.browse.albums.level != albtui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.albums.level)
 	}
 
 	// Press 'a' to open destination picker.
@@ -37,7 +37,7 @@ func TestAlbumsBulkActionAtTrackLevel(t *testing.T) {
 // opens the destination picker with all tracks from the focused album.
 func TestAlbumsBulkActionAtAlbumLevel(t *testing.T) {
 	m := newModelWithTracks()
-	m = pressKey(m, "5")
+	m = switchToAlbumsMode(m)
 
 	// Press 'a' at AlbumLevel (focused on Alpha which has 2 tracks).
 	m = pressKey(m, "a")
@@ -55,17 +55,17 @@ func TestAlbumsBulkActionAtAlbumLevel(t *testing.T) {
 func TestAlbumsSelectedHashesClearedOnDestPickerConfirm(t *testing.T) {
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithBatchEnqueuer(be), WithLibraryTracks(sampleLibraryTracks()))
-	m = pressKey(m, "5") // switch to Albums
+	m = switchToAlbumsMode(m) // switch to Albums
 
 	// Drill down: first album -> tracks.
 	m = pressEnter(m)
-	if m.albums.level != albtui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.albums.level)
+	if m.browse.albums.level != albtui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.albums.level)
 	}
 
 	// Select the first track.
 	m = pressKey(m, "x")
-	if len(m.albums.selectedHashes) == 0 {
+	if len(m.browse.albums.selectedHashes) == 0 {
 		t.Fatal("expected at least one selected hash after 'x'")
 	}
 
@@ -78,8 +78,8 @@ func TestAlbumsSelectedHashesClearedOnDestPickerConfirm(t *testing.T) {
 	// Simulate DestinationPickedMsg (queue).
 	m2, _ := m.Update(pltui.DestinationPickedMsg{IsQueue: true})
 	nm := m2.(Model)
-	if len(nm.albums.selectedHashes) != 0 {
-		t.Errorf("expected albums.selectedHashes cleared after DestinationPickedMsg, got %v", nm.albums.selectedHashes)
+	if len(nm.browse.albums.selectedHashes) != 0 {
+		t.Errorf("expected albums.selectedHashes cleared after DestinationPickedMsg, got %v", nm.browse.albums.selectedHashes)
 	}
 }
 
@@ -87,7 +87,7 @@ func TestAlbumsSelectedHashesClearedOnDestPickerConfirm(t *testing.T) {
 // albums.selectedHashes is cleared when the destination picker is dismissed.
 func TestAlbumsSelectedHashesClearedOnDestPickerDismiss(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
-	m = pressKey(m, "5")
+	m = switchToAlbumsMode(m)
 	m = pressEnter(m) // tracks
 
 	m = pressKey(m, "x")
@@ -99,8 +99,8 @@ func TestAlbumsSelectedHashesClearedOnDestPickerDismiss(t *testing.T) {
 
 	m2, _ := m.Update(pltui.DestinationPickerDismissedMsg{})
 	nm := m2.(Model)
-	if len(nm.albums.selectedHashes) != 0 {
-		t.Errorf("expected albums.selectedHashes cleared after dismiss, got %v", nm.albums.selectedHashes)
+	if len(nm.browse.albums.selectedHashes) != 0 {
+		t.Errorf("expected albums.selectedHashes cleared after dismiss, got %v", nm.browse.albums.selectedHashes)
 	}
 }
 
@@ -109,7 +109,7 @@ func TestAlbumsSelectedHashesClearedOnDestPickerDismiss(t *testing.T) {
 // option is chosen.
 func TestAlbumsSelectedHashesClearedOnDestPickerCreate(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
-	m = pressKey(m, "5")
+	m = switchToAlbumsMode(m)
 	m = pressEnter(m) // tracks
 
 	m = pressKey(m, "x")
@@ -121,7 +121,7 @@ func TestAlbumsSelectedHashesClearedOnDestPickerCreate(t *testing.T) {
 
 	m2, _ := m.Update(pltui.DestinationPickerCreateMsg{})
 	nm := m2.(Model)
-	if len(nm.albums.selectedHashes) != 0 {
-		t.Errorf("expected albums.selectedHashes cleared after create, got %v", nm.albums.selectedHashes)
+	if len(nm.browse.albums.selectedHashes) != 0 {
+		t.Errorf("expected albums.selectedHashes cleared after create, got %v", nm.browse.albums.selectedHashes)
 	}
 }

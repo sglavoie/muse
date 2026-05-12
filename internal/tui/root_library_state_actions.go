@@ -49,9 +49,9 @@ func (m Model) handleLibraryStateAction(action action) (tea.Model, tea.Cmd, bool
 			m.scanning = true
 			m.scanned = 0
 			m.scanTotal = 0
-			m.artists = ArtistsView{width: m.artists.width, height: m.artists.height}
-			m.albums = AlbumsView{width: m.albums.width, height: m.albums.height}
-			m.genres = GenresView{width: m.genres.width, height: m.genres.height}
+			m.browse.artists = ArtistsView{width: m.browse.artists.width, height: m.browse.artists.height}
+			m.browse.albums = AlbumsView{width: m.browse.albums.width, height: m.browse.albums.height}
+			m.browse.genres = GenresView{width: m.browse.genres.width, height: m.browse.genres.height}
 			return m, tea.Batch(waitForNextBatch(ch), countAudioFiles(m.appCtx, m.libraryRoots, m.cfg.ExcludedPaths)), true
 		}
 		return m, nil, true

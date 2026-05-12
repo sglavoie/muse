@@ -50,13 +50,20 @@ func (m Model) handleLibraryPlayNextAction() (tea.Model, tea.Cmd, bool) {
 	case viewLibrary:
 		cmd = m.library.PlayNextFocused(m.queueWriter, prevLen, insertIdx)
 		m.library = m.library.ClearFilter()
-	case viewArtists:
-		if m.artists.level == arttui.TrackLevel {
-			cmd = m.artists.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
-		}
-	case viewAlbums:
-		if m.albums.level == albtui.TrackLevel {
-			cmd = m.albums.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			if m.browse.artists.level == arttui.TrackLevel {
+				cmd = m.browse.artists.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
+			}
+		case BrowseModeAlbums:
+			if m.browse.albums.level == albtui.TrackLevel {
+				cmd = m.browse.albums.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
+			}
+		case BrowseModeGenres:
+			if _, ok := m.browse.genres.focusedTrack(); ok {
+				cmd = m.browse.genres.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
+			}
 		}
 	case viewPlaylists:
 		if m.playlists.level == pltui.TrackLevel {
@@ -65,10 +72,6 @@ func (m Model) handleLibraryPlayNextAction() (tea.Model, tea.Cmd, bool) {
 	case viewFavorites:
 		if _, ok := m.favorites.focusedTrack(); ok {
 			cmd = m.favorites.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
-		}
-	case viewGenres:
-		if _, ok := m.genres.focusedTrack(); ok {
-			cmd = m.genres.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
 		}
 	case viewTags:
 		if _, ok := m.tagsView.focusedTrack(); ok {
@@ -91,15 +94,23 @@ func (m Model) handleLibraryEnqueueReplaceAction() (tea.Model, tea.Cmd, bool) {
 			cmd = m.library.EnqueueFocused(m.queueWriter, 0)
 			m.library = m.library.ClearFilter()
 		}
-	case viewArtists:
-		if m.artists.level == arttui.TrackLevel {
-			m = m.clearQueueForReplace()
-			cmd = m.artists.enqueueFocusedTrack(m.queueWriter, 0)
-		}
-	case viewAlbums:
-		if m.albums.level == albtui.TrackLevel {
-			m = m.clearQueueForReplace()
-			cmd = m.albums.enqueueFocusedTrack(m.queueWriter, 0)
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			if m.browse.artists.level == arttui.TrackLevel {
+				m = m.clearQueueForReplace()
+				cmd = m.browse.artists.enqueueFocusedTrack(m.queueWriter, 0)
+			}
+		case BrowseModeAlbums:
+			if m.browse.albums.level == albtui.TrackLevel {
+				m = m.clearQueueForReplace()
+				cmd = m.browse.albums.enqueueFocusedTrack(m.queueWriter, 0)
+			}
+		case BrowseModeGenres:
+			if _, ok := m.browse.genres.focusedTrack(); ok {
+				m = m.clearQueueForReplace()
+				cmd = m.browse.genres.enqueueFocusedTrack(m.queueWriter, 0)
+			}
 		}
 	case viewPlaylists:
 		if m.playlists.level == pltui.TrackLevel {
@@ -110,11 +121,6 @@ func (m Model) handleLibraryEnqueueReplaceAction() (tea.Model, tea.Cmd, bool) {
 		if _, ok := m.favorites.focusedTrack(); ok {
 			m = m.clearQueueForReplace()
 			cmd = m.favorites.enqueueFocusedTrack(m.queueWriter, 0)
-		}
-	case viewGenres:
-		if _, ok := m.genres.focusedTrack(); ok {
-			m = m.clearQueueForReplace()
-			cmd = m.genres.enqueueFocusedTrack(m.queueWriter, 0)
 		}
 	case viewTags:
 		if _, ok := m.tagsView.focusedTrack(); ok {

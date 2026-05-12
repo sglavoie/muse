@@ -264,8 +264,8 @@ func TestHandleUndoResetsAllSorts(t *testing.T) {
 	m.library.sortState = SortState{Field: SortArtist, Dir: SortAsc}
 	m.queue.sortState = SortState{Field: SortTitle, Dir: SortDesc}
 	m.playlists.sortState = SortState{Field: SortName, Dir: SortAsc}
-	m.artists.sortState = SortState{Field: SortName, Dir: SortDesc}
-	m.albums.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.browse.artists.sortState = SortState{Field: SortName, Dir: SortDesc}
+	m.browse.albums.sortState = SortState{Field: SortName, Dir: SortAsc}
 	m.favorites.sortState = SortState{Field: SortTitle, Dir: SortDesc}
 
 	nm := m.handleUndo()
@@ -279,11 +279,11 @@ func TestHandleUndoResetsAllSorts(t *testing.T) {
 	if nm.playlists.sortState.Field != SortDefault {
 		t.Errorf("playlists sort not reset: got field %d", nm.playlists.sortState.Field)
 	}
-	if nm.artists.sortState.Field != SortDefault {
-		t.Errorf("artists sort not reset: got field %d", nm.artists.sortState.Field)
+	if nm.browse.artists.sortState.Field != SortDefault {
+		t.Errorf("artists sort not reset: got field %d", nm.browse.artists.sortState.Field)
 	}
-	if nm.albums.sortState.Field != SortDefault {
-		t.Errorf("albums sort not reset: got field %d", nm.albums.sortState.Field)
+	if nm.browse.albums.sortState.Field != SortDefault {
+		t.Errorf("albums sort not reset: got field %d", nm.browse.albums.sortState.Field)
 	}
 	if nm.favorites.sortState.Field != SortDefault {
 		t.Errorf("favorites sort not reset: got field %d", nm.favorites.sortState.Field)

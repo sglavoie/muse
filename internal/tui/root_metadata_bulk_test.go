@@ -17,7 +17,7 @@ func TestBulkMetadataEditFromArtistsTrackLevel(t *testing.T) {
 	m = pressEnter(m)
 	m = pressEnter(m)
 
-	m.artists.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.browse.artists.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	hashes := m.bulkSelectedHashes()
 	if len(hashes) != 2 {
@@ -44,7 +44,7 @@ func TestBulkMetadataEditClearsArtistsSelectionOnSave(t *testing.T) {
 	m = pressEnter(m)
 	m = pressEnter(m)
 
-	m.artists.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.browse.artists.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 	m = pressMKey(m)
 	if m.overlay.metadataEditor == nil {
 		t.Fatal("expected editor open")
@@ -55,8 +55,8 @@ func TestBulkMetadataEditClearsArtistsSelectionOnSave(t *testing.T) {
 	result, _ := m.handleMetadataSave()
 	m = result.(Model)
 
-	if len(m.artists.selectedHashes) != 0 {
-		t.Errorf("after bulk save: expected selectedHashes cleared, got %d", len(m.artists.selectedHashes))
+	if len(m.browse.artists.selectedHashes) != 0 {
+		t.Errorf("after bulk save: expected selectedHashes cleared, got %d", len(m.browse.artists.selectedHashes))
 	}
 }
 
@@ -64,10 +64,10 @@ func TestBulkMetadataEditClearsArtistsSelectionOnSave(t *testing.T) {
 // returns hashes from albums.selectedHashes when the Albums view is active.
 func TestBulkMetadataEditFromAlbumsTrackLevel(t *testing.T) {
 	m := newModelWithTracks()
-	m = pressKey(m, "5")
+	m = switchToAlbumsMode(m)
 	m = pressEnter(m)
 
-	m.albums.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.browse.albums.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	hashes := m.bulkSelectedHashes()
 	if len(hashes) != 2 {
@@ -87,10 +87,10 @@ func TestBulkMetadataEditFromAlbumsTrackLevel(t *testing.T) {
 // bulk metadata editor clears albums.selectedHashes.
 func TestBulkMetadataEditClearsAlbumsSelectionOnSave(t *testing.T) {
 	m := newModelWithTracks()
-	m = pressKey(m, "5")
+	m = switchToAlbumsMode(m)
 	m = pressEnter(m)
 
-	m.albums.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.browse.albums.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 	m = pressMKey(m)
 	if m.overlay.metadataEditor == nil {
 		t.Fatal("expected editor open")
@@ -101,8 +101,8 @@ func TestBulkMetadataEditClearsAlbumsSelectionOnSave(t *testing.T) {
 	result, _ := m.handleMetadataSave()
 	m = result.(Model)
 
-	if len(m.albums.selectedHashes) != 0 {
-		t.Errorf("after bulk save: expected selectedHashes cleared, got %d", len(m.albums.selectedHashes))
+	if len(m.browse.albums.selectedHashes) != 0 {
+		t.Errorf("after bulk save: expected selectedHashes cleared, got %d", len(m.browse.albums.selectedHashes))
 	}
 }
 
@@ -116,7 +116,7 @@ func TestBulkSelectedHashesEmptyWhenNoSelection(t *testing.T) {
 		t.Errorf("artists with no selection: expected nil, got %v", hashes)
 	}
 
-	m = pressKey(m, "5")
+	m = switchToAlbumsMode(m)
 	if hashes := m.bulkSelectedHashes(); hashes != nil {
 		t.Errorf("albums with no selection: expected nil, got %v", hashes)
 	}
@@ -160,8 +160,9 @@ func TestBulkMetadataSaveClearsGenresSelection(t *testing.T) {
 		{Artist: "Alice", Album: "Alpha", Title: "Song 2", Genre: "Rock", Hash: "g2", Path: "/g2.flac"},
 	}
 	m := New(context.Background(), WithLibraryTracks(tracks))
-	m.activeView = viewGenres
-	m.genres.selectedHashes = map[string]struct{}{"g1": {}, "g2": {}}
+	m.activeView = viewBrowse
+	m.browse.mode = BrowseModeGenres
+	m.browse.genres.selectedHashes = map[string]struct{}{"g1": {}, "g2": {}}
 
 	ed := NewBulkMetadataEditor([]string{"g1", "g2"}, "Song 1", "Alice", "Alpha", "Rock", "")
 	genreMsg := tea.KeyPressMsg{Code: tea.KeyTab}
@@ -180,8 +181,8 @@ func TestBulkMetadataSaveClearsGenresSelection(t *testing.T) {
 	result, _ := m.handleMetadataSave()
 	m = result.(Model)
 
-	if len(m.genres.selectedHashes) != 0 {
-		t.Errorf("expected genres.selectedHashes to be cleared after bulk metadata save, got %v", m.genres.selectedHashes)
+	if len(m.browse.genres.selectedHashes) != 0 {
+		t.Errorf("expected genres.selectedHashes to be cleared after bulk metadata save, got %v", m.browse.genres.selectedHashes)
 	}
 }
 

@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 
+	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/layout"
 )
 
@@ -41,13 +42,41 @@ func (v QueueView) filteredEntries() []QueueEntry {
 	if v.filter.Text == "" {
 		return ordered
 	}
-	query := strings.ToLower(v.filter.Text)
+	fq := library.ParseFilterQuery(v.filter.Text)
 	var result []QueueEntry
-	for _, e := range ordered {
-		if strings.Contains(strings.ToLower(e.Title), query) ||
-			strings.Contains(strings.ToLower(e.Artist), query) ||
-			strings.Contains(strings.ToLower(e.Album), query) {
-			result = append(result, e)
+	if fq.IsFieldSpecific() {
+		for _, e := range ordered {
+			titleLow := strings.ToLower(e.Title)
+			artistLow := strings.ToLower(e.Artist)
+			albumLow := strings.ToLower(e.Album)
+			match := true
+			if fq.Title != "" && !strings.Contains(titleLow, strings.ToLower(fq.Title)) {
+				match = false
+			}
+			if match && fq.Artist != "" && !strings.Contains(artistLow, strings.ToLower(fq.Artist)) {
+				match = false
+			}
+			if match && fq.Album != "" && !strings.Contains(albumLow, strings.ToLower(fq.Album)) {
+				match = false
+			}
+			if match && fq.General != "" {
+				gen := strings.ToLower(fq.General)
+				if !strings.Contains(titleLow, gen) && !strings.Contains(artistLow, gen) && !strings.Contains(albumLow, gen) {
+					match = false
+				}
+			}
+			if match {
+				result = append(result, e)
+			}
+		}
+	} else {
+		query := strings.ToLower(fq.General)
+		for _, e := range ordered {
+			if strings.Contains(strings.ToLower(e.Title), query) ||
+				strings.Contains(strings.ToLower(e.Artist), query) ||
+				strings.Contains(strings.ToLower(e.Album), query) {
+				result = append(result, e)
+			}
 		}
 	}
 	return result

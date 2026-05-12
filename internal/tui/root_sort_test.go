@@ -139,8 +139,10 @@ func TestResetAllSorts(t *testing.T) {
 		library:   LibraryView{sortState: SortState{Field: SortArtist}},
 		queue:     QueueView{sortState: SortState{Field: SortTitle}},
 		playlists: PlaylistsView{sortState: SortState{Field: SortName}},
-		artists:   ArtistsView{sortState: SortState{Field: SortName}},
-		albums:    AlbumsView{sortState: SortState{Field: SortTitle}},
+		browse: BrowseView{
+			artists: ArtistsView{sortState: SortState{Field: SortName}},
+			albums:  AlbumsView{sortState: SortState{Field: SortTitle}},
+		},
 	}
 
 	m = m.resetAllSorts()
@@ -154,10 +156,10 @@ func TestResetAllSorts(t *testing.T) {
 	if m.playlists.sortState.Field != SortDefault {
 		t.Error("playlists sort not reset")
 	}
-	if m.artists.sortState.Field != SortDefault {
+	if m.browse.artists.sortState.Field != SortDefault {
 		t.Error("artists sort not reset")
 	}
-	if m.albums.sortState.Field != SortDefault {
+	if m.browse.albums.sortState.Field != SortDefault {
 		t.Error("albums sort not reset")
 	}
 }
@@ -208,105 +210,108 @@ func TestCtrlDResolvesCorrectlyPerContext(t *testing.T) {
 
 func TestSortCycleToDefaultRederivesArtists(t *testing.T) {
 	m := Model{}
-	m.activeView = viewArtists
+	m.activeView = viewBrowse
+	m.browse.mode = BrowseModeArtists
 	m.library.index.Insert(library.Track{Artist: "B", Title: "T1", Path: "/b", Hash: "hb"})
 	m.library.index.Insert(library.Track{Artist: "A", Title: "T2", Path: "/a", Hash: "ha"})
 	m.library.index.Insert(library.Track{Artist: "C", Title: "T3", Path: "/c", Hash: "hc"})
 
-	m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
-	original := make([]string, len(m.artists.artists))
-	copy(original, m.artists.artists)
+	m.browse.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+	original := make([]string, len(m.browse.artists.artists))
+	copy(original, m.browse.artists.artists)
 
-	m.artists.sortState = SortState{Field: SortName, Dir: SortDesc}
-	m.artists = m.artists.recomputeArtistsSort()
+	m.browse.artists.sortState = SortState{Field: SortName, Dir: SortDesc}
+	m.browse.artists = m.browse.artists.recomputeArtistsSort()
 
-	if len(m.artists.artists) > 1 && m.artists.artists[0] == original[0] {
+	if len(m.browse.artists.artists) > 1 && m.browse.artists.artists[0] == original[0] {
 		t.Fatal("sort did not change the order — test is invalid")
 	}
 
 	result, _, _ := m.handleSortCycle()
 	m = result.(Model)
 
-	if m.artists.sortState.Field != SortDefault {
-		t.Fatalf("expected SortDefault after cycle, got %v", m.artists.sortState.Field)
+	if m.browse.artists.sortState.Field != SortDefault {
+		t.Fatalf("expected SortDefault after cycle, got %v", m.browse.artists.sortState.Field)
 	}
 
 	for i, want := range original {
-		if i >= len(m.artists.artists) {
-			t.Fatalf("artists list too short: got %d, want %d", len(m.artists.artists), len(original))
+		if i >= len(m.browse.artists.artists) {
+			t.Fatalf("artists list too short: got %d, want %d", len(m.browse.artists.artists), len(original))
 		}
-		if m.artists.artists[i] != want {
-			t.Errorf("artists[%d] = %q, want %q", i, m.artists.artists[i], want)
+		if m.browse.artists.artists[i] != want {
+			t.Errorf("artists[%d] = %q, want %q", i, m.browse.artists.artists[i], want)
 		}
 	}
 }
 
 func TestSortCycleToDefaultRederivesAlbums(t *testing.T) {
 	m := Model{}
-	m.activeView = viewAlbums
+	m.activeView = viewBrowse
+	m.browse.mode = BrowseModeAlbums
 	m.library.index.Insert(library.Track{Artist: "A", Album: "Zebra", Title: "T1", Path: "/1", Hash: "h1"})
 	m.library.index.Insert(library.Track{Artist: "A", Album: "Alpha", Title: "T2", Path: "/2", Hash: "h2"})
 	m.library.index.Insert(library.Track{Artist: "A", Album: "Mid", Title: "T3", Path: "/3", Hash: "h3"})
 
-	m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
-	original := make([]string, len(m.albums.albums))
-	copy(original, m.albums.albums)
+	m.browse.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
+	original := make([]string, len(m.browse.albums.albums))
+	copy(original, m.browse.albums.albums)
 
-	m.albums.sortState = SortState{Field: SortName, Dir: SortDesc}
-	m.albums = m.albums.recomputeAlbumsSort()
+	m.browse.albums.sortState = SortState{Field: SortName, Dir: SortDesc}
+	m.browse.albums = m.browse.albums.recomputeAlbumsSort()
 
-	if len(m.albums.albums) > 1 && m.albums.albums[0] == original[0] {
+	if len(m.browse.albums.albums) > 1 && m.browse.albums.albums[0] == original[0] {
 		t.Fatal("sort did not change the order — test is invalid")
 	}
 
 	result, _, _ := m.handleSortCycle()
 	m = result.(Model)
 
-	if m.albums.sortState.Field != SortDefault {
-		t.Fatalf("expected SortDefault after cycle, got %v", m.albums.sortState.Field)
+	if m.browse.albums.sortState.Field != SortDefault {
+		t.Fatalf("expected SortDefault after cycle, got %v", m.browse.albums.sortState.Field)
 	}
 
 	for i, want := range original {
-		if i >= len(m.albums.albums) {
-			t.Fatalf("albums list too short: got %d, want %d", len(m.albums.albums), len(original))
+		if i >= len(m.browse.albums.albums) {
+			t.Fatalf("albums list too short: got %d, want %d", len(m.browse.albums.albums), len(original))
 		}
-		if m.albums.albums[i] != want {
-			t.Errorf("albums[%d] = %q, want %q", i, m.albums.albums[i], want)
+		if m.browse.albums.albums[i] != want {
+			t.Errorf("albums[%d] = %q, want %q", i, m.browse.albums.albums[i], want)
 		}
 	}
 }
 
 func TestSortCycleToDefaultRederivesGenres(t *testing.T) {
 	m := Model{}
-	m.activeView = viewGenres
+	m.activeView = viewBrowse
+	m.browse.mode = BrowseModeGenres
 	m.library.index.Insert(library.Track{Artist: "A", Genre: "Rock", Title: "T1", Path: "/1", Hash: "h1"})
 	m.library.index.Insert(library.Track{Artist: "A", Genre: "Jazz", Title: "T2", Path: "/2", Hash: "h2"})
 	m.library.index.Insert(library.Track{Artist: "A", Genre: "Blues", Title: "T3", Path: "/3", Hash: "h3"})
 
-	m.genres.genres = gentui.DeriveGenres(m.library.index.Tracks())
-	original := make([]string, len(m.genres.genres))
-	copy(original, m.genres.genres)
+	m.browse.genres.genres = gentui.DeriveGenres(m.library.index.Tracks())
+	original := make([]string, len(m.browse.genres.genres))
+	copy(original, m.browse.genres.genres)
 
-	m.genres.sortState = SortState{Field: SortName, Dir: SortDesc}
-	m.genres = m.genres.recomputeGenresSort()
+	m.browse.genres.sortState = SortState{Field: SortName, Dir: SortDesc}
+	m.browse.genres = m.browse.genres.recomputeGenresSort()
 
-	if len(m.genres.genres) > 1 && m.genres.genres[0] == original[0] {
+	if len(m.browse.genres.genres) > 1 && m.browse.genres.genres[0] == original[0] {
 		t.Fatal("sort did not change the order — test is invalid")
 	}
 
 	result, _, _ := m.handleSortCycle()
 	m = result.(Model)
 
-	if m.genres.sortState.Field != SortDefault {
-		t.Fatalf("expected SortDefault after cycle, got %v", m.genres.sortState.Field)
+	if m.browse.genres.sortState.Field != SortDefault {
+		t.Fatalf("expected SortDefault after cycle, got %v", m.browse.genres.sortState.Field)
 	}
 
 	for i, want := range original {
-		if i >= len(m.genres.genres) {
-			t.Fatalf("genres list too short: got %d, want %d", len(m.genres.genres), len(original))
+		if i >= len(m.browse.genres.genres) {
+			t.Fatalf("genres list too short: got %d, want %d", len(m.browse.genres.genres), len(original))
 		}
-		if m.genres.genres[i] != want {
-			t.Errorf("genres[%d] = %q, want %q", i, m.genres.genres[i], want)
+		if m.browse.genres.genres[i] != want {
+			t.Errorf("genres[%d] = %q, want %q", i, m.browse.genres.genres[i], want)
 		}
 	}
 }

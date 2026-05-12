@@ -11,8 +11,8 @@ import (
 func TestRenderArtistsEmpty(t *testing.T) {
 	v := View{Level: ArtistLevel}
 	out := v.Render()
-	if !strings.Contains(out, "no artists") {
-		t.Fatalf("expected '(no artists)' in output, got:\n%s", out)
+	if !strings.Contains(out, "No artists") {
+		t.Fatalf("expected artists empty hint in output, got:\n%s", out)
 	}
 }
 
@@ -48,16 +48,16 @@ func TestRenderAlbumsShowsNames(t *testing.T) {
 func TestRenderAlbumsEmpty(t *testing.T) {
 	v := View{Level: AlbumLevel, SelectedArtist: "Alice"}
 	out := v.Render()
-	if !strings.Contains(out, "no albums") {
-		t.Fatalf("expected '(no albums)' in output, got:\n%s", out)
+	if !strings.Contains(out, "No albums") {
+		t.Fatalf("expected albums empty hint in output, got:\n%s", out)
 	}
 }
 
 func TestRenderTracksEmpty(t *testing.T) {
 	v := View{Level: TrackLevel}
 	out := v.Render()
-	if !strings.Contains(out, "no tracks") {
-		t.Fatalf("expected '(no tracks)' in output, got:\n%s", out)
+	if !strings.Contains(out, "No tracks") {
+		t.Fatalf("expected tracks empty hint in output, got:\n%s", out)
 	}
 }
 

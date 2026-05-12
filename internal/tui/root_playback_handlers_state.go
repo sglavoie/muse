@@ -50,6 +50,8 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 
 	if m.playback.currentHash != "" && shouldCountPlay(m.playback.peakElapsedSecs, m.playback.peakTotalSecs) {
 		m.mixes.playsSinceRefresh++
+		m.sessionTracksPlayed++
+		m.sessionListenSecs += m.playback.peakElapsedSecs
 	}
 
 	incrementCmd := m.playCountIncrementCmd(
@@ -250,6 +252,8 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 
 	if previousHash != "" && shouldCountPlay(previousElapsed, previousTotal) {
 		m.mixes.playsSinceRefresh++
+		m.sessionTracksPlayed++
+		m.sessionListenSecs += previousElapsed
 	}
 	incrementCmd := m.playCountIncrementCmd(previousHash, previousElapsed, previousTotal)
 	// Radio mode: update seed and check low-water-mark.

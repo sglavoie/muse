@@ -20,20 +20,23 @@ func TestJumpToArtist(t *testing.T) {
 	// DeriveArtists: ["Alice"(0), "Bob"(1), "Charlie"(2)]
 	m = m.jumpToArtist("Bob")
 
-	if m.activeView != viewArtists {
-		t.Errorf("activeView: want viewArtists(%d), got %d", viewArtists, m.activeView)
+	if m.activeView != viewBrowse {
+		t.Errorf("activeView: want viewBrowse(%d), got %d", viewBrowse, m.activeView)
 	}
-	if m.artists.level != arttui.ArtistLevel {
-		t.Errorf("level: want ArtistLevel, got %v", m.artists.level)
+	if m.browse.mode != BrowseModeArtists {
+		t.Errorf("browse.mode: want BrowseModeArtists, got %v", m.browse.mode)
 	}
-	if m.artists.cursor != 1 {
-		t.Errorf("cursor: want 1 (Bob), got %d", m.artists.cursor)
+	if m.browse.artists.level != arttui.ArtistLevel {
+		t.Errorf("level: want ArtistLevel, got %v", m.browse.artists.level)
 	}
-	if len(m.artists.artists) != 3 {
-		t.Errorf("artists list: want 3, got %d", len(m.artists.artists))
+	if m.browse.artists.cursor != 1 {
+		t.Errorf("cursor: want 1 (Bob), got %d", m.browse.artists.cursor)
 	}
-	if m.artists.artists[1] != "Bob" {
-		t.Errorf("artists[1]: want %q, got %q", "Bob", m.artists.artists[1])
+	if len(m.browse.artists.artists) != 3 {
+		t.Errorf("artists list: want 3, got %d", len(m.browse.artists.artists))
+	}
+	if m.browse.artists.artists[1] != "Bob" {
+		t.Errorf("artists[1]: want %q, got %q", "Bob", m.browse.artists.artists[1])
 	}
 }
 
@@ -42,8 +45,8 @@ func TestJumpToArtist_First(t *testing.T) {
 	m := newModelWithTracks()
 	m = m.jumpToArtist("Alice")
 
-	if m.artists.cursor != 0 {
-		t.Errorf("cursor: want 0 (Alice), got %d", m.artists.cursor)
+	if m.browse.artists.cursor != 0 {
+		t.Errorf("cursor: want 0 (Alice), got %d", m.browse.artists.cursor)
 	}
 }
 
@@ -71,14 +74,17 @@ func TestJumpToArtist_UnknownArtist(t *testing.T) {
 	// DeriveArtists preserves that order: ["Bob", "(unknown artist)"]
 	m = m.jumpToArtist("")
 
-	if m.activeView != viewArtists {
-		t.Errorf("activeView: want viewArtists, got %d", m.activeView)
+	if m.activeView != viewBrowse {
+		t.Errorf("activeView: want viewBrowse, got %d", m.activeView)
 	}
-	if m.artists.cursor != 1 {
-		t.Errorf("cursor: want 1 (%s), got %d", arttui.UnknownArtist, m.artists.cursor)
+	if m.browse.mode != BrowseModeArtists {
+		t.Errorf("browse.mode: want BrowseModeArtists, got %v", m.browse.mode)
 	}
-	if len(m.artists.artists) < 2 || m.artists.artists[1] != arttui.UnknownArtist {
-		t.Errorf("artists[1]: want %q, got %q", arttui.UnknownArtist, m.artists.artists[1])
+	if m.browse.artists.cursor != 1 {
+		t.Errorf("cursor: want 1 (%s), got %d", arttui.UnknownArtist, m.browse.artists.cursor)
+	}
+	if len(m.browse.artists.artists) < 2 || m.browse.artists.artists[1] != arttui.UnknownArtist {
+		t.Errorf("artists[1]: want %q, got %q", arttui.UnknownArtist, m.browse.artists.artists[1])
 	}
 }
 
@@ -96,16 +102,16 @@ func TestJumpToArtist_CentersScroll(t *testing.T) {
 		}
 	}
 	m := New(context.Background(), WithLibraryTracks(tracks))
-	m.artists.height = 10
+	m.browse.artists.height = 10
 
 	m = m.jumpToArtist("Artist15")
 
-	if m.artists.cursor != 15 {
-		t.Errorf("cursor: want 15, got %d", m.artists.cursor)
+	if m.browse.artists.cursor != 15 {
+		t.Errorf("cursor: want 15, got %d", m.browse.artists.cursor)
 	}
-	wantScroll := max(0, 15-m.artists.height/2)
-	if m.artists.scrollOffset != wantScroll {
-		t.Errorf("scrollOffset: want %d, got %d", wantScroll, m.artists.scrollOffset)
+	wantScroll := max(0, 15-m.browse.artists.height/2)
+	if m.browse.artists.scrollOffset != wantScroll {
+		t.Errorf("scrollOffset: want %d, got %d", wantScroll, m.browse.artists.scrollOffset)
 	}
 }
 
@@ -116,20 +122,23 @@ func TestJumpToAlbum(t *testing.T) {
 	// DeriveAllAlbums (sorted): ["Alpha"(0), "Beta"(1), "Delta"(2), "Gamma"(3)]
 	m = m.jumpToAlbum("Gamma")
 
-	if m.activeView != viewAlbums {
-		t.Errorf("activeView: want viewAlbums(%d), got %d", viewAlbums, m.activeView)
+	if m.activeView != viewBrowse {
+		t.Errorf("activeView: want viewBrowse(%d), got %d", viewBrowse, m.activeView)
 	}
-	if m.albums.level != albtui.AlbumLevel {
-		t.Errorf("level: want AlbumLevel, got %v", m.albums.level)
+	if m.browse.mode != BrowseModeAlbums {
+		t.Errorf("browse.mode: want BrowseModeAlbums, got %v", m.browse.mode)
 	}
-	if m.albums.cursor != 3 {
-		t.Errorf("cursor: want 3 (Gamma), got %d", m.albums.cursor)
+	if m.browse.albums.level != albtui.AlbumLevel {
+		t.Errorf("level: want AlbumLevel, got %v", m.browse.albums.level)
 	}
-	if len(m.albums.albums) != 4 {
-		t.Errorf("albums list: want 4, got %d", len(m.albums.albums))
+	if m.browse.albums.cursor != 3 {
+		t.Errorf("cursor: want 3 (Gamma), got %d", m.browse.albums.cursor)
 	}
-	if m.albums.albums[3] != "Gamma" {
-		t.Errorf("albums[3]: want %q, got %q", "Gamma", m.albums.albums[3])
+	if len(m.browse.albums.albums) != 4 {
+		t.Errorf("albums list: want 4, got %d", len(m.browse.albums.albums))
+	}
+	if m.browse.albums.albums[3] != "Gamma" {
+		t.Errorf("albums[3]: want %q, got %q", "Gamma", m.browse.albums.albums[3])
 	}
 }
 
@@ -138,8 +147,8 @@ func TestJumpToAlbum_First(t *testing.T) {
 	m := newModelWithTracks()
 	m = m.jumpToAlbum("Alpha")
 
-	if m.albums.cursor != 0 {
-		t.Errorf("cursor: want 0 (Alpha), got %d", m.albums.cursor)
+	if m.browse.albums.cursor != 0 {
+		t.Errorf("cursor: want 0 (Alpha), got %d", m.browse.albums.cursor)
 	}
 }
 
@@ -166,14 +175,17 @@ func TestJumpToAlbum_UnknownAlbum(t *testing.T) {
 	// DeriveAllAlbums sorts unknown albums after named ones: ["Gamma", "(unknown album)"]
 	m = m.jumpToAlbum("")
 
-	if m.activeView != viewAlbums {
-		t.Errorf("activeView: want viewAlbums, got %d", m.activeView)
+	if m.activeView != viewBrowse {
+		t.Errorf("activeView: want viewBrowse, got %d", m.activeView)
 	}
-	if m.albums.cursor != 1 {
-		t.Errorf("cursor: want 1 (%s), got %d", arttui.UnknownAlbum, m.albums.cursor)
+	if m.browse.mode != BrowseModeAlbums {
+		t.Errorf("browse.mode: want BrowseModeAlbums, got %v", m.browse.mode)
 	}
-	if len(m.albums.albums) < 2 || m.albums.albums[1] != arttui.UnknownAlbum {
-		t.Errorf("albums[1]: want %q, got %q", arttui.UnknownAlbum, m.albums.albums[1])
+	if m.browse.albums.cursor != 1 {
+		t.Errorf("cursor: want 1 (%s), got %d", arttui.UnknownAlbum, m.browse.albums.cursor)
+	}
+	if len(m.browse.albums.albums) < 2 || m.browse.albums.albums[1] != arttui.UnknownAlbum {
+		t.Errorf("albums[1]: want %q, got %q", arttui.UnknownAlbum, m.browse.albums.albums[1])
 	}
 }
 
@@ -190,16 +202,16 @@ func TestJumpToAlbum_CentersScroll(t *testing.T) {
 		}
 	}
 	m := New(context.Background(), WithLibraryTracks(tracks))
-	m.albums.height = 10
+	m.browse.albums.height = 10
 
 	m = m.jumpToAlbum("Album15")
 
-	if m.albums.cursor != 15 {
-		t.Errorf("cursor: want 15, got %d", m.albums.cursor)
+	if m.browse.albums.cursor != 15 {
+		t.Errorf("cursor: want 15, got %d", m.browse.albums.cursor)
 	}
-	wantScroll := max(0, 15-m.albums.height/2)
-	if m.albums.scrollOffset != wantScroll {
-		t.Errorf("scrollOffset: want %d, got %d", wantScroll, m.albums.scrollOffset)
+	wantScroll := max(0, 15-m.browse.albums.height/2)
+	if m.browse.albums.scrollOffset != wantScroll {
+		t.Errorf("scrollOffset: want %d, got %d", wantScroll, m.browse.albums.scrollOffset)
 	}
 }
 
@@ -225,11 +237,14 @@ func TestJumpToArtist_EmptyArtistViaAction(t *testing.T) {
 	}
 	m = m.jumpToArtist(ctx.artist)
 
-	if m.activeView != viewArtists {
-		t.Errorf("activeView: want viewArtists, got %d", m.activeView)
+	if m.activeView != viewBrowse {
+		t.Errorf("activeView: want viewBrowse, got %d", m.activeView)
 	}
-	if m.artists.artists[m.artists.cursor] != arttui.UnknownArtist {
-		t.Errorf("cursor on %q, want %q", m.artists.artists[m.artists.cursor], arttui.UnknownArtist)
+	if m.browse.mode != BrowseModeArtists {
+		t.Errorf("browse.mode: want BrowseModeArtists, got %v", m.browse.mode)
+	}
+	if m.browse.artists.artists[m.browse.artists.cursor] != arttui.UnknownArtist {
+		t.Errorf("cursor on %q, want %q", m.browse.artists.artists[m.browse.artists.cursor], arttui.UnknownArtist)
 	}
 }
 
@@ -256,11 +271,14 @@ func TestJumpToAlbum_EmptyAlbumViaAction(t *testing.T) {
 	}
 	m = m.jumpToAlbum(ctx.album)
 
-	if m.activeView != viewAlbums {
-		t.Errorf("activeView: want viewAlbums, got %d", m.activeView)
+	if m.activeView != viewBrowse {
+		t.Errorf("activeView: want viewBrowse, got %d", m.activeView)
 	}
-	if m.albums.albums[m.albums.cursor] != arttui.UnknownAlbum {
-		t.Errorf("cursor on %q, want %q", m.albums.albums[m.albums.cursor], arttui.UnknownAlbum)
+	if m.browse.mode != BrowseModeAlbums {
+		t.Errorf("browse.mode: want BrowseModeAlbums, got %v", m.browse.mode)
+	}
+	if m.browse.albums.albums[m.browse.albums.cursor] != arttui.UnknownAlbum {
+		t.Errorf("cursor on %q, want %q", m.browse.albums.albums[m.browse.albums.cursor], arttui.UnknownAlbum)
 	}
 }
 
@@ -272,15 +290,18 @@ func TestJumpToGenre(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	m = m.jumpToGenre("Jazz")
 
-	if m.activeView != viewGenres {
-		t.Errorf("activeView: want viewGenres(%d), got %d", viewGenres, m.activeView)
+	if m.activeView != viewBrowse {
+		t.Errorf("activeView: want viewBrowse(%d), got %d", viewBrowse, m.activeView)
 	}
-	if m.genres.level != gentui.GenreLevel {
-		t.Errorf("level: want GenreLevel, got %v", m.genres.level)
+	if m.browse.mode != BrowseModeGenres {
+		t.Errorf("browse.mode: want BrowseModeGenres, got %v", m.browse.mode)
+	}
+	if m.browse.genres.level != gentui.GenreLevel {
+		t.Errorf("level: want GenreLevel, got %v", m.browse.genres.level)
 	}
 	// Genres are sorted alphabetically: Jazz, Rock
-	if m.genres.cursor != 0 {
-		t.Errorf("cursor: want 0 (Jazz), got %d", m.genres.cursor)
+	if m.browse.genres.cursor != 0 {
+		t.Errorf("cursor: want 0 (Jazz), got %d", m.browse.genres.cursor)
 	}
 }
 
@@ -301,12 +322,15 @@ func TestJumpToGenre_UnknownGenre(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	m = m.jumpToGenre("")
 
-	if m.activeView != viewGenres {
-		t.Errorf("activeView: want viewGenres, got %d", m.activeView)
+	if m.activeView != viewBrowse {
+		t.Errorf("activeView: want viewBrowse, got %d", m.activeView)
+	}
+	if m.browse.mode != BrowseModeGenres {
+		t.Errorf("browse.mode: want BrowseModeGenres, got %v", m.browse.mode)
 	}
 	// "(unknown genre)" sorts after "Rock"
-	if m.genres.cursor != 1 {
-		t.Errorf("cursor: want 1 (unknown genre), got %d", m.genres.cursor)
+	if m.browse.genres.cursor != 1 {
+		t.Errorf("cursor: want 1 (unknown genre), got %d", m.browse.genres.cursor)
 	}
 }
 

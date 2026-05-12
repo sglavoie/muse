@@ -257,7 +257,8 @@ func TestVisualModeQueueExitPreservesSelections(t *testing.T) {
 // level is a no-op (visual mode is only valid at track level).
 func TestVisualModeHierarchicalViewGuard(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewArtists
+	m.activeView = viewBrowse
+	m.browse.mode = BrowseModeArtists
 	// artists.level zero-value is ArtistLevel, not TrackLevel.
 
 	m = doVisual(m)

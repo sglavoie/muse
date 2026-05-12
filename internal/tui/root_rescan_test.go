@@ -202,11 +202,11 @@ func TestRescanResetsGenresView(t *testing.T) {
 	m := New(context.Background(), WithLibraryRoots([]string{root}), WithExtractor(stubExtractor{}))
 
 	// Set up genres view at ArtistLevel with a selected genre.
-	m.genres.level = gentui.ArtistLevel
-	m.genres.selectedGenre = "Rock"
-	m.genres.artists = []string{"Artist1", "Artist2"}
-	m.genres.cursor = 1
-	m.genres.scrollOffset = 0
+	m.browse.genres.level = gentui.ArtistLevel
+	m.browse.genres.selectedGenre = "Rock"
+	m.browse.genres.artists = []string{"Artist1", "Artist2"}
+	m.browse.genres.cursor = 1
+	m.browse.genres.scrollOffset = 0
 
 	// Trigger rescan.
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
@@ -216,19 +216,19 @@ func TestRescanResetsGenresView(t *testing.T) {
 	}
 
 	// Genres view must be reset to GenreLevel with no stale selection.
-	if nm.genres.level != gentui.GenreLevel {
-		t.Fatalf("rescan: expected genres level=GenreLevel, got %v", nm.genres.level)
+	if nm.browse.genres.level != gentui.GenreLevel {
+		t.Fatalf("rescan: expected genres level=GenreLevel, got %v", nm.browse.genres.level)
 	}
-	if nm.genres.selectedGenre != "" {
-		t.Fatalf("rescan: expected selectedGenre='', got %q", nm.genres.selectedGenre)
+	if nm.browse.genres.selectedGenre != "" {
+		t.Fatalf("rescan: expected selectedGenre='', got %q", nm.browse.genres.selectedGenre)
 	}
-	if nm.genres.selectedArtist != "" {
-		t.Fatalf("rescan: expected selectedArtist='', got %q", nm.genres.selectedArtist)
+	if nm.browse.genres.selectedArtist != "" {
+		t.Fatalf("rescan: expected selectedArtist='', got %q", nm.browse.genres.selectedArtist)
 	}
-	if nm.genres.cursor != 0 {
-		t.Fatalf("rescan: expected genres cursor=0, got %d", nm.genres.cursor)
+	if nm.browse.genres.cursor != 0 {
+		t.Fatalf("rescan: expected genres cursor=0, got %d", nm.browse.genres.cursor)
 	}
-	if len(nm.genres.artists) != 0 {
-		t.Fatalf("rescan: expected genres artists empty, got %d", len(nm.genres.artists))
+	if len(nm.browse.genres.artists) != 0 {
+		t.Fatalf("rescan: expected genres artists empty, got %d", len(nm.browse.genres.artists))
 	}
 }

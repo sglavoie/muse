@@ -193,10 +193,10 @@ func TestPlaylistTrackDeleteNoPanicWhenCursorOutOfBounds(t *testing.T) {
 	_ = next
 }
 
-// TestBulkActionInPlaylistsRequiresConfirmation verifies that pressing 'a' in
-// Playlists at TrackLevel with selected tracks shows a confirmation notification
-// on the first press, and executes the removal on the second press.
-func TestBulkActionInPlaylistsRequiresConfirmation(t *testing.T) {
+// TestBulkActionInPlaylistsRemovesImmediately verifies that pressing 'a' in
+// Playlists at TrackLevel with selected tracks immediately removes them —
+// no two-press confirmation required since the undo window handles reversibility.
+func TestBulkActionInPlaylistsRemovesImmediately(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd))
 	m.activeView = viewPlaylists
@@ -208,43 +208,27 @@ func TestBulkActionInPlaylistsRequiresConfirmation(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	nm := next.(Model)
 
-	if len(nm.playlists.tracks) != 3 {
-		t.Fatalf("first 'a' press should not remove tracks, got %d remaining", len(nm.playlists.tracks))
+	if len(nm.playlists.tracks) != 1 {
+		t.Fatalf("expected 1 track remaining after removal, got %d", len(nm.playlists.tracks))
 	}
-	if !nm.undo.bulkRemovePending {
-		t.Fatal("expected bulkRemovePending=true after first 'a' press")
+	if nm.playlists.tracks[0].ID != 30 {
+		t.Fatalf("expected remaining track ID=30, got ID=%d", nm.playlists.tracks[0].ID)
 	}
-	if nm.statusBar.topNotification().msg == "" {
-		t.Fatal("expected a confirmation notification after first 'a' press")
-	}
-
-	next2, _ := nm.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
-	nm2 := next2.(Model)
-
-	if len(nm2.playlists.tracks) != 1 {
-		t.Fatalf("expected 1 track remaining after confirmed removal, got %d", len(nm2.playlists.tracks))
-	}
-	if nm2.playlists.tracks[0].ID != 30 {
-		t.Fatalf("expected remaining track ID=30, got ID=%d", nm2.playlists.tracks[0].ID)
-	}
-	if nm2.undo.bulkRemovePending {
-		t.Fatal("expected bulkRemovePending=false after confirmed removal")
-	}
-	if nm2.playlists.selectedTrackIDs != nil {
-		t.Fatalf("expected selectedTrackIDs to be nil after removal, got %v", nm2.playlists.selectedTrackIDs)
+	if nm.playlists.selectedTrackIDs != nil {
+		t.Fatalf("expected selectedTrackIDs to be nil after removal, got %v", nm.playlists.selectedTrackIDs)
 	}
 
-	if _, ok := nm2.undo.slot.action.(undoBulkRemovePlaylistTracksAction); !ok {
-		t.Fatalf("expected undoBulkRemovePlaylistTracksAction, got %T", nm2.undo.slot.action)
+	if _, ok := nm.undo.slot.action.(undoBulkRemovePlaylistTracksAction); !ok {
+		t.Fatalf("expected undoBulkRemovePlaylistTracksAction, got %T", nm.undo.slot.action)
 	}
-	nm3 := nm2.handleUndo()
-	if len(nm3.playlists.tracks) != 3 {
-		t.Fatalf("expected 3 tracks after undo, got %d", len(nm3.playlists.tracks))
+	nm2 := nm.handleUndo()
+	if len(nm2.playlists.tracks) != 3 {
+		t.Fatalf("expected 3 tracks after undo, got %d", len(nm2.playlists.tracks))
 	}
 	wantIDs := []int64{10, 20, 30}
 	for i, want := range wantIDs {
-		if nm3.playlists.tracks[i].ID != want {
-			t.Errorf("track[%d]: expected ID=%d, got ID=%d", i, want, nm3.playlists.tracks[i].ID)
+		if nm2.playlists.tracks[i].ID != want {
+			t.Errorf("track[%d]: expected ID=%d, got ID=%d", i, want, nm2.playlists.tracks[i].ID)
 		}
 	}
 }
@@ -268,16 +252,13 @@ func TestBulkActionRemovalResetsSortState(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	nm := next.(Model)
 
-	next2, _ := nm.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
-	nm2 := next2.(Model)
-
-	if len(nm2.playlists.tracks) != 1 {
-		t.Fatalf("expected 1 track remaining, got %d", len(nm2.playlists.tracks))
+	if len(nm.playlists.tracks) != 1 {
+		t.Fatalf("expected 1 track remaining, got %d", len(nm.playlists.tracks))
 	}
-	if nm2.playlists.sortState.Field != SortTitle {
-		t.Errorf("expected sort field preserved as SortTitle, got %v", nm2.playlists.sortState.Field)
+	if nm.playlists.sortState.Field != SortTitle {
+		t.Errorf("expected sort field preserved as SortTitle, got %v", nm.playlists.sortState.Field)
 	}
-	if nm2.playlists.sortedTrackOrder == nil {
+	if nm.playlists.sortedTrackOrder == nil {
 		t.Error("expected sortedTrackOrder to be recomputed after bulk removal with sort active")
 	}
 }

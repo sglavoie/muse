@@ -14,13 +14,14 @@ func TestWatchBatchRefreshesArtistAlbumLevel(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Album1"})
 	// Drill into "Art" albums.
-	m.activeView = viewArtists
-	m.artists.artists = []string{"Art"}
-	m.artists.selectedArtist = "Art"
-	m.artists = m.artists.openAlbums([]string{"Album1"})
+	m.activeView = viewBrowse
+	m.browse.mode = BrowseModeArtists
+	m.browse.artists.artists = []string{"Art"}
+	m.browse.artists.selectedArtist = "Art"
+	m.browse.artists = m.browse.artists.openAlbums([]string{"Album1"})
 
-	if len(m.artists.albums) != 1 {
-		t.Fatalf("setup: expected 1 album, got %d", len(m.artists.albums))
+	if len(m.browse.artists.albums) != 1 {
+		t.Fatalf("setup: expected 1 album, got %d", len(m.browse.artists.albums))
 	}
 
 	// Watcher adds a second track with a new album under the same artist.
@@ -31,8 +32,8 @@ func TestWatchBatchRefreshesArtistAlbumLevel(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if len(nm.artists.albums) != 2 {
-		t.Errorf("expected 2 albums after watcher, got %d: %v", len(nm.artists.albums), nm.artists.albums)
+	if len(nm.browse.artists.albums) != 2 {
+		t.Errorf("expected 2 albums after watcher, got %d: %v", len(nm.browse.artists.albums), nm.browse.artists.albums)
 	}
 }
 
@@ -43,17 +44,18 @@ func TestWatchBatchRefreshesArtistTrackLevel(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
 	// Drill into "Art" > "Alb" tracks.
-	m.activeView = viewArtists
-	m.artists.artists = []string{"Art"}
-	m.artists.selectedArtist = "Art"
-	m.artists = m.artists.openAlbums([]string{"Alb"})
-	m.artists.selectedAlbum = "Alb"
-	m.artists = m.artists.openTracks([]library.Track{
+	m.activeView = viewBrowse
+	m.browse.mode = BrowseModeArtists
+	m.browse.artists.artists = []string{"Art"}
+	m.browse.artists.selectedArtist = "Art"
+	m.browse.artists = m.browse.artists.openAlbums([]string{"Alb"})
+	m.browse.artists.selectedAlbum = "Alb"
+	m.browse.artists = m.browse.artists.openTracks([]library.Track{
 		{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"},
 	})
 
-	if len(m.artists.tracks) != 1 {
-		t.Fatalf("setup: expected 1 track, got %d", len(m.artists.tracks))
+	if len(m.browse.artists.tracks) != 1 {
+		t.Fatalf("setup: expected 1 track, got %d", len(m.browse.artists.tracks))
 	}
 
 	// Watcher adds a new track under the same artist+album.
@@ -64,8 +66,8 @@ func TestWatchBatchRefreshesArtistTrackLevel(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if len(nm.artists.tracks) != 2 {
-		t.Errorf("expected 2 tracks after watcher, got %d", len(nm.artists.tracks))
+	if len(nm.browse.artists.tracks) != 2 {
+		t.Errorf("expected 2 tracks after watcher, got %d", len(nm.browse.artists.tracks))
 	}
 }
 
@@ -76,15 +78,16 @@ func TestWatchBatchRefreshesAlbumTrackLevel(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
 	// Drill into "Alb" tracks.
-	m.activeView = viewAlbums
-	m.albums.albums = []string{"Alb"}
-	m.albums.selectedAlbum = "Alb"
-	m.albums = m.albums.openTracks([]library.Track{
+	m.activeView = viewBrowse
+	m.browse.mode = BrowseModeAlbums
+	m.browse.albums.albums = []string{"Alb"}
+	m.browse.albums.selectedAlbum = "Alb"
+	m.browse.albums = m.browse.albums.openTracks([]library.Track{
 		{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"},
 	})
 
-	if len(m.albums.tracks) != 1 {
-		t.Fatalf("setup: expected 1 track, got %d", len(m.albums.tracks))
+	if len(m.browse.albums.tracks) != 1 {
+		t.Fatalf("setup: expected 1 track, got %d", len(m.browse.albums.tracks))
 	}
 
 	// Watcher adds a new track under the same album.
@@ -95,7 +98,7 @@ func TestWatchBatchRefreshesAlbumTrackLevel(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if len(nm.albums.tracks) != 2 {
-		t.Errorf("expected 2 tracks after watcher, got %d", len(nm.albums.tracks))
+	if len(nm.browse.albums.tracks) != 2 {
+		t.Errorf("expected 2 tracks after watcher, got %d", len(nm.browse.albums.tracks))
 	}
 }

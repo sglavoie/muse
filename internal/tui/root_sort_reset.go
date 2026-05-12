@@ -65,8 +65,8 @@ func (m Model) preservePlaylistsSort() Model {
 // active the backing slices were sorted in-place, so re-derive from the library
 // index to restore the original order.
 func (m Model) resetArtistsSort() Model {
-	hadSort := m.artists.sortState.Field != SortDefault
-	m.artists.sortState = SortState{}
+	hadSort := m.browse.artists.sortState.Field != SortDefault
+	m.browse.artists.sortState = SortState{}
 	if hadSort {
 		m = m.rederiveArtistsData()
 	}
@@ -75,8 +75,8 @@ func (m Model) resetArtistsSort() Model {
 
 // resetAlbumsSort clears the albums sort state. See resetArtistsSort.
 func (m Model) resetAlbumsSort() Model {
-	hadSort := m.albums.sortState.Field != SortDefault
-	m.albums.sortState = SortState{}
+	hadSort := m.browse.albums.sortState.Field != SortDefault
+	m.browse.albums.sortState = SortState{}
 	if hadSort {
 		m = m.rederiveAlbumsData()
 	}
@@ -95,8 +95,8 @@ func (m Model) resetFavoritesSort() Model {
 
 // resetGenresSort clears the genres sort state. See resetArtistsSort.
 func (m Model) resetGenresSort() Model {
-	hadSort := m.genres.sortState.Field != SortDefault
-	m.genres.sortState = SortState{}
+	hadSort := m.browse.genres.sortState.Field != SortDefault
+	m.browse.genres.sortState = SortState{}
 	if hadSort {
 		m = m.rederiveGenresData()
 	}

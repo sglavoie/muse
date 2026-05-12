@@ -92,7 +92,7 @@ func (v ArtistsView) render(s styles.Styles, favHashes, favArtists, favAlbums ma
 		FilterView:         v.filter.View(),
 		FilterHint:         func() string {
 			if v.level == arttui.TrackLevel {
-				return "a: artist  t: title  l: album"
+				return "a: artist  t: title  l: album  g: genre"
 			}
 			return ""
 		}(),

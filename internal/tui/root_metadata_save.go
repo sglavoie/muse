@@ -191,14 +191,17 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		}
 	case viewPlaylists:
 		m.playlists.selectedTrackIDs = nil
-	case viewArtists:
-		m.artists.selectedHashes = nil
-	case viewAlbums:
-		m.albums.selectedHashes = nil
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			m.browse.artists.selectedHashes = nil
+		case BrowseModeAlbums:
+			m.browse.albums.selectedHashes = nil
+		case BrowseModeGenres:
+			m.browse.genres.selectedHashes = nil
+		}
 	case viewFavorites:
 		m.favorites.selectedItems = nil
-	case viewGenres:
-		m.genres.selectedHashes = nil
 	case viewTags:
 		m.tagsView.selectedHashes = nil
 	case viewMixes:

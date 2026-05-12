@@ -15,16 +15,6 @@ const positionSyncInterval = 5 * time.Second
 // the current elapsed position to the session table during uninterrupted playback.
 const sessionTickInterval = 10 * time.Second
 
-// confirmationWindow is the duration of the two-press confirmation gate for
-// destructive library actions. A second press within this window executes the
-// action; after expiry the gate resets.
-const confirmationWindow = 2 * time.Second
-
-// queueConfirmationWindow is the duration of the two-press confirmation
-// gate for destructive queue actions (e.g. clear queue). A second press
-// within this window executes the action; after expiry the gate resets.
-const queueConfirmationWindow = 2 * time.Second
-
 // scanBatchSize is the maximum number of tracks collected per batch before
 // returning a ScanBatchMsg to the update loop.
 const scanBatchSize = 100

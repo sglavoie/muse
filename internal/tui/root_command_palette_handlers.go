@@ -53,33 +53,35 @@ func onOff(b bool) string {
 	return "Off"
 }
 
-// handleRandomAlbumMsg switches to Albums view and positions the cursor on a
-// randomly-chosen album.
+// handleRandomAlbumMsg switches to Albums browse mode and positions the cursor
+// on a randomly-chosen album.
 func (m Model) handleRandomAlbumMsg() (Model, tea.Cmd) {
-	m = m.switchToView(viewAlbums)
-	if len(m.albums.albums) == 0 {
+	m.browse.mode = BrowseModeAlbums
+	m = m.switchToView(viewBrowse)
+	if len(m.browse.albums.albums) == 0 {
 		m.statusBar.notify("Library is empty")
 		return m, nil
 	}
-	idx := rand.IntN(len(m.albums.albums)) //nolint:gosec // non-security random for UI navigation
-	m.albums.cursor = idx
-	m.albums.scrollOffset = max(0, idx-m.albums.height/2)
-	m.albums = m.albums.clampCursor()
+	idx := rand.IntN(len(m.browse.albums.albums)) //nolint:gosec // non-security random for UI navigation
+	m.browse.albums.cursor = idx
+	m.browse.albums.scrollOffset = max(0, idx-m.browse.albums.height/2)
+	m.browse.albums = m.browse.albums.clampCursor()
 	return m, nil
 }
 
-// handleRandomArtistMsg switches to Artists view and positions the cursor on a
-// randomly-chosen artist.
+// handleRandomArtistMsg switches to Artists browse mode and positions the cursor
+// on a randomly-chosen artist.
 func (m Model) handleRandomArtistMsg() (Model, tea.Cmd) {
-	m = m.switchToView(viewArtists)
-	if len(m.artists.artists) == 0 {
+	m.browse.mode = BrowseModeArtists
+	m = m.switchToView(viewBrowse)
+	if len(m.browse.artists.artists) == 0 {
 		m.statusBar.notify("Library is empty")
 		return m, nil
 	}
-	idx := rand.IntN(len(m.artists.artists)) //nolint:gosec // non-security random for UI navigation
-	m.artists.cursor = idx
-	m.artists.scrollOffset = max(0, idx-m.artists.height/2)
-	m.artists = m.artists.clampCursor()
+	idx := rand.IntN(len(m.browse.artists.artists)) //nolint:gosec // non-security random for UI navigation
+	m.browse.artists.cursor = idx
+	m.browse.artists.scrollOffset = max(0, idx-m.browse.artists.height/2)
+	m.browse.artists = m.browse.artists.clampCursor()
 	return m, nil
 }
 

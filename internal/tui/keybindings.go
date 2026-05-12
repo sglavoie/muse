@@ -16,6 +16,7 @@ const (
 	contextTags                            // applies only in the Tags view
 	contextModals                          // applies only when a modal is active
 	contextMixes                           // applies only in the Mixes view
+	contextBrowse                          // applies only in the Browse view (fallback; real sub-context resolved dynamically)
 )
 
 // action represents a named TUI action that a key binding triggers.
@@ -63,12 +64,16 @@ const (
 	actionTagFilter        // ctrl+t: open/clear cross-view tag filter
 	actionRadioToggle      // 'A': toggle radio / auto-DJ mode
 
-	actionSwitchArtists
-	actionSwitchAlbums
+	actionSwitchBrowse
+	actionSwitchArtists  // legacy — no longer bound to a key; kept for existing dispatch cases
+	actionSwitchAlbums   // legacy — no longer bound to a key; kept for existing dispatch cases
 	actionSwitchFavorites
 	actionToggleFavorite
-	actionLibraryModeNext // ctrl+l: cycle Library sub-mode (All → Recent → History → All)
-	actionGoTo // 'o': open Go To navigation popup
+	actionLibraryModeNext // '`': cycle Library sub-mode forward (All → Recent → History → All)
+	actionLibraryModePrev // '~': cycle Library sub-mode backward
+	actionBrowseModeNext  // '`': cycle Browse sub-mode forward (Artists → Albums → Genres → Artists)
+	actionBrowseModePrev  // '~': cycle Browse sub-mode backward
+	actionGoTo            // 'o': open Go To navigation popup
 
 	// Favorites-local actions.
 	actionFavoritesOpen // enter: drill into category/list or enqueue track
@@ -119,8 +124,8 @@ const (
 	actionAlbumBack // esc: go back one level
 
 	// Genres-local actions.
-	actionSwitchGenres
-	actionGenreOpen // enter: drill into artists/tracks or enqueue
+	actionSwitchGenres // legacy — no longer bound to a key; kept for existing dispatch cases
+	actionGenreOpen    // enter: drill into artists/tracks or enqueue
 	actionGenreBack // esc: go back one level
 
 	// Bulk-selection action — triggered by 'a' when tracks are selected.
@@ -141,7 +146,7 @@ const (
 	actionSortDesc  // shift+down: set sort direction to descending
 
 	// Tags view actions.
-	actionSwitchTags    // '8': switch to Tags view
+	actionSwitchTags    // '6': switch to Tags view
 	actionTagOpen       // enter: drill into tag tracks (or enqueue at TrackLevel)
 	actionTagBack       // backspace/h: go back to tag list
 	actionTagCreate     // 'c': create a new tag (inline input)
@@ -151,7 +156,7 @@ const (
 	actionTagMerge      // 'm': merge focused tag into another (opens merge picker)
 
 	// Mixes-local actions.
-	actionSwitchMixes       // '9': switch to Mixes view
+	actionSwitchMixes       // '7': switch to Mixes view
 	actionMixOpen           // enter: drill into mix track list
 	actionMixBack           // esc: go back from track list to mix list
 	actionMixEnqueueAll     // 'E': enqueue all tracks from the focused mix
@@ -193,12 +198,10 @@ func newRegistry() Registry {
 	r.register(contextGlobal, "1", actionSwitchLibrary)
 	r.register(contextGlobal, "2", actionSwitchPlaylists)
 	r.register(contextGlobal, "3", actionSwitchQueue)
-	r.register(contextGlobal, "4", actionSwitchArtists)
-	r.register(contextGlobal, "5", actionSwitchAlbums)
-	r.register(contextGlobal, "6", actionSwitchGenres)
-	r.register(contextGlobal, "7", actionSwitchFavorites)
-	r.register(contextGlobal, "8", actionSwitchTags)
-	r.register(contextGlobal, "9", actionSwitchMixes)
+	r.register(contextGlobal, "4", actionSwitchBrowse)
+	r.register(contextGlobal, "5", actionSwitchFavorites)
+	r.register(contextGlobal, "6", actionSwitchTags)
+	r.register(contextGlobal, "7", actionSwitchMixes)
 	r.register(contextGlobal, "F", actionToggleFavorite)
 	r.register(contextGlobal, "ctrl+r", actionRescan)
 	r.register(contextGlobal, "R", actionResetPosition)
@@ -237,7 +240,8 @@ func newRegistry() Registry {
 	r.register(contextLibrary, "X", actionClearSelection)
 	r.register(contextLibrary, "v", actionVisualMode)
 	r.register(contextLibrary, "a", actionBulkAction)
-	r.register(contextLibrary, "ctrl+l", actionLibraryModeNext)
+	r.register(contextLibrary, "`", actionLibraryModeNext)
+	r.register(contextLibrary, "~", actionLibraryModePrev)
 
 	// Queue-local bindings.
 	r.registerNavigation(contextQueue)
@@ -287,6 +291,8 @@ func newRegistry() Registry {
 	r.register(contextArtists, "X", actionClearSelection)
 	r.register(contextArtists, "v", actionVisualMode)
 	r.register(contextArtists, "a", actionBulkAction)
+	r.register(contextArtists, "`", actionBrowseModeNext)
+	r.register(contextArtists, "~", actionBrowseModePrev)
 
 	// Albums-local bindings.
 	r.registerNavigation(contextAlbums)
@@ -298,6 +304,8 @@ func newRegistry() Registry {
 	r.register(contextAlbums, "X", actionClearSelection)
 	r.register(contextAlbums, "v", actionVisualMode)
 	r.register(contextAlbums, "a", actionBulkAction)
+	r.register(contextAlbums, "`", actionBrowseModeNext)
+	r.register(contextAlbums, "~", actionBrowseModePrev)
 
 	// Genres-local bindings.
 	r.registerNavigation(contextGenres)
@@ -309,6 +317,8 @@ func newRegistry() Registry {
 	r.register(contextGenres, "X", actionClearSelection)
 	r.register(contextGenres, "v", actionVisualMode)
 	r.register(contextGenres, "a", actionBulkAction)
+	r.register(contextGenres, "`", actionBrowseModeNext)
+	r.register(contextGenres, "~", actionBrowseModePrev)
 
 	// Tags-local bindings.
 	// 'r' shadows global repeat-cycle; 'd' shadows global (none); 'c' is new.
@@ -330,7 +340,6 @@ func newRegistry() Registry {
 	r.register(contextTags, "F", actionToggleFavorite)
 
 	// Mixes-local bindings.
-	// No number-key shortcut (11th view); access via tab or command palette.
 	r.registerNavigation(contextMixes)
 	r.register(contextMixes, "enter", actionMixOpen)
 	r.register(contextMixes, "esc", actionMixBack)

@@ -14,7 +14,7 @@ import (
 func (v View) renderGenres() string {
 	items := v.EffectiveGenres()
 	if len(v.Genres) == 0 {
-		return "(no genres)"
+		return v.Styles.Dim.Render("No genres yet — add music to your library")
 	}
 	if len(items) == 0 {
 		return v.topFilterSeparator() + "(no matches)"
@@ -43,7 +43,7 @@ func (v View) renderArtists() string {
 	heading := v.Styles.Heading.Render(v.SelectedGenre)
 	items := v.EffectiveArtists()
 	if len(v.Artists) == 0 {
-		return heading + "\n\n(no artists)"
+		return heading + "\n\n" + v.Styles.Dim.Render("No artists found for this genre")
 	}
 	if len(items) == 0 {
 		return heading + v.filterSeparator() + "(no matches)"
@@ -57,7 +57,7 @@ func (v View) renderArtists() string {
 	for i, name := range items[start:end] {
 		absIdx := start + i
 		_, isFav := v.FavoriteArtists[name]
-		display := text.Pad(name, v.Width)
+		display := text.FavPrefix(name, v.Width, isFav)
 		isOdd := absIdx%2 == 1
 		switch {
 		case absIdx == v.Cursor && isFav:
@@ -82,7 +82,7 @@ func (v View) renderTracks() string {
 	styledHeading := v.Styles.Heading.Render(heading)
 	items := v.EffectiveTracks()
 	if len(v.Tracks) == 0 {
-		return styledHeading + "\n\n(no tracks)"
+		return styledHeading + "\n\n" + v.Styles.Dim.Render("No tracks found for this artist")
 	}
 	if len(items) == 0 {
 		return styledHeading + v.filterSeparator() + "(no matches)"
@@ -97,6 +97,14 @@ func (v View) renderTracks() string {
 	maxRows := v.visibleRows()
 	start := min(v.ScrollOffset, len(items))
 	end := min(len(items), start+maxRows)
+
+	showDisc := false
+	for _, t := range items[start:end] {
+		if t.DiscNumber > 1 {
+			showDisc = true
+			break
+		}
+	}
 
 	lines := make([]string, end-start)
 	for i, t := range items[start:end] {
@@ -121,12 +129,17 @@ func (v View) renderTracks() string {
 			markerStr = "  "
 		}
 
-		pos := fmt.Sprintf("%-*s", cols.Position, text.FormatTrackPos(t.TrackNumber, t.DiscNumber, absIdx+1))
-		titleStr := text.Pad(t.Title, cols.Title)
+		var rawPos string
+		if showDisc {
+			rawPos = text.FormatTrackPos(t.TrackNumber, t.DiscNumber, absIdx+1)
+		} else {
+			rawPos = text.FormatTrackPosSimple(t.TrackNumber, absIdx+1)
+		}
+		pos := fmt.Sprintf("%-*s", cols.Position, rawPos)
+		_, isTrackFav := v.FavoriteHashes[t.Hash]
+		titleStr := text.FavPrefix(t.Title, cols.Title, isTrackFav)
 		dur := text.FormatDurationSecs(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
-
-		_, isTrackFav := v.FavoriteHashes[t.Hash]
 		if isFocused {
 			a := v.Styles.Accent
 			sep := a.Render(" ")
@@ -139,17 +152,23 @@ func (v View) renderTracks() string {
 			lines[i] = np.Render(markerStr+pos) + sep + titleStr + sep + np.Render(dur)
 		} else {
 			isOdd := absIdx%2 == 1
-			if isTrackFav {
-				titleStr = styles.WithZebraBg(v.Styles.Favorite, v.Styles.ZebraBg, isOdd).Render(titleStr)
+			rowBg := v.Styles.ZebraBg
+			useBg := isOdd
+			if isSelected {
+				rowBg = v.Styles.SelectionBg
+				useBg = true
 			}
-			if isOdd {
-				zb := lipgloss.NewStyle().Background(v.Styles.ZebraBg)
+			if isTrackFav {
+				titleStr = styles.WithZebraBg(v.Styles.Favorite, rowBg, useBg).Render(titleStr)
+			}
+			if useBg {
+				zb := lipgloss.NewStyle().Background(rowBg)
 				if !isTrackFav {
-					titleStr = styles.WithZebraBg(v.Styles.TextPrimary, v.Styles.ZebraBg, true).Render(titleStr)
+					titleStr = styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(titleStr)
 				}
 				markerPart := zb.Render(markerStr)
-				posPart := styles.WithZebraBg(v.Styles.TextTertiary, v.Styles.ZebraBg, isOdd).Render(pos)
-				durPart := styles.WithZebraBg(v.Styles.TextTertiary, v.Styles.ZebraBg, isOdd).Render(dur)
+				posPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(pos)
+				durPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(dur)
 				sep := zb.Render(" ")
 				lines[i] = markerPart + posPart + sep + titleStr + sep + durPart
 			} else {

@@ -81,11 +81,14 @@ func (m Model) handleMetadataKeyAction(a action) (Model, tea.Cmd, bool) {
 // AlbumLevel). Returns false if the current context is not renameable.
 func (m Model) renameEditorForFocusedEntity() (MetadataEditor, bool) {
 	tracks := m.library.index.Tracks()
-	switch m.activeView {
-	case viewArtists:
-		switch m.artists.level {
+	if m.activeView != viewBrowse {
+		return MetadataEditor{}, false
+	}
+	switch m.browse.mode {
+	case BrowseModeArtists:
+		switch m.browse.artists.level {
 		case arttui.ArtistLevel:
-			displayName, ok := m.artists.focusedArtist()
+			displayName, ok := m.browse.artists.focusedArtist()
 			if !ok {
 				return MetadataEditor{}, false
 			}
@@ -98,12 +101,12 @@ func (m Model) renameEditorForFocusedEntity() (MetadataEditor, bool) {
 			return NewArtistRenameEditor(hashes, displayName), true
 
 		case arttui.AlbumLevel:
-			displayName, ok := m.artists.focusedAlbum()
+			displayName, ok := m.browse.artists.focusedAlbum()
 			if !ok {
 				return MetadataEditor{}, false
 			}
 			rawAlbum := arttui.RawName(displayName)
-			matching := arttui.DeriveTracks(tracks, m.artists.selectedArtist, rawAlbum)
+			matching := arttui.DeriveTracks(tracks, m.browse.artists.selectedArtist, rawAlbum)
 			hashes := make([]string, 0, len(matching))
 			for _, t := range matching {
 				hashes = append(hashes, t.Hash)
@@ -111,9 +114,9 @@ func (m Model) renameEditorForFocusedEntity() (MetadataEditor, bool) {
 			return NewAlbumRenameEditor(hashes, displayName), true
 		}
 
-	case viewAlbums:
-		if m.albums.level == albtui.AlbumLevel {
-			displayName, ok := m.albums.focusedAlbum()
+	case BrowseModeAlbums:
+		if m.browse.albums.level == albtui.AlbumLevel {
+			displayName, ok := m.browse.albums.focusedAlbum()
 			if !ok {
 				return MetadataEditor{}, false
 			}
@@ -137,10 +140,10 @@ func (m Model) metadataSaveNotification(mode editorMode, hashes []string, dirtyA
 			if newName == "" {
 				newName = arttui.UnknownArtist
 			}
-			for i, a := range m.artists.artists {
+			for i, a := range m.browse.artists.artists {
 				if a == newName {
-					m.artists.cursor = i
-					m.artists.scrollOffset = max(0, i-m.artists.height/2)
+					m.browse.artists.cursor = i
+					m.browse.artists.scrollOffset = max(0, i-m.browse.artists.height/2)
 					break
 				}
 			}
@@ -153,21 +156,23 @@ func (m Model) metadataSaveNotification(mode editorMode, hashes []string, dirtyA
 			if newName == "" {
 				newName = arttui.UnknownAlbum
 			}
-			switch m.activeView {
-			case viewArtists:
-				for i, a := range m.artists.albums {
-					if a == newName {
-						m.artists.cursor = i
-						m.artists.scrollOffset = max(0, i-m.artists.height/2)
-						break
+			if m.activeView == viewBrowse {
+				switch m.browse.mode {
+				case BrowseModeArtists:
+					for i, a := range m.browse.artists.albums {
+						if a == newName {
+							m.browse.artists.cursor = i
+							m.browse.artists.scrollOffset = max(0, i-m.browse.artists.height/2)
+							break
+						}
 					}
-				}
-			case viewAlbums:
-				for i, a := range m.albums.albums {
-					if a == newName {
-						m.albums.cursor = i
-						m.albums.scrollOffset = max(0, i-m.albums.height/2)
-						break
+				case BrowseModeAlbums:
+					for i, a := range m.browse.albums.albums {
+						if a == newName {
+							m.browse.albums.cursor = i
+							m.browse.albums.scrollOffset = max(0, i-m.browse.albums.height/2)
+							break
+						}
 					}
 				}
 			}

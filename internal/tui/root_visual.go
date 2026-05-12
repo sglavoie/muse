@@ -14,10 +14,11 @@ import (
 
 // visualState holds the state for Vim-like visual line selection mode.
 type visualState struct {
-	active   bool
-	view     viewID
-	anchor   int
-	snapshot selectionSnapshot
+	active     bool
+	view       viewID
+	browseMode BrowseMode // only meaningful when view == viewBrowse
+	anchor     int
+	snapshot   selectionSnapshot
 }
 
 // selectionSnapshot captures the selection state before visual mode was entered
@@ -38,14 +39,17 @@ func activeViewCursor(m Model) int {
 		return m.playlists.cursor
 	case viewQueue:
 		return m.queue.cursor
-	case viewArtists:
-		return m.artists.cursor
-	case viewAlbums:
-		return m.albums.cursor
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			return m.browse.artists.cursor
+		case BrowseModeAlbums:
+			return m.browse.albums.cursor
+		case BrowseModeGenres:
+			return m.browse.genres.cursor
+		}
 	case viewFavorites:
 		return m.favorites.cursor
-	case viewGenres:
-		return m.genres.cursor
 	case viewTags:
 		return m.tagsView.cursor
 	}
@@ -58,17 +62,20 @@ func activeViewCursor(m Model) int {
 func enterVisualMode(m Model) Model {
 	// Level guards: only enter at track/applicable level.
 	switch m.activeView {
-	case viewArtists:
-		if m.artists.level != arttui.TrackLevel {
-			return m
-		}
-	case viewAlbums:
-		if m.albums.level != albtui.TrackLevel {
-			return m
-		}
-	case viewGenres:
-		if m.genres.level != gentui.TrackLevel {
-			return m
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			if m.browse.artists.level != arttui.TrackLevel {
+				return m
+			}
+		case BrowseModeAlbums:
+			if m.browse.albums.level != albtui.TrackLevel {
+				return m
+			}
+		case BrowseModeGenres:
+			if m.browse.genres.level != gentui.TrackLevel {
+				return m
+			}
 		}
 	case viewFavorites:
 		if m.favorites.level == favtui.CategoryLevel {
@@ -86,10 +93,11 @@ func enterVisualMode(m Model) Model {
 
 	cursor := activeViewCursor(m)
 	m.visual = visualState{
-		active:   true,
-		view:     m.activeView,
-		anchor:   cursor,
-		snapshot: takeSnapshot(m),
+		active:     true,
+		view:       m.activeView,
+		browseMode: m.browse.mode,
+		anchor:     cursor,
+		snapshot:   takeSnapshot(m),
 	}
 	// Select the item at the cursor to start the range.
 	m = selectRange(m, cursor, cursor)
@@ -134,12 +142,16 @@ func visualListLen(m Model) int {
 		return len(m.queue.filteredEntries())
 	case viewPlaylists:
 		return len(m.playlists.tracks)
-	case viewArtists:
-		return len(arttui.FilterTracks(m.artists.tracks, m.artists.filter.Text))
-	case viewAlbums:
-		return len(arttui.FilterTracks(m.albums.tracks, m.albums.filter.Text))
-	case viewGenres:
-		return len(arttui.FilterTracks(m.genres.tracks, m.genres.filter.Text))
+	case viewBrowse:
+		switch m.visual.browseMode {
+		case BrowseModeArtists:
+			return len(arttui.FilterTracks(m.browse.artists.tracks, m.browse.artists.filter.Text))
+		case BrowseModeAlbums:
+			return len(arttui.FilterTracks(m.browse.albums.tracks, m.browse.albums.filter.Text))
+		case BrowseModeGenres:
+			return len(arttui.FilterTracks(m.browse.genres.tracks, m.browse.genres.filter.Text))
+		}
+		return 0
 	case viewFavorites:
 		switch m.favorites.level {
 		case favtui.TrackLevel:
@@ -179,12 +191,15 @@ func takeSnapshot(m Model) selectionSnapshot {
 		}
 	case viewPlaylists:
 		snap.trackIDs = cloneInt64Set(m.playlists.selectedTrackIDs)
-	case viewArtists:
-		snap.hashes = cloneStringSet(m.artists.selectedHashes)
-	case viewAlbums:
-		snap.hashes = cloneStringSet(m.albums.selectedHashes)
-	case viewGenres:
-		snap.hashes = cloneStringSet(m.genres.selectedHashes)
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			snap.hashes = cloneStringSet(m.browse.artists.selectedHashes)
+		case BrowseModeAlbums:
+			snap.hashes = cloneStringSet(m.browse.albums.selectedHashes)
+		case BrowseModeGenres:
+			snap.hashes = cloneStringSet(m.browse.genres.selectedHashes)
+		}
 	case viewFavorites:
 		snap.favIdxSet = cloneIntSet(m.favorites.selectedItems)
 	case viewTags:
@@ -204,12 +219,15 @@ func restoreSnapshot(m Model) Model {
 		}
 	case viewPlaylists:
 		m.playlists.selectedTrackIDs = cloneInt64Set(m.visual.snapshot.trackIDs)
-	case viewArtists:
-		m.artists.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
-	case viewAlbums:
-		m.albums.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
-	case viewGenres:
-		m.genres.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
+	case viewBrowse:
+		switch m.visual.browseMode {
+		case BrowseModeArtists:
+			m.browse.artists.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
+		case BrowseModeAlbums:
+			m.browse.albums.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
+		case BrowseModeGenres:
+			m.browse.genres.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
+		}
 	case viewFavorites:
 		m.favorites.selectedItems = cloneIntSet(m.visual.snapshot.favIdxSet)
 	case viewTags:
@@ -247,17 +265,20 @@ func selectRange(m Model, lo, hi int) Model {
 				m.playlists.selectedTrackIDs[m.playlists.tracks[realIdx].ID] = struct{}{}
 			}
 		}
-	case viewArtists:
-		if m.artists.level == arttui.TrackLevel {
-			m.artists.selectedHashes = hashSelectRange(m.artists.selectedHashes, m.artists.tracks, m.artists.filter.Text, lo, hi)
-		}
-	case viewAlbums:
-		if m.albums.level == albtui.TrackLevel {
-			m.albums.selectedHashes = hashSelectRange(m.albums.selectedHashes, m.albums.tracks, m.albums.filter.Text, lo, hi)
-		}
-	case viewGenres:
-		if m.genres.level == gentui.TrackLevel {
-			m.genres.selectedHashes = hashSelectRange(m.genres.selectedHashes, m.genres.tracks, m.genres.filter.Text, lo, hi)
+	case viewBrowse:
+		switch m.visual.browseMode {
+		case BrowseModeArtists:
+			if m.browse.artists.level == arttui.TrackLevel {
+				m.browse.artists.selectedHashes = hashSelectRange(m.browse.artists.selectedHashes, m.browse.artists.tracks, m.browse.artists.filter.Text, lo, hi)
+			}
+		case BrowseModeAlbums:
+			if m.browse.albums.level == albtui.TrackLevel {
+				m.browse.albums.selectedHashes = hashSelectRange(m.browse.albums.selectedHashes, m.browse.albums.tracks, m.browse.albums.filter.Text, lo, hi)
+			}
+		case BrowseModeGenres:
+			if m.browse.genres.level == gentui.TrackLevel {
+				m.browse.genres.selectedHashes = hashSelectRange(m.browse.genres.selectedHashes, m.browse.genres.tracks, m.browse.genres.filter.Text, lo, hi)
+			}
 		}
 	case viewFavorites:
 		if m.favorites.level != favtui.CategoryLevel {

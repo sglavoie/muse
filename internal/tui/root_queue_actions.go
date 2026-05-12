@@ -138,18 +138,9 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 		if len(m.queue.entries) == 0 {
 			return m, nil, true
 		}
-		now := time.Now()
-		if m.undo.clearQueuePending && now.Before(m.undo.clearQueuePendingAt.Add(queueConfirmationWindow)) {
-			m.undo.clearQueuePending = false
-			var cmd tea.Cmd
-			m.queue, cmd = m.queue.HandleAction(action)
-			return m, cmd, true
-		}
-		m.undo.clearQueuePending = true
-		m.undo.clearQueuePendingAt = now
-		m.confirmationBar = "Press C again to clear queue"
-		m.statusBar.notify("Press C again to clear queue")
-		return m, nil, true
+		var cmd tea.Cmd
+		m.queue, cmd = m.queue.HandleAction(action)
+		return m, cmd, true
 	case actionSelect:
 		var cmd tea.Cmd
 		m.queue, cmd = m.queue.HandleAction(action)

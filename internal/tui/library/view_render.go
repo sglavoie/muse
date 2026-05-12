@@ -28,7 +28,7 @@ func (v View) Render() string {
 	allTracks := v.tracks()
 	n := len(allTracks)
 	if n == 0 {
-		return "(no tracks)"
+		return v.Styles.Dim.Render("No music found — check library path in settings (ctrl+,)")
 	}
 
 	// Resolve the set of tracks to display, with optional match positions.
@@ -61,7 +61,7 @@ func (v View) Render() string {
 	separator := ""
 	if v.Filter.Active {
 		if v.Filter.Text == "" {
-			hint := v.Styles.Dim.Render("a: artist  t: title  l: album")
+			hint := v.Styles.Dim.Render("a: artist  t: title  l: album  g: genre")
 			separator = "Filter: " + hint + "\n"
 		} else {
 			separator = "Filter: " + v.Filter.View() + "\n"
@@ -133,12 +133,25 @@ func (v View) Render() string {
 		return separator + header + "\n" + strings.Repeat(" ", leftPad) + noMatches
 	}
 
+	showDisc := false
+	for _, dt := range display[start:end] {
+		if dt.track.DiscNumber > 1 {
+			showDisc = true
+			break
+		}
+	}
+
 	lines := make([]string, end-start)
 	var prevArtist string
 	for i, dt := range display[start:end] {
 		absIdx := start + i
 		t := dt.track
-		num := text.FormatTrackPos(t.TrackNumber, t.DiscNumber, absIdx+1)
+		var num string
+		if showDisc {
+			num = text.FormatTrackPos(t.TrackNumber, t.DiscNumber, absIdx+1)
+		} else {
+			num = text.FormatTrackPosSimple(t.TrackNumber, absIdx+1)
+		}
 		dur := text.FormatDurationSecs(t.Duration)
 		var dateAdded string
 		if v.ShowPlayedAt {
@@ -151,6 +164,12 @@ func (v View) Render() string {
 		isFocused := absIdx == v.Cursor
 		isOdd := absIdx%2 == 1
 		isNowPlaying := v.NowPlayingHash != "" && t.Hash == v.NowPlayingHash
+		rowBg := v.Styles.ZebraBg
+		useBg := isOdd
+		if isSelected && !isFocused && !isNowPlaying {
+			rowBg = v.Styles.SelectionBg
+			useBg = true
+		}
 
 		// When the row is focused, omit the inner accent/reset from the marker
 		// so the outer reverse-video wrap covers the full row uniformly. An
@@ -203,9 +222,9 @@ func (v View) Render() string {
 			titleStr = padHighlight(t.Title, cols.Title, titlePos, titleFavStyle...)
 			albumStr = padHighlight(t.Album, cols.Album, albumPos, albumFavStyle...)
 		default:
-			artistStr = text.Pad(t.Artist, cols.Artist)
-			titleStr = text.Pad(t.Title, cols.Title)
-			albumStr = text.Pad(t.Album, cols.Album)
+			artistStr = text.FavPrefix(t.Artist, cols.Artist, isArtistFav)
+			titleStr = text.FavPrefix(t.Title, cols.Title, isTrackFav)
+			albumStr = text.FavPrefix(t.Album, cols.Album, isAlbumFav)
 			if isFocused {
 				artistStr = accentStyleFor(isArtistFav, v.Styles.FavArtistAccent, v.Styles.Accent)[0].Render(artistStr)
 				titleStr = accentStyleFor(isTrackFav, v.Styles.FavoriteAccent, v.Styles.Accent)[0].Render(titleStr)
@@ -224,16 +243,16 @@ func (v View) Render() string {
 				}
 			} else {
 				if isTrackFav {
-					titleStr = styles.WithZebraBg(v.Styles.Favorite, v.Styles.ZebraBg, isOdd).Render(titleStr)
+					titleStr = styles.WithZebraBg(v.Styles.Favorite, rowBg, useBg).Render(titleStr)
 				}
 				if isArtistFav {
-					artistStr = styles.WithZebraBg(v.Styles.FavArtist, v.Styles.ZebraBg, isOdd).Render(artistStr)
+					artistStr = styles.WithZebraBg(v.Styles.FavArtist, rowBg, useBg).Render(artistStr)
 				}
 				if isAlbumFav {
-					albumStr = styles.WithZebraBg(v.Styles.FavAlbum, v.Styles.ZebraBg, isOdd).Render(albumStr)
+					albumStr = styles.WithZebraBg(v.Styles.FavAlbum, rowBg, useBg).Render(albumStr)
 				}
 				if sameArtist && !isArtistFav {
-					artistStr = styles.WithZebraBg(v.Styles.TextTertiary, v.Styles.ZebraBg, isOdd).Render(artistStr)
+					artistStr = styles.WithZebraBg(v.Styles.TextTertiary, rowBg, useBg).Render(artistStr)
 				}
 			}
 		}
@@ -263,24 +282,24 @@ func (v View) Render() string {
 				row += sep + np.Render(text.Pad(dateAdded, cols.DateAdded))
 			}
 		} else {
-			if isOdd {
-				zb := lipgloss.NewStyle().Background(v.Styles.ZebraBg)
+			if useBg {
+				rb := lipgloss.NewStyle().Background(rowBg)
 				if !isTrackFav {
-					titleStr = styles.WithZebraBg(v.Styles.TextPrimary, v.Styles.ZebraBg, true).Render(titleStr)
+					titleStr = styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(titleStr)
 				}
 				if !isArtistFav && !sameArtist {
-					artistStr = styles.WithZebraBg(v.Styles.TextPrimary, v.Styles.ZebraBg, true).Render(artistStr)
+					artistStr = styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(artistStr)
 				}
 				if !isAlbumFav {
-					albumStr = styles.WithZebraBg(v.Styles.TextSecondary, v.Styles.ZebraBg, true).Render(albumStr)
+					albumStr = styles.WithZebraBg(v.Styles.TextSecondary, rowBg, true).Render(albumStr)
 				}
-				markerPart := zb.Render(markerStr)
-				numPart := styles.WithZebraBg(v.Styles.TextTertiary, v.Styles.ZebraBg, isOdd).Render(text.Pad(num, cols.TrackNum))
-				durPart := styles.WithZebraBg(v.Styles.TextTertiary, v.Styles.ZebraBg, isOdd).Render(text.PadLeft(dur, cols.Duration))
-				sep := zb.Render("  ")
+				markerPart := rb.Render(markerStr)
+				numPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(text.Pad(num, cols.TrackNum))
+				durPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(text.PadLeft(dur, cols.Duration))
+				sep := rb.Render("  ")
 				row = markerPart + numPart + sep + artistStr + sep + titleStr + sep + albumStr + sep + durPart
 				if cols.DateAdded > 0 {
-					row += sep + zb.Render(text.Pad(dateAdded, cols.DateAdded))
+					row += sep + rb.Render(text.Pad(dateAdded, cols.DateAdded))
 				}
 			} else {
 				if !isTrackFav {

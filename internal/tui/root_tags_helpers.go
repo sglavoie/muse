@@ -45,10 +45,16 @@ func (m Model) selectedTrackHashes() []string {
 			}
 		}
 		return hashes
-	case viewArtists:
-		return hashMapToSlice(m.artists.selectedHashes)
-	case viewAlbums:
-		return hashMapToSlice(m.albums.selectedHashes)
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			return hashMapToSlice(m.browse.artists.selectedHashes)
+		case BrowseModeAlbums:
+			return hashMapToSlice(m.browse.albums.selectedHashes)
+		case BrowseModeGenres:
+			return hashMapToSlice(m.browse.genres.selectedHashes)
+		}
+		return nil
 	case viewPlaylists:
 		if len(m.playlists.selectedTrackIDs) == 0 {
 			return nil
@@ -80,8 +86,6 @@ func (m Model) selectedTrackHashes() []string {
 			}
 		}
 		return hashes
-	case viewGenres:
-		return hashMapToSlice(m.genres.selectedHashes)
 	case viewTags:
 		return hashMapToSlice(m.tagsView.selectedHashes)
 	case viewMixes:
@@ -119,16 +123,25 @@ func (m Model) focusedTrackHash() string {
 		if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
 			return filtered[m.queue.cursor].Hash
 		}
-	case viewArtists:
-		if m.artists.level == arttui.TrackLevel {
-			if track, ok := m.artists.focusedTrack(); ok {
-				return track.Hash
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			if m.browse.artists.level == arttui.TrackLevel {
+				if track, ok := m.browse.artists.focusedTrack(); ok {
+					return track.Hash
+				}
 			}
-		}
-	case viewAlbums:
-		if m.albums.level == albtui.TrackLevel {
-			if track, ok := m.albums.focusedTrack(); ok {
-				return track.Hash
+		case BrowseModeAlbums:
+			if m.browse.albums.level == albtui.TrackLevel {
+				if track, ok := m.browse.albums.focusedTrack(); ok {
+					return track.Hash
+				}
+			}
+		case BrowseModeGenres:
+			if m.browse.genres.level == gentui.TrackLevel {
+				if track, ok := m.browse.genres.focusedTrack(); ok {
+					return track.Hash
+				}
 			}
 		}
 	case viewPlaylists:
@@ -145,12 +158,6 @@ func (m Model) focusedTrackHash() string {
 			}
 		case favtui.TrackLevel:
 			if track, ok := m.favorites.focusedTrack(); ok {
-				return track.Hash
-			}
-		}
-	case viewGenres:
-		if m.genres.level == gentui.TrackLevel {
-			if track, ok := m.genres.focusedTrack(); ok {
 				return track.Hash
 			}
 		}

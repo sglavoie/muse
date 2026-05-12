@@ -14,13 +14,13 @@ import (
 // clearing sortState alone does not recover the original order.
 func (m Model) rederiveArtistsData() Model {
 	tracks := m.library.index.Tracks()
-	switch m.artists.level {
+	switch m.browse.artists.level {
 	case arttui.ArtistLevel:
-		m.artists.artists = arttui.DeriveArtists(tracks)
+		m.browse.artists.artists = arttui.DeriveArtists(tracks)
 	case arttui.AlbumLevel:
-		m.artists.albums = arttui.DeriveAlbums(tracks, m.artists.selectedArtist)
+		m.browse.artists.albums = arttui.DeriveAlbums(tracks, m.browse.artists.selectedArtist)
 	case arttui.TrackLevel:
-		m.artists.tracks = arttui.DeriveTracks(tracks, m.artists.selectedArtist, m.artists.selectedAlbum)
+		m.browse.artists.tracks = arttui.DeriveTracks(tracks, m.browse.artists.selectedArtist, m.browse.artists.selectedAlbum)
 	}
 	return m
 }
@@ -29,11 +29,11 @@ func (m Model) rederiveArtistsData() Model {
 // index. See rederiveArtistsData for rationale.
 func (m Model) rederiveAlbumsData() Model {
 	tracks := m.library.index.Tracks()
-	switch m.albums.level {
+	switch m.browse.albums.level {
 	case albtui.AlbumLevel:
-		m.albums.albums = albtui.DeriveAllAlbums(tracks)
+		m.browse.albums.albums = albtui.DeriveAllAlbums(tracks)
 	case albtui.TrackLevel:
-		m.albums.tracks = albtui.DeriveAlbumTracks(tracks, m.albums.selectedAlbum)
+		m.browse.albums.tracks = albtui.DeriveAlbumTracks(tracks, m.browse.albums.selectedAlbum)
 	}
 	return m
 }
@@ -105,13 +105,13 @@ func (m Model) rederiveFavoritesData() Model {
 // index. See rederiveArtistsData for rationale.
 func (m Model) rederiveGenresData() Model {
 	tracks := m.library.index.Tracks()
-	switch m.genres.level {
+	switch m.browse.genres.level {
 	case gentui.GenreLevel:
-		m.genres.genres = gentui.DeriveGenres(tracks)
+		m.browse.genres.genres = gentui.DeriveGenres(tracks)
 	case gentui.ArtistLevel:
-		m.genres.artists = gentui.DeriveGenreArtists(tracks, m.genres.selectedGenre)
+		m.browse.genres.artists = gentui.DeriveGenreArtists(tracks, m.browse.genres.selectedGenre)
 	case gentui.TrackLevel:
-		m.genres.tracks = gentui.DeriveGenreArtistTracks(tracks, m.genres.selectedGenre, m.genres.selectedArtist)
+		m.browse.genres.tracks = gentui.DeriveGenreArtistTracks(tracks, m.browse.genres.selectedGenre, m.browse.genres.selectedArtist)
 	}
 	return m
 }

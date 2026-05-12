@@ -345,6 +345,20 @@ func WithLibraryTracks(tracks []library.Track) Option {
 	}
 }
 
+// WithSessionCount sets the number of times the app has been launched,
+// including the current session. The TUI uses this to show one-time tips to
+// new users (e.g. command palette hint for the first 3 sessions).
+func WithSessionCount(n int) Option {
+	return func(m *Model) { m.sessionCount = n }
+}
+
+// WithFreshLibrary signals that this is the first-ever library scan (no tracks
+// existed before). The TUI uses this to switch to Recently Added mode and set
+// the initial sort state so new users see newly scanned tracks immediately.
+func WithFreshLibrary(fresh bool) Option {
+	return func(m *Model) { m.freshLibrary = fresh }
+}
+
 // clampVolume restricts v to the [0, 100] range.
 func clampVolume(v int) int {
 	if v < 0 {

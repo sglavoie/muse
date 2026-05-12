@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"time"
-
 	tea "charm.land/bubbletea/v2"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
@@ -63,15 +61,6 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 		m.overlay.nowPlaying.state = m.playback.state
 	}
 	m.statusBar.pruneNotifications()
-	now := time.Now()
-	if m.undo.clearQueuePending && now.After(m.undo.clearQueuePendingAt.Add(queueConfirmationWindow)) {
-		m.undo.clearQueuePending = false
-		m.confirmationBar = ""
-	}
-	if m.undo.bulkRemovePending && now.After(m.undo.bulkRemovePendingAt.Add(confirmationWindow)) {
-		m.undo.bulkRemovePending = false
-		m.confirmationBar = ""
-	}
 	return m, tea.Batch(tickCmd(), previewDurationCmd, mainDurationCmd)
 }
 
@@ -152,29 +141,29 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 		}
 		m.tagsView = m.tagsView.recomputeTagsSort()
 	}
-	if m.artists.level == arttui.TrackLevel {
-		for i := range m.artists.tracks {
-			if m.artists.tracks[i].Hash == hash {
-				m.artists.tracks[i].Duration = mpvTotal
+	if m.browse.artists.level == arttui.TrackLevel {
+		for i := range m.browse.artists.tracks {
+			if m.browse.artists.tracks[i].Hash == hash {
+				m.browse.artists.tracks[i].Duration = mpvTotal
 			}
 		}
-		m.artists = m.artists.recomputeArtistsSort()
+		m.browse.artists = m.browse.artists.recomputeArtistsSort()
 	}
-	if m.albums.level == albtui.TrackLevel {
-		for i := range m.albums.tracks {
-			if m.albums.tracks[i].Hash == hash {
-				m.albums.tracks[i].Duration = mpvTotal
+	if m.browse.albums.level == albtui.TrackLevel {
+		for i := range m.browse.albums.tracks {
+			if m.browse.albums.tracks[i].Hash == hash {
+				m.browse.albums.tracks[i].Duration = mpvTotal
 			}
 		}
-		m.albums = m.albums.recomputeAlbumsSort()
+		m.browse.albums = m.browse.albums.recomputeAlbumsSort()
 	}
-	if m.genres.level == gentui.TrackLevel {
-		for i := range m.genres.tracks {
-			if m.genres.tracks[i].Hash == hash {
-				m.genres.tracks[i].Duration = mpvTotal
+	if m.browse.genres.level == gentui.TrackLevel {
+		for i := range m.browse.genres.tracks {
+			if m.browse.genres.tracks[i].Hash == hash {
+				m.browse.genres.tracks[i].Duration = mpvTotal
 			}
 		}
-		m.genres = m.genres.recomputeGenresSort()
+		m.browse.genres = m.browse.genres.recomputeGenresSort()
 	}
 
 	var cmd tea.Cmd

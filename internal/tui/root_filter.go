@@ -91,17 +91,21 @@ func (m Model) allFilterOps() *filterOps {
 	case viewLibrary:
 		return makeFilterOps(&m, &m.library.filter, &m.library.cursor, &m.library.scrollOffset,
 			func() { m.library = m.library.rebuildFilterCache() })
-	case viewArtists:
-		return makeFilterOps(&m, &m.artists.filter, &m.artists.cursor, &m.artists.scrollOffset, nil)
-	case viewAlbums:
-		return makeFilterOps(&m, &m.albums.filter, &m.albums.cursor, &m.albums.scrollOffset, nil)
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			return makeFilterOps(&m, &m.browse.artists.filter, &m.browse.artists.cursor, &m.browse.artists.scrollOffset, nil)
+		case BrowseModeAlbums:
+			return makeFilterOps(&m, &m.browse.albums.filter, &m.browse.albums.cursor, &m.browse.albums.scrollOffset, nil)
+		case BrowseModeGenres:
+			return makeFilterOps(&m, &m.browse.genres.filter, &m.browse.genres.cursor, &m.browse.genres.scrollOffset, nil)
+		}
+		return nil
 	case viewQueue:
 		return makeFilterOps(&m, &m.queue.filter, &m.queue.cursor, &m.queue.scrollOffset, nil)
 	case viewFavorites:
 		return makeFilterOps(&m, &m.favorites.filter, &m.favorites.cursor, &m.favorites.scrollOffset,
 			func() { m.favorites.selectedItems = nil })
-	case viewGenres:
-		return makeFilterOps(&m, &m.genres.filter, &m.genres.cursor, &m.genres.scrollOffset, nil)
 	case viewTags:
 		return makeFilterOps(&m, &m.tagsView.filter, &m.tagsView.cursor, &m.tagsView.scrollOffset, nil)
 	case viewMixes:

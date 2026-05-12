@@ -29,20 +29,21 @@ func (m Model) jumpToArtist(artistName string) Model {
 		return m
 	}
 
-	scrollOffset := max(0, idx-m.artists.height/2)
+	scrollOffset := max(0, idx-m.browse.artists.height/2)
 
-	m.artists = ArtistsView{
+	m.browse.artists = ArtistsView{
 		level:        arttui.ArtistLevel,
 		cursor:       idx,
 		scrollOffset: scrollOffset,
 		artists:      artists,
-		width:        m.artists.width,
-		height:       m.artists.height,
+		width:        m.browse.artists.width,
+		height:       m.browse.artists.height,
 	}
 	m.clearPendingConfirmations()
 	m = m.resetAllSorts()
 	m = exitVisualMode(m)
-	m.activeView = viewArtists
+	m.browse.mode = BrowseModeArtists
+	m.activeView = viewBrowse
 	return m
 }
 
@@ -68,20 +69,21 @@ func (m Model) jumpToAlbum(albumName string) Model {
 		return m
 	}
 
-	scrollOffset := max(0, idx-m.albums.height/2)
+	scrollOffset := max(0, idx-m.browse.albums.height/2)
 
-	m.albums = AlbumsView{
+	m.browse.albums = AlbumsView{
 		level:        albtui.AlbumLevel,
 		cursor:       idx,
 		scrollOffset: scrollOffset,
 		albums:       albums,
-		width:        m.albums.width,
-		height:       m.albums.height,
+		width:        m.browse.albums.width,
+		height:       m.browse.albums.height,
 	}
 	m.clearPendingConfirmations()
 	m = m.resetAllSorts()
 	m = exitVisualMode(m)
-	m.activeView = viewAlbums
+	m.browse.mode = BrowseModeAlbums
+	m.activeView = viewBrowse
 	return m
 }
 
@@ -107,20 +109,21 @@ func (m Model) jumpToGenre(genreName string) Model {
 		return m
 	}
 
-	scrollOffset := max(0, idx-m.genres.height/2)
+	scrollOffset := max(0, idx-m.browse.genres.height/2)
 
-	m.genres = GenresView{
+	m.browse.genres = GenresView{
 		level:        gentui.GenreLevel,
 		cursor:       idx,
 		scrollOffset: scrollOffset,
 		genres:       genres,
-		width:        m.genres.width,
-		height:       m.genres.height,
+		width:        m.browse.genres.width,
+		height:       m.browse.genres.height,
 	}
 	m.clearPendingConfirmations()
 	m = m.resetAllSorts()
 	m = exitVisualMode(m)
-	m.activeView = viewGenres
+	m.browse.mode = BrowseModeGenres
+	m.activeView = viewBrowse
 	return m
 }
 

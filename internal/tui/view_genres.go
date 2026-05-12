@@ -92,7 +92,7 @@ func (v GenresView) render(s styles.Styles, favHashes, favArtists, favAlbums map
 		FilterView:         v.filter.View(),
 		FilterHint:         func() string {
 			if v.level == gentui.TrackLevel {
-				return "a: artist  t: title  l: album"
+				return "a: artist  t: title  l: album  g: genre"
 			}
 			return ""
 		}(),

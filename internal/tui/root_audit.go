@@ -87,29 +87,29 @@ func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (M
 		}
 		m.tagsView = m.tagsView.recomputeTagsSort()
 	}
-	if m.artists.level == arttui.TrackLevel {
-		for i := range m.artists.tracks {
-			if ms, ok := fixMap[m.artists.tracks[i].Hash]; ok {
-				m.artists.tracks[i].Duration = float64(ms) / 1000
+	if m.browse.artists.level == arttui.TrackLevel {
+		for i := range m.browse.artists.tracks {
+			if ms, ok := fixMap[m.browse.artists.tracks[i].Hash]; ok {
+				m.browse.artists.tracks[i].Duration = float64(ms) / 1000
 			}
 		}
-		m.artists = m.artists.recomputeArtistsSort()
+		m.browse.artists = m.browse.artists.recomputeArtistsSort()
 	}
-	if m.albums.level == albtui.TrackLevel {
-		for i := range m.albums.tracks {
-			if ms, ok := fixMap[m.albums.tracks[i].Hash]; ok {
-				m.albums.tracks[i].Duration = float64(ms) / 1000
+	if m.browse.albums.level == albtui.TrackLevel {
+		for i := range m.browse.albums.tracks {
+			if ms, ok := fixMap[m.browse.albums.tracks[i].Hash]; ok {
+				m.browse.albums.tracks[i].Duration = float64(ms) / 1000
 			}
 		}
-		m.albums = m.albums.recomputeAlbumsSort()
+		m.browse.albums = m.browse.albums.recomputeAlbumsSort()
 	}
-	if m.genres.level == gentui.TrackLevel {
-		for i := range m.genres.tracks {
-			if ms, ok := fixMap[m.genres.tracks[i].Hash]; ok {
-				m.genres.tracks[i].Duration = float64(ms) / 1000
+	if m.browse.genres.level == gentui.TrackLevel {
+		for i := range m.browse.genres.tracks {
+			if ms, ok := fixMap[m.browse.genres.tracks[i].Hash]; ok {
+				m.browse.genres.tracks[i].Duration = float64(ms) / 1000
 			}
 		}
-		m.genres = m.genres.recomputeGenresSort()
+		m.browse.genres = m.browse.genres.recomputeGenresSort()
 	}
 	if m.auditCh != nil {
 		return m, waitForAuditBatch(m.auditCh)

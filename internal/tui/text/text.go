@@ -91,3 +91,24 @@ func FormatTrackPos(trackNum, discNum, fallback int) string {
 	}
 	return strconv.Itoa(trackNum)
 }
+
+// FavPrefix returns s padded to maxWidth, with "★ " prepended when isFav,
+// reducing the available text width by 2 to maintain column alignment.
+func FavPrefix(s string, maxWidth int, isFav bool) string {
+	if !isFav {
+		return Pad(s, maxWidth)
+	}
+	if maxWidth <= 2 {
+		return Pad("★", maxWidth)
+	}
+	return "★ " + Pad(s, maxWidth-2)
+}
+
+// FormatTrackPosSimple returns the display string for a track's position column
+// when all visible tracks are single-disc (no disc prefix needed).
+func FormatTrackPosSimple(trackNum, fallback int) string {
+	if trackNum == 0 {
+		return strconv.Itoa(fallback)
+	}
+	return strconv.Itoa(trackNum)
+}

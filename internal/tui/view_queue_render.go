@@ -24,7 +24,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 		if v.filter.Text != "" {
 			return "(no matches)"
 		}
-		return "(empty)"
+		return s.Dim.Render("Press Enter in Library to add tracks  ·  ? for help")
 	}
 
 	const (
@@ -56,6 +56,26 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 	start := min(v.scrollOffset, len(entries))
 	end := min(len(entries), start+maxRows)
 
+	showDisc := false
+	for _, e := range entries[start:end] {
+		if e.DiscNumber > 1 {
+			showDisc = true
+			break
+		}
+	}
+
+	hasSource := false
+	for _, e := range entries[start:end] {
+		if e.SourcePlaylist != "" {
+			hasSource = true
+			break
+		}
+	}
+	if !hasSource {
+		titleWidth += sourceWidth
+		sourceWidth = 0
+	}
+
 	titleHead, artistHead, albumHead, sourceHead, timeHead := "Title", "Artist", "Album", "Source", "Time"
 	if v.sortState.Field != SortDefault {
 		ind := SortDirIndicator(v.sortState.Dir)
@@ -72,8 +92,14 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			timeHead += ind
 		}
 	}
-	header := fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %*s",
-		posWidth, "#", titleWidth, titleHead, artistWidth, artistHead, albumWidth, albumHead, sourceWidth, sourceHead, durWidth, timeHead)
+	var header string
+	if hasSource {
+		header = fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %*s",
+			posWidth, "#", titleWidth, titleHead, artistWidth, artistHead, albumWidth, albumHead, sourceWidth, sourceHead, durWidth, timeHead)
+	} else {
+		header = fmt.Sprintf("  %-*s %-*s %-*s %-*s %*s",
+			posWidth, "#", titleWidth, titleHead, artistWidth, artistHead, albumWidth, albumHead, durWidth, timeHead)
+	}
 
 	lines := make([]string, end-start)
 	for i := range end - start {
@@ -101,7 +127,13 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			markerStr = "  "
 		}
 
-		pos := fmt.Sprintf("%4s", text.FormatTrackPos(e.TrackNumber, e.DiscNumber, absIdx+1))
+		var rawPos string
+		if showDisc {
+			rawPos = text.FormatTrackPos(e.TrackNumber, e.DiscNumber, absIdx+1)
+		} else {
+			rawPos = text.FormatTrackPosSimple(e.TrackNumber, absIdx+1)
+		}
+		pos := fmt.Sprintf("%4s", rawPos)
 		source := padQueue(e.SourcePlaylist, sourceWidth)
 		dur := fmt.Sprintf("%*s", durWidth, formatQueueDuration(e.DurationMs))
 
@@ -109,11 +141,16 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 		_, isArtistFav := favArtists[e.Artist]
 		_, isAlbumFav := favAlbums[e.Album]
 
-		titleStr := padQueue(e.Title, titleWidth)
-		artistStr := padQueue(e.Artist, artistWidth)
-		albumStr := padQueue(e.Album, albumWidth)
+		titleStr := text.FavPrefix(e.Title, titleWidth, isTrackFav)
+		artistStr := text.FavPrefix(e.Artist, artistWidth, isArtistFav)
+		albumStr := text.FavPrefix(e.Album, albumWidth, isAlbumFav)
 		if e.Missing { //nolint:gocritic // ifElseChain: branches have fundamentally different rendering logic
-			plainLine := markerStr + pos + " " + padQueue(e.Title, titleWidth) + " " + padQueue(e.Artist, artistWidth) + " " + padQueue(e.Album, albumWidth) + " " + source + " " + dur
+			var plainLine string
+			if hasSource {
+				plainLine = markerStr + pos + " " + padQueue(e.Title, titleWidth) + " " + padQueue(e.Artist, artistWidth) + " " + padQueue(e.Album, albumWidth) + " " + source + " " + dur
+			} else {
+				plainLine = markerStr + pos + " " + padQueue(e.Title, titleWidth) + " " + padQueue(e.Artist, artistWidth) + " " + padQueue(e.Album, albumWidth) + " " + dur
+			}
 			lines[i] = s.Dim.Render(plainLine + " [missing]")
 		} else if isFocused {
 			bg := s.Accent.GetBackground()
@@ -124,13 +161,13 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 				artistStr = npText.Background(bg).Render(artistStr)
 				albumStr = npText.Background(bg).Render(albumStr)
 				if isTrackFav {
-					titleStr = npFav.Background(bg).Render(padQueue(e.Title, titleWidth))
+					titleStr = npFav.Background(bg).Render(text.FavPrefix(e.Title, titleWidth, true))
 				}
 				if isArtistFav {
-					artistStr = npFavArtist.Background(bg).Render(padQueue(e.Artist, artistWidth))
+					artistStr = npFavArtist.Background(bg).Render(text.FavPrefix(e.Artist, artistWidth, true))
 				}
 				if isAlbumFav {
-					albumStr = npFavAlbum.Background(bg).Render(padQueue(e.Album, albumWidth))
+					albumStr = npFavAlbum.Background(bg).Render(text.FavPrefix(e.Album, albumWidth, true))
 				}
 			} else {
 				if isTrackFav {
@@ -153,7 +190,11 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			pos = s.Accent.Render(pos)
 			source = s.Accent.Render(source)
 			dur = s.Accent.Render(dur)
-			lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + source + sep + dur
+			if hasSource {
+				lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + source + sep + dur
+			} else {
+				lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + dur
+			}
 		} else if isNowPlaying {
 			_, npFav, npFavArtist, npFavAlbum := nowPlayingTextStyles(s, playbackState)
 			nb := lipgloss.NewStyle().Background(s.NowPlayingBg)
@@ -161,48 +202,62 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			artistStr = s.TextPrimary.Background(s.NowPlayingBg).Render(artistStr)
 			albumStr = s.TextSecondary.Background(s.NowPlayingBg).Render(albumStr)
 			if isTrackFav {
-				titleStr = npFav.Background(s.NowPlayingBg).Render(padQueue(e.Title, titleWidth))
+				titleStr = npFav.Background(s.NowPlayingBg).Render(text.FavPrefix(e.Title, titleWidth, true))
 			}
 			if isArtistFav {
-				artistStr = npFavArtist.Background(s.NowPlayingBg).Render(padQueue(e.Artist, artistWidth))
+				artistStr = npFavArtist.Background(s.NowPlayingBg).Render(text.FavPrefix(e.Artist, artistWidth, true))
 			}
 			if isAlbumFav {
-				albumStr = npFavAlbum.Background(s.NowPlayingBg).Render(padQueue(e.Album, albumWidth))
+				albumStr = npFavAlbum.Background(s.NowPlayingBg).Render(text.FavPrefix(e.Album, albumWidth, true))
 			}
 			markerStr = npStyle.Background(s.NowPlayingBg).Render(npIcon) + nb.Render(" ")
 			pos = nb.Render(pos)
 			source = nb.Render(source)
 			dur = nb.Render(dur)
 			sep := nb.Render(" ")
-			lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + source + sep + dur
+			if hasSource {
+				lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + source + sep + dur
+			} else {
+				lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + dur
+			}
 		} else {
 			isOdd := absIdx%2 == 1
+			rowBg := s.ZebraBg
+			useBg := isOdd
+			if e.Selected {
+				rowBg = s.SelectionBg
+				useBg = true
+			}
 			if isTrackFav {
-				titleStr = styles.WithZebraBg(s.Favorite, s.ZebraBg, isOdd).Render(titleStr)
+				titleStr = styles.WithZebraBg(s.Favorite, rowBg, useBg).Render(titleStr)
 			}
 			if isArtistFav {
-				artistStr = styles.WithZebraBg(s.FavArtist, s.ZebraBg, isOdd).Render(artistStr)
+				artistStr = styles.WithZebraBg(s.FavArtist, rowBg, useBg).Render(artistStr)
 			}
 			if isAlbumFav {
-				albumStr = styles.WithZebraBg(s.FavAlbum, s.ZebraBg, isOdd).Render(albumStr)
+				albumStr = styles.WithZebraBg(s.FavAlbum, rowBg, useBg).Render(albumStr)
 			}
-			if isOdd {
-				zb := lipgloss.NewStyle().Background(s.ZebraBg)
+			if useBg {
+				rb := lipgloss.NewStyle().Background(rowBg)
 				if !isTrackFav {
-					titleStr = styles.WithZebraBg(s.TextPrimary, s.ZebraBg, true).Render(titleStr)
+					titleStr = styles.WithZebraBg(s.TextPrimary, rowBg, true).Render(titleStr)
 				}
 				if !isArtistFav {
-					artistStr = styles.WithZebraBg(s.TextPrimary, s.ZebraBg, true).Render(artistStr)
+					artistStr = styles.WithZebraBg(s.TextPrimary, rowBg, true).Render(artistStr)
 				}
 				if !isAlbumFav {
-					albumStr = styles.WithZebraBg(s.TextSecondary, s.ZebraBg, true).Render(albumStr)
+					albumStr = styles.WithZebraBg(s.TextSecondary, rowBg, true).Render(albumStr)
 				}
-				markerStr = zb.Render(markerStr)
-				pos = styles.WithZebraBg(s.TextTertiary, s.ZebraBg, isOdd).Render(pos)
-				source = zb.Render(source)
-				dur = styles.WithZebraBg(s.TextTertiary, s.ZebraBg, isOdd).Render(dur)
-				sep := zb.Render(" ")
-				lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + source + sep + dur
+				markerStr = rb.Render(markerStr)
+				pos = styles.WithZebraBg(s.TextTertiary, rowBg, true).Render(pos)
+				source = rb.Render(source)
+				dur = styles.WithZebraBg(s.TextTertiary, rowBg, true).Render(dur)
+				sep := rb.Render(" ")
+				if hasSource {
+					lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + source + sep + dur
+				} else {
+					lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + dur
+				}
 			} else {
 				if !isTrackFav {
 					titleStr = s.TextPrimary.Render(titleStr)
@@ -213,7 +268,11 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 				if !isAlbumFav {
 					albumStr = s.TextSecondary.Render(albumStr)
 				}
-				lines[i] = markerStr + s.TextTertiary.Render(pos) + " " + titleStr + " " + artistStr + " " + albumStr + " " + source + " " + s.TextTertiary.Render(dur)
+				if hasSource {
+					lines[i] = markerStr + s.TextTertiary.Render(pos) + " " + titleStr + " " + artistStr + " " + albumStr + " " + source + " " + s.TextTertiary.Render(dur)
+				} else {
+					lines[i] = markerStr + s.TextTertiary.Render(pos) + " " + titleStr + " " + artistStr + " " + albumStr + " " + s.TextTertiary.Render(dur)
+				}
 			}
 		}
 	}

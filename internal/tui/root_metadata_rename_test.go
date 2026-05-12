@@ -18,8 +18,8 @@ func TestRenameArtistFromArtistsView(t *testing.T) {
 	m := newModelWithTracks()
 	m = pressKey(m, "4") // switch to Artists view (ArtistLevel, cursor=0 -> Alice)
 
-	if m.artists.level != arttui.ArtistLevel {
-		t.Fatalf("expected ArtistLevel, got %v", m.artists.level)
+	if m.browse.artists.level != arttui.ArtistLevel {
+		t.Fatalf("expected ArtistLevel, got %v", m.browse.artists.level)
 	}
 
 	m = pressMKey(m)
@@ -58,7 +58,7 @@ func TestRenameArtistFromArtistsView(t *testing.T) {
 	}
 
 	found := false
-	for _, a := range m.artists.artists {
+	for _, a := range m.browse.artists.artists {
 		if a == "Alicia" {
 			found = true
 		}
@@ -67,14 +67,14 @@ func TestRenameArtistFromArtistsView(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("expected 'Alicia' in artists list; got: %v", m.artists.artists)
+		t.Errorf("expected 'Alicia' in artists list; got: %v", m.browse.artists.artists)
 	}
 
-	if m.artists.cursor < 0 || m.artists.cursor >= len(m.artists.artists) {
-		t.Fatalf("cursor out of bounds: %d (len=%d)", m.artists.cursor, len(m.artists.artists))
+	if m.browse.artists.cursor < 0 || m.browse.artists.cursor >= len(m.browse.artists.artists) {
+		t.Fatalf("cursor out of bounds: %d (len=%d)", m.browse.artists.cursor, len(m.browse.artists.artists))
 	}
-	if m.artists.artists[m.artists.cursor] != "Alicia" {
-		t.Errorf("expected cursor on 'Alicia', got %q", m.artists.artists[m.artists.cursor])
+	if m.browse.artists.artists[m.browse.artists.cursor] != "Alicia" {
+		t.Errorf("expected cursor on 'Alicia', got %q", m.browse.artists.artists[m.browse.artists.cursor])
 	}
 
 	if !strings.Contains(m.statusBar.topNotification().msg, "Renamed") {
@@ -89,8 +89,8 @@ func TestRenameAlbumFromArtistsView(t *testing.T) {
 	m = pressKey(m, "4")
 	m = pressEnter(m)
 
-	if m.artists.level != arttui.AlbumLevel {
-		t.Fatalf("expected AlbumLevel, got %v", m.artists.level)
+	if m.browse.artists.level != arttui.AlbumLevel {
+		t.Fatalf("expected AlbumLevel, got %v", m.browse.artists.level)
 	}
 
 	m = pressMKey(m)
@@ -129,20 +129,20 @@ func TestRenameAlbumFromArtistsView(t *testing.T) {
 	}
 
 	found := false
-	for _, a := range m.artists.albums {
+	for _, a := range m.browse.artists.albums {
 		if a == "AlphaRenamed" {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("expected 'AlphaRenamed' in artists.albums; got: %v", m.artists.albums)
+		t.Errorf("expected 'AlphaRenamed' in artists.albums; got: %v", m.browse.artists.albums)
 	}
 
-	if m.artists.cursor < 0 || m.artists.cursor >= len(m.artists.albums) {
-		t.Fatalf("cursor out of bounds: %d (len=%d)", m.artists.cursor, len(m.artists.albums))
+	if m.browse.artists.cursor < 0 || m.browse.artists.cursor >= len(m.browse.artists.albums) {
+		t.Fatalf("cursor out of bounds: %d (len=%d)", m.browse.artists.cursor, len(m.browse.artists.albums))
 	}
-	if m.artists.albums[m.artists.cursor] != "AlphaRenamed" {
-		t.Errorf("expected cursor on 'AlphaRenamed', got %q", m.artists.albums[m.artists.cursor])
+	if m.browse.artists.albums[m.browse.artists.cursor] != "AlphaRenamed" {
+		t.Errorf("expected cursor on 'AlphaRenamed', got %q", m.browse.artists.albums[m.browse.artists.cursor])
 	}
 }
 
@@ -150,13 +150,13 @@ func TestRenameAlbumFromArtistsView(t *testing.T) {
 // Albums view opens an album rename editor and refreshes albums.albums.
 func TestRenameAlbumFromAlbumsView(t *testing.T) {
 	m := newModelWithTracks()
-	m = pressKey(m, "5")
+	m = switchToAlbumsMode(m)
 
-	if m.activeView != viewAlbums {
-		t.Fatalf("expected viewAlbums, got %d", m.activeView)
+	if m.activeView != viewBrowse {
+		t.Fatalf("expected viewBrowse, got %d", m.activeView)
 	}
-	if m.albums.level != albtui.AlbumLevel {
-		t.Fatalf("expected AlbumLevel, got %v", m.albums.level)
+	if m.browse.albums.level != albtui.AlbumLevel {
+		t.Fatalf("expected AlbumLevel, got %v", m.browse.albums.level)
 	}
 
 	m = pressMKey(m)
@@ -191,7 +191,7 @@ func TestRenameAlbumFromAlbumsView(t *testing.T) {
 	}
 
 	found := false
-	for _, a := range m.albums.albums {
+	for _, a := range m.browse.albums.albums {
 		if a == "AlphaPrime" {
 			found = true
 		}
@@ -200,14 +200,14 @@ func TestRenameAlbumFromAlbumsView(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("expected 'AlphaPrime' in albums.albums; got: %v", m.albums.albums)
+		t.Errorf("expected 'AlphaPrime' in albums.albums; got: %v", m.browse.albums.albums)
 	}
 
-	if m.albums.cursor < 0 || m.albums.cursor >= len(m.albums.albums) {
-		t.Fatalf("cursor out of bounds: %d (len=%d)", m.albums.cursor, len(m.albums.albums))
+	if m.browse.albums.cursor < 0 || m.browse.albums.cursor >= len(m.browse.albums.albums) {
+		t.Fatalf("cursor out of bounds: %d (len=%d)", m.browse.albums.cursor, len(m.browse.albums.albums))
 	}
-	if m.albums.albums[m.albums.cursor] != "AlphaPrime" {
-		t.Errorf("expected cursor on 'AlphaPrime', got %q", m.albums.albums[m.albums.cursor])
+	if m.browse.albums.albums[m.browse.albums.cursor] != "AlphaPrime" {
+		t.Errorf("expected cursor on 'AlphaPrime', got %q", m.browse.albums.albums[m.browse.albums.cursor])
 	}
 }
 
@@ -215,7 +215,7 @@ func TestRenameAlbumFromAlbumsView(t *testing.T) {
 // Album field in matching queue entries.
 func TestRenameUpdatesQueueAlbum(t *testing.T) {
 	m := newModelWithTracks()
-	m = pressKey(m, "5")
+	m = switchToAlbumsMode(m)
 
 	m.queue.entries = []QueueEntry{
 		{Hash: "h1", Title: "Track A1", Artist: "Alice", Album: "Alpha", Display: "Alice - Track A1"},
@@ -321,7 +321,7 @@ func TestRenameUndo(t *testing.T) {
 	}
 
 	foundAlice := false
-	for _, a := range m.artists.artists {
+	for _, a := range m.browse.artists.artists {
 		if a == "Alice" {
 			foundAlice = true
 		}
@@ -330,7 +330,7 @@ func TestRenameUndo(t *testing.T) {
 		}
 	}
 	if !foundAlice {
-		t.Errorf("after undo: expected 'Alice' in artists list; got: %v", m.artists.artists)
+		t.Errorf("after undo: expected 'Alice' in artists list; got: %v", m.browse.artists.artists)
 	}
 }
 
@@ -363,8 +363,8 @@ func TestRenameNotOpenedAtTrackLevel(t *testing.T) {
 	m = pressEnter(m)
 	m = pressEnter(m)
 
-	if m.artists.level != arttui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.artists.level)
+	if m.browse.artists.level != arttui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.artists.level)
 	}
 
 	m = pressMKey(m)
@@ -388,17 +388,17 @@ func TestRenameUnknownArtistSentinel(t *testing.T) {
 	m = pressKey(m, "4")
 
 	unknownIdx := -1
-	for i, a := range m.artists.artists {
+	for i, a := range m.browse.artists.artists {
 		if a == arttui.UnknownArtist {
 			unknownIdx = i
 			break
 		}
 	}
 	if unknownIdx == -1 {
-		t.Fatalf("expected %q in artists list; got: %v", arttui.UnknownArtist, m.artists.artists)
+		t.Fatalf("expected %q in artists list; got: %v", arttui.UnknownArtist, m.browse.artists.artists)
 	}
 
-	m.artists.cursor = unknownIdx
+	m.browse.artists.cursor = unknownIdx
 
 	m = pressMKey(m)
 	if m.overlay.metadataEditor == nil {

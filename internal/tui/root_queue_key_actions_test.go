@@ -51,9 +51,8 @@ func TestRootQueueLocalXDispatchesBulkSelectionToggleMsg(t *testing.T) {
 }
 
 // TestRootQueueLocalCDispatchesClearQueueMsg verifies the end-to-end path:
-// pressing 'C' (Shift+c) twice while the queue view is active dispatches
-// ClearQueueMsg. The first press shows a confirmation hint; the second
-// press (within 2 seconds) actually clears the queue.
+// pressing 'C' (Shift+c) while the queue view is active immediately dispatches
+// ClearQueueMsg — no two-press confirmation required since the undo window handles it.
 func TestRootQueueLocalCDispatchesClearQueueMsg(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
@@ -61,24 +60,12 @@ func TestRootQueueLocalCDispatchesClearQueueMsg(t *testing.T) {
 		{Path: "/music/a.flac", Display: "A"},
 	}
 
-	next, cmd := m.Update(tea.KeyPressMsg{Code: 'C', Text: "C"})
-	m = next.(Model)
-	if cmd != nil {
-		t.Fatal("first 'C' should not dispatch a cmd")
-	}
-	if !m.undo.clearQueuePending {
-		t.Fatal("clearQueuePending should be true after first 'C'")
-	}
-	if m.statusBar.topNotification().msg != "Press C again to clear queue" {
-		t.Fatalf("expected confirmation hint, got %q", m.statusBar.topNotification().msg)
-	}
-
-	_, cmd = m.Update(tea.KeyPressMsg{Code: 'C', Text: "C"})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'C', Text: "C"})
 	if cmd == nil {
-		t.Fatal("second 'C' in queue view: expected non-nil cmd")
+		t.Fatal("'C' in queue view: expected non-nil cmd")
 	}
 	if _, ok := cmd().(ClearQueueMsg); !ok {
-		t.Fatalf("second 'C' in queue view: expected ClearQueueMsg, got %T", cmd())
+		t.Fatalf("'C' in queue view: expected ClearQueueMsg, got %T", cmd())
 	}
 }
 

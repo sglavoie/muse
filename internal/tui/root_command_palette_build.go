@@ -238,17 +238,25 @@ func (m Model) focusedTrackForPalette() (path, artist, title string, found bool)
 			return e.Path, e.Artist, e.Title, true
 		}
 
-	case viewArtists:
-		if m.artists.level == arttui.TrackLevel {
-			if track, ok := m.artists.focusedTrack(); ok {
-				return track.Path, track.Artist, track.Title, true
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			if m.browse.artists.level == arttui.TrackLevel {
+				if track, ok := m.browse.artists.focusedTrack(); ok {
+					return track.Path, track.Artist, track.Title, true
+				}
 			}
-		}
-
-	case viewAlbums:
-		if m.albums.level == albtui.TrackLevel {
-			if track, ok := m.albums.focusedTrack(); ok {
-				return track.Path, track.Artist, track.Title, true
+		case BrowseModeAlbums:
+			if m.browse.albums.level == albtui.TrackLevel {
+				if track, ok := m.browse.albums.focusedTrack(); ok {
+					return track.Path, track.Artist, track.Title, true
+				}
+			}
+		case BrowseModeGenres:
+			if m.browse.genres.level == gentui.TrackLevel {
+				if track, ok := m.browse.genres.focusedTrack(); ok {
+					return track.Path, track.Artist, track.Title, true
+				}
 			}
 		}
 
@@ -271,12 +279,6 @@ func (m Model) focusedTrackForPalette() (path, artist, title string, found bool)
 			}
 		}
 
-	case viewGenres:
-		if m.genres.level == gentui.TrackLevel {
-			if track, ok := m.genres.focusedTrack(); ok {
-				return track.Path, track.Artist, track.Title, true
-			}
-		}
 	case viewTags:
 		if track, ok := m.tagsView.focusedTrack(); ok {
 			return track.Path, track.Artist, track.Title, true

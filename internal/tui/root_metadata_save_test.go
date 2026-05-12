@@ -51,8 +51,8 @@ func TestSingleTrackMetadataSaveRefreshesDerivedViews(t *testing.T) {
 	m = pressKey(m, "4")
 	m = pressKey(m, "1")
 
-	if len(m.artists.artists) != 3 {
-		t.Fatalf("precondition: expected 3 artists, got %d", len(m.artists.artists))
+	if len(m.browse.artists.artists) != 3 {
+		t.Fatalf("precondition: expected 3 artists, got %d", len(m.browse.artists.artists))
 	}
 
 	ed := NewMetadataEditor("h1", "Track A1", "Alice", "Alpha", "", 0)
@@ -75,13 +75,13 @@ func TestSingleTrackMetadataSaveRefreshesDerivedViews(t *testing.T) {
 	}
 
 	foundZara := false
-	for _, a := range nm.artists.artists {
+	for _, a := range nm.browse.artists.artists {
 		if a == "Zara" {
 			foundZara = true
 		}
 	}
 	if !foundZara {
-		t.Errorf("expected 'Zara' in artists list after single-track save; got: %v", nm.artists.artists)
+		t.Errorf("expected 'Zara' in artists list after single-track save; got: %v", nm.browse.artists.artists)
 	}
 }
 

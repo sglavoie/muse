@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"time"
+
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/recommendation"
@@ -37,10 +39,8 @@ func (m *Model) refreshHelpViewport() {
 	m.helpViewport.SetHeight(max(m.termHeight-2-extraLines, 0))
 }
 
-// clearPendingConfirmations resets all two-press confirmation states.
+// clearPendingConfirmations resets the confirmation bar.
 func (m *Model) clearPendingConfirmations() {
-	m.undo.clearQueuePending = false
-	m.undo.bulkRemovePending = false
 	m.confirmationBar = ""
 }
 
@@ -69,14 +69,8 @@ func (m Model) switchToView(id viewID) Model {
 	if id == viewMixes && len(m.mixes.mixes) == 0 {
 		m.mixes.mixes = append([]MixInfo(nil), recommendation.Registry()...)
 	}
-	if id == viewArtists && len(m.artists.artists) == 0 {
-		m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
-	}
-	if id == viewAlbums && len(m.albums.albums) == 0 {
-		m.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
-	}
-	if id == viewGenres && len(m.genres.genres) == 0 {
-		m.genres.genres = gentui.DeriveGenres(m.library.index.Tracks())
+	if id == viewBrowse {
+		m = m.deriveCurrentBrowseData()
 	}
 	if id == viewFavorites && m.favoriteReader != nil {
 		artistCount, albumCount, trackCount, err := m.favoriteReader.ReadFavoriteCounts()
@@ -136,6 +130,89 @@ func (m Model) handleLibraryModeNext() (Model, tea.Cmd) {
 		m.statusBar.notifyInfo("Library: All tracks")
 	}
 	return m, nil
+}
+
+// handleLibraryModePrev cycles the Library view backward: All → History → Recent → All.
+func (m Model) handleLibraryModePrev() (Model, tea.Cmd) {
+	prev := (m.library.mode + 2) % 3
+	m.library = m.library.switchMode(prev)
+	switch prev {
+	case LibraryModeRecent:
+		m = m.syncRecentlyAddedFromLibrary()
+		m.statusBar.notifyInfo("Library: Recently Added")
+	case LibraryModeHistory:
+		m = m.loadLibraryHistoryData()
+		m.statusBar.notifyInfo("Library: History")
+	default:
+		m.statusBar.notifyInfo("Library: All tracks")
+	}
+	return m, nil
+}
+
+// handleBrowseModeNext cycles the Browse view forward: Artists → Albums → Genres → Artists.
+func (m Model) handleBrowseModeNext() (Model, tea.Cmd) {
+	m.browse.mode = (m.browse.mode + 1) % 3
+	m = m.deriveCurrentBrowseData()
+	switch m.browse.mode {
+	case BrowseModeAlbums:
+		m.statusBar.notifyInfo("Browse: Albums")
+	case BrowseModeGenres:
+		m.statusBar.notifyInfo("Browse: Genres")
+	default:
+		m.statusBar.notifyInfo("Browse: Artists")
+	}
+	return m, nil
+}
+
+// handleBrowseModePrev cycles the Browse view backward: Artists → Genres → Albums → Artists.
+func (m Model) handleBrowseModePrev() (Model, tea.Cmd) {
+	m.browse.mode = (m.browse.mode + 2) % 3
+	m = m.deriveCurrentBrowseData()
+	switch m.browse.mode {
+	case BrowseModeAlbums:
+		m.statusBar.notifyInfo("Browse: Albums")
+	case BrowseModeGenres:
+		m.statusBar.notifyInfo("Browse: Genres")
+	default:
+		m.statusBar.notifyInfo("Browse: Artists")
+	}
+	return m, nil
+}
+
+// deriveCurrentBrowseData lazily derives the artist/album/genre list for the
+// active browse sub-mode when it has not been populated yet.
+func (m Model) deriveCurrentBrowseData() Model {
+	switch m.browse.mode {
+	case BrowseModeArtists:
+		if len(m.browse.artists.artists) == 0 {
+			m.browse.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+		}
+	case BrowseModeAlbums:
+		if len(m.browse.albums.albums) == 0 {
+			m.browse.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
+		}
+	case BrowseModeGenres:
+		if len(m.browse.genres.genres) == 0 {
+			m.browse.genres.genres = gentui.DeriveGenres(m.library.index.Tracks())
+		}
+	}
+	return m
+}
+
+// hintForAction returns a contextual hint for actions that are only valid in
+// specific views. Returns empty string when no hint applies.
+func hintForAction(a action, view viewID, _ BrowseMode) string {
+	switch a {
+	case actionDequeue:
+		if view != viewQueue {
+			return "d removes tracks in Queue — press 3 to go there"
+		}
+	case actionClearQueue:
+		if view != viewQueue {
+			return "C clears the Queue — press 3 to go there"
+		}
+	}
+	return ""
 }
 
 // handleKeyAction dispatches a resolved KeyAction to the appropriate handler.
@@ -230,16 +307,18 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	case actionSwitchQueue:
 		m = m.switchToView(viewQueue)
 		m.queue = m.queue.FocusNowPlaying(m.playback.currentIndex)
-	case actionSwitchArtists:
-		m = m.switchToView(viewArtists)
-	case actionSwitchAlbums:
-		m = m.switchToView(viewAlbums)
+	case actionSwitchBrowse:
+		m = m.switchToView(viewBrowse)
 	case actionSwitchFavorites:
 		m = m.switchToView(viewFavorites)
 	case actionLibraryModeNext:
 		return m.handleLibraryModeNext()
-	case actionSwitchGenres:
-		m = m.switchToView(viewGenres)
+	case actionLibraryModePrev:
+		return m.handleLibraryModePrev()
+	case actionBrowseModeNext:
+		return m.handleBrowseModeNext()
+	case actionBrowseModePrev:
+		return m.handleBrowseModePrev()
 	case actionSwitchTags:
 		m = m.switchToView(viewTags)
 	case actionSwitchMixes:
@@ -296,6 +375,9 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		return m.openTagPicker()
 	case actionTagFilter:
 		return m.handleTagFilterAction()
+	}
+	if hint := hintForAction(action, m.activeView, m.browse.mode); hint != "" {
+		m.statusBar.pushMsg(hint, 3*time.Second, notifInfo)
 	}
 	return m, nil
 }

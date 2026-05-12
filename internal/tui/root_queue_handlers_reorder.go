@@ -28,6 +28,7 @@ func (m Model) handleMoveTrackUpMsg(msg MoveTrackUpMsg) (Model, tea.Cmd) {
 		case msg.Index - 1:
 			m.playback.currentIndex = msg.Index
 		}
+		m.queueDirty = true
 		m.syncPlayerQueue()
 		if m.reorderer != nil {
 			reorderer := m.reorderer
@@ -63,6 +64,7 @@ func (m Model) handleMoveTrackDownMsg(msg MoveTrackDownMsg) (Model, tea.Cmd) {
 		case msg.Index + 1:
 			m.playback.currentIndex = msg.Index
 		}
+		m.queueDirty = true
 		m.syncPlayerQueue()
 		if m.reorderer != nil {
 			reorderer := m.reorderer

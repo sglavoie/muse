@@ -21,10 +21,11 @@ func TestToggleFavorite_GenresArtistLevel(t *testing.T) {
 		"artist": {},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewGenres
-	m.genres.level = gentui.ArtistLevel
-	m.genres.artists = []string{"Bach", "Coltrane", "Davis"}
-	m.genres.cursor = 1
+	m.activeView = viewBrowse
+	m.browse.mode = BrowseModeGenres
+	m.browse.genres.level = gentui.ArtistLevel
+	m.browse.genres.artists = []string{"Bach", "Coltrane", "Davis"}
+	m.browse.genres.cursor = 1
 
 	_, cmd, handled := m.handleToggleFavorite()
 	if !handled {
@@ -58,13 +59,14 @@ func TestToggleFavorite_GenresTrackLevelSingle(t *testing.T) {
 		"track": {},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewGenres
-	m.genres.level = gentui.TrackLevel
-	m.genres.tracks = []library.Track{
+	m.activeView = viewBrowse
+	m.browse.mode = BrowseModeGenres
+	m.browse.genres.level = gentui.TrackLevel
+	m.browse.genres.tracks = []library.Track{
 		{Hash: "h1", Title: "Song A"},
 		{Hash: "h2", Title: "Song B"},
 	}
-	m.genres.cursor = 0
+	m.browse.genres.cursor = 0
 
 	_, cmd, handled := m.handleToggleFavorite()
 	if !handled {
@@ -95,14 +97,15 @@ func TestToggleFavorite_GenresTrackLevelBulk(t *testing.T) {
 		"track": {},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewGenres
-	m.genres.level = gentui.TrackLevel
-	m.genres.tracks = []library.Track{
+	m.activeView = viewBrowse
+	m.browse.mode = BrowseModeGenres
+	m.browse.genres.level = gentui.TrackLevel
+	m.browse.genres.tracks = []library.Track{
 		{Hash: "h1", Title: "Song A"},
 		{Hash: "h2", Title: "Song B"},
 		{Hash: "h3", Title: "Song C"},
 	}
-	m.genres.selectedHashes = map[string]struct{}{
+	m.browse.genres.selectedHashes = map[string]struct{}{
 		"h1": {},
 		"h3": {},
 	}
@@ -114,7 +117,7 @@ func TestToggleFavorite_GenresTrackLevelBulk(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd")
 	}
-	if nm.genres.selectedHashes != nil {
+	if nm.browse.genres.selectedHashes != nil {
 		t.Fatal("selectedHashes should be nil after bulk toggle")
 	}
 
@@ -136,10 +139,11 @@ func TestToggleFavorite_GenresGenreLevelNoop(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewGenres
-	m.genres.level = gentui.GenreLevel
-	m.genres.genres = []string{"Jazz", "Rock"}
-	m.genres.cursor = 0
+	m.activeView = viewBrowse
+	m.browse.mode = BrowseModeGenres
+	m.browse.genres.level = gentui.GenreLevel
+	m.browse.genres.genres = []string{"Jazz", "Rock"}
+	m.browse.genres.cursor = 0
 
 	_, cmd, handled := m.handleToggleFavorite()
 	if !handled {
@@ -287,14 +291,15 @@ func TestToggleFavorite_ArtistsTrackLevelBulk(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewArtists
-	m.artists.level = arttui.TrackLevel
-	m.artists.tracks = []library.Track{
+	m.activeView = viewBrowse
+	m.browse.mode = BrowseModeArtists
+	m.browse.artists.level = arttui.TrackLevel
+	m.browse.artists.tracks = []library.Track{
 		{Hash: "a1", Title: "Song A"},
 		{Hash: "a2", Title: "Song B"},
 		{Hash: "a3", Title: "Song C"},
 	}
-	m.artists.selectedHashes = map[string]struct{}{
+	m.browse.artists.selectedHashes = map[string]struct{}{
 		"a1": {},
 		"a3": {},
 	}
@@ -306,7 +311,7 @@ func TestToggleFavorite_ArtistsTrackLevelBulk(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd")
 	}
-	if nm.artists.selectedHashes != nil {
+	if nm.browse.artists.selectedHashes != nil {
 		t.Fatal("selectedHashes should be nil after bulk toggle")
 	}
 
@@ -326,13 +331,14 @@ func TestToggleFavorite_ArtistsTrackLevelSingle(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewArtists
-	m.artists.level = arttui.TrackLevel
-	m.artists.tracks = []library.Track{
+	m.activeView = viewBrowse
+	m.browse.mode = BrowseModeArtists
+	m.browse.artists.level = arttui.TrackLevel
+	m.browse.artists.tracks = []library.Track{
 		{Hash: "a1", Title: "Song A"},
 		{Hash: "a2", Title: "Song B"},
 	}
-	m.artists.cursor = 1
+	m.browse.artists.cursor = 1
 
 	_, cmd, handled := m.handleToggleFavorite()
 	if !handled {
@@ -354,14 +360,15 @@ func TestToggleFavorite_AlbumsTrackLevelBulk(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewAlbums
-	m.albums.level = albtui.TrackLevel
-	m.albums.tracks = []library.Track{
+	m.activeView = viewBrowse
+	m.browse.mode = BrowseModeAlbums
+	m.browse.albums.level = albtui.TrackLevel
+	m.browse.albums.tracks = []library.Track{
 		{Hash: "b1", Title: "Track 1"},
 		{Hash: "b2", Title: "Track 2"},
 		{Hash: "b3", Title: "Track 3"},
 	}
-	m.albums.selectedHashes = map[string]struct{}{
+	m.browse.albums.selectedHashes = map[string]struct{}{
 		"b1": {},
 		"b2": {},
 	}
@@ -373,7 +380,7 @@ func TestToggleFavorite_AlbumsTrackLevelBulk(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd")
 	}
-	if nm.albums.selectedHashes != nil {
+	if nm.browse.albums.selectedHashes != nil {
 		t.Fatal("selectedHashes should be nil after bulk toggle")
 	}
 
@@ -393,13 +400,14 @@ func TestToggleFavorite_AlbumsTrackLevelSingle(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewAlbums
-	m.albums.level = albtui.TrackLevel
-	m.albums.tracks = []library.Track{
+	m.activeView = viewBrowse
+	m.browse.mode = BrowseModeAlbums
+	m.browse.albums.level = albtui.TrackLevel
+	m.browse.albums.tracks = []library.Track{
 		{Hash: "b1", Title: "Track 1"},
 		{Hash: "b2", Title: "Track 2"},
 	}
-	m.albums.cursor = 0
+	m.browse.albums.cursor = 0
 
 	_, cmd, handled := m.handleToggleFavorite()
 	if !handled {

@@ -16,16 +16,16 @@ func TestKey4SwitchesToArtistsView(t *testing.T) {
 	m := newModelWithTracks()
 	m = pressKey(m, "4")
 
-	if m.activeView != viewArtists {
-		t.Fatalf("expected activeView=%d (viewArtists), got %d", viewArtists, m.activeView)
+	if m.activeView != viewBrowse {
+		t.Fatalf("expected activeView=%d (viewBrowse), got %d", viewBrowse, m.activeView)
 	}
-	if len(m.artists.artists) != 3 {
-		t.Fatalf("expected 3 artists, got %d", len(m.artists.artists))
+	if len(m.browse.artists.artists) != 3 {
+		t.Fatalf("expected 3 artists, got %d", len(m.browse.artists.artists))
 	}
 	want := []string{"Alice", "Bob", "Charlie"}
 	for i, w := range want {
-		if m.artists.artists[i] != w {
-			t.Errorf("artists[%d]: expected %q, got %q", i, w, m.artists.artists[i])
+		if m.browse.artists.artists[i] != w {
+			t.Errorf("artists[%d]: expected %q, got %q", i, w, m.browse.artists.artists[i])
 		}
 	}
 }
@@ -39,14 +39,14 @@ func TestArtistsDrillDownToAlbums(t *testing.T) {
 	m = pressKey(m, "j")
 	m = pressEnter(m)
 
-	if m.artists.level != arttui.AlbumLevel {
-		t.Fatalf("expected AlbumLevel, got %v", m.artists.level)
+	if m.browse.artists.level != arttui.AlbumLevel {
+		t.Fatalf("expected AlbumLevel, got %v", m.browse.artists.level)
 	}
-	if m.artists.selectedArtist != "Bob" {
-		t.Errorf("expected selectedArtist='Bob', got %q", m.artists.selectedArtist)
+	if m.browse.artists.selectedArtist != "Bob" {
+		t.Errorf("expected selectedArtist='Bob', got %q", m.browse.artists.selectedArtist)
 	}
-	if len(m.artists.albums) != 1 || m.artists.albums[0] != "Gamma" {
-		t.Errorf("expected albums=[Gamma], got %v", m.artists.albums)
+	if len(m.browse.artists.albums) != 1 || m.browse.artists.albums[0] != "Gamma" {
+		t.Errorf("expected albums=[Gamma], got %v", m.browse.artists.albums)
 	}
 }
 
@@ -57,25 +57,25 @@ func TestArtistsDrillDownToTracks(t *testing.T) {
 	m = pressKey(m, "4")
 
 	m = pressEnter(m)
-	if m.artists.level != arttui.AlbumLevel {
-		t.Fatalf("expected AlbumLevel, got %v", m.artists.level)
+	if m.browse.artists.level != arttui.AlbumLevel {
+		t.Fatalf("expected AlbumLevel, got %v", m.browse.artists.level)
 	}
-	if m.artists.selectedArtist != "Alice" {
-		t.Fatalf("expected selectedArtist='Alice', got %q", m.artists.selectedArtist)
+	if m.browse.artists.selectedArtist != "Alice" {
+		t.Fatalf("expected selectedArtist='Alice', got %q", m.browse.artists.selectedArtist)
 	}
 
 	m = pressEnter(m)
-	if m.artists.level != arttui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.artists.level)
+	if m.browse.artists.level != arttui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.artists.level)
 	}
-	if m.artists.selectedAlbum != "Alpha" {
-		t.Errorf("expected selectedAlbum='Alpha', got %q", m.artists.selectedAlbum)
+	if m.browse.artists.selectedAlbum != "Alpha" {
+		t.Errorf("expected selectedAlbum='Alpha', got %q", m.browse.artists.selectedAlbum)
 	}
-	if len(m.artists.tracks) != 2 {
-		t.Fatalf("expected 2 tracks, got %d", len(m.artists.tracks))
+	if len(m.browse.artists.tracks) != 2 {
+		t.Fatalf("expected 2 tracks, got %d", len(m.browse.artists.tracks))
 	}
-	if m.artists.tracks[0].Title != "Track A1" {
-		t.Errorf("expected first track 'Track A1', got %q", m.artists.tracks[0].Title)
+	if m.browse.artists.tracks[0].Title != "Track A1" {
+		t.Errorf("expected first track 'Track A1', got %q", m.browse.artists.tracks[0].Title)
 	}
 }
 
@@ -87,8 +87,8 @@ func TestArtistsEnqueueTrack(t *testing.T) {
 	m = pressKey(m, "4")
 	m = pressEnter(m)
 	m = pressEnter(m)
-	if m.artists.level != arttui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.artists.level)
+	if m.browse.artists.level != arttui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.artists.level)
 	}
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -117,21 +117,21 @@ func TestArtistsEscGoesBackThroughLevels(t *testing.T) {
 	m = pressKey(m, "4")
 	m = pressEnter(m)
 	m = pressEnter(m)
-	if m.artists.level != arttui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.artists.level)
+	if m.browse.artists.level != arttui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.artists.level)
 	}
 
 	m = pressEsc(m)
-	if m.artists.level != arttui.AlbumLevel {
-		t.Errorf("expected AlbumLevel after first Esc, got %v", m.artists.level)
+	if m.browse.artists.level != arttui.AlbumLevel {
+		t.Errorf("expected AlbumLevel after first Esc, got %v", m.browse.artists.level)
 	}
-	if len(m.artists.albums) == 0 {
+	if len(m.browse.artists.albums) == 0 {
 		t.Error("expected albums to be preserved after back from TrackLevel")
 	}
 
 	m = pressEsc(m)
-	if m.artists.level != arttui.ArtistLevel {
-		t.Errorf("expected ArtistLevel after second Esc, got %v", m.artists.level)
+	if m.browse.artists.level != arttui.ArtistLevel {
+		t.Errorf("expected ArtistLevel after second Esc, got %v", m.browse.artists.level)
 	}
 }
 
@@ -142,11 +142,11 @@ func TestArtistsEscAtArtistLevelIsNoOp(t *testing.T) {
 	m = pressKey(m, "4")
 	m = pressEsc(m)
 
-	if m.activeView != viewArtists {
-		t.Errorf("expected to remain on viewArtists, got %d", m.activeView)
+	if m.activeView != viewBrowse {
+		t.Errorf("expected to remain on viewBrowse, got %d", m.activeView)
 	}
-	if m.artists.level != arttui.ArtistLevel {
-		t.Errorf("expected ArtistLevel, got %v", m.artists.level)
+	if m.browse.artists.level != arttui.ArtistLevel {
+		t.Errorf("expected ArtistLevel, got %v", m.browse.artists.level)
 	}
 }
 
@@ -157,14 +157,14 @@ func TestArtistsBackRestoresCursors(t *testing.T) {
 	m = pressKey(m, "4")
 	m = pressKey(m, "j")
 	m = pressKey(m, "j")
-	if m.artists.cursor != 2 {
-		t.Fatalf("expected cursor=2, got %d", m.artists.cursor)
+	if m.browse.artists.cursor != 2 {
+		t.Fatalf("expected cursor=2, got %d", m.browse.artists.cursor)
 	}
 
 	m = pressEnter(m)
 	m = pressEsc(m)
-	if m.artists.cursor != 2 {
-		t.Errorf("expected restored cursor=2 at ArtistLevel, got %d", m.artists.cursor)
+	if m.browse.artists.cursor != 2 {
+		t.Errorf("expected restored cursor=2 at ArtistLevel, got %d", m.browse.artists.cursor)
 	}
 }
 
@@ -191,18 +191,18 @@ func TestArtistsViewRenderOutput(t *testing.T) {
 func TestArtistsViewNavigationKeys(t *testing.T) {
 	m := newModelWithTracks()
 	m = pressKey(m, "4")
-	if m.artists.cursor != 0 {
-		t.Fatalf("expected initial cursor=0, got %d", m.artists.cursor)
+	if m.browse.artists.cursor != 0 {
+		t.Fatalf("expected initial cursor=0, got %d", m.browse.artists.cursor)
 	}
 
 	m = pressKey(m, "j")
-	if m.artists.cursor != 1 {
-		t.Errorf("expected cursor=1 after j, got %d", m.artists.cursor)
+	if m.browse.artists.cursor != 1 {
+		t.Errorf("expected cursor=1 after j, got %d", m.browse.artists.cursor)
 	}
 
 	m = pressKey(m, "k")
-	if m.artists.cursor != 0 {
-		t.Errorf("expected cursor=0 after k, got %d", m.artists.cursor)
+	if m.browse.artists.cursor != 0 {
+		t.Errorf("expected cursor=0 after k, got %d", m.browse.artists.cursor)
 	}
 }
 
@@ -215,7 +215,7 @@ func TestArtistsEmptyLibrary(t *testing.T) {
 	m = pressKey(m, "4")
 
 	v := m.View()
-	if !strings.Contains(v.Content, "no artists") {
-		t.Error("expected '(no artists)' placeholder in empty artists view")
+	if !strings.Contains(v.Content, "No artists") {
+		t.Error("expected empty artists hint in artists view")
 	}
 }

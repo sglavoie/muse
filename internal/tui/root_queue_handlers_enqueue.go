@@ -57,6 +57,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 		entry: m.queue.entries[enqueueIdx],
 		idx:   enqueueIdx,
 	}, nil)
+	m.queueDirty = true
 	player.PlaySound(player.SoundEnqueued)
 	if msg.WasEmpty && m.playback.state == PlaybackIdle {
 		m = m.tryAutoPlay(msg.Track.Hash, msg.Track.Artist, msg.Track.Title, msg.SourcePlaylist)
@@ -125,6 +126,7 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 		startIdx:     batchStartIdx,
 		playlistName: msg.PlaylistName,
 	}, nil)
+	m.queueDirty = true
 	player.PlaySound(player.SoundEnqueued)
 	return m
 }

@@ -14,8 +14,8 @@ import (
 func TestQueueRenderEmptyShowsPlaceholder(t *testing.T) {
 	v := QueueView{}
 	got := v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil)
-	if !strings.Contains(got, "empty") {
-		t.Fatalf("empty queue must show '(empty)'; got: %q", got)
+	if !strings.Contains(got, "add tracks") {
+		t.Fatalf("empty queue must show hint; got: %q", got)
 	}
 }
 

@@ -173,6 +173,11 @@ func runTUI(ctx context.Context) error {
 		CloseLog:   config.CloseLog,
 	}
 
+	startupCount, err := result.DB.IncrementStartupCount()
+	if err != nil {
+		slog.Warn("startup: increment startup count", "err", err)
+	}
+
 	extractor := library.ExifToolExtractor{}
 
 	libResult, err := app.LoadLibrary(ctx, result.DB, result.Writer, cfg.MusicDirectories, cfg.ExcludedPaths, extractor, upsertBatchSize)
@@ -189,7 +194,7 @@ func runTUI(ctx context.Context) error {
 		auditCh = app.RunDurationAudit(ctx, result.DB, result.Writer)
 	}
 
-	model := buildModel(ctx, cfg, configPath, cfgResult, result, libResult, dirs, extractor, adapter, mgr, auditCh)
+	model := buildModel(ctx, cfg, configPath, cfgResult, result, libResult, dirs, extractor, adapter, mgr, auditCh, startupCount)
 
 	// Apply all restored session state (queue, library, playlists,
 	// repeat/shuffle/volume, current track) before tea.NewProgram so the
@@ -229,10 +234,30 @@ func runTUI(ctx context.Context) error {
 		p.Quit()
 	}()
 
-	if _, err := p.Run(); err != nil {
+	finalModel, err := p.Run()
+	if err != nil {
 		slog.Error("TUI error", "err", err)
 		app.Shutdown(shutdownDeps, app.ShutdownTimeout)
 		return err
+	}
+
+	if m, ok := finalModel.(tui.Model); ok && m.SessionTracksPlayed() > 0 {
+		count := m.SessionTracksPlayed()
+		secs := m.SessionListenSecs()
+		word := "tracks"
+		if count == 1 {
+			word = "track"
+		}
+		total := int(secs)
+		h := total / 3600
+		mn := (total % 3600) / 60
+		var formatted string
+		if h > 0 {
+			formatted = fmt.Sprintf("%dh %02dm", h, mn)
+		} else {
+			formatted = fmt.Sprintf("%dm", mn)
+		}
+		fmt.Fprintf(os.Stderr, "\nSession: %d %s · %s\n", count, word, formatted)
 	}
 
 	app.Shutdown(shutdownDeps, app.ShutdownTimeout)
@@ -309,6 +334,7 @@ func buildModel(
 	adapter *db.PlaylistAdapter,
 	mgr *player.Manager,
 	auditCh <-chan library.DurationFix,
+	startupCount int,
 ) tui.Model {
 	return tui.New(ctx,
 		tui.WithConfig(cfg),
@@ -353,5 +379,7 @@ func buildModel(
 		tui.WithDurationAuditChannel(auditCh),
 		tui.WithTagReader(result.DB),
 		tui.WithTagWriter(result.Writer),
+		tui.WithSessionCount(startupCount),
+		tui.WithFreshLibrary(libResult.FreshLibrary),
 	)
 }

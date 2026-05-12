@@ -65,12 +65,10 @@ func helpSections() []helpSection {
 				{"1", "Switch to Library"},
 				{"2", "Switch to Playlists"},
 				{"3", "Switch to Queue"},
-				{"4", "Switch to Artists"},
-				{"5", "Switch to Albums"},
-				{"6", "Switch to Genres"},
-				{"7", "Switch to Favorites"},
-				{"8", "Switch to Tags"},
-				{"9", "Switch to Mixes"},
+				{"4", "Switch to Browse"},
+				{"5", "Switch to Favorites"},
+				{"6", "Switch to Tags"},
+				{"7", "Switch to Mixes"},
 				{"F", "Toggle favorite"},
 				{"o", "Go To (artist/album/genre/source)"},
 				{"tab / shift+tab", "Next / previous view"},
@@ -81,7 +79,7 @@ func helpSections() []helpSection {
 				{"ctrl+n", "Stop after current track"},
 				{"A", "Toggle radio mode (Auto-DJ)"},
 				{"u", "Undo"},
-				{"/", "Filter (Library / Queue / Artists / Albums / Favorites / Genres / Tags / Mixes)"},
+				{"/", "Filter (Library / Queue / Browse / Favorites / Tags / Mixes)"},
 				{"P", "Preview focused track"},
 				{"I", "Show now-playing info"},
 				{"i", "Show track info (exiftool)"},
@@ -100,7 +98,7 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Navigation (Library / Queue / Playlists / Artists / Albums / Favorites / Genres)",
+			title:   "Navigation (Library / Queue / Playlists / Browse / Favorites / Tags / Mixes)",
 			context: contextGlobal,
 			entries: []helpEntry{
 				{"j / k / down / up", "Move cursor down / up"},
@@ -113,7 +111,7 @@ func helpSections() []helpSection {
 			title:   "Library",
 			context: contextLibrary,
 			entries: []helpEntry{
-				{"ctrl+l", "Cycle sub-mode: All → Recently Added → History"},
+				{"` / ~", "Cycle sub-mode forward / backward (All ↔ Recently Added ↔ History)"},
 				{"/", "Filter tracks (prefixes: a: t: l: g:)"},
 				{"enter", "Enqueue track"},
 				{"N", "Play next (insert after current track)"},
@@ -160,9 +158,10 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Artists",
+			title:   "Browse (Artists)",
 			context: contextArtists,
 			entries: []helpEntry{
+				{"` / ~", "Cycle Browse mode forward / backward (Artists ↔ Albums ↔ Genres)"},
 				{"/", "Filter current list"},
 				{"enter", "Open albums / tracks / enqueue track"},
 				{"N", "Play next (insert after current track)"},
@@ -175,9 +174,10 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Albums",
+			title:   "Browse (Albums)",
 			context: contextAlbums,
 			entries: []helpEntry{
+				{"` / ~", "Cycle Browse mode forward / backward (Artists ↔ Albums ↔ Genres)"},
 				{"/", "Filter current list"},
 				{"enter", "Open tracks / enqueue track"},
 				{"N", "Play next (insert after current track)"},
@@ -190,9 +190,10 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Genres",
+			title:   "Browse (Genres)",
 			context: contextGenres,
 			entries: []helpEntry{
+				{"` / ~", "Cycle Browse mode forward / backward (Artists ↔ Albums ↔ Genres)"},
 				{"/", "Filter current list"},
 				{"enter", "Open artists / tracks / enqueue track"},
 				{"N", "Play next (insert after current track)"},
@@ -244,7 +245,7 @@ func helpSections() []helpSection {
 			title:   "Tags",
 			context: contextTags,
 			entries: []helpEntry{
-				{"8", "Switch to Tags"},
+				{"6", "Switch to Tags"},
 				{"enter", "Drill into tag tracks / enqueue track"},
 				{"backspace / h / esc", "Back to tag list"},
 				{"c", "Create new tag (inline input)"},

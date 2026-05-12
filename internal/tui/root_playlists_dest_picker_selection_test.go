@@ -11,25 +11,25 @@ import (
 // or confirming a destination picker clears the genres view's bulk selection.
 func TestDestPickerClearsGenresSelection(t *testing.T) {
 	m := New(context.Background())
-	m.genres.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.browse.genres.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	t.Run("dismissed", func(t *testing.T) {
 		got := m.handleDestinationPickerDismissedMsg()
-		if got.genres.selectedHashes != nil {
+		if got.browse.genres.selectedHashes != nil {
 			t.Error("genres selectedHashes should be nil after dismiss")
 		}
 	})
 
 	t.Run("create", func(t *testing.T) {
 		got := m.handleDestinationPickerCreateMsg()
-		if got.genres.selectedHashes != nil {
+		if got.browse.genres.selectedHashes != nil {
 			t.Error("genres selectedHashes should be nil after create")
 		}
 	})
 
 	t.Run("picked", func(t *testing.T) {
 		got, _ := m.handleDestinationPickedMsg(pltui.DestinationPickedMsg{IsQueue: true})
-		if got.genres.selectedHashes != nil {
+		if got.browse.genres.selectedHashes != nil {
 			t.Error("genres selectedHashes should be nil after pick")
 		}
 	})

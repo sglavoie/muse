@@ -38,55 +38,86 @@ func (m Model) focusedGoToContext() goToContext {
 			return ctx
 		}
 
-	case viewArtists:
-		switch m.artists.level {
-		case arttui.ArtistLevel:
-			if name, ok := m.artists.focusedArtist(); ok {
-				ctx := goToContext{artist: name, found: true}
-				rawArtist := arttui.RawName(name)
-				tracks := arttui.DeriveArtistTracks(m.library.index.Tracks(), rawArtist)
-				if len(tracks) > 0 {
-					ctx.genre = tracks[0].Genre
-					ctx.album = tracks[0].Album
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			switch m.browse.artists.level {
+			case arttui.ArtistLevel:
+				if name, ok := m.browse.artists.focusedArtist(); ok {
+					ctx := goToContext{artist: name, found: true}
+					rawArtist := arttui.RawName(name)
+					tracks := arttui.DeriveArtistTracks(m.library.index.Tracks(), rawArtist)
+					if len(tracks) > 0 {
+						ctx.genre = tracks[0].Genre
+						ctx.album = tracks[0].Album
+					}
+					return ctx
 				}
-				return ctx
-			}
-		case arttui.AlbumLevel:
-			if name, ok := m.artists.focusedAlbum(); ok {
-				ctx := goToContext{artist: m.artists.selectedArtist, album: name, found: true}
-				rawArtist := arttui.RawName(m.artists.selectedArtist)
-				rawAlbum := arttui.RawName(name)
-				tracks := arttui.DeriveTracks(m.library.index.Tracks(), rawArtist, rawAlbum)
-				if len(tracks) > 0 {
-					ctx.genre = tracks[0].Genre
+			case arttui.AlbumLevel:
+				if name, ok := m.browse.artists.focusedAlbum(); ok {
+					ctx := goToContext{artist: m.browse.artists.selectedArtist, album: name, found: true}
+					rawArtist := arttui.RawName(m.browse.artists.selectedArtist)
+					rawAlbum := arttui.RawName(name)
+					tracks := arttui.DeriveTracks(m.library.index.Tracks(), rawArtist, rawAlbum)
+					if len(tracks) > 0 {
+						ctx.genre = tracks[0].Genre
+					}
+					return ctx
 				}
-				return ctx
-			}
-			if m.artists.selectedArtist != "" {
-				return goToContext{artist: m.artists.selectedArtist, found: true}
-			}
-		case arttui.TrackLevel:
-			if track, ok := m.artists.focusedTrack(); ok {
-				return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
-			}
-		}
-
-	case viewAlbums:
-		switch m.albums.level {
-		case albtui.AlbumLevel:
-			if name, ok := m.albums.focusedAlbum(); ok {
-				ctx := goToContext{album: name, found: true}
-				rawAlbum := arttui.RawName(name)
-				tracks := albtui.DeriveAlbumTracks(m.library.index.Tracks(), rawAlbum)
-				if len(tracks) > 0 {
-					ctx.artist = tracks[0].Artist
-					ctx.genre = tracks[0].Genre
+				if m.browse.artists.selectedArtist != "" {
+					return goToContext{artist: m.browse.artists.selectedArtist, found: true}
 				}
-				return ctx
+			case arttui.TrackLevel:
+				if track, ok := m.browse.artists.focusedTrack(); ok {
+					return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
+				}
 			}
-		case albtui.TrackLevel:
-			if track, ok := m.albums.focusedTrack(); ok {
-				return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
+		case BrowseModeAlbums:
+			switch m.browse.albums.level {
+			case albtui.AlbumLevel:
+				if name, ok := m.browse.albums.focusedAlbum(); ok {
+					ctx := goToContext{album: name, found: true}
+					rawAlbum := arttui.RawName(name)
+					tracks := albtui.DeriveAlbumTracks(m.library.index.Tracks(), rawAlbum)
+					if len(tracks) > 0 {
+						ctx.artist = tracks[0].Artist
+						ctx.genre = tracks[0].Genre
+					}
+					return ctx
+				}
+			case albtui.TrackLevel:
+				if track, ok := m.browse.albums.focusedTrack(); ok {
+					return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
+				}
+			}
+		case BrowseModeGenres:
+			switch m.browse.genres.level {
+			case gentui.GenreLevel:
+				if name, ok := m.browse.genres.focusedGenre(); ok {
+					ctx := goToContext{genre: name, found: true}
+					rawGenre := gentui.RawGenre(name)
+					tracks := gentui.DeriveGenreTracks(m.library.index.Tracks(), rawGenre)
+					if len(tracks) > 0 {
+						ctx.artist = tracks[0].Artist
+						ctx.album = tracks[0].Album
+					}
+					return ctx
+				}
+			case gentui.ArtistLevel:
+				if name, ok := m.browse.genres.focusedArtist(); ok {
+					ctx := goToContext{artist: name, genre: m.browse.genres.selectedGenre, found: true}
+					rawArtist := arttui.RawName(name)
+					rawGenre := gentui.RawGenre(m.browse.genres.selectedGenre)
+					tracks := gentui.DeriveGenreArtistTracks(m.library.index.Tracks(), rawGenre, rawArtist)
+					if len(tracks) > 0 {
+						ctx.album = tracks[0].Album
+					}
+					return ctx
+				}
+			case gentui.TrackLevel:
+				if track, ok := m.browse.genres.focusedTrack(); ok {
+					return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
+				}
 			}
 		}
 
@@ -132,36 +163,6 @@ func (m Model) focusedGoToContext() goToContext {
 			}
 		case favtui.TrackLevel:
 			if track, ok := m.favorites.focusedTrack(); ok {
-				return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
-			}
-		}
-
-	case viewGenres:
-		switch m.genres.level {
-		case gentui.GenreLevel:
-			if name, ok := m.genres.focusedGenre(); ok {
-				ctx := goToContext{genre: name, found: true}
-				rawGenre := gentui.RawGenre(name)
-				tracks := gentui.DeriveGenreTracks(m.library.index.Tracks(), rawGenre)
-				if len(tracks) > 0 {
-					ctx.artist = tracks[0].Artist
-					ctx.album = tracks[0].Album
-				}
-				return ctx
-			}
-		case gentui.ArtistLevel:
-			if name, ok := m.genres.focusedArtist(); ok {
-				ctx := goToContext{artist: name, genre: m.genres.selectedGenre, found: true}
-				rawArtist := arttui.RawName(name)
-				rawGenre := gentui.RawGenre(m.genres.selectedGenre)
-				tracks := gentui.DeriveGenreArtistTracks(m.library.index.Tracks(), rawGenre, rawArtist)
-				if len(tracks) > 0 {
-					ctx.album = tracks[0].Album
-				}
-				return ctx
-			}
-		case gentui.TrackLevel:
-			if track, ok := m.genres.focusedTrack(); ok {
 				return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
 			}
 		}
@@ -219,33 +220,34 @@ func (m Model) buildGoToOptions(ctx goToContext) []GoToOption {
 		addGenres()
 		addSource()
 
-	case viewArtists:
-		switch m.artists.level {
-		case arttui.ArtistLevel:
-			addAlbum()
-			addGenres()
-		case arttui.AlbumLevel:
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			switch m.browse.artists.level {
+			case arttui.ArtistLevel:
+				addAlbum()
+				addGenres()
+			case arttui.AlbumLevel:
+				addArtist()
+				addGenres()
+			case arttui.TrackLevel:
+				addAlbum()
+				addGenres()
+			}
+		case BrowseModeAlbums:
 			addArtist()
 			addGenres()
-		case arttui.TrackLevel:
-			addAlbum()
-			addGenres()
-		}
-
-	case viewAlbums:
-		addArtist()
-		addGenres()
-
-	case viewGenres:
-		switch m.genres.level {
-		case gentui.GenreLevel:
-			addArtist()
-			addAlbum()
-		case gentui.ArtistLevel:
-			addAlbum()
-		case gentui.TrackLevel:
-			addAlbum()
-			addArtist()
+		case BrowseModeGenres:
+			switch m.browse.genres.level {
+			case gentui.GenreLevel:
+				addArtist()
+				addAlbum()
+			case gentui.ArtistLevel:
+				addAlbum()
+			case gentui.TrackLevel:
+				addAlbum()
+				addArtist()
+			}
 		}
 
 	case viewPlaylists:

@@ -176,19 +176,19 @@ func TestArtistsDrillDownPreservesWidthHeight(t *testing.T) {
 // the active filter rather than the raw list length.
 func TestArtistsClampCursor_WithFilter(t *testing.T) {
 	m := newModelWithTracks()
-	m.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
-	m.artists.level = arttui.ArtistLevel
-	m.artists.filter.Text = "ali"
-	m.artists.cursor = 2
-	m.artists.scrollOffset = 2
+	m.browse.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+	m.browse.artists.level = arttui.ArtistLevel
+	m.browse.artists.filter.Text = "ali"
+	m.browse.artists.cursor = 2
+	m.browse.artists.scrollOffset = 2
 
-	m.artists = m.artists.clampCursor()
+	m.browse.artists = m.browse.artists.clampCursor()
 
-	if m.artists.cursor != 0 {
-		t.Errorf("expected cursor=0 (only 1 filtered match), got %d", m.artists.cursor)
+	if m.browse.artists.cursor != 0 {
+		t.Errorf("expected cursor=0 (only 1 filtered match), got %d", m.browse.artists.cursor)
 	}
-	if m.artists.scrollOffset != 0 {
-		t.Errorf("expected scrollOffset=0, got %d", m.artists.scrollOffset)
+	if m.browse.artists.scrollOffset != 0 {
+		t.Errorf("expected scrollOffset=0, got %d", m.browse.artists.scrollOffset)
 	}
 }
 
@@ -196,18 +196,18 @@ func TestArtistsClampCursor_WithFilter(t *testing.T) {
 // scrollOffset down when it ends up above the cursor.
 func TestArtistsClampCursor_ScrollOffsetClamped(t *testing.T) {
 	m := newModelWithTracks()
-	m.artists.artists = []string{"Alice"}
-	m.artists.level = arttui.ArtistLevel
-	m.artists.cursor = 5
-	m.artists.scrollOffset = 10
+	m.browse.artists.artists = []string{"Alice"}
+	m.browse.artists.level = arttui.ArtistLevel
+	m.browse.artists.cursor = 5
+	m.browse.artists.scrollOffset = 10
 
-	m.artists = m.artists.clampCursor()
+	m.browse.artists = m.browse.artists.clampCursor()
 
-	if m.artists.cursor != 0 {
-		t.Errorf("expected cursor=0, got %d", m.artists.cursor)
+	if m.browse.artists.cursor != 0 {
+		t.Errorf("expected cursor=0, got %d", m.browse.artists.cursor)
 	}
-	if m.artists.scrollOffset != 0 {
-		t.Errorf("expected scrollOffset=0, got %d", m.artists.scrollOffset)
+	if m.browse.artists.scrollOffset != 0 {
+		t.Errorf("expected scrollOffset=0, got %d", m.browse.artists.scrollOffset)
 	}
 }
 
@@ -215,23 +215,23 @@ func TestArtistsClampCursor_ScrollOffsetClamped(t *testing.T) {
 // TrackLevel with an active filter.
 func TestArtistsClampCursor_TrackLevelWithFilter(t *testing.T) {
 	m := newModelWithTracks()
-	m.artists.level = arttui.TrackLevel
-	m.artists.tracks = []library.Track{
+	m.browse.artists.level = arttui.TrackLevel
+	m.browse.artists.tracks = []library.Track{
 		{Hash: "h1", Title: "Foo", Artist: "A"},
 		{Hash: "h2", Title: "Bar", Artist: "B"},
 		{Hash: "h3", Title: "Baz", Artist: "C"},
 	}
-	m.artists.filter.Text = "ba"
-	m.artists.cursor = 3
-	m.artists.scrollOffset = 3
+	m.browse.artists.filter.Text = "ba"
+	m.browse.artists.cursor = 3
+	m.browse.artists.scrollOffset = 3
 
-	m.artists = m.artists.clampCursor()
+	m.browse.artists = m.browse.artists.clampCursor()
 
-	if m.artists.cursor != 1 {
-		t.Errorf("expected cursor=1 (last filtered index), got %d", m.artists.cursor)
+	if m.browse.artists.cursor != 1 {
+		t.Errorf("expected cursor=1 (last filtered index), got %d", m.browse.artists.cursor)
 	}
-	if m.artists.scrollOffset > m.artists.cursor {
-		t.Errorf("scrollOffset %d should not be above cursor %d", m.artists.scrollOffset, m.artists.cursor)
+	if m.browse.artists.scrollOffset > m.browse.artists.cursor {
+		t.Errorf("scrollOffset %d should not be above cursor %d", m.browse.artists.scrollOffset, m.browse.artists.cursor)
 	}
 }
 

@@ -115,14 +115,17 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 			}
 		}
 		return track, ok
-	case viewArtists:
-		return m.artists.focusedTrack()
-	case viewAlbums:
-		return m.albums.focusedTrack()
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			return m.browse.artists.focusedTrack()
+		case BrowseModeAlbums:
+			return m.browse.albums.focusedTrack()
+		case BrowseModeGenres:
+			return m.browse.genres.focusedTrack()
+		}
 	case viewFavorites:
 		return m.favorites.focusedTrack()
-	case viewGenres:
-		return m.genres.focusedTrack()
 	case viewTags:
 		track, ok := m.tagsView.focusedTrackAsLibTrack()
 		if ok && track.Hash != "" {
