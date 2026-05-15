@@ -179,10 +179,10 @@ func (m Model) handleTracksAddedToPlaylistMsg(msg tracksAddedToPlaylistMsg) Mode
 	return m
 }
 
-// handleDestinationPickerDismissedMsg clears the destination picker and staged tracks.
-func (m Model) handleDestinationPickerDismissedMsg() Model {
-	m.overlay.destPicker = nil
-	m.overlay.destPickerTracks = nil
+// clearAllSelections clears bulk-selection state across all views that support it.
+// Called when the destination picker is dismissed, confirmed, or used to create
+// a playlist, so staged selections are always discarded on picker exit.
+func (m Model) clearAllSelections() Model {
 	m.library = m.library.ClearSelection()
 	m.browse.artists.selectedHashes = nil
 	m.browse.albums.selectedHashes = nil
@@ -192,17 +192,19 @@ func (m Model) handleDestinationPickerDismissedMsg() Model {
 	return m
 }
 
+// handleDestinationPickerDismissedMsg clears the destination picker and staged tracks.
+func (m Model) handleDestinationPickerDismissedMsg() Model {
+	m.overlay.destPicker = nil
+	m.overlay.destPickerTracks = nil
+	return m.clearAllSelections()
+}
+
 // handleDestinationPickerCreateMsg dismisses the picker, switches to the
 // playlists view, and activates the inline create input. Staged tracks are
 // kept so they are auto-added after the playlist is created.
 func (m Model) handleDestinationPickerCreateMsg() Model {
 	m.overlay.destPicker = nil
-	m.library = m.library.ClearSelection()
-	m.browse.artists.selectedHashes = nil
-	m.browse.albums.selectedHashes = nil
-	m.browse.genres.selectedHashes = nil
-	m.favorites.selectedItems = nil
-	m.tagsView.selectedHashes = nil
+	m = m.clearAllSelections()
 	m.activeView = viewPlaylists
 	m.playlists = m.playlists.startCreate()
 	return m
@@ -214,12 +216,7 @@ func (m Model) handleDestinationPickedMsg(msg pltui.DestinationPickedMsg) (Model
 	tracks := m.overlay.destPickerTracks
 	m.overlay.destPicker = nil
 	m.overlay.destPickerTracks = nil
-	m.library = m.library.ClearSelection()
-	m.browse.artists.selectedHashes = nil
-	m.browse.albums.selectedHashes = nil
-	m.browse.genres.selectedHashes = nil
-	m.favorites.selectedItems = nil
-	m.tagsView.selectedHashes = nil
+	m = m.clearAllSelections()
 	if msg.IsQueue {
 		if m.batchEnqueuer != nil {
 			be := m.batchEnqueuer
