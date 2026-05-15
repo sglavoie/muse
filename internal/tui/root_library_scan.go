@@ -6,9 +6,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
-	albtui "github.com/sglavoie/muse/internal/tui/albums"
-	arttui "github.com/sglavoie/muse/internal/tui/artists"
-	gentui "github.com/sglavoie/muse/internal/tui/genres"
 )
 
 // rescanEntry holds per-track values snapshotted before a full rescan clears
@@ -63,47 +60,7 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 	if m.library.filter.Text != "" {
 		m.library = m.library.rebuildFilterCache()
 	}
-	// Refresh artist/album derived views at all drill-down levels so
-	// the view stays current as the library grows during a scan.
-	scanTracks := m.library.index.Tracks()
-	switch m.browse.artists.level {
-	case arttui.ArtistLevel:
-		m.browse.artists.artists = arttui.DeriveArtists(scanTracks)
-		m.browse.artists = m.browse.artists.recomputeArtistsSort()
-		m.browse.artists = m.browse.artists.clampCursor()
-	case arttui.AlbumLevel:
-		m.browse.artists.albums = arttui.DeriveAlbums(scanTracks, m.browse.artists.selectedArtist)
-		m.browse.artists = m.browse.artists.recomputeArtistsSort()
-		m.browse.artists = m.browse.artists.clampCursor()
-	case arttui.TrackLevel:
-		m.browse.artists.tracks = arttui.DeriveTracks(scanTracks, m.browse.artists.selectedArtist, m.browse.artists.selectedAlbum)
-		m.browse.artists = m.browse.artists.recomputeArtistsSort()
-		m.browse.artists = m.browse.artists.clampCursor()
-	}
-	switch m.browse.albums.level {
-	case albtui.AlbumLevel:
-		m.browse.albums.albums = albtui.DeriveAllAlbums(scanTracks)
-		m.browse.albums = m.browse.albums.recomputeAlbumsSort()
-		m.browse.albums = m.browse.albums.clampCursor()
-	case albtui.TrackLevel:
-		m.browse.albums.tracks = albtui.DeriveAlbumTracks(scanTracks, m.browse.albums.selectedAlbum)
-		m.browse.albums = m.browse.albums.recomputeAlbumsSort()
-		m.browse.albums = m.browse.albums.clampCursor()
-	}
-	switch m.browse.genres.level {
-	case gentui.GenreLevel:
-		m.browse.genres.genres = gentui.DeriveGenres(scanTracks)
-		m.browse.genres = m.browse.genres.recomputeGenresSort()
-		m.browse.genres = m.browse.genres.clampCursor()
-	case gentui.ArtistLevel:
-		m.browse.genres.artists = gentui.DeriveGenreArtists(scanTracks, m.browse.genres.selectedGenre)
-		m.browse.genres = m.browse.genres.recomputeGenresSort()
-		m.browse.genres = m.browse.genres.clampCursor()
-	case gentui.TrackLevel:
-		m.browse.genres.tracks = gentui.DeriveGenreArtistTracks(scanTracks, m.browse.genres.selectedGenre, m.browse.genres.selectedArtist)
-		m.browse.genres = m.browse.genres.recomputeGenresSort()
-		m.browse.genres = m.browse.genres.clampCursor()
-	}
+	m = m.refreshBrowseDerivedViews()
 	if m.scanCh != nil {
 		return m, waitForNextBatch(m.scanCh)
 	}

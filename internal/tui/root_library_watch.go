@@ -23,7 +23,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 	m = m.watchSyncFavoritesMetadata(msg.tracks)
 	m = m.watchSyncTagsMetadata(msg.tracks)
 	m = m.watchRecomputeLibrary()
-	m = m.watchRefreshDerivedViews()
+	m = m.refreshBrowseDerivedViews()
 	if m.watchCh != nil {
 		return m, waitForWatchBatch(m.watchCh)
 	}
@@ -233,9 +233,9 @@ func (m Model) watchRecomputeLibrary() Model {
 	return m
 }
 
-// watchRefreshDerivedViews refreshes artist, album, and genre derived views
-// so they stay current when the filesystem watcher detects changes.
-func (m Model) watchRefreshDerivedViews() Model {
+// refreshBrowseDerivedViews re-derives and re-sorts artist, album, and genre
+// data at the current drill-down level from the live library index.
+func (m Model) refreshBrowseDerivedViews() Model {
 	allTracks := m.library.index.Tracks()
 	switch m.browse.artists.level {
 	case arttui.ArtistLevel:
