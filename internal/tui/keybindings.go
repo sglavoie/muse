@@ -66,8 +66,8 @@ const (
 	actionFocusNowPlaying  // 'f': jump cursor to the currently playing track
 
 	actionSwitchBrowse
-	actionSwitchArtists  // legacy — no longer bound to a key; kept for existing dispatch cases
-	actionSwitchAlbums   // legacy — no longer bound to a key; kept for existing dispatch cases
+	actionSwitchArtists // legacy — no longer bound to a key; kept for existing dispatch cases
+	actionSwitchAlbums  // legacy — no longer bound to a key; kept for existing dispatch cases
 	actionSwitchFavorites
 	actionToggleFavorite
 	actionLibraryModeNext // '`': cycle Library sub-mode forward (All → Recent → History → All)
@@ -126,7 +126,7 @@ const (
 	// Genres-local actions.
 	actionSwitchGenres // legacy — no longer bound to a key; kept for existing dispatch cases
 	actionGenreOpen    // enter: drill into artists/tracks or enqueue
-	actionGenreBack // esc: go back one level
+	actionGenreBack    // esc: go back one level
 
 	// Bulk-selection action — triggered by 'a' when tracks are selected.
 	// actionBulkAction applies in Library (append selected tracks to queue).

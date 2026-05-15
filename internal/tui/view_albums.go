@@ -79,18 +79,18 @@ func (v AlbumsView) render(s styles.Styles, favHashes, favArtists, favAlbums map
 		FilterActive:      v.filter.Active,
 		FilterText:        v.filter.Text,
 		FilterView:        v.filter.View(),
-		FilterHint:        func() string {
+		FilterHint: func() string {
 			if v.level == albtui.TrackLevel {
 				return "a: artist  t: title  l: album  g: genre"
 			}
 			return ""
 		}(),
-		SortIndicator:     sortInd,
-		FavoriteHashes:    favHashes,
-		FavoriteArtists:   favArtists,
-		FavoriteAlbums:    favAlbums,
-		SelectedHashes:    v.selectedHashes,
-		NowPlayingHash:    nowPlayingHash,
+		SortIndicator:   sortInd,
+		FavoriteHashes:  favHashes,
+		FavoriteArtists: favArtists,
+		FavoriteAlbums:  favAlbums,
+		SelectedHashes:  v.selectedHashes,
+		NowPlayingHash:  nowPlayingHash,
 	}
 	return av.Render()
 }

@@ -77,15 +77,15 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 	// across Library, Queue, and Playlists — each key must exist in at least
 	// one of those contexts.
 	reverseCtx := map[string]bindingContext{
-		"Global":          contextGlobal,
-		"Library":         contextLibrary,
-		"Queue":           contextQueue,
-		"Playlists":       contextPlaylists,
+		"Global":           contextGlobal,
+		"Library":          contextLibrary,
+		"Queue":            contextQueue,
+		"Playlists":        contextPlaylists,
 		"Browse — Artists": contextArtists,
 		"Browse — Albums":  contextAlbums,
-		"Favorites":       contextFavorites,
+		"Favorites":        contextFavorites,
 		"Browse — Genres":  contextGenres,
-		"Tags":            contextTags,
+		"Tags":             contextTags,
 	}
 	// Navigation keys are shared; check that each appears in at least one
 	// of the view contexts.

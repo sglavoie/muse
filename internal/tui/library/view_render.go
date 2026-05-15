@@ -225,11 +225,12 @@ func (v View) Render() string {
 			artistStr = text.FavPrefix(t.Artist, cols.Artist, isArtistFav)
 			titleStr = text.FavPrefix(t.Title, cols.Title, isTrackFav)
 			albumStr = text.FavPrefix(t.Album, cols.Album, isAlbumFav)
-			if isFocused {
+			switch {
+			case isFocused:
 				artistStr = accentStyleFor(isArtistFav, v.Styles.FavArtistAccent, v.Styles.Accent)[0].Render(artistStr)
 				titleStr = accentStyleFor(isTrackFav, v.Styles.FavoriteAccent, v.Styles.Accent)[0].Render(titleStr)
 				albumStr = accentStyleFor(isAlbumFav, v.Styles.FavAlbumAccent, v.Styles.Accent)[0].Render(albumStr)
-			} else if isNowPlaying {
+			case isNowPlaying:
 				titleStr = v.Styles.NowPlayingTitle.Render(titleStr)
 				if isArtistFav {
 					artistStr = v.Styles.NowPlayingRowFavArtist.Render(artistStr)
@@ -241,7 +242,7 @@ func (v View) Render() string {
 				} else {
 					albumStr = v.Styles.TextSecondary.Background(v.Styles.NowPlayingBg).Render(albumStr)
 				}
-			} else {
+			default:
 				if isTrackFav {
 					titleStr = styles.WithZebraBg(v.Styles.Favorite, rowBg, useBg).Render(titleStr)
 				}

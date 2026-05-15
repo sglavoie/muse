@@ -16,8 +16,8 @@ type LibraryMode uint8
 
 const (
 	LibraryModeAll     LibraryMode = iota // standard Library (all tracks, default sort)
-	LibraryModeRecent                      // Recently Added (sorted by date added)
-	LibraryModeHistory                     // History (sorted by last played)
+	LibraryModeRecent                     // Recently Added (sorted by date added)
+	LibraryModeHistory                    // History (sorted by last played)
 )
 
 // libraryModeSnapshot saves per-mode cursor/scroll/filter state for restoration
@@ -61,22 +61,6 @@ func (v LibraryView) render(s styles.Styles, favHashes, favArtists, favAlbums ma
 	lv.FavoriteAlbums = favAlbums
 	lv.NowPlayingHash = nowPlayingHash
 	return lv.Render()
-}
-
-func newRecentlyAddedView() LibraryView {
-	return LibraryView{
-		fuzzy:         library.SahilmFuzzySearcher{},
-		sortState:     SortState{Field: SortDateAdded, Dir: SortDesc},
-		showDateAdded: true,
-	}
-}
-
-func newHistoryView() LibraryView {
-	return LibraryView{
-		fuzzy:        library.SahilmFuzzySearcher{},
-		sortState:    SortState{Field: SortLastPlayed, Dir: SortDesc},
-		showPlayedAt: true,
-	}
 }
 
 // switchMode transitions the view to the given mode, saving the current

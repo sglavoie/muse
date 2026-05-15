@@ -62,23 +62,23 @@ type playbackInfo struct {
 // Model is the root Bubble Tea v2 model. It manages view switching between
 // Library, Playlists, Queue, and Artists panels, and renders a persistent status bar.
 type Model struct {
-	appCtx         context.Context // application-level context for subprocess lifecycle
-	activeView     viewID
-	cfg            config.Config
-	configPath     string
+	appCtx           context.Context // application-level context for subprocess lifecycle
+	activeView       viewID
+	cfg              config.Config
+	configPath       string
 	configCreated    bool
 	welcomeDismissed bool
 	dataDir          string // XDG data directory (contains muse.db); set via WithDataDir
-	configWarnings []string
+	configWarnings   []string
 
-	library   LibraryView
-	playlists PlaylistsView
-	queue         QueueView
-	queueDirty    bool // true when queue has unsaved mutations since last save-as-playlist or clear
-	browse        BrowseView
-	favorites     FavoritesView
-	tagsView      TagsView
-	mixes         MixesView
+	library    LibraryView
+	playlists  PlaylistsView
+	queue      QueueView
+	queueDirty bool // true when queue has unsaved mutations since last save-as-playlist or clear
+	browse     BrowseView
+	favorites  FavoritesView
+	tagsView   TagsView
+	mixes      MixesView
 
 	// scanCh is the channel returned by library.Scan. It is nil when no scan
 	// is in progress or after the scan has completed.
@@ -242,13 +242,13 @@ type Model struct {
 func New(ctx context.Context, opts ...Option) Model {
 	initialStyles := styles.NewStyles(true)
 	m := Model{
-		appCtx:        ctx,
-		activeView:    viewLibrary,
-		cfg:           config.Defaults(),
-		library:  LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
-		playback: playbackInfo{currentIndex: -1},
-		registry: newRegistry(),
-		styles:        &initialStyles,
+		appCtx:     ctx,
+		activeView: viewLibrary,
+		cfg:        config.Defaults(),
+		library:    LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
+		playback:   playbackInfo{currentIndex: -1},
+		registry:   newRegistry(),
+		styles:     &initialStyles,
 	}
 	for _, opt := range opts {
 		opt(&m)

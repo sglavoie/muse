@@ -222,14 +222,15 @@ func (v View) renderTrackRows(items []library.Track) string {
 		dur := text.FormatDurationSecs(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
 		plays := fmt.Sprintf("%*d", cols.PlayCount, t.PlayCount)
-		if isFocused {
+		switch {
+		case isFocused:
 			a := v.Styles.Accent
 			sep := a.Render(" ")
 			titleStr = styles.AccentFavRender(a, v.Styles.FavoriteAccent, isTrackFav, titleStr)
 			artistStr = styles.AccentFavRender(a, v.Styles.FavArtistAccent, isArtistFav, artistStr)
 			albumStr = styles.AccentFavRender(a, v.Styles.FavAlbumAccent, isAlbumFav, albumStr)
 			lines[i] = a.Render(marker+pos) + sep + titleStr + sep + artistStr + sep + albumStr + sep + a.Render(dur) + sep + a.Render(plays)
-		} else if isNowPlaying {
+		case isNowPlaying:
 			np := v.Styles.NowPlayingRow
 			sep := np.Render(" ")
 			titleStr = v.Styles.NowPlayingTitle.Render(titleStr)
@@ -244,7 +245,7 @@ func (v View) renderTrackRows(items []library.Track) string {
 				albumStr = v.Styles.TextSecondary.Background(v.Styles.NowPlayingBg).Render(albumStr)
 			}
 			lines[i] = np.Render(marker+pos) + sep + titleStr + sep + artistStr + sep + albumStr + sep + np.Render(dur) + sep + np.Render(plays)
-		} else {
+		default:
 			isOdd := absIdx%2 == 1
 			rowBg := v.Styles.ZebraBg
 			useBg := isOdd

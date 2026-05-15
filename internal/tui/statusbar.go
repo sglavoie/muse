@@ -270,10 +270,10 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	barError := st.Error.Background(bg)
 	barBold := barText.Bold(true)
 	barDim := barText.Faint(true)
-	barModeRepeat    := st.ModeRepeat.Background(bg)
-	barModeShuffle   := st.ModeShuffle.Background(bg)
+	barModeRepeat := st.ModeRepeat.Background(bg)
+	barModeShuffle := st.ModeShuffle.Background(bg)
 	barModeStopAfter := st.ModeStopAfter.Background(bg)
-	barModeRadio     := st.ModeRadio.Background(bg)
+	barModeRadio := st.ModeRadio.Background(bg)
 
 	// modeStyle returns the colored bold style for a given mode label text.
 	modeStyle := func(label string) lipgloss.Style {
@@ -315,7 +315,7 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	if top := s.topNotification(); top.msg != "" {
 		msg := top.msg
 		if !s.undoExpiresAt.IsZero() {
-			if remaining := s.undoExpiresAt.Sub(time.Now()); remaining > 0 {
+			if remaining := time.Until(s.undoExpiresAt); remaining > 0 {
 				msg = fmt.Sprintf("%s (%ds)", msg, int(math.Ceil(remaining.Seconds())))
 			}
 		}

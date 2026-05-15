@@ -30,12 +30,6 @@ func (m Model) activeViewContext() bindingContext {
 	return ctx
 }
 
-// effectiveView returns the active view ID for dispatch purposes.
-// All handlers now use m.activeView directly, so this is a simple passthrough.
-func (m Model) effectiveView() viewID {
-	return m.activeView
-}
-
 // resizable is implemented by every primary view that tracks its own
 // terminal dimensions.
 type resizable interface {

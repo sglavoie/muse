@@ -14,7 +14,7 @@ import (
 // PaletteCommand describes a single entry in the command palette.
 type PaletteCommand struct {
 	Name     string
-	Shortcut string      // optional keyboard shortcut shown right-aligned in the palette
+	Shortcut string // optional keyboard shortcut shown right-aligned in the palette
 	Exec     func() tea.Cmd
 	Enabled  func() bool // nil means always enabled
 }

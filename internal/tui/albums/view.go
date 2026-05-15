@@ -352,13 +352,14 @@ func (v View) renderTracks() string {
 		artistStr := text.FavPrefix(t.Artist, cols.Artist, isArtistFav)
 		dur := text.FormatDurationSecs(t.Duration)
 		dur = fmt.Sprintf("%*s", cols.Duration, dur)
-		if isFocused {
+		switch {
+		case isFocused:
 			a := v.Styles.Accent
 			sep := a.Render(" ")
 			titleStr = styles.AccentFavRender(a, v.Styles.FavoriteAccent, isTrackFav, titleStr)
 			artistStr = styles.AccentFavRender(a, v.Styles.FavArtistAccent, isArtistFav, artistStr)
 			lines[i] = a.Render(markerStr+pos) + sep + titleStr + sep + artistStr + sep + a.Render(dur)
-		} else if isNowPlaying {
+		case isNowPlaying:
 			np := v.Styles.NowPlayingRow
 			sep := np.Render(" ")
 			titleStr = v.Styles.NowPlayingTitle.Render(titleStr)
@@ -368,7 +369,7 @@ func (v View) renderTracks() string {
 				artistStr = v.Styles.TextPrimary.Background(v.Styles.NowPlayingBg).Render(artistStr)
 			}
 			lines[i] = np.Render(markerStr+pos) + sep + titleStr + sep + artistStr + sep + np.Render(dur)
-		} else {
+		default:
 			isOdd := absIdx%2 == 1
 			rowBg := v.Styles.ZebraBg
 			useBg := isOdd

@@ -145,17 +145,18 @@ func (v View) renderTracks() string {
 		_, isTrackFav := v.FavoriteHashes[track.Hash]
 		titleStr := text.FavPrefix(track.Title, cols.Title, isTrackFav)
 		dur := fmt.Sprintf("%*s", cols.Duration, text.FormatDurationSecs(track.Duration))
-		if isFocused {
+		switch {
+		case isFocused:
 			accent := v.Styles.Accent
 			sep := accent.Render(" ")
 			titleStr = styles.AccentFavRender(accent, v.Styles.FavoriteAccent, isTrackFav, titleStr)
 			lines[i] = accent.Render(markerStr+pos) + sep + titleStr + sep + accent.Render(dur)
-		} else if isNowPlaying {
+		case isNowPlaying:
 			np := v.Styles.NowPlayingRow
 			sep := np.Render(" ")
 			titleStr = v.Styles.NowPlayingTitle.Render(titleStr)
 			lines[i] = np.Render(markerStr+pos) + sep + titleStr + sep + np.Render(dur)
-		} else {
+		default:
 			isOdd := absIdx%2 == 1
 			rowBg := v.Styles.ZebraBg
 			useBg := isOdd
