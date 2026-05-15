@@ -185,33 +185,21 @@ func (a undoBulkDequeueAction) perform(m Model) (Model, tea.Cmd) {
 	return m, nil
 }
 
-// undoBatchEnqueueAction reverts a batch enqueue from a playlist
-// (undoKindBatchEnqueue).
-type undoBatchEnqueueAction struct {
-	ids          []int64
-	count        int
-	startIdx     int
-	playlistName string
-}
-
-func (a undoBatchEnqueueAction) kind() undoKind { return undoKindBatchEnqueue }
-
-func (a undoBatchEnqueueAction) description() string {
-	return fmt.Sprintf("Added %d %s from %s — press u to undo",
-		a.count, pluralize(a.count, "track", "tracks"), a.playlistName)
-}
-
-func (a undoBatchEnqueueAction) perform(m Model) (Model, tea.Cmd) {
+// softRemoveQueueEntries soft-deletes ids from the DB, removes the matching
+// entries from the in-memory queue, adjusts the playback index, syncs the
+// player queue, and resets playback state when the current track disappears.
+// warnMsg is logged when the DB soft-delete fails.
+func (m Model) softRemoveQueueEntries(ids []int64, warnMsg string) Model {
 	if m.batchEnqueuer != nil {
-		if err := m.batchEnqueuer.DequeueTracksSoft(a.ids); err != nil {
-			slog.Warn("undo batch enqueue: soft-delete failed", "err", err)
+		if err := m.batchEnqueuer.DequeueTracksSoft(ids); err != nil {
+			slog.Warn(warnMsg, "err", err)
 		}
 		if m.undoer != nil {
 			schedulePurge(&m.undo.slot, m.undoer.PurgeDeletedQueueEntries)
 		}
 	}
-	idSet := make(map[int64]struct{}, len(a.ids))
-	for _, id := range a.ids {
+	idSet := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
 		idSet[id] = struct{}{}
 	}
 	var kept []QueueEntry
@@ -250,6 +238,27 @@ func (a undoBatchEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 	if len(m.queue.entries) == 0 || (m.playback.currentHash != "" && !queueContainsHash(m.queue.entries, m.playback.currentHash)) {
 		m = m.resetPlaybackState()
 	}
+	return m
+}
+
+// undoBatchEnqueueAction reverts a batch enqueue from a playlist
+// (undoKindBatchEnqueue).
+type undoBatchEnqueueAction struct {
+	ids          []int64
+	count        int
+	startIdx     int
+	playlistName string
+}
+
+func (a undoBatchEnqueueAction) kind() undoKind { return undoKindBatchEnqueue }
+
+func (a undoBatchEnqueueAction) description() string {
+	return fmt.Sprintf("Added %d %s from %s — press u to undo",
+		a.count, pluralize(a.count, "track", "tracks"), a.playlistName)
+}
+
+func (a undoBatchEnqueueAction) perform(m Model) (Model, tea.Cmd) {
+	m = m.softRemoveQueueEntries(a.ids, "undo batch enqueue: soft-delete failed")
 	n := a.count
 	m.statusBar.notify(fmt.Sprintf("Undone: removed %d %s", n, pluralize(n, "track", "tracks")))
 	return m, nil
@@ -270,54 +279,7 @@ func (a undoPasteAction) description() string {
 }
 
 func (a undoPasteAction) perform(m Model) (Model, tea.Cmd) {
-	if m.batchEnqueuer != nil {
-		if err := m.batchEnqueuer.DequeueTracksSoft(a.ids); err != nil {
-			slog.Warn("undo paste: soft-delete failed", "err", err)
-		}
-		if m.undoer != nil {
-			schedulePurge(&m.undo.slot, m.undoer.PurgeDeletedQueueEntries)
-		}
-	}
-	idSet := make(map[int64]struct{}, len(a.ids))
-	for _, id := range a.ids {
-		idSet[id] = struct{}{}
-	}
-	var kept []QueueEntry
-	var removedPlayerIndices []int
-	for i, e := range m.queue.entries {
-		if _, ok := idSet[e.ID]; ok {
-			removedPlayerIndices = append(removedPlayerIndices, i)
-		} else {
-			kept = append(kept, e)
-		}
-	}
-	m.queue.entries = kept
-	m = m.preserveQueueSort()
-	m.clampQueueCursorAndScroll()
-	if m.playback.currentIndex >= 0 {
-		removedBefore := 0
-		removedCurrent := false
-		for _, ri := range removedPlayerIndices {
-			if ri < m.playback.currentIndex {
-				removedBefore++
-			} else if ri == m.playback.currentIndex {
-				removedCurrent = true
-			}
-		}
-		if removedCurrent {
-			m.playback.currentIndex = -1
-		} else {
-			m.playback.currentIndex -= removedBefore
-		}
-	}
-	if qr, ok := m.player.(playerQueueRemover); ok {
-		for i := len(removedPlayerIndices) - 1; i >= 0; i-- {
-			_ = qr.RemoveFromQueue(removedPlayerIndices[i])
-		}
-	}
-	if len(m.queue.entries) == 0 || (m.playback.currentHash != "" && !queueContainsHash(m.queue.entries, m.playback.currentHash)) {
-		m = m.resetPlaybackState()
-	}
+	m = m.softRemoveQueueEntries(a.ids, "undo paste: soft-delete failed")
 	n := a.count
 	m.statusBar.notify(fmt.Sprintf("Undone: removed %d pasted %s", n, pluralize(n, "track", "tracks")))
 	return m, nil
