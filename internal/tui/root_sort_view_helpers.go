@@ -281,42 +281,44 @@ func playlistsVisibleReserve(v PlaylistsView) int {
 	return reserve
 }
 
+// drilldownVisibleReserve computes the header-row reserve shared by the
+// artists, albums, genres, and tags drill-down views.  At the top level the
+// reserve is 0, rising to 1 when a filter is active; at any drill-down level
+// it is 3 (heading + separator + column header).  An active sort adds 1 more.
+func drilldownVisibleReserve(isTopLevel, filterActive, hasSort bool) int {
+	reserve := 3
+	if isTopLevel {
+		reserve = 0
+		if filterActive {
+			reserve = 1
+		}
+	}
+	if hasSort {
+		reserve++
+	}
+	return reserve
+}
+
 // artistsVisibleReserve returns the line reserve for the artists view's visibleRows.
 // The reserve must match artists.View.visibleRows() so that adjustScroll and
 // the cursor-movement helpers agree on how many rows are visible.
 func artistsVisibleReserve(v ArtistsView) int {
-	var reserve int
-	switch v.level {
-	case arttui.ArtistLevel:
-		if v.filter.Active || v.filter.Text != "" {
-			reserve = 1
-		}
-	default:
-		reserve = 3
-	}
-	if v.sortState.Field != SortDefault {
-		reserve++
-	}
-	return reserve
+	return drilldownVisibleReserve(
+		v.level == arttui.ArtistLevel,
+		v.filter.Active || v.filter.Text != "",
+		v.sortState.Field != SortDefault,
+	)
 }
 
 // albumsVisibleReserve returns the line reserve for the albums view's visibleRows.
 // The reserve must match albums.View.visibleRows() so that adjustScroll and
 // the cursor-movement helpers agree on how many rows are visible.
 func albumsVisibleReserve(v AlbumsView) int {
-	var reserve int
-	switch v.level {
-	case albtui.AlbumLevel:
-		if v.filter.Active || v.filter.Text != "" {
-			reserve = 1
-		}
-	default:
-		reserve = 3
-	}
-	if v.sortState.Field != SortDefault {
-		reserve++
-	}
-	return reserve
+	return drilldownVisibleReserve(
+		v.level == albtui.AlbumLevel,
+		v.filter.Active || v.filter.Text != "",
+		v.sortState.Field != SortDefault,
+	)
 }
 
 // favoritesVisibleReserve returns the line reserve for the favorites view's visibleRows.
@@ -345,19 +347,11 @@ func favoritesVisibleReserve(v FavoritesView) int {
 // The reserve must match genres.View.visibleRows() so that adjustScroll and
 // the cursor-movement helpers agree on how many rows are visible.
 func genresVisibleReserve(v GenresView) int {
-	var reserve int
-	switch v.level {
-	case gentui.GenreLevel:
-		if v.filter.Active || v.filter.Text != "" {
-			reserve = 1
-		}
-	default:
-		reserve = 3
-	}
-	if v.sortState.Field != SortDefault {
-		reserve++
-	}
-	return reserve
+	return drilldownVisibleReserve(
+		v.level == gentui.GenreLevel,
+		v.filter.Active || v.filter.Text != "",
+		v.sortState.Field != SortDefault,
+	)
 }
 
 // tagsSortFieldsForLevel returns the sort field cycle for the given tags level.

@@ -89,17 +89,9 @@ func (m *Model) clampAllScrollOffsets() {
 
 // tagsVisibleReserve returns the number of header rows to reserve in the tags view.
 func tagsVisibleReserve(v TagsView) int {
-	var reserve int
-	switch v.level {
-	case tagtui.TagLevel:
-		if v.filter.Active || v.filter.Text != "" {
-			reserve = 1
-		}
-	default: // TrackLevel
-		reserve = 3 // heading + separator + column header
-	}
-	if v.sortState.Field != SortDefault {
-		reserve++
-	}
-	return reserve
+	return drilldownVisibleReserve(
+		v.level == tagtui.TagLevel,
+		v.filter.Active || v.filter.Text != "",
+		v.sortState.Field != SortDefault,
+	)
 }
