@@ -385,6 +385,81 @@ func (m Model) preserveTagsCursorOnDirChange(dir SortDir) Model {
 	return m
 }
 
+// shiftBrowseSortDir applies dir to the active browse sub-mode (Artists,
+// Albums, or Genres), preserving the focused item at its new position.
+// Returns (updated model, final sort state, true) on success, or (m, {}, false)
+// when the active browse mode has no active sort or is not handled.
+func (m Model) shiftBrowseSortDir(dir SortDir) (Model, SortState, bool) {
+	switch m.browse.mode {
+	case BrowseModeArtists:
+		if m.browse.artists.sortState.Field == SortDefault {
+			return m, SortState{}, false
+		}
+		m = m.preserveArtistsCursorOnDirChange(dir)
+		return m, m.browse.artists.sortState, true
+	case BrowseModeAlbums:
+		if m.browse.albums.sortState.Field == SortDefault {
+			return m, SortState{}, false
+		}
+		m = m.preserveAlbumsCursorOnDirChange(dir)
+		return m, m.browse.albums.sortState, true
+	case BrowseModeGenres:
+		if m.browse.genres.sortState.Field == SortDefault {
+			return m, SortState{}, false
+		}
+		m = m.preserveGenresCursorOnDirChange(dir)
+		return m, m.browse.genres.sortState, true
+	}
+	return m, SortState{}, false
+}
+
+// cycleBrowseSortField cycles the sort field for the active browse sub-mode
+// (Artists, Albums, or Genres), re-derives backing data when the field resets
+// to default, recomputes the sort, and resets the cursor and scroll offset.
+// Returns (updated model, final sort state, true) on success, or (m, {}, false)
+// when the active browse mode does not support sort cycling.
+func (m Model) cycleBrowseSortField() (Model, SortState, bool) {
+	switch m.browse.mode {
+	case BrowseModeArtists:
+		fields := artistsSortFieldsForLevel(m.browse.artists.level)
+		next := CycleSortField(m.browse.artists.sortState.Field, fields)
+		m.browse.artists.sortState.Field = next
+		if next == SortDefault {
+			m.browse.artists.sortState.Dir = SortAsc
+			m = m.rederiveArtistsData()
+		}
+		m.browse.artists = m.browse.artists.recomputeArtistsSort()
+		m.browse.artists.cursor = 0
+		m.browse.artists.scrollOffset = 0
+		return m, m.browse.artists.sortState, true
+	case BrowseModeAlbums:
+		fields := albumsSortFieldsForLevel(m.browse.albums.level)
+		next := CycleSortField(m.browse.albums.sortState.Field, fields)
+		m.browse.albums.sortState.Field = next
+		if next == SortDefault {
+			m.browse.albums.sortState.Dir = SortAsc
+			m = m.rederiveAlbumsData()
+		}
+		m.browse.albums = m.browse.albums.recomputeAlbumsSort()
+		m.browse.albums.cursor = 0
+		m.browse.albums.scrollOffset = 0
+		return m, m.browse.albums.sortState, true
+	case BrowseModeGenres:
+		fields := genresSortFieldsForLevel(m.browse.genres.level)
+		next := CycleSortField(m.browse.genres.sortState.Field, fields)
+		m.browse.genres.sortState.Field = next
+		if next == SortDefault {
+			m.browse.genres.sortState.Dir = SortAsc
+			m = m.rederiveGenresData()
+		}
+		m.browse.genres = m.browse.genres.recomputeGenresSort()
+		m.browse.genres.cursor = 0
+		m.browse.genres.scrollOffset = 0
+		return m, m.browse.genres.sortState, true
+	}
+	return m, SortState{}, false
+}
+
 // findPlaylistTrackHashPosition returns the index of the track with the given
 // hash in a PlaylistTrackRow slice, or 0 if not found.
 func findPlaylistTrackHashPosition(tracks []db.PlaylistTrackRow, hash string) int {

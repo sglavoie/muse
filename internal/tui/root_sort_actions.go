@@ -77,48 +77,13 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			fields := artistsSortFieldsForLevel(m.browse.artists.level)
-			next := CycleSortField(m.browse.artists.sortState.Field, fields)
-			m.browse.artists.sortState.Field = next
-			if next == SortDefault {
-				m.browse.artists.sortState.Dir = SortAsc
-				m = m.rederiveArtistsData()
-			}
-			m.browse.artists = m.browse.artists.recomputeArtistsSort()
-			m.browse.artists.cursor = 0
-			m.browse.artists.scrollOffset = 0
-			m.statusBar.notifyInfo(sortNotification(m.browse.artists.sortState))
-			return m, nil, true
-		case BrowseModeAlbums:
-			fields := albumsSortFieldsForLevel(m.browse.albums.level)
-			next := CycleSortField(m.browse.albums.sortState.Field, fields)
-			m.browse.albums.sortState.Field = next
-			if next == SortDefault {
-				m.browse.albums.sortState.Dir = SortAsc
-				m = m.rederiveAlbumsData()
-			}
-			m.browse.albums = m.browse.albums.recomputeAlbumsSort()
-			m.browse.albums.cursor = 0
-			m.browse.albums.scrollOffset = 0
-			m.statusBar.notifyInfo(sortNotification(m.browse.albums.sortState))
-			return m, nil, true
-		case BrowseModeGenres:
-			fields := genresSortFieldsForLevel(m.browse.genres.level)
-			next := CycleSortField(m.browse.genres.sortState.Field, fields)
-			m.browse.genres.sortState.Field = next
-			if next == SortDefault {
-				m.browse.genres.sortState.Dir = SortAsc
-				m = m.rederiveGenresData()
-			}
-			m.browse.genres = m.browse.genres.recomputeGenresSort()
-			m.browse.genres.cursor = 0
-			m.browse.genres.scrollOffset = 0
-			m.statusBar.notifyInfo(sortNotification(m.browse.genres.sortState))
-			return m, nil, true
+		var ss SortState
+		var ok bool
+		if m, ss, ok = m.cycleBrowseSortField(); !ok {
+			return m, nil, false
 		}
-		return m, nil, false
+		m.statusBar.notifyInfo(sortNotification(ss))
+		return m, nil, true
 
 	case viewFavorites:
 		fields := favoritesSortFieldsForLevel(m.favorites)
@@ -204,30 +169,13 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			if m.browse.artists.sortState.Field == SortDefault {
-				return m, nil, false
-			}
-			m = m.preserveArtistsCursorOnDirChange(dir)
-			m.statusBar.notifyInfo(sortNotification(m.browse.artists.sortState))
-			return m, nil, true
-		case BrowseModeAlbums:
-			if m.browse.albums.sortState.Field == SortDefault {
-				return m, nil, false
-			}
-			m = m.preserveAlbumsCursorOnDirChange(dir)
-			m.statusBar.notifyInfo(sortNotification(m.browse.albums.sortState))
-			return m, nil, true
-		case BrowseModeGenres:
-			if m.browse.genres.sortState.Field == SortDefault {
-				return m, nil, false
-			}
-			m = m.preserveGenresCursorOnDirChange(dir)
-			m.statusBar.notifyInfo(sortNotification(m.browse.genres.sortState))
-			return m, nil, true
+		var ss SortState
+		var ok bool
+		if m, ss, ok = m.shiftBrowseSortDir(dir); !ok {
+			return m, nil, false
 		}
-		return m, nil, false
+		m.statusBar.notifyInfo(sortNotification(ss))
+		return m, nil, true
 
 	case viewFavorites:
 		if m.favorites.sortState.Field == SortDefault {
