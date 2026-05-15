@@ -112,3 +112,52 @@ func FormatTrackPosSimple(trackNum, fallback int) string {
 	}
 	return strconv.Itoa(trackNum)
 }
+
+// BuildFilterSeparator returns the separator string rendered between a section
+// heading and its item list. leadingNewline=true is used when the separator
+// appears below a heading; false when at the top level where the title bar
+// already provides spacing.
+//
+// sortIndicator is a pre-formatted sort label (e.g. "Sort: Name ▲") or empty.
+// filterActive is true while the user is typing in the filter bar.
+// filterText is the committed filter query; filterView is the pre-rendered
+// textinput string to display while editing; renderedHint is the
+// already-styled placeholder string shown when filterActive is true but
+// filterText is empty (e.g. st.Dim.Render(v.FilterHint)).
+// width is used to truncate a committed filter text to fit the terminal.
+func BuildFilterSeparator(sortIndicator string, filterActive bool, filterText, filterView, renderedHint string, width int, leadingNewline bool) string {
+	var prefix string
+	if sortIndicator != "" {
+		if leadingNewline {
+			prefix = "\n" + sortIndicator
+		} else {
+			prefix = sortIndicator + "\n"
+		}
+	}
+	sep := "\n"
+	if !leadingNewline {
+		sep = ""
+	}
+	if filterActive {
+		if filterText == "" && renderedHint != "" {
+			return prefix + sep + "Filter: " + renderedHint + "\n"
+		}
+		fv := filterView
+		if fv == "" {
+			fv = filterText
+		}
+		return prefix + sep + "Filter: " + fv + "\n"
+	}
+	if filterText != "" {
+		ft := filterText
+		maxLen := width - len("Filter: ") - 1
+		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
+			ft = ansi.Truncate(ft, maxLen-1, "…")
+		}
+		return prefix + sep + "Filter: " + ft + "\n"
+	}
+	if leadingNewline {
+		return prefix + "\n\n"
+	}
+	return prefix
+}

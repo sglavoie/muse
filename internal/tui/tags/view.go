@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/layout"
@@ -386,48 +385,10 @@ func (v View) renderTracks() string {
 
 // filterSeparator returns the line between the heading and the item list.
 func (v View) filterSeparator() string {
-	return v.buildFilterSeparator(true)
+	return text.BuildFilterSeparator(v.SortIndicator, v.FilterActive, v.FilterText, v.FilterView, "", v.Width, true)
 }
 
 // topFilterSeparator is like filterSeparator but without a leading newline.
 func (v View) topFilterSeparator() string {
-	return v.buildFilterSeparator(false)
-}
-
-func (v View) buildFilterSeparator(leadingNewline bool) string {
-	var prefix string
-	if v.SortIndicator != "" {
-		if leadingNewline {
-			prefix = "\n" + v.SortIndicator
-		} else {
-			prefix = v.SortIndicator + "\n"
-		}
-	}
-	if v.FilterActive {
-		sep := "\n"
-		if !leadingNewline {
-			sep = ""
-		}
-		fv := v.FilterView
-		if fv == "" {
-			fv = v.FilterText
-		}
-		return prefix + sep + "Filter: " + fv + "\n"
-	}
-	if v.FilterText != "" {
-		sep := "\n"
-		if !leadingNewline {
-			sep = ""
-		}
-		ft := v.FilterText
-		maxLen := v.Width - len("Filter: ") - 1
-		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
-			ft = ansi.Truncate(ft, maxLen-1, "…")
-		}
-		return prefix + sep + "Filter: " + ft + "\n"
-	}
-	if leadingNewline {
-		return prefix + "\n\n"
-	}
-	return prefix
+	return text.BuildFilterSeparator(v.SortIndicator, v.FilterActive, v.FilterText, v.FilterView, "", v.Width, false)
 }

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/library"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
@@ -418,54 +417,10 @@ func (v View) renderTracks() string {
 // topFilterSeparator is like filterSeparator but without a leading newline,
 // for use in top-level views where the title bar provides the spacing.
 func (v View) topFilterSeparator() string {
-	var prefix string
-	if v.SortIndicator != "" {
-		prefix = v.SortIndicator + "\n"
-	}
-	if v.FilterActive {
-		if v.FilterText == "" && v.FilterHint != "" {
-			return prefix + "Filter: " + v.Styles.Dim.Render(v.FilterHint) + "\n"
-		}
-		fv := v.FilterView
-		if fv == "" {
-			fv = v.FilterText
-		}
-		return prefix + "Filter: " + fv + "\n"
-	}
-	if v.FilterText != "" {
-		ft := v.FilterText
-		maxLen := v.Width - len("Filter: ") - 1
-		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
-			ft = ansi.Truncate(ft, maxLen-1, "…")
-		}
-		return prefix + "Filter: " + ft + "\n"
-	}
-	return prefix
+	return text.BuildFilterSeparator(v.SortIndicator, v.FilterActive, v.FilterText, v.FilterView, v.Styles.Dim.Render(v.FilterHint), v.Width, false)
 }
 
 // filterSeparator returns the line between the heading and the item list.
 func (v View) filterSeparator() string {
-	var sortLine string
-	if v.SortIndicator != "" {
-		sortLine = "\n" + v.SortIndicator
-	}
-	if v.FilterActive {
-		if v.FilterText == "" && v.FilterHint != "" {
-			return sortLine + "\nFilter: " + v.Styles.Dim.Render(v.FilterHint) + "\n"
-		}
-		fv := v.FilterView
-		if fv == "" {
-			fv = v.FilterText
-		}
-		return sortLine + "\nFilter: " + fv + "\n"
-	}
-	if v.FilterText != "" {
-		ft := v.FilterText
-		maxLen := v.Width - len("Filter: ") - 1
-		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
-			ft = ansi.Truncate(ft, maxLen-1, "…")
-		}
-		return sortLine + "\nFilter: " + ft + "\n"
-	}
-	return sortLine + "\n\n"
+	return text.BuildFilterSeparator(v.SortIndicator, v.FilterActive, v.FilterText, v.FilterView, v.Styles.Dim.Render(v.FilterHint), v.Width, true)
 }

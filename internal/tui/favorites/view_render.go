@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	lipgloss "charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -303,27 +302,5 @@ func (v View) renderTrackRows(items []library.Track) string {
 
 // filterSeparator returns the line between the heading and the item list.
 func (v View) filterSeparator() string {
-	var sortLine string
-	if v.SortIndicator != "" {
-		sortLine = "\n" + v.SortIndicator
-	}
-	if v.FilterActive {
-		if v.FilterText == "" && v.FilterHint != "" {
-			return sortLine + "\nFilter: " + v.Styles.Dim.Render(v.FilterHint) + "\n"
-		}
-		fv := v.FilterView
-		if fv == "" {
-			fv = v.FilterText
-		}
-		return sortLine + "\nFilter: " + fv + "\n"
-	}
-	if v.FilterText != "" {
-		ft := v.FilterText
-		maxLen := v.Width - len("Filter: ") - 1
-		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
-			ft = ansi.Truncate(ft, maxLen-1, "…")
-		}
-		return sortLine + "\nFilter: " + ft + "\n"
-	}
-	return sortLine + "\n\n"
+	return text.BuildFilterSeparator(v.SortIndicator, v.FilterActive, v.FilterText, v.FilterView, v.Styles.Dim.Render(v.FilterHint), v.Width, true)
 }
