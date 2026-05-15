@@ -116,17 +116,6 @@ func TestFocusedPlaylistReturnsFalseWhenCursorOutOfBounds(t *testing.T) {
 	}
 }
 
-// TestFocusedPlaylistIDReturnsFalseWhenCursorOutOfBounds verifies that
-// focusedPlaylistID returns false when the cursor exceeds the playlist slice
-// length.
-func TestFocusedPlaylistIDReturnsFalseWhenCursorOutOfBounds(t *testing.T) {
-	v := PlaylistsView{level: pltui.ListLevel, playlists: []db.PlaylistRow{{ID: 1, Name: "A"}}, cursor: 5}
-	_, ok := v.focusedPlaylistID()
-	if ok {
-		t.Fatal("focusedPlaylistID must return false when cursor exceeds slice length")
-	}
-}
-
 // TestFocusedPlaylistReturnsFalseWhenCursorNegative verifies that
 // focusedPlaylist returns false when the cursor is negative.
 func TestFocusedPlaylistReturnsFalseWhenCursorNegative(t *testing.T) {

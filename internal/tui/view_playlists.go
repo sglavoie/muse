@@ -316,20 +316,6 @@ func (v PlaylistsView) ensureCursorVisible() PlaylistsView {
 	return v
 }
 
-// focusedPlaylistID returns the ID of the playlist at the current cursor
-// position and true. Returns 0, false when the list is empty or the view is
-// not at ListLevel.
-func (v PlaylistsView) focusedPlaylistID() (int64, bool) {
-	pl := v.effectivePlaylists()
-	if len(pl) == 0 || v.level != pltui.ListLevel {
-		return 0, false
-	}
-	if v.cursor < 0 || v.cursor >= len(pl) {
-		return 0, false
-	}
-	return pl[v.cursor].ID, true
-}
-
 // refreshTracks updates the track slice while staying at TrackLevel and clamps
 // the cursor to the new length. Unlike openTracks it does not reset the cursor
 // to 0 or save the list cursor, so it is suitable for in-place re-evaluation

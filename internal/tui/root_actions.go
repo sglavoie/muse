@@ -116,8 +116,15 @@ func (m Model) loadLibraryHistoryData() Model {
 
 // handleLibraryModeNext cycles the Library view through its three modes:
 // All → Recent → History → All, loading mode-specific data as needed.
-func (m Model) handleLibraryModeNext() (Model, tea.Cmd) {
-	next := (m.library.mode + 1) % 3
+func (m Model) handleLibraryModeNext() (Model, tea.Cmd) { return m.shiftLibraryMode(1) }
+
+// handleLibraryModePrev cycles the Library view backward: All → History → Recent → All.
+func (m Model) handleLibraryModePrev() (Model, tea.Cmd) { return m.shiftLibraryMode(2) }
+
+// shiftLibraryMode rotates the Library mode by delta steps, loads mode-specific
+// data, and updates the status bar.
+func (m Model) shiftLibraryMode(delta LibraryMode) (Model, tea.Cmd) {
+	next := (m.library.mode + delta) % 3
 	m.library = m.library.switchMode(next)
 	switch next {
 	case LibraryModeRecent:
@@ -132,41 +139,15 @@ func (m Model) handleLibraryModeNext() (Model, tea.Cmd) {
 	return m, nil
 }
 
-// handleLibraryModePrev cycles the Library view backward: All → History → Recent → All.
-func (m Model) handleLibraryModePrev() (Model, tea.Cmd) {
-	prev := (m.library.mode + 2) % 3
-	m.library = m.library.switchMode(prev)
-	switch prev {
-	case LibraryModeRecent:
-		m = m.syncRecentlyAddedFromLibrary()
-		m.statusBar.notifyInfo("Library: Recently Added")
-	case LibraryModeHistory:
-		m = m.loadLibraryHistoryData()
-		m.statusBar.notifyInfo("Library: History")
-	default:
-		m.statusBar.notifyInfo("Library: All tracks")
-	}
-	return m, nil
-}
-
 // handleBrowseModeNext cycles the Browse view forward: Artists → Albums → Genres → Artists.
-func (m Model) handleBrowseModeNext() (Model, tea.Cmd) {
-	m.browse.mode = (m.browse.mode + 1) % 3
-	m = m.deriveCurrentBrowseData()
-	switch m.browse.mode {
-	case BrowseModeAlbums:
-		m.statusBar.notifyInfo("Browse: Albums")
-	case BrowseModeGenres:
-		m.statusBar.notifyInfo("Browse: Genres")
-	default:
-		m.statusBar.notifyInfo("Browse: Artists")
-	}
-	return m, nil
-}
+func (m Model) handleBrowseModeNext() (Model, tea.Cmd) { return m.shiftBrowseMode(1) }
 
 // handleBrowseModePrev cycles the Browse view backward: Artists → Genres → Albums → Artists.
-func (m Model) handleBrowseModePrev() (Model, tea.Cmd) {
-	m.browse.mode = (m.browse.mode + 2) % 3
+func (m Model) handleBrowseModePrev() (Model, tea.Cmd) { return m.shiftBrowseMode(2) }
+
+// shiftBrowseMode rotates the Browse sub-mode by delta steps and updates the status bar.
+func (m Model) shiftBrowseMode(delta BrowseMode) (Model, tea.Cmd) {
+	m.browse.mode = (m.browse.mode + delta) % 3
 	m = m.deriveCurrentBrowseData()
 	switch m.browse.mode {
 	case BrowseModeAlbums:
