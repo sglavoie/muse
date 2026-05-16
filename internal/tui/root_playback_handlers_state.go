@@ -291,9 +291,6 @@ func (m Model) handlePlayRecordedMsg(msg playRecordedMsg) Model {
 	tracks = append(tracks, m.library.sourceTracks[:limit]...)
 	m.library.sourceTracks = tracks
 
-	m.library = m.library.recomputeSortedTracks()
-	if m.library.filter.Text != "" {
-		m.library = m.library.rebuildFilterCache()
-	}
+	m.library = m.library.refreshView()
 	return m
 }

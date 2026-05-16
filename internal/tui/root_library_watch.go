@@ -117,12 +117,7 @@ func (m Model) watchSyncHistoryMetadata(tracks []library.Track) Model {
 			}
 		}
 	}
-	if m.library.sortState.Field != SortDefault {
-		m.library = m.library.recomputeSortedTracks()
-	}
-	if m.library.filter.Text != "" {
-		m.library = m.library.rebuildFilterCache()
-	}
+	m.library = m.library.refreshView()
 	return m
 }
 
@@ -204,12 +199,7 @@ func (m Model) watchSyncTagsMetadata(tracks []library.Track) Model {
 // watchRecomputeLibrary recomputes sorted tracks, filter cache, and clamps
 // the library cursor after watcher-driven insertions and deletions.
 func (m Model) watchRecomputeLibrary() Model {
-	if m.library.sortState.Field != SortDefault {
-		m.library = m.library.recomputeSortedTracks()
-	}
-	if m.library.filter.Text != "" {
-		m.library = m.library.rebuildFilterCache()
-	}
+	m.library = m.library.refreshView()
 	if m.library.filter.Text != "" && m.library.filteredMatches != nil {
 		n := len(m.library.filteredMatches)
 		if n == 0 {

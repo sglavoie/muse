@@ -29,12 +29,7 @@ func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (M
 		}
 	}
 	m = m.syncRecentlyAddedFromLibrary()
-	if m.library.sortState.Field != SortDefault {
-		m.library = m.library.recomputeSortedTracks()
-	}
-	if m.library.filter.Text != "" {
-		m.library = m.library.rebuildFilterCache()
-	}
+	m.library = m.library.refreshView()
 	// Propagate corrected durations to all derived views so their
 	// duration columns stay in sync without requiring navigation away
 	// and back.
@@ -48,12 +43,7 @@ func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (M
 				m.library.sourceTracks[i].Duration = float64(ms) / 1000
 			}
 		}
-		if m.library.sortState.Field != SortDefault {
-			m.library = m.library.recomputeSortedTracks()
-		}
-		if m.library.filter.Text != "" {
-			m.library = m.library.rebuildFilterCache()
-		}
+		m.library = m.library.refreshView()
 	}
 	if m.playlists.level == pltui.TrackLevel {
 		for i := range m.playlists.tracks {

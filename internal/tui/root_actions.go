@@ -107,10 +107,7 @@ func (m Model) loadLibraryHistoryData() Model {
 	}
 	tracks, _ := m.historyReader.ReadPlayHistory(500)
 	m.library.sourceTracks = tracks
-	m.library = m.library.recomputeSortedTracks()
-	if m.library.filter.Text != "" {
-		m.library = m.library.rebuildFilterCache()
-	}
+	m.library = m.library.refreshView()
 	return m
 }
 

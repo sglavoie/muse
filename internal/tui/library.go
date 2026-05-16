@@ -167,12 +167,9 @@ func (v LibraryView) cycleSortField(fields []SortField) (LibraryView, SortState)
 	if next == SortDefault {
 		v.sortState.Dir = SortAsc
 	}
-	v = v.recomputeSortedTracks()
+	v = v.refreshView()
 	v.cursor = 0
 	v.scrollOffset = 0
-	if v.filter.Text != "" {
-		v = v.rebuildFilterCache()
-	}
 	return v, v.sortState
 }
 
@@ -188,10 +185,7 @@ func (v LibraryView) applySortDir(dir SortDir) (LibraryView, SortState, bool) {
 		focusedHash = t.Hash
 	}
 	v.sortState.Dir = dir
-	v = v.recomputeSortedTracks()
-	if v.filter.Text != "" {
-		v = v.rebuildFilterCache()
-	}
+	v = v.refreshView()
 	v.cursor = v.findTrackPosition(focusedHash)
 	v.scrollOffset = adjustScroll(v.cursor, v.scrollOffset, layout.VisibleRows(v.height, libraryViewVisibleReserve(v)))
 	return v, v.sortState, true
@@ -222,6 +216,12 @@ func (v LibraryView) rebuildFilterCache() LibraryView {
 		v.filteredMatches = nil
 	}
 	return v
+}
+
+// refreshView recomputes sort and filter caches in one call. Both underlying
+// methods are no-ops when sort is default or filter is empty respectively.
+func (v LibraryView) refreshView() LibraryView {
+	return v.recomputeSortedTracks().rebuildFilterCache()
 }
 
 // findTrackPosition returns the cursor position for a track with the given hash
@@ -331,11 +331,7 @@ func (m Model) syncRecentlyAddedFromLibrary() Model {
 	if m.library.sortState.Field == SortDefault {
 		m.library.sortState = SortState{Field: SortDateAdded, Dir: SortDesc}
 	}
-	m.library = m.library.recomputeSortedTracks()
-	if m.library.filter.Text != "" {
-		m.library = m.library.rebuildFilterCache()
-	}
-	m.library = m.library.clampCursor()
+	m.library = m.library.refreshView().clampCursor()
 	return m
 }
 

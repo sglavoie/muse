@@ -107,12 +107,7 @@ func (m Model) syncStatusBarMetadata(hash, artist, title string) Model {
 func (m Model) refreshDerivedViews() Model {
 	tracks := m.library.index.Tracks()
 
-	if m.library.sortState.Field != SortDefault {
-		m.library = m.library.recomputeSortedTracks()
-	}
-	if m.library.filter.Text != "" {
-		m.library = m.library.rebuildFilterCache()
-	}
+	m.library = m.library.refreshView()
 
 	switch m.browse.artists.level {
 	case arttui.ArtistLevel:
@@ -181,12 +176,7 @@ func (m Model) refreshDerivedViews() Model {
 
 	if m.library.mode != LibraryModeAll && len(m.library.sourceTracks) > 0 {
 		refreshTrackMetadata(m.library.sourceTracks)
-		if m.library.sortState.Field != SortDefault {
-			m.library = m.library.recomputeSortedTracks()
-		}
-		if m.library.filter.Text != "" {
-			m.library = m.library.rebuildFilterCache()
-		}
+		m.library = m.library.refreshView()
 	}
 
 	if m.tagsView.level == tagtui.TrackLevel {
@@ -214,12 +204,7 @@ func (m Model) refreshDerivedViews() Model {
 		if cached, ok := m.mixes.cachedMixes[m.mixes.activeMix]; ok {
 			refreshTrackMetadata(cached)
 		}
-		if m.mixes.trackView.sortState.Field != SortDefault {
-			m.mixes.trackView = m.mixes.trackView.recomputeSortedTracks()
-		}
-		if m.mixes.trackView.filter.Text != "" {
-			m.mixes.trackView = m.mixes.trackView.rebuildFilterCache()
-		}
+		m.mixes.trackView = m.mixes.trackView.refreshView()
 	}
 
 	return m

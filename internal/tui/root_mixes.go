@@ -250,13 +250,7 @@ func (m Model) handleMixLoadedMsg(msg mixLoadedMsg) Model {
 			// Re-load while user is already browsing: update tracks
 			// in place to preserve cursor, sort, and filter state.
 			m.mixes.trackView.sourceTracks = tracks
-			if m.mixes.trackView.sortState.Field != SortDefault {
-				m.mixes.trackView = m.mixes.trackView.recomputeSortedTracks()
-			}
-			if m.mixes.trackView.filter.Text != "" {
-				m.mixes.trackView = m.mixes.trackView.rebuildFilterCache()
-			}
-			m.mixes.trackView = m.mixes.trackView.clampCursor()
+			m.mixes.trackView = m.mixes.trackView.refreshView().clampCursor()
 		}
 	}
 	return m

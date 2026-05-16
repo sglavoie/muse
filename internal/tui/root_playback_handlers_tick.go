@@ -83,12 +83,7 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 	}
 
 	m.library.index.UpdateDuration(hash, mpvTotal)
-	if m.library.sortState.Field != SortDefault {
-		m.library = m.library.recomputeSortedTracks()
-	}
-	if m.library.filter.Text != "" {
-		m.library = m.library.rebuildFilterCache()
-	}
+	m.library = m.library.refreshView()
 	m = m.syncRecentlyAddedFromLibrary()
 	newDurationMs := int64(mpvTotal * 1000)
 	for i := range m.queue.entries {
@@ -102,12 +97,7 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 				m.library.sourceTracks[i].Duration = mpvTotal
 			}
 		}
-		if m.library.sortState.Field != SortDefault {
-			m.library = m.library.recomputeSortedTracks()
-		}
-		if m.library.filter.Text != "" {
-			m.library = m.library.rebuildFilterCache()
-		}
+		m.library = m.library.refreshView()
 	}
 	if m.playlists.level == pltui.TrackLevel {
 		for i := range m.playlists.tracks {
