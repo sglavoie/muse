@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -158,6 +159,28 @@ func helpSections() []helpSection {
 				{"left / right", "Cycle field or operator"},
 			},
 		},
+		// Section order below mirrors the tab-bar order:
+		// Library → Playlists → Queue → Browse → Favorites → Tags → Mixes.
+		// Library and Playlists appear above; the rest follow here.
+		{
+			title:   "Queue",
+			context: contextQueue,
+			entries: []helpEntry{
+				{"/", "Filter queue"},
+				{"esc", "Clear committed filter"},
+				{"enter", "Play selected track"},
+				{"d", "Remove selected track"},
+				{"x", "Toggle bulk selection"},
+				{"X", "Clear bulk selection"},
+				{"v", "Toggle visual line selection mode"},
+				{"C", "Clear queue"},
+				{"K / J", "Move track up / down"},
+				{"S", "Save queue as playlist"},
+				{"ctrl+y", "Yank (copy) focused / selected tracks"},
+				{"ctrl+x", "Cut focused / selected tracks (move on paste)"},
+				{"ctrl+p", "Paste yanked / cut tracks below cursor"},
+			},
+		},
 		{
 			title:   "Browse (Artists)",
 			context: contextArtists,
@@ -204,25 +227,6 @@ func helpSections() []helpSection {
 				{"X", "Clear all bulk-selected tracks"},
 				{"v", "Toggle visual line selection mode (track level)"},
 				{"a", "Add focused / selected tracks to queue or playlist"},
-			},
-		},
-		{
-			title:   "Queue",
-			context: contextQueue,
-			entries: []helpEntry{
-				{"/", "Filter queue"},
-				{"esc", "Clear committed filter"},
-				{"enter", "Play selected track"},
-				{"d", "Remove selected track"},
-				{"x", "Toggle bulk selection"},
-				{"X", "Clear bulk selection"},
-				{"v", "Toggle visual line selection mode"},
-				{"C", "Clear queue"},
-				{"K / J", "Move track up / down"},
-				{"S", "Save queue as playlist"},
-				{"ctrl+y", "Yank (copy) focused / selected tracks"},
-				{"ctrl+x", "Cut focused / selected tracks (move on paste)"},
-				{"ctrl+p", "Paste yanked / cut tracks below cursor"},
 			},
 		},
 		{
@@ -368,7 +372,17 @@ func wrapText(text string, maxWidth, indent int) string {
 // When width > 0, long descriptions and section titles are word-wrapped.
 func (h HelpOverlay) render(s styles.Styles, sections []helpSection, title string, width int) string {
 	var b strings.Builder
-	b.WriteString(s.Heading.Render(title) + "\n\n")
+	b.WriteString(s.Heading.Render(title) + "\n")
+	// Doubled rule visually anchors the title as its own region (Common
+	// Region + Uniform Connectedness) before the sections begin.
+	ruleWidth := ansi.StringWidth(title)
+	if width > 0 && width < ruleWidth {
+		ruleWidth = width
+	}
+	if ruleWidth < 4 {
+		ruleWidth = 4
+	}
+	b.WriteString(s.Dim.Render(strings.Repeat("═", ruleWidth)) + "\n\n")
 	if len(sections) == 0 {
 		b.WriteString("  (no matches)\n")
 		return b.String()

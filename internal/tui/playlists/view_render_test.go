@@ -109,8 +109,13 @@ func TestRenderTracksColumnResizeOnWidthChange(t *testing.T) {
 func TestRenderListEmpty(t *testing.T) {
 	v := View{}
 	out := v.Render()
-	if !strings.Contains(out, "no playlists") {
-		t.Fatalf("expected '(no playlists)' in output, got:\n%s", out)
+	if !strings.Contains(out, "No playlists yet") {
+		t.Fatalf("expected 'No playlists yet' title in output, got:\n%s", out)
+	}
+	for _, want := range []string{"new", "import m3u", "help"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("empty playlists card missing CTA %q; got:\n%s", want, out)
+		}
 	}
 }
 

@@ -47,7 +47,7 @@ func TestTrackChangedUsesPeakForPlayCount(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd for play count increment")
 	}
-	cmd()
+	drainCmd(cmd)
 	if len(hr.calls) != 1 || hr.calls[0].hash != "old-hash" {
 		t.Fatalf("expected RecordPlay for old-hash, got %+v", hr.calls)
 	}

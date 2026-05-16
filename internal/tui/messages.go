@@ -59,6 +59,17 @@ type playRecordedMsg struct {
 // display updates and transient-notification expiry checks.
 type tickMsg struct{}
 
+// pulseTickMsg is dispatched 250 ms after a TrackChangedMsg so the View()
+// rebuilds once the pulseUntil window has elapsed and the now-playing row
+// returns to its normal styling.
+type pulseTickMsg struct{}
+
+// notificationFadeMsg is dispatched at expiry-minus-250ms for the soonest
+// pending status-bar notification so the View() rebuilds once the last frame
+// should render dim. Receipt is a no-op — the render-time check on remaining
+// time produces the dimmer style.
+type notificationFadeMsg struct{}
+
 // sessionTickMsg is dispatched every sessionTickInterval by sessionTickCmd.
 // On each tick the current playback position is persisted to the session table,
 // but only when playback is active (PlaybackPlaying).

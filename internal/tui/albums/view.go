@@ -56,6 +56,7 @@ type View struct {
 	FavoriteAlbums  map[string]struct{}
 	SelectedHashes  map[string]struct{}
 	NowPlayingHash  string // hash of the currently playing track; empty when nothing is playing
+	NowPlayingIcon  string // marker glyph (e.g. "▶", "⏸", "■"); empty falls back to "♪"
 }
 
 // EffectiveAlbums returns the album list filtered by FilterText.
@@ -298,10 +299,9 @@ func (v View) renderTracks() string {
 
 	cols := ComputeTrack(v.Width)
 
-	header := v.Styles.ColHead.Render(
-		strings.Repeat(" ", cols.SelectionMarker) +
-			fmt.Sprintf("%-*s %-*s %-*s %*s",
-				cols.Position, "#", cols.Title, "Title", cols.Artist, "Artist", cols.Duration, "Time"))
+	header := strings.Repeat(" ", cols.SelectionMarker) + v.Styles.ColHead.Render(
+		fmt.Sprintf("%-*s %-*s %-*s %*s",
+			cols.Position, "#", cols.Title, "Title", cols.Artist, "Artist", cols.Duration, "Time"))
 
 	maxRows := v.visibleRows()
 	start := min(v.ScrollOffset, len(items))
@@ -322,21 +322,7 @@ func (v View) renderTracks() string {
 		isNowPlaying := v.NowPlayingHash != "" && t.Hash == v.NowPlayingHash
 		_, isSelected := v.SelectedHashes[t.Hash]
 
-		var markerStr string
-		switch {
-		case isSelected && isFocused:
-			markerStr = "● " // plain glyph; outer accent wrap provides styling
-		case isSelected:
-			markerStr = "● "
-		case isFocused && isNowPlaying:
-			markerStr = "♪ "
-		case isFocused:
-			markerStr = "▎ "
-		case isNowPlaying:
-			markerStr = "♪ "
-		default:
-			markerStr = "  "
-		}
+		markerStr := text.RowMarker(isSelected, isFocused, isNowPlaying, v.NowPlayingIcon)
 
 		var rawPos string
 		if showDisc {

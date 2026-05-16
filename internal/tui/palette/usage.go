@@ -1,0 +1,112 @@
+package palette
+
+import (
+	"encoding/json"
+	"errors"
+	"io/fs"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"time"
+)
+
+// usageFileName is the JSON file written to the data directory.
+const usageFileName = "palette_usage.json"
+
+// UsageRecord captures how often and how recently a command was confirmed.
+type UsageRecord struct {
+	Count    int       `json:"count"`
+	LastUsed time.Time `json:"last_used"`
+}
+
+// UsageStore tracks per-command usage and persists it to disk best-effort.
+type UsageStore struct {
+	path    string
+	records map[string]UsageRecord
+}
+
+// NewUsageStore returns a store backed by <dataDir>/palette_usage.json. When
+// dataDir is empty, persistence is disabled and the store only lives in
+// memory (useful for tests).
+func NewUsageStore(dataDir string) *UsageStore {
+	path := ""
+	if dataDir != "" {
+		path = filepath.Join(dataDir, usageFileName)
+	}
+	return &UsageStore{
+		path:    path,
+		records: make(map[string]UsageRecord),
+	}
+}
+
+// Load reads usage records from disk. A missing file is not an error.
+// Corrupt files are reported via slog and the in-memory map is left empty.
+func (s *UsageStore) Load() error {
+	if s == nil || s.path == "" {
+		return nil
+	}
+	data, err := os.ReadFile(s.path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	if len(data) == 0 {
+		return nil
+	}
+	records := make(map[string]UsageRecord)
+	if err := json.Unmarshal(data, &records); err != nil {
+		slog.Warn("palette usage: parse failed, starting fresh", "path", s.path, "err", err)
+		return err
+	}
+	s.records = records
+	return nil
+}
+
+// Save writes the current records to disk. Errors are logged but not
+// returned to callers via the UI path (use SaveBestEffort for that).
+func (s *UsageStore) Save() error {
+	if s == nil || s.path == "" {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(s.records, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(s.path, data, 0o644)
+}
+
+// SaveBestEffort writes the store to disk and swallows errors with a warning.
+// Intended for UI hot paths where save failure should not interrupt the user.
+func (s *UsageStore) SaveBestEffort() {
+	if err := s.Save(); err != nil {
+		slog.Warn("palette usage: save failed", "path", s.path, "err", err)
+	}
+}
+
+// Bump increments the count for key and updates LastUsed to now. A nil store
+// is a no-op so callers don't need to check.
+func (s *UsageStore) Bump(key string) {
+	if s == nil || key == "" {
+		return
+	}
+	if s.records == nil {
+		s.records = make(map[string]UsageRecord)
+	}
+	rec := s.records[key]
+	rec.Count++
+	rec.LastUsed = time.Now()
+	s.records[key] = rec
+}
+
+// Get returns the record for key (zero value if absent).
+func (s *UsageStore) Get(key string) UsageRecord {
+	if s == nil || key == "" {
+		return UsageRecord{}
+	}
+	return s.records[key]
+}

@@ -142,52 +142,89 @@ func TestRenderNamedPlaylistSource(t *testing.T) {
 	}
 }
 
-// TestRenderRepeatAndShuffleIndicators verifies that R and S indicators appear
-// when the corresponding modes are active, and are absent otherwise.
-func TestRenderRepeatAndShuffleIndicators(t *testing.T) {
+// TestRenderModeCluster verifies that the always-on 4-glyph RSND mode cluster
+// is shown regardless of state, that verbose forms ("Repeat"/"Shuffle"/...)
+// are no longer emitted, and that RepeatOne substitutes the first glyph
+// (R → 1) to advertise the distinction within the fixed 4-column width.
+func TestRenderModeCluster(t *testing.T) {
 	base := StatusBar{
 		artist:        "Artist",
 		title:         "Title",
 		playbackState: PlaybackPlaying,
 	}
 
-	// Both off.
+	// Both off → cluster shows "RSND" (all glyphs dim).
 	out := base.render(0, styles.Styles{})
-	if strings.Contains(out, "  R") || strings.Contains(out, "  S") {
-		t.Errorf("expected no R/S when both off: got %q", out)
+	if !strings.Contains(out, "RSND") {
+		t.Errorf("expected RSND cluster when modes off: got %q", out)
+	}
+	for _, verbose := range []string{"Repeat", "Shuffle", "Auto-DJ", "Stop Next"} {
+		if strings.Contains(out, verbose) {
+			t.Errorf("verbose label %q should no longer appear: got %q", verbose, out)
+		}
 	}
 
-	// Repeat all (RepeatAll shows "Repeat").
+	// RepeatAll → cluster text unchanged ("RSND"); only R's style differs.
 	sbR := base
 	sbR.repeatMode = RepeatAll
 	out = sbR.render(0, styles.Styles{})
-	if !strings.Contains(out, "  Repeat") {
-		t.Errorf("expected Repeat indicator: got %q", out)
-	}
-	if strings.Contains(out, "  Shuffle") {
-		t.Errorf("unexpected Shuffle indicator: got %q", out)
+	if !strings.Contains(out, "RSND") {
+		t.Errorf("expected RSND cluster with RepeatAll: got %q", out)
 	}
 
-	// Repeat one (RepeatOne shows "Repeat 1").
+	// RepeatOne → first glyph becomes "1" so cluster reads "1SND".
 	sbR1 := base
 	sbR1.repeatMode = RepeatOne
 	out = sbR1.render(0, styles.Styles{})
-	if !strings.Contains(out, "  Repeat 1") {
-		t.Errorf("expected Repeat 1 indicator: got %q", out)
+	if !strings.Contains(out, "1SND") {
+		t.Errorf("expected 1SND cluster with RepeatOne: got %q", out)
 	}
-	if strings.Contains(out, "  Shuffle") {
-		t.Errorf("unexpected Shuffle indicator: got %q", out)
+	if strings.Contains(out, "RSND") {
+		t.Errorf("RSND should not appear with RepeatOne (R replaced by 1): got %q", out)
 	}
 
-	// Shuffle on.
+	// Shuffle on → cluster letters unchanged; only S's style differs.
 	sbS := base
 	sbS.shuffle = true
 	out = sbS.render(0, styles.Styles{})
-	if !strings.Contains(out, "  Shuffle") {
-		t.Errorf("expected Shuffle indicator: got %q", out)
+	if !strings.Contains(out, "RSND") {
+		t.Errorf("expected RSND cluster with shuffle on: got %q", out)
 	}
-	if strings.Contains(out, "  Repeat") {
-		t.Errorf("unexpected Repeat indicator: got %q", out)
+}
+
+// TestRenderModeClusterWidthStable verifies that the 4-glyph RSND cluster has
+// a stable visual width (4 columns) regardless of which modes are active —
+// the entire point of always rendering all four glyphs.
+func TestRenderModeClusterWidthStable(t *testing.T) {
+	measure := func(sb StatusBar) int {
+		out := sb.render(0, styles.Styles{})
+		// Cluster is "  RSND" or "  1SND"; isolate the 4-char run after the
+		// double-space lead.
+		i := strings.Index(out, "  ")
+		if i < 0 {
+			t.Fatalf("expected '  ' lead-in for cluster: got %q", out)
+		}
+		// Skip the two spaces; next 4 visible columns are the cluster.
+		return ansi.StringWidth(out[i+2 : i+6])
+	}
+	base := StatusBar{artist: "A", title: "T", playbackState: PlaybackPlaying}
+	cases := []StatusBar{
+		base,
+		func() StatusBar { b := base; b.repeatMode = RepeatAll; return b }(),
+		func() StatusBar { b := base; b.repeatMode = RepeatOne; return b }(),
+		func() StatusBar { b := base; b.shuffle = true; return b }(),
+		func() StatusBar { b := base; b.stopAfterCurrent = true; return b }(),
+		func() StatusBar { b := base; b.radioMode = true; return b }(),
+		func() StatusBar {
+			b := base
+			b.repeatMode, b.shuffle, b.stopAfterCurrent, b.radioMode = RepeatAll, true, true, true
+			return b
+		}(),
+	}
+	for i, sb := range cases {
+		if w := measure(sb); w != 4 {
+			t.Errorf("case %d: cluster width=%d, want 4", i, w)
+		}
 	}
 }
 

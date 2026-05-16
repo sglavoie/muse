@@ -65,6 +65,11 @@ type View struct {
 	ShowDateAdded   bool
 	ShowPlayedAt    bool
 	NowPlayingHash  string // hash of the currently playing track; empty when nothing is playing
+	NowPlayingIcon  string // marker glyph (e.g. "▶", "⏸", "■"); empty falls back to "♪"
+	// BucketLabel returns a chunk label for a given track based on the active
+	// sort. When nil or always returning "", no dividers/bucket headers are
+	// emitted. Used to chunk long lists into Today/This Week/A/B/… groups.
+	BucketLabel func(musiclib.Track) string
 }
 
 // tracks returns the override tracks if set, otherwise the index tracks.

@@ -1,7 +1,9 @@
 package tui
 
 import (
+	"context"
 	"log/slog"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
@@ -35,8 +37,10 @@ func (m Model) handleLibraryStateAction(action action) (tea.Model, tea.Cmd, bool
 			}
 			m.rescanSnapshot = snap
 
-			rawCh := library.Scan(m.appCtx, m.libraryRoots, m.cfg.ExcludedPaths, m.extractor)
+			scanCtx, cancel := context.WithCancel(m.appCtx)
+			rawCh := library.Scan(scanCtx, m.libraryRoots, m.cfg.ExcludedPaths, m.extractor)
 			ch := m.bridgeScanChannel(rawCh)
+			m.scanCancel = cancel
 			m.library.index = library.LibraryIndex{}
 			m.library.cursor = 0
 			m.library.scrollOffset = 0
@@ -49,10 +53,11 @@ func (m Model) handleLibraryStateAction(action action) (tea.Model, tea.Cmd, bool
 			m.scanning = true
 			m.scanned = 0
 			m.scanTotal = 0
+			m.longOp = longOpState{Active: true, Label: "Scan", StartedAt: time.Now()}
 			m.browse.artists = ArtistsView{width: m.browse.artists.width, height: m.browse.artists.height}
 			m.browse.albums = AlbumsView{width: m.browse.albums.width, height: m.browse.albums.height}
 			m.browse.genres = GenresView{width: m.browse.genres.width, height: m.browse.genres.height}
-			return m, tea.Batch(waitForNextBatch(ch), countAudioFiles(m.appCtx, m.libraryRoots, m.cfg.ExcludedPaths)), true
+			return m, tea.Batch(waitForNextBatch(ch), countAudioFiles(scanCtx, m.libraryRoots, m.cfg.ExcludedPaths)), true
 		}
 		return m, nil, true
 	case actionLibraryFilterClear:

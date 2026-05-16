@@ -3,9 +3,29 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
+
+// applyNowPlayingPulse returns a copy of s with Reverse(true) applied to every
+// lipgloss.Style used by per-view renders to mark the now-playing row. The
+// inversion lasts ~250 ms after a track change (see pulseDuration) so the user
+// notices the transition.
+func applyNowPlayingPulse(s styles.Styles) styles.Styles {
+	s.NowPlaying = s.NowPlaying.Reverse(true)
+	s.NowPlayingFavorite = s.NowPlayingFavorite.Reverse(true)
+	s.NowPlayingFavArtist = s.NowPlayingFavArtist.Reverse(true)
+	s.NowPlayingFavAlbum = s.NowPlayingFavAlbum.Reverse(true)
+	s.NowPlayingTitle = s.NowPlayingTitle.Reverse(true)
+	s.NowPlayingRow = s.NowPlayingRow.Reverse(true)
+	s.NowPlayingRowFavorite = s.NowPlayingRowFavorite.Reverse(true)
+	s.NowPlayingRowFavArtist = s.NowPlayingRowFavArtist.Reverse(true)
+	s.NowPlayingRowFavAlbum = s.NowPlayingRowFavAlbum.Reverse(true)
+	return s
+}
 
 // hasActiveOverlay reports whether any overlay or the help screen is
 // currently displayed. Used to suppress the title bar when an overlay
@@ -79,21 +99,26 @@ func (m Model) View() tea.View {
 	case m.overlay.tagFilterPicker != nil:
 		body = m.overlay.tagFilterPicker.Render(m.termWidth, m.termHeight, *m.styles)
 	default:
+		displayStyles := *m.styles
+		if time.Now().Before(m.pulseUntil) {
+			displayStyles = applyNowPlayingPulse(displayStyles)
+		}
+		npIcon, _ := nowPlayingIndicator(displayStyles, m.playback.state)
 		switch m.activeView {
 		case viewLibrary:
-			body = m.library.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
+			body = m.library.render(displayStyles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, npIcon)
 		case viewPlaylists:
-			body = m.playlists.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
+			body = m.playlists.render(displayStyles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, npIcon)
 		case viewQueue:
-			body = m.queue.render(*m.styles, m.playback.currentIndex, m.playback.state, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
+			body = m.queue.render(displayStyles, m.playback.currentIndex, m.playback.state, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 		case viewBrowse:
-			body = m.browse.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
+			body = m.browse.render(displayStyles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, npIcon)
 		case viewFavorites:
-			body = m.favorites.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
+			body = m.favorites.render(displayStyles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, npIcon)
 		case viewTags:
-			body = m.tagsView.render(*m.styles, m.favoriteHashes, m.playback.currentHash)
+			body = m.tagsView.render(displayStyles, m.favoriteHashes, m.playback.currentHash, npIcon)
 		case viewMixes:
-			body = m.mixes.render(*m.styles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash)
+			body = m.mixes.render(displayStyles, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, npIcon)
 		}
 	}
 
@@ -104,19 +129,36 @@ func (m Model) View() tea.View {
 	}
 
 	statusBar := m.renderStatusBar()
+	// Render the context-aware footer hint strip above the status bar when
+	// enabled, the active view is a primary view (no overlay), and the
+	// context has registered primaries.
+	footerHint := ""
+	if !m.hasActiveOverlay() && m.showFooterHints {
+		footerHint = RenderFooterHints(m.termWidth, m.activeViewContext(), m.registry, *m.styles)
+	}
 	bodyLines := strings.Count(body, "\n") + 1
 	confirmExtra := 0
 	if m.confirmationBar != "" {
 		confirmExtra = 1
 	}
-	if padding := m.termHeight - bodyLines - 2 - confirmExtra; padding > 0 {
+	hintExtra := 0
+	if footerHint != "" {
+		hintExtra = 1
+	}
+	if padding := m.termHeight - bodyLines - 2 - confirmExtra - hintExtra; padding > 0 {
 		body += strings.Repeat("\n", padding)
 	}
 	var content string
-	if m.confirmationBar != "" {
+	switch {
+	case m.confirmationBar != "" && footerHint != "":
+		confirmLine := m.styles.Warning.Width(m.termWidth).Render("  " + m.confirmationBar)
+		content = body + "\n" + confirmLine + "\n" + footerHint + "\n" + statusBar
+	case m.confirmationBar != "":
 		confirmLine := m.styles.Warning.Width(m.termWidth).Render("  " + m.confirmationBar)
 		content = body + "\n" + confirmLine + "\n" + statusBar
-	} else {
+	case footerHint != "":
+		content = body + "\n" + footerHint + "\n" + statusBar
+	default:
 		content = body + "\n" + statusBar
 	}
 	v := tea.NewView(content)
@@ -305,9 +347,6 @@ func (m Model) renderStatusBar() string {
 	sb.radioMode = m.radio.enabled
 	sb.configCreated = m.configCreated
 	sb.watchDegraded = m.watchDegraded
-	if m.activeTagFilter != nil {
-		sb.activeTagName = m.tagNames[*m.activeTagFilter]
-	}
 	sb.queueEmpty = len(m.queue.entries) == 0
 	if m.playback.state == PlaybackPlaying && m.playback.currentIndex >= 0 && len(m.queue.entries) > 0 {
 		sb.queuePosition = fmt.Sprintf("%d of %d", m.playback.currentIndex+1, len(m.queue.entries))
@@ -342,7 +381,38 @@ func (m Model) renderStatusBar() string {
 	if m.undo.slot.action != nil {
 		sb.undoExpiresAt = m.undo.slot.expiresAt
 	}
+	sb.bucketLabel = m.focusedBucketLabel()
+	sb.longOp = m.longOp
 	return sb.render(m.termWidth, *m.styles)
+}
+
+// focusedBucketLabel returns the bucket label for the focused row in the
+// active view, or "" when no bucketed sort is in effect. Used by the status
+// bar to append a chunk hint to the queue position display.
+func (m Model) focusedBucketLabel() string {
+	switch m.activeView {
+	case viewLibrary:
+		field := m.library.sortState.Field
+		if !SortFieldHasBuckets(field) {
+			return ""
+		}
+		t, ok := m.library.view().FocusedTrack()
+		if !ok {
+			return ""
+		}
+		return TrackBucket(field, t, time.Now())
+	case viewQueue:
+		field := m.queue.sortState.Field
+		if !SortFieldHasBuckets(field) {
+			return ""
+		}
+		entries := m.queue.filteredEntries()
+		if m.queue.cursor < 0 || m.queue.cursor >= len(entries) {
+			return ""
+		}
+		return QueueEntryBucket(field, entries[m.queue.cursor])
+	}
+	return ""
 }
 
 // hasCommittedFilter reports whether the active view has a committed

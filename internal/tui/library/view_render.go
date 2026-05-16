@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	musiclib "github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/buckets"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -28,7 +29,11 @@ func (v View) Render() string {
 	allTracks := v.tracks()
 	n := len(allTracks)
 	if n == 0 {
-		return v.Styles.Dim.Render("No music found — check library path in settings (ctrl+,)")
+		return v.Styles.RenderEmptyCard(v.Width, v.visibleRows(), "Library is empty", []styles.EmptyAction{
+			{Key: "s", Label: "scan folders"},
+			{Key: "i", Label: "import"},
+			{Key: "?", Label: "help"},
+		})
 	}
 
 	// Resolve the set of tracks to display, with optional match positions.
@@ -125,7 +130,7 @@ func (v View) Render() string {
 			dateAddedH += ind
 		}
 	}
-	header := v.Styles.ColHead.Render(strings.Repeat(" ", cols.SelectionMarker) + renderRow("#", artistH, titleH, albumH, timeH, dateAddedH, cols))
+	header := strings.Repeat(" ", cols.SelectionMarker) + v.Styles.ColHead.Render(renderRow("#", artistH, titleH, albumH, timeH, dateAddedH, cols))
 
 	if start >= end {
 		noMatches := "No matches"
@@ -174,7 +179,7 @@ func (v View) Render() string {
 		// When the row is focused, omit the inner accent/reset from the marker
 		// so the outer reverse-video wrap covers the full row uniformly. An
 		// inner ANSI reset would reset the cursor highlight mid-row.
-		markerStr := text.RowMarker(isSelected, isFocused, isNowPlaying, "♪")
+		markerStr := text.RowMarker(isSelected, isFocused, isNowPlaying, v.NowPlayingIcon)
 
 		_, isTrackFav := v.FavoriteHashes[t.Hash]
 		_, isArtistFav := v.FavoriteArtists[t.Artist]
@@ -316,7 +321,53 @@ func (v View) Render() string {
 		lines[i] = row
 	}
 
-	return separator + header + "\n" + strings.Join(lines, "\n")
+	out := lines
+	if v.BucketLabel != nil {
+		labels := make([]string, len(lines))
+		for i := range lines {
+			labels[i] = v.BucketLabel(display[start+i].track)
+		}
+		sticky := ""
+		if len(labels) > 0 {
+			sticky = labels[0]
+		}
+		out = buckets.Chunk(lines, labels, buckets.ChunkOptions{
+			StickyBucket:     sticky,
+			MaxRows:          maxRows,
+			DividerEvery:     buckets.DividerEvery,
+			MakeDivider:      func() string { return v.renderDivider() },
+			MakeBucketHeader: v.renderBucketHeader,
+		})
+	}
+
+	return separator + header + "\n" + strings.Join(out, "\n")
+}
+
+// renderDivider returns a single divider line spanning the visible content
+// width. It is rendered with the dim Divider style and uses U+2500 box-drawing.
+func (v View) renderDivider() string {
+	w := v.Width
+	if w <= 0 {
+		w = 1
+	}
+	return v.Styles.Divider.Render(strings.Repeat("─", w))
+}
+
+// renderBucketHeader returns a styled bucket-header line padded to the
+// content width so subsequent lines align cleanly.
+func (v View) renderBucketHeader(label string) string {
+	if label == "" {
+		return ""
+	}
+	w := v.Width
+	if w <= 0 {
+		w = ansi.StringWidth(label)
+	}
+	padded := label
+	if pw := ansi.StringWidth(label); pw < w {
+		padded = label + strings.Repeat(" ", w-pw)
+	}
+	return v.Styles.BucketHeader.Render(padded)
 }
 
 // renderRow formats a single row with each field padded or truncated to its

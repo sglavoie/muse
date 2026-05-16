@@ -49,6 +49,7 @@ type View struct {
 	FavoriteHashes map[string]struct{}
 	SelectedHashes map[string]struct{}
 	NowPlayingHash string // hash of the currently playing track; empty when nothing is playing
+	NowPlayingIcon string // marker glyph (e.g. "▶", "⏸", "■"); empty falls back to "♪"
 
 	// Inline create/rename input state (passed through from TagsView).
 	Creating    bool
@@ -231,7 +232,10 @@ func (v View) Render() string {
 func (v View) renderTags() string {
 	items := v.EffectiveTags()
 	if len(v.Tags) == 0 && !v.Creating {
-		return "(no tags — press c to create)"
+		return v.Styles.RenderEmptyCard(v.Width, v.visibleRows(), "No tags yet", []styles.EmptyAction{
+			{Key: "t", Label: "tag a track"},
+			{Key: "?", Label: "help"},
+		})
 	}
 
 	maxRows := v.visibleRows()
@@ -290,13 +294,12 @@ func (v View) renderTracks() string {
 
 	cols := ComputeTrack(v.Width)
 
-	header := v.Styles.ColHead.Render(
-		strings.Repeat(" ", cols.SelectionMarker) +
-			fmt.Sprintf("%-*s %-*s %-*s %*s",
-				cols.Title, "Title",
-				cols.Artist, "Artist",
-				cols.Album, "Album",
-				cols.Duration, "Time"))
+	header := strings.Repeat(" ", cols.SelectionMarker) + v.Styles.ColHead.Render(
+		fmt.Sprintf("%-*s %-*s %-*s %*s",
+			cols.Title, "Title",
+			cols.Artist, "Artist",
+			cols.Album, "Album",
+			cols.Duration, "Time"))
 
 	maxRows := v.visibleRows()
 	start := min(v.ScrollOffset, len(items))
@@ -310,7 +313,7 @@ func (v View) renderTracks() string {
 		_, isSelected := v.SelectedHashes[t.Hash]
 		_, isTrackFav := v.FavoriteHashes[t.Hash]
 
-		markerStr := text.RowMarker(isSelected, isFocused, isNowPlaying, "♪")
+		markerStr := text.RowMarker(isSelected, isFocused, isNowPlaying, v.NowPlayingIcon)
 
 		titleStr := text.FavPrefix(t.Title, cols.Title, isTrackFav)
 		artistStr := text.Pad(t.Artist, cols.Artist)

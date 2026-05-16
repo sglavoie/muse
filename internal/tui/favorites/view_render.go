@@ -67,7 +67,12 @@ func (v View) renderList() string {
 		allItems = v.Albums
 	}
 	if len(allItems) == 0 {
-		return heading + "\n\n" + v.Styles.Dim.Render("No favorites yet — press F on any artist or album")
+		card := v.Styles.RenderEmptyCard(v.Width, v.visibleRows(), "No favorites yet", []styles.EmptyAction{
+			{Key: "1", Label: "go to library"},
+			{Key: "F", Label: "favorite an artist or album"},
+			{Key: "?", Label: "help"},
+		})
+		return heading + "\n\n" + card
 	}
 	if len(items) == 0 {
 		return heading + v.filterSeparator() + "(no matches)"
@@ -129,7 +134,12 @@ func (v View) renderTrackList() string {
 	heading := v.Styles.Heading.Render("Favorite Tracks")
 	items := v.EffectiveTracks()
 	if len(v.Tracks) == 0 {
-		return heading + "\n\n" + v.Styles.Dim.Render("No favorites yet — press F on any track")
+		card := v.Styles.RenderEmptyCard(v.Width, v.visibleRows(), "No favorites yet", []styles.EmptyAction{
+			{Key: "1", Label: "go to library"},
+			{Key: "f", Label: "favorite a track"},
+			{Key: "?", Label: "help"},
+		})
+		return heading + "\n\n" + card
 	}
 	if len(items) == 0 {
 		return heading + v.filterSeparator() + "(no matches)"
@@ -155,9 +165,10 @@ func (v View) renderTracks() string {
 func (v View) renderTrackRows(items []library.Track) string {
 	cols := ComputeTrack(v.Width)
 
-	// Column header row.
-	header := v.Styles.ColHead.Render(
-		fmt.Sprintf("  %-*s %-*s %-*s %-*s %*s %*s",
+	// Column header row. The 2-space marker gutter is excluded from the
+	// styled body so the dotted underline starts at the first data column.
+	header := "  " + v.Styles.ColHead.Render(
+		fmt.Sprintf("%-*s %-*s %-*s %-*s %*s %*s",
 			cols.Position, "#", cols.Title, "Title", cols.Artist, "Artist", cols.Album, "Album", cols.Duration, "Time", cols.PlayCount, "Plays"))
 
 	maxRows := v.visibleRows()
@@ -179,7 +190,7 @@ func (v View) renderTrackRows(items []library.Track) string {
 		isNowPlaying := v.NowPlayingHash != "" && t.Hash == v.NowPlayingHash
 
 		_, selected := v.SelectedItems[absIdx]
-		marker := text.RowMarker(selected, isFocused, isNowPlaying, "♪")
+		marker := text.RowMarker(selected, isFocused, isNowPlaying, v.NowPlayingIcon)
 
 		var rawPos string
 		if showDisc {

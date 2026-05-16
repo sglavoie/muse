@@ -127,7 +127,7 @@ func (v MixesView) handleCursorAction(a action) MixesView {
 // render returns a string representation of the Mixes view.
 // At level 0, it shows the list of mixes with name, description, and count.
 // At level 1, it delegates to the embedded trackView.
-func (v MixesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash string) string {
+func (v MixesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
 	if v.level == 1 {
 		if len(v.trackView.sourceTracks) == 0 {
 			for _, mix := range v.mixes {
@@ -137,7 +137,7 @@ func (v MixesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[
 			}
 			return s.Dim.Render("No tracks match yet — keep listening!")
 		}
-		return v.trackView.render(s, favHashes, favArtists, favAlbums, nowPlayingHash)
+		return v.trackView.render(s, favHashes, favArtists, favAlbums, nowPlayingHash, nowPlayingIcon)
 	}
 
 	if v.insufficientData {
@@ -154,7 +154,10 @@ func (v MixesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[
 	}
 
 	if len(v.mixes) == 0 {
-		return s.Dim.Render("Loading mixes…")
+		return s.RenderEmptyCard(v.width, v.height, "No mixes yet", []styles.EmptyAction{
+			{Key: "1", Label: "go to library"},
+			{Key: "?", Label: "help"},
+		})
 	}
 
 	var lines []string

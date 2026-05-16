@@ -40,6 +40,7 @@ func defaults() Config {
 		EQCustomPresets:            nil,
 		StereoWideEnabled:          defaultStereoWideEnabled,
 		StereoWideAmount:           defaultStereoWideAmount,
+		ShowFooterHints:            defaultShowFooterHints,
 		Mixes: MixesConfig{
 			RediscoverMinPlays:     defaultMixRediscoverMinPlays,
 			RediscoverAgeDays:      defaultMixRediscoverAgeDays,

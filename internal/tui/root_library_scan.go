@@ -21,6 +21,9 @@ type rescanEntry struct {
 // handleScanProgressMsg updates the status bar with the current scan progress.
 func (m Model) handleScanProgressMsg(msg library.ScanProgressMsg) Model {
 	m.statusBar.handleScanProgress(msg)
+	if m.longOp.Active {
+		m.longOp = m.longOp.update(msg.Scanned, msg.Total, time.Now())
+	}
 	return m
 }
 
@@ -29,6 +32,9 @@ func (m Model) handleScanTotalMsg(msg library.ScanTotalMsg) Model {
 	m.scanTotal = msg.Total
 	if m.scanning {
 		m.statusBar.handleScanProgress(library.ScanProgressMsg{Scanned: m.scanned, Total: m.scanTotal})
+		if m.longOp.Active {
+			m.longOp = m.longOp.update(m.scanned, m.scanTotal, time.Now())
+		}
 	}
 	return m
 }
@@ -48,6 +54,9 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 	}
 	m.scanned += len(msg.Tracks)
 	m.statusBar.handleScanProgress(library.ScanProgressMsg{Scanned: m.scanned, Total: m.scanTotal})
+	if m.longOp.Active {
+		m.longOp = m.longOp.update(m.scanned, m.scanTotal, time.Now())
+	}
 	// Recompute sorted tracks if a sort is active so the cached copy
 	// includes newly scanned tracks.
 	if m.library.sortState.Field != SortDefault {
@@ -72,6 +81,11 @@ func (m Model) handleScanDoneMsg() Model {
 	m.scanning = false
 	m.scanCh = nil
 	m.rescanSnapshot = nil
+	if m.scanCancel != nil {
+		m.scanCancel()
+		m.scanCancel = nil
+	}
+	m.longOp = longOpState{}
 	return m
 }
 

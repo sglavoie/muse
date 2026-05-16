@@ -12,6 +12,7 @@ import (
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/palette"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -89,6 +90,14 @@ type Model struct {
 	scanning  bool
 	scanned   int
 	scanTotal int // estimated total from the parallel counting goroutine
+	// scanCancel cancels the per-scan context derived from m.appCtx. Set when
+	// a scan starts; cleared on completion or user-initiated cancel. nil when
+	// no scan is in progress.
+	scanCancel context.CancelFunc
+	// longOp tracks progress, ETA, and the rate-window samples for the
+	// currently active long-running operation (e.g. a library scan). The
+	// zero value (Active==false) means no long op is running.
+	longOp longOpState
 
 	// userEditedReader queries the DB for user-edited tracks so that
 	// rescan and watcher flows can preserve edited metadata in-memory.
@@ -206,6 +215,11 @@ type Model struct {
 	// of the program. Printed to stderr as a session summary on quit.
 	sessionTracksPlayed int
 	sessionListenSecs   float64
+	sessionArtistCounts map[string]int // counts of plays per artist this session; used to derive the top artist on quit
+
+	// pulseUntil drives a brief inversion of the now-playing row on track
+	// changes. Set in handleTrackChangedMsg; checked at render time.
+	pulseUntil time.Time
 
 	// sessionCount is the number of times the app has been launched (including
 	// the current session). Set via WithSessionCount. Used to show one-time tips.
@@ -226,6 +240,16 @@ type Model struct {
 	// defaults in New(); replaced on tea.BackgroundColorMsg once the terminal
 	// reports its actual background color.
 	styles *styles.Styles
+
+	// paletteUsage tracks command palette usage counts for MRU ranking.
+	// May be nil when persistence is disabled (e.g. headless tests).
+	paletteUsage *palette.UsageStore
+
+	// showFooterHints toggles the context-aware footer hint strip rendered
+	// above the status bar. Initialized from cfg.ShowFooterHints after
+	// options apply; flipped at runtime via the "Toggle footer hints"
+	// palette command.
+	showFooterHints bool
 }
 
 // New creates a root Model. All dependencies are injected via functional
@@ -253,6 +277,10 @@ func New(ctx context.Context, opts ...Option) Model {
 	for _, opt := range opts {
 		opt(&m)
 	}
+	// Initialize the palette usage store from the resolved data directory.
+	// Load errors are swallowed (best-effort persistence).
+	m.paletteUsage = palette.NewUsageStore(m.dataDir)
+	_ = m.paletteUsage.Load()
 	// Derive scanning state from scanCh after options are applied.
 	m.scanning = m.scanCh != nil
 	// Pre-load the set of favorited track hashes for row highlighting.
@@ -265,6 +293,8 @@ func New(ctx context.Context, opts ...Option) Model {
 		m.library = m.library.switchMode(LibraryModeRecent)
 	}
 	m = m.syncRecentlyAddedFromLibrary()
+	// Footer hint strip default is taken from config (defaults to true).
+	m.showFooterHints = m.cfg.ShowFooterHints
 	// Sync statusBar fields from model state.
 	m.statusBar.transientDur = time.Duration(m.cfg.TransientDurationSecs) * time.Second
 	m.statusBar.configPath = m.configPath
@@ -301,6 +331,23 @@ func (m Model) SessionTracksPlayed() int { return m.sessionTracksPlayed }
 
 // SessionListenSecs returns the accumulated listening time in seconds this session.
 func (m Model) SessionListenSecs() float64 { return m.sessionListenSecs }
+
+// SessionTopArtist returns the artist with the most plays this session, or "" when none.
+// Ties are broken by lexicographically smaller artist name to keep the output stable.
+func (m Model) SessionTopArtist() string {
+	var top string
+	var topCount int
+	for artist, count := range m.sessionArtistCounts {
+		if artist == "" {
+			continue
+		}
+		if count > topCount || (count == topCount && artist < top) {
+			top = artist
+			topCount = count
+		}
+	}
+	return top
+}
 
 // RemoveLibraryTrackByPath removes a track from the in-memory library index
 // by its file path. Call this before starting the TUI to evict deleted files

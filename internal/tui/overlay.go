@@ -26,6 +26,11 @@ const (
 	cornerBR = "╯"
 	crossL   = "├"
 	crossR   = "┤"
+	// Doubled rule below modal titles strengthens Common Region by visually
+	// detaching the title from the body.
+	borderDoubleH = "═"
+	crossDoubleL  = "╞"
+	crossDoubleR  = "╡"
 )
 
 // OverlayRow represents a single content row inside an OverlayBox.
@@ -100,8 +105,11 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 	rightTP := titlePad - leftTP
 	boxLines = append(boxLines, borderV+strings.Repeat(" ", leftTP)+s.Heading.Render(o.Title)+strings.Repeat(" ", rightTP)+borderV)
 
-	// Separator.
-	boxLines = append(boxLines, crossL+strings.Repeat(borderH, innerWidth)+crossR)
+	// Doubled rule below the title (Common Region + Uniform Connectedness).
+	boxLines = append(boxLines, crossDoubleL+strings.Repeat(borderDoubleH, innerWidth)+crossDoubleR)
+
+	// Inner top padding row.
+	boxLines = append(boxLines, borderV+strings.Repeat(" ", innerWidth)+borderV)
 
 	// Content rows.
 	for _, r := range o.Rows {
@@ -128,6 +136,9 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 			boxLines = append(boxLines, borderV+row+borderV)
 		}
 	}
+
+	// Inner bottom padding row.
+	boxLines = append(boxLines, borderV+strings.Repeat(" ", innerWidth)+borderV)
 
 	// Bottom border.
 	boxLines = append(boxLines, cornerBL+strings.Repeat(borderH, innerWidth)+cornerBR)

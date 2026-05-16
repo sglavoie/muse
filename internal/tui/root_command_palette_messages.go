@@ -40,3 +40,7 @@ type playlistShuffleMsg struct{}
 // jumpToNowPlayingMsg switches to Library view with the cursor on the
 // currently-playing track.
 type jumpToNowPlayingMsg struct{}
+
+// toggleFooterHintsMsg flips the runtime state of the context-aware footer
+// hint strip and persists the new value to the config.
+type toggleFooterHintsMsg struct{}

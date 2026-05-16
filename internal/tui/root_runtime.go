@@ -158,6 +158,34 @@ func tickCmd() tea.Cmd {
 	})
 }
 
+// pulseDuration is the on-screen lifetime of the now-playing pulse after a
+// track change.
+const pulseDuration = 250 * time.Millisecond
+
+// pulseCmd schedules a tick that fires when the now-playing pulse window
+// expires so the View() rebuilds with normal (non-inverted) styling.
+func pulseCmd() tea.Cmd {
+	return tea.Tick(pulseDuration, func(time.Time) tea.Msg {
+		return pulseTickMsg{}
+	})
+}
+
+// notificationFadeCmd schedules a tick that fires at the given absolute time
+// so the View() rebuilds with the dim "fade" frame for an expiring
+// notification. Returns nil when at is zero or already in the past.
+func notificationFadeCmd(at time.Time) tea.Cmd {
+	if at.IsZero() {
+		return nil
+	}
+	d := time.Until(at)
+	if d <= 0 {
+		return nil
+	}
+	return tea.Tick(d, func(time.Time) tea.Msg {
+		return notificationFadeMsg{}
+	})
+}
+
 // countAudioFiles returns a Cmd that runs library.CountAudioFiles in a
 // background goroutine and dispatches a ScanTotalMsg when done.
 func countAudioFiles(ctx context.Context, roots []string, excludedPaths []string) tea.Cmd {

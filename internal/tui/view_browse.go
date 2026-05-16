@@ -26,13 +26,13 @@ func (v *BrowseView) setSize(w, h int) {
 	v.genres.setSize(w, h)
 }
 
-func (v BrowseView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash string) string {
+func (v BrowseView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
 	switch v.mode {
 	case BrowseModeAlbums:
-		return v.albums.render(s, favHashes, favArtists, favAlbums, nowPlayingHash)
+		return v.albums.render(s, favHashes, favArtists, favAlbums, nowPlayingHash, nowPlayingIcon)
 	case BrowseModeGenres:
-		return v.genres.render(s, favHashes, favArtists, favAlbums, nowPlayingHash)
+		return v.genres.render(s, favHashes, favArtists, favAlbums, nowPlayingHash, nowPlayingIcon)
 	default:
-		return v.artists.render(s, favHashes, favArtists, favAlbums, nowPlayingHash)
+		return v.artists.render(s, favHashes, favArtists, favAlbums, nowPlayingHash, nowPlayingIcon)
 	}
 }

@@ -20,7 +20,7 @@ func testCommands() []PaletteCommand {
 // --- sorting ---
 
 func TestNewCommandPaletteSortsAlphabetically(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	want := []string{"Alpha action", "Middle action", "Zebra action"}
 	if len(cp.filtered) != len(want) {
 		t.Fatalf("filtered length: want %d, got %d", len(want), len(cp.filtered))
@@ -35,7 +35,7 @@ func TestNewCommandPaletteSortsAlphabetically(t *testing.T) {
 // --- cursor navigation ---
 
 func TestCommandPaletteCursorDown(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	cp2, cmd := cp.HandleKey("down", tea.KeyPressMsg{})
 	if cmd != nil {
 		t.Fatalf("expected nil cmd, got %T", cmd)
@@ -46,7 +46,7 @@ func TestCommandPaletteCursorDown(t *testing.T) {
 }
 
 func TestCommandPaletteCursorUp(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	cp.cursor = 2
 	cp2, cmd := cp.HandleKey("up", tea.KeyPressMsg{})
 	if cmd != nil {
@@ -58,7 +58,7 @@ func TestCommandPaletteCursorUp(t *testing.T) {
 }
 
 func TestCommandPaletteCursorClampsBottom(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	cp.cursor = 2 // last item
 	cp2, _ := cp.HandleKey("down", tea.KeyPressMsg{})
 	if cp2.cursor != 2 {
@@ -67,7 +67,7 @@ func TestCommandPaletteCursorClampsBottom(t *testing.T) {
 }
 
 func TestCommandPaletteCursorClampsTop(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	cp2, _ := cp.HandleKey("up", tea.KeyPressMsg{})
 	if cp2.cursor != 0 {
 		t.Errorf("cursor: want 0 (clamped), got %d", cp2.cursor)
@@ -75,7 +75,7 @@ func TestCommandPaletteCursorClampsTop(t *testing.T) {
 }
 
 func TestCommandPaletteCtrlJDown(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	cp2, _ := cp.HandleKey("ctrl+j", tea.KeyPressMsg{})
 	if cp2.cursor != 1 {
 		t.Errorf("cursor: want 1, got %d", cp2.cursor)
@@ -83,7 +83,7 @@ func TestCommandPaletteCtrlJDown(t *testing.T) {
 }
 
 func TestCommandPaletteCtrlKUp(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	cp.cursor = 1
 	cp2, _ := cp.HandleKey("ctrl+k", tea.KeyPressMsg{})
 	if cp2.cursor != 0 {
@@ -92,7 +92,7 @@ func TestCommandPaletteCtrlKUp(t *testing.T) {
 }
 
 func TestCommandPaletteCtrlNDown(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	cp2, _ := cp.HandleKey("ctrl+n", tea.KeyPressMsg{})
 	if cp2.cursor != 1 {
 		t.Errorf("cursor: want 1, got %d", cp2.cursor)
@@ -100,7 +100,7 @@ func TestCommandPaletteCtrlNDown(t *testing.T) {
 }
 
 func TestCommandPaletteCtrlPUp(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	cp.cursor = 1
 	cp2, _ := cp.HandleKey("ctrl+p", tea.KeyPressMsg{})
 	if cp2.cursor != 0 {
@@ -111,7 +111,7 @@ func TestCommandPaletteCtrlPUp(t *testing.T) {
 // --- enter confirms ---
 
 func TestCommandPaletteEnterConfirms(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	cp.cursor = 1 // "Middle action" (sorted)
 	_, cmd := cp.HandleKey("enter", tea.KeyPressMsg{})
 	if cmd == nil {
@@ -132,7 +132,7 @@ func TestCommandPaletteEnterSkipsDisabledCommand(t *testing.T) {
 		{Name: "Enabled cmd"},
 		{Name: "Disabled cmd", Enabled: func() bool { return false }},
 	}
-	cp, _ := NewCommandPalette(cmds)
+	cp, _ := NewCommandPalette(cmds, nil)
 	// "Disabled cmd" sorts after "Enabled cmd"; cursor on it.
 	cp.cursor = 0 // "Disabled cmd" (alphabetically first: D < E)
 	if cp.filtered[0].Name != "Disabled cmd" {
@@ -147,7 +147,7 @@ func TestCommandPaletteEnterSkipsDisabledCommand(t *testing.T) {
 // --- esc dismisses ---
 
 func TestCommandPaletteEscDismisses(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	_, cmd := cp.HandleKey("esc", tea.KeyPressMsg{})
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd")
@@ -161,7 +161,7 @@ func TestCommandPaletteEscDismisses(t *testing.T) {
 // --- filtering ---
 
 func TestCommandPaletteFilterNarrows(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	// Manually set the filter text and refilter (since HandleKey delegates to
 	// the textinput which requires a real key event).
 	cp.filter.Text = "alpha"
@@ -175,7 +175,7 @@ func TestCommandPaletteFilterNarrows(t *testing.T) {
 }
 
 func TestCommandPaletteFilterCaseInsensitive(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	cp.filter.Text = "MIDDLE"
 	cp.refilter()
 	if len(cp.filtered) != 1 {
@@ -187,7 +187,7 @@ func TestCommandPaletteFilterCaseInsensitive(t *testing.T) {
 }
 
 func TestCommandPaletteFilterEmptyShowsAll(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	cp.filter.Text = "zzz"
 	cp.refilter()
 	if len(cp.filtered) != 0 {
@@ -202,7 +202,7 @@ func TestCommandPaletteFilterEmptyShowsAll(t *testing.T) {
 }
 
 func TestCommandPaletteFilterClampsCursor(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	cp.cursor = 2 // last item
 	cp.filter.Text = "alpha"
 	cp.refilter()
@@ -214,7 +214,7 @@ func TestCommandPaletteFilterClampsCursor(t *testing.T) {
 // --- render ---
 
 func TestCommandPaletteRenderContainsTitle(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	s := styles.NewStyles(true)
 	out := cp.Render(80, 24, s)
 	if !strings.Contains(ansi.Strip(out), "Command Palette") {
@@ -223,7 +223,7 @@ func TestCommandPaletteRenderContainsTitle(t *testing.T) {
 }
 
 func TestCommandPaletteRenderContainsCommands(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	s := styles.NewStyles(true)
 	out := cp.Render(80, 24, s)
 	for _, name := range []string{"Alpha action", "Middle action", "Zebra action"} {
@@ -234,12 +234,100 @@ func TestCommandPaletteRenderContainsCommands(t *testing.T) {
 }
 
 func TestCommandPaletteRenderNoMatches(t *testing.T) {
-	cp, _ := NewCommandPalette(testCommands())
+	cp, _ := NewCommandPalette(testCommands(), nil)
 	cp.filter.Text = "zzz"
 	cp.refilter()
 	s := styles.NewStyles(true)
 	out := cp.Render(80, 24, s)
 	if !strings.Contains(out, "(no matches)") {
 		t.Error("rendered output should contain '(no matches)' when filter has no results")
+	}
+}
+
+// --- pinned anchors ---
+
+func pinnedCommands() []PaletteCommand {
+	return []PaletteCommand{
+		{Name: "Help", Pinned: pinTop},
+		{Name: "Quit", Pinned: pinBottom},
+		{Name: "Alpha action", Category: "play"},
+		{Name: "Middle action", Category: "nav"},
+		{Name: "Zebra action", Category: "lib"},
+	}
+}
+
+func TestCommandPaletteTopPinFirst(t *testing.T) {
+	cp, _ := NewCommandPalette(pinnedCommands(), nil)
+	if cp.filtered[0].Name != "Help" {
+		t.Errorf("filtered[0]: want Help (top pin), got %q", cp.filtered[0].Name)
+	}
+	if cp.filtered[len(cp.filtered)-1].Name != "Quit" {
+		t.Errorf("filtered[last]: want Quit (bottom pin), got %q", cp.filtered[len(cp.filtered)-1].Name)
+	}
+}
+
+func TestCommandPalettePinsRemainAfterFilter(t *testing.T) {
+	cp, _ := NewCommandPalette(pinnedCommands(), nil)
+	cp.filter.Text = "alpha"
+	cp.refilter()
+	// Help (top) + Alpha (body match) + Quit (bottom)
+	if got := len(cp.filtered); got != 3 {
+		t.Fatalf("filtered length: want 3 (pins + 1 body match), got %d", got)
+	}
+	if cp.filtered[0].Name != "Help" {
+		t.Errorf("filtered[0]: want Help, got %q", cp.filtered[0].Name)
+	}
+	if cp.filtered[1].Name != "Alpha action" {
+		t.Errorf("filtered[1]: want Alpha action, got %q", cp.filtered[1].Name)
+	}
+	if cp.filtered[2].Name != "Quit" {
+		t.Errorf("filtered[2]: want Quit, got %q", cp.filtered[2].Name)
+	}
+}
+
+func TestCommandPalettePinsRemainWhenBodyEmpty(t *testing.T) {
+	cp, _ := NewCommandPalette(pinnedCommands(), nil)
+	cp.filter.Text = "zzz"
+	cp.refilter()
+	// Body has no match but pins still appear.
+	if got := len(cp.filtered); got != 2 {
+		t.Fatalf("filtered length: want 2 (pins only), got %d", got)
+	}
+	if cp.filtered[0].Name != "Help" {
+		t.Errorf("filtered[0]: want Help, got %q", cp.filtered[0].Name)
+	}
+	if cp.filtered[1].Name != "Quit" {
+		t.Errorf("filtered[1]: want Quit, got %q", cp.filtered[1].Name)
+	}
+}
+
+func TestCommandPaletteRecentHeaderWhenEmpty(t *testing.T) {
+	cp, _ := NewCommandPalette(pinnedCommands(), nil)
+	s := styles.NewStyles(true)
+	out := ansi.Strip(cp.Render(80, 24, s))
+	if !strings.Contains(out, "Recent & frequent") {
+		t.Error("empty-query render should contain 'Recent & frequent' header")
+	}
+}
+
+func TestCommandPaletteRecentHeaderHiddenWithQuery(t *testing.T) {
+	cp, _ := NewCommandPalette(pinnedCommands(), nil)
+	cp.filter.Text = "alpha"
+	cp.refilter()
+	s := styles.NewStyles(true)
+	out := ansi.Strip(cp.Render(80, 24, s))
+	if strings.Contains(out, "Recent & frequent") {
+		t.Error("non-empty-query render should not contain 'Recent & frequent' header")
+	}
+}
+
+func TestCommandPaletteRenderShowsCategoryPrefix(t *testing.T) {
+	cp, _ := NewCommandPalette(pinnedCommands(), nil)
+	s := styles.NewStyles(true)
+	out := ansi.Strip(cp.Render(80, 24, s))
+	for _, cat := range []string{"[play]", "[ nav]", "[ lib]"} {
+		if !strings.Contains(out, cat) {
+			t.Errorf("rendered output should contain category prefix %q", cat)
+		}
 	}
 }

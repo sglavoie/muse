@@ -285,8 +285,10 @@ func TestBuildTimeGenreBonus_Empty(t *testing.T) {
 	}
 }
 
-// TestRadioStatusBarIndicator verifies that the status bar shows the DJ
-// indicator when radio mode is active.
+// TestRadioStatusBarIndicator verifies that the always-on 4-glyph RSND mode
+// cluster contains the "D" radio glyph in both states; only its per-glyph
+// styling changes when radioMode toggles (verbose "DJ"/"Auto-DJ" forms are
+// gone). The cluster is always 4 columns wide for stable position.
 func TestRadioStatusBarIndicator(t *testing.T) {
 	sb := StatusBar{
 		artist:        "Art",
@@ -295,13 +297,13 @@ func TestRadioStatusBarIndicator(t *testing.T) {
 		radioMode:     true,
 	}
 	out := sb.render(0, styles.Styles{})
-	if !strings.Contains(out, "DJ") {
-		t.Errorf("expected 'DJ' indicator in status bar when radioMode=true, got %q", out)
+	if !strings.Contains(out, "RSND") {
+		t.Errorf("expected RSND cluster in status bar when radioMode=true, got %q", out)
 	}
 
 	sb.radioMode = false
 	out = sb.render(0, styles.Styles{})
-	if strings.Contains(out, "  DJ") {
-		t.Errorf("did not expect '  DJ' in status bar when radioMode=false, got %q", out)
+	if !strings.Contains(out, "RSND") {
+		t.Errorf("expected RSND cluster (always shown) when radioMode=false, got %q", out)
 	}
 }

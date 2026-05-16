@@ -54,6 +54,9 @@ log_level = %q
 # stereo_wide_enabled = false
 # stereo_wide_amount = 10
 
+# Show the context-aware footer hint strip above the status bar (true/false).
+# show_footer_hints = true
+
 # Recommendation mix thresholds.
 # [mixes]
 # rediscover_min_plays = 10
@@ -85,6 +88,7 @@ const (
 	defaultEQPreset                   = "flat"
 	defaultStereoWideEnabled          = false
 	defaultStereoWideAmount           = 10 // 1.0x = passthrough
+	defaultShowFooterHints            = true
 
 	defaultMixRediscoverMinPlays    = 10
 	defaultMixRediscoverAgeDays     = 90
@@ -151,6 +155,7 @@ type Config struct {
 	EQCustomPresets            []EQCustomPreset `toml:"eq_custom_presets"`
 	StereoWideEnabled          bool             `toml:"stereo_wide_enabled"`
 	StereoWideAmount           int              `toml:"stereo_wide_amount"`
+	ShowFooterHints            bool             `toml:"show_footer_hints"`
 	Mixes                      MixesConfig      `toml:"mixes"`
 }
 
@@ -184,5 +189,6 @@ type rawConfig struct {
 	EQCustomPresets            []EQCustomPreset `toml:"eq_custom_presets"`
 	StereoWideEnabled          *bool            `toml:"stereo_wide_enabled"`
 	StereoWideAmount           *int             `toml:"stereo_wide_amount"`
+	ShowFooterHints            *bool            `toml:"show_footer_hints"`
 	Mixes                      rawMixesConfig   `toml:"mixes"`
 }

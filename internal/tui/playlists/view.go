@@ -50,6 +50,7 @@ type View struct {
 	SortField        string
 	SortDir          string
 	NowPlayingHash   string // hash of the currently playing track; empty when nothing is playing
+	NowPlayingIcon   string // marker glyph (e.g. "▶", "⏸", "■"); empty falls back to "♪"
 }
 
 // visibleRows returns the maximum number of rows that fit on screen.
@@ -265,10 +266,15 @@ func (v View) Render() string {
 
 func (v View) renderList() string {
 	if len(v.Playlists) == 0 && !v.Creating {
+		card := v.Styles.RenderEmptyCard(v.Width, v.visibleRows(), "No playlists yet", []styles.EmptyAction{
+			{Key: "n", Label: "new"},
+			{Key: "i", Label: "import m3u"},
+			{Key: "?", Label: "help"},
+		})
 		if v.SortField == "" {
-			return "(no playlists)"
+			return card
 		}
-		return v.renderListSortIndicator() + "\n(no playlists)"
+		return v.renderListSortIndicator() + "\n" + card
 	}
 
 	cols := Compute(v.Width)
@@ -364,14 +370,13 @@ func (v View) renderTracks() string {
 		}
 	}
 
-	header := v.Styles.ColHead.Render(
-		strings.Repeat(" ", cols.Marker) +
-			fmt.Sprintf("%-*s %-*s %-*s %-*s %*s",
-				cols.Position, "#",
-				cols.Title, titleHead,
-				cols.Artist, artistHead,
-				cols.Album, albumHead,
-				cols.Duration, timeHead))
+	header := strings.Repeat(" ", cols.Marker) + v.Styles.ColHead.Render(
+		fmt.Sprintf("%-*s %-*s %-*s %-*s %*s",
+			cols.Position, "#",
+			cols.Title, titleHead,
+			cols.Artist, artistHead,
+			cols.Album, albumHead,
+			cols.Duration, timeHead))
 
 	maxRows := v.visibleRows()
 	start := min(v.ScrollOffset, len(v.Tracks))
@@ -387,7 +392,7 @@ func (v View) renderTracks() string {
 		// When the row is focused, omit the inner accent/reset from the marker
 		// so the outer background highlight covers the full row uniformly. An
 		// inner ANSI reset would reset the cursor highlight mid-row.
-		markerStr := text.RowMarker(isSelected, isFocused, isNowPlaying, "♪")
+		markerStr := text.RowMarker(isSelected, isFocused, isNowPlaying, v.NowPlayingIcon)
 
 		pos := fmt.Sprintf("%-*s", cols.Position, text.FormatTrackPos(t.TrackNumber, t.DiscNumber, absIdx+1))
 		dur := text.FormatDurationMs(t.DurationMs)

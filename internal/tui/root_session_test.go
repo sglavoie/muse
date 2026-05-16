@@ -106,7 +106,7 @@ func TestTrackChangedMsgEmitsSessionPositionWriteCmd(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("TrackChangedMsg: expected non-nil cmd for session position write")
 	}
-	cmd()
+	drainCmd(cmd)
 	if len(sw.positionCalls) != 1 {
 		t.Fatalf("TrackChangedMsg: expected 1 UpdateSessionPosition call, got %d", len(sw.positionCalls))
 	}
@@ -133,15 +133,17 @@ func TestTrackChangedMsgStoresCurrentTrackHash(t *testing.T) {
 	}
 }
 
-// TestTrackChangedMsgWithoutSessionWriterReturnsNilCmd verifies that
-// TrackChangedMsg without a session writer returns nil cmd (no-op write path).
-func TestTrackChangedMsgWithoutSessionWriterReturnsNilCmd(t *testing.T) {
+// TestTrackChangedMsgWithoutSessionWriterReturnsNonNilPulseCmd verifies that
+// even without a session writer, TrackChangedMsg returns a non-nil cmd because
+// the now-playing pulse tick is always scheduled. The session-position write
+// portion of the cmd batch remains a no-op.
+func TestTrackChangedMsgWithoutSessionWriterReturnsNonNilPulseCmd(t *testing.T) {
 	m := New(context.Background())
 	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h", Path: "/a.flac"}}
 
 	_, cmd := m.Update(TrackChangedMsg{Artist: "A", Title: "T", Hash: "h"})
-	if cmd != nil {
-		t.Fatal("TrackChangedMsg without session writer: expected nil cmd")
+	if cmd == nil {
+		t.Fatal("TrackChangedMsg: expected pulse cmd even without session writer")
 	}
 }
 

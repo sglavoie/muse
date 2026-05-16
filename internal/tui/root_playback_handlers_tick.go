@@ -61,7 +61,11 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 		m.overlay.nowPlaying.state = m.playback.state
 	}
 	m.statusBar.pruneNotifications()
-	return m, tea.Batch(tickCmd(), previewDurationCmd, mainDurationCmd)
+	// Schedule a precise fade tick at expiry-minus-fade-window for the
+	// soonest pending notification, when one is within the next tick window.
+	// The 1s tickCmd would otherwise miss the 250 ms fade window.
+	fadeCmd := notificationFadeCmd(m.statusBar.nextFadeAt())
+	return m, tea.Batch(tickCmd(), previewDurationCmd, mainDurationCmd, fadeCmd)
 }
 
 // correctStoredDuration compares the mpv-reported total with the stored library

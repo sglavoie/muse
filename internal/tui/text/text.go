@@ -122,8 +122,13 @@ func FormatTrackPosSimple(trackNum, fallback int) string {
 //  4. now-playing only: nowPlayingIcon + " "
 //  5. default: "  "
 //
-// The returned string is always two display columns wide.
+// The returned string is always two display columns wide. An empty
+// nowPlayingIcon falls back to "♪" so callers that haven't plumbed a
+// playback-state icon still render a stable two-column marker.
 func RowMarker(isSelected, isFocused, isNowPlaying bool, nowPlayingIcon string) string {
+	if nowPlayingIcon == "" {
+		nowPlayingIcon = "♪"
+	}
 	switch {
 	case isSelected:
 		return "● "

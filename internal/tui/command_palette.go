@@ -1,22 +1,43 @@
 package tui
 
 import (
-	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
+// PalettePin identifies whether a command is pinned to the top or bottom of
+// the palette result list (regardless of filter or score order).
+type PalettePin int
+
+const (
+	pinNone   PalettePin = iota
+	pinTop               // anchor at the top of the list (e.g. Help)
+	pinBottom            // anchor at the bottom of the list (e.g. Quit)
+)
+
 // PaletteCommand describes a single entry in the command palette.
 type PaletteCommand struct {
+	ID       string // stable identifier for usage tracking; falls back to Name when empty
 	Name     string
+	Category string // short tag rendered dim before Name (e.g. "play", "nav", "file", "mode", "lib", "tag", "dev"); empty for pins / uncategorized
 	Shortcut string // optional keyboard shortcut shown right-aligned in the palette
+	Pinned   PalettePin
 	Exec     func() tea.Cmd
 	Enabled  func() bool // nil means always enabled
+}
+
+// Key returns the stable key used to identify the command in the usage store.
+func (c PaletteCommand) Key() string {
+	if c.ID != "" {
+		return c.ID
+	}
+	return c.Name
 }
 
 func (c PaletteCommand) isEnabled() bool {
@@ -33,26 +54,37 @@ type CommandPaletteDismissedMsg struct{}
 
 // CommandPalette is the overlay sub-model for the searchable command palette.
 type CommandPalette struct {
-	all      []PaletteCommand // full sorted list
-	filtered []PaletteCommand // subset matching current filter
-	cursor   int
-	filter   filter.State // always-active text input
+	all       []PaletteCommand // full command list
+	filtered  []PaletteCommand // [topPins..., body..., bottomPins...]
+	topPins   int              // number of leading pinned rows in filtered
+	bottomPin int              // number of trailing pinned rows in filtered
+	cursor    int
+	filter    filter.State // always-active text input
+	usage     *palette.UsageStore
 }
 
-// NewCommandPalette creates a CommandPalette with the given commands sorted
-// alphabetically. The filter text input is activated immediately.
-func NewCommandPalette(commands []PaletteCommand) (CommandPalette, tea.Cmd) {
-	slices.SortFunc(commands, func(a, b PaletteCommand) int {
-		return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
-	})
+// NewCommandPalette creates a CommandPalette with the given commands. When
+// usage is non-nil the initial body order (empty filter) is most-used first;
+// otherwise the order is alphabetical. Pinned commands always anchor at the
+// top/bottom regardless of score. The filter text input is activated
+// immediately.
+func NewCommandPalette(commands []PaletteCommand, usage *palette.UsageStore) (CommandPalette, tea.Cmd) {
 	cp := CommandPalette{
-		all:      commands,
-		filtered: commands,
+		all:   commands,
+		usage: usage,
 	}
 	var cmd tea.Cmd
 	cp.filter, cmd = filter.New().Activate()
+	cp.refilter()
 	return cp, cmd
 }
+
+// paletteCommandID returns the stable key for a command (Key() falls back to
+// Name when ID is empty).
+func paletteCommandID(c PaletteCommand) string { return c.Key() }
+
+// paletteCommandName returns the display name used for fuzzy matching.
+func paletteCommandName(c PaletteCommand) string { return c.Name }
 
 // HandleKey processes a key press and returns the updated palette and optional Cmd.
 func (cp CommandPalette) HandleKey(key string, msg tea.KeyPressMsg) (CommandPalette, tea.Cmd) {
@@ -64,6 +96,10 @@ func (cp CommandPalette) HandleKey(key string, msg tea.KeyPressMsg) (CommandPale
 			picked := cp.filtered[cp.cursor]
 			if !picked.isEnabled() {
 				return cp, nil
+			}
+			if cp.usage != nil {
+				cp.usage.Bump(picked.Key())
+				cp.usage.SaveBestEffort()
 			}
 			return cp, func() tea.Msg { return CommandPalettePickedMsg{Command: picked} }
 		}
@@ -84,20 +120,34 @@ func (cp CommandPalette) HandleKey(key string, msg tea.KeyPressMsg) (CommandPale
 	return cp, nil
 }
 
-// refilter rebuilds the filtered list from all commands using case-insensitive
-// substring matching, then clamps the cursor.
+// refilter rebuilds the filtered list using subsequence-fuzzy matching with
+// MRU+frequency weighting, then clamps the cursor. Top-pinned and
+// bottom-pinned commands always appear at the anchors regardless of the
+// current filter; only the body section participates in scoring.
 func (cp *CommandPalette) refilter() {
-	query := strings.ToLower(cp.filter.Text)
-	if query == "" {
-		cp.filtered = cp.all
-	} else {
-		cp.filtered = nil
-		for _, c := range cp.all {
-			if strings.Contains(strings.ToLower(c.Name), query) {
-				cp.filtered = append(cp.filtered, c)
-			}
+	query := strings.TrimSpace(cp.filter.Text)
+
+	var topPins, body, bottomPins []PaletteCommand
+	for _, c := range cp.all {
+		switch c.Pinned {
+		case pinTop:
+			topPins = append(topPins, c)
+		case pinBottom:
+			bottomPins = append(bottomPins, c)
+		default:
+			body = append(body, c)
 		}
 	}
+	body = palette.Rank(body, query, paletteCommandID, paletteCommandName, cp.usage)
+
+	cp.topPins = len(topPins)
+	cp.bottomPin = len(bottomPins)
+	combined := make([]PaletteCommand, 0, len(topPins)+len(body)+len(bottomPins))
+	combined = append(combined, topPins...)
+	combined = append(combined, body...)
+	combined = append(combined, bottomPins...)
+	cp.filtered = combined
+
 	if cp.cursor >= len(cp.filtered) {
 		cp.cursor = max(len(cp.filtered)-1, 0)
 	}
@@ -113,6 +163,10 @@ const (
 	cpCornerBR = "╯"
 	cpCrossL   = "├"
 	cpCrossR   = "┤"
+	// Doubled rule below the title (Common Region + Uniform Connectedness).
+	cpBorderDoubleH = "═"
+	cpCrossDoubleL  = "╞"
+	cpCrossDoubleR  = "╡"
 )
 
 // Render produces a centered overlay string for the palette.
@@ -145,6 +199,7 @@ func (cp CommandPalette) Render(termWidth, termHeight int, s styles.Styles) stri
 func (cp CommandPalette) buildBoxLines(termWidth int, s styles.Styles) []string {
 	const modalTitle = " Command Palette "
 	const minInner = 30
+	const recentHeader = "Recent & frequent"
 
 	// Compute max shortcut width across filtered commands.
 	maxShortcutWidth := 0
@@ -158,14 +213,29 @@ func (cp CommandPalette) buildBoxLines(termWidth int, s styles.Styles) []string 
 		shortcutExtra = maxShortcutWidth + 2 // 2-space gap between name and shortcut
 	}
 
-	// Compute inner width from title, filter, and command names + shortcuts.
+	// Compute max category width (rendered as "[cat] " before the name).
+	maxCategoryWidth := 0
+	for _, c := range cp.filtered {
+		if w := ansi.StringWidth(c.Category); w > maxCategoryWidth {
+			maxCategoryWidth = w
+		}
+	}
+	categoryExtra := 0
+	if maxCategoryWidth > 0 {
+		categoryExtra = maxCategoryWidth + 3 // "[" + cat + "] "
+	}
+
+	// Compute inner width from title, filter, and command names + shortcuts + category prefix.
+	// +4 / +6 budget below = 2 borders + 2 cells inner padding (1 each side
+	// at the wrap, plus 1 each side built into buildRowContent's leading and
+	// trailing spaces) so rows sit two cells away from the vertical borders.
 	innerWidth := minInner
-	if ansi.StringWidth(modalTitle)+2 > innerWidth {
-		innerWidth = ansi.StringWidth(modalTitle) + 2
+	if ansi.StringWidth(modalTitle)+4 > innerWidth {
+		innerWidth = ansi.StringWidth(modalTitle) + 4
 	}
 	for _, c := range cp.filtered {
-		if ansi.StringWidth(c.Name)+4+shortcutExtra > innerWidth {
-			innerWidth = ansi.StringWidth(c.Name) + 4 + shortcutExtra
+		if ansi.StringWidth(c.Name)+6+shortcutExtra+categoryExtra > innerWidth {
+			innerWidth = ansi.StringWidth(c.Name) + 6 + shortcutExtra + categoryExtra
 		}
 	}
 	if maxInner := termWidth - 4; termWidth > 0 && innerWidth > maxInner {
@@ -174,7 +244,7 @@ func (cp CommandPalette) buildBoxLines(termWidth int, s styles.Styles) []string 
 	if innerWidth < 1 {
 		innerWidth = 1
 	}
-	contentWidth := max(innerWidth-2, 0)
+	contentWidth := max(innerWidth-4, 0)
 
 	var lines []string
 
@@ -187,8 +257,11 @@ func (cp CommandPalette) buildBoxLines(termWidth int, s styles.Styles) []string 
 	rightTP := titlePad - leftTP
 	lines = append(lines, cpBorderV+strings.Repeat(" ", leftTP)+s.Heading.Render(modalTitle)+strings.Repeat(" ", rightTP)+cpBorderV)
 
-	// Separator.
-	lines = append(lines, cpCrossL+strings.Repeat(cpBorderH, innerWidth)+cpCrossR)
+	// Doubled rule below the title (Common Region + Uniform Connectedness).
+	lines = append(lines, cpCrossDoubleL+strings.Repeat(cpBorderDoubleH, innerWidth)+cpCrossDoubleR)
+
+	// Inner top padding row.
+	lines = append(lines, cpBorderV+strings.Repeat(" ", innerWidth)+cpBorderV)
 
 	// Filter input row.
 	filterText := cp.filter.View()
@@ -197,7 +270,7 @@ func (cp CommandPalette) buildBoxLines(termWidth int, s styles.Styles) []string 
 	}
 	filterDisplay := " / " + filterText
 	filterPadded := text.Pad(filterDisplay, contentWidth)
-	lines = append(lines, cpBorderV+" "+filterPadded+" "+cpBorderV)
+	lines = append(lines, cpBorderV+"  "+filterPadded+"  "+cpBorderV)
 
 	// Separator before commands.
 	lines = append(lines, cpCrossL+strings.Repeat(cpBorderH, innerWidth)+cpCrossR)
@@ -205,38 +278,79 @@ func (cp CommandPalette) buildBoxLines(termWidth int, s styles.Styles) []string 
 	// Command rows.
 	if len(cp.filtered) == 0 {
 		noMatch := text.Pad("(no matches)", contentWidth)
-		lines = append(lines, cpBorderV+" "+noMatch+" "+cpBorderV)
+		lines = append(lines, cpBorderV+"  "+noMatch+"  "+cpBorderV)
 	} else {
 		dimItalic := s.Dim.Italic(true)
 		accentDim := s.Accent.Faint(true).Italic(true)
+		bodyStart := cp.topPins
+		bodyEnd := len(cp.filtered) - cp.bottomPin
+		emptyQuery := strings.TrimSpace(cp.filter.Text) == ""
+
 		for i, cmd := range cp.filtered {
-			var rowContent string
-			if maxShortcutWidth > 0 {
-				nameWidth := max(0, contentWidth-maxShortcutWidth-2)
-				name := text.Pad(cmd.Name, nameWidth)
-				sc := text.PadLeft(cmd.Shortcut, maxShortcutWidth)
-				rowContent = " " + name + "  " + s.Dim.Render(sc) + " "
-			} else {
-				rowContent = " " + text.Pad(cmd.Name, contentWidth) + " "
+			// Insert separator + (optional) "Recent & frequent" header between
+			// top pins and body.
+			if i == bodyStart && cp.topPins > 0 && bodyEnd > bodyStart {
+				lines = append(lines, cpCrossL+strings.Repeat(cpBorderH, innerWidth)+cpCrossR)
+				if emptyQuery {
+					header := text.Pad(recentHeader, contentWidth)
+					lines = append(lines, cpBorderV+"  "+s.Dim.Render(header)+"  "+cpBorderV)
+				}
 			}
+			// Insert separator between body and bottom pins.
+			if i == bodyEnd && cp.bottomPin > 0 && bodyEnd > bodyStart {
+				lines = append(lines, cpCrossL+strings.Repeat(cpBorderH, innerWidth)+cpCrossR)
+			}
+
+			rowContent := cp.buildRowContent(cmd, contentWidth, maxCategoryWidth, maxShortcutWidth, s)
 			switch {
 			case i == cp.cursor && !cmd.isEnabled():
-				lines = append(lines, cpBorderV+accentDim.Render(rowContent)+cpBorderV)
+				lines = append(lines, cpBorderV+" "+accentDim.Render(rowContent)+" "+cpBorderV)
 			case i == cp.cursor:
-				lines = append(lines, cpBorderV+s.Accent.Render(rowContent)+cpBorderV)
+				lines = append(lines, cpBorderV+" "+s.Accent.Render(rowContent)+" "+cpBorderV)
 			case !cmd.isEnabled():
-				lines = append(lines, cpBorderV+dimItalic.Render(rowContent)+cpBorderV)
+				lines = append(lines, cpBorderV+" "+dimItalic.Render(rowContent)+" "+cpBorderV)
 			default:
-				lines = append(lines, cpBorderV+rowContent+cpBorderV)
+				lines = append(lines, cpBorderV+" "+rowContent+" "+cpBorderV)
 			}
 		}
 	}
+
+	// Inner bottom padding row.
+	lines = append(lines, cpBorderV+strings.Repeat(" ", innerWidth)+cpBorderV)
 
 	// Bottom border.
 	lines = append(lines, cpCornerBL+strings.Repeat(cpBorderH, innerWidth)+cpCornerBR)
 
 	// Hint line.
-	lines = append(lines, "  "+s.Dim.Render("↑/↓ navigate · enter run · esc dismiss"))
+	lines = append(lines, "  "+s.Dim.Render("↑/↓ navigate · enter run · esc cancel"))
 
 	return lines
+}
+
+// buildRowContent renders a single command row's inner text: leading space,
+// optional "[category] " prefix, padded name, and right-aligned shortcut.
+// The category prefix is styled dim and the shortcut dim.
+func (cp CommandPalette) buildRowContent(cmd PaletteCommand, contentWidth, maxCategoryWidth, maxShortcutWidth int, s styles.Styles) string {
+	// Category column: fixed-width "[cat] " or all-spaces when no categories
+	// are present anywhere in the list.
+	categoryPart := ""
+	categoryWidth := 0
+	if maxCategoryWidth > 0 {
+		categoryWidth = maxCategoryWidth + 3 // "[" + cat + "] "
+		if cmd.Category != "" {
+			padded := text.PadLeft(cmd.Category, maxCategoryWidth)
+			categoryPart = s.PaletteCategory.Render("["+padded+"]") + " "
+		} else {
+			categoryPart = strings.Repeat(" ", categoryWidth)
+		}
+	}
+
+	if maxShortcutWidth > 0 {
+		nameWidth := max(0, contentWidth-maxShortcutWidth-2-categoryWidth)
+		name := text.Pad(cmd.Name, nameWidth)
+		sc := text.PadLeft(cmd.Shortcut, maxShortcutWidth)
+		return " " + categoryPart + name + "  " + s.Dim.Render(sc) + " "
+	}
+	nameWidth := max(0, contentWidth-categoryWidth)
+	return " " + categoryPart + text.Pad(cmd.Name, nameWidth) + " "
 }

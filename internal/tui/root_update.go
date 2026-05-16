@@ -52,6 +52,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		return m.handleTickMsg()
 
+	case pulseTickMsg:
+		// Receipt forces a redraw so the now-playing row returns to its
+		// normal styling once pulseUntil has elapsed. No state changes.
+		return m, nil
+
+	case notificationFadeMsg:
+		// Receipt forces a redraw so the status-bar notification renders its
+		// dim fade frame for the last notificationFadeWindow of its lifetime.
+		// No state changes — render-time check on isFading() picks up the dim.
+		return m, nil
+
 	case syncPositionMsg:
 		return m.handleSyncPositionMsg()
 
@@ -370,6 +381,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case jumpToNowPlayingMsg:
 		return m.handleJumpToNowPlayingMsg()
+
+	case toggleFooterHintsMsg:
+		return m.handleToggleFooterHintsMsg()
 
 	case queueShuffleMsg:
 		return m.handleQueueShuffleMsg()

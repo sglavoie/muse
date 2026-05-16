@@ -3,6 +3,7 @@ package tui
 import (
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/sglavoie/muse/internal/player"
 	"go.uber.org/goleak"
@@ -21,4 +22,20 @@ func TestMain(m *testing.M) {
 // the same string that production code generates via Style.Render.
 func styledText(style lipgloss.Style, text string) string {
 	return style.Render(text)
+}
+
+// drainCmd recursively executes cmd and any cmds nested in tea.BatchMsg /
+// tea.sequenceMsg values returned along the way. Tests use it when the
+// production handler returns a batched cmd but the test only cares that the
+// underlying side-effect-producing cmds run.
+func drainCmd(cmd tea.Cmd) {
+	if cmd == nil {
+		return
+	}
+	msg := cmd()
+	if batch, ok := msg.(tea.BatchMsg); ok {
+		for _, c := range batch {
+			drainCmd(c)
+		}
+	}
 }

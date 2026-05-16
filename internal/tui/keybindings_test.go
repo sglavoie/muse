@@ -193,6 +193,32 @@ func TestDebugGlobalBinding(t *testing.T) {
 	}
 }
 
+// TestNoSilentlyShadowedGlobalBindings walks the registry and asserts that
+// every view-local entry which shadows a global binding with a different
+// action has a non-empty domain reason. Same-action rebinds are tolerated
+// (they cause no semantic divergence). This guards the keymap consistency
+// audit performed in Session 9 against silent regressions.
+func TestNoSilentlyShadowedGlobalBindings(t *testing.T) {
+	reg := newRegistry()
+
+	for rk, viewAction := range reg.bindings {
+		if rk.ctx == contextGlobal {
+			continue
+		}
+		globalAction, hasGlobal := reg.bindings[registryKey{ctx: contextGlobal, key: rk.key}]
+		if !hasGlobal {
+			continue
+		}
+		if viewAction == globalAction {
+			continue
+		}
+		if reg.domainReasons[rk] == "" {
+			t.Errorf("silent shadow: context=%v key=%q view-action=%v shadows global-action=%v without a domain reason — use registerWithReason or remove the override",
+				rk.ctx, rk.key, viewAction, globalAction)
+		}
+	}
+}
+
 // TestPlaylistsRShadowsGlobalRepeat verifies that 'r' resolves to
 // actionPlaylistRename (not actionRepeatCycle) when the Playlists view is
 // active, locking in the view-local shadowing behaviour.

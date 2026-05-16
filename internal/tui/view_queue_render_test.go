@@ -10,12 +10,18 @@ import (
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
-// TestQueueRenderEmptyShowsPlaceholder verifies the empty-queue message.
+// TestQueueRenderEmptyShowsPlaceholder verifies the empty-queue card surfaces
+// the per-view CTAs (key + label rows).
 func TestQueueRenderEmptyShowsPlaceholder(t *testing.T) {
 	v := QueueView{}
 	got := v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil)
-	if !strings.Contains(got, "add tracks") {
-		t.Fatalf("empty queue must show hint; got: %q", got)
+	if !strings.Contains(got, "Queue is empty") {
+		t.Fatalf("empty queue must show title; got: %q", got)
+	}
+	for _, want := range []string{"go to library", "random album", "help"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("empty queue card missing CTA %q; got: %q", want, got)
+		}
 	}
 }
 

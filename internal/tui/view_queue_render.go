@@ -7,6 +7,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/sglavoie/muse/internal/tui/buckets"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -24,7 +25,11 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 		if v.filter.Text != "" {
 			return "(no matches)"
 		}
-		return s.Dim.Render("Press Enter in Library to add tracks  ·  ? for help")
+		return s.RenderEmptyCard(v.width, v.visibleRows(), "Queue is empty", []styles.EmptyAction{
+			{Key: "1", Label: "go to library"},
+			{Key: "r", Label: "random album"},
+			{Key: "?", Label: "help"},
+		})
 	}
 
 	const (
@@ -92,14 +97,17 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			timeHead += ind
 		}
 	}
-	var header string
+	// headerBody excludes the leading marker-width prefix so the dotted
+	// underline only spans the actual data columns (not the marker gutter).
+	var headerBody string
 	if hasSource {
-		header = fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %*s",
+		headerBody = fmt.Sprintf("%-*s %-*s %-*s %-*s %-*s %*s",
 			posWidth, "#", titleWidth, titleHead, artistWidth, artistHead, albumWidth, albumHead, sourceWidth, sourceHead, durWidth, timeHead)
 	} else {
-		header = fmt.Sprintf("  %-*s %-*s %-*s %-*s %*s",
+		headerBody = fmt.Sprintf("%-*s %-*s %-*s %-*s %*s",
 			posWidth, "#", titleWidth, titleHead, artistWidth, artistHead, albumWidth, albumHead, durWidth, timeHead)
 	}
+	header := strings.Repeat(" ", markerWidth) + s.ColHead.Render(headerBody)
 
 	lines := make([]string, end-start)
 	for i := range end - start {
@@ -258,7 +266,26 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 		filterLine = "Filter: " + ft + "\n"
 	}
 
-	out := filterLine + s.ColHead.Render(header) + "\n" + strings.Join(lines, "\n")
+	bodyLines := lines
+	if SortFieldHasBuckets(v.sortState.Field) {
+		labels := make([]string, len(lines))
+		for i := range lines {
+			labels[i] = QueueEntryBucket(v.sortState.Field, entries[start+i])
+		}
+		sticky := ""
+		if len(labels) > 0 {
+			sticky = labels[0]
+		}
+		bodyLines = buckets.Chunk(lines, labels, buckets.ChunkOptions{
+			StickyBucket:     sticky,
+			MaxRows:          maxRows,
+			DividerEvery:     buckets.DividerEvery,
+			MakeDivider:      func() string { return renderQueueDivider(s, v.width) },
+			MakeBucketHeader: func(label string) string { return renderQueueBucketHeader(s, label, v.width) },
+		})
+	}
+
+	out := filterLine + header + "\n" + strings.Join(bodyLines, "\n")
 	if v.savingAsPlaylist {
 		prompt := "Save as playlist: "
 		if v.savingFromSelection {
@@ -314,6 +341,30 @@ func assembleQueueRow(sep string, hasSource bool, marker, pos, title, artist, al
 // "h:mm:ss" string. Returns "--:--" when ms is zero or negative.
 func formatQueueDuration(ms int64) string {
 	return text.FormatDurationMs(ms)
+}
+
+// renderQueueDivider builds a dim horizontal divider line spanning the
+// queue panel width.
+func renderQueueDivider(s styles.Styles, width int) string {
+	if width <= 0 {
+		width = 1
+	}
+	return s.Divider.Render(strings.Repeat("─", width))
+}
+
+// renderQueueBucketHeader builds a bucket-header line padded to the queue
+// panel width so neighbouring rows align.
+func renderQueueBucketHeader(s styles.Styles, label string, width int) string {
+	if label == "" {
+		return ""
+	}
+	padded := label
+	if width > 0 {
+		if pw := ansi.StringWidth(label); pw < width {
+			padded = label + strings.Repeat(" ", width-pw)
+		}
+	}
+	return s.BucketHeader.Render(padded)
 }
 
 // padQueue truncates or right-pads s with spaces to exactly width display columns.

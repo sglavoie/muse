@@ -60,10 +60,44 @@ func (s *StatusBar) pushMsg(msg string, dur time.Duration, priority notifPriorit
 	// If all existing entries outrank the incoming one, drop it silently.
 }
 
+// notificationFadeWindow is the trailing slice of a notification's lifetime
+// during which it renders dim (the "fade" frame) before vanishing.
+const notificationFadeWindow = 250 * time.Millisecond
+
 // isExpired reports whether n has expired. A zero expiresAt is treated as
 // "no expiry" and is never expired (used for direct-assignment test helpers).
 func (n transientNotification) isExpired() bool {
 	return !n.expiresAt.IsZero() && time.Now().After(n.expiresAt)
+}
+
+// isFading reports whether n is within notificationFadeWindow of expiry.
+// Zero expiresAt notifications never fade (treated as persistent).
+func (n transientNotification) isFading() bool {
+	if n.expiresAt.IsZero() {
+		return false
+	}
+	return time.Until(n.expiresAt) <= notificationFadeWindow
+}
+
+// nextFadeAt returns the earliest moment (across all queued, non-expired
+// notifications) at which a notification will enter its fade window. Returns a
+// zero time when no future fade is pending. Notifications already inside the
+// fade window are skipped — their fade frame is rendered by the current cycle.
+func (s StatusBar) nextFadeAt() time.Time {
+	var earliest time.Time
+	for _, n := range s.notifications {
+		if n.expiresAt.IsZero() || n.isExpired() {
+			continue
+		}
+		fadeAt := n.expiresAt.Add(-notificationFadeWindow)
+		if !time.Now().Before(fadeAt) {
+			continue // already inside the fade window
+		}
+		if earliest.IsZero() || fadeAt.Before(earliest) {
+			earliest = fadeAt
+		}
+	}
+	return earliest
 }
 
 // pruneNotifications removes expired entries from the notifications queue.
@@ -157,10 +191,6 @@ type StatusBar struct {
 	elapsedSecs float64
 	totalSecs   float64
 
-	// activeTagName is non-empty when a cross-view tag filter is active.
-	// Injected by renderStatusBar from the root Model.
-	activeTagName string
-
 	// radioMode is true when Auto-DJ / radio mode is active.
 	// Injected by renderStatusBar from the root Model.
 	radioMode bool
@@ -169,10 +199,21 @@ type StatusBar struct {
 	// by renderStatusBar. Empty when nothing is playing.
 	queuePosition string
 
+	// bucketLabel is an optional chunk label for the active view's focused
+	// row (e.g. "A", "Today"). When non-empty alongside queuePosition the
+	// line-1 position display reads "N of M · LABEL". Dropped in narrow
+	// terminals if room is tight.
+	bucketLabel string
+
 	// yankCount, yankIsCut, and selectionCount are injected by renderStatusBar.
 	yankCount      int
 	yankIsCut      bool
 	selectionCount int
+
+	// longOp is the current long-running operation snapshot injected by
+	// renderStatusBar. When longOp.Active is true the status bar takes over
+	// line 2 (or shares it with the playback bar) to show progress + ETA.
+	longOp longOpState
 }
 
 // handleScanProgress sets the transient notification to a formatted progress
@@ -275,22 +316,6 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	barModeStopAfter := st.ModeStopAfter.Background(bg)
 	barModeRadio := st.ModeRadio.Background(bg)
 
-	// modeStyle returns the colored bold style for a given mode label text.
-	modeStyle := func(label string) lipgloss.Style {
-		switch label {
-		case "Repeat", "Repeat 1", "R", "R1":
-			return barModeRepeat
-		case "Shuffle", "S":
-			return barModeShuffle
-		case "Stop Next", "N":
-			return barModeStopAfter
-		case "Auto-DJ", "DJ":
-			return barModeRadio
-		default:
-			return barBold
-		}
-	}
-
 	// r renders plain text with the StatusBar background+foreground.
 	r := func(s string) string { return barText.Render(s) }
 
@@ -319,11 +344,17 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 				msg = fmt.Sprintf("%s (%ds)", msg, int(math.Ceil(remaining.Seconds())))
 			}
 		}
-		if strings.HasPrefix(msg, "Error:") {
-			rightSegments = append(rightSegments, notifErr.Render(" "+msg+" "))
-		} else {
-			rightSegments = append(rightSegments, notif.Render(" "+msg+" "))
+		isError := strings.HasPrefix(msg, "Error:")
+		// Dim the final fade frame (last notificationFadeWindow of lifetime) so
+		// the notification softens before vanishing rather than snapping out.
+		notifStyle := notif
+		if isError {
+			notifStyle = notifErr
 		}
+		if top.isFading() {
+			notifStyle = notifStyle.Faint(true)
+		}
+		rightSegments = append(rightSegments, notifStyle.Render(" "+msg+" "))
 	}
 	right := strings.Join(rightSegments, r(" "))
 
@@ -385,56 +416,60 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 		stateIconWidth = 1
 	}
 
-	// Build the suffix that follows the title: playlist source, mode indicators.
+	// Build the always-on 4-glyph RSND cluster. Active letters use their mode
+	// color; inactive letters are dimmed via TextTertiary. The cluster is
+	// always 4 columns wide so its position stays stable across mode toggles.
+	clusterDim := st.TextTertiary.Background(bg)
+	clusterGlyph := func(active bool, label string, activeStyle lipgloss.Style) string {
+		if active {
+			return activeStyle.Render(label)
+		}
+		return clusterDim.Render(label)
+	}
+	rLabel := "R"
+	if s.repeatMode == RepeatOne {
+		rLabel = "1"
+	}
+	cluster := clusterGlyph(s.repeatMode != RepeatOff, rLabel, barModeRepeat) +
+		clusterGlyph(s.shuffle, "S", barModeShuffle) +
+		clusterGlyph(s.stopAfterCurrent, "N", barModeStopAfter) +
+		clusterGlyph(s.radioMode, "D", barModeRadio)
+	const clusterWidth = 4
+
+	// Build the suffix that follows the title: playlist source, mode cluster,
+	// editorial chips (Visual, Yank/Cut, Sel).
 	suffix := ""
 	suffixWidth := 0
 	if s.playlistSource != "" {
 		suffix += barDim.Render("  [" + s.playlistSource + "]")
 		suffixWidth += 2 + ansi.StringWidth(s.playlistSource) + 2
 	}
+	suffix += r("  ") + cluster
+	suffixWidth += 2 + clusterWidth
 
-	playback, editorial := s.modeLabels(false)
-	abbrev, _ := s.modeLabels(true)
-
-	if len(playback) > 0 || len(editorial) > 0 {
-		var groups []string
-		if len(playback) > 0 {
-			groups = append(groups, strings.Join(playback, " "))
-		}
-		if len(editorial) > 0 {
-			groups = append(groups, strings.Join(editorial, " "))
-		}
-		modesText := strings.Join(groups, " │ ")
-		modesDisplayWidth := 2 + ansi.StringWidth(modesText) // 2 = leading "  "
-
-		// Fall back to abbreviated single-letter codes when readable labels would
-		// exceed 40% of terminal width, avoiding crowding on narrow terminals.
-		if width > 0 && modesDisplayWidth > width*2/5 {
-			abbrevText := strings.Join(abbrev, " ")
+	editorialFull := s.modeLabels(false)
+	editorialAbbrev := s.modeLabels(true)
+	if len(editorialFull) > 0 {
+		const sepText = " │ "
+		const sepWidth = 3
+		fullText := strings.Join(editorialFull, " ")
+		fullDisplayWidth := sepWidth + ansi.StringWidth(fullText)
+		// Fall back to abbreviated forms when verbose labels would crowd the bar.
+		if width > 0 && (suffixWidth+fullDisplayWidth) > width*2/5 {
+			abbrevText := strings.Join(editorialAbbrev, " ")
 			var renderedAbbrev []string
-			for _, a := range abbrev {
-				renderedAbbrev = append(renderedAbbrev, modeStyle(a).Render(a))
+			for _, a := range editorialAbbrev {
+				renderedAbbrev = append(renderedAbbrev, barBold.Render(a))
 			}
-			suffix += r("  ") + strings.Join(renderedAbbrev, r(" "))
-			suffixWidth += 2 + ansi.StringWidth(abbrevText)
+			suffix += r(sepText) + strings.Join(renderedAbbrev, r(" "))
+			suffixWidth += sepWidth + ansi.StringWidth(abbrevText)
 		} else {
-			var renderedPlayback []string
-			for _, p := range playback {
-				renderedPlayback = append(renderedPlayback, modeStyle(p).Render(p))
+			var renderedFull []string
+			for _, e := range editorialFull {
+				renderedFull = append(renderedFull, barBold.Render(e))
 			}
-			var renderedEditorial []string
-			for _, e := range editorial {
-				renderedEditorial = append(renderedEditorial, barBold.Render(e))
-			}
-			var renderedGroups []string
-			if len(renderedPlayback) > 0 {
-				renderedGroups = append(renderedGroups, strings.Join(renderedPlayback, r(" ")))
-			}
-			if len(renderedEditorial) > 0 {
-				renderedGroups = append(renderedGroups, strings.Join(renderedEditorial, r(" ")))
-			}
-			suffix += r("  ") + strings.Join(renderedGroups, r(" │ "))
-			suffixWidth += modesDisplayWidth
+			suffix += r(sepText) + strings.Join(renderedFull, r(" "))
+			suffixWidth += fullDisplayWidth
 		}
 	}
 
@@ -443,8 +478,12 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	qp := ""
 	qpWidth := 0
 	if s.queuePosition != "" {
-		qp = barDim.Render(" (" + s.queuePosition + ")")
-		qpWidth = ansi.StringWidth(" (" + s.queuePosition + ")")
+		posText := s.queuePosition
+		if s.bucketLabel != "" {
+			posText += " · " + s.bucketLabel
+		}
+		qp = barDim.Render(" (" + posText + ")")
+		qpWidth = ansi.StringWidth(" (" + posText + ")")
 	}
 	prefix := ""
 	prefixWidth := 0
@@ -505,10 +544,12 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 		line1 = rightAlign(left)
 	}
 
-	// --- Line 2: album · time + progress bar ---
+	// --- Line 2: album · time + progress bar; or long-op widget; or both ---
 	const line2Pad = 1
-	var line2 string
-	if s.elapsed != "" && s.total != "" {
+	playbackActive := s.elapsed != "" && s.total != ""
+	longOpActive := s.longOp.Active
+
+	renderPlayback := func(targetWidth int) string {
 		albumPart := ""
 		albumW := 0
 		if s.album != "" {
@@ -517,7 +558,7 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 		}
 		timePart := ""
 		timeW := 0
-		if s.elapsed != "" && s.total != "" {
+		if playbackActive {
 			timePart = r(s.elapsed + " / " + s.total)
 			timeW = len(s.elapsed) + 3 + len(s.total)
 		}
@@ -529,95 +570,132 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 		}
 		left2 := r(strings.Repeat(" ", line2Pad)) + albumPart + dotPart + timePart + r(" ")
 		leftW2 := line2Pad + albumW + dotW + timeW + 1
-		if width > 0 {
-			pbWidth := width - leftW2 - line2Pad
+		if targetWidth > 0 {
+			pbWidth := targetWidth - leftW2 - line2Pad
 			if pbWidth < 0 {
 				pbWidth = 0
 			}
-			line2 = left2 + renderProgressBar(s.elapsedSecs, s.totalSecs, pbWidth, st) + r(strings.Repeat(" ", line2Pad))
-		} else {
-			line2 = left2
+			return left2 + renderProgressBar(s.elapsedSecs, s.totalSecs, pbWidth, st) + r(strings.Repeat(" ", line2Pad))
 		}
-	} else {
+		return left2
+	}
+
+	renderLongOp := func(targetWidth int) string {
+		label := s.longOp.Label
+		if label == "" {
+			label = "Working"
+		}
+		done := s.longOp.Done
+		total := s.longOp.Total
+		counts := ""
+		if total > 0 {
+			counts = fmt.Sprintf("%s/%s", formatCount(done), formatCount(total))
+		} else {
+			counts = formatCount(done)
+		}
+		etaStr := ""
+		if eta := s.longOp.etaSeconds(); eta > 0 {
+			etaStr = "ETA " + formatTime(float64(eta))
+		}
+		cancelHint := "esc cancel"
+
+		prefix := r(strings.Repeat(" ", line2Pad)) + barBold.Render(label) + r(" ")
+		prefixW := line2Pad + ansi.StringWidth(label) + 1
+
+		countsPart := r(" " + counts)
+		countsW := 1 + ansi.StringWidth(counts)
+		etaPart := ""
+		etaW := 0
+		if etaStr != "" {
+			etaPart = r("  ") + barDim.Render(etaStr)
+			etaW = 2 + ansi.StringWidth(etaStr)
+		}
+		cancelPart := r("  · ") + barDim.Render(cancelHint)
+		cancelW := 4 + ansi.StringWidth(cancelHint)
+
+		trailing := countsPart + etaPart + cancelPart
+		trailingW := countsW + etaW + cancelW
+
+		if targetWidth <= 0 {
+			return prefix + renderProgressBar(float64(done), float64(max(total, 1)), 20, st) + trailing
+		}
+		pbWidth := targetWidth - prefixW - trailingW - line2Pad
+		if pbWidth < 4 {
+			// Not enough room for an ETA — drop it and try again.
+			trailing = countsPart + cancelPart
+			trailingW = countsW + cancelW
+			pbWidth = targetWidth - prefixW - trailingW - line2Pad
+		}
+		if pbWidth < 4 {
+			// Still not enough — drop the cancel hint.
+			trailing = countsPart
+			trailingW = countsW
+			pbWidth = targetWidth - prefixW - trailingW - line2Pad
+		}
+		if pbWidth < 0 {
+			pbWidth = 0
+		}
+		bar := renderProgressBar(float64(done), float64(max(total, 1)), pbWidth, st)
+		return prefix + bar + trailing + r(strings.Repeat(" ", line2Pad))
+	}
+
+	var line2 string
+	switch {
+	case longOpActive && playbackActive && width > 0:
+		half := width / 2
+		left2 := renderPlayback(half)
+		right2 := renderLongOp(width - half)
+		// Pad the playback half if it came up short.
+		if w := ansi.StringWidth(left2); w < half {
+			left2 += r(strings.Repeat(" ", half-w))
+		}
+		line2 = left2 + right2
+	case longOpActive:
+		line2 = renderLongOp(width)
+	case playbackActive:
+		line2 = renderPlayback(width)
+	default:
 		line2 = dimLine()
 	}
 
 	return line1 + "\n" + line2
 }
 
-// modeLabels returns the active mode label strings in two groups.
-// When abbreviated is false the labels are human-readable ("Repeat", "Shuffle",
-// "Auto-DJ", …); when true they use compact codes ("R", "S", "DJ", …).
-// playback contains repeat/shuffle/stop-next/radio indicators.
-// editorial contains visual-mode, tag-filter, yank/cut, and selection indicators.
-// In the abbreviated case all labels are in playback and editorial is always nil.
-func (s StatusBar) modeLabels(abbreviated bool) (playback, editorial []string) {
+// modeLabels returns the editorial chip labels (visual mode, yank/cut count,
+// selection count). When abbreviated is true short forms are used ("V",
+// "Y:N", "Cut:N", "Sel:N"); otherwise verbose forms ("Visual", "Yank: N",
+// "Cut: N", "Sel: N"). Playback modes (repeat/shuffle/stop-next/radio) are
+// rendered separately by render() as the 4-glyph RSND cluster.
+func (s StatusBar) modeLabels(abbreviated bool) []string {
+	var out []string
 	if abbreviated {
-		switch s.repeatMode {
-		case RepeatAll:
-			playback = append(playback, "R")
-		case RepeatOne:
-			playback = append(playback, "R1")
-		}
-		if s.shuffle {
-			playback = append(playback, "S")
-		}
-		if s.stopAfterCurrent {
-			playback = append(playback, "N")
-		}
-		if s.radioMode {
-			playback = append(playback, "DJ")
-		}
 		if s.visualMode {
-			playback = append(playback, "V")
-		}
-		if s.activeTagName != "" {
-			playback = append(playback, "Tag:"+s.activeTagName)
+			out = append(out, "V")
 		}
 		if s.yankCount > 0 {
 			if s.yankIsCut {
-				playback = append(playback, fmt.Sprintf("Cut:%d", s.yankCount))
+				out = append(out, fmt.Sprintf("Cut:%d", s.yankCount))
 			} else {
-				playback = append(playback, fmt.Sprintf("Y:%d", s.yankCount))
+				out = append(out, fmt.Sprintf("Y:%d", s.yankCount))
 			}
 		}
 		if s.selectionCount > 0 {
-			playback = append(playback, fmt.Sprintf("Sel:%d", s.selectionCount))
+			out = append(out, fmt.Sprintf("Sel:%d", s.selectionCount))
 		}
-		return playback, nil
+		return out
 	}
-
-	switch s.repeatMode {
-	case RepeatAll:
-		playback = append(playback, "Repeat")
-	case RepeatOne:
-		playback = append(playback, "Repeat 1")
-	}
-	if s.shuffle {
-		playback = append(playback, "Shuffle")
-	}
-	if s.stopAfterCurrent {
-		playback = append(playback, "Stop Next")
-	}
-	if s.radioMode {
-		playback = append(playback, "Auto-DJ")
-	}
-
 	if s.visualMode {
-		editorial = append(editorial, "Visual")
-	}
-	if s.activeTagName != "" {
-		editorial = append(editorial, "Tag: "+s.activeTagName)
+		out = append(out, "Visual")
 	}
 	if s.yankCount > 0 {
 		if s.yankIsCut {
-			editorial = append(editorial, fmt.Sprintf("Cut: %d", s.yankCount))
+			out = append(out, fmt.Sprintf("Cut: %d", s.yankCount))
 		} else {
-			editorial = append(editorial, fmt.Sprintf("Yank: %d", s.yankCount))
+			out = append(out, fmt.Sprintf("Yank: %d", s.yankCount))
 		}
 	}
 	if s.selectionCount > 0 {
-		editorial = append(editorial, fmt.Sprintf("Sel: %d", s.selectionCount))
+		out = append(out, fmt.Sprintf("Sel: %d", s.selectionCount))
 	}
-	return playback, editorial
+	return out
 }

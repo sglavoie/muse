@@ -257,7 +257,12 @@ func runTUI(ctx context.Context) error {
 		} else {
 			formatted = fmt.Sprintf("%dm", mn)
 		}
-		fmt.Fprintf(os.Stderr, "\nSession: %d %s · %s\n", count, word, formatted)
+		topArtist := m.SessionTopArtist()
+		if topArtist != "" {
+			fmt.Fprintf(os.Stderr, "\nSession: %d %s · %s · top artist: %s\n", count, word, formatted, topArtist)
+		} else {
+			fmt.Fprintf(os.Stderr, "\nSession: %d %s · %s\n", count, word, formatted)
+		}
 	}
 
 	app.Shutdown(shutdownDeps, app.ShutdownTimeout)

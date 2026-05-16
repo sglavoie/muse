@@ -72,4 +72,5 @@ type View struct {
 	FavoriteArtists map[string]struct{}
 	FavoriteAlbums  map[string]struct{}
 	NowPlayingHash  string // hash of the currently playing track; empty when nothing is playing
+	NowPlayingIcon  string // marker glyph (e.g. "▶", "⏸", "■"); empty falls back to "♪"
 }

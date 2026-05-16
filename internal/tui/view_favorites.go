@@ -52,7 +52,7 @@ type FavoritesView struct {
 
 func (v *FavoritesView) setSize(w, h int) { v.width = w; v.height = h }
 
-func (v FavoritesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash string) string {
+func (v FavoritesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
 	var sortInd string
 	if v.sortState.Field != SortDefault {
 		sortInd = fmt.Sprintf("Sort: %s %s", SortFieldLabel(v.sortState.Field), SortDirIndicator(v.sortState.Dir))
@@ -91,6 +91,7 @@ func (v FavoritesView) render(s styles.Styles, favHashes, favArtists, favAlbums 
 		FavoriteArtists: favArtists,
 		FavoriteAlbums:  favAlbums,
 		NowPlayingHash:  nowPlayingHash,
+		NowPlayingIcon:  nowPlayingIcon,
 	}
 	return fv.Render()
 }

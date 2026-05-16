@@ -1,5 +1,64 @@
 package tui
 
+// Keymap consistency matrix (Session 9 audit).
+//
+// Each row shows the action a key resolves to in each view context. "=" means
+// the global binding pass-through (no view-local override). "—" means no
+// binding (resolve returns actionNone). Capitals matter — j != J. Navigation
+// keys (j k g G ctrl+d ctrl+u ctrl+f ctrl+b up down) are registered uniformly
+// per context via registerNavigation and behave identically everywhere.
+//
+//   Key | Global         | Library    | Playlists  | Queue      | Browse(A/B/G) | Favorites  | Tags       | Mixes
+//   ----+----------------+------------+------------+------------+---------------+------------+------------+------------
+//   /   | filter-bar     | =          | =          | =          | =             | =          | =          | =
+//   :   | palette        | =          | =          | =          | =             | =          | =          | =
+//   ?   | help           | =          | =          | =          | =             | =          | =          | =
+//   esc | —              | filter-clr | back       | filter-clr | back          | back       | back       | back
+//   enter | —            | enqueue    | open       | play       | open          | open       | tag-open   | open
+//   shift+enter | —      | replace    | replace    | —          | replace       | replace    | —          | —
+//   space | play/pause   | =          | =          | =          | =             | =          | =          | =
+//   tab | next-view      | =          | =          | =          | =             | =          | =          | =
+//   1-7 | switch-view    | =          | =          | =          | =             | =          | =          | =
+//   n / p | next/prev    | =          | =          | =          | =             | =          | =          | =
+//   N   | —              | play-next  | play-next  | —          | play-next     | play-next  | play-next  | play-next
+//   s   | stop           | =          | =          | =          | =             | =          | =          | sort-cycle*
+//   S   | —              | —          | smart-new  | save-q     | —             | —          | —          | save-as-pl
+//   d   | —              | —          | delete     | dequeue    | —             | —          | tag-delete | —
+//   c   | —              | —          | create     | —          | —             | —          | tag-create | —
+//   e   | —              | —          | smart-edit | —          | —             | —          | —          | enqueue
+//   E   | —              | —          | enqueue-all| —          | —             | —          | enqueue-all| enqueue-all
+//   m   | —              | —          | —          | —          | —             | —          | merge      | —
+//   r   | repeat-cycle   | =          | rename*    | =          | =             | =          | rename*    | =
+//   R   | reset-pos      | =          | =          | =          | =             | =          | =          | =
+//   z   | shuffle        | =          | =          | =          | =             | =          | =          | =
+//   u   | undo           | =          | =          | =          | =             | =          | =          | =
+//   F   | toggle-fav     | =          | =          | =          | =             | =          | = (rebind) | =
+//   A   | radio-toggle   | =          | =          | =          | =             | =          | =          | seed-radio*
+//   o   | go-to          | =          | =          | =          | =             | =          | =          | =
+//   t   | tag-picker     | =          | =          | =          | =             | =          | =          | =
+//   f   | focus-np       | =          | =          | =          | =             | =          | =          | =
+//   q   | queue-summary  | =          | =          | =          | =             | =          | =          | =
+//   P   | preview        | =          | =          | =          | =             | =          | =          | =
+//   M   | edit-metadata  | =          | =          | =          | =             | =          | =          | =
+//   I   | now-playing-info | =        | =          | =          | =             | =          | =          | =
+//   i   | track-info     | =          | =          | =          | =             | =          | =          | =
+//   L   | listening-stats| =          | =          | =          | =             | =          | =          | =
+//   v   | —              | visual     | visual     | visual     | visual        | visual     | visual     | visual
+//   x   | —              | bulk-sel   | bulk-sel   | bulk-sel   | bulk-sel      | bulk-sel   | bulk-sel   | mix-dismiss*
+//   X   | —              | clear-sel  | clear-sel  | clear-sel  | clear-sel     | clear-sel  | clear-sel  | mix-undism*
+//   a   | —              | bulk-act   | bulk-act   | —          | bulk-act      | bulk-act   | bulk-act   | bulk-act
+//   K/J | —              | —          | move-trk   | move-trk   | —             | —          | —          | —
+//   C   | —              | —          | —          | clear-q    | —             | —          | —          | —
+//   ` / ~ | —            | mode-cycle | —          | —          | mode-cycle    | —          | —          | —
+//   h, backspace | —     | —          | —          | —          | —             | —          | tag-back   | —
+//   ctrl+y/x/p | —       | —          | —          | yank/cut/paste | —         | —          | —          | —
+//
+// Entries marked "*" are intentional shadows of a global binding with a
+// different action. Each must be registered via registerWithReason so the
+// TestNoSilentlyShadowedGlobalBindings test passes — the domain reason is
+// surfaced as the override's justification. Same-action rebinds (Tags F)
+// are treated as harmless redundancy and not flagged.
+
 // bindingContext identifies the context in which key bindings are resolved.
 // The registry checks the view-local context first, then falls back to Global.
 type bindingContext int
@@ -172,16 +231,41 @@ type registryKey struct {
 	key string
 }
 
+// primaryHint is a single (key, label) pair shown in the footer hint strip.
+// Labels are short verb-phrases (e.g. "nav", "enqueue") tuned for the
+// 4–6 most relevant bindings per context.
+type primaryHint struct {
+	Key   string
+	Label string
+}
+
 // Registry maps (context, key) → action. The zero value is not usable;
 // use newRegistry to obtain a pre-populated instance.
+//
+// domainReasons records the justification for a view-local override that
+// shadows a global binding with a different action. The audit test
+// (TestNoSilentlyShadowedGlobalBindings) requires every such override to
+// have a non-empty reason here, so any silently shadowed key fails CI.
 type Registry struct {
-	bindings map[registryKey]action
+	bindings      map[registryKey]action
+	primaries     map[bindingContext][]primaryHint
+	domainReasons map[registryKey]string
+}
+
+// Primaries returns the ordered list of primary keybinding hints for ctx.
+// Returns an empty slice when no primaries are registered for the context.
+func (r Registry) Primaries(ctx bindingContext) []primaryHint {
+	return r.primaries[ctx]
 }
 
 // newRegistry returns a Registry pre-populated with the application's default
 // key bindings.
 func newRegistry() Registry {
-	r := Registry{bindings: make(map[registryKey]action)}
+	r := Registry{
+		bindings:      make(map[registryKey]action),
+		primaries:     make(map[bindingContext][]primaryHint),
+		domainReasons: make(map[registryKey]string),
+	}
 
 	// Global bindings.
 	r.register(contextGlobal, "ctrl+c", actionQuit)
@@ -261,10 +345,9 @@ func newRegistry() Registry {
 	r.register(contextQueue, "esc", actionLibraryFilterClear)
 
 	// Playlists-local bindings.
-	// 'r' is bound to rename here, shadowing the global repeat-cycle binding
-	// while the Playlists view is focused.
 	r.registerNavigation(contextPlaylists)
-	r.register(contextPlaylists, "r", actionPlaylistRename)
+	r.registerWithReason(contextPlaylists, "r", actionPlaylistRename,
+		"rename focused playlist (or refresh smart playlist at track level)")
 	r.register(contextPlaylists, "c", actionPlaylistCreate)
 	r.register(contextPlaylists, "enter", actionPlaylistOpen)
 	r.register(contextPlaylists, "esc", actionPlaylistBack)
@@ -321,13 +404,13 @@ func newRegistry() Registry {
 	r.register(contextGenres, "~", actionBrowseModePrev)
 
 	// Tags-local bindings.
-	// 'r' shadows global repeat-cycle; 'd' shadows global (none); 'c' is new.
 	r.registerNavigation(contextTags)
 	r.register(contextTags, "enter", actionTagOpen)
 	r.register(contextTags, "backspace", actionTagBack)
 	r.register(contextTags, "h", actionTagBack)
 	r.register(contextTags, "c", actionTagCreate)
-	r.register(contextTags, "r", actionTagRename)
+	r.registerWithReason(contextTags, "r", actionTagRename,
+		"rename focused tag inline (mirrors playlists 'r')")
 	r.register(contextTags, "d", actionTagDelete)
 	r.register(contextTags, "E", actionTagEnqueueAll)
 	r.register(contextTags, "m", actionTagMerge)
@@ -350,9 +433,11 @@ func newRegistry() Registry {
 	r.register(contextMixes, "X", actionMixUndismiss)
 	r.register(contextMixes, "v", actionVisualMode)
 	r.register(contextMixes, "a", actionBulkAction)
-	r.register(contextMixes, "s", actionSortCycle)
+	r.registerWithReason(contextMixes, "s", actionSortCycle,
+		"one-key sort cycle at mix track level (ctrl+s remains available)")
 	r.register(contextMixes, "S", actionSaveMixAsPlaylist)
-	r.register(contextMixes, "A", actionMixRadioSeed)
+	r.registerWithReason(contextMixes, "A", actionMixRadioSeed,
+		"seed radio from focused mix's aggregate metadata")
 
 	// Favorites-local bindings.
 	r.registerNavigation(contextFavorites)
@@ -364,6 +449,60 @@ func newRegistry() Registry {
 	r.register(contextFavorites, "v", actionVisualMode)
 	r.register(contextFavorites, "a", actionBulkAction)
 	r.register(contextFavorites, "shift+enter", actionLibraryEnqueueReplace)
+
+	// Primary hints surfaced in the footer hint strip. Keys are referenced
+	// by string (not action enum) because the same physical key may map to
+	// different actions across contexts. Use addPrimary for keys whose
+	// binding lives in contextGlobal so we don't double-register.
+	r.addPrimary(contextLibrary, "j/k", "nav")
+	r.addPrimary(contextLibrary, "enter", "enqueue")
+	r.addPrimary(contextLibrary, "N", "play-next")
+	r.addPrimary(contextLibrary, "/", "filter")
+	r.addPrimary(contextLibrary, "v", "select")
+	r.addPrimary(contextLibrary, "?", "help")
+
+	r.addPrimary(contextQueue, "j/k", "nav")
+	r.addPrimary(contextQueue, "enter", "play")
+	r.addPrimary(contextQueue, "d", "remove")
+	r.addPrimary(contextQueue, "S", "save")
+	r.addPrimary(contextQueue, "/", "filter")
+	r.addPrimary(contextQueue, "?", "help")
+
+	r.addPrimary(contextPlaylists, "j/k", "nav")
+	r.addPrimary(contextPlaylists, "enter", "open")
+	r.addPrimary(contextPlaylists, "r", "rename")
+	r.addPrimary(contextPlaylists, "c", "new")
+	r.addPrimary(contextPlaylists, "/", "filter")
+	r.addPrimary(contextPlaylists, "?", "help")
+
+	for _, ctx := range []bindingContext{contextBrowse, contextArtists, contextAlbums, contextGenres} {
+		r.addPrimary(ctx, "j/k", "nav")
+		r.addPrimary(ctx, "enter", "open")
+		r.addPrimary(ctx, "esc", "back")
+		r.addPrimary(ctx, "`/~", "cycle mode")
+		r.addPrimary(ctx, "/", "filter")
+		r.addPrimary(ctx, "?", "help")
+	}
+
+	r.addPrimary(contextFavorites, "j/k", "nav")
+	r.addPrimary(contextFavorites, "enter", "open")
+	r.addPrimary(contextFavorites, "F", "toggle fav")
+	r.addPrimary(contextFavorites, "/", "filter")
+	r.addPrimary(contextFavorites, "?", "help")
+
+	r.addPrimary(contextTags, "j/k", "nav")
+	r.addPrimary(contextTags, "enter", "filter-by")
+	r.addPrimary(contextTags, "c", "create")
+	r.addPrimary(contextTags, "r", "rename")
+	r.addPrimary(contextTags, "/", "filter")
+	r.addPrimary(contextTags, "?", "help")
+
+	r.addPrimary(contextMixes, "j/k", "nav")
+	r.addPrimary(contextMixes, "enter", "open")
+	r.addPrimary(contextMixes, "E", "enqueue all")
+	r.addPrimary(contextMixes, "A", "radio")
+	r.addPrimary(contextMixes, "/", "filter")
+	r.addPrimary(contextMixes, "?", "help")
 
 	return r
 }
@@ -386,6 +525,30 @@ func (r *Registry) registerNavigation(ctx bindingContext) {
 // register adds a (context, key) → action entry to the registry.
 func (r *Registry) register(ctx bindingContext, key string, a action) {
 	r.bindings[registryKey{ctx: ctx, key: key}] = a
+}
+
+// registerWithReason registers a view-local binding that intentionally
+// shadows a global binding with a different action. The reason is recorded
+// in domainReasons; TestNoSilentlyShadowedGlobalBindings asserts that any
+// shadowed key has a non-empty reason.
+func (r *Registry) registerWithReason(ctx bindingContext, key string, a action, reason string) {
+	r.register(ctx, key, a)
+	r.domainReasons[registryKey{ctx: ctx, key: key}] = reason
+}
+
+// registerPrimary binds the action and also records (key, label) as a primary
+// hint for the footer hint strip in the given context. Order of calls is the
+// order of display.
+func (r *Registry) registerPrimary(ctx bindingContext, key string, a action, label string) {
+	r.register(ctx, key, a)
+	r.primaries[ctx] = append(r.primaries[ctx], primaryHint{Key: key, Label: label})
+}
+
+// addPrimary records (key, label) as a primary hint without (re)binding the
+// key. Use this when the binding already exists in another context (e.g. a
+// global binding that we want to surface in a view-local hint strip).
+func (r *Registry) addPrimary(ctx bindingContext, key, label string) {
+	r.primaries[ctx] = append(r.primaries[ctx], primaryHint{Key: key, Label: label})
 }
 
 // lookup returns the action bound to (ctx, key), or actionNone if not found.

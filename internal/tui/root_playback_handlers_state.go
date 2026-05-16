@@ -52,6 +52,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 		m.mixes.playsSinceRefresh++
 		m.sessionTracksPlayed++
 		m.sessionListenSecs += m.playback.peakElapsedSecs
+		m.bumpSessionArtist(m.statusBar.artist)
 	}
 
 	incrementCmd := m.playCountIncrementCmd(
@@ -194,6 +195,7 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	previousHash := m.playback.currentHash
 	previousElapsed := m.playback.peakElapsedSecs
 	previousTotal := m.playback.peakTotalSecs
+	previousArtist := m.statusBar.artist
 
 	m.playback.currentHash = msg.Hash
 	// Clamp index to queue bounds in case the queue shrank between the mpv
@@ -254,6 +256,7 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 		m.mixes.playsSinceRefresh++
 		m.sessionTracksPlayed++
 		m.sessionListenSecs += previousElapsed
+		m.bumpSessionArtist(previousArtist)
 	}
 	incrementCmd := m.playCountIncrementCmd(previousHash, previousElapsed, previousTotal)
 	// Radio mode: update seed and check low-water-mark.
@@ -263,7 +266,22 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 		m.radio.enqueuePending = true
 	}
 
-	return m, tea.Batch(m.sessionPositionCmd(), incrementCmd, radioCmd)
+	// Pulse the now-playing row briefly so the user notices the transition.
+	m.pulseUntil = time.Now().Add(pulseDuration)
+
+	return m, tea.Batch(m.sessionPositionCmd(), incrementCmd, radioCmd, pulseCmd())
+}
+
+// bumpSessionArtist records one more play for artist in the session
+// artist-count map, allocating it lazily. No-op for empty strings.
+func (m *Model) bumpSessionArtist(artist string) {
+	if artist == "" {
+		return
+	}
+	if m.sessionArtistCounts == nil {
+		m.sessionArtistCounts = make(map[string]int)
+	}
+	m.sessionArtistCounts[artist]++
 }
 
 // handlePlayRecordedMsg prepends the just-played track to the in-memory

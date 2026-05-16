@@ -35,12 +35,17 @@ func TestRenderColumnsDoNotOverflow(t *testing.T) {
 	}
 }
 
-// TestRenderEmptyIndex returns the empty placeholder.
+// TestRenderEmptyIndex verifies the empty-library card surfaces its CTAs.
 func TestRenderEmptyIndex(t *testing.T) {
 	v := View{Width: 80, Height: 24}
 	got := v.Render()
-	if !strings.Contains(got, "No music found") {
-		t.Errorf("unexpected empty render: %q", got)
+	if !strings.Contains(got, "Library is empty") {
+		t.Errorf("empty library must show title; got: %q", got)
+	}
+	for _, want := range []string{"scan folders", "import", "help"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("empty library card missing CTA %q; got: %q", want, got)
+		}
 	}
 }
 

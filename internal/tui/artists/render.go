@@ -94,10 +94,9 @@ func (v View) renderTracks() string {
 	}
 
 	cols := ComputeTrack(v.Width)
-	header := v.Styles.ColHead.Render(
-		strings.Repeat(" ", cols.SelectionMarker) +
-			fmt.Sprintf("%-*s %-*s %*s",
-				cols.Position, "#", cols.Title, "Title", cols.Duration, "Time"))
+	header := strings.Repeat(" ", cols.SelectionMarker) + v.Styles.ColHead.Render(
+		fmt.Sprintf("%-*s %-*s %*s",
+			cols.Position, "#", cols.Title, "Title", cols.Duration, "Time"))
 
 	maxRows := v.visibleRows()
 	start := min(v.ScrollOffset, len(items))
@@ -118,21 +117,7 @@ func (v View) renderTracks() string {
 		isNowPlaying := v.NowPlayingHash != "" && track.Hash == v.NowPlayingHash
 		_, isSelected := v.SelectedHashes[track.Hash]
 
-		var markerStr string
-		switch {
-		case isSelected && isFocused:
-			markerStr = "● "
-		case isSelected:
-			markerStr = "● "
-		case isFocused && isNowPlaying:
-			markerStr = "♪ "
-		case isFocused:
-			markerStr = "▎ "
-		case isNowPlaying:
-			markerStr = "♪ "
-		default:
-			markerStr = "  "
-		}
+		markerStr := text.RowMarker(isSelected, isFocused, isNowPlaying, v.NowPlayingIcon)
 
 		var rawPos string
 		if showDisc {

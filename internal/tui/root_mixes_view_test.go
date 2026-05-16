@@ -209,7 +209,7 @@ func TestMixesViewEmptyState(t *testing.T) {
 	m = m.switchToView(viewMixes)
 	m = m.handleMixCountsLoadedMsg(mixCountsLoadedMsg{insufficient: true})
 
-	rendered := m.mixes.render(styles.NewStyles(false), nil, nil, nil, "")
+	rendered := m.mixes.render(styles.NewStyles(false), nil, nil, nil, "", "")
 
 	if !strings.Contains(rendered, "minimum 20 plays") {
 		t.Errorf("expected empty state with 20 plays hint, got: %q", rendered)
@@ -227,7 +227,7 @@ func TestMixesViewEmptyTrackLevel(t *testing.T) {
 	m, _ = m.handleMixOpen()
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: nil})
 
-	rendered := m.mixes.render(styles.NewStyles(false), nil, nil, nil, "")
+	rendered := m.mixes.render(styles.NewStyles(false), nil, nil, nil, "", "")
 
 	if !strings.Contains(rendered, "keep listening") {
 		t.Errorf("expected 'keep listening' message for empty track level, got: %q", rendered)

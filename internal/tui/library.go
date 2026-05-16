@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
@@ -53,13 +54,14 @@ func (v *LibraryView) setSize(w, h int) { v.width = w; v.height = h }
 
 // render returns a string representation of the library panel with proportional
 // columnar layout. Column widths resize with the terminal width.
-func (v LibraryView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash string) string {
+func (v LibraryView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
 	lv := v.view()
 	lv.Styles = s
 	lv.FavoriteHashes = favHashes
 	lv.FavoriteArtists = favArtists
 	lv.FavoriteAlbums = favAlbums
 	lv.NowPlayingHash = nowPlayingHash
+	lv.NowPlayingIcon = nowPlayingIcon
 	return lv.Render()
 }
 
@@ -154,6 +156,13 @@ func (v LibraryView) view() libtui.View {
 		// explicitly pass the filtered track list so the inner View uses
 		// the correct (smaller) set for navigation and rendering.
 		lv.OverrideTracks = v.baseTracks()
+	}
+	if SortFieldHasBuckets(v.sortState.Field) {
+		field := v.sortState.Field
+		now := time.Now()
+		lv.BucketLabel = func(t library.Track) string {
+			return TrackBucket(field, t, now)
+		}
 	}
 	return lv
 }

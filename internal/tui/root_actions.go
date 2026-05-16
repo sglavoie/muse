@@ -345,7 +345,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	case actionCommandPalette:
 		commands := m.buildPaletteCommands()
 		if len(commands) > 0 {
-			palette, cmd := NewCommandPalette(commands)
+			palette, cmd := NewCommandPalette(commands, m.paletteUsage)
 			m.overlay.commandPalette = &palette
 			return m, cmd
 		}

@@ -66,7 +66,7 @@ func (v ArtistsView) recomputeArtistsSort() ArtistsView {
 	return v
 }
 
-func (v ArtistsView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash string) string {
+func (v ArtistsView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
 	var sortInd string
 	if v.sortState.Field != SortDefault {
 		sortInd = fmt.Sprintf("Sort: %s %s", SortFieldLabel(v.sortState.Field), SortDirIndicator(v.sortState.Dir))
@@ -102,6 +102,7 @@ func (v ArtistsView) render(s styles.Styles, favHashes, favArtists, favAlbums ma
 		FavoriteAlbums:  favAlbums,
 		SelectedHashes:  v.selectedHashes,
 		NowPlayingHash:  nowPlayingHash,
+		NowPlayingIcon:  nowPlayingIcon,
 	}
 	return av.Render()
 }

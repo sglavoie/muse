@@ -85,6 +85,25 @@ func (m Model) handleRandomArtistMsg() (Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleToggleFooterHintsMsg flips the footer hint strip on/off, updates the
+// derived per-view height so the body reclaims (or yields) the row, and
+// persists the new value to the config file.
+func (m Model) handleToggleFooterHintsMsg() (Model, tea.Cmd) {
+	m.showFooterHints = !m.showFooterHints
+	m.cfg.ShowFooterHints = m.showFooterHints
+	if m.termWidth > 0 && m.termHeight > 0 {
+		m.setViewDimensions(m.termWidth, m.termHeight)
+		m.clampAllScrollOffsets()
+	}
+	m.statusBar.notify("Footer hints: " + onOff(m.showFooterHints))
+
+	if m.configPath == "" {
+		return m, nil
+	}
+	path, cfg := m.configPath, m.cfg
+	return m, func() tea.Msg { return settingsSavedMsg{err: config.Save(path, cfg)} }
+}
+
 // handleJumpToNowPlayingMsg switches to Library view with the cursor on the
 // currently-playing track, clearing any active filter first.
 func (m Model) handleJumpToNowPlayingMsg() (Model, tea.Cmd) {

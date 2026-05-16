@@ -37,9 +37,14 @@ type resizable interface {
 }
 
 // setViewDimensions updates the width and height on all primary views.
-// height is reduced by 4 to leave room for the status bar, separator, and header rows.
+// height is reduced by 4 to leave room for the status bar, separator, and
+// header rows. When the footer hint strip is enabled it steals one more row.
 func (m *Model) setViewDimensions(width, height int) {
-	viewHeight := max(height-4, 0)
+	reserve := 4
+	if m.showFooterHints {
+		reserve = 5
+	}
+	viewHeight := max(height-reserve, 0)
 	for _, view := range []resizable{&m.library, &m.playlists, &m.queue, &m.browse, &m.favorites, &m.tagsView, &m.mixes} {
 		view.setSize(width, viewHeight)
 	}
