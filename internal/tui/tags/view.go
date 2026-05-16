@@ -310,21 +310,7 @@ func (v View) renderTracks() string {
 		_, isSelected := v.SelectedHashes[t.Hash]
 		_, isTrackFav := v.FavoriteHashes[t.Hash]
 
-		var markerStr string
-		switch {
-		case isSelected && isFocused:
-			markerStr = "● "
-		case isSelected:
-			markerStr = "● "
-		case isFocused && isNowPlaying:
-			markerStr = "♪ "
-		case isFocused:
-			markerStr = "▎ "
-		case isNowPlaying:
-			markerStr = "♪ "
-		default:
-			markerStr = "  "
-		}
+		markerStr := text.RowMarker(isSelected, isFocused, isNowPlaying, "♪")
 
 		titleStr := text.FavPrefix(t.Title, cols.Title, isTrackFav)
 		artistStr := text.Pad(t.Artist, cols.Artist)

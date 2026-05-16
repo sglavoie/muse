@@ -113,6 +113,31 @@ func FormatTrackPosSimple(trackNum, fallback int) string {
 	return strconv.Itoa(trackNum)
 }
 
+// RowMarker returns the two-column selection/focus/now-playing marker shown
+// at the left edge of every track row. Precedence (highest first):
+//
+//  1. selected (any): "● "
+//  2. focused + now-playing: nowPlayingIcon + " "
+//  3. focused only: "▎ "
+//  4. now-playing only: nowPlayingIcon + " "
+//  5. default: "  "
+//
+// The returned string is always two display columns wide.
+func RowMarker(isSelected, isFocused, isNowPlaying bool, nowPlayingIcon string) string {
+	switch {
+	case isSelected:
+		return "● "
+	case isFocused && isNowPlaying:
+		return nowPlayingIcon + " "
+	case isFocused:
+		return "▎ "
+	case isNowPlaying:
+		return nowPlayingIcon + " "
+	default:
+		return "  "
+	}
+}
+
 // BuildFilterSeparator returns the separator string rendered between a section
 // heading and its item list. leadingNewline=true is used when the separator
 // appears below a heading; false when at the top level where the title bar

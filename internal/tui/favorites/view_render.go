@@ -97,18 +97,8 @@ func (v View) renderList() string {
 		isFocused := absIdx == v.Cursor
 		_, isFav := favMap[name]
 
-		var marker string
 		_, selected := v.SelectedItems[absIdx]
-		switch {
-		case selected && isFocused:
-			marker = "● "
-		case selected:
-			marker = "● "
-		case isFocused:
-			marker = "▎ "
-		default:
-			marker = "  "
-		}
+		marker := text.RowMarker(selected, isFocused, false, "")
 
 		display := text.FavPrefix(name, v.Width-2, isFav)
 		line := marker + display
@@ -188,22 +178,8 @@ func (v View) renderTrackRows(items []library.Track) string {
 		isFocused := absIdx == v.Cursor
 		isNowPlaying := v.NowPlayingHash != "" && t.Hash == v.NowPlayingHash
 
-		var marker string
 		_, selected := v.SelectedItems[absIdx]
-		switch {
-		case selected && isFocused:
-			marker = "● "
-		case selected:
-			marker = "● "
-		case isFocused && isNowPlaying:
-			marker = "♪ "
-		case isFocused:
-			marker = "▎ "
-		case isNowPlaying:
-			marker = "♪ "
-		default:
-			marker = "  "
-		}
+		marker := text.RowMarker(selected, isFocused, isNowPlaying, "♪")
 
 		var rawPos string
 		if showDisc {

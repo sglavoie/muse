@@ -112,21 +112,7 @@ func (v View) renderTracks() string {
 		isNowPlaying := v.NowPlayingHash != "" && t.Hash == v.NowPlayingHash
 		_, isSelected := v.SelectedHashes[t.Hash]
 
-		var markerStr string
-		switch {
-		case isSelected && isFocused:
-			markerStr = "● "
-		case isSelected:
-			markerStr = "● "
-		case isFocused && isNowPlaying:
-			markerStr = "♪ "
-		case isFocused:
-			markerStr = "▎ "
-		case isNowPlaying:
-			markerStr = "♪ "
-		default:
-			markerStr = "  "
-		}
+		markerStr := text.RowMarker(isSelected, isFocused, isNowPlaying, "♪")
 
 		var rawPos string
 		if showDisc {

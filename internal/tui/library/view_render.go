@@ -174,21 +174,7 @@ func (v View) Render() string {
 		// When the row is focused, omit the inner accent/reset from the marker
 		// so the outer reverse-video wrap covers the full row uniformly. An
 		// inner ANSI reset would reset the cursor highlight mid-row.
-		var markerStr string
-		switch {
-		case isSelected && isFocused:
-			markerStr = "● "
-		case isSelected:
-			markerStr = "● "
-		case isFocused && isNowPlaying:
-			markerStr = "♪ "
-		case isFocused:
-			markerStr = "▎ "
-		case isNowPlaying:
-			markerStr = "♪ "
-		default:
-			markerStr = "  "
-		}
+		markerStr := text.RowMarker(isSelected, isFocused, isNowPlaying, "♪")
 
 		_, isTrackFav := v.FavoriteHashes[t.Hash]
 		_, isArtistFav := v.FavoriteArtists[t.Artist]

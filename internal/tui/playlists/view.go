@@ -387,21 +387,7 @@ func (v View) renderTracks() string {
 		// When the row is focused, omit the inner accent/reset from the marker
 		// so the outer background highlight covers the full row uniformly. An
 		// inner ANSI reset would reset the cursor highlight mid-row.
-		var markerStr string
-		switch {
-		case isSelected && isFocused:
-			markerStr = "● " // plain glyph; outer accent wrap provides styling
-		case isSelected:
-			markerStr = "● "
-		case isFocused && isNowPlaying:
-			markerStr = "♪ "
-		case isFocused:
-			markerStr = "▎ "
-		case isNowPlaying:
-			markerStr = "♪ "
-		default:
-			markerStr = "  "
-		}
+		markerStr := text.RowMarker(isSelected, isFocused, isNowPlaying, "♪")
 
 		pos := fmt.Sprintf("%-*s", cols.Position, text.FormatTrackPos(t.TrackNumber, t.DiscNumber, absIdx+1))
 		dur := text.FormatDurationMs(t.DurationMs)

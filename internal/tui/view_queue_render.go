@@ -111,21 +111,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 		// Determine the now-playing icon and style based on playback state.
 		npIcon, npStyle := nowPlayingIndicator(s, playbackState)
 
-		var markerStr string
-		switch {
-		case e.Selected && isFocused:
-			markerStr = "● "
-		case e.Selected:
-			markerStr = "● "
-		case isFocused && isNowPlaying:
-			markerStr = npIcon + " "
-		case isFocused:
-			markerStr = "▎ "
-		case isNowPlaying:
-			markerStr = npIcon + " "
-		default:
-			markerStr = "  "
-		}
+		markerStr := text.RowMarker(e.Selected, isFocused, isNowPlaying, npIcon)
 
 		var rawPos string
 		if showDisc {

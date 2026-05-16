@@ -118,6 +118,37 @@ func TestFormatDurationSecs(t *testing.T) {
 	}
 }
 
+func TestRowMarker(t *testing.T) {
+	const npIcon = "♪"
+	tests := []struct {
+		name       string
+		selected   bool
+		focused    bool
+		nowPlaying bool
+		icon       string
+		want       string
+	}{
+		{"default", false, false, false, npIcon, "  "},
+		{"focused only", false, true, false, npIcon, "▎ "},
+		{"now-playing only", false, false, true, npIcon, "♪ "},
+		{"focused and now-playing", false, true, true, npIcon, "♪ "},
+		{"selected only", true, false, false, npIcon, "● "},
+		{"selected and focused", true, true, false, npIcon, "● "},
+		{"selected and now-playing", true, false, true, npIcon, "● "},
+		{"selected focused and now-playing", true, true, true, npIcon, "● "},
+		{"custom now-playing icon", false, false, true, "▶", "▶ "},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := RowMarker(tt.selected, tt.focused, tt.nowPlaying, tt.icon)
+			if got != tt.want {
+				t.Errorf("RowMarker(%v, %v, %v, %q) = %q, want %q",
+					tt.selected, tt.focused, tt.nowPlaying, tt.icon, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestFormatDurationMs(t *testing.T) {
 	tests := []struct {
 		name string
