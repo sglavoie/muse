@@ -231,68 +231,9 @@ func (w *Writer) SetPlaylistOrder(playlistID int64, ids []int64) error {
 			return err
 		}
 		defer rollback(tx)
-
-		n := int64(len(ids))
-		maxNewPos := n * queuePositionGap
-
-		var globalMax int64
-		if err := tx.QueryRow(
-			`SELECT COALESCE(MAX(position), 0) FROM playlist_tracks WHERE playlist_id=?`,
-			playlistID,
-		).Scan(&globalMax); err != nil {
+		if err := setGappedOrderTx(tx, "playlist_tracks", "AND playlist_id=?", []any{playlistID}, ids); err != nil {
 			return err
 		}
-
-		type prow struct{ id, position int64 }
-		rows, err := tx.Query(
-			`SELECT id, position FROM playlist_tracks
-			 WHERE playlist_id=? AND deleted_at IS NOT NULL
-			   AND position >= ? AND position <= ?`,
-			playlistID, queuePositionGap, maxNewPos,
-		)
-		if err != nil {
-			return err
-		}
-		var conflicting []prow
-		for rows.Next() {
-			var r prow
-			if err := rows.Scan(&r.id, &r.position); err != nil {
-				rows.Close()
-				return err
-			}
-			if r.position%queuePositionGap == 0 {
-				conflicting = append(conflicting, r)
-			}
-		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
-			return err
-		}
-
-		safeBase := max(globalMax, maxNewPos)
-
-		for i, r := range conflicting {
-			safePos := safeBase + int64(i+1)*queuePositionGap
-			if _, err := tx.Exec(`UPDATE playlist_tracks SET position=? WHERE id=?`, safePos, r.id); err != nil {
-				return err
-			}
-		}
-
-		tempBase := safeBase + int64(len(conflicting)+1)*queuePositionGap
-		for i, id := range ids {
-			tmpPos := tempBase + int64(i)*queuePositionGap
-			if _, err := tx.Exec(`UPDATE playlist_tracks SET position=? WHERE id=?`, tmpPos, id); err != nil {
-				return err
-			}
-		}
-
-		for i, id := range ids {
-			pos := int64(i+1) * queuePositionGap
-			if _, err := tx.Exec(`UPDATE playlist_tracks SET position=? WHERE id=?`, pos, id); err != nil {
-				return err
-			}
-		}
-
 		return tx.Commit()
 	})
 }
