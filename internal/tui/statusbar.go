@@ -393,41 +393,8 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 		suffixWidth += 2 + ansi.StringWidth(s.playlistSource) + 2
 	}
 
-	// Build readable mode labels grouped into playback and editorial categories.
-	var playback []string
-	switch s.repeatMode {
-	case RepeatAll:
-		playback = append(playback, "Repeat")
-	case RepeatOne:
-		playback = append(playback, "Repeat 1")
-	}
-	if s.shuffle {
-		playback = append(playback, "Shuffle")
-	}
-	if s.stopAfterCurrent {
-		playback = append(playback, "Stop Next")
-	}
-	if s.radioMode {
-		playback = append(playback, "Auto-DJ")
-	}
-
-	var editorial []string
-	if s.visualMode {
-		editorial = append(editorial, "Visual")
-	}
-	if s.activeTagName != "" {
-		editorial = append(editorial, "Tag: "+s.activeTagName)
-	}
-	if s.yankCount > 0 {
-		if s.yankIsCut {
-			editorial = append(editorial, fmt.Sprintf("Cut: %d", s.yankCount))
-		} else {
-			editorial = append(editorial, fmt.Sprintf("Yank: %d", s.yankCount))
-		}
-	}
-	if s.selectionCount > 0 {
-		editorial = append(editorial, fmt.Sprintf("Sel: %d", s.selectionCount))
-	}
+	playback, editorial := s.modeLabels(false)
+	abbrev, _ := s.modeLabels(true)
 
 	if len(playback) > 0 || len(editorial) > 0 {
 		var groups []string
@@ -443,38 +410,6 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 		// Fall back to abbreviated single-letter codes when readable labels would
 		// exceed 40% of terminal width, avoiding crowding on narrow terminals.
 		if width > 0 && modesDisplayWidth > width*2/5 {
-			var abbrev []string
-			switch s.repeatMode {
-			case RepeatAll:
-				abbrev = append(abbrev, "R")
-			case RepeatOne:
-				abbrev = append(abbrev, "R1")
-			}
-			if s.shuffle {
-				abbrev = append(abbrev, "S")
-			}
-			if s.stopAfterCurrent {
-				abbrev = append(abbrev, "N")
-			}
-			if s.radioMode {
-				abbrev = append(abbrev, "DJ")
-			}
-			if s.visualMode {
-				abbrev = append(abbrev, "V")
-			}
-			if s.activeTagName != "" {
-				abbrev = append(abbrev, "Tag:"+s.activeTagName)
-			}
-			if s.yankCount > 0 {
-				if s.yankIsCut {
-					abbrev = append(abbrev, fmt.Sprintf("Cut:%d", s.yankCount))
-				} else {
-					abbrev = append(abbrev, fmt.Sprintf("Y:%d", s.yankCount))
-				}
-			}
-			if s.selectionCount > 0 {
-				abbrev = append(abbrev, fmt.Sprintf("Sel:%d", s.selectionCount))
-			}
 			abbrevText := strings.Join(abbrev, " ")
 			var renderedAbbrev []string
 			for _, a := range abbrev {
@@ -608,4 +543,81 @@ func (s StatusBar) render(width int, st styles.Styles) string {
 	}
 
 	return line1 + "\n" + line2
+}
+
+// modeLabels returns the active mode label strings in two groups.
+// When abbreviated is false the labels are human-readable ("Repeat", "Shuffle",
+// "Auto-DJ", …); when true they use compact codes ("R", "S", "DJ", …).
+// playback contains repeat/shuffle/stop-next/radio indicators.
+// editorial contains visual-mode, tag-filter, yank/cut, and selection indicators.
+// In the abbreviated case all labels are in playback and editorial is always nil.
+func (s StatusBar) modeLabels(abbreviated bool) (playback, editorial []string) {
+	if abbreviated {
+		switch s.repeatMode {
+		case RepeatAll:
+			playback = append(playback, "R")
+		case RepeatOne:
+			playback = append(playback, "R1")
+		}
+		if s.shuffle {
+			playback = append(playback, "S")
+		}
+		if s.stopAfterCurrent {
+			playback = append(playback, "N")
+		}
+		if s.radioMode {
+			playback = append(playback, "DJ")
+		}
+		if s.visualMode {
+			playback = append(playback, "V")
+		}
+		if s.activeTagName != "" {
+			playback = append(playback, "Tag:"+s.activeTagName)
+		}
+		if s.yankCount > 0 {
+			if s.yankIsCut {
+				playback = append(playback, fmt.Sprintf("Cut:%d", s.yankCount))
+			} else {
+				playback = append(playback, fmt.Sprintf("Y:%d", s.yankCount))
+			}
+		}
+		if s.selectionCount > 0 {
+			playback = append(playback, fmt.Sprintf("Sel:%d", s.selectionCount))
+		}
+		return playback, nil
+	}
+
+	switch s.repeatMode {
+	case RepeatAll:
+		playback = append(playback, "Repeat")
+	case RepeatOne:
+		playback = append(playback, "Repeat 1")
+	}
+	if s.shuffle {
+		playback = append(playback, "Shuffle")
+	}
+	if s.stopAfterCurrent {
+		playback = append(playback, "Stop Next")
+	}
+	if s.radioMode {
+		playback = append(playback, "Auto-DJ")
+	}
+
+	if s.visualMode {
+		editorial = append(editorial, "Visual")
+	}
+	if s.activeTagName != "" {
+		editorial = append(editorial, "Tag: "+s.activeTagName)
+	}
+	if s.yankCount > 0 {
+		if s.yankIsCut {
+			editorial = append(editorial, fmt.Sprintf("Cut: %d", s.yankCount))
+		} else {
+			editorial = append(editorial, fmt.Sprintf("Yank: %d", s.yankCount))
+		}
+	}
+	if s.selectionCount > 0 {
+		editorial = append(editorial, fmt.Sprintf("Sel: %d", s.selectionCount))
+	}
+	return playback, editorial
 }
