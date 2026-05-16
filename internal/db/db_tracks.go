@@ -122,7 +122,7 @@ func (d *DB) ReadPlayHistory(limit int) ([]library.Track, error) {
 	rows, err := d.Query(`
 		SELECT t.path, t.hash, t.artist, t.title, t.album, t.genre,
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
-		       t.play_count, t.track_number, t.disc_number, ph.played_at
+		       t.play_count, ph.played_at, t.track_number, t.disc_number
 		FROM play_history ph
 		JOIN tracks t ON ph.track_hash = t.hash
 		ORDER BY ph.played_at DESC
@@ -131,20 +131,5 @@ func (d *DB) ReadPlayHistory(limit int) ([]library.Track, error) {
 		return nil, fmt.Errorf("db: read play history: %w", err)
 	}
 	defer rows.Close()
-
-	var result []library.Track
-	for rows.Next() {
-		var track library.Track
-		var durationMs int64
-		if err := rows.Scan(
-			&track.Path, &track.Hash, &track.Artist, &track.Title, &track.Album, &track.Genre,
-			&durationMs, &track.CreatedAt, &track.ModTime, &track.SizeBytes,
-			&track.PlayCount, &track.TrackNumber, &track.DiscNumber, &track.LastPlayedAt,
-		); err != nil {
-			return nil, fmt.Errorf("db: read play history row: %w", err)
-		}
-		track.Duration = float64(durationMs) / 1000
-		result = append(result, track)
-	}
-	return result, rows.Err()
+	return scanTrackRows(rows)
 }
