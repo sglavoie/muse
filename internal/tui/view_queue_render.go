@@ -145,12 +145,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 		artistStr := text.FavPrefix(e.Artist, artistWidth, isArtistFav)
 		albumStr := text.FavPrefix(e.Album, albumWidth, isAlbumFav)
 		if e.Missing { //nolint:gocritic // ifElseChain: branches have fundamentally different rendering logic
-			var plainLine string
-			if hasSource {
-				plainLine = markerStr + pos + " " + padQueue(e.Title, titleWidth) + " " + padQueue(e.Artist, artistWidth) + " " + padQueue(e.Album, albumWidth) + " " + source + " " + dur
-			} else {
-				plainLine = markerStr + pos + " " + padQueue(e.Title, titleWidth) + " " + padQueue(e.Artist, artistWidth) + " " + padQueue(e.Album, albumWidth) + " " + dur
-			}
+			plainLine := assembleQueueRow(" ", hasSource, markerStr, pos, padQueue(e.Title, titleWidth), padQueue(e.Artist, artistWidth), padQueue(e.Album, albumWidth), source, dur)
 			lines[i] = s.Dim.Render(plainLine + " [missing]")
 		} else if isFocused {
 			bg := s.Accent.GetBackground()
@@ -190,11 +185,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			pos = s.Accent.Render(pos)
 			source = s.Accent.Render(source)
 			dur = s.Accent.Render(dur)
-			if hasSource {
-				lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + source + sep + dur
-			} else {
-				lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + dur
-			}
+			lines[i] = assembleQueueRow(sep, hasSource, markerStr, pos, titleStr, artistStr, albumStr, source, dur)
 		} else if isNowPlaying {
 			_, npFav, npFavArtist, npFavAlbum := nowPlayingTextStyles(s, playbackState)
 			nb := lipgloss.NewStyle().Background(s.NowPlayingBg)
@@ -215,11 +206,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			source = nb.Render(source)
 			dur = nb.Render(dur)
 			sep := nb.Render(" ")
-			if hasSource {
-				lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + source + sep + dur
-			} else {
-				lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + dur
-			}
+			lines[i] = assembleQueueRow(sep, hasSource, markerStr, pos, titleStr, artistStr, albumStr, source, dur)
 		} else {
 			isOdd := absIdx%2 == 1
 			rowBg := s.ZebraBg
@@ -257,11 +244,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 				source = rb.Render(source)
 				dur = styles.WithZebraBg(s.TextTertiary, rowBg, true).Render(dur)
 				sep := rb.Render(" ")
-				if hasSource {
-					lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + source + sep + dur
-				} else {
-					lines[i] = markerStr + pos + sep + titleStr + sep + artistStr + sep + albumStr + sep + dur
-				}
+				lines[i] = assembleQueueRow(sep, hasSource, markerStr, pos, titleStr, artistStr, albumStr, source, dur)
 			} else {
 				if !isTrackFav {
 					titleStr = s.TextPrimary.Render(titleStr)
@@ -272,11 +255,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 				if !isAlbumFav {
 					albumStr = s.TextSecondary.Render(albumStr)
 				}
-				if hasSource {
-					lines[i] = markerStr + s.TextTertiary.Render(pos) + " " + titleStr + " " + artistStr + " " + albumStr + " " + source + " " + s.TextTertiary.Render(dur)
-				} else {
-					lines[i] = markerStr + s.TextTertiary.Render(pos) + " " + titleStr + " " + artistStr + " " + albumStr + " " + s.TextTertiary.Render(dur)
-				}
+				lines[i] = assembleQueueRow(" ", hasSource, markerStr, s.TextTertiary.Render(pos), titleStr, artistStr, albumStr, source, s.TextTertiary.Render(dur))
 			}
 		}
 	}
@@ -334,6 +313,15 @@ func nowPlayingTextStyles(s styles.Styles, state PlaybackState) (base, fav, favA
 	default:
 		return s.NowPlaying, s.NowPlayingFavorite, s.NowPlayingFavArtist, s.NowPlayingFavAlbum
 	}
+}
+
+// assembleQueueRow joins pre-styled queue row columns using sep as the column
+// separator. When hasSource is false the source column is omitted entirely.
+func assembleQueueRow(sep string, hasSource bool, marker, pos, title, artist, album, source, dur string) string {
+	if hasSource {
+		return marker + pos + sep + title + sep + artist + sep + album + sep + source + sep + dur
+	}
+	return marker + pos + sep + title + sep + artist + sep + album + sep + dur
 }
 
 // formatQueueDuration converts a duration in milliseconds to a "m:ss" or
