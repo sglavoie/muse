@@ -159,63 +159,9 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 		m.queue = m.queue.FocusNowPlaying(m.playback.currentIndex)
 		return m, nil, true
 	case actionYank:
-		filtered := m.queue.filteredEntries()
-		if len(filtered) == 0 {
-			return m, nil, true
-		}
-		if m.queue.hasSelection() {
-			var buffer []QueueEntry
-			for _, entry := range m.queue.entries {
-				if entry.Selected {
-					buffer = append(buffer, entry)
-				}
-			}
-			m.yankBuffer = buffer
-		} else if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
-			entry := filtered[m.queue.cursor]
-			m.yankBuffer = []QueueEntry{m.queue.entries[entry.origIdx]}
-		}
-		m.yankIsCut = false
-		for i := range m.yankBuffer {
-			m.yankBuffer[i].Selected = false
-		}
-		for i := range m.queue.entries {
-			m.queue.entries[i].Selected = false
-		}
-		m = exitVisualMode(m)
-		if n := len(m.yankBuffer); n > 0 {
-			m.statusBar.notify(fmt.Sprintf("Yanked %d track(s)", n))
-		}
-		return m, nil, true
+		return m.yankOrCutQueueTracks(false)
 	case actionCut:
-		filtered := m.queue.filteredEntries()
-		if len(filtered) == 0 {
-			return m, nil, true
-		}
-		if m.queue.hasSelection() {
-			var buffer []QueueEntry
-			for _, entry := range m.queue.entries {
-				if entry.Selected {
-					buffer = append(buffer, entry)
-				}
-			}
-			m.yankBuffer = buffer
-		} else if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
-			entry := filtered[m.queue.cursor]
-			m.yankBuffer = []QueueEntry{m.queue.entries[entry.origIdx]}
-		}
-		m.yankIsCut = true
-		for i := range m.yankBuffer {
-			m.yankBuffer[i].Selected = false
-		}
-		for i := range m.queue.entries {
-			m.queue.entries[i].Selected = false
-		}
-		m = exitVisualMode(m)
-		if n := len(m.yankBuffer); n > 0 {
-			m.statusBar.notify(fmt.Sprintf("Cut %d track(s)", n))
-		}
-		return m, nil, true
+		return m.yankOrCutQueueTracks(true)
 	case actionPaste:
 		if len(m.yankBuffer) == 0 {
 			m.statusBar.notify("Nothing to paste")
@@ -249,4 +195,42 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 	return m, nil, false
+}
+
+// yankOrCutQueueTracks fills yankBuffer from the current selection or cursor
+// and clears all Selected flags. isCut=true marks the buffer as a cut (move)
+// rather than a copy.
+func (m Model) yankOrCutQueueTracks(isCut bool) (tea.Model, tea.Cmd, bool) {
+	filtered := m.queue.filteredEntries()
+	if len(filtered) == 0 {
+		return m, nil, true
+	}
+	if m.queue.hasSelection() {
+		var buffer []QueueEntry
+		for _, entry := range m.queue.entries {
+			if entry.Selected {
+				buffer = append(buffer, entry)
+			}
+		}
+		m.yankBuffer = buffer
+	} else if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
+		entry := filtered[m.queue.cursor]
+		m.yankBuffer = []QueueEntry{m.queue.entries[entry.origIdx]}
+	}
+	m.yankIsCut = isCut
+	for i := range m.yankBuffer {
+		m.yankBuffer[i].Selected = false
+	}
+	for i := range m.queue.entries {
+		m.queue.entries[i].Selected = false
+	}
+	m = exitVisualMode(m)
+	if n := len(m.yankBuffer); n > 0 {
+		verb := "Yanked"
+		if isCut {
+			verb = "Cut"
+		}
+		m.statusBar.notify(fmt.Sprintf("%s %d track(s)", verb, n))
+	}
+	return m, nil, true
 }
