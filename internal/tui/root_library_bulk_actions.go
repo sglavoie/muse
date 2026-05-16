@@ -1,12 +1,8 @@
 package tui
 
 import (
-	"log/slog"
-
 	tea "charm.land/bubbletea/v2"
-	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
-	"github.com/sglavoie/muse/internal/player"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
@@ -223,49 +219,7 @@ func (m *Model) handlePlaylistBulkRemove() bool {
 	if m.playlists.level != pltui.TrackLevel || !m.playlists.hasTrackSelection() {
 		return false
 	}
-
-	var removedEntries []db.PlaylistTrackRow
-	var removedIndices []int
-	for index, track := range m.playlists.tracks {
-		if _, ok := m.playlists.selectedTrackIDs[track.ID]; ok {
-			removedEntries = append(removedEntries, track)
-			removedIndices = append(removedIndices, index)
-		}
-	}
-
-	pd := m.playlistDeleter
-	cancel := m.scheduleSoftDelete(
-		func() {
-			if pd != nil {
-				for _, track := range removedEntries {
-					if err := pd.RemovePlaylistTrackSoft(track.ID); err != nil {
-						slog.Warn("playlist track soft-delete failed", "err", err)
-					}
-				}
-			}
-		},
-		func(before int64) {
-			if pd != nil {
-				if err := pd.PurgeDeletedPlaylistTracks(before); err != nil {
-					slog.Warn("playlist track purge failed", "err", err)
-				}
-			}
-		},
-	)
-
-	var remaining []db.PlaylistTrackRow
-	for _, track := range m.playlists.tracks {
-		if _, ok := m.playlists.selectedTrackIDs[track.ID]; !ok {
-			remaining = append(remaining, track)
-		}
-	}
-	m.playlists.tracks = remaining
-	*m = m.preservePlaylistsSort()
-	m.playlists.cursor, m.playlists.scrollOffset = clampAfterRemoval(
-		m.playlists.cursor, m.playlists.scrollOffset, len(m.playlists.tracks))
-	*m = exitVisualMode(*m)
-	m.playlists.selectedTrackIDs = nil
-	m.setUndoSlot(undoBulkRemovePlaylistTracksAction{entries: removedEntries, indices: removedIndices}, cancel)
-	player.PlaySound(player.SoundRemoved)
+	newM, _ := m.handlePlaylistDeleteBulkTracks()
+	*m = newM
 	return true
 }
