@@ -116,37 +116,31 @@ func (w *Writer) UpdateSessionPosition(hash string, positionMs int64) error {
 // volume is an integer percentage (0–100) that is converted to a float
 // (0.0–1.0) for storage in the DB volume column.
 func (w *Writer) WriteVolume(volume int) error {
-	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(
-			`UPDATE session SET volume = ?, updated_at = ? WHERE id = 1`,
-			float64(volume)/100.0, time.Now().Unix(),
-		)
-		return err
-	})
+	return w.updateSessionField("volume", float64(volume)/100.0)
 }
 
 // WriteRadioMode persists the radio mode flag to the single session row.
 func (w *Writer) WriteRadioMode(enabled bool) error {
-	return w.Exec(func(db *sql.DB) error {
-		radioVal := 0
-		if enabled {
-			radioVal = 1
-		}
-		_, err := db.Exec(
-			`UPDATE session SET radio_mode=?, updated_at=? WHERE id=1`,
-			radioVal, time.Now().Unix(),
-		)
-		return err
-	})
+	v := 0
+	if enabled {
+		v = 1
+	}
+	return w.updateSessionField("radio_mode", v)
 }
 
 // WriteRepeatMode persists the repeat mode to the single session row.
 // mode must be one of "none", "all", or "one" (matching the DB CHECK constraint).
 func (w *Writer) WriteRepeatMode(mode string) error {
+	return w.updateSessionField("repeat_mode", mode)
+}
+
+// updateSessionField sets a single named column on the session row (id=1)
+// together with updated_at in one atomic Exec.
+func (w *Writer) updateSessionField(col string, val any) error {
 	return w.Exec(func(db *sql.DB) error {
 		_, err := db.Exec(
-			`UPDATE session SET repeat_mode=?, updated_at=? WHERE id=1`,
-			mode, time.Now().Unix(),
+			`UPDATE session SET `+col+`=?, updated_at=? WHERE id=1`, //nolint:gosec // col is a hardcoded internal column name, not user input
+			val, time.Now().Unix(),
 		)
 		return err
 	})
