@@ -31,29 +31,9 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		})
 	}
 
-	cmds = append(cmds, PaletteCommand{
-		Name:     "Show debug panel",
-		Shortcut: "ctrl+g",
-		Exec: func() tea.Cmd {
-			return func() tea.Msg { return commandPaletteActionMsg{action: actionDebug} }
-		},
-	})
-
-	cmds = append(cmds, PaletteCommand{
-		Name:     "Toggle radio mode (Auto-DJ)",
-		Shortcut: "A",
-		Exec: func() tea.Cmd {
-			return func() tea.Msg { return commandPaletteActionMsg{action: actionRadioToggle} }
-		},
-	})
-
-	cmds = append(cmds, PaletteCommand{
-		Name:     "Go to Mixes",
-		Shortcut: "tab",
-		Exec: func() tea.Cmd {
-			return func() tea.Msg { return commandPaletteActionMsg{action: actionSwitchMixes} }
-		},
-	})
+	cmds = append(cmds, paletteActionCmd("Show debug panel", "ctrl+g", actionDebug))
+	cmds = append(cmds, paletteActionCmd("Toggle radio mode (Auto-DJ)", "A", actionRadioToggle))
+	cmds = append(cmds, paletteActionCmd("Go to Mixes", "tab", actionSwitchMixes))
 
 	cmds = append(cmds, PaletteCommand{
 		Name:    "Refresh mixes",
@@ -100,24 +80,9 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		Enabled: trackFocused,
 	})
 
-	cmds = append(cmds, PaletteCommand{
-		Name: "Toggle volume normalization",
-		Exec: func() tea.Cmd {
-			return func() tea.Msg { return configToggleMsg{field: toggleNormalize} }
-		},
-	})
-	cmds = append(cmds, PaletteCommand{
-		Name: "Toggle equalizer",
-		Exec: func() tea.Cmd {
-			return func() tea.Msg { return configToggleMsg{field: toggleEQ} }
-		},
-	})
-	cmds = append(cmds, PaletteCommand{
-		Name: "Toggle stereo widening",
-		Exec: func() tea.Cmd {
-			return func() tea.Msg { return configToggleMsg{field: toggleStereoWide} }
-		},
-	})
+	cmds = append(cmds, configTogglePalette("Toggle volume normalization", toggleNormalize))
+	cmds = append(cmds, configTogglePalette("Toggle equalizer", toggleEQ))
+	cmds = append(cmds, configTogglePalette("Toggle stereo widening", toggleStereoWide))
 
 	cmds = append(cmds, PaletteCommand{
 		Name: "Random album",
@@ -290,4 +255,23 @@ func (m Model) focusedTrackForPalette() (path, artist, title string, found bool)
 	}
 
 	return "", "", "", false
+}
+
+// paletteActionCmd returns a PaletteCommand that dispatches the given action
+// through the command palette action pipeline.
+func paletteActionCmd(name, shortcut string, a action) PaletteCommand {
+	return PaletteCommand{
+		Name:     name,
+		Shortcut: shortcut,
+		Exec:     func() tea.Cmd { return func() tea.Msg { return commandPaletteActionMsg{action: a} } },
+	}
+}
+
+// configTogglePalette returns a PaletteCommand that sends a configToggleMsg
+// for the given audio setting field.
+func configTogglePalette(name string, field configToggleField) PaletteCommand {
+	return PaletteCommand{
+		Name: name,
+		Exec: func() tea.Cmd { return func() tea.Msg { return configToggleMsg{field: field} } },
+	}
 }
