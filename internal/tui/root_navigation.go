@@ -72,67 +72,32 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 			case BrowseModeArtists:
 				if m.browse.artists.level == arttui.TrackLevel {
 					if t, ok := m.browse.artists.focusedTrack(); ok {
-						if m.browse.artists.selectedHashes == nil {
-							m.browse.artists.selectedHashes = make(map[string]struct{})
-						}
-						if _, sel := m.browse.artists.selectedHashes[t.Hash]; sel {
-							delete(m.browse.artists.selectedHashes, t.Hash)
-						} else {
-							m.browse.artists.selectedHashes[t.Hash] = struct{}{}
-						}
+						m.browse.artists.selectedHashes = toggleHashInSet(m.browse.artists.selectedHashes, t.Hash)
 					}
 				}
 			case BrowseModeAlbums:
 				if m.browse.albums.level == albtui.TrackLevel {
 					if t, ok := m.browse.albums.focusedTrack(); ok {
-						if m.browse.albums.selectedHashes == nil {
-							m.browse.albums.selectedHashes = make(map[string]struct{})
-						}
-						if _, sel := m.browse.albums.selectedHashes[t.Hash]; sel {
-							delete(m.browse.albums.selectedHashes, t.Hash)
-						} else {
-							m.browse.albums.selectedHashes[t.Hash] = struct{}{}
-						}
+						m.browse.albums.selectedHashes = toggleHashInSet(m.browse.albums.selectedHashes, t.Hash)
 					}
 				}
 			case BrowseModeGenres:
 				if m.browse.genres.level == gentui.TrackLevel {
 					if t, ok := m.browse.genres.focusedTrack(); ok {
-						if m.browse.genres.selectedHashes == nil {
-							m.browse.genres.selectedHashes = make(map[string]struct{})
-						}
-						if _, sel := m.browse.genres.selectedHashes[t.Hash]; sel {
-							delete(m.browse.genres.selectedHashes, t.Hash)
-						} else {
-							m.browse.genres.selectedHashes[t.Hash] = struct{}{}
-						}
+						m.browse.genres.selectedHashes = toggleHashInSet(m.browse.genres.selectedHashes, t.Hash)
 					}
 				}
 			}
 		case viewTags:
 			if m.tagsView.level == tagtui.TrackLevel {
 				if t, ok := m.tagsView.focusedTrack(); ok {
-					if m.tagsView.selectedHashes == nil {
-						m.tagsView.selectedHashes = make(map[string]struct{})
-					}
-					if _, sel := m.tagsView.selectedHashes[t.Hash]; sel {
-						delete(m.tagsView.selectedHashes, t.Hash)
-					} else {
-						m.tagsView.selectedHashes[t.Hash] = struct{}{}
-					}
+					m.tagsView.selectedHashes = toggleHashInSet(m.tagsView.selectedHashes, t.Hash)
 				}
 			}
 		case viewMixes:
 			if m.mixes.level == 1 {
 				if t := m.mixes.focusedTrack(); t != nil {
-					if m.mixes.trackView.selectedHashes == nil {
-						m.mixes.trackView.selectedHashes = make(map[string]struct{})
-					}
-					if _, sel := m.mixes.trackView.selectedHashes[t.Hash]; sel {
-						delete(m.mixes.trackView.selectedHashes, t.Hash)
-					} else {
-						m.mixes.trackView.selectedHashes[t.Hash] = struct{}{}
-					}
+					m.mixes.trackView.selectedHashes = toggleHashInSet(m.mixes.trackView.selectedHashes, t.Hash)
 				}
 			}
 		default:
@@ -172,4 +137,18 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 	default:
 		return m, nil, false
 	}
+}
+
+// toggleHashInSet lazily initialises sel when nil, then toggles hash in it:
+// removes hash if present, adds it otherwise. Returns the updated map.
+func toggleHashInSet(sel map[string]struct{}, hash string) map[string]struct{} {
+	if sel == nil {
+		sel = make(map[string]struct{})
+	}
+	if _, ok := sel[hash]; ok {
+		delete(sel, hash)
+	} else {
+		sel[hash] = struct{}{}
+	}
+	return sel
 }
