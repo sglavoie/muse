@@ -38,15 +38,7 @@ func (d *DB) EvalSmartPlaylist(q SmartPlaylistQuery) ([]PlaylistTrackRow, error)
 	}
 	defer rows.Close()
 
-	var result []PlaylistTrackRow
-	for rows.Next() {
-		var r PlaylistTrackRow
-		if err := rows.Scan(&r.ID, &r.Position, &r.Title, &r.Artist, &r.Album, &r.DurationMs, &r.Hash, &r.Path, &r.TrackNumber, &r.DiscNumber); err != nil {
-			return nil, fmt.Errorf("db: eval smart playlist row: %w", err)
-		}
-		result = append(result, r)
-	}
-	return result, rows.Err()
+	return scanPlaylistTrackRows(rows, "db: eval smart playlist row")
 }
 
 // buildWhere recursively appends SQL fragments and bind parameters for the

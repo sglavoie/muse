@@ -101,15 +101,7 @@ func (d *DB) ReadTracksByTag(tagID int64) ([]PlaylistTrackRow, error) {
 	}
 	defer rows.Close()
 
-	var result []PlaylistTrackRow
-	for rows.Next() {
-		var row PlaylistTrackRow
-		if err := rows.Scan(&row.ID, &row.Position, &row.Title, &row.Artist, &row.Album, &row.DurationMs, &row.Hash, &row.Path, &row.TrackNumber, &row.DiscNumber); err != nil {
-			return nil, fmt.Errorf("db: read tracks by tag row: %w", err)
-		}
-		result = append(result, row)
-	}
-	return result, rows.Err()
+	return scanPlaylistTrackRows(rows, "db: read tracks by tag row")
 }
 
 // ReadTagCounts returns a map of tag ID to the number of tracks carrying that

@@ -2,6 +2,25 @@ package db
 
 import "fmt"
 
+// scanPlaylistTrackRows scans the standard 10-column PlaylistTrackRow SELECT
+// result set (id, position, title, artist, album, duration_ms, hash, path,
+// track_number, disc_number) into a slice, returning any scan or iteration error.
+func scanPlaylistTrackRows(rows interface {
+	Next() bool
+	Scan(dest ...any) error
+	Err() error
+}, errContext string) ([]PlaylistTrackRow, error) {
+	var result []PlaylistTrackRow
+	for rows.Next() {
+		var row PlaylistTrackRow
+		if err := rows.Scan(&row.ID, &row.Position, &row.Title, &row.Artist, &row.Album, &row.DurationMs, &row.Hash, &row.Path, &row.TrackNumber, &row.DiscNumber); err != nil {
+			return nil, fmt.Errorf("%s: %w", errContext, err)
+		}
+		result = append(result, row)
+	}
+	return result, rows.Err()
+}
+
 // PlaylistRow holds a single playlist entry with its active track count.
 // Used by ReadPlaylists to return typed results for the playlist list view.
 // IsSmart is true when the playlist is defined by a query (query IS NOT NULL).
@@ -82,13 +101,5 @@ func (d *DB) ReadPlaylistTracks(playlistID int64) ([]PlaylistTrackRow, error) {
 	}
 	defer rows.Close()
 
-	var result []PlaylistTrackRow
-	for rows.Next() {
-		var row PlaylistTrackRow
-		if err := rows.Scan(&row.ID, &row.Position, &row.Title, &row.Artist, &row.Album, &row.DurationMs, &row.Hash, &row.Path, &row.TrackNumber, &row.DiscNumber); err != nil {
-			return nil, fmt.Errorf("db: read playlist track row: %w", err)
-		}
-		result = append(result, row)
-	}
-	return result, rows.Err()
+	return scanPlaylistTrackRows(rows, "db: read playlist track row")
 }
