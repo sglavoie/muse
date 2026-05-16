@@ -10,6 +10,24 @@ type TagRow struct {
 	CreatedAt int64
 }
 
+// scanTagRows scans the standard 4-column TagRow SELECT result set
+// (id, name, color, created_at) into a slice, returning any scan or iteration error.
+func scanTagRows(rows interface {
+	Next() bool
+	Scan(dest ...any) error
+	Err() error
+}, errContext string) ([]TagRow, error) {
+	var result []TagRow
+	for rows.Next() {
+		var row TagRow
+		if err := rows.Scan(&row.ID, &row.Name, &row.Color, &row.CreatedAt); err != nil {
+			return nil, fmt.Errorf("%s: %w", errContext, err)
+		}
+		result = append(result, row)
+	}
+	return result, rows.Err()
+}
+
 // ReadTags returns all active (non-deleted) tags ordered by name.
 // Returns an empty slice (not an error) when none exist.
 func (d *DB) ReadTags() ([]TagRow, error) {
@@ -23,15 +41,7 @@ func (d *DB) ReadTags() ([]TagRow, error) {
 	}
 	defer rows.Close()
 
-	var result []TagRow
-	for rows.Next() {
-		var row TagRow
-		if err := rows.Scan(&row.ID, &row.Name, &row.Color, &row.CreatedAt); err != nil {
-			return nil, fmt.Errorf("db: read tag row: %w", err)
-		}
-		result = append(result, row)
-	}
-	return result, rows.Err()
+	return scanTagRows(rows, "db: read tag row")
 }
 
 // ReadTagsForTrack returns all active tags assigned to the track with the
@@ -49,15 +59,7 @@ func (d *DB) ReadTagsForTrack(hash string) ([]TagRow, error) {
 	}
 	defer rows.Close()
 
-	var result []TagRow
-	for rows.Next() {
-		var row TagRow
-		if err := rows.Scan(&row.ID, &row.Name, &row.Color, &row.CreatedAt); err != nil {
-			return nil, fmt.Errorf("db: read tag row for track: %w", err)
-		}
-		result = append(result, row)
-	}
-	return result, rows.Err()
+	return scanTagRows(rows, "db: read tag row for track")
 }
 
 // ReadTrackHashesByTag returns all track hashes that carry the given tag ID.
