@@ -32,22 +32,12 @@ func (w *Writer) DequeueTracksSoft(ids []int64) error {
 // setting its deleted_at timestamp to the current Unix time. The row is
 // retained in the database and can be restored via UndoDequeue within the
 // undo window.
-func (w *Writer) DequeueTrackSoft(id int64) error {
-	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(`UPDATE queue SET deleted_at=? WHERE id=?`, time.Now().Unix(), id)
-		return err
-	})
-}
+func (w *Writer) DequeueTrackSoft(id int64) error { return w.softDeleteByID("queue", id) }
 
 // UndoDequeue clears the deleted_at flag on the queue entry identified by id,
 // restoring it to the active set. Call this within the undo window to reverse
 // a DequeueTrackSoft.
-func (w *Writer) UndoDequeue(id int64) error {
-	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(`UPDATE queue SET deleted_at=NULL WHERE id=?`, id)
-		return err
-	})
-}
+func (w *Writer) UndoDequeue(id int64) error { return w.undoSoftDeleteByID("queue", id) }
 
 // ClearQueueSoft soft-deletes every active queue row (deleted_at IS NULL) by
 // setting deleted_at to the current Unix time. It returns the IDs of all rows
@@ -125,10 +115,5 @@ func (w *Writer) UndoClearQueue(ids []int64) error {
 // is non-NULL and strictly less than the before Unix timestamp. Call this once
 // the undo window has expired to reclaim space.
 func (w *Writer) PurgeDeletedQueueEntries(before int64) error {
-	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(
-			`DELETE FROM queue WHERE deleted_at IS NOT NULL AND deleted_at < ?`, before,
-		)
-		return err
-	})
+	return w.purgeSoftDeleted("queue", before)
 }

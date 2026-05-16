@@ -69,37 +69,20 @@ func (w *Writer) RenamePlaylist(id int64, name string) error {
 
 // DeletePlaylistSoft soft-deletes the playlist identified by id by setting its
 // deleted_at timestamp. The row is retained for the undo window.
-func (w *Writer) DeletePlaylistSoft(id int64) error {
-	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(
-			`UPDATE playlists SET deleted_at=? WHERE id=?`,
-			time.Now().Unix(), id,
-		)
-		return err
-	})
-}
+func (w *Writer) DeletePlaylistSoft(id int64) error { return w.softDeleteByID("playlists", id) }
 
 // UndoDeletePlaylist clears the deleted_at flag on the playlist identified by
 // id, restoring it to the active set. Call this within the undo window to
 // reverse a DeletePlaylistSoft.
 func (w *Writer) UndoDeletePlaylist(id int64) error {
-	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(`UPDATE playlists SET deleted_at=NULL WHERE id=?`, id)
-		return err
-	})
+	return w.undoSoftDeleteByID("playlists", id)
 }
 
 // PurgeDeletedPlaylists physically removes all playlist rows whose deleted_at
 // is non-NULL and strictly less than the before Unix timestamp.
 // Call this once the undo window has expired to reclaim space.
 func (w *Writer) PurgeDeletedPlaylists(before int64) error {
-	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(
-			`DELETE FROM playlists WHERE deleted_at IS NOT NULL AND deleted_at < ?`,
-			before,
-		)
-		return err
-	})
+	return w.purgeSoftDeleted("playlists", before)
 }
 
 // AddTracksToPlaylist appends hashes to playlistID using gapped-integer
@@ -142,23 +125,14 @@ func (w *Writer) AddTracksToPlaylist(playlistID int64, hashes []string) error {
 // id by setting its deleted_at timestamp. The row is retained for the undo
 // window and can be restored via UndoRemovePlaylistTrack.
 func (w *Writer) RemovePlaylistTrackSoft(id int64) error {
-	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(
-			`UPDATE playlist_tracks SET deleted_at=? WHERE id=?`,
-			time.Now().Unix(), id,
-		)
-		return err
-	})
+	return w.softDeleteByID("playlist_tracks", id)
 }
 
 // UndoRemovePlaylistTrack clears the deleted_at flag on the playlist_tracks
 // row identified by id, restoring it to the active set. Call this within the
 // undo window to reverse a RemovePlaylistTrackSoft.
 func (w *Writer) UndoRemovePlaylistTrack(id int64) error {
-	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(`UPDATE playlist_tracks SET deleted_at=NULL WHERE id=?`, id)
-		return err
-	})
+	return w.undoSoftDeleteByID("playlist_tracks", id)
 }
 
 // ReorderPlaylistTrack performs a single-step adjacent swap for the track
@@ -242,11 +216,5 @@ func (w *Writer) SetPlaylistOrder(playlistID int64, ids []int64) error {
 // deleted_at is non-NULL and strictly less than the before Unix timestamp.
 // Call this once the undo window has expired to reclaim space.
 func (w *Writer) PurgeDeletedPlaylistTracks(before int64) error {
-	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(
-			`DELETE FROM playlist_tracks WHERE deleted_at IS NOT NULL AND deleted_at < ?`,
-			before,
-		)
-		return err
-	})
+	return w.purgeSoftDeleted("playlist_tracks", before)
 }

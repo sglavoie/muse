@@ -43,35 +43,14 @@ func (w *Writer) UpdateTagColor(id int64, color string) error {
 
 // DeleteTagSoft sets deleted_at on the tag, hiding it from active queries.
 // The tag and its track_tags rows remain in the database for undo support.
-func (w *Writer) DeleteTagSoft(id int64) error {
-	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(
-			`UPDATE tags SET deleted_at = ? WHERE id = ?`,
-			time.Now().Unix(), id,
-		)
-		return err
-	})
-}
+func (w *Writer) DeleteTagSoft(id int64) error { return w.softDeleteByID("tags", id) }
 
 // UndoDeleteTag clears deleted_at, restoring a soft-deleted tag.
-func (w *Writer) UndoDeleteTag(id int64) error {
-	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(`UPDATE tags SET deleted_at = NULL WHERE id = ?`, id)
-		return err
-	})
-}
+func (w *Writer) UndoDeleteTag(id int64) error { return w.undoSoftDeleteByID("tags", id) }
 
 // PurgeDeletedTags hard-deletes tags whose deleted_at is older than before
 // (Unix timestamp). Their track_tags rows are removed by ON DELETE CASCADE.
-func (w *Writer) PurgeDeletedTags(before int64) error {
-	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(
-			`DELETE FROM tags WHERE deleted_at IS NOT NULL AND deleted_at < ?`,
-			before,
-		)
-		return err
-	})
-}
+func (w *Writer) PurgeDeletedTags(before int64) error { return w.purgeSoftDeleted("tags", before) }
 
 // AddTrackTag assigns a tag to a track. The operation is idempotent: if the
 // (track_hash, tag_id) pair already exists the insert is ignored.
