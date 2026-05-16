@@ -12,69 +12,64 @@ import (
 // handleMoveTrackUpMsg swaps a queue entry with the one above it and persists
 // the reorder.
 func (m Model) handleMoveTrackUpMsg(msg MoveTrackUpMsg) (Model, tea.Cmd) {
-	if msg.Index > 0 && msg.Index < len(m.queue.entries) {
-		m = exitVisualMode(m)
-		entry := m.queue.entries[msg.Index]
-		m.queue.entries[msg.Index-1], m.queue.entries[msg.Index] = m.queue.entries[msg.Index], m.queue.entries[msg.Index-1]
-		m.queue.cursor = msg.Index - 1
-		if m.queue.cursor < m.queue.scrollOffset {
-			m.queue.scrollOffset = m.queue.cursor
-		}
-		m = m.resetQueueSort()
-		slog.Debug("track reordered", "hash", entry.Hash, "from", msg.Index, "to", msg.Index-1)
-		switch m.playback.currentIndex {
-		case msg.Index:
-			m.playback.currentIndex = msg.Index - 1
-		case msg.Index - 1:
-			m.playback.currentIndex = msg.Index
-		}
-		m.queueDirty = true
-		m.syncPlayerQueue()
-		if m.reorderer != nil {
-			reorderer := m.reorderer
-			id := entry.ID
-			return m, func() tea.Msg {
-				if err := reorderer.ReorderQueueTrack(id, -1); err != nil {
-					slog.Error("reorder queue track failed", "id", id, "direction", -1, "err", err)
-				}
-				return nil
-			}
-		}
-	}
-	return m, nil
+	return m.shiftQueueTrack(msg.Index, -1)
 }
 
 // handleMoveTrackDownMsg swaps a queue entry with the one below it and persists
 // the reorder.
 func (m Model) handleMoveTrackDownMsg(msg MoveTrackDownMsg) (Model, tea.Cmd) {
-	if msg.Index >= 0 && msg.Index < len(m.queue.entries)-1 {
-		m = exitVisualMode(m)
-		entry := m.queue.entries[msg.Index]
-		m.queue.entries[msg.Index], m.queue.entries[msg.Index+1] = m.queue.entries[msg.Index+1], m.queue.entries[msg.Index]
-		m.queue.cursor = msg.Index + 1
+	return m.shiftQueueTrack(msg.Index, +1)
+}
+
+// shiftQueueTrack moves the queue entry at idx one position in the given
+// direction (-1 = up, +1 = down) and persists the swap asynchronously.
+func (m Model) shiftQueueTrack(idx, dir int) (Model, tea.Cmd) {
+	n := len(m.queue.entries)
+	if dir < 0 {
+		if idx <= 0 || idx >= n {
+			return m, nil
+		}
+	} else {
+		if idx < 0 || idx >= n-1 {
+			return m, nil
+		}
+	}
+
+	m = exitVisualMode(m)
+	entry := m.queue.entries[idx]
+	neighbor := idx + dir
+	m.queue.entries[idx], m.queue.entries[neighbor] = m.queue.entries[neighbor], m.queue.entries[idx]
+	m.queue.cursor = neighbor
+
+	if dir < 0 {
+		if m.queue.cursor < m.queue.scrollOffset {
+			m.queue.scrollOffset = m.queue.cursor
+		}
+	} else {
 		maxRows := m.queue.visibleRows()
 		if maxRows > 0 && m.queue.cursor >= m.queue.scrollOffset+maxRows {
 			m.queue.scrollOffset = m.queue.cursor - maxRows + 1
 		}
-		m = m.resetQueueSort()
-		slog.Debug("track reordered", "hash", entry.Hash, "from", msg.Index, "to", msg.Index+1)
-		switch m.playback.currentIndex {
-		case msg.Index:
-			m.playback.currentIndex = msg.Index + 1
-		case msg.Index + 1:
-			m.playback.currentIndex = msg.Index
-		}
-		m.queueDirty = true
-		m.syncPlayerQueue()
-		if m.reorderer != nil {
-			reorderer := m.reorderer
-			id := entry.ID
-			return m, func() tea.Msg {
-				if err := reorderer.ReorderQueueTrack(id, +1); err != nil {
-					slog.Error("reorder queue track failed", "id", id, "direction", +1, "err", err)
-				}
-				return nil
+	}
+
+	m = m.resetQueueSort()
+	slog.Debug("track reordered", "hash", entry.Hash, "from", idx, "to", neighbor)
+	switch m.playback.currentIndex {
+	case idx:
+		m.playback.currentIndex = neighbor
+	case neighbor:
+		m.playback.currentIndex = idx
+	}
+	m.queueDirty = true
+	m.syncPlayerQueue()
+	if m.reorderer != nil {
+		reorderer := m.reorderer
+		id := entry.ID
+		return m, func() tea.Msg {
+			if err := reorderer.ReorderQueueTrack(id, dir); err != nil {
+				slog.Error("reorder queue track failed", "id", id, "direction", dir, "err", err)
 			}
+			return nil
 		}
 	}
 	return m, nil
