@@ -296,11 +296,8 @@ func (m *Manager) PlayQueueEntry(entry QueueTrack, marker MissingMarker) error {
 		return ErrMissingFile
 	}
 
-	c, err := m.ipc()
-	if errors.Is(err, ErrNotConnected) {
-		return m.enqueue(func() error { return m.PlayQueueEntry(entry, marker) })
-	}
-	if err != nil {
+	c, err := m.ipcOrEnqueue(func() error { return m.PlayQueueEntry(entry, marker) })
+	if err != nil || c == nil {
 		return err
 	}
 	_, err = c.SendCommand(cmdLoadfile, entry.Path, "replace", 0, "pause=no")

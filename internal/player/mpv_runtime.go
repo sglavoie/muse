@@ -381,11 +381,8 @@ func (m *Manager) handleRestart() {
 // queued for replay once the IPC socket connects.
 func (m *Manager) LoadFilePaused(path string, positionMs int64) error {
 	elapsedSecs := float64(positionMs) / 1000.0
-	c, err := m.ipc()
-	if errors.Is(err, ErrNotConnected) {
-		return m.enqueue(func() error { return m.LoadFilePaused(path, positionMs) })
-	}
-	if err != nil {
+	c, err := m.ipcOrEnqueue(func() error { return m.LoadFilePaused(path, positionMs) })
+	if err != nil || c == nil {
 		return err
 	}
 	_, err = c.SendCommand(cmdLoadfile, path, "replace", 0, fmt.Sprintf("start=%g,pause=yes", elapsedSecs))

@@ -2,6 +2,7 @@ package player
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"sort"
@@ -239,6 +240,17 @@ func (m *Manager) ipc() (*IPCClient, error) {
 		return nil, ErrNotConnected
 	}
 	return c, nil
+}
+
+// ipcOrEnqueue calls ipc; if the result is ErrNotConnected it enqueues retry
+// and returns (nil, enqueue-error). The caller must return immediately when
+// c == nil (either the command was queued or Start was never called).
+func (m *Manager) ipcOrEnqueue(retry func() error) (*IPCClient, error) {
+	c, err := m.ipc()
+	if errors.Is(err, ErrNotConnected) {
+		return nil, m.enqueue(retry)
+	}
+	return c, err
 }
 
 // DebugInfo queries mpv for diagnostic properties and returns them as a

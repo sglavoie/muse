@@ -1,7 +1,6 @@
 package player
 
 import (
-	"errors"
 	"fmt"
 	"maps"
 	"sort"
@@ -18,11 +17,8 @@ import (
 // internal playlist looping. The command is queued for replay if mpv is not
 // yet connected.
 func (m *Manager) SetRepeat(mode string) error {
-	c, err := m.ipc()
-	if errors.Is(err, ErrNotConnected) {
-		return m.enqueue(func() error { return m.SetRepeat(mode) })
-	}
-	if err != nil {
+	c, err := m.ipcOrEnqueue(func() error { return m.SetRepeat(mode) })
+	if err != nil || c == nil {
 		return err
 	}
 	switch mode {
@@ -48,11 +44,8 @@ func (m *Manager) SetRepeat(mode string) error {
 // SetShuffle enables or disables mpv's shuffle mode. The command is queued
 // for replay if mpv is not yet connected.
 func (m *Manager) SetShuffle(enabled bool) error {
-	c, err := m.ipc()
-	if errors.Is(err, ErrNotConnected) {
-		return m.enqueue(func() error { return m.SetShuffle(enabled) })
-	}
-	if err != nil {
+	c, err := m.ipcOrEnqueue(func() error { return m.SetShuffle(enabled) })
+	if err != nil || c == nil {
 		return err
 	}
 	_, err = c.SendCommand(cmdSetProperty, propShuffle, enabled)
@@ -61,11 +54,8 @@ func (m *Manager) SetShuffle(enabled bool) error {
 
 // Play resumes playback.
 func (m *Manager) Play() error {
-	c, err := m.ipc()
-	if errors.Is(err, ErrNotConnected) {
-		return m.enqueue(m.Play)
-	}
-	if err != nil {
+	c, err := m.ipcOrEnqueue(m.Play)
+	if err != nil || c == nil {
 		return err
 	}
 	_, err = c.SendCommand(cmdSetProperty, propPause, false)
@@ -74,11 +64,8 @@ func (m *Manager) Play() error {
 
 // Pause pauses playback.
 func (m *Manager) Pause() error {
-	c, err := m.ipc()
-	if errors.Is(err, ErrNotConnected) {
-		return m.enqueue(m.Pause)
-	}
-	if err != nil {
+	c, err := m.ipcOrEnqueue(m.Pause)
+	if err != nil || c == nil {
 		return err
 	}
 	_, err = c.SendCommand(cmdSetProperty, propPause, true)
@@ -87,11 +74,8 @@ func (m *Manager) Pause() error {
 
 // Stop pauses playback and seeks to the beginning of the current track.
 func (m *Manager) Stop() error {
-	c, err := m.ipc()
-	if errors.Is(err, ErrNotConnected) {
-		return m.enqueue(m.Stop)
-	}
-	if err != nil {
+	c, err := m.ipcOrEnqueue(m.Stop)
+	if err != nil || c == nil {
 		return err
 	}
 	if _, err = c.SendCommand(cmdSetProperty, propPause, true); err != nil {
@@ -103,11 +87,8 @@ func (m *Manager) Stop() error {
 
 // SeekAbsolute seeks to an absolute position in seconds within the current track.
 func (m *Manager) SeekAbsolute(seconds float64) error {
-	c, err := m.ipc()
-	if errors.Is(err, ErrNotConnected) {
-		return m.enqueue(func() error { return m.SeekAbsolute(seconds) })
-	}
-	if err != nil {
+	c, err := m.ipcOrEnqueue(func() error { return m.SeekAbsolute(seconds) })
+	if err != nil || c == nil {
 		return err
 	}
 	_, err = c.SendCommand(cmdSeek, seconds, "absolute")
@@ -116,11 +97,8 @@ func (m *Manager) SeekAbsolute(seconds float64) error {
 
 // SeekRelative seeks forward (positive) or backward (negative) by seconds.
 func (m *Manager) SeekRelative(seconds float64) error {
-	c, err := m.ipc()
-	if errors.Is(err, ErrNotConnected) {
-		return m.enqueue(func() error { return m.SeekRelative(seconds) })
-	}
-	if err != nil {
+	c, err := m.ipcOrEnqueue(func() error { return m.SeekRelative(seconds) })
+	if err != nil || c == nil {
 		return err
 	}
 	_, err = c.SendCommand(cmdSeek, seconds, "relative")
@@ -129,11 +107,8 @@ func (m *Manager) SeekRelative(seconds float64) error {
 
 // SetVolumeRelative adjusts volume by the given percentage delta.
 func (m *Manager) SetVolumeRelative(delta float64) error {
-	c, err := m.ipc()
-	if errors.Is(err, ErrNotConnected) {
-		return m.enqueue(func() error { return m.SetVolumeRelative(delta) })
-	}
-	if err != nil {
+	c, err := m.ipcOrEnqueue(func() error { return m.SetVolumeRelative(delta) })
+	if err != nil || c == nil {
 		return err
 	}
 	_, err = c.SendCommand(cmdAdd, propVolume, delta)
@@ -144,11 +119,8 @@ func (m *Manager) SetVolumeRelative(delta float64) error {
 // is queued for replay if mpv is not yet connected, so it is safe to call
 // immediately after Start before the IPC socket is ready.
 func (m *Manager) SetVolumeAbsolute(volume float64) error {
-	c, err := m.ipc()
-	if errors.Is(err, ErrNotConnected) {
-		return m.enqueue(func() error { return m.SetVolumeAbsolute(volume) })
-	}
-	if err != nil {
+	c, err := m.ipcOrEnqueue(func() error { return m.SetVolumeAbsolute(volume) })
+	if err != nil || c == nil {
 		return err
 	}
 	_, err = c.SendCommand(cmdSetProperty, propVolume, volume)
@@ -197,11 +169,8 @@ func (m *Manager) setFilter(name, expr string, enabled bool) error {
 	}
 	m.mu.Unlock()
 
-	_, err := m.ipc()
-	if errors.Is(err, ErrNotConnected) {
-		return m.enqueue(func() error { return m.rebuildAudioFilters() })
-	}
-	if err != nil {
+	c, err := m.ipcOrEnqueue(func() error { return m.rebuildAudioFilters() })
+	if err != nil || c == nil {
 		return err
 	}
 	return m.rebuildAudioFilters()
@@ -248,11 +217,8 @@ func buildFireequalizerExpr(bands [10]int) string {
 // SetGapless enables or disables gapless playback via mpv's gapless-audio
 // property. The command is queued for replay if mpv is not yet connected.
 func (m *Manager) SetGapless(enabled bool) error {
-	c, err := m.ipc()
-	if errors.Is(err, ErrNotConnected) {
-		return m.enqueue(func() error { return m.SetGapless(enabled) })
-	}
-	if err != nil {
+	c, err := m.ipcOrEnqueue(func() error { return m.SetGapless(enabled) })
+	if err != nil || c == nil {
 		return err
 	}
 	val := "no"
