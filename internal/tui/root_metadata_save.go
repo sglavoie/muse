@@ -182,33 +182,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 	m = m.syncRecentlyAddedFromLibrary()
 	m = m.preserveQueueSort()
 
-	switch m.activeView {
-	case viewLibrary:
-		m.library.selectedHashes = nil
-	case viewQueue:
-		for i := range m.queue.entries {
-			m.queue.entries[i].Selected = false
-		}
-	case viewPlaylists:
-		m.playlists.selectedTrackIDs = nil
-	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			m.browse.artists.selectedHashes = nil
-		case BrowseModeAlbums:
-			m.browse.albums.selectedHashes = nil
-		case BrowseModeGenres:
-			m.browse.genres.selectedHashes = nil
-		}
-	case viewFavorites:
-		m.favorites.selectedItems = nil
-	case viewTags:
-		m.tagsView.selectedHashes = nil
-	case viewMixes:
-		if m.mixes.level == 1 {
-			m.mixes.trackView.selectedHashes = nil
-		}
-	}
+	m = m.clearActiveViewSelection()
 
 	m.setUndoSlot(undoBulkEditMetadataAction{
 		originals: originals,

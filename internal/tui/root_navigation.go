@@ -108,35 +108,42 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 		return m, nil, true
 	case actionClearSelection:
 		m = exitVisualMode(m)
-		switch m.activeView {
-		case viewLibrary:
-			m.library = m.library.ClearSelection()
-		case viewQueue:
-			for i := range m.queue.entries {
-				m.queue.entries[i].Selected = false
-			}
-		case viewPlaylists:
-			m.playlists.selectedTrackIDs = nil
-		case viewFavorites:
-			m.favorites = m.favorites.clearSelection()
-		case viewBrowse:
-			switch m.browse.mode {
-			case BrowseModeArtists:
-				m.browse.artists.selectedHashes = nil
-			case BrowseModeAlbums:
-				m.browse.albums.selectedHashes = nil
-			case BrowseModeGenres:
-				m.browse.genres.selectedHashes = nil
-			}
-		case viewTags:
-			m.tagsView.selectedHashes = nil
-		case viewMixes:
-			m.mixes.trackView.selectedHashes = nil
-		}
+		m = m.clearActiveViewSelection()
 		return m, nil, true
 	default:
 		return m, nil, false
 	}
+}
+
+// clearActiveViewSelection removes all bulk-selection markers in the currently
+// active view. It does not touch other views or exit visual mode.
+func (m Model) clearActiveViewSelection() Model {
+	switch m.activeView {
+	case viewLibrary:
+		m.library = m.library.ClearSelection()
+	case viewQueue:
+		for i := range m.queue.entries {
+			m.queue.entries[i].Selected = false
+		}
+	case viewPlaylists:
+		m.playlists.selectedTrackIDs = nil
+	case viewFavorites:
+		m.favorites = m.favorites.clearSelection()
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			m.browse.artists.selectedHashes = nil
+		case BrowseModeAlbums:
+			m.browse.albums.selectedHashes = nil
+		case BrowseModeGenres:
+			m.browse.genres.selectedHashes = nil
+		}
+	case viewTags:
+		m.tagsView.selectedHashes = nil
+	case viewMixes:
+		m.mixes.trackView.selectedHashes = nil
+	}
+	return m
 }
 
 // toggleHashInSet lazily initialises sel when nil, then toggles hash in it:
