@@ -255,20 +255,22 @@ func TestRender_BreadcrumbTruncatesLastCrumb(t *testing.T) {
 	}
 }
 
-func TestRender_SingleCrumbQuietDims(t *testing.T) {
+func TestRender_SingleCrumbAtTextSecondary(t *testing.T) {
 	s := styles.NewStyles(true)
 	got := Render(80, []string{"Library"}, SortChunk{}, FilterChunk{}, CountsChunk{Total: 3}, nil, "", s)
+	secondary := s.TextSecondary.Render("Library")
+	if !strings.Contains(got, secondary) {
+		t.Errorf("single-crumb form should render label at TextSecondary; got %q", got)
+	}
 	dimmed := s.Dim.Render("Library")
-	if !strings.Contains(got, dimmed) {
-		t.Errorf("single-crumb quiet form should render label with Dim style; got %q", got)
+	if strings.Contains(got, dimmed) {
+		t.Errorf("single-crumb form must no longer render at Dim; got %q", got)
 	}
 }
 
-func TestRender_MultiCrumbQuietDoesNotDim(t *testing.T) {
+func TestRender_MultiCrumbLastIsPrimaryParentsSecondary(t *testing.T) {
 	s := styles.NewStyles(true)
 	got := Render(80, []string{"Artists", "Brian Eno"}, SortChunk{}, FilterChunk{}, CountsChunk{Total: 3}, nil, "esc ←", s)
-	// In multi-crumb form the parent crumb must read at TextSecondary,
-	// not Dim — even when no sort/filter is active.
 	dimmedRoot := s.Dim.Render("Artists")
 	if strings.Contains(got, dimmedRoot) {
 		t.Errorf("multi-crumb breadcrumb should not dim parent crumb; got %q", got)
@@ -276,6 +278,10 @@ func TestRender_MultiCrumbQuietDoesNotDim(t *testing.T) {
 	secRoot := s.TextSecondary.Render("Artists")
 	if !strings.Contains(got, secRoot) {
 		t.Errorf("multi-crumb breadcrumb should render parent crumb at TextSecondary; got %q", got)
+	}
+	priLast := s.TextPrimary.Render("Brian Eno")
+	if !strings.Contains(got, priLast) {
+		t.Errorf("multi-crumb breadcrumb should render last crumb at TextPrimary; got %q", got)
 	}
 }
 
@@ -289,10 +295,18 @@ func TestRender_SelectionChunkRendered(t *testing.T) {
 	if !strings.Contains(plain, "◉ 3 selected") {
 		t.Errorf("expected selection chip in %q", plain)
 	}
-	// The chip must render with the Accent style so it pops against the dim strip.
-	accent := s.Accent.Render("◉ 3 selected")
-	if !strings.Contains(got, accent) {
-		t.Errorf("selection chip should render with Accent style; got %q", got)
+	// The chip is rendered through a single combined fg+bg style so the
+	// accent background carries across the whole chip; a nested inner
+	// Render would emit an ANSI reset and drop the background mid-chip.
+	chipStyle := s.Accent.Foreground(s.TextPrimary.GetForeground())
+	chip := chipStyle.Render("◉ 3 selected")
+	if !strings.Contains(got, chip) {
+		t.Errorf("selection chip should render via a single fg+bg style; got %q", got)
+	}
+	// Guard against the documented nested-Render regression (bug hotspot #8).
+	nested := s.Accent.Render(s.TextPrimary.Render("◉") + " 3 selected")
+	if strings.Contains(got, nested) {
+		t.Errorf("selection chip must not use nested Render (background-bleed bug); got %q", got)
 	}
 }
 
@@ -321,11 +335,17 @@ func TestRender_SelectionChunkSurvivesLongerThanFilter(t *testing.T) {
 	}
 }
 
-func TestRender_HintStylingDim(t *testing.T) {
+func TestRender_HintStylingKeyLabelPair(t *testing.T) {
 	s := styles.NewStyles(true)
 	got := Render(80, []string{"Artists", "Brian Eno"}, SortChunk{}, FilterChunk{}, CountsChunk{Total: 3}, nil, "esc ←", s)
+	key := s.HelpKey.Render("esc")
+	label := s.TextSecondary.Render("←")
+	expected := key + " " + label
+	if !strings.Contains(got, expected) {
+		t.Errorf("hint should render as HelpKey key + TextSecondary label; got %q want substring %q", got, expected)
+	}
 	dimHint := s.Dim.Render("esc ←")
-	if !strings.Contains(got, dimHint) {
-		t.Errorf("hint should render with Dim style; got %q", got)
+	if strings.Contains(got, dimHint) {
+		t.Errorf("hint must no longer render with Dim style; got %q", got)
 	}
 }

@@ -97,7 +97,6 @@ func Render(
 	hasSort := sort.Label != ""
 	hasFilter := filter.Active || filter.Text != ""
 	hasSelection := selection != nil && selection.Count > 0
-	quiet := !hasSort && !hasFilter && !hasSelection
 
 	sortPlain := ""
 	if hasSort {
@@ -194,14 +193,19 @@ func Render(
 		}
 		return w
 	}
-	// Reserve at least one space between the left and right zones when
-	// the right zone is non-empty, otherwise the chunks would visually
-	// run into each other.
+	// gap returns the spacing between the left and right zones. Two
+	// spaces visually separate the "state" group (sort/filter/selection)
+	// from the "meta" group (counts/hint) per the Proximity / Common
+	// Region grouping; a single space is enough when only the breadcrumb
+	// is on the left. Returns 0 when the right zone is empty.
 	gap := func() int {
-		if includeCounts || includeHint {
-			return 1
+		if !(includeCounts || includeHint) {
+			return 0
 		}
-		return 0
+		if includeSort || includeFilter || includeSelection {
+			return 2
+		}
+		return 1
 	}
 
 	// Drop order on overflow: hint → counts → sort → filter (truncated
@@ -267,40 +271,55 @@ func Render(
 		}
 	}
 
-	divider := s.TextTertiary.Render(Separator)
-	chevronStyled := s.TextTertiary.Render(Chevron)
-	labelStyle := s.TextSecondary
-	// Only dim the breadcrumb in the single-crumb "quiet" form (no sort
-	// or filter active). Multi-crumb paths always read at TextSecondary
-	// because their value is positional context.
-	if quiet && len(breadcrumb) == 1 {
-		labelStyle = s.Dim
-	}
+	divider := s.Dim.Render(Separator)
+	chevronStyled := s.Dim.Render(Chevron)
 
 	var b strings.Builder
 	for i, crumb := range breadcrumb {
 		if i > 0 {
 			b.WriteString(chevronStyled)
 		}
-		b.WriteString(labelStyle.Render(crumb))
+		// In a multi-crumb path the final crumb carries the current
+		// position and earns TextPrimary; parent crumbs stay at
+		// TextSecondary as context. A single crumb is always
+		// TextSecondary so the strip never visually "lights up" when the
+		// view is quiet.
+		style := s.TextSecondary
+		if len(breadcrumb) > 1 && i == len(breadcrumb)-1 {
+			style = s.TextPrimary
+		}
+		b.WriteString(style.Render(crumb))
 	}
 	if includeSort {
 		b.WriteString(divider)
-		b.WriteString(s.TextSecondary.Render(sortPlain))
+		b.WriteString(s.TextTertiary.Render("sort "))
+		b.WriteString(s.TextPrimary.Render(sort.Label))
+		if sort.Indicator != "" {
+			b.WriteString(s.AccentMark.Render(sort.Indicator))
+		}
 	}
 	if includeFilter {
 		b.WriteString(divider)
-		b.WriteString(s.TextSecondary.Render(filterPrefix))
-		if filter.Active && filter.Text != "" {
+		b.WriteString(s.TextTertiary.Render(filterPrefix))
+		switch {
+		case filter.Active && filter.Text != "":
 			b.WriteString(filterValue) // textinput; preserve its own styling
-		} else {
-			b.WriteString(s.TextSecondary.Render(filterValue))
+		case filter.Active && filter.Text == "":
+			b.WriteString(filterValue) // caller-styled hint (Zeigarnik)
+		default:
+			b.WriteString(s.TextPrimary.Render(filterValue))
 		}
-		b.WriteString(s.TextSecondary.Render(filterSuffix))
+		b.WriteString(s.TextTertiary.Render(filterSuffix))
 	}
 	if includeSelection {
 		b.WriteString(divider)
-		b.WriteString(s.Accent.Render(selectionPlain))
+		// Combine fg+bg in a single style so the whole chip carries the
+		// accent background. A nested `s.TextPrimary.Render("◉")` inside
+		// `s.Accent.Render(...)` would emit an ANSI reset after the glyph
+		// and drop the background mid-chip — see project_bug_hotspots.md
+		// entry #8 ("Nested lipgloss Render calls kill outer background").
+		chipStyle := s.Accent.Foreground(s.TextPrimary.GetForeground())
+		b.WriteString(chipStyle.Render(fmt.Sprintf("◉ %d selected", selection.Count)))
 	}
 	leftStr := b.String()
 	leftStyledW := ansi.StringWidth(leftStr)
@@ -316,17 +335,43 @@ func Render(
 
 	var right strings.Builder
 	if includeCounts {
-		right.WriteString(s.TextTertiary.Render(countsPlain))
+		countsStyle := s.Dim
+		if counts.Filtering {
+			countsStyle = s.TextSecondary
+		}
+		right.WriteString(countsStyle.Render(countsPlain))
 	}
 	if includeHint {
 		if includeCounts {
 			right.WriteString(" ")
 		}
-		right.WriteString(s.Dim.Render(hint))
+		right.WriteString(renderKeyLabelPair(hint, s))
 	}
 	pad := width - leftStyledW - rightPlainW
 	if pad < 0 {
 		pad = 0
 	}
 	return leftStr + strings.Repeat(" ", pad) + right.String()
+}
+
+// renderKeyLabelPair styles a "key label" hint string by rendering the
+// first whitespace-delimited token in HelpKey (bold + accent foreground)
+// and the remainder in TextSecondary, joined by a single plain space.
+// A hint with no space is treated as a key-only label. Width arithmetic
+// upstream uses the unstyled string, so this function never changes
+// display width.
+func renderKeyLabelPair(hint string, s styles.Styles) string {
+	if hint == "" {
+		return ""
+	}
+	idx := strings.IndexByte(hint, ' ')
+	if idx < 0 {
+		return s.HelpKey.Render(hint)
+	}
+	key := hint[:idx]
+	label := hint[idx+1:]
+	if label == "" {
+		return s.HelpKey.Render(key)
+	}
+	return s.HelpKey.Render(key) + " " + s.TextSecondary.Render(label)
 }

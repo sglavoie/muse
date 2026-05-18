@@ -4,10 +4,12 @@ import (
 	"go/parser"
 	"go/token"
 	"image/color"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -124,6 +126,66 @@ func TestNewStyles(t *testing.T) {
 		nowPlayingTitleOut := s.NowPlayingTitle.Render("x")
 		if nowPlayingTitleOut == "" {
 			t.Errorf("NewStyles(%v).NowPlayingTitle.Render() returned empty string", hasDark)
+		}
+	}
+}
+
+// relativeLuminance returns the WCAG 2.x relative luminance of an sRGB color
+// (channels in [0,255]). Result is in [0,1].
+func relativeLuminance(c color.RGBA) float64 {
+	conv := func(b uint8) float64 {
+		v := float64(b) / 255.0
+		if v <= 0.03928 {
+			return v / 12.92
+		}
+		return math.Pow((v+0.055)/1.055, 2.4)
+	}
+	return 0.2126*conv(c.R) + 0.7152*conv(c.G) + 0.0722*conv(c.B)
+}
+
+// contrastRatio returns the WCAG contrast ratio between two sRGB colors.
+func contrastRatio(fg, bg color.RGBA) float64 {
+	l1 := relativeLuminance(fg)
+	l2 := relativeLuminance(bg)
+	if l1 < l2 {
+		l1, l2 = l2, l1
+	}
+	return (l1 + 0.05) / (l2 + 0.05)
+}
+
+// parseHex parses a "#rrggbb" string into a color.RGBA with alpha 0xff.
+func parseHex(t *testing.T, hex string) color.RGBA {
+	t.Helper()
+	if len(hex) != 7 || hex[0] != '#' {
+		t.Fatalf("parseHex: bad hex %q (want #rrggbb)", hex)
+	}
+	n, err := strconv.ParseUint(hex[1:], 16, 32)
+	if err != nil {
+		t.Fatalf("parseHex(%q): %v", hex, err)
+	}
+	return color.RGBA{R: uint8(n >> 16), G: uint8(n >> 8), B: uint8(n), A: 0xff}
+}
+
+// TestStripForegroundContrastDark asserts that each of the four foregrounds
+// the state strip and footer hints rely on (TextPrimary, TextSecondary,
+// TextTertiary, Dim) clears WCAG AA (4.5:1) against the dark terminal
+// background (#16161e). This prevents silent palette regressions.
+func TestStripForegroundContrastDark(t *testing.T) {
+	bg := parseHex(t, "#16161e")
+	cases := []struct {
+		name string
+		fg   string
+	}{
+		{"TextPrimary", "#c0caf5"},
+		{"TextSecondary", "#a9b1d6"},
+		{"TextTertiary", "#8a93bd"},
+		{"Dim", "#7882a4"},
+	}
+	for _, c := range cases {
+		fg := parseHex(t, c.fg)
+		ratio := contrastRatio(fg, bg)
+		if ratio < 4.5 {
+			t.Errorf("%s (%s on #16161e): contrast %.2f:1 < 4.5:1 (WCAG AA)", c.name, c.fg, ratio)
 		}
 	}
 }

@@ -22,7 +22,7 @@ const (
 
 // Now-playing warm background colors.
 const (
-	colorNowPlayingBgDark  = "#2e2a1f"
+	colorNowPlayingBgDark  = "#2a2618"
 	colorNowPlayingBgLight = "#fff8e8"
 )
 
@@ -64,6 +64,14 @@ const (
 	colorFgErrorDark    = "#e06c75"
 )
 
+// Favorite foreground colors — semantically split from Warning so the two
+// long-lived ("favorited") vs transient ("warning") meanings can drift
+// independently. Same hue today.
+const (
+	colorFgFavoriteLight = "#986801"
+	colorFgFavoriteDark  = "#e0af68"
+)
+
 // Text hierarchy foreground colors — primary, secondary, tertiary.
 const (
 	colorTextPrimaryLight   = "#343b58"
@@ -71,7 +79,15 @@ const (
 	colorTextSecondaryLight = "#6172a9"
 	colorTextSecondaryDark  = "#a9b1d6"
 	colorTextTertiaryLight  = "#9ca0b0"
-	colorTextTertiaryDark   = "#565f89"
+	colorTextTertiaryDark   = "#8a93bd"
+)
+
+// Explicit dim foreground — perceptible but quiet, no reliance on terminal
+// Faint rendering. Use this for separators, prefixes, and other low-priority
+// content where Faint(true) historically vanished on dark themes.
+const (
+	colorDimLight = "#7a7f8c"
+	colorDimDark  = "#7882a4"
 )
 
 // Favorite / special-label foreground colors.
@@ -142,7 +158,7 @@ type Styles struct {
 func NewStyles(hasDark bool) Styles {
 	ld := lipgloss.LightDark(hasDark)
 	return Styles{
-		Dim:        lipgloss.NewStyle().Faint(true),
+		Dim:        lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorDimLight), lipgloss.Color(colorDimDark))),
 		Accent:     lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceAccentLight), lipgloss.Color(colorSurfaceAccentDark))),
 		AccentMark: lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorAccentPrimaryLight), lipgloss.Color(colorAccentPrimaryDark))),
 		Bold:       lipgloss.NewStyle().Bold(true),
@@ -157,11 +173,11 @@ func NewStyles(hasDark bool) Styles {
 		Warning:             lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgWarningLight), lipgloss.Color(colorFgWarningDark))),
 		Error:               lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgErrorLight), lipgloss.Color(colorFgErrorDark))),
 		NowPlaying:          lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgSuccessLight), lipgloss.Color(colorFgSuccessDark))),
-		NowPlayingFavorite:  lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgWarningLight), lipgloss.Color(colorFgWarningDark))),
+		NowPlayingFavorite:  lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgFavoriteLight), lipgloss.Color(colorFgFavoriteDark))),
 		NowPlayingFavArtist: lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgFavArtistLight), lipgloss.Color(colorFgFavArtistDark))),
 		NowPlayingFavAlbum:  lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgFavAlbumLight), lipgloss.Color(colorFgFavAlbumDark))),
-		Favorite:            lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgWarningLight), lipgloss.Color(colorFgWarningDark))),
-		FavoriteAccent:      lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceAccentLight), lipgloss.Color(colorSurfaceAccentDark))).Foreground(ld(lipgloss.Color(colorFgWarningLight), lipgloss.Color(colorFgWarningDark))),
+		Favorite:            lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgFavoriteLight), lipgloss.Color(colorFgFavoriteDark))),
+		FavoriteAccent:      lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceAccentLight), lipgloss.Color(colorSurfaceAccentDark))).Foreground(ld(lipgloss.Color(colorFgFavoriteLight), lipgloss.Color(colorFgFavoriteDark))),
 		FavArtist:           lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgFavArtistLight), lipgloss.Color(colorFgFavArtistDark))),
 		FavAlbum:            lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgFavAlbumLight), lipgloss.Color(colorFgFavAlbumDark))),
 		FavArtistAccent:     lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceAccentLight), lipgloss.Color(colorSurfaceAccentDark))).Foreground(ld(lipgloss.Color(colorFgFavArtistLight), lipgloss.Color(colorFgFavArtistDark))),
@@ -198,7 +214,7 @@ func NewStyles(hasDark bool) Styles {
 		SelectionBg:            ld(lipgloss.Color(colorSelectionBgLight), lipgloss.Color(colorSelectionBgDark)),
 		NowPlayingBg:           ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark)),
 		NowPlayingRow:          lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgSuccessLight), lipgloss.Color(colorFgSuccessDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
-		NowPlayingRowFavorite:  lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgWarningLight), lipgloss.Color(colorFgWarningDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
+		NowPlayingRowFavorite:  lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgFavoriteLight), lipgloss.Color(colorFgFavoriteDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
 		NowPlayingRowFavArtist: lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgFavArtistLight), lipgloss.Color(colorFgFavArtistDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
 		NowPlayingRowFavAlbum:  lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgFavAlbumLight), lipgloss.Color(colorFgFavAlbumDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
 		PlayedRow:              lipgloss.NewStyle().Faint(true).Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))),

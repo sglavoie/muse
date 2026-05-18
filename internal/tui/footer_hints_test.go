@@ -45,6 +45,61 @@ func TestRenderFooterHints_TruncatesToWidth(t *testing.T) {
 	}
 }
 
+func TestRenderFooterHints_KeyLabelAsymmetry(t *testing.T) {
+	// Pair tokens must be styled per-token: keys through HelpKey, labels
+	// through TextSecondary, separators through Dim — not the prior
+	// blanket-Dim rendering.
+	reg := newRegistry()
+	s := styles.NewStyles(true)
+	got := RenderFooterHints(200, contextLibrary, HintModeDefault, reg, s)
+
+	// Sanity: plain-text content unchanged.
+	plain := ansi.Strip(got)
+	for _, want := range []string{"j/k nav", "enter enqueue", "?", "help"} {
+		if !strings.Contains(plain, want) {
+			t.Errorf("plain hint strip missing %q: %q", want, plain)
+		}
+	}
+
+	// Each key should appear wrapped in the HelpKey escape sequence; each
+	// label should appear wrapped in the TextSecondary escape sequence; the
+	// separator should appear wrapped in the Dim escape sequence.
+	keyOpen := strings.Split(s.HelpKey.Render("X"), "X")[0]
+	labelOpen := strings.Split(s.TextSecondary.Render("X"), "X")[0]
+	dimOpen := strings.Split(s.Dim.Render("X"), "X")[0]
+
+	if !strings.Contains(got, keyOpen+"j/k") {
+		t.Errorf("expected HelpKey-wrapped 'j/k' in output; got %q", got)
+	}
+	if !strings.Contains(got, labelOpen+"nav") {
+		t.Errorf("expected TextSecondary-wrapped 'nav' in output; got %q", got)
+	}
+	if !strings.Contains(got, dimOpen+footerHintSep) {
+		t.Errorf("expected Dim-wrapped separator in output; got %q", got)
+	}
+}
+
+func TestRenderFooterHints_TruncationFallbackKeyPops(t *testing.T) {
+	// When the available width forces a partial render of the first pair,
+	// a key that survives truncation in full should still be rendered in
+	// HelpKey, with the elided remainder in Dim.
+	reg := newRegistry()
+	s := styles.NewStyles(true)
+	// Width that fits the two-space indent, "j/k", a space, and an ellipsis
+	// but not the full label "nav".
+	got := RenderFooterHints(7, contextLibrary, HintModeDefault, reg, s)
+	if got == "" {
+		t.Fatalf("expected non-empty truncated output")
+	}
+	keyOpen := strings.Split(s.HelpKey.Render("X"), "X")[0]
+	if !strings.Contains(got, keyOpen+"j/k") {
+		t.Errorf("expected HelpKey-wrapped 'j/k' in truncated output; got %q", got)
+	}
+	if !strings.Contains(ansi.Strip(got), "…") {
+		t.Errorf("expected ellipsis in truncated output plain=%q", ansi.Strip(got))
+	}
+}
+
 func TestRenderFooterHints_ContextSpecificContent(t *testing.T) {
 	reg := newRegistry()
 	s := styles.NewStyles(true)

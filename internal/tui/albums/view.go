@@ -469,7 +469,7 @@ func (v View) renderStateStrip(total, filtered int) string {
 	f := strip.FilterChunk{Active: v.FilterActive, Text: v.FilterText}
 	if v.FilterActive {
 		if v.FilterText == "" && v.FilterHint != "" {
-			f.Hint = v.Styles.Dim.Render(v.FilterHint)
+			f.Hint = v.Styles.TextSecondary.Render(v.FilterHint)
 		} else {
 			f.InputView = v.FilterView
 		}

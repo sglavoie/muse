@@ -333,7 +333,7 @@ func (v QueueView) renderStateStrip(s styles.Styles, total, filtered int) string
 	f := strip.FilterChunk{Active: v.filter.Active, Text: v.filter.Text}
 	if v.filter.Active {
 		if v.filter.Text == "" {
-			f.Hint = s.Dim.Render("a: artist  t: title  l: album")
+			f.Hint = s.TextSecondary.Render("a: artist  t: title  l: album")
 		} else {
 			f.InputView = v.filter.View()
 		}

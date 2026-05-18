@@ -14,8 +14,12 @@ const footerHintSep = " · "
 
 // RenderFooterHints builds the single-line footer hint strip shown above the
 // status bar. It returns an empty string when no primaries are registered for
-// (ctx, mode) (so the caller can avoid reserving a row). The whole line is
-// rendered in the dim style.
+// (ctx, mode) (so the caller can avoid reserving a row).
+//
+// Each "key label" pair is rendered with explicit per-token styling — keys in
+// HelpKey (bold + accent foreground), labels in TextSecondary, separators in
+// Dim — so keys can be picked up peripherally while labels stay legible and
+// separators recede.
 //
 // mode selects the hint set: HintModeDefault for the resting state,
 // HintModeSelection when 1+ rows are bulk-selected, and HintModeVisual
@@ -40,25 +44,59 @@ func RenderFooterHints(width int, ctx bindingContext, mode HintMode, r Registry,
 		return ""
 	}
 
-	var b strings.Builder
+	var styled strings.Builder
 	used := 0
+	rendered := 0
 	for i, h := range hints {
 		pair := h.Key + " " + h.Label
-		piece := pair
+		pieceW := ansi.StringWidth(pair)
 		if i > 0 {
-			piece = footerHintSep + pair
+			pieceW += ansi.StringWidth(footerHintSep)
 		}
-		w := ansi.StringWidth(piece)
-		if used+w > avail {
+		if used+pieceW > avail {
 			break
 		}
-		b.WriteString(piece)
-		used += w
+		if i > 0 {
+			styled.WriteString(s.Dim.Render(footerHintSep))
+		}
+		styled.WriteString(renderHintKeyLabel(h.Key, h.Label, s))
+		used += pieceW
+		rendered++
 	}
-	if b.Len() == 0 {
+	if rendered == 0 {
 		// Even the first pair didn't fit — truncate it so something shows.
 		first := hints[0].Key + " " + hints[0].Label
-		b.WriteString(ansi.Truncate(first, avail, "…"))
+		truncated := ansi.Truncate(first, avail, "…")
+		styled.WriteString(renderTruncatedHint(truncated, hints[0].Key, s))
 	}
-	return leading + s.Dim.Render(b.String())
+	return leading + styled.String()
+}
+
+// renderHintKeyLabel styles a single "key label" pair: HelpKey for the key,
+// a plain space, then TextSecondary for the label. A label-less hint is
+// rendered as the key alone in HelpKey. Width arithmetic upstream uses the
+// unstyled string, so this function never changes display width.
+func renderHintKeyLabel(key, label string, s styles.Styles) string {
+	if label == "" {
+		return s.HelpKey.Render(key)
+	}
+	return s.HelpKey.Render(key) + " " + s.TextSecondary.Render(label)
+}
+
+// renderTruncatedHint styles the degraded-state fallback used when even the
+// first hint pair must be elided to fit the available width. If the full key
+// survives truncation, the key is rendered in HelpKey and the remainder in
+// Dim so the most useful token still pops. Otherwise the whole truncated
+// chunk falls back to Dim (degraded state).
+func renderTruncatedHint(truncated, key string, s styles.Styles) string {
+	// truncated starts with key only if the key fits in full followed by a
+	// space (the separator between key and label in the unstyled pair).
+	if len(truncated) > len(key) && truncated[:len(key)] == key && truncated[len(key)] == ' ' {
+		rest := truncated[len(key)+1:]
+		if rest == "" {
+			return s.HelpKey.Render(key)
+		}
+		return s.HelpKey.Render(key) + " " + s.Dim.Render(rest)
+	}
+	return s.Dim.Render(truncated)
 }
