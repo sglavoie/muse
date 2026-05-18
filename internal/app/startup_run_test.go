@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sglavoie/muse/internal/app"
+	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
 )
 
@@ -113,17 +114,11 @@ func TestRunLockfileFailureStopsSequence(t *testing.T) {
 	dirs := setupDirs(t)
 	installLogger(t)
 
-	lockPath := filepath.Join(dirs.Runtime, "muse.pid")
-	if err := os.MkdirAll(dirs.Runtime, 0o700); err != nil {
-		t.Fatal(err)
+	owner := config.NewLockfile(dirs.Runtime)
+	if err := owner.Acquire(); err != nil {
+		t.Fatalf("owner Acquire: %v", err)
 	}
-	if err := os.WriteFile(lockPath, []byte("999999999\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(lockPath, []byte(pidStr(os.Getpid())), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
+	t.Cleanup(owner.Release)
 	prereqCalled := false
 	deps := app.Deps{
 		CheckPrereqs: func(context.Context) error { prereqCalled = true; return nil },

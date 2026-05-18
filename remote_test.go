@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"net"
@@ -278,5 +279,59 @@ func TestRunRemoteAction(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for remote action")
+	}
+}
+
+func TestRunRemoteAction_NoAck(t *testing.T) {
+	baseDir := shortTempDir(t)
+	runtimeDir := filepath.Join(baseDir, "muse")
+	if err := os.MkdirAll(runtimeDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_RUNTIME_DIR", baseDir)
+
+	sockPath := filepath.Join(runtimeDir, ctrlSocketName)
+	ln, err := net.Listen("unix", sockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	serverErr := make(chan error, 1)
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			serverErr <- err
+			return
+		}
+		defer conn.Close()
+
+		line, err := bufio.NewReader(conn).ReadString('\n')
+		if err != nil {
+			serverErr <- err
+			return
+		}
+		if got := strings.TrimSpace(line); got != "next" {
+			serverErr <- fmt.Errorf("got %q, want %q", got, "next")
+			return
+		}
+		serverErr <- nil
+	}()
+
+	err = runRemoteAction("next")
+	if err == nil {
+		t.Fatal("expected error when listener closes without acknowledgment")
+	}
+	if !strings.Contains(err.Error(), "no acknowledgment received") {
+		t.Fatalf("expected missing acknowledgment error, got %v", err)
+	}
+
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for remote listener to receive action")
 	}
 }

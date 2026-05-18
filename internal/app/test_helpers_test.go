@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -173,8 +172,4 @@ func newTestWriter(t *testing.T, database *db.DB) *db.Writer {
 
 func contains(ss []string, s string) bool {
 	return slices.Contains(ss, s)
-}
-
-func pidStr(pid int) string {
-	return strconv.Itoa(pid) + "\n"
 }

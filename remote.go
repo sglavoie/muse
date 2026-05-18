@@ -166,16 +166,20 @@ func runRemoteAction(action string) error {
 		return fmt.Errorf("send command: %w", err)
 	}
 
-	// Read acknowledgment from the running instance. Use the same dial timeout
-	// so callers do not wait indefinitely if the server is stalled.
+	// Read acknowledgment from the running instance so callers fail fast if the
+	// listener closes early or never confirms receipt.
 	if err := conn.SetReadDeadline(time.Now().Add(remoteDialTimeout)); err != nil {
-		return nil // command was sent; ack read is best-effort
+		return fmt.Errorf("prepare acknowledgment read: %w", err)
 	}
 	scanner := bufio.NewScanner(conn)
-	if scanner.Scan() {
-		if resp := scanner.Text(); resp != "ok" {
-			return fmt.Errorf("remote: %s", resp)
+	if !scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			return fmt.Errorf("read acknowledgment: %w", err)
 		}
+		return errors.New("remote: no acknowledgment received")
+	}
+	if resp := strings.TrimSpace(scanner.Text()); resp != "ok" {
+		return fmt.Errorf("remote: %s", resp)
 	}
 	return nil
 }

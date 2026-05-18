@@ -26,14 +26,14 @@ func TestLockfile_CreatedAtRuntimeDir(t *testing.T) {
 func TestLockfile_LivePIDBlocksLaunch(t *testing.T) {
 	tmp := t.TempDir()
 
-	// Write the current process's PID as if a prior instance created the lockfile.
-	lockPath := filepath.Join(tmp, lockfileName)
-	if err := os.WriteFile(lockPath, []byte(strconv.Itoa(os.Getpid())+"\n"), 0o600); err != nil {
-		t.Fatalf("setup: %v", err)
+	owner := NewLockfile(tmp)
+	if err := owner.Acquire(); err != nil {
+		t.Fatalf("owner Acquire: %v", err)
 	}
+	t.Cleanup(owner.Release)
 
-	lf := NewLockfile(tmp)
-	err := lf.Acquire()
+	contender := NewLockfile(tmp)
+	err := contender.Acquire()
 	if err == nil {
 		t.Fatal("expected error when live PID exists, got nil")
 	}
@@ -52,7 +52,6 @@ func TestLockfile_StaleLockfileIsReclaimed(t *testing.T) {
 	tmp := t.TempDir()
 
 	// Write a PID that is guaranteed to be dead.
-	// PID 0 is never a valid user process; signal-0 to it will fail.
 	lockPath := filepath.Join(tmp, lockfileName)
 	if err := os.WriteFile(lockPath, []byte("99999999\n"), 0o600); err != nil {
 		t.Fatalf("setup: %v", err)
@@ -78,6 +77,44 @@ func TestLockfile_StaleLockfileIsReclaimed(t *testing.T) {
 	}
 }
 
+func TestLockfile_ConcurrentAcquireAllowsSingleWinner(t *testing.T) {
+	tmp := t.TempDir()
+	const contenders = 8
+
+	type result struct {
+		lf  *Lockfile
+		err error
+	}
+	results := make(chan result, contenders)
+	start := make(chan struct{})
+
+	for i := 0; i < contenders; i++ {
+		lf := NewLockfile(tmp)
+		go func(lf *Lockfile) {
+			<-start
+			results <- result{lf: lf, err: lf.Acquire()}
+		}(lf)
+	}
+
+	close(start)
+
+	successes := 0
+	for i := 0; i < contenders; i++ {
+		res := <-results
+		if res.err == nil {
+			successes++
+			t.Cleanup(res.lf.Release)
+			continue
+		}
+		if !strings.Contains(res.err.Error(), "another instance is running") {
+			t.Fatalf("expected contention error, got %v", res.err)
+		}
+	}
+	if successes != 1 {
+		t.Fatalf("expected exactly 1 successful acquire, got %d", successes)
+	}
+}
+
 func TestLockfile_ReleasedOnCleanup(t *testing.T) {
 	tmp := t.TempDir()
 	lf := NewLockfile(tmp)
@@ -92,6 +129,12 @@ func TestLockfile_ReleasedOnCleanup(t *testing.T) {
 	if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
 		t.Errorf("lockfile should be removed after Release, but still exists at %q", lockPath)
 	}
+
+	reacquired := NewLockfile(tmp)
+	if err := reacquired.Acquire(); err != nil {
+		t.Fatalf("Acquire after Release: %v", err)
+	}
+	reacquired.Release()
 }
 
 func TestLockfile_RuntimeDirCreatedIfMissing(t *testing.T) {
