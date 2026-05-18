@@ -73,6 +73,7 @@ func helpSections() []helpSection {
 				{"F", "Toggle favorite"},
 				{"o", "Go To (artist/album/genre/source)"},
 				{"tab / shift+tab", "Next / previous view"},
+				{"alt+left / alt+right / alt+b / alt+f", "Previous / next view"},
 				{"R", "Reset track position"},
 				{"ctrl+r", "Rescan library"},
 				{"r", "Cycle repeat mode"},
