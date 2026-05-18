@@ -30,6 +30,58 @@ func TestRenderArtistsShowsNames(t *testing.T) {
 	}
 }
 
+func TestRenderArtistsShowsCounts(t *testing.T) {
+	v := View{
+		Level:        ArtistLevel,
+		Width:        80,
+		Artists:      []string{"Alice", "Bob", "Charlie"},
+		ArtistCounts: map[string]int{"Alice": 3, "Bob": 7, "Charlie": 1},
+	}
+	out := v.Render()
+	for _, want := range []string{"Alice", "Bob", "Charlie", "3", "7", "1"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q in output, got:\n%s", want, out)
+		}
+	}
+}
+
+func TestRenderArtistsCountDropsAtNarrowWidth(t *testing.T) {
+	v := View{
+		Level:        ArtistLevel,
+		Width:        10, // below MinLabelWithCount+1+CountColWidth (6+1+5=12)
+		Artists:      []string{"Beatles"},
+		ArtistCounts: map[string]int{"Beatles": 99},
+	}
+	out := v.Render()
+	if strings.Contains(out, "99") {
+		t.Errorf("expected count to drop at narrow width, got count visible in output:\n%s", out)
+	}
+	if !strings.Contains(out, "Beatles") {
+		t.Errorf("expected label to remain visible at narrow width, got:\n%s", out)
+	}
+}
+
+func TestRenderArtistsZeroCountHidden(t *testing.T) {
+	v := View{
+		Level:        ArtistLevel,
+		Width:        80,
+		Artists:      []string{"Alice", "Unknown"},
+		ArtistCounts: map[string]int{"Alice": 5, "Unknown": 0},
+	}
+	out := v.Render()
+	if !strings.Contains(out, "5") {
+		t.Errorf("expected Alice count 5 visible, got:\n%s", out)
+	}
+	// Verify no spurious "0" digit appears between row labels — we accept
+	// digits only when they belong to the count zone of a known count.
+	// Crude assertion: a "0" should not appear on the Unknown row.
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "Unknown") && strings.Contains(line, "0") {
+			t.Errorf("expected zero-count to render blank, got line: %q", line)
+		}
+	}
+}
+
 func TestRenderAlbumsShowsNames(t *testing.T) {
 	v := View{
 		Level:          AlbumLevel,

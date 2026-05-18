@@ -76,8 +76,9 @@ func TestQueueHalfPageNavigationUsesCtrlDAndCtrlU(t *testing.T) {
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
 	nm := next.(Model)
-	if nm.queue.cursor != 6 {
-		t.Fatalf("ctrl+d: expected cursor 6, got %d", nm.queue.cursor)
+	// visibleRows = height(14) - reserve(3) = 11; HalfPageDown = 11/2 = 5
+	if nm.queue.cursor != 5 {
+		t.Fatalf("ctrl+d: expected cursor 5, got %d", nm.queue.cursor)
 	}
 
 	next, _ = nm.Update(tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})

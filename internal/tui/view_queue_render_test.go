@@ -424,3 +424,153 @@ func TestQueueRenderFocusedWithFavoriteUsesAccentBackground(t *testing.T) {
 		t.Errorf("focused+fav row: title cell must use FavoriteAccent style; got: %q", rawLine)
 	}
 }
+
+// TestQueueRenderPlayedRowDimGlyph verifies that an entry before the
+// now-playing index renders with the played-tier ╵ left glyph and dim styling.
+func TestQueueRenderPlayedRowDimGlyph(t *testing.T) {
+	v := makeQueue(120, []QueueEntry{
+		{Title: "Past", Artist: "A", Hash: "aaa", DurationMs: 60_000},
+		{Title: "Now", Artist: "B", Hash: "bbb", DurationMs: 60_000},
+		{Title: "Next", Artist: "C", Hash: "ccc", DurationMs: 60_000},
+	})
+	v.cursor = 1
+	s := styles.NewStyles(true)
+	out := v.render(s, 1, PlaybackPlaying, nil, nil, nil)
+
+	var pastLine, nextLine string
+	for l := range strings.SplitSeq(out, "\n") {
+		stripped := ansi.Strip(l)
+		switch {
+		case strings.Contains(stripped, "Past"):
+			pastLine = l
+		case strings.Contains(stripped, "Next"):
+			nextLine = l
+		}
+	}
+	if pastLine == "" {
+		t.Fatal("played entry must appear in output")
+	}
+	if !strings.Contains(ansi.Strip(pastLine), "╵") {
+		t.Errorf("played row must contain ╵ glyph; got: %q", ansi.Strip(pastLine))
+	}
+	if nextLine != "" && strings.Contains(ansi.Strip(nextLine), "╵") {
+		t.Errorf("upcoming row must not contain ╵ glyph; got: %q", ansi.Strip(nextLine))
+	}
+
+	playedRef := s.PlayedRow.Render("REF")
+	if ansi.Strip(playedRef) == playedRef {
+		return
+	}
+	playedPrefix, _, _ := strings.Cut(playedRef, "REF")
+	if !strings.Contains(pastLine, playedPrefix) {
+		t.Errorf("played row must use PlayedRow style; got: %q", pastLine)
+	}
+}
+
+// TestQueueRenderUpcomingRowNotDimmed verifies that an entry after the
+// now-playing index keeps full-contrast styling (no PlayedRow override).
+func TestQueueRenderUpcomingRowNotDimmed(t *testing.T) {
+	v := makeQueue(120, []QueueEntry{
+		{Title: "Now", Artist: "A", Hash: "aaa", DurationMs: 60_000},
+		{Title: "Upcoming", Artist: "B", Hash: "bbb", DurationMs: 60_000},
+	})
+	v.cursor = 0
+	s := styles.NewStyles(true)
+	out := v.render(s, 0, PlaybackPlaying, nil, nil, nil)
+
+	var line string
+	for l := range strings.SplitSeq(out, "\n") {
+		if strings.Contains(ansi.Strip(l), "Upcoming") {
+			line = l
+			break
+		}
+	}
+	if line == "" {
+		t.Fatal("upcoming entry must appear in output")
+	}
+	if strings.Contains(ansi.Strip(line), "╵") {
+		t.Errorf("upcoming row must not contain ╵ glyph; got: %q", ansi.Strip(line))
+	}
+}
+
+// TestQueueRenderNoPlayedTierWhenIdle verifies that with no now-playing index
+// (-1), no rows are treated as played.
+func TestQueueRenderNoPlayedTierWhenIdle(t *testing.T) {
+	v := makeQueue(120, []QueueEntry{
+		{Title: "One", Artist: "A", Hash: "aaa", DurationMs: 60_000},
+		{Title: "Two", Artist: "B", Hash: "bbb", DurationMs: 60_000},
+	})
+	out := v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil)
+	if strings.Contains(ansi.Strip(out), "╵") {
+		t.Errorf("no rows should be dimmed when idle; got: %q", ansi.Strip(out))
+	}
+}
+
+// TestQueueRenderSelectedPlayedShowsSelectionMarker verifies that a row which
+// is both selected and in the played tier keeps the selection "●" marker
+// (selection precedence wins over the played ╵ glyph).
+func TestQueueRenderSelectedPlayedShowsSelectionMarker(t *testing.T) {
+	v := makeQueue(120, []QueueEntry{
+		{Title: "PastSel", Artist: "A", Hash: "aaa", DurationMs: 60_000, Selected: true},
+		{Title: "Now", Artist: "B", Hash: "bbb", DurationMs: 60_000},
+	})
+	v.cursor = 1
+	s := styles.NewStyles(true)
+	out := v.render(s, 1, PlaybackPlaying, nil, nil, nil)
+
+	var line string
+	for l := range strings.SplitSeq(out, "\n") {
+		if strings.Contains(ansi.Strip(l), "PastSel") {
+			line = l
+			break
+		}
+	}
+	if line == "" {
+		t.Fatal("selected played entry must appear in output")
+	}
+	stripped := ansi.Strip(line)
+	if !strings.Contains(stripped, "●") {
+		t.Errorf("selected+played row must keep ● marker; got: %q", stripped)
+	}
+	if strings.Contains(stripped, "╵") {
+		t.Errorf("selected+played row must not show ╵ marker (selection wins); got: %q", stripped)
+	}
+}
+
+// TestQueueRenderEndOfQueueSentinel verifies that the "— end of queue —"
+// sentinel line appears when the last entry is in the viewport.
+func TestQueueRenderEndOfQueueSentinel(t *testing.T) {
+	v := makeQueue(120, []QueueEntry{
+		{Title: "First", Artist: "A", Hash: "aaa", DurationMs: 60_000},
+		{Title: "Last", Artist: "B", Hash: "bbb", DurationMs: 60_000},
+	})
+	out := v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil)
+	if !strings.Contains(ansi.Strip(out), "— end of queue —") {
+		t.Errorf("sentinel must appear when last entry is on screen; got: %q", ansi.Strip(out))
+	}
+}
+
+// TestQueueRenderEndOfQueueSentinelHiddenWhenScrolledAbove verifies that the
+// sentinel does NOT appear when the viewport does not reach the last entry.
+func TestQueueRenderEndOfQueueSentinelHiddenWhenScrolledAbove(t *testing.T) {
+	entries := make([]QueueEntry, 30)
+	for i := range entries {
+		entries[i] = QueueEntry{Title: "T", Artist: "A", Hash: "h", DurationMs: 60_000}
+	}
+	v := QueueView{entries: entries, width: 120, height: 8}
+	v.scrollOffset = 0
+	out := v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil)
+	if strings.Contains(ansi.Strip(out), "— end of queue —") {
+		t.Errorf("sentinel must be hidden when last entry is below viewport; got: %q", ansi.Strip(out))
+	}
+}
+
+// TestQueueRenderEndOfQueueSentinelHiddenWhenEmpty verifies that the sentinel
+// is not appended to the empty-queue card.
+func TestQueueRenderEndOfQueueSentinelHiddenWhenEmpty(t *testing.T) {
+	v := QueueView{}
+	out := v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil)
+	if strings.Contains(ansi.Strip(out), "— end of queue —") {
+		t.Errorf("sentinel must not appear in empty-queue card; got: %q", ansi.Strip(out))
+	}
+}

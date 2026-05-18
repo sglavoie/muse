@@ -235,10 +235,10 @@ func TestArtistsClampCursor_TrackLevelWithFilter(t *testing.T) {
 	}
 }
 
-// TestArtistsGoToBottomWithSortAccountsForReserve verifies that GoToBottom
-// calculates the correct scroll offset when a sort is active. The sort
-// indicator line takes one extra row, so visibleRows should be one fewer.
-func TestArtistsGoToBottomWithSortAccountsForReserve(t *testing.T) {
+// TestArtistsGoToBottomScrollOffsetIndependentOfSort verifies that GoToBottom
+// produces the same scrollOffset regardless of sort state, because the state
+// strip absorbs the sort chunk without reserving an extra row.
+func TestArtistsGoToBottomScrollOffsetIndependentOfSort(t *testing.T) {
 	artists := make([]string, 20)
 	for i := range artists {
 		artists[i] = fmt.Sprintf("Artist_%02d", i)
@@ -262,7 +262,7 @@ func TestArtistsGoToBottomWithSortAccountsForReserve(t *testing.T) {
 	if v2.cursor != 19 {
 		t.Fatalf("GoToBottom with sort: expected cursor=19, got %d", v2.cursor)
 	}
-	if v2.scrollOffset <= scrollNoSort {
-		t.Errorf("GoToBottom with sort: expected scrollOffset > %d (no-sort), got %d", scrollNoSort, v2.scrollOffset)
+	if v2.scrollOffset != scrollNoSort {
+		t.Errorf("GoToBottom with sort: expected scrollOffset = %d (strip absorbs sort), got %d", scrollNoSort, v2.scrollOffset)
 	}
 }

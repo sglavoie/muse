@@ -6,6 +6,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 
+	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -15,8 +16,9 @@ func (v View) renderGenres() string {
 	if len(v.Genres) == 0 {
 		return v.Styles.Dim.Render("No genres yet — add music to your library")
 	}
+	stripLine := v.renderStateStrip(len(v.Genres), len(items))
 	if len(items) == 0 {
-		return v.topFilterSeparator() + "(no matches)"
+		return joinStrip(stripLine, "(no matches)")
 	}
 
 	maxRows := v.visibleRows()
@@ -26,26 +28,51 @@ func (v View) renderGenres() string {
 	lines := make([]string, end-start)
 	for i, name := range items[start:end] {
 		absIdx := start + i
-		display := text.Pad(name, v.Width)
 		isOdd := absIdx%2 == 1
-		if absIdx == v.Cursor {
-			display = v.Styles.Accent.Render(display)
-		} else if isOdd {
-			display = lipgloss.NewStyle().Background(v.Styles.ZebraBg).Render(display)
+		labelW, countStr := rowLabelWidthAndCount(v.Width, v.GenreCounts, name)
+		label := text.Pad(name, labelW)
+		switch {
+		case absIdx == v.Cursor:
+			a := v.Styles.Accent
+			lines[i] = a.Render(label) + a.Render(countStr)
+		case isOdd:
+			labelStyled := lipgloss.NewStyle().Background(v.Styles.ZebraBg).Render(label)
+			lines[i] = labelStyled + renderCountZone(v.Styles, countStr, true)
+		default:
+			lines[i] = label + renderCountZone(v.Styles, countStr, false)
 		}
-		lines[i] = display
 	}
-	return v.topFilterSeparator() + strings.Join(lines, "\n")
+	return joinStrip(stripLine, strings.Join(lines, "\n"))
+}
+
+// rowLabelWidthAndCount computes the label-zone width and pre-formatted count
+// suffix for the genres list row. See artists.rowLabelWidthAndCount for
+// shared semantics.
+func rowLabelWidthAndCount(width int, counts map[string]int, name string) (int, string) {
+	if counts == nil || width < text.MinLabelWithCount+1+text.CountColWidth {
+		return width, ""
+	}
+	labelW := width - 1 - text.CountColWidth
+	return labelW, text.FormatCountSuffix(counts[name])
+}
+
+// renderCountZone wraps the count suffix in TextTertiary with optional zebra
+// background. Returns "" when countStr is empty.
+func renderCountZone(s styles.Styles, countStr string, isOdd bool) string {
+	if countStr == "" {
+		return ""
+	}
+	return styles.WithZebraBg(s.TextTertiary, s.ZebraBg, isOdd).Render(countStr)
 }
 
 func (v View) renderArtists() string {
-	heading := v.Styles.Heading.Render(v.SelectedGenre)
 	items := v.EffectiveArtists()
 	if len(v.Artists) == 0 {
-		return heading + "\n\n" + v.Styles.Dim.Render("No artists found for this genre")
+		return v.Styles.Dim.Render("No artists found for this genre")
 	}
+	stripLine := v.renderStateStrip(len(v.Artists), len(items))
 	if len(items) == 0 {
-		return heading + v.filterSeparator() + "(no matches)"
+		return joinStrip(stripLine, "(no matches)")
 	}
 
 	maxRows := v.visibleRows()
@@ -70,21 +97,17 @@ func (v View) renderArtists() string {
 		}
 		lines[i] = display
 	}
-	return heading + v.filterSeparator() + strings.Join(lines, "\n")
+	return joinStrip(stripLine, strings.Join(lines, "\n"))
 }
 
 func (v View) renderTracks() string {
-	heading := v.SelectedGenre
-	if v.SelectedArtist != "" {
-		heading += " — " + v.SelectedArtist
-	}
-	styledHeading := v.Styles.Heading.Render(heading)
 	items := v.EffectiveTracks()
 	if len(v.Tracks) == 0 {
-		return styledHeading + "\n\n" + v.Styles.Dim.Render("No tracks found for this artist")
+		return v.Styles.Dim.Render("No tracks found for this artist")
 	}
+	stripLine := v.renderStateStrip(len(v.Tracks), len(items))
 	if len(items) == 0 {
-		return styledHeading + v.filterSeparator() + "(no matches)"
+		return joinStrip(stripLine, "(no matches)")
 	}
 
 	cols := ComputeTrack(v.Width)
@@ -169,16 +192,63 @@ func (v View) renderTracks() string {
 			}
 		}
 	}
-	return styledHeading + v.filterSeparator() + header + "\n" + strings.Join(lines, "\n")
+	rest := header + "\n" + strings.Join(lines, "\n")
+	return joinStrip(stripLine, rest)
 }
 
-// filterSeparator returns the line between the heading and the item list.
-func (v View) filterSeparator() string {
-	return text.BuildFilterSeparator(v.SortIndicator, v.FilterActive, v.FilterText, v.FilterView, v.Styles.Dim.Render(v.FilterHint), v.Width, true)
+// renderStateStrip builds the unified single-line state strip carrying the
+// breadcrumb, sort, filter, counts, and an "esc ←" hint at drill-down
+// levels. total is the full item count before filtering; filtered is the
+// count after filtering (equal to total when no filter is active).
+func (v View) renderStateStrip(total, filtered int) string {
+	root := v.StripViewLabel
+	if root == "" {
+		root = "Genres"
+	}
+	breadcrumb := []string{root}
+	switch v.Level {
+	case ArtistLevel:
+		if v.SelectedGenre != "" {
+			breadcrumb = append(breadcrumb, v.SelectedGenre)
+		}
+	case TrackLevel:
+		if v.SelectedGenre != "" {
+			breadcrumb = append(breadcrumb, v.SelectedGenre)
+		}
+		if v.SelectedArtist != "" {
+			breadcrumb = append(breadcrumb, v.SelectedArtist)
+		}
+	}
+	hint := ""
+	if len(breadcrumb) > 1 {
+		hint = "esc ←"
+	}
+	sortChunk := strip.SortChunk{Label: v.StripSortLabel, Indicator: v.StripSortIndicator}
+	f := strip.FilterChunk{Active: v.FilterActive, Text: v.FilterText}
+	if v.FilterActive {
+		if v.FilterText == "" && v.FilterHint != "" {
+			f.Hint = v.Styles.Dim.Render(v.FilterHint)
+		} else {
+			f.InputView = v.FilterView
+		}
+	}
+	counts := strip.CountsChunk{
+		Filtered:  filtered,
+		Total:     total,
+		Filtering: v.FilterText != "",
+	}
+	var sel *strip.SelectionChunk
+	if n := len(v.SelectedHashes); n > 0 {
+		sel = &strip.SelectionChunk{Count: n}
+	}
+	return strip.Render(v.Width, breadcrumb, sortChunk, f, counts, sel, hint, v.Styles)
 }
 
-// topFilterSeparator is like filterSeparator but without a leading newline,
-// for use in top-level views where the title bar provides the spacing.
-func (v View) topFilterSeparator() string {
-	return text.BuildFilterSeparator(v.SortIndicator, v.FilterActive, v.FilterText, v.FilterView, v.Styles.Dim.Render(v.FilterHint), v.Width, false)
+// joinStrip joins a top-level strip line with the rendered body, skipping the
+// strip entirely when it is empty (zero-width fallback).
+func joinStrip(stripLine, body string) string {
+	if stripLine == "" {
+		return body
+	}
+	return stripLine + "\n" + body
 }

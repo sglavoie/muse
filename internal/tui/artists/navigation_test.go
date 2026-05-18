@@ -135,8 +135,9 @@ func TestFullPageDownMovesByVisibleRows(t *testing.T) {
 		Artists: make([]string, 20),
 	}
 	v = v.FullPageDown()
-	if v.Cursor != 13 {
-		t.Errorf("FullPageDown: expected Cursor=13, got %d", v.Cursor)
+	// visibleRows = height(13) - reserve(1, strip) = 12
+	if v.Cursor != 12 {
+		t.Errorf("FullPageDown: expected Cursor=12, got %d", v.Cursor)
 	}
 }
 

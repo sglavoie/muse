@@ -120,8 +120,8 @@ func TestAlbumsFilterRenderOutput(t *testing.T) {
 	m = typeText(m, "gam")
 
 	v := m.View()
-	if !strings.Contains(v.Content, "Filter: ") {
-		t.Errorf("expected filter bar in view output, got:\n%s", v.Content)
+	if !strings.Contains(v.Content, `filter "`) {
+		t.Errorf("expected filter chunk in view output, got:\n%s", v.Content)
 	}
 	if !strings.Contains(v.Content, "Gamma") {
 		t.Error("expected 'Gamma' in filtered view output")

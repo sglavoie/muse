@@ -57,6 +57,9 @@ log_level = %q
 # Show the context-aware footer hint strip above the status bar (true/false).
 # show_footer_hints = true
 
+# Auto-scroll the now-playing track into view in the Queue panel (true/false).
+# queue_follow_now_playing = true
+
 # Recommendation mix thresholds.
 # [mixes]
 # rediscover_min_plays = 10
@@ -89,6 +92,7 @@ const (
 	defaultStereoWideEnabled          = false
 	defaultStereoWideAmount           = 10 // 1.0x = passthrough
 	defaultShowFooterHints            = true
+	defaultQueueFollowNowPlaying      = true
 
 	defaultMixRediscoverMinPlays    = 10
 	defaultMixRediscoverAgeDays     = 90
@@ -156,6 +160,7 @@ type Config struct {
 	StereoWideEnabled          bool             `toml:"stereo_wide_enabled"`
 	StereoWideAmount           int              `toml:"stereo_wide_amount"`
 	ShowFooterHints            bool             `toml:"show_footer_hints"`
+	QueueFollowNowPlaying      bool             `toml:"queue_follow_now_playing"`
 	Mixes                      MixesConfig      `toml:"mixes"`
 }
 
@@ -190,5 +195,6 @@ type rawConfig struct {
 	StereoWideEnabled          *bool            `toml:"stereo_wide_enabled"`
 	StereoWideAmount           *int             `toml:"stereo_wide_amount"`
 	ShowFooterHints            *bool            `toml:"show_footer_hints"`
+	QueueFollowNowPlaying      *bool            `toml:"queue_follow_now_playing"`
 	Mixes                      rawMixesConfig   `toml:"mixes"`
 }

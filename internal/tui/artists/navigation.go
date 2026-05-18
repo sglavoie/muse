@@ -51,22 +51,18 @@ func (v View) EffectiveAlbums() []string { return FilterStrings(v.Albums, v.Filt
 func (v View) EffectiveTracks() []library.Track { return FilterTracks(v.Tracks, v.FilterText) }
 
 // visibleRows returns the maximum number of rows that fit on screen.
-// The reserve depends on the current level: top-level artist list has no
-// chrome (0), while drill-down levels have a heading + separator line (2).
-// An active or committed filter adds 1 line at the top level.
-// A sort indicator adds 1 line at any level.
+// Reserve accounts for the state strip (which now carries the breadcrumb
+// in place of a separate heading) and any column header:
+//   - ArtistLevel: 1 (strip)
+//   - AlbumLevel:  1 (strip)
+//   - TrackLevel:  2 (strip + column header)
 func (v View) visibleRows() int {
 	var reserve int
 	switch v.Level {
-	case ArtistLevel:
-		if v.FilterActive || v.FilterText != "" {
-			reserve = 1
-		}
+	case TrackLevel:
+		reserve = 2
 	default:
-		reserve = 3
-	}
-	if v.SortIndicator != "" {
-		reserve++
+		reserve = 1
 	}
 	return layout.VisibleRows(v.Height, reserve)
 }

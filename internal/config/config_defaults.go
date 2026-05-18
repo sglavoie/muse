@@ -41,6 +41,7 @@ func defaults() Config {
 		StereoWideEnabled:          defaultStereoWideEnabled,
 		StereoWideAmount:           defaultStereoWideAmount,
 		ShowFooterHints:            defaultShowFooterHints,
+		QueueFollowNowPlaying:      defaultQueueFollowNowPlaying,
 		Mixes: MixesConfig{
 			RediscoverMinPlays:     defaultMixRediscoverMinPlays,
 			RediscoverAgeDays:      defaultMixRediscoverAgeDays,

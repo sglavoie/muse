@@ -6,24 +6,18 @@ import (
 )
 
 // visibleRows returns the maximum number of rows that fit on screen.
-// The reserve depends on the current level:
-//   - GenreLevel: 0 (or 1 if filter active)
-//   - ArtistLevel: 3 (heading + separator)
-//   - TrackLevel: 3 (heading + separator + column header)
-//
-// A sort indicator adds 1 line at any level.
+// Reserve accounts for the state strip (which now carries the breadcrumb
+// in place of a separate heading) and any column header:
+//   - GenreLevel:  1 (strip)
+//   - ArtistLevel: 1 (strip)
+//   - TrackLevel:  2 (strip + column header)
 func (v View) visibleRows() int {
 	var reserve int
 	switch v.Level {
-	case GenreLevel:
-		if v.FilterActive || v.FilterText != "" {
-			reserve = 1
-		}
+	case TrackLevel:
+		reserve = 2
 	default:
-		reserve = 3
-	}
-	if v.SortIndicator != "" {
-		reserve++
+		reserve = 1
 	}
 	return layout.VisibleRows(v.Height, reserve)
 }

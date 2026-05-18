@@ -110,16 +110,16 @@ func TestCursorRowHighlighted(t *testing.T) {
 	v.Styles.Accent = s
 	got := v.Render()
 	lines := strings.Split(got, "\n")
-	// Track rows begin after the header row (index 1).
-	if len(lines) < 2 {
-		t.Fatalf("expected at least 2 lines, got %d", len(lines))
+	// lines[0]=state strip, lines[1]=column header, track rows start at 2.
+	if len(lines) < 3 {
+		t.Fatalf("expected at least 3 lines, got %d", len(lines))
 	}
-	focusedRow := lines[1]
+	focusedRow := lines[2]
 	if ansi.Strip(focusedRow) == focusedRow {
 		t.Errorf("focused row should contain ANSI styling, got: %q", focusedRow)
 	}
 	// Non-focused rows must not carry styling.
-	for _, line := range lines[2:] {
+	for _, line := range lines[3:] {
 		if ansi.Strip(line) != line {
 			t.Errorf("non-focused row should not contain ANSI styling, got: %q", line)
 		}
@@ -239,8 +239,9 @@ func TestHighlightedPositionsWithinArtistColumn(t *testing.T) {
 
 // TestDuplicateArtistDimmedRegardlessOfSortField verifies that consecutive
 // tracks sharing an artist receive TextTertiary styling on the second
-// occurrence regardless of which column is sorted (previously only triggered
-// when SortField == 1).
+// occurrence regardless of which column is sorted, and that the repeated
+// cell collapses to a "·" continuation glyph rather than the literal artist
+// name.
 func TestDuplicateArtistDimmedRegardlessOfSortField(t *testing.T) {
 	tracks := []musiclib.Track{
 		{Artist: "Alice", Title: "AAA", Album: "Debut", Duration: 185},
@@ -253,18 +254,80 @@ func TestDuplicateArtistDimmedRegardlessOfSortField(t *testing.T) {
 	v := View{Index: idx, Width: 80, Height: 24, Styles: s, SortField: 2}
 	got := v.Render()
 	lines := strings.Split(got, "\n")
-	if len(lines) < 3 {
-		t.Fatalf("want ≥3 lines (header + 2 tracks), got %d", len(lines))
+	if len(lines) < 4 {
+		t.Fatalf("want ≥4 lines (strip + header + 2 tracks), got %d", len(lines))
 	}
-	row2 := lines[2] // absIdx=1 (isOdd=true), duplicate Alice
-	// Duplicate artist must be styled with TextTertiary + ZebraBg.
-	styled := styles.WithZebraBg(s.TextTertiary, s.ZebraBg, true).Render("Alice")
-	if styled == "Alice" {
+	row2 := lines[3] // absIdx=1 (isOdd=true), duplicate Alice
+	// Duplicate artist cell must be styled with TextTertiary + ZebraBg.
+	styled := styles.WithZebraBg(s.TextTertiary, s.ZebraBg, true).Render("·")
+	if styled == "·" {
 		t.Skip("lipgloss produced no ANSI output in this environment")
 	}
-	ansiCode := strings.SplitN(styled, "Alice", 2)[0]
+	ansiCode := strings.SplitN(styled, "·", 2)[0]
 	if !strings.Contains(row2, ansiCode) {
 		t.Errorf("expected TextTertiary+ZebraBg ANSI for duplicate artist; row: %q", row2)
+	}
+	// Repeated cell must collapse to the continuation glyph, not the raw name.
+	if strings.Contains(ansi.Strip(row2), "Alice") {
+		t.Errorf("duplicate artist row should not render 'Alice' literal; row: %q", row2)
+	}
+	if !strings.Contains(ansi.Strip(row2), "·") {
+		t.Errorf("duplicate artist row should contain continuation glyph '·'; row: %q", row2)
+	}
+}
+
+// TestDuplicateAlbumDimmed verifies that consecutive tracks sharing an
+// album collapse the repeated album cell into a continuation glyph, mirroring
+// the artist-dim behaviour.
+func TestDuplicateAlbumDimmed(t *testing.T) {
+	tracks := []musiclib.Track{
+		{Artist: "Alice", Title: "AAA", Album: "Debut", Duration: 185},
+		{Artist: "Bob", Title: "BBB", Album: "Debut", Duration: 200},
+	}
+	idx := buildIndex(tracks)
+	s := styles.NewStyles(true)
+	v := View{Index: idx, Width: 80, Height: 24, Styles: s}
+	got := v.Render()
+	lines := strings.Split(got, "\n")
+	if len(lines) < 4 {
+		t.Fatalf("want ≥4 lines (strip + header + 2 tracks), got %d", len(lines))
+	}
+	row2 := ansi.Strip(lines[3])
+	if strings.Contains(row2, "Debut") {
+		t.Errorf("duplicate album row should not render 'Debut' literal; row: %q", row2)
+	}
+	if !strings.Contains(row2, "·") {
+		t.Errorf("duplicate album row should contain continuation glyph '·'; row: %q", row2)
+	}
+}
+
+// TestDimmingDisabledWhenFilterActive verifies that repeated-cell dimming is
+// suspended while a filter query is active, since filtered results may be
+// non-contiguous and dimming would be misleading.
+func TestDimmingDisabledWhenFilterActive(t *testing.T) {
+	tracks := []musiclib.Track{
+		{Artist: "Alice", Title: "AAA", Album: "Debut", Duration: 185},
+		{Artist: "Alice", Title: "BBB", Album: "Debut", Duration: 200},
+	}
+	idx := buildIndex(tracks)
+	s := styles.NewStyles(true)
+	v := View{
+		Index:  idx,
+		Width:  80,
+		Height: 24,
+		Styles: s,
+		Fuzzy:  musiclib.FakeFuzzySearcher{},
+	}
+	v = v.ActivateFilter()
+	v = v.AppendFilterChar('A')
+	got := v.Render()
+	plain := ansi.Strip(got)
+	// Both rows should display the full Alice value (no continuation glyph in
+	// the artist column) when filter text is set.
+	occurrences := strings.Count(plain, "Alice")
+	if occurrences < 2 {
+		t.Errorf("filtered render should keep 'Alice' on both rows (got %d occurrences); render:\n%s",
+			occurrences, plain)
 	}
 }
 

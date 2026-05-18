@@ -44,3 +44,7 @@ type jumpToNowPlayingMsg struct{}
 // toggleFooterHintsMsg flips the runtime state of the context-aware footer
 // hint strip and persists the new value to the config.
 type toggleFooterHintsMsg struct{}
+
+// toggleQueueFollowMsg flips the runtime state of Queue auto-scroll
+// (follow now-playing) and persists the new value to the config.
+type toggleQueueFollowMsg struct{}

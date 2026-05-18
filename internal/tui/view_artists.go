@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"fmt"
-
 	tea "charm.land/bubbletea/v2"
 
 	musiclib "github.com/sglavoie/muse/internal/library"
@@ -24,6 +22,12 @@ type ArtistsView struct {
 	artists []string
 	albums  []string
 	tracks  []musiclib.Track
+
+	// artistCounts is populated alongside artists in deriveCurrentBrowseData
+	// and rebuild paths; used to render the right-aligned count column at the
+	// artist list level. Independent of sort/filter — counts reflect the full
+	// catalog.
+	artistCounts map[string]int
 
 	selectedArtist string
 	selectedAlbum  string
@@ -67,10 +71,6 @@ func (v ArtistsView) recomputeArtistsSort() ArtistsView {
 }
 
 func (v ArtistsView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
-	var sortInd string
-	if v.sortState.Field != SortDefault {
-		sortInd = fmt.Sprintf("Sort: %s %s", SortFieldLabel(v.sortState.Field), SortDirIndicator(v.sortState.Dir))
-	}
 	av := arttui.View{
 		Level:              v.level,
 		Cursor:             v.cursor,
@@ -78,6 +78,7 @@ func (v ArtistsView) render(s styles.Styles, favHashes, favArtists, favAlbums ma
 		Artists:            v.artists,
 		Albums:             v.albums,
 		Tracks:             v.tracks,
+		ArtistCounts:       v.artistCounts,
 		SelectedArtist:     v.selectedArtist,
 		SelectedAlbum:      v.selectedAlbum,
 		ArtistCursor:       v.artistCursor,
@@ -96,7 +97,7 @@ func (v ArtistsView) render(s styles.Styles, favHashes, favArtists, favAlbums ma
 			}
 			return ""
 		}(),
-		SortIndicator:   sortInd,
+		StripViewLabel:  "Artists",
 		FavoriteHashes:  favHashes,
 		FavoriteArtists: favArtists,
 		FavoriteAlbums:  favAlbums,
@@ -104,15 +105,15 @@ func (v ArtistsView) render(s styles.Styles, favHashes, favArtists, favAlbums ma
 		NowPlayingHash:  nowPlayingHash,
 		NowPlayingIcon:  nowPlayingIcon,
 	}
+	if v.sortState.Field != SortDefault {
+		av.StripSortLabel = SortFieldLabel(v.sortState.Field)
+		av.StripSortIndicator = SortDirIndicator(v.sortState.Dir)
+	}
 	return av.Render()
 }
 
 // HandleAction executes a pre-resolved artists action dispatched by root.Update.
 func (v ArtistsView) HandleAction(a action) ArtistsView {
-	var sortInd string
-	if v.sortState.Field != SortDefault {
-		sortInd = "active" // non-empty triggers reserve in visibleRows
-	}
 	view := arttui.View{
 		Level:              v.level,
 		Cursor:             v.cursor,
@@ -127,7 +128,6 @@ func (v ArtistsView) HandleAction(a action) ArtistsView {
 		Height:             v.height,
 		FilterActive:       v.filter.Active,
 		FilterText:         v.filter.Text,
-		SortIndicator:      sortInd,
 	}
 	switch a {
 	case actionCursorUp:

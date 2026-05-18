@@ -131,10 +131,18 @@ func (m Model) View() tea.View {
 	statusBar := m.renderStatusBar()
 	// Render the context-aware footer hint strip above the status bar when
 	// enabled, the active view is a primary view (no overlay), and the
-	// context has registered primaries.
+	// context has registered primaries. The hint set is selection-aware:
+	// visual mode wins, then non-empty selection, then default.
 	footerHint := ""
 	if !m.hasActiveOverlay() && m.showFooterHints {
-		footerHint = RenderFooterHints(m.termWidth, m.activeViewContext(), m.registry, *m.styles)
+		mode := HintModeDefault
+		switch {
+		case m.visual.active:
+			mode = HintModeVisual
+		case m.activeViewSelectionCount() > 0:
+			mode = HintModeSelection
+		}
+		footerHint = RenderFooterHints(m.termWidth, m.activeViewContext(), mode, m.registry, *m.styles)
 	}
 	bodyLines := strings.Count(body, "\n") + 1
 	confirmExtra := 0
@@ -361,29 +369,40 @@ func (m Model) renderStatusBar() string {
 	sb.totalSecs = m.playback.totalSecs
 	sb.yankCount = len(m.yankBuffer)
 	sb.yankIsCut = m.yankIsCut
-	switch m.activeView {
-	case viewLibrary:
-		sb.selectionCount = len(m.library.selectedHashes)
-	case viewQueue:
-		sb.selectionCount = len(m.queue.selectedHashes())
-	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			sb.selectionCount = len(m.browse.artists.selectedHashes)
-		case BrowseModeAlbums:
-			sb.selectionCount = len(m.browse.albums.selectedHashes)
-		case BrowseModeGenres:
-			sb.selectionCount = len(m.browse.genres.selectedHashes)
-		}
-	case viewFavorites:
-		sb.selectionCount = len(m.favorites.selectedItems)
-	}
+	sb.selectionCount = m.activeViewSelectionCount()
 	if m.undo.slot.action != nil {
 		sb.undoExpiresAt = m.undo.slot.expiresAt
 	}
 	sb.bucketLabel = m.focusedBucketLabel()
 	sb.longOp = m.longOp
 	return sb.render(m.termWidth, *m.styles)
+}
+
+// activeViewSelectionCount returns the bulk-selection size for the active
+// view. Used by both the status bar (right-edge "N sel" indicator) and the
+// state strip (◉ N selected chip) so they share a single source of truth.
+// Views without a bulk-selection concept (e.g. Playlists, Tags, Mixes)
+// return 0 even when underlying selection maps are populated, mirroring
+// the existing status-bar behavior.
+func (m Model) activeViewSelectionCount() int {
+	switch m.activeView {
+	case viewLibrary:
+		return len(m.library.selectedHashes)
+	case viewQueue:
+		return len(m.queue.selectedHashes())
+	case viewBrowse:
+		switch m.browse.mode {
+		case BrowseModeArtists:
+			return len(m.browse.artists.selectedHashes)
+		case BrowseModeAlbums:
+			return len(m.browse.albums.selectedHashes)
+		case BrowseModeGenres:
+			return len(m.browse.genres.selectedHashes)
+		}
+	case viewFavorites:
+		return len(m.favorites.selectedItems)
+	}
+	return 0
 }
 
 // focusedBucketLabel returns the bucket label for the focused row in the

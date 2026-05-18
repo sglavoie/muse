@@ -104,6 +104,15 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		},
 	})
 
+	cmds = append(cmds, PaletteCommand{
+		ID:       "queue.toggle.follow",
+		Name:     "Toggle queue follow",
+		Category: "mode",
+		Exec: func() tea.Cmd {
+			return func() tea.Msg { return toggleQueueFollowMsg{} }
+		},
+	})
+
 	cmds = append(cmds, configTogglePalette("audio.toggle.normalize", "mode", "Toggle volume normalization", toggleNormalize))
 	cmds = append(cmds, configTogglePalette("audio.toggle.eq", "mode", "Toggle equalizer", toggleEQ))
 	cmds = append(cmds, configTogglePalette("audio.toggle.stereo", "mode", "Toggle stereo widening", toggleStereoWide))

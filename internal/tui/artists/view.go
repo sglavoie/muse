@@ -44,6 +44,10 @@ type View struct {
 	Albums  []string
 	Tracks  []library.Track
 
+	// ArtistCounts maps each artist name to its track count for the right-aligned
+	// count column at ArtistLevel. Optional — when nil the count column is omitted.
+	ArtistCounts map[string]int
+
 	SelectedArtist string
 	SelectedAlbum  string
 
@@ -62,7 +66,10 @@ type View struct {
 	FilterView   string // pre-rendered textinput view for active filter display
 	FilterHint   string // shown instead of cursor when filter is active and empty
 
-	SortIndicator   string // e.g. "Sort: Name ▲" — shown when non-empty
+	StripViewLabel     string // label rendered in the state strip; defaults to "Artists"
+	StripSortLabel     string // sort field label for the strip; empty when sort inactive
+	StripSortIndicator string // sort direction arrow for the strip; "▲" or "▼"
+
 	FavoriteHashes  map[string]struct{}
 	FavoriteArtists map[string]struct{}
 	FavoriteAlbums  map[string]struct{}

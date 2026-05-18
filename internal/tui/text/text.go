@@ -104,6 +104,69 @@ func FavPrefix(s string, maxWidth int, isFav bool) string {
 	return "★ " + Pad(s, maxWidth-2)
 }
 
+// CountColWidth is the fixed display width reserved for the right-aligned
+// count zone in Browse views. Five digits covers libraries up to 99,999
+// tracks per artist/album/genre — comfortably above any realistic value.
+const CountColWidth = 5
+
+// MinLabelWithCount is the smallest label-zone width that still feels usable
+// next to a count column. Below this threshold (label + space + count zone),
+// the count is dropped so the label keeps its full width.
+const MinLabelWithCount = 6
+
+// FormatCountSuffix returns the trailing count zone for a Browse list row:
+// one leading space, followed by the count right-aligned in CountColWidth.
+// When count <= 0 the digit area is rendered as blank spaces (no "0") so
+// missing-count rows visually omit the value while still occupying the
+// column width. The returned string has exactly CountColWidth+1 display
+// columns.
+func FormatCountSuffix(count int) string {
+	if count <= 0 {
+		return " " + strings.Repeat(" ", CountColWidth)
+	}
+	return " " + PadLeft(strconv.Itoa(count), CountColWidth)
+}
+
+// RightPadWithCount shapes a Browse row with a right-aligned count.
+// It returns the label portion padded to fit, and the trailing count portion
+// so callers can dim-style the count separately from the label before
+// composing the row.
+//
+// When count <= 0, the count zone is blank-padded (no "0" digit). When width
+// is too narrow to host both a usable label and the count zone, the count
+// drops out entirely (label is padded to the full width and countPart is "").
+// Width must equal the total row width including any future count column.
+func RightPadWithCount(label string, count int, width int) (string, string) {
+	if width <= 0 {
+		return "", ""
+	}
+	if width < MinLabelWithCount+1+CountColWidth {
+		return Pad(label, width), ""
+	}
+	labelWidth := width - 1 - CountColWidth
+	return Pad(label, labelWidth), FormatCountSuffix(count)
+}
+
+// DimRepeat returns a continuation marker when value repeats from the
+// previous row, or value padded to width otherwise. A repeated cell becomes
+// a "·" middle-dot glyph followed by spaces filling the column, signalling
+// visual chunking when consecutive rows share metadata. The returned string
+// has exactly width display columns; callers apply a dim style to repeated
+// cells. Returns "" when width <= 0; treats an empty prev as no previous row
+// so the first row of a run always renders as its full value.
+func DimRepeat(value, prev string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	if prev == "" || value != prev {
+		return Pad(value, width)
+	}
+	if width == 1 {
+		return "·"
+	}
+	return "·" + strings.Repeat(" ", width-1)
+}
+
 // FormatTrackPosSimple returns the display string for a track's position column
 // when all visible tracks are single-disc (no disc prefix needed).
 func FormatTrackPosSimple(trackNum, fallback int) string {

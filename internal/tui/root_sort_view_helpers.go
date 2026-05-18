@@ -281,10 +281,11 @@ func playlistsVisibleReserve(v PlaylistsView) int {
 	return reserve
 }
 
-// drilldownVisibleReserve computes the header-row reserve shared by the
-// artists, albums, genres, and tags drill-down views.  At the top level the
-// reserve is 0, rising to 1 when a filter is active; at any drill-down level
-// it is 3 (heading + separator + column header).  An active sort adds 1 more.
+// drilldownVisibleReserve computes the header-row reserve for the tags
+// drill-down view (which still uses the legacy 2-line header). At the top
+// level the reserve is 0, rising to 1 when a filter is active; at any
+// drill-down level it is 3 (heading + separator + column header). An active
+// sort adds 1 more.
 func drilldownVisibleReserve(isTopLevel, filterActive, hasSort bool) int {
 	reserve := 3
 	if isTopLevel {
@@ -301,24 +302,28 @@ func drilldownVisibleReserve(isTopLevel, filterActive, hasSort bool) int {
 
 // artistsVisibleReserve returns the line reserve for the artists view's visibleRows.
 // The reserve must match artists.View.visibleRows() so that adjustScroll and
-// the cursor-movement helpers agree on how many rows are visible.
+// the cursor-movement helpers agree on how many rows are visible. The state
+// strip absorbs filter and sort indicators, so reserve depends on level only.
 func artistsVisibleReserve(v ArtistsView) int {
-	return drilldownVisibleReserve(
-		v.level == arttui.ArtistLevel,
-		v.filter.Active || v.filter.Text != "",
-		v.sortState.Field != SortDefault,
-	)
+	switch v.level {
+	case arttui.AlbumLevel:
+		return 2 // heading + strip
+	case arttui.TrackLevel:
+		return 3 // heading + strip + column header
+	default:
+		return 1 // strip
+	}
 }
 
 // albumsVisibleReserve returns the line reserve for the albums view's visibleRows.
 // The reserve must match albums.View.visibleRows() so that adjustScroll and
-// the cursor-movement helpers agree on how many rows are visible.
+// the cursor-movement helpers agree on how many rows are visible. The state
+// strip absorbs filter and sort indicators, so reserve depends on level only.
 func albumsVisibleReserve(v AlbumsView) int {
-	return drilldownVisibleReserve(
-		v.level == albtui.AlbumLevel,
-		v.filter.Active || v.filter.Text != "",
-		v.sortState.Field != SortDefault,
-	)
+	if v.level == albtui.TrackLevel {
+		return 3 // heading + strip + column header
+	}
+	return 1 // strip
 }
 
 // favoritesVisibleReserve returns the line reserve for the favorites view's visibleRows.
@@ -345,13 +350,17 @@ func favoritesVisibleReserve(v FavoritesView) int {
 
 // genresVisibleReserve returns the line reserve for the genres view's visibleRows.
 // The reserve must match genres.View.visibleRows() so that adjustScroll and
-// the cursor-movement helpers agree on how many rows are visible.
+// the cursor-movement helpers agree on how many rows are visible. The state
+// strip absorbs filter and sort indicators, so reserve depends on level only.
 func genresVisibleReserve(v GenresView) int {
-	return drilldownVisibleReserve(
-		v.level == gentui.GenreLevel,
-		v.filter.Active || v.filter.Text != "",
-		v.sortState.Field != SortDefault,
-	)
+	switch v.level {
+	case gentui.ArtistLevel:
+		return 2 // heading + strip
+	case gentui.TrackLevel:
+		return 3 // heading + strip + column header
+	default:
+		return 1 // strip
+	}
 }
 
 // tagsSortFieldsForLevel returns the sort field cycle for the given tags level.

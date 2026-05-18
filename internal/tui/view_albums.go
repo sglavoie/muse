@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"fmt"
-
 	tea "charm.land/bubbletea/v2"
 
 	musiclib "github.com/sglavoie/muse/internal/library"
@@ -24,6 +22,11 @@ type AlbumsView struct {
 
 	albums []string
 	tracks []musiclib.Track
+
+	// albumCounts is populated alongside albums in deriveCurrentBrowseData
+	// and rebuild paths; used to render the right-aligned count column at the
+	// album list level. Counts reflect the full catalog regardless of sort/filter.
+	albumCounts map[string]int
 
 	selectedAlbum string
 
@@ -60,16 +63,13 @@ func (v AlbumsView) recomputeAlbumsSort() AlbumsView {
 }
 
 func (v AlbumsView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
-	var sortInd string
-	if v.sortState.Field != SortDefault {
-		sortInd = fmt.Sprintf("Sort: %s %s", SortFieldLabel(v.sortState.Field), SortDirIndicator(v.sortState.Dir))
-	}
 	av := albtui.View{
 		Level:             v.level,
 		Cursor:            v.cursor,
 		ScrollOffset:      v.scrollOffset,
 		Albums:            v.albums,
 		Tracks:            v.tracks,
+		AlbumCounts:       v.albumCounts,
 		SelectedAlbum:     v.selectedAlbum,
 		AlbumCursor:       v.albumCursor,
 		AlbumScrollOffset: v.albumScrollOffset,
@@ -85,7 +85,7 @@ func (v AlbumsView) render(s styles.Styles, favHashes, favArtists, favAlbums map
 			}
 			return ""
 		}(),
-		SortIndicator:   sortInd,
+		StripViewLabel:  "Albums",
 		FavoriteHashes:  favHashes,
 		FavoriteArtists: favArtists,
 		FavoriteAlbums:  favAlbums,
@@ -93,15 +93,15 @@ func (v AlbumsView) render(s styles.Styles, favHashes, favArtists, favAlbums map
 		NowPlayingHash:  nowPlayingHash,
 		NowPlayingIcon:  nowPlayingIcon,
 	}
+	if v.sortState.Field != SortDefault {
+		av.StripSortLabel = SortFieldLabel(v.sortState.Field)
+		av.StripSortIndicator = SortDirIndicator(v.sortState.Dir)
+	}
 	return av.Render()
 }
 
 // HandleAction executes a pre-resolved albums action dispatched by root.Update.
 func (v AlbumsView) HandleAction(a action) AlbumsView {
-	var sortInd string
-	if v.sortState.Field != SortDefault {
-		sortInd = "active" // non-empty triggers reserve in visibleRows
-	}
 	view := albtui.View{
 		Level:             v.level,
 		Cursor:            v.cursor,
@@ -113,7 +113,6 @@ func (v AlbumsView) HandleAction(a action) AlbumsView {
 		Height:            v.height,
 		FilterActive:      v.filter.Active,
 		FilterText:        v.filter.Text,
-		SortIndicator:     sortInd,
 	}
 	switch a {
 	case actionCursorUp:

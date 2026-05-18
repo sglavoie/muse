@@ -217,6 +217,9 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	}
 	m.playback.currentIndex = idx
 	m.playback.queueExhausted = false
+	if m.followNowPlaying && m.activeView == viewQueue {
+		m.queue = m.queue.ScrollToNowPlaying(idx)
+	}
 	m.statusBar.artist = msg.Artist
 	m.statusBar.title = msg.Title
 	if t, ok := m.library.index.FindByHash(msg.Hash); ok {

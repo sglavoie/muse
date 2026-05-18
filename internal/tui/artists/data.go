@@ -27,6 +27,24 @@ func DeriveArtists(tracks []library.Track) []string {
 	return artists
 }
 
+// DeriveArtistCounts maps each artist name to its track count in tracks.
+// Tracks with an empty Artist field count under UnknownArtist, mirroring
+// DeriveArtists' display sentinel.
+func DeriveArtistCounts(tracks []library.Track) map[string]int {
+	if len(tracks) == 0 {
+		return nil
+	}
+	counts := make(map[string]int)
+	for _, t := range tracks {
+		name := t.Artist
+		if name == "" {
+			name = UnknownArtist
+		}
+		counts[name]++
+	}
+	return counts
+}
+
 // DeriveAlbums returns unique album names for the given artist, sorted
 // alphabetically.
 func DeriveAlbums(tracks []library.Track, artist string) []string {

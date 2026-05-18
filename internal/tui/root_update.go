@@ -385,6 +385,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case toggleFooterHintsMsg:
 		return m.handleToggleFooterHintsMsg()
 
+	case toggleQueueFollowMsg:
+		return m.handleToggleQueueFollowMsg()
+
 	case queueShuffleMsg:
 		return m.handleQueueShuffleMsg()
 

@@ -104,6 +104,24 @@ func (m Model) handleToggleFooterHintsMsg() (Model, tea.Cmd) {
 	return m, func() tea.Msg { return settingsSavedMsg{err: config.Save(path, cfg)} }
 }
 
+// handleToggleQueueFollowMsg flips the Queue follow-now-playing mode,
+// persists the new value to the config, and applies the scroll immediately
+// when re-enabled while the Queue view is active.
+func (m Model) handleToggleQueueFollowMsg() (Model, tea.Cmd) {
+	m.followNowPlaying = !m.followNowPlaying
+	m.cfg.QueueFollowNowPlaying = m.followNowPlaying
+	if m.followNowPlaying && m.activeView == viewQueue {
+		m.queue = m.queue.ScrollToNowPlaying(m.playback.currentIndex)
+	}
+	m.statusBar.notify("Queue follow: " + onOff(m.followNowPlaying))
+
+	if m.configPath == "" {
+		return m, nil
+	}
+	path, cfg := m.configPath, m.cfg
+	return m, func() tea.Msg { return settingsSavedMsg{err: config.Save(path, cfg)} }
+}
+
 // handleJumpToNowPlayingMsg switches to Library view with the cursor on the
 // currently-playing track, clearing any active filter first.
 func (m Model) handleJumpToNowPlayingMsg() (Model, tea.Cmd) {

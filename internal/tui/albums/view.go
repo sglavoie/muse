@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/layout"
+	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -35,6 +36,10 @@ type View struct {
 	Albums []string
 	Tracks []library.Track
 
+	// AlbumCounts maps each album name to its track count for the right-aligned
+	// count column at AlbumLevel. Optional — when nil the count column is omitted.
+	AlbumCounts map[string]int
+
 	SelectedAlbum string
 
 	// Saved cursor/scroll for album level (restored on Back).
@@ -50,7 +55,10 @@ type View struct {
 	FilterView   string // pre-rendered textinput view for active filter display
 	FilterHint   string // shown instead of cursor when filter is active and empty
 
-	SortIndicator   string // e.g. "Sort: Name ▲" — shown when non-empty
+	StripViewLabel     string // label rendered in the state strip; defaults to "Albums"
+	StripSortLabel     string // sort field label for the strip; empty when sort inactive
+	StripSortIndicator string // sort direction arrow for the strip; "▲" or "▼"
+
 	FavoriteHashes  map[string]struct{}
 	FavoriteArtists map[string]struct{}
 	FavoriteAlbums  map[string]struct{}
@@ -68,22 +76,15 @@ func (v View) EffectiveTracks() []library.Track {
 }
 
 // visibleRows returns the maximum number of rows that fit on screen.
-// The reserve depends on the current level: top-level album list has no
-// chrome (0), while the track level has a heading + separator line (2).
-// An active or committed filter adds 1 line at the top level.
-// A sort indicator adds 1 line at any level.
+// Reserve accounts for the state strip (which now carries the breadcrumb
+// in place of a separate heading) and (at the track level) the column
+// header:
+//   - AlbumLevel: 1 (strip)
+//   - TrackLevel: 2 (strip + column header)
 func (v View) visibleRows() int {
-	var reserve int
-	switch v.Level {
-	case AlbumLevel:
-		if v.FilterActive || v.FilterText != "" {
-			reserve = 1
-		}
-	default:
-		reserve = 3
-	}
-	if v.SortIndicator != "" {
-		reserve++
+	reserve := 1
+	if v.Level == TrackLevel {
+		reserve = 2
 	}
 	return layout.VisibleRows(v.Height, reserve)
 }
@@ -228,6 +229,24 @@ func DeriveAllAlbums(tracks []library.Track) []string {
 	return albums
 }
 
+// DeriveAllAlbumCounts maps each album name to its track count across the
+// entire catalog. Tracks with an empty Album field count under the
+// arttui.UnknownAlbum display sentinel.
+func DeriveAllAlbumCounts(tracks []library.Track) map[string]int {
+	if len(tracks) == 0 {
+		return nil
+	}
+	counts := make(map[string]int)
+	for _, t := range tracks {
+		album := t.Album
+		if album == "" {
+			album = arttui.UnknownAlbum
+		}
+		counts[album]++
+	}
+	return counts
+}
+
 // DeriveAlbumTracks returns all tracks matching the given album name,
 // regardless of artist.
 func DeriveAlbumTracks(tracks []library.Track, album string) []library.Track {
@@ -258,8 +277,9 @@ func (v View) renderAlbums() string {
 	if len(v.Albums) == 0 {
 		return v.Styles.Dim.Render("No albums yet — add music to your library")
 	}
+	stripLine := v.renderStateStrip(len(v.Albums), len(items))
 	if len(items) == 0 {
-		return v.topFilterSeparator() + "(no matches)"
+		return joinStrip(stripLine, "(no matches)")
 	}
 
 	maxRows := v.visibleRows()
@@ -270,31 +290,58 @@ func (v View) renderAlbums() string {
 	for i, name := range items[start:end] {
 		absIdx := start + i
 		_, isFav := v.FavoriteAlbums[name]
-		display := text.FavPrefix(name, v.Width, isFav)
 		isOdd := absIdx%2 == 1
+		labelW, countStr := rowLabelWidthAndCount(v.Width, v.AlbumCounts, name)
+		label := text.FavPrefix(name, labelW, isFav)
 		switch {
 		case absIdx == v.Cursor && isFav:
-			display = v.Styles.FavAlbumAccent.Render(display)
+			a := v.Styles.FavAlbumAccent
+			lines[i] = a.Render(label) + a.Render(countStr)
 		case absIdx == v.Cursor:
-			display = v.Styles.Accent.Render(display)
+			a := v.Styles.Accent
+			lines[i] = a.Render(label) + a.Render(countStr)
 		case isFav:
-			display = styles.WithZebraBg(v.Styles.FavAlbum, v.Styles.ZebraBg, isOdd).Render(display)
+			labelStyled := styles.WithZebraBg(v.Styles.FavAlbum, v.Styles.ZebraBg, isOdd).Render(label)
+			lines[i] = labelStyled + renderCountZone(v.Styles, countStr, isOdd)
 		case isOdd:
-			display = lipgloss.NewStyle().Background(v.Styles.ZebraBg).Render(display)
+			labelStyled := lipgloss.NewStyle().Background(v.Styles.ZebraBg).Render(label)
+			lines[i] = labelStyled + renderCountZone(v.Styles, countStr, true)
+		default:
+			lines[i] = label + renderCountZone(v.Styles, countStr, false)
 		}
-		lines[i] = display
 	}
-	return v.topFilterSeparator() + strings.Join(lines, "\n")
+	return joinStrip(stripLine, strings.Join(lines, "\n"))
+}
+
+// rowLabelWidthAndCount computes the label-zone width and pre-formatted count
+// suffix for a Browse list row. See artists.rowLabelWithCount for shared
+// semantics — duplicated here to keep the albums package free of cross-pkg
+// rendering dependencies.
+func rowLabelWidthAndCount(width int, counts map[string]int, name string) (int, string) {
+	if counts == nil || width < text.MinLabelWithCount+1+text.CountColWidth {
+		return width, ""
+	}
+	labelW := width - 1 - text.CountColWidth
+	return labelW, text.FormatCountSuffix(counts[name])
+}
+
+// renderCountZone wraps the count suffix in TextTertiary with optional zebra
+// background. Returns "" when countStr is empty.
+func renderCountZone(s styles.Styles, countStr string, isOdd bool) string {
+	if countStr == "" {
+		return ""
+	}
+	return styles.WithZebraBg(s.TextTertiary, s.ZebraBg, isOdd).Render(countStr)
 }
 
 func (v View) renderTracks() string {
-	heading := v.Styles.Heading.Render(v.SelectedAlbum)
 	items := v.EffectiveTracks()
 	if len(v.Tracks) == 0 {
-		return heading + "\n\n" + v.Styles.Dim.Render("No tracks found for this album")
+		return v.Styles.Dim.Render("No tracks found for this album")
 	}
+	stripLine := v.renderStateStrip(len(v.Tracks), len(items))
 	if len(items) == 0 {
-		return heading + v.filterSeparator() + "(no matches)"
+		return joinStrip(stripLine, "(no matches)")
 	}
 
 	cols := ComputeTrack(v.Width)
@@ -397,16 +444,53 @@ func (v View) renderTracks() string {
 			}
 		}
 	}
-	return heading + v.filterSeparator() + header + "\n" + strings.Join(lines, "\n")
+	rest := header + "\n" + strings.Join(lines, "\n")
+	return joinStrip(stripLine, rest)
 }
 
-// topFilterSeparator is like filterSeparator but without a leading newline,
-// for use in top-level views where the title bar provides the spacing.
-func (v View) topFilterSeparator() string {
-	return text.BuildFilterSeparator(v.SortIndicator, v.FilterActive, v.FilterText, v.FilterView, v.Styles.Dim.Render(v.FilterHint), v.Width, false)
+// renderStateStrip builds the unified single-line state strip carrying the
+// breadcrumb, sort, filter, counts, and an "esc ←" hint at the track
+// level. total is the full item count before filtering; filtered is the
+// count after filtering (equal to total when no filter is active).
+func (v View) renderStateStrip(total, filtered int) string {
+	root := v.StripViewLabel
+	if root == "" {
+		root = "Albums"
+	}
+	breadcrumb := []string{root}
+	if v.Level == TrackLevel && v.SelectedAlbum != "" {
+		breadcrumb = append(breadcrumb, v.SelectedAlbum)
+	}
+	hint := ""
+	if len(breadcrumb) > 1 {
+		hint = "esc ←"
+	}
+	sortChunk := strip.SortChunk{Label: v.StripSortLabel, Indicator: v.StripSortIndicator}
+	f := strip.FilterChunk{Active: v.FilterActive, Text: v.FilterText}
+	if v.FilterActive {
+		if v.FilterText == "" && v.FilterHint != "" {
+			f.Hint = v.Styles.Dim.Render(v.FilterHint)
+		} else {
+			f.InputView = v.FilterView
+		}
+	}
+	counts := strip.CountsChunk{
+		Filtered:  filtered,
+		Total:     total,
+		Filtering: v.FilterText != "",
+	}
+	var sel *strip.SelectionChunk
+	if n := len(v.SelectedHashes); n > 0 {
+		sel = &strip.SelectionChunk{Count: n}
+	}
+	return strip.Render(v.Width, breadcrumb, sortChunk, f, counts, sel, hint, v.Styles)
 }
 
-// filterSeparator returns the line between the heading and the item list.
-func (v View) filterSeparator() string {
-	return text.BuildFilterSeparator(v.SortIndicator, v.FilterActive, v.FilterText, v.FilterView, v.Styles.Dim.Render(v.FilterHint), v.Width, true)
+// joinStrip joins a top-level strip line with the rendered body, skipping the
+// strip entirely when it is empty (zero-width fallback).
+func joinStrip(stripLine, body string) string {
+	if stripLine == "" {
+		return body
+	}
+	return stripLine + "\n" + body
 }

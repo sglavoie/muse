@@ -46,6 +46,28 @@ func DeriveGenres(tracks []library.Track) []string {
 	return genres
 }
 
+// DeriveGenreCounts maps each genre name to its track count. A track carrying
+// multiple genre tags increments each of its tags (consistent with
+// library.SplitGenres semantics used elsewhere). Tracks with no recognised
+// genre count under UnknownGenre.
+func DeriveGenreCounts(tracks []library.Track) map[string]int {
+	if len(tracks) == 0 {
+		return nil
+	}
+	counts := make(map[string]int)
+	for _, t := range tracks {
+		gs := library.SplitGenres(t.Genre)
+		if len(gs) == 0 {
+			counts[UnknownGenre]++
+			continue
+		}
+		for _, g := range gs {
+			counts[g]++
+		}
+	}
+	return counts
+}
+
 // DeriveGenreArtists returns unique artist names for tracks that belong to the
 // given genre. Tracks with no artist use the arttui.UnknownArtist sentinel.
 // Results are sorted alphabetically with unknowns last.

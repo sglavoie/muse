@@ -99,10 +99,11 @@ func TestQueueHandleActionGoToTopBottom(t *testing.T) {
 }
 
 func TestQueueHandleActionHalfPageDownUp(t *testing.T) {
+	// visibleRows = height(14) - reserve(3) = 11; HalfPageDown = 11/2 = 5
 	q := QueueView{entries: make([]QueueEntry, 20), cursor: 0, height: 14, width: 80}
 	q, _ = q.HandleAction(actionHalfPageDown)
-	if q.cursor != 6 {
-		t.Errorf("HalfPageDown: expected 6, got %d", q.cursor)
+	if q.cursor != 5 {
+		t.Errorf("HalfPageDown: expected 5, got %d", q.cursor)
 	}
 	q, _ = q.HandleAction(actionHalfPageUp)
 	if q.cursor != 0 {
@@ -111,10 +112,11 @@ func TestQueueHandleActionHalfPageDownUp(t *testing.T) {
 }
 
 func TestQueueHandleActionFullPageDownUp(t *testing.T) {
+	// visibleRows = height(14) - reserve(3) = 11; FullPageDown = 11
 	q := QueueView{entries: make([]QueueEntry, 20), cursor: 0, height: 14, width: 80}
 	q, _ = q.HandleAction(actionFullPageDown)
-	if q.cursor != 12 {
-		t.Errorf("FullPageDown: expected 12, got %d", q.cursor)
+	if q.cursor != 11 {
+		t.Errorf("FullPageDown: expected 11, got %d", q.cursor)
 	}
 	q, _ = q.HandleAction(actionFullPageUp)
 	if q.cursor != 0 {

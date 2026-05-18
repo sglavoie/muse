@@ -134,6 +134,7 @@ type Styles struct {
 	NowPlayingRowFavorite   lipgloss.Style // bold amber/gold fg + amber bg for now-playing + favorited track
 	NowPlayingRowFavArtist  lipgloss.Style // bold purple fg + amber bg for now-playing + favorited artist
 	NowPlayingRowFavAlbum   lipgloss.Style // bold cyan fg + amber bg for now-playing + favorited album
+	PlayedRow               lipgloss.Style // faint tertiary foreground for played (already-listened) queue rows
 	HasDark                 bool
 }
 
@@ -200,6 +201,7 @@ func NewStyles(hasDark bool) Styles {
 		NowPlayingRowFavorite:  lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgWarningLight), lipgloss.Color(colorFgWarningDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
 		NowPlayingRowFavArtist: lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgFavArtistLight), lipgloss.Color(colorFgFavArtistDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
 		NowPlayingRowFavAlbum:  lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorFgFavAlbumLight), lipgloss.Color(colorFgFavAlbumDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
+		PlayedRow:              lipgloss.NewStyle().Faint(true).Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))),
 		HasDark:                hasDark,
 	}
 }

@@ -11,7 +11,7 @@ import (
 func TestRenderFooterHints_EmptyWhenNoPrimaries(t *testing.T) {
 	reg := newRegistry()
 	s := styles.NewStyles(true)
-	if got := RenderFooterHints(80, contextGlobal, reg, s); got != "" {
+	if got := RenderFooterHints(80, contextGlobal, HintModeDefault, reg, s); got != "" {
 		t.Errorf("expected empty hint strip for contextGlobal (no primaries), got %q", got)
 	}
 }
@@ -19,7 +19,7 @@ func TestRenderFooterHints_EmptyWhenNoPrimaries(t *testing.T) {
 func TestRenderFooterHints_ZeroWidth(t *testing.T) {
 	reg := newRegistry()
 	s := styles.NewStyles(true)
-	if got := RenderFooterHints(0, contextLibrary, reg, s); got != "" {
+	if got := RenderFooterHints(0, contextLibrary, HintModeDefault, reg, s); got != "" {
 		t.Errorf("expected empty hint strip at width 0, got %q", got)
 	}
 }
@@ -27,7 +27,7 @@ func TestRenderFooterHints_ZeroWidth(t *testing.T) {
 func TestRenderFooterHints_IncludesAllPrimariesAtWideWidth(t *testing.T) {
 	reg := newRegistry()
 	s := styles.NewStyles(true)
-	got := RenderFooterHints(200, contextLibrary, reg, s)
+	got := RenderFooterHints(200, contextLibrary, HintModeDefault, reg, s)
 	plain := ansi.Strip(got)
 	for _, want := range []string{"j/k", "nav", "enter", "enqueue", "N", "play-next", "/", "filter", "v", "select", "?", "help"} {
 		if !strings.Contains(plain, want) {
@@ -39,7 +39,7 @@ func TestRenderFooterHints_IncludesAllPrimariesAtWideWidth(t *testing.T) {
 func TestRenderFooterHints_TruncatesToWidth(t *testing.T) {
 	reg := newRegistry()
 	s := styles.NewStyles(true)
-	got := RenderFooterHints(20, contextLibrary, reg, s)
+	got := RenderFooterHints(20, contextLibrary, HintModeDefault, reg, s)
 	if ansi.StringWidth(got) > 20 {
 		t.Errorf("RenderFooterHints(20) width = %d; want ≤ 20 (plain=%q)", ansi.StringWidth(got), ansi.Strip(got))
 	}
@@ -48,7 +48,7 @@ func TestRenderFooterHints_TruncatesToWidth(t *testing.T) {
 func TestRenderFooterHints_ContextSpecificContent(t *testing.T) {
 	reg := newRegistry()
 	s := styles.NewStyles(true)
-	queue := ansi.Strip(RenderFooterHints(200, contextQueue, reg, s))
+	queue := ansi.Strip(RenderFooterHints(200, contextQueue, HintModeDefault, reg, s))
 	if !strings.Contains(queue, "play") {
 		t.Errorf("Queue hint strip missing 'play': %q", queue)
 	}
@@ -57,6 +57,74 @@ func TestRenderFooterHints_ContextSpecificContent(t *testing.T) {
 	}
 	if strings.Contains(queue, "enqueue") {
 		t.Errorf("Queue hint strip should not contain Library-only label 'enqueue': %q", queue)
+	}
+}
+
+func TestRenderFooterHints_SelectionMode(t *testing.T) {
+	reg := newRegistry()
+	s := styles.NewStyles(true)
+	// Library selection set surfaces bulk-action labels distinct from default.
+	got := ansi.Strip(RenderFooterHints(200, contextLibrary, HintModeSelection, reg, s))
+	for _, want := range []string{"enter", "enqueue", "a", "bulk action", "t", "tag", "X", "clear"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("Library selection hint strip missing %q: %q", want, got)
+		}
+	}
+	// "play-next" is a default-mode label and should not bleed into selection mode.
+	if strings.Contains(got, "play-next") {
+		t.Errorf("Library selection hint strip should not surface default-only 'play-next': %q", got)
+	}
+	// Queue selection set keeps its view-local actions (remove, save).
+	q := ansi.Strip(RenderFooterHints(200, contextQueue, HintModeSelection, reg, s))
+	for _, want := range []string{"play", "remove", "save", "clear"} {
+		if !strings.Contains(q, want) {
+			t.Errorf("Queue selection hint strip missing %q: %q", want, q)
+		}
+	}
+}
+
+func TestRenderFooterHints_VisualMode(t *testing.T) {
+	reg := newRegistry()
+	s := styles.NewStyles(true)
+	for _, ctx := range []bindingContext{contextLibrary, contextQueue, contextArtists, contextFavorites} {
+		got := ansi.Strip(RenderFooterHints(200, ctx, HintModeVisual, reg, s))
+		for _, want := range []string{"j/k", "extend", "v", "exit", "esc", "cancel", "X", "clear"} {
+			if !strings.Contains(got, want) {
+				t.Errorf("ctx %d visual hint strip missing %q: %q", ctx, want, got)
+			}
+		}
+	}
+}
+
+func TestRenderFooterHints_VisualFallsBackToDefaultWhenUnregistered(t *testing.T) {
+	reg := newRegistry()
+	s := styles.NewStyles(true)
+	// contextMixes has no visual-mode hints registered — should fall back to default.
+	got := ansi.Strip(RenderFooterHints(200, contextMixes, HintModeVisual, reg, s))
+	def := ansi.Strip(RenderFooterHints(200, contextMixes, HintModeDefault, reg, s))
+	if got != def {
+		t.Errorf("expected visual mode to fall back to default for contextMixes; got=%q want=%q", got, def)
+	}
+}
+
+func TestRenderFooterHints_DefaultModeMatchesCurrent(t *testing.T) {
+	// Regression guard: the default-mode hint set must remain identical to
+	// what existed before HintMode was introduced. If a new default-mode
+	// hint is added we want the change to be deliberate.
+	reg := newRegistry()
+	s := styles.NewStyles(true)
+	got := ansi.Strip(RenderFooterHints(200, contextLibrary, HintModeDefault, reg, s))
+	want := []string{"j/k nav", "enter enqueue", "N play-next", "/ filter", "v select", "? help"}
+	for _, w := range want {
+		if !strings.Contains(got, w) {
+			t.Errorf("default Library hint strip missing %q: %q", w, got)
+		}
+	}
+	// Make sure selection/visual labels did not leak into default.
+	for _, bad := range []string{"bulk action", "extend", "cancel"} {
+		if strings.Contains(got, bad) {
+			t.Errorf("default Library hint strip should not contain %q: %q", bad, got)
+		}
 	}
 }
 

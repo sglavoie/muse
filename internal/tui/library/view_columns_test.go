@@ -44,13 +44,13 @@ func columnWidthsFromRender(t *testing.T, width int) (artistW, titleW, albumW in
 	rendered := v.Render()
 
 	lines := strings.Split(rendered, "\n")
-	// lines[0]=header, lines[1]=first track row
-	if len(lines) < 2 {
-		t.Fatalf("columnWidthsFromRender: expected ≥2 lines, got %d", len(lines))
+	// lines[0]=state strip, lines[1]=column header, lines[2]=first track row
+	if len(lines) < 3 {
+		t.Fatalf("columnWidthsFromRender: expected ≥3 lines, got %d", len(lines))
 	}
 
 	// Strip all ANSI escape sequences to obtain only visible characters.
-	trackRow := ansi.Strip(lines[1])
+	trackRow := ansi.Strip(lines[2])
 	runes := []rune(trackRow)
 	if len(runes) != width {
 		t.Fatalf("columnWidthsFromRender: stripped row has %d runes, want %d", len(runes), width)

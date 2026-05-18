@@ -262,12 +262,14 @@ func TestArtistsVisibleReserve(t *testing.T) {
 		v    ArtistsView
 		want int
 	}{
-		{"artist level no filter no sort", ArtistsView{level: arttui.ArtistLevel}, 0},
-		{"artist level with filter", ArtistsView{level: arttui.ArtistLevel, filter: filter.State{Active: true}}, 1},
-		{"artist level with sort", ArtistsView{level: arttui.ArtistLevel, sortState: SortState{Field: SortName}}, 1},
-		{"artist level with filter and sort", ArtistsView{level: arttui.ArtistLevel, filter: filter.State{Active: true}, sortState: SortState{Field: SortName}}, 2},
-		{"album level no sort", ArtistsView{level: arttui.AlbumLevel}, 3},
-		{"album level with sort", ArtistsView{level: arttui.AlbumLevel, sortState: SortState{Field: SortName}}, 4},
+		{"artist level no filter no sort", ArtistsView{level: arttui.ArtistLevel}, 1},
+		{"artist level with filter (strip absorbs)", ArtistsView{level: arttui.ArtistLevel, filter: filter.State{Active: true}}, 1},
+		{"artist level with sort (strip absorbs)", ArtistsView{level: arttui.ArtistLevel, sortState: SortState{Field: SortName}}, 1},
+		{"artist level with filter and sort (strip absorbs)", ArtistsView{level: arttui.ArtistLevel, filter: filter.State{Active: true}, sortState: SortState{Field: SortName}}, 1},
+		{"album level no sort", ArtistsView{level: arttui.AlbumLevel}, 2},
+		{"album level with sort (strip absorbs)", ArtistsView{level: arttui.AlbumLevel, sortState: SortState{Field: SortName}}, 2},
+		{"track level no sort", ArtistsView{level: arttui.TrackLevel}, 3},
+		{"track level with sort (strip absorbs)", ArtistsView{level: arttui.TrackLevel, sortState: SortState{Field: SortTitle}}, 3},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -285,11 +287,11 @@ func TestAlbumsVisibleReserve(t *testing.T) {
 		v    AlbumsView
 		want int
 	}{
-		{"album level no filter no sort", AlbumsView{level: albtui.AlbumLevel}, 0},
-		{"album level with filter", AlbumsView{level: albtui.AlbumLevel, filter: filter.State{Active: true}}, 1},
-		{"album level with sort", AlbumsView{level: albtui.AlbumLevel, sortState: SortState{Field: SortName}}, 1},
+		{"album level no filter no sort", AlbumsView{level: albtui.AlbumLevel}, 1},
+		{"album level with filter (strip absorbs)", AlbumsView{level: albtui.AlbumLevel, filter: filter.State{Active: true}}, 1},
+		{"album level with sort (strip absorbs)", AlbumsView{level: albtui.AlbumLevel, sortState: SortState{Field: SortName}}, 1},
 		{"track level no sort", AlbumsView{level: albtui.TrackLevel}, 3},
-		{"track level with sort", AlbumsView{level: albtui.TrackLevel, sortState: SortState{Field: SortTitle}}, 4},
+		{"track level with sort (strip absorbs)", AlbumsView{level: albtui.TrackLevel, sortState: SortState{Field: SortTitle}}, 3},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

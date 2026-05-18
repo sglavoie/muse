@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/tui/buckets"
+	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -82,21 +83,6 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 	}
 
 	titleHead, artistHead, albumHead, sourceHead, timeHead := "Title", "Artist", "Album", "Source", "Time"
-	if v.sortState.Field != SortDefault {
-		ind := SortDirIndicator(v.sortState.Dir)
-		switch v.sortState.Field {
-		case SortTitle:
-			titleHead += ind
-		case SortArtist:
-			artistHead += ind
-		case SortAlbum:
-			albumHead += ind
-		case SortSource:
-			sourceHead += ind
-		case SortDuration:
-			timeHead += ind
-		}
-	}
 	// headerBody excludes the leading marker-width prefix so the dotted
 	// underline only spans the actual data columns (not the marker gutter).
 	var headerBody string
@@ -115,6 +101,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 		e := entries[absIdx]
 		isFocused := absIdx == v.cursor
 		isNowPlaying := currentPlayingIndex >= 0 && e.origIdx == currentPlayingIndex
+		isPlayed := currentPlayingIndex >= 0 && !isNowPlaying && e.origIdx < currentPlayingIndex
 
 		// Determine the now-playing icon and style based on playback state.
 		npIcon, npStyle := nowPlayingIndicator(s, playbackState)
@@ -201,6 +188,42 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			dur = nb.Render(dur)
 			sep := nb.Render(" ")
 			lines[i] = assembleQueueRow(sep, hasSource, markerStr, pos, titleStr, artistStr, albumStr, source, dur)
+		} else if isPlayed {
+			isOdd := absIdx%2 == 1
+			rowBg := s.ZebraBg
+			useBg := isOdd
+			if e.Selected {
+				rowBg = s.SelectionBg
+				useBg = true
+			}
+			played := s.PlayedRow
+			if useBg {
+				played = played.Background(rowBg)
+			}
+			if e.Selected {
+				if useBg {
+					rb := lipgloss.NewStyle().Background(rowBg)
+					markerStr = s.AccentMark.Background(rowBg).Render("●") + rb.Render(" ")
+				} else {
+					markerStr = s.AccentMark.Render("●") + " "
+				}
+			} else if useBg {
+				rb := lipgloss.NewStyle().Background(rowBg)
+				markerStr = played.Render("╵") + rb.Render(" ")
+			} else {
+				markerStr = played.Render("╵ ")
+			}
+			titleStr = played.Render(titleStr)
+			artistStr = played.Render(artistStr)
+			albumStr = played.Render(albumStr)
+			pos = played.Render(pos)
+			source = played.Render(source)
+			dur = played.Render(dur)
+			sep := " "
+			if useBg {
+				sep = lipgloss.NewStyle().Background(rowBg).Render(" ")
+			}
+			lines[i] = assembleQueueRow(sep, hasSource, markerStr, pos, titleStr, artistStr, albumStr, source, dur)
 		} else {
 			isOdd := absIdx%2 == 1
 			rowBg := s.ZebraBg
@@ -254,17 +277,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 		}
 	}
 
-	var filterLine string
-	if v.filter.Active {
-		filterLine = "Filter: " + v.filter.View() + "\n"
-	} else if v.filter.Text != "" {
-		ft := v.filter.Text
-		maxLen := v.width - len("Filter: ") - 1
-		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
-			ft = ansi.Truncate(ft, maxLen-1, "…")
-		}
-		filterLine = "Filter: " + ft + "\n"
-	}
+	stripLine := v.renderStateStrip(s, len(v.entries), len(entries))
 
 	bodyLines := lines
 	if SortFieldHasBuckets(v.sortState.Field) {
@@ -285,7 +298,16 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 		})
 	}
 
-	out := filterLine + header + "\n" + strings.Join(bodyLines, "\n")
+	if end == len(entries) && len(entries) > 0 {
+		bodyLines = append(bodyLines, s.Dim.Render("— end of queue —"))
+	}
+
+	var out string
+	if stripLine != "" {
+		out = stripLine + "\n" + header + "\n" + strings.Join(bodyLines, "\n")
+	} else {
+		out = header + "\n" + strings.Join(bodyLines, "\n")
+	}
 	if v.savingAsPlaylist {
 		prompt := "Save as playlist: "
 		if v.savingFromSelection {
@@ -294,6 +316,38 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 		out += "\n" + s.Accent.Render(prompt) + v.saveInput.View()
 	}
 	return out
+}
+
+// renderStateStrip builds the unified single-line state strip carrying
+// the view label, sort, filter, and counts for the queue. total is the
+// full entry count before filtering; filtered is the count after filter
+// is applied (equal to total when no filter is active).
+func (v QueueView) renderStateStrip(s styles.Styles, total, filtered int) string {
+	var sortChunk strip.SortChunk
+	if v.sortState.Field != SortDefault {
+		sortChunk = strip.SortChunk{
+			Label:     SortFieldLabel(v.sortState.Field),
+			Indicator: SortDirIndicator(v.sortState.Dir),
+		}
+	}
+	f := strip.FilterChunk{Active: v.filter.Active, Text: v.filter.Text}
+	if v.filter.Active {
+		if v.filter.Text == "" {
+			f.Hint = s.Dim.Render("a: artist  t: title  l: album")
+		} else {
+			f.InputView = v.filter.View()
+		}
+	}
+	counts := strip.CountsChunk{
+		Filtered:  filtered,
+		Total:     total,
+		Filtering: v.filter.Text != "",
+	}
+	var sel *strip.SelectionChunk
+	if n := len(v.selectedHashes()); n > 0 {
+		sel = &strip.SelectionChunk{Count: n}
+	}
+	return strip.Render(v.width, []string{"Queue"}, sortChunk, f, counts, sel, "", s)
 }
 
 // nowPlayingIndicator returns the icon string and its style for the

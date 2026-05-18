@@ -1,6 +1,10 @@
 package artists
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/sglavoie/muse/internal/library"
+)
 
 func TestDeriveArtistsFromSortedTracks(t *testing.T) {
 	tracks := sampleTracks()
@@ -24,6 +28,39 @@ func TestDeriveArtistsEmpty(t *testing.T) {
 	artists = DeriveArtists(sampleTracks()[:0])
 	if len(artists) != 0 {
 		t.Errorf("DeriveArtists([]): expected empty, got %v", artists)
+	}
+}
+
+func TestDeriveArtistCounts(t *testing.T) {
+	counts := DeriveArtistCounts(sampleTracks())
+	want := map[string]int{"Alice": 3, "Bob": 2, "Charlie": 1}
+	if len(counts) != len(want) {
+		t.Fatalf("DeriveArtistCounts: expected %d entries, got %d (%v)", len(want), len(counts), counts)
+	}
+	for name, wantN := range want {
+		if got := counts[name]; got != wantN {
+			t.Errorf("DeriveArtistCounts[%q]: expected %d, got %d", name, wantN, got)
+		}
+	}
+}
+
+func TestDeriveArtistCountsUnknown(t *testing.T) {
+	counts := DeriveArtistCounts([]library.Track{
+		{Artist: "Alice", Title: "A1"},
+		{Artist: "", Title: "?1"},
+		{Artist: "", Title: "?2"},
+	})
+	if counts[UnknownArtist] != 2 {
+		t.Errorf("expected UnknownArtist count = 2, got %d", counts[UnknownArtist])
+	}
+	if counts["Alice"] != 1 {
+		t.Errorf("expected Alice count = 1, got %d", counts["Alice"])
+	}
+}
+
+func TestDeriveArtistCountsEmpty(t *testing.T) {
+	if got := DeriveArtistCounts(nil); got != nil {
+		t.Errorf("DeriveArtistCounts(nil): expected nil, got %v", got)
 	}
 }
 

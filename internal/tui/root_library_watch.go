@@ -230,6 +230,7 @@ func (m Model) refreshBrowseDerivedViews() Model {
 	switch m.browse.artists.level {
 	case arttui.ArtistLevel:
 		m.browse.artists.artists = arttui.DeriveArtists(allTracks)
+		m.browse.artists.artistCounts = arttui.DeriveArtistCounts(allTracks)
 		m.browse.artists = m.browse.artists.recomputeArtistsSort()
 		m.browse.artists = m.browse.artists.clampCursor()
 	case arttui.AlbumLevel:
@@ -244,6 +245,7 @@ func (m Model) refreshBrowseDerivedViews() Model {
 	switch m.browse.albums.level {
 	case albtui.AlbumLevel:
 		m.browse.albums.albums = albtui.DeriveAllAlbums(allTracks)
+		m.browse.albums.albumCounts = albtui.DeriveAllAlbumCounts(allTracks)
 		m.browse.albums = m.browse.albums.recomputeAlbumsSort()
 		m.browse.albums = m.browse.albums.clampCursor()
 	case albtui.TrackLevel:
@@ -254,6 +256,7 @@ func (m Model) refreshBrowseDerivedViews() Model {
 	switch m.browse.genres.level {
 	case gentui.GenreLevel:
 		m.browse.genres.genres = gentui.DeriveGenres(allTracks)
+		m.browse.genres.genreCounts = gentui.DeriveGenreCounts(allTracks)
 		m.browse.genres = m.browse.genres.recomputeGenresSort()
 		m.browse.genres = m.browse.genres.clampCursor()
 	case gentui.ArtistLevel:

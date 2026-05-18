@@ -70,6 +70,15 @@ type View struct {
 	// sort. When nil or always returning "", no dividers/bucket headers are
 	// emitted. Used to chunk long lists into Today/This Week/A/B/… groups.
 	BucketLabel func(musiclib.Track) string
+	// StripViewLabel is the left-most label in the unified state strip
+	// (e.g. "Library", "Recent", "History"). The outer wrapper sets this
+	// based on the current LibraryMode.
+	StripViewLabel string
+	// StripSortLabel and StripSortIndicator carry the human-readable sort
+	// field name (e.g. "Artist") and direction arrow ("▲" / "▼"). Both are
+	// empty when no sort is applied.
+	StripSortLabel     string
+	StripSortIndicator string
 }
 
 // tracks returns the override tracks if set, otherwise the index tracks.

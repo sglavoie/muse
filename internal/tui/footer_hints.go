@@ -14,17 +14,22 @@ const footerHintSep = " · "
 
 // RenderFooterHints builds the single-line footer hint strip shown above the
 // status bar. It returns an empty string when no primaries are registered for
-// ctx (so the caller can avoid reserving a row). The whole line is rendered
-// in the dim style.
+// (ctx, mode) (so the caller can avoid reserving a row). The whole line is
+// rendered in the dim style.
+//
+// mode selects the hint set: HintModeDefault for the resting state,
+// HintModeSelection when 1+ rows are bulk-selected, and HintModeVisual
+// while visual line-selection is active. When a mode-specific set is not
+// registered for the context, the default-mode set is shown.
 //
 // The returned string is at most width display columns wide. Pairs that
 // don't fit are dropped from the right; any partially-rendered pair is
 // elided with "…" so the strip never wraps.
-func RenderFooterHints(width int, ctx bindingContext, r Registry, s styles.Styles) string {
+func RenderFooterHints(width int, ctx bindingContext, mode HintMode, r Registry, s styles.Styles) string {
 	if width <= 0 {
 		return ""
 	}
-	hints := r.Primaries(ctx)
+	hints := r.PrimariesForMode(ctx, mode)
 	if len(hints) == 0 {
 		return ""
 	}

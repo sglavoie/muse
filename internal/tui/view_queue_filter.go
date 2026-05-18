@@ -82,6 +82,41 @@ func (v QueueView) filteredEntries() []QueueEntry {
 	return result
 }
 
+// ScrollToNowPlaying adjusts scrollOffset so the row matching
+// currentPlayingIndex sits ~⅓ from the top of the visible window, without
+// moving the cursor. Returns v unchanged if currentPlayingIndex is negative
+// or the row is not present in the filtered view.
+func (v QueueView) ScrollToNowPlaying(currentPlayingIndex int) QueueView {
+	if currentPlayingIndex < 0 {
+		return v
+	}
+	filtered := v.filteredEntries()
+	row := -1
+	for i, e := range filtered {
+		if e.origIdx == currentPlayingIndex {
+			row = i
+			break
+		}
+	}
+	if row < 0 {
+		return v
+	}
+	maxRows := v.visibleRows()
+	target := row - maxRows/3
+	maxOffset := len(filtered) - maxRows
+	if maxOffset < 0 {
+		maxOffset = 0
+	}
+	if target > maxOffset {
+		target = maxOffset
+	}
+	if target < 0 {
+		target = 0
+	}
+	v.scrollOffset = target
+	return v
+}
+
 // FocusNowPlaying moves the cursor to the entry whose Hash matches
 // currentPlayingIndex and adjusts the scroll offset to center it in the viewport.
 // Returns v unchanged if no match is found or index is negative.
@@ -129,14 +164,10 @@ func (v QueueView) moveQueueCursor(delta int) QueueView {
 }
 
 // visibleRows returns the maximum number of queue entries that fit on screen.
-// Reserve 2 lines for the column header and bottom margin, plus 1 extra when
-// the filter bar is visible (active or committed with non-empty text), and
-// 1 extra when the save-as-playlist input is active.
+// Reserve 3 lines for the state strip, column header, and bottom margin,
+// plus 1 extra when the save-as-playlist input is active.
 func (v QueueView) visibleRows() int {
-	reserve := 2
-	if v.filter.Active || v.filter.Text != "" {
-		reserve++
-	}
+	reserve := 3
 	if v.savingAsPlaylist {
 		reserve++
 	}

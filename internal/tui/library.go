@@ -143,12 +143,15 @@ func (v LibraryView) view() libtui.View {
 		SelectedHashes:  v.selectedHashes,
 		ShowDateAdded:   v.showDateAdded,
 		ShowPlayedAt:    v.showPlayedAt,
+		StripViewLabel:  libraryStripLabel(v.mode),
 	}
 	switch {
 	case v.sortState.Field != SortDefault:
 		lv.OverrideTracks = v.sortedTracks
 		lv.SortField = int(v.sortState.Field)
 		lv.SortDir = int(v.sortState.Dir)
+		lv.StripSortLabel = SortFieldLabel(v.sortState.Field)
+		lv.StripSortIndicator = SortDirIndicator(v.sortState.Dir)
 	case v.sourceTracks != nil:
 		lv.OverrideTracks = v.sourceTracks
 	case len(v.tagFilterHashes) > 0:
@@ -424,6 +427,20 @@ func (v LibraryView) EnqueueSelected(qa libtui.QueueAppender, prevQueueLen int) 
 		return v, nil
 	}
 	return v, tea.Batch(cmds...)
+}
+
+// libraryStripLabel returns the view-label string shown in the state
+// strip for the given library mode. The label tracks the title bar
+// abbreviation so users see a consistent view name in both places.
+func libraryStripLabel(mode LibraryMode) string {
+	switch mode {
+	case LibraryModeRecent:
+		return "Recent"
+	case LibraryModeHistory:
+		return "History"
+	default:
+		return "Library"
+	}
 }
 
 // formatCount formats n with comma separators (e.g. 1234 → "1,234").

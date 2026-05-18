@@ -121,8 +121,8 @@ func TestFuzzyFilterShowsFilterBar(t *testing.T) {
 	v = v.ActivateFilter()
 	v = v.AppendFilterChar('A')
 	got := v.Render()
-	if !strings.Contains(got, "Filter: ") {
-		t.Errorf("render should contain filter bar text 'Filter: ...', got:\n%s", got)
+	if !strings.Contains(ansi.Strip(got), `filter "`) {
+		t.Errorf("render should contain filter chunk 'filter \"...\"', got:\n%s", got)
 	}
 }
 
@@ -215,8 +215,8 @@ func TestNoMatchesEmptyStateCenteredInListArea(t *testing.T) {
 	if !strings.Contains(got, "No matches") {
 		t.Errorf("expected 'No matches' in zero-result render, got:\n%s", got)
 	}
-	if !strings.Contains(got, "Filter: ") {
-		t.Errorf("filter bar should remain visible in zero-result render, got:\n%s", got)
+	if !strings.Contains(ansi.Strip(got), `filter "`) {
+		t.Errorf("filter chunk should remain visible in zero-result render, got:\n%s", got)
 	}
 
 	// Find the line containing "No matches" and verify it is centered.
@@ -391,8 +391,8 @@ func TestFilterBarHintDisappearsOnInput(t *testing.T) {
 	if strings.Contains(got, "a: artist") {
 		t.Errorf("filter bar hint should not appear once text is entered, got:\n%s", got)
 	}
-	if !strings.Contains(got, "Filter: ") {
-		t.Errorf("filter bar should show typed text, got:\n%s", got)
+	if !strings.Contains(ansi.Strip(got), `filter "`) {
+		t.Errorf("filter chunk should show typed text, got:\n%s", got)
 	}
 }
 

@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"fmt"
-
 	tea "charm.land/bubbletea/v2"
 
 	musiclib "github.com/sglavoie/muse/internal/library"
@@ -25,6 +23,11 @@ type GenresView struct {
 	genres  []string
 	artists []string
 	tracks  []musiclib.Track
+
+	// genreCounts is populated alongside genres in deriveCurrentBrowseData
+	// and rebuild paths; used to render the right-aligned count column at the
+	// genre list level. Counts reflect the full catalog regardless of sort/filter.
+	genreCounts map[string]int
 
 	selectedGenre  string
 	selectedArtist string
@@ -67,10 +70,6 @@ func (v GenresView) recomputeGenresSort() GenresView {
 }
 
 func (v GenresView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
-	var sortInd string
-	if v.sortState.Field != SortDefault {
-		sortInd = fmt.Sprintf("Sort: %s %s", SortFieldLabel(v.sortState.Field), SortDirIndicator(v.sortState.Dir))
-	}
 	gv := gentui.View{
 		Level:              v.level,
 		Cursor:             v.cursor,
@@ -78,6 +77,7 @@ func (v GenresView) render(s styles.Styles, favHashes, favArtists, favAlbums map
 		Genres:             v.genres,
 		Artists:            v.artists,
 		Tracks:             v.tracks,
+		GenreCounts:        v.genreCounts,
 		SelectedGenre:      v.selectedGenre,
 		SelectedArtist:     v.selectedArtist,
 		GenreCursor:        v.genreCursor,
@@ -96,7 +96,7 @@ func (v GenresView) render(s styles.Styles, favHashes, favArtists, favAlbums map
 			}
 			return ""
 		}(),
-		SortIndicator:   sortInd,
+		StripViewLabel:  "Genres",
 		FavoriteHashes:  favHashes,
 		FavoriteArtists: favArtists,
 		FavoriteAlbums:  favAlbums,
@@ -104,15 +104,15 @@ func (v GenresView) render(s styles.Styles, favHashes, favArtists, favAlbums map
 		NowPlayingHash:  nowPlayingHash,
 		NowPlayingIcon:  nowPlayingIcon,
 	}
+	if v.sortState.Field != SortDefault {
+		gv.StripSortLabel = SortFieldLabel(v.sortState.Field)
+		gv.StripSortIndicator = SortDirIndicator(v.sortState.Dir)
+	}
 	return gv.Render()
 }
 
 // HandleAction executes a pre-resolved genres action dispatched by root.Update.
 func (v GenresView) HandleAction(a action) GenresView {
-	var sortInd string
-	if v.sortState.Field != SortDefault {
-		sortInd = "active" // non-empty triggers reserve in visibleRows
-	}
 	view := gentui.View{
 		Level:              v.level,
 		Cursor:             v.cursor,
@@ -127,7 +127,6 @@ func (v GenresView) HandleAction(a action) GenresView {
 		Height:             v.height,
 		FilterActive:       v.filter.Active,
 		FilterText:         v.filter.Text,
-		SortIndicator:      sortInd,
 	}
 	switch a {
 	case actionCursorUp:

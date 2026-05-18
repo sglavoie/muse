@@ -110,12 +110,14 @@ func TestBackRoundTrip(t *testing.T) {
 
 func TestVisibleRowsGenreLevel(t *testing.T) {
 	v := View{Level: GenreLevel, Height: 20}
-	if got := v.visibleRows(); got != 20 {
-		t.Errorf("want 20, got %d", got)
+	if got := v.visibleRows(); got != 19 {
+		t.Errorf("want 19 (20-1 for strip), got %d", got)
 	}
 }
 
 func TestVisibleRowsGenreLevelWithFilter(t *testing.T) {
+	// Strip absorbs the filter chunk so reserve stays at 1 regardless
+	// of filter state.
 	v := View{Level: GenreLevel, Height: 20, FilterActive: true}
 	if got := v.visibleRows(); got != 19 {
 		t.Errorf("want 19, got %d", got)
@@ -124,29 +126,23 @@ func TestVisibleRowsGenreLevelWithFilter(t *testing.T) {
 
 func TestVisibleRowsArtistLevel(t *testing.T) {
 	v := View{Level: ArtistLevel, Height: 20}
-	if got := v.visibleRows(); got != 17 {
-		t.Errorf("want 17 (20-3), got %d", got)
+	if got := v.visibleRows(); got != 19 {
+		t.Errorf("want 19 (20-1 for strip; breadcrumb replaces heading), got %d", got)
 	}
 }
 
 func TestVisibleRowsTrackLevel(t *testing.T) {
 	v := View{Level: TrackLevel, Height: 20}
-	if got := v.visibleRows(); got != 17 {
-		t.Errorf("want 17 (20-3), got %d", got)
-	}
-}
-
-func TestVisibleRowsSortIndicator(t *testing.T) {
-	v := View{Level: GenreLevel, Height: 20, SortIndicator: "Sort: Name ▲"}
-	if got := v.visibleRows(); got != 19 {
-		t.Errorf("want 19 (20-1 for sort indicator), got %d", got)
+	if got := v.visibleRows(); got != 18 {
+		t.Errorf("want 18 (20-2 for strip + col header; breadcrumb replaces heading), got %d", got)
 	}
 }
 
 func TestVisibleRowsGenreLevelWithFilterText(t *testing.T) {
+	// Strip absorbs the filter chunk so reserve stays at 1.
 	v := View{Level: GenreLevel, Height: 20, FilterText: "roc"}
 	if got := v.visibleRows(); got != 19 {
-		t.Errorf("want 19 (filter text reserves 1 row), got %d", got)
+		t.Errorf("want 19, got %d", got)
 	}
 }
 
@@ -220,7 +216,8 @@ func TestHalfPageDown(t *testing.T) {
 		Height: 6,
 	}
 	v2 := v.HalfPageDown()
-	if v2.Cursor != 3 {
-		t.Errorf("expected cursor=3, got %d", v2.Cursor)
+	// visibleRows = height(6) - reserve(1, strip) = 5; HalfPageDown = 5/2 = 2
+	if v2.Cursor != 2 {
+		t.Errorf("expected cursor=2, got %d", v2.Cursor)
 	}
 }

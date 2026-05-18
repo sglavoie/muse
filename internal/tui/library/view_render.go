@@ -10,6 +10,7 @@ import (
 
 	musiclib "github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/buckets"
+	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -63,24 +64,20 @@ func (v View) Render() string {
 	start := min(v.ScrollOffset, len(display))
 	end := min(len(display), start+maxRows)
 
-	separator := ""
-	if v.Filter.Active {
-		if v.Filter.Text == "" {
-			hint := v.Styles.Dim.Render("a: artist  t: title  l: album  g: genre")
-			separator = "Filter: " + hint + "\n"
-		} else {
-			separator = "Filter: " + v.Filter.View() + "\n"
-		}
-	} else if v.Filter.Text != "" {
-		ft := v.Filter.Text
-		maxLen := v.Width - len("Filter: ") - 1
-		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
-			ft = ansi.Truncate(ft, maxLen-1, "…")
-		}
-		separator = "Filter: " + ft + "\n"
-	}
-
 	if v.Width == 0 {
+		// Zero-width fallback: keep the legacy "Filter: ..." line so the
+		// user can still see their query before the terminal size arrives.
+		separator := ""
+		if v.Filter.Active {
+			if v.Filter.Text == "" {
+				hint := v.Styles.Dim.Render("a: artist  t: title  l: album  g: genre")
+				separator = "Filter: " + hint + "\n"
+			} else {
+				separator = "Filter: " + v.Filter.View() + "\n"
+			}
+		} else if v.Filter.Text != "" {
+			separator = "Filter: " + v.Filter.Text + "\n"
+		}
 		if start >= end {
 			return separator + "No matches — press Esc to clear"
 		}
@@ -104,38 +101,17 @@ func (v View) Render() string {
 		cols = ComputeWithDateAdded(v.Width)
 	}
 
-	// Append sort indicator to the active column header.
 	dateColLabel := "Added"
 	if v.ShowPlayedAt {
 		dateColLabel = "Played"
 	}
-	artistH, titleH, albumH, timeH, dateAddedH := "Artist", "Title", "Album", "Time", dateColLabel
-	if v.SortField != 0 {
-		ind := "▲"
-		if v.SortDir == 1 {
-			ind = "▼"
-		}
-		switch v.SortField {
-		case 1: // SortArtist
-			artistH += ind
-		case 2: // SortTitle
-			titleH += ind
-		case 3: // SortAlbum
-			albumH += ind
-		case 4: // SortDuration
-			timeH += ind
-		case 5: // SortDateAdded
-			dateAddedH += ind
-		case 9: // SortLastPlayed
-			dateAddedH += ind
-		}
-	}
-	header := strings.Repeat(" ", cols.SelectionMarker) + v.Styles.ColHead.Render(renderRow("#", artistH, titleH, albumH, timeH, dateAddedH, cols))
+	header := strings.Repeat(" ", cols.SelectionMarker) + v.Styles.ColHead.Render(renderRow("#", "Artist", "Title", "Album", "Time", dateColLabel, cols))
+	stripLine := v.renderStateStrip(len(allTracks), len(display))
 
 	if start >= end {
 		noMatches := "No matches"
 		leftPad := max(0, (v.Width-len(noMatches))/2)
-		return separator + header + "\n" + strings.Repeat(" ", leftPad) + noMatches
+		return stripLine + "\n" + header + "\n" + strings.Repeat(" ", leftPad) + noMatches
 	}
 
 	showDisc := false
@@ -147,7 +123,8 @@ func (v View) Render() string {
 	}
 
 	lines := make([]string, end-start)
-	var prevArtist string
+	dimRunsDisabled := v.Filter.Active || v.Filter.Text != ""
+	var prevArtist, prevAlbum string
 	for i, dt := range display[start:end] {
 		absIdx := start + i
 		t := dt.track
@@ -187,7 +164,8 @@ func (v View) Render() string {
 
 		var artistStr, titleStr, albumStr string
 		hasFieldPos := len(dt.artistPositions) > 0 || len(dt.titlePositions) > 0 || len(dt.albumPositions) > 0
-		sameArtist := t.Artist == prevArtist && prevArtist != ""
+		sameArtist := !dimRunsDisabled && t.Artist == prevArtist && prevArtist != ""
+		sameAlbum := !dimRunsDisabled && t.Album == prevAlbum && prevAlbum != ""
 
 		artistFavStyle := favStyleFor(isArtistFav, v.Styles.FavArtist)
 		titleFavStyle := favStyleFor(isTrackFav, v.Styles.Favorite)
@@ -243,8 +221,13 @@ func (v View) Render() string {
 				if isAlbumFav {
 					albumStr = styles.WithZebraBg(v.Styles.FavAlbum, rowBg, useBg).Render(albumStr)
 				}
-				if sameArtist && !isArtistFav {
-					artistStr = styles.WithZebraBg(v.Styles.TextTertiary, rowBg, useBg).Render(artistStr)
+				if sameArtist {
+					artistStr = styles.WithZebraBg(v.Styles.TextTertiary, rowBg, useBg).
+						Render(text.DimRepeat(t.Artist, prevArtist, cols.Artist))
+				}
+				if sameAlbum {
+					albumStr = styles.WithZebraBg(v.Styles.TextTertiary, rowBg, useBg).
+						Render(text.DimRepeat(t.Album, prevAlbum, cols.Album))
 				}
 			}
 		}
@@ -282,7 +265,7 @@ func (v View) Render() string {
 				if !isArtistFav && !sameArtist {
 					artistStr = styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(artistStr)
 				}
-				if !isAlbumFav {
+				if !isAlbumFav && !sameAlbum {
 					albumStr = styles.WithZebraBg(v.Styles.TextSecondary, rowBg, true).Render(albumStr)
 				}
 				var markerPart string
@@ -305,7 +288,7 @@ func (v View) Render() string {
 				if !isArtistFav && !sameArtist {
 					artistStr = v.Styles.TextPrimary.Render(artistStr)
 				}
-				if !isAlbumFav {
+				if !isAlbumFav && !sameAlbum {
 					albumStr = v.Styles.TextSecondary.Render(albumStr)
 				}
 				row = markerStr + v.Styles.TextTertiary.Render(text.Pad(num, cols.TrackNum)) + "  " +
@@ -318,6 +301,7 @@ func (v View) Render() string {
 		}
 
 		prevArtist = t.Artist
+		prevAlbum = t.Album
 		lines[i] = row
 	}
 
@@ -340,7 +324,37 @@ func (v View) Render() string {
 		})
 	}
 
-	return separator + header + "\n" + strings.Join(out, "\n")
+	return stripLine + "\n" + header + "\n" + strings.Join(out, "\n")
+}
+
+// renderStateStrip builds the unified single-line state strip carrying
+// the view label, sort, filter, and counts. total is the full track
+// count before filtering; filtered is the count after filtering is
+// applied (equal to total when no filter is active).
+func (v View) renderStateStrip(total, filtered int) string {
+	label := v.StripViewLabel
+	if label == "" {
+		label = "Library"
+	}
+	sort := strip.SortChunk{Label: v.StripSortLabel, Indicator: v.StripSortIndicator}
+	f := strip.FilterChunk{Active: v.Filter.Active, Text: v.Filter.Text}
+	if v.Filter.Active {
+		if v.Filter.Text == "" {
+			f.Hint = v.Styles.Dim.Render("a: artist  t: title  l: album  g: genre")
+		} else {
+			f.InputView = v.Filter.View()
+		}
+	}
+	counts := strip.CountsChunk{
+		Filtered:  filtered,
+		Total:     total,
+		Filtering: v.Filter.Text != "",
+	}
+	var sel *strip.SelectionChunk
+	if n := len(v.SelectedHashes); n > 0 {
+		sel = &strip.SelectionChunk{Count: n}
+	}
+	return strip.Render(v.Width, []string{label}, sort, f, counts, sel, "", v.Styles)
 }
 
 // renderDivider returns a single divider line spanning the visible content

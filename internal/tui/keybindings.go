@@ -239,6 +239,23 @@ type primaryHint struct {
 	Label string
 }
 
+// HintMode selects which primary-hint set the footer strip should show.
+// Selection and Visual modes surface action sets relevant to an in-progress
+// bulk-action workflow; Default is the resting-state set.
+type HintMode int
+
+const (
+	HintModeDefault   HintMode = iota // resting-state hints (no selection, no visual mode)
+	HintModeSelection                 // one or more rows are bulk-selected
+	HintModeVisual                    // visual line-selection mode is active
+)
+
+// primaryHintKey is the composite map key for per-context, per-mode hint sets.
+type primaryHintKey struct {
+	ctx  bindingContext
+	mode HintMode
+}
+
 // Registry maps (context, key) → action. The zero value is not usable;
 // use newRegistry to obtain a pre-populated instance.
 //
@@ -248,14 +265,25 @@ type primaryHint struct {
 // have a non-empty reason here, so any silently shadowed key fails CI.
 type Registry struct {
 	bindings      map[registryKey]action
-	primaries     map[bindingContext][]primaryHint
+	primaries     map[primaryHintKey][]primaryHint
 	domainReasons map[registryKey]string
 }
 
-// Primaries returns the ordered list of primary keybinding hints for ctx.
-// Returns an empty slice when no primaries are registered for the context.
+// Primaries returns the ordered list of default-mode primary keybinding
+// hints for ctx. Equivalent to PrimariesForMode(ctx, HintModeDefault).
 func (r Registry) Primaries(ctx bindingContext) []primaryHint {
-	return r.primaries[ctx]
+	return r.primaries[primaryHintKey{ctx: ctx, mode: HintModeDefault}]
+}
+
+// PrimariesForMode returns the primary hints for (ctx, mode). When mode
+// is non-default and no hints are registered for it, falls back to the
+// default-mode set so the footer never goes empty just because a mode-
+// specific set wasn't customized for this view.
+func (r Registry) PrimariesForMode(ctx bindingContext, mode HintMode) []primaryHint {
+	if hints, ok := r.primaries[primaryHintKey{ctx: ctx, mode: mode}]; ok && len(hints) > 0 {
+		return hints
+	}
+	return r.primaries[primaryHintKey{ctx: ctx, mode: HintModeDefault}]
 }
 
 // newRegistry returns a Registry pre-populated with the application's default
@@ -263,7 +291,7 @@ func (r Registry) Primaries(ctx bindingContext) []primaryHint {
 func newRegistry() Registry {
 	r := Registry{
 		bindings:      make(map[registryKey]action),
-		primaries:     make(map[bindingContext][]primaryHint),
+		primaries:     make(map[primaryHintKey][]primaryHint),
 		domainReasons: make(map[registryKey]string),
 	}
 
@@ -504,6 +532,65 @@ func newRegistry() Registry {
 	r.addPrimary(contextMixes, "/", "filter")
 	r.addPrimary(contextMixes, "?", "help")
 
+	// Selection-mode hint sets (surfaced when 1+ rows are bulk-selected).
+	// These are not new bindings — every key here is already registered for
+	// the context. The selection set highlights the actions that operate on
+	// the current selection rather than a single focused row.
+	r.addPrimaryMode(contextLibrary, HintModeSelection, "enter", "enqueue")
+	r.addPrimaryMode(contextLibrary, HintModeSelection, "a", "bulk action")
+	r.addPrimaryMode(contextLibrary, HintModeSelection, "t", "tag")
+	r.addPrimaryMode(contextLibrary, HintModeSelection, "X", "clear")
+	r.addPrimaryMode(contextLibrary, HintModeSelection, "?", "help")
+
+	r.addPrimaryMode(contextQueue, HintModeSelection, "enter", "play")
+	r.addPrimaryMode(contextQueue, HintModeSelection, "d", "remove")
+	r.addPrimaryMode(contextQueue, HintModeSelection, "t", "tag")
+	r.addPrimaryMode(contextQueue, HintModeSelection, "S", "save")
+	r.addPrimaryMode(contextQueue, HintModeSelection, "X", "clear")
+	r.addPrimaryMode(contextQueue, HintModeSelection, "?", "help")
+
+	r.addPrimaryMode(contextPlaylists, HintModeSelection, "enter", "open")
+	r.addPrimaryMode(contextPlaylists, HintModeSelection, "a", "bulk action")
+	r.addPrimaryMode(contextPlaylists, HintModeSelection, "t", "tag")
+	r.addPrimaryMode(contextPlaylists, HintModeSelection, "X", "clear")
+	r.addPrimaryMode(contextPlaylists, HintModeSelection, "?", "help")
+
+	for _, ctx := range []bindingContext{contextBrowse, contextArtists, contextAlbums, contextGenres} {
+		r.addPrimaryMode(ctx, HintModeSelection, "enter", "open")
+		r.addPrimaryMode(ctx, HintModeSelection, "a", "bulk action")
+		r.addPrimaryMode(ctx, HintModeSelection, "t", "tag")
+		r.addPrimaryMode(ctx, HintModeSelection, "X", "clear")
+		r.addPrimaryMode(ctx, HintModeSelection, "?", "help")
+	}
+
+	r.addPrimaryMode(contextFavorites, HintModeSelection, "enter", "open")
+	r.addPrimaryMode(contextFavorites, HintModeSelection, "a", "bulk action")
+	r.addPrimaryMode(contextFavorites, HintModeSelection, "F", "toggle fav")
+	r.addPrimaryMode(contextFavorites, HintModeSelection, "X", "clear")
+	r.addPrimaryMode(contextFavorites, HintModeSelection, "?", "help")
+
+	r.addPrimaryMode(contextTags, HintModeSelection, "enter", "filter-by")
+	r.addPrimaryMode(contextTags, HintModeSelection, "a", "bulk action")
+	r.addPrimaryMode(contextTags, HintModeSelection, "t", "tag")
+	r.addPrimaryMode(contextTags, HintModeSelection, "X", "clear")
+	r.addPrimaryMode(contextTags, HintModeSelection, "?", "help")
+
+	// Visual-mode hint sets (surfaced while visual line-selection is active).
+	// Visual mode is launched by 'v' and exited with 'esc'; while active,
+	// j/k extend the range and the action keys behave like selection-mode
+	// shortcuts once the user exits visual.
+	for _, ctx := range []bindingContext{
+		contextLibrary, contextQueue, contextPlaylists,
+		contextBrowse, contextArtists, contextAlbums, contextGenres,
+		contextFavorites, contextTags,
+	} {
+		r.addPrimaryMode(ctx, HintModeVisual, "j/k", "extend")
+		r.addPrimaryMode(ctx, HintModeVisual, "v", "exit")
+		r.addPrimaryMode(ctx, HintModeVisual, "esc", "cancel")
+		r.addPrimaryMode(ctx, HintModeVisual, "X", "clear")
+		r.addPrimaryMode(ctx, HintModeVisual, "?", "help")
+	}
+
 	return r
 }
 
@@ -537,18 +624,27 @@ func (r *Registry) registerWithReason(ctx bindingContext, key string, a action, 
 }
 
 // registerPrimary binds the action and also records (key, label) as a primary
-// hint for the footer hint strip in the given context. Order of calls is the
-// order of display.
+// hint for the footer hint strip in the given context (default mode). Order of
+// calls is the order of display.
 func (r *Registry) registerPrimary(ctx bindingContext, key string, a action, label string) {
 	r.register(ctx, key, a)
-	r.primaries[ctx] = append(r.primaries[ctx], primaryHint{Key: key, Label: label})
+	r.addPrimary(ctx, key, label)
 }
 
-// addPrimary records (key, label) as a primary hint without (re)binding the
-// key. Use this when the binding already exists in another context (e.g. a
-// global binding that we want to surface in a view-local hint strip).
+// addPrimary records (key, label) as a default-mode primary hint without
+// (re)binding the key. Use this when the binding already exists in another
+// context (e.g. a global binding that we want to surface in a view-local
+// hint strip).
 func (r *Registry) addPrimary(ctx bindingContext, key, label string) {
-	r.primaries[ctx] = append(r.primaries[ctx], primaryHint{Key: key, Label: label})
+	r.addPrimaryMode(ctx, HintModeDefault, key, label)
+}
+
+// addPrimaryMode records (key, label) as a primary hint for the given
+// (context, mode) pair without (re)binding the key. Used to surface
+// selection-aware and visual-mode hint sets in the footer strip.
+func (r *Registry) addPrimaryMode(ctx bindingContext, mode HintMode, key, label string) {
+	k := primaryHintKey{ctx: ctx, mode: mode}
+	r.primaries[k] = append(r.primaries[k], primaryHint{Key: key, Label: label})
 }
 
 // lookup returns the action bound to (ctx, key), or actionNone if not found.

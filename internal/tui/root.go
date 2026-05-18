@@ -250,6 +250,12 @@ type Model struct {
 	// options apply; flipped at runtime via the "Toggle footer hints"
 	// palette command.
 	showFooterHints bool
+
+	// followNowPlaying gates auto-scrolling the Queue view so the
+	// now-playing row stays ~⅓ from the top on track change and view
+	// enter. Initialized from cfg.QueueFollowNowPlaying; flipped via the
+	// "Toggle queue follow" palette command.
+	followNowPlaying bool
 }
 
 // New creates a root Model. All dependencies are injected via functional
@@ -295,6 +301,8 @@ func New(ctx context.Context, opts ...Option) Model {
 	m = m.syncRecentlyAddedFromLibrary()
 	// Footer hint strip default is taken from config (defaults to true).
 	m.showFooterHints = m.cfg.ShowFooterHints
+	// Queue follow-now-playing default is taken from config (defaults to true).
+	m.followNowPlaying = m.cfg.QueueFollowNowPlaying
 	// Sync statusBar fields from model state.
 	m.statusBar.transientDur = time.Duration(m.cfg.TransientDurationSecs) * time.Second
 	m.statusBar.configPath = m.configPath

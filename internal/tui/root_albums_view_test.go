@@ -250,16 +250,15 @@ func TestAlbumsClampCursor_TrackLevelWithFilter(t *testing.T) {
 	}
 }
 
-// TestAlbumsGoToBottomWithSortAccountsForReserve verifies that GoToBottom
-// calculates the correct scroll offset when a sort is active. The sort
-// indicator takes one extra row, so visibleRows is one fewer.
-func TestAlbumsGoToBottomWithSortAccountsForReserve(t *testing.T) {
+// TestAlbumsGoToBottomScrollOffsetIndependentOfSort verifies that GoToBottom
+// produces the same scrollOffset regardless of sort state, because the state
+// strip absorbs the sort chunk without reserving an extra row.
+func TestAlbumsGoToBottomScrollOffsetIndependentOfSort(t *testing.T) {
 	albums := make([]string, 20)
 	for i := range albums {
 		albums[i] = fmt.Sprintf("Album_%02d", i)
 	}
 
-	// Without sort: Height=12, AlbumLevel no filter no sort -> reserve=0, visible=12.
 	v := AlbumsView{
 		level:  albtui.AlbumLevel,
 		cursor: 0,
@@ -272,7 +271,6 @@ func TestAlbumsGoToBottomWithSortAccountsForReserve(t *testing.T) {
 	}
 	scrollNoSort := v.scrollOffset
 
-	// With sort: reserve=1 (sort indicator), visible=11.
 	v2 := AlbumsView{
 		level:     albtui.AlbumLevel,
 		cursor:    0,
@@ -284,8 +282,8 @@ func TestAlbumsGoToBottomWithSortAccountsForReserve(t *testing.T) {
 	if v2.cursor != 19 {
 		t.Fatalf("GoToBottom with sort: expected cursor=19, got %d", v2.cursor)
 	}
-	if v2.scrollOffset <= scrollNoSort {
-		t.Errorf("GoToBottom with sort: expected scrollOffset > %d (no-sort), got %d",
+	if v2.scrollOffset != scrollNoSort {
+		t.Errorf("GoToBottom with sort: expected scrollOffset = %d (strip absorbs sort), got %d",
 			scrollNoSort, v2.scrollOffset)
 	}
 }

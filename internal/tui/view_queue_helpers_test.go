@@ -42,8 +42,9 @@ func TestQueueVisibleRowsZeroHeight(t *testing.T) {
 
 func TestQueueVisibleRowsSmallHeight(t *testing.T) {
 	q := QueueView{height: 5}
-	if q.visibleRows() != 3 {
-		t.Errorf("visibleRows height=5: expected 3, got %d", q.visibleRows())
+	// reserve = 3 (strip + column header + bottom margin)
+	if q.visibleRows() != 2 {
+		t.Errorf("visibleRows height=5: expected 2, got %d", q.visibleRows())
 	}
 }
 
@@ -94,21 +95,21 @@ func TestFilteredEntriesOrigIdx(t *testing.T) {
 	}
 }
 
-// TestQueueVisibleRowsAccountsForFilter verifies that visibleRows reserves an
-// extra line when the filter bar is active or has committed (non-empty) text.
-func TestQueueVisibleRowsAccountsForFilter(t *testing.T) {
+// TestQueueVisibleRowsAbsorbsFilter verifies that the state strip absorbs the
+// filter chunk, so visibleRows does not change with filter state.
+func TestQueueVisibleRowsAbsorbsFilter(t *testing.T) {
 	q := QueueView{height: 20}
 	baseRows := q.visibleRows()
 
 	q.filter.Active = true
-	if got := q.visibleRows(); got != baseRows-1 {
-		t.Errorf("active filter: expected %d, got %d", baseRows-1, got)
+	if got := q.visibleRows(); got != baseRows {
+		t.Errorf("active filter: expected %d (strip absorbs filter), got %d", baseRows, got)
 	}
 
 	q.filter.Active = false
 	q.filter.Text = "hello"
-	if got := q.visibleRows(); got != baseRows-1 {
-		t.Errorf("committed filter text: expected %d, got %d", baseRows-1, got)
+	if got := q.visibleRows(); got != baseRows {
+		t.Errorf("committed filter text: expected %d (strip absorbs filter), got %d", baseRows, got)
 	}
 }
 
@@ -124,15 +125,16 @@ func TestQueueVisibleRowsAccountsForSaveInput(t *testing.T) {
 	}
 }
 
-// TestQueueVisibleRowsAccountsForBothFilterAndSave verifies that visibleRows
-// reserves lines for both filter and save input simultaneously.
+// TestQueueVisibleRowsAccountsForBothFilterAndSave verifies that when both
+// filter and the save-as-playlist input are active, only the save input affects
+// visibleRows (the filter is absorbed by the state strip).
 func TestQueueVisibleRowsAccountsForBothFilterAndSave(t *testing.T) {
 	q := QueueView{height: 20}
 	baseRows := q.visibleRows()
 
 	q.filter.Active = true
 	q.savingAsPlaylist = true
-	if got := q.visibleRows(); got != baseRows-2 {
-		t.Errorf("both filter and save: expected %d, got %d", baseRows-2, got)
+	if got := q.visibleRows(); got != baseRows-1 {
+		t.Errorf("both filter and save: expected %d (only save reserves), got %d", baseRows-1, got)
 	}
 }

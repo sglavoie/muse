@@ -208,13 +208,15 @@ func TestQueueFilterCursorStaysInBounds(t *testing.T) {
 	}
 }
 
-// TestQueueFilterRendersFilterBar verifies that the filter bar appears in the
-// rendered queue output when the filter is active.
+// TestQueueFilterRendersFilterBar verifies that the filter chunk appears in
+// the rendered queue output when the filter is active.
 func TestQueueFilterRendersFilterBar(t *testing.T) {
 	q := QueueView{
 		entries: []QueueEntry{
 			{Path: "/a.flac", Title: "Song", Artist: "Art", Album: "Alb"},
 		},
+		width:  120,
+		height: 20,
 	}
 	q.filter, _ = q.filter.Activate()
 	for _, ch := range "song" {
@@ -225,8 +227,8 @@ func TestQueueFilterRendersFilterBar(t *testing.T) {
 
 	s := styles.NewStyles(true)
 	out := q.render(s, -1, PlaybackIdle, nil, nil, nil)
-	if !strings.Contains(out, "Filter: ") {
-		t.Errorf("rendered output should contain filter bar, got:\n%s", out)
+	if !strings.Contains(out, `filter "`) {
+		t.Errorf("rendered output should contain filter chunk, got:\n%s", out)
 	}
 }
 

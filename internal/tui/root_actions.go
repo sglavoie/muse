@@ -66,6 +66,9 @@ func (m Model) switchToView(id viewID) Model {
 		m.tagsView = m.tagsView.cancelRename()
 	}
 	m.activeView = id
+	if id == viewQueue && m.followNowPlaying {
+		m.queue = m.queue.ScrollToNowPlaying(m.playback.currentIndex)
+	}
 	if id == viewMixes && len(m.mixes.mixes) == 0 {
 		m.mixes.mixes = append([]MixInfo(nil), recommendation.Registry()...)
 	}
@@ -163,15 +166,21 @@ func (m Model) deriveCurrentBrowseData() Model {
 	switch m.browse.mode {
 	case BrowseModeArtists:
 		if len(m.browse.artists.artists) == 0 {
-			m.browse.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+			tracks := m.library.index.Tracks()
+			m.browse.artists.artists = arttui.DeriveArtists(tracks)
+			m.browse.artists.artistCounts = arttui.DeriveArtistCounts(tracks)
 		}
 	case BrowseModeAlbums:
 		if len(m.browse.albums.albums) == 0 {
-			m.browse.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
+			tracks := m.library.index.Tracks()
+			m.browse.albums.albums = albtui.DeriveAllAlbums(tracks)
+			m.browse.albums.albumCounts = albtui.DeriveAllAlbumCounts(tracks)
 		}
 	case BrowseModeGenres:
 		if len(m.browse.genres.genres) == 0 {
-			m.browse.genres.genres = gentui.DeriveGenres(m.library.index.Tracks())
+			tracks := m.library.index.Tracks()
+			m.browse.genres.genres = gentui.DeriveGenres(tracks)
+			m.browse.genres.genreCounts = gentui.DeriveGenreCounts(tracks)
 		}
 	}
 	return m

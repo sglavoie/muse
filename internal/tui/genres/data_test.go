@@ -47,6 +47,32 @@ func TestDeriveGenres_unknownLast(t *testing.T) {
 	}
 }
 
+func TestDeriveGenreCounts(t *testing.T) {
+	ts := tracks(
+		struct{ genre, artist, title string }{"Rock; Jazz", "A", "t1"},
+		struct{ genre, artist, title string }{"Jazz", "B", "t2"},
+		struct{ genre, artist, title string }{"Rock", "C", "t3"},
+		struct{ genre, artist, title string }{"", "D", "t4"},
+		struct{ genre, artist, title string }{"", "E", "t5"},
+	)
+	got := DeriveGenreCounts(ts)
+	want := map[string]int{"Rock": 2, "Jazz": 2, UnknownGenre: 2}
+	if len(got) != len(want) {
+		t.Fatalf("DeriveGenreCounts: want %v, got %v", want, got)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("DeriveGenreCounts[%q]: want %d, got %d", k, v, got[k])
+		}
+	}
+}
+
+func TestDeriveGenreCounts_empty(t *testing.T) {
+	if got := DeriveGenreCounts(nil); got != nil {
+		t.Fatalf("expected nil, got %v", got)
+	}
+}
+
 func TestDeriveGenres_sorting(t *testing.T) {
 	ts := tracks(
 		struct{ genre, artist, title string }{"Zebra", "A", "t1"},
