@@ -1,6 +1,7 @@
 package styles_test
 
 import (
+	"encoding/hex"
 	"go/parser"
 	"go/token"
 	"image/color"
@@ -9,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -154,16 +154,19 @@ func contrastRatio(fg, bg color.RGBA) float64 {
 }
 
 // parseHex parses a "#rrggbb" string into a color.RGBA with alpha 0xff.
-func parseHex(t *testing.T, hex string) color.RGBA {
+func parseHex(t *testing.T, hexColor string) color.RGBA {
 	t.Helper()
-	if len(hex) != 7 || hex[0] != '#' {
-		t.Fatalf("parseHex: bad hex %q (want #rrggbb)", hex)
+	if len(hexColor) != 7 || hexColor[0] != '#' {
+		t.Fatalf("parseHex: bad hex %q (want #rrggbb)", hexColor)
 	}
-	n, err := strconv.ParseUint(hex[1:], 16, 32)
+	rgb, err := hex.DecodeString(hexColor[1:])
 	if err != nil {
-		t.Fatalf("parseHex(%q): %v", hex, err)
+		t.Fatalf("parseHex(%q): %v", hexColor, err)
 	}
-	return color.RGBA{R: uint8(n >> 16), G: uint8(n >> 8), B: uint8(n), A: 0xff}
+	if len(rgb) != 3 {
+		t.Fatalf("parseHex(%q): got %d bytes, want 3", hexColor, len(rgb))
+	}
+	return color.RGBA{R: rgb[0], G: rgb[1], B: rgb[2], A: 0xff}
 }
 
 // TestStripForegroundContrastDark asserts that each of the four foregrounds

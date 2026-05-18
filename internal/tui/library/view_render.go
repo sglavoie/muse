@@ -319,7 +319,7 @@ func (v View) Render() string {
 			StickyBucket:     sticky,
 			MaxRows:          maxRows,
 			DividerEvery:     buckets.DividerEvery,
-			MakeDivider:      func() string { return v.renderDivider() },
+			MakeDivider:      v.renderDivider,
 			MakeBucketHeader: v.renderBucketHeader,
 		})
 	}

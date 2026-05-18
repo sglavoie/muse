@@ -623,14 +623,6 @@ func (r *Registry) registerWithReason(ctx bindingContext, key string, a action, 
 	r.domainReasons[registryKey{ctx: ctx, key: key}] = reason
 }
 
-// registerPrimary binds the action and also records (key, label) as a primary
-// hint for the footer hint strip in the given context (default mode). Order of
-// calls is the order of display.
-func (r *Registry) registerPrimary(ctx bindingContext, key string, a action, label string) {
-	r.register(ctx, key, a)
-	r.addPrimary(ctx, key, label)
-}
-
 // addPrimary records (key, label) as a default-mode primary hint without
 // (re)binding the key. Use this when the binding already exists in another
 // context (e.g. a global binding that we want to surface in a view-local

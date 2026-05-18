@@ -200,17 +200,14 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			if useBg {
 				played = played.Background(rowBg)
 			}
-			if e.Selected {
-				if useBg {
-					rb := lipgloss.NewStyle().Background(rowBg)
-					markerStr = s.AccentMark.Background(rowBg).Render("●") + rb.Render(" ")
-				} else {
-					markerStr = s.AccentMark.Render("●") + " "
-				}
-			} else if useBg {
+			switch {
+			case e.Selected:
+				rb := lipgloss.NewStyle().Background(rowBg)
+				markerStr = s.AccentMark.Background(rowBg).Render("●") + rb.Render(" ")
+			case useBg:
 				rb := lipgloss.NewStyle().Background(rowBg)
 				markerStr = played.Render("╵") + rb.Render(" ")
-			} else {
+			default:
 				markerStr = played.Render("╵ ")
 			}
 			titleStr = played.Render(titleStr)

@@ -59,10 +59,11 @@ func Chunk(dataRows, bucketLabels []string, opts ChunkOptions) []string {
 		prevBucket = opts.StickyBucket
 	}
 	dataSinceDivider := 0
-	for i, row := range dataRows {
+	for i := 0; i < len(dataRows) && i < len(bucketLabels); i++ {
 		if remaining <= 0 {
 			break
 		}
+		row := dataRows[i]
 		cur := bucketLabels[i]
 		if cur != "" && cur != prevBucket && opts.MakeBucketHeader != nil {
 			if remaining >= 2 {
