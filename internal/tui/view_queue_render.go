@@ -62,14 +62,6 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 	start := min(v.scrollOffset, len(entries))
 	end := min(len(entries), start+maxRows)
 
-	showDisc := false
-	for _, e := range entries[start:end] {
-		if e.DiscNumber > 1 {
-			showDisc = true
-			break
-		}
-	}
-
 	hasSource := false
 	for _, e := range entries[start:end] {
 		if e.SourcePlaylist != "" {
@@ -108,13 +100,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 
 		markerStr := text.RowMarker(e.Selected, isFocused, isNowPlaying, npIcon)
 
-		var rawPos string
-		if showDisc {
-			rawPos = text.FormatTrackPos(e.TrackNumber, e.DiscNumber, absIdx+1)
-		} else {
-			rawPos = text.FormatTrackPosSimple(e.TrackNumber, absIdx+1)
-		}
-		pos := fmt.Sprintf("%4s", rawPos)
+		pos := fmt.Sprintf("%4d", absIdx+1)
 		source := padQueue(e.SourcePlaylist, sourceWidth)
 		dur := fmt.Sprintf("%*s", durWidth, formatQueueDuration(e.DurationMs))
 

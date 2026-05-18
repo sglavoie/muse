@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -57,6 +58,37 @@ func TestQueueRenderFourColumns(t *testing.T) {
 	}
 	if !strings.Contains(out, "1:05") {
 		t.Error("duration column must contain '1:05' for 65 000 ms")
+	}
+}
+
+// TestQueueRenderPositionIgnoresTrackNumber guards against a regression where
+// the position column displayed the file's TrackNumber metadata instead of the
+// row's queue index. The bug surfaced for DJ/Radio-enqueued tracks whose audio
+// tags carried a numeric track number — e.g. queue position 329 rendered as
+// "11" because the underlying file was track 11 on its album.
+func TestQueueRenderPositionIgnoresTrackNumber(t *testing.T) {
+	v := makeQueue(120, []QueueEntry{
+		{Title: "Cassation", Artist: "Mozart", DurationMs: 60_000, Position: 1000, TrackNumber: 11},
+		{Title: "Bittersweet", Artist: "Blank", DurationMs: 60_000, Position: 2000, TrackNumber: 3},
+	})
+	out := ansi.Strip(v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil))
+	cases := []struct {
+		title    string
+		wantPos  int
+		wrongPos int
+	}{
+		{"Cassation", 1, 11},
+		{"Bittersweet", 2, 3},
+	}
+	for _, tc := range cases {
+		want := fmt.Sprintf("%4d %s", tc.wantPos, tc.title)
+		if !strings.Contains(out, want) {
+			t.Errorf("queue row for %q must show queue index %d before the title; missing substring %q", tc.title, tc.wantPos, want)
+		}
+		wrong := fmt.Sprintf("%4d %s", tc.wrongPos, tc.title)
+		if strings.Contains(out, wrong) {
+			t.Errorf("queue row for %q must not show album TrackNumber %d before the title; found substring %q", tc.title, tc.wrongPos, wrong)
+		}
 	}
 }
 
