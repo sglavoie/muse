@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
@@ -335,4 +337,53 @@ func copyTagHash(src map[string]struct{}) map[string]struct{} {
 		dst[k] = v
 	}
 	return dst
+}
+
+// TestTagPicker_DownKeyBoundaries verifies cursor navigation via the "down"
+// key for the three relevant states: middle of the list, last filtered row,
+// and when the synthetic "+Create" row is focused.
+func TestTagPicker_DownKeyBoundaries(t *testing.T) {
+	tags := []db.TagRow{
+		{ID: 1, Name: "alpha"},
+		{ID: 2, Name: "beta"},
+		{ID: 3, Name: "gamma"},
+	}
+
+	// Advancing within the list moves the cursor forward.
+	tp, _ := NewTagPicker(tags, "h1", map[int64]struct{}{})
+	if tp.cursor != 0 {
+		t.Fatalf("initial cursor = %d, want 0", tp.cursor)
+	}
+	tp, _ = tp.HandleKey("down", tea.KeyPressMsg{})
+	if tp.cursor != 1 {
+		t.Errorf("after one down: cursor = %d, want 1", tp.cursor)
+	}
+
+	// Pressing down at the last filtered row must not advance past it.
+	tp, _ = tp.HandleKey("down", tea.KeyPressMsg{})
+	if tp.cursor != 2 {
+		t.Errorf("after two downs: cursor = %d, want 2", tp.cursor)
+	}
+	tp, _ = tp.HandleKey("down", tea.KeyPressMsg{})
+	if tp.cursor != 2 {
+		t.Errorf("down at last row: cursor = %d, want 2 (clamped)", tp.cursor)
+	}
+
+	// When the filter matches nothing, focus is on the synthetic "+Create" row;
+	// down must be a no-op (no real rows to move to). This exercises the path
+	// previously guarded by a redundant maxCursor = 0 assignment.
+	tp2, _ := NewTagPicker(tags, "h1", map[int64]struct{}{})
+	tp2.filter.Text = "zzz-no-match"
+	tp2.refilter()
+	if len(tp2.filtered) != 0 {
+		t.Fatalf("expected zero filtered items, got %d", len(tp2.filtered))
+	}
+	if !tp2.focusedOnCreate() {
+		t.Fatal("expected focusedOnCreate() to be true")
+	}
+	before := tp2.cursor
+	tp2, _ = tp2.HandleKey("down", tea.KeyPressMsg{})
+	if tp2.cursor != before {
+		t.Errorf("down on +Create: cursor moved from %d to %d", before, tp2.cursor)
+	}
 }

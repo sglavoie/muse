@@ -161,12 +161,9 @@ func (tp TagPicker) HandleKey(key string, msg tea.KeyPressMsg) (TagPicker, tea.C
 		return tp, nil
 
 	case "down", "ctrl+j", "ctrl+n":
-		maxCursor := len(tp.filtered) - 1
-		if tp.focusedOnCreate() {
-			// When a "+Create" row is visible, the create option is at the end.
-			maxCursor = 0 // no filtered items; create is the only option
-		}
-		if !tp.focusedOnCreate() && tp.cursor < maxCursor {
+		// When "+Create" is focused, there is no row to move to.
+		// Otherwise advance up to the last filtered row.
+		if !tp.focusedOnCreate() && tp.cursor < len(tp.filtered)-1 {
 			tp.cursor++
 		}
 		return tp, nil
