@@ -533,3 +533,47 @@ func TestNotifyFallsBackToDefault(t *testing.T) {
 		t.Errorf("expected expiry ~5s (fallback) from now, got %v", diff)
 	}
 }
+
+// TestRenderProgressBarNonPositiveWidth verifies that renderProgressBar
+// returns an empty string when width is zero or negative, rather than
+// panicking on strings.Repeat with a negative count. Callers compute
+// progress-bar widths by subtracting label/trailing widths from the
+// available terminal width and clamp the result to >= 0, but the helper
+// itself must remain safe if any future caller forgets to clamp.
+func TestRenderProgressBarNonPositiveWidth(t *testing.T) {
+	st := styles.Styles{}
+	for _, w := range []int{0, -1, -100} {
+		got := renderProgressBar(10, 100, w, st)
+		if got != "" {
+			t.Errorf("renderProgressBar(width=%d) = %q, want empty string", w, got)
+		}
+	}
+}
+
+// TestRenderProgressBarValidWidths verifies that valid widths render a bar
+// whose display width matches the requested width, regardless of the
+// elapsed/total fraction (including over-100% inputs that should clamp).
+func TestRenderProgressBarValidWidths(t *testing.T) {
+	st := styles.Styles{}
+	cases := []struct {
+		name           string
+		elapsed, total float64
+		width          int
+	}{
+		{"zero progress", 0, 100, 10},
+		{"half progress", 50, 100, 10},
+		{"full progress", 100, 100, 10},
+		{"over 100%", 200, 100, 10},
+		{"negative elapsed", -5, 100, 10},
+		{"zero total", 50, 0, 10},
+		{"width 1", 50, 100, 1},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := renderProgressBar(c.elapsed, c.total, c.width, st)
+			if w := ansi.StringWidth(got); w != c.width {
+				t.Errorf("renderProgressBar(%v,%v,%d) display width = %d, want %d", c.elapsed, c.total, c.width, w, c.width)
+			}
+		})
+	}
+}

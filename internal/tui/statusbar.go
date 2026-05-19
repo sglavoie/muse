@@ -256,7 +256,12 @@ func formatTime(secs float64) string {
 // renderProgressBar builds a full-width progress bar string. The filled portion
 // uses "█" styled with ProgressFilled; the empty portion uses "░" with
 // ProgressEmpty. elapsed/total are seconds; fraction is clamped to [0,1].
+// Returns "" when width <= 0 so that callers using calculated/clamped widths
+// cannot trigger a strings.Repeat panic on negative counts.
 func renderProgressBar(elapsed, total float64, width int, st styles.Styles) string {
+	if width <= 0 {
+		return ""
+	}
 	frac := 0.0
 	if total > 0 {
 		frac = elapsed / total
@@ -269,6 +274,9 @@ func renderProgressBar(elapsed, total float64, width int, st styles.Styles) stri
 	filled := int(math.Round(frac * float64(width)))
 	if filled > width {
 		filled = width
+	}
+	if filled < 0 {
+		filled = 0
 	}
 	empty := width - filled
 	return st.ProgressFilled.Render(strings.Repeat("█", filled)) +
