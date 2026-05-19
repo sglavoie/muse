@@ -197,7 +197,7 @@ func (w *Writer) IncrementPlayCount(hash string) error {
 // total track duration in seconds (used to compute completion_rate).
 func (w *Writer) RecordPlay(hash string, playedAt int64, listenedSecs int, durationSecs float64) error {
 	completionRate := 0.0
-	if durationSecs > 0 {
+	if durationSecs > 0 && listenedSecs > 0 {
 		completionRate = math.Min(1.0, float64(listenedSecs)/durationSecs)
 	}
 	return w.Exec(func(db *sql.DB) error {

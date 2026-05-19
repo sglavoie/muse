@@ -369,6 +369,27 @@ func TestRecordPlay_CompletionRate_CapsAt1(t *testing.T) {
 	}
 }
 
+func TestRecordPlay_CompletionRate_FloorsAtZero(t *testing.T) {
+	d := openMigratedDB(t)
+	insertTrack(t, d, "h1", "/a.flac")
+	w := newWriter(t, d)
+
+	// A negative listenedSecs (e.g. from a clock skew) must not produce a
+	// negative completion_rate, which would drag down AVG() in deep-cuts /
+	// rates queries.
+	if err := w.RecordPlay("h1", time.Now().Unix(), -10, 120.0); err != nil {
+		t.Fatalf("RecordPlay: %v", err)
+	}
+
+	var rate float64
+	if err := d.QueryRow(`SELECT completion_rate FROM play_history WHERE track_hash = ?`, "h1").Scan(&rate); err != nil {
+		t.Fatalf("query completion_rate: %v", err)
+	}
+	if rate != 0.0 {
+		t.Errorf("completion_rate = %f, want 0.0 for negative listenedSecs", rate)
+	}
+}
+
 // --- ReadPlayHistory ---
 
 func TestReadPlayHistory_FieldMapping(t *testing.T) {
