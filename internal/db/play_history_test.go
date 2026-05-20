@@ -201,6 +201,34 @@ func TestEvalSmartPlaylist_LastPlayedInLast(t *testing.T) {
 	}
 }
 
+// TestEvalSmartPlaylist_LastPlayedInLastExcludesUnplayed verifies that the
+// "last_played in_last N days" filter does NOT match tracks that have never
+// been played (last_played_at = 0). Without the > 0 guard, the comparison
+// 0 >= (unixepoch('now') - N*86400) is true for any positive N, so unplayed
+// tracks would silently match the filter.
+func TestEvalSmartPlaylist_LastPlayedInLastExcludesUnplayed(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	// h1: never played (last_played_at stays at 0).
+	insertFullTrack(t, d, "h1", "/a.flac", "Song1", "Artist", "Album", "rock", 180000, 5000000, now)
+	// h2: played 2 days ago (within the 7-day window).
+	insertFullTrack(t, d, "h2", "/b.flac", "Song2", "Artist", "Album", "rock", 180000, 5000000, now)
+	if _, err := d.Exec(
+		`UPDATE tracks SET last_played_at = ? WHERE hash = ?`, now-2*86400, "h2",
+	); err != nil {
+		t.Fatalf("update h2: %v", err)
+	}
+
+	q := db.SmartPlaylistQuery{
+		Root: db.SmartRule{Field: db.FieldLastPlayed, Operator: db.OpInLast, Value: "7"},
+	}
+	rows := evalQuery(t, d, q)
+	if len(rows) != 1 || rows[0].Hash != "h2" {
+		t.Errorf("got %d rows (hashes: %v), want only h2 (unplayed h1 must be excluded)",
+			len(rows), hashes(rows))
+	}
+}
+
 // --- Streak calculation ---
 
 func TestReadListeningStats_StreakToday(t *testing.T) {

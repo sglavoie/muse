@@ -103,7 +103,11 @@ func buildLeaf(sb *strings.Builder, args *[]any, rule SmartRule) error {
 
 	case FieldLastPlayed:
 		if rule.Operator == OpInLast {
-			sb.WriteString("t.last_played_at >= unixepoch('now') - (? * 86400)")
+			// Exclude tracks that have never been played (last_played_at = 0)
+			// — without the > 0 guard, 0 >= (now - N*86400) is true for any
+			// positive N, so the "in last N days" filter would silently match
+			// every unplayed track in the library.
+			sb.WriteString("t.last_played_at > 0 AND t.last_played_at >= unixepoch('now') - (? * 86400)")
 			*args = append(*args, rule.Value)
 			return nil
 		}

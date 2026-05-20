@@ -65,14 +65,23 @@ func Chunk(dataRows, bucketLabels []string, opts ChunkOptions) []string {
 		}
 		row := dataRows[i]
 		cur := bucketLabels[i]
+		emittedBucketHeader := false
 		if cur != "" && cur != prevBucket && opts.MakeBucketHeader != nil {
 			if remaining >= 2 {
 				out = append(out, opts.MakeBucketHeader(cur))
 				remaining--
+				emittedBucketHeader = true
 			}
 			prevBucket = cur
 		}
-		if opts.DividerEvery > 0 && dataSinceDivider == opts.DividerEvery &&
+		// A bucket header already provides visual separation; suppress the
+		// divider on the same row so we don't render "[Bucket]" + "─" + row
+		// (the divider between two unrelated sections is redundant). Reset
+		// the divider counter so the next divider fires DividerEvery rows
+		// after this header instead of immediately on the next row.
+		if emittedBucketHeader {
+			dataSinceDivider = 0
+		} else if opts.DividerEvery > 0 && dataSinceDivider == opts.DividerEvery &&
 			opts.MakeDivider != nil {
 			if remaining >= 2 {
 				out = append(out, opts.MakeDivider())

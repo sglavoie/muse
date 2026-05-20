@@ -46,7 +46,10 @@ func ScoreAll(input ScoreInput) []TrackScore {
 	results := make([]TrackScore, 0, len(input.AllTracks))
 
 	for _, track := range input.AllTracks {
-		if track.Hash == input.Seed.Hash {
+		// Only skip seed by hash when seed.Hash is non-empty; otherwise an
+		// empty seed Hash would accidentally drop every candidate whose Hash
+		// is also empty (e.g., not-yet-hashed library entries).
+		if input.Seed.Hash != "" && track.Hash == input.Seed.Hash {
 			continue
 		}
 
@@ -140,7 +143,11 @@ func ScoreAll(input ScoreInput) []TrackScore {
 		results = append(results, TrackScore{Track: track, Score: score})
 	}
 
-	sort.Slice(results, func(i, j int) bool {
+	// Stable sort so candidates with identical scores keep input order — this
+	// makes the top-K pool (and any downstream PickBatch sampling) reproducible
+	// for a given AllTracks ordering and avoids subtle non-determinism between
+	// runs from Go's unstable quicksort tie-breaking.
+	sort.SliceStable(results, func(i, j int) bool {
 		return results[i].Score > results[j].Score
 	})
 

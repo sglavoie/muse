@@ -394,3 +394,72 @@ func TestRadioSeedTagsSnapshotted(t *testing.T) {
 	close(stop)
 	<-done
 }
+
+// TestRadioBatchDiscardedWhenQueueClearedInFlight verifies that a
+// RadioBatchEnqueuedMsg arriving with WasEmpty=false (radio triggered at
+// low-water-mark with a non-empty queue) is discarded when the queue is empty
+// by the time the batch arrives. Without this guard a Shift+C clear that
+// races a radio enqueue would silently re-populate the cleared queue with
+// surprise tracks the user did not request.
+func TestRadioBatchDiscardedWhenQueueClearedInFlight(t *testing.T) {
+	m := newModelWithTracks()
+	m.radio.enabled = true
+	m.radio.enqueuePending = true
+	// Simulate post-clear state: queue empty, queueExhausted=false (cleared
+	// by resetPlaybackState), state Idle.
+	m.queue.entries = nil
+	m.playback.queueExhausted = false
+	m.playback.state = PlaybackIdle
+
+	msg := RadioBatchEnqueuedMsg{
+		Entries: []QueueEntry{
+			{ID: 50, Hash: "hr", Path: "/r.flac", Artist: "R", Title: "S"},
+		},
+		QueueIDs: []int64{50},
+		WasEmpty: false, // captured when queue still had entries
+	}
+	nm, _ := m.handleRadioBatchEnqueuedMsg(msg)
+
+	if nm.radio.enqueuePending {
+		t.Error("enqueuePending must be reset even when batch is discarded")
+	}
+	if len(nm.queue.entries) != 0 {
+		t.Errorf("cleared queue must stay empty; got %d entries", len(nm.queue.entries))
+	}
+	if nm.playback.state == PlaybackPlaying {
+		t.Error("playback must not start when batch is discarded after queue clear")
+	}
+}
+
+// TestRadioBatchAppliedWhenQueueWasEmptyAtEnqueueStart verifies the
+// queue-cleared-in-flight guard does not over-fire: a batch whose closure was
+// launched with WasEmpty=true (e.g. after PlaybackEndedMsg with no remaining
+// queue) must still apply and auto-start playback on arrival.
+func TestRadioBatchAppliedWhenQueueWasEmptyAtEnqueueStart(t *testing.T) {
+	p := &stubCommandPlayer{}
+	m := newModelWithTracks()
+	m.player = p
+	m.radio.enabled = true
+	m.radio.enqueuePending = true
+	m.queue.entries = nil
+	m.playback.state = PlaybackIdle
+
+	msg := RadioBatchEnqueuedMsg{
+		Entries: []QueueEntry{
+			{ID: 60, Hash: "hq", Path: "/q.flac", Artist: "Q", Title: "T"},
+		},
+		QueueIDs: []int64{60},
+		WasEmpty: true, // queue truly was empty when enqueue fired
+	}
+	nm, _ := m.handleRadioBatchEnqueuedMsg(msg)
+
+	if nm.radio.enqueuePending {
+		t.Error("enqueuePending must be reset after applying batch")
+	}
+	if len(nm.queue.entries) != 1 {
+		t.Errorf("expected 1 entry appended, got %d", len(nm.queue.entries))
+	}
+	if nm.playback.state != PlaybackPlaying {
+		t.Errorf("expected PlaybackPlaying after WasEmpty auto-start, got %v", nm.playback.state)
+	}
+}

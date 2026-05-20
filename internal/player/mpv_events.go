@@ -114,6 +114,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			}
 			idx := m.currentIndex
 			prefetchedIdx := m.prefetchedIndex
+			queueLen := len(m.queue)
 			m.mu.Unlock()
 			if stopAfter {
 				m.mu.RLock()
@@ -132,7 +133,15 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			// destroy the gapless transition. The prefetched index may
 			// be > idx+1 when intermediate tracks were missing on disk
 			// and skipped by prefetchNext.
-			if prefetchedIdx >= 0 && prefetchedIdx > idx {
+			//
+			// Validate prefetchedIdx against the current queue length:
+			// a concurrent SetQueue that shrinks the queue can leave the
+			// prefetched index pointing past the queue end (the prefetch
+			// state is cleared by SetQueue → clearPrefetch but that runs
+			// after m.mu is released, so this handler may observe a
+			// stale prefetchedIdx). Falling through to the PlayFromIndex
+			// path correctly reports queue exhaustion in that case.
+			if prefetchedIdx >= 0 && prefetchedIdx > idx && prefetchedIdx < queueLen {
 				m.mu.Lock()
 				m.currentIndex = prefetchedIdx
 				m.prefetchedIndex = -1

@@ -245,6 +245,14 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 	if !m.radio.enabled {
 		return m, nil
 	}
+	// Queue-cleared-in-flight guard: when the radio batch was launched the
+	// queue had remaining tracks (low-water-mark trigger), so msg.WasEmpty is
+	// false. If the queue is empty by the time the batch arrives, the user
+	// must have cleared it; silently appending the batch would resurrect a
+	// non-empty queue the user just emptied.
+	if !msg.WasEmpty && len(m.queue.entries) == 0 {
+		return m, nil
+	}
 
 	// Update recent-hashes ring buffer.
 	for _, e := range msg.Entries {

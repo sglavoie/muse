@@ -2,6 +2,7 @@ package text
 
 import (
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
@@ -244,6 +245,48 @@ func TestRightPadWithCountVerticalAlignment(t *testing.T) {
 	}
 	if ansi.StringWidth(l1+c1) != width || ansi.StringWidth(l2+c2) != width {
 		t.Fatalf("total row width != %d", width)
+	}
+}
+
+// TestBuildFilterSeparatorTruncationUsesFullBudget guards against an
+// off-by-one in BuildFilterSeparator's truncation call: ansi.Truncate(s,
+// n, tail) enforces a *total* result width of n (including the tail), so
+// truncating to `maxLen-1` would waste one column. The committed filter
+// text portion ("Filter: " + ft) should fit the row's available budget
+// while consuming every column up to that budget.
+func TestBuildFilterSeparatorTruncationUsesFullBudget(t *testing.T) {
+	const width = 20
+	longFilter := "abcdefghijklmnopqrstuvwxyz" // 26 chars, far longer than fits
+	out := BuildFilterSeparator("", false, longFilter, "", "", width, false)
+	// Strip trailing newline before measuring.
+	line := strings.TrimRight(out, "\n")
+	if w := ansi.StringWidth(line); w > width {
+		t.Fatalf("line width = %d, want <= %d (got %q)", w, width, line)
+	}
+	// maxLen = width - len("Filter: ") - 1 = 11. After the fix, ft is
+	// truncated to width 11 (including the ellipsis), so the full line
+	// width is len("Filter: ") + 11 = 19, just under width=20.
+	const wantWidth = 19
+	if w := ansi.StringWidth(line); w != wantWidth {
+		t.Errorf("line width = %d, want %d (got %q) — off-by-one regression?", w, wantWidth, line)
+	}
+	if !strings.HasSuffix(strings.TrimRight(line, " "), "…") {
+		t.Errorf("expected trailing ellipsis on truncated filter, got %q", line)
+	}
+}
+
+// TestBuildFilterSeparatorMultiByteFilter verifies that ansi.StringWidth-based
+// truncation handles multi-byte filter text without breaking width arithmetic
+// or splitting graphemes.
+func TestBuildFilterSeparatorMultiByteFilter(t *testing.T) {
+	const width = 25
+	// Mix of wide CJK and accented runes, each contributing a different
+	// display width than its byte length.
+	ft := "你好世界 naïve café日本語"
+	out := BuildFilterSeparator("", false, ft, "", "", width, false)
+	line := strings.TrimRight(out, "\n")
+	if w := ansi.StringWidth(line); w > width {
+		t.Errorf("multi-byte truncation overflow: width=%d > %d (line=%q)", w, width, line)
 	}
 }
 

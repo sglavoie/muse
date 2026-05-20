@@ -47,3 +47,53 @@ func TestClearQueueMsgResetsScrollOffset(t *testing.T) {
 		t.Fatalf("ClearQueueMsg: expected scrollOffset=0, got %d", nm.queue.scrollOffset)
 	}
 }
+
+// TestClearQueueMsgExitsVisualMode verifies that clearing the queue exits
+// visual selection mode. Leaving visual.active=true after the queue is
+// emptied corrupts the next selection cycle because the stored anchor and
+// snapshot reference indices into a now-empty slice.
+func TestClearQueueMsgExitsVisualMode(t *testing.T) {
+	p := &stubCommandPlayer{}
+	m := New(context.Background(), WithPlayer(p))
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Path: "/a.flac", Display: "A"},
+		{ID: 2, Path: "/b.flac", Display: "B"},
+	}
+	m = enterVisualMode(m)
+	if !m.visual.active {
+		t.Fatalf("precondition failed: visual mode must be active before clear")
+	}
+
+	next, _ := m.Update(ClearQueueMsg{})
+	nm := next.(Model)
+
+	if nm.visual.active {
+		t.Errorf("ClearQueueMsg must exit visual mode; visual.active=%v", nm.visual.active)
+	}
+	if nm.visual.anchor != 0 {
+		t.Errorf("ClearQueueMsg must reset visual anchor; got %d", nm.visual.anchor)
+	}
+}
+
+// TestClearQueueMsgResetsRadioEnqueuePending verifies that clearing the queue
+// resets radio.enqueuePending so the next track change after a fresh enqueue
+// can fire a new radio batch. Without this reset a clear-while-pending would
+// leave the flag stuck=true until the in-flight batch arrived, suppressing
+// any radio low-water-mark trigger during that window.
+func TestClearQueueMsgResetsRadioEnqueuePending(t *testing.T) {
+	p := &stubCommandPlayer{}
+	m := New(context.Background(), WithPlayer(p))
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Path: "/a.flac", Display: "A"},
+	}
+	m.radio.enabled = true
+	m.radio.enqueuePending = true
+
+	next, _ := m.Update(ClearQueueMsg{})
+	nm := next.(Model)
+
+	if nm.radio.enqueuePending {
+		t.Error("ClearQueueMsg must reset radio.enqueuePending to false")
+	}
+}

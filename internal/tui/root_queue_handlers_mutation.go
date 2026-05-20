@@ -119,6 +119,14 @@ func (m Model) handleClearQueueMsg() Model {
 	player.PlaySound(player.SoundRemoved)
 	m = m.resetQueueState()
 	m = m.resetPlaybackState()
+	// Exit visual mode: clearing the queue removes every entry the visual
+	// snapshot referenced; leaving visual.active=true with stale indices
+	// would corrupt the next visual selection after a re-enqueue.
+	m = exitVisualMode(m)
+	// Reset the radio enqueue-pending flag so the next track change can fire
+	// a fresh radio batch. The in-flight batch (if any) is discarded by the
+	// queue-cleared guard in handleRadioBatchEnqueuedMsg.
+	m.radio.enqueuePending = false
 	if setter, ok := m.player.(playerQueueSetter); ok {
 		setter.SetQueue(nil)
 	}

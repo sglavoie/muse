@@ -362,3 +362,54 @@ func TestScoreAll_TimeGenreBonusNilSafe(t *testing.T) {
 		t.Errorf("nil TimeGenreBonus should not affect score, got %v", got)
 	}
 }
+
+// Regression: when SeedTrack.Hash is empty (no playing seed available),
+// ScoreAll must not silently drop every candidate that also has an empty
+// Hash. Previously the `track.Hash == input.Seed.Hash` guard treated
+// "" == "" as a seed match and excluded those candidates.
+func TestScoreAll_EmptySeedHashDoesNotDropEmptyHashCandidates(t *testing.T) {
+	seed := SeedTrack{Hash: ""}
+	t1 := library.Track{Hash: "", Artist: "A"}
+	t2 := library.Track{Hash: "h2", Artist: "B"}
+	t3 := library.Track{Hash: "", Artist: "C"}
+	got := ScoreAll(ScoreInput{
+		Seed:      seed,
+		AllTracks: []library.Track{t1, t2, t3},
+	})
+	if len(got) != 3 {
+		t.Fatalf("expected all 3 candidates retained, got %d", len(got))
+	}
+}
+
+// Regression: ScoreAll must keep candidates with identical scores in their
+// input order so downstream consumers (PickBatch pool, UI lists) see
+// reproducible tie-breaking. Previously sort.Slice (unstable) could reorder
+// equal-score entries arbitrarily.
+func TestScoreAll_StableTieBreaking(t *testing.T) {
+	seed := track("s1", "", "", "", 0)
+	tracks := make([]library.Track, 32)
+	for i := range tracks {
+		tracks[i] = library.Track{Hash: string(rune('a' + i)), Artist: "X"}
+	}
+	input := ScoreInput{Seed: seedFrom(seed, nil, nil), AllTracks: tracks}
+	first := ScoreAll(input)
+	for run := 0; run < 5; run++ {
+		got := ScoreAll(input)
+		if len(got) != len(first) {
+			t.Fatalf("length drift: %d vs %d", len(got), len(first))
+		}
+		for i := range got {
+			if got[i].Track.Hash != first[i].Track.Hash {
+				t.Fatalf("unstable tie-break at idx %d: %q vs %q",
+					i, got[i].Track.Hash, first[i].Track.Hash)
+			}
+		}
+	}
+	// And the relative order must match input order for the equal-score run.
+	for i := range first {
+		if first[i].Track.Hash != tracks[i].Hash {
+			t.Errorf("idx %d: got %q, want input order %q",
+				i, first[i].Track.Hash, tracks[i].Hash)
+		}
+	}
+}
