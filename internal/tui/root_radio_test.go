@@ -307,3 +307,90 @@ func TestRadioStatusBarIndicator(t *testing.T) {
 		t.Errorf("expected RSND cluster (always shown) when radioMode=false, got %q", out)
 	}
 }
+
+// TestRadioBatchDiscardedWhenDisabled verifies that a RadioBatchEnqueuedMsg
+// arriving after the user has toggled radio off does not resurrect playback by
+// appending tracks to a queue the user just cleared/disabled.
+func TestRadioBatchDiscardedWhenDisabled(t *testing.T) {
+	m := newModelWithTracks()
+	m.radio.enabled = false
+	m.radio.enqueuePending = true
+	beforeLen := len(m.queue.entries)
+
+	msg := RadioBatchEnqueuedMsg{
+		Entries: []QueueEntry{
+			{ID: 99, Hash: "hx", Path: "/x.flac", Artist: "X", Title: "Y"},
+		},
+		QueueIDs: []int64{99},
+		WasEmpty: true,
+	}
+	nm, _ := m.handleRadioBatchEnqueuedMsg(msg)
+
+	if nm.radio.enqueuePending {
+		t.Error("enqueuePending must be reset even when batch is discarded")
+	}
+	if len(nm.queue.entries) != beforeLen {
+		t.Errorf("queue must not grow when radio is disabled; before=%d after=%d",
+			beforeLen, len(nm.queue.entries))
+	}
+	if nm.playback.state == PlaybackPlaying {
+		t.Error("playback must not start when radio is disabled")
+	}
+}
+
+// TestRadioSeedTagsSnapshotted verifies that the radio enqueue closure copies
+// the seed tag set instead of holding a live reference to m.trackTags[seedHash].
+// We exercise the race by mutating the live map concurrently with the closure
+// running: the snapshot must isolate the closure from those mutations.
+// Run with `go test -race` for the strongest signal.
+func TestRadioSeedTagsSnapshotted(t *testing.T) {
+	be := &stubBatchEnqueuer{}
+	m := newModelWithTracks()
+	m.batchEnqueuer = be
+	m.radio.enabled = true
+	m.radio.seedHash = "h1"
+	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a1.flac"}}
+	m.playback.currentIndex = 0
+	m.trackTags = map[string]map[int64]struct{}{
+		"h1": {7: {}, 8: {}},
+		// Populate other tracks so ScoreAll enters the shared-tag inner loop
+		// that ranges over Seed.TagIDs for each candidate.
+		"h2": {7: {}},
+		"h3": {8: {}},
+		"h4": {7: {}, 8: {}},
+		"h5": {7: {}},
+		"h6": {8: {}},
+	}
+
+	cmd := m.radioEnqueueCmd()
+	if cmd == nil {
+		t.Fatal("expected non-nil radio enqueue cmd")
+	}
+
+	// Concurrently mutate the live tag set while the closure runs. Without
+	// the snapshot the closure's range loop over seed.TagIDs would race
+	// with these writes and `go test -race` would flag it.
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				for i := 0; i < 50; i++ {
+					m.trackTags["h1"][int64(i)] = struct{}{}
+					delete(m.trackTags["h1"], int64(i))
+				}
+			}
+		}
+	}()
+
+	// Drive the closure many times so its read window overlaps the mutator.
+	for i := 0; i < 50; i++ {
+		_ = cmd()
+	}
+	close(stop)
+	<-done
+}

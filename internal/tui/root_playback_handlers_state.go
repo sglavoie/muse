@@ -224,6 +224,10 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	m.statusBar.title = msg.Title
 	if t, ok := m.library.index.FindByHash(msg.Hash); ok {
 		m.statusBar.album = t.Album
+	} else {
+		// Clear the previous track's album so it does not leak into the
+		// status bar when the new hash isn't in the library index.
+		m.statusBar.album = ""
 	}
 	source := msg.PlaylistSource
 	if source == "" {

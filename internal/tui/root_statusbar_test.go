@@ -432,3 +432,30 @@ func TestClearQueueShowsUndoHintInStatusBar(t *testing.T) {
 		t.Fatalf("clear queue: status bar must mention 'undo'; got:\n%s", v.Content)
 	}
 }
+
+// TestTrackChangedClearsPreviousAlbumWhenHashNotFound verifies that when a
+// new TrackChangedMsg arrives for a hash that is not in the library index
+// (e.g. an external file or freshly deleted track), the previous track's
+// album is cleared from the status bar instead of leaking through.
+func TestTrackChangedClearsPreviousAlbumWhenHashNotFound(t *testing.T) {
+	m := New(context.Background())
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac"},
+		{ID: 2, Hash: "unknown", Path: "/b.flac"},
+	}
+	// Simulate the previous track having seeded the album.
+	m.statusBar.album = "Previous Album"
+
+	next, _ := m.Update(TrackChangedMsg{
+		Hash:   "unknown",
+		Artist: "New Artist",
+		Title:  "New Title",
+		Index:  1,
+	})
+	nm := next.(Model)
+
+	if nm.statusBar.album != "" {
+		t.Errorf("statusBar.album must be reset when new hash is not in library index; got %q",
+			nm.statusBar.album)
+	}
+}

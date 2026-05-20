@@ -109,7 +109,14 @@ func (m Model) radioEnqueueCmd() tea.Cmd {
 			seed.Genres = library.SplitGenres(t.Genre)
 			seed.Duration = t.Duration
 			if tags, ok2 := m.trackTags[seedHash]; ok2 {
-				seed.TagIDs = tags
+				// Snapshot the tag set: the live map is mutated by the Update
+				// loop (applyTagToggle) and reading it concurrently from the
+				// closure goroutine would race.
+				seedTags := make(map[int64]struct{}, len(tags))
+				for id := range tags {
+					seedTags[id] = struct{}{}
+				}
+				seed.TagIDs = seedTags
 			}
 		} else if seedHash != "" {
 			seed.Hash = seedHash
@@ -229,6 +236,13 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 		return m, nil
 	}
 	if len(msg.Entries) == 0 {
+		return m, nil
+	}
+	// Discard the batch if radio was toggled off or the queue was cleared
+	// while the enqueue goroutine was in flight. The DB rows were already
+	// appended by the goroutine but appending them to the empty/disabled
+	// queue would resurrect playback the user just cancelled.
+	if !m.radio.enabled {
 		return m, nil
 	}
 
