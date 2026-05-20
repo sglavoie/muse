@@ -94,6 +94,12 @@ func (m Model) handlePlayFromIndexResultMsg(msg playFromIndexResultMsg) Model {
 	if msg.Err == nil {
 		return m
 	}
+	// Discard the error if the user already moved on to a different track or
+	// cleared the queue between dispatch and arrival. Resetting unconditionally
+	// would clobber the now-correct playback state with a stale failure.
+	if m.playback.currentHash != msg.Hash || m.playback.currentIndex != msg.Index {
+		return m
+	}
 	m = m.resetPlaybackState()
 	m.statusBar.notify("Play failed: " + msg.Err.Error())
 	player.PlaySound(player.SoundError)

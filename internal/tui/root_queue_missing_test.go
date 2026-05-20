@@ -180,7 +180,7 @@ func TestPlayFromIndexResultMsgErrorResetsPlayback(t *testing.T) {
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Title"
 
-	next, _ := m.Update(playFromIndexResultMsg{Index: 3, Err: errors.New("boom")})
+	next, _ := m.Update(playFromIndexResultMsg{Index: 3, Hash: "abc", Err: errors.New("boom")})
 	nm := next.(Model)
 
 	if nm.playback.state != PlaybackIdle {

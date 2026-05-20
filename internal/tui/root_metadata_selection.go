@@ -203,10 +203,14 @@ func (m Model) refreshDerivedViews() Model {
 		m.favorites = m.favorites.recomputeFavoritesSort()
 	}
 
+	// Refresh metadata for every cached mix, not just the active one — when
+	// the user navigates to a previously-loaded mix the cached slice is
+	// reused as-is, so stale title/artist/album/duration would leak in.
+	for id, cached := range m.mixes.cachedMixes {
+		refreshTrackMetadata(cached)
+		m.mixes.cachedMixes[id] = cached
+	}
 	if m.mixes.level == 1 {
-		if cached, ok := m.mixes.cachedMixes[m.mixes.activeMix]; ok {
-			refreshTrackMetadata(cached)
-		}
 		m.mixes.trackView = m.mixes.trackView.refreshView()
 	}
 

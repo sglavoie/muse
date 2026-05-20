@@ -146,6 +146,9 @@ func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
 	m.playback.state = PlaybackPlaying
 	m.playback.currentHash = hash
 	m.playback.currentIndex = 0
+	// Clear elapsed/peak/durationCorrected from any prior track so the new
+	// track's progress bar and duration-correction logic start fresh.
+	m = m.resetPlaybackProgress()
 	m.statusBar.artist = artist
 	m.statusBar.title = title
 	m.statusBar.playlistSource = queueSourceName(source)
