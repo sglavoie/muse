@@ -61,6 +61,43 @@ func TestMatchWordStartBonus(t *testing.T) {
 	}
 }
 
+func TestMatchMultiByteQueryMatches(t *testing.T) {
+	// Queries containing multi-byte runes (e.g. accented characters or
+	// non-Latin scripts) must be compared rune-by-rune, not byte-by-byte.
+	// Previously, byte-indexing the query against a rune-ranged name caused
+	// queries like "é" to never match "café".
+	cases := []struct {
+		query, name string
+	}{
+		{"é", "café"},
+		{"caf", "café"},
+		{"café", "café"},
+		{"naïve", "naïve approach"},
+		{"日", "日本語"},
+	}
+	for _, c := range cases {
+		if _, ok := Match(c.query, c.name); !ok {
+			t.Errorf("Match(%q, %q) should succeed", c.query, c.name)
+		}
+	}
+}
+
+func TestMatchPrefixScoreUsesRuneCount(t *testing.T) {
+	// Prefix score should scale with the rune count of the query, not its
+	// byte length. A 3-rune query "caf" and a 4-rune query "café" must
+	// produce different scores against "café…" so that callers can rank
+	// longer prefix matches above shorter ones consistently across ASCII
+	// and multi-byte queries.
+	shorter, okA := Match("caf", "café latte")
+	longer, okB := Match("café", "café latte")
+	if !okA || !okB {
+		t.Fatalf("both queries should match: %v %v", okA, okB)
+	}
+	if longer <= shorter {
+		t.Errorf("longer multi-byte prefix score (%d) should exceed shorter (%d)", longer, shorter)
+	}
+}
+
 type stub struct{ id, name string }
 
 func names(items []stub) []string {

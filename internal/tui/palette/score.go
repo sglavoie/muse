@@ -36,20 +36,23 @@ func Match(query, name string) (int, bool) {
 	}
 	if strings.HasPrefix(n, q) {
 		// Prefix matches dominate — still report a positive score and ok.
-		return scorePrefixMatch + scoreCharMatch*len(q), true
+		// Use rune count so multi-byte queries (e.g. "café") score the same
+		// per character as ASCII-only ones.
+		return scorePrefixMatch + scoreCharMatch*len([]rune(q)), true
 	}
 
+	qRunes := []rune(q)
 	score := 0
 	qi := 0
 	prevMatched := false
 	prevRune := rune(' ')
 	for _, r := range n {
-		if qi >= len(q) {
+		if qi >= len(qRunes) {
 			prevMatched = false
 			prevRune = r
 			continue
 		}
-		qr := rune(q[qi])
+		qr := qRunes[qi]
 		if r == qr {
 			score += scoreCharMatch
 			if isWordStart(prevRune) {
@@ -65,7 +68,7 @@ func Match(query, name string) (int, bool) {
 		}
 		prevRune = r
 	}
-	if qi < len(q) {
+	if qi < len(qRunes) {
 		return 0, false
 	}
 	return score, true
