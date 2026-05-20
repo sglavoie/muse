@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"math"
+
 	tea "charm.land/bubbletea/v2"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
@@ -74,8 +76,14 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 // persists the correction to the database.
 func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.Cmd) {
 	const threshold = 2.0
+	// Reject non-finite or non-positive mpvTotal values outright so a bogus
+	// mpv reading cannot overwrite a known-good stored duration with a
+	// negative/NaN value.
+	if mpvTotal <= 0 || math.IsNaN(mpvTotal) || math.IsInf(mpvTotal, 0) {
+		return m, nil
+	}
 	t, ok := m.library.index.FindByHash(hash)
-	if !ok || (t.Duration == 0 && mpvTotal <= 0) {
+	if !ok {
 		return m, nil
 	}
 	diff := t.Duration - mpvTotal

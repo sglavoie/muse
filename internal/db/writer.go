@@ -230,8 +230,11 @@ func (w *Writer) RecordPlay(hash string, playedAt int64, listenedSecs int, durat
 				return err
 			}
 		} else {
+			// Clamp with MAX so a backwards clock (NTP correction, manual
+			// adjustment) cannot rewind a session's ended_at below its
+			// existing value.
 			if _, err := tx.Exec(
-				`UPDATE listening_sessions SET ended_at = ? WHERE id = ?`,
+				`UPDATE listening_sessions SET ended_at = MAX(ended_at, ?) WHERE id = ?`,
 				playedAt, sessionID,
 			); err != nil {
 				return err
@@ -245,7 +248,7 @@ func (w *Writer) RecordPlay(hash string, playedAt int64, listenedSecs int, durat
 			return err
 		}
 		if _, err := tx.Exec(
-			`UPDATE tracks SET play_count = play_count + 1, last_played_at = ? WHERE hash = ?`,
+			`UPDATE tracks SET play_count = play_count + 1, last_played_at = MAX(COALESCE(last_played_at, 0), ?) WHERE hash = ?`,
 			playedAt, hash,
 		); err != nil {
 			return err
@@ -254,7 +257,9 @@ func (w *Writer) RecordPlay(hash string, playedAt int64, listenedSecs int, durat
 			return err
 		}
 		w.lastSessionID = sessionID
-		w.lastPlayedAt = playedAt
+		if playedAt > w.lastPlayedAt {
+			w.lastPlayedAt = playedAt
+		}
 		return nil
 	})
 }

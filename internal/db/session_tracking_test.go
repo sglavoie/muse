@@ -197,3 +197,38 @@ func TestListeningSessions_EndedAtUpdated(t *testing.T) {
 		t.Errorf("ended_at = %d, want %d", endedAt, now+300)
 	}
 }
+
+// TestListeningSessions_EndedAtNotRewoundByClockSkew verifies that a backwards
+// system clock cannot pull ended_at (or tracks.last_played_at) earlier than
+// values already persisted for the same session.
+func TestListeningSessions_EndedAtNotRewoundByClockSkew(t *testing.T) {
+	d := openMigratedDB(t)
+	insertTrack(t, d, "h1", "/a.flac")
+	insertTrack(t, d, "h2", "/b.flac")
+	w := newWriter(t, d)
+
+	now := time.Now().Unix()
+	if err := w.RecordPlay("h1", now+300, 60, 120); err != nil {
+		t.Fatalf("RecordPlay h1: %v", err)
+	}
+	// Clock moves backwards 60s but still within the session gap.
+	if err := w.RecordPlay("h2", now+240, 60, 120); err != nil {
+		t.Fatalf("RecordPlay h2: %v", err)
+	}
+
+	var endedAt int64
+	if err := d.QueryRow(`SELECT ended_at FROM listening_sessions`).Scan(&endedAt); err != nil {
+		t.Fatalf("query listening_sessions: %v", err)
+	}
+	if endedAt < now+300 {
+		t.Errorf("ended_at = %d, want >= %d (must not rewind on backwards clock)", endedAt, now+300)
+	}
+
+	var lastPlayed int64
+	if err := d.QueryRow(`SELECT last_played_at FROM tracks WHERE hash = ?`, "h1").Scan(&lastPlayed); err != nil {
+		t.Fatalf("query tracks h1: %v", err)
+	}
+	if lastPlayed != now+300 {
+		t.Errorf("last_played_at for h1 = %d, want %d (must not rewind on backwards clock)", lastPlayed, now+300)
+	}
+}
