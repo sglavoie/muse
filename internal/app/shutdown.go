@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/sglavoie/muse/internal/config"
@@ -67,19 +68,31 @@ type ShutdownDeps struct {
 // All steps are attempted regardless of prior errors so that resources are
 // always released. Errors from individual steps are logged at Warn level.
 func Shutdown(deps ShutdownDeps, timeout time.Duration) {
+	// Guard CloseLog so it runs at most once, whether the normal sequence
+	// completes or the timeout path forces exit. Without this, a slow
+	// shutdownSequence racing against the timeout could double-close the log
+	// (e.g. flushing/closing a file handle twice or racing slog handlers).
+	var closeLogOnce sync.Once
+	closeLog := func() {
+		if deps.CloseLog == nil {
+			return
+		}
+		closeLogOnce.Do(deps.CloseLog)
+	}
+	guarded := deps
+	guarded.CloseLog = closeLog
+
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		shutdownSequence(deps)
+		shutdownSequence(guarded)
 	}()
 	select {
 	case <-done:
 		return
 	case <-time.After(timeout):
 		slog.Error("shutdown timed out, forcing exit", "timeout", timeout)
-		if deps.CloseLog != nil {
-			deps.CloseLog()
-		}
+		closeLog()
 		os.Exit(1)
 	}
 }

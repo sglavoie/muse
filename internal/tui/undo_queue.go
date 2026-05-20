@@ -87,7 +87,11 @@ func (a undoDequeueAction) perform(m Model) (Model, tea.Cmd) {
 	if m.playback.currentIndex >= 0 && idx <= m.playback.currentIndex {
 		m.playback.currentIndex++
 	}
-	m.queue.cursor = idx
+	// QueueView.cursor is a display index; translate the raw insertion
+	// position through the active sort's displayOrder so that an undo
+	// performed under an active sort lands the cursor on the restored entry
+	// instead of an unrelated row at the same raw index.
+	m.queue.cursor = m.queue.findEntryDisplayPosition(idx)
 	n := len(m.queue.filteredEntries())
 	if n == 0 {
 		m.queue.cursor = 0

@@ -170,13 +170,22 @@ func handleFsEvent(event fsnotify.Event, excludedPaths []string, pending map[str
 				slog.Debug("watcher: add recursive watches", "path", path, "err", err)
 			}
 			pending[path] = true
+			// A create supersedes any earlier delete recorded in the same
+			// debounce window (e.g. rename old→new then new→old, or rapid
+			// editor save-temp dance). Clearing keeps the TUI from briefly
+			// evicting a still-present entry before the rescan re-adds it.
+			delete(deleted, path)
 		} else if isAudioFile(base) {
 			pending[path] = false
+			delete(deleted, path)
 		}
 
 	case event.Has(fsnotify.Write) || event.Has(fsnotify.Chmod):
 		if isAudioFile(base) {
 			pending[path] = false
+			// Write/Chmod on a path also supersedes any earlier delete: the
+			// file clearly still exists.
+			delete(deleted, path)
 		}
 
 	case event.Has(fsnotify.Rename) || event.Has(fsnotify.Remove):

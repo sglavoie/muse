@@ -141,12 +141,29 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			// after m.mu is released, so this handler may observe a
 			// stale prefetchedIdx). Falling through to the PlayFromIndex
 			// path correctly reports queue exhaustion in that case.
+			//
+			// The check below is repeated inside the write lock to defeat
+			// a TOCTOU race: SetQueue (or any other queue mutation) can
+			// run between the read-lock release above and the write-lock
+			// acquire below, invalidating the prefetchedIdx/queueLen we
+			// captured. Without the re-check, currentIndex can be set to
+			// an index past the end of the freshly-replaced queue, which
+			// breaks subsequent start-file dispatch (silently drops the
+			// callback because idx >= len(q)).
+			advanced := false
 			if prefetchedIdx >= 0 && prefetchedIdx > idx && prefetchedIdx < queueLen {
 				m.mu.Lock()
-				m.currentIndex = prefetchedIdx
-				m.prefetchedIndex = -1
-				m.prefetchedPath = ""
+				if m.prefetchedIndex == prefetchedIdx &&
+					prefetchedIdx > m.currentIndex &&
+					prefetchedIdx < len(m.queue) {
+					m.currentIndex = prefetchedIdx
+					m.prefetchedIndex = -1
+					m.prefetchedPath = ""
+					advanced = true
+				}
 				m.mu.Unlock()
+			}
+			if advanced {
 
 				// Remove the completed track (position 0) from mpv's
 				// playlist so it stays at 2 entries instead of growing

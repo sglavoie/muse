@@ -92,6 +92,77 @@ func TestManager_PlayFromIndex_AllMissing(t *testing.T) {
 	}
 }
 
+// shrinkingMarker shrinks m.queue down to a single entry when MarkTrackMissing
+// is invoked. This simulates a concurrent SetQueue running while PlayFromIndex
+// is iterating its (stale) queue snapshot trying to skip past missing files.
+type shrinkingMarker struct {
+	m       *Manager
+	keep    []QueueTrack
+	shrunk  bool
+}
+
+func (s *shrinkingMarker) MarkTrackMissing(_ string) error {
+	if s.shrunk {
+		return nil
+	}
+	s.shrunk = true
+	s.m.mu.Lock()
+	s.m.queue = append([]QueueTrack(nil), s.keep...)
+	s.m.mu.Unlock()
+	return nil
+}
+func (s *shrinkingMarker) MarkQueueEntryMissing(_ int64) error { return nil }
+
+// TestManager_PlayFromIndex_ClampsCurrentIndexWhenQueueShrinks verifies that
+// PlayFromIndex clamps currentIndex to the live queue length when a
+// concurrent mutation shrinks m.queue between the queue-snapshot read at the
+// top of the function and the currentIndex update at the bottom. Without
+// this clamp, currentIndex would point past the end of the live queue,
+// silently breaking start-file dispatch (which requires idx < len(q)) and
+// Next/Previous bookkeeping.
+func TestManager_PlayFromIndex_ClampsCurrentIndexWhenQueueShrinks(t *testing.T) {
+	var mu sync.Mutex
+	var received [][]any
+	m := newConnectedManager(t, "pfi-shrink", &mu, &received)
+
+	// Real on-disk file used for the final, playable entry.
+	pPlayable := tempFile(t, "p*.flac")
+
+	// Build a 4-entry queue: 0..2 are missing (so PlayQueueEntry calls
+	// MarkTrackMissing → triggers the queue shrink), 3 is the playable
+	// entry that succeeds. The shrinker replaces m.queue with a 1-entry
+	// slice (the missing entry only) on the first missing call, so by
+	// the time PlayFromIndex commits currentIndex = 3, the live queue
+	// is length 1.
+	m.mu.Lock()
+	m.queue = []QueueTrack{
+		{Path: "/nonexistent-shrink-1.flac", Hash: "h0", QueueID: 1},
+		{Path: "/nonexistent-shrink-2.flac", Hash: "h1", QueueID: 2},
+		{Path: "/nonexistent-shrink-3.flac", Hash: "h2", QueueID: 3},
+		{Path: pPlayable, Hash: "h3", QueueID: 4},
+	}
+	m.mu.Unlock()
+
+	marker := &shrinkingMarker{
+		m:    m,
+		keep: []QueueTrack{{Path: "/nonexistent-shrink-1.flac", Hash: "h0", QueueID: 1}},
+	}
+	m.SetMissingMarker(marker)
+
+	if err := m.PlayFromIndex(0); err != nil {
+		t.Fatalf("PlayFromIndex(0): unexpected error: %v", err)
+	}
+
+	m.mu.RLock()
+	got := m.currentIndex
+	qLen := len(m.queue)
+	m.mu.RUnlock()
+
+	if got >= qLen {
+		t.Fatalf("currentIndex = %d but live queue len = %d; must be clamped to last valid index", got, qLen)
+	}
+}
+
 // TestManager_PlayFromIndex_SkipsMissingToPlayable verifies that PlayFromIndex
 // skips missing files and plays the first available entry.
 func TestManager_PlayFromIndex_SkipsMissingToPlayable(t *testing.T) {

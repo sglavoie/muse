@@ -27,14 +27,18 @@ func validate(raw rawConfig) (Config, []string) {
 		seen := make(map[string]bool, len(rawDirs))
 		var resolved []string
 		for _, d := range rawDirs {
-			expanded, err := expandTilde(d)
+			trimmed := strings.TrimSpace(d)
+			if trimmed == "" {
+				continue
+			}
+			expanded, err := expandTilde(trimmed)
 			if err != nil {
-				expanded = d
+				expanded = trimmed
 			}
 			clean := filepath.Clean(expanded)
 			if !seen[clean] {
 				seen[clean] = true
-				resolved = append(resolved, expanded)
+				resolved = append(resolved, clean)
 			}
 		}
 		if len(resolved) > 0 {
@@ -67,11 +71,11 @@ func validate(raw rawConfig) (Config, []string) {
 		cfg.ExcludedPaths = resolved
 	}
 
-	if raw.MPVSocketPath != "" {
-		if expanded, err := expandTilde(raw.MPVSocketPath); err == nil {
+	if trimmedSocket := strings.TrimSpace(raw.MPVSocketPath); trimmedSocket != "" {
+		if expanded, err := expandTilde(trimmedSocket); err == nil {
 			cfg.MPVSocketPath = expanded
 		} else {
-			cfg.MPVSocketPath = raw.MPVSocketPath
+			cfg.MPVSocketPath = trimmedSocket
 		}
 	}
 

@@ -381,6 +381,61 @@ func TestScoreAll_EmptySeedHashDoesNotDropEmptyHashCandidates(t *testing.T) {
 	}
 }
 
+// Regression: Artist matching should be case-insensitive so real-world
+// libraries with inconsistent capitalization between tracks of the same
+// artist still earn the +5 boost.
+func TestScoreAll_ArtistMatchCaseInsensitive(t *testing.T) {
+	seed := track("s1", "The Beatles", "", "", 0)
+	mixed := track("t1", "the beatles", "", "", 0)
+	other := track("t2", "ArtistB", "", "", 0)
+	got := ScoreAll(ScoreInput{
+		Seed:      seedFrom(seed, nil, nil),
+		AllTracks: []library.Track{other, mixed},
+	})
+	if got[0].Track.Hash != "t1" {
+		t.Fatalf("case-insensitive artist match should rank first, got %s", got[0].Track.Hash)
+	}
+	if got[0].Score != 5 {
+		t.Errorf("expected artist score +5 for case-insensitive match, got %f", got[0].Score)
+	}
+}
+
+// Regression: Album matching should be case-insensitive for the same reason
+// as Artist.
+func TestScoreAll_AlbumMatchCaseInsensitive(t *testing.T) {
+	seed := track("s1", "", "Abbey Road", "", 0)
+	mixed := track("t1", "", "abbey road", "", 0)
+	other := track("t2", "", "Other", "", 0)
+	got := ScoreAll(ScoreInput{
+		Seed:      seedFrom(seed, nil, nil),
+		AllTracks: []library.Track{other, mixed},
+	})
+	if got[0].Track.Hash != "t1" {
+		t.Fatalf("case-insensitive album match should rank first, got %s", got[0].Track.Hash)
+	}
+	if got[0].Score != 3 {
+		t.Errorf("expected album score +3 for case-insensitive match, got %f", got[0].Score)
+	}
+}
+
+// Regression: Genre matching should be case-insensitive — many real
+// libraries mix "Rock" / "rock" / "ROCK" across tracks.
+func TestScoreAll_GenreMatchCaseInsensitive(t *testing.T) {
+	seed := track("s1", "", "", "Rock", 0)
+	mixed := track("t1", "", "", "rock", 0)
+	other := track("t2", "", "", "Jazz", 0)
+	got := ScoreAll(ScoreInput{
+		Seed:      SeedTrack{Hash: seed.Hash, Genres: []string{"Rock"}},
+		AllTracks: []library.Track{other, mixed},
+	})
+	if got[0].Track.Hash != "t1" {
+		t.Fatalf("case-insensitive genre match should rank first, got %s", got[0].Track.Hash)
+	}
+	if got[0].Score != 10 {
+		t.Errorf("expected genre score +10 for case-insensitive match, got %f", got[0].Score)
+	}
+}
+
 // Regression: ScoreAll must keep candidates with identical scores in their
 // input order so downstream consumers (PickBatch pool, UI lists) see
 // reproducible tie-breaking. Previously sort.Slice (unstable) could reorder

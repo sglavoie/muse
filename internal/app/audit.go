@@ -64,6 +64,11 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 		for range n {
 			wg.Go(func() {
 				for t := range work {
+					// Bail out promptly on cancellation rather than burning
+					// CPU on remaining work items during shutdown.
+					if ctx.Err() != nil {
+						return
+					}
 					dur, err := probeFn(ctx, t.Path)
 					if err != nil {
 						slog.Warn("duration audit: ffprobe failed, skipping", "path", t.Path, "err", err)

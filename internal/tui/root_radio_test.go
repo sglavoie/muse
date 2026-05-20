@@ -463,3 +463,45 @@ func TestRadioBatchAppliedWhenQueueWasEmptyAtEnqueueStart(t *testing.T) {
 		t.Errorf("expected PlaybackPlaying after WasEmpty auto-start, got %v", nm.playback.state)
 	}
 }
+
+// TestRadioBatchAppliedOnNaturalExhaustion verifies that a RadioBatchEnqueuedMsg
+// with WasEmpty=false (launched when the queue still held tracks) is NOT
+// discarded just because the queue finished playing in flight. The
+// distinguishing signal is playback.queueExhausted, which handlePlaybackEndedMsg
+// sets when the last track ends naturally (vs. resetPlaybackState clearing it
+// after a user Shift+C clear). Without this, the user is left with an empty
+// queue and a dead radio session whenever a batch races a natural exhaustion.
+func TestRadioBatchAppliedOnNaturalExhaustion(t *testing.T) {
+	p := &stubCommandPlayer{}
+	m := newModelWithTracks()
+	m.player = p
+	m.radio.enabled = true
+	m.radio.enqueuePending = true
+	// Natural exhaustion path: queue is empty but queueExhausted=true (set by
+	// handlePlaybackEndedMsg) so auto-resume should fire when the batch lands.
+	m.queue.entries = nil
+	m.playback.queueExhausted = true
+	m.playback.state = PlaybackIdle
+
+	msg := RadioBatchEnqueuedMsg{
+		Entries: []QueueEntry{
+			{ID: 70, Hash: "hx", Path: "/x.flac", Artist: "X", Title: "T"},
+		},
+		QueueIDs: []int64{70},
+		WasEmpty: false, // captured at low-water-mark before the last track ended
+	}
+	nm, _ := m.handleRadioBatchEnqueuedMsg(msg)
+
+	if nm.radio.enqueuePending {
+		t.Error("enqueuePending must be reset after applying batch")
+	}
+	if len(nm.queue.entries) != 1 {
+		t.Fatalf("expected 1 entry appended on natural exhaustion, got %d", len(nm.queue.entries))
+	}
+	if nm.playback.state != PlaybackPlaying {
+		t.Errorf("expected PlaybackPlaying after natural-exhaust auto-resume, got %v", nm.playback.state)
+	}
+	if nm.playback.queueExhausted {
+		t.Error("queueExhausted should be cleared after auto-resume")
+	}
+}

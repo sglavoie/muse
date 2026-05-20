@@ -124,6 +124,11 @@ func (m Model) handleLibraryModePrev() (Model, tea.Cmd) { return m.shiftLibraryM
 // shiftLibraryMode rotates the Library mode by delta steps, loads mode-specific
 // data, and updates the status bar.
 func (m Model) shiftLibraryMode(delta LibraryMode) (Model, tea.Cmd) {
+	// Exit visual mode before switching the underlying tracks list. Leaving
+	// visualState.active=true with a snapshot of the previous mode's hashes
+	// would cause updateVisualSelection to restore those old selections on
+	// the next cursor move, contaminating the new mode's selection state.
+	m = exitVisualMode(m)
 	next := (m.library.mode + delta) % 3
 	m.library = m.library.switchMode(next)
 	switch next {
@@ -147,6 +152,12 @@ func (m Model) handleBrowseModePrev() (Model, tea.Cmd) { return m.shiftBrowseMod
 
 // shiftBrowseMode rotates the Browse sub-mode by delta steps and updates the status bar.
 func (m Model) shiftBrowseMode(delta BrowseMode) (Model, tea.Cmd) {
+	// Exit visual mode before switching browse sub-modes. visual.browseMode
+	// is snapshotted at enter time, so leaving it active after a sub-mode
+	// shift would let updateVisualSelection iterate the previous sub-mode's
+	// list while the cursor reads from the new sub-mode — mismatching
+	// indices and silently corrupting selection state.
+	m = exitVisualMode(m)
 	m.browse.mode = (m.browse.mode + delta) % 3
 	m = m.deriveCurrentBrowseData()
 	switch m.browse.mode {

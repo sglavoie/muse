@@ -56,21 +56,25 @@ func (m Model) handleMixDismiss() (Model, tea.Cmd) {
 }
 
 // handleMixDismissedMsg updates in-memory state after a successful dismiss:
-// adds the hash to dismissedHashes and removes the track from the open mix.
+// adds the hash to dismissedHashes and removes the track from every cached
+// mix. Without sweeping all cached mixes the dismissed track would still
+// surface when the user navigates to another previously-loaded mix that
+// shared the same hash, until the cache is rebuilt.
 func (m Model) handleMixDismissedMsg(msg mixDismissedMsg) Model {
 	if m.dismissedHashes == nil {
 		m.dismissedHashes = make(map[string]struct{})
 	}
 	m.dismissedHashes[msg.hash] = struct{}{}
 
+	for id, tracks := range m.mixes.cachedMixes {
+		m.mixes.cachedMixes[id] = removeTrackByHash(tracks, msg.hash)
+	}
 	if tracks, ok := m.mixes.cachedMixes[m.mixes.activeMix]; ok {
-		updated := removeTrackByHash(tracks, msg.hash)
-		m.mixes.cachedMixes[m.mixes.activeMix] = updated
 		// Refresh the track view if currently open on this mix, preserving
 		// cursor position, sort state, filter text, and selection (bug: the
 		// previous openMix call reset all of these).
 		if m.activeView == viewMixes && m.mixes.level == 1 {
-			m.mixes.trackView.sourceTracks = updated
+			m.mixes.trackView.sourceTracks = tracks
 			m.mixes.trackView = m.mixes.trackView.refreshView().clampCursor()
 		}
 	}

@@ -144,11 +144,16 @@ func (w *Writer) RemoveTrackTagBulk(hashes []string, tagID int64) error {
 func (w *Writer) DeleteTagIfEmpty(tagID int64) (bool, error) {
 	var deleted bool
 	err := w.Exec(func(db *sql.DB) error {
+		// Count every track_tags row carrying this tag, including ones whose
+		// referenced track is currently flagged missing. Otherwise the tag
+		// could be silently soft-deleted while assignments still exist on
+		// missing tracks, orphaning those assignments to a deleted tag (they
+		// become invisible to ReadTagsForTrack which filters deleted_at IS
+		// NULL) and silently destroying user data when the file is restored.
 		var count int
 		if err := db.QueryRow(`
 			SELECT COUNT(*) FROM track_tags tt
-			JOIN tracks t ON tt.track_hash = t.hash
-			WHERE tt.tag_id = ? AND t.missing = 0
+			WHERE tt.tag_id = ?
 		`, tagID).Scan(&count); err != nil {
 			return err
 		}
@@ -173,7 +178,15 @@ func (w *Writer) DeleteTagIfEmpty(tagID int64) (bool, error) {
 // soft-deletes the source tag, all within a single transaction. Rows that
 // would create a duplicate (track_hash, destID) pair are silently ignored via
 // INSERT OR IGNORE. This operation is not reversible.
+//
+// A guard rejects self-merge (sourceID == destID) because the natural sequence
+// (INSERT OR IGNORE same rows → DELETE all source rows → soft-delete source)
+// would otherwise wipe every track_tags row for the tag and then soft-delete
+// the tag itself, silently destroying user data.
 func (w *Writer) MergeTags(sourceID, destID int64) error {
+	if sourceID == destID {
+		return fmt.Errorf("merge tags: source and destination IDs must differ (got %d)", sourceID)
+	}
 	return w.Exec(func(db *sql.DB) error {
 		tx, err := db.Begin()
 		if err != nil {

@@ -154,7 +154,9 @@ func parseTrackNumber(s string) int {
 		s = s[:idx]
 	}
 	n, err := strconv.Atoi(strings.TrimSpace(s))
-	if err != nil {
+	if err != nil || n < 0 {
+		// Negative track/disc numbers are nonsensical; return the 0 sentinel
+		// (unknown) so downstream sorting/display does not surface them.
 		return 0
 	}
 	return n
@@ -262,6 +264,12 @@ func extractWithBinaryRetry(ctx context.Context, extractor MetadataExtractor, fi
 	tracks, err := extractor.Extract(ctx, files)
 	if err == nil {
 		for i := range tracks {
+			// Trim whitespace-only metadata so it's treated the same as
+			// missing tags (broken taggers occasionally write " " or "\t").
+			tracks[i].Title = strings.TrimSpace(tracks[i].Title)
+			tracks[i].Artist = strings.TrimSpace(tracks[i].Artist)
+			tracks[i].Album = strings.TrimSpace(tracks[i].Album)
+			tracks[i].Genre = strings.TrimSpace(tracks[i].Genre)
 			if tracks[i].Title == "" {
 				base := filepath.Base(tracks[i].Path)
 				tracks[i].Title = base[:len(base)-len(filepath.Ext(base))]

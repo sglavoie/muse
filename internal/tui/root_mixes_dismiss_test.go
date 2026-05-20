@@ -75,6 +75,45 @@ func TestMixesUndismissRoundTrip(t *testing.T) {
 	}
 }
 
+// TestMixesDismissPropagatesAcrossCachedMixes verifies that dismissing a
+// track removes the hash from every cached mix, not just the active one.
+// Without this sweep, navigating to another previously-loaded mix would
+// still show the dismissed track until the cache is rebuilt.
+func TestMixesDismissPropagatesAcrossCachedMixes(t *testing.T) {
+	stub := &stubDismissalWriter{}
+	m := setupMixesAtTrackLevel(WithDismissalWriter(stub))
+	// Seed a second cached mix that contains the same hash (mx1) plus a
+	// distinct hash. The dismiss should leave the unrelated hash alone but
+	// scrub mx1 from this mix's cache too.
+	m.mixes.cachedMixes[db.MixHiddenGems] = []library.Track{
+		{Hash: "mx1", Title: "Dup", Artist: "ArtistX", Path: "/mx1.flac"},
+		{Hash: "mxOther", Title: "Other", Artist: "ArtistZ", Path: "/mxo.flac"},
+	}
+
+	_, cmd := m.handleMixDismiss()
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd from handleMixDismiss")
+	}
+	msg := cmd().(mixDismissedMsg)
+	m = m.handleMixDismissedMsg(msg)
+
+	for _, tr := range m.mixes.cachedMixes[db.MixHiddenGems] {
+		if tr.Hash == "mx1" {
+			t.Error("expected mx1 removed from other cached mix after dismiss")
+		}
+	}
+	// Unrelated hash must still be present.
+	foundOther := false
+	for _, tr := range m.mixes.cachedMixes[db.MixHiddenGems] {
+		if tr.Hash == "mxOther" {
+			foundOther = true
+		}
+	}
+	if !foundOther {
+		t.Error("dismiss must not remove unrelated hashes from other cached mixes")
+	}
+}
+
 func TestMixesDismissNotAtTrackLevel(t *testing.T) {
 	m := newMixesModel(true, sampleMixTracks())
 	m = m.switchToView(viewMixes)

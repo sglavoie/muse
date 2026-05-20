@@ -95,9 +95,13 @@ func (d *DB) ReadListeningStats(sinceUnix int64, mixCfg MixCountConfig) (Listeni
 	}
 
 	stats.TopGenres, err = readTopEntries(d,
-		`SELECT t.genre, COUNT(*), SUM(ph.listened_secs)
-		 FROM play_history ph JOIN tracks t ON ph.track_hash = t.hash
-		 WHERE ph.played_at >= ? GROUP BY t.genre ORDER BY COUNT(*) DESC LIMIT 5`,
+		// Use the track_genres junction so multi-genre tracks (e.g. "rock,pop")
+		// are counted per-individual-genre rather than as a single composite
+		// string. This keeps TopGenres consistent with ReadTopGenres and
+		// ReadHourGenreAffinities elsewhere in the package.
+		`SELECT tg.genre, COUNT(*), SUM(ph.listened_secs)
+		 FROM play_history ph JOIN track_genres tg ON ph.track_hash = tg.track_hash
+		 WHERE ph.played_at >= ? GROUP BY tg.genre ORDER BY COUNT(*) DESC LIMIT 5`,
 		sinceUnix)
 	if err != nil {
 		return stats, fmt.Errorf("db: read listening stats top genres: %w", err)

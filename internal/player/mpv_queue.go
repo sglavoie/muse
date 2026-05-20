@@ -132,8 +132,20 @@ func (m *Manager) PlayFromIndex(index int) error {
 	for i := index; i < len(queue); i++ {
 		err := m.PlayQueueEntry(queue[i], mk)
 		if err == nil {
+			// Clamp i against the live queue length: a concurrent
+			// SetQueue / RemoveFromQueue can shrink m.queue while we
+			// iterate over the local snapshot, and setting an out-of-
+			// range currentIndex would leave Next/Previous and the
+			// event reader pointing past the end of the live queue.
 			m.mu.Lock()
-			m.currentIndex = i
+			switch {
+			case len(m.queue) == 0:
+				m.currentIndex = -1
+			case i >= len(m.queue):
+				m.currentIndex = len(m.queue) - 1
+			default:
+				m.currentIndex = i
+			}
 			m.mu.Unlock()
 			go m.prefetchNext()
 			return nil

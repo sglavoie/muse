@@ -241,10 +241,21 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 	wg.Wait()
 	close(errs)
 
+	// Drain the entire channel before returning so a second error sent by
+	// the other parallel task is not silently dropped.
+	var firstErr error
 	for err := range errs {
-		if err != nil {
-			return failf("%w", err)
+		if err == nil {
+			continue
 		}
+		if firstErr == nil {
+			firstErr = err
+		} else {
+			slog.Warn("startup: additional parallel-task error", "err", err)
+		}
+	}
+	if firstErr != nil {
+		return failf("%w", firstErr)
 	}
 
 	// Step 7: Restore player to the last saved position in a paused state.
@@ -252,13 +263,21 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 	// queue is initialised; RestorePlayer may enqueue commands for replay
 	// once the IPC socket connects.
 	if restored.CurrentHash != "" && deps.RestorePlayer != nil {
-		for _, pt := range restored.PlayerTracks {
-			if pt.Hash == restored.CurrentHash {
-				if err := deps.RestorePlayer(pt.Path, restored.PositionMs); err != nil {
-					slog.Warn("startup: restore player position", "path", pt.Path, "err", err)
-				}
+		for i, pt := range restored.PlayerTracks {
+			if pt.Hash != restored.CurrentHash {
+				continue
+			}
+			// Skip restore for files that were detected as missing on disk
+			// during RestoreSession; loading them would produce an mpv error
+			// at startup. The TUI will already render the track as missing.
+			if i < len(restored.QueueEntries) && restored.QueueEntries[i].Missing {
+				slog.Info("startup: skip restore for missing current track", "path", pt.Path)
 				break
 			}
+			if err := deps.RestorePlayer(pt.Path, restored.PositionMs); err != nil {
+				slog.Warn("startup: restore player position", "path", pt.Path, "err", err)
+			}
+			break
 		}
 	}
 

@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"sort"
+	"strings"
 
 	"github.com/sglavoie/muse/internal/library"
 )
@@ -55,23 +56,26 @@ func ScoreAll(input ScoreInput) []TrackScore {
 
 		score := 0.0
 
-		// Genre matching: +10 per shared genre.
+		// Genre matching: +10 per shared genre. Matched case-insensitively
+		// so tag values like "Rock" and "rock" in real-world libraries are
+		// treated as the same genre.
 		candidateGenres := library.SplitGenres(track.Genre)
 		for _, sg := range input.Seed.Genres {
 			for _, cg := range candidateGenres {
-				if sg == cg {
+				if strings.EqualFold(sg, cg) {
 					score += 10
 				}
 			}
 		}
 
-		// Artist match: +5.
-		if track.Artist != "" && track.Artist == input.Seed.Artist {
+		// Artist match: +5. Case-insensitive to tolerate inconsistent
+		// capitalization between releases of the same artist.
+		if track.Artist != "" && strings.EqualFold(track.Artist, input.Seed.Artist) {
 			score += 5
 		}
 
-		// Album match: +3.
-		if track.Album != "" && track.Album == input.Seed.Album {
+		// Album match: +3. Case-insensitive for the same reason as Artist.
+		if track.Album != "" && strings.EqualFold(track.Album, input.Seed.Album) {
 			score += 3
 		}
 
@@ -177,15 +181,24 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 
 	for len(result) < n && len(pool) > 0 {
 		// Collect eligible indices (not at artist cap) and total weight.
+		// Track whether any eligible candidate has a positive (non-clamped)
+		// score so we can fall back to deterministic selection when every
+		// remaining candidate is at the 0.1 weight floor — otherwise the
+		// weighted-random would degenerate into a uniform draw and ignore
+		// the score-based ordering produced by ScoreAll.
 		eligible := make([]int, 0, len(pool))
 		weights := make([]float64, 0, len(pool))
 		totalWeight := 0.0
+		anyPositive := false
 		for i, ts := range pool {
 			if ts.Track.Artist == "" || artistCount[ts.Track.Artist] < maxPerArtist {
 				weight := math.Max(ts.Score, 0.1)
 				eligible = append(eligible, i)
 				weights = append(weights, weight)
 				totalWeight += weight
+				if ts.Score > 0.1 {
+					anyPositive = true
+				}
 			}
 		}
 
@@ -193,20 +206,29 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 			break
 		}
 
-		maxWeight := new(big.Int).SetUint64(1 << 53)
-		randomWeight, err := cryptorand.Int(cryptorand.Reader, maxWeight)
-		if err != nil {
-			break
-		}
-
-		r := (float64(randomWeight.Uint64()) / float64(1<<53)) * totalWeight
-		pickedIdx := eligible[len(eligible)-1] // fallback to last eligible
-		cumulative := 0.0
-		for j, i := range eligible {
-			cumulative += weights[j]
-			if r < cumulative {
-				pickedIdx = i
+		// Deterministic fallback: when no eligible candidate has a positive
+		// score, every weight is the 0.1 floor and the weighted-random draw
+		// is uniform — defeating the purpose of scoring. Pick the first
+		// eligible (highest-scored due to ScoreAll's descending sort).
+		var pickedIdx int
+		if !anyPositive || totalWeight <= 0 {
+			pickedIdx = eligible[0]
+		} else {
+			maxWeight := new(big.Int).SetUint64(1 << 53)
+			randomWeight, err := cryptorand.Int(cryptorand.Reader, maxWeight)
+			if err != nil {
 				break
+			}
+
+			r := (float64(randomWeight.Uint64()) / float64(1<<53)) * totalWeight
+			pickedIdx = eligible[len(eligible)-1] // fallback to last eligible
+			cumulative := 0.0
+			for j, i := range eligible {
+				cumulative += weights[j]
+				if r < cumulative {
+					pickedIdx = i
+					break
+				}
 			}
 		}
 
