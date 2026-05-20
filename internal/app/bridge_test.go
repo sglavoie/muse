@@ -40,7 +40,10 @@ type stubGenreWriter struct {
 }
 
 func (s *stubGenreWriter) UpsertBatch(tracks []library.Track) error {
-	s.stubUpsertBatcher.UpsertBatch(tracks)
+	err := s.stubUpsertBatcher.UpsertBatch(tracks)
+	if err != nil {
+		return err
+	}
 	return s.upsertErr
 }
 

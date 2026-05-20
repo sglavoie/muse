@@ -324,4 +324,3 @@ func TestDeleteTagIfEmpty_TrulyEmptyTagStillDeletes(t *testing.T) {
 		t.Error("DeleteTagIfEmpty did not delete a tag with zero assignments")
 	}
 }
-

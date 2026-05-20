@@ -96,9 +96,9 @@ func TestManager_PlayFromIndex_AllMissing(t *testing.T) {
 // is invoked. This simulates a concurrent SetQueue running while PlayFromIndex
 // is iterating its (stale) queue snapshot trying to skip past missing files.
 type shrinkingMarker struct {
-	m       *Manager
-	keep    []QueueTrack
-	shrunk  bool
+	m      *Manager
+	keep   []QueueTrack
+	shrunk bool
 }
 
 func (s *shrinkingMarker) MarkTrackMissing(_ string) error {

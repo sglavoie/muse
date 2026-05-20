@@ -98,10 +98,10 @@ func TestRunDurationAudit_CtxCancelStopsWorkers(t *testing.T) {
 	for range ch {
 	}
 
-	got := atomic.LoadInt32(&probes)
 	// At most one probe per worker can sneak past the ctx check (the one
 	// already in-flight when cancellation occurred). Allow that slack.
-	maxAllowed := int32(runtime.NumCPU())
+	got := int(atomic.LoadInt32(&probes))
+	maxAllowed := runtime.NumCPU()
 	if got > maxAllowed {
 		t.Errorf("probeFn called %d times after cancellation; want <= %d (workers should bail on ctx.Done)", got, maxAllowed)
 	}
@@ -232,4 +232,3 @@ func TestRunDrainsAllParallelErrors(t *testing.T) {
 		t.Errorf("expected log of additional parallel-task error; messages: %v", msgs)
 	}
 }
-
