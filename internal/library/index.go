@@ -9,14 +9,16 @@ const unknownArtist = "Unknown Artist"
 // The soft upper bound is 50,000 tracks.
 type LibraryIndex struct {
 	tracks []Track
-	byHash map[string]int // hash → index in tracks slice
+	byHash map[string]int // non-empty hash → index in tracks slice
 }
 
 // rebuildHashMap rebuilds the byHash map from the current tracks slice.
 func (idx *LibraryIndex) rebuildHashMap() {
 	idx.byHash = make(map[string]int, len(idx.tracks))
 	for i, t := range idx.tracks {
-		idx.byHash[t.Hash] = i
+		if t.Hash != "" {
+			idx.byHash[t.Hash] = i
+		}
 	}
 }
 
@@ -70,14 +72,18 @@ func (idx *LibraryIndex) adjustIndicesAfterInsert(pos int, hash string) {
 			idx.byHash[h] = i + 1
 		}
 	}
-	idx.byHash[hash] = pos
+	if hash != "" {
+		idx.byHash[hash] = pos
+	}
 }
 
 // adjustIndicesAfterRemove deletes the removed hash and decrements all
 // hash-map entries at positions > pos by one. Call after removing the element
 // at pos from the tracks slice.
 func (idx *LibraryIndex) adjustIndicesAfterRemove(pos int, hash string) {
-	delete(idx.byHash, hash)
+	if hash != "" {
+		delete(idx.byHash, hash)
+	}
 	for h, i := range idx.byHash {
 		if i > pos {
 			idx.byHash[h] = i - 1

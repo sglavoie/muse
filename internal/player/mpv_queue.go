@@ -203,7 +203,12 @@ func (m *Manager) prefetchNext() {
 	}
 
 	if curPrefIdx >= 0 {
-		_, _ = c.SendCommand(cmdPlaylistRemove, 1)
+		if _, err := c.SendCommand(cmdPlaylistRemove, 1); err == nil {
+			m.mu.Lock()
+			m.prefetchedIndex = -1
+			m.prefetchedPath = ""
+			m.mu.Unlock()
+		}
 	}
 
 	if _, err := c.SendCommand(cmdLoadfile, nextPath, "append"); err != nil {

@@ -60,6 +60,10 @@ func isKnownAction(name string) bool {
 // concurrent connections are handled safely because p.Send is goroutine-safe.
 // Returns the listener so the caller can Close it during shutdown.
 func startCommandListener(p *tea.Program, runtimeDir string) (net.Listener, error) {
+	if err := os.MkdirAll(runtimeDir, 0o700); err != nil {
+		return nil, fmt.Errorf("create runtime dir: %w", err)
+	}
+
 	sockPath := filepath.Join(runtimeDir, ctrlSocketName)
 
 	// Remove any stale socket left by a previous crash.

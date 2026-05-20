@@ -231,6 +231,36 @@ func TestDedupSyncsPlayerCurrentIndex(t *testing.T) {
 	}
 }
 
+// TestDedupSyncsPlayerCurrentIndexWhenCurrentDuplicate verifies that dedup
+// updates the player after relocating playback from a removed duplicate to the
+// surviving first copy.
+func TestDedupSyncsPlayerCurrentIndexWhenCurrentDuplicate(t *testing.T) {
+	ps := &stubPlayerQueueSyncer{}
+	d := &stubQueueDequeuer{}
+	m := New(context.Background(), WithPlayer(ps), WithQueueDequeuer(d))
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "a", Display: "A1"},
+		{ID: 2, Hash: "b", Display: "B"},
+		{ID: 3, Hash: "a", Display: "A2"}, // duplicate currently playing
+	}
+	m.playback.currentHash = "a"
+	m.playback.currentIndex = 2
+
+	m, _ = m.handleQueueDedupMsg()
+
+	if m.playback.currentIndex != 0 {
+		t.Fatalf("currentIndex = %d, want 0 after dedup relocates playback", m.playback.currentIndex)
+	}
+	if len(ps.setCurrentIndexCalls) == 0 {
+		t.Fatal("SetCurrentIndex was never called after dedup")
+	}
+	lastIdx := ps.setCurrentIndexCalls[len(ps.setCurrentIndexCalls)-1]
+	if lastIdx != 0 {
+		t.Errorf("player index = %d, want 0 after dedup relocates playback", lastIdx)
+	}
+}
+
 // TestMoveTrackSyncsPlayerCurrentIndex verifies that the player's current index
 // is updated after moving a track up/down.
 func TestMoveTrackSyncsPlayerCurrentIndex(t *testing.T) {

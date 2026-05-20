@@ -80,6 +80,12 @@ func TestSave_OverwritesExistingFile(t *testing.T) {
 	if result.Config.VolumeIncrement != 15 {
 		t.Errorf("VolumeIncrement = %d, want 15", result.Config.VolumeIncrement)
 	}
+	if len(result.Config.MusicDirectories) != 1 || result.Config.MusicDirectories[0] != "/new" {
+		t.Errorf("MusicDirectories = %v, want [%q]", result.Config.MusicDirectories, "/new")
+	}
+	if result.Config.MusicDirectory != "/new" {
+		t.Errorf("MusicDirectory = %q, want %q", result.Config.MusicDirectory, "/new")
+	}
 }
 
 func TestSave_ReturnsErrorOnBadPath(t *testing.T) {
@@ -115,5 +121,37 @@ func TestSave_WritesMusicDirectoriesNotMusicDirectory(t *testing.T) {
 	}
 	if strings.Contains(content, "music_directory =") {
 		t.Error("Save: unexpected legacy 'music_directory' key in output")
+	}
+}
+
+func TestSave_UsesLegacyMusicDirectoryWhenMusicDirectoriesEmpty(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, configFileName)
+
+	cfg := defaults()
+	cfg.MusicDirectories = nil
+	cfg.MusicDirectory = "  /legacy/library  "
+
+	if err := Save(path, cfg); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if len(result.Config.MusicDirectories) != 1 || result.Config.MusicDirectories[0] != "/legacy/library" {
+		t.Fatalf("MusicDirectories = %v, want [%q]", result.Config.MusicDirectories, "/legacy/library")
+	}
+	if result.Config.MusicDirectory != "/legacy/library" {
+		t.Errorf("MusicDirectory = %q, want %q", result.Config.MusicDirectory, "/legacy/library")
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if !strings.Contains(string(data), "music_directories = [\"/legacy/library\"]") {
+		t.Errorf("saved config should persist legacy field via music_directories, got:\n%s", data)
 	}
 }

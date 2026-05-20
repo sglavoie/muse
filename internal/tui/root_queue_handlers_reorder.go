@@ -161,7 +161,6 @@ func (m Model) handleQueueDedupMsg() (Model, tea.Cmd) {
 	m = exitVisualMode(m)
 	m = m.preserveQueueSort()
 	m.clampQueueCursorAndScroll()
-	m.syncPlayerQueue()
 
 	// Re-locate the currently-playing entry by hash rather than using
 	// index arithmetic.  Dedup keeps the first occurrence of each hash,
@@ -177,6 +176,7 @@ func (m Model) handleQueueDedupMsg() (Model, tea.Cmd) {
 		}
 	}
 	m = m.stopPlaybackIfCurrentMissing()
+	m.syncPlayerQueue()
 
 	batchDel := m.batchEnqueuer
 	undoer := m.undoer

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"sync"
 	"testing"
 
@@ -30,6 +31,26 @@ func (s *stubUpsertBatcher) allTracks() []library.Track {
 		all = append(all, b...)
 	}
 	return all
+}
+
+type stubGenreWriter struct {
+	stubUpsertBatcher
+	upsertErr       error
+	populateBatches [][]library.Track
+}
+
+func (s *stubGenreWriter) UpsertBatch(tracks []library.Track) error {
+	s.stubUpsertBatcher.UpsertBatch(tracks)
+	return s.upsertErr
+}
+
+func (s *stubGenreWriter) PopulateTrackGenres(tracks []library.Track) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cp := make([]library.Track, len(tracks))
+	copy(cp, tracks)
+	s.populateBatches = append(s.populateBatches, cp)
+	return nil
 }
 
 // stubMissingMarker records hashes marked as missing.
@@ -95,6 +116,22 @@ func TestBridgeScanChannel_EmptyInput(t *testing.T) {
 	}
 }
 
+func TestBridgeScanChannel_SkipsGenrePopulationOnUpsertFailure(t *testing.T) {
+	raw := make(chan library.Track, 1)
+	raw <- library.Track{Hash: "a", Path: "/a.mp3"}
+	close(raw)
+
+	writer := &stubGenreWriter{upsertErr: errors.New("upsert failed")}
+	ch := BridgeScanChannel(raw, writer, 1)
+
+	for range ch {
+	}
+
+	if got := len(writer.populateBatches); got != 0 {
+		t.Fatalf("PopulateTrackGenres calls = %d, want 0 when UpsertBatch fails", got)
+	}
+}
+
 func TestBridgeWatchChannel(t *testing.T) {
 	raw := make(chan library.WatchEvent, 3)
 	raw <- library.WatchEvent{Track: library.Track{Hash: "a", Path: "/a.mp3"}}
@@ -145,6 +182,23 @@ func TestBridgeWatchChannel_DeleteUnknownPath(t *testing.T) {
 
 	if len(marker.hashes) != 0 {
 		t.Fatalf("expected no missing markers for unknown path, got %v", marker.hashes)
+	}
+}
+
+func TestBridgeWatchChannel_SkipsGenrePopulationOnUpsertFailure(t *testing.T) {
+	raw := make(chan library.WatchEvent, 1)
+	raw <- library.WatchEvent{Track: library.Track{Hash: "a", Path: "/a.mp3"}}
+	close(raw)
+
+	writer := &stubGenreWriter{upsertErr: errors.New("upsert failed")}
+	marker := &stubMissingMarker{}
+	ch := BridgeWatchChannel(raw, writer, marker, nil, 1)
+
+	for range ch {
+	}
+
+	if got := len(writer.populateBatches); got != 0 {
+		t.Fatalf("PopulateTrackGenres calls = %d, want 0 when UpsertBatch fails", got)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -14,6 +15,12 @@ import (
 // file in the same directory and then renamed over the destination, so a
 // crash or out-of-disk failure mid-write cannot leave a truncated config.
 func Save(path string, cfg Config) error {
+	if len(cfg.MusicDirectories) == 0 {
+		if trimmed := strings.TrimSpace(cfg.MusicDirectory); trimmed != "" {
+			cfg.MusicDirectories = []string{trimmed}
+		}
+	}
+
 	dir := filepath.Dir(path)
 	tmp, err := os.CreateTemp(dir, filepath.Base(path)+".tmp-*")
 	if err != nil {

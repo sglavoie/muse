@@ -197,3 +197,56 @@ func TestBulkLoad_DoesNotModifyInput(t *testing.T) {
 		t.Error("BulkLoad modified the input slice")
 	}
 }
+
+func TestFindByHash_EmptyHashIsNeverIndexed(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Artist: "A", Title: "t1", Path: "/a.flac"})
+	idx.Insert(Track{Artist: "B", Title: "t2", Path: "/b.flac"})
+	idx.Insert(Track{Hash: "h1", Artist: "C", Title: "t3", Path: "/c.flac"})
+
+	if _, ok := idx.FindByHash(""); ok {
+		t.Fatal("empty hash should not be indexed")
+	}
+	if idx.IncrementPlayCount("", 1700000000) {
+		t.Fatal("IncrementPlayCount should ignore empty hash")
+	}
+
+	if !idx.RemoveByPath("/a.flac") {
+		t.Fatal("RemoveByPath: expected true for existing empty-hash path")
+	}
+	if _, ok := idx.FindByHash(""); ok {
+		t.Fatal("empty hash should remain unindexed after removing another empty-hash track")
+	}
+
+	found, ok := idx.FindByHash("h1")
+	if !ok {
+		t.Fatal("non-empty hash should still be findable")
+	}
+	if found.Path != "/c.flac" {
+		t.Fatalf("FindByHash(h1): got path %q, want /c.flac", found.Path)
+	}
+}
+
+func TestBulkLoad_EmptyHashesRemainUnindexed(t *testing.T) {
+	var idx LibraryIndex
+	idx.BulkLoad([]Track{
+		{Artist: "A", Title: "t1", Path: "/a.flac"},
+		{Artist: "B", Title: "t2", Path: "/b.flac"},
+		{Hash: "h1", Artist: "C", Title: "t3", Path: "/c.flac"},
+	})
+
+	if _, ok := idx.FindByHash(""); ok {
+		t.Fatal("BulkLoad should not index empty hashes")
+	}
+	if idx.UpdateDuration("", 42) {
+		t.Fatal("UpdateDuration should ignore empty hash")
+	}
+
+	found, ok := idx.FindByHash("h1")
+	if !ok {
+		t.Fatal("BulkLoad should still index non-empty hashes")
+	}
+	if found.Path != "/c.flac" {
+		t.Fatalf("FindByHash(h1): got path %q, want /c.flac", found.Path)
+	}
+}

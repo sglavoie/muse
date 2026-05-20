@@ -60,6 +60,8 @@ func (f *batchFlusher) drain() {
 	}
 	if err := f.flush(f.batch); err != nil {
 		slog.Warn("batch flush", "err", err, "count", len(f.batch))
+		f.batch = f.batch[:0]
+		return
 	}
 	if f.populate != nil {
 		if err := f.populate(f.batch); err != nil {

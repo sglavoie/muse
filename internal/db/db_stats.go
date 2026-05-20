@@ -175,7 +175,7 @@ func (d *DB) ReadMixCounts(cfg MixCountConfig) ([]MixStatEntry, error) {
 		SELECT COUNT(*) FROM (
 		    SELECT t.hash FROM tracks t
 		    JOIN play_history ph ON ph.track_hash = t.hash
-		    WHERE ph.played_at >= ?
+		    WHERE t.missing = 0 AND ph.played_at >= ?
 		    GROUP BY t.hash HAVING COUNT(*) >= ?
 		) sub`,
 		windowStart, cfg.OnRepeatMinPlays,
@@ -187,7 +187,7 @@ func (d *DB) ReadMixCounts(cfg MixCountConfig) ([]MixStatEntry, error) {
 		SELECT COUNT(*) FROM (
 		    SELECT t.hash FROM tracks t
 		    JOIN play_history ph ON ph.track_hash = t.hash
-		    WHERE t.play_count BETWEEN ? AND ?
+		    WHERE t.missing = 0 AND t.play_count BETWEEN ? AND ?
 		    GROUP BY t.hash HAVING AVG(ph.completion_rate) >= ?
 		) sub`,
 		cfg.DeepCutsMinPlays, cfg.DeepCutsMaxPlays, cfg.DeepCutsMinCompletion,

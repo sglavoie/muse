@@ -7,7 +7,9 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,15 +18,27 @@ import (
 	"github.com/sglavoie/muse/internal/tui"
 )
 
-// shortTempDir creates a temp dir under /tmp to keep Unix socket paths short
-// enough for macOS's 104-byte path limit (t.TempDir paths are too long).
+var shortTempDirCounter uint64
+
+// shortTempDir creates a short relative temp dir inside the worktree so Unix
+// socket paths stay below macOS's 104-byte limit.
 func shortTempDir(t *testing.T) string {
 	t.Helper()
-	dir, err := os.MkdirTemp("/tmp", "muse-test-")
+
+	base := ".socket-tests"
+	if err := os.MkdirAll(base, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	dir := filepath.Join(base, strconv.FormatUint(atomic.AddUint64(&shortTempDirCounter, 1), 10))
+	err := os.MkdirAll(dir, 0o755)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	t.Cleanup(func() {
+		_ = os.RemoveAll(dir)
+		_ = os.Remove(base)
+	})
 	return dir
 }
 
@@ -86,6 +100,36 @@ func TestCommandListener_ValidAction(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for RemoteActionMsg")
+	}
+}
+
+func TestCommandListener_CreatesMissingRuntimeDir(t *testing.T) {
+	runtimeDir := filepath.Join(shortTempDir(t), "runtime", "muse")
+	received := make(chan tui.RemoteActionMsg, 1)
+	p := newTestProgram(received)
+	go p.Run() //nolint:errcheck
+	defer p.Quit()
+
+	ln, err := startCommandListener(p, runtimeDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	conn, err := net.DialTimeout("unix", filepath.Join(runtimeDir, ctrlSocketName), time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = fmt.Fprintln(conn, "next")
+	conn.Close()
+
+	select {
+	case msg := <-received:
+		if msg.ActionName != "next" {
+			t.Errorf("got action %q, want %q", msg.ActionName, "next")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for RemoteActionMsg from newly created runtime dir")
 	}
 }
 
