@@ -390,6 +390,40 @@ func TestRecordPlay_CompletionRate_FloorsAtZero(t *testing.T) {
 	}
 }
 
+func TestRecordPlay_ListenedSecs_FloorsAtZero(t *testing.T) {
+	d := openMigratedDB(t)
+	insertTrack(t, d, "h1", "/a.flac")
+	w := newWriter(t, d)
+
+	// A negative listenedSecs must also be clamped before insertion so it
+	// does not corrupt SUM(listened_secs) aggregates used in stats and
+	// top-N queries.
+	if err := w.RecordPlay("h1", time.Now().Unix(), -10, 120.0); err != nil {
+		t.Fatalf("RecordPlay: %v", err)
+	}
+
+	var listened int
+	if err := d.QueryRow(`SELECT listened_secs FROM play_history WHERE track_hash = ?`, "h1").Scan(&listened); err != nil {
+		t.Fatalf("query listened_secs: %v", err)
+	}
+	if listened != 0 {
+		t.Errorf("listened_secs = %d, want 0 for negative input", listened)
+	}
+
+	// Mix a negative play with a normal play: TotalListenedSecs must equal
+	// only the normal contribution (negative is floored to 0, not summed).
+	if err := w.RecordPlay("h1", time.Now().Unix(), 60, 120.0); err != nil {
+		t.Fatalf("RecordPlay: %v", err)
+	}
+	stats, err := d.ReadListeningStats(0, db.DefaultMixCountConfig())
+	if err != nil {
+		t.Fatalf("ReadListeningStats: %v", err)
+	}
+	if stats.TotalListenedSecs != 60 {
+		t.Errorf("TotalListenedSecs = %d, want 60 (negative play floored to 0)", stats.TotalListenedSecs)
+	}
+}
+
 // --- ReadPlayHistory ---
 
 func TestReadPlayHistory_FieldMapping(t *testing.T) {

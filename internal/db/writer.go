@@ -195,7 +195,14 @@ func (w *Writer) IncrementPlayCount(hash string) error {
 // and sets last_played_at on the tracks row. playedAt is a Unix timestamp;
 // listenedSecs is the actual number of seconds listened; durationSecs is the
 // total track duration in seconds (used to compute completion_rate).
+//
+// Negative listenedSecs values (e.g. from a clock skew between elapsed-time
+// samples) are clamped to 0 so they do not corrupt SUM(listened_secs)
+// aggregates used in stats and top-N queries.
 func (w *Writer) RecordPlay(hash string, playedAt int64, listenedSecs int, durationSecs float64) error {
+	if listenedSecs < 0 {
+		listenedSecs = 0
+	}
 	completionRate := 0.0
 	if durationSecs > 0 && listenedSecs > 0 {
 		completionRate = math.Min(1.0, float64(listenedSecs)/durationSecs)
