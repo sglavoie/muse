@@ -514,3 +514,46 @@ func TestCorrectStoredDurationRebuildsGenresSortCache(t *testing.T) {
 		t.Errorf("expected h1 first after correction, got %v", nm.browse.genres.tracks[0].Hash)
 	}
 }
+
+// TestCorrectStoredDurationSyncsCachedMixTracks verifies that correctStoredDuration
+// propagates to the mixes cache so that opening a mix later does not surface a
+// stale pre-correction duration value.
+func TestCorrectStoredDurationSyncsCachedMixTracks(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
+	m.mixes.cachedMixes = map[db.MixID][]library.Track{
+		db.MixRediscover: {{Hash: "h1", Duration: 360.0}},
+	}
+
+	nm, _ := m.correctStoredDuration("h1", 180.0)
+
+	cached, ok := nm.mixes.cachedMixes[db.MixRediscover]
+	if !ok || len(cached) == 0 {
+		t.Fatal("mixes cache missing or empty after correction")
+	}
+	if cached[0].Duration != 180.0 {
+		t.Errorf("cached mix track duration after correction: got %f, want 180.0", cached[0].Duration)
+	}
+}
+
+// TestCorrectStoredDurationSyncsActiveMixTrackView verifies that when the user
+// is viewing tracks inside a mix at the time of correction, the trackView
+// reflects the corrected duration immediately.
+func TestCorrectStoredDurationSyncsActiveMixTrackView(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
+	m.mixes.cachedMixes = map[db.MixID][]library.Track{
+		db.MixRediscover: {{Hash: "h1", Duration: 360.0}},
+	}
+	m.mixes.openMix(db.MixRediscover)
+
+	nm, _ := m.correctStoredDuration("h1", 180.0)
+
+	if len(nm.mixes.trackView.sourceTracks) == 0 {
+		t.Fatal("mixes trackView sourceTracks empty after correction")
+	}
+	if nm.mixes.trackView.sourceTracks[0].Duration != 180.0 {
+		t.Errorf("mixes trackView duration after correction: got %f, want 180.0",
+			nm.mixes.trackView.sourceTracks[0].Duration)
+	}
+}

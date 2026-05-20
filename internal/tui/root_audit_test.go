@@ -356,6 +356,59 @@ func TestDurationAuditBatchSyncsAlbumsTracks(t *testing.T) {
 	}
 }
 
+// TestDurationAuditBatchSyncsCachedMixTracks verifies that a duration audit
+// batch propagates corrected durations to the mixes cache so that opening a
+// mix later does not show stale pre-audit durations. Regression test for the
+// pattern where new derived views miss the audit propagation block.
+func TestDurationAuditBatchSyncsCachedMixTracks(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
+	m.mixes.cachedMixes = map[db.MixID][]library.Track{
+		db.MixRediscover: {{Hash: "h1", Duration: 120.0}},
+	}
+
+	next, _ := m.Update(library.DurationAuditBatchMsg{
+		Fixes: []library.DurationFix{{Hash: "h1", DurationMs: 240000}},
+	})
+	nm := next.(Model)
+
+	cached, ok := nm.mixes.cachedMixes[db.MixRediscover]
+	if !ok || len(cached) == 0 {
+		t.Fatal("mixes cache missing or empty after audit")
+	}
+	if cached[0].Duration != 240.0 {
+		t.Errorf("cached mix track duration after audit: got %f, want 240.0", cached[0].Duration)
+	}
+}
+
+// TestDurationAuditBatchSyncsActiveMixTrackView verifies that when the user is
+// viewing tracks inside a mix (level 1) at the time of an audit, the trackView's
+// view of the corrected duration updates immediately rather than only at next open.
+func TestDurationAuditBatchSyncsActiveMixTrackView(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
+	m.mixes.cachedMixes = map[db.MixID][]library.Track{
+		db.MixRediscover: {{Hash: "h1", Duration: 120.0}},
+	}
+	m.mixes.openMix(db.MixRediscover)
+	if m.mixes.level != 1 {
+		t.Fatalf("expected level=1 after openMix, got %d", m.mixes.level)
+	}
+
+	next, _ := m.Update(library.DurationAuditBatchMsg{
+		Fixes: []library.DurationFix{{Hash: "h1", DurationMs: 240000}},
+	})
+	nm := next.(Model)
+
+	if len(nm.mixes.trackView.sourceTracks) == 0 {
+		t.Fatal("mixes trackView sourceTracks empty after audit")
+	}
+	if nm.mixes.trackView.sourceTracks[0].Duration != 240.0 {
+		t.Errorf("mixes trackView duration after audit: got %f, want 240.0",
+			nm.mixes.trackView.sourceTracks[0].Duration)
+	}
+}
+
 // TestDurationAuditBatchSyncsGenresTracks verifies that a duration audit
 // batch propagates corrected durations to genres tracks at TrackLevel.
 func TestDurationAuditBatchSyncsGenresTracks(t *testing.T) {
