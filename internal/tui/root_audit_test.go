@@ -428,3 +428,38 @@ func TestDurationAuditBatchSyncsGenresTracks(t *testing.T) {
 		t.Errorf("genres track duration after audit: got %f, want 240.0", nm.browse.genres.tracks[0].Duration)
 	}
 }
+
+// TestDurationAuditBatchRecomputesQueueSortCache verifies that when the queue
+// has an active duration sort, the displayOrder cache is recomputed after a
+// duration audit batch so that the corrected values flip the visible order.
+// Without preserveQueueSort, the queue would keep showing pre-audit ordering
+// until the user manually re-triggered a sort cycle.
+func TestDurationAuditBatchRecomputesQueueSortCache(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 300.0})
+	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 100.0})
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.mp3", DurationMs: 300000},
+		{ID: 2, Hash: "h2", Path: "/b.mp3", DurationMs: 100000},
+	}
+	// Sort by duration ascending: h2 (100) before h1 (300).
+	m.queue.sortState = SortState{Field: SortDuration, Dir: SortAsc}
+	m.queue = m.queue.recomputeDisplayOrder()
+	if len(m.queue.displayOrder) != 2 || m.queue.entries[m.queue.displayOrder[0]].Hash != "h2" {
+		t.Fatalf("pre-audit displayOrder[0] = %v; want h2 first", m.queue.displayOrder)
+	}
+
+	// Audit corrects h2's duration to 500 — order should flip to h1 first.
+	next, _ := m.Update(library.DurationAuditBatchMsg{
+		Fixes: []library.DurationFix{{Hash: "h2", DurationMs: 500000}},
+	})
+	nm := next.(Model)
+
+	if len(nm.queue.displayOrder) != 2 {
+		t.Fatalf("post-audit displayOrder len: got %d, want 2", len(nm.queue.displayOrder))
+	}
+	if nm.queue.entries[nm.queue.displayOrder[0]].Hash != "h1" {
+		t.Errorf("post-audit displayOrder[0] hash: got %s, want h1 (queue sort cache should reflect corrected durations)",
+			nm.queue.entries[nm.queue.displayOrder[0]].Hash)
+	}
+}

@@ -58,3 +58,45 @@ func TestHandleTagMerged_RemapsTrackTagsCache(t *testing.T) {
 		t.Errorf("hash4 expected 1 tag, got %d", len(m.trackTags["hash4"]))
 	}
 }
+
+// TestHandleTagMerged_RepointsActiveTagFilter verifies that when the cross-view
+// tag filter is set to the tag being merged away, the filter is repointed at
+// the destination tag so the user keeps seeing the filtered tracks (now under
+// the destination tag) instead of an empty list with a "[tag: ]" badge whose
+// name lookup returns the empty string.
+func TestHandleTagMerged_RepointsActiveTagFilter(t *testing.T) {
+	m := New(context.Background())
+	srcTag := db.TagRow{ID: 10, Name: "src-tag"}
+	destTag := db.TagRow{ID: 20, Name: "dest-tag"}
+
+	// Two tracks: hash1 tagged with src only, hash2 with dest only.
+	m.trackTags = map[string]map[int64]struct{}{
+		"hash1": {srcTag.ID: {}},
+		"hash2": {destTag.ID: {}},
+	}
+	srcID := srcTag.ID
+	m.activeTagFilter = &srcID
+	m = m.applyTagFilterToViews()
+	if len(m.library.tagFilterHashes) != 1 {
+		t.Fatalf("pre-merge: expected 1 hash in library filter, got %d", len(m.library.tagFilterHashes))
+	}
+	if _, ok := m.library.tagFilterHashes["hash1"]; !ok {
+		t.Fatal("pre-merge: hash1 should be in library tagFilterHashes")
+	}
+
+	m, _ = m.handleTagMerged(tagMergedMsg{src: srcTag, dest: destTag})
+
+	if m.activeTagFilter == nil {
+		t.Fatal("activeTagFilter should not be cleared after merge")
+	}
+	if *m.activeTagFilter != destTag.ID {
+		t.Errorf("activeTagFilter should be repointed to dest (%d), got %d",
+			destTag.ID, *m.activeTagFilter)
+	}
+	// After repoint, both hash1 (remapped) and hash2 (already dest) should
+	// match the active filter.
+	if len(m.library.tagFilterHashes) != 2 {
+		t.Errorf("post-merge: expected 2 hashes in library filter, got %d",
+			len(m.library.tagFilterHashes))
+	}
+}

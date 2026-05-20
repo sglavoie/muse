@@ -119,6 +119,13 @@ func (m Model) handleTagDelete() (Model, tea.Cmd) {
 	}
 	m = m.rebuildTagCache(newGlobalTags)
 
+	// If the cross-view tag filter was set to the tag being deleted, clear it
+	// so the user is not stranded looking at an empty list with a "[tag: ]"
+	// badge whose tag name lookup now returns the empty string.
+	if m.activeTagFilter != nil && *m.activeTagFilter == tag.ID {
+		m = m.clearTagFilter()
+	}
+
 	tw := m.tagWriter
 	cancel := m.scheduleSoftDelete(
 		func() {

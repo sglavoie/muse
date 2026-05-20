@@ -112,6 +112,7 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 			m.queue.entries[i].DurationMs = newDurationMs
 		}
 	}
+	m = m.preserveQueueSort()
 	if m.library.mode == LibraryModeHistory {
 		for i := range m.library.sourceTracks {
 			if m.library.sourceTracks[i].Hash == hash {

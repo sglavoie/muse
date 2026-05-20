@@ -73,6 +73,15 @@ func (m Model) handleTagMerged(msg tagMergedMsg) (Model, tea.Cmd) {
 		}
 	}
 
+	// If the active cross-view tag filter pointed at the merged-away tag,
+	// repoint it at the destination so the filter survives the merge and the
+	// status bar badge does not show an empty tag name.
+	if m.activeTagFilter != nil && *m.activeTagFilter == msg.src.ID {
+		destID := msg.dest.ID
+		m.activeTagFilter = &destID
+		m = m.applyTagFilterToViews()
+	}
+
 	if m.tagReader != nil {
 		tags, err := m.tagReader.ReadTags()
 		if err == nil {

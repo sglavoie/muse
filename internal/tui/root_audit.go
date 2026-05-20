@@ -28,6 +28,7 @@ func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (M
 			}
 		}
 	}
+	m = m.preserveQueueSort()
 	m = m.syncRecentlyAddedFromLibrary()
 	m.library = m.library.refreshView()
 	// Propagate corrected durations to all derived views so their

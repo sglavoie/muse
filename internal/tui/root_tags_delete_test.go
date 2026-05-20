@@ -193,3 +193,32 @@ func TestTagDeleteUndoRestoresCanonicalPosition(t *testing.T) {
 		}
 	}
 }
+
+// TestTagDeleteClearsActiveTagFilter verifies that deleting the tag currently
+// used as the cross-view tag filter clears m.activeTagFilter so the user is
+// not stranded looking at an empty list with a "[tag: ]" badge whose tag name
+// lookup now returns the empty string.
+func TestTagDeleteClearsActiveTagFilter(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewTags
+	m.tagsView.level = tagtui.TagLevel
+	m.tagsView.tags = []db.TagRow{
+		{ID: 1, Name: "Alpha"},
+		{ID: 2, Name: "Beta"},
+	}
+	m.tagsView.tagCounts = map[int64]int{1: 1, 2: 1}
+	m.tagsView.height = 40
+	m = m.rebuildTagCache(m.tagsView.tags)
+
+	// Activate the cross-view filter on tag ID 1 (Alpha).
+	alphaID := int64(1)
+	m.activeTagFilter = &alphaID
+
+	// Delete Alpha (cursor at 0).
+	m.tagsView.cursor = 0
+	m, _ = m.handleTagDelete()
+
+	if m.activeTagFilter != nil {
+		t.Errorf("activeTagFilter should be cleared after deleting the filtered tag; got %v", *m.activeTagFilter)
+	}
+}
