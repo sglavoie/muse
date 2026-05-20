@@ -264,9 +264,13 @@ func (w *Writer) RecordPlay(hash string, playedAt int64, listenedSecs int, durat
 	})
 }
 
-// PopulateTrackGenres inserts (track_hash, genre) rows into track_genres for
-// each genre in each track. Existing rows are ignored (INSERT OR IGNORE).
-// Tracks with no genre are silently skipped.
+// PopulateTrackGenres refreshes (track_hash, genre) rows in track_genres for
+// each track. Stale rows for the same hash are deleted first so that genre
+// changes (rescan after the file's metadata was edited externally) are not
+// shadowed by leftover rows; this keeps ReadTopGenres, ReadHiddenGemsMix,
+// ReadNeverPlayedMix and ReadHourGenreAffinities consistent with the canonical
+// tracks.genre value. Tracks whose hash is empty are skipped (no junction row
+// can reference them via FK).
 func (w *Writer) PopulateTrackGenres(tracks []library.Track) error {
 	if len(tracks) == 0 {
 		return nil
@@ -278,6 +282,15 @@ func (w *Writer) PopulateTrackGenres(tracks []library.Track) error {
 		}
 		defer rollback(tx)
 		for _, t := range tracks {
+			if t.Hash == "" {
+				continue
+			}
+			if _, err := tx.Exec(
+				`DELETE FROM track_genres WHERE track_hash = ?`,
+				t.Hash,
+			); err != nil {
+				return err
+			}
 			genres := library.SplitGenres(t.Genre)
 			for _, g := range genres {
 				if _, err := tx.Exec(
@@ -319,14 +332,41 @@ func (w *Writer) ClearTrackMissing(hash string) error {
 
 // UpdateTrackMetadata updates the title, artist, album, and genre for the track
 // identified by hash and sets user_edited=1 so that future rescans preserve
-// the manually edited metadata.
+// the manually edited metadata. The track_genres junction table is refreshed
+// in the same transaction so that genre-driven recommendation queries
+// (ReadTopGenres, ReadHiddenGemsMix, ReadNeverPlayedMix,
+// ReadHourGenreAffinities) reflect the edit immediately instead of mixing the
+// edited genre with stale entries from before the edit.
 func (w *Writer) UpdateTrackMetadata(hash, title, artist, album, genre string) error {
 	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer rollback(tx)
+
+		if _, err := tx.Exec(
 			`UPDATE tracks SET title=?, artist=?, album=?, genre=?, user_edited=1, updated_at=? WHERE hash=?`,
 			title, artist, album, genre, time.Now().Unix(), hash,
-		)
-		return err
+		); err != nil {
+			return err
+		}
+		if hash != "" {
+			if _, err := tx.Exec(
+				`DELETE FROM track_genres WHERE track_hash = ?`, hash,
+			); err != nil {
+				return err
+			}
+			for _, g := range library.SplitGenres(genre) {
+				if _, err := tx.Exec(
+					`INSERT OR IGNORE INTO track_genres (track_hash, genre) VALUES (?, ?)`,
+					hash, g,
+				); err != nil {
+					return err
+				}
+			}
+		}
+		return tx.Commit()
 	})
 }
 

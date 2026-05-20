@@ -198,7 +198,9 @@ func (v View) OpenTracks(tracks []library.Track) View {
 
 // Back returns a copy of v navigated one level up. At AlbumLevel it returns to
 // ArtistLevel; at TrackLevel it returns to AlbumLevel. At ArtistLevel it is a
-// no-op.
+// no-op. The restored cursor/scroll are clamped against the parent list size
+// so that mutations (e.g. a deleted artist/album) during the drill-down do not
+// leave the cursor pointing past the new end.
 func (v View) Back() View {
 	switch v.Level {
 	case AlbumLevel:
@@ -208,6 +210,7 @@ func (v View) Back() View {
 		v.Albums = nil
 		v.FilterActive = false
 		v.FilterText = ""
+		v = v.clampRestoredCursor()
 	case TrackLevel:
 		v.Level = AlbumLevel
 		v.Cursor = v.AlbumCursor
@@ -215,6 +218,32 @@ func (v View) Back() View {
 		v.Tracks = nil
 		v.FilterActive = false
 		v.FilterText = ""
+		v = v.clampRestoredCursor()
+	}
+	return v
+}
+
+// clampRestoredCursor clamps Cursor to [0, itemCount-1] and adjusts
+// ScrollOffset to keep the cursor visible. Used after Back() restores a saved
+// cursor that may now point past the (possibly shrunk) parent list.
+func (v View) clampRestoredCursor() View {
+	n := v.itemCount()
+	if n == 0 {
+		v.Cursor = 0
+		v.ScrollOffset = 0
+		return v
+	}
+	if v.Cursor < 0 {
+		v.Cursor = 0
+	}
+	if v.Cursor > n-1 {
+		v.Cursor = n - 1
+	}
+	if v.ScrollOffset > v.Cursor {
+		v.ScrollOffset = v.Cursor
+	}
+	if v.ScrollOffset < 0 {
+		v.ScrollOffset = 0
 	}
 	return v
 }

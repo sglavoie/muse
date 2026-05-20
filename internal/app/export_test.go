@@ -9,3 +9,6 @@ func SetProbeFn(fn func(context.Context, string) (float64, error)) (restore func
 	probeFn = fn
 	return func() { probeFn = prev }
 }
+
+// ClampVolume is a test-only re-export of the unexported clampVolume helper.
+func ClampVolume(v int) int { return clampVolume(v) }

@@ -88,6 +88,74 @@ func TestBackToListRestoresCursorAndLevel(t *testing.T) {
 	}
 }
 
+// TestBackToListClampsCursorWhenParentShrank verifies that BackToList clamps
+// the saved list cursor against the (possibly shrunk) Playlists slice — e.g.
+// when a playlist was deleted while the user was viewing its tracks.
+func TestBackToListClampsCursorWhenParentShrank(t *testing.T) {
+	v := View{
+		Level:  ListLevel,
+		Cursor: 4,
+		Playlists: []db.PlaylistRow{
+			{ID: 1}, {ID: 2}, {ID: 3}, {ID: 4}, {ID: 5},
+		},
+		ScrollOffset: 2,
+	}
+	v = v.OpenTracks([]db.PlaylistTrackRow{{ID: 1}})
+	// Simulate playlist deletion while drilled into the previously selected
+	// playlist's tracks.
+	v.Playlists = []db.PlaylistRow{{ID: 1}, {ID: 2}}
+	v = v.BackToList()
+	if v.Level != ListLevel {
+		t.Fatalf("expected ListLevel, got %v", v.Level)
+	}
+	if v.Cursor != 1 {
+		t.Errorf("BackToList: expected clamped Cursor=1, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Errorf("BackToList: ScrollOffset(%d) > Cursor(%d)", v.ScrollOffset, v.Cursor)
+	}
+}
+
+// TestBackToListClampsCursorWhenParentEmpty resets cursor/scroll to 0 when
+// every playlist was removed while drilled into TrackLevel.
+func TestBackToListClampsCursorWhenParentEmpty(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Cursor:       2,
+		ScrollOffset: 1,
+		Playlists:    []db.PlaylistRow{{ID: 1}, {ID: 2}, {ID: 3}},
+	}
+	v = v.OpenTracks([]db.PlaylistTrackRow{{ID: 1}})
+	// Empty (non-nil) slice signals that the caller knows the parent list is
+	// drained — distinct from nil which means "do not clamp here".
+	v.Playlists = []db.PlaylistRow{}
+	v = v.BackToList()
+	if v.Cursor != 0 || v.ScrollOffset != 0 {
+		t.Errorf("BackToList with empty parent: expected cursor=0 scroll=0, got cursor=%d scroll=%d", v.Cursor, v.ScrollOffset)
+	}
+}
+
+// TestBackToListSkipsClampWhenPlaylistsNil verifies the escape hatch used by
+// outer wrappers that defer parent-list clamping: when Playlists is nil, the
+// restored cursor/scroll are passed through unchanged.
+func TestBackToListSkipsClampWhenPlaylistsNil(t *testing.T) {
+	v := View{
+		Level:            TrackLevel,
+		Cursor:           0,
+		Tracks:           []db.PlaylistTrackRow{{ID: 1}},
+		ListCursor:       7,
+		ListScrollOffset: 4,
+		// Playlists deliberately left nil.
+	}
+	v = v.BackToList()
+	if v.Cursor != 7 {
+		t.Errorf("expected pass-through Cursor=7, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 4 {
+		t.Errorf("expected pass-through ScrollOffset=4, got %d", v.ScrollOffset)
+	}
+}
+
 func TestEscAtListLevelIsNoOp(t *testing.T) {
 	v := View{
 		Level:  ListLevel,

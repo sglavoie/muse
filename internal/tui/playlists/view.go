@@ -181,12 +181,37 @@ func (v View) OpenTracks(tracks []db.PlaylistTrackRow) View {
 
 // BackToList returns a copy of v transitioned back to ListLevel, restoring
 // the cursor to the position saved by the preceding OpenTracks call and
-// clearing the track slice.
+// clearing the track slice. When Playlists is non-nil, the restored cursor
+// and scroll offset are clamped against it so that a playlist deleted during
+// the drill-down does not leave the cursor pointing past the new end. Callers
+// that defer clamping to an outer wrapper (and pass a nil Playlists into the
+// temporary View used purely for cursor translation) are unaffected.
 func (v View) BackToList() View {
 	v.Level = ListLevel
 	v.Cursor = v.ListCursor
 	v.ScrollOffset = v.ListScrollOffset
 	v.Tracks = nil
+	if v.Playlists == nil {
+		return v
+	}
+	n := len(v.Playlists)
+	if n == 0 {
+		v.Cursor = 0
+		v.ScrollOffset = 0
+		return v
+	}
+	if v.Cursor < 0 {
+		v.Cursor = 0
+	}
+	if v.Cursor > n-1 {
+		v.Cursor = n - 1
+	}
+	if v.ScrollOffset > v.Cursor {
+		v.ScrollOffset = v.Cursor
+	}
+	if v.ScrollOffset < 0 {
+		v.ScrollOffset = 0
+	}
 	return v
 }
 

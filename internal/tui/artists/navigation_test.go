@@ -301,6 +301,47 @@ func TestBackAtArtistLevelIsNoOp(t *testing.T) {
 	}
 }
 
+func TestBackClampsCursorWhenParentShrank(t *testing.T) {
+	v := View{
+		Level:        ArtistLevel,
+		Cursor:       5,
+		ScrollOffset: 3,
+		Artists:      []string{"a", "b", "c", "d", "e", "f"},
+	}
+	v = v.OpenAlbums([]string{"X", "Y"})
+	// Mutate parent list to simulate artist deletion while drilled down.
+	v.Artists = []string{"a", "b"}
+	v = v.Back()
+	if v.Level != ArtistLevel {
+		t.Fatalf("expected ArtistLevel, got %v", v.Level)
+	}
+	if v.Cursor != 1 {
+		t.Errorf("Back: expected clamped Cursor=1, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Errorf("Back: expected ScrollOffset <= Cursor, got %d > %d", v.ScrollOffset, v.Cursor)
+	}
+}
+
+func TestBackClampsCursorWhenParentEmpty(t *testing.T) {
+	v := View{
+		Level:        AlbumLevel,
+		Cursor:       3,
+		ScrollOffset: 1,
+		Albums:       []string{"X", "Y", "Z", "W"},
+	}
+	v = v.OpenTracks([]library.Track{{Title: "t"}})
+	// All albums gone while drilled down (e.g. all tracks for the artist removed).
+	v.Albums = nil
+	v = v.Back()
+	if v.Level != AlbumLevel {
+		t.Fatalf("expected AlbumLevel, got %v", v.Level)
+	}
+	if v.Cursor != 0 || v.ScrollOffset != 0 {
+		t.Errorf("Back with empty parent: expected cursor=0 scroll=0, got cursor=%d scroll=%d", v.Cursor, v.ScrollOffset)
+	}
+}
+
 func TestFullDrillDownCycle(t *testing.T) {
 	v := View{
 		Level:   ArtistLevel,

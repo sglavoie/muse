@@ -89,6 +89,14 @@ func enterVisualMode(m Model) Model {
 		if m.tagsView.level != tagtui.TrackLevel {
 			return m
 		}
+	case viewMixes:
+		// Visual mode is not yet wired through takeSnapshot/selectRange for
+		// the Mixes view (no viewMixes cases in updateVisualSelection or
+		// restoreSnapshot). Allowing enter would leave stale visualState
+		// that the footer-hint strip misreads as HintModeVisual while no
+		// selection is actually being built. Guard at every level until the
+		// full wiring lands.
+		return m
 	}
 
 	cursor := activeViewCursor(m)

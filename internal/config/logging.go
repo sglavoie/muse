@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -25,9 +26,13 @@ const logRotateSize = 5 * 1024 * 1024 // 5 MiB
 func InitLogging(stateDir string, level slog.Level) error {
 	// Close any previously opened log file to avoid leaking file handles
 	// when InitLogging is called more than once (e.g. after a config reload).
+	// Repoint slog to io.Discard immediately so subsequent slog calls during
+	// the reinit do not race against (or write to) the just-closed FD even if
+	// any of the remaining steps fail.
 	if logFile != nil {
 		_ = logFile.Close()
 		logFile = nil
+		slog.SetDefault(slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{Level: &logLevel})))
 	}
 
 	if err := os.MkdirAll(stateDir, 0o700); err != nil {
@@ -89,10 +94,13 @@ func ParseLogLevel(s string) (slog.Level, bool) {
 
 // CloseLog flushes and closes the log file handle. It should be called as the
 // last step of the shutdown sequence, after all log writes have completed.
+// Subsequent slog calls are routed to io.Discard so that late callers do not
+// write to the closed file descriptor.
 func CloseLog() {
 	if logFile != nil {
 		slog.Info("shutdown complete")
 		_ = logFile.Close() // deferred close in error path, file will be GC'd
 		logFile = nil
+		slog.SetDefault(slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{Level: &logLevel})))
 	}
 }

@@ -153,6 +153,82 @@ func TestUpdateTrackMetadata(t *testing.T) {
 	}
 }
 
+// TestUpdateTrackMetadata_RefreshesTrackGenres verifies that editing a
+// track's metadata also rewrites its rows in the track_genres junction table.
+// Previously UpdateTrackMetadata wrote only the tracks.genre column, so
+// genre-driven recommendation queries (ReadTopGenres, ReadHiddenGemsMix,
+// ReadNeverPlayedMix, ReadHourGenreAffinities) saw stale genres until the
+// next library rescan.
+func TestUpdateTrackMetadata_RefreshesTrackGenres(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	track := library.Track{Hash: "hash-tg", Path: "/g.mp3", Title: "T", Artist: "A", Album: "B", Genre: "Rock; Metal", Duration: 60.0}
+	if err := w.UpsertBatch([]library.Track{track}); err != nil {
+		t.Fatalf("UpsertBatch: %v", err)
+	}
+	if err := w.PopulateTrackGenres([]library.Track{track}); err != nil {
+		t.Fatalf("PopulateTrackGenres: %v", err)
+	}
+
+	if err := w.UpdateTrackMetadata("hash-tg", "T", "A", "B", "Jazz"); err != nil {
+		t.Fatalf("UpdateTrackMetadata: %v", err)
+	}
+
+	rows, err := d.Query(`SELECT genre FROM track_genres WHERE track_hash='hash-tg' ORDER BY genre`)
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	defer rows.Close()
+	var genres []string
+	for rows.Next() {
+		var g string
+		if err := rows.Scan(&g); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		genres = append(genres, g)
+	}
+	if len(genres) != 1 || genres[0] != "Jazz" {
+		t.Errorf("track_genres after edit = %v; want [Jazz] (stale Rock/Metal must be cleared)", genres)
+	}
+
+	var stored string
+	if err := d.QueryRow(`SELECT genre FROM tracks WHERE hash='hash-tg'`).Scan(&stored); err != nil {
+		t.Fatalf("select genre: %v", err)
+	}
+	if stored != "Jazz" {
+		t.Errorf("tracks.genre = %q; want Jazz", stored)
+	}
+}
+
+// TestUpdateTrackMetadata_ClearGenreEmptiesJunction verifies that clearing a
+// track's genre via UpdateTrackMetadata also removes the corresponding
+// track_genres rows.
+func TestUpdateTrackMetadata_ClearGenreEmptiesJunction(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	track := library.Track{Hash: "hash-tg2", Path: "/g2.mp3", Title: "T", Artist: "A", Album: "B", Genre: "Pop", Duration: 60.0}
+	if err := w.UpsertBatch([]library.Track{track}); err != nil {
+		t.Fatalf("UpsertBatch: %v", err)
+	}
+	if err := w.PopulateTrackGenres([]library.Track{track}); err != nil {
+		t.Fatalf("PopulateTrackGenres: %v", err)
+	}
+
+	if err := w.UpdateTrackMetadata("hash-tg2", "T", "A", "B", ""); err != nil {
+		t.Fatalf("UpdateTrackMetadata: %v", err)
+	}
+
+	var count int
+	if err := d.QueryRow(`SELECT COUNT(*) FROM track_genres WHERE track_hash='hash-tg2'`).Scan(&count); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("track_genres count = %d; want 0 after genre cleared", count)
+	}
+}
+
 // TestUpsertBatch_PreservesUserEdited verifies that UpsertBatch does not
 // overwrite title/artist/album when user_edited=1.
 func TestUpsertBatch_PreservesUserEdited(t *testing.T) {

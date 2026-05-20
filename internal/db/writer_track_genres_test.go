@@ -140,6 +140,92 @@ func TestPopulateTrackGenres_Dedup(t *testing.T) {
 	}
 }
 
+// TestPopulateTrackGenres_RefreshesStaleRows verifies that calling
+// PopulateTrackGenres with a different genre value removes the previously
+// stored junction rows. Without this behaviour, a track that was originally
+// scanned with "Rock" and later updated to "Jazz" (e.g. via an external
+// metadata edit picked up by rescan) would retain both rows in track_genres,
+// poisoning genre-driven recommendation queries.
+func TestPopulateTrackGenres_RefreshesStaleRows(t *testing.T) {
+	d := openMigratedDB(t)
+	insertTrack(t, d, "h1", "/a.flac")
+	w := newWriter(t, d)
+
+	if err := w.PopulateTrackGenres([]library.Track{{Hash: "h1", Genre: "Rock; Metal"}}); err != nil {
+		t.Fatalf("first PopulateTrackGenres: %v", err)
+	}
+	if err := w.PopulateTrackGenres([]library.Track{{Hash: "h1", Genre: "Jazz"}}); err != nil {
+		t.Fatalf("second PopulateTrackGenres: %v", err)
+	}
+
+	rows, err := d.Query(`SELECT genre FROM track_genres WHERE track_hash = ? ORDER BY genre`, "h1")
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	defer rows.Close()
+	var genres []string
+	for rows.Next() {
+		var g string
+		if err := rows.Scan(&g); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		genres = append(genres, g)
+	}
+	if len(genres) != 1 || genres[0] != "Jazz" {
+		t.Errorf("genres after refresh = %v; want [Jazz] (stale Rock/Metal should be removed)", genres)
+	}
+}
+
+// TestPopulateTrackGenres_EmptyGenreClearsExistingRows verifies that
+// re-populating with an empty Genre removes all previously stored rows for
+// that hash, so that a track whose genre has been cleared is not falsely
+// associated with its previous genres.
+func TestPopulateTrackGenres_EmptyGenreClearsExistingRows(t *testing.T) {
+	d := openMigratedDB(t)
+	insertTrack(t, d, "h1", "/a.flac")
+	w := newWriter(t, d)
+
+	if err := w.PopulateTrackGenres([]library.Track{{Hash: "h1", Genre: "Rock"}}); err != nil {
+		t.Fatalf("populate: %v", err)
+	}
+	if err := w.PopulateTrackGenres([]library.Track{{Hash: "h1", Genre: ""}}); err != nil {
+		t.Fatalf("re-populate empty: %v", err)
+	}
+
+	var count int
+	if err := d.QueryRow(`SELECT COUNT(*) FROM track_genres WHERE track_hash = ?`, "h1").Scan(&count); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("track_genres rows after clearing = %d; want 0", count)
+	}
+}
+
+// TestPopulateTrackGenres_EmptyHashSkipped verifies tracks with empty hashes
+// are silently skipped (they have no FK target) rather than producing an FK
+// violation that aborts the entire batch.
+func TestPopulateTrackGenres_EmptyHashSkipped(t *testing.T) {
+	d := openMigratedDB(t)
+	insertTrack(t, d, "h1", "/a.flac")
+	w := newWriter(t, d)
+
+	tracks := []library.Track{
+		{Hash: "", Genre: "Rock"},
+		{Hash: "h1", Genre: "Jazz"},
+	}
+	if err := w.PopulateTrackGenres(tracks); err != nil {
+		t.Fatalf("PopulateTrackGenres: %v", err)
+	}
+
+	var count int
+	if err := d.QueryRow(`SELECT COUNT(*) FROM track_genres WHERE track_hash = ?`, "h1").Scan(&count); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("h1 track_genres count = %d; want 1 (empty-hash entry should not abort batch)", count)
+	}
+}
+
 func TestPopulateTrackGenres_MultipleTracksDelimiters(t *testing.T) {
 	d := openMigratedDB(t)
 	insertTrack(t, d, "h1", "/a.flac")

@@ -390,3 +390,47 @@ func TestRenderTracksNoMarkersWhenNoneSelected(t *testing.T) {
 		t.Errorf("did not expect selection marker ● when nothing is selected, got:\n%s", out)
 	}
 }
+
+// TestBackClampsCursorWhenParentShrank verifies that Back() clamps the saved
+// album cursor against the (possibly shrunk) Albums slice — e.g. when an album
+// was deleted while the user was drilled into TrackLevel.
+func TestBackClampsCursorWhenParentShrank(t *testing.T) {
+	v := View{
+		Level:        AlbumLevel,
+		Cursor:       4,
+		ScrollOffset: 2,
+		Albums:       []string{"a", "b", "c", "d", "e"},
+		Height:       20,
+	}
+	v = v.OpenTracks([]library.Track{{Title: "x"}})
+	// Simulate album deletion while drilled down.
+	v.Albums = []string{"a", "b"}
+	v = v.Back()
+	if v.Level != AlbumLevel {
+		t.Fatalf("expected AlbumLevel, got %v", v.Level)
+	}
+	if v.Cursor != 1 {
+		t.Errorf("Back: expected clamped Cursor=1, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Errorf("Back: ScrollOffset(%d) must be <= Cursor(%d)", v.ScrollOffset, v.Cursor)
+	}
+}
+
+// TestBackClampsCursorWhenParentEmpty verifies that Back() into an empty
+// parent list resets cursor/scroll to 0 rather than restoring stale values.
+func TestBackClampsCursorWhenParentEmpty(t *testing.T) {
+	v := View{
+		Level:        AlbumLevel,
+		Cursor:       3,
+		ScrollOffset: 1,
+		Albums:       []string{"a", "b", "c", "d"},
+		Height:       20,
+	}
+	v = v.OpenTracks([]library.Track{{Title: "x"}})
+	v.Albums = nil
+	v = v.Back()
+	if v.Cursor != 0 || v.ScrollOffset != 0 {
+		t.Errorf("Back with empty parent: expected cursor=0 scroll=0, got cursor=%d scroll=%d", v.Cursor, v.ScrollOffset)
+	}
+}

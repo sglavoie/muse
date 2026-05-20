@@ -309,6 +309,41 @@ func TestVisualModeFilterActivationExits(t *testing.T) {
 	}
 }
 
+// TestVisualModeMixesGuardListLevel verifies that pressing v while in the
+// Mixes view (at any level) does NOT toggle visual.active. The underlying
+// snapshot/select/range helpers have no viewMixes cases, so allowing entry
+// would leave stale visual state that the footer-hint strip would misread
+// as HintModeVisual while no selection is actually being built.
+func TestVisualModeMixesGuardListLevel(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewMixes
+	m.mixes.level = 0 // mix list level
+
+	m = doVisual(m)
+
+	if m.visual.active {
+		t.Fatal("expected visual mode to be blocked at mix list level (level 0)")
+	}
+}
+
+// TestVisualModeMixesGuardTrackLevel mirrors the list-level guard: until the
+// visual-mode wiring covers viewMixes in takeSnapshot/selectRange/etc., entry
+// at the track level must also be a no-op.
+func TestVisualModeMixesGuardTrackLevel(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewMixes
+	m.mixes.level = 1 // track level
+	m.mixes.trackView = LibraryView{
+		sourceTracks: makeNTracks(3),
+	}
+
+	m = doVisual(m)
+
+	if m.visual.active {
+		t.Fatal("expected visual mode to be blocked at mix track level until full wiring lands")
+	}
+}
+
 // TestSortedIntSetKeysOrder verifies that sortedIntSetKeys returns keys in
 // ascending order.
 func TestSortedIntSetKeysOrder(t *testing.T) {

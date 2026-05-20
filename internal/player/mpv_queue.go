@@ -30,8 +30,15 @@ func (m *Manager) SetQueue(entries []QueueTrack) {
 // navigation starts from the correct position rather than defaulting to 0.
 // The index is clamped to [0, len(queue)-1]; negative indices are clamped
 // to 0. If the queue is empty, currentIndex is set to -1.
+//
+// Moving the playback position invalidates the previously prefetched track
+// (the "next" track is now relative to a different index), so the prefetch
+// is cleared and a fresh prefetchNext is scheduled when the index actually
+// changes. This prevents shuffle/dedup/move/undo-clear from leaving mpv with
+// a stale gapless prefetch pointing at the wrong track.
 func (m *Manager) SetCurrentIndex(index int) {
 	m.mu.Lock()
+	oldIdx := m.currentIndex
 	switch {
 	case len(m.queue) == 0:
 		m.currentIndex = -1
@@ -42,7 +49,13 @@ func (m *Manager) SetCurrentIndex(index int) {
 	default:
 		m.currentIndex = index
 	}
+	changed := m.currentIndex != oldIdx
 	m.mu.Unlock()
+
+	if changed {
+		m.clearPrefetch()
+		go m.prefetchNext()
+	}
 }
 
 // AppendToQueue appends a single entry to the in-memory queue used by

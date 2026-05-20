@@ -103,23 +103,33 @@ func ApplyRestoredSession(
 	}
 
 	if restored.CurrentHash != "" {
-		tui.WithCurrentTrackHash(restored.CurrentHash)(model)
+		// Only mark the TUI as having a current track if the hash maps to a
+		// real queue entry. Otherwise the TUI carries a "ghost" hash that no
+		// queue index points to, causing status bar/now-playing desync.
+		foundIdx := -1
 		for i, pt := range restored.PlayerTracks {
 			if pt.Hash == restored.CurrentHash {
-				mgr.SetCurrentIndex(i)
-				tui.WithCurrentIndex(i)(model)
-				// Populate status bar from the queue entry so the first
-				// render shows track metadata instead of an empty bar.
-				if i < len(restored.QueueEntries) {
-					e := restored.QueueEntries[i]
-					source := e.SourcePlaylist
-					if source == "" {
-						source = "Queue"
-					}
-					tui.WithStatusBarTrack(e.Artist, e.Title, source)(model)
-				}
+				foundIdx = i
 				break
 			}
+		}
+		if foundIdx >= 0 {
+			tui.WithCurrentTrackHash(restored.CurrentHash)(model)
+			mgr.SetCurrentIndex(foundIdx)
+			tui.WithCurrentIndex(foundIdx)(model)
+			// Populate status bar from the queue entry so the first render
+			// shows track metadata instead of an empty bar.
+			if foundIdx < len(restored.QueueEntries) {
+				e := restored.QueueEntries[foundIdx]
+				source := e.SourcePlaylist
+				if source == "" {
+					source = "Queue"
+				}
+				tui.WithStatusBarTrack(e.Artist, e.Title, source)(model)
+			}
+		} else {
+			slog.Warn("startup: restored current_hash does not match any queue entry; ignoring",
+				"hash", restored.CurrentHash)
 		}
 	}
 }

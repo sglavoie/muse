@@ -254,6 +254,14 @@ func (m Model) removeTagFromCaches(tagID int64) Model {
 	if m.tagsView.tagCounts != nil {
 		delete(m.tagsView.tagCounts, tagID)
 	}
+
+	// Clear the cross-view tag filter when it pointed at the removed tag.
+	// Without this, the title bar would render "[tag: ]" because the tag's
+	// name lookup now returns the empty string, and the cached
+	// tagFilterHashes maps on Library/Queue would dangle indefinitely.
+	if m.activeTagFilter != nil && *m.activeTagFilter == tagID {
+		m = m.clearTagFilter()
+	}
 	return m
 }
 

@@ -340,8 +340,13 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 		shuffle = sess.Shuffle
 		radioMode = sess.RadioMode
 		currentHash = sess.CurrentHash
+		// Clamp negative position to zero so a corrupt row cannot poison
+		// the player with a negative seek.
 		positionMs = sess.PositionMs
-		volume = int(math.Round(sess.Volume * 100))
+		if positionMs < 0 {
+			positionMs = 0
+		}
+		volume = clampVolume(int(math.Round(sess.Volume * 100)))
 	}
 
 	return &RestoredSession{
@@ -382,6 +387,21 @@ func parseRepeatMode(s string) tui.RepeatMode {
 	default:
 		return tui.RepeatOff
 	}
+}
+
+// clampVolume normalises a persisted volume value into the inclusive range
+// [0, 100]. Negative values (which would otherwise be interpreted as the
+// "no value persisted" sentinel by ApplyRestoredSession and overwritten with
+// the default) are clamped to 0 so that an explicitly persisted mute survives
+// a corrupted session row. Values above 100 are clamped to 100.
+func clampVolume(v int) int {
+	if v < 0 {
+		return 0
+	}
+	if v > 100 {
+		return 100
+	}
+	return v
 }
 
 // removeStaleSocket removes the mpv socket file if it exists. A missing file

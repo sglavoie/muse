@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
+	"time"
 )
 
 // TestManager_SetQueue_ClampsCurrentIndex verifies that SetQueue clamps
@@ -126,6 +128,96 @@ func TestManager_SetCurrentIndex(t *testing.T) {
 		m.mu.RUnlock()
 		if got != -1 {
 			t.Errorf("currentIndex = %d, want -1", got)
+		}
+	})
+}
+
+// TestManager_SetCurrentIndex_RefreshesPrefetch verifies that moving the
+// current index away from a prefetched neighbour invalidates the previously
+// prefetched track so mpv's internal playlist does not retain a stale
+// gapless "next" entry after shuffle/dedup/move/undo operations.
+func TestManager_SetCurrentIndex_RefreshesPrefetch(t *testing.T) {
+	t.Run("changing index clears and refreshes prefetch", func(t *testing.T) {
+		var mu sync.Mutex
+		var received [][]any
+		m := newConnectedManager(t, "sci-refresh-pf", &mu, &received)
+
+		// Seed the queue with real on-disk files so prefetchNext is willing to
+		// stat them and append the new candidate.
+		pa := tempFile(t, "a*.flac")
+		pb := tempFile(t, "b*.flac")
+		pc := tempFile(t, "c*.flac")
+		m.mu.Lock()
+		m.queue = []QueueTrack{
+			{Path: pa, Hash: "h0", QueueID: 1},
+			{Path: pb, Hash: "h1", QueueID: 2},
+			{Path: pc, Hash: "h2", QueueID: 3},
+		}
+		m.currentIndex = 0
+		m.gaplessEnabled = true
+		// Simulate a stale prefetch sitting at index 1 from before the move.
+		m.prefetchedIndex = 1
+		m.prefetchedPath = pb
+		m.mu.Unlock()
+
+		// Move the cursor to index 2 — the prefetched entry at index 1 is now
+		// behind us and must be cleared.
+		m.SetCurrentIndex(2)
+
+		// The prefetch must be cleared. doClearPrefetch sends a playlist-remove
+		// for the old prefetch slot before prefetchNext appends the new one.
+		waitForCommand(t, &mu, &received, isPlaylistRemove, time.Second,
+			"playlist-remove after SetCurrentIndex change")
+
+		m.mu.RLock()
+		pfIdx := m.prefetchedIndex
+		m.mu.RUnlock()
+		// After SetCurrentIndex(2), there is no successor on disk → prefetch
+		// should remain cleared (no new entry was appended).
+		if pfIdx != -1 {
+			t.Errorf("prefetchedIndex = %d after moving past it, want -1", pfIdx)
+		}
+	})
+
+	t.Run("setting same index does not touch prefetch", func(t *testing.T) {
+		var mu sync.Mutex
+		var received [][]any
+		m := newConnectedManager(t, "sci-same-pf", &mu, &received)
+
+		pa := tempFile(t, "a*.flac")
+		pb := tempFile(t, "b*.flac")
+		m.mu.Lock()
+		m.queue = []QueueTrack{
+			{Path: pa, Hash: "h0", QueueID: 1},
+			{Path: pb, Hash: "h1", QueueID: 2},
+		}
+		m.currentIndex = 0
+		m.gaplessEnabled = true
+		m.prefetchedIndex = 1
+		m.prefetchedPath = pb
+		m.mu.Unlock()
+
+		// Setting the same index must not invalidate the existing prefetch.
+		m.SetCurrentIndex(0)
+
+		// Give any spurious goroutine a moment to run.
+		time.Sleep(50 * time.Millisecond)
+
+		mu.Lock()
+		for _, cmd := range received {
+			if isPlaylistRemove(cmd) {
+				mu.Unlock()
+				t.Fatalf("SetCurrentIndex(same) must not clear prefetch; got %v", received)
+			}
+		}
+		mu.Unlock()
+
+		m.mu.RLock()
+		pfIdx := m.prefetchedIndex
+		pfPath := m.prefetchedPath
+		m.mu.RUnlock()
+		if pfIdx != 1 || pfPath != pb {
+			t.Errorf("prefetch state changed: idx=%d path=%q, want idx=1 path=%q", pfIdx, pfPath, pb)
 		}
 	})
 }

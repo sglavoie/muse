@@ -47,6 +47,7 @@ func TestOpenTracksPreservesCursor(t *testing.T) {
 func TestBackFromArtistLevel(t *testing.T) {
 	v := View{
 		Level:             ArtistLevel,
+		Genres:            []string{"Rock", "Jazz", "Pop"},
 		Artists:           []string{"Alice"},
 		Cursor:            0,
 		GenreCursor:       2,
@@ -71,6 +72,7 @@ func TestBackFromTrackLevel(t *testing.T) {
 	ts := tracks(struct{ genre, artist, title string }{"Rock", "Alice", "t1"})
 	v := View{
 		Level:              TrackLevel,
+		Artists:            []string{"Alice", "Bob"},
 		Tracks:             ts,
 		Cursor:             0,
 		ArtistCursor:       1,
@@ -219,5 +221,43 @@ func TestHalfPageDown(t *testing.T) {
 	// visibleRows = height(6) - reserve(1, strip) = 5; HalfPageDown = 5/2 = 2
 	if v2.Cursor != 2 {
 		t.Errorf("expected cursor=2, got %d", v2.Cursor)
+	}
+}
+
+func TestBack_ClampsCursorWhenParentShrank(t *testing.T) {
+	v := View{
+		Level:        GenreLevel,
+		Genres:       []string{"a", "b", "c", "d", "e"},
+		Cursor:       4,
+		ScrollOffset: 2,
+		Height:       20,
+	}
+	v = v.OpenArtists([]string{"X"})
+	v.Genres = []string{"a", "b"}
+	v = v.Back()
+	if v.Level != GenreLevel {
+		t.Fatalf("expected GenreLevel, got %v", v.Level)
+	}
+	if v.Cursor != 1 {
+		t.Errorf("Back: expected clamped Cursor=1, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Errorf("Back: ScrollOffset(%d) > Cursor(%d)", v.ScrollOffset, v.Cursor)
+	}
+}
+
+func TestBack_ClampsCursorWhenParentEmpty(t *testing.T) {
+	v := View{
+		Level:        ArtistLevel,
+		Artists:      []string{"a", "b", "c"},
+		Cursor:       2,
+		ScrollOffset: 1,
+		Height:       20,
+	}
+	v = v.OpenTracks(nil)
+	v.Artists = nil
+	v = v.Back()
+	if v.Cursor != 0 || v.ScrollOffset != 0 {
+		t.Errorf("Back with empty parent: expected cursor=0 scroll=0, got cursor=%d scroll=%d", v.Cursor, v.ScrollOffset)
 	}
 }

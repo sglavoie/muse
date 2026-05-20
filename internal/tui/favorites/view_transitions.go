@@ -28,7 +28,9 @@ func (v View) OpenTracks(tracks []library.Track) View {
 	return v
 }
 
-// Back navigates one level up.
+// Back navigates one level up. The restored cursor/scroll for ListLevel are
+// clamped against the (possibly shrunk) list so that a favorite removed during
+// the drill-down does not leave the cursor pointing past the new end.
 func (v View) Back() View {
 	switch v.Level {
 	case ListLevel:
@@ -49,6 +51,32 @@ func (v View) Back() View {
 		v.FilterActive = false
 		v.FilterText = ""
 		v.SelectedItems = nil
+		v = v.clampRestoredCursor()
+	}
+	return v
+}
+
+// clampRestoredCursor clamps Cursor to [0, itemCount-1] and adjusts
+// ScrollOffset to keep the cursor visible. Used after Back() restores a saved
+// cursor that may now point past the (possibly shrunk) parent list.
+func (v View) clampRestoredCursor() View {
+	n := v.itemCount()
+	if n == 0 {
+		v.Cursor = 0
+		v.ScrollOffset = 0
+		return v
+	}
+	if v.Cursor < 0 {
+		v.Cursor = 0
+	}
+	if v.Cursor > n-1 {
+		v.Cursor = n - 1
+	}
+	if v.ScrollOffset > v.Cursor {
+		v.ScrollOffset = v.Cursor
+	}
+	if v.ScrollOffset < 0 {
+		v.ScrollOffset = 0
 	}
 	return v
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 )
 
@@ -165,4 +166,61 @@ func copyHashSet(src map[string]struct{}) map[string]struct{} {
 		dst[k] = v
 	}
 	return dst
+}
+
+// TestRemoveTagFromCaches_ClearsActiveTagFilterPointer verifies that when the
+// auto-deleted (empty) tag is the same one held by activeTagFilter, the filter
+// is cleared so the title bar does not render an empty "[tag: ]" badge and
+// downstream views are not left with a dangling tagFilterHashes map.
+func TestRemoveTagFromCaches_ClearsActiveTagFilterPointer(t *testing.T) {
+	m := New(context.Background())
+	tagID := int64(7)
+
+	// Seed in-memory tag caches and an active cross-view filter pointing at
+	// the about-to-be-deleted tag.
+	m.tags = []db.TagRow{{ID: tagID, Name: "Chill"}}
+	m.tagNames = map[int64]string{tagID: "Chill"}
+	m.tagColors = map[int64]string{tagID: ""}
+	m.activeTagFilter = &tagID
+	m.library.tagFilterHashes = map[string]struct{}{"h1": {}}
+	m.queue.tagFilterHashes = map[string]struct{}{"h1": {}}
+
+	m = m.removeTagFromCaches(tagID)
+
+	if m.activeTagFilter != nil {
+		t.Fatalf("expected activeTagFilter to be cleared, got tagID=%d", *m.activeTagFilter)
+	}
+	if m.library.tagFilterHashes != nil {
+		t.Errorf("expected library.tagFilterHashes to be cleared, got %v", m.library.tagFilterHashes)
+	}
+	if m.queue.tagFilterHashes != nil {
+		t.Errorf("expected queue.tagFilterHashes to be cleared, got %v", m.queue.tagFilterHashes)
+	}
+}
+
+// TestRemoveTagFromCaches_PreservesUnrelatedActiveTagFilter verifies that when
+// a different tag is auto-deleted, the user's active cross-view filter is left
+// untouched.
+func TestRemoveTagFromCaches_PreservesUnrelatedActiveTagFilter(t *testing.T) {
+	m := New(context.Background())
+	kept := int64(5)
+	removed := int64(7)
+	m.tags = []db.TagRow{{ID: kept, Name: "Keep"}, {ID: removed, Name: "Drop"}}
+	m.tagNames = map[int64]string{kept: "Keep", removed: "Drop"}
+	m.tagColors = map[int64]string{kept: "", removed: ""}
+	m.activeTagFilter = &kept
+	m.library.tagFilterHashes = map[string]struct{}{"h1": {}}
+	m.queue.tagFilterHashes = map[string]struct{}{"h1": {}}
+
+	m = m.removeTagFromCaches(removed)
+
+	if m.activeTagFilter == nil || *m.activeTagFilter != kept {
+		t.Fatalf("expected activeTagFilter to remain pointing at %d, got %v", kept, m.activeTagFilter)
+	}
+	if _, ok := m.library.tagFilterHashes["h1"]; !ok {
+		t.Errorf("library.tagFilterHashes should be preserved when an unrelated tag is removed")
+	}
+	if _, ok := m.queue.tagFilterHashes["h1"]; !ok {
+		t.Errorf("queue.tagFilterHashes should be preserved when an unrelated tag is removed")
+	}
 }

@@ -206,7 +206,10 @@ func (v View) OpenTracks(tag db.TagRow, tracks []db.PlaylistTrackRow) View {
 }
 
 // Back returns a copy of v navigated one level up. At TrackLevel it returns to
-// TagLevel. At TagLevel it is a no-op.
+// TagLevel. At TagLevel it is a no-op. The restored cursor/scroll are clamped
+// against the parent list size so that mutations (e.g. a deleted tag or a tag
+// whose count dropped to zero) during the drill-down do not leave the cursor
+// pointing past the new end.
 func (v View) Back() View {
 	if v.Level == TrackLevel {
 		v.Level = TagLevel
@@ -215,6 +218,38 @@ func (v View) Back() View {
 		v.Tracks = nil
 		v.FilterActive = false
 		v.FilterText = ""
+		v = v.clampRestoredCursor()
+	}
+	return v
+}
+
+// clampRestoredCursor clamps Cursor to [0, itemCount-1] and adjusts
+// ScrollOffset to keep the cursor visible. Used after Back() restores a saved
+// cursor that may now point past the (possibly shrunk) parent list. When the
+// parent slice is nil the clamp is skipped: callers that build a temporary
+// View without populating the parent slice (and clamp themselves) rely on this
+// pass-through behaviour. An empty (non-nil) parent triggers a reset to 0.
+func (v View) clampRestoredCursor() View {
+	if v.Tags == nil {
+		return v
+	}
+	n := v.itemCount()
+	if n == 0 {
+		v.Cursor = 0
+		v.ScrollOffset = 0
+		return v
+	}
+	if v.Cursor < 0 {
+		v.Cursor = 0
+	}
+	if v.Cursor > n-1 {
+		v.Cursor = n - 1
+	}
+	if v.ScrollOffset > v.Cursor {
+		v.ScrollOffset = v.Cursor
+	}
+	if v.ScrollOffset < 0 {
+		v.ScrollOffset = 0
 	}
 	return v
 }

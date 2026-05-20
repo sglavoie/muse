@@ -74,6 +74,8 @@ func TestBack_FromListLevel(t *testing.T) {
 func TestBack_FromTrackLevel(t *testing.T) {
 	v := View{
 		Level:            TrackLevel,
+		Category:         CategoryArtists,
+		Artists:          []string{"A", "B", "C", "D", "E"},
 		DrilldownTracks:  sampleTracks(2),
 		ListCursor:       3,
 		ListScrollOffset: 1,
@@ -91,6 +93,47 @@ func TestBack_FromTrackLevel(t *testing.T) {
 	}
 	if v2.DrilldownTracks != nil {
 		t.Error("expected DrilldownTracks cleared")
+	}
+}
+
+// TestBack_FromTrackLevelClampsCursorWhenParentShrank verifies that Back()
+// clamps the saved list cursor against the (possibly shrunk) favorites list —
+// e.g. when an artist was unfavorited while drilled into its tracks.
+func TestBack_FromTrackLevelClampsCursorWhenParentShrank(t *testing.T) {
+	v := View{
+		Level:            TrackLevel,
+		Category:         CategoryArtists,
+		Artists:          []string{"A", "B"},
+		DrilldownTracks:  sampleTracks(2),
+		ListCursor:       4,
+		ListScrollOffset: 2,
+	}
+	v2 := v.Back()
+	if v2.Level != ListLevel {
+		t.Fatalf("expected ListLevel, got %v", v2.Level)
+	}
+	if v2.Cursor != 1 {
+		t.Errorf("expected clamped cursor=1, got %d", v2.Cursor)
+	}
+	if v2.ScrollOffset > v2.Cursor {
+		t.Errorf("ScrollOffset(%d) > Cursor(%d)", v2.ScrollOffset, v2.Cursor)
+	}
+}
+
+// TestBack_FromTrackLevelClampsCursorWhenParentEmpty resets cursor/scroll to 0
+// when the parent list was fully drained during the drill-down.
+func TestBack_FromTrackLevelClampsCursorWhenParentEmpty(t *testing.T) {
+	v := View{
+		Level:            TrackLevel,
+		Category:         CategoryArtists,
+		Artists:          nil,
+		DrilldownTracks:  sampleTracks(2),
+		ListCursor:       2,
+		ListScrollOffset: 1,
+	}
+	v2 := v.Back()
+	if v2.Cursor != 0 || v2.ScrollOffset != 0 {
+		t.Errorf("expected cursor=0 scroll=0, got cursor=%d scroll=%d", v2.Cursor, v2.ScrollOffset)
 	}
 }
 
