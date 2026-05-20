@@ -251,7 +251,11 @@ func BuildFilterSeparator(sortIndicator string, filterActive bool, filterText, f
 		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
 			ft = ansi.Truncate(ft, maxLen, "…")
 		}
-		return prefix + sep + "Filter: " + ft + "\n"
+		line := "Filter: " + ft
+		if width > 0 && ansi.StringWidth(line) > width {
+			line = ansi.Truncate(line, width, "")
+		}
+		return prefix + sep + line + "\n"
 	}
 	if leadingNewline {
 		return prefix + "\n\n"

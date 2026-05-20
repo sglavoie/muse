@@ -107,3 +107,61 @@ func TestReadSessionCoOccurrences_CountOrdering(t *testing.T) {
 		t.Errorf("results[0].Hash = %q, want frequent (higher co-occurrence count)", results[0].Hash)
 	}
 }
+
+func TestReadSessionCoOccurrences_RepeatedSeedCountsSharedSessionOnce(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "seed", "/seed.flac", "Seed", "Artist", "Album", "Rock", 180000, 5000000, now)
+	insertFullTrack(t, d, "mate", "/mate.flac", "Mate", "Artist", "Album", "Rock", 180000, 5000000, now)
+	w := newWriter(t, d)
+
+	if err := w.RecordPlay("seed", now, 60, 180); err != nil {
+		t.Fatalf("RecordPlay seed 1: %v", err)
+	}
+	if err := w.RecordPlay("seed", now+10, 60, 180); err != nil {
+		t.Fatalf("RecordPlay seed 2: %v", err)
+	}
+	if err := w.RecordPlay("mate", now+20, 60, 180); err != nil {
+		t.Fatalf("RecordPlay mate: %v", err)
+	}
+
+	results, err := d.ReadSessionCoOccurrences("seed", 10)
+	if err != nil {
+		t.Fatalf("ReadSessionCoOccurrences: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Hash != "mate" || results[0].Count != 1 {
+		t.Fatalf("got %+v, want mate count=1", results[0])
+	}
+}
+
+func TestReadSessionCoOccurrences_RepeatedCompanionCountsSharedSessionOnce(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "seed", "/seed.flac", "Seed", "Artist", "Album", "Rock", 180000, 5000000, now)
+	insertFullTrack(t, d, "mate", "/mate.flac", "Mate", "Artist", "Album", "Rock", 180000, 5000000, now)
+	w := newWriter(t, d)
+
+	if err := w.RecordPlay("seed", now, 60, 180); err != nil {
+		t.Fatalf("RecordPlay seed: %v", err)
+	}
+	if err := w.RecordPlay("mate", now+10, 60, 180); err != nil {
+		t.Fatalf("RecordPlay mate 1: %v", err)
+	}
+	if err := w.RecordPlay("mate", now+20, 60, 180); err != nil {
+		t.Fatalf("RecordPlay mate 2: %v", err)
+	}
+
+	results, err := d.ReadSessionCoOccurrences("seed", 10)
+	if err != nil {
+		t.Fatalf("ReadSessionCoOccurrences: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Hash != "mate" || results[0].Count != 1 {
+		t.Fatalf("got %+v, want mate count=1", results[0])
+	}
+}

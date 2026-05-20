@@ -113,6 +113,33 @@ func TestRestoreSessionMissingFiles(t *testing.T) {
 	}
 }
 
+func TestRestoreSessionUnreadablePathMarkedMissing(t *testing.T) {
+	dirs := setupDirs(t)
+	database := openTestDB(t, dirs)
+	defer database.Close()
+	w := newTestWriter(t, database)
+
+	blocker := filepath.Join(dirs.Runtime, "not-a-directory")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	unreadablePath := filepath.Join(blocker, "track.mp3")
+
+	insertTrack(t, database, "hash-enotdir", unreadablePath, "Artist C", "Song C")
+	insertQueueEntry(t, database, "hash-enotdir", 1000)
+
+	restored, err := app.RestoreSession(database, w)
+	if err != nil {
+		t.Fatalf("RestoreSession: %v", err)
+	}
+	if len(restored.QueueEntries) != 1 {
+		t.Fatalf("QueueEntries: want 1, got %d", len(restored.QueueEntries))
+	}
+	if !restored.QueueEntries[0].Missing {
+		t.Fatal("QueueEntry.Missing: want true for unreadable path component")
+	}
+}
+
 // TestRestoreSessionMixedFiles verifies that only missing files have Missing=true
 // when the queue contains both readable and unreadable entries.
 func TestRestoreSessionMixedFiles(t *testing.T) {

@@ -64,8 +64,8 @@ func (l *Lockfile) Acquire() error {
 	return nil
 }
 
-// Release closes the held advisory lock and removes the lockfile. It is a
-// no-op when this Lockfile never acquired the lock or was already released.
+// Release closes the held advisory lock. It is a no-op when this Lockfile
+// never acquired the lock or was already released.
 func (l *Lockfile) Release() {
 	if l.file == nil {
 		return
@@ -73,7 +73,6 @@ func (l *Lockfile) Release() {
 	_ = syscall.Flock(int(l.file.Fd()), syscall.LOCK_UN)
 	_ = l.file.Close()
 	l.file = nil
-	_ = os.Remove(l.path)
 }
 
 func writeLockPID(f *os.File) error {

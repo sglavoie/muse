@@ -115,7 +115,7 @@ func TestLockfile_ConcurrentAcquireAllowsSingleWinner(t *testing.T) {
 	}
 }
 
-func TestLockfile_ReleasedOnCleanup(t *testing.T) {
+func TestLockfile_ReleaseKeepsPathAndAllowsReacquire(t *testing.T) {
 	tmp := t.TempDir()
 	lf := NewLockfile(tmp)
 
@@ -126,8 +126,8 @@ func TestLockfile_ReleasedOnCleanup(t *testing.T) {
 	lf.Release()
 
 	lockPath := filepath.Join(tmp, lockfileName)
-	if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
-		t.Errorf("lockfile should be removed after Release, but still exists at %q", lockPath)
+	if _, err := os.Stat(lockPath); err != nil {
+		t.Errorf("lockfile should remain after Release, stat err: %v", err)
 	}
 
 	reacquired := NewLockfile(tmp)

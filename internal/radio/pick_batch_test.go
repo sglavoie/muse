@@ -65,6 +65,40 @@ func TestPickBatch_ArtistCap(t *testing.T) {
 	}
 }
 
+func TestPickBatch_ExtendsBeyondInitialPoolWhenCappedArtistsDominate(t *testing.T) {
+	scored := make([]TrackScore, 0, 14)
+	for i := 0; i < 10; i++ {
+		scored = append(scored, TrackScore{
+			Track: library.Track{Hash: string(rune('a' + i)), Artist: "ArtistA"},
+			Score: float64(100 - i),
+		})
+	}
+	scored = append(scored,
+		TrackScore{Track: library.Track{Hash: "b1", Artist: "ArtistB"}, Score: 50},
+		TrackScore{Track: library.Track{Hash: "b2", Artist: "ArtistB"}, Score: 49},
+		TrackScore{Track: library.Track{Hash: "c1", Artist: "ArtistC"}, Score: 10},
+		TrackScore{Track: library.Track{Hash: "d1", Artist: "ArtistD"}, Score: 9},
+	)
+
+	result := PickBatch(scored, 4, 0.25)
+	if len(result) != 4 {
+		t.Fatalf("expected 4 tracks after extending beyond the initial pool, got %d", len(result))
+	}
+
+	artistCounts := make(map[string]int)
+	for _, track := range result {
+		artistCounts[track.Artist]++
+	}
+	for artist, count := range artistCounts {
+		if count > 1 {
+			t.Fatalf("artist %q appears %d times, want at most 1", artist, count)
+		}
+	}
+	if artistCounts["ArtistC"] != 1 || artistCounts["ArtistD"] != 1 {
+		t.Fatalf("expected later eligible artists to fill the batch, got counts=%v", artistCounts)
+	}
+}
+
 func TestPickBatch_EmptyArtistBypassesCap(t *testing.T) {
 	var scored []TrackScore
 	for i := 0; i < 6; i++ {

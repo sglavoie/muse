@@ -170,6 +170,7 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 	poolSize := min(3*n, len(scored))
 	pool := make([]TrackScore, poolSize)
 	copy(pool, scored[:poolSize])
+	nextIdx := poolSize
 
 	maxPerArtist := int(math.Ceil(float64(n) * maxArtistFraction))
 	if maxPerArtist < 1 {
@@ -179,29 +180,13 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 	artistCount := make(map[string]int)
 	result := make([]library.Track, 0, n)
 
-	for len(result) < n && len(pool) > 0 {
-		// Collect eligible indices (not at artist cap) and total weight.
-		// Track whether any eligible candidate has a positive (non-clamped)
-		// score so we can fall back to deterministic selection when every
-		// remaining candidate is at the 0.1 weight floor — otherwise the
-		// weighted-random would degenerate into a uniform draw and ignore
-		// the score-based ordering produced by ScoreAll.
-		eligible := make([]int, 0, len(pool))
-		weights := make([]float64, 0, len(pool))
-		totalWeight := 0.0
-		anyPositive := false
-		for i, ts := range pool {
-			if ts.Track.Artist == "" || artistCount[ts.Track.Artist] < maxPerArtist {
-				weight := math.Max(ts.Score, 0.1)
-				eligible = append(eligible, i)
-				weights = append(weights, weight)
-				totalWeight += weight
-				if ts.Score > 0.1 {
-					anyPositive = true
-				}
-			}
+	for len(result) < n {
+		eligible, weights, totalWeight, anyPositive := collectEligible(pool, artistCount, maxPerArtist)
+		for len(eligible) == 0 && nextIdx < len(scored) {
+			pool = append(pool, scored[nextIdx])
+			nextIdx++
+			eligible, weights, totalWeight, anyPositive = collectEligible(pool, artistCount, maxPerArtist)
 		}
-
 		if len(eligible) == 0 {
 			break
 		}
@@ -241,4 +226,24 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 	}
 
 	return result
+}
+
+func collectEligible(pool []TrackScore, artistCount map[string]int, maxPerArtist int) ([]int, []float64, float64, bool) {
+	eligible := make([]int, 0, len(pool))
+	weights := make([]float64, 0, len(pool))
+	totalWeight := 0.0
+	anyPositive := false
+	for i, ts := range pool {
+		if ts.Track.Artist != "" && artistCount[ts.Track.Artist] >= maxPerArtist {
+			continue
+		}
+		weight := math.Max(ts.Score, 0.1)
+		eligible = append(eligible, i)
+		weights = append(weights, weight)
+		totalWeight += weight
+		if ts.Score > 0.1 {
+			anyPositive = true
+		}
+	}
+	return eligible, weights, totalWeight, anyPositive
 }

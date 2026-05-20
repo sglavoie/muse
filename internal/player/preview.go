@@ -75,13 +75,19 @@ func (p *PreviewPlayer) Start() error {
 		return err
 	}
 	p.cmd = cmd
+	failStart := func(err error) error {
+		if cleanupErr := p.cleanup(false, 0); cleanupErr != nil {
+			return errors.Join(err, cleanupErr)
+		}
+		return err
+	}
 
 	// Poll until the socket is ready.
 	deadline := time.Now().Add(previewPollTimeout)
 	for time.Now().Before(deadline) {
 		select {
 		case <-p.ctx.Done():
-			return p.ctx.Err()
+			return failStart(p.ctx.Err())
 		default:
 		}
 
@@ -92,7 +98,7 @@ func (p *PreviewPlayer) Start() error {
 		}
 		time.Sleep(previewPollInterval)
 	}
-	return fmt.Errorf("preview: timed out waiting for mpv socket at %s", p.socketPath)
+	return failStart(fmt.Errorf("preview: timed out waiting for mpv socket at %s", p.socketPath))
 }
 
 // SetAudioFilter sets the af (audio filter) property on the preview mpv
@@ -162,7 +168,13 @@ func (p *PreviewPlayer) ElapsedPosition() (elapsed, total float64, err error) {
 // Close stops the preview mpv subprocess, closes the IPC connection, and
 // removes the socket file.
 func (p *PreviewPlayer) Close() error {
-	p.cancel()
+	return p.cleanup(true, previewShutdownTimeout)
+}
+
+func (p *PreviewPlayer) cleanup(cancel bool, waitTimeout time.Duration) error {
+	if cancel {
+		p.cancel()
+	}
 
 	var errs []error
 	if p.client != nil {
@@ -174,15 +186,33 @@ func (p *PreviewPlayer) Close() error {
 	if p.cmd != nil && p.cmd.Process != nil {
 		done := make(chan error, 1)
 		go func() { done <- p.cmd.Wait() }()
-		select {
-		case <-done:
-		case <-time.After(previewShutdownTimeout):
-			slog.Warn("preview mpv process did not exit within timeout, killing")
-			if err := p.cmd.Process.Kill(); err != nil {
+		killAndWait := func(logTimeout bool) {
+			if logTimeout {
+				slog.Warn("preview mpv process did not exit within timeout, killing")
+			}
+			if err := p.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 				errs = append(errs, err)
+			}
+			select {
+			case <-done:
+			case <-time.After(previewShutdownTimeout):
+			}
+		}
+		if waitTimeout <= 0 {
+			select {
+			case <-done:
+			default:
+				killAndWait(false)
+			}
+		} else {
+			select {
+			case <-done:
+			case <-time.After(waitTimeout):
+				killAndWait(true)
 			}
 		}
 	}
+	p.cmd = nil
 	if err := os.Remove(p.socketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		slog.Warn("preview: remove socket", "path", p.socketPath, "err", err)
 		errs = append(errs, err)

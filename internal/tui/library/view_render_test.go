@@ -8,6 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	musiclib "github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -135,6 +136,25 @@ func TestRenderScrollOffsetBeyondTrackCount(t *testing.T) {
 	// The output should be the header + empty body (no panic, no crash).
 	if !strings.Contains(got, "Artist") {
 		t.Errorf("expected column header in render even with out-of-bounds scroll, got:\n%s", got)
+	}
+}
+
+func TestRenderIgnoresStaleFilteredMatchIndices(t *testing.T) {
+	idx := buildIndex(sampleTracks[:1])
+	v := View{
+		Index:           idx,
+		Width:           80,
+		Height:          24,
+		Filter:          filter.State{Text: "Alice"},
+		FilteredMatches: []musiclib.Match{{TrackIndex: 99}},
+	}
+
+	got := v.Render()
+	if !strings.Contains(got, "No matches") {
+		t.Fatalf("expected stale filtered matches to render as no matches, got:\n%s", got)
+	}
+	if strings.Contains(got, sampleTracks[0].Title) {
+		t.Fatalf("stale filtered matches should not render an out-of-range track, got:\n%s", got)
 	}
 }
 

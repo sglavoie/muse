@@ -95,12 +95,23 @@ func (v View) tracks() []musiclib.Track {
 // caller should fall back to the full unfiltered track list.
 func (v View) filteredMatches(allTracks []musiclib.Track) ([]musiclib.Match, bool) {
 	if v.FilteredMatches != nil {
-		return v.FilteredMatches, true
+		return validMatches(v.FilteredMatches, len(allTracks)), true
 	}
 	if v.Fuzzy != nil {
-		return v.Fuzzy.Search(v.Filter.Text, allTracks), true
+		return validMatches(v.Fuzzy.Search(v.Filter.Text, allTracks), len(allTracks)), true
 	}
 	return nil, false
+}
+
+func validMatches(matches []musiclib.Match, trackCount int) []musiclib.Match {
+	valid := make([]musiclib.Match, 0, len(matches))
+	for _, match := range matches {
+		if match.TrackIndex < 0 || match.TrackIndex >= trackCount {
+			continue
+		}
+		valid = append(valid, match)
+	}
+	return valid
 }
 
 // effectiveTrackCount returns the number of tracks currently displayed,

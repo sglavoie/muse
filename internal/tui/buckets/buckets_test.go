@@ -40,6 +40,8 @@ func TestDateBucket(t *testing.T) {
 		{-1, DateBucketUnknown},
 		{now.Unix(), DateBucketToday},
 		{time.Date(2026, 5, 16, 0, 0, 0, 0, time.UTC).Unix(), DateBucketToday},
+		{time.Date(2026, 5, 17, 0, 0, 0, 0, time.UTC).Unix(), DateBucketUnknown},
+		{time.Date(2026, 5, 20, 12, 0, 0, 0, time.UTC).Unix(), DateBucketUnknown},
 		{time.Date(2026, 5, 15, 23, 59, 59, 0, time.UTC).Unix(), DateBucketThisWeek},
 		{time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC).Unix(), DateBucketThisWeek},
 		{time.Date(2026, 5, 9, 0, 0, 0, 0, time.UTC).Unix(), DateBucketThisWeek},

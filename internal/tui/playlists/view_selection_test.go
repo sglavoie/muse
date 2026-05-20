@@ -26,6 +26,32 @@ func TestToggleBulkSelectionToggles(t *testing.T) {
 	}
 }
 
+func TestToggleBulkSelection_CopyOnWriteAdd(t *testing.T) {
+	original := View{SelectedTrackIDs: map[int64]struct{}{1: {}}}
+
+	updated := original.ToggleBulkSelection(2)
+
+	if _, ok := original.SelectedTrackIDs[2]; ok {
+		t.Fatal("original view selection must remain unchanged")
+	}
+	if _, ok := updated.SelectedTrackIDs[2]; !ok {
+		t.Fatal("updated view should contain the toggled ID")
+	}
+}
+
+func TestToggleBulkSelection_CopyOnWriteRemove(t *testing.T) {
+	original := View{SelectedTrackIDs: map[int64]struct{}{1: {}, 2: {}}}
+
+	updated := original.ToggleBulkSelection(2)
+
+	if _, ok := original.SelectedTrackIDs[2]; !ok {
+		t.Fatal("original view selection must remain unchanged")
+	}
+	if _, ok := updated.SelectedTrackIDs[2]; ok {
+		t.Fatal("updated view should remove the toggled ID")
+	}
+}
+
 func TestToggleBulkSelectionZeroIDIsNoOp(t *testing.T) {
 	v := View{}
 	v = v.ToggleBulkSelection(0)

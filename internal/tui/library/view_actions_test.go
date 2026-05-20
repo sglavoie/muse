@@ -52,6 +52,21 @@ func TestFocusedTrackWithActiveFilter(t *testing.T) {
 	}
 }
 
+func TestFocusedTrackIgnoresStaleFilteredMatchIndex(t *testing.T) {
+	idx := buildIndex(sampleTracks[:1])
+	v := View{
+		Index:           idx,
+		Filter:          filter.State{Text: "Alice"},
+		FilteredMatches: []musiclib.Match{{TrackIndex: 99}},
+		Cursor:          0,
+	}
+
+	_, ok := v.FocusedTrack()
+	if ok {
+		t.Fatal("FocusedTrack should ignore stale filtered match indexes")
+	}
+}
+
 // TestEnqueueFocusedSendsCorrectTrack verifies that the tea.Cmd returned by
 // EnqueueFocused calls AppendTrack with the focused track and returns a
 // TrackEnqueuedMsg containing that track.

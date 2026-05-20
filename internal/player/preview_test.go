@@ -6,7 +6,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 	"testing"
+	"time"
 )
 
 // newTestPreviewPlayer creates a PreviewPlayer backed by a fake mpv server.
@@ -52,6 +54,49 @@ func TestPreviewPlayer_Start_CreatesSocketParentDir(t *testing.T) {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		t.Fatal("Start did not create the socket parent directory")
 	}
+}
+
+func TestPreviewPlayer_StartTimeoutCleansUpProcess(t *testing.T) {
+	sock := shortSockPath(t, "preview-timeout")
+	p := NewPreviewPlayer(context.Background(), sock)
+
+	var spawned *exec.Cmd
+	p.launchFn = func(ctx context.Context, socketPath string) (*exec.Cmd, error) {
+		cmd := exec.Command("sleep", "30")
+		if err := cmd.Start(); err != nil {
+			return nil, err
+		}
+		spawned = cmd
+		return cmd, nil
+	}
+
+	err := p.Start()
+	if err == nil {
+		t.Fatal("expected Start to fail when the socket never appears")
+	}
+	if spawned == nil {
+		t.Fatal("expected Start to spawn a process before timing out")
+	}
+	if p.cmd != nil {
+		t.Fatal("expected Start failure to clear the spawned command")
+	}
+	if p.client != nil {
+		t.Fatal("expected Start failure to leave no connected client")
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		var status syscall.WaitStatus
+		pid, waitErr := syscall.Wait4(spawned.Process.Pid, &status, syscall.WNOHANG, nil)
+		if pid == spawned.Process.Pid || errors.Is(waitErr, syscall.ECHILD) {
+			return
+		}
+		if waitErr != nil && !errors.Is(waitErr, syscall.EINTR) {
+			t.Fatalf("Wait4: %v", waitErr)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("spawned process was still running after Start failure")
 }
 
 func TestPreviewPlayer_LoadAndPlay(t *testing.T) {

@@ -222,7 +222,7 @@ func (d *DB) ReadCompletionRates(hashes []string) (map[string]float64, error) {
 // rows without a backfill) are ignored.
 func (d *DB) ReadSessionCoOccurrences(seedHash string, limit int) ([]SessionCoOccurrence, error) {
 	rows, err := d.Query(`
-		SELECT ph2.track_hash, COUNT(*) AS co_count
+		SELECT ph2.track_hash, COUNT(DISTINCT ph1.session_id) AS co_count
 		FROM play_history ph1
 		JOIN play_history ph2
 		  ON ph2.session_id = ph1.session_id

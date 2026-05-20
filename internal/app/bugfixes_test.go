@@ -149,6 +149,46 @@ func TestRunStartupSkipsRestoreForMissingFile(t *testing.T) {
 	}
 }
 
+func TestRunStartupSkipsRestoreForUnreadableCurrentTrack(t *testing.T) {
+	dirs := setupDirs(t)
+	installLogger(t)
+
+	database := openTestDB(t, dirs)
+	blocker := filepath.Join(dirs.Runtime, "not-a-directory")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	unreadablePath := filepath.Join(blocker, "gone.mp3")
+	insertTrack(t, database, "hash-unreadable", unreadablePath, "Gone", "Track")
+	insertQueueEntry(t, database, "hash-unreadable", 1000)
+	setSessionRow(t, database, "hash-unreadable", 5000, false, "none")
+	database.Close()
+
+	restoreCalled := false
+	deps := app.Deps{
+		CheckPrereqs: func(context.Context) error { return nil },
+		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
+		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
+		RestorePlayer: func(_ string, _ int64) error {
+			restoreCalled = true
+			return nil
+		},
+	}
+
+	result, err := app.Run(context.Background(), dirs, deps)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	closeRunResult(t, result)
+
+	if restoreCalled {
+		t.Error("RestorePlayer must NOT be called when the current track's path is unreachable")
+	}
+	if len(result.Restored.QueueEntries) != 1 || !result.Restored.QueueEntries[0].Missing {
+		t.Errorf("expected restored queue to flag the entry missing; got %+v", result.Restored.QueueEntries)
+	}
+}
+
 // TestRunStartupRestoreStillCalledForReadableFile guards against the
 // missing-file skip regressing into "never restore at all". When the file is
 // present on disk the player must still receive the path/position to seek to.

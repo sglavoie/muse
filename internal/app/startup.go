@@ -308,7 +308,7 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 	for _, r := range rows {
 		missing := r.Missing
 		if !missing {
-			if _, statErr := os.Stat(r.Path); errors.Is(statErr, os.ErrNotExist) {
+			if _, statErr := os.Stat(r.Path); statErr != nil {
 				missing = true
 				if err := writer.MarkQueueEntryMissing(r.ID); err != nil {
 					slog.Warn("mark queue entry missing", "id", r.ID, "err", err)

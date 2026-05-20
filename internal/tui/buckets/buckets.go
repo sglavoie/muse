@@ -55,8 +55,12 @@ func DateBucket(ts int64, now time.Time) string {
 	}
 	t := time.Unix(ts, 0).In(now.Location())
 	startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	if !t.Before(startOfToday) {
+	startOfTomorrow := startOfToday.AddDate(0, 0, 1)
+	if !t.Before(startOfToday) && t.Before(startOfTomorrow) {
 		return DateBucketToday
+	}
+	if !t.Before(startOfTomorrow) {
+		return DateBucketUnknown
 	}
 	weekAgo := startOfToday.AddDate(0, 0, -7)
 	if !t.Before(weekAgo) {

@@ -44,6 +44,20 @@ var remoteActions = []remoteAction{
 	{"volume-down", "Decrease volume by 5%"},
 }
 
+type unixSocketListener struct {
+	net.Listener
+	path string
+}
+
+func (l *unixSocketListener) Close() error {
+	closeErr := l.Listener.Close()
+	removeErr := os.Remove(l.path)
+	if errors.Is(removeErr, os.ErrNotExist) {
+		removeErr = nil
+	}
+	return errors.Join(closeErr, removeErr)
+}
+
 // isKnownAction reports whether name is a recognised remote action.
 func isKnownAction(name string) bool {
 	for _, a := range remoteActions {
@@ -75,6 +89,7 @@ func startCommandListener(p *tea.Program, runtimeDir string) (net.Listener, erro
 	if err != nil {
 		return nil, fmt.Errorf("listen on control socket: %w", err)
 	}
+	ln = &unixSocketListener{Listener: ln, path: sockPath}
 
 	go acceptLoop(p, ln)
 

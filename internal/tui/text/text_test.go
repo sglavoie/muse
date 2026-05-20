@@ -275,6 +275,15 @@ func TestBuildFilterSeparatorTruncationUsesFullBudget(t *testing.T) {
 	}
 }
 
+func TestBuildFilterSeparatorCommittedFilterClampedToNarrowWidth(t *testing.T) {
+	const width = 5
+	out := BuildFilterSeparator("", false, "abcdefghijklmnopqrstuvwxyz", "", "", width, false)
+	line := strings.TrimRight(out, "\n")
+	if got := ansi.StringWidth(line); got > width {
+		t.Fatalf("line width = %d, want <= %d (got %q)", got, width, line)
+	}
+}
+
 // TestBuildFilterSeparatorMultiByteFilter verifies that ansi.StringWidth-based
 // truncation handles multi-byte filter text without breaking width arithmetic
 // or splitting graphemes.

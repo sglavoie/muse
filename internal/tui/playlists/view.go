@@ -264,6 +264,12 @@ func (v View) ToggleBulkSelection(id int64) View {
 	}
 	if v.SelectedTrackIDs == nil {
 		v.SelectedTrackIDs = make(map[int64]struct{})
+	} else {
+		selected := make(map[int64]struct{}, len(v.SelectedTrackIDs))
+		for trackID := range v.SelectedTrackIDs {
+			selected[trackID] = struct{}{}
+		}
+		v.SelectedTrackIDs = selected
 	}
 	if _, ok := v.SelectedTrackIDs[id]; ok {
 		delete(v.SelectedTrackIDs, id)

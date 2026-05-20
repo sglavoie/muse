@@ -72,8 +72,12 @@ func TestUsageStoreRoundTrip(t *testing.T) {
 func TestUsageStoreLoadMissingFileIsNotError(t *testing.T) {
 	dir := t.TempDir()
 	store := NewUsageStore(dir)
+	store.Bump("stale")
 	if err := store.Load(); err != nil {
 		t.Fatalf("Load on missing file should not error; got %v", err)
+	}
+	if got := store.Get("stale").Count; got != 0 {
+		t.Fatalf("missing-file load should clear stale records, got %d", got)
 	}
 }
 
@@ -84,11 +88,31 @@ func TestUsageStoreLoadCorruptIsRecoverable(t *testing.T) {
 		t.Fatalf("setup write: %v", err)
 	}
 	store := NewUsageStore(dir)
+	store.Bump("stale")
 	// Load returns the parse error, but Bump should still work afterwards.
 	_ = store.Load()
+	if got := store.Get("stale").Count; got != 0 {
+		t.Fatalf("corrupt load should clear stale records, got %d", got)
+	}
 	store.Bump("alpha")
 	if got := store.Get("alpha").Count; got != 1 {
 		t.Errorf("alpha count after recovery: want 1, got %d", got)
+	}
+}
+
+func TestUsageStoreLoadEmptyFileClearsStaleRecords(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, usageFileName)
+	if err := os.WriteFile(path, nil, 0o644); err != nil {
+		t.Fatalf("setup write: %v", err)
+	}
+	store := NewUsageStore(dir)
+	store.Bump("stale")
+	if err := store.Load(); err != nil {
+		t.Fatalf("Load on empty file: %v", err)
+	}
+	if got := store.Get("stale").Count; got != 0 {
+		t.Fatalf("empty-file load should clear stale records, got %d", got)
 	}
 }
 

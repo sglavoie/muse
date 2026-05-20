@@ -123,9 +123,9 @@ func TestShutdownDBWriterFlushedBeforeClose(t *testing.T) {
 	}
 }
 
-// TestShutdownLockfileRemoved verifies that an on-disk PID lockfile is deleted
-// during shutdown.
-func TestShutdownLockfileRemoved(t *testing.T) {
+// TestShutdownLockfileReleasedKeepsPath verifies that shutdown releases the
+// advisory lock without unlinking the lockfile path.
+func TestShutdownLockfileReleasedKeepsPath(t *testing.T) {
 	installLogger(t)
 
 	dir := t.TempDir()
@@ -142,9 +142,14 @@ func TestShutdownLockfileRemoved(t *testing.T) {
 
 	app.Shutdown(app.ShutdownDeps{Lockfile: lf}, app.ShutdownTimeout)
 
-	if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
-		t.Error("lockfile was not removed during Shutdown")
+	if _, err := os.Stat(lockPath); err != nil {
+		t.Fatalf("lockfile path should remain after Shutdown: %v", err)
 	}
+	reacquired := config.NewLockfile(dir)
+	if err := reacquired.Acquire(); err != nil {
+		t.Fatalf("lockfile should be reacquirable after Shutdown: %v", err)
+	}
+	reacquired.Release()
 }
 
 // TestShutdownSocketRemoved verifies that the mpv socket file is deleted.
@@ -255,9 +260,9 @@ func TestShutdownDBWriterDrainsOnShutdown(t *testing.T) {
 	}
 }
 
-// TestShutdownLockfileAndSocketOrdering verifies that the lockfile is released
-// before the mpv socket is deleted (step 4 before step 5).
-func TestShutdownLockfileAndSocketOrdering(t *testing.T) {
+// TestShutdownLockfileAndSocketCleanup verifies that shutdown leaves the
+// lockfile path in place while still removing the mpv socket.
+func TestShutdownLockfileAndSocketCleanup(t *testing.T) {
 	installLogger(t)
 
 	dir := t.TempDir()
@@ -271,19 +276,14 @@ func TestShutdownLockfileAndSocketOrdering(t *testing.T) {
 		t.Fatalf("create socket: %v", err)
 	}
 
-	// Record which files are gone at the moment each resource is cleaned up.
-	// We do this by wrapping Release via a custom lockfile check.
-	// Since config.Lockfile.Release is not injectable, we verify post-conditions
-	// instead: both file should be gone after Shutdown returns.
-
 	app.Shutdown(app.ShutdownDeps{
 		Lockfile:   lf,
 		SocketPath: socketPath,
 	}, app.ShutdownTimeout)
 
 	lockPath := filepath.Join(dir, "muse.pid")
-	if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
-		t.Error("lockfile still present after Shutdown")
+	if _, err := os.Stat(lockPath); err != nil {
+		t.Fatalf("lockfile path should remain after Shutdown: %v", err)
 	}
 	if _, err := os.Stat(socketPath); !os.IsNotExist(err) {
 		t.Error("mpv socket still present after Shutdown")

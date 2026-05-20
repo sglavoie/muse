@@ -43,3 +43,10 @@ func TestVisibleRows_HeightEqualsReserve(t *testing.T) {
 		t.Errorf("expected minimum 1 when height equals reserve, got %d", got)
 	}
 }
+
+func TestVisibleRows_NegativeReserveClampedToZero(t *testing.T) {
+	got := VisibleRows(10, -3)
+	if got != 10 {
+		t.Errorf("expected negative reserve to be ignored, got %d", got)
+	}
+}

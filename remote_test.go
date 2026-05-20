@@ -133,6 +133,31 @@ func TestCommandListener_CreatesMissingRuntimeDir(t *testing.T) {
 	}
 }
 
+func TestCommandListener_CloseRemovesSocketFile(t *testing.T) {
+	dir := shortTempDir(t)
+	received := make(chan tui.RemoteActionMsg, 1)
+	p := newTestProgram(received)
+	go p.Run() //nolint:errcheck
+	defer p.Quit()
+
+	ln, err := startCommandListener(p, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sockPath := filepath.Join(dir, ctrlSocketName)
+	if _, err := os.Stat(sockPath); err != nil {
+		t.Fatalf("stat socket before close: %v", err)
+	}
+
+	if err := ln.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if _, err := os.Stat(sockPath); !os.IsNotExist(err) {
+		t.Fatalf("socket file should be removed on close, got err=%v", err)
+	}
+}
+
 func TestCommandListener_UnknownAction(t *testing.T) {
 	dir := shortTempDir(t)
 	received := make(chan tui.RemoteActionMsg, 1)

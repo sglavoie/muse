@@ -45,6 +45,7 @@ func (s *UsageStore) Load() error {
 	if s == nil || s.path == "" {
 		return nil
 	}
+	s.records = make(map[string]UsageRecord)
 	data, err := os.ReadFile(s.path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
