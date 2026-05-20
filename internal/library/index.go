@@ -187,12 +187,16 @@ func (idx *LibraryIndex) FindByPath(path string) (Track, bool) {
 	return Track{}, false
 }
 
-// IncrementPlayCount bumps PlayCount by 1 and sets LastPlayedAt for the
-// track identified by hash. Returns true if the track was found.
+// IncrementPlayCount bumps PlayCount by 1 and advances LastPlayedAt for the
+// track identified by hash. Clamps with the existing LastPlayedAt so a
+// backwards-going clock (NTP correction, manual adjust) cannot rewind the
+// timestamp and reorder the History view. Returns true if the track was found.
 func (idx *LibraryIndex) IncrementPlayCount(hash string, playedAt int64) bool {
 	if i, ok := idx.byHash[hash]; ok && i < len(idx.tracks) {
 		idx.tracks[i].PlayCount++
-		idx.tracks[i].LastPlayedAt = playedAt
+		if playedAt > idx.tracks[i].LastPlayedAt {
+			idx.tracks[i].LastPlayedAt = playedAt
+		}
 		return true
 	}
 	return false

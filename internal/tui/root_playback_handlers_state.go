@@ -301,15 +301,21 @@ func (m Model) handlePlayRecordedMsg(msg playRecordedMsg) Model {
 	}
 	t.LastPlayedAt = msg.PlayedAt
 
-	// Prepend and cap at 500 entries.
+	// Prepend and cap at 500 entries. Drop any pre-existing entry for the
+	// same hash so replaying a track in the same session does not produce
+	// stacked duplicates at the top of History.
 	const maxHistory = 500
 	tracks := make([]library.Track, 0, min(len(m.library.sourceTracks)+1, maxHistory))
 	tracks = append(tracks, t)
-	limit := len(m.library.sourceTracks)
-	if limit > maxHistory-1 {
-		limit = maxHistory - 1
+	for _, existing := range m.library.sourceTracks {
+		if existing.Hash == msg.Hash {
+			continue
+		}
+		if len(tracks) >= maxHistory {
+			break
+		}
+		tracks = append(tracks, existing)
 	}
-	tracks = append(tracks, m.library.sourceTracks[:limit]...)
 	m.library.sourceTracks = tracks
 
 	m.library = m.library.refreshView()

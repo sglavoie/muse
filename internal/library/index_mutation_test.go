@@ -35,6 +35,30 @@ func TestIncrementPlayCount_Found(t *testing.T) {
 	}
 }
 
+func TestIncrementPlayCount_BackwardsClockDoesNotRewindTimestamp(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "aaa", Artist: "A", Title: "t1"})
+
+	now := int64(1700000000)
+	if !idx.IncrementPlayCount("aaa", now) {
+		t.Fatal("first IncrementPlayCount: expected true")
+	}
+
+	// Simulate an NTP correction rewinding the clock by 5 minutes between
+	// plays. The in-memory index must not rewind LastPlayedAt, otherwise the
+	// History view reorders rows incorrectly until the next reload.
+	if !idx.IncrementPlayCount("aaa", now-300) {
+		t.Fatal("second IncrementPlayCount: expected true")
+	}
+	got, _ := idx.FindByHash("aaa")
+	if got.PlayCount != 2 {
+		t.Errorf("expected PlayCount=2, got %d", got.PlayCount)
+	}
+	if got.LastPlayedAt != now {
+		t.Errorf("expected LastPlayedAt=%d (clamped), got %d", now, got.LastPlayedAt)
+	}
+}
+
 func TestIncrementPlayCount_NotFound(t *testing.T) {
 	var idx LibraryIndex
 	idx.Insert(Track{Hash: "aaa", Artist: "A", Title: "t1"})

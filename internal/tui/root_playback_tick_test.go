@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
@@ -213,6 +214,76 @@ func TestTickMsgDoesNotDecreasePeak(t *testing.T) {
 	}
 	if nm.playback.peakTotalSecs != 200.0 {
 		t.Fatalf("expected peakTotalSecs to stay 200.0, got %v", nm.playback.peakTotalSecs)
+	}
+}
+
+// TestTickMsgRejectsNonFiniteElapsedTotal verifies that NaN/Inf readings from
+// mpv do not propagate into playback progress fields. Without the guard, a
+// transient bad mpv reading turns peakElapsedSecs into NaN, which then
+// corrupts the running session listen-seconds counter on track change.
+func TestTickMsgRejectsNonFiniteElapsedTotal(t *testing.T) {
+	cases := []struct {
+		name           string
+		elapsed, total float64
+	}{
+		{"nan elapsed", math.NaN(), 200.0},
+		{"inf elapsed", math.Inf(1), 200.0},
+		{"nan total", 10.0, math.NaN()},
+		{"inf total", 10.0, math.Inf(1)},
+		{"negative elapsed", -5.0, 200.0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sp := &stubElapsedReader{elapsed: tc.elapsed, total: tc.total}
+			m := New(context.Background(), WithPlayer(sp))
+			m.playback.state = PlaybackPlaying
+			m.playback.currentHash = "h1"
+			m.playback.elapsedSecs = 30.0
+			m.playback.totalSecs = 200.0
+			m.playback.peakElapsedSecs = 30.0
+			m.playback.peakTotalSecs = 200.0
+
+			nm, _ := m.handleTickMsg()
+
+			if math.IsNaN(nm.playback.elapsedSecs) || math.IsInf(nm.playback.elapsedSecs, 0) {
+				t.Errorf("elapsedSecs corrupted: %v", nm.playback.elapsedSecs)
+			}
+			if math.IsNaN(nm.playback.totalSecs) || math.IsInf(nm.playback.totalSecs, 0) {
+				t.Errorf("totalSecs corrupted: %v", nm.playback.totalSecs)
+			}
+			if math.IsNaN(nm.playback.peakElapsedSecs) || math.IsInf(nm.playback.peakElapsedSecs, 0) {
+				t.Errorf("peakElapsedSecs corrupted: %v", nm.playback.peakElapsedSecs)
+			}
+			if nm.playback.peakElapsedSecs != 30.0 {
+				t.Errorf("peakElapsedSecs should retain prior value, got %v", nm.playback.peakElapsedSecs)
+			}
+		})
+	}
+}
+
+// TestHandlePlayRecordedMsgDedupesExistingHash verifies that re-playing a track
+// already present in the History source list does not stack a duplicate at the
+// top — the older copy must be dropped so the user sees one row per track.
+func TestHandlePlayRecordedMsgDedupesExistingHash(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Title: "A"})
+	m.library.index.Insert(library.Track{Hash: "h2", Title: "B"})
+	m.library.mode = LibraryModeHistory
+	m.library.sourceTracks = []library.Track{
+		{Hash: "h1", Title: "A", LastPlayedAt: 100},
+		{Hash: "h2", Title: "B", LastPlayedAt: 90},
+	}
+
+	nm := m.handlePlayRecordedMsg(playRecordedMsg{Hash: "h1", PlayedAt: 200})
+
+	if len(nm.library.sourceTracks) != 2 {
+		t.Fatalf("expected 2 tracks in history after dedup, got %d", len(nm.library.sourceTracks))
+	}
+	if nm.library.sourceTracks[0].Hash != "h1" || nm.library.sourceTracks[0].LastPlayedAt != 200 {
+		t.Errorf("expected h1 at top with PlayedAt=200, got %+v", nm.library.sourceTracks[0])
+	}
+	if nm.library.sourceTracks[1].Hash != "h2" {
+		t.Errorf("expected h2 second, got %q", nm.library.sourceTracks[1].Hash)
 	}
 }
 

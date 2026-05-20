@@ -22,13 +22,20 @@ func shouldCountPlay(elapsedSecs, totalSecs float64) bool {
 	return elapsedSecs >= 30 || elapsedSecs >= totalSecs*0.5
 }
 
+// finitePositive reports whether v is a finite, non-negative real number. Used
+// to reject NaN/Inf/negative readings from mpv before they corrupt playback
+// progress, session listen totals, or RecordPlay aggregates.
+func finitePositive(v float64) bool {
+	return !math.IsNaN(v) && !math.IsInf(v, 0) && v >= 0
+}
+
 // handleTickMsg updates elapsed time for the main player, preview player, and
 // now-playing overlay, and clears expired status bar notifications.
 func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	var mainDurationCmd tea.Cmd
 	if m.playback.state == PlaybackPlaying || m.playback.state == PlaybackPaused {
 		if er, ok := m.player.(elapsedReader); ok {
-			if elapsed, total, err := er.ElapsedPosition(); err == nil {
+			if elapsed, total, err := er.ElapsedPosition(); err == nil && finitePositive(elapsed) && finitePositive(total) {
 				m.playback.elapsedSecs = elapsed
 				m.playback.totalSecs = total
 				if elapsed > m.playback.peakElapsedSecs {
@@ -46,11 +53,13 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	var previewDurationCmd tea.Cmd
 	if m.overlay.preview != nil && m.overlay.previewPlayer != nil {
 		if elapsed, total, err := m.overlay.previewPlayer.ElapsedPosition(); err == nil {
-			m.overlay.preview.elapsed = elapsed
-			m.overlay.preview.total = total
-			if !m.overlay.previewDurationFilled && total > 0 {
-				m, previewDurationCmd = m.correctStoredDuration(m.overlay.preview.hash, total)
-				m.overlay.previewDurationFilled = true
+			if finitePositive(elapsed) && finitePositive(total) {
+				m.overlay.preview.elapsed = elapsed
+				m.overlay.preview.total = total
+				if !m.overlay.previewDurationFilled && total > 0 {
+					m, previewDurationCmd = m.correctStoredDuration(m.overlay.preview.hash, total)
+					m.overlay.previewDurationFilled = true
+				}
 			}
 		} else {
 			m = m.dismissPreview()
