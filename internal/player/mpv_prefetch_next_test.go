@@ -314,6 +314,45 @@ func TestPrefetchNext_ReplacesStale(t *testing.T) {
 	}
 }
 
+// TestPrefetchNext_NoopWhenCurrentIndexIsNegative verifies that prefetchNext
+// does not append any track to mpv's playlist when currentIndex is -1 (no
+// track is currently active), even with gapless enabled and a non-empty queue.
+// Without this guard the loop would start at i=0 and spuriously pre-load the
+// first queue entry.
+func TestPrefetchNext_NoopWhenCurrentIndexIsNegative(t *testing.T) {
+	var mu sync.Mutex
+	var received [][]any
+	m := newConnectedManager(t, "prefetch-noidx", &mu, &received)
+
+	pathA := tempFile(t, "a*.flac")
+	pathB := tempFile(t, "b*.flac")
+
+	m.mu.Lock()
+	m.gaplessEnabled = true
+	m.queue = []QueueTrack{
+		{Path: pathA, Hash: "h0", QueueID: 1},
+		{Path: pathB, Hash: "h1", QueueID: 2},
+	}
+	m.currentIndex = -1
+	m.mu.Unlock()
+
+	m.prefetchNext()
+
+	mu.Lock()
+	defer mu.Unlock()
+	for _, cmd := range received {
+		if isLoadfileAppend(cmd) {
+			t.Errorf("prefetchNext must not append when currentIndex is -1; got %v", cmd)
+		}
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.prefetchedIndex != -1 {
+		t.Errorf("prefetchedIndex = %d after no-op, want -1", m.prefetchedIndex)
+	}
+}
+
 func TestPrefetchNext_ConcurrentNoDuplicate(t *testing.T) {
 	var mu sync.Mutex
 	var received [][]any

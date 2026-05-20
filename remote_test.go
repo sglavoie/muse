@@ -326,6 +326,24 @@ func TestRunRemoteAction(t *testing.T) {
 	}
 }
 
+func TestRunRemoteAction_UnknownAction(t *testing.T) {
+	// Set XDG_RUNTIME_DIR to a temp dir with no server running.
+	// Before the fix, runRemoteAction would attempt a network connection and
+	// return a misleading "connect to muse ... (is muse running?)" error.
+	// After the fix, it fails immediately with a clear "unknown action" error
+	// without touching the network.
+	baseDir := shortTempDir(t)
+	t.Setenv("XDG_RUNTIME_DIR", baseDir)
+
+	err := runRemoteAction("not-a-real-action")
+	if err == nil {
+		t.Fatal("expected error for unknown action")
+	}
+	if !strings.Contains(err.Error(), "unknown action") {
+		t.Errorf("expected error mentioning unknown action, got: %v", err)
+	}
+}
+
 func TestRunRemoteAction_NoAck(t *testing.T) {
 	baseDir := shortTempDir(t)
 	runtimeDir := filepath.Join(baseDir, "muse")

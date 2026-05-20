@@ -157,6 +157,10 @@ func handleRemoteConn(p *tea.Program, conn net.Conn) {
 // keeping all playback logic (including Go-side queue indexing and TUI state
 // sync) in one place.
 func runRemoteAction(action string) error {
+	if !isKnownAction(action) {
+		return fmt.Errorf("unknown action %q", action)
+	}
+
 	runtimeDir := config.ResolveRuntimeDir()
 	sockPath := filepath.Join(runtimeDir, ctrlSocketName)
 

@@ -174,7 +174,7 @@ func (m *Manager) prefetchNext() {
 	curPrefPath := m.prefetchedPath
 	m.mu.RUnlock()
 
-	if !gapless || stop {
+	if !gapless || stop || idx < 0 {
 		m.doClearPrefetch()
 		return
 	}
@@ -203,12 +203,16 @@ func (m *Manager) prefetchNext() {
 	}
 
 	if curPrefIdx >= 0 {
-		if _, err := c.SendCommand(cmdPlaylistRemove, 1); err == nil {
-			m.mu.Lock()
-			m.prefetchedIndex = -1
-			m.prefetchedPath = ""
-			m.mu.Unlock()
+		if _, err := c.SendCommand(cmdPlaylistRemove, 1); err != nil {
+			// Cannot safely append the new track: the stale entry is still in
+			// mpv's playlist. Bailing preserves the tracking state so the next
+			// call can retry the remove once mpv recovers.
+			return
 		}
+		m.mu.Lock()
+		m.prefetchedIndex = -1
+		m.prefetchedPath = ""
+		m.mu.Unlock()
 	}
 
 	if _, err := c.SendCommand(cmdLoadfile, nextPath, "append"); err != nil {
