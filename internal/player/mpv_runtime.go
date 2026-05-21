@@ -98,17 +98,34 @@ func (m *Manager) healthCheck(ctx context.Context, client *IPCClient) {
 
 			_ = client.Close()
 
+			// If the manager is shutting down, do not resurrect the cmdQueue
+			// (Close set it to nil) — doing so would make subsequent Player
+			// calls silently enqueue commands that will never be replayed
+			// instead of returning ErrNotConnected.
+			shuttingDown := false
+			if m.rootCtx != nil {
+				select {
+				case <-m.rootCtx.Done():
+					shuttingDown = true
+				default:
+				}
+			}
+
 			m.mu.Lock()
 			if m.client == client {
 				m.client = nil
-				m.cmdQueue = []func() error{}
+				if !shuttingDown {
+					m.cmdQueue = []func() error{}
+				}
 			}
 			m.mu.Unlock()
 
 			slog.Info("mpv disconnected", "err", err)
-			select {
-			case m.disconnectCh <- err:
-			default:
+			if !shuttingDown {
+				select {
+				case m.disconnectCh <- err:
+				default:
+				}
 			}
 			return
 		}
@@ -173,7 +190,12 @@ func (m *Manager) Close() error {
 	m.mu.Lock()
 	c := m.client
 	m.client = nil
+	// Nil the cmdQueue so any caller invoking Player methods after Close
+	// receives ErrNotConnected immediately rather than silently appending
+	// to a queue that will never be drained.
+	m.cmdQueue = nil
 	cmd := m.cmd
+	m.cmd = nil
 	m.mu.Unlock()
 
 	if c != nil {

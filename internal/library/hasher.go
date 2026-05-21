@@ -43,12 +43,21 @@ func hashWorkersN(n int, in <-chan string, hashFn func(string) (string, error)) 
 					slog.Warn("hash failed", "path", path, "err", err)
 					continue
 				}
-				hf := HashedFile{Path: path, Hash: hash}
-				if info, statErr := os.Stat(path); statErr == nil {
-					hf.ModTime = info.ModTime().Unix()
-					hf.SizeBytes = info.Size()
+				// If Stat fails (file removed between hashing and statting),
+				// skip emitting rather than passing zero ModTime/SizeBytes
+				// downstream. Zero values would cause DiffScan to flag the
+				// path as changed on every subsequent rescan.
+				info, statErr := os.Stat(path)
+				if statErr != nil {
+					slog.Warn("hash: stat after hash failed, skipping", "path", path, "err", statErr)
+					continue
 				}
-				out <- hf
+				out <- HashedFile{
+					Path:      path,
+					Hash:      hash,
+					ModTime:   info.ModTime().Unix(),
+					SizeBytes: info.Size(),
+				}
 				slog.Debug("track hashed", "path", path, "hash", hash)
 			}
 		})

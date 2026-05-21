@@ -246,6 +246,11 @@ func (w *Writer) ReorderQueueTrack(trackID int64, direction int) error {
 			`SELECT position FROM queue WHERE id=? AND deleted_at IS NULL`,
 			trackID,
 		).Scan(&currPos); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// Queue entry was concurrently dequeued or never existed;
+				// treat as a no-op so a stale UI ID does not error out.
+				return nil
+			}
 			return err
 		}
 

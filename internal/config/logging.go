@@ -89,10 +89,17 @@ func ParseLogLevel(s string) (slog.Level, bool) {
 // Subsequent slog calls are routed to io.Discard so that late callers do not
 // write to the closed file descriptor.
 func CloseLog() {
-	if logFile != nil {
-		slog.Info("shutdown complete")
-		_ = logFile.Close() // deferred close in error path, file will be GC'd
-		logFile = nil
-		slog.SetDefault(slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{Level: &logLevel})))
+	if logFile == nil {
+		return
 	}
+	// Emit the shutdown line while the handler is still attached to the file.
+	slog.Info("shutdown complete")
+	// Swap the default handler to a Discard sink BEFORE closing the file so
+	// any late slog call from a racing goroutine writes to /dev/null rather
+	// than to a closed file descriptor (which would either silently fail or
+	// trigger an EBADF error path inside slog).
+	f := logFile
+	logFile = nil
+	slog.SetDefault(slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{Level: &logLevel})))
+	_ = f.Close()
 }

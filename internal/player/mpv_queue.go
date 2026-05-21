@@ -116,16 +116,20 @@ func (m *Manager) RemoveFromQueue(index int) error {
 // calling missingFileFn for each skipped entry. Returns ErrPlaybackFailed if
 // index is out of range or no playable entry exists from index onward.
 func (m *Manager) PlayFromIndex(index int) error {
-	m.clearPrefetch()
-
 	m.mu.RLock()
 	queue := m.queue
 	marker := m.marker
 	m.mu.RUnlock()
 
 	if index < 0 || index >= len(queue) {
+		// Do not clear the prefetch here: returning an error means we did
+		// not change the playing track, so the existing prefetched "next"
+		// is still valid. Clearing would force a redundant playlist-remove
+		// against mpv on every bad call.
 		return fmt.Errorf("%w: index %d out of range [0, %d)", ErrPlaybackFailed, index, len(queue))
 	}
+
+	m.clearPrefetch()
 
 	mk := marker
 	if mk == nil {

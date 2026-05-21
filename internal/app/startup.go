@@ -265,10 +265,12 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 	// queue is initialised; RestorePlayer may enqueue commands for replay
 	// once the IPC socket connects.
 	if restored.CurrentHash != "" && deps.RestorePlayer != nil {
+		matched := false
 		for i, pt := range restored.PlayerTracks {
 			if pt.Hash != restored.CurrentHash {
 				continue
 			}
+			matched = true
 			// Skip restore for files that were detected as missing on disk
 			// during RestoreSession; loading them would produce an mpv error
 			// at startup. The TUI will already render the track as missing.
@@ -280,6 +282,14 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 				slog.Warn("startup: restore player position", "path", pt.Path, "err", err)
 			}
 			break
+		}
+		if !matched {
+			// The session row referenced a track that is no longer in the
+			// player queue (e.g. queue was cleared after the row was written).
+			// Don't call RestorePlayer with a stale path; just leave the player
+			// idle. ApplyRestoredSession will log the same condition for the UI.
+			slog.Warn("startup: current_hash from session does not match any player track; skipping player restore",
+				"hash", restored.CurrentHash, "queue_size", len(restored.PlayerTracks))
 		}
 	}
 
@@ -379,7 +389,15 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 		if positionMs < 0 {
 			positionMs = 0
 		}
-		volume = clampVolume(int(math.Round(sess.Volume * 100)))
+		// Guard against NaN/Inf in the persisted volume column: int(NaN) is 0
+		// on amd64 (silently muting) and int(Inf) is implementation-defined.
+		// Treat such values as "no volume persisted" so callers fall back to
+		// the configured default rather than mutating the player into garbage.
+		if math.IsNaN(sess.Volume) || math.IsInf(sess.Volume, 0) {
+			volume = -1
+		} else {
+			volume = clampVolume(int(math.Round(sess.Volume * 100)))
+		}
 	}
 
 	return &RestoredSession{

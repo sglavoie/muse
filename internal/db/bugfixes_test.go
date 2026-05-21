@@ -431,3 +431,110 @@ func TestMergeTags_MissingDestinationRejected(t *testing.T) {
 		t.Errorf("source track_tags after rejected merge = %d, want 1", len(srcHashes))
 	}
 }
+
+// TestMergeTags_MissingSourceRejected verifies that MergeTags refuses to merge
+// from a source ID that does not exist. Without this guard the operation
+// silently completed (zero rows re-pointed, no source row to soft-delete) and
+// returned nil, masking caller bugs that pass stale or wrong source IDs.
+func TestMergeTags_MissingSourceRejected(t *testing.T) {
+	d, w := openTagDB(t)
+	seedTrack(t, d, "h1", "/a.flac")
+
+	dstID, err := w.CreateTag("dst-only", "")
+	if err != nil {
+		t.Fatalf("CreateTag dst: %v", err)
+	}
+
+	const ghostSrc int64 = 999999
+	err = w.MergeTags(ghostSrc, dstID)
+	if err == nil {
+		t.Fatal("MergeTags(missing-src, dst) returned nil; want guard error")
+	}
+	if !strings.Contains(err.Error(), "source") || !strings.Contains(err.Error(), "does not exist") {
+		t.Errorf("error = %q, want mention of missing source tag", err.Error())
+	}
+}
+
+// TestMergeTags_SoftDeletedSourceRejected verifies the symmetric case where the
+// source tag is itself already soft-deleted: the merge must reject rather than
+// silently succeed with zero re-pointed rows.
+func TestMergeTags_SoftDeletedSourceRejected(t *testing.T) {
+	_, w := openTagDB(t)
+
+	srcID, err := w.CreateTag("src-soft", "")
+	if err != nil {
+		t.Fatalf("CreateTag src: %v", err)
+	}
+	dstID, err := w.CreateTag("dst-soft", "")
+	if err != nil {
+		t.Fatalf("CreateTag dst: %v", err)
+	}
+	if err := w.DeleteTagSoft(srcID); err != nil {
+		t.Fatalf("DeleteTagSoft src: %v", err)
+	}
+
+	err = w.MergeTags(srcID, dstID)
+	if err == nil {
+		t.Fatal("MergeTags from soft-deleted source returned nil; want guard error")
+	}
+	if !strings.Contains(err.Error(), "source") || !strings.Contains(err.Error(), "soft-deleted") {
+		t.Errorf("error = %q, want mention of soft-deleted source", err.Error())
+	}
+}
+
+// TestReorderPlaylistTrack_StaleIDIsNoOp verifies that reordering a non-existent
+// or already-soft-deleted playlist_tracks row is a silent no-op rather than
+// surfacing sql.ErrNoRows. Before the fix the UI would receive a noisy error
+// any time it acted on a stale ID (e.g. after a concurrent remove or after the
+// undo window purged the row).
+func TestReorderPlaylistTrack_StaleIDIsNoOp(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "stale-pt", "/s.flac")
+	plID := seedPlaylist(t, d, "Stale PT")
+	liveID := seedPlaylistTrack(t, d, plID, "stale-pt", 1000)
+
+	// Case 1: a totally bogus ID.
+	const ghostID int64 = 999999
+	if err := w.ReorderPlaylistTrack(plID, ghostID, +1); err != nil {
+		t.Errorf("ReorderPlaylistTrack(ghost) = %v, want nil (stale IDs must be no-ops)", err)
+	}
+
+	// Case 2: an ID that exists but is soft-deleted.
+	if _, err := d.Exec(`UPDATE playlist_tracks SET deleted_at = ? WHERE id = ?`, time.Now().Unix(), liveID); err != nil {
+		t.Fatalf("soft-delete: %v", err)
+	}
+	if err := w.ReorderPlaylistTrack(plID, liveID, -1); err != nil {
+		t.Errorf("ReorderPlaylistTrack(soft-deleted) = %v, want nil (stale IDs must be no-ops)", err)
+	}
+
+	// Case 3: an ID that exists in a different playlist.
+	otherPL := seedPlaylist(t, d, "Other PT")
+	if err := w.ReorderPlaylistTrack(otherPL, liveID, -1); err != nil {
+		t.Errorf("ReorderPlaylistTrack(wrong-playlist) = %v, want nil (cross-playlist IDs must be no-ops)", err)
+	}
+}
+
+// TestReorderQueueTrack_StaleIDIsNoOp is the queue equivalent of the playlist
+// case above. The UI may invoke reorder with an ID that was just dequeued by
+// another tick of the event loop; such races must not surface sql.ErrNoRows.
+func TestReorderQueueTrack_StaleIDIsNoOp(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "stale-q", "/sq.flac")
+	liveID := seedQueueEntry(t, d, "stale-q", 1000)
+
+	const ghostID int64 = 999999
+	if err := w.ReorderQueueTrack(ghostID, +1); err != nil {
+		t.Errorf("ReorderQueueTrack(ghost) = %v, want nil (stale IDs must be no-ops)", err)
+	}
+
+	if _, err := d.Exec(`UPDATE queue SET deleted_at = ? WHERE id = ?`, time.Now().Unix(), liveID); err != nil {
+		t.Fatalf("soft-delete: %v", err)
+	}
+	if err := w.ReorderQueueTrack(liveID, -1); err != nil {
+		t.Errorf("ReorderQueueTrack(soft-deleted) = %v, want nil (stale IDs must be no-ops)", err)
+	}
+}

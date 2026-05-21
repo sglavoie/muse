@@ -201,6 +201,23 @@ func (w *Writer) MergeTags(sourceID, destID int64) error {
 		}
 		defer rollback(tx)
 
+		// Verify the source tag exists and is active. Without this guard a
+		// caller passing a missing or soft-deleted source ID would receive a
+		// nil error even though zero rows were re-pointed, masking the bug
+		// and giving the impression the merge succeeded.
+		var srcDeletedAt sql.NullInt64
+		if err := tx.QueryRow(
+			`SELECT deleted_at FROM tags WHERE id = ?`, sourceID,
+		).Scan(&srcDeletedAt); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return fmt.Errorf("merge tags: source tag %d does not exist", sourceID)
+			}
+			return fmt.Errorf("merge tags lookup source: %w", err)
+		}
+		if srcDeletedAt.Valid {
+			return fmt.Errorf("merge tags: source tag %d is soft-deleted; restore it before merging", sourceID)
+		}
+
 		// Verify the destination tag exists and is active. Without this guard
 		// re-pointed rows would attach to a soft-deleted tag invisible to
 		// ReadTagsForTrack, destroying the user's tag data.

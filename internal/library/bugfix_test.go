@@ -3,7 +3,9 @@ package library
 import (
 	"context"
 	"math"
+	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -229,6 +231,246 @@ func TestSanitizeDuration(t *testing.T) {
 	}
 	if got := sanitizeDuration(123.4); got != 123.4 {
 		t.Errorf("positive: want 123.4, got %v", got)
+	}
+}
+
+// TestWalk_RootWithLeadingDotIsNotSkipped verifies that a root directory
+// whose basename starts with '.' (e.g. "~/.musiclib") is still traversed.
+// Without this guard the hidden-file rule would abort the walk on the very
+// first entry — the root itself — and silently scan zero files.
+func TestWalk_RootWithLeadingDotIsNotSkipped(t *testing.T) {
+	parent := t.TempDir()
+	dotRoot := filepath.Join(parent, ".musiclib")
+	if err := os.MkdirAll(dotRoot, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	mkfile(t, filepath.Join(dotRoot, "track.mp3"))
+	mkfile(t, filepath.Join(dotRoot, "album", "song.flac"))
+
+	got := collectNames(Walk(context.Background(), []string{dotRoot}, nil))
+	want := []string{"song.flac", "track.mp3"}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v (root with leading dot must be traversed)", got, want)
+	}
+}
+
+// TestFilteredWalk_RootWithLeadingDotIsNotSkipped is the FilteredWalk variant
+// of the same fix — DiffScan goes through this code path on incremental rescans.
+func TestFilteredWalk_RootWithLeadingDotIsNotSkipped(t *testing.T) {
+	parent := t.TempDir()
+	dotRoot := filepath.Join(parent, ".musiclib")
+	if err := os.MkdirAll(dotRoot, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	mkfile(t, filepath.Join(dotRoot, "track.mp3"))
+
+	changed, _, err := FilteredWalk(context.Background(), []string{dotRoot}, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("FilteredWalk: %v", err)
+	}
+	if len(changed) != 1 {
+		t.Errorf("changed: got %d entries, want 1 (root with leading dot)", len(changed))
+	}
+}
+
+// TestWalk_HiddenChildrenStillSkippedUnderDotRoot verifies that the dot-root
+// exemption applies only to the root entry, not to hidden descendants.
+func TestWalk_HiddenChildrenStillSkippedUnderDotRoot(t *testing.T) {
+	parent := t.TempDir()
+	dotRoot := filepath.Join(parent, ".musiclib")
+	if err := os.MkdirAll(dotRoot, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	mkfile(t, filepath.Join(dotRoot, "visible.mp3"))
+	mkfile(t, filepath.Join(dotRoot, ".hidden.mp3"))
+	mkfile(t, filepath.Join(dotRoot, ".cache", "buried.mp3"))
+
+	got := collectNames(Walk(context.Background(), []string{dotRoot}, nil))
+	want := []string{"visible.mp3"}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v (hidden descendants under dot-root must still be skipped)", got, want)
+	}
+}
+
+// TestWalk_SymlinkUsesLinkNameForExtension verifies that a symlink pointing
+// to an audio target is included based on the link's own name and extension,
+// not the target's. Previously the symlink path used info.Name() after
+// os.Stat, which produces platform-dependent results.
+func TestWalk_SymlinkUsesLinkNameForExtension(t *testing.T) {
+	dir := t.TempDir()
+	// Real file with audio extension.
+	target := filepath.Join(dir, "target.mp3")
+	mkfile(t, target)
+	// Symlink with audio extension -> follow.
+	audioLink := filepath.Join(dir, "linked.flac")
+	if err := os.Symlink(target, audioLink); err != nil {
+		t.Skip("symlinks not supported:", err)
+	}
+	// Symlink without audio extension -> ignore even though target is audio.
+	nonAudioLink := filepath.Join(dir, "linkedbin")
+	if err := os.Symlink(target, nonAudioLink); err != nil {
+		t.Skip("symlinks not supported:", err)
+	}
+
+	got := collectNames(Walk(context.Background(), []string{dir}, nil))
+	if !slices.Contains(got, "linked.flac") {
+		t.Errorf("expected linked.flac to be included (link name has audio ext): %v", got)
+	}
+	if slices.Contains(got, "linkedbin") {
+		t.Errorf("expected linkedbin to be skipped (link name has no audio ext): %v", got)
+	}
+	if !slices.Contains(got, "target.mp3") {
+		t.Errorf("expected target.mp3 to be included: %v", got)
+	}
+}
+
+// TestHashWorkers_StatFailureAfterHashSkipsFile verifies that when os.Stat
+// fails after a successful hash (file removed between read and stat), the
+// HashedFile is not emitted at all. Previously a HashedFile with zero
+// ModTime/SizeBytes leaked downstream and caused DiffScan to flag the
+// path as changed on every subsequent rescan.
+func TestHashWorkers_StatFailureAfterHashSkipsFile(t *testing.T) {
+	in := make(chan string, 2)
+	in <- "/does/not/exist/track1.mp3"
+	in <- "/does/not/exist/track2.flac"
+	close(in)
+
+	// Custom hashFn that "succeeds" without reading the file so the
+	// downstream os.Stat fails (path does not exist).
+	hashFn := func(_ string) (string, error) { return "deadbeef", nil }
+
+	out := hashWorkersN(2, in, hashFn)
+	var got []HashedFile
+	for hf := range out {
+		got = append(got, hf)
+	}
+	if len(got) != 0 {
+		t.Errorf("expected no emissions (Stat failed); got %d: %+v", len(got), got)
+	}
+}
+
+// TestHashWorkers_StatSuccessPopulatesMetadata is the positive-case companion
+// to the previous test: when Stat succeeds, ModTime and SizeBytes are filled in.
+func TestHashWorkers_StatSuccessPopulatesMetadata(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "track.mp3")
+	if err := os.WriteFile(p, []byte("audio bytes"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	in := make(chan string, 1)
+	in <- p
+	close(in)
+
+	hashFn := func(_ string) (string, error) { return "deadbeef", nil }
+
+	out := hashWorkersN(1, in, hashFn)
+	var got []HashedFile
+	for hf := range out {
+		got = append(got, hf)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 emission, got %d", len(got))
+	}
+	if got[0].SizeBytes != int64(len("audio bytes")) {
+		t.Errorf("SizeBytes: got %d, want %d", got[0].SizeBytes, len("audio bytes"))
+	}
+	if got[0].ModTime == 0 {
+		t.Errorf("ModTime: got 0, want a populated timestamp")
+	}
+}
+
+// TestFilenameStem_DotPrefixedFile verifies that a filename consisting only
+// of the extension (e.g. ".mp3") does not produce an empty Title via the
+// filename fallback. An empty Title slips past downstream "if Title == ”"
+// guards and produces blank library rows.
+func TestFilenameStem_DotPrefixedFile(t *testing.T) {
+	cases := []struct {
+		path string
+		want string
+	}{
+		{"/music/.mp3", ".mp3"},
+		{"/music/.flac", ".flac"},
+		{"/music/track.mp3", "track"},
+		{"/music/no_ext", "no_ext"},
+		{"/music/album/song.opus", "song"},
+		{"/music/a.b.c.mp3", "a.b.c"},
+	}
+	for _, c := range cases {
+		got := filenameStem(c.path)
+		if got != c.want {
+			t.Errorf("filenameStem(%q): got %q, want %q", c.path, got, c.want)
+		}
+	}
+}
+
+// TestExtractWithBinaryRetry_DotPrefixedFilenameNonEmptyTitle verifies the
+// filename fallback path keeps a non-empty Title when the filename is
+// extension-only (".mp3"). Previously this produced Title == "".
+func TestExtractWithBinaryRetry_DotPrefixedFilenameNonEmptyTitle(t *testing.T) {
+	// emptyFieldExtractor returns Title == "", forcing the filename fallback.
+	files := []HashedFile{{Path: "/music/.mp3", Hash: "h"}}
+	tracks := extractWithBinaryRetry(context.Background(), &emptyFieldExtractor{}, files)
+	if len(tracks) != 1 {
+		t.Fatalf("expected 1 track, got %d", len(tracks))
+	}
+	if tracks[0].Title == "" {
+		t.Errorf("Title must not be empty for dot-prefixed filename, got %q", tracks[0].Title)
+	}
+}
+
+// TestExtractWithBinaryRetry_SingleFileFailureDotPrefixed verifies the same
+// guard in the single-file failure branch of extractWithBinaryRetry.
+func TestExtractWithBinaryRetry_SingleFileFailureDotPrefixed(t *testing.T) {
+	files := []HashedFile{{Path: "/music/.flac", Hash: "h"}}
+	tracks := extractWithBinaryRetry(context.Background(), &alwaysFailExtractor{}, files)
+	if len(tracks) != 1 {
+		t.Fatalf("expected 1 fallback track, got %d", len(tracks))
+	}
+	if tracks[0].Title == "" {
+		t.Errorf("Title must not be empty in single-file fallback for %q", files[0].Path)
+	}
+}
+
+// TestCoerceString_HeterogeneousArrayPreservesNonEmpty verifies that a mixed
+// JSON array (string + number + null) is joined element-by-element instead
+// of being discarded entirely.
+func TestCoerceString_HeterogeneousArrayPreservesNonEmpty(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"mixed string and number", `["Rock", 42, "Pop"]`, "Rock; 42; Pop"},
+		{"array with null", `["A", null, "B"]`, "A; B"},
+		{"array with bool", `["A", true]`, "A; true"},
+		{"all strings still works", `["Rock", "Jazz"]`, "Rock; Jazz"},
+		{"empty array", `[]`, ""},
+		{"single number", `42`, "42"},
+		{"plain string", `"hello"`, "hello"},
+		{"bool", `true`, "true"},
+		{"null", `null`, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := coerceString([]byte(c.in))
+			if got != c.want {
+				t.Errorf("coerceString(%s): got %q, want %q", c.in, got, c.want)
+			}
+		})
+	}
+}
+
+// TestShouldExclude_RootOnlyPatternIsIgnored verifies that a degenerate
+// pattern of separator characters only (e.g. "/" or "//") does not
+// trigger a catch-all exclusion of every absolute path. Without the
+// guard, every track would be silently filtered out.
+func TestShouldExclude_RootOnlyPatternIsIgnored(t *testing.T) {
+	cases := []string{"/", "//", "///"}
+	for _, p := range cases {
+		if ShouldExclude("/music/track.mp3", []string{p}) {
+			t.Errorf("pattern %q must not exclude /music/track.mp3 (would hide entire library)", p)
+		}
 	}
 }
 

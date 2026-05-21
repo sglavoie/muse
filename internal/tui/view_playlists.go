@@ -94,13 +94,23 @@ func (v PlaylistsView) render(s styles.Styles, favHashes, favArtists, favAlbums 
 		playlists = v.sortedPlaylists
 	}
 	tracks := v.tracks
-	if v.sortedTrackOrder != nil {
-		// Build a reordered track slice for rendering.
+	if v.sortedTrackOrder != nil && len(v.sortedTrackOrder) == len(v.tracks) {
+		// Build a reordered track slice for rendering. Guard against stale
+		// sortedTrackOrder (length mismatch or out-of-range indices) by
+		// falling back to natural order — rendering a partially-filled or
+		// out-of-range slice would show empty rows or panic.
 		reordered := make([]db.PlaylistTrackRow, len(v.tracks))
+		safe := true
 		for i, idx := range v.sortedTrackOrder {
+			if idx < 0 || idx >= len(v.tracks) {
+				safe = false
+				break
+			}
 			reordered[i] = v.tracks[idx]
 		}
-		tracks = reordered
+		if safe {
+			tracks = reordered
+		}
 	}
 	pv := pltui.View{
 		Level:            v.level,

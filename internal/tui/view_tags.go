@@ -65,12 +65,20 @@ func (v TagsView) render(s styles.Styles, favHashes map[string]struct{}, nowPlay
 	}
 
 	tracks := v.tracks
-	if v.sortedTrackOrder != nil {
+	if v.sortedTrackOrder != nil && len(v.sortedTrackOrder) == len(v.tracks) {
+		// Guard against stale sortedTrackOrder; see view_playlists.go for rationale.
 		reordered := make([]db.PlaylistTrackRow, len(v.tracks))
+		safe := true
 		for i, idx := range v.sortedTrackOrder {
+			if idx < 0 || idx >= len(v.tracks) {
+				safe = false
+				break
+			}
 			reordered[i] = v.tracks[idx]
 		}
-		tracks = reordered
+		if safe {
+			tracks = reordered
+		}
 	}
 
 	tv := tagtui.View{
@@ -227,12 +235,20 @@ func (v TagsView) focusedTag() (db.TagRow, bool) {
 // displayTracks returns tracks in display order (sorted then filtered).
 func (v TagsView) displayTracks() []db.PlaylistTrackRow {
 	tracks := v.tracks
-	if v.sortedTrackOrder != nil {
+	if v.sortedTrackOrder != nil && len(v.sortedTrackOrder) == len(v.tracks) {
+		// Guard against stale sortedTrackOrder; see view_playlists.go for rationale.
 		reordered := make([]db.PlaylistTrackRow, len(v.tracks))
+		safe := true
 		for i, idx := range v.sortedTrackOrder {
+			if idx < 0 || idx >= len(v.tracks) {
+				safe = false
+				break
+			}
 			reordered[i] = v.tracks[idx]
 		}
-		tracks = reordered
+		if safe {
+			tracks = reordered
+		}
 	}
 	return tagtui.View{Tracks: tracks, FilterText: v.filter.Text}.EffectiveTracks()
 }

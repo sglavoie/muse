@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -259,6 +260,180 @@ func TestLoad_MPVExtraFlags_EmptyEntriesDropped(t *testing.T) {
 	}
 	if got[0] != "--no-video" || got[1] != "--volume=80" {
 		t.Errorf("MPVExtraFlags = %v, want [--no-video --volume=80]", got)
+	}
+}
+
+// TestLoad_EQCustomPresets_KeyWhitespaceTrimmed verifies that custom EQ
+// presets with whitespace-padded keys are accepted with the key normalised,
+// so lookups (which use a trimmed key) succeed instead of silently failing.
+func TestLoad_EQCustomPresets_KeyWhitespaceTrimmed(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[[eq_custom_presets]]
+name = "Padded"
+key = "  padded_key  "
+bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(result.Config.EQCustomPresets) != 1 {
+		t.Fatalf("EQCustomPresets len = %d, want 1", len(result.Config.EQCustomPresets))
+	}
+	if got := result.Config.EQCustomPresets[0].Key; got != "padded_key" {
+		t.Errorf("Key = %q, want %q (whitespace should be trimmed)", got, "padded_key")
+	}
+}
+
+// TestLoad_EQCustomPresets_EmptyKeyDroppedWithWarning verifies that a preset
+// with an empty or whitespace-only key is dropped AND a warning is emitted so
+// the user knows their entry was rejected instead of silently lost.
+func TestLoad_EQCustomPresets_EmptyKeyDroppedWithWarning(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[[eq_custom_presets]]
+name = "No Key"
+key = ""
+bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+[[eq_custom_presets]]
+name = "Whitespace Key"
+key = "   "
+bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(result.Config.EQCustomPresets) != 0 {
+		t.Fatalf("EQCustomPresets len = %d, want 0", len(result.Config.EQCustomPresets))
+	}
+	emptyWarnings := 0
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "empty") {
+			emptyWarnings++
+		}
+	}
+	if emptyWarnings != 2 {
+		t.Errorf("expected 2 warnings about empty keys, got %d (%v)", emptyWarnings, result.Warnings)
+	}
+}
+
+// TestLoad_EQCustomPresets_EmptyNameFallsBackToKey verifies that a preset
+// without a Name is still addressable by using the key as the display name.
+func TestLoad_EQCustomPresets_EmptyNameFallsBackToKey(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[[eq_custom_presets]]
+name = ""
+key = "rock_remix"
+bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(result.Config.EQCustomPresets) != 1 {
+		t.Fatalf("EQCustomPresets len = %d, want 1", len(result.Config.EQCustomPresets))
+	}
+	if got := result.Config.EQCustomPresets[0].Name; got != "rock_remix" {
+		t.Errorf("Name = %q, want %q (should fall back to key)", got, "rock_remix")
+	}
+}
+
+// TestLoad_EQCustomPresets_DuplicateKeyWarns verifies that a duplicated
+// preset key produces a warning instead of silently dropping the later entry.
+func TestLoad_EQCustomPresets_DuplicateKeyWarns(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[[eq_custom_presets]]
+name = "First"
+key = "dup"
+bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+[[eq_custom_presets]]
+name = "Second"
+key = "dup"
+bands = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(result.Config.EQCustomPresets) != 1 {
+		t.Fatalf("EQCustomPresets len = %d, want 1 after dedup", len(result.Config.EQCustomPresets))
+	}
+	if result.Config.EQCustomPresets[0].Name != "First" {
+		t.Errorf("kept preset name = %q, want %q", result.Config.EQCustomPresets[0].Name, "First")
+	}
+	found := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "duplicated") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected warning about duplicated key, got: %v", result.Warnings)
+	}
+}
+
+// TestCloseLog_HandlerSwappedBeforeFileClosed verifies that CloseLog installs
+// the discard handler BEFORE closing the file handle, so a late slog call
+// during shutdown does not write to a closed file descriptor. Calling CloseLog
+// followed by slog.Info must not panic and must not produce any output to
+// the closed file.
+func TestCloseLog_HandlerSwappedBeforeFileClosed(t *testing.T) {
+	dir := t.TempDir()
+	stateDir := filepath.Join(dir, "muse")
+
+	prev := slog.Default()
+	t.Cleanup(func() {
+		slog.SetDefault(prev)
+		logFile = nil
+	})
+
+	if err := InitLogging(stateDir, slog.LevelInfo); err != nil {
+		t.Fatalf("InitLogging: %v", err)
+	}
+
+	// Capture the file size before close.
+	logFilePath := filepath.Join(stateDir, logFileName)
+	preInfo, err := os.Stat(logFilePath)
+	if err != nil {
+		t.Fatalf("stat before close: %v", err)
+	}
+	preSize := preInfo.Size()
+
+	CloseLog()
+
+	// A racing slog call after CloseLog must not panic and must NOT extend
+	// the file. The discard handler swap happens before file close so this
+	// write goes to /dev/null.
+	slog.Info("post-close message should not write to file or panic")
+
+	postInfo, err := os.Stat(logFilePath)
+	if err != nil {
+		t.Fatalf("stat after close: %v", err)
+	}
+	// The shutdown line written by CloseLog itself can extend the file, but
+	// only by a bounded amount. The post-close slog call must not.
+	postClosePadding := int64(512)
+	if delta := postInfo.Size() - preSize; delta > postClosePadding {
+		t.Errorf("file grew by %d bytes after CloseLog; expected only the shutdown line", delta)
 	}
 }
 

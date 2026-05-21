@@ -31,7 +31,11 @@ func walkAudioPaths(ctx context.Context, root string, excludedPaths []string, vi
 			return nil
 		}
 		name := d.Name()
-		if strings.HasPrefix(name, ".") {
+		// Don't apply the hidden-file rule to the root entry itself: a user
+		// may legitimately specify a root whose basename starts with '.'
+		// (e.g. "/Users/me/.musiclib"). Without this guard the entire walk
+		// would abort on the first call.
+		if strings.HasPrefix(name, ".") && path != root {
 			if d.IsDir() {
 				return filepath.SkipDir
 			}
@@ -50,7 +54,11 @@ func walkAudioPaths(ctx context.Context, root string, excludedPaths []string, vi
 				slog.Warn("skipping symlinked directory (not followed)", "path", path)
 				return nil
 			}
-			if isAudioFile(info.Name()) {
+			// Use the symlink's own name for the audio-extension check.
+			// info.Name() can vary by platform for stat-resolved targets
+			// (some return the target's base, some the path's base); the
+			// original dirent name is the stable, intended check.
+			if isAudioFile(name) {
 				return visit(path)
 			}
 			return nil

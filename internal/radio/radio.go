@@ -63,8 +63,9 @@ func ScoreAll(input ScoreInput) []TrackScore {
 		// real-world libraries are treated as the same genre, and duplicate
 		// case variants are only counted once.
 		candidateGenres := library.SplitGenres(track.Genre)
+		normalizedCandidateGenres := normalizedGenreSet(candidateGenres)
 		if len(seedGenres) > 0 {
-			for genre := range normalizedGenreSet(candidateGenres) {
+			for genre := range normalizedCandidateGenres {
 				if _, ok := seedGenres[genre]; ok {
 					score += 10
 				}
@@ -114,9 +115,12 @@ func ScoreAll(input ScoreInput) []TrackScore {
 		}
 
 		// Time-of-day genre affinity: variable bonus per matching genre.
+		// Iterate the case-folded candidate genre set so a track tagged with
+		// duplicate case variants (e.g. "Rock/rock") doesn't double-count
+		// the bonus — library.SplitGenres only dedupes on exact case.
 		if timeGenreBonus != nil {
-			for _, cg := range candidateGenres {
-				if bonus, ok := timeGenreBonus[normalizedGenreKey(cg)]; ok {
+			for cg := range normalizedCandidateGenres {
+				if bonus, ok := timeGenreBonus[cg]; ok {
 					score += bonus
 				}
 			}
@@ -307,11 +311,22 @@ func collectEligible(pool []TrackScore, artistCount map[string]int, maxPerArtist
 		if artistKey != "" && artistCount[artistKey] >= maxPerArtist {
 			continue
 		}
-		weight := math.Max(ts.Score, 0.1)
+		// Sanitize NaN/Inf scores so they can never poison the cumulative
+		// weighted-random draw: NaN propagates through math.Max and addition,
+		// making totalWeight NaN and every `r < cumulative` comparison false
+		// — which silently degrades to "always pick the last eligible". Inf
+		// scores would similarly make the cumulative comparison degenerate
+		// (every weight after the Inf entry becomes unreachable). Treating
+		// both as the 0.1 floor keeps the rest of the pool live.
+		score := ts.Score
+		if math.IsNaN(score) || math.IsInf(score, 0) {
+			score = 0
+		}
+		weight := math.Max(score, 0.1)
 		eligible = append(eligible, i)
 		weights = append(weights, weight)
 		totalWeight += weight
-		if ts.Score > 0.1 {
+		if score > 0.1 {
 			anyPositive = true
 		}
 	}

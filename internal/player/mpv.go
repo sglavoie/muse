@@ -199,8 +199,13 @@ func (m *Manager) SetEventCallbacks(cb EventCallbacks) {
 
 // SetCurrentPosition persists the current playback position for use in crash
 // recovery. Call this periodically while a track is playing so that
-// auto-restart can resume at the correct offset.
+// auto-restart can resume at the correct offset. Negative elapsed values and
+// non-finite values are clamped to 0 so the resume loadfile does not seek to
+// a bogus offset.
 func (m *Manager) SetCurrentPosition(path string, elapsed float64) {
+	if elapsed < 0 || elapsed != elapsed { // NaN check via self-inequality
+		elapsed = 0
+	}
 	m.mu.Lock()
 	m.lastTrackPath = path
 	m.lastElapsed = elapsed

@@ -598,6 +598,32 @@ func TestScoreAll_TimeGenreBonusRejectsNaNAndInf(t *testing.T) {
 	}
 }
 
+// Regression: A track tagged with duplicate case-variant genres (e.g.
+// "Rock/rock") would harvest the time-of-day genre bonus once per variant
+// because library.SplitGenres only dedupes on exact case. The bonus must
+// be applied once per distinct logical genre, mirroring the genre-match
+// behaviour.
+func TestScoreAll_TimeGenreBonusDedupesCaseVariants(t *testing.T) {
+	seed := track("s1", "", "", "", 0)
+	duped := track("t1", "", "", "Rock/rock/ROCK", 0)
+	other := track("t2", "", "", "Jazz", 0)
+	got := ScoreAll(ScoreInput{
+		Seed:           seedFrom(seed, nil, nil),
+		AllTracks:      []library.Track{other, duped},
+		TimeGenreBonus: map[string]float64{"Rock": 3},
+	})
+	scoreByHash := make(map[string]float64, len(got))
+	for _, ts := range got {
+		scoreByHash[ts.Track.Hash] = ts.Score
+	}
+	if scoreByHash["t1"] != 3 {
+		t.Errorf("expected single +3 bonus for duped case variants, got %f", scoreByHash["t1"])
+	}
+	if scoreByHash["t2"] != 0 {
+		t.Errorf("expected 0 for non-matching genre, got %f", scoreByHash["t2"])
+	}
+}
+
 // Regression: A seed with a whitespace-only Artist or Album must not match
 // candidates whose Artist/Album is also whitespace-only or empty. Without the
 // "trimmed != \"\"" guard, EqualFold("", "") would return true and every empty

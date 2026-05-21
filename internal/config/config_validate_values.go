@@ -135,12 +135,24 @@ func validate(raw rawConfig) (Config, []string) {
 	}
 
 	// Validate and deduplicate custom presets, clamping their bands.
+	// Trim whitespace from name/key so a TOML entry like key = "  rock  "
+	// cannot silently slip through dedup and produce a key that fails to
+	// match any preset lookup later (lookups compare against trimmed keys).
 	seen := make(map[string]bool)
 	for _, cp := range raw.EQCustomPresets {
-		if cp.Key == "" || seen[cp.Key] {
+		trimmedKey := strings.TrimSpace(cp.Key)
+		trimmedName := strings.TrimSpace(cp.Name)
+		if trimmedKey == "" {
+			slog.Warn("eq custom preset dropped: empty key", "name", cp.Name)
+			warnings = append(warnings, fmt.Sprintf("eq custom preset %q dropped: key is empty", cp.Name))
 			continue
 		}
-		seen[cp.Key] = true
+		if seen[trimmedKey] {
+			slog.Warn("eq custom preset dropped: duplicate key", "key", trimmedKey)
+			warnings = append(warnings, fmt.Sprintf("eq custom preset with key %q is duplicated; later occurrence ignored", trimmedKey))
+			continue
+		}
+		seen[trimmedKey] = true
 		clamped := cp.Bands
 		for i, v := range clamped {
 			if v < -12 {
@@ -149,9 +161,14 @@ func validate(raw rawConfig) (Config, []string) {
 				clamped[i] = 12
 			}
 		}
+		// Fall back to the key when the name is missing so the preset is still
+		// addressable in the TUI.
+		if trimmedName == "" {
+			trimmedName = trimmedKey
+		}
 		cfg.EQCustomPresets = append(cfg.EQCustomPresets, EQCustomPreset{
-			Name:  cp.Name,
-			Key:   cp.Key,
+			Name:  trimmedName,
+			Key:   trimmedKey,
 			Bands: clamped,
 		})
 	}

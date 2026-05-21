@@ -23,6 +23,12 @@ func ShouldExclude(path string, excludedPaths []string) bool {
 			continue
 		}
 		clean := strings.TrimRight(pattern, sep)
+		// A pattern that is only separator characters (e.g. "/" or "////")
+		// degenerates to "" after trimming and would otherwise prefix-match
+		// every absolute path, excluding the entire library. Skip it.
+		if clean == "" {
+			continue
+		}
 		if strings.HasPrefix(path, clean+sep) || path == clean {
 			return true
 		}

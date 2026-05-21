@@ -68,7 +68,9 @@ func (r *exifRecord) UnmarshalJSON(data []byte) error {
 }
 
 // coerceString extracts a string from a JSON value that may be a string,
-// a number, or an array of strings. Arrays are joined with "; ".
+// a number, or an array of strings/numbers. Arrays are joined with "; ".
+// Heterogeneous arrays (e.g. ["Rock", 42, "Pop"]) are decoded element-by-element
+// so a single odd element does not discard the rest of the values.
 func coerceString(raw json.RawMessage) string {
 	if len(raw) == 0 {
 		return ""
@@ -78,15 +80,31 @@ func coerceString(raw json.RawMessage) string {
 	if json.Unmarshal(raw, &s) == nil {
 		return s
 	}
-	// Try array of strings (e.g. multi-value Genre tags).
-	var arr []string
+	// Try array; coerce each element recursively so mixed-type arrays don't
+	// lose data (exiftool occasionally emits ["a", null, 1] for messy tags).
+	var arr []json.RawMessage
 	if json.Unmarshal(raw, &arr) == nil {
-		return strings.Join(arr, "; ")
+		parts := make([]string, 0, len(arr))
+		for _, el := range arr {
+			if v := coerceString(el); v != "" {
+				parts = append(parts, v)
+			}
+		}
+		return strings.Join(parts, "; ")
 	}
 	// Try number (rare for text fields but possible).
 	var f float64
 	if json.Unmarshal(raw, &f) == nil {
 		return fmt.Sprintf("%g", f)
+	}
+	// Try bool as a final fallback (exiftool will occasionally emit booleans
+	// for tags like "Lossless"; we don't want to drop them on the floor).
+	var b bool
+	if json.Unmarshal(raw, &b) == nil {
+		if b {
+			return "true"
+		}
+		return "false"
 	}
 	return ""
 }
@@ -151,6 +169,21 @@ func parseDurationString(s string) float64 {
 		return f
 	}
 	return 0
+}
+
+// filenameStem returns the base name of path with the audio extension stripped.
+// Unlike a naive base[:len(base)-len(filepath.Ext(base))] this returns the
+// full base name when the extension consumes the entire name (e.g. ".mp3"
+// or ".flac"), since callers use the stem as a user-visible Title fallback
+// and an empty string is worse than the dot-prefixed name.
+func filenameStem(path string) string {
+	base := filepath.Base(path)
+	ext := filepath.Ext(base)
+	stem := strings.TrimSuffix(base, ext)
+	if stem == "" {
+		return base
+	}
+	return stem
 }
 
 // parseTrackNumber parses a track/disc number string from exiftool, which may
@@ -284,8 +317,7 @@ func extractWithBinaryRetry(ctx context.Context, extractor MetadataExtractor, fi
 			tracks[i].Album = strings.TrimSpace(tracks[i].Album)
 			tracks[i].Genre = strings.TrimSpace(tracks[i].Genre)
 			if tracks[i].Title == "" {
-				base := filepath.Base(tracks[i].Path)
-				tracks[i].Title = base[:len(base)-len(filepath.Ext(base))]
+				tracks[i].Title = filenameStem(tracks[i].Path)
 			}
 			if tracks[i].Artist == "" {
 				tracks[i].Artist = "Unknown Artist"
@@ -306,14 +338,11 @@ func extractWithBinaryRetry(ctx context.Context, extractor MetadataExtractor, fi
 			"path", files[0].Path,
 			"error", err,
 		)
-		base := filepath.Base(files[0].Path)
-		ext := filepath.Ext(base)
-		stem := base[:len(base)-len(ext)]
 		return []Track{{
 			Path:      files[0].Path,
 			Hash:      files[0].Hash,
 			Artist:    "Unknown Artist",
-			Title:     stem,
+			Title:     filenameStem(files[0].Path),
 			ModTime:   files[0].ModTime,
 			SizeBytes: files[0].SizeBytes,
 		}}

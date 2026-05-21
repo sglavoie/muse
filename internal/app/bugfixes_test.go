@@ -3,6 +3,7 @@ package app_test
 import (
 	"context"
 	"errors"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -270,5 +271,89 @@ func TestRunDrainsAllParallelErrors(t *testing.T) {
 	msgs := cap.messages()
 	if !hasMsg(msgs, "additional parallel-task error") {
 		t.Errorf("expected log of additional parallel-task error; messages: %v", msgs)
+	}
+}
+
+// TestRestoreSessionInfVolumeFallsBackToSentinel verifies that a corrupt
+// infinity value in the session.volume column does not silently mute the
+// player or produce an implementation-defined int cast. Before the fix,
+// int(math.Round(±Inf)) was implementation-defined and could persist as a
+// pathological volume (e.g. 0 on amd64). With the guard in RestoreSession,
+// non-finite volumes are reported as -1 so the caller falls back to the
+// configured default.
+//
+// Note: SQLite's NOT NULL constraint blocks NaN inserts directly (the driver
+// translates NaN to NULL), so we cover the testable subset (±Inf). The NaN
+// branch in the guard is exercised by the same code path.
+func TestRestoreSessionInfVolumeFallsBackToSentinel(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		val  float64
+	}{
+		{"positive infinity", math.Inf(1)},
+		{"negative infinity", math.Inf(-1)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dirs := setupDirs(t)
+			installLogger(t)
+			database := openTestDB(t, dirs)
+			defer database.Close()
+			w := newTestWriter(t, database)
+
+			if _, err := database.Exec(`UPDATE session SET volume = ? WHERE id=1`, tc.val); err != nil {
+				// If the driver also rejects Inf at write time, skip — the
+				// guard is still in place for future driver changes or
+				// out-of-band corruption.
+				t.Skipf("driver rejects %v at write time: %v", tc.val, err)
+			}
+
+			restored, err := app.RestoreSession(database, w)
+			if err != nil {
+				t.Fatalf("RestoreSession: %v", err)
+			}
+			if restored.Volume != -1 {
+				t.Errorf("Volume = %d, want -1 (sentinel for 'no volume persisted')", restored.Volume)
+			}
+		})
+	}
+}
+
+// TestRunStartupLogsOrphanCurrentHash verifies that when the session references
+// a current_hash that does not appear in the player queue, Run logs a warning
+// and does NOT invoke RestorePlayer with a stale path.
+func TestRunStartupLogsOrphanCurrentHash(t *testing.T) {
+	dirs := setupDirs(t)
+	cap := installLogger(t)
+
+	database := openTestDB(t, dirs)
+	// Insert a track to satisfy the session.current_hash FK constraint,
+	// but DO NOT insert a corresponding queue row — that makes the hash an
+	// orphan from the queue's perspective without violating FK.
+	insertTrack(t, database, "ghost-not-in-queue", filepath.Join(dirs.Runtime, "ghost.mp3"), "Ghost", "Track")
+	setSessionRow(t, database, "ghost-not-in-queue", 5000, false, "none")
+	database.Close()
+
+	restoreCalled := false
+	deps := app.Deps{
+		CheckPrereqs: func(context.Context) error { return nil },
+		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
+		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
+		RestorePlayer: func(_ string, _ int64) error {
+			restoreCalled = true
+			return nil
+		},
+	}
+
+	result, err := app.Run(context.Background(), dirs, deps)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	closeRunResult(t, result)
+
+	if restoreCalled {
+		t.Error("RestorePlayer must NOT be called when current_hash is orphaned")
+	}
+	if !hasMsg(cap.messages(), "current_hash from session does not match any player track") {
+		t.Errorf("expected warning about orphan current_hash; messages: %v", cap.messages())
 	}
 }

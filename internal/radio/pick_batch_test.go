@@ -295,6 +295,41 @@ func TestPickBatch_MaxArtistFractionNaNStillCapsArtists(t *testing.T) {
 	}
 }
 
+// Regression: TrackScore.Score values of NaN or Inf must not poison the
+// cumulative weighted-random draw. NaN propagates through math.Max and the
+// running cumulative sum, making every `r < cumulative` comparison false and
+// silently degrading the picker to "always return the last eligible". Inf
+// would similarly dominate the cumulative sum and starve later candidates.
+// Sanitizing the per-track score in collectEligible keeps the rest of the
+// pool live.
+func TestPickBatch_SanitizesNaNAndInfScores(t *testing.T) {
+	scored := []TrackScore{
+		{Track: library.Track{Hash: "nan", Artist: "A"}, Score: math.NaN()},
+		{Track: library.Track{Hash: "posinf", Artist: "B"}, Score: math.Inf(1)},
+		{Track: library.Track{Hash: "neginf", Artist: "C"}, Score: math.Inf(-1)},
+		{Track: library.Track{Hash: "ok1", Artist: "D"}, Score: 10},
+		{Track: library.Track{Hash: "ok2", Artist: "E"}, Score: 5},
+		{Track: library.Track{Hash: "ok3", Artist: "F"}, Score: 1},
+	}
+	// Run a handful of times — with the bug, NaN/Inf would cause picks to
+	// repeatedly land on the same degenerate index and produce inconsistent
+	// counts. We mainly need to assert the picker returns the requested
+	// number of distinct tracks without panicking or returning duplicates.
+	for run := 0; run < 10; run++ {
+		result := PickBatch(scored, 4, 1.0)
+		if len(result) != 4 {
+			t.Fatalf("run %d: expected 4 picks, got %d", run, len(result))
+		}
+		seen := make(map[string]bool, len(result))
+		for _, tr := range result {
+			if seen[tr.Hash] {
+				t.Fatalf("run %d: duplicate hash %q", run, tr.Hash)
+			}
+			seen[tr.Hash] = true
+		}
+	}
+}
+
 func TestPickBatch_FromPool(t *testing.T) {
 	tracks := make([]library.Track, 10)
 	for i := range tracks {

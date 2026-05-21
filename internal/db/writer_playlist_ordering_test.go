@@ -165,7 +165,10 @@ func TestReorderPlaylistTrack_SkipsSoftDeleted(t *testing.T) {
 }
 
 // TestReorderPlaylistTrack_SoftDeletedEntryIsNoOp verifies that attempting to
-// reorder a soft-deleted playlist_tracks entry returns sql.ErrNoRows.
+// reorder a soft-deleted playlist_tracks entry is a silent no-op. The UI may
+// hold a stale ID after a concurrent soft-delete or after an undo window
+// purge; surfacing sql.ErrNoRows would only generate noise. Positions of
+// other rows must be unchanged.
 func TestReorderPlaylistTrack_SoftDeletedEntryIsNoOp(t *testing.T) {
 	d := openMigratedTestDB(t)
 	w := db.NewWriter(t.Context(), d.DB)
@@ -181,9 +184,8 @@ func TestReorderPlaylistTrack_SoftDeletedEntryIsNoOp(t *testing.T) {
 		t.Fatalf("soft-delete: %v", err)
 	}
 
-	err := w.ReorderPlaylistTrack(plID, id1, +1)
-	if err == nil {
-		t.Fatal("expected error when reordering soft-deleted entry, got nil")
+	if err := w.ReorderPlaylistTrack(plID, id1, +1); err != nil {
+		t.Errorf("ReorderPlaylistTrack(soft-deleted) = %v, want nil (stale IDs must be no-ops)", err)
 	}
 
 	var p2 int64

@@ -139,7 +139,10 @@ func TestDequeueTracksSoft_EmptySlice(t *testing.T) {
 }
 
 // TestReorderQueueTrack_SoftDeletedEntryIsNoOp verifies that attempting to
-// reorder a soft-deleted queue entry returns an error.
+// reorder a soft-deleted queue entry is a silent no-op. The UI may hold a
+// stale ID after a concurrent dequeue or after an undo window purge; an
+// sql.ErrNoRows surfacing through here would only generate noise. Positions
+// of other rows must be unchanged.
 func TestReorderQueueTrack_SoftDeletedEntryIsNoOp(t *testing.T) {
 	d := openMigratedTestDB(t)
 	w := db.NewWriter(t.Context(), d.DB)
@@ -154,9 +157,8 @@ func TestReorderQueueTrack_SoftDeletedEntryIsNoOp(t *testing.T) {
 		t.Fatalf("soft-delete: %v", err)
 	}
 
-	err := w.ReorderQueueTrack(id1, +1)
-	if err == nil {
-		t.Fatal("expected error when reordering soft-deleted queue entry, got nil")
+	if err := w.ReorderQueueTrack(id1, +1); err != nil {
+		t.Errorf("ReorderQueueTrack(soft-deleted) = %v, want nil (stale IDs must be no-ops)", err)
 	}
 
 	var p2 int64

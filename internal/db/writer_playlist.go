@@ -157,6 +157,12 @@ func (w *Writer) ReorderPlaylistTrack(playlistID, trackID int64, direction int) 
 			`SELECT position FROM playlist_tracks WHERE id=? AND playlist_id=? AND deleted_at IS NULL`,
 			trackID, playlistID,
 		).Scan(&currPos); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// Track was concurrently removed or never existed in this
+				// playlist; treat as a no-op so a stale UI ID does not
+				// surface a noisy error to the user.
+				return nil
+			}
 			return err
 		}
 
