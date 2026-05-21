@@ -10,6 +10,7 @@ var Extensions = map[string]struct{}{
 	".wav":  {},
 	".wma":  {},
 	".aac":  {},
+	".aif":  {},
 	".aiff": {},
 	".ape":  {},
 	".wv":   {},

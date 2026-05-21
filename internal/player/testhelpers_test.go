@@ -3,6 +3,7 @@ package player
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net"
 	"os"
 	"testing"
@@ -13,6 +14,17 @@ import (
 func shortSockPath(t *testing.T, name string) string {
 	t.Helper()
 	return fmt.Sprintf("/tmp/muse-test-%d-%s.sock", os.Getpid(), name)
+}
+
+func assertAudioFilters(t *testing.T, m *Manager, want map[string]string) {
+	t.Helper()
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if !maps.Equal(m.audioFilters, want) {
+		t.Fatalf("audioFilters = %v, want %v", m.audioFilters, want)
+	}
 }
 
 // responseHandler is called for each request received by the fake server.

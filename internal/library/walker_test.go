@@ -39,10 +39,11 @@ func TestWalk_CaseInsensitiveExtensions(t *testing.T) {
 	mkfile(t, filepath.Join(dir, "track.MP3"))
 	mkfile(t, filepath.Join(dir, "album.Flac"))
 	mkfile(t, filepath.Join(dir, "song.OPUS"))
+	mkfile(t, filepath.Join(dir, "short.AIF"))
 	mkfile(t, filepath.Join(dir, "cover.jpg")) // not audio
 
 	got := collectNames(Walk(context.Background(), []string{dir}, nil))
-	want := []string{"album.Flac", "song.OPUS", "track.MP3"}
+	want := []string{"album.Flac", "short.AIF", "song.OPUS", "track.MP3"}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
 	}

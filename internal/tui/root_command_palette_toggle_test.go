@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -64,5 +65,80 @@ func TestConfigToggleMsg_NotifyContent(t *testing.T) {
 	}
 	if !strings.Contains(result.statusBar.topNotification().msg, "On") {
 		t.Errorf("expected 'On' in notification, got %q", result.statusBar.topNotification().msg)
+	}
+}
+
+func TestConfigToggleMsg_NormalizeApplyFailureDoesNotPersist(t *testing.T) {
+	cfgPath := filepath.Join(t.TempDir(), "config.toml")
+	stub := &normalizeCapturingPlayer{
+		setNormalizeErr: func(enabled bool) error {
+			if enabled {
+				return errors.New("boom")
+			}
+			return nil
+		},
+	}
+	m := New(context.Background(), WithConfigPath(cfgPath, false), WithPlayer(stub))
+
+	result, cmd := m.handleConfigToggleMsg(configToggleMsg{field: toggleNormalize})
+
+	if cmd != nil {
+		t.Fatal("expected nil Cmd when normalize apply fails")
+	}
+	if result.cfg.NormalizeVolume {
+		t.Fatal("expected NormalizeVolume to remain false after failure")
+	}
+	if !strings.Contains(result.statusBar.topNotification().msg, "failed") {
+		t.Fatalf("expected failure notification, got %q", result.statusBar.topNotification().msg)
+	}
+}
+
+func TestConfigToggleMsg_EQApplyFailureDoesNotPersist(t *testing.T) {
+	cfgPath := filepath.Join(t.TempDir(), "config.toml")
+	stub := &equalizerCapturingPlayer{
+		setEqualizerErr: func(enabled bool, bands [10]int) error {
+			if enabled {
+				return errors.New("boom")
+			}
+			return nil
+		},
+	}
+	m := New(context.Background(), WithConfigPath(cfgPath, false), WithPlayer(stub))
+
+	result, cmd := m.handleConfigToggleMsg(configToggleMsg{field: toggleEQ})
+
+	if cmd != nil {
+		t.Fatal("expected nil Cmd when EQ apply fails")
+	}
+	if result.cfg.EQEnabled {
+		t.Fatal("expected EQEnabled to remain false after failure")
+	}
+	if !strings.Contains(result.statusBar.topNotification().msg, "failed") {
+		t.Fatalf("expected failure notification, got %q", result.statusBar.topNotification().msg)
+	}
+}
+
+func TestConfigToggleMsg_StereoWideApplyFailureDoesNotPersist(t *testing.T) {
+	cfgPath := filepath.Join(t.TempDir(), "config.toml")
+	stub := &stereoWideCapturingPlayer{
+		setStereoWideErr: func(enabled bool, amount int) error {
+			if enabled {
+				return errors.New("boom")
+			}
+			return nil
+		},
+	}
+	m := New(context.Background(), WithConfigPath(cfgPath, false), WithPlayer(stub))
+
+	result, cmd := m.handleConfigToggleMsg(configToggleMsg{field: toggleStereoWide})
+
+	if cmd != nil {
+		t.Fatal("expected nil Cmd when stereo widening apply fails")
+	}
+	if result.cfg.StereoWideEnabled {
+		t.Fatal("expected StereoWideEnabled to remain false after failure")
+	}
+	if !strings.Contains(result.statusBar.topNotification().msg, "failed") {
+		t.Fatalf("expected failure notification, got %q", result.statusBar.topNotification().msg)
 	}
 }

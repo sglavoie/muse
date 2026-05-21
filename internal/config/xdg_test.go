@@ -1,7 +1,10 @@
 package config
 
 import (
+	"fmt"
+	"hash/crc32"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -33,6 +36,23 @@ func unsetEnv(t *testing.T, key string) {
 			os.Setenv(key, prev)
 		}
 	})
+}
+
+func wantFallbackRuntimeDir(t *testing.T) string {
+	t.Helper()
+
+	if current, err := user.Current(); err == nil && current.Uid != "" {
+		return filepath.Join(os.TempDir(), appName+"-"+current.Uid)
+	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		return filepath.Join(os.TempDir(), fmt.Sprintf("%s-%08x", appName, crc32.ChecksumIEEE([]byte(home))))
+	}
+	for _, key := range []string{"USER", "LOGNAME", "USERNAME"} {
+		if v := os.Getenv(key); v != "" {
+			return filepath.Join(os.TempDir(), fmt.Sprintf("%s-%08x", appName, crc32.ChecksumIEEE([]byte(v))))
+		}
+	}
+	return filepath.Join(os.TempDir(), appName+"-runtime")
 }
 
 func TestResolveDirs_EnvOverrides(t *testing.T) {
@@ -104,10 +124,19 @@ func TestResolveDirs_Defaults(t *testing.T) {
 		t.Errorf("State = %q, want %q", dirs.State, wantState)
 	}
 
-	// Runtime: temp-based fallback ends with muse-runtime/muse.
-	wantRuntime := filepath.Join(os.TempDir(), "muse-runtime", "muse")
+	// Runtime: user-specific temp-based fallback.
+	wantRuntime := wantFallbackRuntimeDir(t)
 	if dirs.Runtime != wantRuntime {
 		t.Errorf("Runtime = %q, want %q", dirs.Runtime, wantRuntime)
+	}
+}
+
+func TestResolveRuntimeDir_DefaultFallbackIsUserSpecific(t *testing.T) {
+	unsetEnv(t, "XDG_RUNTIME_DIR")
+
+	want := wantFallbackRuntimeDir(t)
+	if got := ResolveRuntimeDir(); got != want {
+		t.Fatalf("ResolveRuntimeDir() = %q, want %q", got, want)
 	}
 }
 

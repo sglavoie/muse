@@ -70,8 +70,8 @@ func (m *Manager) SyncPosition() error {
 }
 
 // healthCheck runs in a goroutine after the IPC socket connects. It pings mpv
-// at regular intervals; on the first ping failure it marks the client as
-// disconnected and forwards the error to disconnectCh.
+// at regular intervals; on the first ping failure it closes the stale client,
+// marks it as disconnected, and forwards the error to disconnectCh.
 func (m *Manager) healthCheck(ctx context.Context, client *IPCClient) {
 	interval := m.pingInterval
 	if interval == 0 {
@@ -95,6 +95,8 @@ func (m *Manager) healthCheck(ctx context.Context, client *IPCClient) {
 				return
 			default:
 			}
+
+			_ = client.Close()
 
 			m.mu.Lock()
 			if m.client == client {

@@ -2,6 +2,8 @@ package tui
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -12,7 +14,8 @@ import (
 // equalizerCapturingPlayer wraps a playPauser stub and records SetEqualizer calls.
 type equalizerCapturingPlayer struct {
 	playPauser
-	calls []equalizerCall
+	calls           []equalizerCall
+	setEqualizerErr func(bool, [10]int) error
 }
 
 type equalizerCall struct {
@@ -22,6 +25,9 @@ type equalizerCall struct {
 
 func (e *equalizerCapturingPlayer) SetEqualizer(enabled bool, bands [10]int) error {
 	e.calls = append(e.calls, equalizerCall{enabled: enabled, bands: bands})
+	if e.setEqualizerErr != nil {
+		return e.setEqualizerErr(enabled, bands)
+	}
 	return nil
 }
 
@@ -61,6 +67,36 @@ func TestEQLivePreviewFiresOnBandChange(t *testing.T) {
 	}
 }
 
+func TestEQLivePreviewFailureRestoresOverlayState(t *testing.T) {
+	stub := &equalizerCapturingPlayer{
+		setEqualizerErr: func(enabled bool, bands [10]int) error {
+			if enabled {
+				return errors.New("boom")
+			}
+			return nil
+		},
+	}
+	cfg := config.Defaults()
+	m := New(context.Background(), WithConfig(cfg), WithPlayer(stub))
+	nm := openSettingsOnEQTab(t, m)
+
+	next, _ := nm.Update(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	nm = next.(Model)
+
+	if nm.overlay.settings.fields[settingsTabEqualizer][0].Value != 0 {
+		t.Fatal("live preview: expected EQ enabled toggle to revert on failure")
+	}
+	if !strings.Contains(nm.statusBar.topNotification().msg, "failed") {
+		t.Fatalf("live preview: expected failure notification, got %q", nm.statusBar.topNotification().msg)
+	}
+	if len(stub.calls) != 2 {
+		t.Fatalf("live preview: expected failed apply + rollback, got %d calls", len(stub.calls))
+	}
+	if stub.calls[len(stub.calls)-1].enabled {
+		t.Error("live preview: expected rollback to restore EQ disabled")
+	}
+}
+
 // TestEQLivePreviewFiresOnPresetCycle verifies SetEqualizer is called when cycling presets.
 func TestEQLivePreviewFiresOnPresetCycle(t *testing.T) {
 	stub := &equalizerCapturingPlayer{}
@@ -87,8 +123,15 @@ func TestEQSaveAppliesEqualizerToPlayer(t *testing.T) {
 	m := New(context.Background(), WithConfig(cfg), WithPlayer(stub))
 	nm := openSettingsOnEQTab(t, m)
 
-	// Save without any changes.
-	next, _ := nm.Update(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	// Navigate to the first band and increase it so save applies the change.
+	next, _ := nm.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	nm = next.(Model)
+	next, _ = nm.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	nm = next.(Model)
+	next, _ = nm.Update(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	nm = next.(Model)
+
+	next, _ = nm.Update(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
 	nm = next.(Model)
 
 	if nm.overlay.settings != nil {

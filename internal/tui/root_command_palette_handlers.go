@@ -15,24 +15,30 @@ func (m Model) handleConfigToggleMsg(msg configToggleMsg) (Model, tea.Cmd) {
 	var note string
 	switch msg.field {
 	case toggleNormalize:
-		m.cfg.NormalizeVolume = !m.cfg.NormalizeVolume
-		if ns, ok := m.player.(audioNormalizer); ok {
-			_ = ns.SetNormalize(m.cfg.NormalizeVolume)
+		next := !m.cfg.NormalizeVolume
+		if err := applyPlayerStep(m.normalizeApplyStep(m.cfg.NormalizeVolume, next)); err != nil {
+			m.statusBar.notify("Volume normalization failed: " + err.Error())
+			return m, nil
 		}
+		m.cfg.NormalizeVolume = next
 		note = "Volume normalization: " + onOff(m.cfg.NormalizeVolume)
 
 	case toggleEQ:
-		m.cfg.EQEnabled = !m.cfg.EQEnabled
-		if eq, ok := m.player.(equalizerSetter); ok {
-			_ = eq.SetEqualizer(m.cfg.EQEnabled, m.cfg.EQBands)
+		next := !m.cfg.EQEnabled
+		if err := applyPlayerStep(m.equalizerApplyStep(m.cfg.EQEnabled, m.cfg.EQBands, next, m.cfg.EQBands)); err != nil {
+			m.statusBar.notify("Equalizer failed: " + err.Error())
+			return m, nil
 		}
+		m.cfg.EQEnabled = next
 		note = "Equalizer: " + onOff(m.cfg.EQEnabled)
 
 	case toggleStereoWide:
-		m.cfg.StereoWideEnabled = !m.cfg.StereoWideEnabled
-		if sw, ok := m.player.(stereoWideSetter); ok {
-			_ = sw.SetStereoWide(m.cfg.StereoWideEnabled, m.cfg.StereoWideAmount)
+		next := !m.cfg.StereoWideEnabled
+		if err := applyPlayerStep(m.stereoWideApplyStep(m.cfg.StereoWideEnabled, m.cfg.StereoWideAmount, next, m.cfg.StereoWideAmount)); err != nil {
+			m.statusBar.notify("Stereo widening failed: " + err.Error())
+			return m, nil
 		}
+		m.cfg.StereoWideEnabled = next
 		note = "Stereo widening: " + onOff(m.cfg.StereoWideEnabled)
 	}
 

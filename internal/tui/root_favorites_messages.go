@@ -95,9 +95,6 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 			m.favorites.selectedItems = nil
 			m.favorites = m.favorites.clampCursor()
 		case favtui.TrackLevel:
-			for _, v := range valuesToRemove {
-				m.favorites.drilldownTracks = removeTrackByHash(m.favorites.drilldownTracks, v)
-			}
 			m.favorites.selectedItems = nil
 			m.favorites = m.favorites.clampCursor()
 		}

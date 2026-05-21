@@ -1,7 +1,10 @@
 package config
 
 import (
+	"fmt"
+	"hash/crc32"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 )
@@ -13,7 +16,7 @@ type Dirs struct {
 	Config  string // $XDG_CONFIG_HOME/muse/
 	Data    string // $XDG_DATA_HOME/muse/
 	State   string // $XDG_STATE_HOME/muse/
-	Runtime string // $XDG_RUNTIME_DIR/muse/
+	Runtime string // $XDG_RUNTIME_DIR/muse/ or a user-specific temp fallback.
 }
 
 // ResolveDirs returns the XDG base directories for the application.
@@ -63,10 +66,25 @@ func resolveStateHome(home string) string {
 }
 
 // ResolveRuntimeDir returns the full runtime directory path for the
-// application ($XDG_RUNTIME_DIR/muse or a temp-based fallback).
+// application ($XDG_RUNTIME_DIR/muse or a user-specific temp fallback).
 func ResolveRuntimeDir() string {
 	if v := os.Getenv("XDG_RUNTIME_DIR"); v != "" {
 		return filepath.Join(v, appName)
 	}
-	return filepath.Join(os.TempDir(), appName+"-runtime", appName)
+	return filepath.Join(os.TempDir(), runtimeFallbackDirName())
+}
+
+func runtimeFallbackDirName() string {
+	if current, err := user.Current(); err == nil && current.Uid != "" {
+		return appName + "-" + current.Uid
+	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		return fmt.Sprintf("%s-%08x", appName, crc32.ChecksumIEEE([]byte(home)))
+	}
+	for _, key := range []string{"USER", "LOGNAME", "USERNAME"} {
+		if v := os.Getenv(key); v != "" {
+			return fmt.Sprintf("%s-%08x", appName, crc32.ChecksumIEEE([]byte(v)))
+		}
+	}
+	return appName + "-runtime"
 }

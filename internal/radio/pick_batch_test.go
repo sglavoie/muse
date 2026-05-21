@@ -1,10 +1,18 @@
 package radio
 
 import (
+	cryptorand "crypto/rand"
+	"errors"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
 )
+
+type readerFunc func([]byte) (int, error)
+
+func (f readerFunc) Read(p []byte) (int, error) {
+	return f(p)
+}
 
 func TestPickBatch_BasicCount(t *testing.T) {
 	tracks := make([]library.Track, 10)
@@ -227,6 +235,33 @@ func TestPickBatch_MixedScoresStillRandomized(t *testing.T) {
 			t.Errorf("duplicate hash %q in mixed-score result", tr.Hash)
 		}
 		seen[tr.Hash] = true
+	}
+}
+
+func TestPickBatch_FallsBackWhenCryptoRandFails(t *testing.T) {
+	origReader := cryptorand.Reader
+	cryptorand.Reader = readerFunc(func([]byte) (int, error) {
+		return 0, errors.New("forced crypto/rand failure")
+	})
+	t.Cleanup(func() {
+		cryptorand.Reader = origReader
+	})
+
+	scored := []TrackScore{
+		{Track: library.Track{Hash: "a", Artist: "ArtistA"}, Score: 30},
+		{Track: library.Track{Hash: "b", Artist: "ArtistB"}, Score: 20},
+		{Track: library.Track{Hash: "c", Artist: "ArtistC"}, Score: 10},
+		{Track: library.Track{Hash: "d", Artist: "ArtistD"}, Score: 5},
+	}
+
+	result := PickBatch(scored, 3, 1.0)
+	if len(result) != 3 {
+		t.Fatalf("expected full batch despite crypto/rand failure, got %d", len(result))
+	}
+	for i, want := range []string{"a", "b", "c"} {
+		if result[i].Hash != want {
+			t.Fatalf("idx %d: expected deterministic fallback pick %q, got %q", i, want, result[i].Hash)
+		}
 	}
 }
 

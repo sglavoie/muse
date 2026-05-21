@@ -60,6 +60,40 @@ func TestUndoAddFavorite_TrackHashRemoved(t *testing.T) {
 	}
 }
 
+func TestUndoAddFavorite_TrackLevelKeepsDrilldownTracks(t *testing.T) {
+	w := &stubFavoriteWriter{}
+	r := &stubFavoriteReader{favorites: map[string][]string{
+		"track": {"h2"},
+	}}
+	m := New(context.Background(), WithFavoriteWriter(w), WithFavoriteReader(r))
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.TrackLevel
+	m.favorites.category = favtui.CategoryAlbums
+	m.favorites.drilldownTracks = []library.Track{
+		{Hash: "h1", Title: "T1"},
+		{Hash: "h2", Title: "T2"},
+	}
+	m.favoriteHashes = map[string]struct{}{"h1": {}, "h2": {}}
+
+	m.undo.slot = undoSlot{
+		action:    undoAddFavoriteAction{typ: "track", value: "h1"},
+		expiresAt: time.Now().Add(undoWindowDuration),
+	}
+
+	next, _ := m.Update(UndoMsg{})
+	nm := next.(Model)
+
+	if len(nm.favorites.drilldownTracks) != 2 {
+		t.Fatalf("expected 2 drilldown tracks after undo, got %d", len(nm.favorites.drilldownTracks))
+	}
+	if nm.favorites.drilldownTracks[0].Hash != "h1" || nm.favorites.drilldownTracks[1].Hash != "h2" {
+		t.Fatalf("expected [h1 h2], got [%s %s]", nm.favorites.drilldownTracks[0].Hash, nm.favorites.drilldownTracks[1].Hash)
+	}
+	if _, ok := nm.favoriteHashes["h1"]; ok {
+		t.Fatal("expected h1 to be removed from favoriteHashes after undo")
+	}
+}
+
 // TestUndoAddFavorite_RemovesFromViewList verifies that undoing a single
 // track add while viewing favorites removes the track from the in-memory
 // view list so it disappears immediately.

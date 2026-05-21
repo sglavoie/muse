@@ -33,6 +33,40 @@ func (s *stubUpsertBatcher) allTracks() []library.Track {
 	return all
 }
 
+type flakyUpsertBatcher struct {
+	mu        sync.Mutex
+	failures  int
+	err       error
+	attempts  [][]library.Track
+	persisted [][]library.Track
+}
+
+func (s *flakyUpsertBatcher) UpsertBatch(tracks []library.Track) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cp := make([]library.Track, len(tracks))
+	copy(cp, tracks)
+	s.attempts = append(s.attempts, cp)
+	if s.failures > 0 {
+		s.failures--
+		return s.err
+	}
+	s.persisted = append(s.persisted, cp)
+	return nil
+}
+
+func assertTrackHashes(t *testing.T, tracks []library.Track, want []string) {
+	t.Helper()
+	if len(tracks) != len(want) {
+		t.Fatalf("track count = %d, want %d", len(tracks), len(want))
+	}
+	for i, hash := range want {
+		if tracks[i].Hash != hash {
+			t.Fatalf("track %d hash = %q, want %q", i, tracks[i].Hash, hash)
+		}
+	}
+}
+
 type stubGenreWriter struct {
 	stubUpsertBatcher
 	upsertErr       error
@@ -135,6 +169,67 @@ func TestBridgeScanChannel_SkipsGenrePopulationOnUpsertFailure(t *testing.T) {
 	}
 }
 
+func TestBridgeScanChannel_RetriesFailedBatchOnLaterDrain(t *testing.T) {
+	raw := make(chan library.Track, 3)
+	raw <- library.Track{Hash: "a", Path: "/a.mp3"}
+	raw <- library.Track{Hash: "b", Path: "/b.mp3"}
+	raw <- library.Track{Hash: "c", Path: "/c.mp3"}
+	close(raw)
+
+	writer := &flakyUpsertBatcher{failures: 1, err: errors.New("transient upsert failed")}
+	ch := BridgeScanChannel(raw, writer, 2)
+
+	var got []library.Track
+	for track := range ch {
+		got = append(got, track)
+	}
+
+	assertTrackHashes(t, got, []string{"a", "b", "c"})
+
+	if len(writer.attempts) != 2 {
+		t.Fatalf("UpsertBatch attempts = %d, want 2", len(writer.attempts))
+	}
+	assertTrackHashes(t, writer.attempts[0], []string{"a", "b"})
+	assertTrackHashes(t, writer.attempts[1], []string{"a", "b", "c"})
+
+	if len(writer.persisted) != 1 {
+		t.Fatalf("successful upsert batches = %d, want 1", len(writer.persisted))
+	}
+	assertTrackHashes(t, writer.persisted[0], []string{"a", "b", "c"})
+}
+
+func TestBridgeScanChannel_CapsRetriedBatchGrowth(t *testing.T) {
+	raw := make(chan library.Track, 5)
+	for _, hash := range []string{"a", "b", "c", "d", "e"} {
+		raw <- library.Track{Hash: hash, Path: "/" + hash + ".mp3"}
+	}
+	close(raw)
+
+	writer := &flakyUpsertBatcher{failures: 5, err: errors.New("persistent upsert failure")}
+	ch := BridgeScanChannel(raw, writer, 2)
+
+	for range ch {
+	}
+
+	if len(writer.attempts) != 5 {
+		t.Fatalf("UpsertBatch attempts = %d, want 5", len(writer.attempts))
+	}
+
+	maxBatchSize := 0
+	for i, attempt := range writer.attempts {
+		if got := len(attempt); got > maxBatchSize {
+			maxBatchSize = got
+		}
+		if got := attempt[len(attempt)-1].Hash; got == "e" {
+			t.Fatalf("attempt %d unexpectedly retained dropped track e: %v", i, attempt)
+		}
+	}
+
+	if maxBatchSize != 4 {
+		t.Fatalf("max retained batch size = %d, want 4", maxBatchSize)
+	}
+}
+
 func TestBridgeWatchChannel(t *testing.T) {
 	raw := make(chan library.WatchEvent, 3)
 	raw <- library.WatchEvent{Track: library.Track{Hash: "a", Path: "/a.mp3"}}
@@ -202,6 +297,72 @@ func TestBridgeWatchChannel_SkipsGenrePopulationOnUpsertFailure(t *testing.T) {
 
 	if got := len(writer.populateBatches); got != 0 {
 		t.Fatalf("PopulateTrackGenres calls = %d, want 0 when UpsertBatch fails", got)
+	}
+}
+
+func TestBridgeWatchChannel_RetriesFailedBatchOnLaterDrain(t *testing.T) {
+	raw := make(chan library.WatchEvent, 3)
+	raw <- library.WatchEvent{Track: library.Track{Hash: "a", Path: "/a.mp3"}}
+	raw <- library.WatchEvent{Track: library.Track{Hash: "b", Path: "/b.mp3"}}
+	raw <- library.WatchEvent{Deleted: true, Path: "/gone.mp3"}
+	close(raw)
+
+	writer := &flakyUpsertBatcher{failures: 1, err: errors.New("transient upsert failed")}
+	marker := &stubMissingMarker{}
+	ch := BridgeWatchChannel(raw, writer, marker, map[string]string{"/gone.mp3": "gone-hash"}, 2)
+
+	var got []library.WatchEvent
+	for ev := range ch {
+		got = append(got, ev)
+	}
+
+	if len(got) != 3 {
+		t.Fatalf("forwarded events = %d, want 3", len(got))
+	}
+	if !got[2].Deleted || got[2].Path != "/gone.mp3" {
+		t.Fatalf("final forwarded event = %+v, want delete for /gone.mp3", got[2])
+	}
+
+	if len(writer.attempts) != 2 {
+		t.Fatalf("UpsertBatch attempts = %d, want 2", len(writer.attempts))
+	}
+	assertTrackHashes(t, writer.attempts[0], []string{"a", "b"})
+	assertTrackHashes(t, writer.attempts[1], []string{"a", "b"})
+
+	if len(writer.persisted) != 1 {
+		t.Fatalf("successful upsert batches = %d, want 1", len(writer.persisted))
+	}
+	assertTrackHashes(t, writer.persisted[0], []string{"a", "b"})
+
+	if len(marker.hashes) != 1 || marker.hashes[0] != "gone-hash" {
+		t.Fatalf("expected missing marker called with [gone-hash], got %v", marker.hashes)
+	}
+}
+
+func TestBridgeWatchChannel_DeleteDropsFailedPendingTrack(t *testing.T) {
+	raw := make(chan library.WatchEvent, 2)
+	raw <- library.WatchEvent{Track: library.Track{Hash: "a", Path: "/a.mp3"}}
+	raw <- library.WatchEvent{Deleted: true, Path: "/a.mp3"}
+	close(raw)
+
+	writer := &flakyUpsertBatcher{failures: 1, err: errors.New("transient upsert failed")}
+	marker := &stubMissingMarker{}
+	ch := BridgeWatchChannel(raw, writer, marker, map[string]string{"/a.mp3": "a"}, 1)
+
+	for range ch {
+	}
+
+	if len(writer.attempts) != 1 {
+		t.Fatalf("UpsertBatch attempts = %d, want 1", len(writer.attempts))
+	}
+	assertTrackHashes(t, writer.attempts[0], []string{"a"})
+
+	if len(writer.persisted) != 0 {
+		t.Fatalf("successful upsert batches = %d, want 0", len(writer.persisted))
+	}
+
+	if len(marker.hashes) != 1 || marker.hashes[0] != "a" {
+		t.Fatalf("expected missing marker called with [a], got %v", marker.hashes)
 	}
 }
 

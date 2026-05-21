@@ -70,8 +70,17 @@ func (a undoRemoveFavoriteAction) perform(m Model) (Model, tea.Cmd) {
 				m.favorites = m.favorites.clampCursor()
 			}
 		case favtui.TrackLevel:
-			m.favorites.drilldownTracks = insertTrackAt(m.favorites.drilldownTracks, a.idx, a.track)
-			m.favorites.cursor = a.idx
+			hash := a.value
+			if hash == "" {
+				hash = a.track.Hash
+			}
+			if hash != "" && indexOfTrackByHash(m.favorites.drilldownTracks, hash) < 0 && a.track.Hash != "" {
+				m.favorites.drilldownTracks = insertTrackAt(m.favorites.drilldownTracks, a.idx, a.track)
+			}
+			m.favorites.selectedItems = nil
+			if a.idx >= 0 {
+				m.favorites.cursor = a.idx
+			}
 			m.favorites = m.favorites.clampCursor()
 		}
 	}
@@ -132,7 +141,6 @@ func (a undoAddFavoriteAction) perform(m Model) (Model, tea.Cmd) {
 			m.favorites = m.favorites.clampCursor()
 		case favtui.TrackLevel:
 			if a.typ == "track" {
-				m.favorites.drilldownTracks = removeTrackByHash(m.favorites.drilldownTracks, a.value)
 				m.favorites.selectedItems = nil
 				m.favorites = m.favorites.clampCursor()
 			}
@@ -209,9 +217,6 @@ func (a undoBulkAddFavoritesAction) perform(m Model) (Model, tea.Cmd) {
 			m.favorites = m.favorites.clampCursor()
 		case favtui.TrackLevel:
 			if a.typ == "track" {
-				for _, v := range a.values {
-					m.favorites.drilldownTracks = removeTrackByHash(m.favorites.drilldownTracks, v)
-				}
 				m.favorites.selectedItems = nil
 				m.favorites = m.favorites.clampCursor()
 			}
@@ -306,8 +311,16 @@ func (a undoBulkRemoveFavoritesAction) perform(m Model) (Model, tea.Cmd) {
 			}
 		case favtui.TrackLevel:
 			for i, idx := range a.indices {
+				if i >= len(a.tracks) {
+					continue
+				}
+				hash := a.tracks[i].Hash
+				if hash != "" && indexOfTrackByHash(m.favorites.drilldownTracks, hash) >= 0 {
+					continue
+				}
 				m.favorites.drilldownTracks = insertTrackAt(m.favorites.drilldownTracks, min(idx, len(m.favorites.drilldownTracks)), a.tracks[i])
 			}
+			m.favorites.selectedItems = nil
 			m.favorites = m.favorites.clampCursor()
 		}
 	}

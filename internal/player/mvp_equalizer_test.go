@@ -2,6 +2,7 @@ package player
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 )
@@ -124,4 +125,45 @@ func TestManager_SetEqualizer_NotConnectedQueues(t *testing.T) {
 	if n != 1 {
 		t.Errorf("cmdQueue len = %d, want 1", n)
 	}
+}
+
+func TestManager_SetEqualizer_BeforeStartLeavesFiltersUnchanged(t *testing.T) {
+	bands := [10]int{6, 5, 4, 2, 0, 0, 0, 0, 0, 0}
+
+	t.Run("enable", func(t *testing.T) {
+		m := NewManager(shortSockPath(t, "eq-pre-on"))
+		defer m.Close()
+
+		m.mu.Lock()
+		m.audioFilters["loudnorm"] = "loudnorm"
+		m.mu.Unlock()
+
+		if err := m.SetEqualizer(true, bands); !errors.Is(err, ErrNotConnected) {
+			t.Fatalf("SetEqualizer(true): want ErrNotConnected, got %v", err)
+		}
+
+		assertAudioFilters(t, m, map[string]string{"loudnorm": "loudnorm"})
+	})
+
+	t.Run("disable", func(t *testing.T) {
+		m := NewManager(shortSockPath(t, "eq-pre-off"))
+		defer m.Close()
+
+		want := map[string]string{
+			"equalizer": "firequalizer=gain_entry='entry(31,6)'",
+			"loudnorm":  "loudnorm",
+		}
+
+		m.mu.Lock()
+		for name, expr := range want {
+			m.audioFilters[name] = expr
+		}
+		m.mu.Unlock()
+
+		if err := m.SetEqualizer(false, [10]int{}); !errors.Is(err, ErrNotConnected) {
+			t.Fatalf("SetEqualizer(false): want ErrNotConnected, got %v", err)
+		}
+
+		assertAudioFilters(t, m, want)
+	})
 }

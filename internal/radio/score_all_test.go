@@ -349,6 +349,26 @@ func TestScoreAll_TimeGenreBonusBoost(t *testing.T) {
 	}
 }
 
+func TestScoreAll_TimeGenreBonusCaseInsensitive(t *testing.T) {
+	seed := track("s1", "", "", "", 0)
+	mixed := track("t1", "", "", "rock", 0)
+	other := track("t2", "", "", "Jazz", 0)
+	got := ScoreAll(ScoreInput{
+		Seed:           seedFrom(seed, nil, nil),
+		AllTracks:      []library.Track{other, mixed},
+		TimeGenreBonus: map[string]float64{"Rock": 3},
+	})
+	if got[0].Track.Hash != "t1" {
+		t.Fatalf("case-insensitive time genre bonus should rank first, got %s", got[0].Track.Hash)
+	}
+	if got[0].Score != 3 {
+		t.Errorf("expected time genre bonus +3 for case-insensitive match, got %f", got[0].Score)
+	}
+	if got[1].Score != 0 {
+		t.Errorf("expected no time genre bonus for non-match, got %f", got[1].Score)
+	}
+}
+
 func TestScoreAll_TimeGenreBonusNilSafe(t *testing.T) {
 	seed := track("s1", "", "", "", 0)
 	t1 := track("t1", "", "", "Rock", 0)
@@ -433,6 +453,27 @@ func TestScoreAll_GenreMatchCaseInsensitive(t *testing.T) {
 	}
 	if got[0].Score != 10 {
 		t.Errorf("expected genre score +10 for case-insensitive match, got %f", got[0].Score)
+	}
+}
+
+func TestScoreAll_GenreMatchDedupesCaseVariants(t *testing.T) {
+	candidate := track("t1", "", "", "rock/ROCK/jazz/JAZZ", 0)
+	other := track("t2", "", "", "Pop", 0)
+	got := ScoreAll(ScoreInput{
+		Seed: SeedTrack{
+			Hash:   "s1",
+			Genres: []string{"Rock", "rock", "Jazz", "JAZZ"},
+		},
+		AllTracks: []library.Track{other, candidate},
+	})
+	if got[0].Track.Hash != "t1" {
+		t.Fatalf("deduped case-variant genre match should rank first, got %s", got[0].Track.Hash)
+	}
+	if got[0].Score != 20 {
+		t.Errorf("expected 2 shared logical genres = 20, got %f", got[0].Score)
+	}
+	if got[1].Score != 0 {
+		t.Errorf("expected no genre overlap for Pop, got %f", got[1].Score)
 	}
 }
 

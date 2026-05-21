@@ -2,6 +2,8 @@ package tui
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -12,29 +14,38 @@ import (
 // normalizeCapturingPlayer wraps a playPauser stub and records SetNormalize calls.
 type normalizeCapturingPlayer struct {
 	playPauser
-	normalizeCalls []bool
+	normalizeCalls  []bool
+	setNormalizeErr func(bool) error
 }
 
 func (n *normalizeCapturingPlayer) SetNormalize(enabled bool) error {
 	n.normalizeCalls = append(n.normalizeCalls, enabled)
+	if n.setNormalizeErr != nil {
+		return n.setNormalizeErr(enabled)
+	}
 	return nil
 }
 
 // gaplessCapturingPlayer wraps a playPauser stub and records SetGapless calls.
 type gaplessCapturingPlayer struct {
 	playPauser
-	gaplessCalls []bool
+	gaplessCalls  []bool
+	setGaplessErr func(bool) error
 }
 
 func (g *gaplessCapturingPlayer) SetGapless(enabled bool) error {
 	g.gaplessCalls = append(g.gaplessCalls, enabled)
+	if g.setGaplessErr != nil {
+		return g.setGaplessErr(enabled)
+	}
 	return nil
 }
 
 // stereoWideCapturingPlayer wraps a playPauser stub and records SetStereoWide calls.
 type stereoWideCapturingPlayer struct {
 	playPauser
-	calls []stereoWideCall
+	calls            []stereoWideCall
+	setStereoWideErr func(bool, int) error
 }
 
 type stereoWideCall struct {
@@ -44,6 +55,9 @@ type stereoWideCall struct {
 
 func (s *stereoWideCapturingPlayer) SetStereoWide(enabled bool, amount int) error {
 	s.calls = append(s.calls, stereoWideCall{enabled: enabled, amount: amount})
+	if s.setStereoWideErr != nil {
+		return s.setStereoWideErr(enabled, amount)
+	}
 	return nil
 }
 
@@ -94,6 +108,51 @@ func TestSettingsSaveAppliesNormalizeToPlayer(t *testing.T) {
 	}
 	if !stub.normalizeCalls[0] {
 		t.Error("ctrl+s: expected SetNormalize(true)")
+	}
+}
+
+func TestSettingsSaveNormalizeFailureKeepsOverlayOpen(t *testing.T) {
+	stub := &normalizeCapturingPlayer{
+		setNormalizeErr: func(enabled bool) error {
+			if enabled {
+				return errors.New("boom")
+			}
+			return nil
+		},
+	}
+	cfg := config.Defaults()
+	m := New(context.Background(), WithConfig(cfg), WithPlayer(stub))
+	nm := openSettingsOnPlaybackTab(t, m)
+
+	var next tea.Model
+	for range 4 {
+		next, _ = nm.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+		nm = next.(Model)
+	}
+	next, _ = nm.Update(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	nm = next.(Model)
+
+	next, cmd := nm.Update(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	nm = next.(Model)
+
+	if cmd != nil {
+		t.Fatal("ctrl+s: expected nil Cmd when normalize apply fails")
+	}
+	if nm.overlay.settings == nil {
+		t.Fatal("ctrl+s: expected settings overlay to remain open on failure")
+	}
+	if nm.cfg.NormalizeVolume {
+		t.Error("ctrl+s: expected cfg.NormalizeVolume to remain false after failure")
+	}
+	if !strings.Contains(nm.statusBar.topNotification().msg, "failed") {
+		t.Fatalf("ctrl+s: expected failure notification, got %q", nm.statusBar.topNotification().msg)
+	}
+	if len(stub.normalizeCalls) != 2 {
+		t.Fatalf("ctrl+s: expected failed apply + rollback, got %d calls", len(stub.normalizeCalls))
+	}
+	last := stub.normalizeCalls[len(stub.normalizeCalls)-1]
+	if last {
+		t.Error("ctrl+s: expected rollback to restore normalize=false")
 	}
 }
 
@@ -154,6 +213,40 @@ func TestStereoWideLivePreviewFiresOnToggle(t *testing.T) {
 	}
 }
 
+func TestStereoWideLivePreviewFailureRestoresOverlayState(t *testing.T) {
+	stub := &stereoWideCapturingPlayer{
+		setStereoWideErr: func(enabled bool, amount int) error {
+			if enabled {
+				return errors.New("boom")
+			}
+			return nil
+		},
+	}
+	cfg := config.Defaults()
+	m := New(context.Background(), WithConfig(cfg), WithPlayer(stub))
+	nm := openSettingsOnPlaybackTab(t, m)
+
+	for range 6 {
+		next, _ := nm.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+		nm = next.(Model)
+	}
+	next, _ := nm.Update(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	nm = next.(Model)
+
+	if nm.overlay.settings.fields[settingsTabPlayback][6].Value != 0 {
+		t.Fatal("live preview: expected stereo wide toggle to revert on failure")
+	}
+	if !strings.Contains(nm.statusBar.topNotification().msg, "failed") {
+		t.Fatalf("live preview: expected failure notification, got %q", nm.statusBar.topNotification().msg)
+	}
+	if len(stub.calls) != 2 {
+		t.Fatalf("live preview: expected failed apply + rollback, got %d calls", len(stub.calls))
+	}
+	if stub.calls[len(stub.calls)-1].enabled {
+		t.Error("live preview: expected rollback to restore stereo wide disabled")
+	}
+}
+
 // TestStereoWideSaveAppliesSettingsToPlayer verifies ctrl+s calls SetStereoWide with saved values.
 func TestStereoWideSaveAppliesSettingsToPlayer(t *testing.T) {
 	stub := &stereoWideCapturingPlayer{}
@@ -163,8 +256,15 @@ func TestStereoWideSaveAppliesSettingsToPlayer(t *testing.T) {
 	m := New(context.Background(), WithConfig(cfg), WithPlayer(stub))
 	nm := openSettingsOnPlaybackTab(t, m)
 
-	// Save without changes.
-	next, _ := nm.Update(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	// Navigate to the width field and increase it.
+	for range 7 {
+		next, _ := nm.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+		nm = next.(Model)
+	}
+	next, _ := nm.Update(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	nm = next.(Model)
+
+	next, _ = nm.Update(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
 	nm = next.(Model)
 
 	if nm.overlay.settings != nil {
@@ -177,8 +277,8 @@ func TestStereoWideSaveAppliesSettingsToPlayer(t *testing.T) {
 	if !last.enabled {
 		t.Error("ctrl+s: expected SetStereoWide called with enabled=true")
 	}
-	if last.amount != 20 {
-		t.Errorf("ctrl+s: expected SetStereoWide called with amount=20, got %d", last.amount)
+	if last.amount != 21 {
+		t.Errorf("ctrl+s: expected SetStereoWide called with amount=21, got %d", last.amount)
 	}
 }
 

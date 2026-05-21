@@ -2,6 +2,7 @@ package player
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -119,6 +120,42 @@ func TestManager_SetNormalize_NotConnectedQueues(t *testing.T) {
 	if n != 1 {
 		t.Errorf("cmdQueue len = %d, want 1", n)
 	}
+}
+
+func TestManager_SetNormalize_BeforeStartLeavesFiltersUnchanged(t *testing.T) {
+	t.Run("enable", func(t *testing.T) {
+		m := NewManager(shortSockPath(t, "norm-pre-on"))
+		defer m.Close()
+
+		m.mu.Lock()
+		m.audioFilters["bass"] = "bass=g=6"
+		m.mu.Unlock()
+
+		if err := m.SetNormalize(true); !errors.Is(err, ErrNotConnected) {
+			t.Fatalf("SetNormalize(true): want ErrNotConnected, got %v", err)
+		}
+
+		assertAudioFilters(t, m, map[string]string{"bass": "bass=g=6"})
+	})
+
+	t.Run("disable", func(t *testing.T) {
+		m := NewManager(shortSockPath(t, "norm-pre-off"))
+		defer m.Close()
+
+		m.mu.Lock()
+		m.audioFilters["bass"] = "bass=g=6"
+		m.audioFilters["loudnorm"] = "loudnorm"
+		m.mu.Unlock()
+
+		if err := m.SetNormalize(false); !errors.Is(err, ErrNotConnected) {
+			t.Fatalf("SetNormalize(false): want ErrNotConnected, got %v", err)
+		}
+
+		assertAudioFilters(t, m, map[string]string{
+			"bass":     "bass=g=6",
+			"loudnorm": "loudnorm",
+		})
+	})
 }
 
 func TestManager_FilterChain_MultipleFilters(t *testing.T) {

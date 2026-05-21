@@ -45,6 +45,8 @@ type TrackScore struct {
 // excluded from the output.
 func ScoreAll(input ScoreInput) []TrackScore {
 	results := make([]TrackScore, 0, len(input.AllTracks))
+	seedGenres := normalizedGenreSet(input.Seed.Genres)
+	timeGenreBonus := normalizedGenreBonusMap(input.TimeGenreBonus)
 
 	for _, track := range input.AllTracks {
 		// Only skip seed by hash when seed.Hash is non-empty; otherwise an
@@ -56,13 +58,14 @@ func ScoreAll(input ScoreInput) []TrackScore {
 
 		score := 0.0
 
-		// Genre matching: +10 per shared genre. Matched case-insensitively
-		// so tag values like "Rock" and "rock" in real-world libraries are
-		// treated as the same genre.
+		// Genre matching: +10 per shared logical genre. Matched
+		// case-insensitively so tag values like "Rock" and "rock" in
+		// real-world libraries are treated as the same genre, and duplicate
+		// case variants are only counted once.
 		candidateGenres := library.SplitGenres(track.Genre)
-		for _, sg := range input.Seed.Genres {
-			for _, cg := range candidateGenres {
-				if strings.EqualFold(sg, cg) {
+		if len(seedGenres) > 0 {
+			for genre := range normalizedGenreSet(candidateGenres) {
+				if _, ok := seedGenres[genre]; ok {
 					score += 10
 				}
 			}
@@ -102,9 +105,9 @@ func ScoreAll(input ScoreInput) []TrackScore {
 		}
 
 		// Time-of-day genre affinity: variable bonus per matching genre.
-		if input.TimeGenreBonus != nil {
+		if timeGenreBonus != nil {
 			for _, cg := range candidateGenres {
-				if bonus, ok := input.TimeGenreBonus[cg]; ok {
+				if bonus, ok := timeGenreBonus[normalizedGenreKey(cg)]; ok {
 					score += bonus
 				}
 			}
@@ -202,17 +205,17 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 			maxWeight := new(big.Int).SetUint64(1 << 53)
 			randomWeight, err := cryptorand.Int(cryptorand.Reader, maxWeight)
 			if err != nil {
-				break
-			}
-
-			r := (float64(randomWeight.Uint64()) / float64(1<<53)) * totalWeight
-			pickedIdx = eligible[len(eligible)-1] // fallback to last eligible
-			cumulative := 0.0
-			for j, i := range eligible {
-				cumulative += weights[j]
-				if r < cumulative {
-					pickedIdx = i
-					break
+				pickedIdx = eligible[0]
+			} else {
+				r := (float64(randomWeight.Uint64()) / float64(1<<53)) * totalWeight
+				pickedIdx = eligible[len(eligible)-1] // fallback to last eligible
+				cumulative := 0.0
+				for j, i := range eligible {
+					cumulative += weights[j]
+					if r < cumulative {
+						pickedIdx = i
+						break
+					}
 				}
 			}
 		}
@@ -228,6 +231,48 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 	}
 
 	return result
+}
+
+func normalizedGenreSet(genres []string) map[string]struct{} {
+	if len(genres) == 0 {
+		return nil
+	}
+
+	normalized := make(map[string]struct{}, len(genres))
+	for _, genre := range genres {
+		key := normalizedGenreKey(genre)
+		if key == "" {
+			continue
+		}
+		normalized[key] = struct{}{}
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
+}
+
+func normalizedGenreBonusMap(bonuses map[string]float64) map[string]float64 {
+	if len(bonuses) == 0 {
+		return nil
+	}
+
+	normalized := make(map[string]float64, len(bonuses))
+	for genre, bonus := range bonuses {
+		key := normalizedGenreKey(genre)
+		if key == "" {
+			continue
+		}
+		normalized[key] += bonus
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
+}
+
+func normalizedGenreKey(genre string) string {
+	return strings.ToLower(strings.TrimSpace(genre))
 }
 
 func collectEligible(pool []TrackScore, artistCount map[string]int, maxPerArtist int) ([]int, []float64, float64, bool) {

@@ -43,16 +43,18 @@ func TestBulkFavoriteRemoval_UpdatesInViewState(t *testing.T) {
 	}
 }
 
-// TestBulkFavoriteRemoval_TracksAtTrackLevel verifies that bulk removal of
-// track favorites from the TrackLevel correctly removes tracks from
-// drilldownTracks.
-func TestBulkFavoriteRemoval_TracksAtTrackLevel(t *testing.T) {
+// TestBulkFavoriteRemoval_TrackLevelPreservesDrilldownTracks verifies that
+// removing track favorites from an artist/album drilldown only clears the
+// favorite marker state and does not remove rows from drilldownTracks.
+func TestBulkFavoriteRemoval_TrackLevelPreservesDrilldownTracks(t *testing.T) {
 	r := &stubFavoriteReader{favorites: map[string][]string{
-		"track": {"h1", "h4"},
+		"track": {"h2", "h4"},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r))
 	m.activeView = viewFavorites
 	m.favorites.level = favtui.TrackLevel
+	m.favorites.category = favtui.CategoryArtists
+	m.favoriteHashes = map[string]struct{}{"h1": {}, "h2": {}, "h3": {}, "h4": {}}
 
 	t1 := library.Track{Hash: "h1", Title: "T1"}
 	t2 := library.Track{Hash: "h2", Title: "T2"}
@@ -69,12 +71,69 @@ func TestBulkFavoriteRemoval_TracksAtTrackLevel(t *testing.T) {
 	}
 	nm := m.handleFavoriteToggledMsg(msg)
 
-	if len(nm.favorites.drilldownTracks) != 2 {
-		t.Fatalf("expected 2 tracks after bulk removal, got %d", len(nm.favorites.drilldownTracks))
+	if len(nm.favorites.drilldownTracks) != 4 {
+		t.Fatalf("expected 4 drilldown tracks after bulk removal, got %d", len(nm.favorites.drilldownTracks))
 	}
-	if nm.favorites.drilldownTracks[0].Hash != "h2" || nm.favorites.drilldownTracks[1].Hash != "h4" {
-		t.Fatalf("expected [h2, h4], got [%s, %s]",
-			nm.favorites.drilldownTracks[0].Hash, nm.favorites.drilldownTracks[1].Hash)
+	expected := []string{"h1", "h2", "h3", "h4"}
+	for i, hash := range expected {
+		if nm.favorites.drilldownTracks[i].Hash != hash {
+			t.Fatalf("index %d: expected %q, got %q", i, hash, nm.favorites.drilldownTracks[i].Hash)
+		}
+	}
+	if _, ok := nm.favoriteHashes["h1"]; ok {
+		t.Fatal("expected h1 to be removed from favoriteHashes")
+	}
+	if _, ok := nm.favoriteHashes["h3"]; ok {
+		t.Fatal("expected h3 to be removed from favoriteHashes")
+	}
+	if _, ok := nm.favoriteHashes["h2"]; !ok {
+		t.Fatal("expected h2 to remain in favoriteHashes")
+	}
+	if _, ok := nm.favoriteHashes["h4"]; !ok {
+		t.Fatal("expected h4 to remain in favoriteHashes")
+	}
+}
+
+func TestSingleFavoriteRemoval_TrackLevelPreservesDrilldownTrack(t *testing.T) {
+	r := &stubFavoriteReader{favorites: map[string][]string{
+		"track": {"h2", "h3"},
+	}}
+	m := New(context.Background(), WithFavoriteReader(r))
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.TrackLevel
+	m.favorites.category = favtui.CategoryAlbums
+	m.favorites.drilldownTracks = []library.Track{
+		{Hash: "h1", Title: "T1"},
+		{Hash: "h2", Title: "T2"},
+		{Hash: "h3", Title: "T3"},
+	}
+	m.favoriteHashes = map[string]struct{}{"h1": {}, "h2": {}, "h3": {}}
+	m.favorites.selectedItems = map[int]struct{}{0: {}}
+
+	msg := favoriteToggledMsg{
+		typ:         "track",
+		value:       "h1",
+		count:       1,
+		added:       false,
+		favLevel:    favtui.TrackLevel,
+		favCategory: favtui.CategoryAlbums,
+	}
+	nm := m.handleFavoriteToggledMsg(msg)
+
+	if len(nm.favorites.drilldownTracks) != 3 {
+		t.Fatalf("expected 3 drilldown tracks after single removal, got %d", len(nm.favorites.drilldownTracks))
+	}
+	expected := []string{"h1", "h2", "h3"}
+	for i, hash := range expected {
+		if nm.favorites.drilldownTracks[i].Hash != hash {
+			t.Fatalf("index %d: expected %q, got %q", i, hash, nm.favorites.drilldownTracks[i].Hash)
+		}
+	}
+	if _, ok := nm.favoriteHashes["h1"]; ok {
+		t.Fatal("expected h1 to be removed from favoriteHashes")
+	}
+	if nm.favorites.selectedItems != nil {
+		t.Fatalf("expected selectedItems to be nil after removal, got %v", nm.favorites.selectedItems)
 	}
 }
 

@@ -157,23 +157,38 @@ func (m *Manager) rebuildAudioFilters() error {
 	return err
 }
 
-// setFilter adds or removes a named lavfi filter expression and rebuilds the
-// af property. The map update is guarded by m.mu; rebuildAudioFilters uses
-// ipc() which takes its own RLock — no re-entry.
-func (m *Manager) setFilter(name, expr string, enabled bool) error {
-	m.mu.Lock()
+func (m *Manager) updateFilterLocked(name, expr string, enabled bool) {
 	if enabled {
 		m.audioFilters[name] = expr
 	} else {
 		delete(m.audioFilters, name)
 	}
-	m.mu.Unlock()
+}
 
-	c, err := m.ipcOrEnqueue(func() error { return m.rebuildAudioFilters() })
-	if err != nil || c == nil {
-		return err
+// setFilter adds or removes a named lavfi filter expression and rebuilds the
+// af property. It only mutates audioFilters after confirming mpv is either
+// connected or still in the pre-connect queueing phase.
+func (m *Manager) setFilter(name, expr string, enabled bool) error {
+	m.mu.Lock()
+	switch {
+	case m.client != nil:
+		m.updateFilterLocked(name, expr, enabled)
+		m.mu.Unlock()
+		return m.rebuildAudioFilters()
+	case m.cmdQueue != nil:
+		m.updateFilterLocked(name, expr, enabled)
+		m.cmdQueue = append(m.cmdQueue, func() error { return m.rebuildAudioFilters() })
+		fn := m.callbacks.OnStatus
+		m.mu.Unlock()
+
+		if fn != nil {
+			fn("Connecting to mpv…")
+		}
+		return nil
+	default:
+		m.mu.Unlock()
+		return ErrNotConnected
 	}
-	return m.rebuildAudioFilters()
 }
 
 // SetNormalize enables or disables real-time EBU R128 volume normalization via

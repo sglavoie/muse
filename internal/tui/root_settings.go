@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"slices"
 	"time"
 
@@ -11,6 +12,154 @@ import (
 
 // settingsSavedMsg is dispatched after config.Save completes.
 type settingsSavedMsg struct{ err error }
+
+type playerApplyStep struct {
+	name     string
+	apply    func() error
+	rollback func() error
+}
+
+func cloneSettingsOverlay(o SettingsOverlay) SettingsOverlay {
+	clone := o
+	for i := range o.fields {
+		if o.fields[i] != nil {
+			clone.fields[i] = append([]settingsField(nil), o.fields[i]...)
+		}
+	}
+	if o.eqPresets != nil {
+		clone.eqPresets = append([]config.EQPresetDef(nil), o.eqPresets...)
+	}
+	if o.libraryDirs != nil {
+		clone.libraryDirs = append([]string(nil), o.libraryDirs...)
+	}
+	if o.excludedPaths != nil {
+		clone.excludedPaths = append([]string(nil), o.excludedPaths...)
+	}
+	if o.libDirInput != nil {
+		input := *o.libDirInput
+		clone.libDirInput = &input
+	}
+	if o.exclPathInput != nil {
+		input := *o.exclPathInput
+		clone.exclPathInput = &input
+	}
+	if o.eqNameInput != nil {
+		input := *o.eqNameInput
+		clone.eqNameInput = &input
+	}
+	return clone
+}
+
+func applyPlayerStep(step *playerApplyStep) error {
+	if step == nil || step.apply == nil {
+		return nil
+	}
+	if err := step.apply(); err != nil {
+		if step.rollback != nil {
+			_ = step.rollback()
+		}
+		return err
+	}
+	return nil
+}
+
+func applyPlayerSteps(steps ...*playerApplyStep) error {
+	applied := make([]*playerApplyStep, 0, len(steps))
+	for _, step := range steps {
+		if step == nil || step.apply == nil {
+			continue
+		}
+		if err := step.apply(); err != nil {
+			if step.rollback != nil {
+				_ = step.rollback()
+			}
+			for i := len(applied) - 1; i >= 0; i-- {
+				if applied[i].rollback != nil {
+					_ = applied[i].rollback()
+				}
+			}
+			return fmt.Errorf("%s: %w", step.name, err)
+		}
+		applied = append(applied, step)
+	}
+	return nil
+}
+
+func (m Model) normalizeApplyStep(from, to bool) *playerApplyStep {
+	if from == to {
+		return nil
+	}
+	ns, ok := m.player.(audioNormalizer)
+	if !ok {
+		return nil
+	}
+	return &playerApplyStep{
+		name: "volume normalization",
+		apply: func() error {
+			return ns.SetNormalize(to)
+		},
+		rollback: func() error {
+			return ns.SetNormalize(from)
+		},
+	}
+}
+
+func (m Model) gaplessApplyStep(from, to bool) *playerApplyStep {
+	if from == to {
+		return nil
+	}
+	gt, ok := m.player.(gaplessToggler)
+	if !ok {
+		return nil
+	}
+	return &playerApplyStep{
+		name: "gapless playback",
+		apply: func() error {
+			return gt.SetGapless(to)
+		},
+		rollback: func() error {
+			return gt.SetGapless(from)
+		},
+	}
+}
+
+func (m Model) equalizerApplyStep(fromEnabled bool, fromBands [10]int, toEnabled bool, toBands [10]int) *playerApplyStep {
+	if fromEnabled == toEnabled && fromBands == toBands {
+		return nil
+	}
+	eq, ok := m.player.(equalizerSetter)
+	if !ok {
+		return nil
+	}
+	return &playerApplyStep{
+		name: "equalizer",
+		apply: func() error {
+			return eq.SetEqualizer(toEnabled, toBands)
+		},
+		rollback: func() error {
+			return eq.SetEqualizer(fromEnabled, fromBands)
+		},
+	}
+}
+
+func (m Model) stereoWideApplyStep(fromEnabled bool, fromAmount int, toEnabled bool, toAmount int) *playerApplyStep {
+	if fromEnabled == toEnabled && fromAmount == toAmount {
+		return nil
+	}
+	sw, ok := m.player.(stereoWideSetter)
+	if !ok {
+		return nil
+	}
+	return &playerApplyStep{
+		name: "stereo widening",
+		apply: func() error {
+			return sw.SetStereoWide(toEnabled, toAmount)
+		},
+		rollback: func() error {
+			return sw.SetStereoWide(fromEnabled, fromAmount)
+		},
+	}
+}
 
 // handleSettingsKeyPress intercepts keys while the settings overlay is active.
 // Returns (model, cmd, true) when the key was consumed, (model, nil, false) to
@@ -23,39 +172,69 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 	if msg.String() == "ctrl+c" {
 		return m, nil, false
 	}
+	previous := cloneSettingsOverlay(*m.overlay.settings)
 	updated, action, cmd := m.overlay.settings.HandleKey(msg)
 	m.overlay.settings = &updated
 	switch action {
 	case settingsCancel:
+		prevEQEnabled, prevEQBands := previous.EQState()
+		prevStereoEnabled, prevStereoAmount := previous.StereoWideState()
+		if err := applyPlayerSteps(
+			m.equalizerApplyStep(prevEQEnabled, prevEQBands, m.cfg.EQEnabled, m.cfg.EQBands),
+			m.stereoWideApplyStep(prevStereoEnabled, prevStereoAmount, m.cfg.StereoWideEnabled, m.cfg.StereoWideAmount),
+		); err != nil {
+			restored := previous
+			m.overlay.settings = &restored
+			m.statusBar.notify("Settings cancel failed: " + err.Error())
+			return m, cmd, true
+		}
 		m.overlay.settings = nil
-		if eq, ok := m.player.(equalizerSetter); ok {
-			_ = eq.SetEqualizer(m.cfg.EQEnabled, m.cfg.EQBands)
-		}
-		if sw, ok := m.player.(stereoWideSetter); ok {
-			_ = sw.SetStereoWide(m.cfg.StereoWideEnabled, m.cfg.StereoWideAmount)
-		}
 		return m, cmd, true
 	case settingsSave:
 		saved, saveCmd := m.handleSettingsSave()
 		return saved, tea.Batch(cmd, saveCmd), true
 	case settingsEQLive:
-		if eq, ok := m.player.(equalizerSetter); ok {
-			enabled, bands := m.overlay.settings.EQState()
-			_ = eq.SetEqualizer(enabled, bands)
+		prevEnabled, prevBands := previous.EQState()
+		nextEnabled, nextBands := updated.EQState()
+		if err := applyPlayerStep(m.equalizerApplyStep(prevEnabled, prevBands, nextEnabled, nextBands)); err != nil {
+			restored := previous
+			m.overlay.settings = &restored
+			m.statusBar.notify("Equalizer preview failed: " + err.Error())
 		}
 		return m, cmd, true
 	case settingsStereoLive:
-		if sw, ok := m.player.(stereoWideSetter); ok {
-			enabled, amount := m.overlay.settings.StereoWideState()
-			_ = sw.SetStereoWide(enabled, amount)
+		prevEnabled, prevAmount := previous.StereoWideState()
+		nextEnabled, nextAmount := updated.StereoWideState()
+		if err := applyPlayerStep(m.stereoWideApplyStep(prevEnabled, prevAmount, nextEnabled, nextAmount)); err != nil {
+			restored := previous
+			m.overlay.settings = &restored
+			m.statusBar.notify("Stereo widening preview failed: " + err.Error())
 		}
 		return m, cmd, true
 	case settingsEQSave:
 		return m, cmd, true
 	case settingsEQDelete:
-		if eq, ok := m.player.(equalizerSetter); ok {
-			enabled, bands := m.overlay.settings.EQState()
-			_ = eq.SetEqualizer(enabled, bands)
+		prevEnabled, prevBands := previous.EQState()
+		nextEnabled, nextBands := updated.EQState()
+		step := m.equalizerApplyStep(prevEnabled, prevBands, nextEnabled, nextBands)
+		if step == nil {
+			if eq, ok := m.player.(equalizerSetter); ok {
+				step = &playerApplyStep{
+					name: "equalizer",
+					apply: func() error {
+						return eq.SetEqualizer(nextEnabled, nextBands)
+					},
+					rollback: func() error {
+						return eq.SetEqualizer(prevEnabled, prevBands)
+					},
+				}
+			}
+		}
+		if err := applyPlayerStep(step); err != nil {
+			restored := previous
+			restored.eqConfirmDel = false
+			m.overlay.settings = &restored
+			m.statusBar.notify("Equalizer preview failed: " + err.Error())
 		}
 		return m, cmd, true
 	}
@@ -76,24 +255,22 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 	if m.overlay.settings == nil {
 		return m, nil
 	}
+	oldCfg := m.cfg
 	oldRoots := m.libraryRoots
-	oldExcluded := m.cfg.ExcludedPaths
+	oldExcluded := oldCfg.ExcludedPaths
 	cfg := m.overlay.settings.ToConfig(m.cfg)
+	if err := applyPlayerSteps(
+		m.normalizeApplyStep(oldCfg.NormalizeVolume, cfg.NormalizeVolume),
+		m.gaplessApplyStep(oldCfg.GaplessAudio, cfg.GaplessAudio),
+		m.equalizerApplyStep(oldCfg.EQEnabled, oldCfg.EQBands, cfg.EQEnabled, cfg.EQBands),
+		m.stereoWideApplyStep(oldCfg.StereoWideEnabled, oldCfg.StereoWideAmount, cfg.StereoWideEnabled, cfg.StereoWideAmount),
+	); err != nil {
+		m.statusBar.notify("Settings save failed: " + err.Error())
+		return m, nil
+	}
 	m.cfg = cfg
 	m.statusBar.transientDur = time.Duration(cfg.TransientDurationSecs) * time.Second
 	m.overlay.settings = nil
-	if ns, ok := m.player.(audioNormalizer); ok {
-		_ = ns.SetNormalize(m.cfg.NormalizeVolume)
-	}
-	if gt, ok := m.player.(gaplessToggler); ok {
-		_ = gt.SetGapless(m.cfg.GaplessAudio)
-	}
-	if eq, ok := m.player.(equalizerSetter); ok {
-		_ = eq.SetEqualizer(m.cfg.EQEnabled, m.cfg.EQBands)
-	}
-	if sw, ok := m.player.(stereoWideSetter); ok {
-		_ = sw.SetStereoWide(m.cfg.StereoWideEnabled, m.cfg.StereoWideAmount)
-	}
 
 	var saveCmd tea.Cmd
 	if m.configPath == "" {

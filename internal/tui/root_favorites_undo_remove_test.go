@@ -88,6 +88,46 @@ func TestUndoRemoveFavorite_TrackHashRestored(t *testing.T) {
 	}
 }
 
+func TestUndoRemoveFavorite_TrackLevelKeepsDrilldownTrack(t *testing.T) {
+	w := &stubFavoriteWriter{}
+	r := &stubFavoriteReader{favorites: map[string][]string{
+		"track": {"h1", "h2"},
+	}}
+	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.TrackLevel
+	m.favorites.category = favtui.CategoryArtists
+	m.favorites.drilldownTracks = []library.Track{
+		{Hash: "h1", Title: "T1"},
+		{Hash: "h2", Title: "T2"},
+	}
+	m.favoriteHashes = map[string]struct{}{"h2": {}}
+
+	m.undo.slot = undoSlot{
+		action: undoRemoveFavoriteAction{
+			typ:   "track",
+			value: "h1",
+			track: library.Track{Hash: "h1", Title: "T1"},
+			idx:   0,
+			level: favtui.TrackLevel,
+		},
+		expiresAt: time.Now().Add(undoWindowDuration),
+	}
+
+	next, _ := m.Update(UndoMsg{})
+	nm := next.(Model)
+
+	if len(nm.favorites.drilldownTracks) != 2 {
+		t.Fatalf("expected 2 drilldown tracks after undo, got %d", len(nm.favorites.drilldownTracks))
+	}
+	if nm.favorites.drilldownTracks[0].Hash != "h1" || nm.favorites.drilldownTracks[1].Hash != "h2" {
+		t.Fatalf("expected [h1 h2], got [%s %s]", nm.favorites.drilldownTracks[0].Hash, nm.favorites.drilldownTracks[1].Hash)
+	}
+	if _, ok := nm.favoriteHashes["h1"]; !ok {
+		t.Fatal("expected h1 to be restored in favoriteHashes")
+	}
+}
+
 // TestUndoRemoveFavorite_FromNonFavoritesView verifies that undo from a
 // non-Favorites view (idx == -1) still calls AddFavorite on the DB
 // but does not modify any in-view lists.

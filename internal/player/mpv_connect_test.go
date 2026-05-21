@@ -246,4 +246,11 @@ func TestManager_HealthCheckDetectsDisconnect(t *testing.T) {
 	if c != nil {
 		t.Error("expected m.client to be nil after disconnect")
 	}
+
+	client.mu.Lock()
+	closed := client.closed
+	client.mu.Unlock()
+	if !closed {
+		t.Error("expected health check to close the disconnected client")
+	}
 }

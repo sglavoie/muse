@@ -2,6 +2,7 @@ package player
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 )
@@ -107,6 +108,45 @@ func TestManager_SetStereoWide_Disabled(t *testing.T) {
 	if !found {
 		t.Errorf("expected set_property af \"\" not sent; got %v", received)
 	}
+}
+
+func TestManager_SetStereoWide_BeforeStartLeavesFiltersUnchanged(t *testing.T) {
+	t.Run("enable", func(t *testing.T) {
+		m := NewManager(shortSockPath(t, "sw-pre-on"))
+		defer m.Close()
+
+		m.mu.Lock()
+		m.audioFilters["loudnorm"] = "loudnorm"
+		m.mu.Unlock()
+
+		if err := m.SetStereoWide(true, 15); !errors.Is(err, ErrNotConnected) {
+			t.Fatalf("SetStereoWide(true, 15): want ErrNotConnected, got %v", err)
+		}
+
+		assertAudioFilters(t, m, map[string]string{"loudnorm": "loudnorm"})
+	})
+
+	t.Run("disable", func(t *testing.T) {
+		m := NewManager(shortSockPath(t, "sw-pre-off"))
+		defer m.Close()
+
+		want := map[string]string{
+			"loudnorm":   "loudnorm",
+			"stereowide": "extrastereo=m=1.5",
+		}
+
+		m.mu.Lock()
+		for name, expr := range want {
+			m.audioFilters[name] = expr
+		}
+		m.mu.Unlock()
+
+		if err := m.SetStereoWide(false, 0); !errors.Is(err, ErrNotConnected) {
+			t.Fatalf("SetStereoWide(false): want ErrNotConnected, got %v", err)
+		}
+
+		assertAudioFilters(t, m, want)
+	})
 }
 
 func TestManager_FilterChain_StereoWideWithOthers(t *testing.T) {
