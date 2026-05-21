@@ -220,3 +220,21 @@ func TestFilteredWalk_MultipleRootsDeletedFileReported(t *testing.T) {
 		t.Errorf("expected %q in deleted, got %v", paths2[0], deleted)
 	}
 }
+
+func TestFilteredWalk_NestedRootsDeduplicateChangedFiles(t *testing.T) {
+	root := t.TempDir()
+	shared := filepath.Join(root, "albums")
+	audio := filepath.Join(shared, "track.mp3")
+	mkfile(t, audio)
+
+	changed, deleted, err := FilteredWalk(context.Background(), []string{root, shared}, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("FilteredWalk: %v", err)
+	}
+	if len(changed) != 1 || changed[0] != audio {
+		t.Errorf("changed: got %v, want [%s]", changed, audio)
+	}
+	if len(deleted) != 0 {
+		t.Errorf("deleted: got %v, want empty", deleted)
+	}
+}

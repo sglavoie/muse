@@ -8,12 +8,9 @@ import (
 	"testing"
 )
 
-// TestInitLogging_FailureAfterPreviousCloseDoesNotWriteToClosedFD verifies
-// that when InitLogging is called a second time and the new file cannot be
-// opened (e.g. the state directory is now a file, not a directory), slog's
-// default handler is repointed away from the just-closed previous file handle
-// so subsequent slog calls do not write to a closed FD.
-func TestInitLogging_FailureAfterPreviousCloseDoesNotWriteToClosedFD(t *testing.T) {
+// TestInitLogging_FailureKeepsPreviousLogger verifies that a failed reinit does
+// not drop the already-working logger.
+func TestInitLogging_FailureKeepsPreviousLogger(t *testing.T) {
 	prev := slog.Default()
 	t.Cleanup(func() {
 		slog.SetDefault(prev)
@@ -25,12 +22,17 @@ func TestInitLogging_FailureAfterPreviousCloseDoesNotWriteToClosedFD(t *testing.
 
 	dir := t.TempDir()
 	stateDir := filepath.Join(dir, "muse")
+	path := filepath.Join(stateDir, logFileName)
 
 	// First init succeeds, opens a file handle and points slog at it.
 	if err := InitLogging(stateDir, slog.LevelInfo); err != nil {
 		t.Fatalf("first InitLogging: %v", err)
 	}
 	firstFile := logFile
+	slog.Info("before failed reinit")
+	if err := logFile.Sync(); err != nil {
+		t.Fatalf("sync initial log file: %v", err)
+	}
 
 	// Force the second init to fail at MkdirAll by placing a regular file
 	// at the path that would need to become a directory.
@@ -42,17 +44,22 @@ func TestInitLogging_FailureAfterPreviousCloseDoesNotWriteToClosedFD(t *testing.
 		t.Fatal("expected InitLogging to fail when stateDir parent is a file")
 	}
 
-	// The first file handle must have been closed.
-	if _, err := firstFile.Write([]byte("should fail")); err == nil {
-		t.Error("expected closed FD; first file handle still writable")
+	if logFile != firstFile {
+		t.Fatal("failed reinit should keep the existing log file handle active")
 	}
 
-	// Subsequent slog calls must NOT panic and must NOT write to the closed FD.
-	// We cannot directly observe a write-to-closed-FD here, but we verify that
-	// the slog default is no longer the closed file's handler by capturing
-	// to a buffer via SetDefault override would defeat the test — instead, we
-	// just call slog.Info and require no panic.
-	slog.Info("after failed reinit - must be safe")
+	slog.Info("after failed reinit - must be preserved")
+	if err := logFile.Sync(); err != nil {
+		t.Fatalf("sync preserved log file: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read log file after failed reinit: %v", err)
+	}
+	if !bytes.Contains(data, []byte("after failed reinit - must be preserved")) {
+		t.Fatalf("expected preserved logger to keep writing to %s, got:\n%s", path, data)
+	}
 }
 
 // TestCloseLog_RepointsSlogToDiscard verifies that calling CloseLog repoints

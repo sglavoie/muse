@@ -75,11 +75,16 @@ func Walk(ctx context.Context, roots []string, excludedPaths []string) <-chan st
 	ch := make(chan string, 64)
 	go func() {
 		defer close(ch)
+		emitted := make(map[string]struct{})
 		for _, root := range roots {
 			if ctx.Err() != nil {
 				return
 			}
 			if err := walkAudioPaths(ctx, root, excludedPaths, func(path string) error {
+				if _, ok := emitted[path]; ok {
+					return nil
+				}
+				emitted[path] = struct{}{}
 				select {
 				case ch <- path:
 					return nil
@@ -101,11 +106,16 @@ func Walk(ctx context.Context, roots []string, excludedPaths []string) <-chan st
 // background goroutine to provide an early estimated total.
 func CountAudioFiles(ctx context.Context, roots []string, excludedPaths []string) int {
 	count := 0
+	seen := make(map[string]struct{})
 	for _, root := range roots {
 		if ctx.Err() != nil {
 			break
 		}
-		if err := walkAudioPaths(ctx, root, excludedPaths, func(_ string) error {
+		if err := walkAudioPaths(ctx, root, excludedPaths, func(path string) error {
+			if _, ok := seen[path]; ok {
+				return nil
+			}
+			seen[path] = struct{}{}
 			count++
 			return nil
 		}, nil); err != nil && ctx.Err() == nil {

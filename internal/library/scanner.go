@@ -46,6 +46,9 @@ func FilteredWalk(ctx context.Context, roots []string, excludedPaths []string, k
 			break
 		}
 		if err := walkAudioPaths(ctx, root, excludedPaths, func(path string) error {
+			if seen[path] {
+				return nil
+			}
 			seen[path] = true
 			info, err := os.Stat(path)
 			if err != nil {

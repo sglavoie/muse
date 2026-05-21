@@ -202,6 +202,18 @@ func TestWalk_MultipleRootsMergesResults(t *testing.T) {
 	}
 }
 
+func TestWalk_NestedRootsDeduplicateFiles(t *testing.T) {
+	root := t.TempDir()
+	shared := filepath.Join(root, "albums")
+	mkfile(t, filepath.Join(shared, "track.mp3"))
+
+	got := collectNames(Walk(context.Background(), []string{root, shared}, nil))
+	want := []string{"track.mp3"}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
 // TestCountAudioFiles_SumsAcrossMultipleRoots verifies that CountAudioFiles
 // sums counts across all provided root directories.
 func TestCountAudioFiles_SumsAcrossMultipleRoots(t *testing.T) {
@@ -215,6 +227,18 @@ func TestCountAudioFiles_SumsAcrossMultipleRoots(t *testing.T) {
 	got := CountAudioFiles(context.Background(), []string{dir1, dir2}, nil)
 	if got != 4 {
 		t.Errorf("CountAudioFiles two dirs = %d, want 4", got)
+	}
+}
+
+func TestCountAudioFiles_NestedRootsDeduplicateFiles(t *testing.T) {
+	root := t.TempDir()
+	shared := filepath.Join(root, "albums")
+	mkfile(t, filepath.Join(shared, "a.mp3"))
+	mkfile(t, filepath.Join(shared, "b.flac"))
+
+	got := CountAudioFiles(context.Background(), []string{root, shared}, nil)
+	if got != 2 {
+		t.Errorf("CountAudioFiles nested roots = %d, want 2", got)
 	}
 }
 
