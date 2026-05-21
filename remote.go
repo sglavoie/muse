@@ -89,6 +89,13 @@ func startCommandListener(p *tea.Program, runtimeDir string) (net.Listener, erro
 	if err != nil {
 		return nil, fmt.Errorf("listen on control socket: %w", err)
 	}
+	// Restrict the socket to the owner so a permissive umask cannot let
+	// other users on a multi-user host dispatch playback commands.
+	if err := os.Chmod(sockPath, 0o600); err != nil {
+		_ = ln.Close()
+		_ = os.Remove(sockPath)
+		return nil, fmt.Errorf("restrict control socket permissions: %w", err)
+	}
 	ln = &unixSocketListener{Listener: ln, path: sockPath}
 
 	go acceptLoop(p, ln)
@@ -214,6 +221,9 @@ func runRemoteAction(action string) error {
 	}
 	defer conn.Close()
 
+	if err := conn.SetWriteDeadline(time.Now().Add(remoteReadTimeout)); err != nil {
+		return fmt.Errorf("prepare command write: %w", err)
+	}
 	if _, err := fmt.Fprintln(conn, action); err != nil {
 		return fmt.Errorf("send command: %w", err)
 	}

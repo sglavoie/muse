@@ -189,6 +189,10 @@ func (m Model) clearAllSelections() Model {
 	m.browse.genres.selectedHashes = nil
 	m.favorites.selectedItems = nil
 	m.tagsView.selectedHashes = nil
+	m.playlists.selectedTrackIDs = nil
+	for i := range m.queue.entries {
+		m.queue.entries[i].Selected = false
+	}
 	return m
 }
 
@@ -201,11 +205,13 @@ func (m Model) handleDestinationPickerDismissedMsg() Model {
 
 // handleDestinationPickerCreateMsg dismisses the picker, switches to the
 // playlists view, and activates the inline create input. Staged tracks are
-// kept so they are auto-added after the playlist is created.
+// kept so they are auto-added after the playlist is created. Use
+// switchToView to drop visual mode and reset sort state, so the new view
+// is not contaminated by the source view's transient state.
 func (m Model) handleDestinationPickerCreateMsg() Model {
 	m.overlay.destPicker = nil
 	m = m.clearAllSelections()
-	m.activeView = viewPlaylists
+	m = m.switchToView(viewPlaylists)
 	m.playlists = m.playlists.startCreate()
 	return m
 }

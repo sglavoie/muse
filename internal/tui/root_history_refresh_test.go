@@ -67,6 +67,37 @@ func TestPlayRecordedMsg_CapsAt500Entries(t *testing.T) {
 	}
 }
 
+// TestPlayRecordedMsg_ClampsCursorAfterReplace verifies that after sourceTracks
+// is rewritten by a recorded play, the library cursor is clamped to the new
+// list length so that the next render does not over-index the slice.
+func TestPlayRecordedMsg_ClampsCursorAfterReplace(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac"})
+	m.library.mode = LibraryModeHistory
+	m.library.sourceTracks = []library.Track{
+		{Hash: "h1", Path: "/a.flac"},
+		{Hash: "h2", Path: "/b.flac"},
+		{Hash: "h3", Path: "/c.flac"},
+	}
+	m.library.cursor = 2
+
+	// Recording h1 dedups: it is prepended and the existing h1 row is dropped,
+	// so the list shrinks from 3 to 3 (no change). Drop an entry first to
+	// trigger a shrink.
+	m.library.sourceTracks = []library.Track{
+		{Hash: "h1", Path: "/a.flac"},
+	}
+	m.library.cursor = 5
+
+	next, _ := m.Update(playRecordedMsg{Hash: "h1", PlayedAt: 1000})
+	nm := next.(Model)
+
+	count := nm.library.trackCount()
+	if nm.library.cursor < 0 || nm.library.cursor >= count {
+		t.Errorf("cursor %d out of bounds for trackCount %d", nm.library.cursor, count)
+	}
+}
+
 func TestPlayRecordedMsg_SkipsUnknownHash(t *testing.T) {
 	m := New(context.Background())
 	m.library.mode = LibraryModeHistory

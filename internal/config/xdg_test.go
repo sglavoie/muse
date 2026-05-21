@@ -140,6 +140,60 @@ func TestResolveRuntimeDir_DefaultFallbackIsUserSpecific(t *testing.T) {
 	}
 }
 
+// TestResolveDirs_RelativeXDGPathsIgnored verifies that XDG env vars set to a
+// non-absolute value are ignored per the XDG Base Directory Specification:
+// otherwise muse would write config/state/runtime files under whatever the
+// current working directory happens to be at launch time.
+func TestResolveDirs_RelativeXDGPathsIgnored(t *testing.T) {
+	setEnv(t, "XDG_CONFIG_HOME", "relative/cfg")
+	setEnv(t, "XDG_DATA_HOME", "relative/data")
+	setEnv(t, "XDG_STATE_HOME", "relative/state")
+	setEnv(t, "XDG_RUNTIME_DIR", "relative/run")
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("UserHomeDir: %v", err)
+	}
+
+	dirs, err := ResolveDirs()
+	if err != nil {
+		t.Fatalf("ResolveDirs: %v", err)
+	}
+
+	wantConfig := filepath.Join(home, ".config", "muse")
+	if dirs.Config != wantConfig {
+		t.Errorf("Config = %q, want %q (relative XDG_CONFIG_HOME must be ignored)", dirs.Config, wantConfig)
+	}
+
+	var wantData string
+	if runtime.GOOS == "darwin" {
+		wantData = filepath.Join(home, "Library", "Application Support", "muse")
+	} else {
+		wantData = filepath.Join(home, ".local", "share", "muse")
+	}
+	if dirs.Data != wantData {
+		t.Errorf("Data = %q, want %q (relative XDG_DATA_HOME must be ignored)", dirs.Data, wantData)
+	}
+
+	wantState := filepath.Join(home, ".local", "state", "muse")
+	if dirs.State != wantState {
+		t.Errorf("State = %q, want %q (relative XDG_STATE_HOME must be ignored)", dirs.State, wantState)
+	}
+
+	wantRuntime := wantFallbackRuntimeDir(t)
+	if dirs.Runtime != wantRuntime {
+		t.Errorf("Runtime = %q, want %q (relative XDG_RUNTIME_DIR must be ignored)", dirs.Runtime, wantRuntime)
+	}
+}
+
+func TestResolveRuntimeDir_RelativeEnvIgnored(t *testing.T) {
+	setEnv(t, "XDG_RUNTIME_DIR", "not/absolute")
+	want := wantFallbackRuntimeDir(t)
+	if got := ResolveRuntimeDir(); got != want {
+		t.Errorf("ResolveRuntimeDir() = %q, want %q (relative XDG_RUNTIME_DIR must be ignored)", got, want)
+	}
+}
+
 func TestResolveDirs_PartialOverride(t *testing.T) {
 	// Only override config; the rest should use defaults.
 	for _, key := range []string{"XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_RUNTIME_DIR"} {

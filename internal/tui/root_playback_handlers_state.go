@@ -322,6 +322,6 @@ func (m Model) handlePlayRecordedMsg(msg playRecordedMsg) Model {
 	}
 	m.library.sourceTracks = tracks
 
-	m.library = m.library.refreshView()
+	m.library = m.library.refreshView().clampCursor()
 	return m
 }

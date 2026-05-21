@@ -1,6 +1,7 @@
 package radio
 
 import (
+	"math"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
@@ -564,6 +565,36 @@ func TestScoreAll_AlbumMatchTrimsWhitespace(t *testing.T) {
 	}
 	if scoreByHash["t3"] != 0 {
 		t.Errorf("unrelated album must not earn the boost, got %f", scoreByHash["t3"])
+	}
+}
+
+// Regression: NaN or Inf entries in TimeGenreBonus must not propagate into
+// candidate scores. A single NaN score breaks sort.Slice ordering (every
+// comparison with NaN is false), producing non-deterministic results and
+// invalidating the descending-score invariant downstream consumers rely on.
+func TestScoreAll_TimeGenreBonusRejectsNaNAndInf(t *testing.T) {
+	seed := track("s1", "", "", "", 0)
+	rockTrack := track("t1", "", "", "Rock", 0)
+	jazzTrack := track("t2", "", "", "Jazz", 0)
+	popTrack := track("t3", "", "", "Pop", 0)
+	got := ScoreAll(ScoreInput{
+		Seed:      seedFrom(seed, nil, nil),
+		AllTracks: []library.Track{rockTrack, jazzTrack, popTrack},
+		TimeGenreBonus: map[string]float64{
+			"Rock": math.NaN(),
+			"Jazz": math.Inf(1),
+			"Pop":  2,
+		},
+	})
+	for _, ts := range got {
+		if math.IsNaN(ts.Score) || math.IsInf(ts.Score, 0) {
+			t.Errorf("track %s scored NaN/Inf via poisoned time-genre bonus: %f",
+				ts.Track.Hash, ts.Score)
+		}
+	}
+	if got[0].Track.Hash != "t3" || got[0].Score != 2 {
+		t.Errorf("expected Pop (+2) to remain top after NaN/Inf filtering, got %s score=%f",
+			got[0].Track.Hash, got[0].Score)
 	}
 }
 

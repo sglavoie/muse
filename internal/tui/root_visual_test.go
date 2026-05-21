@@ -344,6 +344,35 @@ func TestVisualModeMixesGuardTrackLevel(t *testing.T) {
 	}
 }
 
+// TestBulkSelectionToggleExitsVisualMode verifies that toggling a bulk
+// selection while visual mode is active commits the range and exits visual
+// mode. Without this, the next cursor move restored the pre-visual snapshot
+// and silently dropped the toggle.
+func TestBulkSelectionToggleExitsVisualMode(t *testing.T) {
+	m := newLibraryModel(5)
+	m.library.cursor = 0
+
+	m = doVisual(m)
+	m = doNav(m, actionCursorDown) // visual range: h0..h1
+	if !m.visual.active {
+		t.Fatal("expected visual mode active before toggle")
+	}
+
+	m, _, _ = m.handleNavigationAction(actionBulkSelectionToggle)
+	if m.visual.active {
+		t.Fatal("expected visual mode to exit on bulk-selection toggle")
+	}
+
+	// Visual range committed h0+h1; the toggle at the current cursor (h1)
+	// then flips h1 off, leaving only h0 selected.
+	if _, ok := m.library.selectedHashes["h0"]; !ok {
+		t.Error("h0 should remain selected from the visual range")
+	}
+	if _, ok := m.library.selectedHashes["h1"]; ok {
+		t.Error("h1 should have been toggled off by the bulk action")
+	}
+}
+
 // TestSortedIntSetKeysOrder verifies that sortedIntSetKeys returns keys in
 // ascending order.
 func TestSortedIntSetKeysOrder(t *testing.T) {

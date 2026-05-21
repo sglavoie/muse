@@ -58,6 +58,13 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 		}
 		return m, nil, true
 	case actionBulkSelectionToggle:
+		// Exit visual mode first: while active the next cursor move restores
+		// the pre-visual snapshot and re-applies the range, which silently
+		// throws away any toggle issued inside the range. Treating the toggle
+		// as committing the current visual range matches the vim convention.
+		if m.visual.active {
+			m = exitVisualMode(m)
+		}
 		switch m.activeView {
 		case viewLibrary:
 			m.library = m.library.HandleAction(action)

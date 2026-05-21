@@ -237,3 +237,50 @@ func TestSave_AtomicRoundTrip(t *testing.T) {
 		t.Errorf("LogLevel = %q, want warn", result.Config.LogLevel)
 	}
 }
+
+// TestLoad_MPVExtraFlags_EmptyEntriesDropped ensures whitespace-only or empty
+// flag strings from the TOML config are silently dropped. Passing an empty
+// argument to mpv produces an unhelpful "Option --: parameter must be ..."
+// error and aborts startup.
+func TestLoad_MPVExtraFlags_EmptyEntriesDropped(t *testing.T) {
+	dir := t.TempDir()
+	content := `mpv_extra_flags = ["--no-video", "", "  ", "--volume=80"]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	got := result.Config.MPVExtraFlags
+	if len(got) != 2 {
+		t.Fatalf("MPVExtraFlags: expected 2 entries after dropping empties, got %d (%v)", len(got), got)
+	}
+	if got[0] != "--no-video" || got[1] != "--volume=80" {
+		t.Errorf("MPVExtraFlags = %v, want [--no-video --volume=80]", got)
+	}
+}
+
+// TestLoad_MPVExtraFlags_OnlyEmptyEntriesYieldsEmptySlice ensures that a list
+// of only blank entries does not leave callers with a nil slice (the rest of
+// the codebase assumes a non-nil MPVExtraFlags).
+func TestLoad_MPVExtraFlags_OnlyEmptyEntriesYieldsEmptySlice(t *testing.T) {
+	dir := t.TempDir()
+	content := `mpv_extra_flags = ["", "  "]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	got := result.Config.MPVExtraFlags
+	if got == nil {
+		t.Fatal("MPVExtraFlags is nil; expected non-nil empty slice")
+	}
+	if len(got) != 0 {
+		t.Errorf("MPVExtraFlags = %v, want empty", got)
+	}
+}

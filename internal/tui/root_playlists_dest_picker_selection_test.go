@@ -92,6 +92,48 @@ func TestDestPickerClearsFavoritesSelection(t *testing.T) {
 	})
 }
 
+// TestDestPickerCreateExitsVisualMode verifies that creating a playlist via
+// the destination picker exits visual mode. Without this, the stale visual
+// snapshot from the source view would re-apply on the next cursor move once
+// the user navigated back, silently restoring discarded selections.
+func TestDestPickerCreateExitsVisualMode(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewLibrary
+	m.visual = visualState{active: true, view: viewLibrary, anchor: 0}
+
+	got := m.handleDestinationPickerCreateMsg()
+
+	if got.visual.active {
+		t.Error("expected visual mode to be inactive after destination picker create")
+	}
+	if got.activeView != viewPlaylists {
+		t.Errorf("expected activeView=viewPlaylists, got %v", got.activeView)
+	}
+	if !got.playlists.creating {
+		t.Error("expected playlists.creating=true after destination picker create")
+	}
+}
+
+// TestClearAllSelectionsClearsQueueAndPlaylists verifies that the helper
+// invoked from every destination-picker exit path drops bulk selections in
+// the queue and playlists views too, not just library/browse/favorites/tags.
+func TestClearAllSelectionsClearsQueueAndPlaylists(t *testing.T) {
+	m := New(context.Background())
+	m.queue.entries = []QueueEntry{{Hash: "h1", Selected: true}, {Hash: "h2", Selected: true}}
+	m.playlists.selectedTrackIDs = map[int64]struct{}{1: {}, 2: {}}
+
+	got := m.clearAllSelections()
+
+	for i, e := range got.queue.entries {
+		if e.Selected {
+			t.Errorf("queue entry %d should be deselected", i)
+		}
+	}
+	if got.playlists.selectedTrackIDs != nil {
+		t.Error("playlists.selectedTrackIDs should be nil after clearAllSelections")
+	}
+}
+
 // TestDestPickerClearsRecentlyAddedAndHistorySelection verifies that
 // dismissing, creating from, or confirming a destination picker clears
 // the library view's bulk selections (used for both Recently Added and History modes).

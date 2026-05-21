@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -92,7 +93,8 @@ func coerceString(raw json.RawMessage) string {
 
 // coerceFloat extracts a float64 from a JSON value that may be a number or
 // a duration string. Supported string formats: "HH:MM:SS", "MM:SS", and
-// plain numeric strings like "123.45".
+// plain numeric strings like "123.45". Negative, NaN, and Inf values are
+// normalised to 0 so they cannot poison downstream duration arithmetic.
 func coerceFloat(raw json.RawMessage) float64 {
 	if len(raw) == 0 {
 		return 0
@@ -100,14 +102,22 @@ func coerceFloat(raw json.RawMessage) float64 {
 	// Try number first (most common with -Duration#).
 	var f float64
 	if json.Unmarshal(raw, &f) == nil {
-		return f
+		return sanitizeDuration(f)
 	}
 	// Try string: could be "HH:MM:SS", "MM:SS", or a numeric string.
 	var s string
 	if json.Unmarshal(raw, &s) != nil {
 		return 0
 	}
-	return parseDurationString(s)
+	return sanitizeDuration(parseDurationString(s))
+}
+
+// sanitizeDuration coerces non-finite or negative durations to 0.
+func sanitizeDuration(f float64) float64 {
+	if math.IsNaN(f) || math.IsInf(f, 0) || f < 0 {
+		return 0
+	}
+	return f
 }
 
 // parseDurationString converts a duration string to seconds. It handles:
@@ -261,6 +271,9 @@ func ExtractAllTags(ctx context.Context, path string) (map[string]any, error) {
 // single-file batch fails, that file is skipped so at most one track loses
 // metadata per corrupt file.
 func extractWithBinaryRetry(ctx context.Context, extractor MetadataExtractor, files []HashedFile) []Track {
+	if len(files) == 0 {
+		return nil
+	}
 	tracks, err := extractor.Extract(ctx, files)
 	if err == nil {
 		for i := range tracks {
@@ -279,6 +292,12 @@ func extractWithBinaryRetry(ctx context.Context, extractor MetadataExtractor, fi
 			}
 		}
 		return tracks
+	}
+	if ctx.Err() != nil {
+		// Scan was cancelled: bail without generating filename fallbacks for
+		// the remaining files. The caller is shutting down and any partial
+		// results would just be discarded.
+		return nil
 	}
 	if len(files) == 1 {
 		// Corrupt single file: fall back to filename-derived metadata so the
@@ -323,10 +342,18 @@ func ExtractBatches(ctx context.Context, extractor MetadataExtractor, in <-chan 
 			slog.Debug("processing metadata batch", "size", len(batch))
 			tracks := extractWithBinaryRetry(ctx, extractor, batch)
 			slog.Info("scan batch complete", "tracks", len(tracks))
-			for _, t := range tracks {
-				out <- t
-			}
 			batch = batch[:0]
+			for _, t := range tracks {
+				select {
+				case out <- t:
+				case <-ctx.Done():
+					// Drop remaining tracks rather than blocking on a
+					// consumer that has gone away; the upstream HashedFile
+					// channel must still be drained so the hash-worker
+					// goroutines can exit cleanly.
+					return
+				}
+			}
 		}
 		for hf := range in {
 			batch = append(batch, hf)

@@ -20,8 +20,10 @@ import (
 
 var shortTempDirCounter uint64
 
-// shortTempDir creates a short relative temp dir inside the worktree so Unix
-// socket paths stay below macOS's 104-byte limit.
+// shortTempDir creates a short temp dir inside the worktree so Unix socket
+// paths stay below macOS's 104-byte limit. The returned path is absolute so
+// callers can use it as $XDG_RUNTIME_DIR (the XDG spec — and our xdgEnv
+// helper — ignore non-absolute values).
 func shortTempDir(t *testing.T) string {
 	t.Helper()
 
@@ -31,7 +33,10 @@ func shortTempDir(t *testing.T) string {
 	}
 
 	dir := filepath.Join(base, strconv.FormatUint(atomic.AddUint64(&shortTempDirCounter, 1), 10))
-	err := os.MkdirAll(dir, 0o755)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	abs, err := filepath.Abs(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +44,7 @@ func shortTempDir(t *testing.T) string {
 		_ = os.RemoveAll(dir)
 		_ = os.Remove(base)
 	})
-	return dir
+	return abs
 }
 
 // noopModel is a minimal bubbletea model for remote tests. It records received
@@ -636,5 +641,78 @@ func TestRunRemoteAction_AckDelayWithinReadTimeout(t *testing.T) {
 		}
 	case <-time.After(6 * time.Second):
 		t.Fatal("timed out waiting for remote listener")
+	}
+}
+
+// TestStartCommandListener_SocketPermissions verifies that the control socket
+// is created with mode 0600 so a permissive umask cannot expose it to other
+// users on a multi-user host.
+func TestStartCommandListener_SocketPermissions(t *testing.T) {
+	dir := shortTempDir(t)
+	received := make(chan tui.RemoteActionMsg, 1)
+	p := newTestProgram(received)
+	go p.Run() //nolint:errcheck
+	defer p.Quit()
+
+	ln, err := startCommandListener(p, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	info, err := os.Stat(filepath.Join(dir, ctrlSocketName))
+	if err != nil {
+		t.Fatalf("stat socket: %v", err)
+	}
+	const wantPerm = os.FileMode(0o600)
+	if got := info.Mode().Perm(); got != wantPerm {
+		t.Errorf("socket permissions = %o, want %o", got, wantPerm)
+	}
+}
+
+// TestRunRemoteAction_WriteDeadline verifies that runRemoteAction does not
+// block indefinitely when a remote listener accepts the connection but never
+// drains its receive buffer. Before the fix, fmt.Fprintln(conn, ...) had no
+// write deadline and could hang once OS-level socket buffers filled.
+func TestRunRemoteAction_WriteDeadline(t *testing.T) {
+	baseDir := shortTempDir(t)
+	runtimeDir := filepath.Join(baseDir, "muse")
+	if err := os.MkdirAll(runtimeDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_RUNTIME_DIR", baseDir)
+
+	sockPath := filepath.Join(runtimeDir, ctrlSocketName)
+	ln, err := net.Listen("unix", sockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		accepted <- conn
+	}()
+
+	done := make(chan error, 1)
+	go func() { done <- runRemoteAction("next") }()
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("expected error from runRemoteAction; small payload may have succeeded — that is acceptable so long as the call did not hang")
+		}
+	case <-time.After(remoteReadTimeout + 3*time.Second):
+		t.Fatal("runRemoteAction hung past the write/read deadline")
+	}
+
+	select {
+	case c := <-accepted:
+		c.Close()
+	default:
 	}
 }

@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/filter"
 )
 
 // handleConfigToggleMsg toggles an audio setting, applies it to the player,
@@ -60,10 +61,12 @@ func onOff(b bool) string {
 }
 
 // handleRandomAlbumMsg switches to Albums browse mode and positions the cursor
-// on a randomly-chosen album.
+// on a randomly-chosen album. Any active filter is cleared first so the random
+// index always refers to a visible row.
 func (m Model) handleRandomAlbumMsg() (Model, tea.Cmd) {
 	m.browse.mode = BrowseModeAlbums
 	m = m.switchToView(viewBrowse)
+	m.browse.albums.filter = filter.State{}
 	if len(m.browse.albums.albums) == 0 {
 		m.statusBar.notify("Library is empty")
 		return m, nil
@@ -76,10 +79,12 @@ func (m Model) handleRandomAlbumMsg() (Model, tea.Cmd) {
 }
 
 // handleRandomArtistMsg switches to Artists browse mode and positions the cursor
-// on a randomly-chosen artist.
+// on a randomly-chosen artist. Any active filter is cleared first so the random
+// index always refers to a visible row.
 func (m Model) handleRandomArtistMsg() (Model, tea.Cmd) {
 	m.browse.mode = BrowseModeArtists
 	m = m.switchToView(viewBrowse)
+	m.browse.artists.filter = filter.State{}
 	if len(m.browse.artists.artists) == 0 {
 		m.statusBar.notify("Library is empty")
 		return m, nil

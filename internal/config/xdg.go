@@ -39,7 +39,7 @@ func ResolveDirs() (Dirs, error) {
 
 // resolveConfigHome returns $XDG_CONFIG_HOME, falling back to platform defaults.
 func resolveConfigHome(home string) string {
-	if v := os.Getenv("XDG_CONFIG_HOME"); v != "" {
+	if v := xdgEnv("XDG_CONFIG_HOME"); v != "" {
 		return v
 	}
 	// macOS and Linux both default to ~/.config for CLI tools.
@@ -48,7 +48,7 @@ func resolveConfigHome(home string) string {
 
 // resolveDataHome returns $XDG_DATA_HOME, falling back to platform defaults.
 func resolveDataHome(home string) string {
-	if v := os.Getenv("XDG_DATA_HOME"); v != "" {
+	if v := xdgEnv("XDG_DATA_HOME"); v != "" {
 		return v
 	}
 	if runtime.GOOS == "darwin" {
@@ -59,7 +59,7 @@ func resolveDataHome(home string) string {
 
 // resolveStateHome returns $XDG_STATE_HOME, falling back to platform defaults.
 func resolveStateHome(home string) string {
-	if v := os.Getenv("XDG_STATE_HOME"); v != "" {
+	if v := xdgEnv("XDG_STATE_HOME"); v != "" {
 		return v
 	}
 	return filepath.Join(home, ".local", "state")
@@ -68,10 +68,22 @@ func resolveStateHome(home string) string {
 // ResolveRuntimeDir returns the full runtime directory path for the
 // application ($XDG_RUNTIME_DIR/muse or a user-specific temp fallback).
 func ResolveRuntimeDir() string {
-	if v := os.Getenv("XDG_RUNTIME_DIR"); v != "" {
+	if v := xdgEnv("XDG_RUNTIME_DIR"); v != "" {
 		return filepath.Join(v, appName)
 	}
 	return filepath.Join(os.TempDir(), runtimeFallbackDirName())
+}
+
+// xdgEnv reads an XDG base directory variable. Per the XDG Base Directory
+// Specification, non-absolute values must be ignored so that callers fall
+// back to the platform default instead of resolving paths relative to the
+// current working directory.
+func xdgEnv(key string) string {
+	v := os.Getenv(key)
+	if v == "" || !filepath.IsAbs(v) {
+		return ""
+	}
+	return v
 }
 
 func runtimeFallbackDirName() string {

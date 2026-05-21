@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/filter"
 )
 
 // TestConfigToggleMsg_ReturnsSettingsSavedMsg verifies that handleConfigToggleMsg
@@ -140,5 +142,44 @@ func TestConfigToggleMsg_StereoWideApplyFailureDoesNotPersist(t *testing.T) {
 	}
 	if !strings.Contains(result.statusBar.topNotification().msg, "failed") {
 		t.Fatalf("expected failure notification, got %q", result.statusBar.topNotification().msg)
+	}
+}
+
+// TestRandomAlbumClearsFilter verifies that handleRandomAlbumMsg drops any
+// active filter before picking a random album, so the chosen cursor row is
+// always visible. Without this fix, the random index referenced an item
+// outside the filtered view and clampCursor parked the cursor at the last
+// visible row instead.
+func TestRandomAlbumClearsFilter(t *testing.T) {
+	m := New(context.Background())
+	m.browse.albums.albums = []string{"A", "B", "C", "D"}
+	m.browse.albums.filter = filter.State{Active: true, Text: "zzz"}
+
+	result, _ := m.handleRandomAlbumMsg()
+
+	if result.browse.albums.filter.Active || result.browse.albums.filter.Text != "" {
+		t.Errorf("expected filter cleared, got Active=%v Text=%q",
+			result.browse.albums.filter.Active, result.browse.albums.filter.Text)
+	}
+	if result.browse.albums.cursor < 0 || result.browse.albums.cursor >= len(result.browse.albums.albums) {
+		t.Errorf("cursor %d out of bounds", result.browse.albums.cursor)
+	}
+}
+
+// TestRandomArtistClearsFilter mirrors TestRandomAlbumClearsFilter for the
+// artists browse view.
+func TestRandomArtistClearsFilter(t *testing.T) {
+	m := New(context.Background())
+	m.browse.artists.artists = []string{"X", "Y", "Z"}
+	m.browse.artists.filter = filter.State{Active: true, Text: "zzz"}
+
+	result, _ := m.handleRandomArtistMsg()
+
+	if result.browse.artists.filter.Active || result.browse.artists.filter.Text != "" {
+		t.Errorf("expected filter cleared, got Active=%v Text=%q",
+			result.browse.artists.filter.Active, result.browse.artists.filter.Text)
+	}
+	if result.browse.artists.cursor < 0 || result.browse.artists.cursor >= len(result.browse.artists.artists) {
+		t.Errorf("cursor %d out of bounds", result.browse.artists.cursor)
 	}
 }

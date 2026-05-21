@@ -3,6 +3,7 @@ package radio
 import (
 	cryptorand "crypto/rand"
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
@@ -261,6 +262,35 @@ func TestPickBatch_FallsBackWhenCryptoRandFails(t *testing.T) {
 	for i, want := range []string{"a", "b", "c"} {
 		if result[i].Hash != want {
 			t.Fatalf("idx %d: expected deterministic fallback pick %q, got %q", i, want, result[i].Hash)
+		}
+	}
+}
+
+// Regression: maxArtistFraction must tolerate NaN and negative values. Without
+// sanitization, int(math.Ceil(NaN)) is undefined (typically a large negative
+// on amd64), silently disabling the per-artist cap and letting one artist
+// monopolize the batch.
+func TestPickBatch_MaxArtistFractionNaNStillCapsArtists(t *testing.T) {
+	scored := []TrackScore{
+		{Track: library.Track{Hash: "a1", Artist: "ArtistA"}, Score: 10},
+		{Track: library.Track{Hash: "a2", Artist: "ArtistA"}, Score: 9},
+		{Track: library.Track{Hash: "a3", Artist: "ArtistA"}, Score: 8},
+		{Track: library.Track{Hash: "a4", Artist: "ArtistA"}, Score: 7},
+		{Track: library.Track{Hash: "b1", Artist: "ArtistB"}, Score: 6},
+		{Track: library.Track{Hash: "c1", Artist: "ArtistC"}, Score: 5},
+	}
+	for _, frac := range []float64{math.NaN(), -1.0, 0.0} {
+		result := PickBatch(scored, 4, frac)
+		if len(result) == 0 {
+			t.Fatalf("frac=%v: expected non-empty result", frac)
+		}
+		counts := make(map[string]int)
+		for _, tr := range result {
+			counts[tr.Artist]++
+		}
+		if counts["ArtistA"] > 1 {
+			t.Errorf("frac=%v: ArtistA appears %d times; expected cap of 1 when fraction is invalid",
+				frac, counts["ArtistA"])
 		}
 	}
 }

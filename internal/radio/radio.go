@@ -184,6 +184,16 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 	copy(pool, scored[:poolSize])
 	nextIdx := poolSize
 
+	// Sanitize maxArtistFraction: NaN, negative, and >1 values all collapse to
+	// "one per artist" or "no cap" respectively. Without this guard a NaN
+	// fraction yields NaN through math.Ceil and an undefined int conversion,
+	// which on amd64 produces an extreme negative value and silently disables
+	// the per-artist cap.
+	if math.IsNaN(maxArtistFraction) || maxArtistFraction <= 0 {
+		maxArtistFraction = 0
+	} else if maxArtistFraction > 1 {
+		maxArtistFraction = 1
+	}
 	maxPerArtist := int(math.Ceil(float64(n) * maxArtistFraction))
 	if maxPerArtist < 1 {
 		maxPerArtist = 1
@@ -270,6 +280,9 @@ func normalizedGenreBonusMap(bonuses map[string]float64) map[string]float64 {
 	for genre, bonus := range bonuses {
 		key := normalizedGenreKey(genre)
 		if key == "" {
+			continue
+		}
+		if math.IsNaN(bonus) || math.IsInf(bonus, 0) {
 			continue
 		}
 		normalized[key] += bonus
