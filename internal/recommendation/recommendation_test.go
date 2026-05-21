@@ -121,3 +121,29 @@ func TestFilterSeen_emptyTracks_nonEmptySeen(t *testing.T) {
 		t.Fatalf("FilterSeen with empty tracks: want len 0, got %d", len(got))
 	}
 }
+
+// Regression: an unhashed track (Hash == "") must not be dropped by FilterSeen
+// just because the seen set contains an empty-string key (cross-cache pollution
+// from a dismissed entry written before its hash was computed). Tracks without
+// a hash are unidentified, not "seen".
+func TestFilterSeen_emptyHashTracksAlwaysPreserved(t *testing.T) {
+	tracks := []library.Track{
+		{Hash: "a", Path: "/a"},
+		{Hash: "", Path: "/b"},
+		{Hash: "c", Path: "/c"},
+		{Hash: "", Path: "/d"},
+	}
+	seen := map[string]struct{}{"": {}, "c": {}}
+	got := recommendation.FilterSeen(tracks, seen)
+
+	// "a" not seen → kept. "c" seen → dropped. Both empty-hash entries kept.
+	if len(got) != 3 {
+		t.Fatalf("expected 3 tracks (a + both unhashed), got %d: %+v", len(got), got)
+	}
+	wantPaths := []string{"/a", "/b", "/d"}
+	for i, t2 := range got {
+		if t2.Path != wantPaths[i] {
+			t.Errorf("got[%d].Path = %q, want %q", i, t2.Path, wantPaths[i])
+		}
+	}
+}

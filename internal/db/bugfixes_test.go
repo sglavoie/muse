@@ -324,3 +324,110 @@ func TestDeleteTagIfEmpty_TrulyEmptyTagStillDeletes(t *testing.T) {
 		t.Error("DeleteTagIfEmpty did not delete a tag with zero assignments")
 	}
 }
+
+// TestMergeTags_SoftDeletedDestinationRejected verifies that MergeTags refuses
+// to merge into a destination tag whose deleted_at is set. Before the fix the
+// re-pointed track_tags rows would attach to a soft-deleted tag (invisible to
+// ReadTagsForTrack, which filters tags.deleted_at IS NULL) while the source
+// was also soft-deleted in the same transaction, silently destroying the
+// user's tag assignments.
+func TestMergeTags_SoftDeletedDestinationRejected(t *testing.T) {
+	d, w := openTagDB(t)
+	seedTrack(t, d, "h1", "/a.flac")
+
+	srcID, err := w.CreateTag("src", "")
+	if err != nil {
+		t.Fatalf("CreateTag src: %v", err)
+	}
+	dstID, err := w.CreateTag("dst", "")
+	if err != nil {
+		t.Fatalf("CreateTag dst: %v", err)
+	}
+	if err := w.AddTrackTag("h1", srcID); err != nil {
+		t.Fatalf("AddTrackTag: %v", err)
+	}
+
+	// Soft-delete the destination so the merge would land on a hidden tag.
+	if err := w.DeleteTagSoft(dstID); err != nil {
+		t.Fatalf("DeleteTagSoft dst: %v", err)
+	}
+
+	err = w.MergeTags(srcID, dstID)
+	if err == nil {
+		t.Fatal("MergeTags into soft-deleted destination returned nil error; want guard error")
+	}
+	if !strings.Contains(err.Error(), "soft-deleted") {
+		t.Errorf("error = %q, want mention of soft-deleted destination", err.Error())
+	}
+
+	// Source tag must remain active with its assignments intact (transaction
+	// rollback on error).
+	tags, err := d.ReadTags()
+	if err != nil {
+		t.Fatalf("ReadTags: %v", err)
+	}
+	foundSrc := false
+	for _, tg := range tags {
+		if tg.ID == srcID {
+			foundSrc = true
+			break
+		}
+	}
+	if !foundSrc {
+		t.Error("source tag was soft-deleted by failed merge; expected rollback")
+	}
+
+	srcHashes, err := d.ReadTrackHashesByTag(srcID)
+	if err != nil {
+		t.Fatalf("ReadTrackHashesByTag src: %v", err)
+	}
+	if len(srcHashes) != 1 || srcHashes[0] != "h1" {
+		t.Errorf("source track_tags after rejected merge = %v, want [h1]", srcHashes)
+	}
+
+	// The user-visible tag must still be retrievable for the track.
+	got, err := d.ReadTagsForTrack("h1")
+	if err != nil {
+		t.Fatalf("ReadTagsForTrack: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != srcID {
+		t.Errorf("ReadTagsForTrack(h1) = %v, want one row with ID %d (source still active)", got, srcID)
+	}
+}
+
+// TestMergeTags_MissingDestinationRejected verifies that MergeTags refuses to
+// merge into a destination ID that does not exist in the tags table. Without
+// this guard the re-pointed track_tags rows would reference a nonexistent
+// tag_id, surviving only because SQLite's foreign key enforcement combined
+// with the unique (track_hash, tag_id) index makes the behaviour observable
+// downstream rather than at the INSERT site.
+func TestMergeTags_MissingDestinationRejected(t *testing.T) {
+	d, w := openTagDB(t)
+	seedTrack(t, d, "h1", "/a.flac")
+
+	srcID, err := w.CreateTag("src", "")
+	if err != nil {
+		t.Fatalf("CreateTag src: %v", err)
+	}
+	if err := w.AddTrackTag("h1", srcID); err != nil {
+		t.Fatalf("AddTrackTag: %v", err)
+	}
+
+	const ghostDest int64 = 99999
+	err = w.MergeTags(srcID, ghostDest)
+	if err == nil {
+		t.Fatal("MergeTags into nonexistent destination returned nil error; want guard error")
+	}
+	if !strings.Contains(err.Error(), "does not exist") {
+		t.Errorf("error = %q, want mention of missing destination", err.Error())
+	}
+
+	// Source must remain intact.
+	srcHashes, err := d.ReadTrackHashesByTag(srcID)
+	if err != nil {
+		t.Fatalf("ReadTrackHashesByTag src: %v", err)
+	}
+	if len(srcHashes) != 1 {
+		t.Errorf("source track_tags after rejected merge = %d, want 1", len(srcHashes))
+	}
+}

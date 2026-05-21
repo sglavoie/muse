@@ -509,3 +509,80 @@ func TestScoreAll_StableTieBreaking(t *testing.T) {
 		}
 	}
 }
+
+// Regression: Artist matching must tolerate leading/trailing whitespace in
+// addition to case differences. PickBatch's per-artist cap normalises with
+// strings.TrimSpace + lower-casing — without symmetrical trimming in ScoreAll,
+// a tagger that emits " The Beatles" would be treated as the same artist for
+// the cap but miss the +5 affinity boost.
+func TestScoreAll_ArtistMatchTrimsWhitespace(t *testing.T) {
+	seed := track("s1", "The Beatles", "", "", 0)
+	padded := track("t1", " The Beatles ", "", "", 0)
+	tabbed := track("t2", "\tthe beatles\n", "", "", 0)
+	other := track("t3", "Stones", "", "", 0)
+	got := ScoreAll(ScoreInput{
+		Seed:      seedFrom(seed, nil, nil),
+		AllTracks: []library.Track{other, padded, tabbed},
+	})
+
+	scoreByHash := make(map[string]float64, len(got))
+	for _, ts := range got {
+		scoreByHash[ts.Track.Hash] = ts.Score
+	}
+	if scoreByHash["t1"] != 5 {
+		t.Errorf("whitespace-padded artist should still earn +5, got %f", scoreByHash["t1"])
+	}
+	if scoreByHash["t2"] != 5 {
+		t.Errorf("tab/newline-padded artist should still earn +5, got %f", scoreByHash["t2"])
+	}
+	if scoreByHash["t3"] != 0 {
+		t.Errorf("unrelated artist must not earn the boost, got %f", scoreByHash["t3"])
+	}
+}
+
+// Regression: Album matching mirrors Artist — whitespace-padded album names
+// should still earn the +3 affinity boost.
+func TestScoreAll_AlbumMatchTrimsWhitespace(t *testing.T) {
+	seed := track("s1", "", "Abbey Road", "", 0)
+	padded := track("t1", "", " Abbey Road ", "", 0)
+	tabbed := track("t2", "", "\tabbey road", "", 0)
+	other := track("t3", "", "Other", "", 0)
+	got := ScoreAll(ScoreInput{
+		Seed:      seedFrom(seed, nil, nil),
+		AllTracks: []library.Track{other, padded, tabbed},
+	})
+
+	scoreByHash := make(map[string]float64, len(got))
+	for _, ts := range got {
+		scoreByHash[ts.Track.Hash] = ts.Score
+	}
+	if scoreByHash["t1"] != 3 {
+		t.Errorf("whitespace-padded album should still earn +3, got %f", scoreByHash["t1"])
+	}
+	if scoreByHash["t2"] != 3 {
+		t.Errorf("tab-padded + case-different album should still earn +3, got %f", scoreByHash["t2"])
+	}
+	if scoreByHash["t3"] != 0 {
+		t.Errorf("unrelated album must not earn the boost, got %f", scoreByHash["t3"])
+	}
+}
+
+// Regression: A seed with a whitespace-only Artist or Album must not match
+// candidates whose Artist/Album is also whitespace-only or empty. Without the
+// "trimmed != \"\"" guard, EqualFold("", "") would return true and every empty
+// candidate would harvest spurious +5/+3 bonuses.
+func TestScoreAll_WhitespaceSeedDoesNotSpuriouslyMatch(t *testing.T) {
+	seed := SeedTrack{Hash: "s1", Artist: "   ", Album: "\t"}
+	emptyBoth := track("t1", "", "", "", 0)
+	whitespaceArtist := track("t2", "  ", "", "", 0)
+	got := ScoreAll(ScoreInput{
+		Seed:      seed,
+		AllTracks: []library.Track{emptyBoth, whitespaceArtist},
+	})
+	for _, ts := range got {
+		if ts.Score != 0 {
+			t.Errorf("track %s should score 0 against a whitespace seed, got %f",
+				ts.Track.Hash, ts.Score)
+		}
+	}
+}

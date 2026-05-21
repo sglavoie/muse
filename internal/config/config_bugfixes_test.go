@@ -162,6 +162,49 @@ func TestSave_PreservesPreviousFileOnDirectoryRemoval(t *testing.T) {
 	}
 }
 
+// TestSave_FsyncsParentDirectory exercises the post-rename directory fsync
+// path. The behaviour is best-effort, so the test verifies Save still
+// succeeds and the rename is observable; it cannot directly assert that the
+// fsync system call was issued without OS-level hooks. Combined with the
+// roundtrip and atomicity tests this guards against the durability fix
+// regressing into a code path that errors out on common filesystems.
+func TestSave_FsyncsParentDirectory(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, configFileName)
+
+	cfg := defaults()
+	cfg.DefaultVolume = 11
+	if err := Save(path, cfg); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	// File must exist after rename.
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("stat after Save: %v", err)
+	}
+
+	// No stray temp files left behind.
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("readdir: %v", err)
+	}
+	for _, e := range entries {
+		if strings.Contains(e.Name(), ".tmp-") {
+			t.Errorf("leftover temp file after Save: %q", e.Name())
+		}
+	}
+
+	// Round-trip the value to confirm the rename completed cleanly even when
+	// the directory fsync ran.
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if result.Config.DefaultVolume != 11 {
+		t.Errorf("DefaultVolume = %d, want 11", result.Config.DefaultVolume)
+	}
+}
+
 // TestSave_AtomicRoundTrip is a sanity check that the atomic Save still
 // produces a file the loader can read back.
 func TestSave_AtomicRoundTrip(t *testing.T) {

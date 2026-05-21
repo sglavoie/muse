@@ -122,6 +122,12 @@ func acceptLoopWithBackoff(p *tea.Program, ln net.Listener, backoff time.Duratio
 			if consecutiveErrs >= maxConsecutiveAcceptErrs {
 				slog.Error("control socket: too many consecutive accept errors, disabling remote control",
 					"consecutive", consecutiveErrs)
+				// Close the listener so the socket file is removed and future
+				// `muse <action>` dials fail fast with a clear error instead of
+				// connecting to a dead listener and hanging until timeout.
+				if closeErr := ln.Close(); closeErr != nil && !errors.Is(closeErr, net.ErrClosed) {
+					slog.Warn("control socket: close after circuit breaker", "err", closeErr)
+				}
 				return
 			}
 			if backoff > 0 {
@@ -136,7 +142,10 @@ func acceptLoopWithBackoff(p *tea.Program, ln net.Listener, backoff time.Duratio
 
 // handleRemoteConn reads newline-delimited action names from a single
 // connection, dispatches each one into the TUI, and writes "ok\n" back so the
-// sender knows the command was received.
+// sender knows the command was received. The read deadline is refreshed after
+// each successful command so a connection that pauses briefly between commands
+// is not cut off by the original connection-wide timeout — the deadline acts
+// as a per-command idle timeout instead.
 func handleRemoteConn(p *tea.Program, conn net.Conn) {
 	defer conn.Close()
 	if err := conn.SetReadDeadline(time.Now().Add(remoteReadTimeout)); err != nil {
@@ -147,6 +156,12 @@ func handleRemoteConn(p *tea.Program, conn net.Conn) {
 	for scanner.Scan() {
 		action := strings.TrimSpace(scanner.Text())
 		if action == "" {
+			// Refresh the idle deadline so a stream of empty lines does not
+			// burn through the timeout window without legitimate work.
+			if err := conn.SetReadDeadline(time.Now().Add(remoteReadTimeout)); err != nil {
+				slog.Warn("remote: refresh read deadline", "err", err)
+				return
+			}
 			continue
 		}
 		if !isKnownAction(action) {
@@ -154,11 +169,25 @@ func handleRemoteConn(p *tea.Program, conn net.Conn) {
 			if err := conn.SetWriteDeadline(time.Now().Add(remoteReadTimeout)); err == nil {
 				_, _ = fmt.Fprintf(conn, "error: unknown action %q\n", action) // best-effort
 			}
+			// Push the read deadline forward so the rejection of one bad
+			// command does not invalidate subsequent valid commands on the
+			// same connection.
+			if err := conn.SetReadDeadline(time.Now().Add(remoteReadTimeout)); err != nil {
+				slog.Warn("remote: refresh read deadline", "err", err)
+				return
+			}
 			continue
 		}
 		p.Send(tui.RemoteActionMsg{ActionName: action})
 		if err := conn.SetWriteDeadline(time.Now().Add(remoteReadTimeout)); err == nil {
 			_, _ = fmt.Fprintln(conn, "ok") // best-effort acknowledgment
+		}
+		// Refresh the read deadline after each successful command so a
+		// long-lived client can keep streaming commands without the original
+		// connection-wide timeout cutting it off.
+		if err := conn.SetReadDeadline(time.Now().Add(remoteReadTimeout)); err != nil {
+			slog.Warn("remote: refresh read deadline", "err", err)
+			return
 		}
 	}
 	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) {

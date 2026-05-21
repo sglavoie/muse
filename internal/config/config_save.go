@@ -14,6 +14,10 @@ import (
 // The write is atomic: the encoded content is first written to a temporary
 // file in the same directory and then renamed over the destination, so a
 // crash or out-of-disk failure mid-write cannot leave a truncated config.
+// After the rename the parent directory is fsynced so the rename itself
+// survives a power loss; without this step POSIX permits a crash window in
+// which the rename has been buffered but not yet committed, leaving the old
+// inode visible (or no entry at all) on reboot.
 func Save(path string, cfg Config) error {
 	if len(cfg.MusicDirectories) == 0 {
 		if trimmed := strings.TrimSpace(cfg.MusicDirectory); trimmed != "" {
@@ -54,6 +58,13 @@ func Save(path string, cfg Config) error {
 	if err := os.Rename(tmpPath, path); err != nil {
 		cleanup()
 		return err
+	}
+	// Fsync the parent directory so the rename is durable. Failure here is
+	// best-effort: on filesystems where opening a directory for sync is not
+	// supported the rename is still visible to the running process.
+	if d, err := os.Open(dir); err == nil {
+		_ = d.Sync()
+		_ = d.Close()
 	}
 	return nil
 }

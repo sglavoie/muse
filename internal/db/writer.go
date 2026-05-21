@@ -472,7 +472,11 @@ func rollback(tx *sql.Tx) {
 // drain flushes all commands already buffered in the cmds channel after ctx is
 // cancelled. A timeout guards against a single stuck write blocking shutdown
 // indefinitely. New Exec calls after drain returns will see w.done closed and
-// receive an error immediately.
+// receive an error immediately. The timeout-exceeded warning is only emitted
+// when commands remain in the channel; without that check a single long write
+// that itself completed successfully (but pushed the loop past the deadline)
+// would log a misleading "writes may be lost" warning even though the channel
+// was already empty by the time the deadline expired.
 func (w *Writer) drain() {
 	deadline := time.Now().Add(writerDrainTimeout)
 	for time.Now().Before(deadline) {
@@ -483,7 +487,10 @@ func (w *Writer) drain() {
 			return
 		}
 	}
-	slog.Warn("db writer drain timed out, some writes may be lost")
+	// Only warn if the deadline expired with at least one pending command.
+	if len(w.cmds) > 0 {
+		slog.Warn("db writer drain timed out, some writes may be lost", "pending", len(w.cmds))
+	}
 }
 
 // softDeleteByID sets deleted_at to the current Unix time on the row in table

@@ -433,6 +433,33 @@ func TestBackClampsCursorWhenParentShrank(t *testing.T) {
 	}
 }
 
+// TestBackKeepsCursorVisibleAfterResize verifies that when AlbumScrollOffset
+// trails behind a still-valid AlbumCursor (e.g. the terminal was resized
+// smaller during the drill-down), the clamp pushes ScrollOffset forward so
+// the cursor is rendered inside the visible window after Back().
+func TestBackKeepsCursorVisibleAfterResize(t *testing.T) {
+	v := View{
+		Level:        AlbumLevel,
+		Cursor:       8,
+		ScrollOffset: 0,
+		Albums:       []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"},
+		Height:       5, // AlbumLevel visibleRows = 4
+		Width:        80,
+	}
+	v = v.OpenTracks([]library.Track{{Title: "x"}})
+	v = v.Back()
+	if v.Level != AlbumLevel {
+		t.Fatalf("expected AlbumLevel, got %v", v.Level)
+	}
+	if v.Cursor != 8 {
+		t.Fatalf("expected cursor=8, got %d", v.Cursor)
+	}
+	maxRows := v.visibleRows()
+	if v.Cursor < v.ScrollOffset || v.Cursor >= v.ScrollOffset+maxRows {
+		t.Errorf("cursor=%d not visible in window [%d, %d)", v.Cursor, v.ScrollOffset, v.ScrollOffset+maxRows)
+	}
+}
+
 // TestBackClampsCursorWhenParentEmpty verifies that Back() into an empty
 // parent list resets cursor/scroll to 0 rather than restoring stale values.
 func TestBackClampsCursorWhenParentEmpty(t *testing.T) {

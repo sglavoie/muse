@@ -321,6 +321,12 @@ func (m *Manager) handleRestart() {
 	}
 
 	if m.launchFn == nil {
+		// Clear the cmd queue so subsequent player calls return
+		// ErrNotConnected rather than silently appending to a queue
+		// that will never be drained.
+		m.mu.Lock()
+		m.cmdQueue = nil
+		m.mu.Unlock()
 		if fn != nil {
 			fn("mpv: restart failed: launchFn is nil")
 		}
@@ -329,6 +335,12 @@ func (m *Manager) handleRestart() {
 
 	newCmd, err := m.launchFn(newCtx, m.socketPath)
 	if err != nil {
+		// Clear the cmd queue so subsequent player calls return
+		// ErrNotConnected rather than silently appending to a queue
+		// that will never be drained.
+		m.mu.Lock()
+		m.cmdQueue = nil
+		m.mu.Unlock()
 		if fn != nil {
 			fn("mpv: restart failed: " + err.Error())
 		}
@@ -387,8 +399,16 @@ func (m *Manager) LoadFilePaused(path string, positionMs int64) error {
 	if err != nil || c == nil {
 		return err
 	}
-	_, err = c.SendCommand(cmdLoadfile, path, "replace", 0, fmt.Sprintf("start=%g,pause=yes", elapsedSecs))
-	return err
+	if _, err = c.SendCommand(cmdLoadfile, path, "replace", 0, fmt.Sprintf("start=%g,pause=yes", elapsedSecs)); err != nil {
+		return err
+	}
+	// loadfile with "pause=yes" forces mpv into the paused state; eagerly
+	// mirror that so a restart firing before the property-change event
+	// arrives preserves the paused state.
+	m.mu.Lock()
+	m.lastPaused = true
+	m.mu.Unlock()
+	return nil
 }
 
 // loadFileAt sends mpv a loadfile command with a start= option to resume

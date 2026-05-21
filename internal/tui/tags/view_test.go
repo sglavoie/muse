@@ -127,6 +127,42 @@ func TestGoToBottom_EmptyListResetsCursorAndScroll(t *testing.T) {
 	}
 }
 
+// TestBack_KeepsCursorVisibleAfterResize verifies that when the saved
+// TagScrollOffset trails far behind a still-valid TagCursor (e.g. because the
+// terminal was resized smaller while the user was drilled into TrackLevel),
+// the clamp pushes ScrollOffset forward so the cursor is rendered inside the
+// visible window after Back().
+func TestBack_KeepsCursorVisibleAfterResize(t *testing.T) {
+	tags := []db.TagRow{
+		{ID: 1, Name: "a"}, {ID: 2, Name: "b"}, {ID: 3, Name: "c"},
+		{ID: 4, Name: "d"}, {ID: 5, Name: "e"}, {ID: 6, Name: "f"},
+		{ID: 7, Name: "g"}, {ID: 8, Name: "h"}, {ID: 9, Name: "i"},
+		{ID: 10, Name: "j"},
+	}
+	counts := map[int64]int{1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1}
+	v := View{
+		Level:           TrackLevel,
+		Cursor:          0,
+		TagCursor:       8,
+		TagScrollOffset: 0,
+		Tags:            tags,
+		TagCounts:       counts,
+		Tracks:          []db.PlaylistTrackRow{{ID: 1}},
+		Height:          5, // TagLevel visibleRows = 5
+	}
+	v = v.Back()
+	if v.Level != TagLevel {
+		t.Fatalf("expected TagLevel, got %v", v.Level)
+	}
+	if v.Cursor != 8 {
+		t.Fatalf("expected cursor=8, got %d", v.Cursor)
+	}
+	maxRows := v.visibleRows()
+	if v.Cursor < v.ScrollOffset || v.Cursor >= v.ScrollOffset+maxRows {
+		t.Errorf("cursor=%d not visible in window [%d, %d)", v.Cursor, v.ScrollOffset, v.ScrollOffset+maxRows)
+	}
+}
+
 func TestEffectiveTags_NilCountsShowsAll(t *testing.T) {
 	v := View{
 		Tags: []db.TagRow{

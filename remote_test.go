@@ -426,6 +426,163 @@ func TestRunRemoteAction_NoAck(t *testing.T) {
 	}
 }
 
+// TestCommandListener_MultipleCommandsRefreshDeadline verifies that the read
+// deadline is refreshed after each successful command so a connection that
+// is idle for a moment between commands is not cut off by the original
+// connection-wide timeout. Before the fix the deadline was set once when the
+// connection opened, so any command sent more than remoteReadTimeout after
+// the first byte arrived would be silently dropped on the server side.
+//
+// The test sends three commands separated by gaps shorter than the timeout
+// but whose total elapsed time exceeds it. We verify each ack on the wire,
+// which is the only state observable from the client without disturbing the
+// listener — the noopModel used elsewhere quits after the first dispatch and
+// therefore cannot prove multi-command delivery.
+func TestCommandListener_MultipleCommandsRefreshDeadline(t *testing.T) {
+	dir := shortTempDir(t)
+	// counterModel records every received action without quitting so the
+	// listener stays alive for the duration of the test.
+	received := make(chan tui.RemoteActionMsg, 8)
+	p := tea.NewProgram(
+		multiActionModel{received: received},
+		tea.WithoutRenderer(),
+		tea.WithInput(strings.NewReader("")),
+		tea.WithoutSignals(),
+	)
+	go p.Run() //nolint:errcheck
+	defer p.Quit()
+
+	ln, err := startCommandListener(p, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	conn, err := net.DialTimeout("unix", filepath.Join(dir, ctrlSocketName), time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	reader := bufio.NewReader(conn)
+
+	const (
+		gap      = 3 * time.Second
+		commands = 3
+	)
+	if gap >= remoteReadTimeout {
+		t.Fatalf("test invariant: gap (%v) must be less than remoteReadTimeout (%v)", gap, remoteReadTimeout)
+	}
+	if (commands-1)*gap <= remoteReadTimeout {
+		t.Fatalf("test invariant: total elapsed (%v) must exceed remoteReadTimeout (%v) so this test detects a missing refresh", (commands-1)*gap, remoteReadTimeout)
+	}
+
+	for i := range commands {
+		if i > 0 {
+			time.Sleep(gap)
+		}
+		if _, err := fmt.Fprintln(conn, "next"); err != nil {
+			t.Fatalf("write action %d: %v", i, err)
+		}
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read ack %d: %v", i, err)
+		}
+		if strings.TrimSpace(line) != "ok" {
+			t.Fatalf("ack %d = %q, want ok", i, strings.TrimSpace(line))
+		}
+	}
+
+	// Sanity check: at least one RemoteActionMsg should have been dispatched.
+	select {
+	case msg := <-received:
+		if msg.ActionName != "next" {
+			t.Errorf("first dispatched action = %q, want next", msg.ActionName)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("no RemoteActionMsg dispatched at all")
+	}
+}
+
+// multiActionModel records every RemoteActionMsg it receives but never quits,
+// so the bubbletea program stays alive across multiple commands.
+type multiActionModel struct {
+	received chan tui.RemoteActionMsg
+}
+
+func (m multiActionModel) Init() tea.Cmd { return nil }
+func (m multiActionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if r, ok := msg.(tui.RemoteActionMsg); ok {
+		select {
+		case m.received <- r:
+		default:
+		}
+	}
+	return m, nil
+}
+func (m multiActionModel) View() tea.View { return tea.NewView("") }
+
+// TestAcceptLoop_CircuitBreakerClosesListener verifies that when the circuit
+// breaker trips, the listener is closed so the Unix socket file is removed and
+// subsequent dials fail fast instead of hanging against a dead listener.
+func TestAcceptLoop_CircuitBreakerClosesListener(t *testing.T) {
+	sockPath := filepath.Join(shortTempDir(t), "cb-close.sock")
+	realLn, err := net.Listen("unix", sockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Wrap with unixSocketListener so Close also removes the socket file.
+	ln := &unixSocketListener{Listener: realLn, path: sockPath}
+
+	received := make(chan tui.RemoteActionMsg, 1)
+	p := newTestProgram(received)
+	go p.Run() //nolint:errcheck
+	defer p.Quit()
+
+	// trackingListener wraps the real listener so Accept always errors (to
+	// trigger the breaker) but Close behaviour is observable.
+	tracking := &alwaysErrListenerWithClose{inner: ln}
+
+	done := make(chan struct{})
+	go func() {
+		acceptLoopWithBackoff(p, tracking, 0)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("acceptLoop did not exit after circuit breaker")
+	}
+
+	if atomic.LoadInt32(&tracking.closeCalls) == 0 {
+		t.Error("expected listener.Close() to be invoked when the circuit breaker trips")
+	}
+	if _, err := os.Stat(sockPath); !os.IsNotExist(err) {
+		t.Errorf("socket file should be removed after circuit breaker; got stat err=%v", err)
+	}
+}
+
+// alwaysErrListenerWithClose mirrors alwaysErrListener but tracks Close calls
+// and delegates Close to a real listener so socket cleanup can be verified.
+type alwaysErrListenerWithClose struct {
+	inner      net.Listener
+	closeCalls int32
+}
+
+func (a *alwaysErrListenerWithClose) Accept() (net.Conn, error) {
+	return nil, errors.New("permanent accept error")
+}
+
+func (a *alwaysErrListenerWithClose) Close() error {
+	atomic.AddInt32(&a.closeCalls, 1)
+	return a.inner.Close()
+}
+
+func (a *alwaysErrListenerWithClose) Addr() net.Addr {
+	return a.inner.Addr()
+}
+
 func TestRunRemoteAction_AckDelayWithinReadTimeout(t *testing.T) {
 	baseDir := shortTempDir(t)
 	runtimeDir := filepath.Join(baseDir, "muse")

@@ -135,6 +135,36 @@ func TestBackToListClampsCursorWhenParentEmpty(t *testing.T) {
 	}
 }
 
+// TestBackToListKeepsCursorVisibleAfterResize verifies that BackToList scrolls
+// the visible window forward when the saved ListScrollOffset trailed behind a
+// still-valid ListCursor (e.g. the terminal was resized smaller during the
+// drill-down) so the focused row is rendered inside the visible window.
+func TestBackToListKeepsCursorVisibleAfterResize(t *testing.T) {
+	v := View{
+		Level:            TrackLevel,
+		Cursor:           0,
+		Tracks:           []db.PlaylistTrackRow{{ID: 1}},
+		ListCursor:       8,
+		ListScrollOffset: 0,
+		Playlists: []db.PlaylistRow{
+			{ID: 1}, {ID: 2}, {ID: 3}, {ID: 4}, {ID: 5},
+			{ID: 6}, {ID: 7}, {ID: 8}, {ID: 9}, {ID: 10},
+		},
+		Height: 6, // ListLevel visibleRows = 5 (reserve = 1)
+	}
+	v = v.BackToList()
+	if v.Level != ListLevel {
+		t.Fatalf("expected ListLevel, got %v", v.Level)
+	}
+	if v.Cursor != 8 {
+		t.Fatalf("expected cursor=8, got %d", v.Cursor)
+	}
+	maxRows := v.visibleRows()
+	if v.Cursor < v.ScrollOffset || v.Cursor >= v.ScrollOffset+maxRows {
+		t.Errorf("cursor=%d not visible in window [%d, %d)", v.Cursor, v.ScrollOffset, v.ScrollOffset+maxRows)
+	}
+}
+
 // TestBackToListSkipsClampWhenPlaylistsNil verifies the escape hatch used by
 // outer wrappers that defer parent-list clamping: when Playlists is nil, the
 // restored cursor/scroll are passed through unchanged.

@@ -71,14 +71,23 @@ func ScoreAll(input ScoreInput) []TrackScore {
 			}
 		}
 
-		// Artist match: +5. Case-insensitive to tolerate inconsistent
-		// capitalization between releases of the same artist.
-		if track.Artist != "" && strings.EqualFold(track.Artist, input.Seed.Artist) {
+		// Artist match: +5. Case-insensitive AND whitespace-trimmed to tolerate
+		// inconsistent capitalization and stray leading/trailing whitespace
+		// (broken taggers occasionally emit " Artist " or "Artist\t"). Without
+		// trimming, the same artist with a stray space would miss the +5 boost
+		// while still being treated as the same artist by the PickBatch cap
+		// (which uses normalizedArtistKey).
+		trackArtist := strings.TrimSpace(track.Artist)
+		seedArtist := strings.TrimSpace(input.Seed.Artist)
+		if trackArtist != "" && seedArtist != "" && strings.EqualFold(trackArtist, seedArtist) {
 			score += 5
 		}
 
-		// Album match: +3. Case-insensitive for the same reason as Artist.
-		if track.Album != "" && strings.EqualFold(track.Album, input.Seed.Album) {
+		// Album match: +3. Case-insensitive and whitespace-trimmed for the
+		// same reasons as Artist.
+		trackAlbum := strings.TrimSpace(track.Album)
+		seedAlbum := strings.TrimSpace(input.Seed.Album)
+		if trackAlbum != "" && seedAlbum != "" && strings.EqualFold(trackAlbum, seedAlbum) {
 			score += 3
 		}
 

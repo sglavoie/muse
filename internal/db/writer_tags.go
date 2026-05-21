@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -183,6 +184,12 @@ func (w *Writer) DeleteTagIfEmpty(tagID int64) (bool, error) {
 // (INSERT OR IGNORE same rows → DELETE all source rows → soft-delete source)
 // would otherwise wipe every track_tags row for the tag and then soft-delete
 // the tag itself, silently destroying user data.
+//
+// A second guard rejects merging into a destination tag that does not exist
+// or is already soft-deleted. Without this guard, every re-pointed track_tags
+// row would land on a tag that ReadTagsForTrack hides (it filters
+// deleted_at IS NULL), silently making the user's tag assignments invisible
+// while the source tag is also soft-deleted in the same transaction.
 func (w *Writer) MergeTags(sourceID, destID int64) error {
 	if sourceID == destID {
 		return fmt.Errorf("merge tags: source and destination IDs must differ (got %d)", sourceID)
@@ -193,6 +200,22 @@ func (w *Writer) MergeTags(sourceID, destID int64) error {
 			return err
 		}
 		defer rollback(tx)
+
+		// Verify the destination tag exists and is active. Without this guard
+		// re-pointed rows would attach to a soft-deleted tag invisible to
+		// ReadTagsForTrack, destroying the user's tag data.
+		var destDeletedAt sql.NullInt64
+		if err := tx.QueryRow(
+			`SELECT deleted_at FROM tags WHERE id = ?`, destID,
+		).Scan(&destDeletedAt); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return fmt.Errorf("merge tags: destination tag %d does not exist", destID)
+			}
+			return fmt.Errorf("merge tags lookup destination: %w", err)
+		}
+		if destDeletedAt.Valid {
+			return fmt.Errorf("merge tags: destination tag %d is soft-deleted; restore it before merging", destID)
+		}
 
 		// Re-point: insert rows pointing at destID for every track currently
 		// under sourceID, ignoring any that already exist under destID.

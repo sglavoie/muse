@@ -212,6 +212,13 @@ func (v View) BackToList() View {
 	if v.ScrollOffset < 0 {
 		v.ScrollOffset = 0
 	}
+	// Keep the cursor inside the visible window when the saved ListScrollOffset
+	// trailed far behind a (now clamped) Cursor — otherwise the focused row
+	// would render below the bottom of the panel after BackToList.
+	maxRows := v.visibleRows()
+	if maxRows > 0 && v.Cursor >= v.ScrollOffset+maxRows {
+		v.ScrollOffset = v.Cursor - maxRows + 1
+	}
 	return v
 }
 

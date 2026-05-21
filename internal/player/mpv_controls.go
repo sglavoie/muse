@@ -58,8 +58,15 @@ func (m *Manager) Play() error {
 	if err != nil || c == nil {
 		return err
 	}
-	_, err = c.SendCommand(cmdSetProperty, propPause, false)
-	return err
+	if _, err = c.SendCommand(cmdSetProperty, propPause, false); err != nil {
+		return err
+	}
+	// Mirror the requested pause state so an auto-restart firing before
+	// the property-change event arrives resumes in the correct state.
+	m.mu.Lock()
+	m.lastPaused = false
+	m.mu.Unlock()
+	return nil
 }
 
 // Pause pauses playback.
@@ -68,8 +75,15 @@ func (m *Manager) Pause() error {
 	if err != nil || c == nil {
 		return err
 	}
-	_, err = c.SendCommand(cmdSetProperty, propPause, true)
-	return err
+	if _, err = c.SendCommand(cmdSetProperty, propPause, true); err != nil {
+		return err
+	}
+	// Mirror the requested pause state so an auto-restart firing before
+	// the property-change event arrives resumes in the correct state.
+	m.mu.Lock()
+	m.lastPaused = true
+	m.mu.Unlock()
+	return nil
 }
 
 // Stop pauses playback and seeks to the beginning of the current track.
@@ -81,8 +95,15 @@ func (m *Manager) Stop() error {
 	if _, err = c.SendCommand(cmdSetProperty, propPause, true); err != nil {
 		return err
 	}
-	_, err = c.SendCommand(cmdSeek, 0, "absolute")
-	return err
+	if _, err = c.SendCommand(cmdSeek, 0, "absolute"); err != nil {
+		return err
+	}
+	// Mirror the requested pause state so an auto-restart firing before
+	// the property-change event arrives resumes in the correct state.
+	m.mu.Lock()
+	m.lastPaused = true
+	m.mu.Unlock()
+	return nil
 }
 
 // SeekAbsolute seeks to an absolute position in seconds within the current track.
