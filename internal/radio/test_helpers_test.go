@@ -16,3 +16,11 @@ func seedFrom(t library.Track, genres []string, tagIDs map[int64]struct{}) SeedT
 		TagIDs:   tagIDs,
 	}
 }
+
+func scoresByHash(results []TrackScore) map[string]float64 {
+	scores := make(map[string]float64, len(results))
+	for _, result := range results {
+		scores[result.Track.Hash] = result.Score
+	}
+	return scores
+}
