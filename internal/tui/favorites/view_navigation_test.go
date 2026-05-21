@@ -152,6 +152,31 @@ func TestCursorDown_AdjustsScroll(t *testing.T) {
 	}
 }
 
+// TestGoToBottom_ClampsScrollOffsetWhenListShrank guards a regression where
+// GoToBottom kept a stale ScrollOffset that was above the new last index
+// (e.g. after a filter shrank the list), causing the cursor to render above
+// the visible window.
+func TestGoToBottom_ClampsScrollOffsetWhenListShrank(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Category:     CategoryArtists,
+		Artists:      []string{"A", "B", "C"},
+		Cursor:       0,
+		ScrollOffset: 50,
+		Height:       20,
+	}
+	v2 := v.GoToBottom()
+	if v2.Cursor != 2 {
+		t.Errorf("expected cursor=2, got %d", v2.Cursor)
+	}
+	if v2.ScrollOffset > v2.Cursor {
+		t.Errorf("expected ScrollOffset<=Cursor (%d), got ScrollOffset=%d", v2.Cursor, v2.ScrollOffset)
+	}
+	if v2.ScrollOffset < 0 {
+		t.Errorf("ScrollOffset must not be negative, got %d", v2.ScrollOffset)
+	}
+}
+
 func TestCursorUp_AdjustsScroll(t *testing.T) {
 	v := View{
 		Level:        ListLevel,

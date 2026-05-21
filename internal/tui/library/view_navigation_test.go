@@ -111,6 +111,31 @@ func TestGoToBottomAdjustsScrollOffset(t *testing.T) {
 	}
 }
 
+// TestGoToBottomClampsScrollOffsetWhenListShrank guards a regression where
+// GoToBottom failed to bring ScrollOffset back down after a filter/delete
+// reduced the effective track count: the saved ScrollOffset stayed above
+// the new last index, leaving the cursor rendering above the visible window.
+func TestGoToBottomClampsScrollOffsetWhenListShrank(t *testing.T) {
+	tracks := make([]musiclib.Track, 3)
+	for i := range tracks {
+		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
+	}
+	idx := buildIndex(tracks)
+	// Simulate a state where the user had scrolled far down inside a larger
+	// list (ScrollOffset=80) before a filter shrank the list to 3 tracks.
+	v := View{Index: idx, Width: 80, Height: 20, Cursor: 0, ScrollOffset: 80}
+	v = v.GoToBottom()
+	if v.Cursor != 2 {
+		t.Errorf("GoToBottom: expected Cursor=2, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Errorf("GoToBottom: expected ScrollOffset<=Cursor (%d), got ScrollOffset=%d", v.Cursor, v.ScrollOffset)
+	}
+	if v.ScrollOffset < 0 {
+		t.Errorf("GoToBottom: ScrollOffset must not be negative, got %d", v.ScrollOffset)
+	}
+}
+
 func TestHalfPageDownMovesByHalfVisibleRows(t *testing.T) {
 	tracks := make([]musiclib.Track, 20)
 	for i := range tracks {

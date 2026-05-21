@@ -283,3 +283,27 @@ func TestBack_ClampsCursorWhenParentEmpty(t *testing.T) {
 		t.Errorf("Back with empty parent: expected cursor=0 scroll=0, got cursor=%d scroll=%d", v.Cursor, v.ScrollOffset)
 	}
 }
+
+// TestGoToBottomClampsScrollOffsetWhenListShrank guards a regression where
+// GoToBottom kept a stale ScrollOffset above the new last index after a
+// filter/delete shrank the list, leaving the cursor rendering above the
+// visible window.
+func TestGoToBottomClampsScrollOffsetWhenListShrank(t *testing.T) {
+	v := View{
+		Level:        GenreLevel,
+		Genres:       []string{"Rock", "Jazz", "Folk"},
+		Cursor:       0,
+		ScrollOffset: 80,
+		Height:       20,
+	}
+	v = v.GoToBottom()
+	if v.Cursor != 2 {
+		t.Errorf("expected Cursor=2, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Errorf("expected ScrollOffset<=Cursor (%d), got ScrollOffset=%d", v.Cursor, v.ScrollOffset)
+	}
+	if v.ScrollOffset < 0 {
+		t.Errorf("ScrollOffset must not be negative, got %d", v.ScrollOffset)
+	}
+}

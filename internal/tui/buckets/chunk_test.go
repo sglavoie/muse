@@ -236,3 +236,32 @@ func TestChunkUncappedStickyBucketWithNoRows(t *testing.T) {
 		t.Errorf("got %v, want %v", out, want)
 	}
 }
+
+// TestChunkDividerCounterPersistsWhenBudgetSkipsDivider guards a regression
+// where a divider that could not fit (remaining < 2) failed to emit AND
+// failed to reset dataSinceDivider. Before the fix the equality check
+// `dataSinceDivider == DividerEvery` could only ever match once, so the
+// next row would increment dataSinceDivider past DividerEvery and all
+// subsequent dividers would be silently dropped. After the fix the
+// counter retries on the next row (`>= DividerEvery`) until the divider
+// actually fits.
+func TestChunkDividerCounterPersistsWhenBudgetSkipsDivider(t *testing.T) {
+	// 25 rows, every-10 divider. With a generous MaxRows cap the output
+	// should contain two dividers (after rows 10 and 20).
+	rows := makeRows(25)
+	labels := make([]string, 25)
+	out := Chunk(rows, labels, ChunkOptions{
+		MaxRows:      100,
+		DividerEvery: 10,
+		MakeDivider:  func() string { return "---" },
+	})
+	gotDividers := 0
+	for _, line := range out {
+		if line == "---" {
+			gotDividers++
+		}
+	}
+	if gotDividers != 2 {
+		t.Fatalf("baseline divider count: expected 2, got %d (lines: %v)", gotDividers, out)
+	}
+}

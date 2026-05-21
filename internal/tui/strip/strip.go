@@ -94,6 +94,23 @@ func Render(
 		return ""
 	}
 
+	// Defensive: filter out empty crumbs so a stray "" in the slice does not
+	// render as a free-floating chevron (" › Foo › "). After filtering, an
+	// otherwise non-empty breadcrumb slice may be empty — treat that like the
+	// zero-breadcrumb case rather than emitting a blank, chevron-only strip.
+	{
+		cleaned := breadcrumb[:0:0]
+		for _, c := range breadcrumb {
+			if c != "" {
+				cleaned = append(cleaned, c)
+			}
+		}
+		if len(cleaned) == 0 {
+			return ""
+		}
+		breadcrumb = cleaned
+	}
+
 	hasSort := sort.Label != ""
 	hasFilter := filter.Active || filter.Text != ""
 	hasSelection := selection != nil && selection.Count > 0
@@ -124,7 +141,17 @@ func Render(
 		// A zero total suppresses counts in all modes, including filtering.
 		countsPlain = ""
 	case counts.Filtering:
-		countsPlain = fmt.Sprintf("%d/%d", counts.Filtered, counts.Total)
+		// Defensive clamps: a negative Filtered would render as "-1/7" and
+		// Filtered > Total ("100/7") is meaningless. Clamp to [0, Total] so
+		// upstream off-by-ones never leak through to the user-visible strip.
+		filtered := counts.Filtered
+		if filtered < 0 {
+			filtered = 0
+		}
+		if filtered > counts.Total {
+			filtered = counts.Total
+		}
+		countsPlain = fmt.Sprintf("%d/%d", filtered, counts.Total)
 	default:
 		countsPlain = fmt.Sprintf("%d", counts.Total)
 	}
@@ -262,11 +289,20 @@ func Render(
 		}
 		lastBudget := room - fixed
 		if lastBudget < 1 {
-			// Even the prefix path won't fit — truncate the whole joined
-			// path as a single string.
-			joined := strings.Join(breadcrumb, Chevron)
-			breadcrumb = []string{ansi.Truncate(joined, room, "…")}
-			crumbWidths = []int{ansi.StringWidth(breadcrumb[0])}
+			// Even the prefix path won't fit — drop parent crumbs entirely
+			// and keep just the last (truncated to room). Previously we
+			// joined every crumb with a plain Chevron then truncated the
+			// flat string; the surviving chevrons then rendered through the
+			// single-crumb TextSecondary style instead of the Dim chevron
+			// style (background/foreground bleed). Keeping a single crumb
+			// puts us back on the divider-free render path with consistent
+			// styling.
+			last := breadcrumb[len(breadcrumb)-1]
+			if ansi.StringWidth(last) > room {
+				last = ansi.Truncate(last, room, "…")
+			}
+			breadcrumb = []string{last}
+			crumbWidths = []int{ansi.StringWidth(last)}
 		} else if lastBudget < crumbWidths[len(crumbWidths)-1] {
 			last := ansi.Truncate(breadcrumb[len(breadcrumb)-1], lastBudget, "…")
 			// Copy to avoid mutating the caller's underlying array.

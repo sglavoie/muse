@@ -86,13 +86,17 @@ func Chunk(dataRows, bucketLabels []string, opts ChunkOptions) []string {
 		// after this header instead of immediately on the next row.
 		if emittedBucketHeader {
 			dataSinceDivider = 0
-		} else if opts.DividerEvery > 0 && dataSinceDivider == opts.DividerEvery &&
+		} else if opts.DividerEvery > 0 && dataSinceDivider >= opts.DividerEvery &&
 			opts.MakeDivider != nil {
 			if remaining >= 2 {
 				out = append(out, opts.MakeDivider())
 				remaining--
 				dataSinceDivider = 0
 			}
+			// If remaining < 2 the divider can't fit; intentionally do not
+			// reset dataSinceDivider so the next iteration retries (the `>=`
+			// guard above prevents the counter from outrunning DividerEvery
+			// and silently disabling all future dividers).
 		}
 		out = append(out, row)
 		remaining--

@@ -27,8 +27,14 @@ func (n NowPlayingOverlay) Render(termWidth, termHeight int, s styles.Styles) st
 		icon = "⏸"
 	case PlaybackStopped:
 		icon = "■"
-	default:
+	case PlaybackPlaying:
 		icon = "▶"
+	default:
+		// PlaybackIdle (zero value) or any unrecognised state: avoid
+		// implying playback is in progress. Production guards open this
+		// overlay only when not idle/stopped, but rendering "▶" for an
+		// idle state on tests or defensive paths would be misleading.
+		icon = "■"
 	}
 	progress := fmt.Sprintf("%s %s / %s", icon, formatTime(n.elapsed), formatTime(n.total))
 	return renderTrackOverlay(n.title, n.artist, n.album, progress, n.playCount, n.tagsLine,

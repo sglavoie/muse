@@ -173,6 +173,15 @@ func (v View) GoToBottom() View {
 	if v.Cursor >= maxRows {
 		v.ScrollOffset = v.Cursor - maxRows + 1
 	}
+	// Clamp ScrollOffset down when the list shrank below a previously
+	// scrolled position: otherwise the cursor renders above the visible
+	// window after a filter/delete reduces itemCount.
+	if v.ScrollOffset > v.Cursor {
+		v.ScrollOffset = v.Cursor
+	}
+	if v.ScrollOffset < 0 {
+		v.ScrollOffset = 0
+	}
 	return v
 }
 

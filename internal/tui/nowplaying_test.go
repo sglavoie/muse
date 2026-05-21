@@ -112,3 +112,19 @@ func TestNowPlayingOverlay_DismissHint(t *testing.T) {
 		t.Error("expected dismiss hint")
 	}
 }
+
+// TestNowPlayingOverlay_IdleStateDoesNotShowPlayingIcon verifies the bug fix
+// where PlaybackIdle (the zero value of PlaybackState) used to fall through to
+// the default switch arm and erroneously render the playing icon. Idle should
+// render the stopped icon so the overlay never suggests playback is active when
+// it isn't.
+func TestNowPlayingOverlay_IdleStateDoesNotShowPlayingIcon(t *testing.T) {
+	n := NowPlayingOverlay{artist: "A", title: "T", state: PlaybackIdle}
+	out := ansi.Strip(n.Render(80, 24, newTestStyles()))
+	if strings.Contains(out, "▶") {
+		t.Error("idle state must not render the playing icon")
+	}
+	if !strings.Contains(out, "■") {
+		t.Error("idle state should fall back to the stopped icon")
+	}
+}

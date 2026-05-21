@@ -24,7 +24,7 @@ type QueueSummaryOverlay struct {
 func (q QueueSummaryOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
 	remaining := text.FormatDurationMs(q.remainMs)
 	if q.remainN > 0 {
-		remaining = fmt.Sprintf("%s (%d tracks)", remaining, q.remainN)
+		remaining = fmt.Sprintf("%s (%d %s)", remaining, q.remainN, pluralize(q.remainN, "track", "tracks"))
 	}
 
 	rows := []OverlayRow{

@@ -387,3 +387,94 @@ func TestRender_BreadcrumbSliceUnchangedAfterNarrowRender(t *testing.T) {
 		t.Errorf("wide render after narrow must show full crumb; got %q", plain)
 	}
 }
+
+// TestRender_CountsClampNegativeFiltered verifies that a negative Filtered
+// count never leaks into the user-visible strip (e.g. as "-1/7"). Upstream
+// off-by-ones should be defensively clamped to 0 by the renderer.
+func TestRender_CountsClampNegativeFiltered(t *testing.T) {
+	s := styles.NewStyles(true)
+	got := Render(80, []string{"Library"}, SortChunk{}, FilterChunk{},
+		CountsChunk{Filtered: -5, Total: 7, Filtering: true}, nil, "", s)
+	plain := ansi.Strip(got)
+	if strings.Contains(plain, "-5/7") || strings.Contains(plain, "-1") {
+		t.Errorf("negative Filtered should be clamped before rendering; got %q", plain)
+	}
+	if !strings.Contains(plain, "0/7") {
+		t.Errorf("expected clamped '0/7' counts; got %q", plain)
+	}
+}
+
+// TestRender_CountsClampFilteredAboveTotal verifies that Filtered > Total is
+// clamped to Total in the rendered output. A user-visible "100/7" makes no
+// sense and signals a defensive bug to the user.
+func TestRender_CountsClampFilteredAboveTotal(t *testing.T) {
+	s := styles.NewStyles(true)
+	got := Render(80, []string{"Library"}, SortChunk{}, FilterChunk{},
+		CountsChunk{Filtered: 100, Total: 7, Filtering: true}, nil, "", s)
+	plain := ansi.Strip(got)
+	if strings.Contains(plain, "100/7") {
+		t.Errorf("Filtered > Total should be clamped before rendering; got %q", plain)
+	}
+	if !strings.Contains(plain, "7/7") {
+		t.Errorf("expected clamped '7/7' counts; got %q", plain)
+	}
+}
+
+// TestRender_EmptyCrumbsFiltered verifies that empty strings within the
+// breadcrumb slice do not render as free-floating chevrons. Passing
+// []string{"", "Foo", ""} previously produced " › Foo › " — chevron
+// separators with no anchoring labels. The renderer must filter such
+// crumbs out (or treat a fully empty result like the zero-breadcrumb
+// case).
+func TestRender_EmptyCrumbsFiltered(t *testing.T) {
+	s := styles.NewStyles(true)
+	got := Render(80, []string{"", "Foo", ""}, SortChunk{}, FilterChunk{},
+		CountsChunk{Total: 0}, nil, "", s)
+	plain := ansi.Strip(got)
+	if strings.Contains(plain, "›") {
+		t.Errorf("empty crumbs must not render free-floating chevrons; got %q", plain)
+	}
+	if !strings.Contains(plain, "Foo") {
+		t.Errorf("non-empty crumbs must survive filtering; got %q", plain)
+	}
+}
+
+// TestRender_AllEmptyCrumbsReturnsEmpty verifies that a breadcrumb made up
+// entirely of empty strings is treated the same as the zero-breadcrumb
+// case (empty render), not a blank chevron-only line.
+func TestRender_AllEmptyCrumbsReturnsEmpty(t *testing.T) {
+	s := styles.NewStyles(true)
+	got := Render(80, []string{"", "", ""}, SortChunk{}, FilterChunk{},
+		CountsChunk{Total: 7}, nil, "", s)
+	if got != "" {
+		t.Errorf("all-empty crumbs should render as empty string, got %q", got)
+	}
+}
+
+// TestRender_NarrowestBreadcrumbKeepsChevronStyling verifies that when the
+// fallback "drop parent crumbs entirely" branch fires (because no per-crumb
+// budget can fit a parent + chevron), the surviving single crumb does not
+// contain stray plain chevron characters borrowed from the parent path.
+// Previously the joined-then-truncated path produced a single string like
+// "AAA › B…" where the chevron rendered through TextSecondary rather than
+// the Dim chevron style.
+func TestRender_NarrowestBreadcrumbKeepsChevronStyling(t *testing.T) {
+	s := styles.NewStyles(true)
+	got := Render(8, []string{"AAA", "BBB", "CCC"}, SortChunk{}, FilterChunk{},
+		CountsChunk{}, nil, "", s)
+	plain := ansi.Strip(got)
+	if ansi.StringWidth(got) != 8 {
+		t.Fatalf("width = %d, want 8 (plain=%q)", ansi.StringWidth(got), plain)
+	}
+	if strings.Contains(plain, "›") {
+		t.Errorf("ultra-narrow breadcrumb should drop parents rather than leak unstyled chevrons; got %q", plain)
+	}
+	// The last crumb (CCC) should be the surviving anchor; "AAA" and "BBB"
+	// should have been dropped to free room.
+	if strings.Contains(plain, "AAA") || strings.Contains(plain, "BBB") {
+		t.Errorf("parent crumbs should be dropped at width 8, got %q", plain)
+	}
+	if !strings.Contains(plain, "C") {
+		t.Errorf("last crumb should survive (possibly truncated), got %q", plain)
+	}
+}
