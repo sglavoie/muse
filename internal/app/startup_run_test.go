@@ -234,6 +234,25 @@ func TestRunNoStaleSocket(t *testing.T) {
 	}
 }
 
+// TestRunMissingLaunchMPVReturnsError verifies a missing LaunchMPV dependency
+// fails fast with a regular error (not a panic).
+func TestRunMissingLaunchMPVReturnsError(t *testing.T) {
+	dirs := setupDirs(t)
+	installLogger(t)
+
+	deps := app.Deps{
+		CheckPrereqs: func(context.Context) error { return nil },
+	}
+
+	_, err := app.Run(context.Background(), dirs, deps)
+	if err == nil {
+		t.Fatal("expected error when LaunchMPV is nil, got nil")
+	}
+	if !strings.Contains(err.Error(), "LaunchMPV is required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 // TestRunParallelLaunchBothErrorsReturned verifies that if both parallel tasks
 // fail, at least one error is surfaced.
 func TestRunParallelLaunchBothErrorsReturned(t *testing.T) {

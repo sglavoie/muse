@@ -58,6 +58,9 @@ func (m Model) radioRemainingCount() int {
 	if m.playback.currentIndex < 0 {
 		return len(m.queue.entries)
 	}
+	if m.playback.currentIndex >= len(m.queue.entries) {
+		return len(m.queue.entries)
+	}
 	return len(m.queue.entries) - m.playback.currentIndex - 1
 }
 

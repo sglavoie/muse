@@ -160,6 +160,32 @@ func TestEnqueueFocusedNilCmdOnEmptyLibrary(t *testing.T) {
 	}
 }
 
+func TestEnqueueTrackCmdWithNilQueueAppenderReturnsErrorMsg(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Cursor: 0}
+	focused, ok := v.FocusedTrack()
+	if !ok {
+		t.Fatal("FocusedTrack: expected focused track")
+	}
+
+	cmd := EnqueueTrackCmd(focused, true, nil, 0, "", -1)
+	if cmd == nil {
+		t.Fatal("EnqueueTrackCmd: expected non-nil Cmd")
+	}
+
+	got := cmd()
+	msg, ok := got.(TrackEnqueuedMsg)
+	if !ok {
+		t.Fatalf("EnqueueTrackCmd: cmd returned %T, want TrackEnqueuedMsg", got)
+	}
+	if msg.Err == nil {
+		t.Fatal("EnqueueTrackCmd: expected error for nil queue appender")
+	}
+	if msg.Err.Error() != errNilQueueAppender.Error() {
+		t.Fatalf("EnqueueTrackCmd: got error %q, want %q", msg.Err.Error(), errNilQueueAppender.Error())
+	}
+}
+
 // TestEnqueueFocusedWithActiveFilterSelectsFilteredTrack verifies that when a
 // filter is active, EnqueueFocused enqueues the track at cursor position in
 // the filtered result set rather than the unfiltered full list. This locks in

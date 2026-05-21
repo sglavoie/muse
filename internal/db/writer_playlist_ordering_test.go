@@ -1,6 +1,7 @@
 package db_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -93,6 +94,38 @@ func TestReorderPlaylistTrack_Boundary(t *testing.T) {
 	}
 	if p1 != 1000 || p2 != 2000 {
 		t.Errorf("positions changed after boundary ops: id1=%d id2=%d; want 1000/2000", p1, p2)
+	}
+}
+
+// TestReorderPlaylistTrack_InvalidDirection verifies invalid direction values
+// return an error and do not mutate ordering.
+func TestReorderPlaylistTrack_InvalidDirection(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "tri-dir-1", "/tid1")
+	seedTrack(t, d, "tri-dir-2", "/tid2")
+	plID := seedPlaylist(t, d, "Playlist Invalid Direction")
+	id1 := seedPlaylistTrack(t, d, plID, "tri-dir-1", 1000)
+	id2 := seedPlaylistTrack(t, d, plID, "tri-dir-2", 2000)
+
+	err := w.ReorderPlaylistTrack(plID, id1, 0)
+	if err == nil {
+		t.Fatal("expected error for invalid direction, got nil")
+	}
+	if !strings.Contains(err.Error(), "direction must be -1 or +1") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var p1, p2 int64
+	if err := d.QueryRow(`SELECT position FROM playlist_tracks WHERE id=?`, id1).Scan(&p1); err != nil {
+		t.Fatalf("query id1: %v", err)
+	}
+	if err := d.QueryRow(`SELECT position FROM playlist_tracks WHERE id=?`, id2).Scan(&p2); err != nil {
+		t.Fatalf("query id2: %v", err)
+	}
+	if p1 != 1000 || p2 != 2000 {
+		t.Errorf("positions changed after invalid direction: id1=%d id2=%d; want 1000/2000", p1, p2)
 	}
 }
 

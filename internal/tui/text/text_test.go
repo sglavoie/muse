@@ -138,6 +138,8 @@ func TestRowMarker(t *testing.T) {
 		{"selected and now-playing", true, false, true, npIcon, "● "},
 		{"selected focused and now-playing", true, true, true, npIcon, "● "},
 		{"custom now-playing icon", false, false, true, "▶", "▶ "},
+		{"empty now-playing icon falls back", false, false, true, "", "♪ "},
+		{"wide now-playing icon stays two columns", false, false, true, "🎵", "… "},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -145,6 +147,10 @@ func TestRowMarker(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("RowMarker(%v, %v, %v, %q) = %q, want %q",
 					tt.selected, tt.focused, tt.nowPlaying, tt.icon, got, tt.want)
+			}
+			if w := ansi.StringWidth(got); w != 2 {
+				t.Errorf("RowMarker(%v, %v, %v, %q) display width = %d, want 2",
+					tt.selected, tt.focused, tt.nowPlaying, tt.icon, w)
 			}
 		})
 	}

@@ -188,5 +188,9 @@ func (v View) clampRestoredCursor() View {
 	if v.ScrollOffset < 0 {
 		v.ScrollOffset = 0
 	}
+	maxRows := v.visibleRows()
+	if maxRows > 0 && v.Cursor >= v.ScrollOffset+maxRows {
+		v.ScrollOffset = v.Cursor - maxRows + 1
+	}
 	return v
 }

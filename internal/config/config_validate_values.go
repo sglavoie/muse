@@ -99,7 +99,7 @@ func validate(raw rawConfig) (Config, []string) {
 		cfg.GaplessAudio = *raw.GaplessAudio
 	}
 
-	raw.LogLevel = strings.ToLower(raw.LogLevel)
+	raw.LogLevel = strings.ToLower(strings.TrimSpace(raw.LogLevel))
 	switch raw.LogLevel {
 	case "debug", "info", "warn", "error":
 		cfg.LogLevel = raw.LogLevel

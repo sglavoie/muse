@@ -246,6 +246,28 @@ func TestBack_ClampsCursorWhenParentShrank(t *testing.T) {
 	}
 }
 
+func TestBack_ClampsScrollToKeepCursorVisible(t *testing.T) {
+	v := View{
+		Level:        GenreLevel,
+		Genres:       []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"},
+		Cursor:       9,
+		ScrollOffset: 0,
+		Height:       6,
+	}
+	v = v.OpenArtists([]string{"X"})
+	v.Genres = []string{"a", "b", "c", "d", "e", "f", "g", "h"}
+	v = v.Back()
+	if v.Level != GenreLevel {
+		t.Fatalf("expected GenreLevel, got %v", v.Level)
+	}
+	if v.Cursor != 7 {
+		t.Fatalf("expected clamped Cursor=7, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 3 {
+		t.Fatalf("expected ScrollOffset=3 to keep cursor visible, got %d", v.ScrollOffset)
+	}
+}
+
 func TestBack_ClampsCursorWhenParentEmpty(t *testing.T) {
 	v := View{
 		Level:        ArtistLevel,

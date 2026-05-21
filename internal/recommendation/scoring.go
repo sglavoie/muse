@@ -5,6 +5,9 @@ import "github.com/sglavoie/muse/internal/library"
 // FilterSeen removes tracks whose hash appears in seen from the input slice.
 // Returns the original slice unmodified when seen is empty.
 func FilterSeen(tracks []library.Track, seen map[string]struct{}) []library.Track {
+	if len(tracks) == 0 {
+		return tracks
+	}
 	if len(seen) == 0 {
 		return tracks
 	}

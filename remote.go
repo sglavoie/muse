@@ -191,7 +191,7 @@ func runRemoteAction(action string) error {
 
 	// Read acknowledgment from the running instance so callers fail fast if the
 	// listener closes early or never confirms receipt.
-	if err := conn.SetReadDeadline(time.Now().Add(remoteDialTimeout)); err != nil {
+	if err := conn.SetReadDeadline(time.Now().Add(remoteReadTimeout)); err != nil {
 		return fmt.Errorf("prepare acknowledgment read: %w", err)
 	}
 	scanner := bufio.NewScanner(conn)

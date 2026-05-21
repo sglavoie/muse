@@ -52,9 +52,8 @@ type RestoredSession struct {
 	Volume int
 }
 
-// Deps holds injectable operations for the startup sequence. The LaunchMPV
-// and RunScan fields are required. CheckPrereqs defaults to
-// config.CheckPrereqs when nil.
+// Deps holds injectable operations for the startup sequence. LaunchMPV is
+// required. CheckPrereqs defaults to config.CheckPrereqs when nil.
 type Deps struct {
 	// Config holds the loaded application configuration. LaunchMPV and
 	// RunScan closures can read cfg.MPVExtraFlags, cfg.MusicDirectory, etc.
@@ -130,6 +129,9 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 	checkPrereqs := deps.CheckPrereqs
 	if checkPrereqs == nil {
 		checkPrereqs = config.CheckPrereqs
+	}
+	if deps.LaunchMPV == nil {
+		return nil, fmt.Errorf("startup: LaunchMPV is required")
 	}
 
 	// Step 1: Acquire PID lockfile.

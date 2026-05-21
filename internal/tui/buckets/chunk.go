@@ -47,7 +47,7 @@ func Chunk(dataRows, bucketLabels []string, opts ChunkOptions) []string {
 	}
 	remaining := opts.MaxRows
 	if opts.MaxRows <= 0 {
-		remaining = len(dataRows) * 3 // effectively uncapped
+		remaining = len(dataRows)*2 + 1 // effectively uncapped
 	}
 	out := make([]string, 0, remaining)
 	prevBucket := ""

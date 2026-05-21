@@ -342,6 +342,30 @@ func TestBackClampsCursorWhenParentEmpty(t *testing.T) {
 	}
 }
 
+func TestBackKeepsRestoredCursorVisibleAfterResize(t *testing.T) {
+	v := View{
+		Level:        ArtistLevel,
+		Cursor:       8,
+		ScrollOffset: 0,
+		Height:       20,
+		Artists:      []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"},
+	}
+
+	v = v.OpenAlbums([]string{"X"})
+	v.Height = 3 // visibleRows at ArtistLevel becomes 2
+	v = v.Back()
+
+	if v.Level != ArtistLevel {
+		t.Fatalf("expected ArtistLevel, got %v", v.Level)
+	}
+	if v.Cursor != 8 {
+		t.Fatalf("expected restored cursor=8, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 7 {
+		t.Errorf("expected scroll offset=7 to keep cursor visible, got %d", v.ScrollOffset)
+	}
+}
+
 func TestFullDrillDownCycle(t *testing.T) {
 	v := View{
 		Level:   ArtistLevel,

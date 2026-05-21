@@ -110,6 +110,23 @@ func TestBack_SkipsClampWhenTagsNil(t *testing.T) {
 	}
 }
 
+func TestGoToBottom_EmptyListResetsCursorAndScroll(t *testing.T) {
+	v := View{
+		Level:        TagLevel,
+		Cursor:       7,
+		ScrollOffset: 3,
+	}
+
+	v = v.GoToBottom()
+
+	if v.Cursor != 0 {
+		t.Errorf("expected Cursor=0 for empty list, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 0 {
+		t.Errorf("expected ScrollOffset=0 for empty list, got %d", v.ScrollOffset)
+	}
+}
+
 func TestEffectiveTags_NilCountsShowsAll(t *testing.T) {
 	v := View{
 		Tags: []db.TagRow{

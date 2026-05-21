@@ -148,6 +148,33 @@ func TestPickBatch_NoDuplicates(t *testing.T) {
 	}
 }
 
+func TestPickBatch_ArtistCapCaseInsensitive(t *testing.T) {
+	scored := []TrackScore{
+		{Track: library.Track{Hash: "a1", Artist: "ArtistA"}, Score: -1},
+		{Track: library.Track{Hash: "a2", Artist: "artista"}, Score: -2},
+		{Track: library.Track{Hash: "a3", Artist: " ARTISTA "}, Score: -3},
+		{Track: library.Track{Hash: "b1", Artist: "ArtistB"}, Score: -4},
+	}
+
+	result := PickBatch(scored, 3, 0.34) // ceil(3*0.34)=2 per artist
+	if len(result) != 3 {
+		t.Fatalf("expected 3 tracks, got %d", len(result))
+	}
+
+	artistCounts := make(map[string]int)
+	for _, tr := range result {
+		artistCounts[tr.Artist]++
+	}
+
+	artistAVariants := artistCounts["ArtistA"] + artistCounts["artista"] + artistCounts[" ARTISTA "]
+	if artistAVariants > 2 {
+		t.Fatalf("expected at most 2 case-variant picks for ArtistA, got %d (result=%v)", artistAVariants, result)
+	}
+	if artistCounts["ArtistB"] != 1 {
+		t.Fatalf("expected ArtistB to fill third slot after ArtistA cap, got result=%v", result)
+	}
+}
+
 // Regression: when every eligible candidate has a non-positive score (e.g.,
 // all penalized by recent-history / queue / dismissed), every weight collapses
 // to the 0.1 floor and the weighted-random draw would degenerate into a

@@ -79,6 +79,7 @@ func (m DestinationPickerModal) destinations() []string {
 //   - esc:      dispatch DestinationPickerDismissedMsg
 func (m DestinationPickerModal) HandleKey(key string) (DestinationPickerModal, tea.Cmd) {
 	n := len(m.destinations())
+	m.cursor = clamp(m.cursor, 0, n-1)
 	switch key {
 	case "j", "down":
 		if m.cursor < n-1 {
@@ -98,15 +99,26 @@ func (m DestinationPickerModal) HandleKey(key string) (DestinationPickerModal, t
 
 // confirmCmd builds the Cmd that confirms the current selection.
 func (m DestinationPickerModal) confirmCmd() tea.Cmd {
+	cursor := clamp(m.cursor, 0, len(m.playlists)+1)
 	// Last entry is always "New playlist...".
-	if m.cursor == len(m.playlists)+1 {
+	if cursor == len(m.playlists)+1 {
 		return func() tea.Msg { return DestinationPickerCreateMsg{} }
 	}
-	if m.cursor == 0 {
+	if cursor == 0 {
 		return func() tea.Msg { return DestinationPickedMsg{IsQueue: true} }
 	}
-	name := m.playlists[m.cursor-1].Name
+	name := m.playlists[cursor-1].Name
 	return func() tea.Msg { return DestinationPickedMsg{PlaylistName: name} }
+}
+
+func clamp(v, lo, hi int) int {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
 }
 
 // Render produces a centered overlay string for the modal. The caller should

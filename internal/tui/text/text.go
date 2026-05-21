@@ -192,15 +192,16 @@ func RowMarker(isSelected, isFocused, isNowPlaying bool, nowPlayingIcon string) 
 	if nowPlayingIcon == "" {
 		nowPlayingIcon = "♪"
 	}
+	normalizedIcon := Pad(Truncate(nowPlayingIcon, 1), 1)
 	switch {
 	case isSelected:
 		return "● "
 	case isFocused && isNowPlaying:
-		return nowPlayingIcon + " "
+		return normalizedIcon + " "
 	case isFocused:
 		return "▎ "
 	case isNowPlaying:
-		return nowPlayingIcon + " "
+		return normalizedIcon + " "
 	default:
 		return "  "
 	}

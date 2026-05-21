@@ -102,3 +102,22 @@ func TestFilterSeen_preservesOrder(t *testing.T) {
 		}
 	}
 }
+
+func TestFilterSeen_nilTracks_nonEmptySeen(t *testing.T) {
+	var tracks []library.Track
+	got := recommendation.FilterSeen(tracks, map[string]struct{}{"a": {}})
+	if got != nil {
+		t.Fatalf("FilterSeen with nil tracks: want nil, got %#v", got)
+	}
+}
+
+func TestFilterSeen_emptyTracks_nonEmptySeen(t *testing.T) {
+	tracks := []library.Track{}
+	got := recommendation.FilterSeen(tracks, map[string]struct{}{"a": {}})
+	if got == nil {
+		t.Fatal("FilterSeen with empty tracks: want empty non-nil slice, got nil")
+	}
+	if len(got) != 0 {
+		t.Fatalf("FilterSeen with empty tracks: want len 0, got %d", len(got))
+	}
+}

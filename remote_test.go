@@ -378,6 +378,9 @@ func TestRunRemoteAction_NoAck(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", baseDir)
 
 	sockPath := filepath.Join(runtimeDir, ctrlSocketName)
+	if err := os.Remove(sockPath); err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
 	ln, err := net.Listen("unix", sockPath)
 	if err != nil {
 		t.Fatal(err)
@@ -420,5 +423,61 @@ func TestRunRemoteAction_NoAck(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for remote listener to receive action")
+	}
+}
+
+func TestRunRemoteAction_AckDelayWithinReadTimeout(t *testing.T) {
+	baseDir := shortTempDir(t)
+	runtimeDir := filepath.Join(baseDir, "muse")
+	if err := os.MkdirAll(runtimeDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_RUNTIME_DIR", baseDir)
+
+	sockPath := filepath.Join(runtimeDir, ctrlSocketName)
+	ln, err := net.Listen("unix", sockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	serverErr := make(chan error, 1)
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			serverErr <- err
+			return
+		}
+		defer conn.Close()
+
+		line, err := bufio.NewReader(conn).ReadString('\n')
+		if err != nil {
+			serverErr <- err
+			return
+		}
+		if got := strings.TrimSpace(line); got != "next" {
+			serverErr <- fmt.Errorf("got %q, want %q", got, "next")
+			return
+		}
+
+		time.Sleep(3 * time.Second)
+		if _, err := fmt.Fprintln(conn, "ok"); err != nil {
+			serverErr <- err
+			return
+		}
+		serverErr <- nil
+	}()
+
+	if err := runRemoteAction("next"); err != nil {
+		t.Fatalf("expected delayed acknowledgment to succeed, got %v", err)
+	}
+
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(6 * time.Second):
+		t.Fatal("timed out waiting for remote listener")
 	}
 }

@@ -121,6 +121,23 @@ func TestRadioNoTriggerAboveLowWaterMark(t *testing.T) {
 	}
 }
 
+// TestRadioNoTriggerWithOutOfRangeCurrentIndex verifies stale out-of-range
+// playback indices do not make radio think the queue is nearly exhausted.
+func TestRadioNoTriggerWithOutOfRangeCurrentIndex(t *testing.T) {
+	m := newModelWithTracks()
+	m.radio.enabled = true
+	m.batchEnqueuer = &stubBatchEnqueuer{}
+	m.queue.entries = make([]QueueEntry, 4)
+	for i := range m.queue.entries {
+		m.queue.entries[i] = QueueEntry{ID: int64(i + 1)}
+	}
+	m.playback.currentIndex = 99
+
+	if cmd := m.radioMaybeEnqueueCmd(); cmd != nil {
+		t.Error("expected nil cmd when stale currentIndex is out of range and queue has ample entries")
+	}
+}
+
 // TestRadioSeedEvolutionOnTrackChanged verifies that handleTrackChangedMsg
 // updates radio.seedHash to the newly playing track's hash.
 func TestRadioSeedEvolutionOnTrackChanged(t *testing.T) {

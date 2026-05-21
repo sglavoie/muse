@@ -174,3 +174,15 @@ func TestChunkMismatchedLabelsFallback(t *testing.T) {
 		t.Errorf("expected fallback to data-only rows, got %v", out)
 	}
 }
+
+func TestChunkUncappedStickyBucketWithNoRows(t *testing.T) {
+	out := Chunk(nil, nil, ChunkOptions{
+		StickyBucket:     "A",
+		MaxRows:          0,
+		MakeBucketHeader: func(s string) string { return "[" + s + "]" },
+	})
+	want := []string{"[A]"}
+	if strings.Join(out, "|") != strings.Join(want, "|") {
+		t.Errorf("got %v, want %v", out, want)
+	}
+}

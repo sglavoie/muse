@@ -1,9 +1,13 @@
 package library
 
 import (
+	"errors"
+
 	tea "charm.land/bubbletea/v2"
 	musiclib "github.com/sglavoie/muse/internal/library"
 )
+
+var errNilQueueAppender = errors.New("nil queue appender")
 
 // EnqueueTrackCmd builds a tea.Cmd that appends track to the play queue.
 // Returns nil when ok is false (no focused track). sourcePlaylist identifies
@@ -16,6 +20,9 @@ func EnqueueTrackCmd(track musiclib.Track, ok bool, qa QueueAppender, prevQueueL
 	}
 	wasEmpty := prevQueueLen == 0
 	return func() tea.Msg {
+		if qa == nil {
+			return TrackEnqueuedMsg{Track: track, Err: errNilQueueAppender, WasEmpty: wasEmpty, SourcePlaylist: sourcePlaylist, InsertAfter: insertAfter}
+		}
 		id, err := qa.AppendTrack(track, sourcePlaylist)
 		return TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, SourcePlaylist: sourcePlaylist, InsertAfter: insertAfter}
 	}

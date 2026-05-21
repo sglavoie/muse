@@ -116,6 +116,26 @@ func TestUsageStoreLoadEmptyFileClearsStaleRecords(t *testing.T) {
 	}
 }
 
+func TestUsageStoreLoadNegativeCountSanitized(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, usageFileName)
+	data := []byte(`{"alpha":{"count":-5,"last_used":"2024-01-01T00:00:00Z"}}`)
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatalf("setup write: %v", err)
+	}
+	store := NewUsageStore(dir)
+	if err := store.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if got := store.Get("alpha").Count; got != 0 {
+		t.Fatalf("negative persisted count should be sanitized to 0, got %d", got)
+	}
+	store.Bump("alpha")
+	if got := store.Get("alpha").Count; got != 1 {
+		t.Fatalf("count after bump should start from 0, got %d", got)
+	}
+}
+
 func TestUsageStoreEmptyDataDirNoPersistence(t *testing.T) {
 	store := NewUsageStore("")
 	store.Bump("alpha")

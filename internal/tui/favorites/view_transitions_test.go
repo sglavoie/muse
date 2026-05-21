@@ -137,6 +137,28 @@ func TestBack_FromTrackLevelClampsCursorWhenParentEmpty(t *testing.T) {
 	}
 }
 
+func TestBack_FromTrackLevelKeepsCursorVisibleAfterResize(t *testing.T) {
+	v := View{
+		Level:            TrackLevel,
+		Category:         CategoryArtists,
+		Artists:          []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"},
+		DrilldownTracks:  sampleTracks(2),
+		ListCursor:       8,
+		ListScrollOffset: 4,
+		Height:           5, // visibleRows at ListLevel is 3
+	}
+	v2 := v.Back()
+	if v2.Level != ListLevel {
+		t.Fatalf("expected ListLevel, got %v", v2.Level)
+	}
+	if v2.Cursor != 8 {
+		t.Fatalf("expected cursor=8, got %d", v2.Cursor)
+	}
+	if v2.ScrollOffset != 6 {
+		t.Errorf("expected scrollOffset=6 to keep cursor visible, got %d", v2.ScrollOffset)
+	}
+}
+
 func TestBack_RoundTrip(t *testing.T) {
 	v := View{
 		Level:  CategoryLevel,

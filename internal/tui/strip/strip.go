@@ -120,9 +120,12 @@ func Render(
 
 	countsPlain := ""
 	switch {
+	case counts.Total <= 0:
+		// A zero total suppresses counts in all modes, including filtering.
+		countsPlain = ""
 	case counts.Filtering:
 		countsPlain = fmt.Sprintf("%d/%d", counts.Filtered, counts.Total)
-	case counts.Total > 0:
+	default:
 		countsPlain = fmt.Sprintf("%d", counts.Total)
 	}
 

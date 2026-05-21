@@ -237,12 +237,9 @@ func (m *Manager) clearPrefetch() {
 // doClearPrefetch is the inner implementation of clearPrefetch. The caller
 // must hold prefetchMu.
 func (m *Manager) doClearPrefetch() {
-	m.mu.Lock()
+	m.mu.RLock()
 	had := m.prefetchedIndex >= 0
-	m.prefetchedIndex = -1
-	m.prefetchedPath = ""
-	m.mu.Unlock()
-
+	m.mu.RUnlock()
 	if !had {
 		return
 	}
@@ -250,7 +247,13 @@ func (m *Manager) doClearPrefetch() {
 	if err != nil {
 		return
 	}
-	_, _ = c.SendCommand(cmdPlaylistRemove, 1)
+	if _, err := c.SendCommand(cmdPlaylistRemove, 1); err != nil {
+		return
+	}
+	m.mu.Lock()
+	m.prefetchedIndex = -1
+	m.prefetchedPath = ""
+	m.mu.Unlock()
 }
 
 // Next advances to the next track in the queue using the Go-side index so

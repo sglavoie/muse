@@ -51,6 +51,41 @@ func TestBulkLoad_ReplacesExistingContent(t *testing.T) {
 	}
 }
 
+func TestBulkLoad_DuplicateHashMatchesInsertSemantics(t *testing.T) {
+	tracks := []Track{
+		{Hash: "h1", Artist: "B", Title: "old", Path: "/old.flac"},
+		{Hash: "h2", Artist: "C", Title: "stable", Path: "/stable.flac"},
+		{Hash: "h1", Artist: "A", Title: "new", Path: "/new.flac"},
+	}
+
+	var insertIdx LibraryIndex
+	for _, tr := range tracks {
+		insertIdx.Insert(tr)
+	}
+
+	var bulkIdx LibraryIndex
+	bulkIdx.BulkLoad(tracks)
+
+	if bulkIdx.Len() != insertIdx.Len() {
+		t.Fatalf("len: got %d, want %d", bulkIdx.Len(), insertIdx.Len())
+	}
+	got, ok := bulkIdx.FindByHash("h1")
+	if !ok {
+		t.Fatal("expected h1 to be indexed")
+	}
+	if got.Path != "/new.flac" {
+		t.Fatalf("h1 should keep last duplicate, got path %q", got.Path)
+	}
+
+	gotTracks := bulkIdx.Tracks()
+	wantTracks := insertIdx.Tracks()
+	for i := range wantTracks {
+		if gotTracks[i].Hash != wantTracks[i].Hash || gotTracks[i].Path != wantTracks[i].Path {
+			t.Fatalf("position %d mismatch: got %+v, want %+v", i, gotTracks[i], wantTracks[i])
+		}
+	}
+}
+
 func BenchmarkBulkLoad(b *testing.B) {
 	const n = 50_000
 	tracks := make([]Track, n)

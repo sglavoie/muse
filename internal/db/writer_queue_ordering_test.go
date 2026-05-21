@@ -2,6 +2,7 @@ package db_test
 
 import (
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -190,6 +191,37 @@ func TestReorderQueueTrack_Boundary(t *testing.T) {
 	}
 	if p1 != 1000 || p2 != 2000 {
 		t.Errorf("positions changed after boundary ops: id1=%d id2=%d; want 1000/2000", p1, p2)
+	}
+}
+
+// TestReorderQueueTrack_InvalidDirection verifies invalid direction values
+// return an error and do not mutate ordering.
+func TestReorderQueueTrack_InvalidDirection(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "qri-dir-1", "/qid1")
+	seedTrack(t, d, "qri-dir-2", "/qid2")
+	id1 := seedQueueEntry(t, d, "qri-dir-1", 1000)
+	id2 := seedQueueEntry(t, d, "qri-dir-2", 2000)
+
+	err := w.ReorderQueueTrack(id1, 0)
+	if err == nil {
+		t.Fatal("expected error for invalid direction, got nil")
+	}
+	if !strings.Contains(err.Error(), "direction must be -1 or +1") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var p1, p2 int64
+	if err := d.QueryRow(`SELECT position FROM queue WHERE id=?`, id1).Scan(&p1); err != nil {
+		t.Fatalf("query id1: %v", err)
+	}
+	if err := d.QueryRow(`SELECT position FROM queue WHERE id=?`, id2).Scan(&p2); err != nil {
+		t.Fatalf("query id2: %v", err)
+	}
+	if p1 != 1000 || p2 != 2000 {
+		t.Errorf("positions changed after invalid direction: id1=%d id2=%d; want 1000/2000", p1, p2)
 	}
 }
 

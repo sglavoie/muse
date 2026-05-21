@@ -121,6 +121,17 @@ func TestRender_NarrowDropsCounts(t *testing.T) {
 	}
 }
 
+func TestRender_CountsSuppressedWhenTotalZeroEvenIfFiltering(t *testing.T) {
+	s := styles.NewStyles(true)
+	got := Render(40, []string{"Library"}, SortChunk{}, FilterChunk{},
+		CountsChunk{Filtered: 3, Total: 0, Filtering: true}, nil, "", s)
+	plain := ansi.Strip(got)
+
+	if strings.Contains(plain, "3/0") || strings.Contains(plain, "0/0") {
+		t.Errorf("counts should be suppressed when total is zero, got %q", plain)
+	}
+}
+
 func TestRender_NarrowerDropsSort(t *testing.T) {
 	s := styles.NewStyles(true)
 	sort := SortChunk{Label: "Artist", Indicator: "▲"}

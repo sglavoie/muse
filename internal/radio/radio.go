@@ -219,7 +219,9 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 
 		picked := pool[pickedIdx]
 		result = append(result, picked.Track)
-		artistCount[picked.Track.Artist]++
+		if key := normalizedArtistKey(picked.Track.Artist); key != "" {
+			artistCount[key]++
+		}
 
 		// Remove picked from pool.
 		pool = append(pool[:pickedIdx], pool[pickedIdx+1:]...)
@@ -234,7 +236,8 @@ func collectEligible(pool []TrackScore, artistCount map[string]int, maxPerArtist
 	totalWeight := 0.0
 	anyPositive := false
 	for i, ts := range pool {
-		if ts.Track.Artist != "" && artistCount[ts.Track.Artist] >= maxPerArtist {
+		artistKey := normalizedArtistKey(ts.Track.Artist)
+		if artistKey != "" && artistCount[artistKey] >= maxPerArtist {
 			continue
 		}
 		weight := math.Max(ts.Score, 0.1)
@@ -246,4 +249,8 @@ func collectEligible(pool []TrackScore, artistCount map[string]int, maxPerArtist
 		}
 	}
 	return eligible, weights, totalWeight, anyPositive
+}
+
+func normalizedArtistKey(artist string) string {
+	return strings.ToLower(strings.TrimSpace(artist))
 }

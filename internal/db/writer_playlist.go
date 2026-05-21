@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 )
 
@@ -141,6 +142,9 @@ func (w *Writer) UndoRemovePlaylistTrack(id int64) error {
 // no-op when the track is already at the boundary. Only active
 // (deleted_at IS NULL) neighbours are considered.
 func (w *Writer) ReorderPlaylistTrack(playlistID, trackID int64, direction int) error {
+	if direction != -1 && direction != 1 {
+		return errors.New("direction must be -1 or +1")
+	}
 	return w.Exec(func(db *sql.DB) error {
 		tx, err := db.Begin()
 		if err != nil {

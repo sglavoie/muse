@@ -308,3 +308,39 @@ func TestModalReceivesPreSortedPlaylistsFromFakeReader(t *testing.T) {
 		t.Errorf("expected PlaylistName='Chill', got %q", picked.PlaylistName)
 	}
 }
+
+// TestModalEnterWithCursorAboveRangeClampsToQueue verifies enter remains safe
+// when cursor is below the valid range.
+func TestModalEnterWithCursorAboveRangeClampsToQueue(t *testing.T) {
+	m := NewDestinationPicker(fakePlaylistRows("Alpha", "Beta"))
+	m.cursor = -10
+
+	_, cmd := m.HandleKey("enter")
+	if cmd == nil {
+		t.Fatal("enter with negative cursor: expected non-nil cmd")
+	}
+	msg := cmd()
+	picked, ok := msg.(DestinationPickedMsg)
+	if !ok {
+		t.Fatalf("enter with negative cursor: expected DestinationPickedMsg, got %T", msg)
+	}
+	if !picked.IsQueue {
+		t.Errorf("enter with negative cursor: expected IsQueue=true")
+	}
+}
+
+// TestModalEnterWithCursorPastEndClampsToCreate verifies enter remains safe
+// when cursor is above the valid range.
+func TestModalEnterWithCursorPastEndClampsToCreate(t *testing.T) {
+	m := NewDestinationPicker(fakePlaylistRows("Alpha", "Beta"))
+	m.cursor = 99
+
+	_, cmd := m.HandleKey("enter")
+	if cmd == nil {
+		t.Fatal("enter with out-of-range cursor: expected non-nil cmd")
+	}
+	msg := cmd()
+	if _, ok := msg.(DestinationPickerCreateMsg); !ok {
+		t.Fatalf("enter with out-of-range cursor: expected DestinationPickerCreateMsg, got %T", msg)
+	}
+}

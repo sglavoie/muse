@@ -181,3 +181,25 @@ log_level = "DEBUG"
 		t.Errorf("LogLevel = %q, want %q", result.Config.LogLevel, "debug")
 	}
 }
+
+func TestLoad_LogLevel_WhitespaceTrimmed(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+log_level = "  WARN  "
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if len(result.Warnings) != 0 {
+		t.Errorf("expected no warnings for whitespace-padded log level, got: %v", result.Warnings)
+	}
+	if result.Config.LogLevel != "warn" {
+		t.Errorf("LogLevel = %q, want %q", result.Config.LogLevel, "warn")
+	}
+}

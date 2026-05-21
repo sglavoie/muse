@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 )
 
@@ -230,6 +231,9 @@ func (w *Writer) SetQueueOrder(ids []int64) error {
 // already at the boundary. Only active (deleted_at IS NULL) neighbours are
 // considered.
 func (w *Writer) ReorderQueueTrack(trackID int64, direction int) error {
+	if direction != -1 && direction != 1 {
+		return errors.New("direction must be -1 or +1")
+	}
 	return w.Exec(func(db *sql.DB) error {
 		tx, err := db.Begin()
 		if err != nil {

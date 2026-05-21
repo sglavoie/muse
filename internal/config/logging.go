@@ -77,7 +77,7 @@ func SetLogLevel(level slog.Level) {
 // its corresponding slog.Level. The comparison is case-insensitive.
 // Unrecognised values default to Info.
 func ParseLogLevel(s string) (slog.Level, bool) {
-	s = strings.ToLower(s)
+	s = strings.ToLower(strings.TrimSpace(s))
 	switch s {
 	case "debug":
 		return slog.LevelDebug, true

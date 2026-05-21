@@ -119,8 +119,26 @@ func (idx *LibraryIndex) Insert(t Track) {
 // It is O(N log N) vs N binary-search inserts, making it suitable for
 // pre-populating the index from the database cache on startup.
 func (idx *LibraryIndex) BulkLoad(tracks []Track) {
-	idx.tracks = make([]Track, len(tracks))
-	copy(idx.tracks, tracks)
+	// Deduplicate non-empty hashes with "last one wins" semantics to mirror
+	// sequential Insert behavior and avoid orphaned duplicates in idx.tracks.
+	// Empty hashes are intentionally not deduplicated.
+	deduped := make([]Track, 0, len(tracks))
+	byHash := make(map[string]int, len(tracks))
+	for _, t := range tracks {
+		if t.Hash == "" {
+			deduped = append(deduped, t)
+			continue
+		}
+		if i, ok := byHash[t.Hash]; ok {
+			deduped[i] = t
+			continue
+		}
+		byHash[t.Hash] = len(deduped)
+		deduped = append(deduped, t)
+	}
+
+	idx.tracks = make([]Track, len(deduped))
+	copy(idx.tracks, deduped)
 	sort.Slice(idx.tracks, func(i, j int) bool {
 		return less(idx.tracks[i], idx.tracks[j])
 	})

@@ -135,9 +135,12 @@ func (v View) GoToTop() View {
 // GoToBottom moves the cursor to the last row.
 func (v View) GoToBottom() View {
 	n := v.itemCount()
-	if n > 0 {
-		v.Cursor = n - 1
+	if n == 0 {
+		v.Cursor = 0
+		v.ScrollOffset = 0
+		return v
 	}
+	v.Cursor = n - 1
 	maxRows := v.visibleRows()
 	if v.Cursor >= maxRows {
 		v.ScrollOffset = v.Cursor - maxRows + 1

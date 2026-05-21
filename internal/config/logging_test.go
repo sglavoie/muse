@@ -289,6 +289,7 @@ func TestParseLogLevel_AllValues(t *testing.T) {
 		{"", slog.LevelInfo, true},
 		{"unknown", slog.LevelInfo, false},
 		{"DEBUG", slog.LevelDebug, true}, // case-insensitive: uppercase is accepted
+		{" WARN ", slog.LevelWarn, true},
 	}
 	for _, tc := range cases {
 		got, ok := ParseLogLevel(tc.input)
