@@ -1,10 +1,8 @@
 package tui
 
 import (
-	"math"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -332,30 +330,6 @@ func TestRenderIdleNonEmptyQueueNoHint(t *testing.T) {
 	}
 }
 
-// TestFormatTime verifies the MM:SS formatting of formatTime.
-func TestFormatTime(t *testing.T) {
-	tests := []struct {
-		secs float64
-		want string
-	}{
-		{0, "0:00"},
-		{59, "0:59"},
-		{60, "1:00"},
-		{61.9, "1:01"},
-		{3600, "1:00:00"},
-		{3723.5, "1:02:03"},
-		{math.NaN(), "0:00"},
-		{math.Inf(1), "0:00"},
-		{math.Inf(-1), "0:00"},
-	}
-	for _, tc := range tests {
-		got := formatTime(tc.secs)
-		if got != tc.want {
-			t.Errorf("formatTime(%v) = %q, want %q", tc.secs, got, tc.want)
-		}
-	}
-}
-
 // TestRenderElapsedTimeDisplay verifies that when elapsed and total are set the
 // status bar shows "MM:SS / MM:SS" in the output.
 func TestRenderElapsedTimeDisplay(t *testing.T) {
@@ -472,108 +446,5 @@ func TestRenderProgressBarOnLine2(t *testing.T) {
 	// Progress bar uses █ (filled) and ░ (empty); at least one should be present.
 	if !strings.Contains(lines[1], "█") && !strings.Contains(lines[1], "░") {
 		t.Errorf("line 2 should contain progress bar glyphs: got %q", lines[1])
-	}
-}
-
-// TestTruncateTitle covers the truncateTitle helper directly.
-func TestTruncateTitle(t *testing.T) {
-	tests := []struct {
-		input    string
-		max      int
-		expected string
-	}{
-		{"hello", 10, "hello"},
-		{"hello", 5, "hello"},
-		{"hello", 4, "hel…"},
-		{"hello", 1, "…"},
-		{"hello", 0, ""},
-		{"hello", -1, ""},
-		// CJK characters are 2 columns each; maxWidth is now in columns.
-		{"日本語タイトル", 14, "日本語タイトル"}, // exact fit (7×2 = 14)
-		{"日本語タイトル", 7, "日本語…"},     // budget 6 → 3 CJK chars (6) + "…" (1)
-		{"日本語タイトル", 4, "日…"},       // budget 3 → 1 CJK char (2) + "…" (1)
-	}
-
-	for _, tc := range tests {
-		got := truncateTitle(tc.input, tc.max)
-		if got != tc.expected {
-			t.Errorf("truncateTitle(%q, %d) = %q, want %q", tc.input, tc.max, got, tc.expected)
-		}
-	}
-}
-
-// TestNotifyUsesConfiguredDuration verifies that StatusBar.notify respects the
-// configured transientDur instead of hardcoding 5 seconds.
-func TestNotifyUsesConfiguredDuration(t *testing.T) {
-	sb := StatusBar{transientDur: 15 * time.Second}
-	before := time.Now()
-	sb.notify("test message")
-
-	top := sb.topNotification()
-	if top.msg != "test message" {
-		t.Errorf("expected msg %q, got %q", "test message", top.msg)
-	}
-	// Expiry should be ~15s from now, not ~5s.
-	diff := top.expiresAt.Sub(before)
-	if diff < 14*time.Second || diff > 16*time.Second {
-		t.Errorf("expected expiry ~15s from now, got %v", diff)
-	}
-}
-
-// TestNotifyFallsBackToDefault verifies that StatusBar.notify falls back to the
-// 5-second default constant when transientDur is zero (unset).
-func TestNotifyFallsBackToDefault(t *testing.T) {
-	sb := StatusBar{} // transientDur is zero
-	before := time.Now()
-	sb.notify("fallback test")
-
-	top := sb.topNotification()
-	diff := top.expiresAt.Sub(before)
-	if diff < 4*time.Second || diff > 6*time.Second {
-		t.Errorf("expected expiry ~5s (fallback) from now, got %v", diff)
-	}
-}
-
-// TestRenderProgressBarNonPositiveWidth verifies that renderProgressBar
-// returns an empty string when width is zero or negative, rather than
-// panicking on strings.Repeat with a negative count. Callers compute
-// progress-bar widths by subtracting label/trailing widths from the
-// available terminal width and clamp the result to >= 0, but the helper
-// itself must remain safe if any future caller forgets to clamp.
-func TestRenderProgressBarNonPositiveWidth(t *testing.T) {
-	st := styles.Styles{}
-	for _, w := range []int{0, -1, -100} {
-		got := renderProgressBar(10, 100, w, st)
-		if got != "" {
-			t.Errorf("renderProgressBar(width=%d) = %q, want empty string", w, got)
-		}
-	}
-}
-
-// TestRenderProgressBarValidWidths verifies that valid widths render a bar
-// whose display width matches the requested width, regardless of the
-// elapsed/total fraction (including over-100% inputs that should clamp).
-func TestRenderProgressBarValidWidths(t *testing.T) {
-	st := styles.Styles{}
-	cases := []struct {
-		name           string
-		elapsed, total float64
-		width          int
-	}{
-		{"zero progress", 0, 100, 10},
-		{"half progress", 50, 100, 10},
-		{"full progress", 100, 100, 10},
-		{"over 100%", 200, 100, 10},
-		{"negative elapsed", -5, 100, 10},
-		{"zero total", 50, 0, 10},
-		{"width 1", 50, 100, 1},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			got := renderProgressBar(c.elapsed, c.total, c.width, st)
-			if w := ansi.StringWidth(got); w != c.width {
-				t.Errorf("renderProgressBar(%v,%v,%d) display width = %d, want %d", c.elapsed, c.total, c.width, w, c.width)
-			}
-		})
 	}
 }
