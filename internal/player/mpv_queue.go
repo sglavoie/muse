@@ -91,10 +91,13 @@ func (m *Manager) RemoveFromQueue(index int) error {
 	m.queue = newQ
 	if index < m.currentIndex {
 		m.currentIndex--
+	} else if index == m.currentIndex {
+		// Clamp to the next valid entry, or last entry if removed was last
+		if index >= len(m.queue) {
+			m.currentIndex = len(m.queue) - 1
+		}
 	}
-	if len(m.queue) > 0 && m.currentIndex >= len(m.queue) {
-		m.currentIndex = len(m.queue) - 1
-	} else if len(m.queue) == 0 {
+	if len(m.queue) == 0 {
 		m.currentIndex = -1
 	}
 	m.mu.Unlock()

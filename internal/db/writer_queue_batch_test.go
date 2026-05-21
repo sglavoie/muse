@@ -66,8 +66,11 @@ func TestAppendTracks_EmptySlice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AppendTracks(nil): %v", err)
 	}
-	if ids != nil {
-		t.Errorf("AppendTracks(nil): expected nil ids, got %v", ids)
+	if ids == nil {
+		t.Errorf("AppendTracks(nil): expected empty slice, got nil")
+	}
+	if len(ids) != 0 {
+		t.Errorf("AppendTracks(nil): expected 0 ids, got %d", len(ids))
 	}
 }
 

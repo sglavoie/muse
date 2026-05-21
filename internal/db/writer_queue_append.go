@@ -37,7 +37,7 @@ func (w *Writer) AppendTrack(track library.Track, sourcePlaylist string) (int64,
 // Returns a slice of new row IDs in the same order as the input tracks.
 func (w *Writer) AppendTracks(tracks []library.Track, sourcePlaylist string) ([]int64, error) {
 	if len(tracks) == 0 {
-		return nil, nil
+		return make([]int64, 0), nil
 	}
 	var ids []int64
 	err := w.Exec(func(db *sql.DB) error {

@@ -62,8 +62,9 @@ func TestManager_RemoveFromQueue(t *testing.T) {
 		}
 		// currentIndex stays at 2 so auto-advance (PlayFromIndex(2)) resolves
 		// to what was previously index 3 (now at position 2 after removal).
+		// After removal, currentIndex should clamp to the next valid entry (now at index 2)
 		if m.currentIndex != 2 {
-			t.Errorf("currentIndex = %d, want 2 (unchanged)", m.currentIndex)
+			t.Errorf("currentIndex = %d, want 2 (clamped to next valid entry)", m.currentIndex)
 		}
 	})
 
