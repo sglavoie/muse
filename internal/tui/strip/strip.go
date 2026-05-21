@@ -269,7 +269,11 @@ func Render(
 			crumbWidths = []int{ansi.StringWidth(breadcrumb[0])}
 		} else if lastBudget < crumbWidths[len(crumbWidths)-1] {
 			last := ansi.Truncate(breadcrumb[len(breadcrumb)-1], lastBudget, "…")
-			breadcrumb[len(breadcrumb)-1] = last
+			// Copy to avoid mutating the caller's underlying array.
+			bc := make([]string, len(breadcrumb))
+			copy(bc, breadcrumb)
+			bc[len(bc)-1] = last
+			breadcrumb = bc
 			crumbWidths[len(crumbWidths)-1] = ansi.StringWidth(last)
 		}
 	}

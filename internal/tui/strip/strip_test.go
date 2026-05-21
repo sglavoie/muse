@@ -360,3 +360,30 @@ func TestRender_HintStylingKeyLabelPair(t *testing.T) {
 		t.Errorf("hint must no longer render with Dim style; got %q", got)
 	}
 }
+
+// TestRender_BreadcrumbSliceUnchangedAfterNarrowRender verifies that a
+// narrow render that truncates the last breadcrumb crumb does not mutate
+// the caller's original slice. A subsequent wide render must still see the
+// full, untruncated crumb.
+func TestRender_BreadcrumbSliceUnchangedAfterNarrowRender(t *testing.T) {
+	s := styles.NewStyles(true)
+	crumbs := []string{"Artists", "A Very Long Artist Name"}
+	original := make([]string, len(crumbs))
+	copy(original, crumbs)
+
+	// Narrow render: forces last-crumb truncation.
+	Render(22, crumbs, SortChunk{}, FilterChunk{}, CountsChunk{}, nil, "", s)
+
+	for i, c := range crumbs {
+		if c != original[i] {
+			t.Errorf("crumbs[%d] mutated: want %q, got %q", i, original[i], c)
+		}
+	}
+
+	// Wide render after narrow: must show the full original crumb.
+	wide := Render(80, crumbs, SortChunk{}, FilterChunk{}, CountsChunk{}, nil, "", s)
+	plain := ansi.Strip(wide)
+	if !strings.Contains(plain, "A Very Long Artist Name") {
+		t.Errorf("wide render after narrow must show full crumb; got %q", plain)
+	}
+}

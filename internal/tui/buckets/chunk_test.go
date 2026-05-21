@@ -175,6 +175,56 @@ func TestChunkMismatchedLabelsFallback(t *testing.T) {
 	}
 }
 
+// TestChunkMismatchedLabelsFallbackRespectsMaxRows verifies that the
+// defensive mismatch fallback honours MaxRows.
+func TestChunkMismatchedLabelsFallbackRespectsMaxRows(t *testing.T) {
+	rows := makeRows(20)
+	out := Chunk(rows, []string{"A"}, ChunkOptions{MaxRows: 5})
+	if len(out) != 5 {
+		t.Errorf("mismatched fallback: want 5 rows (MaxRows), got %d", len(out))
+	}
+}
+
+// TestChunkStickyBucketMaxRows1 verifies that when MaxRows=1 and there are
+// data rows, the sticky header is suppressed so the single allowed output
+// line is used for a data row rather than the header.
+func TestChunkStickyBucketMaxRows1(t *testing.T) {
+	rows := makeRows(3)
+	labels := []string{"A", "A", "A"}
+	out := Chunk(rows, labels, ChunkOptions{
+		StickyBucket:     "A",
+		MaxRows:          1,
+		MakeBucketHeader: func(s string) string { return "[" + s + "]" },
+	})
+	if len(out) != 1 {
+		t.Fatalf("MaxRows=1: want 1 output line, got %d: %v", len(out), out)
+	}
+	if out[0] == "[A]" {
+		t.Errorf("MaxRows=1: sticky header should be suppressed when it would leave no room for data, got %v", out)
+	}
+}
+
+// TestChunkStickyBucketMaxRows2 verifies that when MaxRows=2, the sticky
+// header is emitted followed by exactly one data row.
+func TestChunkStickyBucketMaxRows2(t *testing.T) {
+	rows := makeRows(5)
+	labels := []string{"A", "A", "A", "A", "A"}
+	out := Chunk(rows, labels, ChunkOptions{
+		StickyBucket:     "A",
+		MaxRows:          2,
+		MakeBucketHeader: func(s string) string { return "[" + s + "]" },
+	})
+	if len(out) != 2 {
+		t.Fatalf("MaxRows=2: want 2 output lines, got %d: %v", len(out), out)
+	}
+	if out[0] != "[A]" {
+		t.Errorf("MaxRows=2: first line should be the sticky header, got %q", out[0])
+	}
+	if out[1] != "row" {
+		t.Errorf("MaxRows=2: second line should be a data row, got %q", out[1])
+	}
+}
+
 func TestChunkUncappedStickyBucketWithNoRows(t *testing.T) {
 	out := Chunk(nil, nil, ChunkOptions{
 		StickyBucket:     "A",

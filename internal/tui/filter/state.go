@@ -62,6 +62,24 @@ func (s State) Deactivate() State {
 	return s
 }
 
+// seed lazily initialises the textinput from Text when the State was
+// constructed directly (e.g. State{Active:true, Text:"AB"}) without going
+// through Activate(). It is a no-op once initialized is true.
+func (s State) seed() State {
+	if s.initialized {
+		return s
+	}
+	ti := textinput.New()
+	ti.Prompt = ""
+	ti.CharLimit = 0
+	ti.SetValue(s.Text)
+	s.input = ti
+	s.input.CursorEnd()
+	_ = s.input.Focus() // discard cursor-blink cmd; cursor rendering is best-effort here
+	s.initialized = true
+	return s
+}
+
 // Update handles a key press while the filter is active, delegating to the
 // embedded textinput for full paste, cursor, and Bash keybinding support.
 // It is a no-op when the filter is not active.
@@ -69,6 +87,7 @@ func (s State) Update(msg tea.KeyPressMsg) (State, tea.Cmd) {
 	if !s.Active {
 		return s, nil
 	}
+	s = s.seed()
 	var cmd tea.Cmd
 	s.input, cmd = s.input.Update(msg)
 	s.Text = s.input.Value()
@@ -81,6 +100,7 @@ func (s State) UpdateMsg(msg tea.Msg) (State, tea.Cmd) {
 	if !s.Active {
 		return s, nil
 	}
+	s = s.seed()
 	var cmd tea.Cmd
 	s.input, cmd = s.input.Update(msg)
 	s.Text = s.input.Value()
@@ -91,5 +111,8 @@ func (s State) UpdateMsg(msg tea.Msg) (State, tea.Cmd) {
 // Only call this when Active is true; the textinput must have been focused
 // via Activate() for the cursor to render correctly.
 func (s State) View() string {
+	if s.Active {
+		s = s.seed()
+	}
 	return s.input.View()
 }

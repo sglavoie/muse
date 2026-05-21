@@ -85,3 +85,32 @@ func TestView(t *testing.T) {
 	// View() must not panic and must return a string.
 	_ = s.View()
 }
+
+// TestRawActiveStateUpdate verifies that a State constructed directly with
+// Active=true and Text set (without calling Activate) correctly processes key
+// input: the existing text must be preserved and editing must work.
+func TestRawActiveStateUpdate(t *testing.T) {
+	s := State{Active: true, Text: "AB"}
+	s, _ = s.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	if s.Text != "A" {
+		t.Errorf("after backspace on raw active state: want Text=%q, got %q", "A", s.Text)
+	}
+}
+
+// TestRawActiveStateUpdateMsg verifies that UpdateMsg on a directly-constructed
+// active State does not lose the existing text.
+func TestRawActiveStateUpdateMsg(t *testing.T) {
+	s := State{Active: true, Text: "hello"}
+	// Sending a no-op message should preserve the text.
+	s, _ = s.UpdateMsg(tea.KeyPressMsg{Text: "!"})
+	if s.Text != "hello!" {
+		t.Errorf("UpdateMsg on raw active state: want Text=%q, got %q", "hello!", s.Text)
+	}
+}
+
+// TestRawActiveStateViewDoesNotPanic verifies that View() on a directly-
+// constructed active State does not panic even without Activate().
+func TestRawActiveStateViewDoesNotPanic(t *testing.T) {
+	s := State{Active: true, Text: "abc"}
+	_ = s.View() // must not panic
+}

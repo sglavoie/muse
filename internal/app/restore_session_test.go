@@ -319,3 +319,101 @@ func TestRestoreSessionRepeatOne(t *testing.T) {
 		t.Errorf("RepeatMode: want RepeatOne, got %v", restored.RepeatMode)
 	}
 }
+
+// TestRestoreSessionClearsStaleMissing verifies that a queue entry previously
+// marked missing=1 in the DB has its missing flag cleared when the file is
+// readable at restore time.
+func TestRestoreSessionClearsStaleMissing(t *testing.T) {
+	dirs := setupDirs(t)
+	database := openTestDB(t, dirs)
+	defer database.Close()
+	w := newTestWriter(t, database)
+
+	// Create the file after marking the entry missing so we simulate a file
+	// that was gone in a previous session and has since reappeared.
+	audioPath := filepath.Join(dirs.Runtime, "returned.mp3")
+	insertTrack(t, database, "hash-returned", audioPath, "Artist R", "Song R")
+	id := insertQueueEntry(t, database, "hash-returned", 1000)
+
+	// Manually mark missing=1 in both tables to simulate a prior-session scan.
+	if _, err := database.Exec(`UPDATE queue SET missing=1 WHERE id=?`, id); err != nil {
+		t.Fatalf("mark queue missing: %v", err)
+	}
+	if _, err := database.Exec(`UPDATE tracks SET missing=1 WHERE hash=?`, "hash-returned"); err != nil {
+		t.Fatalf("mark track missing: %v", err)
+	}
+
+	// Write the file so it is now readable.
+	if err := os.WriteFile(audioPath, []byte("fake"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	restored, err := app.RestoreSession(database, w)
+	if err != nil {
+		t.Fatalf("RestoreSession: %v", err)
+	}
+	if len(restored.QueueEntries) != 1 {
+		t.Fatalf("QueueEntries: want 1, got %d", len(restored.QueueEntries))
+	}
+	if restored.QueueEntries[0].Missing {
+		t.Error("QueueEntry.Missing: want false after stale missing cleared")
+	}
+
+	var queueMissing int
+	if err := database.QueryRow(`SELECT missing FROM queue WHERE id=?`, id).Scan(&queueMissing); err != nil {
+		t.Fatalf("query queue.missing: %v", err)
+	}
+	if queueMissing != 0 {
+		t.Errorf("queue.missing: want 0 after clear, got %d", queueMissing)
+	}
+
+	var trackMissing int
+	if err := database.QueryRow(`SELECT missing FROM tracks WHERE hash=?`, "hash-returned").Scan(&trackMissing); err != nil {
+		t.Fatalf("query tracks.missing: %v", err)
+	}
+	if trackMissing != 0 {
+		t.Errorf("tracks.missing: want 0 after clear, got %d", trackMissing)
+	}
+}
+
+// TestRestoreSessionStaleMissingCurrentTrackCanRestore verifies that when the
+// current track was previously missing but is now readable, RestoreSession
+// sets Missing=false so the caller can proceed with RestorePlayer.
+func TestRestoreSessionStaleMissingCurrentTrackCanRestore(t *testing.T) {
+	dirs := setupDirs(t)
+	database := openTestDB(t, dirs)
+	defer database.Close()
+	w := newTestWriter(t, database)
+
+	audioPath := filepath.Join(dirs.Runtime, "current.mp3")
+	insertTrack(t, database, "hash-current", audioPath, "C", "Current")
+	id := insertQueueEntry(t, database, "hash-current", 1000)
+	setSessionRow(t, database, "hash-current", 5000, false, "none")
+
+	// Mark both tables missing.
+	if _, err := database.Exec(`UPDATE queue SET missing=1 WHERE id=?`, id); err != nil {
+		t.Fatalf("mark queue missing: %v", err)
+	}
+	if _, err := database.Exec(`UPDATE tracks SET missing=1 WHERE hash=?`, "hash-current"); err != nil {
+		t.Fatalf("mark track missing: %v", err)
+	}
+
+	// File is now back on disk.
+	if err := os.WriteFile(audioPath, []byte("fake"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	restored, err := app.RestoreSession(database, w)
+	if err != nil {
+		t.Fatalf("RestoreSession: %v", err)
+	}
+	if len(restored.QueueEntries) == 0 {
+		t.Fatal("QueueEntries: want at least 1")
+	}
+	if restored.QueueEntries[0].Missing {
+		t.Error("current track Missing: want false (file is back)")
+	}
+	if restored.CurrentHash != "hash-current" {
+		t.Errorf("CurrentHash: want %q, got %q", "hash-current", restored.CurrentHash)
+	}
+}

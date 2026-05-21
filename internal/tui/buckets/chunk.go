@@ -43,6 +43,9 @@ type ChunkOptions struct {
 func Chunk(dataRows, bucketLabels []string, opts ChunkOptions) []string {
 	if len(dataRows) != len(bucketLabels) {
 		// Defensive: fall back to plain data when caller mismatches.
+		if opts.MaxRows > 0 && len(dataRows) > opts.MaxRows {
+			return dataRows[:opts.MaxRows]
+		}
 		return dataRows
 	}
 	remaining := opts.MaxRows
@@ -52,7 +55,9 @@ func Chunk(dataRows, bucketLabels []string, opts ChunkOptions) []string {
 	out := make([]string, 0, remaining)
 	prevBucket := ""
 	if opts.StickyBucket != "" && opts.MakeBucketHeader != nil {
-		if remaining > 0 {
+		// Only emit the sticky header when there is enough room for at least
+		// one data row too (or when there are no data rows at all).
+		if remaining >= 2 || len(dataRows) == 0 {
 			out = append(out, opts.MakeBucketHeader(opts.StickyBucket))
 			remaining--
 		}

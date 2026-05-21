@@ -319,6 +319,18 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 					slog.Warn("mark track missing", "hash", r.Hash, "err", err)
 				}
 			}
+		} else {
+			// Re-stat previously-missing entries: if the file has reappeared,
+			// clear the stale missing flags so the player restore can proceed.
+			if _, statErr := os.Stat(r.Path); statErr == nil {
+				missing = false
+				if err := writer.ClearTrackMissing(r.Hash); err != nil {
+					slog.Warn("clear track missing", "hash", r.Hash, "err", err)
+				}
+				if err := writer.ClearQueueEntriesMissing(r.Hash); err != nil {
+					slog.Warn("clear queue entries missing", "hash", r.Hash, "err", err)
+				}
+			}
 		}
 		tuiEntries = append(tuiEntries, tui.QueueEntry{
 			ID:             r.ID,
