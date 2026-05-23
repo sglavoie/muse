@@ -7,7 +7,7 @@ const (
 	MixRediscover  MixID = iota // play_count >= minPlays, not heard in ageDays days
 	MixHiddenGems               // play_count <= maxPlays, artist/genre affinity
 	MixOnRepeat                 // minPlays+ plays in last windowDays days
-	MixDeepCuts                 // play_count 1–maxPlays, high completion rate
+	MixDeepCuts                 // play_count minPlays–maxPlays, high completion rate
 	MixNeverPlayed              // never played, ranked by affinity
 )
 
@@ -32,7 +32,7 @@ type CacheEntry struct {
 func Registry() []MixInfo {
 	return []MixInfo{
 		{ID: MixRediscover, Name: "Rediscover", Description: "Tracks you loved but haven't played in 90+ days"},
-		{ID: MixHiddenGems, Name: "Hidden Gems", Description: "Unplayed tracks by your favorite artists"},
+		{ID: MixHiddenGems, Name: "Hidden Gems", Description: "Low-played tracks by your favorite artists"},
 		{ID: MixOnRepeat, Name: "On Repeat", Description: "Your most played tracks this week"},
 		{ID: MixDeepCuts, Name: "Deep Cuts", Description: "Tracks you always listen to completion"},
 		{ID: MixNeverPlayed, Name: "Never Played", Description: "Tracks you might like but haven't tried"},

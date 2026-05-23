@@ -169,6 +169,38 @@ func parseHex(t *testing.T, hexColor string) color.RGBA {
 	return color.RGBA{R: rgb[0], G: rgb[1], B: rgb[2], A: 0xff}
 }
 
+func colorRGBA(t *testing.T, c color.Color) color.RGBA {
+	t.Helper()
+	if c == nil {
+		t.Fatal("color is nil")
+	}
+	rgba, ok := color.RGBAModel.Convert(c).(color.RGBA)
+	if !ok {
+		t.Fatalf("color model conversion returned %T, want color.RGBA", color.RGBAModel.Convert(c))
+	}
+	return rgba
+}
+
+func TestEmptyHintUsesExplicitDimForeground(t *testing.T) {
+	cases := []struct {
+		name    string
+		hasDark bool
+		want    string
+	}{
+		{"dark", true, "#7882a4"},
+		{"light", false, "#7a7f8c"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := colorRGBA(t, styles.NewStyles(c.hasDark).EmptyHint.GetForeground())
+			want := parseHex(t, c.want)
+			if got != want {
+				t.Fatalf("EmptyHint foreground = %#v, want %#v", got, want)
+			}
+		})
+	}
+}
+
 // TestStripForegroundContrastDark asserts that each of the four foregrounds
 // the state strip and footer hints rely on (TextPrimary, TextSecondary,
 // TextTertiary, Dim) clears WCAG AA (4.5:1) against the dark terminal

@@ -75,6 +75,34 @@ func TestCommandListener_CreatesMissingRuntimeDir(t *testing.T) {
 	}
 }
 
+func TestCommandListener_DoesNotRemoveNonSocketPath(t *testing.T) {
+	dir := shortTempDir(t)
+	sockPath := filepath.Join(dir, ctrlSocketName)
+	const contents = "not a socket"
+	if err := os.WriteFile(sockPath, []byte(contents), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	received := make(chan tui.RemoteActionMsg, 1)
+	p := newTestProgram(received)
+	go p.Run() //nolint:errcheck
+	defer p.Quit()
+
+	ln, err := startCommandListener(p, dir)
+	if err == nil {
+		ln.Close()
+		t.Fatal("expected startCommandListener to reject a non-socket control path")
+	}
+
+	got, readErr := os.ReadFile(sockPath)
+	if readErr != nil {
+		t.Fatalf("control path should remain in place: %v", readErr)
+	}
+	if string(got) != contents {
+		t.Fatalf("control path contents = %q, want %q", string(got), contents)
+	}
+}
+
 func TestCommandListener_CloseRemovesSocketFile(t *testing.T) {
 	dir := shortTempDir(t)
 	received := make(chan tui.RemoteActionMsg, 1)

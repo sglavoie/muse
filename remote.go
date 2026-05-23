@@ -81,7 +81,7 @@ func startCommandListener(p *tea.Program, runtimeDir string) (net.Listener, erro
 	sockPath := filepath.Join(runtimeDir, ctrlSocketName)
 
 	// Remove any stale socket left by a previous crash.
-	if err := os.Remove(sockPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := removeStaleControlSocket(sockPath); err != nil {
 		return nil, fmt.Errorf("remove stale control socket: %w", err)
 	}
 
@@ -101,6 +101,20 @@ func startCommandListener(p *tea.Program, runtimeDir string) (net.Listener, erro
 	go acceptLoop(p, ln)
 
 	return ln, nil
+}
+
+func removeStaleControlSocket(path string) error {
+	info, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSocket == 0 {
+		return fmt.Errorf("%s exists and is not a socket", path)
+	}
+	return os.Remove(path)
 }
 
 // acceptLoop runs the accept loop for a command listener. It exits cleanly

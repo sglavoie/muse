@@ -87,6 +87,16 @@ func TestReadListeningStats_Empty(t *testing.T) {
 	if stats.CurrentStreak != 0 {
 		t.Errorf("CurrentStreak = %d, want 0", stats.CurrentStreak)
 	}
+	var hiddenGemsDescription string
+	for _, entry := range stats.MixStats {
+		if entry.Name == "Hidden Gems" {
+			hiddenGemsDescription = entry.Description
+			break
+		}
+	}
+	if hiddenGemsDescription != "Low-played tracks by your favorite artists" {
+		t.Errorf("Hidden Gems description = %q, want low-played wording", hiddenGemsDescription)
+	}
 }
 
 func TestReadListeningStats_Totals(t *testing.T) {

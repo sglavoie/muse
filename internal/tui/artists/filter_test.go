@@ -112,6 +112,29 @@ func TestCursorDownRespectsFilteredCount(t *testing.T) {
 	}
 }
 
+func TestNavigationClampsWhenFilterHasNoMatches(t *testing.T) {
+	base := View{
+		Level:        ArtistLevel,
+		Artists:      []string{"Alice", "Bob", "Charlie"},
+		FilterText:   "zzz",
+		Cursor:       2,
+		ScrollOffset: 1,
+	}
+
+	for name, got := range map[string]View{
+		"CursorUp":     base.CursorUp(),
+		"CursorDown":   base.CursorDown(),
+		"HalfPageDown": base.HalfPageDown(),
+		"HalfPageUp":   base.HalfPageUp(),
+		"FullPageDown": base.FullPageDown(),
+		"FullPageUp":   base.FullPageUp(),
+	} {
+		if got.Cursor != 0 || got.ScrollOffset != 0 {
+			t.Errorf("%s: expected cursor=0 scroll=0 for empty filtered list, got cursor=%d scroll=%d", name, got.Cursor, got.ScrollOffset)
+		}
+	}
+}
+
 func TestRenderArtistsWithFilterShowsFilterBar(t *testing.T) {
 	v := View{
 		Level:        ArtistLevel,

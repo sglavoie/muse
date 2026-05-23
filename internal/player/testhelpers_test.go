@@ -6,14 +6,26 @@ import (
 	"maps"
 	"net"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
-// shortSockPath returns a short socket path under /tmp to stay within the
-// 104-character macOS limit for Unix domain socket paths.
+// shortSockPath returns a short socket path under the real temp directory to
+// stay within the 104-character macOS limit for Unix domain socket paths.
 func shortSockPath(t *testing.T, name string) string {
 	t.Helper()
-	return fmt.Sprintf("/tmp/muse-test-%d-%s.sock", os.Getpid(), name)
+	dir := os.TempDir()
+	if realDir, err := filepath.EvalSymlinks(dir); err == nil {
+		dir = realDir
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatalf("create temp socket dir: %v", err)
+	}
+	path := filepath.Join(dir, fmt.Sprintf("muse-test-%d-%s.sock", os.Getpid(), name))
+	if len(path) >= 104 {
+		t.Fatalf("test socket path too long for Unix domain socket: %q", path)
+	}
+	return path
 }
 
 func assertAudioFilters(t *testing.T, m *Manager, want map[string]string) {

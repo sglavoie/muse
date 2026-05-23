@@ -278,9 +278,10 @@ func (m *Manager) watchAndRestart() {
 		case <-m.disconnectCh:
 			consecutiveFailures++
 			if consecutiveFailures > restartMaxAttempts {
-				m.mu.RLock()
+				m.mu.Lock()
+				m.cmdQueue = nil
 				fn := m.callbacks.OnStatus
-				m.mu.RUnlock()
+				m.mu.Unlock()
 				if fn != nil {
 					fn("mpv: gave up after too many restart attempts")
 				}

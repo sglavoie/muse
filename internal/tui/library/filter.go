@@ -21,6 +21,7 @@ func (v View) AppendFilterChar(ch rune) View {
 	}
 	next, _ := v.Filter.Update(tea.KeyPressMsg{Text: string(ch)})
 	v.Filter = next
+	v.FilteredMatches = nil
 	v.Cursor = 0
 	v.ScrollOffset = 0
 	return v

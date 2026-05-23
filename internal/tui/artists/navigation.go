@@ -71,6 +71,11 @@ func (v View) visibleRows() int {
 // stopping at the first entry. The scroll offset is adjusted so the
 // cursor stays visible.
 func (v View) CursorUp() View {
+	if v.itemCount() == 0 {
+		v.Cursor = 0
+		v.ScrollOffset = 0
+		return v
+	}
 	if v.Cursor > 0 {
 		v.Cursor--
 	}
@@ -84,6 +89,11 @@ func (v View) CursorUp() View {
 // stopping at the last entry. The scroll offset is adjusted so the
 // cursor stays visible.
 func (v View) CursorDown() View {
+	if v.itemCount() == 0 {
+		v.Cursor = 0
+		v.ScrollOffset = 0
+		return v
+	}
 	limit := v.itemCount() - 1
 	if v.Cursor < limit {
 		v.Cursor++
@@ -165,6 +175,8 @@ func (v View) itemCount() int {
 func (v View) moveCursor(delta int) View {
 	n := v.itemCount()
 	if n == 0 {
+		v.Cursor = 0
+		v.ScrollOffset = 0
 		return v
 	}
 	v.Cursor += delta

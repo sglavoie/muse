@@ -134,7 +134,7 @@ func (d *DB) ReadListeningStats(sinceUnix int64, mixCfg MixCountConfig) (Listeni
 func (d *DB) ReadMixCounts(cfg MixCountConfig) ([]MixStatEntry, error) {
 	entries := []MixStatEntry{
 		{Name: "Rediscover", Description: "Tracks you loved but haven't played in 90+ days"},
-		{Name: "Hidden Gems", Description: "Unplayed tracks by your favorite artists"},
+		{Name: "Hidden Gems", Description: "Low-played tracks by your favorite artists"},
 		{Name: "On Repeat", Description: "Your most played tracks this week"},
 		{Name: "Deep Cuts", Description: "Tracks you always listen to completion"},
 		{Name: "Never Played", Description: "Tracks you might like but haven't tried"},

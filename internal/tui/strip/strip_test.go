@@ -321,6 +321,22 @@ func TestRender_SelectionChunkRendered(t *testing.T) {
 	}
 }
 
+func TestRender_SelectionChunkBetweenBreadcrumbAndSortFilter(t *testing.T) {
+	s := styles.NewStyles(true)
+	got := Render(80, []string{"Library"}, SortChunk{Label: "Artist", Indicator: "▲"},
+		FilterChunk{Text: "alice"}, CountsChunk{Total: 7}, &SelectionChunk{Count: 3}, "", s)
+	plain := ansi.Strip(got)
+
+	breadcrumbIdx := strings.Index(plain, "Library")
+	selectionIdx := strings.Index(plain, "◉ 3 selected")
+	sortIdx := strings.Index(plain, "sort Artist▲")
+	filterIdx := strings.Index(plain, `filter "alice"`)
+	if !(breadcrumbIdx >= 0 && breadcrumbIdx < selectionIdx && selectionIdx < sortIdx && sortIdx < filterIdx) {
+		t.Errorf("expected selection between breadcrumb and sort/filter, got positions breadcrumb=%d selection=%d sort=%d filter=%d in %q",
+			breadcrumbIdx, selectionIdx, sortIdx, filterIdx, plain)
+	}
+}
+
 func TestRender_SelectionChunkSuppressedWhenZero(t *testing.T) {
 	s := styles.NewStyles(true)
 	got := Render(80, []string{"Library"}, SortChunk{}, FilterChunk{}, CountsChunk{Total: 7}, &SelectionChunk{Count: 0}, "", s)

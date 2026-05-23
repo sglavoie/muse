@@ -106,9 +106,9 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 	ed := m.overlay.metadataEditor
 	dirtyTitle, dirtyArtist, dirtyAlbum, dirtyGenre, dirtyDuration := ed.DirtyFields()
-	m.overlay.metadataEditor = nil
 
 	if dirtyTitle == nil && dirtyArtist == nil && dirtyAlbum == nil && dirtyGenre == nil && dirtyDuration == nil {
+		m.overlay.metadataEditor = nil
 		m.statusBar.notify("No changes")
 		return m, nil
 	}
@@ -122,6 +122,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	}
+	m.overlay.metadataEditor = nil
 
 	originals := make(map[string][5]string, len(ed.Hashes()))
 

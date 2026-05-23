@@ -290,6 +290,24 @@ func TestBuildFilterSeparatorCommittedFilterClampedToNarrowWidth(t *testing.T) {
 	}
 }
 
+func TestBuildFilterSeparatorActiveFilterClampedToWidth(t *testing.T) {
+	const width = 12
+	out := BuildFilterSeparator("", true, "abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz", "", width, false)
+	line := strings.TrimRight(out, "\n")
+	if got := ansi.StringWidth(line); got > width {
+		t.Fatalf("line width = %d, want <= %d (got %q)", got, width, line)
+	}
+}
+
+func TestBuildFilterSeparatorActiveHintClampedToWidth(t *testing.T) {
+	const width = 12
+	out := BuildFilterSeparator("", true, "", "", "type to filter", width, false)
+	line := strings.TrimRight(out, "\n")
+	if got := ansi.StringWidth(line); got > width {
+		t.Fatalf("line width = %d, want <= %d (got %q)", got, width, line)
+	}
+}
+
 // TestBuildFilterSeparatorMultiByteFilter verifies that ansi.StringWidth-based
 // truncation handles multi-byte filter text without breaking width arithmetic
 // or splitting graphemes.

@@ -275,6 +275,37 @@ func TestGoToBottomResetsStateWhenFilteredListIsEmpty(t *testing.T) {
 	}
 }
 
+func TestCursorMovementResetsStateWhenFilteredListIsEmpty(t *testing.T) {
+	base := View{
+		Level:        AlbumLevel,
+		Albums:       []string{"A", "B", "C"},
+		Cursor:       2,
+		ScrollOffset: 1,
+		Width:        80,
+		Height:       20,
+		FilterText:   "zzz",
+	}
+	tests := []struct {
+		name string
+		move func(View) View
+	}{
+		{"CursorUp", View.CursorUp},
+		{"CursorDown", View.CursorDown},
+		{"HalfPageUp", View.HalfPageUp},
+		{"HalfPageDown", View.HalfPageDown},
+		{"FullPageUp", View.FullPageUp},
+		{"FullPageDown", View.FullPageDown},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := tt.move(base)
+			if v.Cursor != 0 || v.ScrollOffset != 0 {
+				t.Errorf("expected cursor=0 and scroll=0 for empty filtered list, got cursor=%d scroll=%d", v.Cursor, v.ScrollOffset)
+			}
+		})
+	}
+}
+
 // --- filter tests ---
 
 func TestEffectiveAlbumsFiltered(t *testing.T) {

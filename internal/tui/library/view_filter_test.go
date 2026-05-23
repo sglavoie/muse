@@ -108,6 +108,27 @@ func TestFuzzyFilterUpdatesOnEachKeystroke(t *testing.T) {
 	}
 }
 
+func TestAppendFilterCharInvalidatesCachedMatches(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{
+		Index:           idx,
+		Width:           80,
+		Height:          24,
+		Fuzzy:           musiclib.FakeFuzzySearcher{},
+		Filter:          filter.State{Active: true, Text: "Bob"},
+		FilteredMatches: []musiclib.Match{{TrackIndex: 1}},
+	}
+
+	v = v.AppendFilterChar('z')
+	got := v.Render()
+	if !strings.Contains(got, "No matches") {
+		t.Fatalf("new query should not reuse cached matches, got:\n%s", got)
+	}
+	if strings.Contains(ansi.Strip(got), "Track Two") {
+		t.Fatalf("stale cached match should not render after query change, got:\n%s", got)
+	}
+}
+
 // TestFuzzyFilterShowsFilterBar verifies that the filter bar text is visible
 // in the rendered output when the filter is active.
 func TestFuzzyFilterShowsFilterBar(t *testing.T) {

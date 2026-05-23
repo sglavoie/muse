@@ -218,3 +218,11 @@ func TestUsageBonusRecentAdded(t *testing.T) {
 		t.Errorf("recent (%d) should exceed old (%d)", recent, old)
 	}
 }
+
+func TestUsageBonusFutureLastUsedNotRecent(t *testing.T) {
+	base := usageBonus("foo", 1, time.Time{})
+	future := usageBonus("foo", 1, time.Now().Add(24*time.Hour))
+	if future != base {
+		t.Errorf("future last-used should not receive recent bonus: want %d, got %d", base, future)
+	}
+}

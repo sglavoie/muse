@@ -1,6 +1,7 @@
 package recommendation_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
@@ -47,6 +48,22 @@ func TestRegistry_uniqueIDs(t *testing.T) {
 		}
 		seen[d.ID] = true
 	}
+}
+
+func TestRegistry_hiddenGemsDescriptionMatchesLowPlayBehavior(t *testing.T) {
+	for _, d := range recommendation.Registry() {
+		if d.ID != recommendation.MixHiddenGems {
+			continue
+		}
+		if !strings.Contains(strings.ToLower(d.Description), "low-played") {
+			t.Fatalf("Hidden Gems description = %q, want low-played wording", d.Description)
+		}
+		if strings.Contains(strings.ToLower(d.Description), "unplayed") {
+			t.Fatalf("Hidden Gems description = %q, must not describe the mix as unplayed", d.Description)
+		}
+		return
+	}
+	t.Fatal("Hidden Gems mix missing from Registry()")
 }
 
 func TestFilterSeen_nilSeen(t *testing.T) {

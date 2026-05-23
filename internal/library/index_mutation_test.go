@@ -189,6 +189,27 @@ func TestUpdateMetadata_NotFound(t *testing.T) {
 	}
 }
 
+func TestUpdateMetadata_EmptyHashIgnored(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Artist: "A", Title: "original", Path: "/a.flac"})
+	idx.Insert(Track{Hash: "h1", Artist: "B", Title: "kept", Path: "/b.flac"})
+
+	if idx.UpdateMetadata("", "changed", "Changed", "Changed", "Changed") {
+		t.Fatal("UpdateMetadata should ignore empty hash")
+	}
+
+	got, ok := idx.FindByPath("/a.flac")
+	if !ok {
+		t.Fatal("empty-hash track should still be present")
+	}
+	if got.Artist != "A" || got.Title != "original" || got.Album != "" || got.Genre != "" {
+		t.Fatalf("empty-hash track changed unexpectedly: %+v", got)
+	}
+	if _, ok := idx.FindByHash("h1"); !ok {
+		t.Fatal("non-empty hash should remain indexed")
+	}
+}
+
 func TestInsert_DuplicateHashReplacesExisting(t *testing.T) {
 	var idx LibraryIndex
 	idx.Insert(Track{Hash: "h1", Artist: "A", Title: "OldTitle", Path: "/a.flac"})

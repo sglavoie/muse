@@ -61,6 +61,25 @@ eq_bands = [5, 4, 2, 0, -1, 0, 2, 3, 4, 5]
 	}
 }
 
+func TestLoad_EQ_PresetWhitespaceTrimmed(t *testing.T) {
+	dir := t.TempDir()
+	content := `eq_preset = "  rock  "
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if len(result.Warnings) != 0 {
+		t.Errorf("unexpected warnings: %v", result.Warnings)
+	}
+	if result.Config.EQPreset != "rock" {
+		t.Errorf("EQPreset = %q, want %q", result.Config.EQPreset, "rock")
+	}
+}
+
 func TestLoad_EQ_BandsClamped(t *testing.T) {
 	dir := t.TempDir()
 	content := "eq_bands = [100, -100, 0, 0, 0, 0, 0, 0, 0, 0]\n"

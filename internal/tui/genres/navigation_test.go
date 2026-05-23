@@ -173,6 +173,32 @@ func TestCursorUp_AtTop(t *testing.T) {
 	}
 }
 
+func TestCursorUp_EmptyGenresResetsStaleState(t *testing.T) {
+	v := View{
+		Level:        GenreLevel,
+		Genres:       nil,
+		Cursor:       3,
+		ScrollOffset: 2,
+	}
+	v2 := v.CursorUp()
+	if v2.Cursor != 0 || v2.ScrollOffset != 0 {
+		t.Errorf("expected cursor=0 scroll=0 for empty, got cursor=%d scroll=%d", v2.Cursor, v2.ScrollOffset)
+	}
+}
+
+func TestCursorDown_EmptyGenresResetsStaleState(t *testing.T) {
+	v := View{
+		Level:        GenreLevel,
+		Genres:       nil,
+		Cursor:       3,
+		ScrollOffset: 2,
+	}
+	v2 := v.CursorDown()
+	if v2.Cursor != 0 || v2.ScrollOffset != 0 {
+		t.Errorf("expected cursor=0 scroll=0 for empty, got cursor=%d scroll=%d", v2.Cursor, v2.ScrollOffset)
+	}
+}
+
 func TestGoToBottom_WithScroll(t *testing.T) {
 	v := View{
 		Level:  GenreLevel,
@@ -203,10 +229,10 @@ func TestGoToTop_ResetsScroll(t *testing.T) {
 }
 
 func TestMoveCursor_EmptyGenres(t *testing.T) {
-	v := View{Level: GenreLevel, Genres: nil, Height: 20}
+	v := View{Level: GenreLevel, Genres: nil, Cursor: 2, ScrollOffset: 1, Height: 20}
 	v2 := v.moveCursor(5)
-	if v2.Cursor != 0 {
-		t.Errorf("expected cursor=0 for empty, got %d", v2.Cursor)
+	if v2.Cursor != 0 || v2.ScrollOffset != 0 {
+		t.Errorf("expected cursor=0 scroll=0 for empty, got cursor=%d scroll=%d", v2.Cursor, v2.ScrollOffset)
 	}
 }
 

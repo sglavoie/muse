@@ -152,6 +152,35 @@ func TestBulkMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
 	}
 }
 
+func TestBulkMetadataSaveInvalidDurationKeepsEditorOpen(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Old", Title: "One", Duration: 60})
+	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Old", Title: "Two", Duration: 90})
+
+	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "", "Old", "", "", "")
+	ed.fields[fieldDuration].SetValue("1:99")
+	ed.dirty[fieldDuration] = true
+	m.overlay.metadataEditor = &ed
+
+	result, cmd := m.handleMetadataSave()
+	nm := result.(Model)
+	if cmd != nil {
+		t.Fatal("invalid duration must not return a persistence command")
+	}
+	if nm.overlay.metadataEditor == nil {
+		t.Fatal("invalid duration should keep the bulk metadata editor open")
+	}
+	if got := nm.overlay.metadataEditor.Duration(); got != "1:99" {
+		t.Fatalf("duration input = %q, want %q", got, "1:99")
+	}
+	if tr, _ := nm.library.index.FindByHash("h1"); tr.Duration != 60 {
+		t.Fatalf("h1 duration changed to %v, want 60", tr.Duration)
+	}
+	if tr, _ := nm.library.index.FindByHash("h2"); tr.Duration != 90 {
+		t.Fatalf("h2 duration changed to %v, want 90", tr.Duration)
+	}
+}
+
 // TestBulkMetadataSaveClearsGenresSelection verifies that after a bulk
 // metadata edit from the genres view, genres.selectedHashes is cleared.
 func TestBulkMetadataSaveClearsGenresSelection(t *testing.T) {

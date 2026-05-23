@@ -238,6 +238,31 @@ func TestScoreAll_TimeGenreBonusDedupesCaseVariants(t *testing.T) {
 	}
 }
 
+// Regression: TimeGenreBonus map entries that differ only by case or
+// surrounding whitespace still represent one logical genre. Normalization
+// must not stack those variants into an inflated bonus.
+func TestScoreAll_TimeGenreBonusInputVariantsDoNotStack(t *testing.T) {
+	seed := track("s1", "", "", "", 0)
+	rockTrack := track("t1", "", "", "Rock", 0)
+	other := track("t2", "", "", "Jazz", 0)
+	got := ScoreAll(ScoreInput{
+		Seed:      seedFrom(seed, nil, nil),
+		AllTracks: []library.Track{other, rockTrack},
+		TimeGenreBonus: map[string]float64{
+			"Rock":  3,
+			" rock": 2,
+			"ROCK ": 1,
+		},
+	})
+	scoreByHash := scoresByHash(got)
+	if scoreByHash["t1"] != 3 {
+		t.Errorf("expected normalized Rock variants to apply one +3 bonus, got %f", scoreByHash["t1"])
+	}
+	if scoreByHash["t2"] != 0 {
+		t.Errorf("expected unrelated genre to remain 0, got %f", scoreByHash["t2"])
+	}
+}
+
 // Regression: A seed with a whitespace-only Artist or Album must not match
 // candidates whose Artist/Album is also whitespace-only or empty. Without the
 // "trimmed != \"\"" guard, EqualFold("", "") would return true and every empty

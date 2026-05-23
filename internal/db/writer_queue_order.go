@@ -67,8 +67,8 @@ func setGappedOrderTx(tx *sql.Tx, table, scopeFilter string, scopeArgs []any, id
 	for i, r := range conflicting {
 		safePos := safeBase + int64(i+1)*queuePositionGap
 		if _, err := tx.Exec(
-			fmt.Sprintf(`UPDATE %s SET position=? WHERE id=?`, table),
-			safePos, r.id,
+			fmt.Sprintf(`UPDATE %s SET position=? WHERE id=? %s`, table, scopeFilter),
+			withScope(safePos, r.id)...,
 		); err != nil {
 			return err
 		}
@@ -78,8 +78,8 @@ func setGappedOrderTx(tx *sql.Tx, table, scopeFilter string, scopeArgs []any, id
 	for i, id := range ids {
 		tmpPos := tempBase + int64(i)*queuePositionGap
 		if _, err := tx.Exec(
-			fmt.Sprintf(`UPDATE %s SET position=? WHERE id=?`, table),
-			tmpPos, id,
+			fmt.Sprintf(`UPDATE %s SET position=? WHERE id=? %s`, table, scopeFilter),
+			withScope(tmpPos, id)...,
 		); err != nil {
 			return err
 		}
@@ -88,8 +88,8 @@ func setGappedOrderTx(tx *sql.Tx, table, scopeFilter string, scopeArgs []any, id
 	for i, id := range ids {
 		pos := int64(i+1) * queuePositionGap
 		if _, err := tx.Exec(
-			fmt.Sprintf(`UPDATE %s SET position=? WHERE id=?`, table),
-			pos, id,
+			fmt.Sprintf(`UPDATE %s SET position=? WHERE id=? %s`, table, scopeFilter),
+			withScope(pos, id)...,
 		); err != nil {
 			return err
 		}

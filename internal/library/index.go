@@ -242,6 +242,9 @@ func (idx *LibraryIndex) UpdateDuration(hash string, duration float64) bool {
 // Artist and Title, the position may change). Returns true if the track was
 // found and updated.
 func (idx *LibraryIndex) UpdateMetadata(hash, title, artist, album, genre string) bool {
+	if hash == "" {
+		return false
+	}
 	for i, t := range idx.tracks {
 		if t.Hash == hash {
 			// Remove from current position with one incremental adjust.

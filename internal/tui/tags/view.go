@@ -119,6 +119,11 @@ func (v View) itemCount() int {
 
 // CursorUp returns a copy of v with the cursor moved up by one row.
 func (v View) CursorUp() View {
+	if v.itemCount() == 0 {
+		v.Cursor = 0
+		v.ScrollOffset = 0
+		return v
+	}
 	if v.Cursor > 0 {
 		v.Cursor--
 	}
@@ -130,6 +135,11 @@ func (v View) CursorUp() View {
 
 // CursorDown returns a copy of v with the cursor moved down by one row.
 func (v View) CursorDown() View {
+	if v.itemCount() == 0 {
+		v.Cursor = 0
+		v.ScrollOffset = 0
+		return v
+	}
 	limit := v.itemCount() - 1
 	if v.Cursor < limit {
 		v.Cursor++
@@ -188,6 +198,8 @@ func (v View) GoToBottom() View {
 func (v View) moveCursor(delta int) View {
 	n := v.itemCount()
 	if n == 0 {
+		v.Cursor = 0
+		v.ScrollOffset = 0
 		return v
 	}
 	v.Cursor += delta

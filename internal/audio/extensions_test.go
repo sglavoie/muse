@@ -7,7 +7,23 @@ import (
 )
 
 func TestExtensions_ExpectedFormats(t *testing.T) {
-	expected := []string{".mp3", ".flac", ".ogg", ".opus", ".m4a", ".wav", ".wma", ".aac", ".aif", ".aiff", ".ape", ".wv"}
+	expected := []string{
+		".mp3",
+		".flac",
+		".ogg",
+		".oga",
+		".opus",
+		".m4a",
+		".m4b",
+		".wav",
+		".wma",
+		".aac",
+		".aif",
+		".aiff",
+		".ape",
+		".mka",
+		".wv",
+	}
 	for _, ext := range expected {
 		if _, ok := audio.Extensions[ext]; !ok {
 			t.Errorf("missing expected extension %q", ext)

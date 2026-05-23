@@ -207,7 +207,7 @@ func NewStyles(hasDark bool) Styles {
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))),
 		EmptyKey:               lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorAccentPrimaryLight), lipgloss.Color(colorAccentPrimaryDark))),
-		EmptyHint:              lipgloss.NewStyle().Faint(true),
+		EmptyHint:              lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorDimLight), lipgloss.Color(colorDimDark))),
 		Divider:                lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))).Faint(true),
 		BucketHeader:           lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorTextSecondaryLight), lipgloss.Color(colorTextSecondaryDark))),
 		ZebraBg:                ld(lipgloss.Color(colorSurfaceL2Light), lipgloss.Color(colorSurfaceL2Dark)),

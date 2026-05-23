@@ -18,6 +18,19 @@ func TestCursorUp_Normal(t *testing.T) {
 	}
 }
 
+func TestCursorUp_EmptyListResetsStaleCursorAndScroll(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Category:     CategoryArtists,
+		Cursor:       3,
+		ScrollOffset: 2,
+	}
+	v2 := v.CursorUp()
+	if v2.Cursor != 0 || v2.ScrollOffset != 0 {
+		t.Errorf("expected cursor=0 scroll=0 for empty list, got cursor=%d scroll=%d", v2.Cursor, v2.ScrollOffset)
+	}
+}
+
 func TestCursorDown_AtBottom(t *testing.T) {
 	v := View{Level: CategoryLevel, Cursor: 2, Height: 20}
 	v2 := v.CursorDown()
@@ -31,6 +44,20 @@ func TestCursorDown_Normal(t *testing.T) {
 	v2 := v.CursorDown()
 	if v2.Cursor != 1 {
 		t.Errorf("expected 1, got %d", v2.Cursor)
+	}
+}
+
+func TestCursorDown_EmptyListResetsStaleCursorAndScroll(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Category:     CategoryArtists,
+		Cursor:       3,
+		ScrollOffset: 2,
+		Height:       20,
+	}
+	v2 := v.CursorDown()
+	if v2.Cursor != 0 || v2.ScrollOffset != 0 {
+		t.Errorf("expected cursor=0 scroll=0 for empty list, got cursor=%d scroll=%d", v2.Cursor, v2.ScrollOffset)
 	}
 }
 
@@ -64,14 +91,16 @@ func TestGoToBottom(t *testing.T) {
 
 func TestMoveCursor_EmptyList(t *testing.T) {
 	v := View{
-		Level:    ListLevel,
-		Category: CategoryArtists,
-		Artists:  nil,
-		Height:   20,
+		Level:        ListLevel,
+		Category:     CategoryArtists,
+		Artists:      nil,
+		Cursor:       4,
+		ScrollOffset: 3,
+		Height:       20,
 	}
 	v2 := v.moveCursor(5)
-	if v2.Cursor != 0 {
-		t.Errorf("expected cursor=0 for empty list, got %d", v2.Cursor)
+	if v2.Cursor != 0 || v2.ScrollOffset != 0 {
+		t.Errorf("expected cursor=0 scroll=0 for empty list, got cursor=%d scroll=%d", v2.Cursor, v2.ScrollOffset)
 	}
 }
 

@@ -196,3 +196,41 @@ func TestReorderPlaylistTrack_SoftDeletedEntryIsNoOp(t *testing.T) {
 		t.Errorf("id2.position=%d; want 2000 (should be unchanged)", p2)
 	}
 }
+
+func TestSetPlaylistOrder_IgnoresIDsFromOtherPlaylists(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "set-scope-a1", "/set-scope-a1")
+	seedTrack(t, d, "set-scope-a2", "/set-scope-a2")
+	seedTrack(t, d, "set-scope-b1", "/set-scope-b1")
+	plA := seedPlaylist(t, d, "Playlist Scope A")
+	plB := seedPlaylist(t, d, "Playlist Scope B")
+	a1 := seedPlaylistTrack(t, d, plA, "set-scope-a1", 1000)
+	a2 := seedPlaylistTrack(t, d, plA, "set-scope-a2", 2000)
+	b1 := seedPlaylistTrack(t, d, plB, "set-scope-b1", 9000)
+
+	if err := w.SetPlaylistOrder(plA, []int64{a2, a1, b1}); err != nil {
+		t.Fatalf("SetPlaylistOrder: %v", err)
+	}
+
+	gotA, err := d.ReadPlaylistTracks(plA)
+	if err != nil {
+		t.Fatalf("ReadPlaylistTracks A: %v", err)
+	}
+	if len(gotA) != 2 {
+		t.Fatalf("playlist A row count = %d, want 2", len(gotA))
+	}
+	if gotA[0].ID != a2 || gotA[0].Position != 1000 || gotA[1].ID != a1 || gotA[1].Position != 2000 {
+		t.Errorf("playlist A order = [{id:%d pos:%d} {id:%d pos:%d}], want a2@1000 then a1@2000",
+			gotA[0].ID, gotA[0].Position, gotA[1].ID, gotA[1].Position)
+	}
+
+	var bPos int64
+	if err := d.QueryRow(`SELECT position FROM playlist_tracks WHERE id=?`, b1).Scan(&bPos); err != nil {
+		t.Fatalf("query playlist B row: %v", err)
+	}
+	if bPos != 9000 {
+		t.Errorf("foreign playlist row position = %d, want 9000 (SetPlaylistOrder must not update other playlists)", bPos)
+	}
+}

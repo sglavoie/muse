@@ -248,6 +248,31 @@ func TestMoveCursorEmptyListIsNoOp(t *testing.T) {
 	}
 }
 
+func TestNavigationEmptyListClearsStaleCursorAndScroll(t *testing.T) {
+	for name, move := range map[string]func(View) View{
+		"CursorUp":     View.CursorUp,
+		"CursorDown":   View.CursorDown,
+		"HalfPageDown": View.HalfPageDown,
+		"HalfPageUp":   View.HalfPageUp,
+		"FullPageDown": View.FullPageDown,
+		"FullPageUp":   View.FullPageUp,
+	} {
+		t.Run(name, func(t *testing.T) {
+			v := View{
+				Level:        TrackLevel,
+				Cursor:       4,
+				ScrollOffset: 2,
+			}
+
+			v = move(v)
+
+			if v.Cursor != 0 || v.ScrollOffset != 0 {
+				t.Fatalf("expected stale empty-list state cleared, got cursor=%d scroll=%d", v.Cursor, v.ScrollOffset)
+			}
+		})
+	}
+}
+
 // --- itemCount ---
 
 func TestItemCountListLevel(t *testing.T) {

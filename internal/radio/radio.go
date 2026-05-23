@@ -289,7 +289,9 @@ func normalizedGenreBonusMap(bonuses map[string]float64) map[string]float64 {
 		if math.IsNaN(bonus) || math.IsInf(bonus, 0) {
 			continue
 		}
-		normalized[key] += bonus
+		if existing, ok := normalized[key]; !ok || bonus > existing {
+			normalized[key] = bonus
+		}
 	}
 	if len(normalized) == 0 {
 		return nil

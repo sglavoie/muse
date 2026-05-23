@@ -191,6 +191,51 @@ func TestWatchAndRestart_GivesUpAfterMaxAttempts(t *testing.T) {
 	t.Errorf("expected 'gave up' status message; got: %v", statusMsgs)
 }
 
+func TestWatchAndRestart_GiveUpClearsQueueAfterLaunchWithoutReconnect(t *testing.T) {
+	rootCtx, rootCancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(rootCtx)
+
+	m := &Manager{
+		socketPath:       shortSockPath(t, "restart-giveup-queue"),
+		rootCtx:          rootCtx,
+		rootCancel:       rootCancel,
+		ctx:              ctx,
+		cancel:           cancel,
+		disconnectCh:     make(chan error, restartMaxAttempts+1),
+		callbacksReady:   make(chan struct{}),
+		restartBaseDelay: 1 * time.Millisecond,
+		cmdQueue:         []func() error{},
+	}
+	defer m.Close()
+
+	m.launchFn = func(context.Context, string) (*exec.Cmd, error) {
+		return nil, nil
+	}
+
+	done := make(chan struct{})
+	go func() {
+		m.watchAndRestart()
+		close(done)
+	}()
+
+	for range restartMaxAttempts + 1 {
+		m.disconnectCh <- fmt.Errorf("test disconnect")
+	}
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("watchAndRestart did not give up within 5s")
+	}
+
+	m.mu.RLock()
+	q := m.cmdQueue
+	m.mu.RUnlock()
+	if q != nil {
+		t.Fatalf("cmdQueue = %v after restart give-up; want nil so callers fail fast", q)
+	}
+}
+
 // TestWatchAndRestart_ResetsBackoffOnSuccessfulConnect verifies that
 // backoffReset is set to true by pollUntilReady when the IPC socket connects,
 // and that watchAndRestart resets its consecutive-failure counter after a

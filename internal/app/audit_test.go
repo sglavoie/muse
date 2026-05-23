@@ -3,6 +3,8 @@ package app_test
 import (
 	"context"
 	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/app"
@@ -184,5 +186,52 @@ func TestRunDurationAudit_AlreadyCorrectTracksGetMarkedVerified(t *testing.T) {
 	}
 	if len(writer.corrected) != 0 {
 		t.Errorf("VerifyTrackDuration calls = %d; want 0", len(writer.corrected))
+	}
+}
+
+// TestRunDurationAudit_ProbeHookCanChangeWhileAuditRuns verifies that the
+// test probe hook is safe to swap while audit workers are active. Without the
+// probeFn lock, this trips the race detector: workers read probeFn while tests
+// restore or replace it.
+func TestRunDurationAudit_ProbeHookCanChangeWhileAuditRuns(t *testing.T) {
+	var calls int32
+	restore := app.SetProbeFn(func(_ context.Context, _ string) (float64, error) {
+		atomic.AddInt32(&calls, 1)
+		return 120.0, nil
+	})
+	t.Cleanup(restore)
+
+	tracks := make([]db.UnverifiedTrack, 200)
+	for i := range tracks {
+		tracks[i] = db.UnverifiedTrack{
+			Hash:       "hash",
+			Path:       "/track.mp3",
+			DurationMs: 120000,
+		}
+	}
+	reader := &stubReader{tracks: tracks}
+	writer := newStubVerifier()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch := app.RunDurationAudit(ctx, reader, writer)
+
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		for range ch {
+		}
+	})
+
+	for range 100 {
+		restoreSwap := app.SetProbeFn(func(_ context.Context, _ string) (float64, error) {
+			atomic.AddInt32(&calls, 1)
+			return 120.0, nil
+		})
+		restoreSwap()
+	}
+
+	wg.Wait()
+	if atomic.LoadInt32(&calls) == 0 {
+		t.Fatal("probe hook was never called")
 	}
 }

@@ -333,6 +333,16 @@ func Render(
 		}
 		b.WriteString(style.Render(crumb))
 	}
+	if includeSelection {
+		b.WriteString(divider)
+		// Combine fg+bg in a single style so the whole chip carries the
+		// accent background. A nested `s.TextPrimary.Render("◉")` inside
+		// `s.Accent.Render(...)` would emit an ANSI reset after the glyph
+		// and drop the background mid-chip — see project_bug_hotspots.md
+		// entry #8 ("Nested lipgloss Render calls kill outer background").
+		chipStyle := s.Accent.Foreground(s.TextPrimary.GetForeground())
+		b.WriteString(chipStyle.Render(fmt.Sprintf("◉ %d selected", selection.Count)))
+	}
 	if includeSort {
 		b.WriteString(divider)
 		b.WriteString(s.TextTertiary.Render("sort "))
@@ -353,16 +363,6 @@ func Render(
 			b.WriteString(s.TextPrimary.Render(filterValue))
 		}
 		b.WriteString(s.TextTertiary.Render(filterSuffix))
-	}
-	if includeSelection {
-		b.WriteString(divider)
-		// Combine fg+bg in a single style so the whole chip carries the
-		// accent background. A nested `s.TextPrimary.Render("◉")` inside
-		// `s.Accent.Render(...)` would emit an ANSI reset after the glyph
-		// and drop the background mid-chip — see project_bug_hotspots.md
-		// entry #8 ("Nested lipgloss Render calls kill outer background").
-		chipStyle := s.Accent.Foreground(s.TextPrimary.GetForeground())
-		b.WriteString(chipStyle.Render(fmt.Sprintf("◉ %d selected", selection.Count)))
 	}
 	leftStr := b.String()
 	leftStyledW := ansi.StringWidth(leftStr)

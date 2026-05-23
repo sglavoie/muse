@@ -24,7 +24,10 @@ type DurationVerifier interface {
 
 // probeFn is the function used to measure a file's duration in seconds.
 // Tests may replace this with a stub to avoid spawning real ffprobe processes.
-var probeFn = library.FFProbeDuration
+var (
+	probeFnMu sync.RWMutex
+	probeFn   = library.FFProbeDuration
+)
 
 // RunDurationAudit spawns a background goroutine that ffprobe-verifies all
 // tracks where duration_verified=0. Corrections are sent to the returned
@@ -69,7 +72,10 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 					if ctx.Err() != nil {
 						return
 					}
-					dur, err := probeFn(ctx, t.Path)
+					probeFnMu.RLock()
+					probe := probeFn
+					probeFnMu.RUnlock()
+					dur, err := probe(ctx, t.Path)
 					if err != nil {
 						slog.Warn("duration audit: ffprobe failed, skipping", "path", t.Path, "err", err)
 						continue

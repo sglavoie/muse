@@ -127,6 +127,39 @@ func TestGoToBottom_EmptyListResetsCursorAndScroll(t *testing.T) {
 	}
 }
 
+func TestCursorMovement_EmptyListResetsCursorAndScroll(t *testing.T) {
+	tests := []struct {
+		name string
+		move func(View) View
+	}{
+		{name: "up", move: View.CursorUp},
+		{name: "down", move: View.CursorDown},
+		{name: "half-page-up", move: View.HalfPageUp},
+		{name: "half-page-down", move: View.HalfPageDown},
+		{name: "full-page-up", move: View.FullPageUp},
+		{name: "full-page-down", move: View.FullPageDown},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := View{
+				Level:        TagLevel,
+				Cursor:       7,
+				ScrollOffset: 3,
+			}
+
+			v = tt.move(v)
+
+			if v.Cursor != 0 {
+				t.Errorf("expected Cursor=0 for empty list, got %d", v.Cursor)
+			}
+			if v.ScrollOffset != 0 {
+				t.Errorf("expected ScrollOffset=0 for empty list, got %d", v.ScrollOffset)
+			}
+		})
+	}
+}
+
 // TestBack_KeepsCursorVisibleAfterResize verifies that when the saved
 // TagScrollOffset trails far behind a still-valid TagCursor (e.g. because the
 // terminal was resized smaller while the user was drilled into TrackLevel),

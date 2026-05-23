@@ -108,6 +108,22 @@ func TestRawActiveStateUpdateMsg(t *testing.T) {
 	}
 }
 
+// TestPublicTextChangeAfterInitialization verifies that a caller updating the
+// public Text field after initialization does not have that value overwritten by
+// stale textinput state on the next edit.
+func TestPublicTextChangeAfterInitialization(t *testing.T) {
+	s, _ := New().Activate()
+	s, _ = s.Update(tea.KeyPressMsg{Text: "x"})
+	s = s.Commit()
+
+	s.Text = "AB"
+	s.Active = true
+	s, _ = s.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	if s.Text != "A" {
+		t.Errorf("after backspace with externally changed Text: want Text=%q, got %q", "A", s.Text)
+	}
+}
+
 // TestRawActiveStateViewDoesNotPanic verifies that View() on a directly-
 // constructed active State does not panic even without Activate().
 func TestRawActiveStateViewDoesNotPanic(t *testing.T) {

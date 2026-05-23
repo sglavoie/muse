@@ -20,21 +20,14 @@ type State struct {
 
 // New returns a properly-initialized State with an empty filter.
 func New() State {
-	ti := textinput.New()
-	ti.Prompt = ""
-	ti.CharLimit = 0
-	return State{input: ti}
+	return State{input: newInput("")}
 }
 
 // Activate enters filter input mode, preserving any existing text.
 // The textinput is re-initialized so the cursor starts at the end of the
 // current text. Returns a cmd to start the cursor blink animation.
 func (s State) Activate() (State, tea.Cmd) {
-	ti := textinput.New()
-	ti.Prompt = ""
-	ti.CharLimit = 0
-	ti.SetValue(s.Text)
-	s.input = ti
+	s.input = newInput(s.Text)
 	s.input.CursorEnd()
 	s.Active = true
 	s.initialized = true
@@ -62,18 +55,22 @@ func (s State) Deactivate() State {
 	return s
 }
 
-// seed lazily initialises the textinput from Text when the State was
-// constructed directly (e.g. State{Active:true, Text:"AB"}) without going
-// through Activate(). It is a no-op once initialized is true.
-func (s State) seed() State {
-	if s.initialized {
-		return s
-	}
+func newInput(value string) textinput.Model {
 	ti := textinput.New()
 	ti.Prompt = ""
 	ti.CharLimit = 0
-	ti.SetValue(s.Text)
-	s.input = ti
+	ti.SetValue(value)
+	return ti
+}
+
+// seed lazily initialises the textinput from Text when the State was
+// constructed directly (e.g. State{Active:true, Text:"AB"}) without going
+// through Activate(), or when public Text was changed while inactive.
+func (s State) seed() State {
+	if s.initialized && s.input.Value() == s.Text {
+		return s
+	}
+	s.input = newInput(s.Text)
 	s.input.CursorEnd()
 	_ = s.input.Focus() // discard cursor-blink cmd; cursor rendering is best-effort here
 	s.initialized = true

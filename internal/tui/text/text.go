@@ -218,7 +218,7 @@ func RowMarker(isSelected, isFocused, isNowPlaying bool, nowPlayingIcon string) 
 // textinput string to display while editing; renderedHint is the
 // already-styled placeholder string shown when filterActive is true but
 // filterText is empty (e.g. st.Dim.Render(v.FilterHint)).
-// width is used to truncate a committed filter text to fit the terminal.
+// width is used to truncate the filter line to fit the terminal.
 func BuildFilterSeparator(sortIndicator string, filterActive bool, filterText, filterView, renderedHint string, width int, leadingNewline bool) string {
 	var prefix string
 	if sortIndicator != "" {
@@ -234,13 +234,13 @@ func BuildFilterSeparator(sortIndicator string, filterActive bool, filterText, f
 	}
 	if filterActive {
 		if filterText == "" && renderedHint != "" {
-			return prefix + sep + "Filter: " + renderedHint + "\n"
+			return prefix + sep + clampLine("Filter: "+renderedHint, width) + "\n"
 		}
 		fv := filterView
 		if fv == "" {
 			fv = filterText
 		}
-		return prefix + sep + "Filter: " + fv + "\n"
+		return prefix + sep + clampLine("Filter: "+fv, width) + "\n"
 	}
 	if filterText != "" {
 		ft := filterText
@@ -254,7 +254,7 @@ func BuildFilterSeparator(sortIndicator string, filterActive bool, filterText, f
 		}
 		line := "Filter: " + ft
 		if width > 0 && ansi.StringWidth(line) > width {
-			line = ansi.Truncate(line, width, "")
+			line = clampLine(line, width)
 		}
 		return prefix + sep + line + "\n"
 	}
@@ -262,4 +262,11 @@ func BuildFilterSeparator(sortIndicator string, filterActive bool, filterText, f
 		return prefix + "\n\n"
 	}
 	return prefix
+}
+
+func clampLine(line string, width int) string {
+	if width > 0 && ansi.StringWidth(line) > width {
+		return ansi.Truncate(line, width, "")
+	}
+	return line
 }
