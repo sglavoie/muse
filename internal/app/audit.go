@@ -80,6 +80,9 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 						slog.Warn("duration audit: ffprobe failed, skipping", "path", t.Path, "err", err)
 						continue
 					}
+					if ctx.Err() != nil {
+						return
+					}
 					probedMs := int64(math.Round(dur * 1000))
 					diff := probedMs - t.DurationMs
 					if diff < 0 {
@@ -102,6 +105,9 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 		checked := 0
 		corrected := 0
 		for r := range results {
+			if ctx.Err() != nil {
+				return
+			}
 			checked++
 			if r.verified {
 				if err := writer.MarkDurationVerified(r.hash); err != nil {

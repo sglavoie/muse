@@ -356,7 +356,7 @@ func (m Model) renderStatusBar() string {
 	sb.configCreated = m.configCreated
 	sb.watchDegraded = m.watchDegraded
 	sb.queueEmpty = len(m.queue.entries) == 0
-	if m.playback.state == PlaybackPlaying && m.playback.currentIndex >= 0 && len(m.queue.entries) > 0 {
+	if m.playback.state == PlaybackPlaying && m.playback.currentIndex >= 0 && m.playback.currentIndex < len(m.queue.entries) {
 		sb.queuePosition = fmt.Sprintf("%d of %d", m.playback.currentIndex+1, len(m.queue.entries))
 	} else {
 		sb.queuePosition = ""

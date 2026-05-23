@@ -25,6 +25,36 @@ func TestScoreAll_EmptySeedHashDoesNotDropEmptyHashCandidates(t *testing.T) {
 	}
 }
 
+// Regression: hash-keyed scoring inputs must not apply empty-string entries to
+// every unhashed candidate. An empty Hash means the track is unidentified, so a
+// stale "" key in favorites, queue, dismissed, tags, completion, or
+// co-occurrence data should not score it as though all empty-hash tracks were
+// the same track.
+func TestScoreAll_EmptyCandidateHashIgnoresHashKeyedSignals(t *testing.T) {
+	got := ScoreAll(ScoreInput{
+		Seed: SeedTrack{
+			Hash:   "seed",
+			TagIDs: map[int64]struct{}{1: {}},
+		},
+		AllTracks: []library.Track{{Hash: "", Artist: "Unhashed"}},
+		TrackTags: map[string]map[int64]struct{}{
+			"": {1: {}},
+		},
+		FavoriteHashes:  map[string]struct{}{"": {}},
+		RecentHashes:    map[string]struct{}{"": {}},
+		QueueHashes:     map[string]struct{}{"": {}},
+		DismissedHashes: map[string]struct{}{"": {}},
+		CompletionRates: map[string]float64{"": 0.9},
+		CoOccurrences:   map[string]int{"": 3},
+	})
+	if len(got) != 1 {
+		t.Fatalf("expected one unhashed candidate, got %d", len(got))
+	}
+	if got[0].Score != 0 {
+		t.Fatalf("empty-hash candidate should ignore hash-keyed signals, got score %f", got[0].Score)
+	}
+}
+
 // Regression: Artist matching should be case-insensitive so real-world
 // libraries with inconsistent capitalization between tracks of the same
 // artist still earn the +5 boost.

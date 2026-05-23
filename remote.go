@@ -51,6 +51,9 @@ type unixSocketListener struct {
 
 func (l *unixSocketListener) Close() error {
 	closeErr := l.Listener.Close()
+	if errors.Is(closeErr, net.ErrClosed) {
+		closeErr = nil
+	}
 	removeErr := os.Remove(l.path)
 	if errors.Is(removeErr, os.ErrNotExist) {
 		removeErr = nil

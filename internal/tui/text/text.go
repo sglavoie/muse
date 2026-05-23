@@ -79,11 +79,12 @@ func PadLeft(s string, width int) string {
 }
 
 // FormatTrackPos returns the display string for a track's position column.
-// When trackNum is 0 (unknown), it falls back to the sequential fallback index.
+// When trackNum is non-positive (unknown/invalid), it falls back to the
+// sequential fallback index.
 // When discNum > 1, it formats as "D.TT" (e.g. "2.03" for disc 2, track 3).
 // Otherwise it returns the bare track number.
 func FormatTrackPos(trackNum, discNum, fallback int) string {
-	if trackNum == 0 {
+	if trackNum <= 0 {
 		return strconv.Itoa(fallback)
 	}
 	if discNum > 1 {
@@ -170,7 +171,7 @@ func DimRepeat(value, prev string, width int) string {
 // FormatTrackPosSimple returns the display string for a track's position column
 // when all visible tracks are single-disc (no disc prefix needed).
 func FormatTrackPosSimple(trackNum, fallback int) string {
-	if trackNum == 0 {
+	if trackNum <= 0 {
 		return strconv.Itoa(fallback)
 	}
 	return strconv.Itoa(trackNum)

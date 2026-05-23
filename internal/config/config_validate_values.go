@@ -138,6 +138,10 @@ func validate(raw rawConfig) (Config, []string) {
 	// Trim whitespace from name/key so a TOML entry like key = "  rock  "
 	// cannot silently slip through dedup and produce a key that fails to
 	// match any preset lookup later (lookups compare against trimmed keys).
+	builtinEQKeys := make(map[string]bool, len(BuiltinEQPresets))
+	for _, p := range BuiltinEQPresets {
+		builtinEQKeys[p.Key] = true
+	}
 	seen := make(map[string]bool)
 	for _, cp := range raw.EQCustomPresets {
 		trimmedKey := strings.TrimSpace(cp.Key)
@@ -145,6 +149,11 @@ func validate(raw rawConfig) (Config, []string) {
 		if trimmedKey == "" {
 			slog.Warn("eq custom preset dropped: empty key", "name", cp.Name)
 			warnings = append(warnings, fmt.Sprintf("eq custom preset %q dropped: key is empty", cp.Name))
+			continue
+		}
+		if builtinEQKeys[trimmedKey] {
+			slog.Warn("eq custom preset dropped: key conflicts with built-in preset", "key", trimmedKey)
+			warnings = append(warnings, fmt.Sprintf("eq custom preset with key %q conflicts with a built-in preset; ignored", trimmedKey))
 			continue
 		}
 		if seen[trimmedKey] {
@@ -218,6 +227,24 @@ func validate(raw rawConfig) (Config, []string) {
 	validateIntRange(rm.DeepCutsMaxPlays, 1, 1000, "mixes.deep_cuts_max_plays", defaultMixDeepCutsMaxPlays, &cfg.Mixes.DeepCutsMaxPlays, &warnings)
 	validateFloatRange(rm.DeepCutsMinCompletion, 0.0, 1.0, "mixes.deep_cuts_min_completion", defaultMixDeepCutsMinCompletion, &cfg.Mixes.DeepCutsMinCompletion, &warnings)
 	validateIntRange(rm.SufficientHistoryCount, 1, 10000, "mixes.sufficient_history_count", defaultMixSufficientHistory, &cfg.Mixes.SufficientHistoryCount, &warnings)
+	if cfg.Mixes.DeepCutsMinPlays > cfg.Mixes.DeepCutsMaxPlays {
+		slog.Warn("invalid config value, using defaults",
+			"field", "mixes.deep_cuts_min_plays/mixes.deep_cuts_max_plays",
+			"min", cfg.Mixes.DeepCutsMinPlays,
+			"max", cfg.Mixes.DeepCutsMaxPlays,
+			"default_min", defaultMixDeepCutsMinPlays,
+			"default_max", defaultMixDeepCutsMaxPlays,
+		)
+		warnings = append(warnings, fmt.Sprintf(
+			"mixes.deep_cuts_min_plays %d is greater than mixes.deep_cuts_max_plays %d, using defaults %d-%d",
+			cfg.Mixes.DeepCutsMinPlays,
+			cfg.Mixes.DeepCutsMaxPlays,
+			defaultMixDeepCutsMinPlays,
+			defaultMixDeepCutsMaxPlays,
+		))
+		cfg.Mixes.DeepCutsMinPlays = defaultMixDeepCutsMinPlays
+		cfg.Mixes.DeepCutsMaxPlays = defaultMixDeepCutsMaxPlays
+	}
 
 	return cfg, warnings
 }

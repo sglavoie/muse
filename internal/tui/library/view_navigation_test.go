@@ -95,6 +95,29 @@ func TestGoToBottomEmptyLibrary(t *testing.T) {
 	}
 }
 
+func TestCursorMovementsResetStaleStateWhenLibraryEmpty(t *testing.T) {
+	base := View{Width: 80, Height: 24, Cursor: 7, ScrollOffset: 5}
+	tests := []struct {
+		name string
+		move func(View) View
+	}{
+		{"CursorUp", View.CursorUp},
+		{"CursorDown", View.CursorDown},
+		{"HalfPageUp", View.HalfPageUp},
+		{"HalfPageDown", View.HalfPageDown},
+		{"FullPageUp", View.FullPageUp},
+		{"FullPageDown", View.FullPageDown},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := tt.move(base)
+			if v.Cursor != 0 || v.ScrollOffset != 0 {
+				t.Errorf("expected cursor=0 and scroll=0 for empty library, got cursor=%d scroll=%d", v.Cursor, v.ScrollOffset)
+			}
+		})
+	}
+}
+
 func TestGoToBottomAdjustsScrollOffset(t *testing.T) {
 	tracks := make([]musiclib.Track, 20)
 	for i := range tracks {
@@ -207,10 +230,10 @@ func TestPageMovementsClampsToStart(t *testing.T) {
 }
 
 func TestMoveCursorEmptyIsNoOp(t *testing.T) {
-	v := View{Width: 80, Height: 24}
+	v := View{Width: 80, Height: 24, Cursor: 4, ScrollOffset: 2}
 	v2 := v.moveCursor(5)
-	if v2.Cursor != 0 {
-		t.Errorf("moveCursor empty: expected Cursor=0, got %d", v2.Cursor)
+	if v2.Cursor != 0 || v2.ScrollOffset != 0 {
+		t.Errorf("moveCursor empty: expected cursor=0 scroll=0, got cursor=%d scroll=%d", v2.Cursor, v2.ScrollOffset)
 	}
 }
 

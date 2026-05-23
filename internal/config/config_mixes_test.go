@@ -190,3 +190,34 @@ func TestMixes_OOB_SufficientHistoryCount_UsesDefault(t *testing.T) {
 		t.Error("expected warning for out-of-range sufficient_history_count = 0")
 	}
 }
+
+func TestMixes_DeepCutsMinGreaterThanMaxUsesDefaults(t *testing.T) {
+	dir := t.TempDir()
+	content := "[mixes]\ndeep_cuts_min_plays = 10\ndeep_cuts_max_plays = 5\n"
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if result.Config.Mixes.DeepCutsMinPlays != defaultMixDeepCutsMinPlays {
+		t.Errorf("DeepCutsMinPlays = %d, want default %d",
+			result.Config.Mixes.DeepCutsMinPlays, defaultMixDeepCutsMinPlays)
+	}
+	if result.Config.Mixes.DeepCutsMaxPlays != defaultMixDeepCutsMaxPlays {
+		t.Errorf("DeepCutsMaxPlays = %d, want default %d",
+			result.Config.Mixes.DeepCutsMaxPlays, defaultMixDeepCutsMaxPlays)
+	}
+	found := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "deep_cuts_min_plays") && strings.Contains(w, "greater than") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected warning for inverted deep cuts play range, got: %v", result.Warnings)
+	}
+}

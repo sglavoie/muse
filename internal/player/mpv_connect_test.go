@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -63,6 +64,40 @@ func TestCleanStaleSocket_LiveSocket(t *testing.T) {
 	if err := cleanStaleSocket(path); err == nil {
 		t.Fatal("expected error for live socket, got nil")
 	}
+}
+
+func TestCleanStaleSocket_NonSocketPathIsPreserved(t *testing.T) {
+	t.Run("regular file", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "not-a-socket")
+		if err := os.WriteFile(path, []byte("keep"), 0o644); err != nil {
+			t.Fatalf("write regular file: %v", err)
+		}
+
+		if err := cleanStaleSocket(path); err == nil {
+			t.Fatal("expected error for non-socket path, got nil")
+		}
+		if got, err := os.ReadFile(path); err != nil {
+			t.Fatalf("regular file was not preserved: %v", err)
+		} else if string(got) != "keep" {
+			t.Fatalf("regular file contents = %q, want keep", got)
+		}
+	})
+
+	t.Run("directory", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "not-a-socket-dir")
+		if err := os.Mkdir(path, 0o755); err != nil {
+			t.Fatalf("create directory: %v", err)
+		}
+
+		if err := cleanStaleSocket(path); err == nil {
+			t.Fatal("expected error for non-socket path, got nil")
+		}
+		if info, err := os.Stat(path); err != nil {
+			t.Fatalf("directory was not preserved: %v", err)
+		} else if !info.IsDir() {
+			t.Fatalf("path is not a directory after cleanup: %s", path)
+		}
+	})
 }
 
 func TestNewManager_SocketPath(t *testing.T) {

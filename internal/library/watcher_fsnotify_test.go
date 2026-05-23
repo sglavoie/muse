@@ -192,3 +192,32 @@ func TestAddWatchesRecursive_SkipsHiddenDirs(t *testing.T) {
 		t.Errorf("hidden dir %q should NOT be watched", hidden)
 	}
 }
+
+func TestAddWatchesRecursive_MissingRootReturnsError(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "missing")
+
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		t.Fatalf("NewWatcher: %v", err)
+	}
+	defer w.Close()
+
+	if err := addWatchesRecursive(w, root, nil); err == nil {
+		t.Fatalf("addWatchesRecursive(%q): expected error for missing root", root)
+	}
+}
+
+func TestWatch_MissingRootDegradesToClosedChannel(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "missing")
+
+	ch, degraded, err := Watch(t.Context(), []string{root}, nil, &fakeExtractor{}, DefaultDebounce)
+	if err != nil {
+		t.Fatalf("Watch: %v", err)
+	}
+	if !degraded {
+		t.Fatal("Watch with missing root: expected degraded=true")
+	}
+	if _, ok := <-ch; ok {
+		t.Fatal("Watch with missing root: expected pre-closed event channel")
+	}
+}

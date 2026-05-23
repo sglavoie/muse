@@ -275,6 +275,27 @@ func TestGoToBottomResetsStateWhenFilteredListIsEmpty(t *testing.T) {
 	}
 }
 
+func TestGoToBottomClampsScrollOffsetWhenListShrank(t *testing.T) {
+	v := View{
+		Level:        AlbumLevel,
+		Albums:       []string{"A", "B", "C"},
+		Cursor:       0,
+		ScrollOffset: 80,
+		Width:        80,
+		Height:       20,
+	}
+	v = v.GoToBottom()
+	if v.Cursor != 2 {
+		t.Errorf("expected cursor=2, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Errorf("expected scroll<=cursor (%d), got scroll=%d", v.Cursor, v.ScrollOffset)
+	}
+	if v.ScrollOffset < 0 {
+		t.Errorf("expected non-negative scroll, got %d", v.ScrollOffset)
+	}
+}
+
 func TestCursorMovementResetsStateWhenFilteredListIsEmpty(t *testing.T) {
 	base := View{
 		Level:        AlbumLevel,

@@ -128,6 +128,26 @@ func TestCommandListener_CloseRemovesSocketFile(t *testing.T) {
 	}
 }
 
+func TestCommandListener_CloseIsIdempotent(t *testing.T) {
+	dir := shortTempDir(t)
+	received := make(chan tui.RemoteActionMsg, 1)
+	p := newTestProgram(received)
+	go p.Run() //nolint:errcheck
+	defer p.Quit()
+
+	ln, err := startCommandListener(p, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ln.Close(); err != nil {
+		t.Fatalf("first Close: %v", err)
+	}
+	if err := ln.Close(); err != nil {
+		t.Fatalf("second Close should ignore already-closed listener and missing socket file: %v", err)
+	}
+}
+
 func TestCommandListener_UnknownAction(t *testing.T) {
 	dir := shortTempDir(t)
 	received := make(chan tui.RemoteActionMsg, 1)

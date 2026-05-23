@@ -5,6 +5,11 @@ import "github.com/sglavoie/muse/internal/tui/layout"
 // CursorUp moves the cursor one row up, stopping at the first track.
 // The scroll offset is adjusted so the cursor stays visible.
 func (v View) CursorUp() View {
+	if v.effectiveTrackCount() == 0 {
+		v.Cursor = 0
+		v.ScrollOffset = 0
+		return v
+	}
 	if v.Cursor > 0 {
 		v.Cursor--
 	}
@@ -18,7 +23,12 @@ func (v View) CursorUp() View {
 // The scroll offset is adjusted so the cursor stays visible.
 func (v View) CursorDown() View {
 	n := v.effectiveTrackCount()
-	if n > 0 && v.Cursor < n-1 {
+	if n == 0 {
+		v.Cursor = 0
+		v.ScrollOffset = 0
+		return v
+	}
+	if v.Cursor < n-1 {
 		v.Cursor++
 	}
 	maxRows := v.visibleRows()
@@ -85,6 +95,8 @@ func (v View) GoToBottom() View {
 func (v View) moveCursor(delta int) View {
 	n := v.effectiveTrackCount()
 	if n == 0 {
+		v.Cursor = 0
+		v.ScrollOffset = 0
 		return v
 	}
 	v.Cursor += delta

@@ -52,7 +52,9 @@ func ScoreAll(input ScoreInput) []TrackScore {
 		// Only skip seed by hash when seed.Hash is non-empty; otherwise an
 		// empty seed Hash would accidentally drop every candidate whose Hash
 		// is also empty (e.g., not-yet-hashed library entries).
-		if input.Seed.Hash != "" && track.Hash == input.Seed.Hash {
+		trackHash := track.Hash
+		hasTrackHash := trackHash != ""
+		if input.Seed.Hash != "" && trackHash == input.Seed.Hash {
 			continue
 		}
 
@@ -93,16 +95,18 @@ func ScoreAll(input ScoreInput) []TrackScore {
 		}
 
 		// Shared tags: +8 per shared tag.
-		if trackTags, ok := input.TrackTags[track.Hash]; ok {
-			for tagID := range input.Seed.TagIDs {
-				if _, has := trackTags[tagID]; has {
-					score += 8
+		if hasTrackHash {
+			if trackTags, ok := input.TrackTags[trackHash]; ok {
+				for tagID := range input.Seed.TagIDs {
+					if _, has := trackTags[tagID]; has {
+						score += 8
+					}
 				}
 			}
 		}
 
 		// Favorited: +3.
-		if _, ok := input.FavoriteHashes[track.Hash]; ok {
+		if hasTrackHash && hasHash(input.FavoriteHashes, trackHash) {
 			score += 3
 		}
 
@@ -127,8 +131,8 @@ func ScoreAll(input ScoreInput) []TrackScore {
 		}
 
 		// Completion rate: +4 for high listeners, -3 for skippers.
-		if input.CompletionRates != nil {
-			if rate, ok := input.CompletionRates[track.Hash]; ok {
+		if hasTrackHash && input.CompletionRates != nil {
+			if rate, ok := input.CompletionRates[trackHash]; ok {
 				if rate >= 0.8 {
 					score += 4
 				}
@@ -139,24 +143,24 @@ func ScoreAll(input ScoreInput) []TrackScore {
 		}
 
 		// Session co-occurrence with seed: +6 when played together 2+ times.
-		if input.CoOccurrences != nil {
-			if count, ok := input.CoOccurrences[track.Hash]; ok && count >= 2 {
+		if hasTrackHash && input.CoOccurrences != nil {
+			if count, ok := input.CoOccurrences[trackHash]; ok && count >= 2 {
 				score += 6
 			}
 		}
 
 		// Recent history penalty: -50.
-		if _, ok := input.RecentHashes[track.Hash]; ok {
+		if hasTrackHash && hasHash(input.RecentHashes, trackHash) {
 			score -= 50
 		}
 
 		// Queue penalty: -100.
-		if _, ok := input.QueueHashes[track.Hash]; ok {
+		if hasTrackHash && hasHash(input.QueueHashes, trackHash) {
 			score -= 100
 		}
 
 		// Dismissed penalty: -100.
-		if _, ok := input.DismissedHashes[track.Hash]; ok {
+		if hasTrackHash && hasHash(input.DismissedHashes, trackHash) {
 			score -= 100
 		}
 
@@ -172,6 +176,11 @@ func ScoreAll(input ScoreInput) []TrackScore {
 	})
 
 	return results
+}
+
+func hasHash(hashes map[string]struct{}, hash string) bool {
+	_, ok := hashes[hash]
+	return ok
 }
 
 // PickBatch selects up to n tracks from the top min(3*n, len(scored)) scored

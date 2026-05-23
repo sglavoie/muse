@@ -391,6 +391,39 @@ bands = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 	}
 }
 
+// TestLoad_EQCustomPresets_BuiltinKeyDropped verifies that a custom preset
+// cannot reuse a factory preset key. Reusing a built-in key makes preset lookup
+// ambiguous because the TUI combines built-ins and custom presets into one list.
+func TestLoad_EQCustomPresets_BuiltinKeyDropped(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[[eq_custom_presets]]
+name = "Rock Copy"
+key = "rock"
+bands = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(result.Config.EQCustomPresets) != 0 {
+		t.Fatalf("EQCustomPresets len = %d, want 0 for built-in key conflict", len(result.Config.EQCustomPresets))
+	}
+	found := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "built-in preset") && strings.Contains(w, "rock") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected built-in key conflict warning, got: %v", result.Warnings)
+	}
+}
+
 // TestCloseLog_HandlerSwappedBeforeFileClosed verifies that CloseLog installs
 // the discard handler BEFORE closing the file handle, so a late slog call
 // during shutdown does not write to a closed file descriptor. Calling CloseLog

@@ -119,6 +119,53 @@ func TestFormatDurationSecs(t *testing.T) {
 	}
 }
 
+func TestFormatTrackPos(t *testing.T) {
+	tests := []struct {
+		name     string
+		trackNum int
+		discNum  int
+		fallback int
+		want     string
+	}{
+		{"unknown zero uses fallback", 0, 1, 7, "7"},
+		{"invalid negative uses fallback", -1, 1, 7, "7"},
+		{"invalid negative with disc uses fallback", -1, 2, 7, "7"},
+		{"single disc uses bare track", 3, 1, 7, "3"},
+		{"multi disc prefixes disc", 3, 2, 7, "2.03"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FormatTrackPos(tt.trackNum, tt.discNum, tt.fallback)
+			if got != tt.want {
+				t.Errorf("FormatTrackPos(%d, %d, %d) = %q, want %q",
+					tt.trackNum, tt.discNum, tt.fallback, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFormatTrackPosSimple(t *testing.T) {
+	tests := []struct {
+		name     string
+		trackNum int
+		fallback int
+		want     string
+	}{
+		{"unknown zero uses fallback", 0, 7, "7"},
+		{"invalid negative uses fallback", -1, 7, "7"},
+		{"positive uses track number", 3, 7, "3"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FormatTrackPosSimple(tt.trackNum, tt.fallback)
+			if got != tt.want {
+				t.Errorf("FormatTrackPosSimple(%d, %d) = %q, want %q",
+					tt.trackNum, tt.fallback, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestRowMarker(t *testing.T) {
 	const npIcon = "♪"
 	tests := []struct {

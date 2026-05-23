@@ -234,3 +234,44 @@ func TestSetPlaylistOrder_IgnoresIDsFromOtherPlaylists(t *testing.T) {
 		t.Errorf("foreign playlist row position = %d, want 9000 (SetPlaylistOrder must not update other playlists)", bPos)
 	}
 }
+
+func TestSetPlaylistOrder_IgnoresSoftDeletedIDs(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	seedTrack(t, d, "set-playlist-soft-1", "/set-playlist-soft-1")
+	seedTrack(t, d, "set-playlist-soft-2", "/set-playlist-soft-2")
+	seedTrack(t, d, "set-playlist-soft-3", "/set-playlist-soft-3")
+	plID := seedPlaylist(t, d, "Playlist Soft Set")
+	id1 := seedPlaylistTrack(t, d, plID, "set-playlist-soft-1", 1000)
+	id2 := seedPlaylistTrack(t, d, plID, "set-playlist-soft-2", 2000)
+	id3 := seedPlaylistTrack(t, d, plID, "set-playlist-soft-3", 3000)
+
+	if _, err := d.Exec(`UPDATE playlist_tracks SET deleted_at=? WHERE id=?`, time.Now().Unix(), id2); err != nil {
+		t.Fatalf("soft-delete playlist row: %v", err)
+	}
+
+	if err := w.SetPlaylistOrder(plID, []int64{id3, id2, id1}); err != nil {
+		t.Fatalf("SetPlaylistOrder: %v", err)
+	}
+
+	got, err := d.ReadPlaylistTracks(plID)
+	if err != nil {
+		t.Fatalf("ReadPlaylistTracks: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("active playlist row count = %d, want 2", len(got))
+	}
+	if got[0].ID != id3 || got[0].Position != 1000 || got[1].ID != id1 || got[1].Position != 2000 {
+		t.Errorf("active playlist order = [{id:%d pos:%d} {id:%d pos:%d}], want id3@1000 then id1@2000",
+			got[0].ID, got[0].Position, got[1].ID, got[1].Position)
+	}
+
+	var deletedAt any
+	if err := d.QueryRow(`SELECT deleted_at FROM playlist_tracks WHERE id=?`, id2).Scan(&deletedAt); err != nil {
+		t.Fatalf("query deleted row: %v", err)
+	}
+	if deletedAt == nil {
+		t.Fatal("soft-deleted playlist row was restored; want it to stay deleted")
+	}
+}

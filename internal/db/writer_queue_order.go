@@ -20,6 +20,14 @@ import (
 // appended after any inline positional arguments. Pass nil for an unscoped
 // table like queue.
 func setGappedOrderTx(tx *sql.Tx, table, scopeFilter string, scopeArgs []any, ids []int64) error {
+	ids, err := activeOrderIDsTx(tx, table, scopeFilter, scopeArgs, ids)
+	if err != nil {
+		return err
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
 	n := int64(len(ids))
 	maxNewPos := n * queuePositionGap
 
@@ -95,6 +103,35 @@ func setGappedOrderTx(tx *sql.Tx, table, scopeFilter string, scopeArgs []any, id
 		}
 	}
 	return nil
+}
+
+func activeOrderIDsTx(tx *sql.Tx, table, scopeFilter string, scopeArgs []any, ids []int64) ([]int64, error) {
+	withScope := func(base ...any) []any {
+		return append(base, scopeArgs...)
+	}
+
+	active := make([]int64, 0, len(ids))
+	seen := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+
+		var exists int
+		err := tx.QueryRow(
+			fmt.Sprintf(`SELECT 1 FROM %s WHERE id=? AND deleted_at IS NULL %s`, table, scopeFilter),
+			withScope(id)...,
+		).Scan(&exists)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		active = append(active, id)
+	}
+	return active, nil
 }
 
 // RenumberQueuePositions rewrites the position column for all active queue

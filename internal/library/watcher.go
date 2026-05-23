@@ -263,6 +263,9 @@ func rescan(ctx context.Context, pending map[string]bool, excludedPaths []string
 func addWatchesRecursive(w *fsnotify.Watcher, root string, excludedPaths []string) error {
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
+			if path == root {
+				return err
+			}
 			return nil // skip unreadable entries
 		}
 		if d.IsDir() {
@@ -273,6 +276,9 @@ func addWatchesRecursive(w *fsnotify.Watcher, root string, excludedPaths []strin
 				return filepath.SkipDir
 			}
 			if err := w.Add(path); err != nil {
+				if path == root {
+					return err
+				}
 				slog.Debug("watcher: add watch", "path", path, "err", err)
 			}
 		}

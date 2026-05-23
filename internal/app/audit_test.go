@@ -189,6 +189,37 @@ func TestRunDurationAudit_AlreadyCorrectTracksGetMarkedVerified(t *testing.T) {
 	}
 }
 
+func TestRunDurationAudit_CancelBeforeProbeResultSkipsWriter(t *testing.T) {
+	probeStarted := make(chan struct{})
+	releaseProbe := make(chan struct{})
+	restore := app.SetProbeFn(func(_ context.Context, _ string) (float64, error) {
+		close(probeStarted)
+		<-releaseProbe
+		return 120.0, nil
+	})
+	t.Cleanup(restore)
+
+	reader := &stubReader{tracks: []db.UnverifiedTrack{
+		{Hash: "hash-cancelled", Path: "/track.mp3", DurationMs: 120000},
+	}}
+	writer := newStubVerifier()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	ch := app.RunDurationAudit(ctx, reader, writer)
+
+	<-probeStarted
+	cancel()
+	close(releaseProbe)
+	drainAndWait(t, ch)
+
+	if len(writer.verified) != 0 {
+		t.Fatalf("MarkDurationVerified calls after cancellation = %v; want none", writer.verified)
+	}
+	if len(writer.corrected) != 0 {
+		t.Fatalf("VerifyTrackDuration calls after cancellation = %v; want none", writer.corrected)
+	}
+}
+
 // TestRunDurationAudit_ProbeHookCanChangeWhileAuditRuns verifies that the
 // test probe hook is safe to swap while audit workers are active. Without the
 // probeFn lock, this trips the race detector: workers read probeFn while tests

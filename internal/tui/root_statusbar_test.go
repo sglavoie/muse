@@ -7,6 +7,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -172,6 +173,24 @@ func TestStatusBarRendersElapsedTime(t *testing.T) {
 
 	if !strings.Contains(v.Content, "1:23 / 4:05") {
 		t.Fatalf("status bar must show elapsed/total in M:SS / M:SS format; got:\n%s", v.Content)
+	}
+}
+
+func TestStatusBarHidesStaleQueuePosition(t *testing.T) {
+	m := New(context.Background())
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Path: "/a.flac"},
+		{ID: 2, Path: "/b.flac"},
+	}
+	m.playback.state = PlaybackPlaying
+	m.playback.currentIndex = len(m.queue.entries)
+	m.statusBar.artist = "Artist"
+	m.statusBar.title = "Title"
+	m.termWidth = 200
+
+	out := ansi.Strip(m.renderStatusBar())
+	if strings.Contains(out, "3 of 2") {
+		t.Fatalf("status bar must not render stale queue position; got:\n%s", out)
 	}
 }
 
