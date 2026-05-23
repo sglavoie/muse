@@ -199,6 +199,27 @@ func TestCursorDown_EmptyGenresResetsStaleState(t *testing.T) {
 	}
 }
 
+func TestCursorDownDoesNotAdvanceScrollWhenNoRowsVisible(t *testing.T) {
+	v := View{
+		Level:        TrackLevel,
+		Tracks:       tracks(struct{ genre, artist, title string }{"Rock", "Alice", "t1"}, struct{ genre, artist, title string }{"Rock", "Alice", "t2"}),
+		Cursor:       0,
+		ScrollOffset: 0,
+		Height:       1, // TrackLevel reserves two rows, leaving no content rows.
+	}
+	if rows := v.visibleRows(); rows != 0 {
+		t.Fatalf("precondition: expected no visible rows, got %d", rows)
+	}
+
+	v = v.CursorDown()
+	if v.Cursor != 1 {
+		t.Errorf("expected Cursor=1, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Errorf("expected ScrollOffset<=Cursor, got %d > %d", v.ScrollOffset, v.Cursor)
+	}
+}
+
 func TestGoToBottom_WithScroll(t *testing.T) {
 	v := View{
 		Level:  GenreLevel,
@@ -247,6 +268,27 @@ func TestHalfPageDown(t *testing.T) {
 	// visibleRows = height(6) - reserve(1, strip) = 5; HalfPageDown = 5/2 = 2
 	if v2.Cursor != 2 {
 		t.Errorf("expected cursor=2, got %d", v2.Cursor)
+	}
+}
+
+func TestPageMovementDoesNotAdvanceScrollWhenNoRowsVisible(t *testing.T) {
+	v := View{
+		Level:        GenreLevel,
+		Genres:       []string{"A", "B", "C"},
+		Cursor:       1,
+		ScrollOffset: 0,
+		Height:       1, // GenreLevel reserves one row, leaving no content rows.
+	}
+	if rows := v.visibleRows(); rows != 0 {
+		t.Fatalf("precondition: expected no visible rows, got %d", rows)
+	}
+
+	v = v.FullPageDown()
+	if v.Cursor != 1 {
+		t.Errorf("expected Cursor=1, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Errorf("expected ScrollOffset<=Cursor, got %d > %d", v.ScrollOffset, v.Cursor)
 	}
 }
 

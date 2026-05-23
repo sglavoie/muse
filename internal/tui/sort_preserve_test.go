@@ -160,6 +160,34 @@ func TestDequeueWithNoSortIsNoop(t *testing.T) {
 	}
 }
 
+func TestQueueSortDirPreservesFilteredFocusedEntry(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{ID: 10, Title: "Beta", Artist: "keep"},
+		{ID: 20, Title: "Charlie", Artist: "keep"},
+		{ID: 30, Title: "Alpha", Artist: "skip"},
+	}
+	m.queue.filter.Text = "keep"
+	m.queue.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.queue = m.queue.recomputeDisplayOrder()
+	m.queue.cursor = 1 // "Charlie" in the filtered ascending view.
+
+	next, _, ok := m.handleSortDir(SortDesc)
+	if !ok {
+		t.Fatal("expected queue sort dir change to be handled")
+	}
+	nm := next.(Model)
+	filtered := nm.queue.filteredEntries()
+
+	if nm.queue.cursor < 0 || nm.queue.cursor >= len(filtered) {
+		t.Fatalf("cursor %d out of filtered range %d", nm.queue.cursor, len(filtered))
+	}
+	if got := filtered[nm.queue.cursor].ID; got != 20 {
+		t.Fatalf("focused entry after sort dir change: got ID %d, want 20", got)
+	}
+}
+
 func TestPlaylistDeletePreservesSortOrder(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{

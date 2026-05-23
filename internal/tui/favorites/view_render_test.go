@@ -51,6 +51,21 @@ func TestRenderList_ClampsNegativeScrollOffset(t *testing.T) {
 	}
 }
 
+func TestRenderList_ClampsHighScrollOffset(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Category:     CategoryArtists,
+		Width:        20,
+		Height:       4, // visibleRows = 2
+		ScrollOffset: 50,
+		Artists:      []string{"Alice", "Bob", "Carol", "Daphne", "Eve"},
+	}
+	out := v.Render()
+	if !strings.Contains(out, "Daphne") || !strings.Contains(out, "Eve") {
+		t.Fatalf("expected render to clamp to final visible window, got:\n%s", out)
+	}
+}
+
 func TestRenderTrackRows_ClampsNegativeScrollOffset(t *testing.T) {
 	v := View{
 		Level:        ListLevel,
@@ -63,5 +78,20 @@ func TestRenderTrackRows_ClampsNegativeScrollOffset(t *testing.T) {
 	out := v.Render()
 	if !strings.Contains(out, "t0") {
 		t.Fatalf("expected render to start from first track, got:\n%s", out)
+	}
+}
+
+func TestRenderTrackRows_ClampsHighScrollOffset(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Category:     CategoryTracks,
+		Width:        80,
+		Height:       5, // visibleRows = 2
+		ScrollOffset: 50,
+		Tracks:       sampleTracks(5),
+	}
+	out := v.Render()
+	if !strings.Contains(out, "t3") || !strings.Contains(out, "t4") {
+		t.Fatalf("expected render to clamp to final visible track window, got:\n%s", out)
 	}
 }

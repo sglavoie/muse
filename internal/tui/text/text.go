@@ -181,30 +181,44 @@ func FormatTrackPosSimple(trackNum, fallback int) string {
 // at the left edge of every track row. Precedence (highest first):
 //
 //  1. selected (any): "● "
-//  2. focused + now-playing: nowPlayingIcon + " "
+//  2. focused + now-playing: normalized now-playing icon
 //  3. focused only: "▎ "
-//  4. now-playing only: nowPlayingIcon + " "
+//  4. now-playing only: normalized now-playing icon
 //  5. default: "  "
 //
 // The returned string is always two display columns wide. An empty
 // nowPlayingIcon falls back to "♪" so callers that haven't plumbed a
 // playback-state icon still render a stable two-column marker.
 func RowMarker(isSelected, isFocused, isNowPlaying bool, nowPlayingIcon string) string {
-	if nowPlayingIcon == "" {
-		nowPlayingIcon = "♪"
-	}
-	normalizedIcon := Pad(Truncate(nowPlayingIcon, 1), 1)
+	normalizedIcon := normalizeMarkerIcon(nowPlayingIcon)
 	switch {
 	case isSelected:
 		return "● "
 	case isFocused && isNowPlaying:
-		return normalizedIcon + " "
+		return normalizedIcon
 	case isFocused:
 		return "▎ "
 	case isNowPlaying:
-		return normalizedIcon + " "
+		return normalizedIcon
 	default:
 		return "  "
+	}
+}
+
+func normalizeMarkerIcon(icon string) string {
+	if icon == "" {
+		icon = "♪"
+	}
+	if ansi.StringWidth(icon) > 2 {
+		icon = ansi.Truncate(icon, 2, "")
+	}
+	switch ansi.StringWidth(icon) {
+	case 1:
+		return icon + " "
+	case 2:
+		return icon
+	default:
+		return "♪ "
 	}
 }
 

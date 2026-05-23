@@ -186,7 +186,9 @@ func TestRowMarker(t *testing.T) {
 		{"selected focused and now-playing", true, true, true, npIcon, "● "},
 		{"custom now-playing icon", false, false, true, "▶", "▶ "},
 		{"empty now-playing icon falls back", false, false, true, "", "♪ "},
-		{"wide now-playing icon stays two columns", false, false, true, "🎵", "… "},
+		{"wide now-playing icon is preserved", false, false, true, "🎵", "🎵"},
+		{"overwide now-playing icon is clipped to marker width", false, false, true, "🎵▶", "🎵"},
+		{"zero-width now-playing icon falls back", false, false, true, "\u0301", "♪ "},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

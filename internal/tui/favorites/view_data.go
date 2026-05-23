@@ -73,9 +73,11 @@ func (v View) itemCount() int {
 
 // visibleWindow returns the clamped [start,end) indexes for the visible slice
 // window. ScrollOffset is state restored from the parent model, so keep render
-// paths resilient to stale negative values.
+// paths resilient to stale negative or overlarge values.
 func (v View) visibleWindow(itemCount int) (int, int) {
-	start := min(max(v.ScrollOffset, 0), itemCount)
-	end := min(itemCount, start+v.visibleRows())
+	rows := v.visibleRows()
+	maxStart := max(itemCount-rows, 0)
+	start := min(max(v.ScrollOffset, 0), maxStart)
+	end := min(itemCount, start+rows)
 	return start, end
 }

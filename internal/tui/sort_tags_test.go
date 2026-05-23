@@ -125,6 +125,31 @@ func TestTagsSortResetOnBack(t *testing.T) {
 	}
 }
 
+func TestTagsBackClampsRestoredCursorAgainstCurrentTags(t *testing.T) {
+	v := TagsView{
+		level:           tagtui.TrackLevel,
+		tags:            []db.TagRow{{ID: 1, Name: "A"}, {ID: 2, Name: "B"}},
+		tagCounts:       map[int64]int{1: 1, 2: 1},
+		tracks:          []db.PlaylistTrackRow{{Hash: "h1", Title: "T1"}},
+		cursor:          0,
+		scrollOffset:    0,
+		tagCursor:       4,
+		tagScrollOffset: 3,
+		height:          10,
+	}
+
+	v = v.back()
+	if v.level != tagtui.TagLevel {
+		t.Fatalf("expected TagLevel after back, got %v", v.level)
+	}
+	if v.cursor != 1 {
+		t.Fatalf("expected cursor clamped to last tag, got %d", v.cursor)
+	}
+	if v.scrollOffset > v.cursor {
+		t.Fatalf("expected scrollOffset <= cursor, got scroll=%d cursor=%d", v.scrollOffset, v.cursor)
+	}
+}
+
 func TestTagsSortResetOnOpenTracks(t *testing.T) {
 	v := TagsView{
 		level:     tagtui.TagLevel,

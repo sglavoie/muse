@@ -24,23 +24,7 @@ func validate(raw rawConfig) (Config, []string) {
 		rawDirs = []string{raw.MusicDirectory}
 	}
 	if len(rawDirs) > 0 {
-		seen := make(map[string]bool, len(rawDirs))
-		var resolved []string
-		for _, d := range rawDirs {
-			trimmed := strings.TrimSpace(d)
-			if trimmed == "" {
-				continue
-			}
-			expanded, err := expandTilde(trimmed)
-			if err != nil {
-				expanded = trimmed
-			}
-			clean := filepath.Clean(expanded)
-			if !seen[clean] {
-				seen[clean] = true
-				resolved = append(resolved, clean)
-			}
-		}
+		resolved := normalizeMusicDirectories(rawDirs)
 		if len(resolved) > 0 {
 			cfg.MusicDirectories = resolved
 			cfg.MusicDirectory = resolved[0]
@@ -247,6 +231,27 @@ func validate(raw rawConfig) (Config, []string) {
 	}
 
 	return cfg, warnings
+}
+
+func normalizeMusicDirectories(rawDirs []string) []string {
+	seen := make(map[string]bool, len(rawDirs))
+	var resolved []string
+	for _, d := range rawDirs {
+		trimmed := strings.TrimSpace(d)
+		if trimmed == "" {
+			continue
+		}
+		expanded, err := expandTilde(trimmed)
+		if err != nil {
+			expanded = trimmed
+		}
+		clean := filepath.Clean(expanded)
+		if !seen[clean] {
+			seen[clean] = true
+			resolved = append(resolved, clean)
+		}
+	}
+	return resolved
 }
 
 // validateIntRange checks an optional int pointer against [lo, hi].

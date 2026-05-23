@@ -61,6 +61,9 @@ func (s *UsageStore) Load() error {
 		slog.Warn("palette usage: parse failed, starting fresh", "path", s.path, "err", err)
 		return err
 	}
+	if records == nil {
+		records = make(map[string]UsageRecord)
+	}
 	for key, rec := range records {
 		if rec.Count <= 0 {
 			rec.Count = 0

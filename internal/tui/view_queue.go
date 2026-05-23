@@ -82,6 +82,27 @@ func (v QueueView) findEntryDisplayPosition(entryIdx int) int {
 	return 0
 }
 
+// focusedEntryIndex returns the underlying entries index for the focused row,
+// accounting for committed filters and tag filters.
+func (v QueueView) focusedEntryIndex() int {
+	filtered := v.filteredEntries()
+	if v.cursor >= 0 && v.cursor < len(filtered) {
+		return filtered[v.cursor].origIdx
+	}
+	return v.entryIndex(v.cursor)
+}
+
+// findEntryFilteredPosition returns the filtered display row for the given
+// underlying entry index. Returns 0 if the entry is not visible.
+func (v QueueView) findEntryFilteredPosition(entryIdx int) int {
+	for i, e := range v.filteredEntries() {
+		if e.origIdx == entryIdx {
+			return i
+		}
+	}
+	return 0
+}
+
 // Update is a no-op stub. See the QueueView godoc for why all key handling is
 // done via HandleAction instead.
 func (v QueueView) Update(_ tea.Msg) (QueueView, tea.Cmd) {

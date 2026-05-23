@@ -93,10 +93,7 @@ func (v View) CursorUp() View {
 	if v.Cursor > 0 {
 		v.Cursor--
 	}
-	if v.Cursor < v.ScrollOffset {
-		v.ScrollOffset = v.Cursor
-	}
-	return v
+	return v.keepCursorVisible()
 }
 
 // CursorDown returns a copy of v with the cursor moved down by one row.
@@ -110,11 +107,7 @@ func (v View) CursorDown() View {
 	if v.Cursor < limit {
 		v.Cursor++
 	}
-	maxRows := v.visibleRows()
-	if v.Cursor >= v.ScrollOffset+maxRows {
-		v.ScrollOffset = v.Cursor - maxRows + 1
-	}
-	return v
+	return v.keepCursorVisible()
 }
 
 // HalfPageDown moves the cursor half a visible page down.
@@ -181,11 +174,31 @@ func (v View) moveCursor(delta int) View {
 	}
 	v.Cursor += delta
 	v.Cursor = max(0, min(v.Cursor, n-1))
+	return v.keepCursorVisible()
+}
+
+// keepCursorVisible adjusts ScrollOffset so the current cursor remains inside
+// the visible window. When no rows fit, anchor the scroll to the cursor rather
+// than advancing past it, so a later resize does not strand the selection.
+func (v View) keepCursorVisible() View {
+	if v.ScrollOffset < 0 {
+		v.ScrollOffset = 0
+	}
 	maxRows := v.visibleRows()
+	if maxRows <= 0 {
+		v.ScrollOffset = v.Cursor
+		if v.ScrollOffset < 0 {
+			v.ScrollOffset = 0
+		}
+		return v
+	}
 	if v.Cursor < v.ScrollOffset {
 		v.ScrollOffset = v.Cursor
 	} else if v.Cursor >= v.ScrollOffset+maxRows {
 		v.ScrollOffset = v.Cursor - maxRows + 1
+	}
+	if v.ScrollOffset < 0 {
+		v.ScrollOffset = 0
 	}
 	return v
 }

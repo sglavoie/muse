@@ -127,6 +127,10 @@ func (v View) CursorUp() View {
 	if v.Cursor > 0 {
 		v.Cursor--
 	}
+	if v.visibleRows() <= 0 {
+		v.ScrollOffset = v.Cursor
+		return v
+	}
 	if v.Cursor < v.ScrollOffset {
 		v.ScrollOffset = v.Cursor
 	}
@@ -287,7 +291,9 @@ func (v View) clampRestoredCursor() View {
 	// below the (possibly clamped) Cursor — otherwise the cursor renders off
 	// the bottom of the visible window after Back().
 	maxRows := v.visibleRows()
-	if maxRows > 0 && v.Cursor >= v.ScrollOffset+maxRows {
+	if maxRows <= 0 {
+		v.ScrollOffset = v.Cursor
+	} else if v.Cursor >= v.ScrollOffset+maxRows {
 		v.ScrollOffset = v.Cursor - maxRows + 1
 	}
 	return v
@@ -329,7 +335,7 @@ func (v View) renderTags() string {
 		return v.topFilterSeparator() + "(no matches)"
 	}
 
-	start := min(v.ScrollOffset, len(items))
+	start := min(max(v.ScrollOffset, 0), len(items))
 	end := min(len(items), start+maxRows)
 
 	lines := make([]string, end-start)
@@ -379,7 +385,7 @@ func (v View) renderTracks() string {
 			cols.Duration, "Time"))
 
 	maxRows := v.visibleRows()
-	start := min(v.ScrollOffset, len(items))
+	start := min(max(v.ScrollOffset, 0), len(items))
 	end := min(len(items), start+maxRows)
 
 	lines := make([]string, end-start)

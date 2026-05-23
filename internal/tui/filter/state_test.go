@@ -148,6 +148,25 @@ func TestDirectReactivateAfterDeactivateKeepsInputFocused(t *testing.T) {
 	}
 }
 
+func TestCopiedStateUpdateDoesNotMutateOriginalInput(t *testing.T) {
+	s, _ := New().Activate()
+	s, _ = s.Update(tea.KeyPressMsg{Text: "a"})
+	s, _ = s.Update(tea.KeyPressMsg{Text: "b"})
+	s, _ = s.Update(tea.KeyPressMsg{Text: "c"})
+	s, _ = s.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+
+	original := s
+	edited, _ := s.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	if edited.Text != "ac" {
+		t.Fatalf("edited copy: want Text=%q, got %q", "ac", edited.Text)
+	}
+
+	committedOriginal := original.Commit()
+	if committedOriginal.Text != "abc" {
+		t.Errorf("original copy after editing another copy: want Text=%q, got %q", "abc", committedOriginal.Text)
+	}
+}
+
 // TestRawActiveStateViewDoesNotPanic verifies that View() on a directly-
 // constructed active State does not panic even without Activate().
 func TestRawActiveStateViewDoesNotPanic(t *testing.T) {

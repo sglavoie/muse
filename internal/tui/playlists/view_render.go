@@ -54,13 +54,13 @@ func (v View) renderList() string {
 			// background evaluation has not yet returned.
 			name = text.Pad("⚡ "+p.Name, cols.Name)
 			if p.TrackCount >= 0 {
-				count = fmt.Sprintf("%*s", cols.Count, fmt.Sprintf("(%d)", p.TrackCount))
+				count = text.PadLeft(fmt.Sprintf("(%d)", p.TrackCount), cols.Count)
 			} else {
-				count = fmt.Sprintf("%*s", cols.Count, "(smart)")
+				count = text.PadLeft("(smart)", cols.Count)
 			}
 		} else {
 			name = text.Pad(p.Name, cols.Name)
-			count = fmt.Sprintf("%*s", cols.Count, fmt.Sprintf("(%d)", p.TrackCount))
+			count = text.PadLeft(fmt.Sprintf("(%d)", p.TrackCount), cols.Count)
 		}
 		line := name + "  " + count
 		if absIdx == v.Cursor {
@@ -127,12 +127,11 @@ func (v View) renderTracks() string {
 	}
 
 	header := strings.Repeat(" ", cols.Marker) + v.Styles.ColHead.Render(
-		fmt.Sprintf("%-*s %-*s %-*s %-*s %*s",
-			cols.Position, "#",
-			cols.Title, titleHead,
-			cols.Artist, artistHead,
-			cols.Album, albumHead,
-			cols.Duration, timeHead))
+		text.Pad("#", cols.Position)+" "+
+			text.Pad(titleHead, cols.Title)+" "+
+			text.Pad(artistHead, cols.Artist)+" "+
+			text.Pad(albumHead, cols.Album)+" "+
+			text.PadLeft(timeHead, cols.Duration))
 
 	maxRows := v.visibleRows()
 	start := min(max(v.ScrollOffset, 0), len(v.Tracks))

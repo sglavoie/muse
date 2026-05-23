@@ -281,16 +281,16 @@ func main() {
 		flag.PrintDefaults()
 	}
 
-	// Handle flags that should work regardless of position.
-	for _, arg := range os.Args[1:] {
-		switch arg {
-		case "--version", "-version":
-			fmt.Println(Version)
-			return
-		case "--help", "-h":
-			flag.Usage()
-			return
-		}
+	// Handle global flags before a subcommand is selected. Once the first
+	// non-flag token appears, later tokens belong to that command and should
+	// be validated by the command-specific argument checks below.
+	switch detectGlobalFlag(os.Args[1:]) {
+	case globalFlagVersion:
+		fmt.Println(Version)
+		return
+	case globalFlagHelp:
+		flag.Usage()
+		return
 	}
 
 	// Handle subcommands before flag parsing.
@@ -343,6 +343,34 @@ func validateNoCommandArgs(command string, args []string) error {
 		word = "arguments"
 	}
 	return fmt.Errorf("%s does not accept %s: %s", command, word, strings.Join(args, " "))
+}
+
+type globalFlag int
+
+const (
+	globalFlagNone globalFlag = iota
+	globalFlagVersion
+	globalFlagHelp
+)
+
+func detectGlobalFlag(args []string) globalFlag {
+	for _, arg := range args {
+		if arg == "--" {
+			return globalFlagNone
+		}
+		if !strings.HasPrefix(arg, "-") || arg == "-" {
+			return globalFlagNone
+		}
+		switch arg {
+		case "--version", "-version":
+			return globalFlagVersion
+		case "--help", "-h":
+			return globalFlagHelp
+		default:
+			return globalFlagNone
+		}
+	}
+	return globalFlagNone
 }
 
 // buildModel wires all dependencies into a tui.Model. It is extracted from

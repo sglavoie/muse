@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -19,10 +18,13 @@ import (
 // which the rename has been buffered but not yet committed, leaving the old
 // inode visible (or no entry at all) on reboot.
 func Save(path string, cfg Config) error {
-	if len(cfg.MusicDirectories) == 0 {
-		if trimmed := strings.TrimSpace(cfg.MusicDirectory); trimmed != "" {
-			cfg.MusicDirectories = []string{trimmed}
-		}
+	dirs := normalizeMusicDirectories(cfg.MusicDirectories)
+	if len(dirs) == 0 {
+		dirs = normalizeMusicDirectories([]string{cfg.MusicDirectory})
+	}
+	if len(dirs) > 0 {
+		cfg.MusicDirectories = dirs
+		cfg.MusicDirectory = dirs[0]
 	}
 
 	dir := filepath.Dir(path)

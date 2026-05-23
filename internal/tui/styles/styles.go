@@ -32,6 +32,7 @@ const (
 	colorAccentPrimaryLight   = "#4078f2"
 	colorAccentUnderlineDark  = "#3a5fa8" // Heading underline complement for #7aa2f7
 	colorAccentUnderlineLight = "#6a9edb"
+	colorActiveTabFg          = "#0b1020"
 )
 
 // Now-playing amber — title column foreground for the playing row.
@@ -105,7 +106,7 @@ type Styles struct {
 	AccentMark              lipgloss.Style // foreground-only accent for "●" marker on non-focused rows
 	Bold                    lipgloss.Style
 	Heading                 lipgloss.Style // bold + blue + double-underlined for section titles
-	ActiveTab               lipgloss.Style // bold + accent bg + white fg for the active tab in the title bar
+	ActiveTab               lipgloss.Style // bold + accent bg + high-contrast fg for the active tab in the title bar
 	Success                 lipgloss.Style // green foreground for playing state
 	Warning                 lipgloss.Style // gold foreground for paused state
 	Error                   lipgloss.Style // red foreground for errors / stopped
@@ -168,7 +169,7 @@ func NewStyles(hasDark bool) Styles {
 			Foreground(ld(lipgloss.Color(colorAccentPrimaryLight), lipgloss.Color(colorAccentPrimaryDark))),
 		ActiveTab: lipgloss.NewStyle().Bold(true).
 			Background(ld(lipgloss.Color(colorAccentPrimaryLight), lipgloss.Color(colorAccentPrimaryDark))).
-			Foreground(lipgloss.Color("#ffffff")),
+			Foreground(lipgloss.Color(colorActiveTabFg)),
 		Success:             lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgSuccessLight), lipgloss.Color(colorFgSuccessDark))),
 		Warning:             lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgWarningLight), lipgloss.Color(colorFgWarningDark))),
 		Error:               lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorFgErrorLight), lipgloss.Color(colorFgErrorDark))),

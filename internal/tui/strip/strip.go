@@ -430,8 +430,8 @@ func renderKeyLabelPair(hint string, s styles.Styles) string {
 // singleLine keeps metadata-derived labels and pasted filter text from
 // breaking the strip's one-row layout contract.
 func singleLine(v string) string {
-	if !strings.ContainsAny(v, "\r\n") {
+	if !strings.ContainsAny(v, "\r\n\t") {
 		return v
 	}
-	return strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ").Replace(v)
+	return strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ", "\t", " ").Replace(v)
 }

@@ -1,7 +1,7 @@
 package playlists
 
 const (
-	countFixed = 6 // "(9999)" — enough for typical playlist track counts
+	countFixed = 7 // "(smart)" — enough for the widest built-in count label
 	nameSep    = 2 // two spaces between name and count columns
 
 	trackMarkerFixed   = 2  // '●' glyph + separator space

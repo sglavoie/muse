@@ -56,6 +56,48 @@ func TestCursorDownClampsStaleScrollOffsetWhenListShrank(t *testing.T) {
 	}
 }
 
+func TestCursorMovementClampsNegativeStaleState(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Width: 80, Height: 24, Cursor: 1, ScrollOffset: -4}
+
+	v = v.CursorUp()
+
+	if v.Cursor != 0 {
+		t.Errorf("CursorUp: expected Cursor=0 after moving from row 1, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 0 {
+		t.Errorf("CursorUp: expected negative ScrollOffset to clamp to 0, got %d", v.ScrollOffset)
+	}
+}
+
+func TestCursorDownFromNegativeCursorStartsAtFirstRow(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Width: 80, Height: 24, Cursor: -5, ScrollOffset: -2}
+
+	v = v.CursorDown()
+
+	if v.Cursor != 0 {
+		t.Errorf("CursorDown: expected negative Cursor to clamp to first row, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 0 {
+		t.Errorf("CursorDown: expected negative ScrollOffset to clamp to 0, got %d", v.ScrollOffset)
+	}
+}
+
+func TestCursorDownWithNoVisibleRowsKeepsCursorVisibleForFutureResize(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Width: 80, Height: 1, Cursor: 0, ScrollOffset: 0}
+
+	v = v.CursorDown()
+
+	if v.Cursor != 1 {
+		t.Errorf("CursorDown: expected Cursor=1, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 1 {
+		t.Errorf("CursorDown: expected ScrollOffset=1 when no rows fit, got %d", v.ScrollOffset)
+	}
+}
+
 // TestCursorClampAtTop verifies that CursorUp stops at the first track without
 // wrapping.
 func TestCursorClampAtTop(t *testing.T) {

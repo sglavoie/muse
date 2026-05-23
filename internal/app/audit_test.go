@@ -3,6 +3,7 @@ package app_test
 import (
 	"context"
 	"errors"
+	"math"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -122,6 +123,44 @@ func TestRunDurationAudit_FFProbeFailureSkips(t *testing.T) {
 	}
 	if len(writer.corrected) != 0 {
 		t.Errorf("VerifyTrackDuration calls = %d; want 0", len(writer.corrected))
+	}
+}
+
+func TestRunDurationAudit_InvalidProbeDurationSkips(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		dur  float64
+	}{
+		{name: "NaN", dur: math.NaN()},
+		{name: "positive infinity", dur: math.Inf(1)},
+		{name: "negative infinity", dur: math.Inf(-1)},
+		{name: "negative", dur: -1},
+		{name: "out of range", dur: float64(1 << 62)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			restore := app.SetProbeFn(func(_ context.Context, _ string) (float64, error) {
+				return tc.dur, nil
+			})
+			t.Cleanup(restore)
+
+			reader := &stubReader{tracks: []db.UnverifiedTrack{
+				{Hash: "hash-invalid", Path: "/track-invalid.mp3", DurationMs: 120000},
+			}}
+			writer := newStubVerifier()
+
+			ch := runAudit(t, reader, writer)
+			fixes := drainAndWait(t, ch)
+
+			if len(fixes) != 0 {
+				t.Errorf("fixes sent = %d; want 0 for invalid probe duration", len(fixes))
+			}
+			if len(writer.verified) != 0 {
+				t.Errorf("MarkDurationVerified calls = %d; want 0", len(writer.verified))
+			}
+			if len(writer.corrected) != 0 {
+				t.Errorf("VerifyTrackDuration calls = %d; want 0", len(writer.corrected))
+			}
+		})
 	}
 }
 

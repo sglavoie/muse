@@ -157,6 +157,39 @@ func TestRenderListShowsSortIndicatorWhenSorted(t *testing.T) {
 	}
 }
 
+func TestRenderListPendingSmartCountFitsWidth(t *testing.T) {
+	const width = 20
+	v := View{
+		Width: width,
+		Playlists: []db.PlaylistRow{
+			{ID: 1, Name: "Long Smart Playlist", TrackCount: -1, IsSmart: true},
+		},
+	}
+
+	line := ansi.Strip(v.Render())
+	if got := ansi.StringWidth(line); got != width {
+		t.Fatalf("pending smart playlist row width = %d, want %d; line=%q", got, width, line)
+	}
+	if !strings.Contains(line, "(smart)") {
+		t.Fatalf("expected full smart placeholder to fit, got %q", line)
+	}
+}
+
+func TestRenderListLargeCountFitsWidth(t *testing.T) {
+	const width = 20
+	v := View{
+		Width: width,
+		Playlists: []db.PlaylistRow{
+			{ID: 1, Name: "Huge", TrackCount: 123456789},
+		},
+	}
+
+	line := ansi.Strip(v.Render())
+	if got := ansi.StringWidth(line); got != width {
+		t.Fatalf("large count playlist row width = %d, want %d; line=%q", got, width, line)
+	}
+}
+
 func TestRenderTracksShowsSequentialPositions(t *testing.T) {
 	v := View{
 		Level: TrackLevel,
@@ -239,6 +272,32 @@ func TestRenderTracksNegativeScrollOffsetStartsAtFirstRow(t *testing.T) {
 
 	if !strings.Contains(out, "First Track") {
 		t.Fatalf("expected negative scroll offset to render from first track, got:\n%s", out)
+	}
+}
+
+func TestRenderTracksHeaderFitsNarrowColumns(t *testing.T) {
+	const width = trackMarkerFixed + trackPosFixed + trackDurationFixed + trackSepCount + 1
+	v := View{
+		Level:     TrackLevel,
+		Width:     width,
+		SortField: "Title",
+		SortDir:   "▲",
+		Tracks: []db.PlaylistTrackRow{
+			{ID: 1, Position: 1, Title: "Long Title", Artist: "Long Artist", Album: "Long Album", DurationMs: 60000},
+		},
+	}
+
+	lines := strings.Split(v.Render(), "\n")
+	if len(lines) < 4 {
+		t.Fatalf("expected track render to include heading, header, and row; got %d lines", len(lines))
+	}
+	header := ansi.Strip(lines[2])
+	row := ansi.Strip(lines[3])
+	if got := ansi.StringWidth(header); got != width {
+		t.Fatalf("track header width = %d, want %d; header=%q", got, width, header)
+	}
+	if got := ansi.StringWidth(row); got != width {
+		t.Fatalf("track row width = %d, want %d; row=%q", got, width, row)
 	}
 }
 

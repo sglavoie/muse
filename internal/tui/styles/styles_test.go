@@ -245,6 +245,26 @@ func TestStripForegroundContrastDark(t *testing.T) {
 	}
 }
 
+func TestActiveTabContrast(t *testing.T) {
+	for _, c := range []struct {
+		name    string
+		hasDark bool
+	}{
+		{"dark", true},
+		{"light", false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			activeTab := styles.NewStyles(c.hasDark).ActiveTab
+			fg := colorRGBA(t, activeTab.GetForeground())
+			bg := colorRGBA(t, activeTab.GetBackground())
+			ratio := contrastRatio(fg, bg)
+			if ratio < 4.5 {
+				t.Fatalf("ActiveTab contrast %.2f:1 < 4.5:1 (fg %#v on bg %#v)", ratio, fg, bg)
+			}
+		})
+	}
+}
+
 // TestStyleNesting verifies that Background wrapping Bold output preserves inner
 // styling. Bold sequences must survive the outer Background render, satisfying
 // ac-f4704a90675005f2b2db92c90011a914.

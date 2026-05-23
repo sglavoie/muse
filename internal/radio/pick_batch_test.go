@@ -138,6 +138,19 @@ func TestPickBatch_ZeroN(t *testing.T) {
 	}
 }
 
+func TestPickBatch_HugeNDoesNotOverflowPoolSize(t *testing.T) {
+	scored := []TrackScore{{Track: library.Track{Hash: "t1", Artist: "ArtistA"}, Score: 10}}
+	hugeN := int(^uint(0)>>1)/3 + 1
+
+	got := PickBatch(scored, hugeN, 1.0)
+	if len(got) != 1 {
+		t.Fatalf("expected one available track for huge n, got %d", len(got))
+	}
+	if got[0].Hash != "t1" {
+		t.Fatalf("expected t1, got %q", got[0].Hash)
+	}
+}
+
 func TestPickBatch_NoDuplicates(t *testing.T) {
 	tracks := make([]library.Track, 20)
 	for i := range tracks {
@@ -263,6 +276,35 @@ func TestPickBatch_MixedScoresStillRandomized(t *testing.T) {
 			t.Errorf("duplicate hash %q in mixed-score result", tr.Hash)
 		}
 		seen[tr.Hash] = true
+	}
+}
+
+func TestPickBatch_SmallPositiveScoreUsesWeightedPath(t *testing.T) {
+	origReader := cryptorand.Reader
+	cryptorand.Reader = readerFunc(func(p []byte) (int, error) {
+		for i := range p {
+			p[i] = 0xff
+		}
+		if len(p) > 0 {
+			p[0] = 0x1f // 2^53 - 1 for PickBatch's 2^53 random range.
+		}
+		return len(p), nil
+	})
+	t.Cleanup(func() {
+		cryptorand.Reader = origReader
+	})
+
+	scored := []TrackScore{
+		{Track: library.Track{Hash: "tiny-positive", Artist: ""}, Score: 0.05},
+		{Track: library.Track{Hash: "zero", Artist: ""}, Score: 0},
+	}
+
+	result := PickBatch(scored, 1, 1.0)
+	if len(result) != 1 {
+		t.Fatalf("expected one result, got %d", len(result))
+	}
+	if result[0].Hash != "zero" {
+		t.Fatalf("expected high random draw to use weighted path and pick zero, got %q", result[0].Hash)
 	}
 }
 

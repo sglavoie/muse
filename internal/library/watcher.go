@@ -182,9 +182,13 @@ func handleFsEvent(event fsnotify.Event, excludedPaths []string, pending map[str
 
 	case event.Has(fsnotify.Write) || event.Has(fsnotify.Chmod):
 		if isAudioFile(base) {
+			if _, err := os.Stat(path); err != nil {
+				// Some platforms can emit trailing metadata events after a
+				// remove/rename. Do not let those erase the pending deletion.
+				return
+			}
 			pending[path] = false
-			// Write/Chmod on a path also supersedes any earlier delete: the
-			// file clearly still exists.
+			// Write/Chmod on an existing path supersedes any earlier delete.
 			delete(deleted, path)
 		}
 

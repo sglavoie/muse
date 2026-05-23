@@ -155,3 +155,62 @@ func TestSave_UsesLegacyMusicDirectoryWhenMusicDirectoriesEmpty(t *testing.T) {
 		t.Errorf("saved config should persist legacy field via music_directories, got:\n%s", data)
 	}
 }
+
+func TestSave_NormalizesMusicDirectoriesBeforeWriting(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, configFileName)
+
+	cfg := defaults()
+	cfg.MusicDirectories = []string{"  /music/A/  ", "/music/A", "", " /music/B/ "}
+	cfg.MusicDirectory = "/ignored/when/list/valid"
+
+	if err := Save(path, cfg); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if !strings.Contains(string(data), `music_directories = ["/music/A", "/music/B"]`) {
+		t.Errorf("saved config should persist normalized music directories, got:\n%s", data)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	want := []string{"/music/A", "/music/B"}
+	if len(result.Config.MusicDirectories) != len(want) {
+		t.Fatalf("MusicDirectories = %v, want %v", result.Config.MusicDirectories, want)
+	}
+	for i := range want {
+		if result.Config.MusicDirectories[i] != want[i] {
+			t.Fatalf("MusicDirectories = %v, want %v", result.Config.MusicDirectories, want)
+		}
+	}
+	if result.Config.MusicDirectory != "/music/A" {
+		t.Errorf("MusicDirectory = %q, want %q", result.Config.MusicDirectory, "/music/A")
+	}
+}
+
+func TestSave_UsesLegacyMusicDirectoryWhenMusicDirectoriesOnlyBlank(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, configFileName)
+
+	cfg := defaults()
+	cfg.MusicDirectories = []string{"", "  "}
+	cfg.MusicDirectory = "  /legacy/library/  "
+
+	if err := Save(path, cfg); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if !strings.Contains(string(data), `music_directories = ["/legacy/library"]`) {
+		t.Errorf("saved config should fall back to normalized legacy MusicDirectory, got:\n%s", data)
+	}
+}

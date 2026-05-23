@@ -253,6 +253,27 @@ func TestManager_SetQueue_KeepsCurrentIndexWhenValid(t *testing.T) {
 	}
 }
 
+// TestNewManager_SetQueueKeepsNoActiveTrack verifies that a newly-created
+// production manager does not treat queue index 0 as currently playing before
+// any playback command succeeds.
+func TestNewManager_SetQueueKeepsNoActiveTrack(t *testing.T) {
+	m := NewManager(shortSockPath(t, "newmgr-no-active"))
+	defer m.Close()
+
+	m.SetQueue([]QueueTrack{
+		{Path: "/a.flac", Hash: "h0", QueueID: 1},
+		{Path: "/b.flac", Hash: "h1", QueueID: 2},
+	})
+
+	m.mu.RLock()
+	idx := m.currentIndex
+	m.mu.RUnlock()
+
+	if idx != -1 {
+		t.Errorf("currentIndex = %d after SetQueue on new manager, want -1", idx)
+	}
+}
+
 func TestManager_DisconnectCh(t *testing.T) {
 	ch := make(chan error, 1)
 	ctx, cancel := context.WithCancel(context.Background())

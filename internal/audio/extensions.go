@@ -46,6 +46,7 @@ func SupportedExtensions() []string {
 }
 
 func normalizeExtension(ext string) string {
+	ext = strings.TrimSpace(ext)
 	if ext == "" {
 		return ""
 	}

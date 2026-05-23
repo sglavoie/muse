@@ -112,6 +112,57 @@ func TestWriter_ShutdownClean(t *testing.T) {
 	w.Wait()
 }
 
+// TestWriter_ExecAfterCancelBeforeWaitRejected verifies that once the writer
+// context is cancelled, new writes are rejected even if the writer goroutine is
+// still inside an in-flight write and has not closed done yet. Without this
+// guard, post-cancel writes could be accepted into the buffer after shutdown
+// had started and race with drain().
+func TestWriter_ExecAfterCancelBeforeWaitRejected(t *testing.T) {
+	d := openTestDB(t)
+	if _, err := d.Exec("CREATE TABLE post_cancel (n INTEGER)"); err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	w := db.NewWriter(ctx, d.DB)
+
+	writerBusy := make(chan struct{})
+	gate := make(chan struct{})
+	firstDone := make(chan error, 1)
+	go func() {
+		firstDone <- w.Exec(func(sdb *sql.DB) error {
+			close(writerBusy)
+			<-gate
+			return nil
+		})
+	}()
+
+	<-writerBusy
+	cancel()
+
+	err := w.Exec(func(sdb *sql.DB) error {
+		_, err := sdb.Exec("INSERT INTO post_cancel VALUES (1)")
+		return err
+	})
+	if err == nil {
+		t.Fatal("Exec after cancellation returned nil; want stopped error")
+	}
+
+	close(gate)
+	if err := <-firstDone; err != nil {
+		t.Fatalf("in-flight Exec: %v", err)
+	}
+	w.Wait()
+
+	var count int
+	if err := d.QueryRow("SELECT COUNT(*) FROM post_cancel").Scan(&count); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("post-cancel write count = %d, want 0", count)
+	}
+}
+
 // TestWriter_DrainOnShutdown verifies that pending writes buffered in the cmds
 // channel are committed before the writer goroutine exits. The test blocks the
 // writer goroutine inside the first command so that subsequent commands
@@ -159,6 +210,10 @@ func TestWriter_DrainOnShutdown(t *testing.T) {
 	}
 
 	submitted.Wait()
+	// submitted only proves the goroutines started; give them a scheduler turn
+	// to reach Exec and fill the writer's buffered command channel while the
+	// first command still holds the writer goroutine.
+	time.Sleep(10 * time.Millisecond)
 
 	close(gate)
 	cancel()

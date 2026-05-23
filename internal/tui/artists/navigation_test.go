@@ -78,6 +78,27 @@ func TestCursorDownAtTrackLevel(t *testing.T) {
 	}
 }
 
+func TestCursorMovementDoesNotAdvanceScrollWhenNoRowsVisible(t *testing.T) {
+	v := View{
+		Level:        TrackLevel,
+		Cursor:       0,
+		ScrollOffset: 0,
+		Height:       1, // TrackLevel reserves two rows, leaving no content rows.
+		Tracks:       make([]library.Track, 2),
+	}
+	if rows := v.visibleRows(); rows != 0 {
+		t.Fatalf("precondition: expected no visible rows, got %d", rows)
+	}
+
+	v = v.CursorDown()
+	if v.Cursor != 1 {
+		t.Errorf("CursorDown: expected Cursor=1, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Errorf("CursorDown: expected ScrollOffset<=Cursor, got %d > %d", v.ScrollOffset, v.Cursor)
+	}
+}
+
 func TestGoToTopResetsCursorAndScroll(t *testing.T) {
 	v := View{
 		Level:        ArtistLevel,
@@ -146,6 +167,27 @@ func TestMoveCursorEmptyListIsNoOp(t *testing.T) {
 	v2 := v.moveCursor(5)
 	if v2.Cursor != 0 {
 		t.Errorf("moveCursor empty: expected Cursor=0, got %d", v2.Cursor)
+	}
+}
+
+func TestPageMovementDoesNotAdvanceScrollWhenNoRowsVisible(t *testing.T) {
+	v := View{
+		Level:        AlbumLevel,
+		Cursor:       1,
+		ScrollOffset: 0,
+		Height:       1, // AlbumLevel reserves one row, leaving no content rows.
+		Albums:       []string{"Alpha", "Beta", "Gamma"},
+	}
+	if rows := v.visibleRows(); rows != 0 {
+		t.Fatalf("precondition: expected no visible rows, got %d", rows)
+	}
+
+	v = v.FullPageDown()
+	if v.Cursor != 1 {
+		t.Errorf("FullPageDown: expected Cursor=1, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Errorf("FullPageDown: expected ScrollOffset<=Cursor, got %d > %d", v.ScrollOffset, v.Cursor)
 	}
 }
 
@@ -363,6 +405,29 @@ func TestBackKeepsRestoredCursorVisibleAfterResize(t *testing.T) {
 	}
 	if v.ScrollOffset != 7 {
 		t.Errorf("expected scroll offset=7 to keep cursor visible, got %d", v.ScrollOffset)
+	}
+}
+
+func TestBackDoesNotAdvanceScrollWhenNoRowsVisible(t *testing.T) {
+	v := View{
+		Level:        AlbumLevel,
+		Cursor:       1,
+		ScrollOffset: 0,
+		Height:       10,
+		Albums:       []string{"Alpha", "Beta", "Gamma"},
+	}
+	v = v.OpenTracks([]library.Track{{Title: "Song"}})
+	v.Height = 1 // AlbumLevel reserves one row, leaving no content rows after Back.
+
+	v = v.Back()
+	if v.Level != AlbumLevel {
+		t.Fatalf("expected AlbumLevel, got %v", v.Level)
+	}
+	if v.Cursor != 1 {
+		t.Errorf("Back: expected Cursor=1, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Errorf("Back: expected ScrollOffset<=Cursor, got %d > %d", v.ScrollOffset, v.Cursor)
 	}
 }
 

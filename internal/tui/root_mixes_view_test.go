@@ -234,6 +234,36 @@ func TestMixesViewEmptyTrackLevel(t *testing.T) {
 	}
 }
 
+func TestMixLoadedFiltersDismissedHashesLikeRecommendationPackage(t *testing.T) {
+	tracks := []library.Track{
+		{Hash: "abc", Title: "Dismissed"},
+		{Hash: "", Title: "Unhashed"},
+		{Hash: "def", Title: "Kept"},
+	}
+	m := newMixesModel(true, tracks)
+	m = m.switchToView(viewMixes)
+	m.mixes.activeMix = db.MixRediscover
+	m.mixes.level = 1
+	paddedDismissedHash := " ABC "
+	m.dismissedHashes = map[string]struct{}{
+		paddedDismissedHash: {},
+		"":                  {},
+	}
+
+	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
+	cached := m.mixes.cachedMixes[db.MixRediscover]
+
+	if len(cached) != 2 {
+		t.Fatalf("expected 2 tracks after dismissed filtering, got %d: %+v", len(cached), cached)
+	}
+	if cached[0].Hash != "" || cached[0].Title != "Unhashed" {
+		t.Fatalf("empty-hash track should be preserved, got %+v", cached[0])
+	}
+	if cached[1].Hash != "def" {
+		t.Fatalf("expected non-dismissed hash def to remain, got %+v", cached[1])
+	}
+}
+
 func TestMixesViewAsyncGuard(t *testing.T) {
 	tracks := sampleMixTracks()
 	m := newMixesModel(true, tracks)

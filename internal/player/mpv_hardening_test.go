@@ -152,6 +152,24 @@ func TestManager_SetCurrentPosition_ClampsNaN(t *testing.T) {
 	}
 }
 
+// TestManager_SetCurrentPosition_ClampsPositiveInf verifies that positive
+// infinity is not persisted into the resume loadfile start option.
+func TestManager_SetCurrentPosition_ClampsPositiveInf(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{ctx: ctx, cancel: cancel}
+	defer m.Close()
+
+	m.SetCurrentPosition("/foo.flac", math.Inf(1))
+
+	m.mu.RLock()
+	got := m.lastElapsed
+	m.mu.RUnlock()
+
+	if got != 0 {
+		t.Errorf("lastElapsed = %v, want 0 (+Inf clamped)", got)
+	}
+}
+
 // TestManager_SetCurrentPosition_PreservesPositive verifies that a normal
 // positive elapsed value is stored as-is.
 func TestManager_SetCurrentPosition_PreservesPositive(t *testing.T) {

@@ -518,6 +518,43 @@ func TestRender_HintLineBreaksNormalized(t *testing.T) {
 	}
 }
 
+func TestRender_TabCharactersNormalized(t *testing.T) {
+	s := styles.NewStyles(true)
+	got := Render(100, []string{"Artists\tView"}, SortChunk{Label: "Album\tName", Indicator: "▼"},
+		FilterChunk{Text: "alice\tbob"}, CountsChunk{Total: 7}, nil, "esc\tback", s)
+	plain := ansi.Strip(got)
+
+	if ansi.StringWidth(got) != 100 {
+		t.Fatalf("width = %d, want 100 (plain=%q)", ansi.StringWidth(got), plain)
+	}
+	if strings.Contains(plain, "\t") {
+		t.Fatalf("strip must not render tabs because terminal tab stops break width arithmetic, got %q", plain)
+	}
+	for _, want := range []string{"Artists View", "sort Album Name▼", `filter "alice bob"`, "esc back"} {
+		if !strings.Contains(plain, want) {
+			t.Errorf("tabs should normalize to spaces; missing %q in %q", want, plain)
+		}
+	}
+}
+
+func TestRender_FilterHintTabsNormalized(t *testing.T) {
+	s := styles.NewStyles(true)
+	got := Render(80, []string{"Library"}, SortChunk{},
+		FilterChunk{Active: true, Hint: s.TextSecondary.Render("title\tartist")},
+		CountsChunk{Total: 7}, nil, "", s)
+	plain := ansi.Strip(got)
+
+	if ansi.StringWidth(got) != 80 {
+		t.Fatalf("width = %d, want 80 (plain=%q)", ansi.StringWidth(got), plain)
+	}
+	if strings.Contains(plain, "\t") {
+		t.Fatalf("active filter hint must not render tabs, got %q", plain)
+	}
+	if !strings.Contains(plain, `filter "title`) || !strings.Contains(plain, `artist"`) {
+		t.Errorf("hint tabs should normalize to spaces, got %q", plain)
+	}
+}
+
 // TestRender_NarrowestBreadcrumbKeepsChevronStyling verifies that when the
 // fallback "drop parent crumbs entirely" branch fires (because no per-crumb
 // budget can fit a parent + chevron), the surviving single crumb does not

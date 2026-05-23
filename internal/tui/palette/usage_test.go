@@ -116,6 +116,32 @@ func TestUsageStoreLoadEmptyFileClearsStaleRecords(t *testing.T) {
 	}
 }
 
+func TestUsageStoreLoadNullFileNormalizesToEmptyObject(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, usageFileName)
+	if err := os.WriteFile(path, []byte("null"), 0o644); err != nil {
+		t.Fatalf("setup write: %v", err)
+	}
+	store := NewUsageStore(dir)
+	store.Bump("stale")
+	if err := store.Load(); err != nil {
+		t.Fatalf("Load on null file: %v", err)
+	}
+	if got := store.Get("stale").Count; got != 0 {
+		t.Fatalf("null-file load should clear stale records, got %d", got)
+	}
+	if err := store.Save(); err != nil {
+		t.Fatalf("Save after null-file load: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read saved usage file: %v", err)
+	}
+	if string(data) != "{}" {
+		t.Fatalf("Save after null-file load should write empty object, got %q", string(data))
+	}
+}
+
 func TestUsageStoreLoadNegativeCountSanitized(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, usageFileName)

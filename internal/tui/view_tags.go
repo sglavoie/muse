@@ -180,9 +180,12 @@ func (v TagsView) back() TagsView {
 		Level:           v.level,
 		Cursor:          v.cursor,
 		ScrollOffset:    v.scrollOffset,
+		Tags:            v.tags,
+		TagCounts:       v.tagCounts,
 		TagCursor:       v.tagCursor,
 		TagScrollOffset: v.tagScrollOffset,
 		Tracks:          v.tracks,
+		Height:          v.height,
 	}
 	view = view.Back()
 	v.level = view.Level

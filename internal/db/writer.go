@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/sglavoie/muse/internal/library"
@@ -82,9 +83,13 @@ type writeCmd struct {
 // SQLITE_BUSY contention. Callers submit work via Exec and block on a
 // per-request response channel until the goroutine completes the write.
 type Writer struct {
+	ctx  context.Context
 	db   *sql.DB
 	cmds chan writeCmd
 	done chan struct{}
+	mu   sync.RWMutex
+
+	stopping bool
 
 	// Session tracking state. Only read/written inside Exec closures (writer
 	// goroutine) or before the goroutine starts (initSessionState). No mutex
@@ -98,6 +103,7 @@ type Writer struct {
 // to ensure a clean shutdown.
 func NewWriter(ctx context.Context, db *sql.DB) *Writer {
 	w := &Writer{
+		ctx:  ctx,
 		db:   db,
 		cmds: make(chan writeCmd, writerChannelBuffer),
 		done: make(chan struct{}),
@@ -136,8 +142,21 @@ func (w *Writer) Exec(fn func(*sql.DB) error) error {
 	cmd := writeCmd{fn: fn, resp: resp}
 
 	select {
+	case <-w.ctx.Done():
+		return fmt.Errorf("db writer: stopped")
+	default:
+	}
+
+	w.mu.RLock()
+	if w.stopping {
+		w.mu.RUnlock()
+		return fmt.Errorf("db writer: stopped")
+	}
+	select {
 	case w.cmds <- cmd:
+		w.mu.RUnlock()
 	case <-w.done:
+		w.mu.RUnlock()
 		return fmt.Errorf("db writer: stopped")
 	}
 
@@ -173,10 +192,17 @@ func (w *Writer) run(ctx context.Context) {
 		case cmd := <-w.cmds:
 			cmd.resp <- cmd.fn(w.db)
 		case <-ctx.Done():
+			w.stopAccepting()
 			w.drain()
 			return
 		}
 	}
+}
+
+func (w *Writer) stopAccepting() {
+	w.mu.Lock()
+	w.stopping = true
+	w.mu.Unlock()
 }
 
 // IncrementPlayCount increments play_count by 1 for the track identified by

@@ -137,6 +137,9 @@ func TestRenderScrollOffsetBeyondTrackCount(t *testing.T) {
 	if !strings.Contains(got, "Artist") {
 		t.Errorf("expected column header in render even with out-of-bounds scroll, got:\n%s", got)
 	}
+	if strings.Contains(got, "No matches") {
+		t.Errorf("out-of-bounds scroll should not be reported as no filter matches, got:\n%s", got)
+	}
 }
 
 func TestRenderNegativeScrollOffsetDoesNotPanic(t *testing.T) {
@@ -145,6 +148,20 @@ func TestRenderNegativeScrollOffsetDoesNotPanic(t *testing.T) {
 	got := v.Render()
 	if !strings.Contains(got, "Alice") {
 		t.Errorf("expected render to clamp negative ScrollOffset and show first row, got:\n%s", got)
+	}
+}
+
+func TestRenderWithNoVisibleRowsDoesNotClaimNoMatches(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Width: 80, Height: 1}
+
+	got := v.Render()
+
+	if !strings.Contains(got, "Artist") {
+		t.Fatalf("expected column header when no data rows fit, got:\n%s", got)
+	}
+	if strings.Contains(got, "No matches") {
+		t.Fatalf("existing tracks should not render as no matches just because no rows fit, got:\n%s", got)
 	}
 }
 

@@ -152,10 +152,10 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 		if m.queue.sortState.Field == SortDefault {
 			return m, nil, false
 		}
-		prevEntryIdx := m.queue.entryIndex(m.queue.cursor)
+		prevEntryIdx := m.queue.focusedEntryIndex()
 		m.queue.sortState.Dir = dir
 		m.queue = m.queue.recomputeDisplayOrder()
-		m.queue.cursor = m.queue.findEntryDisplayPosition(prevEntryIdx)
+		m.queue.cursor = m.queue.findEntryFilteredPosition(prevEntryIdx)
 		m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, m.queue.visibleRows())
 		m.statusBar.notifyInfo(sortNotification(m.queue.sortState))
 		return m, nil, true

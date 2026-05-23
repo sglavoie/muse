@@ -78,8 +78,11 @@ func (v View) Render() string {
 		} else if v.Filter.Text != "" {
 			separator = "Filter: " + v.Filter.Text + "\n"
 		}
-		if start >= end {
+		if len(display) == 0 {
 			return separator + "No matches — press Esc to clear"
+		}
+		if start >= end {
+			return strings.TrimSuffix(separator, "\n")
 		}
 		lines := make([]string, end-start)
 		for i, dt := range display[start:end] {
@@ -108,10 +111,13 @@ func (v View) Render() string {
 	header := strings.Repeat(" ", cols.SelectionMarker) + v.Styles.ColHead.Render(renderRow("#", "Artist", "Title", "Album", "Time", dateColLabel, cols))
 	stripLine := v.renderStateStrip(len(allTracks), len(display))
 
-	if start >= end {
+	if len(display) == 0 {
 		noMatches := "No matches"
 		leftPad := max(0, (v.Width-len(noMatches))/2)
 		return stripLine + "\n" + header + "\n" + strings.Repeat(" ", leftPad) + noMatches
+	}
+	if start >= end {
+		return stripLine + "\n" + header
 	}
 
 	showDisc := false

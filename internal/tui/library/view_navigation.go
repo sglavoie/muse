@@ -5,18 +5,21 @@ import "github.com/sglavoie/muse/internal/tui/layout"
 // CursorUp moves the cursor one row up, stopping at the first track.
 // The scroll offset is adjusted so the cursor stays visible.
 func (v View) CursorUp() View {
-	if v.effectiveTrackCount() == 0 {
+	n := v.effectiveTrackCount()
+	if n == 0 {
 		v.Cursor = 0
 		v.ScrollOffset = 0
 		return v
 	}
-	if v.Cursor > 0 {
+	switch {
+	case v.Cursor < 0:
+		v.Cursor = 0
+	case v.Cursor >= n:
+		v.Cursor = n - 1
+	case v.Cursor > 0:
 		v.Cursor--
 	}
-	if v.Cursor < v.ScrollOffset {
-		v.ScrollOffset = v.Cursor
-	}
-	return v
+	return v.keepCursorVisible()
 }
 
 // CursorDown moves the cursor one row down, stopping at the last track.
@@ -28,16 +31,15 @@ func (v View) CursorDown() View {
 		v.ScrollOffset = 0
 		return v
 	}
-	if v.Cursor < n-1 {
+	switch {
+	case v.Cursor < 0:
+		v.Cursor = 0
+	case v.Cursor >= n:
+		v.Cursor = n - 1
+	case v.Cursor < n-1:
 		v.Cursor++
 	}
-	maxRows := v.visibleRows()
-	if v.Cursor < v.ScrollOffset {
-		v.ScrollOffset = v.Cursor
-	} else if v.Cursor >= v.ScrollOffset+maxRows {
-		v.ScrollOffset = v.Cursor - maxRows + 1
-	}
-	return v
+	return v.keepCursorVisible()
 }
 
 // HalfPageDown moves the cursor half a visible page down.
@@ -76,19 +78,8 @@ func (v View) GoToBottom() View {
 		return v
 	}
 	v.Cursor = n - 1
-	maxRows := v.visibleRows()
-	if v.Cursor >= maxRows {
-		v.ScrollOffset = v.Cursor - maxRows + 1
-	}
-	// Clamp ScrollOffset down when the list shrank below a previously
-	// scrolled position: otherwise the cursor renders above the visible
-	// window after a filter/delete reduces the effective track count.
-	if v.ScrollOffset > v.Cursor {
-		v.ScrollOffset = v.Cursor
-	}
-	if v.ScrollOffset < 0 {
-		v.ScrollOffset = 0
-	}
+	maxRows := v.scrollRows()
+	v.ScrollOffset = max(0, v.Cursor-maxRows+1)
 	return v
 }
 
@@ -103,13 +94,27 @@ func (v View) moveCursor(delta int) View {
 	}
 	v.Cursor += delta
 	v.Cursor = max(0, min(v.Cursor, n-1))
-	maxRows := v.visibleRows()
+	return v.keepCursorVisible()
+}
+
+func (v View) keepCursorVisible() View {
+	if v.ScrollOffset < 0 {
+		v.ScrollOffset = 0
+	}
+	maxRows := v.scrollRows()
 	if v.Cursor < v.ScrollOffset {
 		v.ScrollOffset = v.Cursor
 	} else if v.Cursor >= v.ScrollOffset+maxRows {
 		v.ScrollOffset = v.Cursor - maxRows + 1
 	}
+	if v.ScrollOffset < 0 {
+		v.ScrollOffset = 0
+	}
 	return v
+}
+
+func (v View) scrollRows() int {
+	return max(1, v.visibleRows())
 }
 
 // visibleRows returns the maximum number of track rows that fit on screen.

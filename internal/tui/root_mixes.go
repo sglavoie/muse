@@ -231,16 +231,7 @@ func (m Model) handleMixLoadedMsg(msg mixLoadedMsg) Model {
 	if m.mixes.cachedMixes == nil {
 		m.mixes.cachedMixes = make(map[db.MixID][]library.Track)
 	}
-	tracks := msg.tracks
-	if len(m.dismissedHashes) > 0 {
-		filtered := make([]library.Track, 0, len(tracks))
-		for _, t := range tracks {
-			if _, dismissed := m.dismissedHashes[t.Hash]; !dismissed {
-				filtered = append(filtered, t)
-			}
-		}
-		tracks = filtered
-	}
+	tracks := recommendation.FilterSeen(msg.tracks, m.dismissedHashes)
 	m.mixes.cachedMixes[msg.mixID] = tracks
 	if m.activeView == viewMixes && m.mixes.level == 1 && m.mixes.activeMix == msg.mixID {
 		if len(m.mixes.trackView.sourceTracks) == 0 {

@@ -192,7 +192,10 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 		return nil
 	}
 
-	poolSize := min(3*n, len(scored))
+	poolSize := len(scored)
+	if n <= len(scored)/3 {
+		poolSize = 3 * n
+	}
 	pool := make([]TrackScore, poolSize)
 	copy(pool, scored[:poolSize])
 	nextIdx := poolSize
@@ -214,7 +217,11 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 
 	artistCount := make(map[string]int)
 	pickedHashes := make(map[string]struct{})
-	result := make([]library.Track, 0, n)
+	resultCap := n
+	if resultCap > len(scored) {
+		resultCap = len(scored)
+	}
+	result := make([]library.Track, 0, resultCap)
 
 	for len(result) < n {
 		eligible, weights, totalWeight, anyPositive := collectEligible(pool, artistCount, pickedHashes, maxPerArtist)
@@ -346,7 +353,7 @@ func collectEligible(pool []TrackScore, artistCount map[string]int, pickedHashes
 		eligible = append(eligible, i)
 		weights = append(weights, weight)
 		totalWeight += weight
-		if score > 0.1 {
+		if score > 0 {
 			anyPositive = true
 		}
 	}

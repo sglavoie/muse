@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os/exec"
 	"sort"
 	"strings"
@@ -165,6 +166,7 @@ func NewManager(socketPath string) *Manager {
 		disconnectCh:    make(chan error, 1),
 		callbacksReady:  make(chan struct{}),
 		audioFilters:    make(map[string]string),
+		currentIndex:    -1,
 		prefetchedIndex: -1,
 	}
 	m.launchFn = func(ctx context.Context, socketPath string) (*exec.Cmd, error) {
@@ -203,7 +205,7 @@ func (m *Manager) SetEventCallbacks(cb EventCallbacks) {
 // non-finite values are clamped to 0 so the resume loadfile does not seek to
 // a bogus offset.
 func (m *Manager) SetCurrentPosition(path string, elapsed float64) {
-	if elapsed < 0 || elapsed != elapsed { // NaN check via self-inequality
+	if elapsed < 0 || math.IsNaN(elapsed) || math.IsInf(elapsed, 0) {
 		elapsed = 0
 	}
 	m.mu.Lock()

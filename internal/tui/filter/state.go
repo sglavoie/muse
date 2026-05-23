@@ -63,6 +63,17 @@ func newInput(value string) textinput.Model {
 	return ti
 }
 
+// cloneInput gives each returned State its own text buffer; textinput.Model
+// contains slices, so plain struct copies can otherwise alias hidden state.
+func cloneInput(src textinput.Model) textinput.Model {
+	ti := newInput(src.Value())
+	ti.SetCursor(src.Position())
+	if src.Focused() {
+		_ = ti.Focus()
+	}
+	return ti
+}
+
 // seed lazily initialises the textinput from Text when the State was
 // constructed directly (e.g. State{Active:true, Text:"AB"}) without going
 // through Activate(), or when public Text was changed while inactive.
@@ -88,6 +99,7 @@ func (s State) Update(msg tea.KeyPressMsg) (State, tea.Cmd) {
 		return s, nil
 	}
 	s = s.seed()
+	s.input = cloneInput(s.input)
 	var cmd tea.Cmd
 	s.input, cmd = s.input.Update(msg)
 	s.Text = s.input.Value()
@@ -101,6 +113,7 @@ func (s State) UpdateMsg(msg tea.Msg) (State, tea.Cmd) {
 		return s, nil
 	}
 	s = s.seed()
+	s.input = cloneInput(s.input)
 	var cmd tea.Cmd
 	s.input, cmd = s.input.Update(msg)
 	s.Text = s.input.Value()

@@ -29,6 +29,10 @@ var (
 	probeFn   = library.FFProbeDuration
 )
 
+// maxAuditableDurationSeconds keeps dur*1000 safely below int64 overflow
+// while still allowing durations far beyond any realistic audio file length.
+const maxAuditableDurationSeconds = float64(1<<62) / 1000.0
+
 // RunDurationAudit spawns a background goroutine that ffprobe-verifies all
 // tracks where duration_verified=0. Corrections are sent to the returned
 // channel; the channel is closed when the audit completes.
@@ -78,6 +82,10 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 					dur, err := probe(ctx, t.Path)
 					if err != nil {
 						slog.Warn("duration audit: ffprobe failed, skipping", "path", t.Path, "err", err)
+						continue
+					}
+					if math.IsNaN(dur) || math.IsInf(dur, 0) || dur < 0 || dur > maxAuditableDurationSeconds {
+						slog.Warn("duration audit: invalid ffprobe duration, skipping", "path", t.Path, "duration", dur)
 						continue
 					}
 					if ctx.Err() != nil {

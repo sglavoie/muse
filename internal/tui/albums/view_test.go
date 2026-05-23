@@ -115,6 +115,33 @@ func TestRenderAlbumsShowsNames(t *testing.T) {
 	}
 }
 
+func TestRenderAlbumsClampsInvalidScrollOffset(t *testing.T) {
+	tests := []struct {
+		name         string
+		scrollOffset int
+	}{
+		{"negative", -1},
+		{"past end", 80},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := View{
+				Level:        AlbumLevel,
+				Width:        80,
+				Height:       20,
+				Albums:       []string{"Alpha", "Beta", "Gamma"},
+				ScrollOffset: tt.scrollOffset,
+			}
+			out := v.Render()
+			for _, want := range []string{"Alpha", "Beta", "Gamma"} {
+				if !strings.Contains(out, want) {
+					t.Fatalf("expected %q after clamping scroll offset %d, got:\n%s", want, tt.scrollOffset, out)
+				}
+			}
+		})
+	}
+}
+
 func TestRenderAlbumsShowsCounts(t *testing.T) {
 	v := View{
 		Level:       AlbumLevel,
@@ -223,6 +250,36 @@ func TestRenderTracksTruncatesFixedColumnsAtNarrowWidth(t *testing.T) {
 	}
 	if got := ansi.StringWidth(row); got > width {
 		t.Fatalf("row width = %d, want <= %d: %q", got, width, row)
+	}
+}
+
+func TestRenderTracksClampsInvalidScrollOffset(t *testing.T) {
+	tests := []struct {
+		name         string
+		scrollOffset int
+	}{
+		{"negative", -1},
+		{"past end", 80},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := View{
+				Level:        TrackLevel,
+				Width:        80,
+				Height:       20,
+				ScrollOffset: tt.scrollOffset,
+				Tracks: []library.Track{
+					{Title: "Track A1", Duration: 183},
+					{Title: "Track A2", Duration: 245},
+				},
+			}
+			out := v.Render()
+			for _, want := range []string{"Track A1", "Track A2"} {
+				if !strings.Contains(out, want) {
+					t.Fatalf("expected %q after clamping scroll offset %d, got:\n%s", want, tt.scrollOffset, out)
+				}
+			}
+		})
 	}
 }
 
@@ -380,6 +437,34 @@ func TestCursorMovementResetsStateWhenFilteredListIsEmpty(t *testing.T) {
 			v := tt.move(base)
 			if v.Cursor != 0 || v.ScrollOffset != 0 {
 				t.Errorf("expected cursor=0 and scroll=0 for empty filtered list, got cursor=%d scroll=%d", v.Cursor, v.ScrollOffset)
+			}
+		})
+	}
+}
+
+func TestCursorMovementWithNoVisibleRowsDoesNotScrollPastCursor(t *testing.T) {
+	base := View{
+		Level:  AlbumLevel,
+		Albums: []string{"A", "B", "C"},
+		Width:  80,
+		Height: 1,
+	}
+	tests := []struct {
+		name string
+		move func(View) View
+	}{
+		{"CursorDown", View.CursorDown},
+		{"HalfPageDown", View.HalfPageDown},
+		{"FullPageDown", View.FullPageDown},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := tt.move(base)
+			if v.ScrollOffset > v.Cursor {
+				t.Fatalf("scroll offset advanced past cursor: cursor=%d scroll=%d", v.Cursor, v.ScrollOffset)
+			}
+			if v.ScrollOffset < 0 {
+				t.Fatalf("scroll offset must not be negative, got %d", v.ScrollOffset)
 			}
 		})
 	}

@@ -30,3 +30,50 @@ func TestValidateNoCommandArgs_RejectsMultipleTrailingArgs(t *testing.T) {
 		t.Fatalf("error = %q", got)
 	}
 }
+
+func TestDetectGlobalFlag(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want globalFlag
+	}{
+		{
+			name: "version before command",
+			args: []string{"--version", "next"},
+			want: globalFlagVersion,
+		},
+		{
+			name: "help before command",
+			args: []string{"-h", "next"},
+			want: globalFlagHelp,
+		},
+		{
+			name: "command owns trailing help",
+			args: []string{"next", "--help"},
+			want: globalFlagNone,
+		},
+		{
+			name: "unknown command owns trailing help",
+			args: []string{"not-a-command", "--help"},
+			want: globalFlagNone,
+		},
+		{
+			name: "unknown leading flag left to flag package",
+			args: []string{"--not-a-real-flag", "--help"},
+			want: globalFlagNone,
+		},
+		{
+			name: "double dash stops global flag parsing",
+			args: []string{"--", "--help"},
+			want: globalFlagNone,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := detectGlobalFlag(tt.args); got != tt.want {
+				t.Fatalf("detectGlobalFlag(%v) = %v, want %v", tt.args, got, tt.want)
+			}
+		})
+	}
+}

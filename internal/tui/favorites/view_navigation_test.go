@@ -210,6 +210,24 @@ func TestCursorDown_AdjustsScroll(t *testing.T) {
 	}
 }
 
+func TestCursorDown_ZeroVisibleRowsAnchorsScrollToCursor(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Category:     CategoryArtists,
+		Artists:      []string{"A", "B", "C"},
+		Cursor:       1,
+		ScrollOffset: 0,
+		Height:       2, // visibleRows = 0
+	}
+	v2 := v.CursorDown()
+	if v2.Cursor != 2 {
+		t.Fatalf("expected cursor=2, got %d", v2.Cursor)
+	}
+	if v2.ScrollOffset != v2.Cursor {
+		t.Errorf("expected scrollOffset anchored to cursor, got cursor=%d scroll=%d", v2.Cursor, v2.ScrollOffset)
+	}
+}
+
 // TestGoToBottom_ClampsScrollOffsetWhenListShrank guards a regression where
 // GoToBottom kept a stale ScrollOffset that was above the new last index
 // (e.g. after a filter shrank the list), causing the cursor to render above
@@ -232,6 +250,23 @@ func TestGoToBottom_ClampsScrollOffsetWhenListShrank(t *testing.T) {
 	}
 	if v2.ScrollOffset < 0 {
 		t.Errorf("ScrollOffset must not be negative, got %d", v2.ScrollOffset)
+	}
+}
+
+func TestGoToBottom_ZeroVisibleRowsAnchorsScrollToCursor(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Category:     CategoryArtists,
+		Artists:      []string{"A", "B", "C"},
+		ScrollOffset: 50,
+		Height:       2, // visibleRows = 0
+	}
+	v2 := v.GoToBottom()
+	if v2.Cursor != 2 {
+		t.Fatalf("expected cursor=2, got %d", v2.Cursor)
+	}
+	if v2.ScrollOffset != v2.Cursor {
+		t.Errorf("expected scrollOffset anchored to cursor, got cursor=%d scroll=%d", v2.Cursor, v2.ScrollOffset)
 	}
 }
 

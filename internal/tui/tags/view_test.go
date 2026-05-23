@@ -1,6 +1,7 @@
 package tags
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/db"
@@ -181,6 +182,32 @@ func TestCursorDownWithNoVisibleRowsKeepsScrollOnCursor(t *testing.T) {
 	}
 }
 
+func TestCursorUpWithNoVisibleRowsKeepsScrollOnCursor(t *testing.T) {
+	v := View{
+		Level:         TagLevel,
+		Cursor:        2,
+		ScrollOffset:  0,
+		Height:        1,
+		FilterActive:  true,
+		SortIndicator: "Sort: Name",
+		Tags: []db.TagRow{
+			{ID: 1, Name: "a"},
+			{ID: 2, Name: "b"},
+			{ID: 3, Name: "c"},
+		},
+		TagCounts: map[int64]int{1: 1, 2: 1, 3: 1},
+	}
+
+	v = v.CursorUp()
+
+	if v.Cursor != 1 {
+		t.Fatalf("expected Cursor=1, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != v.Cursor {
+		t.Fatalf("expected ScrollOffset=%d, got %d", v.Cursor, v.ScrollOffset)
+	}
+}
+
 func TestPageMovementWithNoVisibleRowsKeepsScrollOnCursor(t *testing.T) {
 	v := View{
 		Level:        TrackLevel,
@@ -195,6 +222,34 @@ func TestPageMovementWithNoVisibleRowsKeepsScrollOnCursor(t *testing.T) {
 	}
 
 	v = v.moveCursor(2)
+
+	if v.Cursor != 2 {
+		t.Fatalf("expected Cursor=2, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != v.Cursor {
+		t.Fatalf("expected ScrollOffset=%d, got %d", v.Cursor, v.ScrollOffset)
+	}
+}
+
+func TestBackWithNoVisibleRowsKeepsScrollOnCursor(t *testing.T) {
+	v := View{
+		Level:           TrackLevel,
+		Cursor:          0,
+		TagCursor:       2,
+		TagScrollOffset: 0,
+		Height:          1,
+		FilterActive:    true,
+		SortIndicator:   "Sort: Name",
+		Tags: []db.TagRow{
+			{ID: 1, Name: "a"},
+			{ID: 2, Name: "b"},
+			{ID: 3, Name: "c"},
+		},
+		TagCounts: map[int64]int{1: 1, 2: 1, 3: 1},
+		Tracks:    []db.PlaylistTrackRow{{ID: 1}},
+	}
+
+	v = v.Back()
 
 	if v.Cursor != 2 {
 		t.Fatalf("expected Cursor=2, got %d", v.Cursor)
@@ -224,6 +279,41 @@ func TestRenderTagsCreatingWithNoVisibleRowsDoesNotPanic(t *testing.T) {
 	}()
 
 	_ = v.Render()
+}
+
+func TestRenderTagsWithNegativeScrollOffsetDoesNotPanic(t *testing.T) {
+	v := View{
+		Level:        TagLevel,
+		Width:        20,
+		Height:       10,
+		ScrollOffset: -3,
+		Tags:         []db.TagRow{{ID: 1, Name: "alpha"}},
+		TagCounts:    map[int64]int{1: 1},
+	}
+
+	out := v.Render()
+
+	if !strings.Contains(out, "alpha") {
+		t.Fatalf("expected render to clamp negative scroll and include first tag, got:\n%s", out)
+	}
+}
+
+func TestRenderTracksWithNegativeScrollOffsetDoesNotPanic(t *testing.T) {
+	v := View{
+		Level:        TrackLevel,
+		Width:        80,
+		Height:       10,
+		ScrollOffset: -2,
+		Tracks: []db.PlaylistTrackRow{
+			{ID: 1, Title: "first", Artist: "artist", Album: "album"},
+		},
+	}
+
+	out := v.Render()
+
+	if !strings.Contains(out, "first") {
+		t.Fatalf("expected render to clamp negative scroll and include first track, got:\n%s", out)
+	}
 }
 
 // TestBack_KeepsCursorVisibleAfterResize verifies that when the saved
