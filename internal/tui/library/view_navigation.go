@@ -32,7 +32,9 @@ func (v View) CursorDown() View {
 		v.Cursor++
 	}
 	maxRows := v.visibleRows()
-	if v.Cursor >= v.ScrollOffset+maxRows {
+	if v.Cursor < v.ScrollOffset {
+		v.ScrollOffset = v.Cursor
+	} else if v.Cursor >= v.ScrollOffset+maxRows {
 		v.ScrollOffset = v.Cursor - maxRows + 1
 	}
 	return v

@@ -78,9 +78,7 @@ func (v View) renderList() string {
 		return heading + v.filterSeparator() + "(no matches)"
 	}
 
-	maxRows := v.visibleRows()
-	start := min(v.ScrollOffset, len(items))
-	end := min(len(items), start+maxRows)
+	start, end := v.visibleWindow(len(items))
 
 	// Determine the favorite style for this category.
 	var favStyle, favAccentStyle lipgloss.Style
@@ -171,9 +169,7 @@ func (v View) renderTrackRows(items []library.Track) string {
 		fmt.Sprintf("%-*s %-*s %-*s %-*s %*s %*s",
 			cols.Position, "#", cols.Title, "Title", cols.Artist, "Artist", cols.Album, "Album", cols.Duration, "Time", cols.PlayCount, "Plays"))
 
-	maxRows := v.visibleRows()
-	start := min(v.ScrollOffset, len(items))
-	end := min(len(items), start+maxRows)
+	start, end := v.visibleWindow(len(items))
 
 	showDisc := false
 	for _, t := range items[start:end] {

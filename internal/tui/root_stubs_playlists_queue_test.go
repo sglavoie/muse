@@ -104,6 +104,7 @@ type stubQueueReorderer struct {
 		id        int64
 		direction int
 	}
+	setQueueOrderCalls [][]int64
 }
 
 func (s *stubQueueReorderer) ReorderQueueTrack(id int64, direction int) error {
@@ -111,6 +112,12 @@ func (s *stubQueueReorderer) ReorderQueueTrack(id int64, direction int) error {
 		id        int64
 		direction int
 	}{id, direction})
+	return nil
+}
+
+func (s *stubQueueReorderer) SetQueueOrder(ids []int64) error {
+	copied := append([]int64(nil), ids...)
+	s.setQueueOrderCalls = append(s.setQueueOrderCalls, copied)
 	return nil
 }
 

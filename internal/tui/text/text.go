@@ -245,11 +245,7 @@ func BuildFilterSeparator(sortIndicator string, filterActive bool, filterText, f
 	}
 	if filterText != "" {
 		ft := filterText
-		// ansi.Truncate enforces a *total* result width of n (including the
-		// "…" tail), so truncating to maxLen-1 wasted one column beyond the
-		// intended budget. Truncate to maxLen so the visible filter text
-		// uses every available column up to its budget.
-		maxLen := width - len("Filter: ") - 1
+		maxLen := width - ansi.StringWidth("Filter: ")
 		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
 			ft = ansi.Truncate(ft, maxLen, "…")
 		}

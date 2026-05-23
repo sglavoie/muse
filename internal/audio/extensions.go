@@ -1,6 +1,9 @@
 package audio
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 var extensions = map[string]struct{}{
 	".mp3":  {},
@@ -21,27 +24,34 @@ var extensions = map[string]struct{}{
 	".wv":   {},
 }
 
-// Extensions is the set of supported audio file extensions (lowercase, with dot).
-var Extensions = cloneExtensions()
-
-func cloneExtensions() map[string]struct{} {
-	out := make(map[string]struct{}, len(extensions))
-	for ext := range extensions {
-		out[ext] = struct{}{}
-	}
-	return out
-}
-
 // IsSupportedExtension reports whether ext is a supported audio file extension.
 // ext may be supplied with or without a leading dot and is matched case-insensitively.
 func IsSupportedExtension(ext string) bool {
+	ext = normalizeExtension(ext)
 	if ext == "" {
 		return false
+	}
+	_, ok := extensions[ext]
+	return ok
+}
+
+// SupportedExtensions returns the supported extensions in stable sorted order.
+func SupportedExtensions() []string {
+	out := make([]string, 0, len(extensions))
+	for ext := range extensions {
+		out = append(out, ext)
+	}
+	slices.Sort(out)
+	return out
+}
+
+func normalizeExtension(ext string) string {
+	if ext == "" {
+		return ""
 	}
 	ext = strings.ToLower(ext)
 	if !strings.HasPrefix(ext, ".") {
 		ext = "." + ext
 	}
-	_, ok := extensions[ext]
-	return ok
+	return ext
 }

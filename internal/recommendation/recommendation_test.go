@@ -164,3 +164,45 @@ func TestFilterSeen_emptyHashTracksAlwaysPreserved(t *testing.T) {
 		}
 	}
 }
+
+func TestFilterSeen_normalizesSeenHashes(t *testing.T) {
+	tracks := []library.Track{
+		{Hash: "abc123", Path: "/a"},
+		{Hash: "def456", Path: "/b"},
+		{Hash: "ghi789", Path: "/c"},
+	}
+	paddedHash := " ABC123 "
+	seen := map[string]struct{}{
+		paddedHash:   {},
+		"\tDEF456\n": {},
+	}
+	got := recommendation.FilterSeen(tracks, seen)
+
+	if len(got) != 1 {
+		t.Fatalf("expected 1 track after normalized filtering, got %d: %+v", len(got), got)
+	}
+	if got[0].Path != "/c" {
+		t.Fatalf("got remaining path %q, want /c", got[0].Path)
+	}
+}
+
+func TestFilterSeen_whitespaceOnlySeenDoesNotRemoveEmptyHashes(t *testing.T) {
+	tracks := []library.Track{
+		{Hash: "", Path: "/unhashed"},
+		{Hash: "abc123", Path: "/hashed"},
+	}
+	seen := map[string]struct{}{
+		" ":  {},
+		"\t": {},
+	}
+	got := recommendation.FilterSeen(tracks, seen)
+
+	if len(got) != len(tracks) {
+		t.Fatalf("expected all tracks preserved, got %d: %+v", len(got), got)
+	}
+	for i := range got {
+		if got[i].Path != tracks[i].Path {
+			t.Fatalf("got[%d].Path = %q, want %q", i, got[i].Path, tracks[i].Path)
+		}
+	}
+}

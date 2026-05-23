@@ -25,8 +25,8 @@ func TestVisibleRows_NegativeHeight(t *testing.T) {
 
 func TestVisibleRows_ReserveExceedsHeight(t *testing.T) {
 	got := VisibleRows(2, 10)
-	if got != 1 {
-		t.Errorf("expected minimum 1, got %d", got)
+	if got != 0 {
+		t.Errorf("expected 0 rows when reserve exceeds height, got %d", got)
 	}
 }
 
@@ -39,8 +39,8 @@ func TestVisibleRows_ZeroReserve(t *testing.T) {
 
 func TestVisibleRows_HeightEqualsReserve(t *testing.T) {
 	got := VisibleRows(5, 5)
-	if got != 1 {
-		t.Errorf("expected minimum 1 when height equals reserve, got %d", got)
+	if got != 0 {
+		t.Errorf("expected 0 rows when height equals reserve, got %d", got)
 	}
 }
 

@@ -42,6 +42,20 @@ func TestCursorClampAtBottom(t *testing.T) {
 	}
 }
 
+func TestCursorDownClampsStaleScrollOffsetWhenListShrank(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Width: 80, Height: 24, Cursor: 0, ScrollOffset: 80}
+
+	v = v.CursorDown()
+
+	if v.Cursor != 1 {
+		t.Errorf("CursorDown: expected Cursor=1, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != v.Cursor {
+		t.Errorf("CursorDown: expected stale ScrollOffset to clamp to cursor %d, got %d", v.Cursor, v.ScrollOffset)
+	}
+}
+
 // TestCursorClampAtTop verifies that CursorUp stops at the first track without
 // wrapping.
 func TestCursorClampAtTop(t *testing.T) {

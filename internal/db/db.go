@@ -3,8 +3,10 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
@@ -24,7 +26,7 @@ func Open(path string) (*DB, error) {
 		}
 	}
 
-	sqlDB, err := sql.Open("sqlite", path)
+	sqlDB, err := sql.Open("sqlite", sqliteDSN(path))
 	if err != nil {
 		return nil, fmt.Errorf("db: open %s: %w", path, err)
 	}
@@ -35,6 +37,28 @@ func Open(path string) (*DB, error) {
 	}
 
 	return &DB{sqlDB}, nil
+}
+
+func sqliteDSN(path string) string {
+	q := url.Values{}
+	q.Add("_pragma", "busy_timeout(5000)")
+	q.Add("_pragma", "foreign_keys(ON)")
+	q.Add("_pragma", "journal_mode(WAL)")
+	q.Add("_pragma", "synchronous(NORMAL)")
+
+	if strings.HasPrefix(path, "file:") {
+		if strings.Contains(path, "?") {
+			return path + "&" + q.Encode()
+		}
+		return path + "?" + q.Encode()
+	}
+
+	u := url.URL{
+		Scheme:   "file",
+		Path:     path,
+		RawQuery: q.Encode(),
+	}
+	return u.String()
 }
 
 // configure applies the required PRAGMA settings.

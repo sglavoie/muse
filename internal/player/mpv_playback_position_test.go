@@ -75,6 +75,49 @@ func TestManager_ElapsedPosition_Connected(t *testing.T) {
 	}
 }
 
+func TestManager_ElapsedPosition_NullPropertiesReturnZero(t *testing.T) {
+	sock := shortSockPath(t, "elapsed-null")
+
+	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
+		cmd, _ := req["command"].([]any)
+		if len(cmd) >= 2 {
+			prop, _ := cmd[1].(string)
+			switch prop {
+			case propTimePos, propDuration:
+				return map[string]any{
+					"error":      "success",
+					"data":       nil,
+					"request_id": req["request_id"],
+				}
+			}
+		}
+		return successHandler(req)
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{socketPath: sock, ctx: ctx, cancel: cancel}
+	defer m.Close()
+
+	client, err := NewIPCClient(sock)
+	if err != nil {
+		t.Fatalf("NewIPCClient: %v", err)
+	}
+	m.mu.Lock()
+	m.client = client
+	m.mu.Unlock()
+
+	elapsed, total, err := m.ElapsedPosition()
+	if err != nil {
+		t.Fatalf("ElapsedPosition: %v", err)
+	}
+	if elapsed != 0 {
+		t.Errorf("elapsed = %f, want 0", elapsed)
+	}
+	if total != 0 {
+		t.Errorf("total = %f, want 0", total)
+	}
+}
+
 func TestManager_ElapsedPosition_NotConnected(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	m := &Manager{ctx: ctx, cancel: cancel}

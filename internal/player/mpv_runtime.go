@@ -25,21 +25,32 @@ func (m *Manager) ElapsedPosition() (elapsed, total float64, err error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	elapsed, ok := posResp.Data.(float64)
-	if !ok {
-		return 0, 0, fmt.Errorf("mpv: time-pos: expected float64, got %T", posResp.Data)
+	elapsed, err = secondsOrZero("mpv", propTimePos, posResp.Data)
+	if err != nil {
+		return 0, 0, err
 	}
 
 	durResp, err := c.SendCommand(cmdGetProperty, propDuration)
 	if err != nil {
 		return 0, 0, err
 	}
-	total, ok = durResp.Data.(float64)
-	if !ok {
-		return 0, 0, fmt.Errorf("mpv: duration: expected float64, got %T", durResp.Data)
+	total, err = secondsOrZero("mpv", propDuration, durResp.Data)
+	if err != nil {
+		return 0, 0, err
 	}
 
 	return elapsed, total, nil
+}
+
+func secondsOrZero(prefix, prop string, data any) (float64, error) {
+	if data == nil {
+		return 0, nil
+	}
+	seconds, ok := data.(float64)
+	if !ok {
+		return 0, fmt.Errorf("%s: %s: expected float64 or nil, got %T", prefix, prop, data)
+	}
+	return seconds, nil
 }
 
 // SyncPosition queries mpv for the current file path and playback position,

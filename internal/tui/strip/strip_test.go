@@ -467,6 +467,57 @@ func TestRender_AllEmptyCrumbsReturnsEmpty(t *testing.T) {
 	}
 }
 
+func TestRender_BreadcrumbLineBreaksNormalized(t *testing.T) {
+	s := styles.NewStyles(true)
+	got := Render(80, []string{"Artists", "Brian\nEno\r\nHeroes"}, SortChunk{}, FilterChunk{},
+		CountsChunk{Total: 7}, nil, "", s)
+	plain := ansi.Strip(got)
+
+	if ansi.StringWidth(got) != 80 {
+		t.Fatalf("width = %d, want 80 (plain=%q)", ansi.StringWidth(got), plain)
+	}
+	if strings.ContainsAny(plain, "\r\n") {
+		t.Fatalf("strip must remain single-line, got %q", plain)
+	}
+	if !strings.Contains(plain, "Brian Eno Heroes") {
+		t.Errorf("line breaks should normalize to spaces, got %q", plain)
+	}
+}
+
+func TestRender_FilterLineBreaksNormalized(t *testing.T) {
+	s := styles.NewStyles(true)
+	got := Render(80, []string{"Library"}, SortChunk{}, FilterChunk{Text: "alice\nbob"},
+		CountsChunk{Total: 7}, nil, "", s)
+	plain := ansi.Strip(got)
+
+	if ansi.StringWidth(got) != 80 {
+		t.Fatalf("width = %d, want 80 (plain=%q)", ansi.StringWidth(got), plain)
+	}
+	if strings.ContainsAny(plain, "\r\n") {
+		t.Fatalf("strip must remain single-line, got %q", plain)
+	}
+	if !strings.Contains(plain, `filter "alice bob"`) {
+		t.Errorf("line breaks should normalize to spaces in filter text, got %q", plain)
+	}
+}
+
+func TestRender_HintLineBreaksNormalized(t *testing.T) {
+	s := styles.NewStyles(true)
+	got := Render(80, []string{"Artists"}, SortChunk{}, FilterChunk{},
+		CountsChunk{Total: 7}, nil, "esc\nback", s)
+	plain := ansi.Strip(got)
+
+	if ansi.StringWidth(got) != 80 {
+		t.Fatalf("width = %d, want 80 (plain=%q)", ansi.StringWidth(got), plain)
+	}
+	if strings.ContainsAny(plain, "\r\n") {
+		t.Fatalf("strip must remain single-line, got %q", plain)
+	}
+	if !strings.Contains(plain, "esc back") {
+		t.Errorf("line breaks should normalize to spaces in hint text, got %q", plain)
+	}
+}
+
 // TestRender_NarrowestBreadcrumbKeepsChevronStyling verifies that when the
 // fallback "drop parent crumbs entirely" branch fires (because no per-crumb
 // budget can fit a parent + chevron), the surviving single crumb does not

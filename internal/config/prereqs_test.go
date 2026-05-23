@@ -76,38 +76,38 @@ func TestCheckMPV_BrokenBinary(t *testing.T) {
 	}
 }
 
-func TestCheckExifTool_RunsJSONFlag(t *testing.T) {
+func TestCheckExifTool_RunsVersionFlag(t *testing.T) {
 	dir := t.TempDir()
 	script := filepath.Join(dir, "exiftool")
-	content := "#!/bin/sh\nprintf '[{\"ExifToolVersion\":\"12.00\"}]'\nexit 0\n"
+	content := "#!/bin/sh\nprintf '12.00\\n'\nexit 0\n"
 	if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", prependPATH(dir))
 
 	if err := checkExifTool(context.Background()); err != nil {
-		t.Errorf("expected no error with stub exiftool emitting valid JSON, got: %v", err)
+		t.Errorf("expected no error with stub exiftool emitting valid version, got: %v", err)
 	}
 }
 
-func TestCheckExifTool_ValidJSONOutput(t *testing.T) {
+func TestCheckExifTool_ValidVersionOutput(t *testing.T) {
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("sh not available")
 	}
 	dir := t.TempDir()
 	script := filepath.Join(dir, "exiftool")
-	content := "#!/bin/sh\nprintf '[{\"ExifToolVersion\":\"12.00\"}]'\nexit 0\n"
+	content := "#!/bin/sh\nprintf '12.00\\n'\nexit 0\n"
 	if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", prependPATH(dir))
 
 	if err := checkExifTool(context.Background()); err != nil {
-		t.Errorf("stub emitting valid JSON should succeed, got: %v", err)
+		t.Errorf("stub emitting valid version should succeed, got: %v", err)
 	}
 }
 
-func TestCheckExifTool_GarbageOutput(t *testing.T) {
+func TestCheckExifTool_InvalidVersionOutput(t *testing.T) {
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("sh not available")
 	}
@@ -121,11 +121,11 @@ func TestCheckExifTool_GarbageOutput(t *testing.T) {
 
 	err := checkExifTool(context.Background())
 	if err == nil {
-		t.Fatal("expected error when exiftool outputs garbage instead of JSON")
+		t.Fatal("expected error when exiftool outputs garbage instead of a version")
 	}
 	msg := err.Error()
-	if !strings.Contains(strings.ToLower(msg), "json") {
-		t.Errorf("error should mention JSON, got: %s", msg)
+	if !strings.Contains(strings.ToLower(msg), "version") {
+		t.Errorf("error should mention version, got: %s", msg)
 	}
 }
 
@@ -166,7 +166,7 @@ func TestCheckPrereqs_BothPresent(t *testing.T) {
 	dir := t.TempDir()
 	stubs := map[string]string{
 		"mpv":      "#!/bin/sh\nexit 0\n",
-		"exiftool": "#!/bin/sh\nprintf '[{\"ExifToolVersion\":\"12.00\"}]'\nexit 0\n",
+		"exiftool": "#!/bin/sh\nprintf '12.00\\n'\nexit 0\n",
 	}
 	for name, content := range stubs {
 		script := filepath.Join(dir, name)
@@ -185,7 +185,7 @@ func TestCheckPrereqs_MPVMissing(t *testing.T) {
 	// Only exiftool stub present — use isolated PATH so system mpv is hidden.
 	dir := t.TempDir()
 	script := filepath.Join(dir, "exiftool")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nprintf '[{\"ExifToolVersion\":\"12.00\"}]'\nexit 0\n"), 0o755); err != nil {
+	if err := os.WriteFile(script, []byte("#!/bin/sh\nprintf '12.00\\n'\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir)
@@ -240,16 +240,16 @@ exit 1
 	}
 }
 
-// TestCheckExifTool_InvokesJSONFlag verifies the subprocess is called with -json.
-func TestCheckExifTool_InvokesJSONFlag_Strict(t *testing.T) {
+// TestCheckExifTool_InvokesVersionFlag verifies the subprocess is called with -ver.
+func TestCheckExifTool_InvokesVersionFlag_Strict(t *testing.T) {
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("sh not available")
 	}
 	dir := t.TempDir()
 	script := filepath.Join(dir, "exiftool")
-	// Emit valid JSON and exit 0 only when first arg is -json.
+	// Emit a valid version and exit 0 only when first arg is -ver.
 	content := `#!/bin/sh
-if [ "$1" = "-json" ]; then printf '[{"ExifToolVersion":"12.00"}]'; exit 0; fi
+if [ "$1" = "-ver" ]; then printf '12.00'; exit 0; fi
 exit 1
 `
 	if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
@@ -258,6 +258,6 @@ exit 1
 	t.Setenv("PATH", prependPATH(dir))
 
 	if err := checkExifTool(context.Background()); err != nil {
-		t.Errorf("checkExifTool should invoke 'exiftool -json ...', got error: %v", err)
+		t.Errorf("checkExifTool should invoke 'exiftool -ver', got error: %v", err)
 	}
 }

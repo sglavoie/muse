@@ -120,7 +120,7 @@ func TestWalk_DirSymlinksNotFollowed(t *testing.T) {
 // --- isAudioFile ---
 
 func TestIsAudioFile_SupportedExtensions(t *testing.T) {
-	for ext := range audio.Extensions {
+	for _, ext := range audio.SupportedExtensions() {
 		name := "track" + ext
 		if !isAudioFile(name) {
 			t.Errorf("isAudioFile(%q) = false, want true", name)
@@ -257,6 +257,29 @@ func TestWalk_ExcludedDirSkipsEntireSubtree(t *testing.T) {
 	want := []string{"track.mp3"}
 	if !slices.Equal(got, want) {
 		t.Errorf("Walk with exclusion: got %v, want %v", got, want)
+	}
+}
+
+func TestWalk_ExcludedFilePatternSkipsMatchingAudioFile(t *testing.T) {
+	dir := t.TempDir()
+	mkfile(t, filepath.Join(dir, "skip.mp3"))
+	mkfile(t, filepath.Join(dir, "keep.mp3"))
+
+	got := collectNames(Walk(context.Background(), []string{dir}, []string{"skip.mp3"}))
+	want := []string{"keep.mp3"}
+	if !slices.Equal(got, want) {
+		t.Errorf("Walk with file exclusion: got %v, want %v", got, want)
+	}
+}
+
+func TestCountAudioFiles_ExcludedFilePatternSkipped(t *testing.T) {
+	dir := t.TempDir()
+	mkfile(t, filepath.Join(dir, "skip.mp3"))
+	mkfile(t, filepath.Join(dir, "keep.flac"))
+
+	got := CountAudioFiles(context.Background(), []string{dir}, []string{"skip.mp3"})
+	if got != 1 {
+		t.Errorf("CountAudioFiles with file exclusion = %d, want 1", got)
 	}
 }
 

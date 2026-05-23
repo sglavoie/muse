@@ -62,8 +62,9 @@ func (s *UsageStore) Load() error {
 		return err
 	}
 	for key, rec := range records {
-		if rec.Count < 0 {
+		if rec.Count <= 0 {
 			rec.Count = 0
+			rec.LastUsed = time.Time{}
 			records[key] = rec
 		}
 	}

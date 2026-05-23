@@ -68,6 +68,9 @@ func newInput(value string) textinput.Model {
 // through Activate(), or when public Text was changed while inactive.
 func (s State) seed() State {
 	if s.initialized && s.input.Value() == s.Text {
+		if !s.input.Focused() {
+			_ = s.input.Focus()
+		}
 		return s
 	}
 	s.input = newInput(s.Text)

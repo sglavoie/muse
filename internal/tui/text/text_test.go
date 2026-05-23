@@ -301,12 +301,10 @@ func TestRightPadWithCountVerticalAlignment(t *testing.T) {
 	}
 }
 
-// TestBuildFilterSeparatorTruncationUsesFullBudget guards against an
-// off-by-one in BuildFilterSeparator's truncation call: ansi.Truncate(s,
-// n, tail) enforces a *total* result width of n (including the tail), so
-// truncating to `maxLen-1` would waste one column. The committed filter
-// text portion ("Filter: " + ft) should fit the row's available budget
-// while consuming every column up to that budget.
+// TestBuildFilterSeparatorTruncationUsesFullBudget guards against wasting a
+// column in committed filter rendering. The committed filter text portion
+// ("Filter: " + ft) should fit the row's available budget while consuming
+// every available column up to that budget.
 func TestBuildFilterSeparatorTruncationUsesFullBudget(t *testing.T) {
 	const width = 20
 	longFilter := "abcdefghijklmnopqrstuvwxyz" // 26 chars, far longer than fits
@@ -316,12 +314,8 @@ func TestBuildFilterSeparatorTruncationUsesFullBudget(t *testing.T) {
 	if w := ansi.StringWidth(line); w > width {
 		t.Fatalf("line width = %d, want <= %d (got %q)", w, width, line)
 	}
-	// maxLen = width - len("Filter: ") - 1 = 11. After the fix, ft is
-	// truncated to width 11 (including the ellipsis), so the full line
-	// width is len("Filter: ") + 11 = 19, just under width=20.
-	const wantWidth = 19
-	if w := ansi.StringWidth(line); w != wantWidth {
-		t.Errorf("line width = %d, want %d (got %q) — off-by-one regression?", w, wantWidth, line)
+	if w := ansi.StringWidth(line); w != width {
+		t.Errorf("line width = %d, want %d (got %q) - off-by-one regression?", w, width, line)
 	}
 	if !strings.HasSuffix(strings.TrimRight(line, " "), "…") {
 		t.Errorf("expected trailing ellipsis on truncated filter, got %q", line)

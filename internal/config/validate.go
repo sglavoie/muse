@@ -58,7 +58,7 @@ func validateMusicDir(musicDir, configPath string) error {
 			}
 		} else {
 			ext := strings.ToLower(filepath.Ext(e.Name()))
-			if _, ok := audio.Extensions[ext]; ok {
+			if audio.IsSupportedExtension(ext) {
 				hasAudioOrSubdir = true
 				break
 			}

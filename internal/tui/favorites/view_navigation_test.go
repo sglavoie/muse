@@ -147,6 +147,35 @@ func TestHalfPageDown(t *testing.T) {
 	}
 }
 
+func TestHalfPageDown_MovesAtLeastOneRow(t *testing.T) {
+	v := View{
+		Level:    ListLevel,
+		Category: CategoryArtists,
+		Artists:  []string{"A", "B", "C"},
+		Cursor:   0,
+		Height:   3, // visibleRows = 1, half would otherwise round to 0
+	}
+	v2 := v.HalfPageDown()
+	if v2.Cursor != 1 {
+		t.Errorf("expected cursor=1, got %d", v2.Cursor)
+	}
+}
+
+func TestHalfPageUp_MovesAtLeastOneRow(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Category:     CategoryArtists,
+		Artists:      []string{"A", "B", "C"},
+		Cursor:       2,
+		ScrollOffset: 2,
+		Height:       3, // visibleRows = 1, half would otherwise round to 0
+	}
+	v2 := v.HalfPageUp()
+	if v2.Cursor != 1 {
+		t.Errorf("expected cursor=1, got %d", v2.Cursor)
+	}
+}
+
 func TestFullPageUp(t *testing.T) {
 	v := View{
 		Level:        ListLevel,

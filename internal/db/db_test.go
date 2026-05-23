@@ -1,6 +1,7 @@
 package db_test
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 	"time"
@@ -58,6 +59,48 @@ func TestOpen_BusyTimeout(t *testing.T) {
 	}
 	if timeout != 5000 {
 		t.Errorf("busy_timeout = %d, want 5000", timeout)
+	}
+}
+
+func TestOpen_PragmasApplyToPooledConnections(t *testing.T) {
+	dir := t.TempDir()
+	d, err := db.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer d.Close()
+
+	d.SetMaxOpenConns(2)
+
+	ctx := context.Background()
+	conn, err := d.Conn(ctx)
+	if err != nil {
+		t.Fatalf("Conn: %v", err)
+	}
+	defer conn.Close()
+
+	var pinnedFK int
+	if err := conn.QueryRowContext(ctx, "PRAGMA foreign_keys").Scan(&pinnedFK); err != nil {
+		t.Fatalf("query pinned foreign_keys: %v", err)
+	}
+	if pinnedFK != 1 {
+		t.Fatalf("pinned foreign_keys = %d, want 1", pinnedFK)
+	}
+
+	var pooledFK int
+	if err := d.QueryRowContext(ctx, "PRAGMA foreign_keys").Scan(&pooledFK); err != nil {
+		t.Fatalf("query pooled foreign_keys: %v", err)
+	}
+	if pooledFK != 1 {
+		t.Errorf("pooled foreign_keys = %d, want 1", pooledFK)
+	}
+
+	var pooledTimeout int
+	if err := d.QueryRowContext(ctx, "PRAGMA busy_timeout").Scan(&pooledTimeout); err != nil {
+		t.Fatalf("query pooled busy_timeout: %v", err)
+	}
+	if pooledTimeout != 5000 {
+		t.Errorf("pooled busy_timeout = %d, want 5000", pooledTimeout)
 	}
 }
 

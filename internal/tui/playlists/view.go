@@ -99,6 +99,10 @@ func (v View) CursorDown() View {
 		v.Cursor++
 	}
 	maxRows := v.visibleRows()
+	if maxRows <= 0 {
+		v.ScrollOffset = v.Cursor
+		return v
+	}
 	if v.Cursor >= v.ScrollOffset+maxRows {
 		v.ScrollOffset = v.Cursor - maxRows + 1
 	}
@@ -177,6 +181,10 @@ func (v View) moveCursor(delta int) View {
 	v.Cursor += delta
 	v.Cursor = max(0, min(v.Cursor, n-1))
 	maxRows := v.visibleRows()
+	if maxRows <= 0 {
+		v.ScrollOffset = v.Cursor
+		return v
+	}
 	if v.Cursor < v.ScrollOffset {
 		v.ScrollOffset = v.Cursor
 	} else if v.Cursor >= v.ScrollOffset+maxRows {

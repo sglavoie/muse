@@ -139,6 +139,15 @@ func TestRenderScrollOffsetBeyondTrackCount(t *testing.T) {
 	}
 }
 
+func TestRenderNegativeScrollOffsetDoesNotPanic(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Width: 80, Height: 24, ScrollOffset: -10}
+	got := v.Render()
+	if !strings.Contains(got, "Alice") {
+		t.Errorf("expected render to clamp negative ScrollOffset and show first row, got:\n%s", got)
+	}
+}
+
 func TestRenderIgnoresStaleFilteredMatchIndices(t *testing.T) {
 	idx := buildIndex(sampleTracks[:1])
 	v := View{

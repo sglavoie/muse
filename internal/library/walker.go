@@ -41,8 +41,11 @@ func walkAudioPaths(ctx context.Context, root string, excludedPaths []string, vi
 			}
 			return nil
 		}
-		if d.IsDir() && ShouldExclude(path, excludedPaths) {
-			return filepath.SkipDir
+		if ShouldExclude(path, excludedPaths) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if d.Type()&fs.ModeSymlink != 0 {
 			info, err := os.Stat(path)
@@ -108,7 +111,7 @@ func Walk(ctx context.Context, roots []string, excludedPaths []string) <-chan st
 }
 
 // CountAudioFiles walks each root in roots and returns the total number of
-// audio files matching audio.Extensions. It applies the same hidden-file,
+// audio files matching audio.IsSupportedExtension. It applies the same hidden-file,
 // hidden-directory, and file-only-symlink rules as Walk so the count matches
 // what the scanner pipeline will process. Intended to be called in a
 // background goroutine to provide an early estimated total.
@@ -135,6 +138,5 @@ func CountAudioFiles(ctx context.Context, roots []string, excludedPaths []string
 
 func isAudioFile(name string) bool {
 	ext := strings.ToLower(filepath.Ext(name))
-	_, ok := audio.Extensions[ext]
-	return ok
+	return audio.IsSupportedExtension(ext)
 }

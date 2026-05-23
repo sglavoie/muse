@@ -1,6 +1,7 @@
 package audio_test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/audio"
@@ -26,12 +27,12 @@ func TestExtensions_ExpectedFormats(t *testing.T) {
 		".wv",
 	}
 	for _, ext := range expected {
-		if _, ok := audio.Extensions[ext]; !ok {
+		if !audio.IsSupportedExtension(ext) {
 			t.Errorf("missing expected extension %q", ext)
 		}
 	}
-	if len(audio.Extensions) != len(expected) {
-		t.Errorf("Extensions has %d entries, expected %d", len(audio.Extensions), len(expected))
+	if got := audio.SupportedExtensions(); len(got) != len(expected) {
+		t.Errorf("SupportedExtensions has %d entries, expected %d", len(got), len(expected))
 	}
 }
 
@@ -58,27 +59,18 @@ func TestIsSupportedExtension(t *testing.T) {
 	}
 }
 
-func TestIsSupportedExtension_IgnoresExtensionsMutation(t *testing.T) {
-	original := make(map[string]struct{}, len(audio.Extensions))
-	for ext := range audio.Extensions {
-		original[ext] = struct{}{}
+func TestSupportedExtensions_ReturnsSortedCopy(t *testing.T) {
+	got := audio.SupportedExtensions()
+	if !slices.IsSorted(got) {
+		t.Fatalf("SupportedExtensions() = %v, want sorted extensions", got)
 	}
-	t.Cleanup(func() {
-		for ext := range audio.Extensions {
-			delete(audio.Extensions, ext)
-		}
-		for ext := range original {
-			audio.Extensions[ext] = struct{}{}
-		}
-	})
 
-	delete(audio.Extensions, ".mp3")
-	audio.Extensions[".txt"] = struct{}{}
+	got[0] = ".txt"
 
-	if !audio.IsSupportedExtension(".mp3") {
-		t.Fatal("IsSupportedExtension(\".mp3\") = false after Extensions mutation, want true")
-	}
 	if audio.IsSupportedExtension(".txt") {
-		t.Fatal("IsSupportedExtension(\".txt\") = true after Extensions mutation, want false")
+		t.Fatal("mutating SupportedExtensions result changed supported extensions")
+	}
+	if !audio.IsSupportedExtension(".aac") {
+		t.Fatal("mutating SupportedExtensions result removed supported extension")
 	}
 }

@@ -14,6 +14,8 @@ func TestFirstLetter(t *testing.T) {
 		{"beatles", "B"},
 		{"The Beatles", "B"},
 		{"the beatles", "B"},
+		{"The\tBeatles", "B"},
+		{"The\nBeatles", "B"},
 		{"The ", "T"},
 		{"  Pixies  ", "P"},
 		{"1990s mix", "#"},

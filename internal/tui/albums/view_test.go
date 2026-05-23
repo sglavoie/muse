@@ -168,6 +168,64 @@ func TestRenderTracksShowsTitles(t *testing.T) {
 	}
 }
 
+func TestRenderTracksNarrowHeaderDoesNotLeakHiddenArtistColumn(t *testing.T) {
+	const width = 21
+	v := View{
+		Level: TrackLevel,
+		Width: width,
+		Tracks: []library.Track{
+			{Title: "A very long title", Artist: "A very long artist", Duration: 60},
+		},
+	}
+
+	lines := strings.Split(ansi.Strip(v.Render()), "\n")
+	var header string
+	for _, line := range lines {
+		if strings.Contains(line, "#") && strings.Contains(line, "Time") {
+			header = line
+			break
+		}
+	}
+	if header == "" {
+		t.Fatalf("expected track header in output:\n%s", v.Render())
+	}
+	if strings.Contains(header, "Artist") {
+		t.Fatalf("artist header leaked despite zero-width artist column: %q", header)
+	}
+	if got := ansi.StringWidth(header); got > width {
+		t.Fatalf("header width = %d, want <= %d: %q", got, width, header)
+	}
+}
+
+func TestRenderTracksTruncatesFixedColumnsAtNarrowWidth(t *testing.T) {
+	const width = 21
+	v := View{
+		Level: TrackLevel,
+		Width: width,
+		Tracks: []library.Track{
+			{Title: "A very long title", Artist: "A very long artist", TrackNumber: 123456, Duration: 360000000},
+		},
+	}
+
+	lines := strings.Split(ansi.Strip(v.Render()), "\n")
+	var row string
+	for _, line := range lines {
+		if strings.Contains(line, "…") {
+			row = line
+			break
+		}
+	}
+	if row == "" {
+		t.Fatalf("expected truncated track row in output:\n%s", v.Render())
+	}
+	if strings.Contains(row, "A very long artist") {
+		t.Fatalf("artist text leaked despite zero-width artist column: %q", row)
+	}
+	if got := ansi.StringWidth(row); got > width {
+		t.Fatalf("row width = %d, want <= %d: %q", got, width, row)
+	}
+}
+
 func TestRenderTracksEmpty(t *testing.T) {
 	v := View{Level: TrackLevel, SelectedAlbum: "Alpha"}
 	out := v.Render()

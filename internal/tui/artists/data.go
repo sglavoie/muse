@@ -6,22 +6,37 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 )
 
+const libraryUnknownArtist = "Unknown Artist"
+
+func displayArtistName(artist string) string {
+	if isUnknownArtist(artist) {
+		return UnknownArtist
+	}
+	return artist
+}
+
+func isUnknownArtist(artist string) bool {
+	return artist == "" || artist == libraryUnknownArtist
+}
+
+func artistMatches(trackArtist, artist string) bool {
+	if isUnknownArtist(artist) {
+		return isUnknownArtist(trackArtist)
+	}
+	return trackArtist == artist
+}
+
 // DeriveArtists extracts unique artist names from a sorted track slice.
 // The input must be sorted by artist (as LibraryIndex.Tracks() provides).
 func DeriveArtists(tracks []library.Track) []string {
 	if len(tracks) == 0 {
 		return nil
 	}
-	name := func(artist string) string {
-		if artist == "" {
-			return UnknownArtist
-		}
-		return artist
-	}
-	artists := []string{name(tracks[0].Artist)}
+	artists := []string{displayArtistName(tracks[0].Artist)}
 	for i := 1; i < len(tracks); i++ {
-		if tracks[i].Artist != tracks[i-1].Artist {
-			artists = append(artists, name(tracks[i].Artist))
+		name := displayArtistName(tracks[i].Artist)
+		if name != artists[len(artists)-1] {
+			artists = append(artists, name)
 		}
 	}
 	return artists
@@ -36,11 +51,7 @@ func DeriveArtistCounts(tracks []library.Track) map[string]int {
 	}
 	counts := make(map[string]int)
 	for _, t := range tracks {
-		name := t.Artist
-		if name == "" {
-			name = UnknownArtist
-		}
-		counts[name]++
+		counts[displayArtistName(t.Artist)]++
 	}
 	return counts
 }
@@ -52,7 +63,7 @@ func DeriveAlbums(tracks []library.Track, artist string) []string {
 	seen := make(map[string]struct{})
 	var albums []string
 	for _, track := range tracks {
-		if track.Artist != artist {
+		if !artistMatches(track.Artist, artist) {
 			continue
 		}
 		album := track.Album
@@ -82,7 +93,7 @@ func DeriveTracks(tracks []library.Track, artist, album string) []library.Track 
 	album = RawName(album)
 	var result []library.Track
 	for _, track := range tracks {
-		if track.Artist == artist && track.Album == album {
+		if artistMatches(track.Artist, artist) && track.Album == album {
 			result = append(result, track)
 		}
 	}
@@ -94,7 +105,7 @@ func DeriveArtistTracks(tracks []library.Track, artist string) []library.Track {
 	rawArtist := RawName(artist)
 	var result []library.Track
 	for _, track := range tracks {
-		if track.Artist == rawArtist {
+		if artistMatches(track.Artist, rawArtist) {
 			result = append(result, track)
 		}
 	}

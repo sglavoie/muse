@@ -21,9 +21,7 @@ func (v View) renderGenres() string {
 		return joinStrip(stripLine, "(no matches)")
 	}
 
-	maxRows := v.visibleRows()
-	start := min(v.ScrollOffset, len(items))
-	end := min(len(items), start+maxRows)
+	start, end, cursor := v.renderWindow(len(items))
 
 	lines := make([]string, end-start)
 	for i, name := range items[start:end] {
@@ -32,7 +30,7 @@ func (v View) renderGenres() string {
 		labelW, countStr := rowLabelWidthAndCount(v.Width, v.GenreCounts, name)
 		label := text.Pad(name, labelW)
 		switch {
-		case absIdx == v.Cursor:
+		case absIdx == cursor:
 			a := v.Styles.Accent
 			lines[i] = a.Render(label) + a.Render(countStr)
 		case isOdd:
@@ -75,9 +73,7 @@ func (v View) renderArtists() string {
 		return joinStrip(stripLine, "(no matches)")
 	}
 
-	maxRows := v.visibleRows()
-	start := min(v.ScrollOffset, len(items))
-	end := min(len(items), start+maxRows)
+	start, end, cursor := v.renderWindow(len(items))
 
 	lines := make([]string, end-start)
 	for i, name := range items[start:end] {
@@ -86,9 +82,9 @@ func (v View) renderArtists() string {
 		display := text.FavPrefix(name, v.Width, isFav)
 		isOdd := absIdx%2 == 1
 		switch {
-		case absIdx == v.Cursor && isFav:
+		case absIdx == cursor && isFav:
 			display = v.Styles.FavArtistAccent.Render(display)
-		case absIdx == v.Cursor:
+		case absIdx == cursor:
 			display = v.Styles.Accent.Render(display)
 		case isFav:
 			display = styles.WithZebraBg(v.Styles.FavArtist, v.Styles.ZebraBg, isOdd).Render(display)
@@ -115,9 +111,7 @@ func (v View) renderTracks() string {
 		fmt.Sprintf("%-*s %-*s %*s",
 			cols.Position, "#", cols.Title, "Title", cols.Duration, "Time"))
 
-	maxRows := v.visibleRows()
-	start := min(v.ScrollOffset, len(items))
-	end := min(len(items), start+maxRows)
+	start, end, cursor := v.renderWindow(len(items))
 
 	showDisc := false
 	for _, t := range items[start:end] {
@@ -130,7 +124,7 @@ func (v View) renderTracks() string {
 	lines := make([]string, end-start)
 	for i, t := range items[start:end] {
 		absIdx := start + i
-		isFocused := absIdx == v.Cursor
+		isFocused := absIdx == cursor
 		isNowPlaying := v.NowPlayingHash != "" && t.Hash == v.NowPlayingHash
 		_, isSelected := v.SelectedHashes[t.Hash]
 
@@ -251,4 +245,28 @@ func joinStrip(stripLine, body string) string {
 		return body
 	}
 	return stripLine + "\n" + body
+}
+
+// renderWindow clamps stale cursor and scroll state to the currently rendered
+// list. This keeps filtered/shrunk lists visible even when the caller has not
+// yet normalized navigation state.
+func (v View) renderWindow(itemCount int) (start, end, cursor int) {
+	if itemCount <= 0 {
+		return 0, 0, 0
+	}
+	maxRows := v.visibleRows()
+	cursor = max(0, min(v.Cursor, itemCount-1))
+	start = max(0, v.ScrollOffset)
+	if start > cursor {
+		start = cursor
+	}
+	if cursor >= start+maxRows {
+		start = cursor - maxRows + 1
+	}
+	maxStart := max(0, itemCount-maxRows)
+	if start > maxStart {
+		start = maxStart
+	}
+	end = min(itemCount, start+maxRows)
+	return start, end, cursor
 }

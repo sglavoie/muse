@@ -148,18 +148,18 @@ func (p *PreviewPlayer) ElapsedPosition() (elapsed, total float64, err error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	elapsed, ok := posResp.Data.(float64)
-	if !ok {
-		return 0, 0, fmt.Errorf("preview: time-pos: expected float64, got %T", posResp.Data)
+	elapsed, err = secondsOrZero("preview", propTimePos, posResp.Data)
+	if err != nil {
+		return 0, 0, err
 	}
 
 	durResp, err := p.client.SendCommand(cmdGetProperty, propDuration)
 	if err != nil {
 		return 0, 0, err
 	}
-	total, ok = durResp.Data.(float64)
-	if !ok {
-		return 0, 0, fmt.Errorf("preview: duration: expected float64, got %T", durResp.Data)
+	total, err = secondsOrZero("preview", propDuration, durResp.Data)
+	if err != nil {
+		return 0, 0, err
 	}
 
 	return elapsed, total, nil

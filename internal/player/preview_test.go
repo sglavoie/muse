@@ -265,6 +265,45 @@ func TestPreviewPlayer_ElapsedPosition(t *testing.T) {
 	}
 }
 
+func TestPreviewPlayer_ElapsedPosition_NullPropertiesReturnZero(t *testing.T) {
+	sock := shortSockPath(t, "preview-elapsed-null")
+	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
+		cmd, _ := req["command"].([]any)
+		if len(cmd) >= 2 {
+			prop, _ := cmd[1].(string)
+			switch prop {
+			case propTimePos, propDuration:
+				return map[string]any{
+					"error":      "success",
+					"data":       nil,
+					"request_id": req["request_id"],
+				}
+			}
+		}
+		return successHandler(req)
+	})
+
+	p := NewPreviewPlayer(context.Background(), sock)
+	p.launchFn = func(ctx context.Context, socketPath string) (*exec.Cmd, error) {
+		return nil, nil
+	}
+	if err := p.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(func() { p.Close() })
+
+	elapsed, total, err := p.ElapsedPosition()
+	if err != nil {
+		t.Fatalf("ElapsedPosition: %v", err)
+	}
+	if elapsed != 0 {
+		t.Errorf("elapsed = %v, want 0", elapsed)
+	}
+	if total != 0 {
+		t.Errorf("total = %v, want 0", total)
+	}
+}
+
 func TestPreviewPlayer_ElapsedPosition_NotConnected(t *testing.T) {
 	p := NewPreviewPlayer(context.Background(), "/tmp/nonexistent.sock")
 	_, _, err := p.ElapsedPosition()

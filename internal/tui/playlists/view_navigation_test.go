@@ -92,6 +92,24 @@ func TestCursorDownAdjustsScrollOffset(t *testing.T) {
 	}
 }
 
+func TestCursorDownWithNoVisibleRowsKeepsScrollOnCursor(t *testing.T) {
+	v := View{
+		Level:     ListLevel,
+		Cursor:    0,
+		Height:    1,
+		Playlists: make([]db.PlaylistRow, 3),
+	}
+
+	v = v.CursorDown()
+
+	if v.Cursor != 1 {
+		t.Fatalf("CursorDown: expected Cursor=1, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != v.Cursor {
+		t.Fatalf("CursorDown with no visible rows: expected ScrollOffset=%d, got %d", v.Cursor, v.ScrollOffset)
+	}
+}
+
 // --- navigation: GoToTop / GoToBottom ---
 
 func TestGoToTopResetsCursorAndScroll(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	tea "charm.land/bubbletea/v2"
@@ -294,11 +295,19 @@ func main() {
 
 	// Handle subcommands before flag parsing.
 	if len(os.Args) > 1 && os.Args[1] == "check" {
+		if err := validateNoCommandArgs(os.Args[1], os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "muse: %v\n", err)
+			os.Exit(1)
+		}
 		os.Exit(runCheck())
 	}
 
 	if len(os.Args) > 1 {
 		if isKnownAction(os.Args[1]) {
+			if err := validateNoCommandArgs(os.Args[1], os.Args[2:]); err != nil {
+				fmt.Fprintf(os.Stderr, "muse: %v\n", err)
+				os.Exit(1)
+			}
 			if err := runRemoteAction(os.Args[1]); err != nil {
 				fmt.Fprintf(os.Stderr, "muse %s: %v\n", os.Args[1], err)
 				os.Exit(1)
@@ -323,6 +332,17 @@ func main() {
 		os.Exit(1)
 	}
 	cancel()
+}
+
+func validateNoCommandArgs(command string, args []string) error {
+	if len(args) == 0 {
+		return nil
+	}
+	word := "argument"
+	if len(args) > 1 {
+		word = "arguments"
+	}
+	return fmt.Errorf("%s does not accept %s: %s", command, word, strings.Join(args, " "))
 }
 
 // buildModel wires all dependencies into a tui.Model. It is extracted from

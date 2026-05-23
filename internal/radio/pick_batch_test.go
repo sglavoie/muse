@@ -157,6 +157,33 @@ func TestPickBatch_NoDuplicates(t *testing.T) {
 	}
 }
 
+func TestPickBatch_NoDuplicateNonEmptyHashes(t *testing.T) {
+	scored := []TrackScore{
+		{Track: library.Track{Hash: "same", Artist: "ArtistA"}, Score: -1},
+		{Track: library.Track{Hash: "same", Artist: "ArtistB"}, Score: -2},
+		{Track: library.Track{Hash: "unique", Artist: "ArtistC"}, Score: -3},
+	}
+
+	result := PickBatch(scored, 3, 1.0)
+	if len(result) != 2 {
+		t.Fatalf("expected duplicate hash to be skipped and 2 unique picks returned, got %d: %v", len(result), result)
+	}
+
+	seen := make(map[string]bool, len(result))
+	for _, tr := range result {
+		if tr.Hash == "" {
+			t.Fatalf("test fixture unexpectedly returned empty hash: %v", result)
+		}
+		if seen[tr.Hash] {
+			t.Fatalf("duplicate non-empty hash %q in result: %v", tr.Hash, result)
+		}
+		seen[tr.Hash] = true
+	}
+	if !seen["same"] || !seen["unique"] {
+		t.Fatalf("expected one duplicate-hash representative plus unique track, got %v", result)
+	}
+}
+
 func TestPickBatch_ArtistCapCaseInsensitive(t *testing.T) {
 	scored := []TrackScore{
 		{Track: library.Track{Hash: "a1", Artist: "ArtistA"}, Score: -1},

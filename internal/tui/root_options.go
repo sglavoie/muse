@@ -96,7 +96,12 @@ func WithDataDir(dir string) Option {
 
 // WithQueueWriter sets the QueueAppender for persisting enqueued tracks.
 func WithQueueWriter(w libtui.QueueAppender) Option {
-	return func(m *Model) { m.queueWriter = w }
+	return func(m *Model) {
+		m.queueWriter = w
+		if r, ok := w.(queueReorderer); ok && m.reorderer == nil {
+			m.reorderer = r
+		}
+	}
 }
 
 // WithQueueDequeuer sets the dequeuer for soft-delete, undo, and purge of queue entries.

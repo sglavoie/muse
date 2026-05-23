@@ -27,13 +27,15 @@ func FirstLetter(s string) string {
 	if s == "" {
 		return "—"
 	}
-	if len(s) >= 4 && strings.EqualFold(s[:4], "the ") {
-		s = strings.TrimSpace(s[4:])
+	runes := []rune(s)
+	if len(runes) >= 4 && unicode.IsSpace(runes[3]) && strings.EqualFold(string(runes[:3]), "the") {
+		s = strings.TrimSpace(string(runes[4:]))
 		if s == "" {
 			return "T"
 		}
+		runes = []rune(s)
 	}
-	r := []rune(s)[0]
+	r := runes[0]
 	switch {
 	case unicode.IsLetter(r):
 		return string(unicode.ToUpper(r))

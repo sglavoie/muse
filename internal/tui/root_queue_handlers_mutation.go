@@ -204,9 +204,30 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 		pastedIDs[i] = entry.ID
 	}
 	m.setupPasteUndo(pastedIDs, msg.Entries, msg.CutIDs, removedOriginals, removedOriginalIndices, insertPos)
+	m.persistQueueOrder()
 	m.queueDirty = true
 	player.PlaySound(player.SoundEnqueued)
 	return m
+}
+
+// persistQueueOrder writes the TUI queue order back to storage when the
+// configured queue dependency supports full-order persistence. Paste creates
+// rows through AppendTrack, which stores them at the DB tail; this sync keeps
+// cursor-position inserts durable across restarts.
+func (m Model) persistQueueOrder() {
+	shuffler, ok := m.reorderer.(queueShuffler)
+	if !ok {
+		return
+	}
+	ids := make([]int64, 0, len(m.queue.entries))
+	for _, entry := range m.queue.entries {
+		if entry.ID != 0 {
+			ids = append(ids, entry.ID)
+		}
+	}
+	if err := shuffler.SetQueueOrder(ids); err != nil {
+		slog.Warn("queue order sync failed", "err", err)
+	}
 }
 
 // resumeExhaustedPlayback starts playback from the given entry when the queue

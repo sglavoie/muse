@@ -150,8 +150,10 @@ func BridgeWatchChannel(raw <-chan library.WatchEvent, writer UpsertBatcher, mar
 	// Copy the map so the goroutine owns its own mutable state and does not
 	// race with callers that may still read the original map.
 	localMap := make(map[string]string, len(hashByPath))
+	pathByHash := make(map[string]string, len(hashByPath))
 	for k, v := range hashByPath {
 		localMap[k] = v
+		pathByHash[v] = k
 	}
 
 	var populate func([]library.Track) error
@@ -172,6 +174,9 @@ func BridgeWatchChannel(raw <-chan library.WatchEvent, writer UpsertBatcher, mar
 						slog.Warn("watcher: mark deleted track missing", "path", ev.Path, "err", err)
 					}
 					delete(localMap, ev.Path)
+					if pathByHash[hash] == ev.Path {
+						delete(pathByHash, hash)
+					}
 				}
 				f.drain()
 			} else {
@@ -181,7 +186,11 @@ func BridgeWatchChannel(raw <-chan library.WatchEvent, writer UpsertBatcher, mar
 				// Keep the lookup map in sync so that a file created after
 				// startup and subsequently deleted can still be resolved to
 				// its content hash for the MarkTrackMissing call above.
+				if oldPath := pathByHash[ev.Track.Hash]; oldPath != "" && oldPath != ev.Track.Path {
+					delete(localMap, oldPath)
+				}
 				localMap[ev.Track.Path] = ev.Track.Hash
+				pathByHash[ev.Track.Hash] = ev.Track.Path
 			}
 		}
 		f.drain()

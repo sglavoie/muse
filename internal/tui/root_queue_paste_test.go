@@ -56,6 +56,36 @@ func TestPasteSingleTrack(t *testing.T) {
 	}
 }
 
+// TestPastePersistsFinalQueueOrder verifies that cursor-position paste does not
+// leave the DB order at AppendTrack's tail position.
+func TestPastePersistsFinalQueueOrder(t *testing.T) {
+	qa := &stubQueueAppender{}
+	r := &stubQueueReorderer{}
+	m := New(context.Background(), WithQueueWriter(qa), WithQueueReorderer(r))
+	m.activeView = viewQueue
+	m.queue.entries = sampleQueueEntries()
+	m.queue.cursor = 1
+	m.yankBuffer = []QueueEntry{m.queue.entries[0]}
+
+	_, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	msg := cmd().(QueuePastedMsg)
+	m = m.handleQueuePastedMsg(msg)
+
+	if len(r.setQueueOrderCalls) != 1 {
+		t.Fatalf("expected 1 SetQueueOrder call, got %d", len(r.setQueueOrderCalls))
+	}
+	want := []int64{101, 102, msg.Entries[0].ID, 103, 104}
+	got := r.setQueueOrderCalls[0]
+	if len(got) != len(want) {
+		t.Fatalf("SetQueueOrder IDs length = %d, want %d: %v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("SetQueueOrder IDs[%d] = %d, want %d; full order %v", i, got[i], want[i], got)
+		}
+	}
+}
+
 // TestPasteMultipleTracks verifies that pasting multiple tracks inserts them
 // contiguously below the cursor.
 func TestPasteMultipleTracks(t *testing.T) {

@@ -124,6 +124,30 @@ func TestPublicTextChangeAfterInitialization(t *testing.T) {
 	}
 }
 
+func TestDirectReactivateAfterCommitKeepsInputFocused(t *testing.T) {
+	s, _ := New().Activate()
+	s, _ = s.Update(tea.KeyPressMsg{Text: "a"})
+	s = s.Commit()
+
+	s.Active = true
+	s, _ = s.Update(tea.KeyPressMsg{Text: "b"})
+	if s.Text != "ab" {
+		t.Errorf("after direct reactivation following commit: want Text=%q, got %q", "ab", s.Text)
+	}
+}
+
+func TestDirectReactivateAfterDeactivateKeepsInputFocused(t *testing.T) {
+	s, _ := New().Activate()
+	s, _ = s.Update(tea.KeyPressMsg{Text: "a"})
+	s = s.Deactivate()
+
+	s.Active = true
+	s, _ = s.Update(tea.KeyPressMsg{Text: "b"})
+	if s.Text != "b" {
+		t.Errorf("after direct reactivation following deactivate: want Text=%q, got %q", "b", s.Text)
+	}
+}
+
 // TestRawActiveStateViewDoesNotPanic verifies that View() on a directly-
 // constructed active State does not panic even without Activate().
 func TestRawActiveStateViewDoesNotPanic(t *testing.T) {

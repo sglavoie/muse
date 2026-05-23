@@ -191,6 +191,24 @@ func TestRenderListScrollOffsetBeyondCount(t *testing.T) {
 	_ = v.Render()
 }
 
+func TestRenderListNegativeScrollOffsetStartsAtFirstRow(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Width:        40,
+		ScrollOffset: -5,
+		Playlists: []db.PlaylistRow{
+			{ID: 1, Name: "First"},
+			{ID: 2, Name: "Second"},
+		},
+	}
+
+	out := v.Render()
+
+	if !strings.Contains(out, "First") {
+		t.Fatalf("expected negative scroll offset to render from first row, got:\n%s", out)
+	}
+}
+
 func TestRenderTracksScrollOffsetBeyondCount(t *testing.T) {
 	v := View{
 		Level:        TrackLevel,
@@ -203,6 +221,24 @@ func TestRenderTracksScrollOffsetBeyondCount(t *testing.T) {
 	out := v.Render()
 	if !strings.Contains(out, "Tracks") {
 		t.Errorf("expected heading in output even with out-of-bounds scroll, got:\n%s", out)
+	}
+}
+
+func TestRenderTracksNegativeScrollOffsetStartsAtFirstRow(t *testing.T) {
+	v := View{
+		Level:        TrackLevel,
+		Width:        80,
+		ScrollOffset: -5,
+		Tracks: []db.PlaylistTrackRow{
+			{ID: 1, Position: 1, Title: "First Track", Artist: "X", DurationMs: 60000},
+			{ID: 2, Position: 2, Title: "Second Track", Artist: "Y", DurationMs: 60000},
+		},
+	}
+
+	out := v.Render()
+
+	if !strings.Contains(out, "First Track") {
+		t.Fatalf("expected negative scroll offset to render from first track, got:\n%s", out)
 	}
 }
 

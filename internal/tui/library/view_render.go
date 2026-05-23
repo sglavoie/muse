@@ -61,7 +61,7 @@ func (v View) Render() string {
 	}
 
 	maxRows := v.visibleRows()
-	start := min(v.ScrollOffset, len(display))
+	start := min(max(0, v.ScrollOffset), len(display))
 	end := min(len(display), start+maxRows)
 
 	if v.Width == 0 {

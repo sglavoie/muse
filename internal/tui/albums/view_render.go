@@ -1,7 +1,6 @@
 package albums
 
 import (
-	"fmt"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -96,8 +95,10 @@ func (v View) renderTracks() string {
 	cols := ComputeTrack(v.Width)
 
 	header := strings.Repeat(" ", cols.SelectionMarker) + v.Styles.ColHead.Render(
-		fmt.Sprintf("%-*s %-*s %-*s %*s",
-			cols.Position, "#", cols.Title, "Title", cols.Artist, "Artist", cols.Duration, "Time"))
+		text.Pad("#", cols.Position)+" "+
+			text.Pad("Title", cols.Title)+" "+
+			text.Pad("Artist", cols.Artist)+" "+
+			text.PadLeft("Time", cols.Duration))
 
 	maxRows := v.visibleRows()
 	start := min(v.ScrollOffset, len(items))
@@ -126,13 +127,12 @@ func (v View) renderTracks() string {
 		} else {
 			rawPos = text.FormatTrackPosSimple(t.TrackNumber, absIdx+1)
 		}
-		pos := fmt.Sprintf("%-*s", cols.Position, rawPos)
+		pos := text.Pad(rawPos, cols.Position)
 		_, isTrackFav := v.FavoriteHashes[t.Hash]
 		_, isArtistFav := v.FavoriteArtists[t.Artist]
 		titleStr := text.FavPrefix(t.Title, cols.Title, isTrackFav)
 		artistStr := text.FavPrefix(t.Artist, cols.Artist, isArtistFav)
-		dur := text.FormatDurationSecs(t.Duration)
-		dur = fmt.Sprintf("%*s", cols.Duration, dur)
+		dur := text.PadLeft(text.FormatDurationSecs(t.Duration), cols.Duration)
 		switch {
 		case isFocused:
 			a := v.Styles.Accent

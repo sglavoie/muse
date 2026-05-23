@@ -94,6 +94,13 @@ func Render(
 		return ""
 	}
 
+	sort.Label = singleLine(sort.Label)
+	sort.Indicator = singleLine(sort.Indicator)
+	filter.Text = singleLine(filter.Text)
+	filter.InputView = singleLine(filter.InputView)
+	filter.Hint = singleLine(filter.Hint)
+	hint = singleLine(hint)
+
 	// Defensive: filter out empty crumbs so a stray "" in the slice does not
 	// render as a free-floating chevron (" › Foo › "). After filtering, an
 	// otherwise non-empty breadcrumb slice may be empty — treat that like the
@@ -101,7 +108,8 @@ func Render(
 	{
 		cleaned := breadcrumb[:0:0]
 		for _, c := range breadcrumb {
-			if c != "" {
+			c = singleLine(c)
+			if strings.TrimSpace(ansi.Strip(c)) != "" {
 				cleaned = append(cleaned, c)
 			}
 		}
@@ -417,4 +425,13 @@ func renderKeyLabelPair(hint string, s styles.Styles) string {
 		return s.HelpKey.Render(key)
 	}
 	return s.HelpKey.Render(key) + " " + s.TextSecondary.Render(label)
+}
+
+// singleLine keeps metadata-derived labels and pasted filter text from
+// breaking the strip's one-row layout contract.
+func singleLine(v string) string {
+	if !strings.ContainsAny(v, "\r\n") {
+		return v
+	}
+	return strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ").Replace(v)
 }

@@ -35,10 +35,10 @@ func (v View) CursorDown() View {
 }
 
 // HalfPageDown moves the cursor half a visible page down.
-func (v View) HalfPageDown() View { return v.moveCursor(v.visibleRows() / 2) }
+func (v View) HalfPageDown() View { return v.moveCursor(v.halfPageDelta()) }
 
 // HalfPageUp moves the cursor half a visible page up.
-func (v View) HalfPageUp() View { return v.moveCursor(-v.visibleRows() / 2) }
+func (v View) HalfPageUp() View { return v.moveCursor(-v.halfPageDelta()) }
 
 // FullPageDown moves the cursor a full visible page down.
 func (v View) FullPageDown() View { return v.moveCursor(v.visibleRows()) }
@@ -95,4 +95,8 @@ func (v View) moveCursor(delta int) View {
 		v.ScrollOffset = v.Cursor - maxRows + 1
 	}
 	return v
+}
+
+func (v View) halfPageDelta() int {
+	return max(1, v.visibleRows()/2)
 }

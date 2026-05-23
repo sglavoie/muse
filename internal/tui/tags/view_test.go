@@ -160,6 +160,72 @@ func TestCursorMovement_EmptyListResetsCursorAndScroll(t *testing.T) {
 	}
 }
 
+func TestCursorDownWithNoVisibleRowsKeepsScrollOnCursor(t *testing.T) {
+	v := View{
+		Level:         TagLevel,
+		Cursor:        0,
+		Height:        1,
+		FilterActive:  true,
+		SortIndicator: "Sort: Name",
+		Tags:          []db.TagRow{{ID: 1, Name: "a"}, {ID: 2, Name: "b"}},
+		TagCounts:     map[int64]int{1: 1, 2: 1},
+	}
+
+	v = v.CursorDown()
+
+	if v.Cursor != 1 {
+		t.Fatalf("expected Cursor=1, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != v.Cursor {
+		t.Fatalf("expected ScrollOffset=%d, got %d", v.Cursor, v.ScrollOffset)
+	}
+}
+
+func TestPageMovementWithNoVisibleRowsKeepsScrollOnCursor(t *testing.T) {
+	v := View{
+		Level:        TrackLevel,
+		Cursor:       0,
+		ScrollOffset: 0,
+		Height:       2, // TrackLevel reserves 3 rows, leaving no data rows.
+		Tracks: []db.PlaylistTrackRow{
+			{ID: 1, Title: "one"},
+			{ID: 2, Title: "two"},
+			{ID: 3, Title: "three"},
+		},
+	}
+
+	v = v.moveCursor(2)
+
+	if v.Cursor != 2 {
+		t.Fatalf("expected Cursor=2, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != v.Cursor {
+		t.Fatalf("expected ScrollOffset=%d, got %d", v.Cursor, v.ScrollOffset)
+	}
+}
+
+func TestRenderTagsCreatingWithNoVisibleRowsDoesNotPanic(t *testing.T) {
+	v := View{
+		Level:         TagLevel,
+		Width:         20,
+		Height:        1,
+		FilterActive:  true,
+		SortIndicator: "Sort: Name",
+		Tags:          []db.TagRow{{ID: 1, Name: "a"}},
+		TagCounts:     map[int64]int{1: 1},
+		Creating:      true,
+		CreateInput:   "new",
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("Render panicked with no visible rows while creating: %v", r)
+		}
+	}()
+
+	_ = v.Render()
+}
+
 // TestBack_KeepsCursorVisibleAfterResize verifies that when the saved
 // TagScrollOffset trails far behind a still-valid TagCursor (e.g. because the
 // terminal was resized smaller while the user was drilled into TrackLevel),
