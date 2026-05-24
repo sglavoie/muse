@@ -48,9 +48,10 @@ func Chunk(dataRows, bucketLabels []string, opts ChunkOptions) []string {
 		}
 		return dataRows
 	}
+	maxPossible := maxChunkOutputLines(len(dataRows))
 	remaining := opts.MaxRows
-	if opts.MaxRows <= 0 {
-		remaining = len(dataRows)*2 + 1 // effectively uncapped
+	if opts.MaxRows <= 0 || opts.MaxRows > maxPossible {
+		remaining = maxPossible // effectively uncapped
 	}
 	out := make([]string, 0, remaining)
 	prevBucket := ""
@@ -103,4 +104,12 @@ func Chunk(dataRows, bucketLabels []string, opts ChunkOptions) []string {
 		dataSinceDivider++
 	}
 	return out
+}
+
+func maxChunkOutputLines(dataRows int) int {
+	maxInt := int(^uint(0) >> 1)
+	if dataRows > (maxInt-1)/2 {
+		return maxInt
+	}
+	return dataRows*2 + 1
 }

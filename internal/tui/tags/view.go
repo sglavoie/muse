@@ -117,6 +117,16 @@ func (v View) itemCount() int {
 	return len(v.EffectiveTags())
 }
 
+// visibleWindow returns the clamped [start,end) indexes for the visible slice
+// window. Render paths can receive stale scroll offsets after filters, deletes,
+// or async count refreshes shrink a list, so clamp both low and high bounds.
+func (v View) visibleWindow(itemCount, rows int) (int, int) {
+	maxStart := max(itemCount-rows, 0)
+	start := min(max(v.ScrollOffset, 0), maxStart)
+	end := min(itemCount, start+rows)
+	return start, end
+}
+
 // CursorUp returns a copy of v with the cursor moved up by one row.
 func (v View) CursorUp() View {
 	if v.itemCount() == 0 {
@@ -341,8 +351,7 @@ func (v View) renderTags() string {
 		return v.topFilterSeparator() + "(no matches)"
 	}
 
-	start := min(max(v.ScrollOffset, 0), len(items))
-	end := min(len(items), start+maxRows)
+	start, end := v.visibleWindow(len(items), maxRows)
 
 	lines := make([]string, end-start)
 	for i, tag := range items[start:end] {
@@ -391,8 +400,7 @@ func (v View) renderTracks() string {
 			cols.Duration, "Time"))
 
 	maxRows := v.visibleRows()
-	start := min(max(v.ScrollOffset, 0), len(items))
-	end := min(len(items), start+maxRows)
+	start, end := v.visibleWindow(len(items), maxRows)
 
 	lines := make([]string, end-start)
 	for i, t := range items[start:end] {

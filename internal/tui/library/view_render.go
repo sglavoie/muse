@@ -240,10 +240,12 @@ func (v View) Render() string {
 
 		var row string
 		if cols.Artist == 0 { //nolint:gocritic // ifElseChain: branches have fundamentally different rendering logic
+			markerPart := text.Pad(markerStr, cols.SelectionMarker)
+			numPart := text.Pad(num, cols.TrackNum)
 			if isFocused {
-				row = v.Styles.Accent.Render(markerStr + text.Pad(num, cols.TrackNum))
+				row = v.Styles.Accent.Render(markerPart + numPart)
 			} else {
-				row = markerStr + text.Pad(num, cols.TrackNum)
+				row = markerPart + numPart
 			}
 		} else if isFocused {
 			sep := v.Styles.Accent.Render("  ")

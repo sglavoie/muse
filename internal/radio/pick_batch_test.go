@@ -151,6 +151,25 @@ func TestPickBatch_HugeNDoesNotOverflowPoolSize(t *testing.T) {
 	}
 }
 
+func TestPickBatch_HugeNWithNoArtistCapReturnsAvailableTracks(t *testing.T) {
+	scored := []TrackScore{
+		{Track: library.Track{Hash: "t1", Artist: "ArtistA"}, Score: -1},
+		{Track: library.Track{Hash: "t2", Artist: "ArtistA"}, Score: -2},
+		{Track: library.Track{Hash: "t3", Artist: "ArtistA"}, Score: -3},
+	}
+	hugeN := int(^uint(0) >> 1)
+
+	got := PickBatch(scored, hugeN, 1.0)
+	if len(got) != len(scored) {
+		t.Fatalf("expected all %d available tracks with no artist cap, got %d", len(scored), len(got))
+	}
+	for i, want := range []string{"t1", "t2", "t3"} {
+		if got[i].Hash != want {
+			t.Fatalf("idx %d: expected %q, got %q", i, want, got[i].Hash)
+		}
+	}
+}
+
 func TestPickBatch_NoDuplicates(t *testing.T) {
 	tracks := make([]library.Track, 20)
 	for i := range tracks {

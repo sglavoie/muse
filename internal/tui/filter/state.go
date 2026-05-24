@@ -10,7 +10,7 @@ import (
 // v.filter = v.filter.Activate() without pointer aliasing concerns.
 //
 // Text is kept as a public field for backward compatibility; it is always
-// synced with the underlying textinput value after Update/Commit/Deactivate.
+// synced with the underlying textinput value after Activate/Update/Commit/Deactivate.
 type State struct {
 	Active      bool
 	Text        string          // current filter text; synced with input on every Update
@@ -28,6 +28,7 @@ func New() State {
 // current text. Returns a cmd to start the cursor blink animation.
 func (s State) Activate() (State, tea.Cmd) {
 	s.input = newInput(s.Text)
+	s.Text = s.input.Value()
 	s.input.CursorEnd()
 	s.Active = true
 	s.initialized = true

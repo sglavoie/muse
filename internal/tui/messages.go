@@ -352,8 +352,9 @@ type smartPlaylistCountsUpdatedMsg struct {
 // listeningStatsMsg is dispatched when the background DB read for listening
 // statistics completes. err is non-nil when the query failed.
 type listeningStatsMsg struct {
-	stats db.ListeningStats
-	err   error
+	stats     db.ListeningStats
+	periodIdx int
+	err       error
 }
 
 // tagPickerDismissedMsg is dispatched when the tag picker overlay is closed

@@ -19,8 +19,8 @@ type Match struct {
 }
 
 // FuzzySearcher filters a track slice by a query string using fuzzy matching
-// across the artist, title, and filename (Path) fields. An empty query returns
-// all tracks in index order.
+// across the artist, title, and filename (Path) fields. An empty or
+// whitespace-only query returns all tracks in index order.
 type FuzzySearcher interface {
 	Search(query string, tracks []Track) []Match
 }

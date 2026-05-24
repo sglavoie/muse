@@ -25,6 +25,7 @@ const (
 // Returns (score, true) on a match and (0, false) otherwise. An empty query
 // always matches with score 0.
 func Match(query, name string) (int, bool) {
+	query = strings.TrimSpace(query)
 	if query == "" {
 		return 0, true
 	}

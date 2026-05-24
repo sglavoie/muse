@@ -297,7 +297,8 @@ func DeriveAllAlbums(tracks []library.Track) []string {
 
 // DeriveAllAlbumCounts maps each album name to its track count across the
 // entire catalog. Tracks with an empty Album field count under the
-// arttui.UnknownAlbum display sentinel.
+// arttui.UnknownAlbum display sentinel, which also collapses any literal
+// sentinel-valued album into the same rendered row.
 func DeriveAllAlbumCounts(tracks []library.Track) map[string]int {
 	if len(tracks) == 0 {
 		return nil
@@ -316,12 +317,19 @@ func DeriveAllAlbumCounts(tracks []library.Track) map[string]int {
 // DeriveAlbumTracks returns all tracks matching the given album name,
 // regardless of artist.
 func DeriveAlbumTracks(tracks []library.Track, album string) []library.Track {
-	album = arttui.RawName(album)
+	rawAlbum := arttui.RawName(album)
 	var result []library.Track
 	for _, t := range tracks {
-		if t.Album == album {
+		if albumMatches(t.Album, rawAlbum) {
 			result = append(result, t)
 		}
 	}
 	return result
+}
+
+func albumMatches(trackAlbum, rawAlbum string) bool {
+	if rawAlbum == "" {
+		return trackAlbum == "" || trackAlbum == arttui.UnknownAlbum
+	}
+	return trackAlbum == rawAlbum
 }

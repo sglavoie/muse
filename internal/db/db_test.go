@@ -250,6 +250,31 @@ func TestReadPlaylists_TrackCount(t *testing.T) {
 	}
 }
 
+func TestReadPlaylists_TrackCountExcludesMissingTracks(t *testing.T) {
+	d := openMigratedDB(t)
+
+	insertTrack(t, d, "hashA", "/music/a.flac")
+	insertTrack(t, d, "hashB", "/music/b.flac")
+	pid := insertPlaylist(t, d, "My Playlist")
+	insertPlaylistTrack(t, d, pid, "hashA", 1000)
+	insertPlaylistTrack(t, d, pid, "hashB", 2000)
+
+	if _, err := d.Exec(`UPDATE tracks SET missing = 1 WHERE hash = ?`, "hashB"); err != nil {
+		t.Fatalf("mark missing: %v", err)
+	}
+
+	rows, err := d.ReadPlaylists()
+	if err != nil {
+		t.Fatalf("ReadPlaylists: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("got %d rows, want 1", len(rows))
+	}
+	if rows[0].TrackCount != 1 {
+		t.Errorf("TrackCount = %d, want 1 (missing playlist tracks should not count as playable)", rows[0].TrackCount)
+	}
+}
+
 func TestReadPlaylists_ExcludesSoftDeleted(t *testing.T) {
 	d := openMigratedDB(t)
 
@@ -270,6 +295,31 @@ func TestReadPlaylists_ExcludesSoftDeleted(t *testing.T) {
 	}
 	if rows[0].Name != "Active" {
 		t.Errorf("got name %q, want %q", rows[0].Name, "Active")
+	}
+}
+
+func TestReadPlaylistTracks_ExcludesMissingTracks(t *testing.T) {
+	d := openMigratedDB(t)
+
+	insertTrack(t, d, "hash1", "/music/one.flac")
+	insertTrack(t, d, "hash2", "/music/two.flac")
+	pid := insertPlaylist(t, d, "My Playlist")
+	insertPlaylistTrack(t, d, pid, "hash1", 1000)
+	insertPlaylistTrack(t, d, pid, "hash2", 2000)
+
+	if _, err := d.Exec(`UPDATE tracks SET missing = 1 WHERE hash = ?`, "hash2"); err != nil {
+		t.Fatalf("mark missing: %v", err)
+	}
+
+	rows, err := d.ReadPlaylistTracks(pid)
+	if err != nil {
+		t.Fatalf("ReadPlaylistTracks: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("got %d rows, want 1 (missing playlist tracks should be hidden)", len(rows))
+	}
+	if rows[0].Hash != "hash1" {
+		t.Errorf("got hash %q, want hash1", rows[0].Hash)
 	}
 }
 

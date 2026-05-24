@@ -12,6 +12,7 @@ func (v View) OpenList() View {
 	v.ScrollOffset = 0
 	v.FilterActive = false
 	v.FilterText = ""
+	v.SelectedItems = nil
 	return v
 }
 

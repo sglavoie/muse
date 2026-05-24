@@ -273,6 +273,25 @@ func TestTagColorStyleTrimsColor(t *testing.T) {
 	}
 }
 
+func TestTagColorStyleAcceptsShortHexColor(t *testing.T) {
+	got := colorRGBA(t, styles.TagColorStyle("#f60").GetForeground())
+	want := parseHex(t, "#ff6600")
+	if got != want {
+		t.Fatalf("TagColorStyle foreground = %#v, want %#v", got, want)
+	}
+}
+
+func TestColoredDotWithInvalidColorIsPlain(t *testing.T) {
+	for _, c := range []string{"123", "blue", "#gggggg", "#12345"} {
+		t.Run(c, func(t *testing.T) {
+			got := styles.ColoredDot(c)
+			if got != "●" {
+				t.Fatalf("ColoredDot(%q) = %q, want plain dot", c, got)
+			}
+		})
+	}
+}
+
 func TestColoredDotWithBlankColorIsPlain(t *testing.T) {
 	got := styles.ColoredDot(" \t\n ")
 	if got != "●" {

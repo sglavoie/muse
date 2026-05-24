@@ -49,6 +49,18 @@ func TestOpenList_ClampsStaleCategoryCursor(t *testing.T) {
 	}
 }
 
+func TestOpenList_ClearsStaleSelection(t *testing.T) {
+	v := View{
+		Level:         CategoryLevel,
+		Cursor:        0,
+		SelectedItems: map[int]struct{}{1: {}},
+	}
+	v2 := v.OpenList()
+	if v2.SelectedItems != nil {
+		t.Fatalf("expected SelectedItems cleared, got %v", v2.SelectedItems)
+	}
+}
+
 func TestOpenTracks_TransitionsToTrackLevel(t *testing.T) {
 	v := View{
 		Level:        ListLevel,

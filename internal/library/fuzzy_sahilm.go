@@ -11,13 +11,13 @@ import (
 type SahilmFuzzySearcher struct{}
 
 // Search runs a fuzzy match against each track's artist, title, album, and
-// filename. An empty query returns all tracks in index order with nil
-// MatchedIndexes. For non-empty queries the returned matches are ranked by
-// substring position and carry the MatchedIndexes into the concatenated search
-// string. Field-specific queries (a:/t:/l: prefixes) match individual fields
-// and populate per-field position slices instead.
+// filename. An empty or whitespace-only query returns all tracks in index order
+// with nil MatchedIndexes. For non-empty queries the returned matches are
+// ranked by substring position and carry the MatchedIndexes into the
+// concatenated search string. Field-specific queries (a:/t:/l: prefixes) match
+// individual fields and populate per-field position slices instead.
 func (s SahilmFuzzySearcher) Search(query string, tracks []Track) []Match {
-	if query == "" {
+	if strings.TrimSpace(query) == "" {
 		matches := make([]Match, len(tracks))
 		for i := range tracks {
 			matches[i] = Match{TrackIndex: i}

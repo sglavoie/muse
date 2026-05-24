@@ -107,15 +107,16 @@ func validate(raw rawConfig) (Config, []string) {
 	}
 
 	if raw.EQBands != nil {
-		for i, v := range raw.EQBands {
-			switch {
-			case v < -12:
-				cfg.EQBands[i] = -12
-			case v > 12:
-				cfg.EQBands[i] = 12
-			default:
-				cfg.EQBands[i] = v
-			}
+		bands, ok := normalizeEQBands(*raw.EQBands)
+		if !ok {
+			slog.Warn("invalid config value, using default",
+				"field", "eq_bands",
+				"bands", len(*raw.EQBands),
+				"default_bands", len(cfg.EQBands),
+			)
+			warnings = append(warnings, fmt.Sprintf("eq_bands has %d bands, expected %d; using default", len(*raw.EQBands), len(cfg.EQBands)))
+		} else {
+			cfg.EQBands = bands
 		}
 	}
 
@@ -147,13 +148,15 @@ func validate(raw rawConfig) (Config, []string) {
 			continue
 		}
 		seen[trimmedKey] = true
-		clamped := cp.Bands
-		for i, v := range clamped {
-			if v < -12 {
-				clamped[i] = -12
-			} else if v > 12 {
-				clamped[i] = 12
+		clamped := [10]int{}
+		if cp.Bands != nil {
+			bands, ok := normalizeEQBands(*cp.Bands)
+			if !ok {
+				slog.Warn("eq custom preset dropped: invalid band count", "key", trimmedKey, "bands", len(*cp.Bands))
+				warnings = append(warnings, fmt.Sprintf("eq custom preset with key %q has %d bands, expected %d; ignored", trimmedKey, len(*cp.Bands), len(clamped)))
+				continue
 			}
+			clamped = bands
 		}
 		// Fall back to the key when the name is missing so the preset is still
 		// addressable in the TUI.
@@ -232,6 +235,24 @@ func validate(raw rawConfig) (Config, []string) {
 	}
 
 	return cfg, warnings
+}
+
+func normalizeEQBands(values []int) ([10]int, bool) {
+	var bands [10]int
+	if len(values) != len(bands) {
+		return bands, false
+	}
+	for i, v := range values {
+		switch {
+		case v < -12:
+			bands[i] = -12
+		case v > 12:
+			bands[i] = 12
+		default:
+			bands[i] = v
+		}
+	}
+	return bands, true
 }
 
 func normalizeMusicDirectories(rawDirs []string) []string {

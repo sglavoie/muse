@@ -71,38 +71,14 @@ func (v View) visibleRows() int {
 // stopping at the first entry. The scroll offset is adjusted so the
 // cursor stays visible.
 func (v View) CursorUp() View {
-	if v.itemCount() == 0 {
-		v.Cursor = 0
-		v.ScrollOffset = 0
-		return v
-	}
-	if v.Cursor > 0 {
-		v.Cursor--
-	}
-	if v.Cursor < v.ScrollOffset {
-		v.ScrollOffset = v.Cursor
-	}
-	return v
+	return v.moveCursor(-1)
 }
 
 // CursorDown returns a copy of v with the cursor moved down by one row,
 // stopping at the last entry. The scroll offset is adjusted so the
 // cursor stays visible.
 func (v View) CursorDown() View {
-	if v.itemCount() == 0 {
-		v.Cursor = 0
-		v.ScrollOffset = 0
-		return v
-	}
-	limit := v.itemCount() - 1
-	if v.Cursor < limit {
-		v.Cursor++
-	}
-	maxRows := v.visibleRows()
-	if maxRows > 0 && v.Cursor >= v.ScrollOffset+maxRows {
-		v.ScrollOffset = v.Cursor - maxRows + 1
-	}
-	return v
+	return v.moveCursor(1)
 }
 
 // HalfPageDown moves the cursor half a visible page down.

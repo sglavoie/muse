@@ -43,6 +43,13 @@ func sinceUnixForPeriod(periodIdx int) int64 {
 	}
 }
 
+func statsPeriodLabel(periodIdx int) string {
+	if periodIdx < 0 || periodIdx >= len(statsPeriods) {
+		return statsPeriods[0].label
+	}
+	return statsPeriods[periodIdx].label
+}
+
 // StatsPanel holds a snapshot of listening stats for rendering.
 type StatsPanel struct {
 	stats       db.ListeningStats
@@ -156,12 +163,13 @@ func formatListeningTime(secs int) string {
 
 // loadStatsCmd dispatches a background DB read and returns a listeningStatsMsg.
 func (m Model) loadStatsCmd() tea.Cmd {
+	periodIdx := m.statsPeriod
 	if m.statsReader == nil {
 		return func() tea.Msg {
-			return listeningStatsMsg{}
+			return listeningStatsMsg{periodIdx: periodIdx}
 		}
 	}
-	since := sinceUnixForPeriod(m.statsPeriod)
+	since := sinceUnixForPeriod(periodIdx)
 	mx := m.cfg.Mixes
 	mixCfg := db.MixCountConfig{
 		RediscoverMinPlays:    mx.RediscoverMinPlays,
@@ -177,7 +185,7 @@ func (m Model) loadStatsCmd() tea.Cmd {
 	}
 	return func() tea.Msg {
 		stats, err := m.statsReader.ReadListeningStats(since, mixCfg)
-		return listeningStatsMsg{stats: stats, err: err}
+		return listeningStatsMsg{stats: stats, periodIdx: periodIdx, err: err}
 	}
 }
 

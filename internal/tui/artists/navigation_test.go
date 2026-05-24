@@ -78,6 +78,41 @@ func TestCursorDownAtTrackLevel(t *testing.T) {
 	}
 }
 
+func TestCursorUpClampsStaleCursorAfterListShrank(t *testing.T) {
+	v := View{
+		Level:        ArtistLevel,
+		Cursor:       8,
+		ScrollOffset: 8,
+		Artists:      []string{"Alice", "Bob", "Charlie"},
+	}
+
+	v = v.CursorUp()
+	if v.Cursor != 2 {
+		t.Errorf("CursorUp: expected stale cursor clamped to 2, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Errorf("CursorUp: expected ScrollOffset<=Cursor, got %d > %d", v.ScrollOffset, v.Cursor)
+	}
+}
+
+func TestCursorDownClampsStaleCursorAfterFilterShrankList(t *testing.T) {
+	v := View{
+		Level:        ArtistLevel,
+		Cursor:       4,
+		ScrollOffset: 4,
+		Artists:      []string{"Alice", "Bob", "Charlie"},
+		FilterText:   "b",
+	}
+
+	v = v.CursorDown()
+	if v.Cursor != 0 {
+		t.Errorf("CursorDown: expected stale cursor clamped to only filtered row, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 0 {
+		t.Errorf("CursorDown: expected ScrollOffset=0, got %d", v.ScrollOffset)
+	}
+}
+
 func TestCursorMovementDoesNotAdvanceScrollWhenNoRowsVisible(t *testing.T) {
 	v := View{
 		Level:        TrackLevel,

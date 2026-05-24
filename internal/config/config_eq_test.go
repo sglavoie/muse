@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/BurntSushi/toml"
@@ -98,6 +99,37 @@ func TestLoad_EQ_BandsClamped(t *testing.T) {
 	}
 }
 
+func TestLoad_EQ_InvalidBandCountUsesDefault(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+default_volume = 75
+eq_bands = [1, 2, 3]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if result.Config.DefaultVolume != 75 {
+		t.Errorf("DefaultVolume = %d, want 75 (invalid eq_bands should not discard unrelated fields)", result.Config.DefaultVolume)
+	}
+	if result.Config.EQBands != ([10]int{}) {
+		t.Errorf("EQBands = %v, want default zero bands", result.Config.EQBands)
+	}
+	found := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "eq_bands") && strings.Contains(w, "expected 10") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected warning about eq_bands band count, got: %v", result.Warnings)
+	}
+}
+
 func TestLoad_EQ_InvalidPreset_FallsBackToFlat(t *testing.T) {
 	dir := t.TempDir()
 	content := "eq_preset = \"does_not_exist\"\n"
@@ -178,6 +210,49 @@ bands = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 	}
 }
 
+func TestLoad_EQ_CustomPresetInvalidBandCountDropped(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+default_volume = 75
+
+[[eq_custom_presets]]
+name = "Too Short"
+key = "too_short"
+bands = [1, 2, 3]
+
+[[eq_custom_presets]]
+name = "Valid"
+key = "valid"
+bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if result.Config.DefaultVolume != 75 {
+		t.Errorf("DefaultVolume = %d, want 75 (bad custom preset should not discard unrelated fields)", result.Config.DefaultVolume)
+	}
+	if len(result.Config.EQCustomPresets) != 1 {
+		t.Fatalf("EQCustomPresets len = %d, want 1", len(result.Config.EQCustomPresets))
+	}
+	if got := result.Config.EQCustomPresets[0].Key; got != "valid" {
+		t.Errorf("kept custom preset key = %q, want valid", got)
+	}
+	found := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "too_short") && strings.Contains(w, "expected 10") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected warning about custom preset band count, got: %v", result.Warnings)
+	}
+}
+
 func TestLoad_EQ_CustomPreset_BandsClamped(t *testing.T) {
 	dir := t.TempDir()
 	content := `
@@ -232,8 +307,8 @@ func TestSave_EQ_RoundTrip(t *testing.T) {
 	if raw.EQBands == nil {
 		t.Fatal("EQBands not persisted")
 	}
-	if raw.EQBands[0] != 6 {
-		t.Errorf("EQBands[0] = %d, want 6", raw.EQBands[0])
+	if (*raw.EQBands)[0] != 6 {
+		t.Errorf("EQBands[0] = %d, want 6", (*raw.EQBands)[0])
 	}
 	if len(raw.EQCustomPresets) != 1 {
 		t.Fatalf("EQCustomPresets len = %d, want 1", len(raw.EQCustomPresets))

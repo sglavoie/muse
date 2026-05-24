@@ -84,6 +84,21 @@ func TestDeriveAlbumTracks(t *testing.T) {
 	}
 }
 
+func TestDeriveAlbumTracksUnknownAlbumIncludesLiteralSentinel(t *testing.T) {
+	tracks := []library.Track{
+		{Album: "", Title: "Empty album"},
+		{Album: "(unknown album)", Title: "Literal sentinel album"},
+		{Album: "Alpha", Title: "Named album"},
+	}
+	got := DeriveAlbumTracks(tracks, "(unknown album)")
+	if len(got) != 2 {
+		t.Fatalf("got %d tracks, want 2: %v", len(got), got)
+	}
+	if got[0].Title != "Empty album" || got[1].Title != "Literal sentinel album" {
+		t.Errorf("unexpected tracks: %v", got)
+	}
+}
+
 func TestDeriveAlbumTracksNoMatch(t *testing.T) {
 	tracks := DeriveAlbumTracks(sampleTracks(), "Nonexistent")
 	if len(tracks) != 0 {

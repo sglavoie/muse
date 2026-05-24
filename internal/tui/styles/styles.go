@@ -240,7 +240,7 @@ func AccentFavRender(accent, favAccent lipgloss.Style, isFav bool, text string) 
 // zero value (unstyled — callers get plain text).
 func TagColorStyle(hex string) lipgloss.Style {
 	hex = strings.TrimSpace(hex)
-	if hex == "" {
+	if !isHexColor(hex) {
 		return lipgloss.NewStyle()
 	}
 	return lipgloss.NewStyle().Foreground(lipgloss.Color(hex))
@@ -249,6 +249,21 @@ func TagColorStyle(hex string) lipgloss.Style {
 // ColoredDot renders "●" in the given tag color, or plain "●" when color is empty.
 func ColoredDot(tagColor string) string {
 	return TagColorStyle(tagColor).Render("●")
+}
+
+func isHexColor(s string) bool {
+	if len(s) != 4 && len(s) != 7 {
+		return false
+	}
+	if s[0] != '#' {
+		return false
+	}
+	for _, r := range s[1:] {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
+			return false
+		}
+	}
+	return true
 }
 
 // WithZebraBg returns style with ZebraBg background when isOdd, else style unchanged.

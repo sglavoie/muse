@@ -30,6 +30,21 @@ func TestSahilmFuzzySearcher(t *testing.T) {
 		}
 	})
 
+	t.Run("WhitespaceOnlyQueryReturnsAll", func(t *testing.T) {
+		got := s.Search(" \t\n ", tracks)
+		if len(got) != len(tracks) {
+			t.Fatalf("expected %d matches, got %d", len(tracks), len(got))
+		}
+		for i, m := range got {
+			if m.TrackIndex != i {
+				t.Errorf("match[%d].TrackIndex = %d, want %d", i, m.TrackIndex, i)
+			}
+			if m.MatchedIndexes != nil {
+				t.Errorf("match[%d].MatchedIndexes = %v, want nil", i, m.MatchedIndexes)
+			}
+		}
+	})
+
 	t.Run("ArtistMatch", func(t *testing.T) {
 		got := s.Search("Radiohead", tracks)
 		if len(got) == 0 {

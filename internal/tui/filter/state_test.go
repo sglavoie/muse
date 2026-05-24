@@ -22,6 +22,15 @@ func TestActivatePreservesText(t *testing.T) {
 	}
 }
 
+func TestActivateSyncsSanitizedInputValue(t *testing.T) {
+	base := New()
+	base.Text = "a\tb\nc"
+	s, _ := base.Activate()
+	if s.Text != "a b c" {
+		t.Errorf("expected sanitized Text=%q, got %q", "a b c", s.Text)
+	}
+}
+
 func TestCommit(t *testing.T) {
 	base := New()
 	base.Active = true

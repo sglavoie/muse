@@ -128,6 +128,40 @@ func TestCommandListener_CloseRemovesSocketFile(t *testing.T) {
 	}
 }
 
+func TestCommandListener_CloseDoesNotRemoveReplacedNonSocketPath(t *testing.T) {
+	dir := shortTempDir(t)
+	received := make(chan tui.RemoteActionMsg, 1)
+	p := newTestProgram(received)
+	go p.Run() //nolint:errcheck
+	defer p.Quit()
+
+	ln, err := startCommandListener(p, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sockPath := filepath.Join(dir, ctrlSocketName)
+	const contents = "replacement file"
+	if err := os.Remove(sockPath); err != nil {
+		t.Fatalf("remove socket path before replacement: %v", err)
+	}
+	if err := os.WriteFile(sockPath, []byte(contents), 0o600); err != nil {
+		t.Fatalf("write replacement file: %v", err)
+	}
+
+	if err := ln.Close(); err != nil && !strings.Contains(err.Error(), "exists and is not a socket") {
+		t.Fatalf("Close error = %v, want non-socket error", err)
+	}
+
+	got, readErr := os.ReadFile(sockPath)
+	if readErr != nil {
+		t.Fatalf("replacement file should remain in place: %v", readErr)
+	}
+	if string(got) != contents {
+		t.Fatalf("replacement contents = %q, want %q", string(got), contents)
+	}
+}
+
 func TestCommandListener_CloseIsIdempotent(t *testing.T) {
 	dir := shortTempDir(t)
 	received := make(chan tui.RemoteActionMsg, 1)

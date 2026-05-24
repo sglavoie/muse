@@ -54,11 +54,7 @@ func (l *unixSocketListener) Close() error {
 	if errors.Is(closeErr, net.ErrClosed) {
 		closeErr = nil
 	}
-	removeErr := os.Remove(l.path)
-	if errors.Is(removeErr, os.ErrNotExist) {
-		removeErr = nil
-	}
-	return errors.Join(closeErr, removeErr)
+	return errors.Join(closeErr, removeControlSocket(l.path))
 }
 
 // isKnownAction reports whether name is a recognised remote action.
@@ -92,6 +88,9 @@ func startCommandListener(p *tea.Program, runtimeDir string) (net.Listener, erro
 	if err != nil {
 		return nil, fmt.Errorf("listen on control socket: %w", err)
 	}
+	if unixLn, ok := ln.(*net.UnixListener); ok {
+		unixLn.SetUnlinkOnClose(false)
+	}
 	// Restrict the socket to the owner so a permissive umask cannot let
 	// other users on a multi-user host dispatch playback commands.
 	if err := os.Chmod(sockPath, 0o600); err != nil {
@@ -107,6 +106,10 @@ func startCommandListener(p *tea.Program, runtimeDir string) (net.Listener, erro
 }
 
 func removeStaleControlSocket(path string) error {
+	return removeControlSocket(path)
+}
+
+func removeControlSocket(path string) error {
 	info, err := os.Lstat(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil

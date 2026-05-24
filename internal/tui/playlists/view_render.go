@@ -36,7 +36,7 @@ func (v View) renderList() string {
 	cols := Compute(v.Width)
 
 	maxRows := v.visibleRows()
-	start := min(max(v.ScrollOffset, 0), len(v.Playlists))
+	start := visibleWindowStart(v.ScrollOffset, v.Cursor, len(v.Playlists), maxRows)
 	end := min(len(v.Playlists), start+maxRows)
 
 	var lines []string
@@ -134,7 +134,7 @@ func (v View) renderTracks() string {
 			text.PadLeft(timeHead, cols.Duration))
 
 	maxRows := v.visibleRows()
-	start := min(max(v.ScrollOffset, 0), len(v.Tracks))
+	start := visibleWindowStart(v.ScrollOffset, v.Cursor, len(v.Tracks), maxRows)
 	end := min(len(v.Tracks), start+maxRows)
 
 	lines := make([]string, end-start)
@@ -237,4 +237,25 @@ func (v View) renderTracks() string {
 		}
 	}
 	return heading + "\n\n" + header + "\n" + strings.Join(lines, "\n")
+}
+
+func visibleWindowStart(scrollOffset, cursor, itemCount, maxRows int) int {
+	if itemCount <= 0 || maxRows <= 0 {
+		return 0
+	}
+
+	maxStart := max(0, itemCount-maxRows)
+	start := min(max(scrollOffset, 0), maxStart)
+
+	if cursor < 0 {
+		return start
+	}
+	cursor = min(cursor, itemCount-1)
+	if cursor < start {
+		start = cursor
+	} else if cursor >= start+maxRows {
+		start = cursor - maxRows + 1
+	}
+
+	return min(max(start, 0), maxStart)
 }

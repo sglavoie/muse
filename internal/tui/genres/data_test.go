@@ -127,6 +127,24 @@ func TestDeriveGenreArtists_unknownLast(t *testing.T) {
 	}
 }
 
+func TestDeriveGenreArtists_NormalizesLibraryUnknownArtist(t *testing.T) {
+	ts := tracks(
+		struct{ genre, artist, title string }{"Rock", "", "empty"},
+		struct{ genre, artist, title string }{"Rock", libraryUnknownArtist, "fallback"},
+		struct{ genre, artist, title string }{"Rock", "Alice", "known"},
+	)
+	got := DeriveGenreArtists(ts, "Rock")
+	want := []string{"Alice", arttui.UnknownArtist}
+	if len(got) != len(want) {
+		t.Fatalf("want %v, got %v", want, got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("[%d] want %q, got %q", i, want[i], got[i])
+		}
+	}
+}
+
 func TestDeriveGenreArtists_unknownGenre(t *testing.T) {
 	ts := tracks(
 		struct{ genre, artist, title string }{"", "Alice", "t1"},
@@ -172,6 +190,22 @@ func TestDeriveGenreArtistTracks(t *testing.T) {
 		t.Fatalf("want 2 tracks, got %d: %v", len(got), got)
 	}
 	if got[0].Title != "t1" || got[1].Title != "t4" {
+		t.Errorf("unexpected tracks: %v", got)
+	}
+}
+
+func TestDeriveGenreArtistTracks_UnknownArtistIncludesLibrarySentinel(t *testing.T) {
+	ts := tracks(
+		struct{ genre, artist, title string }{"Rock", "", "empty"},
+		struct{ genre, artist, title string }{"Rock", libraryUnknownArtist, "fallback"},
+		struct{ genre, artist, title string }{"Rock", "Alice", "known"},
+		struct{ genre, artist, title string }{"Jazz", libraryUnknownArtist, "other genre"},
+	)
+	got := DeriveGenreArtistTracks(ts, "Rock", arttui.UnknownArtist)
+	if len(got) != 2 {
+		t.Fatalf("want 2 tracks, got %d: %v", len(got), got)
+	}
+	if got[0].Title != "empty" || got[1].Title != "fallback" {
 		t.Errorf("unexpected tracks: %v", got)
 	}
 }

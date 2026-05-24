@@ -36,6 +36,21 @@ func TestRenderColumnsDoNotOverflow(t *testing.T) {
 	}
 }
 
+func TestRenderDegenerateColumnsDoNotOverflow(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+
+	for _, width := range []int{1, 2, 3, 5, 24, 25} {
+		v := View{Index: idx, Width: width, Height: 4}
+		rendered := v.Render()
+
+		for _, line := range strings.Split(rendered, "\n") {
+			if got := ansi.StringWidth(line); got != width {
+				t.Errorf("width=%d: row has %d display columns, want %d: %q", width, got, width, line)
+			}
+		}
+	}
+}
+
 // TestRenderEmptyIndex verifies the empty-library card surfaces its CTAs.
 func TestRenderEmptyIndex(t *testing.T) {
 	v := View{Width: 80, Height: 24}

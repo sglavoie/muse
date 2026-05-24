@@ -8,6 +8,8 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 )
 
+const libraryUnknownArtist = "Unknown Artist"
+
 // DeriveGenres extracts unique genre names from all tracks. Multi-genre tags
 // are split via library.SplitGenres. Tracks with no genre contribute to
 // UnknownGenre. Results are sorted alphabetically with unknowns last.
@@ -79,10 +81,7 @@ func DeriveGenreArtists(tracks []library.Track, genre string) []string {
 		if !trackMatchesGenre(t, raw) {
 			continue
 		}
-		name := t.Artist
-		if name == "" {
-			name = arttui.UnknownArtist
-		}
+		name := displayArtistName(t.Artist)
 		if _, ok := seen[name]; !ok {
 			seen[name] = struct{}{}
 			artists = append(artists, name)
@@ -110,7 +109,7 @@ func DeriveGenreArtistTracks(tracks []library.Track, genre, artist string) []lib
 		if !trackMatchesGenre(t, rawGenre) {
 			continue
 		}
-		if t.Artist == rawArtist {
+		if artistMatches(t.Artist, rawArtist) {
 			result = append(result, t)
 		}
 	}
@@ -140,4 +139,22 @@ func trackMatchesGenre(t library.Track, raw string) bool {
 		return len(genres) == 0 || slices.Contains(genres, UnknownGenre)
 	}
 	return slices.Contains(genres, raw)
+}
+
+func displayArtistName(artist string) string {
+	if isUnknownArtist(artist) {
+		return arttui.UnknownArtist
+	}
+	return artist
+}
+
+func artistMatches(trackArtist, artist string) bool {
+	if isUnknownArtist(artist) {
+		return isUnknownArtist(trackArtist)
+	}
+	return trackArtist == artist
+}
+
+func isUnknownArtist(artist string) bool {
+	return artist == "" || artist == libraryUnknownArtist
 }

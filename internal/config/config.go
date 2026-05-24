@@ -174,27 +174,35 @@ type LoadResult struct {
 // rawConfig mirrors Config but uses pointer types for optional numeric fields
 // so that omitted TOML keys can be distinguished from explicit zero values.
 type rawConfig struct {
-	MusicDirectories           []string         `toml:"music_directories"`
-	ExcludedPaths              []string         `toml:"excluded_paths"`
-	MusicDirectory             string           `toml:"music_directory"` // legacy single-dir field
-	MPVSocketPath              string           `toml:"mpv_socket_path"`
-	MPVExtraFlags              []string         `toml:"mpv_extra_flags"`
-	DefaultVolume              *int             `toml:"default_volume"`
-	LogLevel                   string           `toml:"log_level"`
-	VolumeIncrement            *int             `toml:"volume_increment"`
-	SeekOffsetShort            *float64         `toml:"seek_offset_short"`
-	SeekOffsetLong             *float64         `toml:"seek_offset_long"`
-	TransientDurationSecs      *int             `toml:"transient_duration_secs"`
-	VolumeFeedbackDurationSecs *int             `toml:"volume_feedback_duration_secs"`
-	NormalizeVolume            *bool            `toml:"normalize_volume"`
-	GaplessAudio               *bool            `toml:"gapless_audio"`
-	EQEnabled                  *bool            `toml:"eq_enabled"`
-	EQPreset                   string           `toml:"eq_preset"`
-	EQBands                    *[10]int         `toml:"eq_bands"`
-	EQCustomPresets            []EQCustomPreset `toml:"eq_custom_presets"`
-	StereoWideEnabled          *bool            `toml:"stereo_wide_enabled"`
-	StereoWideAmount           *int             `toml:"stereo_wide_amount"`
-	ShowFooterHints            *bool            `toml:"show_footer_hints"`
-	QueueFollowNowPlaying      *bool            `toml:"queue_follow_now_playing"`
-	Mixes                      rawMixesConfig   `toml:"mixes"`
+	MusicDirectories           []string            `toml:"music_directories"`
+	ExcludedPaths              []string            `toml:"excluded_paths"`
+	MusicDirectory             string              `toml:"music_directory"` // legacy single-dir field
+	MPVSocketPath              string              `toml:"mpv_socket_path"`
+	MPVExtraFlags              []string            `toml:"mpv_extra_flags"`
+	DefaultVolume              *int                `toml:"default_volume"`
+	LogLevel                   string              `toml:"log_level"`
+	VolumeIncrement            *int                `toml:"volume_increment"`
+	SeekOffsetShort            *float64            `toml:"seek_offset_short"`
+	SeekOffsetLong             *float64            `toml:"seek_offset_long"`
+	TransientDurationSecs      *int                `toml:"transient_duration_secs"`
+	VolumeFeedbackDurationSecs *int                `toml:"volume_feedback_duration_secs"`
+	NormalizeVolume            *bool               `toml:"normalize_volume"`
+	GaplessAudio               *bool               `toml:"gapless_audio"`
+	EQEnabled                  *bool               `toml:"eq_enabled"`
+	EQPreset                   string              `toml:"eq_preset"`
+	EQBands                    *[]int              `toml:"eq_bands"`
+	EQCustomPresets            []rawEQCustomPreset `toml:"eq_custom_presets"`
+	StereoWideEnabled          *bool               `toml:"stereo_wide_enabled"`
+	StereoWideAmount           *int                `toml:"stereo_wide_amount"`
+	ShowFooterHints            *bool               `toml:"show_footer_hints"`
+	QueueFollowNowPlaying      *bool               `toml:"queue_follow_now_playing"`
+	Mixes                      rawMixesConfig      `toml:"mixes"`
+}
+
+// rawEQCustomPreset mirrors EQCustomPreset with a slice for bands so an
+// incorrectly sized user entry can be rejected without failing the whole file.
+type rawEQCustomPreset struct {
+	Name  string `toml:"name"`
+	Key   string `toml:"key"`
+	Bands *[]int `toml:"bands"`
 }

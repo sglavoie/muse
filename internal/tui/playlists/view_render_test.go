@@ -221,7 +221,11 @@ func TestRenderListScrollOffsetBeyondCount(t *testing.T) {
 			{ID: 1, Name: "Only"},
 		},
 	}
-	_ = v.Render()
+	out := v.Render()
+
+	if !strings.Contains(out, "Only") {
+		t.Fatalf("expected stale scroll offset to clamp to existing playlist row, got:\n%s", out)
+	}
 }
 
 func TestRenderListNegativeScrollOffsetStartsAtFirstRow(t *testing.T) {
@@ -254,6 +258,9 @@ func TestRenderTracksScrollOffsetBeyondCount(t *testing.T) {
 	out := v.Render()
 	if !strings.Contains(out, "Tracks") {
 		t.Errorf("expected heading in output even with out-of-bounds scroll, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Song A") {
+		t.Fatalf("expected stale scroll offset to clamp to existing track row, got:\n%s", out)
 	}
 }
 

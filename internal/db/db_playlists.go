@@ -58,11 +58,12 @@ type PlaylistTrackRow struct {
 func (d *DB) ReadPlaylists() ([]PlaylistRow, error) {
 	rows, err := d.Query(`
 		SELECT p.id, p.name,
-		       CASE WHEN p.query IS NOT NULL THEN -1 ELSE COUNT(pt.id) END,
+		       CASE WHEN p.query IS NOT NULL THEN -1 ELSE COUNT(t.hash) END,
 		       p.query IS NOT NULL,
 		       COALESCE(p.query, '')
 		FROM playlists p
 		LEFT JOIN playlist_tracks pt ON pt.playlist_id = p.id AND pt.deleted_at IS NULL
+		LEFT JOIN tracks t ON t.hash = pt.track_hash AND t.missing = 0
 		WHERE p.deleted_at IS NULL
 		GROUP BY p.id
 		ORDER BY p.name COLLATE NOCASE
@@ -93,7 +94,7 @@ func (d *DB) ReadPlaylistTracks(playlistID int64) ([]PlaylistTrackRow, error) {
 		SELECT pt.id, pt.position, t.title, t.artist, t.album, t.duration_ms, t.hash, t.path, t.track_number, t.disc_number
 		FROM playlist_tracks pt
 		JOIN tracks t ON pt.track_hash = t.hash
-		WHERE pt.playlist_id = ? AND pt.deleted_at IS NULL
+		WHERE pt.playlist_id = ? AND pt.deleted_at IS NULL AND t.missing = 0
 		ORDER BY pt.position
 	`, playlistID)
 	if err != nil {

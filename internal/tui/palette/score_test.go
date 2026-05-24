@@ -15,6 +15,24 @@ func TestMatchEmptyQueryMatches(t *testing.T) {
 	}
 }
 
+func TestMatchTrimsQueryWhitespace(t *testing.T) {
+	score, ok := Match("  reveal  ", "Reveal in Finder")
+	if !ok {
+		t.Fatalf("query with surrounding whitespace should match")
+	}
+	if score <= 0 {
+		t.Errorf("expected positive score, got %d", score)
+	}
+
+	score, ok = Match(" \t\n ", "Reveal in Finder")
+	if !ok {
+		t.Fatalf("whitespace-only query should match as empty query")
+	}
+	if score != 0 {
+		t.Errorf("whitespace-only query score: want 0, got %d", score)
+	}
+}
+
 func TestMatchExactBeatsPrefixBeatsSubsequence(t *testing.T) {
 	exact, okE := Match("reveal in finder", "Reveal in Finder")
 	prefix, okP := Match("reveal", "Reveal in Finder")

@@ -200,20 +200,7 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 	copy(pool, scored[:poolSize])
 	nextIdx := poolSize
 
-	// Sanitize maxArtistFraction: NaN, negative, and >1 values all collapse to
-	// "one per artist" or "no cap" respectively. Without this guard a NaN
-	// fraction yields NaN through math.Ceil and an undefined int conversion,
-	// which on amd64 produces an extreme negative value and silently disables
-	// the per-artist cap.
-	if math.IsNaN(maxArtistFraction) || maxArtistFraction <= 0 {
-		maxArtistFraction = 0
-	} else if maxArtistFraction > 1 {
-		maxArtistFraction = 1
-	}
-	maxPerArtist := int(math.Ceil(float64(n) * maxArtistFraction))
-	if maxPerArtist < 1 {
-		maxPerArtist = 1
-	}
+	maxPerArtist := maxTracksPerArtist(n, maxArtistFraction)
 
 	artistCount := make(map[string]int)
 	pickedHashes := make(map[string]struct{})
@@ -321,6 +308,21 @@ func normalizedGenreBonusMap(bonuses map[string]float64) map[string]float64 {
 
 func normalizedGenreKey(genre string) string {
 	return strings.ToLower(strings.TrimSpace(genre))
+}
+
+func maxTracksPerArtist(n int, maxArtistFraction float64) int {
+	if math.IsNaN(maxArtistFraction) || maxArtistFraction <= 0 {
+		return 1
+	}
+	if maxArtistFraction >= 1 {
+		return n
+	}
+
+	maxPerArtist := int(math.Ceil(float64(n) * maxArtistFraction))
+	if maxPerArtist < 1 {
+		return 1
+	}
+	return maxPerArtist
 }
 
 func collectEligible(pool []TrackScore, artistCount map[string]int, pickedHashes map[string]struct{}, maxPerArtist int) ([]int, []float64, float64, bool) {

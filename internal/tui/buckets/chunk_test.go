@@ -72,6 +72,19 @@ func TestChunkMaxRowsCap(t *testing.T) {
 	}
 }
 
+func TestChunkHugeMaxRowsDoesNotAllocateHugeCapacity(t *testing.T) {
+	rows := makeRows(1)
+	labels := []string{"A"}
+	out := Chunk(rows, labels, ChunkOptions{
+		MaxRows:          int(^uint(0) >> 1),
+		MakeBucketHeader: func(s string) string { return "[" + s + "]" },
+	})
+	want := []string{"[A]", "row"}
+	if strings.Join(out, "|") != strings.Join(want, "|") {
+		t.Errorf("got %v, want %v", out, want)
+	}
+}
+
 // TestChunkBucketHeaderSuppressesDivider guards a visual bug where a row
 // that triggers both a new bucket header and the periodic divider
 // rendered as: "[B]" + "─" + row, putting a redundant divider between

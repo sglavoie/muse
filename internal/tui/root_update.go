@@ -213,9 +213,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.handleSmartPlaylistCountsUpdatedMsg(msg)
 
 	case listeningStatsMsg:
+		if msg.periodIdx != m.statsPeriod {
+			return m, nil
+		}
 		panel := StatsPanel{
 			stats:       msg.stats,
-			periodLabel: statsPeriods[m.statsPeriod].label,
+			periodLabel: statsPeriodLabel(msg.periodIdx),
 			err:         msg.err,
 		}
 		m.statsViewport.SetContent(panel.render(*m.styles))

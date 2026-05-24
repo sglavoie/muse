@@ -320,7 +320,7 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 	for _, r := range rows {
 		missing := r.Missing
 		if !missing {
-			if _, statErr := os.Stat(r.Path); statErr != nil {
+			if !playableFileExists(r.Path) {
 				missing = true
 				if err := writer.MarkQueueEntryMissing(r.ID); err != nil {
 					slog.Warn("mark queue entry missing", "id", r.ID, "err", err)
@@ -332,7 +332,7 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 		} else {
 			// Re-stat previously-missing entries: if the file has reappeared,
 			// clear the stale missing flags so the player restore can proceed.
-			if _, statErr := os.Stat(r.Path); statErr == nil {
+			if playableFileExists(r.Path) {
 				missing = false
 				if err := writer.ClearTrackMissing(r.Hash); err != nil {
 					slog.Warn("clear track missing", "hash", r.Hash, "err", err)
@@ -425,6 +425,11 @@ func buildDisplay(artist, title, path string) string {
 		return artist
 	}
 	return artist + " – " + title
+}
+
+func playableFileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular()
 }
 
 // parseRepeatMode converts a DB repeat_mode string to a tui.RepeatMode.

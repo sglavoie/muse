@@ -39,7 +39,7 @@ type Columns struct {
 func Compute(totalWidth int) Columns {
 	minWidth := selectionMarkerFixed + trackNumFixed + durationFixed + sepCount
 	if totalWidth <= minWidth {
-		return Columns{SelectionMarker: selectionMarkerFixed, TrackNum: min(totalWidth, trackNumFixed)}
+		return computeDegenerate(totalWidth)
 	}
 
 	flex := totalWidth - selectionMarkerFixed - trackNumFixed - durationFixed - sepCount
@@ -72,7 +72,7 @@ func ComputeWithPlayedAt(totalWidth int) Columns {
 func computeWithDateCol(totalWidth, dateColWidth int) Columns {
 	minWidth := selectionMarkerFixed + trackNumFixed + durationFixed + dateColWidth + sepCountWithDate
 	if totalWidth <= minWidth {
-		return Columns{SelectionMarker: selectionMarkerFixed, TrackNum: min(totalWidth, trackNumFixed)}
+		return computeDegenerate(totalWidth)
 	}
 
 	flex := totalWidth - selectionMarkerFixed - trackNumFixed - durationFixed - dateColWidth - sepCountWithDate
@@ -88,5 +88,13 @@ func computeWithDateCol(totalWidth, dateColWidth int) Columns {
 		Album:           album,
 		Duration:        durationFixed,
 		DateAdded:       dateColWidth,
+	}
+}
+
+func computeDegenerate(totalWidth int) Columns {
+	selection := min(max(totalWidth, 0), selectionMarkerFixed)
+	return Columns{
+		SelectionMarker: selection,
+		TrackNum:        max(0, totalWidth-selection),
 	}
 }

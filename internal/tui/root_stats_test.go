@@ -1,7 +1,13 @@
 package tui
 
 import (
+	"context"
+	"strings"
 	"testing"
+
+	"charm.land/bubbles/v2/viewport"
+
+	"github.com/sglavoie/muse/internal/db"
 )
 
 func TestSinceUnixForPeriod_AllTime(t *testing.T) {
@@ -31,6 +37,43 @@ func TestSinceUnixForPeriod_OutOfBounds(t *testing.T) {
 	}
 	if got := sinceUnixForPeriod(999); got != 0 {
 		t.Errorf("large index: got %d, want 0", got)
+	}
+}
+
+func TestStatsUpdateDiscardsStalePeriodResult(t *testing.T) {
+	m := New(context.Background())
+	m.statsPeriod = 2 // Last 30 Days
+	m.statsViewport = viewport.New(viewport.WithWidth(80), viewport.WithHeight(10))
+	m.statsViewport.SetContent("original stats")
+
+	next, cmd := m.Update(listeningStatsMsg{
+		periodIdx: 1, // Last 7 Days, from an older request
+		stats:     db.ListeningStats{TotalPlays: 42},
+	})
+	if cmd != nil {
+		t.Fatal("expected no command for stale stats result")
+	}
+	got := next.(Model).statsViewport.View()
+	if !strings.Contains(got, "original stats") {
+		t.Fatalf("stale stats result replaced viewport content: %q", got)
+	}
+}
+
+func TestStatsUpdateUsesMessagePeriodLabel(t *testing.T) {
+	m := New(context.Background())
+	m.statsPeriod = 1
+	m.statsViewport = viewport.New(viewport.WithWidth(80), viewport.WithHeight(10))
+
+	next, cmd := m.Update(listeningStatsMsg{
+		periodIdx: 1,
+		stats:     db.ListeningStats{TotalPlays: 1},
+	})
+	if cmd != nil {
+		t.Fatal("expected no command for stats result")
+	}
+	got := next.(Model).statsViewport.View()
+	if !strings.Contains(got, "Last 7 Days") {
+		t.Fatalf("stats viewport missing requested period label: %q", got)
 	}
 }
 

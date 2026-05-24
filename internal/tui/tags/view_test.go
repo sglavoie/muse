@@ -364,6 +364,27 @@ func TestRenderTagsWithNegativeScrollOffsetDoesNotPanic(t *testing.T) {
 	}
 }
 
+func TestRenderTagsWithHighScrollOffsetShowsLastWindow(t *testing.T) {
+	v := View{
+		Level:        TagLevel,
+		Width:        20,
+		Height:       2,
+		ScrollOffset: 50,
+		Tags: []db.TagRow{
+			{ID: 1, Name: "alpha"},
+			{ID: 2, Name: "beta"},
+			{ID: 3, Name: "gamma"},
+		},
+		TagCounts: map[int64]int{1: 1, 2: 1, 3: 1},
+	}
+
+	out := v.Render()
+
+	if !strings.Contains(out, "gamma") {
+		t.Fatalf("expected render to clamp high scroll and include last tag, got:\n%s", out)
+	}
+}
+
 func TestRenderTracksWithNegativeScrollOffsetDoesNotPanic(t *testing.T) {
 	v := View{
 		Level:        TrackLevel,
@@ -379,6 +400,26 @@ func TestRenderTracksWithNegativeScrollOffsetDoesNotPanic(t *testing.T) {
 
 	if !strings.Contains(out, "first") {
 		t.Fatalf("expected render to clamp negative scroll and include first track, got:\n%s", out)
+	}
+}
+
+func TestRenderTracksWithHighScrollOffsetShowsLastWindow(t *testing.T) {
+	v := View{
+		Level:        TrackLevel,
+		Width:        80,
+		Height:       5,
+		ScrollOffset: 50,
+		Tracks: []db.PlaylistTrackRow{
+			{ID: 1, Title: "first", Artist: "artist", Album: "album"},
+			{ID: 2, Title: "second", Artist: "artist", Album: "album"},
+			{ID: 3, Title: "third", Artist: "artist", Album: "album"},
+		},
+	}
+
+	out := v.Render()
+
+	if !strings.Contains(out, "third") {
+		t.Fatalf("expected render to clamp high scroll and include last track, got:\n%s", out)
 	}
 }
 
