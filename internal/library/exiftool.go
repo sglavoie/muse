@@ -364,6 +364,7 @@ func ExtractBatches(ctx context.Context, extractor MetadataExtractor, in <-chan 
 	go func() {
 		defer close(out)
 		batch := make([]HashedFile, 0, exiftoolBatchSize)
+		cancelled := false
 		flush := func() {
 			if len(batch) == 0 {
 				return
@@ -373,24 +374,34 @@ func ExtractBatches(ctx context.Context, extractor MetadataExtractor, in <-chan 
 			slog.Info("scan batch complete", "tracks", len(tracks))
 			batch = batch[:0]
 			for _, t := range tracks {
+				if cancelled {
+					return
+				}
 				select {
 				case out <- t:
 				case <-ctx.Done():
-					// Drop remaining tracks rather than blocking on a
-					// consumer that has gone away; the upstream HashedFile
-					// channel must still be drained so the hash-worker
-					// goroutines can exit cleanly.
+					// Stop trying to emit tracks, but keep draining `in` so
+					// the upstream hash-worker goroutines blocked on
+					// `out <- HashedFile{...}` can exit and close `in`.
+					// Returning early here without draining would leak the
+					// entire pipeline (hash workers + walker).
+					cancelled = true
 					return
 				}
 			}
 		}
 		for hf := range in {
+			if cancelled {
+				continue // drain `in` so upstream goroutines can exit
+			}
 			batch = append(batch, hf)
 			if len(batch) >= exiftoolBatchSize {
 				flush()
 			}
 		}
-		flush()
+		if !cancelled {
+			flush()
+		}
 	}()
 	return out
 }

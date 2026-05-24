@@ -445,20 +445,27 @@ func libraryStripLabel(mode LibraryMode) string {
 
 // formatCount formats n with comma separators (e.g. 1234 → "1,234").
 func formatCount(n int) string {
-	if n < 0 {
-		return "-" + formatCount(-n)
+	// Format via %d so math.MinInt prints correctly; then operate on the
+	// digit string directly. The obvious `formatCount(-n)` recursion would
+	// loop forever when n == math.MinInt because -math.MinInt overflows
+	// back to math.MinInt.
+	raw := fmt.Sprintf("%d", n)
+	sign := ""
+	digits := raw
+	if len(raw) > 0 && raw[0] == '-' {
+		sign = "-"
+		digits = raw[1:]
 	}
-	s := fmt.Sprintf("%d", n)
-	if len(s) <= 3 {
-		return s
+	if len(digits) <= 3 {
+		return sign + digits
 	}
-	offset := len(s) % 3
+	offset := len(digits) % 3
 	var result []byte
-	for i := range len(s) {
+	for i := range len(digits) {
 		if i > 0 && (i-offset)%3 == 0 {
 			result = append(result, ',')
 		}
-		result = append(result, s[i])
+		result = append(result, digits[i])
 	}
-	return string(result)
+	return sign + string(result)
 }

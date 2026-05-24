@@ -68,6 +68,62 @@ func TestManager_Stop_MirrorsPauseState(t *testing.T) {
 	}
 }
 
+// TestManager_Stop_MirrorsPauseStateEvenWhenSeekFails verifies that Stop
+// mirrors lastPaused=true after the pause command succeeds, even if the
+// follow-up seek fails. Without the mirror happening between the two
+// commands, an auto-restart firing after pause-applied-but-seek-failed
+// would resume the track in the playing state and break user expectations.
+func TestManager_Stop_MirrorsPauseStateEvenWhenSeekFails(t *testing.T) {
+	sock := shortSockPath(t, "stop-mirror-seekfail")
+
+	var mu sync.Mutex
+	var received [][]any
+
+	// Custom handler: succeed for set_property pause=true, but error for seek.
+	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
+		cmd, _ := req["command"].([]any)
+		if len(cmd) > 0 {
+			mu.Lock()
+			received = append(received, cmd)
+			mu.Unlock()
+		}
+		if len(cmd) > 0 {
+			if verb, _ := cmd[0].(string); verb == "seek" {
+				return map[string]any{
+					"error":      "property unavailable",
+					"data":       nil,
+					"request_id": req["request_id"],
+				}
+			}
+		}
+		return successHandler(req)
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{ctx: ctx, cancel: cancel, prefetchedIndex: -1}
+	t.Cleanup(func() { m.Close() })
+
+	client, err := NewIPCClient(sock)
+	if err != nil {
+		t.Fatalf("NewIPCClient: %v", err)
+	}
+	m.mu.Lock()
+	m.client = client
+	m.lastPaused = false // start from playing
+	m.mu.Unlock()
+
+	if err := m.Stop(); err == nil {
+		t.Fatal("Stop with failing seek: expected error, got nil")
+	}
+
+	m.mu.RLock()
+	got := m.lastPaused
+	m.mu.RUnlock()
+	if !got {
+		t.Errorf("lastPaused = false after Stop when pause succeeded but seek failed; want true (pause was applied)")
+	}
+}
+
 // TestManager_LoadFilePaused_MirrorsPauseState verifies that LoadFilePaused
 // updates lastPaused to true so an auto-restart preserves the paused state.
 func TestManager_LoadFilePaused_MirrorsPauseState(t *testing.T) {

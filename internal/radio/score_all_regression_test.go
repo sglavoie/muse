@@ -293,6 +293,33 @@ func TestScoreAll_TimeGenreBonusInputVariantsDoNotStack(t *testing.T) {
 	}
 }
 
+// Regression: a CompletionRates value of +Inf must not silently grant the
+// high-listener bonus, and -Inf must not silently apply the skipper penalty.
+// Corrupted stored values would otherwise inject unintended ±score deltas
+// from a meaningless underlying signal.
+func TestScoreAll_CompletionRateRejectsNaNAndInf(t *testing.T) {
+	seed := track("s1", "", "", "", 0)
+	nanTrack := track("t1", "", "", "", 0)
+	posInf := track("t2", "", "", "", 0)
+	negInf := track("t3", "", "", "", 0)
+	got := ScoreAll(ScoreInput{
+		Seed:      seedFrom(seed, nil, nil),
+		AllTracks: []library.Track{nanTrack, posInf, negInf},
+		CompletionRates: map[string]float64{
+			"t1": math.NaN(),
+			"t2": math.Inf(1),
+			"t3": math.Inf(-1),
+		},
+	})
+	scoreByHash := scoresByHash(got)
+	for _, hash := range []string{"t1", "t2", "t3"} {
+		if scoreByHash[hash] != 0 {
+			t.Errorf("track %s should score 0 against NaN/Inf completion rate, got %f",
+				hash, scoreByHash[hash])
+		}
+	}
+}
+
 // Regression: A seed with a whitespace-only Artist or Album must not match
 // candidates whose Artist/Album is also whitespace-only or empty. Without the
 // "trimmed != \"\"" guard, EqualFold("", "") would return true and every empty

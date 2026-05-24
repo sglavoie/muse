@@ -61,7 +61,25 @@ func (v View) Render() string {
 	}
 
 	maxRows := v.visibleRows()
-	start := min(max(0, v.ScrollOffset), len(display))
+	// Clamp ScrollOffset against (len-maxRows), not len: an offset past the
+	// last visible window slice would render an empty body even though items
+	// (and possibly the cursor) still exist after a delete/filter shrunk the
+	// list.
+	maxStart := 0
+	if maxRows > 0 && len(display) > maxRows {
+		maxStart = len(display) - maxRows
+	}
+	start := min(max(0, v.ScrollOffset), maxStart)
+	if v.Cursor >= 0 && v.Cursor < len(display) {
+		if v.Cursor < start {
+			start = v.Cursor
+		} else if maxRows > 0 && v.Cursor >= start+maxRows {
+			start = v.Cursor - maxRows + 1
+		}
+		if start < 0 {
+			start = 0
+		}
+	}
 	end := min(len(display), start+maxRows)
 
 	if v.Width == 0 {

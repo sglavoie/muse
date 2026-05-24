@@ -199,6 +199,81 @@ func TestExtractBatches_CancelledContextDrainsInputWithoutDeadlock(t *testing.T)
 	}
 }
 
+// TestExtractBatches_CancelledMidStreamDrainsUpstream verifies that when
+// ExtractBatches' context is cancelled while upstream is still producing,
+// ExtractBatches drains its input channel so the upstream HashWorkers
+// goroutines (which send unconditionally on their output) can exit. Without
+// the drain, the hash workers block on `out <- HashedFile{...}` forever and
+// the pipeline leaks. Distinct from
+// TestExtractBatches_CancelledContextDrainsInputWithoutDeadlock above in
+// that the upstream HashWorkers goroutines are actually running here, so a
+// missing drain would leak them indefinitely.
+func TestExtractBatches_CancelledMidStreamDrainsUpstream(t *testing.T) {
+	pathCh := make(chan string)
+	hashFn := func(p string) (string, error) { return "h", nil }
+	hashOut := hashWorkersN(4, pathCh, hashFn)
+
+	// Bridge HashedFile values from hashWorkersN's output to ExtractBatches'
+	// input but use the existing file on disk so the post-hash os.Stat
+	// succeeds — hashWorkersN drops emissions whose path fails Stat, which
+	// would prevent the leak path from being exercised.
+	dir := t.TempDir()
+	realPath := filepath.Join(dir, "song.mp3")
+	if err := os.WriteFile(realPath, []byte("x"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	out := ExtractBatches(ctx, &fakeExtractor{}, hashOut)
+
+	// Feed paths in a goroutine; if the pipeline leaks, this goroutine
+	// also stays blocked. We supply enough paths that ExtractBatches'
+	// internal batch fills before we cancel.
+	producerDone := make(chan struct{})
+	go func() {
+		defer close(producerDone)
+		defer close(pathCh)
+		for i := 0; i < 5000; i++ {
+			select {
+			case pathCh <- realPath:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	// Receive a few outputs so the pipeline is actively flowing, then cancel.
+	for i := 0; i < 3; i++ {
+		select {
+		case <-out:
+		case <-time.After(2 * time.Second):
+			cancel()
+			t.Fatalf("did not receive expected output before cancel")
+		}
+	}
+	cancel()
+
+	// After cancel, ExtractBatches must drain `hashOut` so the hash workers
+	// (blocked on `out <- HashedFile{...}`) can exit and close their channel.
+	drained := make(chan struct{})
+	go func() {
+		for range out {
+		}
+		close(drained)
+	}()
+
+	select {
+	case <-drained:
+	case <-time.After(5 * time.Second):
+		t.Fatal("ExtractBatches output channel never closed; upstream pipeline leaked")
+	}
+	select {
+	case <-producerDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("path producer goroutine never returned; HashWorkers must have leaked")
+	}
+}
+
 // TestCoerceFloat_NegativeNaNInfNormalized verifies that pathological
 // numeric durations emitted by exiftool (negative, NaN, +Inf, -Inf) are
 // normalised to 0 so they cannot corrupt downstream duration arithmetic.

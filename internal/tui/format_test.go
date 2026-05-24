@@ -1,6 +1,9 @@
 package tui
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestTrackDisplay(t *testing.T) {
 	tests := []struct {
@@ -43,5 +46,18 @@ func TestFormatCount(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("formatCount(%d) = %q, want %q", tt.input, got, tt.want)
 		}
+	}
+}
+
+// formatCount previously recursed via formatCount(-n), which for math.MinInt
+// overflows back to math.MinInt and loops forever. Guard against regressions.
+func TestFormatCount_MinInt(t *testing.T) {
+	got := formatCount(math.MinInt)
+	if got == "" || got[0] != '-' {
+		t.Fatalf("formatCount(math.MinInt) = %q; expected non-empty negative", got)
+	}
+	// Sanity: at least it should contain commas (every 64-bit MinInt has > 3 digits).
+	if len(got) < 5 {
+		t.Errorf("formatCount(math.MinInt) = %q; expected long comma-formatted output", got)
 	}
 }

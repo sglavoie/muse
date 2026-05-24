@@ -95,14 +95,15 @@ func (m *Manager) Stop() error {
 	if _, err = c.SendCommand(cmdSetProperty, propPause, true); err != nil {
 		return err
 	}
-	if _, err = c.SendCommand(cmdSeek, 0, "absolute"); err != nil {
-		return err
-	}
-	// Mirror the requested pause state so an auto-restart firing before
-	// the property-change event arrives resumes in the correct state.
+	// Pause has been applied to mpv. Mirror it immediately so an auto-restart
+	// firing before the property-change event arrives preserves the paused
+	// state even if the subsequent seek fails.
 	m.mu.Lock()
 	m.lastPaused = true
 	m.mu.Unlock()
+	if _, err = c.SendCommand(cmdSeek, 0, "absolute"); err != nil {
+		return err
+	}
 	return nil
 }
 

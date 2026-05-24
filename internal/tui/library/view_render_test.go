@@ -440,3 +440,22 @@ func TestGeneralSearchHighlightsAlbumColumn(t *testing.T) {
 		t.Errorf("expected bold 'Debut' in album column for general search matching album, got:\n%q", got)
 	}
 }
+
+// TestRenderStaleScrollOffsetShowsRowsAtCursor regression-tests a render path
+// where a ScrollOffset that exceeded the (now shrunk) track count caused the
+// body slice to start at len(display), producing an empty body even though the
+// cursor pointed at a valid row.
+func TestRenderStaleScrollOffsetShowsRowsAtCursor(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{
+		Index:        idx,
+		Width:        80,
+		Height:       24,
+		Cursor:       0,
+		ScrollOffset: 999,
+	}
+	got := v.Render()
+	if !strings.Contains(got, "Alice") {
+		t.Fatalf("expected stale ScrollOffset to clamp so first track renders, got:\n%s", got)
+	}
+}

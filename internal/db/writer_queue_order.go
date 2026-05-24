@@ -93,6 +93,45 @@ func setGappedOrderTx(tx *sql.Tx, table, scopeFilter string, scopeArgs []any, id
 		}
 	}
 
+	// Active rows in scope but not in ids whose positions fall in the target
+	// range [gap, N*gap] would violate the unique (scope, position) index when
+	// phase 3 assigns those same positions to the reordered rows. Relocate them
+	// to safe positions above tempBase. Targets are already in the temp zone
+	// (above maxNewPos), so they will not appear in this scan.
+	activeRows, err := tx.Query(
+		fmt.Sprintf(
+			`SELECT id, position FROM %s WHERE deleted_at IS NULL AND position >= ? AND position <= ? %s`,
+			table, scopeFilter,
+		),
+		withScope(queuePositionGap, maxNewPos)...,
+	)
+	if err != nil {
+		return err
+	}
+	var displaced []row
+	for activeRows.Next() {
+		var r row
+		if err := activeRows.Scan(&r.id, &r.position); err != nil {
+			activeRows.Close()
+			return err
+		}
+		displaced = append(displaced, r)
+	}
+	activeRows.Close()
+	if err := activeRows.Err(); err != nil {
+		return err
+	}
+	displacedBase := tempBase + int64(len(ids)+1)*queuePositionGap
+	for i, r := range displaced {
+		safePos := displacedBase + int64(i+1)*queuePositionGap
+		if _, err := tx.Exec(
+			fmt.Sprintf(`UPDATE %s SET position=? WHERE id=? %s`, table, scopeFilter),
+			withScope(safePos, r.id)...,
+		); err != nil {
+			return err
+		}
+	}
+
 	for i, id := range ids {
 		pos := int64(i+1) * queuePositionGap
 		if _, err := tx.Exec(

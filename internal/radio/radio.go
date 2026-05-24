@@ -130,9 +130,12 @@ func ScoreAll(input ScoreInput) []TrackScore {
 			}
 		}
 
-		// Completion rate: +4 for high listeners, -3 for skippers.
+		// Completion rate: +4 for high listeners, -3 for skippers. Reject
+		// NaN/Inf to avoid spurious boosts/penalties from a corrupted stored
+		// value: +Inf would silently grant the high-listener bonus and -Inf
+		// the skipper penalty even though the underlying data is meaningless.
 		if hasTrackHash && input.CompletionRates != nil {
-			if rate, ok := input.CompletionRates[trackHash]; ok {
+			if rate, ok := input.CompletionRates[trackHash]; ok && !math.IsNaN(rate) && !math.IsInf(rate, 0) {
 				if rate >= 0.8 {
 					score += 4
 				}
