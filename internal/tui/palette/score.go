@@ -166,9 +166,9 @@ func usageBonus(query string, count int, lastUsed time.Time) int {
 	if query == "" || count <= 0 {
 		return 0
 	}
-	bonus := count * 8
-	if bonus > scoreUsageMaxBonus {
-		bonus = scoreUsageMaxBonus
+	bonus := scoreUsageMaxBonus
+	if count < scoreUsageMaxBonus/8 {
+		bonus = count * 8
 	}
 	if age := time.Since(lastUsed); !lastUsed.IsZero() && age >= 0 && age < 24*time.Hour {
 		bonus += scoreUsageRecent

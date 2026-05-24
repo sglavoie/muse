@@ -119,9 +119,13 @@ func (v View) scrollRows() int {
 
 // visibleRows returns the maximum number of track rows that fit on screen.
 func (v View) visibleRows() int {
-	reserve := 1 // column header
-	if v.Filter.Active || v.Filter.Text != "" {
-		reserve++
+	if v.Width == 0 {
+		reserve := 0
+		if v.Filter.Active || v.Filter.Text != "" {
+			reserve = 1
+		}
+		return layout.VisibleRows(v.Height, reserve)
 	}
+	reserve := 2 // state strip + column header
 	return layout.VisibleRows(v.Height, reserve)
 }

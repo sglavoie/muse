@@ -206,6 +206,31 @@ func TestPasteWhileFiltered(t *testing.T) {
 	}
 }
 
+// TestPasteWhileTagFiltered verifies paste is blocked when a cross-view tag
+// filter is active because the visible cursor is not an underlying insert
+// position.
+func TestPasteWhileTagFiltered(t *testing.T) {
+	qa := &stubQueueAppender{}
+	m := New(context.Background(), WithQueueWriter(qa))
+	m.activeView = viewQueue
+	m.queue.entries = sampleQueueEntries()
+	m.yankBuffer = []QueueEntry{m.queue.entries[0]}
+	m.queue.tagFilterHashes = map[string]struct{}{"h2": {}, "h3": {}}
+
+	rm, cmd, handled := m.handleQueueKeyAction(actionPaste)
+	m = rm.(Model)
+
+	if !handled {
+		t.Fatal("actionPaste should be handled")
+	}
+	if cmd != nil {
+		t.Fatal("expected nil cmd when tag-filtered")
+	}
+	if !strings.Contains(m.statusBar.topNotification().msg, "Cannot paste") {
+		t.Errorf("expected 'Cannot paste' notification, got %q", m.statusBar.topNotification().msg)
+	}
+}
+
 // TestPasteAdjustsCurrentIndex verifies that pasting before the currently
 // playing track shifts currentIndex forward.
 func TestPasteAdjustsCurrentIndex(t *testing.T) {

@@ -263,6 +263,29 @@ func TestLoad_MPVExtraFlags_EmptyEntriesDropped(t *testing.T) {
 	}
 }
 
+// TestLoad_MPVExtraFlags_WhitespaceTrimmed ensures that flag strings are
+// passed to mpv exactly as option tokens. Surrounding whitespace would become
+// part of argv and cause mpv to reject otherwise valid options.
+func TestLoad_MPVExtraFlags_WhitespaceTrimmed(t *testing.T) {
+	dir := t.TempDir()
+	content := `mpv_extra_flags = ["  --no-video  ", "\t--volume=80\t"]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	got := result.Config.MPVExtraFlags
+	if len(got) != 2 {
+		t.Fatalf("MPVExtraFlags: expected 2 entries, got %d (%v)", len(got), got)
+	}
+	if got[0] != "--no-video" || got[1] != "--volume=80" {
+		t.Errorf("MPVExtraFlags = %v, want [--no-video --volume=80]", got)
+	}
+}
+
 // TestLoad_EQCustomPresets_KeyWhitespaceTrimmed verifies that custom EQ
 // presets with whitespace-padded keys are accepted with the key normalised,
 // so lookups (which use a trimmed key) succeed instead of silently failing.

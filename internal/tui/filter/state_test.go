@@ -124,6 +124,19 @@ func TestPublicTextChangeAfterInitialization(t *testing.T) {
 	}
 }
 
+func TestCommitHonorsPublicTextChangeAfterInitialization(t *testing.T) {
+	s, _ := New().Activate()
+	s, _ = s.Update(tea.KeyPressMsg{Text: "x"})
+	s = s.Commit()
+
+	s.Text = "AB"
+	s.Active = true
+	s = s.Commit()
+	if s.Text != "AB" {
+		t.Errorf("commit after externally changed Text: want Text=%q, got %q", "AB", s.Text)
+	}
+}
+
 func TestDirectReactivateAfterCommitKeepsInputFocused(t *testing.T) {
 	s, _ := New().Activate()
 	s, _ = s.Update(tea.KeyPressMsg{Text: "a"})

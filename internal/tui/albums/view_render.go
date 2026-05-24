@@ -25,6 +25,7 @@ func (v View) renderAlbums() string {
 	if len(v.Albums) == 0 {
 		return v.Styles.Dim.Render("No albums yet — add music to your library")
 	}
+	width := contentWidth(v.Width)
 	stripLine := v.renderStateStrip(len(v.Albums), len(items))
 	if len(items) == 0 {
 		return joinStrip(stripLine, "(no matches)")
@@ -38,7 +39,7 @@ func (v View) renderAlbums() string {
 		absIdx := start + i
 		_, isFav := v.FavoriteAlbums[name]
 		isOdd := absIdx%2 == 1
-		labelW, countStr := rowLabelWidthAndCount(v.Width, v.AlbumCounts, name)
+		labelW, countStr := rowLabelWidthAndCount(width, v.AlbumCounts, name)
 		label := text.FavPrefix(name, labelW, isFav)
 		switch {
 		case absIdx == v.Cursor && isFav:
@@ -86,12 +87,13 @@ func (v View) renderTracks() string {
 	if len(v.Tracks) == 0 {
 		return v.Styles.Dim.Render("No tracks found for this album")
 	}
+	width := contentWidth(v.Width)
 	stripLine := v.renderStateStrip(len(v.Tracks), len(items))
 	if len(items) == 0 {
 		return joinStrip(stripLine, "(no matches)")
 	}
 
-	cols := ComputeTrack(v.Width)
+	cols := ComputeTrack(width)
 
 	header := strings.Repeat(" ", cols.SelectionMarker) + v.Styles.ColHead.Render(
 		text.Pad("#", cols.Position)+" "+
@@ -240,6 +242,13 @@ func joinStrip(stripLine, body string) string {
 		return body
 	}
 	return stripLine + "\n" + body
+}
+
+func contentWidth(width int) int {
+	if width > 0 {
+		return width
+	}
+	return 80
 }
 
 func visibleWindow(scrollOffset, itemCount, maxRows int) (int, int) {

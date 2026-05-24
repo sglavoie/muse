@@ -39,6 +39,9 @@ func (s State) Activate() (State, tea.Cmd) {
 // Text is preserved as-is rather than being overwritten by the zero-value input.
 func (s State) Commit() State {
 	if s.initialized {
+		if s.input.Value() != s.Text {
+			s.input = newInput(s.Text)
+		}
 		s.Text = s.input.Value()
 		s.input.Blur()
 	}

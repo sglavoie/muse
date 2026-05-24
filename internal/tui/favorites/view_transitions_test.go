@@ -22,6 +22,33 @@ func TestOpenList_TransitionsToCategoryLevel(t *testing.T) {
 	}
 }
 
+func TestOpenList_ClampsStaleCategoryCursor(t *testing.T) {
+	tests := []struct {
+		name         string
+		cursor       int
+		wantCursor   int
+		wantCategory Category
+	}{
+		{name: "negative", cursor: -4, wantCursor: 0, wantCategory: CategoryArtists},
+		{name: "too high", cursor: 9, wantCursor: 2, wantCategory: CategoryTracks},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := View{Level: CategoryLevel, Cursor: tt.cursor}
+			v2 := v.OpenList()
+			if v2.Cursor != 0 {
+				t.Fatalf("expected list cursor reset to 0, got %d", v2.Cursor)
+			}
+			if v2.CategoryCursor != tt.wantCursor {
+				t.Errorf("expected saved category cursor=%d, got %d", tt.wantCursor, v2.CategoryCursor)
+			}
+			if v2.Category != tt.wantCategory {
+				t.Errorf("expected category=%d, got %d", tt.wantCategory, v2.Category)
+			}
+		})
+	}
+}
+
 func TestOpenTracks_TransitionsToTrackLevel(t *testing.T) {
 	v := View{
 		Level:        ListLevel,
@@ -68,6 +95,34 @@ func TestBack_FromListLevel(t *testing.T) {
 	}
 	if v2.SelectedItems != nil {
 		t.Error("expected SelectedItems cleared")
+	}
+}
+
+func TestBack_FromListLevelClampsStaleCategoryCursor(t *testing.T) {
+	tests := []struct {
+		name           string
+		categoryCursor int
+		wantCursor     int
+	}{
+		{name: "negative", categoryCursor: -2, wantCursor: 0},
+		{name: "too high", categoryCursor: 7, wantCursor: 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := View{
+				Level:          ListLevel,
+				Category:       CategoryArtists,
+				Artists:        []string{"A"},
+				CategoryCursor: tt.categoryCursor,
+			}
+			v2 := v.Back()
+			if v2.Level != CategoryLevel {
+				t.Fatalf("expected CategoryLevel, got %v", v2.Level)
+			}
+			if v2.Cursor != tt.wantCursor {
+				t.Errorf("expected cursor=%d, got %d", tt.wantCursor, v2.Cursor)
+			}
+		})
 	}
 }
 

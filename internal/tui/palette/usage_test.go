@@ -21,6 +21,19 @@ func TestUsageStoreBumpIncrementsAndStampsTime(t *testing.T) {
 	}
 }
 
+func TestUsageStoreBumpSaturatesAtMaxCount(t *testing.T) {
+	store := NewUsageStore("")
+	store.records["foo"] = UsageRecord{Count: maxUsageCount}
+	store.Bump("foo")
+	rec := store.Get("foo")
+	if rec.Count != maxUsageCount {
+		t.Errorf("count should saturate at max int; got %d", rec.Count)
+	}
+	if rec.LastUsed.IsZero() {
+		t.Errorf("LastUsed should still be updated when saturated")
+	}
+}
+
 func TestUsageStoreGetMissingReturnsZero(t *testing.T) {
 	store := NewUsageStore("")
 	rec := store.Get("never")

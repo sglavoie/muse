@@ -319,6 +319,9 @@ func (m *Manager) StopAfterCurrent() bool {
 // If the file is present it sends a loadfile command to mpv (queued if not yet
 // connected).
 func (m *Manager) PlayQueueEntry(entry QueueTrack, marker MissingMarker) error {
+	if marker == nil {
+		marker = noopMarker{}
+	}
 	if _, err := os.Stat(entry.Path); err != nil {
 		if err := marker.MarkTrackMissing(entry.Hash); err != nil {
 			slog.Error("mpv: mark track missing", "hash", entry.Hash, "err", err)

@@ -10,6 +10,8 @@ import (
 func TestExtensions_ExpectedFormats(t *testing.T) {
 	expected := []string{
 		".mp3",
+		".mp2",
+		".mpa",
 		".flac",
 		".ogg",
 		".oga",
@@ -44,6 +46,8 @@ func TestIsSupportedExtension(t *testing.T) {
 	}{
 		{name: "lowercase with dot", ext: ".mp3", want: true},
 		{name: "uppercase with dot", ext: ".FLAC", want: true},
+		{name: "MPEG layer II", ext: ".mp2", want: true},
+		{name: "MPEG audio", ext: ".mpa", want: true},
 		{name: "without dot", ext: "aiff", want: true},
 		{name: "surrounding whitespace with dot", ext: " \t.m4a\n", want: true},
 		{name: "surrounding whitespace without dot", ext: " \topus\n", want: true},

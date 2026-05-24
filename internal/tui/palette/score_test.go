@@ -219,6 +219,13 @@ func TestUsageBonusRecentAdded(t *testing.T) {
 	}
 }
 
+func TestUsageBonusLargeCountCapsWithoutOverflow(t *testing.T) {
+	bonus := usageBonus("foo", maxUsageCount, time.Time{})
+	if bonus != scoreUsageMaxBonus {
+		t.Errorf("large usage count should cap at %d, got %d", scoreUsageMaxBonus, bonus)
+	}
+}
+
 func TestUsageBonusFutureLastUsedNotRecent(t *testing.T) {
 	base := usageBonus("foo", 1, time.Time{})
 	future := usageBonus("foo", 1, time.Now().Add(24*time.Hour))

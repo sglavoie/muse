@@ -14,24 +14,34 @@ func TestLibraryViewVisibleReserve(t *testing.T) {
 		want int
 	}{
 		{
-			name: "no filter",
+			name: "normal width no filter",
+			view: LibraryView{width: 80},
+			want: 2,
+		},
+		{
+			name: "normal width filter active",
+			view: LibraryView{width: 80, filter: filter.State{Active: true}},
+			want: 2,
+		},
+		{
+			name: "normal width filter text set but not active",
+			view: LibraryView{width: 80, filter: filter.State{Text: "foo"}},
+			want: 2,
+		},
+		{
+			name: "normal width filter active with text",
+			view: LibraryView{width: 80, filter: filter.State{Active: true, Text: "bar"}},
+			want: 2,
+		},
+		{
+			name: "zero width no filter",
 			view: LibraryView{},
-			want: 1,
+			want: 0,
 		},
 		{
-			name: "filter active",
+			name: "zero width filter active",
 			view: LibraryView{filter: filter.State{Active: true}},
-			want: 2,
-		},
-		{
-			name: "filter text set but not active",
-			view: LibraryView{filter: filter.State{Text: "foo"}},
-			want: 2,
-		},
-		{
-			name: "filter active with text",
-			view: LibraryView{filter: filter.State{Active: true, Text: "bar"}},
-			want: 2,
+			want: 1,
 		},
 	}
 	for _, tt := range tests {

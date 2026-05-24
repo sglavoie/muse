@@ -399,6 +399,27 @@ func TestPickBatch_SanitizesNaNAndInfScores(t *testing.T) {
 	}
 }
 
+// Regression: very large finite scores can overflow totalWeight to +Inf.
+// Multiplying a random fraction by +Inf then yields +Inf (or NaN for zero),
+// every cumulative comparison fails, and the picker silently falls through to
+// the last eligible candidate. It should instead fall back to the highest
+// scored eligible track.
+func TestPickBatch_FallsBackWhenTotalWeightOverflows(t *testing.T) {
+	scored := []TrackScore{
+		{Track: library.Track{Hash: "best", Artist: "A"}, Score: math.MaxFloat64},
+		{Track: library.Track{Hash: "runner-up", Artist: "B"}, Score: math.MaxFloat64},
+		{Track: library.Track{Hash: "last", Artist: "C"}, Score: 1},
+	}
+
+	result := PickBatch(scored, 1, 1.0)
+	if len(result) != 1 {
+		t.Fatalf("expected one pick, got %d", len(result))
+	}
+	if result[0].Hash != "best" {
+		t.Fatalf("expected overflow fallback to pick highest-scored track, got %q", result[0].Hash)
+	}
+}
+
 func TestPickBatch_FromPool(t *testing.T) {
 	tracks := make([]library.Track, 10)
 	for i := range tracks {

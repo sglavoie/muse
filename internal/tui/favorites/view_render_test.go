@@ -95,3 +95,39 @@ func TestRenderTrackRows_ClampsHighScrollOffset(t *testing.T) {
 		t.Fatalf("expected render to clamp to final visible track window, got:\n%s", out)
 	}
 }
+
+func TestRenderTrackRows_NarrowWidthTruncatesHeaderCells(t *testing.T) {
+	v := View{
+		Level:    ListLevel,
+		Category: CategoryTracks,
+		Width:    10,
+		Height:   8,
+		Tracks:   sampleTracks(1),
+	}
+	out := v.Render()
+	for _, disallowed := range []string{"Title", "Artist", "Album"} {
+		if strings.Contains(out, disallowed) {
+			t.Fatalf("expected narrow header cells to be truncated, found %q in:\n%s", disallowed, out)
+		}
+	}
+}
+
+func TestRenderTrackRows_TruncatesOverwideFixedCells(t *testing.T) {
+	tracks := sampleTracks(1)
+	tracks[0].TrackNumber = 123456
+	tracks[0].PlayCount = 123456789
+	v := View{
+		Level:    ListLevel,
+		Category: CategoryTracks,
+		Width:    80,
+		Height:   8,
+		Tracks:   tracks,
+	}
+	out := v.Render()
+	if strings.Contains(out, "123456 ") {
+		t.Fatalf("expected overwide track position to be truncated, got:\n%s", out)
+	}
+	if strings.Contains(out, "123456789") {
+		t.Fatalf("expected overwide play count to be truncated, got:\n%s", out)
+	}
+}

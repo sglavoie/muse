@@ -1,6 +1,10 @@
 package library
 
-import "strings"
+import (
+	"strings"
+	"unicode"
+	"unicode/utf8"
+)
 
 // FilterQuery holds the parsed components of a library filter string.
 // A query like "rock a:beatles l:abbey" is parsed into General="rock",
@@ -54,8 +58,8 @@ func ParseFilterQuery(raw string) FilterQuery {
 	i := 0
 
 	for i < len(lower) {
-		// Only recognize a prefix at position 0 or after a space.
-		if i == 0 || lower[i-1] == ' ' {
+		// Only recognize a prefix at position 0 or after whitespace.
+		if isFilterBoundary(lower, i) {
 			matched := false
 			for _, ps := range recognizedPrefixes {
 				if strings.HasPrefix(lower[i:], ps.prefix) {
@@ -120,11 +124,19 @@ func findPrefixStart(lower string, contentStart int) int {
 		pLen := len(ps.prefix)
 		candidate := contentStart - pLen
 		if candidate >= 0 && strings.HasPrefix(lower[candidate:], ps.prefix) {
-			// Must be at position 0 or preceded by a space.
-			if candidate == 0 || lower[candidate-1] == ' ' {
+			// Must be at position 0 or preceded by whitespace.
+			if isFilterBoundary(lower, candidate) {
 				return candidate
 			}
 		}
 	}
 	return contentStart
+}
+
+func isFilterBoundary(s string, pos int) bool {
+	if pos == 0 {
+		return true
+	}
+	r, _ := utf8.DecodeLastRuneInString(s[:pos])
+	return unicode.IsSpace(r)
 }

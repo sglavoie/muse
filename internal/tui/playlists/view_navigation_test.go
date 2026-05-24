@@ -110,6 +110,59 @@ func TestCursorDownWithNoVisibleRowsKeepsScrollOnCursor(t *testing.T) {
 	}
 }
 
+func TestCursorUpClampsStaleCursorPastEnd(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Cursor:       9,
+		ScrollOffset: 9,
+		Playlists:    make([]db.PlaylistRow, 3),
+	}
+
+	v = v.CursorUp()
+
+	if v.Cursor != 2 {
+		t.Fatalf("CursorUp with stale cursor: expected Cursor=2, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Fatalf("CursorUp with stale cursor: expected ScrollOffset<=Cursor, got scroll=%d cursor=%d", v.ScrollOffset, v.Cursor)
+	}
+}
+
+func TestCursorDownClampsStaleCursorPastEnd(t *testing.T) {
+	v := View{
+		Level:        TrackLevel,
+		Cursor:       9,
+		ScrollOffset: 9,
+		Tracks:       make([]db.PlaylistTrackRow, 3),
+	}
+
+	v = v.CursorDown()
+
+	if v.Cursor != 2 {
+		t.Fatalf("CursorDown with stale cursor: expected Cursor=2, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Fatalf("CursorDown with stale cursor: expected ScrollOffset<=Cursor, got scroll=%d cursor=%d", v.ScrollOffset, v.Cursor)
+	}
+}
+
+func TestCursorDownClampsNegativeCursorToFirstRow(t *testing.T) {
+	v := View{
+		Level:     ListLevel,
+		Cursor:    -1,
+		Playlists: make([]db.PlaylistRow, 3),
+	}
+
+	v = v.CursorDown()
+
+	if v.Cursor != 0 {
+		t.Fatalf("CursorDown with negative cursor: expected Cursor=0, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 0 {
+		t.Fatalf("CursorDown with negative cursor: expected ScrollOffset=0, got %d", v.ScrollOffset)
+	}
+}
+
 // --- navigation: GoToTop / GoToBottom ---
 
 func TestGoToTopResetsCursorAndScroll(t *testing.T) {

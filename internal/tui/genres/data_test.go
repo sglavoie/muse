@@ -142,6 +142,24 @@ func TestDeriveGenreArtists_unknownGenre(t *testing.T) {
 	}
 }
 
+func TestDeriveGenreArtists_UnknownGenreIncludesLiteralSentinelTag(t *testing.T) {
+	ts := tracks(
+		struct{ genre, artist, title string }{"", "Alice", "t1"},
+		struct{ genre, artist, title string }{UnknownGenre, "Bob", "t2"},
+		struct{ genre, artist, title string }{"Rock", "Carol", "t3"},
+	)
+	got := DeriveGenreArtists(ts, UnknownGenre)
+	want := []string{"Alice", "Bob"}
+	if len(got) != len(want) {
+		t.Fatalf("want %v, got %v", want, got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("[%d] want %q, got %q", i, want[i], got[i])
+		}
+	}
+}
+
 func TestDeriveGenreArtistTracks(t *testing.T) {
 	ts := tracks(
 		struct{ genre, artist, title string }{"Rock", "Alice", "t1"},
@@ -154,6 +172,21 @@ func TestDeriveGenreArtistTracks(t *testing.T) {
 		t.Fatalf("want 2 tracks, got %d: %v", len(got), got)
 	}
 	if got[0].Title != "t1" || got[1].Title != "t4" {
+		t.Errorf("unexpected tracks: %v", got)
+	}
+}
+
+func TestDeriveGenreArtistTracks_UnknownGenreIncludesLiteralSentinelTag(t *testing.T) {
+	ts := tracks(
+		struct{ genre, artist, title string }{"", "Alice", "empty"},
+		struct{ genre, artist, title string }{UnknownGenre, "Alice", "literal"},
+		struct{ genre, artist, title string }{"Rock", "Alice", "rock"},
+	)
+	got := DeriveGenreArtistTracks(ts, UnknownGenre, "Alice")
+	if len(got) != 2 {
+		t.Fatalf("want 2 tracks, got %d: %v", len(got), got)
+	}
+	if got[0].Title != "empty" || got[1].Title != "literal" {
 		t.Errorf("unexpected tracks: %v", got)
 	}
 }
@@ -185,6 +218,21 @@ func TestDeriveGenreTracks_UnknownGenre(t *testing.T) {
 		t.Fatalf("want 2 tracks, got %d", len(got))
 	}
 	if got[0].Title != "t1" || got[1].Title != "t3" {
+		t.Errorf("unexpected tracks: %v", got)
+	}
+}
+
+func TestDeriveGenreTracks_UnknownGenreIncludesLiteralSentinelTag(t *testing.T) {
+	ts := tracks(
+		struct{ genre, artist, title string }{"", "Alice", "empty"},
+		struct{ genre, artist, title string }{UnknownGenre, "Bob", "literal"},
+		struct{ genre, artist, title string }{"Rock", "Carol", "rock"},
+	)
+	got := DeriveGenreTracks(ts, UnknownGenre)
+	if len(got) != 2 {
+		t.Fatalf("want 2 tracks, got %d: %v", len(got), got)
+	}
+	if got[0].Title != "empty" || got[1].Title != "literal" {
 		t.Errorf("unexpected tracks: %v", got)
 	}
 }

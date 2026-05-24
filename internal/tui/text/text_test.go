@@ -351,6 +351,32 @@ func TestBuildFilterSeparatorActiveHintClampedToWidth(t *testing.T) {
 	}
 }
 
+func TestBuildFilterSeparatorNonPositiveWidthSuppressesFilterLine(t *testing.T) {
+	tests := []struct {
+		name         string
+		filterActive bool
+		filterText   string
+		filterView   string
+		renderedHint string
+		width        int
+	}{
+		{"active filter width zero", true, "abc", "abc", "", 0},
+		{"active hint width zero", true, "", "", "type to filter", 0},
+		{"committed filter width zero", false, "abc", "", "", 0},
+		{"active filter negative width", true, "abc", "abc", "", -1},
+		{"committed filter negative width", false, "abc", "", "", -1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out := BuildFilterSeparator("", tt.filterActive, tt.filterText, tt.filterView, tt.renderedHint, tt.width, false)
+			line := strings.TrimRight(out, "\n")
+			if line != "" {
+				t.Fatalf("filter line = %q, want empty", line)
+			}
+		})
+	}
+}
+
 // TestBuildFilterSeparatorMultiByteFilter verifies that ansi.StringWidth-based
 // truncation handles multi-byte filter text without breaking width arithmetic
 // or splitting graphemes.

@@ -378,15 +378,18 @@ func (v PlaylistsView) openTracks(tracks []db.PlaylistTrackRow) PlaylistsView {
 // to the position it held before the drill-down.
 func (v PlaylistsView) backToList() PlaylistsView {
 	view := pltui.View{
-		Level:      v.level,
-		Cursor:     v.cursor,
-		ListCursor: v.listCursor,
+		Level:            v.level,
+		Cursor:           v.cursor,
+		ListCursor:       v.listCursor,
+		ListScrollOffset: v.listScrollOffset,
+		Playlists:        v.effectivePlaylists(),
+		Height:           v.height,
 	}.BackToList()
 	v.level = view.Level
 	v.cursor = view.Cursor
 	v.tracks = view.Tracks
-	v.scrollOffset = v.listScrollOffset // restore list-level scroll position
-	v.selectedTrackIDs = nil            // clear stale track-level selections
+	v.scrollOffset = view.ScrollOffset
+	v.selectedTrackIDs = nil // clear stale track-level selections
 	v.sortState = SortState{}
 	v.sortedPlaylists = nil
 	v.sortedTrackOrder = nil

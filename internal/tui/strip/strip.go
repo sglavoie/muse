@@ -99,7 +99,7 @@ func Render(
 	filter.Text = singleLine(filter.Text)
 	filter.InputView = singleLine(filter.InputView)
 	filter.Hint = singleLine(filter.Hint)
-	hint = singleLine(hint)
+	hint = hintLine(hint)
 
 	// Defensive: filter out empty crumbs so a stray "" in the slice does not
 	// render as a free-floating chevron (" › Foo › "). After filtering, an
@@ -412,6 +412,7 @@ func Render(
 // upstream uses the unstyled string, so this function never changes
 // display width.
 func renderKeyLabelPair(hint string, s styles.Styles) string {
+	hint = hintLine(hint)
 	if hint == "" {
 		return ""
 	}
@@ -434,4 +435,10 @@ func singleLine(v string) string {
 		return v
 	}
 	return strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ", "\t", " ").Replace(v)
+}
+
+// hintLine keeps key hints on one line and removes layout-only whitespace so
+// width arithmetic matches renderKeyLabelPair's key/label styling.
+func hintLine(v string) string {
+	return strings.Join(strings.Fields(singleLine(v)), " ")
 }

@@ -7,6 +7,8 @@ import (
 
 var extensions = map[string]struct{}{
 	".mp3":  {},
+	".mp2":  {},
+	".mpa":  {},
 	".flac": {},
 	".ogg":  {},
 	".oga":  {},

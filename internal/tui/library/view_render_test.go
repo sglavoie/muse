@@ -165,6 +165,24 @@ func TestRenderWithNoVisibleRowsDoesNotClaimNoMatches(t *testing.T) {
 	}
 }
 
+func TestRenderDoesNotExceedConfiguredHeight(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Width: 80, Height: 4}
+
+	got := v.Render()
+	lines := strings.Split(got, "\n")
+
+	if len(lines) != v.Height {
+		t.Fatalf("rendered line count = %d, want height %d:\n%s", len(lines), v.Height, got)
+	}
+	if !strings.Contains(ansi.Strip(lines[0]), "Library") {
+		t.Fatalf("first line should be the state strip, got %q", lines[0])
+	}
+	if !strings.Contains(ansi.Strip(lines[1]), "Artist") {
+		t.Fatalf("second line should be the column header, got %q", lines[1])
+	}
+}
+
 func TestRenderIgnoresStaleFilteredMatchIndices(t *testing.T) {
 	idx := buildIndex(sampleTracks[:1])
 	v := View{

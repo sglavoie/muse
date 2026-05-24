@@ -259,6 +259,72 @@ func TestBackWithNoVisibleRowsKeepsScrollOnCursor(t *testing.T) {
 	}
 }
 
+func TestOpenTracksClearsSelectedHashes(t *testing.T) {
+	v := View{
+		Level:          TagLevel,
+		SelectedHashes: map[string]struct{}{"stale": {}},
+	}
+
+	v = v.OpenTracks(db.TagRow{ID: 1, Name: "tag"}, []db.PlaylistTrackRow{{Hash: "next"}})
+
+	if v.SelectedHashes != nil {
+		t.Fatalf("OpenTracks should clear stale selected hashes, got %v", v.SelectedHashes)
+	}
+}
+
+func TestBackClearsSelectedHashes(t *testing.T) {
+	v := View{
+		Level:          TrackLevel,
+		SelectedHashes: map[string]struct{}{"stale": {}},
+		Tags:           []db.TagRow{{ID: 1, Name: "tag"}},
+		TagCounts:      map[int64]int{1: 1},
+		Tracks:         []db.PlaylistTrackRow{{Hash: "track"}},
+	}
+
+	v = v.Back()
+
+	if v.SelectedHashes != nil {
+		t.Fatalf("Back should clear selected hashes outside track level, got %v", v.SelectedHashes)
+	}
+}
+
+func TestRenderTagsAllZeroCountsShowsEmptyState(t *testing.T) {
+	v := View{
+		Level: TagLevel,
+		Width: 40,
+		Tags: []db.TagRow{
+			{ID: 1, Name: "unused"},
+			{ID: 2, Name: "empty"},
+		},
+		TagCounts: map[int64]int{1: 0, 2: 0},
+	}
+
+	out := v.Render()
+
+	if strings.Contains(out, "(no matches)") {
+		t.Fatalf("zero-count tags without a filter should render an empty state, got:\n%s", out)
+	}
+	if !strings.Contains(out, "No tagged tracks yet") {
+		t.Fatalf("expected empty tagged-tracks message, got:\n%s", out)
+	}
+}
+
+func TestRenderTagsFilterNoMatchesStillShowsNoMatches(t *testing.T) {
+	v := View{
+		Level:      TagLevel,
+		Width:      40,
+		FilterText: "zzz",
+		Tags:       []db.TagRow{{ID: 1, Name: "alpha"}},
+		TagCounts:  map[int64]int{1: 1},
+	}
+
+	out := v.Render()
+
+	if !strings.Contains(out, "(no matches)") {
+		t.Fatalf("expected filter miss to render no matches, got:\n%s", out)
+	}
+}
+
 func TestRenderTagsCreatingWithNoVisibleRowsDoesNotPanic(t *testing.T) {
 	v := View{
 		Level:         TagLevel,

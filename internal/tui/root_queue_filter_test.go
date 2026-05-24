@@ -339,6 +339,38 @@ func TestQueueFilterMoveDisabled(t *testing.T) {
 	}
 }
 
+// TestQueueTagFilterMoveDisabled verifies that move-up/move-down are disabled
+// when a cross-view tag filter is active. A tag filter narrows the visible
+// queue, so cursor rows no longer map safely to underlying queue indices.
+func TestQueueTagFilterMoveDisabled(t *testing.T) {
+	q := QueueView{
+		entries: []QueueEntry{
+			{Path: "/a.flac", Hash: "hidden", Title: "Hidden", Artist: "A"},
+			{Path: "/b.flac", Hash: "h1", Title: "Visible One", Artist: "B"},
+			{Path: "/c.flac", Hash: "h2", Title: "Visible Two", Artist: "C"},
+		},
+		tagFilterHashes: map[string]struct{}{"h1": {}, "h2": {}},
+		cursor:          0,
+	}
+
+	_, cmd := q.HandleAction(actionMoveTrackDown)
+	if cmd == nil {
+		t.Fatal("move-down when tag-filtered should return a TransientNotifyMsg cmd")
+	}
+	if _, ok := cmd().(TransientNotifyMsg); !ok {
+		t.Fatal("move-down when tag-filtered: expected TransientNotifyMsg")
+	}
+
+	q.cursor = 1
+	_, cmd = q.HandleAction(actionMoveTrackUp)
+	if cmd == nil {
+		t.Fatal("move-up when tag-filtered should return a TransientNotifyMsg cmd")
+	}
+	if _, ok := cmd().(TransientNotifyMsg); !ok {
+		t.Fatal("move-up when tag-filtered: expected TransientNotifyMsg")
+	}
+}
+
 // TestQueueCursorClampedAgainstFilteredEntriesAfterDequeue verifies that
 // after dequeuing a track while a filter is active, the cursor is clamped
 // to the filtered entry count rather than the total entry count.

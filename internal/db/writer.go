@@ -155,6 +155,9 @@ func (w *Writer) Exec(fn func(*sql.DB) error) error {
 	select {
 	case w.cmds <- cmd:
 		w.mu.RUnlock()
+	case <-w.ctx.Done():
+		w.mu.RUnlock()
+		return fmt.Errorf("db writer: stopped")
 	case <-w.done:
 		w.mu.RUnlock()
 		return fmt.Errorf("db writer: stopped")

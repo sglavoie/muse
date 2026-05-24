@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"fmt"
+	"math"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -38,6 +39,9 @@ func FFProbeDuration(ctx context.Context, path string) (float64, error) {
 	dur, err := strconv.ParseFloat(s, 64)
 	if err != nil {
 		return 0, fmt.Errorf("ffprobe: parse %q: %w", s, err)
+	}
+	if math.IsNaN(dur) || math.IsInf(dur, 0) || dur < 0 {
+		return 0, fmt.Errorf("ffprobe: invalid duration %q", s)
 	}
 	return dur, nil
 }

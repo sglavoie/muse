@@ -2,6 +2,7 @@ package styles
 
 import (
 	"image/color"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 )
@@ -238,6 +239,7 @@ func AccentFavRender(accent, favAccent lipgloss.Style, isFav bool, text string) 
 // color string (e.g. "#ff6600"). When hex is empty the returned style is the
 // zero value (unstyled — callers get plain text).
 func TagColorStyle(hex string) lipgloss.Style {
+	hex = strings.TrimSpace(hex)
 	if hex == "" {
 		return lipgloss.NewStyle()
 	}

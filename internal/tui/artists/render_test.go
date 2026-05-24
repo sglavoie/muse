@@ -30,6 +30,21 @@ func TestRenderArtistsShowsNames(t *testing.T) {
 	}
 }
 
+func TestRenderArtistsClampsStaleScrollOffset(t *testing.T) {
+	v := View{
+		Level:        ArtistLevel,
+		Width:        80,
+		Height:       3,
+		ScrollOffset: 50,
+		Artists:      []string{"Alice", "Bob", "Charlie"},
+	}
+
+	out := v.Render()
+	if !strings.Contains(out, "Bob") || !strings.Contains(out, "Charlie") {
+		t.Fatalf("expected visible rows after clamping stale scroll offset, got:\n%s", out)
+	}
+}
+
 func TestRenderArtistsShowsCounts(t *testing.T) {
 	v := View{
 		Level:        ArtistLevel,
@@ -97,6 +112,21 @@ func TestRenderAlbumsShowsNames(t *testing.T) {
 	}
 }
 
+func TestRenderAlbumsClampsNegativeScrollOffset(t *testing.T) {
+	v := View{
+		Level:        AlbumLevel,
+		Width:        80,
+		Height:       3,
+		ScrollOffset: -5,
+		Albums:       []string{"Alpha", "Beta", "Gamma"},
+	}
+
+	out := v.Render()
+	if !strings.Contains(out, "Alpha") || !strings.Contains(out, "Beta") {
+		t.Fatalf("expected first rows after clamping negative scroll offset, got:\n%s", out)
+	}
+}
+
 func TestRenderAlbumsEmpty(t *testing.T) {
 	v := View{Level: AlbumLevel, SelectedArtist: "Alice"}
 	out := v.Render()
@@ -110,6 +140,25 @@ func TestRenderTracksEmpty(t *testing.T) {
 	out := v.Render()
 	if !strings.Contains(out, "No tracks") {
 		t.Fatalf("expected tracks empty hint in output, got:\n%s", out)
+	}
+}
+
+func TestRenderTracksClampsStaleScrollOffset(t *testing.T) {
+	v := View{
+		Level:        TrackLevel,
+		Width:        80,
+		Height:       4,
+		ScrollOffset: 50,
+		Tracks: []library.Track{
+			{Title: "First", Duration: 60},
+			{Title: "Second", Duration: 120},
+			{Title: "Third", Duration: 180},
+		},
+	}
+
+	out := v.Render()
+	if !strings.Contains(out, "Third") {
+		t.Fatalf("expected last track after clamping stale scroll offset, got:\n%s", out)
 	}
 }
 

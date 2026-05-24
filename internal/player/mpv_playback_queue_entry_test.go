@@ -72,6 +72,28 @@ func TestManager_PlayQueueEntry_MissingFile(t *testing.T) {
 	}
 }
 
+func TestManager_PlayQueueEntry_MissingFileNilMarker(t *testing.T) {
+	m := NewManager(shortSockPath(t, "pqe-missing-nil-marker"))
+	defer m.Close()
+
+	var statusMsg string
+	m.SetEventCallbacks(EventCallbacks{OnStatus: func(msg string) { statusMsg = msg }})
+
+	entry := QueueTrack{
+		Path:    "/nonexistent/path/track.flac",
+		Hash:    "abc123",
+		QueueID: 42,
+	}
+
+	gotErr := m.PlayQueueEntry(entry, nil)
+	if !errors.Is(gotErr, ErrMissingFile) {
+		t.Fatalf("PlayQueueEntry: want ErrMissingFile, got %v", gotErr)
+	}
+	if statusMsg == "" {
+		t.Error("expected a status message for the missing file, got none")
+	}
+}
+
 // TestManager_PlayQueueEntry_InaccessibleFile verifies that PlayQueueEntry
 // returns ErrMissingFile when os.Stat fails with a non-"not exist" error
 // (e.g. permission denied), rather than falling through to load the file.

@@ -260,9 +260,15 @@ func (m Model) preserveGenresCursorOnDirChange(dir SortDir) Model {
 // The reserve must match library.View.visibleRows() so that adjustScroll and
 // the cursor-movement helpers agree on how many rows are visible.
 func libraryViewVisibleReserve(v LibraryView) int {
-	reserve := 1 // column header
+	if v.width == 0 {
+		if v.filter.Active || v.filter.Text != "" {
+			return 1
+		}
+		return 0
+	}
+	reserve := 2 // state strip + column header
 	if v.filter.Active || v.filter.Text != "" {
-		reserve++
+		return reserve
 	}
 	return reserve
 }

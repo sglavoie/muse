@@ -265,6 +265,21 @@ func TestActiveTabContrast(t *testing.T) {
 	}
 }
 
+func TestTagColorStyleTrimsColor(t *testing.T) {
+	got := colorRGBA(t, styles.TagColorStyle("  #ff6600\t").GetForeground())
+	want := parseHex(t, "#ff6600")
+	if got != want {
+		t.Fatalf("TagColorStyle foreground = %#v, want %#v", got, want)
+	}
+}
+
+func TestColoredDotWithBlankColorIsPlain(t *testing.T) {
+	got := styles.ColoredDot(" \t\n ")
+	if got != "●" {
+		t.Fatalf("ColoredDot with blank color = %q, want plain dot", got)
+	}
+}
+
 // TestStyleNesting verifies that Background wrapping Bold output preserves inner
 // styling. Bold sequences must survive the outer Background render, satisfying
 // ac-f4704a90675005f2b2db92c90011a914.

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/sglavoie/muse/internal/db"
@@ -59,7 +60,7 @@ func LoadLibrary(ctx context.Context, database *db.DB, writer LibraryWriter,
 	// Load the cached library from the database for instant startup display.
 	dbTracks, err := database.ReadTracks()
 	if err != nil {
-		slog.Warn("startup: read tracks from DB", "err", err)
+		return LibraryResult{}, fmt.Errorf("startup: read tracks from DB: %w", err)
 	}
 
 	// Build the library track slice and known-file map for the diff scan.

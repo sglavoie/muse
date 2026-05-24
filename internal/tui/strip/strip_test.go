@@ -518,6 +518,23 @@ func TestRender_HintLineBreaksNormalized(t *testing.T) {
 	}
 }
 
+func TestRender_HintWhitespaceNormalizedBeforeWidthCalculation(t *testing.T) {
+	s := styles.NewStyles(true)
+	got := Render(30, []string{"Artists"}, SortChunk{}, FilterChunk{},
+		CountsChunk{Total: 7}, nil, " esc   back ", s)
+	plain := ansi.Strip(got)
+
+	if ansi.StringWidth(got) != 30 {
+		t.Fatalf("width = %d, want 30 (plain=%q)", ansi.StringWidth(got), plain)
+	}
+	if !strings.HasSuffix(plain, "7 esc back") {
+		t.Errorf("hint whitespace should normalize before rendering, got %q", plain)
+	}
+	if strings.Contains(plain, "  back") || strings.HasSuffix(plain, " ") {
+		t.Errorf("hint should not retain layout-only whitespace, got %q", plain)
+	}
+}
+
 func TestRender_TabCharactersNormalized(t *testing.T) {
 	s := styles.NewStyles(true)
 	got := Render(100, []string{"Artists\tView"}, SortChunk{Label: "Album\tName", Indicator: "▼"},

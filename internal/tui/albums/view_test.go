@@ -115,6 +115,19 @@ func TestRenderAlbumsShowsNames(t *testing.T) {
 	}
 }
 
+func TestRenderAlbumsWithUnsetWidthShowsNames(t *testing.T) {
+	v := View{
+		Level:  AlbumLevel,
+		Albums: []string{"Alpha", "Beta"},
+	}
+	out := v.Render()
+	for _, want := range []string{"Alpha", "Beta"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q with unset width, got:\n%s", want, out)
+		}
+	}
+}
+
 func TestRenderAlbumsClampsInvalidScrollOffset(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -192,6 +205,22 @@ func TestRenderTracksShowsTitles(t *testing.T) {
 	}
 	if !strings.Contains(out, "Alpha") {
 		t.Errorf("expected album heading 'Alpha', got:\n%s", out)
+	}
+}
+
+func TestRenderTracksWithUnsetWidthShowsTitles(t *testing.T) {
+	v := View{
+		Level: TrackLevel,
+		Tracks: []library.Track{
+			{Title: "Track A1", Artist: "Alice", Duration: 183},
+			{Title: "Track A2", Artist: "Alice", Duration: 245},
+		},
+	}
+	out := v.Render()
+	for _, want := range []string{"Track A1", "Track A2"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q with unset width, got:\n%s", want, out)
+		}
 	}
 }
 

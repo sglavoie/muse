@@ -83,7 +83,7 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 	case actionClearQueue:
 		return v, func() tea.Msg { return ClearQueueMsg{} }
 	case actionMoveTrackUp:
-		if v.displayOrder != nil || v.filter.Text != "" {
+		if v.displayOrder != nil || v.filter.Text != "" || len(v.tagFilterHashes) > 0 {
 			return v, func() tea.Msg { return TransientNotifyMsg("Cannot reorder while sorted/filtered") }
 		}
 		if v.cursor > 0 {
@@ -91,7 +91,7 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 			return v, func() tea.Msg { return MoveTrackUpMsg{Index: idx} }
 		}
 	case actionMoveTrackDown:
-		if v.displayOrder != nil || v.filter.Text != "" {
+		if v.displayOrder != nil || v.filter.Text != "" || len(v.tagFilterHashes) > 0 {
 			return v, func() tea.Msg { return TransientNotifyMsg("Cannot reorder while sorted/filtered") }
 		}
 		if v.cursor < n-1 {

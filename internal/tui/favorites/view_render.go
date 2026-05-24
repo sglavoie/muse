@@ -2,6 +2,7 @@ package favorites
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	lipgloss "charm.land/lipgloss/v2"
@@ -166,8 +167,12 @@ func (v View) renderTrackRows(items []library.Track) string {
 	// Column header row. The 2-space marker gutter is excluded from the
 	// styled body so the dotted underline starts at the first data column.
 	header := "  " + v.Styles.ColHead.Render(
-		fmt.Sprintf("%-*s %-*s %-*s %-*s %*s %*s",
-			cols.Position, "#", cols.Title, "Title", cols.Artist, "Artist", cols.Album, "Album", cols.Duration, "Time", cols.PlayCount, "Plays"))
+		text.Pad("#", cols.Position)+" "+
+			text.Pad("Title", cols.Title)+" "+
+			text.Pad("Artist", cols.Artist)+" "+
+			text.Pad("Album", cols.Album)+" "+
+			text.PadLeft("Time", cols.Duration)+" "+
+			text.PadLeft("Plays", cols.PlayCount))
 
 	start, end := v.visibleWindow(len(items))
 
@@ -194,16 +199,15 @@ func (v View) renderTrackRows(items []library.Track) string {
 		} else {
 			rawPos = text.FormatTrackPosSimple(t.TrackNumber, absIdx+1)
 		}
-		pos := fmt.Sprintf("%-*s", cols.Position, rawPos)
+		pos := text.Pad(rawPos, cols.Position)
 		_, isTrackFav := v.FavoriteHashes[t.Hash]
 		_, isArtistFav := v.FavoriteArtists[t.Artist]
 		_, isAlbumFav := v.FavoriteAlbums[t.Album]
 		titleStr := text.FavPrefix(t.Title, cols.Title, isTrackFav)
 		artistStr := text.FavPrefix(t.Artist, cols.Artist, isArtistFav)
 		albumStr := text.FavPrefix(t.Album, cols.Album, isAlbumFav)
-		dur := text.FormatDurationSecs(t.Duration)
-		dur = fmt.Sprintf("%*s", cols.Duration, dur)
-		plays := fmt.Sprintf("%*d", cols.PlayCount, t.PlayCount)
+		dur := text.PadLeft(text.FormatDurationSecs(t.Duration), cols.Duration)
+		plays := text.PadLeft(strconv.Itoa(t.PlayCount), cols.PlayCount)
 		switch {
 		case isFocused:
 			a := v.Styles.Accent

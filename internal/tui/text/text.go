@@ -264,7 +264,7 @@ func BuildFilterSeparator(sortIndicator string, filterActive bool, filterText, f
 			ft = ansi.Truncate(ft, maxLen, "…")
 		}
 		line := "Filter: " + ft
-		if width > 0 && ansi.StringWidth(line) > width {
+		if ansi.StringWidth(line) > width {
 			line = clampLine(line, width)
 		}
 		return prefix + sep + line + "\n"
@@ -276,7 +276,10 @@ func BuildFilterSeparator(sortIndicator string, filterActive bool, filterText, f
 }
 
 func clampLine(line string, width int) string {
-	if width > 0 && ansi.StringWidth(line) > width {
+	if width <= 0 {
+		return ""
+	}
+	if ansi.StringWidth(line) > width {
 		return ansi.Truncate(line, width, "")
 	}
 	return line

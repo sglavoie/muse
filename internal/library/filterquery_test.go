@@ -94,6 +94,16 @@ func TestParseFilterQuery(t *testing.T) {
 			want:  FilterQuery{Artist: "beatles"},
 		},
 		{
+			name:  "PrefixAfterTab",
+			input: "rock\ta:beatles",
+			want:  FilterQuery{General: "rock", Artist: "beatles"},
+		},
+		{
+			name:  "PrefixAfterNewline",
+			input: "rock\ng:pop",
+			want:  FilterQuery{General: "rock", Genre: "pop"},
+		},
+		{
 			name:  "ShortGenrePrefix",
 			input: "g:rock",
 			want:  FilterQuery{Genre: "rock"},

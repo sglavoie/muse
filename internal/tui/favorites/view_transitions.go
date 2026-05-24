@@ -4,6 +4,7 @@ import "github.com/sglavoie/muse/internal/library"
 
 // OpenList transitions from CategoryLevel to ListLevel for the selected category.
 func (v View) OpenList() View {
+	v.Cursor = clampCategoryCursor(v.Cursor)
 	v.CategoryCursor = v.Cursor
 	v.Category = Category(v.Cursor)
 	v.Level = ListLevel
@@ -35,7 +36,7 @@ func (v View) Back() View {
 	switch v.Level {
 	case ListLevel:
 		v.Level = CategoryLevel
-		v.Cursor = v.CategoryCursor
+		v.Cursor = clampCategoryCursor(v.CategoryCursor)
 		v.ScrollOffset = 0
 		v.Artists = nil
 		v.Albums = nil
@@ -73,4 +74,8 @@ func (v View) clampRestoredCursor() View {
 		v.Cursor = n - 1
 	}
 	return v.keepCursorVisible()
+}
+
+func clampCategoryCursor(cursor int) int {
+	return max(0, min(cursor, 2))
 }

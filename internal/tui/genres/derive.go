@@ -132,10 +132,12 @@ func DeriveGenreTracks(tracks []library.Track, genre string) []library.Track {
 
 // trackMatchesGenre reports whether t belongs to the genre identified by raw
 // (the result of RawGenre on the display genre string). When raw is empty the
-// function matches tracks that have no recognised genre.
+// function matches the rendered unknown row, which includes tracks with no
+// recognised genre plus any literal UnknownGenre tag collapsed into that row.
 func trackMatchesGenre(t library.Track, raw string) bool {
+	genres := library.SplitGenres(t.Genre)
 	if raw == "" {
-		return len(library.SplitGenres(t.Genre)) == 0
+		return len(genres) == 0 || slices.Contains(genres, UnknownGenre)
 	}
-	return slices.Contains(library.SplitGenres(t.Genre), raw)
+	return slices.Contains(genres, raw)
 }

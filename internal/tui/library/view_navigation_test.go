@@ -180,13 +180,13 @@ func TestGoToBottomAdjustsScrollOffset(t *testing.T) {
 		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
 	}
 	idx := buildIndex(tracks)
-	v := View{Index: idx, Width: 80, Height: 6, Cursor: 0} // visibleRows = 5
+	v := View{Index: idx, Width: 80, Height: 6, Cursor: 0} // visibleRows = 4
 	v = v.GoToBottom()
 	if v.Cursor != 19 {
 		t.Errorf("GoToBottom: expected Cursor=19, got %d", v.Cursor)
 	}
-	if v.ScrollOffset != 15 {
-		t.Errorf("GoToBottom: expected ScrollOffset=15, got %d", v.ScrollOffset)
+	if v.ScrollOffset != 16 {
+		t.Errorf("GoToBottom: expected ScrollOffset=16, got %d", v.ScrollOffset)
 	}
 }
 
@@ -221,10 +221,10 @@ func TestHalfPageDownMovesByHalfVisibleRows(t *testing.T) {
 		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
 	}
 	idx := buildIndex(tracks)
-	v := View{Index: idx, Width: 80, Height: 13, Cursor: 0} // visibleRows = 12
+	v := View{Index: idx, Width: 80, Height: 13, Cursor: 0} // visibleRows = 11
 	v = v.HalfPageDown()
-	if v.Cursor != 6 {
-		t.Errorf("HalfPageDown: expected Cursor=6, got %d", v.Cursor)
+	if v.Cursor != 5 {
+		t.Errorf("HalfPageDown: expected Cursor=5, got %d", v.Cursor)
 	}
 }
 
@@ -234,10 +234,10 @@ func TestHalfPageUpMovesByHalfVisibleRows(t *testing.T) {
 		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
 	}
 	idx := buildIndex(tracks)
-	v := View{Index: idx, Width: 80, Height: 13, Cursor: 12} // visibleRows = 12
+	v := View{Index: idx, Width: 80, Height: 13, Cursor: 12} // visibleRows = 11
 	v = v.HalfPageUp()
-	if v.Cursor != 6 {
-		t.Errorf("HalfPageUp: expected Cursor=6, got %d", v.Cursor)
+	if v.Cursor != 7 {
+		t.Errorf("HalfPageUp: expected Cursor=7, got %d", v.Cursor)
 	}
 }
 
@@ -247,10 +247,10 @@ func TestFullPageDownMovesByVisibleRows(t *testing.T) {
 		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
 	}
 	idx := buildIndex(tracks)
-	v := View{Index: idx, Width: 80, Height: 13, Cursor: 0} // visibleRows = 12
+	v := View{Index: idx, Width: 80, Height: 13, Cursor: 0} // visibleRows = 11
 	v = v.FullPageDown()
-	if v.Cursor != 12 {
-		t.Errorf("FullPageDown: expected Cursor=12, got %d", v.Cursor)
+	if v.Cursor != 11 {
+		t.Errorf("FullPageDown: expected Cursor=11, got %d", v.Cursor)
 	}
 }
 
@@ -260,10 +260,10 @@ func TestFullPageUpMovesByVisibleRows(t *testing.T) {
 		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
 	}
 	idx := buildIndex(tracks)
-	v := View{Index: idx, Width: 80, Height: 13, Cursor: 15} // visibleRows = 12
+	v := View{Index: idx, Width: 80, Height: 13, Cursor: 15} // visibleRows = 11
 	v = v.FullPageUp()
-	if v.Cursor != 3 {
-		t.Errorf("FullPageUp: expected Cursor=3, got %d", v.Cursor)
+	if v.Cursor != 4 {
+		t.Errorf("FullPageUp: expected Cursor=4, got %d", v.Cursor)
 	}
 }
 
@@ -302,27 +302,38 @@ func TestVisibleRowsZeroHeight(t *testing.T) {
 }
 
 func TestVisibleRowsSmallHeight(t *testing.T) {
-	v := View{Height: 4}
-	if v.visibleRows() != 3 {
-		t.Errorf("visibleRows Height=4: expected 3, got %d", v.visibleRows())
+	v := View{Width: 80, Height: 4}
+	if v.visibleRows() != 2 {
+		t.Errorf("visibleRows Height=4: expected 2, got %d", v.visibleRows())
 	}
 }
 
 // TestVisibleRowsSameWithAndWithoutFilter verifies that visibleRows reserves
-// one extra row for the filter bar when a filter is active or has text.
+// the state strip and column header. Filter state is rendered inside the
+// strip, so it does not consume another row in columnar mode.
 func TestVisibleRowsSameWithAndWithoutFilter(t *testing.T) {
 	h := 24
-	noFilter := View{Height: h}
-	withFilter := View{Height: h, Filter: filter.State{Text: "abc"}}
-	withActiveFilter := View{Height: h, Filter: filter.State{Active: true, Text: "abc"}}
+	noFilter := View{Width: 80, Height: h}
+	withFilter := View{Width: 80, Height: h, Filter: filter.State{Text: "abc"}}
+	withActiveFilter := View{Width: 80, Height: h, Filter: filter.State{Active: true, Text: "abc"}}
 
 	base := noFilter.visibleRows()
-	// When filter has text or is active, the filter bar consumes one extra row.
-	wantFiltered := base - 1
-	if got := withFilter.visibleRows(); got != wantFiltered {
-		t.Errorf("visibleRows with committed filter: got %d, want %d (base-1 for filter bar)", got, wantFiltered)
+	if got := withFilter.visibleRows(); got != base {
+		t.Errorf("visibleRows with committed filter: got %d, want %d", got, base)
 	}
-	if got := withActiveFilter.visibleRows(); got != wantFiltered {
-		t.Errorf("visibleRows with active filter: got %d, want %d (base-1 for filter bar)", got, wantFiltered)
+	if got := withActiveFilter.visibleRows(); got != base {
+		t.Errorf("visibleRows with active filter: got %d, want %d", got, base)
+	}
+}
+
+func TestVisibleRowsZeroWidthAccountsForFallbackFilterLine(t *testing.T) {
+	noFilter := View{Width: 0, Height: 4}
+	withFilter := View{Width: 0, Height: 4, Filter: filter.State{Text: "abc"}}
+
+	if got := noFilter.visibleRows(); got != 4 {
+		t.Errorf("zero-width visibleRows without filter: got %d, want 4", got)
+	}
+	if got := withFilter.visibleRows(); got != 3 {
+		t.Errorf("zero-width visibleRows with filter: got %d, want 3", got)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/app"
@@ -63,6 +64,27 @@ func TestLoadLibrary_EmptyDB(t *testing.T) {
 	}
 	if len(libResult.HashByPath) != 0 {
 		t.Errorf("expected empty HashByPath, got %d entries", len(libResult.HashByPath))
+	}
+}
+
+func TestLoadLibrary_ReadTracksErrorReturnsError(t *testing.T) {
+	dirs := setupDirs(t)
+	musicDir := t.TempDir()
+
+	database := openTestDB(t, dirs)
+	if err := database.Close(); err != nil {
+		t.Fatalf("close database: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	_, err := app.LoadLibrary(ctx, database, nil, []string{musicDir}, nil, stubExtractor{}, 100)
+	if err == nil {
+		t.Fatal("LoadLibrary returned nil error after ReadTracks failed")
+	}
+	if !strings.Contains(err.Error(), "read tracks from DB") {
+		t.Fatalf("LoadLibrary error = %v, want read tracks context", err)
 	}
 }
 

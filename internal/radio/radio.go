@@ -239,7 +239,7 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 		// is uniform — defeating the purpose of scoring. Pick the first
 		// eligible (highest-scored due to ScoreAll's descending sort).
 		var pickedIdx int
-		if !anyPositive || totalWeight <= 0 {
+		if !anyPositive || totalWeight <= 0 || math.IsNaN(totalWeight) || math.IsInf(totalWeight, 0) {
 			pickedIdx = eligible[0]
 		} else {
 			maxWeight := new(big.Int).SetUint64(1 << 53)

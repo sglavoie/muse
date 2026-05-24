@@ -65,10 +65,11 @@ func validate(raw rawConfig) (Config, []string) {
 
 	cfg.MPVExtraFlags = []string{}
 	for _, f := range raw.MPVExtraFlags {
-		if strings.TrimSpace(f) == "" {
+		trimmed := strings.TrimSpace(f)
+		if trimmed == "" {
 			continue
 		}
-		cfg.MPVExtraFlags = append(cfg.MPVExtraFlags, f)
+		cfg.MPVExtraFlags = append(cfg.MPVExtraFlags, trimmed)
 	}
 
 	validateIntRange(raw.DefaultVolume, 0, 100, "default_volume", defaultVolume, &cfg.DefaultVolume, &warnings)

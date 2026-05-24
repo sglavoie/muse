@@ -62,6 +62,26 @@ func TestPlaylistsViewBackToListRestoresScrollOffset(t *testing.T) {
 	}
 }
 
+func TestPlaylistsViewBackToListClampsStaleParentCursor(t *testing.T) {
+	v := PlaylistsView{
+		level:            pltui.TrackLevel,
+		listCursor:       5,
+		listScrollOffset: 4,
+		height:           6,
+		playlists:        []db.PlaylistRow{{ID: 1, Name: "A"}, {ID: 2, Name: "B"}},
+		tracks:           []db.PlaylistTrackRow{{ID: 10, Title: "T1"}},
+	}
+
+	v = v.backToList()
+
+	if v.cursor != 1 {
+		t.Fatalf("expected cursor clamped to last playlist, got %d", v.cursor)
+	}
+	if v.scrollOffset > v.cursor {
+		t.Fatalf("expected scrollOffset clamped to cursor or above-visible range, got %d", v.scrollOffset)
+	}
+}
+
 // TestPlaylistsViewOpenTracksClearsStaleSelection verifies that opening a new
 // playlist clears track-level bulk selections from a previously viewed playlist.
 func TestPlaylistsViewOpenTracksClearsStaleSelection(t *testing.T) {

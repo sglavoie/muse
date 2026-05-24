@@ -238,6 +238,7 @@ func (v View) OpenTracks(tag db.TagRow, tracks []db.PlaylistTrackRow) View {
 	v.ScrollOffset = 0
 	v.FilterActive = false
 	v.FilterText = ""
+	v.SelectedHashes = nil
 	return v
 }
 
@@ -254,6 +255,7 @@ func (v View) Back() View {
 		v.Tracks = nil
 		v.FilterActive = false
 		v.FilterText = ""
+		v.SelectedHashes = nil
 		v = v.clampRestoredCursor()
 	}
 	return v
@@ -311,8 +313,12 @@ func (v View) Render() string {
 
 func (v View) renderTags() string {
 	items := v.EffectiveTags()
-	if len(v.Tags) == 0 && !v.Creating {
-		return v.Styles.RenderEmptyCard(v.Width, v.visibleRows(), "No tags yet", []styles.EmptyAction{
+	if len(items) == 0 && !v.Creating && v.FilterText == "" && !v.FilterActive {
+		title := "No tags yet"
+		if len(v.Tags) > 0 {
+			title = "No tagged tracks yet"
+		}
+		return v.Styles.RenderEmptyCard(v.Width, v.visibleRows(), title, []styles.EmptyAction{
 			{Key: "t", Label: "tag a track"},
 			{Key: "?", Label: "help"},
 		})

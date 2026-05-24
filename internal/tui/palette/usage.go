@@ -13,6 +13,8 @@ import (
 // usageFileName is the JSON file written to the data directory.
 const usageFileName = "palette_usage.json"
 
+var maxUsageCount = int(^uint(0) >> 1)
+
 // UsageRecord captures how often and how recently a command was confirmed.
 type UsageRecord struct {
 	Count    int       `json:"count"`
@@ -109,7 +111,9 @@ func (s *UsageStore) Bump(key string) {
 		s.records = make(map[string]UsageRecord)
 	}
 	rec := s.records[key]
-	rec.Count++
+	if rec.Count < maxUsageCount {
+		rec.Count++
+	}
 	rec.LastUsed = time.Now()
 	s.records[key] = rec
 }
