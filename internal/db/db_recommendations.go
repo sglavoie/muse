@@ -72,14 +72,14 @@ func (d *DB) ReadHiddenGemsMix(maxPlays, topArtists, topGenres, limit int) ([]li
 	var args []any
 
 	if len(artists) > 0 {
-		conditions = append(conditions, "t.artist IN ("+inPlaceholders(len(artists))+")")
+		conditions = append(conditions, "t.artist COLLATE NOCASE IN ("+inPlaceholders(len(artists))+")")
 		for _, a := range artists {
 			args = append(args, a)
 		}
 	}
 	if len(genres) > 0 {
 		conditions = append(conditions,
-			"EXISTS (SELECT 1 FROM track_genres tg WHERE tg.track_hash = t.hash AND tg.genre IN ("+inPlaceholders(len(genres))+"))")
+			"EXISTS (SELECT 1 FROM track_genres tg WHERE tg.track_hash = t.hash AND tg.genre COLLATE NOCASE IN ("+inPlaceholders(len(genres))+"))")
 		for _, g := range genres {
 			args = append(args, g)
 		}

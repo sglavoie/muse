@@ -493,3 +493,32 @@ func TestFavoritesBulkActionExitsVisualMode(t *testing.T) {
 		t.Fatal("expected visual mode to exit after favorites bulk action")
 	}
 }
+
+// TestVisualSelectRangeFavoritesBoundsClamp guards selectRange's favorites
+// branch from inserting indices that exceed the visible list length. Other
+// branches (queue/playlists/library/browse/tags) bound-check; favorites must
+// do the same so a stale cursor (e.g. after the list shrinks via a filter
+// change) cannot leak invalid keys into selectedItems.
+func TestVisualSelectRangeFavoritesBoundsClamp(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewFavorites
+	m.favorites.level = favtui.ListLevel
+	m.favorites.category = favtui.CategoryTracks
+	m.favorites.tracks = []library.Track{
+		{Hash: "h0", Title: "T0", Artist: "A"},
+		{Hash: "h1", Title: "T1", Artist: "A"},
+	}
+	m.visual = visualState{active: true, view: viewFavorites}
+
+	// Request a range that exceeds the visible list length.
+	m = selectRange(m, 0, 10)
+
+	for idx := range m.favorites.selectedItems {
+		if idx < 0 || idx >= len(m.favorites.tracks) {
+			t.Fatalf("selectedItems contains out-of-range index %d (list len=%d)", idx, len(m.favorites.tracks))
+		}
+	}
+	if len(m.favorites.selectedItems) != len(m.favorites.tracks) {
+		t.Fatalf("expected exactly %d clamped selections, got %d", len(m.favorites.tracks), len(m.favorites.selectedItems))
+	}
+}

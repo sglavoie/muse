@@ -499,6 +499,57 @@ func TestEffectiveTags_NilCountsShowsAll(t *testing.T) {
 	}
 }
 
+// TestCursorUp_ClampsStaleCursorAfterShrink guards a regression where
+// CursorUp simply decremented a stale Cursor (e.g. left over from before a
+// filter/delete shrank the list) instead of clamping it to the new last
+// index. The cursor must land inside [0, n-1] after a single up press.
+func TestCursorUp_ClampsStaleCursorAfterShrink(t *testing.T) {
+	v := View{
+		Level:     TagLevel,
+		Cursor:    10,
+		Tags:      []db.TagRow{{ID: 1, Name: "a"}, {ID: 2, Name: "b"}, {ID: 3, Name: "c"}},
+		TagCounts: map[int64]int{1: 1, 2: 1, 3: 1},
+		Height:    20,
+	}
+	v = v.CursorUp()
+	if v.Cursor != 2 {
+		t.Errorf("CursorUp with stale Cursor=10 against itemCount=3: want Cursor=2, got %d", v.Cursor)
+	}
+}
+
+// TestCursorDown_ClampsStaleCursorAfterShrink guards the same regression for
+// CursorDown: a stale Cursor above the list end must be brought back inside
+// [0, n-1] rather than incremented further out of range.
+func TestCursorDown_ClampsStaleCursorAfterShrink(t *testing.T) {
+	v := View{
+		Level:     TagLevel,
+		Cursor:    10,
+		Tags:      []db.TagRow{{ID: 1, Name: "a"}, {ID: 2, Name: "b"}, {ID: 3, Name: "c"}},
+		TagCounts: map[int64]int{1: 1, 2: 1, 3: 1},
+		Height:    20,
+	}
+	v = v.CursorDown()
+	if v.Cursor != 2 {
+		t.Errorf("CursorDown with stale Cursor=10 against itemCount=3: want Cursor=2, got %d", v.Cursor)
+	}
+}
+
+// TestCursorUp_ClampsNegativeCursor verifies that a negative stale Cursor is
+// brought to 0 rather than left negative or decremented further.
+func TestCursorUp_ClampsNegativeCursor(t *testing.T) {
+	v := View{
+		Level:     TagLevel,
+		Cursor:    -3,
+		Tags:      []db.TagRow{{ID: 1, Name: "a"}, {ID: 2, Name: "b"}},
+		TagCounts: map[int64]int{1: 1, 2: 1},
+		Height:    20,
+	}
+	v = v.CursorUp()
+	if v.Cursor < 0 {
+		t.Errorf("CursorUp with negative Cursor: want >=0, got %d", v.Cursor)
+	}
+}
+
 // TestGoToBottom_ClampsScrollOffsetWhenListShrank guards a regression where
 // GoToBottom kept a stale ScrollOffset above the new last index after a
 // filter/delete shrank the list, leaving the cursor rendering above the

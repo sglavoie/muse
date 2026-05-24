@@ -152,12 +152,21 @@ func (v View) moveCursor(delta int) View {
 	maxRows := v.visibleRows()
 	if maxRows <= 0 {
 		v.ScrollOffset = v.Cursor
+		if v.ScrollOffset < 0 {
+			v.ScrollOffset = 0
+		}
 		return v
+	}
+	if v.ScrollOffset < 0 {
+		v.ScrollOffset = 0
 	}
 	if v.Cursor < v.ScrollOffset {
 		v.ScrollOffset = v.Cursor
 	} else if v.Cursor >= v.ScrollOffset+maxRows {
 		v.ScrollOffset = v.Cursor - maxRows + 1
+	}
+	if v.ScrollOffset < 0 {
+		v.ScrollOffset = 0
 	}
 	return v
 }

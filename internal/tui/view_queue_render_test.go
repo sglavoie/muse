@@ -420,3 +420,22 @@ func TestQueueRenderEndOfQueueSentinelHiddenWhenEmpty(t *testing.T) {
 		t.Errorf("sentinel must not appear in empty-queue card; got: %q", ansi.Strip(out))
 	}
 }
+
+// TestQueueRenderSourceColumnStableAcrossScroll guards against a regression
+// where hasSource was computed from visible entries only, causing the Source
+// column to appear/disappear (and the Title column to shift width) as the user
+// scrolled. The column must be present whenever ANY entry has a source.
+func TestQueueRenderSourceColumnStableAcrossScroll(t *testing.T) {
+	entries := make([]QueueEntry, 30)
+	for i := range entries {
+		entries[i] = QueueEntry{Title: "T", Artist: "A", Hash: "h", DurationMs: 60_000}
+	}
+	// Only an off-screen entry has a source.
+	entries[29].SourcePlaylist = "MyPlaylist"
+	v := QueueView{entries: entries, width: 120, height: 8}
+	v.scrollOffset = 0
+	out := ansi.Strip(v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil))
+	if !strings.Contains(out, "Source") {
+		t.Errorf("Source column header must appear when any entry has a source even if scrolled away; got: %q", out)
+	}
+}

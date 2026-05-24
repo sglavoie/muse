@@ -293,10 +293,11 @@ func clampLine(line string, width int) string {
 }
 
 func singleLine(s string) string {
-	if !strings.ContainsAny(s, "\r\n") {
+	if !strings.ContainsAny(s, "\r\n\t") {
 		return s
 	}
 	s = strings.ReplaceAll(s, "\r\n", " ")
 	s = strings.ReplaceAll(s, "\n", " ")
-	return strings.ReplaceAll(s, "\r", " ")
+	s = strings.ReplaceAll(s, "\r", " ")
+	return strings.ReplaceAll(s, "\t", " ")
 }

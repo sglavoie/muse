@@ -290,7 +290,11 @@ func selectRange(m Model, lo, hi int) Model {
 		}
 	case viewFavorites:
 		if m.favorites.level != favtui.CategoryLevel {
+			n := visualListLen(m)
 			for i := lo; i <= hi; i++ {
+				if i < 0 || (n > 0 && i >= n) {
+					continue
+				}
 				if m.favorites.selectedItems == nil {
 					m.favorites.selectedItems = make(map[int]struct{})
 				}

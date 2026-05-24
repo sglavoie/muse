@@ -63,7 +63,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 	end := min(len(entries), start+maxRows)
 
 	hasSource := false
-	for _, e := range entries[start:end] {
+	for _, e := range entries {
 		if e.SourcePlaylist != "" {
 			hasSource = true
 			break

@@ -74,9 +74,11 @@ func FilteredWalk(ctx context.Context, roots []string, excludedPaths []string, k
 	}
 
 	// Compute deletions: known paths not seen during the walk.
+	// Skip paths excluded by the current configuration so that a newly
+	// excluded directory is not reported as "deleted" and marked missing.
 	var deleted []string
 	for path := range known {
-		if !seen[path] {
+		if !seen[path] && !ShouldExclude(path, excludedPaths) {
 			deleted = append(deleted, path)
 		}
 	}

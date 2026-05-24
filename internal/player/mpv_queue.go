@@ -210,16 +210,31 @@ func (m *Manager) prefetchNext() {
 	}
 
 	if curPrefIdx >= 0 {
-		if _, err := c.SendCommand(cmdPlaylistRemove, 1); err != nil {
-			// Cannot safely append the new track: the stale entry is still in
-			// mpv's playlist. Bailing preserves the tracking state so the next
-			// call can retry the remove once mpv recovers.
-			return
-		}
+		// Re-check under write lock: the end-file handler may have cleared
+		// prefetchedIndex between our RLock snapshot and here, in which case
+		// the playlist slot 1 no longer contains our prefetched track and we
+		// must not send a spurious playlist-remove.
 		m.mu.Lock()
-		m.prefetchedIndex = -1
-		m.prefetchedPath = ""
+		stillPrefetched := m.prefetchedIndex >= 0
+		savedIdx := m.prefetchedIndex
+		savedPath := m.prefetchedPath
+		if stillPrefetched {
+			m.prefetchedIndex = -1
+			m.prefetchedPath = ""
+		}
 		m.mu.Unlock()
+		if stillPrefetched {
+			if _, err := c.SendCommand(cmdPlaylistRemove, 1); err != nil {
+				// Cannot safely append the new track: the stale entry is still in
+				// mpv's playlist. Restore tracking state so the next call can
+				// retry the remove once mpv recovers.
+				m.mu.Lock()
+				m.prefetchedIndex = savedIdx
+				m.prefetchedPath = savedPath
+				m.mu.Unlock()
+				return
+			}
+		}
 	}
 
 	if _, err := c.SendCommand(cmdLoadfile, nextPath, "append"); err != nil {
@@ -244,23 +259,38 @@ func (m *Manager) clearPrefetch() {
 // doClearPrefetch is the inner implementation of clearPrefetch. The caller
 // must hold prefetchMu.
 func (m *Manager) doClearPrefetch() {
-	m.mu.RLock()
-	had := m.prefetchedIndex >= 0
-	m.mu.RUnlock()
+	// Read and clear atomically under the write lock so that the end-file
+	// handler cannot race between our read and the IPC send: if it already
+	// cleared prefetchedIndex to -1 we must not send a spurious playlist-remove.
+	m.mu.Lock()
+	savedIdx := m.prefetchedIndex
+	savedPath := m.prefetchedPath
+	had := savedIdx >= 0
+	if had {
+		m.prefetchedIndex = -1
+		m.prefetchedPath = ""
+	}
+	m.mu.Unlock()
+
 	if !had {
 		return
 	}
 	c, err := m.ipc()
 	if err != nil {
+		// Restore tracking state so a subsequent call can retry.
+		m.mu.Lock()
+		m.prefetchedIndex = savedIdx
+		m.prefetchedPath = savedPath
+		m.mu.Unlock()
 		return
 	}
 	if _, err := c.SendCommand(cmdPlaylistRemove, 1); err != nil {
-		return
+		// Restore tracking state so a subsequent call can retry the remove.
+		m.mu.Lock()
+		m.prefetchedIndex = savedIdx
+		m.prefetchedPath = savedPath
+		m.mu.Unlock()
 	}
-	m.mu.Lock()
-	m.prefetchedIndex = -1
-	m.prefetchedPath = ""
-	m.mu.Unlock()
 }
 
 // Next advances to the next track in the queue using the Go-side index so

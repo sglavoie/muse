@@ -356,6 +356,64 @@ func TestBack_ClampsCursorWhenParentEmpty(t *testing.T) {
 // GoToBottom kept a stale ScrollOffset above the new last index after a
 // filter/delete shrank the list, leaving the cursor rendering above the
 // visible window.
+func TestCursorUp_ClampsStaleCursorPastEnd(t *testing.T) {
+	v := View{
+		Level:        GenreLevel,
+		Genres:       []string{"A", "B", "C"},
+		Cursor:       9,
+		ScrollOffset: 9,
+		Height:       20,
+	}
+	v = v.CursorUp()
+	if v.Cursor != 2 {
+		t.Fatalf("CursorUp: expected stale cursor clamped to 2, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Fatalf("CursorUp: expected ScrollOffset<=Cursor, got %d > %d", v.ScrollOffset, v.Cursor)
+	}
+}
+
+func TestCursorDown_ClampsStaleCursorPastEnd(t *testing.T) {
+	v := View{
+		Level:        GenreLevel,
+		Genres:       []string{"A", "B", "C"},
+		Cursor:       9,
+		ScrollOffset: 9,
+		Height:       20,
+	}
+	v = v.CursorDown()
+	if v.Cursor != 2 {
+		t.Fatalf("CursorDown: expected stale cursor clamped to 2, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Fatalf("CursorDown: expected ScrollOffset<=Cursor, got %d > %d", v.ScrollOffset, v.Cursor)
+	}
+}
+
+func TestCursorDown_ClampsNegativeCursorToFirstRow(t *testing.T) {
+	v := View{
+		Level:  GenreLevel,
+		Genres: []string{"A", "B", "C"},
+		Cursor: -3,
+	}
+	v = v.CursorDown()
+	if v.Cursor != 0 {
+		t.Fatalf("CursorDown: expected negative cursor clamped to 0, got %d", v.Cursor)
+	}
+}
+
+func TestCursorUp_ClampsNegativeCursorToFirstRow(t *testing.T) {
+	v := View{
+		Level:  GenreLevel,
+		Genres: []string{"A", "B", "C"},
+		Cursor: -3,
+	}
+	v = v.CursorUp()
+	if v.Cursor != 0 {
+		t.Fatalf("CursorUp: expected negative cursor clamped to 0, got %d", v.Cursor)
+	}
+}
+
 func TestGoToBottomClampsScrollOffsetWhenListShrank(t *testing.T) {
 	v := View{
 		Level:        GenreLevel,

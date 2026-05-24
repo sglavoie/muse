@@ -51,6 +51,37 @@ func TestPadNormalizesLineBreaks(t *testing.T) {
 	}
 }
 
+// TestPadNormalizesTabs guards against tabs leaking through Pad and breaking
+// width arithmetic in the terminal. Terminal tab stops mean a literal '\t'
+// occupies a variable number of display columns, so callers padding by
+// ansi.StringWidth would render misaligned columns.
+func TestPadNormalizesTabs(t *testing.T) {
+	got := Pad("ab\tcd", 10)
+	if strings.Contains(got, "\t") {
+		t.Fatalf("Pad preserved a tab character: %q", got)
+	}
+	if want := "ab cd     "; got != want {
+		t.Fatalf("Pad with tab = %q, want %q", got, want)
+	}
+	if w := ansi.StringWidth(got); w != 10 {
+		t.Fatalf("Pad display width = %d, want 10", w)
+	}
+}
+
+func TestTruncateNormalizesTabs(t *testing.T) {
+	got := Truncate("ab\tcd", 10)
+	if strings.Contains(got, "\t") {
+		t.Fatalf("Truncate preserved a tab character: %q", got)
+	}
+}
+
+func TestBuildFilterSeparatorNormalizesTabs(t *testing.T) {
+	out := BuildFilterSeparator("Sort: Name\tIgnored", false, "alpha\tbeta", "", "", 40, false)
+	if strings.Contains(out, "\t") {
+		t.Fatalf("separator must not contain tab characters; got %q", out)
+	}
+}
+
 func TestPad(t *testing.T) {
 	tests := []struct {
 		name  string

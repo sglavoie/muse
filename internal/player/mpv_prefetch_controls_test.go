@@ -298,6 +298,38 @@ func TestRemoveFromQueue_ClearsPrefetchUnderMutex(t *testing.T) {
 	}
 }
 
+// TestDoClearPrefetch_NoSpuriousRemoveWhenAlreadyCleared verifies that
+// doClearPrefetch does not send cmdPlaylistRemove when prefetchedIndex has
+// already been cleared to -1 by the end-file event handler between the moment
+// doClearPrefetch reads it and the moment it sends the IPC command. Before the
+// fix, the RLock snapshot was taken, the lock was dropped, and then the IPC
+// command was sent unconditionally — allowing a spurious remove that would
+// corrupt mpv's internal playlist.
+func TestDoClearPrefetch_NoSpuriousRemoveWhenAlreadyCleared(t *testing.T) {
+	var mu sync.Mutex
+	var received [][]any
+	m := newConnectedManager(t, "clear-pf-race", &mu, &received)
+
+	// Start with prefetchedIndex = -1 (simulates the end-file handler having
+	// already cleared it before doClearPrefetch runs).
+	m.mu.Lock()
+	m.prefetchedIndex = -1
+	m.prefetchedPath = ""
+	m.mu.Unlock()
+
+	m.prefetchMu.Lock()
+	m.doClearPrefetch()
+	m.prefetchMu.Unlock()
+
+	mu.Lock()
+	defer mu.Unlock()
+	for _, cmd := range received {
+		if isPlaylistRemove(cmd) {
+			t.Errorf("doClearPrefetch sent playlist-remove with prefetchedIndex=-1; got %v", received)
+		}
+	}
+}
+
 func TestQueueMutation_InvalidatesPrefetch(t *testing.T) {
 	var mu sync.Mutex
 	var received [][]any

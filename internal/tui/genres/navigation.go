@@ -24,13 +24,22 @@ func (v View) visibleRows() int {
 
 // CursorUp returns a copy of v with the cursor moved up by one row.
 func (v View) CursorUp() View {
-	if v.itemCount() == 0 {
+	n := v.itemCount()
+	if n == 0 {
 		v.Cursor = 0
 		v.ScrollOffset = 0
 		return v
 	}
-	if v.Cursor > 0 {
+	switch {
+	case v.Cursor < 0:
+		v.Cursor = 0
+	case v.Cursor >= n:
+		v.Cursor = n - 1
+	case v.Cursor > 0:
 		v.Cursor--
+	}
+	if v.ScrollOffset < 0 {
+		v.ScrollOffset = 0
 	}
 	if v.Cursor < v.ScrollOffset {
 		v.ScrollOffset = v.Cursor
@@ -40,14 +49,25 @@ func (v View) CursorUp() View {
 
 // CursorDown returns a copy of v with the cursor moved down by one row.
 func (v View) CursorDown() View {
-	if v.itemCount() == 0 {
+	n := v.itemCount()
+	if n == 0 {
 		v.Cursor = 0
 		v.ScrollOffset = 0
 		return v
 	}
-	limit := v.itemCount() - 1
-	if v.Cursor < limit {
+	switch {
+	case v.Cursor < 0:
+		v.Cursor = 0
+	case v.Cursor >= n:
+		v.Cursor = n - 1
+	case v.Cursor < n-1:
 		v.Cursor++
+	}
+	if v.ScrollOffset < 0 {
+		v.ScrollOffset = 0
+	}
+	if v.ScrollOffset > v.Cursor {
+		v.ScrollOffset = v.Cursor
 	}
 	maxRows := v.visibleRows()
 	if maxRows > 0 && v.Cursor >= v.ScrollOffset+maxRows {

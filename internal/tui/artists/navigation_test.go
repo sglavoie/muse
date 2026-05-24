@@ -527,3 +527,20 @@ func TestGoToBottomClampsScrollOffsetWhenListShrank(t *testing.T) {
 		t.Errorf("ScrollOffset must not be negative, got %d", v.ScrollOffset)
 	}
 }
+
+// TestMoveCursorClampsNegativeScrollOffset guards against negative ScrollOffset
+// being preserved across navigation when the cursor doesn't trigger the
+// existing window-adjust branches.
+func TestMoveCursorClampsNegativeScrollOffset(t *testing.T) {
+	v := View{
+		Level:        ArtistLevel,
+		Artists:      []string{"A", "B", "C", "D", "E"},
+		Cursor:       0,
+		ScrollOffset: -5,
+		Height:       20,
+	}
+	v = v.CursorDown()
+	if v.ScrollOffset < 0 {
+		t.Errorf("CursorDown must not preserve negative ScrollOffset, got %d", v.ScrollOffset)
+	}
+}

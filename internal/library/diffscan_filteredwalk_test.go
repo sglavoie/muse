@@ -221,6 +221,45 @@ func TestFilteredWalk_MultipleRootsDeletedFileReported(t *testing.T) {
 	}
 }
 
+// TestFilteredWalk_ExcludedKnownPathNotReportedAsDeleted verifies that a path
+// previously in the DB (present in known) is NOT reported as deleted when its
+// directory is excluded. Before the fix, excluded directories were silently
+// skipped by the walker so their files were never added to seen, causing them
+// to appear in the deleted slice and be marked missing on every incremental scan.
+func TestFilteredWalk_ExcludedKnownPathNotReportedAsDeleted(t *testing.T) {
+	root := t.TempDir()
+	excluded := filepath.Join(root, "excluded")
+	if err := os.MkdirAll(excluded, 0o755); err != nil {
+		t.Fatalf("mkdir excluded: %v", err)
+	}
+	excludedTrack := filepath.Join(excluded, "track.mp3")
+	mkfile(t, excludedTrack)
+
+	included := filepath.Join(root, "included")
+	if err := os.MkdirAll(included, 0o755); err != nil {
+		t.Fatalf("mkdir included: %v", err)
+	}
+	includedTrack := filepath.Join(included, "track.mp3")
+	mkfile(t, includedTrack)
+
+	includedInfo, _ := os.Stat(includedTrack)
+	excludedInfo, _ := os.Stat(excludedTrack)
+	known := map[string]KnownFile{
+		includedTrack: {ModTime: includedInfo.ModTime().Unix(), SizeBytes: includedInfo.Size()},
+		excludedTrack: {ModTime: excludedInfo.ModTime().Unix(), SizeBytes: excludedInfo.Size()},
+	}
+
+	_, deleted, err := FilteredWalk(context.Background(), []string{root}, []string{excluded}, known, nil)
+	if err != nil {
+		t.Fatalf("FilteredWalk: %v", err)
+	}
+	for _, d := range deleted {
+		if d == excludedTrack {
+			t.Errorf("excluded path %q must not appear in deleted", excludedTrack)
+		}
+	}
+}
+
 func TestFilteredWalk_NestedRootsDeduplicateChangedFiles(t *testing.T) {
 	root := t.TempDir()
 	shared := filepath.Join(root, "albums")

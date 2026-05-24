@@ -191,6 +191,29 @@ func TestMixes_OOB_SufficientHistoryCount_UsesDefault(t *testing.T) {
 	}
 }
 
+func TestMixes_OOB_DeepCutsMinCompletion_WarningContainsFloatRange(t *testing.T) {
+	dir := t.TempDir()
+	content := "[mixes]\ndeep_cuts_min_completion = 1.5\n"
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	found := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "deep_cuts_min_completion") && strings.Contains(w, "0-1") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected warning containing range '0-1' for deep_cuts_min_completion, got: %v", result.Warnings)
+	}
+}
+
 func TestMixes_DeepCutsMinGreaterThanMaxUsesDefaults(t *testing.T) {
 	dir := t.TempDir()
 	content := "[mixes]\ndeep_cuts_min_plays = 10\ndeep_cuts_max_plays = 5\n"

@@ -108,7 +108,11 @@ func (m *Manager) Stop() error {
 }
 
 // SeekAbsolute seeks to an absolute position in seconds within the current track.
+// Negative values are clamped to 0.
 func (m *Manager) SeekAbsolute(seconds float64) error {
+	if seconds < 0 {
+		seconds = 0
+	}
 	c, err := m.ipcOrEnqueue(func() error { return m.SeekAbsolute(seconds) })
 	if err != nil || c == nil {
 		return err

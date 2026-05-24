@@ -152,6 +152,11 @@ func runTUI(ctx context.Context) error {
 	result, err := app.Run(ctx, dirs, deps)
 	if err != nil {
 		slog.Error("startup failed", "err", err)
+		if mgr != nil {
+			if closeErr := mgr.Close(); closeErr != nil {
+				slog.Warn("startup: close player after failure", "err", closeErr)
+			}
+		}
 		return err
 	}
 

@@ -154,6 +154,79 @@ func TestReadHiddenGemsMix_MultiGenreTrack(t *testing.T) {
 	}
 }
 
+// TestReadHiddenGemsMix_ArtistMatchCaseInsensitive verifies that a track whose
+// artist differs only in case from a top artist is still returned. Before the
+// fix, "ARTISTА" and "artista" were treated as distinct artists so a track
+// could miss the IN filter even though it is by the same artist.
+func TestReadHiddenGemsMix_ArtistMatchCaseInsensitive(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "h1", "/a.flac", "Song1", "ArtistA", "Album", "Rock", 180000, 5000000, now)
+	insertFullTrack(t, d, "h2", "/b.flac", "Song2", "artista", "Album", "Rock", 180000, 5000000, now)
+	w := newWriter(t, d)
+
+	if err := w.RecordPlay("h1", now, 60, 180); err != nil {
+		t.Fatalf("RecordPlay: %v", err)
+	}
+	if _, err := d.Exec(`UPDATE tracks SET play_count = 3 WHERE hash = ?`, "h1"); err != nil {
+		t.Fatalf("update h1 play_count: %v", err)
+	}
+
+	tracks, err := d.ReadHiddenGemsMix(2, 20, 10, 10)
+	if err != nil {
+		t.Fatalf("ReadHiddenGemsMix: %v", err)
+	}
+	found := false
+	for _, tr := range tracks {
+		if tr.Hash == "h2" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("ReadHiddenGemsMix did not return h2 (artist case-insensitive match)")
+	}
+}
+
+// TestReadHiddenGemsMix_GenreMatchCaseInsensitive verifies that a track whose
+// genre in track_genres differs only in case from a top genre is still returned.
+func TestReadHiddenGemsMix_GenreMatchCaseInsensitive(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "h1", "/a.flac", "Song1", "ArtistA", "Album", "Rock", 180000, 5000000, now)
+	insertFullTrack(t, d, "h2", "/b.flac", "Song2", "ArtistZ", "Album", "rock", 180000, 5000000, now)
+	w := newWriter(t, d)
+
+	if err := w.RecordPlay("h1", now, 60, 180); err != nil {
+		t.Fatalf("RecordPlay h1: %v", err)
+	}
+	if _, err := d.Exec(`UPDATE tracks SET play_count = 3 WHERE hash = ?`, "h1"); err != nil {
+		t.Fatalf("update h1 play_count: %v", err)
+	}
+	if _, err := d.Exec(`UPDATE tracks SET play_count = 1 WHERE hash = ?`, "h2"); err != nil {
+		t.Fatalf("update h2 play_count: %v", err)
+	}
+	if _, err := d.Exec(`INSERT OR IGNORE INTO track_genres (track_hash, genre) VALUES (?, ?)`, "h1", "Rock"); err != nil {
+		t.Fatalf("insert track_genres h1: %v", err)
+	}
+	if _, err := d.Exec(`INSERT OR IGNORE INTO track_genres (track_hash, genre) VALUES (?, ?)`, "h2", "rock"); err != nil {
+		t.Fatalf("insert track_genres h2: %v", err)
+	}
+
+	tracks, err := d.ReadHiddenGemsMix(2, 20, 10, 10)
+	if err != nil {
+		t.Fatalf("ReadHiddenGemsMix: %v", err)
+	}
+	found := false
+	for _, tr := range tracks {
+		if tr.Hash == "h2" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("ReadHiddenGemsMix did not return h2 (genre case-insensitive match)")
+	}
+}
+
 func TestReadHiddenGemsMix_ExcludesMissingTracks(t *testing.T) {
 	d := openMigratedDB(t)
 	now := time.Now().Unix()
