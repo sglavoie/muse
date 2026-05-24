@@ -76,8 +76,20 @@ func (v View) itemCount() int {
 // paths resilient to stale negative or overlarge values.
 func (v View) visibleWindow(itemCount int) (int, int) {
 	rows := v.visibleRows()
+	if itemCount <= 0 || rows <= 0 {
+		return 0, 0
+	}
 	maxStart := max(itemCount-rows, 0)
 	start := min(max(v.ScrollOffset, 0), maxStart)
+	if v.Cursor >= 0 {
+		cursor := min(v.Cursor, itemCount-1)
+		if cursor < start {
+			start = cursor
+		} else if cursor >= start+rows {
+			start = cursor - rows + 1
+		}
+	}
+	start = min(max(start, 0), maxStart)
 	end := min(itemCount, start+rows)
 	return start, end
 }

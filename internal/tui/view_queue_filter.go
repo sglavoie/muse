@@ -142,6 +142,13 @@ func (v QueueView) FocusNowPlaying(currentPlayingIndex int) QueueView {
 	} else {
 		v.scrollOffset = 0
 	}
+	maxOffset := len(filtered) - maxRows
+	if maxOffset < 0 {
+		maxOffset = 0
+	}
+	if v.scrollOffset > maxOffset {
+		v.scrollOffset = maxOffset
+	}
 	return v
 }
 

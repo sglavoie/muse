@@ -18,6 +18,7 @@ func Truncate(s string, maxLen int) string {
 	if maxLen <= 0 {
 		return ""
 	}
+	s = singleLine(s)
 	if ansi.StringWidth(s) <= maxLen {
 		return s
 	}
@@ -235,6 +236,11 @@ func normalizeMarkerIcon(icon string) string {
 // filterText is empty (e.g. st.Dim.Render(v.FilterHint)).
 // width is used to truncate the filter line to fit the terminal.
 func BuildFilterSeparator(sortIndicator string, filterActive bool, filterText, filterView, renderedHint string, width int, leadingNewline bool) string {
+	sortIndicator = singleLine(sortIndicator)
+	filterText = singleLine(filterText)
+	filterView = singleLine(filterView)
+	renderedHint = singleLine(renderedHint)
+
 	var prefix string
 	if sortIndicator != "" {
 		if leadingNewline {
@@ -279,8 +285,18 @@ func clampLine(line string, width int) string {
 	if width <= 0 {
 		return ""
 	}
+	line = singleLine(line)
 	if ansi.StringWidth(line) > width {
 		return ansi.Truncate(line, width, "")
 	}
 	return line
+}
+
+func singleLine(s string) string {
+	if !strings.ContainsAny(s, "\r\n") {
+		return s
+	}
+	s = strings.ReplaceAll(s, "\r\n", " ")
+	s = strings.ReplaceAll(s, "\n", " ")
+	return strings.ReplaceAll(s, "\r", " ")
 }

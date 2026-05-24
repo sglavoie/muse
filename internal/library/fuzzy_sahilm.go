@@ -3,6 +3,7 @@ package library
 import (
 	"path/filepath"
 	"strings"
+	"unicode"
 )
 
 // SahilmFuzzySearcher is a FuzzySearcher backed by github.com/sahilm/fuzzy.
@@ -10,12 +11,11 @@ import (
 // fields by concatenating them into a single searchable string per track.
 type SahilmFuzzySearcher struct{}
 
-// Search runs a fuzzy match against each track's artist, title, album, and
-// filename. An empty or whitespace-only query returns all tracks in index order
-// with nil MatchedIndexes. For non-empty queries the returned matches are
-// ranked by substring position and carry the MatchedIndexes into the
-// concatenated search string. Field-specific queries (a:/t:/l: prefixes) match
-// individual fields and populate per-field position slices instead.
+// Search runs a fuzzy subsequence match against each track's artist, title,
+// album, and filename. An empty or whitespace-only query returns all tracks in
+// index order with nil MatchedIndexes. Field-specific queries (a:/t:/l:
+// prefixes) match individual fields and populate per-field position slices
+// instead.
 func (s SahilmFuzzySearcher) Search(query string, tracks []Track) []Match {
 	if strings.TrimSpace(query) == "" {
 		matches := make([]Match, len(tracks))
@@ -37,18 +37,12 @@ func (s SahilmFuzzySearcher) Search(query string, tracks []Track) []Match {
 		searchTerm = strings.ToLower(query)
 	}
 
-	searchRunes := []rune(searchTerm)
-
 	var matches []Match
 	for i, t := range tracks {
 		searchStr := t.Artist + " " + t.Title + " " + t.Album + " " + filepath.Base(t.Path)
-		idx := runeIndex(strings.ToLower(searchStr), searchTerm)
-		if idx < 0 {
+		indexes, ok := fuzzyIndexes(searchStr, searchTerm)
+		if !ok {
 			continue
-		}
-		indexes := make([]int, len(searchRunes))
-		for j := range indexes {
-			indexes[j] = idx + j
 		}
 		matches = append(matches, Match{
 			TrackIndex:     i,
@@ -66,29 +60,29 @@ func (s SahilmFuzzySearcher) searchFieldSpecific(fq FilterQuery, tracks []Track)
 		ok := true
 
 		if fq.Artist != "" {
-			idx := runeIndex(strings.ToLower(t.Artist), strings.ToLower(fq.Artist))
-			if idx < 0 {
+			indexes, matched := fuzzyIndexes(t.Artist, fq.Artist)
+			if !matched {
 				ok = false
 			} else {
-				m.ArtistPositions = consecutiveIndexes(idx, len([]rune(fq.Artist)))
+				m.ArtistPositions = indexes
 			}
 		}
 
 		if ok && fq.Title != "" {
-			idx := runeIndex(strings.ToLower(t.Title), strings.ToLower(fq.Title))
-			if idx < 0 {
+			indexes, matched := fuzzyIndexes(t.Title, fq.Title)
+			if !matched {
 				ok = false
 			} else {
-				m.TitlePositions = consecutiveIndexes(idx, len([]rune(fq.Title)))
+				m.TitlePositions = indexes
 			}
 		}
 
 		if ok && fq.Album != "" {
-			idx := runeIndex(strings.ToLower(t.Album), strings.ToLower(fq.Album))
-			if idx < 0 {
+			indexes, matched := fuzzyIndexes(t.Album, fq.Album)
+			if !matched {
 				ok = false
 			} else {
-				m.AlbumPositions = consecutiveIndexes(idx, len([]rune(fq.Album)))
+				m.AlbumPositions = indexes
 			}
 		}
 
@@ -112,6 +106,42 @@ func (s SahilmFuzzySearcher) searchFieldSpecific(fq FilterQuery, tracks []Track)
 	return matches
 }
 
+// fuzzyIndexes reports whether query is a case-insensitive subsequence of s
+// and returns the rune positions in s that satisfy the match.
+func fuzzyIndexes(s, query string) ([]int, bool) {
+	queryRunes := []rune(query)
+	if len(queryRunes) == 0 {
+		return nil, true
+	}
+
+	if idx := runeIndex(strings.ToLower(s), strings.ToLower(query)); idx >= 0 {
+		return consecutiveIndexes(idx, len(queryRunes)), true
+	}
+
+	indexes := make([]int, 0, len(queryRunes))
+	qi := 0
+	for pos, r := range []rune(s) {
+		if unicode.ToLower(r) != unicode.ToLower(queryRunes[qi]) {
+			continue
+		}
+		indexes = append(indexes, pos)
+		qi++
+		if qi == len(queryRunes) {
+			return indexes, true
+		}
+	}
+	return nil, false
+}
+
+// consecutiveIndexes returns a slice [start, start+1, ..., start+length-1].
+func consecutiveIndexes(start, length int) []int {
+	idx := make([]int, length)
+	for j := range idx {
+		idx[j] = start + j
+	}
+	return idx
+}
+
 // runeIndex returns the rune (not byte) position of the first occurrence of
 // substr in s, or -1 if substr is not present. This is the rune-aware
 // equivalent of strings.Index, needed because highlight rendering works with
@@ -123,13 +153,4 @@ func runeIndex(s, substr string) int {
 	}
 	// Count runes in s[:byteIdx] to convert byte offset to rune offset.
 	return len([]rune(s[:byteIdx]))
-}
-
-// consecutiveIndexes returns a slice [start, start+1, ..., start+length-1].
-func consecutiveIndexes(start, length int) []int {
-	idx := make([]int, length)
-	for j := range idx {
-		idx[j] = start + j
-	}
-	return idx
 }

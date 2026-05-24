@@ -120,3 +120,45 @@ func TestEffectiveTracks_AtListLevel(t *testing.T) {
 		t.Errorf("expected 3, got %d", len(got))
 	}
 }
+
+func TestVisibleWindow_ShiftsStaleLowScrollToCursor(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Category:     CategoryArtists,
+		Cursor:       4,
+		ScrollOffset: 0,
+		Height:       4, // visibleRows = 2
+	}
+	start, end := v.visibleWindow(5)
+	if start != 3 || end != 5 {
+		t.Fatalf("expected window [3,5) to keep cursor visible, got [%d,%d)", start, end)
+	}
+}
+
+func TestVisibleWindow_KeepsCursorVisibleWithHighScroll(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Category:     CategoryArtists,
+		Cursor:       1,
+		ScrollOffset: 4,
+		Height:       4, // visibleRows = 2
+	}
+	start, end := v.visibleWindow(5)
+	if start != 1 || end != 3 {
+		t.Fatalf("expected window [1,3) to keep cursor visible, got [%d,%d)", start, end)
+	}
+}
+
+func TestVisibleWindow_ZeroVisibleRowsReturnsEmptyWindow(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Category:     CategoryArtists,
+		Cursor:       2,
+		ScrollOffset: 1,
+		Height:       2, // visibleRows = 0
+	}
+	start, end := v.visibleWindow(5)
+	if start != 0 || end != 0 {
+		t.Fatalf("expected empty window [0,0), got [%d,%d)", start, end)
+	}
+}

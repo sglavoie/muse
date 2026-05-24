@@ -16,15 +16,20 @@ func validate(raw rawConfig) (Config, []string) {
 
 	// Resolve music directories: prefer music_directories, fall back to
 	// legacy music_directory, then use the built-in default.
-	var rawDirs []string
-	switch {
-	case len(raw.MusicDirectories) > 0:
-		rawDirs = raw.MusicDirectories
-	case raw.MusicDirectory != "":
-		rawDirs = []string{raw.MusicDirectory}
-	}
-	if len(rawDirs) > 0 {
-		resolved := normalizeMusicDirectories(rawDirs)
+	if len(raw.MusicDirectories) > 0 {
+		resolved := normalizeMusicDirectories(raw.MusicDirectories)
+		if len(resolved) > 0 {
+			cfg.MusicDirectories = resolved
+			cfg.MusicDirectory = resolved[0]
+		} else if raw.MusicDirectory != "" {
+			resolved = normalizeMusicDirectories([]string{raw.MusicDirectory})
+			if len(resolved) > 0 {
+				cfg.MusicDirectories = resolved
+				cfg.MusicDirectory = resolved[0]
+			}
+		}
+	} else if raw.MusicDirectory != "" {
+		resolved := normalizeMusicDirectories([]string{raw.MusicDirectory})
 		if len(resolved) > 0 {
 			cfg.MusicDirectories = resolved
 			cfg.MusicDirectory = resolved[0]

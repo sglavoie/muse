@@ -149,9 +149,9 @@ func (v View) renderTracks() string {
 		// inner ANSI reset would reset the cursor highlight mid-row.
 		markerStr := text.RowMarker(isSelected, isFocused, isNowPlaying, v.NowPlayingIcon)
 
-		pos := fmt.Sprintf("%-*s", cols.Position, text.FormatTrackPos(t.TrackNumber, t.DiscNumber, absIdx+1))
+		pos := text.Pad(text.FormatTrackPos(t.TrackNumber, t.DiscNumber, absIdx+1), cols.Position)
 		dur := text.FormatDurationMs(t.DurationMs)
-		dur = fmt.Sprintf("%*s", cols.Duration, dur)
+		dur = text.PadLeft(dur, cols.Duration)
 
 		// Per-cell favorite lookups.
 		_, isTrackFav := v.FavoriteHashes[t.Hash]

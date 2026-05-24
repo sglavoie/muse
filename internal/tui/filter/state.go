@@ -104,6 +104,9 @@ func (s State) Update(msg tea.KeyPressMsg) (State, tea.Cmd) {
 	}
 	s = s.seed()
 	s.input = cloneInput(s.input)
+	if s.deleteWordForwardAtFinalRune(msg) {
+		return s, nil
+	}
 	var cmd tea.Cmd
 	s.input, cmd = s.input.Update(msg)
 	s.Text = s.input.Value()
@@ -118,10 +121,30 @@ func (s State) UpdateMsg(msg tea.Msg) (State, tea.Cmd) {
 	}
 	s = s.seed()
 	s.input = cloneInput(s.input)
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && s.deleteWordForwardAtFinalRune(keyMsg) {
+		return s, nil
+	}
 	var cmd tea.Cmd
 	s.input, cmd = s.input.Update(msg)
 	s.Text = s.input.Value()
 	return s, cmd
+}
+
+func (s *State) deleteWordForwardAtFinalRune(msg tea.KeyPressMsg) bool {
+	switch msg.Keystroke() {
+	case "alt+d", "alt+delete":
+	default:
+		return false
+	}
+	runes := []rune(s.input.Value())
+	pos := s.input.Position()
+	if len(runes) == 0 || pos != len(runes)-1 {
+		return false
+	}
+	s.input.SetValue(string(runes[:pos]))
+	s.input.SetCursor(pos)
+	s.Text = s.input.Value()
+	return true
 }
 
 // View returns the textinput's rendered string for active filter display.

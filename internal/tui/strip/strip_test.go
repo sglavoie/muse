@@ -501,6 +501,47 @@ func TestRender_FilterLineBreaksNormalized(t *testing.T) {
 	}
 }
 
+func TestRender_PlainFieldsStripANSIAndControlBytes(t *testing.T) {
+	s := styles.NewStyles(true)
+	red := lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Render("Red")
+	styledMode := lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render("Mode")
+	got := Render(120,
+		[]string{"Artists" + red, "Brian\bEno"},
+		SortChunk{Label: "Album" + styledMode, Indicator: "\x07▼"},
+		FilterChunk{Text: "alice\x07bob"},
+		CountsChunk{Total: 7},
+		nil,
+		"esc"+red+" back",
+		s,
+	)
+	plain := ansi.Strip(got)
+
+	if ansi.StringWidth(got) != 120 {
+		t.Fatalf("width = %d, want 120 (plain=%q)", ansi.StringWidth(got), plain)
+	}
+	if strings.Contains(plain, "\x1b") || strings.Contains(plain, "\x07") || strings.Contains(plain, "\b") {
+		t.Fatalf("plain strip fields must not leak ANSI/control bytes, got %q", plain)
+	}
+	for _, want := range []string{"ArtistsRed", "Brian Eno", "sort AlbumMode ▼", `filter "alice bob"`, "escRed back"} {
+		if !strings.Contains(plain, want) {
+			t.Errorf("sanitized plain field missing %q in %q", want, plain)
+		}
+	}
+}
+
+func TestRender_ActiveInputViewPreservesCursorANSI(t *testing.T) {
+	s := styles.NewStyles(true)
+	inputView := lipgloss.NewStyle().Reverse(true).Render("a") + "lice"
+
+	got := Render(80, []string{"Library"}, SortChunk{},
+		FilterChunk{Active: true, Text: "alice", InputView: inputView},
+		CountsChunk{Total: 7}, nil, "", s)
+
+	if !strings.Contains(got, inputView) {
+		t.Errorf("active filter input view should preserve caller-rendered cursor ANSI, got %q", got)
+	}
+}
+
 func TestRender_HintLineBreaksNormalized(t *testing.T) {
 	s := styles.NewStyles(true)
 	got := Render(80, []string{"Artists"}, SortChunk{}, FilterChunk{},

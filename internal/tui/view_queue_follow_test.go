@@ -75,6 +75,19 @@ func TestScrollToNowPlayingDoesNotMoveCursor(t *testing.T) {
 	}
 }
 
+// TestFocusNowPlayingClampsScrollToMaxOffset verifies that focusing a row near
+// the tail does not scroll beyond the last full viewport.
+func TestFocusNowPlayingClampsScrollToMaxOffset(t *testing.T) {
+	q := makeFollowQueue(11, 12) // visibleRows = 9, maxOffset = 2
+	q2 := q.FocusNowPlaying(10)
+	if q2.cursor != 10 {
+		t.Fatalf("cursor: expected 10, got %d", q2.cursor)
+	}
+	if q2.scrollOffset != 2 {
+		t.Errorf("scrollOffset: expected 2, got %d", q2.scrollOffset)
+	}
+}
+
 // TestTrackChangedScrollsWhenFollowingAndQueueActive verifies the on-track-change
 // hook adjusts scrollOffset when follow mode is on and the Queue view is active.
 func TestTrackChangedScrollsWhenFollowingAndQueueActive(t *testing.T) {

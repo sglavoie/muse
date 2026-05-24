@@ -228,6 +228,35 @@ func TestRunDurationAudit_AlreadyCorrectTracksGetMarkedVerified(t *testing.T) {
 	}
 }
 
+func TestRunDurationAudit_ExtremeDurationDiffCorrectsInsteadOfOverflowing(t *testing.T) {
+	const probedMs = int64(1 << 62)
+	restore := app.SetProbeFn(func(_ context.Context, _ string) (float64, error) {
+		return float64(probedMs) / 1000.0, nil
+	})
+	t.Cleanup(restore)
+
+	reader := &stubReader{tracks: []db.UnverifiedTrack{
+		{Hash: "hash-corrupt", Path: "/track-corrupt.mp3", DurationMs: -probedMs},
+	}}
+	writer := newStubVerifier()
+
+	ch := runAudit(t, reader, writer)
+	fixes := drainAndWait(t, ch)
+
+	if len(fixes) != 1 {
+		t.Fatalf("fixes sent = %d; want 1 for overflowing duration difference", len(fixes))
+	}
+	if fixes[0].Hash != "hash-corrupt" || fixes[0].DurationMs != probedMs {
+		t.Fatalf("fix = %+v; want hash-corrupt/%d", fixes[0], probedMs)
+	}
+	if got := writer.corrected["hash-corrupt"]; got != probedMs {
+		t.Fatalf("VerifyTrackDuration duration = %d; want %d", got, probedMs)
+	}
+	if len(writer.verified) != 0 {
+		t.Fatalf("MarkDurationVerified calls = %v; want none for corrupt duration", writer.verified)
+	}
+}
+
 func TestRunDurationAudit_CancelBeforeProbeResultSkipsWriter(t *testing.T) {
 	probeStarted := make(chan struct{})
 	releaseProbe := make(chan struct{})

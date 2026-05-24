@@ -46,7 +46,8 @@ var remoteActions = []remoteAction{
 
 type unixSocketListener struct {
 	net.Listener
-	path string
+	path       string
+	socketInfo os.FileInfo
 }
 
 func (l *unixSocketListener) Close() error {
@@ -54,7 +55,7 @@ func (l *unixSocketListener) Close() error {
 	if errors.Is(closeErr, net.ErrClosed) {
 		closeErr = nil
 	}
-	return errors.Join(closeErr, removeControlSocket(l.path))
+	return errors.Join(closeErr, removeControlSocketIfSame(l.path, l.socketInfo))
 }
 
 // isKnownAction reports whether name is a recognised remote action.
@@ -98,7 +99,13 @@ func startCommandListener(p *tea.Program, runtimeDir string) (net.Listener, erro
 		_ = os.Remove(sockPath)
 		return nil, fmt.Errorf("restrict control socket permissions: %w", err)
 	}
-	ln = &unixSocketListener{Listener: ln, path: sockPath}
+	socketInfo, err := os.Lstat(sockPath)
+	if err != nil {
+		_ = ln.Close()
+		_ = os.Remove(sockPath)
+		return nil, fmt.Errorf("stat control socket: %w", err)
+	}
+	ln = &unixSocketListener{Listener: ln, path: sockPath, socketInfo: socketInfo}
 
 	go acceptLoop(p, ln)
 
@@ -110,6 +117,10 @@ func removeStaleControlSocket(path string) error {
 }
 
 func removeControlSocket(path string) error {
+	return removeControlSocketIfSame(path, nil)
+}
+
+func removeControlSocketIfSame(path string, expected os.FileInfo) error {
 	info, err := os.Lstat(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
@@ -119,6 +130,9 @@ func removeControlSocket(path string) error {
 	}
 	if info.Mode()&os.ModeSocket == 0 {
 		return fmt.Errorf("%s exists and is not a socket", path)
+	}
+	if expected != nil && !os.SameFile(expected, info) {
+		return nil
 	}
 	return os.Remove(path)
 }

@@ -156,5 +156,5 @@ func artistMatches(trackArtist, artist string) bool {
 }
 
 func isUnknownArtist(artist string) bool {
-	return artist == "" || artist == libraryUnknownArtist
+	return artist == "" || artist == libraryUnknownArtist || artist == arttui.UnknownArtist
 }

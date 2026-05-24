@@ -16,7 +16,7 @@ func displayArtistName(artist string) string {
 }
 
 func isUnknownArtist(artist string) bool {
-	return artist == "" || artist == libraryUnknownArtist
+	return artist == "" || artist == libraryUnknownArtist || artist == UnknownArtist
 }
 
 func artistMatches(trackArtist, artist string) bool {
@@ -24,6 +24,13 @@ func artistMatches(trackArtist, artist string) bool {
 		return isUnknownArtist(trackArtist)
 	}
 	return trackArtist == artist
+}
+
+func albumMatches(trackAlbum, album string) bool {
+	if album == "" {
+		return trackAlbum == "" || trackAlbum == UnknownAlbum
+	}
+	return trackAlbum == album
 }
 
 // DeriveArtists extracts unique artist names from a sorted track slice.
@@ -93,7 +100,7 @@ func DeriveTracks(tracks []library.Track, artist, album string) []library.Track 
 	album = RawName(album)
 	var result []library.Track
 	for _, track := range tracks {
-		if artistMatches(track.Artist, artist) && track.Album == album {
+		if artistMatches(track.Artist, artist) && albumMatches(track.Album, album) {
 			result = append(result, track)
 		}
 	}

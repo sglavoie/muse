@@ -121,8 +121,18 @@ func (v View) itemCount() int {
 // window. Render paths can receive stale scroll offsets after filters, deletes,
 // or async count refreshes shrink a list, so clamp both low and high bounds.
 func (v View) visibleWindow(itemCount, rows int) (int, int) {
+	if itemCount <= 0 || rows <= 0 {
+		return 0, 0
+	}
 	maxStart := max(itemCount-rows, 0)
 	start := min(max(v.ScrollOffset, 0), maxStart)
+	if v.Cursor >= 0 {
+		cursor := min(v.Cursor, itemCount-1)
+		if cursor >= start+rows {
+			start = cursor - rows + 1
+		}
+	}
+	start = min(max(start, 0), maxStart)
 	end := min(itemCount, start+rows)
 	return start, end
 }

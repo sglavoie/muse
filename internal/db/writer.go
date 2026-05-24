@@ -246,7 +246,7 @@ func (w *Writer) RecordPlay(hash string, playedAt int64, listenedSecs int, durat
 		// Determine session ID. Runs inside the writer goroutine, so
 		// w.lastSessionID and w.lastPlayedAt are safe to read/write.
 		sessionID := w.lastSessionID
-		if sessionID == "" || playedAt-w.lastPlayedAt > sessionGapSecs {
+		if sessionID == "" || timeGapExceeds(playedAt, w.lastPlayedAt, sessionGapSecs) {
 			var randBuf [4]byte
 			if _, err := rand.Read(randBuf[:]); err != nil {
 				return fmt.Errorf("session rand: %w", err)
@@ -291,6 +291,23 @@ func (w *Writer) RecordPlay(hash string, playedAt int64, listenedSecs int, durat
 		}
 		return nil
 	})
+}
+
+func timeGapExceeds(a, b, threshold int64) bool {
+	if threshold < 0 {
+		return true
+	}
+	const maxInt64 int64 = 1<<63 - 1
+	if a >= b {
+		if b < 0 && a > maxInt64+b {
+			return true
+		}
+		return a-b > threshold
+	}
+	if a < 0 && b > maxInt64+a {
+		return true
+	}
+	return b-a > threshold
 }
 
 // PopulateTrackGenres refreshes (track_hash, genre) rows in track_genres for

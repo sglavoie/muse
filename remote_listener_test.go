@@ -162,6 +162,38 @@ func TestCommandListener_CloseDoesNotRemoveReplacedNonSocketPath(t *testing.T) {
 	}
 }
 
+func TestCommandListener_CloseDoesNotRemoveReplacedSocketPath(t *testing.T) {
+	dir := shortTempDir(t)
+	received := make(chan tui.RemoteActionMsg, 1)
+	p := newTestProgram(received)
+	go p.Run() //nolint:errcheck
+	defer p.Quit()
+
+	ln, err := startCommandListener(p, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sockPath := filepath.Join(dir, ctrlSocketName)
+	if err := os.Remove(sockPath); err != nil {
+		t.Fatalf("remove socket path before replacement: %v", err)
+	}
+	replacement, err := net.Listen("unix", sockPath)
+	if err != nil {
+		t.Fatalf("listen on replacement socket: %v", err)
+	}
+	defer replacement.Close()
+
+	if err := ln.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if info, err := os.Stat(sockPath); err != nil {
+		t.Fatalf("replacement socket should remain in place: %v", err)
+	} else if info.Mode()&os.ModeSocket == 0 {
+		t.Fatalf("replacement path mode = %v, want socket", info.Mode())
+	}
+}
+
 func TestCommandListener_CloseIsIdempotent(t *testing.T) {
 	dir := shortTempDir(t)
 	received := make(chan tui.RemoteActionMsg, 1)

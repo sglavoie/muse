@@ -74,6 +74,71 @@ func TestRecordPlay_DifferentSession(t *testing.T) {
 	}
 }
 
+// TestRecordPlay_BackwardGapStartsNewSession verifies that session boundaries
+// use the absolute time gap between consecutive recorded plays. Before the fix,
+// a large backwards clock jump was folded into the current session because only
+// forward gaps were compared to the threshold.
+func TestRecordPlay_BackwardGapStartsNewSession(t *testing.T) {
+	d := openMigratedDB(t)
+	insertTrack(t, d, "h1", "/a.flac")
+	insertTrack(t, d, "h2", "/b.flac")
+	w := newWriter(t, d)
+
+	now := time.Now().Unix()
+	if err := w.RecordPlay("h1", now, 60, 120); err != nil {
+		t.Fatalf("RecordPlay h1: %v", err)
+	}
+	if err := w.RecordPlay("h2", now-2000, 60, 120); err != nil {
+		t.Fatalf("RecordPlay h2: %v", err)
+	}
+
+	var sid1, sid2 string
+	if err := d.QueryRow(`SELECT session_id FROM play_history WHERE track_hash = ?`, "h1").Scan(&sid1); err != nil {
+		t.Fatalf("query h1 session_id: %v", err)
+	}
+	if err := d.QueryRow(`SELECT session_id FROM play_history WHERE track_hash = ?`, "h2").Scan(&sid2); err != nil {
+		t.Fatalf("query h2 session_id: %v", err)
+	}
+
+	if sid1 == "" || sid2 == "" {
+		t.Error("session_id is empty")
+	}
+	if sid1 == sid2 {
+		t.Errorf("session IDs are the same (%q), want different sessions (backward 2000s gap)", sid1)
+	}
+}
+
+func TestRecordPlay_ExtremeBackwardGapStartsNewSession(t *testing.T) {
+	d := openMigratedDB(t)
+	insertTrack(t, d, "h1", "/a.flac")
+	insertTrack(t, d, "h2", "/b.flac")
+	w := newWriter(t, d)
+
+	const maxInt64 = int64(^uint64(0) >> 1)
+	const minInt64 = -maxInt64 - 1
+	if err := w.RecordPlay("h1", maxInt64, 60, 120); err != nil {
+		t.Fatalf("RecordPlay h1: %v", err)
+	}
+	if err := w.RecordPlay("h2", minInt64, 60, 120); err != nil {
+		t.Fatalf("RecordPlay h2: %v", err)
+	}
+
+	var sid1, sid2 string
+	if err := d.QueryRow(`SELECT session_id FROM play_history WHERE track_hash = ?`, "h1").Scan(&sid1); err != nil {
+		t.Fatalf("query h1 session_id: %v", err)
+	}
+	if err := d.QueryRow(`SELECT session_id FROM play_history WHERE track_hash = ?`, "h2").Scan(&sid2); err != nil {
+		t.Fatalf("query h2 session_id: %v", err)
+	}
+
+	if sid1 == "" || sid2 == "" {
+		t.Error("session_id is empty")
+	}
+	if sid1 == sid2 {
+		t.Errorf("session IDs are the same (%q), want different sessions (extreme backward gap)", sid1)
+	}
+}
+
 // TestWriter_InitSessionState_ContinuesSameSession verifies that a new Writer
 // restores lastSessionID from the DB and continues the same session when the
 // gap since the last play is within the threshold.

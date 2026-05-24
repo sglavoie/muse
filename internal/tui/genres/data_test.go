@@ -210,6 +210,21 @@ func TestDeriveGenreArtistTracks_UnknownArtistIncludesLibrarySentinel(t *testing
 	}
 }
 
+func TestDeriveGenreArtistTracks_UnknownArtistIncludesDisplaySentinel(t *testing.T) {
+	ts := tracks(
+		struct{ genre, artist, title string }{"Rock", "", "empty"},
+		struct{ genre, artist, title string }{"Rock", arttui.UnknownArtist, "display"},
+		struct{ genre, artist, title string }{"Rock", "Alice", "known"},
+	)
+	got := DeriveGenreArtistTracks(ts, "Rock", arttui.UnknownArtist)
+	if len(got) != 2 {
+		t.Fatalf("want 2 tracks, got %d: %v", len(got), got)
+	}
+	if got[0].Title != "empty" || got[1].Title != "display" {
+		t.Errorf("unexpected tracks: %v", got)
+	}
+}
+
 func TestDeriveGenreArtistTracks_UnknownGenreIncludesLiteralSentinelTag(t *testing.T) {
 	ts := tracks(
 		struct{ genre, artist, title string }{"", "Alice", "empty"},

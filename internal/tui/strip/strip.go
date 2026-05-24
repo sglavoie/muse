@@ -94,12 +94,12 @@ func Render(
 		return ""
 	}
 
-	sort.Label = singleLine(sort.Label)
-	sort.Indicator = singleLine(sort.Indicator)
-	filter.Text = singleLine(filter.Text)
+	sort.Label = plainLine(sort.Label)
+	sort.Indicator = plainLine(sort.Indicator)
+	filter.Text = plainLine(filter.Text)
 	filter.InputView = singleLine(filter.InputView)
 	filter.Hint = singleLine(filter.Hint)
-	hint = hintLine(hint)
+	hint = plainHintLine(hint)
 
 	// Defensive: filter out empty crumbs so a stray "" in the slice does not
 	// render as a free-floating chevron (" › Foo › "). After filtering, an
@@ -108,7 +108,7 @@ func Render(
 	{
 		cleaned := breadcrumb[:0:0]
 		for _, c := range breadcrumb {
-			c = singleLine(c)
+			c = plainLine(c)
 			if strings.TrimSpace(ansi.Strip(c)) != "" {
 				cleaned = append(cleaned, c)
 			}
@@ -412,7 +412,7 @@ func Render(
 // upstream uses the unstyled string, so this function never changes
 // display width.
 func renderKeyLabelPair(hint string, s styles.Styles) string {
-	hint = hintLine(hint)
+	hint = plainHintLine(hint)
 	if hint == "" {
 		return ""
 	}
@@ -437,8 +437,22 @@ func singleLine(v string) string {
 	return strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ", "\t", " ").Replace(v)
 }
 
-// hintLine keeps key hints on one line and removes layout-only whitespace so
-// width arithmetic matches renderKeyLabelPair's key/label styling.
-func hintLine(v string) string {
-	return strings.Join(strings.Fields(singleLine(v)), " ")
+// plainLine sanitizes untrusted, plain-text strip fields before they are
+// styled. InputView and FilterChunk.Hint intentionally do not use this path
+// because callers pass pre-rendered ANSI there for cursors and placeholders.
+func plainLine(v string) string {
+	v = ansi.Strip(singleLine(v))
+	if !strings.ContainsAny(v, "\x00\x01\x02\x03\x04\x05\x06\x07\b\x0b\f\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x7f") {
+		return v
+	}
+	return strings.Map(func(r rune) rune {
+		if r == '\x7f' || r < ' ' {
+			return ' '
+		}
+		return r
+	}, v)
+}
+
+func plainHintLine(v string) string {
+	return strings.Join(strings.Fields(plainLine(v)), " ")
 }

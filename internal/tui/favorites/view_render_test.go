@@ -57,6 +57,7 @@ func TestRenderList_ClampsHighScrollOffset(t *testing.T) {
 		Category:     CategoryArtists,
 		Width:        20,
 		Height:       4, // visibleRows = 2
+		Cursor:       4,
 		ScrollOffset: 50,
 		Artists:      []string{"Alice", "Bob", "Carol", "Daphne", "Eve"},
 	}
@@ -87,6 +88,7 @@ func TestRenderTrackRows_ClampsHighScrollOffset(t *testing.T) {
 		Category:     CategoryTracks,
 		Width:        80,
 		Height:       5, // visibleRows = 2
+		Cursor:       4,
 		ScrollOffset: 50,
 		Tracks:       sampleTracks(5),
 	}

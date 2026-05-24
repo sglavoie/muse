@@ -24,6 +24,9 @@ func TestTruncate(t *testing.T) {
 		{"longer than maxLen", "hello world", 5, "hell…"},
 		{"wide chars CJK", "你好世界", 5, "你好…"},
 		{"emoji truncated", "🎵🎶🎸🎹", 5, "🎵🎶…"},
+		{"line break is normalized", "hello\nworld", 20, "hello world"},
+		{"carriage return is normalized", "hello\rworld", 20, "hello world"},
+		{"crlf is normalized once", "hello\r\nworld", 20, "hello world"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -32,6 +35,19 @@ func TestTruncate(t *testing.T) {
 				t.Errorf("Truncate(%q, %d) = %q, want %q", tt.s, tt.maxLen, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestPadNormalizesLineBreaks(t *testing.T) {
+	got := Pad("first\nsecond", 15)
+	if strings.ContainsAny(got, "\r\n") {
+		t.Fatalf("Pad preserved a line break: %q", got)
+	}
+	if want := "first second   "; got != want {
+		t.Fatalf("Pad with line break = %q, want %q", got, want)
+	}
+	if w := ansi.StringWidth(got); w != 15 {
+		t.Fatalf("Pad display width = %d, want 15", w)
 	}
 }
 
@@ -389,6 +405,16 @@ func TestBuildFilterSeparatorMultiByteFilter(t *testing.T) {
 	line := strings.TrimRight(out, "\n")
 	if w := ansi.StringWidth(line); w > width {
 		t.Errorf("multi-byte truncation overflow: width=%d > %d (line=%q)", w, width, line)
+	}
+}
+
+func TestBuildFilterSeparatorNormalizesLineBreaks(t *testing.T) {
+	out := BuildFilterSeparator("Sort: Name\nIgnored", false, "alpha\nbeta", "", "", 40, false)
+	if strings.Count(out, "\n") != 2 {
+		t.Fatalf("separator newline count = %d, want 2 (out=%q)", strings.Count(out, "\n"), out)
+	}
+	if !strings.Contains(out, "Sort: Name Ignored\nFilter: alpha beta\n") {
+		t.Fatalf("separator did not normalize line breaks as expected: %q", out)
 	}
 }
 

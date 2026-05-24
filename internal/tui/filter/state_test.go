@@ -89,6 +89,29 @@ func TestUpdateBackspace(t *testing.T) {
 	}
 }
 
+func TestUpdateDeleteWordForwardAtFinalRune(t *testing.T) {
+	s, _ := New().Activate()
+	s, _ = s.Update(tea.KeyPressMsg{Text: "a"})
+	s, _ = s.Update(tea.KeyPressMsg{Text: "b"})
+	s, _ = s.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+
+	s, _ = s.Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModAlt})
+	if s.Text != "a" {
+		t.Errorf("after alt+d on final rune: want Text=%q, got %q", "a", s.Text)
+	}
+}
+
+func TestUpdateMsgDeleteWordForwardAtFinalRune(t *testing.T) {
+	s, _ := New().Activate()
+	s, _ = s.Update(tea.KeyPressMsg{Text: "x"})
+	s, _ = s.Update(tea.KeyPressMsg{Code: tea.KeyHome})
+
+	s, _ = s.UpdateMsg(tea.KeyPressMsg{Code: tea.KeyDelete, Mod: tea.ModAlt})
+	if s.Text != "" {
+		t.Errorf("after alt+delete on only rune: want Text=%q, got %q", "", s.Text)
+	}
+}
+
 func TestView(t *testing.T) {
 	s, _ := New().Activate()
 	// View() must not panic and must return a string.

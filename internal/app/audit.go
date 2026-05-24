@@ -92,11 +92,7 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 						return
 					}
 					probedMs := int64(math.Round(dur * 1000))
-					diff := probedMs - t.DurationMs
-					if diff < 0 {
-						diff = -diff
-					}
-					if diff > 2000 {
+					if durationDiffExceeds(probedMs, t.DurationMs, 2000) {
 						results <- result{hash: t.Hash, durationMs: probedMs}
 					} else {
 						results <- result{hash: t.Hash, verified: true}
@@ -139,4 +135,21 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 	}()
 
 	return out
+}
+
+func durationDiffExceeds(a, b, threshold int64) bool {
+	if threshold < 0 {
+		return true
+	}
+	const maxInt64 int64 = 1<<63 - 1
+	if a >= b {
+		if b < 0 && a > maxInt64+b {
+			return true
+		}
+		return a-b > threshold
+	}
+	if a < 0 && b > maxInt64+a {
+		return true
+	}
+	return b-a > threshold
 }

@@ -2,6 +2,7 @@ package library
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 )
@@ -111,6 +112,17 @@ func TestSahilmFuzzySearcher(t *testing.T) {
 			t.Errorf("expected no matches, got %+v", got)
 		}
 	})
+
+	t.Run("NonContiguousQueryMatchesArtist", func(t *testing.T) {
+		got := s.Search("rhd", tracks)
+		if len(got) != 1 || got[0].TrackIndex != 0 {
+			t.Fatalf("expected fuzzy match on Radiohead (index 0), got %+v", got)
+		}
+		want := []int{0, 5, 8}
+		if !slices.Equal(got[0].MatchedIndexes, want) {
+			t.Errorf("MatchedIndexes = %v, want %v", got[0].MatchedIndexes, want)
+		}
+	})
 }
 
 func TestSahilmFuzzySearcher_FieldSpecific(t *testing.T) {
@@ -193,6 +205,17 @@ func TestSahilmFuzzySearcher_FieldSpecific(t *testing.T) {
 		got := s.Search("pablo", tracks)
 		if len(got) != 1 || got[0].TrackIndex != 0 {
 			t.Errorf("expected general search to match album 'Pablo Honey', got %+v", got)
+		}
+	})
+
+	t.Run("NonContiguousFieldQueryMatchesTitle", func(t *testing.T) {
+		got := s.Search("t:cnmb", tracks)
+		if len(got) != 1 || got[0].TrackIndex != 1 {
+			t.Fatalf("expected fuzzy title match on Comfortably Numb (index 1), got %+v", got)
+		}
+		want := []int{0, 12, 14, 15}
+		if !slices.Equal(got[0].TitlePositions, want) {
+			t.Errorf("TitlePositions = %v, want %v", got[0].TitlePositions, want)
 		}
 	})
 }

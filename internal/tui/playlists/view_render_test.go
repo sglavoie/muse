@@ -308,6 +308,34 @@ func TestRenderTracksHeaderFitsNarrowColumns(t *testing.T) {
 	}
 }
 
+func TestRenderTracksTruncatesWidePositionAndDurationCells(t *testing.T) {
+	const width = 40
+	v := View{
+		Level: TrackLevel,
+		Width: width,
+		Tracks: []db.PlaylistTrackRow{
+			{
+				ID:          1,
+				DiscNumber:  123,
+				TrackNumber: 456,
+				Title:       "Long Title",
+				Artist:      "Long Artist",
+				Album:       "Long Album",
+				DurationMs:  36_000_000_000, // 10000:00:00, wider than the fixed duration cell.
+			},
+		},
+	}
+
+	lines := strings.Split(v.Render(), "\n")
+	if len(lines) < 4 {
+		t.Fatalf("expected track render to include heading, header, and row; got %d lines", len(lines))
+	}
+	row := ansi.Strip(lines[3])
+	if got := ansi.StringWidth(row); got != width {
+		t.Fatalf("track row width = %d, want %d; row=%q", got, width, row)
+	}
+}
+
 // trackColumnWidthsFromRender renders the playlists track view at the given
 // width, strips ANSI sequences from the first track row, and returns the
 // visible rune widths of the Title and Artist columns.

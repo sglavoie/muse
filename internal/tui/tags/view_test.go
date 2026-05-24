@@ -161,6 +161,32 @@ func TestCursorMovement_EmptyListResetsCursorAndScroll(t *testing.T) {
 	}
 }
 
+func TestVisibleWindowKeepsCursorVisibleWhenScrollTrails(t *testing.T) {
+	v := View{
+		Cursor:       8,
+		ScrollOffset: 0,
+	}
+
+	start, end := v.visibleWindow(20, 5)
+
+	if start != 4 || end != 9 {
+		t.Fatalf("visibleWindow = [%d,%d), want [4,9)", start, end)
+	}
+}
+
+func TestVisibleWindowWithNoRowsReturnsEmptyWindow(t *testing.T) {
+	v := View{
+		Cursor:       2,
+		ScrollOffset: 10,
+	}
+
+	start, end := v.visibleWindow(20, 0)
+
+	if start != 0 || end != 0 {
+		t.Fatalf("visibleWindow = [%d,%d), want [0,0)", start, end)
+	}
+}
+
 func TestCursorDownWithNoVisibleRowsKeepsScrollOnCursor(t *testing.T) {
 	v := View{
 		Level:         TagLevel,

@@ -53,6 +53,31 @@ music_directory = "/home/user/Songs"
 	}
 }
 
+func TestLoad_BlankMusicDirectoriesFallsBackToLegacyMusicDirectory(t *testing.T) {
+	dir := t.TempDir()
+	content := `music_directories = ["", "   "]
+music_directory = "  /home/user/Songs/  "
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if len(result.Config.MusicDirectories) != 1 {
+		t.Fatalf("MusicDirectories: expected 1 entry, got %d: %v", len(result.Config.MusicDirectories), result.Config.MusicDirectories)
+	}
+	if result.Config.MusicDirectories[0] != "/home/user/Songs" {
+		t.Errorf("MusicDirectories[0] = %q, want %q", result.Config.MusicDirectories[0], "/home/user/Songs")
+	}
+	if result.Config.MusicDirectory != "/home/user/Songs" {
+		t.Errorf("MusicDirectory = %q, want %q", result.Config.MusicDirectory, "/home/user/Songs")
+	}
+}
+
 func TestLoad_TildeExpansionInMusicDirectories(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {
