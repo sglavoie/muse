@@ -2,11 +2,7 @@ package tui
 
 import (
 	"context"
-	"strings"
 	"testing"
-
-	tea "charm.land/bubbletea/v2"
-	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // TestQueueFilterActivatesOnSlash verifies that pressing '/' in the queue view
@@ -74,117 +70,6 @@ func TestQueueFilterMatchesArtistAndAlbum(t *testing.T) {
 	}
 }
 
-// TestQueueFilterEscapeClears verifies that pressing Escape clears the filter
-// and resets the cursor.
-func TestQueueFilterEscapeClears(t *testing.T) {
-	m := New(context.Background())
-	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
-		{Path: "/a.flac", Title: "Alpha", Artist: "ArtA"},
-		{Path: "/b.flac", Title: "Beta", Artist: "ArtB"},
-	}
-
-	// Activate and type a filter.
-	next, _ := m.Update(FilterBarMsg{})
-	m = next.(Model)
-	next, _ = m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
-	m = next.(Model)
-	if m.queue.filter.Text != "a" {
-		t.Fatalf("filter text should be 'a', got %q", m.queue.filter.Text)
-	}
-
-	// Press Escape to clear.
-	next, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	m = next.(Model)
-	if m.queue.filter.Active {
-		t.Error("filter should be inactive after Escape")
-	}
-	if m.queue.filter.Text != "" {
-		t.Errorf("filter text should be empty after Escape, got %q", m.queue.filter.Text)
-	}
-}
-
-// TestQueueFilterEnterCommits verifies that pressing Enter commits the filter
-// (exits input mode but keeps the text).
-func TestQueueFilterEnterCommits(t *testing.T) {
-	m := New(context.Background())
-	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
-		{Path: "/a.flac", Title: "Alpha", Artist: "ArtA"},
-	}
-
-	// Activate and type.
-	next, _ := m.Update(FilterBarMsg{})
-	m = next.(Model)
-	next, _ = m.Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
-	m = next.(Model)
-
-	// Press Enter to commit.
-	next, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	m = next.(Model)
-	if m.queue.filter.Active {
-		t.Error("filter input mode should be inactive after Enter")
-	}
-	if m.queue.filter.Text != "x" {
-		t.Errorf("filter text should be preserved after Enter, got %q", m.queue.filter.Text)
-	}
-}
-
-// TestQueueEscClearsCommittedFilter verifies that pressing Esc after committing
-// a filter (Enter) clears the filter text and resets the cursor.
-func TestQueueEscClearsCommittedFilter(t *testing.T) {
-	m := New(context.Background())
-	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
-		{Path: "/a.flac", Title: "Alpha", Artist: "ArtA"},
-		{Path: "/b.flac", Title: "Beta", Artist: "ArtB"},
-	}
-
-	// Activate, type, and commit the filter.
-	next, _ := m.Update(FilterBarMsg{})
-	m = next.(Model)
-	next, _ = m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
-	m = next.(Model)
-	next, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	m = next.(Model)
-	if m.queue.filter.Text != "a" {
-		t.Fatalf("committed filter text should be 'a', got %q", m.queue.filter.Text)
-	}
-
-	// Press Esc to clear the committed filter.
-	next, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	m = next.(Model)
-	if m.queue.filter.Active {
-		t.Error("filter should be inactive after Esc")
-	}
-	if m.queue.filter.Text != "" {
-		t.Errorf("filter text should be empty after Esc, got %q", m.queue.filter.Text)
-	}
-	if m.queue.cursor != 0 {
-		t.Errorf("cursor should be 0 after Esc, got %d", m.queue.cursor)
-	}
-}
-
-// TestQueueEscNoOpWithoutFilter verifies that pressing Esc in the queue view
-// without a committed filter does not crash or change state unexpectedly.
-func TestQueueEscNoOpWithoutFilter(t *testing.T) {
-	m := New(context.Background())
-	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
-		{Path: "/a.flac", Title: "Alpha", Artist: "ArtA"},
-	}
-	m.queue.cursor = 0
-
-	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	nm := next.(Model)
-	if nm.queue.cursor != 0 {
-		t.Errorf("cursor should remain 0, got %d", nm.queue.cursor)
-	}
-	if nm.queue.filter.Text != "" {
-		t.Errorf("filter text should be empty, got %q", nm.queue.filter.Text)
-	}
-}
-
 // TestQueueFilterCursorStaysInBounds verifies that the cursor is clamped when
 // filter narrows the visible entries.
 func TestQueueFilterCursorStaysInBounds(t *testing.T) {
@@ -208,50 +93,6 @@ func TestQueueFilterCursorStaysInBounds(t *testing.T) {
 	}
 }
 
-// TestQueueFilterRendersFilterBar verifies that the filter chunk appears in
-// the rendered queue output when the filter is active.
-func TestQueueFilterRendersFilterBar(t *testing.T) {
-	q := QueueView{
-		entries: []QueueEntry{
-			{Path: "/a.flac", Title: "Song", Artist: "Art", Album: "Alb"},
-		},
-		width:  120,
-		height: 20,
-	}
-	q.filter, _ = q.filter.Activate()
-	for _, ch := range "song" {
-		q.filter, _ = q.filter.Update(tea.KeyPressMsg{Text: string(ch)})
-	}
-	q.cursor = 0
-	q.scrollOffset = 0
-
-	s := styles.NewStyles(true)
-	out := q.render(s, -1, PlaybackIdle, nil, nil, nil)
-	if !strings.Contains(out, `filter "`) {
-		t.Errorf("rendered output should contain filter chunk, got:\n%s", out)
-	}
-}
-
-// TestQueueFilterNoMatchesShowsMessage verifies that when filter matches
-// nothing, "(no matches)" is displayed.
-func TestQueueFilterNoMatchesShowsMessage(t *testing.T) {
-	q := QueueView{
-		entries: []QueueEntry{
-			{Path: "/a.flac", Title: "Song", Artist: "Art"},
-		},
-	}
-	q.filter, _ = q.filter.Activate()
-	q.filter.Text = "zzzzz"
-	q.cursor = 0
-	q.scrollOffset = 0
-
-	s := styles.NewStyles(true)
-	out := q.render(s, -1, PlaybackIdle, nil, nil, nil)
-	if !strings.Contains(out, "(no matches)") {
-		t.Errorf("expected '(no matches)' when filter has no results, got:\n%s", out)
-	}
-}
-
 // TestQueueFilterClearedOnClearQueue verifies that clearing the queue also
 // clears any active filter.
 func TestQueueFilterClearedOnClearQueue(t *testing.T) {
@@ -272,102 +113,6 @@ func TestQueueFilterClearedOnClearQueue(t *testing.T) {
 	}
 	if nm.queue.filter.Text != "" {
 		t.Errorf("filter text should be empty after queue clear, got %q", nm.queue.filter.Text)
-	}
-}
-
-// TestQueueFilterSelectMapsToCorrectEntry verifies that selecting an entry
-// while filter is active dispatches PlayQueueIndexMsg with the correct
-// underlying entry index.
-func TestQueueFilterSelectMapsToCorrectEntry(t *testing.T) {
-	stubFileExistsTrue(t)
-	q := QueueView{
-		entries: []QueueEntry{
-			{ID: 1, Path: "/a.flac", Hash: "ha", Title: "Alpha", Artist: "A"},
-			{ID: 2, Path: "/b.flac", Hash: "hb", Title: "Beta", Artist: "B"},
-			{ID: 3, Path: "/c.flac", Hash: "hc", Title: "Gamma", Artist: "C"},
-		},
-	}
-	q.filter, _ = q.filter.Activate()
-	q.filter.Text = "beta"
-	q.cursor = 0
-	q.scrollOffset = 0
-
-	// Cursor 0 in filtered view should be "Beta" (real index 1).
-	q.cursor = 0
-	_, cmd := q.HandleAction(actionSelect)
-	if cmd == nil {
-		t.Fatal("expected non-nil cmd")
-	}
-	msg := cmd()
-	pqi, ok := msg.(PlayQueueIndexMsg)
-	if !ok {
-		t.Fatalf("expected PlayQueueIndexMsg, got %T", msg)
-	}
-	if pqi.Index != 1 {
-		t.Fatalf("expected real index 1, got %d", pqi.Index)
-	}
-}
-
-// TestQueueFilterMoveDisabled verifies that move-up/move-down are disabled
-// when a filter is active.
-func TestQueueFilterMoveDisabled(t *testing.T) {
-	q := QueueView{
-		entries: []QueueEntry{
-			{Path: "/a.flac", Title: "Alpha", Artist: "A"},
-			{Path: "/b.flac", Title: "Beta", Artist: "B"},
-		},
-		cursor: 0,
-	}
-	q.filter, _ = q.filter.Activate()
-	q.filter.Text = "a" // still matches both
-	q.cursor = 0
-	q.scrollOffset = 0
-
-	_, cmd := q.HandleAction(actionMoveTrackDown)
-	if cmd == nil {
-		t.Error("move-down when filtered should return a TransientNotifyMsg cmd")
-	} else if _, ok := cmd().(TransientNotifyMsg); !ok {
-		t.Error("move-down when filtered: expected TransientNotifyMsg")
-	}
-
-	q.cursor = 1
-	_, cmd = q.HandleAction(actionMoveTrackUp)
-	if cmd == nil {
-		t.Error("move-up when filtered should return a TransientNotifyMsg cmd")
-	} else if _, ok := cmd().(TransientNotifyMsg); !ok {
-		t.Error("move-up when filtered: expected TransientNotifyMsg")
-	}
-}
-
-// TestQueueTagFilterMoveDisabled verifies that move-up/move-down are disabled
-// when a cross-view tag filter is active. A tag filter narrows the visible
-// queue, so cursor rows no longer map safely to underlying queue indices.
-func TestQueueTagFilterMoveDisabled(t *testing.T) {
-	q := QueueView{
-		entries: []QueueEntry{
-			{Path: "/a.flac", Hash: "hidden", Title: "Hidden", Artist: "A"},
-			{Path: "/b.flac", Hash: "h1", Title: "Visible One", Artist: "B"},
-			{Path: "/c.flac", Hash: "h2", Title: "Visible Two", Artist: "C"},
-		},
-		tagFilterHashes: map[string]struct{}{"h1": {}, "h2": {}},
-		cursor:          0,
-	}
-
-	_, cmd := q.HandleAction(actionMoveTrackDown)
-	if cmd == nil {
-		t.Fatal("move-down when tag-filtered should return a TransientNotifyMsg cmd")
-	}
-	if _, ok := cmd().(TransientNotifyMsg); !ok {
-		t.Fatal("move-down when tag-filtered: expected TransientNotifyMsg")
-	}
-
-	q.cursor = 1
-	_, cmd = q.HandleAction(actionMoveTrackUp)
-	if cmd == nil {
-		t.Fatal("move-up when tag-filtered should return a TransientNotifyMsg cmd")
-	}
-	if _, ok := cmd().(TransientNotifyMsg); !ok {
-		t.Fatal("move-up when tag-filtered: expected TransientNotifyMsg")
 	}
 }
 

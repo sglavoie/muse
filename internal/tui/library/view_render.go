@@ -3,14 +3,11 @@ package library
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	musiclib "github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/buckets"
-	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -351,93 +348,4 @@ func (v View) Render() string {
 	}
 
 	return stripLine + "\n" + header + "\n" + strings.Join(out, "\n")
-}
-
-// renderStateStrip builds the unified single-line state strip carrying
-// the view label, sort, filter, and counts. total is the full track
-// count before filtering; filtered is the count after filtering is
-// applied (equal to total when no filter is active).
-func (v View) renderStateStrip(total, filtered int) string {
-	label := v.StripViewLabel
-	if label == "" {
-		label = "Library"
-	}
-	sort := strip.SortChunk{Label: v.StripSortLabel, Indicator: v.StripSortIndicator}
-	f := strip.FilterChunk{Active: v.Filter.Active, Text: v.Filter.Text}
-	if v.Filter.Active {
-		if v.Filter.Text == "" {
-			f.Hint = v.Styles.TextSecondary.Render("a: artist  t: title  l: album  g: genre")
-		} else {
-			f.InputView = v.Filter.View()
-		}
-	}
-	counts := strip.CountsChunk{
-		Filtered:  filtered,
-		Total:     total,
-		Filtering: v.Filter.Text != "",
-	}
-	var sel *strip.SelectionChunk
-	if n := len(v.SelectedHashes); n > 0 {
-		sel = &strip.SelectionChunk{Count: n}
-	}
-	return strip.Render(v.Width, []string{label}, sort, f, counts, sel, "", v.Styles)
-}
-
-// renderDivider returns a single divider line spanning the visible content
-// width. It is rendered with the dim Divider style and uses U+2500 box-drawing.
-func (v View) renderDivider() string {
-	w := v.Width
-	if w <= 0 {
-		w = 1
-	}
-	return v.Styles.Divider.Render(strings.Repeat("─", w))
-}
-
-// renderBucketHeader returns a styled bucket-header line padded to the
-// content width so subsequent lines align cleanly.
-func (v View) renderBucketHeader(label string) string {
-	if label == "" {
-		return ""
-	}
-	w := v.Width
-	if w <= 0 {
-		w = ansi.StringWidth(label)
-	}
-	padded := label
-	if pw := ansi.StringWidth(label); pw < w {
-		padded = label + strings.Repeat(" ", w-pw)
-	}
-	return v.Styles.BucketHeader.Render(padded)
-}
-
-// renderRow formats a single row with each field padded or truncated to its
-// column width. When cols.Artist is zero the layout degenerates to just the
-// track number field.
-func renderRow(num, artist, title, album, duration, dateAdded string, cols Columns) string {
-	if cols.Artist == 0 {
-		return text.Pad(num, cols.TrackNum)
-	}
-	row := text.Pad(num, cols.TrackNum) + "  " +
-		text.Pad(artist, cols.Artist) + "  " +
-		text.Pad(title, cols.Title) + "  " +
-		text.Pad(album, cols.Album) + "  " +
-		text.PadLeft(duration, cols.Duration)
-	if cols.DateAdded > 0 {
-		row += "  " + text.Pad(dateAdded, cols.DateAdded)
-	}
-	return row
-}
-
-func formatDateAdded(createdAt int64) string {
-	if createdAt <= 0 {
-		return "--"
-	}
-	return time.Unix(createdAt, 0).Local().Format("2006-01-02")
-}
-
-func formatPlayedAt(ts int64) string {
-	if ts <= 0 {
-		return "--"
-	}
-	return time.Unix(ts, 0).Local().Format("2006-01-02 15:04")
 }
