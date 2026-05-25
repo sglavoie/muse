@@ -30,6 +30,13 @@ type ipcResponse struct {
 	Event     string          `json:"event,omitempty"`
 }
 
+type ipcAsyncEvent struct {
+	Event  string          `json:"event"`
+	Reason string          `json:"reason,omitempty"`
+	Name   string          `json:"name,omitempty"`
+	Data   json.RawMessage `json:"data,omitempty"`
+}
+
 func (r *ipcResponse) isNullData() bool {
 	trimmed := bytes.TrimSpace(r.Data)
 	return len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null"))
@@ -66,6 +73,22 @@ func (r *ipcResponse) formattedData() (string, bool, error) {
 		return r.stringData()
 	}
 	return string(trimmed), true, nil
+}
+
+func (e *ipcAsyncEvent) isNullData() bool {
+	trimmed := bytes.TrimSpace(e.Data)
+	return len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null"))
+}
+
+func (e *ipcAsyncEvent) boolData() (bool, bool, error) {
+	if e.isNullData() {
+		return false, false, nil
+	}
+	var value bool
+	if err := json.Unmarshal(e.Data, &value); err != nil {
+		return false, false, fmt.Errorf("expected bool or nil, got %s", bytes.TrimSpace(e.Data))
+	}
+	return value, true, nil
 }
 
 // IPCClient is a thin JSON-IPC client for mpv's Unix domain socket protocol.

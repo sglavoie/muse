@@ -33,9 +33,9 @@ func (m *Manager) startEventReader(ctx context.Context) {
 
 	// Subscribe to mpv's pause property so we learn about external pause
 	// toggles (e.g. AirPods hardware button via macOS media key routing).
-	observeCmd, err := json.Marshal(map[string]any{
-		"command":    []any{cmdObserveProperty, 1, propPause},
-		"request_id": 0,
+	observeCmd, err := json.Marshal(ipcRequest{
+		Command:   []any{cmdObserveProperty, 1, propPause},
+		RequestID: 0,
 	})
 	if err != nil {
 		slog.Warn("mpv: event reader: failed to marshal observe command", "err", err)
@@ -70,12 +70,11 @@ func (m *Manager) startEventReader(ctx context.Context) {
 
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
-		var raw map[string]any
-		if json.Unmarshal(scanner.Bytes(), &raw) != nil {
+		var event ipcAsyncEvent
+		if json.Unmarshal(scanner.Bytes(), &event) != nil || event.Event == "" {
 			continue
 		}
-		event, _ := raw["event"].(string)
-		switch event {
+		switch event.Event {
 		case "start-file":
 			// Immediately sync the position so that a crash right after track
 			// start resumes at the correct file (elapsed≈0) rather than the
@@ -102,8 +101,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			// case where prefetch was not triggered elsewhere. Idempotent.
 			go m.prefetchNext()
 		case "end-file":
-			reason, _ := raw["reason"].(string)
-			if reason != "eof" {
+			if event.Reason != "eof" {
 				// "stop", "replace", "quit", "error" — do not auto-advance.
 				continue
 			}
@@ -189,12 +187,11 @@ func (m *Manager) startEventReader(ctx context.Context) {
 				}
 			}
 		case "property-change":
-			name, _ := raw["name"].(string)
-			if name != propPause {
+			if event.Name != propPause {
 				continue
 			}
-			paused, ok := raw["data"].(bool)
-			if !ok {
+			paused, ok, err := event.boolData()
+			if err != nil || !ok {
 				continue
 			}
 			m.mu.Lock()

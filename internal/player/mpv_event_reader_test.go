@@ -245,3 +245,59 @@ func TestEventReader_TracksPauseState(t *testing.T) {
 		t.Error("lastPaused should be true after receiving pause=true property-change")
 	}
 }
+
+func TestEventReader_IgnoresInvalidPausePayload(t *testing.T) {
+	sock := shortSockPath(t, "ev-pause-invalid")
+
+	connDone := make(chan struct{})
+	os.Remove(sock)
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { ln.Close(); os.Remove(sock) })
+
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		_, _ = conn.Write([]byte(`{"event":"property-change","name":"pause","data":"true"}` + "\n"))
+		<-connDone
+	}()
+	defer close(connDone)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pauseReceived := make(chan bool, 1)
+	m := &Manager{
+		socketPath:     sock,
+		ctx:            ctx,
+		cancel:         cancel,
+		callbacksReady: make(chan struct{}),
+		callbacks: EventCallbacks{
+			OnPauseChanged: func(paused bool) {
+				pauseReceived <- paused
+			},
+		},
+		currentIndex: -1,
+	}
+
+	go m.startEventReader(ctx)
+	close(m.callbacksReady)
+
+	select {
+	case paused := <-pauseReceived:
+		t.Fatalf("OnPauseChanged fired for invalid pause payload: %v", paused)
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	m.mu.RLock()
+	got := m.lastPaused
+	m.mu.RUnlock()
+	if got {
+		t.Error("lastPaused should remain false after invalid pause payload")
+	}
+}
