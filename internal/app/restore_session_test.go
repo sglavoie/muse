@@ -5,22 +5,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/sglavoie/muse/internal/app"
 	"github.com/sglavoie/muse/internal/tui"
 )
 
 // TestRestoreSessionEmpty verifies that RestoreSession on an empty database
 // returns a non-nil RestoredSession with no entries and default flags.
 func TestRestoreSessionEmpty(t *testing.T) {
-	dirs := setupDirs(t)
-	database := openTestDB(t, dirs)
-	defer database.Close()
-	w := newTestWriter(t, database)
-
-	restored, err := app.RestoreSession(database, w)
-	if err != nil {
-		t.Fatalf("RestoreSession: %v", err)
-	}
+	harness := newRestoreSessionHarness(t)
+	restored := harness.restore()
 	if restored == nil {
 		t.Fatal("RestoreSession returned nil")
 	}
@@ -44,23 +36,11 @@ func TestRestoreSessionEmpty(t *testing.T) {
 // TestRestoreSessionReadableFiles verifies that queue entries with readable
 // file paths are returned with Missing=false.
 func TestRestoreSessionReadableFiles(t *testing.T) {
-	dirs := setupDirs(t)
-	database := openTestDB(t, dirs)
-	defer database.Close()
-	w := newTestWriter(t, database)
+	harness := newRestoreSessionHarness(t)
+	audioPath := harness.writeAudioFile("track.mp3")
+	harness.insertTrackAndQueue("hash-aaa", audioPath, "Artist A", "Song A", 1000)
 
-	audioPath := filepath.Join(dirs.Runtime, "track.mp3")
-	if err := os.WriteFile(audioPath, []byte("fake"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	insertTrack(t, database, "hash-aaa", audioPath, "Artist A", "Song A")
-	insertQueueEntry(t, database, "hash-aaa", 1000)
-
-	restored, err := app.RestoreSession(database, w)
-	if err != nil {
-		t.Fatalf("RestoreSession: %v", err)
-	}
+	restored := harness.restore()
 	if len(restored.QueueEntries) != 1 {
 		t.Fatalf("QueueEntries: want 1, got %d", len(restored.QueueEntries))
 	}
@@ -88,20 +68,11 @@ func TestRestoreSessionReadableFiles(t *testing.T) {
 // TestRestoreSessionMissingFiles verifies that queue entries with unreadable
 // file paths have Missing=true in the returned QueueEntry slice.
 func TestRestoreSessionMissingFiles(t *testing.T) {
-	dirs := setupDirs(t)
-	database := openTestDB(t, dirs)
-	defer database.Close()
-	w := newTestWriter(t, database)
+	harness := newRestoreSessionHarness(t)
+	missingPath := harness.path("nonexistent.mp3")
+	harness.insertTrackAndQueue("hash-bbb", missingPath, "Artist B", "Song B", 1000)
 
-	missingPath := filepath.Join(dirs.Runtime, "nonexistent.mp3")
-
-	insertTrack(t, database, "hash-bbb", missingPath, "Artist B", "Song B")
-	insertQueueEntry(t, database, "hash-bbb", 1000)
-
-	restored, err := app.RestoreSession(database, w)
-	if err != nil {
-		t.Fatalf("RestoreSession: %v", err)
-	}
+	restored := harness.restore()
 	if len(restored.QueueEntries) != 1 {
 		t.Fatalf("QueueEntries: want 1, got %d", len(restored.QueueEntries))
 	}
@@ -114,24 +85,16 @@ func TestRestoreSessionMissingFiles(t *testing.T) {
 }
 
 func TestRestoreSessionUnreadablePathMarkedMissing(t *testing.T) {
-	dirs := setupDirs(t)
-	database := openTestDB(t, dirs)
-	defer database.Close()
-	w := newTestWriter(t, database)
-
-	blocker := filepath.Join(dirs.Runtime, "not-a-directory")
+	harness := newRestoreSessionHarness(t)
+	blocker := harness.path("not-a-directory")
 	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	unreadablePath := filepath.Join(blocker, "track.mp3")
 
-	insertTrack(t, database, "hash-enotdir", unreadablePath, "Artist C", "Song C")
-	insertQueueEntry(t, database, "hash-enotdir", 1000)
+	harness.insertTrackAndQueue("hash-enotdir", unreadablePath, "Artist C", "Song C", 1000)
 
-	restored, err := app.RestoreSession(database, w)
-	if err != nil {
-		t.Fatalf("RestoreSession: %v", err)
-	}
+	restored := harness.restore()
 	if len(restored.QueueEntries) != 1 {
 		t.Fatalf("QueueEntries: want 1, got %d", len(restored.QueueEntries))
 	}
@@ -141,23 +104,15 @@ func TestRestoreSessionUnreadablePathMarkedMissing(t *testing.T) {
 }
 
 func TestRestoreSessionDirectoryPathMarkedMissing(t *testing.T) {
-	dirs := setupDirs(t)
-	database := openTestDB(t, dirs)
-	defer database.Close()
-	w := newTestWriter(t, database)
-
-	dirPath := filepath.Join(dirs.Runtime, "track.mp3")
+	harness := newRestoreSessionHarness(t)
+	dirPath := harness.path("track.mp3")
 	if err := os.Mkdir(dirPath, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
-	insertTrack(t, database, "hash-dir", dirPath, "Artist D", "Song D")
-	id := insertQueueEntry(t, database, "hash-dir", 1000)
+	id := harness.insertTrackAndQueue("hash-dir", dirPath, "Artist D", "Song D", 1000)
 
-	restored, err := app.RestoreSession(database, w)
-	if err != nil {
-		t.Fatalf("RestoreSession: %v", err)
-	}
+	restored := harness.restore()
 	if len(restored.QueueEntries) != 1 {
 		t.Fatalf("QueueEntries: want 1, got %d", len(restored.QueueEntries))
 	}
@@ -165,10 +120,7 @@ func TestRestoreSessionDirectoryPathMarkedMissing(t *testing.T) {
 		t.Fatal("QueueEntry.Missing: want true when saved track path is a directory")
 	}
 
-	var queueMissing int
-	if err := database.QueryRow(`SELECT missing FROM queue WHERE id=?`, id).Scan(&queueMissing); err != nil {
-		t.Fatalf("query queue.missing: %v", err)
-	}
+	queueMissing := harness.queueMissing(id)
 	if queueMissing != 1 {
 		t.Errorf("queue.missing: want 1 for directory path, got %d", queueMissing)
 	}
@@ -177,26 +129,13 @@ func TestRestoreSessionDirectoryPathMarkedMissing(t *testing.T) {
 // TestRestoreSessionMixedFiles verifies that only missing files have Missing=true
 // when the queue contains both readable and unreadable entries.
 func TestRestoreSessionMixedFiles(t *testing.T) {
-	dirs := setupDirs(t)
-	database := openTestDB(t, dirs)
-	defer database.Close()
-	w := newTestWriter(t, database)
+	harness := newRestoreSessionHarness(t)
+	readablePath := harness.writeAudioFile("exists.mp3")
+	missingPath := harness.path("gone.mp3")
+	harness.insertTrackAndQueue("hash-r", readablePath, "Readable", "Track", 1000)
+	harness.insertTrackAndQueue("hash-m", missingPath, "Missing", "Track", 2000)
 
-	readablePath := filepath.Join(dirs.Runtime, "exists.mp3")
-	if err := os.WriteFile(readablePath, []byte("fake"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	missingPath := filepath.Join(dirs.Runtime, "gone.mp3")
-
-	insertTrack(t, database, "hash-r", readablePath, "Readable", "Track")
-	insertTrack(t, database, "hash-m", missingPath, "Missing", "Track")
-	insertQueueEntry(t, database, "hash-r", 1000)
-	insertQueueEntry(t, database, "hash-m", 2000)
-
-	restored, err := app.RestoreSession(database, w)
-	if err != nil {
-		t.Fatalf("RestoreSession: %v", err)
-	}
+	restored := harness.restore()
 	if len(restored.QueueEntries) != 2 {
 		t.Fatalf("QueueEntries: want 2, got %d", len(restored.QueueEntries))
 	}
@@ -211,29 +150,13 @@ func TestRestoreSessionMixedFiles(t *testing.T) {
 // TestRestoreSessionQueuePersistence verifies that queue contents survive a
 // simulated session restart.
 func TestRestoreSessionQueuePersistence(t *testing.T) {
-	dirs := setupDirs(t)
-	database := openTestDB(t, dirs)
-	defer database.Close()
-	w := newTestWriter(t, database)
+	harness := newRestoreSessionHarness(t)
+	pathA := harness.writeAudioFile("track-a.mp3")
+	pathB := harness.writeAudioFile("track-b.mp3")
+	idA := harness.insertTrackAndQueue("hash-aaa", pathA, "Artist A", "Song A", 1000)
+	idB := harness.insertTrackAndQueue("hash-bbb", pathB, "Artist B", "Song B", 2000)
 
-	pathA := filepath.Join(dirs.Runtime, "track-a.mp3")
-	pathB := filepath.Join(dirs.Runtime, "track-b.mp3")
-	for _, p := range []string{pathA, pathB} {
-		if err := os.WriteFile(p, []byte("fake"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	insertTrack(t, database, "hash-aaa", pathA, "Artist A", "Song A")
-	insertTrack(t, database, "hash-bbb", pathB, "Artist B", "Song B")
-
-	idA := insertQueueEntry(t, database, "hash-aaa", 1000)
-	idB := insertQueueEntry(t, database, "hash-bbb", 2000)
-
-	restored, err := app.RestoreSession(database, w)
-	if err != nil {
-		t.Fatalf("RestoreSession: %v", err)
-	}
+	restored := harness.restore()
 	if len(restored.QueueEntries) != 2 {
 		t.Fatalf("QueueEntries: want 2, got %d", len(restored.QueueEntries))
 	}
@@ -279,24 +202,13 @@ func TestRestoreSessionQueuePersistence(t *testing.T) {
 // TestRestoreSessionMissingFileMarkedInDB verifies that MarkQueueEntryMissing
 // persists the missing state back to the database.
 func TestRestoreSessionMissingFileMarkedInDB(t *testing.T) {
-	dirs := setupDirs(t)
-	database := openTestDB(t, dirs)
-	defer database.Close()
-	w := newTestWriter(t, database)
+	harness := newRestoreSessionHarness(t)
+	missingPath := harness.path("ghost.mp3")
+	id := harness.insertTrackAndQueue("hash-ghost", missingPath, "Ghost", "Track", 1000)
 
-	missingPath := filepath.Join(dirs.Runtime, "ghost.mp3")
-	insertTrack(t, database, "hash-ghost", missingPath, "Ghost", "Track")
-	id := insertQueueEntry(t, database, "hash-ghost", 1000)
+	harness.restore()
 
-	if _, err := app.RestoreSession(database, w); err != nil {
-		t.Fatalf("RestoreSession: %v", err)
-	}
-
-	var missing int
-	err := database.QueryRow(`SELECT missing FROM queue WHERE id=?`, id).Scan(&missing)
-	if err != nil {
-		t.Fatalf("query queue.missing: %v", err)
-	}
+	missing := harness.queueMissing(id)
 	if missing != 1 {
 		t.Errorf("queue.missing: want 1, got %d", missing)
 	}
@@ -305,23 +217,12 @@ func TestRestoreSessionMissingFileMarkedInDB(t *testing.T) {
 // TestRestoreSessionSessionFlags verifies that repeat_mode, shuffle,
 // current_hash, and position_ms are restored from the session table.
 func TestRestoreSessionSessionFlags(t *testing.T) {
-	dirs := setupDirs(t)
-	database := openTestDB(t, dirs)
-	defer database.Close()
-	w := newTestWriter(t, database)
+	harness := newRestoreSessionHarness(t)
+	audioPath := harness.writeAudioFile("song.mp3")
+	harness.insertTrackAndQueue("hash-xyz", audioPath, "X", "Y", 1000)
+	harness.setSession("hash-xyz", 30500, false, "all")
 
-	audioPath := filepath.Join(dirs.Runtime, "song.mp3")
-	if err := os.WriteFile(audioPath, []byte("fake"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	insertTrack(t, database, "hash-xyz", audioPath, "X", "Y")
-	insertQueueEntry(t, database, "hash-xyz", 1000)
-	setSessionRow(t, database, "hash-xyz", 30500, false, "all")
-
-	restored, err := app.RestoreSession(database, w)
-	if err != nil {
-		t.Fatalf("RestoreSession: %v", err)
-	}
+	restored := harness.restore()
 	if restored.RepeatMode != tui.RepeatAll {
 		t.Errorf("RepeatMode: want RepeatAll, got %v", restored.RepeatMode)
 	}
@@ -338,17 +239,10 @@ func TestRestoreSessionSessionFlags(t *testing.T) {
 
 // TestRestoreSessionRepeatOne verifies that repeat_mode="one" is correctly parsed.
 func TestRestoreSessionRepeatOne(t *testing.T) {
-	dirs := setupDirs(t)
-	database := openTestDB(t, dirs)
-	defer database.Close()
-	w := newTestWriter(t, database)
+	harness := newRestoreSessionHarness(t)
+	harness.setSession("", 0, false, "one")
 
-	setSessionRow(t, database, "", 0, false, "one")
-
-	restored, err := app.RestoreSession(database, w)
-	if err != nil {
-		t.Fatalf("RestoreSession: %v", err)
-	}
+	restored := harness.restore()
 	if restored.RepeatMode != tui.RepeatOne {
 		t.Errorf("RepeatMode: want RepeatOne, got %v", restored.RepeatMode)
 	}
@@ -358,34 +252,22 @@ func TestRestoreSessionRepeatOne(t *testing.T) {
 // marked missing=1 in the DB has its missing flag cleared when the file is
 // readable at restore time.
 func TestRestoreSessionClearsStaleMissing(t *testing.T) {
-	dirs := setupDirs(t)
-	database := openTestDB(t, dirs)
-	defer database.Close()
-	w := newTestWriter(t, database)
-
+	harness := newRestoreSessionHarness(t)
 	// Create the file after marking the entry missing so we simulate a file
 	// that was gone in a previous session and has since reappeared.
-	audioPath := filepath.Join(dirs.Runtime, "returned.mp3")
-	insertTrack(t, database, "hash-returned", audioPath, "Artist R", "Song R")
-	id := insertQueueEntry(t, database, "hash-returned", 1000)
+	audioPath := harness.path("returned.mp3")
+	id := harness.insertTrackAndQueue("hash-returned", audioPath, "Artist R", "Song R", 1000)
 
 	// Manually mark missing=1 in both tables to simulate a prior-session scan.
-	if _, err := database.Exec(`UPDATE queue SET missing=1 WHERE id=?`, id); err != nil {
-		t.Fatalf("mark queue missing: %v", err)
-	}
-	if _, err := database.Exec(`UPDATE tracks SET missing=1 WHERE hash=?`, "hash-returned"); err != nil {
-		t.Fatalf("mark track missing: %v", err)
-	}
+	harness.markQueueMissing(id, 1)
+	harness.markTrackMissing("hash-returned", 1)
 
 	// Write the file so it is now readable.
 	if err := os.WriteFile(audioPath, []byte("fake"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	restored, err := app.RestoreSession(database, w)
-	if err != nil {
-		t.Fatalf("RestoreSession: %v", err)
-	}
+	restored := harness.restore()
 	if len(restored.QueueEntries) != 1 {
 		t.Fatalf("QueueEntries: want 1, got %d", len(restored.QueueEntries))
 	}
@@ -393,18 +275,12 @@ func TestRestoreSessionClearsStaleMissing(t *testing.T) {
 		t.Error("QueueEntry.Missing: want false after stale missing cleared")
 	}
 
-	var queueMissing int
-	if err := database.QueryRow(`SELECT missing FROM queue WHERE id=?`, id).Scan(&queueMissing); err != nil {
-		t.Fatalf("query queue.missing: %v", err)
-	}
+	queueMissing := harness.queueMissing(id)
 	if queueMissing != 0 {
 		t.Errorf("queue.missing: want 0 after clear, got %d", queueMissing)
 	}
 
-	var trackMissing int
-	if err := database.QueryRow(`SELECT missing FROM tracks WHERE hash=?`, "hash-returned").Scan(&trackMissing); err != nil {
-		t.Fatalf("query tracks.missing: %v", err)
-	}
+	trackMissing := harness.trackMissing("hash-returned")
 	if trackMissing != 0 {
 		t.Errorf("tracks.missing: want 0 after clear, got %d", trackMissing)
 	}
@@ -414,33 +290,21 @@ func TestRestoreSessionClearsStaleMissing(t *testing.T) {
 // current track was previously missing but is now readable, RestoreSession
 // sets Missing=false so the caller can proceed with RestorePlayer.
 func TestRestoreSessionStaleMissingCurrentTrackCanRestore(t *testing.T) {
-	dirs := setupDirs(t)
-	database := openTestDB(t, dirs)
-	defer database.Close()
-	w := newTestWriter(t, database)
-
-	audioPath := filepath.Join(dirs.Runtime, "current.mp3")
-	insertTrack(t, database, "hash-current", audioPath, "C", "Current")
-	id := insertQueueEntry(t, database, "hash-current", 1000)
-	setSessionRow(t, database, "hash-current", 5000, false, "none")
+	harness := newRestoreSessionHarness(t)
+	audioPath := harness.path("current.mp3")
+	id := harness.insertTrackAndQueue("hash-current", audioPath, "C", "Current", 1000)
+	harness.setSession("hash-current", 5000, false, "none")
 
 	// Mark both tables missing.
-	if _, err := database.Exec(`UPDATE queue SET missing=1 WHERE id=?`, id); err != nil {
-		t.Fatalf("mark queue missing: %v", err)
-	}
-	if _, err := database.Exec(`UPDATE tracks SET missing=1 WHERE hash=?`, "hash-current"); err != nil {
-		t.Fatalf("mark track missing: %v", err)
-	}
+	harness.markQueueMissing(id, 1)
+	harness.markTrackMissing("hash-current", 1)
 
 	// File is now back on disk.
 	if err := os.WriteFile(audioPath, []byte("fake"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	restored, err := app.RestoreSession(database, w)
-	if err != nil {
-		t.Fatalf("RestoreSession: %v", err)
-	}
+	restored := harness.restore()
 	if len(restored.QueueEntries) == 0 {
 		t.Fatal("QueueEntries: want at least 1")
 	}

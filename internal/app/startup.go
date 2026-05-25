@@ -2,13 +2,9 @@ package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
-	"math"
-	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
@@ -223,75 +219,15 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 
 	// Step 6: Launch mpv and library scan concurrently.
 	slog.Info("startup: launching mpv and library scan")
-	errs := make(chan error, 2)
-	var wg sync.WaitGroup
-
-	wg.Go(func() {
-		if err := deps.LaunchMPV(ctx, socketPath); err != nil {
-			errs <- fmt.Errorf("startup: mpv: %w", err)
-		}
-	})
-
-	if deps.RunScan != nil {
-		wg.Go(func() {
-			if err := deps.RunScan(ctx, database); err != nil {
-				errs <- fmt.Errorf("startup: scan: %w", err)
-			}
-		})
-	}
-
-	wg.Wait()
-	close(errs)
-
-	// Drain the entire channel before returning so a second error sent by
-	// the other parallel task is not silently dropped.
-	var firstErr error
-	for err := range errs {
-		if err == nil {
-			continue
-		}
-		if firstErr == nil {
-			firstErr = err
-		} else {
-			slog.Warn("startup: additional parallel-task error", "err", err)
-		}
-	}
-	if firstErr != nil {
-		return failf("%w", firstErr)
+	if err := runStartupTasks(ctx, database, socketPath, deps); err != nil {
+		return failf("%w", err)
 	}
 
 	// Step 7: Restore player to the last saved position in a paused state.
 	// LaunchMPV has returned by this point so the player Manager's command
 	// queue is initialised; RestorePlayer may enqueue commands for replay
 	// once the IPC socket connects.
-	if restored.CurrentHash != "" && deps.RestorePlayer != nil {
-		matched := false
-		for i, pt := range restored.PlayerTracks {
-			if pt.Hash != restored.CurrentHash {
-				continue
-			}
-			matched = true
-			// Skip restore for files that were detected as missing on disk
-			// during RestoreSession; loading them would produce an mpv error
-			// at startup. The TUI will already render the track as missing.
-			if i < len(restored.QueueEntries) && restored.QueueEntries[i].Missing {
-				slog.Info("startup: skip restore for missing current track", "path", pt.Path)
-				break
-			}
-			if err := deps.RestorePlayer(pt.Path, restored.PositionMs); err != nil {
-				slog.Warn("startup: restore player position", "path", pt.Path, "err", err)
-			}
-			break
-		}
-		if !matched {
-			// The session row referenced a track that is no longer in the
-			// player queue (e.g. queue was cleared after the row was written).
-			// Don't call RestorePlayer with a stale path; just leave the player
-			// idle. ApplyRestoredSession will log the same condition for the UI.
-			slog.Warn("startup: current_hash from session does not match any player track; skipping player restore",
-				"hash", restored.CurrentHash, "queue_size", len(restored.PlayerTracks))
-		}
-	}
+	restoreStartupPlayer(restored, deps.RestorePlayer)
 
 	return &RunResult{
 		Lockfile:     lf,
@@ -301,170 +237,4 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 		CancelWriter: cancelWriter,
 		Restored:     restored,
 	}, nil
-}
-
-// RestoreSession loads the persisted queue and session state from the
-// database, validates each queue track against disk, and marks any entry
-// whose file cannot be stat-ed as missing. When shuffle is enabled a fresh
-// random shuffle ordering is regenerated so that each session starts with a
-// new permutation. Returns a non-nil *RestoredSession even when no prior
-// session exists (all fields at zero values).
-func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error) {
-	rows, err := database.ReadQueue()
-	if err != nil {
-		return nil, fmt.Errorf("restore session: read queue: %w", err)
-	}
-
-	var tuiEntries []tui.QueueEntry
-	var playerTracks []player.QueueTrack
-	for _, r := range rows {
-		missing := r.Missing
-		if !missing {
-			if !playableFileExists(r.Path) {
-				missing = true
-				if err := writer.MarkQueueEntryMissing(r.ID); err != nil {
-					slog.Warn("mark queue entry missing", "id", r.ID, "err", err)
-				}
-				if err := writer.MarkTrackMissing(r.Hash); err != nil {
-					slog.Warn("mark track missing", "hash", r.Hash, "err", err)
-				}
-			}
-		} else {
-			// Re-stat previously-missing entries: if the file has reappeared,
-			// clear the stale missing flags so the player restore can proceed.
-			if playableFileExists(r.Path) {
-				missing = false
-				if err := writer.ClearTrackMissing(r.Hash); err != nil {
-					slog.Warn("clear track missing", "hash", r.Hash, "err", err)
-				}
-				if err := writer.ClearQueueEntriesMissing(r.Hash); err != nil {
-					slog.Warn("clear queue entries missing", "hash", r.Hash, "err", err)
-				}
-			}
-		}
-		tuiEntries = append(tuiEntries, tui.QueueEntry{
-			ID:             r.ID,
-			Path:           r.Path,
-			Hash:           r.Hash,
-			Display:        buildDisplay(r.Artist, r.Title, r.Path),
-			Missing:        missing,
-			Artist:         r.Artist,
-			Title:          r.Title,
-			Album:          r.Album,
-			DurationMs:     r.DurationMs,
-			Position:       r.Position,
-			SourcePlaylist: r.SourcePlaylist,
-			TrackNumber:    r.TrackNumber,
-			DiscNumber:     r.DiscNumber,
-		})
-		playerTracks = append(playerTracks, player.QueueTrack{
-			Path:    r.Path,
-			Hash:    r.Hash,
-			QueueID: r.ID,
-			Artist:  r.Artist,
-			Title:   r.Title,
-			Source:  r.SourcePlaylist,
-		})
-	}
-
-	sess, err := database.ReadSession()
-	if err != nil {
-		return nil, fmt.Errorf("restore session: read session: %w", err)
-	}
-
-	var repeatMode tui.RepeatMode
-	var shuffle bool
-	var radioMode bool
-	var currentHash string
-	var positionMs int64
-	var volume int = -1
-	if sess != nil {
-		repeatMode = parseRepeatMode(sess.RepeatMode)
-		shuffle = sess.Shuffle
-		radioMode = sess.RadioMode
-		currentHash = sess.CurrentHash
-		// Clamp negative position to zero so a corrupt row cannot poison
-		// the player with a negative seek.
-		positionMs = sess.PositionMs
-		if positionMs < 0 {
-			positionMs = 0
-		}
-		// Guard against NaN/Inf in the persisted volume column: int(NaN) is 0
-		// on amd64 (silently muting) and int(Inf) is implementation-defined.
-		// Treat such values as "no volume persisted" so callers fall back to
-		// the configured default rather than mutating the player into garbage.
-		if math.IsNaN(sess.Volume) || math.IsInf(sess.Volume, 0) {
-			volume = -1
-		} else {
-			volume = clampVolume(int(math.Round(sess.Volume * 100)))
-		}
-	}
-
-	return &RestoredSession{
-		QueueEntries: tuiEntries,
-		PlayerTracks: playerTracks,
-		RepeatMode:   repeatMode,
-		Shuffle:      shuffle,
-		RadioMode:    radioMode,
-		CurrentHash:  currentHash,
-		PositionMs:   positionMs,
-		Volume:       volume,
-	}, nil
-}
-
-// buildDisplay returns a human-readable label for a queue entry, falling back
-// to the file path when both artist and title are empty.
-func buildDisplay(artist, title, path string) string {
-	if artist == "" && title == "" {
-		return path
-	}
-	if artist == "" {
-		return title
-	}
-	if title == "" {
-		return artist
-	}
-	return artist + " – " + title
-}
-
-func playableFileExists(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.Mode().IsRegular()
-}
-
-// parseRepeatMode converts a DB repeat_mode string to a tui.RepeatMode.
-// Unrecognised values are treated as RepeatOff.
-func parseRepeatMode(s string) tui.RepeatMode {
-	switch s {
-	case "all":
-		return tui.RepeatAll
-	case "one":
-		return tui.RepeatOne
-	default:
-		return tui.RepeatOff
-	}
-}
-
-// clampVolume normalises a persisted volume value into the inclusive range
-// [0, 100]. Negative values (which would otherwise be interpreted as the
-// "no value persisted" sentinel by ApplyRestoredSession and overwritten with
-// the default) are clamped to 0 so that an explicitly persisted mute survives
-// a corrupted session row. Values above 100 are clamped to 100.
-func clampVolume(v int) int {
-	if v < 0 {
-		return 0
-	}
-	if v > 100 {
-		return 100
-	}
-	return v
-}
-
-// removeStaleSocket removes the mpv socket file if it exists. A missing file
-// is not an error.
-func removeStaleSocket(path string) error {
-	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("remove stale mpv socket %q: %w", path, err)
-	}
-	return nil
 }
