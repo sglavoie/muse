@@ -30,7 +30,7 @@ func (v View) renderArtists() string {
 		absIdx := start + i
 		_, isFav := v.FavoriteArtists[name]
 		isOdd := absIdx%2 == 1
-		labelW, countStr := rowLabelWidthAndCount(v.Width, v.ArtistCounts, name)
+		labelW, countStr := text.RowLabelWidthAndCount(v.Width, v.ArtistCounts, name)
 		label := text.FavPrefix(name, labelW, isFav)
 		switch {
 		case absIdx == v.Cursor && isFav:
@@ -50,20 +50,6 @@ func (v View) renderArtists() string {
 		}
 	}
 	return joinStrip(stripLine, strings.Join(lines, "\n"))
-}
-
-// rowLabelWidthAndCount computes the label-zone width and pre-formatted count
-// suffix for a Browse list row. When counts is nil or width is too narrow to
-// host the count column, the count drops out: labelW equals width and
-// countStr is empty. When counts is non-nil and width fits, labelW is reduced
-// by the count column footprint and countStr is " " + right-aligned digits
-// (or blank spaces when the count is zero or missing).
-func rowLabelWidthAndCount(width int, counts map[string]int, name string) (int, string) {
-	if counts == nil || width < text.MinLabelWithCount+1+text.CountColWidth {
-		return width, ""
-	}
-	labelW := width - 1 - text.CountColWidth
-	return labelW, text.FormatCountSuffix(counts[name])
 }
 
 func (v View) renderAlbums() string {

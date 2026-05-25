@@ -27,7 +27,7 @@ func (v View) renderGenres() string {
 	for i, name := range items[start:end] {
 		absIdx := start + i
 		isOdd := absIdx%2 == 1
-		labelW, countStr := rowLabelWidthAndCount(v.Width, v.GenreCounts, name)
+		labelW, countStr := text.RowLabelWidthAndCount(v.Width, v.GenreCounts, name)
 		label := text.Pad(name, labelW)
 		switch {
 		case absIdx == cursor:
@@ -41,17 +41,6 @@ func (v View) renderGenres() string {
 		}
 	}
 	return joinStrip(stripLine, strings.Join(lines, "\n"))
-}
-
-// rowLabelWidthAndCount computes the label-zone width and pre-formatted count
-// suffix for the genres list row. See artists.rowLabelWidthAndCount for
-// shared semantics.
-func rowLabelWidthAndCount(width int, counts map[string]int, name string) (int, string) {
-	if counts == nil || width < text.MinLabelWithCount+1+text.CountColWidth {
-		return width, ""
-	}
-	labelW := width - 1 - text.CountColWidth
-	return labelW, text.FormatCountSuffix(counts[name])
 }
 
 func (v View) renderArtists() string {

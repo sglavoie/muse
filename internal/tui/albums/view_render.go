@@ -40,7 +40,7 @@ func (v View) renderAlbums() string {
 		absIdx := start + i
 		_, isFav := v.FavoriteAlbums[name]
 		isOdd := absIdx%2 == 1
-		labelW, countStr := rowLabelWidthAndCount(width, v.AlbumCounts, name)
+		labelW, countStr := text.RowLabelWidthAndCount(width, v.AlbumCounts, name)
 		label := text.FavPrefix(name, labelW, isFav)
 		switch {
 		case absIdx == v.Cursor && isFav:
@@ -60,18 +60,6 @@ func (v View) renderAlbums() string {
 		}
 	}
 	return joinStrip(stripLine, strings.Join(lines, "\n"))
-}
-
-// rowLabelWidthAndCount computes the label-zone width and pre-formatted count
-// suffix for a Browse list row. See artists.rowLabelWithCount for shared
-// semantics — duplicated here to keep the albums package free of cross-pkg
-// rendering dependencies.
-func rowLabelWidthAndCount(width int, counts map[string]int, name string) (int, string) {
-	if counts == nil || width < text.MinLabelWithCount+1+text.CountColWidth {
-		return width, ""
-	}
-	labelW := width - 1 - text.CountColWidth
-	return labelW, text.FormatCountSuffix(counts[name])
 }
 
 func (v View) renderTracks() string {
