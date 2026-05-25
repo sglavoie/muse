@@ -214,3 +214,116 @@ func TestSave_UsesLegacyMusicDirectoryWhenMusicDirectoriesOnlyBlank(t *testing.T
 		t.Errorf("saved config should fall back to normalized legacy MusicDirectory, got:\n%s", data)
 	}
 }
+
+func TestSave_PreservesPreviousFileOnDirectoryRemoval(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, configFileName)
+
+	cfg := defaults()
+	cfg.DefaultVolume = 42
+	if err := Save(path, cfg); err != nil {
+		t.Fatalf("initial Save: %v", err)
+	}
+
+	pre, err := os.Open(path)
+	if err != nil {
+		t.Fatalf("open original: %v", err)
+	}
+	defer pre.Close()
+	preInfo, err := pre.Stat()
+	if err != nil {
+		t.Fatalf("stat original: %v", err)
+	}
+	originalSize := preInfo.Size()
+	if originalSize == 0 {
+		t.Fatalf("setup: original file is empty")
+	}
+
+	cfg.DefaultVolume = 7
+	if err := Save(path, cfg); err != nil {
+		t.Fatalf("second Save: %v", err)
+	}
+
+	post, err := pre.Stat()
+	if err != nil {
+		t.Fatalf("stat via open fd after second save: %v", err)
+	}
+	if post.Size() != originalSize {
+		t.Errorf("open fd size = %d, want unchanged %d (Save should not truncate the original inode)",
+			post.Size(), originalSize)
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("readdir: %v", err)
+	}
+	for _, e := range entries {
+		if strings.Contains(e.Name(), ".tmp-") {
+			t.Errorf("leftover temp file after successful save: %q", e.Name())
+		}
+	}
+}
+
+func TestSave_FsyncsParentDirectory(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, configFileName)
+
+	cfg := defaults()
+	cfg.DefaultVolume = 11
+	if err := Save(path, cfg); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("stat after Save: %v", err)
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("readdir: %v", err)
+	}
+	for _, e := range entries {
+		if strings.Contains(e.Name(), ".tmp-") {
+			t.Errorf("leftover temp file after Save: %q", e.Name())
+		}
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if result.Config.DefaultVolume != 11 {
+		t.Errorf("DefaultVolume = %d, want 11", result.Config.DefaultVolume)
+	}
+}
+
+func TestSave_AtomicRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, configFileName)
+	cfg := defaults()
+	cfg.DefaultVolume = 33
+	cfg.LogLevel = "warn"
+	if err := Save(path, cfg); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("readdir: %v", err)
+	}
+	for _, e := range entries {
+		if strings.Contains(e.Name(), ".tmp-") {
+			t.Errorf("leftover temp file after successful save: %q", e.Name())
+		}
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if result.Config.DefaultVolume != 33 {
+		t.Errorf("DefaultVolume = %d, want 33", result.Config.DefaultVolume)
+	}
+	if result.Config.LogLevel != "warn" {
+		t.Errorf("LogLevel = %q, want warn", result.Config.LogLevel)
+	}
+}

@@ -158,3 +158,80 @@ func TestLoad_StereoWide_AmountOutOfRange(t *testing.T) {
 		t.Error("expected a warning for out-of-range stereo_wide_amount")
 	}
 }
+
+func TestLoad_MPVSocketPath_WhitespaceTrimmed(t *testing.T) {
+	dir := t.TempDir()
+	content := `mpv_socket_path = "  /tmp/muse.sock  "
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if result.Config.MPVSocketPath != "/tmp/muse.sock" {
+		t.Errorf("MPVSocketPath = %q, want %q (whitespace should be trimmed)",
+			result.Config.MPVSocketPath, "/tmp/muse.sock")
+	}
+}
+
+func TestLoad_MPVExtraFlags_EmptyEntriesDropped(t *testing.T) {
+	dir := t.TempDir()
+	content := `mpv_extra_flags = ["--no-video", "", "  ", "--volume=80"]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	got := result.Config.MPVExtraFlags
+	if len(got) != 2 {
+		t.Fatalf("MPVExtraFlags: expected 2 entries after dropping empties, got %d (%v)", len(got), got)
+	}
+	if got[0] != "--no-video" || got[1] != "--volume=80" {
+		t.Errorf("MPVExtraFlags = %v, want [--no-video --volume=80]", got)
+	}
+}
+
+func TestLoad_MPVExtraFlags_WhitespaceTrimmed(t *testing.T) {
+	dir := t.TempDir()
+	content := `mpv_extra_flags = ["  --no-video  ", "\t--volume=80\t"]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	got := result.Config.MPVExtraFlags
+	if len(got) != 2 {
+		t.Fatalf("MPVExtraFlags: expected 2 entries, got %d (%v)", len(got), got)
+	}
+	if got[0] != "--no-video" || got[1] != "--volume=80" {
+		t.Errorf("MPVExtraFlags = %v, want [--no-video --volume=80]", got)
+	}
+}
+
+func TestLoad_MPVExtraFlags_OnlyEmptyEntriesYieldsEmptySlice(t *testing.T) {
+	dir := t.TempDir()
+	content := `mpv_extra_flags = ["", "  "]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	got := result.Config.MPVExtraFlags
+	if got == nil {
+		t.Fatal("MPVExtraFlags is nil; expected non-nil empty slice")
+	}
+	if len(got) != 0 {
+		t.Errorf("MPVExtraFlags = %v, want empty", got)
+	}
+}

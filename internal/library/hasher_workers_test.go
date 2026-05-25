@@ -184,3 +184,55 @@ func TestHashWorkers_WorkerCountEqualsNumCPU(t *testing.T) {
 		t.Fatalf("peak concurrent workers = %d, want %d (runtime.NumCPU())", got, n)
 	}
 }
+
+// TestHashWorkers_StatFailureAfterHashSkipsFile verifies that when os.Stat
+// fails after a successful hash (file removed between read and stat), the
+// HashedFile is not emitted at all. Previously a HashedFile with zero
+// ModTime/SizeBytes leaked downstream and caused DiffScan to flag the
+// path as changed on every subsequent rescan.
+func TestHashWorkers_StatFailureAfterHashSkipsFile(t *testing.T) {
+	in := make(chan string, 2)
+	in <- "/does/not/exist/track1.mp3"
+	in <- "/does/not/exist/track2.flac"
+	close(in)
+
+	hashFn := func(_ string) (string, error) { return "deadbeef", nil }
+
+	out := hashWorkersN(2, in, hashFn)
+	var got []HashedFile
+	for hf := range out {
+		got = append(got, hf)
+	}
+	if len(got) != 0 {
+		t.Errorf("expected no emissions (Stat failed); got %d: %+v", len(got), got)
+	}
+}
+
+// TestHashWorkers_StatSuccessPopulatesMetadata is the positive-case companion
+// to the previous test: when Stat succeeds, ModTime and SizeBytes are filled in.
+func TestHashWorkers_StatSuccessPopulatesMetadata(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "track.mp3")
+	writeFile(t, p, []byte("audio bytes"))
+
+	in := make(chan string, 1)
+	in <- p
+	close(in)
+
+	hashFn := func(_ string) (string, error) { return "deadbeef", nil }
+
+	out := hashWorkersN(1, in, hashFn)
+	var got []HashedFile
+	for hf := range out {
+		got = append(got, hf)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 emission, got %d", len(got))
+	}
+	if got[0].SizeBytes != int64(len("audio bytes")) {
+		t.Errorf("SizeBytes: got %d, want %d", got[0].SizeBytes, len("audio bytes"))
+	}
+	if got[0].ModTime == 0 {
+		t.Errorf("ModTime: got 0, want a populated timestamp")
+	}
+}

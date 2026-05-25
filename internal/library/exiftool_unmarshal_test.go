@@ -189,3 +189,102 @@ func TestParseDurationString(t *testing.T) {
 		}
 	}
 }
+
+// TestCoerceFloat_NegativeNaNInfNormalized verifies that pathological
+// numeric durations emitted by exiftool (negative, NaN, +Inf, -Inf) are
+// normalised to 0 so they cannot corrupt downstream duration arithmetic.
+func TestCoerceFloat_NegativeNaNInfNormalized(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+	}{
+		{"negative", `-1.5`},
+		{"negative string", `"-1.5"`},
+		{"negative HHMMSS", `"-1:00:00"`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := coerceFloat([]byte(c.in))
+			if got != 0 {
+				t.Errorf("coerceFloat(%s): want 0, got %v", c.in, got)
+			}
+		})
+	}
+}
+
+// TestSanitizeDuration verifies the float guard rejects non-finite and
+// negative inputs.
+func TestSanitizeDuration(t *testing.T) {
+	if got := sanitizeDuration(math.NaN()); got != 0 {
+		t.Errorf("NaN: want 0, got %v", got)
+	}
+	if got := sanitizeDuration(math.Inf(1)); got != 0 {
+		t.Errorf("+Inf: want 0, got %v", got)
+	}
+	if got := sanitizeDuration(math.Inf(-1)); got != 0 {
+		t.Errorf("-Inf: want 0, got %v", got)
+	}
+	if got := sanitizeDuration(-0.0001); got != 0 {
+		t.Errorf("negative: want 0, got %v", got)
+	}
+	if got := sanitizeDuration(0); got != 0 {
+		t.Errorf("zero: want 0, got %v", got)
+	}
+	if got := sanitizeDuration(123.4); got != 123.4 {
+		t.Errorf("positive: want 123.4, got %v", got)
+	}
+}
+
+// TestCoerceString_HeterogeneousArrayPreservesNonEmpty verifies that a mixed
+// JSON array (string + number + null) is joined element-by-element instead
+// of being discarded entirely.
+func TestCoerceString_HeterogeneousArrayPreservesNonEmpty(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"mixed string and number", `["Rock", 42, "Pop"]`, "Rock; 42; Pop"},
+		{"array with null", `["A", null, "B"]`, "A; B"},
+		{"array with bool", `["A", true]`, "A; true"},
+		{"all strings still works", `["Rock", "Jazz"]`, "Rock; Jazz"},
+		{"empty array", `[]`, ""},
+		{"single number", `42`, "42"},
+		{"plain string", `"hello"`, "hello"},
+		{"bool", `true`, "true"},
+		{"null", `null`, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := coerceString([]byte(c.in))
+			if got != c.want {
+				t.Errorf("coerceString(%s): got %q, want %q", c.in, got, c.want)
+			}
+		})
+	}
+}
+
+// TestParseTrackNumber_RejectsNegative verifies that negative track or disc
+// numbers are normalised to 0 (the unknown sentinel) rather than propagating
+// into sorting/display.
+func TestParseTrackNumber_RejectsNegative(t *testing.T) {
+	cases := []struct {
+		in   string
+		want int
+	}{
+		{"-3", 0},
+		{"-1/12", 0},
+		{"3", 3},
+		{"3/12", 3},
+		{"", 0},
+		{"  ", 0},
+		{"abc", 0},
+		{"0", 0},
+	}
+	for _, c := range cases {
+		got := parseTrackNumber(c.in)
+		if got != c.want {
+			t.Errorf("parseTrackNumber(%q): got %d, want %d", c.in, got, c.want)
+		}
+	}
+}

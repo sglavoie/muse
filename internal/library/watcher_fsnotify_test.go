@@ -153,6 +153,102 @@ func TestHandleFsEvent_SkipsHiddenFiles(t *testing.T) {
 	})
 }
 
+// TestHandleFsEvent_CreateAfterRemoveClearsDeleted verifies that a Create
+// event for a path that was previously Removed/Renamed within the same
+// debounce window clears the path from the deleted set. Without this
+// behaviour, the TUI would briefly receive a Deleted=true event for a file
+// that still exists (e.g. atomic-save dance, rapid rename-back), causing a
+// visible flicker until the rescan re-adds the track.
+func TestHandleFsEvent_CreateAfterRemoveClearsDeleted(t *testing.T) {
+	root := t.TempDir()
+	audioPath := filepath.Join(root, "song.mp3")
+	mkfile(t, audioPath)
+
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		t.Fatalf("NewWatcher: %v", err)
+	}
+	defer w.Close()
+
+	pending := make(map[string]bool)
+	deleted := make(map[string]struct{})
+
+	// Simulate: file removed, then immediately re-created in the same window.
+	handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Remove}, nil, pending, deleted, w)
+	if _, ok := deleted[audioPath]; !ok {
+		t.Fatalf("precondition: expected %q in deleted after Remove", audioPath)
+	}
+	handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Create}, nil, pending, deleted, w)
+
+	if _, ok := deleted[audioPath]; ok {
+		t.Errorf("Create after Remove must clear path from deleted; still present: %v", deleted)
+	}
+	if _, ok := pending[audioPath]; !ok {
+		t.Errorf("Create after Remove must add path to pending")
+	}
+}
+
+// TestHandleFsEvent_WriteAfterRemoveClearsDeleted is the Write variant of the
+// same race: some editors emit Remove followed by Write+Chmod (e.g. via
+// rewrite-in-place). The file still exists; we must not propagate a
+// deletion message.
+func TestHandleFsEvent_WriteAfterRemoveClearsDeleted(t *testing.T) {
+	root := t.TempDir()
+	audioPath := filepath.Join(root, "song.flac")
+	mkfile(t, audioPath)
+
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		t.Fatalf("NewWatcher: %v", err)
+	}
+	defer w.Close()
+
+	pending := make(map[string]bool)
+	deleted := make(map[string]struct{})
+
+	handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Rename}, nil, pending, deleted, w)
+	handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Write}, nil, pending, deleted, w)
+
+	if _, ok := deleted[audioPath]; ok {
+		t.Errorf("Write after Rename must clear path from deleted; still present: %v", deleted)
+	}
+	if _, ok := pending[audioPath]; !ok {
+		t.Errorf("Write after Rename must add path to pending")
+	}
+}
+
+// TestHandleFsEvent_ChmodAfterActualRemoveKeepsDeleted verifies that a
+// trailing metadata event for a path that is already gone does not erase the
+// deletion marker. macOS-style event streams can include Chmod after Remove;
+// clearing deleted in that case leaves the stale track in the in-memory index.
+func TestHandleFsEvent_ChmodAfterActualRemoveKeepsDeleted(t *testing.T) {
+	root := t.TempDir()
+	audioPath := filepath.Join(root, "song.mp3")
+	mkfile(t, audioPath)
+
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		t.Fatalf("NewWatcher: %v", err)
+	}
+	defer w.Close()
+
+	pending := make(map[string]bool)
+	deleted := make(map[string]struct{})
+
+	if err := os.Remove(audioPath); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Remove}, nil, pending, deleted, w)
+	handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Chmod}, nil, pending, deleted, w)
+
+	if _, ok := deleted[audioPath]; !ok {
+		t.Errorf("Chmod after actual Remove must keep path in deleted")
+	}
+	if _, ok := pending[audioPath]; ok {
+		t.Errorf("Chmod after actual Remove must not add missing path to pending")
+	}
+}
+
 // TestAddWatchesRecursive_SkipsHiddenDirs verifies that addWatchesRecursive
 // does not register watches on hidden directories.
 func TestAddWatchesRecursive_SkipsHiddenDirs(t *testing.T) {

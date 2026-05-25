@@ -114,3 +114,16 @@ func TestShouldExclude_MixedPatterns(t *testing.T) {
 		t.Error("expected false: neither pattern matches")
 	}
 }
+
+// TestShouldExclude_RootOnlyPatternIsIgnored verifies that a degenerate
+// pattern of separator characters only (e.g. "/" or "//") does not
+// trigger a catch-all exclusion of every absolute path. Without the
+// guard, every track would be silently filtered out.
+func TestShouldExclude_RootOnlyPatternIsIgnored(t *testing.T) {
+	cases := []string{"/", "//", "///"}
+	for _, p := range cases {
+		if ShouldExclude("/music/track.mp3", []string{p}) {
+			t.Errorf("pattern %q must not exclude /music/track.mp3 (would hide entire library)", p)
+		}
+	}
+}

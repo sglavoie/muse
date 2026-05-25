@@ -317,3 +317,151 @@ func TestSave_EQ_RoundTrip(t *testing.T) {
 		t.Errorf("custom preset key = %q, want %q", raw.EQCustomPresets[0].Key, "my_preset")
 	}
 }
+
+func TestLoad_EQCustomPresets_KeyWhitespaceTrimmed(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[[eq_custom_presets]]
+name = "Padded"
+key = "  padded_key  "
+bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(result.Config.EQCustomPresets) != 1 {
+		t.Fatalf("EQCustomPresets len = %d, want 1", len(result.Config.EQCustomPresets))
+	}
+	if got := result.Config.EQCustomPresets[0].Key; got != "padded_key" {
+		t.Errorf("Key = %q, want %q (whitespace should be trimmed)", got, "padded_key")
+	}
+}
+
+func TestLoad_EQCustomPresets_EmptyKeyDroppedWithWarning(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[[eq_custom_presets]]
+name = "No Key"
+key = ""
+bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+[[eq_custom_presets]]
+name = "Whitespace Key"
+key = "   "
+bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(result.Config.EQCustomPresets) != 0 {
+		t.Fatalf("EQCustomPresets len = %d, want 0", len(result.Config.EQCustomPresets))
+	}
+	emptyWarnings := 0
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "empty") {
+			emptyWarnings++
+		}
+	}
+	if emptyWarnings != 2 {
+		t.Errorf("expected 2 warnings about empty keys, got %d (%v)", emptyWarnings, result.Warnings)
+	}
+}
+
+func TestLoad_EQCustomPresets_EmptyNameFallsBackToKey(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[[eq_custom_presets]]
+name = ""
+key = "rock_remix"
+bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(result.Config.EQCustomPresets) != 1 {
+		t.Fatalf("EQCustomPresets len = %d, want 1", len(result.Config.EQCustomPresets))
+	}
+	if got := result.Config.EQCustomPresets[0].Name; got != "rock_remix" {
+		t.Errorf("Name = %q, want %q (should fall back to key)", got, "rock_remix")
+	}
+}
+
+func TestLoad_EQCustomPresets_DuplicateKeyWarns(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[[eq_custom_presets]]
+name = "First"
+key = "dup"
+bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+[[eq_custom_presets]]
+name = "Second"
+key = "dup"
+bands = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(result.Config.EQCustomPresets) != 1 {
+		t.Fatalf("EQCustomPresets len = %d, want 1 after dedup", len(result.Config.EQCustomPresets))
+	}
+	if result.Config.EQCustomPresets[0].Name != "First" {
+		t.Errorf("kept preset name = %q, want %q", result.Config.EQCustomPresets[0].Name, "First")
+	}
+	found := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "duplicated") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected warning about duplicated key, got: %v", result.Warnings)
+	}
+}
+
+func TestLoad_EQCustomPresets_BuiltinKeyDropped(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[[eq_custom_presets]]
+name = "Rock Copy"
+key = "rock"
+bands = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(result.Config.EQCustomPresets) != 0 {
+		t.Fatalf("EQCustomPresets len = %d, want 0 for built-in key conflict", len(result.Config.EQCustomPresets))
+	}
+	found := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "built-in preset") && strings.Contains(w, "rock") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected built-in key conflict warning, got: %v", result.Warnings)
+	}
+}

@@ -117,6 +117,94 @@ func TestWalk_DirSymlinksNotFollowed(t *testing.T) {
 	}
 }
 
+// TestWalk_RootWithLeadingDotIsNotSkipped verifies that a root directory
+// whose basename starts with '.' (e.g. "~/.musiclib") is still traversed.
+// Without this guard the hidden-file rule would abort the walk on the very
+// first entry — the root itself — and silently scan zero files.
+func TestWalk_RootWithLeadingDotIsNotSkipped(t *testing.T) {
+	parent := t.TempDir()
+	dotRoot := filepath.Join(parent, ".musiclib")
+	if err := os.MkdirAll(dotRoot, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	mkfile(t, filepath.Join(dotRoot, "track.mp3"))
+	mkfile(t, filepath.Join(dotRoot, "album", "song.flac"))
+
+	got := collectNames(Walk(context.Background(), []string{dotRoot}, nil))
+	want := []string{"song.flac", "track.mp3"}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v (root with leading dot must be traversed)", got, want)
+	}
+}
+
+// TestFilteredWalk_RootWithLeadingDotIsNotSkipped is the FilteredWalk variant
+// of the same fix — DiffScan goes through this code path on incremental rescans.
+func TestFilteredWalk_RootWithLeadingDotIsNotSkipped(t *testing.T) {
+	parent := t.TempDir()
+	dotRoot := filepath.Join(parent, ".musiclib")
+	if err := os.MkdirAll(dotRoot, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	mkfile(t, filepath.Join(dotRoot, "track.mp3"))
+
+	changed, _, err := FilteredWalk(context.Background(), []string{dotRoot}, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("FilteredWalk: %v", err)
+	}
+	if len(changed) != 1 {
+		t.Errorf("changed: got %d entries, want 1 (root with leading dot)", len(changed))
+	}
+}
+
+// TestWalk_HiddenChildrenStillSkippedUnderDotRoot verifies that the dot-root
+// exemption applies only to the root entry, not to hidden descendants.
+func TestWalk_HiddenChildrenStillSkippedUnderDotRoot(t *testing.T) {
+	parent := t.TempDir()
+	dotRoot := filepath.Join(parent, ".musiclib")
+	if err := os.MkdirAll(dotRoot, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	mkfile(t, filepath.Join(dotRoot, "visible.mp3"))
+	mkfile(t, filepath.Join(dotRoot, ".hidden.mp3"))
+	mkfile(t, filepath.Join(dotRoot, ".cache", "buried.mp3"))
+
+	got := collectNames(Walk(context.Background(), []string{dotRoot}, nil))
+	want := []string{"visible.mp3"}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v (hidden descendants under dot-root must still be skipped)", got, want)
+	}
+}
+
+// TestWalk_SymlinkUsesLinkNameForExtension verifies that a symlink pointing
+// to an audio target is included based on the link's own name and extension,
+// not the target's. Previously the symlink path used info.Name() after
+// os.Stat, which produces platform-dependent results.
+func TestWalk_SymlinkUsesLinkNameForExtension(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target.mp3")
+	mkfile(t, target)
+
+	audioLink := filepath.Join(dir, "linked.flac")
+	if err := os.Symlink(target, audioLink); err != nil {
+		t.Skip("symlinks not supported:", err)
+	}
+	nonAudioLink := filepath.Join(dir, "linkedbin")
+	if err := os.Symlink(target, nonAudioLink); err != nil {
+		t.Skip("symlinks not supported:", err)
+	}
+
+	got := collectNames(Walk(context.Background(), []string{dir}, nil))
+	if !slices.Contains(got, "linked.flac") {
+		t.Errorf("expected linked.flac to be included (link name has audio ext): %v", got)
+	}
+	if slices.Contains(got, "linkedbin") {
+		t.Errorf("expected linkedbin to be skipped (link name has no audio ext): %v", got)
+	}
+	if !slices.Contains(got, "target.mp3") {
+		t.Errorf("expected target.mp3 to be included: %v", got)
+	}
+}
+
 // --- isAudioFile ---
 
 func TestIsAudioFile_SupportedExtensions(t *testing.T) {

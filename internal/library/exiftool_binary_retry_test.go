@@ -148,3 +148,111 @@ func TestBinaryRetry_WarnExtractorFallsBackOnError(t *testing.T) {
 		t.Errorf("expected multiple Extract calls due to error, got %d", w.calls)
 	}
 }
+
+// TestBinaryRetry_WhitespaceMetadataTreatedAsEmpty verifies that an extractor
+// returning whitespace-only Title/Artist values triggers the same
+// filename-derived fallback as empty values. Otherwise the library shows
+// blank-looking rows that still claim to have metadata.
+func TestBinaryRetry_WhitespaceMetadataTreatedAsEmpty(t *testing.T) {
+	files := []HashedFile{
+		{Path: "/music/Estas Tonne/INTERNAL FLIGHT.opus", Hash: "abc"},
+	}
+	tracks := extractWithBinaryRetry(context.Background(), &whitespaceFieldExtractor{}, files)
+	if len(tracks) != 1 {
+		t.Fatalf("expected 1 track, got %d", len(tracks))
+	}
+	tr := tracks[0]
+	if tr.Title != "INTERNAL FLIGHT" {
+		t.Errorf("title: want %q (filename stem fallback), got %q", "INTERNAL FLIGHT", tr.Title)
+	}
+	if tr.Artist != "Unknown Artist" {
+		t.Errorf("artist: want %q, got %q", "Unknown Artist", tr.Artist)
+	}
+	if tr.Album != "" {
+		t.Errorf("album: want %q (whitespace trimmed), got %q", "", tr.Album)
+	}
+	if tr.Genre != "" {
+		t.Errorf("genre: want %q (whitespace trimmed), got %q", "", tr.Genre)
+	}
+}
+
+// TestExtractWithBinaryRetry_EmptyInputReturnsNil guards against an infinite
+// recursion if extractWithBinaryRetry is ever invoked with an empty batch
+// (len(files)/2 == 0 would otherwise call itself with the same slice).
+func TestExtractWithBinaryRetry_EmptyInputReturnsNil(t *testing.T) {
+	tracks := extractWithBinaryRetry(context.Background(), &alwaysFailExtractor{}, nil)
+	if tracks != nil {
+		t.Errorf("expected nil tracks for empty input, got %v", tracks)
+	}
+}
+
+// TestExtractWithBinaryRetry_CancelledContextSkipsFallback verifies that when
+// the context is cancelled, extractWithBinaryRetry does not generate
+// filename-derived fallback tracks. Generating fallbacks on cancellation
+// causes the cancelled scan to keep producing garbage tracks for every file
+// after the failure point.
+func TestExtractWithBinaryRetry_CancelledContextSkipsFallback(t *testing.T) {
+	files := []HashedFile{
+		{Path: "/music/a.flac", Hash: "h1"},
+		{Path: "/music/b.flac", Hash: "h2"},
+		{Path: "/music/c.flac", Hash: "h3"},
+		{Path: "/music/d.flac", Hash: "h4"},
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	tracks := extractWithBinaryRetry(ctx, &alwaysFailExtractor{}, files)
+	if tracks != nil {
+		t.Errorf("expected nil tracks under cancelled ctx, got %d: %+v", len(tracks), tracks)
+	}
+}
+
+// TestFilenameStem_DotPrefixedFile verifies that a filename consisting only
+// of the extension (e.g. ".mp3") does not produce an empty Title via the
+// filename fallback. An empty Title slips past downstream `if Title == ""`
+// guards and produces blank library rows.
+func TestFilenameStem_DotPrefixedFile(t *testing.T) {
+	cases := []struct {
+		path string
+		want string
+	}{
+		{"/music/.mp3", ".mp3"},
+		{"/music/.flac", ".flac"},
+		{"/music/track.mp3", "track"},
+		{"/music/no_ext", "no_ext"},
+		{"/music/album/song.opus", "song"},
+		{"/music/a.b.c.mp3", "a.b.c"},
+	}
+	for _, c := range cases {
+		got := filenameStem(c.path)
+		if got != c.want {
+			t.Errorf("filenameStem(%q): got %q, want %q", c.path, got, c.want)
+		}
+	}
+}
+
+// TestExtractWithBinaryRetry_DotPrefixedFilenameNonEmptyTitle verifies the
+// filename fallback path keeps a non-empty Title when the filename is
+// extension-only (".mp3"). Previously this produced Title == "".
+func TestExtractWithBinaryRetry_DotPrefixedFilenameNonEmptyTitle(t *testing.T) {
+	files := []HashedFile{{Path: "/music/.mp3", Hash: "h"}}
+	tracks := extractWithBinaryRetry(context.Background(), &emptyFieldExtractor{}, files)
+	if len(tracks) != 1 {
+		t.Fatalf("expected 1 track, got %d", len(tracks))
+	}
+	if tracks[0].Title == "" {
+		t.Errorf("Title must not be empty for dot-prefixed filename, got %q", tracks[0].Title)
+	}
+}
+
+// TestExtractWithBinaryRetry_SingleFileFailureDotPrefixed verifies the same
+// guard in the single-file failure branch of extractWithBinaryRetry.
+func TestExtractWithBinaryRetry_SingleFileFailureDotPrefixed(t *testing.T) {
+	files := []HashedFile{{Path: "/music/.flac", Hash: "h"}}
+	tracks := extractWithBinaryRetry(context.Background(), &alwaysFailExtractor{}, files)
+	if len(tracks) != 1 {
+		t.Fatalf("expected 1 fallback track, got %d", len(tracks))
+	}
+	if tracks[0].Title == "" {
+		t.Errorf("Title must not be empty in single-file fallback for %q", files[0].Path)
+	}
+}

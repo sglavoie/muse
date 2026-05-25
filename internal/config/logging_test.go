@@ -324,6 +324,40 @@ func TestCloseLog(t *testing.T) {
 	CloseLog()
 }
 
+func TestCloseLog_HandlerSwappedBeforeFileClosed(t *testing.T) {
+	dir := t.TempDir()
+	stateDir := filepath.Join(dir, "muse")
+
+	prev := slog.Default()
+	t.Cleanup(func() {
+		slog.SetDefault(prev)
+		logFile = nil
+	})
+
+	if err := InitLogging(stateDir, slog.LevelInfo); err != nil {
+		t.Fatalf("InitLogging: %v", err)
+	}
+
+	logFilePath := filepath.Join(stateDir, logFileName)
+	preInfo, err := os.Stat(logFilePath)
+	if err != nil {
+		t.Fatalf("stat before close: %v", err)
+	}
+	preSize := preInfo.Size()
+
+	CloseLog()
+	slog.Info("post-close message should not write to file or panic")
+
+	postInfo, err := os.Stat(logFilePath)
+	if err != nil {
+		t.Fatalf("stat after close: %v", err)
+	}
+	postClosePadding := int64(512)
+	if delta := postInfo.Size() - preSize; delta > postClosePadding {
+		t.Errorf("file grew by %d bytes after CloseLog; expected only the shutdown line", delta)
+	}
+}
+
 // --- InitLogging closes previous file handle ---
 
 func TestInitLogging_ClosesOldFileOnReinit(t *testing.T) {
