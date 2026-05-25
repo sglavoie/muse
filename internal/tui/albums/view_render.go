@@ -251,4 +251,3 @@ func contentWidth(width int) int {
 	}
 	return 80
 }
-
