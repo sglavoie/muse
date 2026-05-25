@@ -238,4 +238,3 @@ func joinStrip(stripLine, body string) string {
 	}
 	return stripLine + "\n" + body
 }
-

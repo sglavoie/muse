@@ -182,4 +182,3 @@ func parseRepeatMode(s string) tui.RepeatMode {
 		return tui.RepeatOff
 	}
 }
-
