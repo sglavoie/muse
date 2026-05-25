@@ -147,7 +147,7 @@ func restoreVolume(volume float64) int {
 	if math.IsNaN(volume) || math.IsInf(volume, 0) {
 		return -1
 	}
-	return clampVolume(int(math.Round(volume * 100)))
+	return max(0, min(int(math.Round(volume*100)), 100))
 }
 
 // buildDisplay returns a human-readable label for a queue entry, falling back
@@ -183,17 +183,3 @@ func parseRepeatMode(s string) tui.RepeatMode {
 	}
 }
 
-// clampVolume normalises a persisted volume value into the inclusive range
-// [0, 100]. Negative values (which would otherwise be interpreted as the
-// "no value persisted" sentinel by ApplyRestoredSession and overwritten with
-// the default) are clamped to 0 so that an explicitly persisted mute survives
-// a corrupted session row. Values above 100 are clamped to 100.
-func clampVolume(v int) int {
-	if v < 0 {
-		return 0
-	}
-	if v > 100 {
-		return 100
-	}
-	return v
-}

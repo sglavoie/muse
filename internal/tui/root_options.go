@@ -307,7 +307,7 @@ func WithRadioMode(enabled bool) Option {
 
 // WithVolume pre-sets the volume level.
 func WithVolume(v int) Option {
-	return func(m *Model) { m.playback.volume = clampVolume(v) }
+	return func(m *Model) { m.playback.volume = max(0, min(v, 100)) }
 }
 
 // WithPlaybackState pre-sets the playback state.
@@ -362,15 +362,4 @@ func WithSessionCount(n int) Option {
 // the initial sort state so new users see newly scanned tracks immediately.
 func WithFreshLibrary(fresh bool) Option {
 	return func(m *Model) { m.freshLibrary = fresh }
-}
-
-// clampVolume restricts v to the [0, 100] range.
-func clampVolume(v int) int {
-	if v < 0 {
-		return 0
-	}
-	if v > 100 {
-		return 100
-	}
-	return v
 }

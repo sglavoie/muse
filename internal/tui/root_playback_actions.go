@@ -248,7 +248,7 @@ func (m Model) handleVolume(sign int) (tea.Model, tea.Cmd, bool) {
 	if err := cp.SetVolumeRelative(float64(delta)); err != nil {
 		slog.Warn("volume change failed", "err", err)
 	} else {
-		m.playback.volume = clampVolume(m.playback.volume + delta)
+		m.playback.volume = max(0, min(m.playback.volume+delta, 100))
 		if m.sessionWriter != nil {
 			if err := m.sessionWriter.WriteVolume(m.playback.volume); err != nil {
 				slog.Warn("write volume failed", "err", err)
