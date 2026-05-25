@@ -19,7 +19,7 @@ func (v View) renderArtists() string {
 	}
 	stripLine := v.renderStateStrip(len(v.Artists), len(items))
 	if len(items) == 0 {
-		return joinStrip(stripLine, "(no matches)")
+		return strip.JoinStrip(stripLine, "(no matches)")
 	}
 
 	maxRows := v.visibleRows()
@@ -49,7 +49,7 @@ func (v View) renderArtists() string {
 			lines[i] = label + styles.RenderCountZone(v.Styles, countStr, false)
 		}
 	}
-	return joinStrip(stripLine, strings.Join(lines, "\n"))
+	return strip.JoinStrip(stripLine, strings.Join(lines, "\n"))
 }
 
 func (v View) renderAlbums() string {
@@ -59,7 +59,7 @@ func (v View) renderAlbums() string {
 	}
 	stripLine := v.renderStateStrip(len(v.Albums), len(items))
 	if len(items) == 0 {
-		return joinStrip(stripLine, "(no matches)")
+		return strip.JoinStrip(stripLine, "(no matches)")
 	}
 
 	maxRows := v.visibleRows()
@@ -83,7 +83,7 @@ func (v View) renderAlbums() string {
 		}
 		lines[i] = display
 	}
-	return joinStrip(stripLine, strings.Join(lines, "\n"))
+	return strip.JoinStrip(stripLine, strings.Join(lines, "\n"))
 }
 
 func (v View) renderTracks() string {
@@ -93,7 +93,7 @@ func (v View) renderTracks() string {
 	}
 	stripLine := v.renderStateStrip(len(v.Tracks), len(items))
 	if len(items) == 0 {
-		return joinStrip(stripLine, "(no matches)")
+		return strip.JoinStrip(stripLine, "(no matches)")
 	}
 
 	cols := ComputeTrack(v.Width)
@@ -178,7 +178,7 @@ func (v View) renderTracks() string {
 	}
 	body := strings.Join(lines, "\n")
 	rest := header + "\n" + body
-	return joinStrip(stripLine, rest)
+	return strip.JoinStrip(stripLine, rest)
 }
 
 // renderStateStrip builds the unified single-line state strip carrying the
@@ -238,3 +238,4 @@ func joinStrip(stripLine, body string) string {
 	}
 	return stripLine + "\n" + body
 }
+

@@ -104,3 +104,12 @@ func Render(
 
 	return renderStrip(layout, s)
 }
+
+// JoinStrip concatenates a rendered strip line and a content body with a
+// newline separator. When stripLine is empty, body is returned unchanged.
+func JoinStrip(stripLine, body string) string {
+if stripLine == "" {
+return body
+}
+return stripLine + "\n" + body
+}

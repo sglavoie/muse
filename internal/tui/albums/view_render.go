@@ -29,7 +29,7 @@ func (v View) renderAlbums() string {
 	width := contentWidth(v.Width)
 	stripLine := v.renderStateStrip(len(v.Albums), len(items))
 	if len(items) == 0 {
-		return joinStrip(stripLine, "(no matches)")
+		return strip.JoinStrip(stripLine, "(no matches)")
 	}
 
 	maxRows := v.visibleRows()
@@ -59,7 +59,7 @@ func (v View) renderAlbums() string {
 			lines[i] = label + styles.RenderCountZone(v.Styles, countStr, false)
 		}
 	}
-	return joinStrip(stripLine, strings.Join(lines, "\n"))
+	return strip.JoinStrip(stripLine, strings.Join(lines, "\n"))
 }
 
 func (v View) renderTracks() string {
@@ -70,7 +70,7 @@ func (v View) renderTracks() string {
 	width := contentWidth(v.Width)
 	stripLine := v.renderStateStrip(len(v.Tracks), len(items))
 	if len(items) == 0 {
-		return joinStrip(stripLine, "(no matches)")
+		return strip.JoinStrip(stripLine, "(no matches)")
 	}
 
 	cols := ComputeTrack(width)
@@ -174,7 +174,7 @@ func (v View) renderTracks() string {
 		}
 	}
 	rest := header + "\n" + strings.Join(lines, "\n")
-	return joinStrip(stripLine, rest)
+	return strip.JoinStrip(stripLine, rest)
 }
 
 // renderStateStrip builds the unified single-line state strip carrying the
@@ -213,15 +213,6 @@ func (v View) renderStateStrip(total, filtered int) string {
 		sel = &strip.SelectionChunk{Count: n}
 	}
 	return strip.Render(v.Width, breadcrumb, sortChunk, f, counts, sel, hint, v.Styles)
-}
-
-// joinStrip joins a top-level strip line with the rendered body, skipping the
-// strip entirely when it is empty (zero-width fallback).
-func joinStrip(stripLine, body string) string {
-	if stripLine == "" {
-		return body
-	}
-	return stripLine + "\n" + body
 }
 
 func contentWidth(width int) int {
