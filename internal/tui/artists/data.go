@@ -8,7 +8,9 @@ import (
 
 const libraryUnknownArtist = "Unknown Artist"
 
-func displayArtistName(artist string) string {
+// DisplayArtistName returns the display name for an artist, mapping any
+// unknown-artist sentinel value to the canonical UnknownArtist display string.
+func DisplayArtistName(artist string) string {
 	if IsUnknownArtist(artist) {
 		return UnknownArtist
 	}
@@ -42,9 +44,9 @@ func DeriveArtists(tracks []library.Track) []string {
 	if len(tracks) == 0 {
 		return nil
 	}
-	artists := []string{displayArtistName(tracks[0].Artist)}
+	artists := []string{DisplayArtistName(tracks[0].Artist)}
 	for i := 1; i < len(tracks); i++ {
-		name := displayArtistName(tracks[i].Artist)
+		name := DisplayArtistName(tracks[i].Artist)
 		if name != artists[len(artists)-1] {
 			artists = append(artists, name)
 		}
@@ -61,7 +63,7 @@ func DeriveArtistCounts(tracks []library.Track) map[string]int {
 	}
 	counts := make(map[string]int)
 	for _, t := range tracks {
-		counts[displayArtistName(t.Artist)]++
+		counts[DisplayArtistName(t.Artist)]++
 	}
 	return counts
 }

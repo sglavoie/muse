@@ -79,7 +79,7 @@ func DeriveGenreArtists(tracks []library.Track, genre string) []string {
 		if !trackMatchesGenre(t, raw) {
 			continue
 		}
-		name := displayArtistName(t.Artist)
+		name := arttui.DisplayArtistName(t.Artist)
 		if _, ok := seen[name]; !ok {
 			seen[name] = struct{}{}
 			artists = append(artists, name)
@@ -137,13 +137,6 @@ func trackMatchesGenre(t library.Track, raw string) bool {
 		return len(genres) == 0 || slices.Contains(genres, UnknownGenre)
 	}
 	return slices.Contains(genres, raw)
-}
-
-func displayArtistName(artist string) string {
-	if arttui.IsUnknownArtist(artist) {
-		return arttui.UnknownArtist
-	}
-	return artist
 }
 
 func artistMatches(trackArtist, artist string) bool {
