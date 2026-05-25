@@ -24,14 +24,18 @@ func IsUnknownArtist(artist string) bool {
 	return artist == "" || artist == libraryUnknownArtist || artist == UnknownArtist
 }
 
-func artistMatches(trackArtist, artist string) bool {
+// ArtistMatches reports whether trackArtist belongs to the requested artist,
+// treating all unknown-artist sentinel values as equivalent.
+func ArtistMatches(trackArtist, artist string) bool {
 	if IsUnknownArtist(artist) {
 		return IsUnknownArtist(trackArtist)
 	}
 	return trackArtist == artist
 }
 
-func albumMatches(trackAlbum, album string) bool {
+// AlbumMatches reports whether trackAlbum belongs to the requested album,
+// treating empty string and UnknownAlbum sentinel as equivalent.
+func AlbumMatches(trackAlbum, album string) bool {
 	if album == "" {
 		return trackAlbum == "" || trackAlbum == UnknownAlbum
 	}
@@ -75,7 +79,7 @@ func DeriveAlbums(tracks []library.Track, artist string) []string {
 	seen := make(map[string]struct{})
 	var albums []string
 	for _, track := range tracks {
-		if !artistMatches(track.Artist, artist) {
+		if !ArtistMatches(track.Artist, artist) {
 			continue
 		}
 		album := track.Album
@@ -105,7 +109,7 @@ func DeriveTracks(tracks []library.Track, artist, album string) []library.Track 
 	album = RawName(album)
 	var result []library.Track
 	for _, track := range tracks {
-		if artistMatches(track.Artist, artist) && albumMatches(track.Album, album) {
+		if ArtistMatches(track.Artist, artist) && AlbumMatches(track.Album, album) {
 			result = append(result, track)
 		}
 	}
@@ -117,7 +121,7 @@ func DeriveArtistTracks(tracks []library.Track, artist string) []library.Track {
 	rawArtist := RawName(artist)
 	var result []library.Track
 	for _, track := range tracks {
-		if artistMatches(track.Artist, rawArtist) {
+		if ArtistMatches(track.Artist, rawArtist) {
 			result = append(result, track)
 		}
 	}

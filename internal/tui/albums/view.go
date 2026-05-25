@@ -320,16 +320,9 @@ func DeriveAlbumTracks(tracks []library.Track, album string) []library.Track {
 	rawAlbum := arttui.RawName(album)
 	var result []library.Track
 	for _, t := range tracks {
-		if albumMatches(t.Album, rawAlbum) {
+		if arttui.AlbumMatches(t.Album, rawAlbum) {
 			result = append(result, t)
 		}
 	}
 	return result
-}
-
-func albumMatches(trackAlbum, rawAlbum string) bool {
-	if rawAlbum == "" {
-		return trackAlbum == "" || trackAlbum == arttui.UnknownAlbum
-	}
-	return trackAlbum == rawAlbum
 }
