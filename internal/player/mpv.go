@@ -292,10 +292,8 @@ func (m *Manager) DebugInfo() (map[string]string, error) {
 	for _, p := range props {
 		resp, err := c.SendCommand(cmdGetProperty, p.prop)
 		if err == nil {
-			if s, ok := resp.Data.(string); ok {
-				result[p.key] = s
-			} else if resp.Data != nil {
-				result[p.key] = fmt.Sprintf("%v", resp.Data)
+			if value, ok, formatErr := resp.formattedData(); formatErr == nil && ok {
+				result[p.key] = value
 			}
 		}
 	}

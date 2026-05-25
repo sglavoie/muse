@@ -2,6 +2,7 @@ package player
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -23,11 +24,48 @@ type ipcRequest struct {
 
 // ipcResponse is the JSON envelope received from mpv.
 type ipcResponse struct {
-	Error     string         `json:"error"`
-	Data      any            `json:"data"`
-	RequestID uint64         `json:"request_id"`
-	Event     string         `json:"event,omitempty"`
-	Raw       map[string]any `json:"-"`
+	Error     string          `json:"error"`
+	Data      json.RawMessage `json:"data"`
+	RequestID uint64          `json:"request_id"`
+	Event     string          `json:"event,omitempty"`
+}
+
+func (r *ipcResponse) isNullData() bool {
+	trimmed := bytes.TrimSpace(r.Data)
+	return len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null"))
+}
+
+func (r *ipcResponse) float64Data() (float64, bool, error) {
+	if r.isNullData() {
+		return 0, false, nil
+	}
+	var value float64
+	if err := json.Unmarshal(r.Data, &value); err != nil {
+		return 0, false, fmt.Errorf("expected float64 or nil, got %s", bytes.TrimSpace(r.Data))
+	}
+	return value, true, nil
+}
+
+func (r *ipcResponse) stringData() (string, bool, error) {
+	if r.isNullData() {
+		return "", false, nil
+	}
+	var value string
+	if err := json.Unmarshal(r.Data, &value); err != nil {
+		return "", false, fmt.Errorf("expected string or nil, got %s", bytes.TrimSpace(r.Data))
+	}
+	return value, true, nil
+}
+
+func (r *ipcResponse) formattedData() (string, bool, error) {
+	if r.isNullData() {
+		return "", false, nil
+	}
+	trimmed := bytes.TrimSpace(r.Data)
+	if len(trimmed) > 0 && trimmed[0] == '"' {
+		return r.stringData()
+	}
+	return string(trimmed), true, nil
 }
 
 // IPCClient is a thin JSON-IPC client for mpv's Unix domain socket protocol.
@@ -105,34 +143,25 @@ func (c *IPCClient) SendCommand(args ...any) (*ipcResponse, error) {
 		}
 		slog.Debug("ipc recv", "msg", strings.TrimRight(string(line), "\n"))
 
-		var raw map[string]any
-		if err := json.Unmarshal(line, &raw); err != nil {
+		var resp ipcResponse
+		if err := json.Unmarshal(line, &resp); err != nil {
 			// Malformed line — skip.
 			continue
 		}
 
-		// Async event: has "event" key but no "request_id".
-		if _, isEvent := raw["event"]; isEvent {
+		if resp.Event != "" {
 			continue
 		}
 
-		// Check the request_id. mpv encodes it as a JSON number (float64).
-		rid, _ := raw["request_id"].(float64)
-		if uint64(rid) != id {
+		if resp.RequestID != id {
 			// Response for a different request — skip (shouldn't happen in
 			// single-caller use but is safe to ignore).
 			continue
 		}
 
-		resp := &ipcResponse{RequestID: id}
-		if errVal, ok := raw["error"].(string); ok {
-			resp.Error = errVal
-		}
-		resp.Data = raw["data"]
-
 		if resp.Error != "" && resp.Error != "success" {
-			return resp, fmt.Errorf("%w: %s", ErrPlaybackFailed, resp.Error)
+			return &resp, fmt.Errorf("%w: %s", ErrPlaybackFailed, resp.Error)
 		}
-		return resp, nil
+		return &resp, nil
 	}
 }

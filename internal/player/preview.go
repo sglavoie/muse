@@ -148,7 +148,7 @@ func (p *PreviewPlayer) ElapsedPosition() (elapsed, total float64, err error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	elapsed, err = secondsOrZero("preview", propTimePos, posResp.Data)
+	elapsed, err = secondsOrZero("preview", propTimePos, posResp)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -157,7 +157,7 @@ func (p *PreviewPlayer) ElapsedPosition() (elapsed, total float64, err error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	total, err = secondsOrZero("preview", propDuration, durResp.Data)
+	total, err = secondsOrZero("preview", propDuration, durResp)
 	if err != nil {
 		return 0, 0, err
 	}

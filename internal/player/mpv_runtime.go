@@ -17,7 +17,7 @@ func (m *Manager) ElapsedPosition() (elapsed, total float64, err error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	elapsed, err = secondsOrZero("mpv", propTimePos, posResp.Data)
+	elapsed, err = secondsOrZero("mpv", propTimePos, posResp)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -26,7 +26,7 @@ func (m *Manager) ElapsedPosition() (elapsed, total float64, err error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	total, err = secondsOrZero("mpv", propDuration, durResp.Data)
+	total, err = secondsOrZero("mpv", propDuration, durResp)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -34,13 +34,13 @@ func (m *Manager) ElapsedPosition() (elapsed, total float64, err error) {
 	return elapsed, total, nil
 }
 
-func secondsOrZero(prefix, prop string, data any) (float64, error) {
-	if data == nil {
-		return 0, nil
+func secondsOrZero(prefix, prop string, resp *ipcResponse) (float64, error) {
+	seconds, ok, err := resp.float64Data()
+	if err != nil {
+		return 0, fmt.Errorf("%s: %s: %w", prefix, prop, err)
 	}
-	seconds, ok := data.(float64)
 	if !ok {
-		return 0, fmt.Errorf("%s: %s: expected float64 or nil, got %T", prefix, prop, data)
+		return 0, nil
 	}
 	return seconds, nil
 }
@@ -58,13 +58,13 @@ func (m *Manager) SyncPosition() error {
 	if err != nil {
 		return err
 	}
-	path, _ := pathResp.Data.(string)
+	path, _, _ := pathResp.stringData()
 
 	posResp, err := c.SendCommand(cmdGetProperty, propTimePos)
 	if err != nil {
 		return err
 	}
-	elapsed, _ := posResp.Data.(float64)
+	elapsed, _, _ := posResp.float64Data()
 
 	if path != "" {
 		m.SetCurrentPosition(path, elapsed)

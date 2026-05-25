@@ -3,6 +3,7 @@ package player
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -115,6 +116,52 @@ func TestManager_ElapsedPosition_NullPropertiesReturnZero(t *testing.T) {
 	}
 	if total != 0 {
 		t.Errorf("total = %f, want 0", total)
+	}
+}
+
+func TestManager_ElapsedPosition_InvalidPropertyType(t *testing.T) {
+	sock := shortSockPath(t, "elapsed-invalid")
+
+	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
+		cmd, _ := req["command"].([]any)
+		if len(cmd) >= 2 {
+			prop, _ := cmd[1].(string)
+			switch prop {
+			case propTimePos:
+				return map[string]any{
+					"error":      "success",
+					"data":       "42.5",
+					"request_id": req["request_id"],
+				}
+			case propDuration:
+				return map[string]any{
+					"error":      "success",
+					"data":       180.0,
+					"request_id": req["request_id"],
+				}
+			}
+		}
+		return successHandler(req)
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{socketPath: sock, ctx: ctx, cancel: cancel}
+	defer m.Close()
+
+	client, err := NewIPCClient(sock)
+	if err != nil {
+		t.Fatalf("NewIPCClient: %v", err)
+	}
+	m.mu.Lock()
+	m.client = client
+	m.mu.Unlock()
+
+	_, _, err = m.ElapsedPosition()
+	if err == nil {
+		t.Fatal("ElapsedPosition: expected error for string time-pos, got nil")
+	}
+	if !strings.Contains(err.Error(), "expected float64 or nil") {
+		t.Fatalf("ElapsedPosition: unexpected error: %v", err)
 	}
 }
 
