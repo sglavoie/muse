@@ -37,8 +37,8 @@ func TestManager_DebugInfo_Connected(t *testing.T) {
 		"path":                    "/music/track.mp3",
 	}
 
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		cmd, _ := req["command"].([]any)
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		cmd := req.Command
 		if len(cmd) >= 2 {
 			if verb, _ := cmd[0].(string); verb == "get_property" {
 				if prop, _ := cmd[1].(string); prop != "" {
@@ -46,7 +46,7 @@ func TestManager_DebugInfo_Connected(t *testing.T) {
 						return map[string]any{
 							"error":      "success",
 							"data":       val,
-							"request_id": req["request_id"],
+							"request_id": req.RequestID,
 						}
 					}
 				}
@@ -97,22 +97,22 @@ func TestManager_DebugInfo_GracefulDegradation(t *testing.T) {
 	sock := shortSockPath(t, "dbg-degrade")
 
 	// Only respond to path; all others get "property not found".
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		cmd, _ := req["command"].([]any)
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		cmd := req.Command
 		if len(cmd) >= 2 {
 			if verb, _ := cmd[0].(string); verb == "get_property" {
 				if prop, _ := cmd[1].(string); prop == "path" {
 					return map[string]any{
 						"error":      "success",
 						"data":       "/some/track.flac",
-						"request_id": req["request_id"],
+						"request_id": req.RequestID,
 					}
 				}
 				// All other properties fail.
 				return map[string]any{
 					"error":      "property not found",
 					"data":       nil,
-					"request_id": req["request_id"],
+					"request_id": req.RequestID,
 				}
 			}
 		}

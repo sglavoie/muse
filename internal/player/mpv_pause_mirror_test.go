@@ -80,8 +80,8 @@ func TestManager_Stop_MirrorsPauseStateEvenWhenSeekFails(t *testing.T) {
 	var received [][]any
 
 	// Custom handler: succeed for set_property pause=true, but error for seek.
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		cmd, _ := req["command"].([]any)
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		cmd := req.Command
 		if len(cmd) > 0 {
 			mu.Lock()
 			received = append(received, cmd)
@@ -92,7 +92,7 @@ func TestManager_Stop_MirrorsPauseStateEvenWhenSeekFails(t *testing.T) {
 				return map[string]any{
 					"error":      "property unavailable",
 					"data":       nil,
-					"request_id": req["request_id"],
+					"request_id": req.RequestID,
 				}
 			}
 		}

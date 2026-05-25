@@ -22,8 +22,8 @@ func TestPrefetchNext_BailsWhenPlaylistRemoveFails(t *testing.T) {
 	pathC := tempFile(t, "c*.flac")
 
 	sock := shortSockPath(t, "prefetch-removefail")
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		if cmd, ok := req["command"].([]any); ok {
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
 			received = append(received, append([]any(nil), cmd...))
 			mu.Unlock()
@@ -95,8 +95,8 @@ func TestPrefetchNext_RetriesAfterReplacementAppendFailure(t *testing.T) {
 
 	sock := shortSockPath(t, "prefetch-retry")
 	failPathC := true
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		if cmd, ok := req["command"].([]any); ok {
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
 			received = append(received, append([]any(nil), cmd...))
 			mu.Unlock()

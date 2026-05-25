@@ -12,8 +12,8 @@ func TestManager_SetStereoWide_Enabled(t *testing.T) {
 
 	var mu sync.Mutex
 	var received [][]any
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		if cmd, ok := req["command"].([]any); ok {
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
 			received = append(received, cmd)
 			mu.Unlock()
@@ -63,8 +63,8 @@ func TestManager_SetStereoWide_Disabled(t *testing.T) {
 
 	var mu sync.Mutex
 	var received [][]any
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		if cmd, ok := req["command"].([]any); ok {
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
 			received = append(received, cmd)
 			mu.Unlock()
@@ -154,8 +154,8 @@ func TestManager_FilterChain_StereoWideWithOthers(t *testing.T) {
 
 	var mu sync.Mutex
 	var received [][]any
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		if cmd, ok := req["command"].([]any); ok {
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
 			received = append(received, cmd)
 			mu.Unlock()

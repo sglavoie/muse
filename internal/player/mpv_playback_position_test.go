@@ -30,8 +30,8 @@ func TestManager_SetCurrentPosition(t *testing.T) {
 func TestManager_ElapsedPosition_Connected(t *testing.T) {
 	sock := shortSockPath(t, "elapsed")
 
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		cmd, _ := req["command"].([]any)
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		cmd := req.Command
 		if len(cmd) >= 2 {
 			prop, _ := cmd[1].(string)
 			switch prop {
@@ -39,13 +39,13 @@ func TestManager_ElapsedPosition_Connected(t *testing.T) {
 				return map[string]any{
 					"error":      "success",
 					"data":       42.5,
-					"request_id": req["request_id"],
+					"request_id": req.RequestID,
 				}
 			case "duration":
 				return map[string]any{
 					"error":      "success",
 					"data":       180.0,
-					"request_id": req["request_id"],
+					"request_id": req.RequestID,
 				}
 			}
 		}
@@ -79,8 +79,8 @@ func TestManager_ElapsedPosition_Connected(t *testing.T) {
 func TestManager_ElapsedPosition_NullPropertiesReturnZero(t *testing.T) {
 	sock := shortSockPath(t, "elapsed-null")
 
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		cmd, _ := req["command"].([]any)
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		cmd := req.Command
 		if len(cmd) >= 2 {
 			prop, _ := cmd[1].(string)
 			switch prop {
@@ -88,7 +88,7 @@ func TestManager_ElapsedPosition_NullPropertiesReturnZero(t *testing.T) {
 				return map[string]any{
 					"error":      "success",
 					"data":       nil,
-					"request_id": req["request_id"],
+					"request_id": req.RequestID,
 				}
 			}
 		}
@@ -122,8 +122,8 @@ func TestManager_ElapsedPosition_NullPropertiesReturnZero(t *testing.T) {
 func TestManager_ElapsedPosition_InvalidPropertyType(t *testing.T) {
 	sock := shortSockPath(t, "elapsed-invalid")
 
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		cmd, _ := req["command"].([]any)
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		cmd := req.Command
 		if len(cmd) >= 2 {
 			prop, _ := cmd[1].(string)
 			switch prop {
@@ -131,13 +131,13 @@ func TestManager_ElapsedPosition_InvalidPropertyType(t *testing.T) {
 				return map[string]any{
 					"error":      "success",
 					"data":       "42.5",
-					"request_id": req["request_id"],
+					"request_id": req.RequestID,
 				}
 			case propDuration:
 				return map[string]any{
 					"error":      "success",
 					"data":       180.0,
-					"request_id": req["request_id"],
+					"request_id": req.RequestID,
 				}
 			}
 		}
@@ -179,8 +179,8 @@ func TestManager_ElapsedPosition_NotConnected(t *testing.T) {
 func TestManager_SyncPosition_Connected(t *testing.T) {
 	sock := shortSockPath(t, "syncpos")
 
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		cmd, _ := req["command"].([]any)
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		cmd := req.Command
 		if len(cmd) >= 2 {
 			prop, _ := cmd[1].(string)
 			switch prop {
@@ -188,13 +188,13 @@ func TestManager_SyncPosition_Connected(t *testing.T) {
 				return map[string]any{
 					"error":      "success",
 					"data":       "/music/track.flac",
-					"request_id": req["request_id"],
+					"request_id": req.RequestID,
 				}
 			case "time-pos":
 				return map[string]any{
 					"error":      "success",
 					"data":       55.3,
-					"request_id": req["request_id"],
+					"request_id": req.RequestID,
 				}
 			}
 		}

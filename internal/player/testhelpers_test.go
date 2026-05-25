@@ -40,25 +40,30 @@ func assertAudioFilters(t *testing.T, m *Manager, want map[string]string) {
 }
 
 // responseHandler is called for each request received by the fake server.
-// It receives the decoded request map and returns the response map to send back.
-type responseHandler func(req map[string]any) map[string]any
+// It receives the decoded request envelope and returns the response map to send back.
+type ipcTestRequest struct {
+	Command   []any  `json:"command"`
+	RequestID uint64 `json:"request_id"`
+}
+
+type responseHandler func(req ipcTestRequest) map[string]any
 
 // successHandler echoes back a success response with the same request_id.
-func successHandler(req map[string]any) map[string]any {
+func successHandler(req ipcTestRequest) map[string]any {
 	return map[string]any{
 		"error":      "success",
 		"data":       nil,
-		"request_id": req["request_id"],
+		"request_id": req.RequestID,
 	}
 }
 
 // errorHandler returns a factory that always replies with the given mpv error string.
 func errorHandler(mpvError string) responseHandler {
-	return func(req map[string]any) map[string]any {
+	return func(req ipcTestRequest) map[string]any {
 		return map[string]any{
 			"error":      mpvError,
 			"data":       nil,
-			"request_id": req["request_id"],
+			"request_id": req.RequestID,
 		}
 	}
 }
@@ -105,7 +110,7 @@ func handleConn(conn net.Conn, handler responseHandler) {
 	enc := json.NewEncoder(conn)
 
 	for {
-		var req map[string]any
+		var req ipcTestRequest
 		if err := dec.Decode(&req); err != nil {
 			return
 		}

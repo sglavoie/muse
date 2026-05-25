@@ -109,8 +109,8 @@ func TestPreviewPlayer_LoadAndPlay(t *testing.T) {
 
 func TestPreviewPlayer_TogglePause(t *testing.T) {
 	sock := shortSockPath(t, "preview-toggle-pause")
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		cmd, _ := req["command"].([]any)
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		cmd := req.Command
 		if len(cmd) != 2 || cmd[0] != "cycle" || cmd[1] != "pause" {
 			t.Fatalf("unexpected command: %#v", cmd)
 		}
@@ -134,8 +134,8 @@ func TestPreviewPlayer_TogglePause(t *testing.T) {
 func TestPreviewPlayer_SeekRelative(t *testing.T) {
 	sock := shortSockPath(t, "preview-seek")
 	want := -12.5
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		cmd, _ := req["command"].([]any)
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		cmd := req.Command
 		if len(cmd) != 3 || cmd[0] != "seek" || cmd[2] != "relative" {
 			t.Fatalf("unexpected command: %#v", cmd)
 		}
@@ -165,8 +165,8 @@ func TestPreviewPlayer_SeekRelative(t *testing.T) {
 
 func TestPreviewPlayer_SetAudioFilter(t *testing.T) {
 	sock := shortSockPath(t, "preview-af")
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		cmd, _ := req["command"].([]any)
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		cmd := req.Command
 		if len(cmd) != 3 || cmd[0] != "set_property" || cmd[1] != "af" || cmd[2] != "lavfi=[loudnorm]" {
 			t.Fatalf("unexpected command: %#v", cmd)
 		}
@@ -222,8 +222,8 @@ func TestPreviewPlayer_SeekRelative_NotConnected(t *testing.T) {
 func TestPreviewPlayer_ElapsedPosition(t *testing.T) {
 	sock := shortSockPath(t, "preview-elapsed")
 	// Use a handler that returns float64 data for get_property requests.
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		cmd, _ := req["command"].([]any)
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		cmd := req.Command
 		if len(cmd) >= 2 {
 			prop, _ := cmd[1].(string)
 			switch prop {
@@ -231,13 +231,13 @@ func TestPreviewPlayer_ElapsedPosition(t *testing.T) {
 				return map[string]any{
 					"error":      "success",
 					"data":       42.5,
-					"request_id": req["request_id"],
+					"request_id": req.RequestID,
 				}
 			case "duration":
 				return map[string]any{
 					"error":      "success",
 					"data":       180.0,
-					"request_id": req["request_id"],
+					"request_id": req.RequestID,
 				}
 			}
 		}
@@ -267,8 +267,8 @@ func TestPreviewPlayer_ElapsedPosition(t *testing.T) {
 
 func TestPreviewPlayer_ElapsedPosition_NullPropertiesReturnZero(t *testing.T) {
 	sock := shortSockPath(t, "preview-elapsed-null")
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		cmd, _ := req["command"].([]any)
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		cmd := req.Command
 		if len(cmd) >= 2 {
 			prop, _ := cmd[1].(string)
 			switch prop {
@@ -276,7 +276,7 @@ func TestPreviewPlayer_ElapsedPosition_NullPropertiesReturnZero(t *testing.T) {
 				return map[string]any{
 					"error":      "success",
 					"data":       nil,
-					"request_id": req["request_id"],
+					"request_id": req.RequestID,
 				}
 			}
 		}

@@ -44,7 +44,7 @@ func TestManager_ConnectDisconnectInfoLogs(t *testing.T) {
 		dec := json.NewDecoder(conn)
 		enc := json.NewEncoder(conn)
 		for range 2 {
-			var req map[string]any
+			var req ipcTestRequest
 			if err := dec.Decode(&req); err != nil {
 				break
 			}

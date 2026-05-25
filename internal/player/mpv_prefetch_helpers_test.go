@@ -26,8 +26,8 @@ func tempFile(t *testing.T, name string) string {
 func newConnectedManager(t *testing.T, name string, mu *sync.Mutex, received *[][]any) *Manager {
 	t.Helper()
 	sock := shortSockPath(t, name)
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		if cmd, ok := req["command"].([]any); ok {
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
 			*received = append(*received, cmd)
 			mu.Unlock()

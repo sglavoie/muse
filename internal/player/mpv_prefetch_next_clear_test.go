@@ -56,12 +56,12 @@ func TestClearPrefetch_NoopWhenNothingPrefetched(t *testing.T) {
 
 func TestClearPrefetch_PreservesStateWhenPlaylistRemoveFails(t *testing.T) {
 	sock := shortSockPath(t, "clear-pf-fail")
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		cmd, _ := req["command"].([]any)
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		cmd := req.Command
 		if len(cmd) > 0 && cmd[0] == "playlist-remove" {
 			return map[string]any{
 				"error":      "failure",
-				"request_id": req["request_id"],
+				"request_id": req.RequestID,
 			}
 		}
 		return successHandler(req)

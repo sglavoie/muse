@@ -37,7 +37,7 @@ func TestManager_AutoRestart(t *testing.T) {
 		dec := json.NewDecoder(conn)
 		enc := json.NewEncoder(conn)
 		for range 2 {
-			var req map[string]any
+			var req ipcTestRequest
 			if err := dec.Decode(&req); err != nil {
 				break
 			}
@@ -81,8 +81,8 @@ func TestManager_AutoRestart(t *testing.T) {
 	}
 	// launchFn starts the phase 2 fake server instead of a real mpv process.
 	m.launchFn = func(_ context.Context, socketPath string) (*exec.Cmd, error) {
-		fakeServerWithHandler(t, socketPath, func(req map[string]any) map[string]any {
-			if cmd, ok := req["command"].([]any); ok && len(cmd) > 0 {
+		fakeServerWithHandler(t, socketPath, func(req ipcTestRequest) map[string]any {
+			if cmd := req.Command; len(cmd) > 0 {
 				mu.Lock()
 				received = append(received, cmd)
 				mu.Unlock()

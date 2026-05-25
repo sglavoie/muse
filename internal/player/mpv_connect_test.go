@@ -177,8 +177,8 @@ func TestManager_QueueDrainOnConnect(t *testing.T) {
 	// Track commands received by the fake server.
 	var mu sync.Mutex
 	var received []string
-	fakeServerWithHandler(t, sock, func(req map[string]any) map[string]any {
-		if cmd, ok := req["command"].([]any); ok && len(cmd) > 0 {
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
 			received = append(received, fmt.Sprintf("%v", cmd[0]))
 			mu.Unlock()
@@ -228,7 +228,7 @@ func TestManager_HealthCheckDetectsDisconnect(t *testing.T) {
 		dec := json.NewDecoder(conn)
 		enc := json.NewEncoder(conn)
 		for range 2 {
-			var req map[string]any
+			var req ipcTestRequest
 			if err := dec.Decode(&req); err != nil {
 				break
 			}
