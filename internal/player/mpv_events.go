@@ -8,6 +8,29 @@ import (
 	"net"
 )
 
+func (m *Manager) emitCurrentTrackChanged() {
+	m.mu.RLock()
+	idx := m.currentIndex
+	if idx < 0 || idx >= len(m.queue) || m.callbacks.OnTrackChanged == nil {
+		m.mu.RUnlock()
+		return
+	}
+	track := m.queue[idx]
+	fn := m.callbacks.OnTrackChanged
+	m.mu.RUnlock()
+
+	fn(track.Hash, track.Artist, track.Title, track.Source, idx)
+}
+
+func (m *Manager) emitPlaybackEnded() {
+	m.mu.RLock()
+	fn := m.callbacks.OnPlaybackEnded
+	m.mu.RUnlock()
+	if fn != nil {
+		fn()
+	}
+}
+
 // startEventReader opens a dedicated read-only connection to the mpv socket
 // and dispatches async events. It runs as a goroutine until ctx is cancelled
 // or the connection drops. On an end-file event with reason "eof" it calls
@@ -58,15 +81,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 	// Emit the current track info immediately so the TUI gets a
 	// TrackChangedMsg even when the start-file event fired before this
 	// reader connected (race during reconnect / session restore).
-	m.mu.RLock()
-	idx := m.currentIndex
-	q := m.queue
-	fn := m.callbacks.OnTrackChanged
-	m.mu.RUnlock()
-	if fn != nil && idx >= 0 && idx < len(q) {
-		t := q[idx]
-		fn(t.Hash, t.Artist, t.Title, t.Source, idx)
-	}
+	m.emitCurrentTrackChanged()
 
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
@@ -86,15 +101,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			// Notify the TUI that the active track has changed. Resolve the
 			// current track from the in-memory queue using currentIndex so
 			// the TUI can update the status bar and persist the correct hash.
-			m.mu.RLock()
-			idx := m.currentIndex
-			q := m.queue
-			fn := m.callbacks.OnTrackChanged
-			m.mu.RUnlock()
-			if fn != nil && idx >= 0 && idx < len(q) {
-				t := q[idx]
-				fn(t.Hash, t.Artist, t.Title, t.Source, idx)
-			}
+			m.emitCurrentTrackChanged()
 
 			// Safety net: ensure the next track is always prefetched after a
 			// file starts. Covers mpv restarts (loadFileAt) and any edge
@@ -115,12 +122,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			queueLen := len(m.queue)
 			m.mu.Unlock()
 			if stopAfter {
-				m.mu.RLock()
-				fn := m.callbacks.OnPlaybackEnded
-				m.mu.RUnlock()
-				if fn != nil {
-					fn()
-				}
+				m.emitPlaybackEnded()
 				continue
 			}
 
@@ -179,12 +181,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			// Fallback: no prefetch available, load next track directly.
 			if err := m.PlayFromIndex(idx + 1); err != nil {
 				// Queue exhausted: notify the TUI so it can reset the toggle.
-				m.mu.RLock()
-				fn := m.callbacks.OnPlaybackEnded
-				m.mu.RUnlock()
-				if fn != nil {
-					fn()
-				}
+				m.emitPlaybackEnded()
 			}
 		case "property-change":
 			if event.Name != propPause {
