@@ -82,7 +82,7 @@ func TestManager_Stop_PauseThenSeek(t *testing.T) {
 	sock := shortSockPath(t, "stop-order")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -134,18 +134,18 @@ func TestManager_Stop_PauseThenSeek(t *testing.T) {
 	seekIdx := -1
 	for i, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "pause" {
-					if val, _ := args[2].(bool); val {
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "pause") {
+					if val, _ := args.boolAt(2); val {
 						pauseIdx = i
 					}
 				}
 			}
 		}
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "seek" {
-				if pos, _ := args[1].(float64); pos == 0 {
-					if mode, _ := args[2].(string); mode == "absolute" {
+			if args.stringIs(0, "seek") {
+				if pos, ok := args.float64At(1); ok && pos == 0 {
+					if args.stringIs(2, "absolute") {
 						seekIdx = i
 					}
 				}

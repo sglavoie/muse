@@ -12,7 +12,7 @@ func TestManager_SetNormalize_Enabled(t *testing.T) {
 	sock := shortSockPath(t, "norm-on")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -43,9 +43,9 @@ func TestManager_SetNormalize_Enabled(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "af" {
-					if val, _ := args[2].(string); val == "lavfi=[loudnorm]" {
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "af") {
+					if args.stringIs(2, "lavfi=[loudnorm]") {
 						found = true
 					}
 				}
@@ -61,7 +61,7 @@ func TestManager_SetNormalize_Disabled(t *testing.T) {
 	sock := shortSockPath(t, "norm-off")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -92,9 +92,9 @@ func TestManager_SetNormalize_Disabled(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "af" {
-					if val, _ := args[2].(string); val == "" {
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "af") {
+					if val, _ := args.stringAt(2); val == "" {
 						found = true
 					}
 				}
@@ -162,7 +162,7 @@ func TestManager_FilterChain_MultipleFilters(t *testing.T) {
 	sock := shortSockPath(t, "fc-multi")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -195,9 +195,9 @@ func TestManager_FilterChain_MultipleFilters(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "af" {
-					if val, _ := args[2].(string); val == "lavfi=[bass=g=6,loudnorm]" {
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "af") {
+					if args.stringIs(2, "lavfi=[bass=g=6,loudnorm]") {
 						found = true
 					}
 				}
@@ -213,7 +213,7 @@ func TestManager_FilterChain_RemoveOne(t *testing.T) {
 	sock := shortSockPath(t, "fc-remove")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -247,9 +247,9 @@ func TestManager_FilterChain_RemoveOne(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "af" {
-					if val, _ := args[2].(string); val == "lavfi=[loudnorm]" {
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "af") {
+					if args.stringIs(2, "lavfi=[loudnorm]") {
 						found = true
 					}
 				}
@@ -265,7 +265,7 @@ func TestManager_FilterChain_Empty(t *testing.T) {
 	sock := shortSockPath(t, "fc-empty")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -296,9 +296,9 @@ func TestManager_FilterChain_Empty(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "af" {
-					if val, _ := args[2].(string); val == "" {
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "af") {
+					if val, _ := args.stringAt(2); val == "" {
 						found = true
 					}
 				}

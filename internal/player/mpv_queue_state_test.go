@@ -139,7 +139,7 @@ func TestManager_SetCurrentIndex(t *testing.T) {
 func TestManager_SetCurrentIndex_RefreshesPrefetch(t *testing.T) {
 	t.Run("changing index clears and refreshes prefetch", func(t *testing.T) {
 		var mu sync.Mutex
-		var received [][]any
+		var received []ipcTestCommand
 		m := newConnectedManager(t, "sci-refresh-pf", &mu, &received)
 
 		// Seed the queue with real on-disk files so prefetchNext is willing to
@@ -181,7 +181,7 @@ func TestManager_SetCurrentIndex_RefreshesPrefetch(t *testing.T) {
 
 	t.Run("setting same index does not touch prefetch", func(t *testing.T) {
 		var mu sync.Mutex
-		var received [][]any
+		var received []ipcTestCommand
 		m := newConnectedManager(t, "sci-same-pf", &mu, &received)
 
 		pa := tempFile(t, "a*.flac")

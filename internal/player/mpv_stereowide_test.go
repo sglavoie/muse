@@ -11,7 +11,7 @@ func TestManager_SetStereoWide_Enabled(t *testing.T) {
 	sock := shortSockPath(t, "sw-on")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -44,9 +44,9 @@ func TestManager_SetStereoWide_Enabled(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "af" {
-					if val, _ := args[2].(string); val == wantAF {
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "af") {
+					if val, _ := args.stringAt(2); val == wantAF {
 						found = true
 					}
 				}
@@ -62,7 +62,7 @@ func TestManager_SetStereoWide_Disabled(t *testing.T) {
 	sock := shortSockPath(t, "sw-off")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -96,9 +96,9 @@ func TestManager_SetStereoWide_Disabled(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "af" {
-					if val, _ := args[2].(string); val == "" {
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "af") {
+					if val, _ := args.stringAt(2); val == "" {
 						found = true
 					}
 				}
@@ -153,7 +153,7 @@ func TestManager_FilterChain_StereoWideWithOthers(t *testing.T) {
 	sock := shortSockPath(t, "sw-chain")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -185,9 +185,9 @@ func TestManager_FilterChain_StereoWideWithOthers(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "af" {
-					val, _ := args[2].(string)
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "af") {
+					val, _ := args.stringAt(2)
 					if val == "lavfi=[loudnorm,extrastereo=m=1.5]" || val == "lavfi=[extrastereo=m=1.5,loudnorm]" {
 						found = true
 					}

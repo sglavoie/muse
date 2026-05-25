@@ -23,15 +23,11 @@ func tempFile(t *testing.T, name string) string {
 
 // newConnectedManager creates a Manager with a fake IPC server and connected
 // client. The received commands are appended to *received under mu.
-func newConnectedManager(t *testing.T, name string, mu *sync.Mutex, received *[][]any) *Manager {
+func newConnectedManager(t *testing.T, name string, mu *sync.Mutex, received *[]ipcTestCommand) *Manager {
 	t.Helper()
 	sock := shortSockPath(t, name)
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
-		if cmd := req.Command; len(cmd) > 0 {
-			mu.Lock()
-			*received = append(*received, cmd)
-			mu.Unlock()
-		}
+		recordCommand(mu, received, req.Command)
 		return successHandler(req)
 	})
 
@@ -56,7 +52,7 @@ func newConnectedManager(t *testing.T, name string, mu *sync.Mutex, received *[]
 
 // waitForCommand waits until a command matching the predicate appears in
 // received, or times out.
-func waitForCommand(t *testing.T, mu *sync.Mutex, received *[][]any, match func([]any) bool, timeout time.Duration, desc string) {
+func waitForCommand(t *testing.T, mu *sync.Mutex, received *[]ipcTestCommand, match func(ipcTestCommand) bool, timeout time.Duration, desc string) {
 	t.Helper()
 	deadline := time.After(timeout)
 	for {
@@ -76,19 +72,10 @@ func waitForCommand(t *testing.T, mu *sync.Mutex, received *[][]any, match func(
 	}
 }
 
-func isLoadfileAppend(cmd []any) bool {
-	if len(cmd) < 3 {
-		return false
-	}
-	verb, _ := cmd[0].(string)
-	mode, _ := cmd[2].(string)
-	return verb == "loadfile" && mode == "append"
+func isLoadfileAppend(cmd ipcTestCommand) bool {
+	return len(cmd) >= 3 && cmd.stringIs(0, "loadfile") && cmd.stringIs(2, "append")
 }
 
-func isPlaylistRemove(cmd []any) bool {
-	if len(cmd) < 2 {
-		return false
-	}
-	verb, _ := cmd[0].(string)
-	return verb == "playlist-remove"
+func isPlaylistRemove(cmd ipcTestCommand) bool {
+	return len(cmd) >= 2 && cmd.stringIs(0, "playlist-remove")
 }

@@ -72,7 +72,7 @@ func TestManager_PlayFromIndex_IndexBeyondEnd(t *testing.T) {
 // ErrPlaybackFailed when all entries from the start index onward are missing files.
 func TestManager_PlayFromIndex_AllMissing(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "pfi-allmissing", &mu, &received)
 
 	m.mu.Lock()
@@ -122,7 +122,7 @@ func (s *shrinkingMarker) MarkQueueEntryMissing(_ int64) error { return nil }
 // Next/Previous bookkeeping.
 func TestManager_PlayFromIndex_ClampsCurrentIndexWhenQueueShrinks(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "pfi-shrink", &mu, &received)
 
 	// Real on-disk file used for the final, playable entry.
@@ -167,7 +167,7 @@ func TestManager_PlayFromIndex_ClampsCurrentIndexWhenQueueShrinks(t *testing.T) 
 // skips missing files and plays the first available entry.
 func TestManager_PlayFromIndex_SkipsMissingToPlayable(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "pfi-skip", &mu, &received)
 
 	pathC := tempFile(t, "c*.flac")

@@ -48,7 +48,7 @@ func TestManager_AutoRestart_RestoresAudioFiltersAndGapless(t *testing.T) {
 	}()
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 
 	rootCtx, rootCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(rootCtx)
@@ -125,15 +125,15 @@ func TestManager_AutoRestart_RestoresAudioFiltersAndGapless(t *testing.T) {
 		if len(args) < 2 {
 			continue
 		}
-		name, _ := args[0].(string)
+		name, _ := args.stringAt(0)
 		switch name {
 		case "set_property":
-			prop, _ := args[1].(string)
+			prop, _ := args.stringAt(1)
 			switch prop {
 			case "af":
 				foundAF = true
 				if len(args) > 2 {
-					val, _ := args[2].(string)
+					val, _ := args.stringAt(2)
 					if !strings.Contains(val, "loudnorm") {
 						t.Errorf("af property does not contain loudnorm: %v", args)
 					}

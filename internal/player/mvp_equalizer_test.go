@@ -11,7 +11,7 @@ func TestManager_SetEqualizer_Enabled(t *testing.T) {
 	sock := shortSockPath(t, "eq-on")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -45,9 +45,9 @@ func TestManager_SetEqualizer_Enabled(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "af" {
-					if val, _ := args[2].(string); val == wantAF {
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "af") {
+					if val, _ := args.stringAt(2); val == wantAF {
 						found = true
 					}
 				}
@@ -63,7 +63,7 @@ func TestManager_SetEqualizer_Disabled(t *testing.T) {
 	sock := shortSockPath(t, "eq-off")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -97,9 +97,9 @@ func TestManager_SetEqualizer_Disabled(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "af" {
-					if val, _ := args[2].(string); val == "" {
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "af") {
+					if val, _ := args.stringAt(2); val == "" {
 						found = true
 					}
 				}

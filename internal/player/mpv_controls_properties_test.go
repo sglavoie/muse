@@ -10,7 +10,7 @@ func TestManager_SetVolumeAbsolute_Connected(t *testing.T) {
 	sock := shortSockPath(t, "vol-abs")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -41,8 +41,8 @@ func TestManager_SetVolumeAbsolute_Connected(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "volume" {
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "volume") {
 					found = true
 				}
 			}
@@ -73,7 +73,7 @@ func TestManager_SetShuffle_Connected(t *testing.T) {
 	sock := shortSockPath(t, "shuffle")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -104,8 +104,8 @@ func TestManager_SetShuffle_Connected(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "shuffle" {
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "shuffle") {
 					found = true
 				}
 			}
@@ -138,7 +138,7 @@ func TestManager_SetRepeat_AllModes(t *testing.T) {
 			sock := shortSockPath(t, "repeat-"+mode)
 
 			var mu sync.Mutex
-			var received [][]any
+			var received []ipcTestCommand
 			fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 				if cmd := req.Command; len(cmd) > 0 {
 					mu.Lock()
@@ -169,7 +169,7 @@ func TestManager_SetRepeat_AllModes(t *testing.T) {
 			propCount := 0
 			for _, args := range received {
 				if len(args) >= 1 {
-					if verb, _ := args[0].(string); verb == "set_property" {
+					if args.stringIs(0, "set_property") {
 						propCount++
 					}
 				}

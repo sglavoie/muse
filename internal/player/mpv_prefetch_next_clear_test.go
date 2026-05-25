@@ -8,7 +8,7 @@ import (
 
 func TestClearPrefetch_SendsPlaylistRemove(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "clear-pf", &mu, &received)
 
 	m.mu.Lock()
@@ -40,7 +40,7 @@ func TestClearPrefetch_SendsPlaylistRemove(t *testing.T) {
 
 func TestClearPrefetch_NoopWhenNothingPrefetched(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "clear-noop", &mu, &received)
 
 	m.clearPrefetch()
@@ -58,7 +58,7 @@ func TestClearPrefetch_PreservesStateWhenPlaylistRemoveFails(t *testing.T) {
 	sock := shortSockPath(t, "clear-pf-fail")
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		cmd := req.Command
-		if len(cmd) > 0 && cmd[0] == "playlist-remove" {
+		if len(cmd) > 0 && cmd.stringIs(0, "playlist-remove") {
 			return errorResponse(req, "failure")
 		}
 		return successHandler(req)

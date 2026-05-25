@@ -8,7 +8,7 @@ import (
 
 func TestSetStopAfterCurrent_ClearsPrefetch(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "stop-clears-pf", &mu, &received)
 
 	m.mu.Lock()
@@ -39,7 +39,7 @@ func TestSetStopAfterCurrent_ClearsPrefetch(t *testing.T) {
 
 func TestSetRepeatAll_NoLoopPlaylist(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "repeat-all", &mu, &received)
 
 	if err := m.SetRepeat("all"); err != nil {
@@ -51,9 +51,9 @@ func TestSetRepeatAll_NoLoopPlaylist(t *testing.T) {
 
 	for _, args := range received {
 		if len(args) >= 3 {
-			verb, _ := args[0].(string)
-			prop, _ := args[1].(string)
-			val, _ := args[2].(string)
+			verb, _ := args.stringAt(0)
+			prop, _ := args.stringAt(1)
+			val, _ := args.stringAt(2)
 			if verb == "set_property" && prop == "loop-playlist" && val == "inf" {
 				t.Errorf("SetRepeat(all) should NOT set loop-playlist=inf; got %v", received)
 			}
@@ -63,9 +63,9 @@ func TestSetRepeatAll_NoLoopPlaylist(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			verb, _ := args[0].(string)
-			prop, _ := args[1].(string)
-			val, _ := args[2].(string)
+			verb, _ := args.stringAt(0)
+			prop, _ := args.stringAt(1)
+			val, _ := args.stringAt(2)
 			if verb == "set_property" && prop == "loop-playlist" && val == "no" {
 				found = true
 			}
@@ -78,7 +78,7 @@ func TestSetRepeatAll_NoLoopPlaylist(t *testing.T) {
 
 func TestSetGapless_SetsPrefetchPlaylist(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "gap-prefetch", &mu, &received)
 
 	if err := m.SetGapless(true); err != nil {
@@ -93,9 +93,9 @@ func TestSetGapless_SetsPrefetchPlaylist(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			verb, _ := args[0].(string)
-			prop, _ := args[1].(string)
-			val, _ := args[2].(string)
+			verb, _ := args.stringAt(0)
+			prop, _ := args.stringAt(1)
+			val, _ := args.stringAt(2)
 			if verb == "set_property" && prop == "prefetch-playlist" && val == "yes" {
 				found = true
 			}
@@ -114,7 +114,7 @@ func TestSetGapless_SetsPrefetchPlaylist(t *testing.T) {
 
 func TestSetGapless_DisableClearsPrefetch(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "gap-disable", &mu, &received)
 
 	m.mu.Lock()
@@ -151,7 +151,7 @@ func TestSetGapless_DisableClearsPrefetch(t *testing.T) {
 
 func TestPlayFromIndex_TriggersPrefetch(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "pfi-prefetch", &mu, &received)
 
 	pathA := tempFile(t, "a*.flac")
@@ -169,11 +169,11 @@ func TestPlayFromIndex_TriggersPrefetch(t *testing.T) {
 		t.Fatalf("PlayFromIndex(0): %v", err)
 	}
 
-	waitForCommand(t, &mu, &received, func(cmd []any) bool {
+	waitForCommand(t, &mu, &received, func(cmd ipcTestCommand) bool {
 		if !isLoadfileAppend(cmd) {
 			return false
 		}
-		path, _ := cmd[1].(string)
+		path, _ := cmd.stringAt(1)
 		return path == pathB
 	}, 2*time.Second, "loadfile append for "+pathB)
 }
@@ -184,7 +184,7 @@ func TestPlayFromIndex_TriggersPrefetch(t *testing.T) {
 // entries across PlayFromIndex calls.
 func TestPlayFromIndex_ClearsExistingPrefetch(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "pfi-clrpf", &mu, &received)
 
 	pathA := tempFile(t, "a*.flac")
@@ -242,7 +242,7 @@ func TestPlayFromIndex_ClearsExistingPrefetch(t *testing.T) {
 // playlist-remove then incorrectly removes.
 func TestRemoveFromQueue_ClearsPrefetchUnderMutex(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "rmq-pfmu", &mu, &received)
 
 	pathA := tempFile(t, "a*.flac")
@@ -307,7 +307,7 @@ func TestRemoveFromQueue_ClearsPrefetchUnderMutex(t *testing.T) {
 // corrupt mpv's internal playlist.
 func TestDoClearPrefetch_NoSpuriousRemoveWhenAlreadyCleared(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "clear-pf-race", &mu, &received)
 
 	// Start with prefetchedIndex = -1 (simulates the end-file handler having
@@ -332,7 +332,7 @@ func TestDoClearPrefetch_NoSpuriousRemoveWhenAlreadyCleared(t *testing.T) {
 
 func TestQueueMutation_InvalidatesPrefetch(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "queue-mut", &mu, &received)
 
 	m.mu.Lock()

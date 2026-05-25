@@ -11,7 +11,7 @@ func TestManager_LoadFilePaused_Connected(t *testing.T) {
 	sock := shortSockPath(t, "loadpause")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -41,17 +41,16 @@ func TestManager_LoadFilePaused_Connected(t *testing.T) {
 	defer mu.Unlock()
 	for _, args := range received {
 		if len(args) >= 2 {
-			if verb, _ := args[0].(string); verb == "loadfile" {
-				if path, _ := args[1].(string); path != "/music/song.flac" {
+			if args.stringIs(0, "loadfile") {
+				if path, _ := args.stringAt(1); path != "/music/song.flac" {
 					t.Errorf("loadfile path = %q, want /music/song.flac", path)
 				}
-				hasOpts := false
-				for _, a := range args {
-					if s, ok := a.(string); ok && strings.Contains(s, "pause=yes") && strings.Contains(s, "start=42.5") {
-						hasOpts = true
-					}
+				if len(args) < 5 {
+					t.Errorf("loadfile has too few args: %v", args)
+					return
 				}
-				if !hasOpts {
+				opts, _ := args.stringAt(4)
+				if !strings.Contains(opts, "pause=yes") || !strings.Contains(opts, "start=42.5") {
 					t.Errorf("loadfile missing pause=yes/start=42.5; args: %v", args)
 				}
 				return
@@ -85,7 +84,7 @@ func TestManager_SeekAbsolute_NegativeClamped(t *testing.T) {
 	sock := shortSockPath(t, "seek-abs")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -115,8 +114,8 @@ func TestManager_SeekAbsolute_NegativeClamped(t *testing.T) {
 	defer mu.Unlock()
 	for _, args := range received {
 		if len(args) >= 2 {
-			if verb, _ := args[0].(string); verb == "seek" {
-				pos, _ := args[1].(float64)
+			if args.stringIs(0, "seek") {
+				pos, _ := args.float64At(1)
 				if pos < 0 {
 					t.Errorf("SeekAbsolute sent negative position %v to mpv; want >= 0", pos)
 				}

@@ -11,7 +11,7 @@ import (
 // in the playing (unpaused) state.
 func TestManager_Play_MirrorsPauseState(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "play-mirror", &mu, &received)
 
 	m.mu.Lock()
@@ -34,7 +34,7 @@ func TestManager_Play_MirrorsPauseState(t *testing.T) {
 // to true.
 func TestManager_Pause_MirrorsPauseState(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "pause-mirror", &mu, &received)
 
 	if err := m.Pause(); err != nil {
@@ -53,7 +53,7 @@ func TestManager_Pause_MirrorsPauseState(t *testing.T) {
 // true after pausing the playback.
 func TestManager_Stop_MirrorsPauseState(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "stop-mirror", &mu, &received)
 
 	if err := m.Stop(); err != nil {
@@ -77,7 +77,7 @@ func TestManager_Stop_MirrorsPauseStateEvenWhenSeekFails(t *testing.T) {
 	sock := shortSockPath(t, "stop-mirror-seekfail")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 
 	// Custom handler: succeed for set_property pause=true, but error for seek.
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
@@ -88,7 +88,7 @@ func TestManager_Stop_MirrorsPauseStateEvenWhenSeekFails(t *testing.T) {
 			mu.Unlock()
 		}
 		if len(cmd) > 0 {
-			if verb, _ := cmd[0].(string); verb == "seek" {
+			if cmd.stringIs(0, "seek") {
 				return errorResponse(req, "property unavailable")
 			}
 		}
@@ -124,7 +124,7 @@ func TestManager_Stop_MirrorsPauseStateEvenWhenSeekFails(t *testing.T) {
 // updates lastPaused to true so an auto-restart preserves the paused state.
 func TestManager_LoadFilePaused_MirrorsPauseState(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "lfp-mirror", &mu, &received)
 
 	m.mu.Lock()
@@ -148,7 +148,7 @@ func TestManager_LoadFilePaused_MirrorsPauseState(t *testing.T) {
 // track does not resume it paused.
 func TestManager_PlayQueueEntry_MirrorsPauseState(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "pqe-mirror", &mu, &received)
 
 	// Use a real on-disk file so PlayQueueEntry passes the os.Stat check.

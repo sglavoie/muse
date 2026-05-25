@@ -10,7 +10,7 @@ func TestManager_SetGapless_Enabled(t *testing.T) {
 	sock := shortSockPath(t, "gap-on")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -41,9 +41,9 @@ func TestManager_SetGapless_Enabled(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "gapless-audio" {
-					if val, _ := args[2].(string); val == "yes" {
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "gapless-audio") {
+					if args.stringIs(2, "yes") {
 						found = true
 					}
 				}
@@ -59,7 +59,7 @@ func TestManager_SetGapless_Disabled(t *testing.T) {
 	sock := shortSockPath(t, "gap-off")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -90,9 +90,9 @@ func TestManager_SetGapless_Disabled(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "gapless-audio" {
-					if val, _ := args[2].(string); val == "no" {
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "gapless-audio") {
+					if args.stringIs(2, "no") {
 						found = true
 					}
 				}

@@ -181,7 +181,7 @@ func TestManager_PlayQueueEntry_PresentFile(t *testing.T) {
 
 	// Track loadfile commands received by the fake server.
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -229,7 +229,7 @@ func TestManager_PlayQueueEntry_PresentFile(t *testing.T) {
 	defer mu.Unlock()
 	for _, args := range received {
 		if len(args) > 0 {
-			if name, _ := args[0].(string); name == "loadfile" {
+			if args.stringIs(0, "loadfile") {
 				return
 			}
 		}

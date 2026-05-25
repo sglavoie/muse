@@ -10,7 +10,7 @@ func TestManager_Play_Connected(t *testing.T) {
 	sock := shortSockPath(t, "play")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -41,9 +41,9 @@ func TestManager_Play_Connected(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "pause" {
-					if val, _ := args[2].(bool); val == false {
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "pause") {
+					if val, ok := args.boolAt(2); ok && !val {
 						found = true
 					}
 				}
@@ -75,7 +75,7 @@ func TestManager_Pause_Connected(t *testing.T) {
 	sock := shortSockPath(t, "pause")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -106,9 +106,9 @@ func TestManager_Pause_Connected(t *testing.T) {
 	found := false
 	for _, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "pause" {
-					if val, _ := args[2].(bool); val == true {
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "pause") {
+					if val, ok := args.boolAt(2); ok && val {
 						found = true
 					}
 				}
@@ -140,7 +140,7 @@ func TestManager_Stop_Connected(t *testing.T) {
 	sock := shortSockPath(t, "stop")
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
@@ -171,17 +171,17 @@ func TestManager_Stop_Connected(t *testing.T) {
 	var foundPause, foundSeek bool
 	for _, args := range received {
 		if len(args) >= 3 {
-			if verb, _ := args[0].(string); verb == "set_property" {
-				if prop, _ := args[1].(string); prop == "pause" {
-					if val, _ := args[2].(bool); val == true {
+			if args.stringIs(0, "set_property") {
+				if args.stringIs(1, "pause") {
+					if val, ok := args.boolAt(2); ok && val {
 						foundPause = true
 					}
 				}
 			}
 		}
 		if len(args) >= 2 {
-			if verb, _ := args[0].(string); verb == "seek" {
-				if pos, _ := args[1].(float64); pos == 0 {
+			if args.stringIs(0, "seek") {
+				if pos, ok := args.float64At(1); ok && pos == 0 {
 					foundSeek = true
 				}
 			}

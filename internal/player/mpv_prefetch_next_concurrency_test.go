@@ -7,7 +7,7 @@ import (
 
 func TestPrefetchNext_ConcurrentNoDuplicate(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "prefetch-race", &mu, &received)
 
 	pathA := tempFile(t, "a*.flac")

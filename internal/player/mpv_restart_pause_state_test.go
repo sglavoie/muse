@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -46,7 +45,7 @@ func TestManager_AutoRestart_PreservesPause(t *testing.T) {
 	}()
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 
 	rootCtx, rootCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(rootCtx)
@@ -113,21 +112,15 @@ func TestManager_AutoRestart_PreservesPause(t *testing.T) {
 		if len(args) == 0 {
 			continue
 		}
-		name, _ := args[0].(string)
+		name, _ := args.stringAt(0)
 		if name != "loadfile" {
 			continue
 		}
-		for _, arg := range args {
-			s, ok := arg.(string)
-			if !ok {
-				continue
-			}
-			if strings.Contains(s, "pause=yes") {
-				return // success
-			}
-			if strings.Contains(s, "pause=no") {
-				t.Fatalf("loadfile used pause=no but lastPaused was true; args: %v", args)
-			}
+		if args.hasStringContaining("pause=yes") {
+			return
+		}
+		if args.hasStringContaining("pause=no") {
+			t.Fatalf("loadfile used pause=no but lastPaused was true; args: %v", args)
 		}
 	}
 	t.Fatal("no loadfile command with pause option found")

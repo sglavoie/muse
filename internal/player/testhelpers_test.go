@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
+	"sync"
 	"testing"
 )
 
@@ -42,9 +44,76 @@ func assertAudioFilters(t *testing.T, m *Manager, want map[string]string) {
 
 // responseHandler is called for each request received by the fake server.
 // It receives the decoded request envelope and returns the response to send back.
+type ipcTestCommand []json.RawMessage
+
+func (c ipcTestCommand) String() string {
+	data, err := json.Marshal([]json.RawMessage(c))
+	if err != nil {
+		return fmt.Sprintf("%q", []json.RawMessage(c))
+	}
+	return string(data)
+}
+
+func (c ipcTestCommand) stringAt(index int) (string, bool) {
+	if index >= len(c) {
+		return "", false
+	}
+	var value string
+	if err := json.Unmarshal(c[index], &value); err != nil {
+		return "", false
+	}
+	return value, true
+}
+
+func (c ipcTestCommand) stringIs(index int, want string) bool {
+	value, ok := c.stringAt(index)
+	return ok && value == want
+}
+
+func (c ipcTestCommand) float64At(index int) (float64, bool) {
+	if index >= len(c) {
+		return 0, false
+	}
+	var value float64
+	if err := json.Unmarshal(c[index], &value); err != nil {
+		return 0, false
+	}
+	return value, true
+}
+
+func (c ipcTestCommand) boolAt(index int) (bool, bool) {
+	if index >= len(c) {
+		return false, false
+	}
+	var value bool
+	if err := json.Unmarshal(c[index], &value); err != nil {
+		return false, false
+	}
+	return value, true
+}
+
+func (c ipcTestCommand) hasStringContaining(substr string) bool {
+	for index := range c {
+		value, ok := c.stringAt(index)
+		if ok && strings.Contains(value, substr) {
+			return true
+		}
+	}
+	return false
+}
+
+func recordCommand(mu *sync.Mutex, received *[]ipcTestCommand, cmd ipcTestCommand) {
+	if len(cmd) == 0 {
+		return
+	}
+	mu.Lock()
+	*received = append(*received, append(ipcTestCommand(nil), cmd...))
+	mu.Unlock()
+}
+
 type ipcTestRequest struct {
-	Command   []any  `json:"command"`
-	RequestID uint64 `json:"request_id"`
+	Command   ipcTestCommand `json:"command"`
+	RequestID uint64         `json:"request_id"`
 }
 
 type ipcTestResponse struct {

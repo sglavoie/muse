@@ -49,7 +49,7 @@ func TestManager_AutoRestart(t *testing.T) {
 	}()
 
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 
 	var statusMu sync.Mutex
 	var statusMsgs []string
@@ -134,24 +134,17 @@ func TestManager_AutoRestart(t *testing.T) {
 		if len(args) == 0 {
 			continue
 		}
-		name, _ := args[0].(string)
+		name, _ := args.stringAt(0)
 		if name != "loadfile" {
 			continue
 		}
 		foundLoadfile = true
-		hasStart := false
-		for _, arg := range args {
-			if s, ok := arg.(string); ok && strings.Contains(s, wantStart) {
-				hasStart = true
-				break
-			}
-		}
-		if !hasStart {
+		if !args.hasStringContaining(wantStart) {
 			t.Errorf("loadfile missing %s option; full args: %v", wantStart, args)
 		}
 		if len(args) < 2 {
 			t.Errorf("loadfile has too few args: %v", args)
-		} else if p, _ := args[1].(string); p != wantPath {
+		} else if p, _ := args.stringAt(1); p != wantPath {
 			t.Errorf("loadfile path = %q, want %q", p, wantPath)
 		}
 	}

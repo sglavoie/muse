@@ -7,7 +7,7 @@ import (
 
 func TestPrefetchNext_SkipsMissingFiles(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "prefetch-skipmiss", &mu, &received)
 
 	pathA := tempFile(t, "a*.flac")
@@ -32,7 +32,7 @@ func TestPrefetchNext_SkipsMissingFiles(t *testing.T) {
 	found := false
 	for _, cmd := range received {
 		if isLoadfileAppend(cmd) {
-			path, _ := cmd[1].(string)
+			path, _ := cmd.stringAt(1)
 			if path == pathC {
 				found = true
 			}
@@ -54,7 +54,7 @@ func TestPrefetchNext_SkipsMissingFiles(t *testing.T) {
 
 func TestPrefetchNext_ReplacesStale(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "prefetch-stale", &mu, &received)
 
 	pathA := tempFile(t, "a*.flac")
@@ -87,7 +87,7 @@ func TestPrefetchNext_ReplacesStale(t *testing.T) {
 	found := false
 	for _, cmd := range received {
 		if isLoadfileAppend(cmd) {
-			path, _ := cmd[1].(string)
+			path, _ := cmd.stringAt(1)
 			if path == pathC {
 				found = true
 			}

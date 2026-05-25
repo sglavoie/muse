@@ -63,20 +63,35 @@ func TestSendCommand_RequestIDRoundTrip(t *testing.T) {
 	c := newTestClient(t)
 
 	// Fire several commands and verify each gets back a valid (success) response.
-	commands := [][]any{
-		{"loadfile", "/a.flac", "replace"},
-		{"cycle", "pause"},
-		{"seek", 5.0, "relative"},
-		{"add", "volume", 5.0},
+	tests := []struct {
+		name string
+		send func() (*ipcResponse, error)
+	}{
+		{
+			name: "loadfile",
+			send: func() (*ipcResponse, error) { return c.SendCommand("loadfile", "/a.flac", "replace") },
+		},
+		{
+			name: "cycle",
+			send: func() (*ipcResponse, error) { return c.SendCommand("cycle", "pause") },
+		},
+		{
+			name: "seek",
+			send: func() (*ipcResponse, error) { return c.SendCommand("seek", 5.0, "relative") },
+		},
+		{
+			name: "add",
+			send: func() (*ipcResponse, error) { return c.SendCommand("add", "volume", 5.0) },
+		},
 	}
-	for _, cmd := range commands {
-		resp, err := c.SendCommand(cmd...)
+	for _, tt := range tests {
+		resp, err := tt.send()
 		if err != nil {
-			t.Errorf("command %v: %v", cmd, err)
+			t.Errorf("command %s: %v", tt.name, err)
 			continue
 		}
 		if resp.Error != "success" {
-			t.Errorf("command %v: want success, got %q", cmd, resp.Error)
+			t.Errorf("command %s: want success, got %q", tt.name, resp.Error)
 		}
 	}
 }

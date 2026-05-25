@@ -7,7 +7,7 @@ import (
 
 func TestPrefetchNext_AppendsNextTrack(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "prefetch-append", &mu, &received)
 
 	pathA := tempFile(t, "a*.flac")
@@ -30,7 +30,7 @@ func TestPrefetchNext_AppendsNextTrack(t *testing.T) {
 	found := false
 	for _, cmd := range received {
 		if isLoadfileAppend(cmd) {
-			path, _ := cmd[1].(string)
+			path, _ := cmd.stringAt(1)
 			if path == pathB {
 				found = true
 			}
@@ -52,7 +52,7 @@ func TestPrefetchNext_AppendsNextTrack(t *testing.T) {
 
 func TestPrefetchNext_Idempotent(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "prefetch-idem", &mu, &received)
 
 	pathA := tempFile(t, "a*.flac")
@@ -86,7 +86,7 @@ func TestPrefetchNext_Idempotent(t *testing.T) {
 
 func TestPrefetchNext_SkipsWhenGaplessDisabled(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "prefetch-nogap", &mu, &received)
 
 	pathA := tempFile(t, "a*.flac")
@@ -114,7 +114,7 @@ func TestPrefetchNext_SkipsWhenGaplessDisabled(t *testing.T) {
 
 func TestPrefetchNext_SkipsWhenStopAfterCurrent(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "prefetch-stop", &mu, &received)
 
 	pathA := tempFile(t, "a*.flac")
@@ -143,7 +143,7 @@ func TestPrefetchNext_SkipsWhenStopAfterCurrent(t *testing.T) {
 
 func TestPrefetchNext_SkipsWhenLastTrack(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "prefetch-last", &mu, &received)
 
 	pathA := tempFile(t, "a*.flac")
@@ -174,7 +174,7 @@ func TestPrefetchNext_SkipsWhenLastTrack(t *testing.T) {
 // first queue entry.
 func TestPrefetchNext_NoopWhenCurrentIndexIsNegative(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "prefetch-noidx", &mu, &received)
 
 	pathA := tempFile(t, "a*.flac")

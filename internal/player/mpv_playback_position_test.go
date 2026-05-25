@@ -33,7 +33,7 @@ func TestManager_ElapsedPosition_Connected(t *testing.T) {
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		cmd := req.Command
 		if len(cmd) >= 2 {
-			prop, _ := cmd[1].(string)
+			prop, _ := cmd.stringAt(1)
 			switch prop {
 			case "time-pos":
 				return successFloatResponse(req, 42.5)
@@ -74,7 +74,7 @@ func TestManager_ElapsedPosition_NullPropertiesReturnZero(t *testing.T) {
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		cmd := req.Command
 		if len(cmd) >= 2 {
-			prop, _ := cmd[1].(string)
+			prop, _ := cmd.stringAt(1)
 			switch prop {
 			case propTimePos, propDuration:
 				return successHandler(req)
@@ -113,7 +113,7 @@ func TestManager_ElapsedPosition_InvalidPropertyType(t *testing.T) {
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		cmd := req.Command
 		if len(cmd) >= 2 {
-			prop, _ := cmd[1].(string)
+			prop, _ := cmd.stringAt(1)
 			switch prop {
 			case propTimePos:
 				return successStringResponse(req, "42.5")
@@ -162,7 +162,7 @@ func TestManager_SyncPosition_Connected(t *testing.T) {
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		cmd := req.Command
 		if len(cmd) >= 2 {
-			prop, _ := cmd[1].(string)
+			prop, _ := cmd.stringAt(1)
 			switch prop {
 			case "path":
 				return successStringResponse(req, "/music/track.flac")

@@ -40,8 +40,8 @@ func TestManager_DebugInfo_Connected(t *testing.T) {
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		cmd := req.Command
 		if len(cmd) >= 2 {
-			if verb, _ := cmd[0].(string); verb == "get_property" {
-				if prop, _ := cmd[1].(string); prop != "" {
+			if cmd.stringIs(0, "get_property") {
+				if prop, _ := cmd.stringAt(1); prop != "" {
 					if val, ok := props[prop]; ok {
 						return successStringResponse(req, val)
 					}
@@ -96,8 +96,8 @@ func TestManager_DebugInfo_GracefulDegradation(t *testing.T) {
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		cmd := req.Command
 		if len(cmd) >= 2 {
-			if verb, _ := cmd[0].(string); verb == "get_property" {
-				if prop, _ := cmd[1].(string); prop == "path" {
+			if cmd.stringIs(0, "get_property") {
+				if cmd.stringIs(1, "path") {
 					return successStringResponse(req, "/some/track.flac")
 				}
 				// All other properties fail.

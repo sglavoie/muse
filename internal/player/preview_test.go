@@ -111,7 +111,7 @@ func TestPreviewPlayer_TogglePause(t *testing.T) {
 	sock := shortSockPath(t, "preview-toggle-pause")
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		cmd := req.Command
-		if len(cmd) != 2 || cmd[0] != "cycle" || cmd[1] != "pause" {
+		if len(cmd) != 2 || !cmd.stringIs(0, "cycle") || !cmd.stringIs(1, "pause") {
 			t.Fatalf("unexpected command: %#v", cmd)
 		}
 		return successHandler(req)
@@ -136,12 +136,12 @@ func TestPreviewPlayer_SeekRelative(t *testing.T) {
 	want := -12.5
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		cmd := req.Command
-		if len(cmd) != 3 || cmd[0] != "seek" || cmd[2] != "relative" {
+		if len(cmd) != 3 || !cmd.stringIs(0, "seek") || !cmd.stringIs(2, "relative") {
 			t.Fatalf("unexpected command: %#v", cmd)
 		}
-		got, ok := cmd[1].(float64)
+		got, ok := cmd.float64At(1)
 		if !ok {
-			t.Fatalf("seek delta type = %T, want float64", cmd[1])
+			t.Fatalf("seek delta = %s, want float64", cmd[1])
 		}
 		if got != want {
 			t.Fatalf("seek delta = %v, want %v", got, want)
@@ -167,7 +167,7 @@ func TestPreviewPlayer_SetAudioFilter(t *testing.T) {
 	sock := shortSockPath(t, "preview-af")
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		cmd := req.Command
-		if len(cmd) != 3 || cmd[0] != "set_property" || cmd[1] != "af" || cmd[2] != "lavfi=[loudnorm]" {
+		if len(cmd) != 3 || !cmd.stringIs(0, "set_property") || !cmd.stringIs(1, "af") || !cmd.stringIs(2, "lavfi=[loudnorm]") {
 			t.Fatalf("unexpected command: %#v", cmd)
 		}
 		return successHandler(req)
@@ -225,7 +225,7 @@ func TestPreviewPlayer_ElapsedPosition(t *testing.T) {
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		cmd := req.Command
 		if len(cmd) >= 2 {
-			prop, _ := cmd[1].(string)
+			prop, _ := cmd.stringAt(1)
 			switch prop {
 			case "time-pos":
 				return successFloatResponse(req, 42.5)
@@ -262,7 +262,7 @@ func TestPreviewPlayer_ElapsedPosition_NullPropertiesReturnZero(t *testing.T) {
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		cmd := req.Command
 		if len(cmd) >= 2 {
-			prop, _ := cmd[1].(string)
+			prop, _ := cmd.stringAt(1)
 			switch prop {
 			case propTimePos, propDuration:
 				return successHandler(req)

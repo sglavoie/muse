@@ -14,7 +14,7 @@ import (
 func TestPrefetchNext_BailsWhenPlaylistRemoveFails(t *testing.T) {
 	var (
 		mu       sync.Mutex
-		received [][]any
+		received []ipcTestCommand
 	)
 
 	pathA := tempFile(t, "a*.flac")
@@ -25,7 +25,7 @@ func TestPrefetchNext_BailsWhenPlaylistRemoveFails(t *testing.T) {
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
-			received = append(received, append([]any(nil), cmd...))
+			received = append(received, append(ipcTestCommand(nil), cmd...))
 			mu.Unlock()
 
 			if isPlaylistRemove(cmd) {
@@ -86,7 +86,7 @@ func TestPrefetchNext_BailsWhenPlaylistRemoveFails(t *testing.T) {
 func TestPrefetchNext_RetriesAfterReplacementAppendFailure(t *testing.T) {
 	var (
 		mu       sync.Mutex
-		received [][]any
+		received []ipcTestCommand
 	)
 
 	pathA := tempFile(t, "a*.flac")
@@ -98,11 +98,11 @@ func TestPrefetchNext_RetriesAfterReplacementAppendFailure(t *testing.T) {
 	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
-			received = append(received, append([]any(nil), cmd...))
+			received = append(received, append(ipcTestCommand(nil), cmd...))
 			mu.Unlock()
 
 			if isLoadfileAppend(cmd) {
-				path, _ := cmd[1].(string)
+				path, _ := cmd.stringAt(1)
 				if path == pathC && failPathC {
 					failPathC = false
 					return errorHandler("load failed")(req)
@@ -161,7 +161,7 @@ func TestPrefetchNext_RetriesAfterReplacementAppendFailure(t *testing.T) {
 	var pathBAppends int
 	for _, cmd := range received {
 		if isLoadfileAppend(cmd) {
-			path, _ := cmd[1].(string)
+			path, _ := cmd.stringAt(1)
 			if path == pathB {
 				pathBAppends++
 			}

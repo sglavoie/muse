@@ -75,7 +75,7 @@ func TestManager_Close_DoubleCloseSafe(t *testing.T) {
 // playlist-remove against mpv.
 func TestManager_PlayFromIndex_OutOfRangePreservesPrefetch(t *testing.T) {
 	var mu sync.Mutex
-	var received [][]any
+	var received []ipcTestCommand
 	m := newConnectedManager(t, "pfi-oob-keep-pf", &mu, &received)
 
 	m.mu.Lock()
