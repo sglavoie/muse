@@ -83,7 +83,7 @@ func TestManager_Stop_PauseThenSeek(t *testing.T) {
 
 	var mu sync.Mutex
 	var received [][]any
-	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
 			received = append(received, cmd)

@@ -81,7 +81,7 @@ func TestManager_AutoRestart(t *testing.T) {
 	}
 	// launchFn starts the phase 2 fake server instead of a real mpv process.
 	m.launchFn = func(_ context.Context, socketPath string) (*exec.Cmd, error) {
-		fakeServerWithHandler(t, socketPath, func(req ipcTestRequest) map[string]any {
+		fakeServerWithHandler(t, socketPath, func(req ipcTestRequest) ipcTestResponse {
 			if cmd := req.Command; len(cmd) > 0 {
 				mu.Lock()
 				received = append(received, cmd)

@@ -13,7 +13,7 @@ func TestManager_SetNormalize_Enabled(t *testing.T) {
 
 	var mu sync.Mutex
 	var received [][]any
-	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
 			received = append(received, cmd)
@@ -62,7 +62,7 @@ func TestManager_SetNormalize_Disabled(t *testing.T) {
 
 	var mu sync.Mutex
 	var received [][]any
-	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
 			received = append(received, cmd)
@@ -163,7 +163,7 @@ func TestManager_FilterChain_MultipleFilters(t *testing.T) {
 
 	var mu sync.Mutex
 	var received [][]any
-	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
 			received = append(received, cmd)
@@ -214,7 +214,7 @@ func TestManager_FilterChain_RemoveOne(t *testing.T) {
 
 	var mu sync.Mutex
 	var received [][]any
-	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
 			received = append(received, cmd)
@@ -266,7 +266,7 @@ func TestManager_FilterChain_Empty(t *testing.T) {
 
 	var mu sync.Mutex
 	var received [][]any
-	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		if cmd := req.Command; len(cmd) > 0 {
 			mu.Lock()
 			received = append(received, cmd)

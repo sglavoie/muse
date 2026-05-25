@@ -69,7 +69,7 @@ func TestManager_AutoRestart_RestoresAudioFiltersAndGapless(t *testing.T) {
 	}
 	m.callbacks.OnStatus = func(string) {}
 	m.launchFn = func(_ context.Context, socketPath string) (*exec.Cmd, error) {
-		fakeServerWithHandler(t, socketPath, func(req ipcTestRequest) map[string]any {
+		fakeServerWithHandler(t, socketPath, func(req ipcTestRequest) ipcTestResponse {
 			if cmd := req.Command; len(cmd) > 0 {
 				mu.Lock()
 				received = append(received, cmd)

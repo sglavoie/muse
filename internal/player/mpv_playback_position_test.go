@@ -30,23 +30,15 @@ func TestManager_SetCurrentPosition(t *testing.T) {
 func TestManager_ElapsedPosition_Connected(t *testing.T) {
 	sock := shortSockPath(t, "elapsed")
 
-	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		cmd := req.Command
 		if len(cmd) >= 2 {
 			prop, _ := cmd[1].(string)
 			switch prop {
 			case "time-pos":
-				return map[string]any{
-					"error":      "success",
-					"data":       42.5,
-					"request_id": req.RequestID,
-				}
+				return successFloatResponse(req, 42.5)
 			case "duration":
-				return map[string]any{
-					"error":      "success",
-					"data":       180.0,
-					"request_id": req.RequestID,
-				}
+				return successFloatResponse(req, 180.0)
 			}
 		}
 		return successHandler(req)
@@ -79,17 +71,13 @@ func TestManager_ElapsedPosition_Connected(t *testing.T) {
 func TestManager_ElapsedPosition_NullPropertiesReturnZero(t *testing.T) {
 	sock := shortSockPath(t, "elapsed-null")
 
-	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		cmd := req.Command
 		if len(cmd) >= 2 {
 			prop, _ := cmd[1].(string)
 			switch prop {
 			case propTimePos, propDuration:
-				return map[string]any{
-					"error":      "success",
-					"data":       nil,
-					"request_id": req.RequestID,
-				}
+				return successHandler(req)
 			}
 		}
 		return successHandler(req)
@@ -122,23 +110,15 @@ func TestManager_ElapsedPosition_NullPropertiesReturnZero(t *testing.T) {
 func TestManager_ElapsedPosition_InvalidPropertyType(t *testing.T) {
 	sock := shortSockPath(t, "elapsed-invalid")
 
-	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		cmd := req.Command
 		if len(cmd) >= 2 {
 			prop, _ := cmd[1].(string)
 			switch prop {
 			case propTimePos:
-				return map[string]any{
-					"error":      "success",
-					"data":       "42.5",
-					"request_id": req.RequestID,
-				}
+				return successStringResponse(req, "42.5")
 			case propDuration:
-				return map[string]any{
-					"error":      "success",
-					"data":       180.0,
-					"request_id": req.RequestID,
-				}
+				return successFloatResponse(req, 180.0)
 			}
 		}
 		return successHandler(req)
@@ -179,23 +159,15 @@ func TestManager_ElapsedPosition_NotConnected(t *testing.T) {
 func TestManager_SyncPosition_Connected(t *testing.T) {
 	sock := shortSockPath(t, "syncpos")
 
-	fakeServerWithHandler(t, sock, func(req ipcTestRequest) map[string]any {
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
 		cmd := req.Command
 		if len(cmd) >= 2 {
 			prop, _ := cmd[1].(string)
 			switch prop {
 			case "path":
-				return map[string]any{
-					"error":      "success",
-					"data":       "/music/track.flac",
-					"request_id": req.RequestID,
-				}
+				return successStringResponse(req, "/music/track.flac")
 			case "time-pos":
-				return map[string]any{
-					"error":      "success",
-					"data":       55.3,
-					"request_id": req.RequestID,
-				}
+				return successFloatResponse(req, 55.3)
 			}
 		}
 		return successHandler(req)

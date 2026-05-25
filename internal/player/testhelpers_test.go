@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 )
 
@@ -40,37 +41,59 @@ func assertAudioFilters(t *testing.T, m *Manager, want map[string]string) {
 }
 
 // responseHandler is called for each request received by the fake server.
-// It receives the decoded request envelope and returns the response map to send back.
+// It receives the decoded request envelope and returns the response to send back.
 type ipcTestRequest struct {
 	Command   []any  `json:"command"`
 	RequestID uint64 `json:"request_id"`
 }
 
-type responseHandler func(req ipcTestRequest) map[string]any
+type ipcTestResponse struct {
+	Error     string          `json:"error"`
+	Data      json.RawMessage `json:"data,omitempty"`
+	RequestID uint64          `json:"request_id"`
+}
+
+type responseHandler func(req ipcTestRequest) ipcTestResponse
+
+var ipcNullResponseData = json.RawMessage("null")
 
 // successHandler echoes back a success response with the same request_id.
-func successHandler(req ipcTestRequest) map[string]any {
-	return map[string]any{
-		"error":      "success",
-		"data":       nil,
-		"request_id": req.RequestID,
+func successHandler(req ipcTestRequest) ipcTestResponse {
+	return ipcTestResponse{
+		Error:     "success",
+		Data:      ipcNullResponseData,
+		RequestID: req.RequestID,
 	}
 }
 
 // errorHandler returns a factory that always replies with the given mpv error string.
 func errorHandler(mpvError string) responseHandler {
-	return func(req ipcTestRequest) map[string]any {
-		return map[string]any{
-			"error":      mpvError,
-			"data":       nil,
-			"request_id": req.RequestID,
-		}
+	return func(req ipcTestRequest) ipcTestResponse { return errorResponse(req, mpvError) }
+}
+
+func successFloatResponse(req ipcTestRequest, value float64) ipcTestResponse {
+	resp := successHandler(req)
+	resp.Data = json.RawMessage(strconv.AppendFloat(nil, value, 'f', -1, 64))
+	return resp
+}
+
+func successStringResponse(req ipcTestRequest, value string) ipcTestResponse {
+	resp := successHandler(req)
+	resp.Data = json.RawMessage(strconv.AppendQuote(nil, value))
+	return resp
+}
+
+func errorResponse(req ipcTestRequest, mpvError string) ipcTestResponse {
+	return ipcTestResponse{
+		Error:     mpvError,
+		Data:      ipcNullResponseData,
+		RequestID: req.RequestID,
 	}
 }
 
 // fakeServerWithHandler starts a minimal mpv-like JSON-IPC server on a Unix
 // domain socket. For every newline-delimited JSON request it receives it calls
-// handler and writes back the returned map. The listener is closed and the
+// handler and writes back the returned response. The listener is closed and the
 // socket file is removed via t.Cleanup.
 func fakeServerWithHandler(t *testing.T, socketPath string, handler responseHandler) {
 	t.Helper()
