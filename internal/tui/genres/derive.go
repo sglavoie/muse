@@ -138,4 +138,3 @@ func trackMatchesGenre(t library.Track, raw string) bool {
 	}
 	return slices.Contains(genres, raw)
 }
-
