@@ -273,3 +273,13 @@ func WithZebraBg(style lipgloss.Style, zebraBg color.Color, isOdd bool) lipgloss
 	}
 	return style
 }
+
+// RenderCountZone renders a right-aligned count string styled as tertiary text
+// with optional zebra-stripe background. Returns "" when countStr is empty so
+// callers can skip the zone entirely without extra checks.
+func RenderCountZone(s Styles, countStr string, isOdd bool) string {
+	if countStr == "" {
+		return ""
+	}
+	return WithZebraBg(s.TextTertiary, s.ZebraBg, isOdd).Render(countStr)
+}

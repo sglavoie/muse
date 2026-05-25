@@ -35,9 +35,9 @@ func (v View) renderGenres() string {
 			lines[i] = a.Render(label) + a.Render(countStr)
 		case isOdd:
 			labelStyled := lipgloss.NewStyle().Background(v.Styles.ZebraBg).Render(label)
-			lines[i] = labelStyled + renderCountZone(v.Styles, countStr, true)
+			lines[i] = labelStyled + styles.RenderCountZone(v.Styles, countStr, true)
 		default:
-			lines[i] = label + renderCountZone(v.Styles, countStr, false)
+			lines[i] = label + styles.RenderCountZone(v.Styles, countStr, false)
 		}
 	}
 	return joinStrip(stripLine, strings.Join(lines, "\n"))
@@ -52,15 +52,6 @@ func rowLabelWidthAndCount(width int, counts map[string]int, name string) (int, 
 	}
 	labelW := width - 1 - text.CountColWidth
 	return labelW, text.FormatCountSuffix(counts[name])
-}
-
-// renderCountZone wraps the count suffix in TextTertiary with optional zebra
-// background. Returns "" when countStr is empty.
-func renderCountZone(s styles.Styles, countStr string, isOdd bool) string {
-	if countStr == "" {
-		return ""
-	}
-	return styles.WithZebraBg(s.TextTertiary, s.ZebraBg, isOdd).Render(countStr)
 }
 
 func (v View) renderArtists() string {
