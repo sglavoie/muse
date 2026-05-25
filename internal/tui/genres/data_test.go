@@ -130,7 +130,7 @@ func TestDeriveGenreArtists_unknownLast(t *testing.T) {
 func TestDeriveGenreArtists_NormalizesLibraryUnknownArtist(t *testing.T) {
 	ts := tracks(
 		struct{ genre, artist, title string }{"Rock", "", "empty"},
-		struct{ genre, artist, title string }{"Rock", libraryUnknownArtist, "fallback"},
+		struct{ genre, artist, title string }{"Rock", "Unknown Artist", "fallback"},
 		struct{ genre, artist, title string }{"Rock", "Alice", "known"},
 	)
 	got := DeriveGenreArtists(ts, "Rock")
@@ -197,9 +197,9 @@ func TestDeriveGenreArtistTracks(t *testing.T) {
 func TestDeriveGenreArtistTracks_UnknownArtistIncludesLibrarySentinel(t *testing.T) {
 	ts := tracks(
 		struct{ genre, artist, title string }{"Rock", "", "empty"},
-		struct{ genre, artist, title string }{"Rock", libraryUnknownArtist, "fallback"},
+		struct{ genre, artist, title string }{"Rock", "Unknown Artist", "fallback"},
 		struct{ genre, artist, title string }{"Rock", "Alice", "known"},
-		struct{ genre, artist, title string }{"Jazz", libraryUnknownArtist, "other genre"},
+		struct{ genre, artist, title string }{"Jazz", "Unknown Artist", "other genre"},
 	)
 	got := DeriveGenreArtistTracks(ts, "Rock", arttui.UnknownArtist)
 	if len(got) != 2 {

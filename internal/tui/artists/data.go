@@ -9,19 +9,22 @@ import (
 const libraryUnknownArtist = "Unknown Artist"
 
 func displayArtistName(artist string) string {
-	if isUnknownArtist(artist) {
+	if IsUnknownArtist(artist) {
 		return UnknownArtist
 	}
 	return artist
 }
 
-func isUnknownArtist(artist string) bool {
+// IsUnknownArtist reports whether artist represents an unknown or missing
+// artist, matching both the library sentinel ("Unknown Artist") and the TUI
+// display sentinel ("(unknown artist)") as well as the empty string.
+func IsUnknownArtist(artist string) bool {
 	return artist == "" || artist == libraryUnknownArtist || artist == UnknownArtist
 }
 
 func artistMatches(trackArtist, artist string) bool {
-	if isUnknownArtist(artist) {
-		return isUnknownArtist(trackArtist)
+	if IsUnknownArtist(artist) {
+		return IsUnknownArtist(trackArtist)
 	}
 	return trackArtist == artist
 }
