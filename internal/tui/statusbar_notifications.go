@@ -14,7 +14,6 @@ type notifPriority uint8
 const (
 	notifInfo   notifPriority = iota // scan progress, sort, volume, mode toggles
 	notifNormal                      // action results, errors, undo prompts
-	notifUndo                        // reserved: never-overwritten slot (unused — kept for future use)
 )
 
 // notificationFadeWindow is the trailing slice of a notification's lifetime
