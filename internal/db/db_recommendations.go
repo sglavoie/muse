@@ -336,11 +336,7 @@ func inPlaceholders(n int) string {
 }
 
 // scanTrackRows scans the standard 12-column track SELECT result set.
-func scanTrackRows(rows interface {
-	Next() bool
-	Scan(dest ...any) error
-	Err() error
-}) ([]library.Track, error) {
+func scanTrackRows(rows rowScanner) ([]library.Track, error) {
 	var result []library.Track
 	for rows.Next() {
 		var track library.Track
@@ -360,11 +356,7 @@ func scanTrackRows(rows interface {
 
 // scanTrackRowsWithExtra scans the standard 12-column track result set followed
 // by extraCols additional columns that are read and discarded.
-func scanTrackRowsWithExtra(rows interface {
-	Next() bool
-	Scan(dest ...any) error
-	Err() error
-}, extraCols int) ([]library.Track, error) {
+func scanTrackRowsWithExtra(rows rowScanner, extraCols int) ([]library.Track, error) {
 	extra := make([]any, extraCols)
 	for i := range extra {
 		var v any
@@ -391,11 +383,7 @@ func scanTrackRowsWithExtra(rows interface {
 
 // scanStringWithCount scans the first column of each row as a string,
 // discarding the second integer column (typically a COUNT).
-func scanStringWithCount(rows interface {
-	Next() bool
-	Scan(dest ...any) error
-	Err() error
-}, errPrefix string) ([]string, error) {
+func scanStringWithCount(rows rowScanner, errPrefix string) ([]string, error) {
 	var result []string
 	for rows.Next() {
 		var s string

@@ -61,6 +61,16 @@ func sqliteDSN(path string) string {
 	return u.String()
 }
 
+// rowScanner is the minimal subset of *sql.Rows needed by the package-internal
+// scan helpers. Using a named interface instead of repeating the literal in
+// every scan function signature keeps the signatures concise and ensures all
+// callers accept the same contract.
+type rowScanner interface {
+	Next() bool
+	Scan(dest ...any) error
+	Err() error
+}
+
 // configure applies the required PRAGMA settings.
 func configure(db *sql.DB) error {
 	pragmas := []string{

@@ -5,11 +5,7 @@ import "fmt"
 // scanPlaylistTrackRows scans the standard 10-column PlaylistTrackRow SELECT
 // result set (id, position, title, artist, album, duration_ms, hash, path,
 // track_number, disc_number) into a slice, returning any scan or iteration error.
-func scanPlaylistTrackRows(rows interface {
-	Next() bool
-	Scan(dest ...any) error
-	Err() error
-}, errContext string) ([]PlaylistTrackRow, error) {
+func scanPlaylistTrackRows(rows rowScanner, errContext string) ([]PlaylistTrackRow, error) {
 	var result []PlaylistTrackRow
 	for rows.Next() {
 		var row PlaylistTrackRow
