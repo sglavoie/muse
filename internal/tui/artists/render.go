@@ -6,6 +6,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 
+	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
@@ -22,7 +23,7 @@ func (v View) renderArtists() string {
 	}
 
 	maxRows := v.visibleRows()
-	start, end := visibleWindow(v.ScrollOffset, len(items), maxRows)
+	start, end := layout.VisibleWindow(v.ScrollOffset, len(items), maxRows)
 
 	lines := make([]string, end-start)
 	for i, name := range items[start:end] {
@@ -86,7 +87,7 @@ func (v View) renderAlbums() string {
 	}
 
 	maxRows := v.visibleRows()
-	start, end := visibleWindow(v.ScrollOffset, len(items), maxRows)
+	start, end := layout.VisibleWindow(v.ScrollOffset, len(items), maxRows)
 
 	lines := make([]string, end-start)
 	for i, name := range items[start:end] {
@@ -125,7 +126,7 @@ func (v View) renderTracks() string {
 			cols.Position, "#", cols.Title, "Title", cols.Duration, "Time"))
 
 	maxRows := v.visibleRows()
-	start, end := visibleWindow(v.ScrollOffset, len(items), maxRows)
+	start, end := layout.VisibleWindow(v.ScrollOffset, len(items), maxRows)
 
 	showDisc := false
 	for _, track := range items[start:end] {
@@ -262,23 +263,3 @@ func joinStrip(stripLine, body string) string {
 	return stripLine + "\n" + body
 }
 
-func visibleWindow(scrollOffset, itemCount, maxRows int) (int, int) {
-	if itemCount <= 0 || maxRows <= 0 {
-		return 0, 0
-	}
-	if scrollOffset < 0 {
-		scrollOffset = 0
-	}
-	maxStart := itemCount - maxRows
-	if maxStart < 0 {
-		maxStart = 0
-	}
-	if scrollOffset > maxStart {
-		scrollOffset = maxStart
-	}
-	end := scrollOffset + maxRows
-	if end > itemCount {
-		end = itemCount
-	}
-	return scrollOffset, end
-}
