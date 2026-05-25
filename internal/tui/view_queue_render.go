@@ -102,7 +102,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 
 		pos := fmt.Sprintf("%4d", absIdx+1)
 		source := padQueue(e.SourcePlaylist, sourceWidth)
-		dur := fmt.Sprintf("%*s", durWidth, formatQueueDuration(e.DurationMs))
+		dur := fmt.Sprintf("%*s", durWidth, text.FormatDurationMs(e.DurationMs))
 
 		_, isTrackFav := favHashes[e.Hash]
 		_, isArtistFav := favArtists[e.Artist]
@@ -372,12 +372,6 @@ func assembleQueueRow(sep string, hasSource bool, marker, pos, title, artist, al
 		return marker + pos + sep + title + sep + artist + sep + album + sep + source + sep + dur
 	}
 	return marker + pos + sep + title + sep + artist + sep + album + sep + dur
-}
-
-// formatQueueDuration converts a duration in milliseconds to a "m:ss" or
-// "h:mm:ss" string. Returns "--:--" when ms is zero or negative.
-func formatQueueDuration(ms int64) string {
-	return text.FormatDurationMs(ms)
 }
 
 // renderQueueDivider builds a dim horizontal divider line spanning the

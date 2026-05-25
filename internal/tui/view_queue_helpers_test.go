@@ -1,8 +1,12 @@
 package tui
 
-import "testing"
+import (
+	"testing"
 
-// TestFormatQueueDuration covers the duration formatting helper.
+	"github.com/sglavoie/muse/internal/tui/text"
+)
+
+// TestFormatQueueDuration covers the duration formatting used by the queue panel.
 func TestFormatQueueDuration(t *testing.T) {
 	cases := []struct {
 		ms   int64
@@ -18,9 +22,9 @@ func TestFormatQueueDuration(t *testing.T) {
 		{5_999_000, "1:39:59"},
 	}
 	for _, tc := range cases {
-		got := formatQueueDuration(tc.ms)
+		got := text.FormatDurationMs(tc.ms)
 		if got != tc.want {
-			t.Errorf("formatQueueDuration(%d) = %q, want %q", tc.ms, got, tc.want)
+			t.Errorf("text.FormatDurationMs(%d) = %q, want %q", tc.ms, got, tc.want)
 		}
 	}
 }
