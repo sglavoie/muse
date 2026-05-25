@@ -140,7 +140,7 @@ func SortTracks(tracks []library.Track, field SortField, dir SortDir) []library.
 		case SortAlbum:
 			return compareStringsUnknownLast(a.Album, b.Album, dir)
 		case SortDuration:
-			return compareDurationsZeroLast(a.Duration, b.Duration, dir)
+			return compareNumericZeroLast(a.Duration, b.Duration, dir)
 		case SortDateAdded:
 			if dir == SortAsc {
 				return a.CreatedAt < b.CreatedAt
@@ -178,7 +178,7 @@ func SortQueueIndices(entries []QueueEntry, field SortField, dir SortDir) []int 
 		case SortAlbum:
 			return compareStringsUnknownLast(ea.Album, eb.Album, dir)
 		case SortDuration:
-			return compareDurationMsZeroLast(ea.DurationMs, eb.DurationMs, dir)
+			return compareNumericZeroLast(ea.DurationMs, eb.DurationMs, dir)
 		case SortSource:
 			return compareStringsUnknownLast(ea.SourcePlaylist, eb.SourcePlaylist, dir)
 		default:
@@ -233,7 +233,7 @@ func SortPlaylistTrackIndices(tracks []db.PlaylistTrackRow, field SortField, dir
 		case SortAlbum:
 			return compareStringsUnknownLast(ta.Album, tb.Album, dir)
 		case SortDuration:
-			return compareDurationMsZeroLast(ta.DurationMs, tb.DurationMs, dir)
+			return compareNumericZeroLast(ta.DurationMs, tb.DurationMs, dir)
 		default:
 			return false
 		}
@@ -321,27 +321,11 @@ func findPlaylistPosition(playlists []db.PlaylistRow, id int64) int {
 	return 0
 }
 
-// compareDurationsZeroLast compares two float64 durations, pushing zero
-// (unknown) values to the end regardless of sort direction. This matches
-// the behaviour of compareStringsUnknownLast for string fields.
-func compareDurationsZeroLast(a, b float64, dir SortDir) bool {
-	aZero := a <= 0
-	bZero := b <= 0
-	if aZero != bZero {
-		return bZero // known before unknown, always
-	}
-	if aZero && bZero {
-		return false // stable
-	}
-	if dir == SortAsc {
-		return a < b
-	}
-	return a > b
-}
-
-// compareDurationMsZeroLast compares two int64 durations in milliseconds,
-// pushing zero (unknown) values to the end regardless of sort direction.
-func compareDurationMsZeroLast(a, b int64, dir SortDir) bool {
+// compareNumericZeroLast compares two ordered numeric values (int64 or
+// float64), pushing zero-or-negative (unknown/unset) values to the end
+// regardless of sort direction. This matches the behaviour of
+// compareStringsUnknownLast for string fields.
+func compareNumericZeroLast[T int64 | float64](a, b T, dir SortDir) bool {
 	aZero := a <= 0
 	bZero := b <= 0
 	if aZero != bZero {

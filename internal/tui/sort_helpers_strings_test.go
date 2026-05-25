@@ -121,7 +121,7 @@ func TestCompareStringsUnknownLast(t *testing.T) {
 	}
 }
 
-func TestCompareDurationsZeroLast(t *testing.T) {
+func TestCompareNumericZeroLast_Float64(t *testing.T) {
 	tests := []struct {
 		a, b float64
 		dir  SortDir
@@ -139,15 +139,15 @@ func TestCompareDurationsZeroLast(t *testing.T) {
 		{0, 0, SortDesc, false},   // stable
 	}
 	for _, tt := range tests {
-		got := compareDurationsZeroLast(tt.a, tt.b, tt.dir)
+		got := compareNumericZeroLast(tt.a, tt.b, tt.dir)
 		if got != tt.want {
-			t.Errorf("compareDurationsZeroLast(%v, %v, %v) = %v, want %v",
+			t.Errorf("compareNumericZeroLast(%v, %v, %v) = %v, want %v",
 				tt.a, tt.b, tt.dir, got, tt.want)
 		}
 	}
 }
 
-func TestCompareDurationMsZeroLast(t *testing.T) {
+func TestCompareNumericZeroLast_Int64(t *testing.T) {
 	tests := []struct {
 		a, b int64
 		dir  SortDir
@@ -165,9 +165,9 @@ func TestCompareDurationMsZeroLast(t *testing.T) {
 		{0, 0, SortDesc, false},
 	}
 	for _, tt := range tests {
-		got := compareDurationMsZeroLast(tt.a, tt.b, tt.dir)
+		got := compareNumericZeroLast(tt.a, tt.b, tt.dir)
 		if got != tt.want {
-			t.Errorf("compareDurationMsZeroLast(%v, %v, %v) = %v, want %v",
+			t.Errorf("compareNumericZeroLast(%v, %v, %v) = %v, want %v",
 				tt.a, tt.b, tt.dir, got, tt.want)
 		}
 	}
