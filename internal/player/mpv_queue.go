@@ -367,11 +367,15 @@ func (m *Manager) PlayQueueEntry(entry QueueTrack, marker MissingMarker) error {
 		fn := m.callbacks.OnStatus
 		mfn := m.callbacks.OnMissingFile
 		m.mu.RUnlock()
+		msg := "Missing file: " + entry.Path
 		if fn != nil {
-			fn("Missing file: " + entry.Path)
+			fn(msg)
 		}
 		if mfn != nil {
 			mfn(entry.Path)
+		}
+		if fn == nil && mfn == nil {
+			slog.Warn(msg)
 		}
 		return ErrMissingFile
 	}

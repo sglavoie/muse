@@ -246,3 +246,20 @@ func TestManager_PlayQueueEntry_NotConnectedQueues(t *testing.T) {
 		t.Errorf("cmdQueue len = %d, want 1", qlen)
 	}
 }
+
+func TestManager_PlayQueueEntry_MissingFileNoCallbacks(t *testing.T) {
+	m := NewManager(shortSockPath(t, "pqe-missing-nocallbacks"))
+	defer m.Close()
+
+	entry := QueueTrack{
+		Path:    "/nonexistent/path/track.flac",
+		Hash:    "abc123",
+		QueueID: 42,
+	}
+
+	// No callbacks set; should still log a warning (not directly testable, but should not panic or error)
+	gotErr := m.PlayQueueEntry(entry, nil)
+	if !errors.Is(gotErr, ErrMissingFile) {
+		t.Fatalf("PlayQueueEntry: want ErrMissingFile, got %v", gotErr)
+	}
+}
