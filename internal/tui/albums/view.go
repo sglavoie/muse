@@ -173,7 +173,11 @@ func (v View) moveCursor(delta int) View {
 		return v
 	}
 	v.Cursor += delta
-	v.Cursor = max(0, min(v.Cursor, n-1))
+	if v.Cursor < 0 {
+		v.Cursor = 0
+	} else if v.Cursor > n-1 {
+		v.Cursor = n - 1
+	}
 	return v.keepCursorVisible()
 }
 

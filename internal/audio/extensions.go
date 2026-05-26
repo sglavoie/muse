@@ -48,13 +48,10 @@ func SupportedExtensions() []string {
 }
 
 func normalizeExtension(ext string) string {
-	ext = strings.TrimSpace(ext)
+	ext = strings.ToLower(strings.TrimSpace(ext))
+	ext = strings.TrimLeft(ext, ".")
 	if ext == "" {
 		return ""
 	}
-	ext = strings.ToLower(ext)
-	if !strings.HasPrefix(ext, ".") {
-		ext = "." + ext
-	}
-	return ext
+	return "." + ext
 }
