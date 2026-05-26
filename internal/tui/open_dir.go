@@ -16,14 +16,11 @@ import (
 // a confusing error dialog).
 func openDir(ctx context.Context, dir string) tea.Cmd {
 	return func() tea.Msg {
-		if dir == "" {
+		name, args, ok := openDirCommand(runtime.GOOS, dir)
+		if !ok {
 			return nil
 		}
-		name := "xdg-open"
-		if runtime.GOOS == "darwin" {
-			name = "open"
-		}
-		_ = exec.CommandContext(ctx, name, dir).Start()
+		_ = exec.CommandContext(ctx, name, args...).Start()
 		return nil
 	}
 }
@@ -34,15 +31,39 @@ func openDir(ctx context.Context, dir string) tea.Cmd {
 // a "" argument.
 func revealFile(ctx context.Context, path string) tea.Cmd {
 	return func() tea.Msg {
-		if path == "" {
+		name, args, ok := revealFileCommand(runtime.GOOS, path)
+		if !ok {
 			return nil
 		}
-		if runtime.GOOS == "darwin" {
-			_ = exec.CommandContext(ctx, "open", "-R", path).Start()
-		} else {
-			dir := filepath.Dir(path)
-			_ = exec.CommandContext(ctx, "xdg-open", dir).Start()
-		}
+		_ = exec.CommandContext(ctx, name, args...).Start()
 		return nil
+	}
+}
+
+func openDirCommand(goos, dir string) (string, []string, bool) {
+	if dir == "" {
+		return "", nil, false
+	}
+	switch goos {
+	case "darwin":
+		return "open", []string{dir}, true
+	case "windows":
+		return "explorer", []string{dir}, true
+	default:
+		return "xdg-open", []string{dir}, true
+	}
+}
+
+func revealFileCommand(goos, path string) (string, []string, bool) {
+	if path == "" {
+		return "", nil, false
+	}
+	switch goos {
+	case "darwin":
+		return "open", []string{"-R", path}, true
+	case "windows":
+		return "explorer", []string{"/select,", path}, true
+	default:
+		return "xdg-open", []string{filepath.Dir(path)}, true
 	}
 }

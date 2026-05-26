@@ -327,3 +327,59 @@ func TestSave_AtomicRoundTrip(t *testing.T) {
 		t.Errorf("LogLevel = %q, want warn", result.Config.LogLevel)
 	}
 }
+
+func TestWriteDefaults_PreservesPreviousFileOnReplace(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, configFileName)
+
+	if err := os.WriteFile(path, []byte("short\n"), 0o600); err != nil {
+		t.Fatalf("setup write: %v", err)
+	}
+
+	pre, err := os.Open(path)
+	if err != nil {
+		t.Fatalf("open original: %v", err)
+	}
+	defer pre.Close()
+
+	preInfo, err := pre.Stat()
+	if err != nil {
+		t.Fatalf("stat original: %v", err)
+	}
+	originalSize := preInfo.Size()
+
+	cfg := defaults()
+	cfg.MusicDirectory = "/library"
+	cfg.MusicDirectories = []string{"/library"}
+	cfg.LogLevel = "warn"
+	if err := writeDefaults(path, cfg); err != nil {
+		t.Fatalf("writeDefaults: %v", err)
+	}
+
+	post, err := pre.Stat()
+	if err != nil {
+		t.Fatalf("stat via open fd after writeDefaults: %v", err)
+	}
+	if post.Size() != originalSize {
+		t.Errorf("open fd size = %d, want unchanged %d (writeDefaults should replace, not truncate, the original inode)",
+			post.Size(), originalSize)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read new config: %v", err)
+	}
+	if !strings.Contains(string(data), `music_directories = ["/library"]`) {
+		t.Fatalf("writeDefaults should write the new default config, got:\n%s", data)
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("readdir: %v", err)
+	}
+	for _, entry := range entries {
+		if strings.Contains(entry.Name(), ".tmp-") {
+			t.Errorf("leftover temp file after writeDefaults: %q", entry.Name())
+		}
+	}
+}

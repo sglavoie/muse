@@ -2,11 +2,12 @@ package tui
 
 import (
 	"context"
+	"reflect"
 	"testing"
 )
 
 func TestOpenDirReturnsNonNilCmd(t *testing.T) {
-	cmd := openDir(context.Background(), "/tmp")
+	cmd := openDir(context.Background(), t.TempDir())
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd")
 	}
@@ -37,5 +38,73 @@ func TestRevealFileEmptyPathIsNoOp(t *testing.T) {
 	msg := cmd()
 	if msg != nil {
 		t.Errorf("expected nil msg for empty path, got %#v", msg)
+	}
+}
+
+func TestOpenDirCommand_SelectsCommandsByOS(t *testing.T) {
+	tests := []struct {
+		name     string
+		goos     string
+		dir      string
+		wantName string
+		wantArgs []string
+		wantOK   bool
+	}{
+		{name: "empty", goos: "linux", dir: "", wantOK: false},
+		{name: "linux", goos: "linux", dir: "/music", wantName: "xdg-open", wantArgs: []string{"/music"}, wantOK: true},
+		{name: "darwin", goos: "darwin", dir: "/music", wantName: "open", wantArgs: []string{"/music"}, wantOK: true},
+		{name: "windows", goos: "windows", dir: `C:\Music`, wantName: "explorer", wantArgs: []string{`C:\Music`}, wantOK: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotName, gotArgs, gotOK := openDirCommand(tt.goos, tt.dir)
+			if gotOK != tt.wantOK {
+				t.Fatalf("openDirCommand() ok = %v, want %v", gotOK, tt.wantOK)
+			}
+			if !gotOK {
+				return
+			}
+			if gotName != tt.wantName {
+				t.Fatalf("openDirCommand() name = %q, want %q", gotName, tt.wantName)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Fatalf("openDirCommand() args = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}
+
+func TestRevealFileCommand_SelectsCommandsByOS(t *testing.T) {
+	tests := []struct {
+		name     string
+		goos     string
+		path     string
+		wantName string
+		wantArgs []string
+		wantOK   bool
+	}{
+		{name: "empty", goos: "linux", path: "", wantOK: false},
+		{name: "linux", goos: "linux", path: "/music/song.flac", wantName: "xdg-open", wantArgs: []string{"/music"}, wantOK: true},
+		{name: "darwin", goos: "darwin", path: "/music/song.flac", wantName: "open", wantArgs: []string{"-R", "/music/song.flac"}, wantOK: true},
+		{name: "windows", goos: "windows", path: `C:\Music\song.flac`, wantName: "explorer", wantArgs: []string{"/select,", `C:\Music\song.flac`}, wantOK: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotName, gotArgs, gotOK := revealFileCommand(tt.goos, tt.path)
+			if gotOK != tt.wantOK {
+				t.Fatalf("revealFileCommand() ok = %v, want %v", gotOK, tt.wantOK)
+			}
+			if !gotOK {
+				return
+			}
+			if gotName != tt.wantName {
+				t.Fatalf("revealFileCommand() name = %q, want %q", gotName, tt.wantName)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Fatalf("revealFileCommand() args = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
 	}
 }

@@ -229,12 +229,3 @@ func (v View) renderStateStrip(total, filtered int) string {
 	}
 	return strip.Render(v.Width, breadcrumb, sortChunk, f, counts, sel, hint, v.Styles)
 }
-
-// joinStrip joins a top-level strip line with the rendered body, skipping the
-// strip entirely when it is empty (zero-width fallback).
-func joinStrip(stripLine, body string) string {
-	if stripLine == "" {
-		return body
-	}
-	return stripLine + "\n" + body
-}

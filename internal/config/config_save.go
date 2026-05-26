@@ -27,6 +27,12 @@ func Save(path string, cfg Config) error {
 		cfg.MusicDirectory = dirs[0]
 	}
 
+	return writeAtomically(path, 0o600, func(f *os.File) error {
+		return toml.NewEncoder(f).Encode(cfg)
+	})
+}
+
+func writeAtomically(path string, perm os.FileMode, write func(*os.File) error) error {
 	dir := filepath.Dir(path)
 	tmp, err := os.CreateTemp(dir, filepath.Base(path)+".tmp-*")
 	if err != nil {
@@ -38,12 +44,12 @@ func Save(path string, cfg Config) error {
 		_ = os.Remove(tmpPath)
 	}
 
-	if err := tmp.Chmod(0o600); err != nil {
+	if err := tmp.Chmod(perm); err != nil {
 		_ = tmp.Close()
 		cleanup()
 		return err
 	}
-	if err := toml.NewEncoder(tmp).Encode(cfg); err != nil {
+	if err := write(tmp); err != nil {
 		_ = tmp.Close()
 		cleanup()
 		return err
@@ -73,18 +79,12 @@ func Save(path string, cfg Config) error {
 
 // writeDefaults writes a commented TOML config to path using the values in cfg.
 func writeDefaults(path string, cfg Config) error {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
-	if err != nil {
-		return err
-	}
 	firstDir := cfg.MusicDirectory
 	if len(cfg.MusicDirectories) > 0 {
 		firstDir = cfg.MusicDirectories[0]
 	}
-	_, writeErr := fmt.Fprintf(f, configTemplate, firstDir, cfg.DefaultVolume, cfg.LogLevel)
-	closeErr := f.Close()
-	if writeErr != nil {
-		return writeErr
-	}
-	return closeErr
+	return writeAtomically(path, 0o600, func(f *os.File) error {
+		_, err := fmt.Fprintf(f, configTemplate, firstDir, cfg.DefaultVolume, cfg.LogLevel)
+		return err
+	})
 }

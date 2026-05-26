@@ -92,7 +92,7 @@ func (d *DB) ReadHiddenGemsMix(maxPlays, topArtists, topGenres, limit int) ([]li
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
 		       t.play_count, t.last_played_at, t.track_number, t.disc_number
 		FROM tracks t
-		WHERE t.missing = 0 AND t.play_count <= ? AND (` + strings.Join(conditions, " OR ") + `)
+		WHERE t.missing = 0 AND t.play_count BETWEEN 1 AND ? AND (` + strings.Join(conditions, " OR ") + `)
 		ORDER BY RANDOM()
 		LIMIT ?`
 

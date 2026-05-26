@@ -3,6 +3,7 @@ package palette
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -221,4 +222,62 @@ func TestUsageStoreSaveBestEffortNeverPanics(t *testing.T) {
 	// A nil store should be no-op.
 	var store *UsageStore
 	store.SaveBestEffort()
+}
+
+func TestUsageStoreSave_PreservesPreviousFileOnReplace(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, usageFileName)
+
+	store := NewUsageStore(dir)
+	store.Bump("alpha")
+	if err := store.Save(); err != nil {
+		t.Fatalf("initial Save failed: %v", err)
+	}
+
+	pre, err := os.Open(path)
+	if err != nil {
+		t.Fatalf("open original: %v", err)
+	}
+	defer pre.Close()
+
+	preInfo, err := pre.Stat()
+	if err != nil {
+		t.Fatalf("stat original: %v", err)
+	}
+	originalSize := preInfo.Size()
+
+	store.Bump("beta-with-longer-key")
+	if err := store.Save(); err != nil {
+		t.Fatalf("second Save failed: %v", err)
+	}
+
+	post, err := pre.Stat()
+	if err != nil {
+		t.Fatalf("stat via open fd after second save: %v", err)
+	}
+	if post.Size() != originalSize {
+		t.Errorf("open fd size = %d, want unchanged %d (Save should replace, not truncate, the original inode)",
+			post.Size(), originalSize)
+	}
+
+	loaded := NewUsageStore(dir)
+	if err := loaded.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if got := loaded.Get("alpha").Count; got != 1 {
+		t.Fatalf("alpha count after atomic save: want 1, got %d", got)
+	}
+	if got := loaded.Get("beta-with-longer-key").Count; got != 1 {
+		t.Fatalf("beta count after atomic save: want 1, got %d", got)
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("readdir: %v", err)
+	}
+	for _, entry := range entries {
+		if strings.Contains(entry.Name(), ".tmp-") {
+			t.Errorf("leftover temp file after Save: %q", entry.Name())
+		}
+	}
 }

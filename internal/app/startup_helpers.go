@@ -12,39 +12,61 @@ import (
 )
 
 func runStartupTasks(ctx context.Context, database *db.DB, socketPath string, deps Deps) error {
+	taskCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	errs := make(chan error, 2)
+	done := make(chan struct{})
 	var wg sync.WaitGroup
 
-	wg.Go(func() {
-		if err := deps.LaunchMPV(ctx, socketPath); err != nil {
-			errs <- fmt.Errorf("startup: mpv: %w", err)
-		}
-	})
-
-	if deps.RunScan != nil {
+	start := func(name string, run func(context.Context) error) {
 		wg.Go(func() {
-			if err := deps.RunScan(ctx, database); err != nil {
-				errs <- fmt.Errorf("startup: scan: %w", err)
+			if err := run(taskCtx); err != nil {
+				wrapped := fmt.Errorf("startup: %s: %w", name, err)
+				select {
+				case errs <- wrapped:
+					cancel()
+				default:
+					if !errors.Is(err, context.Canceled) {
+						slog.Warn("startup: additional parallel-task error", "err", wrapped)
+					}
+				}
 			}
 		})
 	}
 
-	wg.Wait()
-	close(errs)
+	start("mpv", func(ctx context.Context) error {
+		return deps.LaunchMPV(ctx, socketPath)
+	})
 
-	var firstErr error
-	for err := range errs {
-		if err == nil {
-			continue
-		}
-		if firstErr == nil {
-			firstErr = err
-			continue
-		}
-		slog.Warn("startup: additional parallel-task error", "err", err)
+	if deps.RunScan != nil {
+		start("scan", func(ctx context.Context) error {
+			return deps.RunScan(ctx, database)
+		})
 	}
 
-	return firstErr
+	go func() {
+		wg.Wait()
+		close(done)
+		close(errs)
+	}()
+
+	select {
+	case err, ok := <-errs:
+		if !ok {
+			return nil
+		}
+		<-done
+		for extra := range errs {
+			if extra == nil || errors.Is(extra, context.Canceled) {
+				continue
+			}
+			slog.Warn("startup: additional parallel-task error", "err", extra)
+		}
+		return err
+	case <-done:
+		return nil
+	}
 }
 
 func restoreStartupPlayer(restored *RestoredSession, restorePlayer func(path string, positionMs int64) error) {
