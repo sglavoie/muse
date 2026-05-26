@@ -1,6 +1,7 @@
 package audio
 
 import (
+	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -49,6 +50,9 @@ func SupportedExtensions() []string {
 
 func normalizeExtension(ext string) string {
 	ext = strings.ToLower(strings.TrimSpace(ext))
+	if strings.ContainsAny(ext, `/\`) || (strings.Contains(ext, ".") && !strings.HasPrefix(ext, ".")) {
+		ext = strings.ToLower(filepath.Ext(ext))
+	}
 	if strings.HasPrefix(ext, ".") {
 		ext = ext[1:]
 		if strings.HasPrefix(ext, ".") {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"reflect"
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
@@ -56,6 +57,9 @@ type LibraryWriter interface {
 func LoadLibrary(ctx context.Context, database *db.DB, writer LibraryWriter,
 	musicDirs []string, excludedPaths []string, extractor library.MetadataExtractor,
 	upsertBatchSize int) (LibraryResult, error) {
+	if isNilLibraryWriter(writer) {
+		return LibraryResult{}, fmt.Errorf("startup: library writer is required")
+	}
 
 	// Load the cached library from the database for instant startup display.
 	dbTracks, err := database.ReadTracks()
@@ -148,4 +152,12 @@ func LoadLibrary(ctx context.Context, database *db.DB, writer LibraryWriter,
 		WatchDegraded: watchDegraded,
 		FreshLibrary:  len(dbTracks) == 0,
 	}, nil
+}
+
+func isNilLibraryWriter(writer LibraryWriter) bool {
+	if writer == nil {
+		return true
+	}
+	v := reflect.ValueOf(writer)
+	return v.Kind() == reflect.Pointer && v.IsNil()
 }

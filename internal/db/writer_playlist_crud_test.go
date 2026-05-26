@@ -55,6 +55,30 @@ func TestRenamePlaylist(t *testing.T) {
 	}
 }
 
+// TestRenamePlaylist_SoftDeletedNoOp verifies that RenamePlaylist does not
+// mutate soft-deleted playlists.
+func TestRenamePlaylist_SoftDeletedNoOp(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	id := seedPlaylist(t, d, "Original Name")
+	if err := w.DeletePlaylistSoft(id); err != nil {
+		t.Fatalf("DeletePlaylistSoft: %v", err)
+	}
+
+	if err := w.RenamePlaylist(id, "Renamed While Deleted"); err != nil {
+		t.Fatalf("RenamePlaylist on soft-deleted playlist: %v", err)
+	}
+
+	var name string
+	if err := d.QueryRow(`SELECT name FROM playlists WHERE id=?`, id).Scan(&name); err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	if name != "Original Name" {
+		t.Errorf("name = %q; want %q", name, "Original Name")
+	}
+}
+
 // TestDeletePlaylistSoft verifies that DeletePlaylistSoft sets deleted_at.
 func TestDeletePlaylistSoft(t *testing.T) {
 	d := openMigratedTestDB(t)

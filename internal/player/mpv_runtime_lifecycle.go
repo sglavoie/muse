@@ -60,7 +60,7 @@ func (m *Manager) enqueue(cmd func() error) error {
 func (m *Manager) Close() error {
 	if m.rootCancel != nil {
 		m.rootCancel()
-	} else {
+	} else if m.cancel != nil {
 		m.cancel()
 	}
 

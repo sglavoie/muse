@@ -64,6 +64,11 @@ func TestDetectGlobalFlag(t *testing.T) {
 			want: globalFlagHelp,
 		},
 		{
+			name: "long single-dash help before command",
+			args: []string{"-help", "next"},
+			want: globalFlagHelp,
+		},
+		{
 			name: "command owns trailing help",
 			args: []string{"next", "--help"},
 			want: globalFlagNone,

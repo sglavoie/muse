@@ -110,6 +110,20 @@ func TestNewManager_SocketPath(t *testing.T) {
 	}
 }
 
+func TestManager_Close_WithoutCancelFuncsDoesNotPanic(t *testing.T) {
+	m := &Manager{}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("Close panicked without cancel funcs: %v", r)
+		}
+	}()
+
+	if err := m.Close(); err != nil {
+		t.Fatalf("Close error = %v, want nil", err)
+	}
+}
+
 func TestManager_ErrNotConnected(t *testing.T) {
 	m := NewManager(shortSockPath(t, "mgr-noconn"))
 	defer m.Close()

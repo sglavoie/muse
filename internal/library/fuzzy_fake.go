@@ -9,10 +9,10 @@ import "strings"
 type FakeFuzzySearcher struct{}
 
 // Search returns one Match per track whose artist, title, album, or Path
-// contains query as a case-insensitive substring. An empty query returns all
-// tracks. Results are ordered by ascending TrackIndex.
+// contains query as a case-insensitive substring. An empty or whitespace-only
+// query returns all tracks. Results are ordered by ascending TrackIndex.
 func (f FakeFuzzySearcher) Search(query string, tracks []Track) []Match {
-	if query == "" {
+	if strings.TrimSpace(query) == "" {
 		matches := make([]Match, len(tracks))
 		for i := range tracks {
 			matches[i] = Match{TrackIndex: i}

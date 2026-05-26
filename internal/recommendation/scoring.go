@@ -36,16 +36,28 @@ func FilterSeen(tracks []library.Track, seen map[string]struct{}) []library.Trac
 	if len(normalizedSeen) == 0 {
 		return tracks
 	}
-	result := make([]library.Track, 0, len(tracks))
-	for _, t := range tracks {
+	var result []library.Track
+	for i, t := range tracks {
 		hash := normalizeHash(t.Hash)
 		if hash == "" {
-			result = append(result, t)
+			if result != nil {
+				result = append(result, t)
+			}
 			continue
 		}
-		if _, ok := normalizedSeen[hash]; !ok {
+		if _, ok := normalizedSeen[hash]; ok {
+			if result == nil {
+				result = make([]library.Track, 0, len(tracks)-1)
+				result = append(result, tracks[:i]...)
+			}
+			continue
+		}
+		if result != nil {
 			result = append(result, t)
 		}
+	}
+	if result == nil {
+		return tracks
 	}
 	return result
 }

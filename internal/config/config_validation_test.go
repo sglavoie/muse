@@ -203,3 +203,25 @@ log_level = "  WARN  "
 		t.Errorf("LogLevel = %q, want %q", result.Config.LogLevel, "warn")
 	}
 }
+
+func TestLoad_LogLevel_WarningAliasAccepted(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+log_level = "WARNING"
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if len(result.Warnings) != 0 {
+		t.Errorf("expected no warnings for warning alias, got: %v", result.Warnings)
+	}
+	if result.Config.LogLevel != "warn" {
+		t.Errorf("LogLevel = %q, want %q", result.Config.LogLevel, "warn")
+	}
+}

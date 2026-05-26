@@ -75,7 +75,7 @@ func ParseLogLevel(s string) (slog.Level, bool) {
 		return slog.LevelDebug, true
 	case "info", "":
 		return slog.LevelInfo, true
-	case "warn":
+	case "warn", "warning":
 		return slog.LevelWarn, true
 	case "error":
 		return slog.LevelError, true

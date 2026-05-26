@@ -64,7 +64,7 @@ func revealFileCommand(goos, path string) (string, []string, bool) {
 	case "darwin":
 		return "open", []string{"-R", path}, true
 	case "windows":
-		return "explorer", []string{"/select,", path}, true
+		return "explorer", []string{"/select," + path}, true
 	default:
 		return "xdg-open", []string{filepath.Dir(path)}, true
 	}

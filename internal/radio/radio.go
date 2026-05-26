@@ -4,6 +4,7 @@ import (
 	cryptorand "crypto/rand"
 	"math"
 	"math/big"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -374,7 +375,7 @@ func trackSelectionKey(track library.Track) string {
 		return "hash:" + track.Hash
 	}
 	if path := strings.TrimSpace(track.Path); path != "" {
-		return "path:" + path
+		return "path:" + filepath.Clean(path)
 	}
 	return ""
 }

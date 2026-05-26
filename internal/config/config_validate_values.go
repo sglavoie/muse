@@ -96,6 +96,8 @@ func validate(raw rawConfig) (Config, []string) {
 	switch raw.LogLevel {
 	case "debug", "info", "warn", "error":
 		cfg.LogLevel = raw.LogLevel
+	case "warning":
+		cfg.LogLevel = "warn"
 	case "":
 		// empty means not set; keep default silently
 	default:

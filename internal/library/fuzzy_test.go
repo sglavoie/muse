@@ -25,6 +25,19 @@ func TestFakeFuzzySearcher(t *testing.T) {
 		}
 	})
 
+	t.Run("WhitespaceOnlyQueryReturnsAll", func(t *testing.T) {
+		f := FakeFuzzySearcher{}
+		got := f.Search(" \t\n ", tracks)
+		if len(got) != len(tracks) {
+			t.Fatalf("expected %d matches, got %d", len(tracks), len(got))
+		}
+		for i, m := range got {
+			if m.TrackIndex != i {
+				t.Errorf("match[%d].TrackIndex = %d, want %d", i, m.TrackIndex, i)
+			}
+		}
+	})
+
 	t.Run("ArtistMatch", func(t *testing.T) {
 		f := FakeFuzzySearcher{}
 		got := f.Search("radiohead", tracks)

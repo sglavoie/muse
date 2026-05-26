@@ -99,6 +99,18 @@ func TestFilterSeen_emptySeen(t *testing.T) {
 	}
 }
 
+func TestFilterSeen_noMatchesReturnsOriginalSlice(t *testing.T) {
+	tracks := []library.Track{{Hash: "a"}, {Hash: "b"}}
+	got := recommendation.FilterSeen(tracks, map[string]struct{}{"z": {}})
+
+	if len(got) != len(tracks) {
+		t.Fatalf("FilterSeen with no matches: want %d tracks, got %d", len(tracks), len(got))
+	}
+	if &got[0] != &tracks[0] {
+		t.Fatal("FilterSeen with no matches: want original slice to be returned")
+	}
+}
+
 func TestFilterSeen_removes(t *testing.T) {
 	tracks := []library.Track{{Hash: "a"}, {Hash: "b"}, {Hash: "c"}}
 	seen := map[string]struct{}{"b": {}}

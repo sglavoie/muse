@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/app"
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 )
 
@@ -26,6 +27,12 @@ func (stubExtractor) Extract(_ context.Context, files []library.HashedFile) ([]l
 	}
 	return out, nil
 }
+
+type noopLibraryWriter struct{}
+
+func (noopLibraryWriter) UpsertBatch([]library.Track) error { return nil }
+
+func (noopLibraryWriter) MarkTrackMissing(string) error { return nil }
 
 // drainChannels cancels the context and drains the scan/watch channels to
 // avoid goroutine leaks from the watcher and bridge goroutines.
@@ -79,12 +86,35 @@ func TestLoadLibrary_ReadTracksErrorReturnsError(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	_, err := app.LoadLibrary(ctx, database, nil, []string{musicDir}, nil, stubExtractor{}, 100)
+	_, err := app.LoadLibrary(ctx, database, noopLibraryWriter{}, []string{musicDir}, nil, stubExtractor{}, 100)
 	if err == nil {
 		t.Fatal("LoadLibrary returned nil error after ReadTracks failed")
 	}
 	if !strings.Contains(err.Error(), "read tracks from DB") {
 		t.Fatalf("LoadLibrary error = %v, want read tracks context", err)
+	}
+}
+
+func TestLoadLibrary_NilWriterReturnsError(t *testing.T) {
+	dirs := setupDirs(t)
+	musicDir := t.TempDir()
+
+	result, err := app.Run(t.Context(), dirs, noopDeps())
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	defer closeRunResult(t, result)
+
+	var writer *db.Writer
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	_, err = app.LoadLibrary(ctx, result.DB, writer, []string{musicDir}, nil, stubExtractor{}, 100)
+	if err == nil {
+		t.Fatal("LoadLibrary returned nil error with nil writer")
+	}
+	if !strings.Contains(err.Error(), "library writer is required") {
+		t.Fatalf("LoadLibrary error = %v, want library writer validation", err)
 	}
 }
 

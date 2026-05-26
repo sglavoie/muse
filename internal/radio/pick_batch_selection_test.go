@@ -3,6 +3,7 @@ package radio
 import (
 	"errors"
 	"math"
+	"path/filepath"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
@@ -64,6 +65,30 @@ func TestPickBatch_NoDuplicateEmptyHashesWhenPathMatches(t *testing.T) {
 	}
 	if pathCounts["/music/unique.mp3"] != 1 {
 		t.Fatalf("expected unique path to be picked once, got counts=%v", pathCounts)
+	}
+}
+
+func TestPickBatch_NoDuplicateEmptyHashesWhenPathCleansToSame(t *testing.T) {
+	scored := []TrackScore{
+		{Track: library.Track{Path: "/music/./same.mp3", Artist: "ArtistA"}, Score: -1},
+		{Track: library.Track{Path: "/music/same.mp3", Artist: "ArtistB"}, Score: -2},
+		{Track: library.Track{Path: "/music/unique.mp3", Artist: "ArtistC"}, Score: -3},
+	}
+
+	result := PickBatch(scored, 3, 1.0)
+	if len(result) != 2 {
+		t.Fatalf("expected cleaned duplicate path to be skipped and 2 unique picks returned, got %d: %v", len(result), result)
+	}
+
+	cleanCounts := make(map[string]int)
+	for _, tr := range result {
+		cleanCounts[filepath.Clean(tr.Path)]++
+	}
+	if cleanCounts["/music/same.mp3"] != 1 {
+		t.Fatalf("expected exactly one pick for cleaned duplicate path, got counts=%v", cleanCounts)
+	}
+	if cleanCounts["/music/unique.mp3"] != 1 {
+		t.Fatalf("expected unique path to be picked once, got counts=%v", cleanCounts)
 	}
 }
 

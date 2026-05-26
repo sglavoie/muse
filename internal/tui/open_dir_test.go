@@ -111,7 +111,8 @@ func TestRevealFileCommand_SelectsCommandsByOS(t *testing.T) {
 		{name: "whitespace", goos: "linux", path: "\n\t ", wantOK: false},
 		{name: "linux", goos: "linux", path: "/music/song.flac", wantName: "xdg-open", wantArgs: []string{"/music"}, wantOK: true},
 		{name: "darwin", goos: "darwin", path: "/music/song.flac", wantName: "open", wantArgs: []string{"-R", "/music/song.flac"}, wantOK: true},
-		{name: "windows", goos: "windows", path: `C:\Music\song.flac`, wantName: "explorer", wantArgs: []string{"/select,", `C:\Music\song.flac`}, wantOK: true},
+		{name: "windows", goos: "windows", path: `C:\Music\song.flac`, wantName: "explorer", wantArgs: []string{`/select,C:\Music\song.flac`}, wantOK: true},
+		{name: "windows with spaces", goos: "windows", path: `C:\My Music\song.flac`, wantName: "explorer", wantArgs: []string{`/select,C:\My Music\song.flac`}, wantOK: true},
 	}
 
 	for _, tt := range tests {

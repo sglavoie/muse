@@ -116,7 +116,7 @@ func detectGlobalFlag(args []string) globalFlag {
 		switch arg {
 		case "--version", "-version":
 			return globalFlagVersion
-		case "--help", "-h":
+		case "--help", "-help", "-h":
 			return globalFlagHelp
 		default:
 			return globalFlagNone

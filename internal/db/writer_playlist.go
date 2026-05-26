@@ -61,7 +61,7 @@ func (w *Writer) CreatePlaylist(name string) (int64, error) {
 func (w *Writer) RenamePlaylist(id int64, name string) error {
 	return w.Exec(func(db *sql.DB) error {
 		_, err := db.Exec(
-			`UPDATE playlists SET name=?, updated_at=? WHERE id=?`,
+			`UPDATE playlists SET name=?, updated_at=? WHERE id=? AND deleted_at IS NULL`,
 			name, time.Now().Unix(), id,
 		)
 		return err
