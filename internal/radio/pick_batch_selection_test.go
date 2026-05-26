@@ -4,6 +4,8 @@ import (
 	"errors"
 	"math"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/library"
 )
 
 func TestPickBatch_NoDuplicates(t *testing.T) {
@@ -38,6 +40,42 @@ func TestPickBatch_NoDuplicateNonEmptyHashes(t *testing.T) {
 	}
 	if _, ok := seen["unique"]; !ok {
 		t.Fatalf("expected one duplicate-hash representative plus unique track, got %v", result)
+	}
+}
+
+func TestPickBatch_NoDuplicateEmptyHashesWhenPathMatches(t *testing.T) {
+	scored := []TrackScore{
+		{Track: library.Track{Path: "/music/same.mp3", Artist: "ArtistA"}, Score: -1},
+		{Track: library.Track{Path: "/music/same.mp3", Artist: "ArtistB"}, Score: -2},
+		{Track: library.Track{Path: "/music/unique.mp3", Artist: "ArtistC"}, Score: -3},
+	}
+
+	result := PickBatch(scored, 3, 1.0)
+	if len(result) != 2 {
+		t.Fatalf("expected duplicate empty-hash path to be skipped and 2 unique picks returned, got %d: %v", len(result), result)
+	}
+
+	pathCounts := make(map[string]int)
+	for _, tr := range result {
+		pathCounts[tr.Path]++
+	}
+	if pathCounts["/music/same.mp3"] != 1 {
+		t.Fatalf("expected exactly one pick for duplicate path, got counts=%v", pathCounts)
+	}
+	if pathCounts["/music/unique.mp3"] != 1 {
+		t.Fatalf("expected unique path to be picked once, got counts=%v", pathCounts)
+	}
+}
+
+func TestPickBatch_AllowsEmptyHashesWhenPathsDiffer(t *testing.T) {
+	scored := []TrackScore{
+		{Track: library.Track{Path: "/music/a.mp3", Artist: "ArtistA"}, Score: -1},
+		{Track: library.Track{Path: "/music/b.mp3", Artist: "ArtistB"}, Score: -2},
+	}
+
+	result := PickBatch(scored, 2, 1.0)
+	if len(result) != 2 {
+		t.Fatalf("expected both distinct paths to be picked, got %d: %v", len(result), result)
 	}
 }
 

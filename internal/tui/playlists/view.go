@@ -174,6 +174,7 @@ func (v View) moveCursor(delta int) View {
 // OpenTracks returns a copy of v transitioned to TrackLevel with tracks
 // loaded. The current list cursor is saved to ListCursor so it can be
 // restored by BackToList. The cursor is reset to 0 for track-level navigation.
+// Any stale bulk track selection from a previous playlist is cleared.
 func (v View) OpenTracks(tracks []db.PlaylistTrackRow) View {
 	v.ListCursor = v.Cursor
 	v.ListScrollOffset = v.ScrollOffset
@@ -181,6 +182,7 @@ func (v View) OpenTracks(tracks []db.PlaylistTrackRow) View {
 	v.Level = TrackLevel
 	v.Cursor = 0
 	v.ScrollOffset = 0
+	v.SelectedTrackIDs = nil
 	return v
 }
 
@@ -196,6 +198,7 @@ func (v View) BackToList() View {
 	v.Cursor = v.ListCursor
 	v.ScrollOffset = v.ListScrollOffset
 	v.Tracks = nil
+	v.SelectedTrackIDs = nil
 	if v.Playlists == nil {
 		return v
 	}

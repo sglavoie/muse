@@ -254,7 +254,7 @@ func (v View) Render() string {
 		}
 
 		var row string
-		if cols.Artist == 0 { //nolint:gocritic // ifElseChain: branches have fundamentally different rendering logic
+		if cols.IsTrackNumOnly() { //nolint:gocritic // ifElseChain: branches have fundamentally different rendering logic
 			markerPart := text.Pad(markerStr, cols.SelectionMarker)
 			numPart := text.Pad(num, cols.TrackNum)
 			if isFocused {

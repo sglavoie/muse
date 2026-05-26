@@ -114,6 +114,47 @@ func TestRenderTracksTruncatesFixedColumnsAtNarrowWidth(t *testing.T) {
 	}
 }
 
+func TestRenderTracksClampsHeaderAndRowWidthBelowMinTrackLayout(t *testing.T) {
+	const width = 20
+
+	v := View{
+		Level: TrackLevel,
+		Width: width,
+		Tracks: []library.Track{{
+			Title:    "A very long title",
+			Artist:   "A very long artist",
+			Duration: 60,
+		}},
+	}
+
+	lines := strings.Split(ansi.Strip(v.Render()), "\n")
+	var header, row string
+	for i, line := range lines {
+		if strings.Contains(line, "#") {
+			header = line
+			for _, candidate := range lines[i+1:] {
+				if strings.TrimSpace(candidate) != "" {
+					row = candidate
+					break
+				}
+			}
+			break
+		}
+	}
+	if header == "" {
+		t.Fatalf("expected track header in output:\n%s", v.Render())
+	}
+	if row == "" {
+		t.Fatalf("expected track row in output:\n%s", v.Render())
+	}
+	if got := ansi.StringWidth(header); got > width {
+		t.Fatalf("header width = %d, want <= %d: %q", got, width, header)
+	}
+	if got := ansi.StringWidth(row); got > width {
+		t.Fatalf("row width = %d, want <= %d: %q", got, width, row)
+	}
+}
+
 func TestRenderTracksClampsInvalidScrollOffset(t *testing.T) {
 	tests := []struct {
 		name         string

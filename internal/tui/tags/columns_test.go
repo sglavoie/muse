@@ -1,0 +1,37 @@
+package tags
+
+import "testing"
+
+func TestComputeTrack_DoesNotOverAllocateNearMinimumBoundary(t *testing.T) {
+	for width := 43; width <= 49; width++ {
+		cols := ComputeTrack(width)
+		total := cols.SelectionMarker + cols.Title + cols.Artist + cols.Album + cols.Duration + trackSepCount
+		if total != width {
+			t.Fatalf("ComputeTrack(%d) total=%d, want %d", width, total, width)
+		}
+	}
+}
+
+func TestComputeTrack_PreservesMinimumsWhenSpaceAllows(t *testing.T) {
+	cols := ComputeTrack(50)
+	if cols.Title < minTitleWidth {
+		t.Fatalf("Title=%d, want >=%d", cols.Title, minTitleWidth)
+	}
+	if cols.Artist < minArtistWidth {
+		t.Fatalf("Artist=%d, want >=%d", cols.Artist, minArtistWidth)
+	}
+	if cols.Album < minAlbumWidth {
+		t.Fatalf("Album=%d, want >=%d", cols.Album, minAlbumWidth)
+	}
+}
+
+func TestComputeTrack_NarrowWidthStaysNonNegativeAndFits(t *testing.T) {
+	cols := ComputeTrack(20)
+	if cols.Title < 0 || cols.Artist < 0 || cols.Album < 0 {
+		t.Fatalf("negative flex widths: %+v", cols)
+	}
+	total := cols.SelectionMarker + cols.Title + cols.Artist + cols.Album + cols.Duration + trackSepCount
+	if total != 20 {
+		t.Fatalf("ComputeTrack(20) total=%d, want 20", total)
+	}
+}

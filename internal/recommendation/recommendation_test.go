@@ -66,6 +66,23 @@ func TestRegistry_hiddenGemsDescriptionMatchesLowPlayBehavior(t *testing.T) {
 	t.Fatal("Hidden Gems mix missing from Registry()")
 }
 
+func TestRegistry_onRepeatDescriptionIsNotWeekBound(t *testing.T) {
+	for _, d := range recommendation.Registry() {
+		if d.ID != recommendation.MixOnRepeat {
+			continue
+		}
+		description := strings.ToLower(d.Description)
+		if strings.Contains(description, "week") {
+			t.Fatalf("On Repeat description = %q, must not hardcode week wording", d.Description)
+		}
+		if !strings.Contains(description, "lately") {
+			t.Fatalf("On Repeat description = %q, want recency wording", d.Description)
+		}
+		return
+	}
+	t.Fatal("On Repeat mix missing from Registry()")
+}
+
 func TestFilterSeen_nilSeen(t *testing.T) {
 	tracks := []library.Track{{Hash: "a"}, {Hash: "b"}}
 	got := recommendation.FilterSeen(tracks, nil)

@@ -57,6 +57,21 @@ func TestOpenTracksResetsScrollOffset(t *testing.T) {
 	}
 }
 
+func TestOpenTracksClearsBulkSelection(t *testing.T) {
+	v := View{
+		Level:            ListLevel,
+		Cursor:           1,
+		ScrollOffset:     1,
+		SelectedTrackIDs: map[int64]struct{}{10: {}, 20: {}},
+	}
+
+	v = v.OpenTracks([]db.PlaylistTrackRow{{ID: 1}})
+
+	if v.SelectedTrackIDs != nil {
+		t.Errorf("OpenTracks: expected SelectedTrackIDs=nil, got %v", v.SelectedTrackIDs)
+	}
+}
+
 func TestBackToListRestoresCursorAndLevel(t *testing.T) {
 	tracks := []db.PlaylistTrackRow{
 		{ID: 1, Position: 1, Title: "Song A"},
@@ -84,6 +99,23 @@ func TestBackToListRestoresCursorAndLevel(t *testing.T) {
 	}
 	if v.Tracks != nil {
 		t.Errorf("BackToList: expected Tracks=nil, got %v", v.Tracks)
+	}
+}
+
+func TestBackToListClearsBulkSelection(t *testing.T) {
+	v := View{
+		Level:            TrackLevel,
+		ListCursor:       1,
+		ListScrollOffset: 0,
+		Tracks:           []db.PlaylistTrackRow{{ID: 1}},
+		SelectedTrackIDs: map[int64]struct{}{10: {}, 20: {}},
+		Playlists:        []db.PlaylistRow{{ID: 1}, {ID: 2}},
+	}
+
+	v = v.BackToList()
+
+	if v.SelectedTrackIDs != nil {
+		t.Errorf("BackToList: expected SelectedTrackIDs=nil, got %v", v.SelectedTrackIDs)
 	}
 }
 

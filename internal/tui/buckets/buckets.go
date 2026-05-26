@@ -19,21 +19,31 @@ const (
 )
 
 // FirstLetter returns an uppercase first-letter bucket label for s. Leading
-// whitespace and the leading article "The " are skipped so that "The Beatles"
-// buckets under "B". Digits and other non-letters bucket under "#". Returns
-// "—" for empty/whitespace strings.
+// whitespace and punctuation are skipped, and the leading article "The " is
+// skipped so that "The Beatles" buckets under "B". Digits bucket under "#".
+// Returns "—" for empty/whitespace strings.
 func FirstLetter(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return "—"
 	}
 	runes := []rune(s)
+	start := firstAlphaNumIndex(runes)
+	if start < 0 {
+		return "#"
+	}
+	runes = runes[start:]
 	if len(runes) >= 4 && unicode.IsSpace(runes[3]) && strings.EqualFold(string(runes[:3]), "the") {
 		s = strings.TrimSpace(string(runes[4:]))
 		if s == "" {
 			return "T"
 		}
 		runes = []rune(s)
+		start = firstAlphaNumIndex(runes)
+		if start < 0 {
+			return "T"
+		}
+		runes = runes[start:]
 	}
 	r := runes[0]
 	switch {
@@ -44,6 +54,15 @@ func FirstLetter(s string) string {
 	default:
 		return "#"
 	}
+}
+
+func firstAlphaNumIndex(runes []rune) int {
+	for i, r := range runes {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return i
+		}
+	}
+	return -1
 }
 
 // DateBucket returns a coarse date-range label for a Unix timestamp relative

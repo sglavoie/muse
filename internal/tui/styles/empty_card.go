@@ -50,6 +50,12 @@ func (s Styles) RenderEmptyCard(width, height int, title string, actions []Empty
 	card := s.EmptyCard.Render(strings.Join(inner, "\n"))
 	cardLines := strings.Split(card, "\n")
 
+	if width > 0 {
+		for i, line := range cardLines {
+			cardLines[i] = clampLineWidth(line, width)
+		}
+	}
+
 	boxW := 0
 	for _, line := range cardLines {
 		if w := lipgloss.Width(line); w > boxW {
@@ -84,4 +90,11 @@ func padRightToWidth(s string, w int) string {
 		return s
 	}
 	return s + strings.Repeat(" ", w-sw)
+}
+
+func clampLineWidth(s string, width int) string {
+	if width <= 0 || lipgloss.Width(s) <= width {
+		return s
+	}
+	return lipgloss.NewStyle().MaxWidth(width).Render(s)
 }

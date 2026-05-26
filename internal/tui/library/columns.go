@@ -27,6 +27,12 @@ type Columns struct {
 	DateAdded       int // fixed: dateAddedFixed chars; zero when column hidden
 }
 
+// IsTrackNumOnly reports whether the layout is in true degenerate mode where
+// only the marker and track-number columns are available.
+func (c Columns) IsTrackNumOnly() bool {
+	return c.Artist == 0 && c.Title == 0 && c.Album == 0 && c.Duration == 0 && c.DateAdded == 0
+}
+
 // Compute calculates column widths for the given total terminal width.
 // TrackNum and Duration receive fixed character allocations. The remaining
 // width (after subtracting fixed columns and inter-column separators) is

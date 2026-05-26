@@ -56,6 +56,18 @@ func TestComputeTrack_NarrowWidth(t *testing.T) {
 	}
 }
 
+func TestComputeTrack_DoesNotOverAllocateWidthAtBoundary(t *testing.T) {
+	cols := ComputeTrack(29)
+	total := cols.Marker + cols.Position + cols.Title + cols.Artist + cols.Album +
+		cols.Duration + cols.PlayCount + trackSepCount
+	if total != 29 {
+		t.Fatalf("columns should fit boundary width 29, got %d", total)
+	}
+	if cols.Title < 1 {
+		t.Fatalf("expected to preserve at least one title column at width 29, got %d", cols.Title)
+	}
+}
+
 func TestComputeTrack_NormalWidth(t *testing.T) {
 	cols := ComputeTrack(120)
 	if cols.Title <= 0 || cols.Artist <= 0 || cols.Album <= 0 {

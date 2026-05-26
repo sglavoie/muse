@@ -55,7 +55,7 @@ func (d *DB) ReadQueue() ([]QueueRow, error) {
 	}
 	defer rows.Close()
 
-	var result []QueueRow
+	result := make([]QueueRow, 0)
 	for rows.Next() {
 		var row QueueRow
 		var missing int

@@ -49,21 +49,25 @@ var recognizedPrefixes = []prefixSpec{
 // before the first prefix goes into General. Duplicate prefixes: last one wins.
 func ParseFilterQuery(raw string) FilterQuery {
 	type segment struct {
-		field int // -1 = General, 0=Artist, 1=Title, 2=Album, 3=Genre
-		start int
+		field       int // 0=Artist, 1=Title, 2=Album, 3=Genre
+		prefixStart int
+		start       int
 	}
 
-	lower := strings.ToLower(raw)
 	var segments []segment
 	i := 0
 
-	for i < len(lower) {
+	for i < len(raw) {
 		// Only recognize a prefix at position 0 or after whitespace.
-		if isFilterBoundary(lower, i) {
+		if isFilterBoundary(raw, i) {
 			matched := false
 			for _, ps := range recognizedPrefixes {
-				if strings.HasPrefix(lower[i:], ps.prefix) {
-					segments = append(segments, segment{field: ps.field, start: i + len(ps.prefix)})
+				if hasPrefixFold(raw, i, ps.prefix) {
+					segments = append(segments, segment{
+						field:       ps.field,
+						prefixStart: i,
+						start:       i + len(ps.prefix),
+					})
 					i += len(ps.prefix)
 					matched = true
 					break
@@ -85,18 +89,15 @@ func ParseFilterQuery(raw string) FilterQuery {
 	}
 
 	// Text before the first segment is General.
-	if segments[0].start > 0 {
-		// The start includes the prefix length; walk back to find where the
-		// prefix token began (it's at start - len(prefix)).
-		firstPrefixPos := findPrefixStart(lower, segments[0].start)
-		fq.General = strings.TrimSpace(raw[:firstPrefixPos])
+	if segments[0].prefixStart > 0 {
+		fq.General = strings.TrimSpace(raw[:segments[0].prefixStart])
 	}
 
 	// Extract each segment's value.
 	for j, seg := range segments {
 		var end int
 		if j+1 < len(segments) {
-			end = findPrefixStart(lower, segments[j+1].start)
+			end = segments[j+1].prefixStart
 		} else {
 			end = len(raw)
 		}
@@ -116,21 +117,9 @@ func ParseFilterQuery(raw string) FilterQuery {
 	return fq
 }
 
-// findPrefixStart returns the index where the prefix token starts, given that
-// contentStart is the index right after the prefix's colon.
-func findPrefixStart(lower string, contentStart int) int {
-	// Walk backwards from contentStart past the prefix (e.g. "a:" or "artist:").
-	for _, ps := range recognizedPrefixes {
-		pLen := len(ps.prefix)
-		candidate := contentStart - pLen
-		if candidate >= 0 && strings.HasPrefix(lower[candidate:], ps.prefix) {
-			// Must be at position 0 or preceded by whitespace.
-			if isFilterBoundary(lower, candidate) {
-				return candidate
-			}
-		}
-	}
-	return contentStart
+func hasPrefixFold(s string, pos int, prefix string) bool {
+	end := pos + len(prefix)
+	return end <= len(s) && strings.EqualFold(s[pos:end], prefix)
 }
 
 func isFilterBoundary(s string, pos int) bool {

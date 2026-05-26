@@ -31,9 +31,9 @@ func VisibleWindow(scrollOffset, itemCount, maxRows int) (int, int) {
 	if scrollOffset > maxStart {
 		scrollOffset = maxStart
 	}
-	end := scrollOffset + maxRows
-	if end > itemCount {
-		end = itemCount
+	end := itemCount
+	if maxRows < itemCount-scrollOffset {
+		end = scrollOffset + maxRows
 	}
 	return scrollOffset, end
 }

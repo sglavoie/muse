@@ -118,6 +118,11 @@ func TestParseFilterQuery(t *testing.T) {
 			input: "rock a:beatles g:pop",
 			want:  FilterQuery{General: "rock", Artist: "beatles", Genre: "pop"},
 		},
+		{
+			name:  "UnicodeBeforePrefix",
+			input: "İ a:beatles t:yesterday",
+			want:  FilterQuery{General: "İ", Artist: "beatles", Title: "yesterday"},
+		},
 	}
 
 	for _, tt := range tests {

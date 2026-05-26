@@ -24,6 +24,22 @@ func TestValidateMusicDir_MissingDirectory(t *testing.T) {
 	}
 }
 
+func TestValidateMusicDirs_NoDirectoriesConfigured(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "config.toml")
+
+	err := ValidateMusicDirs(nil, configPath)
+	if err == nil {
+		t.Fatal("expected error for missing music directories, got nil")
+	}
+	if !strings.Contains(err.Error(), "no music directories configured") {
+		t.Errorf("error should mention missing configured directories, got: %s", err.Error())
+	}
+	if !strings.Contains(err.Error(), configPath) {
+		t.Errorf("error should contain config path %q, got: %s", configPath, err.Error())
+	}
+}
+
 func TestValidateMusicDir_PermissionDenied(t *testing.T) {
 	if os.Getuid() == 0 {
 		t.Skip("skipping permission test as root")

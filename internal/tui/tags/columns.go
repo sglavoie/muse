@@ -21,29 +21,45 @@ type TrackColumns struct {
 
 // ComputeTrack calculates column widths for the track-level view given the
 // total terminal width. Duration and SelectionMarker receive fixed allocations;
-// the remaining space is distributed between Title, Artist, and Album (clamped
-// to minimum widths so narrow terminals remain usable).
+// the remaining space is distributed between Title, Artist, and Album.
+// When enough space exists, minimum flex widths are preserved and extra room is
+// split in ratio 3:2:2. On narrower widths, flex columns are still distributed
+// in ratio 3:2:2 without forcing minimums to avoid over-allocating past
+// totalWidth.
 func ComputeTrack(totalWidth int) TrackColumns {
 	fixed := selectionMarkerFixed + trackDurationFixed + trackSepCount
 	remaining := totalWidth - fixed
-	if remaining < minTitleWidth+minArtistWidth+minAlbumWidth {
-		return TrackColumns{
-			SelectionMarker: selectionMarkerFixed,
-			Title:           minTitleWidth,
-			Artist:          minArtistWidth,
-			Album:           minAlbumWidth,
-			Duration:        trackDurationFixed,
-		}
-	}
-	// Distribute remaining space in ratio 3:2:2 (title gets a bit more).
-	title := remaining * 3 / 7
-	artist := remaining * 2 / 7
-	album := remaining - title - artist
-	return TrackColumns{
+	cols := TrackColumns{
 		SelectionMarker: selectionMarkerFixed,
-		Title:           max(title, minTitleWidth),
-		Artist:          max(artist, minArtistWidth),
-		Album:           max(album, minAlbumWidth),
+		Title:           0,
+		Artist:          0,
+		Album:           0,
 		Duration:        trackDurationFixed,
 	}
+	if remaining <= 0 {
+		return cols
+	}
+
+	minFlex := minTitleWidth + minArtistWidth + minAlbumWidth
+	if remaining < minFlex {
+		// Not enough room for minimums: split the available flex without forcing
+		// minimums so rendered rows do not exceed totalWidth.
+		title := remaining * 3 / 7
+		artist := remaining * 2 / 7
+		album := remaining - title - artist
+		cols.Title = title
+		cols.Artist = artist
+		cols.Album = album
+		return cols
+	}
+
+	// Enough room for minimums: allocate minimums first, then split extra flex.
+	extra := remaining - minFlex
+	titleExtra := extra * 3 / 7
+	artistExtra := extra * 2 / 7
+	albumExtra := extra - titleExtra - artistExtra
+	cols.Title = minTitleWidth + titleExtra
+	cols.Artist = minArtistWidth + artistExtra
+	cols.Album = minAlbumWidth + albumExtra
+	return cols
 }

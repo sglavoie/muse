@@ -50,6 +50,25 @@ func TestDeriveArtistsNormalizesLibraryUnknownArtist(t *testing.T) {
 	}
 }
 
+func TestDeriveArtistsDeduplicatesUnknownAcrossNonAdjacentSentinels(t *testing.T) {
+	tracks := []library.Track{
+		{Artist: "", Album: "Mystery", Title: "Blank artist"},
+		{Artist: "Alice", Album: "A", Title: "A1"},
+		{Artist: libraryUnknownArtist, Album: "Fallback", Title: "Fallback artist"},
+	}
+
+	artists := DeriveArtists(tracks)
+	want := []string{UnknownArtist, "Alice"}
+	if len(artists) != len(want) {
+		t.Fatalf("DeriveArtists: expected %d artists, got %d: %v", len(want), len(artists), artists)
+	}
+	for i, w := range want {
+		if artists[i] != w {
+			t.Errorf("DeriveArtists[%d]: expected %q, got %q", i, w, artists[i])
+		}
+	}
+}
+
 func TestDeriveArtistCounts(t *testing.T) {
 	counts := DeriveArtistCounts(sampleTracks())
 	want := map[string]int{"Alice": 3, "Bob": 2, "Charlie": 1}

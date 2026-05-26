@@ -61,7 +61,8 @@ func (s *UsageStore) Load() error {
 	records := make(map[string]UsageRecord)
 	if err := json.Unmarshal(data, &records); err != nil {
 		slog.Warn("palette usage: parse failed, starting fresh", "path", s.path, "err", err)
-		return err
+		// Usage history is best-effort only; treat parse errors as recoverable.
+		return nil
 	}
 	if records == nil {
 		records = make(map[string]UsageRecord)

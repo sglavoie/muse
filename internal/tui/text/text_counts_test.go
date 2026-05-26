@@ -60,3 +60,29 @@ func TestRightPadWithCountVerticalAlignment(t *testing.T) {
 	requireDisplayWidth(t, l1+c1, width)
 	requireDisplayWidth(t, l2+c2, width)
 }
+
+func TestRowLabelWidthAndCountNonPositiveWidth(t *testing.T) {
+	tests := []struct {
+		name   string
+		width  int
+		counts map[string]int
+	}{
+		{"zero width with counts", 0, map[string]int{"Beatles": 3}},
+		{"negative width with counts", -4, map[string]int{"Beatles": 3}},
+		{"negative width without counts", -2, nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotWidth, gotCount := RowLabelWidthAndCount(tt.width, tt.counts, "Beatles")
+			if gotWidth != 0 {
+				t.Fatalf("RowLabelWidthAndCount(%d, counts, %q) width = %d, want 0",
+					tt.width, "Beatles", gotWidth)
+			}
+			if gotCount != "" {
+				t.Fatalf("RowLabelWidthAndCount(%d, counts, %q) count = %q, want empty",
+					tt.width, "Beatles", gotCount)
+			}
+		})
+	}
+}

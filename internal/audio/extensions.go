@@ -27,7 +27,7 @@ var extensions = map[string]struct{}{
 }
 
 // IsSupportedExtension reports whether ext is a supported audio file extension.
-// ext may be supplied with or without a leading dot and is matched case-insensitively.
+// ext may be supplied with or without a single leading dot and is matched case-insensitively.
 func IsSupportedExtension(ext string) bool {
 	ext = normalizeExtension(ext)
 	if ext == "" {
@@ -49,7 +49,12 @@ func SupportedExtensions() []string {
 
 func normalizeExtension(ext string) string {
 	ext = strings.ToLower(strings.TrimSpace(ext))
-	ext = strings.TrimLeft(ext, ".")
+	if strings.HasPrefix(ext, ".") {
+		ext = ext[1:]
+		if strings.HasPrefix(ext, ".") {
+			return ""
+		}
+	}
 	if ext == "" {
 		return ""
 	}

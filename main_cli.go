@@ -82,6 +82,14 @@ func validateNoCommandArgs(command string, args []string) error {
 	if len(args) == 0 {
 		return nil
 	}
+	// Accept a bare "--" end-of-options marker for parity with common CLI
+	// conventions when a command takes no arguments.
+	if args[0] == "--" {
+		args = args[1:]
+		if len(args) == 0 {
+			return nil
+		}
+	}
 	word := "argument"
 	if len(args) > 1 {
 		word = "arguments"

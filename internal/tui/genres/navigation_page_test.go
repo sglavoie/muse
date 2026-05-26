@@ -66,6 +66,24 @@ func TestPageMovementDoesNotAdvanceScrollWhenNoRowsVisible(t *testing.T) {
 	}
 }
 
+func TestPageMovementClampsNegativeScrollOffset(t *testing.T) {
+	v := View{
+		Level:        GenreLevel,
+		Genres:       []string{"A", "B", "C"},
+		Cursor:       0,
+		ScrollOffset: -5,
+		Height:       6,
+	}
+
+	v = v.FullPageUp()
+	if v.Cursor != 0 {
+		t.Errorf("expected Cursor=0 at top, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 0 {
+		t.Errorf("expected ScrollOffset clamped to 0, got %d", v.ScrollOffset)
+	}
+}
+
 // TestGoToBottomClampsScrollOffsetWhenListShrank guards a regression where
 // GoToBottom kept a stale ScrollOffset above the new last index after a
 // filter/delete shrank the list, leaving the cursor rendering above the

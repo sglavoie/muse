@@ -5,13 +5,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 )
 
 // openDir returns a tea.Cmd that opens the given directory in the OS file
-// manager. On macOS it uses "open", on Linux it uses "xdg-open". An empty
-// directory path is rejected so the OS handler does not receive a "" argument
+// manager. On macOS it uses "open", on Linux it uses "xdg-open". An empty or
+// whitespace-only directory path is rejected so the OS handler does not receive
+// a "" argument
 // (which on macOS opens the current working directory and on Linux may surface
 // a confusing error dialog).
 func openDir(ctx context.Context, dir string) tea.Cmd {
@@ -27,8 +29,8 @@ func openDir(ctx context.Context, dir string) tea.Cmd {
 
 // revealFile returns a tea.Cmd that reveals the given file in the OS file
 // manager. On macOS it uses "open -R", on Linux it opens the parent directory
-// with "xdg-open". An empty path is rejected so the OS handler does not receive
-// a "" argument.
+// with "xdg-open". An empty or whitespace-only path is rejected so the OS
+// handler does not receive a "" argument.
 func revealFile(ctx context.Context, path string) tea.Cmd {
 	return func() tea.Msg {
 		name, args, ok := revealFileCommand(runtime.GOOS, path)
@@ -41,7 +43,7 @@ func revealFile(ctx context.Context, path string) tea.Cmd {
 }
 
 func openDirCommand(goos, dir string) (string, []string, bool) {
-	if dir == "" {
+	if strings.TrimSpace(dir) == "" {
 		return "", nil, false
 	}
 	switch goos {
@@ -55,7 +57,7 @@ func openDirCommand(goos, dir string) (string, []string, bool) {
 }
 
 func revealFileCommand(goos, path string) (string, []string, bool) {
-	if path == "" {
+	if strings.TrimSpace(path) == "" {
 		return "", nil, false
 	}
 	switch goos {

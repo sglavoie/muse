@@ -198,9 +198,31 @@ func (m *Manager) setFilter(name, expr string, enabled bool) error {
 	m.mu.Lock()
 	switch {
 	case m.client != nil:
+		prevExpr, hadPrev := m.audioFilters[name]
 		m.updateFilterLocked(name, expr, enabled)
 		m.mu.Unlock()
-		return m.rebuildAudioFilters()
+		if err := m.rebuildAudioFilters(); err != nil {
+			// Revert the in-memory filter state when the IPC write fails so
+			// Manager state does not drift from mpv's active filters.
+			m.mu.Lock()
+			curExpr, hasCur := m.audioFilters[name]
+			unchanged := false
+			if enabled {
+				unchanged = hasCur && curExpr == expr
+			} else {
+				unchanged = !hasCur
+			}
+			if unchanged {
+				if hadPrev {
+					m.audioFilters[name] = prevExpr
+				} else {
+					delete(m.audioFilters, name)
+				}
+			}
+			m.mu.Unlock()
+			return err
+		}
+		return nil
 	case m.cmdQueue != nil:
 		m.updateFilterLocked(name, expr, enabled)
 		m.cmdQueue = append(m.cmdQueue, func() error { return m.rebuildAudioFilters() })

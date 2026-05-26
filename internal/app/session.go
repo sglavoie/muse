@@ -44,6 +44,10 @@ func ApplyRestoredSession(
 	hashByPath map[string]string,
 	defaultVolume int,
 ) {
+	if restored == nil {
+		restored = &RestoredSession{}
+	}
+
 	// Sync queue between player and TUI.
 	mgr.SetQueue(restored.PlayerTracks)
 	tui.WithQueueEntries(restored.QueueEntries)(model)
@@ -54,17 +58,19 @@ func ApplyRestoredSession(
 	// Evict deleted files from the library index before the TUI starts.
 	for _, path := range deletedPaths {
 		model.RemoveLibraryTrackByPath(path)
-		if hash, ok := hashByPath[path]; ok {
+		if hash, ok := hashByPath[path]; ok && shuffleWriter != nil {
 			if err := shuffleWriter.MarkTrackMissing(hash); err != nil {
 				slog.Warn("startup: mark deleted track missing", "path", path, "err", err)
 			}
 		}
 	}
 
-	if playlists, err := playlistReader.ReadPlaylists(); err == nil {
-		tui.WithPlaylists(playlists)(model)
-	} else {
-		slog.Warn("startup: read playlists", "err", err)
+	if playlistReader != nil {
+		if playlists, err := playlistReader.ReadPlaylists(); err == nil {
+			tui.WithPlaylists(playlists)(model)
+		} else {
+			slog.Warn("startup: read playlists", "err", err)
+		}
 	}
 
 	// Apply restored session state to the model so the first render reflects
@@ -72,7 +78,7 @@ func ApplyRestoredSession(
 	tui.WithRepeatMode(restored.RepeatMode)(model)
 
 	// Regenerate shuffle_position for all queue rows when shuffle is on.
-	if restored.Shuffle && len(restored.QueueEntries) > 0 {
+	if restored.Shuffle && len(restored.QueueEntries) > 0 && shuffleWriter != nil {
 		if err := shuffleWriter.WriteShuffle(true); err != nil {
 			slog.Warn("startup: regenerate shuffle positions", "err", err)
 		}

@@ -79,6 +79,65 @@ func TestApplyRestoredSession_EmptySession(t *testing.T) {
 	}
 }
 
+func TestApplyRestoredSession_NilPlaylistReaderNoPanic(t *testing.T) {
+	model := tui.New(context.Background())
+	mgr := &mockPlayer{}
+	sw := &mockShuffleWriter{}
+
+	app.ApplyRestoredSession(&model, mgr, &app.RestoredSession{}, sw, nil, nil, nil, nil, 50)
+
+	if len(mgr.queue) != 0 {
+		t.Errorf("player queue = %d, want 0", len(mgr.queue))
+	}
+}
+
+func TestApplyRestoredSession_NilShuffleWriterNoPanic(t *testing.T) {
+	model := tui.New(context.Background())
+	mgr := &mockPlayer{}
+	pr := &mockPlaylistReader{}
+	restored := &app.RestoredSession{
+		QueueEntries: []tui.QueueEntry{
+			{ID: 1, Hash: "hash-1", Path: "/music/a.mp3"},
+		},
+		PlayerTracks: []player.QueueTrack{
+			{Hash: "hash-1", Path: "/music/a.mp3"},
+		},
+		Shuffle: true,
+	}
+
+	app.ApplyRestoredSession(
+		&model,
+		mgr,
+		restored,
+		nil,
+		pr,
+		nil,
+		[]string{"/music/a.mp3"},
+		map[string]string{"/music/a.mp3": "hash-1"},
+		50,
+	)
+
+	if len(mgr.queue) != 1 {
+		t.Errorf("player queue = %d, want 1", len(mgr.queue))
+	}
+	if !mgr.shuffle {
+		t.Error("player shuffle should still be applied when ShuffleWriter is nil")
+	}
+}
+
+func TestApplyRestoredSession_NilRestoredNoPanic(t *testing.T) {
+	model := tui.New(context.Background())
+	mgr := &mockPlayer{}
+	sw := &mockShuffleWriter{}
+	pr := &mockPlaylistReader{}
+
+	app.ApplyRestoredSession(&model, mgr, nil, sw, pr, nil, nil, nil, 50)
+
+	if len(mgr.queue) != 0 {
+		t.Errorf("player queue = %d, want 0", len(mgr.queue))
+	}
+}
+
 func TestApplyRestoredSession_FullSession(t *testing.T) {
 	model := tui.New(context.Background())
 	mgr := &mockPlayer{}

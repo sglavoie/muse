@@ -50,3 +50,39 @@ func TestVisibleRows_NegativeReserveClampedToZero(t *testing.T) {
 		t.Errorf("expected negative reserve to be ignored, got %d", got)
 	}
 }
+
+func TestVisibleWindow_Normal(t *testing.T) {
+	start, end := VisibleWindow(2, 10, 4)
+	if start != 2 || end != 6 {
+		t.Errorf("expected [2,6), got [%d,%d)", start, end)
+	}
+}
+
+func TestVisibleWindow_ClampsNegativeScroll(t *testing.T) {
+	start, end := VisibleWindow(-5, 10, 4)
+	if start != 0 || end != 4 {
+		t.Errorf("expected [0,4), got [%d,%d)", start, end)
+	}
+}
+
+func TestVisibleWindow_ClampsScrollPastEnd(t *testing.T) {
+	start, end := VisibleWindow(50, 10, 4)
+	if start != 6 || end != 10 {
+		t.Errorf("expected [6,10), got [%d,%d)", start, end)
+	}
+}
+
+func TestVisibleWindow_MaxRowsLargerThanItems(t *testing.T) {
+	start, end := VisibleWindow(2, 3, 10)
+	if start != 0 || end != 3 {
+		t.Errorf("expected [0,3), got [%d,%d)", start, end)
+	}
+}
+
+func TestVisibleWindow_PreventsIntOverflowOnEnd(t *testing.T) {
+	maxInt := int(^uint(0) >> 1)
+	start, end := VisibleWindow(1, 5, maxInt)
+	if start != 0 || end != 5 {
+		t.Errorf("expected [0,5), got [%d,%d)", start, end)
+	}
+}

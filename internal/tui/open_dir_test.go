@@ -28,6 +28,17 @@ func TestOpenDirEmptyPathIsNoOp(t *testing.T) {
 	}
 }
 
+func TestOpenDirWhitespacePathIsNoOp(t *testing.T) {
+	cmd := openDir(context.Background(), "   \t  ")
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd even for whitespace path")
+	}
+	msg := cmd()
+	if msg != nil {
+		t.Errorf("expected nil msg for whitespace dir, got %#v", msg)
+	}
+}
+
 // TestRevealFileEmptyPathIsNoOp mirrors TestOpenDirEmptyPathIsNoOp for the
 // revealFile helper: an empty path must not be forwarded to the OS.
 func TestRevealFileEmptyPathIsNoOp(t *testing.T) {
@@ -41,6 +52,17 @@ func TestRevealFileEmptyPathIsNoOp(t *testing.T) {
 	}
 }
 
+func TestRevealFileWhitespacePathIsNoOp(t *testing.T) {
+	cmd := revealFile(context.Background(), " \n\t ")
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd even for whitespace path")
+	}
+	msg := cmd()
+	if msg != nil {
+		t.Errorf("expected nil msg for whitespace path, got %#v", msg)
+	}
+}
+
 func TestOpenDirCommand_SelectsCommandsByOS(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -51,6 +73,7 @@ func TestOpenDirCommand_SelectsCommandsByOS(t *testing.T) {
 		wantOK   bool
 	}{
 		{name: "empty", goos: "linux", dir: "", wantOK: false},
+		{name: "whitespace", goos: "linux", dir: " \t ", wantOK: false},
 		{name: "linux", goos: "linux", dir: "/music", wantName: "xdg-open", wantArgs: []string{"/music"}, wantOK: true},
 		{name: "darwin", goos: "darwin", dir: "/music", wantName: "open", wantArgs: []string{"/music"}, wantOK: true},
 		{name: "windows", goos: "windows", dir: `C:\Music`, wantName: "explorer", wantArgs: []string{`C:\Music`}, wantOK: true},
@@ -85,6 +108,7 @@ func TestRevealFileCommand_SelectsCommandsByOS(t *testing.T) {
 		wantOK   bool
 	}{
 		{name: "empty", goos: "linux", path: "", wantOK: false},
+		{name: "whitespace", goos: "linux", path: "\n\t ", wantOK: false},
 		{name: "linux", goos: "linux", path: "/music/song.flac", wantName: "xdg-open", wantArgs: []string{"/music"}, wantOK: true},
 		{name: "darwin", goos: "darwin", path: "/music/song.flac", wantName: "open", wantArgs: []string{"-R", "/music/song.flac"}, wantOK: true},
 		{name: "windows", goos: "windows", path: `C:\Music\song.flac`, wantName: "explorer", wantArgs: []string{"/select,", `C:\Music\song.flac`}, wantOK: true},

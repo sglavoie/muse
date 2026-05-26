@@ -206,7 +206,7 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 	maxPerArtist := maxTracksPerArtist(n, maxArtistFraction)
 
 	artistCount := make(map[string]int)
-	pickedHashes := make(map[string]struct{})
+	pickedTrackKeys := make(map[string]struct{})
 	resultCap := n
 	if resultCap > len(scored) {
 		resultCap = len(scored)
@@ -214,11 +214,11 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 	result := make([]library.Track, 0, resultCap)
 
 	for len(result) < n {
-		eligible, weights, totalWeight, anyPositive := collectEligible(pool, artistCount, pickedHashes, maxPerArtist)
+		eligible, weights, totalWeight, anyPositive := collectEligible(pool, artistCount, pickedTrackKeys, maxPerArtist)
 		for len(eligible) == 0 && nextIdx < len(scored) {
 			pool = append(pool, scored[nextIdx])
 			nextIdx++
-			eligible, weights, totalWeight, anyPositive = collectEligible(pool, artistCount, pickedHashes, maxPerArtist)
+			eligible, weights, totalWeight, anyPositive = collectEligible(pool, artistCount, pickedTrackKeys, maxPerArtist)
 		}
 		if len(eligible) == 0 {
 			break
@@ -255,8 +255,8 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 		if key := normalizedArtistKey(picked.Track.Artist); key != "" {
 			artistCount[key]++
 		}
-		if picked.Track.Hash != "" {
-			pickedHashes[picked.Track.Hash] = struct{}{}
+		if key := trackSelectionKey(picked.Track); key != "" {
+			pickedTrackKeys[key] = struct{}{}
 		}
 
 		// Remove picked from pool.
@@ -328,14 +328,14 @@ func maxTracksPerArtist(n int, maxArtistFraction float64) int {
 	return maxPerArtist
 }
 
-func collectEligible(pool []TrackScore, artistCount map[string]int, pickedHashes map[string]struct{}, maxPerArtist int) ([]int, []float64, float64, bool) {
+func collectEligible(pool []TrackScore, artistCount map[string]int, pickedTrackKeys map[string]struct{}, maxPerArtist int) ([]int, []float64, float64, bool) {
 	eligible := make([]int, 0, len(pool))
 	weights := make([]float64, 0, len(pool))
 	totalWeight := 0.0
 	anyPositive := false
 	for i, ts := range pool {
-		if ts.Track.Hash != "" {
-			if _, picked := pickedHashes[ts.Track.Hash]; picked {
+		if key := trackSelectionKey(ts.Track); key != "" {
+			if _, picked := pickedTrackKeys[key]; picked {
 				continue
 			}
 		}
@@ -367,4 +367,14 @@ func collectEligible(pool []TrackScore, artistCount map[string]int, pickedHashes
 
 func normalizedArtistKey(artist string) string {
 	return strings.ToLower(strings.TrimSpace(artist))
+}
+
+func trackSelectionKey(track library.Track) string {
+	if track.Hash != "" {
+		return "hash:" + track.Hash
+	}
+	if path := strings.TrimSpace(track.Path); path != "" {
+		return "path:" + path
+	}
+	return ""
 }

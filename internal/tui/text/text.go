@@ -307,6 +307,9 @@ func singleLine(s string) string {
 // both a usable label and the count column, it returns the full width and an
 // empty count string (caller renders the full row as label-only).
 func RowLabelWidthAndCount(width int, counts map[string]int, name string) (int, string) {
+	if width <= 0 {
+		return 0, ""
+	}
 	if counts == nil || width < MinLabelWithCount+1+CountColWidth {
 		return width, ""
 	}

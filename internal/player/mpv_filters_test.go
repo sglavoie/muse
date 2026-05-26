@@ -122,6 +122,70 @@ func TestManager_SetNormalize_NotConnectedQueues(t *testing.T) {
 	}
 }
 
+func TestManager_SetNormalize_RevertsStateWhenRebuildFails(t *testing.T) {
+	t.Run("enable", func(t *testing.T) {
+		sock := shortSockPath(t, "norm-fail-on")
+		fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
+			if len(req.Command) >= 2 && req.Command.stringIs(0, cmdSetProperty) && req.Command.stringIs(1, propAF) {
+				return errorResponse(req, "forced failure")
+			}
+			return successHandler(req)
+		})
+
+		ctx, cancel := context.WithCancel(context.Background())
+		m := &Manager{socketPath: sock, ctx: ctx, cancel: cancel, audioFilters: make(map[string]string)}
+		defer m.Close()
+
+		client, err := NewIPCClient(sock)
+		if err != nil {
+			t.Fatalf("NewIPCClient: %v", err)
+		}
+		m.mu.Lock()
+		m.client = client
+		m.audioFilters["bass"] = "bass=g=6"
+		m.mu.Unlock()
+
+		if err := m.SetNormalize(true); !errors.Is(err, ErrPlaybackFailed) {
+			t.Fatalf("SetNormalize(true): want ErrPlaybackFailed, got %v", err)
+		}
+
+		assertAudioFilters(t, m, map[string]string{"bass": "bass=g=6"})
+	})
+
+	t.Run("disable", func(t *testing.T) {
+		sock := shortSockPath(t, "norm-fail-off")
+		fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
+			if len(req.Command) >= 2 && req.Command.stringIs(0, cmdSetProperty) && req.Command.stringIs(1, propAF) {
+				return errorResponse(req, "forced failure")
+			}
+			return successHandler(req)
+		})
+
+		ctx, cancel := context.WithCancel(context.Background())
+		m := &Manager{socketPath: sock, ctx: ctx, cancel: cancel, audioFilters: make(map[string]string)}
+		defer m.Close()
+
+		client, err := NewIPCClient(sock)
+		if err != nil {
+			t.Fatalf("NewIPCClient: %v", err)
+		}
+		m.mu.Lock()
+		m.client = client
+		m.audioFilters["bass"] = "bass=g=6"
+		m.audioFilters["loudnorm"] = "loudnorm"
+		m.mu.Unlock()
+
+		if err := m.SetNormalize(false); !errors.Is(err, ErrPlaybackFailed) {
+			t.Fatalf("SetNormalize(false): want ErrPlaybackFailed, got %v", err)
+		}
+
+		assertAudioFilters(t, m, map[string]string{
+			"bass":     "bass=g=6",
+			"loudnorm": "loudnorm",
+		})
+	})
+}
+
 func TestManager_SetNormalize_BeforeStartLeavesFiltersUnchanged(t *testing.T) {
 	t.Run("enable", func(t *testing.T) {
 		m := NewManager(shortSockPath(t, "norm-pre-on"))

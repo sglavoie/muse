@@ -147,12 +147,13 @@ func (s *State) deleteWordForwardAtFinalRune(msg tea.KeyPressMsg) bool {
 	return true
 }
 
-// View returns the textinput's rendered string for active filter display.
-// Only call this when Active is true; the textinput must have been focused
-// via Activate() for the cursor to render correctly.
+// View returns the rendered filter text.
+// While active, it renders the underlying textinput (with cursor).
+// While inactive, it returns Text directly so external Text updates are reflected.
 func (s State) View() string {
-	if s.Active {
-		s = s.seed()
+	if !s.Active {
+		return s.Text
 	}
+	s = s.seed()
 	return s.input.View()
 }

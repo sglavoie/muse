@@ -118,6 +118,26 @@ func TestView(t *testing.T) {
 	_ = s.View()
 }
 
+func TestViewInactiveReturnsText(t *testing.T) {
+	s := New()
+	s.Text = "abc"
+
+	if got := s.View(); got != "abc" {
+		t.Fatalf("inactive View(): want %q, got %q", "abc", got)
+	}
+}
+
+func TestViewInactiveReflectsExternalTextChanges(t *testing.T) {
+	s, _ := New().Activate()
+	s, _ = s.Update(tea.KeyPressMsg{Text: "a"})
+	s = s.Commit()
+
+	s.Text = "xyz"
+	if got := s.View(); got != "xyz" {
+		t.Fatalf("inactive View() after external Text change: want %q, got %q", "xyz", got)
+	}
+}
+
 // TestRawActiveStateUpdate verifies that a State constructed directly with
 // Active=true and Text set (without calling Activate) correctly processes key
 // input: the existing text must be preserved and editing must work.

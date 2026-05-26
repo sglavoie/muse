@@ -86,6 +86,22 @@ func TestRender_FilterActiveEmptyShowsHint(t *testing.T) {
 	}
 }
 
+func TestRender_FilterActiveEmptyWithoutHintUsesInputView(t *testing.T) {
+	s := newTestStyles()
+	inputView := lipgloss.NewStyle().Reverse(true).Render(" ")
+	filter := FilterChunk{Active: true, InputView: inputView}
+
+	got := Render(80, []string{"Library"}, SortChunk{}, filter, CountsChunk{Total: 7}, nil, "", s)
+	if !strings.Contains(got, inputView) {
+		t.Errorf("active empty filter should render input view when hint is absent, got %q", got)
+	}
+
+	plain := requireRenderWidth(t, got, 80)
+	if !strings.Contains(plain, `filter " `) {
+		t.Errorf("expected filter chunk to include empty-input cursor cell, got %q", plain)
+	}
+}
+
 func TestRender_ZeroWidth(t *testing.T) {
 	s := newTestStyles()
 	if got := Render(0, []string{"Library"}, SortChunk{}, FilterChunk{}, CountsChunk{Total: 3}, nil, "", s); got != "" {

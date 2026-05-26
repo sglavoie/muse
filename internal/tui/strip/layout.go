@@ -98,7 +98,10 @@ func newStripLayout(
 func buildFilterValue(filter FilterChunk) string {
 	switch {
 	case filter.Active && filter.Text == "":
-		return filter.Hint
+		if filter.Hint != "" {
+			return filter.Hint
+		}
+		return filter.InputView
 	case filter.Active && filter.Text != "":
 		if filter.InputView != "" {
 			return filter.InputView

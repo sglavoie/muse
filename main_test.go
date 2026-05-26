@@ -31,6 +31,22 @@ func TestValidateNoCommandArgs_RejectsMultipleTrailingArgs(t *testing.T) {
 	}
 }
 
+func TestValidateNoCommandArgs_AllowsBareDoubleDash(t *testing.T) {
+	if err := validateNoCommandArgs("check", []string{"--"}); err != nil {
+		t.Fatalf("validateNoCommandArgs should allow bare double dash: %v", err)
+	}
+}
+
+func TestValidateNoCommandArgs_RejectsArgsAfterDoubleDash(t *testing.T) {
+	err := validateNoCommandArgs("next", []string{"--", "extra"})
+	if err == nil {
+		t.Fatal("expected error for trailing arg after double dash")
+	}
+	if got := err.Error(); !strings.Contains(got, "next does not accept argument: extra") {
+		t.Fatalf("error = %q", got)
+	}
+}
+
 func TestDetectGlobalFlag(t *testing.T) {
 	tests := []struct {
 		name string

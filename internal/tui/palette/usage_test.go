@@ -103,14 +103,39 @@ func TestUsageStoreLoadCorruptIsRecoverable(t *testing.T) {
 	}
 	store := NewUsageStore(dir)
 	store.Bump("stale")
-	// Load returns the parse error, but Bump should still work afterwards.
-	_ = store.Load()
+	if err := store.Load(); err != nil {
+		t.Fatalf("Load on corrupt file should recover without error; got %v", err)
+	}
 	if got := store.Get("stale").Count; got != 0 {
 		t.Fatalf("corrupt load should clear stale records, got %d", got)
 	}
 	store.Bump("alpha")
 	if got := store.Get("alpha").Count; got != 1 {
 		t.Errorf("alpha count after recovery: want 1, got %d", got)
+	}
+}
+
+func TestUsageStoreLoadCorruptThenSaveRewritesValidJSON(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, usageFileName)
+	if err := os.WriteFile(path, []byte("{not json"), 0o644); err != nil {
+		t.Fatalf("setup write: %v", err)
+	}
+
+	store := NewUsageStore(dir)
+	if err := store.Load(); err != nil {
+		t.Fatalf("Load on corrupt file should recover without error; got %v", err)
+	}
+	if err := store.Save(); err != nil {
+		t.Fatalf("Save after recovering from corrupt file: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read usage file: %v", err)
+	}
+	if string(data) != "{}" {
+		t.Fatalf("expected Save to rewrite recovered corrupt file as empty object, got %q", string(data))
 	}
 }
 

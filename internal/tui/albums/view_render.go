@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/strip"
@@ -80,6 +81,7 @@ func (v View) renderTracks() string {
 			text.Pad("Title", cols.Title)+" "+
 			text.Pad("Artist", cols.Artist)+" "+
 			text.PadLeft("Time", cols.Duration))
+	header = ansi.Truncate(header, width, "")
 
 	maxRows := v.visibleRows()
 	start, end := layout.VisibleWindow(v.ScrollOffset, len(items), maxRows)
@@ -172,6 +174,7 @@ func (v View) renderTracks() string {
 				lines[i] = markerStr + v.Styles.TextTertiary.Render(pos) + " " + titleStr + " " + artistStr + " " + v.Styles.TextTertiary.Render(dur)
 			}
 		}
+		lines[i] = ansi.Truncate(lines[i], width, "")
 	}
 	rest := header + "\n" + strings.Join(lines, "\n")
 	return strip.JoinStrip(stripLine, rest)

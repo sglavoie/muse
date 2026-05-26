@@ -48,12 +48,15 @@ func DeriveArtists(tracks []library.Track) []string {
 	if len(tracks) == 0 {
 		return nil
 	}
-	artists := []string{DisplayArtistName(tracks[0].Artist)}
-	for i := 1; i < len(tracks); i++ {
-		name := DisplayArtistName(tracks[i].Artist)
-		if name != artists[len(artists)-1] {
-			artists = append(artists, name)
+	var artists []string
+	seen := make(map[string]struct{})
+	for _, track := range tracks {
+		name := DisplayArtistName(track.Artist)
+		if _, ok := seen[name]; ok {
+			continue
 		}
+		seen[name] = struct{}{}
+		artists = append(artists, name)
 	}
 	return artists
 }

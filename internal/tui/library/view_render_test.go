@@ -29,6 +29,15 @@ func TestRenderDegenerateColumnsDoNotOverflow(t *testing.T) {
 	}
 }
 
+func TestRenderNearDegenerateThresholdDoNotUnderflow(t *testing.T) {
+	for _, width := range []int{26, 27} {
+		v := newRenderView(sampleTracks)
+		v.Width = width
+		v.Height = 4
+		assertRenderedLineWidths(t, v.Render(), width)
+	}
+}
+
 // TestRenderEmptyIndex verifies the empty-library card surfaces its CTAs.
 func TestRenderEmptyIndex(t *testing.T) {
 	got := newRenderView(nil).Render()

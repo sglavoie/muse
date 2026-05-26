@@ -12,6 +12,9 @@ func TestReadQueue_Empty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadQueue: %v", err)
 	}
+	if rows == nil {
+		t.Fatalf("ReadQueue returned nil slice, want non-nil empty slice")
+	}
 	if len(rows) != 0 {
 		t.Errorf("got %d rows, want 0", len(rows))
 	}
