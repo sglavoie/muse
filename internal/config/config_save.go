@@ -34,6 +34,9 @@ func Save(path string, cfg Config) error {
 
 func writeAtomically(path string, perm os.FileMode, write func(*os.File) error) error {
 	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
 	tmp, err := os.CreateTemp(dir, filepath.Base(path)+".tmp-*")
 	if err != nil {
 		return err

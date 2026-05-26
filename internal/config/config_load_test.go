@@ -1,7 +1,6 @@
 package config
 
 import (
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -80,33 +79,47 @@ default_volume = 75
 	}
 }
 
-func TestLoad_InvalidTOML_UsesDefaults(t *testing.T) {
+func TestLoad_InvalidTOML_ReturnsError(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte("not valid toml ==="), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	logger, _ := captureLog()
-	slog.SetDefault(logger)
+	if _, err := Load(dir); err == nil {
+		t.Fatal("Load() error = nil, want parse error")
+	} else if !strings.Contains(err.Error(), "decode config") {
+		t.Fatalf("Load() error = %v, want decode config context", err)
+	}
+}
 
-	result, err := Load(dir)
-	if err != nil {
-		t.Fatalf("Load() error = %v", err)
+func TestLoad_UnknownKey_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+music_directory = "/home/user/Songs"
+typo_key = true
+`
+	if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
 	}
 
-	home, err2 := os.UserHomeDir()
-	if err2 != nil {
-		t.Fatalf("UserHomeDir() error = %v", err2)
+	if _, err := Load(dir); err == nil {
+		t.Fatal("Load() error = nil, want unknown key error")
+	} else if !strings.Contains(err.Error(), "typo_key") {
+		t.Fatalf("Load() error = %v, want unknown key name", err)
 	}
-	wantDir := filepath.Join(home, "Music")
-	if result.Config.MusicDirectory != wantDir {
-		t.Errorf("MusicDirectory = %q, want %q", result.Config.MusicDirectory, wantDir)
+}
+
+func TestLoad_DecodeIOError_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, configFileName)
+	if err := os.Mkdir(path, 0o700); err != nil {
+		t.Fatal(err)
 	}
-	if result.Config.DefaultVolume != defaultVolume {
-		t.Errorf("DefaultVolume = %d, want default", result.Config.DefaultVolume)
-	}
-	if len(result.Warnings) == 0 {
-		t.Error("expected at least one warning for invalid TOML")
+
+	if _, err := Load(dir); err == nil {
+		t.Fatal("Load() error = nil, want read/decode error")
+	} else if !strings.Contains(err.Error(), "decode config") {
+		t.Fatalf("Load() error = %v, want decode config context", err)
 	}
 }
 

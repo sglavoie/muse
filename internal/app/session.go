@@ -114,19 +114,22 @@ func ApplyRestoredSession(
 			}
 		}
 		if foundIdx >= 0 {
+			if foundIdx >= len(restored.QueueEntries) || restored.QueueEntries[foundIdx].Missing {
+				slog.Warn("startup: restored current track is unavailable; ignoring",
+					"hash", restored.CurrentHash)
+				return
+			}
 			tui.WithCurrentTrackHash(restored.CurrentHash)(model)
 			mgr.SetCurrentIndex(foundIdx)
 			tui.WithCurrentIndex(foundIdx)(model)
 			// Populate status bar from the queue entry so the first render
 			// shows track metadata instead of an empty bar.
-			if foundIdx < len(restored.QueueEntries) {
-				e := restored.QueueEntries[foundIdx]
-				source := e.SourcePlaylist
-				if source == "" {
-					source = "Queue"
-				}
-				tui.WithStatusBarTrack(e.Artist, e.Title, source)(model)
+			e := restored.QueueEntries[foundIdx]
+			source := e.SourcePlaylist
+			if source == "" {
+				source = "Queue"
 			}
+			tui.WithStatusBarTrack(e.Artist, e.Title, source)(model)
 		} else {
 			slog.Warn("startup: restored current_hash does not match any queue entry; ignoring",
 				"hash", restored.CurrentHash)

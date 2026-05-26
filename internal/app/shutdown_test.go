@@ -156,10 +156,8 @@ func TestShutdownLockfileReleasedKeepsPath(t *testing.T) {
 func TestShutdownSocketRemoved(t *testing.T) {
 	installLogger(t)
 
-	socketPath := filepath.Join(t.TempDir(), "mpv.sock")
-	if err := os.WriteFile(socketPath, nil, 0o600); err != nil {
-		t.Fatalf("create socket: %v", err)
-	}
+	socketPath := filepath.Join(shortTestDir(t), "mpv.sock")
+	createSocketFile(t, socketPath)
 
 	app.Shutdown(app.ShutdownDeps{SocketPath: socketPath}, app.ShutdownTimeout)
 
@@ -177,6 +175,26 @@ func TestShutdownSocketAlreadyGone(t *testing.T) {
 
 	// Must not panic or log an error.
 	app.Shutdown(app.ShutdownDeps{SocketPath: socketPath}, app.ShutdownTimeout)
+}
+
+func TestShutdown_LeavesRegularFileAtSocketPathUntouched(t *testing.T) {
+	installLogger(t)
+
+	socketPath := filepath.Join(t.TempDir(), "mpv.sock")
+	want := []byte("keep me")
+	if err := os.WriteFile(socketPath, want, 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	app.Shutdown(app.ShutdownDeps{SocketPath: socketPath}, app.ShutdownTimeout)
+
+	got, err := os.ReadFile(socketPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("socket path regular file contents = %q, want %q", got, want)
+	}
 }
 
 // TestShutdownNilFieldsNoPanic confirms that all nil/empty fields are safe
@@ -265,16 +283,14 @@ func TestShutdownDBWriterDrainsOnShutdown(t *testing.T) {
 func TestShutdownLockfileAndSocketCleanup(t *testing.T) {
 	installLogger(t)
 
-	dir := t.TempDir()
+	dir := shortTestDir(t)
 	lf := config.NewLockfile(dir)
 	if err := lf.Acquire(); err != nil {
 		t.Fatalf("Acquire: %v", err)
 	}
 
 	socketPath := filepath.Join(dir, "mpv.sock")
-	if err := os.WriteFile(socketPath, nil, 0o600); err != nil {
-		t.Fatalf("create socket: %v", err)
-	}
+	createSocketFile(t, socketPath)
 
 	app.Shutdown(app.ShutdownDeps{
 		Lockfile:   lf,

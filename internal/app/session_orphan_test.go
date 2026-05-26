@@ -87,3 +87,41 @@ func TestApplyRestoredSession_CurrentHashMatchedStillWorks(t *testing.T) {
 		t.Errorf("status bar title = %q, want %q", got, "Song B")
 	}
 }
+
+func TestApplyRestoredSession_MissingCurrentTrackIgnored(t *testing.T) {
+	installLogger(t)
+
+	model := tui.New(context.Background())
+	mgr := &mockPlayer{}
+	sw := &mockShuffleWriter{}
+	pr := &mockPlaylistReader{}
+
+	qe := []tui.QueueEntry{
+		{ID: 1, Hash: "aaa", Path: "/music/a.mp3", Artist: "A", Title: "Song A"},
+		{ID: 2, Hash: "bbb", Path: "/music/b.mp3", Artist: "B", Title: "Song B", Missing: true},
+	}
+	pt := []player.QueueTrack{
+		{Hash: "aaa", Path: "/music/a.mp3"},
+		{Hash: "bbb", Path: "/music/b.mp3"},
+	}
+	restored := &app.RestoredSession{
+		QueueEntries: qe,
+		PlayerTracks: pt,
+		CurrentHash:  "bbb",
+	}
+
+	app.ApplyRestoredSession(&model, mgr, restored, sw, pr, nil, nil, nil, 50)
+
+	if mgr.indexSet {
+		t.Error("SetCurrentIndex should NOT be called for a missing current track")
+	}
+	if got := model.PlaybackCurrentIndex(); got >= 0 {
+		t.Errorf("model PlaybackCurrentIndex = %d, want < 0 (no current track)", got)
+	}
+	if got := model.StatusBarArtist(); got != "" {
+		t.Errorf("status bar artist = %q, want empty (missing current track)", got)
+	}
+	if got := model.StatusBarTitle(); got != "" {
+		t.Errorf("status bar title = %q, want empty (missing current track)", got)
+	}
+}

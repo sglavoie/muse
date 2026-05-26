@@ -88,13 +88,22 @@ func TestSave_OverwritesExistingFile(t *testing.T) {
 	}
 }
 
-func TestSave_ReturnsErrorOnBadPath(t *testing.T) {
-	// Saving to a path inside a non-existent directory must return an error
-	// rather than silently succeeding.
-	badPath := filepath.Join(t.TempDir(), "no-such-dir", "config.toml")
-	err := Save(badPath, defaults())
-	if err == nil {
-		t.Error("Save to non-existent directory should return an error")
+func TestSave_CreatesMissingParentDirectories(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "no-such-dir", "nested", "config.toml")
+	cfg := defaults()
+	cfg.DefaultVolume = 64
+
+	if err := Save(path, cfg); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("saved config missing at nested path: %v", err)
+	}
+	if got, err := Load(filepath.Dir(path)); err != nil {
+		t.Fatalf("Load() error = %v", err)
+	} else if got.Config.DefaultVolume != 64 {
+		t.Errorf("DefaultVolume = %d, want 64", got.Config.DefaultVolume)
 	}
 }
 

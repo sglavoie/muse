@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 )
@@ -94,77 +95,50 @@ func TestManager_PlayQueueEntry_MissingFileNilMarker(t *testing.T) {
 	}
 }
 
-// TestManager_PlayQueueEntry_InaccessibleFile verifies that PlayQueueEntry
-// returns ErrMissingFile when os.Stat fails with a non-"not exist" error
-// (e.g. permission denied), rather than falling through to load the file.
-func TestManager_PlayQueueEntry_InaccessibleFile(t *testing.T) {
-	if os.Getuid() == 0 {
-		t.Skip("test requires non-root to trigger permission errors")
-	}
+// TestManager_PlayQueueEntry_NonNotExistStatError verifies that only a true
+// missing-file stat result is converted into ErrMissingFile. Other filesystem
+// errors must be surfaced directly so the caller can distinguish corruption or
+// permission problems from a deleted track.
+func TestManager_PlayQueueEntry_NonNotExistStatError(t *testing.T) {
+	m := NewManager(shortSockPath(t, "pqe-stat-err"))
+	defer m.Close()
 
-	sock := shortSockPath(t, "pqe-noperm")
-
-	// Create a file inside a directory, then revoke the directory's execute
-	// permission so os.Stat on the file returns a permission error.
-	dir := t.TempDir()
-	filePath := dir + "/track.flac"
-	if err := os.WriteFile(filePath, []byte("data"), 0o600); err != nil {
+	blocker := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(blocker, []byte("x"), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
-	if err := os.Chmod(dir, 0o000); err != nil {
-		t.Fatalf("Chmod: %v", err)
+	badPath := filepath.Join(blocker, "track.flac")
+	if _, err := os.Stat(badPath); err == nil {
+		t.Fatal("expected os.Stat to fail for a non-directory path component")
+	} else if errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected non-not-exist error, got %v", err)
 	}
-	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) }) //nolint:gosec // restoring dir permissions requires 0o700
-
-	// Verify that the file is genuinely inaccessible (permission error, not
-	// "not exist") before testing the player code path.
-	if _, err := os.Stat(filePath); err == nil {
-		t.Fatal("expected os.Stat to fail on inaccessible file")
-	} else if os.IsNotExist(err) {
-		t.Fatalf("expected permission error, got not-exist: %v", err)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	m := &Manager{
-		socketPath:     sock,
-		ctx:            ctx,
-		cancel:         cancel,
-		cmdQueue:       []func() error{},
-		callbacksReady: make(chan struct{}),
-	}
-	defer m.Close()
 
 	var statusMsg string
 	m.SetEventCallbacks(EventCallbacks{OnStatus: func(msg string) { statusMsg = msg }})
 
-	fakeServer(t, sock)
-	client, err := NewIPCClient(sock)
-	if err != nil {
-		t.Fatalf("NewIPCClient: %v", err)
-	}
-	m.mu.Lock()
-	m.client = client
-	m.mu.Unlock()
-
 	marker := &mockMarker{}
 	entry := QueueTrack{
-		Path:    filePath,
-		Hash:    "perm-denied",
+		Path:    badPath,
+		Hash:    "stat-error",
 		QueueID: 99,
 	}
 
 	gotErr := m.PlayQueueEntry(entry, marker)
-	if !errors.Is(gotErr, ErrMissingFile) {
-		t.Fatalf("PlayQueueEntry: want ErrMissingFile for inaccessible file, got %v", gotErr)
+	if gotErr == nil {
+		t.Fatal("PlayQueueEntry error = nil, want stat error")
 	}
-	if marker.trackHash != "perm-denied" {
-		t.Errorf("MarkTrackMissing called with %q, want %q", marker.trackHash, "perm-denied")
+	if errors.Is(gotErr, ErrMissingFile) {
+		t.Fatalf("PlayQueueEntry error = %v, want raw stat error", gotErr)
 	}
-	if marker.queueID != 99 {
-		t.Errorf("MarkQueueEntryMissing called with %d, want 99", marker.queueID)
+	if marker.trackHash != "" {
+		t.Errorf("MarkTrackMissing called with %q, want no call", marker.trackHash)
 	}
-	if statusMsg == "" {
-		t.Error("expected a status message for the inaccessible file, got none")
+	if marker.queueID != 0 {
+		t.Errorf("MarkQueueEntryMissing called with %d, want no call", marker.queueID)
+	}
+	if statusMsg != "" {
+		t.Errorf("unexpected status message for non-missing stat error: %q", statusMsg)
 	}
 }
 

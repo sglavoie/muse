@@ -1,7 +1,6 @@
 package app
 
 import (
-	"errors"
 	"log/slog"
 	"net"
 	"os"
@@ -145,7 +144,7 @@ func shutdownSequence(deps ShutdownDeps) {
 	// Step 5: Delete mpv socket file.
 	slog.Info("shutdown: removing mpv socket")
 	if deps.SocketPath != "" {
-		if err := os.Remove(deps.SocketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := removeSocketFile(deps.SocketPath); err != nil {
 			slog.Warn("shutdown: remove mpv socket", "err", err)
 		}
 	}

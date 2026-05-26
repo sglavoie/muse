@@ -92,10 +92,27 @@ func restoreStartupPlayer(restored *RestoredSession, restorePlayer func(path str
 		"hash", restored.CurrentHash, "queue_size", len(restored.PlayerTracks))
 }
 
-// removeStaleSocket removes the mpv socket file if it exists. A missing file
-// is not an error.
-func removeStaleSocket(path string) error {
+func removeSocketFile(path string) error {
+	info, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSocket == 0 {
+		return nil
+	}
 	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
+}
+
+// removeStaleSocket removes the mpv socket file if it exists. A missing file
+// is not an error, and non-socket files are left untouched.
+func removeStaleSocket(path string) error {
+	if err := removeSocketFile(path); err != nil {
 		return fmt.Errorf("remove stale mpv socket %q: %w", path, err)
 	}
 	return nil

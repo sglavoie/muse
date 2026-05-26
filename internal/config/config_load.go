@@ -3,15 +3,15 @@ package config
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
 
 // Load reads the TOML config file at configDir/config.toml.
 // If the file does not exist it is created with default values.
-// Invalid field values are replaced with their defaults and a warning is logged.
+// Invalid field values are replaced with their defaults and surfaced as warnings.
 func Load(configDir string) (LoadResult, error) {
 	path := ConfigPath(configDir)
 
@@ -32,13 +32,22 @@ func Load(configDir string) (LoadResult, error) {
 	}
 
 	var raw rawConfig
-	if _, err := toml.DecodeFile(path, &raw); err != nil {
-		slog.Warn("failed to parse config file, using defaults", "path", path, "error", err)
-		fmt.Fprintf(os.Stderr, "muse: warning: failed to parse %s: %v (using defaults)\n", path, err)
-		warnings := []string{fmt.Sprintf("failed to parse config: %v (using defaults)", err)}
-		return LoadResult{Config: cfg, Warnings: warnings}, nil
+	md, err := toml.DecodeFile(path, &raw)
+	if err != nil {
+		return LoadResult{Config: cfg}, fmt.Errorf("decode config %q: %w", path, err)
+	}
+	if undecoded := md.Undecoded(); len(undecoded) > 0 {
+		return LoadResult{Config: cfg}, fmt.Errorf("unknown config keys in %q: %s", path, joinTOMLKeys(undecoded))
 	}
 
 	cfg, warnings := validate(raw)
 	return LoadResult{Config: cfg, Warnings: warnings}, nil
+}
+
+func joinTOMLKeys(keys []toml.Key) string {
+	parts := make([]string, len(keys))
+	for i, key := range keys {
+		parts[i] = key.String()
+	}
+	return strings.Join(parts, ", ")
 }

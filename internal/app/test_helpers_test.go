@@ -3,6 +3,8 @@ package app_test
 import (
 	"context"
 	"log/slog"
+	"net"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -168,6 +170,33 @@ func newTestWriter(t *testing.T, database *db.DB) *db.Writer {
 		w.Wait()
 	})
 	return w
+}
+
+func createSocketFile(t *testing.T, path string) net.Listener {
+	t.Helper()
+	ln, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatalf("Listen(unix, %q): %v", path, err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		_ = ln.Close()
+		t.Fatalf("socket path %q missing after listen: %v", path, err)
+	}
+	t.Cleanup(func() {
+		_ = ln.Close()
+		_ = os.Remove(path)
+	})
+	return ln
+}
+
+func shortTestDir(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp(".", ".apptest-")
+	if err != nil {
+		t.Fatalf("MkdirTemp: %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
 }
 
 func contains(ss []string, s string) bool {

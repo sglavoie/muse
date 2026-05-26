@@ -19,13 +19,12 @@ import (
 // and that expected slog messages are emitted for each lifecycle event.
 func TestRunOrder(t *testing.T) {
 	dirs := setupDirs(t)
+	dirs.Runtime = shortTestDir(t)
 	log := installLogger(t)
 
 	// Place a stale socket file to confirm it gets removed.
 	staleSocket := filepath.Join(dirs.Runtime, "mpv.sock")
-	if err := os.WriteFile(staleSocket, nil, 0o600); err != nil {
-		t.Fatalf("create stale socket: %v", err)
-	}
+	createSocketFile(t, staleSocket)
 
 	var mu sync.Mutex
 	var parallelSteps []string
@@ -197,12 +196,11 @@ func TestRunMigrationFailureStopsPrereqs(t *testing.T) {
 // removed after the lockfile is held but before the DB is opened.
 func TestRunStaleSocketRemovedBeforeMigration(t *testing.T) {
 	dirs := setupDirs(t)
+	dirs.Runtime = shortTestDir(t)
 	installLogger(t)
 
 	staleSocket := filepath.Join(dirs.Runtime, "mpv.sock")
-	if err := os.WriteFile(staleSocket, nil, 0o600); err != nil {
-		t.Fatalf("create stale socket: %v", err)
-	}
+	createSocketFile(t, staleSocket)
 
 	socketRemovedBeforeScan := false
 	deps := app.Deps{
@@ -221,6 +219,36 @@ func TestRunStaleSocketRemovedBeforeMigration(t *testing.T) {
 
 	if !socketRemovedBeforeScan {
 		t.Error("stale socket was not removed before scan launched")
+	}
+}
+
+func TestRun_LeavesRegularFileAtSocketPathUntouched(t *testing.T) {
+	dirs := setupDirs(t)
+	installLogger(t)
+
+	socketPath := filepath.Join(dirs.Runtime, "mpv.sock")
+	want := []byte("keep me")
+	if err := os.WriteFile(socketPath, want, 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	result, err := app.Run(context.Background(), dirs, app.Deps{
+		Config:       config.Config{MPVSocketPath: socketPath},
+		CheckPrereqs: func(context.Context) error { return nil },
+		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
+		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
+	})
+	if err != nil {
+		t.Fatalf("Run returned unexpected error: %v", err)
+	}
+	closeRunResult(t, result)
+
+	got, err := os.ReadFile(socketPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("socket path regular file contents = %q, want %q", got, want)
 	}
 }
 
