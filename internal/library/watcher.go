@@ -236,12 +236,21 @@ func rescan(ctx context.Context, pending map[string]bool, excludedPaths []string
 			continue
 		}
 
-		hf := HashedFile{Path: path, Hash: hash}
-		if info, statErr := os.Stat(path); statErr == nil {
-			hf.ModTime = info.ModTime().Unix()
-			hf.SizeBytes = info.Size()
+		// If Stat fails (file removed between hashing and statting), skip
+		// emitting rather than passing zero ModTime/SizeBytes downstream.
+		// Zero values would cause DiffScan to flag the path as changed on
+		// every subsequent rescan. Mirrors hashWorkersN behaviour.
+		info, statErr := os.Stat(path)
+		if statErr != nil {
+			slog.Warn("watcher rescan: stat after hash failed, skipping", "path", path, "err", statErr)
+			continue
 		}
-		hashed = append(hashed, hf)
+		hashed = append(hashed, HashedFile{
+			Path:      path,
+			Hash:      hash,
+			ModTime:   info.ModTime().Unix(),
+			SizeBytes: info.Size(),
+		})
 	}
 
 	if len(hashed) == 0 {

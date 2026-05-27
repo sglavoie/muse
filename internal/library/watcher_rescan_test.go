@@ -67,3 +67,46 @@ func TestRescan_PopulatesModTimeAndSizeBytes(t *testing.T) {
 		t.Errorf("SizeBytes: got %d, want %d", tr.SizeBytes, info.Size())
 	}
 }
+
+// TestRescan_NoZeroStatLeak verifies that rescan never appends a HashedFile
+// with zero ModTime/SizeBytes to the Extract batch. Files whose os.Stat fails
+// after a successful hash must be skipped entirely, mirroring the protection
+// already present in hashWorkersN. Without this fix, a track emitted with
+// zero stat fields would cause DiffScan to flag the path as changed on every
+// subsequent rescan.
+func TestRescan_NoZeroStatLeak(t *testing.T) {
+	root := t.TempDir()
+	healthy := filepath.Join(root, "ok.mp3")
+	if err := os.WriteFile(healthy, []byte("ID3fake"), 0o644); err != nil {
+		t.Fatalf("write healthy: %v", err)
+	}
+	// A non-existent path: HashFile fails fast, the file is dropped from
+	// rescan output before any zero-stat HashedFile is ever constructed.
+	missing := filepath.Join(root, "vanished.mp3")
+
+	ext := &statPreservingExtractor{}
+	ctx := context.Background()
+	out := make(chan WatchEvent, 16)
+	pending := map[string]bool{healthy: false, missing: false}
+	rescan(ctx, pending, nil, ext, out)
+	close(out)
+
+	emittedHealthy := false
+	for e := range out {
+		if e.Deleted {
+			continue
+		}
+		if e.Track.Path == missing {
+			t.Errorf("vanished file %q must not be emitted", missing)
+		}
+		if e.Track.ModTime == 0 || e.Track.SizeBytes == 0 {
+			t.Errorf("emitted track %q has zero ModTime/SizeBytes (stat-fail path leaked through)", e.Track.Path)
+		}
+		if e.Track.Path == healthy {
+			emittedHealthy = true
+		}
+	}
+	if !emittedHealthy {
+		t.Errorf("healthy file %q was not emitted alongside the vanished one", healthy)
+	}
+}
