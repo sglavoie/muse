@@ -32,20 +32,31 @@ type longOpState struct {
 
 // update records the latest progress and pushes a sample onto the rate-window
 // ring buffer, evicting samples older than longOpRateWindow.
+//
+// The new sample slice is always allocated independently of the receiver's
+// backing array. This prevents aliasing bugs when an earlier snapshot of
+// longOpState is still alive elsewhere (e.g. a prior Model value retained by
+// a deferred tea.Cmd): mutating the shared backing array via append/copy
+// would otherwise corrupt the snapshot's view of its samples.
 func (s longOpState) update(done, total int, now time.Time) longOpState {
 	s.Done = done
 	s.Total = total
-	s.samples = append(s.samples, longOpSample{at: now, done: done})
 	cutoff := now.Add(-longOpRateWindow)
+	// Find the first prior sample within the window. Anything before is evicted.
 	i := 0
 	for ; i < len(s.samples); i++ {
 		if !s.samples[i].at.Before(cutoff) {
 			break
 		}
 	}
-	if i > 0 {
-		s.samples = append(s.samples[:0], s.samples[i:]...)
-	}
+	kept := s.samples[i:]
+	// Allocate a fresh slice sized exactly for the retained samples + the new
+	// one. Copying into a brand-new backing array guarantees the receiver's
+	// (and any prior snapshot's) samples are not mutated.
+	fresh := make([]longOpSample, len(kept), len(kept)+1)
+	copy(fresh, kept)
+	fresh = append(fresh, longOpSample{at: now, done: done})
+	s.samples = fresh
 	return s
 }
 
