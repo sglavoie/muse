@@ -190,3 +190,24 @@ func (m Model) stopPlaybackIfCurrentMissing() Model {
 	}
 	return m
 }
+
+// relocateCurrentIndexByHash re-points playback.currentIndex at the first
+// entry whose Hash matches playback.currentHash, when the index was lost
+// (set to -1) by a removal but the underlying track is still present in the
+// queue under a different row. This happens during cut+paste of the playing
+// track (the original row gets soft-deleted while the pasted clone — same
+// hash, new ID — remains) and during selection-dequeue when duplicates of
+// the playing hash exist elsewhere in the queue. Without this re-anchoring,
+// the TUI would render no "now playing" marker even though the player is
+// still streaming the file.
+func (m *Model) relocateCurrentIndexByHash() {
+	if m.playback.currentIndex >= 0 || m.playback.currentHash == "" {
+		return
+	}
+	for i, entry := range m.queue.entries {
+		if entry.Hash == m.playback.currentHash {
+			m.playback.currentIndex = i
+			return
+		}
+	}
+}

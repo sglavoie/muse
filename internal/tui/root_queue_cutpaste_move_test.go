@@ -237,3 +237,83 @@ func TestCutPastePreservesPurgeCancelChannel(t *testing.T) {
 		// expected: channel is open
 	}
 }
+
+// TestCutPastePlayingTrackRelocatesCurrentIndex verifies that cutting and
+// re-pasting the currently-playing track relocates playback.currentIndex to
+// the pasted clone (same hash, new ID) instead of leaving it at -1. Before
+// the fix, removeCutOriginals would call adjustPlaybackIndexAfterRemovals
+// which sets currentIndex=-1 when the playing row is removed; the pasted
+// clone with the same hash existed but the TUI lost its playback anchor.
+func TestCutPastePlayingTrackRelocatesCurrentIndex(t *testing.T) {
+	qa := &stubQueueAppender{}
+	be := &stubBatchEnqueuer{}
+	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
+	m.activeView = viewQueue
+	m.queue.entries = sampleQueueEntries() // [A=101, B=102, C=103, D=104]
+	m.playback.currentIndex = 0            // playing A
+	m.playback.currentHash = "h1"
+
+	// Cut A (the currently playing track).
+	m.queue.cursor = 0
+	rm, _, _ := m.handleQueueKeyAction(actionCut)
+	m = rm.(Model)
+
+	// Paste after D (cursor=3, insertPos=4).
+	m.queue.cursor = 3
+	rm, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	m = rm.(Model)
+	msg := cmd().(QueuePastedMsg)
+	m = m.handleQueuePastedMsg(msg)
+
+	// Expected queue: [B, C, D, A'] — A's clone is now last.
+	if len(m.queue.entries) != 4 {
+		t.Fatalf("expected 4 entries, got %d", len(m.queue.entries))
+	}
+	if m.queue.entries[3].Hash != "h1" {
+		t.Fatalf("expected pasted clone of A at index 3, got hash %q", m.queue.entries[3].Hash)
+	}
+	// currentIndex must point at the pasted clone, NOT -1.
+	if m.playback.currentIndex != 3 {
+		t.Errorf("expected currentIndex 3 (pasted clone of playing track), got %d", m.playback.currentIndex)
+	}
+	if m.playback.currentHash != "h1" {
+		t.Errorf("expected currentHash preserved as h1, got %q", m.playback.currentHash)
+	}
+}
+
+// TestBulkDequeuePlayingTrackWithDuplicateRelocatesCurrentIndex verifies that
+// removing the currently-playing row from a bulk selection while another
+// queue row shares the same hash re-points playback.currentIndex at the
+// surviving duplicate, rather than leaving it at -1.
+func TestBulkDequeuePlayingTrackWithDuplicateRelocatesCurrentIndex(t *testing.T) {
+	be := &stubBatchEnqueuer{}
+	m := New(context.Background(), WithBatchEnqueuer(be))
+	m.activeView = viewQueue
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Display: "A1"},
+		{ID: 2, Hash: "h2", Display: "B"},
+		{ID: 3, Hash: "h1", Display: "A2"}, // duplicate of h1
+		{ID: 4, Hash: "h3", Display: "C"},
+	}
+	// Playing the first occurrence of h1.
+	m.playback.currentIndex = 0
+	m.playback.currentHash = "h1"
+
+	// Select index 0 only (the playing row).
+	m.queue.entries[0].Selected = true
+
+	rm, _, _ := m.handleSelectedQueueDequeueAction()
+	m = rm.(Model)
+
+	// After removal: [B, A2, C] — A2 (duplicate of h1) still present.
+	if len(m.queue.entries) != 3 {
+		t.Fatalf("expected 3 entries, got %d", len(m.queue.entries))
+	}
+	// currentIndex should now point at A2 (index 1), not -1.
+	if m.playback.currentIndex != 1 {
+		t.Errorf("expected currentIndex 1 (surviving duplicate of h1), got %d", m.playback.currentIndex)
+	}
+	if m.playback.currentHash != "h1" {
+		t.Errorf("expected currentHash preserved as h1, got %q", m.playback.currentHash)
+	}
+}

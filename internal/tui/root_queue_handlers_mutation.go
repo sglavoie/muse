@@ -282,6 +282,7 @@ func (m *Model) removeCutOriginals(cutIDs []int64) ([]QueueEntry, []int) {
 		}
 	}
 	m.adjustPlaybackIndexAfterRemovals(removedIndices)
+	m.relocateCurrentIndexByHash()
 	if qr, ok := m.player.(playerQueueRemover); ok {
 		for i := len(removedIndices) - 1; i >= 0; i-- {
 			_ = qr.RemoveFromQueue(removedIndices[i])
