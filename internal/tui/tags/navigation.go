@@ -172,10 +172,11 @@ func (v View) moveCursor(delta int) View {
 
 // OpenTracks returns a copy of v transitioned to TrackLevel with tracks
 // loaded. The current tag cursor and scroll offset are saved for restoration
-// by Back.
+// by Back. When a filter is active, the saved cursor is translated back to the
+// unfiltered index of the focused tag so the cursor lands on the same entry
+// after Back clears the filter.
 func (v View) OpenTracks(tag db.TagRow, tracks []db.PlaylistTrackRow) View {
-	v.TagCursor = v.Cursor
-	v.TagScrollOffset = v.ScrollOffset
+	v.TagCursor, v.TagScrollOffset = v.unfilteredTagCursorPos()
 	v.SelectedTag = tag
 	v.Tracks = tracks
 	v.Level = TrackLevel
@@ -185,6 +186,28 @@ func (v View) OpenTracks(tag db.TagRow, tracks []db.PlaylistTrackRow) View {
 	v.FilterText = ""
 	v.SelectedHashes = nil
 	return v
+}
+
+// unfilteredTagCursorPos returns the cursor translated back to the unfiltered
+// Tags slice when a filter is active. ScrollOffset is reset to 0 so
+// clampRestoredCursor (run by Back) can re-establish a visible window for the
+// restored cursor. Falls back to the raw values when no filter is active or
+// the focused tag cannot be resolved.
+func (v View) unfilteredTagCursorPos() (int, int) {
+	if v.FilterText == "" {
+		return v.Cursor, v.ScrollOffset
+	}
+	items := v.EffectiveTags()
+	if len(items) == 0 || v.Cursor < 0 || v.Cursor >= len(items) {
+		return v.Cursor, v.ScrollOffset
+	}
+	focused := items[v.Cursor]
+	for i, t := range v.Tags {
+		if t.ID == focused.ID {
+			return i, 0
+		}
+	}
+	return v.Cursor, v.ScrollOffset
 }
 
 // Back returns a copy of v navigated one level up. At TrackLevel it returns to

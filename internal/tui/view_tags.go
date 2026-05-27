@@ -158,6 +158,9 @@ func (v TagsView) openTracks(tag db.TagRow, tracks []db.PlaylistTrackRow) TagsVi
 		Level:        v.level,
 		Cursor:       v.cursor,
 		ScrollOffset: v.scrollOffset,
+		Tags:         v.tags,
+		TagCounts:    v.tagCounts,
+		FilterText:   v.filter.Text,
 	}
 	view = view.OpenTracks(tag, tracks)
 	v.level = view.Level
