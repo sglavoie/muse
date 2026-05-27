@@ -191,10 +191,19 @@ func (v View) Render() string {
 		artistFavStyle := favStyleFor(isArtistFav, v.Styles.FavArtist)
 		titleFavStyle := favStyleFor(isTrackFav, v.Styles.Favorite)
 		albumFavStyle := favStyleFor(isAlbumFav, v.Styles.FavAlbum)
-		if isFocused {
+		switch {
+		case isFocused:
 			artistFavStyle = accentStyleFor(isArtistFav, v.Styles.FavArtistAccent, v.Styles.Accent)
 			titleFavStyle = accentStyleFor(isTrackFav, v.Styles.FavoriteAccent, v.Styles.Accent)
 			albumFavStyle = accentStyleFor(isAlbumFav, v.Styles.FavAlbumAccent, v.Styles.Accent)
+		case isNowPlaying:
+			// Compose NowPlayingBg into every cell so search-match highlighting
+			// (hasFieldPos / matchedIndexes branches below) doesn't leave the
+			// artist/title/album cells without the amber background while the
+			// markers and separators carry it.
+			artistFavStyle = nowPlayingStyleFor(isArtistFav, v.Styles.NowPlayingRowFavArtist, v.Styles.TextPrimary.Background(v.Styles.NowPlayingBg))
+			titleFavStyle = nowPlayingStyleFor(isTrackFav, v.Styles.NowPlayingRowFavorite, v.Styles.NowPlayingTitle)
+			albumFavStyle = nowPlayingStyleFor(isAlbumFav, v.Styles.NowPlayingRowFavAlbum, v.Styles.TextSecondary.Background(v.Styles.NowPlayingBg))
 		}
 
 		switch {

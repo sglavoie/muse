@@ -60,6 +60,19 @@ func accentStyleFor(isFav bool, favAccent, accent lipgloss.Style) []lipgloss.Sty
 	return []lipgloss.Style{accent}
 }
 
+// nowPlayingStyleFor returns a single-element slice containing the appropriate
+// now-playing style for a non-focused row cell. When isFav is true the
+// favorite-coloured now-playing style is returned; otherwise the plain
+// fg+NowPlayingBg style is used. This ensures every cell in a now-playing
+// row carries the NowPlayingBg even when search-match highlighting renders
+// the cell via padHighlight rather than via the default no-highlight branch.
+func nowPlayingStyleFor(isFav bool, favNowPlaying, plainNowPlaying lipgloss.Style) []lipgloss.Style {
+	if isFav {
+		return []lipgloss.Style{favNowPlaying}
+	}
+	return []lipgloss.Style{plainNowPlaying}
+}
+
 // padHighlight pads or truncates s to exactly width display columns, applying
 // bold highlight to the runes at positions (0-indexed into s) that fall
 // within the visible portion. ANSI codes are inserted around highlighted
