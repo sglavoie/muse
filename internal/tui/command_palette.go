@@ -61,6 +61,8 @@ type CommandPalette struct {
 	cursor    int
 	filter    filter.State // always-active text input
 	usage     *palette.UsageStore
+	lastQuery string // trimmed query from previous refilter; used to reset cursor on query change
+	hasQuery  bool   // true once a refilter has run (distinguishes initial state from "" query change)
 }
 
 // NewCommandPalette creates a CommandPalette with the given commands. When
@@ -148,8 +150,25 @@ func (cp *CommandPalette) refilter() {
 	combined = append(combined, bottomPins...)
 	cp.filtered = combined
 
+	// When the query changes, reset the cursor to the first body match so the
+	// user lands on the highest-scoring result rather than whatever entry
+	// happens to share the old index (which can be a bottom pin after the body
+	// shrinks, accidentally triggering Quit on enter).
+	if cp.hasQuery && query != cp.lastQuery {
+		if len(body) > 0 {
+			cp.cursor = cp.topPins
+		} else {
+			cp.cursor = 0
+		}
+	}
+	cp.lastQuery = query
+	cp.hasQuery = true
+
 	if cp.cursor >= len(cp.filtered) {
 		cp.cursor = max(len(cp.filtered)-1, 0)
+	}
+	if cp.cursor < 0 {
+		cp.cursor = 0
 	}
 }
 
