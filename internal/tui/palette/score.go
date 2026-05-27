@@ -38,8 +38,14 @@ func Match(query, name string) (int, bool) {
 	if strings.HasPrefix(n, q) {
 		// Prefix matches dominate — still report a positive score and ok.
 		// Use rune count so multi-byte queries (e.g. "café") score the same
-		// per character as ASCII-only ones.
-		return scorePrefixMatch + scoreCharMatch*len([]rune(q)), true
+		// per character as ASCII-only ones. Cap below scoreExactMatch so an
+		// arbitrarily long prefix never outranks a true exact match against a
+		// different candidate.
+		bonus := scoreCharMatch * len([]rune(q))
+		if max := scoreExactMatch - scorePrefixMatch - 1; bonus > max {
+			bonus = max
+		}
+		return scorePrefixMatch + bonus, true
 	}
 
 	qRunes := []rune(q)

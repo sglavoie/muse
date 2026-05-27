@@ -1,6 +1,7 @@
 package palette
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -97,6 +98,21 @@ func TestMatchMultiByteQueryMatches(t *testing.T) {
 		if _, ok := Match(c.query, c.name); !ok {
 			t.Errorf("Match(%q, %q) should succeed", c.query, c.name)
 		}
+	}
+}
+
+func TestMatchExactAlwaysBeatsPrefix(t *testing.T) {
+	// A sufficiently long prefix match must never produce a score higher
+	// than an exact match against a different candidate. Otherwise Rank
+	// would order a near-duplicate above the user's exact-typed command.
+	longQuery := strings.Repeat("abcdefghij", 12) // 120 runes
+	exact, okE := Match(longQuery, longQuery)
+	prefix, okP := Match(longQuery, longQuery+"x")
+	if !okE || !okP {
+		t.Fatalf("both queries should match: exact=%v prefix=%v", okE, okP)
+	}
+	if prefix >= exact {
+		t.Errorf("exact (%d) must outrank long prefix (%d)", exact, prefix)
 	}
 }
 
