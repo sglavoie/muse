@@ -207,7 +207,8 @@ func RowMarker(isSelected, isFocused, isNowPlaying bool, nowPlayingIcon string) 
 }
 
 func normalizeMarkerIcon(icon string) string {
-	if icon == "" {
+	icon = singleLine(icon)
+	if strings.TrimSpace(icon) == "" {
 		icon = "♪"
 	}
 	if ansi.StringWidth(icon) > 2 {

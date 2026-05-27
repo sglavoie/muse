@@ -24,7 +24,12 @@ func TestRowMarker(t *testing.T) {
 		{"empty now-playing icon falls back", false, false, true, "", "♪ "},
 		{"wide now-playing icon is preserved", false, false, true, "🎵", "🎵"},
 		{"overwide now-playing icon is clipped to marker width", false, false, true, "\U0001F3B5▶", "\U0001F3B5"},
-		{"zero-width now-playing icon falls back", false, false, true, "\u0301", "♪ "},
+		{"zero-width now-playing icon falls back", false, false, true, "́", "♪ "},
+		{"icon with newline is sanitized", false, false, true, "♪\n", "♪ "},
+		{"icon with tab is sanitized", false, false, true, "♪\t", "♪ "},
+		{"icon with carriage return is sanitized", false, false, true, "♪\r", "♪ "},
+		{"icon containing only whitespace control chars falls back", false, false, true, "\n\t\r", "♪ "},
+		{"multi-line icon collapses to single line", false, false, true, "a\nb", "a "},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
