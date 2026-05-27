@@ -139,7 +139,10 @@ func (idx *LibraryIndex) BulkLoad(tracks []Track) {
 
 	idx.tracks = make([]Track, len(deduped))
 	copy(idx.tracks, deduped)
-	sort.Slice(idx.tracks, func(i, j int) bool {
+	// Stable sort so tracks with identical Artist/Album/Title preserve input
+	// order; otherwise BulkLoad after a rescan would reshuffle equal-keyed
+	// rows nondeterministically, causing visible UI flicker.
+	sort.SliceStable(idx.tracks, func(i, j int) bool {
 		return less(idx.tracks[i], idx.tracks[j])
 	})
 	idx.rebuildHashMap()

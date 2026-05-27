@@ -86,6 +86,49 @@ func TestBulkLoad_DuplicateHashMatchesInsertSemantics(t *testing.T) {
 	}
 }
 
+// TestBulkLoad_StableSortPreservesInputOrderForEqualKeys verifies that tracks
+// sharing identical Artist/Album/Title sort keys retain their relative input
+// order after BulkLoad. With an unstable sort, interleaved equal-keyed rows
+// would be reshuffled nondeterministically and cause UI flicker on rescan.
+func TestBulkLoad_StableSortPreservesInputOrderForEqualKeys(t *testing.T) {
+	const n = 100
+	tracks := make([]Track, n)
+	for i := range n {
+		// Interleave two artists ("A" and "B") so the sort must rearrange
+		// half the elements; the equal-keyed groups must remain in input
+		// order. Path encodes the input index so we can detect reordering.
+		artist := "B"
+		if i%2 == 0 {
+			artist = "A"
+		}
+		tracks[i] = Track{
+			Artist: artist,
+			Title:  "Untitled",
+			Album:  "Compilation",
+			Hash:   fmt.Sprintf("h%04d", i),
+			Path:   fmt.Sprintf("/music/track_%04d.flac", i),
+		}
+	}
+
+	var idx LibraryIndex
+	idx.BulkLoad(tracks)
+
+	got := idx.Tracks()
+	prevIdxByArtist := map[string]int{"A": -1, "B": -1}
+	for _, tr := range got {
+		// Recover input index from path.
+		var inputIdx int
+		if _, err := fmt.Sscanf(tr.Path, "/music/track_%04d.flac", &inputIdx); err != nil {
+			t.Fatalf("path parse: %v", err)
+		}
+		if inputIdx <= prevIdxByArtist[tr.Artist] {
+			t.Errorf("artist %q: input index %d appeared after %d (unstable sort)",
+				tr.Artist, inputIdx, prevIdxByArtist[tr.Artist])
+		}
+		prevIdxByArtist[tr.Artist] = inputIdx
+	}
+}
+
 func BenchmarkBulkLoad(b *testing.B) {
 	const n = 50_000
 	tracks := make([]Track, n)
