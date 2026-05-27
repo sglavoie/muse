@@ -145,9 +145,22 @@ func (m *Manager) handleRestart() {
 	m.prefetchedPath = ""
 	m.mu.Unlock()
 
-	// Reap the old mpv process so it does not remain as a zombie.
+	// Reap the old mpv process so it does not remain as a zombie. Bound the
+	// wait so a non-responsive process cannot freeze the restart cycle; if the
+	// process refuses to exit after shutdownTimeout, force-kill and reap in the
+	// background.
 	if oldCmd != nil && oldCmd.Process != nil {
-		_ = oldCmd.Wait()
+		done := make(chan error, 1)
+		go func() { done <- oldCmd.Wait() }()
+		select {
+		case <-done:
+		case <-time.After(shutdownTimeout):
+			slog.Warn("mpv: old process did not exit within timeout on restart, killing")
+			if err := oldCmd.Process.Kill(); err != nil {
+				slog.Debug("mpv: kill old process on restart", "err", err)
+			}
+			go func() { <-done }()
+		}
 	}
 
 	if err := os.Remove(m.socketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
