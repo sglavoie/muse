@@ -94,6 +94,26 @@ func TestDurationAuditCorrectedAccumulatesAcrossBatches(t *testing.T) {
 	}
 }
 
+// TestDurationAuditBatchOnlyCountsAppliedFixes verifies that auditCorrected
+// is incremented only for fixes whose hash exists in the index. Previously
+// the handler counted every entry in msg.Fixes, overstating the corrected
+// total when tracks had been removed from the index between ffprobe and
+// the batch arrival.
+func TestDurationAuditBatchOnlyCountsAppliedFixes(t *testing.T) {
+	m, _ := newDurationAuditModelWithChannel()
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 100.0})
+	// h2 and h3 are not inserted — fixes targeting them must NOT count.
+
+	m, _ = durationAuditBatchUpdate(t, m,
+		library.DurationFix{Hash: "h1", DurationMs: 150000},
+		library.DurationFix{Hash: "h2", DurationMs: 250000},
+		library.DurationFix{Hash: "h3", DurationMs: 350000},
+	)
+	if m.auditCorrected != 1 {
+		t.Errorf("auditCorrected = %d, want 1 (only h1 exists in index)", m.auditCorrected)
+	}
+}
+
 func TestDurationAuditDoneSilentWhenNone(t *testing.T) {
 	m, _ := newDurationAuditModelWithChannel()
 	nm := durationAuditDoneUpdate(t, m)

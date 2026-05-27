@@ -19,9 +19,10 @@ import (
 // (recently-added, sorted library, history, etc.) are refreshed so their
 // duration columns stay in sync.
 func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (Model, tea.Cmd) {
-	m.auditCorrected += len(msg.Fixes)
 	for _, fix := range msg.Fixes {
-		m.library.index.UpdateDuration(fix.Hash, float64(fix.DurationMs)/1000)
+		if m.library.index.UpdateDuration(fix.Hash, float64(fix.DurationMs)/1000) {
+			m.auditCorrected++
+		}
 		for i := range m.queue.entries {
 			if m.queue.entries[i].Hash == fix.Hash {
 				m.queue.entries[i].DurationMs = fix.DurationMs
