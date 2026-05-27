@@ -106,7 +106,21 @@ func (m *Manager) pollUntilReady(ctx context.Context) {
 
 		client, err := NewIPCClient(m.socketPath)
 		if err == nil {
+			// If the manager was closed while NewIPCClient was inflight,
+			// drop the freshly-opened client instead of installing it on
+			// the (now shutting-down) Manager. Without this the client
+			// stays open and unreferenced after Close returns because
+			// Close already snapshotted m.client as nil. The check is
+			// repeated under the lock to defeat a TOCTOU race against
+			// Close, which nils m.client and m.cmdQueue together.
 			m.mu.Lock()
+			select {
+			case <-ctx.Done():
+				m.mu.Unlock()
+				_ = client.Close()
+				return
+			default:
+			}
 			m.client = client
 			queue := m.cmdQueue
 			m.cmdQueue = nil

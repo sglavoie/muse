@@ -3,6 +3,7 @@ package player
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"sync"
 	"testing"
@@ -246,6 +247,56 @@ func TestManager_HealthCheck_DoesNotResurrectQueueAfterClose(t *testing.T) {
 	m.mu.RUnlock()
 	if q != nil {
 		t.Errorf("cmdQueue = %v after disconnect during shutdown, want nil", q)
+	}
+}
+
+// TestManager_PollUntilReady_AbortsIfCancelledMidDial verifies that
+// pollUntilReady does not install a freshly-opened IPC client onto the
+// Manager when the context was cancelled after NewIPCClient succeeded.
+// Without the guard, Close() would return having snapshotted client=nil
+// while pollUntilReady silently overwrote it with a still-open client,
+// leaking the connection until GC.
+func TestManager_PollUntilReady_AbortsIfCancelledMidDial(t *testing.T) {
+	// Repeat enough times to catch the race window under -race; each
+	// iteration is cheap (no subprocess, no real IPC traffic).
+	for i := 0; i < 200; i++ {
+		sock := shortSockPath(t, fmt.Sprintf("poll-cancel-%d", i))
+		fakeServer(t, sock)
+
+		rootCtx, rootCancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(rootCtx)
+		m := &Manager{
+			socketPath:     sock,
+			rootCtx:        rootCtx,
+			rootCancel:     rootCancel,
+			ctx:            ctx,
+			cancel:         cancel,
+			disconnectCh:   make(chan error, 1),
+			callbacksReady: make(chan struct{}),
+			cmdQueue:       []func() error{},
+		}
+
+		done := make(chan struct{})
+		go func() {
+			m.pollUntilReady(ctx)
+			close(done)
+		}()
+
+		// Race Close() against pollUntilReady's dial → install sequence.
+		_ = m.Close()
+
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("iter %d: pollUntilReady did not return after Close", i)
+		}
+
+		m.mu.RLock()
+		gotClient := m.client
+		m.mu.RUnlock()
+		if gotClient != nil {
+			t.Fatalf("iter %d: m.client = %v after Close, want nil (client leaked)", i, gotClient)
+		}
 	}
 }
 
