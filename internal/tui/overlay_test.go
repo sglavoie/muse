@@ -137,6 +137,68 @@ func TestOverlayBoxRender_MultiByteRowAlignment(t *testing.T) {
 	}
 }
 
+func TestOverlayBoxRender_MaxInnerWidthClampNoBorderMisalign(t *testing.T) {
+	// When MaxInnerWidth clamps innerWidth below the title's display width,
+	// the title row must not overflow and misalign the box borders.
+	box := OverlayBox{
+		Title:         " A Very Long Title That Should Be Truncated ",
+		Rows:          []OverlayRow{{Text: "x"}},
+		MaxInnerWidth: 10,
+	}
+	stripped := ansi.Strip(box.Render(80, 24, newTestStyles()))
+	lines := strings.Split(strings.TrimRight(stripped, "\n"), "\n")
+
+	var bordered []string
+	for _, line := range lines {
+		trimmed := strings.TrimLeft(line, " ")
+		if strings.HasPrefix(trimmed, cornerTL) || strings.HasPrefix(trimmed, cornerBL) ||
+			strings.HasPrefix(trimmed, borderV) || strings.HasPrefix(trimmed, crossDoubleL) {
+			bordered = append(bordered, trimmed)
+		}
+	}
+	if len(bordered) < 2 {
+		t.Fatalf("expected several bordered lines, got %d", len(bordered))
+	}
+	ref := ansi.StringWidth(bordered[0])
+	for i, line := range bordered[1:] {
+		if w := ansi.StringWidth(line); w != ref {
+			t.Errorf("bordered line %d width = %d, want %d\nline 0: %q\nline %d: %q",
+				i+1, w, ref, bordered[0], i+1, line)
+		}
+	}
+}
+
+func TestOverlayBoxRender_TinyMaxInnerWidthNoBorderMisalign(t *testing.T) {
+	// A pathologically small MaxInnerWidth (below OverlayHPadding) must still
+	// produce a self-consistent box: every bordered line has the same width.
+	box := OverlayBox{
+		Title:         " T ",
+		Rows:          []OverlayRow{{Text: "abc"}, {Blank: true}, {Label: "X:", Text: "y"}},
+		MaxInnerWidth: 2,
+	}
+	stripped := ansi.Strip(box.Render(80, 24, newTestStyles()))
+	lines := strings.Split(strings.TrimRight(stripped, "\n"), "\n")
+
+	var bordered []string
+	for _, line := range lines {
+		trimmed := strings.TrimLeft(line, " ")
+		if strings.HasPrefix(trimmed, cornerTL) || strings.HasPrefix(trimmed, cornerBL) ||
+			strings.HasPrefix(trimmed, borderV) || strings.HasPrefix(trimmed, crossDoubleL) {
+			bordered = append(bordered, trimmed)
+		}
+	}
+	if len(bordered) < 2 {
+		t.Fatalf("expected several bordered lines, got %d", len(bordered))
+	}
+	ref := ansi.StringWidth(bordered[0])
+	for i, line := range bordered[1:] {
+		if w := ansi.StringWidth(line); w != ref {
+			t.Errorf("bordered line %d width = %d, want %d\nline 0: %q\nline %d: %q",
+				i+1, w, ref, bordered[0], i+1, line)
+		}
+	}
+}
+
 func TestOverlayBoxRender_LabelledRowsMultiByte(t *testing.T) {
 	// Verify labelled rows with multi-byte labels align correctly.
 	box := OverlayBox{

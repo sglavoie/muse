@@ -86,8 +86,11 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 	if o.MaxInnerWidth > 0 && innerWidth > o.MaxInnerWidth {
 		innerWidth = o.MaxInnerWidth
 	}
-	if innerWidth < 1 {
-		innerWidth = 1
+	// Enforce a floor of OverlayHPadding so content rows (which always reserve
+	// that many characters for padding) cannot exceed innerWidth and misalign
+	// the borders when a caller passes a tiny MaxInnerWidth.
+	if innerWidth < OverlayHPadding {
+		innerWidth = OverlayHPadding
 	}
 	contentWidth := innerWidth - OverlayHPadding // padding inside borders
 	if contentWidth < 0 {
@@ -99,11 +102,13 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 	// Top border.
 	boxLines = append(boxLines, cornerTL+strings.Repeat(borderH, innerWidth)+cornerTR)
 
-	// Title row (centered).
-	titlePad := max(0, innerWidth-ansi.StringWidth(o.Title))
+	// Title row (centered). Truncate first so a MaxInnerWidth clamp narrower
+	// than the title cannot overflow and misalign the borders.
+	displayTitle := truncateTitle(o.Title, innerWidth)
+	titlePad := max(0, innerWidth-ansi.StringWidth(displayTitle))
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
-	boxLines = append(boxLines, borderV+strings.Repeat(" ", leftTP)+s.Heading.Render(o.Title)+strings.Repeat(" ", rightTP)+borderV)
+	boxLines = append(boxLines, borderV+strings.Repeat(" ", leftTP)+s.Heading.Render(displayTitle)+strings.Repeat(" ", rightTP)+borderV)
 
 	// Doubled rule below the title (Common Region + Uniform Connectedness).
 	boxLines = append(boxLines, crossDoubleL+strings.Repeat(borderDoubleH, innerWidth)+crossDoubleR)
@@ -125,7 +130,11 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 			// Use text.PadLeft for the label and text.Pad for the value
 			// so that multi-byte characters are padded by display width,
 			// not byte count.
-			row = "  " + text.PadLeft(r.Label, maxLabelW) + " " + text.Pad(truncated, valueWidth) + "  "
+			row = text.PadLeft(r.Label, maxLabelW) + " " + text.Pad(truncated, valueWidth)
+			// Truncate/pad the assembled content to contentWidth so a tiny
+			// MaxInnerWidth that cannot fit the label cannot overflow.
+			row = text.Pad(truncateTitle(row, contentWidth), contentWidth)
+			row = "  " + row + "  "
 		} else {
 			truncated := truncateTitle(r.Text, contentWidth)
 			row = "  " + text.Pad(truncated, contentWidth) + "  "
