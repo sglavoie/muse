@@ -236,6 +236,10 @@ func (m Model) handleTagToggled(msg tagToggledMsg) (Model, tea.Cmd) {
 	}
 	if msg.autoDeleted {
 		m = m.removeTagFromCaches(msg.tagID)
+		if m.overlay.tagPicker != nil {
+			updated := m.overlay.tagPicker.RemoveItem(msg.tagID)
+			m.overlay.tagPicker = &updated
+		}
 		if m.tagWriter != nil {
 			scheduleStandalonePurge(m.tagWriter.PurgeDeletedTags)
 		}

@@ -215,6 +215,22 @@ func (tp TagPicker) UpdateItemState(tagID int64, state checkState) TagPicker {
 	return tp
 }
 
+// RemoveItem removes the tag with the given ID from the picker's item list,
+// rebuilds the filtered indices, and clamps the cursor. Used when a tag is
+// auto-deleted while the picker is open (its row would otherwise still be
+// shown and toggling it on would attempt to re-add a deleted tag).
+func (tp TagPicker) RemoveItem(tagID int64) TagPicker {
+	out := make([]tagPickerItem, 0, len(tp.items))
+	for _, it := range tp.items {
+		if it.tag.ID != tagID {
+			out = append(out, it)
+		}
+	}
+	tp.items = out
+	tp.refilter()
+	return tp
+}
+
 // refilter rebuilds tp.filtered and clamps the cursor.
 func (tp *TagPicker) refilter() {
 	query := strings.ToLower(tp.filter.Text)

@@ -2,12 +2,24 @@ package tui
 
 import (
 	"github.com/sglavoie/muse/internal/db"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // handleTagViewTracksLoaded processes tagViewTracksLoadedMsg.
+// The async ReadTracksByTag command can race with view navigation: if the
+// user has switched away from the Tags view (or already drilled in/back out
+// to a different state) by the time the result arrives, applying the load
+// would surprise them by flipping the level to TrackLevel for a stale tag.
+// Drop the message in those cases and keep the refreshed counts only.
 func (m Model) handleTagViewTracksLoaded(msg tagViewTracksLoadedMsg) Model {
 	if msg.err != nil {
 		m.statusBar.notify("Load tracks failed: " + msg.err.Error())
+		return m
+	}
+	if m.activeView != viewTags || m.tagsView.level != tagtui.TagLevel {
+		if msg.counts != nil {
+			m.tagsView.tagCounts = msg.counts
+		}
 		return m
 	}
 	m.tagsView = m.tagsView.openTracks(msg.tag, msg.tracks)

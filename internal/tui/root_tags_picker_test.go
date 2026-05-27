@@ -387,3 +387,108 @@ func TestTagPicker_DownKeyBoundaries(t *testing.T) {
 		t.Errorf("down on +Create: cursor moved from %d to %d", before, tp2.cursor)
 	}
 }
+
+// TestTagToggled_AutoDeletedRemovesItemFromOpenPicker verifies that when a tag
+// is auto-deleted (last track removed) while the tag picker is still open, the
+// picker drops the row for that tag. Without this, the user would still see
+// the deleted tag and toggling it on would attempt to re-attach a
+// soft-deleted tag.
+func TestTagToggled_AutoDeletedRemovesItemFromOpenPicker(t *testing.T) {
+	tw := &stubTagWriter{}
+	m := New(context.Background(), WithTagWriter(tw))
+
+	tagID := int64(7)
+	m.tags = []db.TagRow{{ID: tagID, Name: "solo"}}
+	m = m.rebuildTagCache(m.tags)
+	m.trackTags = map[string]map[int64]struct{}{}
+
+	// Open the picker for a single track.
+	const hash = "hX"
+	tp, _ := NewTagPicker(m.tags, hash, map[int64]struct{}{})
+	m.overlay.tagPicker = &tp
+	if len(m.overlay.tagPicker.items) != 1 {
+		t.Fatalf("precondition: picker should have 1 item, got %d", len(m.overlay.tagPicker.items))
+	}
+
+	// Receive a toggled-off msg that triggered an auto-delete in the DB.
+	msg := tagToggledMsg{
+		tagID:       tagID,
+		hashes:      []string{hash},
+		wasAdd:      false,
+		autoDeleted: true,
+	}
+	m, _ = m.handleTagToggled(msg)
+
+	if m.overlay.tagPicker == nil {
+		t.Fatal("picker should still be open")
+	}
+	if len(m.overlay.tagPicker.items) != 0 {
+		t.Errorf("expected picker items cleared after auto-delete, got %d", len(m.overlay.tagPicker.items))
+	}
+	if len(m.overlay.tagPicker.filtered) != 0 {
+		t.Errorf("expected picker filtered cleared after auto-delete, got %d", len(m.overlay.tagPicker.filtered))
+	}
+	// The global tag cache should also have the tag removed.
+	if m.hasTag(tagID) {
+		t.Error("auto-deleted tag should be removed from m.tags")
+	}
+}
+
+// TestHandleTagViewTracksLoaded_DropsStaleResultWhenViewSwitched verifies the
+// async ReadTracksByTag command does not flip the tags view to TrackLevel
+// when the user has navigated away from viewTags before the message arrived.
+// Before the fix, the late message would silently transition the level so a
+// later return to viewTags would render tracks instead of the tag list.
+func TestHandleTagViewTracksLoaded_DropsStaleResultWhenViewSwitched(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewTags
+	m.tagsView.level = tagtui.TagLevel
+	m.tagsView.tags = []db.TagRow{{ID: 1, Name: "Alpha"}}
+
+	// User switches away from the tags view while the load is in flight.
+	m.activeView = viewLibrary
+
+	msg := tagViewTracksLoadedMsg{
+		tag:    db.TagRow{ID: 1, Name: "Alpha"},
+		tracks: []db.PlaylistTrackRow{{ID: 10, Hash: "h1"}},
+		counts: map[int64]int{1: 1},
+	}
+	m = m.handleTagViewTracksLoaded(msg)
+
+	if m.tagsView.level != tagtui.TagLevel {
+		t.Errorf("level should remain TagLevel when view was switched; got %v", m.tagsView.level)
+	}
+	if m.tagsView.tracks != nil {
+		t.Errorf("tracks should not be populated for stale msg; got %d", len(m.tagsView.tracks))
+	}
+	// Counts (a less invasive update) should still apply.
+	if got := m.tagsView.tagCounts[1]; got != 1 {
+		t.Errorf("counts should still apply from stale msg; got %d", got)
+	}
+}
+
+// TestHandleTagViewTracksLoaded_DropsStaleResultWhenLevelChanged verifies that
+// the message is dropped when the user has already drilled into TrackLevel via
+// a different load (or pressed back/forward in between), preventing the late
+// msg from overwriting the current tracks with stale ones for a different tag.
+func TestHandleTagViewTracksLoaded_DropsStaleResultWhenLevelChanged(t *testing.T) {
+	m := New(context.Background())
+	m.activeView = viewTags
+	m.tagsView.level = tagtui.TrackLevel
+	existing := []db.PlaylistTrackRow{{ID: 99, Hash: "current"}}
+	m.tagsView.tracks = existing
+	m.tagsView.selectedTag = db.TagRow{ID: 2, Name: "Beta"}
+
+	msg := tagViewTracksLoadedMsg{
+		tag:    db.TagRow{ID: 1, Name: "Alpha"},
+		tracks: []db.PlaylistTrackRow{{ID: 10, Hash: "stale"}},
+	}
+	m = m.handleTagViewTracksLoaded(msg)
+
+	if len(m.tagsView.tracks) != 1 || m.tagsView.tracks[0].Hash != "current" {
+		t.Errorf("tracks should remain unchanged; got %+v", m.tagsView.tracks)
+	}
+	if m.tagsView.selectedTag.ID != 2 {
+		t.Errorf("selectedTag should remain Beta(2); got %d", m.tagsView.selectedTag.ID)
+	}
+}
