@@ -139,13 +139,15 @@ func (v View) GoToBottom() View {
 	}
 	v.Cursor = n - 1
 	maxRows := v.visibleRows()
-	if v.Cursor >= maxRows {
+	// Compute the canonical scroll position for the last row: 0 when the
+	// entire list fits on screen, otherwise the minimum offset that keeps
+	// the bottom row visible. Recomputing unconditionally (rather than only
+	// scrolling further down) also resets a stale ScrollOffset left over
+	// from a previously larger list, which otherwise leaves the cursor at
+	// the top of an under-filled window.
+	if maxRows > 0 {
 		v.ScrollOffset = v.Cursor - maxRows + 1
-	}
-	// Clamp ScrollOffset down when the list shrank below a previously
-	// scrolled position: otherwise the cursor renders above the visible
-	// window after a filter/delete reduces itemCount.
-	if v.ScrollOffset > v.Cursor {
+	} else {
 		v.ScrollOffset = v.Cursor
 	}
 	if v.ScrollOffset < 0 {

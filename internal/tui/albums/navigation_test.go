@@ -85,6 +85,29 @@ func TestGoToBottomClampsScrollOffsetWhenListShrank(t *testing.T) {
 	}
 }
 
+func TestGoToBottomResetsScrollWhenListFitsOnScreen(t *testing.T) {
+	// Regression: when GoToBottom is called after a previously larger list
+	// left ScrollOffset > 0, the offset should reset to 0 so that the entire
+	// (now-short-enough) list is visible from the top, rather than rendering
+	// only the bottom row in an otherwise empty window.
+	v := View{
+		Level:        AlbumLevel,
+		Albums:       []string{"A", "B", "C"},
+		Cursor:       0,
+		ScrollOffset: 80,
+		Width:        80,
+		Height:       20,
+	}
+
+	v = v.GoToBottom()
+	if v.Cursor != 2 {
+		t.Fatalf("expected cursor=2, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 0 {
+		t.Errorf("expected scroll=0 when list fits on screen, got scroll=%d", v.ScrollOffset)
+	}
+}
+
 func TestCursorMovementResetsStateWhenFilteredListIsEmpty(t *testing.T) {
 	base := View{
 		Level:        AlbumLevel,
