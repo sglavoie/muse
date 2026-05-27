@@ -10,8 +10,11 @@ import (
 
 // searchHelpSections filters help sections by a case-insensitive substring
 // match against both entry key and description. Sections with zero matching
-// entries are omitted. An empty query returns sections unchanged.
+// entries are omitted. An empty or whitespace-only query returns sections
+// unchanged so a stray space typed into the filter does not blank out the
+// overlay.
 func searchHelpSections(sections []helpSection, query string) []helpSection {
+	query = strings.TrimSpace(query)
 	if query == "" {
 		return sections
 	}

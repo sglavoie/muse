@@ -48,7 +48,15 @@ func RenderFooterHints(width int, ctx bindingContext, mode HintMode, r Registry,
 	used := 0
 	rendered := 0
 	for i, h := range hints {
-		pair := h.Key + " " + h.Label
+		// renderHintKeyLabel emits the key alone when Label is empty, so the
+		// width budget must match (no trailing space) or label-less hints will
+		// be dropped a column too early.
+		var pair string
+		if h.Label == "" {
+			pair = h.Key
+		} else {
+			pair = h.Key + " " + h.Label
+		}
 		pieceW := ansi.StringWidth(pair)
 		if i > 0 {
 			pieceW += ansi.StringWidth(footerHintSep)
@@ -65,7 +73,12 @@ func RenderFooterHints(width int, ctx bindingContext, mode HintMode, r Registry,
 	}
 	if rendered == 0 {
 		// Even the first pair didn't fit — truncate it so something shows.
-		first := hints[0].Key + " " + hints[0].Label
+		var first string
+		if hints[0].Label == "" {
+			first = hints[0].Key
+		} else {
+			first = hints[0].Key + " " + hints[0].Label
+		}
 		truncated := ansi.Truncate(first, avail, "…")
 		styled.WriteString(renderTruncatedHint(truncated, hints[0].Key, s))
 	}

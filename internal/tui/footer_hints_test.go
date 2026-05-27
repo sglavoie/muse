@@ -197,6 +197,35 @@ func TestPrimariesRegistered_AllPrimaryViews(t *testing.T) {
 	}
 }
 
+// Regression: a primaryHint with an empty Label is rendered as the key alone,
+// so its width budget must also exclude the trailing space. Otherwise a
+// label-less hint would be dropped from the strip one column too early.
+func TestRenderFooterHints_EmptyLabelDoesNotOverReserveWidth(t *testing.T) {
+	reg := Registry{
+		bindings:      map[registryKey]action{},
+		primaries:     map[primaryHintKey][]primaryHint{},
+		domainReasons: map[registryKey]string{},
+	}
+	reg.primaries[primaryHintKey{ctx: contextLibrary, mode: HintModeDefault}] = []primaryHint{
+		{Key: "ab", Label: ""}, // 2 columns rendered, no trailing space
+	}
+	s := styles.NewStyles(true)
+	// Width budget: 2 (leading) + 2 (key) == 4. With the previous accounting
+	// (treating the pair as "ab " = 3 cols) this would fall into the
+	// truncation fallback even though the key fits exactly.
+	got := RenderFooterHints(4, contextLibrary, HintModeDefault, reg, s)
+	if got == "" {
+		t.Fatalf("expected non-empty output at width 4 for a 2-col key")
+	}
+	plain := ansi.Strip(got)
+	if !strings.Contains(plain, "ab") {
+		t.Errorf("expected plain output to contain 'ab', got %q", plain)
+	}
+	if strings.Contains(plain, "…") {
+		t.Errorf("expected no truncation for a key that fits in full, got %q", plain)
+	}
+}
+
 func TestToggleFooterHintsFlipsState(t *testing.T) {
 	m := Model{showFooterHints: true, termWidth: 80, termHeight: 24}
 	m2, _ := m.handleToggleFooterHintsMsg()

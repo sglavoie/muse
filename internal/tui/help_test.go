@@ -245,6 +245,19 @@ func TestSearchHelpSectionsCaseInsensitive(t *testing.T) {
 	}
 }
 
+// Regression: a stray space typed into the help search filter should be
+// treated as an empty query rather than searching for a literal " " (which
+// matches almost nothing and blanks the overlay).
+func TestSearchHelpSectionsWhitespaceQuery(t *testing.T) {
+	sections := helpSections()
+	for _, query := range []string{" ", "   ", "\t", " \n "} {
+		result := searchHelpSections(sections, query)
+		if len(result) != len(sections) {
+			t.Errorf("whitespace query %q: expected %d sections, got %d", query, len(sections), len(result))
+		}
+	}
+}
+
 func TestSearchHelpSectionsEmptyQuery(t *testing.T) {
 	sections := helpSections()
 	result := searchHelpSections(sections, "")
