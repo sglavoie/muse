@@ -36,6 +36,36 @@ func TestCopyToClipboardPrefersWaylandWhenAvailable(t *testing.T) {
 	}
 }
 
+// TestCopyToClipboardDetectsWaylandViaSessionType verifies the fix for an
+// adjacent bug: some display managers (GDM/sddm) expose XDG_SESSION_TYPE=wayland
+// to the user shell but do not propagate WAYLAND_DISPLAY, so relying solely on
+// WAYLAND_DISPLAY would incorrectly prefer xclip/xsel and silently fail to
+// populate the Wayland clipboard.
+func TestCopyToClipboardDetectsWaylandViaSessionType(t *testing.T) {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
+		t.Skip("Linux/BSD-only behavior")
+	}
+	origLook, origEnv := lookPath, getEnv
+	defer func() { lookPath, getEnv = origLook, origEnv }()
+
+	getEnv = func(key string) string {
+		if key == "XDG_SESSION_TYPE" {
+			return "wayland"
+		}
+		return ""
+	}
+	var order []string
+	lookPath = func(name string) bool {
+		order = append(order, name)
+		return name == "xclip" || name == "wl-copy"
+	}
+
+	_ = copyToClipboard(context.Background(), "hi")()
+	if len(order) == 0 || order[0] != "wl-copy" {
+		t.Fatalf("expected wl-copy to be checked first when XDG_SESSION_TYPE=wayland, got %v", order)
+	}
+}
+
 // TestCopyToClipboardFallsBackToXclipWithoutWayland verifies that with no
 // WAYLAND_DISPLAY set the X11 tools are tried first (xclip before wl-copy)
 // so installed but-non-running wl-copy daemons don't intercept copies.

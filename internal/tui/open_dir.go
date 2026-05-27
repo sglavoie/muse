@@ -22,7 +22,13 @@ func openDir(ctx context.Context, dir string) tea.Cmd {
 		if !ok {
 			return nil
 		}
-		_ = exec.CommandContext(ctx, name, args...).Start()
+		c := exec.CommandContext(ctx, name, args...)
+		if err := c.Start(); err == nil {
+			// Per os/exec docs, Wait must be called to release associated
+			// system resources (FDs, zombie PID). The handler returns
+			// quickly; reap it asynchronously so the TUI is not blocked.
+			go func() { _ = c.Wait() }()
+		}
 		return nil
 	}
 }
@@ -37,7 +43,12 @@ func revealFile(ctx context.Context, path string) tea.Cmd {
 		if !ok {
 			return nil
 		}
-		_ = exec.CommandContext(ctx, name, args...).Start()
+		c := exec.CommandContext(ctx, name, args...)
+		if err := c.Start(); err == nil {
+			// See openDir: reap the child so its FDs/PID are released
+			// instead of lingering as a zombie until process exit.
+			go func() { _ = c.Wait() }()
+		}
 		return nil
 	}
 }

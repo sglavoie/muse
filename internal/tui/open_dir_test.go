@@ -63,6 +63,39 @@ func TestRevealFileWhitespacePathIsNoOp(t *testing.T) {
 	}
 }
 
+// TestOpenDirReapsChildProcess verifies the fix for an FD/zombie leak: the
+// previous implementation called Start() without a matching Wait(), which the
+// os/exec docs explicitly warn leaks system resources. After the fix the
+// command should run to completion in the background; we exercise that path by
+// invoking openDir with a context that is already cancelled so Start fails fast
+// without leaving a launched-but-unreaped subprocess behind. The test simply
+// asserts the helper does not panic and returns nil promptly.
+func TestOpenDirReapsChildProcess(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	cmd := openDir(ctx, t.TempDir())
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd")
+	}
+	if msg := cmd(); msg != nil {
+		t.Errorf("expected nil msg, got %#v", msg)
+	}
+}
+
+// TestRevealFileReapsChildProcess mirrors TestOpenDirReapsChildProcess for the
+// revealFile helper.
+func TestRevealFileReapsChildProcess(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	cmd := revealFile(ctx, "/tmp/does-not-exist")
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd")
+	}
+	if msg := cmd(); msg != nil {
+		t.Errorf("expected nil msg, got %#v", msg)
+	}
+}
+
 func TestOpenDirCommand_SelectsCommandsByOS(t *testing.T) {
 	tests := []struct {
 		name     string

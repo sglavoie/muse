@@ -41,8 +41,12 @@ func copyToClipboard(ctx context.Context, text string) tea.Cmd {
 		default:
 			// Prefer wl-copy when running under Wayland: xclip/xsel may be
 			// installed for XWayland compat but they target the X selection
-			// and silently fail to populate the Wayland clipboard.
-			wayland := getEnv("WAYLAND_DISPLAY") != ""
+			// and silently fail to populate the Wayland clipboard. Some
+			// display managers (e.g. GDM, sddm) expose XDG_SESSION_TYPE to
+			// the user shell but do not propagate WAYLAND_DISPLAY, so honor
+			// either signal.
+			wayland := getEnv("WAYLAND_DISPLAY") != "" ||
+				getEnv("XDG_SESSION_TYPE") == "wayland"
 			switch {
 			case wayland && lookPath("wl-copy"):
 				cmd = exec.CommandContext(ctx, "wl-copy")
