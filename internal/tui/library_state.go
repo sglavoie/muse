@@ -223,10 +223,6 @@ func (v LibraryView) clampCursor() LibraryView {
 	if v.cursor < 0 {
 		v.cursor = 0
 	}
-	reserve := 1
-	if v.filter.Active || v.filter.Text != "" {
-		reserve++
-	}
-	v.scrollOffset = adjustScroll(v.cursor, v.scrollOffset, layout.VisibleRows(v.height, reserve))
+	v.scrollOffset = adjustScroll(v.cursor, v.scrollOffset, layout.VisibleRows(v.height, libraryViewVisibleReserve(v)))
 	return v
 }
