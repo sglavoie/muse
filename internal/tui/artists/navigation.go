@@ -174,10 +174,11 @@ func (v View) moveCursor(delta int) View {
 
 // OpenAlbums returns a copy of v transitioned to AlbumLevel with albums loaded.
 // The current artist cursor and scroll offset are saved so they can be restored
-// by Back.
+// by Back. When a filter is active, the saved cursor is translated back to the
+// unfiltered index of the focused artist so the cursor lands on the same entry
+// after Back clears the filter.
 func (v View) OpenAlbums(albums []string) View {
-	v.ArtistCursor = v.Cursor
-	v.ArtistScrollOffset = v.ScrollOffset
+	v.ArtistCursor, v.ArtistScrollOffset = v.unfilteredArtistCursorPos()
 	v.Albums = albums
 	v.Level = AlbumLevel
 	v.Cursor = 0
@@ -189,10 +190,11 @@ func (v View) OpenAlbums(albums []string) View {
 
 // OpenTracks returns a copy of v transitioned to TrackLevel with tracks loaded.
 // The current album cursor and scroll offset are saved so they can be restored
-// by Back.
+// by Back. When a filter is active, the saved cursor is translated back to the
+// unfiltered index of the focused album so the cursor lands on the same entry
+// after Back clears the filter.
 func (v View) OpenTracks(tracks []library.Track) View {
-	v.AlbumCursor = v.Cursor
-	v.AlbumScrollOffset = v.ScrollOffset
+	v.AlbumCursor, v.AlbumScrollOffset = v.unfilteredAlbumCursorPos()
 	v.Tracks = tracks
 	v.Level = TrackLevel
 	v.Cursor = 0
@@ -200,6 +202,49 @@ func (v View) OpenTracks(tracks []library.Track) View {
 	v.FilterActive = false
 	v.FilterText = ""
 	return v
+}
+
+// unfilteredArtistCursorPos returns the cursor translated back to the
+// unfiltered Artists slice when a filter is active. ScrollOffset is reset to 0
+// in that case so clampRestoredCursor (run by Back) can re-establish a
+// visible window for the restored cursor. Falls back to the raw values when
+// no filter is active or the focused artist cannot be resolved.
+func (v View) unfilteredArtistCursorPos() (int, int) {
+	if v.FilterText == "" {
+		return v.Cursor, v.ScrollOffset
+	}
+	items := v.EffectiveArtists()
+	if len(items) == 0 || v.Cursor < 0 || v.Cursor >= len(items) {
+		return v.Cursor, v.ScrollOffset
+	}
+	focused := items[v.Cursor]
+	for i, name := range v.Artists {
+		if name == focused {
+			return i, 0
+		}
+	}
+	return v.Cursor, v.ScrollOffset
+}
+
+// unfilteredAlbumCursorPos returns the cursor translated back to the
+// unfiltered Albums slice when a filter is active. ScrollOffset is reset to 0
+// for the same reason as unfilteredArtistCursorPos. Falls back to the raw
+// values when no filter is active or the focused album cannot be resolved.
+func (v View) unfilteredAlbumCursorPos() (int, int) {
+	if v.FilterText == "" {
+		return v.Cursor, v.ScrollOffset
+	}
+	items := v.EffectiveAlbums()
+	if len(items) == 0 || v.Cursor < 0 || v.Cursor >= len(items) {
+		return v.Cursor, v.ScrollOffset
+	}
+	focused := items[v.Cursor]
+	for i, name := range v.Albums {
+		if name == focused {
+			return i, 0
+		}
+	}
+	return v.Cursor, v.ScrollOffset
 }
 
 // Back returns a copy of v navigated one level up. At AlbumLevel it returns to

@@ -198,6 +198,29 @@ func TestDeriveTracksForUnknownArtistIncludesDisplaySentinel(t *testing.T) {
 	}
 }
 
+func TestAlbumMatchesTreatsUnknownAlbumSentinelSymmetrically(t *testing.T) {
+	cases := []struct {
+		trackAlbum string
+		album      string
+		want       bool
+	}{
+		{"", "", true},
+		{"", UnknownAlbum, true},
+		{UnknownAlbum, "", true},
+		{UnknownAlbum, UnknownAlbum, true},
+		{"Alpha", "", false},
+		{"", "Alpha", false},
+		{"Alpha", UnknownAlbum, false},
+		{UnknownAlbum, "Alpha", false},
+		{"Alpha", "Alpha", true},
+	}
+	for _, c := range cases {
+		if got := AlbumMatches(c.trackAlbum, c.album); got != c.want {
+			t.Errorf("AlbumMatches(%q, %q): expected %v, got %v", c.trackAlbum, c.album, c.want, got)
+		}
+	}
+}
+
 func TestDeriveTracksForUnknownAlbumIncludesDisplaySentinel(t *testing.T) {
 	tracks := []library.Track{
 		{Artist: "Alice", Album: "", Title: "Blank album"},

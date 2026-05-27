@@ -34,9 +34,10 @@ func ArtistMatches(trackArtist, artist string) bool {
 }
 
 // AlbumMatches reports whether trackAlbum belongs to the requested album,
-// treating empty string and UnknownAlbum sentinel as equivalent.
+// treating empty string and UnknownAlbum sentinel as equivalent on both sides
+// so callers may pass either form without first normalizing via RawName.
 func AlbumMatches(trackAlbum, album string) bool {
-	if album == "" {
+	if album == "" || album == UnknownAlbum {
 		return trackAlbum == "" || trackAlbum == UnknownAlbum
 	}
 	return trackAlbum == album

@@ -213,6 +213,44 @@ func TestBackDoesNotAdvanceScrollWhenNoRowsVisible(t *testing.T) {
 	}
 }
 
+func TestOpenAlbumsTranslatesFilteredCursorToUnfilteredIndex(t *testing.T) {
+	v := View{
+		Level:        ArtistLevel,
+		Artists:      []string{"Alice", "Bob", "Charlie", "Dave", "Eve"},
+		FilterActive: true,
+		FilterText:   "d",
+		Cursor:       0, // filtered list = ["Dave"], cursor=0 points at Dave
+	}
+
+	v = v.OpenAlbums([]string{"Disc"})
+	v = v.Back()
+	if v.Level != ArtistLevel {
+		t.Fatalf("expected ArtistLevel after Back, got %v", v.Level)
+	}
+	if v.Cursor != 3 {
+		t.Errorf("Back after filtered OpenAlbums: expected Cursor=3 (Dave's index in unfiltered list), got %d", v.Cursor)
+	}
+}
+
+func TestOpenTracksTranslatesFilteredCursorToUnfilteredIndex(t *testing.T) {
+	v := View{
+		Level:        AlbumLevel,
+		Albums:       []string{"Alpha", "Beta", "Gamma", "Delta"},
+		FilterActive: true,
+		FilterText:   "d",
+		Cursor:       0, // filtered list = ["Delta"], cursor=0 points at Delta
+	}
+
+	v = v.OpenTracks([]library.Track{{Title: "Song"}})
+	v = v.Back()
+	if v.Level != AlbumLevel {
+		t.Fatalf("expected AlbumLevel after Back, got %v", v.Level)
+	}
+	if v.Cursor != 3 {
+		t.Errorf("Back after filtered OpenTracks: expected Cursor=3 (Delta's index in unfiltered list), got %d", v.Cursor)
+	}
+}
+
 func TestFullDrillDownCycle(t *testing.T) {
 	v := View{
 		Level:   ArtistLevel,
