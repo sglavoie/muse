@@ -289,7 +289,13 @@ func adjustScroll(cursor, scrollOffset, maxRows int) int {
 }
 
 // findStringPosition returns the index of name in items, or 0 if not found.
+// An empty name returns 0 immediately so that an out-of-bounds cursor (which
+// leaves the captured name as "") never accidentally matches an empty string
+// inside items (e.g., an "unknown artist" entry rendered as "").
 func findStringPosition(items []string, name string) int {
+	if name == "" {
+		return 0
+	}
 	for i, s := range items {
 		if s == name {
 			return i

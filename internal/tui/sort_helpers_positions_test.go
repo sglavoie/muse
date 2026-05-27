@@ -73,6 +73,18 @@ func TestFindStringPosition(t *testing.T) {
 	}
 }
 
+// TestFindStringPositionEmptyName guards against a regression where an empty
+// name (from an out-of-bounds cursor capture) would match an empty string
+// inside items rather than falling back to position 0. After a sort direction
+// change, the cursor must not jump to an unexpected "unknown" entry just
+// because we failed to capture the focused name beforehand.
+func TestFindStringPositionEmptyName(t *testing.T) {
+	items := []string{"Alpha", "", "Charlie"}
+	if got := findStringPosition(items, ""); got != 0 {
+		t.Errorf("empty name should return 0, got %d", got)
+	}
+}
+
 func TestFindTrackHashPosition(t *testing.T) {
 	tracks := []library.Track{
 		{Hash: "a"},
