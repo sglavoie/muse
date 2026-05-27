@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -101,8 +102,12 @@ func TestPreviewPlayer_StartTimeoutCleansUpProcess(t *testing.T) {
 
 func TestPreviewPlayer_LoadAndPlay(t *testing.T) {
 	p := newTestPreviewPlayer(t)
+	path := filepath.Join(t.TempDir(), "test.mp3")
+	if err := os.WriteFile(path, []byte("data"), 0o600); err != nil {
+		t.Fatalf("write tmp file: %v", err)
+	}
 	// The fake server returns success for any command.
-	if err := p.LoadAndPlay("/tmp/test.mp3"); err != nil {
+	if err := p.LoadAndPlay(path); err != nil {
 		t.Fatalf("LoadAndPlay: %v", err)
 	}
 }
@@ -297,6 +302,42 @@ func TestPreviewPlayer_ElapsedPosition_NotConnected(t *testing.T) {
 	_, _, err := p.ElapsedPosition()
 	if !errors.Is(err, ErrNotConnected) {
 		t.Fatalf("expected ErrNotConnected, got: %v", err)
+	}
+}
+
+func TestPreviewPlayer_LoadAndPlay_MissingFileReturnsErrMissingFile(t *testing.T) {
+	p := newTestPreviewPlayer(t)
+	missing := filepath.Join(t.TempDir(), "does-not-exist.mp3")
+	err := p.LoadAndPlay(missing)
+	if !errors.Is(err, ErrMissingFile) {
+		t.Fatalf("expected ErrMissingFile for missing path, got: %v", err)
+	}
+}
+
+func TestPreviewPlayer_LoadAndPlay_ExistingFileDoesNotErrorOnStat(t *testing.T) {
+	p := newTestPreviewPlayer(t)
+	existing := filepath.Join(t.TempDir(), "track.mp3")
+	if err := os.WriteFile(existing, []byte("data"), 0o600); err != nil {
+		t.Fatalf("write tmp file: %v", err)
+	}
+	if err := p.LoadAndPlay(existing); err != nil {
+		t.Fatalf("LoadAndPlay with existing file: %v", err)
+	}
+}
+
+func TestPreviewPlayer_ConcurrentCloseDoesNotRace(t *testing.T) {
+	p := newTestPreviewPlayer(t)
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = p.Close()
+		}()
+	}
+	wg.Wait()
+	if p.client != nil {
+		t.Error("expected client to be nil after concurrent Close")
 	}
 }
 

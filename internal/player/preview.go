@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -31,6 +32,11 @@ type PreviewPlayer struct {
 	client     *IPCClient
 	ctx        context.Context
 	cancel     context.CancelFunc
+
+	// mu serializes cleanup so concurrent Close calls (e.g. shutdown racing
+	// with a user-triggered close) do not double-close the IPC client or
+	// double-kill the subprocess.
+	mu sync.Mutex
 
 	// launchFn starts the mpv subprocess. Tests replace this with a no-op.
 	launchFn func(ctx context.Context, socketPath string) (*exec.Cmd, error)
@@ -116,6 +122,15 @@ func (p *PreviewPlayer) LoadAndPlay(path string) error {
 	if p.client == nil {
 		return ErrNotConnected
 	}
+	// mpv's loadfile acks success before it actually opens the file, so a
+	// missing path would otherwise surface only via an async event the
+	// previewer ignores. Pre-check so callers get a synchronous signal.
+	if _, err := os.Stat(path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return ErrMissingFile
+		}
+		return err
+	}
 	_, err := p.client.SendCommand(cmdLoadfile, path, "replace", 0, "pause=no")
 	return err
 }
@@ -172,6 +187,9 @@ func (p *PreviewPlayer) Close() error {
 }
 
 func (p *PreviewPlayer) cleanup(cancel bool, waitTimeout time.Duration) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if cancel {
 		p.cancel()
 	}
