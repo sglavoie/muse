@@ -4,11 +4,16 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 	"runtime"
 
 	tea "charm.land/bubbletea/v2"
 )
+
+// getEnv is a var so tests can stub session-detection without mutating the
+// real process environment.
+var getEnv = os.Getenv
 
 // errNoClipboardTool is returned when no supported clipboard utility is
 // available on the host. Callers surface this as a notification rather than a
@@ -34,7 +39,13 @@ func copyToClipboard(ctx context.Context, text string) tea.Cmd {
 		case "windows":
 			cmd = exec.CommandContext(ctx, "clip")
 		default:
+			// Prefer wl-copy when running under Wayland: xclip/xsel may be
+			// installed for XWayland compat but they target the X selection
+			// and silently fail to populate the Wayland clipboard.
+			wayland := getEnv("WAYLAND_DISPLAY") != ""
 			switch {
+			case wayland && lookPath("wl-copy"):
+				cmd = exec.CommandContext(ctx, "wl-copy")
 			case lookPath("xclip"):
 				cmd = exec.CommandContext(ctx, "xclip", "-selection", "clipboard")
 			case lookPath("xsel"):
