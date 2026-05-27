@@ -87,6 +87,13 @@ func (m *Manager) watchAndRestart() {
 		case <-m.rootCtx.Done():
 			return
 		case <-m.disconnectCh:
+			// If the previous reconnect succeeded (pollUntilReady set
+			// backoffReset asynchronously), clear the failure counter
+			// BEFORE incrementing so the current disconnect counts as the
+			// first failure and the backoff delay is skipped.
+			if m.backoffReset.Swap(false) {
+				consecutiveFailures = 0
+			}
 			consecutiveFailures++
 			if consecutiveFailures > restartMaxAttempts {
 				m.mu.Lock()
@@ -107,9 +114,6 @@ func (m *Manager) watchAndRestart() {
 				}
 			}
 			m.handleRestart()
-			if m.backoffReset.Swap(false) {
-				consecutiveFailures = 0
-			}
 		}
 	}
 }
