@@ -7,6 +7,9 @@ import "fmt"
 // session restore at startup. If mpv is not yet connected the command is
 // queued for replay once the IPC socket connects.
 func (m *Manager) LoadFilePaused(path string, positionMs int64) error {
+	if positionMs < 0 {
+		positionMs = 0
+	}
 	elapsedSecs := float64(positionMs) / 1000.0
 	c, err := m.ipcOrEnqueue(func() error { return m.LoadFilePaused(path, positionMs) })
 	if err != nil || c == nil {

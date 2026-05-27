@@ -76,6 +76,59 @@ func TestManager_LoadFilePaused_NotConnectedQueues(t *testing.T) {
 	}
 }
 
+// TestManager_LoadFilePaused_NegativePositionClamped verifies that
+// LoadFilePaused clamps a negative positionMs to 0 before forwarding to mpv.
+// A stale or corrupt session row could store a negative resume position; we
+// must not pass a negative start= option to mpv, which would seek to an
+// unintended offset (mpv's start= is documented as relative to the start of
+// the file but mpv treats negative values inconsistently).
+func TestManager_LoadFilePaused_NegativePositionClamped(t *testing.T) {
+	sock := shortSockPath(t, "loadpause-neg")
+
+	var mu sync.Mutex
+	var received []ipcTestCommand
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
+		if cmd := req.Command; len(cmd) > 0 {
+			mu.Lock()
+			received = append(received, cmd)
+			mu.Unlock()
+		}
+		return successHandler(req)
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{socketPath: sock, ctx: ctx, cancel: cancel}
+	defer m.Close()
+
+	client, err := NewIPCClient(sock)
+	if err != nil {
+		t.Fatalf("NewIPCClient: %v", err)
+	}
+	m.mu.Lock()
+	m.client = client
+	m.mu.Unlock()
+
+	if err := m.LoadFilePaused("/music/song.flac", -5000); err != nil {
+		t.Fatalf("LoadFilePaused(-5000): %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	for _, args := range received {
+		if len(args) >= 5 && args.stringIs(0, "loadfile") {
+			opts, _ := args.stringAt(4)
+			if strings.Contains(opts, "start=-") {
+				t.Errorf("LoadFilePaused sent negative start= option to mpv; args: %v", args)
+			}
+			if !strings.Contains(opts, "start=0") {
+				t.Errorf("LoadFilePaused with negative positionMs did not clamp to start=0; opts=%q", opts)
+			}
+			return
+		}
+	}
+	t.Errorf("no loadfile command received; got %v", received)
+}
+
 // TestManager_SeekAbsolute_NegativeClamped verifies that SeekAbsolute clamps a
 // negative position to 0 before forwarding to mpv. Without the clamp, mpv
 // interprets negative absolute seek values as seeking from the end of the
