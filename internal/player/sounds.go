@@ -71,6 +71,7 @@ func ensureSoundFiles() {
 			p := filepath.Join(dir, info.name)
 			if err := os.WriteFile(p, info.data, 0o644); err != nil {
 				slog.Debug("sounds: write file", "name", info.name, "err", err)
+				continue
 			}
 			soundPaths[s] = p
 		}
