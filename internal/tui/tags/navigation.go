@@ -98,6 +98,11 @@ func (v View) CursorDown() View {
 		v.ScrollOffset = v.Cursor
 		return v
 	}
+	// Clamp a stale ScrollOffset down when the list has shrunk below it:
+	// otherwise the cursor renders outside the visible window.
+	if v.ScrollOffset > v.Cursor {
+		v.ScrollOffset = v.Cursor
+	}
 	if v.Cursor >= v.ScrollOffset+maxRows {
 		v.ScrollOffset = v.Cursor - maxRows + 1
 	}
@@ -188,11 +193,12 @@ func (v View) OpenTracks(tag db.TagRow, tracks []db.PlaylistTrackRow) View {
 	return v
 }
 
-// unfilteredTagCursorPos returns the cursor translated back to the unfiltered
-// Tags slice when a filter is active. ScrollOffset is reset to 0 so
-// clampRestoredCursor (run by Back) can re-establish a visible window for the
-// restored cursor. Falls back to the raw values when no filter is active or
-// the focused tag cannot be resolved.
+// unfilteredTagCursorPos returns the cursor translated to the
+// post-Back-clear EffectiveTags slice (i.e. v.Tags minus zero-count entries)
+// when a filter is active. ScrollOffset is reset to 0 so clampRestoredCursor
+// (run by Back) can re-establish a visible window for the restored cursor.
+// Falls back to the raw values when no filter is active or the focused tag
+// cannot be resolved.
 func (v View) unfilteredTagCursorPos() (int, int) {
 	if v.FilterText == "" {
 		return v.Cursor, v.ScrollOffset
@@ -202,10 +208,20 @@ func (v View) unfilteredTagCursorPos() (int, int) {
 		return v.Cursor, v.ScrollOffset
 	}
 	focused := items[v.Cursor]
-	for i, t := range v.Tags {
-		if t.ID == focused.ID {
-			return i, 0
+	// Compute index inside the filter-cleared EffectiveTags slice (Tags
+	// minus zero-count entries), which is what Back's clampRestoredCursor
+	// interprets. Translating to v.Tags directly would skew past zero-count
+	// tags, leaving the cursor on a different tag after Back clears the
+	// filter.
+	idx := 0
+	for _, t := range v.Tags {
+		if v.TagCounts != nil && v.TagCounts[t.ID] == 0 {
+			continue
 		}
+		if t.ID == focused.ID {
+			return idx, 0
+		}
+		idx++
 	}
 	return v.Cursor, v.ScrollOffset
 }

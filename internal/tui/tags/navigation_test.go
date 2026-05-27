@@ -278,6 +278,45 @@ func TestOpenTracksTranslatesFilteredCursorToUnfilteredIndex(t *testing.T) {
 	}
 }
 
+// TestOpenTracksTranslatesFilteredCursorSkippingZeroCountTags guards a
+// regression where unfilteredTagCursorPos translated to the raw v.Tags index,
+// which left the post-Back cursor landing on the wrong tag whenever zero-count
+// tags appeared before the focused tag in v.Tags (Back clears the filter and
+// EffectiveTags excludes zero-count tags, so the translation target must be
+// the zero-count-filtered slice).
+func TestOpenTracksTranslatesFilteredCursorSkippingZeroCountTags(t *testing.T) {
+	tags := tagRows("alpha", "beta", "chill", "delta")
+	v := View{
+		Level: TagLevel,
+		Tags:  tags,
+		TagCounts: map[int64]int{
+			tags[0].ID: 0,
+			tags[1].ID: 0,
+			tags[2].ID: 1,
+			tags[3].ID: 1,
+		},
+		FilterText: "ch",
+		Width:      80,
+		Height:     20,
+	}
+
+	// EffectiveTags under filter "ch" (with zero counts excluded) = ["chill"].
+	v.Cursor = 0
+
+	v = v.OpenTracks(tags[2], trackRows("x"))
+	v = v.Back()
+	if v.Level != TagLevel {
+		t.Fatalf("expected TagLevel after Back, got %v", v.Level)
+	}
+	items := v.EffectiveTags()
+	if v.Cursor < 0 || v.Cursor >= len(items) {
+		t.Fatalf("cursor %d out of range [0,%d)", v.Cursor, len(items))
+	}
+	if items[v.Cursor].Name != "chill" {
+		t.Errorf("expected restored cursor on %q, got %q", "chill", items[v.Cursor].Name)
+	}
+}
+
 func TestOpenTracksClearsSelectedHashes(t *testing.T) {
 	tag := tagRows("tag")[0]
 	v := View{
@@ -394,6 +433,30 @@ func TestCursorUp_ClampsNegativeCursor(t *testing.T) {
 	v = v.CursorUp()
 	if v.Cursor < 0 {
 		t.Errorf("CursorUp with negative Cursor: want >=0, got %d", v.Cursor)
+	}
+}
+
+// TestCursorDown_ClampsStaleScrollOffsetWhenListShrank guards a regression
+// where CursorDown left a stale ScrollOffset above the new clamped Cursor
+// after the list shrank (e.g. via filter/delete), leaving the cursor rendering
+// outside the visible window until the next render pass clamped it.
+func TestCursorDown_ClampsStaleScrollOffsetWhenListShrank(t *testing.T) {
+	tags := tagRows("a", "b", "c")
+	v := View{
+		Level:        TagLevel,
+		Cursor:       10,
+		ScrollOffset: 50,
+		Tags:         tags,
+		TagCounts:    tagCountsFor(tags, 1),
+		Height:       20,
+	}
+
+	v = v.CursorDown()
+	if v.Cursor != 2 {
+		t.Errorf("CursorDown: expected clamped Cursor=2, got %d", v.Cursor)
+	}
+	if v.ScrollOffset > v.Cursor {
+		t.Errorf("CursorDown: expected ScrollOffset<=Cursor (%d), got ScrollOffset=%d", v.Cursor, v.ScrollOffset)
 	}
 }
 
