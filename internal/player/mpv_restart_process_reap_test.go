@@ -76,7 +76,6 @@ func TestManager_HandleRestart_DoesNotBlockOnUnresponsiveProcess(t *testing.T) {
 	t.Cleanup(func() {
 		if oldCmd.Process != nil {
 			_ = oldCmd.Process.Kill()
-			_ = oldCmd.Wait()
 		}
 	})
 
@@ -108,19 +107,5 @@ func TestManager_HandleRestart_DoesNotBlockOnUnresponsiveProcess(t *testing.T) {
 		// Good: handleRestart returned despite the unresponsive old process.
 	case <-time.After(shutdownTimeout + 5*time.Second):
 		t.Fatal("handleRestart blocked indefinitely on unresponsive old process")
-	}
-
-	// The process should have been killed by handleRestart's timeout branch.
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		if oldCmd.ProcessState != nil {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	if oldCmd.ProcessState == nil {
-		// Not strictly required for the bug fix, but the cleanup goroutine
-		// should have killed and reaped it.
-		t.Log("note: process not yet reaped after handleRestart returned")
 	}
 }
