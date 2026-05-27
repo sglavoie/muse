@@ -177,14 +177,30 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 		b.WriteString(boxPrefix + line + "\n")
 	}
 	if o.Hint != "" {
+		// Collapse newlines/tabs in the hint so embedded whitespace cannot
+		// break the box layout (extra lines would not be centered and the
+		// boxH calculation above only reserves a single hint line).
+		hint := sanitizeHint(o.Hint)
 		hintPad := 0
-		hintWidth := ansi.StringWidth(o.Hint)
+		hintWidth := ansi.StringWidth(hint)
 		if termWidth > hintWidth {
 			hintPad = (termWidth - hintWidth) / 2
 		}
-		b.WriteString(strings.Repeat(" ", hintPad) + o.Hint + "\n")
+		b.WriteString(strings.Repeat(" ", hintPad) + hint + "\n")
 	}
 	return b.String()
+}
+
+// sanitizeHint flattens embedded newlines/tabs to single spaces so the hint
+// can be centered as a single line without leaking extra rows.
+func sanitizeHint(s string) string {
+	if !strings.ContainsAny(s, "\r\n\t") {
+		return s
+	}
+	s = strings.ReplaceAll(s, "\r\n", " ")
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "\r", " ")
+	return strings.ReplaceAll(s, "\t", " ")
 }
 
 // renderTrackOverlay builds an OverlayBox for a track (preview or now-playing)

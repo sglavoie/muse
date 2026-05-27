@@ -199,6 +199,36 @@ func TestOverlayBoxRender_TinyMaxInnerWidthNoBorderMisalign(t *testing.T) {
 	}
 }
 
+func TestOverlayBoxRender_HintWithNewlineStaysSingleLine(t *testing.T) {
+	// A Hint containing embedded newlines / tabs must not break out into
+	// extra trailing lines (which would render uncentered and skew the
+	// vertical centering since boxH only reserves one hint row).
+	box := OverlayBox{
+		Title: " T ",
+		Rows:  []OverlayRow{{Text: "x"}},
+		Hint:  "press\nesc\tto dismiss",
+	}
+	out := box.Render(80, 24, newTestStyles())
+	stripped := ansi.Strip(out)
+	lines := strings.Split(strings.TrimRight(stripped, "\n"), "\n")
+
+	hintLine := lines[len(lines)-1]
+	// The hint should not contain a literal newline or tab when rendered.
+	if strings.ContainsAny(hintLine, "\n\t\r") {
+		t.Errorf("hint line still contains control whitespace: %q", hintLine)
+	}
+	// The combined hint text should still be present (whitespace collapsed).
+	if !strings.Contains(hintLine, "press") || !strings.Contains(hintLine, "esc") || !strings.Contains(hintLine, "to dismiss") {
+		t.Errorf("expected hint segments preserved, got %q", hintLine)
+	}
+	// And it must be centered: leading spaces equal (term-hintWidth)/2.
+	leadingSpaces := len(hintLine) - len(strings.TrimLeft(hintLine, " "))
+	want := (80 - ansi.StringWidth(strings.TrimSpace(hintLine))) / 2
+	if leadingSpaces != want {
+		t.Errorf("hint not centered: leadingSpaces=%d want=%d (line=%q)", leadingSpaces, want, hintLine)
+	}
+}
+
 func TestOverlayBoxRender_LabelledRowsMultiByte(t *testing.T) {
 	// Verify labelled rows with multi-byte labels align correctly.
 	box := OverlayBox{
