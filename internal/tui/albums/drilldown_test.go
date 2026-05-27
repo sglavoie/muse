@@ -89,6 +89,37 @@ func TestBackKeepsCursorVisibleAfterResize(t *testing.T) {
 	}
 }
 
+func TestOpenTracksTranslatesFilteredCursorToUnfilteredIndex(t *testing.T) {
+	v := View{
+		Level:      AlbumLevel,
+		Albums:     []string{"Alpha", "Beta", "Gamma", "Delta"},
+		FilterText: "ta",
+		Width:      80,
+		Height:     20,
+	}
+
+	// EffectiveAlbums under filter "ta" = ["Beta", "Delta"].
+	// Focusing index 1 corresponds to "Delta" (unfiltered index 3).
+	v.Cursor = 1
+
+	v = v.OpenTracks([]library.Track{{Title: "x"}})
+	if v.AlbumCursor != 3 {
+		t.Errorf("expected saved AlbumCursor=3 (unfiltered index of Delta), got %d", v.AlbumCursor)
+	}
+
+	v = v.Back()
+	if v.Level != AlbumLevel {
+		t.Fatalf("expected AlbumLevel after Back, got %v", v.Level)
+	}
+	if v.Cursor != 3 {
+		t.Errorf("expected restored cursor=3 (Delta in unfiltered list), got %d", v.Cursor)
+	}
+	items := v.EffectiveAlbums()
+	if items[v.Cursor] != "Delta" {
+		t.Errorf("expected cursor on Delta, got %q", items[v.Cursor])
+	}
+}
+
 func TestBackClampsCursorWhenParentEmpty(t *testing.T) {
 	v := View{
 		Level:        AlbumLevel,

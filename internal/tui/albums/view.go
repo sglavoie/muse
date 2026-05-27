@@ -208,10 +208,12 @@ func (v View) keepCursorVisible() View {
 }
 
 // OpenTracks returns a copy of v transitioned to TrackLevel with tracks loaded.
-// The current album cursor and scroll offset are saved for restoration by Back.
+// The current album cursor and scroll offset are saved so they can be restored
+// by Back. When a filter is active, the saved cursor is translated back to the
+// unfiltered index of the focused album so the cursor lands on the same entry
+// after Back clears the filter.
 func (v View) OpenTracks(tracks []library.Track) View {
-	v.AlbumCursor = v.Cursor
-	v.AlbumScrollOffset = v.ScrollOffset
+	v.AlbumCursor, v.AlbumScrollOffset = v.unfilteredAlbumCursorPos()
 	v.Tracks = tracks
 	v.Level = TrackLevel
 	v.Cursor = 0
@@ -219,6 +221,28 @@ func (v View) OpenTracks(tracks []library.Track) View {
 	v.FilterActive = false
 	v.FilterText = ""
 	return v
+}
+
+// unfilteredAlbumCursorPos returns the cursor translated back to the unfiltered
+// Albums slice when a filter is active. ScrollOffset is reset to 0 in that case
+// so clampRestoredCursor (run by Back) can re-establish a visible window for
+// the restored cursor. Falls back to the raw values when no filter is active or
+// the focused album cannot be resolved.
+func (v View) unfilteredAlbumCursorPos() (int, int) {
+	if v.FilterText == "" {
+		return v.Cursor, v.ScrollOffset
+	}
+	items := v.EffectiveAlbums()
+	if len(items) == 0 || v.Cursor < 0 || v.Cursor >= len(items) {
+		return v.Cursor, v.ScrollOffset
+	}
+	focused := items[v.Cursor]
+	for i, name := range v.Albums {
+		if name == focused {
+			return i, 0
+		}
+	}
+	return v.Cursor, v.ScrollOffset
 }
 
 // Back returns a copy of v navigated one level up. At TrackLevel it returns to
