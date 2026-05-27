@@ -143,8 +143,15 @@ func (m *Manager) SetVolumeRelative(delta float64) error {
 
 // SetVolumeAbsolute sets the volume to an absolute level (0–100). The command
 // is queued for replay if mpv is not yet connected, so it is safe to call
-// immediately after Start before the IPC socket is ready.
+// immediately after Start before the IPC socket is ready. Values outside the
+// 0-100 range are clamped before being forwarded to mpv to avoid driver- or
+// platform-dependent behavior at out-of-range values.
 func (m *Manager) SetVolumeAbsolute(volume float64) error {
+	if volume < 0 {
+		volume = 0
+	} else if volume > 100 {
+		volume = 100
+	}
 	c, err := m.ipcOrEnqueue(func() error { return m.SetVolumeAbsolute(volume) })
 	if err != nil || c == nil {
 		return err

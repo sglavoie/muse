@@ -53,6 +53,73 @@ func TestManager_SetVolumeAbsolute_Connected(t *testing.T) {
 	}
 }
 
+// TestManager_SetVolumeAbsolute_Clamped verifies that SetVolumeAbsolute
+// clamps values outside the documented 0-100 range before forwarding to mpv.
+// Out-of-range values cause inconsistent behavior across mpv versions and
+// audio backends (some clip silently, some reject), so the Manager normalizes
+// at the API boundary.
+func TestManager_SetVolumeAbsolute_Clamped(t *testing.T) {
+	cases := []struct {
+		name  string
+		input float64
+		want  float64
+	}{
+		{"negative", -25, 0},
+		{"over_max", 150, 100},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sock := shortSockPath(t, "vol-clamp-"+tc.name)
+
+			var mu sync.Mutex
+			var received []ipcTestCommand
+			fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
+				if cmd := req.Command; len(cmd) > 0 {
+					mu.Lock()
+					received = append(received, cmd)
+					mu.Unlock()
+				}
+				return successHandler(req)
+			})
+
+			ctx, cancel := context.WithCancel(context.Background())
+			m := &Manager{socketPath: sock, ctx: ctx, cancel: cancel}
+			defer m.Close()
+
+			client, err := NewIPCClient(sock)
+			if err != nil {
+				t.Fatalf("NewIPCClient: %v", err)
+			}
+			m.mu.Lock()
+			m.client = client
+			m.mu.Unlock()
+
+			if err := m.SetVolumeAbsolute(tc.input); err != nil {
+				t.Fatalf("SetVolumeAbsolute(%v): %v", tc.input, err)
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+			found := false
+			for _, args := range received {
+				if len(args) >= 3 && args.stringIs(0, "set_property") && args.stringIs(1, "volume") {
+					val, ok := args.float64At(2)
+					if !ok {
+						t.Fatalf("volume arg not a float64: %v", args)
+					}
+					if val != tc.want {
+						t.Errorf("SetVolumeAbsolute(%v) sent volume=%v; want %v", tc.input, val, tc.want)
+					}
+					found = true
+				}
+			}
+			if !found {
+				t.Errorf("set_property volume not sent; got %v", received)
+			}
+		})
+	}
+}
+
 func TestManager_SetVolumeAbsolute_NotConnectedQueues(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	m := &Manager{ctx: ctx, cancel: cancel, cmdQueue: []func() error{}}
