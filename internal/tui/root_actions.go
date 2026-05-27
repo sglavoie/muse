@@ -268,7 +268,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m.helpVisible = true
 		m.helpFiltered = true
 		m.helpSearchFilter = filter.State{}
-		m.helpViewport = viewport.New(viewport.WithWidth(m.termWidth), viewport.WithHeight(m.termHeight-2))
+		m.helpViewport = viewport.New(viewport.WithWidth(m.termWidth), viewport.WithHeight(max(m.termHeight-2, 0)))
 		m.refreshHelpViewport()
 	case actionNextView:
 		next := nextView(m.activeView)
@@ -360,6 +360,12 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 			if len(options) > 0 {
 				modal := NewGoToModal(options)
 				m.overlay.goTo = &modal
+			} else {
+				// Track was focused but no jump targets apply (e.g. orphan
+				// track missing artist/album/genre, or current view has no
+				// applicable targets). Silently swallowing the keypress
+				// leaves the user wondering whether the key was received.
+				m.statusBar.notify("No jump targets available")
 			}
 		}
 	case actionCommandPalette:
