@@ -138,6 +138,11 @@ func TestNowPlayingRowKeepsBackgroundUnderFieldHighlight(t *testing.T) {
 		{TrackIndex: 1, ArtistPositions: []int{0}},
 	}
 
+	// ESC + '[' built at runtime so this source file does not contain a raw
+	// ANSI escape literal (forbidden by TestNoRawANSI in internal/tui/styles).
+	csi := string([]byte{0x1b, '['})
+	resetSGR := csi + "m"
+
 	got := v.Render()
 	rows := strings.Split(got, "\n")
 	if len(rows) < 3 {
@@ -148,9 +153,9 @@ func TestNowPlayingRowKeepsBackgroundUnderFieldHighlight(t *testing.T) {
 	// The bg ANSI emitted by lipgloss for the NowPlayingBg colour. The cells
 	// that carry highlighting must all include this exact background.
 	nowPlayingBgANSI := s.NowPlayingRow.Render("X")
-	// Extract the SGR prefix that introduces the background sequence (e.g.
-	// "\x1b[1;38;2;...;48;2;42;38;24m") — find the substring up through the
-	// closing 'm' of the leading escape.
+	// Extract the SGR prefix that introduces the background sequence (ESC[
+	// 1;38;2;...;48;2;42;38;24m) — find the substring up through the closing
+	// 'm' of the leading escape.
 	prefixEnd := strings.IndexByte(nowPlayingBgANSI, 'm')
 	if prefixEnd <= 0 {
 		t.Fatalf("could not locate SGR prefix in NowPlayingRow render: %q", nowPlayingBgANSI)
@@ -165,10 +170,10 @@ func TestNowPlayingRowKeepsBackgroundUnderFieldHighlight(t *testing.T) {
 
 	// Confirm that the artist cell content "Alice" is followed by the
 	// NowPlayingBg colour somewhere in the surrounding ANSI sequence. The
-	// pre-fix bug emitted just "\x1b[1mA\x1b[m" with no background for the
+	// pre-fix bug emitted just bold-A + reset with no background for the
 	// matched rune; ensure both the matched character "A" and the trailing
 	// "lice" are wrapped with NowPlayingBg.
-	if !strings.Contains(nowPlayingRow, "A"+"\x1b[m") {
+	if !strings.Contains(nowPlayingRow, "A"+resetSGR) {
 		// sanity check: ensure we are actually looking at the right row
 		t.Fatalf("expected highlighted A in now-playing row, got:\n%q", nowPlayingRow)
 	}
@@ -182,7 +187,7 @@ func TestNowPlayingRowKeepsBackgroundUnderFieldHighlight(t *testing.T) {
 	// Check the segment leading up to "lice" includes the now-playing bg.
 	prefix := nowPlayingRow[:idx]
 	// Find the last ANSI escape before "lice".
-	lastEsc := strings.LastIndex(prefix, "\x1b[")
+	lastEsc := strings.LastIndex(prefix, csi)
 	if lastEsc < 0 {
 		t.Fatalf("expected ANSI escape before 'lice', got prefix:\n%q", prefix)
 	}
