@@ -18,8 +18,12 @@ func (o *SettingsOverlay) applyEQFieldChange() settingsAction {
 		presetIdx := eq[1].Value
 		if presetIdx >= 0 && presetIdx < len(o.eqPresets) {
 			p := o.eqPresets[presetIdx]
-			for i := range 10 {
-				o.fields[settingsTabEqualizer][i+2].Value = p.Bands[i]
+			// The "(Custom)" sentinel has zero-valued bands; preserve the
+			// current user-edited band values instead of zeroing them.
+			if p.Key != "custom" {
+				for i := range 10 {
+					o.fields[settingsTabEqualizer][i+2].Value = p.Bands[i]
+				}
 			}
 		}
 		return settingsEQLive

@@ -332,6 +332,44 @@ func TestEQBandAtMaxDoesNotResetPreset(t *testing.T) {
 	}
 }
 
+// Navigating onto the "(Custom)" sentinel preset via h/l must preserve the
+// user's current band values (not zero them out). The sentinel represents
+// "the current edited band values"; snapping to its zero-initialized bands
+// would silently destroy the user's work.
+func TestEQPresetCyclingOntoCustomSentinelPreservesBands(t *testing.T) {
+	cfg := config.Defaults()
+	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o = switchToEQTab(o)
+
+	// Position the Preset cursor just before the (Custom) sentinel.
+	sentinelIdx := len(o.eqPresets) - 1
+	o.fields[settingsTabEqualizer][1].Value = sentinelIdx - 1
+	o.cursor = 1
+
+	// Set custom band values (simulate user edits that diverged from the
+	// preset just before the sentinel).
+	custom := [10]int{1, -2, 3, -4, 5, -6, 7, -8, 9, -10}
+	for i := range 10 {
+		o.fields[settingsTabEqualizer][i+2].Value = custom[i]
+	}
+
+	// Advance one step to land on the (Custom) sentinel.
+	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	if o.fields[settingsTabEqualizer][1].Value != sentinelIdx {
+		t.Fatalf("precondition: expected to land on sentinel idx %d, got %d",
+			sentinelIdx, o.fields[settingsTabEqualizer][1].Value)
+	}
+
+	// Bands must be unchanged after landing on sentinel.
+	for i := range 10 {
+		got := o.fields[settingsTabEqualizer][i+2].Value
+		if got != custom[i] {
+			t.Errorf("band %d after sentinel snap: expected %d (preserved), got %d",
+				i, custom[i], got)
+		}
+	}
+}
+
 func TestEQSavePresetAllSpecialCharsNameNoOp(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	o = switchToEQTab(o)
