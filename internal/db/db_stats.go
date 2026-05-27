@@ -148,9 +148,12 @@ func (d *DB) ReadMixCounts(cfg MixCountConfig) ([]MixStatEntry, error) {
 		return nil, fmt.Errorf("db: read mix counts rediscover: %w", err)
 	}
 
+	// play_count BETWEEN 1 AND max mirrors ReadHiddenGemsMix: never-played
+	// tracks belong to the Never Played mix and must not inflate the
+	// Hidden Gems count.
 	if err := d.QueryRow(`
 		SELECT COUNT(*) FROM tracks t
-		WHERE t.missing = 0 AND t.play_count <= ?
+		WHERE t.missing = 0 AND t.play_count BETWEEN 1 AND ?
 		AND (
 		    t.artist IN (
 		        SELECT t2.artist FROM play_history ph JOIN tracks t2 ON ph.track_hash = t2.hash
