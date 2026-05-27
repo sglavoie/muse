@@ -62,6 +62,9 @@ type PauseChangedMsg struct {
 type RemoteActionMsg struct{ ActionName string }
 
 // remoteAction maps a subcommand name to the corresponding action constant.
+// Unknown names return actionNone so handlePlaybackKeyAction treats them as a
+// no-op rather than silently performing play/pause (which would mask typos and
+// future-protocol drift between the remote client and the running instance).
 func remoteAction(name string) action {
 	switch name {
 	case "toggle-play":
@@ -75,7 +78,7 @@ func remoteAction(name string) action {
 	case "volume-down":
 		return actionVolumeDown
 	default:
-		return actionPlayPause
+		return actionNone
 	}
 }
 
