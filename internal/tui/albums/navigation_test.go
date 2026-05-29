@@ -140,6 +140,36 @@ func TestCursorMovementResetsStateWhenFilteredListIsEmpty(t *testing.T) {
 	}
 }
 
+func TestCursorUpDownClampStaleNegativeCursor(t *testing.T) {
+	base := View{
+		Level:        AlbumLevel,
+		Albums:       []string{"A", "B", "C"},
+		Cursor:       -5,
+		ScrollOffset: -2,
+		Width:        80,
+		Height:       20,
+	}
+	tests := []struct {
+		name string
+		move func(View) View
+	}{
+		{name: "CursorUp", move: View.CursorUp},
+		{name: "CursorDown", move: View.CursorDown},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := tt.move(base)
+			if v.Cursor != 0 {
+				t.Fatalf("expected cursor clamped to 0, got %d", v.Cursor)
+			}
+			if v.ScrollOffset != 0 {
+				t.Fatalf("expected scroll clamped to 0, got %d", v.ScrollOffset)
+			}
+		})
+	}
+}
+
 func TestCursorMovementWithNoVisibleRowsDoesNotScrollPastCursor(t *testing.T) {
 	base := View{
 		Level:  AlbumLevel,

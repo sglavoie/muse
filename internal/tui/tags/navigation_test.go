@@ -139,6 +139,19 @@ func TestVisibleWindowKeepsCursorVisibleWhenScrollTrails(t *testing.T) {
 	}
 }
 
+func TestVisibleWindowKeepsCursorVisibleWhenScrollLeads(t *testing.T) {
+	v := View{
+		Cursor:       2,
+		ScrollOffset: 10,
+	}
+
+	start, end := v.visibleWindow(20, 5)
+
+	if start != 2 || end != 7 {
+		t.Fatalf("visibleWindow = [%d,%d), want [2,7)", start, end)
+	}
+}
+
 func TestVisibleWindowWithNoRowsReturnsEmptyWindow(t *testing.T) {
 	v := View{
 		Cursor:       2,

@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+type queueShuffleRow struct {
+	id              int64
+	position        int64
+	shufflePosition int64
+}
+
 // WriteShuffle persists the shuffle flag to the session row and, when enabled
 // is true, regenerates shuffle_position for all active queue rows with fresh
 // random gapped integers inside a single transaction. When disabled, only the
@@ -36,31 +42,34 @@ func (w *Writer) WriteShuffle(enabled bool) error {
 		}
 
 		if enabled {
-			rows, err := tx.Query(`SELECT id FROM queue WHERE deleted_at IS NULL`)
+			rows, err := tx.Query(`SELECT id, position, shuffle_position FROM queue WHERE deleted_at IS NULL ORDER BY position`)
 			if err != nil {
 				return err
 			}
-			var ids []int64
+			var rowsToShuffle []queueShuffleRow
 			for rows.Next() {
-				var id int64
-				if err := rows.Scan(&id); err != nil {
+				var row queueShuffleRow
+				if err := rows.Scan(&row.id, &row.position, &row.shufflePosition); err != nil {
 					rows.Close()
 					return err
 				}
-				ids = append(ids, id)
+				rowsToShuffle = append(rowsToShuffle, row)
 			}
 			rows.Close()
 			if err := rows.Err(); err != nil {
 				return err
 			}
 
-			if len(ids) > 0 {
-				perm := rand.Perm(len(ids))
-				for i, id := range ids {
+			if len(rowsToShuffle) > 0 {
+				perm := rand.Perm(len(rowsToShuffle))
+				if len(rowsToShuffle) > 1 && shufflePermutationMatches(rowsToShuffle, perm) {
+					perm[0], perm[1] = perm[1], perm[0]
+				}
+				for i, row := range rowsToShuffle {
 					newPos := int64(perm[i]+1) * queuePositionGap
 					if _, err := tx.Exec(
 						`UPDATE queue SET shuffle_position=? WHERE id=?`,
-						newPos, id,
+						newPos, row.id,
 					); err != nil {
 						return err
 					}
@@ -70,6 +79,25 @@ func (w *Writer) WriteShuffle(enabled bool) error {
 
 		return tx.Commit()
 	})
+}
+
+func shufflePermutationMatches(rows []queueShuffleRow, perm []int) bool {
+	matchesQueueOrder := true
+	matchesPreviousShuffle := true
+	hasPreviousShuffle := true
+	for i, row := range rows {
+		newPos := int64(perm[i]+1) * queuePositionGap
+		if newPos != row.position {
+			matchesQueueOrder = false
+		}
+		if row.shufflePosition == 0 || newPos != row.shufflePosition {
+			matchesPreviousShuffle = false
+		}
+		if row.shufflePosition == 0 {
+			hasPreviousShuffle = false
+		}
+	}
+	return matchesQueueOrder || (hasPreviousShuffle && matchesPreviousShuffle)
 }
 
 // UpsertSession updates all session state fields atomically in a single UPDATE:

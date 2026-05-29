@@ -55,11 +55,12 @@ func validateMusicDir(musicDir, configPath string) error {
 
 	hasAudioOrSubdir := false
 	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".") {
+			continue
+		}
 		if e.IsDir() {
-			if !strings.HasPrefix(e.Name(), ".") {
-				hasAudioOrSubdir = true
-				break
-			}
+			hasAudioOrSubdir = true
+			break
 		} else {
 			ext := strings.ToLower(filepath.Ext(e.Name()))
 			if audio.IsSupportedExtension(ext) {

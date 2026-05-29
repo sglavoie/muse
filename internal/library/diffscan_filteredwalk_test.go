@@ -221,6 +221,25 @@ func TestFilteredWalk_MultipleRootsDeletedFileReported(t *testing.T) {
 	}
 }
 
+func TestFilteredWalk_MissingRootReturnsErrorAndNoDeletions(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "missing")
+	knownPath := filepath.Join(root, "track.mp3")
+	known := map[string]KnownFile{
+		knownPath: {ModTime: 1, SizeBytes: 2},
+	}
+
+	changed, deleted, err := FilteredWalk(context.Background(), []string{root}, nil, known, nil)
+	if err == nil {
+		t.Fatal("FilteredWalk with missing root: expected error")
+	}
+	if changed != nil {
+		t.Errorf("changed: got %v, want nil on root walk error", changed)
+	}
+	if deleted != nil {
+		t.Errorf("deleted: got %v, want nil on root walk error", deleted)
+	}
+}
+
 // TestFilteredWalk_ExcludedKnownPathNotReportedAsDeleted verifies that a path
 // previously in the DB (present in known) is NOT reported as deleted when its
 // directory is excluded. Before the fix, excluded directories were silently

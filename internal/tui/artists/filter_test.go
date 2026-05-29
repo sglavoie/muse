@@ -88,6 +88,34 @@ func TestFilterTracksMatchesTitleArtistAlbum(t *testing.T) {
 	})
 }
 
+func TestFilterTracksMatchesUnknownDisplaySentinels(t *testing.T) {
+	tracks := []library.Track{
+		{Title: "Blank artist", Artist: "", Album: "Known"},
+		{Title: "Blank album", Artist: "Alice", Album: ""},
+		{Title: "Named metadata", Artist: "Bob", Album: "Known"},
+	}
+
+	t.Run("unknown artist", func(t *testing.T) {
+		got := FilterTracks(tracks, "unknown artist")
+		if len(got) != 1 {
+			t.Fatalf("expected 1 unknown-artist match, got %d: %v", len(got), got)
+		}
+		if got[0].Title != "Blank artist" {
+			t.Errorf("expected Blank artist, got %q", got[0].Title)
+		}
+	})
+
+	t.Run("unknown album", func(t *testing.T) {
+		got := FilterTracks(tracks, "unknown album")
+		if len(got) != 1 {
+			t.Fatalf("expected 1 unknown-album match, got %d: %v", len(got), got)
+		}
+		if got[0].Title != "Blank album" {
+			t.Errorf("expected Blank album, got %q", got[0].Title)
+		}
+	})
+}
+
 func TestItemCountRespectsFilter(t *testing.T) {
 	v := View{
 		Level:      ArtistLevel,

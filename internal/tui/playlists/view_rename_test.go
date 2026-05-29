@@ -23,6 +23,22 @@ func TestStartRenamePrePopulatesInput(t *testing.T) {
 	}
 }
 
+func TestStartRenameCancelsCreate(t *testing.T) {
+	v := View{}.StartCreate()
+	v.CreateInput.SetValue("Draft")
+	v = v.StartRename("OldName")
+
+	if v.Creating {
+		t.Error("StartRename: expected Creating=false")
+	}
+	if v.CreateInput.Value() != "" {
+		t.Errorf("StartRename: expected empty CreateInput, got %q", v.CreateInput.Value())
+	}
+	if !v.Renaming {
+		t.Error("StartRename: expected Renaming=true")
+	}
+}
+
 func TestRenameInputEmptyNameIsRejected(t *testing.T) {
 	v := View{}.StartRename("SomeName")
 	v.RenameInput.SetValue("")

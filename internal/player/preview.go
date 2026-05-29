@@ -107,19 +107,27 @@ func (p *PreviewPlayer) Start() error {
 	return failStart(fmt.Errorf("preview: timed out waiting for mpv socket at %s", p.socketPath))
 }
 
+func (p *PreviewPlayer) connectedClient() *IPCClient {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.client
+}
+
 // SetAudioFilter sets the af (audio filter) property on the preview mpv
 // instance. Use "lavfi=[loudnorm]" to enable EBU R128 normalization.
 func (p *PreviewPlayer) SetAudioFilter(filter string) error {
-	if p.client == nil {
+	client := p.connectedClient()
+	if client == nil {
 		return ErrNotConnected
 	}
-	_, err := p.client.SendCommand(cmdSetProperty, propAF, filter)
+	_, err := client.SendCommand(cmdSetProperty, propAF, filter)
 	return err
 }
 
 // LoadAndPlay loads a file and starts playback immediately.
 func (p *PreviewPlayer) LoadAndPlay(path string) error {
-	if p.client == nil {
+	client := p.connectedClient()
+	if client == nil {
 		return ErrNotConnected
 	}
 	// mpv's loadfile acks success before it actually opens the file, so a
@@ -131,35 +139,38 @@ func (p *PreviewPlayer) LoadAndPlay(path string) error {
 		}
 		return err
 	}
-	_, err := p.client.SendCommand(cmdLoadfile, path, "replace", 0, "pause=no")
+	_, err := client.SendCommand(cmdLoadfile, path, "replace", 0, "pause=no")
 	return err
 }
 
 // TogglePause toggles the preview player's pause state.
 func (p *PreviewPlayer) TogglePause() error {
-	if p.client == nil {
+	client := p.connectedClient()
+	if client == nil {
 		return ErrNotConnected
 	}
-	_, err := p.client.SendCommand(cmdCycle, propPause)
+	_, err := client.SendCommand(cmdCycle, propPause)
 	return err
 }
 
 // SeekRelative seeks the preview player by the given relative offset.
 func (p *PreviewPlayer) SeekRelative(seconds float64) error {
-	if p.client == nil {
+	client := p.connectedClient()
+	if client == nil {
 		return ErrNotConnected
 	}
-	_, err := p.client.SendCommand(cmdSeek, seconds, "relative")
+	_, err := client.SendCommand(cmdSeek, seconds, "relative")
 	return err
 }
 
 // ElapsedPosition queries the preview player for current position and duration.
 func (p *PreviewPlayer) ElapsedPosition() (elapsed, total float64, err error) {
-	if p.client == nil {
+	client := p.connectedClient()
+	if client == nil {
 		return 0, 0, ErrNotConnected
 	}
 
-	posResp, err := p.client.SendCommand(cmdGetProperty, propTimePos)
+	posResp, err := client.SendCommand(cmdGetProperty, propTimePos)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -168,7 +179,7 @@ func (p *PreviewPlayer) ElapsedPosition() (elapsed, total float64, err error) {
 		return 0, 0, err
 	}
 
-	durResp, err := p.client.SendCommand(cmdGetProperty, propDuration)
+	durResp, err := client.SendCommand(cmdGetProperty, propDuration)
 	if err != nil {
 		return 0, 0, err
 	}

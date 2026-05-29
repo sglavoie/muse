@@ -214,6 +214,27 @@ func TestRestoreSessionMissingFileMarkedInDB(t *testing.T) {
 	}
 }
 
+func TestRestoreSessionRepairsTrackMissingForStaleQueueMissing(t *testing.T) {
+	harness := newRestoreSessionHarness(t)
+	missingPath := harness.path("still-gone.mp3")
+	id := harness.insertTrackAndQueue("hash-still-gone", missingPath, "Gone", "Track", 1000)
+
+	harness.markQueueMissing(id, 1)
+	harness.markTrackMissing("hash-still-gone", 0)
+
+	restored := harness.restore()
+	if len(restored.QueueEntries) != 1 {
+		t.Fatalf("QueueEntries: want 1, got %d", len(restored.QueueEntries))
+	}
+	if !restored.QueueEntries[0].Missing {
+		t.Fatal("QueueEntry.Missing: want true while file is still absent")
+	}
+
+	if trackMissing := harness.trackMissing("hash-still-gone"); trackMissing != 1 {
+		t.Errorf("tracks.missing: want 1 after restore repairs stale queue-only missing state, got %d", trackMissing)
+	}
+}
+
 // TestRestoreSessionSessionFlags verifies that repeat_mode, shuffle,
 // current_hash, and position_ms are restored from the session table.
 func TestRestoreSessionSessionFlags(t *testing.T) {

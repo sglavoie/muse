@@ -121,3 +121,17 @@ func TestPadHighlightGroupsConsecutiveMatches(t *testing.T) {
 		t.Errorf("expected grouped bold 'Hel', got %q", got)
 	}
 }
+
+func TestPadHighlightNormalizesControlWhitespace(t *testing.T) {
+	got := padHighlight("Song\nOne\tLive", 20, []int{0, 5, 9})
+	visible := ansi.Strip(got)
+	if strings.ContainsAny(visible, "\r\n\t") {
+		t.Fatalf("highlighted text should remain single-line, got %q", visible)
+	}
+	if ansi.StringWidth(got) != 20 {
+		t.Fatalf("highlighted text width = %d, want 20: %q", ansi.StringWidth(got), got)
+	}
+	if !strings.Contains(visible, "Song One Live") {
+		t.Fatalf("highlighted text should replace control whitespace with spaces, got %q", visible)
+	}
+}

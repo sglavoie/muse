@@ -9,6 +9,7 @@ var orderedInputForwarders = []inputMsgForwarder{
 	Model.forwardSettingsMsg,
 	Model.forwardMetadataEditorMsg,
 	Model.forwardSmartRuleEditorMsg,
+	Model.forwardCommandPaletteMsg,
 	Model.forwardFilterMsg,
 	Model.forwardPlaylistCreateMsg,
 	Model.forwardPlaylistRenameMsg,
@@ -68,6 +69,18 @@ func (m Model) forwardSmartRuleEditorMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
 			m.overlay.smartRuleEditor = &updated
 			return m, cmd, true
 		}
+	}
+	return m, nil, false
+}
+
+func (m Model) forwardCommandPaletteMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
+	if m.overlay.commandPalette != nil {
+		updated := *m.overlay.commandPalette
+		var cmd tea.Cmd
+		updated.filter, cmd = updated.filter.UpdateMsg(msg)
+		updated.refilter()
+		m.overlay.commandPalette = &updated
+		return m, cmd, true
 	}
 	return m, nil, false
 }

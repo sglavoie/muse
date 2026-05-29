@@ -28,6 +28,9 @@ func walkAudioPaths(ctx context.Context, root string, excludedPaths []string, vi
 			if onErr != nil {
 				onErr(err)
 			}
+			if path == root {
+				return err
+			}
 			return nil
 		}
 		name := d.Name()

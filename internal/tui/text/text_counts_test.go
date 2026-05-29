@@ -86,3 +86,17 @@ func TestRowLabelWidthAndCountNonPositiveWidth(t *testing.T) {
 		})
 	}
 }
+
+func TestRowLabelWidthAndCountEmptyCountsUsesFullWidth(t *testing.T) {
+	const width = 20
+
+	gotWidth, gotCount := RowLabelWidthAndCount(width, map[string]int{}, "Beatles")
+	if gotWidth != width {
+		t.Fatalf("RowLabelWidthAndCount(%d, empty counts, %q) width = %d, want %d",
+			width, "Beatles", gotWidth, width)
+	}
+	if gotCount != "" {
+		t.Fatalf("RowLabelWidthAndCount(%d, empty counts, %q) count = %q, want empty",
+			width, "Beatles", gotCount)
+	}
+}

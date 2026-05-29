@@ -87,6 +87,50 @@ func TestOpenTracks_TransitionsToTrackLevel(t *testing.T) {
 	}
 }
 
+func TestOpenTracks_TranslatesFilteredArtistCursorToUnfilteredIndex(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Category:     CategoryArtists,
+		Artists:      []string{"Alice", "Bob", "Carol", "Daphne"},
+		Cursor:       0, // filtered list = ["Daphne"]
+		ScrollOffset: 2,
+		FilterText:   "daph",
+	}
+	v = v.OpenTracks(sampleTracks(1))
+	v = v.Back()
+	if v.Level != ListLevel {
+		t.Fatalf("expected ListLevel, got %v", v.Level)
+	}
+	if v.Cursor != 3 {
+		t.Errorf("expected cursor restored to Daphne's unfiltered index 3, got %d", v.Cursor)
+	}
+	if v.ScrollOffset < 0 || v.ScrollOffset > v.Cursor {
+		t.Errorf("expected valid restored scroll offset, got cursor=%d scroll=%d", v.Cursor, v.ScrollOffset)
+	}
+}
+
+func TestOpenTracks_TranslatesFilteredAlbumCursorToUnfilteredIndex(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Category:     CategoryAlbums,
+		Albums:       []string{"Ambient Works", "Blue Train", "Kind of Blue", "Selected Ambient"},
+		Cursor:       0, // filtered list = ["Selected Ambient"]
+		ScrollOffset: 2,
+		FilterText:   "selected",
+	}
+	v = v.OpenTracks(sampleTracks(1))
+	v = v.Back()
+	if v.Level != ListLevel {
+		t.Fatalf("expected ListLevel, got %v", v.Level)
+	}
+	if v.Cursor != 3 {
+		t.Errorf("expected cursor restored to Selected Ambient's unfiltered index 3, got %d", v.Cursor)
+	}
+	if v.ScrollOffset < 0 || v.ScrollOffset > v.Cursor {
+		t.Errorf("expected valid restored scroll offset, got cursor=%d scroll=%d", v.Cursor, v.ScrollOffset)
+	}
+}
+
 func TestBack_FromListLevel(t *testing.T) {
 	v := View{
 		Level:          ListLevel,

@@ -32,9 +32,14 @@ func FilterTracks(tracks []library.Track, query string) []library.Track {
 	q := strings.ToLower(query)
 	var out []library.Track
 	for _, t := range tracks {
+		artist := DisplayArtistName(t.Artist)
+		album := t.Album
+		if album == "" {
+			album = UnknownAlbum
+		}
 		if strings.Contains(strings.ToLower(t.Title), q) ||
-			strings.Contains(strings.ToLower(t.Artist), q) ||
-			strings.Contains(strings.ToLower(t.Album), q) {
+			strings.Contains(strings.ToLower(artist), q) ||
+			strings.Contains(strings.ToLower(album), q) {
 			out = append(out, t)
 		}
 	}

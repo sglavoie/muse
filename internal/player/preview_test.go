@@ -341,6 +341,33 @@ func TestPreviewPlayer_ConcurrentCloseDoesNotRace(t *testing.T) {
 	}
 }
 
+func TestPreviewPlayer_ConcurrentCloseAndControlsDoNotRace(t *testing.T) {
+	p := newTestPreviewPlayer(t)
+	path := filepath.Join(t.TempDir(), "track.mp3")
+	if err := os.WriteFile(path, []byte("data"), 0o600); err != nil {
+		t.Fatalf("write tmp file: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = p.SetAudioFilter("lavfi=[loudnorm]")
+			_ = p.LoadAndPlay(path)
+			_ = p.TogglePause()
+			_ = p.SeekRelative(1)
+			_, _, _ = p.ElapsedPosition()
+		}()
+	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_ = p.Close()
+	}()
+	wg.Wait()
+}
+
 func TestPreviewPlayer_Close(t *testing.T) {
 	p := newTestPreviewPlayer(t)
 	if err := p.Close(); err != nil {

@@ -62,6 +62,9 @@ func resolveQueueEntryMissing(row db.QueueRow, writer *db.Writer) bool {
 	// Re-stat previously-missing entries: if the file has reappeared,
 	// clear the stale missing flags so the player restore can proceed.
 	if !playableFileExists(row.Path) {
+		if err := writer.MarkTrackMissing(row.Hash); err != nil {
+			slog.Warn("mark track missing", "hash", row.Hash, "err", err)
+		}
 		return true
 	}
 

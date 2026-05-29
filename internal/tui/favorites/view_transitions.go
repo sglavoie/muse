@@ -18,8 +18,7 @@ func (v View) OpenList() View {
 
 // OpenTracks transitions from ListLevel to TrackLevel with the given tracks.
 func (v View) OpenTracks(tracks []library.Track) View {
-	v.ListCursor = v.Cursor
-	v.ListScrollOffset = v.ScrollOffset
+	v.ListCursor, v.ListScrollOffset = v.unfilteredListCursorPos()
 	v.DrilldownTracks = tracks
 	v.Level = TrackLevel
 	v.Cursor = 0
@@ -28,6 +27,40 @@ func (v View) OpenTracks(tracks []library.Track) View {
 	v.FilterText = ""
 	v.SelectedItems = nil
 	return v
+}
+
+// unfilteredListCursorPos returns the cursor translated back to the unfiltered
+// Artists or Albums slice when a filter is active. ScrollOffset is reset to 0
+// in that case so Back can re-establish a visible window for the restored
+// cursor. Falls back to the raw values when there is no filter, the focused
+// item cannot be resolved, or the current list category does not drill down.
+func (v View) unfilteredListCursorPos() (int, int) {
+	if v.FilterText == "" {
+		return v.Cursor, v.ScrollOffset
+	}
+
+	var allItems, filteredItems []string
+	switch v.Category {
+	case CategoryArtists:
+		allItems = v.Artists
+		filteredItems = v.EffectiveItems()
+	case CategoryAlbums:
+		allItems = v.Albums
+		filteredItems = v.EffectiveItems()
+	default:
+		return v.Cursor, v.ScrollOffset
+	}
+	if len(filteredItems) == 0 || v.Cursor < 0 || v.Cursor >= len(filteredItems) {
+		return v.Cursor, v.ScrollOffset
+	}
+
+	focused := filteredItems[v.Cursor]
+	for i, item := range allItems {
+		if item == focused {
+			return i, 0
+		}
+	}
+	return v.Cursor, v.ScrollOffset
 }
 
 // Back navigates one level up. The restored cursor/scroll for ListLevel are

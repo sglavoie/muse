@@ -75,6 +75,32 @@ func TestInputForwardingPrefersMetadataEditorOverViewFilter(t *testing.T) {
 	}
 }
 
+func TestInputForwardingIncludesCommandPaletteFilter(t *testing.T) {
+	m := New(context.Background())
+	cp, _ := NewCommandPalette([]PaletteCommand{
+		{Name: "Reveal in Finder"},
+		{Name: "Copy track info"},
+	}, nil)
+	m.overlay.commandPalette = &cp
+
+	next, _, ok := m.forwardToActiveInput(tea.KeyPressMsg{Code: 'v', Text: "v"})
+	if !ok {
+		t.Fatal("expected command palette filter to consume forwarded msg")
+	}
+	if next.overlay.commandPalette == nil {
+		t.Fatal("expected command palette to remain open")
+	}
+
+	got := next.overlay.commandPalette.filter.Text
+	if got != "v" {
+		t.Fatalf("expected command palette filter text %q, got %q", "v", got)
+	}
+	filtered := next.overlay.commandPalette.filtered
+	if len(filtered) != 1 || filtered[0].Name != "Reveal in Finder" {
+		t.Fatalf("expected filtered command Reveal in Finder, got %+v", filtered)
+	}
+}
+
 func TestInputForwardingFallsBackToQueueSaveInput(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue

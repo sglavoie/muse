@@ -304,14 +304,14 @@ func singleLine(s string) string {
 }
 
 // RowLabelWidthAndCount computes the label zone width and formatted count suffix
-// for a single Browse list row. When counts is nil or width is too narrow to fit
-// both a usable label and the count column, it returns the full width and an
-// empty count string (caller renders the full row as label-only).
+// for a single Browse list row. When counts is nil/empty or width is too narrow
+// to fit both a usable label and the count column, it returns the full width
+// and an empty count string (caller renders the full row as label-only).
 func RowLabelWidthAndCount(width int, counts map[string]int, name string) (int, string) {
 	if width <= 0 {
 		return 0, ""
 	}
-	if counts == nil || width < MinLabelWithCount+1+CountColWidth {
+	if len(counts) == 0 || width < MinLabelWithCount+1+CountColWidth {
 		return width, ""
 	}
 	return width - 1 - CountColWidth, FormatCountSuffix(counts[name])

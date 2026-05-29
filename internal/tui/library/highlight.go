@@ -87,6 +87,10 @@ func padHighlight(s string, width int, positions []int, baseStyles ...lipgloss.S
 	if width <= 0 {
 		return ""
 	}
+	s = strings.ReplaceAll(s, "\r\n", " ")
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "\r", " ")
+	s = strings.ReplaceAll(s, "\t", " ")
 	if len(positions) == 0 {
 		if len(baseStyles) > 0 {
 			return baseStyles[0].Render(text.Pad(s, width))

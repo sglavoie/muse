@@ -157,6 +157,26 @@ func TestValidateMusicDir_OnlyHiddenDirs(t *testing.T) {
 	}
 }
 
+func TestValidateMusicDir_OnlyHiddenAudioFiles(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "config.toml")
+	musicDir := filepath.Join(tmp, "music")
+	if err := os.Mkdir(musicDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(musicDir, ".hidden.mp3"), []byte{}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := ValidateMusicDirs([]string{musicDir}, configPath)
+	if err == nil {
+		t.Fatal("expected error for directory with only hidden audio files, got nil")
+	}
+	if !strings.Contains(err.Error(), "no supported audio files") {
+		t.Errorf("error should mention 'no supported audio files', got: %s", err.Error())
+	}
+}
+
 func TestValidateMusicDir_TildeExpansion(t *testing.T) {
 	tmp := t.TempDir()
 	configPath := filepath.Join(tmp, "config.toml")

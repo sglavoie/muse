@@ -123,8 +123,6 @@ func TestWriteShuffle_Enable(t *testing.T) {
 
 // TestWriteShuffle_TwoEnablesProduceDifferentOrderings verifies that calling
 // WriteShuffle(true) twice produces different shuffle_position assignments.
-// This test is probabilistic: a false positive is astronomically unlikely with
-// 5+ rows (1/5! ≈ 0.8% chance of identical ordering).
 func TestWriteShuffle_TwoEnablesProduceDifferentOrderings(t *testing.T) {
 	d := openMigratedTestDB(t)
 	w := db.NewWriter(t.Context(), d.DB)
@@ -175,7 +173,6 @@ func TestWriteShuffle_TwoEnablesProduceDifferentOrderings(t *testing.T) {
 // WriteShuffle(true), the shuffle_position ordering is distinct from the
 // original position ordering, confirming that shuffle_position is freshly
 // generated and not simply copied from the position column.
-// The test uses 6 rows to make a false positive astronomically unlikely (1/720).
 func TestWriteShuffle_ShufflePositionDiffersFromPosition(t *testing.T) {
 	d := openMigratedTestDB(t)
 	w := db.NewWriter(t.Context(), d.DB)

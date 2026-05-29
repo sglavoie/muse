@@ -190,7 +190,7 @@ func hasHash(hashes map[string]struct{}, hash string) bool {
 // PickBatch selects up to n tracks from the top min(3*n, len(scored)) scored
 // candidates using weighted random selection without replacement.
 // maxArtistFraction (e.g. 0.4) caps the proportion of tracks from any single artist.
-// If fewer than n candidates are available, all available tracks are returned.
+// If fewer than n candidates are available, all eligible tracks are returned.
 func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.Track {
 	if n <= 0 || len(scored) == 0 {
 		return nil
@@ -204,14 +204,13 @@ func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.
 	copy(pool, scored[:poolSize])
 	nextIdx := poolSize
 
-	maxPerArtist := maxTracksPerArtist(n, maxArtistFraction)
-
 	artistCount := make(map[string]int)
 	pickedTrackKeys := make(map[string]struct{})
 	resultCap := n
 	if resultCap > len(scored) {
 		resultCap = len(scored)
 	}
+	maxPerArtist := maxTracksPerArtist(resultCap, maxArtistFraction)
 	result := make([]library.Track, 0, resultCap)
 
 	for len(result) < n {

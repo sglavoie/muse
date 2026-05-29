@@ -67,9 +67,15 @@ func (s *UsageStore) Load() error {
 	if records == nil {
 		records = make(map[string]UsageRecord)
 	}
+	now := time.Now()
 	for key, rec := range records {
 		if rec.Count <= 0 {
 			rec.Count = 0
+			rec.LastUsed = time.Time{}
+			records[key] = rec
+			continue
+		}
+		if rec.LastUsed.After(now) {
 			rec.LastUsed = time.Time{}
 			records[key] = rec
 		}

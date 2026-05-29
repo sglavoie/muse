@@ -50,7 +50,7 @@ func SupportedExtensions() []string {
 
 func normalizeExtension(ext string) string {
 	ext = strings.ToLower(strings.TrimSpace(ext))
-	if strings.ContainsAny(ext, `/\`) || (strings.Contains(ext, ".") && !strings.HasPrefix(ext, ".")) {
+	if isFilenameLike(ext) {
 		ext = strings.ToLower(filepath.Ext(ext))
 	}
 	if strings.HasPrefix(ext, ".") {
@@ -63,4 +63,15 @@ func normalizeExtension(ext string) string {
 		return ""
 	}
 	return "." + ext
+}
+
+func isFilenameLike(ext string) bool {
+	if strings.ContainsAny(ext, `/\`) {
+		return true
+	}
+	dot := strings.LastIndexByte(ext, '.')
+	if dot <= 0 {
+		return false
+	}
+	return strings.Trim(ext[:dot], ".") != ""
 }

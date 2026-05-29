@@ -20,6 +20,27 @@ func TestPickBatch_ArtistCap(t *testing.T) {
 	assertMaxArtistCount(t, result, 2)
 }
 
+func TestPickBatch_HugeNArtistCapUsesAvailableCandidateCount(t *testing.T) {
+	scored := []TrackScore{
+		scoredTrack("a1", "ArtistA", -1),
+		scoredTrack("a2", "ArtistA", -2),
+		scoredTrack("a3", "ArtistA", -3),
+		scoredTrack("a4", "ArtistA", -4),
+		scoredTrack("a5", "ArtistA", -5),
+		scoredTrack("a6", "ArtistA", -6),
+		scoredTrack("b1", "ArtistB", -7),
+		scoredTrack("c1", "ArtistC", -8),
+	}
+	hugeN := int(^uint(0) >> 1)
+
+	result := PickBatch(scored, hugeN, 0.4)
+
+	if len(result) == len(scored) {
+		t.Fatalf("expected artist cap to limit a huge request against a small pool, got all tracks: %v", result)
+	}
+	assertMaxArtistCount(t, result, 4)
+}
+
 func TestPickBatch_ExtendsBeyondInitialPoolWhenCappedArtistsDominate(t *testing.T) {
 	scored := make([]TrackScore, 0, 14)
 	for i := 0; i < 10; i++ {

@@ -41,7 +41,9 @@ func (v View) visibleWindow(itemCount, rows int) (int, int) {
 	start := min(max(v.ScrollOffset, 0), maxStart)
 	if v.Cursor >= 0 {
 		cursor := min(v.Cursor, itemCount-1)
-		if cursor >= start+rows {
+		if cursor < start {
+			start = cursor
+		} else if cursor >= start+rows {
 			start = cursor - rows + 1
 		}
 	}

@@ -22,6 +22,7 @@ const (
 	ctrlSocketName           = "muse.ctrl"
 	remoteDialTimeout        = 2 * time.Second
 	remoteReadTimeout        = 5 * time.Second
+	staleSocketDialTimeout   = 100 * time.Millisecond
 	acceptBackoff            = 100 * time.Millisecond
 	maxConsecutiveAcceptErrs = 1000
 )
@@ -113,11 +114,24 @@ func startCommandListener(p *tea.Program, runtimeDir string) (net.Listener, erro
 }
 
 func removeStaleControlSocket(path string) error {
-	return removeControlSocket(path)
-}
+	info, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSocket == 0 {
+		return fmt.Errorf("%s exists and is not a socket", path)
+	}
 
-func removeControlSocket(path string) error {
-	return removeControlSocketIfSame(path, nil)
+	conn, err := net.DialTimeout("unix", path, staleSocketDialTimeout)
+	if err == nil {
+		_ = conn.Close()
+		return fmt.Errorf("%s already has an active listener", path)
+	}
+
+	return removeControlSocketIfSame(path, info)
 }
 
 func removeControlSocketIfSame(path string, expected os.FileInfo) error {

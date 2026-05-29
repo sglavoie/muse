@@ -220,6 +220,27 @@ func TestUsageStoreLoadNonPositiveCountClearsLastUsed(t *testing.T) {
 	}
 }
 
+func TestUsageStoreLoadFutureLastUsedClearsLastUsed(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, usageFileName)
+	future := time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339Nano)
+	data := []byte(`{"alpha":{"count":1,"last_used":"` + future + `"}}`)
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatalf("setup write: %v", err)
+	}
+	store := NewUsageStore(dir)
+	if err := store.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	rec := store.Get("alpha")
+	if rec.Count != 1 {
+		t.Fatalf("positive count should be preserved, got %d", rec.Count)
+	}
+	if !rec.LastUsed.IsZero() {
+		t.Fatalf("future persisted LastUsed should be cleared, got %v", rec.LastUsed)
+	}
+}
+
 func TestUsageStoreEmptyDataDirNoPersistence(t *testing.T) {
 	store := NewUsageStore("")
 	store.Bump("alpha")

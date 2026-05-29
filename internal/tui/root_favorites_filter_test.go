@@ -91,10 +91,10 @@ func TestFavoritesRemoveWithFilter_DrilldownTrackUsesRawIndex(t *testing.T) {
 	m.activeView = viewFavorites
 	m.favorites.level = favtui.TrackLevel
 	m.favorites.drilldownTracks = []library.Track{
-		{Hash: "h1", Title: "Andante", Artist: "X"},
-		{Hash: "h2", Title: "Bolero", Artist: "Y"},
-		{Hash: "h3", Title: "Allegro", Artist: "Z"},
-		{Hash: "h4", Title: "Adagio", Artist: "W"},
+		{Hash: "h1", Title: "Andante", Artist: "X", Album: "ZZZ"},
+		{Hash: "h2", Title: "Bolero", Artist: "Y", Album: "ZZZ"},
+		{Hash: "h3", Title: "Allegro", Artist: "Z", Album: "ZZZ"},
+		{Hash: "h4", Title: "Adagio", Artist: "W", Album: "ZZZ"},
 	}
 	m.favorites.filter.Text = "a"
 	m.favorites.cursor = 2

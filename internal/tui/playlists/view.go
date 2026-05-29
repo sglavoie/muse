@@ -246,6 +246,8 @@ func NewInlineInput(initial string) textinput.Model {
 func (v View) StartCreate() View {
 	v.Creating = true
 	v.CreateInput = NewInlineInput("")
+	v.Renaming = false
+	v.RenameInput = textinput.Model{}
 	return v
 }
 
@@ -259,6 +261,8 @@ func (v View) CancelCreate() View {
 // StartRename returns a copy of v with the inline rename input activated,
 // pre-populated with currentName.
 func (v View) StartRename(currentName string) View {
+	v.Creating = false
+	v.CreateInput = textinput.Model{}
 	v.Renaming = true
 	v.RenameInput = NewInlineInput(currentName)
 	return v

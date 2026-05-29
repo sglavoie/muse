@@ -142,7 +142,22 @@ func (v View) moveCursor(delta int) View {
 		v.ScrollOffset = 0
 		return v
 	}
-	v.Cursor += delta
+	switch {
+	case delta > 0:
+		limit := n - 1 - delta
+		if limit < 0 || v.Cursor > limit {
+			v.Cursor = n - 1
+		} else {
+			v.Cursor += delta
+		}
+	case delta < 0:
+		step := -delta
+		if v.Cursor < step {
+			v.Cursor = 0
+		} else {
+			v.Cursor -= step
+		}
+	}
 	v.Cursor = max(0, min(v.Cursor, n-1))
 	maxRows := v.visibleRows()
 	if v.ScrollOffset < 0 {

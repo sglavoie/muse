@@ -103,6 +103,44 @@ func TestCommandListener_DoesNotRemoveNonSocketPath(t *testing.T) {
 	}
 }
 
+func TestCommandListener_DoesNotRemoveActiveSocket(t *testing.T) {
+	dir := shortTempDir(t)
+	sockPath := filepath.Join(dir, ctrlSocketName)
+
+	active, err := net.Listen("unix", sockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer active.Close()
+
+	before, err := os.Lstat(sockPath)
+	if err != nil {
+		t.Fatalf("stat active socket before start: %v", err)
+	}
+
+	received := make(chan tui.RemoteActionMsg, 1)
+	p := newTestProgram(received)
+	go p.Run() //nolint:errcheck
+	defer p.Quit()
+
+	ln, err := startCommandListener(p, dir)
+	if err == nil {
+		ln.Close()
+		t.Fatal("expected startCommandListener to reject an active control socket")
+	}
+	if !strings.Contains(err.Error(), "active listener") {
+		t.Fatalf("error = %v, want active listener error", err)
+	}
+
+	after, err := os.Lstat(sockPath)
+	if err != nil {
+		t.Fatalf("active socket should remain in place: %v", err)
+	}
+	if !os.SameFile(before, after) {
+		t.Fatal("active socket path was replaced")
+	}
+}
+
 func TestCommandListener_CloseRemovesSocketFile(t *testing.T) {
 	dir := shortTempDir(t)
 	received := make(chan tui.RemoteActionMsg, 1)

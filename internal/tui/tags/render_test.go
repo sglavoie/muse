@@ -85,7 +85,7 @@ func TestRenderTagsWithNegativeScrollOffsetDoesNotPanic(t *testing.T) {
 	}
 }
 
-func TestRenderTagsWithHighScrollOffsetShowsLastWindow(t *testing.T) {
+func TestRenderTagsWithHighScrollOffsetKeepsCursorVisible(t *testing.T) {
 	tags := tagRows("alpha", "beta", "gamma")
 	v := View{
 		Level:        TagLevel,
@@ -98,8 +98,8 @@ func TestRenderTagsWithHighScrollOffsetShowsLastWindow(t *testing.T) {
 
 	out := v.Render()
 
-	if !strings.Contains(out, "gamma") {
-		t.Fatalf("expected render to clamp high scroll and include last tag, got:\n%s", out)
+	if !strings.Contains(out, "alpha") {
+		t.Fatalf("expected render to clamp high scroll and include focused tag, got:\n%s", out)
 	}
 }
 
@@ -119,7 +119,7 @@ func TestRenderTracksWithNegativeScrollOffsetDoesNotPanic(t *testing.T) {
 	}
 }
 
-func TestRenderTracksWithHighScrollOffsetShowsLastWindow(t *testing.T) {
+func TestRenderTracksWithHighScrollOffsetKeepsCursorVisible(t *testing.T) {
 	v := View{
 		Level:        TrackLevel,
 		Width:        80,
@@ -130,7 +130,7 @@ func TestRenderTracksWithHighScrollOffsetShowsLastWindow(t *testing.T) {
 
 	out := v.Render()
 
-	if !strings.Contains(out, "third") {
-		t.Fatalf("expected render to clamp high scroll and include last track, got:\n%s", out)
+	if !strings.Contains(out, "first") {
+		t.Fatalf("expected render to clamp high scroll and include focused track, got:\n%s", out)
 	}
 }

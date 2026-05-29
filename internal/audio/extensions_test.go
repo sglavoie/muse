@@ -50,6 +50,8 @@ func TestIsSupportedExtension(t *testing.T) {
 		{name: "MPEG audio", ext: ".mpa", want: true},
 		{name: "without dot", ext: "aiff", want: true},
 		{name: "filename input", ext: "song.mp3", want: true},
+		{name: "hidden filename input", ext: ".song.mp3", want: true},
+		{name: "hidden uppercase filename input", ext: ".Song.FLAC", want: true},
 		{name: "path input", ext: "/music/live/track.FLAC", want: true},
 		{name: "windows path input", ext: `C:\Music\track.opus`, want: true},
 		{name: "surrounding whitespace with dot", ext: " \t.m4a\n", want: true},

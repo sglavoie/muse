@@ -54,6 +54,7 @@ func (s Styles) RenderEmptyCard(width, height int, title string, actions []Empty
 		for i, line := range cardLines {
 			cardLines[i] = clampLineWidth(line, width)
 		}
+		cardLines = strings.Split(strings.Join(cardLines, "\n"), "\n")
 	}
 
 	boxW := 0
