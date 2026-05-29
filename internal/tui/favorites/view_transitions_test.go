@@ -207,6 +207,23 @@ func TestBack_FromTrackLevel(t *testing.T) {
 	}
 }
 
+func TestBack_FromTrackLevelClearsDrilldownName(t *testing.T) {
+	v := View{
+		Level:           TrackLevel,
+		Category:        CategoryArtists,
+		Artists:         []string{"A"},
+		DrilldownTracks: sampleTracks(2),
+		DrilldownName:   "A",
+	}
+	v2 := v.Back()
+	if v2.Level != ListLevel {
+		t.Fatalf("expected ListLevel, got %v", v2.Level)
+	}
+	if v2.DrilldownName != "" {
+		t.Errorf("expected DrilldownName cleared, got %q", v2.DrilldownName)
+	}
+}
+
 // TestBack_FromTrackLevelClampsCursorWhenParentShrank verifies that Back()
 // clamps the saved list cursor against the (possibly shrunk) favorites list —
 // e.g. when an artist was unfavorited while drilled into its tracks.

@@ -272,6 +272,7 @@ func (v View) Back() View {
 		v.Cursor = v.ArtistCursor
 		v.ScrollOffset = v.ArtistScrollOffset
 		v.Albums = nil
+		v.SelectedHashes = nil
 		v.FilterActive = false
 		v.FilterText = ""
 		v = v.clampRestoredCursor()
@@ -280,6 +281,7 @@ func (v View) Back() View {
 		v.Cursor = v.AlbumCursor
 		v.ScrollOffset = v.AlbumScrollOffset
 		v.Tracks = nil
+		v.SelectedHashes = nil
 		v.FilterActive = false
 		v.FilterText = ""
 		v = v.clampRestoredCursor()

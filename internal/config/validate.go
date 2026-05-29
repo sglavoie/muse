@@ -15,15 +15,20 @@ import (
 // configPath is included in error messages so the user knows which file to edit.
 // All directories are validated; errors from any are collected and returned together.
 func ValidateMusicDirs(dirs []string, configPath string) error {
-	if len(dirs) == 0 {
-		return fmt.Errorf("no music directories configured; edit %s to set at least one path", configPath)
-	}
-
 	var errs []string
+	validated := 0
 	for _, musicDir := range dirs {
-		if err := validateMusicDir(musicDir, configPath); err != nil {
+		trimmed := strings.TrimSpace(musicDir)
+		if trimmed == "" {
+			continue
+		}
+		validated++
+		if err := validateMusicDir(trimmed, configPath); err != nil {
 			errs = append(errs, err.Error())
 		}
+	}
+	if validated == 0 {
+		return fmt.Errorf("no music directories configured; edit %s to set at least one path", configPath)
 	}
 	if len(errs) == 0 {
 		return nil

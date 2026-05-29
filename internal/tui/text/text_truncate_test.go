@@ -3,6 +3,8 @@ package text
 import (
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestTruncate(t *testing.T) {
@@ -39,5 +41,19 @@ func TestTruncateNormalizesTabs(t *testing.T) {
 	got := Truncate("ab\tcd", 10)
 	if strings.Contains(got, "\t") {
 		t.Fatalf("Truncate preserved a tab character: %q", got)
+	}
+}
+
+func TestTruncateWidthOnePreservesANSI(t *testing.T) {
+	const red = "\x1b[31m"
+	const reset = "\x1b[0m"
+
+	got := Truncate(red+"hello"+reset, 1)
+	want := red + "…" + reset
+	if got != want {
+		t.Fatalf("Truncate styled string to width 1 = %q, want %q", got, want)
+	}
+	if width := ansi.StringWidth(got); width != 1 {
+		t.Fatalf("display width = %d, want 1 (got %q)", width, got)
 	}
 }

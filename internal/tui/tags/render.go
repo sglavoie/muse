@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
@@ -50,8 +51,7 @@ func (v View) renderTags() string {
 			count = v.TagCounts[tag.ID]
 		}
 		dot := styles.ColoredDot(tag.Color)
-		name := fmt.Sprintf("%s %s (%d)", dot, tag.Name, count)
-		display := text.Pad(name, v.Width)
+		display := renderTagLabel(dot, tag.Name, count, v.Width)
 		isOdd := absIdx%2 == 1
 		if absIdx == v.Cursor {
 			if v.Renaming {
@@ -157,6 +157,16 @@ func (v View) renderTracks() string {
 		lines[i] = text.Pad(lines[i], v.Width)
 	}
 	return heading + v.filterSeparator() + header + "\n" + strings.Join(lines, "\n")
+}
+
+func renderTagLabel(dot, name string, count, width int) string {
+	prefix := dot + " "
+	suffix := fmt.Sprintf(" (%d)", count)
+	fixedWidth := ansi.StringWidth(prefix) + ansi.StringWidth(suffix)
+	if fixedWidth <= width {
+		return text.Pad(prefix+text.Truncate(name, width-fixedWidth)+suffix, width)
+	}
+	return text.Pad(prefix+name+suffix, width)
 }
 
 // filterSeparator returns the line between the heading and the item list.

@@ -40,6 +40,35 @@ func TestValidateMusicDirs_NoDirectoriesConfigured(t *testing.T) {
 	}
 }
 
+func TestValidateMusicDirs_BlankEntriesIgnored(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "config.toml")
+	musicDir := filepath.Join(tmp, "music")
+	if err := os.Mkdir(musicDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(musicDir, "song.mp3"), []byte{}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ValidateMusicDirs([]string{"  ", musicDir, "\t"}, configPath); err != nil {
+		t.Fatalf("expected blank entries to be ignored when a valid directory exists, got: %v", err)
+	}
+}
+
+func TestValidateMusicDirs_OnlyBlankEntriesAreUnconfigured(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "config.toml")
+
+	err := ValidateMusicDirs([]string{"", "  ", "\t"}, configPath)
+	if err == nil {
+		t.Fatal("expected error for only blank music directories, got nil")
+	}
+	if !strings.Contains(err.Error(), "no music directories configured") {
+		t.Errorf("error should mention missing configured directories, got: %s", err.Error())
+	}
+}
+
 func TestValidateMusicDir_PermissionDenied(t *testing.T) {
 	if os.Getuid() == 0 {
 		t.Skip("skipping permission test as root")

@@ -22,10 +22,17 @@ func normalizeBreadcrumb(breadcrumb []string) []string {
 // singleLine keeps metadata-derived labels and pasted filter text from
 // breaking the strip's one-row layout contract.
 func singleLine(v string) string {
-	if !strings.ContainsAny(v, "\r\n\t") {
+	if !strings.ContainsAny(v, "\r\n\t\u2028\u2029") {
 		return v
 	}
-	return strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ", "\t", " ").Replace(v)
+	return strings.NewReplacer(
+		"\r\n", " ",
+		"\r", " ",
+		"\n", " ",
+		"\t", " ",
+		"\u2028", " ",
+		"\u2029", " ",
+	).Replace(v)
 }
 
 // styledLine preserves caller-rendered SGR styling while still removing raw

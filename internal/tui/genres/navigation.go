@@ -219,10 +219,11 @@ func (v View) unfilteredGenreCursorPos() (int, int) {
 		return v.Cursor, v.ScrollOffset
 	}
 	items := v.EffectiveGenres()
-	if len(items) == 0 || v.Cursor < 0 || v.Cursor >= len(items) {
+	if len(items) == 0 {
 		return v.Cursor, v.ScrollOffset
 	}
-	focused := items[v.Cursor]
+	cursor := max(0, min(v.Cursor, len(items)-1))
+	focused := items[cursor]
 	for i, name := range v.Genres {
 		if name == focused {
 			return i, 0
@@ -240,10 +241,11 @@ func (v View) unfilteredArtistCursorPos() (int, int) {
 		return v.Cursor, v.ScrollOffset
 	}
 	items := v.EffectiveArtists()
-	if len(items) == 0 || v.Cursor < 0 || v.Cursor >= len(items) {
+	if len(items) == 0 {
 		return v.Cursor, v.ScrollOffset
 	}
-	focused := items[v.Cursor]
+	cursor := max(0, min(v.Cursor, len(items)-1))
+	focused := items[cursor]
 	for i, name := range v.Artists {
 		if name == focused {
 			return i, 0

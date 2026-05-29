@@ -167,6 +167,22 @@ func TestBackClampsCursorWhenParentEmpty(t *testing.T) {
 	}
 }
 
+func TestBackClearsTrackSelection(t *testing.T) {
+	v := View{
+		Level:          TrackLevel,
+		Albums:         []string{"Alpha"},
+		SelectedHashes: map[string]struct{}{"h1": {}},
+	}
+
+	v = v.Back()
+	if v.Level != AlbumLevel {
+		t.Fatalf("expected AlbumLevel, got %v", v.Level)
+	}
+	if len(v.SelectedHashes) != 0 {
+		t.Fatalf("expected Back to clear track selection, got %v", v.SelectedHashes)
+	}
+}
+
 func TestBackKeepsRestoredCursorVisibleAfterResize(t *testing.T) {
 	v := View{
 		Level:        ArtistLevel,

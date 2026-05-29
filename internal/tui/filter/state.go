@@ -84,6 +84,7 @@ func cloneInput(src textinput.Model) textinput.Model {
 func (s State) seed() State {
 	if s.initialized && s.input.Value() == s.Text {
 		if !s.input.Focused() {
+			s.input.CursorEnd()
 			_ = s.input.Focus()
 		}
 		return s

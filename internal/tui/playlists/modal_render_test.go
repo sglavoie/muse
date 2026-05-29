@@ -102,6 +102,46 @@ func TestModalBuildBoxLinesFocusedRowHasAccent(t *testing.T) {
 	}
 }
 
+func TestModalBuildBoxLinesClampsNegativeFocusToQueue(t *testing.T) {
+	m := NewDestinationPicker(fakePlaylistRows("Alpha"))
+	m.cursor = -4
+	s := styles.NewStyles(true)
+	lines := m.buildBoxLines(120, s)
+
+	if ansi.Strip(s.Accent.Render(queueLabel)) == s.Accent.Render(queueLabel) {
+		t.Skip("lipgloss produced no ANSI output in this terminal environment")
+	}
+
+	assertStyledModalRow(t, lines, queueLabel)
+}
+
+func TestModalBuildBoxLinesClampsPastEndFocusToCreate(t *testing.T) {
+	m := NewDestinationPicker(fakePlaylistRows("Alpha"))
+	m.cursor = 99
+	s := styles.NewStyles(true)
+	lines := m.buildBoxLines(120, s)
+
+	if ansi.Strip(s.Accent.Render(createLabel)) == s.Accent.Render(createLabel) {
+		t.Skip("lipgloss produced no ANSI output in this terminal environment")
+	}
+
+	assertStyledModalRow(t, lines, createLabel)
+}
+
+func assertStyledModalRow(t *testing.T, lines []string, label string) {
+	t.Helper()
+	for _, line := range lines {
+		stripped := ansi.Strip(line)
+		if strings.Contains(stripped, label) {
+			if line == stripped {
+				t.Fatalf("row for %q must be styled; got unstyled line %q", label, line)
+			}
+			return
+		}
+	}
+	t.Fatalf("expected row for %q in modal lines", label)
+}
+
 func TestModalRenderCentered(t *testing.T) {
 	m := NewDestinationPicker(fakePlaylistRows("A"))
 	out := m.Render(80, 24, styles.NewStyles(true))

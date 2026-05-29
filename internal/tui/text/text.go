@@ -22,9 +22,6 @@ func Truncate(s string, maxLen int) string {
 	if ansi.StringWidth(s) <= maxLen {
 		return s
 	}
-	if maxLen <= 1 {
-		return "…"
-	}
 	return ansi.Truncate(s, maxLen, "…")
 }
 

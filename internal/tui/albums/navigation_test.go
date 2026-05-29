@@ -140,6 +140,26 @@ func TestCursorMovementResetsStateWhenFilteredListIsEmpty(t *testing.T) {
 	}
 }
 
+func TestCursorUpMovesFromClampedPositionAfterFilterShrinksList(t *testing.T) {
+	v := View{
+		Level:        AlbumLevel,
+		Albums:       []string{"Alpha", "Beta", "Gamma", "Delta"},
+		Cursor:       3,
+		ScrollOffset: 2,
+		Width:        80,
+		Height:       20,
+		FilterText:   "ta",
+	}
+
+	v = v.CursorUp()
+	if v.Cursor != 0 {
+		t.Fatalf("expected cursor to move up from clamped filtered position to 0, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 0 {
+		t.Fatalf("expected scroll offset to clamp to 0, got %d", v.ScrollOffset)
+	}
+}
+
 func TestCursorUpDownClampStaleNegativeCursor(t *testing.T) {
 	base := View{
 		Level:        AlbumLevel,

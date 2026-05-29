@@ -209,6 +209,22 @@ func TestRender_ControlRunesNormalized(t *testing.T) {
 	}
 }
 
+func TestRender_UnicodeLineSeparatorsNormalized(t *testing.T) {
+	s := newTestStyles()
+	got := Render(120, []string{"Artists\u2028View"}, SortChunk{},
+		FilterChunk{Text: "alice\u2029bob"}, CountsChunk{Total: 7}, nil, "", s)
+	plain := requireRenderWidth(t, got, 120)
+
+	if strings.ContainsAny(plain, "\u2028\u2029") {
+		t.Fatalf("strip must not render Unicode line separators, got %q", plain)
+	}
+	for _, want := range []string{"Artists View", `filter "alice bob"`} {
+		if !strings.Contains(plain, want) {
+			t.Errorf("Unicode line separators should normalize to spaces; missing %q in %q", want, plain)
+		}
+	}
+}
+
 func TestRender_StyledFilterFieldsNormalizeControlRunes(t *testing.T) {
 	s := newTestStyles()
 	inputView := lipgloss.NewStyle().Reverse(true).Render("a") + "\u0085lice"

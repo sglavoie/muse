@@ -165,6 +165,9 @@ func (v View) moveCursor(delta int) View {
 		v.ScrollOffset = 0
 		return v
 	}
+	if v.Cursor > n-1 {
+		v.Cursor = n - 1
+	}
 	v.Cursor += delta
 	if v.Cursor < 0 {
 		v.Cursor = 0

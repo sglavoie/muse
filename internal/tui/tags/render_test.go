@@ -105,6 +105,27 @@ func TestRenderTagsWithHighScrollOffsetKeepsCursorVisible(t *testing.T) {
 	}
 }
 
+func TestRenderTagsPreservesCountWhenNameTruncates(t *testing.T) {
+	const width = 18
+	tags := tagRows("a very very long tag name")
+	v := View{
+		Level:     TagLevel,
+		Width:     width,
+		Height:    1,
+		Tags:      tags,
+		TagCounts: map[int64]int{tags[0].ID: 42},
+	}
+
+	out := ansi.Strip(v.Render())
+
+	if !strings.Contains(out, "(42)") {
+		t.Fatalf("expected truncated tag row to preserve count suffix, got:\n%s", out)
+	}
+	if got := ansi.StringWidth(out); got != width {
+		t.Fatalf("tag row width = %d, want %d; row=%q", got, width, out)
+	}
+}
+
 func TestRenderTracksWithNegativeScrollOffsetDoesNotPanic(t *testing.T) {
 	v := View{
 		Level:        TrackLevel,

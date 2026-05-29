@@ -201,6 +201,20 @@ func TestDirectReactivateAfterCommitKeepsInputFocused(t *testing.T) {
 	}
 }
 
+func TestDirectReactivateAfterCommitAppendsAtEnd(t *testing.T) {
+	s, _ := New().Activate()
+	s, _ = s.Update(tea.KeyPressMsg{Text: "a"})
+	s, _ = s.Update(tea.KeyPressMsg{Text: "b"})
+	s, _ = s.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	s = s.Commit()
+
+	s.Active = true
+	s, _ = s.Update(tea.KeyPressMsg{Text: "c"})
+	if s.Text != "abc" {
+		t.Errorf("after direct reactivation following commit: want Text=%q, got %q", "abc", s.Text)
+	}
+}
+
 func TestDirectReactivateAfterDeactivateKeepsInputFocused(t *testing.T) {
 	s, _ := New().Activate()
 	s, _ = s.Update(tea.KeyPressMsg{Text: "a"})

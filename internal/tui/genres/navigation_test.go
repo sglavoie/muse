@@ -173,6 +173,25 @@ func TestOpenArtistsTranslatesFilteredCursorToUnfilteredIndex(t *testing.T) {
 	}
 }
 
+func TestOpenArtistsTranslatesClampedFilteredCursorToUnfilteredIndex(t *testing.T) {
+	v := View{
+		Level:        GenreLevel,
+		Genres:       []string{"Ambient", "Blues", "Classical", "Dub", "Electronic"},
+		FilterActive: true,
+		FilterText:   "d",
+		Cursor:       99, // filtered list = ["Dub"], render clamps this to Dub
+	}
+
+	v = v.OpenArtists([]string{"Alice"})
+	v = v.Back()
+	if v.Level != GenreLevel {
+		t.Fatalf("expected GenreLevel after Back, got %v", v.Level)
+	}
+	if v.Cursor != 3 {
+		t.Errorf("Back after filtered OpenArtists: expected Cursor=3 (Dub's index in unfiltered list), got %d", v.Cursor)
+	}
+}
+
 func TestOpenTracksTranslatesFilteredArtistCursorToUnfilteredIndex(t *testing.T) {
 	v := View{
 		Level:        ArtistLevel,
@@ -180,6 +199,25 @@ func TestOpenTracksTranslatesFilteredArtistCursorToUnfilteredIndex(t *testing.T)
 		FilterActive: true,
 		FilterText:   "d",
 		Cursor:       0, // filtered list = ["Dave"], cursor=0 points at Dave
+	}
+
+	v = v.OpenTracks(nil)
+	v = v.Back()
+	if v.Level != ArtistLevel {
+		t.Fatalf("expected ArtistLevel after Back, got %v", v.Level)
+	}
+	if v.Cursor != 3 {
+		t.Errorf("Back after filtered OpenTracks: expected Cursor=3 (Dave's index in unfiltered list), got %d", v.Cursor)
+	}
+}
+
+func TestOpenTracksTranslatesClampedFilteredArtistCursorToUnfilteredIndex(t *testing.T) {
+	v := View{
+		Level:        ArtistLevel,
+		Artists:      []string{"Alice", "Bob", "Carol", "Dave"},
+		FilterActive: true,
+		FilterText:   "d",
+		Cursor:       99, // filtered list = ["Dave"], render clamps this to Dave
 	}
 
 	v = v.OpenTracks(nil)

@@ -158,6 +158,7 @@ func (m DestinationPickerModal) Render(termWidth, termHeight int, s styles.Style
 // after all width calculations, so it does not affect padding.
 func (m DestinationPickerModal) buildBoxLines(termWidth int, s styles.Styles) []string {
 	labels := m.destinations()
+	focusCursor := clamp(m.cursor, 0, len(labels)-1)
 
 	// Compute inner width: the number of characters between the │ borders.
 	// Row format: │ + " " + label_padded + " " + │
@@ -205,7 +206,7 @@ func (m DestinationPickerModal) buildBoxLines(termWidth int, s styles.Styles) []
 		display := text.Pad(label, contentWidth)
 		// Row content between the borders: " label_padded " = innerWidth chars.
 		rowContent := " " + display + " "
-		if i == m.cursor {
+		if i == focusCursor {
 			lines = append(lines, borderV+s.Accent.Render(rowContent)+borderV)
 		} else {
 			lines = append(lines, borderV+rowContent+borderV)

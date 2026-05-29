@@ -83,6 +83,7 @@ func (v View) Back() View {
 		v.Cursor = v.ListCursor
 		v.ScrollOffset = v.ListScrollOffset
 		v.DrilldownTracks = nil
+		v.DrilldownName = ""
 		v.FilterActive = false
 		v.FilterText = ""
 		v.SelectedItems = nil
