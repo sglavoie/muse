@@ -38,10 +38,10 @@ func (v View) HalfPageDown() View { return v.moveCursor(v.halfPageDelta()) }
 func (v View) HalfPageUp() View { return v.moveCursor(-v.halfPageDelta()) }
 
 // FullPageDown moves the cursor a full visible page down.
-func (v View) FullPageDown() View { return v.moveCursor(v.visibleRows()) }
+func (v View) FullPageDown() View { return v.moveCursor(v.fullPageDelta()) }
 
 // FullPageUp moves the cursor a full visible page up.
-func (v View) FullPageUp() View { return v.moveCursor(-v.visibleRows()) }
+func (v View) FullPageUp() View { return v.moveCursor(-v.fullPageDelta()) }
 
 // GoToTop moves the cursor to the first row.
 func (v View) GoToTop() View {
@@ -109,4 +109,8 @@ func (v View) keepCursorVisible() View {
 
 func (v View) halfPageDelta() int {
 	return max(1, v.visibleRows()/2)
+}
+
+func (v View) fullPageDelta() int {
+	return max(1, v.visibleRows())
 }

@@ -182,6 +182,13 @@ func BridgeWatchChannel(raw <-chan library.WatchEvent, writer UpsertBatcher, mar
 			} else {
 				ev.Track = ensureCreatedAt(ev.Track)
 				ch <- ev
+				if oldHash := localMap[ev.Track.Path]; oldHash != "" && oldHash != ev.Track.Hash {
+					f.remove(oldHash)
+					if err := marker.MarkTrackMissing(oldHash); err != nil {
+						slog.Warn("watcher: mark replaced track missing", "path", ev.Track.Path, "err", err)
+					}
+					delete(pathByHash, oldHash)
+				}
 				f.add(ev.Track)
 				// Keep the lookup map in sync so that a file created after
 				// startup and subsequently deleted can still be resolved to

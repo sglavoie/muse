@@ -118,10 +118,26 @@ func TestGoToBottomClampsScrollOffsetWhenListShrank(t *testing.T) {
 	if v.Cursor != 2 {
 		t.Errorf("expected Cursor=2, got %d", v.Cursor)
 	}
-	if v.ScrollOffset > v.Cursor {
-		t.Errorf("expected ScrollOffset<=Cursor (%d), got ScrollOffset=%d", v.Cursor, v.ScrollOffset)
+	if v.ScrollOffset != 0 {
+		t.Errorf("expected ScrollOffset=0 when list fits on screen, got %d", v.ScrollOffset)
 	}
-	if v.ScrollOffset < 0 {
-		t.Errorf("ScrollOffset must not be negative, got %d", v.ScrollOffset)
+}
+
+func TestGoToBottomAnchorsScrollToCursorWhenNoRowsVisible(t *testing.T) {
+	v := View{
+		Level:  GenreLevel,
+		Genres: []string{"Rock", "Jazz", "Folk"},
+		Height: 1,
+	}
+	if rows := v.visibleRows(); rows != 0 {
+		t.Fatalf("precondition: expected no visible rows, got %d", rows)
+	}
+
+	v = v.GoToBottom()
+	if v.Cursor != 2 {
+		t.Errorf("expected Cursor=2, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != v.Cursor {
+		t.Errorf("expected ScrollOffset anchored to cursor when no rows fit, got scroll=%d cursor=%d", v.ScrollOffset, v.Cursor)
 	}
 }

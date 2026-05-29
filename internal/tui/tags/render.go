@@ -86,6 +86,7 @@ func (v View) renderTracks() string {
 			text.Pad("Artist", cols.Artist)+" "+
 			text.Pad("Album", cols.Album)+" "+
 			text.PadLeft("Time", cols.Duration))
+	header = text.Pad(header, v.Width)
 
 	maxRows := v.visibleRows()
 	start, end := v.visibleWindow(len(items), maxRows)
@@ -153,6 +154,7 @@ func (v View) renderTracks() string {
 				lines[i] = markerStr + titleStr + " " + v.Styles.TextPrimary.Render(artistStr) + " " + v.Styles.TextSecondary.Render(albumStr) + " " + v.Styles.TextTertiary.Render(durStr)
 			}
 		}
+		lines[i] = text.Pad(lines[i], v.Width)
 	}
 	return heading + v.filterSeparator() + header + "\n" + strings.Join(lines, "\n")
 }

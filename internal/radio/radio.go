@@ -317,7 +317,7 @@ func validCompletionRate(rate float64) bool {
 }
 
 func maxTracksPerArtist(n int, maxArtistFraction float64) int {
-	if math.IsNaN(maxArtistFraction) || maxArtistFraction <= 0 {
+	if math.IsNaN(maxArtistFraction) || math.IsInf(maxArtistFraction, 0) || maxArtistFraction <= 0 {
 		return 1
 	}
 	if maxArtistFraction >= 1 {

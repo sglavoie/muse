@@ -202,6 +202,57 @@ func TestManager_SyncPosition_Connected(t *testing.T) {
 	}
 }
 
+func TestManager_SyncPosition_InvalidPositionDoesNotOverwriteSavedState(t *testing.T) {
+	sock := shortSockPath(t, "syncpos-invalid")
+
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
+		cmd := req.Command
+		if len(cmd) >= 2 {
+			prop, _ := cmd.stringAt(1)
+			switch prop {
+			case propPath:
+				return successStringResponse(req, "/music/current.flac")
+			case propTimePos:
+				return successStringResponse(req, "not-a-number")
+			}
+		}
+		return successHandler(req)
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{socketPath: sock, ctx: ctx, cancel: cancel}
+	defer m.Close()
+	m.SetCurrentPosition("/music/previous.flac", 42)
+
+	client, err := NewIPCClient(sock)
+	if err != nil {
+		t.Fatalf("NewIPCClient: %v", err)
+	}
+	m.mu.Lock()
+	m.client = client
+	m.mu.Unlock()
+
+	err = m.SyncPosition()
+	if err == nil {
+		t.Fatal("SyncPosition: expected error for invalid time-pos, got nil")
+	}
+	if !strings.Contains(err.Error(), "expected float64 or nil") {
+		t.Fatalf("SyncPosition: unexpected error: %v", err)
+	}
+
+	m.mu.RLock()
+	path := m.lastTrackPath
+	elapsed := m.lastElapsed
+	m.mu.RUnlock()
+
+	if path != "/music/previous.flac" {
+		t.Errorf("lastTrackPath = %q, want /music/previous.flac", path)
+	}
+	if elapsed != 42 {
+		t.Errorf("lastElapsed = %f, want 42", elapsed)
+	}
+}
+
 func TestManager_SyncPosition_NotConnected(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	m := &Manager{ctx: ctx, cancel: cancel}

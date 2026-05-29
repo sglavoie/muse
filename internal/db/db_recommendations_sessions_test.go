@@ -72,6 +72,32 @@ func TestReadSessionCoOccurrences_SessionBoundary(t *testing.T) {
 	}
 }
 
+func TestReadSessionCoOccurrences_ExcludesMissingTracks(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "seed", "/seed.flac", "Seed", "Artist", "Album", "Rock", 180000, 5000000, now)
+	insertFullTrack(t, d, "missing", "/missing.flac", "Missing", "Artist", "Album", "Rock", 180000, 5000000, now)
+	w := newWriter(t, d)
+
+	if err := w.RecordPlay("seed", now, 60, 180); err != nil {
+		t.Fatalf("RecordPlay seed: %v", err)
+	}
+	if err := w.RecordPlay("missing", now+60, 60, 180); err != nil {
+		t.Fatalf("RecordPlay missing: %v", err)
+	}
+	markMissing(t, d, "missing")
+
+	results, err := d.ReadSessionCoOccurrences("seed", 10)
+	if err != nil {
+		t.Fatalf("ReadSessionCoOccurrences: %v", err)
+	}
+	for _, r := range results {
+		if r.Hash == "missing" {
+			t.Fatalf("ReadSessionCoOccurrences returned missing track hash: %+v", r)
+		}
+	}
+}
+
 func TestReadSessionCoOccurrences_CountOrdering(t *testing.T) {
 	d := openMigratedDB(t)
 	now := time.Now().Unix()

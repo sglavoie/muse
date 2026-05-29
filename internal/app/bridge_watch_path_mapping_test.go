@@ -64,6 +64,48 @@ func TestBridgeWatchChannel_MoveThenDeleteNewPathMarksMissing(t *testing.T) {
 	}
 }
 
+func TestBridgeWatchChannel_ReplacedPathMarksOldHashMissing(t *testing.T) {
+	raw := make(chan library.WatchEvent, 1)
+	raw <- library.WatchEvent{Track: library.Track{Hash: "new-hash", Path: "/same.mp3"}}
+	close(raw)
+
+	writer := &stubUpsertBatcher{}
+	marker := &stubMissingMarker{}
+	hashByPath := map[string]string{"/same.mp3": "old-hash"}
+
+	ch := BridgeWatchChannel(raw, writer, marker, hashByPath, 10)
+	for range ch {
+	}
+
+	if len(marker.hashes) != 1 || marker.hashes[0] != "old-hash" {
+		t.Fatalf("expected replaced path to mark old hash missing, got %v", marker.hashes)
+	}
+
+	upserted := writer.allTracks()
+	assertTrackHashes(t, upserted, []string{"new-hash"})
+}
+
+func TestBridgeWatchChannel_ReplacedPendingTrackIsNotFlushed(t *testing.T) {
+	raw := make(chan library.WatchEvent, 2)
+	raw <- library.WatchEvent{Track: library.Track{Hash: "old-hash", Path: "/same.mp3"}}
+	raw <- library.WatchEvent{Track: library.Track{Hash: "new-hash", Path: "/same.mp3"}}
+	close(raw)
+
+	writer := &stubUpsertBatcher{}
+	marker := &stubMissingMarker{}
+
+	ch := BridgeWatchChannel(raw, writer, marker, nil, 10)
+	for range ch {
+	}
+
+	if len(marker.hashes) != 1 || marker.hashes[0] != "old-hash" {
+		t.Fatalf("expected replaced pending track to mark old hash missing, got %v", marker.hashes)
+	}
+
+	upserted := writer.allTracks()
+	assertTrackHashes(t, upserted, []string{"new-hash"})
+}
+
 func TestBridgeWatchChannel_DoesNotMutateCallerMap(t *testing.T) {
 	raw := make(chan library.WatchEvent, 1)
 	raw <- library.WatchEvent{Track: library.Track{Hash: "new-hash", Path: "/new.mp3"}}

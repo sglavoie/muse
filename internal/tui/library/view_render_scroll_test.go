@@ -74,3 +74,19 @@ func TestRenderStaleScrollOffsetShowsRowsAtCursor(t *testing.T) {
 		t.Fatalf("expected stale ScrollOffset to clamp so first track renders, got:\n%s", got)
 	}
 }
+
+func TestRenderBucketedShortViewportKeepsCursorVisible(t *testing.T) {
+	tracks := []musiclib.Track{
+		{Artist: "Alice", Title: "First", Album: "A", Hash: "h1"},
+		{Artist: "Alice", Title: "Second", Album: "A", Hash: "h2"},
+	}
+	v := newRenderView(tracks)
+	v.Height = 4 // state strip + header + two body lines
+	v.Cursor = 1
+	v.BucketLabel = func(musiclib.Track) string { return "A" }
+
+	got := renderPlain(v)
+	if !strings.Contains(got, "Second") {
+		t.Fatalf("bucket header should not push the focused row out of the viewport, got:\n%s", got)
+	}
+}

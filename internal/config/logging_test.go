@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -103,6 +104,45 @@ func TestInitLogging_RotatesWhenOverSizeLimit(t *testing.T) {
 	}
 	if fi.Size() >= logRotateSize {
 		t.Errorf("current log is %d bytes, expected < %d after rotation", fi.Size(), logRotateSize)
+	}
+}
+
+func TestInitLogging_RotationFailureReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	stateDir := filepath.Join(dir, "muse")
+
+	if err := os.MkdirAll(stateDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	path := filepath.Join(stateDir, logFileName)
+	big := make([]byte, logRotateSize+1)
+	if err := os.WriteFile(path, big, 0o600); err != nil {
+		t.Fatalf("writing oversized log: %v", err)
+	}
+
+	blockingBackup := path + ".2"
+	if err := os.Mkdir(blockingBackup, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(blockingBackup, "block"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	err := InitLogging(stateDir, slog.LevelInfo)
+	if err == nil {
+		t.Fatal("InitLogging error = nil, want rotation failure")
+	}
+	if !strings.Contains(err.Error(), "rotate log") {
+		t.Fatalf("InitLogging error = %v, want rotation context", err)
+	}
+
+	fi, statErr := os.Stat(path)
+	if statErr != nil {
+		t.Fatalf("stat current log after failed rotation: %v", statErr)
+	}
+	if fi.Size() != int64(len(big)) {
+		t.Errorf("current log size = %d, want unchanged %d after failed rotation", fi.Size(), len(big))
 	}
 }
 

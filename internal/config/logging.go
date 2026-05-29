@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -30,11 +31,8 @@ func InitLogging(stateDir string, level slog.Level) error {
 
 	path := filepath.Join(stateDir, logFileName)
 
-	// Rotate if the current log exceeds the size threshold.
-	if fi, err := os.Stat(path); err == nil && fi.Size() >= logRotateSize {
-		_ = os.Remove(path + ".2")
-		_ = os.Rename(path+".1", path+".2")
-		_ = os.Rename(path, path+".1")
+	if err := rotateLogIfNeeded(path); err != nil {
+		return err
 	}
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
@@ -50,6 +48,30 @@ func InitLogging(stateDir string, level slog.Level) error {
 	}
 	logPath = path
 	logFile = f
+	return nil
+}
+
+func rotateLogIfNeeded(path string) error {
+	fi, err := os.Stat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("init logging: stat log file: %w", err)
+	}
+	if fi.Size() < logRotateSize {
+		return nil
+	}
+
+	if err := os.Remove(path + ".2"); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("init logging: rotate log: remove %q: %w", path+".2", err)
+	}
+	if err := os.Rename(path+".1", path+".2"); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("init logging: rotate log: rename %q to %q: %w", path+".1", path+".2", err)
+	}
+	if err := os.Rename(path, path+".1"); err != nil {
+		return fmt.Errorf("init logging: rotate log: rename %q to %q: %w", path, path+".1", err)
+	}
 	return nil
 }
 

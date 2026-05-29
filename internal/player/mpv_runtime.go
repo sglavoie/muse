@@ -47,7 +47,7 @@ func secondsOrZero(prefix, prop string, resp *ipcResponse) (float64, error) {
 
 // SyncPosition queries mpv for the current file path and playback position,
 // then persists them via SetCurrentPosition for crash-resume. Safe to call
-// when mpv is idle — errors are silently ignored.
+// when mpv is idle: null properties leave the saved position unchanged.
 func (m *Manager) SyncPosition() error {
 	c, err := m.ipc()
 	if err != nil {
@@ -58,13 +58,19 @@ func (m *Manager) SyncPosition() error {
 	if err != nil {
 		return err
 	}
-	path, _, _ := pathResp.stringData()
+	path, _, err := pathResp.stringData()
+	if err != nil {
+		return fmt.Errorf("mpv: %s: %w", propPath, err)
+	}
 
 	posResp, err := c.SendCommand(cmdGetProperty, propTimePos)
 	if err != nil {
 		return err
 	}
-	elapsed, _, _ := posResp.float64Data()
+	elapsed, _, err := posResp.float64Data()
+	if err != nil {
+		return fmt.Errorf("mpv: %s: %w", propTimePos, err)
+	}
 
 	if path != "" {
 		m.SetCurrentPosition(path, elapsed)

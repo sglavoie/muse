@@ -192,6 +192,35 @@ func TestFullPageUp(t *testing.T) {
 	}
 }
 
+func TestFullPageDown_MovesAtLeastOneRow(t *testing.T) {
+	v := View{
+		Level:    ListLevel,
+		Category: CategoryArtists,
+		Artists:  []string{"A", "B", "C"},
+		Cursor:   0,
+		Height:   2, // visibleRows = 0
+	}
+	v2 := v.FullPageDown()
+	if v2.Cursor != 1 {
+		t.Errorf("expected cursor=1, got %d", v2.Cursor)
+	}
+}
+
+func TestFullPageUp_MovesAtLeastOneRow(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Category:     CategoryArtists,
+		Artists:      []string{"A", "B", "C"},
+		Cursor:       2,
+		ScrollOffset: 2,
+		Height:       2, // visibleRows = 0
+	}
+	v2 := v.FullPageUp()
+	if v2.Cursor != 1 {
+		t.Errorf("expected cursor=1, got %d", v2.Cursor)
+	}
+}
+
 func TestCursorDown_AdjustsScroll(t *testing.T) {
 	v := View{
 		Level:        ListLevel,

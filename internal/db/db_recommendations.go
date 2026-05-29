@@ -227,8 +227,10 @@ func (d *DB) ReadSessionCoOccurrences(seedHash string, limit int) ([]SessionCoOc
 		JOIN play_history ph2
 		  ON ph2.session_id = ph1.session_id
 		 AND ph2.track_hash != ?
+		JOIN tracks t2 ON t2.hash = ph2.track_hash
 		WHERE ph1.track_hash = ?
 		  AND ph1.session_id IS NOT NULL
+		  AND t2.missing = 0
 		GROUP BY ph2.track_hash
 		ORDER BY co_count DESC
 		LIMIT ?`, seedHash, seedHash, limit)

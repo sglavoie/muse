@@ -100,7 +100,7 @@ func TestPickBatch_ArtistCapCaseInsensitive(t *testing.T) {
 	}
 }
 
-func TestPickBatch_MaxArtistFractionNaNStillCapsArtists(t *testing.T) {
+func TestPickBatch_InvalidMaxArtistFractionStillCapsArtists(t *testing.T) {
 	scored := []TrackScore{
 		scoredTrack("a1", "ArtistA", 10),
 		scoredTrack("a2", "ArtistA", 9),
@@ -110,7 +110,7 @@ func TestPickBatch_MaxArtistFractionNaNStillCapsArtists(t *testing.T) {
 		scoredTrack("c1", "ArtistC", 5),
 	}
 
-	for _, frac := range []float64{math.NaN(), -1.0, 0.0} {
+	for _, frac := range []float64{math.NaN(), math.Inf(1), math.Inf(-1), -1.0, 0.0} {
 		result := PickBatch(scored, 4, frac)
 		if len(result) == 0 {
 			t.Fatalf("frac=%v: expected non-empty result", frac)

@@ -212,6 +212,10 @@ func (m Model) handleTagCreateInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) 
 			return m, nil, true
 		}
 		tw := m.tagWriter
+		if tw == nil {
+			m.statusBar.notify("Tag writer not available")
+			return m, nil, true
+		}
 		return m, func() tea.Msg {
 			id, err := tw.CreateTag(name, "")
 			return tagCreatedMsg{id: id, name: name, err: err}
@@ -241,6 +245,10 @@ func (m Model) handleTagRenameInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) 
 			return m, nil, true
 		}
 		tw := m.tagWriter
+		if tw == nil {
+			m.statusBar.notify("Tag writer not available")
+			return m, nil, true
+		}
 		tagID := tag.ID
 		return m, func() tea.Msg {
 			err := tw.RenameTag(tagID, name)

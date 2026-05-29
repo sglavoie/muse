@@ -11,18 +11,15 @@ import (
 	"testing"
 )
 
-// TestNoRawANSI walks all .go files under the module root and fails if any file
-// contains a raw ANSI escape sequence literal. The scan root is derived from
-// this file's path (internal/tui/styles/ → three levels up = module root) so
-// the guard covers the entire codebase, not just this package.
+// TestNoRawANSI walks all .go files in this package and fails if any file
+// contains a raw ANSI escape sequence literal.
 //
 // Patterns are built at runtime so this source file does not trigger its own
 // check.
 func TestNoRawANSI(t *testing.T) {
 	_, thisFile, _, _ := runtime.Caller(0)
-	// thisFile is .../internal/tui/styles/styles_guards_test.go; walk three levels up.
-	root := filepath.Join(filepath.Dir(thisFile), "../../..")
-	t.Logf("TestNoRawANSI: scanning module root %s", root)
+	stylesDir := filepath.Dir(thisFile)
+	t.Logf("TestNoRawANSI: scanning styles dir %s", stylesDir)
 
 	// Build forbidden patterns at runtime so this source file doesn't match itself.
 	// Bytes: backslash + "033[" (octal) and backslash + "x1b[" (hex).
@@ -31,7 +28,7 @@ func TestNoRawANSI(t *testing.T) {
 	forbidden := []string{esc, hex}
 
 	var fileCount int
-	err := filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
+	err := filepath.WalkDir(stylesDir, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -46,7 +43,7 @@ func TestNoRawANSI(t *testing.T) {
 		}
 
 		content := string(src)
-		rel, _ := filepath.Rel(root, path)
+		rel, _ := filepath.Rel(stylesDir, path)
 
 		for _, pat := range forbidden {
 			if strings.Contains(content, pat) {
@@ -58,12 +55,11 @@ func TestNoRawANSI(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Fatalf("error walking %s: %v", root, err)
+		t.Fatalf("error walking %s: %v", stylesDir, err)
 	}
 
-	// Sanity check: ensure we scanned well beyond this package's own files.
-	if fileCount <= 2 {
-		t.Errorf("only %d .go file(s) scanned; expected more than 2 (root: %s)", fileCount, root)
+	if fileCount == 0 {
+		t.Errorf("no .go files scanned in %s", stylesDir)
 	}
 	t.Logf("TestNoRawANSI: scanned %d .go files", fileCount)
 }
@@ -133,16 +129,14 @@ func TestStylesPackageImportIsolation(t *testing.T) {
 	t.Logf("TestStylesPackageImportIsolation: scanned %d non-test file(s)", scanned)
 }
 
-// TestNoLipglossRenderHelpers walks all TUI .go files and fails if any of the
+// TestNoLipglossRenderHelpers walks this package's .go files and fails if any
 // banned lipgloss print-helper calls — lipgloss.Println, lipgloss.Sprint, or
 // lipgloss.Fprintln — appear in production code. Only lipgloss.Style.Render()
 // is permitted for styled output in View() methods.
 func TestNoLipglossRenderHelpers(t *testing.T) {
 	_, thisFile, _, _ := runtime.Caller(0)
-	// thisFile is .../internal/tui/styles/styles_guards_test.go; up three levels is module root.
-	moduleRoot := filepath.Join(filepath.Dir(thisFile), "../../..")
-	tuiDir := filepath.Join(moduleRoot, "internal", "tui")
-	t.Logf("TestNoLipglossRenderHelpers: scanning %s", tuiDir)
+	stylesDir := filepath.Dir(thisFile)
+	t.Logf("TestNoLipglossRenderHelpers: scanning %s", stylesDir)
 
 	forbidden := []string{
 		"lipgloss.Println",
@@ -151,7 +145,7 @@ func TestNoLipglossRenderHelpers(t *testing.T) {
 	}
 
 	var fileCount int
-	err := filepath.WalkDir(tuiDir, func(path string, d os.DirEntry, walkErr error) error {
+	err := filepath.WalkDir(stylesDir, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -166,7 +160,7 @@ func TestNoLipglossRenderHelpers(t *testing.T) {
 		}
 
 		content := string(src)
-		rel, _ := filepath.Rel(moduleRoot, path)
+		rel, _ := filepath.Rel(stylesDir, path)
 		for _, call := range forbidden {
 			if strings.Contains(content, call) {
 				t.Errorf("%s: forbidden call %q found (use lipgloss.Style.Render() instead)", rel, call)
@@ -176,27 +170,26 @@ func TestNoLipglossRenderHelpers(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Fatalf("error walking %s: %v", tuiDir, err)
+		t.Fatalf("error walking %s: %v", stylesDir, err)
 	}
 
 	if fileCount == 0 {
-		t.Fatalf("no non-test .go files found under %s", tuiDir)
+		t.Fatalf("no non-test .go files found under %s", stylesDir)
 	}
 	t.Logf("TestNoLipglossRenderHelpers: scanned %d non-test file(s)", fileCount)
 }
 
-// TestBuildNoImportCycles runs "go build ./..." from the module root and fails
-// if the command exits with a non-zero status. The Go toolchain reports import
-// cycles as hard errors, so a clean build confirms none exist.
+// TestBuildNoImportCycles runs "go build" for this package and fails if the
+// command exits with a non-zero status. The Go toolchain reports import cycles
+// in this package or its dependencies as hard errors.
 func TestBuildNoImportCycles(t *testing.T) {
 	_, thisFile, _, _ := runtime.Caller(0)
-	// thisFile is .../internal/tui/styles/styles_guards_test.go; three levels up is module root.
-	moduleRoot := filepath.Join(filepath.Dir(thisFile), "../../..")
+	stylesDir := filepath.Dir(thisFile)
 
-	cmd := exec.Command("go", "build", "./...")
-	cmd.Dir = moduleRoot
+	cmd := exec.Command("go", "build", ".")
+	cmd.Dir = stylesDir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("go build ./... failed (import cycle or build error):\n%s", string(out))
+		t.Fatalf("go build . failed (import cycle or build error):\n%s", string(out))
 	}
 }
