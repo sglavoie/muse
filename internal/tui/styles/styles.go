@@ -121,7 +121,7 @@ type Styles struct {
 	FavAlbum                lipgloss.Style // cyan foreground for favorited albums
 	FavArtistAccent         lipgloss.Style // accent background + purple foreground for focused favorited artists
 	FavAlbumAccent          lipgloss.Style // accent background + cyan foreground for focused favorited albums
-	ColHead                 lipgloss.Style // bold + tertiary foreground + dotted underline for column headers
+	ColHead                 lipgloss.Style // bold + tertiary foreground + full underline for column headers
 	StatusBar               lipgloss.Style // full-width status bar background + foreground
 	StatusBarPlayingBg      lipgloss.Style // warm bg + status bar fg when playing
 	StatusBarStoppedBg      lipgloss.Style // cool bg + status bar fg when stopped
@@ -186,7 +186,7 @@ func NewStyles(hasDark bool) Styles {
 		FavAlbumAccent:      lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceAccentLight), lipgloss.Color(colorSurfaceAccentDark))).Foreground(ld(lipgloss.Color(colorFgFavAlbumLight), lipgloss.Color(colorFgFavAlbumDark))),
 		ColHead: lipgloss.NewStyle().Bold(true).
 			Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))).
-			UnderlineStyle(lipgloss.UnderlineDotted),
+			UnderlineStyle(lipgloss.UnderlineSingle),
 		StatusBar:               lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceL0Light), lipgloss.Color(colorSurfaceL0Dark))).Foreground(ld(lipgloss.Color(colorFgStatusBarLight), lipgloss.Color(colorFgStatusBarDark))),
 		StatusBarPlayingBg:      lipgloss.NewStyle().Background(ld(lipgloss.Color(colorStatusBarPlayingBgLight), lipgloss.Color(colorStatusBarPlayingBgDark))).Foreground(ld(lipgloss.Color(colorFgStatusBarLight), lipgloss.Color(colorFgStatusBarDark))),
 		StatusBarStoppedBg:      lipgloss.NewStyle().Background(ld(lipgloss.Color(colorStatusBarStoppedBgLight), lipgloss.Color(colorStatusBarStoppedBgDark))).Foreground(ld(lipgloss.Color(colorFgStatusBarLight), lipgloss.Color(colorFgStatusBarDark))),
