@@ -270,6 +270,37 @@ func TestHalfPageUpMovesAtLeastOneVisibleRow(t *testing.T) {
 	}
 }
 
+func TestFullPageMovementWithNoVisibleRowsMovesAtLeastOneRow(t *testing.T) {
+	tracks := trackRows("one", "two", "three")
+
+	down := View{
+		Level:  TrackLevel,
+		Cursor: 0,
+		Height: 2, // TrackLevel reserves 3 rows, leaving no data rows.
+		Tracks: tracks,
+	}.FullPageDown()
+	if down.Cursor != 1 {
+		t.Fatalf("FullPageDown with no visible rows: expected Cursor=1, got %d", down.Cursor)
+	}
+	if down.ScrollOffset != down.Cursor {
+		t.Fatalf("FullPageDown with no visible rows: expected ScrollOffset=%d, got %d", down.Cursor, down.ScrollOffset)
+	}
+
+	up := View{
+		Level:        TrackLevel,
+		Cursor:       2,
+		ScrollOffset: 2,
+		Height:       2, // TrackLevel reserves 3 rows, leaving no data rows.
+		Tracks:       tracks,
+	}.FullPageUp()
+	if up.Cursor != 1 {
+		t.Fatalf("FullPageUp with no visible rows: expected Cursor=1, got %d", up.Cursor)
+	}
+	if up.ScrollOffset != up.Cursor {
+		t.Fatalf("FullPageUp with no visible rows: expected ScrollOffset=%d, got %d", up.Cursor, up.ScrollOffset)
+	}
+}
+
 func TestBackWithNoVisibleRowsKeepsScrollOnCursor(t *testing.T) {
 	tags := tagRows("a", "b", "c")
 	v := View{

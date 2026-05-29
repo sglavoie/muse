@@ -282,8 +282,17 @@ func (v View) clampRestoredCursor() View {
 	// Keep the cursor inside the visible window when the saved ScrollOffset
 	// trailed far behind a (now clamped) Cursor.
 	maxRows := v.visibleRows()
-	if maxRows > 0 && v.Cursor >= v.ScrollOffset+maxRows {
-		v.ScrollOffset = v.Cursor - maxRows + 1
+	if maxRows > 0 {
+		maxOffset := n - maxRows
+		if maxOffset < 0 {
+			maxOffset = 0
+		}
+		if v.ScrollOffset > maxOffset {
+			v.ScrollOffset = maxOffset
+		}
+		if v.Cursor >= v.ScrollOffset+maxRows {
+			v.ScrollOffset = v.Cursor - maxRows + 1
+		}
 	}
 	return v
 }

@@ -13,7 +13,7 @@ type TagRow struct {
 // scanTagRows scans the standard 4-column TagRow SELECT result set
 // (id, name, color, created_at) into a slice, returning any scan or iteration error.
 func scanTagRows(rows rowScanner, errContext string) ([]TagRow, error) {
-	var result []TagRow
+	result := make([]TagRow, 0)
 	for rows.Next() {
 		var row TagRow
 		if err := rows.Scan(&row.ID, &row.Name, &row.Color, &row.CreatedAt); err != nil {

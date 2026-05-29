@@ -39,6 +39,9 @@ func ComputeTrack(totalWidth int) TrackColumns {
 	}
 	available := totalWidth - trackMarkerFixed - trackSepCount
 	if available <= 0 {
+		cols.Position = 0
+		cols.Duration = 0
+		cols.PlayCount = 0
 		return cols
 	}
 

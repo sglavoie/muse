@@ -35,6 +35,33 @@ func TestLoad_MissingFile_CreatesDefaultConfig(t *testing.T) {
 	}
 }
 
+func TestLoad_EmptyConfigDirCreatesDefaultConfigInCurrentDirectory(t *testing.T) {
+	dir := t.TempDir()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("Chdir: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(wd); err != nil {
+			t.Fatalf("restore cwd: %v", err)
+		}
+	})
+
+	result, err := Load("")
+	if err != nil {
+		t.Fatalf("Load(\"\") error = %v", err)
+	}
+	if !result.Created {
+		t.Error("expected created=true when config file did not exist")
+	}
+	if _, err := os.Stat(configFileName); err != nil {
+		t.Errorf("config file not created in current directory: %v", err)
+	}
+}
+
 func TestLoad_MissingFile_Idempotent(t *testing.T) {
 	dir := t.TempDir()
 

@@ -369,8 +369,16 @@ func (cp CommandPalette) buildRowContent(cmd PaletteCommand, contentWidth, maxCa
 		nameWidth := max(0, contentWidth-maxShortcutWidth-2-categoryWidth)
 		name := text.Pad(cmd.Name, nameWidth)
 		sc := text.PadLeft(cmd.Shortcut, maxShortcutWidth)
-		return " " + categoryPart + name + "  " + s.Dim.Render(sc) + " "
+		return " " + clampPaletteRowBody(categoryPart+name+"  "+s.Dim.Render(sc), contentWidth) + " "
 	}
 	nameWidth := max(0, contentWidth-categoryWidth)
-	return " " + categoryPart + text.Pad(cmd.Name, nameWidth) + " "
+	return " " + clampPaletteRowBody(categoryPart+text.Pad(cmd.Name, nameWidth), contentWidth) + " "
+}
+
+func clampPaletteRowBody(body string, width int) string {
+	body = ansi.Truncate(body, max(width, 0), "")
+	if w := ansi.StringWidth(body); w < width {
+		body += strings.Repeat(" ", width-w)
+	}
+	return body
 }

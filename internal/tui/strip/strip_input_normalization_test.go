@@ -190,3 +190,38 @@ func TestRender_StyledFilterFieldsNeutralizeNonSGREscapes(t *testing.T) {
 		t.Errorf("non-SGR escapes should be neutralized as visible text, got %q", plain)
 	}
 }
+
+func TestRender_ControlRunesNormalized(t *testing.T) {
+	s := newTestStyles()
+	got := Render(120, []string{"Artists\u0085View"}, SortChunk{Label: "Album\u009bName", Indicator: "▼"},
+		FilterChunk{Text: "alice\u0085bob"}, CountsChunk{Total: 7}, nil, "esc\u009bback", s)
+	plain := requireRenderWidth(t, got, 120)
+
+	for _, control := range []string{"\u0085", "\u009b"} {
+		if strings.Contains(plain, control) {
+			t.Fatalf("strip must not render Unicode control characters, got %q", plain)
+		}
+	}
+	for _, want := range []string{"Artists View", "sort Album Name▼", `filter "alice bob"`, "esc back"} {
+		if !strings.Contains(plain, want) {
+			t.Errorf("Unicode controls should normalize to spaces; missing %q in %q", want, plain)
+		}
+	}
+}
+
+func TestRender_StyledFilterFieldsNormalizeControlRunes(t *testing.T) {
+	s := newTestStyles()
+	inputView := lipgloss.NewStyle().Reverse(true).Render("a") + "\u0085lice"
+
+	got := Render(80, []string{"Library"}, SortChunk{},
+		FilterChunk{Active: true, Text: "alice", InputView: inputView},
+		CountsChunk{Total: 7}, nil, "", s)
+	plain := requireRenderWidth(t, got, 80)
+
+	if strings.Contains(plain, "\u0085") {
+		t.Fatalf("styled filter fields must not leak Unicode control characters, got %q", plain)
+	}
+	if !strings.Contains(plain, `filter "a lice"`) {
+		t.Errorf("Unicode controls should normalize to spaces in styled filter fields, got %q", plain)
+	}
+}

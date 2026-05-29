@@ -19,8 +19,10 @@ func Load(configDir string) (LoadResult, error) {
 
 	_, err := os.Stat(path)
 	if errors.Is(err, os.ErrNotExist) {
-		if err := os.MkdirAll(configDir, 0o700); err != nil {
-			return LoadResult{Config: cfg}, err
+		if configDir != "" {
+			if err := os.MkdirAll(configDir, 0o700); err != nil {
+				return LoadResult{Config: cfg}, err
+			}
 		}
 		if err := writeDefaults(path, cfg); err != nil {
 			return LoadResult{Config: cfg}, err

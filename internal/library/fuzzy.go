@@ -16,6 +16,9 @@ type Match struct {
 	// AlbumPositions holds 0-indexed character positions within the album
 	// string that matched a field-specific query (l:/album: prefix).
 	AlbumPositions []int
+	// GenrePositions holds 0-indexed character positions within the genre
+	// string that matched a field-specific query (g:/genre: prefix).
+	GenrePositions []int
 }
 
 // FuzzySearcher filters a track slice by a query string using fuzzy matching

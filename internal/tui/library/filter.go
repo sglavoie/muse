@@ -42,6 +42,7 @@ func (v View) CommitFilter() View {
 // the visible window after the list expands back.
 func (v View) DeactivateFilter() View {
 	v.Filter = v.Filter.Deactivate()
+	v.FilteredMatches = nil
 	v.Cursor = 0
 	v.ScrollOffset = 0
 	return v

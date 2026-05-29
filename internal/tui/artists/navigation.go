@@ -88,12 +88,12 @@ func (v View) CursorDown() View {
 
 // HalfPageDown moves the cursor half a visible page down.
 func (v View) HalfPageDown() View {
-	return v.moveCursor(v.visibleRows() / 2)
+	return v.moveCursor(v.halfPageRows())
 }
 
 // HalfPageUp moves the cursor half a visible page up.
 func (v View) HalfPageUp() View {
-	return v.moveCursor(-v.visibleRows() / 2)
+	return v.moveCursor(-v.halfPageRows())
 }
 
 // FullPageDown moves the cursor a full visible page down.
@@ -149,6 +149,14 @@ func (v View) itemCount() int {
 	default:
 		return len(v.EffectiveArtists())
 	}
+}
+
+func (v View) halfPageRows() int {
+	rows := v.visibleRows()
+	if rows == 0 {
+		return 0
+	}
+	return max(1, rows/2)
 }
 
 // moveCursor shifts the cursor by delta rows, clamping to [0, itemCount-1],

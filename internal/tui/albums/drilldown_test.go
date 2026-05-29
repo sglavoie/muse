@@ -89,6 +89,30 @@ func TestBackKeepsCursorVisibleAfterResize(t *testing.T) {
 	}
 }
 
+func TestBackResetsScrollWhenParentFitsOnScreen(t *testing.T) {
+	v := View{
+		Level:        AlbumLevel,
+		Cursor:       2,
+		ScrollOffset: 4,
+		Albums:       []string{"a", "b", "c", "d", "e", "f", "g"},
+		Height:       20,
+		Width:        80,
+	}
+
+	v = v.OpenTracks([]library.Track{{Title: "x"}})
+	v.Albums = []string{"a", "b", "c"}
+	v = v.Back()
+	if v.Level != AlbumLevel {
+		t.Fatalf("expected AlbumLevel, got %v", v.Level)
+	}
+	if v.Cursor != 2 {
+		t.Fatalf("expected cursor=2, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 0 {
+		t.Fatalf("expected scroll=0 when parent fits on screen, got %d", v.ScrollOffset)
+	}
+}
+
 func TestOpenTracksTranslatesFilteredCursorToUnfilteredIndex(t *testing.T) {
 	v := View{
 		Level:      AlbumLevel,

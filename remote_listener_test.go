@@ -187,8 +187,8 @@ func TestCommandListener_CloseDoesNotRemoveReplacedNonSocketPath(t *testing.T) {
 		t.Fatalf("write replacement file: %v", err)
 	}
 
-	if err := ln.Close(); err != nil && !strings.Contains(err.Error(), "exists and is not a socket") {
-		t.Fatalf("Close error = %v, want non-socket error", err)
+	if err := ln.Close(); err != nil {
+		t.Fatalf("Close should ignore a replaced control path: %v", err)
 	}
 
 	got, readErr := os.ReadFile(sockPath)

@@ -136,6 +136,12 @@ func TestApplyRestoredSession_NilRestoredNoPanic(t *testing.T) {
 	if len(mgr.queue) != 0 {
 		t.Errorf("player queue = %d, want 0", len(mgr.queue))
 	}
+	if model.Volume() != 50 {
+		t.Errorf("volume = %d, want default 50 for nil restored session", model.Volume())
+	}
+	if !mgr.volumeSet || mgr.volume != 50 {
+		t.Errorf("player volume = %v (set=%v), want default 50", mgr.volume, mgr.volumeSet)
+	}
 }
 
 func TestApplyRestoredSession_FullSession(t *testing.T) {

@@ -77,10 +77,10 @@ func (v View) CursorDown() View {
 }
 
 // HalfPageDown moves the cursor half a visible page down.
-func (v View) HalfPageDown() View { return v.moveCursor(v.visibleRows() / 2) }
+func (v View) HalfPageDown() View { return v.moveCursor(halfPageRows(v.visibleRows())) }
 
 // HalfPageUp moves the cursor half a visible page up.
-func (v View) HalfPageUp() View { return v.moveCursor(-v.visibleRows() / 2) }
+func (v View) HalfPageUp() View { return v.moveCursor(-halfPageRows(v.visibleRows())) }
 
 // FullPageDown moves the cursor a full visible page down.
 func (v View) FullPageDown() View { return v.moveCursor(v.visibleRows()) }
@@ -168,6 +168,13 @@ func (v View) moveCursor(delta int) View {
 		v.ScrollOffset = 0
 	}
 	return v
+}
+
+func halfPageRows(rows int) int {
+	if rows <= 0 {
+		return 0
+	}
+	return max(1, rows/2)
 }
 
 // OpenArtists returns a copy of v transitioned to ArtistLevel with artists

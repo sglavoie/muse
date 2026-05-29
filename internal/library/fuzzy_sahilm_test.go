@@ -127,9 +127,9 @@ func TestSahilmFuzzySearcher(t *testing.T) {
 
 func TestSahilmFuzzySearcher_FieldSpecific(t *testing.T) {
 	tracks := []Track{
-		{Artist: "Radiohead", Title: "Creep", Album: "Pablo Honey", Path: "/music/creep.flac"},
-		{Artist: "Pink Floyd", Title: "Comfortably Numb", Album: "The Wall", Path: "/music/numb.flac"},
-		{Artist: "Radiohead", Title: "Lucky", Album: "OK Computer", Path: "/music/lucky.flac"},
+		{Artist: "Radiohead", Title: "Creep", Album: "Pablo Honey", Genre: "Alternative Rock", Path: "/music/creep.flac"},
+		{Artist: "Pink Floyd", Title: "Comfortably Numb", Album: "The Wall", Genre: "Progressive Rock", Path: "/music/numb.flac"},
+		{Artist: "Radiohead", Title: "Lucky", Album: "OK Computer", Genre: "Alternative Rock", Path: "/music/lucky.flac"},
 	}
 
 	s := SahilmFuzzySearcher{}
@@ -155,6 +155,24 @@ func TestSahilmFuzzySearcher_FieldSpecific(t *testing.T) {
 		got := s.Search("l:wall", tracks)
 		if len(got) != 1 || got[0].TrackIndex != 1 {
 			t.Errorf("expected match on The Wall (index 1), got %+v", got)
+		}
+	})
+
+	t.Run("GenrePrefix", func(t *testing.T) {
+		got := s.Search("g:alternative", tracks)
+		if len(got) != 2 {
+			t.Fatalf("expected 2 matches for g:alternative, got %d", len(got))
+		}
+		if got[0].TrackIndex != 0 || got[1].TrackIndex != 2 {
+			t.Errorf("unexpected tracks: %+v", got)
+		}
+		for _, m := range got {
+			if m.GenrePositions == nil {
+				t.Errorf("track %d: GenrePositions should not be nil", m.TrackIndex)
+			}
+			if m.MatchedIndexes != nil {
+				t.Errorf("track %d: MatchedIndexes should be nil for field-specific query", m.TrackIndex)
+			}
 		}
 	})
 
@@ -216,6 +234,17 @@ func TestSahilmFuzzySearcher_FieldSpecific(t *testing.T) {
 		want := []int{0, 12, 14, 15}
 		if !slices.Equal(got[0].TitlePositions, want) {
 			t.Errorf("TitlePositions = %v, want %v", got[0].TitlePositions, want)
+		}
+	})
+
+	t.Run("NonContiguousFieldQueryMatchesGenre", func(t *testing.T) {
+		got := s.Search("g:prgrck", tracks)
+		if len(got) != 1 || got[0].TrackIndex != 1 {
+			t.Fatalf("expected fuzzy genre match on Progressive Rock (index 1), got %+v", got)
+		}
+		want := []int{0, 1, 3, 4, 14, 15}
+		if !slices.Equal(got[0].GenrePositions, want) {
+			t.Errorf("GenrePositions = %v, want %v", got[0].GenrePositions, want)
 		}
 	})
 }

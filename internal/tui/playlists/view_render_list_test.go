@@ -118,6 +118,22 @@ func TestRenderListNegativeScrollOffsetStartsAtFirstRow(t *testing.T) {
 	}
 }
 
+func TestRenderListNegativeCursorOverridesStaleScrollOffset(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Width:        40,
+		Cursor:       -1,
+		ScrollOffset: 2,
+		Playlists:    fakePlaylistRows("First", "Second", "Third"),
+	}
+
+	out := v.Render()
+
+	if !strings.Contains(out, "First") {
+		t.Fatalf("expected negative cursor to clamp visible window to first row, got:\n%s", out)
+	}
+}
+
 func TestRenderListCreateInputUsesClampedStaleCursor(t *testing.T) {
 	v := View{
 		Level:     ListLevel,

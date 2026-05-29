@@ -2,6 +2,8 @@ package strip
 
 import (
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -53,8 +55,14 @@ func styledLine(v string) string {
 			i++
 			continue
 		}
-		b.WriteByte(c)
-		i++
+		r, size := utf8.DecodeRuneInString(v[i:])
+		if unicode.IsControl(r) || (r == utf8.RuneError && size == 1 && c >= 0x80 && c <= 0x9f) {
+			b.WriteByte(' ')
+			i += size
+			continue
+		}
+		b.WriteString(v[i : i+size])
+		i += size
 	}
 	return b.String()
 }
@@ -80,11 +88,11 @@ func sgrSequenceEnd(v string, start int) (int, bool) {
 // because callers pass pre-rendered ANSI there for cursors and placeholders.
 func plainLine(v string) string {
 	v = ansi.Strip(singleLine(v))
-	if !strings.ContainsAny(v, "\x00\x01\x02\x03\x04\x05\x06\x07\b\x0b\f\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x7f") {
+	if !strings.ContainsAny(v, "\x00\x01\x02\x03\x04\x05\x06\x07\b\x0b\f\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x7f\u0080\u0081\u0082\u0083\u0084\u0085\u0086\u0087\u0088\u0089\u008a\u008b\u008c\u008d\u008e\u008f\u0090\u0091\u0092\u0093\u0094\u0095\u0096\u0097\u0098\u0099\u009a\u009b\u009c\u009d\u009e\u009f") {
 		return v
 	}
 	return strings.Map(func(r rune) rune {
-		if r == '\x7f' || r < ' ' {
+		if unicode.IsControl(r) {
 			return ' '
 		}
 		return r

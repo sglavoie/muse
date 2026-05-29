@@ -158,6 +158,26 @@ func TestRenderTracksNegativeScrollOffsetStartsAtFirstRow(t *testing.T) {
 	}
 }
 
+func TestRenderTracksNegativeCursorOverridesStaleScrollOffset(t *testing.T) {
+	v := View{
+		Level:        TrackLevel,
+		Width:        80,
+		Cursor:       -1,
+		ScrollOffset: 2,
+		Tracks: []db.PlaylistTrackRow{
+			{ID: 1, Position: 1, Title: "First Track", Artist: "X", DurationMs: 60000},
+			{ID: 2, Position: 2, Title: "Second Track", Artist: "Y", DurationMs: 60000},
+			{ID: 3, Position: 3, Title: "Third Track", Artist: "Z", DurationMs: 60000},
+		},
+	}
+
+	out := v.Render()
+
+	if !strings.Contains(out, "First Track") {
+		t.Fatalf("expected negative cursor to clamp visible window to first track, got:\n%s", out)
+	}
+}
+
 func TestRenderTracksHeaderFitsNarrowColumns(t *testing.T) {
 	const width = trackMarkerFixed + trackPosFixed + trackDurationFixed + trackSepCount + 1
 	v := View{

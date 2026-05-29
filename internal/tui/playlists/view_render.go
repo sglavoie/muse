@@ -255,10 +255,7 @@ func visibleWindowStart(scrollOffset, cursor, itemCount, maxRows int) int {
 	maxStart := max(0, itemCount-maxRows)
 	start := min(max(scrollOffset, 0), maxStart)
 
-	if cursor < 0 {
-		return start
-	}
-	cursor = min(cursor, itemCount-1)
+	cursor = clamp(cursor, 0, itemCount-1)
 	if cursor < start {
 		start = cursor
 	} else if cursor >= start+maxRows {

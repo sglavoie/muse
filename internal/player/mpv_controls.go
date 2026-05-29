@@ -3,6 +3,7 @@ package player
 import (
 	"fmt"
 	"maps"
+	"math"
 	"sort"
 	"strings"
 
@@ -147,7 +148,7 @@ func (m *Manager) SetVolumeRelative(delta float64) error {
 // 0-100 range are clamped before being forwarded to mpv to avoid driver- or
 // platform-dependent behavior at out-of-range values.
 func (m *Manager) SetVolumeAbsolute(volume float64) error {
-	if volume < 0 {
+	if math.IsNaN(volume) || volume < 0 {
 		volume = 0
 	} else if volume > 100 {
 		volume = 100

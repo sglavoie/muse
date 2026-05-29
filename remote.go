@@ -142,11 +142,11 @@ func removeControlSocketIfSame(path string, expected os.FileInfo) error {
 	if err != nil {
 		return err
 	}
-	if info.Mode()&os.ModeSocket == 0 {
-		return fmt.Errorf("%s exists and is not a socket", path)
-	}
 	if expected != nil && !os.SameFile(expected, info) {
 		return nil
+	}
+	if info.Mode()&os.ModeSocket == 0 {
+		return fmt.Errorf("%s exists and is not a socket", path)
 	}
 	return os.Remove(path)
 }

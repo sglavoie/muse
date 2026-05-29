@@ -45,7 +45,7 @@ func ApplyRestoredSession(
 	defaultVolume int,
 ) {
 	if restored == nil {
-		restored = &RestoredSession{}
+		restored = &RestoredSession{Volume: -1}
 	}
 
 	// Sync queue between player and TUI.

@@ -45,6 +45,25 @@ func TestHalfPageDown(t *testing.T) {
 	}
 }
 
+func TestHalfPageMovementMovesOneRowWhenOnlyOneRowVisible(t *testing.T) {
+	v := View{
+		Level:  GenreLevel,
+		Genres: []string{"A", "B", "C"},
+		Cursor: 1,
+		Height: 2,
+	}
+	if rows := v.visibleRows(); rows != 1 {
+		t.Fatalf("precondition: expected one visible row, got %d", rows)
+	}
+
+	if down := v.HalfPageDown(); down.Cursor != 2 {
+		t.Errorf("HalfPageDown: expected cursor=2, got %d", down.Cursor)
+	}
+	if up := v.HalfPageUp(); up.Cursor != 0 {
+		t.Errorf("HalfPageUp: expected cursor=0, got %d", up.Cursor)
+	}
+}
+
 func TestPageMovementDoesNotAdvanceScrollWhenNoRowsVisible(t *testing.T) {
 	v := View{
 		Level:        GenreLevel,

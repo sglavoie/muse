@@ -13,7 +13,7 @@ type SahilmFuzzySearcher struct{}
 
 // Search runs a fuzzy subsequence match against each track's artist, title,
 // album, and filename. An empty or whitespace-only query returns all tracks in
-// index order with nil MatchedIndexes. Field-specific queries (a:/t:/l:
+// index order with nil MatchedIndexes. Field-specific queries (a:/t:/l:/g:
 // prefixes) match individual fields and populate per-field position slices
 // instead.
 func (s SahilmFuzzySearcher) Search(query string, tracks []Track) []Match {
@@ -87,8 +87,11 @@ func (s SahilmFuzzySearcher) searchFieldSpecific(fq FilterQuery, tracks []Track)
 		}
 
 		if ok && fq.Genre != "" {
-			if !strings.Contains(strings.ToLower(t.Genre), strings.ToLower(fq.Genre)) {
+			indexes, matched := fuzzyIndexes(t.Genre, fq.Genre)
+			if !matched {
 				ok = false
+			} else {
+				m.GenrePositions = indexes
 			}
 		}
 

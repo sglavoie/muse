@@ -2,6 +2,7 @@ package player
 
 import (
 	"context"
+	"math"
 	"sync"
 	"testing"
 )
@@ -66,6 +67,7 @@ func TestManager_SetVolumeAbsolute_Clamped(t *testing.T) {
 	}{
 		{"negative", -25, 0},
 		{"over_max", 150, 100},
+		{"nan", math.NaN(), 0},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

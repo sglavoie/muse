@@ -26,6 +26,21 @@ func TestReadTags_OrderedByName(t *testing.T) {
 	}
 }
 
+func TestReadTags_EmptyReturnsNonNilSlice(t *testing.T) {
+	d, _ := openTagDB(t)
+
+	tags, err := d.ReadTags()
+	if err != nil {
+		t.Fatalf("ReadTags: %v", err)
+	}
+	if tags == nil {
+		t.Fatal("ReadTags returned nil slice, want non-nil empty slice")
+	}
+	if len(tags) != 0 {
+		t.Fatalf("got %d tags, want 0", len(tags))
+	}
+}
+
 func TestReadTagCounts(t *testing.T) {
 	d, w := openTagDB(t)
 	seedTrack(t, d, "h1", "/a.flac")
@@ -105,5 +120,21 @@ func TestReadTagsForTrack_ExcludesSoftDeleted(t *testing.T) {
 	}
 	if len(tags) != 0 {
 		t.Errorf("got %d tags for soft-deleted tag, want 0", len(tags))
+	}
+}
+
+func TestReadTagsForTrack_EmptyReturnsNonNilSlice(t *testing.T) {
+	d, _ := openTagDB(t)
+	seedTrack(t, d, "h1", "/a.flac")
+
+	tags, err := d.ReadTagsForTrack("h1")
+	if err != nil {
+		t.Fatalf("ReadTagsForTrack: %v", err)
+	}
+	if tags == nil {
+		t.Fatal("ReadTagsForTrack returned nil slice, want non-nil empty slice")
+	}
+	if len(tags) != 0 {
+		t.Fatalf("got %d tags, want 0", len(tags))
 	}
 }

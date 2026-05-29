@@ -126,10 +126,17 @@ func halfPageStep(visibleRows int) int {
 }
 
 // FullPageDown moves the cursor a full visible page down.
-func (v View) FullPageDown() View { return v.moveCursor(v.visibleRows()) }
+func (v View) FullPageDown() View { return v.moveCursor(fullPageStep(v.visibleRows())) }
 
 // FullPageUp moves the cursor a full visible page up.
-func (v View) FullPageUp() View { return v.moveCursor(-v.visibleRows()) }
+func (v View) FullPageUp() View { return v.moveCursor(-fullPageStep(v.visibleRows())) }
+
+func fullPageStep(visibleRows int) int {
+	if visibleRows < 1 {
+		return 1
+	}
+	return visibleRows
+}
 
 // GoToTop moves the cursor to the first row.
 func (v View) GoToTop() View {

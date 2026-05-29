@@ -68,6 +68,19 @@ func TestComputeTrack_DoesNotOverAllocateWidthAtBoundary(t *testing.T) {
 	}
 }
 
+func TestComputeTrack_ShrinksDataColumnsWhenOnlyScaffoldFits(t *testing.T) {
+	cols := ComputeTrack(trackMarkerFixed + trackSepCount)
+	if cols.Position != 0 || cols.Title != 0 || cols.Artist != 0 || cols.Album != 0 ||
+		cols.Duration != 0 || cols.PlayCount != 0 {
+		t.Fatalf("expected zero-width data columns, got %+v", cols)
+	}
+	total := cols.Marker + cols.Position + cols.Title + cols.Artist + cols.Album +
+		cols.Duration + cols.PlayCount + trackSepCount
+	if total != trackMarkerFixed+trackSepCount {
+		t.Fatalf("columns should fit scaffold-only width, got %d", total)
+	}
+}
+
 func TestComputeTrack_NormalWidth(t *testing.T) {
 	cols := ComputeTrack(120)
 	if cols.Title <= 0 || cols.Artist <= 0 || cols.Album <= 0 {

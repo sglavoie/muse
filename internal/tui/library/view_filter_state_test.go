@@ -155,6 +155,19 @@ func TestDeactivateFilterClearsQueryAndResetsCursor(t *testing.T) {
 	}
 }
 
+func TestDeactivateFilterClearsCachedMatches(t *testing.T) {
+	v := View{
+		Filter:          filter.State{Active: true, Text: "Alice"},
+		FilteredMatches: []musiclib.Match{{TrackIndex: 0}},
+	}
+
+	v = v.DeactivateFilter()
+
+	if v.FilteredMatches != nil {
+		t.Fatalf("DeactivateFilter should clear cached matches, got %#v", v.FilteredMatches)
+	}
+}
+
 func TestCommitFilterDeactivatesButKeepsText(t *testing.T) {
 	v := View{Filter: filter.State{Active: true, Text: "abc"}}
 	v = v.CommitFilter()
