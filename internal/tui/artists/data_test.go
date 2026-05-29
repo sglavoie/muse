@@ -142,6 +142,21 @@ func TestDeriveAlbumsForUnknownArtistIncludesLibrarySentinel(t *testing.T) {
 	}
 }
 
+func TestDeriveAlbumsForArtistNamedUnknownAlbum(t *testing.T) {
+	tracks := []library.Track{
+		{Artist: UnknownAlbum, Album: "Literal", Title: "Named like album sentinel"},
+		{Artist: "", Album: "Missing", Title: "Missing artist"},
+	}
+
+	albums := DeriveAlbums(tracks, UnknownAlbum)
+	if len(albums) != 1 {
+		t.Fatalf("DeriveAlbums: expected one album for literal artist name, got %d: %v", len(albums), albums)
+	}
+	if albums[0] != "Literal" {
+		t.Fatalf("DeriveAlbums: expected Literal, got %q", albums[0])
+	}
+}
+
 func TestDeriveTracksForArtistAndAlbum(t *testing.T) {
 	tracks := sampleTracks()
 	result := DeriveTracks(tracks, "Alice", "Alpha")
@@ -234,5 +249,20 @@ func TestDeriveTracksForUnknownAlbumIncludesDisplaySentinel(t *testing.T) {
 	}
 	if result[0].Title != "Blank album" || result[1].Title != "Display sentinel album" {
 		t.Fatalf("DeriveTracks returned unexpected tracks: %v", result)
+	}
+}
+
+func TestDeriveTracksForAlbumNamedUnknownArtist(t *testing.T) {
+	tracks := []library.Track{
+		{Artist: "Alice", Album: UnknownArtist, Title: "Literal album name"},
+		{Artist: "Alice", Album: "", Title: "Missing album"},
+	}
+
+	result := DeriveTracks(tracks, "Alice", UnknownArtist)
+	if len(result) != 1 {
+		t.Fatalf("DeriveTracks: expected one track for literal album name, got %d: %v", len(result), result)
+	}
+	if result[0].Title != "Literal album name" {
+		t.Fatalf("DeriveTracks: expected literal album track, got %q", result[0].Title)
 	}
 }

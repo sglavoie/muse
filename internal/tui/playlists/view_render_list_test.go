@@ -117,3 +117,19 @@ func TestRenderListNegativeScrollOffsetStartsAtFirstRow(t *testing.T) {
 		t.Fatalf("expected negative scroll offset to render from first row, got:\n%s", out)
 	}
 }
+
+func TestRenderListCreateInputUsesClampedStaleCursor(t *testing.T) {
+	v := View{
+		Level:     ListLevel,
+		Width:     40,
+		Cursor:    99,
+		Playlists: fakePlaylistRows("First", "Second"),
+	}.StartCreate()
+	v.CreateInput.SetValue("New List")
+
+	out := v.Render()
+
+	if !strings.Contains(ansi.Strip(out), "New List") {
+		t.Fatalf("expected create input to render at clamped cursor, got:\n%s", out)
+	}
+}

@@ -79,6 +79,30 @@ bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 	requireWarningContaining(t, result.Warnings, "too_short", "expected 10")
 }
 
+func TestLoad_EQ_CustomPresetInvalidDuplicateDoesNotBlockValidLaterPreset(t *testing.T) {
+	result := loadEQConfigFromContent(t, `
+[[eq_custom_presets]]
+name = "Invalid"
+key = "retry"
+bands = [1, 2, 3]
+
+[[eq_custom_presets]]
+name = "Valid"
+key = "retry"
+bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+`)
+
+	if len(result.Config.EQCustomPresets) != 1 {
+		t.Fatalf("EQCustomPresets len = %d, want 1", len(result.Config.EQCustomPresets))
+	}
+	preset := result.Config.EQCustomPresets[0]
+	if preset.Name != "Valid" || preset.Key != "retry" {
+		t.Errorf("kept custom preset = {Name:%q Key:%q}, want {Name:%q Key:%q}",
+			preset.Name, preset.Key, "Valid", "retry")
+	}
+	requireWarningContaining(t, result.Warnings, "retry", "expected 10")
+}
+
 func TestLoad_EQ_CustomPreset_BandsClamped(t *testing.T) {
 	result := loadEQConfigFromContent(t, `
 [[eq_custom_presets]]

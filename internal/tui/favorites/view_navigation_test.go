@@ -253,6 +253,23 @@ func TestGoToBottom_ClampsScrollOffsetWhenListShrank(t *testing.T) {
 	}
 }
 
+func TestGoToBottom_ResetsScrollOffsetWhenListFits(t *testing.T) {
+	v := View{
+		Level:        ListLevel,
+		Category:     CategoryArtists,
+		Artists:      []string{"A", "B", "C"},
+		ScrollOffset: 50,
+		Height:       20,
+	}
+	v2 := v.GoToBottom()
+	if v2.Cursor != 2 {
+		t.Fatalf("expected cursor=2, got %d", v2.Cursor)
+	}
+	if v2.ScrollOffset != 0 {
+		t.Errorf("expected scrollOffset=0 when the whole list fits, got %d", v2.ScrollOffset)
+	}
+}
+
 func TestGoToBottom_ZeroVisibleRowsAnchorsScrollToCursor(t *testing.T) {
 	v := View{
 		Level:        ListLevel,

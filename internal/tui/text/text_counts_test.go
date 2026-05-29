@@ -17,6 +17,7 @@ func TestRightPadWithCount(t *testing.T) {
 	}{
 		{"small count fits", "Beatles", 3, 20, "Beatles       ", "     3"},
 		{"large count fits", "Beatles", 9999, 20, "Beatles       ", "  9999"},
+		{"overflow count uses fixed numeric marker", "Beatles", 100000, 20, "Beatles       ", " 9999+"},
 		{"zero count shows blank digits", "Beatles", 0, 20, "Beatles       ", "      "},
 		{"negative count shows blank digits", "Beatles", -1, 20, "Beatles       ", "      "},
 		{"label longer than label-zone truncates", "A Very Long Artist Name", 5, 20, "A Very Long A…", "     5"},

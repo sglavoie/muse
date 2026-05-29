@@ -250,3 +250,25 @@ func TestBulkLoad_EmptyHashesRemainUnindexed(t *testing.T) {
 		t.Fatalf("FindByHash(h1): got path %q, want /c.flac", found.Path)
 	}
 }
+
+func TestTracks_ReturnsSnapshot(t *testing.T) {
+	var idx LibraryIndex
+	idx.Insert(Track{Hash: "h1", Artist: "A", Title: "t1", Path: "/a.flac"})
+
+	tracks := idx.Tracks()
+	tracks[0].Hash = "corrupted"
+	tracks[0].Artist = "Z"
+
+	found, ok := idx.FindByHash("h1")
+	if !ok {
+		t.Fatal("FindByHash(h1): expected original track to remain indexed")
+	}
+	if found.Hash != "h1" || found.Artist != "A" {
+		t.Fatalf("Tracks() mutation leaked into index: %+v", found)
+	}
+
+	fresh := idx.Tracks()
+	if fresh[0].Hash != "h1" || fresh[0].Artist != "A" {
+		t.Fatalf("fresh Tracks() returned mutated data: %+v", fresh[0])
+	}
+}

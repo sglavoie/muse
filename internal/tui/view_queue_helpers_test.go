@@ -74,6 +74,29 @@ func TestFilteredEntriesStaleDisplayOrder(t *testing.T) {
 	}
 }
 
+// TestFilteredEntriesInvalidDisplayOrder verifies that filteredEntries falls
+// back to insertion order rather than panicking when a stale displayOrder has
+// the right length but contains an invalid entry index.
+func TestFilteredEntriesInvalidDisplayOrder(t *testing.T) {
+	v := QueueView{
+		entries: []QueueEntry{
+			{Title: "A", Artist: "X"},
+			{Title: "B", Artist: "Y"},
+			{Title: "C", Artist: "Z"},
+		},
+		displayOrder: []int{2, 3, 0},
+	}
+	got := v.filteredEntries()
+	if len(got) != 3 {
+		t.Fatalf("expected 3 entries, got %d", len(got))
+	}
+	for i, e := range got {
+		if e.origIdx != i {
+			t.Errorf("entry %d: origIdx = %d, want %d", i, e.origIdx, i)
+		}
+	}
+}
+
 // TestFilteredEntriesOrigIdx verifies that origIdx is set correctly by
 // filteredEntries with and without a displayOrder.
 func TestFilteredEntriesOrigIdx(t *testing.T) {

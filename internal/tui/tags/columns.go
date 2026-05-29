@@ -37,6 +37,7 @@ func ComputeTrack(totalWidth int) TrackColumns {
 		Duration:        trackDurationFixed,
 	}
 	if remaining <= 0 {
+		cols.Duration = max(totalWidth-selectionMarkerFixed-trackSepCount, 0)
 		return cols
 	}
 

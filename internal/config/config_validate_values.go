@@ -154,7 +154,6 @@ func validate(raw rawConfig) (Config, []string) {
 			warnings = append(warnings, fmt.Sprintf("eq custom preset with key %q is duplicated; later occurrence ignored", trimmedKey))
 			continue
 		}
-		seen[trimmedKey] = true
 		clamped := [10]int{}
 		if cp.Bands != nil {
 			bands, ok := normalizeEQBands(*cp.Bands)
@@ -170,6 +169,7 @@ func validate(raw rawConfig) (Config, []string) {
 		if trimmedName == "" {
 			trimmedName = trimmedKey
 		}
+		seen[trimmedKey] = true
 		cfg.EQCustomPresets = append(cfg.EQCustomPresets, EQCustomPreset{
 			Name:  trimmedName,
 			Key:   trimmedKey,

@@ -3,6 +3,8 @@ package tags
 import (
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestRenderTagsAllZeroCountsShowsEmptyState(t *testing.T) {
@@ -132,5 +134,31 @@ func TestRenderTracksWithHighScrollOffsetKeepsCursorVisible(t *testing.T) {
 
 	if !strings.Contains(out, "first") {
 		t.Fatalf("expected render to clamp high scroll and include focused track, got:\n%s", out)
+	}
+}
+
+func TestRenderTracksHeaderAndRowsFitNarrowWidth(t *testing.T) {
+	const width = 12
+	v := View{
+		Level:  TrackLevel,
+		Width:  width,
+		Height: 10,
+		Tracks: trackRows("Long Title"),
+	}
+	v.Tracks[0].Artist = "Long Artist"
+	v.Tracks[0].Album = "Long Album"
+	v.Tracks[0].DurationMs = 60000
+
+	lines := strings.Split(v.Render(), "\n")
+	if len(lines) < 4 {
+		t.Fatalf("expected track render to include heading, header, and row; got %d lines", len(lines))
+	}
+	header := ansi.Strip(lines[2])
+	row := ansi.Strip(lines[3])
+	if got := ansi.StringWidth(header); got != width {
+		t.Fatalf("track header width = %d, want %d; header=%q", got, width, header)
+	}
+	if got := ansi.StringWidth(row); got != width {
+		t.Fatalf("track row width = %d, want %d; row=%q", got, width, row)
 	}
 }

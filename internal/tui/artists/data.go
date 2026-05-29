@@ -43,6 +43,20 @@ func AlbumMatches(trackAlbum, album string) bool {
 	return trackAlbum == album
 }
 
+func rawArtistName(artist string) string {
+	if artist == UnknownArtist {
+		return ""
+	}
+	return artist
+}
+
+func rawAlbumName(album string) string {
+	if album == UnknownAlbum {
+		return ""
+	}
+	return album
+}
+
 // DeriveArtists extracts unique artist names from a sorted track slice.
 // The input must be sorted by artist (as LibraryIndex.Tracks() provides).
 func DeriveArtists(tracks []library.Track) []string {
@@ -79,7 +93,7 @@ func DeriveArtistCounts(tracks []library.Track) map[string]int {
 // DeriveAlbums returns unique album names for the given artist, sorted
 // alphabetically.
 func DeriveAlbums(tracks []library.Track, artist string) []string {
-	artist = RawName(artist)
+	artist = rawArtistName(artist)
 	seen := make(map[string]struct{})
 	var albums []string
 	for _, track := range tracks {
@@ -109,8 +123,8 @@ func DeriveAlbums(tracks []library.Track, artist string) []string {
 
 // DeriveTracks returns all tracks matching the given artist and album.
 func DeriveTracks(tracks []library.Track, artist, album string) []library.Track {
-	artist = RawName(artist)
-	album = RawName(album)
+	artist = rawArtistName(artist)
+	album = rawAlbumName(album)
 	var result []library.Track
 	for _, track := range tracks {
 		if ArtistMatches(track.Artist, artist) && AlbumMatches(track.Album, album) {
@@ -122,7 +136,7 @@ func DeriveTracks(tracks []library.Track, artist, album string) []library.Track 
 
 // DeriveArtistTracks returns all tracks by the given artist, regardless of album.
 func DeriveArtistTracks(tracks []library.Track, artist string) []library.Track {
-	rawArtist := RawName(artist)
+	rawArtist := rawArtistName(artist)
 	var result []library.Track
 	for _, track := range tracks {
 		if ArtistMatches(track.Artist, rawArtist) {

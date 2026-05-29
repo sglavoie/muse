@@ -121,12 +121,18 @@ const MinLabelWithCount = 6
 // When count <= 0 the digit area is rendered as blank spaces (no "0") so
 // missing-count rows visually omit the value while still occupying the
 // column width. The returned string has exactly CountColWidth+1 display
-// columns.
+// columns. Counts wider than CountColWidth are shown as a capped overflow
+// marker (e.g. "9999+") instead of a text ellipsis, keeping the column
+// numeric and fixed-width.
 func FormatCountSuffix(count int) string {
 	if count <= 0 {
 		return " " + strings.Repeat(" ", CountColWidth)
 	}
-	return " " + PadLeft(strconv.Itoa(count), CountColWidth)
+	digits := strconv.Itoa(count)
+	if ansi.StringWidth(digits) > CountColWidth {
+		digits = strings.Repeat("9", CountColWidth-1) + "+"
+	}
+	return " " + PadLeft(digits, CountColWidth)
 }
 
 // RightPadWithCount shapes a Browse row with a right-aligned count.

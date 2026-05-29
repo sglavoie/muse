@@ -28,13 +28,25 @@ func (w *Writer) PopulateTrackGenres(tracks []library.Track) error {
 			if t.Hash == "" {
 				continue
 			}
+			genre := t.Genre
+			var storedGenre string
+			var userEdited int
+			if err := tx.QueryRow(
+				`SELECT genre, user_edited FROM tracks WHERE hash = ?`,
+				t.Hash,
+			).Scan(&storedGenre, &userEdited); err != nil {
+				return err
+			}
+			if userEdited != 0 {
+				genre = storedGenre
+			}
 			if _, err := tx.Exec(
 				`DELETE FROM track_genres WHERE track_hash = ?`,
 				t.Hash,
 			); err != nil {
 				return err
 			}
-			genres := library.SplitGenres(t.Genre)
+			genres := library.SplitGenres(genre)
 			for _, g := range genres {
 				if _, err := tx.Exec(
 					`INSERT OR IGNORE INTO track_genres (track_hash, genre) VALUES (?, ?)`,

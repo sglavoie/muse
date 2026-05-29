@@ -59,7 +59,13 @@ func (v View) GoToBottom() View {
 		return v
 	}
 	v.Cursor = n - 1
-	return v.keepCursorVisible()
+	maxRows := v.visibleRows()
+	if maxRows <= 0 {
+		v.ScrollOffset = v.Cursor
+	} else {
+		v.ScrollOffset = max(0, v.Cursor-maxRows+1)
+	}
+	return v
 }
 
 // moveCursor shifts the cursor by delta rows, clamping to [0, itemCount-1].

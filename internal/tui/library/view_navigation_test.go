@@ -228,6 +228,15 @@ func TestHalfPageDownMovesByHalfVisibleRows(t *testing.T) {
 	}
 }
 
+func TestHalfPageDownMovesAtLeastOneVisibleRow(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Width: 80, Height: 3, Cursor: 0} // visibleRows = 1
+	v = v.HalfPageDown()
+	if v.Cursor != 1 {
+		t.Errorf("HalfPageDown with one visible row: expected Cursor=1, got %d", v.Cursor)
+	}
+}
+
 func TestHalfPageUpMovesByHalfVisibleRows(t *testing.T) {
 	tracks := make([]musiclib.Track, 20)
 	for i := range tracks {
@@ -238,6 +247,15 @@ func TestHalfPageUpMovesByHalfVisibleRows(t *testing.T) {
 	v = v.HalfPageUp()
 	if v.Cursor != 7 {
 		t.Errorf("HalfPageUp: expected Cursor=7, got %d", v.Cursor)
+	}
+}
+
+func TestHalfPageUpMovesAtLeastOneVisibleRow(t *testing.T) {
+	idx := buildIndex(sampleTracks)
+	v := View{Index: idx, Width: 80, Height: 3, Cursor: 1} // visibleRows = 1
+	v = v.HalfPageUp()
+	if v.Cursor != 0 {
+		t.Errorf("HalfPageUp with one visible row: expected Cursor=0, got %d", v.Cursor)
 	}
 }
 

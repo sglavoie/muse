@@ -2,7 +2,9 @@ package player
 
 import (
 	"context"
+	"sync"
 	"testing"
+	"time"
 )
 
 // TestManager_RemoveFromQueue verifies the three index-adjustment cases for
@@ -60,11 +62,10 @@ func TestManager_RemoveFromQueue(t *testing.T) {
 		if got := len(m.queue); got != 3 {
 			t.Errorf("queue len = %d, want 3", got)
 		}
-		// currentIndex stays at 2 so auto-advance (PlayFromIndex(2)) resolves
-		// to what was previously index 3 (now at position 2 after removal).
-		// After removal, currentIndex should clamp to the next valid entry (now at index 2)
-		if m.currentIndex != 2 {
-			t.Errorf("currentIndex = %d, want 2 (clamped to next valid entry)", m.currentIndex)
+		// currentIndex rewinds so Next/EOF auto-advance (currentIndex+1)
+		// resolves to what was previously index 3 (now at position 2).
+		if m.currentIndex != 1 {
+			t.Errorf("currentIndex = %d, want 1 (rewound before next valid entry)", m.currentIndex)
 		}
 	})
 
@@ -123,6 +124,39 @@ func TestManager_RemoveFromQueue(t *testing.T) {
 			t.Errorf("queue len = %d, want 4 (unmodified)", got)
 		}
 	})
+}
+
+func TestManager_RemoveCurrentThenNextPlaysReplacementEntry(t *testing.T) {
+	var mu sync.Mutex
+	var received []ipcTestCommand
+	m := newConnectedManager(t, "rm-current-next", &mu, &received)
+
+	pathA := tempFile(t, "a*.flac")
+	pathB := tempFile(t, "b*.flac")
+	pathC := tempFile(t, "c*.flac")
+
+	m.mu.Lock()
+	m.queue = []QueueTrack{
+		{Path: pathA, Hash: "h0", QueueID: 1},
+		{Path: pathB, Hash: "h1", QueueID: 2},
+		{Path: pathC, Hash: "h2", QueueID: 3},
+	}
+	m.currentIndex = 1
+	m.mu.Unlock()
+
+	if err := m.RemoveFromQueue(1); err != nil {
+		t.Fatalf("RemoveFromQueue(1): %v", err)
+	}
+	if err := m.Next(); err != nil {
+		t.Fatalf("Next after removing current entry: %v", err)
+	}
+
+	waitForCommand(t, &mu, &received, func(cmd ipcTestCommand) bool {
+		return len(cmd) >= 3 &&
+			cmd.stringIs(0, cmdLoadfile) &&
+			cmd.stringIs(1, pathC) &&
+			cmd.stringIs(2, "replace")
+	}, time.Second, "loadfile for replacement entry")
 }
 
 func TestManager_AppendToQueue(t *testing.T) {

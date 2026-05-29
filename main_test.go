@@ -59,8 +59,18 @@ func TestDetectGlobalFlag(t *testing.T) {
 			want: globalFlagVersion,
 		},
 		{
+			name: "version true before command",
+			args: []string{"--version=true", "next"},
+			want: globalFlagVersion,
+		},
+		{
 			name: "help before command",
 			args: []string{"-h", "next"},
+			want: globalFlagHelp,
+		},
+		{
+			name: "help true before command",
+			args: []string{"-h=true", "next"},
 			want: globalFlagHelp,
 		},
 		{
@@ -81,6 +91,16 @@ func TestDetectGlobalFlag(t *testing.T) {
 		{
 			name: "unknown leading flag left to flag package",
 			args: []string{"--not-a-real-flag", "--help"},
+			want: globalFlagNone,
+		},
+		{
+			name: "false version flag left to flag package",
+			args: []string{"--version=false", "next"},
+			want: globalFlagNone,
+		},
+		{
+			name: "invalid help flag value left to flag package",
+			args: []string{"--help=maybe", "next"},
 			want: globalFlagNone,
 		},
 		{

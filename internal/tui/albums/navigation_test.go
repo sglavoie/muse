@@ -198,3 +198,22 @@ func TestCursorMovementWithNoVisibleRowsDoesNotScrollPastCursor(t *testing.T) {
 		})
 	}
 }
+
+func TestHalfPageMovesAtLeastOneRowWhenViewportIsShort(t *testing.T) {
+	v := View{
+		Level:  AlbumLevel,
+		Albums: []string{"A", "B", "C"},
+		Width:  80,
+		Height: 2, // strip plus one content row
+	}
+
+	v = v.HalfPageDown()
+	if v.Cursor != 1 {
+		t.Fatalf("HalfPageDown with one visible row: expected cursor=1, got %d", v.Cursor)
+	}
+
+	v = v.HalfPageUp()
+	if v.Cursor != 0 {
+		t.Fatalf("HalfPageUp with one visible row: expected cursor=0, got %d", v.Cursor)
+	}
+}

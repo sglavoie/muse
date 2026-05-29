@@ -66,6 +66,23 @@ func TestRegistry_hiddenGemsDescriptionMatchesLowPlayBehavior(t *testing.T) {
 	t.Fatal("Hidden Gems mix missing from Registry()")
 }
 
+func TestRegistry_rediscoverDescriptionIsNotAgeBound(t *testing.T) {
+	for _, d := range recommendation.Registry() {
+		if d.ID != recommendation.MixRediscover {
+			continue
+		}
+		description := strings.ToLower(d.Description)
+		if strings.Contains(description, "90") || strings.Contains(description, "day") {
+			t.Fatalf("Rediscover description = %q, must not hardcode age-window wording", d.Description)
+		}
+		if !strings.Contains(description, "lately") {
+			t.Fatalf("Rediscover description = %q, want recency wording", d.Description)
+		}
+		return
+	}
+	t.Fatal("Rediscover mix missing from Registry()")
+}
+
 func TestRegistry_onRepeatDescriptionIsNotWeekBound(t *testing.T) {
 	for _, d := range recommendation.Registry() {
 		if d.ID != recommendation.MixOnRepeat {

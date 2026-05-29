@@ -16,7 +16,7 @@ func (v QueueView) filteredEntries() []QueueEntry {
 		return nil
 	}
 
-	if v.displayOrder != nil && len(v.displayOrder) != n {
+	if v.displayOrder != nil && !validDisplayOrder(v.displayOrder, n) {
 		v.displayOrder = nil
 	}
 	ordered := make([]QueueEntry, n)
@@ -80,6 +80,18 @@ func (v QueueView) filteredEntries() []QueueEntry {
 		}
 	}
 	return result
+}
+
+func validDisplayOrder(order []int, n int) bool {
+	if len(order) != n {
+		return false
+	}
+	for _, idx := range order {
+		if idx < 0 || idx >= n {
+			return false
+		}
+	}
+	return true
 }
 
 // ScrollToNowPlaying adjusts scrollOffset so the row matching

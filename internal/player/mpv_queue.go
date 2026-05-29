@@ -72,9 +72,8 @@ func (m *Manager) AppendToQueue(entry QueueTrack) {
 // and adjusts currentIndex atomically. If the removed index precedes
 // currentIndex, currentIndex is decremented by one so it continues pointing
 // at the same track. If the removed index equals currentIndex, currentIndex
-// is left unchanged so that the next auto-advance (PlayFromIndex(currentIndex))
-// resolves to what was previously index+1. Returns an error if index is
-// negative or >= len(m.queue).
+// is rewound to the previous queue slot because Next and EOF auto-advance
+// load currentIndex+1. Returns an error if index is negative or >= len(m.queue).
 func (m *Manager) RemoveFromQueue(index int) error {
 	m.mu.Lock()
 
@@ -92,10 +91,7 @@ func (m *Manager) RemoveFromQueue(index int) error {
 	if index < m.currentIndex {
 		m.currentIndex--
 	} else if index == m.currentIndex {
-		// Clamp to the next valid entry, or last entry if removed was last
-		if index >= len(m.queue) {
-			m.currentIndex = len(m.queue) - 1
-		}
+		m.currentIndex = index - 1
 	}
 	if len(m.queue) == 0 {
 		m.currentIndex = -1

@@ -320,6 +320,30 @@ func TestScoreAll_CompletionRateRejectsNaNAndInf(t *testing.T) {
 	}
 }
 
+// Regression: CompletionRates are an average in the documented 0.0-1.0 range.
+// Contract-violating finite values should not silently produce high-listener
+// boosts or skipper penalties.
+func TestScoreAll_CompletionRateRejectsOutOfRange(t *testing.T) {
+	seed := track("s1", "", "", "", 0)
+	over := track("t1", "", "", "", 0)
+	under := track("t2", "", "", "", 0)
+	got := ScoreAll(ScoreInput{
+		Seed:      seedFrom(seed, nil, nil),
+		AllTracks: []library.Track{over, under},
+		CompletionRates: map[string]float64{
+			"t1": 1.1,
+			"t2": -0.1,
+		},
+	})
+	scoreByHash := scoresByHash(got)
+	for _, hash := range []string{"t1", "t2"} {
+		if scoreByHash[hash] != 0 {
+			t.Errorf("track %s should score 0 against out-of-range completion rate, got %f",
+				hash, scoreByHash[hash])
+		}
+	}
+}
+
 // Regression: A seed with a whitespace-only Artist or Album must not match
 // candidates whose Artist/Album is also whitespace-only or empty. Without the
 // "trimmed != \"\"" guard, EqualFold("", "") would return true and every empty

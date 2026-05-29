@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -113,7 +114,11 @@ func detectGlobalFlag(args []string) globalFlag {
 		if !strings.HasPrefix(arg, "-") || arg == "-" {
 			return globalFlagNone
 		}
-		switch arg {
+		name, ok := globalBoolFlagName(arg)
+		if !ok {
+			return globalFlagNone
+		}
+		switch name {
 		case "--version", "-version":
 			return globalFlagVersion
 		case "--help", "-help", "-h":
@@ -123,4 +128,16 @@ func detectGlobalFlag(args []string) globalFlag {
 		}
 	}
 	return globalFlagNone
+}
+
+func globalBoolFlagName(arg string) (string, bool) {
+	name, value, hasValue := strings.Cut(arg, "=")
+	if !hasValue {
+		return name, true
+	}
+	enabled, err := strconv.ParseBool(value)
+	if err != nil || !enabled {
+		return "", false
+	}
+	return name, true
 }

@@ -176,6 +176,57 @@ func TestPopulateTrackGenres_RefreshesStaleRows(t *testing.T) {
 	}
 }
 
+// TestPopulateTrackGenres_UsesUserEditedGenre verifies that a rescan cannot
+// repopulate track_genres from stale embedded metadata after the user has
+// manually edited the track's genre. UpsertBatch preserves tracks.genre for
+// user-edited rows, so the junction table must follow that canonical value.
+func TestPopulateTrackGenres_UsesUserEditedGenre(t *testing.T) {
+	d := openMigratedDB(t)
+	w := newWriter(t, d)
+
+	original := library.Track{Hash: "h-edited", Path: "/edited.flac", Title: "T", Artist: "A", Album: "B", Genre: "Rock"}
+	if err := w.UpsertBatch([]library.Track{original}); err != nil {
+		t.Fatalf("UpsertBatch original: %v", err)
+	}
+	if err := w.PopulateTrackGenres([]library.Track{original}); err != nil {
+		t.Fatalf("PopulateTrackGenres original: %v", err)
+	}
+	if err := w.UpdateTrackMetadata("h-edited", "T", "A", "B", "Jazz; Blues"); err != nil {
+		t.Fatalf("UpdateTrackMetadata: %v", err)
+	}
+
+	rescanned := library.Track{Hash: "h-edited", Path: "/edited.flac", Title: "T", Artist: "A", Album: "B", Genre: "Rock"}
+	if err := w.UpsertBatch([]library.Track{rescanned}); err != nil {
+		t.Fatalf("UpsertBatch rescan: %v", err)
+	}
+	if err := w.PopulateTrackGenres([]library.Track{rescanned}); err != nil {
+		t.Fatalf("PopulateTrackGenres rescan: %v", err)
+	}
+
+	rows, err := d.Query(`SELECT genre FROM track_genres WHERE track_hash = ? ORDER BY genre`, "h-edited")
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	defer rows.Close()
+	var genres []string
+	for rows.Next() {
+		var g string
+		if err := rows.Scan(&g); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		genres = append(genres, g)
+	}
+	want := []string{"Blues", "Jazz"}
+	if len(genres) != len(want) {
+		t.Fatalf("genres after rescan = %v; want %v", genres, want)
+	}
+	for i := range want {
+		if genres[i] != want[i] {
+			t.Errorf("genres[%d] = %q; want %q", i, genres[i], want[i])
+		}
+	}
+}
+
 // TestPopulateTrackGenres_EmptyGenreClearsExistingRows verifies that
 // re-populating with an empty Genre removes all previously stored rows for
 // that hash, so that a track whose genre has been cleared is not falsely

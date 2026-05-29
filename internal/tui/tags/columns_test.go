@@ -35,3 +35,15 @@ func TestComputeTrack_NarrowWidthStaysNonNegativeAndFits(t *testing.T) {
 		t.Fatalf("ComputeTrack(20) total=%d, want 20", total)
 	}
 }
+
+func TestComputeTrack_ShrinksDurationWhenFixedBudgetWouldOverflow(t *testing.T) {
+	const width = 12
+	cols := ComputeTrack(width)
+	if cols.Duration != 7 {
+		t.Fatalf("Duration=%d, want 7", cols.Duration)
+	}
+	total := cols.SelectionMarker + cols.Title + cols.Artist + cols.Album + cols.Duration + trackSepCount
+	if total != width {
+		t.Fatalf("ComputeTrack(%d) total=%d, want %d", width, total, width)
+	}
+}

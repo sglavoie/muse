@@ -226,6 +226,27 @@ func TestRankUsageBonusBreaksTies(t *testing.T) {
 	}
 }
 
+func TestRankExactMatchBeatsMaxUsageLongPrefix(t *testing.T) {
+	query := strings.Repeat("abcdefghij", 12)
+	items := []stub{
+		{id: "prefix", name: query + "x"},
+		{id: "exact", name: query},
+	}
+	usage := NewUsageStore("")
+	usage.records["prefix"] = UsageRecord{
+		Count:    maxUsageCount,
+		LastUsed: time.Now(),
+	}
+
+	out := Rank(items, query, func(s stub) string { return s.id }, func(s stub) string { return s.name }, usage)
+	if len(out) != 2 {
+		t.Fatalf("want 2 results, got %d", len(out))
+	}
+	if out[0].id != "exact" {
+		t.Errorf("exact match should beat max-usage prefix; got %s then %s", out[0].id, out[1].id)
+	}
+}
+
 func TestRankPreservesStableTieBreakByName(t *testing.T) {
 	items := []stub{
 		{id: "c", name: "Charlie"},

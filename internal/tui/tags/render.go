@@ -82,11 +82,10 @@ func (v View) renderTracks() string {
 	cols := ComputeTrack(v.Width)
 
 	header := strings.Repeat(" ", cols.SelectionMarker) + v.Styles.ColHead.Render(
-		fmt.Sprintf("%-*s %-*s %-*s %*s",
-			cols.Title, "Title",
-			cols.Artist, "Artist",
-			cols.Album, "Album",
-			cols.Duration, "Time"))
+		text.Pad("Title", cols.Title)+" "+
+			text.Pad("Artist", cols.Artist)+" "+
+			text.Pad("Album", cols.Album)+" "+
+			text.PadLeft("Time", cols.Duration))
 
 	maxRows := v.visibleRows()
 	start, end := v.visibleWindow(len(items), maxRows)
@@ -105,7 +104,7 @@ func (v View) renderTracks() string {
 		artistStr := text.Pad(t.Artist, cols.Artist)
 		albumStr := text.Pad(t.Album, cols.Album)
 		dur := text.FormatDurationSecs(float64(t.DurationMs) / 1000)
-		durStr := fmt.Sprintf("%*s", cols.Duration, dur)
+		durStr := text.PadLeft(dur, cols.Duration)
 
 		switch {
 		case isFocused:

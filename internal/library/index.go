@@ -25,8 +25,12 @@ func (idx *LibraryIndex) rebuildHashMap() {
 // Len returns the number of tracks in the index.
 func (idx *LibraryIndex) Len() int { return len(idx.tracks) }
 
-// Tracks returns a read-only view of the sorted track slice.
-func (idx *LibraryIndex) Tracks() []Track { return idx.tracks }
+// Tracks returns a snapshot of the sorted track slice.
+func (idx *LibraryIndex) Tracks() []Track {
+	tracks := make([]Track, len(idx.tracks))
+	copy(tracks, idx.tracks)
+	return tracks
+}
 
 // isUnknownArtist reports whether the artist field represents an unknown artist
 // (either the sentinel "Unknown Artist" or an empty string).

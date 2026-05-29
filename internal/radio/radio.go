@@ -132,11 +132,10 @@ func ScoreAll(input ScoreInput) []TrackScore {
 		}
 
 		// Completion rate: +4 for high listeners, -3 for skippers. Reject
-		// NaN/Inf to avoid spurious boosts/penalties from a corrupted stored
-		// value: +Inf would silently grant the high-listener bonus and -Inf
-		// the skipper penalty even though the underlying data is meaningless.
+		// values outside the documented 0.0-1.0 range to avoid spurious
+		// boosts/penalties from corrupted or contract-violating inputs.
 		if hasTrackHash && input.CompletionRates != nil {
-			if rate, ok := input.CompletionRates[trackHash]; ok && !math.IsNaN(rate) && !math.IsInf(rate, 0) {
+			if rate, ok := input.CompletionRates[trackHash]; ok && validCompletionRate(rate) {
 				if rate >= 0.8 {
 					score += 4
 				}
@@ -311,6 +310,10 @@ func normalizedGenreBonusMap(bonuses map[string]float64) map[string]float64 {
 
 func normalizedGenreKey(genre string) string {
 	return strings.ToLower(strings.TrimSpace(genre))
+}
+
+func validCompletionRate(rate float64) bool {
+	return !math.IsNaN(rate) && !math.IsInf(rate, 0) && rate >= 0 && rate <= 1
 }
 
 func maxTracksPerArtist(n int, maxArtistFraction float64) int {

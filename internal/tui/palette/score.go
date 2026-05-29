@@ -19,6 +19,8 @@ const (
 	// Usage bonuses (added when a query is present).
 	scoreUsageMaxBonus = 80 // cap on count-derived bonus
 	scoreUsageRecent   = 40 // bonus if used in the last 24h
+
+	maxUsageBonus = scoreUsageMaxBonus + scoreUsageRecent
 )
 
 // Match scores how well query matches name as a case-insensitive subsequence.
@@ -42,7 +44,7 @@ func Match(query, name string) (int, bool) {
 		// arbitrarily long prefix never outranks a true exact match against a
 		// different candidate.
 		bonus := scoreCharMatch * len([]rune(q))
-		if max := scoreExactMatch - scorePrefixMatch - 1; bonus > max {
+		if max := maxNonExactMatchScore() - scorePrefixMatch; bonus > max {
 			bonus = max
 		}
 		return scorePrefixMatch + bonus, true
@@ -78,7 +80,14 @@ func Match(query, name string) (int, bool) {
 	if qi < len(qRunes) {
 		return 0, false
 	}
+	if max := maxNonExactMatchScore(); score > max {
+		score = max
+	}
 	return score, true
+}
+
+func maxNonExactMatchScore() int {
+	return scoreExactMatch - maxUsageBonus - 1
 }
 
 // isWordStart reports whether prev marks a boundary that makes the next rune

@@ -90,8 +90,8 @@ func Render(
 	sort.Label = plainLine(sort.Label)
 	sort.Indicator = plainLine(sort.Indicator)
 	filter.Text = plainLine(filter.Text)
-	filter.InputView = singleLine(filter.InputView)
-	filter.Hint = singleLine(filter.Hint)
+	filter.InputView = styledLine(filter.InputView)
+	filter.Hint = styledLine(filter.Hint)
 	hint = plainHintLine(hint)
 
 	breadcrumb = normalizeBreadcrumb(breadcrumb)

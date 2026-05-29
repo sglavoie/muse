@@ -146,3 +146,23 @@ func TestRender_FilterHintTabsNormalized(t *testing.T) {
 		t.Errorf("hint tabs should normalize to spaces, got %q", plain)
 	}
 }
+
+func TestRender_StyledFilterFieldsPreserveANSIAndRemoveControlBytes(t *testing.T) {
+	s := newTestStyles()
+	inputView := lipgloss.NewStyle().Reverse(true).Render("a") + "\x07lice\b"
+
+	got := Render(80, []string{"Library"}, SortChunk{},
+		FilterChunk{Active: true, Text: "alice", InputView: inputView},
+		CountsChunk{Total: 7}, nil, "", s)
+	plain := requireRenderWidth(t, got, 80)
+
+	if !strings.Contains(got, lipgloss.NewStyle().Reverse(true).Render("a")) {
+		t.Errorf("active filter input view should preserve caller-rendered ANSI, got %q", got)
+	}
+	if strings.ContainsAny(plain, "\x07\b") {
+		t.Fatalf("styled filter fields must not leak raw control bytes, got %q", plain)
+	}
+	if !strings.Contains(plain, `filter "a lice "`) {
+		t.Errorf("control bytes should normalize to spaces in styled filter fields, got %q", plain)
+	}
+}

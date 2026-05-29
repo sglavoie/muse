@@ -38,11 +38,15 @@ func (v View) renderList() string {
 	maxRows := v.visibleRows()
 	start := visibleWindowStart(v.ScrollOffset, v.Cursor, len(v.Playlists), maxRows)
 	end := min(len(v.Playlists), start+maxRows)
+	focusCursor := -1
+	if len(v.Playlists) > 0 {
+		focusCursor = clamp(v.Cursor, 0, len(v.Playlists)-1)
+	}
 
 	var lines []string
 	for _, p := range v.Playlists[start:end] {
 		absIdx := start + len(lines) // track absolute index before appending
-		if v.Renaming && absIdx == v.Cursor {
+		if v.Renaming && absIdx == focusCursor {
 			lines = append(lines, v.renderRenameInputRow(cols))
 			continue
 		}
@@ -63,11 +67,11 @@ func (v View) renderList() string {
 			count = text.PadLeft(fmt.Sprintf("(%d)", p.TrackCount), cols.Count)
 		}
 		line := name + "  " + count
-		if absIdx == v.Cursor {
+		if absIdx == focusCursor {
 			line = v.Styles.Accent.Render(line)
 		}
 		lines = append(lines, line)
-		if v.Creating && absIdx == v.Cursor {
+		if v.Creating && absIdx == focusCursor {
 			lines = append(lines, v.renderCreateInputRow(cols))
 		}
 	}
@@ -136,12 +140,16 @@ func (v View) renderTracks() string {
 	maxRows := v.visibleRows()
 	start := visibleWindowStart(v.ScrollOffset, v.Cursor, len(v.Tracks), maxRows)
 	end := min(len(v.Tracks), start+maxRows)
+	focusCursor := -1
+	if len(v.Tracks) > 0 {
+		focusCursor = clamp(v.Cursor, 0, len(v.Tracks)-1)
+	}
 
 	lines := make([]string, end-start)
 	for i, t := range v.Tracks[start:end] {
 		absIdx := start + i
 		_, isSelected := v.SelectedTrackIDs[t.ID]
-		isFocused := absIdx == v.Cursor
+		isFocused := absIdx == focusCursor
 		isNowPlaying := v.NowPlayingHash != "" && t.Hash == v.NowPlayingHash
 
 		// When the row is focused, omit the inner accent/reset from the marker

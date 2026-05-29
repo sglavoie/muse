@@ -31,7 +31,7 @@ type CacheEntry struct {
 // Registry returns the fixed set of recommendation mixes in display order.
 func Registry() []MixInfo {
 	return []MixInfo{
-		{ID: MixRediscover, Name: "Rediscover", Description: "Tracks you loved but haven't played in 90+ days"},
+		{ID: MixRediscover, Name: "Rediscover", Description: "Tracks you loved but haven't played lately"},
 		{ID: MixHiddenGems, Name: "Hidden Gems", Description: "Low-played tracks by your favorite artists"},
 		{ID: MixOnRepeat, Name: "On Repeat", Description: "Your most played tracks lately"},
 		{ID: MixDeepCuts, Name: "Deep Cuts", Description: "Tracks you always listen to completion"},
