@@ -244,6 +244,34 @@ func TestCommandPaletteRenderNoMatches(t *testing.T) {
 	}
 }
 
+func TestCommandPaletteRenderTinyWidthKeepsBordersAligned(t *testing.T) {
+	cp, _ := NewCommandPalette(testCommands(), nil)
+	s := styles.NewStyles(true)
+	lines := strings.Split(cp.Render(8, 12, s), "\n")
+
+	want := 0
+	for i, line := range lines {
+		plain := strings.TrimLeft(ansi.Strip(line), " ")
+		if !strings.HasPrefix(plain, cpCornerTL) &&
+			!strings.HasPrefix(plain, cpCornerBL) &&
+			!strings.HasPrefix(plain, cpCrossL) &&
+			!strings.HasPrefix(plain, cpBorderV) {
+			continue
+		}
+		width := ansi.StringWidth(line)
+		if want == 0 {
+			want = width
+			continue
+		}
+		if width != want {
+			t.Fatalf("bordered line %d width = %d, want %d\nline: %q", i, width, want, line)
+		}
+	}
+	if want == 0 {
+		t.Fatal("expected bordered lines in command palette render")
+	}
+}
+
 // --- pinned anchors ---
 
 func pinnedCommands() []PaletteCommand {

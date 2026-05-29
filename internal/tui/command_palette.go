@@ -271,10 +271,11 @@ func (cp CommandPalette) buildBoxLines(termWidth int, s styles.Styles) []string 
 	lines = append(lines, cpCornerTL+strings.Repeat(cpBorderH, innerWidth)+cpCornerTR)
 
 	// Title row (centered).
-	titlePad := max(0, innerWidth-ansi.StringWidth(modalTitle))
+	displayTitle := truncateTitle(modalTitle, innerWidth)
+	titlePad := max(0, innerWidth-ansi.StringWidth(displayTitle))
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
-	lines = append(lines, cpBorderV+strings.Repeat(" ", leftTP)+s.Heading.Render(modalTitle)+strings.Repeat(" ", rightTP)+cpBorderV)
+	lines = append(lines, cpBorderV+strings.Repeat(" ", leftTP)+s.Heading.Render(displayTitle)+strings.Repeat(" ", rightTP)+cpBorderV)
 
 	// Doubled rule below the title (Common Region + Uniform Connectedness).
 	lines = append(lines, cpCrossDoubleL+strings.Repeat(cpBorderDoubleH, innerWidth)+cpCrossDoubleR)

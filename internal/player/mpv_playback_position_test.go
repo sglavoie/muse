@@ -253,6 +253,53 @@ func TestManager_SyncPosition_InvalidPositionDoesNotOverwriteSavedState(t *testi
 	}
 }
 
+func TestManager_SyncPosition_NullPositionDoesNotOverwriteSameTrack(t *testing.T) {
+	sock := shortSockPath(t, "syncpos-null-same")
+
+	fakeServerWithHandler(t, sock, func(req ipcTestRequest) ipcTestResponse {
+		cmd := req.Command
+		if len(cmd) >= 2 {
+			prop, _ := cmd.stringAt(1)
+			switch prop {
+			case propPath:
+				return successStringResponse(req, "/music/current.flac")
+			case propTimePos:
+				return successHandler(req)
+			}
+		}
+		return successHandler(req)
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{socketPath: sock, ctx: ctx, cancel: cancel}
+	defer m.Close()
+	m.SetCurrentPosition("/music/current.flac", 42)
+
+	client, err := NewIPCClient(sock)
+	if err != nil {
+		t.Fatalf("NewIPCClient: %v", err)
+	}
+	m.mu.Lock()
+	m.client = client
+	m.mu.Unlock()
+
+	if err := m.SyncPosition(); err != nil {
+		t.Fatalf("SyncPosition: %v", err)
+	}
+
+	m.mu.RLock()
+	path := m.lastTrackPath
+	elapsed := m.lastElapsed
+	m.mu.RUnlock()
+
+	if path != "/music/current.flac" {
+		t.Errorf("lastTrackPath = %q, want /music/current.flac", path)
+	}
+	if elapsed != 42 {
+		t.Errorf("lastElapsed = %f, want 42", elapsed)
+	}
+}
+
 func TestManager_SyncPosition_NotConnected(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	m := &Manager{ctx: ctx, cancel: cancel}

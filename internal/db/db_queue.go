@@ -43,7 +43,8 @@ type SessionRow struct {
 // randomisation is delegated to mpv's native shuffle property.
 func (d *DB) ReadQueue() ([]QueueRow, error) {
 	rows, err := d.Query(`
-		SELECT q.id, t.hash, t.path, t.artist, t.title, t.album, q.missing,
+		SELECT q.id, t.hash, t.path, t.artist, t.title, t.album,
+		       CASE WHEN q.missing != 0 OR t.missing != 0 THEN 1 ELSE 0 END,
 		       t.duration_ms, q.position, q.source_playlist, t.track_number, t.disc_number
 		FROM queue q
 		JOIN tracks t ON q.track_hash = t.hash

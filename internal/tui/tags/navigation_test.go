@@ -229,6 +229,47 @@ func TestPageMovementWithNoVisibleRowsKeepsScrollOnCursor(t *testing.T) {
 	}
 }
 
+func TestHalfPageDownMovesAtLeastOneVisibleRow(t *testing.T) {
+	tags := tagRows("a", "b", "c")
+	v := View{
+		Level:     TagLevel,
+		Cursor:    0,
+		Height:    1,
+		Tags:      tags,
+		TagCounts: tagCountsFor(tags, 1),
+	}
+
+	v = v.HalfPageDown()
+
+	if v.Cursor != 1 {
+		t.Fatalf("HalfPageDown with one visible row: expected Cursor=1, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 1 {
+		t.Fatalf("HalfPageDown with one visible row: expected ScrollOffset=1, got %d", v.ScrollOffset)
+	}
+}
+
+func TestHalfPageUpMovesAtLeastOneVisibleRow(t *testing.T) {
+	tags := tagRows("a", "b", "c")
+	v := View{
+		Level:        TagLevel,
+		Cursor:       2,
+		ScrollOffset: 2,
+		Height:       1,
+		Tags:         tags,
+		TagCounts:    tagCountsFor(tags, 1),
+	}
+
+	v = v.HalfPageUp()
+
+	if v.Cursor != 1 {
+		t.Fatalf("HalfPageUp with one visible row: expected Cursor=1, got %d", v.Cursor)
+	}
+	if v.ScrollOffset != 1 {
+		t.Fatalf("HalfPageUp with one visible row: expected ScrollOffset=1, got %d", v.ScrollOffset)
+	}
+}
+
 func TestBackWithNoVisibleRowsKeepsScrollOnCursor(t *testing.T) {
 	tags := tagRows("a", "b", "c")
 	v := View{

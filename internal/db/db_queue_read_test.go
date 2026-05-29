@@ -45,3 +45,25 @@ func TestReadQueue_PartiallySoftDeleted(t *testing.T) {
 		t.Errorf("got hash %q, want %q", rows[0].Hash, "hashA")
 	}
 }
+
+func TestReadQueue_TrackMissingMarksQueueRowMissing(t *testing.T) {
+	d := openMigratedDB(t)
+
+	insertTrack(t, d, "hashA", "/music/a.flac")
+	insertQueueEntry(t, d, "hashA", 1000)
+
+	if _, err := d.Exec(`UPDATE tracks SET missing = 1 WHERE hash = ?`, "hashA"); err != nil {
+		t.Fatalf("mark track missing: %v", err)
+	}
+
+	rows, err := d.ReadQueue()
+	if err != nil {
+		t.Fatalf("ReadQueue: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("got %d rows, want 1", len(rows))
+	}
+	if !rows[0].Missing {
+		t.Fatal("ReadQueue returned Missing=false for a queued track with tracks.missing=1")
+	}
+}

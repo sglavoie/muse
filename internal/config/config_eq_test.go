@@ -55,6 +55,19 @@ func TestLoad_EQ_PresetWhitespaceTrimmed(t *testing.T) {
 	}
 }
 
+func TestLoad_EQ_CustomSentinelPresetAccepted(t *testing.T) {
+	result := loadEQConfigFromContent(t, `eq_preset = "custom"
+eq_bands = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+`)
+
+	if result.Config.EQPreset != "custom" {
+		t.Errorf("EQPreset = %q, want %q", result.Config.EQPreset, "custom")
+	}
+	if len(result.Warnings) != 0 {
+		t.Fatalf("Warnings = %v, want none for custom sentinel preset", result.Warnings)
+	}
+}
+
 func TestLoad_EQ_BandsClamped(t *testing.T) {
 	result := loadEQConfigFromContent(t, `eq_bands = [100, -100, 0, 0, 0, 0, 0, 0, 0, 0]
 `)

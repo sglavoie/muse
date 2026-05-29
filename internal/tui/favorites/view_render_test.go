@@ -3,6 +3,8 @@ package favorites
 import (
 	"strings"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/library"
 )
 
 func TestRenderTracks_UsesDrilldownNameForHeading(t *testing.T) {
@@ -131,5 +133,24 @@ func TestRenderTrackRows_TruncatesOverwideFixedCells(t *testing.T) {
 	}
 	if strings.Contains(out, "123456789") {
 		t.Fatalf("expected overwide play count to be truncated, got:\n%s", out)
+	}
+}
+
+func TestRenderTrackRows_DisplaysUnknownArtistAndAlbum(t *testing.T) {
+	v := View{
+		Level:    ListLevel,
+		Category: CategoryTracks,
+		Width:    100,
+		Height:   8,
+		Tracks: []library.Track{
+			{Hash: "h1", Title: "Mystery"},
+		},
+	}
+	out := v.Render()
+	if !strings.Contains(out, "(unknown artist)") {
+		t.Fatalf("expected unknown artist sentinel in track row, got:\n%s", out)
+	}
+	if !strings.Contains(out, "(unknown album)") {
+		t.Fatalf("expected unknown album sentinel in track row, got:\n%s", out)
 	}
 }

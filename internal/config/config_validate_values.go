@@ -180,11 +180,12 @@ func validate(raw rawConfig) (Config, []string) {
 	// Validate preset key: must match a known built-in or custom key.
 	raw.EQPreset = strings.TrimSpace(raw.EQPreset)
 	if raw.EQPreset != "" {
-		allPresets := make([]EQPresetDef, 0, len(BuiltinEQPresets)+len(cfg.EQCustomPresets))
+		allPresets := make([]EQPresetDef, 0, len(BuiltinEQPresets)+len(cfg.EQCustomPresets)+1)
 		allPresets = append(allPresets, BuiltinEQPresets...)
 		for _, cp := range cfg.EQCustomPresets {
 			allPresets = append(allPresets, EQPresetDef{Key: cp.Key})
 		}
+		allPresets = append(allPresets, EQPresetDef{Key: "custom"})
 		if EQPresetIndex(raw.EQPreset, allPresets) >= 0 {
 			cfg.EQPreset = raw.EQPreset
 		} else {

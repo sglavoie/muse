@@ -8,6 +8,7 @@ import (
 	lipgloss "charm.land/lipgloss/v2"
 
 	"github.com/sglavoie/muse/internal/library"
+	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -201,11 +202,16 @@ func (v View) renderTrackRows(items []library.Track) string {
 		}
 		pos := text.Pad(rawPos, cols.Position)
 		_, isTrackFav := v.FavoriteHashes[t.Hash]
-		_, isArtistFav := v.FavoriteArtists[t.Artist]
-		_, isAlbumFav := v.FavoriteAlbums[t.Album]
+		artist := arttui.DisplayArtistName(t.Artist)
+		album := t.Album
+		if album == "" {
+			album = arttui.UnknownAlbum
+		}
+		_, isArtistFav := v.FavoriteArtists[artist]
+		_, isAlbumFav := v.FavoriteAlbums[album]
 		titleStr := text.FavPrefix(t.Title, cols.Title, isTrackFav)
-		artistStr := text.FavPrefix(t.Artist, cols.Artist, isArtistFav)
-		albumStr := text.FavPrefix(t.Album, cols.Album, isAlbumFav)
+		artistStr := text.FavPrefix(artist, cols.Artist, isArtistFav)
+		albumStr := text.FavPrefix(album, cols.Album, isAlbumFav)
 		dur := text.PadLeft(text.FormatDurationSecs(t.Duration), cols.Duration)
 		plays := text.PadLeft(strconv.Itoa(t.PlayCount), cols.PlayCount)
 		switch {

@@ -1,10 +1,10 @@
 package genres
 
 import (
-	"fmt"
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -81,15 +81,18 @@ func (v View) renderTracks() string {
 	if len(v.Tracks) == 0 {
 		return v.Styles.Dim.Render("No tracks found for this artist")
 	}
+	width := contentWidth(v.Width)
 	stripLine := v.renderStateStrip(len(v.Tracks), len(items))
 	if len(items) == 0 {
 		return strip.JoinStrip(stripLine, "(no matches)")
 	}
 
-	cols := ComputeTrack(v.Width)
+	cols := ComputeTrack(width)
 	header := strings.Repeat(" ", cols.SelectionMarker) + v.Styles.ColHead.Render(
-		fmt.Sprintf("%-*s %-*s %*s",
-			cols.Position, "#", cols.Title, "Title", cols.Duration, "Time"))
+		text.Pad("#", cols.Position)+" "+
+			text.Pad("Title", cols.Title)+" "+
+			text.PadLeft("Time", cols.Duration))
+	header = ansi.Truncate(header, width, "")
 
 	start, end, cursor := v.renderWindow(len(items))
 
@@ -116,11 +119,10 @@ func (v View) renderTracks() string {
 		} else {
 			rawPos = text.FormatTrackPosSimple(t.TrackNumber, absIdx+1)
 		}
-		pos := fmt.Sprintf("%-*s", cols.Position, rawPos)
+		pos := text.Pad(rawPos, cols.Position)
 		_, isTrackFav := v.FavoriteHashes[t.Hash]
 		titleStr := text.FavPrefix(t.Title, cols.Title, isTrackFav)
-		dur := text.FormatDurationSecs(t.Duration)
-		dur = fmt.Sprintf("%*s", cols.Duration, dur)
+		dur := text.PadLeft(text.FormatDurationSecs(t.Duration), cols.Duration)
 		switch {
 		case isFocused:
 			a := v.Styles.Accent
@@ -165,6 +167,7 @@ func (v View) renderTracks() string {
 				lines[i] = markerStr + v.Styles.TextTertiary.Render(pos) + " " + titleStr + " " + v.Styles.TextTertiary.Render(dur)
 			}
 		}
+		lines[i] = ansi.Truncate(lines[i], width, "")
 	}
 	rest := header + "\n" + strings.Join(lines, "\n")
 	return strip.JoinStrip(stripLine, rest)
@@ -216,6 +219,13 @@ func (v View) renderStateStrip(total, filtered int) string {
 		sel = &strip.SelectionChunk{Count: n}
 	}
 	return strip.Render(v.Width, breadcrumb, sortChunk, f, counts, sel, hint, v.Styles)
+}
+
+func contentWidth(width int) int {
+	if width > 0 {
+		return width
+	}
+	return 80
 }
 
 // renderWindow clamps stale cursor and scroll state to the currently rendered

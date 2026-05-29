@@ -88,6 +88,16 @@ func (v View) Render() string {
 		}
 	}
 	end := min(len(display), start+dataRows)
+	if v.BucketLabel != nil && maxRows > 0 && v.Cursor >= 0 && v.Cursor < len(display) && start < end {
+		labels := make([]string, end-start)
+		for i := range labels {
+			labels[i] = v.BucketLabel(display[start+i].track)
+		}
+		if !bucketedWindowIncludesRow(labels, v.Cursor-start, maxRows) {
+			start = v.Cursor
+			end = min(len(display), start+dataRows)
+		}
+	}
 
 	if v.Width == 0 {
 		// Zero-width fallback: keep the legacy "Filter: ..." line so the
@@ -367,4 +377,46 @@ func (v View) Render() string {
 	}
 
 	return stripLine + "\n" + header + "\n" + strings.Join(out, "\n")
+}
+
+func bucketedWindowIncludesRow(labels []string, rowIdx, maxRows int) bool {
+	if rowIdx < 0 || rowIdx >= len(labels) || maxRows <= 0 {
+		return false
+	}
+	remaining := maxRows
+	prevBucket := ""
+	if labels[0] != "" {
+		if remaining >= 2 {
+			remaining--
+		}
+		prevBucket = labels[0]
+	}
+	dataSinceDivider := 0
+	for i, label := range labels {
+		if remaining <= 0 {
+			return false
+		}
+		emittedBucketHeader := false
+		if label != "" && label != prevBucket {
+			if remaining >= 2 {
+				remaining--
+				emittedBucketHeader = true
+			}
+			prevBucket = label
+		}
+		if emittedBucketHeader {
+			dataSinceDivider = 0
+		} else if buckets.DividerEvery > 0 && dataSinceDivider >= buckets.DividerEvery {
+			if remaining >= 2 {
+				remaining--
+				dataSinceDivider = 0
+			}
+		}
+		if i == rowIdx {
+			return true
+		}
+		remaining--
+		dataSinceDivider++
+	}
+	return false
 }

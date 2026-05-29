@@ -63,6 +63,14 @@ func (v View) visibleRows() int {
 	return layout.VisibleRows(v.Height, reserve)
 }
 
+func halfPageStep(visibleRows int) int {
+	step := visibleRows / 2
+	if step < 1 {
+		return 1
+	}
+	return step
+}
+
 // CursorUp returns a copy of v with the cursor moved up by one row,
 // stopping at the first entry. The scroll offset is adjusted so the
 // cursor stays visible.
@@ -80,12 +88,12 @@ func (v View) CursorDown() View {
 
 // HalfPageDown moves the cursor half a visible page down.
 func (v View) HalfPageDown() View {
-	return v.moveCursor(v.visibleRows() / 2)
+	return v.moveCursor(halfPageStep(v.visibleRows()))
 }
 
 // HalfPageUp moves the cursor half a visible page up.
 func (v View) HalfPageUp() View {
-	return v.moveCursor(-v.visibleRows() / 2)
+	return v.moveCursor(-halfPageStep(v.visibleRows()))
 }
 
 // FullPageDown moves the cursor a full visible page down.

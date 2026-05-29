@@ -67,12 +67,20 @@ func (m *Manager) SyncPosition() error {
 	if err != nil {
 		return err
 	}
-	elapsed, _, err := posResp.float64Data()
+	elapsed, elapsedOK, err := posResp.float64Data()
 	if err != nil {
 		return fmt.Errorf("mpv: %s: %w", propTimePos, err)
 	}
 
 	if path != "" {
+		if !elapsedOK {
+			m.mu.RLock()
+			samePath := m.lastTrackPath == path
+			m.mu.RUnlock()
+			if samePath {
+				return nil
+			}
+		}
 		m.SetCurrentPosition(path, elapsed)
 	}
 	return nil

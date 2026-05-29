@@ -91,3 +91,22 @@ func TestMoveCursorEmptyListIsNoOp(t *testing.T) {
 		t.Errorf("moveCursor empty: expected Cursor=0, got %d", v2.Cursor)
 	}
 }
+
+func TestHalfPageMovesAtLeastOneRowWhenViewportIsShort(t *testing.T) {
+	v := View{
+		Level:     ListLevel,
+		Playlists: make([]db.PlaylistRow, 3),
+		Width:     80,
+		Height:    2, // one reserved line plus one content row
+	}
+
+	v = v.HalfPageDown()
+	if v.Cursor != 1 {
+		t.Fatalf("HalfPageDown with one visible row: expected Cursor=1, got %d", v.Cursor)
+	}
+
+	v = v.HalfPageUp()
+	if v.Cursor != 0 {
+		t.Fatalf("HalfPageUp with one visible row: expected Cursor=0, got %d", v.Cursor)
+	}
+}

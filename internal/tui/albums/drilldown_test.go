@@ -136,3 +136,19 @@ func TestBackClampsCursorWhenParentEmpty(t *testing.T) {
 		t.Errorf("Back with empty parent: expected cursor=0 scroll=0, got cursor=%d scroll=%d", v.Cursor, v.ScrollOffset)
 	}
 }
+
+func TestBackClearsTrackSelection(t *testing.T) {
+	v := View{
+		Level:          TrackLevel,
+		Albums:         []string{"Alpha"},
+		SelectedHashes: map[string]struct{}{"h1": {}},
+	}
+
+	v = v.Back()
+	if v.Level != AlbumLevel {
+		t.Fatalf("expected AlbumLevel, got %v", v.Level)
+	}
+	if len(v.SelectedHashes) != 0 {
+		t.Fatalf("expected Back to clear track selection, got %v", v.SelectedHashes)
+	}
+}

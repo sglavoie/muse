@@ -166,3 +166,27 @@ func TestRender_StyledFilterFieldsPreserveANSIAndRemoveControlBytes(t *testing.T
 		t.Errorf("control bytes should normalize to spaces in styled filter fields, got %q", plain)
 	}
 }
+
+func TestRender_StyledFilterFieldsNeutralizeNonSGREscapes(t *testing.T) {
+	s := newTestStyles()
+	cursorA := lipgloss.NewStyle().Reverse(true).Render("a")
+	inputView := cursorA + "\x1b[2Jlice\x1b"
+
+	got := Render(80, []string{"Library"}, SortChunk{},
+		FilterChunk{Active: true, Text: "alice", InputView: inputView},
+		CountsChunk{Total: 7}, nil, "", s)
+	plain := requireRenderWidth(t, got, 80)
+
+	if !strings.Contains(got, cursorA) {
+		t.Errorf("active filter input view should preserve SGR cursor ANSI, got %q", got)
+	}
+	if strings.Contains(got, "\x1b[2J") {
+		t.Fatalf("styled filter fields must not preserve non-SGR terminal sequences, got %q", got)
+	}
+	if strings.Contains(got, "\x1b\"") {
+		t.Fatalf("styled filter fields must not leak a lone ESC before the closing quote, got %q", got)
+	}
+	if !strings.Contains(plain, `filter "a [2Jlice "`) {
+		t.Errorf("non-SGR escapes should be neutralized as visible text, got %q", plain)
+	}
+}

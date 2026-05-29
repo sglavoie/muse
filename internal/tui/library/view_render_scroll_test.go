@@ -90,3 +90,20 @@ func TestRenderBucketedShortViewportKeepsCursorVisible(t *testing.T) {
 		t.Fatalf("bucket header should not push the focused row out of the viewport, got:\n%s", got)
 	}
 }
+
+func TestRenderBucketedCrossingBucketsKeepsCursorVisible(t *testing.T) {
+	tracks := []musiclib.Track{
+		{Artist: "Alice", Title: "First", Album: "A", Hash: "h1"},
+		{Artist: "Bob", Title: "Second", Album: "B", Hash: "h2"},
+		{Artist: "Carol", Title: "Third", Album: "C", Hash: "h3"},
+	}
+	v := newRenderView(tracks)
+	v.Height = 6 // state strip + header + four body lines
+	v.Cursor = 2
+	v.BucketLabel = func(t musiclib.Track) string { return t.Artist[:1] }
+
+	got := renderPlain(v)
+	if !strings.Contains(got, "Third") {
+		t.Fatalf("bucket headers before the focused row should not push it out of the viewport, got:\n%s", got)
+	}
+}

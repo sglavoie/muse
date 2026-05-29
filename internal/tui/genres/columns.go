@@ -17,23 +17,43 @@ type TrackColumns struct {
 }
 
 // ComputeTrack calculates column widths for the track-level view given the
-// total terminal width. Position and Duration receive fixed allocations; Title
-// takes the remainder. When the terminal is too narrow, Title is clamped to 1.
+// total terminal width. Position and Duration receive fixed allocations when
+// space allows; Title takes the remainder. On narrow terminals, fixed columns
+// shrink before the title disappears so the allocation does not exceed
+// totalWidth.
 func ComputeTrack(totalWidth int) TrackColumns {
-	minWidth := selectionMarkerFixed + trackPosFixed + trackDurationFixed + trackSepCount + 1
-	if totalWidth <= minWidth {
-		return TrackColumns{
-			SelectionMarker: selectionMarkerFixed,
-			Position:        trackPosFixed,
-			Title:           1,
-			Duration:        trackDurationFixed,
-		}
-	}
-	title := totalWidth - selectionMarkerFixed - trackPosFixed - trackDurationFixed - trackSepCount
-	return TrackColumns{
+	cols := TrackColumns{
 		SelectionMarker: selectionMarkerFixed,
 		Position:        trackPosFixed,
-		Title:           title,
 		Duration:        trackDurationFixed,
 	}
+	available := totalWidth - selectionMarkerFixed - trackSepCount
+	if available <= 0 {
+		cols.SelectionMarker = max(totalWidth-trackSepCount, 0)
+		cols.Position = 0
+		cols.Duration = 0
+		return cols
+	}
+
+	required := cols.Position + cols.Duration + 1
+	if available < required {
+		deficit := required - available
+
+		shrink := min(deficit, cols.Duration)
+		cols.Duration -= shrink
+		deficit -= shrink
+
+		shrink = min(deficit, cols.Position)
+		cols.Position -= shrink
+		deficit -= shrink
+
+		cols.Title = 1
+		if deficit > 0 {
+			cols.Title = max(cols.Title-deficit, 0)
+		}
+		return cols
+	}
+
+	cols.Title = available - cols.Position - cols.Duration
+	return cols
 }
