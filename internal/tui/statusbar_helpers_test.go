@@ -2,6 +2,7 @@ package tui
 
 import (
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -112,5 +113,70 @@ func TestRenderProgressBarValidWidths(t *testing.T) {
 				t.Errorf("renderProgressBar(%v,%v,%d) display width = %d, want %d", tc.elapsed, tc.total, tc.width, w, tc.width)
 			}
 		})
+	}
+}
+
+func TestRenderProgressBarEighthCellPrecision(t *testing.T) {
+	st := styles.Styles{}
+	cases := []struct {
+		name           string
+		elapsed, total float64
+		width          int
+		want           string
+	}{
+		{"zero progress", 0, 32, 4, "░░░░"},
+		{"one eighth cell", 1, 32, 4, "▏░░░"},
+		{"half cell", 4, 32, 4, "▌░░░"},
+		{"seven eighths cell", 7, 32, 4, "▉░░░"},
+		{"one full cell", 8, 32, 4, "█░░░"},
+		{"half bar", 16, 32, 4, "██░░"},
+		{"full bar", 32, 32, 4, "████"},
+		{"over total clamps full", 40, 32, 4, "████"},
+		{"negative elapsed clamps empty", -1, 32, 4, "░░░░"},
+		{"zero total renders empty", 1, 0, 4, "░░░░"},
+		{"nan elapsed renders empty", math.NaN(), 32, 4, "░░░░"},
+		{"infinite elapsed renders empty", math.Inf(1), 32, 4, "░░░░"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := renderProgressBar(tc.elapsed, tc.total, tc.width, st); got != tc.want {
+				t.Errorf("renderProgressBar(%v,%v,%d) = %q, want %q", tc.elapsed, tc.total, tc.width, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestRenderProgressBarThemedPartialCellUsesEmptyTrackBackground(t *testing.T) {
+	st := styles.NewStyles(true)
+	emptyBg := st.ProgressEmpty.GetBackground()
+	if emptyBg == nil {
+		t.Fatal("test requires ProgressEmpty background to use as progress track background")
+	}
+
+	got := renderProgressBar(1, 32, 4, st)
+	wantPrefix := st.ProgressFilled.Background(emptyBg).Render("▏")
+	if !strings.HasPrefix(got, wantPrefix) {
+		t.Errorf("partial progress cell should use empty-track background: got %q, want prefix %q", got, wantPrefix)
+	}
+	if w := ansi.StringWidth(got); w != 4 {
+		t.Errorf("themed partial progress bar display width = %d, want 4", w)
+	}
+}
+
+func TestRenderProgressBarThemedFullCellsUseSolidFilledBackground(t *testing.T) {
+	st := styles.NewStyles(true)
+	fillBg := st.ProgressFilled.GetForeground()
+	if fillBg == nil {
+		t.Fatal("test requires ProgressFilled foreground to use as progress track background")
+	}
+
+	got := renderProgressBar(8, 32, 4, st)
+	wantPrefix := st.ProgressFilled.Background(fillBg).Render(" ")
+	if !strings.HasPrefix(got, wantPrefix) {
+		t.Errorf("full progress cell should use solid filled background: got %q, want prefix %q", got, wantPrefix)
+	}
+	if w := ansi.StringWidth(got); w != 4 {
+		t.Errorf("themed full progress bar display width = %d, want 4", w)
 	}
 }

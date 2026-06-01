@@ -100,6 +100,26 @@ func TestProgressEmptyUsesExplicitDimForeground(t *testing.T) {
 	}
 }
 
+func TestProgressEmptyUsesExplicitTrackBackground(t *testing.T) {
+	cases := []struct {
+		name    string
+		hasDark bool
+		want    string
+	}{
+		{"dark", true, "#3b4252"},
+		{"light", false, "#d0d7e3"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := colorRGBA(t, styles.NewStyles(c.hasDark).ProgressEmpty.GetBackground())
+			want := parseHex(t, c.want)
+			if got != want {
+				t.Fatalf("ProgressEmpty background = %#v, want %#v", got, want)
+			}
+		})
+	}
+}
+
 // TestStripForegroundContrastDark asserts that each of the four foregrounds
 // the state strip and footer hints rely on (TextPrimary, TextSecondary,
 // TextTertiary, Dim) clears WCAG AA (4.5:1) against the dark terminal

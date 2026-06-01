@@ -134,7 +134,7 @@ type Styles struct {
 	Badge                   lipgloss.Style // single-char badge with lighter background (title bar view numbers)
 	HelpKey                 lipgloss.Style // bold accent foreground for keybinding keys in help overlay
 	ProgressFilled          lipgloss.Style // accent-colored "█" blocks for filled portion of progress bar
-	ProgressEmpty           lipgloss.Style // dim "░" blocks for empty portion of progress bar
+	ProgressEmpty           lipgloss.Style // dim empty-track color for progress bar
 	TextPrimary             lipgloss.Style // primary text: artist, title columns
 	TextSecondary           lipgloss.Style // secondary text: album column
 	TextTertiary            lipgloss.Style // tertiary text: track numbers, durations, inactive tabs
@@ -199,12 +199,14 @@ func NewStyles(hasDark bool) Styles {
 		Badge:                   lipgloss.NewStyle().Background(ld(lipgloss.Color(colorSurfaceL0Light), lipgloss.Color(colorSurfaceL0Dark))).Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))),
 		HelpKey:                 lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorAccentPrimaryLight), lipgloss.Color(colorAccentPrimaryDark))),
 		ProgressFilled:          lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorAccentPrimaryLight), lipgloss.Color(colorAccentPrimaryDark))),
-		ProgressEmpty:           lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorDimLight), lipgloss.Color(colorDimDark))),
-		TextPrimary:             lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorTextPrimaryLight), lipgloss.Color(colorTextPrimaryDark))),
-		TextSecondary:           lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorTextSecondaryLight), lipgloss.Color(colorTextSecondaryDark))),
-		TextTertiary:            lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))),
-		PaletteCategory:         lipgloss.NewStyle().Italic(true).Faint(true).Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))),
-		NowPlayingTitle:         lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorAmberLight), lipgloss.Color(colorAmberDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
+		ProgressEmpty: lipgloss.NewStyle().
+			Foreground(ld(lipgloss.Color(colorDimLight), lipgloss.Color(colorDimDark))).
+			Background(ld(lipgloss.Color(colorSurfaceNotifLight), lipgloss.Color(colorSurfaceNotifDark))),
+		TextPrimary:     lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorTextPrimaryLight), lipgloss.Color(colorTextPrimaryDark))),
+		TextSecondary:   lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorTextSecondaryLight), lipgloss.Color(colorTextSecondaryDark))),
+		TextTertiary:    lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))),
+		PaletteCategory: lipgloss.NewStyle().Italic(true).Faint(true).Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))),
+		NowPlayingTitle: lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorAmberLight), lipgloss.Color(colorAmberDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
 		EmptyCard: lipgloss.NewStyle().Padding(1, 2).
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))),

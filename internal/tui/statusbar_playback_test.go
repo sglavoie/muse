@@ -42,7 +42,7 @@ func TestRenderAlbumAndProgressBarOnLine2(t *testing.T) {
 	if !strings.Contains(lines[1], "Album") {
 		t.Errorf("album should appear on line 2: got %q", lines[1])
 	}
-	if !strings.Contains(lines[1], "█") && !strings.Contains(lines[1], "░") {
+	if !strings.ContainsAny(lines[1], "█░▏▎▍▌▋▊▉") {
 		t.Errorf("line 2 should contain progress bar glyphs: got %q", lines[1])
 	}
 }

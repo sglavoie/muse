@@ -2,9 +2,11 @@ package tui
 
 import (
 	"fmt"
+	"image/color"
 	"math"
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -26,11 +28,30 @@ func formatTime(secs float64) string {
 	return fmt.Sprintf("%d:%02d", minutes, seconds)
 }
 
-// renderProgressBar builds a full-width progress bar string. The filled portion
-// uses "█" styled with ProgressFilled; the empty portion uses "░" with
-// ProgressEmpty. elapsed/total are seconds; fraction is clamped to [0,1].
-// Returns "" when width <= 0 so that callers using calculated/clamped widths
-// cannot trigger a strings.Repeat panic on negative counts.
+const progressCellSteps = 8
+
+var progressPartialBlocks = [...]string{
+	"",
+	"▏",
+	"▎",
+	"▍",
+	"▌",
+	"▋",
+	"▊",
+	"▉",
+}
+
+func progressColorSet(c color.Color) bool {
+	if c == nil {
+		return false
+	}
+	_, noColor := c.(lipgloss.NoColor)
+	return !noColor
+}
+
+// renderProgressBar builds a full-width progress bar string. Each terminal
+// cell is subdivided into eighths using Unicode partial-block glyphs, giving
+// finer progress precision while preserving the fixed display width.
 func renderProgressBar(elapsed, total float64, width int, st styles.Styles) string {
 	if width <= 0 {
 		return ""
@@ -38,21 +59,51 @@ func renderProgressBar(elapsed, total float64, width int, st styles.Styles) stri
 	frac := 0.0
 	if total > 0 {
 		frac = elapsed / total
-		if frac < 0 {
+		if math.IsNaN(frac) || math.IsInf(frac, 0) || frac < 0 {
 			frac = 0
 		} else if frac > 1 {
 			frac = 1
 		}
 	}
-	filled := int(math.Round(frac * float64(width)))
-	if filled > width {
-		filled = width
+	filledSteps := int(math.Round(frac * float64(width*progressCellSteps)))
+	if filledSteps > width*progressCellSteps {
+		filledSteps = width * progressCellSteps
 	}
-	if filled < 0 {
-		filled = 0
+	if filledSteps < 0 {
+		filledSteps = 0
 	}
-	return st.ProgressFilled.Render(strings.Repeat("█", filled)) +
-		st.ProgressEmpty.Render(strings.Repeat("░", width-filled))
+
+	fullCells := filledSteps / progressCellSteps
+	partialSteps := filledSteps % progressCellSteps
+	emptyCells := width - fullCells
+	if partialSteps > 0 {
+		emptyCells--
+	}
+
+	fillColor := st.ProgressFilled.GetForeground()
+	emptyColor := st.ProgressEmpty.GetBackground()
+	if progressColorSet(fillColor) && progressColorSet(emptyColor) {
+		filled := ""
+		if fullCells > 0 {
+			filled = st.ProgressFilled.Background(fillColor).Render(strings.Repeat(" ", fullCells))
+		}
+		partial := ""
+		if partialSteps > 0 {
+			partial = st.ProgressFilled.Background(emptyColor).Render(progressPartialBlocks[partialSteps])
+		}
+		empty := ""
+		if emptyCells > 0 {
+			empty = st.ProgressEmpty.Background(emptyColor).Render(strings.Repeat(" ", emptyCells))
+		}
+		return filled + partial + empty
+	}
+
+	filled := strings.Repeat("█", fullCells)
+	if partialSteps > 0 {
+		filled += progressPartialBlocks[partialSteps]
+	}
+	return st.ProgressFilled.Render(filled) +
+		st.ProgressEmpty.Render(strings.Repeat("░", emptyCells))
 }
 
 // truncateTitle shortens s so its display width (measured in terminal columns)
