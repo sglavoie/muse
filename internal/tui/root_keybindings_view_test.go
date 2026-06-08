@@ -68,6 +68,23 @@ func TestShiftArrowKeysControlSortDirection(t *testing.T) {
 	}
 }
 
+func TestBracketKeysSwitchViewsAndAltAliasesAreUnbound(t *testing.T) {
+	reg := newRegistry()
+
+	if got := reg.resolve(contextGlobal, "["); got != actionPrevView {
+		t.Fatalf("resolve(contextGlobal, \"[\") = %v, want actionPrevView", got)
+	}
+	if got := reg.resolve(contextGlobal, "]"); got != actionNextView {
+		t.Fatalf("resolve(contextGlobal, \"]\") = %v, want actionNextView", got)
+	}
+
+	for _, key := range []string{"alt+left", "alt+right", "alt+b", "alt+f"} {
+		if got := reg.resolve(contextGlobal, key); got != actionNone {
+			t.Fatalf("resolve(contextGlobal, %q) = %v, want actionNone", key, got)
+		}
+	}
+}
+
 func TestQueueHalfPageNavigationUsesCtrlDAndCtrlU(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue

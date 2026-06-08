@@ -60,16 +60,8 @@ func registerGlobalBindings(r *Registry) {
 	r.register(contextGlobal, "L", actionStats)
 	r.register(contextGlobal, "tab", actionNextView)
 	r.register(contextGlobal, "shift+tab", actionPrevView)
-	r.register(contextGlobal, "alt+right", actionNextView)
-	r.register(contextGlobal, "alt+left", actionPrevView)
-	// Some terminals (notably macOS Terminal.app / iTerm2 with Option = Meta)
-	// translate Option+Arrow into readline word-nav sequences (alt+f / alt+b).
-	// Bind those as aliases so the chord works regardless of terminal config.
-	// Text inputs (bubbles textinput/textarea) already bind alt+b/alt+f for
-	// word navigation and consume the key before it reaches this global
-	// registry, so this does not interfere with editing.
-	r.register(contextGlobal, "alt+f", actionNextView)
-	r.register(contextGlobal, "alt+b", actionPrevView)
+	r.register(contextGlobal, "]", actionNextView)
+	r.register(contextGlobal, "[", actionPrevView)
 	r.register(contextGlobal, "P", actionPreview)
 	r.register(contextGlobal, "I", actionNowPlayingInfo)
 	r.register(contextGlobal, "M", actionEditMetadata)

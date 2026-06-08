@@ -17,7 +17,8 @@ package tui
 //   enter | —            | enqueue    | open       | play       | open          | open       | tag-open   | open
 //   shift+enter | —      | replace    | replace    | —          | replace       | replace    | —          | —
 //   space | play/pause   | =          | =          | =          | =             | =          | =          | =
-//   tab | next-view      | =          | =          | =          | =             | =          | =          | =
+//   tab, ] | next-view   | =          | =          | =          | =             | =          | =          | =
+//   shift+tab, [ | prev-view | =      | =          | =          | =             | =          | =          | =
 //   1-7 | switch-view    | =          | =          | =          | =             | =          | =          | =
 //   n / p | next/prev    | =          | =          | =          | =             | =          | =          | =
 //   N   | —              | play-next  | play-next  | —          | play-next     | play-next  | play-next  | play-next
