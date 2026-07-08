@@ -190,7 +190,7 @@ const (
 
 // Render produces a centered overlay string for the palette.
 func (cp CommandPalette) Render(termWidth, termHeight int, s styles.Styles) string {
-	boxLines := cp.buildBoxLines(termWidth, s)
+	boxLines := cp.buildBoxLines(termWidth, termHeight, s)
 
 	boxW := ansi.StringWidth(boxLines[0])
 	boxH := len(boxLines)
@@ -215,7 +215,7 @@ func (cp CommandPalette) Render(termWidth, termHeight int, s styles.Styles) stri
 	return b.String()
 }
 
-func (cp CommandPalette) buildBoxLines(termWidth int, s styles.Styles) []string {
+func (cp CommandPalette) buildBoxLines(termWidth, termHeight int, s styles.Styles) []string {
 	const modalTitle = " Command Palette "
 	const minInner = 30
 	const recentHeader = "Recent & frequent"
@@ -295,6 +295,8 @@ func (cp CommandPalette) buildBoxLines(termWidth int, s styles.Styles) []string 
 	// Separator before commands.
 	lines = append(lines, cpCrossL+strings.Repeat(cpBorderH, innerWidth)+cpCrossR)
 
+	commandBudget := cpCommandRowBudget(termHeight)
+
 	// Command rows.
 	if len(cp.filtered) == 0 {
 		noMatch := text.Pad("(no matches)", contentWidth)
@@ -302,25 +304,24 @@ func (cp CommandPalette) buildBoxLines(termWidth int, s styles.Styles) []string 
 	} else {
 		dimItalic := s.Dim.Italic(true)
 		accentDim := s.Accent.Faint(true).Italic(true)
-		bodyStart := cp.topPins
-		bodyEnd := len(cp.filtered) - cp.bottomPin
 		emptyQuery := strings.TrimSpace(cp.filter.Text) == ""
 
-		for i, cmd := range cp.filtered {
+		visible := cp.visibleRows(commandBudget, emptyQuery)
+		for _, row := range visible {
 			// Insert separator + (optional) "Recent & frequent" header between
 			// top pins and body.
-			if i == bodyStart && cp.topPins > 0 && bodyEnd > bodyStart {
+			if row.kind == cpPaletteSeparator {
 				lines = append(lines, cpCrossL+strings.Repeat(cpBorderH, innerWidth)+cpCrossR)
-				if emptyQuery {
-					header := text.Pad(recentHeader, contentWidth)
-					lines = append(lines, cpBorderV+"  "+s.Dim.Render(header)+"  "+cpBorderV)
-				}
+				continue
 			}
-			// Insert separator between body and bottom pins.
-			if i == bodyEnd && cp.bottomPin > 0 && bodyEnd > bodyStart {
-				lines = append(lines, cpCrossL+strings.Repeat(cpBorderH, innerWidth)+cpCrossR)
+			if row.kind == cpPaletteHeader {
+				header := text.Pad(recentHeader, contentWidth)
+				lines = append(lines, cpBorderV+"  "+s.Dim.Render(header)+"  "+cpBorderV)
+				continue
 			}
 
+			i := row.index
+			cmd := cp.filtered[i]
 			rowContent := cp.buildRowContent(cmd, contentWidth, maxCategoryWidth, maxShortcutWidth, s)
 			switch {
 			case i == cp.cursor && !cmd.isEnabled():
@@ -342,9 +343,123 @@ func (cp CommandPalette) buildBoxLines(termWidth int, s styles.Styles) []string 
 	lines = append(lines, cpCornerBL+strings.Repeat(cpBorderH, innerWidth)+cpCornerBR)
 
 	// Hint line.
-	lines = append(lines, "  "+s.Dim.Render("↑/↓ navigate · enter run · esc cancel"))
+	lines = append(lines, "  "+s.Dim.Render(text.Truncate("↑/↓ navigate · enter run · esc cancel", max(termWidth-2, 0))))
 
 	return lines
+}
+
+type cpPaletteRowKind int
+
+const (
+	cpPaletteCommand cpPaletteRowKind = iota
+	cpPaletteSeparator
+	cpPaletteHeader
+)
+
+type cpPaletteRow struct {
+	kind  cpPaletteRowKind
+	index int
+}
+
+func cpCommandRowBudget(termHeight int) int {
+	if termHeight <= 0 {
+		return 1 << 30
+	}
+	const nonCommandLines = 9 // borders/title/filter/padding/hint around the command area.
+	return max(termHeight-nonCommandLines, 1)
+}
+
+func clampPaletteInt(v, lo, hi int) int {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
+}
+
+func (cp CommandPalette) visibleRows(budget int, emptyQuery bool) []cpPaletteRow {
+	if budget <= 0 || len(cp.filtered) == 0 {
+		return nil
+	}
+
+	bodyStart := cp.topPins
+	bodyEnd := len(cp.filtered) - cp.bottomPin
+	topCount := cp.topPins
+	bodyCount := max(bodyEnd-bodyStart, 0)
+	bottomCount := cp.bottomPin
+
+	includeTopBodySep := topCount > 0 && bodyCount > 0
+	includeHeader := includeTopBodySep && emptyQuery
+	includeBodyBottomSep := bottomCount > 0 && bodyCount > 0
+
+	fixed := topCount + bottomCount
+	if includeTopBodySep {
+		fixed++
+	}
+	if includeHeader {
+		fixed++
+	}
+	if includeBodyBottomSep {
+		fixed++
+	}
+
+	bodyBudget := bodyCount
+	if fixed+bodyCount > budget {
+		bodyBudget = budget - fixed
+		if bodyBudget < 0 {
+			includeTopBodySep = false
+			includeHeader = false
+			includeBodyBottomSep = false
+			fixed = topCount + bottomCount
+			bodyBudget = budget - fixed
+		}
+	}
+	bodyBudget = clampPaletteInt(bodyBudget, 0, bodyCount)
+
+	topVisible := min(topCount, budget)
+	remaining := budget - topVisible
+	bottomVisible := min(bottomCount, max(remaining, 0))
+	remaining -= bottomVisible
+	if remaining < bodyBudget {
+		bodyBudget = max(remaining, 0)
+	}
+
+	bodyOffset := 0
+	if bodyBudget > 0 && bodyBudget < bodyCount {
+		cursor := cp.cursor - bodyStart
+		if cursor < 0 || cursor >= bodyCount {
+			cursor = 0
+		}
+		bodyOffset = clampPaletteInt(cursor-bodyBudget/2, 0, bodyCount-bodyBudget)
+	}
+
+	var rows []cpPaletteRow
+	for i := 0; i < topVisible; i++ {
+		rows = append(rows, cpPaletteRow{kind: cpPaletteCommand, index: i})
+	}
+	if bodyBudget > 0 {
+		if includeTopBodySep && len(rows) < budget {
+			rows = append(rows, cpPaletteRow{kind: cpPaletteSeparator})
+		}
+		if includeHeader && len(rows) < budget {
+			rows = append(rows, cpPaletteRow{kind: cpPaletteHeader})
+		}
+		for i := 0; i < bodyBudget && len(rows) < budget; i++ {
+			rows = append(rows, cpPaletteRow{kind: cpPaletteCommand, index: bodyStart + bodyOffset + i})
+		}
+	}
+	if bottomVisible > 0 {
+		if includeBodyBottomSep && bodyBudget > 0 && len(rows) < budget {
+			rows = append(rows, cpPaletteRow{kind: cpPaletteSeparator})
+		}
+		start := len(cp.filtered) - bottomVisible
+		for i := start; i < len(cp.filtered) && len(rows) < budget; i++ {
+			rows = append(rows, cpPaletteRow{kind: cpPaletteCommand, index: i})
+		}
+	}
+	return rows
 }
 
 // buildRowContent renders a single command row's inner text: leading space,

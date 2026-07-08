@@ -14,7 +14,11 @@ import (
 func (v View) renderGenres() string {
 	items := v.EffectiveGenres()
 	if len(v.Genres) == 0 {
-		return v.Styles.Dim.Render("No genres yet — add music to your library")
+		msg := "No genres yet — add music to your library"
+		if v.Width > 0 {
+			msg = text.Truncate(msg, v.Width)
+		}
+		return v.Styles.Dim.Render(msg)
 	}
 	stripLine := v.renderStateStrip(len(v.Genres), len(items))
 	if len(items) == 0 {
@@ -46,7 +50,11 @@ func (v View) renderGenres() string {
 func (v View) renderArtists() string {
 	items := v.EffectiveArtists()
 	if len(v.Artists) == 0 {
-		return v.Styles.Dim.Render("No artists found for this genre")
+		msg := "No artists found for this genre"
+		if v.Width > 0 {
+			msg = text.Truncate(msg, v.Width)
+		}
+		return v.Styles.Dim.Render(msg)
 	}
 	stripLine := v.renderStateStrip(len(v.Artists), len(items))
 	if len(items) == 0 {

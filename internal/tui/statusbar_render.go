@@ -57,7 +57,12 @@ func (c statusBarRenderContext) r(s string) string { return c.barText.Render(s) 
 
 func (c statusBarRenderContext) pad(content string) string {
 	if c.width > 0 {
-		if visibleWidth := ansi.StringWidth(content); visibleWidth < c.width {
+		visibleWidth := ansi.StringWidth(content)
+		if visibleWidth > c.width {
+			content = ansi.Truncate(content, c.width, "…")
+			visibleWidth = ansi.StringWidth(content)
+		}
+		if visibleWidth < c.width {
 			content += c.r(strings.Repeat(" ", c.width-visibleWidth))
 		}
 	}
@@ -77,6 +82,16 @@ func (c statusBarRenderContext) rightAlign(left, right string) string {
 	}
 	leftWidth := ansi.StringWidth(left)
 	gap := c.width - leftWidth - rightWidth
+	if gap > 0 {
+		return left + c.r(strings.Repeat(" ", gap)) + right
+	}
+	if rightWidth >= c.width {
+		return c.pad(right)
+	}
+	leftBudget := c.width - rightWidth
+	left = ansi.Truncate(left, leftBudget, "…")
+	leftWidth = ansi.StringWidth(left)
+	gap = c.width - leftWidth - rightWidth
 	if gap > 0 {
 		return left + c.r(strings.Repeat(" ", gap)) + right
 	}

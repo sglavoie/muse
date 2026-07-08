@@ -182,13 +182,15 @@ Each observation is normalized JSON:
 | `all-primary-views.json` | `rich` | Cycles all seven primary views; each fits. |
 | `overlays.json` | `rich` | Help, queue-summary, and debug overlays fit at 100×30. |
 | `command-palette-search.json` | `rich` | Opens the palette (at 120×50) and filters by typing. |
+| `layout-regressions-rich.json` | `rich` | Guards command palette height, Queue columns, Mixes descriptions, and queue-summary short-height layout. |
+| `layout-regressions-empty.json` | `empty` | Guards narrow empty-state and idle status-bar layout. |
 | `resize-stress.json` | `rich` | Cycles many terminal sizes. |
 | `narrow-long-text.json` | `narrow` | Long text and wide Unicode at a small size. |
 
-The first four are stable and gated in `go test`. `resize-stress.json` and
-`narrow-long-text.json` are kept for manual bug discovery: the narrow/long-text
-case intentionally stresses truncation at a small size and may surface real
-layout overflows, so it is not gated.
+The baseline, primary-view, overlay, command-palette, layout-regression, and
+narrow/long-text scenarios are stable and gated in `go test`.
+`resize-stress.json` is kept for manual bug discovery across a wider range of
+terminal sizes.
 
 ### Example
 

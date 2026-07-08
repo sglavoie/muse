@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/recommendation"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // MixInfo is a type alias for recommendation.MixInfo, kept for backward
@@ -168,15 +169,13 @@ func (v MixesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[
 			cursor = "> "
 		}
 
-		count := fmt.Sprintf("%d tracks", mix.TrackCount)
-		row := fmt.Sprintf("%s%-14s  %-10s  %s", cursor, mix.Name, count, mix.Description)
+		row := renderMixListRow(cursor, mix, v.width)
 
 		if focused {
 			lines = append(lines, s.Accent.Render(row))
 		} else {
 			isOdd := i%2 == 1
-			name := mix.Name
-			rest := strings.TrimPrefix(row, cursor+name)
+			name, rest := splitMixListRow(cursor, mix, v.width)
 			if isOdd {
 				zb := lipgloss.NewStyle().Background(s.ZebraBg)
 				lines = append(lines, zb.Render(cursor)+s.TextPrimary.Bold(true).Background(s.ZebraBg).Render(name)+s.TextTertiary.Background(s.ZebraBg).Render(rest))
@@ -186,4 +185,45 @@ func (v MixesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+func renderMixListRow(cursor string, mix MixInfo, width int) string {
+	name, rest := splitMixListRow(cursor, mix, width)
+	if width <= 0 {
+		return cursor + name + rest
+	}
+	return text.Truncate(cursor+name+rest, width)
+}
+
+func splitMixListRow(cursor string, mix MixInfo, width int) (name, rest string) {
+	if width <= 0 {
+		count := fmt.Sprintf("%d tracks", mix.TrackCount)
+		return fmt.Sprintf("%-14s", mix.Name), fmt.Sprintf("  %-10s  %s", count, mix.Description)
+	}
+
+	cursorW := lipgloss.Width(cursor)
+	gapCount := 2
+	nameW := 14
+	countW := 10
+	available := width - cursorW - gapCount*2
+	if available <= 0 {
+		return "", ""
+	}
+	if available < nameW+countW {
+		deficit := nameW + countW - available
+		shrink := min(deficit, countW)
+		countW -= shrink
+		deficit -= shrink
+		shrink = min(deficit, nameW)
+		nameW -= shrink
+	}
+
+	descW := max(width-cursorW-nameW-gapCount-countW-gapCount, 0)
+	count := fmt.Sprintf("%d tracks", mix.TrackCount)
+	name = text.Pad(mix.Name, nameW)
+	rest = strings.Repeat(" ", gapCount) + text.Pad(count, countW)
+	if descW > 0 {
+		rest += strings.Repeat(" ", gapCount) + text.Pad(mix.Description, descW)
+	}
+	return name, rest
 }

@@ -19,6 +19,9 @@ var gatedScenarios = []string{
 	"all-primary-views.json",
 	"overlays.json",
 	"command-palette-search.json",
+	"layout-regressions-rich.json",
+	"layout-regressions-empty.json",
+	"narrow-long-text.json",
 }
 
 // ungatedScenarios are aggressive narrow/stress examples kept for manual bug
@@ -27,7 +30,6 @@ var gatedScenarios = []string{
 // sizes they exercise.
 var ungatedScenarios = []string{
 	"resize-stress.json",
-	"narrow-long-text.json",
 }
 
 func loadScenario(t *testing.T, name string) tui.UITestScenario {

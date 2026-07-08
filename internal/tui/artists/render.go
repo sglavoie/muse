@@ -15,7 +15,11 @@ import (
 func (v View) renderArtists() string {
 	items := v.EffectiveArtists()
 	if len(v.Artists) == 0 {
-		return v.Styles.Dim.Render("No artists yet — add music to your library")
+		msg := "No artists yet — add music to your library"
+		if v.Width > 0 {
+			msg = text.Truncate(msg, v.Width)
+		}
+		return v.Styles.Dim.Render(msg)
 	}
 	stripLine := v.renderStateStrip(len(v.Artists), len(items))
 	if len(items) == 0 {
@@ -55,7 +59,11 @@ func (v View) renderArtists() string {
 func (v View) renderAlbums() string {
 	items := v.EffectiveAlbums()
 	if len(v.Albums) == 0 {
-		return v.Styles.Dim.Render("No albums found for this artist")
+		msg := "No albums found for this artist"
+		if v.Width > 0 {
+			msg = text.Truncate(msg, v.Width)
+		}
+		return v.Styles.Dim.Render(msg)
 	}
 	stripLine := v.renderStateStrip(len(v.Albums), len(items))
 	if len(items) == 0 {
@@ -89,7 +97,11 @@ func (v View) renderAlbums() string {
 func (v View) renderTracks() string {
 	items := v.EffectiveTracks()
 	if len(v.Tracks) == 0 {
-		return v.Styles.Dim.Render("No tracks found for this album")
+		msg := "No tracks found for this album"
+		if v.Width > 0 {
+			msg = text.Truncate(msg, v.Width)
+		}
+		return v.Styles.Dim.Render(msg)
 	}
 	stripLine := v.renderStateStrip(len(v.Tracks), len(items))
 	if len(items) == 0 {

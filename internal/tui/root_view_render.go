@@ -56,6 +56,7 @@ func (m Model) renderActiveBody() string {
 }
 
 func (m Model) renderOverlayBody() (string, bool) {
+	overlayHeight := max(m.termHeight-3, 1)
 	switch {
 	case m.configCreated && !m.welcomeDismissed:
 		return m.renderWelcomeOverlay(), true
@@ -72,31 +73,31 @@ func (m Model) renderOverlayBody() (string, bool) {
 	case m.statsVisible:
 		return m.renderStatsOverlay(), true
 	case m.overlay.settings != nil:
-		return m.overlay.settings.Render(m.termWidth, m.termHeight, *m.styles), true
+		return m.overlay.settings.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.nowPlaying != nil:
-		return m.overlay.nowPlaying.Render(m.termWidth, m.termHeight, *m.styles), true
+		return m.overlay.nowPlaying.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.queueSummary != nil:
-		return m.overlay.queueSummary.Render(m.termWidth, m.termHeight, *m.styles), true
+		return m.overlay.queueSummary.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.trackInfo != nil:
-		return m.overlay.trackInfo.Render(m.termWidth, m.termHeight, *m.styles), true
+		return m.overlay.trackInfo.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.preview != nil:
-		return m.overlay.preview.Render(m.termWidth, m.termHeight, *m.styles), true
+		return m.overlay.preview.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.metadataEditor != nil:
-		return m.overlay.metadataEditor.Render(m.termWidth, m.termHeight, *m.styles), true
+		return m.overlay.metadataEditor.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.destPicker != nil:
-		return m.overlay.destPicker.Render(m.termWidth, m.termHeight, *m.styles), true
+		return m.overlay.destPicker.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.goTo != nil:
-		return m.overlay.goTo.Render(m.termWidth, m.termHeight, *m.styles), true
+		return m.overlay.goTo.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.commandPalette != nil:
-		return m.overlay.commandPalette.Render(m.termWidth, m.termHeight, *m.styles), true
+		return m.overlay.commandPalette.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.smartRuleEditor != nil:
-		return m.overlay.smartRuleEditor.Render(m.termWidth, m.termHeight, *m.styles), true
+		return m.overlay.smartRuleEditor.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.tagPicker != nil:
-		return m.overlay.tagPicker.Render(m.termWidth, m.termHeight, *m.styles), true
+		return m.overlay.tagPicker.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.tagMergePicker != nil:
-		return m.overlay.tagMergePicker.Render(m.termWidth, m.termHeight, *m.styles), true
+		return m.overlay.tagMergePicker.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.tagFilterPicker != nil:
-		return m.overlay.tagFilterPicker.Render(m.termWidth, m.termHeight, *m.styles), true
+		return m.overlay.tagFilterPicker.Render(m.termWidth, overlayHeight, *m.styles), true
 	default:
 		return "", false
 	}

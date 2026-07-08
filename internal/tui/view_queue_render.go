@@ -34,29 +34,8 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 	}
 
 	const (
-		posWidth    = 4
-		durWidth    = 10
 		markerWidth = 2
-		sepCount    = 5
 	)
-
-	titleWidth := 20
-	artistWidth := 15
-	albumWidth := 15
-	sourceWidth := 10
-	if v.width > 0 {
-		fixed := posWidth + durWidth + markerWidth + sepCount
-		flex := v.width - fixed
-		flex = max(flex, 4)
-		titleWidth = flex * 30 / 80
-		artistWidth = flex * 20 / 80
-		albumWidth = flex * 20 / 80
-		sourceWidth = flex - titleWidth - artistWidth - albumWidth
-	}
-	titleWidth = max(titleWidth, 1)
-	artistWidth = max(artistWidth, 1)
-	albumWidth = max(albumWidth, 1)
-	sourceWidth = max(sourceWidth, 1)
 
 	maxRows := v.visibleRows()
 	start := min(v.scrollOffset, len(entries))
@@ -69,23 +48,27 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			break
 		}
 	}
-	if !hasSource {
-		titleWidth += sourceWidth
-		sourceWidth = 0
-	}
+	cols := computeQueueColumns(v.width, hasSource)
 
 	titleHead, artistHead, albumHead, sourceHead, timeHead := "Title", "Artist", "Album", "Source", "Time"
 	// headerBody excludes the leading marker-width prefix so the dotted
 	// underline only spans the actual data columns (not the marker gutter).
 	var headerBody string
 	if hasSource {
-		headerBody = fmt.Sprintf("%-*s %-*s %-*s %-*s %-*s %*s",
-			posWidth, "#", titleWidth, titleHead, artistWidth, artistHead, albumWidth, albumHead, sourceWidth, sourceHead, durWidth, timeHead)
+		headerBody = text.Pad("#", cols.Position) + " " +
+			text.Pad(titleHead, cols.Title) + " " +
+			text.Pad(artistHead, cols.Artist) + " " +
+			text.Pad(albumHead, cols.Album) + " " +
+			text.Pad(sourceHead, cols.Source) + " " +
+			text.PadLeft(timeHead, cols.Duration)
 	} else {
-		headerBody = fmt.Sprintf("%-*s %-*s %-*s %-*s %*s",
-			posWidth, "#", titleWidth, titleHead, artistWidth, artistHead, albumWidth, albumHead, durWidth, timeHead)
+		headerBody = text.Pad("#", cols.Position) + " " +
+			text.Pad(titleHead, cols.Title) + " " +
+			text.Pad(artistHead, cols.Artist) + " " +
+			text.Pad(albumHead, cols.Album) + " " +
+			text.PadLeft(timeHead, cols.Duration)
 	}
-	header := strings.Repeat(" ", markerWidth) + s.ColHead.Render(headerBody)
+	header := clampQueueLine(strings.Repeat(" ", markerWidth)+s.ColHead.Render(headerBody), v.width)
 
 	lines := make([]string, end-start)
 	for i := range end - start {
@@ -100,20 +83,20 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 
 		markerStr := text.RowMarker(e.Selected, isFocused, isNowPlaying, npIcon)
 
-		pos := fmt.Sprintf("%4d", absIdx+1)
-		source := padQueue(e.SourcePlaylist, sourceWidth)
-		dur := fmt.Sprintf("%*s", durWidth, text.FormatDurationMs(e.DurationMs))
+		pos := text.PadLeft(fmt.Sprintf("%d", absIdx+1), cols.Position)
+		source := padQueue(e.SourcePlaylist, cols.Source)
+		dur := text.PadLeft(text.FormatDurationMs(e.DurationMs), cols.Duration)
 
 		_, isTrackFav := favHashes[e.Hash]
 		_, isArtistFav := favArtists[e.Artist]
 		_, isAlbumFav := favAlbums[e.Album]
 
-		titleStr := text.FavPrefix(e.Title, titleWidth, isTrackFav)
-		artistStr := text.FavPrefix(e.Artist, artistWidth, isArtistFav)
-		albumStr := text.FavPrefix(e.Album, albumWidth, isAlbumFav)
+		titleStr := text.FavPrefix(e.Title, cols.Title, isTrackFav)
+		artistStr := text.FavPrefix(e.Artist, cols.Artist, isArtistFav)
+		albumStr := text.FavPrefix(e.Album, cols.Album, isAlbumFav)
 		if e.Missing { //nolint:gocritic // ifElseChain: branches have fundamentally different rendering logic
-			plainLine := assembleQueueRow(" ", hasSource, markerStr, pos, padQueue(e.Title, titleWidth), padQueue(e.Artist, artistWidth), padQueue(e.Album, albumWidth), source, dur)
-			lines[i] = s.Dim.Render(plainLine + " [missing]")
+			plainLine := assembleQueueRow(" ", hasSource, markerStr, pos, padQueue(e.Title, cols.Title), padQueue(e.Artist, cols.Artist), padQueue(e.Album, cols.Album), source, dur)
+			lines[i] = s.Dim.Render(appendQueueSuffix(plainLine, " [missing]", v.width))
 		} else if isFocused {
 			bg := s.Accent.GetBackground()
 			sep := s.Accent.Render(" ")
@@ -123,13 +106,13 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 				artistStr = npText.Background(bg).Render(artistStr)
 				albumStr = npText.Background(bg).Render(albumStr)
 				if isTrackFav {
-					titleStr = npFav.Background(bg).Render(text.FavPrefix(e.Title, titleWidth, true))
+					titleStr = npFav.Background(bg).Render(text.FavPrefix(e.Title, cols.Title, true))
 				}
 				if isArtistFav {
-					artistStr = npFavArtist.Background(bg).Render(text.FavPrefix(e.Artist, artistWidth, true))
+					artistStr = npFavArtist.Background(bg).Render(text.FavPrefix(e.Artist, cols.Artist, true))
 				}
 				if isAlbumFav {
-					albumStr = npFavAlbum.Background(bg).Render(text.FavPrefix(e.Album, albumWidth, true))
+					albumStr = npFavAlbum.Background(bg).Render(text.FavPrefix(e.Album, cols.Album, true))
 				}
 			} else {
 				if isTrackFav {
@@ -160,13 +143,13 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			artistStr = s.TextPrimary.Background(s.NowPlayingBg).Render(artistStr)
 			albumStr = s.TextSecondary.Background(s.NowPlayingBg).Render(albumStr)
 			if isTrackFav {
-				titleStr = npFav.Background(s.NowPlayingBg).Render(text.FavPrefix(e.Title, titleWidth, true))
+				titleStr = npFav.Background(s.NowPlayingBg).Render(text.FavPrefix(e.Title, cols.Title, true))
 			}
 			if isArtistFav {
-				artistStr = npFavArtist.Background(s.NowPlayingBg).Render(text.FavPrefix(e.Artist, artistWidth, true))
+				artistStr = npFavArtist.Background(s.NowPlayingBg).Render(text.FavPrefix(e.Artist, cols.Artist, true))
 			}
 			if isAlbumFav {
-				albumStr = npFavAlbum.Background(s.NowPlayingBg).Render(text.FavPrefix(e.Album, albumWidth, true))
+				albumStr = npFavAlbum.Background(s.NowPlayingBg).Render(text.FavPrefix(e.Album, cols.Album, true))
 			}
 			markerStr = npStyle.Background(s.NowPlayingBg).Render(npIcon) + nb.Render(" ")
 			pos = nb.Render(pos)
@@ -258,6 +241,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 				lines[i] = assembleQueueRow(" ", hasSource, markerStr, s.TextTertiary.Render(pos), titleStr, artistStr, albumStr, source, s.TextTertiary.Render(dur))
 			}
 		}
+		lines[i] = clampQueueLine(lines[i], v.width)
 	}
 
 	stripLine := v.renderStateStrip(s, len(v.entries), len(entries))
@@ -365,6 +349,98 @@ func nowPlayingTextStyles(s styles.Styles, state PlaybackState) (base, fav, favA
 	}
 }
 
+type queueColumns struct {
+	Position int
+	Title    int
+	Artist   int
+	Album    int
+	Source   int
+	Duration int
+}
+
+func computeQueueColumns(totalWidth int, hasSource bool) queueColumns {
+	const (
+		markerWidth = 2
+		posWidth    = 4
+		durWidth    = 10
+	)
+	cols := queueColumns{Position: posWidth, Duration: durWidth}
+
+	sepCount := 4
+	weights := []int{40, 20, 20}
+	if hasSource {
+		sepCount = 5
+		weights = []int{30, 20, 20, 10}
+	}
+
+	available := totalWidth - markerWidth - sepCount
+	if available <= 0 {
+		cols.Position = 0
+		cols.Duration = 0
+		return cols
+	}
+
+	required := cols.Position + cols.Duration + len(weights)
+	if available < required {
+		deficit := required - available
+		shrink := min(deficit, cols.Duration)
+		cols.Duration -= shrink
+		deficit -= shrink
+
+		shrink = min(deficit, cols.Position)
+		cols.Position -= shrink
+		deficit -= shrink
+
+	}
+
+	flex := max(available-cols.Position-cols.Duration, 0)
+	widths := distributeQueueFlex(flex, weights)
+	cols.Title = widths[0]
+	if len(widths) > 1 {
+		cols.Artist = widths[1]
+	}
+	if len(widths) > 2 {
+		cols.Album = widths[2]
+	}
+	if hasSource && len(widths) > 3 {
+		cols.Source = widths[3]
+	}
+	return cols
+}
+
+func distributeQueueFlex(total int, weights []int) []int {
+	widths := make([]int, len(weights))
+	if total <= 0 || len(weights) == 0 {
+		return widths
+	}
+	if total >= len(widths) {
+		for i := range widths {
+			widths[i] = 1
+		}
+		total -= len(widths)
+	} else {
+		for i := 0; i < total && i < len(widths); i++ {
+			widths[i] = 1
+		}
+		return widths
+	}
+
+	weightTotal := 0
+	for _, w := range weights {
+		weightTotal += w
+	}
+	assigned := 0
+	for i, w := range weights {
+		add := total * w / weightTotal
+		widths[i] += add
+		assigned += add
+	}
+	for remaining := total - assigned; remaining > 0; remaining-- {
+		widths[0]++
+	}
+	return widths
+}
+
 // assembleQueueRow joins pre-styled queue row columns using sep as the column
 // separator. When hasSource is false the source column is omitted entirely.
 func assembleQueueRow(sep string, hasSource bool, marker, pos, title, artist, album, source, dur string) string {
@@ -396,6 +472,22 @@ func renderQueueBucketHeader(s styles.Styles, label string, width int) string {
 		}
 	}
 	return s.BucketHeader.Render(padded)
+}
+
+func clampQueueLine(line string, width int) string {
+	if width <= 0 || ansi.StringWidth(line) <= width {
+		return line
+	}
+	return ansi.Truncate(line, width, "")
+}
+
+func appendQueueSuffix(line, suffix string, width int) string {
+	if width <= 0 {
+		return line + suffix
+	}
+	suffix = text.Truncate(suffix, width)
+	lineWidth := max(width-ansi.StringWidth(suffix), 0)
+	return clampQueueLine(line, lineWidth) + suffix
 }
 
 // padQueue truncates or right-pads s with spaces to exactly width display columns.

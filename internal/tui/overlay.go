@@ -53,9 +53,11 @@ type OverlayBox struct {
 // The caller passes the current terminal dimensions so the box is positioned
 // in the middle of the screen.
 func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
+	rows := o.rowsForHeight(termHeight)
+
 	// Find the widest label for right-alignment.
 	maxLabelW := 0
-	for _, r := range o.Rows {
+	for _, r := range rows {
 		if lw := ansi.StringWidth(r.Label); lw > maxLabelW {
 			maxLabelW = lw
 		}
@@ -63,8 +65,8 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 
 	// Collect plain-text row content for width calculation.
 	// For labelled rows the full visual width is: label + " " + text.
-	rowTexts := make([]string, len(o.Rows))
-	for i, r := range o.Rows {
+	rowTexts := make([]string, len(rows))
+	for i, r := range rows {
 		if r.Blank {
 			continue
 		}
@@ -117,7 +119,7 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 	boxLines = append(boxLines, borderV+strings.Repeat(" ", innerWidth)+borderV)
 
 	// Content rows.
-	for _, r := range o.Rows {
+	for _, r := range rows {
 		if r.Blank {
 			boxLines = append(boxLines, borderV+strings.Repeat(" ", innerWidth)+borderV)
 			continue
@@ -181,6 +183,9 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 		// break the box layout (extra lines would not be centered and the
 		// boxH calculation above only reserves a single hint line).
 		hint := sanitizeHint(o.Hint)
+		if termWidth > 0 {
+			hint = text.Truncate(hint, termWidth)
+		}
 		hintPad := 0
 		hintWidth := ansi.StringWidth(hint)
 		if termWidth > hintWidth {
@@ -189,6 +194,38 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 		b.WriteString(strings.Repeat(" ", hintPad) + hint + "\n")
 	}
 	return b.String()
+}
+
+func (o OverlayBox) rowsForHeight(termHeight int) []OverlayRow {
+	if termHeight <= 0 {
+		return o.Rows
+	}
+	chromeLines := 6
+	if o.Hint != "" {
+		chromeLines++
+	}
+	maxRows := termHeight - chromeLines
+	if maxRows >= len(o.Rows) {
+		return o.Rows
+	}
+	if maxRows <= 0 {
+		return nil
+	}
+
+	rows := make([]OverlayRow, 0, len(o.Rows))
+	for _, row := range o.Rows {
+		if !row.Blank {
+			rows = append(rows, row)
+		}
+	}
+	for len(rows) > maxRows {
+		drop := len(rows) - 2
+		if drop < 0 {
+			drop = len(rows) - 1
+		}
+		rows = append(rows[:drop], rows[drop+1:]...)
+	}
+	return rows
 }
 
 // sanitizeHint flattens embedded newlines/tabs to single spaces so the hint
