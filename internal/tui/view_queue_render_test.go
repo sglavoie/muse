@@ -19,10 +19,13 @@ func TestQueueRenderEmptyShowsPlaceholder(t *testing.T) {
 	if !strings.Contains(got, "Queue is empty") {
 		t.Fatalf("empty queue must show title; got: %q", got)
 	}
-	for _, want := range []string{"go to library", "random album", "help"} {
+	for _, want := range []string{"go to library", "help"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("empty queue card missing CTA %q; got: %q", want, got)
 		}
+	}
+	if strings.Contains(got, "random album") {
+		t.Errorf("empty queue card must not advertise random album; 'r' cycles repeat in Queue; got: %q", got)
 	}
 }
 

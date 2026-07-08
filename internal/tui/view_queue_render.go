@@ -28,7 +28,6 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 		}
 		return s.RenderEmptyCard(v.width, v.visibleRows(), "Queue is empty", []styles.EmptyAction{
 			{Key: "1", Label: "go to library"},
-			{Key: "r", Label: "random album"},
 			{Key: "?", Label: "help"},
 		})
 	}
