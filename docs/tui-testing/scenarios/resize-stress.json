@@ -1,0 +1,13 @@
+{
+  "name": "resize-stress",
+  "fixture": "rich",
+  "size": "100x30",
+  "actions": [
+    {"resize": "60x20"}, {"assert": {"no_layout_issues": true}, "label": "narrow-60x20"},
+    {"resize": "200x60"}, {"assert": {"no_layout_issues": true}, "label": "wide-200x60"},
+    {"resize": "80x24"}, {"assert": {"no_layout_issues": true}, "label": "classic-80x24"},
+    {"resize": "40x12"}, {"assert": {"no_layout_issues": true}, "label": "tiny-40x12"},
+    {"resize": "300x100"}, {"assert": {"no_layout_issues": true}, "label": "huge-300x100"},
+    {"resize": "100x30"}, {"assert": {"no_layout_issues": true}, "label": "back-to-default"}
+  ]
+}

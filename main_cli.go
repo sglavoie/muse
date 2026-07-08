@@ -26,6 +26,13 @@ func main() {
 		return
 	}
 
+	// Hidden layout-testing harness. Dispatched before flag parsing and
+	// deliberately absent from configureUsage() so it never appears in normal
+	// `muse --help` output.
+	if len(os.Args) > 1 && os.Args[1] == "tui-test" {
+		os.Exit(runTUITestCLI(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
+	}
+
 	// Handle subcommands before flag parsing.
 	if len(os.Args) > 1 && os.Args[1] == "check" {
 		if err := validateNoCommandArgs(os.Args[1], os.Args[2:]); err != nil {

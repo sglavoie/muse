@@ -1,0 +1,10 @@
+{
+  "name": "baseline-layout",
+  "fixture": "rich",
+  "size": "100x30",
+  "actions": [
+    {"assert": {"view": "Library"}, "label": "starts-on-library"},
+    {"assert": {"no_layout_issues": true}, "label": "library-fits-100x30"},
+    {"assert": {"contains": "Alice"}, "label": "renders-a-library-track"}
+  ]
+}

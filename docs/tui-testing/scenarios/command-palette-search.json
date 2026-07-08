@@ -1,0 +1,12 @@
+{
+  "name": "command-palette-search",
+  "fixture": "rich",
+  "size": "120x50",
+  "actions": [
+    {"key": ":"}, {"assert": {"overlay": "command_palette"}, "label": "palette-opens"},
+    {"assert": {"no_layout_issues": true}, "label": "palette-fits-120x50"},
+    {"text": "toggle"}, {"assert": {"contains": "Toggle"}, "label": "search-filters-to-toggles"},
+    {"assert": {"no_layout_issues": true}, "label": "filtered-palette-fits"},
+    {"key": "esc"}, {"assert": {"view": "Library"}, "label": "palette-dismissed"}
+  ]
+}

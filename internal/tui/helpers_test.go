@@ -15,6 +15,11 @@ func TestMain(m *testing.M) {
 		// bubbletea Tick goroutine used in TUI tests; it blocks on a channel
 		// receive and is not stopped when the test model is discarded.
 		goleak.IgnoreTopFunction("charm.land/bubbletea/v2.Tick.func1"),
+		// bubbles cursor blink goroutine spawned when a text input (e.g. the
+		// command palette filter) activates. The uitest driver drives models
+		// outside a live tea runtime, so the blink command blocks on a channel
+		// receive that is never signaled; it is discarded with the model.
+		goleak.IgnoreTopFunction("charm.land/bubbles/v2/cursor.(*Model).Blink.func1"),
 	)
 }
 

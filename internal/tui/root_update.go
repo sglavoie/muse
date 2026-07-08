@@ -256,6 +256,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case CommandPalettePickedMsg:
 		m.overlay.commandPalette = nil
+		// In a fixture-backed harness run, gate key/text-driven palette
+		// selections through the same allowlist as direct command actions so a
+		// scenario cannot execute a side-effectful command (Finder, clipboard,
+		// open-directory) by opening the palette and pressing enter.
+		if m.fixtureSafeCommands && !isSafeDirectCommand(msg.Command.Key()) {
+			name := msg.Command.Name
+			return m, func() tea.Msg {
+				return TransientNotifyMsg(fmt.Sprintf("Command %q blocked in fixture mode", name))
+			}
+		}
 		if msg.Command.Exec != nil {
 			return m, msg.Command.Exec()
 		}

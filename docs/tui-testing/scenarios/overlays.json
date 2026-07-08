@@ -1,0 +1,13 @@
+{
+  "name": "overlays",
+  "fixture": "rich",
+  "size": "100x30",
+  "actions": [
+    {"key": "?"}, {"assert": {"overlay": "help"}}, {"assert": {"no_layout_issues": true}, "label": "help-fits"},
+    {"key": "esc"}, {"assert": {"view": "Library"}, "label": "help-dismissed"},
+    {"key": "q"}, {"assert": {"overlay": "queue_summary"}}, {"assert": {"no_layout_issues": true}, "label": "queue-summary-fits"},
+    {"key": "esc"},
+    {"key": "ctrl+g"}, {"assert": {"overlay": "debug"}}, {"assert": {"no_layout_issues": true}, "label": "debug-fits"},
+    {"key": "esc"}, {"assert": {"view": "Library"}, "label": "back-to-library"}
+  ]
+}

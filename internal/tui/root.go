@@ -72,6 +72,14 @@ type Model struct {
 	dataDir          string // XDG data directory (contains muse.db); set via WithDataDir
 	configWarnings   []string
 
+	// fixtureSafeCommands is true only for fixture-backed models built by the
+	// hidden `muse tui-test` harness. When set, key-driven command-palette
+	// selections are gated through the same fixture-safe allowlist as direct
+	// `command` actions (isSafeDirectCommand), so a scenario cannot reach a
+	// side-effectful command such as Reveal in Finder by opening the palette and
+	// pressing enter. It is never set for production models.
+	fixtureSafeCommands bool
+
 	library    LibraryView
 	playlists  PlaylistsView
 	queue      QueueView

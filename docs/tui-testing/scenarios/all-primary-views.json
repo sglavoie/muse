@@ -1,0 +1,16 @@
+{
+  "name": "all-primary-views",
+  "fixture": "rich",
+  "size": "100x30",
+  "actions": [
+    {"key": "1"}, {"assert": {"view": "Library"}}, {"assert": {"no_layout_issues": true}, "label": "library"},
+    {"key": "2"}, {"assert": {"view": "Playlists"}}, {"assert": {"no_layout_issues": true}, "label": "playlists"},
+    {"key": "3"}, {"assert": {"view": "Queue"}}, {"assert": {"no_layout_issues": true}, "label": "queue"},
+    {"key": "4"}, {"assert": {"view": "Browse"}}, {"assert": {"no_layout_issues": true}, "label": "browse"},
+    {"key": "5"}, {"assert": {"view": "Favorites"}}, {"assert": {"no_layout_issues": true}, "label": "favorites"},
+    {"key": "6"}, {"assert": {"view": "Tags"}}, {"assert": {"no_layout_issues": true}, "label": "tags"},
+    {"key": "7"}, {"assert": {"view": "Mixes"}}, {"assert": {"no_layout_issues": true}, "label": "mixes"},
+    {"key": "]"}, {"assert": {"view": "Library"}, "label": "wraps-forward-to-library"},
+    {"key": "["}, {"assert": {"view": "Mixes"}, "label": "wraps-back-to-mixes"}
+  ]
+}

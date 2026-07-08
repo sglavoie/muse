@@ -1,0 +1,14 @@
+{
+  "name": "narrow-long-text",
+  "fixture": "narrow",
+  "size": "30x15",
+  "actions": [
+    {"key": "1"}, {"assert": {"no_layout_issues": true}, "label": "library-long-titles"},
+    {"key": "2"}, {"assert": {"no_layout_issues": true}, "label": "playlists-long-names"},
+    {"key": "3"}, {"assert": {"no_layout_issues": true}, "label": "queue-wide-unicode"},
+    {"key": "4"}, {"assert": {"no_layout_issues": true}, "label": "browse-diacritics"},
+    {"key": "5"}, {"assert": {"no_layout_issues": true}, "label": "favorites-cjk"},
+    {"key": "6"}, {"assert": {"no_layout_issues": true}, "label": "tags-wide"},
+    {"key": "7"}, {"assert": {"no_layout_issues": true}, "label": "mixes"}
+  ]
+}
