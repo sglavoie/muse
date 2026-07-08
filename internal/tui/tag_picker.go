@@ -268,28 +268,11 @@ const (
 // Render produces a centered overlay string for the tag picker.
 func (tp TagPicker) Render(termWidth, termHeight int, s styles.Styles) string {
 	boxLines := tp.buildBoxLines(termWidth, s)
-
-	boxW := ansi.StringWidth(boxLines[0])
-	boxH := len(boxLines)
-
-	leftPad := 0
-	if termWidth > boxW {
-		leftPad = (termWidth - boxW) / 2
+	hint := "space toggle · enter select/create · esc close"
+	if tp.IsBulk() {
+		hint = "~ partial → assign all · " + hint
 	}
-	topPad := 0
-	if termHeight > boxH {
-		topPad = (termHeight - boxH) / 2
-	}
-
-	prefix := strings.Repeat(" ", leftPad)
-	var b strings.Builder
-	for range topPad {
-		b.WriteByte('\n')
-	}
-	for _, line := range boxLines {
-		b.WriteString(prefix + line + "\n")
-	}
-	return b.String()
+	return renderCenteredOverlayLines(boxLines, s.Dim.Render(hint), termWidth, termHeight)
 }
 
 func (tp TagPicker) buildBoxLines(termWidth int, s styles.Styles) []string {
@@ -365,13 +348,6 @@ func (tp TagPicker) buildBoxLines(termWidth int, s styles.Styles) []string {
 
 	// Bottom border.
 	lines = append(lines, tpCornerBL+strings.Repeat(tpBorderH, innerWidth)+tpCornerBR)
-
-	// Hint line.
-	hint := "space toggle · enter select/create · esc close"
-	if tp.IsBulk() {
-		hint = "~ partial → assign all · " + hint
-	}
-	lines = append(lines, "  "+s.Dim.Render(hint))
 
 	return lines
 }

@@ -284,3 +284,17 @@ func TestGoToRenderContainsHint(t *testing.T) {
 		t.Error("rendered output should contain shortcut hint")
 	}
 }
+
+func TestGoToRenderHintFitsMinimumSupportedSize(t *testing.T) {
+	m := NewGoToModal([]GoToOption{
+		{Kind: goToAlbum, Value: "Alpha"},
+		{Kind: goToArtist, Value: "Alice"},
+		{Kind: goToGenre, Value: "Ambient"},
+	})
+	s := styles.NewStyles(true)
+
+	raw := m.Render(minTerminalWidth, minTerminalHeight, s)
+	if issues := DetectLayoutIssues(raw, PlainScreen(raw), minTerminalWidth, minTerminalHeight); len(issues) != 0 {
+		t.Fatalf("go-to overlay should fit at minimum supported size, got %+v:\n%s", issues, PlainScreen(raw))
+	}
+}

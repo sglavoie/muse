@@ -60,40 +60,21 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	// Bottom border.
 	lines = append(lines, cornerBL+strings.Repeat(borderH, boxInner)+cornerBR)
 
-	// Hint line.
+	var hint string
 	switch o.tab {
 	case settingsTabLibrary:
 		if o.libSubView == libSubViewExcluded {
-			lines = append(lines, "  a add · d delete · [/] tabs · j/k navigate · ctrl+s save · esc back")
+			hint = "a add · d delete · [/] tabs · j/k navigate · ctrl+s save · esc back"
 		} else {
-			lines = append(lines, "  a add · d delete · e excluded · [/] tabs · j/k navigate · ctrl+s save · esc cancel")
+			hint = "a add · d delete · e excluded · [/] tabs · j/k navigate · ctrl+s save · esc cancel"
 		}
 	case settingsTabEqualizer:
-		lines = append(lines, "  s save · d delete · [/] tabs · j/k fields · h/l adjust · ctrl+s save · esc cancel")
+		hint = "s save · d delete · [/] tabs · j/k fields · h/l adjust · ctrl+s save · esc cancel"
 	default:
-		lines = append(lines, "  [/] tabs · j/k fields · h/l adjust · ctrl+s save · esc cancel")
+		hint = "[/] tabs · j/k fields · h/l adjust · ctrl+s save · esc cancel"
 	}
 
-	// Center the box.
-	boxW := ansi.StringWidth(lines[0])
-	boxH := len(lines)
-	leftPad := 0
-	if termWidth > boxW {
-		leftPad = (termWidth - boxW) / 2
-	}
-	topPad := 0
-	if termHeight > boxH {
-		topPad = (termHeight - boxH) / 2
-	}
-	prefix := strings.Repeat(" ", leftPad)
-	var b strings.Builder
-	for range topPad {
-		b.WriteByte('\n')
-	}
-	for _, line := range lines {
-		b.WriteString(prefix + line + "\n")
-	}
-	return b.String()
+	return renderCenteredOverlayLines(lines, hint, termWidth, termHeight)
 }
 
 func (o SettingsOverlay) renderLibraryTab(lines []string, contentWidth int, s styles.Styles) []string {

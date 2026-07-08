@@ -179,21 +179,56 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 		b.WriteString(boxPrefix + line + "\n")
 	}
 	if o.Hint != "" {
-		// Collapse newlines/tabs in the hint so embedded whitespace cannot
-		// break the box layout (extra lines would not be centered and the
-		// boxH calculation above only reserves a single hint line).
-		hint := sanitizeHint(o.Hint)
-		if termWidth > 0 {
-			hint = text.Truncate(hint, termWidth)
-		}
-		hintPad := 0
-		hintWidth := ansi.StringWidth(hint)
-		if termWidth > hintWidth {
-			hintPad = (termWidth - hintWidth) / 2
-		}
-		b.WriteString(strings.Repeat(" ", hintPad) + hint + "\n")
+		b.WriteString(centeredOverlayHintLine(o.Hint, termWidth) + "\n")
 	}
 	return b.String()
+}
+
+func renderCenteredOverlayLines(lines []string, hint string, termWidth, termHeight int) string {
+	if len(lines) == 0 {
+		return ""
+	}
+
+	boxW := ansi.StringWidth(lines[0])
+	boxH := len(lines)
+	if hint != "" {
+		boxH++
+	}
+
+	leftPad := 0
+	if termWidth > boxW {
+		leftPad = (termWidth - boxW) / 2
+	}
+	topPad := 0
+	if termHeight > boxH {
+		topPad = (termHeight - boxH) / 2
+	}
+
+	prefix := strings.Repeat(" ", leftPad)
+	var b strings.Builder
+	for range topPad {
+		b.WriteByte('\n')
+	}
+	for _, line := range lines {
+		b.WriteString(prefix + line + "\n")
+	}
+	if hint != "" {
+		b.WriteString(centeredOverlayHintLine(hint, termWidth) + "\n")
+	}
+	return b.String()
+}
+
+func centeredOverlayHintLine(hint string, termWidth int) string {
+	hint = sanitizeHint(hint)
+	if termWidth > 0 {
+		hint = text.Truncate(hint, termWidth)
+	}
+	hintPad := 0
+	hintWidth := ansi.StringWidth(hint)
+	if termWidth > hintWidth {
+		hintPad = (termWidth - hintWidth) / 2
+	}
+	return strings.Repeat(" ", hintPad) + hint
 }
 
 func (o OverlayBox) rowsForHeight(termHeight int) []OverlayRow {

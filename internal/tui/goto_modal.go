@@ -164,28 +164,7 @@ const (
 // Render produces a centered overlay string for the modal.
 func (m GoToModal) Render(termWidth, termHeight int, s styles.Styles) string {
 	boxLines := m.buildBoxLines(termWidth, s)
-
-	boxW := ansi.StringWidth(boxLines[0])
-	boxH := len(boxLines)
-
-	leftPad := 0
-	if termWidth > boxW {
-		leftPad = (termWidth - boxW) / 2
-	}
-	topPad := 0
-	if termHeight > boxH {
-		topPad = (termHeight - boxH) / 2
-	}
-
-	prefix := strings.Repeat(" ", leftPad)
-	var b strings.Builder
-	for range topPad {
-		b.WriteByte('\n')
-	}
-	for _, line := range boxLines {
-		b.WriteString(prefix + line + "\n")
-	}
-	return b.String()
+	return renderCenteredOverlayLines(boxLines, "j/k navigate · a/b/g/p shortcut · enter confirm · esc dismiss", termWidth, termHeight)
 }
 
 func (m GoToModal) buildBoxLines(termWidth int, s styles.Styles) []string {
@@ -240,9 +219,6 @@ func (m GoToModal) buildBoxLines(termWidth int, s styles.Styles) []string {
 
 	// Bottom border.
 	lines = append(lines, gtCornerBL+strings.Repeat(gtBorderH, innerWidth)+gtCornerBR)
-
-	// Hint line.
-	lines = append(lines, "  j/k navigate · a/b/g/p shortcut · enter confirm · esc dismiss")
 
 	return lines
 }

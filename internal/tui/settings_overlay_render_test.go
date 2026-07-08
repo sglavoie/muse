@@ -64,6 +64,16 @@ func TestSettingsRenderContainsHint(t *testing.T) {
 	}
 }
 
+func TestSettingsRenderHintFitsMinimumSupportedSize(t *testing.T) {
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	s := styles.NewStyles(true)
+
+	raw := o.Render(minTerminalWidth, minTerminalHeight, s)
+	if issues := DetectLayoutIssues(raw, PlainScreen(raw), minTerminalWidth, minTerminalHeight); len(issues) != 0 {
+		t.Fatalf("settings overlay should fit at minimum supported size, got %+v:\n%s", issues, PlainScreen(raw))
+	}
+}
+
 func TestSettingsRenderDisplayTab(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	o.tab = settingsTabDisplay
