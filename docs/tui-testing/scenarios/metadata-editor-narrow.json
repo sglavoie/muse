@@ -1,0 +1,10 @@
+{
+  "name": "metadata-editor-narrow",
+  "fixture": "narrow",
+  "size": "60x15",
+  "actions": [
+    {"key": "M"},
+    {"assert": {"overlay": "metadata_editor"}, "label": "metadata-editor-opens"},
+    {"assert": {"no_layout_issues": true}, "label": "metadata-editor-fits-minimum"}
+  ]
+}

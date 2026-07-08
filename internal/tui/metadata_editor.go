@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // metadataField identifies which field is focused in the metadata editor.
@@ -339,6 +340,7 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	lines = append(lines, crossL+strings.Repeat(borderH, boxInner)+crossR)
 
 	// Field rows.
+	remainingContinuationLines := metadataEditorContinuationBudget(termHeight, len(renderFields))
 	for _, i := range renderFields {
 		if metadataField(i) == e.focused {
 			// View() renders at Width+1 visible chars (cursor adds 1),
@@ -352,8 +354,8 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 			lines = append(lines, borderV+s.Accent.Render(row)+borderV)
 		} else {
 			value := e.fields[i].Value()
-			wrapped := ansi.Wrap(value, valueWidth, " ")
-			wrapLines := strings.Split(wrapped, "\n")
+			wrapLines := metadataEditorValueLines(value, valueWidth, remainingContinuationLines)
+			remainingContinuationLines -= max(len(wrapLines)-1, 0)
 			for j, wl := range wrapLines {
 				visLen := ansi.StringWidth(wl)
 				if visLen < valueWidth {
@@ -410,4 +412,27 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 		b.WriteString(prefix + line + "\n")
 	}
 	return b.String()
+}
+
+func metadataEditorContinuationBudget(termHeight, fieldCount int) int {
+	if termHeight <= 0 {
+		return int(^uint(0) >> 1)
+	}
+	const chromeLines = 5 // top border, title, separator, bottom border, hint
+	return max(termHeight-chromeLines-fieldCount, 0)
+}
+
+func metadataEditorValueLines(value string, width, continuationBudget int) []string {
+	wrapped := ansi.Wrap(value, width, " ")
+	lines := strings.Split(wrapped, "\n")
+	if len(lines) == 0 {
+		lines = []string{""}
+	}
+	maxLines := 1 + max(continuationBudget, 0)
+	if len(lines) > maxLines {
+		tail := strings.Join(lines[maxLines-1:], " ")
+		lines = lines[:maxLines]
+		lines[maxLines-1] = text.Truncate(tail, width)
+	}
+	return lines
 }
