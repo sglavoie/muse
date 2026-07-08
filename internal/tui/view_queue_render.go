@@ -389,7 +389,6 @@ func computeQueueColumns(totalWidth int, hasSource bool) queueColumns {
 
 		shrink = min(deficit, cols.Position)
 		cols.Position -= shrink
-		deficit -= shrink
 
 	}
 

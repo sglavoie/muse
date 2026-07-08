@@ -34,7 +34,7 @@ const (
 // never calls os.Exit itself so tests can invoke it directly.
 func runTUITestCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		printTUITestUsage(stderr)
+		_ = printTUITestUsage(stderr)
 		return tuiTestExitUsage
 	}
 
@@ -43,7 +43,9 @@ func runTUITestCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) int
 
 	switch sub {
 	case "-h", "--help", "help":
-		printTUITestUsage(stdout)
+		if err := printTUITestUsage(stdout); err != nil {
+			return tuiTestExitUsage
+		}
 		return tuiTestExitOK
 	case "fixtures":
 		return runTUITestFixtures(rest, stdout, stderr)
@@ -52,16 +54,16 @@ func runTUITestCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) int
 	case "session":
 		return runTUITestSession(rest, stdin, stdout, stderr)
 	default:
-		fmt.Fprintf(stderr, "muse tui-test: unknown subcommand %q\n", sub)
-		printTUITestUsage(stderr)
+		_, _ = fmt.Fprintf(stderr, "muse tui-test: unknown subcommand %q\n", sub)
+		_ = printTUITestUsage(stderr)
 		return tuiTestExitUsage
 	}
 }
 
 // printTUITestUsage documents the harness subcommands. It is only reachable via
 // `muse tui-test` itself; the top-level `muse --help` never lists it.
-func printTUITestUsage(w io.Writer) {
-	fmt.Fprint(w, `Usage: muse tui-test <command> [flags]
+func printTUITestUsage(w io.Writer) error {
+	_, err := fmt.Fprint(w, `Usage: muse tui-test <command> [flags]
 
 Hidden layout-testing harness that drives the TUI in process against
 fixture-backed data. No real config, database, music files, mpv, Finder, or
@@ -78,6 +80,7 @@ Commands:
 
 Fixtures: `+strings.Join(tui.FixtureNames(), ", ")+`
 `)
+	return err
 }
 
 // newTUITestFlagSet builds a subcommand flag set that reports errors to stderr
@@ -96,20 +99,23 @@ func runTUITestFixtures(args []string, stdout, stderr io.Writer) int {
 		return tuiTestExitUsage
 	}
 	if fs.NArg() > 0 {
-		fmt.Fprintf(stderr, "muse tui-test fixtures: unexpected argument %q\n", fs.Arg(0))
+		_, _ = fmt.Fprintf(stderr, "muse tui-test fixtures: unexpected argument %q\n", fs.Arg(0))
 		return tuiTestExitUsage
 	}
 
 	names := tui.FixtureNames()
 	if *asJSON {
 		if err := writeJSONLine(stdout, map[string][]string{"fixtures": names}); err != nil {
-			fmt.Fprintf(stderr, "muse tui-test fixtures: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "muse tui-test fixtures: %v\n", err)
 			return tuiTestExitUsage
 		}
 		return tuiTestExitOK
 	}
 	for _, n := range names {
-		fmt.Fprintln(stdout, n)
+		if _, err := fmt.Fprintln(stdout, n); err != nil {
+			_, _ = fmt.Fprintf(stderr, "muse tui-test fixtures: %v\n", err)
+			return tuiTestExitUsage
+		}
 	}
 	return tuiTestExitOK
 }
@@ -128,22 +134,22 @@ func runTUITestRun(args []string, stdout, stderr io.Writer) int {
 		return tuiTestExitUsage
 	}
 	if fs.NArg() > 0 {
-		fmt.Fprintf(stderr, "muse tui-test run: unexpected argument %q\n", fs.Arg(0))
+		_, _ = fmt.Fprintf(stderr, "muse tui-test run: unexpected argument %q\n", fs.Arg(0))
 		return tuiTestExitUsage
 	}
 	if strings.TrimSpace(*scenarioPath) == "" {
-		fmt.Fprintln(stderr, "muse tui-test run: --scenario is required")
+		_, _ = fmt.Fprintln(stderr, "muse tui-test run: --scenario is required")
 		return tuiTestExitUsage
 	}
 
 	data, err := os.ReadFile(*scenarioPath)
 	if err != nil {
-		fmt.Fprintf(stderr, "muse tui-test run: read scenario: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "muse tui-test run: read scenario: %v\n", err)
 		return tuiTestExitUsage
 	}
 	scenario, err := tui.ParseScenario(data)
 	if err != nil {
-		fmt.Fprintf(stderr, "muse tui-test run: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "muse tui-test run: %v\n", err)
 		return tuiTestExitUsage
 	}
 
@@ -157,17 +163,20 @@ func runTUITestRun(args []string, stdout, stderr io.Writer) int {
 	result, err := tui.RunScenario(scenario, opts)
 	if err != nil {
 		// Setup problem (unknown fixture, malformed size): invalid input.
-		fmt.Fprintf(stderr, "muse tui-test run: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "muse tui-test run: %v\n", err)
 		return tuiTestExitUsage
 	}
 
 	if *asJSON {
 		if err := writeJSONIndented(stdout, result); err != nil {
-			fmt.Fprintf(stderr, "muse tui-test run: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "muse tui-test run: %v\n", err)
 			return tuiTestExitUsage
 		}
 	} else {
-		writeRunSummary(stdout, result)
+		if err := writeRunSummary(stdout, result); err != nil {
+			_, _ = fmt.Fprintf(stderr, "muse tui-test run: %v\n", err)
+			return tuiTestExitUsage
+		}
 	}
 
 	if !result.OK {
@@ -177,21 +186,26 @@ func runTUITestRun(args []string, stdout, stderr io.Writer) int {
 }
 
 // writeRunSummary prints a compact human-readable pass/fail line to stdout.
-func writeRunSummary(w io.Writer, result tui.UITestScenarioResult) {
+func writeRunSummary(w io.Writer, result tui.UITestScenarioResult) error {
 	if result.OK {
-		fmt.Fprintf(w, "PASS %q (fixture %s, %s, %d actions)\n",
+		_, err := fmt.Fprintf(w, "PASS %q (fixture %s, %s, %d actions)\n",
 			result.Scenario, result.Fixture, result.Size, result.ActionsRun)
-		return
+		return err
 	}
-	fmt.Fprintf(w, "FAIL %q (fixture %s, %s, %d actions run)\n",
-		result.Scenario, result.Fixture, result.Size, result.ActionsRun)
+	if _, err := fmt.Fprintf(w, "FAIL %q (fixture %s, %s, %d actions run)\n",
+		result.Scenario, result.Fixture, result.Size, result.ActionsRun); err != nil {
+		return err
+	}
 	if result.Error != nil {
 		label := ""
 		if result.Error.Label != "" {
 			label = " [" + result.Error.Label + "]"
 		}
-		fmt.Fprintf(w, "  action %d%s: %s\n", result.Error.Index, label, result.Error.Reason)
+		if _, err := fmt.Fprintf(w, "  action %d%s: %s\n", result.Error.Index, label, result.Error.Reason); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // sessionRequest is one NDJSON request line for the interactive session mode.
@@ -221,13 +235,13 @@ func runTUITestSession(args []string, stdin io.Reader, stdout, stderr io.Writer)
 		return tuiTestExitUsage
 	}
 	if fs.NArg() > 0 {
-		fmt.Fprintf(stderr, "muse tui-test session: unexpected argument %q\n", fs.Arg(0))
+		_, _ = fmt.Fprintf(stderr, "muse tui-test session: unexpected argument %q\n", fs.Arg(0))
 		return tuiTestExitUsage
 	}
 
 	width, height, err := tui.ParseSize(*size)
 	if err != nil {
-		fmt.Fprintf(stderr, "muse tui-test session: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "muse tui-test session: %v\n", err)
 		return tuiTestExitUsage
 	}
 
@@ -241,7 +255,7 @@ func runTUITestSession(args []string, stdin io.Reader, stdout, stderr io.Writer)
 
 	driver, err := newDriver()
 	if err != nil {
-		fmt.Fprintf(stderr, "muse tui-test session: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "muse tui-test session: %v\n", err)
 		return tuiTestExitUsage
 	}
 
@@ -299,7 +313,7 @@ func runTUITestSession(args []string, stdin io.Reader, stdout, stderr io.Writer)
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(stderr, "muse tui-test session: read: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "muse tui-test session: read: %v\n", err)
 		return tuiTestExitUsage
 	}
 	return tuiTestExitOK
@@ -309,7 +323,7 @@ func runTUITestSession(args []string, stdin io.Reader, stdout, stderr io.Writer)
 func writeSessionResponse(w io.Writer, resp sessionResponse) {
 	if err := writeJSONLine(w, resp); err != nil {
 		// Fall back to a minimal error line so the peer still sees a response.
-		fmt.Fprintf(w, "{\"ok\":false,\"error\":%q}\n", err.Error())
+		_, _ = fmt.Fprintf(w, "{\"ok\":false,\"error\":%q}\n", err.Error())
 	}
 }
 
