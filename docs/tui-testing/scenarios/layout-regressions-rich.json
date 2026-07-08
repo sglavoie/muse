@@ -5,7 +5,7 @@
   "actions": [
     {"key": ":"}, {"assert": {"no_layout_issues": true}, "label": "command-palette-default-height"},
     {"key": "esc"},
-    {"resize": "40x15"}, {"key": "3"}, {"assert": {"no_layout_issues": true}, "label": "queue-narrow-columns"},
+    {"resize": "60x15"}, {"key": "3"}, {"assert": {"no_layout_issues": true}, "label": "queue-minimum-columns"},
     {"resize": "60x15"}, {"key": "7"}, {"assert": {"no_layout_issues": true}, "label": "mixes-description-truncation"},
     {"resize": "100x15"}, {"key": "q"}, {"assert": {"no_layout_issues": true}, "label": "queue-summary-short-height"}
   ]

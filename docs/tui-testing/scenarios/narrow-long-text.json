@@ -1,7 +1,7 @@
 {
   "name": "narrow-long-text",
   "fixture": "narrow",
-  "size": "30x15",
+  "size": "60x15",
   "actions": [
     {"key": "1"}, {"assert": {"no_layout_issues": true}, "label": "library-long-titles"},
     {"key": "2"}, {"assert": {"no_layout_issues": true}, "label": "playlists-long-names"},

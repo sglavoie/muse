@@ -1,7 +1,7 @@
 {
   "name": "layout-regressions-empty",
   "fixture": "empty",
-  "size": "40x15",
+  "size": "60x15",
   "actions": [
     {"key": "4"}, {"assert": {"no_layout_issues": true}, "label": "browse-empty-message"},
     {"key": "1"}, {"assert": {"no_layout_issues": true}, "label": "idle-status-empty-queue"}

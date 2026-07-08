@@ -9,6 +9,14 @@ It is intended for agents and CI scripts that need to verify TUI layout without
 a real terminal. It is **hidden**: `muse tui-test` never appears in
 `muse --help`.
 
+## Minimum supported size
+
+Muse supports normal TUI layout at `60x15` and larger. When either terminal
+dimension is smaller, the root view renders a "terminal window is too small"
+message instead of normal views or overlays. Committed scenarios that assert
+normal layout should stay at or above `60x15`; below-minimum sizes are only for
+testing that guard message.
+
 ## Safety guarantees
 
 The harness never touches real state. Fixtures are built entirely from in-memory
@@ -183,14 +191,14 @@ Each observation is normalized JSON:
 | `overlays.json` | `rich` | Help, queue-summary, and debug overlays fit at 100×30. |
 | `command-palette-search.json` | `rich` | Opens the palette (at 120×50) and filters by typing. |
 | `layout-regressions-rich.json` | `rich` | Guards command palette height, Queue columns, Mixes descriptions, and queue-summary short-height layout. |
-| `layout-regressions-empty.json` | `empty` | Guards narrow empty-state and idle status-bar layout. |
+| `layout-regressions-empty.json` | `empty` | Guards minimum-size empty-state and idle status-bar layout. |
 | `resize-stress.json` | `rich` | Cycles many terminal sizes. |
-| `narrow-long-text.json` | `narrow` | Long text and wide Unicode at a small size. |
+| `narrow-long-text.json` | `narrow` | Long text and wide Unicode at the minimum supported size. |
 
 The baseline, primary-view, overlay, command-palette, layout-regression, and
 narrow/long-text scenarios are stable and gated in `go test`.
 `resize-stress.json` is kept for manual bug discovery across a wider range of
-terminal sizes.
+supported terminal sizes.
 
 ### Example
 

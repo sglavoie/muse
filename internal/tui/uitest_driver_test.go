@@ -197,17 +197,23 @@ func TestDriverAssertionFailures(t *testing.T) {
 	}
 }
 
-func TestDriverNoLayoutIssuesCarriesFailureObservation(t *testing.T) {
-	// A cramped terminal forces width/height overflow so the assertion fails and
-	// the failure observation carries the detected issues.
-	d := newTestDriver(t, FixtureRich, 12, 4)
-
-	obs, err := d.ApplyAction(UITestAction{Assert: &UITestAssertion{NoLayoutIssues: bp(true)}}, ObserveOptions{})
-	if err == nil {
-		t.Fatal("expected no_layout_issues assertion to fail on a cramped terminal")
+func TestDriverNoLayoutIssuesReportsDetectedIssue(t *testing.T) {
+	d := newTestDriver(t, FixtureRich, 100, 30)
+	obs := UITestObservation{
+		LayoutIssues: []UITestIssue{{
+			Kind:   IssueWidthOverflow,
+			Line:   1,
+			Actual: 61,
+			Limit:  60,
+		}},
 	}
-	if len(obs.LayoutIssues) == 0 {
-		t.Fatal("expected failure observation to carry layout issues")
+
+	err := d.evalAssertion(&UITestAssertion{NoLayoutIssues: bp(true)}, obs)
+	if err == nil {
+		t.Fatal("expected no_layout_issues assertion to fail when issues are present")
+	}
+	if !strings.Contains(err.Error(), "width_overflow") {
+		t.Fatalf("expected failure to summarize layout issue, got %v", err)
 	}
 }
 

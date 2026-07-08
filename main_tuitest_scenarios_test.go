@@ -24,10 +24,9 @@ var gatedScenarios = []string{
 	"narrow-long-text.json",
 }
 
-// ungatedScenarios are aggressive narrow/stress examples kept for manual bug
+// ungatedScenarios are aggressive supported-size stress examples kept for manual bug
 // discovery. They must parse and run without a setup error, but their pass/fail
-// outcome is only logged — current renderers may not satisfy them at the small
-// sizes they exercise.
+// outcome is only logged.
 var ungatedScenarios = []string{
 	"resize-stress.json",
 }

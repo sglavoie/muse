@@ -1,15 +1,24 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // View renders the active panel and a status bar, returning a tea.View.
 func (m Model) View() tea.View {
+	if m.terminalTooSmall() {
+		v := tea.NewView(m.renderTerminalTooSmall())
+		v.AltScreen = true
+		return v
+	}
+
 	body := m.renderActiveBody()
 	if !m.hasActiveOverlay() {
 		tabSep := m.styles.TextTertiary.Render(strings.Repeat("─", m.termWidth))
@@ -46,6 +55,65 @@ func (m Model) View() tea.View {
 	v := tea.NewView(content)
 	v.AltScreen = true
 	return v
+}
+
+func (m Model) terminalTooSmall() bool {
+	if m.termWidth <= 0 || m.termHeight <= 0 {
+		return false
+	}
+	return m.termWidth < minTerminalWidth || m.termHeight < minTerminalHeight
+}
+
+func (m Model) renderTerminalTooSmall() string {
+	width, height := m.termWidth, m.termHeight
+	if width <= 0 || height <= 0 {
+		return ""
+	}
+
+	lines := []string{
+		terminalTooSmallTitle(width),
+		fmt.Sprintf("Minimum size: %dx%d", minTerminalWidth, minTerminalHeight),
+		fmt.Sprintf("Current size: %dx%d", width, height),
+	}
+	if height < len(lines) {
+		lines = lines[:height]
+	}
+
+	topPad := max(0, (height-len(lines))/2)
+	out := make([]string, 0, topPad+len(lines))
+	for range topPad {
+		out = append(out, strings.Repeat(" ", width))
+	}
+	for _, line := range lines {
+		out = append(out, centerTerminalMessageLine(line, width))
+	}
+	return strings.Join(out, "\n")
+}
+
+func terminalTooSmallTitle(width int) string {
+	for _, candidate := range []string{
+		"Terminal window is too small",
+		"Terminal too small",
+		"Too small",
+	} {
+		if ansi.StringWidth(candidate) <= width {
+			return candidate
+		}
+	}
+	return "Too small"
+}
+
+func centerTerminalMessageLine(line string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	line = text.Truncate(line, width)
+	lineWidth := ansi.StringWidth(line)
+	leftPad := 0
+	if width > lineWidth {
+		leftPad = (width - lineWidth) / 2
+	}
+	return text.Pad(strings.Repeat(" ", leftPad)+line, width)
 }
 
 func (m Model) renderActiveBody() string {
