@@ -303,57 +303,40 @@ func TestRunParallelLaunchBothErrorsReturned(t *testing.T) {
 }
 
 // TestRunConcurrentLaunchAndScan proves that LaunchMPV and RunScan execute
-// concurrently: RunScan must start before the deliberately delayed LaunchMPV returns.
+// concurrently: each task waits until the other has started before returning.
 func TestRunConcurrentLaunchAndScan(t *testing.T) {
 	dirs := setupDirs(t)
 	installLogger(t)
 
-	gate := make(chan struct{})
-
-	var mu sync.Mutex
-	var scanStarted, mpvReturned time.Time
+	mpvStarted := make(chan struct{})
+	scanStarted := make(chan struct{})
 
 	deps := app.Deps{
 		CheckPrereqs: func(context.Context) error { return nil },
-		LaunchMPV: func(_ context.Context, _ string) error {
-			<-gate
-			mu.Lock()
-			mpvReturned = time.Now()
-			mu.Unlock()
-			return nil
+		LaunchMPV: func(ctx context.Context, _ string) error {
+			close(mpvStarted)
+			select {
+			case <-scanStarted:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 		},
-		RunScan: func(_ context.Context, _ *db.DB) error {
-			mu.Lock()
-			scanStarted = time.Now()
-			mu.Unlock()
-			return nil
+		RunScan: func(ctx context.Context, _ *db.DB) error {
+			select {
+			case <-mpvStarted:
+				close(scanStarted)
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 		},
 	}
 
-	go func() {
-		time.Sleep(200 * time.Millisecond)
-		close(gate)
-	}()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	if _, err := app.Run(ctx, dirs, deps); err != nil {
 		t.Fatalf("Run returned unexpected error: %v", err)
-	}
-
-	mu.Lock()
-	started := scanStarted
-	returned := mpvReturned
-	mu.Unlock()
-
-	if started.IsZero() {
-		t.Fatal("RunScan was never called")
-	}
-	if returned.IsZero() {
-		t.Fatal("LaunchMPV never returned")
-	}
-	if !started.Before(returned) {
-		t.Errorf("RunScan started (%v) was not before LaunchMPV returned (%v); goroutines are not running concurrently", started, returned)
 	}
 }

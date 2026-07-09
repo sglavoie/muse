@@ -59,16 +59,20 @@ func TestLibraryIndex_MemoryUnder25MB(t *testing.T) {
 	runtime.GC()
 	runtime.ReadMemStats(&before)
 
-	var idx LibraryIndex
+	tracks := make([]Track, n)
 	for i := range n {
-		idx.Insert(Track{
+		tracks[i] = Track{
 			Artist: fmt.Sprintf("Artist%05d", i%1000),
 			Title:  fmt.Sprintf("Track%05d", i),
 			Album:  fmt.Sprintf("Album%05d", i%200),
 			Hash:   fmt.Sprintf("%064x", i),
 			Path:   fmt.Sprintf("/music/artist%05d/track%05d.flac", i%1000, i),
-		})
+		}
 	}
+
+	var idx LibraryIndex
+	idx.BulkLoad(tracks)
+	tracks = nil
 
 	runtime.GC()
 	var after runtime.MemStats

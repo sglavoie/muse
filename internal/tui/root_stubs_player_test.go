@@ -133,6 +133,37 @@ func (s *stubPlayerQueueSyncer) SetCurrentIndex(index int) {
 	s.setCurrentIndexCalls = append(s.setCurrentIndexCalls, index)
 }
 
+// stubQueueLifecyclePlayer records the full clear-and-enqueue player sequence
+// so integration-style root tests can assert both queue sync and playback.
+type stubQueueLifecyclePlayer struct {
+	stubCommandPlayer
+	setQueueCalls      [][]player.QueueTrack
+	appendToQueueCalls []player.QueueTrack
+	calls              []string
+}
+
+func (s *stubQueueLifecyclePlayer) Stop() error {
+	s.calls = append(s.calls, "Stop")
+	return s.stubCommandPlayer.Stop()
+}
+
+func (s *stubQueueLifecyclePlayer) PlayFromIndex(idx int) error {
+	s.calls = append(s.calls, "PlayFromIndex")
+	return s.stubCommandPlayer.PlayFromIndex(idx)
+}
+
+func (s *stubQueueLifecyclePlayer) SetQueue(tracks []player.QueueTrack) {
+	cp := make([]player.QueueTrack, len(tracks))
+	copy(cp, tracks)
+	s.setQueueCalls = append(s.setQueueCalls, cp)
+	s.calls = append(s.calls, "SetQueue")
+}
+
+func (s *stubQueueLifecyclePlayer) AppendToQueue(track player.QueueTrack) {
+	s.appendToQueueCalls = append(s.appendToQueueCalls, track)
+	s.calls = append(s.calls, "AppendToQueue")
+}
+
 // stubFailingVolumePlayer extends stubCommandPlayer to return errors from
 // SetVolumeRelative, used to test volume-drift prevention.
 type stubFailingVolumePlayer struct {

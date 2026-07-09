@@ -172,18 +172,47 @@ func fakeServerWithHandler(t *testing.T, socketPath string, handler responseHand
 	if err != nil {
 		t.Fatalf("fakeServer: listen: %v", err)
 	}
+
+	var wg sync.WaitGroup
+	var connsMu sync.Mutex
+	conns := make(map[net.Conn]struct{})
+
 	t.Cleanup(func() {
-		ln.Close()
+		_ = ln.Close()
+
+		connsMu.Lock()
+		for conn := range conns {
+			_ = conn.Close()
+		}
+		connsMu.Unlock()
+
+		wg.Wait()
 		os.Remove(socketPath)
 	})
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			conn, err := ln.Accept()
 			if err != nil {
 				return // listener closed
 			}
-			go handleConn(conn, handler)
+
+			connsMu.Lock()
+			conns[conn] = struct{}{}
+			connsMu.Unlock()
+
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				defer func() {
+					connsMu.Lock()
+					delete(conns, conn)
+					connsMu.Unlock()
+				}()
+				handleConn(conn, handler)
+			}()
 		}
 	}()
 }

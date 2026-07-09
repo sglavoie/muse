@@ -198,17 +198,32 @@ func TestManager_PlayQueueEntry_PresentFile(t *testing.T) {
 		t.Errorf("marker was called unexpectedly: hash=%q queueID=%d", marker.trackHash, marker.queueID)
 	}
 
-	// loadfile must have been sent to mpv.
+	// loadfile with pause=no must be followed by an explicit unpause command.
 	mu.Lock()
 	defer mu.Unlock()
-	for _, args := range received {
-		if len(args) > 0 {
-			if args.stringIs(0, "loadfile") {
-				return
-			}
+	loadIdx := -1
+	unpauseIdx := -1
+	for idx, args := range received {
+		if len(args) >= 5 &&
+			args.stringIs(0, cmdLoadfile) &&
+			args.stringIs(1, tmp.Name()) &&
+			args.stringIs(2, "replace") &&
+			args.stringIs(4, "pause=no") {
+			loadIdx = idx
+		}
+		if isSetPause(args, false) {
+			unpauseIdx = idx
 		}
 	}
-	t.Errorf("no loadfile command received; got %v", received)
+	if loadIdx == -1 {
+		t.Fatalf("no loadfile replace pause=no command received; got %v", received)
+	}
+	if unpauseIdx == -1 {
+		t.Fatalf("no explicit set_property pause false command received; got %v", received)
+	}
+	if unpauseIdx <= loadIdx {
+		t.Errorf("set_property pause false should follow loadfile; load index %d, unpause index %d, commands %v", loadIdx, unpauseIdx, received)
+	}
 }
 
 func TestManager_PlayQueueEntry_NotConnectedQueues(t *testing.T) {

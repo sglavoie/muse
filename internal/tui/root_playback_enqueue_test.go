@@ -231,3 +231,87 @@ func TestBatchEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 		t.Fatalf("batch auto-play: expected currentTrackHash=%q, got %q", "hash-p", nm.playback.currentHash)
 	}
 }
+
+// TestClearQueueThenBatchEnqueuedRebuildsPlayerQueueAndStartsPlayback proves
+// the clear-then-playlist enqueue flow rebuilds the player queue and starts the
+// freshly enqueued batch instead of only updating TUI state.
+func TestClearQueueThenBatchEnqueuedRebuildsPlayerQueueAndStartsPlayback(t *testing.T) {
+	p := &stubQueueLifecyclePlayer{}
+	m := New(context.Background(), WithPlayer(p))
+	m.playback.state = PlaybackPlaying
+	m.playback.currentIndex = 0
+	m.playback.currentHash = "old-hash"
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "old-hash", Path: "/old.flac", Display: "Old", Artist: "Old", Title: "Track"},
+	}
+
+	next, cmd := m.Update(ClearQueueMsg{})
+	if cmd != nil {
+		t.Fatalf("ClearQueueMsg must not return a follow-up cmd, got %T", cmd)
+	}
+	cleared := next.(Model)
+	if len(cleared.queue.entries) != 0 {
+		t.Fatalf("ClearQueueMsg: expected empty TUI queue, got %d entries", len(cleared.queue.entries))
+	}
+	if p.stopCalls != 1 {
+		t.Fatalf("ClearQueueMsg: expected 1 Stop() call, got %d", p.stopCalls)
+	}
+	if len(p.setQueueCalls) != 1 {
+		t.Fatalf("ClearQueueMsg: expected one SetQueue call, got %d", len(p.setQueueCalls))
+	}
+	if len(p.setQueueCalls[0]) != 0 {
+		t.Fatalf("ClearQueueMsg: expected player queue clear, got %+v", p.setQueueCalls[0])
+	}
+
+	entries := []QueueEntry{
+		{ID: 10, Hash: "new-a", Path: "/new-a.flac", Display: "New A", Artist: "Artist A", Title: "Title A", SourcePlaylist: "Batch"},
+		{ID: 11, Hash: "new-b", Path: "/new-b.flac", Display: "New B", Artist: "Artist B", Title: "Title B", SourcePlaylist: "Batch"},
+	}
+	next, cmd = cleared.Update(BatchEnqueuedMsg{
+		Entries:      entries,
+		QueueIDs:     []int64{10, 11},
+		WasEmpty:     true,
+		PlaylistName: "Batch",
+	})
+	if cmd != nil {
+		t.Fatalf("BatchEnqueuedMsg must not return a follow-up cmd, got %T", cmd)
+	}
+	nm := next.(Model)
+
+	if len(nm.queue.entries) != len(entries) {
+		t.Fatalf("BatchEnqueuedMsg: expected %d queue entries, got %d", len(entries), len(nm.queue.entries))
+	}
+	if len(p.appendToQueueCalls) != len(entries) {
+		t.Fatalf("BatchEnqueuedMsg: expected %d AppendToQueue calls, got %d", len(entries), len(p.appendToQueueCalls))
+	}
+	for i, want := range entries {
+		if got := nm.queue.entries[i]; got != want {
+			t.Fatalf("BatchEnqueuedMsg: entry %d = %+v, want %+v", i, got, want)
+		}
+		if got, wantTrack := p.appendToQueueCalls[i], queueTrackFromEntry(want); got != wantTrack {
+			t.Fatalf("AppendToQueue call %d = %+v, want %+v", i, got, wantTrack)
+		}
+	}
+	if len(p.playFromIndexCalls) != 1 || p.playFromIndexCalls[0] != 0 {
+		t.Fatalf("BatchEnqueuedMsg: expected PlayFromIndex(0), got calls=%v", p.playFromIndexCalls)
+	}
+	if nm.playback.state != PlaybackPlaying {
+		t.Fatalf("BatchEnqueuedMsg: expected PlaybackPlaying, got %v", nm.playback.state)
+	}
+	if nm.playback.currentHash != entries[0].Hash {
+		t.Fatalf("BatchEnqueuedMsg: expected currentHash=%q, got %q", entries[0].Hash, nm.playback.currentHash)
+	}
+	if nm.playback.currentIndex != 0 {
+		t.Fatalf("BatchEnqueuedMsg: expected currentIndex=0, got %d", nm.playback.currentIndex)
+	}
+
+	wantCalls := []string{"Stop", "SetQueue", "AppendToQueue", "AppendToQueue", "PlayFromIndex"}
+	if len(p.calls) != len(wantCalls) {
+		t.Fatalf("player calls = %v, want %v", p.calls, wantCalls)
+	}
+	for i, want := range wantCalls {
+		if p.calls[i] != want {
+			t.Fatalf("player call %d = %q, want %q (all calls: %v)", i, p.calls[i], want, p.calls)
+		}
+	}
+}

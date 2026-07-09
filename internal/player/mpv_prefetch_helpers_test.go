@@ -79,3 +79,11 @@ func isLoadfileAppend(cmd ipcTestCommand) bool {
 func isPlaylistRemove(cmd ipcTestCommand) bool {
 	return len(cmd) >= 2 && cmd.stringIs(0, "playlist-remove")
 }
+
+func isSetPause(cmd ipcTestCommand, paused bool) bool {
+	if len(cmd) < 3 || !cmd.stringIs(0, cmdSetProperty) || !cmd.stringIs(1, propPause) {
+		return false
+	}
+	got, ok := cmd.boolAt(2)
+	return ok && got == paused
+}

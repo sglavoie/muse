@@ -70,6 +70,31 @@ func (m *Manager) Play() error {
 	return nil
 }
 
+// bestEffortUnpause clears mpv's pause property after playback has already
+// been advanced by another command. It must not make the caller's successful
+// track advance fail if the follow-up pause command is rejected or disconnected.
+func (m *Manager) bestEffortUnpause() {
+	c, err := m.ipc()
+	if err == nil {
+		m.bestEffortUnpauseWith(c)
+		return
+	}
+	m.mirrorUnpaused()
+}
+
+func (m *Manager) bestEffortUnpauseWith(c *IPCClient) {
+	if c != nil {
+		_, _ = c.SendCommand(cmdSetProperty, propPause, false)
+	}
+	m.mirrorUnpaused()
+}
+
+func (m *Manager) mirrorUnpaused() {
+	m.mu.Lock()
+	m.lastPaused = false
+	m.mu.Unlock()
+}
+
 // Pause pauses playback.
 func (m *Manager) Pause() error {
 	c, err := m.ipcOrEnqueue(m.Pause)

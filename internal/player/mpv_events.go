@@ -33,8 +33,8 @@ func (m *Manager) emitPlaybackEnded() {
 
 // startEventReader opens a dedicated read-only connection to the mpv socket
 // and dispatches async events. It runs as a goroutine until ctx is cancelled
-// or the connection drops. On an end-file event with reason "eof" it calls
-// PlayFromIndex(currentIndex+1) to drive auto-advance.
+// or the connection drops. On an end-file event with reason "eof" it
+// dispatches auto-advance work away from the event-reader loop.
 func (m *Manager) startEventReader(ctx context.Context) {
 	conn, err := net.Dial("unix", m.socketPath)
 	if err != nil {
@@ -164,6 +164,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 				m.mu.Unlock()
 			}
 			if advanced {
+				go m.bestEffortUnpause()
 
 				// Remove the completed track (position 0) from mpv's
 				// playlist so it stays at 2 entries instead of growing
@@ -179,10 +180,12 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			}
 
 			// Fallback: no prefetch available, load next track directly.
-			if err := m.PlayFromIndex(idx + 1); err != nil {
-				// Queue exhausted: notify the TUI so it can reset the toggle.
-				m.emitPlaybackEnded()
-			}
+			go func(nextIdx int) {
+				if err := m.PlayFromIndex(nextIdx); err != nil {
+					// Queue exhausted: notify the TUI so it can reset the toggle.
+					m.emitPlaybackEnded()
+				}
+			}(idx + 1)
 		case "property-change":
 			if event.Name != propPause {
 				continue

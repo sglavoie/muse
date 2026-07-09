@@ -9,7 +9,7 @@ const unknownArtist = "Unknown Artist"
 // The soft upper bound is 50,000 tracks.
 type LibraryIndex struct {
 	tracks []Track
-	byHash map[string]int // non-empty hash → index in tracks slice
+	byHash map[string]int // non-empty hash -> likely index in tracks slice
 }
 
 // rebuildHashMap rebuilds the byHash map from the current tracks slice.
@@ -67,31 +67,47 @@ func less(a, b Track) bool {
 	return a.Title < b.Title
 }
 
-// adjustIndicesAfterInsert increments all hash-map entries at positions >= pos
-// by one, then records the new entry at pos. Call after splicing t into the
-// tracks slice but before returning from the mutating operation.
-func (idx *LibraryIndex) adjustIndicesAfterInsert(pos int, hash string) {
-	for h, i := range idx.byHash {
-		if i >= pos {
-			idx.byHash[h] = i + 1
+// findIndexByHash returns the current slice position for hash. The hash map is
+// maintained as a hint cache: slice insertions/removals can make unrelated
+// positions stale, so callers validate the hinted slot and fall back to a scan.
+func (idx *LibraryIndex) findIndexByHash(hash string) (int, bool) {
+	if hash == "" {
+		return 0, false
+	}
+	if i, ok := idx.byHash[hash]; ok && i >= 0 && i < len(idx.tracks) && idx.tracks[i].Hash == hash {
+		return i, true
+	}
+	for i, t := range idx.tracks {
+		if t.Hash == hash {
+			if idx.byHash == nil {
+				idx.byHash = make(map[string]int, 1)
+			}
+			idx.byHash[hash] = i
+			return i, true
 		}
 	}
+	if idx.byHash != nil {
+		delete(idx.byHash, hash)
+	}
+	return 0, false
+}
+
+// recordHashPosition records the inserted hash's current position. Positions
+// for unrelated hashes are refreshed lazily by findIndexByHash.
+func (idx *LibraryIndex) recordHashPosition(pos int, hash string) {
 	if hash != "" {
+		if idx.byHash == nil {
+			idx.byHash = make(map[string]int, 1)
+		}
 		idx.byHash[hash] = pos
 	}
 }
 
-// adjustIndicesAfterRemove deletes the removed hash and decrements all
-// hash-map entries at positions > pos by one. Call after removing the element
-// at pos from the tracks slice.
-func (idx *LibraryIndex) adjustIndicesAfterRemove(pos int, hash string) {
+// removeHashPosition deletes the removed hash's hint. Positions for unrelated
+// hashes are refreshed lazily by findIndexByHash.
+func (idx *LibraryIndex) removeHashPosition(hash string) {
 	if hash != "" {
 		delete(idx.byHash, hash)
-	}
-	for h, i := range idx.byHash {
-		if i > pos {
-			idx.byHash[h] = i - 1
-		}
 	}
 }
 
@@ -102,9 +118,9 @@ func (idx *LibraryIndex) adjustIndicesAfterRemove(pos int, hash string) {
 func (idx *LibraryIndex) Insert(t Track) {
 	// Remove any existing entry with the same hash to avoid duplicates.
 	if t.Hash != "" {
-		if oldPos, ok := idx.byHash[t.Hash]; ok && oldPos < len(idx.tracks) {
+		if oldPos, ok := idx.findIndexByHash(t.Hash); ok {
 			idx.tracks = append(idx.tracks[:oldPos], idx.tracks[oldPos+1:]...)
-			idx.adjustIndicesAfterRemove(oldPos, t.Hash)
+			idx.removeHashPosition(t.Hash)
 		}
 	}
 	pos := sort.Search(len(idx.tracks), func(i int) bool {
@@ -113,10 +129,7 @@ func (idx *LibraryIndex) Insert(t Track) {
 	idx.tracks = append(idx.tracks, Track{})
 	copy(idx.tracks[pos+1:], idx.tracks[pos:])
 	idx.tracks[pos] = t
-	if idx.byHash == nil {
-		idx.byHash = make(map[string]int, 1)
-	}
-	idx.adjustIndicesAfterInsert(pos, t.Hash)
+	idx.recordHashPosition(pos, t.Hash)
 }
 
 // BulkLoad replaces the index contents with the given tracks and sorts once.
@@ -159,7 +172,7 @@ func (idx *LibraryIndex) RemoveByPath(path string) bool {
 		if t.Path == path {
 			hash := t.Hash
 			idx.tracks = append(idx.tracks[:i], idx.tracks[i+1:]...)
-			idx.adjustIndicesAfterRemove(i, hash)
+			idx.removeHashPosition(hash)
 			return true
 		}
 	}
@@ -169,20 +182,20 @@ func (idx *LibraryIndex) RemoveByPath(path string) bool {
 // UpsertByPath removes any existing track with the given path then inserts t,
 // ensuring modified files replace their stale entries without creating duplicates.
 func (idx *LibraryIndex) UpsertByPath(path string, t Track) {
-	// Inline remove so we only do one incremental adjust per operation.
+	// Inline remove so the stale path entry cannot coexist with the replacement.
 	for i, old := range idx.tracks {
 		if old.Path == path {
 			idx.tracks = append(idx.tracks[:i], idx.tracks[i+1:]...)
-			idx.adjustIndicesAfterRemove(i, old.Hash)
+			idx.removeHashPosition(old.Hash)
 			break
 		}
 	}
 	// Remove any existing entry with the same hash to avoid duplicates,
 	// mirroring the dedup logic in Insert.
 	if t.Hash != "" {
-		if oldPos, ok := idx.byHash[t.Hash]; ok && oldPos < len(idx.tracks) {
+		if oldPos, ok := idx.findIndexByHash(t.Hash); ok {
 			idx.tracks = append(idx.tracks[:oldPos], idx.tracks[oldPos+1:]...)
-			idx.adjustIndicesAfterRemove(oldPos, t.Hash)
+			idx.removeHashPosition(t.Hash)
 		}
 	}
 	// Inline insert.
@@ -192,16 +205,13 @@ func (idx *LibraryIndex) UpsertByPath(path string, t Track) {
 	idx.tracks = append(idx.tracks, Track{})
 	copy(idx.tracks[pos+1:], idx.tracks[pos:])
 	idx.tracks[pos] = t
-	if idx.byHash == nil {
-		idx.byHash = make(map[string]int, 1)
-	}
-	idx.adjustIndicesAfterInsert(pos, t.Hash)
+	idx.recordHashPosition(pos, t.Hash)
 }
 
 // FindByHash returns the track whose Hash equals hash.
 // Returns the track and true if found, or a zero Track and false otherwise.
 func (idx *LibraryIndex) FindByHash(hash string) (Track, bool) {
-	if i, ok := idx.byHash[hash]; ok && i < len(idx.tracks) {
+	if i, ok := idx.findIndexByHash(hash); ok {
 		return idx.tracks[i], true
 	}
 	return Track{}, false
@@ -223,7 +233,7 @@ func (idx *LibraryIndex) FindByPath(path string) (Track, bool) {
 // backwards-going clock (NTP correction, manual adjust) cannot rewind the
 // timestamp and reorder the History view. Returns true if the track was found.
 func (idx *LibraryIndex) IncrementPlayCount(hash string, playedAt int64) bool {
-	if i, ok := idx.byHash[hash]; ok && i < len(idx.tracks) {
+	if i, ok := idx.findIndexByHash(hash); ok {
 		idx.tracks[i].PlayCount++
 		if playedAt > idx.tracks[i].LastPlayedAt {
 			idx.tracks[i].LastPlayedAt = playedAt
@@ -237,7 +247,7 @@ func (idx *LibraryIndex) IncrementPlayCount(hash string, playedAt int64) bool {
 // place. No re-sort is needed because Duration is not part of the sort key.
 // Returns true if the track was found.
 func (idx *LibraryIndex) UpdateDuration(hash string, duration float64) bool {
-	if i, ok := idx.byHash[hash]; ok && i < len(idx.tracks) {
+	if i, ok := idx.findIndexByHash(hash); ok {
 		idx.tracks[i].Duration = duration
 		return true
 	}
@@ -254,10 +264,10 @@ func (idx *LibraryIndex) UpdateMetadata(hash, title, artist, album, genre string
 	}
 	for i, t := range idx.tracks {
 		if t.Hash == hash {
-			// Remove from current position with one incremental adjust.
+			// Remove from the current position before changing sort keys.
 			idx.tracks = append(idx.tracks[:i], idx.tracks[i+1:]...)
-			idx.adjustIndicesAfterRemove(i, hash)
-			// Update fields and re-insert in sorted order with one incremental adjust.
+			idx.removeHashPosition(hash)
+			// Update fields and re-insert in sorted order.
 			t.Title = title
 			t.Artist = artist
 			t.Album = album
@@ -268,7 +278,7 @@ func (idx *LibraryIndex) UpdateMetadata(hash, title, artist, album, genre string
 			idx.tracks = append(idx.tracks, Track{})
 			copy(idx.tracks[pos+1:], idx.tracks[pos:])
 			idx.tracks[pos] = t
-			idx.adjustIndicesAfterInsert(pos, hash)
+			idx.recordHashPosition(pos, hash)
 			return true
 		}
 	}

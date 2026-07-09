@@ -383,11 +383,6 @@ func (m *Manager) PlayQueueEntry(entry QueueTrack, marker MissingMarker) error {
 	if _, err = c.SendCommand(cmdLoadfile, entry.Path, "replace", 0, "pause=no"); err != nil {
 		return err
 	}
-	// loadfile with "pause=no" resets mpv's pause property; eagerly mirror
-	// that state so an auto-restart firing before the property-change event
-	// arrives does not resume the track paused.
-	m.mu.Lock()
-	m.lastPaused = false
-	m.mu.Unlock()
+	m.bestEffortUnpauseWith(c)
 	return nil
 }
