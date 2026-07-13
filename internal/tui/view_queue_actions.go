@@ -121,6 +121,22 @@ func (v *QueueView) markMissing(path string) {
 	}
 }
 
+// markMissingByHash marks all entries with the given content hash as missing.
+// Used when a scan discovers different content at a queued entry's path: the
+// old hash's file is gone (overwritten in place), so its queue instances must
+// not play the replacement content under stale metadata. Marking by hash — not
+// path — keeps a same-content copy queued under a different path untouched.
+func (v *QueueView) markMissingByHash(hash string) {
+	if hash == "" {
+		return
+	}
+	for i := range v.entries {
+		if v.entries[i].Hash == hash {
+			v.entries[i].Missing = true
+		}
+	}
+}
+
 // isSavingAsPlaylist reports whether the inline save-as-playlist input is active.
 func (v QueueView) isSavingAsPlaylist() bool {
 	return v.savingAsPlaylist

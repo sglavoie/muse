@@ -142,6 +142,11 @@ func runTUI(ctx context.Context) error {
 		app.Shutdown(shutdownDeps, app.ShutdownTimeout)
 		return err
 	}
+	// Stop and flush the asynchronous library pipeline before the DB writer is
+	// drained so its final watcher/scan upserts land durably. StopAndWait is
+	// idempotent, so wiring it here is safe for both the normal-quit and
+	// signal-driven shutdown paths.
+	shutdownDeps.StopLibraryPipeline = libResult.StopAndWait
 
 	adapter := db.NewPlaylistAdapter(result.DB, result.Writer)
 
@@ -156,9 +161,8 @@ func runTUI(ctx context.Context) error {
 	// repeat/shuffle/volume, current track) before tea.NewProgram so the
 	// program captures the fully-initialised model at construction time.
 	app.ApplyRestoredSession(
-		&model, mgr, result.Restored, result.Writer, result.DB,
-		libResult.Tracks, libResult.DeletedPaths, libResult.HashByPath,
-		cfg.DefaultVolume,
+		&model, mgr, result.Restored, result.DB,
+		libResult.Tracks, cfg.DefaultVolume,
 	)
 
 	p := tea.NewProgram(model)
@@ -248,10 +252,10 @@ func buildModel(
 		tui.WithScanChannel(libResult.TuiScanCh),
 		tui.WithScanErrChannel(libResult.TuiScanErrCh),
 		tui.WithWatchChannel(libResult.TuiWatchCh),
+		tui.WithWatchStatusChannel(libResult.TuiWatchStatusCh),
 		tui.WithLibraryRoots(cfg.MusicDirectories),
 		tui.WithExtractor(extractor),
 		tui.WithPlayer(mgr),
-		tui.WithWatchDegraded(libResult.WatchDegraded),
 		tui.WithRuntimeDir(dirs.Runtime),
 		tui.WithDataDir(dirs.Data),
 		tui.WithQueueWriter(result.Writer),

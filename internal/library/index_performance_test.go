@@ -72,7 +72,11 @@ func TestLibraryIndex_MemoryUnder25MB(t *testing.T) {
 
 	var idx LibraryIndex
 	idx.BulkLoad(tracks)
-	tracks = nil
+	// Drop the reference so the 50k-track input slice is collected by the GC
+	// below, isolating the index's own heap footprint in the measurement. The
+	// assignment is deliberately "ineffectual" — its purpose is the side effect
+	// of releasing the backing array, not a value later read.
+	tracks = nil //nolint:ineffassign // release input slice before measuring index heap
 
 	runtime.GC()
 	var after runtime.MemStats

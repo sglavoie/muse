@@ -95,6 +95,64 @@ func TestUpsertBatch_Idempotent(t *testing.T) {
 	}
 }
 
+// TestUpsertBatch_ClearsQueueMissing verifies that re-upserting a recovered
+// track (same hash, new path) clears queue.missing for every queued instance
+// in the same transaction that clears tracks.missing, so a move/rename never
+// leaves durable queue rows grayed out.
+func TestUpsertBatch_ClearsQueueMissing(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	track := library.Track{Hash: "hash-recover", Path: "/old/path.mp3", Title: "T", Artist: "A", Album: "Al", Duration: 60.0}
+	if err := w.UpsertBatch([]library.Track{track}); err != nil {
+		t.Fatalf("UpsertBatch: %v", err)
+	}
+
+	// Queue the track twice, then simulate a disappearance: both the track
+	// and its queue rows are marked missing.
+	qid1, err := w.AppendTrack(track, "")
+	if err != nil {
+		t.Fatalf("AppendTrack 1: %v", err)
+	}
+	qid2, err := w.AppendTrack(track, "")
+	if err != nil {
+		t.Fatalf("AppendTrack 2: %v", err)
+	}
+	if err := w.MarkTrackMissing("hash-recover"); err != nil {
+		t.Fatalf("MarkTrackMissing: %v", err)
+	}
+	if err := w.MarkQueueEntryMissing(qid1); err != nil {
+		t.Fatalf("MarkQueueEntryMissing qid1: %v", err)
+	}
+	if err := w.MarkQueueEntryMissing(qid2); err != nil {
+		t.Fatalf("MarkQueueEntryMissing qid2: %v", err)
+	}
+
+	// Recovery: the file reappears at a new path with the same hash.
+	recovered := library.Track{Hash: "hash-recover", Path: "/new/path.mp3", Title: "T", Artist: "A", Album: "Al", Duration: 60.0}
+	if err := w.UpsertBatch([]library.Track{recovered}); err != nil {
+		t.Fatalf("recovery UpsertBatch: %v", err)
+	}
+
+	var trackMissing int
+	if err := d.QueryRow(`SELECT missing FROM tracks WHERE hash='hash-recover'`).Scan(&trackMissing); err != nil {
+		t.Fatalf("select tracks.missing: %v", err)
+	}
+	if trackMissing != 0 {
+		t.Errorf("tracks.missing = %d after recovery; want 0", trackMissing)
+	}
+
+	for _, qid := range []int64{qid1, qid2} {
+		var qMissing int
+		if err := d.QueryRow(`SELECT missing FROM queue WHERE id=?`, qid).Scan(&qMissing); err != nil {
+			t.Fatalf("select queue.missing id=%d: %v", qid, err)
+		}
+		if qMissing != 0 {
+			t.Errorf("queue.missing = %d for id=%d after recovery; want 0", qMissing, qid)
+		}
+	}
+}
+
 // TestUpsertBatch_Empty verifies that UpsertBatch returns nil without error
 // when given an empty slice.
 func TestUpsertBatch_Empty(t *testing.T) {

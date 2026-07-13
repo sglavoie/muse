@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sglavoie/muse/internal/app"
 	"github.com/sglavoie/muse/internal/db"
@@ -66,12 +67,6 @@ func TestLoadLibrary_EmptyDB(t *testing.T) {
 	if len(libResult.Tracks) != 0 {
 		t.Errorf("expected 0 tracks, got %d", len(libResult.Tracks))
 	}
-	if len(libResult.DeletedPaths) != 0 {
-		t.Errorf("expected 0 deleted paths, got %d", len(libResult.DeletedPaths))
-	}
-	if len(libResult.HashByPath) != 0 {
-		t.Errorf("expected empty HashByPath, got %d entries", len(libResult.HashByPath))
-	}
 }
 
 func TestLoadLibrary_ReadTracksErrorReturnsError(t *testing.T) {
@@ -122,7 +117,7 @@ func TestLoadLibrary_WithExistingTracks(t *testing.T) {
 	dirs := setupDirs(t)
 	musicDir := t.TempDir()
 
-	// Create a music file on disk so it doesn't appear in deletedPaths.
+	// Create a music file on disk so it is not reported as a deletion event.
 	trackPath := filepath.Join(musicDir, "song.mp3")
 	if err := os.WriteFile(trackPath, []byte("fake"), 0o644); err != nil {
 		t.Fatalf("write track: %v", err)
@@ -152,10 +147,6 @@ func TestLoadLibrary_WithExistingTracks(t *testing.T) {
 	if libResult.Tracks[0].Hash != "hash1" {
 		t.Errorf("track hash = %q, want %q", libResult.Tracks[0].Hash, "hash1")
 	}
-
-	if got, ok := libResult.HashByPath[trackPath]; !ok || got != "hash1" {
-		t.Errorf("HashByPath[%q] = %q, want %q", trackPath, got, "hash1")
-	}
 }
 
 func TestLoadLibrary_DeletedPathsDetected(t *testing.T) {
@@ -179,22 +170,41 @@ func TestLoadLibrary_DeletedPathsDetected(t *testing.T) {
 		cancel()
 		t.Fatalf("LoadLibrary: %v", err)
 	}
-	defer drainChannels(cancel, libResult)
 
 	// The track should appear in Tracks (it's from the DB cache).
 	if len(libResult.Tracks) != 1 {
+		cancel()
 		t.Fatalf("expected 1 track, got %d", len(libResult.Tracks))
 	}
 
-	// The missing file should be in DeletedPaths.
+	// The missing file now flows asynchronously through the watch
+	// reconciliation stream as a deletion event rather than a synchronous
+	// DeletedPaths slice.
 	found := false
-	for _, p := range libResult.DeletedPaths {
-		if p == missingPath {
-			found = true
-			break
+	deadline := time.After(10 * time.Second)
+watch:
+	for {
+		select {
+		case ev, ok := <-libResult.TuiWatchCh:
+			if !ok {
+				break watch
+			}
+			if ev.Deleted && ev.Path == missingPath {
+				found = true
+				break watch
+			}
+		case <-deadline:
+			break watch
 		}
 	}
+
+	cancel()
+	for range libResult.TuiScanCh {
+	}
+	for range libResult.TuiWatchCh {
+	}
+
 	if !found {
-		t.Errorf("expected %q in DeletedPaths, got %v", missingPath, libResult.DeletedPaths)
+		t.Errorf("expected deletion event for %q on the watch channel", missingPath)
 	}
 }

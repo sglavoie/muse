@@ -79,7 +79,7 @@ func TestStopAfterCurrent_EventReaderStops(t *testing.T) {
 	}
 	close(m.callbacksReady)
 
-	go m.startEventReader(ctx)
+	go m.startEventReader(ctx, nil)
 
 	// The event reader emits an initial OnTrackChanged on connect to sync
 	// track info (covers the reconnect race). Drain it.
@@ -167,7 +167,7 @@ func TestStopAfterCurrent_NormalAdvanceWhenDisabled(t *testing.T) {
 	}
 	close(m.callbacksReady)
 
-	go m.startEventReader(ctx)
+	go m.startEventReader(ctx, nil)
 
 	// OnPlaybackEnded fires via the normal queue-exhausted path (not stop-after).
 	select {

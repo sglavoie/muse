@@ -15,14 +15,8 @@ type SessionPlayer interface {
 	SetQueue(entries []player.QueueTrack)
 	SetRepeat(mode string) error
 	SetShuffle(enabled bool) error
-	SetCurrentIndex(index int)
+	RestoreShuffleAnchor(index int)
 	SetVolumeAbsolute(volume float64) error
-}
-
-// ShuffleWriter can regenerate shuffle positions in the database.
-type ShuffleWriter interface {
-	WriteShuffle(enabled bool) error
-	MarkTrackMissing(hash string) error
 }
 
 // PlaylistReader reads playlists from the database.
@@ -32,16 +26,18 @@ type PlaylistReader interface {
 
 // ApplyRestoredSession configures the TUI model and player with state from the
 // previous session: queue, library tracks, playlists, repeat mode, shuffle,
-// volume, current track, and evicts deleted files from the library index.
+// volume, and current track.
+//
+// Eviction of files that were deleted from disk since the last session is no
+// longer handled here. Those deletions now arrive asynchronously as watch
+// deletion events on LibraryResult.TuiWatchCh (interleaved with live watcher
+// events), so the background library pipeline owns all reconciliation.
 func ApplyRestoredSession(
 	model *tui.Model,
 	mgr SessionPlayer,
 	restored *RestoredSession,
-	shuffleWriter ShuffleWriter,
 	playlistReader PlaylistReader,
 	libraryTracks []library.Track,
-	deletedPaths []string,
-	hashByPath map[string]string,
 	defaultVolume int,
 ) {
 	if restored == nil {
@@ -55,16 +51,6 @@ func ApplyRestoredSession(
 	// Pre-populate the library with cached tracks for instant display.
 	tui.WithLibraryTracks(libraryTracks)(model)
 
-	// Evict deleted files from the library index before the TUI starts.
-	for _, path := range deletedPaths {
-		model.RemoveLibraryTrackByPath(path)
-		if hash, ok := hashByPath[path]; ok && shuffleWriter != nil {
-			if err := shuffleWriter.MarkTrackMissing(hash); err != nil {
-				slog.Warn("startup: mark deleted track missing", "path", path, "err", err)
-			}
-		}
-	}
-
 	if playlistReader != nil {
 		if playlists, err := playlistReader.ReadPlaylists(); err == nil {
 			tui.WithPlaylists(playlists)(model)
@@ -77,12 +63,10 @@ func ApplyRestoredSession(
 	// the correct repeat/shuffle/playback state from the previous session.
 	tui.WithRepeatMode(restored.RepeatMode)(model)
 
-	// Regenerate shuffle_position for all queue rows when shuffle is on.
-	if restored.Shuffle && len(restored.QueueEntries) > 0 && shuffleWriter != nil {
-		if err := shuffleWriter.WriteShuffle(true); err != nil {
-			slog.Warn("startup: regenerate shuffle positions", "err", err)
-		}
-	}
+	// Shuffle order is Go-owned by the player; the DB persists only the boolean
+	// flag, so there is nothing to regenerate here. The player's shuffle cycle is
+	// (re)anchored around the restored current track further below via
+	// RestoreShuffleAnchor, after the shuffle flag has been applied.
 	tui.WithShuffle(restored.Shuffle)(model)
 	tui.WithRadioMode(restored.RadioMode)(model)
 	vol := restored.Volume
@@ -126,7 +110,11 @@ func ApplyRestoredSession(
 				return
 			}
 			tui.WithCurrentTrackHash(restored.CurrentHash)(model)
-			mgr.SetCurrentIndex(foundIdx)
+			// Anchor the player at the restored track. When shuffle is enabled
+			// this rebuilds the cycle around foundIdx (fresh permutation of the
+			// rest) so the first Next does not replay the restored track; the
+			// shuffle flag was already applied by SetShuffle above.
+			mgr.RestoreShuffleAnchor(foundIdx)
 			tui.WithCurrentIndex(foundIdx)(model)
 			// Populate status bar from the queue entry so the first render
 			// shows track metadata instead of an empty bar.

@@ -21,6 +21,10 @@ func (m Model) handleScanCancelKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bo
 	}
 	m.scanning = false
 	m.longOp = longOpState{}
+	// A canceled scan leaves the index only partially rebuilt, so the vanished
+	// paths it would compute are meaningless. Drop the prior-paths snapshot so
+	// the trailing ScanDoneMsg skips deletion reconciliation entirely.
+	m.rescanPriorPaths = nil
 	m.statusBar.notify("Scan canceled")
 	return m, nil, true
 }

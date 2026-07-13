@@ -38,24 +38,6 @@ func (m *Manager) Start() error {
 	return nil
 }
 
-// enqueue stores cmd for replay once the IPC socket connects and emits a
-// status message. Returns ErrNotConnected if Start has not been called.
-func (m *Manager) enqueue(cmd func() error) error {
-	m.mu.Lock()
-	if m.cmdQueue == nil {
-		m.mu.Unlock()
-		return ErrNotConnected
-	}
-	m.cmdQueue = append(m.cmdQueue, cmd)
-	fn := m.callbacks.OnStatus
-	m.mu.Unlock()
-
-	if fn != nil {
-		fn("Connecting to mpv…")
-	}
-	return nil
-}
-
 // Close cancels the mpv subprocess and closes the IPC connection.
 func (m *Manager) Close() error {
 	if m.rootCancel != nil {
@@ -71,6 +53,9 @@ func (m *Manager) Close() error {
 	// receives ErrNotConnected immediately rather than silently appending
 	// to a queue that will never be drained.
 	m.cmdQueue = nil
+	// Clear activating so a Close racing an in-flight activation cannot leave the
+	// gate stuck; with cmdQueue nil, admit now returns ErrNotConnected.
+	m.activating = false
 	cmd := m.cmd
 	m.cmd = nil
 	m.mu.Unlock()
@@ -93,59 +78,23 @@ func (m *Manager) Close() error {
 	return nil
 }
 
-// pollUntilReady dials the mpv socket at regular intervals until it succeeds
-// or the context is cancelled.
+// pollUntilReady performs the initial connection after Start: it waits for the
+// mpv socket, then installs the client and replays any queued commands. If the
+// socket never comes up (and the manager is not shutting down) it enters the
+// shared restart retry path, which relaunches mpv exactly like a mid-session
+// outage. It returns immediately when the context is cancelled (e.g. by Close).
 func (m *Manager) pollUntilReady(ctx context.Context) {
-	deadline := time.Now().Add(socketPollTimeout)
-	for time.Now().Before(deadline) {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
-		client, err := NewIPCClient(m.socketPath)
-		if err == nil {
-			// If the manager was closed while NewIPCClient was inflight,
-			// drop the freshly-opened client instead of installing it on
-			// the (now shutting-down) Manager. Without this the client
-			// stays open and unreferenced after Close returns because
-			// Close already snapshotted m.client as nil. The check is
-			// repeated under the lock to defeat a TOCTOU race against
-			// Close, which nils m.client and m.cmdQueue together.
-			m.mu.Lock()
-			select {
-			case <-ctx.Done():
-				m.mu.Unlock()
-				_ = client.Close()
-				return
-			default:
-			}
-			m.client = client
-			queue := m.cmdQueue
-			m.cmdQueue = nil
-			m.mu.Unlock()
-
-			slog.Info("mpv connected", "socket", m.socketPath)
-			m.backoffReset.Store(true)
-			for _, cmd := range queue {
-				if err := cmd(); err != nil {
-					slog.Warn("mpv: queued command failed on replay", "err", err)
-				}
-			}
-			go m.healthCheck(ctx, client)
-			go m.startEventReader(ctx)
-			return
-		}
-		time.Sleep(socketPollInterval)
+	client, err := m.connectSocket(ctx)
+	if err == nil {
+		m.activateConnection(ctx, client, nil)
+		return
+	}
+	if ctx.Err() != nil {
+		// Manager is shutting down; nothing to install or recover.
+		return
 	}
 
-	slog.Warn("mpv: socket connection timed out", "socket", m.socketPath, "timeout", socketPollTimeout)
-	m.mu.Lock()
-	m.cmdQueue = nil
-	fn := m.callbacks.OnStatus
-	m.mu.Unlock()
-	if fn != nil {
-		fn("mpv: connection timed out")
-	}
+	slog.Warn("mpv: initial socket connection timed out; entering restart retry path",
+		"socket", m.socketPath, "timeout", m.effectiveSocketPollTimeout())
+	m.recoverOutage()
 }

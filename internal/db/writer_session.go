@@ -2,102 +2,22 @@ package db
 
 import (
 	"database/sql"
-	"math/rand/v2"
 	"time"
 )
 
-type queueShuffleRow struct {
-	id              int64
-	position        int64
-	shufflePosition int64
-}
-
-// WriteShuffle persists the shuffle flag to the session row and, when enabled
-// is true, regenerates shuffle_position for all active queue rows with fresh
-// random gapped integers inside a single transaction. When disabled, only the
-// session flag is updated.
+// WriteShuffle persists the shuffle flag to the singleton session row so it can
+// be restored across restarts. Shuffle playback order is Go-owned (the player's
+// in-memory traversal state); the database only records whether shuffle is on.
 //
-// shuffle_position is a persistence-only field. Playback randomisation is
-// handled by mpv's native shuffle property (SetShuffle on the player). DB reads
-// always use ORDER BY position; shuffle_position is regenerated on each enable
-// (and on session restore when shuffle is on) to ensure varied playback order
-// across sessions without requiring a separate read path.
+// The legacy shuffle_position column is retained for schema compatibility but is
+// no longer read or regenerated — playback randomisation happens entirely in the
+// player, and shuffle history is intentionally not persisted across restarts.
 func (w *Writer) WriteShuffle(enabled bool) error {
-	return w.Exec(func(db *sql.DB) error {
-		tx, err := db.Begin()
-		if err != nil {
-			return err
-		}
-		defer rollback(tx)
-
-		shuffleVal := 0
-		if enabled {
-			shuffleVal = 1
-		}
-		if _, err := tx.Exec(
-			`UPDATE session SET shuffle=?, updated_at=? WHERE id=1`,
-			shuffleVal, time.Now().Unix(),
-		); err != nil {
-			return err
-		}
-
-		if enabled {
-			rows, err := tx.Query(`SELECT id, position, shuffle_position FROM queue WHERE deleted_at IS NULL ORDER BY position`)
-			if err != nil {
-				return err
-			}
-			var rowsToShuffle []queueShuffleRow
-			for rows.Next() {
-				var row queueShuffleRow
-				if err := rows.Scan(&row.id, &row.position, &row.shufflePosition); err != nil {
-					rows.Close()
-					return err
-				}
-				rowsToShuffle = append(rowsToShuffle, row)
-			}
-			rows.Close()
-			if err := rows.Err(); err != nil {
-				return err
-			}
-
-			if len(rowsToShuffle) > 0 {
-				perm := rand.Perm(len(rowsToShuffle))
-				if len(rowsToShuffle) > 1 && shufflePermutationMatches(rowsToShuffle, perm) {
-					perm[0], perm[1] = perm[1], perm[0]
-				}
-				for i, row := range rowsToShuffle {
-					newPos := int64(perm[i]+1) * queuePositionGap
-					if _, err := tx.Exec(
-						`UPDATE queue SET shuffle_position=? WHERE id=?`,
-						newPos, row.id,
-					); err != nil {
-						return err
-					}
-				}
-			}
-		}
-
-		return tx.Commit()
-	})
-}
-
-func shufflePermutationMatches(rows []queueShuffleRow, perm []int) bool {
-	matchesQueueOrder := true
-	matchesPreviousShuffle := true
-	hasPreviousShuffle := true
-	for i, row := range rows {
-		newPos := int64(perm[i]+1) * queuePositionGap
-		if newPos != row.position {
-			matchesQueueOrder = false
-		}
-		if row.shufflePosition == 0 || newPos != row.shufflePosition {
-			matchesPreviousShuffle = false
-		}
-		if row.shufflePosition == 0 {
-			hasPreviousShuffle = false
-		}
+	v := 0
+	if enabled {
+		v = 1
 	}
-	return matchesQueueOrder || (hasPreviousShuffle && matchesPreviousShuffle)
+	return w.updateSessionField("shuffle", v)
 }
 
 // UpsertSession updates all session state fields atomically in a single UPDATE:

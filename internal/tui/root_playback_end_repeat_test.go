@@ -150,6 +150,72 @@ func TestPlaybackEndedMsgRepeatOffShowsNotification(t *testing.T) {
 	}
 }
 
+// stubCycleRestarter implements queueCycleRestarter (and playPauser via the
+// embedded stubPlayer) so repeat-all tests can assert the handler prefers
+// RestartQueueCycle over PlayFromIndex(0).
+type stubCycleRestarter struct {
+	stubPlayer
+	restartCalls int
+	restartErr   error
+}
+
+func (s *stubCycleRestarter) RestartQueueCycle() error {
+	s.restartCalls++
+	return s.restartErr
+}
+
+// TestPlaybackEndedMsgRepeatAllPrefersRestartQueueCycle verifies that when the
+// player implements queueCycleRestarter, repeat-all exhaustion routes through
+// RestartQueueCycle (fresh shuffle permutation) rather than PlayFromIndex(0).
+func TestPlaybackEndedMsgRepeatAllPrefersRestartQueueCycle(t *testing.T) {
+	p := &stubCycleRestarter{}
+	m := New(context.Background(), WithPlayer(p))
+	m.playback.state = PlaybackPlaying
+	m.playback.repeatMode = RepeatAll
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Path: "/a.flac", Artist: "A", Title: "One"},
+		{ID: 2, Path: "/b.flac", Artist: "B", Title: "Two"},
+	}
+
+	next, _ := m.Update(PlaybackEndedMsg{})
+	nm := next.(Model)
+
+	if nm.playback.state != PlaybackPlaying {
+		t.Fatalf("expected PlaybackPlaying after repeat-all, got %v", nm.playback.state)
+	}
+	if p.restartCalls != 1 {
+		t.Fatalf("expected RestartQueueCycle called once, got %d", p.restartCalls)
+	}
+	if len(p.playFromIndexCalls) != 0 {
+		t.Fatalf("expected no PlayFromIndex fallback, got %v", p.playFromIndexCalls)
+	}
+}
+
+// TestPlaybackEndedMsgRepeatAllRestartFallbackOnError verifies that if
+// RestartQueueCycle fails, the handler logs and falls through to the idle
+// transition (no crash, no PlayFromIndex fallback for the restart path).
+func TestPlaybackEndedMsgRepeatAllRestartError(t *testing.T) {
+	p := &stubCycleRestarter{restartErr: errStubPlay}
+	m := New(context.Background(), WithPlayer(p))
+	m.playback.state = PlaybackPlaying
+	m.playback.repeatMode = RepeatAll
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Path: "/a.flac", Artist: "A", Title: "One"},
+	}
+
+	next, _ := m.Update(PlaybackEndedMsg{})
+	nm := next.(Model)
+
+	if p.restartCalls != 1 {
+		t.Fatalf("expected RestartQueueCycle attempted once, got %d", p.restartCalls)
+	}
+	// On restart failure the queue is treated as finished (idle), matching the
+	// prior PlayFromIndex-failure behaviour.
+	if nm.playback.state != PlaybackIdle {
+		t.Fatalf("expected PlaybackIdle after restart error, got %v", nm.playback.state)
+	}
+}
+
 // TestRepeatAll_ResetsMissingTrackCount verifies that when repeat-all wraps
 // back to the beginning of the queue, the missingTrackCount is reset so it
 // does not accumulate across repeat cycles.

@@ -78,10 +78,12 @@ func WithPlayer(p playPauser) Option {
 	return func(m *Model) { m.player = p }
 }
 
-// WithWatchDegraded marks the filesystem watcher as degraded. The status bar
-// shows a notice so the user knows to use manual rescan.
-func WithWatchDegraded(degraded bool) Option {
-	return func(m *Model) { m.watchDegraded = degraded }
+// WithWatchStatusChannel sets the channel that reports filesystem watcher
+// availability once the background library pipeline completes its asynchronous
+// setup. The TUI drains it once on startup; when the watcher is unavailable it
+// marks the status bar degraded and notifies the user to use manual rescan.
+func WithWatchStatusChannel(ch <-chan library.WatchStatusMsg) Option {
+	return func(m *Model) { m.watchStatusCh = ch }
 }
 
 // WithRuntimeDir sets the runtime directory for ephemeral sockets (e.g. preview player).

@@ -11,20 +11,18 @@ func (m *Manager) LoadFilePaused(path string, positionMs int64) error {
 		positionMs = 0
 	}
 	elapsedSecs := float64(positionMs) / 1000.0
-	c, err := m.ipcOrEnqueue(func() error { return m.LoadFilePaused(path, positionMs) })
-	if err != nil || c == nil {
-		return err
-	}
-	if _, err = c.SendCommand(cmdLoadfile, path, "replace", 0, fmt.Sprintf("start=%g,pause=yes", elapsedSecs)); err != nil {
-		return err
-	}
-	// loadfile with "pause=yes" forces mpv into the paused state; eagerly
-	// mirror that so a restart firing before the property-change event
-	// arrives preserves the paused state.
-	m.mu.Lock()
-	m.lastPaused = true
-	m.mu.Unlock()
-	return nil
+	return m.admit(func(c *IPCClient) error {
+		if _, err := c.SendCommand(cmdLoadfile, path, "replace", 0, fmt.Sprintf("start=%g,pause=yes", elapsedSecs)); err != nil {
+			return err
+		}
+		// loadfile with "pause=yes" forces mpv into the paused state; eagerly
+		// mirror that so a restart firing before the property-change event
+		// arrives preserves the paused state.
+		m.mu.Lock()
+		m.lastPaused = true
+		m.mu.Unlock()
+		return nil
+	})
 }
 
 // loadFileAt sends mpv a loadfile command with a start= option to resume

@@ -91,6 +91,73 @@ func TestShutdownOrder(t *testing.T) {
 	}
 }
 
+// TestShutdownStopsLibraryPipelineBeforeDBWriter verifies that the library
+// pipeline is stopped (and its final scan/watch batches flushed into the DB
+// writer) after the player is closed but before the DB writer is cancelled and
+// drained. This ordering is what makes a single changed track durable before
+// the writer stops on a normal quit.
+func TestShutdownStopsLibraryPipelineBeforeDBWriter(t *testing.T) {
+	installLogger(t)
+
+	rec := &stepRecorder{}
+
+	deps := app.ShutdownDeps{
+		ClosePlayer:         func() error { rec.record("close"); return nil },
+		StopLibraryPipeline: func() { rec.record("stopPipeline") },
+		CancelDBWriter:      func() { rec.record("cancelDB") },
+		WaitDBWriter:        func() { rec.record("waitDB") },
+	}
+
+	app.Shutdown(deps, app.ShutdownTimeout)
+
+	got := rec.snapshot()
+	for _, name := range []string{"close", "stopPipeline", "cancelDB", "waitDB"} {
+		if indexIn(got, name) == -1 {
+			t.Errorf("step %q was not recorded; got %v", name, got)
+		}
+	}
+
+	checks := []struct{ before, after string }{
+		{"close", "stopPipeline"},
+		{"stopPipeline", "cancelDB"},
+		{"cancelDB", "waitDB"},
+	}
+	for _, c := range checks {
+		bi := indexIn(got, c.before)
+		ai := indexIn(got, c.after)
+		if bi == -1 || ai == -1 {
+			continue
+		}
+		if bi >= ai {
+			t.Errorf("expected %q (index %d) before %q (index %d) in %v",
+				c.before, bi, c.after, ai, got)
+		}
+	}
+}
+
+// TestShutdownNilStopLibraryPipelineNoPanic confirms a nil StopLibraryPipeline
+// is a safe no-op (the load-library-failed shutdown path leaves it unset).
+func TestShutdownNilStopLibraryPipelineNoPanic(t *testing.T) {
+	installLogger(t)
+
+	rec := &stepRecorder{}
+	deps := app.ShutdownDeps{
+		ClosePlayer:    func() error { rec.record("close"); return nil },
+		CancelDBWriter: func() { rec.record("cancelDB") },
+		WaitDBWriter:   func() { rec.record("waitDB") },
+	}
+
+	// Must not panic despite StopLibraryPipeline being nil.
+	app.Shutdown(deps, app.ShutdownTimeout)
+
+	got := rec.snapshot()
+	for _, name := range []string{"close", "cancelDB", "waitDB"} {
+		if indexIn(got, name) == -1 {
+			t.Errorf("step %q was skipped; got %v", name, got)
+		}
+	}
+}
+
 // TestShutdownDBWriterFlushedBeforeClose verifies that CancelDBWriter is
 // always called before WaitDBWriter so the writer goroutine is signalled to
 // stop before we block waiting for it to exit.

@@ -41,12 +41,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleDurationAuditDoneMsg(msg)
 
 	case library.ScanDoneMsg:
-		m = m.handleScanDoneMsg()
+		return m.handleScanDoneMsg()
 
 	case library.ScanErrorMsg:
 		m.statusBar.notify(fmt.Sprintf("Scan error: %v", msg.Err))
 		if m.scanErrCh != nil {
 			return m, waitForScanErr(m.scanErrCh)
+		}
+
+	case library.WatchStatusMsg:
+		// The background library pipeline reports watcher availability exactly
+		// once. On failure the watcher never delivers live change events, so
+		// mark the status bar degraded and tell the user to rely on manual
+		// rescan. A setup error and a graceful fd-exhaustion fallback are
+		// distinguished so the notification matches what actually happened.
+		if !msg.Available {
+			m.watchDegraded = true
+			if msg.Err != nil {
+				m.statusBar.notify("File watcher failed to start; use manual rescan (Shift+R)")
+			} else {
+				m.statusBar.notify("File watcher unavailable; use manual rescan (Shift+R)")
+			}
 		}
 
 	case tickMsg:

@@ -4,16 +4,19 @@ import (
 	"context"
 	"errors"
 	"os/exec"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 )
 
-// TestManager_HandleRestart_LaunchFnError_ClearsQueue verifies that when the
-// restart's launchFn fails the manager clears its cmdQueue, so subsequent
-// player calls return ErrNotConnected rather than silently queueing commands
-// that will never be replayed (because no pollUntilReady goroutine starts).
-func TestManager_HandleRestart_LaunchFnError_ClearsQueue(t *testing.T) {
+// TestManager_RestartGiveUp_LaunchFnError_ClearsQueue verifies that when every
+// launch attempt fails, the supervisor exhausts its attempt budget, clears the
+// cmdQueue, and notifies the user — so subsequent player calls return
+// ErrNotConnected rather than silently queueing commands that will never be
+// replayed. A single transient launch failure no longer tears down the queue;
+// only the final give-up does.
+func TestManager_RestartGiveUp_LaunchFnError_ClearsQueue(t *testing.T) {
 	sock := shortSockPath(t, "restart-launchfail")
 
 	var statusMu sync.Mutex
@@ -24,12 +27,14 @@ func TestManager_HandleRestart_LaunchFnError_ClearsQueue(t *testing.T) {
 	defer rootCancel()
 
 	m := &Manager{
-		socketPath:   sock,
-		rootCtx:      rootCtx,
-		rootCancel:   rootCancel,
-		ctx:          ctx,
-		cancel:       cancel,
-		disconnectCh: make(chan error, 1),
+		socketPath:                 sock,
+		rootCtx:                    rootCtx,
+		rootCancel:                 rootCancel,
+		ctx:                        ctx,
+		cancel:                     cancel,
+		disconnectCh:               make(chan error, 1),
+		restartBaseDelay:           1 * time.Millisecond,
+		restartMaxAttemptsOverride: 3,
 		// Initialise as if Start had run: cmdQueue non-nil simulates the
 		// post-Start state where commands queue while waiting for IPC.
 		cmdQueue: []func() error{},
@@ -44,40 +49,40 @@ func TestManager_HandleRestart_LaunchFnError_ClearsQueue(t *testing.T) {
 		return nil, errors.New("mpv: binary not found")
 	}
 
-	// Drive a single restart cycle synchronously.
+	// Drive a full recovery cycle synchronously; every attempt fails.
 	m.handleRestart()
 
-	// After a failed restart cmdQueue must be cleared so callers fail fast.
+	// After giving up, cmdQueue must be cleared so callers fail fast.
 	m.mu.RLock()
 	q := m.cmdQueue
 	m.mu.RUnlock()
 	if q != nil {
-		t.Fatalf("cmdQueue = %v after failed restart; want nil so callers get ErrNotConnected", q)
+		t.Fatalf("cmdQueue = %v after give-up; want nil so callers get ErrNotConnected", q)
 	}
 
 	// Verify Play surfaces ErrNotConnected (the call path that was previously
 	// silently queueing into a dead queue).
 	if err := m.Play(); !errors.Is(err, ErrNotConnected) {
-		t.Errorf("Play after failed restart: want ErrNotConnected, got %v", err)
+		t.Errorf("Play after give-up: want ErrNotConnected, got %v", err)
 	}
 
 	statusMu.Lock()
 	defer statusMu.Unlock()
-	foundFailure := false
+	foundGiveUp := false
 	for _, msg := range statusMsgs {
-		if msg == "mpv: restart failed: mpv: binary not found" {
-			foundFailure = true
+		if strings.Contains(msg, "gave up") {
+			foundGiveUp = true
 		}
 	}
-	if !foundFailure {
-		t.Errorf("expected restart failure status; got %v", statusMsgs)
+	if !foundGiveUp {
+		t.Errorf("expected 'gave up' status after exhausting attempts; got %v", statusMsgs)
 	}
 }
 
-// TestManager_HandleRestart_LaunchFnNil_ClearsQueue covers the same code path
-// when launchFn itself is nil (a misconfigured Manager built via struct
+// TestManager_RestartGiveUp_LaunchFnNil_ClearsQueue covers the same give-up
+// path when launchFn itself is nil (a misconfigured Manager built via struct
 // literal instead of NewManager).
-func TestManager_HandleRestart_LaunchFnNil_ClearsQueue(t *testing.T) {
+func TestManager_RestartGiveUp_LaunchFnNil_ClearsQueue(t *testing.T) {
 	sock := shortSockPath(t, "restart-launchnil")
 
 	rootCtx, rootCancel := context.WithCancel(context.Background())
@@ -85,13 +90,15 @@ func TestManager_HandleRestart_LaunchFnNil_ClearsQueue(t *testing.T) {
 	defer rootCancel()
 
 	m := &Manager{
-		socketPath:   sock,
-		rootCtx:      rootCtx,
-		rootCancel:   rootCancel,
-		ctx:          ctx,
-		cancel:       cancel,
-		disconnectCh: make(chan error, 1),
-		cmdQueue:     []func() error{},
+		socketPath:                 sock,
+		rootCtx:                    rootCtx,
+		rootCancel:                 rootCancel,
+		ctx:                        ctx,
+		cancel:                     cancel,
+		disconnectCh:               make(chan error, 1),
+		restartBaseDelay:           1 * time.Millisecond,
+		restartMaxAttemptsOverride: 3,
+		cmdQueue:                   []func() error{},
 	}
 	m.callbacks.OnStatus = func(string) {}
 	// launchFn is intentionally left nil.
@@ -102,11 +109,11 @@ func TestManager_HandleRestart_LaunchFnNil_ClearsQueue(t *testing.T) {
 	q := m.cmdQueue
 	m.mu.RUnlock()
 	if q != nil {
-		t.Fatalf("cmdQueue = %v after failed restart with nil launchFn; want nil", q)
+		t.Fatalf("cmdQueue = %v after give-up with nil launchFn; want nil", q)
 	}
 
 	if err := m.Pause(); !errors.Is(err, ErrNotConnected) {
-		t.Errorf("Pause after failed restart: want ErrNotConnected, got %v", err)
+		t.Errorf("Pause after give-up: want ErrNotConnected, got %v", err)
 	}
 
 	// Drain time so any background goroutines (none should be running) settle.

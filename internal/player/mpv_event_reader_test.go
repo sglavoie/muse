@@ -49,7 +49,7 @@ func TestManager_EventReaderBlocksOnCallbacksReady(t *testing.T) {
 		callbacks:      EventCallbacks{OnTrackChanged: func(_, _, _, _ string, _ int) { trackFired <- struct{}{} }},
 	}
 
-	go m.startEventReader(ctx)
+	go m.startEventReader(ctx, nil)
 
 	select {
 	case <-eventSent:
@@ -121,7 +121,7 @@ func TestEventReader_EmitsTrackInfoOnConnect(t *testing.T) {
 		},
 	}
 
-	go m.startEventReader(ctx)
+	go m.startEventReader(ctx, nil)
 	close(m.callbacksReady)
 
 	select {
@@ -175,7 +175,7 @@ func TestEventReader_SkipsEmitWhenNoTrack(t *testing.T) {
 		},
 	}
 
-	go m.startEventReader(ctx)
+	go m.startEventReader(ctx, nil)
 	close(m.callbacksReady)
 
 	select {
@@ -226,7 +226,7 @@ func TestEventReader_TracksPauseState(t *testing.T) {
 		currentIndex: -1,
 	}
 
-	go m.startEventReader(ctx)
+	go m.startEventReader(ctx, nil)
 	close(m.callbacksReady)
 
 	select {
@@ -285,7 +285,7 @@ func TestEventReader_IgnoresInvalidPausePayload(t *testing.T) {
 		currentIndex: -1,
 	}
 
-	go m.startEventReader(ctx)
+	go m.startEventReader(ctx, nil)
 	close(m.callbacksReady)
 
 	select {

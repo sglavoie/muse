@@ -138,6 +138,9 @@ func TestManager_SetVolumeAbsolute_NotConnectedQueues(t *testing.T) {
 	}
 }
 
+// TestManager_SetShuffle_Connected verifies that SetShuffle is Go-owned: it
+// updates the manager's traversal state and never sends mpv's shuffle property,
+// even when connected.
 func TestManager_SetShuffle_Connected(t *testing.T) {
 	sock := shortSockPath(t, "shuffle")
 
@@ -153,7 +156,7 @@ func TestManager_SetShuffle_Connected(t *testing.T) {
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
-	m := &Manager{socketPath: sock, ctx: ctx, cancel: cancel}
+	m := &Manager{socketPath: sock, ctx: ctx, cancel: cancel, prefetchedIndex: -1, shufflePos: -1}
 	defer m.Close()
 
 	client, err := NewIPCClient(sock)
@@ -161,6 +164,11 @@ func TestManager_SetShuffle_Connected(t *testing.T) {
 		t.Fatalf("NewIPCClient: %v", err)
 	}
 	m.mu.Lock()
+	m.queue = []QueueTrack{
+		{Path: "/a.flac", Hash: "h0", QueueID: 1},
+		{Path: "/b.flac", Hash: "h1", QueueID: 2},
+	}
+	m.currentIndex = 0
 	m.client = client
 	m.mu.Unlock()
 
@@ -168,36 +176,48 @@ func TestManager_SetShuffle_Connected(t *testing.T) {
 		t.Fatalf("SetShuffle(true): %v", err)
 	}
 
+	m.mu.RLock()
+	enabled := m.shuffleEnabled
+	histLen := len(m.shuffleHistory)
+	unseenLen := len(m.shuffleUnseen)
+	m.mu.RUnlock()
+	if !enabled {
+		t.Error("shuffleEnabled = false, want true after SetShuffle(true)")
+	}
+	if histLen != 1 || unseenLen != 1 {
+		t.Errorf("history/unseen = %d/%d, want 1/1 (anchor current + 1 other)", histLen, unseenLen)
+	}
+
 	mu.Lock()
 	defer mu.Unlock()
-	found := false
 	for _, args := range received {
-		if len(args) >= 3 {
-			if args.stringIs(0, "set_property") {
-				if args.stringIs(1, "shuffle") {
-					found = true
-				}
-			}
+		if args.stringIs(0, "set_property") && args.stringIs(1, "shuffle") {
+			t.Errorf("set_property shuffle must not be sent; got %v", received)
 		}
-	}
-	if !found {
-		t.Errorf("set_property shuffle not sent; got %v", received)
 	}
 }
 
+// TestManager_SetShuffle_NotConnectedQueues verifies that SetShuffle works
+// without a connection (and without enqueueing an IPC command): the traversal
+// state is updated purely in memory so it functions before connect and during
+// reconnect.
 func TestManager_SetShuffle_NotConnectedQueues(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	m := &Manager{ctx: ctx, cancel: cancel, cmdQueue: []func() error{}}
+	m := &Manager{ctx: ctx, cancel: cancel, cmdQueue: []func() error{}, prefetchedIndex: -1, shufflePos: -1}
 	defer m.Close()
 
-	if err := m.SetShuffle(false); err != nil {
-		t.Fatalf("SetShuffle queued: %v", err)
+	if err := m.SetShuffle(true); err != nil {
+		t.Fatalf("SetShuffle(true): %v", err)
 	}
 	m.mu.RLock()
 	n := len(m.cmdQueue)
+	enabled := m.shuffleEnabled
 	m.mu.RUnlock()
-	if n != 1 {
-		t.Errorf("cmdQueue len = %d, want 1", n)
+	if n != 0 {
+		t.Errorf("cmdQueue len = %d, want 0 (SetShuffle must not enqueue IPC)", n)
+	}
+	if !enabled {
+		t.Error("shuffleEnabled = false, want true")
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -128,26 +129,36 @@ func TestManager_CloseProtectsCmdField(t *testing.T) {
 	wg.Wait()
 }
 
-// TestWatchAndRestart_GivesUpAfterMaxAttempts verifies that watchAndRestart
-// stops retrying after restartMaxAttempts consecutive failures and emits a
-// "gave up" status notification.
+// TestWatchAndRestart_GivesUpAfterMaxAttempts verifies that a single disconnect
+// drives the supervisor's inner attempt loop, which makes exactly the
+// configured number of launch attempts before giving up and emitting a
+// "gave up" status notification — no external disconnect injection required.
 func TestWatchAndRestart_GivesUpAfterMaxAttempts(t *testing.T) {
 	rootCtx, rootCancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(rootCtx)
 
+	const maxAttempts = 3
+
+	var launchMu sync.Mutex
+	launches := 0
+
 	m := &Manager{
-		socketPath:       shortSockPath(t, "restart-giveup"),
-		rootCtx:          rootCtx,
-		rootCancel:       rootCancel,
-		ctx:              ctx,
-		cancel:           cancel,
-		disconnectCh:     make(chan error, 1),
-		callbacksReady:   make(chan struct{}),
-		restartBaseDelay: 1 * time.Millisecond,
+		socketPath:                 shortSockPath(t, "restart-giveup"),
+		rootCtx:                    rootCtx,
+		rootCancel:                 rootCancel,
+		ctx:                        ctx,
+		cancel:                     cancel,
+		disconnectCh:               make(chan error, 1),
+		callbacksReady:             make(chan struct{}),
+		restartBaseDelay:           1 * time.Millisecond,
+		restartMaxAttemptsOverride: maxAttempts,
 	}
 	defer m.Close()
 
 	m.launchFn = func(_ context.Context, _ string) (*exec.Cmd, error) {
+		launchMu.Lock()
+		launches++
+		launchMu.Unlock()
 		return nil, fmt.Errorf("simulated launch failure")
 	}
 
@@ -165,20 +176,20 @@ func TestWatchAndRestart_GivesUpAfterMaxAttempts(t *testing.T) {
 		close(done)
 	}()
 
-	go func() {
-		for {
-			select {
-			case m.disconnectCh <- fmt.Errorf("test disconnect"):
-			case <-done:
-				return
-			}
-		}
-	}()
+	// A single disconnect is enough; the inner loop owns the retries.
+	m.disconnectCh <- fmt.Errorf("test disconnect")
 
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
 		t.Fatal("watchAndRestart did not give up within 5s")
+	}
+
+	launchMu.Lock()
+	gotLaunches := launches
+	launchMu.Unlock()
+	if gotLaunches != maxAttempts {
+		t.Errorf("launch attempts = %d, want exactly %d before give-up", gotLaunches, maxAttempts)
 	}
 
 	statusMu.Lock()
@@ -196,18 +207,24 @@ func TestWatchAndRestart_GiveUpClearsQueueAfterLaunchWithoutReconnect(t *testing
 	ctx, cancel := context.WithCancel(rootCtx)
 
 	m := &Manager{
-		socketPath:       shortSockPath(t, "restart-giveup-queue"),
-		rootCtx:          rootCtx,
-		rootCancel:       rootCancel,
-		ctx:              ctx,
-		cancel:           cancel,
-		disconnectCh:     make(chan error, restartMaxAttempts+1),
-		callbacksReady:   make(chan struct{}),
-		restartBaseDelay: 1 * time.Millisecond,
-		cmdQueue:         []func() error{},
+		socketPath:                 shortSockPath(t, "restart-giveup-queue"),
+		rootCtx:                    rootCtx,
+		rootCancel:                 rootCancel,
+		ctx:                        ctx,
+		cancel:                     cancel,
+		disconnectCh:               make(chan error, 1),
+		callbacksReady:             make(chan struct{}),
+		restartBaseDelay:           1 * time.Millisecond,
+		restartMaxAttemptsOverride: 3,
+		// The socket never comes up, so each attempt hits the connect timeout.
+		// Keep it short so the give-up path completes quickly.
+		socketPollTimeoutOverride: 20 * time.Millisecond,
+		cmdQueue:                  []func() error{},
 	}
 	defer m.Close()
 
+	// launchFn "succeeds" but no server ever listens, so connectSocket times
+	// out on every attempt.
 	m.launchFn = func(context.Context, string) (*exec.Cmd, error) {
 		return nil, nil
 	}
@@ -218,9 +235,7 @@ func TestWatchAndRestart_GiveUpClearsQueueAfterLaunchWithoutReconnect(t *testing
 		close(done)
 	}()
 
-	for range restartMaxAttempts + 1 {
-		m.disconnectCh <- fmt.Errorf("test disconnect")
-	}
+	m.disconnectCh <- fmt.Errorf("test disconnect")
 
 	select {
 	case <-done:
@@ -236,48 +251,58 @@ func TestWatchAndRestart_GiveUpClearsQueueAfterLaunchWithoutReconnect(t *testing
 	}
 }
 
-// TestWatchAndRestart_ResetsBackoffOnSuccessfulConnect verifies that
-// backoffReset is set to true by pollUntilReady when the IPC socket connects,
-// and that watchAndRestart resets its consecutive-failure counter after a
-// successful reconnect.
-func TestWatchAndRestart_ResetsBackoffOnSuccessfulConnect(t *testing.T) {
-	sock := shortSockPath(t, "restart-reset")
+// TestConnectSocket_ConnectsToLiveServer verifies the connection helper returns
+// a ready client when a server is already listening.
+func TestConnectSocket_ConnectsToLiveServer(t *testing.T) {
+	sock := shortSockPath(t, "connect-live")
 	fakeServer(t, sock)
 
-	rootCtx, rootCancel := context.WithCancel(context.Background())
-	ctx, cancel := context.WithCancel(rootCtx)
+	m := &Manager{socketPath: sock}
+	client, err := m.connectSocket(context.Background())
+	if err != nil {
+		t.Fatalf("connectSocket: %v", err)
+	}
+	if client == nil {
+		t.Fatal("connectSocket returned nil client without error")
+	}
+	_ = client.Close()
+}
 
+// TestConnectSocket_TimesOut verifies the helper returns errConnectTimeout,
+// bounded by the socket-poll-timeout override, when no server ever listens.
+func TestConnectSocket_TimesOut(t *testing.T) {
 	m := &Manager{
-		socketPath:     sock,
-		rootCtx:        rootCtx,
-		rootCancel:     rootCancel,
-		ctx:            ctx,
-		cancel:         cancel,
-		disconnectCh:   make(chan error, 1),
-		callbacksReady: make(chan struct{}),
-		cmdQueue:       []func() error{},
+		socketPath:                shortSockPath(t, "connect-timeout"),
+		socketPollTimeoutOverride: 30 * time.Millisecond,
 	}
-	defer m.Close()
-	m.SetEventCallbacks(EventCallbacks{})
-
-	go m.pollUntilReady(ctx)
-
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		if m.backoffReset.Load() {
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
+	start := time.Now()
+	client, err := m.connectSocket(context.Background())
+	if !errors.Is(err, errConnectTimeout) {
+		t.Fatalf("connectSocket err = %v, want errConnectTimeout", err)
 	}
-
-	if !m.backoffReset.Load() {
-		t.Fatal("backoffReset was not set to true after successful pollUntilReady")
+	if client != nil {
+		t.Error("connectSocket returned a non-nil client on timeout")
 	}
-
-	if !m.backoffReset.Swap(false) {
-		t.Error("backoffReset.Swap(false) returned false; expected true")
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("connectSocket took %v to time out; expected close to the 30ms override", elapsed)
 	}
-	if m.backoffReset.Load() {
-		t.Error("backoffReset should be false after Swap")
+}
+
+// TestConnectSocket_CancelledContext verifies the helper aborts promptly and
+// returns the context error when its context is cancelled.
+func TestConnectSocket_CancelledContext(t *testing.T) {
+	m := &Manager{
+		socketPath:                shortSockPath(t, "connect-cancel"),
+		socketPollTimeoutOverride: 5 * time.Second,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	client, err := m.connectSocket(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("connectSocket err = %v, want context.Canceled", err)
+	}
+	if client != nil {
+		t.Error("connectSocket returned a non-nil client after cancellation")
 	}
 }

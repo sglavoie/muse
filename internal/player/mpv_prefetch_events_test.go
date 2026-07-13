@@ -164,7 +164,7 @@ func TestEndFileEOF_UsesPrefetchedPath(t *testing.T) {
 	}
 	close(m.callbacksReady)
 
-	go m.startEventReader(ctx)
+	go m.startEventReader(ctx, nil)
 
 	time.Sleep(200 * time.Millisecond)
 
@@ -224,7 +224,7 @@ func TestEndFileEOF_UsesPrefetchedPath_UnpausesAfterAdvance(t *testing.T) {
 	m.mu.Unlock()
 	close(m.callbacksReady)
 
-	go m.startEventReader(ctx)
+	go m.startEventReader(ctx, nil)
 
 	waitForCommand(t, &mu, &received, func(cmd ipcTestCommand) bool {
 		return cmd.stringIs(0, cmdObserveProperty) && cmd.stringIs(2, propPause)
@@ -287,7 +287,7 @@ func TestEndFileEOF_GaplessSequenceContinuesAfterClearWithoutManualPlay(t *testi
 	m.mu.Unlock()
 	close(m.callbacksReady)
 
-	go m.startEventReader(ctx)
+	go m.startEventReader(ctx, nil)
 
 	waitForCommand(t, &mu, &received, func(cmd ipcTestCommand) bool {
 		return cmd.stringIs(0, cmdObserveProperty) && cmd.stringIs(2, propPause)
@@ -407,7 +407,7 @@ func TestEndFileEOF_UsesPrefetchedPath_SkipsMissing(t *testing.T) {
 	}
 	close(m.callbacksReady)
 
-	go m.startEventReader(ctx)
+	go m.startEventReader(ctx, nil)
 
 	time.Sleep(200 * time.Millisecond)
 
@@ -480,7 +480,7 @@ func TestEndFileEOF_PrefetchedIdxOutOfRange(t *testing.T) {
 	}
 	close(m.callbacksReady)
 
-	go m.startEventReader(ctx)
+	go m.startEventReader(ctx, nil)
 
 	select {
 	case <-endedCh:
@@ -576,7 +576,7 @@ func TestEndFileEOF_PrefetchAdvance_NoStaleIndexAfterConcurrentShrink(t *testing
 			}
 			close(m.callbacksReady)
 
-			go m.startEventReader(ctx)
+			go m.startEventReader(ctx, nil)
 
 			<-eventSent
 			// Yield once so the event reader can take its read-lock
@@ -657,7 +657,7 @@ func TestEndFileEOF_FallbackWhenNoPrefetch(t *testing.T) {
 	}
 	close(m.callbacksReady)
 
-	go m.startEventReader(ctx)
+	go m.startEventReader(ctx, nil)
 
 	select {
 	case <-endedCh:
@@ -768,7 +768,7 @@ func TestEndFileEOF_FallbackDoesNotBlockEventReader(t *testing.T) {
 	m.mu.Unlock()
 	close(m.callbacksReady)
 
-	go m.startEventReader(ctx)
+	go m.startEventReader(ctx, nil)
 
 	select {
 	case <-observedPause:

@@ -118,6 +118,13 @@ type Model struct {
 	// library index just before a full rescan clears it. Consulted by
 	// preserveTrackMetadata so in-memory values survive the rescan.
 	rescanSnapshot map[string]rescanEntry
+	// rescanPriorPaths maps every path present in the library index just before
+	// a full rescan clears it to that track's hash. Consulted at rescan
+	// completion to compute files that vanished from disk (present before,
+	// absent after and not merely moved) so the manual-rescan fallback
+	// reconciles deletions the same way the live watcher does. Cleared when the
+	// rescan finishes or is canceled.
+	rescanPriorPaths map[string]string
 
 	// watchCh is the channel returned by library.Watch. It emits WatchEvents
 	// (track additions/updates and deletion notifications) and is nil when
@@ -129,9 +136,16 @@ type Model struct {
 	auditCh        <-chan library.DurationFix
 	auditCorrected int // number of tracks corrected across all audit batches
 
+	// watchStatusCh carries the single asynchronous watcher-availability report
+	// emitted once the background library pipeline finishes registering the
+	// filesystem watcher. It is drained once by waitForWatchStatus and then
+	// closed. Nil when no pipeline was started.
+	watchStatusCh <-chan library.WatchStatusMsg
+
 	// watchDegraded is true when the filesystem watcher could not be started
-	// (e.g. fd exhaustion). The status bar shows a notice so the user knows
-	// to use manual rescan.
+	// (e.g. fd exhaustion). It is set asynchronously from the watcher-status
+	// report, not at construction time. The status bar shows a notice so the
+	// user knows to use manual rescan.
 	watchDegraded bool
 
 	// libraryRoots and extractor are required for manual rescan. When

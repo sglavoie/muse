@@ -37,3 +37,13 @@ type ScanDoneMsg struct{}
 type ScanErrorMsg struct {
 	Err error
 }
+
+// WatchStatusMsg reports the availability of the filesystem watcher after its
+// asynchronous setup completes. Available is true when the watcher is active
+// and false when it degraded to manual rescan (fsnotify unavailable or watch
+// registration failed). Err carries the setup error when one occurred; it may
+// be nil even when Available is false (e.g. graceful fd-exhaustion fallback).
+type WatchStatusMsg struct {
+	Available bool
+	Err       error
+}

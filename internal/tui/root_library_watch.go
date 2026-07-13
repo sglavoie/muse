@@ -17,11 +17,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 	m = m.watchApplyDeletes(msg.deleted)
 	m, msg.tracks = m.watchUpsertTracks(msg.tracks)
 	m = m.syncRecentlyAddedFromLibrary()
-	m = m.watchSyncQueueMetadata(msg.tracks)
-	m = m.watchSyncHistoryMetadata(msg.tracks)
-	m = m.watchSyncPlaylistMetadata(msg.tracks)
-	m = m.watchSyncFavoritesMetadata(msg.tracks)
-	m = m.watchSyncTagsMetadata(msg.tracks)
+	m = m.reconcileTrackCaches(msg.tracks)
 	m = m.watchRecomputeLibrary()
 	m = m.refreshBrowseDerivedViews()
 	if m.watchCh != nil {
@@ -55,13 +51,7 @@ func (m Model) watchApplyDeletes(deleted []string) Model {
 // the (possibly modified) track slice for downstream consumers.
 func (m Model) watchUpsertTracks(tracks []library.Track) (Model, []library.Track) {
 	for i, t := range tracks {
-		t = m.preserveTrackMetadata(t)
-		if edited, ok := m.userEditedOverlay[t.Hash]; ok {
-			t.Title = edited.Title
-			t.Artist = edited.Artist
-			t.Album = edited.Album
-			t.Genre = edited.Genre
-		}
+		t = m.normalizeScannedTrack(t)
 		tracks[i] = t
 		m.library.index.UpsertByPath(t.Path, t)
 	}
@@ -69,24 +59,33 @@ func (m Model) watchUpsertTracks(tracks []library.Track) (Model, []library.Track
 }
 
 // watchSyncQueueMetadata updates in-memory queue entries whose track metadata
-// was refreshed by the watcher, keeping the queue view in sync with on-disk
-// changes.
+// or file path was refreshed by the watcher, keeping the queue view in sync
+// with on-disk changes. A same-hash move/rename updates QueueEntry.Path before
+// syncPlayerQueue rebuilds the player queue, so playback resolves the new path
+// immediately. Source, selection, and position state are preserved; the missing
+// flag is cleared for a recovered entry.
 func (m Model) watchSyncQueueMetadata(tracks []library.Track) Model {
 	queueDirty := false
 	for _, t := range tracks {
 		display := trackDisplay(t.Artist, t.Title, t.Path)
+		durationMs := int64(t.Duration * 1000)
 		for i := range m.queue.entries {
-			if m.queue.entries[i].Hash == t.Hash {
-				m.queue.entries[i].Title = t.Title
-				m.queue.entries[i].Artist = t.Artist
-				m.queue.entries[i].Album = t.Album
-				m.queue.entries[i].DurationMs = int64(t.Duration * 1000)
-				m.queue.entries[i].Display = display
-				queueDirty = true
-				if m.queue.entries[i].Missing {
-					m.queue.entries[i].Missing = false
-				}
+			e := &m.queue.entries[i]
+			if e.Hash != t.Hash {
+				continue
 			}
+			if e.Path != t.Path || e.Title != t.Title || e.Artist != t.Artist ||
+				e.Album != t.Album || e.DurationMs != durationMs ||
+				e.Display != display || e.Missing {
+				queueDirty = true
+			}
+			e.Path = t.Path
+			e.Title = t.Title
+			e.Artist = t.Artist
+			e.Album = t.Album
+			e.DurationMs = durationMs
+			e.Display = display
+			e.Missing = false
 		}
 		if m.playback.currentHash == t.Hash {
 			m.statusBar.artist = t.Artist
@@ -109,6 +108,7 @@ func (m Model) watchSyncHistoryMetadata(tracks []library.Track) Model {
 	for _, t := range tracks {
 		for i := range m.library.sourceTracks {
 			if m.library.sourceTracks[i].Hash == t.Hash {
+				m.library.sourceTracks[i].Path = t.Path
 				m.library.sourceTracks[i].Title = t.Title
 				m.library.sourceTracks[i].Artist = t.Artist
 				m.library.sourceTracks[i].Album = t.Album
@@ -130,6 +130,7 @@ func (m Model) watchSyncPlaylistMetadata(tracks []library.Track) Model {
 	for _, t := range tracks {
 		for i := range m.playlists.tracks {
 			if m.playlists.tracks[i].Hash == t.Hash {
+				m.playlists.tracks[i].Path = t.Path
 				m.playlists.tracks[i].Title = t.Title
 				m.playlists.tracks[i].Artist = t.Artist
 				m.playlists.tracks[i].Album = t.Album
@@ -149,6 +150,7 @@ func (m Model) watchSyncFavoritesMetadata(tracks []library.Track) Model {
 		for _, t := range tracks {
 			for i := range m.favorites.tracks {
 				if m.favorites.tracks[i].Hash == t.Hash {
+					m.favorites.tracks[i].Path = t.Path
 					m.favorites.tracks[i].Title = t.Title
 					m.favorites.tracks[i].Artist = t.Artist
 					m.favorites.tracks[i].Album = t.Album
@@ -163,6 +165,7 @@ func (m Model) watchSyncFavoritesMetadata(tracks []library.Track) Model {
 		for _, t := range tracks {
 			for i := range m.favorites.drilldownTracks {
 				if m.favorites.drilldownTracks[i].Hash == t.Hash {
+					m.favorites.drilldownTracks[i].Path = t.Path
 					m.favorites.drilldownTracks[i].Title = t.Title
 					m.favorites.drilldownTracks[i].Artist = t.Artist
 					m.favorites.drilldownTracks[i].Album = t.Album
@@ -185,6 +188,7 @@ func (m Model) watchSyncTagsMetadata(tracks []library.Track) Model {
 	for _, t := range tracks {
 		for i := range m.tagsView.tracks {
 			if m.tagsView.tracks[i].Hash == t.Hash {
+				m.tagsView.tracks[i].Path = t.Path
 				m.tagsView.tracks[i].Title = t.Title
 				m.tagsView.tracks[i].Artist = t.Artist
 				m.tagsView.tracks[i].Album = t.Album
@@ -193,6 +197,61 @@ func (m Model) watchSyncTagsMetadata(tracks []library.Track) Model {
 		}
 	}
 	m.tagsView = m.tagsView.recomputeTagsSort()
+	return m
+}
+
+// watchSyncMixesMetadata propagates same-hash path and metadata changes into
+// every cached mix slice (not just the active one) so that a later drill-down
+// into a previously-loaded mix reuses reconciled paths and metadata rather than
+// stale values. When the mixes track-level view is open its derived view is
+// refreshed in place, since trackView.sourceTracks aliases the active mix's
+// cached slice.
+func (m Model) watchSyncMixesMetadata(tracks []library.Track) Model {
+	if len(m.mixes.cachedMixes) == 0 {
+		return m
+	}
+	updated := false
+	for _, t := range tracks {
+		for id, cached := range m.mixes.cachedMixes {
+			changed := false
+			for i := range cached {
+				if cached[i].Hash == t.Hash {
+					cached[i].Path = t.Path
+					cached[i].Title = t.Title
+					cached[i].Artist = t.Artist
+					cached[i].Album = t.Album
+					cached[i].Genre = t.Genre
+					cached[i].Duration = t.Duration
+					changed = true
+				}
+			}
+			if changed {
+				m.mixes.cachedMixes[id] = cached
+				updated = true
+			}
+		}
+	}
+	if updated && m.mixes.level == 1 {
+		m.mixes.trackView = m.mixes.trackView.refreshView()
+	}
+	return m
+}
+
+// reconcileTrackCaches propagates same-hash path and metadata updates into
+// every in-memory cache that holds a playable Path: the queue (and its player
+// mirror), the History-mode library source, and the loaded playlists,
+// favorites, tags, and mix track lists. Artist/album/genre browse views are
+// intentionally not touched here; they rederive from the live index via
+// refreshBrowseDerivedViews. This is the single track-update fan-out shared by
+// the live watcher, the startup diff scan, and manual rescans so that a
+// move/rename heals identically regardless of which pipeline observed it.
+func (m Model) reconcileTrackCaches(tracks []library.Track) Model {
+	m = m.watchSyncQueueMetadata(tracks)
+	m = m.watchSyncHistoryMetadata(tracks)
+	m = m.watchSyncPlaylistMetadata(tracks)
+	m = m.watchSyncFavoritesMetadata(tracks)
+	m = m.watchSyncTagsMetadata(tracks)
+	m = m.watchSyncMixesMetadata(tracks)
 	return m
 }
 

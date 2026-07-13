@@ -226,6 +226,21 @@ func waitForScanErr(ch <-chan library.ScanErrorMsg) tea.Cmd {
 	}
 }
 
+// waitForWatchStatus returns a Cmd that blocks for the single watcher
+// availability report emitted by the background library pipeline once its
+// asynchronous watcher setup completes, then dispatches it. The channel emits
+// exactly one WatchStatusMsg and is then closed, so this Cmd is not
+// re-scheduled; a closed channel with no message yields nil.
+func waitForWatchStatus(ch <-chan library.WatchStatusMsg) tea.Cmd {
+	return func() tea.Msg {
+		msg, ok := <-ch
+		if !ok {
+			return nil
+		}
+		return msg
+	}
+}
+
 // waitForAuditBatch returns a Cmd that reads up to scanBatchSize fixes from
 // the audit channel and dispatches a DurationAuditBatchMsg. When the channel
 // closes with remaining fixes it dispatches them; on an empty close it
@@ -246,28 +261,44 @@ func waitForAuditBatch(ch <-chan library.DurationFix) tea.Cmd {
 	}
 }
 
-// waitForWatchBatch returns a Cmd that reads up to scanBatchSize events from
-// the watcher channel and dispatches a watchBatchMsg carrying both new/updated
-// tracks and deleted paths. When the channel closes (context cancelled) it
+// waitForWatchBatch returns a Cmd that blocks for the first watcher event, then
+// non-blockingly drains any already-buffered companion events up to the
+// scanBatchSize cap before dispatching a single watchBatchMsg. This delivers a
+// lone event on a still-open channel immediately instead of waiting for the cap
+// to fill. When the channel closes (context cancelled) with no pending event it
 // returns nil, stopping further scheduling.
 func waitForWatchBatch(ch <-chan library.WatchEvent) tea.Cmd {
 	return func() tea.Msg {
 		var tracks []library.Track
 		var deleted []string
-		for event := range ch {
+		add := func(event library.WatchEvent) {
 			if event.Deleted {
 				deleted = append(deleted, event.Path)
 			} else {
 				tracks = append(tracks, event.Track)
 			}
-			if len(tracks)+len(deleted) >= scanBatchSize {
+		}
+
+		// Block for the first event so an open, idle channel does not busy-wait.
+		event, ok := <-ch
+		if !ok {
+			return nil
+		}
+		add(event)
+
+		// Drain buffered companions without blocking, up to the cap.
+		for len(tracks)+len(deleted) < scanBatchSize {
+			select {
+			case event, ok := <-ch:
+				if !ok {
+					return watchBatchMsg{tracks: tracks, deleted: deleted}
+				}
+				add(event)
+			default:
 				return watchBatchMsg{tracks: tracks, deleted: deleted}
 			}
 		}
-		if len(tracks)+len(deleted) > 0 {
-			return watchBatchMsg{tracks: tracks, deleted: deleted}
-		}
-		return nil
+		return watchBatchMsg{tracks: tracks, deleted: deleted}
 	}
 }
 
@@ -286,6 +317,9 @@ func (m Model) Init() tea.Cmd {
 	}
 	if m.watchCh != nil {
 		cmds = append(cmds, waitForWatchBatch(m.watchCh))
+	}
+	if m.watchStatusCh != nil {
+		cmds = append(cmds, waitForWatchStatus(m.watchStatusCh))
 	}
 	if m.auditCh != nil {
 		cmds = append(cmds, waitForAuditBatch(m.auditCh))

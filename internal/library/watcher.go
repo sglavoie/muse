@@ -16,6 +16,13 @@ import (
 // substitute a factory that returns an error to exercise graceful degradation.
 var watcherFactory = fsnotify.NewWatcher
 
+// RegistrationStepHook is a test-only seam (used by both library and app tests).
+// When non-nil it is invoked once per directory during recursive watch
+// registration, immediately after the per-directory context check, so a test
+// can gate registration mid-walk and prove cancellation aborts promptly without
+// finishing the tree walk. Production leaves it nil.
+var RegistrationStepHook func(path string)
+
 // DefaultDebounce is the default debounce window for filesystem events.
 const DefaultDebounce = 2500 * time.Millisecond
 
@@ -52,7 +59,16 @@ func Watch(ctx context.Context, roots []string, excludedPaths []string, extracto
 
 	degraded := false
 	for _, root := range roots {
-		if err := addWatchesRecursive(w, root, excludedPaths); err != nil {
+		if err := addWatchesRecursive(ctx, w, root, excludedPaths); err != nil {
+			if ctx.Err() != nil {
+				// Registration was cancelled mid-walk (e.g. shutdown racing
+				// startup). Close the partially initialized watcher and fall
+				// back to manual rescan without finishing the remaining tree
+				// walk, so callers waiting on this return (and thus StopAndWait)
+				// are not blocked until the whole traversal completes.
+				_ = w.Close()
+				return closedWatchEventChan(), true, nil
+			}
 			slog.Warn("watcher: failed to register directory watches for root", "root", root, "err", err)
 			degraded = true
 		}
@@ -103,7 +119,7 @@ func watchLoop(ctx context.Context, w *fsnotify.Watcher, excludedPaths []string,
 				return
 			}
 			slog.Debug("watcher: fsnotify event", "op", event.Op.String(), "path", event.Name)
-			handleFsEvent(event, excludedPaths, pending, deleted, w)
+			handleFsEvent(ctx, event, excludedPaths, pending, deleted, w)
 			// Reset the debounce window.
 			if !debounceTimer.Stop() {
 				select {
@@ -142,7 +158,7 @@ func watchLoop(ctx context.Context, w *fsnotify.Watcher, excludedPaths []string,
 // handleFsEvent updates the pending rescan set and deleted set based on a
 // single fsnotify event. For Create events on directories, a new recursive
 // watch is also registered.
-func handleFsEvent(event fsnotify.Event, excludedPaths []string, pending map[string]bool, deleted map[string]struct{}, w *fsnotify.Watcher) {
+func handleFsEvent(ctx context.Context, event fsnotify.Event, excludedPaths []string, pending map[string]bool, deleted map[string]struct{}, w *fsnotify.Watcher) {
 	path := event.Name
 	base := filepath.Base(path)
 
@@ -166,7 +182,7 @@ func handleFsEvent(event fsnotify.Event, excludedPaths []string, pending map[str
 		if info.IsDir() {
 			// Register watches on the new directory tree and schedule a
 			// re-traversal of the entire subtree.
-			if err := addWatchesRecursive(w, path, excludedPaths); err != nil {
+			if err := addWatchesRecursive(ctx, w, path, excludedPaths); err != nil {
 				slog.Debug("watcher: add recursive watches", "path", path, "err", err)
 			}
 			pending[path] = true
@@ -273,8 +289,19 @@ func rescan(ctx context.Context, pending map[string]bool, excludedPaths []string
 // subdirectory it contains. Errors on individual directories are ignored so
 // that a single unreadable directory does not abort the entire watch setup.
 // Excluded directories are skipped and not registered for watching.
-func addWatchesRecursive(w *fsnotify.Watcher, root string, excludedPaths []string) error {
+//
+// The walk observes ctx: if it is cancelled mid-traversal, WalkDir stops
+// promptly and returns ctx.Err() so shutdown never has to wait for a large tree
+// to finish registering. The caller (Watch) closes the partially initialized
+// watcher on that error.
+func addWatchesRecursive(ctx context.Context, w *fsnotify.Watcher, root string, excludedPaths []string) error {
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+		if RegistrationStepHook != nil {
+			RegistrationStepHook(path)
+		}
 		if err != nil {
 			if path == root {
 				return err

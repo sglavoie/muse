@@ -42,15 +42,32 @@ func (m Model) handleScanTotalMsg(msg library.ScanTotalMsg) Model {
 // handleScanBatchMsg inserts scanned tracks into the library index and refreshes
 // derived views (artists, albums) as needed.
 func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
-	for _, t := range msg.Tracks {
-		t = m.preserveTrackMetadata(t)
-		if edited, ok := m.userEditedOverlay[t.Hash]; ok {
-			t.Title = edited.Title
-			t.Artist = edited.Artist
-			t.Album = edited.Album
-			t.Genre = edited.Genre
+	// Normalize each track once (preserved metadata + user-edited overlay) and
+	// reuse the same normalized slice for both the index insertion and every
+	// cache reconciliation target, so the caches never diverge from the index.
+	normalized := make([]library.Track, len(msg.Tracks))
+	var displacedHashes []string
+	for i, t := range msg.Tracks {
+		t = m.normalizeScannedTrack(t)
+		normalized[i] = t
+		if t.Path == "" {
+			// Path-less entries cannot be reconciled by path; dedup by hash
+			// only, matching the prior Insert behavior. Real scanned files
+			// always carry a path, so the replacement handling below applies to
+			// every genuine on-disk discovery.
+			m.library.index.Insert(t)
+			continue
 		}
-		m.library.index.Insert(t)
+		// Detect an in-place content replacement: a *different* hash currently
+		// occupies this exact path. The displaced identity's file is gone (its
+		// content was overwritten on disk), so record its hash and replace the
+		// stale index entry via UpsertByPath instead of Insert — Insert dedups
+		// only by hash and would leave both identities at one path, showing the
+		// old and new content for the same file.
+		if old, ok := m.library.index.FindByPath(t.Path); ok && old.Hash != "" && old.Hash != t.Hash {
+			displacedHashes = append(displacedHashes, old.Hash)
+		}
+		m.library.index.UpsertByPath(t.Path, t)
 	}
 	m.scanned += len(msg.Tracks)
 	m.statusBar.handleScanProgress(library.ScanProgressMsg{Scanned: m.scanned, Total: m.scanTotal})
@@ -63,6 +80,21 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 		m.library = m.library.recomputeSortedTracks()
 	}
 	m = m.syncRecentlyAddedFromLibrary()
+	// Heal path and metadata for every cache holding a playable Path so that
+	// the startup diff scan and manual rescan reconcile same-hash moves/renames
+	// exactly like the live watcher does. Use the normalized slice — not the raw
+	// scanned tracks — so queue and collection caches receive the same preserved
+	// duration and user-edited metadata that landed in the index.
+	m = m.reconcileTrackCaches(normalized)
+	// A content replacement discovered by the scan leaves the displaced hash's
+	// queue instances pointing at a path that now holds different content. The
+	// reconcile fan-out above only heals same-hash entries, so those stale
+	// instances are untouched by it; mark them unavailable so they cannot play
+	// the replacement under stale metadata. Durable tracks.missing marking for
+	// the displaced identity is done by the startup app scan bridge.
+	for _, h := range displacedHashes {
+		m.queue.markMissingByHash(h)
+	}
 	// Invalidate the cached fuzzy-match results so that stale TrackIndex
 	// values from the previous index state cannot cause an out-of-bounds
 	// panic when the filter is active and the user navigates or renders.
@@ -76,17 +108,74 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 	return m, nil
 }
 
-// handleScanDoneMsg clears the scanning state.
-func (m Model) handleScanDoneMsg() Model {
+// handleScanDoneMsg clears the scanning state. On a normally-completed rescan
+// it first reconciles files that vanished from disk (present before the rescan,
+// absent from the rebuilt index) so the upsert-only scan path still honors the
+// deletion contract the live watcher provides.
+func (m Model) handleScanDoneMsg() (Model, tea.Cmd) {
+	var cmd tea.Cmd
+	// A canceled scan clears rescanPriorPaths before this message lands, and a
+	// normal completion still has m.scanning == true (only this handler flips it
+	// false). Both guards ensure deletions are computed only from a full,
+	// intact scan.
+	if m.scanning && len(m.rescanPriorPaths) > 0 {
+		m, cmd = m.reconcileRescanDeletions()
+	}
 	m.scanning = false
 	m.scanCh = nil
 	m.rescanSnapshot = nil
+	m.rescanPriorPaths = nil
 	if m.scanCancel != nil {
 		m.scanCancel()
 		m.scanCancel = nil
 	}
 	m.longOp = longOpState{}
-	return m
+	return m, cmd
+}
+
+// reconcileRescanDeletions compares the paths present before a full rescan
+// against the freshly rebuilt index and routes any file that disappeared
+// through the same deletion reconciliation the live watcher uses: it drops the
+// path from the index and marks every matching queue instance unavailable, then
+// returns a Cmd that persists the missing flag by hash. A prior path whose hash
+// resurfaced at a new location is a move/rename (already healed by the scan
+// batch), not a deletion, so it is skipped.
+func (m Model) reconcileRescanDeletions() (Model, tea.Cmd) {
+	var deletedPaths []string
+	var deletedHashes []string
+	for path, hash := range m.rescanPriorPaths {
+		if _, ok := m.library.index.FindByPath(path); ok {
+			continue // still on disk under the same path
+		}
+		if _, ok := m.library.index.FindByHash(hash); ok {
+			continue // same content moved to a new path — not a deletion
+		}
+		deletedPaths = append(deletedPaths, path)
+		deletedHashes = append(deletedHashes, hash)
+	}
+	if len(deletedPaths) == 0 {
+		return m, nil
+	}
+	// In-memory: drop from the index and mark queued instances missing via the
+	// same helper the live watcher path uses.
+	m = m.watchApplyDeletes(deletedPaths)
+	// Durable: persist the missing mark so the deletion survives the next cached
+	// startup. bridgeScanChannel flushes every present upsert before closing its
+	// channel (which is what produced this ScanDoneMsg), so no later upsert can
+	// clear these marks.
+	marker, ok := m.scanWriter.(trackMissingMarker)
+	if !ok {
+		return m, nil
+	}
+	hashes := deletedHashes
+	return m, func() tea.Msg {
+		for _, h := range hashes {
+			if err := marker.MarkTrackMissing(h); err != nil {
+				slog.Warn("rescan: mark track missing", "hash", h, "err", err)
+			}
+		}
+		return nil
+	}
 }
 
 // bridgeScanChannel wraps raw with a goroutine that persists each track to the
@@ -127,6 +216,22 @@ func (m Model) bridgeScanChannel(raw <-chan library.Track) <-chan library.Track 
 		flush()
 	}()
 	return ch
+}
+
+// normalizeScannedTrack applies the same metadata normalization the index
+// insertion relies on: it preserves created_at, non-zero duration, and play
+// stats from the existing index/snapshot, then overlays any user-edited
+// title/artist/album/genre. Both the scan and watcher fan-outs use this so the
+// index and every reconciled cache observe identical values.
+func (m Model) normalizeScannedTrack(track library.Track) library.Track {
+	track = m.preserveTrackMetadata(track)
+	if edited, ok := m.userEditedOverlay[track.Hash]; ok {
+		track.Title = edited.Title
+		track.Artist = edited.Artist
+		track.Album = edited.Album
+		track.Genre = edited.Genre
+	}
+	return track
 }
 
 func (m Model) preserveTrackMetadata(track library.Track) library.Track {

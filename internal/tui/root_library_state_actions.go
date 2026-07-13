@@ -32,10 +32,13 @@ func (m Model) handleLibraryStateAction(action action) (tea.Model, tea.Cmd, bool
 
 			tracks := m.library.index.Tracks()
 			snap := make(map[string]rescanEntry, len(tracks))
+			prior := make(map[string]string, len(tracks))
 			for _, t := range tracks {
 				snap[t.Hash] = rescanEntry{CreatedAt: t.CreatedAt, Duration: t.Duration, PlayCount: t.PlayCount, LastPlayedAt: t.LastPlayedAt}
+				prior[t.Path] = t.Hash
 			}
 			m.rescanSnapshot = snap
+			m.rescanPriorPaths = prior
 
 			scanCtx, cancel := context.WithCancel(m.appCtx)
 			rawCh := library.Scan(scanCtx, m.libraryRoots, m.cfg.ExcludedPaths, m.extractor)

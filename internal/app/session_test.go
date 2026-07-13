@@ -25,28 +25,24 @@ type mockPlayer struct {
 func (p *mockPlayer) SetQueue(e []player.QueueTrack) { p.queue = e }
 func (p *mockPlayer) SetRepeat(mode string) error    { p.repeatMode = mode; return nil }
 func (p *mockPlayer) SetShuffle(enabled bool) error  { p.shuffle = enabled; return nil }
-func (p *mockPlayer) SetCurrentIndex(i int)          { p.currentIndex = i; p.indexSet = true }
+func (p *mockPlayer) RestoreShuffleAnchor(i int)     { p.currentIndex = i; p.indexSet = true }
 func (p *mockPlayer) SetVolumeAbsolute(v float64) error {
 	p.volume = v
 	p.volumeSet = true
 	return nil
 }
 
-// mockShuffleWriter records calls to ShuffleWriter.
+// mockShuffleWriter records any WriteShuffle calls so tests can assert restore
+// no longer regenerates shuffle_position (WriteShuffle is not part of any
+// interface ApplyRestoredSession consumes).
 type mockShuffleWriter struct {
 	shuffleCalled bool
 	shuffleArg    bool
-	missingHashes []string
 }
 
 func (w *mockShuffleWriter) WriteShuffle(enabled bool) error {
 	w.shuffleCalled = true
 	w.shuffleArg = enabled
-	return nil
-}
-
-func (w *mockShuffleWriter) MarkTrackMissing(hash string) error {
-	w.missingHashes = append(w.missingHashes, hash)
 	return nil
 }
 
@@ -66,7 +62,7 @@ func TestApplyRestoredSession_EmptySession(t *testing.T) {
 	pr := &mockPlaylistReader{}
 	restored := &app.RestoredSession{}
 
-	app.ApplyRestoredSession(&model, mgr, restored, sw, pr, nil, nil, nil, 50)
+	app.ApplyRestoredSession(&model, mgr, restored, pr, nil, 50)
 
 	if sw.shuffleCalled {
 		t.Error("WriteShuffle should not be called for empty session")
@@ -82,16 +78,15 @@ func TestApplyRestoredSession_EmptySession(t *testing.T) {
 func TestApplyRestoredSession_NilPlaylistReaderNoPanic(t *testing.T) {
 	model := tui.New(context.Background())
 	mgr := &mockPlayer{}
-	sw := &mockShuffleWriter{}
 
-	app.ApplyRestoredSession(&model, mgr, &app.RestoredSession{}, sw, nil, nil, nil, nil, 50)
+	app.ApplyRestoredSession(&model, mgr, &app.RestoredSession{}, nil, nil, 50)
 
 	if len(mgr.queue) != 0 {
 		t.Errorf("player queue = %d, want 0", len(mgr.queue))
 	}
 }
 
-func TestApplyRestoredSession_NilShuffleWriterNoPanic(t *testing.T) {
+func TestApplyRestoredSession_ShuffleAppliedToPlayer(t *testing.T) {
 	model := tui.New(context.Background())
 	mgr := &mockPlayer{}
 	pr := &mockPlaylistReader{}
@@ -105,33 +100,22 @@ func TestApplyRestoredSession_NilShuffleWriterNoPanic(t *testing.T) {
 		Shuffle: true,
 	}
 
-	app.ApplyRestoredSession(
-		&model,
-		mgr,
-		restored,
-		nil,
-		pr,
-		nil,
-		[]string{"/music/a.mp3"},
-		map[string]string{"/music/a.mp3": "hash-1"},
-		50,
-	)
+	app.ApplyRestoredSession(&model, mgr, restored, pr, nil, 50)
 
 	if len(mgr.queue) != 1 {
 		t.Errorf("player queue = %d, want 1", len(mgr.queue))
 	}
 	if !mgr.shuffle {
-		t.Error("player shuffle should still be applied when ShuffleWriter is nil")
+		t.Error("player shuffle should be applied on restore")
 	}
 }
 
 func TestApplyRestoredSession_NilRestoredNoPanic(t *testing.T) {
 	model := tui.New(context.Background())
 	mgr := &mockPlayer{}
-	sw := &mockShuffleWriter{}
 	pr := &mockPlaylistReader{}
 
-	app.ApplyRestoredSession(&model, mgr, nil, sw, pr, nil, nil, nil, 50)
+	app.ApplyRestoredSession(&model, mgr, nil, pr, nil, 50)
 
 	if len(mgr.queue) != 0 {
 		t.Errorf("player queue = %d, want 0", len(mgr.queue))
@@ -177,7 +161,7 @@ func TestApplyRestoredSession_FullSession(t *testing.T) {
 		{Hash: "bbb", Path: "/music/b.mp3"},
 	}
 
-	app.ApplyRestoredSession(&model, mgr, restored, sw, pr, tracks, nil, nil, 75)
+	app.ApplyRestoredSession(&model, mgr, restored, pr, tracks, 75)
 
 	// Player queue synced.
 	if len(mgr.queue) != 2 {
@@ -192,9 +176,11 @@ func TestApplyRestoredSession_FullSession(t *testing.T) {
 		t.Error("player shuffle should be true")
 	}
 
-	// Shuffle write called because shuffle=true and queue non-empty.
-	if !sw.shuffleCalled || !sw.shuffleArg {
-		t.Error("WriteShuffle(true) should have been called")
+	// Shuffle order is Go-owned by the player now; restore must NOT regenerate
+	// shuffle_position via WriteShuffle. The restored boolean flag is already
+	// persisted and the player's cycle is anchored via RestoreShuffleAnchor.
+	if sw.shuffleCalled {
+		t.Error("WriteShuffle should NOT be called during restore (shuffle order is Go-owned)")
 	}
 
 	// Current track index set to the second track (index 1).
@@ -227,7 +213,6 @@ func TestApplyRestoredSession_FullSession(t *testing.T) {
 func TestApplyRestoredSession_StatusBarFallbackSource(t *testing.T) {
 	model := tui.New(context.Background())
 	mgr := &mockPlayer{}
-	sw := &mockShuffleWriter{}
 	pr := &mockPlaylistReader{}
 
 	qe := []tui.QueueEntry{
@@ -242,52 +227,21 @@ func TestApplyRestoredSession_StatusBarFallbackSource(t *testing.T) {
 		CurrentHash:  "aaa",
 	}
 
-	app.ApplyRestoredSession(&model, mgr, restored, sw, pr, nil, nil, nil, 50)
+	app.ApplyRestoredSession(&model, mgr, restored, pr, nil, 50)
 
 	if got := model.StatusBarPlaylistSource(); got != "Queue" {
 		t.Errorf("status bar source = %q, want %q", got, "Queue")
 	}
 }
 
-func TestApplyRestoredSession_DeletedPathsEvicted(t *testing.T) {
-	model := tui.New(context.Background())
-	mgr := &mockPlayer{}
-	sw := &mockShuffleWriter{}
-	pr := &mockPlaylistReader{}
-	restored := &app.RestoredSession{}
-
-	deletedPaths := []string{"/music/gone.mp3", "/music/also-gone.mp3"}
-	hashByPath := map[string]string{
-		"/music/gone.mp3":      "hash1",
-		"/music/also-gone.mp3": "hash2",
-	}
-
-	app.ApplyRestoredSession(&model, mgr, restored, sw, pr, nil, deletedPaths, hashByPath, 50)
-
-	// Both deleted paths should be tracked as missing.
-	if len(sw.missingHashes) != 2 {
-		t.Fatalf("missing hashes = %d, want 2", len(sw.missingHashes))
-	}
-	gotHashes := map[string]bool{}
-	for _, h := range sw.missingHashes {
-		gotHashes[h] = true
-	}
-	for _, want := range []string{"hash1", "hash2"} {
-		if !gotHashes[want] {
-			t.Errorf("expected missing hash %q, got %v", want, sw.missingHashes)
-		}
-	}
-}
-
 func TestApplyRestoredSession_VolumeRestored(t *testing.T) {
 	mgr := &mockPlayer{}
-	sw := &mockShuffleWriter{}
 	pr := &mockPlaylistReader{}
 
 	// When restored.Volume > 0 it should be applied instead of defaultVolume.
 	model := tui.New(context.Background())
 	restored := &app.RestoredSession{Volume: 70}
-	app.ApplyRestoredSession(&model, mgr, restored, sw, pr, nil, nil, nil, 50)
+	app.ApplyRestoredSession(&model, mgr, restored, pr, nil, 50)
 	if model.Volume() != 70 {
 		t.Errorf("restored volume: got %d, want 70", model.Volume())
 	}
@@ -295,7 +249,7 @@ func TestApplyRestoredSession_VolumeRestored(t *testing.T) {
 	// When restored.Volume == -1 (no session saved) the defaultVolume should be used.
 	model2 := tui.New(context.Background())
 	restored2 := &app.RestoredSession{Volume: -1}
-	app.ApplyRestoredSession(&model2, mgr, restored2, sw, pr, nil, nil, nil, 50)
+	app.ApplyRestoredSession(&model2, mgr, restored2, pr, nil, 50)
 	if model2.Volume() != 50 {
 		t.Errorf("default volume fallback: got %d, want 50", model2.Volume())
 	}
@@ -303,13 +257,12 @@ func TestApplyRestoredSession_VolumeRestored(t *testing.T) {
 
 func TestApplyRestoredSession_MutedVolumePreserved(t *testing.T) {
 	mgr := &mockPlayer{}
-	sw := &mockShuffleWriter{}
 	pr := &mockPlaylistReader{}
 
 	// Volume 0 (muted) must survive a restart — it should not fall back to default.
 	model := tui.New(context.Background())
 	restored := &app.RestoredSession{Volume: 0}
-	app.ApplyRestoredSession(&model, mgr, restored, sw, pr, nil, nil, nil, 50)
+	app.ApplyRestoredSession(&model, mgr, restored, pr, nil, 50)
 	if model.Volume() != 0 {
 		t.Errorf("muted volume: got %d, want 0", model.Volume())
 	}
@@ -328,12 +281,11 @@ func TestApplyRestoredSession_VolumeSentToPlayer(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			mgr := &mockPlayer{}
-			sw := &mockShuffleWriter{}
 			pr := &mockPlaylistReader{}
 			model := tui.New(context.Background())
 			restored := &app.RestoredSession{Volume: tc.restoredVol}
 
-			app.ApplyRestoredSession(&model, mgr, restored, sw, pr, nil, nil, nil, tc.defaultVol)
+			app.ApplyRestoredSession(&model, mgr, restored, pr, nil, tc.defaultVol)
 
 			if !mgr.volumeSet {
 				t.Fatal("SetVolumeAbsolute was not called on the player")

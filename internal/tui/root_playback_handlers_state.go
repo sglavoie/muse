@@ -62,7 +62,14 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	)
 
 	if !wasStopAfter && m.playback.repeatMode == RepeatAll && len(m.queue.entries) > 0 && m.player != nil {
-		if err := m.player.PlayFromIndex(0); err != nil {
+		// Prefer RestartQueueCycle so shuffle reshuffles into a fresh permutation
+		// (and sequential restarts from index 0). Fall back to PlayFromIndex(0)
+		// for lightweight players that do not implement the optional interface.
+		restart := m.player.PlayFromIndex
+		if r, ok := m.player.(queueCycleRestarter); ok {
+			restart = func(int) error { return r.RestartQueueCycle() }
+		}
+		if err := restart(0); err != nil {
 			slog.Warn("repeat-all playback failed", "err", err)
 		} else {
 			m.playback.state = PlaybackPlaying

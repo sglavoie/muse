@@ -144,6 +144,13 @@ func (w *Writer) UpdateTrackDuration(hash string, durationMs int64) error {
 // updated to the values supplied by the scanner. Duration is preserved when
 // the scanner returns 0 (e.g. tag-less files). Duration is converted from
 // seconds (float64) to milliseconds (int64).
+//
+// Because the upsert clears tracks.missing for every located file, it also
+// clears queue.missing for the same hash inside the same transaction. A
+// recovered move/rename that reaches the writer must not leave durable queue
+// rows grayed out while the tracks row reports the file as present; committing
+// both flag clears together keeps the two tables consistent even if the
+// process is interrupted between them.
 // UpsertBatch is a no-op when tracks is empty.
 func (w *Writer) UpsertBatch(tracks []library.Track) error {
 	if len(tracks) == 0 {
@@ -184,6 +191,18 @@ updated_at         = excluded.updated_at`,
 			)
 			if err != nil {
 				return err
+			}
+			// Clear the durable queue.missing flag for every queued instance
+			// of this hash in the same transaction that cleared tracks.missing
+			// above, so a recovered move/rename can never leave queue rows
+			// grayed out after a partially-applied recovery.
+			if t.Hash != "" {
+				if _, err := tx.Exec(
+					`UPDATE queue SET missing=0 WHERE track_hash=? AND missing=1`,
+					t.Hash,
+				); err != nil {
+					return err
+				}
 			}
 		}
 		return tx.Commit()

@@ -19,7 +19,6 @@ func TestApplyRestoredSession_OrphanCurrentHashIgnored(t *testing.T) {
 
 	model := tui.New(context.Background())
 	mgr := &mockPlayer{}
-	sw := &mockShuffleWriter{}
 	pr := &mockPlaylistReader{}
 
 	// Queue contains a single track ("aaa"), but the persisted current_hash
@@ -36,7 +35,7 @@ func TestApplyRestoredSession_OrphanCurrentHashIgnored(t *testing.T) {
 		CurrentHash:  "ghost-hash-not-in-queue",
 	}
 
-	app.ApplyRestoredSession(&model, mgr, restored, sw, pr, nil, nil, nil, 50)
+	app.ApplyRestoredSession(&model, mgr, restored, pr, nil, 50)
 
 	if mgr.indexSet {
 		t.Error("SetCurrentIndex should NOT be called when current_hash is orphaned")
@@ -58,7 +57,6 @@ func TestApplyRestoredSession_OrphanCurrentHashIgnored(t *testing.T) {
 func TestApplyRestoredSession_CurrentHashMatchedStillWorks(t *testing.T) {
 	model := tui.New(context.Background())
 	mgr := &mockPlayer{}
-	sw := &mockShuffleWriter{}
 	pr := &mockPlaylistReader{}
 
 	qe := []tui.QueueEntry{
@@ -75,7 +73,7 @@ func TestApplyRestoredSession_CurrentHashMatchedStillWorks(t *testing.T) {
 		CurrentHash:  "bbb",
 	}
 
-	app.ApplyRestoredSession(&model, mgr, restored, sw, pr, nil, nil, nil, 50)
+	app.ApplyRestoredSession(&model, mgr, restored, pr, nil, 50)
 
 	if !mgr.indexSet || mgr.currentIndex != 1 {
 		t.Errorf("currentIndex = %d (set=%v), want 1 (set=true)", mgr.currentIndex, mgr.indexSet)
@@ -93,7 +91,6 @@ func TestApplyRestoredSession_MissingCurrentTrackIgnored(t *testing.T) {
 
 	model := tui.New(context.Background())
 	mgr := &mockPlayer{}
-	sw := &mockShuffleWriter{}
 	pr := &mockPlaylistReader{}
 
 	qe := []tui.QueueEntry{
@@ -110,7 +107,7 @@ func TestApplyRestoredSession_MissingCurrentTrackIgnored(t *testing.T) {
 		CurrentHash:  "bbb",
 	}
 
-	app.ApplyRestoredSession(&model, mgr, restored, sw, pr, nil, nil, nil, 50)
+	app.ApplyRestoredSession(&model, mgr, restored, pr, nil, 50)
 
 	if mgr.indexSet {
 		t.Error("SetCurrentIndex should NOT be called for a missing current track")

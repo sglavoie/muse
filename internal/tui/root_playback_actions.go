@@ -192,19 +192,28 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		return m, nil, true
 	case actionShuffleToggle:
 		m.playback.shuffle = !m.playback.shuffle
-		if rs, ok := m.player.(repeatShuffler); ok {
-			if err := rs.SetShuffle(m.playback.shuffle); err != nil {
-				slog.Warn("set shuffle failed", "err", err)
-			}
-		}
-		if m.sessionWriter != nil {
-			if err := m.sessionWriter.WriteShuffle(m.playback.shuffle); err != nil {
-				slog.Warn("write shuffle failed", "err", err)
-			}
-		}
 		label := "off"
 		if m.playback.shuffle {
 			label = "on"
+		}
+		// Surface a runtime failure to the user: the traversal order did not
+		// change, so revert the toggle and do not persist a mismatched flag.
+		if rs, ok := m.player.(repeatShuffler); ok {
+			if err := rs.SetShuffle(m.playback.shuffle); err != nil {
+				slog.Warn("set shuffle failed", "err", err)
+				m.playback.shuffle = !m.playback.shuffle
+				m.statusBar.notify("Shuffle failed: " + err.Error())
+				return m, nil, true
+			}
+		}
+		// A persistence failure leaves runtime shuffle active but the flag will
+		// not survive a restart — tell the user rather than failing silently.
+		if m.sessionWriter != nil {
+			if err := m.sessionWriter.WriteShuffle(m.playback.shuffle); err != nil {
+				slog.Warn("write shuffle failed", "err", err)
+				m.statusBar.notify(fmt.Sprintf("Shuffle %s (not saved — won't survive restart)", label))
+				return m, nil, true
+			}
 		}
 		m.statusBar.pushMsg("Shuffle: "+label, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 		return m, nil, true

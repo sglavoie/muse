@@ -2,14 +2,13 @@ package player
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
+	"math/rand/v2"
 	"os/exec"
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -62,6 +61,17 @@ type Manager struct {
 	cmdQueue      []func() error // nil = not started; non-nil = started, may have pending cmds
 	callbacks     EventCallbacks // event notification callbacks; set via SetEventCallbacks
 
+	// activating is true while activateConnection has installed the client but
+	// has not yet finished restoring pre-crash state and replaying the queued
+	// commands. During this window public commands keep enqueueing (via admit /
+	// setFilter) even though m.client is non-nil, so a concurrent user command
+	// cannot execute against the fresh client and then be overwritten by the
+	// restore sequence, nor overtake an earlier queued command. It stays true for
+	// the entire drainQueue replay and is cleared only once the queue is empty.
+	// The activation goroutine itself uses the ungated ipc() helper, so restore
+	// and replay still reach mpv directly.
+	activating bool
+
 	// queue is the ordered set of tracks available for playback. Set via
 	// SetQueue so that PlayFromIndex can resolve an index to a QueueTrack.
 	queue []QueueTrack
@@ -98,10 +108,17 @@ type Manager struct {
 	// Set a shorter value in tests to avoid slow backoff waits.
 	restartBaseDelay time.Duration
 
-	// backoffReset is set to true by pollUntilReady when the IPC socket
-	// connects successfully, signalling watchAndRestart to reset its
-	// consecutive-failure counter.
-	backoffReset atomic.Bool
+	// restartMaxDelayOverride overrides restartMaxDelay when non-zero.
+	// Test-only knob to keep the exponential backoff cap small.
+	restartMaxDelayOverride time.Duration
+
+	// restartMaxAttemptsOverride overrides restartMaxAttempts when positive.
+	// Test-only knob so give-up behaviour can be exercised in a few attempts.
+	restartMaxAttemptsOverride int
+
+	// socketPollTimeoutOverride overrides socketPollTimeout when non-zero.
+	// Test-only knob so a socket that never comes up times out quickly.
+	socketPollTimeoutOverride time.Duration
 
 	// lastTrackPath and lastElapsed hold the most recently persisted playback
 	// position, used to resume playback after an auto-restart.
@@ -112,6 +129,18 @@ type Manager struct {
 	// last active, so auto-restart can preserve the pause state instead of
 	// unconditionally resuming.
 	lastPaused bool
+
+	// lastVolume and volumeKnown track the last volume set through the Manager
+	// so the restart supervisor can restore it after mpv reconnects. volumeKnown
+	// stays false until an absolute volume is applied, because a relative-only
+	// adjustment cannot establish an absolute baseline.
+	lastVolume  float64
+	volumeKnown bool
+
+	// repeatMode is the last repeat mode ("none"/"all"/"one") applied through
+	// SetRepeat. Empty means SetRepeat has never been called, so the restart
+	// supervisor leaves mpv's default in place. Guarded by mu.
+	repeatMode string
 
 	cmd    *exec.Cmd
 	ctx    context.Context    // scoped to the current mpv subprocess; replaced on restart
@@ -145,10 +174,34 @@ type Manager struct {
 	// staleness checks so prefetchNext is idempotent.
 	prefetchedPath string
 
+	// prefetchedIdentity is the shuffle traversal identity of the prefetched
+	// track. Empty when nothing is prefetched or the prefetch is a plain
+	// sequential one (no shuffle identity). It lets the EOF handler survive a
+	// visible queue reorder — the identity is re-resolved to a live index — and
+	// reject a stale prefetch whose row was removed or whose path changed. It is
+	// also the identity that shuffle history commits to only once the EOF
+	// transition to it is confirmed (prefetch resolves the successor without
+	// consuming it).
+	prefetchedIdentity string
+
 	// prefetchMu serializes prefetchNext and clearPrefetch so that
 	// concurrent goroutines cannot both read prefetchedIndex == -1 and
 	// both append the same track, creating a duplicate playlist entry.
 	prefetchMu sync.Mutex
+
+	// Go-owned shuffle traversal state, all guarded by mu. When
+	// shuffleEnabled is true, Next/Previous consult this state instead of
+	// plain visible-order index arithmetic; mpv's own shuffle property is
+	// never used.
+	shuffleEnabled bool
+	shuffleHistory []string // identities visited, in play order
+	shufflePos     int      // cursor into shuffleHistory; -1 when empty
+	shuffleUnseen  []string // identities not yet visited, in permuted order
+
+	// permute returns a permutation of [0,n) used to randomize the unseen
+	// pool. Production wires math/rand/v2; tests inject a fixed permutation.
+	// Nil falls back to deterministic identity order (see permuteLocked).
+	permute func(n int) []int
 }
 
 // NewManager creates a Manager with the given socket path.
@@ -168,6 +221,8 @@ func NewManager(socketPath string) *Manager {
 		audioFilters:    make(map[string]string),
 		currentIndex:    -1,
 		prefetchedIndex: -1,
+		shufflePos:      -1,
+		permute:         rand.Perm,
 	}
 	m.launchFn = func(ctx context.Context, socketPath string) (*exec.Cmd, error) {
 		m.mu.RLock()
@@ -222,6 +277,15 @@ func (m *Manager) SetMissingMarker(marker MissingMarker) {
 	m.mu.Unlock()
 }
 
+// SetPermuteFunc injects the permutation generator used to randomize the
+// shuffle unseen pool. Production wires math/rand/v2 in NewManager; tests use
+// this to supply a fixed permutation for deterministic traversal assertions.
+func (m *Manager) SetPermuteFunc(fn func(n int) []int) {
+	m.mu.Lock()
+	m.permute = fn
+	m.mu.Unlock()
+}
+
 // DisconnectCh returns a channel that receives the first error surfaced by the
 // health-check goroutine when an IPC socket disconnect is detected. The caller
 // must not close the channel.
@@ -249,15 +313,40 @@ func (m *Manager) ipc() (*IPCClient, error) {
 	return c, nil
 }
 
-// ipcOrEnqueue calls ipc; if the result is ErrNotConnected it enqueues retry
-// and returns (nil, enqueue-error). The caller must return immediately when
-// c == nil (either the command was queued or Start was never called).
-func (m *Manager) ipcOrEnqueue(retry func() error) (*IPCClient, error) {
-	c, err := m.ipc()
-	if errors.Is(err, ErrNotConnected) {
-		return nil, m.enqueue(retry)
+// admit runs send against the live mpv client, or enqueues it for in-order
+// replay when mpv is not connected or the connection is still activating. The
+// gate check and the enqueue happen under a single lock acquisition, so a
+// command that observes the activation gate can never then race the queue to nil
+// and be spuriously rejected: while activating is true the queue is guaranteed
+// non-nil (only Close nils it, and Close clears activating in the same locked
+// step). A queued send is replayed by drainQueue against the restored client
+// through the ungated ipc() helper, so it never re-enters this gate and cannot
+// recursively re-enqueue itself while activation is still in progress. Returns
+// ErrNotConnected only when the manager was never started or has been closed.
+func (m *Manager) admit(send func(*IPCClient) error) error {
+	m.mu.Lock()
+	c := m.client
+	if c == nil || m.activating {
+		if m.cmdQueue == nil {
+			m.mu.Unlock()
+			return ErrNotConnected
+		}
+		m.cmdQueue = append(m.cmdQueue, func() error {
+			c, err := m.ipc()
+			if err != nil {
+				return err
+			}
+			return send(c)
+		})
+		fn := m.callbacks.OnStatus
+		m.mu.Unlock()
+		if fn != nil {
+			fn("Connecting to mpv…")
+		}
+		return nil
 	}
-	return c, err
+	m.mu.Unlock()
+	return send(c)
 }
 
 // DebugInfo queries mpv for diagnostic properties and returns them as a

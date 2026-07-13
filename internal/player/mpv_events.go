@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 )
@@ -35,9 +37,18 @@ func (m *Manager) emitPlaybackEnded() {
 // and dispatches async events. It runs as a goroutine until ctx is cancelled
 // or the connection drops. On an end-file event with reason "eof" it
 // dispatches auto-advance work away from the event-reader loop.
-func (m *Manager) startEventReader(ctx context.Context) {
+//
+// client is the command client for this subprocess generation. Any failure
+// that ends the event stream while the generation is still active — dial
+// failure, observe-property write failure, a scanner error, or an unexpected
+// EOF — is treated as a connection failure and routed through
+// handleConnectionFailure so the whole mpv generation restarts. Reconnecting
+// only the event socket is deliberately avoided: a lost EOF must not leave
+// playback state ambiguous while the command socket appears healthy.
+func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 	conn, err := net.Dial("unix", m.socketPath)
 	if err != nil {
+		m.handleConnectionFailure(ctx, client, fmt.Errorf("event reader: dial: %w", err))
 		return
 	}
 	defer conn.Close()
@@ -61,12 +72,18 @@ func (m *Manager) startEventReader(ctx context.Context) {
 		RequestID: 0,
 	})
 	if err != nil {
+		// Marshalling a static request essentially never fails, but if it does
+		// the pause subscription cannot be established; treat it like the write
+		// failure below so the generation restarts rather than silently
+		// running without external pause notifications.
 		slog.Warn("mpv: event reader: failed to marshal observe command", "err", err)
+		m.handleConnectionFailure(ctx, client, fmt.Errorf("event reader: marshal observe: %w", err))
 		return
 	}
 	observeCmd = append(observeCmd, '\n')
 	if _, err := conn.Write(observeCmd); err != nil {
 		slog.Warn("mpv: event reader: failed to observe pause property", "err", err)
+		m.handleConnectionFailure(ctx, client, fmt.Errorf("event reader: observe pause: %w", err))
 		return
 	}
 
@@ -119,6 +136,9 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			}
 			idx := m.currentIndex
 			prefetchedIdx := m.prefetchedIndex
+			prefetchedID := m.prefetchedIdentity
+			prefetchedPath := m.prefetchedPath
+			shuffle := m.shuffleEnabled
 			queueLen := len(m.queue)
 			m.mu.Unlock()
 			if stopAfter {
@@ -151,7 +171,42 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			// breaks subsequent start-file dispatch (silently drops the
 			// callback because idx >= len(q)).
 			advanced := false
-			if prefetchedIdx >= 0 && prefetchedIdx > idx && prefetchedIdx < queueLen {
+			if shuffle {
+				// Shuffle prefetch commit: the successor was resolved but not
+				// consumed, so history is advanced to it now. Re-validate under
+				// the write lock — the identity must still resolve to a live row
+				// whose path matches what was prefetched — before committing, so
+				// a queue mutation between EOF snapshot and commit cannot promote
+				// a stale prefetch.
+				if prefetchedIdx >= 0 && prefetchedID != "" {
+					m.mu.Lock()
+					liveIdx := identityIndex(m.queue, prefetchedID)
+					valid := m.prefetchedIndex >= 0 &&
+						m.prefetchedIdentity == prefetchedID &&
+						liveIdx >= 0 && liveIdx < len(m.queue) &&
+						m.queue[liveIdx].Path == prefetchedPath
+					var skippedMissing []QueueTrack
+					marker := m.marker
+					if valid {
+						committed, skipped := m.commitShufflePrefetchLocked(prefetchedID)
+						skippedMissing = skipped
+						if committed >= 0 {
+							m.currentIndex = committed
+							m.prefetchedIndex = -1
+							m.prefetchedPath = ""
+							m.prefetchedIdentity = ""
+							advanced = true
+						}
+					}
+					m.mu.Unlock()
+					// Mark the identities the prefetch peek skipped as missing on
+					// disk, outside the lock, so gapless traversal produces the
+					// same durable markers and callbacks as non-gapless traversal.
+					for _, e := range skippedMissing {
+						m.markEntryMissing(e, marker)
+					}
+				}
+			} else if prefetchedIdx >= 0 && prefetchedIdx > idx && prefetchedIdx < queueLen {
 				m.mu.Lock()
 				if m.prefetchedIndex == prefetchedIdx &&
 					prefetchedIdx > m.currentIndex &&
@@ -159,6 +214,7 @@ func (m *Manager) startEventReader(ctx context.Context) {
 					m.currentIndex = prefetchedIdx
 					m.prefetchedIndex = -1
 					m.prefetchedPath = ""
+					m.prefetchedIdentity = ""
 					advanced = true
 				}
 				m.mu.Unlock()
@@ -179,9 +235,12 @@ func (m *Manager) startEventReader(ctx context.Context) {
 				continue
 			}
 
-			// Fallback: no prefetch available, load next track directly.
+			// Fallback: no prefetch available, load the next track directly.
+			// Use the internal advance (not the public PlayFromIndex) so that
+			// under shuffle this walks existing history/unseen order instead of
+			// reanchoring the cycle around idx+1.
 			go func(nextIdx int) {
-				if err := m.PlayFromIndex(nextIdx); err != nil {
+				if err := m.advanceAfterCurrent(nextIdx); err != nil {
 					// Queue exhausted: notify the TUI so it can reset the toggle.
 					m.emitPlaybackEnded()
 				}
@@ -203,4 +262,18 @@ func (m *Manager) startEventReader(ctx context.Context) {
 			}
 		}
 	}
+
+	// The scan loop only exits when the event stream ends. If ctx was cancelled
+	// (companion goroutine closed conn on restart/shutdown), the failure belongs
+	// to a dead generation and handleConnectionFailure ignores it. Otherwise the
+	// event socket dropped unexpectedly while the command socket may still look
+	// healthy: restart the whole generation so a silently lost EOF cannot leave
+	// playback state ambiguous.
+	if err := scanner.Err(); err != nil {
+		slog.Warn("mpv: event reader: scanner error",
+			"err", err, "socket", m.socketPath)
+		m.handleConnectionFailure(ctx, client, fmt.Errorf("event reader: scanner: %w", err))
+		return
+	}
+	m.handleConnectionFailure(ctx, client, errors.New("event reader: unexpected EOF on event socket"))
 }

@@ -18,10 +18,25 @@ import (
 // internal playlist looping. The command is queued for replay if mpv is not
 // yet connected.
 func (m *Manager) SetRepeat(mode string) error {
-	c, err := m.ipcOrEnqueue(func() error { return m.SetRepeat(mode) })
-	if err != nil || c == nil {
-		return err
-	}
+	// Record the mode so the restart supervisor can restore it after mpv
+	// reconnects. Done before the IPC send so the value is captured even when
+	// the command is queued for replay.
+	m.mu.Lock()
+	m.repeatMode = mode
+	m.mu.Unlock()
+
+	return m.admit(func(c *IPCClient) error {
+		return sendRepeat(c, mode)
+	})
+}
+
+// sendRepeat applies the loop-playlist/loop-file properties for the given repeat
+// mode directly against an already-resolved client. It is the ungated core of
+// SetRepeat, shared with restoreStableProperties so the restart supervisor can
+// re-apply the repeat mode inside the activation window (where the gated
+// admit path would defer it behind the resume loadfile).
+func sendRepeat(c *IPCClient, mode string) error {
+	var err error
 	switch mode {
 	case "all":
 		if _, err = c.SendCommand(cmdSetProperty, propLoopPlaylist, "no"); err != nil {
@@ -42,32 +57,49 @@ func (m *Manager) SetRepeat(mode string) error {
 	return err
 }
 
-// SetShuffle enables or disables mpv's shuffle mode. The command is queued
-// for replay if mpv is not yet connected.
+// SetShuffle enables or disables Go-owned shuffle traversal. It never touches
+// mpv's own shuffle property: the visible and persisted queue order is left
+// unchanged and Next/Previous consult the Manager's traversal state instead.
+// Enabling preserves the current track as the anchor and builds a no-repeat
+// permutation of every other queue entry. Because it only mutates in-memory
+// state under the manager lock, it works identically before connection, while
+// connected, and while reconnecting.
 func (m *Manager) SetShuffle(enabled bool) error {
-	c, err := m.ipcOrEnqueue(func() error { return m.SetShuffle(enabled) })
-	if err != nil || c == nil {
-		return err
+	m.mu.Lock()
+	if m.shuffleEnabled == enabled {
+		m.mu.Unlock()
+		return nil
 	}
-	_, err = c.SendCommand(cmdSetProperty, propShuffle, enabled)
-	return err
+	m.shuffleEnabled = enabled
+	if enabled {
+		m.rebuildShuffleLocked()
+	} else {
+		m.clearShuffleLocked()
+	}
+	m.mu.Unlock()
+
+	// Toggling shuffle changes the traversal model, so the existing gapless
+	// prefetch (resolved under the old model) is now invalid. Clear it and
+	// rebuild: prefetchNext resolves the successor for whichever model is now
+	// active — the next shuffle identity when enabled, or idx+1 when disabled.
+	m.clearPrefetch()
+	go m.prefetchNext()
+	return nil
 }
 
 // Play resumes playback.
 func (m *Manager) Play() error {
-	c, err := m.ipcOrEnqueue(m.Play)
-	if err != nil || c == nil {
-		return err
-	}
-	if _, err = c.SendCommand(cmdSetProperty, propPause, false); err != nil {
-		return err
-	}
-	// Mirror the requested pause state so an auto-restart firing before
-	// the property-change event arrives resumes in the correct state.
-	m.mu.Lock()
-	m.lastPaused = false
-	m.mu.Unlock()
-	return nil
+	return m.admit(func(c *IPCClient) error {
+		if _, err := c.SendCommand(cmdSetProperty, propPause, false); err != nil {
+			return err
+		}
+		// Mirror the requested pause state so an auto-restart firing before
+		// the property-change event arrives resumes in the correct state.
+		m.mu.Lock()
+		m.lastPaused = false
+		m.mu.Unlock()
+		return nil
+	})
 }
 
 // bestEffortUnpause clears mpv's pause property after playback has already
@@ -97,40 +129,36 @@ func (m *Manager) mirrorUnpaused() {
 
 // Pause pauses playback.
 func (m *Manager) Pause() error {
-	c, err := m.ipcOrEnqueue(m.Pause)
-	if err != nil || c == nil {
-		return err
-	}
-	if _, err = c.SendCommand(cmdSetProperty, propPause, true); err != nil {
-		return err
-	}
-	// Mirror the requested pause state so an auto-restart firing before
-	// the property-change event arrives resumes in the correct state.
-	m.mu.Lock()
-	m.lastPaused = true
-	m.mu.Unlock()
-	return nil
+	return m.admit(func(c *IPCClient) error {
+		if _, err := c.SendCommand(cmdSetProperty, propPause, true); err != nil {
+			return err
+		}
+		// Mirror the requested pause state so an auto-restart firing before
+		// the property-change event arrives resumes in the correct state.
+		m.mu.Lock()
+		m.lastPaused = true
+		m.mu.Unlock()
+		return nil
+	})
 }
 
 // Stop pauses playback and seeks to the beginning of the current track.
 func (m *Manager) Stop() error {
-	c, err := m.ipcOrEnqueue(m.Stop)
-	if err != nil || c == nil {
-		return err
-	}
-	if _, err = c.SendCommand(cmdSetProperty, propPause, true); err != nil {
-		return err
-	}
-	// Pause has been applied to mpv. Mirror it immediately so an auto-restart
-	// firing before the property-change event arrives preserves the paused
-	// state even if the subsequent seek fails.
-	m.mu.Lock()
-	m.lastPaused = true
-	m.mu.Unlock()
-	if _, err = c.SendCommand(cmdSeek, 0, "absolute"); err != nil {
-		return err
-	}
-	return nil
+	return m.admit(func(c *IPCClient) error {
+		if _, err := c.SendCommand(cmdSetProperty, propPause, true); err != nil {
+			return err
+		}
+		// Pause has been applied to mpv. Mirror it immediately so an auto-restart
+		// firing before the property-change event arrives preserves the paused
+		// state even if the subsequent seek fails.
+		m.mu.Lock()
+		m.lastPaused = true
+		m.mu.Unlock()
+		if _, err := c.SendCommand(cmdSeek, 0, "absolute"); err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // SeekAbsolute seeks to an absolute position in seconds within the current track.
@@ -139,32 +167,35 @@ func (m *Manager) SeekAbsolute(seconds float64) error {
 	if seconds < 0 {
 		seconds = 0
 	}
-	c, err := m.ipcOrEnqueue(func() error { return m.SeekAbsolute(seconds) })
-	if err != nil || c == nil {
+	return m.admit(func(c *IPCClient) error {
+		_, err := c.SendCommand(cmdSeek, seconds, "absolute")
 		return err
-	}
-	_, err = c.SendCommand(cmdSeek, seconds, "absolute")
-	return err
+	})
 }
 
 // SeekRelative seeks forward (positive) or backward (negative) by seconds.
 func (m *Manager) SeekRelative(seconds float64) error {
-	c, err := m.ipcOrEnqueue(func() error { return m.SeekRelative(seconds) })
-	if err != nil || c == nil {
+	return m.admit(func(c *IPCClient) error {
+		_, err := c.SendCommand(cmdSeek, seconds, "relative")
 		return err
-	}
-	_, err = c.SendCommand(cmdSeek, seconds, "relative")
-	return err
+	})
 }
 
 // SetVolumeRelative adjusts volume by the given percentage delta.
 func (m *Manager) SetVolumeRelative(delta float64) error {
-	c, err := m.ipcOrEnqueue(func() error { return m.SetVolumeRelative(delta) })
-	if err != nil || c == nil {
-		return err
+	// Track the running absolute level (clamped to mpv's 0-100 range) so the
+	// restart supervisor can restore it. Only meaningful once an absolute
+	// baseline has been established via SetVolumeAbsolute.
+	m.mu.Lock()
+	if m.volumeKnown {
+		m.lastVolume = math.Min(100, math.Max(0, m.lastVolume+delta))
 	}
-	_, err = c.SendCommand(cmdAdd, propVolume, delta)
-	return err
+	m.mu.Unlock()
+
+	return m.admit(func(c *IPCClient) error {
+		_, err := c.SendCommand(cmdAdd, propVolume, delta)
+		return err
+	})
 }
 
 // SetVolumeAbsolute sets the volume to an absolute level (0–100). The command
@@ -178,12 +209,17 @@ func (m *Manager) SetVolumeAbsolute(volume float64) error {
 	} else if volume > 100 {
 		volume = 100
 	}
-	c, err := m.ipcOrEnqueue(func() error { return m.SetVolumeAbsolute(volume) })
-	if err != nil || c == nil {
+	// Record the absolute level (and mark it known) so the restart supervisor
+	// can restore it after mpv reconnects.
+	m.mu.Lock()
+	m.lastVolume = volume
+	m.volumeKnown = true
+	m.mu.Unlock()
+
+	return m.admit(func(c *IPCClient) error {
+		_, err := c.SendCommand(cmdSetProperty, propVolume, volume)
 		return err
-	}
-	_, err = c.SendCommand(cmdSetProperty, propVolume, volume)
-	return err
+	})
 }
 
 // rebuildAudioFilters sends the current audioFilters map to mpv as a single
@@ -230,7 +266,7 @@ func (m *Manager) updateFilterLocked(name, expr string, enabled bool) {
 func (m *Manager) setFilter(name, expr string, enabled bool) error {
 	m.mu.Lock()
 	switch {
-	case m.client != nil:
+	case m.client != nil && !m.activating:
 		prevExpr, hadPrev := m.audioFilters[name]
 		m.updateFilterLocked(name, expr, enabled)
 		m.mu.Unlock()
@@ -313,29 +349,25 @@ func buildFireequalizerExpr(bands [10]int) string {
 // SetGapless enables or disables gapless playback via mpv's gapless-audio
 // property. The command is queued for replay if mpv is not yet connected.
 func (m *Manager) SetGapless(enabled bool) error {
-	c, err := m.ipcOrEnqueue(func() error { return m.SetGapless(enabled) })
-	if err != nil || c == nil {
-		return err
-	}
-	val := "no"
-	if enabled {
-		val = "yes"
-	}
-	_, err = c.SendCommand(cmdSetProperty, propGaplessAudio, val)
-	if err != nil {
-		return err
-	}
-	_, err = c.SendCommand(cmdSetProperty, propPrefetchPlaylist, val)
-	if err != nil {
-		return err
-	}
-	m.mu.Lock()
-	m.gaplessEnabled = enabled
-	m.mu.Unlock()
-	if enabled {
-		go m.prefetchNext()
-	} else {
-		m.clearPrefetch()
-	}
-	return nil
+	return m.admit(func(c *IPCClient) error {
+		val := "no"
+		if enabled {
+			val = "yes"
+		}
+		if _, err := c.SendCommand(cmdSetProperty, propGaplessAudio, val); err != nil {
+			return err
+		}
+		if _, err := c.SendCommand(cmdSetProperty, propPrefetchPlaylist, val); err != nil {
+			return err
+		}
+		m.mu.Lock()
+		m.gaplessEnabled = enabled
+		m.mu.Unlock()
+		if enabled {
+			go m.prefetchNext()
+		} else {
+			m.clearPrefetch()
+		}
+		return nil
+	})
 }

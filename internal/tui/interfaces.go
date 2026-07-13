@@ -75,6 +75,16 @@ type repeatShuffler interface {
 	SetShuffle(bool) error
 }
 
+// queueCycleRestarter is an optional interface exposing RestartQueueCycle for
+// repeat-all queue exhaustion. When shuffle is on it builds a fresh permutation
+// (avoiding an immediate replay of the just-played track); when off it restarts
+// sequentially from index zero. Root checks for it via type assertion so that
+// lightweight test players implementing only playPauser fall back to
+// PlayFromIndex(0).
+type queueCycleRestarter interface {
+	RestartQueueCycle() error
+}
+
 // stopAfterToggler enables or disables "stop after current track" mode in
 // the player. Root checks for it via type assertion so that test stubs only
 // need to implement playPauser.
@@ -277,6 +287,15 @@ type listeningStatsReader interface {
 // newly discovered tracks are persisted to the database.
 type scanUpsertBatcher interface {
 	UpsertBatch([]library.Track) error
+}
+
+// trackMissingMarker persists a track's missing flag by hash. The manual
+// rescan path type-asserts m.scanWriter to it so that a file which vanished
+// between scans is marked missing durably, mirroring the live watcher's
+// deletion handling. Optional: when the scan writer does not implement it, the
+// rescan still reconciles in-memory state but skips the durable mark.
+type trackMissingMarker interface {
+	MarkTrackMissing(hash string) error
 }
 
 // userEditedReader reads user-edited track metadata from the database.

@@ -1,6 +1,7 @@
 package library
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -24,7 +25,7 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 	t.Run("Create audio file adds to pending", func(t *testing.T) {
 		pending := make(map[string]bool)
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Create}, nil, pending, deleted, w)
+		handleFsEvent(context.Background(), fsnotify.Event{Name: audioPath, Op: fsnotify.Create}, nil, pending, deleted, w)
 		isDir, ok := pending[audioPath]
 		if !ok {
 			t.Errorf("expected %q in pending after Create event", audioPath)
@@ -37,7 +38,7 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 	t.Run("Write audio file adds to pending", func(t *testing.T) {
 		pending := make(map[string]bool)
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Write}, nil, pending, deleted, w)
+		handleFsEvent(context.Background(), fsnotify.Event{Name: audioPath, Op: fsnotify.Write}, nil, pending, deleted, w)
 		if _, ok := pending[audioPath]; !ok {
 			t.Errorf("expected %q in pending after Write event", audioPath)
 		}
@@ -46,7 +47,7 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 	t.Run("Rename removes from pending and adds to deleted", func(t *testing.T) {
 		pending := map[string]bool{audioPath: false}
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Rename}, nil, pending, deleted, w)
+		handleFsEvent(context.Background(), fsnotify.Event{Name: audioPath, Op: fsnotify.Rename}, nil, pending, deleted, w)
 		if _, ok := pending[audioPath]; ok {
 			t.Errorf("expected %q removed from pending after Rename event", audioPath)
 		}
@@ -58,7 +59,7 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 	t.Run("Remove removes from pending and adds to deleted", func(t *testing.T) {
 		pending := map[string]bool{audioPath: false}
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Remove}, nil, pending, deleted, w)
+		handleFsEvent(context.Background(), fsnotify.Event{Name: audioPath, Op: fsnotify.Remove}, nil, pending, deleted, w)
 		if _, ok := pending[audioPath]; ok {
 			t.Errorf("expected %q removed from pending after Remove event", audioPath)
 		}
@@ -72,7 +73,7 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 		mkfile(t, txtPath)
 		pending := make(map[string]bool)
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: txtPath, Op: fsnotify.Create}, nil, pending, deleted, w)
+		handleFsEvent(context.Background(), fsnotify.Event{Name: txtPath, Op: fsnotify.Create}, nil, pending, deleted, w)
 		if _, ok := pending[txtPath]; ok {
 			t.Errorf("non-audio file should not be added to pending")
 		}
@@ -85,7 +86,7 @@ func TestHandleFsEvent_PendingSetBehavior(t *testing.T) {
 		}
 		pending := make(map[string]bool)
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: dirPath, Op: fsnotify.Create}, nil, pending, deleted, w)
+		handleFsEvent(context.Background(), fsnotify.Event{Name: dirPath, Op: fsnotify.Create}, nil, pending, deleted, w)
 		isDir, ok := pending[dirPath]
 		if !ok {
 			t.Errorf("expected %q in pending after directory Create", dirPath)
@@ -112,7 +113,7 @@ func TestHandleFsEvent_SkipsHiddenFiles(t *testing.T) {
 		mkfile(t, hiddenAudio)
 		pending := make(map[string]bool)
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: hiddenAudio, Op: fsnotify.Create}, nil, pending, deleted, w)
+		handleFsEvent(context.Background(), fsnotify.Event{Name: hiddenAudio, Op: fsnotify.Create}, nil, pending, deleted, w)
 		if _, ok := pending[hiddenAudio]; ok {
 			t.Errorf("hidden audio file should not be added to pending")
 		}
@@ -125,7 +126,7 @@ func TestHandleFsEvent_SkipsHiddenFiles(t *testing.T) {
 		}
 		pending := make(map[string]bool)
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: hiddenDir, Op: fsnotify.Create}, nil, pending, deleted, w)
+		handleFsEvent(context.Background(), fsnotify.Event{Name: hiddenDir, Op: fsnotify.Create}, nil, pending, deleted, w)
 		if _, ok := pending[hiddenDir]; ok {
 			t.Errorf("hidden directory should not be added to pending")
 		}
@@ -136,7 +137,7 @@ func TestHandleFsEvent_SkipsHiddenFiles(t *testing.T) {
 		mkfile(t, hiddenAudio)
 		pending := make(map[string]bool)
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: hiddenAudio, Op: fsnotify.Write}, nil, pending, deleted, w)
+		handleFsEvent(context.Background(), fsnotify.Event{Name: hiddenAudio, Op: fsnotify.Write}, nil, pending, deleted, w)
 		if _, ok := pending[hiddenAudio]; ok {
 			t.Errorf("hidden file Write should not be added to pending")
 		}
@@ -146,7 +147,7 @@ func TestHandleFsEvent_SkipsHiddenFiles(t *testing.T) {
 		hiddenAudio := filepath.Join(root, ".hidden.mp3")
 		pending := make(map[string]bool)
 		deleted := make(map[string]struct{})
-		handleFsEvent(fsnotify.Event{Name: hiddenAudio, Op: fsnotify.Remove}, nil, pending, deleted, w)
+		handleFsEvent(context.Background(), fsnotify.Event{Name: hiddenAudio, Op: fsnotify.Remove}, nil, pending, deleted, w)
 		if _, ok := deleted[hiddenAudio]; ok {
 			t.Errorf("hidden file Remove should not be added to deleted")
 		}
@@ -174,11 +175,11 @@ func TestHandleFsEvent_CreateAfterRemoveClearsDeleted(t *testing.T) {
 	deleted := make(map[string]struct{})
 
 	// Simulate: file removed, then immediately re-created in the same window.
-	handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Remove}, nil, pending, deleted, w)
+	handleFsEvent(context.Background(), fsnotify.Event{Name: audioPath, Op: fsnotify.Remove}, nil, pending, deleted, w)
 	if _, ok := deleted[audioPath]; !ok {
 		t.Fatalf("precondition: expected %q in deleted after Remove", audioPath)
 	}
-	handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Create}, nil, pending, deleted, w)
+	handleFsEvent(context.Background(), fsnotify.Event{Name: audioPath, Op: fsnotify.Create}, nil, pending, deleted, w)
 
 	if _, ok := deleted[audioPath]; ok {
 		t.Errorf("Create after Remove must clear path from deleted; still present: %v", deleted)
@@ -206,8 +207,8 @@ func TestHandleFsEvent_WriteAfterRemoveClearsDeleted(t *testing.T) {
 	pending := make(map[string]bool)
 	deleted := make(map[string]struct{})
 
-	handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Rename}, nil, pending, deleted, w)
-	handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Write}, nil, pending, deleted, w)
+	handleFsEvent(context.Background(), fsnotify.Event{Name: audioPath, Op: fsnotify.Rename}, nil, pending, deleted, w)
+	handleFsEvent(context.Background(), fsnotify.Event{Name: audioPath, Op: fsnotify.Write}, nil, pending, deleted, w)
 
 	if _, ok := deleted[audioPath]; ok {
 		t.Errorf("Write after Rename must clear path from deleted; still present: %v", deleted)
@@ -238,8 +239,8 @@ func TestHandleFsEvent_ChmodAfterActualRemoveKeepsDeleted(t *testing.T) {
 	if err := os.Remove(audioPath); err != nil {
 		t.Fatalf("remove: %v", err)
 	}
-	handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Remove}, nil, pending, deleted, w)
-	handleFsEvent(fsnotify.Event{Name: audioPath, Op: fsnotify.Chmod}, nil, pending, deleted, w)
+	handleFsEvent(context.Background(), fsnotify.Event{Name: audioPath, Op: fsnotify.Remove}, nil, pending, deleted, w)
+	handleFsEvent(context.Background(), fsnotify.Event{Name: audioPath, Op: fsnotify.Chmod}, nil, pending, deleted, w)
 
 	if _, ok := deleted[audioPath]; !ok {
 		t.Errorf("Chmod after actual Remove must keep path in deleted")
@@ -268,7 +269,7 @@ func TestAddWatchesRecursive_SkipsHiddenDirs(t *testing.T) {
 	}
 	defer w.Close()
 
-	if err := addWatchesRecursive(w, root, nil); err != nil {
+	if err := addWatchesRecursive(context.Background(), w, root, nil); err != nil {
 		t.Fatalf("addWatchesRecursive: %v", err)
 	}
 
@@ -298,7 +299,7 @@ func TestAddWatchesRecursive_MissingRootReturnsError(t *testing.T) {
 	}
 	defer w.Close()
 
-	if err := addWatchesRecursive(w, root, nil); err == nil {
+	if err := addWatchesRecursive(context.Background(), w, root, nil); err == nil {
 		t.Fatalf("addWatchesRecursive(%q): expected error for missing root", root)
 	}
 }

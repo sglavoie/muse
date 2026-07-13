@@ -1,6 +1,14 @@
 package player
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+// errConnectTimeout is returned by connectSocket when the mpv IPC socket does
+// not accept a connection before the poll timeout elapses. The restart
+// supervisor treats it as a failed attempt (same path as a launch failure).
+var errConnectTimeout = errors.New("player: mpv socket connection timed out")
 
 // Timing constants for the main mpv manager.
 //
@@ -56,7 +64,6 @@ const (
 	propPath             = "path"
 	propPause            = "pause"
 	propPrefetchPlaylist = "prefetch-playlist"
-	propShuffle          = "shuffle"
 	propTimePos          = "time-pos"
 	propVolume           = "volume"
 )
