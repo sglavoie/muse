@@ -113,16 +113,56 @@ func TestSahilmFuzzySearcher(t *testing.T) {
 		}
 	})
 
-	t.Run("NonContiguousQueryMatchesArtist", func(t *testing.T) {
+	t.Run("NonContiguousQueryDoesNotMatchArtist", func(t *testing.T) {
 		got := s.Search("rhd", tracks)
-		if len(got) != 1 || got[0].TrackIndex != 0 {
-			t.Fatalf("expected fuzzy match on Radiohead (index 0), got %+v", got)
-		}
-		want := []int{0, 5, 8}
-		if !slices.Equal(got[0].MatchedIndexes, want) {
-			t.Errorf("MatchedIndexes = %v, want %v", got[0].MatchedIndexes, want)
+		if len(got) != 0 {
+			t.Fatalf("expected no substring match for non-contiguous query, got %+v", got)
 		}
 	})
+}
+
+func TestSahilmFuzzySearcher_DoesNotCrossFieldBoundaries(t *testing.T) {
+	tracks := []Track{
+		{
+			Artist: "Toumani Diabaté",
+			Title:  "08 - Is Anyone There",
+			Album:  "The Sky Is The Same Colour Everywhere",
+			Path:   "/music/toumani.flac",
+		},
+		{
+			Artist: "Utsav Lal",
+			Title:  "Alaap",
+			Album:  "Piano Moods of Indian Ragas",
+			Path:   "/music/alaap.flac",
+		},
+	}
+
+	got := (SahilmFuzzySearcher{}).Search("utsav", tracks)
+	if len(got) != 1 || got[0].TrackIndex != 1 {
+		t.Fatalf("expected only the contiguous Utsav match, got %+v", got)
+	}
+	wantPositions := []int{0, 1, 2, 3, 4}
+	if !slices.Equal(got[0].MatchedIndexes, wantPositions) {
+		t.Errorf("MatchedIndexes = %v, want %v", got[0].MatchedIndexes, wantPositions)
+	}
+}
+
+func TestSahilmFuzzySearcher_DoesNotMatchAcrossAdjacentFields(t *testing.T) {
+	tracks := []Track{{Artist: "Utsav", Title: "Lal", Path: "/music/track.flac"}}
+
+	got := (SahilmFuzzySearcher{}).Search("utsav lal", tracks)
+	if len(got) != 0 {
+		t.Fatalf("query spanning artist and title should not match, got %+v", got)
+	}
+}
+
+func TestSahilmFuzzySearcher_SearchesBaseFilenameOnly(t *testing.T) {
+	tracks := []Track{{Artist: "Other", Title: "Song", Path: "/music/utsav/track.flac"}}
+
+	got := (SahilmFuzzySearcher{}).Search("utsav", tracks)
+	if len(got) != 0 {
+		t.Fatalf("directory component should not match, got %+v", got)
+	}
 }
 
 func TestSahilmFuzzySearcher_FieldSpecific(t *testing.T) {
@@ -226,25 +266,17 @@ func TestSahilmFuzzySearcher_FieldSpecific(t *testing.T) {
 		}
 	})
 
-	t.Run("NonContiguousFieldQueryMatchesTitle", func(t *testing.T) {
+	t.Run("NonContiguousFieldQueryDoesNotMatchTitle", func(t *testing.T) {
 		got := s.Search("t:cnmb", tracks)
-		if len(got) != 1 || got[0].TrackIndex != 1 {
-			t.Fatalf("expected fuzzy title match on Comfortably Numb (index 1), got %+v", got)
-		}
-		want := []int{0, 12, 14, 15}
-		if !slices.Equal(got[0].TitlePositions, want) {
-			t.Errorf("TitlePositions = %v, want %v", got[0].TitlePositions, want)
+		if len(got) != 0 {
+			t.Fatalf("expected no substring title match, got %+v", got)
 		}
 	})
 
-	t.Run("NonContiguousFieldQueryMatchesGenre", func(t *testing.T) {
+	t.Run("NonContiguousFieldQueryDoesNotMatchGenre", func(t *testing.T) {
 		got := s.Search("g:prgrck", tracks)
-		if len(got) != 1 || got[0].TrackIndex != 1 {
-			t.Fatalf("expected fuzzy genre match on Progressive Rock (index 1), got %+v", got)
-		}
-		want := []int{0, 1, 3, 4, 14, 15}
-		if !slices.Equal(got[0].GenrePositions, want) {
-			t.Errorf("GenrePositions = %v, want %v", got[0].GenrePositions, want)
+		if len(got) != 0 {
+			t.Fatalf("expected no substring genre match, got %+v", got)
 		}
 	})
 }

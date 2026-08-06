@@ -32,6 +32,44 @@ func TestFuzzyFilterUpdatesDisplayedTracks(t *testing.T) {
 	}
 }
 
+// TestProductionFilterRejectsCrossFieldSubsequences guards the production
+// matcher used by Library and Mixes. The unrelated track used to match "utsav"
+// by collecting letters from its artist, title, and album fields.
+func TestProductionFilterRejectsCrossFieldSubsequences(t *testing.T) {
+	tracks := []musiclib.Track{
+		{
+			Artist: "Toumani Diabaté",
+			Title:  "08 - Is Anyone There",
+			Album:  "The Sky Is The Same Colour Everywhere",
+			Path:   "/music/toumani.flac",
+		},
+		{
+			Artist: "Utsav Lal",
+			Title:  "Alaap",
+			Album:  "Piano Moods of Indian Ragas",
+			Path:   "/music/alaap.flac",
+		},
+	}
+	v := View{
+		Index:  buildIndex(tracks),
+		Width:  120,
+		Height: 24,
+		Fuzzy:  musiclib.SahilmFuzzySearcher{},
+	}
+	v = v.ActivateFilter()
+	for _, ch := range "utsav" {
+		v = v.AppendFilterChar(ch)
+	}
+
+	got := ansi.Strip(v.Render())
+	if !strings.Contains(got, "Utsav Lal") {
+		t.Fatalf("filtered render should contain Utsav Lal, got:\n%s", got)
+	}
+	if strings.Contains(got, "Toumani Diabaté") {
+		t.Fatalf("cross-field subsequence should not appear, got:\n%s", got)
+	}
+}
+
 // TestFuzzyFilterUpdatesOnEachKeystroke verifies that results narrow
 // incrementally with each additional character typed.
 func TestFuzzyFilterUpdatesOnEachKeystroke(t *testing.T) {

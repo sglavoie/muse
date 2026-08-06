@@ -4,8 +4,8 @@ package library
 type Match struct {
 	// TrackIndex is the position of the matched track in the searched slice.
 	TrackIndex int
-	// MatchedIndexes holds the character positions within the matched field
-	// that correspond to the query runes, used for in-place highlight rendering.
+	// MatchedIndexes holds rune positions in the legacy concatenated
+	// artist/title/album/filename coordinate space used by highlight rendering.
 	MatchedIndexes []int
 	// ArtistPositions holds 0-indexed character positions within the artist
 	// string that matched a field-specific query (a:/artist: prefix).
@@ -21,9 +21,9 @@ type Match struct {
 	GenrePositions []int
 }
 
-// FuzzySearcher filters a track slice by a query string using fuzzy matching
-// across the artist, title, and filename (Path) fields. An empty or
-// whitespace-only query returns all tracks in index order.
+// FuzzySearcher filters a track slice by a query string across searchable
+// metadata fields. An empty or whitespace-only query returns all tracks in
+// index order.
 type FuzzySearcher interface {
 	Search(query string, tracks []Track) []Match
 }

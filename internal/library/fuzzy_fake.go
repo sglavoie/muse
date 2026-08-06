@@ -3,14 +3,15 @@ package library
 import "strings"
 
 // FakeFuzzySearcher is a deterministic in-memory FuzzySearcher for use in
-// unit tests. It performs a case-insensitive substring match across the
-// artist, title, album, and Path fields and returns results in stable index
-// order. It supports field-specific queries via a:/t:/l: prefixes.
+// unit tests. It performs the same case-insensitive, per-field substring match
+// as SahilmFuzzySearcher and returns results in stable index order. It supports
+// field-specific queries via a:/t:/l:/g: prefixes.
 type FakeFuzzySearcher struct{}
 
-// Search returns one Match per track whose artist, title, album, or Path
-// contains query as a case-insensitive substring. An empty or whitespace-only
-// query returns all tracks. Results are ordered by ascending TrackIndex.
+// Search returns one Match per track whose artist, title, album, or base
+// filename contains query as a case-insensitive substring. An empty or
+// whitespace-only query returns all tracks. Results are ordered by ascending
+// TrackIndex.
 func (f FakeFuzzySearcher) Search(query string, tracks []Track) []Match {
 	if strings.TrimSpace(query) == "" {
 		matches := make([]Match, len(tracks))
@@ -26,17 +27,14 @@ func (f FakeFuzzySearcher) Search(query string, tracks []Track) []Match {
 		return f.searchFieldSpecific(fq, tracks)
 	}
 
-	q := strings.ToLower(fq.General)
+	q := fq.General
 	if q == "" {
-		q = strings.ToLower(query)
+		q = strings.TrimSpace(query)
 	}
 
 	var matches []Match
 	for i, t := range tracks {
-		if strings.Contains(strings.ToLower(t.Artist), q) ||
-			strings.Contains(strings.ToLower(t.Title), q) ||
-			strings.Contains(strings.ToLower(t.Album), q) ||
-			strings.Contains(strings.ToLower(t.Path), q) {
+		if _, matched := generalSubstringIndexes(t, q); matched {
 			matches = append(matches, Match{TrackIndex: i})
 		}
 	}
@@ -50,35 +48,31 @@ func (f FakeFuzzySearcher) searchFieldSpecific(fq FilterQuery, tracks []Track) [
 		ok := true
 
 		if fq.Artist != "" {
-			if !strings.Contains(strings.ToLower(t.Artist), strings.ToLower(fq.Artist)) {
+			if _, matched := substringIndexes(t.Artist, fq.Artist); !matched {
 				ok = false
 			}
 		}
 
 		if ok && fq.Title != "" {
-			if !strings.Contains(strings.ToLower(t.Title), strings.ToLower(fq.Title)) {
+			if _, matched := substringIndexes(t.Title, fq.Title); !matched {
 				ok = false
 			}
 		}
 
 		if ok && fq.Album != "" {
-			if !strings.Contains(strings.ToLower(t.Album), strings.ToLower(fq.Album)) {
+			if _, matched := substringIndexes(t.Album, fq.Album); !matched {
 				ok = false
 			}
 		}
 
 		if ok && fq.Genre != "" {
-			if !strings.Contains(strings.ToLower(t.Genre), strings.ToLower(fq.Genre)) {
+			if _, matched := substringIndexes(t.Genre, fq.Genre); !matched {
 				ok = false
 			}
 		}
 
 		if ok && fq.General != "" {
-			q := strings.ToLower(fq.General)
-			if !strings.Contains(strings.ToLower(t.Artist), q) &&
-				!strings.Contains(strings.ToLower(t.Title), q) &&
-				!strings.Contains(strings.ToLower(t.Album), q) &&
-				!strings.Contains(strings.ToLower(t.Path), q) {
+			if _, matched := generalSubstringIndexes(t, fq.General); !matched {
 				ok = false
 			}
 		}

@@ -3,19 +3,17 @@ package library
 import (
 	"path/filepath"
 	"strings"
-	"unicode"
 )
 
-// SahilmFuzzySearcher is a FuzzySearcher backed by github.com/sahilm/fuzzy.
-// It searches across the artist, title, album, and filename (base of Path)
-// fields by concatenating them into a single searchable string per track.
+// SahilmFuzzySearcher performs deterministic substring filtering across track
+// metadata. The historical name is retained for compatibility with callers.
 type SahilmFuzzySearcher struct{}
 
-// Search runs a fuzzy subsequence match against each track's artist, title,
-// album, and filename. An empty or whitespace-only query returns all tracks in
-// index order with nil MatchedIndexes. Field-specific queries (a:/t:/l:/g:
-// prefixes) match individual fields and populate per-field position slices
-// instead.
+// Search runs a case-insensitive substring match against each track's artist,
+// title, album, and base filename independently. An empty or whitespace-only
+// query returns all tracks in index order with nil MatchedIndexes.
+// Field-specific queries (a:/t:/l:/g: prefixes) match individual fields and
+// populate per-field position slices instead.
 func (s SahilmFuzzySearcher) Search(query string, tracks []Track) []Match {
 	if strings.TrimSpace(query) == "" {
 		matches := make([]Match, len(tracks))
@@ -31,16 +29,14 @@ func (s SahilmFuzzySearcher) Search(query string, tracks []Track) []Match {
 		return s.searchFieldSpecific(fq, tracks)
 	}
 
-	// General path: search across concatenated artist+title+album+filename.
-	searchTerm := strings.ToLower(fq.General)
+	searchTerm := fq.General
 	if searchTerm == "" {
-		searchTerm = strings.ToLower(query)
+		searchTerm = strings.TrimSpace(query)
 	}
 
 	var matches []Match
 	for i, t := range tracks {
-		searchStr := t.Artist + " " + t.Title + " " + t.Album + " " + filepath.Base(t.Path)
-		indexes, ok := fuzzyIndexes(searchStr, searchTerm)
+		indexes, ok := generalSubstringIndexes(t, searchTerm)
 		if !ok {
 			continue
 		}
@@ -60,7 +56,7 @@ func (s SahilmFuzzySearcher) searchFieldSpecific(fq FilterQuery, tracks []Track)
 		ok := true
 
 		if fq.Artist != "" {
-			indexes, matched := fuzzyIndexes(t.Artist, fq.Artist)
+			indexes, matched := substringIndexes(t.Artist, fq.Artist)
 			if !matched {
 				ok = false
 			} else {
@@ -69,7 +65,7 @@ func (s SahilmFuzzySearcher) searchFieldSpecific(fq FilterQuery, tracks []Track)
 		}
 
 		if ok && fq.Title != "" {
-			indexes, matched := fuzzyIndexes(t.Title, fq.Title)
+			indexes, matched := substringIndexes(t.Title, fq.Title)
 			if !matched {
 				ok = false
 			} else {
@@ -78,7 +74,7 @@ func (s SahilmFuzzySearcher) searchFieldSpecific(fq FilterQuery, tracks []Track)
 		}
 
 		if ok && fq.Album != "" {
-			indexes, matched := fuzzyIndexes(t.Album, fq.Album)
+			indexes, matched := substringIndexes(t.Album, fq.Album)
 			if !matched {
 				ok = false
 			} else {
@@ -87,7 +83,7 @@ func (s SahilmFuzzySearcher) searchFieldSpecific(fq FilterQuery, tracks []Track)
 		}
 
 		if ok && fq.Genre != "" {
-			indexes, matched := fuzzyIndexes(t.Genre, fq.Genre)
+			indexes, matched := substringIndexes(t.Genre, fq.Genre)
 			if !matched {
 				ok = false
 			} else {
@@ -96,8 +92,7 @@ func (s SahilmFuzzySearcher) searchFieldSpecific(fq FilterQuery, tracks []Track)
 		}
 
 		if ok && fq.General != "" {
-			searchStr := t.Artist + " " + t.Title + " " + t.Album + " " + filepath.Base(t.Path)
-			if !strings.Contains(strings.ToLower(searchStr), strings.ToLower(fq.General)) {
+			if _, matched := generalSubstringIndexes(t, fq.General); !matched {
 				ok = false
 			}
 		}
@@ -109,31 +104,39 @@ func (s SahilmFuzzySearcher) searchFieldSpecific(fq FilterQuery, tracks []Track)
 	return matches
 }
 
-// fuzzyIndexes reports whether query is a case-insensitive subsequence of s
-// and returns the rune positions in s that satisfy the match.
-func fuzzyIndexes(s, query string) ([]int, bool) {
+// generalSubstringIndexes checks each searchable field independently so a
+// query can never be assembled from characters in different fields. Returned
+// indexes use the legacy concatenated artist/title/album/filename coordinate
+// space consumed by the renderer.
+func generalSubstringIndexes(t Track, query string) ([]int, bool) {
+	fields := [...]string{t.Artist, t.Title, t.Album, filepath.Base(t.Path)}
+	offset := 0
+	for _, field := range fields {
+		indexes, matched := substringIndexes(field, query)
+		if matched {
+			for i := range indexes {
+				indexes[i] += offset
+			}
+			return indexes, true
+		}
+		offset += len([]rune(field)) + 1
+	}
+	return nil, false
+}
+
+// substringIndexes reports whether query occurs contiguously in s using a
+// case-insensitive comparison and returns rune-based positions for rendering.
+func substringIndexes(s, query string) ([]int, bool) {
 	queryRunes := []rune(query)
 	if len(queryRunes) == 0 {
 		return nil, true
 	}
 
-	if idx := runeIndex(strings.ToLower(s), strings.ToLower(query)); idx >= 0 {
-		return consecutiveIndexes(idx, len(queryRunes)), true
+	idx := runeIndex(strings.ToLower(s), strings.ToLower(query))
+	if idx < 0 {
+		return nil, false
 	}
-
-	indexes := make([]int, 0, len(queryRunes))
-	qi := 0
-	for pos, r := range []rune(s) {
-		if unicode.ToLower(r) != unicode.ToLower(queryRunes[qi]) {
-			continue
-		}
-		indexes = append(indexes, pos)
-		qi++
-		if qi == len(queryRunes) {
-			return indexes, true
-		}
-	}
-	return nil, false
+	return consecutiveIndexes(idx, len(queryRunes)), true
 }
 
 // consecutiveIndexes returns a slice [start, start+1, ..., start+length-1].

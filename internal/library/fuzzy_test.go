@@ -62,6 +62,24 @@ func TestFakeFuzzySearcher(t *testing.T) {
 		}
 	})
 
+	t.Run("DirectoryComponentDoesNotMatch", func(t *testing.T) {
+		f := FakeFuzzySearcher{}
+		pathTracks := []Track{{Artist: "Other", Title: "Song", Path: "/music/radiohead/track01.mp3"}}
+		got := f.Search("radiohead", pathTracks)
+		if len(got) != 0 {
+			t.Errorf("expected directory component not to match, got %+v", got)
+		}
+	})
+
+	t.Run("DoesNotCrossFieldBoundaries", func(t *testing.T) {
+		f := FakeFuzzySearcher{}
+		crossField := []Track{{Artist: "Utsav", Title: "Lal", Path: "/music/track01.mp3"}}
+		got := f.Search("utsav lal", crossField)
+		if len(got) != 0 {
+			t.Errorf("expected query spanning artist and title not to match, got %+v", got)
+		}
+	})
+
 	t.Run("CaseInsensitive", func(t *testing.T) {
 		f := FakeFuzzySearcher{}
 		got := f.Search("PINK FLOYD", tracks)
