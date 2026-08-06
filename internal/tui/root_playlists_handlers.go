@@ -224,21 +224,8 @@ func (m Model) handleDestinationPickedMsg(msg pltui.DestinationPickedMsg) (Model
 	m.overlay.destPickerTracks = nil
 	m = m.clearAllSelections()
 	if msg.IsQueue {
-		if m.batchEnqueuer != nil {
-			be := m.batchEnqueuer
-			wasEmpty := len(m.queue.entries) == 0
-			return m, func() tea.Msg {
-				ids, err := be.AppendTracks(tracks, "")
-				if err != nil {
-					return BatchEnqueuedMsg{Err: err}
-				}
-				return BatchEnqueuedMsg{
-					Entries:      newQueueEntries(tracks, ids, ""),
-					QueueIDs:     ids,
-					WasEmpty:     wasEmpty,
-					PlaylistName: "Queue",
-				}
-			}
+		if cmd := m.batchEnqueueTracksCmd(tracks, "", "Queue"); cmd != nil {
+			return m, cmd
 		}
 	} else {
 		for _, p := range m.playlists.playlists {

@@ -87,37 +87,3 @@ func (v LibraryView) PlayNextFocused(qa libtui.QueueAppender, prevQueueLen, inse
 	_, cmd := v.view().PlayNextFocused(qa, prevQueueLen, insertAfter)
 	return cmd
 }
-
-// EnqueueSelected dispatches a tea.Cmd that appends all bulk-selected tracks to
-// the play queue via qa, in index order, then clears the selection. Returns the
-// updated view (with selection cleared) and a nil Cmd when no tracks are
-// selected. prevQueueLen is used to set WasEmpty on the first enqueued track so
-// the root model can trigger immediate playback when the queue was empty.
-func (v LibraryView) EnqueueSelected(qa libtui.QueueAppender, prevQueueLen int) (LibraryView, tea.Cmd) {
-	if len(v.selectedHashes) == 0 {
-		return v, nil
-	}
-	var cmds []tea.Cmd
-	queueLen := prevQueueLen
-	tracks := v.baseTracks()
-	if v.sortedTracks != nil {
-		tracks = v.sortedTracks
-	}
-	for _, t := range tracks {
-		if _, ok := v.selectedHashes[t.Hash]; !ok {
-			continue
-		}
-		track := t
-		wasEmpty := queueLen == 0
-		queueLen++
-		cmds = append(cmds, func() tea.Msg {
-			id, err := qa.AppendTrack(track, "")
-			return libtui.TrackEnqueuedMsg{Track: track, QueueID: id, Err: err, WasEmpty: wasEmpty, InsertAfter: -1}
-		})
-	}
-	v = v.ClearSelection()
-	if len(cmds) == 0 {
-		return v, nil
-	}
-	return v, tea.Batch(cmds...)
-}

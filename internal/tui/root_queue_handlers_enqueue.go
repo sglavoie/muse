@@ -84,7 +84,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 // to the queue and triggers playback if the queue was empty.
 func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 	if msg.Err != nil {
-		m.statusBar.notify("Enqueue playlist failed: " + msg.Err.Error())
+		m.statusBar.notify("Enqueue failed: " + msg.Err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}

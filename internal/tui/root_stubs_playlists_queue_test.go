@@ -170,11 +170,17 @@ func (s *stubPlaylistDeleter) PurgeDeletedPlaylistTracks(before int64) error {
 // use in batch-enqueue undo tests.
 type stubBatchEnqueuer struct {
 	appendTracksCalls    [][]library.Track
+	appendTracksSources  []string
 	dequeueTracksSoftIDs [][]int64
+	appendTracksErr      error
 }
 
-func (s *stubBatchEnqueuer) AppendTracks(tracks []library.Track, _ string) ([]int64, error) {
-	s.appendTracksCalls = append(s.appendTracksCalls, tracks)
+func (s *stubBatchEnqueuer) AppendTracks(tracks []library.Track, source string) ([]int64, error) {
+	s.appendTracksCalls = append(s.appendTracksCalls, append([]library.Track(nil), tracks...))
+	s.appendTracksSources = append(s.appendTracksSources, source)
+	if s.appendTracksErr != nil {
+		return nil, s.appendTracksErr
+	}
 	ids := make([]int64, len(tracks))
 	for i := range tracks {
 		ids[i] = int64(100 + i)

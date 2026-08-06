@@ -1,9 +1,34 @@
 package tui
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 )
+
+// batchEnqueueTracksCmd appends tracks transactionally and returns the shared
+// message consumed by the queue, player, autoplay, and undo handlers. source is
+// persisted on each queue row; label is the user-facing origin shown by
+// playback and undo state.
+func (m Model) batchEnqueueTracksCmd(tracks []library.Track, source, label string) tea.Cmd {
+	if m.batchEnqueuer == nil || len(tracks) == 0 {
+		return nil
+	}
+	be := m.batchEnqueuer
+	wasEmpty := len(m.queue.entries) == 0
+	return func() tea.Msg {
+		ids, err := be.AppendTracks(tracks, source)
+		if err != nil {
+			return BatchEnqueuedMsg{Err: err}
+		}
+		return BatchEnqueuedMsg{
+			Entries:      newQueueEntries(tracks, ids, source),
+			QueueIDs:     ids,
+			WasEmpty:     wasEmpty,
+			PlaylistName: label,
+		}
+	}
+}
 
 // newQueueEntries builds QueueEntry values from matched tracks and DB row IDs.
 // source is the playlist name to record on each entry (empty for individual enqueues).

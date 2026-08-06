@@ -21,17 +21,32 @@ func (m Model) handleLibraryQueueAction(action action) (tea.Model, tea.Cmd, bool
 }
 
 func (m Model) handleLibraryEnqueueAction() (tea.Model, tea.Cmd, bool) {
-	if m.queueWriter == nil {
-		return m, nil, true
-	}
-
 	var cmd tea.Cmd
 	switch m.activeView {
 	case viewLibrary:
+		if len(m.library.selectedHashes) > 0 {
+			if m.batchEnqueuer == nil {
+				m.statusBar.notify("Enqueue not available")
+				return m, nil, true
+			}
+			tracks := m.bulkLibraryTracks()
+			if len(tracks) == 0 {
+				m.statusBar.notify("No selected tracks available")
+				return m, nil, true
+			}
+			cmd = m.batchEnqueueTracksCmd(tracks, "", "Queue")
+			m = exitVisualMode(m)
+			m.library = m.library.ClearSelection()
+			m.library = m.library.ClearFilter()
+			return m, cmd, true
+		}
+		if m.queueWriter == nil {
+			return m, nil, true
+		}
 		cmd = m.library.EnqueueFocused(m.queueWriter, len(m.queue.entries))
 		m.library = m.library.ClearFilter()
 	case viewMixes:
-		if m.mixes.level == 1 {
+		if m.queueWriter != nil && m.mixes.level == 1 {
 			cmd = m.mixes.trackView.EnqueueFocused(m.queueWriter, len(m.queue.entries))
 		}
 	}
