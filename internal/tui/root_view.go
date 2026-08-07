@@ -36,5 +36,6 @@ func (m Model) hasActiveOverlay() bool {
 		m.overlay.commandPalette != nil ||
 		m.overlay.tagPicker != nil ||
 		m.overlay.tagMergePicker != nil ||
-		m.overlay.tagFilterPicker != nil
+		m.overlay.tagFilterPicker != nil ||
+		m.overlay.favoriteTargetPicker != nil
 }

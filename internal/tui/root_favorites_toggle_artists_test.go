@@ -8,7 +8,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 )
 
-func TestToggleFavorite_ArtistsTrackLevelBulk(t *testing.T) {
+func TestToggleFavorite_ArtistsTrackLevelBulkOpensPicker(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
@@ -25,30 +25,19 @@ func TestToggleFavorite_ArtistsTrackLevelBulk(t *testing.T) {
 		"a3": {},
 	}
 
-	nm, cmd, handled := m.handleToggleFavorite()
-	if !handled {
-		t.Fatal("handleToggleFavorite should handle viewArtists at TrackLevel with bulk selection")
+	nm := openFavoritePickerForTest(t, m)
+	if len(nm.browse.artists.selectedHashes) != 2 {
+		t.Fatal("opening picker should preserve selectedHashes")
 	}
-	if cmd == nil {
-		t.Fatal("expected non-nil cmd")
+	if got := len(nm.overlay.favoriteTargetPicker.tracks); got != 2 {
+		t.Fatalf("picker tracks = %d, want 2", got)
 	}
-	if nm.browse.artists.selectedHashes != nil {
-		t.Fatal("selectedHashes should be nil after bulk toggle")
-	}
-
-	msg := cmd().(favoriteToggledMsg)
-	if msg.typ != "track" {
-		t.Errorf("expected typ='track', got %q", msg.typ)
-	}
-	if msg.count != 2 {
-		t.Errorf("expected count=2, got %d", msg.count)
-	}
-	if len(w.added) != 2 {
-		t.Fatalf("expected 2 AddFavorite calls, got %d", len(w.added))
+	if len(w.added) != 0 {
+		t.Fatal("opening picker should not write favorites")
 	}
 }
 
-func TestToggleFavorite_ArtistsTrackLevelSingle(t *testing.T) {
+func TestToggleFavorite_ArtistsTrackLevelSingleOpensPicker(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
@@ -61,18 +50,8 @@ func TestToggleFavorite_ArtistsTrackLevelSingle(t *testing.T) {
 	}
 	m.browse.artists.cursor = 1
 
-	_, cmd, handled := m.handleToggleFavorite()
-	if !handled {
-		t.Fatal("handleToggleFavorite should handle viewArtists at TrackLevel")
-	}
-	if cmd == nil {
-		t.Fatal("expected non-nil cmd")
-	}
-	msg := cmd().(favoriteToggledMsg)
-	if msg.typ != "track" {
-		t.Errorf("expected typ='track', got %q", msg.typ)
-	}
-	if msg.value != "a2" {
-		t.Errorf("expected value='a2', got %q", msg.value)
+	nm := openFavoritePickerForTest(t, m)
+	if got := nm.overlay.favoriteTargetPicker.tracks[0].Hash; got != "a2" {
+		t.Errorf("picker track hash = %q, want a2", got)
 	}
 }

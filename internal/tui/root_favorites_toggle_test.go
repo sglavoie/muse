@@ -47,9 +47,8 @@ func TestToggleFavorite_GenresArtistLevel(t *testing.T) {
 }
 
 // TestToggleFavorite_GenresTrackLevelSingle verifies that pressing 'F' at
-// Genres TrackLevel without bulk selection calls toggleFavoriteSingle with
-// type "track" and the focused track hash.
-func TestToggleFavorite_GenresTrackLevelSingle(t *testing.T) {
+// Genres TrackLevel opens the picker for the focused track.
+func TestToggleFavorite_GenresTrackLevelSingleOpensPicker(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{
 		"track": {},
@@ -64,30 +63,16 @@ func TestToggleFavorite_GenresTrackLevelSingle(t *testing.T) {
 	}
 	m.browse.genres.cursor = 0
 
-	_, cmd, handled := m.handleToggleFavorite()
-	if !handled {
-		t.Fatal("handleToggleFavorite should handle viewGenres at TrackLevel")
-	}
-	if cmd == nil {
-		t.Fatal("expected non-nil cmd")
-	}
-
-	msg := cmd().(favoriteToggledMsg)
-	if msg.typ != "track" {
-		t.Errorf("expected typ='track', got %q", msg.typ)
-	}
-	if msg.value != "h1" {
-		t.Errorf("expected value='h1', got %q", msg.value)
-	}
-	if !msg.added {
-		t.Error("expected added=true")
+	nm := openFavoritePickerForTest(t, m)
+	if got := nm.overlay.favoriteTargetPicker.tracks[0].Hash; got != "h1" {
+		t.Errorf("picker track hash = %q, want h1", got)
 	}
 }
 
 // TestToggleFavorite_GenresTrackLevelBulk verifies that pressing 'F' at
-// Genres TrackLevel with bulk selection calls toggleFavoriteBulk with type
-// "track" and all selected hashes, and clears selectedHashes.
-func TestToggleFavorite_GenresTrackLevelBulk(t *testing.T) {
+// Genres TrackLevel opens the picker for the selected tracks without clearing
+// the selection.
+func TestToggleFavorite_GenresTrackLevelBulkOpensPicker(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{
 		"track": {},
@@ -106,26 +91,15 @@ func TestToggleFavorite_GenresTrackLevelBulk(t *testing.T) {
 		"h3": {},
 	}
 
-	nm, cmd, handled := m.handleToggleFavorite()
-	if !handled {
-		t.Fatal("handleToggleFavorite should handle viewGenres at TrackLevel with bulk selection")
+	nm := openFavoritePickerForTest(t, m)
+	if len(nm.browse.genres.selectedHashes) != 2 {
+		t.Fatal("opening picker should preserve selectedHashes")
 	}
-	if cmd == nil {
-		t.Fatal("expected non-nil cmd")
+	if got := len(nm.overlay.favoriteTargetPicker.tracks); got != 2 {
+		t.Fatalf("picker tracks = %d, want 2", got)
 	}
-	if nm.browse.genres.selectedHashes != nil {
-		t.Fatal("selectedHashes should be nil after bulk toggle")
-	}
-
-	msg := cmd().(favoriteToggledMsg)
-	if msg.typ != "track" {
-		t.Errorf("expected typ='track', got %q", msg.typ)
-	}
-	if msg.count != 2 {
-		t.Errorf("expected count=2, got %d", msg.count)
-	}
-	if len(w.added) != 2 {
-		t.Fatalf("expected 2 AddFavorite calls, got %d", len(w.added))
+	if len(w.added) != 0 {
+		t.Fatal("opening picker should not write favorites")
 	}
 }
 

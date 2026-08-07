@@ -36,6 +36,7 @@ type overlayInfo struct {
 	tagPicker             *TagPicker
 	tagMergePicker        *TagMergePicker
 	tagFilterPicker       *TagFilterPicker
+	favoriteTargetPicker  *favoriteTargetPicker
 }
 
 // undoInfo holds the reversible undo slot.

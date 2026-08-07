@@ -14,6 +14,13 @@ func (s *stubFavoriteWriter) AddFavorite(typ, value string) error {
 	return nil
 }
 
+func (s *stubFavoriteWriter) AddFavoritesByTypeAndValues(typ string, values []string) error {
+	for _, v := range values {
+		s.added = append(s.added, struct{ typ, value string }{typ, v})
+	}
+	return nil
+}
+
 func (s *stubFavoriteWriter) RemoveFavorite(typ, value string) error {
 	s.removed = append(s.removed, struct{ typ, value string }{typ, value})
 	return nil

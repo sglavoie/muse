@@ -266,7 +266,7 @@ func registerDefaultPrimaries(r *Registry) {
 
 	r.addPrimary(contextFavorites, "j/k", "nav")
 	r.addPrimary(contextFavorites, "enter", "open")
-	r.addPrimary(contextFavorites, "F", "toggle fav")
+	r.addPrimary(contextFavorites, "F", "choose fav")
 	r.addPrimary(contextFavorites, "/", "filter")
 	r.addPrimary(contextFavorites, "?", "help")
 
@@ -319,7 +319,7 @@ func registerSelectionModePrimaries(r *Registry) {
 
 	r.addPrimaryMode(contextFavorites, HintModeSelection, "enter", "open")
 	r.addPrimaryMode(contextFavorites, HintModeSelection, "a", "bulk action")
-	r.addPrimaryMode(contextFavorites, HintModeSelection, "F", "toggle fav")
+	r.addPrimaryMode(contextFavorites, HintModeSelection, "F", "choose fav")
 	r.addPrimaryMode(contextFavorites, HintModeSelection, "X", "clear")
 	r.addPrimaryMode(contextFavorites, HintModeSelection, "?", "help")
 

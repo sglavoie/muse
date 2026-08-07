@@ -26,6 +26,7 @@ var orderedKeyPressHandlers = []keyPressHandler{
 	Model.handleTagPickerKeyPress,
 	Model.handleTagFilterPickerKeyPress,
 	Model.handleTagMergeKeyPress,
+	Model.handleFavoriteTargetPickerKeyPress,
 	Model.handleTagCreateInputKeyPress,
 	Model.handleTagRenameInputKeyPress,
 	Model.handleScanCancelKeyPress,

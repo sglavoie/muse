@@ -166,6 +166,8 @@ func (m Model) renderOverlayBody() (string, bool) {
 		return m.overlay.tagMergePicker.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.tagFilterPicker != nil:
 		return m.overlay.tagFilterPicker.Render(m.termWidth, overlayHeight, *m.styles), true
+	case m.overlay.favoriteTargetPicker != nil:
+		return m.overlay.favoriteTargetPicker.Render(m.termWidth, overlayHeight, *m.styles), true
 	default:
 		return "", false
 	}

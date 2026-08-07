@@ -1,14 +1,10 @@
 package tui
 
 import (
-	"log/slog"
-
 	tea "charm.land/bubbletea/v2"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
-	pltui "github.com/sglavoie/muse/internal/tui/playlists"
-	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // handleToggleFavorite handles the 'F' key across all views.
@@ -19,17 +15,12 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 
 	reader := m.favoriteReader
 	writer := m.favoriteWriter
+	if tracks := m.favoritePickerTracks(); len(tracks) > 0 {
+		m = m.openFavoriteTargetPicker()
+		return m, nil, true
+	}
 
 	switch m.activeView {
-	case viewLibrary:
-		if hashes := hashMapToSlice(m.library.selectedHashes); len(hashes) > 0 {
-			m.library.selectedHashes = nil
-			return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
-		}
-		if t, ok := m.library.view().FocusedTrack(); ok {
-			return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
-		}
-
 	case viewBrowse:
 		switch m.browse.mode {
 		case BrowseModeArtists:
@@ -42,86 +33,18 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 				if name, ok := m.browse.artists.focusedAlbum(); ok {
 					return m, m.toggleFavoriteSingle(reader, writer, "album", name), true
 				}
-			case arttui.TrackLevel:
-				if hashes := hashMapToSlice(m.browse.artists.selectedHashes); len(hashes) > 0 {
-					m.browse.artists.selectedHashes = nil
-					return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
-				}
-				if t, ok := m.browse.artists.focusedTrack(); ok {
-					return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
-				}
 			}
 		case BrowseModeAlbums:
-			switch m.browse.albums.level {
-			case albtui.AlbumLevel:
+			if m.browse.albums.level == albtui.AlbumLevel {
 				if name, ok := m.browse.albums.focusedAlbum(); ok {
 					return m, m.toggleFavoriteSingle(reader, writer, "album", name), true
 				}
-			case albtui.TrackLevel:
-				if hashes := hashMapToSlice(m.browse.albums.selectedHashes); len(hashes) > 0 {
-					m.browse.albums.selectedHashes = nil
-					return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
-				}
-				if t, ok := m.browse.albums.focusedTrack(); ok {
-					return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
-				}
 			}
 		case BrowseModeGenres:
-			switch m.browse.genres.level {
-			case gentui.ArtistLevel:
+			if m.browse.genres.level == gentui.ArtistLevel {
 				if name, ok := m.browse.genres.focusedArtist(); ok {
 					return m, m.toggleFavoriteSingle(reader, writer, "artist", name), true
 				}
-			case gentui.TrackLevel:
-				if hashes := hashMapToSlice(m.browse.genres.selectedHashes); len(hashes) > 0 {
-					m.browse.genres.selectedHashes = nil
-					return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
-				}
-				if t, ok := m.browse.genres.focusedTrack(); ok {
-					return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
-				}
-			}
-		}
-
-	case viewQueue:
-		if m.queue.hasSelection() {
-			hashes := m.queue.selectedHashes()
-			for i := range m.queue.entries {
-				m.queue.entries[i].Selected = false
-			}
-			return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
-		}
-		filtered := m.queue.filteredEntries()
-		if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
-			e := filtered[m.queue.cursor]
-			return m, m.toggleFavoriteSingle(reader, writer, "track", e.Hash), true
-		}
-
-	case viewPlaylists:
-		if m.playlists.level == pltui.TrackLevel {
-			if m.playlists.hasTrackSelection() {
-				var hashes []string
-				for _, t := range m.playlists.tracks {
-					if _, ok := m.playlists.selectedTrackIDs[t.ID]; ok {
-						hashes = append(hashes, t.Hash)
-					}
-				}
-				m.playlists.selectedTrackIDs = nil
-				return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
-			}
-			if t, ok := m.playlists.focusedTrack(); ok {
-				return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
-			}
-		}
-
-	case viewTags:
-		if m.tagsView.level == tagtui.TrackLevel {
-			if hashes := hashMapToSlice(m.tagsView.selectedHashes); len(hashes) > 0 {
-				m.tagsView.selectedHashes = nil
-				return m, m.toggleFavoriteBulk(reader, writer, "track", hashes), true
-			}
-			if t, ok := m.tagsView.focusedTrack(); ok {
-				return m, m.toggleFavoriteSingle(reader, writer, "track", t.Hash), true
 			}
 		}
 
@@ -147,47 +70,6 @@ func (m Model) toggleFavoriteSingle(reader favoriteReader, writer favoriteWriter
 		msg := favoriteToggledMsg{typ: typ, value: value, added: !isFav, err: err}
 		if isFav {
 			msg.removedIdx = -1
-		}
-		return msg
-	}
-}
-
-// toggleFavoriteBulk returns a Cmd that toggles multiple values. Each value is
-// checked individually so that the toggle semantics apply per-item.
-func (m Model) toggleFavoriteBulk(reader favoriteReader, writer favoriteWriter, typ string, values []string) tea.Cmd {
-	return func() tea.Msg {
-		var added, removed int
-		var addedValues, removedValues []string
-		for _, v := range values {
-			isFav, err := reader.IsFavorite(typ, v)
-			if err != nil {
-				continue
-			}
-			if isFav {
-				if err := writer.RemoveFavorite(typ, v); err != nil {
-					slog.Warn("favorite remove failed", "err", err)
-				}
-				removed++
-				removedValues = append(removedValues, v)
-			} else {
-				if err := writer.AddFavorite(typ, v); err != nil {
-					slog.Warn("favorite add failed", "err", err)
-				}
-				added++
-				addedValues = append(addedValues, v)
-			}
-		}
-		msg := favoriteToggledMsg{
-			typ:        typ,
-			count:      added + removed,
-			added:      added > 0,
-			removedIdx: -1,
-		}
-		if added == 0 && len(removedValues) > 0 {
-			msg.removedValues = removedValues
-		}
-		if removed == 0 && len(addedValues) > 0 {
-			msg.addedValues = addedValues
 		}
 		return msg
 	}

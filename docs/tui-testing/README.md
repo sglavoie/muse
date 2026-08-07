@@ -188,7 +188,7 @@ Each observation is normalized JSON:
 | -------- | ------- | ----- |
 | `baseline-layout.json` | `rich` | Library renders and fits at 100×30. |
 | `all-primary-views.json` | `rich` | Cycles all seven primary views; each fits. |
-| `overlays.json` | `rich` | Help, queue-summary, and debug overlays fit at 100×30. |
+| `overlays.json` | `rich` | Help, queue-summary, debug, and favorite-target overlays fit at 100×30. |
 | `command-palette-search.json` | `rich` | Opens the palette (at 120×50) and filters by typing. |
 | `layout-regressions-rich.json` | `rich` | Guards command palette height, Queue columns, Mixes descriptions, and queue-summary short-height layout. |
 | `layout-regressions-empty.json` | `empty` | Guards minimum-size empty-state and idle status-bar layout. |

@@ -242,6 +242,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case favoriteToggledMsg:
 		m = m.handleFavoriteToggledMsg(msg)
 
+	case favoriteTargetDismissedMsg:
+		m.overlay.favoriteTargetPicker = nil
+
+	case favoriteTargetPickedMsg:
+		return m.handleFavoriteTargetPicked(msg)
+
 	case favoritesLoadedMsg:
 		m = m.handleFavoritesLoadedMsg(msg)
 

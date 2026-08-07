@@ -86,6 +86,8 @@ func (m Model) activeOverlayName() string {
 		return "tag_merge_picker"
 	case m.overlay.tagFilterPicker != nil:
 		return "tag_filter_picker"
+	case m.overlay.favoriteTargetPicker != nil:
+		return "favorite_target_picker"
 	default:
 		return ""
 	}

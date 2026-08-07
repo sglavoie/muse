@@ -7,7 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 )
 
-func TestToggleFavorite_HistorySingle(t *testing.T) {
+func TestToggleFavorite_HistorySingleOpensPicker(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
@@ -20,23 +20,13 @@ func TestToggleFavorite_HistorySingle(t *testing.T) {
 	m.library = m.library.recomputeSortedTracks()
 	m.library.cursor = 0
 
-	_, cmd, handled := m.handleToggleFavorite()
-	if !handled {
-		t.Fatal("handleToggleFavorite should handle viewLibrary (history mode)")
-	}
-	if cmd == nil {
-		t.Fatal("expected non-nil cmd")
-	}
-	msg := cmd().(favoriteToggledMsg)
-	if msg.typ != "track" {
-		t.Errorf("expected typ='track', got %q", msg.typ)
-	}
-	if !msg.added {
-		t.Error("expected added=true")
+	nm := openFavoritePickerForTest(t, m)
+	if got := nm.overlay.favoriteTargetPicker.tracks[0].Hash; got != "h1" {
+		t.Errorf("picker track hash = %q, want h1", got)
 	}
 }
 
-func TestToggleFavorite_HistoryBulk(t *testing.T) {
+func TestToggleFavorite_HistoryBulkOpensPicker(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
@@ -49,18 +39,11 @@ func TestToggleFavorite_HistoryBulk(t *testing.T) {
 	m.library = m.library.recomputeSortedTracks()
 	m.library.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
-	nm, cmd, handled := m.handleToggleFavorite()
-	if !handled {
-		t.Fatal("handleToggleFavorite should handle viewLibrary (history mode) with bulk selection")
+	nm := openFavoritePickerForTest(t, m)
+	if len(nm.library.selectedHashes) != 2 {
+		t.Fatal("opening picker should preserve selectedHashes")
 	}
-	if cmd == nil {
-		t.Fatal("expected non-nil cmd")
-	}
-	if nm.library.selectedHashes != nil {
-		t.Fatal("selectedHashes should be nil after bulk toggle")
-	}
-	msg := cmd().(favoriteToggledMsg)
-	if msg.count != 2 {
-		t.Errorf("expected count=2, got %d", msg.count)
+	if got := len(nm.overlay.favoriteTargetPicker.tracks); got != 2 {
+		t.Errorf("picker tracks = %d, want 2", got)
 	}
 }

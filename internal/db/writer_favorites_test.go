@@ -1,8 +1,42 @@
 package db_test
 
-import (
-	"testing"
-)
+import "testing"
+
+func TestWriter_AddFavoritesByTypeAndValues(t *testing.T) {
+	d := openTestDB(t)
+	if _, err := d.Exec(`CREATE TABLE favorites (type TEXT, value TEXT UNIQUE, created_at INTEGER)`); err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+	w := newWriter(t, d)
+
+	if err := w.AddFavoritesByTypeAndValues("artist", []string{"A", "B", "A"}); err != nil {
+		t.Fatalf("AddFavoritesByTypeAndValues: %v", err)
+	}
+	if err := w.AddFavoritesByTypeAndValues("artist", nil); err != nil {
+		t.Fatalf("AddFavoritesByTypeAndValues empty: %v", err)
+	}
+
+	var count int
+	if err := d.QueryRow(`SELECT COUNT(*) FROM favorites`).Scan(&count); err != nil {
+		t.Fatalf("count favorites: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("favorite count = %d, want 2", count)
+	}
+
+	if _, err := d.Exec(`CREATE TRIGGER reject_bad BEFORE INSERT ON favorites WHEN NEW.value = 'bad' BEGIN SELECT RAISE(ABORT, 'bad favorite'); END`); err != nil {
+		t.Fatalf("create trigger: %v", err)
+	}
+	if err := w.AddFavoritesByTypeAndValues("artist", []string{"C", "bad"}); err == nil {
+		t.Fatal("expected transactional insert to fail")
+	}
+	if err := d.QueryRow(`SELECT COUNT(*) FROM favorites WHERE value = ?`, "C").Scan(&count); err != nil {
+		t.Fatalf("count rolled-back favorite: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("partial favorite survived rollback: count=%d", count)
+	}
+}
 
 func TestWriter_RemoveFavoritesByTypeAndValues(t *testing.T) {
 	d := openTestDB(t)

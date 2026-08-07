@@ -53,6 +53,7 @@ type QueueDequeuer interface {
 // FavoriteWriter manages favorite entries.
 type FavoriteWriter interface {
 	AddFavorite(typ, value string) error
+	AddFavoritesByTypeAndValues(typ string, values []string) error
 	RemoveFavorite(typ, value string) error
 	RemoveFavoritesByTypeAndValues(typ string, values []string) error
 }

@@ -68,7 +68,8 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 		updateFavoriteCache(&m.favoriteAlbums, m.favoriteReader, "album", msg)
 	}
 
-	if m.activeView == viewFavorites && !msg.added {
+	applyToFavoritesView := !msg.fromTargetPicker || msg.pickerOriginView == viewFavorites
+	if m.activeView == viewFavorites && !msg.added && applyToFavoritesView {
 		valuesToRemove := msg.removedValues
 		if len(valuesToRemove) == 0 && msg.value != "" {
 			valuesToRemove = []string{msg.value}
@@ -95,8 +96,22 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 			m.favorites.selectedItems = nil
 			m.favorites = m.favorites.clampCursor()
 		case favtui.TrackLevel:
-			m.favorites.selectedItems = nil
-			m.favorites = m.favorites.clampCursor()
+			removedParent := msg.fromTargetPicker && msg.pickerOriginLevel == favtui.TrackLevel &&
+				msg.pickerDrilldownName == m.favorites.drilldownName &&
+				containsString(valuesToRemove, m.favorites.drilldownName)
+			switch {
+			case removedParent && msg.typ == "artist" && m.favorites.category == favtui.CategoryArtists:
+				m.favorites.artists = removeString(m.favorites.artists, m.favorites.drilldownName)
+				m.favorites.artistCount = len(m.favorites.artists)
+				m.favorites = m.favorites.back()
+			case removedParent && msg.typ == "album" && m.favorites.category == favtui.CategoryAlbums:
+				m.favorites.albums = removeString(m.favorites.albums, m.favorites.drilldownName)
+				m.favorites.albumCount = len(m.favorites.albums)
+				m.favorites = m.favorites.back()
+			default:
+				m.favorites.selectedItems = nil
+				m.favorites = m.favorites.clampCursor()
+			}
 		}
 	}
 
@@ -110,6 +125,15 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 	}
 
 	return m
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 // handleFavoritesLoadedMsg processes the result of loading favorites for a category.

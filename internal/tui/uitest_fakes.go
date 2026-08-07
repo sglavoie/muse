@@ -78,7 +78,21 @@ func (f *uitestFavorites) IsFavorite(typ, value string) (bool, error) {
 
 // favoriteWriter surface.
 func (f *uitestFavorites) AddFavorite(typ, value string) error {
+	for _, existing := range f.byType[typ] {
+		if existing == value {
+			return nil
+		}
+	}
 	f.byType[typ] = append(f.byType[typ], value)
+	return nil
+}
+
+func (f *uitestFavorites) AddFavoritesByTypeAndValues(typ string, values []string) error {
+	for _, v := range values {
+		if err := f.AddFavorite(typ, v); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

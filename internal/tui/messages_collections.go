@@ -22,6 +22,11 @@ type favoriteToggledMsg struct {
 	addedValues    []string        // all added values (bulk add, for undo tracking)
 	favLevel       favtui.Level
 	favCategory    favtui.Category
+
+	fromTargetPicker    bool
+	pickerOriginView    viewID
+	pickerOriginLevel   favtui.Level
+	pickerDrilldownName string
 }
 
 // favoritesLoadedMsg carries the favorites loaded for a specific category.

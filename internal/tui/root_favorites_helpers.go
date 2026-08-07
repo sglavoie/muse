@@ -24,9 +24,21 @@ func loadFavoriteSet(reader favoriteReader, typ string) map[string]struct{} {
 }
 
 // updateFavoriteCache updates a favorite-set cache after a toggle operation.
-// For bulk operations (count > 1) the entire set is reloaded; for single
-// operations the value is added to or removed from the existing map.
+// Explicit bulk change lists are applied directly; legacy bulk messages
+// without those lists fall back to reloading the complete set.
 func updateFavoriteCache(cache *map[string]struct{}, reader favoriteReader, typ string, msg favoriteToggledMsg) {
+	if len(msg.addedValues) > 0 || len(msg.removedValues) > 0 {
+		if *cache == nil {
+			*cache = make(map[string]struct{})
+		}
+		for _, value := range msg.addedValues {
+			(*cache)[value] = struct{}{}
+		}
+		for _, value := range msg.removedValues {
+			delete(*cache, value)
+		}
+		return
+	}
 	if msg.count > 1 {
 		*cache = loadFavoriteSet(reader, typ)
 		return
