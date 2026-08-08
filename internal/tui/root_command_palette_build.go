@@ -40,7 +40,23 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 
 	cmds = append(cmds, paletteActionCmd("dev", "Show debug panel", "ctrl+g", actionDebug))
 	cmds = append(cmds, paletteActionCmd("mode", "Toggle radio mode (Auto-DJ)", "A", actionRadioToggle))
-	cmds = append(cmds, paletteActionCmd("nav", "Go to Mixes", "tab", actionSwitchMixes))
+
+	// Stable navigation targets. Library and Browse use explicit mode messages
+	// because their numeric shortcuts preserve the current sub-mode; palette
+	// commands should always land on the destination named in the result.
+	cmds = append(cmds,
+		paletteMessageCmd("nav.library.all", "nav", "Go to Library: All Tracks", "", navigateLibraryModeMsg{mode: LibraryModeAll}),
+		paletteMessageCmd("nav.library.recent", "nav", "Go to Library: Recently Added", "", navigateLibraryModeMsg{mode: LibraryModeRecent}),
+		paletteMessageCmd("nav.library.history", "nav", "Go to Library: History", "", navigateLibraryModeMsg{mode: LibraryModeHistory}),
+		paletteActionCmd("nav", "Go to Playlists", "2", actionSwitchPlaylists),
+		paletteActionCmd("nav", "Go to Queue", "3", actionSwitchQueue),
+		paletteMessageCmd("nav.browse.artists", "nav", "Go to Browse: Artists", "", navigateBrowseModeMsg{mode: BrowseModeArtists}),
+		paletteMessageCmd("nav.browse.albums", "nav", "Go to Browse: Albums", "", navigateBrowseModeMsg{mode: BrowseModeAlbums}),
+		paletteMessageCmd("nav.browse.genres", "nav", "Go to Browse: Genres", "", navigateBrowseModeMsg{mode: BrowseModeGenres}),
+		paletteActionCmd("nav", "Go to Favorites", "5", actionSwitchFavorites),
+		paletteActionCmd("nav", "Go to Tags", "6", actionSwitchTags),
+		paletteActionCmd("nav", "Go to Mixes", "7", actionSwitchMixes),
+	)
 
 	cmds = append(cmds, PaletteCommand{
 		ID:       "mixes.refresh",
@@ -331,6 +347,18 @@ func paletteActionPin(name, shortcut string, a action, pin PalettePin) PaletteCo
 	c := paletteActionCmd("", name, shortcut, a)
 	c.Pinned = pin
 	return c
+}
+
+// paletteMessageCmd returns a command with a stable explicit identifier that
+// dispatches an internal message through the normal root update pipeline.
+func paletteMessageCmd(id, category, name, shortcut string, msg tea.Msg) PaletteCommand {
+	return PaletteCommand{
+		ID:       id,
+		Name:     name,
+		Category: category,
+		Shortcut: shortcut,
+		Exec:     func() tea.Cmd { return func() tea.Msg { return msg } },
+	}
 }
 
 // configTogglePalette returns a PaletteCommand that sends a configToggleMsg

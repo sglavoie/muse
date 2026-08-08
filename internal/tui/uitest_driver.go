@@ -385,12 +385,22 @@ func (d *UITestDriver) runCommand(name string) error {
 // values the palette builder uses so the two cannot drift.
 func safeDirectCommandIDs() map[string]struct{} {
 	return map[string]struct{}{
-		fmt.Sprintf("action.%d", actionHelp):        {},
-		fmt.Sprintf("action.%d", actionDebug):       {},
-		fmt.Sprintf("action.%d", actionRadioToggle): {},
-		fmt.Sprintf("action.%d", actionSwitchMixes): {},
-		"ui.toggle.footer_hints":                    {},
-		"queue.toggle.follow":                       {},
+		fmt.Sprintf("action.%d", actionHelp):            {},
+		fmt.Sprintf("action.%d", actionDebug):           {},
+		fmt.Sprintf("action.%d", actionRadioToggle):     {},
+		fmt.Sprintf("action.%d", actionSwitchPlaylists): {},
+		fmt.Sprintf("action.%d", actionSwitchQueue):     {},
+		fmt.Sprintf("action.%d", actionSwitchFavorites): {},
+		fmt.Sprintf("action.%d", actionSwitchTags):      {},
+		fmt.Sprintf("action.%d", actionSwitchMixes):     {},
+		"nav.library.all":                               {},
+		"nav.library.recent":                            {},
+		"nav.library.history":                           {},
+		"nav.browse.artists":                            {},
+		"nav.browse.albums":                             {},
+		"nav.browse.genres":                             {},
+		"ui.toggle.footer_hints":                        {},
+		"queue.toggle.follow":                           {},
 	}
 }
 

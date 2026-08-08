@@ -6,6 +6,15 @@ type commandPaletteActionMsg struct {
 	action action
 }
 
+// navigateLibraryModeMsg requests deterministic navigation to one of the
+// Library view's modes. It is separate from the mode-cycle actions because a
+// palette command must land on the requested mode regardless of current state.
+type navigateLibraryModeMsg struct{ mode LibraryMode }
+
+// navigateBrowseModeMsg requests deterministic navigation to one of the
+// Browse view's modes.
+type navigateBrowseModeMsg struct{ mode BrowseMode }
+
 // configToggleField identifies which audio setting to toggle.
 type configToggleField int
 

@@ -60,6 +60,33 @@ func onOff(b bool) string {
 	return "Off"
 }
 
+// handleNavigateLibraryModeMsg switches to an exact Library mode while
+// retaining the per-mode cursor, scroll, and filter snapshot maintained by
+// LibraryView. Re-selecting the active mode behaves like ordinary view
+// navigation and does not discard its current selection.
+func (m Model) handleNavigateLibraryModeMsg(msg navigateLibraryModeMsg) (Model, tea.Cmd) {
+	if msg.mode > LibraryModeHistory {
+		return m, nil
+	}
+	if m.library.mode != msg.mode {
+		m.library = m.library.switchMode(msg.mode)
+	}
+	m = m.switchToView(viewLibrary)
+	return m, nil
+}
+
+// handleNavigateBrowseModeMsg switches to an exact Browse mode. Browse's
+// sub-views intentionally retain their own cursor, filter, and drill-down
+// state, matching navigation via the mode-cycle keys.
+func (m Model) handleNavigateBrowseModeMsg(msg navigateBrowseModeMsg) (Model, tea.Cmd) {
+	if msg.mode > BrowseModeGenres {
+		return m, nil
+	}
+	m.browse.mode = msg.mode
+	m = m.switchToView(viewBrowse)
+	return m, nil
+}
+
 // handleRandomAlbumMsg switches to Albums browse mode and positions the cursor
 // on a randomly-chosen album. Any active filter is cleared first so the random
 // index always refers to a visible row.

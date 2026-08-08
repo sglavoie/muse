@@ -397,6 +397,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case commandPaletteActionMsg:
 		return m.handleKeyAction(msg.action)
 
+	case navigateLibraryModeMsg:
+		return m.handleNavigateLibraryModeMsg(msg)
+
+	case navigateBrowseModeMsg:
+		return m.handleNavigateBrowseModeMsg(msg)
+
 	case clipboardResultMsg:
 		if msg.err != nil {
 			m.statusBar.notify("Copy failed: " + msg.err.Error())
