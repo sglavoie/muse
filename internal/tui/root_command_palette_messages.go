@@ -1,9 +1,12 @@
 package tui
 
 // commandPaletteActionMsg carries an action to replay through handleKeyAction
-// after the palette has been dismissed.
+// after the palette has been dismissed. A non-zero view switches to that view
+// first, so a view-local action reaches its own handler; 0 runs the action in
+// place.
 type commandPaletteActionMsg struct {
 	action action
+	view   viewID // 0 = run in place
 }
 
 // navigateLibraryModeMsg requests deterministic navigation to one of the

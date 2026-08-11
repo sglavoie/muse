@@ -1,5 +1,11 @@
 package tui
 
+import (
+	"sort"
+	"strings"
+	"unicode"
+)
+
 // Keymap consistency matrix (Session 9 audit).
 //
 // Each row shows the action a key resolves to in each view context. "=" means
@@ -335,6 +341,49 @@ func (r *Registry) addPrimaryMode(ctx bindingContext, mode HintMode, key, label 
 // lookup returns the action bound to (ctx, key), or actionNone if not found.
 func (r Registry) lookup(ctx bindingContext, key string) action {
 	return r.bindings[registryKey{ctx: ctx, key: key}]
+}
+
+// keyRank classifies a key string for display ordering: 0 for a single
+// alphanumeric rune, 1 for any other single rune, 2 for a named key
+// (tab, esc, enter, backspace, up, ...), 3 for a modifier combo (ctrl+…,
+// shift+…). Lower ranks read as the more idiomatic shortcut to advertise.
+func keyRank(key string) int {
+	runes := []rune(key)
+	if len(runes) == 1 {
+		if unicode.IsLetter(runes[0]) || unicode.IsDigit(runes[0]) {
+			return 0
+		}
+		return 1
+	}
+	if strings.Contains(key, "+") {
+		return 3
+	}
+	return 2
+}
+
+// keysFor returns every key bound to a in ctx, in stable display order.
+// Unlike resolve there is no contextGlobal fallback: callers that want one
+// ask for contextGlobal explicitly. Results are sorted by
+// (rank, length, lexical) so that map iteration order never reaches
+// rendered output.
+func (r Registry) keysFor(ctx bindingContext, a action) []string {
+	keys := make([]string, 0, 4)
+	for rk, bound := range r.bindings {
+		if rk.ctx == ctx && bound == a {
+			keys = append(keys, rk.key)
+		}
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		ri, rj := keyRank(keys[i]), keyRank(keys[j])
+		if ri != rj {
+			return ri < rj
+		}
+		if len(keys[i]) != len(keys[j]) {
+			return len(keys[i]) < len(keys[j])
+		}
+		return keys[i] < keys[j]
+	})
+	return keys
 }
 
 // resolve returns the effective action for key in the given view context.

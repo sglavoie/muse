@@ -2,7 +2,6 @@ package tui
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
@@ -17,17 +16,17 @@ func TestBuildPaletteCommandsIncludesStableNavigationTargets(t *testing.T) {
 		name     string
 		shortcut string
 	}{
-		"nav.library.all":                               {name: "Go to Library: All Tracks"},
-		"nav.library.recent":                            {name: "Go to Library: Recently Added"},
-		"nav.library.history":                           {name: "Go to Library: History"},
-		fmt.Sprintf("action.%d", actionSwitchPlaylists): {name: "Go to Playlists", shortcut: "2"},
-		fmt.Sprintf("action.%d", actionSwitchQueue):     {name: "Go to Queue", shortcut: "3"},
-		"nav.browse.artists":                            {name: "Go to Browse: Artists"},
-		"nav.browse.albums":                             {name: "Go to Browse: Albums"},
-		"nav.browse.genres":                             {name: "Go to Browse: Genres"},
-		fmt.Sprintf("action.%d", actionSwitchFavorites): {name: "Go to Favorites", shortcut: "5"},
-		fmt.Sprintf("action.%d", actionSwitchTags):      {name: "Go to Tags", shortcut: "6"},
-		fmt.Sprintf("action.%d", actionSwitchMixes):     {name: "Go to Mixes", shortcut: "7"},
+		"nav.library.all":     {name: "Go to Library: All Tracks"},
+		"nav.library.recent":  {name: "Go to Library: Recently Added"},
+		"nav.library.history": {name: "Go to Library: History"},
+		"nav.playlists":       {name: "Go to Playlists", shortcut: "2"},
+		"nav.queue":           {name: "Go to Queue", shortcut: "3"},
+		"nav.browse.artists":  {name: "Go to Browse: Artists"},
+		"nav.browse.albums":   {name: "Go to Browse: Albums"},
+		"nav.browse.genres":   {name: "Go to Browse: Genres"},
+		"nav.favorites":       {name: "Go to Favorites", shortcut: "5"},
+		"nav.tags":            {name: "Go to Tags", shortcut: "6"},
+		"nav.mixes":           {name: "Go to Mixes", shortcut: "7"},
 	}
 
 	seen := make(map[string]PaletteCommand, len(commands))

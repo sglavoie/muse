@@ -381,26 +381,27 @@ func (d *UITestDriver) runCommand(name string) error {
 // safeDirectCommandIDs is the allowlist of palette command identifiers that are
 // safe to invoke directly against a fixture: internal navigation and UI/state
 // toggles whose handlers never touch real config, databases, music files, mpv,
-// Finder, or the clipboard. Action-derived IDs are computed from the same enum
-// values the palette builder uses so the two cannot drift.
+// Finder, or the clipboard. Every ID here must exist in the built command set;
+// TestSafeDirectCommandIDsExist catches a renamed catalog ID that would
+// otherwise silently unlist a fixture-safe command.
 func safeDirectCommandIDs() map[string]struct{} {
 	return map[string]struct{}{
-		fmt.Sprintf("action.%d", actionHelp):            {},
-		fmt.Sprintf("action.%d", actionDebug):           {},
-		fmt.Sprintf("action.%d", actionRadioToggle):     {},
-		fmt.Sprintf("action.%d", actionSwitchPlaylists): {},
-		fmt.Sprintf("action.%d", actionSwitchQueue):     {},
-		fmt.Sprintf("action.%d", actionSwitchFavorites): {},
-		fmt.Sprintf("action.%d", actionSwitchTags):      {},
-		fmt.Sprintf("action.%d", actionSwitchMixes):     {},
-		"nav.library.all":                               {},
-		"nav.library.recent":                            {},
-		"nav.library.history":                           {},
-		"nav.browse.artists":                            {},
-		"nav.browse.albums":                             {},
-		"nav.browse.genres":                             {},
-		"ui.toggle.footer_hints":                        {},
-		"queue.toggle.follow":                           {},
+		"help.show":              {},
+		"debug.show":             {},
+		"radio.toggle":           {},
+		"nav.playlists":          {},
+		"nav.queue":              {},
+		"nav.favorites":          {},
+		"nav.tags":               {},
+		"nav.mixes":              {},
+		"nav.library.all":        {},
+		"nav.library.recent":     {},
+		"nav.library.history":    {},
+		"nav.browse.artists":     {},
+		"nav.browse.albums":      {},
+		"nav.browse.genres":      {},
+		"ui.toggle.footer_hints": {},
+		"queue.toggle.follow":    {},
 	}
 }
 

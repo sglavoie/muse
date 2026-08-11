@@ -25,7 +25,7 @@ const (
 type PaletteCommand struct {
 	ID       string // stable identifier for usage tracking; falls back to Name when empty
 	Name     string
-	Category string // short tag rendered dim before Name (e.g. "play", "nav", "file", "mode", "lib", "tag", "dev"); empty for pins / uncategorized
+	Category string // short tag rendered dim before Name, from paletteCategories; empty for pins / uncategorized
 	Shortcut string // optional keyboard shortcut shown right-aligned in the palette
 	Pinned   PalettePin
 	Exec     func() tea.Cmd

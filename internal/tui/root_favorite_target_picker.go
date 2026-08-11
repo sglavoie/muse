@@ -167,15 +167,14 @@ func (m Model) handleFavoriteTargetPicked(msg favoriteTargetPickedMsg) (Model, t
 
 	return m, func() tea.Msg {
 		var err error
-		if msg.add {
-			if len(msg.values) == 1 {
-				err = writer.AddFavorite(msg.typ, msg.values[0])
-			} else {
-				err = writer.AddFavoritesByTypeAndValues(msg.typ, msg.values)
-			}
-		} else if len(msg.values) == 1 {
+		switch {
+		case msg.add && len(msg.values) == 1:
+			err = writer.AddFavorite(msg.typ, msg.values[0])
+		case msg.add:
+			err = writer.AddFavoritesByTypeAndValues(msg.typ, msg.values)
+		case len(msg.values) == 1:
 			err = writer.RemoveFavorite(msg.typ, msg.values[0])
-		} else {
+		default:
 			err = writer.RemoveFavoritesByTypeAndValues(msg.typ, msg.values)
 		}
 		result.err = err

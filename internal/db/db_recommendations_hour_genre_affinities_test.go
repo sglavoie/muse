@@ -52,14 +52,19 @@ func TestReadHourGenreAffinities_OrderedByCount(t *testing.T) {
 		}
 	}
 	w := newWriter(t, d)
-	now := time.Now().Unix()
+	// Anchor every play to the start of the current local hour: offsets from
+	// time.Now() would straddle the hour boundary and split the two genres
+	// across buckets when the test runs near the end of an hour.
+	now := time.Now()
+	hourStart := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, now.Location())
+	base := hourStart.Unix()
 	for i := range 5 {
-		if err := w.RecordPlay("h1", now+int64(i), 60, 120); err != nil {
+		if err := w.RecordPlay("h1", base+int64(i), 60, 120); err != nil {
 			t.Fatalf("RecordPlay Rock: %v", err)
 		}
 	}
 	for i := range 3 {
-		if err := w.RecordPlay("h2", now+100+int64(i), 60, 120); err != nil {
+		if err := w.RecordPlay("h2", base+100+int64(i), 60, 120); err != nil {
 			t.Fatalf("RecordPlay Jazz: %v", err)
 		}
 	}
@@ -68,7 +73,7 @@ func TestReadHourGenreAffinities_OrderedByCount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadHourGenreAffinities: %v", err)
 	}
-	currentHour := time.Now().Hour()
+	currentHour := hourStart.Hour()
 	var hourRows []db.HourGenreAffinity
 	for _, a := range affinities {
 		if a.Hour == currentHour {

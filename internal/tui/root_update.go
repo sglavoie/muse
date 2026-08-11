@@ -395,7 +395,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.statusBar.notify("Undismiss failed: " + msg.err.Error())
 
 	case commandPaletteActionMsg:
-		return m.handleKeyAction(msg.action)
+		return m.handleCommandPaletteAction(msg.action, msg.view)
 
 	case navigateLibraryModeMsg:
 		return m.handleNavigateLibraryModeMsg(msg)

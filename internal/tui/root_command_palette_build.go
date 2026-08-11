@@ -15,8 +15,9 @@ import (
 func (m Model) buildPaletteCommands() []PaletteCommand {
 	var cmds []PaletteCommand
 
-	// Pinned anchors (Serial Position Effect): Help at top, Quit at bottom.
-	cmds = append(cmds, paletteActionPin("Help", "?", actionHelp, pinTop))
+	for _, entry := range paletteCatalog {
+		cmds = append(cmds, m.paletteCommandFor(entry))
+	}
 
 	if m.configPath != "" {
 		dir := filepath.Dir(m.configPath)
@@ -38,9 +39,6 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		})
 	}
 
-	cmds = append(cmds, paletteActionCmd("dev", "Show debug panel", "ctrl+g", actionDebug))
-	cmds = append(cmds, paletteActionCmd("mode", "Toggle radio mode (Auto-DJ)", "A", actionRadioToggle))
-
 	// Stable navigation targets. Library and Browse use explicit mode messages
 	// because their numeric shortcuts preserve the current sub-mode; palette
 	// commands should always land on the destination named in the result.
@@ -48,14 +46,9 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		paletteMessageCmd("nav.library.all", "nav", "Go to Library: All Tracks", "", navigateLibraryModeMsg{mode: LibraryModeAll}),
 		paletteMessageCmd("nav.library.recent", "nav", "Go to Library: Recently Added", "", navigateLibraryModeMsg{mode: LibraryModeRecent}),
 		paletteMessageCmd("nav.library.history", "nav", "Go to Library: History", "", navigateLibraryModeMsg{mode: LibraryModeHistory}),
-		paletteActionCmd("nav", "Go to Playlists", "2", actionSwitchPlaylists),
-		paletteActionCmd("nav", "Go to Queue", "3", actionSwitchQueue),
 		paletteMessageCmd("nav.browse.artists", "nav", "Go to Browse: Artists", "", navigateBrowseModeMsg{mode: BrowseModeArtists}),
 		paletteMessageCmd("nav.browse.albums", "nav", "Go to Browse: Albums", "", navigateBrowseModeMsg{mode: BrowseModeAlbums}),
 		paletteMessageCmd("nav.browse.genres", "nav", "Go to Browse: Genres", "", navigateBrowseModeMsg{mode: BrowseModeGenres}),
-		paletteActionCmd("nav", "Go to Favorites", "5", actionSwitchFavorites),
-		paletteActionCmd("nav", "Go to Tags", "6", actionSwitchTags),
-		paletteActionCmd("nav", "Go to Mixes", "7", actionSwitchMixes),
 	)
 
 	cmds = append(cmds, PaletteCommand{
@@ -66,7 +59,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		Enabled:  func() bool { return m.recReader != nil },
 	})
 
-	trackFocused := func() bool { _, _, _, found := m.focusedTrackForPalette(); return found }
+	trackFocused := func() bool { return hasFocusedTrack(m) }
 
 	cmds = append(cmds, PaletteCommand{
 		ID:       "track.reveal",
@@ -252,8 +245,6 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		})
 	}
 
-	cmds = append(cmds, paletteActionPin("Quit", "ctrl+c", actionQuit, pinBottom))
-
 	return cmds
 }
 
@@ -328,25 +319,43 @@ func (m Model) focusedTrackForPalette() (path, artist, title string, found bool)
 	return "", "", "", false
 }
 
-// paletteActionCmd returns a PaletteCommand that dispatches the given action
-// through the command palette action pipeline. The ID is derived from the
-// action enum value for stable usage tracking.
-func paletteActionCmd(category, name, shortcut string, a action) PaletteCommand {
-	return PaletteCommand{
-		ID:       fmt.Sprintf("action.%d", a),
-		Name:     name,
-		Category: category,
-		Shortcut: shortcut,
-		Exec:     func() tea.Cmd { return func() tea.Msg { return commandPaletteActionMsg{action: a} } },
+// paletteCommandFor builds the palette command for a catalog entry. The
+// action is dispatched through the command palette action pipeline and the
+// shortcut is derived from the live registry, so a rebind cannot leave a stale
+// hint behind.
+func (m Model) paletteCommandFor(e paletteEntry) PaletteCommand {
+	cmd := PaletteCommand{
+		ID:       e.id,
+		Name:     e.name,
+		Category: e.category,
+		Shortcut: m.paletteShortcutFor(e),
+		Pinned:   e.pin,
+		Exec:     func() tea.Cmd { return func() tea.Msg { return commandPaletteActionMsg{action: e.act, view: e.view} } },
 	}
+	if e.enabled != nil {
+		// e.enabled is evaluated here, against the pre-switch model, because
+		// the row is rendered before the switch happens.
+		cmd.Enabled = func() bool { return e.enabled(m) }
+	}
+	return cmd
 }
 
-// paletteActionPin returns a PaletteCommand that dispatches the given action
-// and is anchored at the top or bottom of the palette result list.
-func paletteActionPin(name, shortcut string, a action, pin PalettePin) PaletteCommand {
-	c := paletteActionCmd("", name, shortcut, a)
-	c.Pinned = pin
-	return c
+// paletteShortcutFor returns the key to advertise for a catalog entry:
+// preferKey when set, otherwise the first key bound to the action in the
+// entry's own context, falling back to contextGlobal.
+func (m Model) paletteShortcutFor(e paletteEntry) string {
+	if e.preferKey != "" {
+		return e.preferKey
+	}
+	if keys := m.registry.keysFor(e.ctx, e.act); len(keys) > 0 {
+		return keys[0]
+	}
+	if e.ctx != contextGlobal {
+		if keys := m.registry.keysFor(contextGlobal, e.act); len(keys) > 0 {
+			return keys[0]
+		}
+	}
+	return ""
 }
 
 // paletteMessageCmd returns a command with a stable explicit identifier that

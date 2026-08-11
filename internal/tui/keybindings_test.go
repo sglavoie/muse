@@ -1,6 +1,9 @@
 package tui
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 // TestPlaylistsBindingsResolve verifies that every key registered under
 // contextPlaylists resolves to the expected action via registry.resolve.
@@ -215,6 +218,65 @@ func TestNoSilentlyShadowedGlobalBindings(t *testing.T) {
 		if reg.domainReasons[rk] == "" {
 			t.Errorf("silent shadow: context=%v key=%q view-action=%v shadows global-action=%v without a domain reason — use registerWithReason or remove the override",
 				rk.ctx, rk.key, viewAction, globalAction)
+		}
+	}
+}
+
+// TestKeysForReturnsStableOrder verifies that keysFor returns every key bound
+// to an action in its context, ordered by (rank, length, lexical). Each case
+// runs repeatedly because Go randomises map iteration order per range, so a
+// missing sort would only fail intermittently.
+func TestKeysForReturnsStableOrder(t *testing.T) {
+	reg := newRegistry()
+
+	cases := []struct {
+		name string
+		ctx  bindingContext
+		act  action
+		want []string
+	}{
+		{"next view", contextGlobal, actionNextView, []string{"]", "tab"}},
+		{"prev view", contextGlobal, actionPrevView, []string{"[", "shift+tab"}},
+		{"tag back", contextTags, actionTagBack, []string{"h", "esc", "backspace"}},
+		{"cursor down", contextLibrary, actionCursorDown, []string{"j", "down"}},
+		{"unbound in context", contextLibrary, actionTagBack, []string{}},
+		{"unbound anywhere", contextGlobal, actionNone, []string{}},
+	}
+
+	for _, tc := range cases {
+		for i := range 20 {
+			got := reg.keysFor(tc.ctx, tc.act)
+			if !slices.Equal(got, tc.want) {
+				t.Fatalf("%s: keysFor(%v, %v) = %v, want %v (iteration %d)", tc.name, tc.ctx, tc.act, got, tc.want, i)
+			}
+		}
+	}
+}
+
+// TestKeysForRanksModifierCombosLast verifies the rank ordering directly:
+// alphanumeric runes first, then other single runes, then named keys, then
+// modifier combos.
+func TestKeysForRanksModifierCombosLast(t *testing.T) {
+	cases := []struct {
+		key  string
+		want int
+	}{
+		{"j", 0},
+		{"G", 0},
+		{"4", 0},
+		{"]", 1},
+		{"/", 1},
+		{"tab", 2},
+		{"esc", 2},
+		{"enter", 2},
+		{"backspace", 2},
+		{"ctrl+d", 3},
+		{"shift+tab", 3},
+	}
+
+	for _, tc := range cases {
+		if got := keyRank(tc.key); got != tc.want {
+			t.Errorf("keyRank(%q) = %d, want %d", tc.key, got, tc.want)
 		}
 	}
 }

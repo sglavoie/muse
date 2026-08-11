@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // handleConfigToggleMsg toggles an audio setting, applies it to the player,
@@ -58,6 +59,77 @@ func onOff(b bool) string {
 		return "On"
 	}
 	return "Off"
+}
+
+// viewSwitchActions maps each primary view to the action that switches to it.
+// The legacy sub-view IDs (viewArtists/viewAlbums/viewGenres) are absent
+// because they have no switch action and are not in viewOrder; a message
+// naming one runs its action in place.
+var viewSwitchActions = map[viewID]action{
+	viewLibrary:   actionSwitchLibrary,
+	viewPlaylists: actionSwitchPlaylists,
+	viewQueue:     actionSwitchQueue,
+	viewBrowse:    actionSwitchBrowse,
+	viewFavorites: actionSwitchFavorites,
+	viewTags:      actionSwitchTags,
+	viewMixes:     actionSwitchMixes,
+}
+
+// handleCommandPaletteAction replays a palette action, switching to target
+// first when one is named and not already active.
+//
+// The switch is dispatched through handleKeyAction rather than switchToView so
+// the switch actions keep their own effects: actionSwitchMixes returns
+// mixesMaybeLoadCmd() and actionSwitchQueue focuses the now-playing row.
+//
+// The already-active guard is load-bearing: switchToView resets every sort,
+// exits visual mode and cancels in-flight create/rename inputs, so switching
+// to the view the user is already in would silently discard that state.
+func (m Model) handleCommandPaletteAction(act action, target viewID) (tea.Model, tea.Cmd) {
+	// The "Delete playlist" row names a single target, but the handler behind
+	// actionPlaylistDelete removes the focused or selected tracks at playlist
+	// track level. Refuse it there instead of deleting what the row never
+	// promised.
+	if act == actionPlaylistDelete && !atPlaylistListLevel(m) {
+		m.statusBar.notify("Open the playlist list to delete a playlist")
+		return m, nil
+	}
+
+	switchAction, ok := viewSwitchActions[target]
+	if !ok || m.activeView == target {
+		return m.atCollectionLevelFor(act).handleKeyAction(act)
+	}
+	switched, switchCmd := m.handleKeyAction(switchAction)
+	next, ok := switched.(Model)
+	if !ok {
+		return switched, switchCmd
+	}
+	after, actionCmd := next.atCollectionLevelFor(act).handleKeyAction(act)
+	return after, tea.Batch(switchCmd, actionCmd)
+}
+
+// atCollectionLevelFor drills the destination view back out to the collection
+// level the create actions require. switchToView preserves each view's drill
+// level, so a palette pick could otherwise land on a track level whose handler
+// ignores the action and leave the user moved but with no create input.
+//
+// The active-view check keeps the drill-out tied to the view the action will
+// run in: a create action dispatched without a target view still no-ops in
+// place rather than reshaping a view the user is not looking at.
+func (m Model) atCollectionLevelFor(act action) Model {
+	switch act {
+	case actionPlaylistCreate, actionSmartPlaylistCreate:
+		if m.activeView == viewPlaylists && !m.playlists.atListLevel() {
+			m = exitVisualMode(m)
+			m.playlists = m.playlists.backToList()
+		}
+	case actionTagCreate:
+		if m.activeView == viewTags && m.tagsView.level == tagtui.TrackLevel {
+			m = exitVisualMode(m)
+			m.tagsView = m.tagsView.back()
+		}
+	}
+	return m
 }
 
 // handleNavigateLibraryModeMsg switches to an exact Library mode while
