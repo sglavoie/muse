@@ -114,6 +114,8 @@ func (m Model) watchSyncHistoryMetadata(tracks []library.Track) Model {
 				m.library.sourceTracks[i].Album = t.Album
 				m.library.sourceTracks[i].Genre = t.Genre
 				m.library.sourceTracks[i].Duration = t.Duration
+				m.library.sourceTracks[i].TrackNumber = t.TrackNumber
+				m.library.sourceTracks[i].DiscNumber = t.DiscNumber
 			}
 		}
 	}
@@ -237,12 +239,46 @@ func (m Model) watchSyncMixesMetadata(tracks []library.Track) Model {
 	return m
 }
 
+// watchSyncInsightsMetadata refreshes the open Insights drill track list so it
+// reflects scan-detected changes. trackView.sourceTracks aliases whatever slice
+// insightsDrillTracks returned — m.insights.dormant for a dormant drill — so
+// entries are mutated in place and the slice is never appended to or resliced.
+func (m Model) watchSyncInsightsMetadata(tracks []library.Track) Model {
+	src := m.insights.trackView.sourceTracks
+	if !m.insights.atTracks() || len(src) == 0 {
+		return m
+	}
+	updated := false
+	for _, t := range tracks {
+		// A session drill can list the same hash more than once, so every index
+		// is checked rather than stopping at the first match.
+		for i := range src {
+			if src[i].Hash != t.Hash {
+				continue
+			}
+			src[i].Path = t.Path
+			src[i].Title = t.Title
+			src[i].Artist = t.Artist
+			src[i].Album = t.Album
+			src[i].Genre = t.Genre
+			src[i].Duration = t.Duration
+			src[i].TrackNumber = t.TrackNumber
+			src[i].DiscNumber = t.DiscNumber
+			updated = true
+		}
+	}
+	if updated {
+		m.insights.trackView = m.insights.trackView.refreshView().clampCursor()
+	}
+	return m
+}
+
 // reconcileTrackCaches propagates same-hash path and metadata updates into
 // every in-memory cache that holds a playable Path: the queue (and its player
 // mirror), the History-mode library source, and the loaded playlists,
-// favorites, tags, and mix track lists. Artist/album/genre browse views are
-// intentionally not touched here; they rederive from the live index via
-// refreshBrowseDerivedViews. This is the single track-update fan-out shared by
+// favorites, tags, mix, and Insights drill track lists. Artist/album/genre
+// browse views are intentionally not touched here; they rederive from the live
+// index via refreshBrowseDerivedViews. This is the single fan-out shared by
 // the live watcher, the startup diff scan, and manual rescans so that a
 // move/rename heals identically regardless of which pipeline observed it.
 func (m Model) reconcileTrackCaches(tracks []library.Track) Model {
@@ -252,6 +288,7 @@ func (m Model) reconcileTrackCaches(tracks []library.Track) Model {
 	m = m.watchSyncFavoritesMetadata(tracks)
 	m = m.watchSyncTagsMetadata(tracks)
 	m = m.watchSyncMixesMetadata(tracks)
+	m = m.watchSyncInsightsMetadata(tracks)
 	return m
 }
 

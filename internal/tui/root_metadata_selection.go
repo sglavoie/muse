@@ -178,6 +178,8 @@ func (m Model) refreshDerivedViews() Model {
 				ts[i].Album = t.Album
 				ts[i].Genre = t.Genre
 				ts[i].Duration = t.Duration
+				ts[i].TrackNumber = t.TrackNumber
+				ts[i].DiscNumber = t.DiscNumber
 			}
 		}
 	}
@@ -217,6 +219,14 @@ func (m Model) refreshDerivedViews() Model {
 	}
 	if m.mixes.level == 1 {
 		m.mixes.trackView = m.mixes.trackView.refreshView()
+	}
+
+	// An open Insights drill holds a frozen snapshot taken by openDrill, so
+	// without this the list the export/import loop is aimed at keeps rendering
+	// pre-edit values until the drill is reopened.
+	if m.insights.atTracks() && len(m.insights.trackView.sourceTracks) > 0 {
+		refreshTrackMetadata(m.insights.trackView.sourceTracks)
+		m.insights.trackView = m.insights.trackView.refreshView().clampCursor()
 	}
 
 	return m

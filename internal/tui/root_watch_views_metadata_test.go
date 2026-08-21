@@ -106,11 +106,15 @@ func TestWatchBatchUpdatesHistoryTracks(t *testing.T) {
 
 	next, _ := m.Update(watchBatchMsg{
 		tracks: []library.Track{
-			{Hash: "h1", Path: "/a.flac", Artist: "NewArt", Title: "NewTitle", Album: "NewAlbum", Genre: "NewGenre"},
+			{Hash: "h1", Path: "/a.flac", Artist: "NewArt", Title: "NewTitle", Album: "NewAlbum", Genre: "NewGenre", TrackNumber: 3, DiscNumber: 2},
 		},
 	})
 	nm := next.(Model)
 
+	if nm.library.sourceTracks[0].TrackNumber != 3 || nm.library.sourceTracks[0].DiscNumber != 2 {
+		t.Errorf("history track position = %d/%d, want 3/2",
+			nm.library.sourceTracks[0].TrackNumber, nm.library.sourceTracks[0].DiscNumber)
+	}
 	if nm.library.sourceTracks[0].Title != "NewTitle" {
 		t.Errorf("history track title = %q, want %q", nm.library.sourceTracks[0].Title, "NewTitle")
 	}
@@ -119,5 +123,32 @@ func TestWatchBatchUpdatesHistoryTracks(t *testing.T) {
 	}
 	if nm.library.sourceTracks[0].Genre != "NewGenre" {
 		t.Errorf("history track genre = %q, want %q", nm.library.sourceTracks[0].Genre, "NewGenre")
+	}
+}
+
+// TestWatchBatchUpdatesInsightsDrillTracks verifies that the scan fan-out
+// reaches an open Insights drill, which is the "even after Ctrl+R" half of the
+// stale-drill bug: manual rescans land here rather than in refreshDerivedViews.
+func TestWatchBatchUpdatesInsightsDrillTracks(t *testing.T) {
+	m := drilledInsights(t, []library.Track{
+		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum", Genre: "OldGenre"},
+	})
+
+	next, _ := m.Update(watchBatchMsg{
+		tracks: []library.Track{
+			{Hash: "h1", Path: "/moved.flac", Artist: "NewArt", Title: "NewTitle", Album: "NewAlbum", Genre: "NewGenre", TrackNumber: 4, DiscNumber: 1},
+		},
+	})
+	nm := next.(Model)
+
+	got := nm.insights.trackView.sourceTracks[0]
+	if got.Title != "NewTitle" || got.Artist != "NewArt" || got.Album != "NewAlbum" || got.Genre != "NewGenre" {
+		t.Errorf("drill track metadata not refreshed: %+v", got)
+	}
+	if got.Path != "/moved.flac" {
+		t.Errorf("drill track path = %q, want %q", got.Path, "/moved.flac")
+	}
+	if got.TrackNumber != 4 || got.DiscNumber != 1 {
+		t.Errorf("drill track position = %d/%d, want 4/1", got.TrackNumber, got.DiscNumber)
 	}
 }

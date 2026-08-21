@@ -173,3 +173,33 @@ func TestRefreshDerivedViewsUpdatesDuration(t *testing.T) {
 		t.Errorf("favorites Duration = %v, want 200", m.favorites.tracks[0].Duration)
 	}
 }
+
+// TestRefreshDerivedViewsUpdatesTrackAndDiscNumbers verifies that track and disc
+// numbers reach every cache refreshTrackMetadata feeds. The TSV import edits
+// both, and they are rendered, so omitting them left History, Favorites and
+// Mixes showing the pre-import position.
+func TestRefreshDerivedViewsUpdatesTrackAndDiscNumbers(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", TrackNumber: 1, DiscNumber: 1})
+
+	m.library.mode = LibraryModeHistory
+	m.library.sourceTracks = []library.Track{{Hash: "h1", Path: "/a.flac", TrackNumber: 1, DiscNumber: 1}}
+	m.favorites.level = favtui.TrackLevel
+	m.favorites.drilldownTracks = []library.Track{{Hash: "h1", Path: "/a.flac", TrackNumber: 1, DiscNumber: 1}}
+	m.mixes.cachedMixes = map[db.MixID][]library.Track{
+		db.MixRediscover: {{Hash: "h1", Path: "/a.flac", TrackNumber: 1, DiscNumber: 1}},
+	}
+
+	m.library.index.UpdateTrackPosition("h1", 9, 2)
+	m = m.refreshDerivedViews()
+
+	for name, got := range map[string]library.Track{
+		"history":   m.library.sourceTracks[0],
+		"favorites": m.favorites.drilldownTracks[0],
+		"mixes":     m.mixes.cachedMixes[db.MixRediscover][0],
+	} {
+		if got.TrackNumber != 9 || got.DiscNumber != 2 {
+			t.Errorf("%s position = %d/%d, want 9/2", name, got.TrackNumber, got.DiscNumber)
+		}
+	}
+}

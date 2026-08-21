@@ -307,6 +307,46 @@ func TestMetadataImportApplyWritesSixFieldsThroughOneClaim(t *testing.T) {
 	}
 }
 
+// TestMetadataImportRefreshesTheOpenInsightsDrill is the reported repro: drill
+// into a data-health bucket, export, edit, import. The drill list must show the
+// new values, and a re-export must offer them rather than the pre-import ones.
+func TestMetadataImportRefreshesTheOpenInsightsDrill(t *testing.T) {
+	dir := t.TempDir()
+	m := importModel(t, dir)
+	m.activeView = viewInsights
+	m.insights.setSize(100, 30)
+	m.insights.dormant = m.library.index.Tracks()
+	m.insights.openDrill("No artist", m.insightsDrillTracks(insightsRow{drill: drillDormant}))
+	writeImportFile(t, dir, editedExport)
+
+	m = m.handleMetadataImportParsedMsg(parseImport(t, m))
+	next, cmd, _ := m.handleMetadataImportKeyPress(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	if cmd == nil {
+		t.Fatal("expected a write command")
+	}
+	m = next
+
+	var drilled library.Track
+	for _, tr := range m.insights.trackView.sourceTracks {
+		if tr.Hash == "h1" {
+			drilled = tr
+		}
+	}
+	if drilled.Artist != "Pink Floyd" || drilled.Title != "Sheep" || drilled.TrackNumber != 1 {
+		t.Fatalf("the open drill still renders pre-import values: %+v", drilled)
+	}
+
+	rows, label, ok := m.insightsVisibleTracks()
+	if !ok {
+		t.Fatalf("expected an exportable drill, got %q", label)
+	}
+	for _, r := range rows {
+		if r.Hash == "h1" && (r.Artist != "Pink Floyd" || r.Title != "Sheep") {
+			t.Fatalf("a re-export would round-trip stale values back in: %+v", r)
+		}
+	}
+}
+
 func TestMetadataImportApplyStandsDownForASupersedingEdit(t *testing.T) {
 	dir := t.TempDir()
 	m := importModel(t, dir)
