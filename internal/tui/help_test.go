@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -181,9 +182,11 @@ func TestHelpOverlayRendersRepresentativeEntries(t *testing.T) {
 func TestFilteredHelpSections(t *testing.T) {
 	sections := filteredHelpSections(contextLibrary)
 
-	// Should contain Global, Navigation, and Library — but not Queue, Playlists, etc.
+	// Should contain the pinned status-bar legend, Global, Navigation, and
+	// Library — but not Queue, Playlists, etc.
 	allowed := map[string]bool{
-		"Global": true,
+		"Status bar indicators": true,
+		"Global":                true,
 		"Navigation (Library / Queue / Playlists / Browse / Favorites / Tags / Mixes)": true,
 		"Library": true,
 	}
@@ -194,6 +197,90 @@ func TestFilteredHelpSections(t *testing.T) {
 	}
 	if len(sections) != len(allowed) {
 		t.Errorf("filteredHelpSections(contextLibrary) returned %d sections, want %d", len(sections), len(allowed))
+	}
+}
+
+// helpContexts is every bindingContext a help overlay can be filtered by.
+var helpContexts = []bindingContext{
+	contextGlobal, contextLibrary, contextPlaylists, contextQueue,
+	contextArtists, contextAlbums, contextFavorites, contextGenres,
+	contextTags, contextModals, contextMixes, contextBrowse, contextInsights,
+}
+
+// The status-bar legend explains glyphs that match no keybinding, so it is
+// pinned first in both the unfiltered list and every view-filtered one — the
+// filtered mode is the default (m.helpFiltered starts true).
+func TestStatusBarHelpSectionIsFirst(t *testing.T) {
+	if got := helpSections()[0].title; got != statusBarHelpSectionTitle {
+		t.Errorf("helpSections()[0].title = %q, want %q", got, statusBarHelpSectionTitle)
+	}
+	for _, ctx := range helpContexts {
+		sections := filteredHelpSections(ctx)
+		if len(sections) == 0 {
+			t.Errorf("filteredHelpSections(%d) returned no sections", ctx)
+			continue
+		}
+		if got := sections[0].title; got != statusBarHelpSectionTitle {
+			t.Errorf("filteredHelpSections(%d)[0].title = %q, want %q", ctx, got, statusBarHelpSectionTitle)
+		}
+	}
+}
+
+// Regression: the legend carries contextGlobal, so pinning it must skip the
+// context switch entirely — otherwise a contextGlobal view emits it once as
+// the pinned copy and again as a global section.
+func TestStatusBarHelpSectionNotDuplicated(t *testing.T) {
+	for _, ctx := range helpContexts {
+		count := 0
+		for _, sec := range filteredHelpSections(ctx) {
+			if sec.title == statusBarHelpSectionTitle {
+				count++
+			}
+		}
+		if count != 1 {
+			t.Errorf("filteredHelpSections(%d) contains %d %q sections, want 1", ctx, count, statusBarHelpSectionTitle)
+		}
+	}
+}
+
+// The legend must name, for every glyph in the status-bar mode cluster, the
+// key that toggles it — and that key must still be bound to the matching
+// action, so the descriptions cannot drift from the registry.
+func TestStatusBarHelpSectionDescribesToggleKeys(t *testing.T) {
+	want := []struct {
+		glyph  string
+		toggle string
+		act    action
+	}{
+		{"R / 1", "r", actionRepeatCycle},
+		{"S", "z", actionShuffleToggle},
+		{"N", "ctrl+n", actionStopAfterCurrent},
+		{"D", "A", actionRadioToggle},
+	}
+
+	var sec helpSection
+	for _, s := range helpSections() {
+		if s.title == statusBarHelpSectionTitle {
+			sec = s
+			break
+		}
+	}
+	if len(sec.entries) != len(want) {
+		t.Fatalf("%q section has %d entries, want %d", statusBarHelpSectionTitle, len(sec.entries), len(want))
+	}
+
+	reg := newRegistry()
+	for i, w := range want {
+		e := sec.entries[i]
+		if e.key != w.glyph {
+			t.Errorf("entry %d: key = %q, want %q", i, e.key, w.glyph)
+		}
+		if !strings.Contains(e.desc, "toggle with "+w.toggle) {
+			t.Errorf("entry %q: desc %q does not name toggle key %q", e.key, e.desc, w.toggle)
+		}
+		if got := reg.lookup(contextGlobal, w.toggle); got != w.act {
+			t.Errorf("entry %q: key %q resolves to action %d, want %d", e.key, w.toggle, got, w.act)
+		}
 	}
 }
 
@@ -214,13 +301,15 @@ func TestSearchHelpSections(t *testing.T) {
 		}
 	}
 
-	// Only Global should match; view-specific sections have no "shuffle" entry.
-	if len(result) != 1 || result[0].title != "Global" {
-		titles := make([]string, len(result))
-		for i, s := range result {
-			titles[i] = s.title
-		}
-		t.Errorf("expected only Global section, got %v", titles)
+	// Only the pinned status-bar legend (its "S" row) and Global should match;
+	// view-specific sections have no "shuffle" entry.
+	want := []string{"Status bar indicators", "Global"}
+	got := make([]string, len(result))
+	for i, s := range result {
+		got[i] = s.title
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("expected sections %v, got %v", want, got)
 	}
 }
 

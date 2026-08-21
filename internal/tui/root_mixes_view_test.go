@@ -349,11 +349,16 @@ func TestMixesViewHelpSection(t *testing.T) {
 
 func TestMixesViewFilteredHelp(t *testing.T) {
 	sections := filteredHelpSections(contextMixes)
-	if len(sections) == 0 {
-		t.Fatal("expected at least one help section for contextMixes")
+	// The status-bar legend is pinned ahead of everything; the view-specific
+	// section still leads the rest, before any global section.
+	if len(sections) < 2 {
+		t.Fatalf("expected at least two help sections for contextMixes, got %d", len(sections))
 	}
-	if sections[0].title != "Mixes" {
-		t.Errorf("expected Mixes section first, got %q", sections[0].title)
+	if sections[0].title != statusBarHelpSectionTitle {
+		t.Errorf("expected the pinned %q section first, got %q", statusBarHelpSectionTitle, sections[0].title)
+	}
+	if sections[1].title != "Mixes" {
+		t.Errorf("expected Mixes section after the pinned legend, got %q", sections[1].title)
 	}
 }
 

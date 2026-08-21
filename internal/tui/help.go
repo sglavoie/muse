@@ -50,10 +50,28 @@ type helpSection struct {
 // HelpOverlay renders a static keybinding reference grouped into named sections.
 type HelpOverlay struct{}
 
+// statusBarHelpSectionTitle names the legend section decoding the status bar's
+// mode cluster. It is pinned first in every help mode, so both helpSections()
+// and filteredHelpSections reference it by this constant.
+const statusBarHelpSectionTitle = "Status bar indicators"
+
 // helpSections returns the ordered list of keybinding sections shown in the
 // help overlay. Each section corresponds to one bindingContext.
 func helpSections() []helpSection {
 	return []helpSection{
+		{
+			// Pinned first: these are glyphs, not keybindings, and none of
+			// them match the key that toggles them. The Global section below
+			// lists the toggle keys themselves.
+			title:   statusBarHelpSectionTitle,
+			context: contextGlobal,
+			entries: []helpEntry{
+				{"R / 1", "Repeat all / repeat one — toggle with r"},
+				{"S", "Shuffle — toggle with z"},
+				{"N", "Stop after current track — toggle with ctrl+n"},
+				{"D", "Radio / Auto-DJ — toggle with A"},
+			},
+		},
 		{
 			title:   "Global",
 			context: contextGlobal,
@@ -340,11 +358,20 @@ func helpSections() []helpSection {
 
 // filteredHelpSections returns only sections whose context is contextGlobal or
 // matches ctx. This powers the "view-specific" help mode toggled with "?".
+// The status-bar legend stays pinned first here too, so it keeps the same
+// position in both help modes.
 func filteredHelpSections(ctx bindingContext) []helpSection {
 	all := helpSections()
-	// View-specific section first, then global sections.
-	var viewSpecific, global []helpSection
+	// Legend first, then the view-specific sections, then global sections.
+	var pinned, viewSpecific, global []helpSection
 	for _, sec := range all {
+		// Skip the context switch entirely: the legend is contextGlobal, so
+		// when ctx is contextGlobal it would otherwise also land in
+		// viewSpecific and be emitted twice.
+		if sec.title == statusBarHelpSectionTitle {
+			pinned = append(pinned, sec)
+			continue
+		}
 		switch sec.context {
 		case ctx:
 			viewSpecific = append(viewSpecific, sec)
@@ -352,7 +379,11 @@ func filteredHelpSections(ctx bindingContext) []helpSection {
 			global = append(global, sec)
 		}
 	}
-	return append(viewSpecific, global...)
+	out := make([]helpSection, 0, len(pinned)+len(viewSpecific)+len(global))
+	out = append(out, pinned...)
+	out = append(out, viewSpecific...)
+	out = append(out, global...)
+	return out
 }
 
 // wrapText word-wraps text to fit within maxWidth. Lines after the first are
