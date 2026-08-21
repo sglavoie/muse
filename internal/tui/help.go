@@ -300,7 +300,7 @@ func helpSections() []helpSection {
 			context: contextInsights,
 			entries: []helpEntry{
 				{"` / ~", "Next / previous panel"},
-				{"w / W", "Next / previous time window"},
+				{"w / W", "Next / previous window, or bucket size on Momentum and Discovery"},
 				{"enter", "Drill into the focused row (Sessions opens the sessions first)"},
 				{"esc", "Back one level"},
 				{"e", "Enqueue focused track"},

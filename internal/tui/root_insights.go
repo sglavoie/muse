@@ -104,6 +104,7 @@ func (m *Model) insightsLoadCmd() tea.Cmd {
 
 	gen := m.insights.gen
 	windowIdx := m.insights.windowIdx
+	res := m.insights.resolution()
 	mx := m.cfg.Mixes
 	// Snapshot the index on the UI goroutine; the closure below runs off it.
 	tracks := m.library.index.Tracks()
@@ -153,6 +154,7 @@ func (m *Model) insightsLoadCmd() tea.Cmd {
 			Loc:         loc,
 			Since:       since,
 			WindowLabel: insightsWindows[windowIdx].label,
+			Resolution:  res,
 			Plays:       plays,
 			Genres:      genres,
 			Sessions:    sessions,
@@ -226,14 +228,20 @@ func (m Model) handleInsightsPanelCycle(delta int) Model {
 	return m
 }
 
-// handleInsightsWindowCycle moves the active window and reloads, unless the
-// active panel ignores the window entirely.
+// handleInsightsWindowCycle moves whichever control the active panel actually
+// honours — the time window, or the bucket size for the panels whose span is
+// always all-time — and reloads. A fixed panel says so rather than reloading
+// identical numbers under a new label.
 func (m Model) handleInsightsWindowCycle(delta int) (Model, tea.Cmd) {
-	if m.insights.panelSpec().class == classFixed {
+	switch m.insights.panelSpec().class {
+	case classFixed:
 		m.statusBar.notify("This panel is always all-time")
 		return m, nil
+	case classResolution:
+		m.insights = m.insights.shiftResolution(delta)
+	default:
+		m.insights = m.insights.shiftWindow(delta)
 	}
-	m.insights = m.insights.shiftWindow(delta)
 	return m, m.insightsLoadCmd()
 }
 
@@ -306,7 +314,7 @@ func backlogMonths(tracks []library.Track, loc *time.Location) []insightsBacklog
 			continue
 		}
 		added := time.Unix(t.CreatedAt, 0).In(loc)
-		key := insightsMonthKey(added)
+		key := insightsBucketKey(insights.ResolutionMonthly, added)
 		b := byKey[key]
 		if b == nil {
 			b = &insightsBacklogMonth{Key: key, Label: added.Format("January 2006")}
@@ -334,8 +342,8 @@ func (m Model) insightsDrillTracks(row insightsRow) []library.Track {
 		return m.insights.dormant
 	case drillHour, drillWeekday, drillRhythmGenre:
 		return m.insightsPlayedTracks(row)
-	case drillMonth, drillFirstPlaysMonth:
-		return m.insightsMonthTracks(row.key, row.drill == drillFirstPlaysMonth)
+	case drillTrendBucket, drillFirstPlaysBucket:
+		return m.insightsBucketTracks(row.key, row.drill == drillFirstPlaysBucket)
 	case drillArtistPlays:
 		return m.insightsPlayTracks(func(p insights.PlayRow) bool { return p.Artist == row.key })
 	case drillTopArtists:
@@ -369,8 +377,10 @@ func (m Model) insightsDrillTracks(row insightsRow) []library.Track {
 				}
 			}
 		case drillAddedNeverPlayed:
-			return t.CreatedAt > 0 &&
-				insightsMonthKey(time.Unix(t.CreatedAt, 0).In(m.insights.location())) == row.key
+			// Always monthly: the backlog is grouped by the month a track was
+			// added, which has nothing to do with how the play history is bucketed.
+			return t.CreatedAt > 0 && insightsBucketKey(insights.ResolutionMonthly,
+				time.Unix(t.CreatedAt, 0).In(m.insights.location())) == row.key
 		}
 		return false
 	}
@@ -571,18 +581,22 @@ func (m Model) insightsRutBreakerTracks(limit int) []library.Track {
 	return out
 }
 
-// insightsMonthTracks resolves a Momentum or Discovery month row against the
+// insightsBucketTracks resolves a Momentum or Discovery row against the
 // all-time timeline. firstEverOnly narrows it to the plays that were a track's
-// first, which is the set Discovery's "first heard" rows stand for.
-func (m Model) insightsMonthTracks(key string, firstEverOnly bool) []library.Track {
+// first, which is the set Discovery's "first heard" rows stand for. The bucket
+// size comes from the snapshot the row was drawn from rather than from the live
+// control, so a drill can never be keyed at one resolution and resolved at
+// another.
+func (m Model) insightsBucketTracks(key string, firstEverOnly bool) []library.Track {
 	loc := m.insights.location()
+	res := m.insights.snap.Trends.Resolution
 	var out []library.Track
 	seen := make(map[string]struct{})
 	for _, r := range m.insights.timeline {
 		if firstEverOnly && !r.FirstEver {
 			continue
 		}
-		if insightsMonthKey(time.Unix(r.StartAt, 0).In(loc)) != key {
+		if insightsBucketKey(res, time.Unix(r.StartAt, 0).In(loc)) != key {
 			continue
 		}
 		if _, dup := seen[r.Hash]; dup {

@@ -35,7 +35,7 @@ func Compute(in Input) Snapshot {
 
 	snap.Rhythm = computeRhythm(in.Plays, groups, loc)
 	snap.Calendar = computeCalendar(in.Timeline, in.Now, loc)
-	snap.Trends = computeTrends(in.Timeline, snap.Calendar, in.Now, loc)
+	snap.Trends = computeTrends(in.Timeline, snap.Calendar, in.Now, loc, in.Resolution)
 	snap.Rankings = computeRankings(in.Plays)
 	snap.SessionStats = computeSessions(in.Sessions)
 	snap.Quality = computeQuality(groups, in.Quality)

@@ -181,8 +181,8 @@ var paletteCatalog = []paletteEntry{
 
 	{act: actionInsightsPanelNext, id: "insights.panel.next", name: "Next insights panel", category: "stats", ctx: contextInsights, enabled: activeViewIs(viewInsights)},
 	{act: actionInsightsPanelPrev, id: "insights.panel.previous", name: "Previous insights panel", category: "stats", ctx: contextInsights, enabled: activeViewIs(viewInsights)},
-	{act: actionInsightsWindowNext, id: "insights.window.next", name: "Next time window", category: "stats", ctx: contextInsights, enabled: activeViewIs(viewInsights)},
-	{act: actionInsightsWindowPrev, id: "insights.window.previous", name: "Previous time window", category: "stats", ctx: contextInsights, enabled: activeViewIs(viewInsights)},
+	{act: actionInsightsWindowNext, id: "insights.window.next", name: "Next window or bucket size", category: "stats", ctx: contextInsights, enabled: activeViewIs(viewInsights)},
+	{act: actionInsightsWindowPrev, id: "insights.window.previous", name: "Previous window or bucket size", category: "stats", ctx: contextInsights, enabled: activeViewIs(viewInsights)},
 	{act: actionInsightsEnqueueAll, id: "insights.enqueue_all", name: "Enqueue tracks behind row", category: "stats", ctx: contextInsights, enabled: activeViewIs(viewInsights)},
 	{act: actionInsightsAntiRut, id: "insights.anti_rut", name: "Enqueue a rut-breaking set", category: "stats", ctx: contextInsights, enabled: activeViewIs(viewInsights)},
 	{act: actionInsightsRadioSeed, id: "insights.radio.seed", name: "Start radio from insight row", category: "stats", ctx: contextInsights, enabled: activeViewIs(viewInsights)},

@@ -98,6 +98,17 @@ var insightsWindows = []insightsWindow{
 	{"This Month", -1},
 }
 
+// insightsResolutions is the w / W cycle the classResolution panels get instead
+// of the window one. Their span is always all-time, so a trailing duration would
+// be a label with nothing behind it; the bucket size is the thing that actually
+// changes what Momentum and Discovery draw. Monthly leads so the default reading
+// is the one Coverage projects with.
+var insightsResolutions = []insights.Resolution{
+	insights.ResolutionMonthly,
+	insights.ResolutionWeekly,
+	insights.ResolutionDaily,
+}
+
 // insightsWindowSince converts a window index into the Unix second a play must
 // have *started* at or after to fall inside it. Zero means all time.
 func insightsWindowSince(idx int, now time.Time, loc *time.Location) int64 {
@@ -138,13 +149,13 @@ const (
 	drillUnheardAlbum
 	drillUnheardGenre
 	drillDormant
-	// key is the local hour, weekday number, folded genre or "YYYY-MM" month
+	// key is the local hour, weekday number, folded genre or trend-bucket key
 	// the row stands for.
 	drillHour
 	drillWeekday
 	drillRhythmGenre
-	drillMonth
-	drillFirstPlaysMonth
+	drillTrendBucket
+	drillFirstPlaysBucket
 	drillAddedNeverPlayed
 	// drillArtistPlays keys on an artist name, drillTopArtists on how many of
 	// the top artists by time the row stands for.
@@ -190,9 +201,13 @@ type insightsRow struct {
 // briefing row drills into (level 1, an embedded LibraryView so sort, filter,
 // visual select and enqueue all come for free).
 type InsightsView struct {
-	snap      insights.Snapshot
-	panel     insightsPanel
-	windowIdx int
+	snap  insights.Snapshot
+	panel insightsPanel
+	// windowIdx and resolutionIdx are separate controls sharing one key: w
+	// moves the window on windowed panels and the bucket size on the
+	// resolution ones, so neither cycle ever has a press that changes nothing.
+	windowIdx     int
+	resolutionIdx int
 
 	cursor       int
 	scrollOffset int
@@ -255,6 +270,10 @@ func (v *InsightsView) setSize(w, h int) { v.width = w; v.height = h }
 
 func (v InsightsView) window() insightsWindow { return insightsWindows[v.windowIdx] }
 
+func (v InsightsView) resolution() insights.Resolution {
+	return insightsResolutions[v.resolutionIdx]
+}
+
 func (v InsightsView) panelSpec() insightsPanelSpec {
 	for _, spec := range insightsPanelSpecs {
 		if spec.id == v.panel {
@@ -293,6 +312,13 @@ func (v InsightsView) shiftPanel(delta int) InsightsView {
 func (v InsightsView) shiftWindow(delta int) InsightsView {
 	n := len(insightsWindows)
 	v.windowIdx = ((v.windowIdx+delta)%n + n) % n
+	return v
+}
+
+// shiftResolution moves the active bucket size by delta, wrapping.
+func (v InsightsView) shiftResolution(delta int) InsightsView {
+	n := len(insightsResolutions)
+	v.resolutionIdx = ((v.resolutionIdx+delta)%n + n) % n
 	return v
 }
 
@@ -676,7 +702,7 @@ func (v InsightsView) windowHint() string {
 	case classFixed:
 		return "all-time (fixed)"
 	case classResolution:
-		return "resolution: " + v.window().label
+		return "resolution: " + v.resolution().Unit() + " ‹w›"
 	default:
 		return v.window().label + " ‹w›"
 	}
@@ -727,12 +753,12 @@ func (v InsightsView) headline(p insightsPanel) string {
 			len(r.QuietHours), pluralize(len(r.QuietHours), "hour", "hours"))
 	case panelMomentum:
 		t := snap.Trends
-		if t.AvgMonthlySecs <= 0 {
-			return "not enough completed months to compare"
+		if t.AvgSecs <= 0 {
+			return "not enough completed " + t.Resolution.Period() + "s to compare"
 		}
-		return fmt.Sprintf("%s this month — %.0f%% of your %s monthly average",
-			formatListeningTime(t.Current.ListenedSecs), t.CurrentVsAvg*100,
-			formatListeningTime(int(t.AvgMonthlySecs)))
+		return fmt.Sprintf("%s %s — %.0f%% of your %s %s average",
+			formatListeningTime(t.Current.ListenedSecs), t.Resolution.Current(),
+			t.CurrentVsAvg*100, formatListeningTime(int(t.AvgSecs)), t.Resolution.Unit())
 	case panelConcentration:
 		l := snap.Rankings.Ladder
 		if l.TotalArtists == 0 {
@@ -759,9 +785,9 @@ func (v InsightsView) headline(p insightsPanel) string {
 			ss.Count, formatListeningTime(ss.MedianSecs), ss.SingleArtistShare*100)
 	case panelDiscovery:
 		t := snap.Trends
-		return fmt.Sprintf("%d first-time %s this month · %.0f%% are repeats",
-			t.FirstPlaysMonth, pluralize(t.FirstPlaysMonth, "track", "tracks"),
-			t.RepeatShare*100)
+		return fmt.Sprintf("%d first-time %s %s · %.0f%% are repeats",
+			t.CurrentFirstPlays, pluralize(t.CurrentFirstPlays, "track", "tracks"),
+			t.Resolution.Current(), t.RepeatShare*100)
 	case panelDataHealth:
 		// The count is of rows rather than of snapshot issues: a finding with no
 		// track list behind it is stated in the header prose instead, and a

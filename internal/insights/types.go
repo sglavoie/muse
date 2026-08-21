@@ -86,6 +86,118 @@ type QualityCounts struct {
 	DeepCutsQualifying int // ...of which average completion clears the threshold
 }
 
+// Resolution is the bucket size Momentum and Discovery aggregate at. It is the
+// only thing their control changes: the source span stays all-time either way,
+// so a coarser bucket is a coarser reading of the same history rather than a
+// shorter one.
+type Resolution int
+
+// The bucket sizes. Monthly is the zero value so a caller that sets no
+// resolution gets the calendar-month series the rest of the package projects
+// with.
+const (
+	ResolutionMonthly Resolution = iota
+	ResolutionWeekly
+	ResolutionDaily
+)
+
+// Unit names the bucket size as an adverb, for "resolution: weekly".
+func (r Resolution) Unit() string {
+	switch r {
+	case ResolutionDaily:
+		return "daily"
+	case ResolutionWeekly:
+		return "weekly"
+	default:
+		return "monthly"
+	}
+}
+
+// Current names the bucket the present falls in, so a headline reads as a
+// sentence at every bucket size rather than saying "this day".
+func (r Resolution) Current() string {
+	switch r {
+	case ResolutionDaily:
+		return "today"
+	case ResolutionWeekly:
+		return "this week"
+	default:
+		return "this month"
+	}
+}
+
+// Period names one bucket as a noun, for "replays a month in order".
+func (r Resolution) Period() string {
+	switch r {
+	case ResolutionDaily:
+		return "day"
+	case ResolutionWeekly:
+		return "week"
+	default:
+		return "month"
+	}
+}
+
+// BucketStart normalizes an instant to the start of the bucket holding it.
+// Every boundary is rebuilt from local calendar fields rather than reached by
+// subtracting a fixed duration, so the 23- and 25-hour days a DST transition
+// produces cannot slide a bucket off local midnight.
+func (r Resolution) BucketStart(t time.Time) time.Time {
+	loc := t.Location()
+	switch r {
+	case ResolutionDaily:
+		return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, loc)
+	case ResolutionWeekly:
+		// Weeks start on Monday: this listening history tracks the work week,
+		// and a Sunday start would cut it in half.
+		day := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, loc)
+		w := day.AddDate(0, 0, -((int(day.Weekday()) + 6) % 7))
+		return time.Date(w.Year(), w.Month(), w.Day(), 0, 0, 0, 0, loc)
+	default:
+		return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, loc)
+	}
+}
+
+// next advances one whole bucket and re-normalizes to local midnight.
+func (r Resolution) next(start time.Time) time.Time {
+	var n time.Time
+	switch r {
+	case ResolutionDaily:
+		n = start.AddDate(0, 0, 1)
+	case ResolutionWeekly:
+		n = start.AddDate(0, 0, 7)
+	default:
+		n = start.AddDate(0, 1, 0)
+	}
+	return r.BucketStart(n)
+}
+
+// between counts whole buckets from a to b. Both must be bucket starts.
+func (r Resolution) between(a, b time.Time) int {
+	switch r {
+	case ResolutionDaily:
+		return dayDiff(a, b)
+	case ResolutionWeekly:
+		return dayDiff(a, b) / 7
+	default:
+		return (b.Year()-a.Year())*12 + int(b.Month()) - int(a.Month())
+	}
+}
+
+// trailingCap bounds how far past the last play a series is extended toward the
+// present, so a skewed system clock cannot generate an unbounded run of empty
+// buckets. Each cap is about two years of that bucket size.
+func (r Resolution) trailingCap() int {
+	switch r {
+	case ResolutionDaily:
+		return 732
+	case ResolutionWeekly:
+		return 105
+	default:
+		return 24
+	}
+}
+
 // Input bundles everything Compute needs. Now and Loc are injected: Compute
 // never calls time.Now and never reads time.Local.
 type Input struct {
@@ -93,7 +205,8 @@ type Input struct {
 	Loc         *time.Location // nil is treated as UTC
 	Since       int64          // 0 = all time
 	WindowLabel string
-	Plays       []PlayRow // pre-filtered to StartAt >= Since
+	Resolution  Resolution // bucket size for Momentum and Discovery
+	Plays       []PlayRow  // pre-filtered to StartAt >= Since
 	Genres      []GenreRow
 	Sessions    []SessionRow
 	Coverage    []CoverageRow // ALWAYS all-time
@@ -166,10 +279,12 @@ type Calendar struct {
 	Weeks    int
 }
 
-// MonthBucket aggregates one local calendar month.
-type MonthBucket struct {
-	Year         int
-	Month        time.Month
+// TrendBucket aggregates one bucket of the all-time timeline at the active
+// Resolution. Start is the local instant the bucket opens at and is the only
+// identity it carries: labels and drill keys are formatted from it, so the row
+// a caller draws and the query behind that row cannot disagree.
+type TrendBucket struct {
+	Start        time.Time
 	Plays        int
 	ListenedSecs int
 	FirstPlays   int // plays that were a track's first ever
@@ -183,17 +298,23 @@ type DrySpell struct {
 }
 
 // Trends answers "growing, shrinking or bursty" (Momentum) and "am I still
-// finding new music" (Discovery). Both ignore Since.
+// finding new music" (Discovery). Both ignore Since and read the whole history
+// at Resolution.
 type Trends struct {
-	Months               []MonthBucket // contiguous, oldest first
-	Current              MonthBucket
-	AvgMonthlySecs       float64 // excludes the current, still-incomplete month
-	AvgMonthlyFirstPlays float64 // likewise; the rate Coverage projects with
-	CurrentVsAvg         float64 // 0 when there is no completed month to compare to
-	DrySpells            []DrySpell
-	LongestDry           DrySpell
-	FirstPlaysMonth      int     // first-ever plays in the current month
-	RepeatShare          float64 // share of the current month's plays that were repeats
+	Resolution        Resolution
+	Buckets           []TrendBucket // contiguous, oldest first
+	Current           TrendBucket   // the bucket today falls in; still filling up
+	AvgSecs           float64       // per bucket, excluding the current one
+	AvgFirstPlays     float64       // likewise
+	CurrentVsAvg      float64       // 0 when there is no completed bucket to compare to
+	DrySpells         []DrySpell
+	LongestDry        DrySpell
+	CurrentFirstPlays int     // first-ever plays in the current bucket
+	RepeatShare       float64 // share of the current bucket's plays that were repeats
+	// AvgMonthlyFirstPlays is always a per-month rate whatever the Resolution:
+	// Coverage projects a finish date in months and must not be re-scaled by a
+	// control that only governs how Momentum and Discovery are drawn.
+	AvgMonthlyFirstPlays float64
 }
 
 // EntityStat is one artist (or album) ranked within a window.

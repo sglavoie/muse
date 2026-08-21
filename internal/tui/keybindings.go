@@ -238,8 +238,8 @@ const (
 	actionSwitchInsights       // '8': switch to Insights view
 	actionInsightsPanelNext    // '`': cycle to the next panel
 	actionInsightsPanelPrev    // '~': cycle to the previous panel
-	actionInsightsWindowNext   // 'w': advance the active time window
-	actionInsightsWindowPrev   // 'W': step the active time window back
+	actionInsightsWindowNext   // 'w': advance the panel's window or bucket size
+	actionInsightsWindowPrev   // 'W': step the panel's window or bucket size back
 	actionInsightsOpen         // enter: drill into the focused row's tracks
 	actionInsightsBack         // esc: return from the drill-down to the panel
 	actionInsightsEnqueueAll   // 'E': enqueue every track behind the focused row

@@ -24,7 +24,8 @@ const (
 	// insightsGenreRows caps both the affinity grid and its row list: past a
 	// handful of genres the grid stops being readable at a glance.
 	insightsGenreRows = 5
-	// insightsMonthRows caps the month lists so a long history stays a briefing.
+	// insightsMonthRows caps the month lists — Discovery's backlog, and the
+	// monthly trend rows — so a long history stays a briefing.
 	insightsMonthRows = 24
 	// insightsPunchcardHours is the number of columns in a day.
 	insightsPunchcardHours = 24
@@ -55,9 +56,76 @@ func insightsFraction(part, whole int) float64 {
 	return float64(part) / float64(whole)
 }
 
-// insightsMonthKey is the bucket key every month row drills on. It is the
-// sortable form so a string compare and a chronological compare agree.
-func insightsMonthKey(t time.Time) string { return t.Format("2006-01") }
+// insightsBucketKey is the key every trend row drills on. Each form is sortable
+// so a string compare and a chronological compare agree, and each is distinct
+// per resolution so a key minted at one bucket size can never resolve at
+// another.
+func insightsBucketKey(res insights.Resolution, t time.Time) string {
+	switch res {
+	case insights.ResolutionDaily:
+		return t.Format("2006-01-02")
+	case insights.ResolutionWeekly:
+		// ISO year rather than calendar year: the week holding 1 January can
+		// belong to the previous one, and "2026-W01" for both would merge two
+		// bars into one drill.
+		y, w := t.ISOWeek()
+		return fmt.Sprintf("%04d-W%02d", y, w)
+	default:
+		return t.Format("2006-01")
+	}
+}
+
+// insightsBucketLabel names a bucket in a row.
+func insightsBucketLabel(res insights.Resolution, t time.Time) string {
+	switch res {
+	case insights.ResolutionDaily:
+		return t.Format("Mon 2 Jan 2006")
+	case insights.ResolutionWeekly:
+		return "Week of " + t.Format("2 Jan 2006")
+	default:
+		return t.Format("January 2006")
+	}
+}
+
+// insightsBucketShort names a bucket under a bar, where the column is only a
+// few cells wide.
+func insightsBucketShort(res insights.Resolution, t time.Time) string {
+	switch res {
+	case insights.ResolutionDaily:
+		return t.Format("02")
+	case insights.ResolutionWeekly:
+		_, w := t.ISOWeek()
+		return fmt.Sprintf("W%02d", w)
+	default:
+		return t.Format("Jan")
+	}
+}
+
+// insightsTrendSection is the section header the trend rows sit under.
+func insightsTrendSection(res insights.Resolution) string {
+	switch res {
+	case insights.ResolutionDaily:
+		return "Day by day"
+	case insights.ResolutionWeekly:
+		return "Week by week"
+	default:
+		return "Month by month"
+	}
+}
+
+// insightsTrendRowCap scales the row cap with the bucket size so every
+// resolution lists a comparable stretch of history: a flat cap would make the
+// daily view reach back only three weeks.
+func insightsTrendRowCap(res insights.Resolution) int {
+	switch res {
+	case insights.ResolutionDaily:
+		return 90
+	case insights.ResolutionWeekly:
+		return 52
+	default:
+		return insightsMonthRows
+	}
+}
 
 // fit clamps a prose line to the view width. Chart output is already exactly as
 // wide as it was asked to be; a summary sentence is not, and one overlong line
@@ -229,28 +297,29 @@ func (v InsightsView) rhythmHeaderLines(s styles.Styles) []string {
 // --- Momentum ----------------------------------------------------------------
 
 func (v InsightsView) momentumRows() []insightsRow {
-	months := v.snap.Trends.Months
+	t := v.snap.Trends
 	peak := 0
-	for _, b := range months {
+	for _, b := range t.Buckets {
 		peak = max(peak, b.ListenedSecs)
 	}
 
-	rows := make([]insightsRow, 0, min(len(months), insightsMonthRows))
+	rowCap := insightsTrendRowCap(t.Resolution)
+	rows := make([]insightsRow, 0, min(len(t.Buckets), rowCap))
 	// Newest first: the question Momentum answers is about the recent end, and
 	// putting it on top means the answer needs no scrolling.
-	for i := len(months) - 1; i >= 0 && len(rows) < insightsMonthRows; i-- {
-		b := months[i]
+	for i := len(t.Buckets) - 1; i >= 0 && len(rows) < rowCap; i-- {
+		b := t.Buckets[i]
 		note := "silent"
 		if b.Plays > 0 {
 			note = insightsPlaysNote(b.Plays, b.ListenedSecs)
 		}
 		rows = append(rows, insightsRow{
-			section:  "Month by month",
-			label:    fmt.Sprintf("%s %d", b.Month, b.Year),
+			section:  insightsTrendSection(t.Resolution),
+			label:    insightsBucketLabel(t.Resolution, b.Start),
 			note:     note,
 			fraction: insightsFraction(b.ListenedSecs, peak),
-			drill:    drillMonth,
-			key:      insightsMonthKey(time.Date(b.Year, b.Month, 1, 0, 0, 0, 0, v.location())),
+			drill:    drillTrendBucket,
+			key:      insightsBucketKey(t.Resolution, b.Start),
 		})
 	}
 	return rows
@@ -259,24 +328,28 @@ func (v InsightsView) momentumRows() []insightsRow {
 func (v InsightsView) momentumHeaderLines(s styles.Styles) []string {
 	t := v.snap.Trends
 	head := []string{"", s.Dim.Render(v.headline(panelMomentum)), ""}
-	if len(t.Months) == 0 {
+	if len(t.Buckets) == 0 {
 		return head
 	}
 
 	pal := chart.FromStyles(s)
 	w := max(v.width, 1)
 
-	// The headline already compares this month to the average, so the summary
-	// names the high-water mark instead — the month a dry spell is measured off.
-	best := t.Months[0]
-	for _, b := range t.Months {
+	// The headline already compares the current bucket to the average, so the
+	// summary names the high-water mark instead — what a dry spell is measured
+	// off.
+	best := t.Buckets[0]
+	for _, b := range t.Buckets {
 		if b.ListenedSecs > best.ListenedSecs {
 			best = b
 		}
 	}
-	summary := fmt.Sprintf("best month %s %d at %s · enter replays a month in order",
-		best.Month, best.Year, formatListeningTime(best.ListenedSecs))
-	if t.AvgMonthlySecs > 0 {
+	// "best:" rather than "best month": the weekly and daily labels already name
+	// their own grain, and the replay clause below names it for the monthly one.
+	summary := fmt.Sprintf("best: %s at %s · enter replays a %s in order",
+		insightsBucketLabel(t.Resolution, best.Start),
+		formatListeningTime(best.ListenedSecs), t.Resolution.Period())
+	if t.AvgSecs > 0 {
 		summary = chart.Trend(t.CurrentVsAvg-1, pal) + " " + summary
 	}
 	tail := []string{s.TextSecondary.Render(v.fit(summary))}
@@ -291,18 +364,18 @@ func (v InsightsView) momentumHeaderLines(s styles.Styles) []string {
 		return append(head, tail...)
 	}
 
-	bars := make([]chart.VBar, 0, len(t.Months))
-	for i, b := range t.Months {
+	bars := make([]chart.VBar, 0, len(t.Buckets))
+	for i, b := range t.Buckets {
 		bars = append(bars, chart.VBar{
-			Label: b.Month.String()[:3],
+			Label: insightsBucketShort(t.Resolution, b.Start),
 			Value: float64(b.ListenedSecs),
-			// The current month is still filling up, so it is drawn muted rather
-			// than read as a finished month that came up short.
-			Muted: i == len(t.Months)-1,
+			// The current bucket is still filling up, so it is drawn muted rather
+			// than read as a finished one that came up short.
+			Muted: i == len(t.Buckets)-1,
 		})
 	}
-	monthly := chart.VBarChart(bars, chart.VBarOptions{Width: w, Height: 4}, pal)
-	monthly = append(monthly, "")
+	series := chart.VBarChart(bars, chart.VBarOptions{Width: w, Height: 4}, pal)
+	series = append(series, "")
 
 	// The calendar is where a dry spell stops being a statistic: the run of
 	// blank cells is the silence itself.
@@ -319,32 +392,33 @@ func (v InsightsView) momentumHeaderLines(s styles.Styles) []string {
 		calendar = append(calendar, "")
 	}
 
-	return insightsFitHeader(v.headerBudget(), head, [][]string{monthly, calendar}, tail)
+	return insightsFitHeader(v.headerBudget(), head, [][]string{series, calendar}, tail)
 }
 
 // --- Discovery ---------------------------------------------------------------
 
 func (v InsightsView) discoveryRows() []insightsRow {
-	months := v.snap.Trends.Months
+	t := v.snap.Trends
 	peak := 0
-	for _, b := range months {
+	for _, b := range t.Buckets {
 		peak = max(peak, b.FirstPlays)
 	}
 
-	rows := make([]insightsRow, 0, insightsMonthRows+len(v.backlog)+1)
-	for i := len(months) - 1; i >= 0 && len(rows) < insightsMonthRows; i-- {
-		b := months[i]
+	rowCap := insightsTrendRowCap(t.Resolution)
+	rows := make([]insightsRow, 0, rowCap+len(v.backlog)+1)
+	for i := len(t.Buckets) - 1; i >= 0 && len(rows) < rowCap; i-- {
+		b := t.Buckets[i]
 		if b.FirstPlays == 0 {
 			continue
 		}
 		rows = append(rows, insightsRow{
 			section: "First heard",
-			label:   fmt.Sprintf("%s %d", b.Month, b.Year),
+			label:   insightsBucketLabel(t.Resolution, b.Start),
 			note: fmt.Sprintf("%d new %s", b.FirstPlays,
 				pluralize(b.FirstPlays, "track", "tracks")),
 			fraction: insightsFraction(b.FirstPlays, peak),
-			drill:    drillFirstPlaysMonth,
-			key:      insightsMonthKey(time.Date(b.Year, b.Month, 1, 0, 0, 0, 0, v.location())),
+			drill:    drillFirstPlaysBucket,
+			key:      insightsBucketKey(t.Resolution, b.Start),
 		})
 	}
 
@@ -383,7 +457,7 @@ func (v InsightsView) discoveryRows() []insightsRow {
 func (v InsightsView) discoveryHeaderLines(s styles.Styles) []string {
 	t := v.snap.Trends
 	head := []string{"", s.Dim.Render(v.headline(panelDiscovery)), ""}
-	if len(t.Months) == 0 {
+	if len(t.Buckets) == 0 {
 		return head
 	}
 
@@ -391,20 +465,20 @@ func (v InsightsView) discoveryHeaderLines(s styles.Styles) []string {
 	w := max(v.width, 1)
 
 	tail := []string{
-		s.TextSecondary.Render(v.fit(fmt.Sprintf("%.1f new tracks a month on average · %s still unheard",
-			t.AvgMonthlyFirstPlays, formatCount(v.snap.Coverage.UnheardTracks)))),
+		s.TextSecondary.Render(v.fit(fmt.Sprintf("%.1f new tracks a %s on average · %s still unheard",
+			t.AvgFirstPlays, t.Resolution.Period(), formatCount(v.snap.Coverage.UnheardTracks)))),
 		"",
 	}
 	if v.compact() {
 		return append(head, tail...)
 	}
 
-	bars := make([]chart.VBar, 0, len(t.Months))
-	for i, b := range t.Months {
+	bars := make([]chart.VBar, 0, len(t.Buckets))
+	for i, b := range t.Buckets {
 		bars = append(bars, chart.VBar{
-			Label: b.Month.String()[:3],
+			Label: insightsBucketShort(t.Resolution, b.Start),
 			Value: float64(b.FirstPlays),
-			Muted: i == len(t.Months)-1,
+			Muted: i == len(t.Buckets)-1,
 		})
 	}
 	block := chart.VBarChart(bars, chart.VBarOptions{Width: w, Height: 3}, pal)
