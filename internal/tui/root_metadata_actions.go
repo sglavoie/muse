@@ -38,19 +38,15 @@ func (m Model) handleMetadataKeyAction(a action) (Model, tea.Cmd, bool) {
 	}
 
 	if hashes := m.bulkSelectedHashes(); len(hashes) >= 2 {
-		var titles, artists, albums, genres, durations []string
-		for _, h := range hashes {
-			t, ok := m.library.index.FindByHash(h)
-			if !ok {
-				continue
-			}
-			titles = append(titles, t.Title)
-			artists = append(artists, t.Artist)
-			albums = append(albums, t.Album)
-			genres = append(genres, t.Genre)
-			durations = append(durations, formatDurationForEditor(t.Duration))
-		}
-		ed := NewBulkMetadataEditor(hashes, commonValue(titles), commonValue(artists), commonValue(albums), commonValue(genres), commonValue(durations))
+		ed := m.bulkEditorForHashes(hashes)
+		m.overlay.metadataEditor = &ed
+		return m, nil, true
+	}
+
+	// A Data Health finding names a whole set of tracks, not a focused one, so
+	// editing from it opens the bulk editor over everything the row counted.
+	if row := m.insights.focusedHealthRow(); row != nil && len(row.hashes) > 0 {
+		ed := m.bulkEditorForHashes(row.hashes)
 		m.overlay.metadataEditor = &ed
 		return m, nil, true
 	}
@@ -74,6 +70,24 @@ func (m Model) handleMetadataKeyAction(a action) (Model, tea.Cmd, bool) {
 	ed := NewMetadataEditor(track.Hash, track.Title, track.Artist, track.Album, track.Genre, track.Duration)
 	m.overlay.metadataEditor = &ed
 	return m, nil, true
+}
+
+// bulkEditorForHashes seeds a bulk editor from the tracks behind the hashes,
+// leaving a field blank wherever they disagree.
+func (m Model) bulkEditorForHashes(hashes []string) MetadataEditor {
+	var titles, artists, albums, genres, durations []string
+	for _, h := range hashes {
+		t, ok := m.library.index.FindByHash(h)
+		if !ok {
+			continue
+		}
+		titles = append(titles, t.Title)
+		artists = append(artists, t.Artist)
+		albums = append(albums, t.Album)
+		genres = append(genres, t.Genre)
+		durations = append(durations, formatDurationForEditor(t.Duration))
+	}
+	return NewBulkMetadataEditor(hashes, commonValue(titles), commonValue(artists), commonValue(albums), commonValue(genres), commonValue(durations))
 }
 
 // renameEditorForFocusedEntity returns a rename MetadataEditor when the active

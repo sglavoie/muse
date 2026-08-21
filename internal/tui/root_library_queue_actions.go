@@ -49,6 +49,10 @@ func (m Model) handleLibraryEnqueueAction() (tea.Model, tea.Cmd, bool) {
 		if m.queueWriter != nil && m.mixes.level == 1 {
 			cmd = m.mixes.trackView.EnqueueFocused(m.queueWriter, len(m.queue.entries))
 		}
+	case viewInsights:
+		if m.queueWriter != nil && m.insights.atTracks() {
+			cmd = m.insights.trackView.EnqueueFocused(m.queueWriter, len(m.queue.entries))
+		}
 	}
 	return m, cmd, true
 }

@@ -61,7 +61,7 @@ func TestActionGoToNotFoundNotifies(t *testing.T) {
 // TestActionHelpHandlesZeroTermHeight verifies that opening the help overlay
 // with an uninitialized terminal height (0) does not produce a viewport with
 // a negative height. Regression for inconsistent height clamping that diverged
-// from the actionDebug/actionStats branches.
+// from the actionDebug branch.
 func TestActionHelpHandlesZeroTermHeight(t *testing.T) {
 	m := New(context.Background())
 	m.termWidth = 80

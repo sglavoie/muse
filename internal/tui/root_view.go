@@ -23,7 +23,6 @@ func (m Model) hasActiveOverlay() bool {
 	return (m.configCreated && !m.welcomeDismissed) ||
 		m.helpVisible ||
 		m.debugVisible ||
-		m.statsVisible ||
 		m.overlay.settings != nil ||
 		m.overlay.nowPlaying != nil ||
 		m.overlay.queueSummary != nil ||

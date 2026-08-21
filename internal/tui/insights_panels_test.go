@@ -1,0 +1,365 @@
+package tui
+
+import (
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/sglavoie/muse/internal/insights"
+	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/styles"
+)
+
+// panelsTestLoc is fixed so a bucket's hour, weekday and month cannot depend on
+// where the test runs.
+func panelsTestLoc() *time.Location { return time.UTC }
+
+// at builds a UTC instant for the fixed 2026 dates these tests bucket against.
+func at(month time.Month, day, hour int) time.Time {
+	return time.Date(2026, month, day, hour, 30, 0, 0, panelsTestLoc())
+}
+
+func sectionLabels(rows []insightsRow, section string) []string {
+	var out []string
+	for _, r := range rows {
+		if r.section == section {
+			out = append(out, r.label)
+		}
+	}
+	return out
+}
+
+func TestRhythmRowsListEveryWeekdayIncludingSilentOnes(t *testing.T) {
+	var r insights.Rhythm
+	for i := range r.Weekdays {
+		r.Weekdays[i].Weekday = time.Weekday(i)
+	}
+	r.Weekdays[time.Monday].Plays = 4
+	r.Hours[9] = insights.HourBucket{Hour: 9, Plays: 4, ListenedSecs: 600}
+	r.TotalPlays = 4
+
+	rows := InsightsView{panel: panelRhythm, snap: insights.Snapshot{Rhythm: r}}.rows()
+
+	if got := sectionLabels(rows, "Weekday"); len(got) != 7 {
+		t.Errorf("want all 7 weekdays listed, got %v", got)
+	}
+	// Only the hours that recorded something become rows; the silent ones are
+	// the punchcard's gaps, not 23 empty lines of body.
+	if got := sectionLabels(rows, "Hour of day"); len(got) != 1 || got[0] != "09:00" {
+		t.Errorf("want only the 09:00 hour row, got %v", got)
+	}
+}
+
+func TestRhythmRowsHideGenreAffinityWhenGenresCollide(t *testing.T) {
+	genres := []insights.GenreGroup{{Canonical: "Ambient", Plays: 3, Variants: []string{"Ambient", "ambient"}}}
+	snap := insights.Snapshot{Rhythm: insights.Rhythm{Genres: genres, TotalPlays: 3}}
+
+	snap.Rhythm.GenresUnclean = false
+	clean := InsightsView{panel: panelRhythm, snap: snap}.rows()
+	if got := sectionLabels(clean, "Genre affinity"); len(got) != 1 {
+		t.Fatalf("clean genres should produce an affinity row, got %v", got)
+	}
+
+	snap.Rhythm.GenresUnclean = true
+	dirty := InsightsView{panel: panelRhythm, snap: snap}.rows()
+	if got := sectionLabels(dirty, "Genre affinity"); got != nil {
+		t.Errorf("colliding genres should withhold the affinity rows, got %v", got)
+	}
+}
+
+func TestRhythmHeaderExplainsTheWithheldAffinityEvenWhenCompact(t *testing.T) {
+	snap := insights.Snapshot{Rhythm: insights.Rhythm{TotalPlays: 3, GenresUnclean: true}}
+	s := styles.NewStyles(false)
+
+	// The gate outlives the grid: at 60 columns there is no heatmap to hide, but
+	// the rows are withheld just the same, so the reason still has to show.
+	for _, w := range []int{60, 100} {
+		v := InsightsView{panel: panelRhythm, snap: snap, width: w, height: 30, loc: panelsTestLoc()}
+		if !strings.Contains(strings.Join(v.panelHeaderLines(s), "\n"), "genre names collide") {
+			t.Errorf("width %d: header should explain why affinity is hidden", w)
+		}
+	}
+}
+
+func TestMomentumRowsRunNewestFirstAndNameSilentMonths(t *testing.T) {
+	snap := insights.Snapshot{Trends: insights.Trends{Months: []insights.MonthBucket{
+		{Year: 2026, Month: time.June, Plays: 2, ListenedSecs: 600},
+		{Year: 2026, Month: time.July},
+		{Year: 2026, Month: time.August, Plays: 5, ListenedSecs: 900},
+	}}}
+
+	rows := InsightsView{panel: panelMomentum, snap: snap, loc: panelsTestLoc()}.rows()
+
+	want := []string{"August 2026", "July 2026", "June 2026"}
+	if got := sectionLabels(rows, "Month by month"); strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("want %v newest first, got %v", want, got)
+	}
+	if rows[1].note != "silent" {
+		t.Errorf("a month with no plays should read as silent, got %q", rows[1].note)
+	}
+	if rows[0].key != "2026-08" {
+		t.Errorf("drill key should be the sortable month, got %q", rows[0].key)
+	}
+}
+
+func TestDiscoveryRowsLeadTheBacklogWithItsTotal(t *testing.T) {
+	v := InsightsView{
+		panel: panelDiscovery,
+		snap: insights.Snapshot{
+			Trends:   insights.Trends{Months: []insights.MonthBucket{{Year: 2026, Month: time.August, FirstPlays: 2}}},
+			Coverage: insights.Coverage{UnheardTracks: 5, UnheardSecs: 900},
+		},
+		backlog: []insightsBacklogMonth{{Key: "2026-08", Label: "August 2026", Tracks: 2, Secs: 400}},
+		loc:     panelsTestLoc(),
+	}
+
+	rows := v.rows()
+
+	if got := sectionLabels(rows, "First heard"); len(got) != 1 || got[0] != "August 2026" {
+		t.Errorf("want one first-heard month row, got %v", got)
+	}
+	backlog := sectionLabels(rows, "Added but never played")
+	if len(backlog) != 2 || backlog[0] != "Everything unheard" {
+		t.Fatalf("backlog should lead with its total, got %v", backlog)
+	}
+	// The per-month rows only cover tracks whose add date was recorded, so the
+	// total row is the only way the rest of the backlog stays reachable.
+	for _, r := range rows {
+		if r.label == "Everything unheard" && r.drill != drillUnheardAll {
+			t.Errorf("total row should drill to the whole unheard set, got %v", r.drill)
+		}
+	}
+}
+
+func TestBacklogMonths(t *testing.T) {
+	loc := panelsTestLoc()
+	tracks := []library.Track{
+		{Hash: "a", Duration: 100, CreatedAt: at(time.August, 3, 9).Unix()},
+		{Hash: "b", Duration: 200, CreatedAt: at(time.August, 20, 9).Unix()},
+		{Hash: "c", Duration: 300, CreatedAt: at(time.June, 1, 9).Unix()},
+		{Hash: "heard", Duration: 400, CreatedAt: at(time.June, 1, 9).Unix(), PlayCount: 3},
+		{Hash: "no-add-date", Duration: 500},
+	}
+
+	got := backlogMonths(tracks, loc)
+
+	if len(got) != 2 {
+		t.Fatalf("want two add-months, got %+v", got)
+	}
+	if got[0].Key != "2026-08" || got[0].Tracks != 2 || got[0].Secs != 300 {
+		t.Errorf("August bucket wrong: %+v", got[0])
+	}
+	if got[1].Key != "2026-06" || got[1].Tracks != 1 {
+		t.Errorf("June bucket should exclude the heard track: %+v", got[1])
+	}
+	if got[0].Label != "August 2026" {
+		t.Errorf("label should be readable, got %q", got[0].Label)
+	}
+}
+
+func TestInsightsHourGenreFold(t *testing.T) {
+	genreOf := map[string][]string{"a": {"Ambient", "Drone"}, "b": {"ambient"}}
+	plays := []insights.PlayRow{
+		{Hash: "a", StartAt: at(time.August, 3, 9).Unix()},
+		{Hash: "a", StartAt: at(time.August, 4, 9).Unix()},
+		{Hash: "b", StartAt: at(time.August, 5, 22).Unix()},
+	}
+
+	got := insightsHourGenreFold(plays, func(h string) []string { return genreOf[h] }, panelsTestLoc())
+
+	if len(got) != 2 {
+		t.Fatalf("want Ambient and Drone rows, got %+v", got)
+	}
+	// "ambient" folds into "Ambient" the same way the aggregate above the grid
+	// folds it, so a row and its heading cannot disagree on what one genre is.
+	if got[0].Genre != "Ambient" || got[0].Hours[9] != 2 || got[0].Hours[22] != 1 {
+		t.Errorf("Ambient should lead with 2 plays at 09h and 1 at 22h, got %+v", got[0])
+	}
+	if got[1].Genre != "Drone" || got[1].Hours[9] != 2 {
+		t.Errorf("Drone row wrong: %+v", got[1])
+	}
+}
+
+func TestInsightsFitHeaderDropsWholeBlocks(t *testing.T) {
+	head := []string{"h1", "h2"}
+	tail := []string{"t1"}
+	big := []string{"b1", "b2", "b3"}
+	small := []string{"s1"}
+
+	if got := insightsFitHeader(10, head, [][]string{big, small}, tail); len(got) != 7 {
+		t.Errorf("everything fits: want 7 lines, got %v", got)
+	}
+	// A budget that fits neither block still keeps the prose either side.
+	if got := insightsFitHeader(3, head, [][]string{big, small}, tail); strings.Join(got, ",") != "h1,h2,t1" {
+		t.Errorf("tight budget should keep only head and tail, got %v", got)
+	}
+	// The first block is dropped whole rather than clipped, and the lesser block
+	// behind it goes too: showing the heatmap without the punchcard that carries
+	// its hour scale would invert the priority the caller expressed.
+	got := insightsFitHeader(4, head, [][]string{big, small}, tail)
+	if strings.Join(got, ",") != "h1,h2,t1" {
+		t.Errorf("a block that does not fit should end the run, got %v", got)
+	}
+	// Reversing the order proves the cutoff is positional, not size-based.
+	if got := insightsFitHeader(4, head, [][]string{small, big}, tail); strings.Join(got, ",") != "h1,h2,s1,t1" {
+		t.Errorf("want the small block kept when it comes first, got %v", got)
+	}
+}
+
+func TestInsightsHeaderBudgetLeavesRoomForBody(t *testing.T) {
+	tall := InsightsView{width: 100, height: 30}
+	if got := tall.headerBudget(); got != 30-1-len(insightsPanelSpecs)-insightsMinBodyRows {
+		t.Errorf("tall budget: got %d", got)
+	}
+	// At 60x15 the briefing list is dropped, so the header gets those lines back.
+	short := InsightsView{width: 60, height: 15}
+	if short.briefingFits() {
+		t.Fatal("precondition: the briefing list should not fit at 60x15")
+	}
+	if got, want := short.headerBudget(), 15-1-insightsMinBodyRows; got != want {
+		t.Errorf("short budget: want %d, got %d", want, got)
+	}
+	// Even a terminal with no room at all keeps the header's blank line and
+	// headline rather than going negative.
+	if got := (InsightsView{width: 60, height: 3}).headerBudget(); got != insightsMinHeaderLines {
+		t.Errorf("floor: want %d, got %d", insightsMinHeaderLines, got)
+	}
+}
+
+// --- drills ------------------------------------------------------------------
+
+// newTimeSeriesModel installs a hand-built history so each drill has a known
+// hour, weekday and month behind it.
+func newTimeSeriesModel(t *testing.T) Model {
+	t.Helper()
+	m := newInsightsModel(t)
+	m.insights.loc = panelsTestLoc()
+	// 3 Aug 2026 is a Monday, 5 Aug a Wednesday, 1 Jun a Monday.
+	m.insights.plays = []insights.PlayRow{
+		{Hash: "h1", StartAt: at(time.August, 3, 9).Unix()},
+		{Hash: "h4", StartAt: at(time.August, 3, 9).Unix()},
+		{Hash: "h1", StartAt: at(time.August, 5, 22).Unix()},
+		{Hash: "h6", StartAt: at(time.August, 5, 22).Unix()},
+	}
+	m.insights.timeline = []insights.TimelineRow{
+		{Hash: "h6", StartAt: at(time.June, 1, 9).Unix(), FirstEver: true},
+		{Hash: "h1", StartAt: at(time.August, 3, 9).Unix(), FirstEver: true},
+		{Hash: "h4", StartAt: at(time.August, 3, 9).Unix(), FirstEver: true},
+		{Hash: "h1", StartAt: at(time.August, 5, 22).Unix()},
+	}
+	return m
+}
+
+func drilled(m Model, row insightsRow) string {
+	var out []string
+	for _, tr := range m.insightsDrillTracks(row) {
+		out = append(out, tr.Hash)
+	}
+	return strings.Join(out, ",")
+}
+
+func TestInsightsTimeSeriesDrills(t *testing.T) {
+	m := newTimeSeriesModel(t)
+	m.insights.loc = panelsTestLoc()
+
+	cases := []struct {
+		name string
+		row  insightsRow
+		want string
+	}{
+		{"hour", insightsRow{drill: drillHour, key: "9"}, "h1,h4"},
+		{"hour with no plays", insightsRow{drill: drillHour, key: "3"}, ""},
+		{"weekday monday", insightsRow{drill: drillWeekday, key: "1"}, "h1,h4"},
+		{"weekday wednesday", insightsRow{drill: drillWeekday, key: "3"}, "h1,h6"},
+		// h1 and h2 are Rock, h6 is Folk; only h1 was actually played.
+		{"genre", insightsRow{drill: drillRhythmGenre, key: "rock"}, "h1"},
+		{"month", insightsRow{drill: drillMonth, key: "2026-08"}, "h1,h4"},
+		{"first heard month", insightsRow{drill: drillFirstPlaysMonth, key: "2026-06"}, "h6"},
+		// August had a repeat of h1 but only h4 and h1 were first heard there.
+		{"first heard excludes repeats", insightsRow{drill: drillFirstPlaysMonth, key: "2026-08"}, "h1,h4"},
+		{"unparseable key", insightsRow{drill: drillHour, key: "not-a-number"}, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := drilled(m, tc.row); got != tc.want {
+				t.Errorf("want %q, got %q", tc.want, got)
+			}
+		})
+	}
+}
+
+func TestInsightsMonthDrillReplaysInTheOrderItWasHeard(t *testing.T) {
+	m := newTimeSeriesModel(t)
+	m.insights.timeline = []insights.TimelineRow{
+		{Hash: "h4", StartAt: at(time.August, 3, 9).Unix()},
+		{Hash: "h1", StartAt: at(time.August, 3, 10).Unix()},
+		{Hash: "h4", StartAt: at(time.August, 3, 11).Unix()},
+	}
+
+	// Deduping on first appearance rather than last is what makes "enter replays
+	// a month in order" true: h4 keeps the slot of its first play, not its last.
+	if got := drilled(m, insightsRow{drill: drillMonth, key: "2026-08"}); got != "h4,h1" {
+		t.Errorf("want h4,h1, got %q", got)
+	}
+}
+
+func TestMomentumEnqueuesAMonthInTheOrderItWasHeard(t *testing.T) {
+	be := &stubBatchEnqueuer{}
+	m := newInsightsModel(t, WithBatchEnqueuer(be))
+	m.insights.loc = panelsTestLoc()
+	m.insights.timeline = []insights.TimelineRow{
+		{Hash: "h4", StartAt: at(time.August, 3, 9).Unix()},
+		{Hash: "h1", StartAt: at(time.August, 3, 10).Unix()},
+		{Hash: "h6", StartAt: at(time.September, 1, 9).Unix()},
+	}
+	m.insights.snap.Trends.Months = []insights.MonthBucket{
+		{Year: 2026, Month: time.August, Plays: 2, ListenedSecs: 600},
+		{Year: 2026, Month: time.September, Plays: 1, ListenedSecs: 300},
+	}
+	m = m.handleInsightsPanelCycle(1).handleInsightsPanelCycle(1)
+	if m.insights.panel != panelMomentum {
+		t.Fatalf("precondition: want the Momentum panel, got %v", m.insights.panel)
+	}
+	// Rows run newest first, so one step down lands on August.
+	m = pressKey(m, "j")
+
+	m, cmd := m.handleInsightsEnqueueAll()
+	if cmd == nil {
+		t.Fatal("expected an enqueue cmd for the focused month")
+	}
+	cmd()
+
+	if len(be.appendTracksCalls) != 1 {
+		t.Fatalf("want one AppendTracks call, got %d", len(be.appendTracksCalls))
+	}
+	var got []string
+	for _, tr := range be.appendTracksCalls[0] {
+		got = append(got, tr.Hash)
+	}
+	if strings.Join(got, ",") != "h4,h1" {
+		t.Errorf("want August replayed as h4,h1, got %v", got)
+	}
+	if be.appendTracksSources[0] != "August 2026" {
+		t.Errorf("source should name the month, got %q", be.appendTracksSources[0])
+	}
+}
+
+func TestInsightsBacklogMonthDrill(t *testing.T) {
+	tracks := insightsTestTracks()
+	tracks[1].CreatedAt = at(time.August, 3, 9).Unix() // h2, never played
+	tracks[2].CreatedAt = at(time.June, 1, 9).Unix()   // h3, never played
+	tracks[0].CreatedAt = at(time.August, 3, 9).Unix() // h1, played — must not appear
+
+	m := newInsightsModel(t, WithLibraryTracks(tracks))
+	m.insights.loc = panelsTestLoc()
+
+	if got := drilled(m, insightsRow{drill: drillAddedNeverPlayed, key: "2026-08"}); got != "h2" {
+		t.Errorf("want only the unheard August add, got %q", got)
+	}
+	if got := drilled(m, insightsRow{drill: drillAddedNeverPlayed, key: "2026-06"}); got != "h3" {
+		t.Errorf("want the unheard June add, got %q", got)
+	}
+	if got := drilled(m, insightsRow{drill: drillAddedNeverPlayed, key: "2020-01"}); got != "" {
+		t.Errorf("an empty month should drill to nothing, got %q", got)
+	}
+}

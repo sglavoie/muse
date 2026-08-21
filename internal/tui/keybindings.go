@@ -14,51 +14,54 @@ import (
 // keys (j k g G ctrl+d ctrl+u ctrl+f ctrl+b up down) are registered uniformly
 // per context via registerNavigation and behave identically everywhere.
 //
-//   Key | Global         | Library    | Playlists  | Queue      | Browse(A/B/G) | Favorites  | Tags       | Mixes
-//   ----+----------------+------------+------------+------------+---------------+------------+------------+------------
-//   /   | filter-bar     | =          | =          | =          | =             | =          | =          | =
-//   :   | palette        | =          | =          | =          | =             | =          | =          | =
-//   ?   | help           | =          | =          | =          | =             | =          | =          | =
-//   esc | —              | filter-clr | back       | filter-clr | back          | back       | back       | back
-//   enter | —            | enqueue    | open       | play       | open          | open       | tag-open   | open
-//   shift+enter | —      | replace    | replace    | —          | replace       | replace    | —          | —
-//   space | play/pause   | =          | =          | =          | =             | =          | =          | =
-//   tab, ] | next-view   | =          | =          | =          | =             | =          | =          | =
-//   shift+tab, [ | prev-view | =      | =          | =          | =             | =          | =          | =
-//   1-7 | switch-view    | =          | =          | =          | =             | =          | =          | =
-//   n / p | next/prev    | =          | =          | =          | =             | =          | =          | =
-//   N   | —              | play-next  | play-next  | —          | play-next     | play-next  | play-next  | play-next
-//   s   | stop           | =          | =          | =          | =             | =          | =          | sort-cycle*
-//   S   | —              | —          | smart-new  | save-q     | —             | —          | —          | save-as-pl
-//   d   | —              | —          | delete     | dequeue    | —             | —          | tag-delete | —
-//   c   | —              | —          | create     | —          | —             | —          | tag-create | —
-//   e   | —              | —          | smart-edit | —          | —             | —          | —          | enqueue
-//   E   | —              | —          | enqueue-all| —          | —             | —          | enqueue-all| enqueue-all
-//   m   | —              | —          | —          | —          | —             | —          | merge      | —
-//   r   | repeat-cycle   | =          | rename*    | =          | =             | =          | rename*    | =
-//   R   | reset-pos      | =          | =          | =          | =             | =          | =          | =
-//   z   | shuffle        | =          | =          | =          | =             | =          | =          | =
-//   u   | undo           | =          | =          | =          | =             | =          | =          | =
-//   F   | toggle-fav     | =          | =          | =          | =             | =          | = (rebind) | =
-//   A   | radio-toggle   | =          | =          | =          | =             | =          | =          | seed-radio*
-//   o   | go-to          | =          | =          | =          | =             | =          | =          | =
-//   t   | tag-picker     | =          | =          | =          | =             | =          | =          | =
-//   f   | focus-np       | =          | =          | =          | =             | =          | =          | =
-//   q   | queue-summary  | =          | =          | =          | =             | =          | =          | =
-//   P   | preview        | =          | =          | =          | =             | =          | =          | =
-//   M   | edit-metadata  | =          | =          | =          | =             | =          | =          | =
-//   I   | now-playing-info | =        | =          | =          | =             | =          | =          | =
-//   i   | track-info     | =          | =          | =          | =             | =          | =          | =
-//   L   | listening-stats| =          | =          | =          | =             | =          | =          | =
-//   v   | —              | visual     | visual     | visual     | visual        | visual     | visual     | visual
-//   x   | —              | bulk-sel   | bulk-sel   | bulk-sel   | bulk-sel      | bulk-sel   | bulk-sel   | mix-dismiss*
-//   X   | —              | clear-sel  | clear-sel  | clear-sel  | clear-sel     | clear-sel  | clear-sel  | mix-undism*
-//   a   | —              | bulk-act   | bulk-act   | —          | bulk-act      | bulk-act   | bulk-act   | bulk-act
-//   K/J | —              | —          | move-trk   | move-trk   | —             | —          | —          | —
-//   C   | —              | —          | —          | clear-q    | —             | —          | —          | —
-//   ` / ~ | —            | mode-cycle | —          | —          | mode-cycle    | —          | —          | —
-//   h, backspace | —     | —          | —          | —          | —             | —          | tag-back   | —
-//   ctrl+y/x/p | —       | —          | —          | yank/cut/paste | —         | —          | —          | —
+//   Key | Global         | Library    | Playlists  | Queue      | Browse(A/B/G) | Favorites  | Tags       | Mixes       | Insights
+//   ----+----------------+------------+------------+------------+---------------+------------+------------+-------------+------------
+//   /   | filter-bar     | =          | =          | =          | =             | =          | =          | =           | =
+//   :   | palette        | =          | =          | =          | =             | =          | =          | =           | =
+//   ?   | help           | =          | =          | =          | =             | =          | =          | =           | =
+//   esc | —              | filter-clr | back       | filter-clr | back          | back       | back       | back        | back
+//   enter | —            | enqueue    | open       | play       | open          | open       | tag-open   | open        | open
+//   shift+enter | —      | replace    | replace    | —          | replace       | replace    | —          | —           | —
+//   space | play/pause   | =          | =          | =          | =             | =          | =          | =           | =
+//   tab, ] | next-view   | =          | =          | =          | =             | =          | =          | =           | =
+//   shift+tab, [ | prev-view | =      | =          | =          | =             | =          | =          | =           | =
+//   1-8 | switch-view    | =          | =          | =          | =             | =          | =          | =           | =
+//   n / p | next/prev    | =          | =          | =          | =             | =          | =          | =           | =
+//   N   | —              | play-next  | play-next  | —          | play-next     | play-next  | play-next  | play-next   | —
+//   s   | stop           | =          | =          | =          | =             | =          | =          | sort-cycle* | =
+//   S   | —              | —          | smart-new  | save-q     | —             | —          | —          | save-as-pl  | save-as-pl
+//   d   | —              | —          | delete     | dequeue    | —             | —          | tag-delete | —           | —
+//   c   | —              | —          | create     | —          | —             | —          | tag-create | —           | —
+//   e   | —              | —          | smart-edit | —          | —             | —          | —          | enqueue     | enqueue
+//   E   | —              | —          | enqueue-all| —          | —             | —          | enqueue-all| enqueue-all | enqueue-all
+//   m   | —              | —          | —          | —          | —             | —          | merge      | —           | —
+//   r   | repeat-cycle   | =          | rename*    | =          | =             | =          | rename*    | =           | =
+//   R   | reset-pos      | =          | =          | =          | =             | =          | =          | =           | =
+//   z   | shuffle        | =          | =          | =          | =             | =          | =          | =           | =
+//   u   | undo           | =          | =          | =          | =             | =          | =          | =           | =
+//   F   | toggle-fav     | =          | =          | =          | =             | =          | = (rebind) | =           | =
+//   A   | radio-toggle   | =          | =          | =          | =             | =          | =          | seed-radio* | seed-radio*
+//   o   | go-to          | =          | =          | =          | =             | =          | =          | =           | =
+//   t   | tag-picker     | =          | =          | =          | =             | =          | =          | =           | =
+//   f   | focus-np       | =          | =          | =          | =             | =          | =          | =           | =
+//   q   | queue-summary  | =          | =          | =          | =             | =          | =          | =           | =
+//   P   | preview        | =          | =          | =          | =             | =          | =          | =           | =
+//   M   | edit-metadata  | =          | =          | =          | =             | =          | =          | =           | =
+//   I   | now-playing-info | =        | =          | =          | =             | =          | =          | =           | =
+//   i   | track-info     | =          | =          | =          | =             | =          | =          | =           | =
+//   L   | listening-stats| =          | =          | =          | =             | =          | =          | =           | =
+//   v   | —              | visual     | visual     | visual     | visual        | visual     | visual     | visual      | visual
+//   x   | —              | bulk-sel   | bulk-sel   | bulk-sel   | bulk-sel      | bulk-sel   | bulk-sel   | mix-dismiss*| bulk-sel
+//   X   | —              | clear-sel  | clear-sel  | clear-sel  | clear-sel     | clear-sel  | clear-sel  | mix-undism* | clear-sel
+//   a   | —              | bulk-act   | bulk-act   | —          | bulk-act      | bulk-act   | bulk-act   | bulk-act    | bulk-act
+//   K/J | —              | —          | move-trk   | move-trk   | —             | —          | —          | —           | —
+//   C   | —              | —          | —          | clear-q    | —             | —          | —          | —           | —
+//   ` / ~ | —            | mode-cycle | —          | —          | mode-cycle    | —          | —          | —           | panel-cycle
+//   w / W | —            | —          | —          | —          | —             | —          | —          | —           | window-cycle
+//   b   | —              | —          | —          | —          | —             | —          | —          | —           | jump-browse
+//   !   | —              | —          | —          | —          | —             | —          | —          | —           | anti-rut
+//   h, backspace | —     | —          | —          | —          | —             | —          | tag-back   | —           | —
+//   ctrl+y/x/p | —       | —          | —          | yank/cut/paste | —         | —          | —          | —           | —
 //
 // Entries marked "*" are intentional shadows of a global binding with a
 // different action. Each must be registered via registerWithReason so the
@@ -83,6 +86,7 @@ const (
 	contextModals                          // applies only when a modal is active
 	contextMixes                           // applies only in the Mixes view
 	contextBrowse                          // applies only in the Browse view (fallback; real sub-context resolved dynamically)
+	contextInsights                        // applies only in the Insights view
 )
 
 // action represents a named TUI action that a key binding triggers.
@@ -116,7 +120,6 @@ const (
 	actionHelp             // '?': show help overlay
 	actionSettings         // 'ctrl+,': open settings overlay
 	actionDebug            // 'ctrl+g': show debug panel
-	actionStats            // 'L': show listening stats overlay
 	actionNextView         // tab: cycle to next view
 	actionPrevView         // shift+tab: cycle to previous view
 	actionPreview          // 'P': preview focused track
@@ -230,6 +233,21 @@ const (
 	actionMixRadioSeed      // 'A': start radio seeded from the focused mix's aggregate metadata
 	actionMixDismiss        // 'x': dismiss focused track from recommendations
 	actionMixUndismiss      // 'X': undismiss focused track
+
+	// Insights-local actions.
+	actionSwitchInsights       // '8': switch to Insights view
+	actionInsightsPanelNext    // '`': cycle to the next panel
+	actionInsightsPanelPrev    // '~': cycle to the previous panel
+	actionInsightsWindowNext   // 'w': advance the active time window
+	actionInsightsWindowPrev   // 'W': step the active time window back
+	actionInsightsOpen         // enter: drill into the focused row's tracks
+	actionInsightsBack         // esc: return from the drill-down to the panel
+	actionInsightsEnqueueAll   // 'E': enqueue every track behind the focused row
+	actionInsightsAntiRut      // '!': enqueue unheard tracks from the focused shelf
+	actionInsightsRadioSeed    // 'A': start radio seeded from the focused row
+	actionInsightsJumpBrowse   // 'b': jump to the focused row's artist in Browse
+	actionInsightsSavePlaylist // 'S': save the drilled-in tracks as a playlist
+	actionInsightsMergeGenre   // 'm': fold a Data Health genre collision into one spelling
 )
 
 // registryKey is the composite map key for registry lookups.

@@ -30,6 +30,18 @@ func (s *uitestQueueStore) AppendTrack(_ library.Track, _ string) (int64, error)
 	return s.nextID, nil
 }
 
+// batchEnqueuer surface.
+func (s *uitestQueueStore) AppendTracks(tracks []library.Track, _ string) ([]int64, error) {
+	ids := make([]int64, len(tracks))
+	for i := range tracks {
+		s.nextID++
+		ids[i] = s.nextID
+	}
+	return ids, nil
+}
+
+func (s *uitestQueueStore) DequeueTracksSoft([]int64) error { return nil }
+
 // db.QueueDequeuer surface.
 func (s *uitestQueueStore) DequeueTrackSoft(int64) error         { return nil }
 func (s *uitestQueueStore) UndoDequeue(int64) error              { return nil }

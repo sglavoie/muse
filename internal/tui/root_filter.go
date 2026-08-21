@@ -116,6 +116,14 @@ func (m Model) allFilterOps() *filterOps {
 			&m.mixes.trackView.cursor,
 			&m.mixes.trackView.scrollOffset,
 			func() { m.mixes.trackView = m.mixes.trackView.rebuildFilterCache() })
+	case viewInsights:
+		if !m.insights.atTracks() {
+			return nil
+		}
+		return makeFilterOps(&m, &m.insights.trackView.filter,
+			&m.insights.trackView.cursor,
+			&m.insights.trackView.scrollOffset,
+			func() { m.insights.trackView = m.insights.trackView.rebuildFilterCache() })
 	default:
 		return nil
 	}

@@ -1,0 +1,49 @@
+{
+  "name": "insights-drilldown",
+  "fixture": "rich",
+  "size": "100x30",
+  "actions": [
+    {"key": "8"}, {"assert": {"view": "Insights"}}, {"wait": "500ms"},
+    {"assert": {"contains": "Dusty artists"}, "label": "briefing-lists-shelves"},
+
+    {"key": "j"}, {"key": "j"}, {"assert": {"view": "Insights"}, "label": "j-does-not-fall-through-to-queue"},
+    {"key": "k"}, {"key": "k"}, {"assert": {"view": "Insights"}, "label": "k-does-not-fall-through-to-queue"},
+
+    {"key": "A"}, {"wait": "500ms"}, {"assert": {"status_contains": "Radio: seeded from"}, "label": "radio-seeded-from-row"},
+
+    {"key": "enter"}, {"assert": {"no_layout_issues": true}, "label": "drilled-into-alice"},
+    {"assert": {"contains": "Track A2"}, "label": "unheard-alice-tracks"},
+    {"assert": {"not_contains": "Dusty artists"}, "label": "briefing-replaced-by-tracks"},
+
+    {"key": "E"}, {"wait": "500ms"}, {"assert": {"status_contains": "Added 2 tracks from Alice"}, "label": "enqueue-all-drilled"},
+
+    {"key": "esc"}, {"assert": {"contains": "Dusty artists"}, "label": "esc-returns-to-briefing"},
+    {"assert": {"view": "Insights"}, "label": "esc-stays-in-insights"},
+
+    {"key": "j"}, {"key": "j"}, {"key": "enter"},
+    {"assert": {"contains": "Track B1"}, "label": "drills-untouched-album-beta"},
+    {"assert": {"no_layout_issues": true}, "label": "second-drill-fits"},
+    {"key": "esc"},
+
+    {"key": "!"}, {"wait": "500ms"}, {"assert": {"status_contains": "Never played"}, "label": "anti-rut-enqueues-unheard"},
+    {"key": "b"}, {"assert": {"view": "Browse"}, "label": "jumps-to-browse"},
+    {"key": "8"}, {"assert": {"view": "Insights"}, "label": "back-to-insights"},
+
+    {"key": "`"}, {"key": "`"}, {"key": "`"}, {"key": "`"}, {"key": "`"},
+    {"assert": {"contains": "All sessions"}, "label": "sessions-panel"},
+    {"key": "enter"}, {"wait": "300ms"},
+    {"assert": {"contains": "replay this session in order"}, "label": "a-sessions-row-opens-the-sessions"},
+    {"assert": {"not_contains": "Session length"}, "label": "briefing-replaced-by-the-session-list"},
+    {"key": "E"}, {"wait": "500ms"}, {"assert": {"status_contains": "from Session"}, "label": "E-replays-one-session-in-order"},
+    {"key": "enter"}, {"wait": "300ms"},
+    {"assert": {"contains": "Artist"}, "label": "a-session-opens-its-tracks"},
+    {"key": "esc"}, {"assert": {"contains": "replay this session in order"}, "label": "esc-returns-to-the-session-list"},
+    {"key": "esc"}, {"assert": {"contains": "Session length"}, "label": "esc-returns-to-the-briefing"},
+
+    {"key": "~"}, {"key": "~"}, {"assert": {"contains": "Repertoire ladder"}, "label": "concentration-panel"},
+    {"key": "!"}, {"wait": "500ms"}, {"assert": {"status_contains": "inside your top 20 artists"}, "label": "anti-rut-says-a-3-artist-library-has-no-outside"},
+
+    {"key": "`"}, {"assert": {"contains": "Moved by hours"}, "label": "time-vs-plays-panel"},
+    {"key": "b"}, {"assert": {"view": "Browse"}, "label": "b-jumps-to-the-focused-artist"}
+  ]
+}

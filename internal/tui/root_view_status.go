@@ -57,6 +57,8 @@ func (m Model) activeViewSelectionCount() int {
 		}
 	case viewFavorites:
 		return len(m.favorites.selectedItems)
+	case viewInsights:
+		return len(m.insights.trackView.selectedHashes)
 	}
 	return 0
 }
@@ -112,6 +114,8 @@ func (m Model) hasCommittedFilter() bool {
 		return committed(m.favorites.filter.Text, m.favorites.filter.Active)
 	case viewTags:
 		return committed(m.tagsView.filter.Text, m.tagsView.filter.Active)
+	case viewInsights:
+		return committed(m.insights.trackView.filter.Text, m.insights.trackView.filter.Active)
 	}
 	return false
 }

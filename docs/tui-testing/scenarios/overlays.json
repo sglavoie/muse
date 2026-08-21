@@ -10,6 +10,9 @@
     {"key": "ctrl+g"}, {"assert": {"overlay": "debug"}}, {"assert": {"no_layout_issues": true}, "label": "debug-fits"},
     {"key": "esc"}, {"assert": {"view": "Library"}, "label": "back-to-library"},
     {"key": "F"}, {"assert": {"overlay": "favorite_target_picker"}}, {"assert": {"no_layout_issues": true}, "label": "favorite-target-fits"},
-    {"key": "F"}, {"assert": {"view": "Library"}, "label": "favorite-target-dismissed"}
+    {"key": "F"}, {"assert": {"view": "Library"}, "label": "favorite-target-dismissed"},
+    {"key": "L"}, {"wait": "500ms"}, {"assert": {"view": "Insights"}, "label": "L-navigates-instead-of-opening-a-stats-overlay"},
+    {"assert": {"no_layout_issues": true}, "label": "insights-fits"},
+    {"key": "1"}, {"assert": {"view": "Library"}, "label": "back-to-library-after-L"}
   ]
 }

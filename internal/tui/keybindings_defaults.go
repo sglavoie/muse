@@ -26,6 +26,7 @@ func registerDefaultBindings(r *Registry) {
 	registerTagsBindings(r)
 	registerMixesBindings(r)
 	registerFavoritesBindings(r)
+	registerInsightsBindings(r)
 }
 
 func registerGlobalBindings(r *Registry) {
@@ -47,6 +48,7 @@ func registerGlobalBindings(r *Registry) {
 	r.register(contextGlobal, "5", actionSwitchFavorites)
 	r.register(contextGlobal, "6", actionSwitchTags)
 	r.register(contextGlobal, "7", actionSwitchMixes)
+	r.register(contextGlobal, "8", actionSwitchInsights)
 	r.register(contextGlobal, "F", actionToggleFavorite)
 	r.register(contextGlobal, "ctrl+r", actionRescan)
 	r.register(contextGlobal, "R", actionResetPosition)
@@ -57,7 +59,7 @@ func registerGlobalBindings(r *Registry) {
 	r.register(contextGlobal, "?", actionHelp)
 	r.register(contextGlobal, "ctrl+,", actionSettings)
 	r.register(contextGlobal, "ctrl+g", actionDebug)
-	r.register(contextGlobal, "L", actionStats)
+	r.register(contextGlobal, "L", actionSwitchInsights)
 	r.register(contextGlobal, "tab", actionNextView)
 	r.register(contextGlobal, "shift+tab", actionPrevView)
 	r.register(contextGlobal, "]", actionNextView)
@@ -217,6 +219,28 @@ func registerMixesBindings(r *Registry) {
 		"seed radio from focused mix's aggregate metadata")
 }
 
+func registerInsightsBindings(r *Registry) {
+	r.registerNavigation(contextInsights)
+	r.register(contextInsights, "enter", actionInsightsOpen)
+	r.register(contextInsights, "esc", actionInsightsBack)
+	r.register(contextInsights, "`", actionInsightsPanelNext)
+	r.register(contextInsights, "~", actionInsightsPanelPrev)
+	r.register(contextInsights, "w", actionInsightsWindowNext)
+	r.register(contextInsights, "W", actionInsightsWindowPrev)
+	r.register(contextInsights, "e", actionLibraryEnqueue)
+	r.register(contextInsights, "E", actionInsightsEnqueueAll)
+	r.register(contextInsights, "!", actionInsightsAntiRut)
+	r.register(contextInsights, "b", actionInsightsJumpBrowse)
+	r.register(contextInsights, "S", actionInsightsSavePlaylist)
+	r.register(contextInsights, "m", actionInsightsMergeGenre)
+	r.register(contextInsights, "x", actionBulkSelectionToggle)
+	r.register(contextInsights, "X", actionClearSelection)
+	r.register(contextInsights, "v", actionVisualMode)
+	r.register(contextInsights, "a", actionBulkAction)
+	r.registerWithReason(contextInsights, "A", actionInsightsRadioSeed,
+		"seed radio from the focused insight row rather than toggling auto-DJ")
+}
+
 func registerFavoritesBindings(r *Registry) {
 	r.registerNavigation(contextFavorites)
 	r.register(contextFavorites, "enter", actionFavoritesOpen)
@@ -283,6 +307,13 @@ func registerDefaultPrimaries(r *Registry) {
 	r.addPrimary(contextMixes, "A", "radio")
 	r.addPrimary(contextMixes, "/", "filter")
 	r.addPrimary(contextMixes, "?", "help")
+
+	r.addPrimary(contextInsights, "j/k", "nav")
+	r.addPrimary(contextInsights, "`/~", "panel")
+	r.addPrimary(contextInsights, "w/W", "window")
+	r.addPrimary(contextInsights, "enter", "open")
+	r.addPrimary(contextInsights, "E", "enqueue all")
+	r.addPrimary(contextInsights, "?", "help")
 }
 
 func registerSelectionModePrimaries(r *Registry) {
@@ -328,6 +359,12 @@ func registerSelectionModePrimaries(r *Registry) {
 	r.addPrimaryMode(contextTags, HintModeSelection, "t", "tag")
 	r.addPrimaryMode(contextTags, HintModeSelection, "X", "clear")
 	r.addPrimaryMode(contextTags, HintModeSelection, "?", "help")
+
+	r.addPrimaryMode(contextInsights, HintModeSelection, "enter", "enqueue")
+	r.addPrimaryMode(contextInsights, HintModeSelection, "a", "bulk action")
+	r.addPrimaryMode(contextInsights, HintModeSelection, "t", "tag")
+	r.addPrimaryMode(contextInsights, HintModeSelection, "X", "clear")
+	r.addPrimaryMode(contextInsights, HintModeSelection, "?", "help")
 }
 
 func registerVisualModePrimaries(r *Registry) {

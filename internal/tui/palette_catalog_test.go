@@ -80,8 +80,8 @@ func TestActionNamesRoundTrip(t *testing.T) {
 	}{
 		{actionNone, "actionNone"},
 		{actionQuit, "actionQuit"},
-		{actionStats, "actionStats"},
 		{actionMixUndismiss, "actionMixUndismiss"},
+		{actionInsightsMergeGenre, "actionInsightsMergeGenre"},
 	}
 	for _, tc := range cases {
 		if int(tc.a) >= len(names) {
@@ -92,8 +92,8 @@ func TestActionNamesRoundTrip(t *testing.T) {
 		}
 	}
 
-	if last := names[len(names)-1]; last != "actionMixUndismiss" {
-		t.Errorf("last action constant is %q, want actionMixUndismiss", last)
+	if last := names[len(names)-1]; last != "actionInsightsMergeGenre" {
+		t.Errorf("last action constant is %q, want actionInsightsMergeGenre", last)
 	}
 }
 

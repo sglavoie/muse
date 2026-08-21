@@ -45,6 +45,8 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 			m.tagsView = m.tagsView.HandleAction(action)
 		case viewMixes:
 			m.mixes = m.mixes.handleCursorAction(action)
+		case viewInsights:
+			m.insights = m.insights.handleCursorAction(action)
 		default:
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)
@@ -107,6 +109,12 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 					m.mixes.trackView.selectedHashes = toggleHashInSet(m.mixes.trackView.selectedHashes, t.Hash)
 				}
 			}
+		case viewInsights:
+			if m.insights.atTracks() {
+				if t := m.insights.focusedTrack(); t != nil {
+					m.insights.trackView.selectedHashes = toggleHashInSet(m.insights.trackView.selectedHashes, t.Hash)
+				}
+			}
 		default:
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)
@@ -149,6 +157,8 @@ func (m Model) clearActiveViewSelection() Model {
 		m.tagsView.selectedHashes = nil
 	case viewMixes:
 		m.mixes.trackView.selectedHashes = nil
+	case viewInsights:
+		m.insights.trackView.selectedHashes = nil
 	}
 	return m
 }

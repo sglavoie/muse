@@ -1,0 +1,36 @@
+{
+  "name": "insights-narrow",
+  "fixture": "narrow",
+  "size": "60x15",
+  "actions": [
+    {"key": "8"}, {"assert": {"view": "Insights"}}, {"wait": "500ms"},
+    {"assert": {"not_contains": "Nothing to measure yet"}, "label": "narrow-fixture-has-history"},
+    {"assert": {"no_layout_issues": true}, "label": "coverage"},
+    {"assert": {"contains": "Dusty artists"}, "label": "coverage-body-survives"},
+
+    {"key": "`"}, {"assert": {"no_layout_issues": true}, "label": "rhythm"},
+    {"assert": {"contains": "Hour of day"}, "label": "rhythm-body-survives"},
+    {"assert": {"not_contains": "█"}, "label": "punchcard-dropped-not-clipped"},
+
+    {"key": "`"}, {"assert": {"no_layout_issues": true}, "label": "momentum"},
+    {"assert": {"contains": "Month by month"}, "label": "momentum-body-survives"},
+
+    {"key": "`"}, {"assert": {"no_layout_issues": true}, "label": "concentration"},
+    {"key": "`"}, {"assert": {"no_layout_issues": true}, "label": "time-vs-plays"},
+    {"key": "`"}, {"assert": {"no_layout_issues": true}, "label": "sessions"},
+
+    {"key": "`"}, {"assert": {"no_layout_issues": true}, "label": "discovery"},
+    {"assert": {"contains": "First heard"}, "label": "discovery-body-survives"},
+
+    {"key": "`"}, {"assert": {"no_layout_issues": true}, "label": "data-health"},
+
+    {"key": "`"}, {"key": "`"}, {"assert": {"contains": "Hour of day"}, "label": "back-at-rhythm"},
+    {"key": "enter"}, {"wait": "300ms"},
+    {"assert": {"no_layout_issues": true}, "label": "hour-drill"},
+    {"key": "esc"}, {"assert": {"contains": "Hour of day"}, "label": "back-out-of-drill"},
+
+    {"resize": "100x30"}, {"assert": {"no_layout_issues": true}, "label": "punchcard-returns"},
+    {"assert": {"contains": "█"}, "label": "punchcard-returns-when-it-fits"},
+    {"resize": "60x15"}, {"assert": {"no_layout_issues": true}, "label": "degrades-again"}
+  ]
+}

@@ -39,13 +39,30 @@ func (m *Model) refreshHelpViewport() {
 	m.helpViewport.SetHeight(max(m.termHeight-2-extraLines, 0))
 }
 
-// clearPendingConfirmations resets the confirmation bar.
+// clearPendingConfirmations resets the confirmation bar. The insights merge
+// plan is cleared with it: the bar is the only thing telling the user a merge
+// is armed, so a plan outliving it would fire on an unrelated keypress.
 func (m *Model) clearPendingConfirmations() {
 	m.confirmationBar = ""
+	m.insights.pendingMerge = nil
 }
 
 // switchToView transitions to the given view, clearing pending confirmations,
 // resetting all sort states, and lazily deriving artist/album lists when needed.
+// viewLazyLoadCmd returns the command that populates a view's data on first
+// entry, for the views that load asynchronously. Returns nil for the rest.
+// The pointer receiver matters: the insights loader stamps a generation onto
+// the model that the reply is matched against.
+func (m *Model) viewLazyLoadCmd(id viewID) tea.Cmd {
+	switch id {
+	case viewMixes:
+		return m.mixesMaybeLoadCmd()
+	case viewInsights:
+		return m.insightsMaybeLoadCmd()
+	}
+	return nil
+}
+
 func (m Model) switchToView(id viewID) Model {
 	m.clearPendingConfirmations()
 	m = m.resetAllSorts()
@@ -250,13 +267,6 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		panel := collectDebugInfo(m)
 		m.debugViewport.SetContent(panel.render(*m.styles))
 		m.debugViewport.SetYOffset(0)
-	case actionStats:
-		m.statsPrevView = m.activeView
-		m.statsVisible = true
-		m.statsPeriod = 0
-		m.statsViewport = viewport.New(viewport.WithWidth(m.termWidth), viewport.WithHeight(max(m.termHeight-3, 0)))
-		m.statsViewport.SetYOffset(0)
-		return m, m.loadStatsCmd()
 	case actionQueueSummary:
 		if m.overlay.queueSummary != nil {
 			m.overlay.queueSummary = nil
@@ -272,23 +282,17 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m.refreshHelpViewport()
 	case actionNextView:
 		next := nextView(m.activeView)
-		var mixCmd tea.Cmd
-		if next == viewMixes {
-			mixCmd = m.mixesMaybeLoadCmd()
-		}
+		loadCmd := m.viewLazyLoadCmd(next)
 		m = m.switchToView(next)
-		if mixCmd != nil {
-			return m, mixCmd
+		if loadCmd != nil {
+			return m, loadCmd
 		}
 	case actionPrevView:
 		prev := prevView(m.activeView)
-		var mixCmd tea.Cmd
-		if prev == viewMixes {
-			mixCmd = m.mixesMaybeLoadCmd()
-		}
+		loadCmd := m.viewLazyLoadCmd(prev)
 		m = m.switchToView(prev)
-		if mixCmd != nil {
-			return m, mixCmd
+		if loadCmd != nil {
+			return m, loadCmd
 		}
 	case actionQuit:
 		m.overlay.nowPlaying = nil
@@ -323,6 +327,34 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		cmd := m.mixesMaybeLoadCmd()
 		m = m.switchToView(viewMixes)
 		return m, cmd
+	case actionSwitchInsights:
+		cmd := m.insightsMaybeLoadCmd()
+		m = m.switchToView(viewInsights)
+		return m, cmd
+	case actionInsightsPanelNext:
+		return m.handleInsightsPanelCycle(1), nil
+	case actionInsightsPanelPrev:
+		return m.handleInsightsPanelCycle(-1), nil
+	case actionInsightsWindowNext:
+		return m.handleInsightsWindowCycle(1)
+	case actionInsightsWindowPrev:
+		return m.handleInsightsWindowCycle(-1)
+	case actionInsightsOpen:
+		return m.handleInsightsOpen(), nil
+	case actionInsightsBack:
+		return m.handleInsightsBack(), nil
+	case actionInsightsEnqueueAll:
+		return m.handleInsightsEnqueueAll()
+	case actionInsightsAntiRut:
+		return m.handleInsightsAntiRut()
+	case actionInsightsRadioSeed:
+		return m.handleInsightsRadioSeed()
+	case actionInsightsJumpBrowse:
+		return m.handleInsightsJumpBrowse(), nil
+	case actionInsightsSavePlaylist:
+		return m.handleInsightsSavePlaylist()
+	case actionInsightsMergeGenre:
+		return m.handleInsightsMergeGenre(), nil
 	case actionTagOpen:
 		return m.handleTagOpen()
 	case actionTagBack:

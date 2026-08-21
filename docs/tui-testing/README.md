@@ -42,6 +42,7 @@ scenario cannot accidentally trigger a real side effect.
 | `rich`     | Deterministic data across every primary view: library, queue, playlists, favorites, tags, and recommendation (Mixes) data. The default. |
 | `narrow`   | Long titles, artist/album/path names, and wide Unicode (CJK, diacritics, emoji) to stress truncation and width arithmetic. |
 | `playback` | An active playback session: current track, queue, repeat/shuffle/volume/status metadata. |
+| `health`   | A deliberately dirty library — colliding genre spellings, a placeholder genre, blank fields, unverified durations, one artist spelled two ways — so Insights' Data Health panel has one of every finding. Its metadata writer is in-memory, so the genre merge is safe to exercise. |
 
 ## CLI
 
@@ -187,19 +188,25 @@ Each observation is normalized JSON:
 | Scenario | Fixture | Notes |
 | -------- | ------- | ----- |
 | `baseline-layout.json` | `rich` | Library renders and fits at 100×30. |
-| `all-primary-views.json` | `rich` | Cycles all seven primary views; each fits. |
-| `overlays.json` | `rich` | Help, queue-summary, debug, and favorite-target overlays fit at 100×30. |
+| `all-primary-views.json` | `rich` | Cycles all eight primary views; each fits. |
+| `overlays.json` | `rich` | Help, queue-summary, debug, and favorite-target overlays fit at 100×30, and `L` navigates to Insights rather than opening an overlay. |
 | `command-palette-search.json` | `rich` | Opens the palette (at 120×50) and filters by typing. |
 | `layout-regressions-rich.json` | `rich` | Guards command palette height, Queue columns, Mixes descriptions, and queue-summary short-height layout. |
 | `layout-regressions-empty.json` | `empty` | Guards minimum-size empty-state and idle status-bar layout. |
 | `metadata-editor-narrow.json` | `narrow` | Guards metadata-editor height with long values at the minimum supported size. |
 | `resize-stress.json` | `rich` | Cycles many terminal sizes. |
 | `narrow-long-text.json` | `narrow` | Long text and wide Unicode at the minimum supported size. |
+| `insights-panels.json` | `rich` | Walks every Insights panel and its time window at 100×30. |
+| `insights-drilldown.json` | `rich` | Drills Insights rows to tracks and sessions and back out again. |
+| `insights-narrow.json` | `rich` | Guards Insights panel layout at the minimum supported size. |
+| `insights-data-health.json` | `health` | Every Data Health finding, drilling one to its tracks, bulk-editing it, and merging a genre collision until the Rhythm banner clears. |
 
 The baseline, primary-view, overlay, command-palette, layout-regression, and
 narrow/long-text scenarios are stable and gated in `go test`.
 `resize-stress.json` is kept for manual bug discovery across a wider range of
-supported terminal sizes.
+supported terminal sizes. The Insights scenarios take timed waits for the
+background snapshot load, so they are run from the command line rather than
+gated in `go test`.
 
 ### Example
 

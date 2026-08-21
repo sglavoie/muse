@@ -112,6 +112,20 @@ func (m Model) favoritePickerTracks() []library.Track {
 		if track, ok := m.mixes.trackView.view().FocusedTrack(); ok {
 			return []library.Track{track}
 		}
+	case viewInsights:
+		if !m.insights.atTracks() {
+			return nil
+		}
+		trackOrder := m.insights.trackView.baseTracks()
+		if m.insights.trackView.sortedTracks != nil {
+			trackOrder = m.insights.trackView.sortedTracks
+		}
+		if len(m.insights.trackView.selectedHashes) > 0 {
+			return collectSelectedTracks(trackOrder, m.insights.trackView.selectedHashes)
+		}
+		if track, ok := m.insights.trackView.view().FocusedTrack(); ok {
+			return []library.Track{track}
+		}
 	}
 	return nil
 }

@@ -43,6 +43,8 @@ func (m Model) Snapshot() *UITestSnapshot {
 		m.fillPlaylistsSnapshot(snap)
 	case viewMixes:
 		m.fillMixesSnapshot(snap)
+	case viewInsights:
+		m.fillInsightsSnapshot(snap)
 	}
 	return snap
 }
@@ -58,8 +60,6 @@ func (m Model) activeOverlayName() string {
 		return "help"
 	case m.debugVisible:
 		return "debug"
-	case m.statsVisible:
-		return "stats"
 	case m.overlay.settings != nil:
 		return "settings"
 	case m.overlay.nowPlaying != nil:
@@ -208,6 +208,32 @@ func (m Model) fillMixesSnapshot(snap *UITestSnapshot) {
 	snap.VisibleCount = mx.trackView.trackCount()
 	snap.SelectionCount = len(mx.trackView.selectedHashes)
 	if t, ok := mx.trackView.view().FocusedTrack(); ok {
+		snap.FocusedHash = t.Hash
+		snap.FocusedLabel = trackLabel(t)
+	}
+}
+
+func (m Model) fillInsightsSnapshot(snap *UITestSnapshot) {
+	iv := m.insights
+	if iv.level == 0 {
+		snap.Level = "briefing"
+		snap.Mode = iv.panelSpec().name
+		snap.Cursor = iv.cursor
+		snap.ScrollOffset = iv.scrollOffset
+		rows := iv.rows()
+		snap.VisibleCount = len(rows)
+		if iv.cursor >= 0 && iv.cursor < len(rows) {
+			snap.FocusedLabel = rows[iv.cursor].label
+		}
+		return
+	}
+	snap.Level = "tracks"
+	snap.Mode = iv.drillLabel
+	snap.Cursor = iv.trackView.cursor
+	snap.ScrollOffset = iv.trackView.scrollOffset
+	snap.VisibleCount = iv.trackView.trackCount()
+	snap.SelectionCount = len(iv.trackView.selectedHashes)
+	if t, ok := iv.trackView.view().FocusedTrack(); ok {
 		snap.FocusedHash = t.Hash
 		snap.FocusedLabel = trackLabel(t)
 	}

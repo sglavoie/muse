@@ -45,7 +45,7 @@ func (m *Model) setViewDimensions(width, height int) {
 		reserve = 5
 	}
 	viewHeight := max(height-reserve, 0)
-	for _, view := range []resizable{&m.library, &m.playlists, &m.queue, &m.browse, &m.favorites, &m.tagsView, &m.mixes} {
+	for _, view := range []resizable{&m.library, &m.playlists, &m.queue, &m.browse, &m.favorites, &m.tagsView, &m.mixes, &m.insights} {
 		view.setSize(width, viewHeight)
 	}
 }
@@ -89,6 +89,15 @@ func (m *Model) clampAllScrollOffsets() {
 		mixMaxRows := layout.VisibleRows(m.mixes.height, mixReserve)
 		m.mixes.trackView.scrollOffset = adjustScroll(
 			m.mixes.trackView.cursor, m.mixes.trackView.scrollOffset, mixMaxRows)
+	}
+
+	if m.insights.atTracks() {
+		insReserve := libraryViewVisibleReserve(m.insights.trackView)
+		insMaxRows := layout.VisibleRows(m.insights.height, insReserve)
+		m.insights.trackView.scrollOffset = adjustScroll(
+			m.insights.trackView.cursor, m.insights.trackView.scrollOffset, insMaxRows)
+	} else {
+		m.insights.clampCursor()
 	}
 }
 

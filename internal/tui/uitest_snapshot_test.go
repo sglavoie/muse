@@ -68,9 +68,9 @@ func TestSnapshotOverlayName(t *testing.T) {
 	}
 
 	m.helpVisible = false
-	m.statsVisible = true
-	if got := m.Snapshot().Overlay; got != "stats" {
-		t.Fatalf("stats Overlay = %q, want %q", got, "stats")
+	m.debugVisible = true
+	if got := m.Snapshot().Overlay; got != "debug" {
+		t.Fatalf("debug Overlay = %q, want %q", got, "debug")
 	}
 }
 

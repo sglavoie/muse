@@ -227,18 +227,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case smartPlaylistCountsUpdatedMsg:
 		m = m.handleSmartPlaylistCountsUpdatedMsg(msg)
 
-	case listeningStatsMsg:
-		if msg.periodIdx != m.statsPeriod {
-			return m, nil
-		}
-		panel := StatsPanel{
-			stats:       msg.stats,
-			periodLabel: statsPeriodLabel(msg.periodIdx),
-			err:         msg.err,
-		}
-		m.statsViewport.SetContent(panel.render(*m.styles))
-		m.statsViewport.SetYOffset(0)
-
 	case favoriteToggledMsg:
 		m = m.handleFavoriteToggledMsg(msg)
 
@@ -371,6 +359,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case mixLoadedMsg:
 		m = m.handleMixLoadedMsg(msg)
+
+	case insightsLoadedMsg:
+		m = m.handleInsightsLoadedMsg(msg)
+
+	case insightsMergedMsg:
+		return m.handleInsightsMergedMsg(msg)
 
 	case recommendationCacheRebuiltMsg:
 		// Cache rebuilt; no additional state change needed — playsSinceRefresh

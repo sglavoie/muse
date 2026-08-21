@@ -1,0 +1,537 @@
+package tui
+
+import (
+	"log/slog"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/insights"
+	"github.com/sglavoie/muse/internal/library"
+)
+
+// insightsDormantDays is how long a track must have gone unplayed, measured
+// from the most recent play in the whole history, before it counts as dormant.
+const insightsDormantDays = 180
+
+// insightsDormantTopN caps the dormant list so the Coverage body stays a
+// briefing rather than a dump of the library.
+const insightsDormantTopN = 10
+
+// insightsLoadedMsg carries a completed Insights computation. gen is echoed
+// back from the request so a reply for an abandoned window cannot overwrite a
+// newer one.
+type insightsLoadedMsg struct {
+	gen           int
+	snap          insights.Snapshot
+	genreCoverage []insights.ShelfStat
+	dormant       []library.Track
+	plays         []insights.PlayRow
+	sessions      []insights.SessionRow
+	timeline      []insights.TimelineRow
+	genreHours    []insightsGenreHours
+	backlog       []insightsBacklogMonth
+	health        []insightsHealthRow
+	loc           *time.Location
+}
+
+// insightsMaybeLoadCmd returns a load command when the view has no data yet.
+// Returns nil when no reader is wired or the snapshot is already current.
+func (m *Model) insightsMaybeLoadCmd() tea.Cmd {
+	if m.insightsReader == nil || m.insights.loaded || m.insights.loading {
+		return nil
+	}
+	return m.insightsLoadCmd()
+}
+
+// insightsLoadCmd reads every Insights source for the active window and folds
+// them into a Snapshot off the UI goroutine.
+func (m *Model) insightsLoadCmd() tea.Cmd {
+	r := m.insightsReader
+	if r == nil {
+		return nil
+	}
+
+	m.insights.gen++
+	m.insights.loading = true
+
+	gen := m.insights.gen
+	windowIdx := m.insights.windowIdx
+	mx := m.cfg.Mixes
+	// Snapshot the index on the UI goroutine; the closure below runs off it.
+	tracks := m.library.index.Tracks()
+
+	return func() tea.Msg {
+		now := time.Now()
+		loc := time.Local
+		since := insightsWindowSince(windowIdx, now, loc)
+
+		plays, err := r.ReadInsightPlays(since)
+		if err != nil {
+			slog.Warn("insights: ReadInsightPlays", "err", err)
+		}
+		genres, err := r.ReadInsightGenres(since)
+		if err != nil {
+			slog.Warn("insights: ReadInsightGenres", "err", err)
+		}
+		sessions, err := r.ReadInsightSessions(since)
+		if err != nil {
+			slog.Warn("insights: ReadInsightSessions", "err", err)
+		}
+		coverage, err := r.ReadInsightCoverage()
+		if err != nil {
+			slog.Warn("insights: ReadInsightCoverage", "err", err)
+		}
+		timeline, err := r.ReadInsightTimeline()
+		if err != nil {
+			slog.Warn("insights: ReadInsightTimeline", "err", err)
+		}
+		quality, err := r.ReadInsightQuality(mx.DeepCutsMinPlays, mx.DeepCutsMaxPlays, mx.DeepCutsMinCompletion)
+		if err != nil {
+			slog.Warn("insights: ReadInsightQuality", "err", err)
+		}
+		unverified, err := r.ReadUnverifiedDurations()
+		if err != nil {
+			slog.Warn("insights: ReadUnverifiedDurations", "err", err)
+		}
+		unverifiedHashes := make([]string, len(unverified))
+		for i, u := range unverified {
+			unverifiedHashes[i] = u.Hash
+		}
+
+		snap := insights.Compute(insights.Input{
+			Now:         now,
+			Loc:         loc,
+			Since:       since,
+			WindowLabel: insightsWindows[windowIdx].label,
+			Plays:       plays,
+			Genres:      genres,
+			Sessions:    sessions,
+			Coverage:    coverage,
+			Timeline:    timeline,
+			Quality:     quality,
+		})
+
+		genreOf := make(map[string][]string, len(tracks))
+		for _, t := range tracks {
+			genreOf[t.Hash] = library.SplitGenres(t.Genre)
+		}
+
+		return insightsLoadedMsg{
+			gen:           gen,
+			snap:          snap,
+			genreCoverage: genreCoverageShelves(tracks),
+			dormant:       dormantTracks(tracks, snap.LastPlayAt),
+			plays:         plays,
+			sessions:      sessions,
+			timeline:      timeline,
+			genreHours:    insightsHourGenreFold(plays, func(h string) []string { return genreOf[h] }, loc),
+			backlog:       backlogMonths(tracks, loc),
+			health:        buildInsightsHealth(snap.Quality, tracks, unverifiedHashes, mx.DeepCutsMinPlays, mx.DeepCutsMaxPlays),
+			loc:           loc,
+		}
+	}
+}
+
+// handleInsightsLoadedMsg installs a snapshot, discarding replies that a newer
+// request has already superseded.
+func (m Model) handleInsightsLoadedMsg(msg insightsLoadedMsg) Model {
+	if msg.gen != m.insights.gen {
+		return m
+	}
+	m.insights.snap = msg.snap
+	m.insights.genreCoverage = msg.genreCoverage
+	m.insights.dormant = msg.dormant
+	m.insights.plays = msg.plays
+	m.insights.sessions = msg.sessions
+	m.insights.timeline = msg.timeline
+	m.insights.genreHours = msg.genreHours
+	m.insights.backlog = msg.backlog
+	m.insights.health = msg.health
+	m.insights.loc = msg.loc
+	m.insights.loaded = true
+	m.insights.loading = false
+	m.insights.clampCursor()
+	return m
+}
+
+// handleInsightsPanelCycle moves the active panel. Panels read from the same
+// snapshot, so no reload is needed.
+func (m Model) handleInsightsPanelCycle(delta int) Model {
+	m.insights = m.insights.shiftPanel(delta)
+	m.insights.clampCursor()
+	return m
+}
+
+// handleInsightsWindowCycle moves the active window and reloads, unless the
+// active panel ignores the window entirely.
+func (m Model) handleInsightsWindowCycle(delta int) (Model, tea.Cmd) {
+	if m.insights.panelSpec().class == classFixed {
+		m.statusBar.notify("This panel is always all-time")
+		return m, nil
+	}
+	m.insights = m.insights.shiftWindow(delta)
+	return m, m.insightsLoadCmd()
+}
+
+// genreCoverageShelves measures unheard coverage per genre. insights.CoverageRow
+// carries no genre, so this is derived from the in-memory library, which is
+// filtered to non-missing tracks exactly like the coverage query.
+func genreCoverageShelves(tracks []library.Track) []insights.ShelfStat {
+	byGenre := make(map[string]*insights.ShelfStat)
+	for _, t := range tracks {
+		for _, g := range library.SplitGenres(t.Genre) {
+			s := byGenre[g]
+			if s == nil {
+				s = &insights.ShelfStat{Name: g}
+				byGenre[g] = s
+			}
+			s.Tracks++
+			if t.PlayCount == 0 {
+				s.Unheard++
+				s.UnheardSecs += t.Duration
+			}
+		}
+	}
+
+	shelves := make([]insights.ShelfStat, 0, len(byGenre))
+	for _, s := range byGenre {
+		if s.Unheard > 0 {
+			shelves = append(shelves, *s)
+		}
+	}
+	sort.Slice(shelves, func(i, j int) bool {
+		if shelves[i].Unheard != shelves[j].Unheard {
+			return shelves[i].Unheard > shelves[j].Unheard
+		}
+		return shelves[i].Name < shelves[j].Name
+	})
+	return shelves[:min(len(shelves), insightsDormantTopN)]
+}
+
+// dormantTracks lists tracks that were played at least once and then left
+// untouched the longest. ref is the most recent play in the whole history, so
+// the cutoff does not drift between renders the way a wall-clock one would.
+func dormantTracks(tracks []library.Track, ref int64) []library.Track {
+	if ref <= 0 {
+		return nil
+	}
+	cutoff := ref - insightsDormantDays*86400
+	var out []library.Track
+	for _, t := range tracks {
+		if t.PlayCount > 0 && t.LastPlayedAt > 0 && t.LastPlayedAt < cutoff {
+			out = append(out, t)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].LastPlayedAt != out[j].LastPlayedAt {
+			return out[i].LastPlayedAt < out[j].LastPlayedAt
+		}
+		return out[i].Hash < out[j].Hash
+	})
+	return out[:min(len(out), insightsDormantTopN)]
+}
+
+// backlogMonths groups the never-played tracks by the local month they entered
+// the library, most recent first. Tracks with no recorded add date are left out
+// rather than piled into the epoch; the Discovery body carries a total row so
+// they stay reachable.
+func backlogMonths(tracks []library.Track, loc *time.Location) []insightsBacklogMonth {
+	byKey := map[string]*insightsBacklogMonth{}
+	for _, t := range tracks {
+		if t.PlayCount > 0 || t.CreatedAt <= 0 {
+			continue
+		}
+		added := time.Unix(t.CreatedAt, 0).In(loc)
+		key := insightsMonthKey(added)
+		b := byKey[key]
+		if b == nil {
+			b = &insightsBacklogMonth{Key: key, Label: added.Format("January 2006")}
+			byKey[key] = b
+		}
+		b.Tracks++
+		b.Secs += t.Duration
+	}
+
+	out := make([]insightsBacklogMonth, 0, len(byKey))
+	for _, b := range byKey {
+		out = append(out, *b)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Key > out[j].Key })
+	return out[:min(len(out), insightsMonthRows)]
+}
+
+// insightsDrillTracks resolves a briefing row to the concrete tracks behind it,
+// so every bar is a query with a shape rather than a picture.
+func (m Model) insightsDrillTracks(row insightsRow) []library.Track {
+	// Every dormant row opens the whole dormant set: a one-track drill would
+	// make E and S meaningless, and the point of the section is the batch.
+	switch row.drill {
+	case drillDormant:
+		return m.insights.dormant
+	case drillHour, drillWeekday, drillRhythmGenre:
+		return m.insightsPlayedTracks(row)
+	case drillMonth, drillFirstPlaysMonth:
+		return m.insightsMonthTracks(row.key, row.drill == drillFirstPlaysMonth)
+	case drillArtistPlays:
+		return m.insightsPlayTracks(func(p insights.PlayRow) bool { return p.Artist == row.key })
+	case drillTopArtists:
+		return m.insightsTopArtistTracks(row.key)
+	case drillHealth:
+		return m.insightsHealthTracks(row.key)
+	}
+
+	// A Sessions row opens sessions, not tracks, but the batch actions still
+	// need a track set behind it: E on the briefing row replays everything the
+	// row stands for, in the order it was heard.
+	if row.drill.opensSessions() {
+		return m.insightsSessionSetTracks(insightsSessionsMatching(m.insights.sessions, row.drill, row.key))
+	}
+
+	match := func(t library.Track) bool {
+		if t.PlayCount != 0 {
+			return false
+		}
+		switch row.drill {
+		case drillUnheardAll:
+			return true
+		case drillUnheardArtist:
+			return t.Artist == row.key
+		case drillUnheardAlbum:
+			return t.Album == row.key
+		case drillUnheardGenre:
+			for _, g := range library.SplitGenres(t.Genre) {
+				if strings.EqualFold(g, row.key) {
+					return true
+				}
+			}
+		case drillAddedNeverPlayed:
+			return t.CreatedAt > 0 &&
+				insightsMonthKey(time.Unix(t.CreatedAt, 0).In(m.insights.location())) == row.key
+		}
+		return false
+	}
+
+	var out []library.Track
+	for _, t := range m.library.index.Tracks() {
+		if match(t) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// insightsHealthTracks resolves a Data Health row against the hashes the
+// finding was built from, so the row's count and the list it opens are the same
+// set rather than two queries that can drift apart.
+func (m Model) insightsHealthTracks(key string) []library.Track {
+	i, err := strconv.Atoi(key)
+	if err != nil || i < 0 || i >= len(m.insights.health) {
+		return nil
+	}
+	var out []library.Track
+	for _, hash := range m.insights.health[i].hashes {
+		if t, ok := m.library.index.FindByHash(hash); ok {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// insightsPlayTracks walks the window's plays in order and returns the distinct
+// tracks the predicate keeps. Deduping on first appearance rather than last is
+// what lets an enqueue replay a bucket in the order it was heard.
+func (m Model) insightsPlayTracks(keep func(insights.PlayRow) bool) []library.Track {
+	var out []library.Track
+	seen := make(map[string]struct{})
+	for _, p := range m.insights.plays {
+		if !keep(p) {
+			continue
+		}
+		if _, dup := seen[p.Hash]; dup {
+			continue
+		}
+		seen[p.Hash] = struct{}{}
+		if t, ok := m.library.index.FindByHash(p.Hash); ok {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// insightsPlayedTracks resolves a Rhythm row. Rhythm is a windowed panel, so it
+// reads the windowed plays rather than the all-time timeline: an hour column
+// drawn from the last 7 days must not open a track heard a year ago.
+func (m Model) insightsPlayedTracks(row insightsRow) []library.Track {
+	if row.drill == drillRhythmGenre {
+		want := insightsGenreKey(row.key)
+		return m.insightsPlayTracks(func(p insights.PlayRow) bool {
+			t, ok := m.library.index.FindByHash(p.Hash)
+			if !ok {
+				return false
+			}
+			for _, g := range library.SplitGenres(t.Genre) {
+				if insightsGenreKey(g) == want {
+					return true
+				}
+			}
+			return false
+		})
+	}
+
+	want, err := strconv.Atoi(row.key)
+	if err != nil {
+		return nil
+	}
+	loc := m.insights.location()
+	return m.insightsPlayTracks(func(p insights.PlayRow) bool {
+		start := time.Unix(p.StartAt, 0).In(loc)
+		if row.drill == drillWeekday {
+			return int(start.Weekday()) == want
+		}
+		return start.Hour() == want
+	})
+}
+
+// insightsTopArtistTracks resolves a Concentration ladder row: the tracks
+// played by the n artists that hold the most listening time, which is the group
+// the rung stands for.
+func (m Model) insightsTopArtistTracks(key string) []library.Track {
+	n, err := strconv.Atoi(key)
+	if err != nil || n <= 0 {
+		return nil
+	}
+	top := make(map[string]struct{}, n)
+	for i, e := range m.insights.snap.Rankings.ArtistsByHours {
+		if i >= n {
+			break
+		}
+		top[e.Name] = struct{}{}
+	}
+	return m.insightsPlayTracks(func(p insights.PlayRow) bool {
+		_, ok := top[p.Artist]
+		return ok
+	})
+}
+
+// insightsSessionSetTracks resolves a set of sessions to the distinct tracks
+// heard across them, in play order.
+func (m Model) insightsSessionSetTracks(sessions []insights.SessionRow) []library.Track {
+	ids := make(map[string]struct{}, len(sessions))
+	for _, s := range sessions {
+		ids[s.ID] = struct{}{}
+	}
+	return m.insightsPlayTracks(func(p insights.PlayRow) bool {
+		_, ok := ids[p.SessionID]
+		return ok
+	})
+}
+
+// insightsSessionTracks returns one session's tracks in the exact order they
+// were played, repeats included. This is the one drill that must not dedupe: a
+// replay that drops the second listen is not the session that happened.
+func (m Model) insightsSessionTracks(id string) []library.Track {
+	if id == "" {
+		return nil
+	}
+	var out []library.Track
+	for _, p := range m.insights.plays {
+		if p.SessionID != id {
+			continue
+		}
+		if t, ok := m.library.index.FindByHash(p.Hash); ok {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// insightsRutBreakerTracks builds a set weighted away from the artists that
+// already hold the top of the time ranking. Artists are visited round-robin,
+// least-heard first, so one prolific outsider cannot simply become the new rut.
+func (m Model) insightsRutBreakerTracks(limit int) []library.Track {
+	top := make(map[string]struct{}, insightsRutTopArtists)
+	for i, e := range m.insights.snap.Rankings.ArtistsByHours {
+		if i >= insightsRutTopArtists {
+			break
+		}
+		top[e.Name] = struct{}{}
+	}
+
+	byArtist := map[string][]library.Track{}
+	plays := map[string]int{}
+	for _, t := range m.library.index.Tracks() {
+		if _, dominant := top[t.Artist]; dominant {
+			continue
+		}
+		byArtist[t.Artist] = append(byArtist[t.Artist], t)
+		plays[t.Artist] += t.PlayCount
+	}
+
+	artists := make([]string, 0, len(byArtist))
+	for a := range byArtist {
+		artists = append(artists, a)
+	}
+	sort.Slice(artists, func(i, j int) bool {
+		if plays[artists[i]] != plays[artists[j]] {
+			return plays[artists[i]] < plays[artists[j]]
+		}
+		return artists[i] < artists[j]
+	})
+	for _, a := range artists {
+		ts := byArtist[a]
+		sort.Slice(ts, func(i, j int) bool {
+			if ts[i].PlayCount != ts[j].PlayCount {
+				return ts[i].PlayCount < ts[j].PlayCount
+			}
+			return ts[i].Hash < ts[j].Hash
+		})
+	}
+
+	out := make([]library.Track, 0, min(limit, len(m.library.index.Tracks())))
+	for round := 0; len(out) < limit; round++ {
+		took := false
+		for _, a := range artists {
+			if round >= len(byArtist[a]) {
+				continue
+			}
+			out = append(out, byArtist[a][round])
+			took = true
+			if len(out) == limit {
+				return out
+			}
+		}
+		if !took {
+			break
+		}
+	}
+	return out
+}
+
+// insightsMonthTracks resolves a Momentum or Discovery month row against the
+// all-time timeline. firstEverOnly narrows it to the plays that were a track's
+// first, which is the set Discovery's "first heard" rows stand for.
+func (m Model) insightsMonthTracks(key string, firstEverOnly bool) []library.Track {
+	loc := m.insights.location()
+	var out []library.Track
+	seen := make(map[string]struct{})
+	for _, r := range m.insights.timeline {
+		if firstEverOnly && !r.FirstEver {
+			continue
+		}
+		if insightsMonthKey(time.Unix(r.StartAt, 0).In(loc)) != key {
+			continue
+		}
+		if _, dup := seen[r.Hash]; dup {
+			continue
+		}
+		seen[r.Hash] = struct{}{}
+		if t, ok := m.library.index.FindByHash(r.Hash); ok {
+			out = append(out, t)
+		}
+	}
+	return out
+}

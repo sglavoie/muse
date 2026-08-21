@@ -22,11 +22,12 @@ const (
 	FixtureRich     = "rich"
 	FixtureNarrow   = "narrow"
 	FixturePlayback = "playback"
+	FixtureHealth   = "health"
 )
 
 // FixtureNames returns the built-in fixture names in a stable order.
 func FixtureNames() []string {
-	return []string{FixtureEmpty, FixtureRich, FixtureNarrow, FixturePlayback}
+	return []string{FixtureEmpty, FixtureRich, FixtureNarrow, FixturePlayback, FixtureHealth}
 }
 
 // BuildFixture constructs a fixture-backed Model by name. The returned model is
@@ -44,6 +45,8 @@ func BuildFixture(name string) (Model, error) {
 		m = newNarrowFixture()
 	case FixturePlayback:
 		m = newPlaybackFixture()
+	case FixtureHealth:
+		m = newHealthFixture()
 	default:
 		return Model{}, fmt.Errorf("unknown fixture %q (known: %s)", name, strings.Join(FixtureNames(), ", "))
 	}
@@ -65,8 +68,13 @@ func baseFixtureOptions() []Option {
 		WithQueueWriter(queue),
 		WithQueueDequeuer(queue),
 		WithQueueReorderer(queue),
+		WithBatchEnqueuer(queue),
 		WithDismissalReader(dismissals),
 		WithDismissalWriter(dismissals),
+		// A reader with no tracks so the empty fixture exercises the Insights
+		// empty state rather than the "no reader wired" fallback. Fixtures with
+		// a library override this with a track-backed reader.
+		WithInsightsReader(&uitestInsights{}),
 	}
 }
 
@@ -98,6 +106,7 @@ func newRichFixture() Model {
 			progress:   map[db.MixID]db.MixProgress{},
 		}),
 		WithCacheReader(&uitestCache{tracks: mixTracks}),
+		WithInsightsReader(&uitestInsights{tracks: tracks}),
 	)
 	return New(context.Background(), opts...)
 }
@@ -121,6 +130,7 @@ func newNarrowFixture() Model {
 		WithFavoriteWriter(favorites),
 		WithTagReader(tags),
 		WithTagWriter(tags),
+		WithInsightsReader(&uitestInsights{tracks: tracks}),
 	)
 	return New(context.Background(), opts...)
 }
@@ -130,9 +140,11 @@ func newNarrowFixture() Model {
 func newPlaybackFixture() Model {
 	entries := playbackQueueEntries()
 	current := entries[1]
+	tracks := playbackLibraryTracks()
 
 	opts := append(baseFixtureOptions(),
-		WithLibraryTracks(playbackLibraryTracks()),
+		WithLibraryTracks(tracks),
+		WithInsightsReader(&uitestInsights{tracks: tracks}),
 		WithQueueEntries(entries),
 		WithCurrentTrackHash(current.Hash),
 		WithCurrentIndex(1),
@@ -145,16 +157,55 @@ func newPlaybackFixture() Model {
 	return New(context.Background(), opts...)
 }
 
+// newHealthFixture builds a Model whose library is deliberately dirty, so the
+// Data Health panel has one of every finding to report and the genre merge has
+// something to fold. It is a fixture of its own rather than a dirtied `rich`
+// because `rich` is the baseline half the scenarios assert against.
+func newHealthFixture() Model {
+	tracks := healthLibraryTracks()
+	reader := &uitestInsights{tracks: tracks}
+	opts := append(baseFixtureOptions(),
+		WithLibraryTracks(tracks),
+		WithInsightsReader(reader),
+		WithMetadataWriter(&uitestMetadata{ins: reader}),
+	)
+	return New(context.Background(), opts...)
+}
+
 // --- deterministic fixture data ---------------------------------------------
 
+// richLibraryTracks is the shared library behind the rich fixture. Play counts
+// and last-played offsets are set so Insights has something to measure: three
+// heard tracks, three never played, and one heard so long ago it counts as
+// dormant. Offsets are relative to the run so the time windows stay meaningful.
+// The three unheard tracks are added in three different months so Discovery's
+// backlog breaks down into more than one row.
 func richLibraryTracks() []library.Track {
+	ago := func(days int) int64 { return uitestNow().AddDate(0, 0, -days).Unix() }
 	return []library.Track{
-		{Artist: "Alice", Album: "Alpha", Title: "Track A1", Genre: "Ambient", Duration: 183, Hash: "rh1", Path: "/music/alice/alpha/a1.flac", TrackNumber: 1},
-		{Artist: "Alice", Album: "Alpha", Title: "Track A2", Genre: "Ambient", Duration: 245, Hash: "rh2", Path: "/music/alice/alpha/a2.flac", TrackNumber: 2},
-		{Artist: "Alice", Album: "Beta", Title: "Track B1", Genre: "Ambient", Duration: 300, Hash: "rh3", Path: "/music/alice/beta/b1.flac", TrackNumber: 1},
-		{Artist: "Bob", Album: "Gamma", Title: "Track G1", Genre: "Techno", Duration: 120, Hash: "rh4", Path: "/music/bob/gamma/g1.flac", TrackNumber: 1},
-		{Artist: "Bob", Album: "Gamma", Title: "Track G2", Genre: "Techno", Duration: 60, Hash: "rh5", Path: "/music/bob/gamma/g2.flac", TrackNumber: 2},
-		{Artist: "Charlie", Album: "Delta", Title: "Track D1", Genre: "Jazz", Duration: 3661, Hash: "rh6", Path: "/music/charlie/delta/d1.flac", TrackNumber: 1},
+		{Artist: "Alice", Album: "Alpha", Title: "Track A1", Genre: "Ambient", Duration: 183, Hash: "rh1", Path: "/music/alice/alpha/a1.flac", TrackNumber: 1, CreatedAt: ago(300), PlayCount: 12, LastPlayedAt: ago(2)},
+		{Artist: "Alice", Album: "Alpha", Title: "Track A2", Genre: "Ambient", Duration: 245, Hash: "rh2", Path: "/music/alice/alpha/a2.flac", TrackNumber: 2, CreatedAt: ago(10)},
+		{Artist: "Alice", Album: "Beta", Title: "Track B1", Genre: "Ambient", Duration: 300, Hash: "rh3", Path: "/music/alice/beta/b1.flac", TrackNumber: 1, CreatedAt: ago(70)},
+		{Artist: "Bob", Album: "Gamma", Title: "Track G1", Genre: "Techno", Duration: 120, Hash: "rh4", Path: "/music/bob/gamma/g1.flac", TrackNumber: 1, CreatedAt: ago(300), PlayCount: 5, LastPlayedAt: ago(20)},
+		{Artist: "Bob", Album: "Gamma", Title: "Track G2", Genre: "Techno", Duration: 60, Hash: "rh5", Path: "/music/bob/gamma/g2.flac", TrackNumber: 2, CreatedAt: ago(200)},
+		{Artist: "Charlie", Album: "Delta", Title: "Track D1", Genre: "Jazz", Duration: 3661, Hash: "rh6", Path: "/music/charlie/delta/d1.flac", TrackNumber: 1, CreatedAt: ago(500), PlayCount: 2, LastPlayedAt: ago(400)},
+	}
+}
+
+// healthLibraryTracks carries one instance of every Data Health finding: three
+// spellings of Ambient, a placeholder genre, a blank title, artist, album and
+// genre, two durations that were never checked against the file, and one artist
+// spelled with and without its article. Play counts sit inside the Deep Cuts
+// band so the completion filter reads as inert too.
+func healthLibraryTracks() []library.Track {
+	ago := func(days int) int64 { return uitestNow().AddDate(0, 0, -days).Unix() }
+	return []library.Track{
+		{Artist: "Alice", Album: "Alpha", Title: "Drift", Genre: "Ambient", Duration: 210, Hash: "hh1", Path: "/music/alice/alpha/drift.flac", TrackNumber: 1, CreatedAt: ago(300), PlayCount: 4, LastPlayedAt: ago(3)},
+		{Artist: "The Alice", Album: "Alpha", Title: "Drift Reprise", Genre: "ambient", Duration: 190, Hash: "hh2", Path: "/music/alice/alpha/drift-reprise.flac", TrackNumber: 2, CreatedAt: ago(280), PlayCount: 3, LastPlayedAt: ago(6)},
+		{Artist: "Bob", Album: "Gamma", Title: "Pulse", Genre: "AMBIENT ", Duration: 240, Hash: "hh3", Path: "/music/bob/gamma/pulse.flac", TrackNumber: 1, CreatedAt: ago(120), PlayCount: 2, LastPlayedAt: ago(12)},
+		{Artist: "Bob", Album: "", Title: "Bounce", Genre: "Unknown", Duration: 0, Hash: "hh4", Path: "/music/bob/bounce.flac", TrackNumber: 2, CreatedAt: ago(40)},
+		{Artist: "", Album: "Delta", Title: "Orphan", Genre: "", Duration: 150, Hash: "hh5", Path: "/music/unsorted/orphan.flac", TrackNumber: 1, CreatedAt: ago(90), PlayCount: 2, LastPlayedAt: ago(9)},
+		{Artist: "Charlie", Album: "Delta", Title: "", Genre: "Jazz", Duration: 0, Hash: "hh6", Path: "/music/charlie/delta/06.flac", TrackNumber: 6, CreatedAt: ago(15)},
 	}
 }
 
@@ -214,41 +265,57 @@ func richTags() *uitestTags {
 	}
 }
 
+// narrowLibraryTracks stresses truncation and width arithmetic. It also carries
+// a listening history: the Insights view only reaches its degraded, chart-free
+// layout when there is something to degrade, so a fixture with no plays would
+// render the empty card at 60x15 and prove nothing.
 func narrowLibraryTracks() []library.Track {
+	ago := func(days int) int64 { return uitestNow().AddDate(0, 0, -days).Unix() }
 	return []library.Track{
 		{
-			Artist:   "The Exceptionally Verbose Orchestra of Very Long Names",
-			Album:    "An Album Title That Simply Refuses to End No Matter What",
-			Title:    "A Song With a Preposterously Long Title Designed to Overflow Any Reasonable Column Width",
-			Genre:    "Experimental / Post-Everything / Long-Form Ambient Drone",
-			Duration: 5000,
-			Hash:     "nh1",
-			Path:     "/very/deeply/nested/music/collection/that/keeps/going/and/going/artist/album/track-one.flac",
+			Artist:       narrowLongArtist,
+			Album:        "An Album Title That Simply Refuses to End No Matter What",
+			Title:        "A Song With a Preposterously Long Title Designed to Overflow Any Reasonable Column Width",
+			Genre:        "Experimental / Post-Everything / Long-Form Ambient Drone",
+			Duration:     5000,
+			Hash:         "nh1",
+			Path:         "/very/deeply/nested/music/collection/that/keeps/going/and/going/artist/album/track-one.flac",
+			CreatedAt:    ago(240),
+			PlayCount:    9,
+			LastPlayedAt: ago(1),
 		},
 		{
-			Artist:   "混雑した都市の夜を走る非常に長い名前のアーティスト",
-			Album:    "幅の広い文字で構成された長いアルバム名のテスト用データ",
-			Title:    "全角文字と絵文字🎵🎶を含む長いタイトルで表示幅の計算を検証する",
-			Genre:    "シティ・ポップ",
-			Duration: 321,
-			Hash:     "nh2",
-			Path:     "/音楽/日本語のディレクトリ名/とても長いパス/曲.flac",
+			Artist:       "混雑した都市の夜を走る非常に長い名前のアーティスト",
+			Album:        "幅の広い文字で構成された長いアルバム名のテスト用データ",
+			Title:        "全角文字と絵文字🎵🎶を含む長いタイトルで表示幅の計算を検証する",
+			Genre:        "シティ・ポップ",
+			Duration:     321,
+			Hash:         "nh2",
+			Path:         "/音楽/日本語のディレクトリ名/とても長いパス/曲.flac",
+			CreatedAt:    ago(150),
+			PlayCount:    4,
+			LastPlayedAt: ago(45),
 		},
 		{
-			Artist:   "Émilie Ñoño Straße Åström",
-			Album:    "Café Naïve — Diacritics Everywhere",
-			Title:    "Combining Marks and Accented Ünïcödé for Width Testing",
-			Genre:    "Chanson",
-			Duration: 200,
-			Hash:     "nh3",
-			Path:     "/musique/émilie/café-naïve/piste-3.flac",
+			Artist:    "Émilie Ñoño Straße Åström",
+			Album:     "Café Naïve — Diacritics Everywhere",
+			Title:     "Combining Marks and Accented Ünïcödé for Width Testing",
+			Genre:     "Chanson",
+			Duration:  200,
+			Hash:      "nh3",
+			Path:      "/musique/émilie/café-naïve/piste-3.flac",
+			CreatedAt: ago(30),
 		},
 	}
 }
 
+// narrowLongArtist is exactly 60 columns, the enforced minimum terminal width,
+// so every view that shows an artist name has to truncate it somewhere.
+const narrowLongArtist = "The Exceptionally Verbose Orchestra of Very Long Names & Co."
+
 func narrowQueueEntries() []QueueEntry {
 	return []QueueEntry{
-		{ID: 1, Hash: "nh1", Path: "/very/deeply/nested/track-one.flac", Display: "The Exceptionally Verbose Orchestra – A Song With a Preposterously Long Title", Artist: "The Exceptionally Verbose Orchestra of Very Long Names", Title: "A Song With a Preposterously Long Title", DurationMs: 5000000, Position: 100},
+		{ID: 1, Hash: "nh1", Path: "/very/deeply/nested/track-one.flac", Display: "The Exceptionally Verbose Orchestra – A Song With a Preposterously Long Title", Artist: narrowLongArtist, Title: "A Song With a Preposterously Long Title", DurationMs: 5000000, Position: 100},
 		{ID: 2, Hash: "nh2", Path: "/音楽/曲.flac", Display: "混雑した都市の夜を走る非常に長い名前のアーティスト – 全角文字と絵文字🎵🎶を含む長いタイトル", Artist: "混雑した都市の夜を走る非常に長い名前のアーティスト", Title: "全角文字と絵文字🎵🎶を含む長いタイトル", DurationMs: 321000, Position: 200},
 	}
 }

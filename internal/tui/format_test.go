@@ -23,6 +23,29 @@ func TestTrackDisplay(t *testing.T) {
 	}
 }
 
+func TestFormatListeningTime(t *testing.T) {
+	tests := []struct {
+		secs int
+		want string
+	}{
+		{0, "0s"},
+		{-5, "0s"},
+		{30, "30s"},
+		{60, "1m"},
+		{90, "1m"},
+		{3600, "1h"},
+		{3660, "1h 1m"},
+		{7200, "2h"},
+		{7260, "2h 1m"},
+	}
+	for _, tt := range tests {
+		got := formatListeningTime(tt.secs)
+		if got != tt.want {
+			t.Errorf("formatListeningTime(%d) = %q, want %q", tt.secs, got, tt.want)
+		}
+	}
+}
+
 func TestFormatCount(t *testing.T) {
 	tests := []struct {
 		input int

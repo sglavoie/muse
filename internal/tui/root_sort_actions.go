@@ -130,6 +130,16 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		m.statusBar.notifyInfo(sortNotification(m.mixes.trackView.sortState))
 		return m, nil, true
 
+	case viewInsights:
+		if !m.insights.atTracks() {
+			return m, nil, false
+		}
+		m.insights.trackView, _ = m.insights.trackView.cycleSortField(librarySortFields)
+		m.insights.trackView.cursor = 0
+		m.insights.trackView.scrollOffset = 0
+		m.statusBar.notifyInfo(sortNotification(m.insights.trackView.sortState))
+		return m, nil, true
+
 	default:
 		return m, nil, false
 	}
@@ -200,6 +210,18 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 		var ss SortState
 		var ok bool
 		if m.mixes.trackView, ss, ok = m.mixes.trackView.applySortDir(dir); !ok {
+			return m, nil, false
+		}
+		m.statusBar.notifyInfo(sortNotification(ss))
+		return m, nil, true
+
+	case viewInsights:
+		if !m.insights.atTracks() {
+			return m, nil, false
+		}
+		var ss SortState
+		var ok bool
+		if m.insights.trackView, ss, ok = m.insights.trackView.applySortDir(dir); !ok {
 			return m, nil, false
 		}
 		m.statusBar.notifyInfo(sortNotification(ss))

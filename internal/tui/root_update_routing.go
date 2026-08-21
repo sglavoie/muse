@@ -15,10 +15,6 @@ func (m Model) handleWindowSizeMsg(msg tea.WindowSizeMsg) Model {
 		m.debugViewport.SetWidth(msg.Width)
 		m.debugViewport.SetHeight(max(msg.Height-2, 0))
 	}
-	if m.statsVisible {
-		m.statsViewport.SetWidth(msg.Width)
-		m.statsViewport.SetHeight(max(msg.Height-3, 0))
-	}
 	return m
 }
 

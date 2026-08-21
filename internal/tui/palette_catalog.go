@@ -40,6 +40,7 @@ var paletteCategories = map[string]string{
 	"play":  "playback transport, volume and info",
 	"queue": "the play queue and its contents",
 	"sort":  "sort field and direction",
+	"stats": "listening insights and library coverage",
 	"tag":   "tags and tag filtering",
 	"trk":   "the focused track",
 	"view":  "the active view's own presentation",
@@ -106,6 +107,7 @@ var paletteCatalog = []paletteEntry{
 	{act: actionSwitchFavorites, id: "nav.favorites", name: "Go to Favorites", category: "nav", ctx: contextGlobal},
 	{act: actionSwitchTags, id: "nav.tags", name: "Go to Tags", category: "nav", ctx: contextGlobal},
 	{act: actionSwitchMixes, id: "nav.mixes", name: "Go to Mixes", category: "nav", ctx: contextGlobal},
+	{act: actionSwitchInsights, id: "nav.insights", name: "Go to Insights", category: "nav", ctx: contextGlobal},
 
 	// tab and shift+tab are also bound to ] and [; preferKey advertises the
 	// discoverable key instead of the bracket keysFor ranks first.
@@ -119,7 +121,6 @@ var paletteCatalog = []paletteEntry{
 	{act: actionSortDesc, id: "sort.descending", name: "Sort descending", category: "sort", ctx: contextGlobal},
 
 	{act: actionSettings, id: "settings.open", name: "Open settings", category: "app", ctx: contextGlobal},
-	{act: actionStats, id: "stats.show", name: "Show listening stats", category: "app", ctx: contextGlobal},
 	{act: actionUndo, id: "app.undo", name: "Undo last change", category: "app", ctx: contextGlobal},
 	{act: actionRescan, id: "library.rescan", name: "Rescan library", category: "lib", ctx: contextGlobal},
 	{act: actionFilterBar, id: "view.filter", name: "Filter current view", category: "view", ctx: contextGlobal},
@@ -177,6 +178,16 @@ var paletteCatalog = []paletteEntry{
 	{act: actionMixRadioSeed, id: "mix.radio.seed", name: "Start radio from mix", category: "mix", ctx: contextMixes, enabled: activeViewIs(viewMixes)},
 	{act: actionMixDismiss, id: "mix.dismiss", name: "Dismiss track from mix", category: "mix", ctx: contextMixes, enabled: activeViewIs(viewMixes)},
 	{act: actionMixUndismiss, id: "mix.undismiss", name: "Undismiss track", category: "mix", ctx: contextMixes, enabled: activeViewIs(viewMixes)},
+
+	{act: actionInsightsPanelNext, id: "insights.panel.next", name: "Next insights panel", category: "stats", ctx: contextInsights, enabled: activeViewIs(viewInsights)},
+	{act: actionInsightsPanelPrev, id: "insights.panel.previous", name: "Previous insights panel", category: "stats", ctx: contextInsights, enabled: activeViewIs(viewInsights)},
+	{act: actionInsightsWindowNext, id: "insights.window.next", name: "Next time window", category: "stats", ctx: contextInsights, enabled: activeViewIs(viewInsights)},
+	{act: actionInsightsWindowPrev, id: "insights.window.previous", name: "Previous time window", category: "stats", ctx: contextInsights, enabled: activeViewIs(viewInsights)},
+	{act: actionInsightsEnqueueAll, id: "insights.enqueue_all", name: "Enqueue tracks behind row", category: "stats", ctx: contextInsights, enabled: activeViewIs(viewInsights)},
+	{act: actionInsightsAntiRut, id: "insights.anti_rut", name: "Enqueue a rut-breaking set", category: "stats", ctx: contextInsights, enabled: activeViewIs(viewInsights)},
+	{act: actionInsightsRadioSeed, id: "insights.radio.seed", name: "Start radio from insight row", category: "stats", ctx: contextInsights, enabled: activeViewIs(viewInsights)},
+	{act: actionInsightsSavePlaylist, id: "insights.save_as_playlist", name: "Save insight tracks as playlist", category: "stats", ctx: contextInsights, enabled: activeViewIs(viewInsights)},
+	{act: actionInsightsMergeGenre, id: "insights.merge_genre", name: "Merge genre spellings", category: "stats", ctx: contextInsights, enabled: insightsHasGenreCollision},
 }
 
 // playbackHasTrack reports whether a track is loaded, gating catalog entries
@@ -205,6 +216,14 @@ func atPlaylistListLevel(m Model) bool {
 // views owns the screen. Listing the views the handler actually acts in — not
 // just the one whose context supplies the shortcut — keeps the dimmed row
 // honest for actions bound in several contexts, such as actionPlayNext.
+// insightsHasGenreCollision gates the genre merge entry: the action only ever
+// applies to a focused Data Health collision row, and offering it anywhere else
+// would put a palette row in front of the user that can only notify a refusal.
+func insightsHasGenreCollision(m Model) bool {
+	row := m.insights.focusedHealthRow()
+	return row != nil && row.kind == healthGenreCollision
+}
+
 func activeViewIs(views ...viewID) func(Model) bool {
 	return func(m Model) bool { return slices.Contains(views, m.activeView) }
 }
@@ -242,6 +261,10 @@ var paletteExcluded = map[action]string{
 	actionTagBack:       "depends on the drill level, which the palette hides",
 	actionMixOpen:       "acts on the cursor row, which the palette hides",
 	actionMixBack:       "depends on the drill level, which the palette hides",
+
+	actionInsightsOpen:       "acts on the cursor row, which the palette hides",
+	actionInsightsBack:       "depends on the drill level, which the palette hides",
+	actionInsightsJumpBrowse: "acts on the cursor row, which the palette hides",
 
 	// Selection primitives: only meaningful part-way through a bulk-action
 	// flow, which the palette interrupts.

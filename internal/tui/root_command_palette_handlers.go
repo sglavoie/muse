@@ -73,6 +73,7 @@ var viewSwitchActions = map[viewID]action{
 	viewFavorites: actionSwitchFavorites,
 	viewTags:      actionSwitchTags,
 	viewMixes:     actionSwitchMixes,
+	viewInsights:  actionSwitchInsights,
 }
 
 // handleCommandPaletteAction replays a palette action, switching to target

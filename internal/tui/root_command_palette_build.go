@@ -314,6 +314,10 @@ func (m Model) focusedTrackForPalette() (path, artist, title string, found bool)
 		if t := m.mixes.focusedTrack(); t != nil {
 			return t.Path, t.Artist, t.Title, true
 		}
+	case viewInsights:
+		if t := m.insights.focusedTrack(); t != nil {
+			return t.Path, t.Artist, t.Title, true
+		}
 	}
 
 	return "", "", "", false

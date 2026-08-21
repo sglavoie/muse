@@ -93,6 +93,11 @@ func (m Model) selectedTrackHashes() []string {
 			return hashMapToSlice(m.mixes.trackView.selectedHashes)
 		}
 		return nil
+	case viewInsights:
+		if m.insights.atTracks() {
+			return hashMapToSlice(m.insights.trackView.selectedHashes)
+		}
+		return nil
 	}
 	return nil
 }
@@ -169,6 +174,10 @@ func (m Model) focusedTrackHash() string {
 		}
 	case viewMixes:
 		if t := m.mixes.focusedTrack(); t != nil {
+			return t.Hash
+		}
+	case viewInsights:
+		if t := m.insights.focusedTrack(); t != nil {
 			return t.Hash
 		}
 	}

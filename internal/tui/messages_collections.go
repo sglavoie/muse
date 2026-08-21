@@ -63,14 +63,6 @@ type smartPlaylistCountsUpdatedMsg struct {
 	counts map[int64]int
 }
 
-// listeningStatsMsg is dispatched when the background DB read for listening
-// statistics completes.
-type listeningStatsMsg struct {
-	stats     db.ListeningStats
-	periodIdx int
-	err       error
-}
-
 // tagPickerDismissedMsg is dispatched when the tag picker overlay is closed
 // without making any changes.
 type tagPickerDismissedMsg struct{}

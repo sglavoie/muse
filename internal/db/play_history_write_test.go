@@ -102,8 +102,7 @@ func TestRecordPlay_ListenedSecs_FloorsAtZero(t *testing.T) {
 	}
 
 	h.recordPlay(t, "h1", time.Now().Unix(), 60, 120.0)
-	stats := h.readListeningStats(t, 0)
-	if stats.TotalListenedSecs != 60 {
-		t.Errorf("TotalListenedSecs = %d, want 60 (negative play floored to 0)", stats.TotalListenedSecs)
+	if got := h.totalListenedSecs(t, 0); got != 60 {
+		t.Errorf("total listened_secs = %d, want 60 (negative play floored to 0)", got)
 	}
 }

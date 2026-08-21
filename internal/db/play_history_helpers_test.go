@@ -32,23 +32,17 @@ func (h playHistoryHarness) recordPlay(t *testing.T, hash string, playedAt int64
 	}
 }
 
-func (h playHistoryHarness) readListeningStats(t *testing.T, since int64) db.ListeningStats {
+func (h playHistoryHarness) totalListenedSecs(t *testing.T, since int64) int {
 	t.Helper()
-	stats, err := h.d.ReadListeningStats(since, db.DefaultMixCountConfig())
+	plays, err := h.d.ReadInsightPlays(since)
 	if err != nil {
-		t.Fatalf("ReadListeningStats(%d): %v", since, err)
+		t.Fatalf("ReadInsightPlays(%d): %v", since, err)
 	}
-	return stats
-}
-
-func insertPlayHistoryRow(t *testing.T, d *db.DB, hash string, playedAt int64, listenedSecs int) {
-	t.Helper()
-	if _, err := d.Exec(
-		`INSERT INTO play_history (track_hash, played_at, listened_secs) VALUES (?, ?, ?)`,
-		hash, playedAt, listenedSecs,
-	); err != nil {
-		t.Fatalf("insert play_history for %q: %v", hash, err)
+	total := 0
+	for _, p := range plays {
+		total += p.ListenedSecs
 	}
+	return total
 }
 
 func setTrackLastPlayedAt(t *testing.T, d *db.DB, hash string, playedAt int64) {

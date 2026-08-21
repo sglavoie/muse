@@ -1,0 +1,48 @@
+{
+  "name": "insights-data-health",
+  "fixture": "health",
+  "size": "100x30",
+  "actions": [
+    {"key": "8"}, {"assert": {"view": "Insights"}}, {"wait": "500ms"},
+
+    {"key": "`"}, {"assert": {"contains": "Genre affinity hidden"}, "label": "rhythm-banner-blames-the-collision"},
+    {"key": "~"}, {"key": "~"}, {"assert": {"no_layout_issues": true}, "label": "data-health"},
+
+    {"assert": {"contains": "Genre collisions"}, "label": "collision-section"},
+    {"assert": {"contains": "AMBIENT / Ambient / ambient"}, "label": "collision-names-every-spelling"},
+    {"assert": {"contains": "Placeholder genres"}, "label": "placeholder-section"},
+    {"assert": {"contains": "Missing metadata"}, "label": "missing-metadata-section"},
+    {"assert": {"contains": "tracks affected"}, "label": "headline-counts-distinct-tracks"},
+
+    {"key": "G"}, {"assert": {"no_layout_issues": true}, "label": "bottom-of-the-findings"},
+    {"assert": {"contains": "Unverified durations"}, "label": "unverified-duration-section"},
+    {"assert": {"contains": "Alice / The Alice"}, "label": "artist-near-duplicates"},
+    {"assert": {"contains": "Deep Cuts"}, "label": "inert-completion-filter"},
+    {"assert": {"contains": "100% of candidates"}, "label": "section-headers-do-not-push-the-cursor-off"},
+    {"key": "g"}, {"assert": {"contains": "Genre collisions"}, "label": "back-to-the-top"},
+
+    {"key": "enter"}, {"wait": "300ms"},
+    {"assert": {"contains": "Drift Reprise"}, "label": "collision-drills-to-its-tracks"},
+    {"assert": {"not_contains": "Genre collisions"}, "label": "briefing-replaced-by-tracks"},
+    {"key": "esc"}, {"assert": {"contains": "Genre collisions"}, "label": "esc-returns-to-the-findings"},
+
+    {"key": "M"}, {"assert": {"overlay": "metadata_editor"}, "label": "M-bulk-edits-the-tracks-behind-the-finding"},
+    {"key": "esc"}, {"assert": {"contains": "Genre collisions"}, "label": "esc-closes-the-editor"},
+
+    {"key": "m"}, {"assert": {"contains": "y to confirm"}, "label": "m-asks-before-writing"},
+    {"key": "n"}, {"assert": {"status_contains": "Merge canceled"}, "label": "any-other-key-cancels"},
+    {"assert": {"contains": "Genre collisions"}, "label": "canceling-changes-nothing"},
+
+    {"key": "m"}, {"key": "y"}, {"wait": "600ms"},
+    {"assert": {"status_contains": "Merged"}, "label": "confirming-writes"},
+    {"assert": {"not_contains": "Genre collisions"}, "label": "the-finding-is-gone"},
+    {"assert": {"no_layout_issues": true}, "label": "panel-reflows-after-the-merge"},
+
+    {"key": "`"}, {"key": "`"}, {"assert": {"contains": "Hour of day"}, "label": "back-to-rhythm"},
+    {"assert": {"not_contains": "Genre affinity hidden"}, "label": "merge-cleared-the-banner"},
+
+    {"key": "~"}, {"key": "~"}, {"resize": "60x15"},
+    {"assert": {"no_layout_issues": true}, "label": "findings-fit-when-short"},
+    {"resize": "100x30"}, {"assert": {"no_layout_issues": true}, "label": "restored"}
+  ]
+}

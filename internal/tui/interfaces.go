@@ -2,6 +2,7 @@ package tui
 
 import (
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 )
@@ -277,10 +278,18 @@ type playHistoryReader interface {
 	ReadPlayHistory(limit int) ([]library.Track, error)
 }
 
-// listeningStatsReader queries aggregated listening statistics from the
-// play_history table. Root uses it to populate the stats overlay (Session 3).
-type listeningStatsReader interface {
-	ReadListeningStats(sinceUnix int64, mixCfg db.MixCountConfig) (db.ListeningStats, error)
+// insightsReader supplies the raw rows the Insights view aggregates. Every
+// method is a pure read; all the shaping happens in internal/insights.
+type insightsReader interface {
+	ReadInsightPlays(sinceUnix int64) ([]insights.PlayRow, error)
+	ReadInsightGenres(sinceUnix int64) ([]insights.GenreRow, error)
+	ReadInsightSessions(sinceUnix int64) ([]insights.SessionRow, error)
+	ReadInsightCoverage() ([]insights.CoverageRow, error)
+	ReadInsightTimeline() ([]insights.TimelineRow, error)
+	ReadInsightQuality(deepCutsMinPlays, deepCutsMaxPlays int, deepCutsMinCompletion float64) (insights.QualityCounts, error)
+	// ReadUnverifiedDurations backs the Data Health row for durations that were
+	// taken from tags and never checked against the file.
+	ReadUnverifiedDurations() ([]db.UnverifiedTrack, error)
 }
 
 // scanUpsertBatcher batches library track upserts during a rescan so that

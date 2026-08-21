@@ -277,7 +277,7 @@ func buildModel(
 		tui.WithPlayCountWriter(result.Writer),
 		tui.WithHistoryRecorder(result.Writer),
 		tui.WithHistoryReader(result.DB),
-		tui.WithStatsReader(result.DB),
+		tui.WithInsightsReader(result.DB),
 		tui.WithRecommendationReader(result.DB),
 		tui.WithDismissalReader(result.DB),
 		tui.WithDismissalWriter(result.Writer),

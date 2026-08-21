@@ -10,7 +10,8 @@
     {"key": "5"}, {"assert": {"view": "Favorites"}}, {"assert": {"no_layout_issues": true}, "label": "favorites"},
     {"key": "6"}, {"assert": {"view": "Tags"}}, {"assert": {"no_layout_issues": true}, "label": "tags"},
     {"key": "7"}, {"assert": {"view": "Mixes"}}, {"assert": {"no_layout_issues": true}, "label": "mixes"},
+    {"key": "8"}, {"assert": {"view": "Insights"}}, {"wait": "500ms"}, {"assert": {"no_layout_issues": true}, "label": "insights"},
     {"key": "]"}, {"assert": {"view": "Library"}, "label": "wraps-forward-to-library"},
-    {"key": "["}, {"assert": {"view": "Mixes"}, "label": "wraps-back-to-mixes"}
+    {"key": "["}, {"assert": {"view": "Insights"}, "label": "wraps-back-to-insights"}
   ]
 }

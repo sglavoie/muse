@@ -89,6 +89,7 @@ type Model struct {
 	favorites  FavoritesView
 	tagsView   TagsView
 	mixes      MixesView
+	insights   InsightsView
 
 	// scanCh is the channel returned by library.Scan. It is nil when no scan
 	// is in progress or after the scan has completed.
@@ -191,7 +192,7 @@ type Model struct {
 	playCountWriter     playCountIncrementer         // may be nil; set via WithPlayCountWriter
 	historyRecorder     playHistoryRecorder          // may be nil; set via WithHistoryRecorder
 	historyReader       playHistoryReader            // may be nil; set via WithHistoryReader
-	statsReader         listeningStatsReader         // may be nil; set via WithStatsReader
+	insightsReader      insightsReader               // may be nil; set via WithInsightsReader
 	recReader           recommendationReader         // may be nil; set via WithRecommendationReader
 	dismissalReader     dismissalReader              // may be nil; set via WithDismissalReader
 	dismissalWriter     dismissalWriter              // may be nil; set via WithDismissalWriter
@@ -211,11 +212,6 @@ type Model struct {
 	// show tracks that carry the given tag ID. Set via ctrl+t; cleared by
 	// pressing ctrl+t again or esc in the tag filter picker.
 	activeTagFilter *int64
-
-	statsVisible  bool           // true while the listening stats overlay is shown
-	statsViewport viewport.Model // scrollable viewport for the stats overlay
-	statsPrevView viewID         // the view that was active before stats was opened
-	statsPeriod   int            // index into statsPeriods slice
 
 	overlay         overlayInfo       // all overlay and modal state
 	metadataWriter  metadataUpdater   // may be nil; set via WithMetadataWriter

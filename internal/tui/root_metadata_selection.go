@@ -70,6 +70,11 @@ func (m Model) bulkSelectedHashes() []string {
 			return hashMapToSlice(m.mixes.trackView.selectedHashes)
 		}
 		return nil
+	case viewInsights:
+		if m.insights.atTracks() {
+			return hashMapToSlice(m.insights.trackView.selectedHashes)
+		}
+		return nil
 	default:
 		return nil
 	}

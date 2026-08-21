@@ -222,9 +222,9 @@ func WithHistoryReader(r playHistoryReader) Option {
 	return func(m *Model) { m.historyReader = r }
 }
 
-// WithStatsReader sets the reader for querying listening statistics.
-func WithStatsReader(r listeningStatsReader) Option {
-	return func(m *Model) { m.statsReader = r }
+// WithInsightsReader sets the reader that feeds the Insights view.
+func WithInsightsReader(r insightsReader) Option {
+	return func(m *Model) { m.insightsReader = r }
 }
 
 // WithRecommendationReader sets the reader for Auto-DJ behavioral signals

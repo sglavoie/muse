@@ -11,6 +11,7 @@ const (
 	viewFavorites viewID = 5
 	viewTags      viewID = 6
 	viewMixes     viewID = 7
+	viewInsights  viewID = 8
 
 	// Legacy sub-view IDs — not in viewOrder; kept until all dispatch sites migrate to viewBrowse.
 	viewArtists viewID = 10
@@ -19,7 +20,7 @@ const (
 )
 
 // viewOrder defines the tab-cycling order for primary views.
-var viewOrder = []viewID{viewLibrary, viewPlaylists, viewQueue, viewBrowse, viewFavorites, viewTags, viewMixes}
+var viewOrder = []viewID{viewLibrary, viewPlaylists, viewQueue, viewBrowse, viewFavorites, viewTags, viewMixes, viewInsights}
 
 // viewName returns the display name for a viewID.
 func viewName(id viewID) string {
@@ -44,6 +45,8 @@ func viewName(id viewID) string {
 		return "Tags"
 	case viewMixes:
 		return "Mixes"
+	case viewInsights:
+		return "Insights"
 	default:
 		return ""
 	}
@@ -99,6 +102,8 @@ func viewToContext(id viewID) bindingContext {
 		return contextTags
 	case viewMixes:
 		return contextMixes
+	case viewInsights:
+		return contextInsights
 	default:
 		return contextGlobal
 	}

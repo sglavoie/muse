@@ -139,6 +139,10 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 		if t := m.mixes.focusedTrack(); t != nil {
 			return *t, true
 		}
+	case viewInsights:
+		if t := m.insights.focusedTrack(); t != nil {
+			return *t, true
+		}
 	}
 	return library.Track{}, false
 }

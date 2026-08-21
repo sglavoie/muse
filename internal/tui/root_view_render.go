@@ -138,8 +138,6 @@ func (m Model) renderOverlayBody() (string, bool) {
 		return filterBar + m.helpViewport.View(), true
 	case m.debugVisible:
 		return m.debugViewport.View(), true
-	case m.statsVisible:
-		return m.renderStatsOverlay(), true
 	case m.overlay.settings != nil:
 		return m.overlay.settings.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.nowPlaying != nil:
@@ -198,6 +196,8 @@ func (m Model) renderPrimaryViewBody(display styles.Styles, nowPlayingIcon strin
 		return m.tagsView.render(display, m.favoriteHashes, m.playback.currentHash, nowPlayingIcon)
 	case viewMixes:
 		return m.mixes.render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
+	case viewInsights:
+		return m.insights.render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
 	default:
 		return ""
 	}
