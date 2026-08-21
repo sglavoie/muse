@@ -791,7 +791,7 @@ func TestInsightsOpenAndBack(t *testing.T) {
 		t.Fatal("expected the Coverage body to have rows")
 	}
 
-	m = m.handleInsightsOpen()
+	m, _ = m.handleInsightsOpen()
 
 	if m.insights.level != 1 {
 		t.Fatalf("expected level 1 after open, got %d", m.insights.level)
@@ -853,7 +853,7 @@ func TestInsightsSessionRowOpensSessionsThenTracks(t *testing.T) {
 
 	// A Sessions row opens the sessions themselves, because a session is a thing
 	// in its own right rather than a bag of tracks.
-	m = m.handleInsightsOpen()
+	m, _ = m.handleInsightsOpen()
 	if m.insights.level != insightsLevelSessions {
 		t.Fatalf("want the session level after open, got %d", m.insights.level)
 	}
@@ -865,7 +865,7 @@ func TestInsightsSessionRowOpensSessionsThenTracks(t *testing.T) {
 		t.Fatalf("want s-mixed focused, got %+v", got)
 	}
 
-	m = m.handleInsightsOpen()
+	m, _ = m.handleInsightsOpen()
 	if m.insights.level != insightsLevelSessionTracks {
 		t.Fatalf("want the session's tracks after a second open, got %d", m.insights.level)
 	}
@@ -924,7 +924,7 @@ func TestInsightsSessionTracksKeepRepeatsInPlayOrder(t *testing.T) {
 func TestInsightsEnqueueReplaysASessionInOrder(t *testing.T) {
 	be := &stubBatchEnqueuer{}
 	m := newSessionsModel(t, WithBatchEnqueuer(be))
-	m = m.handleInsightsOpen()
+	m, _ = m.handleInsightsOpen()
 
 	_, cmd := m.handleInsightsEnqueueAll()
 	if cmd == nil {
@@ -949,7 +949,7 @@ func TestInsightsEnqueueReplaysASessionInOrder(t *testing.T) {
 
 func TestInsightsJumpBrowseFromASession(t *testing.T) {
 	m := newSessionsModel(t)
-	m = m.handleInsightsOpen()
+	m, _ = m.handleInsightsOpen()
 
 	m = m.handleInsightsJumpBrowse()
 
@@ -1262,7 +1262,7 @@ func TestInsightsSavePlaylist(t *testing.T) {
 	pw := &stubPlaylistCreator{nextID: 7}
 	pa := &stubPlaylistAdder{}
 	m := newInsightsModel(t, WithPlaylistWriter(pw), WithPlaylistAdder(pa))
-	m = m.handleInsightsOpen()
+	m, _ = m.handleInsightsOpen()
 	if m.insights.level != 1 {
 		t.Fatal("precondition: expected a drill before saving")
 	}
@@ -1414,6 +1414,132 @@ func TestInsightsVisualSelectionWorksAtTrackLevel(t *testing.T) {
 	}
 	if m.insights.level != insightsLevelBriefing {
 		t.Errorf("expected the briefing after back, got level %d", m.insights.level)
+	}
+}
+
+// pressInsightsKey routes key through the real Update dispatch and keeps the
+// command, so a hint whose key is bound to nothing fails here.
+func pressInsightsKey(t *testing.T, m Model, key tea.KeyPressMsg) (Model, tea.Cmd) {
+	t.Helper()
+	next, cmd := m.Update(key)
+	updated, ok := next.(Model)
+	if !ok {
+		t.Fatalf("Update returned %T", next)
+	}
+	return updated, cmd
+}
+
+// TestInsightsSelectionFooterMatchesEnterAction makes a selection with a visual
+// range, renders the footer the running program would show, and then presses
+// each key it advertises. Both track levels are covered because only one of them
+// is reached by drilling twice, and a footer naming an action its key does not
+// perform is the bug this guards against.
+func TestInsightsSelectionFooterMatchesEnterAction(t *testing.T) {
+	cases := []struct {
+		name         string
+		open         func(t *testing.T, opts ...Option) Model
+		wantSelected []string
+		wantActedOn  []string
+	}{
+		{
+			name: "an ordinary drill",
+			open: func(t *testing.T, opts ...Option) Model {
+				t.Helper()
+				m := newInsightsModel(t, opts...)
+				tracks := m.insightsDrillTracks(insightsRow{drill: drillUnheardAll})
+				if len(tracks) != 3 {
+					t.Fatalf("precondition: want 3 never-played tracks, got %d", len(tracks))
+				}
+				m.insights.openDrill("Never played", tracks)
+				return m
+			},
+			wantSelected: []string{"h2", "h3"},
+			wantActedOn:  []string{"h2", "h3"},
+		},
+		{
+			name: "a session replay",
+			open: func(t *testing.T, opts ...Option) Model {
+				t.Helper()
+				m := newSessionsModel(t, opts...)
+				m, _ = m.handleInsightsOpen()
+				m, _ = m.handleInsightsOpen()
+				if m.insights.level != insightsLevelSessionTracks {
+					t.Fatalf("precondition: want the session track level, got %d", m.insights.level)
+				}
+				return m
+			},
+			// The session plays h1 twice and a selection is held by hash, so
+			// selecting its first row selects both of the rows showing h1.
+			wantSelected: []string{"h1", "h6"},
+			wantActedOn:  []string{"h1", "h6", "h1"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			be := &stubBatchEnqueuer{}
+			m := tc.open(t, WithBatchEnqueuer(be))
+			m.showFooterHints = true
+			m.termWidth = 200
+
+			m = doVisual(m)
+			m = doNav(m, actionCursorDown)
+			m = doVisual(m)
+			assertSelectedHashesExact(t, m.insights.trackView.selectedHashes, tc.wantSelected...)
+
+			hint := ansi.Strip(m.renderFooterHint())
+			for _, want := range []string{"enter enqueue", "a bulk action", "t tag", "X clear"} {
+				if !strings.Contains(hint, want) {
+					t.Fatalf("selection footer missing %q: %q", want, hint)
+				}
+			}
+
+			picked, _ := pressInsightsKey(t, m, tea.KeyPressMsg{Code: 'a', Text: "a"})
+			if picked.overlay.destPicker == nil {
+				t.Error("a advertises a bulk action but opened no destination picker")
+			}
+			if got := hashesOf(picked.overlay.destPickerTracks); !slices.Equal(got, tc.wantActedOn) {
+				t.Errorf("the picker staged %v, want %v", got, tc.wantActedOn)
+			}
+
+			tagged, _ := pressInsightsKey(t, m, tea.KeyPressMsg{Code: 't', Text: "t"})
+			if tagged.overlay.tagPicker == nil {
+				t.Error("t advertises tagging but opened no tag picker")
+			}
+			if got, _ := tagged.tagPickerHashes(); !slices.Equal(got, tc.wantSelected) {
+				t.Errorf("the tag picker took %v, want the selection %v", got, tc.wantSelected)
+			}
+
+			cleared, _ := pressInsightsKey(t, m, tea.KeyPressMsg{Code: 'X', Text: "X"})
+			if len(cleared.insights.trackView.selectedHashes) != 0 {
+				t.Errorf("X advertises a clear but left %d rows selected", len(cleared.insights.trackView.selectedHashes))
+			}
+
+			// enter enqueues the same set and then drops the selection, so the
+			// footer goes back to advertising the ordinary actions.
+			m, cmd := pressInsightsKey(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
+			if cmd == nil {
+				t.Fatal("enter advertises an enqueue but issued no command")
+			}
+			if _, ok := cmd().(BatchEnqueuedMsg); !ok {
+				t.Fatal("enter did not enqueue")
+			}
+			if len(be.appendTracksCalls) != 1 {
+				t.Fatalf("want one AppendTracks call, got %d", len(be.appendTracksCalls))
+			}
+			if got := hashesOf(be.appendTracksCalls[0]); !slices.Equal(got, tc.wantActedOn) {
+				t.Errorf("enter enqueued %v, want %v", got, tc.wantActedOn)
+			}
+			if got := be.appendTracksSources[0]; got != m.insights.drillLabel {
+				t.Errorf("source should name the drill: want %q, got %q", m.insights.drillLabel, got)
+			}
+			if n := len(m.insights.trackView.selectedHashes); n != 0 {
+				t.Errorf("enter left %d rows selected", n)
+			}
+			if got := ansi.Strip(m.renderFooterHint()); strings.Contains(got, "enter enqueue") {
+				t.Errorf("the selection footer outlived the selection: %q", got)
+			}
+		})
 	}
 }
 

@@ -340,7 +340,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	case actionInsightsWindowPrev:
 		return m.handleInsightsWindowCycle(-1)
 	case actionInsightsOpen:
-		return m.handleInsightsOpen(), nil
+		return m.handleInsightsOpen()
 	case actionInsightsBack:
 		return m.handleInsightsBack(), nil
 	case actionInsightsEnqueueAll:

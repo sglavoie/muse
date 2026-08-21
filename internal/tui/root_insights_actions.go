@@ -16,40 +16,80 @@ const insightsAntiRutCount = 25
 
 // handleInsightsOpen drills one level in: a briefing row opens its tracks, a
 // Sessions row opens the sessions themselves, and a session opens its tracks.
-func (m Model) handleInsightsOpen() Model {
+// A track list has nothing deeper to open, so there enter enqueues the
+// selection the way it does in Library — which is what the selection-mode
+// footer advertises.
+func (m Model) handleInsightsOpen() (Model, tea.Cmd) {
 	if m.activeView != viewInsights {
-		return m
+		return m, nil
 	}
 	switch m.insights.level {
 	case insightsLevelBriefing:
 		row := m.insights.focusedRow()
 		if row == nil || row.drill == drillNone {
-			return m
+			return m, nil
 		}
 		if row.drill.opensSessions() {
 			sessions := insightsSessionsMatching(m.insights.sessions, row.drill, row.key)
 			if len(sessions) == 0 {
 				m.statusBar.notify("No sessions behind this row")
-				return m
+				return m, nil
 			}
 			m.insights.openSessionList(row.label, sessions)
-			return m
+			return m, nil
 		}
 		tracks := m.insightsDrillTracks(*row)
 		if len(tracks) == 0 {
 			m.statusBar.notify("Nothing behind this row")
-			return m
+			return m, nil
 		}
 		m.insights.openDrill(row.label, tracks)
 	case insightsLevelSessions:
 		tracks, label := m.insightsSessionActionTracks()
 		if len(tracks) == 0 {
 			m.statusBar.notify("Nothing behind this session")
-			return m
+			return m, nil
 		}
 		m.insights.openDrill(label, tracks)
+	case insightsLevelTracks, insightsLevelSessionTracks:
+		return m.insightsEnqueueSelection()
 	}
-	return m
+	return m, nil
+}
+
+// insightsEnqueueSelection appends the bulk-selected tracks — or the focused
+// one when nothing is selected — to the queue, then drops the selection the way
+// Library's enter does. A refused enqueue keeps the selection so the key can be
+// pressed again once a queue is available.
+func (m Model) insightsEnqueueSelection() (Model, tea.Cmd) {
+	m, cmd := m.insightsEnqueue(m.insightsBulkTracks(), m.insights.drillLabel)
+	if cmd == nil {
+		return m, nil
+	}
+	m = exitVisualMode(m)
+	m.insights.trackView.selectedHashes = nil
+	return m, cmd
+}
+
+// insightsBulkTracks returns what the selection-aware actions operate on at a
+// drilled-in track level: the bulk-selected rows in display order, or the
+// focused row when nothing is selected. A session's repeats are kept, since its
+// track list is a replay rather than a set.
+func (m Model) insightsBulkTracks() []library.Track {
+	if !m.insights.atTracks() {
+		return nil
+	}
+	order := m.insights.trackView.baseTracks()
+	if m.insights.trackView.sortedTracks != nil {
+		order = m.insights.trackView.sortedTracks
+	}
+	if len(m.insights.trackView.selectedHashes) > 0 {
+		return collectSelectedTracks(order, m.insights.trackView.selectedHashes)
+	}
+	if t := m.insights.focusedTrack(); t != nil {
+		return []library.Track{*t}
+	}
+	return nil
 }
 
 // handleInsightsBack steps out one level.

@@ -59,6 +59,8 @@ func (m Model) bulkActionTracks() []library.Track {
 		return m.bulkFavoriteTracks()
 	case viewTags:
 		return m.bulkTagTracks()
+	case viewInsights:
+		return m.insightsBulkTracks()
 	default:
 		return nil
 	}

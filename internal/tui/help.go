@@ -301,7 +301,7 @@ func helpSections() []helpSection {
 			entries: []helpEntry{
 				{"` / ~", "Next / previous panel"},
 				{"w / W", "Next / previous window, or bucket size on Momentum and Discovery"},
-				{"enter", "Drill into the focused row (Sessions opens the sessions first)"},
+				{"enter", "Drill into the focused row (Sessions first) / enqueue focused or selected tracks"},
 				{"esc", "Back one level"},
 				{"e", "Enqueue focused track"},
 				{"E", "Enqueue everything behind the row, or replay a session in order"},
