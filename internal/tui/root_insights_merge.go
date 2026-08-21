@@ -23,10 +23,23 @@ type insightsMergePlan struct {
 	hashes    []string
 }
 
-// insightsMergedMsg reports the merge's database writes. The reload is issued
-// on this message rather than batched with the writes: a batched read would
-// race them and could re-show the banner the merge just cleared.
-type insightsMergedMsg struct{ err error }
+// insightsMergeWrite is one track's genre rewrite, carried from the plan
+// through the database write to the memory update only a persisted row earns.
+type insightsMergeWrite struct {
+	hash, title, artist, album, genre string
+	original                          [5]string // title, artist, album, genre, duration — for undo
+}
+
+// insightsMergedMsg reports which of the merge's writes actually landed. The
+// reload is issued on this message rather than batched with the writes: a
+// batched read would race them and could re-show the banner the merge just
+// cleared.
+type insightsMergedMsg struct {
+	canonical string
+	applied   []insightsMergeWrite
+	failed    int
+	err       error
+}
 
 // handleInsightsMergeGenre arms the confirmation bar for the focused genre
 // collision. Nothing is written until the user confirms.
@@ -67,8 +80,9 @@ func (m Model) handleInsightsMergeKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd,
 	return m.confirmInsightsGenreMerge()
 }
 
-// confirmInsightsGenreMerge rewrites every affected track's genre string in
-// memory and returns the command that persists it.
+// confirmInsightsGenreMerge plans every affected track's genre rewrite and
+// returns the command that persists it. Nothing changes in memory here: the
+// database goes first, and only rows it accepts are applied on the reply.
 func (m Model) confirmInsightsGenreMerge() (Model, tea.Cmd, bool) {
 	plan := *m.insights.pendingMerge
 	m.insights.pendingMerge = nil
@@ -79,10 +93,7 @@ func (m Model) confirmInsightsGenreMerge() (Model, tea.Cmd, bool) {
 		fold[insightsGenreKey(v)] = struct{}{}
 	}
 
-	type update struct{ hash, title, artist, album, genre string }
-	var updates []update
-	originals := make(map[string][5]string, len(plan.hashes))
-
+	var writes []insightsMergeWrite
 	for _, hash := range plan.hashes {
 		t, ok := m.library.index.FindByHash(hash)
 		if !ok {
@@ -92,54 +103,74 @@ func (m Model) confirmInsightsGenreMerge() (Model, tea.Cmd, bool) {
 		if merged == t.Genre {
 			continue
 		}
-		originals[hash] = [5]string{t.Title, t.Artist, t.Album, t.Genre, formatDurationForEditor(t.Duration)}
-		m.library.index.UpdateMetadata(hash, t.Title, t.Artist, t.Album, merged)
-		updates = append(updates, update{hash, t.Title, t.Artist, t.Album, merged})
+		writes = append(writes, insightsMergeWrite{
+			hash: hash, title: t.Title, artist: t.Artist, album: t.Album, genre: merged,
+			original: [5]string{t.Title, t.Artist, t.Album, t.Genre, formatDurationForEditor(t.Duration)},
+		})
 	}
 
-	if len(updates) == 0 {
+	if len(writes) == 0 {
 		m.statusBar.notify("Genres already agree")
 		return m, nil, true
 	}
 
-	m = m.syncRecentlyAddedFromLibrary()
-	m.setUndoSlot(undoBulkEditMetadataAction{originals: originals}, nil)
-	m = m.refreshDerivedViews()
-
-	if m.userEditedOverlay != nil {
-		for _, u := range updates {
-			m.userEditedOverlay[u.hash] = db.UserEditedRow{
-				Hash: u.hash, Title: u.title, Artist: u.artist, Album: u.album, Genre: u.genre,
-			}
-		}
+	mw := m.metadataWriter
+	if mw == nil {
+		m.statusBar.notify("Genre merge needs a database connection")
+		return m, nil, true
 	}
 
-	m.statusBar.notify(fmt.Sprintf("Merged %d %s into %s",
-		len(updates), pluralize(len(updates), "track", "tracks"), plan.canonical))
-
-	mw := m.metadataWriter
+	canonical := plan.canonical
 	return m, func() tea.Msg {
-		var firstErr error
-		for _, u := range updates {
-			if mw == nil {
-				break
-			}
-			if err := mw.UpdateTrackMetadata(u.hash, u.title, u.artist, u.album, u.genre); err != nil {
-				slog.Warn("insights: genre merge DB write failed", "hash", u.hash, "err", err)
-				if firstErr == nil {
-					firstErr = err
+		msg := insightsMergedMsg{canonical: canonical}
+		for _, w := range writes {
+			if err := mw.UpdateTrackMetadata(w.hash, w.title, w.artist, w.album, w.genre); err != nil {
+				slog.Warn("insights: genre merge DB write failed", "hash", w.hash, "err", err)
+				msg.failed++
+				if msg.err == nil {
+					msg.err = err
 				}
+				continue
 			}
+			msg.applied = append(msg.applied, w)
 		}
-		return insightsMergedMsg{err: firstErr}
+		return msg
 	}, true
 }
 
-// handleInsightsMergedMsg reloads the panels off the merged data, so the
-// collision row and the Rhythm banner it caused both go away together.
+// handleInsightsMergedMsg installs the rows the database accepted and reloads
+// the panels off them, so the collision row and the Rhythm banner it caused go
+// away together for the set that persisted. A row whose write failed keeps its
+// old spelling in memory, which is what keeps the collision reported and makes
+// `m` a real retry rather than a no-op that claims the genres already agree.
 func (m Model) handleInsightsMergedMsg(msg insightsMergedMsg) (Model, tea.Cmd) {
-	if msg.err != nil {
-		m.statusBar.notify(fmt.Sprintf("Genre merge: %s", msg.err))
+	if len(msg.applied) > 0 {
+		originals := make(map[string][5]string, len(msg.applied))
+		for _, w := range msg.applied {
+			m.library.index.UpdateMetadata(w.hash, w.title, w.artist, w.album, w.genre)
+			originals[w.hash] = w.original
+			if m.userEditedOverlay != nil {
+				m.userEditedOverlay[w.hash] = db.UserEditedRow{
+					Hash: w.hash, Title: w.title, Artist: w.artist, Album: w.album, Genre: w.genre,
+				}
+			}
+		}
+		m = m.syncRecentlyAddedFromLibrary()
+		m.setUndoSlot(undoBulkEditMetadataAction{originals: originals}, nil)
+		m = m.refreshDerivedViews()
+	}
+
+	done := len(msg.applied)
+	switch {
+	case msg.err != nil && done == 0:
+		m.statusBar.notify(fmt.Sprintf("Genre merge failed, nothing changed: %s", msg.err))
+	case msg.err != nil:
+		total := done + msg.failed
+		m.statusBar.notify(fmt.Sprintf("Merged %d of %d %s into %s · m retries the rest",
+			done, total, pluralize(total, "track", "tracks"), msg.canonical))
+	default:
+		m.statusBar.notify(fmt.Sprintf("Merged %d %s into %s",
+			done, pluralize(done, "track", "tracks"), msg.canonical))
 	}
 	return m, m.insightsLoadCmd()
 }

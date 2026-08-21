@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
@@ -38,6 +39,56 @@ func (m Model) loadInsights(t *testing.T) Model {
 		t.Fatalf("expected insightsLoadedMsg, got %T", cmd())
 	}
 	return m.handleInsightsLoadedMsg(msg)
+}
+
+// runMergeWrite confirms an armed merge and runs the write command, returning
+// the reply it produced.
+func runMergeWrite(t *testing.T, m Model) (Model, insightsMergedMsg) {
+	t.Helper()
+	m, cmd, handled := m.handleInsightsMergeKeyPress(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	if !handled {
+		t.Fatal("y should be consumed while a merge is pending")
+	}
+	if cmd == nil {
+		t.Fatal("confirming should return the write cmd")
+	}
+	msg, ok := cmd().(insightsMergedMsg)
+	if !ok {
+		t.Fatalf("merge cmd returned %T, want insightsMergedMsg", cmd())
+	}
+	return m, msg
+}
+
+// applyMergeReply routes the write reply the way Update does and runs the
+// reload it asks for. This is where a merge reaches memory, so a test that
+// skips it sees only what the database accepted.
+func (m Model) applyMergeReply(t *testing.T, msg insightsMergedMsg) Model {
+	t.Helper()
+	m, cmd := m.handleInsightsMergedMsg(msg)
+	if cmd == nil {
+		t.Fatal("a merge reply should reload the panels")
+	}
+	loaded, ok := cmd().(insightsLoadedMsg)
+	if !ok {
+		t.Fatalf("merge reload returned %T, want insightsLoadedMsg", cmd())
+	}
+	return m.handleInsightsLoadedMsg(loaded)
+}
+
+// flakyMetadataWriter refuses every write past the first succeed, so a merge
+// can be interrupted after at least one track really landed in the database.
+type flakyMetadataWriter struct {
+	inner   metadataUpdater
+	succeed int
+	calls   int
+}
+
+func (w *flakyMetadataWriter) UpdateTrackMetadata(hash, title, artist, album, genre string) error {
+	w.calls++
+	if w.calls > w.succeed {
+		return errors.New("database is locked")
+	}
+	return w.inner.UpdateTrackMetadata(hash, title, artist, album, genre)
 }
 
 func healthRowIndex(t *testing.T, m Model, kind healthRowKind) int {
@@ -127,21 +178,14 @@ func TestMergeGenreConfirmClearsCollisionAndBanner(t *testing.T) {
 		t.Errorf("confirmation bar = %q, want it to name the canonical spelling", m.confirmationBar)
 	}
 
-	m, cmd, handled := m.handleInsightsMergeKeyPress(tea.KeyPressMsg{Code: 'y', Text: "y"})
-	if !handled {
-		t.Fatal("y should be consumed while a merge is pending")
-	}
-	if cmd == nil {
-		t.Fatal("confirming should return the write cmd")
-	}
+	m, msg := runMergeWrite(t, m)
 	if m.confirmationBar != "" || m.insights.pendingMerge != nil {
 		t.Error("confirming should clear the bar and the plan")
 	}
-
-	if msg, ok := cmd().(insightsMergedMsg); !ok || msg.err != nil {
-		t.Fatalf("merge cmd returned %v", cmd())
+	if msg.err != nil || msg.failed != 0 {
+		t.Fatalf("merge reported err %v and %d failed writes", msg.err, msg.failed)
 	}
-	m = m.loadInsights(t)
+	m = m.applyMergeReply(t, msg)
 
 	if m.insights.snap.Rhythm.GenresUnclean {
 		t.Error("banner should be gone once every spelling agrees")
@@ -149,6 +193,93 @@ func TestMergeGenreConfirmClearsCollisionAndBanner(t *testing.T) {
 	for _, row := range m.insights.health {
 		if row.kind == healthGenreCollision {
 			t.Errorf("collision row %q survived the merge", row.label)
+		}
+	}
+}
+
+// A merge that dies halfway must not leave memory claiming a spelling the
+// database refused: the lost rows keep their old genre, the collision stays
+// reported, and pressing m again writes exactly what the first attempt lost
+// instead of reporting that the genres already agree.
+func TestMergeGenreWriteFailureKeepsMemoryAndDatabaseRetryable(t *testing.T) {
+	m := newHealthModel(t)
+	m.insights.cursor = healthRowIndex(t, m, healthGenreCollision)
+	row := m.insights.health[m.insights.cursor]
+
+	before := make(map[string]string, len(row.hashes))
+	for _, hash := range row.hashes {
+		tr, ok := m.library.index.FindByHash(hash)
+		if !ok {
+			t.Fatalf("collision track %q is not in the library index", hash)
+		}
+		before[hash] = tr.Genre
+	}
+
+	flaky := &flakyMetadataWriter{inner: m.metadataWriter, succeed: 1}
+	m.metadataWriter = flaky
+
+	m = m.handleInsightsMergeGenre()
+	m, msg := runMergeWrite(t, m)
+
+	if msg.err == nil {
+		t.Fatal("the injected write failure should be reported")
+	}
+	if len(msg.applied) != 1 || msg.failed != 1 {
+		t.Fatalf("reply applied %d rows and lost %d, want 1 and 1", len(msg.applied), msg.failed)
+	}
+	persisted := msg.applied[0].hash
+
+	m = m.applyMergeReply(t, msg)
+
+	for hash, was := range before {
+		tr, _ := m.library.index.FindByHash(hash)
+		if hash == persisted {
+			if tr.Genre != row.canonical {
+				t.Errorf("track %q persisted but reads %q in memory, want %q", hash, tr.Genre, row.canonical)
+			}
+			continue
+		}
+		if tr.Genre != was {
+			t.Errorf("track %q was never written but memory moved from %q to %q", hash, was, tr.Genre)
+		}
+	}
+
+	if !m.insights.snap.Rhythm.GenresUnclean {
+		t.Error("the banner should survive a merge the database refused")
+	}
+	action, ok := m.undo.slot.action.(undoBulkEditMetadataAction)
+	if !ok {
+		t.Fatalf("undo slot holds %T, want a bulk metadata edit", m.undo.slot.action)
+	}
+	if len(action.originals) != 1 {
+		t.Errorf("undo covers %d tracks, want only the 1 that persisted", len(action.originals))
+	}
+	if _, covered := action.originals[persisted]; !covered {
+		t.Errorf("undo does not cover %q, the row that actually persisted", persisted)
+	}
+
+	// The retry: the collision is still there to focus, and confirming it
+	// writes the row the first attempt lost.
+	m.metadataWriter = flaky.inner
+	m.insights.cursor = healthRowIndex(t, m, healthGenreCollision)
+	m = m.handleInsightsMergeGenre()
+	m, retry := runMergeWrite(t, m)
+
+	if retry.err != nil || len(retry.applied) != 1 || retry.failed != 0 {
+		t.Fatalf("retry applied %d rows and lost %d (err %v), want the 1 row the first merge lost",
+			len(retry.applied), retry.failed, retry.err)
+	}
+	if retry.applied[0].hash == persisted {
+		t.Errorf("retry rewrote %q, which had already persisted", persisted)
+	}
+
+	m = m.applyMergeReply(t, retry)
+	if m.insights.snap.Rhythm.GenresUnclean {
+		t.Error("banner should clear once the retry lands the last row")
+	}
+	for _, r := range m.insights.health {
+		if r.kind == healthGenreCollision {
+			t.Errorf("collision row %q survived the retry", r.label)
 		}
 	}
 }
