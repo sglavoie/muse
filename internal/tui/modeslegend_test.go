@@ -1,0 +1,127 @@
+package tui
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/sglavoie/muse/internal/tui/text"
+)
+
+// legendRowFor returns the rendered line holding the legend row for name,
+// along with the column at which name starts on that line.
+func legendRowFor(t *testing.T, out, name string) (string, int) {
+	t.Helper()
+	for _, line := range strings.Split(out, "\n") {
+		if i := strings.Index(line, name); i >= 0 {
+			return line, i
+		}
+	}
+	t.Fatalf("no legend row for %q in output:\n%s", name, out)
+	return "", 0
+}
+
+func TestModesLegendOverlay_RendersEveryIndicator(t *testing.T) {
+	cases := []struct {
+		name                  string
+		termWidth, termHeight int
+		overlay               ModesLegendOverlay
+		wantGlyphs            [4]string
+		wantStates            [4]string
+	}{
+		{
+			name:       "wide terminal",
+			termWidth:  100,
+			termHeight: 30,
+			overlay:    ModesLegendOverlay{repeat: RepeatAll, shuffle: true, stopAfter: false, radio: true},
+			wantGlyphs: [4]string{"R", "S", "N", "D"},
+			wantStates: [4]string{"all", "on", "off", "on"},
+		},
+		{
+			name:       "narrow terminal",
+			termWidth:  60,
+			termHeight: 30,
+			overlay:    ModesLegendOverlay{repeat: RepeatOne, shuffle: false, stopAfter: true, radio: false},
+			wantGlyphs: [4]string{"1", "S", "N", "D"},
+			wantStates: [4]string{"one", "off", "on", "off"},
+		},
+	}
+
+	wantNames := [4]string{"Repeat", "Shuffle", "Stop after current", "Radio (Auto-DJ)"}
+	wantKeys := [4]string{"r", "z", "ctrl+n", "A"}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			out := ansi.Strip(tc.overlay.Render(tc.termWidth, tc.termHeight, newTestStyles()))
+
+			for i, name := range wantNames {
+				line, nameAt := legendRowFor(t, out, name)
+
+				// name, live state and key share one padded value zone.
+				want := text.Pad(name, modesLegendNameWidth) + text.Pad(tc.wantStates[i], modesLegendStateWidth) + wantKeys[i]
+				if !strings.Contains(line, want) {
+					t.Errorf("row %d: line %q does not contain %q", i, line, want)
+				}
+
+				// The glyph is the row label, left of the name.
+				label := line[:nameAt]
+				if !strings.Contains(label, tc.wantGlyphs[i]) {
+					t.Errorf("row %d: glyph %q missing from label zone %q", i, tc.wantGlyphs[i], label)
+				}
+			}
+
+			if !strings.Contains(out, "Playback Modes") {
+				t.Errorf("expected title in output:\n%s", out)
+			}
+			if !strings.Contains(out, "; or esc to dismiss") {
+				t.Errorf("expected dismiss hint in output:\n%s", out)
+			}
+
+			for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
+				if w := ansi.StringWidth(line); w > tc.termWidth {
+					t.Errorf("line %q is %d columns wide, exceeds terminal width %d", line, w, tc.termWidth)
+				}
+			}
+		})
+	}
+}
+
+// TestModesLegendOverlay_StylesGlyphsWithSemanticPalette pins that active
+// glyphs use the unblended styles.Mode* family. The status bar's
+// background-blended variants would emit a background SGR the overlay must not
+// carry, since it sits on the normal background.
+func TestModesLegendOverlay_StylesGlyphsWithSemanticPalette(t *testing.T) {
+	st := newTestStyles()
+	o := ModesLegendOverlay{repeat: RepeatAll, shuffle: true, stopAfter: true, radio: true}
+	out := o.Render(100, 30, st)
+
+	want := map[string]string{
+		"repeat":    st.ModeRepeat.Render("R"),
+		"shuffle":   st.ModeShuffle.Render("S"),
+		"stopAfter": st.ModeStopAfter.Render("N"),
+		"radio":     st.ModeRadio.Render("D"),
+	}
+	for mode, glyph := range want {
+		if !strings.Contains(out, glyph) {
+			t.Errorf("%s: expected semantic-palette glyph %q in output:\n%q", mode, glyph, out)
+		}
+	}
+}
+
+// TestModesLegendOverlay_DimsInactiveGlyphs mirrors the status-bar cluster's
+// encoding: an off mode reads as tertiary text, not its accent color.
+func TestModesLegendOverlay_DimsInactiveGlyphs(t *testing.T) {
+	st := newTestStyles()
+	o := ModesLegendOverlay{repeat: RepeatOff, shuffle: false, stopAfter: false, radio: false}
+	out := o.Render(100, 30, st)
+
+	for _, glyph := range []string{"R", "S", "N", "D"} {
+		if !strings.Contains(out, st.TextTertiary.Render(glyph)) {
+			t.Errorf("expected dimmed glyph %q for an inactive mode", glyph)
+		}
+	}
+	if strings.Contains(out, st.ModeShuffle.Render("S")) {
+		t.Error("inactive shuffle glyph must not use the active accent style")
+	}
+}
