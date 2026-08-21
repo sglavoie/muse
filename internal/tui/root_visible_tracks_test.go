@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/db"
@@ -24,18 +25,6 @@ func visibleHashes(t *testing.T, m Model) []string {
 	return hashes
 }
 
-func equalStrings(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 // The library case is the one that carries both divergences from
 // bulkActionTracks: the fuzzy filter is honored, and an empty selection means
 // "everything visible" rather than the focused row.
@@ -55,7 +44,7 @@ func TestVisibleTracksLibraryHonorsFilterWithoutFocusedFallback(t *testing.T) {
 
 	m.library.filter = filter.State{Text: "q"}
 	m.library.filteredMatches = []library.Match{{TrackIndex: 2}, {TrackIndex: 0}}
-	if got := visibleHashes(t, m); !equalStrings(got, []string{"h3", "h1"}) {
+	if got := visibleHashes(t, m); !slices.Equal(got, []string{"h3", "h1"}) {
 		t.Fatalf("filter must be honored in display order, got %v", got)
 	}
 }
@@ -76,7 +65,7 @@ func TestVisibleTracksLibraryPrefersSelection(t *testing.T) {
 			selectedHashes: map[string]struct{}{"h3": {}, "h1": {}},
 		},
 	}
-	if got := visibleHashes(t, m); !equalStrings(got, []string{"h1", "h3"}) {
+	if got := visibleHashes(t, m); !slices.Equal(got, []string{"h1", "h3"}) {
 		t.Fatalf("selection must be returned in display order, got %v", got)
 	}
 }
@@ -92,7 +81,7 @@ func TestVisibleTracksQueueUsesFilteredEntries(t *testing.T) {
 			filter: filter.State{Text: "bet"},
 		},
 	}
-	if got := visibleHashes(t, m); !equalStrings(got, []string{"h2"}) {
+	if got := visibleHashes(t, m); !slices.Equal(got, []string{"h2"}) {
 		t.Fatalf("queue filter must be honored, got %v", got)
 	}
 }
@@ -105,7 +94,7 @@ func TestVisibleTracksQueuePrefersSelection(t *testing.T) {
 			{Hash: "h2", Selected: true},
 		}},
 	}
-	if got := visibleHashes(t, m); !equalStrings(got, []string{"h2"}) {
+	if got := visibleHashes(t, m); !slices.Equal(got, []string{"h2"}) {
 		t.Fatalf("queue selection must win, got %v", got)
 	}
 }
@@ -122,7 +111,7 @@ func TestVisibleTracksPlaylistsFollowsSortOrder(t *testing.T) {
 			sortedTrackOrder: []int{1, 0},
 		},
 	}
-	if got := visibleHashes(t, m); !equalStrings(got, []string{"h2", "h1"}) {
+	if got := visibleHashes(t, m); !slices.Equal(got, []string{"h2", "h1"}) {
 		t.Fatalf("playlist sort order must be honored, got %v", got)
 	}
 }
@@ -139,7 +128,7 @@ func TestVisibleTracksTagsPrefersSelection(t *testing.T) {
 			selectedHashes: map[string]struct{}{"h1": {}},
 		},
 	}
-	if got := visibleHashes(t, m); !equalStrings(got, []string{"h1"}) {
+	if got := visibleHashes(t, m); !slices.Equal(got, []string{"h1"}) {
 		t.Fatalf("tag selection must win, got %v", got)
 	}
 }

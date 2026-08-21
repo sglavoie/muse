@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/library"
@@ -134,8 +137,14 @@ func TestMetadataExportWritesTheFileAndNotifies(t *testing.T) {
 
 	notified := next.(Model).handleMetadataExportedMsg(msg)
 	got := notified.statusBar.topNotification().msg
-	if !strings.Contains(got, "Exported 2 tracks") || !strings.Contains(got, path) {
-		t.Fatalf("notification must name the count and the absolute path, got %q", got)
+	if !strings.Contains(got, "Exported 2 tracks") || !strings.Contains(got, "y copies path") {
+		t.Fatalf("notification must name the count and offer the copy key, got %q", got)
+	}
+	if strings.Contains(got, path) {
+		t.Fatalf("the absolute path belongs on the clipboard, not in the notification: %q", got)
+	}
+	if notified.exportCopyHint.path != path {
+		t.Fatalf("y must be armed with %q, got %q", path, notified.exportCopyHint.path)
 	}
 }
 
@@ -197,6 +206,77 @@ func TestMetadataExportPaletteEntriesAreHandWrittenAndUnsafe(t *testing.T) {
 		if c.ID == "metadata.export.reveal" && !c.isEnabled() {
 			t.Error("reveal must become enabled once an export exists")
 		}
+	}
+}
+
+// TestExportPathCopyKeyArmsAndExpires covers the whole life of the y hint: it
+// copies while the notification that advertises it is readable, and goes back
+// to being an ordinary key once that notification is gone.
+func TestExportPathCopyKeyArmsAndExpires(t *testing.T) {
+	const path = "/tmp/metadata-export.tsv"
+	var m Model
+	// A cancelled context makes the copy fail at exec.Start, which proves the
+	// path was handed to the clipboard command without this test writing to the
+	// developer's real clipboard.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	m.appCtx = ctx
+	m = m.handleMetadataExportedMsg(metadataExportedMsg{path: path, label: "Library", count: 2})
+
+	armed, cmd, ok := m.handleExportPathCopyKeyPress(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	if !ok || cmd == nil {
+		t.Fatalf("y must copy while the export notification is up (consumed=%v)", ok)
+	}
+	if res, isResult := cmd().(clipboardResultMsg); !isResult || res.text != path {
+		t.Fatalf("expected the export path on the clipboard, got %#v", cmd())
+	}
+	if armed.exportCopyHint.armed() {
+		t.Fatal("one copy must disarm the key so a later y reaches the view")
+	}
+
+	expired := m
+	expired.exportCopyHint.expiresAt = time.Now().Add(-time.Second)
+	if _, _, ok := expired.handleExportPathCopyKeyPress(tea.KeyPressMsg{Code: 'y', Text: "y"}); ok {
+		t.Fatal("y must reach the view once the notification has expired")
+	}
+}
+
+// TestExportPathCopyKeyLeavesEveryOtherKeyAlone is the non-modal guarantee: the
+// hint rides along with normal browsing, so arming it must not make the app
+// swallow the keys the user is actually navigating with.
+func TestExportPathCopyKeyLeavesEveryOtherKeyAlone(t *testing.T) {
+	var m Model
+	m.appCtx = context.Background()
+	m = m.handleMetadataExportedMsg(metadataExportedMsg{path: "/tmp/e.tsv", label: "Library", count: 1})
+	if !m.exportCopyHint.armed() {
+		t.Fatal("precondition: the hint should be armed")
+	}
+	for _, key := range []tea.KeyPressMsg{
+		{Code: 'j', Text: "j"},
+		{Code: 'Y', Text: "Y"},
+		{Code: tea.KeyEscape},
+	} {
+		if _, _, ok := m.handleExportPathCopyKeyPress(key); ok {
+			t.Fatalf("%q must fall through to the view", key.String())
+		}
+	}
+}
+
+// TestExportPathCopyKeyYieldsToOverlaysOwningY guards the routing precedence:
+// the track info overlay binds y to copy its own track path, and an export
+// notification that happens to still be up must not shadow it.
+func TestExportPathCopyKeyYieldsToOverlaysOwningY(t *testing.T) {
+	var m Model
+	m.appCtx = context.Background()
+	m = m.handleMetadataExportedMsg(metadataExportedMsg{path: "/tmp/e.tsv", label: "Library", count: 1})
+	m.overlay.trackInfo = &TrackInfoOverlay{path: "/music/a.mp3"}
+
+	next, _, ok := m.routeKeyPress(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	if !ok {
+		t.Fatal("the overlay must consume y")
+	}
+	if !next.exportCopyHint.armed() {
+		t.Fatal("the overlay's y must not spend the export hint")
 	}
 }
 

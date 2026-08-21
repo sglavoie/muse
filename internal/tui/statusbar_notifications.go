@@ -119,25 +119,28 @@ func (s StatusBar) topNotification() transientNotification {
 	return top
 }
 
-// notify enqueues a notifNormal notification using the configured transient
-// duration. Falls back to the default 5s constant when transientDur is zero
-// (e.g. in tests that do not set config).
-func (s *StatusBar) notify(msg string) {
-	dur := s.transientDur
-	if dur == 0 {
-		dur = transientDuration
+// notifyDuration is how long notify and notifyInfo keep a message on screen.
+// Falls back to the default 5s constant when transientDur is zero (e.g. in
+// tests that do not set config). Callers that arm a key for exactly as long as
+// their notification is visible read the window from here so the two cannot
+// drift apart.
+func (s StatusBar) notifyDuration() time.Duration {
+	if s.transientDur == 0 {
+		return transientDuration
 	}
-	s.pushMsg(msg, dur, notifNormal)
+	return s.transientDur
+}
+
+// notify enqueues a notifNormal notification using the configured transient
+// duration.
+func (s *StatusBar) notify(msg string) {
+	s.pushMsg(msg, s.notifyDuration(), notifNormal)
 }
 
 // notifyInfo enqueues a notifInfo notification (scan, sort, volume, mode
 // toggles). These yield to notifNormal when both are queued.
 func (s *StatusBar) notifyInfo(msg string) {
-	dur := s.transientDur
-	if dur == 0 {
-		dur = transientDuration
-	}
-	s.pushMsg(msg, dur, notifInfo)
+	s.pushMsg(msg, s.notifyDuration(), notifInfo)
 }
 
 // handleScanProgress sets the transient notification to a formatted progress

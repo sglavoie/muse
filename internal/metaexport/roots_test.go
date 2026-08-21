@@ -1,6 +1,7 @@
 package metaexport
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -91,6 +92,27 @@ func TestRootsLocate(t *testing.T) {
 				t.Fatalf("rejoin: filepath.Join(%q, %q) = %q, want %q", r.Dirs()[id-1], rel, got, tt.abs)
 			}
 		})
+	}
+}
+
+// A configured filesystem root ("/" on unix) or volume root ("C:\" on Windows)
+// is already separator-terminated, so the descendant check must not append a
+// second separator.
+func TestRootsLocateFilesystemRoot(t *testing.T) {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	fsRoot := filepath.VolumeName(wd) + string(filepath.Separator)
+	abs := filepath.Join(fsRoot, "Music", "a.mp3")
+
+	r := NewRoots([]string{fsRoot})
+	id, rel := r.Locate(abs)
+	if id != 1 {
+		t.Fatalf("Locate(%q) with root %q = (%d, %q), want id 1", abs, fsRoot, id, rel)
+	}
+	if got := filepath.Join(r.Dirs()[0], rel); got != abs {
+		t.Fatalf("rejoin: filepath.Join(%q, %q) = %q, want %q", r.Dirs()[0], rel, got, abs)
 	}
 }
 

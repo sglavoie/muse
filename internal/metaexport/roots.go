@@ -45,13 +45,20 @@ func (r Roots) Dirs() []string { return r.dirs }
 // own tracks, and the boundary is checked explicitly: a bare prefix test would
 // let /Music swallow /Music2.
 func (r Roots) Locate(abs string) (int, string) {
+	sep := string(filepath.Separator)
 	for _, i := range r.order {
 		root := r.dirs[i]
 		if abs == root {
 			return i + 1, ""
 		}
-		if strings.HasPrefix(abs, root+string(filepath.Separator)) {
-			return i + 1, abs[len(root)+1:]
+		// A filesystem or volume root ("/", "C:\") already ends in a
+		// separator; appending a second one would match nothing.
+		prefix := root
+		if !strings.HasSuffix(prefix, sep) {
+			prefix += sep
+		}
+		if strings.HasPrefix(abs, prefix) {
+			return i + 1, abs[len(prefix):]
 		}
 	}
 	return 0, abs

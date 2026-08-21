@@ -73,13 +73,25 @@ func (m Model) handleMetadataExportRequest() (tea.Model, tea.Cmd) {
 	return m, writeMetadataExportCmd(metadataExportPath(m.dataDir), doc, label, skipped)
 }
 
+// exportPathCopy arms y to copy the export destination. The path is long enough
+// to crowd the counts out of the status bar, so the key is offered in its place,
+// armed for exactly as long as the notification advertising it stays readable.
+type exportPathCopy struct {
+	path      string
+	expiresAt time.Time
+}
+
+func (e exportPathCopy) armed() bool {
+	return e.path != "" && time.Now().Before(e.expiresAt)
+}
+
 func (m Model) handleMetadataExportedMsg(msg metadataExportedMsg) Model {
 	if msg.err != nil {
 		m.statusBar.notify("Export failed: " + msg.err.Error())
 		return m
 	}
-	text := fmt.Sprintf("Exported %d %s from %s → %s",
-		msg.count, pluralize(msg.count, "track", "tracks"), msg.label, msg.path)
+	text := fmt.Sprintf("Exported %d %s from %s",
+		msg.count, pluralize(msg.count, "track", "tracks"), msg.label)
 	if msg.skipped > 0 {
 		text += fmt.Sprintf(" (%d %s skipped: no content hash)",
 			msg.skipped, pluralize(msg.skipped, "row", "rows"))
@@ -87,8 +99,26 @@ func (m Model) handleMetadataExportedMsg(msg metadataExportedMsg) Model {
 	if msg.count > metadataExportWarnRows {
 		text += " — too large for one chat paste; split it"
 	}
+	text += " · y copies path"
+	m.exportCopyHint = exportPathCopy{
+		path:      msg.path,
+		expiresAt: time.Now().Add(m.statusBar.notifyDuration()),
+	}
 	m.statusBar.notify(text)
 	return m
+}
+
+// handleExportPathCopyKeyPress claims y, and only y, while the export
+// notification is up. This hint rides along with normal browsing rather than
+// taking the keyboard the way a confirmation bar does, so every other key must
+// fall through to the view underneath.
+func (m Model) handleExportPathCopyKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
+	if !m.exportCopyHint.armed() || msg.String() != "y" {
+		return m, nil, false
+	}
+	path := m.exportCopyHint.path
+	m.exportCopyHint = exportPathCopy{}
+	return m, copyToClipboard(m.appCtx, path), true
 }
 
 // metadataExportDocument turns visible rows into an export document, returning

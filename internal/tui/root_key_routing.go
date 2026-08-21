@@ -31,6 +31,9 @@ var orderedKeyPressHandlers = []keyPressHandler{
 	Model.handleTagRenameInputKeyPress,
 	Model.handleScanCancelKeyPress,
 	Model.handleInsightsMergeKeyPress,
+	// Last: every overlay above owns y for its own confirmation, and this hint
+	// must never take the key away from one of them.
+	Model.handleExportPathCopyKeyPress,
 }
 
 // routeKeyPress applies root key interception in a single explicit order.
