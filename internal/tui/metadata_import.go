@@ -196,9 +196,13 @@ func (m Model) applyMetadataImport(o MetadataImportOverlay) (Model, tea.Cmd, boo
 			continue
 		}
 
+		// Read before the overlay is rewritten below, so undo can put back the
+		// exact prior row — or remove a key this import introduced.
+		prevOverlay, hadOverlay := m.userEditedOverlay[ch.Hash]
 		originals[ch.Hash] = importOriginal{
 			title: t.Title, artist: t.Artist, album: t.Album, genre: t.Genre,
 			track: t.TrackNumber, disc: t.DiscNumber,
+			overlay: prevOverlay, hadOverlay: hadOverlay,
 		}
 		m.library.index.UpdateMetadata(ch.Hash, title, artist, album, genre)
 		m.library.index.UpdateTrackPosition(ch.Hash, track, disc)

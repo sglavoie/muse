@@ -364,6 +364,62 @@ func TestMetadataImportUndoRestoresAllSixFields(t *testing.T) {
 	}
 }
 
+// TestMetadataImportUndoRestoresTheUserEditedOverlayForTheNextScan covers the
+// window between an undo and the next full overlay reload: undo used to leave
+// the imported row in m.userEditedOverlay, so the first watcher or scan
+// observation reapplied it through normalizeScannedTrack.
+func TestMetadataImportUndoRestoresTheUserEditedOverlayForTheNextScan(t *testing.T) {
+	dir := t.TempDir()
+	m := importModel(t, dir)
+	// h1 has never been user-edited; h2 has, so undo must delete one key and
+	// restore the other.
+	m.userEditedOverlay["h2"] = db.UserEditedRow{
+		Hash: "h2", Title: "Two", Artist: "Bach", Album: "Relax", Genre: "Classical", TrackNumber: 2,
+	}
+	writeImportFile(t, dir, importHeader+
+		"h1\t1\ta/1.mp3\tPink Floyd\tSheep\tRelax\tClassical\t1\t0\n"+
+		"h2\t1\ta/2.mp3\tJ.S. Bach\tTwo\tRelax\tClassical\t2\t0\n")
+
+	m = m.handleMetadataImportParsedMsg(parseImport(t, m))
+	next, cmd, _ := m.handleMetadataImportKeyPress(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	m = next
+	if cmd == nil {
+		t.Fatal("expected a write command")
+	}
+	cmd()
+
+	m, _ = m.undo.slot.action.perform(m)
+
+	if row, ok := m.userEditedOverlay["h1"]; ok {
+		t.Fatalf("undo must delete the overlay entry the import created, got %+v", row)
+	}
+	if row := m.userEditedOverlay["h2"]; row.Artist != "Bach" || row.TrackNumber != 2 {
+		t.Fatalf("undo must restore the pre-import overlay row, got %+v", row)
+	}
+
+	// The scanner reports each file's own tags: h1 must land as scanned, and h2
+	// must land as its restored overlay says — never as the import wrote it.
+	m, _ = m.handleScanBatchMsg(library.ScanBatchMsg{Tracks: []library.Track{
+		{Hash: "h1", Path: "/music/a/1.mp3", Title: "01. Sheep", Album: "Relax", Genre: "Classical"},
+		{Hash: "h2", Path: "/music/a/2.mp3", Artist: "Johann Sebastian Bach", Title: "Two", Album: "Relax", Genre: "Classical", TrackNumber: 2},
+	}})
+
+	got, ok := m.library.index.FindByHash("h1")
+	if !ok {
+		t.Fatal("h1 vanished from the index")
+	}
+	if got.Artist != "" || got.Title != "01. Sheep" || got.TrackNumber != 0 {
+		t.Fatalf("a scan after undo resurrected the imported values: %+v", got)
+	}
+	got, ok = m.library.index.FindByHash("h2")
+	if !ok {
+		t.Fatal("h2 vanished from the index")
+	}
+	if got.Artist != "Bach" {
+		t.Fatalf("the pre-import overlay must still govern the scan, got artist %q", got.Artist)
+	}
+}
+
 func TestMetadataImportOverlayRendersCountsBadgesAndCanonicalGenre(t *testing.T) {
 	plan := metaexport.Plan{
 		Changes: []metaexport.Change{{

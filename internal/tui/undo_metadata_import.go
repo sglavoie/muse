@@ -5,14 +5,23 @@ import (
 	"log/slog"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/db"
 )
 
 // importOriginal is one track's pre-import state. It is a struct rather than
 // the bulk editor's [5]string tuple because an import also rewrites track and
 // disc, which no other metadata undo touches.
+//
+// overlay/hadOverlay carry the user-edited overlay row the import replaced.
+// Without them an undo would leave the imported row in m.userEditedOverlay and
+// the next watcher or scan observation would reapply it through
+// normalizeScannedTrack.
 type importOriginal struct {
 	title, artist, album, genre string
 	track, disc                 int
+	overlay                     db.UserEditedRow
+	hadOverlay                  bool
 }
 
 // undoImportMetadataAction reverts a TSV metadata import (undoKindImportMetadata).
@@ -33,6 +42,13 @@ func (a undoImportMetadataAction) perform(m Model) (Model, tea.Cmd) {
 	for hash, orig := range a.originals {
 		m.library.index.UpdateMetadata(hash, orig.title, orig.artist, orig.album, orig.genre)
 		m.library.index.UpdateTrackPosition(hash, orig.track, orig.disc)
+		if m.userEditedOverlay != nil {
+			if orig.hadOverlay {
+				m.userEditedOverlay[hash] = orig.overlay
+			} else {
+				delete(m.userEditedOverlay, hash)
+			}
+		}
 		display := trackDisplay(orig.artist, orig.title, "")
 		for i := range m.queue.entries {
 			if m.queue.entries[i].Hash == hash {
