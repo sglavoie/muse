@@ -165,6 +165,89 @@ func TestDequeueCurrentRecordsListenOnce(t *testing.T) {
 	}
 }
 
+// TestPlayQueueIndexRecordsPreviousListenBeforeReset covers the manual
+// queue-selection transition: handlePlayQueueIndexMsg optimistically resets the
+// progress fields, so the listen has to be ended above that reset or its
+// measurement is zeroed before the TrackChangedMsg that follows can consume it.
+func TestPlayQueueIndexRecordsPreviousListenBeforeReset(t *testing.T) {
+	hr := &stubHistoryRecorder{}
+	m := armedModel(t, hr, WithPlayer(&stubPlayer{}))
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Alpha", Title: "One"},
+		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Beta", Title: "Two"},
+	}
+
+	next, cmd := m.Update(PlayQueueIndexMsg{Index: 1})
+	m = next.(Model)
+	drainCmd(cmd)
+
+	if got := listensByHash(hr.calls)["h1"]; got != 1 {
+		t.Fatalf("expected 1 RecordListen for h1 after selecting another queue row, got %d (%+v)", got, hr.calls)
+	}
+	rec := hr.calls[0]
+	if rec.ListenedSecs != 200 {
+		t.Errorf("ListenedSecs = %d, want the pre-reset 200", rec.ListenedSecs)
+	}
+	if rec.DurationSecs != 300 {
+		t.Errorf("DurationSecs = %v, want the pre-reset 300", rec.DurationSecs)
+	}
+	if !rec.Counted {
+		t.Error("a 200s listen of a 300s track must be counted")
+	}
+
+	// The player confirms the jump; the previous listen must not be recorded
+	// again, and the incoming track must not be recorded at all.
+	next, cmd = m.Update(TrackChangedMsg{Hash: "h2", Index: 1, Artist: "Beta", Title: "Two"})
+	m = next.(Model)
+	drainCmd(cmd)
+
+	counts := listensByHash(hr.calls)
+	if counts["h1"] != 1 {
+		t.Fatalf("expected the confirming TrackChangedMsg to record nothing more for h1, got %d (%+v)", counts["h1"], hr.calls)
+	}
+	if counts["h2"] != 0 {
+		t.Fatalf("expected no RecordListen for the incoming track, got %d (%+v)", counts["h2"], hr.calls)
+	}
+	if !m.playback.pending.armed || m.playback.pending.hash != "h2" {
+		t.Fatalf("expected the incoming track to be armed, got %+v", m.playback.pending)
+	}
+}
+
+// TestPlayQueueIndexFailureKeepsPreviousListenOnce verifies that a
+// PlayFromIndex that fails after the optimistic update neither erases the
+// already-flushed previous listen nor produces a second copy of it.
+func TestPlayQueueIndexFailureKeepsPreviousListenOnce(t *testing.T) {
+	hr := &stubHistoryRecorder{}
+	m := armedModel(t, hr, WithPlayer(&stubPlayer{playFromIndexErr: errStubPlay}))
+	m.queue.entries = []QueueEntry{
+		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Alpha", Title: "One"},
+		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Beta", Title: "Two"},
+	}
+
+	next, cmd := m.Update(PlayQueueIndexMsg{Index: 1})
+	m = next.(Model)
+	if cmd == nil {
+		t.Fatal("PlayQueueIndexMsg must return an async Cmd")
+	}
+	// The batch carries both the flush and the PlayFromIndex call; drive it and
+	// route the failure result back through Update the way the runtime would.
+	drainCmd(cmd)
+	next, cmd = m.Update(playFromIndexResultMsg{Index: 1, Path: "/b.flac", Hash: "h2", Err: errStubPlay})
+	m = next.(Model)
+	drainCmd(cmd)
+
+	if m.playback.state != PlaybackIdle {
+		t.Fatalf("precondition failed: the failure must reset playback, got %v", m.playback.state)
+	}
+	counts := listensByHash(hr.calls)
+	if counts["h1"] != 1 {
+		t.Fatalf("expected h1 recorded exactly once across the failed jump, got %d (%+v)", counts["h1"], hr.calls)
+	}
+	if counts["h2"] != 0 {
+		t.Fatalf("expected no RecordListen for the track that never started, got %d (%+v)", counts["h2"], hr.calls)
+	}
+}
+
 // TestPreviewDoesNotRecordListen verifies that auditioning a track leaves the
 // main listen untouched: previewing is not listening.
 func TestPreviewDoesNotRecordListen(t *testing.T) {

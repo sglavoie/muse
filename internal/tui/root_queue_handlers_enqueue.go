@@ -162,6 +162,16 @@ func (m Model) handlePlayQueueIndexMsg(msg PlayQueueIndexMsg) (Model, tea.Cmd) {
 		return m, nil
 	}
 	entry := m.queue.entries[msg.Index]
+	// Selecting a row is a listen boundary, and it is one the later
+	// TrackChangedMsg cannot capture: the optimistic reset below zeroes
+	// listenedSecs and peakTotalSecs, so by the time that message arrives the
+	// still-armed listen would measure 0s and be dropped at the capture floor.
+	// End it here, above the reset, so it is queued with its real measurement.
+	// The reset must stay after this call for the same reason. endCurrentListen
+	// disarms, so the TrackChangedMsg that follows a successful PlayFromIndex is
+	// a no-op on the previous track and the failure handler's resetPlaybackState
+	// has nothing left to erase.
+	m = m.endCurrentListen()
 	// Optimistic UI update: show the track as playing immediately. The
 	// player will either confirm via TrackChangedMsg or we'll reset
 	// state from the result handler if PlayFromIndex fails.
