@@ -101,7 +101,10 @@ func (m Model) handleMetadataImportParsedMsg(msg metadataImportParsedMsg) Model 
 		m.statusBar.notify("Import failed: " + msg.err.Error())
 		return m
 	}
-	if len(msg.plan.Changes) == 0 {
+	// A parse that dropped rows or warned is not a clean no-op: an intended edit
+	// may be missing from the change list precisely because it was skipped, so
+	// the overlay opens read-only rather than reporting nothing happened.
+	if len(msg.plan.Changes) == 0 && msg.skipped == 0 && len(msg.plan.Warnings) == 0 {
 		text := "No changes to import"
 		if n := len(msg.plan.Unknown); n > 0 {
 			text += fmt.Sprintf(" · %d unknown %s", n, pluralize(n, "hash", "hashes"))
@@ -131,6 +134,9 @@ func (m Model) handleMetadataImportKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd
 		m.statusBar.notify("Import canceled")
 		return m, nil, true
 	case "enter", "y":
+		if !o.canApply() {
+			return m, nil, true
+		}
 		return m.applyMetadataImport(o)
 	case "w":
 		o.showWarnings = !o.showWarnings

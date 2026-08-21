@@ -76,6 +76,13 @@ func metadataImportRowBudget(termHeight int) int {
 	return max(termHeight-chromeLines, 1)
 }
 
+// canApply reports whether there is anything to write. The overlay still opens
+// with an empty change list when the parse skipped rows or warned, but then it
+// is a report: nothing may be applied from it.
+func (o MetadataImportOverlay) canApply() bool {
+	return len(o.plan.Changes) > 0
+}
+
 func (o MetadataImportOverlay) rowCount() int {
 	if o.showWarnings {
 		return len(o.plan.Warnings)
@@ -163,6 +170,11 @@ func (o MetadataImportOverlay) headerRows() []OverlayRow {
 			"⚠ %d %s no longer in the library — re-export before importing",
 			n, pluralize(n, "hash", "hashes"))})
 	}
+	if o.skipped > 0 {
+		rows = append(rows, OverlayRow{Text: fmt.Sprintf(
+			"⚠ %d %s skipped and not imported — w to review",
+			o.skipped, pluralize(o.skipped, "row", "rows"))})
+	}
 	if p.Moved > 0 {
 		rows = append(rows, OverlayRow{Text: fmt.Sprintf(
 			"%d %s moved since the export · applied anyway", p.Moved, pluralize(p.Moved, "file", "files"))})
@@ -208,14 +220,18 @@ func (o MetadataImportOverlay) warningRows(termHeight int) []OverlayRow {
 }
 
 func (o MetadataImportOverlay) hint() string {
+	tail := " · enter/y apply · esc cancel"
+	if !o.canApply() {
+		tail = " · esc close"
+	}
 	if o.showWarnings {
-		return "j/k scroll · w back to changes · enter/y apply · esc cancel"
+		return "j/k scroll · w back to changes" + tail
 	}
 	warnings := ""
 	if n := len(o.plan.Warnings); n > 0 {
 		warnings = fmt.Sprintf(" · w %d %s", n, pluralize(n, "warning", "warnings"))
 	}
-	return "j/k scroll" + warnings + " · enter/y apply · esc cancel"
+	return "j/k scroll" + warnings + tail
 }
 
 func importChangeLine(ch metaexport.Change, fields []importFieldChange) string {

@@ -197,6 +197,59 @@ func TestMetadataImportOfAnUnchangedFileReportsNoChanges(t *testing.T) {
 	}
 }
 
+// TestMetadataImportWithNoChangesStillSurfacesSkippedRowsAndWarnings covers a
+// file whose only intended edit was dropped by the parser: the remaining valid
+// row changes nothing, and the zero-change path used to report a clean no-op
+// that hid both the skipped count and the warning explaining it.
+func TestMetadataImportWithNoChangesStillSurfacesSkippedRowsAndWarnings(t *testing.T) {
+	dir := t.TempDir()
+	m := importModel(t, dir)
+	writeImportFile(t, dir, importHeader+
+		"h1\t1\ta/1.mp3\t\t01. Sheep\tRelax\tClassical\t0\t0\n"+
+		"h2\t1\ta/2.mp3\tJohann Sebastian Bach\tTwo\tRelax\tClassical\ttwo\t0\n")
+
+	msg := parseImport(t, m)
+	if len(msg.plan.Changes) != 0 || msg.skipped != 1 {
+		t.Fatalf("expected zero changes and one skipped row, got %d changes and %d skipped",
+			len(msg.plan.Changes), msg.skipped)
+	}
+
+	m = m.handleMetadataImportParsedMsg(msg)
+	if m.overlay.metadataImport == nil {
+		t.Fatal("a parse that dropped an intended edit must not be reported as a clean no-op")
+	}
+	out := m.overlay.metadataImport.Render(m.termWidth, m.termHeight, styles.NewStyles(true))
+	if !strings.Contains(out, "1 row skipped") {
+		t.Errorf("the overlay must name the skipped row:\n%s", out)
+	}
+	if !strings.Contains(out, "w 1 warning") {
+		t.Errorf("the overlay must offer the warnings page:\n%s", out)
+	}
+	if strings.Contains(out, "enter/y apply") {
+		t.Errorf("an empty change list must not advertise apply:\n%s", out)
+	}
+
+	next, cmd, handled := m.handleMetadataImportKeyPress(tea.KeyPressMsg{Code: 'w', Text: "w"})
+	if !handled || cmd != nil {
+		t.Fatalf("w must be handled and issue no command (handled=%v)", handled)
+	}
+	warned := next.overlay.metadataImport.Render(next.termWidth, next.termHeight, styles.NewStyles(true))
+	if !strings.Contains(warned, `track "two" is not a number`) {
+		t.Errorf("the warnings page must explain the dropped row:\n%s", warned)
+	}
+
+	after, cmd, handled := next.handleMetadataImportKeyPress(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	if !handled || cmd != nil {
+		t.Fatalf("y must not start a write for an empty change list (handled=%v)", handled)
+	}
+	if after.overlay.metadataImport == nil {
+		t.Fatal("the warnings must stay inspectable after y")
+	}
+	if after.undo.slot.action != nil {
+		t.Fatal("nothing was applied, so no undo slot may be armed")
+	}
+}
+
 func TestMetadataImportApplyWritesSixFieldsThroughOneClaim(t *testing.T) {
 	dir := t.TempDir()
 	m := importModel(t, dir)
