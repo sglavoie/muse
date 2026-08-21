@@ -144,6 +144,8 @@ func (m Model) renderOverlayBody() (string, bool) {
 		return m.overlay.nowPlaying.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.queueSummary != nil:
 		return m.overlay.queueSummary.Render(m.termWidth, overlayHeight, *m.styles), true
+	case m.overlay.modesLegend != nil:
+		return m.overlay.modesLegend.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.trackInfo != nil:
 		return m.overlay.trackInfo.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.preview != nil:

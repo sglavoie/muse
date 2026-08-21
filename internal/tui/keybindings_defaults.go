@@ -74,6 +74,7 @@ func registerGlobalBindings(r *Registry) {
 	r.register(contextGlobal, "o", actionGoTo)
 	r.register(contextGlobal, "ctrl+n", actionStopAfterCurrent)
 	r.register(contextGlobal, "q", actionQueueSummary)
+	r.register(contextGlobal, ";", actionModesLegend)
 	r.register(contextGlobal, ":", actionCommandPalette)
 	r.register(contextGlobal, "t", actionTagPicker)
 	r.register(contextGlobal, "ctrl+t", actionTagFilter)

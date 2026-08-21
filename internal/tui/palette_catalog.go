@@ -126,6 +126,9 @@ var paletteCatalog = []paletteEntry{
 	{act: actionFilterBar, id: "view.filter", name: "Filter current view", category: "view", ctx: contextGlobal},
 
 	{act: actionNowPlayingInfo, id: "playback.nowplaying.info", name: "Show now-playing info", category: "play", ctx: contextGlobal},
+	// "play" ("playback transport, volume and info"), not "mode": the legend only
+	// explains the mode toggles, it never changes one.
+	{act: actionModesLegend, id: "help.modes_legend", name: "Show playback mode legend", category: "play", ctx: contextGlobal},
 	{act: actionQueueSummary, id: "queue.summary", name: "Show queue summary", category: "queue", ctx: contextGlobal},
 	{act: actionTagPicker, id: "tag.picker.open", name: "Manage tags for track…", category: "tag", ctx: contextGlobal},
 

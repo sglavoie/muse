@@ -25,6 +25,7 @@ type overlayInfo struct {
 	previewDurationFilled bool
 	nowPlaying            *NowPlayingOverlay
 	queueSummary          *QueueSummaryOverlay
+	modesLegend           *ModesLegendOverlay
 	trackInfo             *TrackInfoOverlay
 	metadataEditor        *MetadataEditor
 	metadataImport        *MetadataImportOverlay

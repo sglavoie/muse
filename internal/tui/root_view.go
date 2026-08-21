@@ -26,6 +26,7 @@ func (m Model) hasActiveOverlay() bool {
 		m.overlay.settings != nil ||
 		m.overlay.nowPlaying != nil ||
 		m.overlay.queueSummary != nil ||
+		m.overlay.modesLegend != nil ||
 		m.overlay.trackInfo != nil ||
 		m.overlay.preview != nil ||
 		m.overlay.metadataEditor != nil ||

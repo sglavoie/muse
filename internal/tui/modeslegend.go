@@ -1,6 +1,7 @@
 package tui
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -54,4 +55,36 @@ func (o ModesLegendOverlay) Render(termWidth, termHeight int, s styles.Styles) s
 
 	box := OverlayBox{Title: " ♪ Playback Modes ", Rows: rows, Hint: "; or esc to dismiss"}
 	return box.Render(termWidth, termHeight, s)
+}
+
+// buildModesLegend snapshots the live mode state into a legend overlay. Radio
+// lives on m.radio, not m.playback (root_view_status.go:11-16), so all four
+// indicators are read from the same places renderStatusBar reads them.
+func (m Model) buildModesLegend() *ModesLegendOverlay {
+	return &ModesLegendOverlay{
+		repeat:    m.playback.repeatMode,
+		shuffle:   m.playback.shuffle,
+		stopAfter: m.playback.stopAfterCurrent,
+		radio:     m.radio.enabled,
+	}
+}
+
+// handleModesLegendKeyPress handles key events while the playback-mode legend
+// overlay is active. Returns (model, cmd, true) when the key was consumed. The
+// nil guard keeps ';' free for handlers further down orderedKeyPressHandlers —
+// an active filter input still receives it as literal text.
+func (m Model) handleModesLegendKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
+	if m.overlay.modesLegend == nil {
+		return m, nil, false
+	}
+	switch msg.String() {
+	case "ctrl+c":
+		m.overlay.modesLegend = nil
+		return m, tea.Quit, true
+	case "esc", ";":
+		m.overlay.modesLegend = nil
+		return m, nil, true
+	default:
+		return m, nil, true
+	}
 }

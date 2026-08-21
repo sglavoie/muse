@@ -101,6 +101,7 @@ func helpSections() []helpSection {
 				{"ctrl+g", "Show debug panel"},
 				{"L", "Go to Insights"},
 				{"q", "Queue summary"},
+				{";", "Show playback mode legend"},
 				{"f", "Focus now-playing track in queue"},
 			},
 		},

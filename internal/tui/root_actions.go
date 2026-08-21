@@ -273,6 +273,12 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		} else {
 			m.overlay.queueSummary = m.buildQueueSummary()
 		}
+	case actionModesLegend:
+		if m.overlay.modesLegend != nil {
+			m.overlay.modesLegend = nil
+		} else {
+			m.overlay.modesLegend = m.buildModesLegend()
+		}
 	case actionHelp:
 		m.prevActiveView = m.activeView
 		m.helpVisible = true
@@ -297,6 +303,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	case actionQuit:
 		m.overlay.nowPlaying = nil
 		m.overlay.queueSummary = nil
+		m.overlay.modesLegend = nil
 		m.overlay.trackInfo = nil
 		m = m.dismissPreview()
 		return m, tea.Quit

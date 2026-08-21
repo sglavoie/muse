@@ -45,6 +45,7 @@ import (
 //   t   | tag-picker     | =          | =          | =          | =             | =          | =          | =           | =
 //   f   | focus-np       | =          | =          | =          | =             | =          | =          | =           | =
 //   q   | queue-summary  | =          | =          | =          | =             | =          | =          | =           | =
+//   ;   | modes-legend   | =          | =          | =          | =             | =          | =          | =           | =
 //   P   | preview        | =          | =          | =          | =             | =          | =          | =           | =
 //   M   | edit-metadata  | =          | =          | =          | =             | =          | =          | =           | =
 //   I   | now-playing-info | =        | =          | =          | =             | =          | =          | =           | =
@@ -128,6 +129,7 @@ const (
 	actionTrackInfo        // 'i': show track info overlay (exiftool)
 	actionStopAfterCurrent // ctrl+n: toggle "stop after current track"
 	actionQueueSummary     // 'q': show queue summary overlay
+	actionModesLegend      // ';': show the playback-mode legend overlay
 	actionCommandPalette   // ':': open command palette
 	actionTagPicker        // 't': open tag picker overlay
 	actionTagFilter        // ctrl+t: open/clear cross-view tag filter

@@ -11,6 +11,7 @@ var orderedKeyPressHandlers = []keyPressHandler{
 	Model.handleSettingsKeyPress,
 	Model.handleNowPlayingKeyPress,
 	Model.handleQueueSummaryKeyPress,
+	Model.handleModesLegendKeyPress,
 	Model.handleTrackInfoKeyPress,
 	Model.handlePreviewKeyPress,
 	Model.handleMetadataEditorKeyPress,
