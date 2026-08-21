@@ -240,6 +240,10 @@ type InsightsView struct {
 	// edit. The previous snapshot stays on screen until the replacement lands,
 	// so an invalidation never flashes an empty view.
 	stale bool
+	// loadErr is the aggregate of the readers that failed on the last load. It
+	// keeps the automatic refresh from retrying a broken read every tick, so
+	// only an entry to the view or a change to the data clears it.
+	loadErr error
 	// gen increments on every load so a slow reply for an abandoned window
 	// cannot overwrite a newer one.
 	gen int
@@ -594,6 +598,12 @@ func (v InsightsView) render(s styles.Styles, favHashes, favArtists, favAlbums m
 		if v.loading {
 			return s.Dim.Render("Reading your listening history…")
 		}
+		if v.loadErr != nil {
+			return s.RenderEmptyCard(v.width, v.height, "Could not read your listening history", []styles.EmptyAction{
+				{Key: "8", Label: "retry"},
+				{Key: "?", Label: "help"},
+			})
+		}
 		return s.Dim.Render("Insights are not available: no history reader is wired.")
 	}
 	if v.empty() {
@@ -656,6 +666,12 @@ func (v InsightsView) renderStrip(s styles.Styles) string {
 // windowHint is the right-edge affordance that names the active window and,
 // for panels that do not honour it, says so instead of silently ignoring w.
 func (v InsightsView) windowHint() string {
+	// A failed read leaves every panel on figures that are not current, so the
+	// strip says so rather than letting the window label imply they match it.
+	// The hint is a "key label" pair, so the retry key leads.
+	if v.loadErr != nil {
+		return "8 retry · read failed"
+	}
 	switch v.panelSpec().class {
 	case classFixed:
 		return "all-time (fixed)"

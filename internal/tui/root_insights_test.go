@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -295,6 +296,164 @@ func TestInsightsInvalidatesAfterPlayRescanAndMetadataEdit(t *testing.T) {
 		}
 		if m.insightsActiveRefreshCmd() == nil {
 			t.Error("the discarded reply left no reload pending")
+		}
+	})
+}
+
+// brokenInsightsReader answers exactly like the fixture reader until fail is
+// set, at which point two of its seven reads return an error. Two rather than
+// one because the load message is supposed to carry every failure rather than
+// the first one it hits.
+type brokenInsightsReader struct {
+	*uitestInsights
+	fail error
+}
+
+func (r *brokenInsightsReader) ReadInsightPlays(sinceUnix int64) ([]insights.PlayRow, error) {
+	if r.fail != nil {
+		return nil, r.fail
+	}
+	return r.uitestInsights.ReadInsightPlays(sinceUnix)
+}
+
+func (r *brokenInsightsReader) ReadInsightCoverage() ([]insights.CoverageRow, error) {
+	if r.fail != nil {
+		return nil, r.fail
+	}
+	return r.uitestInsights.ReadInsightCoverage()
+}
+
+// newBrokenInsightsModel returns an Insights view that has not loaded yet,
+// alongside the reader whose reads the test can break and mend.
+func newBrokenInsightsModel(t *testing.T) (Model, *brokenInsightsReader) {
+	t.Helper()
+	tracks := insightsTestTracks()
+	reader := &brokenInsightsReader{uitestInsights: &uitestInsights{tracks: tracks}}
+	m := New(context.Background(), WithLibraryTracks(tracks), WithInsightsReader(reader))
+	m.termWidth, m.termHeight = 100, 30
+	m.insights.setSize(100, 30)
+	return m, reader
+}
+
+// enterInsights runs the real view-entry action, which is also the retry after
+// a failed read, and returns the load it issued.
+func enterInsights(t *testing.T, m Model) (Model, insightsLoadedMsg) {
+	t.Helper()
+	next, cmd := m.handleKeyAction(actionSwitchInsights)
+	updated, ok := next.(Model)
+	if !ok {
+		t.Fatalf("handleKeyAction returned %T", next)
+	}
+	if cmd == nil {
+		t.Fatal("entering Insights issued no load")
+	}
+	msg, ok := cmd().(insightsLoadedMsg)
+	if !ok {
+		t.Fatalf("expected insightsLoadedMsg, got %T", cmd())
+	}
+	return updated, msg
+}
+
+// TestInsightsLoadFailureDoesNotInstallPartialSnapshotAndCanRetry covers both
+// halves of a failed read: the first one, which has no numbers to fall back on,
+// and a refresh, which must not replace good numbers with a partial fold.
+func TestInsightsLoadFailureDoesNotInstallPartialSnapshotAndCanRetry(t *testing.T) {
+	dbDown := errors.New("database is locked")
+
+	t.Run("an initial failure installs nothing and stays retryable", func(t *testing.T) {
+		m, reader := newBrokenInsightsModel(t)
+		reader.fail = dbDown
+
+		m, msg := enterInsights(t, m)
+
+		if msg.err == nil {
+			t.Fatal("a failed read produced a load message with no error")
+		}
+		for _, want := range []string{"plays", "coverage"} {
+			if !strings.Contains(msg.err.Error(), want) {
+				t.Errorf("the error should name every failed reader: %q missing from %v", want, msg.err)
+			}
+		}
+		if msg.snap.TotalPlays != 0 || msg.snap.Coverage.TotalTracks != 0 {
+			t.Errorf("a failed read computed a snapshot anyway: %+v", msg.snap)
+		}
+
+		m = m.handleInsightsLoadedMsg(msg)
+
+		if m.insights.loaded {
+			t.Error("a failed read marked the view loaded")
+		}
+		if m.insights.loading {
+			t.Error("a failed read left the view loading forever")
+		}
+		if m.insights.loadErr == nil {
+			t.Fatal("the failure was swallowed")
+		}
+		rendered := m.insights.render(styles.NewStyles(false), nil, nil, nil, "", "")
+		if !strings.Contains(rendered, "Could not read your listening history") {
+			t.Errorf("expected a visible error state, got: %q", rendered)
+		}
+		// The active refresh rides the 1 Hz tick, so retrying there would turn a
+		// broken database into a failed read every second.
+		if m.insightsActiveRefreshCmd() != nil {
+			t.Error("a failed read is being retried by the automatic refresh")
+		}
+
+		reader.fail = nil
+		m, msg = enterInsights(t, m)
+		m = m.handleInsightsLoadedMsg(msg)
+
+		if !m.insights.loaded || m.insights.loadErr != nil {
+			t.Fatalf("re-entering the view did not recover: loaded=%v err=%v", m.insights.loaded, m.insights.loadErr)
+		}
+		if m.insights.snap.TotalPlays == 0 {
+			t.Error("the retry installed no plays")
+		}
+	})
+
+	t.Run("a failed refresh keeps the last complete snapshot", func(t *testing.T) {
+		m, reader := newBrokenInsightsModel(t)
+		m, msg := enterInsights(t, m)
+		m = m.handleInsightsLoadedMsg(msg)
+		before := m.insights.snap.TotalPlays
+		if before == 0 {
+			t.Fatal("precondition: the first load should carry plays")
+		}
+
+		// The real play path: a row in play_history and one more play on the
+		// in-memory track, then the message that invalidates the memo.
+		now := time.Now().Unix()
+		reader.tracks[0].PlayCount++
+		reader.tracks[0].LastPlayedAt = now
+		m.library.index.IncrementPlayCount("h1", now)
+		m = updateInsightsModel(t, m, playRecordedMsg{Hash: "h1", PlayedAt: now})
+
+		reader.fail = dbDown
+		m = reloadInsights(t, m)
+
+		if got := m.insights.snap.TotalPlays; got != before {
+			t.Errorf("a failed refresh replaced the good snapshot: want %d plays, got %d", before, got)
+		}
+		if !m.insights.loaded {
+			t.Error("a failed refresh threw away a snapshot the view already had")
+		}
+		rendered := m.insights.render(styles.NewStyles(false), nil, nil, nil, "", "")
+		if !strings.Contains(rendered, "retry · read failed") {
+			t.Errorf("the strip should say the figures are not current, got: %q", rendered)
+		}
+		if m.insightsActiveRefreshCmd() != nil {
+			t.Error("a failed refresh is being retried by the automatic refresh")
+		}
+
+		reader.fail = nil
+		m, msg = enterInsights(t, m)
+		m = m.handleInsightsLoadedMsg(msg)
+
+		if got := m.insights.snap.TotalPlays; got != before+1 {
+			t.Errorf("the retry missed the play recorded during the outage: want %d, got %d", before+1, got)
+		}
+		if m.insights.loadErr != nil || m.insights.stale {
+			t.Errorf("a recovered load left the view marked bad: err=%v stale=%v", m.insights.loadErr, m.insights.stale)
 		}
 	})
 }

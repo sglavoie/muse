@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"errors"
+	"fmt"
 	"log/slog"
 	"sort"
 	"strconv"
@@ -23,9 +25,11 @@ const insightsDormantTopN = 10
 
 // insightsLoadedMsg carries a completed Insights computation. gen is echoed
 // back from the request so a reply for an abandoned window cannot overwrite a
-// newer one.
+// newer one. When err is set every other field is zero: a snapshot folded from
+// readers that failed would be plausible and wrong, so none is computed.
 type insightsLoadedMsg struct {
 	gen           int
+	err           error
 	snap          insights.Snapshot
 	genreCoverage []insights.ShelfStat
 	dormant       []library.Track
@@ -45,19 +49,36 @@ func (m *Model) insightsMaybeLoadCmd() tea.Cmd {
 	if m.insightsReader == nil || m.insights.loading {
 		return nil
 	}
+	// A read that failed is not retried on its own: the active refresh rides the
+	// 1 Hz tick, so a database that keeps failing would become one failed read
+	// per second. Entering the view and changing the data both clear loadErr.
+	if m.insights.loadErr != nil {
+		return nil
+	}
 	if m.insights.loaded && !m.insights.stale {
 		return nil
 	}
 	return m.insightsLoadCmd()
 }
 
+// insightsEnterCmd is the load a deliberate entry to the view issues. Entering
+// is the retry for a failed read, so it clears the error the automatic refresh
+// path refuses to retry past.
+func (m *Model) insightsEnterCmd() tea.Cmd {
+	m.insights.loadErr = nil
+	return m.insightsMaybeLoadCmd()
+}
+
 // insightsInvalidate marks the memo superseded by a change to the underlying
 // data. The generation bump strands any load already in flight: its reply was
 // computed before the change and would install numbers that are already wrong.
+// A change that reached the database is also fresh evidence that reading it can
+// work again, so a previous failure stops blocking the next load.
 func (m *Model) insightsInvalidate() {
 	m.insights.gen++
 	m.insights.loading = false
 	m.insights.stale = true
+	m.insights.loadErr = nil
 }
 
 // insightsActiveRefreshCmd reloads an invalidated snapshot the user is looking
@@ -92,34 +113,36 @@ func (m *Model) insightsLoadCmd() tea.Cmd {
 		loc := time.Local
 		since := insightsWindowSince(windowIdx, now, loc)
 
+		// Every reader feeds a panel that is drawn unconditionally, so a failed
+		// one leaves a zero-valued input that renders as a real measurement.
+		// Collect them all, then refuse the whole snapshot if any failed.
+		var errs []error
+		failed := func(what string, err error) {
+			if err != nil {
+				errs = append(errs, fmt.Errorf("%s: %w", what, err))
+			}
+		}
+
 		plays, err := r.ReadInsightPlays(since)
-		if err != nil {
-			slog.Warn("insights: ReadInsightPlays", "err", err)
-		}
+		failed("plays", err)
 		genres, err := r.ReadInsightGenres(since)
-		if err != nil {
-			slog.Warn("insights: ReadInsightGenres", "err", err)
-		}
+		failed("genres", err)
 		sessions, err := r.ReadInsightSessions(since)
-		if err != nil {
-			slog.Warn("insights: ReadInsightSessions", "err", err)
-		}
+		failed("sessions", err)
 		coverage, err := r.ReadInsightCoverage()
-		if err != nil {
-			slog.Warn("insights: ReadInsightCoverage", "err", err)
-		}
+		failed("coverage", err)
 		timeline, err := r.ReadInsightTimeline()
-		if err != nil {
-			slog.Warn("insights: ReadInsightTimeline", "err", err)
-		}
+		failed("timeline", err)
 		quality, err := r.ReadInsightQuality(mx.DeepCutsMinPlays, mx.DeepCutsMaxPlays, mx.DeepCutsMinCompletion)
-		if err != nil {
-			slog.Warn("insights: ReadInsightQuality", "err", err)
-		}
+		failed("quality", err)
 		unverified, err := r.ReadUnverifiedDurations()
-		if err != nil {
-			slog.Warn("insights: ReadUnverifiedDurations", "err", err)
+		failed("unverified durations", err)
+
+		if err := errors.Join(errs...); err != nil {
+			slog.Warn("insights: load", "err", err)
+			return insightsLoadedMsg{gen: gen, err: err}
 		}
+
 		unverifiedHashes := make([]string, len(unverified))
 		for i, u := range unverified {
 			unverifiedHashes[i] = u.Hash
@@ -165,6 +188,20 @@ func (m Model) handleInsightsLoadedMsg(msg insightsLoadedMsg) Model {
 	if msg.gen != m.insights.gen {
 		return m
 	}
+	m.insights.loading = false
+	if msg.err != nil {
+		// Nothing is installed: the panels keep the last numbers that were whole,
+		// or say they have none. stale stays set so the retry has something to do.
+		m.insights.loadErr = msg.err
+		m.insights.stale = true
+		if m.insights.loaded {
+			m.statusBar.notify("Insights: refresh failed, showing the last complete figures")
+		} else {
+			m.statusBar.notify("Insights: could not read your listening history")
+		}
+		return m
+	}
+	m.insights.loadErr = nil
 	m.insights.snap = msg.snap
 	m.insights.genreCoverage = msg.genreCoverage
 	m.insights.dormant = msg.dormant
@@ -176,7 +213,6 @@ func (m Model) handleInsightsLoadedMsg(msg insightsLoadedMsg) Model {
 	m.insights.health = msg.health
 	m.insights.loc = msg.loc
 	m.insights.loaded = true
-	m.insights.loading = false
 	m.insights.stale = false
 	m.insights.clampCursor()
 	return m

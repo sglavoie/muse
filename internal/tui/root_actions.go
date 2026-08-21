@@ -58,7 +58,7 @@ func (m *Model) viewLazyLoadCmd(id viewID) tea.Cmd {
 	case viewMixes:
 		return m.mixesMaybeLoadCmd()
 	case viewInsights:
-		return m.insightsMaybeLoadCmd()
+		return m.insightsEnterCmd()
 	}
 	return nil
 }
@@ -328,7 +328,7 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 		m = m.switchToView(viewMixes)
 		return m, cmd
 	case actionSwitchInsights:
-		cmd := m.insightsMaybeLoadCmd()
+		cmd := m.insightsEnterCmd()
 		m = m.switchToView(viewInsights)
 		return m, cmd
 	case actionInsightsPanelNext:
