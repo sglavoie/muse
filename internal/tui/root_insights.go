@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -42,6 +43,27 @@ type insightsLoadedMsg struct {
 	health        []insightsHealthRow
 	loc           *time.Location
 }
+
+// insightsPendingWrites counts the database writes an invalidated Insights memo
+// is still waiting on. Undo and rescan deletion both change memory first and
+// persist afterwards on a goroutine that reports back to nobody, so this is
+// reached through a pointer: the write clears itself without owning the Model it
+// was launched from. A nil tracker is a Model that never starts one.
+type insightsPendingWrites struct{ inflight atomic.Int64 }
+
+func (w *insightsPendingWrites) begin() {
+	if w != nil {
+		w.inflight.Add(1)
+	}
+}
+
+func (w *insightsPendingWrites) done() {
+	if w != nil {
+		w.inflight.Add(-1)
+	}
+}
+
+func (w *insightsPendingWrites) busy() bool { return w != nil && w.inflight.Load() > 0 }
 
 // insightsMaybeLoadCmd returns a load command when the view has no data yet or
 // its memo has been invalidated. Returns nil when no reader is wired or the
@@ -97,6 +119,14 @@ func (m *Model) insightsActiveRefreshCmd() tea.Cmd {
 func (m *Model) insightsLoadCmd() tea.Cmd {
 	r := m.insightsReader
 	if r == nil {
+		return nil
+	}
+	// Reading while a change is half-made would fold pre-change rows into a
+	// snapshot that then looks current forever, because neither the undo nor the
+	// rescan-deletion write announces its completion. Staying stale is what keeps
+	// the 1 Hz refresh asking until every write has succeeded or failed.
+	if m.insightsPending.busy() {
+		m.insights.stale = true
 		return nil
 	}
 

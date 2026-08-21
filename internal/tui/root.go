@@ -194,6 +194,7 @@ type Model struct {
 	historyReader       playHistoryReader            // may be nil; set via WithHistoryReader
 	insightsReader      insightsReader               // may be nil; set via WithInsightsReader
 	insightsRand        func(n int) int              // nil uses the global source; seeded in tests
+	insightsPending     *insightsPendingWrites       // database writes an Insights reload must wait for
 	recReader           recommendationReader         // may be nil; set via WithRecommendationReader
 	dismissalReader     dismissalReader              // may be nil; set via WithDismissalReader
 	dismissalWriter     dismissalWriter              // may be nil; set via WithDismissalWriter
@@ -292,13 +293,14 @@ type Model struct {
 func New(ctx context.Context, opts ...Option) Model {
 	initialStyles := styles.NewStyles(true)
 	m := Model{
-		appCtx:     ctx,
-		activeView: viewLibrary,
-		cfg:        config.Defaults(),
-		library:    LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
-		playback:   playbackInfo{currentIndex: -1},
-		registry:   newRegistry(),
-		styles:     &initialStyles,
+		appCtx:          ctx,
+		activeView:      viewLibrary,
+		cfg:             config.Defaults(),
+		library:         LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
+		playback:        playbackInfo{currentIndex: -1},
+		registry:        newRegistry(),
+		styles:          &initialStyles,
+		insightsPending: &insightsPendingWrites{},
 	}
 	for _, opt := range opts {
 		opt(&m)

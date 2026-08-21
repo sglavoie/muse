@@ -171,7 +171,12 @@ func (m Model) reconcileRescanDeletions() (Model, tea.Cmd) {
 		return m, nil
 	}
 	hashes := deletedHashes
+	// Coverage counts what the database still holds, so the reload has to wait
+	// for these marks; the command reports no completion of its own.
+	pending := m.insightsPending
+	pending.begin()
 	return m, func() tea.Msg {
+		defer pending.done()
 		for _, h := range hashes {
 			if err := marker.MarkTrackMissing(h); err != nil {
 				slog.Warn("rescan: mark track missing", "hash", h, "err", err)

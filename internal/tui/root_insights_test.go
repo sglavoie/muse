@@ -7,12 +7,14 @@ import (
 	"math/rand/v2"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -300,6 +302,217 @@ func TestInsightsInvalidatesAfterPlayRescanAndMetadataEdit(t *testing.T) {
 		}
 		if m.insightsActiveRefreshCmd() == nil {
 			t.Error("the discarded reply left no reload pending")
+		}
+	})
+}
+
+// blockingInsightsDB stands in for the database on both sides of an Insights
+// refresh: the readers derive every snapshot from the same rows the writers
+// change, and a write parks until the test releases it. That parked interval is
+// the window in which a refresh could read pre-change data.
+type blockingInsightsDB struct {
+	mu      sync.Mutex
+	tracks  []library.Track
+	release chan struct{}
+}
+
+func newBlockingInsightsDB(tracks []library.Track) *blockingInsightsDB {
+	return &blockingInsightsDB{tracks: slices.Clone(tracks), release: make(chan struct{})}
+}
+
+// rows hands the fixture reader a private copy, so a read on the load goroutine
+// and a write on the persistence goroutine never touch the same slice.
+func (d *blockingInsightsDB) rows() *uitestInsights {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return &uitestInsights{tracks: slices.Clone(d.tracks)}
+}
+
+func (d *blockingInsightsDB) ReadInsightPlays(since int64) ([]insights.PlayRow, error) {
+	return d.rows().ReadInsightPlays(since)
+}
+
+func (d *blockingInsightsDB) ReadInsightGenres(since int64) ([]insights.GenreRow, error) {
+	return d.rows().ReadInsightGenres(since)
+}
+
+func (d *blockingInsightsDB) ReadInsightSessions(since int64) ([]insights.SessionRow, error) {
+	return d.rows().ReadInsightSessions(since)
+}
+
+func (d *blockingInsightsDB) ReadInsightCoverage() ([]insights.CoverageRow, error) {
+	return d.rows().ReadInsightCoverage()
+}
+
+func (d *blockingInsightsDB) ReadInsightTimeline() ([]insights.TimelineRow, error) {
+	return d.rows().ReadInsightTimeline()
+}
+
+func (d *blockingInsightsDB) ReadInsightQuality(minPlays, maxPlays int, minCompletion float64) (insights.QualityCounts, error) {
+	return d.rows().ReadInsightQuality(minPlays, maxPlays, minCompletion)
+}
+
+func (d *blockingInsightsDB) ReadUnverifiedDurations() ([]db.UnverifiedTrack, error) {
+	return d.rows().ReadUnverifiedDurations()
+}
+
+// UpdateTrackMetadata is the write the undo path launches on its own goroutine.
+func (d *blockingInsightsDB) UpdateTrackMetadata(hash, title, artist, album, genre string) error {
+	<-d.release
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for i := range d.tracks {
+		if d.tracks[i].Hash == hash {
+			d.tracks[i].Title, d.tracks[i].Artist = title, artist
+			d.tracks[i].Album, d.tracks[i].Genre = album, genre
+		}
+	}
+	return nil
+}
+
+// MarkTrackMissing is the write the rescan deletion path returns as a command.
+// Every real Insights reader filters missing rows out, so the row leaves here.
+func (d *blockingInsightsDB) MarkTrackMissing(hash string) error {
+	<-d.release
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.tracks = slices.DeleteFunc(d.tracks, func(t library.Track) bool { return t.Hash == hash })
+	return nil
+}
+
+// UpsertBatch satisfies scanUpsertBatcher so the store can be the scan writer.
+func (d *blockingInsightsDB) UpsertBatch([]library.Track) error { return nil }
+
+// newBlockingInsightsModel puts a loaded Insights view in front of store, with
+// whatever writers the case under test wires behind it.
+func newBlockingInsightsModel(t *testing.T, store *blockingInsightsDB, opts ...Option) Model {
+	t.Helper()
+	base := []Option{WithLibraryTracks(insightsTestTracks()), WithInsightsReader(store)}
+	m := New(context.Background(), append(base, opts...)...)
+	m.termWidth, m.termHeight = 100, 30
+	m.insights.setSize(100, 30)
+	m = m.switchToView(viewInsights)
+
+	cmd := m.insightsMaybeLoadCmd()
+	if cmd == nil {
+		t.Fatal("expected a load cmd on first switch to Insights")
+	}
+	msg, ok := cmd().(insightsLoadedMsg)
+	if !ok {
+		t.Fatalf("expected insightsLoadedMsg, got %T", cmd())
+	}
+	return m.handleInsightsLoadedMsg(msg)
+}
+
+// releaseWrites unparks the database and waits for the model to report no
+// persistence in flight, which is the terminal state the refresh gate opens on.
+func releaseWrites(t *testing.T, store *blockingInsightsDB, m Model) {
+	t.Helper()
+	close(store.release)
+	for deadline := time.Now().Add(5 * time.Second); m.insightsPending.busy(); {
+		if time.Now().After(deadline) {
+			t.Fatal("the Insights persistence gate never reported itself finished")
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
+func hasGenreGroup(groups []insights.GenreGroup, canonical string) bool {
+	for _, g := range groups {
+		if g.Canonical == canonical {
+			return true
+		}
+	}
+	return false
+}
+
+// TestInsightsRefreshWaitsForPersistenceCompletion covers the two changes that
+// reach the database on a goroutine nothing listens to: an undo's metadata
+// restore and a rescan's deletion marks. Both update memory first, so a refresh
+// that runs in between would read half the change and then look current.
+func TestInsightsRefreshWaitsForPersistenceCompletion(t *testing.T) {
+	t.Run("an undo holds the refresh until its metadata write lands", func(t *testing.T) {
+		store := newBlockingInsightsDB(insightsTestTracks())
+		m := newBlockingInsightsModel(t, store, WithMetadataWriter(store))
+		if hasGenreGroup(m.insights.snap.Rhythm.Genres, "Punk") {
+			t.Fatal("precondition: the database should not know Punk yet")
+		}
+
+		// A load already in flight read the database before the undo touched it.
+		preUndo := m.insightsLoadCmd()
+		if preUndo == nil {
+			t.Fatal("expected a load cmd while nothing was pending")
+		}
+		staleReply, ok := preUndo().(insightsLoadedMsg)
+		if !ok {
+			t.Fatalf("expected insightsLoadedMsg, got %T", preUndo())
+		}
+
+		m.setUndoSlot(undoBulkEditMetadataAction{
+			originals: map[string][5]string{"h2": {"Track A2", "Alice", "Alpha", "Punk", "4:00"}},
+		}, nil)
+		m = updateInsightsModel(t, m, UndoMsg{})
+
+		if !m.insights.stale {
+			t.Fatal("an undone metadata edit left the Insights memo current")
+		}
+		m = m.handleInsightsLoadedMsg(staleReply)
+		if !m.insights.stale {
+			t.Error("a snapshot read before the undo was installed as the current one")
+		}
+		if cmd := m.insightsActiveRefreshCmd(); cmd != nil {
+			t.Fatal("Insights refreshed while the undo's database write was still parked")
+		}
+		m, _ = m.handleTickMsg()
+		if m.insights.loading {
+			t.Fatal("the tick started a load while the undo's database write was still parked")
+		}
+		if !m.insights.stale {
+			t.Fatal("the declined refresh cleared the staleness that makes the retry happen")
+		}
+
+		releaseWrites(t, store, m)
+
+		m = reloadInsights(t, m)
+		if !hasGenreGroup(m.insights.snap.Rhythm.Genres, "Punk") {
+			t.Error("the installed snapshot missed the undo the database had accepted")
+		}
+	})
+
+	t.Run("a rescan deletion holds the refresh until its missing marks land", func(t *testing.T) {
+		store := newBlockingInsightsDB(insightsTestTracks())
+		m := newBlockingInsightsModel(t, store, WithScanWriter(store, 500))
+		before := m.insights.snap.Coverage.TotalTracks
+
+		// What a completed full rescan leaves behind for a file that vanished: the
+		// path is gone from the rebuilt index but still in the pre-rescan snapshot.
+		m.library.index.RemoveByPath("/d1.flac")
+		m.scanning = true
+		m.rescanPriorPaths = map[string]string{"/d1.flac": "h6"}
+
+		next, cmd := m.Update(library.ScanDoneMsg{})
+		m = next.(Model)
+		if cmd == nil {
+			t.Fatal("scan completion issued no command to persist the deletion")
+		}
+		if !m.insights.stale {
+			t.Fatal("a completed rescan left the Insights memo current")
+		}
+		if refresh := m.insightsActiveRefreshCmd(); refresh != nil {
+			t.Fatal("Insights refreshed while the rescan deletion was still being persisted")
+		}
+
+		persisted := make(chan struct{})
+		go func() {
+			defer close(persisted)
+			cmd()
+		}()
+		releaseWrites(t, store, m)
+		<-persisted
+
+		m = reloadInsights(t, m)
+		if got := m.insights.snap.Coverage.TotalTracks; got != before-1 {
+			t.Errorf("coverage kept the deleted track: want %d tracks, got %d", before-1, got)
 		}
 	})
 }

@@ -45,7 +45,13 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 	m.insightsInvalidate()
 	if mw != nil || dw != nil {
 		originals := a.originals
+		// Hold the Insights reload until these rows land: the index above already
+		// reads undone, so a snapshot taken now would mix restored library figures
+		// with pre-undo history and never be corrected.
+		pending := m.insightsPending
+		pending.begin()
 		go func() {
+			defer pending.done()
 			for h, orig := range originals {
 				if mw != nil {
 					if err := mw.UpdateTrackMetadata(h, orig[0], orig[1], orig[2], orig[3]); err != nil {
