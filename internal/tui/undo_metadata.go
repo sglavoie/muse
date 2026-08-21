@@ -45,6 +45,13 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 	m.insightsInvalidate()
 	if mw != nil || dw != nil {
 		originals := a.originals
+		q := m.metadataWrites
+		tickets := make(map[string]uint64, len(originals))
+		if mw != nil {
+			for h := range originals {
+				tickets[h] = q.publish(h)
+			}
+		}
 		// Hold the Insights reload until these rows land: the index above already
 		// reads undone, so a snapshot taken now would mix restored library figures
 		// with pre-undo history and never be corrected.
@@ -54,7 +61,10 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 			defer pending.done()
 			for h, orig := range originals {
 				if mw != nil {
-					if err := mw.UpdateTrackMetadata(h, orig[0], orig[1], orig[2], orig[3]); err != nil {
+					_, err := q.claim(h, tickets[h], func() error {
+						return mw.UpdateTrackMetadata(h, orig[0], orig[1], orig[2], orig[3])
+					})
+					if err != nil {
 						slog.Warn("undo bulk metadata edit: DB write failed", "hash", h, "err", err)
 					}
 				}

@@ -215,11 +215,12 @@ type Model struct {
 	// pressing ctrl+t again or esc in the tag filter picker.
 	activeTagFilter *int64
 
-	overlay         overlayInfo       // all overlay and modal state
-	metadataWriter  metadataUpdater   // may be nil; set via WithMetadataWriter
-	durationWriter  durationUpdater   // may be nil; set via WithDurationWriter
-	scanWriter      scanUpsertBatcher // may be nil; set via WithScanWriter
-	upsertBatchSize int               // batch size for scan DB writes; set via WithScanWriter
+	overlay         overlayInfo         // all overlay and modal state
+	metadataWriter  metadataUpdater     // may be nil; set via WithMetadataWriter
+	durationWriter  durationUpdater     // may be nil; set via WithDurationWriter
+	metadataWrites  *metadataWriteQueue // orders the async metadata row writes
+	scanWriter      scanUpsertBatcher   // may be nil; set via WithScanWriter
+	upsertBatchSize int                 // batch size for scan DB writes; set via WithScanWriter
 
 	undo            undoInfo     // reversible undo slot and pending confirmation flags
 	confirmationBar string       // when non-empty, rendered as a full-width warning between body and status bar
@@ -301,6 +302,7 @@ func New(ctx context.Context, opts ...Option) Model {
 		registry:        newRegistry(),
 		styles:          &initialStyles,
 		insightsPending: &insightsPendingWrites{},
+		metadataWrites:  newMetadataWriteQueue(),
 	}
 	for _, opt := range opts {
 		opt(&m)

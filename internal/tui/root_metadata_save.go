@@ -81,10 +81,21 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 
 	mw := m.metadataWriter
 	dw := m.durationWriter
+	// Publishing here, after the index already reads edited, is what makes this
+	// row outrank a genre merge that planned it before the edit and has not
+	// reached the database yet.
+	q := m.metadataWrites
+	var ticket uint64
+	if mw != nil {
+		ticket = q.publish(hash)
+	}
 	return m, func() tea.Msg {
 		var firstErr error
 		if mw != nil {
-			if err := mw.UpdateTrackMetadata(hash, title, artist, album, genre); err != nil {
+			_, err := q.claim(hash, ticket, func() error {
+				return mw.UpdateTrackMetadata(hash, title, artist, album, genre)
+			})
+			if err != nil {
 				slog.Warn("metadata edit: DB write failed", "hash", hash, "err", err)
 				firstErr = err
 			}
@@ -129,6 +140,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 	type update struct {
 		hash, title, artist, album, genre string
 		durationMs                        int64
+		ticket                            uint64
 	}
 	var updates []update
 
@@ -178,7 +190,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 
 		m = m.syncStatusBarMetadata(h, newArtist, newTitle)
 
-		updates = append(updates, update{h, newTitle, newArtist, newAlbum, newGenre, durationMs})
+		updates = append(updates, update{hash: h, title: newTitle, artist: newArtist, album: newAlbum, genre: newGenre, durationMs: durationMs})
 	}
 	m = m.syncRecentlyAddedFromLibrary()
 	m = m.preserveQueueSort()
@@ -202,11 +214,20 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 
 	mw := m.metadataWriter
 	dw := m.durationWriter
+	q := m.metadataWrites
+	if mw != nil {
+		for i := range updates {
+			updates[i].ticket = q.publish(updates[i].hash)
+		}
+	}
 	return m, func() tea.Msg {
 		var firstErr error
 		for _, u := range updates {
 			if mw != nil {
-				if err := mw.UpdateTrackMetadata(u.hash, u.title, u.artist, u.album, u.genre); err != nil {
+				_, err := q.claim(u.hash, u.ticket, func() error {
+					return mw.UpdateTrackMetadata(u.hash, u.title, u.artist, u.album, u.genre)
+				})
+				if err != nil {
 					slog.Warn("bulk metadata edit: DB write failed", "hash", u.hash, "err", err)
 					if firstErr == nil {
 						firstErr = err

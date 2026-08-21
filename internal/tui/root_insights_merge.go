@@ -28,6 +28,17 @@ type insightsMergePlan struct {
 type insightsMergeWrite struct {
 	hash, title, artist, album, genre string
 	original                          [5]string // title, artist, album, genre, duration — for undo
+	ticket                            uint64    // this row's slot in the metadata write queue
+}
+
+// planStillHolds reports whether the track is still the row the merge planned
+// against. The plan is a genre rewrite of one specific row; once any of the
+// five edited fields has moved, reapplying it would revert the change that
+// moved them.
+func (w insightsMergeWrite) planStillHolds(t library.Track) bool {
+	return t.Title == w.original[0] && t.Artist == w.original[1] &&
+		t.Album == w.original[2] && t.Genre == w.original[3] &&
+		formatDurationForEditor(t.Duration) == w.original[4]
 }
 
 // insightsMergedMsg reports which of the merge's writes actually landed. The
@@ -35,10 +46,11 @@ type insightsMergeWrite struct {
 // batched read would race them and could re-show the banner the merge just
 // cleared.
 type insightsMergedMsg struct {
-	canonical string
-	applied   []insightsMergeWrite
-	failed    int
-	err       error
+	canonical  string
+	applied    []insightsMergeWrite
+	failed     int
+	superseded int // rows edited after confirmation, which the merge yields to
+	err        error
 }
 
 // handleInsightsMergeGenre arms the confirmation bar for the focused genre
@@ -120,19 +132,33 @@ func (m Model) confirmInsightsGenreMerge() (Model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 
+	// Each row takes its slot now, on the UI goroutine, so an edit handled while
+	// the write below is in flight publishes a newer one and this stale full row
+	// stands down rather than reverting it.
+	q := m.metadataWrites
+	for i := range writes {
+		writes[i].ticket = q.publish(writes[i].hash)
+	}
+
 	canonical := plan.canonical
 	return m, func() tea.Msg {
 		msg := insightsMergedMsg{canonical: canonical}
 		for _, w := range writes {
-			if err := mw.UpdateTrackMetadata(w.hash, w.title, w.artist, w.album, w.genre); err != nil {
+			wrote, err := q.claim(w.hash, w.ticket, func() error {
+				return mw.UpdateTrackMetadata(w.hash, w.title, w.artist, w.album, w.genre)
+			})
+			switch {
+			case !wrote:
+				msg.superseded++
+			case err != nil:
 				slog.Warn("insights: genre merge DB write failed", "hash", w.hash, "err", err)
 				msg.failed++
 				if msg.err == nil {
 					msg.err = err
 				}
-				continue
+			default:
+				msg.applied = append(msg.applied, w)
 			}
-			msg.applied = append(msg.applied, w)
 		}
 		return msg
 	}, true
@@ -140,32 +166,47 @@ func (m Model) confirmInsightsGenreMerge() (Model, tea.Cmd, bool) {
 
 // handleInsightsMergedMsg installs the rows the database accepted and reloads
 // the panels off them, so the collision row and the Rhythm banner it caused go
-// away together for the set that persisted. A row whose write failed keeps its
-// old spelling in memory, which is what keeps the collision reported and makes
-// `m` a real retry rather than a no-op that claims the genres already agree.
+// away together for the set that persisted. A row whose write failed, or whose
+// track was edited after the merge was planned, keeps its old spelling in
+// memory, which is what keeps the collision reported and makes `m` a real retry
+// rather than a no-op that claims the genres already agree.
 func (m Model) handleInsightsMergedMsg(msg insightsMergedMsg) (Model, tea.Cmd) {
-	if len(msg.applied) > 0 {
-		originals := make(map[string][5]string, len(msg.applied))
-		for _, w := range msg.applied {
-			m.library.index.UpdateMetadata(w.hash, w.title, w.artist, w.album, w.genre)
-			originals[w.hash] = w.original
-			if m.userEditedOverlay != nil {
-				m.userEditedOverlay[w.hash] = db.UserEditedRow{
-					Hash: w.hash, Title: w.title, Artist: w.artist, Album: w.album, Genre: w.genre,
-				}
+	originals := make(map[string][5]string, len(msg.applied))
+	superseded := msg.superseded
+	for _, w := range msg.applied {
+		// The write is durable but this reply is handled later than it ran: an
+		// edit processed in between owns the row now, and the newer write it
+		// queued is what the database converges to.
+		t, ok := m.library.index.FindByHash(w.hash)
+		if !ok || !w.planStillHolds(t) {
+			superseded++
+			continue
+		}
+		m.library.index.UpdateMetadata(w.hash, w.title, w.artist, w.album, w.genre)
+		originals[w.hash] = w.original
+		if m.userEditedOverlay != nil {
+			m.userEditedOverlay[w.hash] = db.UserEditedRow{
+				Hash: w.hash, Title: w.title, Artist: w.artist, Album: w.album, Genre: w.genre,
 			}
 		}
+	}
+
+	done := len(originals)
+	if done > 0 {
 		m = m.syncRecentlyAddedFromLibrary()
 		m.setUndoSlot(undoBulkEditMetadataAction{originals: originals}, nil)
 		m = m.refreshDerivedViews()
 	}
 
-	done := len(msg.applied)
+	lost := msg.failed + superseded
 	switch {
-	case msg.err != nil && done == 0:
+	case done == 0 && msg.err != nil:
 		m.statusBar.notify(fmt.Sprintf("Genre merge failed, nothing changed: %s", msg.err))
-	case msg.err != nil:
-		total := done + msg.failed
+	case done == 0 && lost > 0:
+		m.statusBar.notify(fmt.Sprintf("Genre merge stood down: %d %s changed while it ran · m retries",
+			lost, pluralize(lost, "track", "tracks")))
+	case lost > 0:
+		total := done + lost
 		m.statusBar.notify(fmt.Sprintf("Merged %d of %d %s into %s · m retries the rest",
 			done, total, pluralize(total, "track", "tracks"), msg.canonical))
 	default:
