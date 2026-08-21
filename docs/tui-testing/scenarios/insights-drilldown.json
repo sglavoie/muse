@@ -11,9 +11,17 @@
 
     {"key": "A"}, {"wait": "500ms"}, {"assert": {"status_contains": "Radio: seeded from"}, "label": "radio-seeded-from-row"},
 
+    {"key": "v"}, {"assert": {"status_contains": "Visual selection needs a track list"}, "label": "v-refuses-on-the-briefing"},
+
     {"key": "enter"}, {"assert": {"no_layout_issues": true}, "label": "drilled-into-alice"},
     {"assert": {"contains": "Track A2"}, "label": "unheard-alice-tracks"},
     {"assert": {"not_contains": "Dusty artists"}, "label": "briefing-replaced-by-tracks"},
+
+    {"key": "v"}, {"assert": {"contains": "1 selected"}, "label": "v-enters-visual-at-track-level"},
+    {"key": "j"}, {"assert": {"contains": "2 selected"}, "label": "visual-range-grows-with-j"},
+    {"key": "k"}, {"assert": {"contains": "1 selected"}, "label": "visual-range-shrinks-back"},
+    {"key": "v"}, {"assert": {"contains": "1 selected"}, "label": "exiting-visual-keeps-the-selection"},
+    {"key": "X"}, {"assert": {"not_contains": "1 selected"}, "label": "X-clears-what-visual-selected"},
 
     {"key": "E"}, {"wait": "500ms"}, {"assert": {"status_contains": "Added 2 tracks from Alice"}, "label": "enqueue-all-drilled"},
 

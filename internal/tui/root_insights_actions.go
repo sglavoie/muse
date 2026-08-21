@@ -57,6 +57,9 @@ func (m Model) handleInsightsBack() Model {
 	if m.activeView != viewInsights || m.insights.level == insightsLevelBriefing {
 		return m
 	}
+	// Stepping out replaces the list visual mode anchored into, so the range
+	// has nothing left to grow over.
+	m = exitVisualMode(m)
 	m.insights.back()
 	m.insights.clampCursor()
 	return m

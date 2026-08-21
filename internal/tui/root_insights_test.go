@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -962,6 +963,94 @@ func TestInsightsRenderFitsHeight(t *testing.T) {
 		if len(lines) > size[1] {
 			t.Errorf("%dx%d: rendered %d lines, exceeds height", size[0], size[1], len(lines))
 		}
+	}
+}
+
+// insightsNotified reports whether any live notification carries substr.
+func insightsNotified(m Model, substr string) bool {
+	for _, n := range m.statusBar.notifications {
+		if strings.Contains(n.msg, substr) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestInsightsVisualSelectionWorksAtTrackLevel(t *testing.T) {
+	m := newInsightsModel(t)
+
+	// The briefing is not a track list, and v is advertised, so it has to say
+	// what is missing rather than swallow the key.
+	m = doVisual(m)
+	if m.visual.active {
+		t.Fatal("visual mode must not enter on the Insights briefing")
+	}
+	if !insightsNotified(m, "track list") {
+		t.Errorf("expected a refusal naming the missing track list, got %+v", m.statusBar.notifications)
+	}
+
+	// A session list is a list of sessions, not of tracks, and refuses too.
+	m.insights.openSessionList("Sessions", []insights.SessionRow{{ID: "s1"}, {ID: "s2"}})
+	m = doVisual(m)
+	if m.visual.active {
+		t.Fatal("visual mode must not enter on the Insights session list")
+	}
+	m.insights.back()
+
+	tracks := m.insightsDrillTracks(insightsRow{drill: drillUnheardAll})
+	if len(tracks) != 3 {
+		t.Fatalf("precondition: want 3 never-played tracks, got %d", len(tracks))
+	}
+	m.insights.openDrill("Never played", tracks)
+	// A selection made before v must survive every restore of the range.
+	m.insights.trackView.selectedHashes = map[string]struct{}{"h5": {}}
+
+	m = doVisual(m)
+	if !m.visual.active {
+		t.Fatal("expected visual mode to enter at the Insights track level")
+	}
+	if m.visual.view != viewInsights {
+		t.Errorf("visual view: want viewInsights, got %v", m.visual.view)
+	}
+	if m.visual.anchor != 0 {
+		t.Errorf("anchor: want the cursor position 0, got %d", m.visual.anchor)
+	}
+	assertSelectedHashesExact(t, m.insights.trackView.selectedHashes, "h2", "h5")
+
+	m = doNav(m, actionCursorDown)
+	assertSelectedHashesExact(t, m.insights.trackView.selectedHashes, "h2", "h3", "h5")
+
+	// Shrinking the range restores the snapshot rather than leaving h3 behind.
+	m = doNav(m, actionCursorUp)
+	assertSelectedHashesExact(t, m.insights.trackView.selectedHashes, "h2", "h5")
+
+	m.showFooterHints = true
+	m.termWidth = 200
+	hint := ansi.Strip(m.renderFooterHint())
+	for _, want := range []string{"extend", "exit", "clear"} {
+		if !strings.Contains(hint, want) {
+			t.Errorf("visual footer hints missing %q: %q", want, hint)
+		}
+	}
+
+	// v again exits, keeping what the range selected.
+	m = doVisual(m)
+	if m.visual.active {
+		t.Fatal("expected a second v to exit visual mode")
+	}
+	assertSelectedHashesExact(t, m.insights.trackView.selectedHashes, "h2", "h5")
+
+	// esc leaves the drill, which is the list the anchor pointed into.
+	m = doVisual(m)
+	if !m.visual.active {
+		t.Fatal("expected visual mode to re-enter")
+	}
+	m = m.handleInsightsBack()
+	if m.visual.active {
+		t.Error("stepping out of the drill must exit visual mode")
+	}
+	if m.insights.level != insightsLevelBriefing {
+		t.Errorf("expected the briefing after back, got level %d", m.insights.level)
 	}
 }
 

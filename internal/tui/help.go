@@ -313,7 +313,7 @@ func helpSections() []helpSection {
 				{"M", "Bulk-edit the tracks behind a Data Health finding"},
 				{"x", "Toggle bulk selection"},
 				{"X", "Clear bulk selection"},
-				{"v", "Toggle visual line selection mode"},
+				{"v", "Toggle visual line selection mode (drilled-in track lists only)"},
 				{"a", "Add selected tracks to queue or playlist"},
 				{"j / k / down / up", "Move cursor down / up"},
 				{"ctrl+d / ctrl+u", "Half-page down / up"},

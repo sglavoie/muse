@@ -383,4 +383,12 @@ func registerVisualModePrimaries(r *Registry) {
 		r.addPrimaryMode(ctx, HintModeVisual, "X", "clear")
 		r.addPrimaryMode(ctx, HintModeVisual, "?", "help")
 	}
+
+	// Insights only enters visual mode inside a drilled-in track list, where esc
+	// leaves the drill outright rather than merely cancelling the range.
+	r.addPrimaryMode(contextInsights, HintModeVisual, "j/k", "extend")
+	r.addPrimaryMode(contextInsights, HintModeVisual, "v", "exit")
+	r.addPrimaryMode(contextInsights, HintModeVisual, "esc", "back")
+	r.addPrimaryMode(contextInsights, HintModeVisual, "X", "clear")
+	r.addPrimaryMode(contextInsights, HintModeVisual, "?", "help")
 }

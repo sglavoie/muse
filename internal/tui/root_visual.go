@@ -24,7 +24,7 @@ type visualState struct {
 // selectionSnapshot captures the selection state before visual mode was entered
 // so it can be restored on each cursor move to compute the new visual range.
 type selectionSnapshot struct {
-	hashes    map[string]struct{} // Library, RecentlyAdded, Artists, Albums, Genres
+	hashes    map[string]struct{} // Library, RecentlyAdded, Artists, Albums, Genres, Insights
 	queueSel  map[int]bool        // Queue: entries index → was selected
 	trackIDs  map[int64]struct{}  // Playlists: track row IDs
 	favIdxSet map[int]struct{}    // Favorites: selected item indices
@@ -52,6 +52,8 @@ func activeViewCursor(m Model) int {
 		return m.favorites.cursor
 	case viewTags:
 		return m.tagsView.cursor
+	case viewInsights:
+		return m.insights.trackView.cursor
 	}
 	return 0
 }
@@ -89,13 +91,20 @@ func enterVisualMode(m Model) Model {
 		if m.tagsView.level != tagtui.TrackLevel {
 			return m
 		}
-	case viewMixes, viewInsights:
+	case viewInsights:
+		// Only the embedded LibraryView is a range that can be grown. The
+		// briefing and the session list are neither, and the view advertises v,
+		// so say what is missing rather than swallowing the key.
+		if !m.insights.atTracks() {
+			m.statusBar.notify("Visual selection needs a track list — press enter to drill in")
+			return m
+		}
+	case viewMixes:
 		// Visual mode is not yet wired through takeSnapshot/selectRange for
-		// these two views (no cases in updateVisualSelection or
-		// restoreSnapshot). Allowing enter would leave stale visualState
-		// that the footer-hint strip misreads as HintModeVisual while no
-		// selection is actually being built. Guard at every level until the
-		// full wiring lands.
+		// Mixes (no cases in updateVisualSelection or restoreSnapshot).
+		// Allowing enter would leave stale visualState that the footer-hint
+		// strip misreads as HintModeVisual while no selection is actually being
+		// built. Guard at every level until the full wiring lands.
 		return m
 	}
 
@@ -178,6 +187,10 @@ func visualListLen(m Model) int {
 		if m.tagsView.level == tagtui.TrackLevel {
 			return len(m.tagsView.displayTracks())
 		}
+	case viewInsights:
+		if m.insights.atTracks() {
+			return m.insights.trackView.trackCount()
+		}
 	}
 	return 0
 }
@@ -212,6 +225,8 @@ func takeSnapshot(m Model) selectionSnapshot {
 		snap.favIdxSet = cloneIntSet(m.favorites.selectedItems)
 	case viewTags:
 		snap.hashes = cloneStringSet(m.tagsView.selectedHashes)
+	case viewInsights:
+		snap.hashes = cloneStringSet(m.insights.trackView.selectedHashes)
 	}
 	return snap
 }
@@ -240,6 +255,8 @@ func restoreSnapshot(m Model) Model {
 		m.favorites.selectedItems = cloneIntSet(m.visual.snapshot.favIdxSet)
 	case viewTags:
 		m.tagsView.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
+	case viewInsights:
+		m.insights.trackView.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 	}
 	return m
 }
@@ -300,6 +317,10 @@ func selectRange(m Model, lo, hi int) Model {
 				}
 				m.favorites.selectedItems[i] = struct{}{}
 			}
+		}
+	case viewInsights:
+		if m.insights.atTracks() {
+			m.insights.trackView = libSelectRange(m.insights.trackView, lo, hi)
 		}
 	case viewTags:
 		if m.tagsView.level == tagtui.TrackLevel {
