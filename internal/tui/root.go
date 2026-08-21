@@ -193,6 +193,7 @@ type Model struct {
 	historyRecorder     playHistoryRecorder          // may be nil; set via WithHistoryRecorder
 	historyReader       playHistoryReader            // may be nil; set via WithHistoryReader
 	insightsReader      insightsReader               // may be nil; set via WithInsightsReader
+	insightsRand        func(n int) int              // nil uses the global source; seeded in tests
 	recReader           recommendationReader         // may be nil; set via WithRecommendationReader
 	dismissalReader     dismissalReader              // may be nil; set via WithDismissalReader
 	dismissalWriter     dismissalWriter              // may be nil; set via WithDismissalWriter

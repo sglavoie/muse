@@ -122,11 +122,7 @@ func (m Model) handleInsightsAntiRut() (Model, tea.Cmd) {
 		}
 		return m.insightsEnqueue(tracks, fmt.Sprintf("Outside your top %d artists", insightsRutTopArtists))
 	}
-	tracks := m.insightsDrillTracks(insightsRow{drill: drillUnheardAll})
-	if len(tracks) > insightsAntiRutCount {
-		tracks = tracks[:insightsAntiRutCount]
-	}
-	return m.insightsEnqueue(tracks, "Never played")
+	return m.insightsEnqueue(m.insightsCoverageAntiRutTracks(insightsAntiRutCount), "Never played")
 }
 
 func (m Model) insightsEnqueue(tracks []library.Track, label string) (Model, tea.Cmd) {

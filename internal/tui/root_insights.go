@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math/rand/v2"
 	"sort"
 	"strconv"
 	"strings"
@@ -577,6 +578,90 @@ func (m Model) insightsRutBreakerTracks(limit int) []library.Track {
 		if !took {
 			break
 		}
+	}
+	return out
+}
+
+// insightsCoverageShelf is one artist's never-played tracks: the unit the
+// Coverage anti-rut draw weights over.
+type insightsCoverageShelf struct {
+	artist string
+	tracks []library.Track
+}
+
+// insightsCoverageAntiRutTracks draws up to limit never-played tracks weighted
+// toward the dustiest shelves. A shelf is an artist, and its weight is the
+// square of the unheard tracks it still holds: squaring is what makes this a
+// weighting rather than a uniform sample, because it leaves a *track* on a
+// 40-track shelf ten times likelier than one on a 4-track shelf. The weight
+// falls as a shelf is drawn from, so the biggest pile leads without swallowing
+// the batch, and the draw is random rather than ordered so pressing ! twice
+// does not hand back the same 25 tracks.
+func (m Model) insightsCoverageAntiRutTracks(limit int) []library.Track {
+	if limit <= 0 {
+		return nil
+	}
+
+	byArtist := map[string][]library.Track{}
+	// The index holds only non-missing tracks (db.ReadTracks filters them out),
+	// so never-played is the only condition left to apply here.
+	for _, t := range m.library.index.Tracks() {
+		if t.PlayCount == 0 {
+			byArtist[t.Artist] = append(byArtist[t.Artist], t)
+		}
+	}
+
+	// Map order is randomized per run, so the shelves and the tracks on them are
+	// sorted before any draw: without that a seeded source would still produce a
+	// different set each time.
+	shelves := make([]insightsCoverageShelf, 0, len(byArtist))
+	for artist, ts := range byArtist {
+		sort.Slice(ts, func(i, j int) bool { return ts[i].Hash < ts[j].Hash })
+		shelves = append(shelves, insightsCoverageShelf{artist: artist, tracks: ts})
+	}
+	sort.Slice(shelves, func(i, j int) bool {
+		if len(shelves[i].tracks) != len(shelves[j].tracks) {
+			return len(shelves[i].tracks) > len(shelves[j].tracks)
+		}
+		return shelves[i].artist < shelves[j].artist
+	})
+
+	next := m.insightsRand
+	if next == nil {
+		next = rand.IntN
+	}
+
+	total := 0
+	for _, s := range shelves {
+		total += len(s.tracks) * len(s.tracks)
+	}
+
+	out := make([]library.Track, 0, limit)
+	for len(out) < limit && total > 0 {
+		r, cum, pick := next(total), 0, len(shelves)-1
+		for i, s := range shelves {
+			cum += len(s.tracks) * len(s.tracks)
+			if r < cum {
+				pick = i
+				break
+			}
+		}
+
+		ts := shelves[pick].tracks
+		total -= len(ts) * len(ts)
+		j := next(len(ts))
+		out = append(out, ts[j])
+		ts[j] = ts[len(ts)-1]
+		ts = ts[:len(ts)-1]
+		total += len(ts) * len(ts)
+
+		// An emptied shelf is dropped rather than left at weight zero, so the
+		// fallback index above can never land on a shelf with nothing on it.
+		if len(ts) == 0 {
+			shelves = append(shelves[:pick], shelves[pick+1:]...)
+			continue
+		}
+		shelves[pick].tracks = ts
 	}
 	return out
 }
