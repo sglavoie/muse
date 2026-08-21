@@ -266,7 +266,7 @@ func TestHandlePlayRecordedMsgDedupesExistingHash(t *testing.T) {
 		{Hash: "h2", Title: "B", LastPlayedAt: 90},
 	}
 
-	nm := m.handlePlayRecordedMsg(playRecordedMsg{Hash: "h1", PlayedAt: 200})
+	nm := m.handlePlayRecordedMsg(playRecordedMsg{Hash: "h1", PlayedAt: 200, Counted: true})
 
 	if len(nm.library.sourceTracks) != 2 {
 		t.Fatalf("expected 2 tracks in history after dedup, got %d", len(nm.library.sourceTracks))

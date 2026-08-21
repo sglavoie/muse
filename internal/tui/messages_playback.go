@@ -1,10 +1,11 @@
 package tui
 
-// playRecordedMsg is dispatched after a successful RecordPlay call so the
+// playRecordedMsg is dispatched after a successful RecordListen call so the
 // History view can be updated in realtime without a full DB reload.
 type playRecordedMsg struct {
 	Hash     string
 	PlayedAt int64
+	Counted  bool
 }
 
 // MissingTrackMsg is dispatched by the player when it attempts to play a

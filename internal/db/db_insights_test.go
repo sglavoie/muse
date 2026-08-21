@@ -43,11 +43,25 @@ func insertInsightTrack(t *testing.T, d *db.DB, tr insightTrack) {
 func insertInsightPlay(t *testing.T, d *db.DB, hash string, playedAt int64, listenedSecs int, completion float64, sessionID string) {
 	t.Helper()
 	if _, err := d.Exec(`
-		INSERT INTO play_history (track_hash, played_at, listened_secs, completion_rate, session_id)
+		INSERT INTO play_events (track_hash, played_at, listened_secs, completion_rate, session_id)
 		VALUES (?, ?, ?, ?, ?)`,
 		hash, playedAt, listenedSecs, completion, sessionID,
 	); err != nil {
 		t.Fatalf("insert play for %s: %v", hash, err)
+	}
+}
+
+// insertInsightSkip records an abandoned listen: logged in play_events but
+// filtered out of the play_history view, so only readers that ask for the full
+// log see it.
+func insertInsightSkip(t *testing.T, d *db.DB, hash string, playedAt int64, listenedSecs int, completion float64) {
+	t.Helper()
+	if _, err := d.Exec(`
+		INSERT INTO play_events (track_hash, played_at, listened_secs, completion_rate, session_id, counted)
+		VALUES (?, ?, ?, ?, NULL, 0)`,
+		hash, playedAt, listenedSecs, completion,
+	); err != nil {
+		t.Fatalf("insert skip for %s: %v", hash, err)
 	}
 }
 
@@ -277,6 +291,32 @@ func TestReadInsightQualityCounts(t *testing.T) {
 		PlaysWithoutGenre:  2,
 		DeepCutsCandidates: 2,
 		DeepCutsQualifying: 1, // track b averages 0.55 and drops out
+	}
+	if q != want {
+		t.Errorf("quality = %+v, want %+v", q, want)
+	}
+}
+
+func TestReadInsightQualityCountsSkippedListens(t *testing.T) {
+	d := openMigratedDB(t)
+	insertInsightTrack(t, d, insightTrack{hash: "a", artist: "A", duration: 300, playCount: 1, genres: []string{"rock"}})
+	insertInsightPlay(t, d, "a", 1774000300, 300, 1.0, "s1")
+	insertInsightSkip(t, d, "a", 1774000400, 6, 0.02)
+	insertInsightSkip(t, d, "a", 1774000500, 6, 0.02)
+
+	q, err := d.ReadInsightQuality(1, 5, 0.8)
+	if err != nil {
+		t.Fatalf("ReadInsightQuality: %v", err)
+	}
+
+	want := insights.QualityCounts{
+		TracksTotal:        1,
+		PlaysTotal:         1, // the counted-only view still reports one play
+		SkipsRecorded:      2,
+		DeepCutsCandidates: 1,
+		// Read through play_history the average would be a flat 1.0; over the
+		// full log the two skips pull it to 0.35 and the filter bites.
+		DeepCutsQualifying: 0,
 	}
 	if q != want {
 		t.Errorf("quality = %+v, want %+v", q, want)

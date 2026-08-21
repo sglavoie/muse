@@ -10,56 +10,14 @@ import (
 	"github.com/sglavoie/muse/internal/player"
 )
 
-func (m Model) playCountIncrementCmd(hash string, elapsedSecs, totalSecs float64) tea.Cmd {
-	if hash == "" || !shouldCountPlay(elapsedSecs, totalSecs) {
-		return nil
-	}
-
-	now := time.Now().Unix()
-	m.library.index.IncrementPlayCount(hash, now)
-	if m.historyRecorder != nil {
-		hr := m.historyRecorder
-		elapsed := int(elapsedSecs)
-		duration := totalSecs
-		return func() tea.Msg {
-			if err := hr.RecordPlay(hash, now, elapsed, duration); err != nil {
-				slog.Warn("play count: RecordPlay failed", "hash", hash, "err", err)
-				return nil
-			}
-			return playRecordedMsg{Hash: hash, PlayedAt: now}
-		}
-	}
-	if m.playCountWriter != nil {
-		pcw := m.playCountWriter
-		return func() tea.Msg {
-			if err := pcw.IncrementPlayCount(hash); err != nil {
-				slog.Warn("play count: IncrementPlayCount failed", "hash", hash, "err", err)
-			}
-			return nil
-		}
-	}
-
-	return nil
-}
-
 // handlePlaybackEndedMsg handles the end of the play queue, optionally
 // wrapping around in repeat-all mode.
 func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	wasStopAfter := m.playback.stopAfterCurrent
 	m.playback.stopAfterCurrent = false
 
-	if m.playback.currentHash != "" && shouldCountPlay(m.playback.peakElapsedSecs, m.playback.peakTotalSecs) {
-		m.mixes.playsSinceRefresh++
-		m.sessionTracksPlayed++
-		m.sessionListenSecs += m.playback.peakElapsedSecs
-		m.bumpSessionArtist(m.statusBar.artist)
-	}
-
-	incrementCmd := m.playCountIncrementCmd(
-		m.playback.currentHash,
-		m.playback.peakElapsedSecs,
-		m.playback.peakTotalSecs,
-	)
+	// One snapshot before the branch cascade covers all four exits below.
+	m = m.endCurrentListen()
 
 	if !wasStopAfter && m.playback.repeatMode == RepeatAll && len(m.queue.entries) > 0 && m.player != nil {
 		// Prefer RestartQueueCycle so shuffle reshuffles into a fresh permutation
@@ -75,7 +33,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 			m.playback.state = PlaybackPlaying
 			m = m.resetPlaybackProgress()
 			m.missingTrackCount = 0
-			return m, incrementCmd
+			return m, nil
 		}
 	}
 
@@ -86,7 +44,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 		if err := m.player.PlayFromIndex(m.playback.currentIndex + 1); err == nil {
 			m.playback.state = PlaybackPlaying
 			m = m.resetPlaybackProgress()
-			return m, incrementCmd
+			return m, nil
 		}
 	}
 
@@ -104,7 +62,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 			m.playback.currentIndex = -1
 			m.missingTrackCount = 0
 			player.PlayQueueFinishedSound()
-			return m, tea.Batch(incrementCmd, cmd)
+			return m, cmd
 		}
 	}
 
@@ -134,13 +92,14 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	m.missingTrackCount = 0
 	m.statusBar.notify(msg)
 	player.PlayQueueFinishedSound()
-	return m, incrementCmd
+	return m, nil
 }
 
 // handlePlayerDisconnectedMsg resets TUI playback state when mpv disconnects
 // unexpectedly so the play/pause icon and progress bar are not stale during
 // the reconnection window.
 func (m Model) handlePlayerDisconnectedMsg() Model {
+	m = m.endCurrentListen()
 	m.playback.state = PlaybackStopped
 	m = m.resetPlaybackProgress()
 	m.statusBar.notify("mpv disconnected, restarting…")
@@ -190,6 +149,11 @@ func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
 // handleTrackChangedMsg updates the status bar and playback state when the
 // player advances to a new track.
 func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
+	// End the previous listen above the empty-queue guard below: when the queue
+	// was cleared mid-track the listen still happened, and returning early
+	// would strand it armed.
+	m = m.endCurrentListen()
+
 	// Guard: discard stale TrackChangedMsg that arrives after the queue was
 	// cleared (e.g. mpv's gapless prefetch fired a start-file event before
 	// the clear was processed). Without this check the TUI would resurrect
@@ -198,11 +162,6 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	if len(m.queue.entries) == 0 {
 		return m, nil
 	}
-
-	previousHash := m.playback.currentHash
-	previousElapsed := m.playback.peakElapsedSecs
-	previousTotal := m.playback.peakTotalSecs
-	previousArtist := m.statusBar.artist
 
 	m.playback.currentHash = msg.Hash
 	// Clamp index to queue bounds in case the queue shrank between the mpv
@@ -243,6 +202,7 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	m.statusBar.playlistSource = source
 	m.playback.state = PlaybackPlaying
 	m = m.resetPlaybackProgress()
+	m = m.armPendingListen(msg.Hash, msg.Artist)
 
 	// Refresh the now-playing overlay with the new track's metadata.
 	if m.overlay.nowPlaying != nil {
@@ -266,13 +226,6 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 		}
 	}
 
-	if previousHash != "" && shouldCountPlay(previousElapsed, previousTotal) {
-		m.mixes.playsSinceRefresh++
-		m.sessionTracksPlayed++
-		m.sessionListenSecs += previousElapsed
-		m.bumpSessionArtist(previousArtist)
-	}
-	incrementCmd := m.playCountIncrementCmd(previousHash, previousElapsed, previousTotal)
 	// Radio mode: update seed and check low-water-mark.
 	m.radio.seedHash = msg.Hash
 	radioCmd := m.radioMaybeEnqueueCmd()
@@ -283,7 +236,7 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	// Pulse the now-playing row briefly so the user notices the transition.
 	m.pulseUntil = time.Now().Add(pulseDuration)
 
-	return m, tea.Batch(m.sessionPositionCmd(), incrementCmd, radioCmd, pulseCmd())
+	return m, tea.Batch(m.sessionPositionCmd(), radioCmd, pulseCmd())
 }
 
 // bumpSessionArtist records one more play for artist in the session
@@ -301,9 +254,15 @@ func (m *Model) bumpSessionArtist(artist string) {
 // handlePlayRecordedMsg prepends the just-played track to the in-memory
 // library History mode so it updates in realtime without a full DB reload.
 func (m Model) handlePlayRecordedMsg(msg playRecordedMsg) Model {
-	// The play is in play_history now, so every Insights aggregate that counts
-	// it is out of date.
+	// The listen is in play_events now, so every Insights aggregate that counts
+	// it — including the skip counts that gate mix readiness — is out of date.
 	m.insightsInvalidate()
+
+	// History reads the counted-only play_history view, so prepending an
+	// uncounted listen would show a row that vanishes on the next reload.
+	if !msg.Counted {
+		return m
+	}
 
 	// Only update when History mode is active and has been loaded.
 	if m.library.mode != LibraryModeHistory || len(m.library.sourceTracks) == 0 {

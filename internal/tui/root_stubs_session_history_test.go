@@ -1,5 +1,7 @@
 package tui
 
+import "github.com/sglavoie/muse/internal/db"
+
 // stubSessionWriter records WriteRepeatMode, WriteShuffle, WriteRadioMode,
 // UpdateSessionPosition, and WriteVolume calls for assertion in tests.
 type stubSessionWriter struct {
@@ -41,23 +43,13 @@ func (s *stubSessionWriter) WriteVolume(volume int) error {
 	return nil
 }
 
-// stubHistoryRecorder records RecordPlay calls for assertion in tests.
+// stubHistoryRecorder records RecordListen calls for assertion in tests.
 type stubHistoryRecorder struct {
-	calls []struct {
-		hash         string
-		playedAt     int64
-		listenedSs   int
-		durationSecs float64
-	}
+	calls []db.PlayRecord
 }
 
-func (s *stubHistoryRecorder) RecordPlay(hash string, playedAt int64, listenedSecs int, durationSecs float64) error {
-	s.calls = append(s.calls, struct {
-		hash         string
-		playedAt     int64
-		listenedSs   int
-		durationSecs float64
-	}{hash, playedAt, listenedSecs, durationSecs})
+func (s *stubHistoryRecorder) RecordListen(rec db.PlayRecord) error {
+	s.calls = append(s.calls, rec)
 	return nil
 }
 

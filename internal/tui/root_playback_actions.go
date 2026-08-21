@@ -120,6 +120,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 				slog.Warn("stop failed", "err", err)
 				m.statusBar.notify("Stop failed: " + err.Error())
 			} else {
+				m = m.endCurrentListen()
 				m.playback.state = PlaybackStopped
 				m.playback.elapsedSecs = 0
 				m.playback.totalSecs = 0

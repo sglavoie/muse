@@ -219,7 +219,10 @@ func (w *uitestMetadata) UpdateTrackMetadata(hash, title, artist, album, genre s
 }
 
 func (r *uitestInsights) ReadInsightQuality(minPlays, maxPlays int, _ float64) (insights.QualityCounts, error) {
-	q := insights.QualityCounts{TracksTotal: len(r.tracks)}
+	// SkipsRecorded clears insights.DeepCutsMinSkips so the flat-share row
+	// stays reachable: below that gate the issue is suppressed by design,
+	// and this fixture's job is to light up every health row at once.
+	q := insights.QualityCounts{TracksTotal: len(r.tracks), SkipsRecorded: insights.DeepCutsMinSkips}
 	for _, t := range r.tracks {
 		if t.Genre == "" {
 			q.TracksWithoutGenre++

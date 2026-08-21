@@ -270,11 +270,12 @@ type smartPlaylistWriter interface {
 	ReadPlaylists() ([]db.PlaylistRow, error)
 }
 
-// playHistoryRecorder records a completed play to the play_history table.
-// Root calls it instead of playCountIncrementer when available, because
-// RecordPlay atomically increments play_count AND sets last_played_at.
+// playHistoryRecorder records a listen to the play_events table.
+// Root calls it instead of playCountIncrementer when available, because a
+// counted RecordListen atomically increments play_count AND sets
+// last_played_at.
 type playHistoryRecorder interface {
-	RecordPlay(hash string, playedAt int64, listenedSecs int, durationSecs float64) error
+	RecordListen(rec db.PlayRecord) error
 }
 
 // playHistoryReader loads raw play history rows from the database. Root uses

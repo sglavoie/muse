@@ -48,6 +48,7 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 		wasCurrent := msg.Index == m.playback.currentIndex
 		m.adjustPlaybackIndexAfterRemoval(msg.Index)
 		if wasCurrent && len(m.queue.entries) > 0 {
+			m = m.endCurrentListen()
 			// The player's in-flight gapless prefetch will carry playback to
 			// the next track. Do NOT call resetPlaybackState here — it would
 			// invoke player.Stop() which globally pauses mpv, and that
@@ -240,11 +241,7 @@ func (m Model) resumeExhaustedPlayback(insertPos int, entry QueueEntry) Model {
 		m.playback.state = PlaybackPlaying
 		m.playback.currentHash = entry.Hash
 		m.playback.currentIndex = insertPos
-		m.playback.elapsedSecs = 0
-		m.playback.totalSecs = 0
-		m.playback.peakElapsedSecs = 0
-		m.playback.peakTotalSecs = 0
-		m.playback.durationCorrected = false
+		m = m.resetPlaybackProgress()
 		m.statusBar.artist = entry.Artist
 		m.statusBar.title = entry.Title
 		m.statusBar.playlistSource = queueSourceName(entry.SourcePlaylist)

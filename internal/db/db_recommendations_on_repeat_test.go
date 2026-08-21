@@ -3,6 +3,8 @@ package db_test
 import (
 	"testing"
 	"time"
+
+	"github.com/sglavoie/muse/internal/db"
 )
 
 func TestReadOnRepeatMix_Empty(t *testing.T) {
@@ -24,8 +26,8 @@ func TestReadOnRepeatMix_RequiresMinRecentPlays(t *testing.T) {
 	w := newWriter(t, d)
 
 	for i := range 2 {
-		if err := w.RecordPlay("h1", now-int64(i*3600), 60, 180); err != nil {
-			t.Fatalf("RecordPlay: %v", err)
+		if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now - int64(i*3600), ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+			t.Fatalf("RecordListen: %v", err)
 		}
 	}
 
@@ -45,8 +47,8 @@ func TestReadOnRepeatMix_Returns3PlusRecentPlays(t *testing.T) {
 	w := newWriter(t, d)
 
 	for i := range 3 {
-		if err := w.RecordPlay("h1", now-int64(i*3600), 60, 180); err != nil {
-			t.Fatalf("RecordPlay: %v", err)
+		if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now - int64(i*3600), ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+			t.Fatalf("RecordListen: %v", err)
 		}
 	}
 
@@ -67,10 +69,10 @@ func TestReadOnRepeatMix_ExcludesOldPlays(t *testing.T) {
 	eightDaysAgo := now - 8*86400
 	for i := range 3 {
 		if _, err := d.Exec(
-			`INSERT INTO play_history (track_hash, played_at, listened_secs) VALUES (?, ?, ?)`,
+			`INSERT INTO play_events (track_hash, played_at, listened_secs) VALUES (?, ?, ?)`,
 			"h1", eightDaysAgo+int64(i), 60,
 		); err != nil {
-			t.Fatalf("insert play_history: %v", err)
+			t.Fatalf("insert play_events: %v", err)
 		}
 	}
 
@@ -90,8 +92,8 @@ func TestReadOnRepeatMix_ExcludesMissingTracks(t *testing.T) {
 	w := newWriter(t, d)
 
 	for i := range 3 {
-		if err := w.RecordPlay("h1", now-int64(i*3600), 60, 180); err != nil {
-			t.Fatalf("RecordPlay: %v", err)
+		if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now - int64(i*3600), ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+			t.Fatalf("RecordListen: %v", err)
 		}
 	}
 

@@ -3,6 +3,8 @@ package db_test
 import (
 	"testing"
 	"time"
+
+	"github.com/sglavoie/muse/internal/db"
 )
 
 func TestReadHiddenGemsMix_NoHistory(t *testing.T) {
@@ -25,8 +27,8 @@ func TestReadHiddenGemsMix_MatchesByArtist(t *testing.T) {
 	insertFullTrack(t, d, "h3", "/c.flac", "Song3", "ArtistZ", "Album", "Jazz", 180000, 5000000, now)
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("h1", now, 60, 180); err != nil {
-		t.Fatalf("RecordPlay: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen: %v", err)
 	}
 	if _, err := d.Exec(`UPDATE tracks SET play_count = 3 WHERE hash = ?`, "h1"); err != nil {
 		t.Fatalf("update h1 play_count: %v", err)
@@ -60,8 +62,8 @@ func TestReadHiddenGemsMix_MatchesByGenre(t *testing.T) {
 	insertFullTrack(t, d, "h2", "/b.flac", "Song2", "ArtistZ", "Album", "Rock", 180000, 5000000, now)
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("h1", now, 60, 180); err != nil {
-		t.Fatalf("RecordPlay h1: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h1: %v", err)
 	}
 	if _, err := d.Exec(`UPDATE tracks SET play_count = 3 WHERE hash = ?`, "h1"); err != nil {
 		t.Fatalf("update h1 play_count: %v", err)
@@ -98,8 +100,8 @@ func TestReadHiddenGemsMix_ExcludesHighPlayCount(t *testing.T) {
 	insertFullTrack(t, d, "h2", "/b.flac", "Song2", "ArtistA", "Album", "Rock", 180000, 5000000, now)
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("h1", now, 60, 180); err != nil {
-		t.Fatalf("RecordPlay: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen: %v", err)
 	}
 	if _, err := d.Exec(`UPDATE tracks SET play_count = 5 WHERE hash = ?`, "h1"); err != nil {
 		t.Fatalf("update h1: %v", err)
@@ -127,8 +129,8 @@ func TestReadHiddenGemsMix_ExcludesZeroPlayTracks(t *testing.T) {
 	insertFullTrack(t, d, "h3", "/c.flac", "Song3", "ArtistA", "Album", "Rock", 180000, 5000000, now)
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("h1", now, 60, 180); err != nil {
-		t.Fatalf("RecordPlay: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen: %v", err)
 	}
 	if _, err := d.Exec(`UPDATE tracks SET play_count = 3 WHERE hash = ?`, "h1"); err != nil {
 		t.Fatalf("update h1 play_count: %v", err)
@@ -165,8 +167,8 @@ func TestReadHiddenGemsMix_MultiGenreTrack(t *testing.T) {
 	insertFullTrack(t, d, "h2", "/b.flac", "Song2", "ArtistZ", "Album", "Rock; Jazz", 180000, 5000000, now)
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("h1", now, 60, 180); err != nil {
-		t.Fatalf("RecordPlay: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen: %v", err)
 	}
 	if _, err := d.Exec(`UPDATE tracks SET play_count = 3 WHERE hash = ?`, "h1"); err != nil {
 		t.Fatalf("update h1 play_count: %v", err)
@@ -210,8 +212,8 @@ func TestReadHiddenGemsMix_ArtistMatchCaseInsensitive(t *testing.T) {
 	insertFullTrack(t, d, "h2", "/b.flac", "Song2", "artista", "Album", "Rock", 180000, 5000000, now)
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("h1", now, 60, 180); err != nil {
-		t.Fatalf("RecordPlay: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen: %v", err)
 	}
 	if _, err := d.Exec(`UPDATE tracks SET play_count = 3 WHERE hash = ?`, "h1"); err != nil {
 		t.Fatalf("update h1 play_count: %v", err)
@@ -244,8 +246,8 @@ func TestReadHiddenGemsMix_GenreMatchCaseInsensitive(t *testing.T) {
 	insertFullTrack(t, d, "h2", "/b.flac", "Song2", "ArtistZ", "Album", "rock", 180000, 5000000, now)
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("h1", now, 60, 180); err != nil {
-		t.Fatalf("RecordPlay h1: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h1: %v", err)
 	}
 	if _, err := d.Exec(`UPDATE tracks SET play_count = 3 WHERE hash = ?`, "h1"); err != nil {
 		t.Fatalf("update h1 play_count: %v", err)
@@ -282,8 +284,8 @@ func TestReadHiddenGemsMix_ExcludesMissingTracks(t *testing.T) {
 	insertFullTrack(t, d, "h2", "/b.flac", "Song2", "ArtistA", "Album", "Rock", 180000, 5000000, now)
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("h1", now, 60, 180); err != nil {
-		t.Fatalf("RecordPlay: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen: %v", err)
 	}
 	if _, err := d.Exec(`UPDATE tracks SET play_count = 3 WHERE hash = ?`, "h1"); err != nil {
 		t.Fatalf("update h1: %v", err)

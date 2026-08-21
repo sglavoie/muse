@@ -3,6 +3,8 @@ package db_test
 import (
 	"testing"
 	"time"
+
+	"github.com/sglavoie/muse/internal/db"
 )
 
 func TestReadSessionCoOccurrences_Empty(t *testing.T) {
@@ -23,8 +25,8 @@ func TestReadSessionCoOccurrences_SelfExclusion(t *testing.T) {
 	insertFullTrack(t, d, "seed", "/seed.flac", "Seed", "Artist", "Album", "Rock", 180000, 5000000, now)
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("seed", now, 60, 180); err != nil {
-		t.Fatalf("RecordPlay seed: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "seed", PlayedAt: now, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen seed: %v", err)
 	}
 
 	results, err := d.ReadSessionCoOccurrences("seed", 10)
@@ -46,14 +48,14 @@ func TestReadSessionCoOccurrences_SessionBoundary(t *testing.T) {
 	insertFullTrack(t, d, "other", "/other.flac", "Other", "Artist", "Album", "Rock", 180000, 5000000, now)
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("seed", now, 60, 180); err != nil {
-		t.Fatalf("RecordPlay seed: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "seed", PlayedAt: now, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen seed: %v", err)
 	}
-	if err := w.RecordPlay("same", now+60, 60, 180); err != nil {
-		t.Fatalf("RecordPlay same: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "same", PlayedAt: now + 60, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen same: %v", err)
 	}
-	if err := w.RecordPlay("other", now+2000, 60, 180); err != nil {
-		t.Fatalf("RecordPlay other: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "other", PlayedAt: now + 2000, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen other: %v", err)
 	}
 
 	results, err := d.ReadSessionCoOccurrences("seed", 10)
@@ -79,11 +81,11 @@ func TestReadSessionCoOccurrences_ExcludesMissingTracks(t *testing.T) {
 	insertFullTrack(t, d, "missing", "/missing.flac", "Missing", "Artist", "Album", "Rock", 180000, 5000000, now)
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("seed", now, 60, 180); err != nil {
-		t.Fatalf("RecordPlay seed: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "seed", PlayedAt: now, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen seed: %v", err)
 	}
-	if err := w.RecordPlay("missing", now+60, 60, 180); err != nil {
-		t.Fatalf("RecordPlay missing: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "missing", PlayedAt: now + 60, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen missing: %v", err)
 	}
 	markMissing(t, d, "missing")
 
@@ -106,20 +108,20 @@ func TestReadSessionCoOccurrences_CountOrdering(t *testing.T) {
 	insertFullTrack(t, d, "rare", "/rare.flac", "Rare", "Artist", "Album", "Rock", 180000, 5000000, now)
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("seed", now, 60, 180); err != nil {
-		t.Fatalf("RecordPlay seed 1: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "seed", PlayedAt: now, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen seed 1: %v", err)
 	}
-	if err := w.RecordPlay("frequent", now+10, 60, 180); err != nil {
-		t.Fatalf("RecordPlay frequent 1: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "frequent", PlayedAt: now + 10, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen frequent 1: %v", err)
 	}
-	if err := w.RecordPlay("rare", now+20, 60, 180); err != nil {
-		t.Fatalf("RecordPlay rare: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "rare", PlayedAt: now + 20, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen rare: %v", err)
 	}
-	if err := w.RecordPlay("seed", now+2000, 60, 180); err != nil {
-		t.Fatalf("RecordPlay seed 2: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "seed", PlayedAt: now + 2000, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen seed 2: %v", err)
 	}
-	if err := w.RecordPlay("frequent", now+2010, 60, 180); err != nil {
-		t.Fatalf("RecordPlay frequent 2: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "frequent", PlayedAt: now + 2010, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen frequent 2: %v", err)
 	}
 
 	results, err := d.ReadSessionCoOccurrences("seed", 10)
@@ -141,14 +143,14 @@ func TestReadSessionCoOccurrences_RepeatedSeedCountsSharedSessionOnce(t *testing
 	insertFullTrack(t, d, "mate", "/mate.flac", "Mate", "Artist", "Album", "Rock", 180000, 5000000, now)
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("seed", now, 60, 180); err != nil {
-		t.Fatalf("RecordPlay seed 1: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "seed", PlayedAt: now, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen seed 1: %v", err)
 	}
-	if err := w.RecordPlay("seed", now+10, 60, 180); err != nil {
-		t.Fatalf("RecordPlay seed 2: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "seed", PlayedAt: now + 10, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen seed 2: %v", err)
 	}
-	if err := w.RecordPlay("mate", now+20, 60, 180); err != nil {
-		t.Fatalf("RecordPlay mate: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "mate", PlayedAt: now + 20, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen mate: %v", err)
 	}
 
 	results, err := d.ReadSessionCoOccurrences("seed", 10)
@@ -170,14 +172,14 @@ func TestReadSessionCoOccurrences_RepeatedCompanionCountsSharedSessionOnce(t *te
 	insertFullTrack(t, d, "mate", "/mate.flac", "Mate", "Artist", "Album", "Rock", 180000, 5000000, now)
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("seed", now, 60, 180); err != nil {
-		t.Fatalf("RecordPlay seed: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "seed", PlayedAt: now, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen seed: %v", err)
 	}
-	if err := w.RecordPlay("mate", now+10, 60, 180); err != nil {
-		t.Fatalf("RecordPlay mate 1: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "mate", PlayedAt: now + 10, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen mate 1: %v", err)
 	}
-	if err := w.RecordPlay("mate", now+20, 60, 180); err != nil {
-		t.Fatalf("RecordPlay mate 2: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "mate", PlayedAt: now + 20, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen mate 2: %v", err)
 	}
 
 	results, err := d.ReadSessionCoOccurrences("seed", 10)

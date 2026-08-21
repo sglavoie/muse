@@ -11,6 +11,14 @@ import (
 // really just "tracks played a handful of times".
 const deepCutsFlatShare = 0.95
 
+// DeepCutsMinSkips is how many skipped listens must be on record before a flat
+// share is evidence of anything. Below it the completion average has no
+// negative examples, so it is near 1.0 by construction rather than because the
+// filter is badly chosen — and the mix itself is gated on the same number, so
+// warning about it would describe a mix the user cannot even see. internal/db
+// aliases this constant for that gate.
+const DeepCutsMinSkips = 20
+
 // foldGenres collapses case and whitespace variants of the same genre into one
 // group. The raw variants are kept verbatim so a Data Health merge can target
 // the exact stored strings.
@@ -162,7 +170,11 @@ func computeQuality(groups []GenreGroup, counts QualityCounts) Quality {
 			Affected: counts.PlaysWithoutGenre,
 		})
 	}
-	if counts.DeepCutsCandidates > 0 && q.DeepCutsShare >= deepCutsFlatShare {
+	// Stays silent below the skip gate: nothing the user can do makes a share
+	// measured without skips meaningful, and the mix's own empty state already
+	// says it is waiting for them. A permanent un-actionable warning is worse
+	// than none, which is also why the issue is not Fixable once it does fire.
+	if counts.SkipsRecorded >= DeepCutsMinSkips && counts.DeepCutsCandidates > 0 && q.DeepCutsShare >= deepCutsFlatShare {
 		q.Issues = append(q.Issues, HealthIssue{
 			Kind:  IssueDeepCutsFlat,
 			Title: "Deep Cuts is not discriminating",

@@ -5,9 +5,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/recommendation"
 )
+
+// deepCutsMinSkips is how many skipped listens must be on record before the
+// Deep Cuts completion filter means anything. It aliases the constant the Data
+// Health check gates on so the mix and the warning about the mix can never
+// disagree about when the sensor has enough negative examples.
+const deepCutsMinSkips = insights.DeepCutsMinSkips
 
 // MixID is a type alias for recommendation.MixID, kept for backward
 // compatibility so callers using db.MixID continue to compile unchanged.
@@ -129,16 +136,32 @@ func (d *DB) ReadOnRepeatMix(minPlays, windowDays, limit int) ([]library.Track, 
 
 // ReadDeepCutsMix returns tracks with minPlays–maxPlays plays and an average
 // completion rate of at least minCompletion, ordered by play count ascending.
+//
+// It averages over play_events rather than the counted-only play_history view:
+// "tracks you always listen to completion" only means anything if a skip can
+// drag the average down, and the view contains exactly the rows that already
+// cleared a completion bar. Until deepCutsMinSkips skipped listens exist the
+// average has no negative examples to work with, so the mix reports itself
+// empty and the caller renders its not-ready empty state instead of a list
+// that is really just "tracks played a handful of times".
 func (d *DB) ReadDeepCutsMix(minPlays, maxPlays int, minCompletion float64, limit int) ([]library.Track, error) {
+	skips, err := d.countSkippedListens()
+	if err != nil {
+		return nil, fmt.Errorf("db: read deep cuts mix: %w", err)
+	}
+	if skips < deepCutsMinSkips {
+		return []library.Track{}, nil
+	}
+
 	rows, err := d.Query(`
 		SELECT t.path, t.hash, t.artist, t.title, t.album, t.genre,
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
 		       t.play_count, t.last_played_at, t.track_number, t.disc_number
 		FROM tracks t
-		JOIN play_history ph ON ph.track_hash = t.hash
+		JOIN play_events pe ON pe.track_hash = t.hash
 		WHERE t.missing = 0 AND t.play_count BETWEEN ? AND ?
 		GROUP BY t.hash
-		HAVING AVG(ph.completion_rate) >= ?
+		HAVING AVG(pe.completion_rate) >= ?
 		ORDER BY t.play_count ASC
 		LIMIT ?`, minPlays, maxPlays, minCompletion, limit)
 	if err != nil {
@@ -146,6 +169,17 @@ func (d *DB) ReadDeepCutsMix(minPlays, maxPlays int, minCompletion float64, limi
 	}
 	defer rows.Close()
 	return scanTrackRows(rows)
+}
+
+// countSkippedListens returns how many uncounted listens are on record. It is
+// the readiness signal for Deep Cuts: it counts exactly the negative examples
+// a completion average needs to discriminate, and self-heals as they arrive.
+func (d *DB) countSkippedListens() (int, error) {
+	var skips int
+	if err := d.QueryRow(`SELECT COUNT(*) FROM play_events WHERE counted = 0`).Scan(&skips); err != nil {
+		return 0, fmt.Errorf("skipped listens: %w", err)
+	}
+	return skips, nil
 }
 
 // ReadNeverPlayedMix returns unplayed tracks ranked by artist and genre

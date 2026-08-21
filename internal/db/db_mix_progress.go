@@ -62,17 +62,18 @@ func (d *DB) ReadAllMixProgress() (map[MixID]MixProgress, error) {
 		Description: fmt.Sprintf("%d plays this week (need 3+ on a single track)", weekPlays),
 	}
 
-	// DeepCuts: unique tracks with play history (need 10+ for analysis).
-	var uniqueTracks int
-	if err := d.QueryRow(
-		`SELECT COUNT(DISTINCT track_hash) FROM play_history`,
-	).Scan(&uniqueTracks); err != nil {
+	// DeepCuts: skipped listens on record. Unlike the other mixes, more history
+	// alone never makes this one ready — its completion filter stays inert
+	// until the log holds listens that failed to complete.
+	skips, err := d.countSkippedListens()
+	if err != nil {
 		return nil, fmt.Errorf("db: mix progress deep cuts: %w", err)
 	}
 	result[MixDeepCuts] = MixProgress{
-		Current:     uniqueTracks,
-		Needed:      10,
-		Description: fmt.Sprintf("%d unique tracks played (need 10+ for analysis)", uniqueTracks),
+		Current: skips,
+		Needed:  deepCutsMinSkips,
+		Description: fmt.Sprintf("%d skipped tracks recorded (need %d+ before completion can discriminate)",
+			skips, deepCutsMinSkips),
 	}
 
 	return result, nil

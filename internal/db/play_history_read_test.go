@@ -3,6 +3,8 @@ package db_test
 import (
 	"testing"
 	"time"
+
+	"github.com/sglavoie/muse/internal/db"
 )
 
 // --- ReadPlayHistory ---
@@ -18,8 +20,8 @@ func TestReadPlayHistory_FieldMapping(t *testing.T) {
 	w := newWriter(t, d)
 
 	playedAt := now + 100
-	if err := w.RecordPlay("h1", playedAt, 60, 180.0); err != nil {
-		t.Fatalf("RecordPlay: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: playedAt, ListenedSecs: 60, DurationSecs: 180.0, Counted: true}); err != nil {
+		t.Fatalf("RecordListen: %v", err)
 	}
 
 	tracks, err := d.ReadPlayHistory(10)
@@ -54,11 +56,11 @@ func TestReadPlayHistory_OrderedByPlayedAtDesc(t *testing.T) {
 	insertTrack(t, d, "h2", "/b.flac")
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("h1", now-200, 30, 0); err != nil {
-		t.Fatalf("RecordPlay h1: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now - 200, ListenedSecs: 30, DurationSecs: 0, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h1: %v", err)
 	}
-	if err := w.RecordPlay("h2", now-100, 30, 0); err != nil {
-		t.Fatalf("RecordPlay h2: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h2", PlayedAt: now - 100, ListenedSecs: 30, DurationSecs: 0, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h2: %v", err)
 	}
 
 	tracks, err := d.ReadPlayHistory(10)
@@ -79,8 +81,8 @@ func TestReadPlayHistory_DefaultLimit(t *testing.T) {
 	w := newWriter(t, d)
 
 	now := time.Now().Unix()
-	if err := w.RecordPlay("h1", now, 30, 0); err != nil {
-		t.Fatalf("RecordPlay: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 30, DurationSecs: 0, Counted: true}); err != nil {
+		t.Fatalf("RecordListen: %v", err)
 	}
 
 	tracks, err := d.ReadPlayHistory(0) // 0 should default to 500

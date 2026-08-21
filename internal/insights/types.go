@@ -82,6 +82,7 @@ type QualityCounts struct {
 	TracksWithoutGenre int
 	PlaysTotal         int
 	PlaysWithoutGenre  int
+	SkipsRecorded      int // uncounted listens on record; below DeepCutsMinSkips the share below is not yet measurable
 	DeepCutsCandidates int // non-missing tracks with 1..5 plays
 	DeepCutsQualifying int // ...of which average completion clears the threshold
 }

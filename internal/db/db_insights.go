@@ -197,6 +197,12 @@ func (d *DB) ReadInsightTimeline() ([]insights.TimelineRow, error) {
 // Data Health panel. deepCutsMinPlays, deepCutsMaxPlays and
 // deepCutsMinCompletion mirror the Deep Cuts mix thresholds so the panel can
 // show how little that mix's completion filter actually excludes.
+//
+// The two deep-cuts scalars average over play_events for the same reason
+// ReadDeepCutsMix does: measured against the counted-only play_history view
+// they would describe a population the mix no longer uses, and the share would
+// sit near 1.0 forever. The skips-recorded scalar reports whether that share
+// is measurable at all yet.
 func (d *DB) ReadInsightQuality(deepCutsMinPlays, deepCutsMaxPlays int, deepCutsMinCompletion float64) (insights.QualityCounts, error) {
 	var q insights.QualityCounts
 
@@ -216,19 +222,20 @@ func (d *DB) ReadInsightQuality(deepCutsMinPlays, deepCutsMaxPlays int, deepCuts
 		{"plays without genre", `
 			SELECT COUNT(*) FROM play_history ph
 			WHERE NOT EXISTS (SELECT 1 FROM track_genres tg WHERE tg.track_hash = ph.track_hash)`, nil, &q.PlaysWithoutGenre},
+		{"skips recorded", `SELECT COUNT(*) FROM play_events WHERE counted = 0`, nil, &q.SkipsRecorded},
 		{"deep cuts candidates", `
 			SELECT COUNT(*) FROM (
 			    SELECT t.hash FROM tracks t
-			    JOIN play_history ph ON ph.track_hash = t.hash
+			    JOIN play_events pe ON pe.track_hash = t.hash
 			    WHERE t.missing = 0 AND t.play_count BETWEEN ? AND ?
 			    GROUP BY t.hash
 			) sub`, []any{deepCutsMinPlays, deepCutsMaxPlays}, &q.DeepCutsCandidates},
 		{"deep cuts qualifying", `
 			SELECT COUNT(*) FROM (
 			    SELECT t.hash FROM tracks t
-			    JOIN play_history ph ON ph.track_hash = t.hash
+			    JOIN play_events pe ON pe.track_hash = t.hash
 			    WHERE t.missing = 0 AND t.play_count BETWEEN ? AND ?
-			    GROUP BY t.hash HAVING AVG(ph.completion_rate) >= ?
+			    GROUP BY t.hash HAVING AVG(pe.completion_rate) >= ?
 			) sub`, []any{deepCutsMinPlays, deepCutsMaxPlays, deepCutsMinCompletion}, &q.DeepCutsQualifying},
 	}
 

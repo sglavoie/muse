@@ -93,6 +93,7 @@ func (m *Model) clampQueueCursorAndScroll() {
 // resetPlaybackState stops the player and clears all playback-related fields
 // in the model and status bar.
 func (m Model) resetPlaybackState() Model {
+	m = m.endCurrentListen()
 	if cp, ok := m.player.(commandPlayer); ok {
 		_ = cp.Stop() // stop before new playback, failure is non-fatal
 	}
@@ -117,6 +118,8 @@ func (m Model) resetPlaybackProgress() Model {
 	m.playback.totalSecs = 0
 	m.playback.peakElapsedSecs = 0
 	m.playback.peakTotalSecs = 0
+	m.playback.listenedSecs = 0
+	m.playback.lastSampleSecs = 0
 	m.playback.durationCorrected = false
 	return m
 }

@@ -3,6 +3,8 @@ package db_test
 import (
 	"testing"
 	"time"
+
+	"github.com/sglavoie/muse/internal/db"
 )
 
 func TestReadNeverPlayedMix_Empty(t *testing.T) {
@@ -23,8 +25,8 @@ func TestReadNeverPlayedMix_ExcludesPlayedTracks(t *testing.T) {
 	insertFullTrack(t, d, "h1", "/a.flac", "Song1", "Artist", "Album", "Rock", 180000, 5000000, now)
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("h1", now, 60, 180); err != nil {
-		t.Fatalf("RecordPlay: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen: %v", err)
 	}
 	if _, err := d.Exec(`UPDATE tracks SET play_count = 1 WHERE hash = ?`, "h1"); err != nil {
 		t.Fatalf("update play_count: %v", err)
@@ -47,8 +49,8 @@ func TestReadNeverPlayedMix_ArtistAffinityRanking(t *testing.T) {
 	insertFullTrack(t, d, "h3", "/c.flac", "Song3", "ArtistB", "AlbumB", "Jazz", 180000, 5000000, now)
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("h1", now, 60, 180); err != nil {
-		t.Fatalf("RecordPlay: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen: %v", err)
 	}
 	if _, err := d.Exec(`UPDATE tracks SET play_count = 1 WHERE hash = ?`, "h1"); err != nil {
 		t.Fatalf("update play_count: %v", err)

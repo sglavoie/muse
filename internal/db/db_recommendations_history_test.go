@@ -3,6 +3,8 @@ package db_test
 import (
 	"testing"
 	"time"
+
+	"github.com/sglavoie/muse/internal/db"
 )
 
 func TestHasSufficientHistory_Empty(t *testing.T) {
@@ -24,8 +26,8 @@ func TestHasSufficientHistory_Below20(t *testing.T) {
 
 	now := time.Now().Unix()
 	for i := range 19 {
-		if err := w.RecordPlay("h1", now+int64(i), 60, 120); err != nil {
-			t.Fatalf("RecordPlay: %v", err)
+		if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now + int64(i), ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+			t.Fatalf("RecordListen: %v", err)
 		}
 	}
 
@@ -45,8 +47,8 @@ func TestHasSufficientHistory_ExactlyAt20(t *testing.T) {
 
 	now := time.Now().Unix()
 	for i := range 20 {
-		if err := w.RecordPlay("h1", now+int64(i), 60, 120); err != nil {
-			t.Fatalf("RecordPlay: %v", err)
+		if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now + int64(i), ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+			t.Fatalf("RecordListen: %v", err)
 		}
 	}
 
@@ -79,12 +81,12 @@ func TestReadTopArtists_RankedByPlayCount(t *testing.T) {
 	w := newWriter(t, d)
 
 	for i := range 3 {
-		if err := w.RecordPlay("h1", now+int64(i), 60, 180); err != nil {
-			t.Fatalf("RecordPlay h1: %v", err)
+		if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now + int64(i), ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+			t.Fatalf("RecordListen h1: %v", err)
 		}
 	}
-	if err := w.RecordPlay("h2", now+10, 60, 180); err != nil {
-		t.Fatalf("RecordPlay h2: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h2", PlayedAt: now + 10, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h2: %v", err)
 	}
 
 	artists, err := d.ReadTopArtists(5)
@@ -122,12 +124,12 @@ func TestReadTopGenres_UsesTrackGenresTable(t *testing.T) {
 	w := newWriter(t, d)
 
 	for i := range 2 {
-		if err := w.RecordPlay("h1", now+int64(i), 60, 180); err != nil {
-			t.Fatalf("RecordPlay h1: %v", err)
+		if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now + int64(i), ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+			t.Fatalf("RecordListen h1: %v", err)
 		}
 	}
-	if err := w.RecordPlay("h2", now+10, 60, 180); err != nil {
-		t.Fatalf("RecordPlay h2: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h2", PlayedAt: now + 10, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h2: %v", err)
 	}
 	if _, err := d.Exec(`INSERT OR IGNORE INTO track_genres (track_hash, genre) VALUES (?, ?)`, "h1", "Rock"); err != nil {
 		t.Fatalf("insert track_genres h1: %v", err)
@@ -169,11 +171,11 @@ func TestReadCompletionRates_Averages(t *testing.T) {
 	w := newWriter(t, d)
 	now := time.Now().Unix()
 
-	if err := w.RecordPlay("h1", now, 60, 120); err != nil {
-		t.Fatalf("RecordPlay 0.5: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("RecordListen 0.5: %v", err)
 	}
-	if err := w.RecordPlay("h1", now+1, 120, 120); err != nil {
-		t.Fatalf("RecordPlay 1.0: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now + 1, ListenedSecs: 120, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("RecordListen 1.0: %v", err)
 	}
 
 	rates, err := d.ReadCompletionRates([]string{"h1"})
@@ -203,8 +205,8 @@ func TestReadCompletionRates_ZeroDuration(t *testing.T) {
 	w := newWriter(t, d)
 	now := time.Now().Unix()
 
-	if err := w.RecordPlay("h1", now, 60, 0); err != nil {
-		t.Fatalf("RecordPlay: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 0, Counted: true}); err != nil {
+		t.Fatalf("RecordListen: %v", err)
 	}
 
 	rates, err := d.ReadCompletionRates([]string{"h1"})

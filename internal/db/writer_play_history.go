@@ -19,21 +19,42 @@ func (w *Writer) IncrementPlayCount(hash string) error {
 	})
 }
 
-// RecordPlay inserts a play_history row and atomically increments play_count
-// and sets last_played_at on the tracks row. playedAt is a Unix timestamp;
-// listenedSecs is the actual number of seconds listened; durationSecs is the
+// PlayRecord describes one listen to persist. PlayedAt is a Unix timestamp;
+// ListenedSecs is the actual number of seconds listened; DurationSecs is the
 // total track duration in seconds (used to compute completion_rate).
 //
-// Negative listenedSecs values (e.g. from a clock skew between elapsed-time
+// Counted marks whether the listen was substantial enough to count as a play.
+// Uncounted listens are still logged so the completion distribution contains
+// negative examples, but they must not touch tracks.play_count or
+// tracks.last_played_at: those columns drive the unheard check, the Never
+// Played mix, the Rediscover/HiddenGems/DeepCuts ranges and smart playlists.
+type PlayRecord struct {
+	Hash         string
+	PlayedAt     int64
+	ListenedSecs int
+	DurationSecs float64
+	Counted      bool
+}
+
+// RecordListen inserts a play_events row for rec. When rec.Counted is true it
+// also atomically increments play_count and sets last_played_at on the tracks
+// row, and opens or extends a listening session.
+//
+// Negative ListenedSecs values (e.g. from a clock skew between elapsed-time
 // samples) are clamped to 0 so they do not corrupt SUM(listened_secs)
 // aggregates used in stats and top-N queries.
-func (w *Writer) RecordPlay(hash string, playedAt int64, listenedSecs int, durationSecs float64) error {
+func (w *Writer) RecordListen(rec PlayRecord) error {
+	listenedSecs := rec.ListenedSecs
 	if listenedSecs < 0 {
 		listenedSecs = 0
 	}
 	completionRate := 0.0
-	if durationSecs > 0 && listenedSecs > 0 {
-		completionRate = math.Min(1.0, float64(listenedSecs)/durationSecs)
+	if rec.DurationSecs > 0 && listenedSecs > 0 {
+		completionRate = math.Min(1.0, float64(listenedSecs)/rec.DurationSecs)
+	}
+	counted := 0
+	if rec.Counted {
+		counted = 1
 	}
 	return w.Exec(func(db *sql.DB) error {
 		tx, err := db.Begin()
@@ -45,48 +66,63 @@ func (w *Writer) RecordPlay(hash string, playedAt int64, listenedSecs int, durat
 		// Determine session ID. Runs inside the writer goroutine, so
 		// w.lastSessionID and w.lastPlayedAt are safe to read/write.
 		sessionID := w.lastSessionID
-		if sessionID == "" || timeGapExceeds(playedAt, w.lastPlayedAt, sessionGapSecs) {
-			var randBuf [4]byte
-			if _, err := rand.Read(randBuf[:]); err != nil {
-				return fmt.Errorf("session rand: %w", err)
-			}
-			sessionID = fmt.Sprintf("%d-%x", playedAt, randBuf)
-			if _, err := tx.Exec(
-				`INSERT INTO listening_sessions (id, started_at, ended_at) VALUES (?, ?, ?)`,
-				sessionID, playedAt, playedAt,
-			); err != nil {
-				return err
-			}
-		} else {
+		sessionLive := sessionID != "" && !timeGapExceeds(rec.PlayedAt, w.lastPlayedAt, sessionGapSecs)
+		switch {
+		case sessionLive:
 			// Clamp with MAX so a backwards clock (NTP correction, manual
 			// adjustment) cannot rewind a session's ended_at below its
 			// existing value.
 			if _, err := tx.Exec(
 				`UPDATE listening_sessions SET ended_at = MAX(ended_at, ?) WHERE id = ?`,
-				playedAt, sessionID,
+				rec.PlayedAt, sessionID,
+			); err != nil {
+				return err
+			}
+		case rec.Counted:
+			var randBuf [4]byte
+			if _, err := rand.Read(randBuf[:]); err != nil {
+				return fmt.Errorf("session rand: %w", err)
+			}
+			sessionID = fmt.Sprintf("%d-%x", rec.PlayedAt, randBuf)
+			if _, err := tx.Exec(
+				`INSERT INTO listening_sessions (id, started_at, ended_at) VALUES (?, ?, ?)`,
+				sessionID, rec.PlayedAt, rec.PlayedAt,
+			); err != nil {
+				return err
+			}
+		default:
+			// An uncounted listen extends a live session but never opens one:
+			// a four-second skip would otherwise manufacture a one-row session
+			// that corrupts ReadInsightSessions averages.
+			sessionID = ""
+		}
+
+		var sessionCol any
+		if sessionID != "" {
+			sessionCol = sessionID
+		}
+		if _, err := tx.Exec(
+			`INSERT INTO play_events (track_hash, played_at, listened_secs, completion_rate, session_id, counted) VALUES (?, ?, ?, ?, ?, ?)`,
+			rec.Hash, rec.PlayedAt, listenedSecs, completionRate, sessionCol, counted,
+		); err != nil {
+			return err
+		}
+		if rec.Counted {
+			if _, err := tx.Exec(
+				`UPDATE tracks SET play_count = play_count + 1, last_played_at = MAX(COALESCE(last_played_at, 0), ?) WHERE hash = ?`,
+				rec.PlayedAt, rec.Hash,
 			); err != nil {
 				return err
 			}
 		}
-
-		if _, err := tx.Exec(
-			`INSERT INTO play_history (track_hash, played_at, listened_secs, completion_rate, session_id) VALUES (?, ?, ?, ?, ?)`,
-			hash, playedAt, listenedSecs, completionRate, sessionID,
-		); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(
-			`UPDATE tracks SET play_count = play_count + 1, last_played_at = MAX(COALESCE(last_played_at, 0), ?) WHERE hash = ?`,
-			playedAt, hash,
-		); err != nil {
-			return err
-		}
 		if err := tx.Commit(); err != nil {
 			return err
 		}
-		w.lastSessionID = sessionID
-		if playedAt > w.lastPlayedAt {
-			w.lastPlayedAt = playedAt
+		if rec.Counted {
+			w.lastSessionID = sessionID
+			if rec.PlayedAt > w.lastPlayedAt {
+				w.lastPlayedAt = rec.PlayedAt
+			}
 		}
 		return nil
 	})

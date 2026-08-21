@@ -12,19 +12,24 @@ import (
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
+// maxListenDeltaSecs bounds the gap between two elapsed samples that counts as
+// audio actually heard. It is roughly 3x the 1s tick, so a jump beyond it is a
+// seek rather than playback and only resyncs the baseline.
+const maxListenDeltaSecs = 3.0
+
 // shouldCountPlay returns true when the user has listened to enough of the
 // track to count it as a play: at least 50% of the duration or 30 seconds,
 // whichever comes first.
-func shouldCountPlay(elapsedSecs, totalSecs float64) bool {
-	if totalSecs <= 0 || elapsedSecs <= 0 {
+func shouldCountPlay(listenedSecs, totalSecs float64) bool {
+	if totalSecs <= 0 || listenedSecs <= 0 {
 		return false
 	}
-	return elapsedSecs >= 30 || elapsedSecs >= totalSecs*0.5
+	return listenedSecs >= 30 || listenedSecs >= totalSecs*0.5
 }
 
 // finitePositive reports whether v is a finite, non-negative real number. Used
 // to reject NaN/Inf/negative readings from mpv before they corrupt playback
-// progress, session listen totals, or RecordPlay aggregates.
+// progress, session listen totals, or RecordListen aggregates.
 func finitePositive(v float64) bool {
 	return !math.IsNaN(v) && !math.IsInf(v, 0) && v >= 0
 }
@@ -38,6 +43,13 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 			if elapsed, total, err := er.ElapsedPosition(); err == nil && finitePositive(elapsed) && finitePositive(total) {
 				m.playback.elapsedSecs = elapsed
 				m.playback.totalSecs = total
+				// A seek in either direction only resyncs the baseline: skipped
+				// audio must not accumulate, and re-listened audio accumulates
+				// again on the following ticks.
+				if delta := elapsed - m.playback.lastSampleSecs; delta > 0 && delta <= maxListenDeltaSecs {
+					m.playback.listenedSecs += delta
+				}
+				m.playback.lastSampleSecs = elapsed
 				if elapsed > m.playback.peakElapsedSecs {
 					m.playback.peakElapsedSecs = elapsed
 					m.playback.peakTotalSecs = total

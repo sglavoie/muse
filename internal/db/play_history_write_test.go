@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func TestRecordPlay_InsertsHistoryRow(t *testing.T) {
+func TestRecordListen_InsertsHistoryRow(t *testing.T) {
 	h := newPlayHistoryHarness(t)
 	h.addTrack(t, "h1", "/a.flac")
 
@@ -16,7 +16,7 @@ func TestRecordPlay_InsertsHistoryRow(t *testing.T) {
 	}
 }
 
-func TestRecordPlay_IncrementsPlayCount(t *testing.T) {
+func TestRecordListen_IncrementsPlayCount(t *testing.T) {
 	h := newPlayHistoryHarness(t)
 	h.addTrack(t, "h1", "/a.flac")
 
@@ -30,7 +30,7 @@ func TestRecordPlay_IncrementsPlayCount(t *testing.T) {
 	}
 }
 
-func TestRecordPlay_SetsLastPlayedAt(t *testing.T) {
+func TestRecordListen_SetsLastPlayedAt(t *testing.T) {
 	h := newPlayHistoryHarness(t)
 	h.addTrack(t, "h1", "/a.flac")
 
@@ -42,7 +42,7 @@ func TestRecordPlay_SetsLastPlayedAt(t *testing.T) {
 	}
 }
 
-func TestRecordPlay_CompletionRate_Computed(t *testing.T) {
+func TestRecordListen_CompletionRate_Computed(t *testing.T) {
 	h := newPlayHistoryHarness(t)
 	h.addTrack(t, "h1", "/a.flac")
 
@@ -53,7 +53,7 @@ func TestRecordPlay_CompletionRate_Computed(t *testing.T) {
 	}
 }
 
-func TestRecordPlay_CompletionRate_ZeroDuration(t *testing.T) {
+func TestRecordListen_CompletionRate_ZeroDuration(t *testing.T) {
 	h := newPlayHistoryHarness(t)
 	h.addTrack(t, "h1", "/a.flac")
 
@@ -64,7 +64,7 @@ func TestRecordPlay_CompletionRate_ZeroDuration(t *testing.T) {
 	}
 }
 
-func TestRecordPlay_CompletionRate_CapsAt1(t *testing.T) {
+func TestRecordListen_CompletionRate_CapsAt1(t *testing.T) {
 	h := newPlayHistoryHarness(t)
 	h.addTrack(t, "h1", "/a.flac")
 
@@ -75,7 +75,7 @@ func TestRecordPlay_CompletionRate_CapsAt1(t *testing.T) {
 	}
 }
 
-func TestRecordPlay_CompletionRate_FloorsAtZero(t *testing.T) {
+func TestRecordListen_CompletionRate_FloorsAtZero(t *testing.T) {
 	h := newPlayHistoryHarness(t)
 	h.addTrack(t, "h1", "/a.flac")
 
@@ -88,7 +88,7 @@ func TestRecordPlay_CompletionRate_FloorsAtZero(t *testing.T) {
 	}
 }
 
-func TestRecordPlay_ListenedSecs_FloorsAtZero(t *testing.T) {
+func TestRecordListen_ListenedSecs_FloorsAtZero(t *testing.T) {
 	h := newPlayHistoryHarness(t)
 	h.addTrack(t, "h1", "/a.flac")
 

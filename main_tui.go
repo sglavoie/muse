@@ -195,6 +195,18 @@ func runTUI(ctx context.Context) error {
 	}()
 
 	finalModel, err := p.Run()
+
+	// Bubble Tea has exited, so a tea.Cmd would never run: persist the
+	// in-flight listen here, ahead of the app.Shutdown calls that cancel the DB
+	// writer. Writer.Exec is synchronous and there is no concurrent taker.
+	if m, ok := finalModel.(tui.Model); ok {
+		if rec, ok := m.TakePendingListen(); ok {
+			if err := result.Writer.RecordListen(rec); err != nil {
+				slog.Warn("quit: flush pending listen failed", "err", err)
+			}
+		}
+	}
+
 	if err != nil {
 		slog.Error("TUI error", "err", err)
 		app.Shutdown(shutdownDeps, app.ShutdownTimeout)

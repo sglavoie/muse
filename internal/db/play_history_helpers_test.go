@@ -27,8 +27,8 @@ func (h playHistoryHarness) addTrack(t *testing.T, hash, path string) {
 
 func (h playHistoryHarness) recordPlay(t *testing.T, hash string, playedAt int64, listenedSecs int, duration float64) {
 	t.Helper()
-	if err := h.w.RecordPlay(hash, playedAt, listenedSecs, duration); err != nil {
-		t.Fatalf("RecordPlay(%q): %v", hash, err)
+	if err := h.w.RecordListen(db.PlayRecord{Hash: hash, PlayedAt: playedAt, ListenedSecs: listenedSecs, DurationSecs: duration, Counted: true}); err != nil {
+		t.Fatalf("RecordListen(%q): %v", hash, err)
 	}
 }
 

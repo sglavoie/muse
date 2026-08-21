@@ -126,6 +126,7 @@ func TestIsPlaceholderGenreIgnoresCaseAndSpacing(t *testing.T) {
 func TestQualityFlagsInertDeepCutsFilter(t *testing.T) {
 	counts := QualityCounts{
 		TracksTotal:        2382,
+		SkipsRecorded:      DeepCutsMinSkips,
 		DeepCutsCandidates: 1000,
 		DeepCutsQualifying: 989,
 		PlaysWithoutGenre:  217,
@@ -150,12 +151,36 @@ func TestQualityFlagsInertDeepCutsFilter(t *testing.T) {
 }
 
 func TestQualityDiscriminatingDeepCutsIsNotAnIssue(t *testing.T) {
-	q := computeQuality(nil, QualityCounts{DeepCutsCandidates: 1000, DeepCutsQualifying: 400})
+	q := computeQuality(nil, QualityCounts{
+		SkipsRecorded:      500,
+		DeepCutsCandidates: 1000,
+		DeepCutsQualifying: 400,
+	})
 
 	for _, issue := range q.Issues {
 		if issue.Kind == IssueDeepCutsFlat {
 			t.Errorf("reported %v for a filter that excludes 60%% of candidates", issue.Kind)
 		}
+	}
+}
+
+// Below the skip gate a flat share is an artefact of having no skips on
+// record, not a badly chosen filter, so Data Health has nothing to say about
+// it — the mix's own empty state is already explaining the wait.
+func TestQualityStaysSilentOnDeepCutsBelowSkipGate(t *testing.T) {
+	q := computeQuality(nil, QualityCounts{
+		SkipsRecorded:      DeepCutsMinSkips - 1,
+		DeepCutsCandidates: 1000,
+		DeepCutsQualifying: 989,
+	})
+
+	for _, issue := range q.Issues {
+		if issue.Kind == IssueDeepCutsFlat {
+			t.Errorf("reported %v with only %d skips recorded", issue.Kind, DeepCutsMinSkips-1)
+		}
+	}
+	if q.DeepCutsShare != 0.989 {
+		t.Errorf("DeepCutsShare = %v, want the share still reported as 0.989", q.DeepCutsShare)
 	}
 }
 

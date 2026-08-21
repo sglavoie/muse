@@ -22,19 +22,20 @@ func TestTrackChangedClearsQueueExhausted(t *testing.T) {
 	}
 }
 
-// TestTrackChangedUsesPeakForPlayCount verifies that handleTrackChangedMsg
-// uses the peak elapsed values (not the current ones) to decide whether to
-// count a play. This protects against the tick race where a gapless transition
-// causes the tick to report the new track's near-zero position.
-func TestTrackChangedUsesPeakForPlayCount(t *testing.T) {
+// TestTrackChangedRecordsPreviousListen verifies that handleTrackChangedMsg
+// ends the outgoing track's listen using the accumulated listen time rather
+// than the live elapsed position, which a gapless transition can clobber to the
+// incoming track's near-zero position before the message is processed.
+func TestTrackChangedRecordsPreviousListen(t *testing.T) {
 	hr := &stubHistoryRecorder{}
 	m := New(context.Background(), WithHistoryRecorder(hr))
 	m.playback.state = PlaybackPlaying
 	m.playback.currentHash = "old-hash"
-	// Simulate race: tick clobbered elapsedSecs to ~0, but peak retains the real value.
+	m = m.armPendingListen("old-hash", "A")
+	// Simulate race: tick clobbered elapsedSecs to ~0, accumulation intact.
 	m.playback.elapsedSecs = 0.5
 	m.playback.totalSecs = 300.0
-	m.playback.peakElapsedSecs = 180.0
+	m.playback.listenedSecs = 180.0
 	m.playback.peakTotalSecs = 200.0
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "old-hash", Path: "/a.flac"},
@@ -42,14 +43,20 @@ func TestTrackChangedUsesPeakForPlayCount(t *testing.T) {
 	}
 
 	next, cmd := m.Update(TrackChangedMsg{Hash: "new-hash", Index: 1, Artist: "B", Title: "T2"})
-	_ = next.(Model)
+	nm := next.(Model)
 
 	if cmd == nil {
-		t.Fatal("expected non-nil cmd for play count increment")
+		t.Fatal("expected non-nil cmd for listen persistence")
 	}
 	drainCmd(cmd)
-	if len(hr.calls) != 1 || hr.calls[0].hash != "old-hash" {
-		t.Fatalf("expected RecordPlay for old-hash, got %+v", hr.calls)
+	if len(hr.calls) != 1 || hr.calls[0].Hash != "old-hash" {
+		t.Fatalf("expected RecordListen for old-hash, got %+v", hr.calls)
+	}
+	if !hr.calls[0].Counted {
+		t.Error("expected Counted=true for 180s of a 200s track")
+	}
+	if nm.playback.pending.hash != "new-hash" || !nm.playback.pending.armed {
+		t.Errorf("expected the incoming track to be armed, got %+v", nm.playback.pending)
 	}
 }
 

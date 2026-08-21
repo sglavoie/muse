@@ -28,8 +28,8 @@ func TestReadHourGenreAffinities_BelowThreshold(t *testing.T) {
 	w := newWriter(t, d)
 	now := time.Now().Unix()
 	for i := range 2 {
-		if err := w.RecordPlay("h1", now+int64(i), 60, 120); err != nil {
-			t.Fatalf("RecordPlay: %v", err)
+		if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now + int64(i), ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+			t.Fatalf("RecordListen: %v", err)
 		}
 	}
 
@@ -59,13 +59,13 @@ func TestReadHourGenreAffinities_OrderedByCount(t *testing.T) {
 	hourStart := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, now.Location())
 	base := hourStart.Unix()
 	for i := range 5 {
-		if err := w.RecordPlay("h1", base+int64(i), 60, 120); err != nil {
-			t.Fatalf("RecordPlay Rock: %v", err)
+		if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: base + int64(i), ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+			t.Fatalf("RecordListen Rock: %v", err)
 		}
 	}
 	for i := range 3 {
-		if err := w.RecordPlay("h2", base+100+int64(i), 60, 120); err != nil {
-			t.Fatalf("RecordPlay Jazz: %v", err)
+		if err := w.RecordListen(db.PlayRecord{Hash: "h2", PlayedAt: base + 100 + int64(i), ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+			t.Fatalf("RecordListen Jazz: %v", err)
 		}
 	}
 

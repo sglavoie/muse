@@ -16,7 +16,7 @@ func TestPlayRecordedMsg_PrependsToLoadedHistory(t *testing.T) {
 		{Hash: "h2", Path: "/b.flac", Artist: "B", Title: "T2"},
 	}
 
-	next, _ := m.Update(playRecordedMsg{Hash: "h1", PlayedAt: 1000})
+	next, _ := m.Update(playRecordedMsg{Hash: "h1", PlayedAt: 1000, Counted: true})
 	nm := next.(Model)
 
 	if len(nm.library.sourceTracks) != 2 {
@@ -30,13 +30,32 @@ func TestPlayRecordedMsg_PrependsToLoadedHistory(t *testing.T) {
 	}
 }
 
+// TestPlayRecordedMsg_SkipsUncountedListen verifies that a listen too short to
+// count is not prepended to History, which reads the counted-only view and
+// would drop the row on the next reload.
+func TestPlayRecordedMsg_SkipsUncountedListen(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T1"})
+	m.library.mode = LibraryModeHistory
+	m.library.sourceTracks = []library.Track{
+		{Hash: "h2", Path: "/b.flac", Artist: "B", Title: "T2"},
+	}
+
+	next, _ := m.Update(playRecordedMsg{Hash: "h1", PlayedAt: 1000})
+	nm := next.(Model)
+
+	if len(nm.library.sourceTracks) != 1 {
+		t.Fatalf("expected history unchanged, got %d entries", len(nm.library.sourceTracks))
+	}
+}
+
 func TestPlayRecordedMsg_NoOpWhenHistoryNotLoaded(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac"})
 	m.library.mode = LibraryModeHistory
 	// sourceTracks is empty (history never loaded)
 
-	next, _ := m.Update(playRecordedMsg{Hash: "h1", PlayedAt: 1000})
+	next, _ := m.Update(playRecordedMsg{Hash: "h1", PlayedAt: 1000, Counted: true})
 	nm := next.(Model)
 
 	if len(nm.library.sourceTracks) != 0 {
@@ -56,7 +75,7 @@ func TestPlayRecordedMsg_CapsAt500Entries(t *testing.T) {
 	}
 	m.library.sourceTracks = tracks
 
-	next, _ := m.Update(playRecordedMsg{Hash: "new", PlayedAt: 2000})
+	next, _ := m.Update(playRecordedMsg{Hash: "new", PlayedAt: 2000, Counted: true})
 	nm := next.(Model)
 
 	if len(nm.library.sourceTracks) != 500 {
@@ -89,7 +108,7 @@ func TestPlayRecordedMsg_ClampsCursorAfterReplace(t *testing.T) {
 	}
 	m.library.cursor = 5
 
-	next, _ := m.Update(playRecordedMsg{Hash: "h1", PlayedAt: 1000})
+	next, _ := m.Update(playRecordedMsg{Hash: "h1", PlayedAt: 1000, Counted: true})
 	nm := next.(Model)
 
 	count := nm.library.trackCount()
@@ -105,7 +124,7 @@ func TestPlayRecordedMsg_SkipsUnknownHash(t *testing.T) {
 		{Hash: "h1", Path: "/a.flac"},
 	}
 
-	next, _ := m.Update(playRecordedMsg{Hash: "unknown", PlayedAt: 1000})
+	next, _ := m.Update(playRecordedMsg{Hash: "unknown", PlayedAt: 1000, Counted: true})
 	nm := next.(Model)
 
 	if len(nm.library.sourceTracks) != 1 {
@@ -122,7 +141,7 @@ func TestPlayRecordedMsg_RebuildsFilterCache(t *testing.T) {
 	}
 	m.library.filter = filter.State{Active: true, Text: "Artist"}
 
-	next, _ := m.Update(playRecordedMsg{Hash: "h1", PlayedAt: 1000})
+	next, _ := m.Update(playRecordedMsg{Hash: "h1", PlayedAt: 1000, Counted: true})
 	nm := next.(Model)
 
 	// The filter cache should have been rebuilt (non-nil when filter text is set).

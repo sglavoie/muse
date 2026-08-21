@@ -8,9 +8,9 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 )
 
-// TestRecordPlay_SameSession verifies that two plays within the 30-minute gap
+// TestRecordListen_SameSession verifies that two plays within the 30-minute gap
 // threshold share the same session_id.
-func TestRecordPlay_SameSession(t *testing.T) {
+func TestRecordListen_SameSession(t *testing.T) {
 	d := openMigratedDB(t)
 	insertTrack(t, d, "h1", "/a.flac")
 	insertTrack(t, d, "h2", "/b.flac")
@@ -18,11 +18,11 @@ func TestRecordPlay_SameSession(t *testing.T) {
 
 	now := time.Now().Unix()
 	// 60s apart — well within the 1800s gap.
-	if err := w.RecordPlay("h1", now, 60, 120); err != nil {
-		t.Fatalf("RecordPlay h1: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h1: %v", err)
 	}
-	if err := w.RecordPlay("h2", now+60, 60, 120); err != nil {
-		t.Fatalf("RecordPlay h2: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h2", PlayedAt: now + 60, ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h2: %v", err)
 	}
 
 	var sid1, sid2 string
@@ -41,9 +41,9 @@ func TestRecordPlay_SameSession(t *testing.T) {
 	}
 }
 
-// TestRecordPlay_DifferentSession verifies that two plays separated by more
+// TestRecordListen_DifferentSession verifies that two plays separated by more
 // than 30 minutes receive distinct session_ids.
-func TestRecordPlay_DifferentSession(t *testing.T) {
+func TestRecordListen_DifferentSession(t *testing.T) {
 	d := openMigratedDB(t)
 	insertTrack(t, d, "h1", "/a.flac")
 	insertTrack(t, d, "h2", "/b.flac")
@@ -51,11 +51,11 @@ func TestRecordPlay_DifferentSession(t *testing.T) {
 
 	now := time.Now().Unix()
 	// 1980s = 33 minutes — exceeds the 1800s threshold.
-	if err := w.RecordPlay("h1", now, 60, 120); err != nil {
-		t.Fatalf("RecordPlay h1: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h1: %v", err)
 	}
-	if err := w.RecordPlay("h2", now+1980, 60, 120); err != nil {
-		t.Fatalf("RecordPlay h2: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h2", PlayedAt: now + 1980, ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h2: %v", err)
 	}
 
 	var sid1, sid2 string
@@ -74,22 +74,22 @@ func TestRecordPlay_DifferentSession(t *testing.T) {
 	}
 }
 
-// TestRecordPlay_BackwardGapStartsNewSession verifies that session boundaries
+// TestRecordListen_BackwardGapStartsNewSession verifies that session boundaries
 // use the absolute time gap between consecutive recorded plays. Before the fix,
 // a large backwards clock jump was folded into the current session because only
 // forward gaps were compared to the threshold.
-func TestRecordPlay_BackwardGapStartsNewSession(t *testing.T) {
+func TestRecordListen_BackwardGapStartsNewSession(t *testing.T) {
 	d := openMigratedDB(t)
 	insertTrack(t, d, "h1", "/a.flac")
 	insertTrack(t, d, "h2", "/b.flac")
 	w := newWriter(t, d)
 
 	now := time.Now().Unix()
-	if err := w.RecordPlay("h1", now, 60, 120); err != nil {
-		t.Fatalf("RecordPlay h1: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h1: %v", err)
 	}
-	if err := w.RecordPlay("h2", now-2000, 60, 120); err != nil {
-		t.Fatalf("RecordPlay h2: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h2", PlayedAt: now - 2000, ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h2: %v", err)
 	}
 
 	var sid1, sid2 string
@@ -108,7 +108,7 @@ func TestRecordPlay_BackwardGapStartsNewSession(t *testing.T) {
 	}
 }
 
-func TestRecordPlay_ExtremeBackwardGapStartsNewSession(t *testing.T) {
+func TestRecordListen_ExtremeBackwardGapStartsNewSession(t *testing.T) {
 	d := openMigratedDB(t)
 	insertTrack(t, d, "h1", "/a.flac")
 	insertTrack(t, d, "h2", "/b.flac")
@@ -116,11 +116,11 @@ func TestRecordPlay_ExtremeBackwardGapStartsNewSession(t *testing.T) {
 
 	const maxInt64 = int64(^uint64(0) >> 1)
 	const minInt64 = -maxInt64 - 1
-	if err := w.RecordPlay("h1", maxInt64, 60, 120); err != nil {
-		t.Fatalf("RecordPlay h1: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: maxInt64, ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h1: %v", err)
 	}
-	if err := w.RecordPlay("h2", minInt64, 60, 120); err != nil {
-		t.Fatalf("RecordPlay h2: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h2", PlayedAt: minInt64, ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h2: %v", err)
 	}
 
 	var sid1, sid2 string
@@ -151,8 +151,8 @@ func TestWriter_InitSessionState_ContinuesSameSession(t *testing.T) {
 
 	ctx1, cancel1 := context.WithCancel(t.Context())
 	w1 := db.NewWriter(ctx1, d.DB)
-	if err := w1.RecordPlay("h1", now, 60, 120); err != nil {
-		t.Fatalf("w1 RecordPlay: %v", err)
+	if err := w1.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("w1 RecordListen: %v", err)
 	}
 	cancel1()
 	w1.Wait()
@@ -161,8 +161,8 @@ func TestWriter_InitSessionState_ContinuesSameSession(t *testing.T) {
 	// 60s after the last play: within the 1800s gap → same session.
 	w2 := db.NewWriter(t.Context(), d.DB)
 	t.Cleanup(w2.Wait)
-	if err := w2.RecordPlay("h2", now+60, 60, 120); err != nil {
-		t.Fatalf("w2 RecordPlay: %v", err)
+	if err := w2.RecordListen(db.PlayRecord{Hash: "h2", PlayedAt: now + 60, ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("w2 RecordListen: %v", err)
 	}
 
 	var sid1, sid2 string
@@ -189,8 +189,8 @@ func TestWriter_InitSessionState_NewSessionAfterGap(t *testing.T) {
 
 	ctx1, cancel1 := context.WithCancel(t.Context())
 	w1 := db.NewWriter(ctx1, d.DB)
-	if err := w1.RecordPlay("h1", now, 60, 120); err != nil {
-		t.Fatalf("w1 RecordPlay: %v", err)
+	if err := w1.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("w1 RecordListen: %v", err)
 	}
 	cancel1()
 	w1.Wait()
@@ -198,8 +198,8 @@ func TestWriter_InitSessionState_NewSessionAfterGap(t *testing.T) {
 	// 2000s later — exceeds the 1800s gap → new session.
 	w2 := db.NewWriter(t.Context(), d.DB)
 	t.Cleanup(w2.Wait)
-	if err := w2.RecordPlay("h2", now+2000, 60, 120); err != nil {
-		t.Fatalf("w2 RecordPlay: %v", err)
+	if err := w2.RecordListen(db.PlayRecord{Hash: "h2", PlayedAt: now + 2000, ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("w2 RecordListen: %v", err)
 	}
 
 	var sid1, sid2 string
@@ -215,15 +215,15 @@ func TestWriter_InitSessionState_NewSessionAfterGap(t *testing.T) {
 	}
 }
 
-// TestListeningSessions_RowCreated verifies that RecordPlay inserts a row into
+// TestListeningSessions_RowCreated verifies that RecordListen inserts a row into
 // listening_sessions for a new session.
 func TestListeningSessions_RowCreated(t *testing.T) {
 	d := openMigratedDB(t)
 	insertTrack(t, d, "h1", "/a.flac")
 	w := newWriter(t, d)
 
-	if err := w.RecordPlay("h1", time.Now().Unix(), 60, 120); err != nil {
-		t.Fatalf("RecordPlay: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: time.Now().Unix(), ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("RecordListen: %v", err)
 	}
 
 	var count int
@@ -244,11 +244,11 @@ func TestListeningSessions_EndedAtUpdated(t *testing.T) {
 	w := newWriter(t, d)
 
 	now := time.Now().Unix()
-	if err := w.RecordPlay("h1", now, 60, 120); err != nil {
-		t.Fatalf("RecordPlay h1: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now, ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h1: %v", err)
 	}
-	if err := w.RecordPlay("h2", now+300, 60, 120); err != nil {
-		t.Fatalf("RecordPlay h2: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h2", PlayedAt: now + 300, ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h2: %v", err)
 	}
 
 	var startedAt, endedAt int64
@@ -273,12 +273,12 @@ func TestListeningSessions_EndedAtNotRewoundByClockSkew(t *testing.T) {
 	w := newWriter(t, d)
 
 	now := time.Now().Unix()
-	if err := w.RecordPlay("h1", now+300, 60, 120); err != nil {
-		t.Fatalf("RecordPlay h1: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h1", PlayedAt: now + 300, ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h1: %v", err)
 	}
 	// Clock moves backwards 60s but still within the session gap.
-	if err := w.RecordPlay("h2", now+240, 60, 120); err != nil {
-		t.Fatalf("RecordPlay h2: %v", err)
+	if err := w.RecordListen(db.PlayRecord{Hash: "h2", PlayedAt: now + 240, ListenedSecs: 60, DurationSecs: 120, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h2: %v", err)
 	}
 
 	var endedAt int64
