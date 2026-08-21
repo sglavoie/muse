@@ -130,6 +130,9 @@ func (m Model) handleScanDoneMsg() (Model, tea.Cmd) {
 		m.scanCancel = nil
 	}
 	m.longOp = longOpState{}
+	// A scan moves the coverage denominator even when it was canceled partway:
+	// every batch it did deliver is already in the index and the database.
+	m.insightsInvalidate()
 	return m, cmd
 }
 

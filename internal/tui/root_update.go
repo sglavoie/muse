@@ -243,6 +243,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.statusBar.notify("Metadata save failed: " + msg.err.Error())
 		}
+		// Genres, health findings and every library-derived shelf read the
+		// values this edit changed. The index was rewritten before the write was
+		// even attempted, so a failed write leaves them just as stale.
+		m.insightsInvalidate()
 
 	case GoToDismissedMsg:
 		m.overlay.goTo = nil

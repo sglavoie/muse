@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -30,10 +32,19 @@ func insightsTestTracks() []library.Track {
 // newInsightsModel returns a Model sitting on a loaded Insights view.
 func newInsightsModel(t *testing.T, opts ...Option) Model {
 	t.Helper()
+	m, _ := newInsightsModelReader(t, opts...)
+	return m
+}
+
+// newInsightsModelReader is newInsightsModel plus the fake reader behind it, so
+// a test can change the history the next load will see.
+func newInsightsModelReader(t *testing.T, opts ...Option) (Model, *uitestInsights) {
+	t.Helper()
 	tracks := insightsTestTracks()
+	reader := &uitestInsights{tracks: tracks}
 	base := []Option{
 		WithLibraryTracks(tracks),
-		WithInsightsReader(&uitestInsights{tracks: tracks}),
+		WithInsightsReader(reader),
 	}
 	m := New(context.Background(), append(base, opts...)...)
 	m.termWidth, m.termHeight = 100, 30
@@ -48,7 +59,7 @@ func newInsightsModel(t *testing.T, opts ...Option) Model {
 	if !ok {
 		t.Fatalf("expected insightsLoadedMsg, got %T", cmd())
 	}
-	return m.handleInsightsLoadedMsg(msg)
+	return m.handleInsightsLoadedMsg(msg), reader
 }
 
 func TestInsightsWindowSince(t *testing.T) {
@@ -114,6 +125,178 @@ func TestInsightsLoadGenerationGuard(t *testing.T) {
 	if m.insights.snap.TotalPlays != fresh.TotalPlays {
 		t.Errorf("stale reply overwrote current snapshot: got %d plays", m.insights.snap.TotalPlays)
 	}
+}
+
+// updateInsightsModel routes msg through the real Update dispatch rather than
+// calling a handler directly, so the test breaks if the case is unwired.
+func updateInsightsModel(t *testing.T, m Model, msg tea.Msg) Model {
+	t.Helper()
+	next, _ := m.Update(msg)
+	updated, ok := next.(Model)
+	if !ok {
+		t.Fatalf("Update returned %T", next)
+	}
+	return updated
+}
+
+// reloadInsights runs the refresh the periodic tick issues for an invalidated
+// active view and installs its reply.
+func reloadInsights(t *testing.T, m Model) Model {
+	t.Helper()
+	cmd := m.insightsActiveRefreshCmd()
+	if cmd == nil {
+		t.Fatal("a stale active Insights view produced no refresh command")
+	}
+	msg, ok := cmd().(insightsLoadedMsg)
+	if !ok {
+		t.Fatalf("expected insightsLoadedMsg, got %T", cmd())
+	}
+	return m.handleInsightsLoadedMsg(msg)
+}
+
+func hasInsightsShelf(shelves []insights.ShelfStat, name string) bool {
+	for _, s := range shelves {
+		if s.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+// TestInsightsInvalidatesAfterPlayRescanAndMetadataEdit walks every real event
+// that changes what Insights measures and checks each one both invalidates the
+// memo and yields a reload that carries the change.
+func TestInsightsInvalidatesAfterPlayRescanAndMetadataEdit(t *testing.T) {
+	t.Run("a recorded play", func(t *testing.T) {
+		m, reader := newInsightsModelReader(t)
+		before := m.insights.snap.TotalPlays
+
+		// What the play path writes before dispatching the message: a row in
+		// play_history and one more play on the in-memory track.
+		now := time.Now().Unix()
+		reader.tracks[0].PlayCount++
+		reader.tracks[0].LastPlayedAt = now
+		m.library.index.IncrementPlayCount("h1", now)
+
+		m = updateInsightsModel(t, m, playRecordedMsg{Hash: "h1", PlayedAt: now})
+		if !m.insights.stale {
+			t.Fatal("a recorded play left the Insights memo current")
+		}
+
+		m = reloadInsights(t, m)
+		if got := m.insights.snap.TotalPlays; got != before+1 {
+			t.Errorf("reload missed the new play: want %d plays, got %d", before+1, got)
+		}
+	})
+
+	t.Run("a completed rescan", func(t *testing.T) {
+		m, reader := newInsightsModelReader(t)
+		before := m.insights.snap.Coverage.TotalTracks
+
+		found := library.Track{
+			Artist: "Delta", Album: "Epsilon", Title: "Track E1",
+			Hash: "h7", Path: "/e1.flac", Genre: "Drone", Duration: 500,
+		}
+		reader.tracks = append(reader.tracks, found)
+		m.library.index.Insert(found)
+
+		m = updateInsightsModel(t, m, library.ScanDoneMsg{})
+		if !m.insights.stale {
+			t.Fatal("a completed rescan left the Insights memo current")
+		}
+
+		m = reloadInsights(t, m)
+		if got := m.insights.snap.Coverage.TotalTracks; got != before+1 {
+			t.Errorf("coverage missed the scanned track: want %d tracks, got %d", before+1, got)
+		}
+		if !hasInsightsShelf(m.insights.genreCoverage, "Drone") {
+			t.Error("the library-derived shelves missed the scanned genre")
+		}
+	})
+
+	t.Run("a metadata edit", func(t *testing.T) {
+		m, reader := newInsightsModelReader(t)
+		if !hasInsightsShelf(m.insights.genreCoverage, "Rock") {
+			t.Fatal("precondition: Rock should start out as a dusty shelf")
+		}
+
+		// h2 is the only unheard Rock track, so moving it empties the shelf.
+		reader.tracks[1].Genre = "Jazz"
+		m.library.index.UpdateMetadata("h2", "Track A2", "Alice", "Alpha", "Jazz")
+
+		m = updateInsightsModel(t, m, metadataEditedMsg{})
+		if !m.insights.stale {
+			t.Fatal("a metadata edit left the Insights memo current")
+		}
+
+		m = reloadInsights(t, m)
+		if hasInsightsShelf(m.insights.genreCoverage, "Rock") {
+			t.Error("reload kept the shelf the edit emptied")
+		}
+	})
+
+	t.Run("an undo", func(t *testing.T) {
+		m, reader := newInsightsModelReader(t)
+
+		// No metadata writer is wired, so perform() rewrites only the index;
+		// the reader stands in for the database the undo also restores.
+		reader.tracks[1].Genre = "Punk"
+		m.setUndoSlot(undoBulkEditMetadataAction{
+			originals: map[string][5]string{"h2": {"Track A2", "Alice", "Alpha", "Punk", "4:00"}},
+		}, nil)
+
+		m = updateInsightsModel(t, m, UndoMsg{})
+		if !m.insights.stale {
+			t.Fatal("an undone metadata edit left the Insights memo current")
+		}
+
+		m = reloadInsights(t, m)
+		if !hasInsightsShelf(m.insights.genreCoverage, "Punk") {
+			t.Error("reload missed the genre the undo restored")
+		}
+	})
+
+	t.Run("the tick refreshes the view on screen", func(t *testing.T) {
+		m, _ := newInsightsModelReader(t)
+		m.insightsInvalidate()
+
+		m, _ = m.handleTickMsg()
+
+		if !m.insights.loading {
+			t.Error("the tick did not start a reload for a stale active Insights view")
+		}
+	})
+
+	t.Run("the tick leaves a stale view alone from elsewhere", func(t *testing.T) {
+		m, _ := newInsightsModelReader(t)
+		m = m.switchToView(viewLibrary)
+		m.insightsInvalidate()
+
+		m, _ = m.handleTickMsg()
+
+		if m.insights.loading {
+			t.Error("the tick reloaded Insights while the user was in another view")
+		}
+	})
+
+	t.Run("a reply computed before the invalidation is discarded", func(t *testing.T) {
+		m, _ := newInsightsModelReader(t)
+		inFlight := m.insightsLoadCmd()
+		reply, ok := inFlight().(insightsLoadedMsg)
+		if !ok {
+			t.Fatalf("expected insightsLoadedMsg, got %T", inFlight())
+		}
+
+		m.insightsInvalidate()
+		m = m.handleInsightsLoadedMsg(reply)
+
+		if !m.insights.stale {
+			t.Error("a load that predates the change was allowed to clear the memo")
+		}
+		if m.insightsActiveRefreshCmd() == nil {
+			t.Error("the discarded reply left no reload pending")
+		}
+	})
 }
 
 func TestInsightsWindowCycleFixedPanelDoesNotReload(t *testing.T) {

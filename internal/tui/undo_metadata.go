@@ -42,6 +42,7 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 	}
 	m = m.syncRecentlyAddedFromLibrary()
 	m = m.refreshDerivedViews()
+	m.insightsInvalidate()
 	if mw != nil || dw != nil {
 		originals := a.originals
 		go func() {

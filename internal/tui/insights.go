@@ -236,6 +236,10 @@ type InsightsView struct {
 
 	loaded  bool
 	loading bool
+	// stale marks the memo as superseded by a play, a rescan or a metadata
+	// edit. The previous snapshot stays on screen until the replacement lands,
+	// so an invalidation never flashes an empty view.
+	stale bool
 	// gen increments on every load so a slow reply for an abandoned window
 	// cannot overwrite a newer one.
 	gen int

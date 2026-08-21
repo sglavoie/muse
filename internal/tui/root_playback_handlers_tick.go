@@ -76,7 +76,11 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	// soonest pending notification, when one is within the next tick window.
 	// The 1s tickCmd would otherwise miss the 250 ms fade window.
 	fadeCmd := notificationFadeCmd(m.statusBar.nextFadeAt())
-	return m, tea.Batch(tickCmd(), previewDurationCmd, mainDurationCmd, fadeCmd)
+	// The tick is the only hook every Insights invalidation reaches: undo
+	// performs on a path whose Cmd is discarded, so an eager reload at each
+	// invalidation site would miss it.
+	insightsCmd := m.insightsActiveRefreshCmd()
+	return m, tea.Batch(tickCmd(), previewDurationCmd, mainDurationCmd, fadeCmd, insightsCmd)
 }
 
 // correctStoredDuration compares the mpv-reported total with the stored library

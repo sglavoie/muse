@@ -301,6 +301,10 @@ func (m *Model) bumpSessionArtist(artist string) {
 // handlePlayRecordedMsg prepends the just-played track to the in-memory
 // library History mode so it updates in realtime without a full DB reload.
 func (m Model) handlePlayRecordedMsg(msg playRecordedMsg) Model {
+	// The play is in play_history now, so every Insights aggregate that counts
+	// it is out of date.
+	m.insightsInvalidate()
+
 	// Only update when History mode is active and has been loaded.
 	if m.library.mode != LibraryModeHistory || len(m.library.sourceTracks) == 0 {
 		return m

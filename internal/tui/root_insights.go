@@ -38,13 +38,36 @@ type insightsLoadedMsg struct {
 	loc           *time.Location
 }
 
-// insightsMaybeLoadCmd returns a load command when the view has no data yet.
-// Returns nil when no reader is wired or the snapshot is already current.
+// insightsMaybeLoadCmd returns a load command when the view has no data yet or
+// its memo has been invalidated. Returns nil when no reader is wired or the
+// snapshot is already current.
 func (m *Model) insightsMaybeLoadCmd() tea.Cmd {
-	if m.insightsReader == nil || m.insights.loaded || m.insights.loading {
+	if m.insightsReader == nil || m.insights.loading {
+		return nil
+	}
+	if m.insights.loaded && !m.insights.stale {
 		return nil
 	}
 	return m.insightsLoadCmd()
+}
+
+// insightsInvalidate marks the memo superseded by a change to the underlying
+// data. The generation bump strands any load already in flight: its reply was
+// computed before the change and would install numbers that are already wrong.
+func (m *Model) insightsInvalidate() {
+	m.insights.gen++
+	m.insights.loading = false
+	m.insights.stale = true
+}
+
+// insightsActiveRefreshCmd reloads an invalidated snapshot the user is looking
+// at right now. Invalidation on its own only arms the next view entry, so
+// without this the panels would sit on numbers the user just changed.
+func (m *Model) insightsActiveRefreshCmd() tea.Cmd {
+	if m.activeView != viewInsights {
+		return nil
+	}
+	return m.insightsMaybeLoadCmd()
 }
 
 // insightsLoadCmd reads every Insights source for the active window and folds
@@ -154,6 +177,7 @@ func (m Model) handleInsightsLoadedMsg(msg insightsLoadedMsg) Model {
 	m.insights.loc = msg.loc
 	m.insights.loaded = true
 	m.insights.loading = false
+	m.insights.stale = false
 	m.insights.clampCursor()
 	return m
 }
