@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 func TestRenderModeCluster(t *testing.T) {
@@ -52,6 +53,85 @@ func TestRenderModeClusterWidthStable(t *testing.T) {
 	for i, sb := range cases {
 		if width := measure(sb); width != 4 {
 			t.Errorf("case %d: cluster width=%d, want 4", i, width)
+		}
+	}
+}
+
+func TestModeIndicatorsDriveRenderedCluster(t *testing.T) {
+	st := styles.NewStyles(true)
+	cases := []struct {
+		repeat                    RepeatMode
+		shuffle, stopAfter, radio bool
+		wantGlyphs                string
+		wantStates                [4]string
+	}{
+		{RepeatOff, false, false, false, "RSND", [4]string{"off", "off", "off", "off"}},
+		{RepeatAll, false, false, false, "RSND", [4]string{"all", "off", "off", "off"}},
+		{RepeatOne, false, false, false, "1SND", [4]string{"one", "off", "off", "off"}},
+		{RepeatOff, true, false, false, "RSND", [4]string{"off", "on", "off", "off"}},
+		{RepeatOff, false, true, false, "RSND", [4]string{"off", "off", "on", "off"}},
+		{RepeatOff, false, false, true, "RSND", [4]string{"off", "off", "off", "on"}},
+		{RepeatAll, true, true, true, "RSND", [4]string{"all", "on", "on", "on"}},
+		{RepeatOne, true, true, true, "1SND", [4]string{"one", "on", "on", "on"}},
+	}
+	for _, tc := range cases {
+		indicators := modeIndicators(tc.repeat, tc.shuffle, tc.stopAfter, tc.radio)
+		if len(indicators) != 4 {
+			t.Fatalf("repeat=%v: got %d indicators, want 4", tc.repeat, len(indicators))
+		}
+
+		var glyphs strings.Builder
+		for _, ind := range indicators {
+			glyphs.WriteString(ind.glyph)
+		}
+		if glyphs.String() != tc.wantGlyphs {
+			t.Errorf("%+v: glyphs=%q, want %q", tc, glyphs.String(), tc.wantGlyphs)
+		}
+
+		sb := StatusBar{playbackState: PlaybackPlaying, repeatMode: tc.repeat, shuffle: tc.shuffle, stopAfterCurrent: tc.stopAfter, radioMode: tc.radio}
+		cluster, width := sb.renderModeCluster(newStatusBarRenderContext(0, st, sb.playbackState))
+		if got := ansi.Strip(cluster); got != glyphs.String() {
+			t.Errorf("%+v: rendered cluster %q, want indicator glyphs %q", tc, got, glyphs.String())
+		}
+		if width != 4 {
+			t.Errorf("%+v: cluster width=%d, want 4", tc, width)
+		}
+
+		wantActive := [4]bool{tc.repeat != RepeatOff, tc.shuffle, tc.stopAfter, tc.radio}
+		for i, ind := range indicators {
+			if ind.active != wantActive[i] {
+				t.Errorf("%+v: indicator %d (%s) active=%v, want %v", tc, i, ind.name, ind.active, wantActive[i])
+			}
+			if ind.state != tc.wantStates[i] {
+				t.Errorf("%+v: indicator %d (%s) state=%q, want %q", tc, i, ind.name, ind.state, tc.wantStates[i])
+			}
+		}
+	}
+}
+
+// TestModeIndicatorsDescribeToggleKeys pins the metadata the legend overlay and
+// the toggle notifications read, so it cannot drift from the keybindings.
+func TestModeIndicatorsDescribeToggleKeys(t *testing.T) {
+	want := []struct {
+		name, key string
+		action    action
+	}{
+		{"Repeat", "r", actionRepeatCycle},
+		{"Shuffle", "z", actionShuffleToggle},
+		{"Stop after current", "ctrl+n", actionStopAfterCurrent},
+		{"Radio (Auto-DJ)", "A", actionRadioToggle},
+	}
+	indicators := modeIndicators(RepeatOff, false, false, false)
+	if len(indicators) != len(want) {
+		t.Fatalf("got %d indicators, want %d", len(indicators), len(want))
+	}
+	registry := newRegistry()
+	for i, ind := range indicators {
+		if ind.name != want[i].name || ind.key != want[i].key {
+			t.Errorf("indicator %d: name=%q key=%q, want name=%q key=%q", i, ind.name, ind.key, want[i].name, want[i].key)
+		}
+		if got := registry.lookup(contextGlobal, ind.key); got != want[i].action {
+			t.Errorf("indicator %d (%s): key %q binds to action %v, want %v", i, ind.name, ind.key, got, want[i].action)
 		}
 	}
 }

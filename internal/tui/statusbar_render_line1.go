@@ -78,23 +78,55 @@ func (s StatusBar) playbackStateIcon(ctx statusBarRenderContext) (string, int) {
 	}
 }
 
+// modeIndicator describes one glyph of the status-bar mode cluster. It is the
+// single source of truth for what a letter means, so the cluster, the legend
+// overlay and the toggle notifications can never disagree.
+type modeIndicator struct {
+	glyph  string // "R"/"1", "S", "N", "D"
+	name   string // "Repeat", "Shuffle", "Stop after current", "Radio (Auto-DJ)"
+	state  string // "all"/"one"/"off" for repeat, "on"/"off" for the rest
+	key    string // the global keybinding that toggles this mode
+	active bool
+}
+
+// modeState renders a boolean mode state to match RepeatMode.DisplayString's
+// lowercase style.
+func modeState(active bool) string {
+	if active {
+		return "on"
+	}
+	return "off"
+}
+
+// modeIndicators returns the mode cluster in render order. The order is
+// contractual: renderModeCluster pairs it positionally with the per-mode
+// active styles of statusBarRenderContext.
+func modeIndicators(repeat RepeatMode, shuffle, stopAfter, radio bool) []modeIndicator {
+	repeatGlyph := "R"
+	if repeat == RepeatOne {
+		repeatGlyph = "1"
+	}
+	return []modeIndicator{
+		{glyph: repeatGlyph, name: "Repeat", state: repeat.DisplayString(), key: "r", active: repeat != RepeatOff},
+		{glyph: "S", name: "Shuffle", state: modeState(shuffle), key: "z", active: shuffle},
+		{glyph: "N", name: "Stop after current", state: modeState(stopAfter), key: "ctrl+n", active: stopAfter},
+		{glyph: "D", name: "Radio (Auto-DJ)", state: modeState(radio), key: "A", active: radio},
+	}
+}
+
 func (s StatusBar) renderModeCluster(ctx statusBarRenderContext) (string, int) {
 	clusterDim := ctx.styles.TextTertiary.Background(ctx.base.GetBackground())
-	clusterGlyph := func(active bool, label string, activeStyle lipgloss.Style) string {
-		if active {
-			return activeStyle.Render(label)
+	activeStyles := []lipgloss.Style{ctx.barModeRepeat, ctx.barModeShuffle, ctx.barModeStopAfter, ctx.barModeRadio}
+	indicators := modeIndicators(s.repeatMode, s.shuffle, s.stopAfterCurrent, s.radioMode)
+	var cluster strings.Builder
+	for i, ind := range indicators {
+		style := clusterDim
+		if ind.active && i < len(activeStyles) {
+			style = activeStyles[i]
 		}
-		return clusterDim.Render(label)
+		cluster.WriteString(style.Render(ind.glyph))
 	}
-	repeatLabel := "R"
-	if s.repeatMode == RepeatOne {
-		repeatLabel = "1"
-	}
-	cluster := clusterGlyph(s.repeatMode != RepeatOff, repeatLabel, ctx.barModeRepeat) +
-		clusterGlyph(s.shuffle, "S", ctx.barModeShuffle) +
-		clusterGlyph(s.stopAfterCurrent, "N", ctx.barModeStopAfter) +
-		clusterGlyph(s.radioMode, "D", ctx.barModeRadio)
-	return cluster, 4
+	return cluster.String(), len(indicators)
 }
 
 func (s StatusBar) renderSuffix(ctx statusBarRenderContext, cluster string, clusterWidth int) (string, int) {
