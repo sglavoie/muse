@@ -125,6 +125,21 @@ func (w *Writer) UpdateTrackMetadata(hash, title, artist, album, genre string) e
 	})
 }
 
+// UpdateTrackPosition updates the track and disc number for the track
+// identified by hash and sets user_edited=1 so that the UpsertBatch guards on
+// track_number/disc_number keep a rescan from restoring the file's own tags.
+// Unlike UpdateTrackMetadata it touches no genre columns, so no transaction is
+// needed. It is a no-op if no row matches.
+func (w *Writer) UpdateTrackPosition(hash string, trackNumber, discNumber int) error {
+	return w.Exec(func(db *sql.DB) error {
+		_, err := db.Exec(
+			`UPDATE tracks SET track_number=?, disc_number=?, user_edited=1, updated_at=? WHERE hash=?`,
+			trackNumber, discNumber, time.Now().Unix(), hash,
+		)
+		return err
+	})
+}
+
 // UpdateTrackDuration updates the duration_ms for the track identified by hash.
 // It is a no-op if no row matches.
 func (w *Writer) UpdateTrackDuration(hash string, durationMs int64) error {

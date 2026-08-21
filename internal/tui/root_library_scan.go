@@ -229,8 +229,9 @@ func (m Model) bridgeScanChannel(raw <-chan library.Track) <-chan library.Track 
 // normalizeScannedTrack applies the same metadata normalization the index
 // insertion relies on: it preserves created_at, non-zero duration, and play
 // stats from the existing index/snapshot, then overlays any user-edited
-// title/artist/album/genre. Both the scan and watcher fan-outs use this so the
-// index and every reconciled cache observe identical values.
+// title/artist/album/genre and track/disc number. Both the scan and watcher
+// fan-outs use this so the index and every reconciled cache observe identical
+// values.
 func (m Model) normalizeScannedTrack(track library.Track) library.Track {
 	track = m.preserveTrackMetadata(track)
 	if edited, ok := m.userEditedOverlay[track.Hash]; ok {
@@ -238,6 +239,8 @@ func (m Model) normalizeScannedTrack(track library.Track) library.Track {
 		track.Artist = edited.Artist
 		track.Album = edited.Album
 		track.Genre = edited.Genre
+		track.TrackNumber = edited.TrackNumber
+		track.DiscNumber = edited.DiscNumber
 	}
 	return track
 }

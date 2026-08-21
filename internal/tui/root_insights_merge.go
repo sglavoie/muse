@@ -187,6 +187,7 @@ func (m Model) handleInsightsMergedMsg(msg insightsMergedMsg) (Model, tea.Cmd) {
 		if m.userEditedOverlay != nil {
 			m.userEditedOverlay[w.hash] = db.UserEditedRow{
 				Hash: w.hash, Title: w.title, Artist: w.artist, Album: w.album, Genre: w.genre,
+				TrackNumber: t.TrackNumber, DiscNumber: t.DiscNumber,
 			}
 		}
 	}

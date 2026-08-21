@@ -39,6 +39,30 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		})
 	}
 
+	// Hand-written rather than catalog entries: the palette is the only trigger
+	// (no keybinding), so neither needs an action constant or a registry binding.
+	cmds = append(cmds, PaletteCommand{
+		ID:       "metadata.export.tsv",
+		Name:     "Export visible tracks to TSV",
+		Category: "lib",
+		Exec:     func() tea.Cmd { return func() tea.Msg { return metadataExportRequestedMsg{} } },
+		Enabled:  func() bool { return m.dataDir != "" },
+	})
+	cmds = append(cmds, PaletteCommand{
+		ID:       "metadata.import",
+		Name:     "Import metadata edits…",
+		Category: "lib",
+		Exec:     func() tea.Cmd { return func() tea.Msg { return metadataImportRequestedMsg{} } },
+		Enabled:  func() bool { return metadataExportExists(m.dataDir) },
+	})
+	cmds = append(cmds, PaletteCommand{
+		ID:       "metadata.export.reveal",
+		Name:     "Reveal metadata export file",
+		Category: "lib",
+		Exec:     func() tea.Cmd { return revealFile(m.appCtx, metadataExportPath(m.dataDir)) },
+		Enabled:  func() bool { return metadataExportExists(m.dataDir) },
+	})
+
 	// Stable navigation targets. Library and Browse use explicit mode messages
 	// because their numeric shortcuts preserve the current sub-mode; palette
 	// commands should always land on the destination named in the result.

@@ -198,6 +198,11 @@ type durationUpdater interface {
 	UpdateTrackDuration(hash string, durationMs int64) error
 }
 
+// trackPositionUpdater persists an imported track/disc number to the database.
+type trackPositionUpdater interface {
+	UpdateTrackPosition(hash string, trackNumber, discNumber int) error
+}
+
 // favoriteReader loads favorites from the database.
 type favoriteReader interface {
 	ReadFavoritesByType(typ string) ([]db.FavoriteRow, error)

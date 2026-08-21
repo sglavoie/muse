@@ -408,6 +408,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusBar.notify("Copied: " + msg.text)
 		}
 
+	case metadataExportRequestedMsg:
+		return m.handleMetadataExportRequest()
+
+	case metadataExportedMsg:
+		m = m.handleMetadataExportedMsg(msg)
+
+	case metadataImportRequestedMsg:
+		return m.handleMetadataImportRequest()
+
+	case metadataImportParsedMsg:
+		m = m.handleMetadataImportParsedMsg(msg)
+
+	case metadataImportAppliedMsg:
+		m = m.handleMetadataImportAppliedMsg(msg)
+
 	case configToggleMsg:
 		return m.handleConfigToggleMsg(msg)
 

@@ -40,12 +40,15 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 
 	var origTitle, origArtist, origAlbum, origGenre string
 	var origDuration float64
+	var trackNumber, discNumber int
 	if t, ok := m.library.index.FindByHash(hash); ok {
 		origTitle = t.Title
 		origArtist = t.Artist
 		origAlbum = t.Album
 		origGenre = t.Genre
 		origDuration = t.Duration
+		trackNumber = t.TrackNumber
+		discNumber = t.DiscNumber
 	}
 
 	m.library.index.UpdateMetadata(hash, title, artist, album, genre)
@@ -74,8 +77,12 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	m = m.refreshDerivedViews()
 
 	if m.userEditedOverlay != nil {
+		// The editor cannot change track/disc, so the overlay carries the
+		// current numbers forward; leaving them zero would make the next scan
+		// wipe a track number the file's own tags do supply.
 		m.userEditedOverlay[hash] = db.UserEditedRow{
 			Hash: hash, Title: title, Artist: artist, Album: album, Genre: genre,
+			TrackNumber: trackNumber, DiscNumber: discNumber,
 		}
 	}
 
@@ -139,6 +146,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 
 	type update struct {
 		hash, title, artist, album, genre string
+		trackNumber, discNumber           int
 		durationMs                        int64
 		ticket                            uint64
 	}
@@ -190,7 +198,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 
 		m = m.syncStatusBarMetadata(h, newArtist, newTitle)
 
-		updates = append(updates, update{hash: h, title: newTitle, artist: newArtist, album: newAlbum, genre: newGenre, durationMs: durationMs})
+		updates = append(updates, update{hash: h, title: newTitle, artist: newArtist, album: newAlbum, genre: newGenre, trackNumber: t.TrackNumber, discNumber: t.DiscNumber, durationMs: durationMs})
 	}
 	m = m.syncRecentlyAddedFromLibrary()
 	m = m.preserveQueueSort()
@@ -208,6 +216,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		for _, u := range updates {
 			m.userEditedOverlay[u.hash] = db.UserEditedRow{
 				Hash: u.hash, Title: u.title, Artist: u.artist, Album: u.album, Genre: u.genre,
+				TrackNumber: u.trackNumber, DiscNumber: u.discNumber,
 			}
 		}
 	}

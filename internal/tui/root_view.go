@@ -29,6 +29,7 @@ func (m Model) hasActiveOverlay() bool {
 		m.overlay.trackInfo != nil ||
 		m.overlay.preview != nil ||
 		m.overlay.metadataEditor != nil ||
+		m.overlay.metadataImport != nil ||
 		m.overlay.destPicker != nil ||
 		m.overlay.goTo != nil ||
 		m.overlay.smartRuleEditor != nil ||

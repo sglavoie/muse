@@ -150,6 +150,8 @@ func (m Model) renderOverlayBody() (string, bool) {
 		return m.overlay.preview.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.metadataEditor != nil:
 		return m.overlay.metadataEditor.Render(m.termWidth, overlayHeight, *m.styles), true
+	case m.overlay.metadataImport != nil:
+		return m.overlay.metadataImport.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.destPicker != nil:
 		return m.overlay.destPicker.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.goTo != nil:

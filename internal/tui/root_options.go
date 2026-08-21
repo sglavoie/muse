@@ -171,6 +171,12 @@ func WithDurationWriter(w durationUpdater) Option {
 	return func(m *Model) { m.durationWriter = w }
 }
 
+// WithTrackPositionWriter sets the writer for persisting imported track and
+// disc numbers.
+func WithTrackPositionWriter(w trackPositionUpdater) Option {
+	return func(m *Model) { m.trackPositionWriter = w }
+}
+
 // WithScanWriter sets the batch writer used to persist tracks discovered during
 // a manual rescan (Shift+R) to the database. Without this, rescanned tracks
 // exist only in the in-memory index and are lost on restart.

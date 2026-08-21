@@ -3,9 +3,9 @@ package config
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+	"github.com/sglavoie/muse/internal/fsutil"
 )
 
 // Save writes cfg to path as TOML, replacing any existing file.
@@ -33,51 +33,7 @@ func Save(path string, cfg Config) error {
 }
 
 func writeAtomically(path string, perm os.FileMode, write func(*os.File) error) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(dir, filepath.Base(path)+".tmp-*")
-	if err != nil {
-		return err
-	}
-	tmpPath := tmp.Name()
-	// Best-effort cleanup if anything below fails before the rename.
-	cleanup := func() {
-		_ = os.Remove(tmpPath)
-	}
-
-	if err := tmp.Chmod(perm); err != nil {
-		_ = tmp.Close()
-		cleanup()
-		return err
-	}
-	if err := write(tmp); err != nil {
-		_ = tmp.Close()
-		cleanup()
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		cleanup()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		cleanup()
-		return err
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		cleanup()
-		return err
-	}
-	// Fsync the parent directory so the rename is durable. Failure here is
-	// best-effort: on filesystems where opening a directory for sync is not
-	// supported the rename is still visible to the running process.
-	if d, err := os.Open(dir); err == nil {
-		_ = d.Sync()
-		_ = d.Close()
-	}
-	return nil
+	return fsutil.WriteAtomically(path, perm, write)
 }
 
 // writeDefaults writes a commented TOML config to path using the values in cfg.

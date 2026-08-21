@@ -28,6 +28,7 @@ const (
 	undoKindCutPaste                          // tracks moved via cut (ctrl+x) then paste
 	undoKindTagToggle                         // tag assigned to / removed from track(s)
 	undoKindDeleteTag                         // tag soft-deleted from Tags view
+	undoKindImportMetadata                    // metadata applied from a TSV import
 )
 
 // undoSlot holds the reversible state for the most recent destructive action.

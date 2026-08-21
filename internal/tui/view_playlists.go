@@ -44,6 +44,27 @@ func (v PlaylistsView) effectivePlaylists() []db.PlaylistRow {
 	return v.playlists
 }
 
+// displayTracks returns the playlist's tracks in display order. Unlike
+// TagsView.displayTracks there is no filter step: PlaylistsView carries no
+// filter state and root_filter.go has no viewPlaylists case.
+//
+// A stale sortedTrackOrder (length mismatch or out-of-range index) falls back
+// to natural order — reordering through a partially-filled or out-of-range
+// permutation would show empty rows or panic.
+func (v PlaylistsView) displayTracks() []db.PlaylistTrackRow {
+	if v.sortedTrackOrder == nil || len(v.sortedTrackOrder) != len(v.tracks) {
+		return v.tracks
+	}
+	reordered := make([]db.PlaylistTrackRow, len(v.tracks))
+	for i, idx := range v.sortedTrackOrder {
+		if idx < 0 || idx >= len(v.tracks) {
+			return v.tracks
+		}
+		reordered[i] = v.tracks[idx]
+	}
+	return reordered
+}
+
 // effectiveTrack returns the track at the given display index, translating
 // through sortedTrackOrder when active.
 func (v PlaylistsView) trackIndex(displayIdx int) int {

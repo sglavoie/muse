@@ -53,6 +53,44 @@ func TestScanBatchPreservesUserEditedOverlay(t *testing.T) {
 	}
 }
 
+// TestScanBatchPreservesImportedTrackPosition verifies that an imported track
+// and disc number survives a scan. The overlay used to carry only
+// title/artist/album/genre, so the number persisted in SQLite but vanished from
+// the in-memory index the next time the scanner reported the file's own tags.
+func TestScanBatchPreservesImportedTrackPosition(t *testing.T) {
+	m := New(context.Background())
+	m.library.index.Insert(library.Track{Hash: "hash1", Path: "/a.mp3", Title: "A", TrackNumber: 1, DiscNumber: 1})
+
+	if !m.library.index.UpdateTrackPosition("hash1", 7, 2) {
+		t.Fatal("UpdateTrackPosition: hash1 not found in index")
+	}
+	m.userEditedOverlay = map[string]db.UserEditedRow{
+		"hash1": {Hash: "hash1", Title: "A", TrackNumber: 7, DiscNumber: 2},
+	}
+
+	next, _ := m.Update(library.ScanBatchMsg{Tracks: []library.Track{
+		{Hash: "hash1", Path: "/a.mp3", Title: "A", TrackNumber: 1, DiscNumber: 1},
+		{Hash: "hash2", Path: "/b.mp3", Title: "B", TrackNumber: 4, DiscNumber: 3},
+	}})
+	nm := next.(Model)
+
+	t1, ok := nm.library.index.FindByHash("hash1")
+	if !ok {
+		t.Fatal("hash1 not found in index")
+	}
+	if t1.TrackNumber != 7 || t1.DiscNumber != 2 {
+		t.Errorf("hash1 track/disc = %d/%d; want 7/2 (imported position must survive a scan)", t1.TrackNumber, t1.DiscNumber)
+	}
+
+	t2, ok := nm.library.index.FindByHash("hash2")
+	if !ok {
+		t.Fatal("hash2 not found in index")
+	}
+	if t2.TrackNumber != 4 || t2.DiscNumber != 3 {
+		t.Errorf("hash2 track/disc = %d/%d; want 4/3 (scanned position with no overlay)", t2.TrackNumber, t2.DiscNumber)
+	}
+}
+
 func TestScanBatchStampsCreatedAtForNewTrack(t *testing.T) {
 	m := New(context.Background())
 

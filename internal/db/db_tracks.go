@@ -27,11 +27,13 @@ type TrackRow struct {
 
 // UserEditedRow holds the user-edited metadata for a single track.
 type UserEditedRow struct {
-	Hash   string
-	Title  string
-	Artist string
-	Album  string
-	Genre  string
+	Hash        string
+	Title       string
+	Artist      string
+	Album       string
+	Genre       string
+	TrackNumber int
+	DiscNumber  int
 }
 
 // UnverifiedTrack holds the fields needed by the duration audit for a single
@@ -69,7 +71,7 @@ func (d *DB) ReadTracks() ([]TrackRow, error) {
 // metadata was manually edited by the user (user_edited = 1).
 func (d *DB) ReadUserEditedTracks() ([]UserEditedRow, error) {
 	rows, err := d.Query(`
-		SELECT hash, title, artist, album, genre
+		SELECT hash, title, artist, album, genre, track_number, disc_number
 		FROM tracks WHERE user_edited = 1 AND missing = 0
 	`)
 	if err != nil {
@@ -80,7 +82,7 @@ func (d *DB) ReadUserEditedTracks() ([]UserEditedRow, error) {
 	var result []UserEditedRow
 	for rows.Next() {
 		var row UserEditedRow
-		if err := rows.Scan(&row.Hash, &row.Title, &row.Artist, &row.Album, &row.Genre); err != nil {
+		if err := rows.Scan(&row.Hash, &row.Title, &row.Artist, &row.Album, &row.Genre, &row.TrackNumber, &row.DiscNumber); err != nil {
 			return nil, fmt.Errorf("db: read user-edited row: %w", err)
 		}
 		result = append(result, row)

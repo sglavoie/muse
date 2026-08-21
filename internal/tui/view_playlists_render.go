@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"github.com/sglavoie/muse/internal/db"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -11,31 +10,12 @@ func (v PlaylistsView) render(s styles.Styles, favHashes, favArtists, favAlbums 
 	if v.sortedPlaylists != nil {
 		playlists = v.sortedPlaylists
 	}
-	tracks := v.tracks
-	if v.sortedTrackOrder != nil && len(v.sortedTrackOrder) == len(v.tracks) {
-		// Build a reordered track slice for rendering. Guard against stale
-		// sortedTrackOrder (length mismatch or out-of-range indices) by
-		// falling back to natural order — rendering a partially-filled or
-		// out-of-range slice would show empty rows or panic.
-		reordered := make([]db.PlaylistTrackRow, len(v.tracks))
-		safe := true
-		for i, idx := range v.sortedTrackOrder {
-			if idx < 0 || idx >= len(v.tracks) {
-				safe = false
-				break
-			}
-			reordered[i] = v.tracks[idx]
-		}
-		if safe {
-			tracks = reordered
-		}
-	}
 	pv := pltui.View{
 		Level:            v.level,
 		Cursor:           v.cursor,
 		ScrollOffset:     v.scrollOffset,
 		Playlists:        playlists,
-		Tracks:           tracks,
+		Tracks:           v.displayTracks(),
 		Width:            v.width,
 		Height:           v.height,
 		Creating:         v.creating,

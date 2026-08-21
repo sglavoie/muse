@@ -254,6 +254,18 @@ func (idx *LibraryIndex) UpdateDuration(hash string, duration float64) bool {
 	return false
 }
 
+// UpdateTrackPosition finds the track by hash and updates its TrackNumber and
+// DiscNumber in place. No re-sort is needed because neither is part of the sort
+// key. Returns true if the track was found.
+func (idx *LibraryIndex) UpdateTrackPosition(hash string, track, disc int) bool {
+	if i, ok := idx.findIndexByHash(hash); ok {
+		idx.tracks[i].TrackNumber = track
+		idx.tracks[i].DiscNumber = disc
+		return true
+	}
+	return false
+}
+
 // UpdateMetadata finds the track by hash, updates its Title, Artist, Album, and
 // Genre, then re-inserts it to maintain sort order (since the sort key includes
 // Artist and Title, the position may change). Returns true if the track was

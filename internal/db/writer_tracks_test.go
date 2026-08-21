@@ -211,6 +211,52 @@ func TestUpdateTrackMetadata(t *testing.T) {
 	}
 }
 
+// TestUpdateTrackPosition verifies that an imported track/disc number is
+// written with user_edited=1, survives a rescan that reports the file's own
+// tags, and comes back out through ReadUserEditedTracks.
+func TestUpdateTrackPosition(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	track := library.Track{Hash: "hash-pos", Path: "/a.mp3", Title: "T", Artist: "A", Album: "Al", TrackNumber: 1, DiscNumber: 1}
+	if err := w.UpsertBatch([]library.Track{track}); err != nil {
+		t.Fatalf("UpsertBatch: %v", err)
+	}
+
+	if err := w.UpdateTrackPosition("hash-pos", 7, 2); err != nil {
+		t.Fatalf("UpdateTrackPosition: %v", err)
+	}
+
+	var trackNumber, discNumber, userEdited int
+	if err := d.QueryRow(
+		`SELECT track_number, disc_number, user_edited FROM tracks WHERE hash='hash-pos'`,
+	).Scan(&trackNumber, &discNumber, &userEdited); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if trackNumber != 7 || discNumber != 2 {
+		t.Errorf("track/disc = %d/%d; want 7/2", trackNumber, discNumber)
+	}
+	if userEdited != 1 {
+		t.Errorf("user_edited = %d; want 1", userEdited)
+	}
+
+	rescanned := library.Track{Hash: "hash-pos", Path: "/a.mp3", Title: "T", Artist: "A", Album: "Al", TrackNumber: 1, DiscNumber: 1}
+	if err := w.UpsertBatch([]library.Track{rescanned}); err != nil {
+		t.Fatalf("second UpsertBatch: %v", err)
+	}
+
+	rows, err := d.ReadUserEditedTracks()
+	if err != nil {
+		t.Fatalf("ReadUserEditedTracks: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("got %d rows; want 1", len(rows))
+	}
+	if rows[0].TrackNumber != 7 || rows[0].DiscNumber != 2 {
+		t.Errorf("overlay track/disc = %d/%d; want 7/2 (rescan must not restore the file's tags)", rows[0].TrackNumber, rows[0].DiscNumber)
+	}
+}
+
 // TestUpdateTrackMetadata_RefreshesTrackGenres verifies that editing a
 // track's metadata also rewrites its rows in the track_genres junction table.
 // Previously UpdateTrackMetadata wrote only the tracks.genre column, so

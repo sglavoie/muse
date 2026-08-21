@@ -125,6 +125,26 @@ func (v View) effectiveTrackCount() int {
 	return len(v.tracks())
 }
 
+// VisibleTracks returns every row the view is showing, in display order, with
+// the active sort and fuzzy filter applied. It walks matches exactly as
+// FocusedTrack does so the cursor and the full list can never disagree about
+// what row N is.
+func (v View) VisibleTracks() []musiclib.Track {
+	allTracks := v.tracks()
+	if v.Filter.Text == "" {
+		return allTracks
+	}
+	matches, ok := v.filteredMatches(allTracks)
+	if !ok {
+		return allTracks
+	}
+	out := make([]musiclib.Track, 0, len(matches))
+	for _, match := range matches {
+		out = append(out, allTracks[match.TrackIndex])
+	}
+	return out
+}
+
 // FocusedTrack returns the track currently under the cursor, accounting for
 // any active fuzzy filter. The second return value is false when the library
 // is empty or the cursor is out of range.
