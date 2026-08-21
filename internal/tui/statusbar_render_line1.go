@@ -114,6 +114,26 @@ func modeIndicators(repeat RepeatMode, shuffle, stopAfter, radio bool) []modeInd
 	}
 }
 
+// Positions in the slice modeIndicators returns. The order is contractual, so a
+// mode toggle can look up the very glyph the cluster is about to render.
+const (
+	modeIndexRepeat = iota
+	modeIndexShuffle
+	modeIndexStopAfter
+	modeIndexRadio
+)
+
+// modeToggleMsg renders the feedback for one mode toggle as
+// "<label>: <state> (<glyph>)" — e.g. "Shuffle: on (S)" — so the notification
+// teaches the letter the status-bar cluster shows. State and glyph are read
+// from modeIndicators, which is why they cannot drift from the cluster; the
+// label stays caller-supplied because these notifications predate the indicator
+// names and say "Radio mode" where the indicator says "Radio (Auto-DJ)".
+func (m Model) modeToggleMsg(label string, index int) string {
+	ind := modeIndicators(m.playback.repeatMode, m.playback.shuffle, m.playback.stopAfterCurrent, m.radio.enabled)[index]
+	return label + ": " + ind.state + " (" + ind.glyph + ")"
+}
+
 func (s StatusBar) renderModeCluster(ctx statusBarRenderContext) (string, int) {
 	clusterDim := ctx.styles.TextTertiary.Background(ctx.base.GetBackground())
 	activeStyles := []lipgloss.Style{ctx.barModeRepeat, ctx.barModeShuffle, ctx.barModeStopAfter, ctx.barModeRadio}

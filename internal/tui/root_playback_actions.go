@@ -189,14 +189,11 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 				slog.Warn("write repeat mode failed", "err", err)
 			}
 		}
-		m.statusBar.pushMsg("Repeat: "+m.playback.repeatMode.DisplayString(), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
+		m.statusBar.pushMsg(m.modeToggleMsg("Repeat", modeIndexRepeat), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 		return m, nil, true
 	case actionShuffleToggle:
 		m.playback.shuffle = !m.playback.shuffle
-		label := "off"
-		if m.playback.shuffle {
-			label = "on"
-		}
+		label := modeState(m.playback.shuffle)
 		// Surface a runtime failure to the user: the traversal order did not
 		// change, so revert the toggle and do not persist a mismatched flag.
 		if rs, ok := m.player.(repeatShuffler); ok {
@@ -216,7 +213,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 				return m, nil, true
 			}
 		}
-		m.statusBar.pushMsg("Shuffle: "+label, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
+		m.statusBar.pushMsg(m.modeToggleMsg("Shuffle", modeIndexShuffle), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 		return m, nil, true
 	case actionStopAfterCurrent:
 		if m.playback.state != PlaybackPlaying && m.playback.state != PlaybackPaused {
@@ -227,11 +224,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		if sat, ok := m.player.(stopAfterToggler); ok {
 			sat.SetStopAfterCurrent(m.playback.stopAfterCurrent)
 		}
-		label := "off"
-		if m.playback.stopAfterCurrent {
-			label = "on"
-		}
-		m.statusBar.pushMsg("Stop after current: "+label, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
+		m.statusBar.pushMsg(m.modeToggleMsg("Stop after current", modeIndexStopAfter), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 		return m, nil, true
 	case actionRadioToggle:
 		return m.radioToggle()

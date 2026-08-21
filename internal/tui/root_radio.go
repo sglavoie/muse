@@ -34,14 +34,12 @@ func (m Model) radioToggle() (tea.Model, tea.Cmd, bool) {
 			slog.Warn("session: write radio mode", "err", err)
 		}
 	}
-	label := "off"
 	if m.radio.enabled {
-		label = "on"
 		m.radio.seedHash = m.playback.currentHash
 	} else {
 		m.radio.syntheticSeed = nil
 	}
-	m.statusBar.pushMsg("Radio mode: "+label, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
+	m.statusBar.pushMsg(m.modeToggleMsg("Radio mode", modeIndexRadio), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 	if m.radio.enabled {
 		cmd := m.radioMaybeEnqueueCmd()
 		if cmd != nil {

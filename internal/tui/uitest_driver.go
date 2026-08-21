@@ -387,6 +387,7 @@ func (d *UITestDriver) runCommand(name string) error {
 func safeDirectCommandIDs() map[string]struct{} {
 	return map[string]struct{}{
 		"help.show":              {},
+		"help.modes_legend":      {},
 		"debug.show":             {},
 		"radio.toggle":           {},
 		"nav.playlists":          {},
