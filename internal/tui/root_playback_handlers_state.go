@@ -163,6 +163,10 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Capture the outgoing hash before the overwrite below: the notification
+	// at the end of this handler must only fire on a genuine track change.
+	prevHash := m.playback.currentHash
+
 	m.playback.currentHash = msg.Hash
 	// Clamp index to queue bounds in case the queue shrank between the mpv
 	// event dispatch and TUI processing (e.g. dequeue raced with gapless
@@ -236,7 +240,27 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 	// Pulse the now-playing row briefly so the user notices the transition.
 	m.pulseUntil = time.Now().Add(pulseDuration)
 
-	return m, tea.Batch(m.sessionPositionCmd(), radioCmd, pulseCmd())
+	return m, tea.Batch(m.sessionPositionCmd(), radioCmd, pulseCmd(),
+		m.trackNotifyCmd(msg, prevHash))
+}
+
+// trackNotifyCmd posts a desktop banner for a newly started track, or returns
+// nil when notifications are off, no notifier is wired, or the hash did not
+// actually change (mpv reconnect and session restore both re-emit the current
+// track). A failing notifier — a missing alerter binary, most likely — is
+// logged and otherwise ignored: it must never disturb playback.
+func (m Model) trackNotifyCmd(msg TrackChangedMsg, prevHash string) tea.Cmd {
+	if !m.notifyOnTrackChange || m.notifier == nil || msg.Hash == "" || msg.Hash == prevHash {
+		return nil
+	}
+	notifier := m.notifier
+	title, artist, album := msg.Title, msg.Artist, m.statusBar.album
+	return func() tea.Msg {
+		if err := notifier.NotifyTrack(title, artist, album); err != nil {
+			slog.Warn("track notification failed", "err", err)
+		}
+		return nil
+	}
 }
 
 // bumpSessionArtist records one more play for artist in the session

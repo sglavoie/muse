@@ -209,6 +209,7 @@ type Model struct {
 	cacheReader         cachedMixReader              // may be nil; set via WithCacheReader
 	cacheRebuilder      recommendationCacheRebuilder // may be nil; set via WithCacheRebuilder
 	tagReader           tagReader                    // may be nil; set via WithTagReader
+	notifier            trackNotifier                // may be nil; set via WithTrackNotifier
 	tagWriter           tagWriter                    // may be nil; set via WithTagWriter
 
 	// Tag in-memory cache — loaded on startup, refreshed on any mutation.
@@ -287,6 +288,12 @@ type Model struct {
 	// enter. Initialized from cfg.QueueFollowNowPlaying; flipped via the
 	// "Toggle queue follow" palette command.
 	followNowPlaying bool
+
+	// notifyOnTrackChange gates the macOS banner posted through notifier
+	// whenever playback advances to a genuinely new track. Initialized from
+	// cfg.NotifyOnTrackChange; flipped via the "Toggle track notifications"
+	// palette command or the Display settings tab.
+	notifyOnTrackChange bool
 }
 
 // New creates a root Model. All dependencies are injected via functional
@@ -336,6 +343,8 @@ func New(ctx context.Context, opts ...Option) Model {
 	m.showFooterHints = m.cfg.ShowFooterHints
 	// Queue follow-now-playing default is taken from config (defaults to true).
 	m.followNowPlaying = m.cfg.QueueFollowNowPlaying
+	// On-track-change notifications are opt-in (default false).
+	m.notifyOnTrackChange = m.cfg.NotifyOnTrackChange
 	// Sync statusBar fields from model state.
 	m.statusBar.transientDur = time.Duration(m.cfg.TransientDurationSecs) * time.Second
 	m.statusBar.configPath = m.configPath

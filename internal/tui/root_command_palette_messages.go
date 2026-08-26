@@ -57,6 +57,10 @@ type jumpToNowPlayingMsg struct{}
 // hint strip and persists the new value to the config.
 type toggleFooterHintsMsg struct{}
 
+// toggleTrackNotifyMsg flips the runtime state of the on-track-change macOS
+// banner and persists the new value to the config.
+type toggleTrackNotifyMsg struct{}
+
 // toggleQueueFollowMsg flips the runtime state of Queue auto-scroll
 // (follow now-playing) and persists the new value to the config.
 type toggleQueueFollowMsg struct{}

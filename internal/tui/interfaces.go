@@ -385,3 +385,11 @@ type tagWriter interface {
 	RemoveTrackTagBulk(hashes []string, tagID int64) error
 	MergeTags(sourceID, destID int64) error
 }
+
+// trackNotifier posts a desktop notification for a newly started track. Root
+// calls it from handleTrackChangedMsg only when the incoming hash differs from
+// the previous one and cfg.NotifyOnTrackChange is on, so mpv reconnects and
+// session restore never re-banner the track already on screen.
+type trackNotifier interface {
+	NotifyTrack(title, artist, album string) error
+}

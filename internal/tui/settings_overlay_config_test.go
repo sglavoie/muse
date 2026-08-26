@@ -18,6 +18,7 @@ func TestSettingsToConfigRoundTrip(t *testing.T) {
 	o.fields[settingsTabPlayback][5].Value = 0
 	o.fields[settingsTabDisplay][0].Value = 8
 	o.fields[settingsTabDisplay][1].Value = 4
+	o.fields[settingsTabDisplay][2].Value = 1
 
 	got := o.ToConfig(base)
 
@@ -44,6 +45,9 @@ func TestSettingsToConfigRoundTrip(t *testing.T) {
 	}
 	if got.VolumeFeedbackDurationSecs != 4 {
 		t.Errorf("VolumeFeedbackDurationSecs: expected 4, got %d", got.VolumeFeedbackDurationSecs)
+	}
+	if !got.NotifyOnTrackChange {
+		t.Errorf("NotifyOnTrackChange: expected true, got false")
 	}
 }
 

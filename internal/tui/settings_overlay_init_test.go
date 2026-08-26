@@ -44,14 +44,24 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	}
 
 	disp := o.fields[settingsTabDisplay]
-	if len(disp) != 2 {
-		t.Fatalf("expected 2 display fields, got %d", len(disp))
+	if len(disp) != 3 {
+		t.Fatalf("expected 3 display fields, got %d", len(disp))
 	}
 	if disp[0].Value != cfg.TransientDurationSecs {
 		t.Errorf("TransientDurationSecs: expected %d, got %d", cfg.TransientDurationSecs, disp[0].Value)
 	}
 	if disp[1].Value != cfg.VolumeFeedbackDurationSecs {
 		t.Errorf("VolumeFeedbackDurationSecs: expected %d, got %d", cfg.VolumeFeedbackDurationSecs, disp[1].Value)
+	}
+	if disp[2].Label != "Track notify" {
+		t.Errorf("Track notify label: expected %q, got %q", "Track notify", disp[2].Label)
+	}
+	if disp[2].Default != 0 || disp[2].Min != 0 || disp[2].Max != 1 {
+		t.Errorf("Track notify Default/Min/Max: expected 0/0/1, got %d/%d/%d",
+			disp[2].Default, disp[2].Min, disp[2].Max)
+	}
+	if disp[2].Value != boolToInt(cfg.NotifyOnTrackChange) {
+		t.Errorf("NotifyOnTrackChange: expected %d, got %d", boolToInt(cfg.NotifyOnTrackChange), disp[2].Value)
 	}
 }
 

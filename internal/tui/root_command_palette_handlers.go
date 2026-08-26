@@ -215,6 +215,20 @@ func (m Model) handleToggleFooterHintsMsg() (Model, tea.Cmd) {
 	return m, func() tea.Msg { return settingsSavedMsg{err: config.Save(path, cfg)} }
 }
 
+// handleToggleTrackNotifyMsg flips the automatic on-track-change macOS
+// notification on/off and persists the new value to the config file.
+func (m Model) handleToggleTrackNotifyMsg() (Model, tea.Cmd) {
+	m.notifyOnTrackChange = !m.notifyOnTrackChange
+	m.cfg.NotifyOnTrackChange = m.notifyOnTrackChange
+	m.statusBar.notify("Track notify: " + onOff(m.notifyOnTrackChange))
+
+	if m.configPath == "" {
+		return m, nil
+	}
+	path, cfg := m.configPath, m.cfg
+	return m, func() tea.Msg { return settingsSavedMsg{err: config.Save(path, cfg)} }
+}
+
 // handleToggleQueueFollowMsg flips the Queue follow-now-playing mode,
 // persists the new value to the config, and applies the scroll immediately
 // when re-enabled while the Queue view is active.

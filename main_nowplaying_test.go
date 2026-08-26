@@ -6,10 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"slices"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
@@ -95,8 +92,8 @@ func TestBuildNowPlaying(t *testing.T) {
 			if got.Artist != tt.wantArtist {
 				t.Errorf("Artist = %q, want %q", got.Artist, tt.wantArtist)
 			}
-			if got.message() != tt.wantMessage {
-				t.Errorf("message() = %q, want %q", got.message(), tt.wantMessage)
+			if got.Message() != tt.wantMessage {
+				t.Errorf("message() = %q, want %q", got.Message(), tt.wantMessage)
 			}
 			if got.Degraded != tt.wantDegraded {
 				t.Errorf("Degraded = %q, want %q", got.Degraded, tt.wantDegraded)
@@ -110,81 +107,14 @@ func TestBuildNowPlaying(t *testing.T) {
 
 func TestNowPlayingIdleAndNotRunning(t *testing.T) {
 	idle := nowPlayingIdle()
-	if idle.Title != "muse" || idle.Artist != "" || idle.message() != "Nothing playing" {
+	if idle.Title != "muse" || idle.Artist != "" || idle.Message() != "Nothing playing" {
 		t.Fatalf("idle = %+v, want title muse / no artist / Nothing playing", idle)
 	}
 
 	down := nowPlayingNotRunning()
-	if down.Title != "muse" || down.Artist != "" || down.message() != "muse is not running" {
+	if down.Title != "muse" || down.Artist != "" || down.Message() != "muse is not running" {
 		t.Fatalf("notRunning = %+v, want title muse / no artist / muse is not running", down)
 	}
-}
-
-func TestAlerterArgs(t *testing.T) {
-	args := buildNowPlaying("/music/Aurora/sunrise.flac", false,
-		db.TrackRow{Title: "Sunrise", Artist: "Aurora", Album: "Dawn"}, true).alerterArgs()
-
-	wantPairs := map[string]string{
-		"--title":    "Sunrise",
-		"--subtitle": "Aurora",
-		"--message":  "Dawn",
-		"--group":    alerterGroup,
-		"--sender":   alerterSender,
-		"--timeout":  alerterTimeout,
-	}
-	for flag, want := range wantPairs {
-		got, ok := argValue(args, flag)
-		if !ok {
-			t.Errorf("%s missing from %v", flag, args)
-			continue
-		}
-		if got != want {
-			t.Errorf("%s = %q, want %q", flag, got, want)
-		}
-	}
-}
-
-func TestAlerterArgsOmitsBlankSubtitle(t *testing.T) {
-	// Only the mpv-idle / not-running states carry a blank artist.
-	args := nowPlayingIdle().alerterArgs()
-
-	if slices.Contains(args, "--subtitle") {
-		t.Errorf("--subtitle present for a blank artist: %v", args)
-	}
-	if got, _ := argValue(args, "--message"); got != "Nothing playing" {
-		t.Errorf("--message = %q, want %q", got, "Nothing playing")
-	}
-}
-
-func TestAlerterArgsMessageNeverEmpty(t *testing.T) {
-	states := []nowPlaying{
-		nowPlayingIdle(),
-		nowPlayingNotRunning(),
-		buildNowPlaying("/music/a.flac", false, db.TrackRow{}, false),
-		buildNowPlaying("/music/a.flac", true, db.TrackRow{Title: "A"}, true),
-		buildNowPlaying("", false, db.TrackRow{}, false),
-	}
-
-	for _, n := range states {
-		args := n.alerterArgs()
-		got, ok := argValue(args, "--message")
-		if !ok || got == "" {
-			t.Errorf("empty --message for %+v (args %v)", n, args)
-		}
-		if title, ok := argValue(args, "--title"); !ok || title == "" {
-			t.Errorf("empty --title for %+v (args %v)", n, args)
-		}
-	}
-}
-
-// argValue returns the value following flag in an argv slice.
-func argValue(args []string, flag string) (string, bool) {
-	for i, a := range args {
-		if a == flag && i+1 < len(args) {
-			return args[i+1], true
-		}
-	}
-	return "", false
 }
 
 func TestFallbackMetaFromPath(t *testing.T) {
@@ -211,20 +141,6 @@ func TestFallbackMetaFromPath(t *testing.T) {
 				t.Errorf("artist = %q, want %q", artist, tt.wantArtist)
 			}
 		})
-	}
-}
-
-func TestSummaryLine(t *testing.T) {
-	n := buildNowPlaying("/music/Aurora/sunrise.flac", true,
-		db.TrackRow{Title: "Sunrise", Artist: "Aurora", Album: "Dawn"}, true)
-
-	want := "Sunrise — Aurora (Paused — Dawn)"
-	if got := n.summaryLine(); got != want {
-		t.Fatalf("summaryLine() = %q, want %q", got, want)
-	}
-
-	if got := nowPlayingIdle().summaryLine(); got != "muse (Nothing playing)" {
-		t.Fatalf("idle summaryLine() = %q, want %q", got, "muse (Nothing playing)")
 	}
 }
 
@@ -411,72 +327,6 @@ func TestLookupTrack(t *testing.T) {
 	// A missing database degrades instead of failing.
 	if _, found := lookupTrack(filepath.Join(dir, "absent.db"), "/music/a.flac"); found {
 		t.Error("found = true for a missing database, want false")
-	}
-}
-
-// TestNotifyIsFireAndForget points alerterPath at a stub that records its argv
-// and then sleeps. notify must return before the sleep finishes, proving it
-// never calls Wait.
-func TestNotifyIsFireAndForget(t *testing.T) {
-	dir := t.TempDir()
-	argvFile := filepath.Join(dir, "argv")
-	stub := filepath.Join(dir, "alerter-stub")
-
-	// The stub records its argv immediately, then sleeps far longer than the
-	// deadline below, so a notify that waited on it could not return in time.
-	// The record is written to a scratch file and renamed so the poll below
-	// can never observe a partially flushed argv list.
-	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + argvFile + ".tmp\nmv " + argvFile + ".tmp " + argvFile + "\nsleep 30\n"
-	if err := os.WriteFile(stub, []byte(script), 0o700); err != nil {
-		t.Fatalf("write stub: %v", err)
-	}
-
-	original := alerterPath
-	alerterPath = stub
-	t.Cleanup(func() { alerterPath = original })
-
-	want := buildNowPlaying("/music/Aurora/sunrise.flac", false,
-		db.TrackRow{Title: "Sunrise", Artist: "Aurora", Album: "Dawn"}, true).alerterArgs()
-
-	start := time.Now()
-	if err := notify(want); err != nil {
-		t.Fatalf("notify: %v", err)
-	}
-	if elapsed := time.Since(start); elapsed > 10*time.Second {
-		t.Fatalf("notify took %v, want it to return without waiting on the stub", elapsed)
-	}
-
-	// The stub writes its argv before sleeping. Poll generously: process spawn
-	// is slow under -race with the whole suite running in parallel.
-	var recorded string
-	for range 500 {
-		data, err := os.ReadFile(argvFile)
-		if err == nil && len(data) > 0 {
-			recorded = string(data)
-			break
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
-	if recorded == "" {
-		t.Fatalf("stub %s never recorded its argv to %s", stub, argvFile)
-	}
-
-	got := strings.Split(strings.TrimSuffix(recorded, "\n"), "\n")
-	if !slices.Equal(got, want) {
-		t.Fatalf("stub argv = %q, want %q", got, want)
-	}
-}
-
-func TestNotifyMissingBinary(t *testing.T) {
-	original := alerterPath
-	alerterPath = filepath.Join(t.TempDir(), "does-not-exist")
-	t.Cleanup(func() { alerterPath = original })
-
-	// Empty PATH so the LookPath fallback cannot resolve a real alerter.
-	t.Setenv("PATH", "")
-
-	if err := notify([]string{"--title", "muse"}); err == nil {
-		t.Fatal("notify with no alerter available succeeded, want error")
 	}
 }
 

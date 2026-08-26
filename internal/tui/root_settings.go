@@ -270,6 +270,9 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 	}
 	m.cfg = cfg
 	m.statusBar.transientDur = time.Duration(cfg.TransientDurationSecs) * time.Second
+	// Keep the runtime mirror in step with the Display tab's Track notify row,
+	// otherwise the saved setting would not take effect until the next launch.
+	m.notifyOnTrackChange = cfg.NotifyOnTrackChange
 	m.overlay.settings = nil
 
 	var saveCmd tea.Cmd

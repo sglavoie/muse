@@ -144,6 +144,7 @@ func NewSettingsOverlay(cfg config.Config, currentVolume int, musicDirs []string
 	o.fields[settingsTabDisplay] = []settingsField{
 		{Label: "Notification", Value: cfg.TransientDurationSecs, Default: 5, Min: 1, Max: 30, Step: 1, Unit: "s"},
 		{Label: "Vol feedback", Value: cfg.VolumeFeedbackDurationSecs, Default: 2, Min: 1, Max: 10, Step: 1, Unit: "s"},
+		{Label: "Track notify", Value: boolToInt(cfg.NotifyOnTrackChange), Default: 0, Min: 0, Max: 1, Step: 1, Unit: ""},
 	}
 	return o
 }
@@ -215,5 +216,6 @@ func (o SettingsOverlay) ToConfig(base config.Config) config.Config {
 	disp := o.fields[settingsTabDisplay]
 	cfg.TransientDurationSecs = disp[0].Value
 	cfg.VolumeFeedbackDurationSecs = disp[1].Value
+	cfg.NotifyOnTrackChange = disp[2].Value != 0
 	return cfg
 }

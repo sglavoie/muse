@@ -138,6 +138,15 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 	})
 
 	cmds = append(cmds, PaletteCommand{
+		ID:       "ui.toggle.track_notify",
+		Name:     "Toggle track notifications",
+		Category: "mode",
+		Exec: func() tea.Cmd {
+			return func() tea.Msg { return toggleTrackNotifyMsg{} }
+		},
+	})
+
+	cmds = append(cmds, PaletteCommand{
 		ID:       "queue.toggle.follow",
 		Name:     "Toggle queue follow",
 		Category: "mode",

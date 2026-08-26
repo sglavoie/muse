@@ -57,6 +57,9 @@ log_level = %q
 # Show the context-aware footer hint strip above the status bar (true/false).
 # show_footer_hints = true
 
+# Post a macOS banner (via alerter) whenever a new track starts (true/false).
+# notify_on_track_change = false
+
 # Auto-scroll the now-playing track into view in the Queue panel (true/false).
 # queue_follow_now_playing = true
 
@@ -92,6 +95,7 @@ const (
 	defaultStereoWideEnabled          = false
 	defaultStereoWideAmount           = 10 // 1.0x = passthrough
 	defaultShowFooterHints            = true
+	defaultNotifyOnTrackChange        = false
 	defaultQueueFollowNowPlaying      = true
 
 	defaultMixRediscoverMinPlays    = 10
@@ -160,6 +164,7 @@ type Config struct {
 	StereoWideEnabled          bool             `toml:"stereo_wide_enabled"`
 	StereoWideAmount           int              `toml:"stereo_wide_amount"`
 	ShowFooterHints            bool             `toml:"show_footer_hints"`
+	NotifyOnTrackChange        bool             `toml:"notify_on_track_change"`
 	QueueFollowNowPlaying      bool             `toml:"queue_follow_now_playing"`
 	Mixes                      MixesConfig      `toml:"mixes"`
 }
@@ -195,6 +200,7 @@ type rawConfig struct {
 	StereoWideEnabled          *bool               `toml:"stereo_wide_enabled"`
 	StereoWideAmount           *int                `toml:"stereo_wide_amount"`
 	ShowFooterHints            *bool               `toml:"show_footer_hints"`
+	NotifyOnTrackChange        *bool               `toml:"notify_on_track_change"`
 	QueueFollowNowPlaying      *bool               `toml:"queue_follow_now_playing"`
 	Mixes                      rawMixesConfig      `toml:"mixes"`
 }

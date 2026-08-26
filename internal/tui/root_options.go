@@ -223,6 +223,13 @@ func WithHistoryRecorder(w playHistoryRecorder) Option {
 	return func(m *Model) { m.historyRecorder = w }
 }
 
+// WithTrackNotifier sets the sink for on-track-change desktop notifications.
+// When nil (the default) no banner is ever posted, regardless of the
+// notify_on_track_change setting.
+func WithTrackNotifier(n trackNotifier) Option {
+	return func(m *Model) { m.notifier = n }
+}
+
 // WithHistoryReader sets the reader for lazily loading the play history tab.
 func WithHistoryReader(r playHistoryReader) Option {
 	return func(m *Model) { m.historyReader = r }

@@ -12,6 +12,7 @@ import (
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/notify"
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui"
 )
@@ -289,6 +290,7 @@ func buildModel(
 		tui.WithSmartPlaylistWriter(adapter),
 		tui.WithPlayCountWriter(result.Writer),
 		tui.WithHistoryRecorder(result.Writer),
+		tui.WithTrackNotifier(alerterNotifier{}),
 		tui.WithHistoryReader(result.DB),
 		tui.WithInsightsReader(result.DB),
 		tui.WithRecommendationReader(result.DB),
@@ -304,4 +306,12 @@ func buildModel(
 		tui.WithSessionCount(startupCount),
 		tui.WithFreshLibrary(libResult.FreshLibrary),
 	)
+}
+
+// alerterNotifier adapts internal/notify to the TUI's trackNotifier port. It
+// carries no state: notify.Send spawns alerter fire-and-forget.
+type alerterNotifier struct{}
+
+func (alerterNotifier) NotifyTrack(title, artist, album string) error {
+	return notify.Send(notify.Track{Title: title, Artist: artist, Album: album})
 }

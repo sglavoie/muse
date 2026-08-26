@@ -207,6 +207,10 @@ func validate(raw rawConfig) (Config, []string) {
 		cfg.ShowFooterHints = *raw.ShowFooterHints
 	}
 
+	if raw.NotifyOnTrackChange != nil {
+		cfg.NotifyOnTrackChange = *raw.NotifyOnTrackChange
+	}
+
 	if raw.QueueFollowNowPlaying != nil {
 		cfg.QueueFollowNowPlaying = *raw.QueueFollowNowPlaying
 	}

@@ -453,6 +453,9 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case toggleFooterHintsMsg:
 		return m.handleToggleFooterHintsMsg()
 
+	case toggleTrackNotifyMsg:
+		return m.handleToggleTrackNotifyMsg()
+
 	case toggleQueueFollowMsg:
 		return m.handleToggleQueueFollowMsg()
 
