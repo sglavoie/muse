@@ -93,6 +93,17 @@ Add this to your `karabiner.json` complex modifications. Adjust the key codes an
     "manipulators": [
         {
             "from": {
+                "key_code": "f6",
+                "modifiers": {
+                    "mandatory": ["fn"],
+                    "optional": ["any"]
+                }
+            },
+            "to": [{ "shell_command": "/Users/sglavoie/.go/bin/muse now-playing" }],
+            "type": "basic"
+        },
+        {
+            "from": {
                 "key_code": "f7",
                 "modifiers": {
                     "mandatory": ["fn"],
@@ -149,4 +160,5 @@ muse --help
 
 - **Keys not working?** Use `kitty +kitten show_key` or Karabiner-EventViewer to verify the key codes your keyboard sends.
 - **Shell command not found?** Use the full path in `shell_command` (e.g. `/usr/local/bin/muse next`).
-- **muse not running?** The commands require a running muse instance; they signal it via SIGUSR1.
+- **muse not running?** The playback commands (`previous`, `toggle-play`, `next`, `volume-up`, `volume-down`) require a running muse instance; they connect to the `muse.ctrl` Unix domain socket in the runtime directory and exit non-zero when nothing is listening.
+- **`now-playing` is different.** It reads mpv's IPC socket and the library database directly rather than going through `muse.ctrl`, so it reports the current track even when the TUI is busy and never needs the TUI to answer. It notifies via `alerter` (`/opt/homebrew/bin/alerter`), replacing any previous banner rather than stacking, and prints the same summary to stdout.

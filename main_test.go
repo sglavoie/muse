@@ -118,3 +118,47 @@ func TestDetectGlobalFlag(t *testing.T) {
 		})
 	}
 }
+
+// TestLocalCommandsDisjointFromRemoteActions guards the boundary between the
+// two subcommand tables. remoteActions is the control-socket vocabulary: an
+// entry there makes the TUI accept the name over muse.ctrl and dispatch a
+// RemoteActionMsg. Local commands run in-process and have no such handler, so
+// listing one in both places would produce a silently ignored message.
+func TestLocalCommandsDisjointFromRemoteActions(t *testing.T) {
+	for _, c := range localCommands {
+		if isKnownAction(c.Name) {
+			t.Errorf("local command %q is also a remote action; it must not be", c.Name)
+		}
+	}
+	for _, a := range remoteActions {
+		if _, ok := lookupLocalCommand(a.Name); ok {
+			t.Errorf("remote action %q is also a local command; it must not be", a.Name)
+		}
+	}
+}
+
+func TestLookupLocalCommand(t *testing.T) {
+	for _, name := range []string{"check", "now-playing"} {
+		cmd, ok := lookupLocalCommand(name)
+		if !ok {
+			t.Errorf("lookupLocalCommand(%q): not found", name)
+			continue
+		}
+		if cmd.Name != name {
+			t.Errorf("lookupLocalCommand(%q).Name = %q", name, cmd.Name)
+		}
+		if cmd.Run == nil {
+			t.Errorf("lookupLocalCommand(%q).Run is nil", name)
+		}
+		if cmd.Desc == "" {
+			t.Errorf("lookupLocalCommand(%q).Desc is empty", name)
+		}
+	}
+
+	if _, ok := lookupLocalCommand("tui-test"); ok {
+		t.Error("tui-test must stay hidden from localCommands")
+	}
+	if _, ok := lookupLocalCommand("nope"); ok {
+		t.Error("lookupLocalCommand(\"nope\") = true, want false")
+	}
+}

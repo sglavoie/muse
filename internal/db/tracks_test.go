@@ -180,3 +180,92 @@ func TestUpsertBatch_ClearsMissingFlag(t *testing.T) {
 		t.Errorf("got hash %q, want %q", rows[0].Hash, "hashX")
 	}
 }
+
+func TestReadTrackByPath_Hit(t *testing.T) {
+	d := openMigratedDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	if err := w.UpsertBatch([]library.Track{
+		{Hash: "hash1", Path: "/music/a.flac", Title: "A", Artist: "Artist A", Album: "Album A"},
+		{Hash: "hash2", Path: "/music/b.flac", Title: "B", Artist: "Artist B", Album: "Album B"},
+	}); err != nil {
+		t.Fatalf("UpsertBatch: %v", err)
+	}
+
+	row, found, err := d.ReadTrackByPath("/music/b.flac")
+	if err != nil {
+		t.Fatalf("ReadTrackByPath: %v", err)
+	}
+	if !found {
+		t.Fatal("found = false, want true")
+	}
+	if row.Hash != "hash2" || row.Title != "B" || row.Artist != "Artist B" || row.Album != "Album B" {
+		t.Fatalf("row = %+v, want hash2/B/Artist B/Album B", row)
+	}
+}
+
+func TestReadTrackByPath_Miss(t *testing.T) {
+	d := openMigratedDB(t)
+
+	row, found, err := d.ReadTrackByPath("/music/nope.flac")
+	if err != nil {
+		t.Fatalf("ReadTrackByPath: %v", err)
+	}
+	if found {
+		t.Fatalf("found = true, want false (row = %+v)", row)
+	}
+	if row != (db.TrackRow{}) {
+		t.Fatalf("row = %+v, want zero value", row)
+	}
+}
+
+// path is indexed but not unique (hash is the primary key), so two rows can
+// share one path. LIMIT 1 must keep the query from erroring.
+func TestReadTrackByPath_DuplicatePath(t *testing.T) {
+	d := openMigratedDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	if err := w.UpsertBatch([]library.Track{
+		{Hash: "hash1", Path: "/music/dup.flac", Title: "First", Artist: "Artist"},
+		{Hash: "hash2", Path: "/music/dup.flac", Title: "Second", Artist: "Artist"},
+	}); err != nil {
+		t.Fatalf("UpsertBatch: %v", err)
+	}
+
+	row, found, err := d.ReadTrackByPath("/music/dup.flac")
+	if err != nil {
+		t.Fatalf("ReadTrackByPath: %v", err)
+	}
+	if !found {
+		t.Fatal("found = false, want true")
+	}
+	if row.Title != "First" && row.Title != "Second" {
+		t.Fatalf("title = %q, want one of the two duplicate rows", row.Title)
+	}
+}
+
+// A stale missing marker must not hide metadata for a file mpv is playing.
+func TestReadTrackByPath_IncludesMissing(t *testing.T) {
+	d := openMigratedDB(t)
+	w := db.NewWriter(t.Context(), d.DB)
+
+	if err := w.UpsertBatch([]library.Track{
+		{Hash: "hashX", Path: "/music/x.flac", Title: "X", Artist: "Artist"},
+	}); err != nil {
+		t.Fatalf("UpsertBatch: %v", err)
+	}
+	if err := w.MarkTrackMissing("hashX"); err != nil {
+		t.Fatalf("MarkTrackMissing: %v", err)
+	}
+
+	row, found, err := d.ReadTrackByPath("/music/x.flac")
+	if err != nil {
+		t.Fatalf("ReadTrackByPath: %v", err)
+	}
+	if !found {
+		t.Fatal("found = false, want true for a track flagged missing")
+	}
+	if row.Title != "X" {
+		t.Fatalf("title = %q, want %q", row.Title, "X")
+	}
+}

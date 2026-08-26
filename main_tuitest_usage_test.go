@@ -38,8 +38,10 @@ func TestGlobalUsageOmitsTUITest(t *testing.T) {
 	if strings.Contains(usage, "tui-test") {
 		t.Errorf("normal usage must not mention tui-test:\n%s", usage)
 	}
-	// Sanity: the usage should still list a real command.
-	if !strings.Contains(usage, "check") {
-		t.Errorf("usage unexpectedly missing 'check':\n%s", usage)
+	// Sanity: the usage should still list the real commands.
+	for _, want := range []string{"check", "now-playing", "toggle-play"} {
+		if !strings.Contains(usage, want) {
+			t.Errorf("usage unexpectedly missing %q:\n%s", want, usage)
+		}
 	}
 }

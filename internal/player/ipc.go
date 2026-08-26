@@ -64,6 +64,17 @@ func (r *ipcResponse) stringData() (string, bool, error) {
 	return value, true, nil
 }
 
+func (r *ipcResponse) boolData() (bool, bool, error) {
+	if r.isNullData() {
+		return false, false, nil
+	}
+	var value bool
+	if err := json.Unmarshal(r.Data, &value); err != nil {
+		return false, false, fmt.Errorf("expected bool or nil, got %s", bytes.TrimSpace(r.Data))
+	}
+	return value, true, nil
+}
+
 func (r *ipcResponse) formattedData() (string, bool, error) {
 	if r.isNullData() {
 		return "", false, nil
@@ -125,6 +136,29 @@ func (c *IPCClient) Close() error {
 	c.closed = true
 	c.mu.Unlock()
 	return err
+}
+
+// GetPropertyString reads a string property from mpv. The second return value
+// reports whether mpv answered with a non-null value; it is false when the
+// property exists but is unset. Errors are propagated unchanged, so a caller
+// can distinguish an unavailable property (ErrPlaybackFailed) from a transport
+// failure (ErrIPCTransport).
+func (c *IPCClient) GetPropertyString(name string) (string, bool, error) {
+	resp, err := c.SendCommand(cmdGetProperty, name)
+	if err != nil {
+		return "", false, err
+	}
+	return resp.stringData()
+}
+
+// GetPropertyBool reads a boolean property from mpv. It follows the same
+// conventions as GetPropertyString.
+func (c *IPCClient) GetPropertyBool(name string) (bool, bool, error) {
+	resp, err := c.SendCommand(cmdGetProperty, name)
+	if err != nil {
+		return false, false, err
+	}
+	return resp.boolData()
 }
 
 // SendCommand encodes args as an mpv JSON-IPC request, writes it to the

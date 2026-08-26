@@ -33,13 +33,17 @@ func main() {
 		os.Exit(runTUITestCLI(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
 	}
 
-	// Handle subcommands before flag parsing.
-	if len(os.Args) > 1 && os.Args[1] == "check" {
-		if err := validateNoCommandArgs(os.Args[1], os.Args[2:]); err != nil {
-			fmt.Fprintf(os.Stderr, "muse: %v\n", err)
-			os.Exit(1)
+	// Handle local subcommands before flag parsing. These run entirely in this
+	// process, unlike remoteActions which are relayed to a running instance
+	// over the control socket.
+	if len(os.Args) > 1 {
+		if cmd, ok := lookupLocalCommand(os.Args[1]); ok {
+			if err := validateNoCommandArgs(os.Args[1], os.Args[2:]); err != nil {
+				fmt.Fprintf(os.Stderr, "muse: %v\n", err)
+				os.Exit(1)
+			}
+			os.Exit(cmd.Run())
 		}
-		os.Exit(runCheck())
 	}
 
 	if len(os.Args) > 1 {
@@ -77,13 +81,43 @@ func main() {
 func configureUsage() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: muse [command] [flags]\n\nCommands:\n")
-		fmt.Fprintf(os.Stderr, "  %-14s %s\n", "check", "Validate config and prerequisites, then exit")
+		for _, c := range localCommands {
+			fmt.Fprintf(os.Stderr, "  %-14s %s\n", c.Name, c.Desc)
+		}
 		for _, a := range remoteActions {
 			fmt.Fprintf(os.Stderr, "  %-14s %s\n", a.Name, a.Desc)
 		}
 		fmt.Fprintf(os.Stderr, "\nFlags:\n")
 		flag.PrintDefaults()
 	}
+}
+
+// localCommand is a subcommand handled in-process. Deliberately kept separate
+// from remoteActions: that slice is the control-socket vocabulary, and adding
+// a local command to it would make the TUI accept it over muse.ctrl and
+// dispatch a RemoteActionMsg nothing handles.
+type localCommand struct {
+	Name string
+	Desc string
+	Run  func() int
+}
+
+// localCommands is the authoritative list of in-process subcommands. It drives
+// both dispatch and help text, so adding an entry here is the only change
+// required.
+var localCommands = []localCommand{
+	{"check", "Validate config and prerequisites, then exit", runCheck},
+	{"now-playing", "Notify the current track via macOS notification", runNowPlaying},
+}
+
+// lookupLocalCommand returns the local command registered under name.
+func lookupLocalCommand(name string) (localCommand, bool) {
+	for _, c := range localCommands {
+		if c.Name == name {
+			return c, true
+		}
+	}
+	return localCommand{}, false
 }
 
 func validateNoCommandArgs(command string, args []string) error {

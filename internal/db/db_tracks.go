@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/sglavoie/muse/internal/library"
@@ -65,6 +66,26 @@ func (d *DB) ReadTracks() ([]TrackRow, error) {
 		result = append(result, row)
 	}
 	return result, rows.Err()
+}
+
+// ReadTrackByPath returns the track row stored for the given filesystem path.
+// The second return value reports whether a row was found. `missing` is
+// deliberately not filtered on: a stale missing marker should not hide the
+// metadata for a file that is demonstrably being played. LIMIT 1 because path
+// is indexed but not unique (hash is the primary key).
+func (d *DB) ReadTrackByPath(path string) (TrackRow, bool, error) {
+	var row TrackRow
+	err := d.QueryRow(`
+		SELECT hash, path, title, artist, album, genre, duration_ms, created_at, size_bytes, mod_time, play_count, last_played_at, track_number, disc_number
+		FROM tracks WHERE path = ? LIMIT 1
+	`, path).Scan(&row.Hash, &row.Path, &row.Title, &row.Artist, &row.Album, &row.Genre, &row.DurationMs, &row.CreatedAt, &row.SizeBytes, &row.ModTime, &row.PlayCount, &row.LastPlayedAt, &row.TrackNumber, &row.DiscNumber)
+	if err == sql.ErrNoRows {
+		return TrackRow{}, false, nil
+	}
+	if err != nil {
+		return TrackRow{}, false, fmt.Errorf("db: read track by path: %w", err)
+	}
+	return row, true, nil
 }
 
 // ReadUserEditedTracks returns metadata for all non-missing tracks whose
