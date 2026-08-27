@@ -22,10 +22,13 @@ test-v:
 test-pkg pkg:
     go test -race -count=1 -v ./{{pkg}}/...
 
+# Pinned golangci-lint version — keep in sync with .github/workflows/ci.yml
+golangci_lint := "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1"
+
 # Run the linter
 lint:
     go vet ./...
-    go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest run
+    go run {{golangci_lint}} run
 
 # Format all Go files
 fmt:
@@ -47,6 +50,7 @@ run *args:
 cover:
     go test -race -coverprofile=coverage.out ./...
     go tool cover -html=coverage.out -o coverage.html
+    @go tool cover -func=coverage.out | tail -1
     @echo "coverage.html written"
 
 # Tidy module dependencies
@@ -55,7 +59,7 @@ tidy:
 
 # Install git pre-commit hook (runs fmt-check, vet, and lint)
 hooks:
-    @printf '#!/bin/sh\njust fmt-check && go vet ./... && go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest run\n' > .git/hooks/pre-commit
+    @printf '#!/bin/sh\njust fmt-check && go vet ./... && go run {{golangci_lint}} run\n' > .git/hooks/pre-commit
     @chmod +x .git/hooks/pre-commit
     @echo "pre-commit hook installed"
 

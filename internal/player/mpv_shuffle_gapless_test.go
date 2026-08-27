@@ -2,6 +2,7 @@ package player
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"sync"
 	"testing"
@@ -354,13 +355,31 @@ func TestShuffleStalePrefetchRejectedOnEOF(t *testing.T) {
 		t.Fatalf("RemoveFromQueue(3): %v", err)
 	}
 
+	// clearPrefetch runs synchronously inside RemoveFromQueue and is the only
+	// thing that can have sent a playlist-remove here: the re-prefetch it
+	// spawns sees prefetchedIndex == -1 and appends without removing. So the
+	// command log proves the stale mpv playlist slot was dropped, without
+	// depending on when that background goroutine runs.
+	mu.Lock()
+	foundRemove := slices.ContainsFunc(received, isPlaylistRemove)
+	log := fmt.Sprint(received)
+	mu.Unlock()
+	if !foundRemove {
+		t.Errorf("expected playlist-remove to drop the stale prefetch; got %v", log)
+	}
+
+	// RemoveFromQueue also spawns a fresh prefetchNext, which may legitimately
+	// repopulate the slot with a surviving entry at any moment. The invariant
+	// that holds either way is that the removed identity never survives in the
+	// prefetch slot, and that any index left there addresses a live row.
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	if m.prefetchedIndex != -1 {
-		t.Errorf("prefetchedIndex = %d after removing prefetched row, want -1", m.prefetchedIndex)
+	if m.prefetchedIdentity == "q:4" {
+		t.Errorf("stale prefetch identity q:4 survived removal of its queue row")
 	}
-	if m.prefetchedIdentity != "" {
-		t.Errorf("prefetchedIdentity = %q after removing prefetched row, want empty", m.prefetchedIdentity)
+	if m.prefetchedIndex >= len(m.queue) {
+		t.Errorf("prefetchedIndex = %d addresses no live row in a %d-entry queue",
+			m.prefetchedIndex, len(m.queue))
 	}
 	if slices.Contains(m.shuffleUnseen, "q:4") || slices.Contains(m.shuffleHistory, "q:4") {
 		t.Errorf("removed identity q:4 still present: unseen %v history %v", m.shuffleUnseen, m.shuffleHistory)
