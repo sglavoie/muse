@@ -60,9 +60,10 @@ type Deps struct {
 	// RunScan closures can read cfg.MPVExtraFlags, cfg.MusicDirectory, etc.
 	Config config.Config
 
-	// CheckPrereqs verifies that required binaries are available.
-	// If nil, config.CheckPrereqs is used.
-	CheckPrereqs func(context.Context) error
+	// CheckPrereqs verifies that required binaries are available. It returns
+	// advisory warnings (logged, never fatal) separately from the error that
+	// aborts startup. If nil, config.CheckPrereqs is used.
+	CheckPrereqs func(context.Context) ([]string, error)
 
 	// LaunchMPV starts the mpv process listening on socketPath.
 	// IMPORTANT: in production this function MUST be non-blocking — it should
@@ -217,7 +218,11 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 
 	// Step 5: Verify prerequisite binaries.
 	slog.Info("startup: checking prerequisites")
-	if err := checkPrereqs(ctx); err != nil {
+	warnings, err := checkPrereqs(ctx)
+	for _, w := range warnings {
+		slog.Warn("startup: prerequisite warning", "warning", w)
+	}
+	if err != nil {
 		return failf("startup: %w", err)
 	}
 	slog.Info("startup: prerequisites verified")

@@ -44,7 +44,7 @@ func TestRunRestorePlayerCalled(t *testing.T) {
 	)
 
 	deps := app.Deps{
-		CheckPrereqs: func(context.Context) error { return nil },
+		CheckPrereqs: func(context.Context) ([]string, error) { return nil, nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 		RestorePlayer: func(path string, positionMs int64) error {
@@ -97,7 +97,7 @@ func TestRunRestorePlayerNotCalledWithoutCurrentHash(t *testing.T) {
 
 	restorePlayerCalled := false
 	deps := app.Deps{
-		CheckPrereqs: func(context.Context) error { return nil },
+		CheckPrereqs: func(context.Context) ([]string, error) { return nil, nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 		RestorePlayer: func(_ string, _ int64) error {
@@ -134,7 +134,7 @@ func TestRunRestorePlayerNilDepSafe(t *testing.T) {
 	database.Close()
 
 	deps := app.Deps{
-		CheckPrereqs:  func(context.Context) error { return nil },
+		CheckPrereqs:  func(context.Context) ([]string, error) { return nil, nil },
 		LaunchMPV:     func(_ context.Context, _ string) error { return nil },
 		RunScan:       func(_ context.Context, _ *db.DB) error { return nil },
 		RestorePlayer: nil,

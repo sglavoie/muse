@@ -126,7 +126,7 @@ func TestRunStartupSkipsRestoreForMissingFile(t *testing.T) {
 
 	restoreCalled := false
 	deps := app.Deps{
-		CheckPrereqs: func(context.Context) error { return nil },
+		CheckPrereqs: func(context.Context) ([]string, error) { return nil, nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 		RestorePlayer: func(_ string, _ int64) error {
@@ -167,7 +167,7 @@ func TestRunStartupSkipsRestoreForUnreadableCurrentTrack(t *testing.T) {
 
 	restoreCalled := false
 	deps := app.Deps{
-		CheckPrereqs: func(context.Context) error { return nil },
+		CheckPrereqs: func(context.Context) ([]string, error) { return nil, nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 		RestorePlayer: func(_ string, _ int64) error {
@@ -210,7 +210,7 @@ func TestRunStartupRestoreStillCalledForReadableFile(t *testing.T) {
 	var gotPath string
 	var gotPos int64
 	deps := app.Deps{
-		CheckPrereqs: func(context.Context) error { return nil },
+		CheckPrereqs: func(context.Context) ([]string, error) { return nil, nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 		RestorePlayer: func(path string, pos int64) error {
@@ -246,7 +246,7 @@ func TestRunDrainsAllParallelErrors(t *testing.T) {
 	// the parent goroutine's wg.Wait() observes either.
 	gate := make(chan struct{})
 	deps := app.Deps{
-		CheckPrereqs: func(context.Context) error { return nil },
+		CheckPrereqs: func(context.Context) ([]string, error) { return nil, nil },
 		LaunchMPV: func(_ context.Context, _ string) error {
 			<-gate
 			return mpvErr
@@ -335,7 +335,7 @@ func TestRunStartupLogsOrphanCurrentHash(t *testing.T) {
 
 	restoreCalled := false
 	deps := app.Deps{
-		CheckPrereqs: func(context.Context) error { return nil },
+		CheckPrereqs: func(context.Context) ([]string, error) { return nil, nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 		RestorePlayer: func(_ string, _ int64) error {

@@ -57,7 +57,7 @@ func setupDirs(t *testing.T) config.Dirs {
 // succeed immediately.
 func noopDeps() app.Deps {
 	return app.Deps{
-		CheckPrereqs: func(context.Context) error { return nil },
+		CheckPrereqs: func(context.Context) ([]string, error) { return nil, nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 	}

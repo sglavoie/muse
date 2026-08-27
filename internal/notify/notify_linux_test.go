@@ -1,0 +1,168 @@
+//go:build linux
+
+package notify
+
+import (
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestNotifySendArgs(t *testing.T) {
+	args := Track{Title: "Sunrise", Artist: "Aurora", Album: "Dawn"}.notifySendArgs()
+
+	wantFlags := []string{
+		"--app-name=muse",
+		"--expire-time=5000",
+		"--hint=string:x-canonical-private-synchronous:muse",
+	}
+	for _, flag := range wantFlags {
+		if !slices.Contains(args, flag) {
+			t.Errorf("%s missing from %v", flag, args)
+		}
+	}
+
+	// The two trailing positional arguments are the summary and the body.
+	summary, body, ok := notifySendPositional(args)
+	if !ok {
+		t.Fatalf("could not read summary/body from %v", args)
+	}
+	if summary != "Sunrise" {
+		t.Errorf("summary = %q, want %q", summary, "Sunrise")
+	}
+	// notify-send has no subtitle, so the artist is folded into the body.
+	if body != "Aurora — Dawn" {
+		t.Errorf("body = %q, want %q", body, "Aurora — Dawn")
+	}
+}
+
+func TestNotifySendArgsOmitsBlankArtist(t *testing.T) {
+	// Only the mpv-idle / not-running states carry a blank artist.
+	args := Track{Title: "muse", Degraded: "Nothing playing"}.notifySendArgs()
+
+	summary, body, ok := notifySendPositional(args)
+	if !ok {
+		t.Fatalf("could not read summary/body from %v", args)
+	}
+	if summary != "muse" {
+		t.Errorf("summary = %q, want %q", summary, "muse")
+	}
+	if body != "Nothing playing" {
+		t.Errorf("body = %q, want %q (no leading separator)", body, "Nothing playing")
+	}
+	if strings.HasPrefix(body, " — ") {
+		t.Errorf("body %q starts with a dangling artist separator", body)
+	}
+}
+
+func TestNotifySendArgsBodyNeverEmpty(t *testing.T) {
+	states := []Track{
+		{Title: "muse", Degraded: "Nothing playing"},
+		{Title: "muse", Degraded: "muse is not running"},
+		{Title: "Unknown track", Artist: "Unknown artist", Degraded: "Not in library"},
+		{Title: "A", Paused: true},
+	}
+
+	for _, n := range states {
+		args := n.notifySendArgs()
+		summary, body, ok := notifySendPositional(args)
+		if !ok {
+			t.Errorf("could not read summary/body for %+v (args %v)", n, args)
+			continue
+		}
+		if summary == "" {
+			t.Errorf("empty summary for %+v (args %v)", n, args)
+		}
+		if body == "" {
+			t.Errorf("empty body for %+v (args %v)", n, args)
+		}
+	}
+}
+
+// notifySendPositional returns the trailing summary and body arguments, i.e.
+// the last two entries that are not --flag=value options.
+func notifySendPositional(args []string) (string, string, bool) {
+	var positional []string
+	for _, a := range args {
+		if strings.HasPrefix(a, "--") {
+			continue
+		}
+		positional = append(positional, a)
+	}
+	if len(positional) != 2 {
+		return "", "", false
+	}
+	return positional[0], positional[1], true
+}
+
+// TestSendIsFireAndForget puts a notify-send stub on $PATH that records its
+// argv and then sleeps. Send must return before the sleep finishes, proving it
+// never calls Wait.
+func TestSendIsFireAndForget(t *testing.T) {
+	dir := t.TempDir()
+	argvFile := filepath.Join(dir, "argv")
+	stub := filepath.Join(dir, "notify-send")
+
+	// The stub records its argv immediately, then sleeps far longer than the
+	// deadline below, so a Send that waited on it could not return in time.
+	// The record is written to a scratch file and renamed so the poll below
+	// can never observe a partially flushed argv list.
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + argvFile + ".tmp\nmv " + argvFile + ".tmp " + argvFile + "\nsleep 30\n"
+	if err := os.WriteFile(stub, []byte(script), 0o700); err != nil {
+		t.Fatalf("write stub: %v", err)
+	}
+	t.Setenv("PATH", dir)
+
+	track := Track{Title: "Sunrise", Artist: "Aurora", Album: "Dawn"}
+	want := track.notifySendArgs()
+
+	start := time.Now()
+	if err := Send(track); err != nil {
+		t.Fatalf("Send: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Fatalf("Send took %v, want it to return without waiting on the stub", elapsed)
+	}
+
+	// The stub writes its argv before sleeping. Poll generously: process spawn
+	// is slow under -race with the whole suite running in parallel.
+	var recorded string
+	for range 500 {
+		data, err := os.ReadFile(argvFile)
+		if err == nil && len(data) > 0 {
+			recorded = string(data)
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if recorded == "" {
+		t.Fatalf("stub %s never recorded its argv to %s", stub, argvFile)
+	}
+
+	got := strings.Split(strings.TrimSuffix(recorded, "\n"), "\n")
+	if !slices.Equal(got, want) {
+		t.Fatalf("stub argv = %q, want %q", got, want)
+	}
+}
+
+func TestSendMissingBinary(t *testing.T) {
+	// Empty PATH so the LookPath cannot resolve a real notify-send.
+	t.Setenv("PATH", "")
+
+	err := Send(Track{Title: "muse"})
+	if err == nil {
+		t.Fatal("Send with no notify-send available succeeded, want error")
+	}
+	if !strings.Contains(err.Error(), "notify-send") {
+		t.Errorf("error should mention notify-send, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "libnotify") {
+		t.Errorf("error should include install instructions, got: %v", err)
+	}
+	if err := Available(); err == nil {
+		t.Fatal("Available with no notify-send succeeded, want error")
+	}
+}

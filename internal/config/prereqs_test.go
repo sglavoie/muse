@@ -176,8 +176,32 @@ func TestCheckPrereqs_BothPresent(t *testing.T) {
 	}
 	t.Setenv("PATH", prependPATH(dir))
 
-	if err := CheckPrereqs(context.Background()); err != nil {
+	// PATH holds only the two stubs, so on platforms whose notification
+	// backend is resolved through PATH the notifier check fires. It must be
+	// advisory: a warning, never an error.
+	warnings, err := CheckPrereqs(context.Background())
+	if err != nil {
 		t.Errorf("expected no error when both binaries are present, got: %v", err)
+	}
+	for _, w := range warnings {
+		if !strings.Contains(w, "notification") {
+			t.Errorf("unexpected advisory warning %q, want one about notifications", w)
+		}
+	}
+}
+
+// TestCheckNotifierIsAdvisory pins the non-fatal contract: whatever the host
+// notification backend situation is, checkNotifier reports it as a warning
+// string and never as an error.
+func TestCheckNotifierIsAdvisory(t *testing.T) {
+	warnings := checkNotifier()
+	if len(warnings) > 1 {
+		t.Fatalf("checkNotifier returned %d warnings, want at most 1: %v", len(warnings), warnings)
+	}
+	for _, w := range warnings {
+		if !strings.Contains(w, "desktop notifications are unavailable") {
+			t.Errorf("warning %q does not explain the problem", w)
+		}
 	}
 }
 
@@ -190,7 +214,7 @@ func TestCheckPrereqs_MPVMissing(t *testing.T) {
 	}
 	t.Setenv("PATH", dir)
 
-	err := CheckPrereqs(context.Background())
+	_, err := CheckPrereqs(context.Background())
 	if err == nil {
 		t.Fatal("expected error when mpv is missing")
 	}
@@ -208,7 +232,7 @@ func TestCheckPrereqs_ExifToolMissing(t *testing.T) {
 	}
 	t.Setenv("PATH", dir)
 
-	err := CheckPrereqs(context.Background())
+	_, err := CheckPrereqs(context.Background())
 	if err == nil {
 		t.Fatal("expected error when exiftool is missing")
 	}

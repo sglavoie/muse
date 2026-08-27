@@ -36,7 +36,11 @@ func runCheck() int {
 		exitCode = 1
 	}
 
-	if err := config.CheckPrereqs(context.Background()); err != nil {
+	prereqWarnings, err := config.CheckPrereqs(context.Background())
+	for _, w := range prereqWarnings {
+		fmt.Fprintf(os.Stderr, "warning: %s\n", w)
+	}
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		exitCode = 1
 	}

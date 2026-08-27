@@ -290,7 +290,7 @@ func buildModel(
 		tui.WithSmartPlaylistWriter(adapter),
 		tui.WithPlayCountWriter(result.Writer),
 		tui.WithHistoryRecorder(result.Writer),
-		tui.WithTrackNotifier(alerterNotifier{}),
+		tui.WithTrackNotifier(desktopNotifier{}),
 		tui.WithHistoryReader(result.DB),
 		tui.WithInsightsReader(result.DB),
 		tui.WithRecommendationReader(result.DB),
@@ -308,10 +308,10 @@ func buildModel(
 	)
 }
 
-// alerterNotifier adapts internal/notify to the TUI's trackNotifier port. It
-// carries no state: notify.Send spawns alerter fire-and-forget.
-type alerterNotifier struct{}
+// desktopNotifier adapts internal/notify to the TUI's trackNotifier port. It
+// carries no state: notify.Send spawns the platform backend fire-and-forget.
+type desktopNotifier struct{}
 
-func (alerterNotifier) NotifyTrack(title, artist, album string) error {
+func (desktopNotifier) NotifyTrack(title, artist, album string) error {
 	return notify.Send(notify.Track{Title: title, Artist: artist, Album: album})
 }

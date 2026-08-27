@@ -7,19 +7,40 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sglavoie/muse/internal/notify"
 )
 
 // CheckPrereqs verifies that mpv and ExifTool are available and functional.
 // It runs a test invocation of each binary to catch broken installs (e.g.
 // ExifTool missing its Perl runtime). Returns an error with actionable
-// installation instructions if either check fails.
-func CheckPrereqs(ctx context.Context) error {
+// installation instructions if either required check fails.
+//
+// Advisory problems that must not block startup are returned separately as
+// warnings. Warnings are always returned, including alongside a fatal error,
+// so callers can surface everything they know in one pass.
+func CheckPrereqs(ctx context.Context) ([]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
+
+	warnings := checkNotifier()
+
 	if err := checkMPV(ctx); err != nil {
-		return err
+		return warnings, err
 	}
-	return checkExifTool(ctx)
+	return warnings, checkExifTool(ctx)
+}
+
+// checkNotifier is advisory only: notifications are opt-in
+// (defaultNotifyOnTrackChange is false), so a missing backend must never block
+// startup — it just means `muse now-playing` and the track-change banner are
+// silently dead, which is exactly what this warning exists to surface.
+func checkNotifier() []string {
+	err := notify.Available()
+	if err == nil {
+		return nil
+	}
+	return []string{"desktop notifications are unavailable: " + err.Error()}
 }
 
 func checkMPV(ctx context.Context) error {

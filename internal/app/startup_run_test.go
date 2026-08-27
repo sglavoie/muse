@@ -30,7 +30,7 @@ func TestRunOrder(t *testing.T) {
 	var parallelSteps []string
 
 	deps := app.Deps{
-		CheckPrereqs: func(context.Context) error { return nil },
+		CheckPrereqs: func(context.Context) ([]string, error) { return nil, nil },
 		LaunchMPV: func(_ context.Context, _ string) error {
 			mu.Lock()
 			parallelSteps = append(parallelSteps, "mpv")
@@ -120,7 +120,7 @@ func TestRunLockfileFailureStopsSequence(t *testing.T) {
 	t.Cleanup(owner.Release)
 	prereqCalled := false
 	deps := app.Deps{
-		CheckPrereqs: func(context.Context) error { prereqCalled = true; return nil },
+		CheckPrereqs: func(context.Context) ([]string, error) { prereqCalled = true; return nil, nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 	}
@@ -147,7 +147,7 @@ func TestRunPrereqFailureStopsParallelLaunch(t *testing.T) {
 	launchCalled := false
 
 	deps := app.Deps{
-		CheckPrereqs: func(context.Context) error { return prereqErr },
+		CheckPrereqs: func(context.Context) ([]string, error) { return nil, prereqErr },
 		LaunchMPV:    func(_ context.Context, _ string) error { launchCalled = true; return nil },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 	}
@@ -178,7 +178,7 @@ func TestRunMigrationFailureStopsPrereqs(t *testing.T) {
 
 	prereqCalled := false
 	deps := app.Deps{
-		CheckPrereqs: func(context.Context) error { prereqCalled = true; return nil },
+		CheckPrereqs: func(context.Context) ([]string, error) { prereqCalled = true; return nil, nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 	}
@@ -204,7 +204,7 @@ func TestRunStaleSocketRemovedBeforeMigration(t *testing.T) {
 
 	socketRemovedBeforeScan := false
 	deps := app.Deps{
-		CheckPrereqs: func(context.Context) error { return nil },
+		CheckPrereqs: func(context.Context) ([]string, error) { return nil, nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
 		RunScan: func(_ context.Context, _ *db.DB) error {
 			_, err := os.Stat(staleSocket)
@@ -234,7 +234,7 @@ func TestRun_LeavesRegularFileAtSocketPathUntouched(t *testing.T) {
 
 	result, err := app.Run(context.Background(), dirs, app.Deps{
 		Config:       config.Config{MPVSocketPath: socketPath},
-		CheckPrereqs: func(context.Context) error { return nil },
+		CheckPrereqs: func(context.Context) ([]string, error) { return nil, nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return nil },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return nil },
 	})
@@ -269,7 +269,7 @@ func TestRunMissingLaunchMPVReturnsError(t *testing.T) {
 	installLogger(t)
 
 	deps := app.Deps{
-		CheckPrereqs: func(context.Context) error { return nil },
+		CheckPrereqs: func(context.Context) ([]string, error) { return nil, nil },
 	}
 
 	_, err := app.Run(context.Background(), dirs, deps)
@@ -291,7 +291,7 @@ func TestRunParallelLaunchBothErrorsReturned(t *testing.T) {
 	scanErr := errors.New("scan failed")
 
 	deps := app.Deps{
-		CheckPrereqs: func(context.Context) error { return nil },
+		CheckPrereqs: func(context.Context) ([]string, error) { return nil, nil },
 		LaunchMPV:    func(_ context.Context, _ string) error { return mpvErr },
 		RunScan:      func(_ context.Context, _ *db.DB) error { return scanErr },
 	}
@@ -312,7 +312,7 @@ func TestRunConcurrentLaunchAndScan(t *testing.T) {
 	scanStarted := make(chan struct{})
 
 	deps := app.Deps{
-		CheckPrereqs: func(context.Context) error { return nil },
+		CheckPrereqs: func(context.Context) ([]string, error) { return nil, nil },
 		LaunchMPV: func(ctx context.Context, _ string) error {
 			close(mpvStarted)
 			select {

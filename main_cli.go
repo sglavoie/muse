@@ -107,7 +107,7 @@ type localCommand struct {
 // required.
 var localCommands = []localCommand{
 	{"check", "Validate config and prerequisites, then exit", runCheck},
-	{"now-playing", "Notify the current track via macOS notification", runNowPlaying},
+	{"now-playing", "Notify the current track via a desktop notification", runNowPlaying},
 }
 
 // lookupLocalCommand returns the local command registered under name.
