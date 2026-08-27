@@ -126,6 +126,22 @@ muse is distributed through `go install` only. It requires **Go 1.26+**.
 go install github.com/sglavoie/muse@latest
 ```
 
+`go install` puts the binary in `$(go env GOPATH)/bin` — usually `~/go/bin`,
+which is not on `$PATH` by default. If `muse` comes back as "command not found",
+add it:
+
+```sh
+export PATH="$PATH:$(go env GOPATH)/bin"   # add to ~/.bashrc or ~/.zshrc
+```
+
+To build from a checkout instead (a fork, or an unreleased revision):
+
+```sh
+git clone https://github.com/sglavoie/muse
+cd muse
+go install .
+```
+
 Then verify your configuration and prerequisites:
 
 ```sh
