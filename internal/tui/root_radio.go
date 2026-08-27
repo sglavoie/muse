@@ -206,6 +206,25 @@ func (m Model) radioEnqueueCmd() tea.Cmd {
 	}
 }
 
+// radioNoteRecent records hash as just-heard in the recent-history ring,
+// moving it to the newest position if it is already there so a repeat cannot
+// consume several of the RadioRecentCap slots. Called for radio-enqueued
+// tracks and for manually played ones alike: a hand-picked track is just as
+// recently heard as a radio-picked one, and radio should avoid both.
+func (m Model) radioNoteRecent(hash string) Model {
+	if hash == "" {
+		return m
+	}
+	ring := make([]string, 0, len(m.radio.recentHashes)+1)
+	for _, h := range m.radio.recentHashes {
+		if h != hash {
+			ring = append(ring, h)
+		}
+	}
+	m.radio.recentHashes = trimRadioRecent(append(ring, hash))
+	return m
+}
+
 // radioRecentSet returns the recent-history ring as a set, the form
 // radio.ScoreAll takes to apply its recently-played penalty.
 func (m Model) radioRecentSet() map[string]struct{} {
@@ -280,9 +299,8 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 
 	// Update recent-hashes ring buffer.
 	for _, e := range msg.Entries {
-		m.radio.recentHashes = append(m.radio.recentHashes, e.Hash)
+		m = m.radioNoteRecent(e.Hash)
 	}
-	m.radio.recentHashes = trimRadioRecent(m.radio.recentHashes)
 
 	batchStartIdx := len(m.queue.entries)
 	m.queue.entries = append(m.queue.entries, msg.Entries...)

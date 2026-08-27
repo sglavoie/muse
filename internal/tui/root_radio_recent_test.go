@@ -95,6 +95,64 @@ func TestRadioBatchAppendsToSeededRing(t *testing.T) {
 	}
 }
 
+// TestManualPlayNotedInRecentRing verifies that a counted listen feeds radio's
+// recent-history ring even though radio did not pick the track, so hand-picked
+// tracks get the same avoidance as radio-enqueued ones.
+func TestManualPlayNotedInRecentRing(t *testing.T) {
+	m := newModelWithTracks()
+
+	m, _ = m.recordListenCmd(pendingListen{hash: "manual", listenedSecs: 120, totalSecs: 200})
+
+	if _, ok := m.radioRecentSet()["manual"]; !ok {
+		t.Errorf("expected manually played hash in recent set, got %v", m.radioRecentSet())
+	}
+}
+
+// TestSkippedPlayNotNotedInRecentRing verifies that an uncounted listen (a
+// skip) does not mark the track as recently heard, matching the counted-only
+// play_history view the startup seed reads.
+func TestSkippedPlayNotNotedInRecentRing(t *testing.T) {
+	m := newModelWithTracks()
+
+	m, _ = m.recordListenCmd(pendingListen{hash: "skipped", listenedSecs: 5, totalSecs: 200})
+
+	if _, ok := m.radioRecentSet()["skipped"]; ok {
+		t.Errorf("expected skipped hash absent from recent set, got %v", m.radioRecentSet())
+	}
+}
+
+// TestRadioNoteRecentDedupesAndRefreshes verifies that re-hearing a track moves
+// it to the newest slot instead of occupying several of the RadioRecentCap
+// slots, which would push genuinely distinct tracks out of the ring early.
+func TestRadioNoteRecentDedupesAndRefreshes(t *testing.T) {
+	m := New(context.Background(), WithRadioRecentHashes([]string{"a", "b", "c"}))
+
+	m = m.radioNoteRecent("a")
+
+	want := []string{"b", "c", "a"}
+	if len(m.radio.recentHashes) != len(want) {
+		t.Fatalf("ring = %v, want %v", m.radio.recentHashes, want)
+	}
+	for i := range want {
+		if m.radio.recentHashes[i] != want[i] {
+			t.Fatalf("ring = %v, want %v", m.radio.recentHashes, want)
+		}
+	}
+}
+
+// TestRadioNoteRecentIgnoresEmptyHash guards the ring against an empty hash,
+// which would otherwise make ScoreAll's recent-set lookup match every
+// candidate whose hash is not yet computed.
+func TestRadioNoteRecentIgnoresEmptyHash(t *testing.T) {
+	m := New(context.Background())
+
+	m = m.radioNoteRecent("")
+
+	if len(m.radio.recentHashes) != 0 {
+		t.Errorf("ring = %v, want empty", m.radio.recentHashes)
+	}
+}
+
 func applyOptions(m Model, opts ...Option) Model {
 	for _, opt := range opts {
 		opt(&m)

@@ -96,6 +96,11 @@ func (m Model) recordListenCmd(p pendingListen) (Model, tea.Cmd) {
 		m.sessionListenSecs += p.listenedSecs
 		m.bumpSessionArtist(p.artist)
 		m.library.index.IncrementPlayCount(rec.Hash, rec.PlayedAt)
+		// Feed radio's recent-history ring so hand-picked tracks are avoided
+		// too, not just radio-enqueued ones. Gated on Counted for the same
+		// reason the startup seed reads the counted-only play_history view: a
+		// skipped track was not really heard.
+		m = m.radioNoteRecent(rec.Hash)
 	}
 	if m.historyRecorder != nil {
 		hr := m.historyRecorder
