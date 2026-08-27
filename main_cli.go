@@ -19,7 +19,7 @@ func main() {
 	// be validated by the command-specific argument checks below.
 	switch detectGlobalFlag(os.Args[1:]) {
 	case globalFlagVersion:
-		fmt.Println(Version)
+		fmt.Println(resolveVersion())
 		return
 	case globalFlagHelp:
 		flag.Usage()
