@@ -104,13 +104,16 @@ func notifySendPositional(args []string) (string, string, bool) {
 func TestSendIsFireAndForget(t *testing.T) {
 	dir := t.TempDir()
 	argvFile := filepath.Join(dir, "argv")
+	doneFile := filepath.Join(dir, "argv.done")
 	stub := filepath.Join(dir, "notify-send")
 
 	// The stub records its argv immediately, then sleeps far longer than the
 	// deadline below, so a Send that waited on it could not return in time.
-	// The record is written to a scratch file and renamed so the poll below
-	// can never observe a partially flushed argv list.
-	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + argvFile + ".tmp\nmv " + argvFile + ".tmp " + argvFile + "\nsleep 30\n"
+	// The argv file is followed by a separate marker file, so the poll below
+	// can never observe a partially flushed argv list. Only shell builtins are
+	// used: $PATH is reduced to the temp dir so no real notify-send can
+	// shadow the stub, which also means no external binary is resolvable.
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + argvFile + "\n: > " + doneFile + "\nsleep 30\n"
 	if err := os.WriteFile(stub, []byte(script), 0o700); err != nil {
 		t.Fatalf("write stub: %v", err)
 	}
@@ -131,8 +134,11 @@ func TestSendIsFireAndForget(t *testing.T) {
 	// is slow under -race with the whole suite running in parallel.
 	var recorded string
 	for range 500 {
-		data, err := os.ReadFile(argvFile)
-		if err == nil && len(data) > 0 {
+		if _, err := os.Stat(doneFile); err == nil {
+			data, err := os.ReadFile(argvFile)
+			if err != nil {
+				t.Fatalf("reading %s after the stub signalled completion: %v", argvFile, err)
+			}
 			recorded = string(data)
 			break
 		}
