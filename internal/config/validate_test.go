@@ -7,6 +7,26 @@ import (
 	"testing"
 )
 
+// assertActionable checks the shared guidance block every music-directory
+// validation error must carry: the config file path, the TOML key to change,
+// and a concrete example value.
+func assertActionable(t *testing.T, err error, configPath string) {
+	t.Helper()
+	if err == nil {
+		t.Fatal("expected an error, got nil")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, configPath) {
+		t.Errorf("error should contain config path %q, got: %s", configPath, msg)
+	}
+	if !strings.Contains(msg, "music_directories") {
+		t.Errorf("error should name the music_directories TOML key, got: %s", msg)
+	}
+	if !strings.Contains(msg, `music_directories = ["`+exampleMusicDirectory+`"]`) {
+		t.Errorf("error should show a concrete music_directories example, got: %s", msg)
+	}
+}
+
 func TestValidateMusicDir_MissingDirectory(t *testing.T) {
 	tmp := t.TempDir()
 	configPath := filepath.Join(tmp, "config.toml")
@@ -16,9 +36,7 @@ func TestValidateMusicDir_MissingDirectory(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing directory, got nil")
 	}
-	if !strings.Contains(err.Error(), configPath) {
-		t.Errorf("error should contain config path %q, got: %s", configPath, err.Error())
-	}
+	assertActionable(t, err, configPath)
 	if !strings.Contains(err.Error(), "does not exist") {
 		t.Errorf("error should mention 'does not exist', got: %s", err.Error())
 	}
@@ -32,11 +50,9 @@ func TestValidateMusicDirs_NoDirectoriesConfigured(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing music directories, got nil")
 	}
+	assertActionable(t, err, configPath)
 	if !strings.Contains(err.Error(), "no music directories configured") {
 		t.Errorf("error should mention missing configured directories, got: %s", err.Error())
-	}
-	if !strings.Contains(err.Error(), configPath) {
-		t.Errorf("error should contain config path %q, got: %s", configPath, err.Error())
 	}
 }
 
@@ -64,6 +80,7 @@ func TestValidateMusicDirs_OnlyBlankEntriesAreUnconfigured(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for only blank music directories, got nil")
 	}
+	assertActionable(t, err, configPath)
 	if !strings.Contains(err.Error(), "no music directories configured") {
 		t.Errorf("error should mention missing configured directories, got: %s", err.Error())
 	}
@@ -85,6 +102,7 @@ func TestValidateMusicDir_PermissionDenied(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for permission-denied directory, got nil")
 	}
+	assertActionable(t, err, configPath)
 	if !strings.Contains(err.Error(), "permission denied") {
 		t.Errorf("error should mention 'permission denied', got: %s", err.Error())
 	}
@@ -108,6 +126,7 @@ func TestValidateMusicDir_OnlyNonAudioFiles(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for directory with only non-audio files, got nil")
 	}
+	assertActionable(t, err, configPath)
 	if !strings.Contains(err.Error(), "no supported audio files") {
 		t.Errorf("error should mention 'no supported audio files', got: %s", err.Error())
 	}
@@ -125,9 +144,7 @@ func TestValidateMusicDir_EmptyDirectory(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for empty directory, got nil")
 	}
-	if !strings.Contains(err.Error(), configPath) {
-		t.Errorf("error should contain config path %q, got: %s", configPath, err.Error())
-	}
+	assertActionable(t, err, configPath)
 	if !strings.Contains(err.Error(), "empty") {
 		t.Errorf("error should mention empty directory, got: %s", err.Error())
 	}
@@ -181,6 +198,7 @@ func TestValidateMusicDir_OnlyHiddenDirs(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for directory with only hidden subdirectories, got nil")
 	}
+	assertActionable(t, err, configPath)
 	if !strings.Contains(err.Error(), "no supported audio files") {
 		t.Errorf("error should mention 'no supported audio files', got: %s", err.Error())
 	}
@@ -201,6 +219,7 @@ func TestValidateMusicDir_OnlyHiddenAudioFiles(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for directory with only hidden audio files, got nil")
 	}
+	assertActionable(t, err, configPath)
 	if !strings.Contains(err.Error(), "no supported audio files") {
 		t.Errorf("error should mention 'no supported audio files', got: %s", err.Error())
 	}
@@ -216,9 +235,7 @@ func TestValidateMusicDir_TildeExpansion(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing tilde-expanded directory, got nil")
 	}
-	if !strings.Contains(err.Error(), configPath) {
-		t.Errorf("error should contain config path %q, got: %s", configPath, err.Error())
-	}
+	assertActionable(t, err, configPath)
 }
 
 // TestValidateMusicDirs_MultipleDirectoriesSomeInvalid verifies that when
@@ -248,6 +265,7 @@ func TestValidateMusicDirs_MultipleDirectoriesSomeInvalid(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for dirs with some invalid entries, got nil")
 	}
+	assertActionable(t, err, configPath)
 	// Error should mention the missing dir.
 	if !strings.Contains(err.Error(), "does not exist") && !strings.Contains(err.Error(), "no-such-dir") {
 		t.Errorf("error should mention missing dir, got: %s", err.Error())

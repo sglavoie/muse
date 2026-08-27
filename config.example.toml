@@ -1,0 +1,76 @@
+# Paths to your music library roots (supports multiple directories).
+music_directories = ["/path/to/your/music"]
+
+# Directory name patterns to exclude from the music library scan.
+# Matches any directory component in a file's path (exact, case-sensitive).
+# excluded_paths = ["Podcasts", "Audiobooks"]
+
+# Default playback volume (0-100).
+default_volume = 100
+
+# Log verbosity: debug, info, warn, error (case-insensitive).
+log_level = "info"
+
+# Custom path for the mpv IPC socket (leave empty for default).
+# mpv_socket_path = ""
+
+# Extra flags passed to the mpv subprocess.
+# mpv_extra_flags = ["--audio-device=pulse"]
+
+# Volume step when pressing volume up/down (1-25%).
+# volume_increment = 5
+
+# Short seek offset in seconds (1-60).
+# seek_offset_short = 5.0
+
+# Long seek offset in seconds (5-300).
+# seek_offset_long = 30.0
+
+# Duration in seconds for status bar notifications (1-30).
+# transient_duration_secs = 5
+
+# Duration in seconds for volume feedback notifications (1-10).
+# volume_feedback_duration_secs = 2
+
+# Enable gapless playback between tracks (true/false).
+# gapless_audio = true
+
+# Enable real-time EBU R128 volume normalization (true/false).
+# normalize_volume = false
+
+# Equalizer settings.
+# eq_enabled = false
+# eq_preset = "flat"
+# eq_bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+#
+# [[eq_custom_presets]]
+# name = "My Preset"
+# key = "my_preset"
+# bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+# Stereo widening settings.
+# stereo_wide_enabled = false
+# stereo_wide_amount = 10
+
+# Show the context-aware footer hint strip above the status bar (true/false).
+# show_footer_hints = true
+
+# Post a desktop notification whenever a new track starts (true/false).
+# notify_on_track_change = false
+
+# Auto-scroll the now-playing track into view in the Queue panel (true/false).
+# queue_follow_now_playing = true
+
+# Recommendation mix thresholds.
+# [mixes]
+# rediscover_min_plays = 10
+# rediscover_age_days = 90
+# hidden_gems_max_plays = 2
+# hidden_gems_top_artists = 20
+# hidden_gems_top_genres = 10
+# on_repeat_min_plays = 3
+# on_repeat_window_days = 7
+# deep_cuts_min_plays = 1
+# deep_cuts_max_plays = 5
+# deep_cuts_min_completion = 0.8
+# sufficient_history_count = 20

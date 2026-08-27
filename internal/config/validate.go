@@ -10,6 +10,18 @@ import (
 	"github.com/sglavoie/muse/internal/audio"
 )
 
+// configHint is the actionable instruction block appended to every
+// music-directory validation error. It names the config file, the TOML key and
+// a concrete example so a first-run user never has to open the file and guess
+// which key to change. Mirrors the indented style of the missing-prerequisite
+// errors in prereqs.go.
+func configHint(configPath string) string {
+	return fmt.Sprintf(
+		"\n  edit %s and set:\n      music_directories = [%q]",
+		configPath, exampleMusicDirectory,
+	)
+}
+
 // ValidateMusicDirs checks that each configured music directory exists and
 // contains at least one audio file or non-hidden subdirectory at the top level.
 // configPath is included in error messages so the user knows which file to edit.
@@ -28,34 +40,36 @@ func ValidateMusicDirs(dirs []string, configPath string) error {
 		}
 	}
 	if validated == 0 {
-		return fmt.Errorf("no music directories configured; edit %s to set at least one path", configPath)
+		return fmt.Errorf("no music directories configured%s", configHint(configPath))
 	}
 	if len(errs) == 0 {
 		return nil
 	}
-	return fmt.Errorf("%s", strings.Join(errs, "; "))
+	// Joined with a blank line rather than "; " because each message now spans
+	// several lines; semicolon-joining multi-line strings reads as one blob.
+	return fmt.Errorf("%s", strings.Join(errs, "\n\n"))
 }
 
 // validateMusicDir validates a single music directory.
 func validateMusicDir(musicDir, configPath string) error {
 	expanded, err := expandTilde(musicDir)
 	if err != nil {
-		return fmt.Errorf("music directory is not accessible; edit %s to set a valid path: %w", configPath, err)
+		return fmt.Errorf("music directory is not accessible: %w%s", err, configHint(configPath))
 	}
 
 	entries, err := os.ReadDir(expanded)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("music directory %q does not exist; edit %s to set a valid path", expanded, configPath)
+			return fmt.Errorf("music directory %q does not exist%s", expanded, configHint(configPath))
 		}
 		if errors.Is(err, os.ErrPermission) {
-			return fmt.Errorf("music directory %q: permission denied; edit %s to set a valid path", expanded, configPath)
+			return fmt.Errorf("music directory %q: permission denied%s", expanded, configHint(configPath))
 		}
-		return fmt.Errorf("music directory %q cannot be read; edit %s to set a valid path: %w", expanded, configPath, err)
+		return fmt.Errorf("music directory %q cannot be read: %w%s", expanded, err, configHint(configPath))
 	}
 
 	if len(entries) == 0 {
-		return fmt.Errorf("music directory %q is empty; add music files or edit %s to set a different path", expanded, configPath)
+		return fmt.Errorf("music directory %q is empty; add music files, or point muse elsewhere%s", expanded, configHint(configPath))
 	}
 
 	hasAudioOrSubdir := false
@@ -75,7 +89,7 @@ func validateMusicDir(musicDir, configPath string) error {
 		}
 	}
 	if !hasAudioOrSubdir {
-		return fmt.Errorf("music directory %q contains no supported audio files; add music files or edit %s to set a different path", expanded, configPath)
+		return fmt.Errorf("music directory %q contains no supported audio files; add music files, or point muse elsewhere%s", expanded, configHint(configPath))
 	}
 
 	return nil

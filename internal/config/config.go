@@ -1,5 +1,7 @@
 package config
 
+import "fmt"
+
 const configTemplate = `# Paths to your music library roots (supports multiple directories).
 music_directories = [%q]
 
@@ -57,7 +59,7 @@ log_level = %q
 # Show the context-aware footer hint strip above the status bar (true/false).
 # show_footer_hints = true
 
-# Post a macOS banner (via alerter) whenever a new track starts (true/false).
+# Post a desktop notification whenever a new track starts (true/false).
 # notify_on_track_change = false
 
 # Auto-scroll the now-playing track into view in the Queue panel (true/false).
@@ -77,6 +79,19 @@ log_level = %q
 # deep_cuts_min_completion = 0.8
 # sufficient_history_count = 20
 `
+
+// exampleMusicDirectory is the placeholder library path used in the
+// config.example.toml at the repo root and in the first-run validation errors.
+// It must never be a real path on any machine.
+const exampleMusicDirectory = "/path/to/your/music"
+
+// exampleConfig renders configTemplate with documented placeholder values.
+// configTemplate is a printf format string, so it cannot be copied verbatim
+// into documentation; this rendering is what config.example.toml holds, and
+// TestExampleConfigMatchesTemplate fails if the two drift.
+func exampleConfig() string {
+	return fmt.Sprintf(configTemplate, exampleMusicDirectory, defaultVolume, defaultLogLevel)
+}
 
 const (
 	defaultMusicDirectory             = "~/Music"
