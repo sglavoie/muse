@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,6 +29,36 @@ func stubBinary(t *testing.T, name string, exitCode int) string {
 // prependPATH returns a PATH string with dir prepended to the current PATH.
 func prependPATH(dir string) string {
 	return dir + string(os.PathListSeparator) + os.Getenv("PATH")
+}
+
+// stubNotifier forces the notification-backend lookup to return err (nil for
+// "a backend is available") for the duration of the test. Without it the
+// notifier outcome depends on the host: alerter is resolved from absolute
+// Homebrew paths on macOS and notify-send from $PATH on Linux, so no
+// combination of PATH juggling makes either branch reachable everywhere.
+func stubNotifier(t *testing.T, err error) {
+	t.Helper()
+	original := notifierAvailable
+	t.Cleanup(func() { notifierAvailable = original })
+	notifierAvailable = func() error { return err }
+}
+
+// stubWorkingPrereqBinaries writes passing mpv and exiftool stubs into a fresh
+// temp dir and makes it the entire PATH, so the required checks succeed while
+// nothing else on the host is reachable.
+func stubWorkingPrereqBinaries(t *testing.T) {
+	t.Helper()
+	dir := t.TempDir()
+	stubs := map[string]string{
+		"mpv":      "#!/bin/sh\nexit 0\n",
+		"exiftool": "#!/bin/sh\nprintf '12.00\\n'\nexit 0\n",
+	}
+	for name, content := range stubs {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", dir)
 }
 
 func TestCheckMPV_RunsVersionFlag(t *testing.T) {
@@ -163,45 +194,58 @@ func TestCheckExifTool_BrokenBinary(t *testing.T) {
 }
 
 func TestCheckPrereqs_BothPresent(t *testing.T) {
-	dir := t.TempDir()
-	stubs := map[string]string{
-		"mpv":      "#!/bin/sh\nexit 0\n",
-		"exiftool": "#!/bin/sh\nprintf '12.00\\n'\nexit 0\n",
-	}
-	for name, content := range stubs {
-		script := filepath.Join(dir, name)
-		if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Setenv("PATH", prependPATH(dir))
+	stubWorkingPrereqBinaries(t)
+	stubNotifier(t, nil)
 
-	// PATH holds only the two stubs, so on platforms whose notification
-	// backend is resolved through PATH the notifier check fires. It must be
-	// advisory: a warning, never an error.
 	warnings, err := CheckPrereqs(context.Background())
 	if err != nil {
 		t.Errorf("expected no error when both binaries are present, got: %v", err)
 	}
-	for _, w := range warnings {
-		if !strings.Contains(w, "notification") {
-			t.Errorf("unexpected advisory warning %q, want one about notifications", w)
-		}
+	if len(warnings) != 0 {
+		t.Errorf("expected no warnings when every backend resolves, got: %v", warnings)
 	}
 }
 
-// TestCheckNotifierIsAdvisory pins the non-fatal contract: whatever the host
-// notification backend situation is, checkNotifier reports it as a warning
-// string and never as an error.
-func TestCheckNotifierIsAdvisory(t *testing.T) {
-	warnings := checkNotifier()
-	if len(warnings) > 1 {
-		t.Fatalf("checkNotifier returned %d warnings, want at most 1: %v", len(warnings), warnings)
+// TestCheckPrereqs_MissingNotifierIsAdvisory is the counterpart: mpv and
+// ExifTool resolve, the notification backend does not, and that must surface as
+// exactly one warning with no fatal error. The backend lookup is stubbed rather
+// than hidden behind an empty PATH so the assertion holds on a host that has a
+// notification backend installed.
+func TestCheckPrereqs_MissingNotifierIsAdvisory(t *testing.T) {
+	stubWorkingPrereqBinaries(t)
+	stubNotifier(t, errors.New("stub backend not found on $PATH"))
+
+	warnings, err := CheckPrereqs(context.Background())
+	if err != nil {
+		t.Fatalf("a missing notification backend must not be fatal, got: %v", err)
 	}
-	for _, w := range warnings {
-		if !strings.Contains(w, "desktop notifications are unavailable") {
-			t.Errorf("warning %q does not explain the problem", w)
-		}
+	if len(warnings) != 1 {
+		t.Fatalf("expected exactly 1 advisory warning, got %d: %v", len(warnings), warnings)
+	}
+	if !strings.Contains(warnings[0], "desktop notifications are unavailable") {
+		t.Errorf("warning %q does not name the problem", warnings[0])
+	}
+	if !strings.Contains(warnings[0], "stub backend not found on $PATH") {
+		t.Errorf("warning %q drops the backend's own explanation", warnings[0])
+	}
+}
+
+// TestCheckNotifierIsAdvisory pins the non-fatal contract at the unit level:
+// checkNotifier reports a resolution failure as a warning string and never as
+// an error, and stays silent when a backend is available.
+func TestCheckNotifierIsAdvisory(t *testing.T) {
+	stubNotifier(t, nil)
+	if warnings := checkNotifier(); len(warnings) != 0 {
+		t.Errorf("available backend should produce no warnings, got: %v", warnings)
+	}
+
+	stubNotifier(t, errors.New("no backend here"))
+	warnings := checkNotifier()
+	if len(warnings) != 1 {
+		t.Fatalf("checkNotifier returned %d warnings, want exactly 1: %v", len(warnings), warnings)
+	}
+	if !strings.Contains(warnings[0], "desktop notifications are unavailable") {
+		t.Errorf("warning %q does not explain the problem", warnings[0])
 	}
 }
 

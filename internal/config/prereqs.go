@@ -31,12 +31,19 @@ func CheckPrereqs(ctx context.Context) ([]string, error) {
 	return warnings, checkExifTool(ctx)
 }
 
+// notifierAvailable is the seam through which checkNotifier reaches the
+// notification backend. Declared as a var so tests can force either outcome:
+// the backend is resolved from absolute paths on macOS and from $PATH on Linux,
+// so neither presence nor absence can be arranged portably by a test that only
+// manipulates the environment.
+var notifierAvailable = notify.Available
+
 // checkNotifier is advisory only: notifications are opt-in
 // (defaultNotifyOnTrackChange is false), so a missing backend must never block
 // startup — it just means `muse now-playing` and the track-change banner are
 // silently dead, which is exactly what this warning exists to surface.
 func checkNotifier() []string {
-	err := notify.Available()
+	err := notifierAvailable()
 	if err == nil {
 		return nil
 	}
