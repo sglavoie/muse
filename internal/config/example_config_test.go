@@ -22,7 +22,9 @@ func TestExampleConfigMatchesTemplate(t *testing.T) {
 	want := exampleConfig()
 
 	if os.Getenv("MUSE_UPDATE_EXAMPLE_CONFIG") != "" {
-		if err := os.WriteFile(exampleConfigPath, []byte(want), 0o644); err != nil { //nolint:gosec // G306: documentation file, world-readable on purpose
+		// 0o644: documentation file, world-readable on purpose (G306 is
+		// excluded repo-wide in .golangci.yml).
+		if err := os.WriteFile(exampleConfigPath, []byte(want), 0o644); err != nil {
 			t.Fatalf("rewriting %s: %v", exampleConfigPath, err)
 		}
 		t.Logf("regenerated %s", exampleConfigPath)
