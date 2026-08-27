@@ -30,7 +30,19 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 		return nil, fmt.Errorf("restore session: read session: %w", err)
 	}
 
-	return buildRestoredSession(queueEntries, playerTracks, sess), nil
+	// Radio's recent-history avoidance is in-memory only, so without this it
+	// starts empty on every launch and tracks heard in the previous session
+	// get no penalty. A failure here is not fatal: radio simply falls back to
+	// the pre-existing behaviour.
+	recentHashes, err := database.ReadRecentPlayedHashes(tui.RadioRecentCap)
+	if err != nil {
+		slog.Warn("restore session: read recent played hashes", "err", err)
+		recentHashes = nil
+	}
+
+	restored := buildRestoredSession(queueEntries, playerTracks, sess)
+	restored.RecentHashes = recentHashes
+	return restored, nil
 }
 
 func restoreQueue(rows []db.QueueRow, writer *db.Writer) ([]tui.QueueEntry, []player.QueueTrack) {

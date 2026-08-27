@@ -69,6 +69,7 @@ func ApplyRestoredSession(
 	// RestoreShuffleAnchor, after the shuffle flag has been applied.
 	tui.WithShuffle(restored.Shuffle)(model)
 	tui.WithRadioMode(restored.RadioMode)(model)
+	tui.WithRadioRecentHashes(restored.RecentHashes)(model)
 	vol := restored.Volume
 	if vol < 0 {
 		vol = defaultVolume

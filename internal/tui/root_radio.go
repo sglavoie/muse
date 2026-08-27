@@ -16,14 +16,18 @@ type radioState struct {
 	seedHash       string
 	syntheticSeed  *radio.SeedTrack // non-nil = use directly instead of hash lookup
 	enqueuePending bool
-	recentHashes   []string // ring buffer, cap radioRecentCap
+	recentHashes   []string // ring buffer, cap RadioRecentCap
 }
 
 const (
 	radioBatchSize    = 5
 	radioLowWaterMark = 2
-	radioRecentCap    = 30
 )
+
+// RadioRecentCap is the capacity of the radio recent-hashes ring buffer.
+// Exported so startup can ask the database for exactly that many recently
+// played hashes when seeding the ring.
+const RadioRecentCap = 30
 
 // radioToggle flips radio mode on or off, notifies the user, and kicks off an
 // initial enqueue when enabling.
@@ -124,10 +128,7 @@ func (m Model) radioEnqueueCmd() tea.Cmd {
 		}
 	}
 
-	recentSet := make(map[string]struct{}, len(m.radio.recentHashes))
-	for _, h := range m.radio.recentHashes {
-		recentSet[h] = struct{}{}
-	}
+	recentSet := m.radioRecentSet()
 
 	queueSet := make(map[string]struct{}, len(m.queue.entries))
 	for _, e := range m.queue.entries {
@@ -205,6 +206,25 @@ func (m Model) radioEnqueueCmd() tea.Cmd {
 	}
 }
 
+// radioRecentSet returns the recent-history ring as a set, the form
+// radio.ScoreAll takes to apply its recently-played penalty.
+func (m Model) radioRecentSet() map[string]struct{} {
+	recentSet := make(map[string]struct{}, len(m.radio.recentHashes))
+	for _, h := range m.radio.recentHashes {
+		recentSet[h] = struct{}{}
+	}
+	return recentSet
+}
+
+// trimRadioRecent drops the oldest entries so the ring holds at most
+// RadioRecentCap hashes, keeping the most recently appended ones.
+func trimRadioRecent(hashes []string) []string {
+	if len(hashes) <= RadioRecentCap {
+		return hashes
+	}
+	return hashes[len(hashes)-RadioRecentCap:]
+}
+
 // buildTimeGenreBonus converts hour-genre affinity rows into a bonus map for
 // the given hour. The top genre for the hour receives +3 and the runner-up
 // receives +1. Affinities must be pre-sorted by (hour, count DESC) as returned
@@ -262,9 +282,7 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 	for _, e := range msg.Entries {
 		m.radio.recentHashes = append(m.radio.recentHashes, e.Hash)
 	}
-	if len(m.radio.recentHashes) > radioRecentCap {
-		m.radio.recentHashes = m.radio.recentHashes[len(m.radio.recentHashes)-radioRecentCap:]
-	}
+	m.radio.recentHashes = trimRadioRecent(m.radio.recentHashes)
 
 	batchStartIdx := len(m.queue.entries)
 	m.queue.entries = append(m.queue.entries, msg.Entries...)

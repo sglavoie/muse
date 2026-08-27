@@ -43,6 +43,11 @@ type RestoredSession struct {
 	// RadioMode from the persisted session row (default: false).
 	RadioMode bool
 
+	// RecentHashes are the most recently played track hashes, oldest-first,
+	// used to seed radio's recent-history avoidance so it survives a restart.
+	// Empty when play history is empty or unreadable.
+	RecentHashes []string
+
 	// Volume is the last-saved volume percentage (0–100).
 	// Negative means no volume was persisted; callers should fall back to default.
 	Volume int

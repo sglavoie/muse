@@ -320,6 +320,16 @@ func WithRadioMode(enabled bool) Option {
 	return func(m *Model) { m.radio.enabled = enabled }
 }
 
+// WithRadioRecentHashes seeds the radio recent-history ring buffer, e.g. from
+// play history at startup so avoidance of just-heard tracks survives a
+// restart. Input is oldest-first; entries beyond RadioRecentCap are dropped
+// from the front.
+func WithRadioRecentHashes(hashes []string) Option {
+	return func(m *Model) {
+		m.radio.recentHashes = trimRadioRecent(append([]string(nil), hashes...))
+	}
+}
+
 // WithVolume pre-sets the volume level.
 func WithVolume(v int) Option {
 	return func(m *Model) { m.playback.volume = max(0, min(v, 100)) }
