@@ -6,9 +6,8 @@ default:
 build:
     go build -o muse .
 
-# Install muse to $GOPATH/bin
+# Install muse to the Go bin directory
 install:
-    rm -f $GOPATH/bin/muse
     go install .
 
 # Run all tests
