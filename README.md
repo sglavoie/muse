@@ -126,12 +126,17 @@ muse is distributed through `go install` only. It requires **Go 1.26+**.
 go install github.com/sglavoie/muse@latest
 ```
 
-`go install` puts the binary in `$(go env GOPATH)/bin` — usually `~/go/bin`,
-which is not on `$PATH` by default. If `muse` comes back as "command not found",
-add it:
+`go install` puts the binary in `$(go env GOBIN)` when `GOBIN` is set, and in
+`$(go env GOPATH)/bin` otherwise — usually `~/go/bin`. That directory is not on
+`$PATH` by default. If `muse` comes back as "command not found", resolve the
+install directory and add it:
 
 ```sh
-export PATH="$PATH:$(go env GOPATH)/bin"   # add to ~/.bashrc or ~/.zshrc
+MUSE_BIN="$(go env GOBIN)"                       # empty unless GOBIN is set
+[ -n "$MUSE_BIN" ] || MUSE_BIN="$(go env GOPATH)/bin"
+
+echo "$MUSE_BIN"                                 # where go install wrote muse
+export PATH="$PATH:$MUSE_BIN"                    # add to ~/.bashrc or ~/.zshrc
 ```
 
 To build from a checkout instead (a fork, or an unreleased revision):
