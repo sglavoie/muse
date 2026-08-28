@@ -18,7 +18,7 @@ var alerterPaths = []string{
 }
 
 const (
-	alerterGroup   = "com.sglavoie.muse.now-playing"
+	alerterGroup   = "muse.now-playing"
 	defaultSender  = "com.apple.Terminal"
 	alerterTimeout = "5"
 )

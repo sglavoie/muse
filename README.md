@@ -54,9 +54,13 @@ full keybinding reference.
 - Bulk selection (`x` / `X`) and visual line selection (`v`) in every list view.
 - Undo (`u`) for destructive operations.
 
-**Supported audio formats**: `.aac`, `.aif`, `.aifc`, `.aiff`, `.ape`, `.flac`,
-`.m4a`, `.m4b`, `.mka`, `.mp2`, `.mp3`, `.mpa`, `.oga`, `.ogg`, `.opus`,
-`.wav`, `.wma`, `.wv`.
+**Supported audio formats**: `.aac`, `.ac3`, `.aif`, `.aifc`, `.aiff`, `.ape`,
+`.au`, `.caf`, `.dts`, `.flac`, `.m4a`, `.m4b`, `.m4r`, `.mka`, `.mp2`, `.mp3`,
+`.mp4`, `.mpa`, `.oga`, `.ogg`, `.opus`, `.snd`, `.w64`, `.wav`, `.wma`, `.wv`.
+
+`.mp4` is a container that can hold video. muse plays every file as audio only,
+but a music directory holding video files will index them; use `excluded_paths`
+in the config to keep them out.
 
 ## Requirements
 

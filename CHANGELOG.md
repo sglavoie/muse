@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Eight more audio formats in the library scanner: `.ac3`, `.au`, `.caf`,
+  `.dts`, `.m4r`, `.mp4`, `.snd`, and `.w64`. Note that `.mp4` files are indexed
+  and played as audio only; exclude them with `excluded_paths` if your music
+  directory also holds video.
+
 ## [0.1.0]
 
 Initial public release. muse had been developed privately before this point, so

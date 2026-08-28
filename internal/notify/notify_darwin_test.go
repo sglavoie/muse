@@ -11,6 +11,15 @@ import (
 	"time"
 )
 
+// The group string is what lets a new banner replace the previous one, so it is
+// pinned as a literal: changing it silently costs one upgrade's worth of
+// replacement behaviour.
+func TestAlerterGroup(t *testing.T) {
+	if alerterGroup != "muse.now-playing" {
+		t.Errorf("alerterGroup = %q, want %q", alerterGroup, "muse.now-playing")
+	}
+}
+
 func TestAlerterArgs(t *testing.T) {
 	t.Setenv("TERM_PROGRAM", "Apple_Terminal")
 	args := Track{Title: "Sunrise", Artist: "Aurora", Album: "Dawn"}.alerterArgs()
