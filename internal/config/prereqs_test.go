@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/sglavoie/muse/internal/library"
 )
 
 // stubBinary writes a tiny shell script that acts as a fake binary and returns
@@ -417,6 +420,135 @@ func TestCheckPrereqs_ExifToolMissing(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(err.Error()), "exiftool") {
 		t.Errorf("error should mention exiftool, got: %s", err.Error())
+	}
+}
+
+// stubWarmupArg lets a stub that would otherwise block for seconds recognise
+// the warming exec in stubTimingPATH and exit immediately, so the first-exec
+// cost is still paid outside every bounded probe.
+const stubWarmupArg = "-muse-stub-warmup"
+
+// stubTimingPATH is the timing-sensitive sibling of stubMetadataPATH: it writes
+// exactly the stubs it is given (no mpv is supplied for free, because these
+// cases care how long mpv takes), warms each one through stubWarmupArg so no
+// probe is charged for a first exec, and silences the notifier.
+func stubTimingPATH(t *testing.T, stubs map[string]string) {
+	t.Helper()
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("sh not available")
+	}
+	dir := t.TempDir()
+	for name, body := range stubs {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		_ = exec.Command(path, stubWarmupArg).Run()
+	}
+	t.Setenv("PATH", dir)
+	stubNotifier(t, nil)
+}
+
+// absSleep resolves sleep before $PATH is replaced. Every stub below spells it
+// absolutely for the reason library's own hanging stub does: under an emptied
+// PATH a bare `sleep` exits 127, which would make a stub meant to hang look
+// merely broken and quietly turn a timing assertion into a no-op.
+func absSleep(t *testing.T) string {
+	t.Helper()
+	sleep, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("sleep not available")
+	}
+	return sleep
+}
+
+// shortenProbeBounds shrinks every bound the prerequisite pass is built from so
+// a case that has to actually reach a deadline runs in seconds rather than the
+// production minute.
+//
+// The pipe-cleanup grace is set equal to the probe deadline rather than to the
+// production ratio, because that is the worst case the budget has to survive
+// and it is the whole quantity the old budget omitted. Making the three bounds
+// equal is also what leaves the timings below room to breathe: the margin by
+// which a deadline-priced budget falls short is exactly one grace, so a larger
+// grace is a larger margin.
+func shortenProbeBounds(t *testing.T) {
+	t.Helper()
+	prevMPV := mpvProbeTimeout
+	t.Cleanup(func() { mpvProbeTimeout = prevMPV })
+	mpvProbeTimeout = 2 * time.Second
+	t.Cleanup(library.SetBackendProbeBounds(2*time.Second, 2*time.Second))
+}
+
+// TestPrereqBudget_CoversEveryProbeWorstCase pins the arithmetic directly,
+// without depending on any wall clock. A probe's worst case is its deadline
+// plus the pipe-cleanup grace it may then spend in Wait, and the budget has to
+// cover mpv plus *both* backend probes at that price. Budgeting
+// BackendProbeTimeout instead was the defect: it looks sufficient, and is short
+// by one pipe-cleanup grace per backend probe.
+func TestPrereqBudget_CoversEveryProbeWorstCase(t *testing.T) {
+	worst := library.BackendProbeWorstCase()
+
+	if worst <= library.BackendProbeTimeout() {
+		t.Fatalf("a probe's worst case (%s) must exceed its deadline (%s), or the pipe-cleanup grace is unpriced",
+			worst, library.BackendProbeTimeout())
+	}
+	if got, want := prereqBudget(), mpvProbeTimeout+2*worst; got < want {
+		t.Errorf("prereqBudget() = %s, need at least %s (mpv %s + 2 backend probes at %s)",
+			got, want, mpvProbeTimeout, worst)
+	}
+}
+
+// TestCheckPrereqs_PipeHoldingExifToolStillReachesHealthyFFProbe is the
+// behavioural half, and the case the earlier hanging stub structurally could
+// not reach. library's stub replaces its shell with `exec sleep`, so the kill
+// lands on the one process holding the probe's stdout pipe and Wait returns at
+// the deadline. A real wedged ExifTool is a Perl script: killing it leaves the
+// descendants that inherited its stdout alive, the pipe stays open, and the
+// probe only returns once WaitDelay closes it — a full grace *after* the
+// deadline it already spent.
+//
+// So the ordering here is a slow-but-healthy mpv, then an ExifTool that hangs
+// while a background child keeps the pipe, then a healthy ffprobe that is
+// merely slow to start. Priced at BackendProbeTimeout the parent context is
+// already spent by the time ffprobe is reached and startup dies with "no
+// metadata backend" despite a working fallback being installed; priced at
+// BackendProbeWorstCase the fallback is reached and the outcome is the warning.
+//
+// With every bound at 2s the two budgets are 6s (deadline-priced) and 10s
+// (worst-case-priced) against 6.8s of real work, so the case fails by 0.8s
+// under the old arithmetic and passes with 3.2s to spare under the new one.
+// Both slow stubs stay 0.6s inside their own deadlines, which is the headroom
+// left for exec overhead when the whole suite runs concurrently.
+func TestCheckPrereqs_PipeHoldingExifToolStillReachesHealthyFFProbe(t *testing.T) {
+	shortenProbeBounds(t)
+	sleep := absSleep(t)
+	guard := "[ \"$1\" = \"" + stubWarmupArg + "\" ] && exit 0\n"
+
+	stubTimingPATH(t, map[string]string{
+		// Consumes most of its 2s share and succeeds, which is all "slow mpv"
+		// needs to mean: the budget the backend probes inherit is already
+		// reduced by real work before either of them runs.
+		"mpv": "#!/bin/sh\n" + guard + sleep + " 1.4\nexit 0\n",
+		// Hangs past its 2s deadline while a backgrounded child holds the
+		// inherited stdout pipe, so the probe cannot return until the 2s
+		// WaitDelay closes it: 4s consumed, not 2s. The child is bounded so a
+		// failing run leaks nothing beyond the test binary's lifetime.
+		"exiftool": "#!/bin/sh\n" + guard + sleep + " 30 &\n" + sleep + " 30\n",
+		// Healthy and comfortably inside its own 2s deadline, but slower than
+		// the deadline-priced budget has left by the time it is reached.
+		"ffprobe": "#!/bin/sh\n" + guard + sleep + " 1.4\nexit 0\n",
+	})
+
+	warnings, err := CheckPrereqs(context.Background())
+	if err != nil {
+		t.Fatalf("a healthy ffprobe behind a pipe-holding ExifTool must still be reached, got: %v", err)
+	}
+	if len(warnings) != 1 {
+		t.Fatalf("expected exactly 1 fallback warning, got %d: %v", len(warnings), warnings)
+	}
+	if !strings.Contains(warnings[0], "ffprobe") {
+		t.Errorf("warning %q does not name the fallback that was reached", warnings[0])
 	}
 }
 

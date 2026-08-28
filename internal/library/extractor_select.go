@@ -38,12 +38,48 @@ const (
 // It is a var so tests can shrink it; nothing outside tests reassigns it.
 var backendProbeTimeout = 10 * time.Second
 
+// probeWaitDelay is the grace a killed probe gets to release the stdout pipe
+// before exec closes it out from under whatever still holds it. Killing the
+// probe kills only the process exec started, so a descendant that inherited
+// that pipe keeps it open and Wait would otherwise block forever.
+//
+// It is deliberately much smaller than backendProbeTimeout, and deliberately a
+// separate quantity rather than a second use of it. The two bound different
+// things: the deadline is sized for a *healthy* cold start on a loaded machine,
+// while this only has to outlast the kernel tearing down an already-killed
+// process group's file descriptors. Spending a second full probe deadline here
+// bought nothing and doubled every probe's worst case, which the prerequisite
+// budget then had to pay for twice over.
+//
+// It is a var for the same reason backendProbeTimeout is: tests shrink both
+// together through SetBackendProbeBounds.
+var probeWaitDelay = 2 * time.Second
+
 // BackendProbeTimeout reports the deadline applied to a single metadata-backend
 // usability probe. Callers that impose their own budget over a sequence of
 // probes (config.CheckPrereqs) size it from this rather than from a duplicated
 // literal, so a change here cannot leave an outer budget truncating a probe
 // that has not yet timed out.
 func BackendProbeTimeout() time.Duration { return backendProbeTimeout }
+
+// BackendProbeWorstCase reports the longest a single probe can take to return —
+// its deadline plus the pipe-cleanup grace that a timed-out probe may then
+// spend in Wait. This, not BackendProbeTimeout, is what an outer budget over a
+// sequence of probes has to pay per probe: a budget built from the deadline
+// alone expires while an earlier wedged probe is still unwinding, and the
+// healthy fallback behind it is then reported unusable without ever being run.
+func BackendProbeWorstCase() time.Duration { return backendProbeTimeout + probeWaitDelay }
+
+// SetBackendProbeBounds overrides both probe bounds and returns a func
+// restoring them. It is the seam through which tests in other packages —
+// config, which builds the prerequisite budget on top of these — exercise the
+// timeout and pipe-cleanup paths without paying the real multi-second bounds.
+// Nothing outside tests calls it.
+func SetBackendProbeBounds(timeout, waitDelay time.Duration) (restore func()) {
+	prevTimeout, prevWaitDelay := backendProbeTimeout, probeWaitDelay
+	backendProbeTimeout, probeWaitDelay = timeout, waitDelay
+	return func() { backendProbeTimeout, probeWaitDelay = prevTimeout, prevWaitDelay }
+}
 
 // errProbeTimedOut marks the deadline case so callers can explain a hang
 // differently from an outright failure — "did not respond" and "exited with
@@ -60,9 +96,9 @@ func runBackendProbe(ctx context.Context, name string, args ...string) ([]byte, 
 	cmd := exec.CommandContext(probeCtx, name, args...)
 	// A killed probe must not then block in Wait because a grandchild still
 	// holds the inherited stdout pipe; WaitDelay closes the pipes after a
-	// bounded grace period, so the worst case stays twice the probe timeout
+	// bounded grace period, so the worst case stays BackendProbeWorstCase
 	// instead of being unbounded.
-	cmd.WaitDelay = backendProbeTimeout
+	cmd.WaitDelay = probeWaitDelay
 
 	out, err := cmd.Output()
 	if err != nil && ctx.Err() == nil && probeCtx.Err() != nil {

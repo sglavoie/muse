@@ -214,8 +214,12 @@ func waitForNextBatch(ch <-chan library.Track) tea.Cmd {
 }
 
 // waitForScanErr returns a Cmd that reads a single ScanErrorMsg from ch and
-// dispatches it. The channel is already closed when Init runs so this Cmd
-// terminates quickly; it is re-scheduled only while items remain.
+// dispatches it, rescheduling itself on each message so the subscription
+// survives the first error.
+//
+// It blocks for as long as the background pipeline lives: the stream stays open
+// past the initial scan so the watcher forwarder can still report a failure
+// mid-session. Shutdown closes it, and the closed channel yields nil.
 func waitForScanErr(ch <-chan library.ScanErrorMsg) tea.Cmd {
 	return func() tea.Msg {
 		msg, ok := <-ch

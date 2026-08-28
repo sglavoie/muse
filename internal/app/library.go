@@ -23,10 +23,17 @@ type LibraryResult struct {
 
 	// TuiScanErrCh carries non-fatal errors from the initial diff scan (e.g.
 	// permission denied on a subdirectory, or a hash stage that ended short
-	// because a worker panicked). The channel is closed only after the whole
-	// background scan completes — not merely its walk, so a failure discovered
-	// while the tracks are still streaming still has somewhere to go. Drain it
-	// with a range loop or a Cmd.
+	// because a worker panicked) and, for the rest of the session, any later
+	// failure of the background pipeline.
+	//
+	// It closes when the whole pipeline ends, not when the scan does. The
+	// watcher forwarder outlives the initial walk by design, so a stream scoped
+	// to the walk would be gone before the forwarder could report anything —
+	// and since watcher availability is published once, up front, and the walk
+	// closes cleanly, a late forwarder failure would leave every visible signal
+	// saying the pipeline was healthy. Drain it with a range loop or a Cmd; it
+	// stays open until StopAndWait, so expect to block rather than to see it
+	// close after startup.
 	TuiScanErrCh <-chan library.ScanErrorMsg
 
 	// TuiWatchCh delivers filesystem watch events to the TUI. Initial deletions
@@ -226,7 +233,8 @@ type pipelineOutputs struct {
 	// errMu serialises every use of scanErrCh. Unlike the other streams it has
 	// more than one writer — the diff-walk goroutine while it walks, and any
 	// frame that recovers a panic — so the send and the close have to be under
-	// the same lock or a late failure report would race the close.
+	// the same lock or a late failure report would race the close. The close
+	// itself belongs to finish, after every writer has been waited on.
 	errMu     sync.Mutex
 	errClosed bool
 
@@ -246,12 +254,13 @@ type pipelineOutputs struct {
 // failure wins: it is the one that actually broke the pipeline, and the
 // cancellations it triggers can make the others report derived failures.
 //
-// Reporting happens here rather than in finish because the scan-error stream is
-// scan-scoped: it closes once the diff walk is done, so a failure held back
-// until finish would find it gone. A panic raised after the walk has already
-// finished therefore reaches the degraded watcher status if that has not been
-// reported yet, and the log otherwise — muse has no always-open surface for
-// mid-session degradation.
+// Reporting happens here rather than in finish because finish runs after every
+// pipeline goroutine has exited, and the degraded watcher status it can publish
+// is a no-op once availability has already been reported healthy — which it
+// always has been by the time a child goroutine can panic. The scan-error
+// stream is the only surface that stays open for the whole pipeline, so it is
+// the one a late failure has to reach, and it has to be reached here while the
+// failing frame is still unwinding rather than held back until the close.
 func (o *pipelineOutputs) fail(err error) {
 	o.failureMu.Lock()
 	if o.failure == nil {
@@ -311,8 +320,9 @@ func (o *pipelineOutputs) reportScanErr(err error) {
 
 // finish publishes the degraded watcher status for a recovered panic, then
 // closes every stream. It runs after the pipeline's goroutines have been waited
-// on. The scan error itself was already sent by fail, while the scan-error
-// stream was still open.
+// on, which is what makes it the right owner of the error stream's close: every
+// frame that could still report a failure has already returned. The scan error
+// itself was already sent by fail.
 func (o *pipelineOutputs) finish() {
 	if failure := o.failureErr(); failure != nil {
 		// A no-op when the watcher status was already reported successfully;
@@ -381,13 +391,16 @@ func runLibraryPipeline(ctx context.Context, done chan<- struct{}, p libraryPipe
 	go func() {
 		// Registration order is inverted here relative to the repo's usual
 		// "recover first" idiom, because defers unwind last-registered-first
-		// and the recovery has to run *before* the closes: closing the scan and
-		// error streams after a panic is indistinguishable from a finished walk
-		// unless out.fail has already published the failure on the error stream
-		// it is about to close.
+		// and the recovery has to run *before* the close: closing the scan
+		// stream after a panic is indistinguishable from a finished walk unless
+		// out.fail has already published the failure.
+		//
+		// Only the scan stream is closed here. The error stream is not
+		// walk-scoped — the watcher forwarder outlives this goroutine and must
+		// still have somewhere to report a panic — so finish closes it once
+		// every writer has been waited on.
 		defer wg.Done()
 		defer out.closeScan()
-		defer out.closeErr()
 		defer safego.RecoverTo("app.runDiffWalk", out.fail)
 		runDiffWalkFn(ctx, out)
 	}()
@@ -427,9 +440,9 @@ func forwardWatchEvents(ctx context.Context, in <-chan library.WatchEvent, out c
 // stream. Duplicate diff/watch observations are tolerated downstream as
 // idempotent hash/path upserts and missing marks.
 //
-// The caller closes the scan-error stream from a defer once this returns, so a
-// hash-stage failure discovered after the walk still has somewhere to go: the
-// stream is scan-scoped rather than walk-scoped for exactly that reason.
+// The scan-error stream outlives this function — the pipeline closes it only
+// once every goroutine has exited — so a hash-stage failure discovered after
+// the walk still has somewhere to go.
 func runDiffWalk(ctx context.Context, out *pipelineOutputs) {
 	p := out.p
 	// Collect non-fatal walk errors into the scan-error channel so the TUI can

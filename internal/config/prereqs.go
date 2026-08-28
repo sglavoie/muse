@@ -25,8 +25,9 @@ import (
 // so callers can surface everything they know in one pass.
 // mpvProbeTimeout is the share of the prerequisite budget reserved for
 // `mpv --version`. mpv has no probe deadline of its own, so this is the only
-// thing bounding it.
-const mpvProbeTimeout = 10 * time.Second
+// thing bounding it. It is a var so tests can shrink it; nothing outside tests
+// reassigns it.
+var mpvProbeTimeout = 10 * time.Second
 
 // prereqBudget bounds the whole prerequisite pass. It is derived from the
 // probes it has to pay for — the mpv probe plus, in the worst case, both
@@ -35,8 +36,16 @@ const mpvProbeTimeout = 10 * time.Second
 // slow-to-start-but-healthy ffprobe following a wedged ExifTool would be
 // reported as unusable and startup would fail with "no metadata backend"
 // despite a working fallback being installed.
+//
+// Each backend probe is priced at BackendProbeWorstCase rather than
+// BackendProbeTimeout, because a probe that hits its deadline has not returned
+// yet: a descendant holding the inherited stdout pipe keeps it in Wait for the
+// pipe-cleanup grace on top. Budgeting the deadline alone reintroduces exactly
+// the truncation above by a slower route — a merely slow mpv followed by one
+// pipe-holding wedged ExifTool exhausts the parent context, and the healthy
+// ffprobe behind them is failed without ever being executed.
 func prereqBudget() time.Duration {
-	return mpvProbeTimeout + 2*library.BackendProbeTimeout()
+	return mpvProbeTimeout + 2*library.BackendProbeWorstCase()
 }
 
 func CheckPrereqs(ctx context.Context) ([]string, error) {
