@@ -86,6 +86,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the lockfile held, the mpv socket on disk and the log unflushed. Each teardown
   step now recovers on its own, so every later step still runs and the log names
   the step that failed.
+- Prerequisite warnings now reach the TUI. The ffprobe fallback notice and the
+  unavailable-notification notice were logged at startup and then discarded, so
+  a user launching straight into the player saw a slower scan or silent track
+  notifications with no explanation on screen; they now appear in the status bar
+  alongside the configuration warnings. `muse check` is unchanged.
 
 ## [0.1.0]
 

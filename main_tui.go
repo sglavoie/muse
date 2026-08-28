@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -110,6 +111,13 @@ func runTUI(ctx context.Context) error {
 		}
 		return err
 	}
+
+	// Prerequisite warnings (a degraded metadata backend, an unavailable
+	// notification backend) describe behaviour the user will notice, so they
+	// join the config-load warnings on the one channel the TUI already renders.
+	// This is the only merge point: buildModel below receives the combined
+	// slice, so nothing downstream appends them a second time.
+	cfgResult = mergeStartupWarnings(cfgResult, result.PrereqWarnings)
 
 	shutdownDeps := app.ShutdownDeps{
 		ClosePlayer: func() error {
@@ -304,6 +312,27 @@ func checkMusicDirs(cfgResult config.LoadResult, musicDirs []string, configPath 
 	slog.Error("invalid music directory", "err", res.Err, "usable_dirs", len(res.Usable))
 	cfgResult.Warnings = append(cfgResult.Warnings, musicDirWarning(res.Err, partial))
 	return cfgResult, config.ConfigHint(configPath), partial
+}
+
+// mergeStartupWarnings folds the prerequisite warnings returned by app.Run into
+// the config-load warnings so both reach the TUI through tui.WithConfigWarnings,
+// which is the only warning channel the model renders. Without this the ffprobe
+// fallback is visible only in the log file and in `muse check`, so a user whose
+// ExifTool is broken sees a slower scan with no explanation on screen.
+//
+// Warnings already present are skipped, so the status bar never repeats a line
+// even if a warning reaches both channels. The result is a fresh slice: appending
+// in place could otherwise write through a shared backing array.
+func mergeStartupWarnings(cfgResult config.LoadResult, prereqWarnings []string) config.LoadResult {
+	merged := slices.Clone(cfgResult.Warnings)
+	for _, w := range prereqWarnings {
+		if slices.Contains(merged, w) {
+			continue
+		}
+		merged = append(merged, w)
+	}
+	cfgResult.Warnings = merged
+	return cfgResult
 }
 
 // musicDirWarning collapses a ValidateMusicDirs error into a single line

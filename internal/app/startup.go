@@ -109,6 +109,13 @@ type RunResult struct {
 
 	// Restored holds the session state loaded from the database. Never nil.
 	Restored *RestoredSession
+
+	// PrereqWarnings are the advisory messages returned by CheckPrereqs in
+	// step 5 — a degraded metadata backend or an unavailable notification
+	// backend. They are logged by Run, but they also describe behaviour the
+	// user will actually notice, so they are handed back for the caller to
+	// surface on screen. Nil when every prerequisite is healthy.
+	PrereqWarnings []string
 }
 
 // Run executes the startup sequence in the required order:
@@ -116,7 +123,8 @@ type RunResult struct {
 //  2. Remove stale mpv socket
 //  3. Run pending DB migrations
 //  4. Restore previous session from DB (validate tracks against disk)
-//  5. Verify prerequisite binaries (mpv, ExifTool)
+//  5. Verify prerequisite binaries (mpv, ExifTool); advisory warnings are
+//     logged and returned in RunResult.PrereqWarnings for the caller to display
 //  6. Launch mpv (via LaunchMPV) and call RunScan concurrently; in production
 //     RunScan is a no-op — the library scan pipeline is started by the caller
 //     after Run returns because it requires the Writer that Run creates
@@ -240,11 +248,12 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 	restoreStartupPlayer(restored, deps.RestorePlayer)
 
 	return &RunResult{
-		Lockfile:     lf,
-		SocketPath:   socketPath,
-		DB:           database,
-		Writer:       w,
-		CancelWriter: cancelWriter,
-		Restored:     restored,
+		Lockfile:       lf,
+		SocketPath:     socketPath,
+		DB:             database,
+		Writer:         w,
+		CancelWriter:   cancelWriter,
+		Restored:       restored,
+		PrereqWarnings: warnings,
 	}, nil
 }
