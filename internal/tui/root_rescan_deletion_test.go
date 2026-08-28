@@ -192,3 +192,49 @@ func TestRescanCanceledSkipsDeletionReconciliation(t *testing.T) {
 		t.Fatalf("canceled rescan must persist no deletions, got %d", got)
 	}
 }
+
+// TestRescanTruncatedByHashPanicSkipsDeletionReconciliation verifies that a
+// rescan whose hash stage died partway is not treated as authoritative. The
+// scan channel closes exactly as it does after a complete run, so ScanDoneMsg
+// alone cannot tell the two apart; without the stage outcome the files the
+// panicking worker never hashed are absent from the rebuilt index and would be
+// persisted as deletions even though they are still on disk.
+func TestRescanTruncatedByHashPanicSkipsDeletionReconciliation(t *testing.T) {
+	root := t.TempDir()
+	stillOnDisk := filepath.Join(root, "unhashed.mp3")
+	writer := newRecordingScanWriter()
+	m := New(context.Background(),
+		WithLibraryRoots([]string{root}),
+		WithExtractor(stubExtractor{}),
+		WithScanWriter(writer, 500),
+	)
+	m.library.index.Insert(library.Track{Hash: "hunhashed", Path: stillOnDisk})
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
+	m = next.(Model)
+	if m.scanOutcome == nil {
+		t.Fatal("rescan must carry the hash-stage outcome alongside the scan channel")
+	}
+	if len(m.rescanPriorPaths) != 1 {
+		t.Fatalf("rescan: expected the prior path to be snapshotted, got %v", m.rescanPriorPaths)
+	}
+
+	// Stand in for the hash worker that panicked: the stream still ends, but the
+	// stage reports that it ended short.
+	outcome := &library.StageOutcome{}
+	outcome.Fail(library.ErrHashWorkerPanicked)
+	m.scanOutcome = outcome
+
+	next, doneCmd := m.Update(library.ScanDoneMsg{})
+	m = next.(Model)
+
+	if doneCmd != nil {
+		t.Error("a truncated rescan must not return a cmd persisting deletions")
+	}
+	if got := len(writer.missingSnapshot()); got != 0 {
+		t.Errorf("truncated rescan must persist no deletions, got %d", got)
+	}
+	if m.scanOutcome != nil {
+		t.Error("scan outcome should be cleared once the scan is done")
+	}
+}

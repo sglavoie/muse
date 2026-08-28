@@ -23,8 +23,15 @@ import (
 // The returned channel is closed once the walk has finished and all hash and
 // ExifTool goroutines have drained, signalling scan-complete. Callers drain
 // the channel with a range loop; channel close is the completion signal.
-func Scan(ctx context.Context, roots []string, excludedPaths []string, extractor MetadataExtractor) <-chan Track {
-	return ExtractBatches(ctx, extractor, HashWorkers(Walk(ctx, roots, excludedPaths)))
+//
+// Channel close alone does not mean the scan was complete, so Scan also returns
+// the hash stage's StageOutcome. Once the channel has been drained, a non-nil
+// Err means a hash worker panicked and the emitted tracks are a subset of what
+// is on disk — a caller that derives deletions from the scan result must not do
+// so in that case.
+func Scan(ctx context.Context, roots []string, excludedPaths []string, extractor MetadataExtractor) (<-chan Track, *StageOutcome) {
+	hashed, outcome := HashWorkers(Walk(ctx, roots, excludedPaths))
+	return ExtractBatches(ctx, extractor, hashed), outcome
 }
 
 // KnownFile holds the cached stat info for a file that is already in the DB.
@@ -162,17 +169,23 @@ func pathsToChan(ctx context.Context, paths []string) <-chan string {
 // DiffScan is like Scan but skips files whose path, mtime, and size match an
 // entry in known. It returns a channel of new or changed Track values, a
 // slice of paths that were in known but no longer exist on disk (deletions),
-// and an error if the walk fails. On walk failure, callers should skip
-// the deletion step (deleted will be nil).
+// the hash stage's StageOutcome, and an error if the walk fails. On walk
+// failure, callers should skip the deletion step (deleted will be nil).
+//
+// As in Scan, the StageOutcome is what separates a drained track channel from a
+// complete one: check its Err after the channel closes to learn whether a hash
+// worker panicked and truncated the batch. It is nil only when the walk failed
+// and no hash stage was started.
 //
 // onErr, when non-nil, is called for each non-fatal walk error encountered
 // during the directory traversal (e.g. permission denied on a subdirectory).
 //
 // On first run (empty known map) DiffScan degrades to a full scan.
-func DiffScan(ctx context.Context, roots []string, excludedPaths []string, extractor MetadataExtractor, known map[string]KnownFile, onErr func(error)) (<-chan Track, []string, error) {
+func DiffScan(ctx context.Context, roots []string, excludedPaths []string, extractor MetadataExtractor, known map[string]KnownFile, onErr func(error)) (<-chan Track, []string, *StageOutcome, error) {
 	changed, deleted, err := FilteredWalk(ctx, roots, excludedPaths, known, onErr)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return ExtractBatches(ctx, extractor, HashWorkers(pathsToChan(ctx, changed))), deleted, nil
+	hashed, outcome := HashWorkers(pathsToChan(ctx, changed))
+	return ExtractBatches(ctx, extractor, hashed), deleted, outcome, nil
 }

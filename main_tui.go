@@ -174,7 +174,12 @@ func runTUI(ctx context.Context) error {
 
 	var auditCh <-chan library.DurationFix
 	if library.FFProbeAvailable() {
-		auditCh = app.RunDurationAudit(ctx, result.DB, result.Writer)
+		// The audit outcome is deliberately not consumed here: the TUI drains
+		// auditCh itself and muse has no mid-session surface for a degraded
+		// background stage, so a truncated audit is reported through the log by
+		// RunDurationAudit. The handle exists so the stage can no longer pass a
+		// panic off as completion to a caller that does need to tell them apart.
+		auditCh, _ = app.RunDurationAudit(ctx, result.DB, result.Writer)
 	}
 
 	model := buildModel(ctx, cfg, configPath, cfgResult, musicDirHint, musicDirsPartial, result, libResult, dirs, extractor, adapter, mgr, auditCh, startupCount)

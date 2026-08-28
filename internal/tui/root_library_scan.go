@@ -114,15 +114,26 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 // deletion contract the live watcher provides.
 func (m Model) handleScanDoneMsg() (Model, tea.Cmd) {
 	var cmd tea.Cmd
+	// A hash worker that panicked closes the scan channel exactly like a
+	// finished one, so the ScanDoneMsg alone cannot be trusted as "the whole
+	// library was rescanned". Files it never hashed are absent from the rebuilt
+	// index but still on disk, and reconciling deletions from that would mark
+	// them missing. Report the truncation and leave the deletion step alone.
+	truncated := m.scanOutcome.Err()
+	if truncated != nil {
+		slog.Error("rescan incomplete: skipping deletion reconciliation", "err", truncated)
+		m.statusBar.notify("Rescan incomplete: some files could not be hashed; deletions were not reconciled")
+	}
 	// A canceled scan clears rescanPriorPaths before this message lands, and a
 	// normal completion still has m.scanning == true (only this handler flips it
 	// false). Both guards ensure deletions are computed only from a full,
 	// intact scan.
-	if m.scanning && len(m.rescanPriorPaths) > 0 {
+	if truncated == nil && m.scanning && len(m.rescanPriorPaths) > 0 {
 		m, cmd = m.reconcileRescanDeletions()
 	}
 	m.scanning = false
 	m.scanCh = nil
+	m.scanOutcome = nil
 	m.rescanSnapshot = nil
 	m.rescanPriorPaths = nil
 	if m.scanCancel != nil {

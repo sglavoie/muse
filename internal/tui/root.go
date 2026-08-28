@@ -111,6 +111,13 @@ type Model struct {
 	// scanCh is the channel returned by library.Scan. It is nil when no scan
 	// is in progress or after the scan has completed.
 	scanCh <-chan library.Track
+	// scanOutcome is the hash-stage outcome that accompanies scanCh. A rescan
+	// closes its channel identically whether every file was hashed or a worker
+	// panicked partway, and the deletion reconciliation below infers deletions
+	// from "in the index before, absent after" — so without this handle a
+	// panicked hash worker would mark still-present files missing. nil when the
+	// scan came from an option rather than from a rescan.
+	scanOutcome *library.StageOutcome
 	// scanErrCh carries non-fatal walk errors from the initial diff scan.
 	// It is already closed when Init() runs; drained once on startup.
 	scanErrCh <-chan library.ScanErrorMsg

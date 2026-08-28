@@ -28,7 +28,7 @@ func TestHashWorkers_DrainAndClose(t *testing.T) {
 	close(in)
 
 	var got []HashedFile
-	for hf := range HashWorkers(in) {
+	for hf := range hashWorkersOut(in) {
 		got = append(got, hf)
 	}
 
@@ -65,7 +65,7 @@ func TestHashWorkers_SkipsErrors(t *testing.T) {
 	close(in)
 
 	var got []HashedFile
-	for hf := range HashWorkers(in) {
+	for hf := range hashWorkersOut(in) {
 		got = append(got, hf)
 	}
 
@@ -91,7 +91,7 @@ func TestHashWorkers_ManyFiles(t *testing.T) {
 	close(in)
 
 	seen := make(map[string]struct{}, n)
-	for hf := range HashWorkers(in) {
+	for hf := range hashWorkersOut(in) {
 		if hf.Hash == "" {
 			t.Errorf("empty hash for %q", hf.Path)
 		}
@@ -115,7 +115,7 @@ func TestHashWorkers_OutputClosedOnEmptyInput(t *testing.T) {
 	close(in)
 
 	count := 0
-	for range HashWorkers(in) {
+	for range hashWorkersOut(in) {
 		count++
 	}
 	if count != 0 {
@@ -167,7 +167,7 @@ func TestHashWorkers_WorkerCountEqualsNumCPU(t *testing.T) {
 	}
 	close(in)
 
-	out := hashWorkersN(n, in, hashFn)
+	out, _ := hashWorkersN(n, in, hashFn)
 
 	// Wait until all n workers have signalled ready (all are at the gate).
 	for range n {
@@ -198,7 +198,7 @@ func TestHashWorkers_StatFailureAfterHashSkipsFile(t *testing.T) {
 
 	hashFn := func(_ string) (string, error) { return "deadbeef", nil }
 
-	out := hashWorkersN(2, in, hashFn)
+	out, _ := hashWorkersN(2, in, hashFn)
 	var got []HashedFile
 	for hf := range out {
 		got = append(got, hf)
@@ -221,7 +221,7 @@ func TestHashWorkers_StatSuccessPopulatesMetadata(t *testing.T) {
 
 	hashFn := func(_ string) (string, error) { return "deadbeef", nil }
 
-	out := hashWorkersN(1, in, hashFn)
+	out, _ := hashWorkersN(1, in, hashFn)
 	var got []HashedFile
 	for hf := range out {
 		got = append(got, hf)
@@ -235,4 +235,12 @@ func TestHashWorkers_StatSuccessPopulatesMetadata(t *testing.T) {
 	if got[0].ModTime == 0 {
 		t.Errorf("ModTime: got 0, want a populated timestamp")
 	}
+}
+
+// hashWorkersOut adapts HashWorkers for the tests that only care about the
+// emitted stream, so the outcome handle does not have to be named at each of
+// them. Tests that assert on the outcome call HashWorkers directly.
+func hashWorkersOut(in <-chan string) <-chan HashedFile {
+	out, _ := HashWorkers(in)
+	return out
 }

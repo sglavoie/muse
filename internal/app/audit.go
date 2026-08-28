@@ -2,11 +2,11 @@ package app
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"math"
 	"runtime"
 	"sync"
-	"sync/atomic"
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
@@ -35,17 +35,33 @@ var (
 // while still allowing durations far beyond any realistic audio file length.
 const maxAuditableDurationSeconds = float64(1<<62) / 1000.0
 
+// ErrDurationAuditIncomplete reports that a duration-audit worker died to a
+// recovered panic, so the tracks it had left are unaudited and the correction
+// stream closed early.
+var ErrDurationAuditIncomplete = errors.New("duration audit worker panicked: some tracks were not audited")
+
 // RunDurationAudit spawns a background goroutine that ffprobe-verifies all
 // tracks where duration_verified=0. Corrections are sent to the returned
 // channel; the channel is closed when the audit completes.
-func RunDurationAudit(ctx context.Context, reader DurationReader, writer DurationVerifier) <-chan library.DurationFix {
+//
+// The returned StageOutcome is what separates "the audit finished" from "the
+// audit died": both close the correction channel, so a caller that reads the
+// close as completion cannot otherwise tell that tracks were skipped. Read Err
+// once the channel has been drained.
+func RunDurationAudit(ctx context.Context, reader DurationReader, writer DurationVerifier) (<-chan library.DurationFix, *library.StageOutcome) {
 	out := make(chan library.DurationFix)
+	outcome := &library.StageOutcome{}
 
 	go func() {
 		// close(out) stays deferred so a recovered panic still ends the
-		// caller's range over the correction channel.
-		defer safego.Recover("app.RunDurationAudit")
+		// caller's range over the correction channel. It is registered *before*
+		// the recovery so that it runs *after* it: defers unwind in reverse, and
+		// a caller that observes the close must already be able to read the
+		// outcome, or the failure would again look like a clean finish.
 		defer close(out)
+		defer safego.RecoverTo("app.RunDurationAudit", func(err error) {
+			outcome.Fail(errors.Join(ErrDurationAuditIncomplete, err))
+		})
 
 		tracks, err := reader.ReadUnverifiedDurations()
 		if err != nil {
@@ -72,7 +88,6 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 		results := make(chan result, len(tracks))
 		n := runtime.NumCPU()
 
-		var panicked atomic.Bool
 		var wg sync.WaitGroup
 		for range n {
 			wg.Go(func() {
@@ -82,8 +97,8 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 				// work channel is buffered and already closed, so no producer is
 				// left blocked — but the tracks this worker abandons are simply
 				// not audited, which the completion log has to admit.
-				defer safego.RecoverTo("app.durationAuditWorker", func(error) {
-					panicked.Store(true)
+				defer safego.RecoverTo("app.durationAuditWorker", func(err error) {
+					outcome.Fail(errors.Join(ErrDurationAuditIncomplete, err))
 				})
 				for t := range work {
 					// Bail out promptly on cancellation rather than burning
@@ -147,15 +162,15 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 			}
 		}
 
-		if panicked.Load() {
+		if err := outcome.Err(); err != nil {
 			slog.Error("duration audit incomplete: a worker panicked and its tracks were not audited",
-				"checked", checked, "corrected", corrected, "queued", len(tracks))
+				"err", err, "checked", checked, "corrected", corrected, "queued", len(tracks))
 			return
 		}
 		slog.Info("duration audit complete", "checked", checked, "corrected", corrected)
 	}()
 
-	return out
+	return out, outcome
 }
 
 func durationDiffExceeds(a, b, threshold int64) bool {

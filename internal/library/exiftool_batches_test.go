@@ -205,7 +205,7 @@ func TestExtractBatches_CancelledContextDrainsInputWithoutDeadlock(t *testing.T)
 func TestExtractBatches_CancelledMidStreamDrainsUpstream(t *testing.T) {
 	pathCh := make(chan string)
 	hashFn := func(p string) (string, error) { return "h", nil }
-	hashOut := hashWorkersN(4, pathCh, hashFn)
+	hashOut, _ := hashWorkersN(4, pathCh, hashFn)
 
 	dir := t.TempDir()
 	realPath := filepath.Join(dir, "song.mp3")

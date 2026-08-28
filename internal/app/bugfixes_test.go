@@ -86,7 +86,7 @@ func TestRunDurationAudit_CtxCancelStopsWorkers(t *testing.T) {
 	writer := newStubVerifier()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	ch := app.RunDurationAudit(ctx, reader, writer)
+	ch, _ := app.RunDurationAudit(ctx, reader, writer)
 
 	// Wait until at least one probe has started, then cancel before
 	// releasing it. Workers should observe ctx.Err() on the next iteration

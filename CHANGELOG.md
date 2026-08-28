@@ -81,6 +81,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pipeline itself reported a clean finish while leaving the scan and watch
   streams open; it now closes them and surfaces the failure as a scan error
   and a degraded watcher status.
+- A truncated scan no longer looks like a finished one. The hash stage and the
+  duration audit closed their output channels identically whether every file
+  had been processed or a worker had died partway, so callers read the close as
+  completion; both now hand back an outcome that says which happened. The
+  practical consequence was the worst case of all: a manual rescan cut short by
+  a hash worker rebuilt a library index missing the files that were never
+  hashed, then marked those still-present files missing. It now reports the
+  truncation and leaves the deletion reconciliation alone. Panics in the
+  watcher-forwarder and diff-walk goroutines are likewise recorded as pipeline
+  failures — published as a scan error and a degraded watcher status, with the
+  rest of the pipeline cancelled — instead of quietly closing streams behind an
+  already-healthy status.
 - A configuration where only some music directories are unusable no longer
   claims that no directories were found. Validation now reports which roots are
   usable, so the welcome overlay says some directories could not be read (and

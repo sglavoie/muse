@@ -12,7 +12,7 @@ func TestDiffScan_EmptyKnownIsFullScan(t *testing.T) {
 	makeAudioFiles(t, dir, n)
 
 	fe := &fakeExtractor{}
-	trackCh, deleted, err := DiffScan(context.Background(), []string{dir}, nil, fe, nil, nil)
+	trackCh, deleted, _, err := DiffScan(context.Background(), []string{dir}, nil, fe, nil, nil)
 	if err != nil {
 		t.Fatalf("DiffScan: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestDiffScan_UnchangedFilesSkipped(t *testing.T) {
 	}
 
 	fe := &fakeExtractor{}
-	trackCh, deleted, err := DiffScan(context.Background(), []string{dir}, nil, fe, known, nil)
+	trackCh, deleted, _, err := DiffScan(context.Background(), []string{dir}, nil, fe, known, nil)
 	if err != nil {
 		t.Fatalf("DiffScan: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestDiffScan_DeletedFilesReported(t *testing.T) {
 	}
 
 	fe := &fakeExtractor{}
-	trackCh, deleted, err := DiffScan(context.Background(), []string{dir}, nil, fe, known, nil)
+	trackCh, deleted, _, err := DiffScan(context.Background(), []string{dir}, nil, fe, known, nil)
 	if err != nil {
 		t.Fatalf("DiffScan: %v", err)
 	}

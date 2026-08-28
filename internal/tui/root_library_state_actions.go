@@ -41,8 +41,9 @@ func (m Model) handleLibraryStateAction(action action) (tea.Model, tea.Cmd, bool
 			m.rescanPriorPaths = prior
 
 			scanCtx, cancel := context.WithCancel(m.appCtx)
-			rawCh := library.Scan(scanCtx, m.libraryRoots, m.cfg.ExcludedPaths, m.extractor)
+			rawCh, scanOutcome := library.Scan(scanCtx, m.libraryRoots, m.cfg.ExcludedPaths, m.extractor)
 			ch := m.bridgeScanChannel(rawCh)
+			m.scanOutcome = scanOutcome
 			m.scanCancel = cancel
 			m.library.index = library.LibraryIndex{}
 			m.library.cursor = 0

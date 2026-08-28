@@ -3,6 +3,7 @@ package library
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"io"
 	"log/slog"
 	"os"
@@ -25,24 +26,35 @@ type HashedFile struct {
 // HashWorkers spawns runtime.NumCPU() goroutines that consume file paths from
 // in and emit HashedFile values to the returned channel. The output channel is
 // closed once all workers have finished draining the input.
-func HashWorkers(in <-chan string) <-chan HashedFile {
-	return hashWorkersN(runtime.NumCPU(), in, HashFile)
+//
+// The returned StageOutcome distinguishes a complete drain from one cut short by
+// a recovered worker panic. Both close the output channel, so a caller that
+// treats the close as scan-complete would otherwise act on a silently short
+// batch — most damagingly by concluding that the files that were never hashed
+// have been deleted. Check Err after the channel has been drained.
+func HashWorkers(in <-chan string) (<-chan HashedFile, *StageOutcome) {
+	return hashWorkersN(runtime.NumCPU(), in, hashFileFn)
 }
+
+// hashFileFn is HashFile, indirected so tests can drive the exported HashWorkers
+// (and therefore Scan) into the one failure a real filesystem cannot be made to
+// produce on demand: a panicking hash worker.
+var hashFileFn = HashFile
 
 // hashWorkersN spawns n goroutines that consume file paths from in, calling
 // hashFn on each path, and emits HashedFile values to the returned channel.
 // The output channel is closed once all workers have finished draining the
 // input. This unexported function exists to allow tests to inject a controlled
 // hashFn for measuring concurrency behaviour.
-func hashWorkersN(n int, in <-chan string, hashFn func(string) (string, error)) <-chan HashedFile {
+func hashWorkersN(n int, in <-chan string, hashFn func(string) (string, error)) (<-chan HashedFile, *StageOutcome) {
 	out := make(chan HashedFile, n)
+	outcome := &StageOutcome{}
 	var wg sync.WaitGroup
 	// live counts the workers that have not yet died to a panic. The last one to
 	// go has to drain in itself: nothing else is reading it any more, and the
 	// walker goroutine upstream would otherwise block forever on `ch <- path`.
 	var live atomic.Int64
 	live.Store(int64(n))
-	var panicked atomic.Bool
 	for range n {
 		wg.Go(func() {
 			// hashFn is injected and, in production, reads arbitrary files off
@@ -50,8 +62,8 @@ func hashWorkersN(n int, in <-chan string, hashFn func(string) (string, error)) 
 			// stops this worker early; the remaining workers keep draining in,
 			// and when none are left the handler drains it so the producer can
 			// finish. wg.Wait below still closes out, so no consumer hangs.
-			defer safego.RecoverTo("library.hashWorker", func(error) {
-				panicked.Store(true)
+			defer safego.RecoverTo("library.hashWorker", func(err error) {
+				outcome.Fail(errors.Join(ErrHashWorkerPanicked, err))
 				if live.Add(-1) > 0 {
 					return
 				}
@@ -85,15 +97,19 @@ func hashWorkersN(n int, in <-chan string, hashFn func(string) (string, error)) 
 	}
 	go func() {
 		defer safego.Recover("library.hashWorkersCloser")
+		// close(out) is deferred so it still runs on the recovery path, and it
+		// is registered after wg.Wait so the outcome is populated before any
+		// consumer can observe the close and read it.
 		defer close(out)
 		wg.Wait()
-		if panicked.Load() {
+		if err := outcome.Err(); err != nil {
 			// The closed output channel otherwise reads as "every path was
-			// hashed"; say plainly that the batch is short.
-			slog.Error("hash worker panicked: some files were not hashed and are missing from this scan")
+			// hashed"; say plainly that the batch is short. Callers learn the
+			// same thing from outcome.Err.
+			slog.Error("hash stage incomplete", "err", err)
 		}
 	}()
-	return out
+	return out, outcome
 }
 
 const (

@@ -65,7 +65,8 @@ func runAudit(t *testing.T, reader *stubReader, writer *stubVerifier) <-chan lib
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	return app.RunDurationAudit(ctx, reader, writer)
+	ch, _ := app.RunDurationAudit(ctx, reader, writer)
+	return ch
 }
 
 // TestRunDurationAudit_NoTracks verifies that the audit closes its channel
@@ -273,7 +274,7 @@ func TestRunDurationAudit_CancelBeforeProbeResultSkipsWriter(t *testing.T) {
 	writer := newStubVerifier()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	ch := app.RunDurationAudit(ctx, reader, writer)
+	ch, _ := app.RunDurationAudit(ctx, reader, writer)
 
 	<-probeStarted
 	cancel()
@@ -313,7 +314,7 @@ func TestRunDurationAudit_ProbeHookCanChangeWhileAuditRuns(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	ch := app.RunDurationAudit(ctx, reader, writer)
+	ch, _ := app.RunDurationAudit(ctx, reader, writer)
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
