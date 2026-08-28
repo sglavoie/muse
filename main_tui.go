@@ -136,9 +136,12 @@ func runTUI(ctx context.Context) error {
 	}
 
 	// Prerequisites have already been checked by app.Run, so a usable backend
-	// exists here; the same probes run again only to construct the matching
-	// extractor. This one construction site feeds both the initial scan below
-	// and the TUI's manual-rescan path via buildModel → tui.WithExtractor.
+	// exists here; SelectExtractor repeats exactly the same two bounded probes
+	// only to construct the matching extractor, so this cannot introduce a
+	// verdict the prereq check did not already reach, nor hang on a wedged
+	// binary even though ctx has no deadline. This one construction site feeds
+	// both the initial scan below and the TUI's manual-rescan path via
+	// buildModel → tui.WithExtractor.
 	extractor, backend, err := library.SelectExtractor(ctx)
 	if err != nil {
 		slog.Error("no metadata backend available", "err", err)

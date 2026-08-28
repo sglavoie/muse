@@ -335,6 +335,34 @@ func TestCheckPrereqs_NoMetadataBackendIsFatal(t *testing.T) {
 	}
 }
 
+// TestCheckPrereqs_RejectsBrokenFFProbe is the fallback's own broken-install
+// case, and it is the reason readiness runs ffprobe instead of only resolving
+// it on $PATH. An ffprobe that resolves but cannot execute — missing shared
+// libraries, a stale symlink into an uninstalled FFmpeg — used to satisfy the
+// check, so muse started, warned only that ExifTool was unavailable, and then
+// scanned the whole library into filename-derived placeholder metadata. With
+// neither backend usable this must be the fatal case, naming both binaries.
+func TestCheckPrereqs_RejectsBrokenFFProbe(t *testing.T) {
+	stubMetadataPATH(t, map[string]string{"ffprobe": "#!/bin/sh\nexit 127\n"})
+
+	warnings, err := CheckPrereqs(context.Background())
+	if err == nil {
+		t.Fatalf("an ffprobe that cannot run must not satisfy the metadata prereq, warnings: %v", warnings)
+	}
+	msg := err.Error()
+	if !strings.Contains(strings.ToLower(msg), "exiftool") {
+		t.Errorf("error should mention exiftool, got: %s", msg)
+	}
+	if !strings.Contains(msg, "ffprobe is not usable") {
+		t.Errorf("error should say ffprobe itself is broken rather than absent, got: %s", msg)
+	}
+	for _, w := range warnings {
+		if strings.Contains(w, "falling back to ffprobe") {
+			t.Errorf("a broken ffprobe must not be announced as a working fallback, got: %q", w)
+		}
+	}
+}
+
 // TestCheckPrereqs_FFProbeMissingIsSilentWhenExifToolWorks guards against the
 // fallback warning firing on a healthy ExifTool-only install.
 func TestCheckPrereqs_FFProbeMissingIsSilentWhenExifToolWorks(t *testing.T) {

@@ -43,6 +43,10 @@ func CheckPrereqs(ctx context.Context) ([]string, error) {
 // to ffprobe is a warning, since scans still work but are slower; having
 // neither is the only fatal outcome.
 //
+// Both probes actually run their binary and bound themselves, so a wedged
+// executable cannot hold startup open and a present-but-broken ffprobe is
+// rejected here rather than silently becoming the backend.
+//
 // checkExifTool's error is deliberately demoted to a fall-through signal here:
 // all three of its failure modes (absent, non-zero `-ver`, unparseable version)
 // mean "cannot extract metadata with ExifTool", and each must reach ffprobe
@@ -53,18 +57,19 @@ func checkMetadataBackend(ctx context.Context) ([]string, error) {
 		return nil, nil
 	}
 
-	if library.FFProbeAvailable() {
+	ffprobeErr := library.FFProbeUsable(ctx)
+	if ffprobeErr == nil {
 		return []string{
 			"ExifTool is unavailable, falling back to ffprobe for track metadata " +
 				"(scans are roughly 2.4x slower): " + firstLine(exifErr),
 		}, nil
 	}
 
-	return nil, fmt.Errorf("%w\nffprobe was not found on $PATH either; install FFmpeg to use it instead:\n"+
+	return nil, fmt.Errorf("%w\nffprobe is not usable either: %s\ninstall FFmpeg to use it instead:\n"+
 		"  macOS:  brew install ffmpeg\n"+
 		"  Debian: apt install ffmpeg\n"+
 		"  Fedora: dnf install ffmpeg",
-		exifErr,
+		exifErr, firstLine(ffprobeErr),
 	)
 }
 

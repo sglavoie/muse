@@ -54,6 +54,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   causes every track under it to be marked missing. The scan skips the
   unreachable root and reports no deletions instead of treating an unwalked
   tree as an empty one.
+- Metadata-backend detection can no longer hang startup or `muse check`: both
+  version probes now carry their own short deadline, so an ExifTool or ffprobe
+  that resolves on `PATH` but never returns is treated as unusable instead of
+  blocking on a blank terminal.
+- A broken ffprobe is no longer accepted as the metadata backend. ffprobe used
+  to qualify on `PATH` presence alone, so an installation that could not
+  actually execute — missing shared libraries, a stale symlink into an
+  uninstalled FFmpeg — became the backend and scanned every track into
+  filename-derived placeholder metadata with no error reported anywhere.
 
 ## [0.1.0]
 

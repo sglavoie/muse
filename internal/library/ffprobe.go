@@ -12,7 +12,11 @@ import (
 
 const ffprobeDurationTimeout = 10 * time.Second
 
-// FFProbeAvailable returns true if ffprobe is on PATH.
+// FFProbeAvailable returns true if ffprobe is on PATH. It is presence-only and
+// deliberately cheap: it gates the opportunistic duration-audit pass, where a
+// broken binary simply makes every audit call fail and the audit produce no
+// fixes. Backend readiness must not use it — use FFProbeUsable, which actually
+// runs the binary, so a broken ffprobe cannot be chosen as the metadata backend.
 func FFProbeAvailable() bool {
 	_, err := exec.LookPath("ffprobe")
 	return err == nil

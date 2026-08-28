@@ -91,7 +91,12 @@ Fedora: dnf install mpv
 Track metadata (title, artist, album, genre, duration, track and disc numbers)
 is read during library scans by an external tool. muse picks one at startup and
 logs which; `muse check` reports it too. Startup only fails if neither is
-installed.
+usable.
+
+Being on `$PATH` is not enough for either backend: muse runs a short version
+probe against each candidate and only accepts one that answers. The probe is
+bounded (a few seconds), so a wedged executable is treated as unusable instead
+of hanging startup on a blank terminal.
 
 #### ExifTool — recommended (fastest)
 
@@ -116,7 +121,10 @@ and falls back to ffprobe, with a warning, rather than refusing to start.
 Part of FFmpeg, so no Perl runtime is involved. Used as the metadata backend
 whenever ExifTool is missing or broken; scans are slower but complete, and
 ffprobe reports durations and disc numbers for some formats more accurately
-than ExifTool does.
+than ExifTool does. An ffprobe that resolves on `$PATH` but cannot actually run
+(`ffprobe -version` fails) is rejected the same way a broken ExifTool is, so it
+never becomes the backend and quietly scans every track into placeholder
+metadata.
 
 Independently of metadata, ffprobe also powers the background duration-audit
 pass that corrects track durations metadata got wrong. Without ffprobe that
@@ -184,8 +192,8 @@ muse check
 ```
 
 `muse check` validates the config file, checks that your music directories
-exist and contain supported audio, and runs a live invocation of mpv and of
-each metadata backend to catch broken installs. It also reports which backend
+exist and contain supported audio, and runs a live, time-bounded invocation of
+mpv and of each metadata backend to catch broken installs. It also reports which backend
 a scan would use. It prints `ok` and exits 0 when everything is in order, and
 prints actionable errors to stderr and exits 1 otherwise. Advisory problems
 (such as a missing notification backend, or falling back from ExifTool to
