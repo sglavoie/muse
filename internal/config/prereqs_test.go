@@ -260,9 +260,16 @@ func stubMetadataPATH(t *testing.T, stubs map[string]string) {
 		all[name] = body
 	}
 	for name, body := range all {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755); err != nil {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
 			t.Fatal(err)
 		}
+		// The first exec of a newly written executable costs hundreds of
+		// milliseconds idle and several seconds while the whole suite runs
+		// concurrently; a second exec of the same file is ~4ms. Pay it here so
+		// it is never charged against a bounded metadata-backend probe, which
+		// would turn a healthy stub into a spurious readiness failure.
+		_ = exec.Command(path).Run()
 	}
 	t.Setenv("PATH", dir)
 	stubNotifier(t, nil)

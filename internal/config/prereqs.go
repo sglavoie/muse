@@ -23,8 +23,24 @@ import (
 // Advisory problems that must not block startup are returned separately as
 // warnings. Warnings are always returned, including alongside a fatal error,
 // so callers can surface everything they know in one pass.
+// mpvProbeTimeout is the share of the prerequisite budget reserved for
+// `mpv --version`. mpv has no probe deadline of its own, so this is the only
+// thing bounding it.
+const mpvProbeTimeout = 10 * time.Second
+
+// prereqBudget bounds the whole prerequisite pass. It is derived from the
+// probes it has to pay for — the mpv probe plus, in the worst case, both
+// metadata-backend probes — rather than being a flat literal. A flat budget
+// smaller than that sum silently truncates the *second* backend probe, so a
+// slow-to-start-but-healthy ffprobe following a wedged ExifTool would be
+// reported as unusable and startup would fail with "no metadata backend"
+// despite a working fallback being installed.
+func prereqBudget() time.Duration {
+	return mpvProbeTimeout + 2*library.BackendProbeTimeout()
+}
+
 func CheckPrereqs(ctx context.Context) ([]string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, prereqBudget())
 	defer cancel()
 
 	warnings := checkNotifier()
@@ -112,6 +128,11 @@ func checkMPV(ctx context.Context) error {
 				"  Fedora: dnf install mpv",
 		)
 	}
+
+	// Bounded to its own share of the budget so a wedged mpv cannot consume the
+	// time prereqBudget reserved for the two metadata-backend probes.
+	ctx, cancel := context.WithTimeout(ctx, mpvProbeTimeout)
+	defer cancel()
 
 	if err := exec.CommandContext(ctx, "mpv", "--version").Run(); err != nil {
 		return fmt.Errorf("mpv is installed but failed to run ('mpv --version' exited with error): %w", err)

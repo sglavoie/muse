@@ -93,10 +93,13 @@ is read during library scans by an external tool. muse picks one at startup and
 logs which; `muse check` reports it too. Startup only fails if neither is
 usable.
 
-Being on `$PATH` is not enough for either backend: muse runs a short version
-probe against each candidate and only accepts one that answers. The probe is
-bounded (a few seconds), so a wedged executable is treated as unusable instead
-of hanging startup on a blank terminal.
+Being on `$PATH` is not enough for either backend: muse runs a version probe
+against each candidate and only accepts one that answers. The probe is bounded
+(ten seconds each), so a wedged executable is treated as unusable instead of
+hanging startup on a blank terminal. The bound is deliberately generous rather
+than tight — a healthy probe answers in milliseconds, but a cold or heavily
+loaded machine can take seconds just to start the process, and wrongly
+rejecting a working tool is worse than a slow startup.
 
 #### ExifTool — recommended (fastest)
 

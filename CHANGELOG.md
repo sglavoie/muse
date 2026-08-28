@@ -58,9 +58,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reconciled in the same scan, so one unmounted drive no longer freezes
   missing-file detection for the rest of the library.
 - Metadata-backend detection can no longer hang startup or `muse check`: both
-  version probes now carry their own short deadline, so an ExifTool or ffprobe
-  that resolves on `PATH` but never returns is treated as unusable instead of
-  blocking on a blank terminal.
+  version probes now carry their own deadline, so an ExifTool or ffprobe that
+  resolves on `PATH` but never returns is treated as unusable instead of
+  blocking on a blank terminal. The deadline is ten seconds per probe rather
+  than a tight bound, because a cold or heavily loaded machine can take seconds
+  just to start a process — a working ExifTool being rejected for answering
+  slowly is worse than a slower startup, since it silently downgrades the
+  backend or reports that none is installed. The prerequisite check now sizes
+  its own budget from that deadline, so a slow ExifTool can no longer eat the
+  time reserved for probing the ffprobe fallback.
 - A broken ffprobe is no longer accepted as the metadata backend. ffprobe used
   to qualify on `PATH` presence alone, so an installation that could not
   actually execute — missing shared libraries, a stale symlink into an

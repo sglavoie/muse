@@ -10,6 +10,18 @@ import (
 	"time"
 )
 
+// stubWarmupArg is passed to every stub once during setup. The first exec of a
+// newly written executable is expensive on this host — measured at ~240ms idle
+// and 0.9s–4.8s while the whole package suite runs concurrently — while a
+// second exec of the same file costs ~4ms. That cost belongs to the test
+// harness, not to the probe under test, so stubPATH pays it up front rather
+// than letting it be charged against backendProbeTimeout and turn a healthy
+// stub into a spurious "no metadata backend" failure under load.
+//
+// A stub that would otherwise block forever (see hangingStub) recognises this
+// argument and exits immediately, so warming is safe for every stub shape.
+const stubWarmupArg = "-muse-stub-warmup"
+
 // stubPATH writes each named shell script into a fresh temp dir and makes that
 // dir the entire PATH, so only the stubs are reachable and whatever the host
 // happens to have installed cannot leak into the assertion.
@@ -20,11 +32,22 @@ func stubPATH(t *testing.T, scripts map[string]string) {
 	}
 	dir := t.TempDir()
 	for name, body := range scripts {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755); err != nil {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
 			t.Fatal(err)
 		}
+		warmStub(t, path)
 	}
 	t.Setenv("PATH", dir)
+}
+
+// warmStub execs a freshly written stub once so the host's first-exec cost is
+// paid outside any probe deadline. The outcome is deliberately ignored: several
+// stubs exist precisely to fail, and warming is an optimisation, not an
+// assertion.
+func warmStub(t *testing.T, path string) {
+	t.Helper()
+	_ = exec.Command(path, stubWarmupArg).Run()
 }
 
 const (
@@ -127,13 +150,19 @@ func TestSelectExtractor_ErrorsWhenNeitherIsAvailable(t *testing.T) {
 // the stub look merely broken rather than hung; and `exec` replaces the shell,
 // so the kill lands on the process actually holding the probe's stdout pipe
 // and leaves no orphan behind.
+//
+// The stubWarmupArg guard is what lets stubPATH warm this script like any
+// other: without it the setup exec would itself block for the sleep's full
+// duration.
 func hangingStub(t *testing.T) string {
 	t.Helper()
 	sleep, err := exec.LookPath("sleep")
 	if err != nil {
 		t.Skip("sleep not available")
 	}
-	return "#!/bin/sh\nexec " + sleep + " 600\n"
+	return "#!/bin/sh\n" +
+		"[ \"$1\" = \"" + stubWarmupArg + "\" ] && exit 0\n" +
+		"exec " + sleep + " 600\n"
 }
 
 // shortenBackendProbeTimeout makes the bounded probes finish fast enough for a
@@ -180,6 +209,35 @@ func TestSelectExtractor_HungExifToolFallsBackWithinDeadline(t *testing.T) {
 	}
 	if backend != BackendFFProbe {
 		t.Errorf("backend = %q, want %q", backend, BackendFFProbe)
+	}
+}
+
+// TestSelectExtractor_SlowButHealthyExifToolIsAccepted is the other half of the
+// bounded probe. A deadline tight enough to reject a merely *delayed* tool is
+// worse than no deadline at all: it silently downgrades the backend, or claims
+// no backend exists, on a machine where both are installed and working. This
+// runs against the production backendProbeTimeout — no shortening override — so
+// it fails if that value is ever tightened back to the same order of magnitude
+// as a cold process start under load.
+func TestSelectExtractor_SlowButHealthyExifToolIsAccepted(t *testing.T) {
+	sleep, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("sleep not available")
+	}
+	slow := "#!/bin/sh\n" +
+		"[ \"$1\" = \"" + stubWarmupArg + "\" ] && exit 0\n" +
+		sleep + " 1\nprintf '12.00\\n'\nexit 0\n"
+	stubPATH(t, map[string]string{
+		"exiftool": slow,
+		"ffprobe":  stubFFProbe,
+	})
+
+	_, backend, err := SelectExtractor(context.Background())
+	if err != nil {
+		t.Fatalf("a healthy exiftool that takes a second to answer must still be selected, got: %v", err)
+	}
+	if backend != BackendExifTool {
+		t.Errorf("backend = %q, want %q: a delayed healthy tool was treated as unusable", backend, BackendExifTool)
 	}
 }
 

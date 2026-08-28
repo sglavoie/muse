@@ -21,12 +21,29 @@ const (
 // run from long-lived contexts — app startup and `muse check` both pass a
 // context with no deadline of their own — so without a deadline of its own a
 // single wedged executable would hang the whole process before the TUI ever
-// appears. A healthy `exiftool -ver` / `ffprobe -version` answers in ~10ms, so
-// three seconds is generous while still fitting twice inside CheckPrereqs's own
-// 10s budget alongside the mpv probe.
+// appears.
+//
+// The deadline exists only to bound a *wedged* executable, so it is sized for
+// the worst plausible healthy case rather than the typical one. A warm
+// `exiftool -ver` / `ffprobe -version` answers in ~10ms, but merely starting a
+// cold executable is not free: on a loaded machine — a parallel test suite, a
+// busy laptop, a network-mounted or scanned-on-first-exec binary — a process
+// that has not been exec'd before can take several seconds just to reach its
+// first instruction. An earlier three-second bound was inside that range and
+// rejected demonstrably healthy tools under load, which is much worse than a
+// slow startup: it silently downgrades the backend, or reports that no metadata
+// backend exists at all. Ten seconds keeps the wedged case bounded while
+// leaving roughly a 1000x margin over a healthy probe.
 //
 // It is a var so tests can shrink it; nothing outside tests reassigns it.
-var backendProbeTimeout = 3 * time.Second
+var backendProbeTimeout = 10 * time.Second
+
+// BackendProbeTimeout reports the deadline applied to a single metadata-backend
+// usability probe. Callers that impose their own budget over a sequence of
+// probes (config.CheckPrereqs) size it from this rather than from a duplicated
+// literal, so a change here cannot leave an outer budget truncating a probe
+// that has not yet timed out.
+func BackendProbeTimeout() time.Duration { return backendProbeTimeout }
 
 // errProbeTimedOut marks the deadline case so callers can explain a hang
 // differently from an outright failure — "did not respond" and "exited with
