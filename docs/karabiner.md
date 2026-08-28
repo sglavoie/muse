@@ -9,7 +9,7 @@ Control muse playback with global hotkeys via [Karabiner-Elements](https://karab
 
 ## Karabiner Rule
 
-Add this to your `karabiner.json` complex modifications. Adjust the key codes and modifier conditions to match your setup. Use absolute path to `muse` if needed.
+Add this to your `karabiner.json` complex modifications. Adjust the key codes and modifier conditions to match your setup. Karabiner does not inherit your shell's `PATH`, so replace `/absolute/path/to/muse` with the real location (`which muse`) throughout.
 
 ```json
 {
@@ -65,7 +65,7 @@ Add this to your `karabiner.json` complex modifications. Adjust the key codes an
                 "key_code": "f11",
                 "modifiers": { "optional": ["any"] }
             },
-            "to": [{ "shell_command": "/Users/sglavoie/.go/bin/muse volume-down" }],
+            "to": [{ "shell_command": "/absolute/path/to/muse volume-down" }],
             "type": "basic"
         },
         {
@@ -80,7 +80,7 @@ Add this to your `karabiner.json` complex modifications. Adjust the key codes an
                 "key_code": "f12",
                 "modifiers": { "optional": ["any"] }
             },
-            "to": [{ "shell_command": "/Users/sglavoie/.go/bin/muse volume-up" }],
+            "to": [{ "shell_command": "/absolute/path/to/muse volume-up" }],
             "type": "basic"
         }
     ]
@@ -99,7 +99,7 @@ Add this to your `karabiner.json` complex modifications. Adjust the key codes an
                     "optional": ["any"]
                 }
             },
-            "to": [{ "shell_command": "/Users/sglavoie/.go/bin/muse now-playing" }],
+            "to": [{ "shell_command": "/absolute/path/to/muse now-playing" }],
             "type": "basic"
         },
         {
@@ -110,7 +110,7 @@ Add this to your `karabiner.json` complex modifications. Adjust the key codes an
                     "optional": ["any"]
                 }
             },
-            "to": [{ "shell_command": "/Users/sglavoie/.go/bin/muse previous" }],
+            "to": [{ "shell_command": "/absolute/path/to/muse previous" }],
             "type": "basic"
         },
         {
@@ -121,7 +121,7 @@ Add this to your `karabiner.json` complex modifications. Adjust the key codes an
                     "optional": ["any"]
                 }
             },
-            "to": [{ "shell_command": "/Users/sglavoie/.go/bin/muse toggle-play" }],
+            "to": [{ "shell_command": "/absolute/path/to/muse toggle-play" }],
             "type": "basic"
         },
         {
@@ -132,7 +132,7 @@ Add this to your `karabiner.json` complex modifications. Adjust the key codes an
                     "optional": ["any"]
                 }
             },
-            "to": [{ "shell_command": "/Users/sglavoie/.go/bin/muse next" }],
+            "to": [{ "shell_command": "/absolute/path/to/muse next" }],
             "type": "basic"
         },
         {

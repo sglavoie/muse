@@ -72,7 +72,7 @@ type Document struct {
 //	# generated	2026-08-21T14:03:11Z
 //	# view	Browse > Albums > Most Relaxing Classical
 //	# count	73
-//	# root	1	/Users/seb/Music
+//	# root	1	/Users/me/Music
 //	hash	root	path	artist	title	album	genre	track	disc
 //	a3f91c	1	Classical/01 Sheep.mp3		01. Sheep	Most Relaxing		0	0
 //

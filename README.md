@@ -2,18 +2,28 @@
 
 muse is a terminal music player for a local music library. It drives
 [mpv](https://mpv.io) over a Unix IPC socket for playback, keeps a SQLite index
-of your files built from [ExifTool](https://exiftool.org) (or ffprobe)
-metadata, and renders
-everything through a [Bubble Tea](https://github.com/charmbracelet/bubbletea)
+of your files built from [ExifTool](https://exiftool.org) or ffprobe metadata,
+and renders everything through a
+[Bubble Tea](https://github.com/charmbracelet/bubbletea)
 TUI: seven primary views, a command palette, an in-app metadata editor, a
 listening-insights dashboard, and a radio mode that keeps picking the next
 track for you. It is keyboard-driven throughout — press `?` at any time for the
 full keybinding reference.
 
-<!-- TODO: replace with a real screenshot or asciinema cast captured against a
-     live library. Placeholder until the author records one. -->
-
-> **Screenshot / cast:** _not yet captured._
+> **Screenshot / cast:** no terminal cast is recorded yet. Until one is, the
+> snapshot harness will print a real rendered screen for you — no config file,
+> database, music files, or mpv involved:
+>
+> ```sh
+> just build
+> printf '{"type":"observe"}\n' | ./muse tui-test session --fixture rich --size 100x30 |
+>   jq -r '.observation.plain_screen'
+> ```
+>
+> Swap `rich` for `empty`, `narrow`, `playback`, or `health`, and send
+> `{"type":"action","action":{"key":"4"}}` before the observe to land on
+> another view.
+> See [`docs/tui-testing/README.md`](docs/tui-testing/README.md).
 
 ## Features
 
@@ -174,9 +184,9 @@ muse check
 ```
 
 `muse check` validates the config file, checks that your music directories
-exist and contain supported audio, and runs a live invocation of mpv and
-ExifTool to catch broken installs. It also reports which metadata backend a
-scan would use. It prints `ok` and exits 0 when everything is in order, and
+exist and contain supported audio, and runs a live invocation of mpv and of
+each metadata backend to catch broken installs. It also reports which backend
+a scan would use. It prints `ok` and exits 0 when everything is in order, and
 prints actionable errors to stderr and exits 1 otherwise. Advisory problems
 (such as a missing notification backend, or falling back from ExifTool to
 ffprobe) are printed as warnings without failing the check.
@@ -207,6 +217,19 @@ log level, mpv socket path and extra flags, seek and volume increments,
 gapless audio, EQ presets and bands, stereo widening, volume normalization,
 footer hints, track-change notifications, and the recommendation-mix
 thresholds.
+
+Until `music_directories` points at something readable, muse still starts — it
+opens on an empty library with an overlay telling you which file to edit.
+Directories that later go missing (an unmounted drive, a renamed folder) are
+reported as a warning and skipped for that scan; the tracks under them stay in
+the database rather than being marked missing.
+
+If something goes wrong, the log file is the place to look. A panic in
+background work — the scan pipeline, the mpv event reader, a watcher — is
+recorded there with its stack and does not take the process down, and a panic
+in the TUI leaves a record there too, since the terminal has already been
+restored by the time you see it. muse also cleans up after a previous crash:
+an mpv process orphaned by one is shut down at the next startup.
 
 ## Usage
 

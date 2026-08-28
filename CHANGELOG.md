@@ -13,6 +13,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `.dts`, `.m4r`, `.mp4`, `.snd`, and `.w64`. Note that `.mp4` files are indexed
   and played as audio only; exclude them with `excluded_paths` if your music
   directory also holds video.
+- ffprobe as a full metadata backend. muse picks a backend at startup —
+  ExifTool when it is installed and working, ffprobe otherwise — so a machine
+  with FFmpeg but no Perl can run muse. `muse check` prints which backend a
+  scan would use, and the fallback is reported as a warning rather than a
+  fatal error.
+- The track-info overlay (`i`) reads through the active backend too, so it
+  shows the raw tags ffprobe returns when ffprobe is the one scanning. On that
+  backend it fills in rows ExifTool leaves blank for several containers —
+  album artist, bitrate, channels, and sample rate — and reports disc numbers
+  and Ogg/Opus durations that ExifTool does not return at all.
+- A welcome overlay with setup instructions when no usable music directory is
+  configured, so a first run on a machine without `~/Music` lands in a working
+  (if empty) UI instead of an error.
+- Panic diagnostics for background work. A panic in a background goroutine is
+  now recovered and logged with its stack instead of killing the process, and
+  a panic inside the TUI leaves a record in the log file rather than only on
+  a terminal that has already been restored.
+- Startup now reaps an mpv left running by a previous crash. Removing the
+  stale IPC socket was never enough on its own: mpv runs with `--idle=yes` and
+  survives its parent, so the orphan kept holding an audio device — and kept
+  playing — invisibly.
+
+### Changed
+
+- ExifTool is no longer a hard startup requirement; it is the recommended
+  backend because it scans a batch in one process (about 2.4x faster than
+  ffprobe on a real library), but either tool is sufficient. Startup fails
+  only when neither is available. A broken ExifTool install — present on
+  `PATH` but failing `exiftool -ver`, typically a missing Perl module — is
+  treated the same as an absent one and falls back to ffprobe.
+- A missing, unreadable, or empty music directory is no longer fatal. muse
+  starts, surfaces the problem as a warning with the configuration hint, and
+  keeps the remaining directories in the scan.
+- The macOS notification group identifier is now `muse.now-playing`.
+
+### Fixed
+
+- A music directory that has been unmounted, renamed, or deleted no longer
+  causes every track under it to be marked missing. The scan skips the
+  unreachable root and reports no deletions instead of treating an unwalked
+  tree as an empty one.
 
 ## [0.1.0]
 
