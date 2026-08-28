@@ -5,6 +5,8 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/sglavoie/muse/internal/safego"
 )
@@ -42,16 +44,18 @@ type KnownFile struct {
 // A root that cannot be opened at all (missing directory, permission denied) is
 // logged and skipped rather than failing the whole walk, so a user whose
 // configured music directory does not exist still gets a working, empty
-// library. Deletions are suppressed in that case: the files under a skipped
-// root were not observed, so reporting them as deleted would mark the entire
-// cached library missing.
+// library. Deletions are suppressed for that root only: known paths beneath a
+// skipped root were not observed, so reporting them as deleted would mark that
+// part of the cached library missing. Known paths beneath the roots that were
+// walked successfully are still reconciled in the same scan, so one unmounted
+// music directory does not freeze deletion reconciliation everywhere else.
 //
 // onErr, when non-nil, is called for each non-fatal walk error so callers can
 // surface them to the user (e.g. permission denied on a subdirectory).
 func FilteredWalk(ctx context.Context, roots []string, excludedPaths []string, known map[string]KnownFile, onErr func(error)) ([]string, []string, error) {
 	seen := make(map[string]bool, len(known))
 	var changed []string
-	rootSkipped := false
+	var skippedRoots []string
 
 	for _, root := range roots {
 		if ctx.Err() != nil {
@@ -75,32 +79,66 @@ func FilteredWalk(ctx context.Context, roots []string, excludedPaths []string, k
 		}, onErr); err != nil {
 			if errors.Is(err, errRootSkipped) {
 				slog.Warn("filtered walk: skipping unreadable root", "root", root, "err", err)
-				rootSkipped = true
+				skippedRoots = append(skippedRoots, root)
 				continue
 			}
 			return nil, nil, err
 		}
 	}
 
-	// When the context was cancelled, or a root could not be opened, the walk is
-	// incomplete: some known paths were never visited. Reporting them as deleted
-	// would cause the caller to mark still-existing files as missing in the
-	// database. Return nil deletions so the caller skips the deletion step.
-	if ctx.Err() != nil || rootSkipped {
+	// A cancelled context truncates the walk at an arbitrary point in an
+	// arbitrary root, so nothing about the unseen known paths can be trusted.
+	// Return nil deletions so the caller skips the deletion step entirely.
+	if ctx.Err() != nil {
 		return changed, nil, nil
 	}
 
 	// Compute deletions: known paths not seen during the walk.
 	// Skip paths excluded by the current configuration so that a newly
 	// excluded directory is not reported as "deleted" and marked missing.
+	// Skip paths beneath a root that could not be opened: those files were
+	// never observed, which is not the same as having been deleted. Deletions
+	// under the roots that were walked successfully are still reported, so an
+	// unmounted root only freezes reconciliation for its own subtree.
 	var deleted []string
 	for path := range known {
-		if !seen[path] && !ShouldExclude(path, excludedPaths) {
-			deleted = append(deleted, path)
+		if seen[path] || ShouldExclude(path, excludedPaths) {
+			continue
 		}
+		if underAnyRoot(path, skippedRoots) {
+			continue
+		}
+		deleted = append(deleted, path)
 	}
 
 	return changed, deleted, nil
+}
+
+// underAnyRoot reports whether path lies inside (or is) any of roots.
+func underAnyRoot(path string, roots []string) bool {
+	for _, root := range roots {
+		if underRoot(path, root) {
+			return true
+		}
+	}
+	return false
+}
+
+// underRoot reports whether path lies inside root or is root itself. Both are
+// cleaned first so a configured root with a trailing separator or a "." segment
+// cannot change the answer; known paths come from a walk of the same roots, so
+// the textual comparison matches without resolving symlinks.
+func underRoot(path, root string) bool {
+	root = filepath.Clean(root)
+	path = filepath.Clean(path)
+	if path == root {
+		return true
+	}
+	sep := string(filepath.Separator)
+	if !strings.HasSuffix(root, sep) {
+		root += sep
+	}
+	return strings.HasPrefix(path, root)
 }
 
 // pathsToChan streams paths into a buffered channel for HashWorkers consumption.

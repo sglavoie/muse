@@ -20,10 +20,12 @@ import (
 // with the remaining ones, so a first-run user whose configured music
 // directory does not exist still reaches a usable UI.
 //
-// FilteredWalk additionally suppresses deletion reporting when a root is
-// skipped. "No files found under an unreadable root" must never be mistaken
-// for "every file under it was deleted", which would mark the whole library
-// missing the first time a music directory is unmounted or renamed.
+// FilteredWalk additionally suppresses deletion reporting for the paths
+// beneath a skipped root. "No files found under an unreadable root" must never
+// be mistaken for "every file under it was deleted", which would mark that
+// music directory's tracks missing the first time it is unmounted or renamed.
+// The suppression is scoped to that root's subtree, so the remaining roots are
+// still reconciled normally.
 var errRootSkipped = errors.New("root skipped")
 
 // walkAudioPaths walks root applying the shared rules: skip hidden

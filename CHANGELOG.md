@@ -52,8 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A music directory that has been unmounted, renamed, or deleted no longer
   causes every track under it to be marked missing. The scan skips the
-  unreachable root and reports no deletions instead of treating an unwalked
-  tree as an empty one.
+  unreachable root and reports no deletions for it instead of treating an
+  unwalked tree as an empty one. That suppression is scoped to the skipped
+  directory: files deleted from the music directories that were read are still
+  reconciled in the same scan, so one unmounted drive no longer freezes
+  missing-file detection for the rest of the library.
 - Metadata-backend detection can no longer hang startup or `muse check`: both
   version probes now carry their own short deadline, so an ExifTool or ffprobe
   that resolves on `PATH` but never returns is treated as unusable instead of

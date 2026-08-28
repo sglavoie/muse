@@ -105,27 +105,86 @@ func TestFilteredWalk_MissingRootYieldsEmptyResultWithoutError(t *testing.T) {
 	}
 }
 
-// One unreadable root must not suppress discovery in the others, but it still
-// suppresses deletions for the whole walk (the view of disk is incomplete).
-// A missing root means the cached files were never observed, not that they were
-// deleted; reporting them would mark the whole library missing the first time a
-// music directory is unmounted or renamed.
+// One unreadable root must not suppress discovery in the others.
 func TestFilteredWalk_MissingRootStillWalksRemainingRoots(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "nope")
 	good := t.TempDir()
 	mkfile(t, filepath.Join(good, "a.mp3"))
-	gone := filepath.Join(good, "gone.mp3")
 
-	changed, deleted, err := FilteredWalk(context.Background(), []string{missing, good}, nil,
-		map[string]KnownFile{gone: {ModTime: 1, SizeBytes: 2}}, nil)
+	changed, _, err := FilteredWalk(context.Background(), []string{missing, good}, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("FilteredWalk err = %v, want nil", err)
 	}
 	if len(changed) != 1 || filepath.Base(changed[0]) != "a.mp3" {
 		t.Errorf("changed = %v, want [a.mp3]", changed)
 	}
+}
+
+// Deletion suppression is scoped to the skipped root's own subtree. A cached
+// file under the unreadable root was never observed, so it must never be
+// reported deleted; a cached file that is genuinely gone from a root that was
+// walked successfully must still be reported in the same scan, otherwise one
+// unmounted music directory freezes reconciliation for every other one.
+func TestFilteredWalk_MissingRootStillReportsDeletionsFromReadableRoots(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "nope")
+	good := t.TempDir()
+	mkfile(t, filepath.Join(good, "a.mp3"))
+
+	protected := filepath.Join(missing, "unmounted.mp3")
+	gone := filepath.Join(good, "gone.mp3")
+	known := map[string]KnownFile{
+		protected: {ModTime: 1, SizeBytes: 2},
+		gone:      {ModTime: 1, SizeBytes: 2},
+	}
+
+	changed, deleted, err := FilteredWalk(context.Background(), []string{missing, good}, nil, known, nil)
+	if err != nil {
+		t.Fatalf("FilteredWalk err = %v, want nil", err)
+	}
+	if len(changed) != 1 || filepath.Base(changed[0]) != "a.mp3" {
+		t.Errorf("changed = %v, want [a.mp3]", changed)
+	}
+	if !slices.Equal(deleted, []string{gone}) {
+		t.Errorf("deleted = %v, want exactly [%s]", deleted, gone)
+	}
+}
+
+// Root order must not matter: the skipped root's subtree stays protected
+// whether it is walked before or after the readable root.
+func TestFilteredWalk_SkippedRootSuppressionIsOrderIndependent(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "nope")
+	good := t.TempDir()
+	protected := filepath.Join(missing, "unmounted.mp3")
+	gone := filepath.Join(good, "gone.mp3")
+
+	for _, roots := range [][]string{{missing, good}, {good, missing}} {
+		known := map[string]KnownFile{
+			protected: {ModTime: 1, SizeBytes: 2},
+			gone:      {ModTime: 1, SizeBytes: 2},
+		}
+		_, deleted, err := FilteredWalk(context.Background(), roots, nil, known, nil)
+		if err != nil {
+			t.Fatalf("FilteredWalk(%v) err = %v, want nil", roots, err)
+		}
+		if !slices.Equal(deleted, []string{gone}) {
+			t.Errorf("FilteredWalk(%v) deleted = %v, want exactly [%s]", roots, deleted, gone)
+		}
+	}
+}
+
+// A trailing separator on a configured root is cosmetic; it must not defeat the
+// subtree match that protects cached paths under a skipped root.
+func TestFilteredWalk_SkippedRootWithTrailingSeparatorStillProtects(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "nope")
+	protected := filepath.Join(missing, "unmounted.mp3")
+
+	_, deleted, err := FilteredWalk(context.Background(), []string{missing + string(filepath.Separator)}, nil,
+		map[string]KnownFile{protected: {ModTime: 1, SizeBytes: 2}}, nil)
+	if err != nil {
+		t.Fatalf("FilteredWalk err = %v, want nil", err)
+	}
 	if deleted != nil {
-		t.Errorf("deleted = %v, want nil while any root was skipped", deleted)
+		t.Errorf("deleted = %v, want nil for a path under the skipped root", deleted)
 	}
 }
 

@@ -3,6 +3,7 @@ package app_test
 import (
 	"context"
 	"path/filepath"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -32,6 +33,12 @@ func (w *recordingWriter) missingCount() int {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return len(w.missing)
+}
+
+func (w *recordingWriter) missingHashes() []string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return slices.Clone(w.missing)
 }
 
 // waitForWatchStatus reads the single watcher-availability message, failing the
@@ -93,6 +100,66 @@ func TestLoadLibrary_NonexistentMusicDirIsNonFatal(t *testing.T) {
 
 	if n := writer.missingCount(); n != 0 {
 		t.Errorf("MarkTrackMissing called %d times, want 0 for an unreadable root", n)
+	}
+}
+
+// With one unreadable and one readable music directory, deletion
+// reconciliation must keep running for the readable one: only the track that
+// genuinely vanished from the root that was walked is marked missing, while the
+// track under the unmounted root is left alone.
+func TestLoadLibrary_MixedRootsMarksOnlyReadableDeletion(t *testing.T) {
+	dirs := setupDirs(t)
+	unreadable := filepath.Join(t.TempDir(), "unmounted-music-dir")
+	readable := t.TempDir()
+
+	result, err := app.Run(t.Context(), dirs, noopDeps())
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	defer result.DB.Close()
+
+	// Both tracks are cached and neither exists on disk. Only the one under the
+	// readable root was actually observed to be absent.
+	protectedPath := filepath.Join(unreadable, "protected.mp3")
+	deletedPath := filepath.Join(readable, "deleted.mp3")
+	if err := result.Writer.UpsertBatch([]library.Track{
+		{Hash: "protected-hash", Path: protectedPath, Title: "protected", Artist: "x"},
+		{Hash: "deleted-hash", Path: deletedPath, Title: "deleted", Artist: "x"},
+	}); err != nil {
+		t.Fatalf("seed UpsertBatch: %v", err)
+	}
+
+	writer := &recordingWriter{}
+	ctx, cancel := context.WithCancel(t.Context())
+	libResult, err := app.LoadLibrary(ctx, result.DB, writer,
+		[]string{unreadable, readable}, nil, stubExtractor{}, 100)
+	if err != nil {
+		cancel()
+		t.Fatalf("LoadLibrary: %v", err)
+	}
+
+	if len(libResult.Tracks) != 2 {
+		t.Errorf("cached tracks = %d, want 2", len(libResult.Tracks))
+	}
+	waitForWatchStatus(t, libResult)
+
+	select {
+	case ev := <-libResult.TuiWatchCh:
+		if !ev.Deleted || ev.Path != deletedPath {
+			t.Errorf("watch event = %+v, want a deletion of %s", ev, deletedPath)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("deletion under the readable root was never reported")
+	}
+
+	for range libResult.TuiScanCh {
+		t.Error("unexpected scanned track: neither root holds an audio file")
+	}
+	drainChannels(cancel, libResult)
+	libResult.StopAndWait()
+
+	if got := writer.missingHashes(); !slices.Equal(got, []string{"deleted-hash"}) {
+		t.Errorf("MarkTrackMissing hashes = %v, want exactly [deleted-hash]", got)
 	}
 }
 
