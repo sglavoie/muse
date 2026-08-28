@@ -6,6 +6,7 @@ import (
 	"math"
 	"runtime"
 	"sync"
+	"sync/atomic"
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
@@ -71,13 +72,19 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 		results := make(chan result, len(tracks))
 		n := runtime.NumCPU()
 
+		var panicked atomic.Bool
 		var wg sync.WaitGroup
 		for range n {
 			wg.Go(func() {
 				// probe shells out to ffprobe and parses its output. Recovering
 				// drops this worker; the closer goroutine below still waits on
-				// wg and closes results, so the collector loop terminates.
-				defer safego.Recover("app.durationAuditWorker")
+				// wg and closes results, so the collector loop terminates. The
+				// work channel is buffered and already closed, so no producer is
+				// left blocked — but the tracks this worker abandons are simply
+				// not audited, which the completion log has to admit.
+				defer safego.RecoverTo("app.durationAuditWorker", func(error) {
+					panicked.Store(true)
+				})
 				for t := range work {
 					// Bail out promptly on cancellation rather than burning
 					// CPU on remaining work items during shutdown.
@@ -140,6 +147,11 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 			}
 		}
 
+		if panicked.Load() {
+			slog.Error("duration audit incomplete: a worker panicked and its tracks were not audited",
+				"checked", checked, "corrected", corrected, "queued", len(tracks))
+			return
+		}
 		slog.Info("duration audit complete", "checked", checked, "corrected", corrected)
 	}()
 

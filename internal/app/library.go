@@ -201,32 +201,116 @@ type libraryPipeline struct {
 	watchStatusCh  chan<- library.WatchStatusMsg
 }
 
+// watchFn is library.Watch, indirected so tests can inject a watcher that fails
+// in ways a real one cannot be made to on demand (notably by panicking).
+var watchFn = library.Watch
+
+// pipelineOutputs owns every outbound channel of runLibraryPipeline so the
+// normal path and the panic-recovery path can close each one exactly once. Its
+// once guards are what make the recovery path safe: without them a panic that
+// fired after the diff walk had already closed its stream would close it twice.
+type pipelineOutputs struct {
+	p libraryPipeline
+
+	statusOnce sync.Once
+	scanOnce   sync.Once
+	errOnce    sync.Once
+	watchOnce  sync.Once
+
+	// errClosed records that scanErrCh is gone, so the degraded report knows
+	// not to send on it. Only ever read after wg.Wait, so it needs no lock.
+	errClosed bool
+	// failure holds the panic recovered from runLibraryPipeline's own frame.
+	// It is reported in finish rather than in the recover handler because the
+	// spawned goroutines are still running at recover time.
+	failure error
+}
+
+// reportStatus emits the single watcher-availability message and closes the
+// channel. Later calls are no-ops, so whichever of the normal path and the
+// failure path gets there first defines the reported status.
+func (o *pipelineOutputs) reportStatus(msg library.WatchStatusMsg) {
+	o.statusOnce.Do(func() {
+		o.p.watchStatusCh <- msg
+		close(o.p.watchStatusCh)
+	})
+}
+
+func (o *pipelineOutputs) closeScan()  { o.scanOnce.Do(func() { close(o.p.rawScanStream) }) }
+func (o *pipelineOutputs) closeWatch() { o.watchOnce.Do(func() { close(o.p.rawWatchStream) }) }
+
+func (o *pipelineOutputs) closeErr() {
+	o.errOnce.Do(func() {
+		o.errClosed = true
+		close(o.p.scanErrCh)
+	})
+}
+
+// finish reports a recovered panic as an explicit failure on the channels the
+// TUI already watches, then closes every stream. It runs after the pipeline's
+// goroutines have been waited on, so it is the sole writer at this point.
+func (o *pipelineOutputs) finish() {
+	if o.failure != nil {
+		if !o.errClosed {
+			select {
+			case o.p.scanErrCh <- library.ScanErrorMsg{Err: o.failure}:
+			default: // drop if buffer is full
+			}
+		}
+		// A no-op when the watcher status was already reported successfully;
+		// the scan error above still carries the failure in that case.
+		o.reportStatus(library.WatchStatusMsg{Available: false, Err: o.failure})
+	}
+	o.closeScan()
+	o.closeErr()
+	o.closeWatch()
+}
+
 // runLibraryPipeline registers the filesystem watcher, starts draining live
 // watcher events, then runs the diff walk. Watcher registration precedes the
 // walk so no on-disk change that lands between the two is missed. done is
 // closed when every goroutine this function spawns has exited.
+//
+// A panic in this function is recovered rather than fatal, but it must not look
+// like a clean finish: close(done) alone would report success to LoadLibrary's
+// waiters while leaving the TUI's streams open forever. The deferred chain
+// therefore cancels the pipeline, waits for the spawned goroutines, publishes
+// the failure as a scan error and a degraded watcher status, and only then
+// closes the streams and done.
 func runLibraryPipeline(ctx context.Context, done chan<- struct{}, p libraryPipeline) {
+	ctx, cancel := context.WithCancel(ctx)
+	out := &pipelineOutputs{p: p}
+	var wg sync.WaitGroup
+
+	// Deferred calls run last-registered-first: recover, wait, finish,
+	// close(done), cancel. Cancellation is last so the normal path is not cut
+	// short by it; the recovery handler cancels early instead, which is what
+	// lets the wg.Wait that follows it return on a failed pipeline.
+	defer cancel()
 	defer close(done)
+	defer out.finish()
+	defer wg.Wait()
+	defer safego.RecoverTo("app.runLibraryPipeline", func(err error) {
+		out.failure = err
+		cancel()
+	})
 
 	// 1. Register the filesystem watcher before the diff walk so no change that
 	//    lands between the walk and watch registration is missed.
-	rawWatchCh, degraded, watchErr := library.Watch(ctx, p.musicDirs, p.excludedPaths, p.extractor, library.DefaultDebounce)
+	rawWatchCh, degraded, watchErr := watchFn(ctx, p.musicDirs, p.excludedPaths, p.extractor, library.DefaultDebounce)
 	if watchErr != nil {
 		slog.Error("failed to start file watcher", "err", watchErr)
 		degraded = true
 	}
 	// Report watcher availability asynchronously, then close the channel.
-	p.watchStatusCh <- library.WatchStatusMsg{Available: !degraded, Err: watchErr}
-	close(p.watchStatusCh)
-
-	var wg sync.WaitGroup
+	out.reportStatus(library.WatchStatusMsg{Available: !degraded, Err: watchErr})
 
 	// 2. Drain live watcher events into the reconciliation stream immediately,
 	//    concurrently with the diff walk below.
 	wg.Add(1)
 	go func() {
 		// wg.Done stays deferred so a recovered panic still lets the wg.Wait
-		// below reach close(p.rawWatchStream) and drain the watch bridge.
+		// above reach out.closeWatch and drain the watch bridge.
 		defer safego.Recover("app.forwardWatchEvents")
 		defer wg.Done()
 		forwardWatchEvents(ctx, rawWatchCh, p.rawWatchStream)
@@ -239,15 +323,9 @@ func runLibraryPipeline(ctx context.Context, done chan<- struct{}, p libraryPipe
 	go func() {
 		defer safego.Recover("app.runDiffWalk")
 		defer wg.Done()
-		defer close(p.rawScanStream)
-		runDiffWalk(ctx, p)
+		defer out.closeScan()
+		runDiffWalk(ctx, out)
 	}()
-
-	// The watch reconciliation stream stays open until both the live watcher
-	// forwarder and the initial-deletion injector have finished, then closes so
-	// the watch bridge can drain its final batch and exit.
-	wg.Wait()
-	close(p.rawWatchStream)
 }
 
 // forwardWatchEvents relays events from the raw watcher channel into the shared
@@ -275,7 +353,8 @@ func forwardWatchEvents(ctx context.Context, in <-chan library.WatchEvent, out c
 // to the scan bridge and initial deletions to the watcher reconciliation
 // stream. Duplicate diff/watch observations are tolerated downstream as
 // idempotent hash/path upserts and missing marks.
-func runDiffWalk(ctx context.Context, p libraryPipeline) {
+func runDiffWalk(ctx context.Context, out *pipelineOutputs) {
+	p := out.p
 	// Collect non-fatal walk errors into the scan-error channel so the TUI can
 	// surface them. FilteredWalk runs synchronously inside DiffScan, so all
 	// errors are enqueued before DiffScan returns.
@@ -289,7 +368,7 @@ func runDiffWalk(ctx context.Context, p libraryPipeline) {
 	rawScanCh, deletedPaths, walkErr := library.DiffScan(ctx, p.musicDirs, p.excludedPaths, p.extractor, p.known, onWalkErr)
 	// The walk has completed; close the error channel only now so consumers see
 	// a genuinely asynchronous, walk-scoped error stream.
-	close(p.scanErrCh)
+	out.closeErr()
 	if walkErr != nil {
 		slog.Warn("diff scan: walk failed, skipping deletions", "err", walkErr)
 		deletedPaths = nil

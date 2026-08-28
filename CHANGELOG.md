@@ -63,6 +63,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   actually execute — missing shared libraries, a stale symlink into an
   uninstalled FFmpeg — became the backend and scanned every track into
   filename-derived placeholder metadata with no error reported anywhere.
+- A recovered panic in a background worker no longer passes for a successful
+  result. A metadata worker that died mid-batch used to leave tracks with an
+  empty path and no metadata in the library; each file is now recovered
+  individually and falls back to filename-derived metadata. A hash worker that
+  died could leave the directory walk blocked forever on a channel nobody was
+  reading; the last worker to go now drains it. A panic in the library
+  pipeline itself reported a clean finish while leaving the scan and watch
+  streams open; it now closes them and surfaces the failure as a scan error
+  and a degraded watcher status.
 
 ## [0.1.0]
 

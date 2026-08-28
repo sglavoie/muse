@@ -72,15 +72,16 @@ func (e FFProbeExtractor) Extract(ctx context.Context, files []HashedFile) ([]Tr
 	var wg sync.WaitGroup
 	for range workers {
 		wg.Go(func() {
-			// probeFile parses ffprobe's JSON; recovering keeps a malformed
-			// response from killing the process. The feed loop below always
-			// closes indexes and wg.Wait still returns, so a lost worker leaves
-			// zero-value tracks rather than a stuck scan.
+			// Recovery is per item (see probeFileRecovered), so a malformed
+			// response cannot abandon the rest of this worker's queue. This
+			// worker-level recover is only a backstop for a panic raised by the
+			// loop itself; the fill pass after wg.Wait repairs any slot it left
+			// unwritten, so a lost worker can never emit a zero-value Track.
 			defer safego.Recover("library.ffprobeWorker")
 			// Each worker writes only to tracks[i] for the indexes it pulls,
 			// so the shared slice needs no lock.
 			for i := range indexes {
-				tracks[i] = probeFile(ctx, files[i])
+				tracks[i] = probeFileRecovered(ctx, files[i])
 			}
 		})
 	}
@@ -104,7 +105,55 @@ feed:
 		// shutting down and extractWithBinaryRetry drops cancelled batches.
 		return nil, err
 	}
+
+	// Every index was handed out (the feed loop only breaks early on
+	// cancellation, which returned above), so any slot still zero-valued means a
+	// worker died before writing it. Emitting those as-is would insert tracks
+	// with an empty path and hash into the library, so they are repaired with
+	// the same filename fallback an unprobeable file gets.
+	repaired := 0
+	for i := range tracks {
+		if tracks[i].Path == "" {
+			tracks[i] = fallbackTrack(files[i])
+			repaired++
+		}
+	}
+	if repaired > 0 {
+		slog.Error("ffprobe: worker panicked mid-batch, metadata degraded to filename fallback",
+			"files", repaired,
+			"batch", len(files),
+		)
+	}
 	return tracks, nil
+}
+
+// probeFileRecovered probes one file, converting a panic in the probe into the
+// same filename fallback an unprobeable file produces. Recovery is per item
+// rather than per worker so a single bad file degrades only itself: the worker
+// keeps draining indexes, and no accepted file is left as a zero-value Track.
+func probeFileRecovered(ctx context.Context, f HashedFile) (t Track) {
+	defer safego.RecoverTo("library.ffprobeProbeFile", func(error) {
+		t = fallbackTrack(f)
+	})
+	return probeFileFn(ctx, f)
+}
+
+// probeFileFn is the per-file probe, indirected so tests can inject a panicking
+// probe without spawning a real ffprobe.
+var probeFileFn = probeFile
+
+// fallbackTrack returns the filename-derived Track used when metadata cannot be
+// read, matching the fallback extractWithBinaryRetry produces on the exiftool
+// path. It always sets Path, which is what makes an unwritten slot detectable.
+func fallbackTrack(f HashedFile) Track {
+	return Track{
+		Path:      f.Path,
+		Hash:      f.Hash,
+		Artist:    "Unknown Artist",
+		Title:     filenameStem(f.Path),
+		ModTime:   f.ModTime,
+		SizeBytes: f.SizeBytes,
+	}
 }
 
 // probeFile runs ffprobe on a single file and converts the result to a Track.
@@ -118,14 +167,7 @@ func probeFile(ctx context.Context, f HashedFile) Track {
 			"path", f.Path,
 			"error", err,
 		)
-		return Track{
-			Path:      f.Path,
-			Hash:      f.Hash,
-			Artist:    "Unknown Artist",
-			Title:     filenameStem(f.Path),
-			ModTime:   f.ModTime,
-			SizeBytes: f.SizeBytes,
-		}
+		return fallbackTrack(f)
 	}
 
 	tags := mergeFFProbeTags(out)

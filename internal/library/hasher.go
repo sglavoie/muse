@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"sync/atomic"
 
 	"github.com/sglavoie/muse/internal/safego"
 	"github.com/zeebo/blake3"
@@ -36,13 +37,27 @@ func HashWorkers(in <-chan string) <-chan HashedFile {
 func hashWorkersN(n int, in <-chan string, hashFn func(string) (string, error)) <-chan HashedFile {
 	out := make(chan HashedFile, n)
 	var wg sync.WaitGroup
+	// live counts the workers that have not yet died to a panic. The last one to
+	// go has to drain in itself: nothing else is reading it any more, and the
+	// walker goroutine upstream would otherwise block forever on `ch <- path`.
+	var live atomic.Int64
+	live.Store(int64(n))
+	var panicked atomic.Bool
 	for range n {
 		wg.Go(func() {
 			// hashFn is injected and, in production, reads arbitrary files off
 			// disk; a panic here must not take the process down. Recovering
-			// stops this worker early, but the remaining workers keep draining
-			// in and wg.Wait below still closes out, so no consumer hangs.
-			defer safego.Recover("library.hashWorker")
+			// stops this worker early; the remaining workers keep draining in,
+			// and when none are left the handler drains it so the producer can
+			// finish. wg.Wait below still closes out, so no consumer hangs.
+			defer safego.RecoverTo("library.hashWorker", func(error) {
+				panicked.Store(true)
+				if live.Add(-1) > 0 {
+					return
+				}
+				for range in { //nolint:revive // draining to unblock the producer
+				}
+			})
 			for path := range in {
 				hash, err := hashFn(path)
 				if err != nil {
@@ -72,6 +87,11 @@ func hashWorkersN(n int, in <-chan string, hashFn func(string) (string, error)) 
 		defer safego.Recover("library.hashWorkersCloser")
 		defer close(out)
 		wg.Wait()
+		if panicked.Load() {
+			// The closed output channel otherwise reads as "every path was
+			// hashed"; say plainly that the batch is short.
+			slog.Error("hash worker panicked: some files were not hashed and are missing from this scan")
+		}
 	}()
 	return out
 }
