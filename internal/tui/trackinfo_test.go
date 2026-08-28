@@ -235,3 +235,104 @@ func TestNewTrackInfoOverlay_NoUserTags(t *testing.T) {
 		}
 	}
 }
+
+// TestNewTrackInfoOverlay_FFProbeKeys pins the contract between the ffprobe
+// half of library.ExtractAllTags and this overlay: the key names that backend
+// emits must fill every row tagGroups defines. If a key is renamed on either
+// side, the corresponding row silently disappears in the app — here it fails.
+func TestNewTrackInfoOverlay_FFProbeKeys(t *testing.T) {
+	// Exactly the keys internal/library/alltags.go emits, with values of the
+	// types it emits them as (ints for the counted fields).
+	tags := map[string]any{
+		"SourceFile":    "/music/probe.flac",
+		"Title":         "Probe Song",
+		"Artist":        "Probe Artist",
+		"Album":         "Probe Album",
+		"AlbumArtist":   "Probe Album Artist",
+		"Genre":         "Ambient",
+		"Comment":       "Probe Comment",
+		"Encoder":       "Lavf62.12.102",
+		"Date":          "2024",
+		"Track":         3,
+		"DiscNumber":    1,
+		"SampleRate":    44100,
+		"AudioChannels": 2,
+		"BitsPerSample": 16,
+		"AudioBitrate":  "800 kbps",
+		"Duration":      "0:04:16",
+		"FileSize":      "26 MB",
+		"FileType":      "FLAC",
+		"MIMEType":      "audio/flac",
+	}
+	overlay := newTrackInfoOverlay("/music/probe.flac", tags, 7, nil)
+
+	got := map[string]string{}
+	for _, row := range overlay.rows {
+		if row.Label != "" {
+			got[row.Label] = row.Text
+		}
+	}
+	want := map[string]string{
+		"Title:":        "Probe Song",
+		"Artist:":       "Probe Artist",
+		"Album:":        "Probe Album",
+		"Album Artist:": "Probe Album Artist",
+		"Genre:":        "Ambient",
+		"Track:":        "3",
+		"Disc:":         "1",
+		"Year:":         "2024",
+		"Duration:":     "0:04:16",
+		"Sample Rate:":  "44100",
+		"Bitrate:":      "800 kbps",
+		"Channels:":     "2",
+		"Bits/Sample:":  "16",
+		"File Type:":    "FLAC",
+		"MIME Type:":    "audio/flac",
+		"Encoder:":      "Lavf62.12.102",
+		"Comment:":      "Probe Comment",
+	}
+	for label, wantText := range want {
+		if got[label] != wantText {
+			t.Errorf("row %q = %q, want %q", label, got[label], wantText)
+		}
+	}
+
+	out := ansi.Strip(overlay.Render(80, 40, newTestStyles()))
+	for _, want := range []string{"Probe Song", "44100", "audio/flac", "0:04:16"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q in rendered output", want)
+		}
+	}
+}
+
+// TestNewTrackInfoOverlay_FFProbeOmissions covers the accepted fallback: when
+// ffprobe reports nothing beyond the container basics (a raw stream with no
+// tags), the overlay drops every missing row and still renders a well-formed
+// panel rather than panicking or emitting blank labels.
+func TestNewTrackInfoOverlay_FFProbeOmissions(t *testing.T) {
+	tags := map[string]any{
+		"SourceFile": "/music/raw.dts",
+		"FileType":   "DTS",
+		"SampleRate": 48000,
+	}
+	overlay := newTrackInfoOverlay("/music/raw.dts", tags, 0, nil)
+
+	for _, row := range overlay.rows {
+		if row.Blank {
+			continue
+		}
+		if row.Label == "" || row.Text == "" {
+			t.Errorf("half-empty row rendered: %+v", row)
+		}
+	}
+
+	out := ansi.Strip(overlay.Render(80, 24, newTestStyles()))
+	if !strings.Contains(out, "Track Info") || !strings.Contains(out, "DTS") {
+		t.Errorf("expected a well-formed panel, got:\n%s", out)
+	}
+	for _, absent := range []string{"MIME Type:", "Encoder:", "Bitrate:", "Comment:"} {
+		if strings.Contains(out, absent) {
+			t.Errorf("expected %q to be omitted when ffprobe reports no value", absent)
+		}
+	}
+}

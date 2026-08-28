@@ -275,10 +275,10 @@ func (e ExifToolExtractor) Extract(ctx context.Context, files []HashedFile) ([]T
 // extractAllTagsTimeout is the maximum time allowed for a single-file tag extraction.
 const extractAllTagsTimeout = 10 * time.Second
 
-// ExtractAllTags runs exiftool -json on a single file and returns the full
-// set of tags as a map. This is used by the track-info overlay to display
-// detailed metadata without being limited to the fields in exifRecord.
-func ExtractAllTags(ctx context.Context, path string) (map[string]any, error) {
+// extractAllTagsExifTool runs exiftool -json on a single file and returns the
+// full set of tags as a map. It is the exiftool half of ExtractAllTags (see
+// alltags.go), which is what the track-info overlay calls.
+func extractAllTagsExifTool(ctx context.Context, path string) (map[string]any, error) {
 	ctx, cancel := context.WithTimeout(ctx, extractAllTagsTimeout)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "exiftool", "-json", path).Output()

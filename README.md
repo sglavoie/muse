@@ -49,7 +49,8 @@ full keybinding reference.
 
 - **Metadata editor** (`M`) — fix title, artist, album, and genre on the
   focused track. Edits are stored in muse's database, so your audio files are
-  never modified. `i` shows the raw ExifTool tags for the file.
+  never modified. `i` shows the raw tags read from the file by whichever
+  metadata backend is active (ExifTool or ffprobe).
 - **Metadata export / import** — round-trip the visible view's rows through a
   TSV file in the data directory, for bulk cleanup outside the TUI.
 - Bulk selection (`x` / `X`) and visual line selection (`v`) in every list view.
