@@ -5,6 +5,8 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 // Scan runs the three-stage scanner pipeline for roots and returns a channel
@@ -106,6 +108,7 @@ func FilteredWalk(ctx context.Context, roots []string, excludedPaths []string, k
 func pathsToChan(ctx context.Context, paths []string) <-chan string {
 	ch := make(chan string, 64)
 	go func() {
+		defer safego.Recover("library.pathsToChan")
 		defer close(ch)
 		for _, p := range paths {
 			select {

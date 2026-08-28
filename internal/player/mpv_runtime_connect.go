@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"time"
+
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 // connectSocket polls the mpv IPC socket until it accepts a connection, the
@@ -74,8 +76,11 @@ func (m *Manager) activateConnection(ctx context.Context, client *IPCClient, res
 	// only opened once the queue is fully drained.
 	m.drainQueue()
 
-	go m.healthCheck(ctx, client)
-	go m.startEventReader(ctx, client)
+	// startEventReader decodes mpv's async JSON event stream, the most
+	// third-party-data-driven loop in the process; a panic there must not take
+	// muse down with it.
+	safego.Go("player.healthCheck", func() { m.healthCheck(ctx, client) })
+	safego.Go("player.startEventReader", func() { m.startEventReader(ctx, client) })
 }
 
 // drainQueue replays every command captured during the outage and activation

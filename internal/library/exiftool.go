@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 // exiftoolBatchSize is the number of files per exiftool invocation.
@@ -362,6 +364,11 @@ func extractWithBinaryRetry(ctx context.Context, extractor MetadataExtractor, fi
 func ExtractBatches(ctx context.Context, extractor MetadataExtractor, in <-chan HashedFile) <-chan Track {
 	out := make(chan Track, runtime.NumCPU())
 	go func() {
+		// The extractor shells out and parses third-party JSON, so this is the
+		// likeliest panic site in the scan pipeline. close(out) stays deferred:
+		// a recovered producer that left out open would block the scan bridge
+		// forever, which is worse than the crash it replaces.
+		defer safego.Recover("library.ExtractBatches")
 		defer close(out)
 		batch := make([]HashedFile, 0, exiftoolBatchSize)
 		cancelled := false

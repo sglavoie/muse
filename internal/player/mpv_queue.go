@@ -2,6 +2,8 @@ package player
 
 import (
 	"fmt"
+
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 // SetQueue replaces the ordered set of tracks used by PlayFromIndex. Call
@@ -20,7 +22,7 @@ func (m *Manager) SetQueue(entries []QueueTrack) {
 	m.reconcileShuffleLocked()
 	m.mu.Unlock()
 	m.clearPrefetch()
-	go m.prefetchNext()
+	safego.Go("player.prefetchNext", m.prefetchNext)
 }
 
 // SetCurrentIndex sets the current queue index used by Next, Previous, and
@@ -52,7 +54,7 @@ func (m *Manager) SetCurrentIndex(index int) {
 
 	if changed {
 		m.clearPrefetch()
-		go m.prefetchNext()
+		safego.Go("player.prefetchNext", m.prefetchNext)
 	}
 }
 
@@ -87,7 +89,7 @@ func (m *Manager) RestoreShuffleAnchor(index int) {
 	m.mu.Unlock()
 
 	m.clearPrefetch()
-	go m.prefetchNext()
+	safego.Go("player.prefetchNext", m.prefetchNext)
 }
 
 // AppendToQueue appends a single entry to the in-memory queue used by
@@ -98,7 +100,7 @@ func (m *Manager) AppendToQueue(entry QueueTrack) {
 	m.queue = append(m.queue, entry)
 	m.reconcileShuffleLocked()
 	m.mu.Unlock()
-	go m.prefetchNext()
+	safego.Go("player.prefetchNext", m.prefetchNext)
 }
 
 // RemoveFromQueue removes the queue entry at index from the in-memory queue
@@ -135,7 +137,7 @@ func (m *Manager) RemoveFromQueue(index int) error {
 	// Clear the prefetch under prefetchMu so that the playlist-remove
 	// cannot race with a concurrent prefetchNext appending a new entry.
 	m.clearPrefetch()
-	go m.prefetchNext()
+	safego.Go("player.prefetchNext", m.prefetchNext)
 
 	return nil
 }

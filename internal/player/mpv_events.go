@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 func (m *Manager) emitCurrentTrackChanged() {
@@ -57,6 +59,10 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 	// unblocks and the goroutine exits cleanly.
 	done := make(chan struct{})
 	defer close(done)
+	// Deliberately not wrapped in safego: a select over two channels plus
+	// net.Conn.Close has no reachable panic, and this goroutine's whole purpose
+	// is to unblock the scanner below. The event-reader body it guards is
+	// wrapped at its spawn site in activateConnection.
 	go func() {
 		select {
 		case <-ctx.Done():
@@ -123,7 +129,7 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 			// Safety net: ensure the next track is always prefetched after a
 			// file starts. Covers mpv restarts (loadFileAt) and any edge
 			// case where prefetch was not triggered elsewhere. Idempotent.
-			go m.prefetchNext()
+			safego.Go("player.prefetchNext", m.prefetchNext)
 		case "end-file":
 			if event.Reason != "eof" {
 				// "stop", "replace", "quit", "error" — do not auto-advance.
@@ -220,18 +226,18 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 				m.mu.Unlock()
 			}
 			if advanced {
-				go m.bestEffortUnpause()
+				safego.Go("player.bestEffortUnpause", m.bestEffortUnpause)
 
 				// Remove the completed track (position 0) from mpv's
 				// playlist so it stays at 2 entries instead of growing
 				// unbounded across gapless transitions.
-				go func() {
+				safego.Go("player.playlistRemoveCompleted", func() {
 					if c, err := m.ipc(); err == nil {
 						_, _ = c.SendCommand(cmdPlaylistRemove, 0)
 					}
-				}()
+				})
 
-				go m.prefetchNext()
+				safego.Go("player.prefetchNext", m.prefetchNext)
 				continue
 			}
 
@@ -239,12 +245,13 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 			// Use the internal advance (not the public PlayFromIndex) so that
 			// under shuffle this walks existing history/unseen order instead of
 			// reanchoring the cycle around idx+1.
-			go func(nextIdx int) {
+			nextIdx := idx + 1
+			safego.Go("player.advanceAfterCurrent", func() {
 				if err := m.advanceAfterCurrent(nextIdx); err != nil {
 					// Queue exhausted: notify the TUI so it can reset the toggle.
 					m.emitPlaybackEnded()
 				}
-			}(idx + 1)
+			})
 		case "property-change":
 			if event.Name != propPause {
 				continue

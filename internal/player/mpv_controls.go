@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sglavoie/muse/internal/config"
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 // SetRepeat configures mpv's repeat behaviour. mode is the string form of
@@ -83,7 +84,7 @@ func (m *Manager) SetShuffle(enabled bool) error {
 	// rebuild: prefetchNext resolves the successor for whichever model is now
 	// active — the next shuffle identity when enabled, or idx+1 when disabled.
 	m.clearPrefetch()
-	go m.prefetchNext()
+	safego.Go("player.prefetchNext", m.prefetchNext)
 	return nil
 }
 
@@ -364,7 +365,7 @@ func (m *Manager) SetGapless(enabled bool) error {
 		m.gaplessEnabled = enabled
 		m.mu.Unlock()
 		if enabled {
-			go m.prefetchNext()
+			safego.Go("player.prefetchNext", m.prefetchNext)
 		} else {
 			m.clearPrefetch()
 		}

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 // SetStopAfterCurrent enables or disables "stop after current track" mode.
@@ -16,7 +18,7 @@ func (m *Manager) SetStopAfterCurrent(v bool) {
 	if v {
 		m.clearPrefetch()
 	} else {
-		go m.prefetchNext()
+		safego.Go("player.prefetchNext", m.prefetchNext)
 	}
 }
 

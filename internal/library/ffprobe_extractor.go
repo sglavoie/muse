@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 // ffprobeExtractTimeout is the maximum time allowed for a single ffprobe
@@ -70,6 +72,11 @@ func (e FFProbeExtractor) Extract(ctx context.Context, files []HashedFile) ([]Tr
 	var wg sync.WaitGroup
 	for range workers {
 		wg.Go(func() {
+			// probeFile parses ffprobe's JSON; recovering keeps a malformed
+			// response from killing the process. The feed loop below always
+			// closes indexes and wg.Wait still returns, so a lost worker leaves
+			// zero-value tracks rather than a stuck scan.
+			defer safego.Recover("library.ffprobeWorker")
 			// Each worker writes only to tracks[i] for the indexes it pulls,
 			// so the shared slice needs no lock.
 			for i := range indexes {

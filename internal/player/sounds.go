@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 //go:embed sounds/queue_finished.wav
@@ -103,10 +105,13 @@ func PlaySound(s Sound) {
 		return
 	}
 	go func() {
+		// cancel stays deferred so a recovered panic still releases the timeout
+		// context and its associated process-kill goroutine.
+		defer safego.Recover("player.soundReaper")
+		defer cancel()
 		if err := cmd.Wait(); err != nil {
 			slog.Debug("sounds: mpv exited", "err", err)
 		}
-		cancel()
 	}()
 }
 

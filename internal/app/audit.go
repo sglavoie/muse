@@ -9,6 +9,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 // DurationReader reads tracks needing duration verification.
@@ -40,6 +41,9 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 	out := make(chan library.DurationFix)
 
 	go func() {
+		// close(out) stays deferred so a recovered panic still ends the
+		// caller's range over the correction channel.
+		defer safego.Recover("app.RunDurationAudit")
 		defer close(out)
 
 		tracks, err := reader.ReadUnverifiedDurations()
@@ -70,6 +74,10 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 		var wg sync.WaitGroup
 		for range n {
 			wg.Go(func() {
+				// probe shells out to ffprobe and parses its output. Recovering
+				// drops this worker; the closer goroutine below still waits on
+				// wg and closes results, so the collector loop terminates.
+				defer safego.Recover("app.durationAuditWorker")
 				for t := range work {
 					// Bail out promptly on cancellation rather than burning
 					// CPU on remaining work items during shutdown.
@@ -102,8 +110,9 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 		}
 
 		go func() {
+			defer safego.Recover("app.durationAuditCloser")
+			defer close(results)
 			wg.Wait()
-			close(results)
 		}()
 
 		checked := 0

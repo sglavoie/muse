@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/sglavoie/muse/internal/audio"
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 // errRootSkipped is returned by walkAudioPaths when the root itself could not
@@ -108,6 +109,9 @@ func walkAudioPaths(ctx context.Context, root string, excludedPaths []string, vi
 func Walk(ctx context.Context, roots []string, excludedPaths []string) <-chan string {
 	ch := make(chan string, 64)
 	go func() {
+		// close(ch) stays deferred so a recovered panic still terminates the
+		// downstream range over ch instead of hanging it.
+		defer safego.Recover("library.Walk")
 		defer close(ch)
 		emitted := make(map[string]struct{})
 		for _, root := range roots {

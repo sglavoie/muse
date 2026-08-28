@@ -24,7 +24,7 @@ func TestRunOrder(t *testing.T) {
 
 	// Place a stale socket file to confirm it gets removed.
 	staleSocket := filepath.Join(dirs.Runtime, "mpv.sock")
-	createSocketFile(t, staleSocket)
+	createStaleSocketFile(t, staleSocket)
 
 	var mu sync.Mutex
 	var parallelSteps []string
@@ -200,7 +200,7 @@ func TestRunStaleSocketRemovedBeforeMigration(t *testing.T) {
 	installLogger(t)
 
 	staleSocket := filepath.Join(dirs.Runtime, "mpv.sock")
-	createSocketFile(t, staleSocket)
+	createStaleSocketFile(t, staleSocket)
 
 	socketRemovedBeforeScan := false
 	deps := app.Deps{

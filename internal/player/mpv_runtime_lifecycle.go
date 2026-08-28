@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 // Start launches the mpv subprocess with --idle=yes and --input-ipc-server
@@ -31,9 +33,14 @@ func (m *Manager) Start() error {
 	m.cmdQueue = []func() error{}
 	m.mu.Unlock()
 
-	go m.pollUntilReady(m.ctx)
+	// Both are long-lived supervisors with no channel-close obligations, so a
+	// recovered panic simply ends that supervisor: playback keeps working
+	// through the already-connected client instead of the process dying and
+	// stranding the mpv child.
+	ctx := m.ctx
+	safego.Go("player.pollUntilReady", func() { m.pollUntilReady(ctx) })
 	if m.rootCtx != nil {
-		go m.watchAndRestart()
+		safego.Go("player.watchAndRestart", m.watchAndRestart)
 	}
 	return nil
 }

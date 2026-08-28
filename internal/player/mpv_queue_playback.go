@@ -3,6 +3,8 @@ package player
 import (
 	"errors"
 	"fmt"
+
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 // PlayFromIndex starts playback from the queue entry at index in response to an
@@ -50,7 +52,7 @@ func (m *Manager) playSequentialFrom(index int) error {
 		err := m.PlayQueueEntry(queue[i], mk)
 		if err == nil {
 			m.commitCurrentIndex(i)
-			go m.prefetchNext()
+			safego.Go("player.prefetchNext", m.prefetchNext)
 			return nil
 		}
 		if !errors.Is(err, ErrMissingFile) {
@@ -104,7 +106,7 @@ func (m *Manager) playShuffleAnchored(index int) error {
 	err := m.PlayQueueEntry(entry, mk)
 	if err == nil {
 		m.commitCurrentIndex(index)
-		go m.prefetchNext()
+		safego.Go("player.prefetchNext", m.prefetchNext)
 		return nil
 	}
 	if !errors.Is(err, ErrMissingFile) {
@@ -159,7 +161,7 @@ func (m *Manager) advanceForward() error {
 		err := m.PlayQueueEntry(entry, mk)
 		if err == nil {
 			m.commitCurrentIndex(idx)
-			go m.prefetchNext()
+			safego.Go("player.prefetchNext", m.prefetchNext)
 			return nil
 		}
 		if !errors.Is(err, ErrMissingFile) {
@@ -211,7 +213,7 @@ func (m *Manager) advanceBackward() error {
 			err := m.PlayQueueEntry(entry, mk)
 			if err == nil {
 				m.commitCurrentIndex(idx)
-				go m.prefetchNext()
+				safego.Go("player.prefetchNext", m.prefetchNext)
 				return nil
 			}
 			if !errors.Is(err, ErrMissingFile) {

@@ -207,6 +207,11 @@ func (m *Manager) reapProcess(cmd *exec.Cmd) {
 	if cmd == nil || cmd.Process == nil {
 		return
 	}
+	// The three bare `cmd.Wait()` relays in this package (here, in
+	// stopProcess and in the preview player) are deliberately not wrapped in
+	// safego: Wait only panics on a not-started process, which every caller
+	// already guards with cmd.Process != nil, and done is buffered so the
+	// relay cannot block. Adding a recover would hide nothing and cost a frame.
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 	select {

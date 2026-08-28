@@ -9,6 +9,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 // LibraryResult holds the outputs of LoadLibrary for use by the TUI and
@@ -155,7 +156,9 @@ func LoadLibrary(ctx context.Context, database *db.DB, writer LibraryWriter,
 	tuiWatchCh, watchDone := bridgeWatchChannel(pipelineCtx, rawWatchStream, writer, writer, registry, upsertBatchSize)
 
 	pipelineDone := make(chan struct{})
-	go runLibraryPipeline(pipelineCtx, pipelineDone, libraryPipeline{
+	// runLibraryPipeline defers close(done), so recovering in the spawn wrapper
+	// still signals completion to LoadLibrary's waiters.
+	pipelineArgs := libraryPipeline{
 		musicDirs:      musicDirs,
 		excludedPaths:  excludedPaths,
 		extractor:      extractor,
@@ -164,6 +167,9 @@ func LoadLibrary(ctx context.Context, database *db.DB, writer LibraryWriter,
 		rawWatchStream: rawWatchStream,
 		scanErrCh:      scanErrCh,
 		watchStatusCh:  watchStatusCh,
+	}
+	safego.Go("app.runLibraryPipeline", func() {
+		runLibraryPipeline(pipelineCtx, pipelineDone, pipelineArgs)
 	})
 
 	return LibraryResult{
@@ -219,6 +225,9 @@ func runLibraryPipeline(ctx context.Context, done chan<- struct{}, p libraryPipe
 	//    concurrently with the diff walk below.
 	wg.Add(1)
 	go func() {
+		// wg.Done stays deferred so a recovered panic still lets the wg.Wait
+		// below reach close(p.rawWatchStream) and drain the watch bridge.
+		defer safego.Recover("app.forwardWatchEvents")
 		defer wg.Done()
 		forwardWatchEvents(ctx, rawWatchCh, p.rawWatchStream)
 	}()
@@ -228,6 +237,7 @@ func runLibraryPipeline(ctx context.Context, done chan<- struct{}, p libraryPipe
 	//    deletions.
 	wg.Add(1)
 	go func() {
+		defer safego.Recover("app.runDiffWalk")
 		defer wg.Done()
 		defer close(p.rawScanStream)
 		runDiffWalk(ctx, p)

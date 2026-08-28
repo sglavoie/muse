@@ -189,6 +189,24 @@ func createSocketFile(t *testing.T, path string) net.Listener {
 	return ln
 }
 
+// createStaleSocketFile leaves behind exactly what a crashed muse leaves behind
+// when its mpv child is already gone: a socket file with nothing listening on
+// it. Go unlinks the socket on listener Close by default, so unlinking is
+// disabled first. Use this (rather than createSocketFile) for anything that
+// reaches app.Run's stale-socket step — a still-live listener there is an
+// *orphaned mpv*, and Run now spends its full reap timeout trying to quit it.
+func createStaleSocketFile(t *testing.T, path string) {
+	t.Helper()
+	ln := createSocketFile(t, path)
+	ln.(*net.UnixListener).SetUnlinkOnClose(false)
+	if err := ln.Close(); err != nil {
+		t.Fatalf("close listener for %q: %v", path, err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("stale socket file %q missing after close: %v", path, err)
+	}
+}
+
 func shortTestDir(t *testing.T) string {
 	t.Helper()
 	dir, err := os.MkdirTemp(".", ".apptest-")

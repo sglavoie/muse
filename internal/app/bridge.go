@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 const (
@@ -258,6 +259,9 @@ func bridgeScanChannel(ctx context.Context, raw <-chan library.Track, writer Ups
 	ch := make(chan library.Track, scanChannelBuffer)
 	done := make(chan struct{})
 	go func() {
+		// Both closes stay deferred: the TUI ranges over ch and LoadLibrary
+		// waits on done, so a recovered bridge must still release both.
+		defer safego.Recover("app.bridgeScanChannel")
 		defer close(done)
 		defer close(ch)
 		f := newBatchFlusher(batchSize, writer.UpsertBatch, populate)
@@ -360,6 +364,9 @@ func bridgeWatchChannel(ctx context.Context, raw <-chan library.WatchEvent, writ
 	ch := make(chan library.WatchEvent, watchChannelBuffer)
 	done := make(chan struct{})
 	go func() {
+		// The timer stops and both channel closes stay deferred so a recovered
+		// panic leaves no armed timer and no blocked receiver.
+		defer safego.Recover("app.bridgeWatchChannel")
 		defer close(done)
 		defer close(ch)
 		f := newBatchFlusher(batchSize, writer.UpsertBatch, populate)

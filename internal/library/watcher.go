@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 // watcherFactory creates a new fsnotify.Watcher. It is a variable so tests can
@@ -80,7 +81,12 @@ func Watch(ctx context.Context, roots []string, excludedPaths []string, extracto
 	}
 
 	out := make(chan WatchEvent, 64)
-	go watchLoop(ctx, w, excludedPaths, extractor, debounceDelay, out)
+	// watchLoop already defers close(out) and w.Close(), both of which still run
+	// while a panic unwinds, so recovering in the spawn wrapper cannot strand a
+	// consumer or leak the fsnotify watcher.
+	safego.Go("library.watchLoop", func() {
+		watchLoop(ctx, w, excludedPaths, extractor, debounceDelay, out)
+	})
 	return out, false, nil
 }
 

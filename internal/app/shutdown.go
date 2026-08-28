@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sglavoie/muse/internal/config"
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 // ShutdownTimeout is the maximum time allowed for graceful shutdown before
@@ -92,6 +93,10 @@ func Shutdown(deps ShutdownDeps, timeout time.Duration) {
 
 	done := make(chan struct{})
 	go func() {
+		// A panic mid-teardown must not abort the process before the remaining
+		// steps run: recovering lets close(done) release the select below so
+		// Shutdown returns normally instead of dying with the log unflushed.
+		defer safego.Recover("app.shutdownSequence")
 		defer close(done)
 		shutdownSequence(guarded)
 	}()

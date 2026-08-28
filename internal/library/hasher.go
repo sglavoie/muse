@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/sglavoie/muse/internal/safego"
 	"github.com/zeebo/blake3"
 )
 
@@ -37,6 +38,11 @@ func hashWorkersN(n int, in <-chan string, hashFn func(string) (string, error)) 
 	var wg sync.WaitGroup
 	for range n {
 		wg.Go(func() {
+			// hashFn is injected and, in production, reads arbitrary files off
+			// disk; a panic here must not take the process down. Recovering
+			// stops this worker early, but the remaining workers keep draining
+			// in and wg.Wait below still closes out, so no consumer hangs.
+			defer safego.Recover("library.hashWorker")
 			for path := range in {
 				hash, err := hashFn(path)
 				if err != nil {
@@ -63,8 +69,9 @@ func hashWorkersN(n int, in <-chan string, hashFn func(string) (string, error)) 
 		})
 	}
 	go func() {
+		defer safego.Recover("library.hashWorkersCloser")
+		defer close(out)
 		wg.Wait()
-		close(out)
 	}()
 	return out
 }

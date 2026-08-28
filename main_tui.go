@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"strings"
@@ -217,6 +219,7 @@ func runTUI(ctx context.Context) error {
 	}
 
 	if err != nil {
+		reportProgramPanic(err, os.Stderr)
 		slog.Error("TUI error", "err", err)
 		app.Shutdown(shutdownDeps, app.ShutdownTimeout)
 		return err
@@ -248,6 +251,34 @@ func runTUI(ctx context.Context) error {
 
 	app.Shutdown(shutdownDeps, app.ShutdownTimeout)
 	return nil
+}
+
+// reportProgramPanic leaves a durable record of a Bubble Tea panic. Bubble Tea
+// recovers panics raised inside its own loop and in the goroutines it runs for
+// tea.Cmd values: it restores the terminal, prints the stack trace to stderr,
+// and makes p.Run() return an error wrapping tea.ErrProgramPanic. Nothing,
+// however, reaches config.LogPath() — so a user who files a bug after the crash
+// has a scrolled-away terminal and an empty log.
+//
+// This writes the crash to the slog file in the same key/value style as the rest
+// of the startup path, and prints one short line to stderr naming that path,
+// where it lands directly beneath Bubble Tea's own stack trace. Non-panic errors
+// are left alone (runTUI logs them generically) and reported as false.
+//
+// Background goroutines outside Bubble Tea's protection are covered separately
+// by internal/safego, which logs their panics with a stack of its own.
+func reportProgramPanic(err error, stderr io.Writer) bool {
+	if !errors.Is(err, tea.ErrProgramPanic) {
+		return false
+	}
+	logPath := config.LogPath()
+	slog.Error("TUI panicked: Bubble Tea recovered the panic, restored the terminal and printed the stack trace to stderr",
+		"err", err, "log", logPath)
+	// stderr is an io.Writer for testability, so errcheck no longer waives the
+	// write the way it does for a direct os.Stderr call; a failed crash notice
+	// is not worth acting on.
+	_, _ = fmt.Fprintf(stderr, "\nmuse crashed. The stack trace above came from Bubble Tea; a record was written to %s\n", logPath)
+	return true
 }
 
 // checkMusicDirs validates the configured music directories without letting a
