@@ -242,6 +242,36 @@ in the TUI leaves a record there too, since the terminal has already been
 restored by the time you see it. muse also cleans up after a previous crash:
 an mpv process orphaned by one is shut down at the next startup.
 
+### Running against a throwaway library
+
+Because every path in the table above comes from the XDG variables, pointing
+them at a scratch directory gives you a fully isolated instance — its own
+config, database, log, and socket — without touching your real setup. This is
+the way to try a different `music_directories`, or to see what a new user sees:
+
+```sh
+mkdir -p /tmp/muse-sandbox/{config,data,state,run}
+XDG_CONFIG_HOME=/tmp/muse-sandbox/config \
+XDG_DATA_HOME=/tmp/muse-sandbox/data \
+XDG_STATE_HOME=/tmp/muse-sandbox/state \
+XDG_RUNTIME_DIR=/tmp/muse-sandbox/run \
+  muse
+```
+
+muse writes a fresh `config.toml` under the sandbox config directory on that
+first run; edit its `music_directories` to point at the test library. Two
+things to keep in mind:
+
+- The values must be absolute paths. Per the XDG spec, a relative value is
+  ignored and muse falls back to the normal default — that is, your real
+  config.
+- `XDG_CONFIG_HOME` also redirects mpv's own config, so the sandbox instance
+  will not pick up your personal mpv settings.
+
+Setting `XDG_RUNTIME_DIR` matters when a real instance is already running: it
+keeps the sandbox on a separate control socket and PID lock instead of talking
+to the live process.
+
 ## Usage
 
 Run `muse` with no arguments to launch the TUI. The subcommands are:
