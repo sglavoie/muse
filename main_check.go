@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/sglavoie/muse/internal/config"
+	"github.com/sglavoie/muse/internal/library"
 )
 
 // runCheck validates the muse configuration and prerequisites without
@@ -36,13 +37,23 @@ func runCheck() int {
 		exitCode = 1
 	}
 
-	prereqWarnings, err := config.CheckPrereqs(context.Background())
+	ctx := context.Background()
+
+	prereqWarnings, err := config.CheckPrereqs(ctx)
 	for _, w := range prereqWarnings {
 		fmt.Fprintf(os.Stderr, "warning: %s\n", w)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		exitCode = 1
+	}
+
+	// Report the backend a scan would actually use. CheckPrereqs already warns
+	// about the degraded path, so this line stays purely informational and
+	// never changes the exit code on its own: a resolved backend is a success,
+	// and an unresolved one has already been reported as a fatal prereq error.
+	if _, backend, selectErr := library.SelectExtractor(ctx); selectErr == nil {
+		fmt.Fprintf(os.Stderr, "metadata backend: %s\n", backend)
 	}
 
 	if exitCode == 0 {

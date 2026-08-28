@@ -249,6 +249,106 @@ func TestCheckNotifierIsAdvisory(t *testing.T) {
 	}
 }
 
+// stubMetadataPATH makes a fresh dir the entire PATH with a working mpv plus
+// whatever metadata binaries the case needs, and silences the notifier so the
+// only warning that can appear is the metadata one under test.
+func stubMetadataPATH(t *testing.T, stubs map[string]string) {
+	t.Helper()
+	dir := t.TempDir()
+	all := map[string]string{"mpv": "#!/bin/sh\nexit 0\n"}
+	for name, body := range stubs {
+		all[name] = body
+	}
+	for name, body := range all {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", dir)
+	stubNotifier(t, nil)
+}
+
+// TestCheckPrereqs_ExifToolMissingFallsBackToFFProbe pins the point of this
+// change: ExifTool is no longer an unconditional startup requirement. With
+// ffprobe present, its absence is a warning and startup continues.
+func TestCheckPrereqs_ExifToolMissingFallsBackToFFProbe(t *testing.T) {
+	stubMetadataPATH(t, map[string]string{"ffprobe": "#!/bin/sh\nexit 0\n"})
+
+	warnings, err := CheckPrereqs(context.Background())
+	if err != nil {
+		t.Fatalf("a missing ExifTool with ffprobe present must not be fatal, got: %v", err)
+	}
+	if len(warnings) != 1 {
+		t.Fatalf("expected exactly 1 warning, got %d: %v", len(warnings), warnings)
+	}
+	if !strings.Contains(warnings[0], "ffprobe") {
+		t.Errorf("warning %q does not name the fallback backend", warnings[0])
+	}
+	if strings.Contains(warnings[0], "\n") {
+		t.Errorf("warning must stay single-line for the caller's warning list, got: %q", warnings[0])
+	}
+}
+
+// TestCheckPrereqs_ExifToolBrokenFallsBackToFFProbe is the subtle half: the
+// binary resolves through LookPath but 'exiftool -ver' fails, so the
+// broken-Perl detection must demote to the fallback rather than abort startup.
+func TestCheckPrereqs_ExifToolBrokenFallsBackToFFProbe(t *testing.T) {
+	for name, script := range map[string]string{
+		"exits non-zero":   "#!/bin/sh\nexit 1\n",
+		"unparseable -ver": "#!/bin/sh\nprintf 'not a version\\n'\nexit 0\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			stubMetadataPATH(t, map[string]string{
+				"exiftool": script,
+				"ffprobe":  "#!/bin/sh\nexit 0\n",
+			})
+
+			warnings, err := CheckPrereqs(context.Background())
+			if err != nil {
+				t.Fatalf("a broken ExifTool with ffprobe present must not be fatal, got: %v", err)
+			}
+			if len(warnings) != 1 {
+				t.Fatalf("expected exactly 1 warning, got %d: %v", len(warnings), warnings)
+			}
+			if !strings.Contains(warnings[0], "ExifTool") {
+				t.Errorf("warning %q does not explain what was lost", warnings[0])
+			}
+		})
+	}
+}
+
+// TestCheckPrereqs_NoMetadataBackendIsFatal is the remaining fatal case: with
+// neither backend there is no way to read metadata at all.
+func TestCheckPrereqs_NoMetadataBackendIsFatal(t *testing.T) {
+	stubMetadataPATH(t, nil)
+
+	_, err := CheckPrereqs(context.Background())
+	if err == nil {
+		t.Fatal("expected an error when neither exiftool nor ffprobe is available")
+	}
+	msg := err.Error()
+	if !strings.Contains(strings.ToLower(msg), "exiftool") {
+		t.Errorf("error should mention exiftool, got: %s", msg)
+	}
+	if !strings.Contains(msg, "ffprobe") {
+		t.Errorf("error should mention ffprobe and how to install it, got: %s", msg)
+	}
+}
+
+// TestCheckPrereqs_FFProbeMissingIsSilentWhenExifToolWorks guards against the
+// fallback warning firing on a healthy ExifTool-only install.
+func TestCheckPrereqs_FFProbeMissingIsSilentWhenExifToolWorks(t *testing.T) {
+	stubMetadataPATH(t, map[string]string{"exiftool": "#!/bin/sh\nprintf '12.00\\n'\nexit 0\n"})
+
+	warnings, err := CheckPrereqs(context.Background())
+	if err != nil {
+		t.Fatalf("a working ExifTool needs no ffprobe, got: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Errorf("expected no warnings when ExifTool works, got: %v", warnings)
+	}
+}
+
 func TestCheckPrereqs_MPVMissing(t *testing.T) {
 	// Only exiftool stub present — use isolated PATH so system mpv is hidden.
 	dir := t.TempDir()

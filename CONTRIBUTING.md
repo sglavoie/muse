@@ -14,8 +14,14 @@ You need:
 - **Go 1.26+**.
 - **[`just`](https://github.com/casey/just)** — the task runner every command
   below goes through.
-- **mpv** and **ExifTool** — see [Requirements](README.md#requirements) in the
-  README. `just test` does not need them, but running the app does.
+- **mpv** — required to run the app.
+- **ExifTool** (recommended, fastest) or **ffprobe** — the metadata backend.
+  ExifTool is preferred because it reads a batch in one process, about 2.4x
+  faster than ffprobe on a real library (300 mp3/flac files: 819 ms vs 1.94 s);
+  ffprobe is required only if ExifTool is absent or broken. See
+  [Requirements](README.md#requirements) in the README. `just test` does not
+  need any of them, but running the app does — and tests that exercise a real
+  backend skip themselves when the binary is missing.
 
 ```sh
 git clone https://github.com/sglavoie/muse

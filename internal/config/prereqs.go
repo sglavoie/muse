@@ -4,17 +4,21 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/notify"
 )
 
-// CheckPrereqs verifies that mpv and ExifTool are available and functional.
-// It runs a test invocation of each binary to catch broken installs (e.g.
-// ExifTool missing its Perl runtime). Returns an error with actionable
-// installation instructions if either required check fails.
+// CheckPrereqs verifies that mpv and a metadata backend are available and
+// functional. It runs a test invocation of each binary to catch broken installs
+// (e.g. ExifTool missing its Perl runtime). Returns an error with actionable
+// installation instructions if a required check fails.
+//
+// mpv is unconditionally required. Metadata extraction is not tied to one
+// binary: ExifTool is preferred, ffprobe is an accepted fallback, and only the
+// absence of both is fatal.
 //
 // Advisory problems that must not block startup are returned separately as
 // warnings. Warnings are always returned, including alongside a fatal error,
@@ -28,7 +32,50 @@ func CheckPrereqs(ctx context.Context) ([]string, error) {
 	if err := checkMPV(ctx); err != nil {
 		return warnings, err
 	}
-	return warnings, checkExifTool(ctx)
+
+	metadataWarnings, err := checkMetadataBackend(ctx)
+	return append(warnings, metadataWarnings...), err
+}
+
+// checkMetadataBackend applies the same preference order as
+// library.SelectExtractor — which is why it goes through the same two probes
+// rather than reimplementing either. A usable ExifTool is silent; falling back
+// to ffprobe is a warning, since scans still work but are slower; having
+// neither is the only fatal outcome.
+//
+// checkExifTool's error is deliberately demoted to a fall-through signal here:
+// all three of its failure modes (absent, non-zero `-ver`, unparseable version)
+// mean "cannot extract metadata with ExifTool", and each must reach ffprobe
+// rather than abort startup.
+func checkMetadataBackend(ctx context.Context) ([]string, error) {
+	exifErr := checkExifTool(ctx)
+	if exifErr == nil {
+		return nil, nil
+	}
+
+	if library.FFProbeAvailable() {
+		return []string{
+			"ExifTool is unavailable, falling back to ffprobe for track metadata " +
+				"(scans are roughly 2.4x slower): " + firstLine(exifErr),
+		}, nil
+	}
+
+	return nil, fmt.Errorf("%w\nffprobe was not found on $PATH either; install FFmpeg to use it instead:\n"+
+		"  macOS:  brew install ffmpeg\n"+
+		"  Debian: apt install ffmpeg\n"+
+		"  Fedora: dnf install ffmpeg",
+		exifErr,
+	)
+}
+
+// firstLine keeps a multi-line install-instruction error readable inside a
+// single-line warning; the full text is still reachable via `muse check`.
+func firstLine(err error) string {
+	msg := err.Error()
+	if i := strings.IndexByte(msg, '\n'); i >= 0 {
+		return msg[:i]
+	}
+	return msg
 }
 
 // notifierAvailable is the seam through which checkNotifier reaches the
@@ -68,34 +115,12 @@ func checkMPV(ctx context.Context) error {
 	return nil
 }
 
+// checkExifTool reports whether ExifTool is usable, including the broken-Perl
+// case where the binary resolves but `exiftool -ver` cannot produce a version.
+// The probe itself lives in library.ExifToolUsable so that the startup check
+// and library.SelectExtractor decide from exactly the same evidence — a broken
+// install that warns here must also fall through to ffprobe there, instead of
+// handing back an ExifToolExtractor that would scan an empty library.
 func checkExifTool(ctx context.Context) error {
-	if _, err := exec.LookPath("exiftool"); err != nil {
-		return fmt.Errorf(
-			"ExifTool not found on $PATH\n" +
-				"ExifTool requires Perl and can be installed via:\n" +
-				"  macOS:  brew install exiftool\n" +
-				"  Debian: apt install libimage-exiftool-perl\n" +
-				"  Fedora: dnf install perl-Image-ExifTool",
-		)
-	}
-
-	out, err := exec.CommandContext(ctx, "exiftool", "-ver").Output()
-	if err != nil {
-		return fmt.Errorf(
-			"ExifTool is installed but failed to run ('exiftool -ver' exited with error): %w\n"+
-				"Ensure Perl and required modules are installed (apt install libimage-exiftool-perl)",
-			err,
-		)
-	}
-
-	version := strings.TrimSpace(string(out))
-	if _, err := strconv.ParseFloat(version, 64); version == "" || err != nil {
-		return fmt.Errorf(
-			"ExifTool ran but 'exiftool -ver' did not produce a valid version (got: %q)\n"+
-				"Ensure Perl and required modules are installed (apt install libimage-exiftool-perl)",
-			version,
-		)
-	}
-
-	return nil
+	return library.ExifToolUsable(ctx)
 }

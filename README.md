@@ -2,7 +2,8 @@
 
 muse is a terminal music player for a local music library. It drives
 [mpv](https://mpv.io) over a Unix IPC socket for playback, keeps a SQLite index
-of your files built from [ExifTool](https://exiftool.org) metadata, and renders
+of your files built from [ExifTool](https://exiftool.org) (or ffprobe)
+metadata, and renders
 everything through a [Bubble Tea](https://github.com/charmbracelet/bubbletea)
 TUI: seven primary views, a command palette, an in-app metadata editor, a
 listening-insights dashboard, and a radio mode that keeps picking the next
@@ -74,10 +75,18 @@ Debian: apt install mpv
 Fedora: dnf install mpv
 ```
 
-### ExifTool — required
+### A metadata backend — one of ExifTool or ffprobe is required
 
-Reads track metadata (title, artist, album, genre, duration, track and disc
-numbers) during library scans, and backs the track-info overlay. ExifTool
+Track metadata (title, artist, album, genre, duration, track and disc numbers)
+is read during library scans by an external tool. muse picks one at startup and
+logs which; `muse check` reports it too. Startup only fails if neither is
+installed.
+
+#### ExifTool — recommended (fastest)
+
+The default backend. It reads a whole batch of files in one process, which
+makes it about **2.4x faster than ffprobe** on a real library (measured over 300
+mp3/flac files: 819 ms vs 1.94 s, roughly 2.7 ms vs 6.5 ms per file). ExifTool
 requires Perl.
 
 ```
@@ -88,13 +97,19 @@ Fedora: dnf install perl-Image-ExifTool
 
 If `exiftool -ver` fails after installing, the Perl runtime or a required
 module is missing — on Debian/Ubuntu, `apt install libimage-exiftool-perl`
-pulls in what it needs.
+pulls in what it needs. muse treats that broken install the same as no install
+and falls back to ffprobe, with a warning, rather than refusing to start.
 
-### ffprobe — optional
+#### ffprobe — required if ExifTool is absent
 
-Part of FFmpeg. When present, muse runs a background duration-audit pass that
-verifies and corrects track durations that metadata got wrong. Without it the
-audit is simply skipped; everything else works.
+Part of FFmpeg, so no Perl runtime is involved. Used as the metadata backend
+whenever ExifTool is missing or broken; scans are slower but complete, and
+ffprobe reports durations and disc numbers for some formats more accurately
+than ExifTool does.
+
+Independently of metadata, ffprobe also powers the background duration-audit
+pass that corrects track durations metadata got wrong. Without ffprobe that
+audit is simply skipped.
 
 ```
 macOS:  brew install ffmpeg
@@ -159,10 +174,11 @@ muse check
 
 `muse check` validates the config file, checks that your music directories
 exist and contain supported audio, and runs a live invocation of mpv and
-ExifTool to catch broken installs. It prints `ok` and exits 0 when everything
-is in order, and prints actionable errors to stderr and exits 1 otherwise.
-Advisory problems (such as a missing notification backend) are printed as
-warnings without failing the check.
+ExifTool to catch broken installs. It also reports which metadata backend a
+scan would use. It prints `ok` and exits 0 when everything is in order, and
+prints actionable errors to stderr and exits 1 otherwise. Advisory problems
+(such as a missing notification backend, or falling back from ExifTool to
+ffprobe) are printed as warnings without failing the check.
 
 ## Configuration
 
@@ -274,7 +290,8 @@ subcommands (`check`, `now-playing`), and the control-socket relay. The TUI
 (`internal/tui`) is a Bubble Tea model that talks to narrow interfaces rather
 than concrete types, so every dependency — player, database, config, notifier —
 is injected and fakeable. `internal/player` owns the mpv subprocess and its
-JSON IPC; `internal/library` owns scanning and ExifTool metadata;
+JSON IPC; `internal/library` owns scanning and metadata extraction (ExifTool or
+ffprobe, chosen at startup);
 `internal/db` owns the SQLite schema and its migrations; `internal/radio`,
 `internal/recommendation`, and `internal/insights` own the scoring behind radio
 mode, Mixes, and the Insights dashboard.

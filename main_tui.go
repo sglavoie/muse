@@ -135,7 +135,17 @@ func runTUI(ctx context.Context) error {
 		slog.Warn("startup: increment startup count", "err", err)
 	}
 
-	extractor := library.ExifToolExtractor{}
+	// Prerequisites have already been checked by app.Run, so a usable backend
+	// exists here; the same probes run again only to construct the matching
+	// extractor. This one construction site feeds both the initial scan below
+	// and the TUI's manual-rescan path via buildModel → tui.WithExtractor.
+	extractor, backend, err := library.SelectExtractor(ctx)
+	if err != nil {
+		slog.Error("no metadata backend available", "err", err)
+		app.Shutdown(shutdownDeps, app.ShutdownTimeout)
+		return err
+	}
+	slog.Info("metadata backend selected", "backend", backend)
 
 	libResult, err := app.LoadLibrary(ctx, result.DB, result.Writer, cfg.MusicDirectories, cfg.ExcludedPaths, extractor, upsertBatchSize)
 	if err != nil {
