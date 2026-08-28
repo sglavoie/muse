@@ -93,9 +93,11 @@ func Shutdown(deps ShutdownDeps, timeout time.Duration) {
 
 	done := make(chan struct{})
 	go func() {
-		// A panic mid-teardown must not abort the process before the remaining
-		// steps run: recovering lets close(done) release the select below so
-		// Shutdown returns normally instead of dying with the log unflushed.
+		// Backstop only: every teardown step already recovers individually in
+		// runShutdownStep, so this catches a panic raised by shutdownSequence's
+		// own scaffolding rather than by a caller-supplied callback. Recovering
+		// lets close(done) release the select below so Shutdown returns normally
+		// instead of dying with the log unflushed.
 		defer safego.Recover("app.shutdownSequence")
 		defer close(done)
 		shutdownSequence(guarded)
@@ -110,72 +112,112 @@ func Shutdown(deps ShutdownDeps, timeout time.Duration) {
 	}
 }
 
-// shutdownSequence performs the ordered teardown steps.
+// runShutdownStep runs one teardown step with its own panic recovery.
+//
+// Isolating each step is what makes the "all steps are attempted regardless of
+// prior errors" contract hold for panics too, not just for returned errors: the
+// callbacks in ShutdownDeps are supplied by the caller (player, library
+// pipeline, DB writer), so a panic in any of them would otherwise unwind out of
+// shutdownSequence and skip every later step — the DB would never be closed, the
+// lockfile never released, the log never flushed.
+//
+// The recovered panic is logged by safego.Recover under the goroutine name
+// built here, so the log line names the step that failed.
+func runShutdownStep(step string, fn func()) {
+	defer safego.Recover("app.shutdownSequence step " + step)
+	fn()
+}
+
+// shutdownSequence performs the ordered teardown steps. Each step runs under
+// runShutdownStep, so a panic in one step is logged and the remaining steps
+// still run exactly once.
 func shutdownSequence(deps ShutdownDeps) {
 	// Step 0: Close the remote control listener to stop accepting new commands.
-	if deps.CtrlListener != nil {
+	runShutdownStep("0: close control listener", func() {
+		if deps.CtrlListener == nil {
+			return
+		}
 		slog.Info("shutdown: closing control listener")
 		if err := deps.CtrlListener.Close(); err != nil {
 			slog.Warn("shutdown: close control listener", "err", err)
 		}
 		slog.Info("shutdown: control listener closed")
-	}
+	})
 
 	// Step 1: Close the player (stop playback + terminate mpv).
-	slog.Info("shutdown: closing player")
-	if deps.ClosePlayer != nil {
-		if err := deps.ClosePlayer(); err != nil {
-			slog.Warn("shutdown: close player", "err", err)
+	runShutdownStep("1: close player", func() {
+		slog.Info("shutdown: closing player")
+		if deps.ClosePlayer != nil {
+			if err := deps.ClosePlayer(); err != nil {
+				slog.Warn("shutdown: close player", "err", err)
+			}
 		}
-	}
-	slog.Info("shutdown: player closed")
+		slog.Info("shutdown: player closed")
+	})
 
 	// Step 2: Stop and flush the library pipeline. This cancels the scan/watch
 	// bridges and orchestrator and blocks until they exit, enqueuing their final
 	// bounded batch flush into the DB writer. It must run before the DB writer is
 	// drained (step 3) so those final upserts are not lost.
-	if deps.StopLibraryPipeline != nil {
+	runShutdownStep("2: stop library pipeline", func() {
+		if deps.StopLibraryPipeline == nil {
+			return
+		}
 		slog.Info("shutdown: stopping library pipeline")
 		deps.StopLibraryPipeline()
 		slog.Info("shutdown: library pipeline stopped")
-	}
+	})
 
 	// Step 3: Flush pending DB writes by cancelling the writer context and
-	// waiting for the goroutine to drain and exit.
-	slog.Info("shutdown: flushing db writes")
-	if deps.CancelDBWriter != nil {
-		deps.CancelDBWriter()
-	}
-	if deps.WaitDBWriter != nil {
-		deps.WaitDBWriter()
-	}
-	slog.Info("shutdown: db writes flushed")
+	// waiting for the goroutine to drain and exit. Cancel and wait are separate
+	// steps so a panicking CancelDBWriter cannot leave the writer goroutine
+	// un-awaited, and a panicking WaitDBWriter cannot skip closing the DB.
+	runShutdownStep("3a: cancel db writer", func() {
+		slog.Info("shutdown: flushing db writes")
+		if deps.CancelDBWriter != nil {
+			deps.CancelDBWriter()
+		}
+	})
+	runShutdownStep("3b: wait for db writer", func() {
+		if deps.WaitDBWriter != nil {
+			deps.WaitDBWriter()
+		}
+		slog.Info("shutdown: db writes flushed")
+	})
 
 	// Step 4: Close the database connection now that all writes have drained.
-	slog.Info("shutdown: closing database")
-	if deps.CloseDB != nil {
-		deps.CloseDB()
-	}
-	slog.Info("shutdown: database closed")
+	runShutdownStep("4: close database", func() {
+		slog.Info("shutdown: closing database")
+		if deps.CloseDB != nil {
+			deps.CloseDB()
+		}
+		slog.Info("shutdown: database closed")
+	})
 
 	// Step 5: Release PID lockfile.
-	slog.Info("shutdown: releasing lockfile")
-	if deps.Lockfile != nil {
-		deps.Lockfile.Release()
-	}
-	slog.Info("shutdown: lockfile released")
+	runShutdownStep("5: release lockfile", func() {
+		slog.Info("shutdown: releasing lockfile")
+		if deps.Lockfile != nil {
+			deps.Lockfile.Release()
+		}
+		slog.Info("shutdown: lockfile released")
+	})
 
 	// Step 6: Delete mpv socket file.
-	slog.Info("shutdown: removing mpv socket")
-	if deps.SocketPath != "" {
-		if err := removeSocketFile(deps.SocketPath); err != nil {
-			slog.Warn("shutdown: remove mpv socket", "err", err)
+	runShutdownStep("6: remove mpv socket", func() {
+		slog.Info("shutdown: removing mpv socket")
+		if deps.SocketPath != "" {
+			if err := removeSocketFile(deps.SocketPath); err != nil {
+				slog.Warn("shutdown: remove mpv socket", "err", err)
+			}
 		}
-	}
-	slog.Info("shutdown: mpv socket removed")
+		slog.Info("shutdown: mpv socket removed")
+	})
 
 	// Step 7: Close log file last so all shutdown log entries are captured.
-	if deps.CloseLog != nil {
-		deps.CloseLog()
-	}
+	runShutdownStep("7: close log", func() {
+		if deps.CloseLog != nil {
+			deps.CloseLog()
+		}
+	})
 }

@@ -72,6 +72,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pipeline itself reported a clean finish while leaving the scan and watch
   streams open; it now closes them and surfaces the failure as a scan error
   and a degraded watcher status.
+- A panic during shutdown no longer skips the rest of the teardown. A single
+  recovery around the whole sequence meant a panicking callback ended shutdown
+  at that point while still reporting a clean exit, leaving the database open,
+  the lockfile held, the mpv socket on disk and the log unflushed. Each teardown
+  step now recovers on its own, so every later step still runs and the log names
+  the step that failed.
 
 ## [0.1.0]
 
