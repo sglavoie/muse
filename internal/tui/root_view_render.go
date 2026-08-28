@@ -126,7 +126,7 @@ func (m Model) renderActiveBody() string {
 func (m Model) renderOverlayBody() (string, bool) {
 	overlayHeight := max(m.termHeight-3, 1)
 	switch {
-	case m.configCreated && !m.welcomeDismissed:
+	case m.welcomeVisible():
 		return m.renderWelcomeOverlay(), true
 	case m.helpVisible:
 		var filterBar string

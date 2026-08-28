@@ -20,7 +20,7 @@ func applyNowPlayingPulse(s styles.Styles) styles.Styles {
 // hasActiveOverlay reports whether any overlay or the help screen is
 // currently displayed.
 func (m Model) hasActiveOverlay() bool {
-	return (m.configCreated && !m.welcomeDismissed) ||
+	return m.welcomeVisible() ||
 		m.helpVisible ||
 		m.debugVisible ||
 		m.overlay.settings != nil ||

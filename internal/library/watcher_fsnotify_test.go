@@ -304,6 +304,22 @@ func TestAddWatchesRecursive_MissingRootReturnsError(t *testing.T) {
 	}
 }
 
+// With no configured roots there is nothing to register, so the watcher starts
+// normally rather than degrading; the TUI reports it as available and a later
+// config edit plus manual rescan is all a first-run user needs.
+func TestWatch_NoRootsStartsUndegraded(t *testing.T) {
+	ch, degraded, err := Watch(t.Context(), nil, nil, &fakeExtractor{}, DefaultDebounce)
+	if err != nil {
+		t.Fatalf("Watch: %v", err)
+	}
+	if degraded {
+		t.Fatal("Watch with no roots: expected degraded=false")
+	}
+	if ch == nil {
+		t.Fatal("Watch with no roots: expected a live event channel")
+	}
+}
+
 func TestWatch_MissingRootDegradesToClosedChannel(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "missing")
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -48,10 +49,7 @@ func runTUI(ctx context.Context) error {
 	}
 	config.SetLogLevel(logLevel)
 
-	if err := config.ValidateMusicDirs(cfg.MusicDirectories, configPath); err != nil {
-		slog.Error("invalid music directory", "err", err)
-		return fmt.Errorf("%w", err)
-	}
+	cfgResult, musicDirHint := checkMusicDirs(cfgResult, cfg.MusicDirectories, configPath)
 
 	player.SetSoundContext(ctx)
 
@@ -166,7 +164,7 @@ func runTUI(ctx context.Context) error {
 		auditCh = app.RunDurationAudit(ctx, result.DB, result.Writer)
 	}
 
-	model := buildModel(ctx, cfg, configPath, cfgResult, result, libResult, dirs, extractor, adapter, mgr, auditCh, startupCount)
+	model := buildModel(ctx, cfg, configPath, cfgResult, musicDirHint, result, libResult, dirs, extractor, adapter, mgr, auditCh, startupCount)
 
 	// Apply all restored session state (queue, library, playlists,
 	// repeat/shuffle/volume, current track) before tea.NewProgram so the
@@ -252,6 +250,35 @@ func runTUI(ctx context.Context) error {
 	return nil
 }
 
+// checkMusicDirs validates the configured music directories without letting a
+// failure end the session. A first-run user with no ~/Music would otherwise get
+// an error printed to a terminal they have already left; instead the TUI boots
+// into an empty but usable library, carrying the reason on the existing
+// config-warning channel and the fix in the welcome overlay. `muse check` stays
+// strict — it is the explicit pre-flight for exactly this.
+//
+// It returns the load result with any warning appended, plus the hint text for
+// the welcome overlay (empty when the directories validated).
+func checkMusicDirs(cfgResult config.LoadResult, musicDirs []string, configPath string) (config.LoadResult, string) {
+	err := config.ValidateMusicDirs(musicDirs, configPath)
+	if err == nil {
+		return cfgResult, ""
+	}
+	slog.Error("invalid music directory", "err", err)
+	cfgResult.Warnings = append(cfgResult.Warnings, musicDirWarning(err))
+	return cfgResult, config.ConfigHint(configPath)
+}
+
+// musicDirWarning collapses a ValidateMusicDirs error into a single line
+// suitable for the TUI's config-warning notification, which joins warnings with
+// "; " and renders them in the status bar. The full multi-line error (including
+// the config hint) has already gone to the log, and the actionable instructions
+// are shown separately in the welcome overlay.
+func musicDirWarning(err error) string {
+	msg, _, _ := strings.Cut(err.Error(), "\n")
+	return "invalid music directory: " + strings.TrimSpace(msg)
+}
+
 // buildModel wires all dependencies into a tui.Model. It is extracted from
 // runTUI so that the surrounding setup and teardown code remains scannable.
 func buildModel(
@@ -259,6 +286,7 @@ func buildModel(
 	cfg config.Config,
 	configPath string,
 	cfgResult config.LoadResult,
+	musicDirHint string,
 	result *app.RunResult,
 	libResult app.LibraryResult,
 	dirs config.Dirs,
@@ -272,6 +300,7 @@ func buildModel(
 		tui.WithConfig(cfg),
 		tui.WithConfigPath(configPath, cfgResult.Created),
 		tui.WithConfigWarnings(cfgResult.Warnings),
+		tui.WithMusicDirHint(musicDirHint),
 		tui.WithScanChannel(libResult.TuiScanCh),
 		tui.WithScanErrChannel(libResult.TuiScanErrCh),
 		tui.WithWatchChannel(libResult.TuiWatchCh),

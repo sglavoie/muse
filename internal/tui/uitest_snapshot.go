@@ -54,7 +54,7 @@ func (m Model) Snapshot() *UITestSnapshot {
 // no overlay is active.
 func (m Model) activeOverlayName() string {
 	switch {
-	case m.configCreated && !m.welcomeDismissed:
+	case m.welcomeVisible():
 		return "welcome"
 	case m.helpVisible:
 		return "help"

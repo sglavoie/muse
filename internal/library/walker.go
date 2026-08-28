@@ -2,6 +2,8 @@ package library
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -11,6 +13,18 @@ import (
 	"github.com/sglavoie/muse/internal/audio"
 )
 
+// errRootSkipped is returned by walkAudioPaths when the root itself could not
+// be opened (missing directory, permission denied). It is a skip signal, not a
+// failure: callers log it, yield an empty result for that root and carry on
+// with the remaining ones, so a first-run user whose configured music
+// directory does not exist still reaches a usable UI.
+//
+// FilteredWalk additionally suppresses deletion reporting when a root is
+// skipped. "No files found under an unreadable root" must never be mistaken
+// for "every file under it was deleted", which would mark the whole library
+// missing the first time a music directory is unmounted or renamed.
+var errRootSkipped = errors.New("root skipped")
+
 // walkAudioPaths walks root applying the shared rules: skip hidden
 // files/dirs, follow file symlinks only, and filter by audio extension.
 // For each qualifying audio file path, it calls visit. If visit returns
@@ -18,6 +32,10 @@ import (
 // If ctx is cancelled, the walk stops early. onErr, when non-nil, is called
 // for each non-fatal walk error (e.g. permission denied on a subdirectory)
 // in addition to the slog.Warn that is always emitted.
+//
+// A failure on the root entry itself is reported as an error wrapping
+// errRootSkipped; every other entry-level failure is non-fatal and only
+// reaches onErr.
 func walkAudioPaths(ctx context.Context, root string, excludedPaths []string, visit func(path string) error, onErr func(error)) error {
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if ctx.Err() != nil {
@@ -29,7 +47,7 @@ func walkAudioPaths(ctx context.Context, root string, excludedPaths []string, vi
 				onErr(err)
 			}
 			if path == root {
-				return err
+				return fmt.Errorf("%w: %s: %w", errRootSkipped, root, err)
 			}
 			return nil
 		}
@@ -85,6 +103,8 @@ func walkAudioPaths(ctx context.Context, root string, excludedPaths []string, vi
 // cancelled. Hidden files and directories (names starting with '.') are
 // skipped. Symbolic links are followed for files but not for directories.
 // Directories whose name matches any entry in excludedPaths are skipped.
+// A root that cannot be opened is logged and skipped; the remaining roots are
+// still walked.
 func Walk(ctx context.Context, roots []string, excludedPaths []string) <-chan string {
 	ch := make(chan string, 64)
 	go func() {

@@ -36,6 +36,14 @@ func WithConfigWarnings(warnings []string) Option {
 	return func(m *Model) { m.configWarnings = warnings }
 }
 
+// WithMusicDirHint sets the actionable instruction block shown in the welcome
+// overlay when no valid music directory was found at startup. Pass
+// config.ConfigHint(configPath); an empty string means the directories
+// validated and the overlay keeps its plain first-run copy.
+func WithMusicDirHint(hint string) Option {
+	return func(m *Model) { m.musicDirHint = hint }
+}
+
 // WithScanChannel sets the library scan channel. When non-nil, the TUI reads
 // incremental track updates from it. Pass the channel returned by library.Scan.
 func WithScanChannel(ch <-chan library.Track) Option {

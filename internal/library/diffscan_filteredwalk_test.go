@@ -221,7 +221,10 @@ func TestFilteredWalk_MultipleRootsDeletedFileReported(t *testing.T) {
 	}
 }
 
-func TestFilteredWalk_MissingRootReturnsErrorAndNoDeletions(t *testing.T) {
+// A missing root is skipped rather than failing the walk, so a first-run user
+// with no music directory still boots. Deletions stay suppressed: the known
+// files were never observed, which is not the same as having been deleted.
+func TestFilteredWalk_MissingRootSkippedAndNoDeletions(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "missing")
 	knownPath := filepath.Join(root, "track.mp3")
 	known := map[string]KnownFile{
@@ -229,14 +232,14 @@ func TestFilteredWalk_MissingRootReturnsErrorAndNoDeletions(t *testing.T) {
 	}
 
 	changed, deleted, err := FilteredWalk(context.Background(), []string{root}, nil, known, nil)
-	if err == nil {
-		t.Fatal("FilteredWalk with missing root: expected error")
+	if err != nil {
+		t.Fatalf("FilteredWalk with missing root: got err %v, want nil", err)
 	}
 	if changed != nil {
-		t.Errorf("changed: got %v, want nil on root walk error", changed)
+		t.Errorf("changed: got %v, want nil for a skipped root", changed)
 	}
 	if deleted != nil {
-		t.Errorf("deleted: got %v, want nil on root walk error", deleted)
+		t.Errorf("deleted: got %v, want nil for a skipped root", deleted)
 	}
 }
 

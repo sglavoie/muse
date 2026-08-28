@@ -2,6 +2,8 @@ package library
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 	"os"
 )
 
@@ -35,11 +37,19 @@ type KnownFile struct {
 //   - a slice of paths from known that were not seen during the walk (deleted files)
 //   - an error if any walk itself fails (callers should skip the deletion step)
 //
+// A root that cannot be opened at all (missing directory, permission denied) is
+// logged and skipped rather than failing the whole walk, so a user whose
+// configured music directory does not exist still gets a working, empty
+// library. Deletions are suppressed in that case: the files under a skipped
+// root were not observed, so reporting them as deleted would mark the entire
+// cached library missing.
+//
 // onErr, when non-nil, is called for each non-fatal walk error so callers can
 // surface them to the user (e.g. permission denied on a subdirectory).
 func FilteredWalk(ctx context.Context, roots []string, excludedPaths []string, known map[string]KnownFile, onErr func(error)) ([]string, []string, error) {
 	seen := make(map[string]bool, len(known))
 	var changed []string
+	rootSkipped := false
 
 	for _, root := range roots {
 		if ctx.Err() != nil {
@@ -61,15 +71,20 @@ func FilteredWalk(ctx context.Context, roots []string, excludedPaths []string, k
 			}
 			return nil
 		}, onErr); err != nil {
+			if errors.Is(err, errRootSkipped) {
+				slog.Warn("filtered walk: skipping unreadable root", "root", root, "err", err)
+				rootSkipped = true
+				continue
+			}
 			return nil, nil, err
 		}
 	}
 
-	// When the context was cancelled the walk is incomplete: some known paths
-	// may not have been visited. Reporting them as deleted would cause the
-	// caller to mark still-existing files as missing in the database. Return
-	// nil deletions so the caller skips the deletion step.
-	if ctx.Err() != nil {
+	// When the context was cancelled, or a root could not be opened, the walk is
+	// incomplete: some known paths were never visited. Reporting them as deleted
+	// would cause the caller to mark still-existing files as missing in the
+	// database. Return nil deletions so the caller skips the deletion step.
+	if ctx.Err() != nil || rootSkipped {
 		return changed, nil, nil
 	}
 
