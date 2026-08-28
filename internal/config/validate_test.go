@@ -276,6 +276,58 @@ func TestValidateMusicDirs_MultipleDirectoriesSomeInvalid(t *testing.T) {
 	}
 }
 
+// A mix of valid and invalid directories is degradation, not a dead
+// configuration: the usable roots are reported so callers can keep scanning
+// them instead of telling the user nothing was found.
+func TestValidateMusicDirsDetailed_PartialValidity(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "config.toml")
+
+	validDir := filepath.Join(tmp, "valid")
+	if err := os.Mkdir(validDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(validDir, "song.mp3"), []byte{}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	missingDir := filepath.Join(tmp, "no-such-dir")
+
+	res := ValidateMusicDirsDetailed([]string{validDir, missingDir}, configPath)
+
+	if res.Err == nil {
+		t.Fatal("Err = nil, want the missing directory reported")
+	}
+	if !res.Degraded() {
+		t.Error("Degraded() = false, want true with one usable directory")
+	}
+	if len(res.Usable) != 1 || res.Usable[0] != validDir {
+		t.Errorf("Usable = %v, want [%s]", res.Usable, validDir)
+	}
+}
+
+func TestValidateMusicDirsDetailed_NoUsableDirsIsNotDegraded(t *testing.T) {
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "config.toml")
+
+	for name, dirs := range map[string][]string{
+		"all invalid":  {filepath.Join(tmp, "no-such-dir")},
+		"none set":     nil,
+		"blank only":   {"  ", "\t"},
+		"empty string": {""},
+	} {
+		res := ValidateMusicDirsDetailed(dirs, configPath)
+		if res.Err == nil {
+			t.Errorf("%s: Err = nil, want an error", name)
+		}
+		if res.Degraded() {
+			t.Errorf("%s: Degraded() = true, want false with no usable directory", name)
+		}
+		if len(res.Usable) != 0 {
+			t.Errorf("%s: Usable = %v, want none", name, res.Usable)
+		}
+	}
+}
+
 func TestExpandTilde(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {

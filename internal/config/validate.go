@@ -25,11 +25,37 @@ func ConfigHint(configPath string) string {
 	)
 }
 
+// MusicDirsResult reports the outcome of validating the configured music
+// directories. It exists so callers can tell "nothing to scan at all" apart
+// from "some roots failed but the rest are being scanned" — the two cases need
+// different user-facing copy, and Err alone cannot distinguish them.
+type MusicDirsResult struct {
+	// Usable holds the trimmed directories that validated, in config order.
+	Usable []string
+	// Err is the combined validation error, nil when every configured
+	// directory validated.
+	Err error
+}
+
+// Degraded reports a partially valid configuration: at least one directory is
+// usable, but at least one other failed validation.
+func (r MusicDirsResult) Degraded() bool { return r.Err != nil && len(r.Usable) > 0 }
+
 // ValidateMusicDirs checks that each configured music directory exists and
 // contains at least one audio file or non-hidden subdirectory at the top level.
 // configPath is included in error messages so the user knows which file to edit.
 // All directories are validated; errors from any are collected and returned together.
+//
+// Callers that need to distinguish zero usable directories from partial
+// degradation should use ValidateMusicDirsDetailed instead.
 func ValidateMusicDirs(dirs []string, configPath string) error {
+	return ValidateMusicDirsDetailed(dirs, configPath).Err
+}
+
+// ValidateMusicDirsDetailed validates every configured music directory and
+// reports both which ones are usable and the combined error for the rest.
+func ValidateMusicDirsDetailed(dirs []string, configPath string) MusicDirsResult {
+	var result MusicDirsResult
 	var errs []string
 	validated := 0
 	for _, musicDir := range dirs {
@@ -40,17 +66,21 @@ func ValidateMusicDirs(dirs []string, configPath string) error {
 		validated++
 		if err := validateMusicDir(trimmed, configPath); err != nil {
 			errs = append(errs, err.Error())
+			continue
 		}
+		result.Usable = append(result.Usable, trimmed)
 	}
 	if validated == 0 {
-		return fmt.Errorf("no music directories configured%s", ConfigHint(configPath))
+		result.Err = fmt.Errorf("no music directories configured%s", ConfigHint(configPath))
+		return result
 	}
 	if len(errs) == 0 {
-		return nil
+		return result
 	}
 	// Joined with a blank line rather than "; " because each message now spans
 	// several lines; semicolon-joining multi-line strings reads as one blob.
-	return fmt.Errorf("%s", strings.Join(errs, "\n\n"))
+	result.Err = fmt.Errorf("%s", strings.Join(errs, "\n\n"))
+	return result
 }
 
 // validateMusicDir validates a single music directory.

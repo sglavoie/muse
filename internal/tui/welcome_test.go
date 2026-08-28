@@ -25,7 +25,7 @@ func sizedWelcomeModel(t *testing.T, opts ...Option) Model {
 func TestWelcomeOverlay_FiresOnMusicDirHintWithoutConfigCreated(t *testing.T) {
 	m := New(context.Background(),
 		WithConfigPath(testConfigPath, false),
-		WithMusicDirHint(config.ConfigHint(testConfigPath)),
+		WithMusicDirHint(config.ConfigHint(testConfigPath), false),
 	)
 	if !m.welcomeVisible() {
 		t.Fatal("welcome overlay should be visible when no music directories are valid")
@@ -47,7 +47,7 @@ func TestWelcomeOverlay_HiddenWhenDirsValidAndConfigNotCreated(t *testing.T) {
 func TestWelcomeOverlay_NamesConfigPathAndMusicDirectoriesKey(t *testing.T) {
 	m := sizedWelcomeModel(t,
 		WithConfigPath(testConfigPath, true),
-		WithMusicDirHint(config.ConfigHint(testConfigPath)),
+		WithMusicDirHint(config.ConfigHint(testConfigPath), false),
 	)
 	view := ansi.Strip(viewContent(m))
 
@@ -63,6 +63,31 @@ func TestWelcomeOverlay_NamesConfigPathAndMusicDirectoriesKey(t *testing.T) {
 	// The keybinding rows survive alongside the new copy.
 	if !strings.Contains(view, "Show all keybindings") {
 		t.Errorf("welcome overlay lost its keybinding rows:\n%s", view)
+	}
+}
+
+// With some directories still usable the overlay must not claim that none were
+// found — the valid roots are being scanned while it is on screen — but it
+// still has to carry the actionable fix for the broken ones.
+func TestWelcomeOverlay_PartialValidityCopy(t *testing.T) {
+	m := sizedWelcomeModel(t,
+		WithConfigPath(testConfigPath, true),
+		WithMusicDirHint(config.ConfigHint(testConfigPath), true),
+	)
+	view := ansi.Strip(viewContent(m))
+
+	if strings.Contains(view, "No music directories found.") {
+		t.Errorf("overlay falsely claims no directories were found:\n%s", view)
+	}
+	for _, want := range []string{
+		"Some music directories could not be read.",
+		"The remaining directories are being scanned.",
+		testConfigPath,
+		"music_directories = [",
+	} {
+		if !strings.Contains(view, want) {
+			t.Errorf("welcome overlay missing %q:\n%s", want, view)
+		}
 	}
 }
 
@@ -83,7 +108,7 @@ func TestWelcomeOverlay_NoMusicDirCopyWhenHintEmpty(t *testing.T) {
 func TestWelcomeOverlay_DismissedByAnyKey(t *testing.T) {
 	m := sizedWelcomeModel(t,
 		WithConfigPath(testConfigPath, false),
-		WithMusicDirHint(config.ConfigHint(testConfigPath)),
+		WithMusicDirHint(config.ConfigHint(testConfigPath), false),
 	)
 	m, _ = updateModel(m, tea.KeyPressMsg{Code: 'x', Text: "x"})
 

@@ -36,7 +36,10 @@ func (m Model) renderWelcomeOverlay() string {
 	rows := []OverlayRow{{Blank: true}}
 	maxInner := 0
 	if m.musicDirHint != "" {
-		rows = append(rows, OverlayRow{Text: "No music directories found.", Styled: true})
+		rows = append(rows, OverlayRow{Text: musicDirHeadline(m.musicDirsPartial), Styled: true})
+		if m.musicDirsPartial {
+			rows = append(rows, OverlayRow{Text: "The remaining directories are being scanned."})
+		}
 		rows = append(rows, hintRows(m.musicDirHint)...)
 		rows = append(rows, OverlayRow{Blank: true})
 		// A config path can be long enough to push the box past the terminal;
@@ -61,6 +64,16 @@ func (m Model) renderWelcomeOverlay() string {
 		MaxInnerWidth: maxInner,
 	}
 	return o.Render(m.termWidth, m.termHeight, *m.styles)
+}
+
+// musicDirHeadline picks the overlay's first line. A partially valid
+// configuration must not be told that no directories were found: the valid
+// roots are being scanned, and the user's job is to fix the rest.
+func musicDirHeadline(partial bool) string {
+	if partial {
+		return "Some music directories could not be read."
+	}
+	return "No music directories found."
 }
 
 // hintRows turns config.ConfigHint's multi-line instruction block into overlay

@@ -37,11 +37,18 @@ func WithConfigWarnings(warnings []string) Option {
 }
 
 // WithMusicDirHint sets the actionable instruction block shown in the welcome
-// overlay when no valid music directory was found at startup. Pass
+// overlay when a configured music directory failed validation at startup. Pass
 // config.ConfigHint(configPath); an empty string means the directories
 // validated and the overlay keeps its plain first-run copy.
-func WithMusicDirHint(hint string) Option {
-	return func(m *Model) { m.musicDirHint = hint }
+//
+// partial reports that at least one directory is still usable (see
+// config.MusicDirsResult.Degraded), which selects copy that does not claim the
+// library is empty while the valid roots are being scanned.
+func WithMusicDirHint(hint string, partial bool) Option {
+	return func(m *Model) {
+		m.musicDirHint = hint
+		m.musicDirsPartial = partial
+	}
 }
 
 // WithScanChannel sets the library scan channel. When non-nil, the TUI reads

@@ -51,7 +51,7 @@ func runTUI(ctx context.Context) error {
 	}
 	config.SetLogLevel(logLevel)
 
-	cfgResult, musicDirHint := checkMusicDirs(cfgResult, cfg.MusicDirectories, configPath)
+	cfgResult, musicDirHint, musicDirsPartial := checkMusicDirs(cfgResult, cfg.MusicDirectories, configPath)
 
 	player.SetSoundContext(ctx)
 
@@ -169,7 +169,7 @@ func runTUI(ctx context.Context) error {
 		auditCh = app.RunDurationAudit(ctx, result.DB, result.Writer)
 	}
 
-	model := buildModel(ctx, cfg, configPath, cfgResult, musicDirHint, result, libResult, dirs, extractor, adapter, mgr, auditCh, startupCount)
+	model := buildModel(ctx, cfg, configPath, cfgResult, musicDirHint, musicDirsPartial, result, libResult, dirs, extractor, adapter, mgr, auditCh, startupCount)
 
 	// Apply all restored session state (queue, library, playlists,
 	// repeat/shuffle/volume, current track) before tea.NewProgram so the
@@ -291,16 +291,19 @@ func reportProgramPanic(err error, stderr io.Writer) bool {
 // config-warning channel and the fix in the welcome overlay. `muse check` stays
 // strict — it is the explicit pre-flight for exactly this.
 //
-// It returns the load result with any warning appended, plus the hint text for
-// the welcome overlay (empty when the directories validated).
-func checkMusicDirs(cfgResult config.LoadResult, musicDirs []string, configPath string) (config.LoadResult, string) {
-	err := config.ValidateMusicDirs(musicDirs, configPath)
-	if err == nil {
-		return cfgResult, ""
+// It returns the load result with any warning appended, the hint text for the
+// welcome overlay (empty when every directory validated), and whether the
+// failure is partial — some directories are still usable, so the overlay must
+// not claim that none were found.
+func checkMusicDirs(cfgResult config.LoadResult, musicDirs []string, configPath string) (config.LoadResult, string, bool) {
+	res := config.ValidateMusicDirsDetailed(musicDirs, configPath)
+	if res.Err == nil {
+		return cfgResult, "", false
 	}
-	slog.Error("invalid music directory", "err", err)
-	cfgResult.Warnings = append(cfgResult.Warnings, musicDirWarning(err))
-	return cfgResult, config.ConfigHint(configPath)
+	partial := res.Degraded()
+	slog.Error("invalid music directory", "err", res.Err, "usable_dirs", len(res.Usable))
+	cfgResult.Warnings = append(cfgResult.Warnings, musicDirWarning(res.Err, partial))
+	return cfgResult, config.ConfigHint(configPath), partial
 }
 
 // musicDirWarning collapses a ValidateMusicDirs error into a single line
@@ -308,9 +311,16 @@ func checkMusicDirs(cfgResult config.LoadResult, musicDirs []string, configPath 
 // "; " and renders them in the status bar. The full multi-line error (including
 // the config hint) has already gone to the log, and the actionable instructions
 // are shown separately in the welcome overlay.
-func musicDirWarning(err error) string {
+//
+// When only some directories failed, the line says the bad one is being skipped
+// rather than implying the whole library is unusable.
+func musicDirWarning(err error, partial bool) string {
 	msg, _, _ := strings.Cut(err.Error(), "\n")
-	return "invalid music directory: " + strings.TrimSpace(msg)
+	prefix := "invalid music directory: "
+	if partial {
+		prefix = "skipping invalid music directory: "
+	}
+	return prefix + strings.TrimSpace(msg)
 }
 
 // buildModel wires all dependencies into a tui.Model. It is extracted from
@@ -321,6 +331,7 @@ func buildModel(
 	configPath string,
 	cfgResult config.LoadResult,
 	musicDirHint string,
+	musicDirsPartial bool,
 	result *app.RunResult,
 	libResult app.LibraryResult,
 	dirs config.Dirs,
@@ -334,7 +345,7 @@ func buildModel(
 		tui.WithConfig(cfg),
 		tui.WithConfigPath(configPath, cfgResult.Created),
 		tui.WithConfigWarnings(cfgResult.Warnings),
-		tui.WithMusicDirHint(musicDirHint),
+		tui.WithMusicDirHint(musicDirHint, musicDirsPartial),
 		tui.WithScanChannel(libResult.TuiScanCh),
 		tui.WithScanErrChannel(libResult.TuiScanErrCh),
 		tui.WithWatchChannel(libResult.TuiWatchCh),

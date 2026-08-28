@@ -79,10 +79,16 @@ type Model struct {
 	welcomeDismissed bool
 	dataDir          string // XDG data directory (contains muse.db); set via WithDataDir
 	configWarnings   []string
-	// musicDirHint carries config.ConfigHint's instruction block when no valid
-	// music directory was found at startup. Non-empty also makes the welcome
-	// overlay fire for users whose config file already existed.
+	// musicDirHint carries config.ConfigHint's instruction block when at least
+	// one configured music directory failed validation at startup. Non-empty
+	// also makes the welcome overlay fire for users whose config file already
+	// existed.
 	musicDirHint string
+	// musicDirsPartial is true when some music directories failed validation
+	// but at least one still validated, so the library is being scanned. It
+	// selects the overlay copy: claiming no directories were found would be
+	// false while valid roots are feeding tracks in.
+	musicDirsPartial bool
 
 	// fixtureSafeCommands is true only for fixture-backed models built by the
 	// hidden `muse tui-test` harness. When set, key-driven command-palette
