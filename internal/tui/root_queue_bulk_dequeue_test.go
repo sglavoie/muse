@@ -16,7 +16,7 @@ import (
 func TestBulkDequeueCreatesUndoSlot(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Display: "A"},
 		{ID: 20, Path: "/b.flac", Display: "B", Selected: true},
@@ -58,7 +58,7 @@ func TestBulkDequeueCreatesUndoSlot(t *testing.T) {
 func TestBulkDequeueDuplicateHashKeepsPlayback(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
 	m.statusBar.Artist = "Artist"
@@ -85,7 +85,7 @@ func TestBulkDequeueDuplicateHashKeepsPlayback(t *testing.T) {
 func TestBulkDequeueLastInstanceOfHashStopsPlayback(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
 	m.statusBar.Artist = "Artist"
@@ -112,7 +112,7 @@ func TestBulkDequeueLastInstanceOfHashStopsPlayback(t *testing.T) {
 func TestBulkDequeueAdjustsCurrentIndex(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.playback.currentIndex = 3
 	m.playback.currentHash = "ddd"
 	m.queue.Entries = []queue.Entry{
@@ -139,7 +139,7 @@ func TestBulkDequeueAdjustsCurrentIndex(t *testing.T) {
 func TestBulkDequeueCurrentTrackSelectedResetsIndex(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.playback.currentIndex = 1
 	m.playback.currentHash = "bbb"
 	m.queue.Entries = []queue.Entry{

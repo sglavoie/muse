@@ -13,7 +13,7 @@ func TestToggleFavorite_HistorySingleOpensPicker(t *testing.T) {
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
 	m.library.Mode = libtui.LibraryModeHistory
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.library.SourceTracks = []library.Track{
 		{Hash: "h1", Title: "Song A"},
 		{Hash: "h2", Title: "Song B"},
@@ -32,7 +32,7 @@ func TestToggleFavorite_HistoryBulkOpensPicker(t *testing.T) {
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
 	m.library.Mode = libtui.LibraryModeHistory
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.library.SourceTracks = []library.Track{
 		{Hash: "h1", Title: "Song A"},
 		{Hash: "h2", Title: "Song B"},

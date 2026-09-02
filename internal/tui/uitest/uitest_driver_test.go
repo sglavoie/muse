@@ -1,4 +1,4 @@
-package tui
+package uitest
 
 import (
 	"strings"
@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
@@ -17,7 +18,7 @@ func bp(b bool) *bool     { return &b }
 // newTestDriver builds a fixture-backed driver at the given size for tests.
 func newTestDriver(t *testing.T, fixture string, w, h int) *UITestDriver {
 	t.Helper()
-	model, err := BuildFixture(fixture)
+	model, err := tui.BuildFixture(fixture)
 	if err != nil {
 		t.Fatalf("BuildFixture(%q): %v", fixture, err)
 	}
@@ -25,7 +26,7 @@ func newTestDriver(t *testing.T, fixture string, w, h int) *UITestDriver {
 }
 
 func TestDriverResizeAndRender(t *testing.T) {
-	d := newTestDriver(t, FixtureRich, 100, 30)
+	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 
 	obs := d.Observe(ObserveOptions{})
 	if obs.Width != 100 || obs.Height != 30 {
@@ -49,7 +50,7 @@ func TestDriverResizeAndRender(t *testing.T) {
 }
 
 func TestDriverKeyNavigation(t *testing.T) {
-	d := newTestDriver(t, FixtureRich, 100, 30)
+	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 
 	if err := d.SendKey("3"); err != nil {
 		t.Fatalf("SendKey(3): %v", err)
@@ -67,7 +68,7 @@ func TestDriverKeyNavigation(t *testing.T) {
 }
 
 func TestDriverTextInputThroughCommandPalette(t *testing.T) {
-	d := newTestDriver(t, FixtureRich, 100, 30)
+	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 
 	if err := d.SendKey(":"); err != nil {
 		t.Fatalf("SendKey(:): %v", err)
@@ -85,7 +86,7 @@ func TestDriverTextInputThroughCommandPalette(t *testing.T) {
 }
 
 func TestDriverCommandDrainAndPendingAsync(t *testing.T) {
-	d := newTestDriver(t, FixtureRich, 100, 30)
+	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 	d.drainTimeout = 5 * time.Millisecond
 
 	release := make(chan tea.Msg)
@@ -116,7 +117,7 @@ func TestDriverCommandDrainAndPendingAsync(t *testing.T) {
 }
 
 func TestDriverWaitActionResolvesPending(t *testing.T) {
-	d := newTestDriver(t, FixtureRich, 100, 30)
+	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 	d.drainTimeout = 5 * time.Millisecond
 
 	d.drain(func() tea.Msg {
@@ -137,7 +138,7 @@ func TestDriverWaitActionResolvesPending(t *testing.T) {
 }
 
 func TestDriverReleaseClearsPending(t *testing.T) {
-	d := newTestDriver(t, FixtureRich, 100, 30)
+	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 	d.drainTimeout = 5 * time.Millisecond
 
 	// Park a future that never resolves so the driver holds pending accounting.
@@ -164,7 +165,7 @@ func TestDriverReleaseClearsPending(t *testing.T) {
 }
 
 func TestDriverAssertionPasses(t *testing.T) {
-	d := newTestDriver(t, FixtureRich, 100, 30)
+	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 
 	cases := []UITestAssertion{
 		{View: sp("Library")},
@@ -181,7 +182,7 @@ func TestDriverAssertionPasses(t *testing.T) {
 }
 
 func TestDriverAssertionFailures(t *testing.T) {
-	d := newTestDriver(t, FixtureRich, 100, 30)
+	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 	obs := d.Observe(ObserveOptions{})
 
 	cases := []UITestAssertion{
@@ -199,7 +200,7 @@ func TestDriverAssertionFailures(t *testing.T) {
 }
 
 func TestDriverNoLayoutIssuesReportsDetectedIssue(t *testing.T) {
-	d := newTestDriver(t, FixtureRich, 100, 30)
+	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 	obs := UITestObservation{
 		LayoutIssues: []UITestIssue{{
 			Kind:   IssueWidthOverflow,
@@ -219,7 +220,7 @@ func TestDriverNoLayoutIssuesReportsDetectedIssue(t *testing.T) {
 }
 
 func TestDriverSafeCommandAllowlist(t *testing.T) {
-	d := newTestDriver(t, FixtureRich, 100, 30)
+	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 
 	// Accepted: opening the debug panel is a safe internal command.
 	if _, err := d.ApplyAction(UITestAction{Command: sp("Show debug panel")}, ObserveOptions{}); err != nil {
@@ -239,7 +240,7 @@ func TestDriverSafeCommandAllowlist(t *testing.T) {
 }
 
 func TestDriverRejectsUnsafeAndUnknownCommands(t *testing.T) {
-	d := newTestDriver(t, FixtureRich, 100, 30)
+	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 
 	// A Finder-revealing command is present (a track is focused) but must be
 	// rejected as side-effectful.
@@ -259,7 +260,7 @@ func TestDriverRejectsUnsafeAndUnknownCommands(t *testing.T) {
 }
 
 func TestDriverKeyDrivenPaletteRejectsUnsafeCommand(t *testing.T) {
-	d := newTestDriver(t, FixtureRich, 100, 30)
+	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 
 	// Open the command palette, filter to the side-effectful "Reveal in Finder"
 	// command, and select it with enter — the exact path a scenario could use to
@@ -288,7 +289,7 @@ func TestDriverKeyDrivenPaletteRejectsUnsafeCommand(t *testing.T) {
 }
 
 func TestDriverKeyDrivenPaletteRunsSafeCommand(t *testing.T) {
-	d := newTestDriver(t, FixtureRich, 100, 30)
+	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 
 	// The same key-driven path must still run a fixture-safe command so normal
 	// palette selection is unaffected by the safety gate.
@@ -310,7 +311,7 @@ func TestDriverKeyDrivenPaletteRunsSafeCommand(t *testing.T) {
 }
 
 func TestDriverObserveAvailableCommands(t *testing.T) {
-	d := newTestDriver(t, FixtureRich, 100, 30)
+	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 	obs := d.Observe(ObserveOptions{IncludeCommands: true})
 	if len(obs.AvailableCommands) == 0 {
 		t.Fatal("expected available commands to be populated when requested")

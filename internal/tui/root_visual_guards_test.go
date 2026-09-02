@@ -10,7 +10,7 @@ import (
 
 func TestVisualModeHierarchicalViewGuard(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeArtists
 
 	m = doVisual(m)
@@ -22,7 +22,7 @@ func TestVisualModeHierarchicalViewGuard(t *testing.T) {
 
 func TestVisualModeMixesGuardListLevel(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewMixes
+	m.ActiveView = viewMixes
 	m.mixes.Level = 0
 
 	m = doVisual(m)
@@ -34,7 +34,7 @@ func TestVisualModeMixesGuardListLevel(t *testing.T) {
 
 func TestVisualModeMixesGuardTrackLevel(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewMixes
+	m.ActiveView = viewMixes
 	m.mixes.Level = 1
 	m.mixes.TrackView = libtui.View{SourceTracks: makeNTracks(3)}
 

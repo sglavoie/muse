@@ -13,7 +13,7 @@ import (
 func TestCutSingleTrack(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Cursor = 1
 
@@ -46,7 +46,7 @@ func TestCutSingleTrack(t *testing.T) {
 func TestCutBulkSelection(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Entries[0].Selected = true
 	m.queue.Entries[2].Selected = true
@@ -71,7 +71,7 @@ func TestCutBulkSelection(t *testing.T) {
 func TestYankAfterCutClearsCutFlag(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Cursor = 0
 

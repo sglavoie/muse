@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/sglavoie/muse/internal/tui"
+	"github.com/sglavoie/muse/internal/tui/uitest"
 )
 
 // scenarioDir is the committed example scenario directory, relative to the
@@ -32,13 +32,13 @@ var ungatedScenarios = []string{
 	"resize-stress.json",
 }
 
-func loadScenario(t *testing.T, name string) tui.UITestScenario {
+func loadScenario(t *testing.T, name string) uitest.UITestScenario {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join(scenarioDir, name))
 	if err != nil {
 		t.Fatalf("read %s: %v", name, err)
 	}
-	scenario, err := tui.ParseScenario(data)
+	scenario, err := uitest.ParseScenario(data)
 	if err != nil {
 		t.Fatalf("parse %s: %v", name, err)
 	}
@@ -49,7 +49,7 @@ func TestCommittedScenarios_Gated(t *testing.T) {
 	for _, name := range gatedScenarios {
 		t.Run(name, func(t *testing.T) {
 			scenario := loadScenario(t, name)
-			result, err := tui.RunScenario(scenario, tui.RunOptions{})
+			result, err := uitest.RunScenario(scenario, uitest.RunOptions{})
 			if err != nil {
 				t.Fatalf("setup error: %v", err)
 			}
@@ -69,7 +69,7 @@ func TestCommittedScenarios_UngatedRunClean(t *testing.T) {
 	for _, name := range ungatedScenarios {
 		t.Run(name, func(t *testing.T) {
 			scenario := loadScenario(t, name)
-			result, err := tui.RunScenario(scenario, tui.RunOptions{})
+			result, err := uitest.RunScenario(scenario, uitest.RunOptions{})
 			if err != nil {
 				// A setup error (unknown fixture, malformed size) is a real
 				// defect even for ungated scenarios.
@@ -89,7 +89,7 @@ func TestCommittedScenarios_UngatedRunClean(t *testing.T) {
 	}
 }
 
-func actionIndex(r tui.UITestScenarioResult) int {
+func actionIndex(r uitest.UITestScenarioResult) int {
 	if r.Error != nil {
 		return r.Error.Index
 	}

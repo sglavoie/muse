@@ -16,7 +16,7 @@ import (
 // filtered list, which is shorter than the canonical list.
 func TestTagDeleteStoresCanonicalIndex(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TagLevel
 	m.tagsView.Tags = []db.TagRow{
 		{ID: 1, Name: "Alpha"},
@@ -68,7 +68,7 @@ func TestTagDeleteStoresCanonicalIndex(t *testing.T) {
 // tagDeletedMsg handler to close an unrelated slot's cancel channel).
 func TestTagDeletePurgeDoesNotCorruptOtherSlot(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TagLevel
 	m.tagsView.Tags = []db.TagRow{
 		{ID: 1, Name: "Alpha"},
@@ -144,7 +144,7 @@ func TestAutoDeletedTagPurgeDoesNotCorruptUndoSlot(t *testing.T) {
 // the deletion happened while a filter was active.
 func TestTagDeleteUndoRestoresCanonicalPosition(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TagLevel
 	m.tagsView.Tags = []db.TagRow{
 		{ID: 1, Name: "Alpha"},
@@ -201,7 +201,7 @@ func TestTagDeleteUndoRestoresCanonicalPosition(t *testing.T) {
 // lookup now returns the empty string.
 func TestTagDeleteClearsActiveTagFilter(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TagLevel
 	m.tagsView.Tags = []db.TagRow{
 		{ID: 1, Name: "Alpha"},

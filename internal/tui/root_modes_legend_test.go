@@ -117,14 +117,14 @@ func TestModesLegendEscCloses(t *testing.T) {
 // do not reach the view underneath.
 func TestModesLegendSwallowsKeys(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.overlay.modesLegend = &overlay.ModesLegendOverlay{}
 
 	// '3' switches to the Queue view when no overlay is active.
 	nm := pressKey(m, "3")
 
-	if nm.activeView != viewLibrary {
-		t.Errorf("expected active view to stay viewLibrary, got %v", nm.activeView)
+	if nm.ActiveView != viewLibrary {
+		t.Errorf("expected active view to stay viewLibrary, got %v", nm.ActiveView)
 	}
 	if nm.overlay.modesLegend == nil {
 		t.Error("expected the overlay to stay open after a swallowed key")
@@ -157,7 +157,7 @@ func TestModesLegendCountsAsActiveOverlay(t *testing.T) {
 	if m.hasActiveOverlay() {
 		t.Fatal("expected no active overlay on a fresh model")
 	}
-	if name := m.activeOverlayName(); name != "" {
+	if name := m.ActiveOverlayName(); name != "" {
 		t.Fatalf("expected empty overlay name on a fresh model, got %q", name)
 	}
 
@@ -166,7 +166,7 @@ func TestModesLegendCountsAsActiveOverlay(t *testing.T) {
 	if !nm.hasActiveOverlay() {
 		t.Error("expected hasActiveOverlay to report the modes legend")
 	}
-	if name := nm.activeOverlayName(); name != "modes_legend" {
+	if name := nm.ActiveOverlayName(); name != "modes_legend" {
 		t.Errorf("expected overlay name %q, got %q", "modes_legend", name)
 	}
 }

@@ -99,7 +99,7 @@ func (m Model) bulkEditorForHashes(hashes []string) metadata.Editor {
 // AlbumLevel). Returns false if the current context is not renameable.
 func (m Model) renameEditorForFocusedEntity() (metadata.Editor, bool) {
 	tracks := m.library.Index.Tracks()
-	if m.activeView != viewBrowse {
+	if m.ActiveView != viewBrowse {
 		return metadata.Editor{}, false
 	}
 	switch m.browse.Mode {
@@ -174,7 +174,7 @@ func (m Model) metadataSaveNotification(mode metadata.Mode, hashes []string, dir
 			if newName == "" {
 				newName = arttui.UnknownAlbum
 			}
-			if m.activeView == viewBrowse {
+			if m.ActiveView == viewBrowse {
 				switch m.browse.Mode {
 				case browse.BrowseModeArtists:
 					for i, a := range m.browse.Artists.Albums {

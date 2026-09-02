@@ -10,7 +10,7 @@ import (
 func TestVisualModeQueueExtend(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Cursor = 0
 
@@ -24,7 +24,7 @@ func TestVisualModeQueueExtend(t *testing.T) {
 func TestVisualModeQueueExitPreservesSelections(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Cursor = 0
 

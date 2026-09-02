@@ -31,8 +31,8 @@ func (m Model) openFavoriteTargetPicker() Model {
 	if len(tracks) == 0 {
 		return m
 	}
-	origin := favtui.PickerOrigin{View: int(m.activeView)}
-	if m.activeView == viewFavorites {
+	origin := favtui.PickerOrigin{View: int(m.ActiveView)}
+	if m.ActiveView == viewFavorites {
 		origin.FavLevel = int(m.favorites.Level)
 		origin.FavCategory = int(m.favorites.Category)
 		origin.DrilldownName = m.favorites.DrilldownName
@@ -46,7 +46,7 @@ func (m Model) openFavoriteTargetPicker() Model {
 }
 
 func (m Model) favoritePickerTracks() []library.Track {
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		return m.bulkLibraryTracks()
 	case viewQueue:
@@ -199,7 +199,7 @@ func (m Model) handleFavoriteTargetPicked(msg favtui.TargetPickedMsg) (Model, te
 }
 
 func (m Model) decoratePickerRemoval(msg favoriteToggledMsg) favoriteToggledMsg {
-	if m.activeView != viewFavorites {
+	if m.ActiveView != viewFavorites {
 		return msg
 	}
 	values := msg.removedValues

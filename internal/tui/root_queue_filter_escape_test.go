@@ -12,7 +12,7 @@ import (
 // and resets the cursor.
 func TestQueueFilterEscapeClears(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/a.flac", Title: "Alpha", Artist: "ArtA"},
 		{Path: "/b.flac", Title: "Beta", Artist: "ArtB"},
@@ -42,7 +42,7 @@ func TestQueueFilterEscapeClears(t *testing.T) {
 // (exits input mode but keeps the text).
 func TestQueueFilterEnterCommits(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/a.flac", Title: "Alpha", Artist: "ArtA"},
 	}
@@ -68,7 +68,7 @@ func TestQueueFilterEnterCommits(t *testing.T) {
 // a filter (Enter) clears the filter text and resets the cursor.
 func TestQueueEscClearsCommittedFilter(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/a.flac", Title: "Alpha", Artist: "ArtA"},
 		{Path: "/b.flac", Title: "Beta", Artist: "ArtB"},
@@ -103,7 +103,7 @@ func TestQueueEscClearsCommittedFilter(t *testing.T) {
 // without a committed filter does not crash or change state unexpectedly.
 func TestQueueEscNoOpWithoutFilter(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/a.flac", Title: "Alpha", Artist: "ArtA"},
 	}

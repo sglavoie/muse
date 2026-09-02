@@ -12,7 +12,7 @@ import (
 // active advances the cursor by one.
 func TestQueueCursorDownJKey(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
@@ -29,7 +29,7 @@ func TestQueueCursorDownJKey(t *testing.T) {
 // active moves the cursor up by one.
 func TestQueueCursorUpKKey(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
@@ -47,7 +47,7 @@ func TestQueueCursorUpKKey(t *testing.T) {
 // cursor in the queue view, behaving identically to "j".
 func TestQueueCursorDownArrow(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
@@ -64,7 +64,7 @@ func TestQueueCursorDownArrow(t *testing.T) {
 // in the queue view, behaving identically to "k".
 func TestQueueCursorUpArrow(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
@@ -82,7 +82,7 @@ func TestQueueCursorUpArrow(t *testing.T) {
 // entry without wrapping when the queue view is active.
 func TestQueueCursorClampAtBottom(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
@@ -100,7 +100,7 @@ func TestQueueCursorClampAtBottom(t *testing.T) {
 // without wrapping when the queue view is active.
 func TestQueueCursorClampAtTop(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
@@ -117,7 +117,7 @@ func TestQueueCursorClampAtTop(t *testing.T) {
 // the queue view moves the cursor to the entry matching currentTrackHash.
 func TestFocusNowPlayingMovesCursorToCurrentTrack(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Hash: "aaa", Display: "A"},
 		{Path: "/music/b.flac", Hash: "bbb", Display: "B"},
@@ -141,7 +141,7 @@ func TestFocusNowPlayingMovesCursorToCurrentTrack(t *testing.T) {
 // view switches to the Queue view and focuses the currently playing track.
 func TestFocusNowPlayingFromOtherView(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Hash: "aaa", Display: "A"},
 		{Path: "/music/b.flac", Hash: "bbb", Display: "B"},
@@ -154,8 +154,8 @@ func TestFocusNowPlayingFromOtherView(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'f', Text: "f"})
 	nm := next.(Model)
 
-	if nm.activeView != viewQueue {
-		t.Errorf("f from Library: expected activeView=viewQueue, got %d", nm.activeView)
+	if nm.ActiveView != viewQueue {
+		t.Errorf("f from Library: expected activeView=viewQueue, got %d", nm.ActiveView)
 	}
 	if nm.queue.Cursor != 1 {
 		t.Errorf("f from Library: expected cursor 1 (track bbb), got %d", nm.queue.Cursor)
@@ -166,7 +166,7 @@ func TestFocusNowPlayingFromOtherView(t *testing.T) {
 // nothing when no track is currently playing (empty currentTrackHash).
 func TestFocusNowPlayingNoOpWhenNothingPlaying(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Hash: "aaa", Display: "A"},
 		{Path: "/music/b.flac", Hash: "bbb", Display: "B"},

@@ -18,7 +18,7 @@ func TestBulkFavoriteRemoval_UpdatesInViewState(t *testing.T) {
 		"artist": {"Bach", "Davis"},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryArtists
 	m.favorites.Artists = []string{"Bach", "Coltrane", "Davis", "Ellington"}
@@ -51,7 +51,7 @@ func TestBulkFavoriteRemoval_TrackLevelPreservesDrilldownTracks(t *testing.T) {
 		"track": {"h2", "h4"},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.TrackLevel
 	m.favorites.Category = favtui.CategoryArtists
 	m.favoriteHashes = map[string]struct{}{"h1": {}, "h2": {}, "h3": {}, "h4": {}}
@@ -99,7 +99,7 @@ func TestSingleFavoriteRemoval_TrackLevelPreservesDrilldownTrack(t *testing.T) {
 		"track": {"h2", "h3"},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.TrackLevel
 	m.favorites.Category = favtui.CategoryAlbums
 	m.favorites.DrilldownTracks = []library.Track{
@@ -144,7 +144,7 @@ func TestSingleFavoriteRemoval_StillWorksWithValue(t *testing.T) {
 		"album": {"Jazz", "Rock"},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryAlbums
 	m.favorites.Albums = []string{"Jazz", "Rock", "Blues"}
@@ -175,7 +175,7 @@ func TestSingleFavoriteRemoval_StillWorksWithValue(t *testing.T) {
 // which one was opened.
 func TestFavoritesLoadedMsg_SavesCategoryCursor(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.CategoryLevel
 	m.favorites.Cursor = 1
 
@@ -206,7 +206,7 @@ func TestFavoritesLoadedMsg_SavesCategoryCursor(t *testing.T) {
 // cursor=2 (Tracks category).
 func TestFavoritesLoadedMsg_SavesCategoryCursor_Tracks(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.CategoryLevel
 	m.favorites.Cursor = 2
 
@@ -234,7 +234,7 @@ func TestSingleFavoriteRemoval_ClearsSelectedItems(t *testing.T) {
 		"track": {"h1", "h3"},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryTracks
 	m.favorites.Tracks = []library.Track{
@@ -267,7 +267,7 @@ func TestBulkFavoriteRemoval_ClearsSelectedItems_TrackLevel(t *testing.T) {
 		"track": {"h1"},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.TrackLevel
 	m.favorites.DrilldownTracks = []library.Track{
 		{Hash: "h1", Title: "T1"},

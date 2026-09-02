@@ -6,7 +6,7 @@ import tea "charm.land/bubbletea/v2"
 // create input is active. Returns true in the third value when the key was
 // consumed, preventing further dispatch.
 func (m Model) handlePlaylistCreateInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
-	if !m.playlists.IsCreating() || m.activeView != viewPlaylists {
+	if !m.playlists.IsCreating() || m.ActiveView != viewPlaylists {
 		return m, nil, false
 	}
 	switch msg.String() {
@@ -52,7 +52,7 @@ func (m Model) handlePlaylistCreateInput(msg tea.KeyPressMsg) (Model, tea.Cmd, b
 // rename input is active. Returns true in the third value when the key was
 // consumed, preventing further dispatch.
 func (m Model) handlePlaylistRenameInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
-	if !m.playlists.IsRenaming() || m.activeView != viewPlaylists {
+	if !m.playlists.IsRenaming() || m.ActiveView != viewPlaylists {
 		return m, nil, false
 	}
 	switch msg.String() {
@@ -103,7 +103,7 @@ func (m Model) handlePlaylistRenameInput(msg tea.KeyPressMsg) (Model, tea.Cmd, b
 // input is active. Returns true in the third value when the key was consumed,
 // preventing further dispatch.
 func (m Model) handleQueueSaveInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
-	if !m.queue.IsSavingAsPlaylist() || m.activeView != viewQueue {
+	if !m.queue.IsSavingAsPlaylist() || m.ActiveView != viewQueue {
 		return m, nil, false
 	}
 	switch msg.String() {

@@ -11,8 +11,8 @@ import (
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
-// renderStatusBar builds the status bar line shown at the bottom of the view.
-func (m Model) renderStatusBar() string {
+// RenderStatusBar builds the status bar line shown at the bottom of the view.
+func (m Model) RenderStatusBar() string {
 	sb := m.statusBar
 	sb.PlaybackState = m.playback.state
 	sb.RepeatMode = m.playback.repeatMode
@@ -47,7 +47,7 @@ func (m Model) renderStatusBar() string {
 
 // activeViewSelectionCount returns the bulk-selection size for the active view.
 func (m Model) activeViewSelectionCount() int {
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		return len(m.library.SelectedHashes)
 	case viewQueue:
@@ -72,7 +72,7 @@ func (m Model) activeViewSelectionCount() int {
 // focusedBucketLabel returns the bucket label for the focused row in the
 // active view, or "" when no bucketed sort is in effect.
 func (m Model) focusedBucketLabel() string {
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		field := m.library.SortState.Field
 		if !sorting.SortFieldHasBuckets(field) {
@@ -102,7 +102,7 @@ func (m Model) focusedBucketLabel() string {
 // (non-empty, non-active) text filter applied.
 func (m Model) hasCommittedFilter() bool {
 	committed := func(text string, active bool) bool { return text != "" && !active }
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		return committed(m.library.Filter.Text, m.library.Filter.Active)
 	case viewQueue:

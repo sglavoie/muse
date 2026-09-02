@@ -52,7 +52,7 @@ type insightsMergedMsg struct {
 // handleInsightsMergeGenre arms the confirmation bar for the focused genre
 // collision. Nothing is written until the user confirms.
 func (m Model) handleInsightsMergeGenre() Model {
-	if m.activeView != viewInsights {
+	if m.ActiveView != viewInsights {
 		return m
 	}
 	row := m.insights.FocusedHealthRow()

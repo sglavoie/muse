@@ -34,7 +34,7 @@ type selectionSnapshot struct {
 
 // activeViewCursor returns the cursor position for the currently active view.
 func activeViewCursor(m Model) int {
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		return m.library.Cursor
 	case viewPlaylists:
@@ -65,7 +65,7 @@ func activeViewCursor(m Model) int {
 // For hierarchical views it is a no-op when not at track level.
 func enterVisualMode(m Model) Model {
 	// Level guards: only enter at track/applicable level.
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewBrowse:
 		switch m.browse.Mode {
 		case browse.BrowseModeArtists:
@@ -113,7 +113,7 @@ func enterVisualMode(m Model) Model {
 	cursor := activeViewCursor(m)
 	m.visual = visualState{
 		active:     true,
-		view:       m.activeView,
+		view:       m.ActiveView,
 		browseMode: m.browse.Mode,
 		anchor:     cursor,
 		snapshot:   takeSnapshot(m),
@@ -200,7 +200,7 @@ func visualListLen(m Model) int {
 // takeSnapshot clones the current selection state for the active view.
 func takeSnapshot(m Model) selectionSnapshot {
 	var snap selectionSnapshot
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		snap.hashes = cloneStringSet(m.library.SelectedHashes)
 	case viewQueue:

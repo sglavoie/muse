@@ -13,7 +13,7 @@ func TestToggleFavorite_ArtistsTrackLevelBulkOpensPicker(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeArtists
 	m.browse.Artists.Level = arttui.TrackLevel
 	m.browse.Artists.Tracks = []library.Track{
@@ -42,7 +42,7 @@ func TestToggleFavorite_ArtistsTrackLevelSingleOpensPicker(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeArtists
 	m.browse.Artists.Level = arttui.TrackLevel
 	m.browse.Artists.Tracks = []library.Track{

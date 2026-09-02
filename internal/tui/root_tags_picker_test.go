@@ -31,7 +31,7 @@ func TestTagPickerCreate_AssignsToTrackAndUpdatesCache(t *testing.T) {
 		WithTagReader(tr),
 		WithTagWriter(tw),
 	)
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{{ID: 1, Hash: trackHash, Display: "Test Track"}}
 	m.queue.Cursor = 0
 
@@ -158,7 +158,7 @@ func TestTagPickerCreate_StaleDBRead(t *testing.T) {
 		WithTagReader(tr),
 		WithTagWriter(tw),
 	)
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{{ID: 1, Hash: trackHash, Display: "Test Track"}}
 	m.queue.Cursor = 0
 
@@ -303,7 +303,7 @@ func TestInlineTagCreate_DoesNotOpenPicker(t *testing.T) {
 		WithTagReader(tr),
 		WithTagWriter(tw),
 	)
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TagLevel
 
 	// No tag picker is open (inline create does not use the picker).
@@ -442,12 +442,12 @@ func TestTagToggled_AutoDeletedRemovesItemFromOpenPicker(t *testing.T) {
 // later return to viewTags would render tracks instead of the tag list.
 func TestHandleTagViewTracksLoaded_DropsStaleResultWhenViewSwitched(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TagLevel
 	m.tagsView.Tags = []db.TagRow{{ID: 1, Name: "Alpha"}}
 
 	// User switches away from the tags view while the load is in flight.
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 
 	msg := tagViewTracksLoadedMsg{
 		tag:    db.TagRow{ID: 1, Name: "Alpha"},
@@ -474,7 +474,7 @@ func TestHandleTagViewTracksLoaded_DropsStaleResultWhenViewSwitched(t *testing.T
 // msg from overwriting the current tracks with stale ones for a different tag.
 func TestHandleTagViewTracksLoaded_DropsStaleResultWhenLevelChanged(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TrackLevel
 	existing := []db.PlaylistTrackRow{{ID: 99, Hash: "current"}}
 	m.tagsView.Tracks = existing

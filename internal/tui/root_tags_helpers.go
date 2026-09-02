@@ -35,7 +35,7 @@ func (m Model) tagPickerHashes() (hashes []string, isBulk bool) {
 // selectedTrackHashes returns hashes for all currently bulk-selected tracks
 // across whichever view supports selection.
 func (m Model) selectedTrackHashes() []string {
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		return hashMapToSlice(m.library.SelectedHashes)
 	case viewQueue:
@@ -119,7 +119,7 @@ func hashMapToSlice(m map[string]struct{}) []string {
 // focusedTrackHash returns the content hash of the track currently under the
 // cursor, or "" when the cursor is not on a track row.
 func (m Model) focusedTrackHash() string {
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		if track, ok := m.library.Panel().FocusedTrack(); ok {
 			return track.Hash

@@ -129,7 +129,7 @@ func collectDebugInfo(m Model) DebugPanel {
 	p.goVersion = runtime.Version()
 
 	// TUI state.
-	p.activeView = viewName(m.activeView)
+	p.activeView = ViewName(m.ActiveView)
 	p.termWidth = m.termWidth
 	p.termHeight = m.termHeight
 	p.configPath = m.configPath

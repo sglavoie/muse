@@ -30,8 +30,8 @@ func TestWelcomeOverlay_FiresOnMusicDirHintWithoutConfigCreated(t *testing.T) {
 	if !m.welcomeVisible() {
 		t.Fatal("welcome overlay should be visible when no music directories are valid")
 	}
-	if m.activeOverlayName() != "welcome" {
-		t.Fatalf("activeOverlayName = %q, want welcome", m.activeOverlayName())
+	if m.ActiveOverlayName() != "welcome" {
+		t.Fatalf("activeOverlayName = %q, want welcome", m.ActiveOverlayName())
 	}
 }
 

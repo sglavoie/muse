@@ -20,17 +20,36 @@ import (
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
+// UITestSnapshot is a compact, high-signal digest of model state attached to an
+// observation. Session 2 (Fixtures And Snapshots) owns populating these fields
+// and may extend this struct; the fields below are the stable core shared with
+// observations and are all optional so partial snapshots serialize cleanly.
+type UITestSnapshot struct {
+	PrimaryView    string `json:"primary_view,omitempty"`
+	Overlay        string `json:"overlay,omitempty"`
+	Level          string `json:"level,omitempty"`
+	Mode           string `json:"mode,omitempty"`
+	Cursor         int    `json:"cursor,omitempty"`
+	ScrollOffset   int    `json:"scroll_offset,omitempty"`
+	VisibleCount   int    `json:"visible_count,omitempty"`
+	FocusedLabel   string `json:"focused_label,omitempty"`
+	FocusedHash    string `json:"focused_hash,omitempty"`
+	QueueLength    int    `json:"queue_length,omitempty"`
+	CurrentIndex   int    `json:"current_index,omitempty"`
+	SelectionCount int    `json:"selection_count,omitempty"`
+}
+
 // Snapshot returns a compact, high-signal digest of the model's current state
 // for a UITestObservation. It reads only stable fields and performs no side
 // effects.
 func (m Model) Snapshot() *UITestSnapshot {
 	snap := &UITestSnapshot{
-		PrimaryView:  viewName(m.activeView),
-		Overlay:      m.activeOverlayName(),
+		PrimaryView:  ViewName(m.ActiveView),
+		Overlay:      m.ActiveOverlayName(),
 		QueueLength:  len(m.queue.Entries),
 		CurrentIndex: m.playback.currentIndex,
 	}
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		m.fillLibrarySnapshot(snap)
 	case viewQueue:
@@ -51,10 +70,10 @@ func (m Model) Snapshot() *UITestSnapshot {
 	return snap
 }
 
-// activeOverlayName returns a stable name for the currently displayed overlay,
+// ActiveOverlayName returns a stable name for the currently displayed overlay,
 // checked in the same priority order as renderOverlayBody. It returns "" when
 // no overlay is active.
-func (m Model) activeOverlayName() string {
+func (m Model) ActiveOverlayName() string {
 	switch {
 	case m.welcomeVisible():
 		return "welcome"

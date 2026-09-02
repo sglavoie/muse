@@ -40,7 +40,7 @@ func samplePlaylistTracks() []db.PlaylistTrackRow {
 }
 
 func playlistModelAtTrackLevel(m Model, tracks []db.PlaylistTrackRow, playlistID int64) Model {
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.Level = pltui.TrackLevel
 	m.playlists.Tracks = tracks
 	m.playlists.PendingLoadID = playlistID
@@ -178,7 +178,7 @@ func TestPlaylistMoveTrack_SortedShowsNotification(t *testing.T) {
 
 func TestPlaylistMoveTrack_AtListLevelIsNoOp(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	// level defaults to ListLevel
 	m.playlists.Cursor = 0
 

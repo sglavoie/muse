@@ -44,8 +44,8 @@ func TestDebugRestoresView(t *testing.T) {
 	// Switch to Playlists.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
 	nm := next.(Model)
-	if nm.activeView != viewPlaylists {
-		t.Fatalf("precondition: expected viewPlaylists, got %d", nm.activeView)
+	if nm.ActiveView != viewPlaylists {
+		t.Fatalf("precondition: expected viewPlaylists, got %d", nm.ActiveView)
 	}
 
 	// Open debug panel.
@@ -63,8 +63,8 @@ func TestDebugRestoresView(t *testing.T) {
 	if nm.debugVisible {
 		t.Fatal("esc: expected debugVisible==false")
 	}
-	if nm.activeView != viewPlaylists {
-		t.Fatalf("esc: expected activeView==viewPlaylists (%d), got %d", viewPlaylists, nm.activeView)
+	if nm.ActiveView != viewPlaylists {
+		t.Fatalf("esc: expected activeView==viewPlaylists (%d), got %d", viewPlaylists, nm.ActiveView)
 	}
 }
 

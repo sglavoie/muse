@@ -25,7 +25,7 @@ func TestPreviewKeyActivatesPreview(t *testing.T) {
 // focused track shows a notification.
 func TestPreviewKeyNoTrackShowsNotification(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	// library.index is empty by default
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'P', Text: "P"})

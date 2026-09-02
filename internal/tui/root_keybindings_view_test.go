@@ -43,7 +43,7 @@ func TestSlashRoutesToActiveView(t *testing.T) {
 
 func TestShiftArrowKeysControlSortDirection(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 
 	next, _ := m.Update(library.ScanBatchMsg{Tracks: []library.Track{
 		{Hash: "h1", Path: "/music/beta.flac", Artist: "Bravo", Title: "Beta"},
@@ -90,7 +90,7 @@ func TestBracketKeysSwitchViewsAndAltAliasesAreUnbound(t *testing.T) {
 
 func TestQueueHalfPageNavigationUsesCtrlDAndCtrlU(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Height = 14
 	m.queue.Entries = make([]queue.Entry, 20)
 

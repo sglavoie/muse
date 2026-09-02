@@ -11,11 +11,11 @@ const undoWindowDuration = 10 * time.Second
 // returning a ScanBatchMsg to the update loop.
 const scanBatchSize = 100
 
-// minTerminalWidth and minTerminalHeight are the smallest terminal dimensions
+// MinTerminalWidth and MinTerminalHeight are the smallest terminal dimensions
 // where Muse supports rendering the normal TUI. Below this floor the root view
 // renders a compact resize prompt instead of treating normal layout overflow as
 // a bug.
 const (
-	minTerminalWidth  = 60
-	minTerminalHeight = 15
+	MinTerminalWidth  = 60
+	MinTerminalHeight = 15
 )

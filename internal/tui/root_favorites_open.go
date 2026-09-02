@@ -10,7 +10,7 @@ import (
 
 // handleFavoritesOpen handles the enter key in the Favorites view.
 func (m Model) handleFavoritesOpen() (Model, tea.Cmd, bool) {
-	if m.activeView != viewFavorites {
+	if m.ActiveView != viewFavorites {
 		return m, nil, false
 	}
 

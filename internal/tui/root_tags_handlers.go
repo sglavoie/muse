@@ -16,7 +16,7 @@ func (m Model) handleTagViewTracksLoaded(msg tagViewTracksLoadedMsg) Model {
 		m.statusBar.Notify("Load tracks failed: " + msg.err.Error())
 		return m
 	}
-	if m.activeView != viewTags || m.tagsView.Level != tagtui.TagLevel {
+	if m.ActiveView != viewTags || m.tagsView.Level != tagtui.TagLevel {
 		if msg.counts != nil {
 			m.tagsView.TagCounts = msg.counts
 		}

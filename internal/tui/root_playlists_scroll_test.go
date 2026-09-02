@@ -16,7 +16,7 @@ func TestPlaylistRenamedMsgAdjustsScrollOffset(t *testing.T) {
 		playlists = append(playlists, db.PlaylistRow{ID: int64(i + 1), Name: string(rune('A' + i))})
 	}
 	m := New(context.Background(), WithPlaylists(playlists))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 6})
 	m = next.(Model)
 	m.playlists.Cursor = 0
@@ -47,7 +47,7 @@ func TestPlaylistCreatedMsgAdjustsScrollOffset(t *testing.T) {
 		playlists = append(playlists, db.PlaylistRow{ID: int64(i + 1), Name: string(rune('A' + i))})
 	}
 	m := New(context.Background(), WithPlaylists(playlists))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 6})
 	m = next.(Model)
 	m.playlists.Cursor = 0

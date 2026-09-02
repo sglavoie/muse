@@ -16,7 +16,7 @@ func TestScanBatchRefreshesArtistAlbumLevel(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Album1"})
 	// Drill into "Art" albums.
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeArtists
 	m.browse.Artists.Artists = []string{"Art"}
 	m.browse.Artists.SelectedArtist = "Art"
@@ -41,7 +41,7 @@ func TestScanBatchRefreshesArtistTrackLevel(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
 	// Drill into "Art" > "Alb" tracks.
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeArtists
 	m.browse.Artists.Artists = []string{"Art"}
 	m.browse.Artists.SelectedArtist = "Art"
@@ -70,7 +70,7 @@ func TestScanBatchRefreshesAlbumTrackLevel(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
 	// Drill into "Alb" tracks.
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeAlbums
 	m.browse.Albums.Albums = []string{"Alb"}
 	m.browse.Albums.SelectedAlbum = "Alb"
@@ -97,7 +97,7 @@ func TestScanBatchPreservesArtistLevelSort(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"})
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeArtists
 	m.browse.Artists.Artists = []string{"Zara", "Alice"}
 	m.browse.Artists.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
@@ -129,7 +129,7 @@ func TestScanBatchPreservesAlbumLevelSort(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Album: "Zebra", Title: "T1"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "A", Album: "Alpha", Title: "T2"})
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeAlbums
 	m.browse.Albums.Albums = []string{"Zebra", "Alpha"}
 	m.browse.Albums.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
@@ -160,7 +160,7 @@ func TestScanBatchPreservesGenreLevelSort(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Genre: "Rock", Title: "T1"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Genre: "Jazz", Title: "T2"})
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeGenres
 	m.browse.Genres.Genres = []string{"Rock", "Jazz"}
 	m.browse.Genres.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}

@@ -49,7 +49,7 @@ func TestBulkMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
 		{ID: 1, Hash: "h1", Artist: "OldA", Title: "OldT", Selected: true},
 		{ID: 2, Hash: "h2", Artist: "OldA", Title: "OldT", Selected: true},
 	}
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 
 	ed := metadata.NewBulkEditor([]string{"h1", "h2"}, "OldT", "OldA", "A", "", "")
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: 'X', Text: "X"})

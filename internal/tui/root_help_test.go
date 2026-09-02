@@ -14,8 +14,8 @@ import (
 func TestUpdateQuestionMarkSetsHelpVisible(t *testing.T) {
 	m := New(context.Background())
 	// Default active view is Library.
-	if m.activeView != viewLibrary {
-		t.Fatalf("precondition: expected viewLibrary, got %d", m.activeView)
+	if m.ActiveView != viewLibrary {
+		t.Fatalf("precondition: expected viewLibrary, got %d", m.ActiveView)
 	}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
@@ -48,8 +48,8 @@ func TestUpdateEscClearsHelpVisibleAndRestoresView(t *testing.T) {
 	// Switch to Playlists first.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
 	nm := next.(Model)
-	if nm.activeView != viewPlaylists {
-		t.Fatalf("precondition: expected viewPlaylists, got %d", nm.activeView)
+	if nm.ActiveView != viewPlaylists {
+		t.Fatalf("precondition: expected viewPlaylists, got %d", nm.ActiveView)
 	}
 
 	// Open help overlay.
@@ -66,8 +66,8 @@ func TestUpdateEscClearsHelpVisibleAndRestoresView(t *testing.T) {
 	if nm.helpVisible {
 		t.Fatal("Esc while helpVisible: expected helpVisible==false")
 	}
-	if nm.activeView != viewPlaylists {
-		t.Fatalf("Esc while helpVisible: expected activeView==viewPlaylists (%d), got %d", viewPlaylists, nm.activeView)
+	if nm.ActiveView != viewPlaylists {
+		t.Fatalf("Esc while helpVisible: expected activeView==viewPlaylists (%d), got %d", viewPlaylists, nm.ActiveView)
 	}
 }
 

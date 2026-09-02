@@ -15,7 +15,7 @@ import (
 func TestUndoDeletePlaylistScrollsToRestoredEntry(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "A"}, {ID: 2, Name: "B"}, {ID: 3, Name: "C"}, {ID: 4, Name: "D"}, {ID: 5, Name: "E"}}))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.Cursor = 0
 	m.playlists.ScrollOffset = 0
 	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
@@ -37,7 +37,7 @@ func TestUndoDeletePlaylistScrollsToRestoredEntry(t *testing.T) {
 func TestUndoDeletePlaylistShowsNotification(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "A"}, {ID: 2, Name: "B"}}))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.Cursor = 0
 
 	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
@@ -108,7 +108,7 @@ func TestUndoDeletePlaylistCursorVisibleBelowViewport(t *testing.T) {
 
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists(rows))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.Height = 8
 
 	m.playlists.Cursor = 19
@@ -143,7 +143,7 @@ func TestUndoRemovePlaylistTrackCursorVisibleBelowViewport(t *testing.T) {
 
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "Test"}}))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m = drillIntoPlaylistTrackLevel(m, tracks)
 	m.playlists.Height = 8
 

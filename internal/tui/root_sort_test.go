@@ -110,7 +110,7 @@ func TestSortDirectionToggle(t *testing.T) {
 
 func TestSortResetOnViewSwitch(t *testing.T) {
 	m := Model{
-		activeView: viewLibrary,
+		ActiveView: viewLibrary,
 		library: libtui.View{
 			SortState: sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortDesc},
 			SortedTracks: []library.Track{
@@ -216,7 +216,7 @@ func TestCtrlDResolvesCorrectlyPerContext(t *testing.T) {
 
 func TestSortCycleToDefaultRederivesArtists(t *testing.T) {
 	m := Model{}
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeArtists
 	m.library.Index.Insert(library.Track{Artist: "B", Title: "T1", Path: "/b", Hash: "hb"})
 	m.library.Index.Insert(library.Track{Artist: "A", Title: "T2", Path: "/a", Hash: "ha"})
@@ -252,7 +252,7 @@ func TestSortCycleToDefaultRederivesArtists(t *testing.T) {
 
 func TestSortCycleToDefaultRederivesAlbums(t *testing.T) {
 	m := Model{}
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeAlbums
 	m.library.Index.Insert(library.Track{Artist: "A", Album: "Zebra", Title: "T1", Path: "/1", Hash: "h1"})
 	m.library.Index.Insert(library.Track{Artist: "A", Album: "Alpha", Title: "T2", Path: "/2", Hash: "h2"})
@@ -288,7 +288,7 @@ func TestSortCycleToDefaultRederivesAlbums(t *testing.T) {
 
 func TestSortCycleToDefaultRederivesGenres(t *testing.T) {
 	m := Model{}
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeGenres
 	m.library.Index.Insert(library.Track{Artist: "A", Genre: "Rock", Title: "T1", Path: "/1", Hash: "h1"})
 	m.library.Index.Insert(library.Track{Artist: "A", Genre: "Jazz", Title: "T2", Path: "/2", Hash: "h2"})
@@ -324,7 +324,7 @@ func TestSortCycleToDefaultRederivesGenres(t *testing.T) {
 
 func TestSortCycleToDefaultRederivesFavoritesTracks(t *testing.T) {
 	m := Model{}
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.library.Index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "ha"})
 	m.library.Index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "hb"})
 	m.library.Index.Insert(library.Track{Artist: "C", Title: "Charlie", Path: "/c", Hash: "hc"})
@@ -365,7 +365,7 @@ func TestSortCycleToDefaultRederivesFavoritesTracks(t *testing.T) {
 func TestSortCycleRecentlyAddedHandled(t *testing.T) {
 	m := Model{}
 	m.library.Mode = libtui.LibraryModeRecent
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.library.Index.Insert(library.Track{Artist: "A", Title: "T1", Path: "/1", Hash: "h1"})
 
 	m.library.SortState = sorting.SortState{Field: sorting.SortDefault, Dir: sorting.SortAsc}

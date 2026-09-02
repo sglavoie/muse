@@ -27,12 +27,12 @@ func dispatchPaletteAction(t *testing.T, m Model, msg commandPaletteActionMsg) M
 
 func TestCommandPaletteActionSwitchesToViewThenRuns(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 
 	out := dispatchPaletteAction(t, m, commandPaletteActionMsg{action: keys.ActionTagCreate, view: viewTags})
 
-	if out.activeView != viewTags {
-		t.Fatalf("activeView = %v, want viewTags", out.activeView)
+	if out.ActiveView != viewTags {
+		t.Fatalf("activeView = %v, want viewTags", out.ActiveView)
 	}
 	if !out.tagsView.IsCreating() {
 		t.Error("tag create input is not active: the action did not run after the switch")
@@ -41,12 +41,12 @@ func TestCommandPaletteActionSwitchesToViewThenRuns(t *testing.T) {
 
 func TestCommandPaletteActionWithoutViewRunsInPlace(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 
 	out := dispatchPaletteAction(t, m, commandPaletteActionMsg{action: keys.ActionTagCreate})
 
-	if out.activeView != viewLibrary {
-		t.Fatalf("activeView = %v, want viewLibrary", out.activeView)
+	if out.ActiveView != viewLibrary {
+		t.Fatalf("activeView = %v, want viewLibrary", out.ActiveView)
 	}
 	if out.tagsView.IsCreating() {
 		t.Error("tag create input is active: the action ran outside the Tags view")
@@ -58,7 +58,7 @@ func TestCommandPaletteActionWithoutViewRunsInPlace(t *testing.T) {
 // inputs, so re-switching to the active view would discard user state.
 func TestCommandPaletteActionSameViewKeepsState(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
 	m.playlists = m.playlists.StartRename("Mix tape")
 
@@ -80,7 +80,7 @@ func TestCommandPaletteActionSameViewKeepsState(t *testing.T) {
 // which calling switchToView directly would drop.
 func TestCommandPaletteActionSwitchToMixesKeepsLoadCmd(t *testing.T) {
 	m := New(context.Background(), WithRecommendationReader(&stubRecReader{sufficient: true}))
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 
 	next, cmd := m.Update(commandPaletteActionMsg{action: keys.ActionQueueSummary, view: viewMixes})
 	out, ok := next.(Model)
@@ -88,8 +88,8 @@ func TestCommandPaletteActionSwitchToMixesKeepsLoadCmd(t *testing.T) {
 		t.Fatalf("Update returned %T, want Model", next)
 	}
 
-	if out.activeView != viewMixes {
-		t.Fatalf("activeView = %v, want viewMixes", out.activeView)
+	if out.ActiveView != viewMixes {
+		t.Fatalf("activeView = %v, want viewMixes", out.ActiveView)
 	}
 	if cmd == nil {
 		t.Error("no command returned: the mixes load command was dropped")
@@ -105,7 +105,7 @@ func TestCommandPaletteActionSwitchToMixesKeepsLoadCmd(t *testing.T) {
 // not preserve it.
 func TestCommandPaletteActionSwitchToQueueFocusesNowPlaying(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.mp3"},
 		{Hash: "h2", Path: "/b.mp3"},
@@ -115,8 +115,8 @@ func TestCommandPaletteActionSwitchToQueueFocusesNowPlaying(t *testing.T) {
 
 	out := dispatchPaletteAction(t, m, commandPaletteActionMsg{action: keys.ActionQueueSummary, view: viewQueue})
 
-	if out.activeView != viewQueue {
-		t.Fatalf("activeView = %v, want viewQueue", out.activeView)
+	if out.ActiveView != viewQueue {
+		t.Fatalf("activeView = %v, want viewQueue", out.ActiveView)
 	}
 	if out.queue.Cursor != 2 {
 		t.Errorf("queue cursor = %d, want 2 (FocusNowPlaying side effect lost)", out.queue.Cursor)
@@ -127,7 +127,7 @@ func TestCommandPaletteActionSwitchToQueueFocusesNowPlaying(t *testing.T) {
 // select the named command against m.
 func paletteCommandEnabledForTest(t *testing.T, m Model, name string) bool {
 	t.Helper()
-	for _, command := range m.buildPaletteCommands() {
+	for _, command := range m.BuildPaletteCommands() {
 		if command.Name == name {
 			return command.Enabled == nil || command.Enabled()
 		}
@@ -145,7 +145,7 @@ func TestPaletteDeletePlaylistOnlyAtListLevel(t *testing.T) {
 		pd := &stubPlaylistDeleter{}
 		m := New(context.Background(), WithPlaylistDeleter(pd),
 			WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "Alpha"}, {ID: 2, Name: "Beta"}}))
-		m.activeView = viewPlaylists
+		m.ActiveView = viewPlaylists
 		m.playlists.Level = pltui.TrackLevel
 		m.playlists.Tracks = []db.PlaylistTrackRow{{ID: 10, Position: 1, Title: "A"}, {ID: 20, Position: 2, Title: "B"}}
 		m.playlists.Cursor = 1
@@ -177,7 +177,7 @@ func TestPaletteDeletePlaylistOnlyAtListLevel(t *testing.T) {
 		pd := &stubPlaylistDeleter{}
 		m := New(context.Background(), WithPlaylistDeleter(pd),
 			WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "Alpha"}, {ID: 2, Name: "Beta"}}))
-		m.activeView = viewPlaylists
+		m.ActiveView = viewPlaylists
 		m.playlists.Cursor = 1
 
 		if !paletteCommandEnabledForTest(t, m, "Delete playlist") {
@@ -228,7 +228,7 @@ func applyCmdMsgs(t *testing.T, m Model, cmd tea.Cmd) Model {
 // runPaletteCommandForTest, then applies the messages its command tree emits.
 func runPaletteCommandWithFollowUps(t *testing.T, m Model, name string) Model {
 	t.Helper()
-	for _, command := range m.buildPaletteCommands() {
+	for _, command := range m.BuildPaletteCommands() {
 		if command.Name != name {
 			continue
 		}
@@ -253,7 +253,7 @@ func runPaletteCommandWithFollowUps(t *testing.T, m Model, name string) Model {
 func TestPaletteCreateCommandsHandleNestedDestination(t *testing.T) {
 	nestedPlaylists := func() Model {
 		m := New(context.Background(), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "Alpha"}, {ID: 2, Name: "Beta"}}))
-		m.activeView = viewLibrary
+		m.ActiveView = viewLibrary
 		m.playlists.Level = pltui.TrackLevel
 		m.playlists.Tracks = []db.PlaylistTrackRow{{ID: 10, Position: 1, Title: "A"}}
 		m.playlists.Cursor = 0
@@ -268,8 +268,8 @@ func TestPaletteCreateCommandsHandleNestedDestination(t *testing.T) {
 
 		out := runPaletteCommandWithFollowUps(t, m, "Create playlist")
 
-		if out.activeView != viewPlaylists {
-			t.Fatalf("activeView = %v, want viewPlaylists", out.activeView)
+		if out.ActiveView != viewPlaylists {
+			t.Fatalf("activeView = %v, want viewPlaylists", out.ActiveView)
 		}
 		if !out.playlists.AtListLevel() {
 			t.Error("playlists view is still at track level after the switch")
@@ -287,8 +287,8 @@ func TestPaletteCreateCommandsHandleNestedDestination(t *testing.T) {
 
 		out := runPaletteCommandWithFollowUps(t, m, "Create smart playlist")
 
-		if out.activeView != viewPlaylists {
-			t.Fatalf("activeView = %v, want viewPlaylists", out.activeView)
+		if out.ActiveView != viewPlaylists {
+			t.Fatalf("activeView = %v, want viewPlaylists", out.ActiveView)
 		}
 		if !out.playlists.AtListLevel() {
 			t.Error("playlists view is still at track level after the switch")
@@ -300,7 +300,7 @@ func TestPaletteCreateCommandsHandleNestedDestination(t *testing.T) {
 
 	t.Run("create tag", func(t *testing.T) {
 		m := New(context.Background())
-		m.activeView = viewLibrary
+		m.ActiveView = viewLibrary
 		m.tagsView.Level = tagtui.TrackLevel
 		m.tagsView.Tags = []db.TagRow{{ID: 1, Name: "chill"}}
 		m.tagsView.SelectedTag = db.TagRow{ID: 1, Name: "chill"}
@@ -311,8 +311,8 @@ func TestPaletteCreateCommandsHandleNestedDestination(t *testing.T) {
 
 		out := runPaletteCommandWithFollowUps(t, m, "Create tag")
 
-		if out.activeView != viewTags {
-			t.Fatalf("activeView = %v, want viewTags", out.activeView)
+		if out.ActiveView != viewTags {
+			t.Fatalf("activeView = %v, want viewTags", out.ActiveView)
 		}
 		if out.tagsView.Level != tagtui.TagLevel {
 			t.Error("tags view is still at track level after the switch")
@@ -326,7 +326,7 @@ func TestPaletteCreateCommandsHandleNestedDestination(t *testing.T) {
 func TestViewSwitchActionsCoverPrimaryViews(t *testing.T) {
 	for _, id := range viewOrder {
 		if _, ok := viewSwitchActions[id]; !ok {
-			t.Errorf("view %q (%d) has no switch action", viewName(id), id)
+			t.Errorf("view %q (%d) has no switch action", ViewName(id), id)
 		}
 	}
 	if len(viewSwitchActions) != len(viewOrder) {
@@ -334,7 +334,7 @@ func TestViewSwitchActionsCoverPrimaryViews(t *testing.T) {
 	}
 	for _, legacy := range []viewID{viewArtists, viewAlbums, viewGenres} {
 		if _, ok := viewSwitchActions[legacy]; ok {
-			t.Errorf("legacy sub-view %q is in viewSwitchActions", viewName(legacy))
+			t.Errorf("legacy sub-view %q is in viewSwitchActions", ViewName(legacy))
 		}
 	}
 }

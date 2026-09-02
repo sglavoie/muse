@@ -14,7 +14,7 @@ import (
 func TestUndoRemoveFavorite_Expired(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	m := New(context.Background(), WithFavoriteWriter(w))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryArtists
 	m.favorites.Artists = []string{"Coltrane"}
@@ -48,7 +48,7 @@ func TestUndoRemoveFavorite_Superseded(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{"artist": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryArtists
 

@@ -15,7 +15,7 @@ import (
 // opens the destination picker with the focused track.
 func TestBulkActionTagsTrackLevel(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TrackLevel
 	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{Hash: "h1", Title: "Track A1", Artist: "Alice", Album: "Alpha", DurationMs: 183000, Path: "/a1.flac"},
@@ -45,7 +45,7 @@ func TestBulkActionTagsTrackLevel(t *testing.T) {
 // with a selection collects all selected tracks.
 func TestBulkActionTagsTrackLevelWithSelection(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TrackLevel
 	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{Hash: "h1", Title: "Track A1", Artist: "Alice", Album: "Alpha", DurationMs: 183000, Path: "/a1.flac"},
@@ -73,7 +73,7 @@ func TestBulkActionTagsTrackLevelWithSelection(t *testing.T) {
 func TestBulkActionFavoritesTrackLevel(t *testing.T) {
 	tracks := sampleLibraryTracks()
 	m := New(context.Background(), WithLibraryTracks(tracks))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.TrackLevel
 	m.favorites.DrilldownTracks = tracks[:2]
 	m.favorites.Cursor = 0
@@ -101,7 +101,7 @@ func TestBulkActionFavoritesTrackLevel(t *testing.T) {
 func TestBulkActionFavoritesListLevelTracks(t *testing.T) {
 	tracks := sampleLibraryTracks()
 	m := New(context.Background(), WithLibraryTracks(tracks))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryTracks
 	m.favorites.Tracks = tracks[:3]
@@ -127,7 +127,7 @@ func TestBulkActionFavoritesListLevelTracks(t *testing.T) {
 func TestEnqueueReplaceFromTags(t *testing.T) {
 	qa := &fakeQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa), WithLibraryTracks(sampleLibraryTracks()))
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TrackLevel
 	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{Hash: "h1", Title: "Track A1", Artist: "Alice", Album: "Alpha", DurationMs: 183000, Path: "/a1.flac"},
@@ -165,7 +165,7 @@ func TestResetAllSortsClearsTagsSort(t *testing.T) {
 // TagLevel returns nil tracks (no dest picker should open).
 func TestBulkActionTagsNoOpAtTagLevel(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TagLevel
 	m.tagsView.Tags = []db.TagRow{{ID: 1, Name: "T1"}}
 
@@ -179,7 +179,7 @@ func TestBulkActionTagsNoOpAtTagLevel(t *testing.T) {
 // Favorites CategoryLevel returns nil tracks.
 func TestBulkActionFavoritesNoOpAtCategoryLevel(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.CategoryLevel
 
 	tracks := m.bulkFavoriteTracks()
@@ -192,7 +192,7 @@ func TestBulkActionFavoritesNoOpAtCategoryLevel(t *testing.T) {
 // Favorites ListLevel with CategoryArtists returns nil (not a track list).
 func TestBulkActionFavoritesNoOpAtListLevelArtists(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryArtists
 	m.favorites.Artists = []string{"Alice", "Bob"}

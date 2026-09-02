@@ -123,14 +123,14 @@ func TestPreviewSwallowsKeys(t *testing.T) {
 	m := New(context.Background())
 	m.overlay.preview = &overlay.PreviewOverlay{Artist: "A", Title: "T"}
 	m.overlay.previewPlayer = &stubPreviewer{}
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 
 	// Press '3' (switch to queue) — should be swallowed.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '3', Text: "3"})
 	nm := next.(Model)
 
-	if nm.activeView != viewLibrary {
-		t.Fatalf("expected view to stay at library while preview active, got %d", nm.activeView)
+	if nm.ActiveView != viewLibrary {
+		t.Fatalf("expected view to stay at library while preview active, got %d", nm.ActiveView)
 	}
 	if nm.overlay.preview == nil {
 		t.Fatal("preview should still be active after swallowed key")

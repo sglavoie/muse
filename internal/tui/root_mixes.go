@@ -233,7 +233,7 @@ func (m Model) handleMixLoadedMsg(msg mixLoadedMsg) Model {
 	}
 	tracks := recommendation.FilterSeen(msg.tracks, m.dismissedHashes)
 	m.mixes.CachedMixes[msg.mixID] = tracks
-	if m.activeView == viewMixes && m.mixes.Level == 1 && m.mixes.ActiveMix == msg.mixID {
+	if m.ActiveView == viewMixes && m.mixes.Level == 1 && m.mixes.ActiveMix == msg.mixID {
 		if len(m.mixes.TrackView.SourceTracks) == 0 {
 			// Initial population: no user state to preserve.
 			m.mixes.OpenMix(msg.mixID)

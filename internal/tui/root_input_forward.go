@@ -94,7 +94,7 @@ func (m Model) forwardFilterMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
 }
 
 func (m Model) forwardPlaylistCreateMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
-	if m.playlists.IsCreating() && m.activeView == viewPlaylists {
+	if m.playlists.IsCreating() && m.ActiveView == viewPlaylists {
 		var cmd tea.Cmd
 		m.playlists, cmd = m.playlists.UpdateCreateInputMsg(msg)
 		return m, cmd, true
@@ -103,7 +103,7 @@ func (m Model) forwardPlaylistCreateMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
 }
 
 func (m Model) forwardPlaylistRenameMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
-	if m.playlists.IsRenaming() && m.activeView == viewPlaylists {
+	if m.playlists.IsRenaming() && m.ActiveView == viewPlaylists {
 		var cmd tea.Cmd
 		m.playlists, cmd = m.playlists.UpdateRenameInputMsg(msg)
 		return m, cmd, true
@@ -112,7 +112,7 @@ func (m Model) forwardPlaylistRenameMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
 }
 
 func (m Model) forwardQueueSaveMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
-	if m.queue.IsSavingAsPlaylist() && m.activeView == viewQueue {
+	if m.queue.IsSavingAsPlaylist() && m.ActiveView == viewQueue {
 		var cmd tea.Cmd
 		m.queue, cmd = m.queue.UpdateSaveInputMsg(msg)
 		return m, cmd, true
@@ -121,7 +121,7 @@ func (m Model) forwardQueueSaveMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
 }
 
 func (m Model) forwardTagCreateMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
-	if m.tagsView.IsCreating() && m.activeView == viewTags {
+	if m.tagsView.IsCreating() && m.ActiveView == viewTags {
 		var cmd tea.Cmd
 		m.tagsView, cmd = m.tagsView.UpdateCreateInputMsg(msg)
 		return m, cmd, true
@@ -130,7 +130,7 @@ func (m Model) forwardTagCreateMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
 }
 
 func (m Model) forwardTagRenameMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
-	if m.tagsView.IsRenaming() && m.activeView == viewTags {
+	if m.tagsView.IsRenaming() && m.ActiveView == viewTags {
 		var cmd tea.Cmd
 		m.tagsView, cmd = m.tagsView.UpdateRenameInputMsg(msg)
 		return m, cmd, true

@@ -49,7 +49,7 @@ func TestWindowSizeMsgPreservesApplicationState(t *testing.T) {
 	m.queue.Cursor = 2
 	m.playback.state = playback.StatePlaying
 	m.scanning = true
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 160, Height: 50})
 	nm := next.(Model)
@@ -63,8 +63,8 @@ func TestWindowSizeMsgPreservesApplicationState(t *testing.T) {
 	if !nm.scanning {
 		t.Fatal("resize: scanning changed; expected true, got false")
 	}
-	if nm.activeView != viewQueue {
-		t.Fatalf("resize: activeView changed; expected viewQueue (%d), got %d", viewQueue, nm.activeView)
+	if nm.ActiveView != viewQueue {
+		t.Fatalf("resize: activeView changed; expected viewQueue (%d), got %d", viewQueue, nm.ActiveView)
 	}
 }
 
@@ -134,7 +134,7 @@ func TestWindowSizeShrinkClampsCursorVisibility(t *testing.T) {
 	m.queue.Entries = entries
 	m.queue.Cursor = 70
 	m.queue.ScrollOffset = 60
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 
 	// Shrink the terminal significantly.
 	next, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
@@ -166,7 +166,7 @@ func TestWindowSizeShrinkClampsRecentlyAddedScroll(t *testing.T) {
 	m.library = m.library.RecomputeSortedTracks()
 	m.library.Cursor = 70
 	m.library.ScrollOffset = 60
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 
 	// Shrink the terminal significantly.
 	next, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 12})

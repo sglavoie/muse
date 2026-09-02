@@ -70,7 +70,7 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 	}
 
 	applyToFavoritesView := !msg.fromTargetPicker || msg.pickerOriginView == viewFavorites
-	if m.activeView == viewFavorites && !msg.added && applyToFavoritesView {
+	if m.ActiveView == viewFavorites && !msg.added && applyToFavoritesView {
 		valuesToRemove := msg.removedValues
 		if len(valuesToRemove) == 0 && msg.value != "" {
 			valuesToRemove = []string{msg.value}
@@ -116,7 +116,7 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 		}
 	}
 
-	if m.activeView == viewFavorites && m.favoriteReader != nil {
+	if m.ActiveView == viewFavorites && m.favoriteReader != nil {
 		a, al, t, err := m.favoriteReader.ReadFavoriteCounts()
 		if err == nil {
 			m.favorites.ArtistCount = a

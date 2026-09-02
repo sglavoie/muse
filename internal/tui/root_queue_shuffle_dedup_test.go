@@ -12,7 +12,7 @@ import (
 // does not survive the reorder.
 func TestShuffleClearsSelectionsAndVisualMode(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A", Selected: true},
 		{ID: 2, Hash: "b", Display: "B"},
@@ -41,7 +41,7 @@ func TestShuffleClearsSelectionsAndVisualMode(t *testing.T) {
 func TestDedupClearsSelectionsAndVisualMode(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A", Selected: true},
 		{ID: 2, Hash: "b", Display: "B"},
@@ -72,7 +72,7 @@ func TestDedupClearsSelectionsAndVisualMode(t *testing.T) {
 // index is correctly updated after a shuffle.
 func TestShufflePreservesPlaybackIndex(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A"},
 		{ID: 2, Hash: "b", Display: "B"},
@@ -99,7 +99,7 @@ func TestShufflePreservesPlaybackIndex(t *testing.T) {
 // entry with the same hash.
 func TestShufflePreservesPlaybackIndexDuplicateHashes(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A1"},
 		{ID: 2, Hash: "a", Display: "A2"},
@@ -126,7 +126,7 @@ func TestShufflePreservesPlaybackIndexDuplicateHashes(t *testing.T) {
 func TestDedupRelocatesPlaybackIndex(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A1"},
 		{ID: 2, Hash: "b", Display: "B"},
@@ -156,7 +156,7 @@ func TestDedupRelocatesPlaybackIndex(t *testing.T) {
 func TestDedupPreservesPlaybackIndexNonDuplicate(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A1"},
 		{ID: 2, Hash: "a", Display: "A2"}, // duplicate, removed
@@ -185,7 +185,7 @@ func TestDedupPreservesPlaybackIndexNonDuplicate(t *testing.T) {
 func TestShuffleSyncsPlayerCurrentIndex(t *testing.T) {
 	ps := &stubPlayerQueueSyncer{}
 	m := New(context.Background(), WithPlayer(ps))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A"},
 		{ID: 2, Hash: "b", Display: "B"},
@@ -212,7 +212,7 @@ func TestDedupSyncsPlayerCurrentIndex(t *testing.T) {
 	ps := &stubPlayerQueueSyncer{}
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithPlayer(ps), WithQueueDequeuer(d))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A1"},
 		{ID: 2, Hash: "b", Display: "B"},
@@ -240,7 +240,7 @@ func TestDedupSyncsPlayerCurrentIndexWhenCurrentDuplicate(t *testing.T) {
 	ps := &stubPlayerQueueSyncer{}
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithPlayer(ps), WithQueueDequeuer(d))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A1"},
 		{ID: 2, Hash: "b", Display: "B"},
@@ -269,7 +269,7 @@ func TestMoveTrackSyncsPlayerCurrentIndex(t *testing.T) {
 	ps := &stubPlayerQueueSyncer{}
 	r := &stubQueueReorderer{}
 	m := New(context.Background(), WithPlayer(ps), WithQueueReorderer(r))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 10, Hash: "ha", Artist: "A", Title: "Ta"},
 		{ID: 20, Hash: "hb", Artist: "B", Title: "Tb"},
@@ -300,7 +300,7 @@ func TestMoveTrackSyncsPlayerCurrentIndex(t *testing.T) {
 func TestDedupRemovesDuplicatesKeepsFirst(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "x", Display: "X1"},
 		{ID: 2, Hash: "y", Display: "Y"},

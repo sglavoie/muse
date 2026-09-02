@@ -115,7 +115,7 @@ func TestResetFavoritesSortRederivesArtists(t *testing.T) {
 
 	m := Model{}
 	m.favoriteReader = reader
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryArtists
 	m.favorites.Artists = []string{"Charlie", "Bob", "Alice"}
@@ -152,7 +152,7 @@ func TestSortCycleToDefaultRederivesFavoritesArtists(t *testing.T) {
 
 	m := Model{}
 	m.favoriteReader = reader
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryArtists
 	m.favorites.Artists = []string{"Alice", "Bob", "Charlie"} // sorted in-place

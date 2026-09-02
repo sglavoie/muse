@@ -12,7 +12,7 @@ func (m Model) handleFavoriteKeyAction(action keys.Action) (Model, tea.Cmd, bool
 	case keys.ActionFavoritesOpen:
 		return m.handleFavoritesOpen()
 	case keys.ActionFavoritesBack:
-		if m.activeView == viewFavorites {
+		if m.ActiveView == viewFavorites {
 			m = exitVisualMode(m)
 			m.favorites = m.favorites.Back()
 			return m, nil, true
@@ -21,7 +21,7 @@ func (m Model) handleFavoriteKeyAction(action keys.Action) (Model, tea.Cmd, bool
 	case keys.ActionToggleFavorite:
 		return m.handleToggleFavorite()
 	case keys.ActionBulkAction:
-		if m.activeView == viewFavorites {
+		if m.ActiveView == viewFavorites {
 			return m.handleFavoritesBulkAction()
 		}
 		return m, nil, false

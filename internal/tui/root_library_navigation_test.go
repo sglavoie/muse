@@ -101,7 +101,7 @@ func TestLibraryCursorNotMovedWhenQueueActive(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Artist: "A", Title: "One"})
 	m.library.Index.Insert(library.Track{Artist: "B", Title: "Two"})
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown, Text: "down"})
 	nm := next.(Model)

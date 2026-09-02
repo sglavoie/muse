@@ -15,7 +15,7 @@ import (
 // returns the queue entry under the cursor.
 func TestFocusedTrackForPreview_Queue(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T1", DurationMs: 5000},
 		{Hash: "h2", Path: "/b.flac", Artist: "B", Title: "T2", DurationMs: 6000},
@@ -38,7 +38,7 @@ func TestFocusedTrackForPreview_Queue(t *testing.T) {
 // entry returns false.
 func TestFocusedTrackForPreview_QueueMissing(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.flac", Missing: true},
 	}
@@ -54,7 +54,7 @@ func TestFocusedTrackForPreview_QueueMissing(t *testing.T) {
 // returns false.
 func TestFocusedTrackForPreview_EmptyQueue(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = nil
 	m.queue.Cursor = 0
 
@@ -69,7 +69,7 @@ func TestFocusedTrackForPreview_EmptyQueue(t *testing.T) {
 // is active, rather than indexing into the unfiltered entries slice.
 func TestFocusedTrackForPreview_QueueWithFilter(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.flac", Artist: "Alice", Title: "Alpha", DurationMs: 3000},
 		{Hash: "h2", Path: "/b.flac", Artist: "Bob", Title: "Beta", DurationMs: 4000},
@@ -92,7 +92,7 @@ func TestFocusedTrackForPreview_QueueWithFilter(t *testing.T) {
 // focusedTrackForPreview respects the queue display order when sorted.
 func TestFocusedTrackForPreview_QueueWithSort(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.flac", Artist: "Zeta", Title: "Zulu", DurationMs: 3000},
 		{Hash: "h2", Path: "/b.flac", Artist: "Alpha", Title: "Able", DurationMs: 4000},
@@ -117,7 +117,7 @@ func TestFocusedTrackForPreview_QueueWithSort(t *testing.T) {
 // so preview and track-info overlays display the album name.
 func TestFocusedTrackForPreview_QueueIncludesAlbum(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Album: "MyAlbum", DurationMs: 5000},
 	}
@@ -187,7 +187,7 @@ func TestFocusedTrackForPreview_TagsEnrichesFromIndex(t *testing.T) {
 // returns false when the Tags view is at TagLevel (no track focused).
 func TestFocusedTrackForPreview_TagsTagLevel(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	// level defaults to TagLevel
 	m.tagsView.Tags = []db.TagRow{{ID: 1, Name: "T1"}}
 	m.tagsView.TagCounts = map[int64]int{1: 3}
@@ -203,7 +203,7 @@ func TestFocusedTrackForPreview_TagsTagLevel(t *testing.T) {
 func TestFocusedTrackForPreview_RecentlyAdded(t *testing.T) {
 	m := New(context.Background())
 	m.library.Mode = libtui.LibraryModeRecent
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T",
 	})
@@ -248,7 +248,7 @@ func TestFocusedTrackForPalette_Tags(t *testing.T) {
 // focusedTrackForPalette returns false at TagLevel.
 func TestFocusedTrackForPalette_TagsTagLevel(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Tags = []db.TagRow{{ID: 1, Name: "T1"}}
 	m.tagsView.TagCounts = map[int64]int{1: 3}
 

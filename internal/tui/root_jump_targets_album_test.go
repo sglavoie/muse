@@ -18,8 +18,8 @@ func TestJumpToAlbum(t *testing.T) {
 	// DeriveAllAlbums (sorted): ["Alpha"(0), "Beta"(1), "Delta"(2), "Gamma"(3)]
 	m = m.jumpToAlbum("Gamma")
 
-	if m.activeView != viewBrowse {
-		t.Errorf("activeView: want viewBrowse(%d), got %d", viewBrowse, m.activeView)
+	if m.ActiveView != viewBrowse {
+		t.Errorf("activeView: want viewBrowse(%d), got %d", viewBrowse, m.ActiveView)
 	}
 	if m.browse.Mode != browse.BrowseModeAlbums {
 		t.Errorf("browse.mode: want BrowseModeAlbums, got %v", m.browse.Mode)
@@ -52,11 +52,11 @@ func TestJumpToAlbum_First(t *testing.T) {
 // album does not exist in the library.
 func TestJumpToAlbum_NotFound(t *testing.T) {
 	m := newModelWithTracks()
-	original := m.activeView
+	original := m.ActiveView
 	m = m.jumpToAlbum("Nonexistent")
 
-	if m.activeView != original {
-		t.Errorf("no-op expected: activeView changed to %d", m.activeView)
+	if m.ActiveView != original {
+		t.Errorf("no-op expected: activeView changed to %d", m.ActiveView)
 	}
 }
 
@@ -71,8 +71,8 @@ func TestJumpToAlbum_UnknownAlbum(t *testing.T) {
 	// DeriveAllAlbums sorts unknown albums after named ones: ["Gamma", "(unknown album)"]
 	m = m.jumpToAlbum("")
 
-	if m.activeView != viewBrowse {
-		t.Errorf("activeView: want viewBrowse, got %d", m.activeView)
+	if m.ActiveView != viewBrowse {
+		t.Errorf("activeView: want viewBrowse, got %d", m.ActiveView)
 	}
 	if m.browse.Mode != browse.BrowseModeAlbums {
 		t.Errorf("browse.mode: want BrowseModeAlbums, got %v", m.browse.Mode)
@@ -134,8 +134,8 @@ func TestJumpToAlbum_EmptyAlbumViaAction(t *testing.T) {
 	}
 	m = m.jumpToAlbum(ctx.album)
 
-	if m.activeView != viewBrowse {
-		t.Errorf("activeView: want viewBrowse, got %d", m.activeView)
+	if m.ActiveView != viewBrowse {
+		t.Errorf("activeView: want viewBrowse, got %d", m.ActiveView)
 	}
 	if m.browse.Mode != browse.BrowseModeAlbums {
 		t.Errorf("browse.mode: want BrowseModeAlbums, got %v", m.browse.Mode)

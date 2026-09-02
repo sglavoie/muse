@@ -13,7 +13,7 @@ import (
 func TestPasteSingleTrack(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Cursor = 1
 	m.yankBuffer = []queue.Entry{m.queue.Entries[0]}
@@ -65,7 +65,7 @@ func TestPastePersistsFinalQueueOrder(t *testing.T) {
 	qa := &stubQueueAppender{}
 	r := &stubQueueReorderer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithQueueReorderer(r))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Cursor = 1
 	m.yankBuffer = []queue.Entry{m.queue.Entries[0]}
@@ -94,7 +94,7 @@ func TestPastePersistsFinalQueueOrder(t *testing.T) {
 func TestPasteMultipleTracks(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Cursor = 0
 	m.yankBuffer = []queue.Entry{m.queue.Entries[2], m.queue.Entries[3]}
@@ -120,7 +120,7 @@ func TestPasteMultipleTracks(t *testing.T) {
 func TestPasteTwice(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Cursor = 0
 	m.yankBuffer = []queue.Entry{m.queue.Entries[0]}
@@ -146,7 +146,7 @@ func TestPasteTwice(t *testing.T) {
 func TestPasteEmptyBuffer(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 
 	rm, cmd, handled := m.handleQueueKeyAction(keys.ActionPaste)
@@ -167,7 +167,7 @@ func TestPasteEmptyBuffer(t *testing.T) {
 func TestPasteWhileSorted(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.yankBuffer = []queue.Entry{m.queue.Entries[0]}
 	m.queue.DisplayOrder = []int{3, 2, 1, 0} // non-nil = sorted
@@ -190,7 +190,7 @@ func TestPasteWhileSorted(t *testing.T) {
 func TestPasteWhileFiltered(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.yankBuffer = []queue.Entry{m.queue.Entries[0]}
 	m.queue.Filter.Text = "artist"
@@ -215,7 +215,7 @@ func TestPasteWhileFiltered(t *testing.T) {
 func TestPasteWhileTagFiltered(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.yankBuffer = []queue.Entry{m.queue.Entries[0]}
 	m.queue.TagFilterHashes = map[string]struct{}{"h2": {}, "h3": {}}
@@ -239,7 +239,7 @@ func TestPasteWhileTagFiltered(t *testing.T) {
 func TestPasteAdjustsCurrentIndex(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.playback.currentIndex = 2
 	m.queue.Cursor = 0
@@ -260,7 +260,7 @@ func TestPasteAdjustsCurrentIndex(t *testing.T) {
 func TestPasteAtEndOfQueue(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Cursor = 3 // last entry
 	m.yankBuffer = []queue.Entry{m.queue.Entries[0]}
@@ -285,7 +285,7 @@ func TestPasteAtEndOfQueue(t *testing.T) {
 func TestPasteSetsUndoSlot(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Cursor = 1
 	m.yankBuffer = []queue.Entry{m.queue.Entries[0]}
@@ -311,7 +311,7 @@ func TestUndoPasteRemovesPastedEntries(t *testing.T) {
 	qa := &stubQueueAppender{}
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Cursor = 1
 	m.yankBuffer = []queue.Entry{m.queue.Entries[0], m.queue.Entries[2]}
@@ -352,7 +352,7 @@ func TestUndoPasteAdjustsCurrentIndex(t *testing.T) {
 	qa := &stubQueueAppender{}
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.playback.currentIndex = 2
 	m.queue.Cursor = 0

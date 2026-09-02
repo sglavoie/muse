@@ -21,7 +21,7 @@ func TestFavoritesRemoveWithFilter_ArtistUsesRawIndex(t *testing.T) {
 		"artist": {"Alpha", "Beta", "Charlie", "Delta"},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryArtists
 	m.favorites.Artists = []string{"Alpha", "Beta", "Charlie", "Delta"}
@@ -54,7 +54,7 @@ func TestFavoritesRemoveWithFilter_TrackUsesRawIndex(t *testing.T) {
 		"track": {"h-alpha", "h-beta", "h-charlie"},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryTracks
 	m.favorites.Tracks = []library.Track{
@@ -89,7 +89,7 @@ func TestFavoritesRemoveWithFilter_DrilldownTrackUsesRawIndex(t *testing.T) {
 		"track": {"h1", "h2", "h3", "h4"},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.TrackLevel
 	m.favorites.DrilldownTracks = []library.Track{
 		{Hash: "h1", Title: "Andante", Artist: "X", Album: "ZZZ"},
@@ -122,7 +122,7 @@ func TestFavoritesRemoveWithFilter_AlbumUsesRawIndex(t *testing.T) {
 		"album": {"Jazz", "Rock", "Blues"},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryAlbums
 	m.favorites.Albums = []string{"Jazz", "Rock", "Blues"}
@@ -149,7 +149,7 @@ func TestFavoritesRemoveWithFilter_AlbumUsesRawIndex(t *testing.T) {
 // display indices cannot refer to wrong items after the filtered list changes.
 func TestFavoritesFilterChangeClearsSelection(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryArtists
 	m.favorites.Artists = []string{"Alpha", "Beta", "Gamma"}
@@ -174,7 +174,7 @@ func TestFavoritesFilterChangeClearsSelection(t *testing.T) {
 // filter (Esc) clears the selectedItems map.
 func TestFavoritesFilterDeactivateClearsSelection(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryTracks
 	m.favorites.Tracks = []library.Track{
@@ -199,7 +199,7 @@ func TestFavoritesFilterDeactivateClearsSelection(t *testing.T) {
 // in the filter clears the selectedItems map when the text changes.
 func TestFavoritesFilterBackspaceClearsSelection(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryAlbums
 	m.favorites.Albums = []string{"Foo", "Bar", "Baz"}
@@ -223,7 +223,7 @@ func TestFavoritesFilterBackspaceClearsSelection(t *testing.T) {
 // indices cannot refer to wrong items after the list is re-sorted.
 func TestFavoritesSortCycleClearsSelection(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryArtists
 	m.favorites.Artists = []string{"Charlie", "Alpha", "Bravo"}
@@ -244,7 +244,7 @@ func TestFavoritesSortCycleClearsSelection(t *testing.T) {
 // direction (asc/desc) in the Favorites view clears the selectedItems map.
 func TestFavoritesSortDirChangeClearsSelection(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryAlbums
 	m.favorites.Albums = []string{"Zulu", "Mike", "Alpha"}

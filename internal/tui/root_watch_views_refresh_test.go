@@ -15,7 +15,7 @@ func TestWatchBatchRefreshesArtistAlbumLevel(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Album1"})
 	// Drill into "Art" albums.
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeArtists
 	m.browse.Artists.Artists = []string{"Art"}
 	m.browse.Artists.SelectedArtist = "Art"
@@ -45,7 +45,7 @@ func TestWatchBatchRefreshesArtistTrackLevel(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
 	// Drill into "Art" > "Alb" tracks.
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeArtists
 	m.browse.Artists.Artists = []string{"Art"}
 	m.browse.Artists.SelectedArtist = "Art"
@@ -79,7 +79,7 @@ func TestWatchBatchRefreshesAlbumTrackLevel(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
 	// Drill into "Alb" tracks.
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeAlbums
 	m.browse.Albums.Albums = []string{"Alb"}
 	m.browse.Albums.SelectedAlbum = "Alb"

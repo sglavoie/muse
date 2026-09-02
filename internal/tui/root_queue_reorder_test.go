@@ -14,7 +14,7 @@ import (
 // silently doing nothing.
 func TestKWhileSortedProducesTransientNotification(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
@@ -242,7 +242,7 @@ func TestMoveTrackDownAdjustsScrollOffset(t *testing.T) {
 func TestMoveTrackUpExitsVisualMode(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Cursor = 1
 
@@ -263,7 +263,7 @@ func TestMoveTrackUpExitsVisualMode(t *testing.T) {
 func TestMoveTrackDownExitsVisualMode(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Cursor = 1
 

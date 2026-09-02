@@ -8,7 +8,7 @@ import (
 // drillIntoPlaylistTrackLevel puts m into Playlists view at TrackLevel with
 // the provided tracks seeded directly, returning a ready-to-use model.
 func drillIntoPlaylistTrackLevel(m Model, tracks []db.PlaylistTrackRow) Model {
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.Level = pltui.TrackLevel
 	m.playlists.Tracks = tracks
 	m.playlists.Cursor = 0

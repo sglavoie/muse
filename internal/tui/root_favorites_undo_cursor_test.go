@@ -19,7 +19,7 @@ func TestUndoRemoveFavorite_CrossCategoryCursorUnchanged(t *testing.T) {
 		"album":  {"AlbumA", "AlbumB"},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	// Currently viewing albums, but undo is for an artist removal.
 	m.favorites.Category = favtui.CategoryAlbums
@@ -61,7 +61,7 @@ func TestUndoRemoveFavorite_CrossCategoryCursorUnchanged(t *testing.T) {
 func TestUndoBulkRemoveFavorites_CrossCategoryCursorUnchanged(t *testing.T) {
 	m := Model{
 		appCtx:     context.Background(),
-		activeView: viewFavorites,
+		ActiveView: viewFavorites,
 		favorites: favtui.FavoritesView{
 			Level:    favtui.ListLevel,
 			Category: favtui.CategoryTracks, // viewing tracks

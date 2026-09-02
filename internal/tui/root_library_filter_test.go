@@ -73,7 +73,7 @@ func TestLibraryEnterClearsCommittedFilter(t *testing.T) {
 func TestHistoryEscClearsCommittedFilter(t *testing.T) {
 	m := New(context.Background())
 	m.library.Mode = libtui.LibraryModeHistory
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.library.SourceTracks = []library.Track{
 		{Artist: "Alice", Title: "Alpha", Hash: "h1"},
 		{Artist: "Bob", Title: "Beta", Hash: "h2"},
@@ -108,8 +108,8 @@ func TestFilterBarMsgIgnoredOutsideLibraryView(t *testing.T) {
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: '3', Text: "3"})
 	nm := next.(Model)
-	if nm.activeView != viewQueue {
-		t.Fatalf("expected viewQueue, got %d", nm.activeView)
+	if nm.ActiveView != viewQueue {
+		t.Fatalf("expected viewQueue, got %d", nm.ActiveView)
 	}
 
 	next, _ = nm.Update(FilterBarMsg{})

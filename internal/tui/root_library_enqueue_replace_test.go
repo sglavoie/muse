@@ -14,7 +14,7 @@ import (
 func TestEnqueueReplaceEmptyLibraryDoesNotClearQueue(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Title: "Existing", Artist: "A"},
 	}
@@ -35,7 +35,7 @@ func TestEnqueueReplaceEmptyLibraryDoesNotClearQueue(t *testing.T) {
 func TestEnqueueReplaceFavoritesCategoryLevelDoesNotClearQueue(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Title: "Existing", Artist: "A"},
 	}

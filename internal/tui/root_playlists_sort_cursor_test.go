@@ -22,7 +22,7 @@ func TestPlaylistRenamedMsgCursorUsesEffectiveSort(t *testing.T) {
 		{ID: 3, Name: "Jazz"},
 	}
 	m := New(context.Background(), WithPlaylists(playlists))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m = next.(Model)
 
@@ -60,7 +60,7 @@ func TestPlaylistCreatedMsgCursorUsesEffectiveSort(t *testing.T) {
 		{ID: 2, Name: "Alpha"},
 	}
 	m := New(context.Background(), WithPlaylists(playlists))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m = next.(Model)
 
@@ -97,7 +97,7 @@ func TestSmartPlaylistCreatedMsgCursorUsesEffectiveSort(t *testing.T) {
 		{ID: 2, Name: "Alpha"},
 	}
 	m := New(context.Background(), WithPlaylists(playlists))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m = next.(Model)
 

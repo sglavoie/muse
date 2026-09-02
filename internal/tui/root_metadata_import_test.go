@@ -74,7 +74,7 @@ func importModel(t *testing.T, dataDir string) Model {
 	var idx library.LibraryIndex
 	idx.BulkLoad(tracks)
 	return Model{
-		activeView:        viewLibrary,
+		ActiveView:        viewLibrary,
 		dataDir:           dataDir,
 		termHeight:        40,
 		termWidth:         100,

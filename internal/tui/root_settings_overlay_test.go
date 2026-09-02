@@ -84,12 +84,12 @@ func TestSettingsOverlayBlocksOtherKeyActions(t *testing.T) {
 
 	// '1' normally switches to Library view, but with settings open it should
 	// be swallowed by the overlay (no view switch).
-	prevView := nm.activeView
+	prevView := nm.ActiveView
 	next, _ = nm.Update(tea.KeyPressMsg{Code: '1', Text: "1"})
 	nm2 := next.(Model)
 
-	if nm2.activeView != prevView {
-		t.Errorf("key '1' with settings open: expected no view switch, got view=%v", nm2.activeView)
+	if nm2.ActiveView != prevView {
+		t.Errorf("key '1' with settings open: expected no view switch, got view=%v", nm2.ActiveView)
 	}
 	if nm2.overlay.settings == nil {
 		t.Error("key '1' with settings open: expected overlay still active")

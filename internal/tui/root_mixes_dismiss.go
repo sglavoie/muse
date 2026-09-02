@@ -34,7 +34,7 @@ type mixUndismissErrorMsg struct{ err error }
 // database asynchronously and, on success, removes the track from the cached
 // mix and the in-memory dismissedHashes set (bug hotspot #42: async validation).
 func (m Model) handleMixDismiss() (Model, tea.Cmd) {
-	if m.activeView != viewMixes || m.mixes.Level != 1 {
+	if m.ActiveView != viewMixes || m.mixes.Level != 1 {
 		return m, nil
 	}
 	t := m.mixes.FocusedTrack()
@@ -73,7 +73,7 @@ func (m Model) handleMixDismissedMsg(msg mixDismissedMsg) Model {
 		// Refresh the track view if currently open on this mix, preserving
 		// cursor position, sort state, filter text, and selection (bug: the
 		// previous openMix call reset all of these).
-		if m.activeView == viewMixes && m.mixes.Level == 1 {
+		if m.ActiveView == viewMixes && m.mixes.Level == 1 {
 			m.mixes.TrackView.SourceTracks = tracks
 			m.mixes.TrackView = m.mixes.TrackView.RefreshView().ClampCursor()
 		}
@@ -85,7 +85,7 @@ func (m Model) handleMixDismissedMsg(msg mixDismissedMsg) Model {
 // handleMixUndismiss undismisses the focused track at level 1. The track
 // reappears on the next mix load.
 func (m Model) handleMixUndismiss() (Model, tea.Cmd) {
-	if m.activeView != viewMixes || m.mixes.Level != 1 {
+	if m.ActiveView != viewMixes || m.mixes.Level != 1 {
 		return m, nil
 	}
 	t := m.mixes.FocusedTrack()

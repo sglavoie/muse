@@ -19,7 +19,7 @@ func TestUndoRemoveFavorite_SingleFromFavoritesView(t *testing.T) {
 		"artist": {"Bach", "Coltrane", "Davis"},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryArtists
 	// Simulate state after "Bach" (index 0) was removed.
@@ -94,7 +94,7 @@ func TestUndoRemoveFavorite_TrackLevelKeepsDrilldownTrack(t *testing.T) {
 		"track": {"h1", "h2"},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.TrackLevel
 	m.favorites.Category = favtui.CategoryArtists
 	m.favorites.DrilldownTracks = []library.Track{
@@ -134,7 +134,7 @@ func TestUndoRemoveFavorite_TrackLevelKeepsDrilldownTrack(t *testing.T) {
 func TestUndoRemoveFavorite_FromNonFavoritesView(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	m := New(context.Background(), WithFavoriteWriter(w))
-	m.activeView = viewLibrary // not the Favorites view
+	m.ActiveView = viewLibrary // not the Favorites view
 
 	m.undo.slot = undoSlot{
 		action: undoRemoveFavoriteAction{

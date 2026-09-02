@@ -214,7 +214,7 @@ func TestPaletteCommandIDsAreUnique(t *testing.T) {
 	}
 
 	seen := make(map[string]string)
-	for _, c := range paletteTriageModel().buildPaletteCommands() {
+	for _, c := range paletteTriageModel().BuildPaletteCommands() {
 		if prev, dup := seen[c.Key()]; dup {
 			t.Errorf("palette id %q is used by both %q and %q", c.Key(), prev, c.Name)
 		}
@@ -370,7 +370,7 @@ func TestPaletteCategoriesAreKnown(t *testing.T) {
 		}
 	}
 
-	for _, c := range paletteTriageModel().buildPaletteCommands() {
+	for _, c := range paletteTriageModel().BuildPaletteCommands() {
 		if c.Category == "" {
 			continue
 		}
@@ -385,7 +385,7 @@ func TestPaletteCategoriesAreKnown(t *testing.T) {
 // fixture-safe command.
 func TestSafeDirectCommandIDsExist(t *testing.T) {
 	built := make(map[string]struct{})
-	for _, c := range paletteTriageModel().buildPaletteCommands() {
+	for _, c := range paletteTriageModel().BuildPaletteCommands() {
 		built[c.Key()] = struct{}{}
 	}
 

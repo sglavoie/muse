@@ -149,14 +149,14 @@ func (m Model) handleQueueKeyAction(action keys.Action) (tea.Model, tea.Cmd, boo
 		m.queue, cmd = m.queue.HandleAction(action)
 		return m, cmd, true
 	case keys.ActionMoveTrackUp, keys.ActionMoveTrackDown:
-		if m.activeView != viewQueue {
+		if m.ActiveView != viewQueue {
 			return m, nil, false
 		}
 		var cmd tea.Cmd
 		m.queue, cmd = m.queue.HandleAction(action)
 		return m, cmd, true
 	case keys.ActionFocusNowPlaying:
-		if m.activeView != viewQueue {
+		if m.ActiveView != viewQueue {
 			m = m.switchToView(viewQueue)
 		}
 		m.queue = m.queue.FocusNowPlaying(m.playback.currentIndex)

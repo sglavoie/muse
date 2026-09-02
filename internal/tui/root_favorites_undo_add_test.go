@@ -15,7 +15,7 @@ import (
 func TestUndoAddFavorite_SingleFromLibraryView(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	m := New(context.Background(), WithFavoriteWriter(w))
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.favoriteHashes = map[string]struct{}{"hash-1": {}}
 
 	m.undo.slot = undoSlot{
@@ -66,7 +66,7 @@ func TestUndoAddFavorite_TrackLevelKeepsDrilldownTracks(t *testing.T) {
 		"track": {"h2"},
 	}}
 	m := New(context.Background(), WithFavoriteWriter(w), WithFavoriteReader(r))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.TrackLevel
 	m.favorites.Category = favtui.CategoryAlbums
 	m.favorites.DrilldownTracks = []library.Track{
@@ -103,7 +103,7 @@ func TestUndoAddFavorite_RemovesFromViewList(t *testing.T) {
 		"track": {"h2"},
 	}}
 	m := New(context.Background(), WithFavoriteWriter(w), WithFavoriteReader(r))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryTracks
 	m.favorites.Tracks = []library.Track{
@@ -137,7 +137,7 @@ func TestUndoAddFavorite_RemovesArtistFromViewList(t *testing.T) {
 		"artist": {"Bach"},
 	}}
 	m := New(context.Background(), WithFavoriteWriter(w), WithFavoriteReader(r))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryArtists
 	m.favorites.Artists = []string{"Bach", "Davis"}
@@ -168,7 +168,7 @@ func TestUndoBulkAddFavorites_RemovesFromViewList(t *testing.T) {
 		"track": {"h2"},
 	}}
 	m := New(context.Background(), WithFavoriteWriter(w), WithFavoriteReader(r))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryTracks
 	m.favorites.Tracks = []library.Track{

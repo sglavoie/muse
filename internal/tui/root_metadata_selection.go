@@ -16,7 +16,7 @@ import (
 // active view. Returns nil if there is no bulk selection or the view doesn't
 // support it.
 func (m Model) bulkSelectedHashes() []string {
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		return hashMapToSlice(m.library.SelectedHashes)
 	case viewQueue:

@@ -17,7 +17,7 @@ func TestPasteResumesPlaybackWhenQueueExhausted(t *testing.T) {
 	p := &stubPlayerQueueSyncer{}
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithPlayer(p), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()[:2] // [A, B]
 	m.queue.Cursor = 1                         // cursor on B (last)
 	m.playback.state = playback.StateIdle
@@ -64,7 +64,7 @@ func TestPasteExhaustedResumeResetsPlaybackFields(t *testing.T) {
 	p := &stubPlayerQueueSyncer{}
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithPlayer(p), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()[:2]
 	m.queue.Cursor = 1
 	m.playback.state = playback.StateIdle
@@ -109,7 +109,7 @@ func TestPasteDoesNotResumeWhenUserStopped(t *testing.T) {
 	p := &stubPlayerQueueSyncer{}
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithPlayer(p), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()[:2]
 	m.queue.Cursor = 1
 	m.playback.state = playback.StateIdle

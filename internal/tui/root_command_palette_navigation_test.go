@@ -14,7 +14,7 @@ import (
 
 func TestBuildPaletteCommandsIncludesStableNavigationTargets(t *testing.T) {
 	m := New(context.Background())
-	commands := m.buildPaletteCommands()
+	commands := m.BuildPaletteCommands()
 
 	want := map[string]struct {
 		name     string
@@ -52,7 +52,7 @@ func TestBuildPaletteCommandsIncludesStableNavigationTargets(t *testing.T) {
 		if command.Shortcut != expected.shortcut {
 			t.Errorf("command %q shortcut = %q, want %q", id, command.Shortcut, expected.shortcut)
 		}
-		if !isSafeDirectCommand(id) {
+		if !IsSafeDirectCommand(id) {
 			t.Errorf("navigation command %q is not fixture-safe", id)
 		}
 	}
@@ -69,7 +69,7 @@ func TestNavigationPaletteSearchFindsRecentAndHistory(t *testing.T) {
 		{query: "history", want: "Go to Library: History"},
 	} {
 		t.Run(tc.query, func(t *testing.T) {
-			cp, _ := palette.NewCommandPalette(m.buildPaletteCommands(), nil)
+			cp, _ := palette.NewCommandPalette(m.BuildPaletteCommands(), nil)
 			cp.Filter.Text = tc.query
 			cp.Refilter()
 
@@ -96,11 +96,11 @@ func TestPaletteLibraryNavigationTargetsExactMode(t *testing.T) {
 	m := New(context.Background(), WithHistoryReader(reader))
 	m.library.Index.Insert(library.Track{Hash: "old", Path: "/old.flac", Artist: "A", CreatedAt: 100})
 	m.library.Index.Insert(library.Track{Hash: "new", Path: "/new.flac", Artist: "B", CreatedAt: 300})
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 
 	m = runPaletteCommandForTest(t, m, "Go to Library: Recently Added")
-	if m.activeView != viewLibrary || m.library.Mode != libtui.LibraryModeRecent {
-		t.Fatalf("recent command landed on view=%v mode=%v", m.activeView, m.library.Mode)
+	if m.ActiveView != viewLibrary || m.library.Mode != libtui.LibraryModeRecent {
+		t.Fatalf("recent command landed on view=%v mode=%v", m.ActiveView, m.library.Mode)
 	}
 	if !m.library.ShowDateAdded || m.library.ShowPlayedAt {
 		t.Fatalf("recent columns: showDateAdded=%v showPlayedAt=%v", m.library.ShowDateAdded, m.library.ShowPlayedAt)
@@ -141,14 +141,14 @@ func TestPaletteLibraryNavigationTargetsExactMode(t *testing.T) {
 
 func TestPaletteBrowseNavigationTargetsExactModeAndPreservesState(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.browse.Albums.Albums = []string{"Alpha", "Beta", "Gamma"}
 	m.browse.Albums.Cursor = 2
 	m.browse.Albums.Filter = filter.State{Text: "a"}
 
 	m = runPaletteCommandForTest(t, m, "Go to Browse: Albums")
-	if m.activeView != viewBrowse || m.browse.Mode != browse.BrowseModeAlbums {
-		t.Fatalf("albums command landed on view=%v mode=%v", m.activeView, m.browse.Mode)
+	if m.ActiveView != viewBrowse || m.browse.Mode != browse.BrowseModeAlbums {
+		t.Fatalf("albums command landed on view=%v mode=%v", m.ActiveView, m.browse.Mode)
 	}
 	if m.browse.Albums.Cursor != 2 || m.browse.Albums.Filter.Text != "a" {
 		t.Fatalf("albums state changed: cursor=%d filter=%q", m.browse.Albums.Cursor, m.browse.Albums.Filter.Text)
@@ -162,8 +162,8 @@ func TestPaletteBrowseNavigationTargetsExactModeAndPreservesState(t *testing.T) 
 		{name: "Go to Browse: Genres", mode: browse.BrowseModeGenres},
 	} {
 		m = runPaletteCommandForTest(t, m, tc.name)
-		if m.activeView != viewBrowse || m.browse.Mode != tc.mode {
-			t.Errorf("%q landed on view=%v mode=%v", tc.name, m.activeView, m.browse.Mode)
+		if m.ActiveView != viewBrowse || m.browse.Mode != tc.mode {
+			t.Errorf("%q landed on view=%v mode=%v", tc.name, m.ActiveView, m.browse.Mode)
 		}
 	}
 }
@@ -182,35 +182,16 @@ func TestPalettePrimaryNavigationTargets(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			m := New(context.Background())
 			m = runPaletteCommandForTest(t, m, tc.name)
-			if m.activeView != tc.view {
-				t.Fatalf("active view = %v, want %v", m.activeView, tc.view)
+			if m.ActiveView != tc.view {
+				t.Fatalf("active view = %v, want %v", m.ActiveView, tc.view)
 			}
 		})
 	}
 }
 
-func TestFixtureDriverRunsExactNavigationByName(t *testing.T) {
-	driver := newTestDriver(t, FixtureRich, 100, 30)
-	for _, tc := range []struct {
-		name string
-		mode string
-	}{
-		{name: "Go to Library: Recently Added", mode: "Recent"},
-		{name: "Go to Library: History", mode: "History"},
-	} {
-		if err := driver.runCommand(tc.name); err != nil {
-			t.Fatalf("runCommand(%q): %v", tc.name, err)
-		}
-		got := driver.model.Snapshot()
-		if got.PrimaryView != "Library" || got.Mode != tc.mode {
-			t.Fatalf("runCommand(%q) snapshot = view %q mode %q", tc.name, got.PrimaryView, got.Mode)
-		}
-	}
-}
-
 func runPaletteCommandForTest(t *testing.T, m Model, name string) Model {
 	t.Helper()
-	for _, command := range m.buildPaletteCommands() {
+	for _, command := range m.BuildPaletteCommands() {
 		if command.Name != name {
 			continue
 		}

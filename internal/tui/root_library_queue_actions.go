@@ -24,7 +24,7 @@ func (m Model) handleLibraryQueueAction(action keys.Action) (tea.Model, tea.Cmd,
 
 func (m Model) handleLibraryEnqueueAction() (tea.Model, tea.Cmd, bool) {
 	var cmd tea.Cmd
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		if len(m.library.SelectedHashes) > 0 {
 			if m.batchEnqueuer == nil {
@@ -67,7 +67,7 @@ func (m Model) handleLibraryPlayNextAction() (tea.Model, tea.Cmd, bool) {
 	insertIdx := m.playNextIndex()
 	prevLen := len(m.queue.Entries)
 	var cmd tea.Cmd
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		cmd = m.library.PlayNextFocused(m.queueWriter, prevLen, insertIdx)
 		m.library = m.library.ClearFilter()
@@ -108,7 +108,7 @@ func (m Model) handleLibraryEnqueueReplaceAction() (tea.Model, tea.Cmd, bool) {
 	}
 
 	var cmd tea.Cmd
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		if _, ok := m.library.Panel().FocusedTrack(); ok {
 			m = m.clearQueueForReplace()

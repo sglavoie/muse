@@ -105,7 +105,7 @@ func (m *Model) insightsInvalidate() {
 // at right now. Invalidation on its own only arms the next view entry, so
 // without this the panels would sit on numbers the user just changed.
 func (m *Model) insightsActiveRefreshCmd() tea.Cmd {
-	if m.activeView != viewInsights {
+	if m.ActiveView != viewInsights {
 		return nil
 	}
 	return m.insightsMaybeLoadCmd()

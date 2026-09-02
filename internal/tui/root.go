@@ -85,7 +85,7 @@ type playbackInfo struct {
 // Library, Playlists, Queue, and Artists panels, and renders a persistent status bar.
 type Model struct {
 	appCtx           context.Context // application-level context for subprocess lifecycle
-	activeView       viewID
+	ActiveView       viewID
 	cfg              config.Config
 	configPath       string
 	configCreated    bool
@@ -341,7 +341,7 @@ func New(ctx context.Context, opts ...Option) Model {
 	initialStyles := styles.NewStyles(true)
 	m := Model{
 		appCtx:          ctx,
-		activeView:      viewLibrary,
+		ActiveView:      viewLibrary,
 		cfg:             config.Defaults(),
 		library:         libtui.View{Fuzzy: library.SahilmFuzzySearcher{}},
 		playback:        playbackInfo{currentIndex: -1},

@@ -51,7 +51,7 @@ func TestSortedIntSetKeysEmpty(t *testing.T) {
 
 func TestBulkFavoriteTracksReturnsDeterministicOrder(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryTracks
 	m.favorites.Tracks = []library.Track{
@@ -76,7 +76,7 @@ func TestBulkFavoriteTracksReturnsDeterministicOrder(t *testing.T) {
 
 func TestPlaylistBulkDeleteExitsVisualMode(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.Level = pltui.TrackLevel
 	m.playlists.Tracks = []db.PlaylistTrackRow{
 		{ID: 1, Title: "T1", Artist: "A", DurationMs: 1000},
@@ -104,7 +104,7 @@ func TestPlaylistBulkDeleteExitsVisualMode(t *testing.T) {
 
 func TestFavoritesBulkActionExitsVisualMode(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryTracks
 	m.favorites.Tracks = []library.Track{
@@ -130,7 +130,7 @@ func TestFavoritesBulkActionExitsVisualMode(t *testing.T) {
 
 func TestVisualSelectRangeFavoritesBoundsClamp(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryTracks
 	m.favorites.Tracks = []library.Track{

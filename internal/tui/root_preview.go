@@ -87,7 +87,7 @@ func (m Model) handlePreviewKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool)
 // focusedTrackForPreview returns the track under the cursor in whichever view
 // is active, or false when no track is focused.
 func (m Model) focusedTrackForPreview() (library.Track, bool) {
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		return m.library.Panel().FocusedTrack()
 	case viewQueue:

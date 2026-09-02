@@ -190,7 +190,7 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 	}
 	m.playback.currentIndex = idx
 	m.playback.queueExhausted = false
-	if m.followNowPlaying && m.activeView == viewQueue {
+	if m.followNowPlaying && m.ActiveView == viewQueue {
 		m.queue = m.queue.ScrollToNowPlaying(idx)
 	}
 	m.statusBar.Artist = msg.Artist

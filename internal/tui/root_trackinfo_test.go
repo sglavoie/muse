@@ -19,7 +19,7 @@ func setupTrackInfoModel(t *testing.T) Model {
 		Hash: "h1", Path: "/music/test.flac", Artist: "Test Artist", Title: "Test Song",
 	})
 	// Use the queue view with a focused entry instead — simpler to set up.
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/music/test.flac", Artist: "Test Artist", Title: "Test Song"},
 	}
@@ -31,7 +31,7 @@ func setupTrackInfoModel(t *testing.T) Model {
 // shows a notification.
 func TestTrackInfoKeyNoTrack(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'i', Text: "i"})
 	nm := next.(Model)
@@ -141,14 +141,14 @@ func TestTrackInfoSwallowsKeys(t *testing.T) {
 	m := New(context.Background())
 	overlay := overlay.NewTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"}, 0, nil)
 	m.overlay.trackInfo = &overlay
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 
 	// Press '3' (switch to queue) — should be swallowed.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '3', Text: "3"})
 	nm := next.(Model)
 
-	if nm.activeView != viewLibrary {
-		t.Fatalf("expected view to stay at library, got %d", nm.activeView)
+	if nm.ActiveView != viewLibrary {
+		t.Fatalf("expected view to stay at library, got %d", nm.ActiveView)
 	}
 	if nm.overlay.trackInfo == nil {
 		t.Fatal("overlay should still be active after swallowed key")
@@ -195,7 +195,7 @@ func TestTrackInfoOverlayRenderedInView(t *testing.T) {
 // (and not in the index) shows a notification.
 func TestTrackInfoPathUnknown(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	// Add a queue entry with no path and a hash that isn't in the index.
 	m.queue.Entries = []queue.Entry{{Hash: "orphan", Display: "Orphan"}}
 	m.queue.Cursor = 0

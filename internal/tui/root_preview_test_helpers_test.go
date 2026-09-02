@@ -59,7 +59,7 @@ func (s *stubPreviewMainPlayer) PlayFromIndex(int) error         { return nil }
 func setupLibraryWithTrack(t interface{ Helper() }) Model {
 	t.Helper()
 	m := New(context.Background())
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T",
 	})

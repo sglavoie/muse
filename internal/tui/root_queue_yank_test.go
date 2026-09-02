@@ -12,7 +12,7 @@ import (
 func TestYankSingleTrack(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Cursor = 1
 
@@ -38,7 +38,7 @@ func TestYankSingleTrack(t *testing.T) {
 func TestYankBulkSelection(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Entries[0].Selected = true
 	m.queue.Entries[2].Selected = true
@@ -65,7 +65,7 @@ func TestYankBulkSelection(t *testing.T) {
 func TestYankReplacesBuffer(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Cursor = 0
 
@@ -86,7 +86,7 @@ func TestYankReplacesBuffer(t *testing.T) {
 // TestYankEmptyQueue verifies yank is a no-op on an empty queue.
 func TestYankEmptyQueue(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 
 	rm, _, handled := m.handleQueueKeyAction(keys.ActionYank)
 	m = rm.(Model)

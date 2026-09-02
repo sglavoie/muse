@@ -15,7 +15,7 @@ import (
 // Artists → Albums → Genres → Artists.
 func TestBrowseModeNext_Cycles(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeArtists
 
 	// Artists → Albums
@@ -41,7 +41,7 @@ func TestBrowseModeNext_Cycles(t *testing.T) {
 // Artists → Genres → Albums → Artists.
 func TestBrowseModePrev_Cycles(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeArtists
 
 	// Artists → Genres (backward)
@@ -67,13 +67,13 @@ func TestBrowseModePrev_Cycles(t *testing.T) {
 // viewBrowse in all modes after cycling.
 func TestBrowseModeNext_ActiveViewRemainsBrowse(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeArtists
 
 	for i := 0; i < 3; i++ {
 		m, _ = m.handleBrowseModeNext()
-		if m.activeView != viewBrowse {
-			t.Errorf("cycle %d: activeView should remain viewBrowse, got %v", i, m.activeView)
+		if m.ActiveView != viewBrowse {
+			t.Errorf("cycle %d: activeView should remain viewBrowse, got %v", i, m.ActiveView)
 		}
 	}
 }
@@ -82,13 +82,13 @@ func TestBrowseModeNext_ActiveViewRemainsBrowse(t *testing.T) {
 // viewBrowse in all modes when cycling backward.
 func TestBrowseModePrev_ActiveViewRemainsBrowse(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeArtists
 
 	for i := 0; i < 3; i++ {
 		m, _ = m.handleBrowseModePrev()
-		if m.activeView != viewBrowse {
-			t.Errorf("cycle %d: activeView should remain viewBrowse, got %v", i, m.activeView)
+		if m.ActiveView != viewBrowse {
+			t.Errorf("cycle %d: activeView should remain viewBrowse, got %v", i, m.ActiveView)
 		}
 	}
 }
@@ -97,7 +97,7 @@ func TestBrowseModePrev_ActiveViewRemainsBrowse(t *testing.T) {
 // correct mode-qualified string for each Browse sub-mode.
 func TestBrowseMode_ViewDisplayName(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 
 	cases := []struct {
 		mode browse.BrowseMode
@@ -125,7 +125,7 @@ func TestBrowseMode_StatePreservedOnSwitch(t *testing.T) {
 		{Artist: "Charlie", Album: "Gamma", Title: "T3", Hash: "h3", Path: "/c.flac"},
 	}
 	m := New(context.Background(), WithLibraryTracks(tracks))
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeArtists
 	m.browse.Artists.Artists = arttui.DeriveArtists(m.library.Index.Tracks())
 	m.browse.Artists.Cursor = 2
@@ -169,7 +169,7 @@ func TestBrowseMode_AlbumsCursorPreservedOnSwitch(t *testing.T) {
 		{Artist: "Bob", Album: "Beta", Title: "T2", Hash: "h2", Path: "/b.flac"},
 	}
 	m := New(context.Background(), WithLibraryTracks(tracks))
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeAlbums
 	m.browse.Albums.Albums = albtui.DeriveAllAlbums(m.library.Index.Tracks())
 	m.browse.Albums.Cursor = 1
@@ -195,7 +195,7 @@ func TestBrowseMode_GenresCursorPreservedOnSwitch(t *testing.T) {
 		{Artist: "Bob", Album: "Beta", Genre: "Jazz", Title: "T2", Hash: "h2", Path: "/b.flac"},
 	}
 	m := New(context.Background(), WithLibraryTracks(tracks))
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeGenres
 	m.browse.Genres.Genres = gentui.DeriveGenres(m.library.Index.Tracks())
 	m.browse.Genres.Cursor = 1

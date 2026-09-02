@@ -17,7 +17,7 @@ func (m Model) handleLibraryBulkAction(action keys.Action) (tea.Model, tea.Cmd, 
 	if action != keys.ActionBulkAction {
 		return m, nil, false
 	}
-	if m.activeView == viewPlaylists {
+	if m.ActiveView == viewPlaylists {
 		m.handlePlaylistBulkRemove()
 		return m, nil, true
 	}
@@ -44,7 +44,7 @@ func collectSelectedTracks(tracks []library.Track, selected map[string]struct{})
 }
 
 func (m Model) bulkActionTracks() []library.Track {
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		return m.bulkLibraryTracks()
 	case viewBrowse:

@@ -27,7 +27,7 @@ func (m Model) View() tea.View {
 		body = m.renderTitleBar() + "\n" + tabSep + "\n" + body
 	}
 
-	statusBar := m.renderStatusBar()
+	statusBar := m.RenderStatusBar()
 	footerHint := m.renderFooterHint()
 	bodyLines := strings.Count(body, "\n") + 1
 	confirmExtra := 0
@@ -63,7 +63,7 @@ func (m Model) terminalTooSmall() bool {
 	if m.termWidth <= 0 || m.termHeight <= 0 {
 		return false
 	}
-	return m.termWidth < minTerminalWidth || m.termHeight < minTerminalHeight
+	return m.termWidth < MinTerminalWidth || m.termHeight < MinTerminalHeight
 }
 
 func (m Model) renderTerminalTooSmall() string {
@@ -74,7 +74,7 @@ func (m Model) renderTerminalTooSmall() string {
 
 	lines := []string{
 		terminalTooSmallTitle(width),
-		fmt.Sprintf("Minimum size: %dx%d", minTerminalWidth, minTerminalHeight),
+		fmt.Sprintf("Minimum size: %dx%d", MinTerminalWidth, MinTerminalHeight),
 		fmt.Sprintf("Current size: %dx%d", width, height),
 	}
 	if height < len(lines) {
@@ -187,7 +187,7 @@ func (m Model) renderPrimaryBody() string {
 }
 
 func (m Model) renderPrimaryViewBody(display styles.Styles, nowPlayingIcon string) string {
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		return m.library.Render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
 	case viewPlaylists:

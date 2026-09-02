@@ -79,7 +79,7 @@ func TestMetadataImportApplyWritesSixFieldsThroughOneClaim(t *testing.T) {
 func TestMetadataImportRefreshesTheOpenInsightsDrill(t *testing.T) {
 	dir := t.TempDir()
 	m := importModel(t, dir)
-	m.activeView = viewInsights
+	m.ActiveView = viewInsights
 	m.insights.SetSize(100, 30)
 	m.insights.Dormant = m.library.Index.Tracks()
 	m.insights.OpenDrill("No artist", m.insightsDrillTracks(instui.Row{Drill: instui.DrillDormant}))
@@ -351,7 +351,7 @@ func TestMetadataImportPaletteEntryIsGatedOnTheExportFile(t *testing.T) {
 	m.dataDir = dir
 
 	find := func() (palette.PaletteCommand, bool) {
-		for _, c := range m.buildPaletteCommands() {
+		for _, c := range m.BuildPaletteCommands() {
 			if c.ID == "metadata.import" {
 				return c, true
 			}

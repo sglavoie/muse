@@ -36,7 +36,7 @@ func TestSortDirNoopWhenDefault(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m := New(context.Background(), WithLibraryTracks(tracks))
 			m.library.Mode = tt.mode
-			m.activeView = viewLibrary
+			m.ActiveView = viewLibrary
 			m.library.SortState = sorting.SortState{Field: sorting.SortDefault, Dir: tt.dir}
 
 			_, _, consumed := m.handleSortDir(tt.dir)
@@ -51,7 +51,7 @@ func TestSortDirNoopWhenDefault(t *testing.T) {
 // Tags view at TrackLevel, cycling through the expected sort fields.
 func TestSortCycleTagsTrackLevel(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TrackLevel
 	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{Hash: "h1", Title: "Zulu", Artist: "C", Album: "Red", DurationMs: 300000},
@@ -77,7 +77,7 @@ func TestSortCycleTagsTrackLevel(t *testing.T) {
 // TestSortCycleTagsTagLevel verifies that handleSortCycle is a no-op at TagLevel.
 func TestSortCycleTagsTagLevel(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TagLevel
 
 	_, _, consumed := m.handleSortCycle()
@@ -90,7 +90,7 @@ func TestSortCycleTagsTagLevel(t *testing.T) {
 // TrackLevel when a sort field is active.
 func TestSortDirTagsTrackLevel(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TrackLevel
 	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{Hash: "h1", Title: "Zulu", Artist: "C"},
@@ -119,7 +119,7 @@ func TestSortDirTagsTrackLevel(t *testing.T) {
 // when Tags sort field is SortDefault.
 func TestSortDirTagsNoopWhenDefault(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TrackLevel
 	m.tagsView.SortState = sorting.SortState{Field: sorting.SortDefault}
 

@@ -18,7 +18,7 @@ import (
 // focused, pressing 'r' must fire rename (not toggle repeat mode).
 func TestViewLocalBindingTakesPrecedenceOverGlobal(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 
 	// The global 'r' binding would normally toggle repeat mode. The
 	// Playlists-local binding for 'r' (rename) must intercept first.
@@ -54,7 +54,7 @@ func TestGlobalBindingFiresWhenNoViewLocalBinding(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
 			m := New(context.Background(), WithLibraryRoots([]string{root}), WithExtractor(stubExtractor{}))
-			m.activeView = tc.viewID
+			m.ActiveView = tc.viewID
 
 			_, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
 			if cmd == nil {
@@ -78,7 +78,7 @@ func TestLowerRCyclesRepeatModeInNonPlaylistViews(t *testing.T) {
 	for _, tc := range views {
 		t.Run(tc.name, func(t *testing.T) {
 			m := New(context.Background())
-			m.activeView = tc.viewID
+			m.ActiveView = tc.viewID
 
 			// First press: RepeatOff → RepeatAll.
 			next, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
@@ -145,7 +145,7 @@ func TestGlobalRepeatBindingFiresInViewsWithoutLocalOverride(t *testing.T) {
 	for _, tc := range views {
 		t.Run(tc.name, func(t *testing.T) {
 			m := New(context.Background())
-			m.activeView = tc.viewID
+			m.ActiveView = tc.viewID
 
 			if m.playback.repeatMode != playback.RepeatOff {
 				t.Fatalf("%s: initial repeatMode must be RepeatOff, got %v", tc.name, m.playback.repeatMode)

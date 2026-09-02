@@ -24,7 +24,7 @@ type goToContext struct {
 // focusedGoToContext extracts the full metadata from the focused item in the
 // active view for use by the Go To popup.
 func (m Model) focusedGoToContext() goToContext {
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		if track, ok := m.library.Panel().FocusedTrack(); ok {
 			return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
@@ -211,7 +211,7 @@ func (m Model) buildGoToOptions(ctx goToContext) []overlay.GoToOption {
 		}
 	}
 
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		addAlbum()
 		addArtist()

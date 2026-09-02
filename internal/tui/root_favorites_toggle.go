@@ -21,7 +21,7 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 		return m, nil, true
 	}
 
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewBrowse:
 		switch m.browse.Mode {
 		case browse.BrowseModeArtists:

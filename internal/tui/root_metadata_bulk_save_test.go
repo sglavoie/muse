@@ -69,7 +69,7 @@ func TestBulkMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
 		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "Old - Old", Artist: "Old", Title: "Old"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Display: "Old - Old", Artist: "Old", Title: "Old"},
 	}
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries[0].Selected = true
 	m.queue.Entries[1].Selected = true
 
@@ -126,7 +126,7 @@ func TestBulkMetadataSaveClearsGenresSelection(t *testing.T) {
 		{Artist: "Alice", Album: "Alpha", Title: "Song 2", Genre: "Rock", Hash: "g2", Path: "/g2.flac"},
 	}
 	m := New(context.Background(), WithLibraryTracks(tracks))
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeGenres
 	m.browse.Genres.SelectedHashes = map[string]struct{}{"g1": {}, "g2": {}}
 
@@ -156,7 +156,7 @@ func TestBulkMetadataSaveClearsGenresSelection(t *testing.T) {
 // metadata edit from the favorites view clears the selectedItems map.
 func TestBulkMetadataSaveClearsFavoritesSelection(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryTracks
 	m.favorites.Tracks = []library.Track{
@@ -181,7 +181,7 @@ func TestBulkMetadataSaveClearsFavoritesSelection(t *testing.T) {
 // metadata edit from the Tags view clears tagsView.selectedHashes.
 func TestBulkMetadataSaveClearsTagsSelection(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.SelectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	ed := metadata.NewBulkEditor([]string{"h1", "h2"}, "", "Alice", "", "", "")
@@ -204,7 +204,7 @@ func TestBulkMetadataSaveClearsMixesSelection(t *testing.T) {
 		{Hash: "mx2", Title: "Mix 2", Artist: "ArtX", Path: "/mx2.flac"},
 	}
 	m := New(context.Background(), WithLibraryTracks(tracks))
-	m.activeView = viewMixes
+	m.ActiveView = viewMixes
 	m.mixes.Level = 1
 	m.mixes.TrackView.SelectedHashes = map[string]struct{}{"mx1": {}, "mx2": {}}
 

@@ -26,7 +26,7 @@ import (
 //   - The fuzzy filter is honored, where bulkLibraryTracks ignores it. What is
 //     on screen is what gets exported.
 func (m Model) visibleTracks() (tracks []library.Track, label string, ok bool) {
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		return m.libraryVisibleTracks()
 	case viewMixes:

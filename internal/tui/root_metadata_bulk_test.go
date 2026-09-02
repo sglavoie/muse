@@ -78,7 +78,7 @@ func TestBulkSelectedHashesEmptyWhenNoSelection(t *testing.T) {
 func TestBulkMetadataEditFromRecentlyAdded(t *testing.T) {
 	m := newModelWithTracks()
 	m.library.Mode = libtui.LibraryModeRecent
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.library.SelectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	m = pressMKey(m)

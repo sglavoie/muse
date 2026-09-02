@@ -311,7 +311,7 @@ func TestUndoExitsVisualMode(t *testing.T) {
 
 	// Enter visual mode after the dequeue (simulating user entering visual
 	// mode while an undo slot is pending).
-	nm.activeView = viewQueue
+	nm.ActiveView = viewQueue
 	nm.visual = visualState{active: true, view: viewQueue, anchor: 0}
 
 	// Perform undo — visual mode must be exited.

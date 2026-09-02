@@ -88,7 +88,7 @@ func makeFilterOps(m *Model, f *filter.State, cursor *int, scrollOffset *int, re
 // regardless of whether the filter is active. Returns nil for views that do
 // not support filtering (e.g. Playlists).
 func (m Model) allFilterOps() *filterOps {
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		return makeFilterOps(&m, &m.library.Filter, &m.library.Cursor, &m.library.ScrollOffset,
 			func() { m.library = m.library.RebuildFilterCache() })

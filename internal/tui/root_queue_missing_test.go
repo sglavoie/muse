@@ -40,7 +40,7 @@ func TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError(t *testing.T) {
 // soft-delete + immediate purge via the injected queueDequeuer.
 func TestSelectMissingTrackRemovesEntry(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 42, Path: "/music/gone.flac", Display: "Artist - Gone", Missing: true, Hash: "abc123"},
 	}
@@ -101,7 +101,7 @@ func TestSelectDeletedFilePreflightStatDispatchesMissing(t *testing.T) {
 	}
 
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	// Missing=false — the watcher hasn't flagged it yet (2.5s debounce).
 	m.queue.Entries = []queue.Entry{
 		{ID: 7, Path: deletedPath, Display: "Artist - Gone", Hash: "zzz"},

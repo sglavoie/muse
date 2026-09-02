@@ -127,7 +127,7 @@ func TestWatchBatchPreservesArtistLevelSort(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"})
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeArtists
 	m.browse.Artists.Artists = []string{"Zara", "Alice"}
 	// Simulate user sorting artists ascending.
@@ -168,7 +168,7 @@ func TestWatchBatchPreservesAlbumLevelSort(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "T1", Album: "Zeta"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Art", Title: "T2", Album: "Alpha"})
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeAlbums
 	m.browse.Albums.Albums = []string{"Zeta", "Alpha"}
 	m.browse.Albums.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
@@ -205,7 +205,7 @@ func TestWatchBatchPreservesGenreLevelSort(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "T1", Genre: "Zydeco"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Art", Title: "T2", Genre: "Alternative"})
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeGenres
 	m.browse.Genres.Genres = []string{"Zydeco", "Alternative"}
 	m.browse.Genres.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}

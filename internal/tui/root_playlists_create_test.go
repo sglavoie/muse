@@ -14,7 +14,7 @@ import (
 // the Playlists view dispatches PlaylistCreateMsg.
 func TestPlaylistLocalCFiresCreateNotGlobalAction(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
 	if cmd == nil {
@@ -33,7 +33,7 @@ func TestPlaylistLocalCFiresCreateNotGlobalAction(t *testing.T) {
 func TestPlaylistCreateFlowSuccess(t *testing.T) {
 	creator := &stubPlaylistCreator{nextID: 42}
 	m := New(context.Background(), WithPlaylistWriter(creator))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m = next.(Model)
 
@@ -84,7 +84,7 @@ func TestPlaylistCreateFlowSuccess(t *testing.T) {
 func TestPlaylistCreateFlowEscCancels(t *testing.T) {
 	creator := &stubPlaylistCreator{nextID: 1}
 	m := New(context.Background(), WithPlaylistWriter(creator))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 
 	// Activate create mode.
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
@@ -113,7 +113,7 @@ func TestPlaylistCreateFlowEscCancels(t *testing.T) {
 func TestPlaylistCreateFlowErrorShowsNotification(t *testing.T) {
 	creator := &stubPlaylistCreator{createErr: &errPlaylistCreate{msg: "db locked"}, nextID: 1}
 	m := New(context.Background(), WithPlaylistWriter(creator))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
 	m = next.(Model)
@@ -151,7 +151,7 @@ func TestPlaylistCreateFlowErrorShowsNotification(t *testing.T) {
 func TestPlaylistCreateDuplicateNameShowsNotification(t *testing.T) {
 	creator := &stubPlaylistCreator{nextID: 42}
 	m := New(context.Background(), WithPlaylistWriter(creator), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "Existing"}}))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m = next.(Model)
 
@@ -186,7 +186,7 @@ func TestPlaylistCreateDuplicateNameShowsNotification(t *testing.T) {
 func TestPlaylistCreateDuplicateNameCaseInsensitive(t *testing.T) {
 	creator := &stubPlaylistCreator{nextID: 42}
 	m := New(context.Background(), WithPlaylistWriter(creator), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "Jazz"}}))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m = next.(Model)
 
@@ -221,7 +221,7 @@ func TestPlaylistCreateDuplicateNameCaseInsensitive(t *testing.T) {
 func TestPlaylistRenameDuplicateNameCaseInsensitive(t *testing.T) {
 	renamer := &stubPlaylistRenamer{}
 	m := New(context.Background(), WithPlaylistRenamer(renamer), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "Rock"}, {ID: 2, Name: "Jazz"}}))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m = next.(Model)
 
@@ -260,7 +260,7 @@ func TestPlaylistRenameDuplicateNameCaseInsensitive(t *testing.T) {
 func TestPlaylistCreateNameTrimsWhitespace(t *testing.T) {
 	creator := &stubPlaylistCreator{nextID: 99}
 	m := New(context.Background(), WithPlaylistWriter(creator))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 
 	// Activate the create input.
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})

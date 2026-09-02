@@ -19,8 +19,8 @@ func TestJumpToGenre(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	m = m.jumpToGenre("Jazz")
 
-	if m.activeView != viewBrowse {
-		t.Errorf("activeView: want viewBrowse(%d), got %d", viewBrowse, m.activeView)
+	if m.ActiveView != viewBrowse {
+		t.Errorf("activeView: want viewBrowse(%d), got %d", viewBrowse, m.ActiveView)
 	}
 	if m.browse.Mode != browse.BrowseModeGenres {
 		t.Errorf("browse.mode: want BrowseModeGenres, got %v", m.browse.Mode)
@@ -36,10 +36,10 @@ func TestJumpToGenre(t *testing.T) {
 
 func TestJumpToGenre_NotFound(t *testing.T) {
 	m := newModelWithTracks()
-	original := m.activeView
+	original := m.ActiveView
 	m = m.jumpToGenre("Nonexistent")
-	if m.activeView != original {
-		t.Errorf("no-op expected: activeView changed to %d", m.activeView)
+	if m.ActiveView != original {
+		t.Errorf("no-op expected: activeView changed to %d", m.ActiveView)
 	}
 }
 
@@ -51,8 +51,8 @@ func TestJumpToGenre_UnknownGenre(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	m = m.jumpToGenre("")
 
-	if m.activeView != viewBrowse {
-		t.Errorf("activeView: want viewBrowse, got %d", m.activeView)
+	if m.ActiveView != viewBrowse {
+		t.Errorf("activeView: want viewBrowse, got %d", m.ActiveView)
 	}
 	if m.browse.Mode != browse.BrowseModeGenres {
 		t.Errorf("browse.mode: want BrowseModeGenres, got %v", m.browse.Mode)
@@ -72,8 +72,8 @@ func TestJumpToPlaylist(t *testing.T) {
 	}
 	m = m.jumpToPlaylist("Beta")
 
-	if m.activeView != viewPlaylists {
-		t.Errorf("activeView: want viewPlaylists(%d), got %d", viewPlaylists, m.activeView)
+	if m.ActiveView != viewPlaylists {
+		t.Errorf("activeView: want viewPlaylists(%d), got %d", viewPlaylists, m.ActiveView)
 	}
 	if m.playlists.Level != pltui.ListLevel {
 		t.Errorf("level: want ListLevel, got %v", m.playlists.Level)
@@ -86,9 +86,9 @@ func TestJumpToPlaylist(t *testing.T) {
 func TestJumpToPlaylist_NotFound(t *testing.T) {
 	m := newModelWithTracks()
 	m.playlists.Playlists = []db.PlaylistRow{{ID: 1, Name: "Alpha"}}
-	original := m.activeView
+	original := m.ActiveView
 	m = m.jumpToPlaylist("Nonexistent")
-	if m.activeView != original {
-		t.Errorf("no-op expected: activeView changed to %d", m.activeView)
+	if m.ActiveView != original {
+		t.Errorf("no-op expected: activeView changed to %d", m.ActiveView)
 	}
 }

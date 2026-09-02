@@ -12,29 +12,29 @@ import (
 func TestUpdateViewSwitching(t *testing.T) {
 	m := New(context.Background())
 
-	if m.activeView != viewLibrary {
-		t.Fatalf("expected viewLibrary (%d), got %d", viewLibrary, m.activeView)
+	if m.ActiveView != viewLibrary {
+		t.Fatalf("expected viewLibrary (%d), got %d", viewLibrary, m.ActiveView)
 	}
 
 	// 2 -> Playlists
 	next, _ := m.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
 	nm := next.(Model)
-	if nm.activeView != viewPlaylists {
-		t.Fatalf("expected viewPlaylists (%d), got %d", viewPlaylists, nm.activeView)
+	if nm.ActiveView != viewPlaylists {
+		t.Fatalf("expected viewPlaylists (%d), got %d", viewPlaylists, nm.ActiveView)
 	}
 
 	// 3 -> Queue
 	next, _ = nm.Update(tea.KeyPressMsg{Code: '3', Text: "3"})
 	nm = next.(Model)
-	if nm.activeView != viewQueue {
-		t.Fatalf("expected viewQueue (%d), got %d", viewQueue, nm.activeView)
+	if nm.ActiveView != viewQueue {
+		t.Fatalf("expected viewQueue (%d), got %d", viewQueue, nm.ActiveView)
 	}
 
 	// 1 -> Library
 	next, _ = nm.Update(tea.KeyPressMsg{Code: '1', Text: "1"})
 	nm = next.(Model)
-	if nm.activeView != viewLibrary {
-		t.Fatalf("expected viewLibrary (%d), got %d", viewLibrary, nm.activeView)
+	if nm.ActiveView != viewLibrary {
+		t.Fatalf("expected viewLibrary (%d), got %d", viewLibrary, nm.ActiveView)
 	}
 }
 
@@ -71,7 +71,7 @@ func TestUpdateKeyPressDismissesConfigCreatedNotice(t *testing.T) {
 
 func TestHandleUnhandledMsgForwardsToActiveInput(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue = m.queue.StartSaveAsPlaylist(false)
 
 	next, _ := m.handleUnhandledMsg(tea.KeyPressMsg{Code: 'n', Text: "n"})
@@ -139,8 +139,8 @@ func TestViewSwitchingStaysInteractive(t *testing.T) {
 			t.Fatalf("view switch to %d: fastest of %d runs took %v, must complete under %v",
 				tc.want, attempts, best, viewSwitchBudget)
 		}
-		if nm.activeView != tc.want {
-			t.Fatalf("expected activeView %d after key press, got %d", tc.want, nm.activeView)
+		if nm.ActiveView != tc.want {
+			t.Fatalf("expected activeView %d after key press, got %d", tc.want, nm.ActiveView)
 		}
 		m = nm
 	}

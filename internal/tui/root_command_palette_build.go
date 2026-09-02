@@ -17,8 +17,8 @@ import (
 	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
-// buildPaletteCommands returns the list of commands available in the palette.
-func (m Model) buildPaletteCommands() []palette.PaletteCommand {
+// BuildPaletteCommands returns the list of commands available in the palette.
+func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 	var cmds []palette.PaletteCommand
 
 	for _, entry := range paletteCatalog {
@@ -219,7 +219,7 @@ func (m Model) buildPaletteCommands() []palette.PaletteCommand {
 			return func() tea.Msg { return playlistShuffleMsg{} }
 		},
 		Enabled: func() bool {
-			if m.activeView != viewPlaylists {
+			if m.ActiveView != viewPlaylists {
 				return false
 			}
 			if m.playlists.AtListLevel() {
@@ -291,7 +291,7 @@ func (m Model) buildPaletteCommands() []palette.PaletteCommand {
 // currently under the cursor, regardless of which view is active. Returns
 // found=false when the cursor is not on a track row (e.g., artist/album level).
 func (m Model) focusedTrackForPalette() (path, artist, title string, found bool) {
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		if track, ok := m.library.Panel().FocusedTrack(); ok {
 			return track.Path, track.Artist, track.Title, true

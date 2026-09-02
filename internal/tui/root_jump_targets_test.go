@@ -17,8 +17,8 @@ func TestJumpToArtist(t *testing.T) {
 	// DeriveArtists: ["Alice"(0), "Bob"(1), "Charlie"(2)]
 	m = m.jumpToArtist("Bob")
 
-	if m.activeView != viewBrowse {
-		t.Errorf("activeView: want viewBrowse(%d), got %d", viewBrowse, m.activeView)
+	if m.ActiveView != viewBrowse {
+		t.Errorf("activeView: want viewBrowse(%d), got %d", viewBrowse, m.ActiveView)
 	}
 	if m.browse.Mode != browse.BrowseModeArtists {
 		t.Errorf("browse.mode: want BrowseModeArtists, got %v", m.browse.Mode)
@@ -51,11 +51,11 @@ func TestJumpToArtist_First(t *testing.T) {
 // artist does not exist in the library.
 func TestJumpToArtist_NotFound(t *testing.T) {
 	m := newModelWithTracks()
-	original := m.activeView
+	original := m.ActiveView
 	m = m.jumpToArtist("Nobody")
 
-	if m.activeView != original {
-		t.Errorf("no-op expected: activeView changed to %d", m.activeView)
+	if m.ActiveView != original {
+		t.Errorf("no-op expected: activeView changed to %d", m.ActiveView)
 	}
 }
 
@@ -71,8 +71,8 @@ func TestJumpToArtist_UnknownArtist(t *testing.T) {
 	// DeriveArtists preserves that order: ["Bob", "(unknown artist)"]
 	m = m.jumpToArtist("")
 
-	if m.activeView != viewBrowse {
-		t.Errorf("activeView: want viewBrowse, got %d", m.activeView)
+	if m.ActiveView != viewBrowse {
+		t.Errorf("activeView: want viewBrowse, got %d", m.ActiveView)
 	}
 	if m.browse.Mode != browse.BrowseModeArtists {
 		t.Errorf("browse.mode: want BrowseModeArtists, got %v", m.browse.Mode)
@@ -134,8 +134,8 @@ func TestJumpToArtist_EmptyArtistViaAction(t *testing.T) {
 	}
 	m = m.jumpToArtist(ctx.artist)
 
-	if m.activeView != viewBrowse {
-		t.Errorf("activeView: want viewBrowse, got %d", m.activeView)
+	if m.ActiveView != viewBrowse {
+		t.Errorf("activeView: want viewBrowse, got %d", m.ActiveView)
 	}
 	if m.browse.Mode != browse.BrowseModeArtists {
 		t.Errorf("browse.mode: want BrowseModeArtists, got %v", m.browse.Mode)

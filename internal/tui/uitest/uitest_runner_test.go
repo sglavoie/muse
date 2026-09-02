@@ -1,6 +1,7 @@
-package tui
+package uitest
 
 import (
+	"github.com/sglavoie/muse/internal/tui"
 	"strings"
 	"testing"
 	"time"
@@ -9,7 +10,7 @@ import (
 func TestRunScenarioSuccess(t *testing.T) {
 	scenario := UITestScenario{
 		Name:    "navigate",
-		Fixture: FixtureRich,
+		Fixture: tui.FixtureRich,
 		Size:    "100x30",
 		Actions: []UITestAction{
 			{Assert: &UITestAssertion{View: sp("Library")}},
@@ -35,7 +36,7 @@ func TestRunScenarioSuccess(t *testing.T) {
 	if result.FinalObservation == nil || result.FinalObservation.PrimaryView != "Queue" {
 		t.Fatalf("final observation not Queue: %+v", result.FinalObservation)
 	}
-	if result.Fixture != FixtureRich || result.Size != "100x30" {
+	if result.Fixture != tui.FixtureRich || result.Size != "100x30" {
 		t.Fatalf("result fixture/size = %q/%q", result.Fixture, result.Size)
 	}
 }
@@ -43,7 +44,7 @@ func TestRunScenarioSuccess(t *testing.T) {
 func TestRunScenarioStopsAtFirstFailure(t *testing.T) {
 	scenario := UITestScenario{
 		Name:    "failing",
-		Fixture: FixtureRich,
+		Fixture: tui.FixtureRich,
 		Actions: []UITestAction{
 			{Key: sp("3")},
 			{Label: "wrong-view", Assert: &UITestAssertion{View: sp("Mixes")}},
@@ -78,20 +79,20 @@ func TestRunScenarioStopsAtFirstFailure(t *testing.T) {
 func TestRunScenarioFixtureAndSizeOverride(t *testing.T) {
 	scenario := UITestScenario{
 		Name:    "override",
-		Fixture: FixtureRich,
+		Fixture: tui.FixtureRich,
 		Size:    "100x30",
 		Actions: []UITestAction{{Assert: &UITestAssertion{View: sp("Library")}}},
 	}
 
 	result, err := RunScenario(scenario, RunOptions{
-		Fixture:      FixtureEmpty,
+		Fixture:      tui.FixtureEmpty,
 		Size:         "60x20",
 		DrainTimeout: 20 * time.Millisecond,
 	})
 	if err != nil {
 		t.Fatalf("RunScenario: %v", err)
 	}
-	if result.Fixture != FixtureEmpty {
+	if result.Fixture != tui.FixtureEmpty {
 		t.Fatalf("fixture = %q, want override to empty", result.Fixture)
 	}
 	if result.Size != "60x20" {
@@ -118,7 +119,7 @@ func TestRunScenarioDefaultsToRichFixture(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunScenario: %v", err)
 	}
-	if result.Fixture != FixtureRich {
+	if result.Fixture != tui.FixtureRich {
 		t.Fatalf("fixture = %q, want default rich", result.Fixture)
 	}
 	if result.Size != "100x30" {

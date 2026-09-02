@@ -154,8 +154,8 @@ func TestRenameAlbumFromAlbumsView(t *testing.T) {
 	m := newModelWithTracks()
 	m = switchToAlbumsMode(m)
 
-	if m.activeView != viewBrowse {
-		t.Fatalf("expected viewBrowse, got %d", m.activeView)
+	if m.ActiveView != viewBrowse {
+		t.Fatalf("expected viewBrowse, got %d", m.ActiveView)
 	}
 	if m.browse.Albums.Level != albtui.AlbumLevel {
 		t.Fatalf("expected AlbumLevel, got %v", m.browse.Albums.Level)
@@ -259,7 +259,7 @@ func TestRenameUpdatesQueueAlbum(t *testing.T) {
 // single-track metadata edit updates the Album field on matching queue entries.
 func TestSingleTrackMetadataSaveUpdatesQueueAlbum(t *testing.T) {
 	m := newModelWithTracks()
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Title: "Track A1", Artist: "Alice", Album: "Alpha", Display: "Alice - Track A1"},
 		{Hash: "h4", Title: "Track G1", Artist: "Bob", Album: "Gamma", Display: "Bob - Track G1"},

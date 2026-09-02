@@ -1,4 +1,4 @@
-package tui
+package uitest
 
 // This file implements the in-process driver for the hidden `muse tui-test`
 // layout harness. A UITestDriver owns a single fixture-backed tui.Model and
@@ -14,6 +14,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/sglavoie/muse/internal/tui"
 	"github.com/sglavoie/muse/internal/tui/palette"
 )
 
@@ -37,7 +38,7 @@ type ObserveOptions struct {
 // UITestDriver drives one fixture-backed Model in process. It is not safe for
 // concurrent use; a scenario runs its actions sequentially on a single driver.
 type UITestDriver struct {
-	model        Model
+	model        tui.Model
 	width        int
 	height       int
 	drainTimeout time.Duration
@@ -49,7 +50,7 @@ type UITestDriver struct {
 
 // NewUITestDriver builds a driver around model and applies the initial size.
 // A non-positive drainTimeout falls back to defaultDrainTimeout.
-func NewUITestDriver(model Model, width, height int, drainTimeout time.Duration) *UITestDriver {
+func NewUITestDriver(model tui.Model, width, height int, drainTimeout time.Duration) *UITestDriver {
 	if drainTimeout <= 0 {
 		drainTimeout = defaultDrainTimeout
 	}
@@ -85,7 +86,7 @@ func (d *UITestDriver) SendText(text string) {
 // dispatch feeds one message through Model.Update and drains the returned cmd.
 func (d *UITestDriver) dispatch(msg tea.Msg) {
 	next, cmd := d.model.Update(msg)
-	d.model = next.(Model)
+	d.model = next.(tui.Model)
 	d.drain(cmd)
 }
 
@@ -143,7 +144,7 @@ func (d *UITestDriver) consume(msg tea.Msg, queue []tea.Cmd) []tea.Cmd {
 		return append(queue, batch...)
 	}
 	next, cmd := d.model.Update(msg)
-	d.model = next.(Model)
+	d.model = next.(tui.Model)
 	if cmd != nil {
 		queue = append(queue, cmd)
 	}
@@ -205,12 +206,12 @@ func (d *UITestDriver) Observe(opts ObserveOptions) UITestObservation {
 
 	obs := UITestObservation{
 		CurrentView:  d.currentViewName(),
-		PrimaryView:  viewName(d.model.activeView),
-		Overlay:      d.model.activeOverlayName(),
+		PrimaryView:  tui.ViewName(d.model.ActiveView),
+		Overlay:      d.model.ActiveOverlayName(),
 		Width:        d.width,
 		Height:       d.height,
 		PlainScreen:  plain,
-		Status:       PlainScreen(d.model.renderStatusBar()),
+		Status:       PlainScreen(d.model.RenderStatusBar()),
 		LayoutIssues: DetectLayoutIssues(raw, plain, d.width, d.height),
 		PendingAsync: len(d.pending),
 		Snapshot:     d.model.Snapshot(),
@@ -230,16 +231,16 @@ func (d *UITestDriver) Observe(opts ObserveOptions) UITestObservation {
 // currentViewName returns the active overlay name when an overlay is showing,
 // otherwise the active primary view name.
 func (d *UITestDriver) currentViewName() string {
-	if overlay := d.model.activeOverlayName(); overlay != "" {
+	if overlay := d.model.ActiveOverlayName(); overlay != "" {
 		return overlay
 	}
-	return viewName(d.model.activeView)
+	return tui.ViewName(d.model.ActiveView)
 }
 
 // availableCommands returns the identifiers of every currently-enabled palette
 // command in build order.
 func (d *UITestDriver) availableCommands() []string {
-	cmds := d.model.buildPaletteCommands()
+	cmds := d.model.BuildPaletteCommands()
 	out := make([]string, 0, len(cmds))
 	for _, c := range cmds {
 		if c.IsEnabled() {
@@ -357,7 +358,7 @@ func summarizeIssues(issues []UITestIssue) string {
 // and runs it only when it is on the fixture-safe allowlist. It rejects
 // unknown, disabled, or side-effectful commands with a structured error.
 func (d *UITestDriver) runCommand(name string) error {
-	cmds := d.model.buildPaletteCommands()
+	cmds := d.model.BuildPaletteCommands()
 	var match *palette.PaletteCommand
 	for i := range cmds {
 		if cmds[i].Key() == name || strings.EqualFold(cmds[i].Name, name) {
@@ -368,7 +369,7 @@ func (d *UITestDriver) runCommand(name string) error {
 	if match == nil {
 		return fmt.Errorf("command %q not found", name)
 	}
-	if !isSafeDirectCommand(match.Key()) {
+	if !tui.IsSafeDirectCommand(match.Key()) {
 		return fmt.Errorf("command %q (%s) is not permitted in fixture mode", match.Name, match.Key())
 	}
 	if !match.IsEnabled() {
@@ -378,40 +379,4 @@ func (d *UITestDriver) runCommand(name string) error {
 		d.drain(match.Exec())
 	}
 	return nil
-}
-
-// safeDirectCommandIDs is the allowlist of palette command identifiers that are
-// safe to invoke directly against a fixture: internal navigation and UI/state
-// toggles whose handlers never touch real config, databases, music files, mpv,
-// Finder, or the clipboard. Every ID here must exist in the built command set;
-// TestSafeDirectCommandIDsExist catches a renamed catalog ID that would
-// otherwise silently unlist a fixture-safe command.
-func safeDirectCommandIDs() map[string]struct{} {
-	return map[string]struct{}{
-		"help.show":              {},
-		"help.modes_legend":      {},
-		"debug.show":             {},
-		"radio.toggle":           {},
-		"nav.playlists":          {},
-		"nav.queue":              {},
-		"nav.favorites":          {},
-		"nav.tags":               {},
-		"nav.mixes":              {},
-		"nav.library.all":        {},
-		"nav.library.recent":     {},
-		"nav.library.history":    {},
-		"nav.browse.artists":     {},
-		"nav.browse.albums":      {},
-		"nav.browse.genres":      {},
-		"ui.toggle.footer_hints": {},
-		"ui.toggle.track_notify": {},
-		"queue.toggle.follow":    {},
-	}
-}
-
-// isSafeDirectCommand reports whether the palette command identifier is on the
-// fixture-safe direct-command allowlist.
-func isSafeDirectCommand(id string) bool {
-	_, ok := safeDirectCommandIDs()[id]
-	return ok
 }

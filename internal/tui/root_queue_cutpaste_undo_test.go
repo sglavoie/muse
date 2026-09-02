@@ -14,7 +14,7 @@ func TestCutPasteSetsUndoSlot(t *testing.T) {
 	qa := &stubQueueAppender{}
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries()
 	m.queue.Cursor = 0
 
@@ -44,7 +44,7 @@ func TestUndoCutPasteRestoresOriginals(t *testing.T) {
 	qa := &stubQueueAppender{}
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries() // [A, B, C, D]
 	m.queue.Cursor = 0
 
@@ -88,7 +88,7 @@ func TestUndoCutPasteMultipleNonAdjacentRestoresOrder(t *testing.T) {
 	qa := &stubQueueAppender{}
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries() // [A(101), B(102), C(103), D(104)]
 
 	// Bulk-select B and D (indices 1, 3).
@@ -136,7 +136,7 @@ func TestUndoCutPasteThenPasteMoves(t *testing.T) {
 	qa := &stubQueueAppender{}
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries() // [A=101, B=102, C=103, D=104]
 	m.queue.Cursor = 0
 

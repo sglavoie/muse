@@ -12,7 +12,7 @@ import (
 // 'd' while the queue view is active returns a Cmd that emits DequeueTrackMsg.
 func TestRootQueueLocalDDispatchesDequeueMsg(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
@@ -36,7 +36,7 @@ func TestRootQueueLocalDDispatchesDequeueMsg(t *testing.T) {
 // path: pressing 'x' while the queue view is active dispatches BulkSelectionToggleMsg.
 func TestRootQueueLocalXDispatchesBulkSelectionToggleMsg(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 	}
@@ -56,7 +56,7 @@ func TestRootQueueLocalXDispatchesBulkSelectionToggleMsg(t *testing.T) {
 // ClearQueueMsg — no two-press confirmation required since the undo window handles it.
 func TestRootQueueLocalCDispatchesClearQueueMsg(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 	}
@@ -74,7 +74,7 @@ func TestRootQueueLocalCDispatchesClearQueueMsg(t *testing.T) {
 // pressing 'K' (Shift+k) while the queue view is active dispatches MoveTrackUpMsg.
 func TestRootQueueLocalKDispatchesMoveTrackUpMsg(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
@@ -98,7 +98,7 @@ func TestRootQueueLocalKDispatchesMoveTrackUpMsg(t *testing.T) {
 // pressing 'J' (Shift+j) while the queue view is active dispatches MoveTrackDownMsg.
 func TestRootQueueLocalJDispatchesMoveTrackDownMsg(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},

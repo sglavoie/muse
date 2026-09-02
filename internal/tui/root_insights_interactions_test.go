@@ -155,8 +155,8 @@ func TestInsightsJumpBrowseFromASession(t *testing.T) {
 
 	m = m.handleInsightsJumpBrowse()
 
-	if m.activeView != viewBrowse {
-		t.Fatalf("b should land in Browse, got view %d", m.activeView)
+	if m.ActiveView != viewBrowse {
+		t.Fatalf("b should land in Browse, got view %d", m.ActiveView)
 	}
 	// A session is named by where it starts, so b follows its opener.
 	if got := m.browse.Artists.Artists[m.browse.Artists.Cursor]; got != "Alice" {
@@ -175,14 +175,14 @@ func TestInsightsJumpBrowseFromARankingRow(t *testing.T) {
 
 	// Dana is not in the fixture library, so the jump has nothing to land on and
 	// says so rather than switching views to an arbitrary artist.
-	if got := m.handleInsightsJumpBrowse(); got.activeView != viewInsights {
-		t.Errorf("an unknown artist should not change view, got %d", got.activeView)
+	if got := m.handleInsightsJumpBrowse(); got.ActiveView != viewInsights {
+		t.Errorf("an unknown artist should not change view, got %d", got.ActiveView)
 	}
 
 	m.insights.Cursor = 1 // Bob, who does exist
 	m = m.handleInsightsJumpBrowse()
-	if m.activeView != viewBrowse {
-		t.Fatalf("b should land in Browse, got view %d", m.activeView)
+	if m.ActiveView != viewBrowse {
+		t.Fatalf("b should land in Browse, got view %d", m.ActiveView)
 	}
 	if got := m.browse.Artists.Artists[m.browse.Artists.Cursor]; got != "Bob" {
 		t.Errorf("want Bob focused, got %q", got)

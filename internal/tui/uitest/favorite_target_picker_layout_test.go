@@ -1,10 +1,11 @@
-package tui
+package uitest
 
 import (
 	"strings"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -21,8 +22,8 @@ func TestFavoriteTargetPickerCancelAndRenderNarrow(t *testing.T) {
 			t.Fatalf("%s did not dismiss picker", key)
 		}
 	}
-	raw := p.Render(minTerminalWidth, minTerminalHeight, styles.NewStyles(true))
-	if issues := DetectLayoutIssues(raw, PlainScreen(raw), minTerminalWidth, minTerminalHeight); len(issues) != 0 {
+	raw := p.Render(tui.MinTerminalWidth, tui.MinTerminalHeight, styles.NewStyles(true))
+	if issues := DetectLayoutIssues(raw, PlainScreen(raw), tui.MinTerminalWidth, tui.MinTerminalHeight); len(issues) != 0 {
 		t.Fatalf("favorite target picker should fit at minimum supported size, got %+v:\n%s", issues, PlainScreen(raw))
 	}
 }

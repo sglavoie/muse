@@ -17,7 +17,7 @@ func TestUndoBulkRemoveFavorites(t *testing.T) {
 		"track": {"h0", "h3"},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryTracks
 
@@ -68,7 +68,7 @@ func TestUndoBulkRemoveFavorites(t *testing.T) {
 func TestBulkFavoritesUndoReinsertionOrder(t *testing.T) {
 	m := Model{
 		appCtx:     context.Background(),
-		activeView: viewFavorites,
+		ActiveView: viewFavorites,
 		favorites: favtui.FavoritesView{
 			Level:    favtui.ListLevel,
 			Category: favtui.CategoryArtists,
@@ -101,7 +101,7 @@ func TestBulkFavoritesUndoReinsertionOrder(t *testing.T) {
 func TestBulkFavoritesUndoReinsertionOrder_Unsorted(t *testing.T) {
 	m := Model{
 		appCtx:     context.Background(),
-		activeView: viewFavorites,
+		ActiveView: viewFavorites,
 		favorites: favtui.FavoritesView{
 			Level:    favtui.ListLevel,
 			Category: favtui.CategoryArtists,

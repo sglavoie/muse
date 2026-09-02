@@ -28,7 +28,7 @@ func exportModel(t *testing.T, dataDir string) Model {
 	var idx library.LibraryIndex
 	idx.BulkLoad(tracks)
 	return Model{
-		activeView: viewLibrary,
+		ActiveView: viewLibrary,
 		dataDir:    dataDir,
 		cfg:        config.Config{MusicDirectories: []string{"/music"}},
 		library:    libtui.View{Index: idx},
@@ -49,7 +49,7 @@ func TestMetadataExportRefusesWithoutDataDirAndReturnsNoCmd(t *testing.T) {
 
 func TestMetadataExportRefusalNotifiesWithTheViewsReason(t *testing.T) {
 	m := exportModel(t, t.TempDir())
-	m.activeView = viewInsights
+	m.ActiveView = viewInsights
 	m.insights.Level = instui.LevelBriefing
 
 	next, cmd := m.handleMetadataExportRequest()
@@ -176,7 +176,7 @@ func TestMetadataExportPaletteEntriesAreHandWrittenAndUnsafe(t *testing.T) {
 	m.dataDir = dir
 
 	built := make(map[string]palette.PaletteCommand)
-	for _, c := range m.buildPaletteCommands() {
+	for _, c := range m.BuildPaletteCommands() {
 		built[c.ID] = c
 	}
 
@@ -207,7 +207,7 @@ func TestMetadataExportPaletteEntriesAreHandWrittenAndUnsafe(t *testing.T) {
 	if err := os.WriteFile(metadataExportPath(dir), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	for _, c := range m.buildPaletteCommands() {
+	for _, c := range m.BuildPaletteCommands() {
 		if c.ID == "metadata.export.reveal" && !c.IsEnabled() {
 			t.Error("reveal must become enabled once an export exists")
 		}

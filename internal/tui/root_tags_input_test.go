@@ -12,7 +12,7 @@ import (
 
 func TestTagCreateInputWithoutWriterDoesNotPanic(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TagLevel
 	m.tagsView = m.tagsView.StartCreate()
 	m.tagsView.CreateInput.SetValue("New Tag")
@@ -31,7 +31,7 @@ func TestTagCreateInputWithoutWriterDoesNotPanic(t *testing.T) {
 
 func TestTagRenameInputWithoutWriterDoesNotPanic(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TagLevel
 	m.tagsView.Tags = []db.TagRow{{ID: 1, Name: "Old"}}
 	m.tagsView.TagCounts = map[int64]int{1: 1}

@@ -46,7 +46,7 @@ func confirmFavoritePickerForTest(t *testing.T, m Model, key string) (Model, fav
 func TestFavoritePickerBulkSelectionLifecycleAndNormalization(t *testing.T) {
 	store := newUITestFavorites(map[string][]string{"track": {"h1"}})
 	m := New(context.Background(), WithFavoriteReader(store), WithFavoriteWriter(store))
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.library.SourceTracks = []library.Track{
 		{Hash: "h1", Title: "One", Artist: "A", Album: "X"},
 		{Hash: "h2", Title: "Two", Artist: "B", Album: "Y"},
@@ -83,7 +83,7 @@ func TestFavoritePickerBulkSelectionLifecycleAndNormalization(t *testing.T) {
 func TestFavoritePickerAllFavoriteBulkRemovesAndUndoRestores(t *testing.T) {
 	store := newUITestFavorites(map[string][]string{"artist": {"A", "B"}})
 	m := New(context.Background(), WithFavoriteReader(store), WithFavoriteWriter(store))
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.library.SourceTracks = []library.Track{
 		{Hash: "h1", Title: "One", Artist: "A", Album: "X"},
 		{Hash: "h2", Title: "Two", Artist: "B", Album: "Y"},
@@ -112,7 +112,7 @@ func TestFavoritePickerAllFavoriteBulkRemovesAndUndoRestores(t *testing.T) {
 func TestFavoritePickerMixesTrackLevel(t *testing.T) {
 	store := newUITestFavorites(nil)
 	m := New(context.Background(), WithFavoriteReader(store), WithFavoriteWriter(store))
-	m.activeView = viewMixes
+	m.ActiveView = viewMixes
 	m.mixes.Level = 1
 	m.mixes.TrackView = libtui.View{SourceTracks: []library.Track{{Hash: "mx", Title: "Mix", Artist: "A", Album: "B"}}}
 	m.mixes.TrackView = m.mixes.TrackView.RefreshView()
@@ -131,7 +131,7 @@ func TestFavoritePickerQueuePlaylistAndFavoritesTracks(t *testing.T) {
 
 	t.Run("queue", func(t *testing.T) {
 		m := newModel()
-		m.activeView = viewQueue
+		m.ActiveView = viewQueue
 		m.queue.Entries = []queue.Entry{{Hash: "q1", Title: "Queued", Artist: "A", Album: "B"}}
 		opened := openFavoritePickerForTest(t, m)
 		if got := opened.overlay.favoriteTargetPicker.Tracks[0].Hash; got != "q1" {
@@ -141,7 +141,7 @@ func TestFavoritePickerQueuePlaylistAndFavoritesTracks(t *testing.T) {
 
 	t.Run("playlist", func(t *testing.T) {
 		m := newModel()
-		m.activeView = viewPlaylists
+		m.ActiveView = viewPlaylists
 		m.playlists.Level = pltui.TrackLevel
 		m.playlists.Tracks = []db.PlaylistTrackRow{{ID: 1, Hash: "p1", Title: "Playlist", Artist: "A", Album: "B"}}
 		opened := openFavoritePickerForTest(t, m)
@@ -152,7 +152,7 @@ func TestFavoritePickerQueuePlaylistAndFavoritesTracks(t *testing.T) {
 
 	t.Run("favorites", func(t *testing.T) {
 		m := newModel()
-		m.activeView = viewFavorites
+		m.ActiveView = viewFavorites
 		m.favorites.Level = favtui.ListLevel
 		m.favorites.Category = favtui.CategoryTracks
 		m.favorites.Tracks = []library.Track{{Hash: "f1", Title: "Favorite", Artist: "A", Album: "B"}}
@@ -166,7 +166,7 @@ func TestFavoritePickerQueuePlaylistAndFavoritesTracks(t *testing.T) {
 func TestFavoriteEntityRowsKeepDirectToggle(t *testing.T) {
 	store := newUITestFavorites(map[string][]string{"artist": {"A"}})
 	m := New(context.Background(), WithFavoriteReader(store), WithFavoriteWriter(store))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryArtists
 	m.favorites.Artists = []string{"A"}
@@ -187,7 +187,7 @@ func TestFavoriteEntityRowsKeepDirectToggle(t *testing.T) {
 func TestFavoritePickerRemovingDrilldownParentReturnsToList(t *testing.T) {
 	store := newUITestFavorites(map[string][]string{"artist": {"A", "B"}})
 	m := New(context.Background(), WithFavoriteReader(store), WithFavoriteWriter(store))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.TrackLevel
 	m.favorites.Category = favtui.CategoryArtists
 	m.favorites.Artists = []string{"A", "B"}
@@ -214,7 +214,7 @@ func TestFavoritePickerFavoritesTrackRemovalAndNonParentNavigation(t *testing.T)
 	t.Run("title removal updates track list", func(t *testing.T) {
 		store := newUITestFavorites(map[string][]string{"track": {"h1", "h2"}})
 		m := New(context.Background(), WithFavoriteReader(store), WithFavoriteWriter(store))
-		m.activeView = viewFavorites
+		m.ActiveView = viewFavorites
 		m.favorites.Level = favtui.ListLevel
 		m.favorites.Category = favtui.CategoryTracks
 		m.favorites.Tracks = []library.Track{
@@ -233,7 +233,7 @@ func TestFavoritePickerFavoritesTrackRemovalAndNonParentNavigation(t *testing.T)
 	t.Run("unrelated removal stays in drilldown", func(t *testing.T) {
 		store := newUITestFavorites(map[string][]string{"artist": {"A"}, "album": {"X"}})
 		m := New(context.Background(), WithFavoriteReader(store), WithFavoriteWriter(store))
-		m.activeView = viewFavorites
+		m.ActiveView = viewFavorites
 		m.favorites.Level = favtui.TrackLevel
 		m.favorites.Category = favtui.CategoryAlbums
 		m.favorites.Albums = []string{"X"}

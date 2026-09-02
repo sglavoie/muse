@@ -24,8 +24,8 @@ func TestKeyRoutingPrefersHelpOverlayOverPreview(t *testing.T) {
 	if nm.overlay.preview == nil {
 		t.Fatal("expected preview overlay to remain open when help overlay has priority")
 	}
-	if nm.activeView != viewQueue {
-		t.Fatalf("expected esc to restore prevActiveView=%d, got %d", viewQueue, nm.activeView)
+	if nm.ActiveView != viewQueue {
+		t.Fatalf("expected esc to restore prevActiveView=%d, got %d", viewQueue, nm.ActiveView)
 	}
 }
 
@@ -47,7 +47,7 @@ func TestKeyRoutingLeavesViewActionsAvailableWithoutInterceptors(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
 	nm := next.(Model)
 
-	if nm.activeView != viewPlaylists {
-		t.Fatalf("expected unhandled keypress to fall through to view switching, got view %d", nm.activeView)
+	if nm.ActiveView != viewPlaylists {
+		t.Fatalf("expected unhandled keypress to fall through to view switching, got view %d", nm.ActiveView)
 	}
 }

@@ -15,7 +15,7 @@ import (
 
 func TestSelectedTrackHashes_Queue(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Hash: "h1"},
 		{Hash: "h2", Selected: true},
@@ -40,7 +40,7 @@ func TestSelectedTrackHashes_Queue(t *testing.T) {
 
 func TestSelectedTrackHashes_Artists(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeArtists
 	m.browse.Artists.SelectedHashes = map[string]struct{}{
 		"ha1": {},
@@ -55,7 +55,7 @@ func TestSelectedTrackHashes_Artists(t *testing.T) {
 
 func TestSelectedTrackHashes_Albums(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeAlbums
 	m.browse.Albums.SelectedHashes = map[string]struct{}{
 		"hab1": {},
@@ -72,7 +72,7 @@ func TestSelectedTrackHashes_Albums(t *testing.T) {
 
 func TestSelectedTrackHashes_Genres(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeGenres
 	m.browse.Genres.SelectedHashes = map[string]struct{}{
 		"hg1": {},
@@ -88,7 +88,7 @@ func TestSelectedTrackHashes_Genres(t *testing.T) {
 
 func TestSelectedTrackHashes_Tags(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.SelectedHashes = map[string]struct{}{
 		"ht1": {},
 	}
@@ -101,7 +101,7 @@ func TestSelectedTrackHashes_Tags(t *testing.T) {
 
 func TestSelectedTrackHashes_Library(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.library.SelectedHashes = map[string]struct{}{
 		"h1": {},
 		"h2": {},
@@ -115,7 +115,7 @@ func TestSelectedTrackHashes_Library(t *testing.T) {
 
 func TestSelectedTrackHashes_EmptySelection(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Hash: "h1"},
 		{Hash: "h2"},
@@ -129,7 +129,7 @@ func TestSelectedTrackHashes_EmptySelection(t *testing.T) {
 
 func TestTagPickerHashes_BulkFromQueue(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Selected: true},
 		{Hash: "h2"},
@@ -147,7 +147,7 @@ func TestTagPickerHashes_BulkFromQueue(t *testing.T) {
 
 func TestTagPickerHashes_SingleFocusedFromQueue(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Hash: "h1"},
 		{Hash: "h2"},
@@ -165,7 +165,7 @@ func TestTagPickerHashes_SingleFocusedFromQueue(t *testing.T) {
 
 func TestTagPickerHashes_BulkFromArtists(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeArtists
 	m.browse.Artists.SelectedHashes = map[string]struct{}{
 		"ha1": {},
@@ -187,7 +187,7 @@ func TestTagPickerHashes_BulkFromArtists(t *testing.T) {
 
 func TestSelectedTrackHashes_Playlists(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.Level = pltui.TrackLevel
 	m.playlists.Tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "hp1"},
@@ -213,7 +213,7 @@ func TestSelectedTrackHashes_Playlists(t *testing.T) {
 
 func TestSelectedTrackHashes_FavoritesTrackLevel(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.TrackLevel
 	m.favorites.DrilldownTracks = []library.Track{
 		{Hash: "hf1", Title: "Fav A"},
@@ -229,7 +229,7 @@ func TestSelectedTrackHashes_FavoritesTrackLevel(t *testing.T) {
 
 func TestSelectedTrackHashes_FavoritesListLevelTracks(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryTracks
 	m.favorites.Tracks = []library.Track{
@@ -249,7 +249,7 @@ func TestSelectedTrackHashes_FavoritesListLevelTracks(t *testing.T) {
 
 func TestSelectedTrackHashes_Mixes(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewMixes
+	m.ActiveView = viewMixes
 	m.mixes.Level = 1
 	m.mixes.TrackView.SelectedHashes = map[string]struct{}{
 		"mx1": {},
@@ -273,7 +273,7 @@ func TestSelectedTrackHashes_Mixes(t *testing.T) {
 
 func TestSelectedTrackHashes_MixesListLevel(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewMixes
+	m.ActiveView = viewMixes
 	// level 0 = list level, no track selection should be returned.
 	m.mixes.Level = 0
 

@@ -101,7 +101,7 @@ func (m Model) handleCommandPaletteAction(act keys.Action, target viewID) (tea.M
 	}
 
 	switchAction, ok := viewSwitchActions[target]
-	if !ok || m.activeView == target {
+	if !ok || m.ActiveView == target {
 		return m.atCollectionLevelFor(act).handleKeyAction(act)
 	}
 	switched, switchCmd := m.handleKeyAction(switchAction)
@@ -124,12 +124,12 @@ func (m Model) handleCommandPaletteAction(act keys.Action, target viewID) (tea.M
 func (m Model) atCollectionLevelFor(act keys.Action) Model {
 	switch act {
 	case keys.ActionPlaylistCreate, keys.ActionSmartPlaylistCreate:
-		if m.activeView == viewPlaylists && !m.playlists.AtListLevel() {
+		if m.ActiveView == viewPlaylists && !m.playlists.AtListLevel() {
 			m = exitVisualMode(m)
 			m.playlists = m.playlists.BackToList()
 		}
 	case keys.ActionTagCreate:
-		if m.activeView == viewTags && m.tagsView.Level == tagtui.TrackLevel {
+		if m.ActiveView == viewTags && m.tagsView.Level == tagtui.TrackLevel {
 			m = exitVisualMode(m)
 			m.tagsView = m.tagsView.Back()
 		}
@@ -239,7 +239,7 @@ func (m Model) handleToggleTrackNotifyMsg() (Model, tea.Cmd) {
 func (m Model) handleToggleQueueFollowMsg() (Model, tea.Cmd) {
 	m.followNowPlaying = !m.followNowPlaying
 	m.cfg.QueueFollowNowPlaying = m.followNowPlaying
-	if m.followNowPlaying && m.activeView == viewQueue {
+	if m.followNowPlaying && m.ActiveView == viewQueue {
 		m.queue = m.queue.ScrollToNowPlaying(m.playback.currentIndex)
 	}
 	m.statusBar.Notify("Queue follow: " + onOff(m.followNowPlaying))
@@ -271,7 +271,7 @@ func (m Model) handleJumpToNowPlayingMsg() (Model, tea.Cmd) {
 // playlist's tracks, either in-memory (TrackLevel) or via background load
 // (ListLevel), and persists the new order when a playlistShuffler is available.
 func (m Model) handlePlaylistShuffleMsg() (Model, tea.Cmd) {
-	if m.activeView != viewPlaylists {
+	if m.ActiveView != viewPlaylists {
 		m.statusBar.Notify("No playlist focused")
 		return m, nil
 	}

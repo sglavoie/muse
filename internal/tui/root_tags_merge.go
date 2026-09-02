@@ -23,7 +23,7 @@ func (m Model) handleTagMergeKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 
 // handleTagMerge opens the merge picker for the focused tag.
 func (m Model) handleTagMerge() (Model, tea.Cmd) {
-	if m.activeView != viewTags || m.tagsView.Level != tagtui.TagLevel {
+	if m.ActiveView != viewTags || m.tagsView.Level != tagtui.TagLevel {
 		return m, nil
 	}
 	if m.tagsView.IsCreating() || m.tagsView.IsRenaming() {

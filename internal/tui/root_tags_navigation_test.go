@@ -19,7 +19,7 @@ func sampleTagTracks() []db.PlaylistTrackRow {
 
 func newTagsTrackLevelModel() Model {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TrackLevel
 	m.tagsView.Tracks = sampleTagTracks()
 	m.tagsView.SelectedTag = db.TagRow{ID: 1, Name: "TestTag"}
@@ -48,7 +48,7 @@ func TestBulkSelectionToggleTagsTrackLevel(t *testing.T) {
 
 func TestBulkSelectionToggleTagsNoOpAtTagLevel(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TagLevel
 	m.tagsView.Tags = []db.TagRow{{ID: 1, Name: "T1"}}
 	m.tagsView.TagCounts = map[int64]int{1: 3}
@@ -100,7 +100,7 @@ func TestVisualModeTagsTrackLevel(t *testing.T) {
 
 func TestVisualModeTagsBlockedAtTagLevel(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TagLevel
 
 	m = doVisual(m)

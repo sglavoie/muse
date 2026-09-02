@@ -12,7 +12,7 @@ func TestToggleFavorite_TagsTrackLevelSingleOpensPicker(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TrackLevel
 	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{Hash: "ht1", Title: "Tag Song A"},
@@ -30,7 +30,7 @@ func TestToggleFavorite_TagsTrackLevelBulkOpensPicker(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TrackLevel
 	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{Hash: "ht1", Title: "Tag Song A"},
@@ -51,7 +51,7 @@ func TestToggleFavorite_TagsTagLevelNoop(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TagLevel
 
 	_, cmd, handled := m.handleToggleFavorite()

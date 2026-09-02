@@ -1,9 +1,10 @@
-package tui
+package uitest
 
 import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -17,8 +18,8 @@ func TestTagPickerRenderHintFitsMinimumSupportedSize(t *testing.T) {
 	tp, _ := tagtui.NewTagPicker(tags, "h1", map[int64]struct{}{})
 	s := styles.NewStyles(true)
 
-	raw := tp.Render(minTerminalWidth, minTerminalHeight, s)
-	if issues := DetectLayoutIssues(raw, PlainScreen(raw), minTerminalWidth, minTerminalHeight); len(issues) != 0 {
+	raw := tp.Render(tui.MinTerminalWidth, tui.MinTerminalHeight, s)
+	if issues := DetectLayoutIssues(raw, PlainScreen(raw), tui.MinTerminalWidth, tui.MinTerminalHeight); len(issues) != 0 {
 		t.Fatalf("tag picker should fit at minimum supported size, got %+v:\n%s", issues, PlainScreen(raw))
 	}
 }

@@ -59,7 +59,7 @@ func TestInputForwardingPrefersSettingsOverMetadataEditor(t *testing.T) {
 
 func TestInputForwardingPrefersMetadataEditorOverViewFilter(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.library.Filter = filter.New()
 	m.library.Filter, _ = m.library.Filter.Activate()
 	editor := metadata.NewEditor("hash", "title", "artist", "album", "genre", 0)
@@ -106,7 +106,7 @@ func TestInputForwardingIncludesCommandPaletteFilter(t *testing.T) {
 
 func TestInputForwardingFallsBackToQueueSaveInput(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue = m.queue.StartSaveAsPlaylist(false)
 
 	next, _, ok := m.forwardToActiveInput(tea.KeyPressMsg{Code: 'q', Text: "q"})

@@ -18,7 +18,7 @@ func TestToggleFavorite_GenresArtistLevel(t *testing.T) {
 		"artist": {},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeGenres
 	m.browse.Genres.Level = gentui.ArtistLevel
 	m.browse.Genres.Artists = []string{"Bach", "Coltrane", "Davis"}
@@ -55,7 +55,7 @@ func TestToggleFavorite_GenresTrackLevelSingleOpensPicker(t *testing.T) {
 		"track": {},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeGenres
 	m.browse.Genres.Level = gentui.TrackLevel
 	m.browse.Genres.Tracks = []library.Track{
@@ -79,7 +79,7 @@ func TestToggleFavorite_GenresTrackLevelBulkOpensPicker(t *testing.T) {
 		"track": {},
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeGenres
 	m.browse.Genres.Level = gentui.TrackLevel
 	m.browse.Genres.Tracks = []library.Track{
@@ -110,7 +110,7 @@ func TestToggleFavorite_GenresGenreLevelNoop(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	m.browse.Mode = browse.BrowseModeGenres
 	m.browse.Genres.Level = gentui.GenreLevel
 	m.browse.Genres.Genres = []string{"Jazz", "Rock"}

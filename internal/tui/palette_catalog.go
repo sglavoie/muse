@@ -218,7 +218,7 @@ func queueHasEntries(m Model) bool { return len(m.queue.Entries) > 0 }
 // refuses the action under the same condition, so the dimmed row is backed by
 // a real guard rather than by rendering alone.
 func atPlaylistListLevel(m Model) bool {
-	return m.activeView == viewPlaylists && m.playlists.AtListLevel()
+	return m.ActiveView == viewPlaylists && m.playlists.AtListLevel()
 }
 
 // activeViewIs builds the gate for a cursor-row entry: true only while one of
@@ -234,7 +234,7 @@ func insightsHasGenreCollision(m Model) bool {
 }
 
 func activeViewIs(views ...viewID) func(Model) bool {
-	return func(m Model) bool { return slices.Contains(views, m.activeView) }
+	return func(m Model) bool { return slices.Contains(views, m.ActiveView) }
 }
 
 // paletteExcluded records actions that will never get a palette entry, with

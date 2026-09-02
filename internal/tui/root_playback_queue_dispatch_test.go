@@ -41,7 +41,7 @@ func TestRootUpdateEnterInQueueViewDelegatesToQueueUpdate(t *testing.T) {
 	stubFileExistsTrue(t)
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},

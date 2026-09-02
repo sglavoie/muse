@@ -19,7 +19,7 @@ func (m Model) handleDebugKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
 	case "esc":
 		m.debugVisible = false
 		m.debugViewport = viewport.Model{}
-		m.activeView = m.debugPrevView
+		m.ActiveView = m.debugPrevView
 		return m, nil, true
 	default:
 		var cmd tea.Cmd

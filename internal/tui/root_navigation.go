@@ -27,7 +27,7 @@ func (m Model) handleNavigationAction(action keys.Action) (Model, tea.Cmd, bool)
 		keys.ActionHalfPageDown, keys.ActionHalfPageUp,
 		keys.ActionFullPageDown, keys.ActionFullPageUp,
 		keys.ActionGoToTop, keys.ActionGoToBottom:
-		switch m.activeView {
+		switch m.ActiveView {
 		case viewLibrary:
 			m.library = m.library.HandleAction(action)
 		case viewPlaylists:
@@ -69,7 +69,7 @@ func (m Model) handleNavigationAction(action keys.Action) (Model, tea.Cmd, bool)
 		if m.visual.active {
 			m = exitVisualMode(m)
 		}
-		switch m.activeView {
+		switch m.ActiveView {
 		case viewLibrary:
 			m.library = m.library.HandleAction(action)
 		case viewPlaylists:
@@ -135,7 +135,7 @@ func (m Model) handleNavigationAction(action keys.Action) (Model, tea.Cmd, bool)
 // clearActiveViewSelection removes all bulk-selection markers in the currently
 // active view. It does not touch other views or exit visual mode.
 func (m Model) clearActiveViewSelection() Model {
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		m.library = m.library.ClearSelection()
 	case viewQueue:

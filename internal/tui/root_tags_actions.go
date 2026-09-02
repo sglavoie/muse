@@ -15,7 +15,7 @@ import (
 // At TagLevel: drills into tracks for the focused tag.
 // At TrackLevel: enqueues the focused track.
 func (m Model) handleTagOpen() (Model, tea.Cmd) {
-	if m.activeView != viewTags {
+	if m.ActiveView != viewTags {
 		return m, nil
 	}
 	switch m.tagsView.Level {
@@ -46,7 +46,7 @@ func (m Model) handleTagOpen() (Model, tea.Cmd) {
 
 // handleTagBack navigates one level up in the Tags view.
 func (m Model) handleTagBack() Model {
-	if m.activeView != viewTags {
+	if m.ActiveView != viewTags {
 		return m
 	}
 	m = exitVisualMode(m)
@@ -56,7 +56,7 @@ func (m Model) handleTagBack() Model {
 
 // handleTagCreate starts the inline create input.
 func (m Model) handleTagCreate() (Model, tea.Cmd) {
-	if m.activeView != viewTags || m.tagsView.Level != tagtui.TagLevel {
+	if m.ActiveView != viewTags || m.tagsView.Level != tagtui.TagLevel {
 		return m, nil
 	}
 	if m.tagsView.IsCreating() || m.tagsView.IsRenaming() {
@@ -68,7 +68,7 @@ func (m Model) handleTagCreate() (Model, tea.Cmd) {
 
 // handleTagRename starts the inline rename input for the focused tag.
 func (m Model) handleTagRename() (Model, tea.Cmd) {
-	if m.activeView != viewTags || m.tagsView.Level != tagtui.TagLevel {
+	if m.ActiveView != viewTags || m.tagsView.Level != tagtui.TagLevel {
 		return m, nil
 	}
 	if m.tagsView.IsCreating() || m.tagsView.IsRenaming() {
@@ -84,7 +84,7 @@ func (m Model) handleTagRename() (Model, tea.Cmd) {
 
 // handleTagDelete soft-deletes the focused tag and arms undo.
 func (m Model) handleTagDelete() (Model, tea.Cmd) {
-	if m.activeView != viewTags || m.tagsView.Level != tagtui.TagLevel {
+	if m.ActiveView != viewTags || m.tagsView.Level != tagtui.TagLevel {
 		return m, nil
 	}
 	tag, ok := m.tagsView.FocusedTag()
@@ -151,7 +151,7 @@ func (m Model) handleTagDelete() (Model, tea.Cmd) {
 
 // handleTagEnqueueAll enqueues all tracks for the focused tag.
 func (m Model) handleTagEnqueueAll() (Model, tea.Cmd) {
-	if m.activeView != viewTags || m.tagsView.Level != tagtui.TagLevel {
+	if m.ActiveView != viewTags || m.tagsView.Level != tagtui.TagLevel {
 		return m, nil
 	}
 	tag, ok := m.tagsView.FocusedTag()
@@ -201,7 +201,7 @@ func (m Model) handleTagRenameInputKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd
 // handleTagCreateInput processes enter/esc on the inline create input.
 // Returns (updated model, cmd, consumed).
 func (m Model) handleTagCreateInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
-	if !m.tagsView.IsCreating() || m.activeView != viewTags {
+	if !m.tagsView.IsCreating() || m.ActiveView != viewTags {
 		return m, nil, false
 	}
 	switch msg.String() {
@@ -233,7 +233,7 @@ func (m Model) handleTagCreateInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) 
 // handleTagRenameInput processes enter/esc on the inline rename input.
 // Returns (updated model, cmd, consumed).
 func (m Model) handleTagRenameInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
-	if !m.tagsView.IsRenaming() || m.activeView != viewTags {
+	if !m.tagsView.IsRenaming() || m.ActiveView != viewTags {
 		return m, nil, false
 	}
 	switch msg.String() {

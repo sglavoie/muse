@@ -26,7 +26,7 @@ func (m Model) helpState() ([]overlay.HelpSection, string) {
 		return overlay.HelpSections(), "Keybindings  (? to filter by view)"
 	}
 	ctx := viewToContext(m.prevActiveView)
-	name := viewName(m.prevActiveView)
+	name := ViewName(m.prevActiveView)
 	return overlay.FilteredHelpSections(ctx), "Keybindings — " + name + "  (? to show all)"
 }
 
@@ -89,7 +89,7 @@ func (m Model) switchToView(id viewID) Model {
 	if m.tagsView.Renaming {
 		m.tagsView = m.tagsView.CancelRename()
 	}
-	m.activeView = id
+	m.ActiveView = id
 	if id == viewQueue && m.followNowPlaying {
 		m.queue = m.queue.ScrollToNowPlaying(m.playback.currentIndex)
 	}
@@ -268,7 +268,7 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 	case keys.ActionSettings:
 		return m.handleSettingsOpen()
 	case keys.ActionDebug:
-		m.debugPrevView = m.activeView
+		m.debugPrevView = m.ActiveView
 		m.debugVisible = true
 		m.debugViewport = viewport.New(viewport.WithWidth(m.termWidth), viewport.WithHeight(max(m.termHeight-2, 0)))
 		panel := collectDebugInfo(m)
@@ -287,21 +287,21 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 			m.overlay.modesLegend = m.buildModesLegend()
 		}
 	case keys.ActionHelp:
-		m.prevActiveView = m.activeView
+		m.prevActiveView = m.ActiveView
 		m.helpVisible = true
 		m.helpFiltered = true
 		m.helpSearchFilter = filter.State{}
 		m.helpViewport = viewport.New(viewport.WithWidth(m.termWidth), viewport.WithHeight(max(m.termHeight-2, 0)))
 		m.refreshHelpViewport()
 	case keys.ActionNextView:
-		next := nextView(m.activeView)
+		next := nextView(m.ActiveView)
 		loadCmd := m.viewLazyLoadCmd(next)
 		m = m.switchToView(next)
 		if loadCmd != nil {
 			return m, loadCmd
 		}
 	case keys.ActionPrevView:
-		prev := prevView(m.activeView)
+		prev := prevView(m.ActiveView)
 		loadCmd := m.viewLazyLoadCmd(prev)
 		m = m.switchToView(prev)
 		if loadCmd != nil {
@@ -415,7 +415,7 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 			}
 		}
 	case keys.ActionCommandPalette:
-		commands := m.buildPaletteCommands()
+		commands := m.BuildPaletteCommands()
 		if len(commands) > 0 {
 			cp, cmd := palette.NewCommandPalette(commands, m.paletteUsage)
 			m.overlay.commandPalette = &cp
@@ -426,7 +426,7 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 	case keys.ActionTagFilter:
 		return m.handleTagFilterAction()
 	}
-	if hint := hintForAction(action, m.activeView, m.browse.Mode); hint != "" {
+	if hint := hintForAction(action, m.ActiveView, m.browse.Mode); hint != "" {
 		m.statusBar.PushMsg(hint, 3*time.Second, statusbar.NotifInfo)
 	}
 	return m, nil

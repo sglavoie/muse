@@ -16,7 +16,7 @@ import (
 // For viewBrowse, the real sub-context (contextArtists/Albums/Genres) is resolved
 // based on the active browse mode so that sub-view keybindings work correctly.
 func (m Model) activeViewContext() keys.Context {
-	if m.activeView == viewBrowse {
+	if m.ActiveView == viewBrowse {
 		switch m.browse.Mode {
 		case browse.BrowseModeArtists:
 			return keys.ContextArtists
@@ -26,10 +26,10 @@ func (m Model) activeViewContext() keys.Context {
 			return keys.ContextGenres
 		}
 	}
-	ctx := viewToContext(m.activeView)
+	ctx := viewToContext(m.ActiveView)
 	if ctx == keys.ContextGlobal {
 		slog.Warn("activeViewContext: unhandled viewID, falling back to global bindings",
-			"viewID", int(m.activeView))
+			"viewID", int(m.ActiveView))
 	}
 	return ctx
 }

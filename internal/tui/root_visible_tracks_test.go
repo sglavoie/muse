@@ -41,7 +41,7 @@ func TestVisibleTracksLibraryHonorsFilterWithoutFocusedFallback(t *testing.T) {
 	var idx library.LibraryIndex
 	idx.BulkLoad(tracks)
 
-	m := Model{activeView: viewLibrary, library: libtui.View{Index: idx, Cursor: 1}}
+	m := Model{ActiveView: viewLibrary, library: libtui.View{Index: idx, Cursor: 1}}
 	if got := visibleHashes(t, m); len(got) != 3 {
 		t.Fatalf("no selection must export every visible row, got %v", got)
 	}
@@ -63,7 +63,7 @@ func TestVisibleTracksLibraryPrefersSelection(t *testing.T) {
 	idx.BulkLoad(tracks)
 
 	m := Model{
-		activeView: viewLibrary,
+		ActiveView: viewLibrary,
 		library: libtui.View{
 			Index:          idx,
 			SelectedHashes: map[string]struct{}{"h3": {}, "h1": {}},
@@ -76,7 +76,7 @@ func TestVisibleTracksLibraryPrefersSelection(t *testing.T) {
 
 func TestVisibleTracksQueueUsesFilteredEntries(t *testing.T) {
 	m := Model{
-		activeView: viewQueue,
+		ActiveView: viewQueue,
 		queue: queue.View{
 			Entries: []queue.Entry{
 				{Hash: "h1", Title: "Alpha"},
@@ -92,7 +92,7 @@ func TestVisibleTracksQueueUsesFilteredEntries(t *testing.T) {
 
 func TestVisibleTracksQueuePrefersSelection(t *testing.T) {
 	m := Model{
-		activeView: viewQueue,
+		ActiveView: viewQueue,
 		queue: queue.View{Entries: []queue.Entry{
 			{Hash: "h1"},
 			{Hash: "h2", Selected: true},
@@ -105,7 +105,7 @@ func TestVisibleTracksQueuePrefersSelection(t *testing.T) {
 
 func TestVisibleTracksPlaylistsFollowsSortOrder(t *testing.T) {
 	m := Model{
-		activeView: viewPlaylists,
+		ActiveView: viewPlaylists,
 		playlists: pltui.PlaylistsView{
 			Level: pltui.TrackLevel,
 			Tracks: []db.PlaylistTrackRow{
@@ -122,7 +122,7 @@ func TestVisibleTracksPlaylistsFollowsSortOrder(t *testing.T) {
 
 func TestVisibleTracksTagsPrefersSelection(t *testing.T) {
 	m := Model{
-		activeView: viewTags,
+		ActiveView: viewTags,
 		tagsView: tagtui.TagsView{
 			Level: tagtui.TrackLevel,
 			Tracks: []db.PlaylistTrackRow{
@@ -142,11 +142,11 @@ func TestVisibleTracksRefusesLevelsWithNoTrackList(t *testing.T) {
 		name  string
 		model Model
 	}{
-		{"favorites category level", Model{activeView: viewFavorites, favorites: favtui.FavoritesView{Level: favtui.CategoryLevel}}},
-		{"playlists list level", Model{activeView: viewPlaylists, playlists: pltui.PlaylistsView{Level: pltui.ListLevel}}},
-		{"tags tag level", Model{activeView: viewTags, tagsView: tagtui.TagsView{Level: tagtui.TagLevel}}},
-		{"insights briefing", Model{activeView: viewInsights, insights: instui.View{Level: instui.LevelBriefing}}},
-		{"mixes list level", Model{activeView: viewMixes, mixes: mixes.MixesView{Level: 0}}},
+		{"favorites category level", Model{ActiveView: viewFavorites, favorites: favtui.FavoritesView{Level: favtui.CategoryLevel}}},
+		{"playlists list level", Model{ActiveView: viewPlaylists, playlists: pltui.PlaylistsView{Level: pltui.ListLevel}}},
+		{"tags tag level", Model{ActiveView: viewTags, tagsView: tagtui.TagsView{Level: tagtui.TagLevel}}},
+		{"insights briefing", Model{ActiveView: viewInsights, insights: instui.View{Level: instui.LevelBriefing}}},
+		{"mixes list level", Model{ActiveView: viewMixes, mixes: mixes.MixesView{Level: 0}}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

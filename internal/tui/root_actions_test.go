@@ -20,8 +20,8 @@ func TestActionGoToWithEmptyOptionsNotifiesUser(t *testing.T) {
 	tracks := []library.Track{{Title: "Solo", Hash: "h1", Path: "/x.flac"}}
 	m := New(context.Background(), WithLibraryTracks(tracks))
 
-	if m.activeView != viewLibrary {
-		t.Fatalf("precondition: expected viewLibrary, got %d", m.activeView)
+	if m.ActiveView != viewLibrary {
+		t.Fatalf("precondition: expected viewLibrary, got %d", m.ActiveView)
 	}
 	// Confirm precondition: ctx is found and options is empty.
 	ctx := m.focusedGoToContext()

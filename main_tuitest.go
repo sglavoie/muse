@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/sglavoie/muse/internal/tui"
+	"github.com/sglavoie/muse/internal/tui/uitest"
 )
 
 // Exit codes for the tui-test harness.
@@ -147,20 +148,20 @@ func runTUITestRun(args []string, stdout, stderr io.Writer) int {
 		_, _ = fmt.Fprintf(stderr, "muse tui-test run: read scenario: %v\n", err)
 		return tuiTestExitUsage
 	}
-	scenario, err := tui.ParseScenario(data)
+	scenario, err := uitest.ParseScenario(data)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "muse tui-test run: %v\n", err)
 		return tuiTestExitUsage
 	}
 
-	opts := tui.RunOptions{
+	opts := uitest.RunOptions{
 		Fixture:             *fixture,
 		Size:                *size,
 		IncludeANSI:         *ansi,
 		CollectObservations: *observations,
 		DrainTimeout:        *drainTimeout,
 	}
-	result, err := tui.RunScenario(scenario, opts)
+	result, err := uitest.RunScenario(scenario, opts)
 	if err != nil {
 		// Setup problem (unknown fixture, malformed size): invalid input.
 		_, _ = fmt.Fprintf(stderr, "muse tui-test run: %v\n", err)
@@ -186,7 +187,7 @@ func runTUITestRun(args []string, stdout, stderr io.Writer) int {
 }
 
 // writeRunSummary prints a compact human-readable pass/fail line to stdout.
-func writeRunSummary(w io.Writer, result tui.UITestScenarioResult) error {
+func writeRunSummary(w io.Writer, result uitest.UITestScenarioResult) error {
 	if result.OK {
 		_, err := fmt.Fprintf(w, "PASS %q (fixture %s, %s, %d actions)\n",
 			result.Scenario, result.Fixture, result.Size, result.ActionsRun)
@@ -210,16 +211,16 @@ func writeRunSummary(w io.Writer, result tui.UITestScenarioResult) error {
 
 // sessionRequest is one NDJSON request line for the interactive session mode.
 type sessionRequest struct {
-	Type   string            `json:"type"`
-	Action *tui.UITestAction `json:"action,omitempty"`
+	Type   string               `json:"type"`
+	Action *uitest.UITestAction `json:"action,omitempty"`
 }
 
 // sessionResponse is one NDJSON response line for the interactive session mode.
 type sessionResponse struct {
-	OK          bool                   `json:"ok"`
-	Type        string                 `json:"type,omitempty"`
-	Observation *tui.UITestObservation `json:"observation,omitempty"`
-	Error       string                 `json:"error,omitempty"`
+	OK          bool                      `json:"ok"`
+	Type        string                    `json:"type,omitempty"`
+	Observation *uitest.UITestObservation `json:"observation,omitempty"`
+	Error       string                    `json:"error,omitempty"`
 }
 
 // runTUITestSession runs an interactive NDJSON loop over stdin/stdout. Stdout
@@ -239,18 +240,18 @@ func runTUITestSession(args []string, stdin io.Reader, stdout, stderr io.Writer)
 		return tuiTestExitUsage
 	}
 
-	width, height, err := tui.ParseSize(*size)
+	width, height, err := uitest.ParseSize(*size)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "muse tui-test session: %v\n", err)
 		return tuiTestExitUsage
 	}
 
-	newDriver := func() (*tui.UITestDriver, error) {
+	newDriver := func() (*uitest.UITestDriver, error) {
 		model, err := tui.BuildFixture(*fixture)
 		if err != nil {
 			return nil, err
 		}
-		return tui.NewUITestDriver(model, width, height, 0), nil
+		return uitest.NewUITestDriver(model, width, height, 0), nil
 	}
 
 	driver, err := newDriver()
@@ -259,7 +260,7 @@ func runTUITestSession(args []string, stdin io.Reader, stdout, stderr io.Writer)
 		return tuiTestExitUsage
 	}
 
-	obsOpts := tui.ObserveOptions{IncludeANSI: *ansi, IncludeCommands: *commands}
+	obsOpts := uitest.ObserveOptions{IncludeANSI: *ansi, IncludeCommands: *commands}
 	scanner := bufio.NewScanner(stdin)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1<<20)
 

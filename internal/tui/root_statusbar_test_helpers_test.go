@@ -18,7 +18,7 @@ func viewContent(m Model) string {
 }
 
 func renderedStatusBar(m Model) string {
-	return ansi.Strip(m.renderStatusBar())
+	return ansi.Strip(m.RenderStatusBar())
 }
 
 func assertViewContains(t *testing.T, m Model, want string) {

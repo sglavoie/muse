@@ -24,7 +24,7 @@ func TestUpdateCtrlCQuits(t *testing.T) {
 // even when the library filter bar is active and intercepting all keypresses.
 func TestCtrlCQuitsWhileFilterBarActive(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.library.Filter.Active = true
 	m.library.Filter.Text = "test"
 
@@ -42,7 +42,7 @@ func TestCtrlCQuitsWhileFilterBarActive(t *testing.T) {
 // tea.Quit even when the inline playlist create input is active.
 func TestCtrlCQuitsWhilePlaylistCreateActive(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 
 	// Activate create mode.
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})
@@ -70,7 +70,7 @@ func TestCtrlCQuitsWhilePlaylistCreateActive(t *testing.T) {
 // tea.Quit even when the inline playlist rename input is active.
 func TestCtrlCQuitsWhilePlaylistRenameActive(t *testing.T) {
 	m := New(context.Background(), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "Test"}}))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 
 	// Activate rename mode via PlaylistRenameMsg.
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})

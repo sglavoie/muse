@@ -22,7 +22,7 @@ const insightsAntiRutCount = 25
 // selection the way it does in Library — which is what the selection-mode
 // footer advertises.
 func (m Model) handleInsightsOpen() (Model, tea.Cmd) {
-	if m.activeView != viewInsights {
+	if m.ActiveView != viewInsights {
 		return m, nil
 	}
 	switch m.insights.Level {
@@ -96,7 +96,7 @@ func (m Model) insightsBulkTracks() []library.Track {
 
 // handleInsightsBack steps out one level.
 func (m Model) handleInsightsBack() Model {
-	if m.activeView != viewInsights || m.insights.Level == instui.LevelBriefing {
+	if m.ActiveView != viewInsights || m.insights.Level == instui.LevelBriefing {
 		return m
 	}
 	// Stepping out replaces the list visual mode anchored into, so the range
@@ -139,7 +139,7 @@ func (m Model) insightsSessionActionTracks() ([]library.Track, string) {
 // handleInsightsEnqueueAll appends every track behind the current row (or the
 // whole drilled-in list) to the queue.
 func (m Model) handleInsightsEnqueueAll() (Model, tea.Cmd) {
-	if m.activeView != viewInsights {
+	if m.ActiveView != viewInsights {
 		return m, nil
 	}
 	tracks, label := m.insightsActionTracks()
@@ -151,7 +151,7 @@ func (m Model) handleInsightsEnqueueAll() (Model, tea.Cmd) {
 // Concentration the rut is a different one — the handful of artists that hold
 // the listening time — so there it pulls from outside that group instead.
 func (m Model) handleInsightsAntiRut() (Model, tea.Cmd) {
-	if m.activeView != viewInsights {
+	if m.ActiveView != viewInsights {
 		return m, nil
 	}
 	if m.insights.Panel == instui.PanelConcentration {
@@ -225,7 +225,7 @@ func (m Model) handleInsightsRadioSeed() (Model, tea.Cmd) {
 // handleInsightsJumpBrowse opens the focused row's artist in Browse, so a bar
 // in the briefing leads back to the shelf it measures.
 func (m Model) handleInsightsJumpBrowse() Model {
-	if m.activeView != viewInsights {
+	if m.ActiveView != viewInsights {
 		return m
 	}
 	artist := ""
@@ -269,7 +269,7 @@ func (m Model) handleInsightsJumpBrowse() Model {
 
 // handleInsightsSavePlaylist saves the drilled-in tracks as a static playlist.
 func (m Model) handleInsightsSavePlaylist() (Model, tea.Cmd) {
-	if m.activeView != viewInsights || !m.insights.AtTracks() {
+	if m.ActiveView != viewInsights || !m.insights.AtTracks() {
 		return m, nil
 	}
 	tracks := m.insights.TrackView.SourceTracks

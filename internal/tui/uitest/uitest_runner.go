@@ -1,4 +1,4 @@
-package tui
+package uitest
 
 // This file shapes scenario execution and results for the hidden
 // `muse tui-test` layout harness. RunScenario builds a fixture-backed driver,
@@ -8,6 +8,7 @@ package tui
 
 import (
 	"fmt"
+	"github.com/sglavoie/muse/internal/tui"
 	"time"
 )
 
@@ -60,7 +61,7 @@ func RunScenario(scenario UITestScenario, opts RunOptions) (UITestScenarioResult
 		fixture = opts.Fixture
 	}
 	if fixture == "" {
-		fixture = FixtureRich
+		fixture = tui.FixtureRich
 	}
 
 	sizeStr := scenario.Size
@@ -76,7 +77,7 @@ func RunScenario(scenario UITestScenario, opts RunOptions) (UITestScenarioResult
 		width, height = w, h
 	}
 
-	model, err := BuildFixture(fixture)
+	model, err := tui.BuildFixture(fixture)
 	if err != nil {
 		return UITestScenarioResult{}, err
 	}

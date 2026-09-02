@@ -137,7 +137,7 @@ func TestResetQueueStateClearsSaveAsPlaylist(t *testing.T) {
 // input does not persist when the user returns to the queue view.
 func TestSwitchViewCancelsSaveAsPlaylist(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{{ID: 1, Path: "/a.flac", Display: "A"}}
 	m.queue.SavingAsPlaylist = true
 	m.queue.SavingFromSelection = true
@@ -150,8 +150,8 @@ func TestSwitchViewCancelsSaveAsPlaylist(t *testing.T) {
 	if m.queue.SavingFromSelection {
 		t.Error("savingFromSelection should be false after switchToView")
 	}
-	if m.activeView != viewLibrary {
-		t.Errorf("activeView = %v, want viewLibrary", m.activeView)
+	if m.ActiveView != viewLibrary {
+		t.Errorf("activeView = %v, want viewLibrary", m.ActiveView)
 	}
 }
 
@@ -159,7 +159,7 @@ func TestSwitchViewCancelsSaveAsPlaylist(t *testing.T) {
 // the playlists view cancels active inline create and rename inputs.
 func TestSwitchViewCancelsPlaylistInlineInputs(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.Creating = true
 	m.playlists.Renaming = true
 
@@ -177,7 +177,7 @@ func TestSwitchViewCancelsPlaylistInlineInputs(t *testing.T) {
 // tags view cancels active inline create and rename inputs.
 func TestSwitchViewCancelsTagInlineInputs(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Creating = true
 	m.tagsView.Renaming = true
 

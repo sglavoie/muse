@@ -36,7 +36,7 @@ func TestTagEnqueueAllAddsEntriesToQueue(t *testing.T) {
 	)
 
 	// Navigate to Tags view and open the tag to see tracks.
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Tags = tr.tags
 	m.tagsView.TagCounts = tr.tagCounts
 
@@ -156,7 +156,7 @@ func TestTagEnqueueAllAtTrackLevelEnqueuesSingleTrack(t *testing.T) {
 		WithTagReader(tr),
 	)
 
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView = m.tagsView.OpenTracks(tr.tags[0], tr.tracksByID[1])
 	if m.tagsView.Level != tagtui.TrackLevel {
 		t.Fatalf("expected TrackLevel after openTracks, got %d", m.tagsView.Level)

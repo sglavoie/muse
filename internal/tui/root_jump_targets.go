@@ -44,7 +44,7 @@ func (m Model) jumpToArtist(artistName string) Model {
 	m = m.resetAllSorts()
 	m = exitVisualMode(m)
 	m.browse.Mode = browse.BrowseModeArtists
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	return m
 }
 
@@ -84,7 +84,7 @@ func (m Model) jumpToAlbum(albumName string) Model {
 	m = m.resetAllSorts()
 	m = exitVisualMode(m)
 	m.browse.Mode = browse.BrowseModeAlbums
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	return m
 }
 
@@ -124,7 +124,7 @@ func (m Model) jumpToGenre(genreName string) Model {
 	m = m.resetAllSorts()
 	m = exitVisualMode(m)
 	m.browse.Mode = browse.BrowseModeGenres
-	m.activeView = viewBrowse
+	m.ActiveView = viewBrowse
 	return m
 }
 
@@ -153,6 +153,6 @@ func (m Model) jumpToPlaylist(playlistName string) Model {
 	m.clearPendingConfirmations()
 	m = m.resetAllSorts()
 	m = exitVisualMode(m)
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	return m
 }

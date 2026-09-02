@@ -32,7 +32,7 @@ func (m Model) handleSortAction(a keys.Action) (tea.Model, tea.Cmd, bool) {
 // handleSortCycle cycles to the next sort field for the active view.
 func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 	var ss sorting.SortState
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		switch m.library.Mode {
 		case libtui.LibraryModeRecent:
@@ -151,7 +151,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 // handleSortDir sets the sort direction for the active view, preserving the
 // focused item at its new position after re-sort.
 func (m Model) handleSortDir(dir sorting.SortDir) (tea.Model, tea.Cmd, bool) {
-	switch m.activeView {
+	switch m.ActiveView {
 	case viewLibrary:
 		var ss sorting.SortState
 		var ok bool

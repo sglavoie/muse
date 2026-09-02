@@ -50,7 +50,7 @@ func (a undoRemoveFavoriteAction) perform(m Model) (Model, tea.Cmd) {
 		}
 		m.favoriteAlbums[a.value] = struct{}{}
 	}
-	if m.activeView == viewFavorites && a.idx >= 0 &&
+	if m.ActiveView == viewFavorites && a.idx >= 0 &&
 		m.favorites.Level == a.level {
 		switch a.level {
 		case favtui.ListLevel:
@@ -84,7 +84,7 @@ func (a undoRemoveFavoriteAction) perform(m Model) (Model, tea.Cmd) {
 			m.favorites = m.favorites.ClampCursor()
 		}
 	}
-	if m.activeView == viewFavorites && m.favoriteReader != nil {
+	if m.ActiveView == viewFavorites && m.favoriteReader != nil {
 		ac, al, t, err := m.favoriteReader.ReadFavoriteCounts()
 		if err == nil {
 			m.favorites.ArtistCount = ac
@@ -123,7 +123,7 @@ func (a undoAddFavoriteAction) perform(m Model) (Model, tea.Cmd) {
 	if a.typ == "album" && a.value != "" {
 		delete(m.favoriteAlbums, a.value)
 	}
-	if m.activeView == viewFavorites {
+	if m.ActiveView == viewFavorites {
 		switch m.favorites.Level {
 		case favtui.ListLevel:
 			switch {
@@ -193,7 +193,7 @@ func (a undoBulkAddFavoritesAction) perform(m Model) (Model, tea.Cmd) {
 			delete(m.favoriteAlbums, v)
 		}
 	}
-	if m.activeView == viewFavorites {
+	if m.ActiveView == viewFavorites {
 		switch m.favorites.Level {
 		case favtui.ListLevel:
 			switch {
@@ -285,7 +285,7 @@ func (a undoBulkRemoveFavoritesAction) perform(m Model) (Model, tea.Cmd) {
 			m.favoriteAlbums[v] = struct{}{}
 		}
 	}
-	if m.activeView == viewFavorites && len(a.indices) > 0 &&
+	if m.ActiveView == viewFavorites && len(a.indices) > 0 &&
 		m.favorites.Level == a.level {
 		switch a.level {
 		case favtui.ListLevel:
@@ -324,7 +324,7 @@ func (a undoBulkRemoveFavoritesAction) perform(m Model) (Model, tea.Cmd) {
 			m.favorites = m.favorites.ClampCursor()
 		}
 	}
-	if m.activeView == viewFavorites && m.favoriteReader != nil {
+	if m.ActiveView == viewFavorites && m.favoriteReader != nil {
 		ac, al, t, err := m.favoriteReader.ReadFavoriteCounts()
 		if err == nil {
 			m.favorites.ArtistCount = ac

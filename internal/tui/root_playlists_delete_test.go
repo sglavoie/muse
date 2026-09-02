@@ -64,7 +64,7 @@ func TestPlaylistsBulkRemoveAtTrackLevel(t *testing.T) {
 func TestPlaylistDeleteClampsScrollOffset(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "A"}, {ID: 2, Name: "B"}}))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.Cursor = 1
 	m.playlists.ScrollOffset = 1
 
@@ -84,7 +84,7 @@ func TestPlaylistDeleteClampsScrollOffset(t *testing.T) {
 func TestPlaylistDeleteAllClampsScrollOffsetToZero(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "A"}}))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.Cursor = 0
 	m.playlists.ScrollOffset = 0
 
@@ -101,7 +101,7 @@ func TestPlaylistDeleteAllClampsScrollOffsetToZero(t *testing.T) {
 func TestPlaylistTrackDeleteClampsScrollOffset(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 
 	m.playlists.Level = pltui.TrackLevel
 	m.playlists.Tracks = []db.PlaylistTrackRow{{ID: 10, Position: 1, Title: "A", Artist: "X", DurationMs: 1000}, {ID: 20, Position: 2, Title: "B", Artist: "Y", DurationMs: 2000}}
@@ -124,7 +124,7 @@ func TestPlaylistTrackDeleteClampsScrollOffset(t *testing.T) {
 func TestBulkRemovePlaylistTracksClampsScrollOffset(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 
 	m.playlists.Level = pltui.TrackLevel
 	m.playlists.Tracks = []db.PlaylistTrackRow{{ID: 10, Position: 1, Title: "A", Artist: "X", DurationMs: 1000}, {ID: 20, Position: 2, Title: "B", Artist: "Y", DurationMs: 2000}, {ID: 30, Position: 3, Title: "C", Artist: "Z", DurationMs: 3000}}
@@ -149,7 +149,7 @@ func TestBulkRemovePlaylistTracksClampsScrollOffset(t *testing.T) {
 func TestBulkRemovePlaylistTracksSoftDeletesAndSchedulesPurge(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 
 	m.playlists.Level = pltui.TrackLevel
 	m.playlists.Tracks = []db.PlaylistTrackRow{{ID: 10, Position: 1, Title: "A", Artist: "X", DurationMs: 1000}, {ID: 20, Position: 2, Title: "B", Artist: "Y", DurationMs: 2000}, {ID: 30, Position: 3, Title: "C", Artist: "Z", DurationMs: 3000}}
@@ -174,7 +174,7 @@ func TestBulkRemovePlaylistTracksSoftDeletesAndSchedulesPurge(t *testing.T) {
 // actionPlaylistDelete does not panic when the cursor exceeds the playlist slice length.
 func TestPlaylistDeleteNoPanicWhenCursorOutOfBounds(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.Playlists = []db.PlaylistRow{{ID: 1, Name: "A"}}
 	m.playlists.Cursor = 5
 
@@ -186,7 +186,7 @@ func TestPlaylistDeleteNoPanicWhenCursorOutOfBounds(t *testing.T) {
 // actionPlaylistDelete at track level does not panic when the cursor exceeds the tracks slice length.
 func TestPlaylistTrackDeleteNoPanicWhenCursorOutOfBounds(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.Level = pltui.TrackLevel
 	m.playlists.Tracks = []db.PlaylistTrackRow{{ID: 1, Title: "A"}}
 	m.playlists.Cursor = 5
@@ -201,7 +201,7 @@ func TestPlaylistTrackDeleteNoPanicWhenCursorOutOfBounds(t *testing.T) {
 func TestBulkActionInPlaylistsRemovesImmediately(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 
 	m.playlists.Level = pltui.TrackLevel
 	m.playlists.Tracks = []db.PlaylistTrackRow{{ID: 10, Position: 1, Title: "A", Artist: "X", DurationMs: 1000}, {ID: 20, Position: 2, Title: "B", Artist: "Y", DurationMs: 2000}, {ID: 30, Position: 3, Title: "C", Artist: "Z", DurationMs: 3000}}
@@ -240,7 +240,7 @@ func TestBulkActionInPlaylistsRemovesImmediately(t *testing.T) {
 func TestBulkActionRemovalResetsSortState(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.Level = pltui.TrackLevel
 	m.playlists.Tracks = []db.PlaylistTrackRow{{ID: 10, Position: 1, Title: "A", Artist: "X", DurationMs: 1000}, {ID: 20, Position: 2, Title: "B", Artist: "Y", DurationMs: 2000}, {ID: 30, Position: 3, Title: "C", Artist: "Z", DurationMs: 3000}}
 	m.playlists.SelectedTrackIDs = map[int64]struct{}{10: {}, 20: {}}
@@ -270,7 +270,7 @@ func TestBulkActionRemovalResetsSortState(t *testing.T) {
 func TestPlaylistDeleteWithSortActiveDeletesCorrectEntry(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "Zebra"}, {ID: 2, Name: "Alpha"}, {ID: 3, Name: "Middle"}}))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.playlists = m.playlists.RecomputePlaylistSort()
 	m.playlists.Cursor = 0
@@ -300,7 +300,7 @@ func TestPlaylistDeleteWithSortActiveDeletesCorrectEntry(t *testing.T) {
 func TestPlaylistDeleteWithSortActiveUndoRestoresCorrectEntry(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "Zebra"}, {ID: 2, Name: "Alpha"}, {ID: 3, Name: "Middle"}}))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.playlists = m.playlists.RecomputePlaylistSort()
 	m.playlists.Cursor = 0

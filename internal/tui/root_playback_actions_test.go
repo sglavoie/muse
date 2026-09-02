@@ -30,7 +30,7 @@ func TestSpacePauseResumeFromAnyView(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			p := &stubPlayer{}
 			m := New(context.Background(), WithPlayer(p))
-			m.activeView = tc.viewID
+			m.ActiveView = tc.viewID
 			m.playback.state = playback.StatePaused
 			m.queue.Entries = []queue.Entry{{ID: 1, Display: "Track 1"}}
 

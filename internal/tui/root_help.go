@@ -54,7 +54,7 @@ func (m Model) handleHelpKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
 		m.helpViewport = viewport.Model{}
 		m.helpFiltered = false
 		m.helpSearchFilter = filter.State{}
-		m.activeView = m.prevActiveView
+		m.ActiveView = m.prevActiveView
 		return m, nil, true
 	case "?":
 		m.helpFiltered = !m.helpFiltered

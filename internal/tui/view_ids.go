@@ -28,8 +28,8 @@ const (
 // viewOrder defines the tab-cycling order for primary views.
 var viewOrder = []viewID{viewLibrary, viewPlaylists, viewQueue, viewBrowse, viewFavorites, viewTags, viewMixes, viewInsights}
 
-// viewName returns the display name for a viewID.
-func viewName(id viewID) string {
+// ViewName returns the display name for a viewID.
+func ViewName(id viewID) string {
 	switch id {
 	case viewLibrary:
 		return "Library"
@@ -82,7 +82,7 @@ func (m Model) viewDisplayName(id viewID) string {
 	if id == viewQueue && m.queueDirty {
 		return "Queue*"
 	}
-	return viewName(id)
+	return ViewName(id)
 }
 
 // viewToContext maps a viewID to its corresponding bindingContext.

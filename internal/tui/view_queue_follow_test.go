@@ -94,7 +94,7 @@ func TestFocusNowPlayingClampsScrollToMaxOffset(t *testing.T) {
 // hook adjusts scrollOffset when follow mode is on and the Queue view is active.
 func TestTrackChangedScrollsWhenFollowingAndQueueActive(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.followNowPlaying = true
 	m.queue = makeFollowQueue(30, 12)
 	// Pre-populate hashes so the index match works.
@@ -118,7 +118,7 @@ func TestTrackChangedScrollsWhenFollowingAndQueueActive(t *testing.T) {
 // mode off, scrollOffset is preserved across a track change.
 func TestTrackChangedDoesNotScrollWhenFollowDisabled(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.followNowPlaying = false
 	m.queue = makeFollowQueue(30, 12)
 	for i := range m.queue.Entries {
@@ -142,7 +142,7 @@ func TestTrackChangedDoesNotScrollWhenFollowDisabled(t *testing.T) {
 // must not touch the queue scroll position.
 func TestTrackChangedDoesNotScrollWhenQueueInactive(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.followNowPlaying = true
 	m.queue = makeFollowQueue(30, 12)
 	for i := range m.queue.Entries {
@@ -165,7 +165,7 @@ func TestTrackChangedDoesNotScrollWhenQueueInactive(t *testing.T) {
 // view re-anchors the scroll on the now-playing row.
 func TestSwitchToQueueScrollsWhenFollowing(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.followNowPlaying = true
 	m.queue = makeFollowQueue(30, 12)
 	for i := range m.queue.Entries {
@@ -186,7 +186,7 @@ func TestSwitchToQueueScrollsWhenFollowing(t *testing.T) {
 // to the Queue view with follow disabled preserves the user's scroll.
 func TestSwitchToQueueDoesNotScrollWhenFollowDisabled(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.followNowPlaying = false
 	m.queue = makeFollowQueue(30, 12)
 	for i := range m.queue.Entries {
@@ -231,7 +231,7 @@ func TestToggleQueueFollowFlipsState(t *testing.T) {
 // the now-playing row back into the target position.
 func TestToggleQueueFollowReanchorsScrollWhenReenabled(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.followNowPlaying = false
 	m.queue = makeFollowQueue(30, 12)
 	for i := range m.queue.Entries {

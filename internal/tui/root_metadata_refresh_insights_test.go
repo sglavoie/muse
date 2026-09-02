@@ -17,7 +17,7 @@ func drilledInsights(t *testing.T, tracks []library.Track) Model {
 	for _, tr := range tracks {
 		m.library.Index.Insert(tr)
 	}
-	m.activeView = viewInsights
+	m.ActiveView = viewInsights
 	m.insights.SetSize(100, 30)
 	m.insights.Dormant = tracks
 	m.insights.OpenDrill("No album", m.insightsDrillTracks(instui.Row{Drill: instui.DrillDormant}))

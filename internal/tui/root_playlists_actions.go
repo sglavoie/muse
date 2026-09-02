@@ -41,7 +41,7 @@ func (m Model) handlePlaylistKeyAction(action keys.Action) (Model, tea.Cmd, bool
 		m, cmd := m.handlePlaylistDelete()
 		return m, cmd, true
 	case keys.ActionSmartPlaylistCreate:
-		if m.activeView == viewPlaylists && m.playlists.AtListLevel() {
+		if m.ActiveView == viewPlaylists && m.playlists.AtListLevel() {
 			editor := smartrules.NewSmartRuleEditor()
 			m.overlay.smartRuleEditor = &editor
 		}
@@ -53,7 +53,7 @@ func (m Model) handlePlaylistKeyAction(action keys.Action) (Model, tea.Cmd, bool
 		m, cmd := m.handlePlaylistMoveTrackDown()
 		return m, cmd, true
 	case keys.ActionSmartPlaylistEdit:
-		if m.activeView == viewPlaylists && m.playlists.AtListLevel() {
+		if m.ActiveView == viewPlaylists && m.playlists.AtListLevel() {
 			pl, ok := m.playlists.FocusedPlaylist()
 			if ok && pl.IsSmart {
 				q, err := db.ParseSmartPlaylistQuery(pl.Query)

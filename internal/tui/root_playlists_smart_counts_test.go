@@ -18,7 +18,7 @@ func TestSmartPlaylistCountsUpdatesSortedCopy(t *testing.T) {
 		{ID: 2, Name: "Smart", TrackCount: 0, IsSmart: true, Query: `{"field":"artist","op":"eq","value":"X"}`},
 	}
 	m := New(context.Background(), WithPlaylists(playlists))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m = next.(Model)
 

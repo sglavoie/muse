@@ -16,8 +16,8 @@ func TestKey4SwitchesToArtistsView(t *testing.T) {
 	m := newModelWithTracks()
 	m = pressKey(m, "4")
 
-	if m.activeView != viewBrowse {
-		t.Fatalf("expected activeView=%d (viewBrowse), got %d", viewBrowse, m.activeView)
+	if m.ActiveView != viewBrowse {
+		t.Fatalf("expected activeView=%d (viewBrowse), got %d", viewBrowse, m.ActiveView)
 	}
 	if len(m.browse.Artists.Artists) != 3 {
 		t.Fatalf("expected 3 artists, got %d", len(m.browse.Artists.Artists))
@@ -142,8 +142,8 @@ func TestArtistsEscAtArtistLevelIsNoOp(t *testing.T) {
 	m = pressKey(m, "4")
 	m = pressEsc(m)
 
-	if m.activeView != viewBrowse {
-		t.Errorf("expected to remain on viewBrowse, got %d", m.activeView)
+	if m.ActiveView != viewBrowse {
+		t.Errorf("expected to remain on viewBrowse, got %d", m.ActiveView)
 	}
 	if m.browse.Artists.Level != arttui.ArtistLevel {
 		t.Errorf("expected ArtistLevel, got %v", m.browse.Artists.Level)

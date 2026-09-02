@@ -24,7 +24,7 @@ func (m Model) renderTitleBar() string {
 			fullWidth += badgeWidth
 		}
 		nameLen := len(m.viewDisplayName(id))
-		if id == m.activeView {
+		if id == m.ActiveView {
 			nameLen += 2
 		}
 		if id == viewQueue && queueIndicator != "" {
@@ -47,7 +47,7 @@ func (m Model) renderTitleBar() string {
 }
 
 func (m Model) titleBarQueueIndicator() string {
-	if m.activeView == viewQueue {
+	if m.ActiveView == viewQueue {
 		return ""
 	}
 	switch {
@@ -77,13 +77,13 @@ func (m Model) renderWideTitleBar(sep string, groupAfter map[viewID]bool, queueI
 		name := m.viewDisplayName(id)
 		var entry string
 		switch {
-		case i < 10 && id == m.activeView:
+		case i < 10 && id == m.ActiveView:
 			badge := m.styles.Badge.Render(fmt.Sprintf("%d", (i+1)%10))
 			entry = badge + " " + m.styles.ActiveTab.Render(" "+name+" ") + filterBadge
 		case i < 10:
 			badge := m.styles.Badge.Render(fmt.Sprintf("%d", (i+1)%10))
 			entry = badge + " " + m.styles.TextTertiary.Render(name)
-		case id == m.activeView:
+		case id == m.ActiveView:
 			entry = m.styles.ActiveTab.Render(" "+name+" ") + filterBadge
 		default:
 			entry = m.styles.TextTertiary.Render(name)
@@ -116,7 +116,7 @@ func (m Model) renderWideTitleBar(sep string, groupAfter map[viewID]bool, queueI
 func (m Model) renderNarrowTitleBar(chevronWidth int, sep, filterBadge string) string {
 	activeIdx := 0
 	for i, id := range viewOrder {
-		if id == m.activeView {
+		if id == m.ActiveView {
 			activeIdx = i
 			break
 		}
@@ -159,7 +159,7 @@ func (m Model) renderNarrowTitleBar(chevronWidth int, sep, filterBadge string) s
 	for i := left; i <= right; i++ {
 		id := viewOrder[i]
 		name := m.narrowTitleBarName(id)
-		if id == m.activeView {
+		if id == m.ActiveView {
 			parts = append(parts, m.styles.ActiveTab.Render(" "+name+" ")+filterBadge)
 		} else {
 			parts = append(parts, m.styles.TextTertiary.Render(name))
@@ -172,5 +172,5 @@ func (m Model) narrowTitleBarName(id viewID) string {
 	if id == viewLibrary {
 		return libtui.StripLabel(m.library.Mode)
 	}
-	return viewName(id)
+	return ViewName(id)
 }

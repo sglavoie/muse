@@ -58,7 +58,7 @@ func TestClearQueueMsgResetsScrollOffset(t *testing.T) {
 func TestClearQueueMsgExitsVisualMode(t *testing.T) {
 	p := &stubCommandPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Display: "A"},
 		{ID: 2, Path: "/b.flac", Display: "B"},

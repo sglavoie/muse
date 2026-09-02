@@ -99,7 +99,7 @@ func TestDestPickerClearsFavoritesSelection(t *testing.T) {
 // the user navigated back, silently restoring discarded selections.
 func TestDestPickerCreateExitsVisualMode(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m.visual = visualState{active: true, view: viewLibrary, anchor: 0}
 
 	got := m.handleDestinationPickerCreateMsg()
@@ -107,8 +107,8 @@ func TestDestPickerCreateExitsVisualMode(t *testing.T) {
 	if got.visual.active {
 		t.Error("expected visual mode to be inactive after destination picker create")
 	}
-	if got.activeView != viewPlaylists {
-		t.Errorf("expected activeView=viewPlaylists, got %v", got.activeView)
+	if got.ActiveView != viewPlaylists {
+		t.Errorf("expected activeView=viewPlaylists, got %v", got.ActiveView)
 	}
 	if !got.playlists.Creating {
 		t.Error("expected playlists.creating=true after destination picker create")

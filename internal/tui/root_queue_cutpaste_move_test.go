@@ -14,7 +14,7 @@ func TestCutThenPasteRemovesOriginals(t *testing.T) {
 	qa := &stubQueueAppender{}
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries() // [A=101, B=102, C=103, D=104]
 	m.queue.Cursor = 0
 
@@ -59,7 +59,7 @@ func TestCutPasteAdjustsPlaybackIndex(t *testing.T) {
 	qa := &stubQueueAppender{}
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries() // [A=101, B=102, C=103, D=104]
 	m.playback.currentIndex = 2            // playing C
 
@@ -93,7 +93,7 @@ func TestCutPasteSecondPasteDuplicates(t *testing.T) {
 	qa := &stubQueueAppender{}
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries() // [A, B, C, D]
 	m.queue.Cursor = 0
 
@@ -130,7 +130,7 @@ func TestCutPasteCursorPointsAtPastedEntry(t *testing.T) {
 	qa := &stubQueueAppender{}
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries() // [A=101, B=102, C=103, D=104]
 	m.queue.Cursor = 3                     // on D
 
@@ -168,7 +168,7 @@ func TestCutPasteMultipleCursorPointsAtLastPasted(t *testing.T) {
 	qa := &stubQueueAppender{}
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries() // [A=101, B=102, C=103, D=104]
 
 	// Select and cut C and D (indices 2 and 3).
@@ -211,7 +211,7 @@ func TestCutPastePreservesPurgeCancelChannel(t *testing.T) {
 	dequeuer := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
 	m.undoer = dequeuer
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries() // [A=101, B=102, C=103, D=104]
 	m.queue.Cursor = 0
 
@@ -251,7 +251,7 @@ func TestCutPastePlayingTrackRelocatesCurrentIndex(t *testing.T) {
 	qa := &stubQueueAppender{}
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = sampleQueueEntries() // [A=101, B=102, C=103, D=104]
 	m.playback.currentIndex = 0            // playing A
 	m.playback.currentHash = "h1"
@@ -291,7 +291,7 @@ func TestCutPastePlayingTrackRelocatesCurrentIndex(t *testing.T) {
 func TestBulkDequeuePlayingTrackWithDuplicateRelocatesCurrentIndex(t *testing.T) {
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithBatchEnqueuer(be))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Display: "A1"},
 		{ID: 2, Hash: "h2", Display: "B"},

@@ -13,7 +13,7 @@ import (
 // not bleed into the target view.
 func TestJumpToArtist_ExitsVisualMode(t *testing.T) {
 	m := newModelWithTracks()
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m = enterVisualMode(m)
 	if !m.visual.active {
 		t.Fatal("precondition: visual mode should be active")
@@ -30,7 +30,7 @@ func TestJumpToArtist_ExitsVisualMode(t *testing.T) {
 // jumping to an album.
 func TestJumpToAlbum_ExitsVisualMode(t *testing.T) {
 	m := newModelWithTracks()
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m = enterVisualMode(m)
 	if !m.visual.active {
 		t.Fatal("precondition: visual mode should be active")
@@ -51,7 +51,7 @@ func TestJumpToGenre_ExitsVisualMode(t *testing.T) {
 		{Artist: "Bob", Album: "Beta", Genre: "Jazz", Title: "T2", Hash: "h2", Path: "/b.flac"},
 	}
 	m := New(context.Background(), WithLibraryTracks(tracks))
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m = enterVisualMode(m)
 	if !m.visual.active {
 		t.Fatal("precondition: visual mode should be active")
@@ -72,7 +72,7 @@ func TestJumpToPlaylist_ExitsVisualMode(t *testing.T) {
 		{ID: 1, Name: "Alpha"},
 		{ID: 2, Name: "Beta"},
 	}
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 	m = enterVisualMode(m)
 	if !m.visual.active {
 		t.Fatal("precondition: visual mode should be active")

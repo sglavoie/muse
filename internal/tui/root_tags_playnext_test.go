@@ -12,7 +12,7 @@ import (
 func TestPlayNextTagsTrackLevel(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TrackLevel
 	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "th1", Title: "T1", Artist: "A", Path: "/t1.mp3", DurationMs: 180000},
@@ -34,7 +34,7 @@ func TestPlayNextTagsTrackLevel(t *testing.T) {
 func TestPlayNextTagsNoOpAtTagLevel(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TagLevel
 	m.tagsView.Tags = []db.TagRow{{ID: 1, Name: "T1"}}
 	m.tagsView.TagCounts = map[int64]int{1: 3}

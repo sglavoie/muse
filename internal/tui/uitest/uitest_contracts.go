@@ -1,10 +1,12 @@
-package tui
+package uitest
 
 // This file defines the fixture-independent JSON data contracts for the hidden
 // `muse tui-test` layout harness. The contracts are deliberately decoupled from
 // any model-driving or CLI behavior so later sessions (fixtures, driver/runner,
 // and CLI) can import them without pulling in heavier dependencies. The JSON
 // shapes are treated as stable enough for agents and CI scripts to consume.
+
+import "github.com/sglavoie/muse/internal/tui"
 
 // UITestActionKind identifies which operation a UITestAction performs. Every
 // action object sets exactly one of the recognized operation fields.
@@ -106,38 +108,19 @@ type UITestIssue struct {
 	Detail string          `json:"detail,omitempty"`
 }
 
-// UITestSnapshot is a compact, high-signal digest of model state attached to an
-// observation. Session 2 (Fixtures And Snapshots) owns populating these fields
-// and may extend this struct; the fields below are the stable core shared with
-// observations and are all optional so partial snapshots serialize cleanly.
-type UITestSnapshot struct {
-	PrimaryView    string `json:"primary_view,omitempty"`
-	Overlay        string `json:"overlay,omitempty"`
-	Level          string `json:"level,omitempty"`
-	Mode           string `json:"mode,omitempty"`
-	Cursor         int    `json:"cursor,omitempty"`
-	ScrollOffset   int    `json:"scroll_offset,omitempty"`
-	VisibleCount   int    `json:"visible_count,omitempty"`
-	FocusedLabel   string `json:"focused_label,omitempty"`
-	FocusedHash    string `json:"focused_hash,omitempty"`
-	QueueLength    int    `json:"queue_length,omitempty"`
-	CurrentIndex   int    `json:"current_index,omitempty"`
-	SelectionCount int    `json:"selection_count,omitempty"`
-}
-
 // UITestObservation is the normalized snapshot of the model after an action.
 // The driver (session 3) populates it; the shape here is the stable contract.
 type UITestObservation struct {
-	CurrentView       string          `json:"current_view"`
-	PrimaryView       string          `json:"primary_view"`
-	Overlay           string          `json:"overlay"`
-	Width             int             `json:"width"`
-	Height            int             `json:"height"`
-	PlainScreen       string          `json:"plain_screen"`
-	AnsiScreen        string          `json:"ansi_screen,omitempty"`
-	Status            string          `json:"status"`
-	LayoutIssues      []UITestIssue   `json:"layout_issues"`
-	PendingAsync      int             `json:"pending_async"`
-	Snapshot          *UITestSnapshot `json:"snapshot,omitempty"`
-	AvailableCommands []string        `json:"available_commands,omitempty"`
+	CurrentView       string              `json:"current_view"`
+	PrimaryView       string              `json:"primary_view"`
+	Overlay           string              `json:"overlay"`
+	Width             int                 `json:"width"`
+	Height            int                 `json:"height"`
+	PlainScreen       string              `json:"plain_screen"`
+	AnsiScreen        string              `json:"ansi_screen,omitempty"`
+	Status            string              `json:"status"`
+	LayoutIssues      []UITestIssue       `json:"layout_issues"`
+	PendingAsync      int                 `json:"pending_async"`
+	Snapshot          *tui.UITestSnapshot `json:"snapshot,omitempty"`
+	AvailableCommands []string            `json:"available_commands,omitempty"`
 }

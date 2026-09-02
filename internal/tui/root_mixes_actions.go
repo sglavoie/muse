@@ -10,7 +10,7 @@ import (
 
 // handleMixOpen drills into the track list for the focused mix.
 func (m Model) handleMixOpen() (Model, tea.Cmd) {
-	if m.activeView != viewMixes || m.mixes.Level != 0 {
+	if m.ActiveView != viewMixes || m.mixes.Level != 0 {
 		return m, nil
 	}
 	mix := m.mixes.FocusedMix()
@@ -23,7 +23,7 @@ func (m Model) handleMixOpen() (Model, tea.Cmd) {
 
 // handleMixBack returns from the track list to the mix list.
 func (m Model) handleMixBack() Model {
-	if m.activeView != viewMixes {
+	if m.ActiveView != viewMixes {
 		return m
 	}
 	m.mixes.Back()
@@ -93,7 +93,7 @@ func (m Model) handleMixesSaveMixAsPlaylist() (Model, tea.Cmd) {
 
 // handleMixEnqueueAll enqueues all cached tracks from the focused mix (level 0).
 func (m Model) handleMixEnqueueAll() (Model, tea.Cmd) {
-	if m.activeView != viewMixes || m.mixes.Level != 0 {
+	if m.ActiveView != viewMixes || m.mixes.Level != 0 {
 		return m, nil
 	}
 	mix := m.mixes.FocusedMix()

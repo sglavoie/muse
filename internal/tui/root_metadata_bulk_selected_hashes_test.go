@@ -13,7 +13,7 @@ import (
 // bulkSelectedHashes returns hashes for selected tracks at favorites ListLevel.
 func TestBulkSelectedHashesFavoritesListLevelTracks(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryTracks
 	m.favorites.Tracks = []library.Track{
@@ -43,7 +43,7 @@ func TestBulkSelectedHashesFavoritesListLevelTracks(t *testing.T) {
 // returns hashes for selected tracks at favorites TrackLevel.
 func TestBulkSelectedHashesFavoritesTrackLevel(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.TrackLevel
 	m.favorites.DrilldownTracks = []library.Track{
 		{Hash: "h4", Artist: "Bob", Title: "Track G1"},
@@ -64,7 +64,7 @@ func TestBulkSelectedHashesFavoritesTrackLevel(t *testing.T) {
 // bulkSelectedHashes returns nil at favorites ListLevel with CategoryArtists.
 func TestBulkSelectedHashesFavoritesArtistLevelReturnsNil(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewFavorites
+	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryArtists
 	m.favorites.Artists = []string{"Alice", "Bob"}
@@ -81,7 +81,7 @@ func TestBulkSelectedHashesFavoritesArtistLevelReturnsNil(t *testing.T) {
 func TestBulkSelectedHashesRecentlyAdded(t *testing.T) {
 	m := newModelWithTracks()
 	m.library.Mode = libtui.LibraryModeRecent
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 
 	m.library.SelectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
@@ -107,7 +107,7 @@ func TestBulkSelectedHashesRecentlyAdded(t *testing.T) {
 func TestBulkSelectedHashesRecentlyAddedEmptyReturnsNil(t *testing.T) {
 	m := newModelWithTracks()
 	m.library.Mode = libtui.LibraryModeRecent
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 
 	if hashes := m.bulkSelectedHashes(); hashes != nil {
 		t.Errorf("recentlyAdded with no selection: expected nil, got %v", hashes)
@@ -116,7 +116,7 @@ func TestBulkSelectedHashesRecentlyAddedEmptyReturnsNil(t *testing.T) {
 
 func TestBulkSelectedHashesTags(t *testing.T) {
 	m := newModelWithTracks()
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 	m.tagsView.SelectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	hashes := m.bulkSelectedHashes()
@@ -137,7 +137,7 @@ func TestBulkSelectedHashesTags(t *testing.T) {
 
 func TestBulkSelectedHashesTagsEmptyReturnsNil(t *testing.T) {
 	m := newModelWithTracks()
-	m.activeView = viewTags
+	m.ActiveView = viewTags
 
 	if hashes := m.bulkSelectedHashes(); hashes != nil {
 		t.Errorf("tags with no selection: expected nil, got %v", hashes)

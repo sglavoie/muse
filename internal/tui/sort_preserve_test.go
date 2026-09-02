@@ -164,7 +164,7 @@ func TestDequeueWithNoSortIsNoop(t *testing.T) {
 
 func TestQueueSortDirPreservesFilteredFocusedEntry(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 10, Title: "Beta", Artist: "keep"},
 		{ID: 20, Title: "Charlie", Artist: "keep"},
@@ -197,7 +197,7 @@ func TestPlaylistDeletePreservesSortOrder(t *testing.T) {
 		{ID: 2, Name: "Alpha"},
 		{ID: 3, Name: "Middle"},
 	}))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.playlists = m.playlists.RecomputePlaylistSort()
 	m.playlists.Cursor = 0 // "Alpha" in sorted view
@@ -217,7 +217,7 @@ func TestPlaylistDeletePreservesSortOrder(t *testing.T) {
 func TestPlaylistTrackRemovePreservesSortOrder(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.Level = pltui.TrackLevel
 	m.playlists.Tracks = []db.PlaylistTrackRow{
 		{ID: 10, Position: 1, Title: "Zulu", Artist: "A", DurationMs: 1000},
@@ -245,7 +245,7 @@ func TestPlaylistTrackRemovePreservesSortOrder(t *testing.T) {
 
 func TestPlaylistShuffleStillResetsSortOrder(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.Level = pltui.TrackLevel
 	m.playlists.Tracks = []db.PlaylistTrackRow{
 		{ID: 10, Position: 1, Title: "A"},

@@ -91,7 +91,7 @@ func (m Model) handleLibraryStateAction(action keys.Action) (tea.Model, tea.Cmd,
 		// Clearing a committed filter changes the visible list, so exit
 		// visual mode to prevent the stale anchor from selecting wrong items.
 		m = exitVisualMode(m)
-		switch m.activeView {
+		switch m.ActiveView {
 		case viewLibrary:
 			m.library = m.library.ClearFilter()
 		case viewQueue:

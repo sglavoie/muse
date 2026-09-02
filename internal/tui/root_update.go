@@ -296,7 +296,7 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// selections through the same allowlist as direct command actions so a
 		// scenario cannot execute a side-effectful command (Finder, clipboard,
 		// open-directory) by opening the palette and pressing enter.
-		if m.fixtureSafeCommands && !isSafeDirectCommand(msg.Command.Key()) {
+		if m.fixtureSafeCommands && !IsSafeDirectCommand(msg.Command.Key()) {
 			name := msg.Command.Name
 			return m, func() tea.Msg {
 				return statusbar.TransientNotifyMsg(fmt.Sprintf("Command %q blocked in fixture mode", name))

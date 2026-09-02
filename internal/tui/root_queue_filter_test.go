@@ -12,7 +12,7 @@ import (
 // activates the queue filter bar.
 func TestQueueFilterActivatesOnSlash(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{Path: "/a.flac", Title: "Alpha", Artist: "ArtA"},
 		{Path: "/b.flac", Title: "Beta", Artist: "ArtB"},
@@ -101,7 +101,7 @@ func TestQueueFilterCursorStaysInBounds(t *testing.T) {
 func TestQueueFilterClearedOnClearQueue(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Title: "Song", Artist: "Art"},
 	}
@@ -125,7 +125,7 @@ func TestQueueFilterClearedOnClearQueue(t *testing.T) {
 func TestQueueCursorClampedAgainstFilteredEntriesAfterDequeue(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 
 	// 5 entries: 2 match filter "alpha", 3 don't.
 	m.queue.Entries = []queue.Entry{
@@ -163,7 +163,7 @@ func TestQueueCursorClampedAgainstFilteredEntriesAfterDequeue(t *testing.T) {
 func TestQueueCursorClampedAgainstFilteredEntriesAfterBulkDequeue(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 
 	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Hash: "ha", Title: "Alpha One", Artist: "A", Selected: true},

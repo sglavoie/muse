@@ -16,7 +16,7 @@ func TestUndoBulkDequeueRestoresEntries(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	ps := &stubPlayerQueueSyncer{}
 	m := New(context.Background(), WithPlayer(ps), WithQueueDequeuer(d))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Display: "A"},
 		{ID: 20, Path: "/b.flac", Display: "B", Selected: true},
@@ -64,7 +64,7 @@ func TestBulkDequeueSyncsPlayerIndexAfterAdjustment(t *testing.T) {
 	p := &stubPlayerQueueSyncer{}
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithPlayer(p), WithQueueDequeuer(d))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Hash: "ha", Display: "A", Selected: true},
 		{ID: 20, Path: "/b.flac", Hash: "hb", Display: "B", Selected: true},
@@ -96,7 +96,7 @@ func TestBulkDequeueSyncsPlayerIndexAfterAdjustment(t *testing.T) {
 func TestUndoBulkDequeueExpiredIsNoOp(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.activeView = viewQueue
+	m.ActiveView = viewQueue
 	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Display: "A"},
 		{ID: 20, Path: "/b.flac", Display: "B", Selected: true},

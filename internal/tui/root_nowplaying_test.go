@@ -134,14 +134,14 @@ func TestNowPlayingEscDismisses(t *testing.T) {
 func TestNowPlayingSwallowsKeys(t *testing.T) {
 	m := New(context.Background())
 	m.overlay.nowPlaying = &overlay.NowPlayingOverlay{Artist: "A", Title: "T"}
-	m.activeView = viewLibrary
+	m.ActiveView = viewLibrary
 
 	// Press '3' (switch to queue) — should be swallowed.
 	next, _ := m.Update(tea.KeyPressMsg{Code: '3', Text: "3"})
 	nm := next.(Model)
 
-	if nm.activeView != viewLibrary {
-		t.Fatalf("expected view to stay at library, got %d", nm.activeView)
+	if nm.ActiveView != viewLibrary {
+		t.Fatalf("expected view to stay at library, got %d", nm.ActiveView)
 	}
 	if nm.overlay.nowPlaying == nil {
 		t.Fatal("overlay should still be active after swallowed key")

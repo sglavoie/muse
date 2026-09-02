@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui"
+	"github.com/sglavoie/muse/internal/tui/uitest"
 )
 
 func TestTUITestFixtures_Text(t *testing.T) {
@@ -60,7 +61,7 @@ func TestTUITestRun_JSONSuccess(t *testing.T) {
 	if code != tuiTestExitOK {
 		t.Fatalf("exit = %d, stderr = %q", code, stderr)
 	}
-	var result tui.UITestScenarioResult
+	var result uitest.UITestScenarioResult
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("unmarshal result: %v (out=%q)", err, stdout)
 	}
@@ -90,7 +91,7 @@ func TestTUITestRun_FailureExitCode(t *testing.T) {
 	if code != tuiTestExitFailure {
 		t.Fatalf("exit = %d, want %d (stderr=%q)", code, tuiTestExitFailure, stderr)
 	}
-	var result tui.UITestScenarioResult
+	var result uitest.UITestScenarioResult
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("unmarshal result: %v (out=%q)", err, stdout)
 	}

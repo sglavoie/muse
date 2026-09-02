@@ -23,8 +23,8 @@ func TestKey5SwitchesToAlbumsView(t *testing.T) {
 	m := newModelWithTracks()
 	m = switchToAlbumsMode(m)
 
-	if m.activeView != viewBrowse {
-		t.Fatalf("expected activeView=%d (viewBrowse), got %d", viewBrowse, m.activeView)
+	if m.ActiveView != viewBrowse {
+		t.Fatalf("expected activeView=%d (viewBrowse), got %d", viewBrowse, m.ActiveView)
 	}
 	if len(m.browse.Albums.Albums) != 4 {
 		t.Fatalf("expected 4 albums, got %d: %v", len(m.browse.Albums.Albums), m.browse.Albums.Albums)
@@ -122,8 +122,8 @@ func TestAlbumsEscAtAlbumLevelIsNoOp(t *testing.T) {
 	m = switchToAlbumsMode(m)
 	m = pressEsc(m)
 
-	if m.activeView != viewBrowse {
-		t.Errorf("expected to remain on viewBrowse, got %d", m.activeView)
+	if m.ActiveView != viewBrowse {
+		t.Errorf("expected to remain on viewBrowse, got %d", m.ActiveView)
 	}
 	if m.browse.Albums.Level != albtui.AlbumLevel {
 		t.Errorf("expected AlbumLevel, got %v", m.browse.Albums.Level)

@@ -19,7 +19,7 @@ func TestStalePlaylistTracksLoadedMsgDiscarded(t *testing.T) {
 		{ID: 20, Name: "Beta", TrackCount: 1},
 	}
 	m := New(context.Background(), WithPlaylists(playlists))
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m = next.(Model)
 
@@ -70,7 +70,7 @@ func TestStalePlaylistTracksLoadedMsgDiscarded(t *testing.T) {
 // with a mismatched playlistID is discarded.
 func TestStaleRefreshMsgDiscarded(t *testing.T) {
 	m := New(context.Background())
-	m.activeView = viewPlaylists
+	m.ActiveView = viewPlaylists
 	m.playlists.Level = pltui.TrackLevel
 	m.playlists.Tracks = []db.PlaylistTrackRow{{ID: 1, Title: "Original", DurationMs: 60000}}
 	m.playlists.PendingLoadID = 20
