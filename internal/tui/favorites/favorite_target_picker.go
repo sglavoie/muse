@@ -85,44 +85,7 @@ func NewTargetPicker(
 }
 
 func buildFavoriteTargetRow(target favoriteTarget, tracks []library.Track, favorites map[string]struct{}) favoriteTargetRow {
-	row := favoriteTargetRow{enabled: true}
-	var rawValues []string
-	switch target {
-	case favoriteTargetTitle:
-		row.typ, row.label, row.hotkey = "track", "Title", "t"
-		for _, track := range tracks {
-			rawValues = append(rawValues, track.Hash)
-		}
-		if len(tracks) == 1 {
-			row.displayValue = strings.TrimSpace(tracks[0].Title)
-			if row.displayValue == "" {
-				row.displayValue = "(unknown title)"
-			}
-		}
-	case favoriteTargetArtist:
-		row.typ, row.label, row.hotkey = "artist", "Artist", "r"
-		for _, track := range tracks {
-			if !usableFavoriteMetadata(track.Artist, "artist") {
-				row.enabled, row.unavailable = false, "missing metadata"
-			}
-			rawValues = append(rawValues, track.Artist)
-		}
-		if len(tracks) == 1 {
-			row.displayValue = tracks[0].Artist
-		}
-	case favoriteTargetAlbum:
-		row.typ, row.label, row.hotkey = "album", "Album", "l"
-		for _, track := range tracks {
-			if !usableFavoriteMetadata(track.Album, "album") {
-				row.enabled, row.unavailable = false, "missing metadata"
-			}
-			rawValues = append(rawValues, track.Album)
-		}
-		if len(tracks) == 1 {
-			row.displayValue = tracks[0].Album
-		}
-	}
-
+	row, rawValues := describeFavoriteTarget(target, tracks)
 	row.values = uniqueNonEmptyStrings(rawValues)
 	if len(row.values) == 0 {
 		row.enabled, row.unavailable = false, "missing identity"
@@ -133,7 +96,61 @@ func buildFavoriteTargetRow(target favoriteTarget, tracks []library.Track, favor
 	if !row.enabled {
 		return row
 	}
+	return applyFavoriteState(row, favorites)
+}
 
+// describeFavoriteTarget labels the row for target and collects the raw identity
+// value each track contributes to it. The row comes back disabled when a track
+// carries metadata unusable as a favorite key.
+func describeFavoriteTarget(target favoriteTarget, tracks []library.Track) (favoriteTargetRow, []string) {
+	row := favoriteTargetRow{enabled: true}
+	switch target {
+	case favoriteTargetTitle:
+		row.typ, row.label, row.hotkey = "track", "Title", "t"
+		var rawValues []string
+		for _, track := range tracks {
+			rawValues = append(rawValues, track.Hash)
+		}
+		if len(tracks) == 1 {
+			row.displayValue = strings.TrimSpace(tracks[0].Title)
+			if row.displayValue == "" {
+				row.displayValue = "(unknown title)"
+			}
+		}
+		return row, rawValues
+	case favoriteTargetArtist:
+		row.typ, row.label, row.hotkey = "artist", "Artist", "r"
+		rawValues := collectMetadataValues(&row, tracks, func(t library.Track) string { return t.Artist })
+		return row, rawValues
+	case favoriteTargetAlbum:
+		row.typ, row.label, row.hotkey = "album", "Album", "l"
+		rawValues := collectMetadataValues(&row, tracks, func(t library.Track) string { return t.Album })
+		return row, rawValues
+	}
+	return row, nil
+}
+
+// collectMetadataValues reads one metadata field off every track, disabling row
+// as soon as a value is a placeholder that cannot identify a favorite. row.typ
+// selects which placeholders count, so it must already be set.
+func collectMetadataValues(row *favoriteTargetRow, tracks []library.Track, field func(library.Track) string) []string {
+	var rawValues []string
+	for _, track := range tracks {
+		value := field(track)
+		if !usableFavoriteMetadata(value, row.typ) {
+			row.enabled, row.unavailable = false, "missing metadata"
+		}
+		rawValues = append(rawValues, value)
+	}
+	if len(tracks) == 1 {
+		row.displayValue = field(tracks[0])
+	}
+	return rawValues
+}
+
+// applyFavoriteState classifies how many of the row's values are already
+// favorited and records the values a toggle would change.
+func applyFavoriteState(row favoriteTargetRow, favorites map[string]struct{}) favoriteTargetRow {
 	favoriteCount := 0
 	for _, value := range row.values {
 		if _, ok := favorites[value]; ok {

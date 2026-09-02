@@ -51,24 +51,9 @@ func (v View) renderList() string {
 		return v.renderTrackList()
 	}
 
-	var categoryName string
-	switch v.Category {
-	case CategoryArtists:
-		categoryName = "Favorite Artists"
-	case CategoryAlbums:
-		categoryName = "Favorite Albums"
-	}
-	heading := v.Styles.Heading.Render(categoryName)
-
+	heading := v.Styles.Heading.Render(v.categoryHeading())
 	items := v.EffectiveItems()
-	var allItems []string
-	switch v.Category {
-	case CategoryArtists:
-		allItems = v.Artists
-	case CategoryAlbums:
-		allItems = v.Albums
-	}
-	if len(allItems) == 0 {
+	if len(v.categoryItems()) == 0 {
 		card := v.Styles.RenderEmptyCard(v.Width, v.visibleRows(), "No favorites yet", []styles.EmptyAction{
 			{Key: "1", Label: "go to library"},
 			{Key: "F", Label: "favorite an artist or album"},
@@ -81,53 +66,87 @@ func (v View) renderList() string {
 	}
 
 	start, end := v.visibleWindow(len(items))
-
-	// Determine the favorite style for this category.
-	var favStyle, favAccentStyle lipgloss.Style
-	var favMap map[string]struct{}
-	switch v.Category {
-	case CategoryArtists:
-		favStyle = v.Styles.FavArtist
-		favAccentStyle = v.Styles.FavArtistAccent
-		favMap = v.FavoriteArtists
-	case CategoryAlbums:
-		favStyle = v.Styles.FavAlbum
-		favAccentStyle = v.Styles.FavAlbumAccent
-		favMap = v.FavoriteAlbums
-	}
-
+	st := v.categoryStyling()
 	lines := make([]string, end-start)
 	for i, name := range items[start:end] {
-		absIdx := start + i
-		isFocused := absIdx == v.Cursor
-		_, isFav := favMap[name]
-
-		_, selected := v.SelectedItems[absIdx]
-		marker := text.RowMarker(selected, isFocused, false, "")
-
-		display := text.FavPrefix(name, v.Width-2, isFav)
-		line := marker + display
-		isOdd := absIdx%2 == 1
-		switch {
-		case isFocused && isFav:
-			line = favAccentStyle.Render(line)
-		case isFocused:
-			line = v.Styles.Accent.Render(line)
-		case selected && isFav:
-			sb := lipgloss.NewStyle().Background(v.Styles.SelectionBg)
-			line = v.Styles.AccentMark.Background(v.Styles.SelectionBg).Render("●") + sb.Render(" ") +
-				styles.WithZebraBg(favStyle, v.Styles.SelectionBg, true).Render(display)
-		case selected:
-			sb := lipgloss.NewStyle().Background(v.Styles.SelectionBg)
-			line = v.Styles.AccentMark.Background(v.Styles.SelectionBg).Render("●") + sb.Render(" "+display)
-		case isFav:
-			line = styles.WithZebraBg(favStyle, v.Styles.ZebraBg, isOdd).Render(line)
-		case isOdd:
-			line = lipgloss.NewStyle().Background(v.Styles.ZebraBg).Render(line)
-		}
-		lines[i] = line
+		lines[i] = v.renderItemRow(name, start+i, st)
 	}
 	return heading + v.filterSeparator() + strings.Join(lines, "\n")
+}
+
+// categoryHeading returns the list heading for the current category, or the
+// empty string outside the artist and album lists.
+func (v View) categoryHeading() string {
+	switch v.Category {
+	case CategoryArtists:
+		return "Favorite Artists"
+	case CategoryAlbums:
+		return "Favorite Albums"
+	default:
+		return ""
+	}
+}
+
+// categoryItems returns the unfiltered item slice backing the current category.
+func (v View) categoryItems() []string {
+	switch v.Category {
+	case CategoryArtists:
+		return v.Artists
+	case CategoryAlbums:
+		return v.Albums
+	default:
+		return nil
+	}
+}
+
+// listStyling carries the per-category favorite colours and lookup map used to
+// paint the artist or album list rows.
+type listStyling struct {
+	fav       lipgloss.Style
+	favAccent lipgloss.Style
+	favMap    map[string]struct{}
+}
+
+func (v View) categoryStyling() listStyling {
+	switch v.Category {
+	case CategoryArtists:
+		return listStyling{fav: v.Styles.FavArtist, favAccent: v.Styles.FavArtistAccent, favMap: v.FavoriteArtists}
+	case CategoryAlbums:
+		return listStyling{fav: v.Styles.FavAlbum, favAccent: v.Styles.FavAlbumAccent, favMap: v.FavoriteAlbums}
+	default:
+		return listStyling{}
+	}
+}
+
+// renderItemRow renders one artist or album row. Focus wins over bulk
+// selection, which in turn wins over the favorite colour and zebra banding.
+func (v View) renderItemRow(name string, absIdx int, st listStyling) string {
+	isFocused := absIdx == v.Cursor
+	_, isFav := st.favMap[name]
+	_, selected := v.SelectedItems[absIdx]
+	isOdd := absIdx%2 == 1
+
+	display := text.FavPrefix(name, v.Width-2, isFav)
+	line := text.RowMarker(selected, isFocused, false, "") + display
+	switch {
+	case isFocused && isFav:
+		return st.favAccent.Render(line)
+	case isFocused:
+		return v.Styles.Accent.Render(line)
+	case selected && isFav:
+		sb := lipgloss.NewStyle().Background(v.Styles.SelectionBg)
+		return v.Styles.AccentMark.Background(v.Styles.SelectionBg).Render("●") + sb.Render(" ") +
+			styles.WithZebraBg(st.fav, v.Styles.SelectionBg, true).Render(display)
+	case selected:
+		sb := lipgloss.NewStyle().Background(v.Styles.SelectionBg)
+		return v.Styles.AccentMark.Background(v.Styles.SelectionBg).Render("●") + sb.Render(" "+display)
+	case isFav:
+		return styles.WithZebraBg(st.fav, v.Styles.ZebraBg, isOdd).Render(line)
+	case isOdd:
+		return lipgloss.NewStyle().Background(v.Styles.ZebraBg).Render(line)
+	default:
+		return line
+	}
 }
 
 func (v View) renderTrackList() string {
@@ -164,133 +183,180 @@ func (v View) renderTracks() string {
 
 func (v View) renderTrackRows(items []library.Track) string {
 	cols := ComputeTrack(v.Width)
+	start, end := v.visibleWindow(len(items))
+	showDisc := anyMultiDisc(items[start:end])
 
-	// Column header row. The 2-space marker gutter is excluded from the
-	// styled body so the dotted underline starts at the first data column.
-	header := "  " + v.Styles.ColHead.Render(
+	lines := make([]string, end-start)
+	for i, t := range items[start:end] {
+		lines[i] = v.renderTrackRow(t, cols, start+i, showDisc)
+	}
+	return v.renderTrackHeader(cols) + "\n" + strings.Join(lines, "\n")
+}
+
+// renderTrackHeader builds the column header row. The 2-space marker gutter is
+// excluded from the styled body so the dotted underline starts at the first
+// data column.
+func (v View) renderTrackHeader(cols TrackColumns) string {
+	return "  " + v.Styles.ColHead.Render(
 		text.Pad("#", cols.Position)+" "+
 			text.Pad("Title", cols.Title)+" "+
 			text.Pad("Artist", cols.Artist)+" "+
 			text.Pad("Album", cols.Album)+" "+
 			text.PadLeft("Time", cols.Duration)+" "+
 			text.PadLeft("Plays", cols.PlayCount))
+}
 
-	start, end := v.visibleWindow(len(items))
-
-	showDisc := false
-	for _, t := range items[start:end] {
+// anyMultiDisc reports whether the window holds a track from a disc other than
+// the first, which is when the disc number is worth showing in the # column.
+func anyMultiDisc(window []library.Track) bool {
+	for _, t := range window {
 		if t.DiscNumber > 1 {
-			showDisc = true
-			break
+			return true
 		}
 	}
+	return false
+}
 
-	lines := make([]string, end-start)
-	for i, t := range items[start:end] {
-		absIdx := start + i
-		isFocused := absIdx == v.Cursor
-		isNowPlaying := v.NowPlayingHash != "" && t.Hash == v.NowPlayingHash
+// trackRow holds the pre-padded cells of one track row together with the
+// favorite flags that decide how each cell is coloured. The cells are already
+// width-fitted, so the per-state renderers below only add styling.
+type trackRow struct {
+	marker    string
+	pos       string
+	title     string
+	artist    string
+	album     string
+	dur       string
+	plays     string
+	trackFav  bool
+	artistFav bool
+	albumFav  bool
+	selected  bool
+}
 
-		_, selected := v.SelectedItems[absIdx]
-		marker := text.RowMarker(selected, isFocused, isNowPlaying, v.NowPlayingIcon)
+// renderTrackRow renders a single track line in whichever of the four row
+// states applies: focused, now-playing, zebra/selection background, or plain.
+func (v View) renderTrackRow(t library.Track, cols TrackColumns, absIdx int, showDisc bool) string {
+	isFocused := absIdx == v.Cursor
+	isNowPlaying := v.NowPlayingHash != "" && t.Hash == v.NowPlayingHash
+	_, selected := v.SelectedItems[absIdx]
 
-		var rawPos string
-		if showDisc {
-			rawPos = text.FormatTrackPos(t.TrackNumber, t.DiscNumber, absIdx+1)
-		} else {
-			rawPos = text.FormatTrackPosSimple(t.TrackNumber, absIdx+1)
-		}
-		pos := text.Pad(rawPos, cols.Position)
-		_, isTrackFav := v.FavoriteHashes[t.Hash]
-		artist := arttui.DisplayArtistName(t.Artist)
-		album := t.Album
-		if album == "" {
-			album = arttui.UnknownAlbum
-		}
-		_, isArtistFav := v.FavoriteArtists[artist]
-		_, isAlbumFav := v.FavoriteAlbums[album]
-		titleStr := text.FavPrefix(t.Title, cols.Title, isTrackFav)
-		artistStr := text.FavPrefix(artist, cols.Artist, isArtistFav)
-		albumStr := text.FavPrefix(album, cols.Album, isAlbumFav)
-		dur := text.PadLeft(text.FormatDurationSecs(t.Duration), cols.Duration)
-		plays := text.PadLeft(strconv.Itoa(t.PlayCount), cols.PlayCount)
-		switch {
-		case isFocused:
-			a := v.Styles.Accent
-			sep := a.Render(" ")
-			titleStr = styles.AccentFavRender(a, v.Styles.FavoriteAccent, isTrackFav, titleStr)
-			artistStr = styles.AccentFavRender(a, v.Styles.FavArtistAccent, isArtistFav, artistStr)
-			albumStr = styles.AccentFavRender(a, v.Styles.FavAlbumAccent, isAlbumFav, albumStr)
-			lines[i] = a.Render(marker+pos) + sep + titleStr + sep + artistStr + sep + albumStr + sep + a.Render(dur) + sep + a.Render(plays)
-		case isNowPlaying:
-			np := v.Styles.NowPlayingRow
-			sep := np.Render(" ")
-			titleStr = v.Styles.NowPlayingTitle.Render(titleStr)
-			if isArtistFav {
-				artistStr = v.Styles.NowPlayingRowFavArtist.Render(artistStr)
-			} else {
-				artistStr = v.Styles.TextPrimary.Background(v.Styles.NowPlayingBg).Render(artistStr)
-			}
-			if isAlbumFav {
-				albumStr = v.Styles.NowPlayingRowFavAlbum.Render(albumStr)
-			} else {
-				albumStr = v.Styles.TextSecondary.Background(v.Styles.NowPlayingBg).Render(albumStr)
-			}
-			lines[i] = np.Render(marker+pos) + sep + titleStr + sep + artistStr + sep + albumStr + sep + np.Render(dur) + sep + np.Render(plays)
-		default:
-			isOdd := absIdx%2 == 1
-			rowBg := v.Styles.ZebraBg
-			useBg := isOdd
-			if selected {
-				rowBg = v.Styles.SelectionBg
-				useBg = true
-			}
-			if isTrackFav {
-				titleStr = styles.WithZebraBg(v.Styles.Favorite, rowBg, useBg).Render(titleStr)
-			}
-			if isArtistFav {
-				artistStr = styles.WithZebraBg(v.Styles.FavArtist, rowBg, useBg).Render(artistStr)
-			}
-			if isAlbumFav {
-				albumStr = styles.WithZebraBg(v.Styles.FavAlbum, rowBg, useBg).Render(albumStr)
-			}
-			if useBg {
-				rb := lipgloss.NewStyle().Background(rowBg)
-				if !isTrackFav {
-					titleStr = styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(titleStr)
-				}
-				if !isArtistFav {
-					artistStr = styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(artistStr)
-				}
-				if !isAlbumFav {
-					albumStr = styles.WithZebraBg(v.Styles.TextSecondary, rowBg, true).Render(albumStr)
-				}
-				var markerPart string
-				if selected {
-					markerPart = v.Styles.AccentMark.Background(rowBg).Render("●") + rb.Render(" ")
-				} else {
-					markerPart = rb.Render(marker)
-				}
-				posPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(pos)
-				durPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(dur)
-				playsPart := rb.Render(plays)
-				sep := rb.Render(" ")
-				lines[i] = markerPart + posPart + sep + titleStr + sep + artistStr + sep + albumStr + sep + durPart + sep + playsPart
-			} else {
-				if !isTrackFav {
-					titleStr = v.Styles.TextPrimary.Render(titleStr)
-				}
-				if !isArtistFav {
-					artistStr = v.Styles.TextPrimary.Render(artistStr)
-				}
-				if !isAlbumFav {
-					albumStr = v.Styles.TextSecondary.Render(albumStr)
-				}
-				lines[i] = marker + v.Styles.TextTertiary.Render(pos) + " " + titleStr + " " + artistStr + " " + albumStr + " " + v.Styles.TextTertiary.Render(dur) + " " + plays
-			}
-		}
+	rawPos := text.FormatTrackPosSimple(t.TrackNumber, absIdx+1)
+	if showDisc {
+		rawPos = text.FormatTrackPos(t.TrackNumber, t.DiscNumber, absIdx+1)
 	}
-	return header + "\n" + strings.Join(lines, "\n")
+	artist := arttui.DisplayArtistName(t.Artist)
+	album := t.Album
+	if album == "" {
+		album = arttui.UnknownAlbum
+	}
+	_, isTrackFav := v.FavoriteHashes[t.Hash]
+	_, isArtistFav := v.FavoriteArtists[artist]
+	_, isAlbumFav := v.FavoriteAlbums[album]
+
+	r := trackRow{
+		marker:    text.RowMarker(selected, isFocused, isNowPlaying, v.NowPlayingIcon),
+		pos:       text.Pad(rawPos, cols.Position),
+		title:     text.FavPrefix(t.Title, cols.Title, isTrackFav),
+		artist:    text.FavPrefix(artist, cols.Artist, isArtistFav),
+		album:     text.FavPrefix(album, cols.Album, isAlbumFav),
+		dur:       text.PadLeft(text.FormatDurationSecs(t.Duration), cols.Duration),
+		plays:     text.PadLeft(strconv.Itoa(t.PlayCount), cols.PlayCount),
+		trackFav:  isTrackFav,
+		artistFav: isArtistFav,
+		albumFav:  isAlbumFav,
+		selected:  selected,
+	}
+	switch {
+	case isFocused:
+		return v.renderFocusedTrackRow(r)
+	case isNowPlaying:
+		return v.renderNowPlayingTrackRow(r)
+	default:
+		return v.renderZebraTrackRow(r, absIdx%2 == 1)
+	}
+}
+
+func (v View) renderFocusedTrackRow(r trackRow) string {
+	a := v.Styles.Accent
+	sep := a.Render(" ")
+	title := styles.AccentFavRender(a, v.Styles.FavoriteAccent, r.trackFav, r.title)
+	artist := styles.AccentFavRender(a, v.Styles.FavArtistAccent, r.artistFav, r.artist)
+	album := styles.AccentFavRender(a, v.Styles.FavAlbumAccent, r.albumFav, r.album)
+	return a.Render(r.marker+r.pos) + sep + title + sep + artist + sep + album + sep + a.Render(r.dur) + sep + a.Render(r.plays)
+}
+
+func (v View) renderNowPlayingTrackRow(r trackRow) string {
+	np := v.Styles.NowPlayingRow
+	sep := np.Render(" ")
+	title := v.Styles.NowPlayingTitle.Render(r.title)
+	artist := v.Styles.TextPrimary.Background(v.Styles.NowPlayingBg).Render(r.artist)
+	if r.artistFav {
+		artist = v.Styles.NowPlayingRowFavArtist.Render(r.artist)
+	}
+	album := v.Styles.TextSecondary.Background(v.Styles.NowPlayingBg).Render(r.album)
+	if r.albumFav {
+		album = v.Styles.NowPlayingRowFavAlbum.Render(r.album)
+	}
+	return np.Render(r.marker+r.pos) + sep + title + sep + artist + sep + album + sep + np.Render(r.dur) + sep + np.Render(r.plays)
+}
+
+// renderZebraTrackRow renders an unfocused, not-now-playing row. Selected rows
+// take the selection background regardless of parity; otherwise odd rows take
+// the zebra background and even rows are left unstyled.
+func (v View) renderZebraTrackRow(r trackRow, isOdd bool) string {
+	rowBg := v.Styles.ZebraBg
+	useBg := isOdd
+	if r.selected {
+		rowBg = v.Styles.SelectionBg
+		useBg = true
+	}
+	if r.trackFav {
+		r.title = styles.WithZebraBg(v.Styles.Favorite, rowBg, useBg).Render(r.title)
+	}
+	if r.artistFav {
+		r.artist = styles.WithZebraBg(v.Styles.FavArtist, rowBg, useBg).Render(r.artist)
+	}
+	if r.albumFav {
+		r.album = styles.WithZebraBg(v.Styles.FavAlbum, rowBg, useBg).Render(r.album)
+	}
+	if !useBg {
+		return v.renderPlainTrackRow(r)
+	}
+
+	rb := lipgloss.NewStyle().Background(rowBg)
+	if !r.trackFav {
+		r.title = styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(r.title)
+	}
+	if !r.artistFav {
+		r.artist = styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(r.artist)
+	}
+	if !r.albumFav {
+		r.album = styles.WithZebraBg(v.Styles.TextSecondary, rowBg, true).Render(r.album)
+	}
+	markerPart := rb.Render(r.marker)
+	if r.selected {
+		markerPart = v.Styles.AccentMark.Background(rowBg).Render("●") + rb.Render(" ")
+	}
+	posPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(r.pos)
+	durPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(r.dur)
+	sep := rb.Render(" ")
+	return markerPart + posPart + sep + r.title + sep + r.artist + sep + r.album + sep + durPart + sep + rb.Render(r.plays)
+}
+
+// renderPlainTrackRow renders a row with no background fill. Favorite cells
+// arrive already styled, so only the remaining cells are coloured here.
+func (v View) renderPlainTrackRow(r trackRow) string {
+	if !r.trackFav {
+		r.title = v.Styles.TextPrimary.Render(r.title)
+	}
+	if !r.artistFav {
+		r.artist = v.Styles.TextPrimary.Render(r.artist)
+	}
+	if !r.albumFav {
+		r.album = v.Styles.TextSecondary.Render(r.album)
+	}
+	return r.marker + v.Styles.TextTertiary.Render(r.pos) + " " + r.title + " " + r.artist + " " + r.album + " " + v.Styles.TextTertiary.Render(r.dur) + " " + r.plays
 }
 
 // filterSeparator returns the line between the heading and the item list.

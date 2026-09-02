@@ -2,6 +2,7 @@ package queue
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -13,6 +14,10 @@ import (
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
+// queueMarkerWidth is the width of the gutter holding the selection and
+// now-playing markers.
+const queueMarkerWidth = 2
+
 // Render builds the queue panel string using a 6-column layout:
 //
 //	Position (~4 chars fixed) | Title (~30% of width) | Artist (~20% of width) | Album (~20% of width) | Source (~10% of width) | Duration (~10 chars fixed)
@@ -23,256 +28,106 @@ import (
 func (v View) Render(s styles.Styles, currentPlayingIndex int, playbackState playback.State, favHashes, favArtists, favAlbums map[string]struct{}) string {
 	entries := v.FilteredEntries()
 	if len(entries) == 0 {
-		if v.Filter.Text != "" {
-			return "(no matches)"
-		}
-		return s.RenderEmptyCard(v.Width, v.VisibleRows(), "Queue is empty", []styles.EmptyAction{
-			{Key: "1", Label: "go to library"},
-			{Key: "?", Label: "help"},
-		})
+		return v.renderEmpty(s)
 	}
-
-	const (
-		markerWidth = 2
-	)
 
 	maxRows := v.VisibleRows()
 	start := min(v.ScrollOffset, len(entries))
 	end := min(len(entries), start+maxRows)
 
-	hasSource := false
-	for _, e := range entries {
-		if e.SourcePlaylist != "" {
-			hasSource = true
-			break
-		}
-	}
+	hasSource := anySourcePlaylist(entries)
 	cols := computeQueueColumns(v.Width, hasSource)
+	header := clampQueueLine(strings.Repeat(" ", queueMarkerWidth)+s.ColHead.Render(queueHeaderBody(cols, hasSource)), v.Width)
 
-	titleHead, artistHead, albumHead, sourceHead, timeHead := "Title", "Artist", "Album", "Source", "Time"
-	// headerBody excludes the leading marker-width prefix so the dotted
-	// underline only spans the actual data columns (not the marker gutter).
-	var headerBody string
-	if hasSource {
-		headerBody = text.Pad("#", cols.Position) + " " +
-			text.Pad(titleHead, cols.Title) + " " +
-			text.Pad(artistHead, cols.Artist) + " " +
-			text.Pad(albumHead, cols.Album) + " " +
-			text.Pad(sourceHead, cols.Source) + " " +
-			text.PadLeft(timeHead, cols.Duration)
-	} else {
-		headerBody = text.Pad("#", cols.Position) + " " +
-			text.Pad(titleHead, cols.Title) + " " +
-			text.Pad(artistHead, cols.Artist) + " " +
-			text.Pad(albumHead, cols.Album) + " " +
-			text.PadLeft(timeHead, cols.Duration)
+	r := queueRowRenderer{
+		s:                   s,
+		cols:                cols,
+		width:               v.Width,
+		cursor:              v.Cursor,
+		hasSource:           hasSource,
+		playbackState:       playbackState,
+		currentPlayingIndex: currentPlayingIndex,
+		favHashes:           favHashes,
+		favArtists:          favArtists,
+		favAlbums:           favAlbums,
 	}
-	header := clampQueueLine(strings.Repeat(" ", markerWidth)+s.ColHead.Render(headerBody), v.Width)
-
 	lines := make([]string, end-start)
-	for i := range end - start {
-		absIdx := start + i
-		e := entries[absIdx]
-		isFocused := absIdx == v.Cursor
-		isNowPlaying := currentPlayingIndex >= 0 && e.OrigIdx == currentPlayingIndex
-		isPlayed := currentPlayingIndex >= 0 && !isNowPlaying && e.OrigIdx < currentPlayingIndex
-
-		// Determine the now-playing icon and style based on playback state.
-		npIcon, npStyle := NowPlayingIndicator(s, playbackState)
-
-		markerStr := text.RowMarker(e.Selected, isFocused, isNowPlaying, npIcon)
-
-		pos := text.PadLeft(fmt.Sprintf("%d", absIdx+1), cols.Position)
-		source := padQueue(e.SourcePlaylist, cols.Source)
-		dur := text.PadLeft(text.FormatDurationMs(e.DurationMs), cols.Duration)
-
-		_, isTrackFav := favHashes[e.Hash]
-		_, isArtistFav := favArtists[e.Artist]
-		_, isAlbumFav := favAlbums[e.Album]
-
-		titleStr := text.FavPrefix(e.Title, cols.Title, isTrackFav)
-		artistStr := text.FavPrefix(e.Artist, cols.Artist, isArtistFav)
-		albumStr := text.FavPrefix(e.Album, cols.Album, isAlbumFav)
-		if e.Missing { //nolint:gocritic // ifElseChain: branches have fundamentally different rendering logic
-			plainLine := assembleQueueRow(" ", hasSource, markerStr, pos, padQueue(e.Title, cols.Title), padQueue(e.Artist, cols.Artist), padQueue(e.Album, cols.Album), source, dur)
-			lines[i] = s.Dim.Render(appendQueueSuffix(plainLine, " [missing]", v.Width))
-		} else if isFocused {
-			bg := s.Accent.GetBackground()
-			sep := s.Accent.Render(" ")
-			if isNowPlaying {
-				npText, npFav, npFavArtist, npFavAlbum := nowPlayingTextStyles(s, playbackState)
-				titleStr = npText.Background(bg).Render(titleStr)
-				artistStr = npText.Background(bg).Render(artistStr)
-				albumStr = npText.Background(bg).Render(albumStr)
-				if isTrackFav {
-					titleStr = npFav.Background(bg).Render(text.FavPrefix(e.Title, cols.Title, true))
-				}
-				if isArtistFav {
-					artistStr = npFavArtist.Background(bg).Render(text.FavPrefix(e.Artist, cols.Artist, true))
-				}
-				if isAlbumFav {
-					albumStr = npFavAlbum.Background(bg).Render(text.FavPrefix(e.Album, cols.Album, true))
-				}
-			} else {
-				if isTrackFav {
-					titleStr = s.FavoriteAccent.Render(titleStr)
-				} else {
-					titleStr = s.Accent.Render(titleStr)
-				}
-				if isArtistFav {
-					artistStr = s.FavArtistAccent.Render(artistStr)
-				} else {
-					artistStr = s.Accent.Render(artistStr)
-				}
-				if isAlbumFav {
-					albumStr = s.FavAlbumAccent.Render(albumStr)
-				} else {
-					albumStr = s.Accent.Render(albumStr)
-				}
-			}
-			markerStr = s.Accent.Render(markerStr)
-			pos = s.Accent.Render(pos)
-			source = s.Accent.Render(source)
-			dur = s.Accent.Render(dur)
-			lines[i] = assembleQueueRow(sep, hasSource, markerStr, pos, titleStr, artistStr, albumStr, source, dur)
-		} else if isNowPlaying {
-			_, npFav, npFavArtist, npFavAlbum := nowPlayingTextStyles(s, playbackState)
-			nb := lipgloss.NewStyle().Background(s.NowPlayingBg)
-			titleStr = s.NowPlayingTitle.Render(titleStr)
-			artistStr = s.TextPrimary.Background(s.NowPlayingBg).Render(artistStr)
-			albumStr = s.TextSecondary.Background(s.NowPlayingBg).Render(albumStr)
-			if isTrackFav {
-				titleStr = npFav.Background(s.NowPlayingBg).Render(text.FavPrefix(e.Title, cols.Title, true))
-			}
-			if isArtistFav {
-				artistStr = npFavArtist.Background(s.NowPlayingBg).Render(text.FavPrefix(e.Artist, cols.Artist, true))
-			}
-			if isAlbumFav {
-				albumStr = npFavAlbum.Background(s.NowPlayingBg).Render(text.FavPrefix(e.Album, cols.Album, true))
-			}
-			markerStr = npStyle.Background(s.NowPlayingBg).Render(npIcon) + nb.Render(" ")
-			pos = nb.Render(pos)
-			source = nb.Render(source)
-			dur = nb.Render(dur)
-			sep := nb.Render(" ")
-			lines[i] = assembleQueueRow(sep, hasSource, markerStr, pos, titleStr, artistStr, albumStr, source, dur)
-		} else if isPlayed {
-			isOdd := absIdx%2 == 1
-			rowBg := s.ZebraBg
-			useBg := isOdd
-			if e.Selected {
-				rowBg = s.SelectionBg
-				useBg = true
-			}
-			played := s.PlayedRow
-			if useBg {
-				played = played.Background(rowBg)
-			}
-			switch {
-			case e.Selected:
-				rb := lipgloss.NewStyle().Background(rowBg)
-				markerStr = s.AccentMark.Background(rowBg).Render("●") + rb.Render(" ")
-			case useBg:
-				rb := lipgloss.NewStyle().Background(rowBg)
-				markerStr = played.Render("╵") + rb.Render(" ")
-			default:
-				markerStr = played.Render("╵ ")
-			}
-			titleStr = played.Render(titleStr)
-			artistStr = played.Render(artistStr)
-			albumStr = played.Render(albumStr)
-			pos = played.Render(pos)
-			source = played.Render(source)
-			dur = played.Render(dur)
-			sep := " "
-			if useBg {
-				sep = lipgloss.NewStyle().Background(rowBg).Render(" ")
-			}
-			lines[i] = assembleQueueRow(sep, hasSource, markerStr, pos, titleStr, artistStr, albumStr, source, dur)
-		} else {
-			isOdd := absIdx%2 == 1
-			rowBg := s.ZebraBg
-			useBg := isOdd
-			if e.Selected {
-				rowBg = s.SelectionBg
-				useBg = true
-			}
-			if isTrackFav {
-				titleStr = styles.WithZebraBg(s.Favorite, rowBg, useBg).Render(titleStr)
-			}
-			if isArtistFav {
-				artistStr = styles.WithZebraBg(s.FavArtist, rowBg, useBg).Render(artistStr)
-			}
-			if isAlbumFav {
-				albumStr = styles.WithZebraBg(s.FavAlbum, rowBg, useBg).Render(albumStr)
-			}
-			if useBg {
-				rb := lipgloss.NewStyle().Background(rowBg)
-				if !isTrackFav {
-					titleStr = styles.WithZebraBg(s.TextPrimary, rowBg, true).Render(titleStr)
-				}
-				if !isArtistFav {
-					artistStr = styles.WithZebraBg(s.TextPrimary, rowBg, true).Render(artistStr)
-				}
-				if !isAlbumFav {
-					albumStr = styles.WithZebraBg(s.TextSecondary, rowBg, true).Render(albumStr)
-				}
-				if e.Selected {
-					markerStr = s.AccentMark.Background(rowBg).Render("●") + rb.Render(" ")
-				} else {
-					markerStr = rb.Render(markerStr)
-				}
-				pos = styles.WithZebraBg(s.TextTertiary, rowBg, true).Render(pos)
-				source = rb.Render(source)
-				dur = styles.WithZebraBg(s.TextTertiary, rowBg, true).Render(dur)
-				sep := rb.Render(" ")
-				lines[i] = assembleQueueRow(sep, hasSource, markerStr, pos, titleStr, artistStr, albumStr, source, dur)
-			} else {
-				if !isTrackFav {
-					titleStr = s.TextPrimary.Render(titleStr)
-				}
-				if !isArtistFav {
-					artistStr = s.TextPrimary.Render(artistStr)
-				}
-				if !isAlbumFav {
-					albumStr = s.TextSecondary.Render(albumStr)
-				}
-				lines[i] = assembleQueueRow(" ", hasSource, markerStr, s.TextTertiary.Render(pos), titleStr, artistStr, albumStr, source, s.TextTertiary.Render(dur))
-			}
-		}
-		lines[i] = clampQueueLine(lines[i], v.Width)
+	for i := range lines {
+		lines[i] = clampQueueLine(r.renderRow(entries[start+i], start+i), v.Width)
 	}
 
-	stripLine := v.renderStateStrip(s, len(v.Entries), len(entries))
-
-	bodyLines := lines
-	if sorting.SortFieldHasBuckets(v.SortState.Field) {
-		labels := make([]string, len(lines))
-		for i := range lines {
-			labels[i] = EntryBucket(v.SortState.Field, entries[start+i])
-		}
-		sticky := ""
-		if len(labels) > 0 {
-			sticky = labels[0]
-		}
-		bodyLines = buckets.Chunk(lines, labels, buckets.ChunkOptions{
-			StickyBucket:     sticky,
-			MaxRows:          maxRows,
-			DividerEvery:     buckets.DividerEvery,
-			MakeDivider:      func() string { return renderQueueDivider(s, v.Width) },
-			MakeBucketHeader: func(label string) string { return renderQueueBucketHeader(s, label, v.Width) },
-		})
-	}
-
-	if end == len(entries) && len(entries) > 0 {
+	bodyLines := v.chunkIntoBuckets(s, lines, entries, start, maxRows)
+	if end == len(entries) {
 		bodyLines = append(bodyLines, s.Dim.Render("— end of queue —"))
 	}
+	return v.assemblePanel(s, header, bodyLines, len(entries))
+}
 
-	var out string
-	if stripLine != "" {
-		out = stripLine + "\n" + header + "\n" + strings.Join(bodyLines, "\n")
-	} else {
-		out = header + "\n" + strings.Join(bodyLines, "\n")
+// renderEmpty renders the placeholder shown when no entry is visible, which
+// means either an empty queue or a filter that matched nothing.
+func (v View) renderEmpty(s styles.Styles) string {
+	if v.Filter.Text != "" {
+		return "(no matches)"
+	}
+	return s.RenderEmptyCard(v.Width, v.VisibleRows(), "Queue is empty", []styles.EmptyAction{
+		{Key: "1", Label: "go to library"},
+		{Key: "?", Label: "help"},
+	})
+}
+
+// anySourcePlaylist reports whether any entry came from a playlist, which is
+// what makes the Source column worth its width.
+func anySourcePlaylist(entries []Entry) bool {
+	for _, e := range entries {
+		if e.SourcePlaylist != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// queueHeaderBody renders the column headings without the leading marker
+// gutter, so the dotted underline only spans the actual data columns.
+func queueHeaderBody(cols queueColumns, hasSource bool) string {
+	body := text.Pad("#", cols.Position) + " " +
+		text.Pad("Title", cols.Title) + " " +
+		text.Pad("Artist", cols.Artist) + " " +
+		text.Pad("Album", cols.Album) + " "
+	if hasSource {
+		body += text.Pad("Source", cols.Source) + " "
+	}
+	return body + text.PadLeft("Time", cols.Duration)
+}
+
+// chunkIntoBuckets interleaves bucket headers and dividers into the rendered
+// rows when the active sort field defines buckets.
+func (v View) chunkIntoBuckets(s styles.Styles, lines []string, entries []Entry, start, maxRows int) []string {
+	if !sorting.SortFieldHasBuckets(v.SortState.Field) {
+		return lines
+	}
+	labels := make([]string, len(lines))
+	for i := range lines {
+		labels[i] = EntryBucket(v.SortState.Field, entries[start+i])
+	}
+	sticky := ""
+	if len(labels) > 0 {
+		sticky = labels[0]
+	}
+	return buckets.Chunk(lines, labels, buckets.ChunkOptions{
+		StickyBucket:     sticky,
+		MaxRows:          maxRows,
+		DividerEvery:     buckets.DividerEvery,
+		MakeDivider:      func() string { return renderQueueDivider(s, v.Width) },
+		MakeBucketHeader: func(label string) string { return renderQueueBucketHeader(s, label, v.Width) },
+	})
+}
+
+// assemblePanel stacks the optional state strip, the header, the body, and the
+// save-as-playlist prompt into the final panel string.
+func (v View) assemblePanel(s styles.Styles, header string, bodyLines []string, filtered int) string {
+	out := header + "\n" + strings.Join(bodyLines, "\n")
+	if stripLine := v.renderStateStrip(s, len(v.Entries), filtered); stripLine != "" {
+		out = stripLine + "\n" + out
 	}
 	if v.SavingAsPlaylist {
 		prompt := "Save as playlist: "
@@ -282,4 +137,217 @@ func (v View) Render(s styles.Styles, currentPlayingIndex int, playbackState pla
 		out += "\n" + s.Accent.Render(prompt) + v.SaveInput.View()
 	}
 	return out
+}
+
+// queueRowRenderer carries the per-frame context every row needs, so each row
+// helper only takes what actually varies from row to row.
+type queueRowRenderer struct {
+	s                   styles.Styles
+	cols                queueColumns
+	width               int
+	cursor              int
+	hasSource           bool
+	playbackState       playback.State
+	currentPlayingIndex int
+	favHashes           map[string]struct{}
+	favArtists          map[string]struct{}
+	favAlbums           map[string]struct{}
+}
+
+// queueRow holds one entry's pre-padded cells plus the flags deciding how they
+// are styled. Row helpers restyle the cells in place and hand the row back to
+// assemble.
+type queueRow struct {
+	marker, pos, title, artist, album, source, dur string
+	trackFav, artistFav, albumFav, selected        bool
+}
+
+// rowFill describes the background painted behind a row that is neither
+// focused nor playing.
+type rowFill struct {
+	bg   color.Color
+	used bool
+}
+
+func (r *queueRowRenderer) assemble(sep string, row queueRow) string {
+	return assembleQueueRow(sep, r.hasSource, row.marker, row.pos, row.title, row.artist, row.album, row.source, row.dur)
+}
+
+// fillFor reports the background for a plain row: bulk selection wins over the
+// zebra stripe, and only odd rows are striped.
+func (r *queueRowRenderer) fillFor(selected bool, absIdx int) rowFill {
+	if selected {
+		return rowFill{bg: r.s.SelectionBg, used: true}
+	}
+	return rowFill{bg: r.s.ZebraBg, used: absIdx%2 == 1}
+}
+
+func (r *queueRowRenderer) renderRow(e Entry, absIdx int) string {
+	isFocused := absIdx == r.cursor
+	isNowPlaying := r.isNowPlaying(e)
+	row := r.cells(e, absIdx, isFocused, isNowPlaying)
+
+	switch {
+	case e.Missing:
+		return r.renderMissingRow(e, row)
+	case isFocused && isNowPlaying:
+		return r.renderFocusedNowPlayingRow(row)
+	case isFocused:
+		return r.renderFocusedRow(row)
+	case isNowPlaying:
+		return r.renderNowPlayingRow(row)
+	case r.isPlayed(e, isNowPlaying):
+		return r.renderPlayedRow(row, r.fillFor(e.Selected, absIdx))
+	default:
+		return r.renderQueuedRow(row, r.fillFor(e.Selected, absIdx))
+	}
+}
+
+// isNowPlaying reports whether e is the entry the player currently sits on.
+func (r *queueRowRenderer) isNowPlaying(e Entry) bool {
+	return r.currentPlayingIndex >= 0 && e.OrigIdx == r.currentPlayingIndex
+}
+
+// isPlayed reports whether the queue has already moved past e.
+func (r *queueRowRenderer) isPlayed(e Entry, isNowPlaying bool) bool {
+	return r.currentPlayingIndex >= 0 && !isNowPlaying && e.OrigIdx < r.currentPlayingIndex
+}
+
+// cells lays out one entry's columns, padded to width and carrying the favorite
+// prefixes, before any row styling is applied.
+func (r *queueRowRenderer) cells(e Entry, absIdx int, isFocused, isNowPlaying bool) queueRow {
+	npIcon, _ := NowPlayingIndicator(r.s, r.playbackState)
+	_, trackFav := r.favHashes[e.Hash]
+	_, artistFav := r.favArtists[e.Artist]
+	_, albumFav := r.favAlbums[e.Album]
+	return queueRow{
+		marker:    text.RowMarker(e.Selected, isFocused, isNowPlaying, npIcon),
+		pos:       text.PadLeft(fmt.Sprintf("%d", absIdx+1), r.cols.Position),
+		title:     text.FavPrefix(e.Title, r.cols.Title, trackFav),
+		artist:    text.FavPrefix(e.Artist, r.cols.Artist, artistFav),
+		album:     text.FavPrefix(e.Album, r.cols.Album, albumFav),
+		source:    padQueue(e.SourcePlaylist, r.cols.Source),
+		dur:       text.PadLeft(text.FormatDurationMs(e.DurationMs), r.cols.Duration),
+		trackFav:  trackFav,
+		artistFav: artistFav,
+		albumFav:  albumFav,
+		selected:  e.Selected,
+	}
+}
+
+// renderMissingRow greys out an entry whose file has disappeared. It drops the
+// favorite prefixes so the "[missing]" suffix is what the row is about.
+func (r *queueRowRenderer) renderMissingRow(e Entry, row queueRow) string {
+	row.title = padQueue(e.Title, r.cols.Title)
+	row.artist = padQueue(e.Artist, r.cols.Artist)
+	row.album = padQueue(e.Album, r.cols.Album)
+	return r.s.Dim.Render(appendQueueSuffix(r.assemble(" ", row), " [missing]", r.width))
+}
+
+// accentChrome paints the cells outside the text columns with the accent style
+// so a focused row's highlight spans the full width.
+func (r *queueRowRenderer) accentChrome(row queueRow) queueRow {
+	row.marker = r.s.Accent.Render(row.marker)
+	row.pos = r.s.Accent.Render(row.pos)
+	row.source = r.s.Accent.Render(row.source)
+	row.dur = r.s.Accent.Render(row.dur)
+	return row
+}
+
+// renderFocusedNowPlayingRow renders the row that is both focused and playing:
+// the now-playing foregrounds are re-backgrounded onto the accent so the
+// selection colour still reads as the dominant one.
+func (r *queueRowRenderer) renderFocusedNowPlayingRow(row queueRow) string {
+	bg := r.s.Accent.GetBackground()
+	npText, npFav, npFavArtist, npFavAlbum := nowPlayingTextStyles(r.s, r.playbackState)
+	row.title = styleOr(npFav, npText, row.trackFav).Background(bg).Render(row.title)
+	row.artist = styleOr(npFavArtist, npText, row.artistFav).Background(bg).Render(row.artist)
+	row.album = styleOr(npFavAlbum, npText, row.albumFav).Background(bg).Render(row.album)
+	return r.assemble(r.s.Accent.Render(" "), r.accentChrome(row))
+}
+
+func (r *queueRowRenderer) renderFocusedRow(row queueRow) string {
+	row.title = styles.AccentFavRender(r.s.Accent, r.s.FavoriteAccent, row.trackFav, row.title)
+	row.artist = styles.AccentFavRender(r.s.Accent, r.s.FavArtistAccent, row.artistFav, row.artist)
+	row.album = styles.AccentFavRender(r.s.Accent, r.s.FavAlbumAccent, row.albumFav, row.album)
+	return r.assemble(r.s.Accent.Render(" "), r.accentChrome(row))
+}
+
+func (r *queueRowRenderer) renderNowPlayingRow(row queueRow) string {
+	npIcon, npStyle := NowPlayingIndicator(r.s, r.playbackState)
+	_, npFav, npFavArtist, npFavAlbum := nowPlayingTextStyles(r.s, r.playbackState)
+	bg := r.s.NowPlayingBg
+	nb := lipgloss.NewStyle().Background(bg)
+
+	row.title = styleOr(npFav.Background(bg), r.s.NowPlayingTitle, row.trackFav).Render(row.title)
+	row.artist = styleOr(npFavArtist, r.s.TextPrimary, row.artistFav).Background(bg).Render(row.artist)
+	row.album = styleOr(npFavAlbum, r.s.TextSecondary, row.albumFav).Background(bg).Render(row.album)
+	row.marker = npStyle.Background(bg).Render(npIcon) + nb.Render(" ")
+	row.pos = nb.Render(row.pos)
+	row.source = nb.Render(row.source)
+	row.dur = nb.Render(row.dur)
+	return r.assemble(nb.Render(" "), row)
+}
+
+// renderPlayedRow dims a row the queue has already moved past. Favorite colours
+// give way to the played style so the row reads as spent at a glance.
+func (r *queueRowRenderer) renderPlayedRow(row queueRow, fill rowFill) string {
+	played := r.s.PlayedRow
+	sep := " "
+	if fill.used {
+		played = played.Background(fill.bg)
+		sep = lipgloss.NewStyle().Background(fill.bg).Render(" ")
+	}
+	switch {
+	case row.selected:
+		row.marker = r.s.AccentMark.Background(fill.bg).Render("●") + lipgloss.NewStyle().Background(fill.bg).Render(" ")
+	case fill.used:
+		row.marker = played.Render("╵") + lipgloss.NewStyle().Background(fill.bg).Render(" ")
+	default:
+		row.marker = played.Render("╵ ")
+	}
+	row.title = played.Render(row.title)
+	row.artist = played.Render(row.artist)
+	row.album = played.Render(row.album)
+	row.pos = played.Render(row.pos)
+	row.source = played.Render(row.source)
+	row.dur = played.Render(row.dur)
+	return r.assemble(sep, row)
+}
+
+func (r *queueRowRenderer) renderQueuedRow(row queueRow, fill rowFill) string {
+	if !fill.used {
+		return r.renderPlainQueuedRow(row)
+	}
+	rb := lipgloss.NewStyle().Background(fill.bg)
+	row.title = styles.WithZebraBg(styleOr(r.s.Favorite, r.s.TextPrimary, row.trackFav), fill.bg, true).Render(row.title)
+	row.artist = styles.WithZebraBg(styleOr(r.s.FavArtist, r.s.TextPrimary, row.artistFav), fill.bg, true).Render(row.artist)
+	row.album = styles.WithZebraBg(styleOr(r.s.FavAlbum, r.s.TextSecondary, row.albumFav), fill.bg, true).Render(row.album)
+	row.marker = rb.Render(row.marker)
+	if row.selected {
+		row.marker = r.s.AccentMark.Background(fill.bg).Render("●") + rb.Render(" ")
+	}
+	row.pos = styles.WithZebraBg(r.s.TextTertiary, fill.bg, true).Render(row.pos)
+	row.source = rb.Render(row.source)
+	row.dur = styles.WithZebraBg(r.s.TextTertiary, fill.bg, true).Render(row.dur)
+	return r.assemble(rb.Render(" "), row)
+}
+
+// renderPlainQueuedRow renders an unfilled row: every cell carries its own
+// foreground and no background at all.
+func (r *queueRowRenderer) renderPlainQueuedRow(row queueRow) string {
+	row.title = styleOr(r.s.Favorite, r.s.TextPrimary, row.trackFav).Render(row.title)
+	row.artist = styleOr(r.s.FavArtist, r.s.TextPrimary, row.artistFav).Render(row.artist)
+	row.album = styleOr(r.s.FavAlbum, r.s.TextSecondary, row.albumFav).Render(row.album)
+	row.pos = r.s.TextTertiary.Render(row.pos)
+	row.dur = r.s.TextTertiary.Render(row.dur)
+	return r.assemble(" ", row)
+}
+
+// styleOr picks the favorite style when isFav, and the plain one otherwise.
+func styleOr(fav, plain lipgloss.Style, isFav bool) lipgloss.Style {
+	if isFav {
+		return fav
+	}
+	return plain
 }

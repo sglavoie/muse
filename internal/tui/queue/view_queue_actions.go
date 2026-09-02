@@ -18,91 +18,145 @@ import (
 // this method, keeping key-to-action mapping in one authoritative location.
 func (v View) HandleAction(a keys.Action) (View, tea.Cmd) {
 	filtered := v.FilteredEntries()
-	n := len(filtered)
+	if move, ok := queueMoves[a]; ok {
+		return move(v, len(filtered)), nil
+	}
+	return v.handleEntryAction(a, filtered)
+}
 
+// queueMoves maps a cursor-movement action to the function performing it, where
+// n is the number of entries the filter currently lets through. Actions absent
+// from the table do not move the cursor.
+var queueMoves = map[keys.Action]func(v View, n int) View{
+	keys.ActionCursorUp:     func(v View, _ int) View { return v.cursorUp() },
+	keys.ActionCursorDown:   func(v View, n int) View { return v.cursorDown(n) },
+	keys.ActionHalfPageDown: func(v View, _ int) View { return v.MoveQueueCursor(v.VisibleRows() / 2) },
+	keys.ActionHalfPageUp:   func(v View, _ int) View { return v.MoveQueueCursor(-v.VisibleRows() / 2) },
+	keys.ActionFullPageDown: func(v View, _ int) View { return v.MoveQueueCursor(v.VisibleRows()) },
+	keys.ActionFullPageUp:   func(v View, _ int) View { return v.MoveQueueCursor(-v.VisibleRows()) },
+	keys.ActionGoToTop:      func(v View, _ int) View { v.Cursor, v.ScrollOffset = 0, 0; return v },
+	keys.ActionGoToBottom:   func(v View, n int) View { return v.goToBottom(n) },
+}
+
+// cursorUp moves the cursor one row up, dragging the scroll window along when
+// the cursor would leave through the top.
+func (v View) cursorUp() View {
+	if v.Cursor > 0 {
+		v.Cursor--
+	}
+	if v.Cursor < v.ScrollOffset {
+		v.ScrollOffset = v.Cursor
+	}
+	return v
+}
+
+// cursorDown moves the cursor one row down, scrolling when it would leave
+// through the bottom.
+func (v View) cursorDown(n int) View {
+	if v.Cursor < n-1 {
+		v.Cursor++
+	}
+	if maxRows := v.VisibleRows(); v.Cursor >= v.ScrollOffset+maxRows {
+		v.ScrollOffset = v.Cursor - maxRows + 1
+	}
+	return v
+}
+
+// goToBottom jumps to the last entry, scrolling only when it lies past the
+// first screenful.
+func (v View) goToBottom(n int) View {
+	if n <= 0 {
+		return v
+	}
+	v.Cursor = n - 1
+	if maxRows := v.VisibleRows(); v.Cursor >= maxRows {
+		v.ScrollOffset = v.Cursor - maxRows + 1
+	}
+	return v
+}
+
+// handleEntryAction dispatches the actions that act on the focused entry or on
+// the queue as a whole. None of them move the cursor.
+func (v View) handleEntryAction(a keys.Action, filtered []Entry) (View, tea.Cmd) {
 	switch a {
-	case keys.ActionCursorUp:
-		if v.Cursor > 0 {
-			v.Cursor--
-		}
-		if v.Cursor < v.ScrollOffset {
-			v.ScrollOffset = v.Cursor
-		}
-	case keys.ActionCursorDown:
-		if v.Cursor < n-1 {
-			v.Cursor++
-		}
-		maxRows := v.VisibleRows()
-		if v.Cursor >= v.ScrollOffset+maxRows {
-			v.ScrollOffset = v.Cursor - maxRows + 1
-		}
-	case keys.ActionHalfPageDown:
-		v = v.MoveQueueCursor(v.VisibleRows() / 2)
-	case keys.ActionHalfPageUp:
-		v = v.MoveQueueCursor(-v.VisibleRows() / 2)
-	case keys.ActionFullPageDown:
-		v = v.MoveQueueCursor(v.VisibleRows())
-	case keys.ActionFullPageUp:
-		v = v.MoveQueueCursor(-v.VisibleRows())
-	case keys.ActionGoToTop:
-		v.Cursor = 0
-		v.ScrollOffset = 0
-	case keys.ActionGoToBottom:
-		if n > 0 {
-			v.Cursor = n - 1
-			maxRows := v.VisibleRows()
-			if v.Cursor >= maxRows {
-				v.ScrollOffset = v.Cursor - maxRows + 1
-			}
-		}
-	case keys.ActionSelect:
-		if v.Cursor >= 0 && v.Cursor < n {
-			e := filtered[v.Cursor]
-			idx := e.OrigIdx
-			// Pre-flight stat: the fsnotify watcher is debounced, so a file
-			// the user deleted moments ago may still appear playable here.
-			// Short-circuiting to the removal path avoids calling the player
-			// (and mpv IPC) synchronously from the Update goroutine, which
-			// would freeze the UI.
-			if e.Missing || !FileExists(e.Path) {
-				return v, func() tea.Msg {
-					return playback.MissingTrackSelectedMsg{Index: idx, Path: e.Path, Hash: e.Hash}
-				}
-			}
-			return v, func() tea.Msg { return playback.PlayQueueIndexMsg{Index: idx} }
-		}
-	case keys.ActionDequeue:
-		if v.Cursor >= 0 && v.Cursor < n {
-			e := filtered[v.Cursor]
-			idx := e.OrigIdx
-			return v, func() tea.Msg { return DequeueTrackMsg{Index: idx} }
-		}
-	case keys.ActionBulkSelectionToggle:
-		if v.Cursor >= 0 && v.Cursor < n {
-			e := filtered[v.Cursor]
-			idx := e.OrigIdx
-			return v, func() tea.Msg { return BulkSelectionToggleMsg{Index: idx} }
-		}
 	case keys.ActionClearQueue:
 		return v, func() tea.Msg { return ClearQueueMsg{} }
 	case keys.ActionMoveTrackUp:
-		if v.DisplayOrder != nil || v.Filter.Text != "" || len(v.TagFilterHashes) > 0 {
-			return v, func() tea.Msg { return statusbar.TransientNotifyMsg("Cannot reorder while sorted/filtered") }
-		}
-		if v.Cursor > 0 {
-			idx := v.Cursor
-			return v, func() tea.Msg { return MoveTrackUpMsg{Index: idx} }
-		}
+		return v, v.moveTrackUpCmd()
 	case keys.ActionMoveTrackDown:
-		if v.DisplayOrder != nil || v.Filter.Text != "" || len(v.TagFilterHashes) > 0 {
-			return v, func() tea.Msg { return statusbar.TransientNotifyMsg("Cannot reorder while sorted/filtered") }
-		}
-		if v.Cursor < n-1 {
-			idx := v.Cursor
-			return v, func() tea.Msg { return MoveTrackDownMsg{Index: idx} }
-		}
+		return v, v.moveTrackDownCmd(len(filtered))
+	}
+	e, ok := v.focusedFilteredEntry(filtered)
+	if !ok {
+		return v, nil
+	}
+	switch a {
+	case keys.ActionSelect:
+		return v, selectEntryCmd(e)
+	case keys.ActionDequeue:
+		return v, func() tea.Msg { return DequeueTrackMsg{Index: e.OrigIdx} }
+	case keys.ActionBulkSelectionToggle:
+		return v, func() tea.Msg { return BulkSelectionToggleMsg{Index: e.OrigIdx} }
 	}
 	return v, nil
+}
+
+// focusedFilteredEntry returns the entry under the cursor within the filtered
+// view, or false when the cursor sits outside it.
+func (v View) focusedFilteredEntry(filtered []Entry) (Entry, bool) {
+	if v.Cursor < 0 || v.Cursor >= len(filtered) {
+		return Entry{}, false
+	}
+	return filtered[v.Cursor], true
+}
+
+// selectEntryCmd plays the entry, or reports it missing.
+//
+// Pre-flight stat: the fsnotify watcher is debounced, so a file the user
+// deleted moments ago may still appear playable here. Short-circuiting to the
+// removal path avoids calling the player (and mpv IPC) synchronously from the
+// Update goroutine, which would freeze the UI.
+func selectEntryCmd(e Entry) tea.Cmd {
+	idx := e.OrigIdx
+	if e.Missing || !FileExists(e.Path) {
+		return func() tea.Msg {
+			return playback.MissingTrackSelectedMsg{Index: idx, Path: e.Path, Hash: e.Hash}
+		}
+	}
+	return func() tea.Msg { return playback.PlayQueueIndexMsg{Index: idx} }
+}
+
+// reorderBlocked reports whether the view is sorted or filtered. Display
+// positions then no longer match queue positions, so a move would reorder the
+// wrong track.
+func (v View) reorderBlocked() bool {
+	return v.DisplayOrder != nil || v.Filter.Text != "" || len(v.TagFilterHashes) > 0
+}
+
+func (v View) moveTrackUpCmd() tea.Cmd {
+	if v.reorderBlocked() {
+		return reorderRefusedCmd()
+	}
+	if v.Cursor <= 0 {
+		return nil
+	}
+	idx := v.Cursor
+	return func() tea.Msg { return MoveTrackUpMsg{Index: idx} }
+}
+
+func (v View) moveTrackDownCmd(n int) tea.Cmd {
+	if v.reorderBlocked() {
+		return reorderRefusedCmd()
+	}
+	if v.Cursor >= n-1 {
+		return nil
+	}
+	idx := v.Cursor
+	return func() tea.Msg { return MoveTrackDownMsg{Index: idx} }
+}
+
+func reorderRefusedCmd() tea.Cmd {
+	return func() tea.Msg { return statusbar.TransientNotifyMsg("Cannot reorder while sorted/filtered") }
 }
 
 // FileExists reports whether the given path can be stat'd. It returns

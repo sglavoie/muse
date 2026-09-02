@@ -185,13 +185,25 @@ func (v View) FindTrackPosition(hash string) int {
 		tracks = v.BaseTracks()
 	}
 	if v.Filter.Text != "" && v.FilteredMatches != nil {
-		for i, m := range v.FilteredMatches {
-			if m.TrackIndex >= 0 && m.TrackIndex < len(tracks) && tracks[m.TrackIndex].Hash == hash {
-				return i
-			}
-		}
-		return 0
+		return matchPositionOf(v.FilteredMatches, tracks, hash)
 	}
+	return trackPositionOf(tracks, hash)
+}
+
+// matchPositionOf returns the index of the match whose track carries hash, or 0
+// when no match does.
+func matchPositionOf(matches []musiclib.Match, tracks []musiclib.Track, hash string) int {
+	for i, m := range matches {
+		if m.TrackIndex >= 0 && m.TrackIndex < len(tracks) && tracks[m.TrackIndex].Hash == hash {
+			return i
+		}
+	}
+	return 0
+}
+
+// trackPositionOf returns the index of the track carrying hash, or 0 when none
+// does.
+func trackPositionOf(tracks []musiclib.Track, hash string) int {
 	for i, t := range tracks {
 		if t.Hash == hash {
 			return i

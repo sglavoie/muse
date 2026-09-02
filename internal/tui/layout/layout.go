@@ -38,6 +38,63 @@ func VisibleWindow(scrollOffset, itemCount, maxRows int) (int, int) {
 	return scrollOffset, end
 }
 
+// VisibleWindowForCursor is VisibleWindow plus cursor tracking: it returns the
+// clamped [start, end) index range that keeps the cursor's row on screen.
+//
+// scrollOffset is clamped against (itemCount - rows) rather than itemCount: an
+// offset past the last visible window slice would render an empty body even
+// though items (and possibly the cursor) still exist after a delete or filter
+// shrunk the list.
+//
+// The cursor adjustment applies only when 0 <= cursor < itemCount. An
+// out-of-range cursor is left alone rather than clamped, so a stale cursor
+// (mid-delete, mid-filter) does not yank the window; callers that want
+// clamping must clamp explicitly before calling.
+//
+// label, when non-nil, reports the bucket label of item i; a non-empty label on
+// the cursor's item costs one row of the window, because a bucket header will
+// be drawn above the data rows.
+func VisibleWindowForCursor(cursor, scrollOffset, itemCount, maxRows int, label func(int) string) (start, end int) {
+	if itemCount <= 0 || maxRows <= 0 {
+		return 0, 0
+	}
+	rows := dataRows(cursor, itemCount, maxRows, label)
+	start = min(max(scrollOffset, 0), max(itemCount-rows, 0))
+	start = trackCursor(start, cursor, itemCount, rows)
+	return start, min(itemCount, start+rows)
+}
+
+// dataRows is maxRows minus the row a bucket header steals above the cursor's
+// item. An out-of-range cursor falls back to the first item's label.
+func dataRows(cursor, itemCount, maxRows int, label func(int) string) int {
+	if label == nil || maxRows <= 1 {
+		return maxRows
+	}
+	labelIdx := cursor
+	if labelIdx < 0 || labelIdx >= itemCount {
+		labelIdx = 0
+	}
+	if label(labelIdx) == "" {
+		return maxRows
+	}
+	return maxRows - 1
+}
+
+// trackCursor pulls start toward the cursor so its row stays on screen, leaving
+// an out-of-range cursor alone.
+func trackCursor(start, cursor, itemCount, rows int) int {
+	if cursor < 0 || cursor >= itemCount {
+		return start
+	}
+	if cursor < start {
+		return max(cursor, 0)
+	}
+	if cursor >= start+rows {
+		return max(cursor-rows+1, 0)
+	}
+	return max(start, 0)
+}
+
 // ClampAfterRemoval adjusts cursor and scrollOffset after items are removed
 // from a list of the given length. Returns the clamped values.
 func ClampAfterRemoval(cursor, scrollOffset, length int) (int, int) {

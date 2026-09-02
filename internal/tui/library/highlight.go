@@ -87,62 +87,83 @@ func padHighlight(s string, width int, positions []int, baseStyles ...lipgloss.S
 	if width <= 0 {
 		return ""
 	}
-	s = strings.ReplaceAll(s, "\r\n", " ")
-	s = strings.ReplaceAll(s, "\n", " ")
-	s = strings.ReplaceAll(s, "\r", " ")
-	s = strings.ReplaceAll(s, "\t", " ")
-	if len(positions) == 0 {
-		if len(baseStyles) > 0 {
-			return baseStyles[0].Render(text.Pad(s, width))
-		}
-		return text.Pad(s, width)
-	}
-	runes := []rune(s)
-
-	// Determine how many runes fit within the display width budget.
-	totalWidth := ansi.StringWidth(s)
-	var content []rune
-	var contentWidth int
-	ellipsis := false
-	if totalWidth > width {
-		budget := width - 1 // reserve 1 column for "…"
-		w := 0
-		for i, r := range runes {
-			rw := ansi.StringWidth(string(r))
-			if w+rw > budget {
-				content = runes[:i]
-				break
-			}
-			w += rw
-		}
-		if content == nil {
-			content = runes[:0]
-		}
-		contentWidth = w
-		ellipsis = true
-	} else {
-		content = runes
-		contentWidth = totalWidth
-	}
-
-	posSet := make(map[int]struct{}, len(positions))
-	for _, p := range positions {
-		posSet[p] = struct{}{}
-	}
-
+	s = flattenCell(s)
 	hasBase := len(baseStyles) > 0
 	var base lipgloss.Style
 	if hasBase {
 		base = baseStyles[0]
+	}
+	if len(positions) == 0 {
+		return styledOrPlain(text.Pad(s, width), base, hasBase)
+	}
+
+	content, contentWidth, ellipsis := fitToWidth(s, width)
+
+	var b strings.Builder
+	b.WriteString(renderHighlightRuns(content, positions, base, hasBase))
+	if ellipsis {
+		b.WriteString(styledOrPlain("…", base, hasBase))
+		contentWidth++
+	}
+	if contentWidth < width {
+		b.WriteString(styledOrPlain(strings.Repeat(" ", width-contentWidth), base, hasBase))
+	}
+	return b.String()
+}
+
+// flattenCell replaces embedded line breaks and tabs with spaces so a cell can
+// never break the row it sits in.
+func flattenCell(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", " ")
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "\r", " ")
+	return strings.ReplaceAll(s, "\t", " ")
+}
+
+// styledOrPlain renders s with base when a base style was supplied, and
+// verbatim otherwise.
+func styledOrPlain(s string, base lipgloss.Style, hasBase bool) string {
+	if hasBase {
+		return base.Render(s)
+	}
+	return s
+}
+
+// fitToWidth returns the leading runes of s that fit within width display
+// columns, their combined width, and whether s had to be truncated. When it
+// did, one column is reserved for the trailing ellipsis the caller appends.
+func fitToWidth(s string, width int) (content []rune, contentWidth int, ellipsis bool) {
+	runes := []rune(s)
+	totalWidth := ansi.StringWidth(s)
+	if totalWidth <= width {
+		return runes, totalWidth, false
+	}
+	budget := width - 1 // reserve 1 column for "…"
+	w := 0
+	for i, r := range runes {
+		rw := ansi.StringWidth(string(r))
+		if w+rw > budget {
+			return runes[:i], w, true
+		}
+		w += rw
+	}
+	// Unreachable while totalWidth > width: the runes must overrun the budget.
+	return runes[:0], w, true
+}
+
+// renderHighlightRuns groups consecutive characters of the same type (matched
+// vs non-matched) into runs, rendering each run with a single .Render() call to
+// minimise ANSI escape overhead.
+func renderHighlightRuns(content []rune, positions []int, base lipgloss.Style, hasBase bool) string {
+	posSet := make(map[int]struct{}, len(positions))
+	for _, p := range positions {
+		posSet[p] = struct{}{}
 	}
 	boldStyle := lipgloss.NewStyle().Bold(true)
 	if hasBase {
 		boldStyle = base.Bold(true)
 	}
 
-	// Group consecutive characters of the same type (matched vs non-matched)
-	// into runs, rendering each run with a single .Render() call to minimise
-	// ANSI escape overhead.
 	var b strings.Builder
 	run := make([]rune, 0, len(content))
 	runBold := false
@@ -172,23 +193,5 @@ func padHighlight(s string, width int, positions []int, baseStyles ...lipgloss.S
 		run = append(run, r)
 	}
 	flushRun()
-
-	if ellipsis {
-		if hasBase {
-			b.WriteString(base.Render("…"))
-		} else {
-			b.WriteRune('…')
-		}
-		contentWidth++
-	}
-	if contentWidth < width {
-		pad := strings.Repeat(" ", width-contentWidth)
-		if hasBase {
-			b.WriteString(base.Render(pad))
-		} else {
-			b.WriteString(pad)
-		}
-	}
-
 	return b.String()
 }

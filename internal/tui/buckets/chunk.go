@@ -48,62 +48,97 @@ func Chunk(dataRows, bucketLabels []string, opts ChunkOptions) []string {
 		}
 		return dataRows
 	}
-	maxPossible := maxChunkOutputLines(len(dataRows))
-	remaining := opts.MaxRows
-	if opts.MaxRows <= 0 || opts.MaxRows > maxPossible {
-		remaining = maxPossible // effectively uncapped
-	}
-	out := make([]string, 0, remaining)
-	prevBucket := ""
-	if opts.StickyBucket != "" && opts.MakeBucketHeader != nil {
-		// Only emit the sticky header when there is enough room for at least
-		// one data row too (or when there are no data rows at all).
-		if remaining >= 2 || len(dataRows) == 0 {
-			out = append(out, opts.MakeBucketHeader(opts.StickyBucket))
-			remaining--
-		}
-		prevBucket = opts.StickyBucket
-	}
-	dataSinceDivider := 0
+	c := newChunker(opts, len(dataRows))
+	c.emitStickyHeader(len(dataRows))
 	for i := 0; i < len(dataRows) && i < len(bucketLabels); i++ {
-		if remaining <= 0 {
+		if c.remaining <= 0 {
 			break
 		}
-		row := dataRows[i]
-		cur := bucketLabels[i]
-		emittedBucketHeader := false
-		if cur != "" && cur != prevBucket && opts.MakeBucketHeader != nil {
-			if remaining >= 2 {
-				out = append(out, opts.MakeBucketHeader(cur))
-				remaining--
-				emittedBucketHeader = true
-			}
-			prevBucket = cur
+		if c.emitBucketHeader(bucketLabels[i]) {
+			// A bucket header already provides visual separation; suppress the
+			// divider on the same row so we don't render "[Bucket]" + "─" + row
+			// (the divider between two unrelated sections is redundant). Reset
+			// the divider counter so the next divider fires DividerEvery rows
+			// after this header instead of immediately on the next row.
+			c.dataSinceDivider = 0
+		} else {
+			c.emitDivider()
 		}
-		// A bucket header already provides visual separation; suppress the
-		// divider on the same row so we don't render "[Bucket]" + "─" + row
-		// (the divider between two unrelated sections is redundant). Reset
-		// the divider counter so the next divider fires DividerEvery rows
-		// after this header instead of immediately on the next row.
-		if emittedBucketHeader {
-			dataSinceDivider = 0
-		} else if opts.DividerEvery > 0 && dataSinceDivider >= opts.DividerEvery &&
-			opts.MakeDivider != nil {
-			if remaining >= 2 {
-				out = append(out, opts.MakeDivider())
-				remaining--
-				dataSinceDivider = 0
-			}
-			// If remaining < 2 the divider can't fit; intentionally do not
-			// reset dataSinceDivider so the next iteration retries (the `>=`
-			// guard above prevents the counter from outrunning DividerEvery
-			// and silently disabling all future dividers).
-		}
-		out = append(out, row)
-		remaining--
-		dataSinceDivider++
+		c.emitRow(dataRows[i])
 	}
-	return out
+	return c.out
+}
+
+// chunker accumulates Chunk's output while tracking the remaining line budget
+// and the bucket/divider bookkeeping carried between rows.
+type chunker struct {
+	opts             ChunkOptions
+	out              []string
+	remaining        int
+	prevBucket       string
+	dataSinceDivider int
+}
+
+func newChunker(opts ChunkOptions, dataRows int) chunker {
+	remaining := opts.MaxRows
+	if maxPossible := maxChunkOutputLines(dataRows); opts.MaxRows <= 0 || opts.MaxRows > maxPossible {
+		remaining = maxPossible // effectively uncapped
+	}
+	return chunker{opts: opts, out: make([]string, 0, remaining), remaining: remaining}
+}
+
+// emitChrome appends a non-data line, but only when a data row can still follow
+// it within the budget. It reports whether the line was written.
+func (c *chunker) emitChrome(line string) bool {
+	if c.remaining < 2 {
+		return false
+	}
+	c.out = append(c.out, line)
+	c.remaining--
+	return true
+}
+
+// emitStickyHeader pins the sticky bucket at the top of the output. It needs
+// room for a data row too, unless there are no data rows at all.
+func (c *chunker) emitStickyHeader(dataRows int) {
+	if c.opts.StickyBucket == "" || c.opts.MakeBucketHeader == nil {
+		return
+	}
+	if c.remaining >= 2 || dataRows == 0 {
+		c.out = append(c.out, c.opts.MakeBucketHeader(c.opts.StickyBucket))
+		c.remaining--
+	}
+	c.prevBucket = c.opts.StickyBucket
+}
+
+// emitBucketHeader writes an inline header when label opens a new bucket,
+// reporting whether a header line actually fit.
+func (c *chunker) emitBucketHeader(label string) bool {
+	if label == "" || label == c.prevBucket || c.opts.MakeBucketHeader == nil {
+		return false
+	}
+	emitted := c.emitChrome(c.opts.MakeBucketHeader(label))
+	c.prevBucket = label
+	return emitted
+}
+
+// emitDivider writes the periodic divider once DividerEvery data rows have
+// passed. When it cannot fit, dataSinceDivider is intentionally left alone so
+// the next row retries (the `>=` guard keeps the counter from outrunning
+// DividerEvery and silently disabling all future dividers).
+func (c *chunker) emitDivider() {
+	if c.opts.DividerEvery <= 0 || c.dataSinceDivider < c.opts.DividerEvery || c.opts.MakeDivider == nil {
+		return
+	}
+	if c.emitChrome(c.opts.MakeDivider()) {
+		c.dataSinceDivider = 0
+	}
+}
+
+func (c *chunker) emitRow(row string) {
+	c.out = append(c.out, row)
+	c.remaining--
+	c.dataSinceDivider++
 }
 
 func maxChunkOutputLines(dataRows int) int {

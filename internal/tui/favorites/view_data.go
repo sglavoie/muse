@@ -75,21 +75,9 @@ func (v View) itemCount() int {
 // window. ScrollOffset is state restored from the parent model, so keep render
 // paths resilient to stale negative or overlarge values.
 func (v View) visibleWindow(itemCount int) (int, int) {
-	rows := v.visibleRows()
-	if itemCount <= 0 || rows <= 0 {
-		return 0, 0
-	}
-	maxStart := max(itemCount-rows, 0)
-	start := min(max(v.ScrollOffset, 0), maxStart)
-	if v.Cursor >= 0 {
-		cursor := min(v.Cursor, itemCount-1)
-		if cursor < start {
-			start = cursor
-		} else if cursor >= start+rows {
-			start = cursor - rows + 1
-		}
-	}
-	start = min(max(start, 0), maxStart)
-	end := min(itemCount, start+rows)
-	return start, end
+	// Favorites pulls an overshooting cursor back to the last item so the
+	// window follows it; the shared helper deliberately ignores an
+	// out-of-range cursor, so clamp here rather than there.
+	cursor := min(v.Cursor, itemCount-1)
+	return layout.VisibleWindowForCursor(cursor, v.ScrollOffset, itemCount, v.visibleRows(), nil)
 }

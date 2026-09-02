@@ -11,75 +11,100 @@ import (
 // in display order (respecting sort). When no filter is active, all entries
 // are returned in display order.
 func (v View) FilteredEntries() []Entry {
+	ordered := v.orderedEntries()
+	if len(ordered) == 0 {
+		return nil
+	}
+	if len(v.TagFilterHashes) > 0 {
+		ordered = v.tagFiltered(ordered)
+	}
+	if v.Filter.Text == "" {
+		return ordered
+	}
+	return matchingEntries(ordered, library.ParseFilterQuery(v.Filter.Text))
+}
+
+// orderedEntries materialises the queue in display order, stamping each entry
+// with its index in the underlying queue. A DisplayOrder that no longer lines
+// up with the queue is discarded rather than trusted.
+func (v View) orderedEntries() []Entry {
 	n := len(v.Entries)
 	if n == 0 {
 		return nil
 	}
-
-	if v.DisplayOrder != nil && !validDisplayOrder(v.DisplayOrder, n) {
-		v.DisplayOrder = nil
+	order := v.DisplayOrder
+	if order != nil && !validDisplayOrder(order, n) {
+		order = nil
 	}
 	ordered := make([]Entry, n)
 	for i := range n {
 		idx := i
-		if v.DisplayOrder != nil {
-			idx = v.DisplayOrder[i]
+		if order != nil {
+			idx = order[i]
 		}
 		ordered[i] = v.Entries[idx]
 		ordered[i].OrigIdx = idx
 	}
+	return ordered
+}
 
-	if len(v.TagFilterHashes) > 0 {
-		tagFiltered := make([]Entry, 0, len(ordered))
-		for _, e := range ordered {
-			if _, ok := v.TagFilterHashes[e.Hash]; ok {
-				tagFiltered = append(tagFiltered, e)
-			}
+// tagFiltered keeps only the entries whose track carries an active tag.
+func (v View) tagFiltered(ordered []Entry) []Entry {
+	kept := make([]Entry, 0, len(ordered))
+	for _, e := range ordered {
+		if _, ok := v.TagFilterHashes[e.Hash]; ok {
+			kept = append(kept, e)
 		}
-		ordered = tagFiltered
 	}
+	return kept
+}
 
-	if v.Filter.Text == "" {
-		return ordered
-	}
-	fq := library.ParseFilterQuery(v.Filter.Text)
-	var result []Entry
+// matchingEntries keeps the entries satisfying fq, preserving their order.
+func matchingEntries(ordered []Entry, fq library.FilterQuery) []Entry {
+	match := generalMatcher(strings.ToLower(fq.General))
 	if fq.IsFieldSpecific() {
-		for _, e := range ordered {
-			titleLow := strings.ToLower(e.Title)
-			artistLow := strings.ToLower(e.Artist)
-			albumLow := strings.ToLower(e.Album)
-			match := true
-			if fq.Title != "" && !strings.Contains(titleLow, strings.ToLower(fq.Title)) {
-				match = false
-			}
-			if match && fq.Artist != "" && !strings.Contains(artistLow, strings.ToLower(fq.Artist)) {
-				match = false
-			}
-			if match && fq.Album != "" && !strings.Contains(albumLow, strings.ToLower(fq.Album)) {
-				match = false
-			}
-			if match && fq.General != "" {
-				gen := strings.ToLower(fq.General)
-				if !strings.Contains(titleLow, gen) && !strings.Contains(artistLow, gen) && !strings.Contains(albumLow, gen) {
-					match = false
-				}
-			}
-			if match {
-				result = append(result, e)
-			}
-		}
-	} else {
-		query := strings.ToLower(fq.General)
-		for _, e := range ordered {
-			if strings.Contains(strings.ToLower(e.Title), query) ||
-				strings.Contains(strings.ToLower(e.Artist), query) ||
-				strings.Contains(strings.ToLower(e.Album), query) {
-				result = append(result, e)
-			}
+		match = fieldMatcher(fq)
+	}
+	var result []Entry
+	for _, e := range ordered {
+		if match(e) {
+			result = append(result, e)
 		}
 	}
 	return result
+}
+
+// generalMatcher matches a bare query against title, artist, or album.
+func generalMatcher(query string) func(Entry) bool {
+	return func(e Entry) bool {
+		return strings.Contains(strings.ToLower(e.Title), query) ||
+			strings.Contains(strings.ToLower(e.Artist), query) ||
+			strings.Contains(strings.ToLower(e.Album), query)
+	}
+}
+
+// fieldMatcher requires every field named in fq to match its own column, and
+// any leftover general term to appear in one of the three.
+func fieldMatcher(fq library.FilterQuery) func(Entry) bool {
+	return func(e Entry) bool {
+		title := strings.ToLower(e.Title)
+		artist := strings.ToLower(e.Artist)
+		album := strings.ToLower(e.Album)
+		if !fieldMatches(title, fq.Title) || !fieldMatches(artist, fq.Artist) || !fieldMatches(album, fq.Album) {
+			return false
+		}
+		if fq.General == "" {
+			return true
+		}
+		gen := strings.ToLower(fq.General)
+		return strings.Contains(title, gen) || strings.Contains(artist, gen) || strings.Contains(album, gen)
+	}
+}
+
+// fieldMatches reports whether value contains term, an empty term meaning the
+// field is unconstrained.
+func fieldMatches(value, term string) bool {
+	return term == "" || strings.Contains(value, strings.ToLower(term))
 }
 
 func validDisplayOrder(order []int, n int) bool {

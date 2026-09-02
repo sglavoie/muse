@@ -40,34 +40,35 @@ func (v View) ClearSelection() View {
 	return v
 }
 
+// panelMoves maps a cursor-movement action to the Panel method performing it.
+// Actions absent from the table leave the cursor untouched.
+var panelMoves = map[keys.Action]func(Panel) Panel{
+	keys.ActionCursorUp:     Panel.CursorUp,
+	keys.ActionCursorDown:   Panel.CursorDown,
+	keys.ActionHalfPageDown: Panel.HalfPageDown,
+	keys.ActionHalfPageUp:   Panel.HalfPageUp,
+	keys.ActionFullPageDown: Panel.FullPageDown,
+	keys.ActionFullPageUp:   Panel.FullPageUp,
+	keys.ActionGoToTop:      Panel.GoToTop,
+	keys.ActionGoToBottom:   Panel.GoToBottom,
+}
+
 // HandleAction executes a pre-resolved library action dispatched by root.Update.
 func (v View) HandleAction(a keys.Action) View {
-	view := v.Panel()
-	switch a {
-	case keys.ActionCursorUp:
-		view = view.CursorUp()
-	case keys.ActionCursorDown:
-		view = view.CursorDown()
-	case keys.ActionHalfPageDown:
-		view = view.HalfPageDown()
-	case keys.ActionHalfPageUp:
-		view = view.HalfPageUp()
-	case keys.ActionFullPageDown:
-		view = view.FullPageDown()
-	case keys.ActionFullPageUp:
-		view = view.FullPageUp()
-	case keys.ActionGoToTop:
-		view = view.GoToTop()
-	case keys.ActionGoToBottom:
-		view = view.GoToBottom()
-	case keys.ActionBulkSelectionToggle:
-		if t, ok := view.FocusedTrack(); ok {
+	panel := v.Panel()
+	if a == keys.ActionBulkSelectionToggle {
+		if t, ok := panel.FocusedTrack(); ok {
 			return v.ToggleBulkSelection(t.Hash)
 		}
 		return v
 	}
-	v.Cursor = view.Cursor
-	v.ScrollOffset = view.ScrollOffset
+	move, ok := panelMoves[a]
+	if !ok {
+		return v
+	}
+	panel = move(panel)
+	v.Cursor = panel.Cursor
+	v.ScrollOffset = panel.ScrollOffset
 	return v
 }
 

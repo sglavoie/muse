@@ -27,42 +27,39 @@ func FirstLetter(s string) string {
 	if s == "" {
 		return "—"
 	}
-	runes := []rune(s)
-	start := firstAlphaNumIndex(runes)
-	if start < 0 {
+	runes, ok := trimToFirstAlphaNum([]rune(s))
+	if !ok {
 		return "#"
 	}
-	runes = runes[start:]
-	if len(runes) >= 4 && unicode.IsSpace(runes[3]) && strings.EqualFold(string(runes[:3]), "the") {
-		s = strings.TrimSpace(string(runes[4:]))
-		if s == "" {
+	if rest, dropped := dropLeadingThe(runes); dropped {
+		// Nothing but the article: bucket it under its own initial.
+		if runes, ok = trimToFirstAlphaNum(rest); !ok {
 			return "T"
 		}
-		runes = []rune(s)
-		start = firstAlphaNumIndex(runes)
-		if start < 0 {
-			return "T"
-		}
-		runes = runes[start:]
 	}
-	r := runes[0]
-	switch {
-	case unicode.IsLetter(r):
+	if r := runes[0]; unicode.IsLetter(r) {
 		return string(unicode.ToUpper(r))
-	case unicode.IsDigit(r):
-		return "#"
-	default:
-		return "#"
 	}
+	return "#"
 }
 
-func firstAlphaNumIndex(runes []rune) int {
+// trimToFirstAlphaNum drops leading punctuation, reporting false when runes hold
+// no letter or digit at all.
+func trimToFirstAlphaNum(runes []rune) ([]rune, bool) {
 	for i, r := range runes {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			return i
+			return runes[i:], true
 		}
 	}
-	return -1
+	return nil, false
+}
+
+// dropLeadingThe strips a leading "The " article, reporting whether it applied.
+func dropLeadingThe(runes []rune) ([]rune, bool) {
+	if len(runes) < 4 || !unicode.IsSpace(runes[3]) || !strings.EqualFold(string(runes[:3]), "the") {
+		return runes, false
+	}
+	return []rune(strings.TrimSpace(string(runes[4:]))), true
 }
 
 // DateBucket returns a coarse date-range label for a Unix timestamp relative

@@ -254,23 +254,29 @@ func (v FavoritesView) RecomputeFavoritesSort() FavoritesView {
 	}
 	switch v.Level {
 	case ListLevel:
-		switch v.Category {
-		case CategoryArtists:
-			if len(v.Artists) > 0 {
-				v.Artists = sorting.SortStrings(v.Artists, v.SortState.Dir)
-			}
-		case CategoryAlbums:
-			if len(v.Albums) > 0 {
-				v.Albums = sorting.SortStrings(v.Albums, v.SortState.Dir)
-			}
-		case CategoryTracks:
-			if sorted := sorting.SortTracks(v.Tracks, v.SortState.Field, v.SortState.Dir); sorted != nil {
-				v.Tracks = sorted
-			}
-		}
+		return v.recomputeListSort()
 	case TrackLevel:
 		if sorted := sorting.SortTracks(v.DrilldownTracks, v.SortState.Field, v.SortState.Dir); sorted != nil {
 			v.DrilldownTracks = sorted
+		}
+	}
+	return v
+}
+
+// recomputeListSort re-sorts whichever slice backs the current list category.
+func (v FavoritesView) recomputeListSort() FavoritesView {
+	switch v.Category {
+	case CategoryArtists:
+		if len(v.Artists) > 0 {
+			v.Artists = sorting.SortStrings(v.Artists, v.SortState.Dir)
+		}
+	case CategoryAlbums:
+		if len(v.Albums) > 0 {
+			v.Albums = sorting.SortStrings(v.Albums, v.SortState.Dir)
+		}
+	case CategoryTracks:
+		if sorted := sorting.SortTracks(v.Tracks, v.SortState.Field, v.SortState.Dir); sorted != nil {
+			v.Tracks = sorted
 		}
 	}
 	return v

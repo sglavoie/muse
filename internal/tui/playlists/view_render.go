@@ -6,6 +6,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 
+	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -22,22 +24,26 @@ func (v View) Render() string {
 
 func (v View) renderList() string {
 	if len(v.Playlists) == 0 && !v.Creating {
-		card := v.Styles.RenderEmptyCard(v.Width, v.visibleRows(), "No playlists yet", []styles.EmptyAction{
-			{Key: "n", Label: "new"},
-			{Key: "i", Label: "import m3u"},
-			{Key: "?", Label: "help"},
-		})
-		if v.SortField == "" {
-			return card
-		}
-		return v.renderListSortIndicator() + "\n" + card
+		return v.renderEmptyList()
 	}
 
 	cols := Compute(v.Width)
+	lines := v.renderPlaylistRows(cols)
+	// When the list is empty the input is still shown at the top.
+	if v.Creating && len(v.Playlists) == 0 {
+		lines = append(lines, v.renderCreateInputRow(cols))
+	}
+	out := strings.Join(lines, "\n")
+	if v.SortField != "" {
+		out = v.renderListSortIndicator() + "\n" + out
+	}
+	return out
+}
 
-	maxRows := v.visibleRows()
-	start := visibleWindowStart(v.ScrollOffset, v.Cursor, len(v.Playlists), maxRows)
-	end := min(len(v.Playlists), start+maxRows)
+// renderPlaylistRows renders the visible window of playlist rows, splicing the
+// rename input in place of the focused row and the create input just below it.
+func (v View) renderPlaylistRows(cols Columns) []string {
+	start, end := visibleWindow(v.ScrollOffset, v.Cursor, len(v.Playlists), v.visibleRows())
 	focusCursor := -1
 	if len(v.Playlists) > 0 {
 		focusCursor = clamp(v.Cursor, 0, len(v.Playlists)-1)
@@ -50,40 +56,46 @@ func (v View) renderList() string {
 			lines = append(lines, v.renderRenameInputRow(cols))
 			continue
 		}
-		var name string
-		var count string
-		if p.IsSmart {
-			// Smart playlists show a ⚡ glyph and either the evaluated track count
-			// (once known) or "(smart)" as a placeholder. TrackCount < 0 means the
-			// background evaluation has not yet returned.
-			name = text.Pad("⚡ "+p.Name, cols.Name)
-			if p.TrackCount >= 0 {
-				count = text.PadLeft(fmt.Sprintf("(%d)", p.TrackCount), cols.Count)
-			} else {
-				count = text.PadLeft("(smart)", cols.Count)
-			}
-		} else {
-			name = text.Pad(p.Name, cols.Name)
-			count = text.PadLeft(fmt.Sprintf("(%d)", p.TrackCount), cols.Count)
-		}
-		line := name + "  " + count
-		if absIdx == focusCursor {
-			line = v.Styles.Accent.Render(line)
-		}
-		lines = append(lines, line)
+		lines = append(lines, v.renderPlaylistRow(p, cols, absIdx == focusCursor))
 		if v.Creating && absIdx == focusCursor {
 			lines = append(lines, v.renderCreateInputRow(cols))
 		}
 	}
-	// When the list is empty the input is still shown at the top.
-	if v.Creating && len(v.Playlists) == 0 {
-		lines = append(lines, v.renderCreateInputRow(cols))
+	return lines
+}
+
+// renderEmptyList renders the "no playlists yet" card, keeping the sort
+// indicator above it when a sort is active.
+func (v View) renderEmptyList() string {
+	card := v.Styles.RenderEmptyCard(v.Width, v.visibleRows(), "No playlists yet", []styles.EmptyAction{
+		{Key: "n", Label: "new"},
+		{Key: "i", Label: "import m3u"},
+		{Key: "?", Label: "help"},
+	})
+	if v.SortField == "" {
+		return card
 	}
-	out := strings.Join(lines, "\n")
-	if v.SortField != "" {
-		out = v.renderListSortIndicator() + "\n" + out
+	return v.renderListSortIndicator() + "\n" + card
+}
+
+// renderPlaylistRow renders one name+count row. Smart playlists show a ⚡ glyph
+// and either the evaluated track count (once known) or "(smart)" as a
+// placeholder — TrackCount < 0 means the background evaluation has not yet
+// returned.
+func (v View) renderPlaylistRow(p db.PlaylistRow, cols Columns, isFocused bool) string {
+	name := text.Pad(p.Name, cols.Name)
+	count := text.PadLeft(fmt.Sprintf("(%d)", p.TrackCount), cols.Count)
+	if p.IsSmart {
+		name = text.Pad("⚡ "+p.Name, cols.Name)
+		if p.TrackCount < 0 {
+			count = text.PadLeft("(smart)", cols.Count)
+		}
 	}
-	return out
+	line := name + "  " + count
+	if isFocused {
+		return v.Styles.Accent.Render(line)
+	}
+	return line
 }
 
 func (v View) renderListSortIndicator() string {
@@ -116,151 +128,182 @@ func (v View) renderTracks() string {
 	}
 
 	cols := ComputeTrack(v.Width)
-	titleHead, artistHead, albumHead, timeHead := "Title", "Artist", "Album", "Time"
-	if v.SortField != "" {
-		switch v.SortField {
-		case "Title":
-			titleHead += v.SortDir
-		case "Artist":
-			artistHead += v.SortDir
-		case "Album":
-			albumHead += v.SortDir
-		case "Duration":
-			timeHead += v.SortDir
-		}
-	}
+	header := v.renderTrackHeader(cols)
 
-	header := strings.Repeat(" ", cols.Marker) + v.Styles.ColHead.Render(
+	start, end := visibleWindow(v.ScrollOffset, v.Cursor, len(v.Tracks), v.visibleRows())
+	focusCursor := clamp(v.Cursor, 0, len(v.Tracks)-1)
+
+	lines := make([]string, end-start)
+	for i, t := range v.Tracks[start:end] {
+		absIdx := start + i
+		lines[i] = v.renderTrackRow(t, cols, absIdx, absIdx == focusCursor)
+	}
+	return heading + "\n\n" + header + "\n" + strings.Join(lines, "\n")
+}
+
+// renderTrackHeader builds the column header row, appending the sort direction
+// glyph to whichever column the current sort is keyed on.
+func (v View) renderTrackHeader(cols TrackColumns) string {
+	titleHead, artistHead, albumHead, timeHead := "Title", "Artist", "Album", "Time"
+	switch v.SortField {
+	case "Title":
+		titleHead += v.SortDir
+	case "Artist":
+		artistHead += v.SortDir
+	case "Album":
+		albumHead += v.SortDir
+	case "Duration":
+		timeHead += v.SortDir
+	}
+	return strings.Repeat(" ", cols.Marker) + v.Styles.ColHead.Render(
 		text.Pad("#", cols.Position)+" "+
 			text.Pad(titleHead, cols.Title)+" "+
 			text.Pad(artistHead, cols.Artist)+" "+
 			text.Pad(albumHead, cols.Album)+" "+
 			text.PadLeft(timeHead, cols.Duration))
+}
 
-	maxRows := v.visibleRows()
-	start := visibleWindowStart(v.ScrollOffset, v.Cursor, len(v.Tracks), maxRows)
-	end := min(len(v.Tracks), start+maxRows)
-	focusCursor := -1
-	if len(v.Tracks) > 0 {
-		focusCursor = clamp(v.Cursor, 0, len(v.Tracks)-1)
-	}
+// trackRow holds the pre-padded cells of one track row together with the
+// favorite flags that decide how each cell is coloured. The cells are already
+// width-fitted, so the per-state renderers below only add styling.
+type trackRow struct {
+	marker    string
+	pos       string
+	dur       string
+	title     string
+	artist    string
+	album     string
+	trackFav  bool
+	artistFav bool
+	albumFav  bool
+	selected  bool
+}
 
-	lines := make([]string, end-start)
-	for i, t := range v.Tracks[start:end] {
-		absIdx := start + i
-		_, isSelected := v.SelectedTrackIDs[t.ID]
-		isFocused := absIdx == focusCursor
-		isNowPlaying := v.NowPlayingHash != "" && t.Hash == v.NowPlayingHash
+// renderTrackRow renders a single track line in whichever of the four row
+// states applies: focused, now-playing, zebra/selection background, or plain.
+func (v View) renderTrackRow(t db.PlaylistTrackRow, cols TrackColumns, absIdx int, isFocused bool) string {
+	_, isSelected := v.SelectedTrackIDs[t.ID]
+	isNowPlaying := v.NowPlayingHash != "" && t.Hash == v.NowPlayingHash
 
+	// Per-cell favorite lookups.
+	_, isTrackFav := v.FavoriteHashes[t.Hash]
+	_, isArtistFav := v.FavoriteArtists[t.Artist]
+	_, isAlbumFav := v.FavoriteAlbums[t.Album]
+
+	r := trackRow{
 		// When the row is focused, omit the inner accent/reset from the marker
 		// so the outer background highlight covers the full row uniformly. An
 		// inner ANSI reset would reset the cursor highlight mid-row.
-		markerStr := text.RowMarker(isSelected, isFocused, isNowPlaying, v.NowPlayingIcon)
-
-		pos := text.Pad(text.FormatTrackPos(t.TrackNumber, t.DiscNumber, absIdx+1), cols.Position)
-		dur := text.FormatDurationMs(t.DurationMs)
-		dur = text.PadLeft(dur, cols.Duration)
-
-		// Per-cell favorite lookups.
-		_, isTrackFav := v.FavoriteHashes[t.Hash]
-		_, isArtistFav := v.FavoriteArtists[t.Artist]
-		_, isAlbumFav := v.FavoriteAlbums[t.Album]
-
-		titleStr := text.FavPrefix(t.Title, cols.Title, isTrackFav)
-		artistStr := text.FavPrefix(t.Artist, cols.Artist, isArtistFav)
-		albumStr := text.FavPrefix(t.Album, cols.Album, isAlbumFav)
-		switch {
-		case isFocused:
-			a := v.Styles.Accent
-			sep := a.Render(" ")
-			titleStr = styles.AccentFavRender(a, v.Styles.FavoriteAccent, isTrackFav, titleStr)
-			artistStr = styles.AccentFavRender(a, v.Styles.FavArtistAccent, isArtistFav, artistStr)
-			albumStr = styles.AccentFavRender(a, v.Styles.FavAlbumAccent, isAlbumFav, albumStr)
-			lines[i] = a.Render(markerStr+pos) + sep + titleStr + sep + artistStr + sep + albumStr + sep + a.Render(dur)
-		case isNowPlaying:
-			np := v.Styles.NowPlayingRow
-			sep := np.Render(" ")
-			titleStr = v.Styles.NowPlayingTitle.Render(titleStr)
-			if isArtistFav {
-				artistStr = v.Styles.NowPlayingRowFavArtist.Render(artistStr)
-			} else {
-				artistStr = v.Styles.TextPrimary.Background(v.Styles.NowPlayingBg).Render(artistStr)
-			}
-			if isAlbumFav {
-				albumStr = v.Styles.NowPlayingRowFavAlbum.Render(albumStr)
-			} else {
-				albumStr = v.Styles.TextSecondary.Background(v.Styles.NowPlayingBg).Render(albumStr)
-			}
-			lines[i] = np.Render(markerStr+pos) + sep + titleStr + sep + artistStr + sep + albumStr + sep + np.Render(dur)
-		default:
-			isOdd := absIdx%2 == 1
-			rowBg := v.Styles.ZebraBg
-			useBg := isOdd
-			if isSelected {
-				rowBg = v.Styles.SelectionBg
-				useBg = true
-			}
-			if isTrackFav {
-				titleStr = styles.WithZebraBg(v.Styles.Favorite, rowBg, useBg).Render(titleStr)
-			}
-			if isArtistFav {
-				artistStr = styles.WithZebraBg(v.Styles.FavArtist, rowBg, useBg).Render(artistStr)
-			}
-			if isAlbumFav {
-				albumStr = styles.WithZebraBg(v.Styles.FavAlbum, rowBg, useBg).Render(albumStr)
-			}
-			if useBg {
-				zb := lipgloss.NewStyle().Background(rowBg)
-				if !isTrackFav {
-					titleStr = styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(titleStr)
-				}
-				if !isArtistFav {
-					artistStr = styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(artistStr)
-				}
-				if !isAlbumFav {
-					albumStr = styles.WithZebraBg(v.Styles.TextSecondary, rowBg, true).Render(albumStr)
-				}
-				var markerPart string
-				if isSelected {
-					markerPart = v.Styles.AccentMark.Background(rowBg).Render("●") + zb.Render(" ")
-				} else {
-					markerPart = zb.Render(markerStr)
-				}
-				posPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(pos)
-				durPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(dur)
-				sep := zb.Render(" ")
-				lines[i] = markerPart + posPart + sep + titleStr + sep + artistStr + sep + albumStr + sep + durPart
-			} else {
-				if !isTrackFav {
-					titleStr = v.Styles.TextPrimary.Render(titleStr)
-				}
-				if !isArtistFav {
-					artistStr = v.Styles.TextPrimary.Render(artistStr)
-				}
-				if !isAlbumFav {
-					albumStr = v.Styles.TextSecondary.Render(albumStr)
-				}
-				lines[i] = markerStr + v.Styles.TextTertiary.Render(pos) + " " + titleStr + " " + artistStr + " " + albumStr + " " + v.Styles.TextTertiary.Render(dur)
-			}
-		}
+		marker:    text.RowMarker(isSelected, isFocused, isNowPlaying, v.NowPlayingIcon),
+		pos:       text.Pad(text.FormatTrackPos(t.TrackNumber, t.DiscNumber, absIdx+1), cols.Position),
+		dur:       text.PadLeft(text.FormatDurationMs(t.DurationMs), cols.Duration),
+		title:     text.FavPrefix(t.Title, cols.Title, isTrackFav),
+		artist:    text.FavPrefix(t.Artist, cols.Artist, isArtistFav),
+		album:     text.FavPrefix(t.Album, cols.Album, isAlbumFav),
+		trackFav:  isTrackFav,
+		artistFav: isArtistFav,
+		albumFav:  isAlbumFav,
+		selected:  isSelected,
 	}
-	return heading + "\n\n" + header + "\n" + strings.Join(lines, "\n")
+	switch {
+	case isFocused:
+		return v.renderFocusedTrackRow(r)
+	case isNowPlaying:
+		return v.renderNowPlayingTrackRow(r)
+	default:
+		return v.renderZebraTrackRow(r, absIdx%2 == 1)
+	}
 }
 
-func visibleWindowStart(scrollOffset, cursor, itemCount, maxRows int) int {
-	if itemCount <= 0 || maxRows <= 0 {
-		return 0
+func (v View) renderFocusedTrackRow(r trackRow) string {
+	a := v.Styles.Accent
+	sep := a.Render(" ")
+	title := styles.AccentFavRender(a, v.Styles.FavoriteAccent, r.trackFav, r.title)
+	artist := styles.AccentFavRender(a, v.Styles.FavArtistAccent, r.artistFav, r.artist)
+	album := styles.AccentFavRender(a, v.Styles.FavAlbumAccent, r.albumFav, r.album)
+	return a.Render(r.marker+r.pos) + sep + title + sep + artist + sep + album + sep + a.Render(r.dur)
+}
+
+func (v View) renderNowPlayingTrackRow(r trackRow) string {
+	np := v.Styles.NowPlayingRow
+	sep := np.Render(" ")
+	title := v.Styles.NowPlayingTitle.Render(r.title)
+	artist := v.Styles.TextPrimary.Background(v.Styles.NowPlayingBg).Render(r.artist)
+	if r.artistFav {
+		artist = v.Styles.NowPlayingRowFavArtist.Render(r.artist)
+	}
+	album := v.Styles.TextSecondary.Background(v.Styles.NowPlayingBg).Render(r.album)
+	if r.albumFav {
+		album = v.Styles.NowPlayingRowFavAlbum.Render(r.album)
+	}
+	return np.Render(r.marker+r.pos) + sep + title + sep + artist + sep + album + sep + np.Render(r.dur)
+}
+
+// renderZebraTrackRow renders an unfocused, not-now-playing row. Selected rows
+// take the selection background regardless of parity; otherwise odd rows take
+// the zebra background and even rows are left unstyled.
+func (v View) renderZebraTrackRow(r trackRow, isOdd bool) string {
+	rowBg := v.Styles.ZebraBg
+	useBg := isOdd
+	if r.selected {
+		rowBg = v.Styles.SelectionBg
+		useBg = true
+	}
+	if r.trackFav {
+		r.title = styles.WithZebraBg(v.Styles.Favorite, rowBg, useBg).Render(r.title)
+	}
+	if r.artistFav {
+		r.artist = styles.WithZebraBg(v.Styles.FavArtist, rowBg, useBg).Render(r.artist)
+	}
+	if r.albumFav {
+		r.album = styles.WithZebraBg(v.Styles.FavAlbum, rowBg, useBg).Render(r.album)
+	}
+	if !useBg {
+		return v.renderPlainTrackRow(r)
 	}
 
-	maxStart := max(0, itemCount-maxRows)
-	start := min(max(scrollOffset, 0), maxStart)
-
-	cursor = clamp(cursor, 0, itemCount-1)
-	if cursor < start {
-		start = cursor
-	} else if cursor >= start+maxRows {
-		start = cursor - maxRows + 1
+	zb := lipgloss.NewStyle().Background(rowBg)
+	if !r.trackFav {
+		r.title = styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(r.title)
 	}
+	if !r.artistFav {
+		r.artist = styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(r.artist)
+	}
+	if !r.albumFav {
+		r.album = styles.WithZebraBg(v.Styles.TextSecondary, rowBg, true).Render(r.album)
+	}
+	markerPart := zb.Render(r.marker)
+	if r.selected {
+		markerPart = v.Styles.AccentMark.Background(rowBg).Render("●") + zb.Render(" ")
+	}
+	posPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(r.pos)
+	durPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(r.dur)
+	sep := zb.Render(" ")
+	return markerPart + posPart + sep + r.title + sep + r.artist + sep + r.album + sep + durPart
+}
 
-	return min(max(start, 0), maxStart)
+// renderPlainTrackRow renders a row with no background fill. Favorite cells
+// arrive already styled, so only the remaining cells are coloured here.
+func (v View) renderPlainTrackRow(r trackRow) string {
+	if !r.trackFav {
+		r.title = v.Styles.TextPrimary.Render(r.title)
+	}
+	if !r.artistFav {
+		r.artist = v.Styles.TextPrimary.Render(r.artist)
+	}
+	if !r.albumFav {
+		r.album = v.Styles.TextSecondary.Render(r.album)
+	}
+	return r.marker + v.Styles.TextTertiary.Render(r.pos) + " " + r.title + " " + r.artist + " " + r.album + " " + v.Styles.TextTertiary.Render(r.dur)
+}
+
+// visibleWindow returns the [start, end) row window for the playlists panel.
+// Playlists pulls a stale cursor into range before windowing, so the window
+// still follows the nearest valid row; the shared helper deliberately ignores
+// an out-of-range cursor.
+func visibleWindow(scrollOffset, cursor, itemCount, maxRows int) (int, int) {
+	if itemCount <= 0 {
+		return 0, 0
+	}
+	return layout.VisibleWindowForCursor(clamp(cursor, 0, itemCount-1), scrollOffset, itemCount, maxRows, nil)
 }

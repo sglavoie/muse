@@ -21,22 +21,56 @@ func (v PlaylistsView) FocusedPlaylist() (db.PlaylistRow, bool) {
 	return pl[v.Cursor], true
 }
 
+// navigationMoves maps a cursor-movement action to the View method performing
+// it. Actions absent from the table leave the cursor untouched.
+var navigationMoves = map[keys.Action]func(View) View{
+	keys.ActionCursorUp:     View.CursorUp,
+	keys.ActionCursorDown:   View.CursorDown,
+	keys.ActionHalfPageDown: View.HalfPageDown,
+	keys.ActionHalfPageUp:   View.HalfPageUp,
+	keys.ActionFullPageDown: View.FullPageDown,
+	keys.ActionFullPageUp:   View.FullPageUp,
+	keys.ActionGoToTop:      View.GoToTop,
+	keys.ActionGoToBottom:   View.GoToBottom,
+}
+
 // HandleAction executes a pre-resolved playlists action dispatched by root.Update.
 func (v PlaylistsView) HandleAction(a keys.Action) PlaylistsView {
 	if a == keys.ActionBulkSelectionToggle {
-		if v.Level == TrackLevel && len(v.Tracks) > 0 && v.Cursor < len(v.Tracks) {
-			id := v.Tracks[v.TrackIndex(v.Cursor)].ID
-			view := View{SelectedTrackIDs: v.SelectedTrackIDs}.ToggleBulkSelection(id)
-			v.SelectedTrackIDs = view.SelectedTrackIDs
-		}
+		return v.toggleFocusedTrackSelection()
+	}
+	move, ok := navigationMoves[a]
+	if !ok {
 		return v
 	}
+	view := move(v.navigationView())
+	v.Level = view.Level
+	v.Cursor = view.Cursor
+	v.ScrollOffset = view.ScrollOffset
+	return v
+}
+
+// toggleFocusedTrackSelection flips the bulk-selection marker on the focused
+// track. It is a no-op anywhere but on a non-empty track list.
+func (v PlaylistsView) toggleFocusedTrackSelection() PlaylistsView {
+	if v.Level != TrackLevel || len(v.Tracks) == 0 || v.Cursor >= len(v.Tracks) {
+		return v
+	}
+	id := v.Tracks[v.TrackIndex(v.Cursor)].ID
+	view := View{SelectedTrackIDs: v.SelectedTrackIDs}.ToggleBulkSelection(id)
+	v.SelectedTrackIDs = view.SelectedTrackIDs
+	return v
+}
+
+// navigationView projects the playlists view onto the plain View that owns the
+// cursor-movement methods, resolving the sort labels those methods read.
+func (v PlaylistsView) navigationView() View {
 	var sortField, sortDir string
 	if v.SortState.Field != sorting.SortDefault {
 		sortField = sorting.SortFieldLabel(v.SortState.Field)
 		sortDir = sorting.SortDirIndicator(v.SortState.Dir)
 	}
-	view := View{
+	return View{
 		Level:        v.Level,
 		Cursor:       v.Cursor,
 		ScrollOffset: v.ScrollOffset,
@@ -46,28 +80,6 @@ func (v PlaylistsView) HandleAction(a keys.Action) PlaylistsView {
 		SortField:    sortField,
 		SortDir:      sortDir,
 	}
-	switch a {
-	case keys.ActionCursorUp:
-		view = view.CursorUp()
-	case keys.ActionCursorDown:
-		view = view.CursorDown()
-	case keys.ActionHalfPageDown:
-		view = view.HalfPageDown()
-	case keys.ActionHalfPageUp:
-		view = view.HalfPageUp()
-	case keys.ActionFullPageDown:
-		view = view.FullPageDown()
-	case keys.ActionFullPageUp:
-		view = view.FullPageUp()
-	case keys.ActionGoToTop:
-		view = view.GoToTop()
-	case keys.ActionGoToBottom:
-		view = view.GoToBottom()
-	}
-	v.Level = view.Level
-	v.Cursor = view.Cursor
-	v.ScrollOffset = view.ScrollOffset
-	return v
 }
 
 // HasTrackSelection reports whether any tracks are bulk-selected.
