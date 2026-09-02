@@ -1,4 +1,4 @@
-package tui
+package queue
 
 import (
 	"charm.land/lipgloss/v2"
@@ -13,38 +13,38 @@ import (
 // the view label, sort, filter, and counts for the queue. total is the
 // full entry count before filtering; filtered is the count after filter
 // is applied (equal to total when no filter is active).
-func (v QueueView) renderStateStrip(s styles.Styles, total, filtered int) string {
+func (v View) renderStateStrip(s styles.Styles, total, filtered int) string {
 	var sortChunk strip.SortChunk
-	if v.sortState.Field != sorting.SortDefault {
+	if v.SortState.Field != sorting.SortDefault {
 		sortChunk = strip.SortChunk{
-			Label:     sorting.SortFieldLabel(v.sortState.Field),
-			Indicator: sorting.SortDirIndicator(v.sortState.Dir),
+			Label:     sorting.SortFieldLabel(v.SortState.Field),
+			Indicator: sorting.SortDirIndicator(v.SortState.Dir),
 		}
 	}
-	f := strip.FilterChunk{Active: v.filter.Active, Text: v.filter.Text}
-	if v.filter.Active {
-		if v.filter.Text == "" {
+	f := strip.FilterChunk{Active: v.Filter.Active, Text: v.Filter.Text}
+	if v.Filter.Active {
+		if v.Filter.Text == "" {
 			f.Hint = s.TextSecondary.Render("a: artist  t: title  l: album")
 		} else {
-			f.InputView = v.filter.View()
+			f.InputView = v.Filter.View()
 		}
 	}
 	counts := strip.CountsChunk{
 		Filtered:  filtered,
 		Total:     total,
-		Filtering: v.filter.Text != "",
+		Filtering: v.Filter.Text != "",
 	}
 	var sel *strip.SelectionChunk
-	if n := len(v.selectedHashes()); n > 0 {
+	if n := len(v.SelectedHashes()); n > 0 {
 		sel = &strip.SelectionChunk{Count: n}
 	}
-	return strip.Render(v.width, []string{"Queue"}, sortChunk, f, counts, sel, "", s)
+	return strip.Render(v.Width, []string{"Queue"}, sortChunk, f, counts, sel, "", s)
 }
 
-// nowPlayingIndicator returns the icon string and its style for the
+// NowPlayingIndicator returns the icon string and its style for the
 // now-playing marker based on the current playback state. The returned icon
 // is unstyled so callers can apply additional styling (e.g. Accent background).
-func nowPlayingIndicator(s styles.Styles, state playback.State) (icon string, style lipgloss.Style) {
+func NowPlayingIndicator(s styles.Styles, state playback.State) (icon string, style lipgloss.Style) {
 	switch state {
 	case playback.StatePaused:
 		return "⏸", s.Warning

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestKWhileSortedProducesTransientNotification verifies that pressing 'K'
@@ -14,12 +15,12 @@ import (
 func TestKWhileSortedProducesTransientNotification(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
 	}
-	m.queue.cursor = 1
-	m.queue.displayOrder = []int{0, 1}
+	m.queue.Cursor = 1
+	m.queue.DisplayOrder = []int{0, 1}
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'K', Text: "K"})
 	nm := next.(Model)
@@ -42,20 +43,20 @@ func TestKWhileSortedProducesTransientNotification(t *testing.T) {
 func TestMoveTrackUpMsgCallsReordererWithCorrectIDAndDirection(t *testing.T) {
 	r := &stubQueueReorderer{}
 	m := New(context.Background(), WithQueueReorderer(r))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
 		{ID: 20, Path: "/music/b.flac", Display: "B"},
 		{ID: 30, Path: "/music/c.flac", Display: "C"},
 	}
 
-	next, cmd := m.Update(MoveTrackUpMsg{Index: 1})
+	next, cmd := m.Update(queue.MoveTrackUpMsg{Index: 1})
 	nm := next.(Model)
 
-	if nm.queue.entries[0].ID != 20 || nm.queue.entries[1].ID != 10 {
-		t.Fatalf("expected entries swapped: got IDs %d %d", nm.queue.entries[0].ID, nm.queue.entries[1].ID)
+	if nm.queue.Entries[0].ID != 20 || nm.queue.Entries[1].ID != 10 {
+		t.Fatalf("expected entries swapped: got IDs %d %d", nm.queue.Entries[0].ID, nm.queue.Entries[1].ID)
 	}
-	if nm.queue.cursor != 0 {
-		t.Fatalf("expected cursor 0, got %d", nm.queue.cursor)
+	if nm.queue.Cursor != 0 {
+		t.Fatalf("expected cursor 0, got %d", nm.queue.Cursor)
 	}
 	if cmd == nil {
 		t.Fatal("MoveTrackUpMsg with reorderer: expected non-nil cmd")
@@ -79,20 +80,20 @@ func TestMoveTrackUpMsgCallsReordererWithCorrectIDAndDirection(t *testing.T) {
 func TestMoveTrackDownMsgCallsReordererWithCorrectIDAndDirection(t *testing.T) {
 	r := &stubQueueReorderer{}
 	m := New(context.Background(), WithQueueReorderer(r))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
 		{ID: 20, Path: "/music/b.flac", Display: "B"},
 		{ID: 30, Path: "/music/c.flac", Display: "C"},
 	}
 
-	next, cmd := m.Update(MoveTrackDownMsg{Index: 1})
+	next, cmd := m.Update(queue.MoveTrackDownMsg{Index: 1})
 	nm := next.(Model)
 
-	if nm.queue.entries[1].ID != 30 || nm.queue.entries[2].ID != 20 {
-		t.Fatalf("expected entries swapped: got IDs %d %d", nm.queue.entries[1].ID, nm.queue.entries[2].ID)
+	if nm.queue.Entries[1].ID != 30 || nm.queue.Entries[2].ID != 20 {
+		t.Fatalf("expected entries swapped: got IDs %d %d", nm.queue.Entries[1].ID, nm.queue.Entries[2].ID)
 	}
-	if nm.queue.cursor != 2 {
-		t.Fatalf("expected cursor 2, got %d", nm.queue.cursor)
+	if nm.queue.Cursor != 2 {
+		t.Fatalf("expected cursor 2, got %d", nm.queue.Cursor)
 	}
 	if cmd == nil {
 		t.Fatal("MoveTrackDownMsg with reorderer: expected non-nil cmd")
@@ -117,13 +118,13 @@ func TestMoveTrackUpSyncsPlayerQueue(t *testing.T) {
 	p := &stubPlayerQueueSyncer{}
 	r := &stubQueueReorderer{}
 	m := New(context.Background(), WithPlayer(p), WithQueueReorderer(r))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Hash: "ha", Artist: "A", Title: "Ta"},
 		{ID: 20, Path: "/b.flac", Hash: "hb", Artist: "B", Title: "Tb"},
 		{ID: 30, Path: "/c.flac", Hash: "hc", Artist: "C", Title: "Tc"},
 	}
 
-	next, cmd := m.Update(MoveTrackUpMsg{Index: 1})
+	next, cmd := m.Update(queue.MoveTrackUpMsg{Index: 1})
 	_ = next.(Model)
 
 	if len(p.setQueueCalls) != 1 {
@@ -149,13 +150,13 @@ func TestMoveTrackDownSyncsPlayerQueue(t *testing.T) {
 	p := &stubPlayerQueueSyncer{}
 	r := &stubQueueReorderer{}
 	m := New(context.Background(), WithPlayer(p), WithQueueReorderer(r))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Hash: "ha", Artist: "A", Title: "Ta"},
 		{ID: 20, Path: "/b.flac", Hash: "hb", Artist: "B", Title: "Tb"},
 		{ID: 30, Path: "/c.flac", Hash: "hc", Artist: "C", Title: "Tc"},
 	}
 
-	next, cmd := m.Update(MoveTrackDownMsg{Index: 1})
+	next, cmd := m.Update(queue.MoveTrackDownMsg{Index: 1})
 	_ = next.(Model)
 
 	if len(p.setQueueCalls) != 1 {
@@ -179,28 +180,28 @@ func TestMoveTrackDownSyncsPlayerQueue(t *testing.T) {
 // remains visible.
 func TestMoveTrackUpAdjustsScrollOffset(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = make([]QueueEntry, 10)
-	for i := range m.queue.entries {
-		m.queue.entries[i] = QueueEntry{
+	m.queue.Entries = make([]queue.Entry, 10)
+	for i := range m.queue.Entries {
+		m.queue.Entries[i] = queue.Entry{
 			ID:      int64(i + 1),
 			Path:    "/track" + string(rune('a'+i)) + ".flac",
 			Hash:    "hash" + string(rune('a'+i)),
 			Display: "Track " + string(rune('A'+i)),
 		}
 	}
-	m.queue.height = 7
-	m.queue.width = 80
-	m.queue.cursor = 5
-	m.queue.scrollOffset = 5
+	m.queue.Height = 7
+	m.queue.Width = 80
+	m.queue.Cursor = 5
+	m.queue.ScrollOffset = 5
 
-	m, _ = m.handleMoveTrackUpMsg(MoveTrackUpMsg{Index: 5})
+	m, _ = m.handleMoveTrackUpMsg(queue.MoveTrackUpMsg{Index: 5})
 
-	if m.queue.cursor != 4 {
-		t.Errorf("expected cursor=4 after move up, got %d", m.queue.cursor)
+	if m.queue.Cursor != 4 {
+		t.Errorf("expected cursor=4 after move up, got %d", m.queue.Cursor)
 	}
-	if m.queue.scrollOffset > m.queue.cursor {
+	if m.queue.ScrollOffset > m.queue.Cursor {
 		t.Errorf("scrollOffset (%d) must be <= cursor (%d) after move up",
-			m.queue.scrollOffset, m.queue.cursor)
+			m.queue.ScrollOffset, m.queue.Cursor)
 	}
 }
 
@@ -209,30 +210,30 @@ func TestMoveTrackUpAdjustsScrollOffset(t *testing.T) {
 // cursor remains visible.
 func TestMoveTrackDownAdjustsScrollOffset(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = make([]QueueEntry, 10)
-	for i := range m.queue.entries {
-		m.queue.entries[i] = QueueEntry{
+	m.queue.Entries = make([]queue.Entry, 10)
+	for i := range m.queue.Entries {
+		m.queue.Entries[i] = queue.Entry{
 			ID:      int64(i + 1),
 			Path:    "/track" + string(rune('a'+i)) + ".flac",
 			Hash:    "hash" + string(rune('a'+i)),
 			Display: "Track " + string(rune('A'+i)),
 		}
 	}
-	m.queue.height = 7
-	m.queue.width = 80
-	m.queue.scrollOffset = 0
+	m.queue.Height = 7
+	m.queue.Width = 80
+	m.queue.ScrollOffset = 0
 
-	maxRows := m.queue.visibleRows()
-	m.queue.cursor = maxRows - 1
+	maxRows := m.queue.VisibleRows()
+	m.queue.Cursor = maxRows - 1
 
-	m, _ = m.handleMoveTrackDownMsg(MoveTrackDownMsg{Index: m.queue.cursor})
+	m, _ = m.handleMoveTrackDownMsg(queue.MoveTrackDownMsg{Index: m.queue.Cursor})
 
-	if m.queue.cursor != maxRows {
-		t.Errorf("expected cursor=%d after move down, got %d", maxRows, m.queue.cursor)
+	if m.queue.Cursor != maxRows {
+		t.Errorf("expected cursor=%d after move down, got %d", maxRows, m.queue.Cursor)
 	}
-	if m.queue.cursor >= m.queue.scrollOffset+maxRows {
+	if m.queue.Cursor >= m.queue.ScrollOffset+maxRows {
 		t.Errorf("cursor (%d) must be < scrollOffset+maxRows (%d) after move down",
-			m.queue.cursor, m.queue.scrollOffset+maxRows)
+			m.queue.Cursor, m.queue.ScrollOffset+maxRows)
 	}
 }
 
@@ -242,15 +243,15 @@ func TestMoveTrackUpExitsVisualMode(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
 	m.activeView = viewQueue
-	m.queue.entries = sampleQueueEntries()
-	m.queue.cursor = 1
+	m.queue.Entries = sampleQueueEntries()
+	m.queue.Cursor = 1
 
 	m = doVisual(m)
 	if !m.visual.active {
 		t.Fatal("expected visual mode active after entering")
 	}
 
-	m, _ = m.handleMoveTrackUpMsg(MoveTrackUpMsg{Index: 1})
+	m, _ = m.handleMoveTrackUpMsg(queue.MoveTrackUpMsg{Index: 1})
 
 	if m.visual.active {
 		t.Fatal("expected visual mode to exit after move-up")
@@ -263,15 +264,15 @@ func TestMoveTrackDownExitsVisualMode(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
 	m.activeView = viewQueue
-	m.queue.entries = sampleQueueEntries()
-	m.queue.cursor = 1
+	m.queue.Entries = sampleQueueEntries()
+	m.queue.Cursor = 1
 
 	m = doVisual(m)
 	if !m.visual.active {
 		t.Fatal("expected visual mode active after entering")
 	}
 
-	m, _ = m.handleMoveTrackDownMsg(MoveTrackDownMsg{Index: 1})
+	m, _ = m.handleMoveTrackDownMsg(queue.MoveTrackDownMsg{Index: 1})
 
 	if m.visual.active {
 		t.Fatal("expected visual mode to exit after move-down")

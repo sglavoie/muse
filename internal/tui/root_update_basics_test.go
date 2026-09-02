@@ -72,11 +72,11 @@ func TestUpdateKeyPressDismissesConfigCreatedNotice(t *testing.T) {
 func TestHandleUnhandledMsgForwardsToActiveInput(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue = m.queue.startSaveAsPlaylist(false)
+	m.queue = m.queue.StartSaveAsPlaylist(false)
 
 	next, _ := m.handleUnhandledMsg(tea.KeyPressMsg{Code: 'n', Text: "n"})
 	nm := next.(Model)
-	if got := nm.queue.saveInput.Value(); got != "n" {
+	if got := nm.queue.SaveInput.Value(); got != "n" {
 		t.Fatalf("expected forwarded message to update queue save input, got %q", got)
 	}
 }

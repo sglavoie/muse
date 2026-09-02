@@ -59,7 +59,7 @@ func (m Model) handleArtistOpenAction() (tea.Model, tea.Cmd, bool) {
 		}
 	case arttui.TrackLevel:
 		if m.queueWriter != nil {
-			if cmd := m.browse.artists.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
+			if cmd := m.browse.artists.enqueueFocusedTrack(m.queueWriter, len(m.queue.Entries)); cmd != nil {
 				return m, cmd, true
 			}
 		}
@@ -79,7 +79,7 @@ func (m Model) handleAlbumOpenAction() (tea.Model, tea.Cmd, bool) {
 		}
 	case albtui.TrackLevel:
 		if m.queueWriter != nil {
-			if cmd := m.browse.albums.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
+			if cmd := m.browse.albums.enqueueFocusedTrack(m.queueWriter, len(m.queue.Entries)); cmd != nil {
 				return m, cmd, true
 			}
 		}
@@ -112,7 +112,7 @@ func (m Model) handleGenreOpenAction() (tea.Model, tea.Cmd, bool) {
 		}
 	case gentui.TrackLevel:
 		if m.queueWriter != nil {
-			if cmd := m.browse.genres.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
+			if cmd := m.browse.genres.enqueueFocusedTrack(m.queueWriter, len(m.queue.Entries)); cmd != nil {
 				return m, cmd, true
 			}
 		}

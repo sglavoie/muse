@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestDestPickerClearsGenresSelection verifies that dismissing, creating from,
@@ -119,12 +120,12 @@ func TestDestPickerCreateExitsVisualMode(t *testing.T) {
 // the queue and playlists views too, not just library/browse/favorites/tags.
 func TestClearAllSelectionsClearsQueueAndPlaylists(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{{Hash: "h1", Selected: true}, {Hash: "h2", Selected: true}}
+	m.queue.Entries = []queue.Entry{{Hash: "h1", Selected: true}, {Hash: "h2", Selected: true}}
 	m.playlists.SelectedTrackIDs = map[int64]struct{}{1: {}, 2: {}}
 
 	got := m.clearAllSelections()
 
-	for i, e := range got.queue.entries {
+	for i, e := range got.queue.Entries {
 		if e.Selected {
 			t.Errorf("queue entry %d should be deselected", i)
 		}

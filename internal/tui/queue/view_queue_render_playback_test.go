@@ -1,4 +1,4 @@
-package tui
+package queue
 
 import (
 	"strings"
@@ -12,14 +12,14 @@ import (
 // TestQueueRenderPlayedRowDimGlyph verifies that an entry before the
 // now-playing index renders with the played-tier ╵ left glyph and dim styling.
 func TestQueueRenderPlayedRowDimGlyph(t *testing.T) {
-	v := makeQueue(120, []QueueEntry{
+	v := makeQueue(120, []Entry{
 		{Title: "Past", Artist: "A", Hash: "aaa", DurationMs: 60_000},
 		{Title: "Now", Artist: "B", Hash: "bbb", DurationMs: 60_000},
 		{Title: "Next", Artist: "C", Hash: "ccc", DurationMs: 60_000},
 	})
-	v.cursor = 1
+	v.Cursor = 1
 	s := styles.NewStyles(true)
-	out := v.render(s, 1, playback.StatePlaying, nil, nil, nil)
+	out := v.Render(s, 1, playback.StatePlaying, nil, nil, nil)
 
 	var pastLine, nextLine string
 	for l := range strings.SplitSeq(out, "\n") {
@@ -54,13 +54,13 @@ func TestQueueRenderPlayedRowDimGlyph(t *testing.T) {
 // TestQueueRenderUpcomingRowNotDimmed verifies that an entry after the
 // now-playing index keeps full-contrast styling (no PlayedRow override).
 func TestQueueRenderUpcomingRowNotDimmed(t *testing.T) {
-	v := makeQueue(120, []QueueEntry{
+	v := makeQueue(120, []Entry{
 		{Title: "Now", Artist: "A", Hash: "aaa", DurationMs: 60_000},
 		{Title: "Upcoming", Artist: "B", Hash: "bbb", DurationMs: 60_000},
 	})
-	v.cursor = 0
+	v.Cursor = 0
 	s := styles.NewStyles(true)
-	out := v.render(s, 0, playback.StatePlaying, nil, nil, nil)
+	out := v.Render(s, 0, playback.StatePlaying, nil, nil, nil)
 
 	var line string
 	for l := range strings.SplitSeq(out, "\n") {
@@ -80,11 +80,11 @@ func TestQueueRenderUpcomingRowNotDimmed(t *testing.T) {
 // TestQueueRenderNoPlayedTierWhenIdle verifies that with no now-playing index
 // (-1), no rows are treated as played.
 func TestQueueRenderNoPlayedTierWhenIdle(t *testing.T) {
-	v := makeQueue(120, []QueueEntry{
+	v := makeQueue(120, []Entry{
 		{Title: "One", Artist: "A", Hash: "aaa", DurationMs: 60_000},
 		{Title: "Two", Artist: "B", Hash: "bbb", DurationMs: 60_000},
 	})
-	out := v.render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
+	out := v.Render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
 	if strings.Contains(ansi.Strip(out), "╵") {
 		t.Errorf("no rows should be dimmed when idle; got: %q", ansi.Strip(out))
 	}
@@ -94,13 +94,13 @@ func TestQueueRenderNoPlayedTierWhenIdle(t *testing.T) {
 // is both selected and in the played tier keeps the selection "●" marker
 // (selection precedence wins over the played ╵ glyph).
 func TestQueueRenderSelectedPlayedShowsSelectionMarker(t *testing.T) {
-	v := makeQueue(120, []QueueEntry{
+	v := makeQueue(120, []Entry{
 		{Title: "PastSel", Artist: "A", Hash: "aaa", DurationMs: 60_000, Selected: true},
 		{Title: "Now", Artist: "B", Hash: "bbb", DurationMs: 60_000},
 	})
-	v.cursor = 1
+	v.Cursor = 1
 	s := styles.NewStyles(true)
-	out := v.render(s, 1, playback.StatePlaying, nil, nil, nil)
+	out := v.Render(s, 1, playback.StatePlaying, nil, nil, nil)
 
 	var line string
 	for l := range strings.SplitSeq(out, "\n") {

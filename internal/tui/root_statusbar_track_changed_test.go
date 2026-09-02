@@ -5,11 +5,12 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 func TestTrackChangedMsgUpdatesStatusBar(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
 
 	nm, _ := updateModel(m, playback.TrackChangedMsg{Artist: "New Artist", Title: "New Title", PlaylistSource: "My Playlist"})
 
@@ -23,7 +24,7 @@ func TestTrackChangedMsgUpdatesStatusBar(t *testing.T) {
 
 func TestTrackChangedMsgDefaultsPlaylistSourceToQueue(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
 
 	nm, _ := updateModel(m, playback.TrackChangedMsg{Artist: "A", Title: "T"})
 	assertViewContains(t, nm, "Queue")
@@ -31,7 +32,7 @@ func TestTrackChangedMsgDefaultsPlaylistSourceToQueue(t *testing.T) {
 
 func TestTrackChangedClearsPreviousAlbumWhenHashNotFound(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.flac"}, {ID: 2, Hash: "unknown", Path: "/b.flac"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h1", Path: "/a.flac"}, {ID: 2, Hash: "unknown", Path: "/b.flac"}}
 	m.statusBar.Album = "Previous Album"
 
 	nm, _ := updateModel(m, playback.TrackChangedMsg{Hash: "unknown", Artist: "New Artist", Title: "New Title", Index: 1})

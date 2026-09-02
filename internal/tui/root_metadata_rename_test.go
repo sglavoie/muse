@@ -10,6 +10,7 @@ import (
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/metadata"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestRenameArtistFromArtistsView verifies that pressing M at ArtistLevel opens
@@ -218,7 +219,7 @@ func TestRenameUpdatesQueueAlbum(t *testing.T) {
 	m := newModelWithTracks()
 	m = switchToAlbumsMode(m)
 
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Title: "Track A1", Artist: "Alice", Album: "Alpha", Display: "Alice - Track A1"},
 		{Hash: "h4", Title: "Track G1", Artist: "Bob", Album: "Gamma", Display: "Bob - Track G1"},
 	}
@@ -235,7 +236,7 @@ func TestRenameUpdatesQueueAlbum(t *testing.T) {
 	m = result.(Model)
 
 	found := false
-	for _, e := range m.queue.entries {
+	for _, e := range m.queue.Entries {
 		if e.Hash == "h1" {
 			found = true
 			if e.Album != "Renamedalbum" {
@@ -247,7 +248,7 @@ func TestRenameUpdatesQueueAlbum(t *testing.T) {
 		t.Error("queue entry for h1 not found")
 	}
 
-	for _, e := range m.queue.entries {
+	for _, e := range m.queue.Entries {
 		if e.Hash == "h4" && e.Album != "Gamma" {
 			t.Errorf("queue entry h4: expected Album=%q (unchanged), got %q", "Gamma", e.Album)
 		}
@@ -259,11 +260,11 @@ func TestRenameUpdatesQueueAlbum(t *testing.T) {
 func TestSingleTrackMetadataSaveUpdatesQueueAlbum(t *testing.T) {
 	m := newModelWithTracks()
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Title: "Track A1", Artist: "Alice", Album: "Alpha", Display: "Alice - Track A1"},
 		{Hash: "h4", Title: "Track G1", Artist: "Bob", Album: "Gamma", Display: "Bob - Track G1"},
 	}
-	m.queue.cursor = 0
+	m.queue.Cursor = 0
 
 	ed := metadata.NewEditor("h1", "Track A1", "Alice", "Alpha", "", 0)
 	m.overlay.metadataEditor = &ed
@@ -278,11 +279,11 @@ func TestSingleTrackMetadataSaveUpdatesQueueAlbum(t *testing.T) {
 	result, _ := m.handleMetadataSave()
 	nm := result.(Model)
 
-	if nm.queue.entries[0].Album != "NewAlbum" {
-		t.Errorf("queue entry h1: expected Album=%q, got %q", "NewAlbum", nm.queue.entries[0].Album)
+	if nm.queue.Entries[0].Album != "NewAlbum" {
+		t.Errorf("queue entry h1: expected Album=%q, got %q", "NewAlbum", nm.queue.Entries[0].Album)
 	}
-	if nm.queue.entries[1].Album != "Gamma" {
-		t.Errorf("queue entry h4: expected Album=%q (unchanged), got %q", "Gamma", nm.queue.entries[1].Album)
+	if nm.queue.Entries[1].Album != "Gamma" {
+		t.Errorf("queue entry h4: expected Album=%q (unchanged), got %q", "Gamma", nm.queue.Entries[1].Album)
 	}
 }
 

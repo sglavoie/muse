@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestRootUpdatePlayQueueIndexMsgCallsPlayerPlayFromIndex verifies that root
@@ -15,7 +16,7 @@ import (
 func TestRootUpdatePlayQueueIndexMsgCallsPlayerPlayFromIndex(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
 	}
@@ -41,11 +42,11 @@ func TestRootUpdateEnterInQueueViewDelegatesToQueueUpdate(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
 	}
-	m.queue.cursor = 0
+	m.queue.Cursor = 0
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if cmd == nil {
@@ -74,7 +75,7 @@ func TestPlayQueueIndexMsgUpdatesCurrentTrackHash(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.currentHash = "stale-hash"
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "hash-a", Path: "/a.flac", Display: "A", Artist: "A", Title: "One"},
 		{ID: 2, Hash: "hash-b", Path: "/b.flac", Display: "B", Artist: "B", Title: "Two"},
 	}

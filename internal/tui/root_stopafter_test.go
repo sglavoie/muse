@@ -7,6 +7,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -107,7 +108,7 @@ func TestStopAfterCurrentOverridesRepeatAll(t *testing.T) {
 	m.playback.state = playback.StatePlaying
 	m.playback.repeatMode = playback.RepeatAll
 	m.playback.stopAfterCurrent = true
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/music/a.flac", Display: "A"},
 	}
 

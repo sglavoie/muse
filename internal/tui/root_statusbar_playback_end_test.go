@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 func TestPlaybackEndedMsgShowsQueueFinishedWhenEmptyRepeatOff(t *testing.T) {
@@ -48,7 +49,7 @@ func TestPlaybackEndedMsgNoSoundWhenRepeatNotOff(t *testing.T) {
 func TestPlaybackEndedMsgShowsNotificationWithEntriesPresent(t *testing.T) {
 	m := New(context.Background())
 	m.playback.repeatMode = playback.RepeatOff
-	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Display: "Track 1"}}
 
 	nm, _ := updateModel(m, playback.PlaybackEndedMsg{})
 	if nm.statusBar.TopNotification().Msg != "Queue finished" {

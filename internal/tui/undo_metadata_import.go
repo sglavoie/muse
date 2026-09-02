@@ -51,14 +51,14 @@ func (a undoImportMetadataAction) perform(m Model) (Model, tea.Cmd) {
 			}
 		}
 		display := text.TrackDisplay(orig.artist, orig.title, "")
-		for i := range m.queue.entries {
-			if m.queue.entries[i].Hash == hash {
-				m.queue.entries[i].Title = orig.title
-				m.queue.entries[i].Artist = orig.artist
-				m.queue.entries[i].Album = orig.album
-				m.queue.entries[i].Display = display
-				m.queue.entries[i].TrackNumber = orig.track
-				m.queue.entries[i].DiscNumber = orig.disc
+		for i := range m.queue.Entries {
+			if m.queue.Entries[i].Hash == hash {
+				m.queue.Entries[i].Title = orig.title
+				m.queue.Entries[i].Artist = orig.artist
+				m.queue.Entries[i].Album = orig.album
+				m.queue.Entries[i].Display = display
+				m.queue.Entries[i].TrackNumber = orig.track
+				m.queue.Entries[i].DiscNumber = orig.disc
 			}
 		}
 		m = m.syncStatusBarMetadata(hash, orig.artist, orig.title)

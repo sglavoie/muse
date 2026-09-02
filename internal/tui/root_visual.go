@@ -39,7 +39,7 @@ func activeViewCursor(m Model) int {
 	case viewPlaylists:
 		return m.playlists.Cursor
 	case viewQueue:
-		return m.queue.cursor
+		return m.queue.Cursor
 	case viewBrowse:
 		switch m.browse.mode {
 		case BrowseModeArtists:
@@ -157,7 +157,7 @@ func visualListLen(m Model) int {
 	case viewLibrary:
 		return m.library.TrackCount()
 	case viewQueue:
-		return len(m.queue.filteredEntries())
+		return len(m.queue.FilteredEntries())
 	case viewPlaylists:
 		return len(m.playlists.Tracks)
 	case viewBrowse:
@@ -203,7 +203,7 @@ func takeSnapshot(m Model) selectionSnapshot {
 	case viewLibrary:
 		snap.hashes = cloneStringSet(m.library.SelectedHashes)
 	case viewQueue:
-		for i, e := range m.queue.entries {
+		for i, e := range m.queue.Entries {
 			if e.Selected {
 				if snap.queueSel == nil {
 					snap.queueSel = make(map[int]bool)
@@ -238,8 +238,8 @@ func restoreSnapshot(m Model) Model {
 	case viewLibrary:
 		m.library.SelectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 	case viewQueue:
-		for i := range m.queue.entries {
-			m.queue.entries[i].Selected = m.visual.snapshot.queueSel[i]
+		for i := range m.queue.Entries {
+			m.queue.Entries[i].Selected = m.visual.snapshot.queueSel[i]
 		}
 	case viewPlaylists:
 		m.playlists.SelectedTrackIDs = cloneInt64Set(m.visual.snapshot.trackIDs)
@@ -268,14 +268,14 @@ func selectRange(m Model, lo, hi int) Model {
 	case viewLibrary:
 		m.library = libSelectRange(m.library, lo, hi)
 	case viewQueue:
-		filtered := m.queue.filteredEntries()
+		filtered := m.queue.FilteredEntries()
 		for i := lo; i <= hi; i++ {
 			if i < 0 || i >= len(filtered) {
 				continue
 			}
-			idx := filtered[i].origIdx
-			if idx >= 0 && idx < len(m.queue.entries) {
-				m.queue.entries[idx].Selected = true
+			idx := filtered[i].OrigIdx
+			if idx >= 0 && idx < len(m.queue.Entries) {
+				m.queue.Entries[idx].Selected = true
 			}
 		}
 	case viewPlaylists:

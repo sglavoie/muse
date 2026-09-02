@@ -138,8 +138,8 @@ func (m Model) clearActiveViewSelection() Model {
 	case viewLibrary:
 		m.library = m.library.ClearSelection()
 	case viewQueue:
-		for i := range m.queue.entries {
-			m.queue.entries[i].Selected = false
+		for i := range m.queue.Entries {
+			m.queue.Entries[i].Selected = false
 		}
 	case viewPlaylists:
 		m.playlists.SelectedTrackIDs = nil

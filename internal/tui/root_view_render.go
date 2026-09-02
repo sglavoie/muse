@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -181,7 +182,7 @@ func (m Model) renderPrimaryBody() string {
 	if time.Now().Before(m.pulseUntil) {
 		displayStyles = applyNowPlayingPulse(displayStyles)
 	}
-	nowPlayingIcon, _ := nowPlayingIndicator(displayStyles, m.playback.state)
+	nowPlayingIcon, _ := queue.NowPlayingIndicator(displayStyles, m.playback.state)
 	return m.renderPrimaryViewBody(displayStyles, nowPlayingIcon)
 }
 
@@ -192,7 +193,7 @@ func (m Model) renderPrimaryViewBody(display styles.Styles, nowPlayingIcon strin
 	case viewPlaylists:
 		return m.playlists.Render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
 	case viewQueue:
-		return m.queue.render(display, m.playback.currentIndex, m.playback.state, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
+		return m.queue.Render(display, m.playback.currentIndex, m.playback.state, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 	case viewBrowse:
 		return m.browse.render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
 	case viewFavorites:

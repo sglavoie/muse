@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestRootQueueLocalDDispatchesDequeueMsg verifies the end-to-end path: pressing
@@ -12,17 +13,17 @@ import (
 func TestRootQueueLocalDDispatchesDequeueMsg(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
 	}
-	m.queue.cursor = 1
+	m.queue.Cursor = 1
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	if cmd == nil {
 		t.Fatal("'d' in queue view: expected non-nil cmd")
 	}
-	msg, ok := cmd().(DequeueTrackMsg)
+	msg, ok := cmd().(queue.DequeueTrackMsg)
 	if !ok {
 		t.Fatalf("'d' in queue view: expected DequeueTrackMsg, got %T", cmd())
 	}
@@ -36,16 +37,16 @@ func TestRootQueueLocalDDispatchesDequeueMsg(t *testing.T) {
 func TestRootQueueLocalXDispatchesBulkSelectionToggleMsg(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 	}
-	m.queue.cursor = 0
+	m.queue.Cursor = 0
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
 	if cmd == nil {
 		t.Fatal("'x' in queue view: expected non-nil cmd")
 	}
-	if _, ok := cmd().(BulkSelectionToggleMsg); !ok {
+	if _, ok := cmd().(queue.BulkSelectionToggleMsg); !ok {
 		t.Fatalf("'x' in queue view: expected BulkSelectionToggleMsg, got %T", cmd())
 	}
 }
@@ -56,7 +57,7 @@ func TestRootQueueLocalXDispatchesBulkSelectionToggleMsg(t *testing.T) {
 func TestRootQueueLocalCDispatchesClearQueueMsg(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 	}
 
@@ -64,7 +65,7 @@ func TestRootQueueLocalCDispatchesClearQueueMsg(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("'C' in queue view: expected non-nil cmd")
 	}
-	if _, ok := cmd().(ClearQueueMsg); !ok {
+	if _, ok := cmd().(queue.ClearQueueMsg); !ok {
 		t.Fatalf("'C' in queue view: expected ClearQueueMsg, got %T", cmd())
 	}
 }
@@ -74,17 +75,17 @@ func TestRootQueueLocalCDispatchesClearQueueMsg(t *testing.T) {
 func TestRootQueueLocalKDispatchesMoveTrackUpMsg(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
 	}
-	m.queue.cursor = 1
+	m.queue.Cursor = 1
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'K', Text: "K"})
 	if cmd == nil {
 		t.Fatal("'K' in queue view: expected non-nil cmd")
 	}
-	msg, ok := cmd().(MoveTrackUpMsg)
+	msg, ok := cmd().(queue.MoveTrackUpMsg)
 	if !ok {
 		t.Fatalf("'K' in queue view: expected MoveTrackUpMsg, got %T", cmd())
 	}
@@ -98,17 +99,17 @@ func TestRootQueueLocalKDispatchesMoveTrackUpMsg(t *testing.T) {
 func TestRootQueueLocalJDispatchesMoveTrackDownMsg(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
 	}
-	m.queue.cursor = 0
+	m.queue.Cursor = 0
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'J', Text: "J"})
 	if cmd == nil {
 		t.Fatal("'J' in queue view: expected non-nil cmd")
 	}
-	msg, ok := cmd().(MoveTrackDownMsg)
+	msg, ok := cmd().(queue.MoveTrackDownMsg)
 	if !ok {
 		t.Fatalf("'J' in queue view: expected MoveTrackDownMsg, got %T", cmd())
 	}

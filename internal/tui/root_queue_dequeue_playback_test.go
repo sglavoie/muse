@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestDequeuePlayingTrackClearsStatusBar verifies that dequeuing the currently
@@ -19,12 +20,12 @@ func TestDequeuePlayingTrackClearsStatusBar(t *testing.T) {
 	m.statusBar.PlaylistSource = "Queue"
 	m.playback.elapsedSecs = 42.0
 	m.playback.totalSecs = 180.0
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/music/a.flac", Display: "A", Hash: "abc123"},
 		{ID: 20, Path: "/music/b.flac", Display: "B", Hash: "other"},
 	}
 
-	next, _ := m.Update(DequeueTrackMsg{Index: 0})
+	next, _ := m.Update(queue.DequeueTrackMsg{Index: 0})
 	nm := next.(Model)
 
 	if nm.playback.state != playback.StateIdle {
@@ -63,13 +64,13 @@ func TestDequeueDuplicateHashKeepsPlayback(t *testing.T) {
 	m.playback.currentHash = "abc123"
 	m.statusBar.Artist = "Artist"
 	m.statusBar.Title = "Title"
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/music/a.flac", Display: "A", Hash: "abc123"},
 		{ID: 20, Path: "/music/a.flac", Display: "A (dup)", Hash: "abc123"},
 		{ID: 30, Path: "/music/b.flac", Display: "B", Hash: "other"},
 	}
 
-	next, _ := m.Update(DequeueTrackMsg{Index: 0})
+	next, _ := m.Update(queue.DequeueTrackMsg{Index: 0})
 	nm := next.(Model)
 
 	if nm.playback.state != playback.StatePlaying {
@@ -95,12 +96,12 @@ func TestDequeueLastInstanceOfHashStopsPlayback(t *testing.T) {
 	m.playback.currentHash = "abc123"
 	m.statusBar.Artist = "Artist"
 	m.statusBar.Title = "Title"
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/music/a.flac", Display: "A", Hash: "abc123"},
 		{ID: 20, Path: "/music/b.flac", Display: "B", Hash: "other"},
 	}
 
-	next, _ := m.Update(DequeueTrackMsg{Index: 0})
+	next, _ := m.Update(queue.DequeueTrackMsg{Index: 0})
 	nm := next.(Model)
 
 	if nm.playback.state != playback.StateIdle {
@@ -126,13 +127,13 @@ func TestDequeueCurrentIndexNonEmptyQueueDoesNotStop(t *testing.T) {
 	m.statusBar.Artist = "Artist"
 	m.statusBar.Title = "Title"
 	m.statusBar.PlaylistSource = "Queue"
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/music/a.flac", Display: "A", Hash: "abc123"},
 		{ID: 20, Path: "/music/b.flac", Display: "B", Hash: "other"},
 		{ID: 30, Path: "/music/c.flac", Display: "C", Hash: "third"},
 	}
 
-	next, _ := m.Update(DequeueTrackMsg{Index: 0})
+	next, _ := m.Update(queue.DequeueTrackMsg{Index: 0})
 	nm := next.(Model)
 
 	if p.stopCalls != 0 {
@@ -168,11 +169,11 @@ func TestDequeueCurrentIndexEmptyQueueStopsPlayback(t *testing.T) {
 	m.playback.currentIndex = 0
 	m.statusBar.Artist = "Artist"
 	m.statusBar.Title = "Title"
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/music/a.flac", Display: "A", Hash: "abc123"},
 	}
 
-	next, _ := m.Update(DequeueTrackMsg{Index: 0})
+	next, _ := m.Update(queue.DequeueTrackMsg{Index: 0})
 	nm := next.(Model)
 
 	if p.stopCalls != 1 {

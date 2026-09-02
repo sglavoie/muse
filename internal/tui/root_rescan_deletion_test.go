@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // recordingScanWriter is a scanWriter stub that both satisfies scanUpsertBatcher
@@ -77,7 +78,7 @@ func TestRescanReconcilesDeletionAfterWatcherDegraded(t *testing.T) {
 
 	// Queue holds the kept track once and the doomed track twice, so we can prove
 	// EVERY in-memory instance of the deletion becomes unavailable.
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: keptHash, Path: keptPath, Title: "Keep", Artist: "A"},
 		{ID: 2, Hash: deletedHash, Path: deletedPath, Title: "Gone", Artist: "B"},
 		{ID: 3, Hash: deletedHash, Path: deletedPath, Title: "Gone", Artist: "B"},
@@ -121,12 +122,12 @@ func TestRescanReconcilesDeletionAfterWatcherDegraded(t *testing.T) {
 
 	// In-memory: the kept instance stays available; both deleted instances are
 	// flagged missing.
-	if m.queue.entries[0].Missing {
+	if m.queue.Entries[0].Missing {
 		t.Error("kept queue instance must not be marked missing")
 	}
-	if !m.queue.entries[1].Missing || !m.queue.entries[2].Missing {
+	if !m.queue.Entries[1].Missing || !m.queue.Entries[2].Missing {
 		t.Errorf("every deleted queue instance must be missing, got %v / %v",
-			m.queue.entries[1].Missing, m.queue.entries[2].Missing)
+			m.queue.Entries[1].Missing, m.queue.Entries[2].Missing)
 	}
 	if m.rescanPriorPaths != nil {
 		t.Error("rescan: prior paths should be cleared after completion")
@@ -151,7 +152,7 @@ func TestRescanReconcilesDeletionAfterWatcherDegraded(t *testing.T) {
 	// 5. Cached startup: a later launch loads queue rows with the persisted
 	// missing state. The deleted track must remain unavailable; the kept one must
 	// not. Model the DB-backed load and assert the durable mark drives it.
-	startup := []QueueEntry{
+	startup := []queue.Entry{
 		{ID: 1, Hash: keptHash, Path: keptPath, Missing: persisted[keptHash]},
 		{ID: 2, Hash: deletedHash, Path: deletedPath, Missing: persisted[deletedHash]},
 	}

@@ -125,9 +125,9 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 	m.library = m.library.RefreshView()
 	m = m.syncRecentlyAddedFromLibrary()
 	newDurationMs := int64(mpvTotal * 1000)
-	for i := range m.queue.entries {
-		if m.queue.entries[i].Hash == hash {
-			m.queue.entries[i].DurationMs = newDurationMs
+	for i := range m.queue.Entries {
+		if m.queue.Entries[i].Hash == hash {
+			m.queue.Entries[i].DurationMs = newDurationMs
 		}
 	}
 	m = m.preserveQueueSort()

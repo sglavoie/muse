@@ -1,13 +1,13 @@
-package tui
+package queue
 
 import (
 	"github.com/sglavoie/muse/internal/tui/buckets"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
-// QueueEntryBucket returns the bucket label for a QueueEntry under the given
+// EntryBucket returns the bucket label for an Entry under the given
 // sort field. Returns the empty string when the field has no bucketing.
-func QueueEntryBucket(field sorting.SortField, e QueueEntry) string {
+func EntryBucket(field sorting.SortField, e Entry) string {
 	switch field {
 	case sorting.SortTitle:
 		return buckets.FirstLetter(e.Title)

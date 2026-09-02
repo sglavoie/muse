@@ -9,6 +9,7 @@ import (
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -48,8 +49,8 @@ func (m Model) favoritePickerTracks() []library.Track {
 	case viewLibrary:
 		return m.bulkLibraryTracks()
 	case viewQueue:
-		filtered := m.queue.filteredEntries()
-		if m.queue.hasSelection() {
+		filtered := m.queue.FilteredEntries()
+		if m.queue.HasSelection() {
 			var tracks []library.Track
 			for _, entry := range filtered {
 				if entry.Selected {
@@ -58,8 +59,8 @@ func (m Model) favoritePickerTracks() []library.Track {
 			}
 			return tracks
 		}
-		if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
-			return []library.Track{queueEntryAsTrack(filtered[m.queue.cursor])}
+		if m.queue.Cursor >= 0 && m.queue.Cursor < len(filtered) {
+			return []library.Track{queueEntryAsTrack(filtered[m.queue.Cursor])}
 		}
 	case viewPlaylists:
 		if m.playlists.Level != pltui.TrackLevel {
@@ -130,7 +131,7 @@ func (m Model) favoritePickerTracks() []library.Track {
 	return nil
 }
 
-func queueEntryAsTrack(entry QueueEntry) library.Track {
+func queueEntryAsTrack(entry queue.Entry) library.Track {
 	return library.Track{
 		Hash: entry.Hash, Path: entry.Path, Artist: entry.Artist, Title: entry.Title,
 		Album: entry.Album, Duration: float64(entry.DurationMs) / 1000,

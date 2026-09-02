@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestEnqueueReplaceEmptyLibraryDoesNotClearQueue verifies that
@@ -14,17 +15,17 @@ func TestEnqueueReplaceEmptyLibraryDoesNotClearQueue(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
 	m.activeView = viewLibrary
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Title: "Existing", Artist: "A"},
 	}
 
 	next, _ := m.handleKeyAction(keys.ActionLibraryEnqueueReplace)
 	nm := next.(Model)
-	if len(nm.queue.entries) == 0 {
+	if len(nm.queue.Entries) == 0 {
 		t.Fatal("queue must not be cleared when library is empty")
 	}
-	if len(nm.queue.entries) != 1 || nm.queue.entries[0].Hash != "h1" {
-		t.Errorf("queue should be unchanged; got %d entries", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 1 || nm.queue.Entries[0].Hash != "h1" {
+		t.Errorf("queue should be unchanged; got %d entries", len(nm.queue.Entries))
 	}
 }
 
@@ -35,16 +36,16 @@ func TestEnqueueReplaceFavoritesCategoryLevelDoesNotClearQueue(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
 	m.activeView = viewFavorites
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Title: "Existing", Artist: "A"},
 	}
 
 	next, _ := m.handleKeyAction(keys.ActionLibraryEnqueueReplace)
 	nm := next.(Model)
-	if len(nm.queue.entries) == 0 {
+	if len(nm.queue.Entries) == 0 {
 		t.Fatal("queue must not be cleared at favorites CategoryLevel")
 	}
-	if len(nm.queue.entries) != 1 || nm.queue.entries[0].Hash != "h1" {
-		t.Errorf("queue should be unchanged; got %d entries", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 1 || nm.queue.Entries[0].Hash != "h1" {
+		t.Errorf("queue should be unchanged; got %d entries", len(nm.queue.Entries))
 	}
 }

@@ -9,8 +9,8 @@ import (
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/player"
-	"github.com/sglavoie/muse/internal/tui"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 const mpvSocketName = "mpv.sock"
@@ -22,7 +22,7 @@ const mpvSocketName = "mpv.sock"
 type RestoredSession struct {
 	// QueueEntries are the TUI-ready queue entries ordered by position.
 	// Missing is set to true for any entry whose file cannot be stat-ed.
-	QueueEntries []tui.QueueEntry
+	QueueEntries []queue.Entry
 
 	// PlayerTracks are the ordered player queue tracks, parallel to QueueEntries.
 	// BLAKE3 content hash is used as the track identity key.

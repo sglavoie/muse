@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -25,7 +26,7 @@ func TestViewStatusBarHidesConfigPathAfterFirstRun(t *testing.T) {
 func TestStatusBarReceivesTrackInfoBeforeRender(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.queue.entries = []QueueEntry{{Path: "/a.flac", Display: "The Artist – The Song", Artist: "The Artist", Title: "The Song"}}
+	m.queue.Entries = []queue.Entry{{Path: "/a.flac", Display: "The Artist – The Song", Artist: "The Artist", Title: "The Song"}}
 
 	nm, _ := updateModel(m, playback.PlayQueueIndexMsg{Index: 0})
 
@@ -66,9 +67,9 @@ func TestStatusBarRendersElapsedTime(t *testing.T) {
 
 func TestStatusBarHidesStaleQueuePosition(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{{ID: 1, Path: "/a.flac"}, {ID: 2, Path: "/b.flac"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Path: "/a.flac"}, {ID: 2, Path: "/b.flac"}}
 	m.playback.state = playback.StatePlaying
-	m.playback.currentIndex = len(m.queue.entries)
+	m.playback.currentIndex = len(m.queue.Entries)
 	m.statusBar.Artist = "Artist"
 	m.statusBar.Title = "Title"
 	m.termWidth = 200

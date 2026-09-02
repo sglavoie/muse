@@ -1,4 +1,4 @@
-package tui
+package queue
 
 import (
 	"testing"
@@ -30,46 +30,46 @@ func TestFormatQueueDuration(t *testing.T) {
 }
 
 func TestQueueMoveQueueCursorEmpty(t *testing.T) {
-	q := QueueView{cursor: 0}
-	q2 := q.moveQueueCursor(5)
-	if q2.cursor != 0 {
-		t.Errorf("moveQueueCursor empty: expected 0, got %d", q2.cursor)
+	q := View{Cursor: 0}
+	q2 := q.MoveQueueCursor(5)
+	if q2.Cursor != 0 {
+		t.Errorf("moveQueueCursor empty: expected 0, got %d", q2.Cursor)
 	}
 }
 
 func TestQueueVisibleRowsZeroHeight(t *testing.T) {
-	q := QueueView{height: 0}
-	if q.visibleRows() != 50 {
-		t.Errorf("visibleRows height=0: expected 50, got %d", q.visibleRows())
+	q := View{Height: 0}
+	if q.VisibleRows() != 50 {
+		t.Errorf("visibleRows height=0: expected 50, got %d", q.VisibleRows())
 	}
 }
 
 func TestQueueVisibleRowsSmallHeight(t *testing.T) {
-	q := QueueView{height: 5}
+	q := View{Height: 5}
 	// reserve = 3 (strip + column header + bottom margin)
-	if q.visibleRows() != 2 {
-		t.Errorf("visibleRows height=5: expected 2, got %d", q.visibleRows())
+	if q.VisibleRows() != 2 {
+		t.Errorf("visibleRows height=5: expected 2, got %d", q.VisibleRows())
 	}
 }
 
 // TestFilteredEntriesStaleDisplayOrder verifies that filteredEntries does not
 // panic when displayOrder has a different length than entries (stale sort).
 func TestFilteredEntriesStaleDisplayOrder(t *testing.T) {
-	v := QueueView{
-		entries: []QueueEntry{
+	v := View{
+		Entries: []Entry{
 			{Title: "A", Artist: "X"},
 			{Title: "B", Artist: "Y"},
 			{Title: "C", Artist: "Z"},
 		},
-		displayOrder: []int{1, 0},
+		DisplayOrder: []int{1, 0},
 	}
-	got := v.filteredEntries()
+	got := v.FilteredEntries()
 	if len(got) != 3 {
 		t.Fatalf("expected 3 entries, got %d", len(got))
 	}
 	for i, e := range got {
-		if e.origIdx != i {
-			t.Errorf("entry %d: origIdx = %d, want %d", i, e.origIdx, i)
+		if e.OrigIdx != i {
+			t.Errorf("entry %d: origIdx = %d, want %d", i, e.OrigIdx, i)
 		}
 	}
 }
@@ -78,21 +78,21 @@ func TestFilteredEntriesStaleDisplayOrder(t *testing.T) {
 // back to insertion order rather than panicking when a stale displayOrder has
 // the right length but contains an invalid entry index.
 func TestFilteredEntriesInvalidDisplayOrder(t *testing.T) {
-	v := QueueView{
-		entries: []QueueEntry{
+	v := View{
+		Entries: []Entry{
 			{Title: "A", Artist: "X"},
 			{Title: "B", Artist: "Y"},
 			{Title: "C", Artist: "Z"},
 		},
-		displayOrder: []int{2, 3, 0},
+		DisplayOrder: []int{2, 3, 0},
 	}
-	got := v.filteredEntries()
+	got := v.FilteredEntries()
 	if len(got) != 3 {
 		t.Fatalf("expected 3 entries, got %d", len(got))
 	}
 	for i, e := range got {
-		if e.origIdx != i {
-			t.Errorf("entry %d: origIdx = %d, want %d", i, e.origIdx, i)
+		if e.OrigIdx != i {
+			t.Errorf("entry %d: origIdx = %d, want %d", i, e.OrigIdx, i)
 		}
 	}
 }
@@ -100,42 +100,42 @@ func TestFilteredEntriesInvalidDisplayOrder(t *testing.T) {
 // TestFilteredEntriesOrigIdx verifies that origIdx is set correctly by
 // filteredEntries with and without a displayOrder.
 func TestFilteredEntriesOrigIdx(t *testing.T) {
-	v := QueueView{
-		entries: []QueueEntry{
+	v := View{
+		Entries: []Entry{
 			{Title: "A", Artist: "X"},
 			{Title: "B", Artist: "Y"},
 			{Title: "C", Artist: "Z"},
 		},
 	}
-	got := v.filteredEntries()
+	got := v.FilteredEntries()
 	for i, e := range got {
-		if e.origIdx != i {
-			t.Errorf("unsorted entry %d: origIdx = %d, want %d", i, e.origIdx, i)
+		if e.OrigIdx != i {
+			t.Errorf("unsorted entry %d: origIdx = %d, want %d", i, e.OrigIdx, i)
 		}
 	}
 
-	v.displayOrder = []int{2, 1, 0}
-	got = v.filteredEntries()
-	if got[0].origIdx != 2 || got[1].origIdx != 1 || got[2].origIdx != 0 {
+	v.DisplayOrder = []int{2, 1, 0}
+	got = v.FilteredEntries()
+	if got[0].OrigIdx != 2 || got[1].OrigIdx != 1 || got[2].OrigIdx != 0 {
 		t.Errorf("sorted origIdx: got %d,%d,%d; want 2,1,0",
-			got[0].origIdx, got[1].origIdx, got[2].origIdx)
+			got[0].OrigIdx, got[1].OrigIdx, got[2].OrigIdx)
 	}
 }
 
 // TestQueueVisibleRowsAbsorbsFilter verifies that the state strip absorbs the
 // filter chunk, so visibleRows does not change with filter state.
 func TestQueueVisibleRowsAbsorbsFilter(t *testing.T) {
-	q := QueueView{height: 20}
-	baseRows := q.visibleRows()
+	q := View{Height: 20}
+	baseRows := q.VisibleRows()
 
-	q.filter.Active = true
-	if got := q.visibleRows(); got != baseRows {
+	q.Filter.Active = true
+	if got := q.VisibleRows(); got != baseRows {
 		t.Errorf("active filter: expected %d (strip absorbs filter), got %d", baseRows, got)
 	}
 
-	q.filter.Active = false
-	q.filter.Text = "hello"
-	if got := q.visibleRows(); got != baseRows {
+	q.Filter.Active = false
+	q.Filter.Text = "hello"
+	if got := q.VisibleRows(); got != baseRows {
 		t.Errorf("committed filter text: expected %d (strip absorbs filter), got %d", baseRows, got)
 	}
 }
@@ -143,11 +143,11 @@ func TestQueueVisibleRowsAbsorbsFilter(t *testing.T) {
 // TestQueueVisibleRowsAccountsForSaveInput verifies that visibleRows reserves
 // an extra line when the save-as-playlist input is active.
 func TestQueueVisibleRowsAccountsForSaveInput(t *testing.T) {
-	q := QueueView{height: 20}
-	baseRows := q.visibleRows()
+	q := View{Height: 20}
+	baseRows := q.VisibleRows()
 
-	q.savingAsPlaylist = true
-	if got := q.visibleRows(); got != baseRows-1 {
+	q.SavingAsPlaylist = true
+	if got := q.VisibleRows(); got != baseRows-1 {
 		t.Errorf("save input active: expected %d, got %d", baseRows-1, got)
 	}
 }
@@ -156,12 +156,12 @@ func TestQueueVisibleRowsAccountsForSaveInput(t *testing.T) {
 // filter and the save-as-playlist input are active, only the save input affects
 // visibleRows (the filter is absorbed by the state strip).
 func TestQueueVisibleRowsAccountsForBothFilterAndSave(t *testing.T) {
-	q := QueueView{height: 20}
-	baseRows := q.visibleRows()
+	q := View{Height: 20}
+	baseRows := q.VisibleRows()
 
-	q.filter.Active = true
-	q.savingAsPlaylist = true
-	if got := q.visibleRows(); got != baseRows-1 {
+	q.Filter.Active = true
+	q.SavingAsPlaylist = true
+	if got := q.VisibleRows(); got != baseRows-1 {
 		t.Errorf("both filter and save: expected %d (only save reserves), got %d", baseRows-1, got)
 	}
 }

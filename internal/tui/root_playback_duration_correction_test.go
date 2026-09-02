@@ -12,6 +12,7 @@ import (
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -296,24 +297,24 @@ func TestCorrectStoredDurationRebuildsQueueSortCache(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Duration: 100.0})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", DurationMs: 360000},
 		{ID: 2, Hash: "h2", Path: "/b.flac", DurationMs: 100000},
 	}
-	m.queue.sortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
-	m.queue = m.queue.recomputeDisplayOrder()
-	if m.queue.entries[m.queue.displayOrder[0]].Hash != "h2" {
-		t.Fatalf("pre-correction queue order: want h2 first, got %s", m.queue.entries[m.queue.displayOrder[0]].Hash)
+	m.queue.SortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
+	m.queue = m.queue.RecomputeDisplayOrder()
+	if m.queue.Entries[m.queue.DisplayOrder[0]].Hash != "h2" {
+		t.Fatalf("pre-correction queue order: want h2 first, got %s", m.queue.Entries[m.queue.DisplayOrder[0]].Hash)
 	}
 
 	// Correct h1 down to 50s — h1 (50) should now be ordered before h2 (100).
 	nm, _ := m.correctStoredDuration("h1", 50.0)
 
-	if len(nm.queue.displayOrder) != 2 {
-		t.Fatalf("post-correction displayOrder len: got %d, want 2", len(nm.queue.displayOrder))
+	if len(nm.queue.DisplayOrder) != 2 {
+		t.Fatalf("post-correction displayOrder len: got %d, want 2", len(nm.queue.DisplayOrder))
 	}
-	if nm.queue.entries[nm.queue.displayOrder[0]].Hash != "h1" {
+	if nm.queue.Entries[nm.queue.DisplayOrder[0]].Hash != "h1" {
 		t.Errorf("post-correction queue order: want h1 first, got %s",
-			nm.queue.entries[nm.queue.displayOrder[0]].Hash)
+			nm.queue.Entries[nm.queue.DisplayOrder[0]].Hash)
 	}
 }

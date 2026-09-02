@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestTrackChangedClearsQueueExhausted verifies that receiving a
@@ -12,7 +13,7 @@ import (
 func TestTrackChangedClearsQueueExhausted(t *testing.T) {
 	m := New(context.Background())
 	m.playback.queueExhausted = true
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "A", Title: "One"},
 	}
 
@@ -39,7 +40,7 @@ func TestTrackChangedRecordsPreviousListen(t *testing.T) {
 	m.playback.totalSecs = 300.0
 	m.playback.listenedSecs = 180.0
 	m.playback.peakTotalSecs = 200.0
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "old-hash", Path: "/a.flac"},
 		{ID: 2, Hash: "new-hash", Path: "/b.flac"},
 	}
@@ -68,7 +69,7 @@ func TestTrackChangedResetsPeak(t *testing.T) {
 	m := New(context.Background())
 	m.playback.peakElapsedSecs = 180.0
 	m.playback.peakTotalSecs = 200.0
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h2", Path: "/b.flac"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h2", Path: "/b.flac"}}
 
 	next, _ := m.Update(playback.TrackChangedMsg{Hash: "h2", Index: 0, Artist: "B", Title: "T2"})
 	nm := next.(Model)
@@ -90,7 +91,7 @@ func TestTrackChangedDiscardedOnEmptyQueue(t *testing.T) {
 	m.playback.currentIndex = -1
 	m.playback.currentHash = ""
 	// Queue is empty (was just cleared).
-	m.queue.entries = nil
+	m.queue.Entries = nil
 
 	next, cmd := m.Update(playback.TrackChangedMsg{Hash: "stale", Index: 3, Artist: "A", Title: "T"})
 	nm := next.(Model)
@@ -115,7 +116,7 @@ func TestTrackChangedDiscardedOnEmptyQueue(t *testing.T) {
 // -1 rather than incorrectly falling back to 0.
 func TestTrackChangedHashNotInQueueUsesNegativeIndex(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "A", Title: "One"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "B", Title: "Two"},
 	}
@@ -141,7 +142,7 @@ func TestTrackChangedHashNotInQueueUsesNegativeIndex(t *testing.T) {
 // gapless transition), the handler falls back to a hash-based lookup.
 func TestTrackChangedClampsOutOfBoundsIndex(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac"},
 		{ID: 2, Hash: "h2", Path: "/b.flac"},
 	}

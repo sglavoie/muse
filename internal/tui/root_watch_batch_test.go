@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -138,7 +139,7 @@ func TestWatchBatchMarksQueueEntriesMissing(t *testing.T) {
 	m.library.Index.Insert(library.Track{
 		Artist: "B", Title: "T2", Path: "/b.flac", Hash: "h2",
 	})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T1"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "B", Title: "T2"},
 	}
@@ -147,10 +148,10 @@ func TestWatchBatchMarksQueueEntriesMissing(t *testing.T) {
 	next, _ := m.Update(watchBatchMsg{deleted: []string{"/a.flac"}})
 	nm := next.(Model)
 
-	if !nm.queue.entries[0].Missing {
+	if !nm.queue.Entries[0].Missing {
 		t.Error("queue entry for /a.flac should be marked Missing after watcher deletion")
 	}
-	if nm.queue.entries[1].Missing {
+	if nm.queue.Entries[1].Missing {
 		t.Error("queue entry for /b.flac should NOT be marked Missing")
 	}
 }
@@ -164,7 +165,7 @@ func TestWatchBatchUpdatesQueueMetadata(t *testing.T) {
 		Artist: "OldArtist", Title: "OldTitle", Album: "OldAlbum",
 		Path: "/a.flac", Hash: "h1",
 	})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac",
 			Artist: "OldArtist", Title: "OldTitle", Album: "OldAlbum",
 			Display: "OldArtist – OldTitle"},
@@ -179,7 +180,7 @@ func TestWatchBatchUpdatesQueueMetadata(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	e := nm.queue.entries[0]
+	e := nm.queue.Entries[0]
 	if e.Artist != "NewArtist" {
 		t.Errorf("expected Artist=%q, got %q", "NewArtist", e.Artist)
 	}
@@ -203,7 +204,7 @@ func TestWatchBatchUpdatesStatusBarForCurrentTrack(t *testing.T) {
 		Artist: "OldArtist", Title: "OldTitle",
 		Path: "/a.flac", Hash: "h1",
 	})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac",
 			Artist: "OldArtist", Title: "OldTitle"},
 	}
@@ -232,7 +233,7 @@ func TestWatchBatchUpdatesStatusBarForCurrentTrack(t *testing.T) {
 // path), its queue entries have the Missing flag cleared.
 func TestWatchBatchClearsMissingOnReappearance(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac",
 			Artist: "A", Title: "T1", Missing: true},
 	}
@@ -245,7 +246,7 @@ func TestWatchBatchClearsMissingOnReappearance(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.queue.entries[0].Missing {
+	if nm.queue.Entries[0].Missing {
 		t.Error("queue entry should no longer be Missing after track reappears")
 	}
 }
@@ -258,7 +259,7 @@ func TestWatchBatchSyncsPlayerQueue(t *testing.T) {
 	m.library.Index.Insert(library.Track{
 		Artist: "Old", Title: "Old", Path: "/a.flac", Hash: "h1",
 	})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Old", Title: "Old"},
 	}
 

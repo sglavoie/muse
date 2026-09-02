@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // mockPlayer records calls to SessionPlayer methods for verification.
@@ -92,7 +93,7 @@ func TestApplyRestoredSession_ShuffleAppliedToPlayer(t *testing.T) {
 	mgr := &mockPlayer{}
 	pr := &mockPlaylistReader{}
 	restored := &app.RestoredSession{
-		QueueEntries: []tui.QueueEntry{
+		QueueEntries: []queue.Entry{
 			{ID: 1, Hash: "hash-1", Path: "/music/a.mp3"},
 		},
 		PlayerTracks: []player.QueueTrack{
@@ -139,7 +140,7 @@ func TestApplyRestoredSession_FullSession(t *testing.T) {
 		},
 	}
 
-	qe := []tui.QueueEntry{
+	qe := []queue.Entry{
 		{ID: 1, Hash: "aaa", Path: "/music/a.mp3", Artist: "Artist A", Title: "Song A", SourcePlaylist: "Rock"},
 		{ID: 2, Hash: "bbb", Path: "/music/b.mp3", Artist: "Artist B", Title: "Song B", SourcePlaylist: "Jazz"},
 	}
@@ -216,7 +217,7 @@ func TestApplyRestoredSession_StatusBarFallbackSource(t *testing.T) {
 	mgr := &mockPlayer{}
 	pr := &mockPlaylistReader{}
 
-	qe := []tui.QueueEntry{
+	qe := []queue.Entry{
 		{ID: 1, Hash: "aaa", Path: "/music/a.mp3", Artist: "Art", Title: "Song"},
 	}
 	pt := []player.QueueTrack{

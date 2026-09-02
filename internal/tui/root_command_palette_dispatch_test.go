@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -105,7 +106,7 @@ func TestCommandPaletteActionSwitchToMixesKeepsLoadCmd(t *testing.T) {
 func TestCommandPaletteActionSwitchToQueueFocusesNowPlaying(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewLibrary
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.mp3"},
 		{Hash: "h2", Path: "/b.mp3"},
 		{Hash: "h3", Path: "/c.mp3"},
@@ -117,8 +118,8 @@ func TestCommandPaletteActionSwitchToQueueFocusesNowPlaying(t *testing.T) {
 	if out.activeView != viewQueue {
 		t.Fatalf("activeView = %v, want viewQueue", out.activeView)
 	}
-	if out.queue.cursor != 2 {
-		t.Errorf("queue cursor = %d, want 2 (FocusNowPlaying side effect lost)", out.queue.cursor)
+	if out.queue.Cursor != 2 {
+		t.Errorf("queue cursor = %d, want 2 (FocusNowPlaying side effect lost)", out.queue.Cursor)
 	}
 }
 

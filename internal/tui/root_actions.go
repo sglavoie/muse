@@ -72,8 +72,8 @@ func (m Model) switchToView(id viewID) Model {
 	m.clearPendingConfirmations()
 	m = m.resetAllSorts()
 	m = exitVisualMode(m)
-	if m.queue.savingAsPlaylist {
-		m.queue = m.queue.cancelSaveAsPlaylist()
+	if m.queue.SavingAsPlaylist {
+		m.queue = m.queue.CancelSaveAsPlaylist()
 	}
 	if m.playlists.Creating {
 		m.playlists = m.playlists.CancelCreate()

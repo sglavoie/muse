@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/metadata"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestMetadataEditUpdatesStatusBarForCurrentTrack verifies that editing
@@ -44,7 +45,7 @@ func TestBulkMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	m.statusBar.Artist = "OldA"
 	m.statusBar.Title = "OldT"
 
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Artist: "OldA", Title: "OldT", Selected: true},
 		{ID: 2, Hash: "h2", Artist: "OldA", Title: "OldT", Selected: true},
 	}

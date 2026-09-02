@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestShuffleClearsSelectionsAndVisualMode verifies that shuffling the queue
@@ -11,7 +13,7 @@ import (
 func TestShuffleClearsSelectionsAndVisualMode(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A", Selected: true},
 		{ID: 2, Hash: "b", Display: "B"},
 		{ID: 3, Hash: "c", Display: "C", Selected: true},
@@ -24,7 +26,7 @@ func TestShuffleClearsSelectionsAndVisualMode(t *testing.T) {
 
 	m, _ = m.handleQueueShuffleMsg()
 
-	for i, e := range m.queue.entries {
+	for i, e := range m.queue.Entries {
 		if e.Selected {
 			t.Errorf("entry %d (%s) should not be selected after shuffle", i, e.Display)
 		}
@@ -40,7 +42,7 @@ func TestDedupClearsSelectionsAndVisualMode(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A", Selected: true},
 		{ID: 2, Hash: "b", Display: "B"},
 		{ID: 3, Hash: "a", Display: "A2"}, // duplicate of hash "a"
@@ -53,10 +55,10 @@ func TestDedupClearsSelectionsAndVisualMode(t *testing.T) {
 
 	m, _ = m.handleQueueDedupMsg()
 
-	if len(m.queue.entries) != 2 {
-		t.Fatalf("expected 2 entries after dedup, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 2 {
+		t.Fatalf("expected 2 entries after dedup, got %d", len(m.queue.Entries))
 	}
-	for i, e := range m.queue.entries {
+	for i, e := range m.queue.Entries {
 		if e.Selected {
 			t.Errorf("entry %d (%s) should not be selected after dedup", i, e.Display)
 		}
@@ -71,7 +73,7 @@ func TestDedupClearsSelectionsAndVisualMode(t *testing.T) {
 func TestShufflePreservesPlaybackIndex(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A"},
 		{ID: 2, Hash: "b", Display: "B"},
 		{ID: 3, Hash: "c", Display: "C"},
@@ -82,12 +84,12 @@ func TestShufflePreservesPlaybackIndex(t *testing.T) {
 	m, _ = m.handleQueueShuffleMsg()
 
 	// After shuffle, currentIndex should point to the entry with hash "b".
-	if m.playback.currentIndex < 0 || m.playback.currentIndex >= len(m.queue.entries) {
+	if m.playback.currentIndex < 0 || m.playback.currentIndex >= len(m.queue.Entries) {
 		t.Fatalf("currentIndex out of bounds: %d", m.playback.currentIndex)
 	}
-	if m.queue.entries[m.playback.currentIndex].Hash != "b" {
+	if m.queue.Entries[m.playback.currentIndex].Hash != "b" {
 		t.Errorf("currentIndex points to hash %q, want \"b\"",
-			m.queue.entries[m.playback.currentIndex].Hash)
+			m.queue.Entries[m.playback.currentIndex].Hash)
 	}
 }
 
@@ -98,7 +100,7 @@ func TestShufflePreservesPlaybackIndex(t *testing.T) {
 func TestShufflePreservesPlaybackIndexDuplicateHashes(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A1"},
 		{ID: 2, Hash: "a", Display: "A2"},
 		{ID: 3, Hash: "a", Display: "A3"},
@@ -109,10 +111,10 @@ func TestShufflePreservesPlaybackIndexDuplicateHashes(t *testing.T) {
 
 	m, _ = m.handleQueueShuffleMsg()
 
-	if m.playback.currentIndex < 0 || m.playback.currentIndex >= len(m.queue.entries) {
+	if m.playback.currentIndex < 0 || m.playback.currentIndex >= len(m.queue.Entries) {
 		t.Fatalf("currentIndex out of bounds: %d", m.playback.currentIndex)
 	}
-	got := m.queue.entries[m.playback.currentIndex]
+	got := m.queue.Entries[m.playback.currentIndex]
 	if got.ID != 2 {
 		t.Errorf("currentIndex points to entry ID=%d, want ID=2 (the exact playing entry)", got.ID)
 	}
@@ -125,7 +127,7 @@ func TestDedupRelocatesPlaybackIndex(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A1"},
 		{ID: 2, Hash: "b", Display: "B"},
 		{ID: 3, Hash: "a", Display: "A2"}, // duplicate — currently playing
@@ -135,16 +137,16 @@ func TestDedupRelocatesPlaybackIndex(t *testing.T) {
 
 	m, _ = m.handleQueueDedupMsg()
 
-	if len(m.queue.entries) != 2 {
-		t.Fatalf("expected 2 entries after dedup, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 2 {
+		t.Fatalf("expected 2 entries after dedup, got %d", len(m.queue.Entries))
 	}
 	// currentIndex must now point to the surviving first copy (index 0).
 	if m.playback.currentIndex != 0 {
 		t.Errorf("currentIndex = %d, want 0 (surviving first copy)", m.playback.currentIndex)
 	}
-	if m.queue.entries[m.playback.currentIndex].Hash != "a" {
+	if m.queue.Entries[m.playback.currentIndex].Hash != "a" {
 		t.Errorf("entry at currentIndex has hash %q, want \"a\"",
-			m.queue.entries[m.playback.currentIndex].Hash)
+			m.queue.Entries[m.playback.currentIndex].Hash)
 	}
 }
 
@@ -155,7 +157,7 @@ func TestDedupPreservesPlaybackIndexNonDuplicate(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A1"},
 		{ID: 2, Hash: "a", Display: "A2"}, // duplicate, removed
 		{ID: 3, Hash: "b", Display: "B"},  // currently playing
@@ -165,16 +167,16 @@ func TestDedupPreservesPlaybackIndexNonDuplicate(t *testing.T) {
 
 	m, _ = m.handleQueueDedupMsg()
 
-	if len(m.queue.entries) != 2 {
-		t.Fatalf("expected 2 entries after dedup, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 2 {
+		t.Fatalf("expected 2 entries after dedup, got %d", len(m.queue.Entries))
 	}
 	// "b" was at index 2, one duplicate before it was removed, so new index = 1.
 	if m.playback.currentIndex != 1 {
 		t.Errorf("currentIndex = %d, want 1", m.playback.currentIndex)
 	}
-	if m.queue.entries[m.playback.currentIndex].Hash != "b" {
+	if m.queue.Entries[m.playback.currentIndex].Hash != "b" {
 		t.Errorf("entry at currentIndex has hash %q, want \"b\"",
-			m.queue.entries[m.playback.currentIndex].Hash)
+			m.queue.Entries[m.playback.currentIndex].Hash)
 	}
 }
 
@@ -184,7 +186,7 @@ func TestShuffleSyncsPlayerCurrentIndex(t *testing.T) {
 	ps := &stubPlayerQueueSyncer{}
 	m := New(context.Background(), WithPlayer(ps))
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A"},
 		{ID: 2, Hash: "b", Display: "B"},
 		{ID: 3, Hash: "c", Display: "C"},
@@ -211,7 +213,7 @@ func TestDedupSyncsPlayerCurrentIndex(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithPlayer(ps), WithQueueDequeuer(d))
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A1"},
 		{ID: 2, Hash: "b", Display: "B"},
 		{ID: 3, Hash: "a", Display: "A2"}, // duplicate
@@ -239,7 +241,7 @@ func TestDedupSyncsPlayerCurrentIndexWhenCurrentDuplicate(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithPlayer(ps), WithQueueDequeuer(d))
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "a", Display: "A1"},
 		{ID: 2, Hash: "b", Display: "B"},
 		{ID: 3, Hash: "a", Display: "A2"}, // duplicate currently playing
@@ -268,17 +270,17 @@ func TestMoveTrackSyncsPlayerCurrentIndex(t *testing.T) {
 	r := &stubQueueReorderer{}
 	m := New(context.Background(), WithPlayer(ps), WithQueueReorderer(r))
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Hash: "ha", Artist: "A", Title: "Ta"},
 		{ID: 20, Hash: "hb", Artist: "B", Title: "Tb"},
 		{ID: 30, Hash: "hc", Artist: "C", Title: "Tc"},
 	}
 	m.playback.currentHash = "ha"
 	m.playback.currentIndex = 0
-	m.queue.cursor = 0
+	m.queue.Cursor = 0
 
 	// Move the playing track down.
-	m, _ = m.handleMoveTrackDownMsg(MoveTrackDownMsg{Index: 0})
+	m, _ = m.handleMoveTrackDownMsg(queue.MoveTrackDownMsg{Index: 0})
 
 	if len(ps.setCurrentIndexCalls) == 0 {
 		t.Fatal("SetCurrentIndex was never called after move-down")
@@ -299,7 +301,7 @@ func TestDedupRemovesDuplicatesKeepsFirst(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "x", Display: "X1"},
 		{ID: 2, Hash: "y", Display: "Y"},
 		{ID: 3, Hash: "x", Display: "X2"},
@@ -308,13 +310,13 @@ func TestDedupRemovesDuplicatesKeepsFirst(t *testing.T) {
 
 	m, _ = m.handleQueueDedupMsg()
 
-	if len(m.queue.entries) != 2 {
-		t.Fatalf("expected 2 entries, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(m.queue.Entries))
 	}
-	if m.queue.entries[0].ID != 1 {
-		t.Errorf("first entry should be ID=1 (first occurrence), got %d", m.queue.entries[0].ID)
+	if m.queue.Entries[0].ID != 1 {
+		t.Errorf("first entry should be ID=1 (first occurrence), got %d", m.queue.Entries[0].ID)
 	}
-	if m.queue.entries[1].ID != 2 {
-		t.Errorf("second entry should be ID=2, got %d", m.queue.entries[1].ID)
+	if m.queue.Entries[1].ID != 2 {
+		t.Errorf("second entry should be ID=2, got %d", m.queue.Entries[1].ID)
 	}
 }

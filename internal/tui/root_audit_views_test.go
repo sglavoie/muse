@@ -11,6 +11,7 @@ import (
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -179,18 +180,18 @@ func TestDurationAuditBatchRecomputesQueueSortCache(t *testing.T) {
 	m := newDurationAuditModel()
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 300.0})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 100.0})
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.mp3", DurationMs: 300000}, {ID: 2, Hash: "h2", Path: "/b.mp3", DurationMs: 100000}}
-	m.queue.sortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
-	m.queue = m.queue.recomputeDisplayOrder()
-	if len(m.queue.displayOrder) != 2 || m.queue.entries[m.queue.displayOrder[0]].Hash != "h2" {
-		t.Fatalf("pre-audit displayOrder = %v; want h2 first", m.queue.displayOrder)
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h1", Path: "/a.mp3", DurationMs: 300000}, {ID: 2, Hash: "h2", Path: "/b.mp3", DurationMs: 100000}}
+	m.queue.SortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
+	m.queue = m.queue.RecomputeDisplayOrder()
+	if len(m.queue.DisplayOrder) != 2 || m.queue.Entries[m.queue.DisplayOrder[0]].Hash != "h2" {
+		t.Fatalf("pre-audit displayOrder = %v; want h2 first", m.queue.DisplayOrder)
 	}
 
 	nm, _ := durationAuditBatchUpdate(t, m, library.DurationFix{Hash: "h2", DurationMs: 500000})
-	if len(nm.queue.displayOrder) != 2 {
-		t.Fatalf("post-audit displayOrder len: got %d, want 2", len(nm.queue.displayOrder))
+	if len(nm.queue.DisplayOrder) != 2 {
+		t.Fatalf("post-audit displayOrder len: got %d, want 2", len(nm.queue.DisplayOrder))
 	}
-	if got := nm.queue.entries[nm.queue.displayOrder[0]].Hash; got != "h1" {
+	if got := nm.queue.Entries[nm.queue.DisplayOrder[0]].Hash; got != "h1" {
 		t.Errorf("post-audit displayOrder[0] hash: got %s, want h1", got)
 	}
 }

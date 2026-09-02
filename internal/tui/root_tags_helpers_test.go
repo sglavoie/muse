@@ -9,12 +9,13 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 func TestSelectedTrackHashes_Queue(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1"},
 		{Hash: "h2", Selected: true},
 		{Hash: "h3"},
@@ -114,7 +115,7 @@ func TestSelectedTrackHashes_Library(t *testing.T) {
 func TestSelectedTrackHashes_EmptySelection(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1"},
 		{Hash: "h2"},
 	}
@@ -128,7 +129,7 @@ func TestSelectedTrackHashes_EmptySelection(t *testing.T) {
 func TestTagPickerHashes_BulkFromQueue(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Selected: true},
 		{Hash: "h2"},
 		{Hash: "h3", Selected: true},
@@ -146,11 +147,11 @@ func TestTagPickerHashes_BulkFromQueue(t *testing.T) {
 func TestTagPickerHashes_SingleFocusedFromQueue(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1"},
 		{Hash: "h2"},
 	}
-	m.queue.cursor = 1
+	m.queue.Cursor = 1
 
 	hashes, isBulk := m.tagPickerHashes()
 	if isBulk {

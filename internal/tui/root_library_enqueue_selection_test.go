@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -63,11 +64,11 @@ func TestLibraryEnterEnqueuesSelectionAsBatch(t *testing.T) {
 		t.Fatalf("BatchEnqueuedMsg returned unexpected follow-up command %T", followup)
 	}
 	qm := queued.(Model)
-	if len(qm.queue.entries) != 2 {
-		t.Fatalf("queue entries = %d, want 2", len(qm.queue.entries))
+	if len(qm.queue.Entries) != 2 {
+		t.Fatalf("queue entries = %d, want 2", len(qm.queue.Entries))
 	}
-	if qm.queue.entries[0].Hash != "h1" || qm.queue.entries[1].Hash != "h2" {
-		t.Fatalf("queue hashes = [%q %q], want [h1 h2]", qm.queue.entries[0].Hash, qm.queue.entries[1].Hash)
+	if qm.queue.Entries[0].Hash != "h1" || qm.queue.Entries[1].Hash != "h2" {
+		t.Fatalf("queue hashes = [%q %q], want [h1 h2]", qm.queue.Entries[0].Hash, qm.queue.Entries[1].Hash)
 	}
 }
 
@@ -118,7 +119,7 @@ func TestLibraryEnterSelectionBatchFailureLeavesQueueUnchanged(t *testing.T) {
 	m := New(context.Background(), WithBatchEnqueuer(be))
 	m.library.Index.Insert(library.Track{Artist: "A", Title: "One", Hash: "h1"})
 	m.library.SelectedHashes = map[string]struct{}{"h1": {}}
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "existing"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "existing"}}
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	nm := next.(Model)
@@ -132,8 +133,8 @@ func TestLibraryEnterSelectionBatchFailureLeavesQueueUnchanged(t *testing.T) {
 
 	failed, _ := nm.Update(msg)
 	fm := failed.(Model)
-	if len(fm.queue.entries) != 1 || fm.queue.entries[0].Hash != "existing" {
-		t.Fatalf("queue changed after failed batch: %+v", fm.queue.entries)
+	if len(fm.queue.Entries) != 1 || fm.queue.Entries[0].Hash != "existing" {
+		t.Fatalf("queue changed after failed batch: %+v", fm.queue.Entries)
 	}
 	got := fm.statusBar.TopNotification().Msg
 	if !strings.Contains(got, "Enqueue failed") || strings.Contains(got, "playlist") {

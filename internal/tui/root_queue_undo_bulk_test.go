@@ -7,6 +7,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestUndoBulkDequeueRestoresEntries verifies that undoing a bulk dequeue
@@ -16,7 +17,7 @@ func TestUndoBulkDequeueRestoresEntries(t *testing.T) {
 	ps := &stubPlayerQueueSyncer{}
 	m := New(context.Background(), WithPlayer(ps), WithQueueDequeuer(d))
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Display: "A"},
 		{ID: 20, Path: "/b.flac", Display: "B", Selected: true},
 		{ID: 30, Path: "/c.flac", Display: "C"},
@@ -26,20 +27,20 @@ func TestUndoBulkDequeueRestoresEntries(t *testing.T) {
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	nm := next.(Model)
-	if len(nm.queue.entries) != 3 {
-		t.Fatalf("after bulk dequeue: expected 3 entries, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 3 {
+		t.Fatalf("after bulk dequeue: expected 3 entries, got %d", len(nm.queue.Entries))
 	}
 
 	next, _ = nm.Update(UndoMsg{})
 	nm = next.(Model)
 
-	if len(nm.queue.entries) != 5 {
-		t.Fatalf("after undo: expected 5 entries, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 5 {
+		t.Fatalf("after undo: expected 5 entries, got %d", len(nm.queue.Entries))
 	}
 	wantIDs := []int64{10, 20, 30, 40, 50}
 	for i, want := range wantIDs {
-		if nm.queue.entries[i].ID != want {
-			t.Errorf("entry[%d].ID = %d, want %d", i, nm.queue.entries[i].ID, want)
+		if nm.queue.Entries[i].ID != want {
+			t.Errorf("entry[%d].ID = %d, want %d", i, nm.queue.Entries[i].ID, want)
 		}
 	}
 	if len(d.undoDequeueCallIDs) != 2 {
@@ -64,7 +65,7 @@ func TestBulkDequeueSyncsPlayerIndexAfterAdjustment(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithPlayer(p), WithQueueDequeuer(d))
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Hash: "ha", Display: "A", Selected: true},
 		{ID: 20, Path: "/b.flac", Hash: "hb", Display: "B", Selected: true},
 		{ID: 30, Path: "/c.flac", Hash: "hc", Display: "C"},
@@ -96,7 +97,7 @@ func TestUndoBulkDequeueExpiredIsNoOp(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Display: "A"},
 		{ID: 20, Path: "/b.flac", Display: "B", Selected: true},
 	}
@@ -108,8 +109,8 @@ func TestUndoBulkDequeueExpiredIsNoOp(t *testing.T) {
 	next, _ = nm.Update(UndoMsg{})
 	nm = next.(Model)
 
-	if len(nm.queue.entries) != 1 {
-		t.Fatalf("after expired undo: expected 1 entry, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 1 {
+		t.Fatalf("after expired undo: expected 1 entry, got %d", len(nm.queue.Entries))
 	}
 	if len(d.undoDequeueCallIDs) != 0 {
 		t.Fatalf("UndoDequeue must not be called after expiry, got %v", d.undoDequeueCallIDs)

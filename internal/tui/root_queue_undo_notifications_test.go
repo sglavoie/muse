@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestUndoDequeueShowsNotification verifies that undoing a dequeue sets a
@@ -11,11 +13,11 @@ import (
 func TestUndoDequeueShowsNotification(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Display: "A"},
 		{ID: 20, Path: "/b.flac", Display: "B"},
 	}
-	next, _ := m.Update(DequeueTrackMsg{Index: 0})
+	next, _ := m.Update(queue.DequeueTrackMsg{Index: 0})
 	nm := next.(Model)
 	next, _ = nm.Update(UndoMsg{})
 	nm = next.(Model)
@@ -33,8 +35,8 @@ func TestUndoDequeueShowsNotification(t *testing.T) {
 func TestUndoEnqueueShowsNotification(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.queue.entries = []QueueEntry{{ID: 10, Path: "/a.flac", Hash: "aaa", Display: "Artist – Song"}}
-	m.setUndoSlot(undoEnqueueAction{id: 10, entry: m.queue.entries[0], idx: 0}, nil)
+	m.queue.Entries = []queue.Entry{{ID: 10, Path: "/a.flac", Hash: "aaa", Display: "Artist – Song"}}
+	m.setUndoSlot(undoEnqueueAction{id: 10, entry: m.queue.Entries[0], idx: 0}, nil)
 
 	nm := m.handleUndo()
 
@@ -51,16 +53,16 @@ func TestUndoEnqueueShowsNotification(t *testing.T) {
 func TestUndoClearQueueShowsNotification(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Display: "A"},
 		{ID: 20, Path: "/b.flac", Display: "B"},
 	}
 
-	savedEntries := make([]QueueEntry, len(m.queue.entries))
-	copy(savedEntries, m.queue.entries)
+	savedEntries := make([]queue.Entry, len(m.queue.Entries))
+	copy(savedEntries, m.queue.Entries)
 
 	m.setUndoSlot(undoClearAction{ids: []int64{10, 20}, entries: savedEntries}, nil)
-	m.queue.entries = nil
+	m.queue.Entries = nil
 
 	nm := m.handleUndo()
 
@@ -81,7 +83,7 @@ func TestUndoBulkDequeueShowsNotification(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
 
-	removed := []QueueEntry{
+	removed := []queue.Entry{
 		{ID: 10, Path: "/a.flac", Display: "A"},
 		{ID: 20, Path: "/b.flac", Display: "B"},
 	}
@@ -103,7 +105,7 @@ func TestUndoBatchEnqueueShowsNotification(t *testing.T) {
 	be := &stubBatchEnqueuer{}
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithBatchEnqueuer(be), WithQueueDequeuer(d))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 100, Path: "/x.flac", Hash: "xxx", Display: "X"},
 		{ID: 101, Path: "/y.flac", Hash: "yyy", Display: "Y"},
 	}

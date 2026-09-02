@@ -10,7 +10,7 @@ import (
 func (m Model) handlePlaylistOpen() (Model, tea.Cmd, bool) {
 	if !m.playlists.AtListLevel() {
 		if m.queueWriter != nil {
-			if cmd := m.playlists.EnqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
+			if cmd := m.playlists.EnqueueFocusedTrack(m.queueWriter, len(m.queue.Entries)); cmd != nil {
 				return m, cmd, true
 			}
 		}

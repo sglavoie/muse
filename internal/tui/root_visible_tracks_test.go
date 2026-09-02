@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/filter"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -74,12 +75,12 @@ func TestVisibleTracksLibraryPrefersSelection(t *testing.T) {
 func TestVisibleTracksQueueUsesFilteredEntries(t *testing.T) {
 	m := Model{
 		activeView: viewQueue,
-		queue: QueueView{
-			entries: []QueueEntry{
+		queue: queue.View{
+			Entries: []queue.Entry{
 				{Hash: "h1", Title: "Alpha"},
 				{Hash: "h2", Title: "Beta"},
 			},
-			filter: filter.State{Text: "bet"},
+			Filter: filter.State{Text: "bet"},
 		},
 	}
 	if got := visibleHashes(t, m); !slices.Equal(got, []string{"h2"}) {
@@ -90,7 +91,7 @@ func TestVisibleTracksQueueUsesFilteredEntries(t *testing.T) {
 func TestVisibleTracksQueuePrefersSelection(t *testing.T) {
 	m := Model{
 		activeView: viewQueue,
-		queue: QueueView{entries: []QueueEntry{
+		queue: queue.View{Entries: []queue.Entry{
 			{Hash: "h1"},
 			{Hash: "h2", Selected: true},
 		}},

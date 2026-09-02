@@ -59,13 +59,13 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 
 	display := text.TrackDisplay(artist, title, "")
 	newDurationMs := int64(newDuration * 1000)
-	for i := range m.queue.entries {
-		if m.queue.entries[i].Hash == hash {
-			m.queue.entries[i].Title = title
-			m.queue.entries[i].Artist = artist
-			m.queue.entries[i].Album = album
-			m.queue.entries[i].Display = display
-			m.queue.entries[i].DurationMs = newDurationMs
+	for i := range m.queue.Entries {
+		if m.queue.Entries[i].Hash == hash {
+			m.queue.Entries[i].Title = title
+			m.queue.Entries[i].Artist = artist
+			m.queue.Entries[i].Album = album
+			m.queue.Entries[i].Display = display
+			m.queue.Entries[i].DurationMs = newDurationMs
 		}
 	}
 
@@ -186,14 +186,14 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 
 		durationMs := int64(trackDuration * 1000)
 		display := text.TrackDisplay(newArtist, newTitle, "")
-		for i := range m.queue.entries {
-			if m.queue.entries[i].Hash == h {
-				m.queue.entries[i].Title = newTitle
-				m.queue.entries[i].Artist = newArtist
-				m.queue.entries[i].Album = newAlbum
-				m.queue.entries[i].Display = display
+		for i := range m.queue.Entries {
+			if m.queue.Entries[i].Hash == h {
+				m.queue.Entries[i].Title = newTitle
+				m.queue.Entries[i].Artist = newArtist
+				m.queue.Entries[i].Album = newAlbum
+				m.queue.Entries[i].Display = display
 				if dirtyDuration != nil {
-					m.queue.entries[i].DurationMs = durationMs
+					m.queue.Entries[i].DurationMs = durationMs
 				}
 			}
 		}

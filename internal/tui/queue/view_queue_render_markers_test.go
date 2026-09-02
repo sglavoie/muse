@@ -1,4 +1,4 @@
-package tui
+package queue
 
 import (
 	"strings"
@@ -12,11 +12,11 @@ import (
 // TestQueueRenderMissingEntryDim verifies that a missing entry is rendered with
 // dim styling and shows the "[missing]" label.
 func TestQueueRenderMissingEntryDim(t *testing.T) {
-	v := makeQueue(80, []QueueEntry{
+	v := makeQueue(80, []Entry{
 		{Title: "Gone", Artist: "Nobody", DurationMs: 0, Missing: true, Position: 1000},
 	})
 	s := styles.NewStyles(true)
-	out := v.render(s, -1, playback.StateIdle, nil, nil, nil)
+	out := v.Render(s, -1, playback.StateIdle, nil, nil, nil)
 	if !strings.Contains(out, "[missing]") {
 		t.Error("missing entry must contain '[missing]' label")
 	}
@@ -38,13 +38,13 @@ func TestQueueRenderMissingEntryDim(t *testing.T) {
 // TestQueueRenderSelectedNonFocusedRowUsesAccent verifies that a selected entry
 // that is not the focused row renders its selection marker with Accent styling.
 func TestQueueRenderSelectedNonFocusedRowUsesAccent(t *testing.T) {
-	v := makeQueue(80, []QueueEntry{
+	v := makeQueue(80, []Entry{
 		{Title: "Focused", Artist: "A", DurationMs: 60_000, Selected: false, Position: 1000},
 		{Title: "Selected", Artist: "B", DurationMs: 60_000, Selected: true, Position: 2000},
 	})
-	v.cursor = 0
+	v.Cursor = 0
 	s := styles.NewStyles(true)
-	out := v.render(s, -1, playback.StateIdle, nil, nil, nil)
+	out := v.Render(s, -1, playback.StateIdle, nil, nil, nil)
 
 	want := styledText(s.AccentMark.Background(s.SelectionBg), "●")
 	if ansi.Strip(want) == want {
@@ -58,11 +58,11 @@ func TestQueueRenderSelectedNonFocusedRowUsesAccent(t *testing.T) {
 // TestQueueRenderSelectedEntryShowsMarker verifies that a bulk-selected queue
 // entry is rendered with a "●" selection marker.
 func TestQueueRenderSelectedEntryShowsMarker(t *testing.T) {
-	v := makeQueue(120, []QueueEntry{
+	v := makeQueue(120, []Entry{
 		{Title: "Normal", Artist: "A", DurationMs: 60_000, Selected: false},
 		{Title: "Selected", Artist: "B", DurationMs: 120_000, Selected: true},
 	})
-	out := v.render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
+	out := v.Render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
 	if !strings.Contains(out, "●") {
 		t.Fatal("selected queue entry must show a ● marker")
 	}
@@ -71,8 +71,8 @@ func TestQueueRenderSelectedEntryShowsMarker(t *testing.T) {
 // TestQueueRenderUnselectedEntryHasNoMarker verifies that unselected queue
 // entries do not contain a selection marker glyph.
 func TestQueueRenderUnselectedEntryHasNoMarker(t *testing.T) {
-	v := makeQueue(120, []QueueEntry{{Title: "Normal", Artist: "A", DurationMs: 60_000, Selected: false}})
-	out := v.render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
+	v := makeQueue(120, []Entry{{Title: "Normal", Artist: "A", DurationMs: 60_000, Selected: false}})
+	out := v.Render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
 	if strings.Contains(out, "●") {
 		t.Fatal("unselected queue entry must not show a ● marker")
 	}
@@ -81,12 +81,12 @@ func TestQueueRenderUnselectedEntryHasNoMarker(t *testing.T) {
 // TestQueueRenderNowPlayingMarker verifies that the currently playing track
 // gets a "▶" marker in the rendered output.
 func TestQueueRenderNowPlayingMarker(t *testing.T) {
-	v := makeQueue(120, []QueueEntry{
+	v := makeQueue(120, []Entry{
 		{Title: "Not Playing", Artist: "A", Hash: "aaa", DurationMs: 60_000},
 		{Title: "Playing", Artist: "B", Hash: "bbb", DurationMs: 120_000},
 	})
-	v.cursor = 0
-	out := v.render(styles.NewStyles(true), 1, playback.StatePlaying, nil, nil, nil)
+	v.Cursor = 0
+	out := v.Render(styles.NewStyles(true), 1, playback.StatePlaying, nil, nil, nil)
 	stripped := ansi.Strip(out)
 
 	lines := strings.Split(stripped, "\n")
@@ -108,8 +108,8 @@ func TestQueueRenderNowPlayingMarker(t *testing.T) {
 // TestQueueRenderNonPlayingEntryHasNoPlayMarker verifies that entries that are
 // not currently playing do not get a "▶" marker.
 func TestQueueRenderNonPlayingEntryHasNoPlayMarker(t *testing.T) {
-	v := makeQueue(120, []QueueEntry{{Title: "Normal", Artist: "A", Hash: "aaa", DurationMs: 60_000}})
-	out := v.render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
+	v := makeQueue(120, []Entry{{Title: "Normal", Artist: "A", Hash: "aaa", DurationMs: 60_000}})
+	out := v.Render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
 	stripped := ansi.Strip(out)
 
 	for l := range strings.SplitSeq(stripped, "\n") {

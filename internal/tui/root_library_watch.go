@@ -39,9 +39,9 @@ func (m Model) watchApplyDeletes(deleted []string) Model {
 		for _, p := range deleted {
 			deletedSet[p] = struct{}{}
 		}
-		for i := range m.queue.entries {
-			if _, ok := deletedSet[m.queue.entries[i].Path]; ok {
-				m.queue.entries[i].Missing = true
+		for i := range m.queue.Entries {
+			if _, ok := deletedSet[m.queue.Entries[i].Path]; ok {
+				m.queue.Entries[i].Missing = true
 			}
 		}
 	}
@@ -62,7 +62,7 @@ func (m Model) watchUpsertTracks(tracks []library.Track) (Model, []library.Track
 
 // watchSyncQueueMetadata updates in-memory queue entries whose track metadata
 // or file path was refreshed by the watcher, keeping the queue view in sync
-// with on-disk changes. A same-hash move/rename updates QueueEntry.Path before
+// with on-disk changes. A same-hash move/rename updates queue.Entry.Path before
 // syncPlayerQueue rebuilds the player queue, so playback resolves the new path
 // immediately. Source, selection, and position state are preserved; the missing
 // flag is cleared for a recovered entry.
@@ -71,8 +71,8 @@ func (m Model) watchSyncQueueMetadata(tracks []library.Track) Model {
 	for _, t := range tracks {
 		display := text.TrackDisplay(t.Artist, t.Title, t.Path)
 		durationMs := int64(t.Duration * 1000)
-		for i := range m.queue.entries {
-			e := &m.queue.entries[i]
+		for i := range m.queue.Entries {
+			e := &m.queue.Entries[i]
 			if e.Hash != t.Hash {
 				continue
 			}

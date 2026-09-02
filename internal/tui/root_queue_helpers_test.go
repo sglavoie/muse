@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestResetPlaybackStateClearsAllFields verifies that resetPlaybackState zeros
@@ -114,20 +115,20 @@ func TestResetPlaybackStateNoPlayerPanic(t *testing.T) {
 // save input does not persist after the queue is emptied.
 func TestResetQueueStateClearsSaveAsPlaylist(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{{ID: 1, Path: "/a.flac", Display: "A"}}
-	m.queue.savingAsPlaylist = true
-	m.queue.savingFromSelection = true
+	m.queue.Entries = []queue.Entry{{ID: 1, Path: "/a.flac", Display: "A"}}
+	m.queue.SavingAsPlaylist = true
+	m.queue.SavingFromSelection = true
 
 	m = m.resetQueueState()
 
-	if m.queue.savingAsPlaylist {
+	if m.queue.SavingAsPlaylist {
 		t.Error("savingAsPlaylist should be false after resetQueueState")
 	}
-	if m.queue.savingFromSelection {
+	if m.queue.SavingFromSelection {
 		t.Error("savingFromSelection should be false after resetQueueState")
 	}
-	if len(m.queue.entries) != 0 {
-		t.Errorf("entries should be nil after resetQueueState, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 0 {
+		t.Errorf("entries should be nil after resetQueueState, got %d", len(m.queue.Entries))
 	}
 }
 
@@ -137,16 +138,16 @@ func TestResetQueueStateClearsSaveAsPlaylist(t *testing.T) {
 func TestSwitchViewCancelsSaveAsPlaylist(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{{ID: 1, Path: "/a.flac", Display: "A"}}
-	m.queue.savingAsPlaylist = true
-	m.queue.savingFromSelection = true
+	m.queue.Entries = []queue.Entry{{ID: 1, Path: "/a.flac", Display: "A"}}
+	m.queue.SavingAsPlaylist = true
+	m.queue.SavingFromSelection = true
 
 	m = m.switchToView(viewLibrary)
 
-	if m.queue.savingAsPlaylist {
+	if m.queue.SavingAsPlaylist {
 		t.Error("savingAsPlaylist should be false after switchToView")
 	}
-	if m.queue.savingFromSelection {
+	if m.queue.SavingFromSelection {
 		t.Error("savingFromSelection should be false after switchToView")
 	}
 	if m.activeView != viewLibrary {
@@ -199,11 +200,11 @@ func TestClearQueueClearsStopAfterCurrent(t *testing.T) {
 	m.playback.state = playback.StatePlaying
 	m.playback.stopAfterCurrent = true
 	p.stopAfter = true
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Display: "A"},
 	}
 
-	next, _ := m.Update(ClearQueueMsg{})
+	next, _ := m.Update(queue.ClearQueueMsg{})
 	nm := next.(Model)
 
 	if nm.playback.stopAfterCurrent {

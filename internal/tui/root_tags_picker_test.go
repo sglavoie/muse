@@ -8,6 +8,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -31,8 +32,8 @@ func TestTagPickerCreate_AssignsToTrackAndUpdatesCache(t *testing.T) {
 		WithTagWriter(tw),
 	)
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: trackHash, Display: "Test Track"}}
-	m.queue.cursor = 0
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: trackHash, Display: "Test Track"}}
+	m.queue.Cursor = 0
 
 	// Open tag picker for the focused queue track.
 	m, _ = m.openTagPicker()
@@ -158,8 +159,8 @@ func TestTagPickerCreate_StaleDBRead(t *testing.T) {
 		WithTagWriter(tw),
 	)
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: trackHash, Display: "Test Track"}}
-	m.queue.cursor = 0
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: trackHash, Display: "Test Track"}}
+	m.queue.Cursor = 0
 
 	m, _ = m.openTagPicker()
 
@@ -218,12 +219,12 @@ func TestTagPickerToggleRemove_UpdatesTagFilterHashes(t *testing.T) {
 	// Both tracks pass the tag filter.
 	hashes := map[string]struct{}{"h1": {}, "h2": {}}
 	m.library.TagFilterHashes = copyTagHash(hashes)
-	m.queue.tagFilterHashes = copyTagHash(hashes)
-	m.queue.entries = []QueueEntry{{Hash: "h1"}, {Hash: "h2"}}
+	m.queue.TagFilterHashes = copyTagHash(hashes)
+	m.queue.Entries = []queue.Entry{{Hash: "h1"}, {Hash: "h2"}}
 
 	// Cursor on last item.
 	m.library.Cursor = 1
-	m.queue.cursor = 1
+	m.queue.Cursor = 1
 
 	// Remove tag 42 from h2 via the picker.
 	m, _ = m.handleTagPickerToggle(tagtui.TagPickerToggleMsg{
@@ -236,7 +237,7 @@ func TestTagPickerToggleRemove_UpdatesTagFilterHashes(t *testing.T) {
 	if _, ok := m.library.TagFilterHashes["h2"]; ok {
 		t.Error("h2 should be removed from library.tagFilterHashes")
 	}
-	if _, ok := m.queue.tagFilterHashes["h2"]; ok {
+	if _, ok := m.queue.TagFilterHashes["h2"]; ok {
 		t.Error("h2 should be removed from queue.tagFilterHashes")
 	}
 
@@ -244,9 +245,9 @@ func TestTagPickerToggleRemove_UpdatesTagFilterHashes(t *testing.T) {
 	if m.library.Cursor >= m.library.TrackCount() {
 		t.Errorf("library cursor=%d out of bounds (count=%d)", m.library.Cursor, m.library.TrackCount())
 	}
-	qFiltered := m.queue.filteredEntries()
-	if m.queue.cursor >= len(qFiltered) {
-		t.Errorf("queue cursor=%d out of bounds (filtered=%d)", m.queue.cursor, len(qFiltered))
+	qFiltered := m.queue.FilteredEntries()
+	if m.queue.Cursor >= len(qFiltered) {
+		t.Errorf("queue cursor=%d out of bounds (filtered=%d)", m.queue.Cursor, len(qFiltered))
 	}
 }
 

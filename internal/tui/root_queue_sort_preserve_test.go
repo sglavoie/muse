@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -17,12 +18,12 @@ func TestCutPastePreservesQueueSort(t *testing.T) {
 	m := New(context.Background(), WithBatchEnqueuer(be))
 
 	// Start with 4 entries: [A=101, B=102, C=103, D=104].
-	m.queue.entries = sampleQueueEntries()
+	m.queue.Entries = sampleQueueEntries()
 
 	// Activate a sort so that displayOrder is non-nil.
-	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	m.queue = m.queue.recomputeDisplayOrder()
-	if m.queue.displayOrder == nil {
+	m.queue.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
+	m.queue = m.queue.RecomputeDisplayOrder()
+	if m.queue.DisplayOrder == nil {
 		t.Fatal("precondition: displayOrder should be non-nil after sort")
 	}
 
@@ -30,7 +31,7 @@ func TestCutPastePreservesQueueSort(t *testing.T) {
 	// and mark the original A (ID=101) as a cut original to be removed.
 	msg := QueuePastedMsg{
 		InsertPos: 4,
-		Entries: []QueueEntry{
+		Entries: []queue.Entry{
 			{ID: 200, Path: "/a.mp3", Hash: "h1", Display: "Artist - A", Artist: "Artist", Title: "A", Album: "Album", DurationMs: 180000},
 		},
 		CutIDs: []int64{101},
@@ -38,18 +39,18 @@ func TestCutPastePreservesQueueSort(t *testing.T) {
 	m = m.handleQueuePastedMsg(msg)
 
 	// After cut-paste the queue still has 4 entries (1 removed + 1 added = net 0).
-	if len(m.queue.entries) != 4 {
-		t.Fatalf("expected 4 entries, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 4 {
+		t.Fatalf("expected 4 entries, got %d", len(m.queue.Entries))
 	}
 
 	// The critical assertion: displayOrder must still be valid (non-nil and
 	// correct length) because preserveQueueSort was called after the removal.
-	if m.queue.displayOrder == nil {
+	if m.queue.DisplayOrder == nil {
 		t.Fatal("displayOrder should be non-nil; sort was silently dropped")
 	}
-	if len(m.queue.displayOrder) != len(m.queue.entries) {
+	if len(m.queue.DisplayOrder) != len(m.queue.Entries) {
 		t.Errorf("displayOrder length = %d, want %d",
-			len(m.queue.displayOrder), len(m.queue.entries))
+			len(m.queue.DisplayOrder), len(m.queue.Entries))
 	}
 }
 
@@ -57,39 +58,39 @@ func TestCutPastePreservesQueueSort(t *testing.T) {
 // recomputes displayOrder when a sort is active.
 func TestUndoBulkDequeuePreservesSort(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Title: "C", Hash: "h1"},
 		{ID: 2, Title: "A", Hash: "h2"},
 		{ID: 3, Title: "B", Hash: "h3"},
 	}
 
 	// Activate title sort.
-	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	m.queue = m.queue.recomputeDisplayOrder()
+	m.queue.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
+	m.queue = m.queue.RecomputeDisplayOrder()
 
 	// Simulate removing entry ID=2 at index 1, then undoing.
 	action := undoBulkDequeueAction{
-		entries: []QueueEntry{{ID: 2, Title: "A", Hash: "h2"}},
+		entries: []queue.Entry{{ID: 2, Title: "A", Hash: "h2"}},
 		indices: []int{1},
 		ids:     []int64{2},
 	}
 
 	// Remove the entry first so undo has something to restore.
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Title: "C", Hash: "h1"},
 		{ID: 3, Title: "B", Hash: "h3"},
 	}
 
 	m, _ = action.perform(m)
 
-	if len(m.queue.entries) != 3 {
-		t.Fatalf("expected 3 entries after undo, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 3 {
+		t.Fatalf("expected 3 entries after undo, got %d", len(m.queue.Entries))
 	}
-	if m.queue.displayOrder == nil {
+	if m.queue.DisplayOrder == nil {
 		t.Fatal("displayOrder should be non-nil after undo with active sort")
 	}
-	if len(m.queue.displayOrder) != 3 {
-		t.Errorf("displayOrder length = %d, want 3", len(m.queue.displayOrder))
+	if len(m.queue.DisplayOrder) != 3 {
+		t.Errorf("displayOrder length = %d, want 3", len(m.queue.DisplayOrder))
 	}
 }
 
@@ -100,15 +101,15 @@ func TestUndoBatchEnqueuePreservesSort(t *testing.T) {
 	dequeuer := &stubQueueDequeuer{}
 	m := New(context.Background(), WithBatchEnqueuer(be))
 	m.undoer = dequeuer
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Title: "C", Hash: "h1"},
 		{ID: 2, Title: "A", Hash: "h2"},
 		{ID: 3, Title: "B", Hash: "h3"},
 	}
 
 	// Activate sort.
-	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	m.queue = m.queue.recomputeDisplayOrder()
+	m.queue.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
+	m.queue = m.queue.RecomputeDisplayOrder()
 
 	action := undoBatchEnqueueAction{
 		ids:          []int64{2},
@@ -118,14 +119,14 @@ func TestUndoBatchEnqueuePreservesSort(t *testing.T) {
 	}
 	m, _ = action.perform(m)
 
-	if len(m.queue.entries) != 2 {
-		t.Fatalf("expected 2 entries after undo, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 2 {
+		t.Fatalf("expected 2 entries after undo, got %d", len(m.queue.Entries))
 	}
-	if m.queue.displayOrder == nil {
+	if m.queue.DisplayOrder == nil {
 		t.Fatal("displayOrder should be non-nil after undo with active sort")
 	}
-	if len(m.queue.displayOrder) != 2 {
-		t.Errorf("displayOrder length = %d, want 2", len(m.queue.displayOrder))
+	if len(m.queue.DisplayOrder) != 2 {
+		t.Errorf("displayOrder length = %d, want 2", len(m.queue.DisplayOrder))
 	}
 }
 
@@ -136,15 +137,15 @@ func TestUndoPastePreservesSort(t *testing.T) {
 	dequeuer := &stubQueueDequeuer{}
 	m := New(context.Background(), WithBatchEnqueuer(be))
 	m.undoer = dequeuer
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Title: "C", Hash: "h1"},
 		{ID: 2, Title: "A", Hash: "h2"},
 		{ID: 3, Title: "B", Hash: "h3"},
 	}
 
 	// Activate sort.
-	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	m.queue = m.queue.recomputeDisplayOrder()
+	m.queue.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
+	m.queue = m.queue.RecomputeDisplayOrder()
 
 	action := undoPasteAction{
 		ids:   []int64{2},
@@ -152,14 +153,14 @@ func TestUndoPastePreservesSort(t *testing.T) {
 	}
 	m, _ = action.perform(m)
 
-	if len(m.queue.entries) != 2 {
-		t.Fatalf("expected 2 entries after undo, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 2 {
+		t.Fatalf("expected 2 entries after undo, got %d", len(m.queue.Entries))
 	}
-	if m.queue.displayOrder == nil {
+	if m.queue.DisplayOrder == nil {
 		t.Fatal("displayOrder should be non-nil after undo with active sort")
 	}
-	if len(m.queue.displayOrder) != 2 {
-		t.Errorf("displayOrder length = %d, want 2", len(m.queue.displayOrder))
+	if len(m.queue.DisplayOrder) != 2 {
+		t.Errorf("displayOrder length = %d, want 2", len(m.queue.DisplayOrder))
 	}
 }
 
@@ -171,18 +172,18 @@ func TestUndoCutPastePreservesSort(t *testing.T) {
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
 	m.undoer = dequeuer
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Title: "B", Hash: "h2"},
 		{ID: 11, Title: "C", Hash: "h3"},
 	}
 
 	// Activate sort.
-	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	m.queue = m.queue.recomputeDisplayOrder()
+	m.queue.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
+	m.queue = m.queue.RecomputeDisplayOrder()
 
 	action := undoCutPasteAction{
 		pastedIDs:       []int64{10},
-		originalEntries: []QueueEntry{{ID: 99, Title: "A", Hash: "h1", Path: "/a.mp3"}},
+		originalEntries: []queue.Entry{{ID: 99, Title: "A", Hash: "h1", Path: "/a.mp3"}},
 		originalIndices: []int{0},
 		count:           1,
 	}
@@ -190,14 +191,14 @@ func TestUndoCutPastePreservesSort(t *testing.T) {
 
 	// After undo: removed ID=10, re-inserted original at index 0.
 	// Queue should have 2 entries: the restored original + ID=11.
-	if len(m.queue.entries) != 2 {
-		t.Fatalf("expected 2 entries after undo, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 2 {
+		t.Fatalf("expected 2 entries after undo, got %d", len(m.queue.Entries))
 	}
-	if m.queue.displayOrder == nil {
+	if m.queue.DisplayOrder == nil {
 		t.Fatal("displayOrder should be non-nil after undo with active sort")
 	}
-	if len(m.queue.displayOrder) != 2 {
-		t.Errorf("displayOrder length = %d, want 2", len(m.queue.displayOrder))
+	if len(m.queue.DisplayOrder) != 2 {
+		t.Errorf("displayOrder length = %d, want 2", len(m.queue.DisplayOrder))
 	}
 }
 
@@ -207,31 +208,31 @@ func TestUndoEnqueuePreservesSort(t *testing.T) {
 	dequeuer := &stubQueueDequeuer{}
 	m := New(context.Background())
 	m.undoer = dequeuer
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Title: "C", Hash: "h1"},
 		{ID: 2, Title: "A", Hash: "h2"},
 		{ID: 3, Title: "B", Hash: "h3"},
 	}
 
 	// Activate sort.
-	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	m.queue = m.queue.recomputeDisplayOrder()
+	m.queue.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
+	m.queue = m.queue.RecomputeDisplayOrder()
 
 	action := undoEnqueueAction{
 		id:    2,
-		entry: QueueEntry{ID: 2, Title: "A", Hash: "h2"},
+		entry: queue.Entry{ID: 2, Title: "A", Hash: "h2"},
 		idx:   1,
 	}
 	m, _ = action.perform(m)
 
-	if len(m.queue.entries) != 2 {
-		t.Fatalf("expected 2 entries after undo, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 2 {
+		t.Fatalf("expected 2 entries after undo, got %d", len(m.queue.Entries))
 	}
-	if m.queue.displayOrder == nil {
+	if m.queue.DisplayOrder == nil {
 		t.Fatal("displayOrder should be non-nil after undo with active sort")
 	}
-	if len(m.queue.displayOrder) != 2 {
-		t.Errorf("displayOrder length = %d, want 2", len(m.queue.displayOrder))
+	if len(m.queue.DisplayOrder) != 2 {
+		t.Errorf("displayOrder length = %d, want 2", len(m.queue.DisplayOrder))
 	}
 }
 
@@ -242,29 +243,29 @@ func TestUndoDequeuePreservesSort(t *testing.T) {
 	p := &stubPlayerQueueSyncer{}
 	m := New(context.Background(), WithPlayer(p))
 	m.undoer = dequeuer
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Title: "C", Hash: "h1"},
 		{ID: 3, Title: "B", Hash: "h3"},
 	}
 
 	// Activate sort.
-	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	m.queue = m.queue.recomputeDisplayOrder()
+	m.queue.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
+	m.queue = m.queue.RecomputeDisplayOrder()
 
 	action := undoDequeueAction{
 		id:    2,
-		entry: QueueEntry{ID: 2, Title: "A", Hash: "h2"},
+		entry: queue.Entry{ID: 2, Title: "A", Hash: "h2"},
 		idx:   1,
 	}
 	m, _ = action.perform(m)
 
-	if len(m.queue.entries) != 3 {
-		t.Fatalf("expected 3 entries after undo, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 3 {
+		t.Fatalf("expected 3 entries after undo, got %d", len(m.queue.Entries))
 	}
-	if m.queue.displayOrder == nil {
+	if m.queue.DisplayOrder == nil {
 		t.Fatal("displayOrder should be non-nil after undo with active sort")
 	}
-	if len(m.queue.displayOrder) != 3 {
-		t.Errorf("displayOrder length = %d, want 3", len(m.queue.displayOrder))
+	if len(m.queue.DisplayOrder) != 3 {
+		t.Errorf("displayOrder length = %d, want 3", len(m.queue.DisplayOrder))
 	}
 }

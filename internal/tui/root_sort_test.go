@@ -11,6 +11,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -115,9 +116,9 @@ func TestSortResetOnViewSwitch(t *testing.T) {
 				{Artist: "X"},
 			},
 		},
-		queue: QueueView{
-			sortState:    sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
-			displayOrder: []int{1, 0},
+		queue: queue.View{
+			SortState:    sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
+			DisplayOrder: []int{1, 0},
 		},
 	}
 
@@ -130,10 +131,10 @@ func TestSortResetOnViewSwitch(t *testing.T) {
 	}
 
 	m = m.resetQueueSort()
-	if m.queue.sortState.Field != sorting.SortDefault {
+	if m.queue.SortState.Field != sorting.SortDefault {
 		t.Error("queue sort should be reset")
 	}
-	if m.queue.displayOrder != nil {
+	if m.queue.DisplayOrder != nil {
 		t.Error("queue displayOrder should be nil")
 	}
 }
@@ -141,7 +142,7 @@ func TestSortResetOnViewSwitch(t *testing.T) {
 func TestResetAllSorts(t *testing.T) {
 	m := Model{
 		library:   libtui.View{SortState: sorting.SortState{Field: sorting.SortArtist}},
-		queue:     QueueView{sortState: sorting.SortState{Field: sorting.SortTitle}},
+		queue:     queue.View{SortState: sorting.SortState{Field: sorting.SortTitle}},
 		playlists: pltui.PlaylistsView{SortState: sorting.SortState{Field: sorting.SortName}},
 		browse: BrowseView{
 			artists: ArtistsView{sortState: sorting.SortState{Field: sorting.SortName}},
@@ -154,7 +155,7 @@ func TestResetAllSorts(t *testing.T) {
 	if m.library.SortState.Field != sorting.SortDefault {
 		t.Error("library sort not reset")
 	}
-	if m.queue.sortState.Field != sorting.SortDefault {
+	if m.queue.SortState.Field != sorting.SortDefault {
 		t.Error("queue sort not reset")
 	}
 	if m.playlists.SortState.Field != sorting.SortDefault {

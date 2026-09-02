@@ -176,7 +176,7 @@ func (m Model) insightsEnqueue(tracks []library.Track, label string) (Model, tea
 		m.statusBar.Notify("Enqueue not available")
 		return m, nil
 	}
-	wasEmpty := len(m.queue.entries) == 0
+	wasEmpty := len(m.queue.Entries) == 0
 	return m, func() tea.Msg {
 		ids, err := be.AppendTracks(tracks, label)
 		if err != nil {

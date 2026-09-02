@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestScanReplacesInPlaceContentAndMarksDisplacedQueueMissing pins the
@@ -35,7 +36,7 @@ func TestScanReplacesInPlaceContentAndMarksDisplacedQueueMissing(t *testing.T) {
 
 	// The queue holds the doomed content twice and the unrelated track once, so
 	// we prove EVERY instance of the displaced identity becomes unavailable.
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: oldHash, Path: path, Title: "Old", Artist: "A"},
 		{ID: 2, Hash: oldHash, Path: path, Title: "Old", Artist: "A"},
 		{ID: 3, Hash: otherHash, Path: otherPath, Title: "Other", Artist: "B"},
@@ -63,11 +64,11 @@ func TestScanReplacesInPlaceContentAndMarksDisplacedQueueMissing(t *testing.T) {
 
 	// Both queue instances of the displaced identity are unavailable; the
 	// unrelated instance stays available.
-	if !m.queue.entries[0].Missing || !m.queue.entries[1].Missing {
+	if !m.queue.Entries[0].Missing || !m.queue.Entries[1].Missing {
 		t.Errorf("displaced queue instances must be missing, got %v / %v",
-			m.queue.entries[0].Missing, m.queue.entries[1].Missing)
+			m.queue.Entries[0].Missing, m.queue.Entries[1].Missing)
 	}
-	if m.queue.entries[2].Missing {
+	if m.queue.Entries[2].Missing {
 		t.Error("unrelated queue instance must stay available")
 	}
 }
@@ -87,7 +88,7 @@ func TestScanSameHashMoveDoesNotMarkQueueMissing(t *testing.T) {
 		WithExtractor(stubExtractor{}),
 	)
 	m.library.Index.Insert(library.Track{Hash: hash, Path: oldPath, Title: "Song", Artist: "A"})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: hash, Path: oldPath, Title: "Song", Artist: "A"},
 	}
 
@@ -105,10 +106,10 @@ func TestScanSameHashMoveDoesNotMarkQueueMissing(t *testing.T) {
 		t.Fatalf("move must not duplicate the index entry, got %d", m.library.Index.Len())
 	}
 	// The queue instance is healed to the new path and stays available.
-	if m.queue.entries[0].Missing {
+	if m.queue.Entries[0].Missing {
 		t.Error("a same-hash move must not mark the queue instance missing")
 	}
-	if m.queue.entries[0].Path != newPath {
-		t.Errorf("queue instance should be healed to new path, got %q", m.queue.entries[0].Path)
+	if m.queue.Entries[0].Path != newPath {
+		t.Errorf("queue instance should be healed to new path, got %q", m.queue.Entries[0].Path)
 	}
 }

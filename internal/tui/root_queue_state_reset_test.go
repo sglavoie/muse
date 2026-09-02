@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestClearQueueClearsStatusBarTrackInfo verifies that ClearQueueMsg resets the
@@ -17,9 +18,9 @@ func TestClearQueueClearsStatusBarTrackInfo(t *testing.T) {
 	m.statusBar.PlaylistSource = "Old Playlist"
 	m.playback.currentHash = "oldhash"
 	m.playback.state = playback.StatePlaying
-	m.queue.entries = []QueueEntry{{ID: 10, Path: "/a.flac", Display: "A"}}
+	m.queue.Entries = []queue.Entry{{ID: 10, Path: "/a.flac", Display: "A"}}
 
-	next, _ := m.Update(ClearQueueMsg{})
+	next, _ := m.Update(queue.ClearQueueMsg{})
 	nm := next.(Model)
 
 	if nm.statusBar.Artist != "" {
@@ -91,23 +92,23 @@ func TestTickDoesNotUpdateElapsedWhenIdle(t *testing.T) {
 // deactivates the queue filter so the replacement entry is always visible.
 func TestClearQueueForReplaceClearsFilter(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Hash: "aaa", Display: "A", Artist: "Art", Title: "A"},
 		{ID: 2, Path: "/b.flac", Hash: "bbb", Display: "B", Artist: "Brt", Title: "B"},
 	}
-	m.queue.filter.Active = true
-	m.queue.filter.Text = "art"
+	m.queue.Filter.Active = true
+	m.queue.Filter.Text = "art"
 
 	m = m.clearQueueForReplace()
 
-	if m.queue.filter.Active {
+	if m.queue.Filter.Active {
 		t.Error("filter.Active must be false after clearQueueForReplace")
 	}
-	if m.queue.filter.Text != "" {
-		t.Errorf("filter.Text must be empty after clearQueueForReplace, got %q", m.queue.filter.Text)
+	if m.queue.Filter.Text != "" {
+		t.Errorf("filter.Text must be empty after clearQueueForReplace, got %q", m.queue.Filter.Text)
 	}
-	if len(m.queue.entries) != 0 {
-		t.Errorf("queue entries must be empty after clearQueueForReplace, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 0 {
+		t.Errorf("queue entries must be empty after clearQueueForReplace, got %d", len(m.queue.Entries))
 	}
 }
 
@@ -117,7 +118,7 @@ func TestClearQueueForReplaceClearsFilter(t *testing.T) {
 func TestPlayQueueIndexMsgClearsStateOnFailure(t *testing.T) {
 	p := &stubPlayer{playFromIndexErr: errStubPlay}
 	m := New(context.Background(), WithPlayer(p))
-	m.queue.entries = []QueueEntry{{Path: "/music/a.flac", Hash: "aaa", Display: "A", Artist: "Art", Title: "Ttl"}}
+	m.queue.Entries = []queue.Entry{{Path: "/music/a.flac", Hash: "aaa", Display: "A", Artist: "Art", Title: "Ttl"}}
 	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "old-hash"
 	m.playback.elapsedSecs = 42
@@ -171,7 +172,7 @@ func TestPlayQueueIndexMsgClearsStateOnFailure(t *testing.T) {
 func TestPlayQueueIndexResetsPlaybackFields(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Hash: "aaa", Display: "A", Artist: "Art1", Title: "T1"},
 		{ID: 2, Path: "/b.flac", Hash: "bbb", Display: "B", Artist: "Art2", Title: "T2"},
 	}

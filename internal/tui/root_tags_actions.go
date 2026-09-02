@@ -38,7 +38,7 @@ func (m Model) handleTagOpen() (Model, tea.Cmd) {
 			return tagViewTracksLoadedMsg{tag: tag, tracks: tracks, counts: counts}
 		}
 	case tagtui.TrackLevel:
-		cmd := m.tagsView.EnqueueFocusedTrack(m.queueWriter, len(m.queue.entries))
+		cmd := m.tagsView.EnqueueFocusedTrack(m.queueWriter, len(m.queue.Entries))
 		return m, cmd
 	}
 	return m, nil
@@ -164,7 +164,7 @@ func (m Model) handleTagEnqueueAll() (Model, tea.Cmd) {
 		m.statusBar.Notify("Enqueue not available")
 		return m, nil
 	}
-	wasEmpty := len(m.queue.entries) == 0
+	wasEmpty := len(m.queue.Entries) == 0
 	tagName := tag.Name
 	tagID := tag.ID
 	return m, func() tea.Msg {

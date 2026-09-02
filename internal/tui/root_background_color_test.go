@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 func TestUpdateBackgroundColorMsgLightBackground(t *testing.T) {
@@ -61,11 +62,11 @@ func TestBackgroundColorMsgReconstructsStyles(t *testing.T) {
 	// Render-through: verify the new styles are actually applied in rendered output.
 	// Add a missing queue entry so Dim.Render() is exercised, then confirm the
 	// rendered text contains the dim-styled result (not plain unstyled text).
-	nm.queue.entries = []QueueEntry{
+	nm.queue.Entries = []queue.Entry{
 		{Title: "Lost Track", Artist: "Ghost", Missing: true},
 	}
-	nm.queue.width = 80
-	rendered := nm.queue.render(*nm.styles, -1, playback.StateIdle, nil, nil, nil)
+	nm.queue.Width = 80
+	rendered := nm.queue.Render(*nm.styles, -1, playback.StateIdle, nil, nil, nil)
 
 	// The rendered output must show the "[missing]" label in the visible text.
 	if !strings.Contains(ansi.Strip(rendered), "[missing]") {

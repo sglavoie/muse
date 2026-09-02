@@ -1,4 +1,4 @@
-package tui
+package queue
 
 import (
 	"github.com/charmbracelet/x/ansi"
@@ -11,14 +11,14 @@ import (
 // TestQueueRenderNowPlayingFavoriteStyle verifies that a track which is both
 // currently playing and a favorite gets the NowPlayingFavorite style.
 func TestQueueRenderNowPlayingFavoriteStyle(t *testing.T) {
-	v := makeQueue(120, []QueueEntry{
+	v := makeQueue(120, []Entry{
 		{Title: "Normal", Artist: "A", Hash: "aaa", DurationMs: 60_000},
 		{Title: "FavPlaying", Artist: "B", Hash: "bbb", DurationMs: 120_000},
 	})
-	v.cursor = 0
+	v.Cursor = 0
 	favs := map[string]struct{}{"bbb": {}}
 	s := styles.NewStyles(true)
-	out := v.render(s, 1, playback.StatePlaying, favs, nil, nil)
+	out := v.Render(s, 1, playback.StatePlaying, favs, nil, nil)
 
 	npfRef := s.NowPlayingFavorite.Background(s.NowPlayingBg).Render("REF")
 	artistRef := s.TextPrimary.Background(s.NowPlayingBg).Render("REF")
@@ -49,14 +49,14 @@ func TestQueueRenderNowPlayingFavoriteStyle(t *testing.T) {
 // very narrow.
 func TestQueueRenderNarrowWidthUsesMax(t *testing.T) {
 	s := styles.NewStyles(true)
-	v := QueueView{
-		entries: []QueueEntry{
+	v := View{
+		Entries: []Entry{
 			{Hash: "aaa", Title: "T", Artist: "A", Album: "Al", DurationMs: 60000},
 		},
-		width:  10,
-		height: 10,
+		Width:  10,
+		Height: 10,
 	}
-	got := v.render(s, -1, playback.StateIdle, nil, nil, nil)
+	got := v.Render(s, -1, playback.StateIdle, nil, nil, nil)
 	if got == "" {
 		t.Error("render must produce non-empty output even with narrow width")
 	}
@@ -65,12 +65,12 @@ func TestQueueRenderNarrowWidthUsesMax(t *testing.T) {
 // TestQueueRenderSelectedAndFocusedMarker verifies that a selected+focused
 // entry uses a plain "●" glyph.
 func TestQueueRenderSelectedAndFocusedMarker(t *testing.T) {
-	v := QueueView{
-		entries: []QueueEntry{{Title: "Focused", Artist: "A", DurationMs: 60_000, Selected: true}},
-		cursor:  0,
-		width:   120,
+	v := View{
+		Entries: []Entry{{Title: "Focused", Artist: "A", DurationMs: 60_000, Selected: true}},
+		Cursor:  0,
+		Width:   120,
 	}
-	out := v.render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
+	out := v.Render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
 	lines := strings.Split(out, "\n")
 	var focusedLine string
 	for _, l := range lines {
@@ -90,11 +90,11 @@ func TestQueueRenderSelectedAndFocusedMarker(t *testing.T) {
 // TestQueueRenderArtistOnlyFavoriteStyle verifies that when only the artist is
 // favorited, only the artist cell receives FavArtist styling.
 func TestQueueRenderArtistOnlyFavoriteStyle(t *testing.T) {
-	v := makeQueue(120, []QueueEntry{{Title: "Song", Artist: "FavArtist", Album: "NormalAlbum", Hash: "aaa", DurationMs: 60_000}})
-	v.cursor = 1
+	v := makeQueue(120, []Entry{{Title: "Song", Artist: "FavArtist", Album: "NormalAlbum", Hash: "aaa", DurationMs: 60_000}})
+	v.Cursor = 1
 	favArtists := map[string]struct{}{"FavArtist": {}}
 	s := styles.NewStyles(true)
-	out := v.render(s, -1, playback.StateIdle, nil, favArtists, nil)
+	out := v.Render(s, -1, playback.StateIdle, nil, favArtists, nil)
 
 	artistRef := s.FavArtist.Render("REF")
 	if ansi.Strip(artistRef) == artistRef {
@@ -125,13 +125,13 @@ func TestQueueRenderArtistOnlyFavoriteStyle(t *testing.T) {
 // TestQueueRenderAllThreeFavoritesStyle verifies that when track, artist, and
 // album are all favorited, each cell independently receives its own color style.
 func TestQueueRenderAllThreeFavoritesStyle(t *testing.T) {
-	v := makeQueue(120, []QueueEntry{{Title: "Song", Artist: "FavArtist", Album: "FavAlbum", Hash: "favhash", DurationMs: 60_000}})
-	v.cursor = 1
+	v := makeQueue(120, []Entry{{Title: "Song", Artist: "FavArtist", Album: "FavAlbum", Hash: "favhash", DurationMs: 60_000}})
+	v.Cursor = 1
 	favHashes := map[string]struct{}{"favhash": {}}
 	favArtists := map[string]struct{}{"FavArtist": {}}
 	favAlbums := map[string]struct{}{"FavAlbum": {}}
 	s := styles.NewStyles(true)
-	out := v.render(s, -1, playback.StateIdle, favHashes, favArtists, favAlbums)
+	out := v.Render(s, -1, playback.StateIdle, favHashes, favArtists, favAlbums)
 
 	titleRef := s.Favorite.Render("REF")
 	if ansi.Strip(titleRef) == titleRef {
@@ -166,11 +166,11 @@ func TestQueueRenderAllThreeFavoritesStyle(t *testing.T) {
 // focused+favorited row gets Accent background wrapping while preserving the
 // favorite title color.
 func TestQueueRenderFocusedWithFavoriteUsesAccentBackground(t *testing.T) {
-	v := makeQueue(120, []QueueEntry{{Title: "FocFav", Artist: "A", Album: "B", Hash: "favhash", DurationMs: 60_000}})
-	v.cursor = 0
+	v := makeQueue(120, []Entry{{Title: "FocFav", Artist: "A", Album: "B", Hash: "favhash", DurationMs: 60_000}})
+	v.Cursor = 0
 	favHashes := map[string]struct{}{"favhash": {}}
 	s := styles.NewStyles(true)
-	out := v.render(s, -1, playback.StateIdle, favHashes, nil, nil)
+	out := v.Render(s, -1, playback.StateIdle, favHashes, nil, nil)
 
 	favAccentRef := s.FavoriteAccent.Render("REF")
 	if ansi.Strip(favAccentRef) == favAccentRef {

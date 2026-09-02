@@ -10,6 +10,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError verifies that
@@ -17,7 +18,7 @@ import (
 // transient error message in the status bar.
 func TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/song.flac", Display: "Artist - Song"},
 	}
 
@@ -27,7 +28,7 @@ func TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError(t *testing.T) {
 	if nm.statusBar.TopNotification().Msg == "" {
 		t.Fatal("MissingTrackMsg must set a transient status bar error message")
 	}
-	if !nm.queue.entries[0].Missing {
+	if !nm.queue.Entries[0].Missing {
 		t.Fatal("MissingTrackMsg must mark the matching queue entry as missing")
 	}
 }
@@ -40,10 +41,10 @@ func TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError(t *testing.T) {
 func TestSelectMissingTrackRemovesEntry(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 42, Path: "/music/gone.flac", Display: "Artist - Gone", Missing: true, Hash: "abc123"},
 	}
-	m.queue.cursor = 0
+	m.queue.Cursor = 0
 	dequeuer := &stubQueueDequeuer{}
 	m.undoer = dequeuer
 
@@ -68,8 +69,8 @@ func TestSelectMissingTrackRemovesEntry(t *testing.T) {
 	if !strings.Contains(nm.statusBar.TopNotification().Msg, "missing") {
 		t.Errorf("unexpected notification: %s", nm.statusBar.TopNotification().Msg)
 	}
-	if len(nm.queue.entries) != 0 {
-		t.Fatalf("queue must be empty after removal, got %d entries", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 0 {
+		t.Fatalf("queue must be empty after removal, got %d entries", len(nm.queue.Entries))
 	}
 	if resultCmd == nil {
 		t.Fatal("expected a DB cleanup Cmd")
@@ -102,10 +103,10 @@ func TestSelectDeletedFilePreflightStatDispatchesMissing(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
 	// Missing=false — the watcher hasn't flagged it yet (2.5s debounce).
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 7, Path: deletedPath, Display: "Artist - Gone", Hash: "zzz"},
 	}
-	m.queue.cursor = 0
+	m.queue.Cursor = 0
 
 	v, cmd := m.queue.HandleAction(keys.ActionSelect)
 	m.queue = v
@@ -139,7 +140,7 @@ func TestSelectMissingCurrentTrackResetsPlayback(t *testing.T) {
 	m.statusBar.Artist = "Artist"
 	m.statusBar.Title = "Title"
 	m.statusBar.PlaylistSource = "Queue"
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/music/gone.flac", Display: "Gone", Hash: "abc123", Missing: true},
 		{ID: 20, Path: "/music/ok.flac", Display: "OK", Hash: "other"},
 	}
@@ -162,8 +163,8 @@ func TestSelectMissingCurrentTrackResetsPlayback(t *testing.T) {
 	if nm.statusBar.Title != "" {
 		t.Errorf("statusBar.title = %q, want empty", nm.statusBar.Title)
 	}
-	if len(nm.queue.entries) != 1 {
-		t.Fatalf("queue should have 1 entry, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 1 {
+		t.Fatalf("queue should have 1 entry, got %d", len(nm.queue.Entries))
 	}
 	if p.stopCalls != 1 {
 		t.Errorf("Stop must be called once to halt playback, got %d calls", p.stopCalls)

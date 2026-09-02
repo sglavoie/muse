@@ -6,6 +6,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"math"
 	"testing"
 	"time"
@@ -21,7 +22,7 @@ func TestMainPlaybackTickCorrectsDuration(t *testing.T) {
 	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 360.0,
 	})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", DurationMs: 360000},
 	}
 	m.playback.state = playback.StatePlaying
@@ -34,8 +35,8 @@ func TestMainPlaybackTickCorrectsDuration(t *testing.T) {
 		t.Fatalf("expected library duration 180.0, got %v", t2.Duration)
 	}
 	// Queue entry should be corrected.
-	if nm.queue.entries[0].DurationMs != 180000 {
-		t.Fatalf("expected queue DurationMs 180000, got %d", nm.queue.entries[0].DurationMs)
+	if nm.queue.Entries[0].DurationMs != 180000 {
+		t.Fatalf("expected queue DurationMs 180000, got %d", nm.queue.Entries[0].DurationMs)
 	}
 	// Flag should be set.
 	if !nm.playback.durationCorrected {
@@ -77,7 +78,7 @@ func TestMainPlaybackTickSkipsSmallDifference(t *testing.T) {
 	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 180.5,
 	})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", DurationMs: 180500},
 	}
 	m.playback.state = playback.StatePlaying
@@ -89,8 +90,8 @@ func TestMainPlaybackTickSkipsSmallDifference(t *testing.T) {
 	if t2, ok := nm.library.Index.FindByHash("h1"); !ok || t2.Duration != 180.5 {
 		t.Fatalf("expected library duration to stay 180.5, got %v", t2.Duration)
 	}
-	if nm.queue.entries[0].DurationMs != 180500 {
-		t.Fatalf("expected queue DurationMs to stay 180500, got %d", nm.queue.entries[0].DurationMs)
+	if nm.queue.Entries[0].DurationMs != 180500 {
+		t.Fatalf("expected queue DurationMs to stay 180500, got %d", nm.queue.Entries[0].DurationMs)
 	}
 	if !nm.playback.durationCorrected {
 		t.Fatal("expected durationCorrected to be set (to prevent re-checking)")
@@ -109,7 +110,7 @@ func TestMainPlaybackTickFillsZeroDuration(t *testing.T) {
 	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 0,
 	})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", DurationMs: 0},
 	}
 	m.playback.state = playback.StatePlaying
@@ -120,8 +121,8 @@ func TestMainPlaybackTickFillsZeroDuration(t *testing.T) {
 	if t2, ok := nm.library.Index.FindByHash("h1"); !ok || t2.Duration != 180.0 {
 		t.Fatalf("expected library duration 180.0, got %v", t2.Duration)
 	}
-	if nm.queue.entries[0].DurationMs != 180000 {
-		t.Fatalf("expected queue DurationMs 180000, got %d", nm.queue.entries[0].DurationMs)
+	if nm.queue.Entries[0].DurationMs != 180000 {
+		t.Fatalf("expected queue DurationMs 180000, got %d", nm.queue.Entries[0].DurationMs)
 	}
 }
 
@@ -134,7 +135,7 @@ func TestMainPlaybackTickCorrectOnceOnly(t *testing.T) {
 	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 360.0,
 	})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", DurationMs: 360000},
 	}
 	m.playback.state = playback.StatePlaying
@@ -161,7 +162,7 @@ func TestMainPlaybackTickCorrectOnceOnly(t *testing.T) {
 func TestTrackChangedResetsCorrectFlag(t *testing.T) {
 	m := New(context.Background())
 	m.playback.durationCorrected = true
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h2", Path: "/b.flac"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h2", Path: "/b.flac"}}
 
 	nm, _ := m.handleTrackChangedMsg(playback.TrackChangedMsg{
 		Hash: "h2", Index: 0, Artist: "B", Title: "T2",

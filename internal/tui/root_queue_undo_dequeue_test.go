@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -16,26 +17,26 @@ import (
 func TestUndoMsgRestoresDequeueWithinWindow(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
 		{ID: 20, Path: "/music/b.flac", Display: "B"},
 		{ID: 30, Path: "/music/c.flac", Display: "C"},
 	}
 
-	next, _ := m.Update(DequeueTrackMsg{Index: 1})
+	next, _ := m.Update(queue.DequeueTrackMsg{Index: 1})
 	nm := next.(Model)
-	if len(nm.queue.entries) != 2 {
-		t.Fatalf("after dequeue: expected 2 entries, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 2 {
+		t.Fatalf("after dequeue: expected 2 entries, got %d", len(nm.queue.Entries))
 	}
 
 	next, _ = nm.Update(UndoMsg{})
 	nm = next.(Model)
 
-	if len(nm.queue.entries) != 3 {
-		t.Fatalf("after undo: expected 3 entries, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 3 {
+		t.Fatalf("after undo: expected 3 entries, got %d", len(nm.queue.Entries))
 	}
-	if nm.queue.entries[1].ID != 20 {
-		t.Fatalf("after undo: expected restored entry at index 1 with ID=20, got ID=%d", nm.queue.entries[1].ID)
+	if nm.queue.Entries[1].ID != 20 {
+		t.Fatalf("after undo: expected restored entry at index 1 with ID=20, got ID=%d", nm.queue.Entries[1].ID)
 	}
 	if len(d.undoDequeueCallIDs) != 1 || d.undoDequeueCallIDs[0] != 20 {
 		t.Fatalf("UndoDequeue must be called with ID=20, got calls=%v", d.undoDequeueCallIDs)
@@ -50,20 +51,20 @@ func TestUndoMsgRestoresDequeueWithinWindow(t *testing.T) {
 func TestUndoMsgIsNoOpAfterWindowExpiry(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
 		{ID: 20, Path: "/music/b.flac", Display: "B"},
 	}
 
-	next, _ := m.Update(DequeueTrackMsg{Index: 0})
+	next, _ := m.Update(queue.DequeueTrackMsg{Index: 0})
 	nm := next.(Model)
 	nm.undo.slot.expiresAt = time.Now().Add(-1 * time.Second)
 
 	next, _ = nm.Update(UndoMsg{})
 	nm = next.(Model)
 
-	if len(nm.queue.entries) != 1 {
-		t.Fatalf("undo after expiry: expected 1 entry (no restore), got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 1 {
+		t.Fatalf("undo after expiry: expected 1 entry (no restore), got %d", len(nm.queue.Entries))
 	}
 	if len(d.undoDequeueCallIDs) != 0 {
 		t.Fatalf("undo after expiry: UndoDequeue must not be called, got calls=%v", d.undoDequeueCallIDs)
@@ -75,17 +76,17 @@ func TestUndoMsgIsNoOpAfterWindowExpiry(t *testing.T) {
 func TestNewDestructiveActionReplacesUndoSlot(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
 		{ID: 20, Path: "/music/b.flac", Display: "B"},
 		{ID: 30, Path: "/music/c.flac", Display: "C"},
 	}
 
-	next, _ := m.Update(DequeueTrackMsg{Index: 0})
+	next, _ := m.Update(queue.DequeueTrackMsg{Index: 0})
 	nm := next.(Model)
 	firstSlotID := nm.undo.slot.action.(undoDequeueAction).id
 
-	next, _ = nm.Update(DequeueTrackMsg{Index: 0})
+	next, _ = nm.Update(queue.DequeueTrackMsg{Index: 0})
 	nm = next.(Model)
 
 	if nm.undo.slot.action.(undoDequeueAction).id == firstSlotID {
@@ -101,22 +102,22 @@ func TestNewDestructiveActionReplacesUndoSlot(t *testing.T) {
 func TestUndoMsgRestoresClearQueueWithinWindow(t *testing.T) {
 	d := &stubQueueDequeuer{clearQueueSoftResult: []int64{10, 20}}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
 		{ID: 20, Path: "/music/b.flac", Display: "B"},
 	}
 
-	next, _ := m.Update(ClearQueueMsg{})
+	next, _ := m.Update(queue.ClearQueueMsg{})
 	nm := next.(Model)
-	if len(nm.queue.entries) != 0 {
-		t.Fatalf("after clear: expected 0 entries, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 0 {
+		t.Fatalf("after clear: expected 0 entries, got %d", len(nm.queue.Entries))
 	}
 
 	next, _ = nm.Update(UndoMsg{})
 	nm = next.(Model)
 
-	if len(nm.queue.entries) != 2 {
-		t.Fatalf("after undo clear: expected 2 entries, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 2 {
+		t.Fatalf("after undo clear: expected 2 entries, got %d", len(nm.queue.Entries))
 	}
 	if len(d.undoClearQueueCalls) != 1 {
 		t.Fatalf("UndoClearQueue must be called once, got %d calls", len(d.undoClearQueueCalls))
@@ -137,7 +138,7 @@ func TestUndoClearQueueRestoresPlaybackIndex(t *testing.T) {
 	p := &stubPlayerQueueSyncer{}
 	d := &stubQueueDequeuer{clearQueueSoftResult: []int64{10, 20}}
 	m := New(context.Background(), WithPlayer(p), WithQueueDequeuer(d))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/music/a.flac", Hash: "ha", Artist: "A", Title: "Ta"},
 		{ID: 20, Path: "/music/b.flac", Hash: "hb", Artist: "B", Title: "Tb"},
 	}
@@ -145,7 +146,7 @@ func TestUndoClearQueueRestoresPlaybackIndex(t *testing.T) {
 	m.playback.currentHash = "hb"
 	m.playback.state = playback.StatePlaying
 
-	next, _ := m.Update(ClearQueueMsg{})
+	next, _ := m.Update(queue.ClearQueueMsg{})
 	nm := next.(Model)
 	if nm.playback.currentIndex != -1 {
 		t.Fatalf("after clear: expected currentIndex -1, got %d", nm.playback.currentIndex)
@@ -174,13 +175,13 @@ func TestUndoClearQueueRestoresPlaybackIndex(t *testing.T) {
 // has been performed is a no-op.
 func TestUndoMsgWithNoSlotIsNoOp(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{{ID: 10, Path: "/music/a.flac", Display: "A"}}
+	m.queue.Entries = []queue.Entry{{ID: 10, Path: "/music/a.flac", Display: "A"}}
 
 	next, _ := m.Update(UndoMsg{})
 	nm := next.(Model)
 
-	if len(nm.queue.entries) != 1 {
-		t.Fatalf("UndoMsg with no slot: expected 1 entry unchanged, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 1 {
+		t.Fatalf("UndoMsg with no slot: expected 1 entry unchanged, got %d", len(nm.queue.Entries))
 	}
 }
 
@@ -190,19 +191,19 @@ func TestUndoDequeueRebuildPlayerQueue(t *testing.T) {
 	p := &stubPlayerQueueSyncer{}
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithPlayer(p), WithQueueDequeuer(d))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/music/a.flac", Hash: "ha", Artist: "A", Title: "Ta"},
 		{ID: 20, Path: "/music/b.flac", Hash: "hb", Artist: "B", Title: "Tb"},
 		{ID: 30, Path: "/music/c.flac", Hash: "hc", Artist: "C", Title: "Tc"},
 	}
 
-	next, _ := m.Update(DequeueTrackMsg{Index: 1})
+	next, _ := m.Update(queue.DequeueTrackMsg{Index: 1})
 	nm := next.(Model)
 	next, _ = nm.Update(UndoMsg{})
 	nm = next.(Model)
 
-	if len(nm.queue.entries) != 3 {
-		t.Fatalf("after undo: expected 3 entries, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 3 {
+		t.Fatalf("after undo: expected 3 entries, got %d", len(nm.queue.Entries))
 	}
 	if len(p.setQueueCalls) == 0 {
 		t.Fatal("undo dequeue must call SetQueue to rebuild the player queue")
@@ -220,16 +221,16 @@ func TestUndoDequeueRebuildPlayerQueue(t *testing.T) {
 // the scroll offset is adjusted so the restored entry is within the viewport.
 func TestUndoDequeueEnsuresCursorVisibility(t *testing.T) {
 	m := New(context.Background(), WithPlayer(&stubPlayer{}))
-	m.queue.height = 10
+	m.queue.Height = 10
 
-	entries := make([]QueueEntry, 20)
+	entries := make([]queue.Entry, 20)
 	for i := range entries {
-		entries[i] = QueueEntry{ID: int64(i + 1), Path: "/a.flac", Display: "Track"}
+		entries[i] = queue.Entry{ID: int64(i + 1), Path: "/a.flac", Display: "Track"}
 	}
 	dequeued := entries[15]
-	m.queue.entries = slices.Concat(entries[:15], entries[16:])
-	m.queue.scrollOffset = 0
-	m.queue.cursor = 0
+	m.queue.Entries = slices.Concat(entries[:15], entries[16:])
+	m.queue.ScrollOffset = 0
+	m.queue.Cursor = 0
 
 	undoer := &stubQueueDequeuer{}
 	m.undoer = undoer
@@ -241,13 +242,13 @@ func TestUndoDequeueEnsuresCursorVisibility(t *testing.T) {
 	next, _ := m.Update(UndoMsg{})
 	nm := next.(Model)
 
-	if nm.queue.cursor != 15 {
-		t.Fatalf("cursor = %d, want 15 after undo dequeue", nm.queue.cursor)
+	if nm.queue.Cursor != 15 {
+		t.Fatalf("cursor = %d, want 15 after undo dequeue", nm.queue.Cursor)
 	}
-	maxRows := nm.queue.visibleRows()
-	if nm.queue.cursor < nm.queue.scrollOffset || nm.queue.cursor >= nm.queue.scrollOffset+maxRows {
+	maxRows := nm.queue.VisibleRows()
+	if nm.queue.Cursor < nm.queue.ScrollOffset || nm.queue.Cursor >= nm.queue.ScrollOffset+maxRows {
 		t.Errorf("cursor %d not visible: scrollOffset=%d, visibleRows=%d",
-			nm.queue.cursor, nm.queue.scrollOffset, maxRows)
+			nm.queue.Cursor, nm.queue.ScrollOffset, maxRows)
 	}
 }
 
@@ -256,16 +257,16 @@ func TestUndoDequeueEnsuresCursorVisibility(t *testing.T) {
 func TestHandleUndoResetsAllSorts(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.queue.entries = []QueueEntry{{ID: 1, Path: "/a.flac", Hash: "aaa", Display: "A"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Path: "/a.flac", Hash: "aaa", Display: "A"}}
 
 	m.setUndoSlot(undoDequeueAction{
 		id:    99,
-		entry: QueueEntry{ID: 99, Path: "/b.flac", Hash: "bbb", Display: "B"},
+		entry: queue.Entry{ID: 99, Path: "/b.flac", Hash: "bbb", Display: "B"},
 		idx:   0,
 	}, nil)
 
 	m.library.SortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
-	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
+	m.queue.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
 	m.playlists.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.browse.artists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
 	m.browse.albums.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
@@ -276,8 +277,8 @@ func TestHandleUndoResetsAllSorts(t *testing.T) {
 	if nm.library.SortState.Field != sorting.SortDefault {
 		t.Errorf("library sort not reset: got field %d", nm.library.SortState.Field)
 	}
-	if nm.queue.sortState.Field != sorting.SortDefault {
-		t.Errorf("queue sort not reset: got field %d", nm.queue.sortState.Field)
+	if nm.queue.SortState.Field != sorting.SortDefault {
+		t.Errorf("queue sort not reset: got field %d", nm.queue.SortState.Field)
 	}
 	if nm.playlists.SortState.Field != sorting.SortDefault {
 		t.Errorf("playlists sort not reset: got field %d", nm.playlists.SortState.Field)
@@ -298,14 +299,14 @@ func TestHandleUndoResetsAllSorts(t *testing.T) {
 func TestUndoExitsVisualMode(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/music/a.flac", Display: "A"},
 		{ID: 20, Path: "/music/b.flac", Display: "B"},
 		{ID: 30, Path: "/music/c.flac", Display: "C"},
 	}
 
 	// Dequeue entry at index 1 to set up an undo slot.
-	next, _ := m.Update(DequeueTrackMsg{Index: 1})
+	next, _ := m.Update(queue.DequeueTrackMsg{Index: 1})
 	nm := next.(Model)
 
 	// Enter visual mode after the dequeue (simulating user entering visual
@@ -326,22 +327,22 @@ func TestUndoExitsVisualMode(t *testing.T) {
 // clamps the cursor against the filtered entry count when a filter is active.
 func TestUndoDequeueClampsCursorWithActiveFilter(t *testing.T) {
 	m := New(context.Background(), WithPlayer(&stubPlayer{}))
-	m.queue.height = 20
-	m.queue.entries = []QueueEntry{
+	m.queue.Height = 20
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Title: "Rock1", Artist: "Rock", Album: "rock"},
 		{ID: 2, Path: "/b.flac", Title: "Pop1", Artist: "Pop", Album: "pop"},
 		{ID: 3, Path: "/c.flac", Title: "Rock2", Artist: "Rock", Album: "rock"},
 		{ID: 4, Path: "/d.flac", Title: "Rock3", Artist: "Rock", Album: "rock"},
 	}
 
-	m.queue.filter.Text = "rock"
-	filtered := m.queue.filteredEntries()
+	m.queue.Filter.Text = "rock"
+	filtered := m.queue.FilteredEntries()
 	if len(filtered) != 3 {
 		t.Fatalf("expected 3 filtered entries, got %d", len(filtered))
 	}
-	m.queue.cursor = 0
+	m.queue.Cursor = 0
 
-	dequeued := QueueEntry{ID: 99, Path: "/z.flac", Title: "Jazz1", Artist: "Jazz", Album: "jazz"}
+	dequeued := queue.Entry{ID: 99, Path: "/z.flac", Title: "Jazz1", Artist: "Jazz", Album: "jazz"}
 
 	undoer := &stubQueueDequeuer{}
 	m.undoer = undoer
@@ -353,8 +354,8 @@ func TestUndoDequeueClampsCursorWithActiveFilter(t *testing.T) {
 	next, _ := m.Update(UndoMsg{})
 	nm := next.(Model)
 
-	filteredAfter := nm.queue.filteredEntries()
-	if nm.queue.cursor >= len(filteredAfter) {
-		t.Errorf("cursor %d out of bounds for filtered count %d", nm.queue.cursor, len(filteredAfter))
+	filteredAfter := nm.queue.FilteredEntries()
+	if nm.queue.Cursor >= len(filteredAfter) {
+		t.Errorf("cursor %d out of bounds for filtered count %d", nm.queue.Cursor, len(filteredAfter))
 	}
 }

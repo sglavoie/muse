@@ -68,8 +68,8 @@ func (m Model) handleTagPickerToggle(msg tagtui.TagPickerToggleMsg) (Model, tea.
 				if m.library.TagFilterHashes != nil {
 					m.library.TagFilterHashes[h] = struct{}{}
 				}
-				if m.queue.tagFilterHashes != nil {
-					m.queue.tagFilterHashes[h] = struct{}{}
+				if m.queue.TagFilterHashes != nil {
+					m.queue.TagFilterHashes[h] = struct{}{}
 				}
 			}
 		} else {
@@ -77,8 +77,8 @@ func (m Model) handleTagPickerToggle(msg tagtui.TagPickerToggleMsg) (Model, tea.
 				if m.library.TagFilterHashes != nil {
 					delete(m.library.TagFilterHashes, h)
 				}
-				if m.queue.tagFilterHashes != nil {
-					delete(m.queue.tagFilterHashes, h)
+				if m.queue.TagFilterHashes != nil {
+					delete(m.queue.TagFilterHashes, h)
 				}
 			}
 		}

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestPlaybackEndedResumesWhenQueueExtended verifies that when the queue was
@@ -15,7 +16,7 @@ func TestPlaybackEndedResumesWhenQueueExtended(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = 1 // was playing track at index 1
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Artist: "A", Title: "One"},
 		{ID: 2, Path: "/b.flac", Artist: "B", Title: "Two"},
 		{ID: 3, Path: "/c.flac", Artist: "C", Title: "Three"}, // pasted concurrently
@@ -42,7 +43,7 @@ func TestPlaybackEndedSetsQueueExhausted(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = 1 // last track
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Artist: "A", Title: "One"},
 		{ID: 2, Path: "/b.flac", Artist: "B", Title: "Two"},
 	}
@@ -66,7 +67,7 @@ func TestPlaybackEndedStopAfterDoesNotSetQueueExhausted(t *testing.T) {
 	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = 0
 	m.playback.stopAfterCurrent = true
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Artist: "A", Title: "One"},
 		{ID: 2, Path: "/b.flac", Artist: "B", Title: "Two"},
 	}

@@ -13,6 +13,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/palette"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
 // buildPaletteCommands returns the list of commands available in the palette.
@@ -96,7 +97,7 @@ func (m Model) buildPaletteCommands() []palette.PaletteCommand {
 		Exec: func() tea.Cmd {
 			path, _, _, found := m.focusedTrackForPalette()
 			if !found {
-				return func() tea.Msg { return TransientNotifyMsg("No track focused") }
+				return func() tea.Msg { return statusbar.TransientNotifyMsg("No track focused") }
 			}
 			return desktop.RevealFile(m.appCtx, path)
 		},
@@ -110,7 +111,7 @@ func (m Model) buildPaletteCommands() []palette.PaletteCommand {
 		Exec: func() tea.Cmd {
 			_, artist, title, found := m.focusedTrackForPalette()
 			if !found {
-				return func() tea.Msg { return TransientNotifyMsg("No track focused") }
+				return func() tea.Msg { return statusbar.TransientNotifyMsg("No track focused") }
 			}
 			text := fmt.Sprintf("%s \u2013 %s", artist, title)
 			return desktop.CopyToClipboard(m.appCtx, text)
@@ -125,7 +126,7 @@ func (m Model) buildPaletteCommands() []palette.PaletteCommand {
 		Exec: func() tea.Cmd {
 			path, _, _, found := m.focusedTrackForPalette()
 			if !found {
-				return func() tea.Msg { return TransientNotifyMsg("No track focused") }
+				return func() tea.Msg { return statusbar.TransientNotifyMsg("No track focused") }
 			}
 			return desktop.CopyToClipboard(m.appCtx, path)
 		},
@@ -189,7 +190,7 @@ func (m Model) buildPaletteCommands() []palette.PaletteCommand {
 		Enabled: func() bool { return m.playback.currentHash != "" },
 	})
 
-	queueHasTracks := func() bool { return len(m.queue.entries) > 1 }
+	queueHasTracks := func() bool { return len(m.queue.Entries) > 1 }
 	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "queue.shuffle",
 		Name:     "Shuffle queue in place",
@@ -257,7 +258,7 @@ func (m Model) buildPaletteCommands() []palette.PaletteCommand {
 		Exec: func() tea.Cmd {
 			hash := m.focusedTrackHash()
 			if hash == "" {
-				return func() tea.Msg { return TransientNotifyMsg("No track focused") }
+				return func() tea.Msg { return statusbar.TransientNotifyMsg("No track focused") }
 			}
 			return func() tea.Msg { return removeAllTagsFromTrackMsg{hash: hash} }
 		},
@@ -296,9 +297,9 @@ func (m Model) focusedTrackForPalette() (path, artist, title string, found bool)
 		}
 
 	case viewQueue:
-		filtered := m.queue.filteredEntries()
-		if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
-			e := filtered[m.queue.cursor]
+		filtered := m.queue.FilteredEntries()
+		if m.queue.Cursor >= 0 && m.queue.Cursor < len(filtered) {
+			e := filtered[m.queue.Cursor]
 			return e.Path, e.Artist, e.Title, true
 		}
 

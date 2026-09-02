@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestQueueCursorDownJKey verifies that pressing "j" while the queue view is
@@ -12,15 +13,15 @@ import (
 func TestQueueCursorDownJKey(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
 	}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	nm := next.(Model)
-	if nm.queue.cursor != 1 {
-		t.Errorf("j key: expected cursor 1, got %d", nm.queue.cursor)
+	if nm.queue.Cursor != 1 {
+		t.Errorf("j key: expected cursor 1, got %d", nm.queue.Cursor)
 	}
 }
 
@@ -29,16 +30,16 @@ func TestQueueCursorDownJKey(t *testing.T) {
 func TestQueueCursorUpKKey(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
 	}
-	m.queue.cursor = 1
+	m.queue.Cursor = 1
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
 	nm := next.(Model)
-	if nm.queue.cursor != 0 {
-		t.Errorf("k key: expected cursor 0, got %d", nm.queue.cursor)
+	if nm.queue.Cursor != 0 {
+		t.Errorf("k key: expected cursor 0, got %d", nm.queue.Cursor)
 	}
 }
 
@@ -47,15 +48,15 @@ func TestQueueCursorUpKKey(t *testing.T) {
 func TestQueueCursorDownArrow(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
 	}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown, Text: "down"})
 	nm := next.(Model)
-	if nm.queue.cursor != 1 {
-		t.Errorf("down arrow: expected cursor 1, got %d", nm.queue.cursor)
+	if nm.queue.Cursor != 1 {
+		t.Errorf("down arrow: expected cursor 1, got %d", nm.queue.Cursor)
 	}
 }
 
@@ -64,16 +65,16 @@ func TestQueueCursorDownArrow(t *testing.T) {
 func TestQueueCursorUpArrow(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
 	}
-	m.queue.cursor = 1
+	m.queue.Cursor = 1
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyUp, Text: "up"})
 	nm := next.(Model)
-	if nm.queue.cursor != 0 {
-		t.Errorf("up arrow: expected cursor 0, got %d", nm.queue.cursor)
+	if nm.queue.Cursor != 0 {
+		t.Errorf("up arrow: expected cursor 0, got %d", nm.queue.Cursor)
 	}
 }
 
@@ -82,16 +83,16 @@ func TestQueueCursorUpArrow(t *testing.T) {
 func TestQueueCursorClampAtBottom(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
 	}
-	m.queue.cursor = 1
+	m.queue.Cursor = 1
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	nm := next.(Model)
-	if nm.queue.cursor != 1 {
-		t.Errorf("j at last: expected cursor 1 (clamped), got %d", nm.queue.cursor)
+	if nm.queue.Cursor != 1 {
+		t.Errorf("j at last: expected cursor 1 (clamped), got %d", nm.queue.Cursor)
 	}
 }
 
@@ -100,15 +101,15 @@ func TestQueueCursorClampAtBottom(t *testing.T) {
 func TestQueueCursorClampAtTop(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
 	}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
 	nm := next.(Model)
-	if nm.queue.cursor != 0 {
-		t.Errorf("k at first: expected cursor 0 (clamped), got %d", nm.queue.cursor)
+	if nm.queue.Cursor != 0 {
+		t.Errorf("k at first: expected cursor 0 (clamped), got %d", nm.queue.Cursor)
 	}
 }
 
@@ -117,7 +118,7 @@ func TestQueueCursorClampAtTop(t *testing.T) {
 func TestFocusNowPlayingMovesCursorToCurrentTrack(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Hash: "aaa", Display: "A"},
 		{Path: "/music/b.flac", Hash: "bbb", Display: "B"},
 		{Path: "/music/c.flac", Hash: "ccc", Display: "C"},
@@ -126,13 +127,13 @@ func TestFocusNowPlayingMovesCursorToCurrentTrack(t *testing.T) {
 	}
 	m.playback.currentHash = "ccc"
 	m.playback.currentIndex = 2
-	m.queue.cursor = 0
+	m.queue.Cursor = 0
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'f', Text: "f"})
 	nm := next.(Model)
 
-	if nm.queue.cursor != 2 {
-		t.Errorf("f key: expected cursor 2 (track ccc), got %d", nm.queue.cursor)
+	if nm.queue.Cursor != 2 {
+		t.Errorf("f key: expected cursor 2 (track ccc), got %d", nm.queue.Cursor)
 	}
 }
 
@@ -141,14 +142,14 @@ func TestFocusNowPlayingMovesCursorToCurrentTrack(t *testing.T) {
 func TestFocusNowPlayingFromOtherView(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewLibrary
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Hash: "aaa", Display: "A"},
 		{Path: "/music/b.flac", Hash: "bbb", Display: "B"},
 		{Path: "/music/c.flac", Hash: "ccc", Display: "C"},
 	}
 	m.playback.currentHash = "bbb"
 	m.playback.currentIndex = 1
-	m.queue.cursor = 0
+	m.queue.Cursor = 0
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'f', Text: "f"})
 	nm := next.(Model)
@@ -156,8 +157,8 @@ func TestFocusNowPlayingFromOtherView(t *testing.T) {
 	if nm.activeView != viewQueue {
 		t.Errorf("f from Library: expected activeView=viewQueue, got %d", nm.activeView)
 	}
-	if nm.queue.cursor != 1 {
-		t.Errorf("f from Library: expected cursor 1 (track bbb), got %d", nm.queue.cursor)
+	if nm.queue.Cursor != 1 {
+		t.Errorf("f from Library: expected cursor 1 (track bbb), got %d", nm.queue.Cursor)
 	}
 }
 
@@ -166,17 +167,17 @@ func TestFocusNowPlayingFromOtherView(t *testing.T) {
 func TestFocusNowPlayingNoOpWhenNothingPlaying(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Hash: "aaa", Display: "A"},
 		{Path: "/music/b.flac", Hash: "bbb", Display: "B"},
 	}
 	m.playback.currentHash = ""
-	m.queue.cursor = 1
+	m.queue.Cursor = 1
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'f', Text: "f"})
 	nm := next.(Model)
 
-	if nm.queue.cursor != 1 {
-		t.Errorf("f key with no playing track: expected cursor unchanged at 1, got %d", nm.queue.cursor)
+	if nm.queue.Cursor != 1 {
+		t.Errorf("f key with no playing track: expected cursor unchanged at 1, got %d", nm.queue.Cursor)
 	}
 }

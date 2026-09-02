@@ -6,6 +6,7 @@ import (
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
@@ -18,7 +19,7 @@ func (m Model) batchEnqueueTracksCmd(tracks []library.Track, source, label strin
 		return nil
 	}
 	be := m.batchEnqueuer
-	wasEmpty := len(m.queue.entries) == 0
+	wasEmpty := len(m.queue.Entries) == 0
 	return func() tea.Msg {
 		ids, err := be.AppendTracks(tracks, source)
 		if err != nil {
@@ -33,12 +34,12 @@ func (m Model) batchEnqueueTracksCmd(tracks []library.Track, source, label strin
 	}
 }
 
-// newQueueEntries builds QueueEntry values from matched tracks and DB row IDs.
+// newQueueEntries builds queue.Entry values from matched tracks and DB row IDs.
 // source is the playlist name to record on each entry (empty for individual enqueues).
-func newQueueEntries(tracks []library.Track, ids []int64, source string) []QueueEntry {
-	entries := make([]QueueEntry, len(tracks))
+func newQueueEntries(tracks []library.Track, ids []int64, source string) []queue.Entry {
+	entries := make([]queue.Entry, len(tracks))
 	for i, t := range tracks {
-		entries[i] = QueueEntry{
+		entries[i] = queue.Entry{
 			ID:             ids[i],
 			Path:           t.Path,
 			Hash:           t.Hash,
@@ -56,7 +57,7 @@ func newQueueEntries(tracks []library.Track, ids []int64, source string) []Queue
 }
 
 // queueContainsHash reports whether any entry in entries has the given hash.
-func queueContainsHash(entries []QueueEntry, hash string) bool {
+func queueContainsHash(entries []queue.Entry, hash string) bool {
 	for _, e := range entries {
 		if e.Hash == hash {
 			return true
@@ -72,7 +73,7 @@ func queueSourceName(source string) string {
 	return source
 }
 
-func queueTrackFromEntry(entry QueueEntry) player.QueueTrack {
+func queueTrackFromEntry(entry queue.Entry) player.QueueTrack {
 	return player.QueueTrack{
 		Path:    entry.Path,
 		Hash:    entry.Hash,
@@ -88,9 +89,9 @@ func queueTrackFromEntry(entry QueueEntry) player.QueueTrack {
 // the cursor indexes into the filtered list, so we clamp against the filtered
 // count rather than the full entry count.
 func (m *Model) clampQueueCursorAndScroll() {
-	n := len(m.queue.filteredEntries())
-	m.queue.cursor, m.queue.scrollOffset = layout.ClampAfterRemoval(
-		m.queue.cursor, m.queue.scrollOffset, n)
+	n := len(m.queue.FilteredEntries())
+	m.queue.Cursor, m.queue.ScrollOffset = layout.ClampAfterRemoval(
+		m.queue.Cursor, m.queue.ScrollOffset, n)
 }
 
 // resetPlaybackState stops the player and clears all playback-related fields
@@ -131,19 +132,19 @@ func (m Model) resetPlaybackProgress() Model {
 // inserted: immediately after the currently playing track. When nothing is
 // playing, it returns 0 (front of queue).
 func (m Model) playNextIndex() int {
-	if m.playback.currentIndex < 0 || m.playback.currentIndex >= len(m.queue.entries) {
+	if m.playback.currentIndex < 0 || m.playback.currentIndex >= len(m.queue.Entries) {
 		return 0
 	}
 	return m.playback.currentIndex + 1
 }
 
 func (m Model) resetQueueState() Model {
-	m.queue.entries = nil
-	m.queue.cursor = 0
-	m.queue.scrollOffset = 0
-	m.queue.filter = m.queue.filter.Deactivate()
-	m.queue.savingAsPlaylist = false
-	m.queue.savingFromSelection = false
+	m.queue.Entries = nil
+	m.queue.Cursor = 0
+	m.queue.ScrollOffset = 0
+	m.queue.Filter = m.queue.Filter.Deactivate()
+	m.queue.SavingAsPlaylist = false
+	m.queue.SavingFromSelection = false
 	return m.resetQueueSort()
 }
 
@@ -213,10 +214,10 @@ func snapshotTrackTags(src map[string]map[int64]struct{}) map[string]map[int64]s
 }
 
 func (m Model) stopPlaybackIfCurrentMissing() Model {
-	if len(m.queue.entries) == 0 {
+	if len(m.queue.Entries) == 0 {
 		return m.resetPlaybackState()
 	}
-	if m.playback.currentHash != "" && !queueContainsHash(m.queue.entries, m.playback.currentHash) {
+	if m.playback.currentHash != "" && !queueContainsHash(m.queue.Entries, m.playback.currentHash) {
 		return m.resetPlaybackState()
 	}
 	return m
@@ -235,7 +236,7 @@ func (m *Model) relocateCurrentIndexByHash() {
 	if m.playback.currentIndex >= 0 || m.playback.currentHash == "" {
 		return
 	}
-	for i, entry := range m.queue.entries {
+	for i, entry := range m.queue.Entries {
 		if entry.Hash == m.playback.currentHash {
 			m.playback.currentIndex = i
 			return

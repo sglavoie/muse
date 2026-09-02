@@ -19,7 +19,7 @@ func (m Model) bulkSelectedHashes() []string {
 	case viewLibrary:
 		return hashMapToSlice(m.library.SelectedHashes)
 	case viewQueue:
-		return m.queue.selectedHashes()
+		return m.queue.SelectedHashes()
 	case viewPlaylists:
 		if len(m.playlists.SelectedTrackIDs) == 0 {
 			return nil

@@ -11,6 +11,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/metadata"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -32,15 +33,15 @@ func TestMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m := New(context.Background())
 			m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Old", Title: "Old", Album: "Old"})
-			m.queue.entries = []QueueEntry{
+			m.queue.Entries = []queue.Entry{
 				{ID: 1, Hash: "h1", Path: "/a.flac", Display: "Old – Old", Artist: "Old", Title: "Old", Album: "Old"},
 			}
 			ed := metadata.NewEditor("h1", tt.title, tt.artist, "Album", "", 0)
 			m.overlay.metadataEditor = &ed
 			result, _ := m.handleMetadataSave()
 			nm := result.(Model)
-			if nm.queue.entries[0].Display != tt.wantDisplay {
-				t.Errorf("expected Display=%q, got %q", tt.wantDisplay, nm.queue.entries[0].Display)
+			if nm.queue.Entries[0].Display != tt.wantDisplay {
+				t.Errorf("expected Display=%q, got %q", tt.wantDisplay, nm.queue.Entries[0].Display)
 			}
 		})
 	}
@@ -92,7 +93,7 @@ func TestSingleTrackMetadataSaveRefreshesDerivedViews(t *testing.T) {
 func TestSingleTrackMetadataSaveCreatesUndoSlot(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Old Artist", Title: "Old Title", Album: "Old Album"})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "Old Artist – Old Title", Artist: "Old Artist", Title: "Old Title", Album: "Old Album"},
 	}
 
@@ -124,8 +125,8 @@ func TestSingleTrackMetadataSaveCreatesUndoSlot(t *testing.T) {
 	if tr.Album != "Old Album" {
 		t.Errorf("after undo: expected album=%q, got %q", "Old Album", tr.Album)
 	}
-	if nm.queue.entries[0].Title != "Old Title" {
-		t.Errorf("after undo: queue title=%q, want %q", nm.queue.entries[0].Title, "Old Title")
+	if nm.queue.Entries[0].Title != "Old Title" {
+		t.Errorf("after undo: queue title=%q, want %q", nm.queue.Entries[0].Title, "Old Title")
 	}
 }
 
@@ -135,16 +136,16 @@ func TestMetadataSavePreservesQueueSort(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "Song1"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "Song2"})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "Song1"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "Song2"},
 	}
 	// Sort queue by artist ascending: Alice, Zara → displayOrder = [1, 0]
-	m.queue.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
-	m.queue = m.queue.recomputeDisplayOrder()
+	m.queue.SortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
+	m.queue = m.queue.RecomputeDisplayOrder()
 
-	if len(m.queue.displayOrder) != 2 {
-		t.Fatalf("precondition: expected displayOrder len 2, got %d", len(m.queue.displayOrder))
+	if len(m.queue.DisplayOrder) != 2 {
+		t.Fatalf("precondition: expected displayOrder len 2, got %d", len(m.queue.DisplayOrder))
 	}
 
 	// Edit h1 artist from "Zara" to "Aaron" — should sort before "Alice"
@@ -153,12 +154,12 @@ func TestMetadataSavePreservesQueueSort(t *testing.T) {
 	result, _ := m.handleMetadataSave()
 	nm := result.(Model)
 
-	if nm.queue.displayOrder == nil {
+	if nm.queue.DisplayOrder == nil {
 		t.Fatal("expected displayOrder to be non-nil after metadata save with active sort")
 	}
 	// After re-sort: Aaron(h1)=0, Alice(h2)=1 → displayOrder = [0, 1]
-	if nm.queue.displayOrder[0] != 0 {
-		t.Errorf("expected displayOrder[0]=0 (Aaron), got %d", nm.queue.displayOrder[0])
+	if nm.queue.DisplayOrder[0] != 0 {
+		t.Errorf("expected displayOrder[0]=0 (Aaron), got %d", nm.queue.DisplayOrder[0])
 	}
 }
 
@@ -168,19 +169,19 @@ func TestBulkMetadataSavePreservesQueueSort(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "Song1"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Bob", Title: "Song2"})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "Song1"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Bob", Title: "Song2"},
 	}
-	m.queue.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
-	m.queue = m.queue.recomputeDisplayOrder()
+	m.queue.SortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
+	m.queue = m.queue.RecomputeDisplayOrder()
 
 	ed := metadata.NewBulkEditor([]string{"h1", "h2"}, "CommonTitle", "", "", "", "")
 	m.overlay.metadataEditor = &ed
 	result, _ := m.handleMetadataSave()
 	nm := result.(Model)
 
-	if nm.queue.displayOrder == nil {
+	if nm.queue.DisplayOrder == nil {
 		t.Fatal("expected displayOrder to be non-nil after bulk metadata save with active sort")
 	}
 }

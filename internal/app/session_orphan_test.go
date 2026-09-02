@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/app"
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestApplyRestoredSession_OrphanCurrentHashIgnored verifies that when the
@@ -23,7 +24,7 @@ func TestApplyRestoredSession_OrphanCurrentHashIgnored(t *testing.T) {
 
 	// Queue contains a single track ("aaa"), but the persisted current_hash
 	// points to a different ("ghost") track that is not in the queue.
-	qe := []tui.QueueEntry{
+	qe := []queue.Entry{
 		{ID: 1, Hash: "aaa", Path: "/music/a.mp3", Artist: "A", Title: "Song A"},
 	}
 	pt := []player.QueueTrack{
@@ -59,7 +60,7 @@ func TestApplyRestoredSession_CurrentHashMatchedStillWorks(t *testing.T) {
 	mgr := &mockPlayer{}
 	pr := &mockPlaylistReader{}
 
-	qe := []tui.QueueEntry{
+	qe := []queue.Entry{
 		{ID: 1, Hash: "aaa", Path: "/music/a.mp3", Artist: "A", Title: "Song A"},
 		{ID: 2, Hash: "bbb", Path: "/music/b.mp3", Artist: "B", Title: "Song B", SourcePlaylist: "Jazz"},
 	}
@@ -93,7 +94,7 @@ func TestApplyRestoredSession_MissingCurrentTrackIgnored(t *testing.T) {
 	mgr := &mockPlayer{}
 	pr := &mockPlaylistReader{}
 
-	qe := []tui.QueueEntry{
+	qe := []queue.Entry{
 		{ID: 1, Hash: "aaa", Path: "/music/a.mp3", Artist: "A", Title: "Song A"},
 		{ID: 2, Hash: "bbb", Path: "/music/b.mp3", Artist: "B", Title: "Song B", Missing: true},
 	}

@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/metadata"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestBulkMetadataEditClearsArtistsSelectionOnSave verifies that saving the
@@ -63,13 +64,13 @@ func TestBulkMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Old", Title: "Old", Album: "A"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Old", Title: "Old", Album: "A"})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "Old - Old", Artist: "Old", Title: "Old"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Display: "Old - Old", Artist: "Old", Title: "Old"},
 	}
 	m.activeView = viewQueue
-	m.queue.entries[0].Selected = true
-	m.queue.entries[1].Selected = true
+	m.queue.Entries[0].Selected = true
+	m.queue.Entries[1].Selected = true
 
 	ed := metadata.NewBulkEditor([]string{"h1", "h2"}, "Old", "Old", "A", "", "")
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyTab})
@@ -80,7 +81,7 @@ func TestBulkMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
 
 	result, _ := m.handleMetadataSave()
 	nm := result.(Model)
-	for _, e := range nm.queue.entries {
+	for _, e := range nm.queue.Entries {
 		if e.Display != "Old" {
 			t.Errorf("expected Display=%q (title only), got %q", "Old", e.Display)
 		}

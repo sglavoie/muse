@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestScanBatchReconcilesCachesWithNormalizedMetadata pins FR-004: the scan
@@ -32,7 +33,7 @@ func TestScanBatchReconcilesCachesWithNormalizedMetadata(t *testing.T) {
 	}
 
 	// Queue and a collection (mixes) cache hold the pre-scan raw values.
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.mp3", Title: "Old", Artist: "Old", DurationMs: 0},
 	}
 	m.mixes.cachedMixes = map[db.MixID][]library.Track{
@@ -57,7 +58,7 @@ func TestScanBatchReconcilesCachesWithNormalizedMetadata(t *testing.T) {
 	}
 
 	// Queue cache must match the index, not the raw scan.
-	qe := nm.queue.entries[0]
+	qe := nm.queue.Entries[0]
 	if qe.Title != "Edited Title" {
 		t.Errorf("queue Title = %q; want Edited Title (user-edited overlay)", qe.Title)
 	}

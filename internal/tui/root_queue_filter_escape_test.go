@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestQueueFilterEscapeClears verifies that pressing Escape clears the filter
@@ -12,7 +13,7 @@ import (
 func TestQueueFilterEscapeClears(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/a.flac", Title: "Alpha", Artist: "ArtA"},
 		{Path: "/b.flac", Title: "Beta", Artist: "ArtB"},
 	}
@@ -22,18 +23,18 @@ func TestQueueFilterEscapeClears(t *testing.T) {
 	m = next.(Model)
 	next, _ = m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	m = next.(Model)
-	if m.queue.filter.Text != "a" {
-		t.Fatalf("filter text should be 'a', got %q", m.queue.filter.Text)
+	if m.queue.Filter.Text != "a" {
+		t.Fatalf("filter text should be 'a', got %q", m.queue.Filter.Text)
 	}
 
 	// Press Escape to clear.
 	next, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = next.(Model)
-	if m.queue.filter.Active {
+	if m.queue.Filter.Active {
 		t.Error("filter should be inactive after Escape")
 	}
-	if m.queue.filter.Text != "" {
-		t.Errorf("filter text should be empty after Escape, got %q", m.queue.filter.Text)
+	if m.queue.Filter.Text != "" {
+		t.Errorf("filter text should be empty after Escape, got %q", m.queue.Filter.Text)
 	}
 }
 
@@ -42,7 +43,7 @@ func TestQueueFilterEscapeClears(t *testing.T) {
 func TestQueueFilterEnterCommits(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/a.flac", Title: "Alpha", Artist: "ArtA"},
 	}
 
@@ -55,11 +56,11 @@ func TestQueueFilterEnterCommits(t *testing.T) {
 	// Press Enter to commit.
 	next, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = next.(Model)
-	if m.queue.filter.Active {
+	if m.queue.Filter.Active {
 		t.Error("filter input mode should be inactive after Enter")
 	}
-	if m.queue.filter.Text != "x" {
-		t.Errorf("filter text should be preserved after Enter, got %q", m.queue.filter.Text)
+	if m.queue.Filter.Text != "x" {
+		t.Errorf("filter text should be preserved after Enter, got %q", m.queue.Filter.Text)
 	}
 }
 
@@ -68,7 +69,7 @@ func TestQueueFilterEnterCommits(t *testing.T) {
 func TestQueueEscClearsCommittedFilter(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/a.flac", Title: "Alpha", Artist: "ArtA"},
 		{Path: "/b.flac", Title: "Beta", Artist: "ArtB"},
 	}
@@ -80,21 +81,21 @@ func TestQueueEscClearsCommittedFilter(t *testing.T) {
 	m = next.(Model)
 	next, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = next.(Model)
-	if m.queue.filter.Text != "a" {
-		t.Fatalf("committed filter text should be 'a', got %q", m.queue.filter.Text)
+	if m.queue.Filter.Text != "a" {
+		t.Fatalf("committed filter text should be 'a', got %q", m.queue.Filter.Text)
 	}
 
 	// Press Esc to clear the committed filter.
 	next, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = next.(Model)
-	if m.queue.filter.Active {
+	if m.queue.Filter.Active {
 		t.Error("filter should be inactive after Esc")
 	}
-	if m.queue.filter.Text != "" {
-		t.Errorf("filter text should be empty after Esc, got %q", m.queue.filter.Text)
+	if m.queue.Filter.Text != "" {
+		t.Errorf("filter text should be empty after Esc, got %q", m.queue.Filter.Text)
 	}
-	if m.queue.cursor != 0 {
-		t.Errorf("cursor should be 0 after Esc, got %d", m.queue.cursor)
+	if m.queue.Cursor != 0 {
+		t.Errorf("cursor should be 0 after Esc, got %d", m.queue.Cursor)
 	}
 }
 
@@ -103,17 +104,17 @@ func TestQueueEscClearsCommittedFilter(t *testing.T) {
 func TestQueueEscNoOpWithoutFilter(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/a.flac", Title: "Alpha", Artist: "ArtA"},
 	}
-	m.queue.cursor = 0
+	m.queue.Cursor = 0
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	nm := next.(Model)
-	if nm.queue.cursor != 0 {
-		t.Errorf("cursor should remain 0, got %d", nm.queue.cursor)
+	if nm.queue.Cursor != 0 {
+		t.Errorf("cursor should remain 0, got %d", nm.queue.Cursor)
 	}
-	if nm.queue.filter.Text != "" {
-		t.Errorf("filter text should be empty, got %q", nm.queue.filter.Text)
+	if nm.queue.Filter.Text != "" {
+		t.Errorf("filter text should be empty, got %q", nm.queue.Filter.Text)
 	}
 }

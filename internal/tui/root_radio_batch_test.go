@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestRadioBatchDiscardedWhenDisabled verifies that a RadioBatchEnqueuedMsg
@@ -13,10 +14,10 @@ func TestRadioBatchDiscardedWhenDisabled(t *testing.T) {
 	m := newModelWithTracks()
 	m.radio.enabled = false
 	m.radio.enqueuePending = true
-	beforeLen := len(m.queue.entries)
+	beforeLen := len(m.queue.Entries)
 
 	msg := RadioBatchEnqueuedMsg{
-		Entries: []QueueEntry{
+		Entries: []queue.Entry{
 			{ID: 99, Hash: "hx", Path: "/x.flac", Artist: "X", Title: "Y"},
 		},
 		QueueIDs: []int64{99},
@@ -27,9 +28,9 @@ func TestRadioBatchDiscardedWhenDisabled(t *testing.T) {
 	if nm.radio.enqueuePending {
 		t.Error("enqueuePending must be reset even when batch is discarded")
 	}
-	if len(nm.queue.entries) != beforeLen {
+	if len(nm.queue.Entries) != beforeLen {
 		t.Errorf("queue must not grow when radio is disabled; before=%d after=%d",
-			beforeLen, len(nm.queue.entries))
+			beforeLen, len(nm.queue.Entries))
 	}
 	if nm.playback.state == playback.StatePlaying {
 		t.Error("playback must not start when radio is disabled")
@@ -47,7 +48,7 @@ func TestRadioSeedTagsSnapshotted(t *testing.T) {
 	m.batchEnqueuer = be
 	m.radio.enabled = true
 	m.radio.seedHash = "h1"
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a1.flac"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h1", Path: "/a1.flac"}}
 	m.playback.currentIndex = 0
 	m.trackTags = map[string]map[int64]struct{}{
 		"h1": {7: {}, 8: {}},
@@ -105,12 +106,12 @@ func TestRadioBatchDiscardedWhenQueueClearedInFlight(t *testing.T) {
 	m.radio.enqueuePending = true
 	// Simulate post-clear state: queue empty, queueExhausted=false (cleared
 	// by resetPlaybackState), state Idle.
-	m.queue.entries = nil
+	m.queue.Entries = nil
 	m.playback.queueExhausted = false
 	m.playback.state = playback.StateIdle
 
 	msg := RadioBatchEnqueuedMsg{
-		Entries: []QueueEntry{
+		Entries: []queue.Entry{
 			{ID: 50, Hash: "hr", Path: "/r.flac", Artist: "R", Title: "S"},
 		},
 		QueueIDs: []int64{50},
@@ -121,8 +122,8 @@ func TestRadioBatchDiscardedWhenQueueClearedInFlight(t *testing.T) {
 	if nm.radio.enqueuePending {
 		t.Error("enqueuePending must be reset even when batch is discarded")
 	}
-	if len(nm.queue.entries) != 0 {
-		t.Errorf("cleared queue must stay empty; got %d entries", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 0 {
+		t.Errorf("cleared queue must stay empty; got %d entries", len(nm.queue.Entries))
 	}
 	if nm.playback.state == playback.StatePlaying {
 		t.Error("playback must not start when batch is discarded after queue clear")
@@ -139,11 +140,11 @@ func TestRadioBatchAppliedWhenQueueWasEmptyAtEnqueueStart(t *testing.T) {
 	m.player = p
 	m.radio.enabled = true
 	m.radio.enqueuePending = true
-	m.queue.entries = nil
+	m.queue.Entries = nil
 	m.playback.state = playback.StateIdle
 
 	msg := RadioBatchEnqueuedMsg{
-		Entries: []QueueEntry{
+		Entries: []queue.Entry{
 			{ID: 60, Hash: "hq", Path: "/q.flac", Artist: "Q", Title: "T"},
 		},
 		QueueIDs: []int64{60},
@@ -154,8 +155,8 @@ func TestRadioBatchAppliedWhenQueueWasEmptyAtEnqueueStart(t *testing.T) {
 	if nm.radio.enqueuePending {
 		t.Error("enqueuePending must be reset after applying batch")
 	}
-	if len(nm.queue.entries) != 1 {
-		t.Errorf("expected 1 entry appended, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 1 {
+		t.Errorf("expected 1 entry appended, got %d", len(nm.queue.Entries))
 	}
 	if nm.playback.state != playback.StatePlaying {
 		t.Errorf("expected PlaybackPlaying after WasEmpty auto-start, got %v", nm.playback.state)
@@ -177,12 +178,12 @@ func TestRadioBatchAppliedOnNaturalExhaustion(t *testing.T) {
 	m.radio.enqueuePending = true
 	// Natural exhaustion path: queue is empty but queueExhausted=true (set by
 	// handlePlaybackEndedMsg) so auto-resume should fire when the batch lands.
-	m.queue.entries = nil
+	m.queue.Entries = nil
 	m.playback.queueExhausted = true
 	m.playback.state = playback.StateIdle
 
 	msg := RadioBatchEnqueuedMsg{
-		Entries: []QueueEntry{
+		Entries: []queue.Entry{
 			{ID: 70, Hash: "hx", Path: "/x.flac", Artist: "X", Title: "T"},
 		},
 		QueueIDs: []int64{70},
@@ -193,8 +194,8 @@ func TestRadioBatchAppliedOnNaturalExhaustion(t *testing.T) {
 	if nm.radio.enqueuePending {
 		t.Error("enqueuePending must be reset after applying batch")
 	}
-	if len(nm.queue.entries) != 1 {
-		t.Fatalf("expected 1 entry appended on natural exhaustion, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 1 {
+		t.Fatalf("expected 1 entry appended on natural exhaustion, got %d", len(nm.queue.Entries))
 	}
 	if nm.playback.state != playback.StatePlaying {
 		t.Errorf("expected PlaybackPlaying after natural-exhaust auto-resume, got %v", nm.playback.state)

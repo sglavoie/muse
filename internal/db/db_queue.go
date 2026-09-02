@@ -7,7 +7,7 @@ import (
 
 // QueueRow holds a single queue entry joined with its track metadata.
 // Used by ReadQueue to return typed results that callers convert into
-// player.QueueTrack and tui.QueueEntry slices.
+// player.QueueTrack and queue.Entry slices.
 type QueueRow struct {
 	ID             int64
 	Hash           string

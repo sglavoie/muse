@@ -77,9 +77,9 @@ func (m Model) applyTagFilterToViews() Model {
 	m.library.Cursor = 0
 	m.library.ScrollOffset = 0
 
-	m.queue.tagFilterHashes = hashes
-	m.queue.cursor = 0
-	m.queue.scrollOffset = 0
+	m.queue.TagFilterHashes = hashes
+	m.queue.Cursor = 0
+	m.queue.ScrollOffset = 0
 
 	return m
 }
@@ -130,8 +130,8 @@ func (m Model) handleRemoveAllTagsFromTrack(msg removeAllTagsFromTrackMsg) (Mode
 		if m.library.TagFilterHashes != nil {
 			delete(m.library.TagFilterHashes, hash)
 		}
-		if m.queue.tagFilterHashes != nil {
-			delete(m.queue.tagFilterHashes, hash)
+		if m.queue.TagFilterHashes != nil {
+			delete(m.queue.TagFilterHashes, hash)
 		}
 		// Rebuild sort/filter caches and clamp cursors: the effective
 		// track list may have shrunk because baseTracks() re-evaluates
@@ -173,7 +173,7 @@ func (m Model) handleEnqueueByTag(msg enqueueByTagMsg) (Model, tea.Cmd) {
 		m.statusBar.Notify("Enqueue not available")
 		return m, nil
 	}
-	wasEmpty := len(m.queue.entries) == 0
+	wasEmpty := len(m.queue.Entries) == 0
 	tagID, name := msg.tagID, msg.name
 	return m, func() tea.Msg {
 		rows, err := tr.ReadTracksByTag(tagID)

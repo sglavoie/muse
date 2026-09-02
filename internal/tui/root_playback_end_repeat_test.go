@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestPlaybackEndedMsgRepeatAllRestartsQueue verifies that when repeat mode is
@@ -19,7 +20,7 @@ func TestPlaybackEndedMsgRepeatAllRestartsQueue(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p), WithSessionWriter(sw))
 	m.playback.state = playback.StatePlaying
 	m.playback.repeatMode = playback.RepeatAll
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Display: "A – One", Artist: "A", Title: "One"},
 		{ID: 2, Path: "/b.flac", Display: "B – Two", Artist: "B", Title: "Two"},
 	}
@@ -48,7 +49,7 @@ func TestPlaybackEndedMsgRepeatAllDoesNotSpekulativelySetHash(t *testing.T) {
 	m.playback.state = playback.StatePlaying
 	m.playback.repeatMode = playback.RepeatAll
 	m.playback.currentHash = "old-hash-last-track"
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "hash-first", Path: "/a.flac", Display: "A", Artist: "A", Title: "One"},
 		{ID: 2, Hash: "hash-second", Path: "/b.flac", Display: "B", Artist: "B", Title: "Two"},
 	}
@@ -77,7 +78,7 @@ func TestPlaybackEndedMsgRepeatAllDoesNotSpekulativelySetSource(t *testing.T) {
 	m.playback.state = playback.StatePlaying
 	m.playback.repeatMode = playback.RepeatAll
 	m.statusBar.PlaylistSource = "Old Source"
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "A – One", Artist: "A", Title: "One", SourcePlaylist: "My Playlist"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Display: "B – Two", Artist: "B", Title: "Two", SourcePlaylist: "My Playlist"},
 	}
@@ -100,7 +101,7 @@ func TestPlaybackEndedMsgRepeatAllKeepsOldSource(t *testing.T) {
 	m.playback.state = playback.StatePlaying
 	m.playback.repeatMode = playback.RepeatAll
 	m.statusBar.PlaylistSource = "Queue"
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "A – One", Artist: "A", Title: "One"},
 	}
 
@@ -120,7 +121,7 @@ func TestPlaybackEndedMsgRepeatAllEmptyQueueGoesIdle(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StatePlaying
 	m.playback.repeatMode = playback.RepeatAll
-	m.queue.entries = nil
+	m.queue.Entries = nil
 
 	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
@@ -174,7 +175,7 @@ func TestPlaybackEndedMsgRepeatAllPrefersRestartQueueCycle(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StatePlaying
 	m.playback.repeatMode = playback.RepeatAll
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Artist: "A", Title: "One"},
 		{ID: 2, Path: "/b.flac", Artist: "B", Title: "Two"},
 	}
@@ -201,7 +202,7 @@ func TestPlaybackEndedMsgRepeatAllRestartError(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StatePlaying
 	m.playback.repeatMode = playback.RepeatAll
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Artist: "A", Title: "One"},
 	}
 
@@ -232,7 +233,7 @@ func TestRepeatAll_ResetsMissingTrackCount(t *testing.T) {
 	m.playback.peakElapsedSecs = 60
 	m.playback.peakTotalSecs = 120
 	m.missingTrackCount = 3 // simulate 3 missing files in this cycle
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T1"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "B", Title: "T2"},
 	}

@@ -223,7 +223,7 @@ func (m Model) playlistsVisibleTracks() ([]library.Track, string, bool) {
 }
 
 func (m Model) queueVisibleTracks() ([]library.Track, string, bool) {
-	entries := m.queue.filteredEntries()
+	entries := m.queue.FilteredEntries()
 	anySelected := false
 	for _, e := range entries {
 		if e.Selected {

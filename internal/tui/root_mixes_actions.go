@@ -110,7 +110,7 @@ func (m Model) handleMixEnqueueAll() (Model, tea.Cmd) {
 		m.statusBar.Notify("Load the mix first (press Enter)")
 		return m, nil
 	}
-	wasEmpty := len(m.queue.entries) == 0
+	wasEmpty := len(m.queue.Entries) == 0
 	mixName := mix.Name
 	tracks := cached
 	return m, func() tea.Msg {

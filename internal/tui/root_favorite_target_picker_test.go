@@ -9,6 +9,7 @@ import (
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 func openFavoritePickerForTest(t *testing.T, m Model) Model {
@@ -131,7 +132,7 @@ func TestFavoritePickerQueuePlaylistAndFavoritesTracks(t *testing.T) {
 	t.Run("queue", func(t *testing.T) {
 		m := newModel()
 		m.activeView = viewQueue
-		m.queue.entries = []QueueEntry{{Hash: "q1", Title: "Queued", Artist: "A", Album: "B"}}
+		m.queue.Entries = []queue.Entry{{Hash: "q1", Title: "Queued", Artist: "A", Album: "B"}}
 		opened := openFavoritePickerForTest(t, m)
 		if got := opened.overlay.favoriteTargetPicker.Tracks[0].Hash; got != "q1" {
 			t.Fatalf("queue picker hash = %q", got)

@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestSpacePauseResumeFromAnyView verifies that pressing space while paused
@@ -31,7 +32,7 @@ func TestSpacePauseResumeFromAnyView(t *testing.T) {
 			m := New(context.Background(), WithPlayer(p))
 			m.activeView = tc.viewID
 			m.playback.state = playback.StatePaused
-			m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
+			m.queue.Entries = []queue.Entry{{ID: 1, Display: "Track 1"}}
 
 			// Space while paused -> Play() called.
 			next, _ := m.Update(spaceMsg)
@@ -55,7 +56,7 @@ func TestSpacePauseResumeFromAnyView(t *testing.T) {
 func TestSpaceFromIdleDispatchesPlayQueueIndex(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Display: "Track 1"},
 		{ID: 2, Path: "/b.flac", Display: "Track 2"},
 	}
@@ -84,7 +85,7 @@ func TestSpaceFromIdleDispatchesPlayQueueIndex(t *testing.T) {
 func TestModelPlaybackStateTransitions(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/a.flac", Display: "Artist – Song", Artist: "Artist", Title: "Song"},
 	}
 

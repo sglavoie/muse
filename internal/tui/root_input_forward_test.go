@@ -107,14 +107,14 @@ func TestInputForwardingIncludesCommandPaletteFilter(t *testing.T) {
 func TestInputForwardingFallsBackToQueueSaveInput(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue = m.queue.startSaveAsPlaylist(false)
+	m.queue = m.queue.StartSaveAsPlaylist(false)
 
 	next, _, ok := m.forwardToActiveInput(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	if !ok {
 		t.Fatal("expected queue save input to consume forwarded msg")
 	}
 
-	if got := next.queue.saveInput.Value(); got != "q" {
+	if got := next.queue.SaveInput.Value(); got != "q" {
 		t.Fatalf("expected queue save input to update, got %q", got)
 	}
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/settings"
 )
 
@@ -39,7 +40,7 @@ func notifyModel(t *testing.T, notifier trackNotifier, enabled bool) Model {
 	t.Helper()
 	m := New(context.Background(), WithTrackNotifier(notifier))
 	m.notifyOnTrackChange = enabled
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h2", Path: "/b.flac"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h2", Path: "/b.flac"}}
 	m.library.Index.BulkLoad([]library.Track{
 		{Hash: "h2", Path: "/b.flac", Title: "T2", Artist: "B", Album: "Album B"},
 	})

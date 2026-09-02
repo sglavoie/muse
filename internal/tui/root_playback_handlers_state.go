@@ -22,7 +22,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	// One snapshot before the branch cascade covers all four exits below.
 	m = m.endCurrentListen()
 
-	if !wasStopAfter && m.playback.repeatMode == playback.RepeatAll && len(m.queue.entries) > 0 && m.player != nil {
+	if !wasStopAfter && m.playback.repeatMode == playback.RepeatAll && len(m.queue.Entries) > 0 && m.player != nil {
 		// Prefer RestartQueueCycle so shuffle reshuffles into a fresh permutation
 		// (and sequential restarts from index 0). Fall back to PlayFromIndex(0)
 		// for lightweight players that do not implement the optional interface.
@@ -43,7 +43,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	// If the queue was concurrently extended (e.g. a paste was processed
 	// before this message arrived), resume playback instead of stopping.
 	if !wasStopAfter && m.player != nil && m.playback.currentIndex >= 0 &&
-		m.playback.currentIndex+1 < len(m.queue.entries) {
+		m.playback.currentIndex+1 < len(m.queue.Entries) {
 		if err := m.player.PlayFromIndex(m.playback.currentIndex + 1); err == nil {
 			m.playback.state = playback.StatePlaying
 			m = m.resetPlaybackProgress()
@@ -162,7 +162,7 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 	// the clear was processed). Without this check the TUI would resurrect
 	// playback state on an empty queue, showing a playing status bar with
 	// no corresponding queue entry.
-	if len(m.queue.entries) == 0 {
+	if len(m.queue.Entries) == 0 {
 		return m, nil
 	}
 
@@ -175,9 +175,9 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 	// event dispatch and TUI processing (e.g. dequeue raced with gapless
 	// transition).
 	idx := msg.Index
-	if idx < 0 || idx >= len(m.queue.entries) {
+	if idx < 0 || idx >= len(m.queue.Entries) {
 		idx = -1
-		for i, e := range m.queue.entries {
+		for i, e := range m.queue.Entries {
 			if e.Hash == msg.Hash {
 				idx = i
 				break

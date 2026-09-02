@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
@@ -28,7 +29,7 @@ func TestPlayPauseOnEmptyQueueStaysIdle(t *testing.T) {
 func TestPlayPauseWithTracksInQueuePlaysNormally(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Display: "Track 1"}}
 	m.playback.state = playback.StateIdle
 
 	nm, cmd := updateModel(m, tea.KeyPressMsg{Code: ' ', Text: " "})
@@ -81,9 +82,9 @@ func TestNewerNotificationOverwritesOlderResettingExpiry(t *testing.T) {
 
 func TestDequeueShowsUndoHintInStatusBar(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{{ID: 10, Path: "/music/a.flac", Display: "A"}}
+	m.queue.Entries = []queue.Entry{{ID: 10, Path: "/music/a.flac", Display: "A"}}
 
-	nm, _ := updateModel(m, DequeueTrackMsg{Index: 0})
+	nm, _ := updateModel(m, queue.DequeueTrackMsg{Index: 0})
 	if nm.statusBar.TopNotification().Msg == "" {
 		t.Fatal("dequeue: status bar must show an undo hint immediately after DequeueTrackMsg")
 	}
@@ -92,9 +93,9 @@ func TestDequeueShowsUndoHintInStatusBar(t *testing.T) {
 
 func TestClearQueueShowsUndoHintInStatusBar(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{{ID: 10, Path: "/music/a.flac", Display: "A"}, {ID: 20, Path: "/music/b.flac", Display: "B"}}
+	m.queue.Entries = []queue.Entry{{ID: 10, Path: "/music/a.flac", Display: "A"}, {ID: 20, Path: "/music/b.flac", Display: "B"}}
 
-	nm, _ := updateModel(m, ClearQueueMsg{})
+	nm, _ := updateModel(m, queue.ClearQueueMsg{})
 	if nm.statusBar.TopNotification().Msg == "" {
 		t.Fatal("clear queue: status bar must show an undo hint immediately after ClearQueueMsg")
 	}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // newSessionsModel installs two hand-built sessions so a drill has a known
@@ -240,7 +241,7 @@ func TestInsightsAntiRutOnConcentrationLeavesTheTopArtists(t *testing.T) {
 
 func TestInsightsCursorDoesNotFallThroughToQueue(t *testing.T) {
 	m := newInsightsModel(t)
-	m.queue.entries = []QueueEntry{{ID: 1}, {ID: 2}, {ID: 3}}
+	m.queue.Entries = []queue.Entry{{ID: 1}, {ID: 2}, {ID: 3}}
 
 	m = pressKey(m, "j")
 	m = pressKey(m, "j")
@@ -248,8 +249,8 @@ func TestInsightsCursorDoesNotFallThroughToQueue(t *testing.T) {
 	if m.insights.cursor != 2 {
 		t.Errorf("j should move the Insights cursor: want 2, got %d", m.insights.cursor)
 	}
-	if m.queue.cursor != 0 {
-		t.Errorf("j leaked into the Queue cursor: got %d", m.queue.cursor)
+	if m.queue.Cursor != 0 {
+		t.Errorf("j leaked into the Queue cursor: got %d", m.queue.Cursor)
 	}
 
 	m = pressKey(m, "k")
@@ -257,8 +258,8 @@ func TestInsightsCursorDoesNotFallThroughToQueue(t *testing.T) {
 	if m.insights.cursor != 1 {
 		t.Errorf("k should move the Insights cursor: want 1, got %d", m.insights.cursor)
 	}
-	if m.queue.cursor != 0 {
-		t.Errorf("k leaked into the Queue cursor: got %d", m.queue.cursor)
+	if m.queue.Cursor != 0 {
+		t.Errorf("k leaked into the Queue cursor: got %d", m.queue.Cursor)
 	}
 }
 

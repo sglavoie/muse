@@ -8,11 +8,12 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // TestWatchBatchHealsQueuePathOnRename verifies that a same-hash move/rename
-// reported by the watcher updates QueueEntry.Path and rebuilds the player queue
+// reported by the watcher updates queue.Entry.Path and rebuilds the player queue
 // with the new path so playback resolves the moved file immediately, while
 // preserving source/selection state and clearing the missing flag.
 func TestWatchBatchHealsQueuePathOnRename(t *testing.T) {
@@ -21,7 +22,7 @@ func TestWatchBatchHealsQueuePathOnRename(t *testing.T) {
 	m.library.Index.Insert(library.Track{
 		Artist: "A", Title: "T1", Path: "/old.flac", Hash: "h1",
 	})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/old.flac", Artist: "A", Title: "T1",
 			SourcePlaylist: "Mix1", Selected: true, Missing: true},
 	}
@@ -33,7 +34,7 @@ func TestWatchBatchHealsQueuePathOnRename(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	e := nm.queue.entries[0]
+	e := nm.queue.Entries[0]
 	if e.Path != "/new.flac" {
 		t.Errorf("queue entry Path = %q; want /new.flac", e.Path)
 	}
@@ -62,7 +63,7 @@ func TestWatchBatchHealsQueuePathOnRename(t *testing.T) {
 func TestScanBatchHealsQueuePathOnRename(t *testing.T) {
 	sp := &stubPlayerQueueSyncer{}
 	m := New(context.Background(), WithPlayer(sp))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/old.flac", Artist: "A", Title: "T1", Missing: true},
 	}
 
@@ -73,7 +74,7 @@ func TestScanBatchHealsQueuePathOnRename(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	e := nm.queue.entries[0]
+	e := nm.queue.Entries[0]
 	if e.Path != "/new.flac" {
 		t.Errorf("queue entry Path = %q; want /new.flac after rescan", e.Path)
 	}

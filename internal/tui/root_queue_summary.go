@@ -17,7 +17,7 @@ func (m Model) buildQueueSummary() *overlay.QueueSummaryOverlay {
 	var remainMs int64
 	var remainN int
 
-	for i, entry := range m.queue.entries {
+	for i, entry := range m.queue.Entries {
 		totalMs += entry.DurationMs
 		if entry.Artist != "" {
 			artists[entry.Artist] = struct{}{}
@@ -44,7 +44,7 @@ func (m Model) buildQueueSummary() *overlay.QueueSummaryOverlay {
 	}
 
 	return &overlay.QueueSummaryOverlay{
-		Tracks:   len(m.queue.entries),
+		Tracks:   len(m.queue.Entries),
 		Artists:  len(artists),
 		Albums:   len(albums),
 		Sources:  len(sources),

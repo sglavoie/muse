@@ -26,7 +26,7 @@ func (m Model) Snapshot() *UITestSnapshot {
 	snap := &UITestSnapshot{
 		PrimaryView:  viewName(m.activeView),
 		Overlay:      m.activeOverlayName(),
-		QueueLength:  len(m.queue.entries),
+		QueueLength:  len(m.queue.Entries),
 		CurrentIndex: m.playback.currentIndex,
 	}
 	switch m.activeView {
@@ -111,18 +111,18 @@ func (m Model) fillLibrarySnapshot(snap *UITestSnapshot) {
 
 func (m Model) fillQueueSnapshot(snap *UITestSnapshot) {
 	q := m.queue
-	snap.Cursor = q.cursor
-	snap.ScrollOffset = q.scrollOffset
-	snap.VisibleCount = len(q.entries)
+	snap.Cursor = q.Cursor
+	snap.ScrollOffset = q.ScrollOffset
+	snap.VisibleCount = len(q.Entries)
 	selected := 0
-	for _, e := range q.entries {
+	for _, e := range q.Entries {
 		if e.Selected {
 			selected++
 		}
 	}
 	snap.SelectionCount = selected
-	if q.cursor >= 0 && q.cursor < len(q.entries) {
-		e := q.entries[q.cursor]
+	if q.Cursor >= 0 && q.Cursor < len(q.Entries) {
+		e := q.Entries[q.Cursor]
 		snap.FocusedHash = e.Hash
 		snap.FocusedLabel = e.Display
 	}

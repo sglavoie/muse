@@ -1,4 +1,4 @@
-package tui
+package queue
 
 import (
 	"testing"
@@ -14,38 +14,38 @@ import (
 // the missing-track removal path.
 func stubFileExistsTrue(t *testing.T) {
 	t.Helper()
-	saved := fileExists
-	fileExists = func(string) bool { return true }
-	t.Cleanup(func() { fileExists = saved })
+	saved := FileExists
+	FileExists = func(string) bool { return true }
+	t.Cleanup(func() { FileExists = saved })
 }
 
 // TestMarkMissingFlagsAllDuplicateEntries verifies that markMissing marks
 // every entry with the matching path, not just the first one.
 func TestMarkMissingFlagsAllDuplicateEntries(t *testing.T) {
-	q := QueueView{
-		entries: []QueueEntry{
+	q := View{
+		Entries: []Entry{
 			{Path: "/music/a.flac", Display: "A"},
 			{Path: "/music/b.flac", Display: "B"},
 			{Path: "/music/a.flac", Display: "A (dup)"},
 		},
 	}
-	q.markMissing("/music/a.flac")
+	q.MarkMissing("/music/a.flac")
 
-	if !q.entries[0].Missing {
+	if !q.Entries[0].Missing {
 		t.Error("first entry with matching path must be marked missing")
 	}
-	if q.entries[1].Missing {
+	if q.Entries[1].Missing {
 		t.Error("entry with different path must not be marked missing")
 	}
-	if !q.entries[2].Missing {
+	if !q.Entries[2].Missing {
 		t.Error("second entry with matching path must be marked missing")
 	}
 }
 
 // TestQueueSelectNoPanicWhenCursorOutOfBounds verifies that the actionSelect
-// handler in QueueView does not panic when the cursor exceeds the entries slice.
+// handler in View does not panic when the cursor exceeds the entries slice.
 func TestQueueSelectNoPanicWhenCursorOutOfBounds(t *testing.T) {
-	q := QueueView{entries: []QueueEntry{{Path: "/a.flac", Display: "A"}}, cursor: 5}
+	q := View{Entries: []Entry{{Path: "/a.flac", Display: "A"}}, Cursor: 5}
 	_, cmd := q.HandleAction(keys.ActionSelect)
 	if cmd != nil {
 		t.Fatal("actionSelect with out-of-bounds cursor must return nil cmd")
@@ -53,9 +53,9 @@ func TestQueueSelectNoPanicWhenCursorOutOfBounds(t *testing.T) {
 }
 
 // TestQueueDequeueNoPanicWhenCursorOutOfBounds verifies that the actionDequeue
-// handler in QueueView does not panic when the cursor exceeds the entries slice.
+// handler in View does not panic when the cursor exceeds the entries slice.
 func TestQueueDequeueNoPanicWhenCursorOutOfBounds(t *testing.T) {
-	q := QueueView{entries: []QueueEntry{{Path: "/a.flac", Display: "A"}}, cursor: 5}
+	q := View{Entries: []Entry{{Path: "/a.flac", Display: "A"}}, Cursor: 5}
 	_, cmd := q.HandleAction(keys.ActionDequeue)
 	if cmd != nil {
 		t.Fatal("actionDequeue with out-of-bounds cursor must return nil cmd")
@@ -63,74 +63,74 @@ func TestQueueDequeueNoPanicWhenCursorOutOfBounds(t *testing.T) {
 }
 
 func TestQueueHandleActionCursorUpDown(t *testing.T) {
-	q := QueueView{entries: make([]QueueEntry, 5), cursor: 0, width: 80}
+	q := View{Entries: make([]Entry, 5), Cursor: 0, Width: 80}
 	q, _ = q.HandleAction(keys.ActionCursorDown)
-	if q.cursor != 1 {
-		t.Errorf("CursorDown: expected 1, got %d", q.cursor)
+	if q.Cursor != 1 {
+		t.Errorf("CursorDown: expected 1, got %d", q.Cursor)
 	}
 	q, _ = q.HandleAction(keys.ActionCursorDown)
-	if q.cursor != 2 {
-		t.Errorf("CursorDown: expected 2, got %d", q.cursor)
+	if q.Cursor != 2 {
+		t.Errorf("CursorDown: expected 2, got %d", q.Cursor)
 	}
 	q, _ = q.HandleAction(keys.ActionCursorUp)
-	if q.cursor != 1 {
-		t.Errorf("CursorUp: expected 1, got %d", q.cursor)
+	if q.Cursor != 1 {
+		t.Errorf("CursorUp: expected 1, got %d", q.Cursor)
 	}
 }
 
 func TestQueueHandleActionCursorClampsAtBounds(t *testing.T) {
-	q := QueueView{entries: make([]QueueEntry, 3), cursor: 0, width: 80}
+	q := View{Entries: make([]Entry, 3), Cursor: 0, Width: 80}
 	q, _ = q.HandleAction(keys.ActionCursorUp)
-	if q.cursor != 0 {
-		t.Errorf("CursorUp at 0: expected 0, got %d", q.cursor)
+	if q.Cursor != 0 {
+		t.Errorf("CursorUp at 0: expected 0, got %d", q.Cursor)
 	}
-	q.cursor = 2
+	q.Cursor = 2
 	q, _ = q.HandleAction(keys.ActionCursorDown)
-	if q.cursor != 2 {
-		t.Errorf("CursorDown at end: expected 2, got %d", q.cursor)
+	if q.Cursor != 2 {
+		t.Errorf("CursorDown at end: expected 2, got %d", q.Cursor)
 	}
 }
 
 func TestQueueHandleActionGoToTopBottom(t *testing.T) {
-	q := QueueView{entries: make([]QueueEntry, 10), cursor: 5, width: 80}
+	q := View{Entries: make([]Entry, 10), Cursor: 5, Width: 80}
 	q, _ = q.HandleAction(keys.ActionGoToTop)
-	if q.cursor != 0 || q.scrollOffset != 0 {
-		t.Errorf("GoToTop: cursor=%d scroll=%d, want 0,0", q.cursor, q.scrollOffset)
+	if q.Cursor != 0 || q.ScrollOffset != 0 {
+		t.Errorf("GoToTop: cursor=%d scroll=%d, want 0,0", q.Cursor, q.ScrollOffset)
 	}
 	q, _ = q.HandleAction(keys.ActionGoToBottom)
-	if q.cursor != 9 {
-		t.Errorf("GoToBottom: expected cursor=9, got %d", q.cursor)
+	if q.Cursor != 9 {
+		t.Errorf("GoToBottom: expected cursor=9, got %d", q.Cursor)
 	}
 }
 
 func TestQueueHandleActionHalfPageDownUp(t *testing.T) {
 	// visibleRows = height(14) - reserve(3) = 11; HalfPageDown = 11/2 = 5
-	q := QueueView{entries: make([]QueueEntry, 20), cursor: 0, height: 14, width: 80}
+	q := View{Entries: make([]Entry, 20), Cursor: 0, Height: 14, Width: 80}
 	q, _ = q.HandleAction(keys.ActionHalfPageDown)
-	if q.cursor != 5 {
-		t.Errorf("HalfPageDown: expected 5, got %d", q.cursor)
+	if q.Cursor != 5 {
+		t.Errorf("HalfPageDown: expected 5, got %d", q.Cursor)
 	}
 	q, _ = q.HandleAction(keys.ActionHalfPageUp)
-	if q.cursor != 0 {
-		t.Errorf("HalfPageUp: expected 0, got %d", q.cursor)
+	if q.Cursor != 0 {
+		t.Errorf("HalfPageUp: expected 0, got %d", q.Cursor)
 	}
 }
 
 func TestQueueHandleActionFullPageDownUp(t *testing.T) {
 	// visibleRows = height(14) - reserve(3) = 11; FullPageDown = 11
-	q := QueueView{entries: make([]QueueEntry, 20), cursor: 0, height: 14, width: 80}
+	q := View{Entries: make([]Entry, 20), Cursor: 0, Height: 14, Width: 80}
 	q, _ = q.HandleAction(keys.ActionFullPageDown)
-	if q.cursor != 11 {
-		t.Errorf("FullPageDown: expected 11, got %d", q.cursor)
+	if q.Cursor != 11 {
+		t.Errorf("FullPageDown: expected 11, got %d", q.Cursor)
 	}
 	q, _ = q.HandleAction(keys.ActionFullPageUp)
-	if q.cursor != 0 {
-		t.Errorf("FullPageUp: expected 0, got %d", q.cursor)
+	if q.Cursor != 0 {
+		t.Errorf("FullPageUp: expected 0, got %d", q.Cursor)
 	}
 }
 
 func TestQueueHandleActionClearQueue(t *testing.T) {
-	q := QueueView{entries: make([]QueueEntry, 3)}
+	q := View{Entries: make([]Entry, 3)}
 	_, cmd := q.HandleAction(keys.ActionClearQueue)
 	if cmd == nil {
 		t.Fatal("ClearQueue: expected non-nil cmd")
@@ -142,7 +142,7 @@ func TestQueueHandleActionClearQueue(t *testing.T) {
 }
 
 func TestQueueHandleActionMoveTrackUp(t *testing.T) {
-	q := QueueView{entries: make([]QueueEntry, 3), cursor: 1}
+	q := View{Entries: make([]Entry, 3), Cursor: 1}
 	_, cmd := q.HandleAction(keys.ActionMoveTrackUp)
 	if cmd == nil {
 		t.Fatal("MoveTrackUp: expected non-nil cmd")
@@ -154,7 +154,7 @@ func TestQueueHandleActionMoveTrackUp(t *testing.T) {
 }
 
 func TestQueueHandleActionMoveTrackDown(t *testing.T) {
-	q := QueueView{entries: make([]QueueEntry, 3), cursor: 1}
+	q := View{Entries: make([]Entry, 3), Cursor: 1}
 	_, cmd := q.HandleAction(keys.ActionMoveTrackDown)
 	if cmd == nil {
 		t.Fatal("MoveTrackDown: expected non-nil cmd")
@@ -168,7 +168,7 @@ func TestQueueHandleActionMoveTrackDown(t *testing.T) {
 // TestQueueBulkSelectionToggleNoPanicWhenCursorOutOfBounds verifies that the
 // actionBulkSelectionToggle handler does not panic when cursor is out of bounds.
 func TestQueueBulkSelectionToggleNoPanicWhenCursorOutOfBounds(t *testing.T) {
-	q := QueueView{entries: []QueueEntry{{Path: "/a.flac", Display: "A"}}, cursor: 5}
+	q := View{Entries: []Entry{{Path: "/a.flac", Display: "A"}}, Cursor: 5}
 	_, cmd := q.HandleAction(keys.ActionBulkSelectionToggle)
 	if cmd != nil {
 		t.Fatal("actionBulkSelectionToggle with out-of-bounds cursor must return nil cmd")
@@ -180,15 +180,15 @@ func TestQueueBulkSelectionToggleNoPanicWhenCursorOutOfBounds(t *testing.T) {
 // order is active.
 func TestHandleActionSelectUsesOrigIdx(t *testing.T) {
 	stubFileExistsTrue(t)
-	v := QueueView{
-		entries: []QueueEntry{
+	v := View{
+		Entries: []Entry{
 			{ID: 1, Path: "/a", Hash: "ha", Title: "A", Artist: "X"},
 			{ID: 2, Path: "/b", Hash: "hb", Title: "B", Artist: "Y"},
 			{ID: 3, Path: "/c", Hash: "hc", Title: "C", Artist: "Z"},
 		},
-		displayOrder: []int{2, 1, 0},
-		cursor:       0,
-		height:       20,
+		DisplayOrder: []int{2, 1, 0},
+		Cursor:       0,
+		Height:       20,
 	}
 	v2, cmd := v.HandleAction(keys.ActionSelect)
 	_ = v2
@@ -211,12 +211,12 @@ func TestHandleActionSelectUsesOrigIdx(t *testing.T) {
 // HandleAction, so this is the code path exercised in production.
 func TestQueueViewHandleActionEnterSendsPlayQueueIndexMsg(t *testing.T) {
 	stubFileExistsTrue(t)
-	q := QueueView{
-		entries: []QueueEntry{
+	q := View{
+		Entries: []Entry{
 			{Path: "/music/a.flac", Display: "Artist - A"},
 			{Path: "/music/b.flac", Display: "Artist - B"},
 		},
-		cursor: 1,
+		Cursor: 1,
 	}
 	_, cmd := q.HandleAction(keys.ActionSelect)
 	if cmd == nil {
@@ -235,7 +235,7 @@ func TestQueueViewHandleActionEnterSendsPlayQueueIndexMsg(t *testing.T) {
 // TestQueueViewHandleActionEnterOnEmptyQueueIsNoOp verifies that actionSelect
 // on an empty queue does not emit a PlayQueueIndexMsg.
 func TestQueueViewHandleActionEnterOnEmptyQueueIsNoOp(t *testing.T) {
-	q := QueueView{}
+	q := View{}
 	_, cmd := q.HandleAction(keys.ActionSelect)
 	if cmd != nil {
 		t.Fatal("actionSelect on empty queue must return nil cmd")
@@ -245,12 +245,12 @@ func TestQueueViewHandleActionEnterOnEmptyQueueIsNoOp(t *testing.T) {
 // TestQueueViewUpdateDSendsDequeueTrackMsg verifies that actionDequeue
 // dispatches DequeueTrackMsg with the current cursor index.
 func TestQueueViewUpdateDSendsDequeueTrackMsg(t *testing.T) {
-	q := QueueView{
-		entries: []QueueEntry{
+	q := View{
+		Entries: []Entry{
 			{Path: "/music/a.flac", Display: "A"},
 			{Path: "/music/b.flac", Display: "B"},
 		},
-		cursor: 1,
+		Cursor: 1,
 	}
 	_, cmd := q.HandleAction(keys.ActionDequeue)
 	if cmd == nil {
@@ -268,7 +268,7 @@ func TestQueueViewUpdateDSendsDequeueTrackMsg(t *testing.T) {
 // TestQueueViewUpdateDOnEmptyQueueIsNoOp verifies that actionDequeue on an
 // empty queue does not emit a DequeueTrackMsg.
 func TestQueueViewUpdateDOnEmptyQueueIsNoOp(t *testing.T) {
-	q := QueueView{}
+	q := View{}
 	_, cmd := q.HandleAction(keys.ActionDequeue)
 	if cmd != nil {
 		t.Fatal("actionDequeue on empty queue must return nil cmd")
@@ -279,12 +279,12 @@ func TestQueueViewUpdateDOnEmptyQueueIsNoOp(t *testing.T) {
 // actionBulkSelectionToggle dispatches BulkSelectionToggleMsg with the current
 // cursor index.
 func TestQueueViewUpdateXSendsBulkSelectionToggleMsg(t *testing.T) {
-	q := QueueView{
-		entries: []QueueEntry{
+	q := View{
+		Entries: []Entry{
 			{Path: "/music/a.flac", Display: "A"},
 			{Path: "/music/b.flac", Display: "B"},
 		},
-		cursor: 0,
+		Cursor: 0,
 	}
 	_, cmd := q.HandleAction(keys.ActionBulkSelectionToggle)
 	if cmd == nil {
@@ -302,8 +302,8 @@ func TestQueueViewUpdateXSendsBulkSelectionToggleMsg(t *testing.T) {
 // TestQueueViewUpdateCSendsClearQueueMsg verifies that actionClearQueue
 // dispatches ClearQueueMsg.
 func TestQueueViewUpdateCSendsClearQueueMsg(t *testing.T) {
-	q := QueueView{
-		entries: []QueueEntry{
+	q := View{
+		Entries: []Entry{
 			{Path: "/music/a.flac", Display: "A"},
 		},
 	}
@@ -319,12 +319,12 @@ func TestQueueViewUpdateCSendsClearQueueMsg(t *testing.T) {
 // TestQueueViewUpdateKSendsMoveTrackUpMsg verifies that actionMoveTrackUp
 // dispatches MoveTrackUpMsg with the current cursor index.
 func TestQueueViewUpdateKSendsMoveTrackUpMsg(t *testing.T) {
-	q := QueueView{
-		entries: []QueueEntry{
+	q := View{
+		Entries: []Entry{
 			{Path: "/music/a.flac", Display: "A"},
 			{Path: "/music/b.flac", Display: "B"},
 		},
-		cursor: 1,
+		Cursor: 1,
 	}
 	_, cmd := q.HandleAction(keys.ActionMoveTrackUp)
 	if cmd == nil {
@@ -342,12 +342,12 @@ func TestQueueViewUpdateKSendsMoveTrackUpMsg(t *testing.T) {
 // TestQueueViewUpdateKAtTopIsNoOp verifies that actionMoveTrackUp at the
 // first entry (boundary) does not emit a MoveTrackUpMsg.
 func TestQueueViewUpdateKAtTopIsNoOp(t *testing.T) {
-	q := QueueView{
-		entries: []QueueEntry{
+	q := View{
+		Entries: []Entry{
 			{Path: "/music/a.flac", Display: "A"},
 			{Path: "/music/b.flac", Display: "B"},
 		},
-		cursor: 0,
+		Cursor: 0,
 	}
 	_, cmd := q.HandleAction(keys.ActionMoveTrackUp)
 	if cmd != nil {
@@ -358,12 +358,12 @@ func TestQueueViewUpdateKAtTopIsNoOp(t *testing.T) {
 // TestQueueViewUpdateJSendsMoveTrackDownMsg verifies that actionMoveTrackDown
 // dispatches MoveTrackDownMsg with the current cursor index.
 func TestQueueViewUpdateJSendsMoveTrackDownMsg(t *testing.T) {
-	q := QueueView{
-		entries: []QueueEntry{
+	q := View{
+		Entries: []Entry{
 			{Path: "/music/a.flac", Display: "A"},
 			{Path: "/music/b.flac", Display: "B"},
 		},
-		cursor: 0,
+		Cursor: 0,
 	}
 	_, cmd := q.HandleAction(keys.ActionMoveTrackDown)
 	if cmd == nil {
@@ -381,12 +381,12 @@ func TestQueueViewUpdateJSendsMoveTrackDownMsg(t *testing.T) {
 // TestQueueViewUpdateJAtBottomIsNoOp verifies that actionMoveTrackDown at the
 // last entry (boundary) does not emit a MoveTrackDownMsg.
 func TestQueueViewUpdateJAtBottomIsNoOp(t *testing.T) {
-	q := QueueView{
-		entries: []QueueEntry{
+	q := View{
+		Entries: []Entry{
 			{Path: "/music/a.flac", Display: "A"},
 			{Path: "/music/b.flac", Display: "B"},
 		},
-		cursor: 1,
+		Cursor: 1,
 	}
 	_, cmd := q.HandleAction(keys.ActionMoveTrackDown)
 	if cmd != nil {

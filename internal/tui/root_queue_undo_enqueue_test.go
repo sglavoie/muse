@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestUndoEnqueueClampsScrollOffset verifies that undoing a single-track
@@ -14,26 +15,26 @@ import (
 func TestUndoEnqueueClampsScrollOffset(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Display: "A"},
 		{ID: 20, Path: "/b.flac", Display: "B"},
 	}
 	m.undo.slot = undoSlot{
-		action:    undoEnqueueAction{id: 20, entry: m.queue.entries[1], idx: 1},
+		action:    undoEnqueueAction{id: 20, entry: m.queue.Entries[1], idx: 1},
 		expiresAt: time.Now().Add(undoWindowDuration),
 	}
-	m.queue.scrollOffset = 1
-	m.queue.cursor = 1
+	m.queue.ScrollOffset = 1
+	m.queue.Cursor = 1
 
 	next, _ := m.Update(UndoMsg{})
 	nm := next.(Model)
 
-	if len(nm.queue.entries) != 1 {
-		t.Fatalf("after undo enqueue: expected 1 entry, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 1 {
+		t.Fatalf("after undo enqueue: expected 1 entry, got %d", len(nm.queue.Entries))
 	}
-	if nm.queue.scrollOffset > 0 {
+	if nm.queue.ScrollOffset > 0 {
 		t.Fatalf("scrollOffset must be clamped to 0 after removing last entry, got %d",
-			nm.queue.scrollOffset)
+			nm.queue.ScrollOffset)
 	}
 }
 
@@ -43,7 +44,7 @@ func TestUndoBatchEnqueueClampsScrollOffset(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueDequeuer(d), WithBatchEnqueuer(be))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Display: "A"},
 		{ID: 100, Path: "/b.flac", Display: "B"},
 		{ID: 101, Path: "/c.flac", Display: "C"},
@@ -57,18 +58,18 @@ func TestUndoBatchEnqueueClampsScrollOffset(t *testing.T) {
 		},
 		expiresAt: time.Now().Add(undoWindowDuration),
 	}
-	m.queue.scrollOffset = 2
-	m.queue.cursor = 2
+	m.queue.ScrollOffset = 2
+	m.queue.Cursor = 2
 
 	next, _ := m.Update(UndoMsg{})
 	nm := next.(Model)
 
-	if len(nm.queue.entries) != 1 {
-		t.Fatalf("after undo batch enqueue: expected 1 entry, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 1 {
+		t.Fatalf("after undo batch enqueue: expected 1 entry, got %d", len(nm.queue.Entries))
 	}
-	if nm.queue.scrollOffset > 0 {
+	if nm.queue.ScrollOffset > 0 {
 		t.Fatalf("scrollOffset must be clamped to 0 after batch undo, got %d",
-			nm.queue.scrollOffset)
+			nm.queue.ScrollOffset)
 	}
 }
 
@@ -77,12 +78,12 @@ func TestUndoBatchEnqueueClampsScrollOffset(t *testing.T) {
 func TestUndoEnqueueSchedulesPurge(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Display: "A"},
 		{ID: 20, Path: "/b.flac", Display: "B"},
 	}
 	m.undo.slot = undoSlot{
-		action:    undoEnqueueAction{id: 20, entry: m.queue.entries[1], idx: 1},
+		action:    undoEnqueueAction{id: 20, entry: m.queue.Entries[1], idx: 1},
 		expiresAt: time.Now().Add(undoWindowDuration),
 	}
 
@@ -112,7 +113,7 @@ func TestUndoBatchEnqueueSchedulesPurge(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueDequeuer(d), WithBatchEnqueuer(be))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 100, Path: "/a.flac", Display: "A"},
 		{ID: 101, Path: "/b.flac", Display: "B"},
 	}
@@ -150,14 +151,14 @@ func TestUndoBatchEnqueueSchedulesPurge(t *testing.T) {
 func TestUndoEnqueueFindsEntryByIDAfterReorder(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Hash: "aaa", Display: "A"},
 		{ID: 20, Path: "/b.flac", Hash: "bbb", Display: "B"},
 		{ID: 30, Path: "/c.flac", Hash: "ccc", Display: "C"},
 	}
 
-	m.setUndoSlot(undoEnqueueAction{id: 30, entry: m.queue.entries[2], idx: 2}, nil)
-	m.queue.entries = []QueueEntry{
+	m.setUndoSlot(undoEnqueueAction{id: 30, entry: m.queue.Entries[2], idx: 2}, nil)
+	m.queue.Entries = []queue.Entry{
 		{ID: 30, Path: "/c.flac", Hash: "ccc", Display: "C"},
 		{ID: 10, Path: "/a.flac", Hash: "aaa", Display: "A"},
 		{ID: 20, Path: "/b.flac", Hash: "bbb", Display: "B"},
@@ -165,10 +166,10 @@ func TestUndoEnqueueFindsEntryByIDAfterReorder(t *testing.T) {
 
 	nm := m.handleUndo()
 
-	if len(nm.queue.entries) != 2 {
-		t.Fatalf("expected 2 entries after undo, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 2 {
+		t.Fatalf("expected 2 entries after undo, got %d", len(nm.queue.Entries))
 	}
-	for _, e := range nm.queue.entries {
+	for _, e := range nm.queue.Entries {
 		if e.ID == 30 {
 			t.Fatal("ID=30 should have been removed by undo enqueue")
 		}
@@ -184,7 +185,7 @@ func TestUndoBatchEnqueueRemovesByIDNotPosition(t *testing.T) {
 	be := &stubBatchEnqueuer{}
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithBatchEnqueuer(be), WithQueueDequeuer(d))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/old.flac", Hash: "old", Display: "Old"},
 		{ID: 100, Path: "/x.flac", Hash: "xxx", Display: "X"},
 		{ID: 101, Path: "/y.flac", Hash: "yyy", Display: "Y"},
@@ -196,7 +197,7 @@ func TestUndoBatchEnqueueRemovesByIDNotPosition(t *testing.T) {
 		startIdx:     1,
 		playlistName: "Test",
 	}, nil)
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 101, Path: "/y.flac", Hash: "yyy", Display: "Y"},
 		{ID: 1, Path: "/old.flac", Hash: "old", Display: "Old"},
 		{ID: 100, Path: "/x.flac", Hash: "xxx", Display: "X"},
@@ -204,11 +205,11 @@ func TestUndoBatchEnqueueRemovesByIDNotPosition(t *testing.T) {
 
 	nm := m.handleUndo()
 
-	if len(nm.queue.entries) != 1 {
-		t.Fatalf("expected 1 entry after batch undo, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 1 {
+		t.Fatalf("expected 1 entry after batch undo, got %d", len(nm.queue.Entries))
 	}
-	if nm.queue.entries[0].ID != 1 {
-		t.Fatalf("expected remaining entry to be ID=1, got ID=%d", nm.queue.entries[0].ID)
+	if nm.queue.Entries[0].ID != 1 {
+		t.Fatalf("expected remaining entry to be ID=1, got ID=%d", nm.queue.Entries[0].ID)
 	}
 	if len(be.dequeueTracksSoftIDs) != 1 {
 		t.Fatalf("expected 1 batch soft-delete call, got %d", len(be.dequeueTracksSoftIDs))
@@ -221,18 +222,18 @@ func TestUndoEnqueueResetsPlaybackWhenPlayingTrackRemoved(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	p := &stubPlayerQueueRemover{}
 	m := New(context.Background(), WithQueueDequeuer(d), WithPlayer(p))
-	m.queue.entries = []QueueEntry{{ID: 42, Path: "/song.flac", Hash: "abc123", Display: "Artist – Song"}}
+	m.queue.Entries = []queue.Entry{{ID: 42, Path: "/song.flac", Hash: "abc123", Display: "Artist – Song"}}
 	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
 	m.statusBar.Artist = "Artist"
 	m.statusBar.Title = "Song"
 
-	m.setUndoSlot(undoEnqueueAction{id: 42, entry: m.queue.entries[0], idx: 0}, nil)
+	m.setUndoSlot(undoEnqueueAction{id: 42, entry: m.queue.Entries[0], idx: 0}, nil)
 
 	nm := m.handleUndo()
 
-	if len(nm.queue.entries) != 0 {
-		t.Fatalf("expected empty queue after undo enqueue, got %d entries", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 0 {
+		t.Fatalf("expected empty queue after undo enqueue, got %d entries", len(nm.queue.Entries))
 	}
 	if nm.playback.state != playback.StateIdle {
 		t.Errorf("expected PlaybackIdle after undo enqueue removed playing track, got %v", nm.playback.state)
@@ -254,7 +255,7 @@ func TestUndoEnqueueKeepsPlaybackWhenOtherTrackPlaying(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	p := &stubPlayerQueueRemover{}
 	m := New(context.Background(), WithQueueDequeuer(d), WithPlayer(p))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Hash: "aaa", Display: "A"},
 		{ID: 2, Path: "/b.flac", Hash: "bbb", Display: "B"},
 	}
@@ -263,12 +264,12 @@ func TestUndoEnqueueKeepsPlaybackWhenOtherTrackPlaying(t *testing.T) {
 	m.statusBar.Artist = "A"
 	m.statusBar.Title = "Track A"
 
-	m.setUndoSlot(undoEnqueueAction{id: 2, entry: m.queue.entries[1], idx: 1}, nil)
+	m.setUndoSlot(undoEnqueueAction{id: 2, entry: m.queue.Entries[1], idx: 1}, nil)
 
 	nm := m.handleUndo()
 
-	if len(nm.queue.entries) != 1 {
-		t.Fatalf("expected 1 entry after undo enqueue, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 1 {
+		t.Fatalf("expected 1 entry after undo enqueue, got %d", len(nm.queue.Entries))
 	}
 	if nm.playback.state != playback.StatePlaying {
 		t.Errorf("playback should remain Playing when a non-playing track is removed, got %v", nm.playback.state)
@@ -285,7 +286,7 @@ func TestUndoBatchEnqueueResetsPlaybackWhenQueueEmptied(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	p := &stubPlayerQueueRemover{}
 	m := New(context.Background(), WithBatchEnqueuer(be), WithQueueDequeuer(d), WithPlayer(p))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 100, Path: "/x.flac", Hash: "xxx", Display: "X"},
 		{ID: 101, Path: "/y.flac", Hash: "yyy", Display: "Y"},
 	}
@@ -303,8 +304,8 @@ func TestUndoBatchEnqueueResetsPlaybackWhenQueueEmptied(t *testing.T) {
 
 	nm := m.handleUndo()
 
-	if len(nm.queue.entries) != 0 {
-		t.Fatalf("expected empty queue after undo batch enqueue, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 0 {
+		t.Fatalf("expected empty queue after undo batch enqueue, got %d", len(nm.queue.Entries))
 	}
 	if nm.playback.state != playback.StateIdle {
 		t.Errorf("expected PlaybackIdle after undo batch enqueue emptied queue, got %v", nm.playback.state)
@@ -324,7 +325,7 @@ func TestUndoBatchEnqueueKeepsPlaybackWhenPlayingTrackSurvives(t *testing.T) {
 	be := &stubBatchEnqueuer{}
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithBatchEnqueuer(be), WithQueueDequeuer(d))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/keeper.flac", Hash: "keep", Display: "Keeper"},
 		{ID: 100, Path: "/x.flac", Hash: "xxx", Display: "X"},
 		{ID: 101, Path: "/y.flac", Hash: "yyy", Display: "Y"},
@@ -343,8 +344,8 @@ func TestUndoBatchEnqueueKeepsPlaybackWhenPlayingTrackSurvives(t *testing.T) {
 
 	nm := m.handleUndo()
 
-	if len(nm.queue.entries) != 1 {
-		t.Fatalf("expected 1 entry after undo, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 1 {
+		t.Fatalf("expected 1 entry after undo, got %d", len(nm.queue.Entries))
 	}
 	if nm.playback.state != playback.StatePlaying {
 		t.Errorf("playback should remain Playing when playing track survives, got %v", nm.playback.state)

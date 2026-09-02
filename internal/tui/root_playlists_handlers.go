@@ -139,7 +139,7 @@ func (m Model) handlePlaylistCreateErrorMsg(msg playlistCreateErrorMsg) Model {
 // handleQueueSavedAsPlaylistMsg updates the playlist list after a successful
 // save-as-playlist operation and shows a success notification.
 func (m Model) handleQueueSavedAsPlaylistMsg(msg queueSavedAsPlaylistMsg) Model {
-	m.queue = m.queue.cancelSaveAsPlaylist()
+	m.queue = m.queue.CancelSaveAsPlaylist()
 	m.playlists.Playlists = msg.playlists
 	m = m.preservePlaylistsSort()
 	source := "queue"
@@ -155,7 +155,7 @@ func (m Model) handleQueueSavedAsPlaylistMsg(msg queueSavedAsPlaylistMsg) Model 
 // handleQueueSaveAsPlaylistErrorMsg cancels the inline save input and shows
 // an error notification.
 func (m Model) handleQueueSaveAsPlaylistErrorMsg(msg queueSaveAsPlaylistErrorMsg) Model {
-	m.queue = m.queue.cancelSaveAsPlaylist()
+	m.queue = m.queue.CancelSaveAsPlaylist()
 	m.statusBar.Notify("Save queue as playlist failed: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
@@ -192,8 +192,8 @@ func (m Model) clearAllSelections() Model {
 	m.tagsView.SelectedHashes = nil
 	m.insights.trackView.SelectedHashes = nil
 	m.playlists.SelectedTrackIDs = nil
-	for i := range m.queue.entries {
-		m.queue.entries[i].Selected = false
+	for i := range m.queue.Entries {
+		m.queue.Entries[i].Selected = false
 	}
 	return m
 }

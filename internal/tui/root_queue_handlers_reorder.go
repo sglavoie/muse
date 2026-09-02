@@ -7,24 +7,25 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // handleMoveTrackUpMsg swaps a queue entry with the one above it and persists
 // the reorder.
-func (m Model) handleMoveTrackUpMsg(msg MoveTrackUpMsg) (Model, tea.Cmd) {
+func (m Model) handleMoveTrackUpMsg(msg queue.MoveTrackUpMsg) (Model, tea.Cmd) {
 	return m.shiftQueueTrack(msg.Index, -1)
 }
 
 // handleMoveTrackDownMsg swaps a queue entry with the one below it and persists
 // the reorder.
-func (m Model) handleMoveTrackDownMsg(msg MoveTrackDownMsg) (Model, tea.Cmd) {
+func (m Model) handleMoveTrackDownMsg(msg queue.MoveTrackDownMsg) (Model, tea.Cmd) {
 	return m.shiftQueueTrack(msg.Index, +1)
 }
 
 // shiftQueueTrack moves the queue entry at idx one position in the given
 // direction (-1 = up, +1 = down) and persists the swap asynchronously.
 func (m Model) shiftQueueTrack(idx, dir int) (Model, tea.Cmd) {
-	n := len(m.queue.entries)
+	n := len(m.queue.Entries)
 	if dir < 0 {
 		if idx <= 0 || idx >= n {
 			return m, nil
@@ -36,19 +37,19 @@ func (m Model) shiftQueueTrack(idx, dir int) (Model, tea.Cmd) {
 	}
 
 	m = exitVisualMode(m)
-	entry := m.queue.entries[idx]
+	entry := m.queue.Entries[idx]
 	neighbor := idx + dir
-	m.queue.entries[idx], m.queue.entries[neighbor] = m.queue.entries[neighbor], m.queue.entries[idx]
-	m.queue.cursor = neighbor
+	m.queue.Entries[idx], m.queue.Entries[neighbor] = m.queue.Entries[neighbor], m.queue.Entries[idx]
+	m.queue.Cursor = neighbor
 
 	if dir < 0 {
-		if m.queue.cursor < m.queue.scrollOffset {
-			m.queue.scrollOffset = m.queue.cursor
+		if m.queue.Cursor < m.queue.ScrollOffset {
+			m.queue.ScrollOffset = m.queue.Cursor
 		}
 	} else {
-		maxRows := m.queue.visibleRows()
-		if maxRows > 0 && m.queue.cursor >= m.queue.scrollOffset+maxRows {
-			m.queue.scrollOffset = m.queue.cursor - maxRows + 1
+		maxRows := m.queue.VisibleRows()
+		if maxRows > 0 && m.queue.Cursor >= m.queue.ScrollOffset+maxRows {
+			m.queue.ScrollOffset = m.queue.Cursor - maxRows + 1
 		}
 	}
 
@@ -79,7 +80,7 @@ func (m Model) shiftQueueTrack(idx, dir int) (Model, tea.Cmd) {
 // updates the current-playing index, syncs the player queue, and persists the
 // new order to the database when a queueShuffler is available.
 func (m Model) handleQueueShuffleMsg() (Model, tea.Cmd) {
-	if len(m.queue.entries) <= 1 {
+	if len(m.queue.Entries) <= 1 {
 		m.statusBar.Notify("Queue too small to shuffle")
 		return m, nil
 	}
@@ -88,25 +89,25 @@ func (m Model) handleQueueShuffleMsg() (Model, tea.Cmd) {
 	// Using the ID (unique per queue row) instead of the hash avoids
 	// misidentifying the entry when the queue contains duplicate tracks.
 	var currentID int64
-	if m.playback.currentIndex >= 0 && m.playback.currentIndex < len(m.queue.entries) {
-		currentID = m.queue.entries[m.playback.currentIndex].ID
+	if m.playback.currentIndex >= 0 && m.playback.currentIndex < len(m.queue.Entries) {
+		currentID = m.queue.Entries[m.playback.currentIndex].ID
 	}
 
-	entries := make([]QueueEntry, len(m.queue.entries))
-	copy(entries, m.queue.entries)
+	entries := make([]queue.Entry, len(m.queue.Entries))
+	copy(entries, m.queue.Entries)
 	for i := len(entries) - 1; i > 0; i-- {
 		j := rand.IntN(i + 1) //nolint:gosec // non-security random for queue shuffle
 		entries[i], entries[j] = entries[j], entries[i]
 	}
-	m.queue.entries = entries
-	for i := range m.queue.entries {
-		m.queue.entries[i].Selected = false
+	m.queue.Entries = entries
+	for i := range m.queue.Entries {
+		m.queue.Entries[i].Selected = false
 	}
 	m = exitVisualMode(m)
 
 	m.playback.currentIndex = -1
 	if currentID != 0 {
-		for i, entry := range m.queue.entries {
+		for i, entry := range m.queue.Entries {
 			if entry.ID == currentID {
 				m.playback.currentIndex = i
 				break
@@ -116,11 +117,11 @@ func (m Model) handleQueueShuffleMsg() (Model, tea.Cmd) {
 
 	m = m.resetQueueSort()
 	m.syncPlayerQueue()
-	m.statusBar.Notify(fmt.Sprintf("Queue shuffled (%d tracks)", len(m.queue.entries)))
+	m.statusBar.Notify(fmt.Sprintf("Queue shuffled (%d tracks)", len(m.queue.Entries)))
 
 	if shuffler, ok := m.reorderer.(queueShuffler); ok {
-		ids := make([]int64, len(m.queue.entries))
-		for i, entry := range m.queue.entries {
+		ids := make([]int64, len(m.queue.Entries))
+		for i, entry := range m.queue.Entries {
 			ids[i] = entry.ID
 		}
 		return m, func() tea.Msg { _ = shuffler.SetQueueOrder(ids); return nil }
@@ -133,12 +134,12 @@ func (m Model) handleQueueShuffleMsg() (Model, tea.Cmd) {
 // support.
 func (m Model) handleQueueDedupMsg() (Model, tea.Cmd) {
 	seen := make(map[string]struct{})
-	var keep []QueueEntry
-	var removedEntries []QueueEntry
+	var keep []queue.Entry
+	var removedEntries []queue.Entry
 	var removedIndices []int
 	var removedIDs []int64
 
-	for i, entry := range m.queue.entries {
+	for i, entry := range m.queue.Entries {
 		if _, ok := seen[entry.Hash]; ok {
 			removedEntries = append(removedEntries, entry)
 			removedIndices = append(removedIndices, i)
@@ -154,9 +155,9 @@ func (m Model) handleQueueDedupMsg() (Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.queue.entries = keep
-	for i := range m.queue.entries {
-		m.queue.entries[i].Selected = false
+	m.queue.Entries = keep
+	for i := range m.queue.Entries {
+		m.queue.Entries[i].Selected = false
 	}
 	m = exitVisualMode(m)
 	m = m.preserveQueueSort()
@@ -168,7 +169,7 @@ func (m Model) handleQueueDedupMsg() (Model, tea.Cmd) {
 	// index is stale.  Searching by hash mirrors handleQueueShuffleMsg.
 	if m.playback.currentHash != "" {
 		m.playback.currentIndex = -1
-		for i, entry := range m.queue.entries {
+		for i, entry := range m.queue.Entries {
 			if entry.Hash == m.playback.currentHash {
 				m.playback.currentIndex = i
 				break

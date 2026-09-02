@@ -8,6 +8,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
@@ -53,7 +54,7 @@ func TestRadioSuppressedWhenRepeatAll(t *testing.T) {
 	m := newModelWithTracks()
 	m.radio.enabled = true
 	m.playback.repeatMode = playback.RepeatAll
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h1"}}
 	m.playback.currentIndex = 0
 
 	if cmd := m.radioMaybeEnqueueCmd(); cmd != nil {
@@ -67,7 +68,7 @@ func TestRadioSuppressedWhenStopAfterCurrent(t *testing.T) {
 	m := newModelWithTracks()
 	m.radio.enabled = true
 	m.playback.stopAfterCurrent = true
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h1"}}
 	m.playback.currentIndex = 0
 
 	if cmd := m.radioMaybeEnqueueCmd(); cmd != nil {
@@ -81,7 +82,7 @@ func TestRadioSuppressedWhenEnqueuePending(t *testing.T) {
 	m := newModelWithTracks()
 	m.radio.enabled = true
 	m.radio.enqueuePending = true
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h1"}}
 	m.playback.currentIndex = 0
 
 	if cmd := m.radioMaybeEnqueueCmd(); cmd != nil {
@@ -97,7 +98,7 @@ func TestRadioLowWaterMarkTrigger(t *testing.T) {
 	m.batchEnqueuer = be
 	m.radio.enabled = true
 	// One entry total, currentIndex=0 → remaining=0.
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a1.flac"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h1", Path: "/a1.flac"}}
 	m.playback.currentIndex = 0
 
 	cmd := m.radioMaybeEnqueueCmd()
@@ -112,9 +113,9 @@ func TestRadioNoTriggerAboveLowWaterMark(t *testing.T) {
 	m := newModelWithTracks()
 	m.radio.enabled = true
 	// currentIndex=0, 4 entries → remaining=3 > radioLowWaterMark(2).
-	m.queue.entries = make([]QueueEntry, 4)
-	for i := range m.queue.entries {
-		m.queue.entries[i] = QueueEntry{ID: int64(i + 1)}
+	m.queue.Entries = make([]queue.Entry, 4)
+	for i := range m.queue.Entries {
+		m.queue.Entries[i] = queue.Entry{ID: int64(i + 1)}
 	}
 	m.playback.currentIndex = 0
 
@@ -129,9 +130,9 @@ func TestRadioNoTriggerWithOutOfRangeCurrentIndex(t *testing.T) {
 	m := newModelWithTracks()
 	m.radio.enabled = true
 	m.batchEnqueuer = &stubBatchEnqueuer{}
-	m.queue.entries = make([]QueueEntry, 4)
-	for i := range m.queue.entries {
-		m.queue.entries[i] = QueueEntry{ID: int64(i + 1)}
+	m.queue.Entries = make([]queue.Entry, 4)
+	for i := range m.queue.Entries {
+		m.queue.Entries[i] = queue.Entry{ID: int64(i + 1)}
 	}
 	m.playback.currentIndex = 99
 
@@ -146,7 +147,7 @@ func TestRadioSeedEvolutionOnTrackChanged(t *testing.T) {
 	m := newModelWithTracks()
 	m.radio.enabled = true
 	m.radio.seedHash = "h1"
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a1.flac", Artist: "Alice", Title: "Track A1"},
 		{ID: 2, Hash: "h2", Path: "/a2.flac", Artist: "Alice", Title: "Track A2"},
 		{ID: 3, Hash: "h3", Path: "/b1.flac", Artist: "Alice", Title: "Track B1"},
@@ -184,7 +185,7 @@ func TestRadioEnqueuePendingSetByTrackChanged(t *testing.T) {
 	m := newModelWithTracks()
 	m.batchEnqueuer = be
 	m.radio.enabled = true
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a1.flac", Artist: "Alice", Title: "Track A1"},
 	}
 	m.playback.state = playback.StatePlaying
@@ -205,7 +206,7 @@ func TestRadioNoDuplicateBatch(t *testing.T) {
 	m := newModelWithTracks()
 	m.batchEnqueuer = be
 	m.radio.enabled = true
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a1.flac", Artist: "Alice", Title: "Track A1"},
 		{ID: 2, Hash: "h2", Path: "/a2.flac", Artist: "Alice", Title: "Track A2"},
 	}
@@ -238,7 +239,7 @@ func TestRadioEnqueuePendingSetByToggle(t *testing.T) {
 	be := &stubBatchEnqueuer{}
 	m := newModelWithTracks()
 	m.batchEnqueuer = be
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a1.flac"},
 	}
 	m.playback.currentIndex = 0

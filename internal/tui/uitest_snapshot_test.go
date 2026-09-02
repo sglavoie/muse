@@ -36,8 +36,8 @@ func TestSnapshotQueueSelectionCount(t *testing.T) {
 	}
 	m = applyResize(t, m, 100, 30)
 	m = m.switchToView(viewQueue)
-	m.queue.entries[0].Selected = true
-	m.queue.entries[2].Selected = true
+	m.queue.Entries[0].Selected = true
+	m.queue.Entries[2].Selected = true
 
 	snap := m.Snapshot()
 	if snap.SelectionCount != 2 {

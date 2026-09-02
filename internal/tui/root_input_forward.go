@@ -112,9 +112,9 @@ func (m Model) forwardPlaylistRenameMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
 }
 
 func (m Model) forwardQueueSaveMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
-	if m.queue.isSavingAsPlaylist() && m.activeView == viewQueue {
+	if m.queue.IsSavingAsPlaylist() && m.activeView == viewQueue {
 		var cmd tea.Cmd
-		m.queue, cmd = m.queue.updateSaveInputMsg(msg)
+		m.queue, cmd = m.queue.UpdateSaveInputMsg(msg)
 		return m, cmd, true
 	}
 	return m, nil, false

@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // listensByHash counts RecordListen calls per hash so the exactly-once
@@ -42,7 +43,7 @@ func TestRepeatAllWrapRecordsListenOnce(t *testing.T) {
 	hr := &stubHistoryRecorder{}
 	m := armedModel(t, hr, WithPlayer(&stubPlayer{}))
 	m.playback.repeatMode = playback.RepeatAll
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
 
 	next, cmd := m.Update(playback.PlaybackEndedMsg{})
 	m = next.(Model)
@@ -63,7 +64,7 @@ func TestRepeatAllWrapRecordsListenOnce(t *testing.T) {
 func TestReconnectRecordsListenOnce(t *testing.T) {
 	hr := &stubHistoryRecorder{}
 	m := armedModel(t, hr)
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
 
 	next, cmd := m.Update(playback.PlayerDisconnectedMsg{})
 	m = next.(Model)
@@ -83,7 +84,7 @@ func TestReconnectRecordsListenOnce(t *testing.T) {
 func TestTrackChangeMidQueueRecordsListenOnce(t *testing.T) {
 	hr := &stubHistoryRecorder{}
 	m := armedModel(t, hr)
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac"},
 		{ID: 2, Hash: "h2", Path: "/b.flac"},
 	}
@@ -106,7 +107,7 @@ func TestTrackChangeMidQueueRecordsListenOnce(t *testing.T) {
 func TestStopRecordsListenOnce(t *testing.T) {
 	hr := &stubHistoryRecorder{}
 	m := armedModel(t, hr, WithPlayer(&stubCommandPlayer{}))
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
 
 	stop := tea.KeyPressMsg{Code: 's', Text: "s"}
 
@@ -131,9 +132,9 @@ func TestStopRecordsListenOnce(t *testing.T) {
 func TestClearQueueWhilePlayingRecordsListenOnce(t *testing.T) {
 	hr := &stubHistoryRecorder{}
 	m := armedModel(t, hr, WithPlayer(&stubCommandPlayer{}))
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
 
-	next, cmd := m.Update(ClearQueueMsg{})
+	next, cmd := m.Update(queue.ClearQueueMsg{})
 	m = next.(Model)
 	drainCmd(cmd)
 	if got := listensByHash(hr.calls)["h1"]; got != 1 {
@@ -153,12 +154,12 @@ func TestClearQueueWhilePlayingRecordsListenOnce(t *testing.T) {
 func TestDequeueCurrentRecordsListenOnce(t *testing.T) {
 	hr := &stubHistoryRecorder{}
 	m := armedModel(t, hr, WithPlayer(&stubPlayerQueueRemover{}))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac"},
 		{ID: 2, Hash: "h2", Path: "/b.flac"},
 	}
 
-	next, cmd := m.Update(DequeueTrackMsg{Index: 0})
+	next, cmd := m.Update(queue.DequeueTrackMsg{Index: 0})
 	m = next.(Model)
 	drainCmd(cmd)
 
@@ -174,7 +175,7 @@ func TestDequeueCurrentRecordsListenOnce(t *testing.T) {
 func TestPlayQueueIndexRecordsPreviousListenBeforeReset(t *testing.T) {
 	hr := &stubHistoryRecorder{}
 	m := armedModel(t, hr, WithPlayer(&stubPlayer{}))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Alpha", Title: "One"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Beta", Title: "Two"},
 	}
@@ -221,7 +222,7 @@ func TestPlayQueueIndexRecordsPreviousListenBeforeReset(t *testing.T) {
 func TestPlayQueueIndexFailureKeepsPreviousListenOnce(t *testing.T) {
 	hr := &stubHistoryRecorder{}
 	m := armedModel(t, hr, WithPlayer(&stubPlayer{playFromIndexErr: errStubPlay}))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Alpha", Title: "One"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Beta", Title: "Two"},
 	}
@@ -255,7 +256,7 @@ func TestPlayQueueIndexFailureKeepsPreviousListenOnce(t *testing.T) {
 func TestPreviewDoesNotRecordListen(t *testing.T) {
 	hr := &stubHistoryRecorder{}
 	m := armedModel(t, hr)
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
 
 	next, cmd := m.Update(previewStartedMsg{overlay: overlay.PreviewOverlay{Hash: "h2", Artist: "Beta", Title: "Two"}})
 	m = next.(Model)

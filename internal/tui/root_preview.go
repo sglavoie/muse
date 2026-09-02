@@ -90,9 +90,9 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 	case viewLibrary:
 		return m.library.Panel().FocusedTrack()
 	case viewQueue:
-		filtered := m.queue.filteredEntries()
-		if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
-			e := filtered[m.queue.cursor]
+		filtered := m.queue.FilteredEntries()
+		if m.queue.Cursor >= 0 && m.queue.Cursor < len(filtered) {
+			e := filtered[m.queue.Cursor]
 			if e.Missing {
 				return library.Track{}, false
 			}

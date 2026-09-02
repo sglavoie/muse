@@ -44,15 +44,15 @@ func (m Model) handleLibraryEnqueueAction() (tea.Model, tea.Cmd, bool) {
 		if m.queueWriter == nil {
 			return m, nil, true
 		}
-		cmd = m.library.EnqueueFocused(m.queueWriter, len(m.queue.entries))
+		cmd = m.library.EnqueueFocused(m.queueWriter, len(m.queue.Entries))
 		m.library = m.library.ClearFilter()
 	case viewMixes:
 		if m.queueWriter != nil && m.mixes.level == 1 {
-			cmd = m.mixes.trackView.EnqueueFocused(m.queueWriter, len(m.queue.entries))
+			cmd = m.mixes.trackView.EnqueueFocused(m.queueWriter, len(m.queue.Entries))
 		}
 	case viewInsights:
 		if m.queueWriter != nil && m.insights.atTracks() {
-			cmd = m.insights.trackView.EnqueueFocused(m.queueWriter, len(m.queue.entries))
+			cmd = m.insights.trackView.EnqueueFocused(m.queueWriter, len(m.queue.Entries))
 		}
 	}
 	return m, cmd, true
@@ -64,7 +64,7 @@ func (m Model) handleLibraryPlayNextAction() (tea.Model, tea.Cmd, bool) {
 	}
 
 	insertIdx := m.playNextIndex()
-	prevLen := len(m.queue.entries)
+	prevLen := len(m.queue.Entries)
 	var cmd tea.Cmd
 	switch m.activeView {
 	case viewLibrary:

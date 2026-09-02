@@ -25,9 +25,9 @@ func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (M
 		if m.library.Index.UpdateDuration(fix.Hash, float64(fix.DurationMs)/1000) {
 			m.auditCorrected++
 		}
-		for i := range m.queue.entries {
-			if m.queue.entries[i].Hash == fix.Hash {
-				m.queue.entries[i].DurationMs = fix.DurationMs
+		for i := range m.queue.Entries {
+			if m.queue.Entries[i].Hash == fix.Hash {
+				m.queue.Entries[i].DurationMs = fix.DurationMs
 			}
 		}
 	}

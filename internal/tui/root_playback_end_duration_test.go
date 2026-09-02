@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestPlaybackEndedResetsDurationCorrected verifies that handlePlaybackEndedMsg
@@ -32,7 +33,7 @@ func TestRepeatAllResetsDurationCorrected(t *testing.T) {
 	m.playback.state = playback.StatePlaying
 	m.playback.repeatMode = playback.RepeatAll
 	m.playback.durationCorrected = true
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Artist: "A", Title: "One"},
 	}
 
@@ -56,7 +57,7 @@ func TestPlaybackEndedConcurrentExtensionResetsDurationCorrected(t *testing.T) {
 	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = 0
 	m.playback.durationCorrected = true
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Artist: "A", Title: "One"},
 		{ID: 2, Path: "/b.flac", Artist: "B", Title: "Two"}, // pasted concurrently
 	}

@@ -9,6 +9,7 @@ import (
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -17,7 +18,7 @@ import (
 func TestWatchBatchUpdatesQueueDuration(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", DurationMs: 120_000},
 	}
 
@@ -28,8 +29,8 @@ func TestWatchBatchUpdatesQueueDuration(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.queue.entries[0].DurationMs != 180_000 {
-		t.Errorf("queue entry DurationMs = %d, want 180000", nm.queue.entries[0].DurationMs)
+	if nm.queue.Entries[0].DurationMs != 180_000 {
+		t.Errorf("queue entry DurationMs = %d, want 180000", nm.queue.Entries[0].DurationMs)
 	}
 }
 

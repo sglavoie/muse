@@ -15,6 +15,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // Built-in fixture names.
@@ -62,14 +63,14 @@ func BuildFixture(name string) (Model, error) {
 // player plus in-memory queue and dismissal stores. These keep playback and
 // queue-mutation keys safe to exercise without any real side effects.
 func baseFixtureOptions() []Option {
-	queue := &uitestQueueStore{}
+	queueStore := &uitestQueueStore{}
 	dismissals := &uitestDismissals{hashes: map[string]struct{}{}}
 	return []Option{
 		WithPlayer(uitestPlayer{}),
-		WithQueueWriter(queue),
-		WithQueueDequeuer(queue),
-		WithQueueReorderer(queue),
-		WithBatchEnqueuer(queue),
+		WithQueueWriter(queueStore),
+		WithQueueDequeuer(queueStore),
+		WithQueueReorderer(queueStore),
+		WithBatchEnqueuer(queueStore),
 		WithDismissalReader(dismissals),
 		WithDismissalWriter(dismissals),
 		// A reader with no tracks so the empty fixture exercises the Insights
@@ -218,8 +219,8 @@ func richMixTracks() []library.Track {
 	}
 }
 
-func richQueueEntries() []QueueEntry {
-	return []QueueEntry{
+func richQueueEntries() []queue.Entry {
+	return []queue.Entry{
 		{ID: 1, Hash: "rh1", Path: "/music/alice/alpha/a1.flac", Display: "Alice – Track A1", Artist: "Alice", Title: "Track A1", Album: "Alpha", DurationMs: 183000, Position: 100},
 		{ID: 2, Hash: "rh4", Path: "/music/bob/gamma/g1.flac", Display: "Bob – Track G1", Artist: "Bob", Title: "Track G1", Album: "Gamma", DurationMs: 120000, Position: 200},
 		{ID: 3, Hash: "rh6", Path: "/music/charlie/delta/d1.flac", Display: "Charlie – Track D1", Artist: "Charlie", Title: "Track D1", Album: "Delta", DurationMs: 3661000, Position: 300},
@@ -314,8 +315,8 @@ func narrowLibraryTracks() []library.Track {
 // so every view that shows an artist name has to truncate it somewhere.
 const narrowLongArtist = "The Exceptionally Verbose Orchestra of Very Long Names & Co."
 
-func narrowQueueEntries() []QueueEntry {
-	return []QueueEntry{
+func narrowQueueEntries() []queue.Entry {
+	return []queue.Entry{
 		{ID: 1, Hash: "nh1", Path: "/very/deeply/nested/track-one.flac", Display: "The Exceptionally Verbose Orchestra – A Song With a Preposterously Long Title", Artist: narrowLongArtist, Title: "A Song With a Preposterously Long Title", DurationMs: 5000000, Position: 100},
 		{ID: 2, Hash: "nh2", Path: "/音楽/曲.flac", Display: "混雑した都市の夜を走る非常に長い名前のアーティスト – 全角文字と絵文字🎵🎶を含む長いタイトル", Artist: "混雑した都市の夜を走る非常に長い名前のアーティスト", Title: "全角文字と絵文字🎵🎶を含む長いタイトル", DurationMs: 321000, Position: 200},
 	}
@@ -349,8 +350,8 @@ func playbackLibraryTracks() []library.Track {
 	}
 }
 
-func playbackQueueEntries() []QueueEntry {
-	return []QueueEntry{
+func playbackQueueEntries() []queue.Entry {
+	return []queue.Entry{
 		{ID: 1, Hash: "ph1", Path: "/music/alice/alpha/a1.flac", Display: "Alice – Track A1", Artist: "Alice", Title: "Track A1", Album: "Alpha", DurationMs: 183000, Position: 100},
 		{ID: 2, Hash: "ph2", Path: "/music/bob/gamma/g1.flac", Display: "Bob – Track G1", Artist: "Bob", Title: "Track G1", Album: "Gamma", DurationMs: 120000, Position: 200},
 		{ID: 3, Hash: "ph3", Path: "/music/charlie/delta/d1.flac", Display: "Charlie – Track D1", Artist: "Charlie", Title: "Track D1", Album: "Delta", DurationMs: 240000, Position: 300},

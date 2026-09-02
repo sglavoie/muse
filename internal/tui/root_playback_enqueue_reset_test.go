@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestTrackEnqueuedExhaustedResumeResetsPlaybackFields verifies that when a
@@ -26,7 +27,7 @@ func TestTrackEnqueuedExhaustedResumeResetsPlaybackFields(t *testing.T) {
 	m.playback.peakElapsedSecs = 100
 	m.playback.peakTotalSecs = 200
 	m.playback.durationCorrected = true
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "old-hash", Path: "/music/old.flac", Display: "Old"},
 	}
 
@@ -69,11 +70,11 @@ func TestBatchEnqueuedExhaustedResumeResetsPlaybackFields(t *testing.T) {
 	m.playback.peakElapsedSecs = 100
 	m.playback.peakTotalSecs = 200
 	m.playback.durationCorrected = true
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "old-hash", Path: "/music/old.flac", Display: "Old"},
 	}
 
-	entries := []QueueEntry{
+	entries := []queue.Entry{
 		{ID: 10, Hash: "batch-a", Path: "/a.flac", Display: "A", Artist: "A", Title: "Song A"},
 	}
 	msg := BatchEnqueuedMsg{

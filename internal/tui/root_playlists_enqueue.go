@@ -55,7 +55,7 @@ func (m Model) resolvePlaylistForEnqueue() (pid int64, name string, isSmart bool
 func (m Model) enqueueSmartPlaylist(q db.SmartPlaylistQuery, playlistName string) (Model, tea.Cmd, bool) {
 	evaluator := m.smartEval
 	be := m.batchEnqueuer
-	wasEmpty := len(m.queue.entries) == 0
+	wasEmpty := len(m.queue.Entries) == 0
 	return m, func() tea.Msg {
 		rows, err := evaluator.EvalSmartPlaylist(q)
 		if err != nil {
@@ -81,7 +81,7 @@ func (m Model) enqueueSmartPlaylist(q db.SmartPlaylistQuery, playlistName string
 func (m Model) enqueueRegularPlaylist(pid int64, playlistName string) (Model, tea.Cmd, bool) {
 	reader := m.playlistReader
 	be := m.batchEnqueuer
-	wasEmpty := len(m.queue.entries) == 0
+	wasEmpty := len(m.queue.Entries) == 0
 	return m, func() tea.Msg {
 		rows, err := reader.ReadPlaylistTracks(pid)
 		if err != nil {

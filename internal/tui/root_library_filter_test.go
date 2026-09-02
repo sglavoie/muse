@@ -117,7 +117,7 @@ func TestFilterBarMsgIgnoredOutsideLibraryView(t *testing.T) {
 	if nm.library.Filter.Active {
 		t.Error("library filterActive should remain false when FilterBarMsg is sent on the queue view")
 	}
-	if !nm.queue.filter.Active {
+	if !nm.queue.Filter.Active {
 		t.Error("queue filter should be active after FilterBarMsg on queue view")
 	}
 

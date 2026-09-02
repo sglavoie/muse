@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // handleUndo processes the UndoMsg by reversing the most recent destructive
@@ -39,10 +40,10 @@ func (m Model) handleUndo() Model {
 }
 
 func (m Model) handleSelectedQueueDequeueAction() (tea.Model, tea.Cmd, bool) {
-	var removedEntries []QueueEntry
+	var removedEntries []queue.Entry
 	var removedIndices []int
 	var removedIDs []int64
-	for i, entry := range m.queue.entries {
+	for i, entry := range m.queue.Entries {
 		if entry.Selected {
 			removedEntries = append(removedEntries, entry)
 			removedIndices = append(removedIndices, i)
@@ -75,13 +76,13 @@ func (m Model) handleSelectedQueueDequeueAction() (tea.Model, tea.Cmd, bool) {
 		},
 	)
 
-	remaining := make([]QueueEntry, 0, len(m.queue.entries)-len(removedEntries))
-	for _, entry := range m.queue.entries {
+	remaining := make([]queue.Entry, 0, len(m.queue.Entries)-len(removedEntries))
+	for _, entry := range m.queue.Entries {
 		if !entry.Selected {
 			remaining = append(remaining, entry)
 		}
 	}
-	m.queue.entries = remaining
+	m.queue.Entries = remaining
 	m = exitVisualMode(m)
 	m = m.preserveQueueSort()
 	m.clampQueueCursorAndScroll()
@@ -98,10 +99,10 @@ func (m Model) handleSelectedQueueDequeueAction() (tea.Model, tea.Cmd, bool) {
 	return m, nil, true
 }
 
-func (m Model) queuePasteCmd(insertPos int, entries []QueueEntry, cutIDs []int64) tea.Cmd {
+func (m Model) queuePasteCmd(insertPos int, entries []queue.Entry, cutIDs []int64) tea.Cmd {
 	writer := m.queueWriter
 	return func() tea.Msg {
-		pastedEntries := make([]QueueEntry, 0, len(entries))
+		pastedEntries := make([]queue.Entry, 0, len(entries))
 		for _, entry := range entries {
 			track := library.Track{
 				Path:     entry.Path,
@@ -130,14 +131,14 @@ func (m Model) handleQueueKeyAction(action keys.Action) (tea.Model, tea.Cmd, boo
 	case keys.ActionUndo:
 		return m, func() tea.Msg { return UndoMsg{} }, true
 	case keys.ActionDequeue:
-		if m.queue.hasSelection() {
+		if m.queue.HasSelection() {
 			return m.handleSelectedQueueDequeueAction()
 		}
 		var cmd tea.Cmd
 		m.queue, cmd = m.queue.HandleAction(action)
 		return m, cmd, true
 	case keys.ActionClearQueue:
-		if len(m.queue.entries) == 0 {
+		if len(m.queue.Entries) == 0 {
 			return m, nil, true
 		}
 		var cmd tea.Cmd
@@ -169,15 +170,15 @@ func (m Model) handleQueueKeyAction(action keys.Action) (tea.Model, tea.Cmd, boo
 			m.statusBar.Notify("Nothing to paste")
 			return m, nil, true
 		}
-		if m.queue.displayOrder != nil || m.queue.filter.Text != "" || len(m.queue.tagFilterHashes) > 0 {
+		if m.queue.DisplayOrder != nil || m.queue.Filter.Text != "" || len(m.queue.TagFilterHashes) > 0 {
 			m.statusBar.Notify("Cannot paste while sorted/filtered")
 			return m, nil, true
 		}
 		if m.queueWriter == nil {
 			return m, nil, true
 		}
-		insertPos := min(m.queue.cursor+1, len(m.queue.entries))
-		buffer := make([]QueueEntry, len(m.yankBuffer))
+		insertPos := min(m.queue.Cursor+1, len(m.queue.Entries))
+		buffer := make([]queue.Entry, len(m.yankBuffer))
 		copy(buffer, m.yankBuffer)
 		var cutIDs []int64
 		if m.yankIsCut {
@@ -188,11 +189,11 @@ func (m Model) handleQueueKeyAction(action keys.Action) (tea.Model, tea.Cmd, boo
 		}
 		return m, m.queuePasteCmd(insertPos, buffer, cutIDs), true
 	case keys.ActionSaveQueueAsPlaylist:
-		if len(m.queue.entries) == 0 {
+		if len(m.queue.Entries) == 0 {
 			m.statusBar.Notify("Queue is empty — nothing to save")
 		} else {
-			fromSelection := m.queue.hasSelection()
-			m.queue = m.queue.startSaveAsPlaylist(fromSelection)
+			fromSelection := m.queue.HasSelection()
+			m.queue = m.queue.StartSaveAsPlaylist(fromSelection)
 		}
 		return m, nil, true
 	}
@@ -203,28 +204,28 @@ func (m Model) handleQueueKeyAction(action keys.Action) (tea.Model, tea.Cmd, boo
 // and clears all Selected flags. isCut=true marks the buffer as a cut (move)
 // rather than a copy.
 func (m Model) yankOrCutQueueTracks(isCut bool) (tea.Model, tea.Cmd, bool) {
-	filtered := m.queue.filteredEntries()
+	filtered := m.queue.FilteredEntries()
 	if len(filtered) == 0 {
 		return m, nil, true
 	}
-	if m.queue.hasSelection() {
-		var buffer []QueueEntry
-		for _, entry := range m.queue.entries {
+	if m.queue.HasSelection() {
+		var buffer []queue.Entry
+		for _, entry := range m.queue.Entries {
 			if entry.Selected {
 				buffer = append(buffer, entry)
 			}
 		}
 		m.yankBuffer = buffer
-	} else if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
-		entry := filtered[m.queue.cursor]
-		m.yankBuffer = []QueueEntry{m.queue.entries[entry.origIdx]}
+	} else if m.queue.Cursor >= 0 && m.queue.Cursor < len(filtered) {
+		entry := filtered[m.queue.Cursor]
+		m.yankBuffer = []queue.Entry{m.queue.Entries[entry.OrigIdx]}
 	}
 	m.yankIsCut = isCut
 	for i := range m.yankBuffer {
 		m.yankBuffer[i].Selected = false
 	}
-	for i := range m.queue.entries {
-		m.queue.entries[i].Selected = false
+	for i := range m.queue.Entries {
+		m.queue.Entries[i].Selected = false
 	}
 	m = exitVisualMode(m)
 	if n := len(m.yankBuffer); n > 0 {

@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestTrackEnqueuedMsgStartsPlaybackWhenQueueWasEmpty verifies that the root
@@ -18,7 +19,7 @@ func TestTrackEnqueuedMsgStartsPlaybackWhenQueueWasEmpty(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StateIdle
 	// Pre-seed one queue entry so the model knows what to display.
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "Alice - Song One", Artist: "Alice", Title: "Song One"},
 	}
 
@@ -78,8 +79,8 @@ func TestTrackEnqueuedMsgWithErrorShowsNotification(t *testing.T) {
 		t.Fatalf("notification must contain the error message, got %q", nm.statusBar.TopNotification().Msg)
 	}
 	// Queue must not have grown.
-	if len(nm.queue.entries) != 0 {
-		t.Fatalf("queue must remain empty on enqueue error, got %d entries", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 0 {
+		t.Fatalf("queue must remain empty on enqueue error, got %d entries", len(nm.queue.Entries))
 	}
 }
 
@@ -90,7 +91,7 @@ func TestTrackEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StateIdle
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "hash-x", Path: "/x.flac", Display: "X", Artist: "X", Title: "Song"},
 	}
 
@@ -116,7 +117,7 @@ func TestTrackEnqueuedResumesPlaybackOnQueueExhausted(t *testing.T) {
 	m.playback.queueExhausted = true
 	m.playback.currentIndex = -1
 	m.playback.currentHash = ""
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "old-hash", Path: "/music/old.flac", Display: "Old"},
 	}
 
@@ -151,11 +152,11 @@ func TestBatchEnqueuedResumesPlaybackOnQueueExhausted(t *testing.T) {
 	m.playback.queueExhausted = true
 	m.playback.currentIndex = -1
 	m.playback.currentHash = ""
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "old-hash", Path: "/music/old.flac", Display: "Old"},
 	}
 
-	entries := []QueueEntry{
+	entries := []queue.Entry{
 		{ID: 10, Hash: "batch-a", Path: "/a.flac", Display: "A", Artist: "A", Title: "Song A"},
 		{ID: 11, Hash: "batch-b", Path: "/b.flac", Display: "B", Artist: "B", Title: "Song B"},
 	}
@@ -190,7 +191,7 @@ func TestTrackEnqueuedDoesNotResumeWhenNotExhausted(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StateIdle
 	m.playback.queueExhausted = false
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "old-hash", Path: "/music/old.flac", Display: "Old"},
 	}
 
@@ -215,7 +216,7 @@ func TestBatchEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StateIdle
 
-	entries := []QueueEntry{
+	entries := []queue.Entry{
 		{ID: 10, Hash: "hash-p", Path: "/p.flac", Display: "P", Artist: "P", Title: "Song"},
 		{ID: 11, Hash: "hash-q", Path: "/q.flac", Display: "Q", Artist: "Q", Title: "Song"},
 	}
@@ -242,17 +243,17 @@ func TestClearQueueThenBatchEnqueuedRebuildsPlayerQueueAndStartsPlayback(t *test
 	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = 0
 	m.playback.currentHash = "old-hash"
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "old-hash", Path: "/old.flac", Display: "Old", Artist: "Old", Title: "Track"},
 	}
 
-	next, cmd := m.Update(ClearQueueMsg{})
+	next, cmd := m.Update(queue.ClearQueueMsg{})
 	if cmd != nil {
 		t.Fatalf("ClearQueueMsg must not return a follow-up cmd, got %T", cmd)
 	}
 	cleared := next.(Model)
-	if len(cleared.queue.entries) != 0 {
-		t.Fatalf("ClearQueueMsg: expected empty TUI queue, got %d entries", len(cleared.queue.entries))
+	if len(cleared.queue.Entries) != 0 {
+		t.Fatalf("ClearQueueMsg: expected empty TUI queue, got %d entries", len(cleared.queue.Entries))
 	}
 	if p.stopCalls != 1 {
 		t.Fatalf("ClearQueueMsg: expected 1 Stop() call, got %d", p.stopCalls)
@@ -264,7 +265,7 @@ func TestClearQueueThenBatchEnqueuedRebuildsPlayerQueueAndStartsPlayback(t *test
 		t.Fatalf("ClearQueueMsg: expected player queue clear, got %+v", p.setQueueCalls[0])
 	}
 
-	entries := []QueueEntry{
+	entries := []queue.Entry{
 		{ID: 10, Hash: "new-a", Path: "/new-a.flac", Display: "New A", Artist: "Artist A", Title: "Title A", SourcePlaylist: "Batch"},
 		{ID: 11, Hash: "new-b", Path: "/new-b.flac", Display: "New B", Artist: "Artist B", Title: "Title B", SourcePlaylist: "Batch"},
 	}
@@ -279,14 +280,14 @@ func TestClearQueueThenBatchEnqueuedRebuildsPlayerQueueAndStartsPlayback(t *test
 	}
 	nm := next.(Model)
 
-	if len(nm.queue.entries) != len(entries) {
-		t.Fatalf("BatchEnqueuedMsg: expected %d queue entries, got %d", len(entries), len(nm.queue.entries))
+	if len(nm.queue.Entries) != len(entries) {
+		t.Fatalf("BatchEnqueuedMsg: expected %d queue entries, got %d", len(entries), len(nm.queue.Entries))
 	}
 	if len(p.appendToQueueCalls) != len(entries) {
 		t.Fatalf("BatchEnqueuedMsg: expected %d AppendToQueue calls, got %d", len(entries), len(p.appendToQueueCalls))
 	}
 	for i, want := range entries {
-		if got := nm.queue.entries[i]; got != want {
+		if got := nm.queue.Entries[i]; got != want {
 			t.Fatalf("BatchEnqueuedMsg: entry %d = %+v, want %+v", i, got, want)
 		}
 		if got, wantTrack := p.appendToQueueCalls[i], queueTrackFromEntry(want); got != wantTrack {

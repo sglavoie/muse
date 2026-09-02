@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -18,12 +19,12 @@ func TestWatchBatchPreservesQueueSort(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"},
 	}
-	m.queue.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
-	m.queue = m.queue.recomputeDisplayOrder()
+	m.queue.SortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
+	m.queue = m.queue.RecomputeDisplayOrder()
 
 	// Watcher renames h1 to "Aaron" - should cause re-sort.
 	next, _ := m.Update(watchBatchMsg{
@@ -33,12 +34,12 @@ func TestWatchBatchPreservesQueueSort(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.queue.displayOrder == nil {
+	if nm.queue.DisplayOrder == nil {
 		t.Fatal("expected displayOrder to be non-nil after watcher update with active sort")
 	}
 	// Aaron(0), Alice(1) -> displayOrder = [0, 1]
-	if nm.queue.displayOrder[0] != 0 {
-		t.Errorf("expected displayOrder[0]=0 (Aaron), got %d", nm.queue.displayOrder[0])
+	if nm.queue.DisplayOrder[0] != 0 {
+		t.Errorf("expected displayOrder[0]=0 (Aaron), got %d", nm.queue.DisplayOrder[0])
 	}
 }
 

@@ -79,8 +79,8 @@ func schedulePurge(slot *undoSlot, purgeFn func(int64) error) {
 // resolves indices against the same ordering the user sees.
 func (m Model) syncPlayerQueue() {
 	if qs, ok := m.player.(playerQueueSetter); ok {
-		pt := make([]player.QueueTrack, len(m.queue.entries))
-		for i, e := range m.queue.entries {
+		pt := make([]player.QueueTrack, len(m.queue.Entries))
+		for i, e := range m.queue.Entries {
 			pt[i] = player.QueueTrack{
 				Path:    e.Path,
 				Hash:    e.Hash,

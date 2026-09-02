@@ -19,6 +19,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/settings"
 	"github.com/sglavoie/muse/internal/tui/smartrules"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
@@ -109,7 +110,7 @@ type Model struct {
 
 	library    libtui.View
 	playlists  pltui.PlaylistsView
-	queue      QueueView
+	queue      queue.View
 	queueDirty bool // true when queue has unsaved mutations since last save-as-playlist or clear
 	browse     BrowseView
 	favorites  favtui.FavoritesView
@@ -261,7 +262,7 @@ type Model struct {
 	confirmationBar string         // when non-empty, rendered as a full-width warning between body and status bar
 	exportCopyHint  exportPathCopy // arms y to copy the last export path while its notification is on screen
 	visual          visualState    // Vim-like visual line selection mode state
-	yankBuffer      []QueueEntry   // clipboard for queue yank/paste; persists until next yank
+	yankBuffer      []queue.Entry  // clipboard for queue yank/paste; persists until next yank
 	yankIsCut       bool           // true when the buffer was populated via cut (ctrl+x)
 
 	// missingTrackCount tracks how many queue entries were skipped due to

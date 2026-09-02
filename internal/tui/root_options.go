@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // Option configures optional dependencies on the Model. Pass options to New()
@@ -317,8 +318,8 @@ func WithTagWriter(w tagWriter) Option {
 }
 
 // WithQueueEntries pre-populates the queue view with entries.
-func WithQueueEntries(entries []QueueEntry) Option {
-	return func(m *Model) { m.queue.entries = entries }
+func WithQueueEntries(entries []queue.Entry) Option {
+	return func(m *Model) { m.queue.Entries = entries }
 }
 
 // WithRepeatMode pre-sets the repeat mode.

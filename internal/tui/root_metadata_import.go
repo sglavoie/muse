@@ -216,14 +216,14 @@ func (m Model) applyMetadataImport(o metadata.ImportOverlay) (Model, tea.Cmd, bo
 		m.library.Index.UpdateTrackPosition(ch.Hash, track, disc)
 
 		display := text.TrackDisplay(artist, title, "")
-		for i := range m.queue.entries {
-			if m.queue.entries[i].Hash == ch.Hash {
-				m.queue.entries[i].Title = title
-				m.queue.entries[i].Artist = artist
-				m.queue.entries[i].Album = album
-				m.queue.entries[i].Display = display
-				m.queue.entries[i].TrackNumber = track
-				m.queue.entries[i].DiscNumber = disc
+		for i := range m.queue.Entries {
+			if m.queue.Entries[i].Hash == ch.Hash {
+				m.queue.Entries[i].Title = title
+				m.queue.Entries[i].Artist = artist
+				m.queue.Entries[i].Album = album
+				m.queue.Entries[i].Display = display
+				m.queue.Entries[i].TrackNumber = track
+				m.queue.Entries[i].DiscNumber = disc
 			}
 		}
 		m = m.syncStatusBarMetadata(ch.Hash, artist, title)

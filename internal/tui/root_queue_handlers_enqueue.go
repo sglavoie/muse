@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/player"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
@@ -20,7 +21,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 		player.PlaySound(player.SoundError)
 		return m
 	}
-	entry := QueueEntry{
+	entry := queue.Entry{
 		ID:             msg.QueueID,
 		Path:           msg.Track.Path,
 		Hash:           msg.Track.Hash,
@@ -32,13 +33,13 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 		SourcePlaylist: msg.SourcePlaylist,
 	}
 	var enqueueIdx int
-	if msg.InsertAfter >= 0 && msg.InsertAfter <= len(m.queue.entries) {
+	if msg.InsertAfter >= 0 && msg.InsertAfter <= len(m.queue.Entries) {
 		idx := msg.InsertAfter
-		entries := make([]QueueEntry, len(m.queue.entries)+1)
-		copy(entries, m.queue.entries[:idx])
+		entries := make([]queue.Entry, len(m.queue.Entries)+1)
+		copy(entries, m.queue.Entries[:idx])
 		entries[idx] = entry
-		copy(entries[idx+1:], m.queue.entries[idx:])
-		m.queue.entries = entries
+		copy(entries[idx+1:], m.queue.Entries[idx:])
+		m.queue.Entries = entries
 		enqueueIdx = idx
 		slog.Debug("track play-next", "hash", msg.Track.Hash, "position", idx)
 		if m.playback.currentIndex >= 0 && idx <= m.playback.currentIndex {
@@ -46,8 +47,8 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 		}
 		m.syncPlayerQueue()
 	} else {
-		m.queue.entries = append(m.queue.entries, entry)
-		enqueueIdx = len(m.queue.entries) - 1
+		m.queue.Entries = append(m.queue.Entries, entry)
+		enqueueIdx = len(m.queue.Entries) - 1
 		slog.Debug("track enqueued", "hash", msg.Track.Hash, "position", enqueueIdx)
 		if appender, ok := m.player.(playerQueueAppender); ok {
 			appender.AppendToQueue(queueTrackFromEntry(entry))
@@ -56,7 +57,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 	m = m.preserveQueueSort()
 	m.setUndoSlot(undoEnqueueAction{
 		id:    msg.QueueID,
-		entry: m.queue.entries[enqueueIdx],
+		entry: m.queue.Entries[enqueueIdx],
 		idx:   enqueueIdx,
 	}, nil)
 	m.queueDirty = true
@@ -90,8 +91,8 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 		m.statusBar.Notify("Playlist is empty")
 		return m
 	}
-	batchStartIdx := len(m.queue.entries)
-	m.queue.entries = append(m.queue.entries, msg.Entries...)
+	batchStartIdx := len(m.queue.Entries)
+	m.queue.Entries = append(m.queue.Entries, msg.Entries...)
 	m = m.preserveQueueSort()
 	if appender, ok := m.player.(playerQueueAppender); ok {
 		for _, entry := range msg.Entries {
@@ -160,10 +161,10 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 	if m.player == nil {
 		return m, nil
 	}
-	if msg.Index < 0 || msg.Index >= len(m.queue.entries) {
+	if msg.Index < 0 || msg.Index >= len(m.queue.Entries) {
 		return m, nil
 	}
-	entry := m.queue.entries[msg.Index]
+	entry := m.queue.Entries[msg.Index]
 	// Selecting a row is a listen boundary, and it is one the later
 	// TrackChangedMsg cannot capture: the optimistic reset below zeroes
 	// listenedSecs and peakTotalSecs, so by the time that message arrives the

@@ -209,7 +209,7 @@ func hasFocusedTrack(m Model) bool { _, _, _, ok := m.focusedTrackForPalette(); 
 
 // queueHasEntries reports whether the queue holds anything, gating the
 // collection-wide queue entries whose handlers notify or no-op when it is empty.
-func queueHasEntries(m Model) bool { return len(m.queue.entries) > 0 }
+func queueHasEntries(m Model) bool { return len(m.queue.Entries) > 0 }
 
 // atPlaylistListLevel gates the "Delete playlist" entry. handlePlaylistDelete
 // is dual-purpose: at playlist track level it removes the focused or selected

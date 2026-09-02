@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestPlaylistLocalCFiresCreateNotGlobalAction verifies that pressing 'c' in
@@ -321,11 +322,11 @@ func TestPlaylistRenameNameTrimsWhitespace(t *testing.T) {
 // whitespace is stripped from the save-as-playlist input.
 func TestQueueSaveInputValueTrimsWhitespace(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{{Path: "/a.flac", Hash: "aaa", Display: "A"}}
-	m.queue = m.queue.startSaveAsPlaylist(false)
-	m.queue.saveInput.SetValue("  SavedQueue  ")
+	m.queue.Entries = []queue.Entry{{Path: "/a.flac", Hash: "aaa", Display: "A"}}
+	m.queue = m.queue.StartSaveAsPlaylist(false)
+	m.queue.SaveInput.SetValue("  SavedQueue  ")
 
-	got := m.queue.saveInputValue()
+	got := m.queue.SaveInputValue()
 	if got != "SavedQueue" {
 		t.Errorf("expected trimmed save value 'SavedQueue', got %q", got)
 	}

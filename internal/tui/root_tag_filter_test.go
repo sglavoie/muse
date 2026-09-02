@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -27,14 +28,14 @@ func TestRemoveAllTagsFromTrack_ClearsAllTagFilterHashes(t *testing.T) {
 	// Simulate an active tag filter on all views.
 	hashes := map[string]struct{}{"h1": {}}
 	m.library.TagFilterHashes = copyHashSet(hashes)
-	m.queue.tagFilterHashes = copyHashSet(hashes)
+	m.queue.TagFilterHashes = copyHashSet(hashes)
 
 	m, _ = m.handleRemoveAllTagsFromTrack(removeAllTagsFromTrackMsg{hash: "h1"})
 
 	if _, ok := m.library.TagFilterHashes["h1"]; ok {
 		t.Error("h1 should be removed from library.tagFilterHashes")
 	}
-	if _, ok := m.queue.tagFilterHashes["h1"]; ok {
+	if _, ok := m.queue.TagFilterHashes["h1"]; ok {
 		t.Error("h1 should be removed from queue.tagFilterHashes")
 	}
 }
@@ -71,12 +72,12 @@ func TestRemoveAllTagsFromTrack_ClampsCursorsAfterFilterShrink(t *testing.T) {
 	// Both tracks pass the tag filter.
 	hashes := map[string]struct{}{"h1": {}, "h2": {}}
 	m.library.TagFilterHashes = copyHashSet(hashes)
-	m.queue.tagFilterHashes = copyHashSet(hashes)
-	m.queue.entries = []QueueEntry{{Hash: "h1"}, {Hash: "h2"}}
+	m.queue.TagFilterHashes = copyHashSet(hashes)
+	m.queue.Entries = []queue.Entry{{Hash: "h1"}, {Hash: "h2"}}
 
 	// Place cursor on the last item (index 1) in all views.
 	m.library.Cursor = 1
-	m.queue.cursor = 1
+	m.queue.Cursor = 1
 
 	// Remove all tags from h2 — it will be removed from tagFilterHashes,
 	// shrinking the effective list to 1 item.
@@ -92,12 +93,12 @@ func TestRemoveAllTagsFromTrack_ClampsCursorsAfterFilterShrink(t *testing.T) {
 	}
 
 	// Queue: filteredEntries shrinks because h2 is no longer in tagFilterHashes.
-	qFiltered := m.queue.filteredEntries()
+	qFiltered := m.queue.FilteredEntries()
 	if len(qFiltered) != 1 {
 		t.Fatalf("expected 1 filtered queue entry, got %d", len(qFiltered))
 	}
-	if m.queue.cursor >= len(qFiltered) {
-		t.Errorf("queue cursor=%d out of bounds (filtered=%d)", m.queue.cursor, len(qFiltered))
+	if m.queue.Cursor >= len(qFiltered) {
+		t.Errorf("queue cursor=%d out of bounds (filtered=%d)", m.queue.Cursor, len(qFiltered))
 	}
 }
 
@@ -185,7 +186,7 @@ func TestRemoveTagFromCaches_ClearsActiveTagFilterPointer(t *testing.T) {
 	m.tagColors = map[int64]string{tagID: ""}
 	m.activeTagFilter = &tagID
 	m.library.TagFilterHashes = map[string]struct{}{"h1": {}}
-	m.queue.tagFilterHashes = map[string]struct{}{"h1": {}}
+	m.queue.TagFilterHashes = map[string]struct{}{"h1": {}}
 
 	m = m.removeTagFromCaches(tagID)
 
@@ -195,8 +196,8 @@ func TestRemoveTagFromCaches_ClearsActiveTagFilterPointer(t *testing.T) {
 	if m.library.TagFilterHashes != nil {
 		t.Errorf("expected library.tagFilterHashes to be cleared, got %v", m.library.TagFilterHashes)
 	}
-	if m.queue.tagFilterHashes != nil {
-		t.Errorf("expected queue.tagFilterHashes to be cleared, got %v", m.queue.tagFilterHashes)
+	if m.queue.TagFilterHashes != nil {
+		t.Errorf("expected queue.tagFilterHashes to be cleared, got %v", m.queue.TagFilterHashes)
 	}
 }
 
@@ -212,7 +213,7 @@ func TestRemoveTagFromCaches_PreservesUnrelatedActiveTagFilter(t *testing.T) {
 	m.tagColors = map[int64]string{kept: "", removed: ""}
 	m.activeTagFilter = &kept
 	m.library.TagFilterHashes = map[string]struct{}{"h1": {}}
-	m.queue.tagFilterHashes = map[string]struct{}{"h1": {}}
+	m.queue.TagFilterHashes = map[string]struct{}{"h1": {}}
 
 	m = m.removeTagFromCaches(removed)
 
@@ -222,7 +223,7 @@ func TestRemoveTagFromCaches_PreservesUnrelatedActiveTagFilter(t *testing.T) {
 	if _, ok := m.library.TagFilterHashes["h1"]; !ok {
 		t.Errorf("library.tagFilterHashes should be preserved when an unrelated tag is removed")
 	}
-	if _, ok := m.queue.tagFilterHashes["h1"]; !ok {
+	if _, ok := m.queue.TagFilterHashes["h1"]; !ok {
 		t.Errorf("queue.tagFilterHashes should be preserved when an unrelated tag is removed")
 	}
 }

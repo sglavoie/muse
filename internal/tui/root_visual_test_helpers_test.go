@@ -7,6 +7,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 func makeNTracks(n int) []library.Track {
@@ -50,7 +51,7 @@ func assertSelectedHashesExact(t *testing.T, got map[string]struct{}, want ...st
 	}
 }
 
-func assertSelectedQueueEntriesExact(t *testing.T, entries []QueueEntry, want ...int) {
+func assertSelectedQueueEntriesExact(t *testing.T, entries []queue.Entry, want ...int) {
 	t.Helper()
 	selected := make(map[int]struct{}, len(want))
 	for _, idx := range want {

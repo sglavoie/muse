@@ -60,12 +60,12 @@ func (m Model) radioToggle() (tea.Model, tea.Cmd, bool) {
 // playing index (tracks still to be played).
 func (m Model) radioRemainingCount() int {
 	if m.playback.currentIndex < 0 {
-		return len(m.queue.entries)
+		return len(m.queue.Entries)
 	}
-	if m.playback.currentIndex >= len(m.queue.entries) {
-		return len(m.queue.entries)
+	if m.playback.currentIndex >= len(m.queue.Entries) {
+		return len(m.queue.Entries)
 	}
-	return len(m.queue.entries) - m.playback.currentIndex - 1
+	return len(m.queue.Entries) - m.playback.currentIndex - 1
 }
 
 // radioMaybeEnqueueCmd returns an enqueue Cmd when all guards pass, or nil.
@@ -132,12 +132,12 @@ func (m Model) radioEnqueueCmd() tea.Cmd {
 
 	recentSet := m.radioRecentSet()
 
-	queueSet := make(map[string]struct{}, len(m.queue.entries))
-	for _, e := range m.queue.entries {
+	queueSet := make(map[string]struct{}, len(m.queue.Entries))
+	for _, e := range m.queue.Entries {
 		queueSet[e.Hash] = struct{}{}
 	}
 
-	wasEmpty := len(m.queue.entries) == 0
+	wasEmpty := len(m.queue.Entries) == 0
 	allTracks := snapshotTracks(m.library.Index.Tracks())
 	trackTags := snapshotTrackTags(m.trackTags)
 	favoriteHashes := snapshotStringSet(m.favoriteHashes)
@@ -295,7 +295,7 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 	// exhaustion (queueExhausted=true, set by handlePlaybackEndedMsg) from a
 	// user-initiated clear (queueExhausted reset by resetPlaybackState).
 	// Only the former should auto-resume by appending the in-flight batch.
-	if !msg.WasEmpty && len(m.queue.entries) == 0 && !m.playback.queueExhausted {
+	if !msg.WasEmpty && len(m.queue.Entries) == 0 && !m.playback.queueExhausted {
 		return m, nil
 	}
 
@@ -304,8 +304,8 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 		m = m.radioNoteRecent(e.Hash)
 	}
 
-	batchStartIdx := len(m.queue.entries)
-	m.queue.entries = append(m.queue.entries, msg.Entries...)
+	batchStartIdx := len(m.queue.Entries)
+	m.queue.Entries = append(m.queue.Entries, msg.Entries...)
 	m = m.preserveQueueSort()
 	if appender, ok := m.player.(playerQueueAppender); ok {
 		for _, entry := range msg.Entries {

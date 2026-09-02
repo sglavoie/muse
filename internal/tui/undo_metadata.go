@@ -32,13 +32,13 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 		m.library.Index.UpdateDuration(hash, origDur)
 		display := text.TrackDisplay(orig[1], orig[0], "")
 		origDurMs := int64(origDur * 1000)
-		for i := range m.queue.entries {
-			if m.queue.entries[i].Hash == hash {
-				m.queue.entries[i].Title = orig[0]
-				m.queue.entries[i].Artist = orig[1]
-				m.queue.entries[i].Album = orig[2]
-				m.queue.entries[i].Display = display
-				m.queue.entries[i].DurationMs = origDurMs
+		for i := range m.queue.Entries {
+			if m.queue.Entries[i].Hash == hash {
+				m.queue.Entries[i].Title = orig[0]
+				m.queue.Entries[i].Artist = orig[1]
+				m.queue.Entries[i].Album = orig[2]
+				m.queue.Entries[i].Display = display
+				m.queue.Entries[i].DurationMs = origDurMs
 			}
 		}
 		m = m.syncStatusBarMetadata(hash, orig[1], orig[0])

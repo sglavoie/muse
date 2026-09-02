@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestPasteResumesPlaybackWhenQueueExhausted verifies that pasting tracks after
@@ -17,13 +18,13 @@ func TestPasteResumesPlaybackWhenQueueExhausted(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithPlayer(p), WithQueueWriter(qa))
 	m.activeView = viewQueue
-	m.queue.entries = sampleQueueEntries()[:2] // [A, B]
-	m.queue.cursor = 1                         // cursor on B (last)
+	m.queue.Entries = sampleQueueEntries()[:2] // [A, B]
+	m.queue.Cursor = 1                         // cursor on B (last)
 	m.playback.state = playback.StateIdle
 	m.playback.currentIndex = -1
 	m.playback.queueExhausted = true // queue ran out
 
-	m.yankBuffer = []QueueEntry{sampleQueueEntries()[2]} // yank C
+	m.yankBuffer = []queue.Entry{sampleQueueEntries()[2]} // yank C
 
 	_, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	msg := cmd().(QueuePastedMsg)
@@ -64,8 +65,8 @@ func TestPasteExhaustedResumeResetsPlaybackFields(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithPlayer(p), WithQueueWriter(qa))
 	m.activeView = viewQueue
-	m.queue.entries = sampleQueueEntries()[:2]
-	m.queue.cursor = 1
+	m.queue.Entries = sampleQueueEntries()[:2]
+	m.queue.Cursor = 1
 	m.playback.state = playback.StateIdle
 	m.playback.currentIndex = -1
 	m.playback.queueExhausted = true
@@ -76,7 +77,7 @@ func TestPasteExhaustedResumeResetsPlaybackFields(t *testing.T) {
 	m.playback.peakTotalSecs = 200
 	m.playback.durationCorrected = true
 
-	m.yankBuffer = []QueueEntry{sampleQueueEntries()[2]}
+	m.yankBuffer = []queue.Entry{sampleQueueEntries()[2]}
 
 	_, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	msg := cmd().(QueuePastedMsg)
@@ -109,13 +110,13 @@ func TestPasteDoesNotResumeWhenUserStopped(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithPlayer(p), WithQueueWriter(qa))
 	m.activeView = viewQueue
-	m.queue.entries = sampleQueueEntries()[:2]
-	m.queue.cursor = 1
+	m.queue.Entries = sampleQueueEntries()[:2]
+	m.queue.Cursor = 1
 	m.playback.state = playback.StateIdle
 	m.playback.currentIndex = -1
 	m.playback.queueExhausted = false // user stopped, not exhausted
 
-	m.yankBuffer = []QueueEntry{sampleQueueEntries()[2]}
+	m.yankBuffer = []queue.Entry{sampleQueueEntries()[2]}
 
 	_, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	msg := cmd().(QueuePastedMsg)

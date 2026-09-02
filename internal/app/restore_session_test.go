@@ -66,7 +66,7 @@ func TestRestoreSessionReadableFiles(t *testing.T) {
 }
 
 // TestRestoreSessionMissingFiles verifies that queue entries with unreadable
-// file paths have Missing=true in the returned QueueEntry slice.
+// file paths have Missing=true in the returned queue.Entry slice.
 func TestRestoreSessionMissingFiles(t *testing.T) {
 	harness := newRestoreSessionHarness(t)
 	missingPath := harness.path("nonexistent.mp3")

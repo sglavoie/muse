@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
 // handlePlaylistMoveTrackUp swaps the focused track with the one above it in
@@ -27,7 +28,7 @@ func (m Model) shiftPlaylistTrack(dir int) (Model, tea.Cmd) {
 		return m, nil
 	}
 	if m.playlists.SortedTrackOrder != nil {
-		return m, func() tea.Msg { return TransientNotifyMsg("Cannot reorder while sorted") }
+		return m, func() tea.Msg { return statusbar.TransientNotifyMsg("Cannot reorder while sorted") }
 	}
 
 	idx := m.playlists.Cursor

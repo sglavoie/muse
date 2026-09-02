@@ -69,7 +69,7 @@ func (m Model) handleFavoritesOpen() (Model, tea.Cmd, bool) {
 	case favtui.ListLevel:
 		if m.favorites.Category == favtui.CategoryTracks {
 			if m.queueWriter != nil {
-				if cmd := m.favorites.EnqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
+				if cmd := m.favorites.EnqueueFocusedTrack(m.queueWriter, len(m.queue.Entries)); cmd != nil {
 					return m, cmd, true
 				}
 			}
@@ -96,7 +96,7 @@ func (m Model) handleFavoritesOpen() (Model, tea.Cmd, bool) {
 
 	case favtui.TrackLevel:
 		if m.queueWriter != nil {
-			if cmd := m.favorites.EnqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
+			if cmd := m.favorites.EnqueueFocusedTrack(m.queueWriter, len(m.queue.Entries)); cmd != nil {
 				return m, cmd, true
 			}
 		}

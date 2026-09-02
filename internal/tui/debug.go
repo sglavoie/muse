@@ -105,7 +105,7 @@ func collectDebugInfo(m Model) DebugPanel {
 	p.shuffle = m.playback.shuffle
 	p.volume = m.playback.volume
 	p.currentHash = m.playback.currentHash
-	p.queueLen = len(m.queue.entries)
+	p.queueLen = len(m.queue.Entries)
 	p.missingCount = m.missingTrackCount
 
 	p.currentIndex = m.playback.currentIndex

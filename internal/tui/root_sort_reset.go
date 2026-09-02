@@ -35,16 +35,16 @@ func (m Model) resetLibrarySort() Model {
 
 // resetQueueSort clears the queue sort state and display order.
 func (m Model) resetQueueSort() Model {
-	m.queue.sortState = sorting.SortState{}
-	m.queue.displayOrder = nil
+	m.queue.SortState = sorting.SortState{}
+	m.queue.DisplayOrder = nil
 	return m
 }
 
 // preserveQueueSort recomputes displayOrder if a sort is active, otherwise
 // leaves the queue in insertion-order mode.
 func (m Model) preserveQueueSort() Model {
-	if m.queue.sortState.Field != sorting.SortDefault {
-		m.queue = m.queue.recomputeDisplayOrder()
+	if m.queue.SortState.Field != sorting.SortDefault {
+		m.queue = m.queue.RecomputeDisplayOrder()
 	}
 	return m
 }

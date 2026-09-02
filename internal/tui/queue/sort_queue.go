@@ -1,4 +1,4 @@
-package tui
+package queue
 
 import (
 	"sort"
@@ -8,7 +8,7 @@ import (
 
 // SortQueueIndices returns a permutation array where displayOrder[i] is the
 // index into entries for display row i. Returns nil when field is SortDefault.
-func SortQueueIndices(entries []QueueEntry, field sorting.SortField, dir sorting.SortDir) []int {
+func SortQueueIndices(entries []Entry, field sorting.SortField, dir sorting.SortDir) []int {
 	if field == sorting.SortDefault || len(entries) == 0 {
 		return nil
 	}

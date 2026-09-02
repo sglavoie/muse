@@ -1,4 +1,4 @@
-package tui
+package queue
 
 type queueColumns struct {
 	Position int

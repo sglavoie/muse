@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestSessionTopArtistTracksMostPlayedArtist verifies that TrackChangedMsg
@@ -15,7 +16,7 @@ import (
 func TestSessionTopArtistTracksMostPlayedArtist(t *testing.T) {
 	m := New(context.Background())
 	m.playback.state = playback.StatePlaying
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Alpha"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Beta"},
 		{ID: 3, Hash: "h3", Path: "/c.flac", Artist: "Alpha"},
@@ -56,7 +57,7 @@ func TestSessionTopArtistTracksMostPlayedArtist(t *testing.T) {
 // for the pulse window.
 func TestTrackChangedSetsPulseUntil(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h", Path: "/a.flac", Artist: "A"}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h", Path: "/a.flac", Artist: "A"}}
 
 	before := time.Now()
 	next, _ := m.Update(playback.TrackChangedMsg{Hash: "h", Index: 0, Artist: "A", Title: "T"})

@@ -15,13 +15,13 @@ func TestCutPasteSetsUndoSlot(t *testing.T) {
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
 	m.activeView = viewQueue
-	m.queue.entries = sampleQueueEntries()
-	m.queue.cursor = 0
+	m.queue.Entries = sampleQueueEntries()
+	m.queue.Cursor = 0
 
 	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
 
-	m.queue.cursor = 2
+	m.queue.Cursor = 2
 	rm, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg := cmd().(QueuePastedMsg)
@@ -45,37 +45,37 @@ func TestUndoCutPasteRestoresOriginals(t *testing.T) {
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
 	m.activeView = viewQueue
-	m.queue.entries = sampleQueueEntries() // [A, B, C, D]
-	m.queue.cursor = 0
+	m.queue.Entries = sampleQueueEntries() // [A, B, C, D]
+	m.queue.Cursor = 0
 
 	// Cut A.
 	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
 
 	// Paste after C (cursor=2 in the original, but we move it).
-	m.queue.cursor = 2
+	m.queue.Cursor = 2
 	rm, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 
 	// Verify cut-paste worked: A moved from index 0 to after C.
-	if len(m.queue.entries) != 4 {
-		t.Fatalf("expected 4 entries after cut-paste, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 4 {
+		t.Fatalf("expected 4 entries after cut-paste, got %d", len(m.queue.Entries))
 	}
 
 	// Undo the cut-paste.
 	next, _ := m.Update(UndoMsg{})
 	m = next.(Model)
 
-	if len(m.queue.entries) != 4 {
-		t.Fatalf("expected 4 entries after undo, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 4 {
+		t.Fatalf("expected 4 entries after undo, got %d", len(m.queue.Entries))
 	}
 	// Original order should be restored: A, B, C, D.
 	wantOrder := []string{"h1", "h2", "h3", "h4"}
 	for i, want := range wantOrder {
-		if m.queue.entries[i].Hash != want {
-			t.Errorf("entry[%d] hash = %q, want %q", i, m.queue.entries[i].Hash, want)
+		if m.queue.Entries[i].Hash != want {
+			t.Errorf("entry[%d] hash = %q, want %q", i, m.queue.Entries[i].Hash, want)
 		}
 	}
 }
@@ -89,11 +89,11 @@ func TestUndoCutPasteMultipleNonAdjacentRestoresOrder(t *testing.T) {
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
 	m.activeView = viewQueue
-	m.queue.entries = sampleQueueEntries() // [A(101), B(102), C(103), D(104)]
+	m.queue.Entries = sampleQueueEntries() // [A(101), B(102), C(103), D(104)]
 
 	// Bulk-select B and D (indices 1, 3).
-	m.queue.entries[1].Selected = true
-	m.queue.entries[3].Selected = true
+	m.queue.Entries[1].Selected = true
+	m.queue.Entries[3].Selected = true
 
 	// Cut the selection.
 	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
@@ -103,28 +103,28 @@ func TestUndoCutPasteMultipleNonAdjacentRestoresOrder(t *testing.T) {
 	}
 
 	// Paste after A (cursor=0 -> insertPos=1). Queue is [A, C] before paste.
-	m.queue.cursor = 0
+	m.queue.Cursor = 0
 	rm, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 
-	if len(m.queue.entries) != 4 {
-		t.Fatalf("expected 4 entries after cut-paste, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 4 {
+		t.Fatalf("expected 4 entries after cut-paste, got %d", len(m.queue.Entries))
 	}
 
 	// Undo the cut-paste.
 	next, _ := m.Update(UndoMsg{})
 	m = next.(Model)
 
-	if len(m.queue.entries) != 4 {
-		t.Fatalf("expected 4 entries after undo, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 4 {
+		t.Fatalf("expected 4 entries after undo, got %d", len(m.queue.Entries))
 	}
 	// Original order should be restored: A, B, C, D.
 	wantOrder := []string{"h1", "h2", "h3", "h4"}
 	for i, want := range wantOrder {
-		if m.queue.entries[i].Hash != want {
-			t.Errorf("entry[%d] hash = %q, want %q", i, m.queue.entries[i].Hash, want)
+		if m.queue.Entries[i].Hash != want {
+			t.Errorf("entry[%d] hash = %q, want %q", i, m.queue.Entries[i].Hash, want)
 		}
 	}
 }
@@ -137,15 +137,15 @@ func TestUndoCutPasteThenPasteMoves(t *testing.T) {
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
 	m.activeView = viewQueue
-	m.queue.entries = sampleQueueEntries() // [A=101, B=102, C=103, D=104]
-	m.queue.cursor = 0
+	m.queue.Entries = sampleQueueEntries() // [A=101, B=102, C=103, D=104]
+	m.queue.Cursor = 0
 
 	// Cut A.
 	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
 
 	// Paste after D.
-	m.queue.cursor = 3
+	m.queue.Cursor = 3
 	rm, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg := cmd().(QueuePastedMsg)
@@ -158,25 +158,25 @@ func TestUndoCutPasteThenPasteMoves(t *testing.T) {
 	if !m.yankIsCut {
 		t.Fatal("yankIsCut should be restored after undo")
 	}
-	if len(m.queue.entries) != 4 {
-		t.Fatalf("expected 4 entries after undo, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 4 {
+		t.Fatalf("expected 4 entries after undo, got %d", len(m.queue.Entries))
 	}
 
 	// Paste again after C - should move, not duplicate.
-	m.queue.cursor = 2
+	m.queue.Cursor = 2
 	rm, cmd, _ = m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg = cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 
-	if len(m.queue.entries) != 4 {
-		t.Fatalf("expected 4 entries after re-paste (move), got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 4 {
+		t.Fatalf("expected 4 entries after re-paste (move), got %d", len(m.queue.Entries))
 	}
 	// A should now be after C: [B, C, A, D].
 	wantOrder := []string{"h2", "h3", "h1", "h4"}
 	for i, want := range wantOrder {
-		if m.queue.entries[i].Hash != want {
-			t.Errorf("entry[%d] hash = %q, want %q", i, m.queue.entries[i].Hash, want)
+		if m.queue.Entries[i].Hash != want {
+			t.Errorf("entry[%d] hash = %q, want %q", i, m.queue.Entries[i].Hash, want)
 		}
 	}
 }

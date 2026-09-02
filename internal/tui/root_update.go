@@ -13,6 +13,8 @@ import (
 	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/queue"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -173,28 +175,28 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case playback.MissingTrackSelectedMsg:
 		return m.handleMissingTrackSelectedMsg(msg)
 
-	case DequeueTrackMsg:
+	case queue.DequeueTrackMsg:
 		m = m.handleDequeueTrackMsg(msg)
 
-	case BulkSelectionToggleMsg:
+	case queue.BulkSelectionToggleMsg:
 		m = m.handleBulkSelectionToggleMsg(msg)
 
-	case ClearQueueMsg:
+	case queue.ClearQueueMsg:
 		m = m.handleClearQueueMsg()
 
 	case UndoMsg:
 		m = m.handleUndo()
 
-	case MoveTrackUpMsg:
+	case queue.MoveTrackUpMsg:
 		return m.handleMoveTrackUpMsg(msg)
 
-	case MoveTrackDownMsg:
+	case queue.MoveTrackDownMsg:
 		return m.handleMoveTrackDownMsg(msg)
 
 	case QueuePastedMsg:
 		m = m.handleQueuePastedMsg(msg)
 
-	case TransientNotifyMsg:
+	case statusbar.TransientNotifyMsg:
 		m.statusBar.Notify(string(msg))
 
 	case settingsSavedMsg:
@@ -297,7 +299,7 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.fixtureSafeCommands && !isSafeDirectCommand(msg.Command.Key()) {
 			name := msg.Command.Name
 			return m, func() tea.Msg {
-				return TransientNotifyMsg(fmt.Sprintf("Command %q blocked in fixture mode", name))
+				return statusbar.TransientNotifyMsg(fmt.Sprintf("Command %q blocked in fixture mode", name))
 			}
 		}
 		if msg.Command.Exec != nil {

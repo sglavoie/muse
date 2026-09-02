@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -89,7 +90,7 @@ func TestTagDeletePurgeDoesNotCorruptOtherSlot(t *testing.T) {
 	// Simulate a subsequent action that replaces the undo slot (e.g. a
 	// queue dequeue). setUndoSlot should close the tag's cancel channel.
 	otherCancel := make(chan struct{})
-	m.setUndoSlot(undoEnqueueAction{id: 999, entry: QueueEntry{Display: "test"}}, otherCancel)
+	m.setUndoSlot(undoEnqueueAction{id: 999, entry: queue.Entry{Display: "test"}}, otherCancel)
 
 	// The tag's cancel should now be closed (setUndoSlot closes it).
 	select {
@@ -118,7 +119,7 @@ func TestAutoDeletedTagPurgeDoesNotCorruptUndoSlot(t *testing.T) {
 	// dequeue undo).
 	existingCancel := make(chan struct{})
 	m.undo.slot = undoSlot{
-		action:      undoEnqueueAction{id: 42, entry: QueueEntry{Display: "test"}},
+		action:      undoEnqueueAction{id: 42, entry: queue.Entry{Display: "test"}},
 		cancelPurge: existingCancel,
 	}
 

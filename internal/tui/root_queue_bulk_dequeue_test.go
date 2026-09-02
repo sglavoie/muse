@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestBulkDequeueCreatesUndoSlot verifies that bulk-dequeueing selected entries
@@ -16,7 +17,7 @@ func TestBulkDequeueCreatesUndoSlot(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Display: "A"},
 		{ID: 20, Path: "/b.flac", Display: "B", Selected: true},
 		{ID: 30, Path: "/c.flac", Display: "C"},
@@ -26,12 +27,12 @@ func TestBulkDequeueCreatesUndoSlot(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	nm := next.(Model)
 
-	if len(nm.queue.entries) != 2 {
-		t.Fatalf("after bulk dequeue: expected 2 entries, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 2 {
+		t.Fatalf("after bulk dequeue: expected 2 entries, got %d", len(nm.queue.Entries))
 	}
-	if nm.queue.entries[0].ID != 10 || nm.queue.entries[1].ID != 30 {
+	if nm.queue.Entries[0].ID != 10 || nm.queue.Entries[1].ID != 30 {
 		t.Fatalf("remaining entries should be ID=10,30; got %d,%d",
-			nm.queue.entries[0].ID, nm.queue.entries[1].ID)
+			nm.queue.Entries[0].ID, nm.queue.Entries[1].ID)
 	}
 	bulkAction, ok := nm.undo.slot.action.(undoBulkDequeueAction)
 	if !ok {
@@ -62,7 +63,7 @@ func TestBulkDequeueDuplicateHashKeepsPlayback(t *testing.T) {
 	m.playback.currentHash = "abc123"
 	m.statusBar.Artist = "Artist"
 	m.statusBar.Title = "Title"
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/music/a.flac", Display: "A", Hash: "abc123", Selected: true},
 		{ID: 20, Path: "/music/a.flac", Display: "A (dup)", Hash: "abc123"},
 		{ID: 30, Path: "/music/b.flac", Display: "B", Hash: "other"},
@@ -89,7 +90,7 @@ func TestBulkDequeueLastInstanceOfHashStopsPlayback(t *testing.T) {
 	m.playback.currentHash = "abc123"
 	m.statusBar.Artist = "Artist"
 	m.statusBar.Title = "Title"
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/music/a.flac", Display: "A", Hash: "abc123", Selected: true},
 		{ID: 20, Path: "/music/b.flac", Display: "B", Hash: "other"},
 	}
@@ -114,7 +115,7 @@ func TestBulkDequeueAdjustsCurrentIndex(t *testing.T) {
 	m.activeView = viewQueue
 	m.playback.currentIndex = 3
 	m.playback.currentHash = "ddd"
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Display: "A", Hash: "aaa", Selected: true},
 		{ID: 20, Path: "/b.flac", Display: "B", Hash: "bbb"},
 		{ID: 30, Path: "/c.flac", Display: "C", Hash: "ccc", Selected: true},
@@ -125,8 +126,8 @@ func TestBulkDequeueAdjustsCurrentIndex(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	nm := next.(Model)
 
-	if len(nm.queue.entries) != 3 {
-		t.Fatalf("after bulk dequeue: expected 3 entries, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 3 {
+		t.Fatalf("after bulk dequeue: expected 3 entries, got %d", len(nm.queue.Entries))
 	}
 	if nm.playback.currentIndex != 1 {
 		t.Errorf("currentIndex = %d, want 1 (adjusted after removing 2 entries before it)", nm.playback.currentIndex)
@@ -141,7 +142,7 @@ func TestBulkDequeueCurrentTrackSelectedResetsIndex(t *testing.T) {
 	m.activeView = viewQueue
 	m.playback.currentIndex = 1
 	m.playback.currentHash = "bbb"
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 10, Path: "/a.flac", Display: "A", Hash: "aaa"},
 		{ID: 20, Path: "/b.flac", Display: "B", Hash: "bbb", Selected: true},
 		{ID: 30, Path: "/c.flac", Display: "C", Hash: "ccc"},
@@ -150,8 +151,8 @@ func TestBulkDequeueCurrentTrackSelectedResetsIndex(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	nm := next.(Model)
 
-	if len(nm.queue.entries) != 2 {
-		t.Fatalf("after bulk dequeue: expected 2 entries, got %d", len(nm.queue.entries))
+	if len(nm.queue.Entries) != 2 {
+		t.Fatalf("after bulk dequeue: expected 2 entries, got %d", len(nm.queue.Entries))
 	}
 	if nm.playback.currentIndex != -1 {
 		t.Errorf("currentIndex = %d, want -1 (currently-playing track was removed)", nm.playback.currentIndex)

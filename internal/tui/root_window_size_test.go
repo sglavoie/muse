@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/layout"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestRapidWindowSizeMsgDoesNotPanic verifies that sending many successive
@@ -40,12 +41,12 @@ func TestRapidWindowSizeMsgDoesNotPanic(t *testing.T) {
 // does not alter cursor position, playback state, or scan state.
 func TestWindowSizeMsgPreservesApplicationState(t *testing.T) {
 	m := New(context.Background())
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Path: "/music/a.flac", Display: "A"},
 		{Path: "/music/b.flac", Display: "B"},
 		{Path: "/music/c.flac", Display: "C"},
 	}
-	m.queue.cursor = 2
+	m.queue.Cursor = 2
 	m.playback.state = playback.StatePlaying
 	m.scanning = true
 	m.activeView = viewQueue
@@ -53,8 +54,8 @@ func TestWindowSizeMsgPreservesApplicationState(t *testing.T) {
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 160, Height: 50})
 	nm := next.(Model)
 
-	if nm.queue.cursor != 2 {
-		t.Fatalf("resize: queue cursor changed; expected 2, got %d", nm.queue.cursor)
+	if nm.queue.Cursor != 2 {
+		t.Fatalf("resize: queue cursor changed; expected 2, got %d", nm.queue.Cursor)
 	}
 	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("resize: playbackState changed; expected PlaybackPlaying, got %v", nm.playback.state)
@@ -126,13 +127,13 @@ func TestWindowSizeShrinkClampsCursorVisibility(t *testing.T) {
 	m = next.(Model)
 
 	// Populate the queue with enough entries and position cursor far down.
-	entries := make([]QueueEntry, 100)
+	entries := make([]queue.Entry, 100)
 	for i := range entries {
-		entries[i] = QueueEntry{Path: "/music/" + string(rune('a'+i%26)) + ".flac", Display: "Track " + string(rune('a'+i%26))}
+		entries[i] = queue.Entry{Path: "/music/" + string(rune('a'+i%26)) + ".flac", Display: "Track " + string(rune('a'+i%26))}
 	}
-	m.queue.entries = entries
-	m.queue.cursor = 70
-	m.queue.scrollOffset = 60
+	m.queue.Entries = entries
+	m.queue.Cursor = 70
+	m.queue.ScrollOffset = 60
 	m.activeView = viewQueue
 
 	// Shrink the terminal significantly.
@@ -140,10 +141,10 @@ func TestWindowSizeShrinkClampsCursorVisibility(t *testing.T) {
 	nm := next.(Model)
 
 	// viewHeight = 12-4 = 8, visibleRows = 8-2 = 6.
-	maxRows := nm.queue.visibleRows()
-	if nm.queue.cursor < nm.queue.scrollOffset || nm.queue.cursor >= nm.queue.scrollOffset+maxRows {
+	maxRows := nm.queue.VisibleRows()
+	if nm.queue.Cursor < nm.queue.ScrollOffset || nm.queue.Cursor >= nm.queue.ScrollOffset+maxRows {
 		t.Fatalf("after shrink: queue cursor %d not visible with scrollOffset=%d maxRows=%d",
-			nm.queue.cursor, nm.queue.scrollOffset, maxRows)
+			nm.queue.Cursor, nm.queue.ScrollOffset, maxRows)
 	}
 }
 

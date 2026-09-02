@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestDurationAuditBatchUpdatesIndex verifies that a DurationAuditBatchMsg
@@ -12,16 +13,16 @@ func TestDurationAuditBatchUpdatesIndex(t *testing.T) {
 	m := newDurationAuditModel()
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 200.0})
-	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.mp3", DurationMs: 120000}, {ID: 2, Hash: "h2", Path: "/b.mp3", DurationMs: 200000}}
+	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "h1", Path: "/a.mp3", DurationMs: 120000}, {ID: 2, Hash: "h2", Path: "/b.mp3", DurationMs: 200000}}
 
 	nm, _ := durationAuditBatchUpdate(t, m, library.DurationFix{Hash: "h1", DurationMs: 240000})
 	if got := requireIndexTrack(t, nm, "h1").Duration; got != 240.0 {
 		t.Errorf("library index duration for h1: got %f, want 240.0", got)
 	}
-	if got := nm.queue.entries[0].DurationMs; got != 240000 {
+	if got := nm.queue.Entries[0].DurationMs; got != 240000 {
 		t.Errorf("queue entry h1 DurationMs: got %d, want 240000", got)
 	}
-	if got := nm.queue.entries[1].DurationMs; got != 200000 {
+	if got := nm.queue.Entries[1].DurationMs; got != 200000 {
 		t.Errorf("queue entry h2 DurationMs: got %d, want 200000 (unmodified)", got)
 	}
 }

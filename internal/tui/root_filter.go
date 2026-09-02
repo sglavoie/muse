@@ -102,7 +102,7 @@ func (m Model) allFilterOps() *filterOps {
 		}
 		return nil
 	case viewQueue:
-		return makeFilterOps(&m, &m.queue.filter, &m.queue.cursor, &m.queue.scrollOffset, nil)
+		return makeFilterOps(&m, &m.queue.Filter, &m.queue.Cursor, &m.queue.ScrollOffset, nil)
 	case viewFavorites:
 		return makeFilterOps(&m, &m.favorites.Filter, &m.favorites.Cursor, &m.favorites.ScrollOffset,
 			func() { m.favorites.SelectedItems = nil })

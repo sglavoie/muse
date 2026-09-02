@@ -1,4 +1,4 @@
-package tui
+package queue
 
 import (
 	"fmt"
@@ -13,20 +13,20 @@ import (
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
-// render builds the queue panel string using a 6-column layout:
+// Render builds the queue panel string using a 6-column layout:
 //
 //	Position (~4 chars fixed) | Title (~30% of width) | Artist (~20% of width) | Album (~20% of width) | Source (~10% of width) | Duration (~10 chars fixed)
 //
 // Proportional columns resize on WindowSizeMsg; fixed-width columns are
 // constant. Missing entries are wrapped in ANSI dim escape codes so they
 // appear grayed out in the terminal.
-func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackState playback.State, favHashes, favArtists, favAlbums map[string]struct{}) string {
-	entries := v.filteredEntries()
+func (v View) Render(s styles.Styles, currentPlayingIndex int, playbackState playback.State, favHashes, favArtists, favAlbums map[string]struct{}) string {
+	entries := v.FilteredEntries()
 	if len(entries) == 0 {
-		if v.filter.Text != "" {
+		if v.Filter.Text != "" {
 			return "(no matches)"
 		}
-		return s.RenderEmptyCard(v.width, v.visibleRows(), "Queue is empty", []styles.EmptyAction{
+		return s.RenderEmptyCard(v.Width, v.VisibleRows(), "Queue is empty", []styles.EmptyAction{
 			{Key: "1", Label: "go to library"},
 			{Key: "?", Label: "help"},
 		})
@@ -36,8 +36,8 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 		markerWidth = 2
 	)
 
-	maxRows := v.visibleRows()
-	start := min(v.scrollOffset, len(entries))
+	maxRows := v.VisibleRows()
+	start := min(v.ScrollOffset, len(entries))
 	end := min(len(entries), start+maxRows)
 
 	hasSource := false
@@ -47,7 +47,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			break
 		}
 	}
-	cols := computeQueueColumns(v.width, hasSource)
+	cols := computeQueueColumns(v.Width, hasSource)
 
 	titleHead, artistHead, albumHead, sourceHead, timeHead := "Title", "Artist", "Album", "Source", "Time"
 	// headerBody excludes the leading marker-width prefix so the dotted
@@ -67,18 +67,18 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			text.Pad(albumHead, cols.Album) + " " +
 			text.PadLeft(timeHead, cols.Duration)
 	}
-	header := clampQueueLine(strings.Repeat(" ", markerWidth)+s.ColHead.Render(headerBody), v.width)
+	header := clampQueueLine(strings.Repeat(" ", markerWidth)+s.ColHead.Render(headerBody), v.Width)
 
 	lines := make([]string, end-start)
 	for i := range end - start {
 		absIdx := start + i
 		e := entries[absIdx]
-		isFocused := absIdx == v.cursor
-		isNowPlaying := currentPlayingIndex >= 0 && e.origIdx == currentPlayingIndex
-		isPlayed := currentPlayingIndex >= 0 && !isNowPlaying && e.origIdx < currentPlayingIndex
+		isFocused := absIdx == v.Cursor
+		isNowPlaying := currentPlayingIndex >= 0 && e.OrigIdx == currentPlayingIndex
+		isPlayed := currentPlayingIndex >= 0 && !isNowPlaying && e.OrigIdx < currentPlayingIndex
 
 		// Determine the now-playing icon and style based on playback state.
-		npIcon, npStyle := nowPlayingIndicator(s, playbackState)
+		npIcon, npStyle := NowPlayingIndicator(s, playbackState)
 
 		markerStr := text.RowMarker(e.Selected, isFocused, isNowPlaying, npIcon)
 
@@ -95,7 +95,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 		albumStr := text.FavPrefix(e.Album, cols.Album, isAlbumFav)
 		if e.Missing { //nolint:gocritic // ifElseChain: branches have fundamentally different rendering logic
 			plainLine := assembleQueueRow(" ", hasSource, markerStr, pos, padQueue(e.Title, cols.Title), padQueue(e.Artist, cols.Artist), padQueue(e.Album, cols.Album), source, dur)
-			lines[i] = s.Dim.Render(appendQueueSuffix(plainLine, " [missing]", v.width))
+			lines[i] = s.Dim.Render(appendQueueSuffix(plainLine, " [missing]", v.Width))
 		} else if isFocused {
 			bg := s.Accent.GetBackground()
 			sep := s.Accent.Render(" ")
@@ -240,16 +240,16 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 				lines[i] = assembleQueueRow(" ", hasSource, markerStr, s.TextTertiary.Render(pos), titleStr, artistStr, albumStr, source, s.TextTertiary.Render(dur))
 			}
 		}
-		lines[i] = clampQueueLine(lines[i], v.width)
+		lines[i] = clampQueueLine(lines[i], v.Width)
 	}
 
-	stripLine := v.renderStateStrip(s, len(v.entries), len(entries))
+	stripLine := v.renderStateStrip(s, len(v.Entries), len(entries))
 
 	bodyLines := lines
-	if sorting.SortFieldHasBuckets(v.sortState.Field) {
+	if sorting.SortFieldHasBuckets(v.SortState.Field) {
 		labels := make([]string, len(lines))
 		for i := range lines {
-			labels[i] = QueueEntryBucket(v.sortState.Field, entries[start+i])
+			labels[i] = EntryBucket(v.SortState.Field, entries[start+i])
 		}
 		sticky := ""
 		if len(labels) > 0 {
@@ -259,8 +259,8 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 			StickyBucket:     sticky,
 			MaxRows:          maxRows,
 			DividerEvery:     buckets.DividerEvery,
-			MakeDivider:      func() string { return renderQueueDivider(s, v.width) },
-			MakeBucketHeader: func(label string) string { return renderQueueBucketHeader(s, label, v.width) },
+			MakeDivider:      func() string { return renderQueueDivider(s, v.Width) },
+			MakeBucketHeader: func(label string) string { return renderQueueBucketHeader(s, label, v.Width) },
 		})
 	}
 
@@ -274,12 +274,12 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 	} else {
 		out = header + "\n" + strings.Join(bodyLines, "\n")
 	}
-	if v.savingAsPlaylist {
+	if v.SavingAsPlaylist {
 		prompt := "Save as playlist: "
-		if v.savingFromSelection {
+		if v.SavingFromSelection {
 			prompt = "Save selection as playlist: "
 		}
-		out += "\n" + s.Accent.Render(prompt) + v.saveInput.View()
+		out += "\n" + s.Accent.Render(prompt) + v.SaveInput.View()
 	}
 	return out
 }

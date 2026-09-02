@@ -1,8 +1,12 @@
 package tui
 
+import (
+	"github.com/sglavoie/muse/internal/tui/queue"
+)
+
 // sampleQueueEntries returns a slice of queue entries for yank/paste tests.
-func sampleQueueEntries() []QueueEntry {
-	return []QueueEntry{
+func sampleQueueEntries() []queue.Entry {
+	return []queue.Entry{
 		{ID: 101, Path: "/a.mp3", Hash: "h1", Display: "Artist - A", Artist: "Artist", Title: "A", Album: "Album", DurationMs: 180000},
 		{ID: 102, Path: "/b.mp3", Hash: "h2", Display: "Artist - B", Artist: "Artist", Title: "B", Album: "Album", DurationMs: 200000},
 		{ID: 103, Path: "/c.mp3", Hash: "h3", Display: "Artist - C", Artist: "Artist", Title: "C", Album: "Album", DurationMs: 220000},

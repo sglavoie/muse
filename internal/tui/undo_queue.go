@@ -7,13 +7,14 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // undoEnqueueAction reverts a single-track enqueue (undoKindEnqueue).
 type undoEnqueueAction struct {
 	id    int64
-	entry QueueEntry
+	entry queue.Entry
 	idx   int
 }
 
@@ -27,7 +28,7 @@ func (a undoEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 	// Find the enqueued entry by its database ID rather than by positional
 	// index, because the queue may have been reordered since the enqueue.
 	realIdx := -1
-	for i, e := range m.queue.entries {
+	for i, e := range m.queue.Entries {
 		if e.ID == a.id {
 			realIdx = i
 			break
@@ -40,7 +41,7 @@ func (a undoEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 			}
 			schedulePurge(&m.undo.slot, m.undoer.PurgeDeletedQueueEntries)
 		}
-		m.queue.entries = append(m.queue.entries[:realIdx], m.queue.entries[realIdx+1:]...)
+		m.queue.Entries = append(m.queue.Entries[:realIdx], m.queue.Entries[realIdx+1:]...)
 		m = m.preserveQueueSort()
 		m.clampQueueCursorAndScroll()
 		if qr, ok := m.player.(playerQueueRemover); ok {
@@ -51,7 +52,7 @@ func (a undoEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 		} else if realIdx == m.playback.currentIndex {
 			m.playback.currentIndex = -1
 		}
-		if len(m.queue.entries) == 0 || (m.playback.currentHash != "" && !queueContainsHash(m.queue.entries, m.playback.currentHash)) {
+		if len(m.queue.Entries) == 0 || (m.playback.currentHash != "" && !queueContainsHash(m.queue.Entries, m.playback.currentHash)) {
 			m = m.resetPlaybackState()
 		}
 	}
@@ -62,7 +63,7 @@ func (a undoEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 // undoDequeueAction reverts a single-track dequeue (undoKindDequeue).
 type undoDequeueAction struct {
 	id    int64
-	entry QueueEntry
+	entry queue.Entry
 	idx   int
 }
 
@@ -78,34 +79,34 @@ func (a undoDequeueAction) perform(m Model) (Model, tea.Cmd) {
 			slog.Warn("undo dequeue failed", "err", err)
 		}
 	}
-	idx := min(a.idx, len(m.queue.entries))
-	entries := make([]QueueEntry, len(m.queue.entries)+1)
-	copy(entries, m.queue.entries[:idx])
+	idx := min(a.idx, len(m.queue.Entries))
+	entries := make([]queue.Entry, len(m.queue.Entries)+1)
+	copy(entries, m.queue.Entries[:idx])
 	entries[idx] = a.entry
-	copy(entries[idx+1:], m.queue.entries[idx:])
-	m.queue.entries = entries
+	copy(entries[idx+1:], m.queue.Entries[idx:])
+	m.queue.Entries = entries
 	m = m.preserveQueueSort()
 	if m.playback.currentIndex >= 0 && idx <= m.playback.currentIndex {
 		m.playback.currentIndex++
 	}
-	// QueueView.cursor is a display index; translate the raw insertion
+	// queue.View.Cursor is a display index; translate the raw insertion
 	// position through the active sort's displayOrder so that an undo
 	// performed under an active sort lands the cursor on the restored entry
 	// instead of an unrelated row at the same raw index.
-	m.queue.cursor = m.queue.findEntryDisplayPosition(idx)
-	n := len(m.queue.filteredEntries())
+	m.queue.Cursor = m.queue.FindEntryDisplayPosition(idx)
+	n := len(m.queue.FilteredEntries())
 	if n == 0 {
-		m.queue.cursor = 0
-		m.queue.scrollOffset = 0
-	} else if m.queue.cursor >= n {
-		m.queue.cursor = n - 1
+		m.queue.Cursor = 0
+		m.queue.ScrollOffset = 0
+	} else if m.queue.Cursor >= n {
+		m.queue.Cursor = n - 1
 	}
-	if m.queue.cursor < m.queue.scrollOffset {
-		m.queue.scrollOffset = m.queue.cursor
+	if m.queue.Cursor < m.queue.ScrollOffset {
+		m.queue.ScrollOffset = m.queue.Cursor
 	} else {
-		maxRows := m.queue.visibleRows()
-		if m.queue.cursor >= m.queue.scrollOffset+maxRows {
-			m.queue.scrollOffset = m.queue.cursor - maxRows + 1
+		maxRows := m.queue.VisibleRows()
+		if m.queue.Cursor >= m.queue.ScrollOffset+maxRows {
+			m.queue.ScrollOffset = m.queue.Cursor - maxRows + 1
 		}
 	}
 	m.syncPlayerQueue()
@@ -116,7 +117,7 @@ func (a undoDequeueAction) perform(m Model) (Model, tea.Cmd) {
 // undoClearAction reverts a full queue clear (undoKindClear).
 type undoClearAction struct {
 	ids        []int64
-	entries    []QueueEntry
+	entries    []queue.Entry
 	tracks     []player.QueueTrack
 	savedIndex int    // playback index at the time of clear
 	savedHash  string // currently-playing track hash at the time of clear
@@ -134,7 +135,7 @@ func (a undoClearAction) perform(m Model) (Model, tea.Cmd) {
 			slog.Warn("undo clear queue failed", "err", err)
 		}
 	}
-	m.queue.entries = a.entries
+	m.queue.Entries = a.entries
 	m.playback.currentIndex = a.savedIndex
 	m.playback.currentHash = a.savedHash
 	if qs, ok := m.player.(playerQueueSetter); ok {
@@ -151,7 +152,7 @@ func (a undoClearAction) perform(m Model) (Model, tea.Cmd) {
 // undoBulkDequeueAction reverts removal of multiple selected queue entries
 // (undoKindBulkDequeue).
 type undoBulkDequeueAction struct {
-	entries []QueueEntry
+	entries []queue.Entry
 	indices []int
 	ids     []int64
 }
@@ -172,12 +173,12 @@ func (a undoBulkDequeueAction) perform(m Model) (Model, tea.Cmd) {
 		}
 	}
 	for i := range a.indices {
-		idx := min(a.indices[i], len(m.queue.entries))
-		entries := make([]QueueEntry, len(m.queue.entries)+1)
-		copy(entries, m.queue.entries[:idx])
+		idx := min(a.indices[i], len(m.queue.Entries))
+		entries := make([]queue.Entry, len(m.queue.Entries)+1)
+		copy(entries, m.queue.Entries[:idx])
 		entries[idx] = a.entries[i]
-		copy(entries[idx+1:], m.queue.entries[idx:])
-		m.queue.entries = entries
+		copy(entries[idx+1:], m.queue.Entries[idx:])
+		m.queue.Entries = entries
 		if m.playback.currentIndex >= 0 && idx <= m.playback.currentIndex {
 			m.playback.currentIndex++
 		}
@@ -207,16 +208,16 @@ func (m Model) softRemoveQueueEntries(ids []int64, warnMsg string) Model {
 	for _, id := range ids {
 		idSet[id] = struct{}{}
 	}
-	var kept []QueueEntry
+	var kept []queue.Entry
 	var removedPlayerIndices []int
-	for i, e := range m.queue.entries {
+	for i, e := range m.queue.Entries {
 		if _, ok := idSet[e.ID]; ok {
 			removedPlayerIndices = append(removedPlayerIndices, i)
 		} else {
 			kept = append(kept, e)
 		}
 	}
-	m.queue.entries = kept
+	m.queue.Entries = kept
 	m = m.preserveQueueSort()
 	m.clampQueueCursorAndScroll()
 	if m.playback.currentIndex >= 0 {
@@ -240,7 +241,7 @@ func (m Model) softRemoveQueueEntries(ids []int64, warnMsg string) Model {
 			_ = qr.RemoveFromQueue(removedPlayerIndices[i])
 		}
 	}
-	if len(m.queue.entries) == 0 || (m.playback.currentHash != "" && !queueContainsHash(m.queue.entries, m.playback.currentHash)) {
+	if len(m.queue.Entries) == 0 || (m.playback.currentHash != "" && !queueContainsHash(m.queue.Entries, m.playback.currentHash)) {
 		m = m.resetPlaybackState()
 	}
 	return m
@@ -293,9 +294,9 @@ func (a undoPasteAction) perform(m Model) (Model, tea.Cmd) {
 // undoCutPasteAction reverts a cut-paste by removing the pasted copies and
 // re-inserting the originals at their previous positions.
 type undoCutPasteAction struct {
-	pastedIDs       []int64      // fresh DB IDs of pasted copies to remove
-	originalEntries []QueueEntry // cut entries to restore
-	originalIndices []int        // their original queue positions (before the cut)
+	pastedIDs       []int64       // fresh DB IDs of pasted copies to remove
+	originalEntries []queue.Entry // cut entries to restore
+	originalIndices []int         // their original queue positions (before the cut)
 	count           int
 }
 
@@ -319,16 +320,16 @@ func (a undoCutPasteAction) perform(m Model) (Model, tea.Cmd) {
 	for _, id := range a.pastedIDs {
 		pastedIDSet[id] = struct{}{}
 	}
-	var kept []QueueEntry
+	var kept []queue.Entry
 	var removedPlayerIndices []int
-	for i, e := range m.queue.entries {
+	for i, e := range m.queue.Entries {
 		if _, ok := pastedIDSet[e.ID]; ok {
 			removedPlayerIndices = append(removedPlayerIndices, i)
 		} else {
 			kept = append(kept, e)
 		}
 	}
-	m.queue.entries = kept
+	m.queue.Entries = kept
 	if m.playback.currentIndex >= 0 {
 		removedBefore := 0
 		removedCurrent := false
@@ -356,8 +357,8 @@ func (a undoCutPasteAction) perform(m Model) (Model, tea.Cmd) {
 	restoredIDs := make([]int64, len(a.originalEntries))
 	for i, idx := range a.originalIndices {
 		pos := idx
-		if pos > len(m.queue.entries) {
-			pos = len(m.queue.entries)
+		if pos > len(m.queue.Entries) {
+			pos = len(m.queue.Entries)
 		}
 		entry := a.originalEntries[i]
 		// Re-append to DB to get a fresh ID.
@@ -375,11 +376,11 @@ func (a undoCutPasteAction) perform(m Model) (Model, tea.Cmd) {
 				restoredIDs[i] = id
 			}
 		}
-		newEntries := make([]QueueEntry, 0, len(m.queue.entries)+1)
-		newEntries = append(newEntries, m.queue.entries[:pos]...)
+		newEntries := make([]queue.Entry, 0, len(m.queue.Entries)+1)
+		newEntries = append(newEntries, m.queue.Entries[:pos]...)
 		newEntries = append(newEntries, entry)
-		newEntries = append(newEntries, m.queue.entries[pos:]...)
-		m.queue.entries = newEntries
+		newEntries = append(newEntries, m.queue.Entries[pos:]...)
+		m.queue.Entries = newEntries
 		// Adjust playback index for the insertion.
 		if m.playback.currentIndex >= 0 && pos <= m.playback.currentIndex {
 			m.playback.currentIndex++
@@ -397,7 +398,7 @@ func (a undoCutPasteAction) perform(m Model) (Model, tea.Cmd) {
 	m = m.preserveQueueSort()
 	m.clampQueueCursorAndScroll()
 	m.syncPlayerQueue()
-	if len(m.queue.entries) == 0 || (m.playback.currentHash != "" && !queueContainsHash(m.queue.entries, m.playback.currentHash)) {
+	if len(m.queue.Entries) == 0 || (m.playback.currentHash != "" && !queueContainsHash(m.queue.Entries, m.playback.currentHash)) {
 		m = m.resetPlaybackState()
 	}
 	n := a.count

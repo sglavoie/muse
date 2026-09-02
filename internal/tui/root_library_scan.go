@@ -95,7 +95,7 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 	// the replacement under stale metadata. Durable tracks.missing marking for
 	// the displaced identity is done by the startup app scan bridge.
 	for _, h := range displacedHashes {
-		m.queue.markMissingByHash(h)
+		m.queue.MarkMissingByHash(h)
 	}
 	// Invalidate the cached fuzzy-match results so that stale TrackIndex
 	// values from the previous index state cannot cause an out-of-bounds

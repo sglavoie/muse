@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/overlay"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // setupTrackInfoModel returns a model with a focused track in the library.
@@ -19,10 +20,10 @@ func setupTrackInfoModel(t *testing.T) Model {
 	})
 	// Use the queue view with a focused entry instead — simpler to set up.
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/music/test.flac", Artist: "Test Artist", Title: "Test Song"},
 	}
-	m.queue.cursor = 0
+	m.queue.Cursor = 0
 	return m
 }
 
@@ -196,8 +197,8 @@ func TestTrackInfoPathUnknown(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
 	// Add a queue entry with no path and a hash that isn't in the index.
-	m.queue.entries = []QueueEntry{{Hash: "orphan", Display: "Orphan"}}
-	m.queue.cursor = 0
+	m.queue.Entries = []queue.Entry{{Hash: "orphan", Display: "Orphan"}}
+	m.queue.Cursor = 0
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'i', Text: "i"})
 	nm := next.(Model)

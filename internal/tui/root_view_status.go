@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -20,9 +21,9 @@ func (m Model) renderStatusBar() string {
 	sb.RadioMode = m.radio.enabled
 	sb.ConfigCreated = m.configCreated
 	sb.WatchDegraded = m.watchDegraded
-	sb.QueueEmpty = len(m.queue.entries) == 0
-	if m.playback.state == playback.StatePlaying && m.playback.currentIndex >= 0 && m.playback.currentIndex < len(m.queue.entries) {
-		sb.QueuePosition = fmt.Sprintf("%d of %d", m.playback.currentIndex+1, len(m.queue.entries))
+	sb.QueueEmpty = len(m.queue.Entries) == 0
+	if m.playback.state == playback.StatePlaying && m.playback.currentIndex >= 0 && m.playback.currentIndex < len(m.queue.Entries) {
+		sb.QueuePosition = fmt.Sprintf("%d of %d", m.playback.currentIndex+1, len(m.queue.Entries))
 	} else {
 		sb.QueuePosition = ""
 	}
@@ -49,7 +50,7 @@ func (m Model) activeViewSelectionCount() int {
 	case viewLibrary:
 		return len(m.library.SelectedHashes)
 	case viewQueue:
-		return len(m.queue.selectedHashes())
+		return len(m.queue.SelectedHashes())
 	case viewBrowse:
 		switch m.browse.mode {
 		case BrowseModeArtists:
@@ -82,15 +83,15 @@ func (m Model) focusedBucketLabel() string {
 		}
 		return sorting.TrackBucket(field, track, time.Now())
 	case viewQueue:
-		field := m.queue.sortState.Field
+		field := m.queue.SortState.Field
 		if !sorting.SortFieldHasBuckets(field) {
 			return ""
 		}
-		entries := m.queue.filteredEntries()
-		if m.queue.cursor < 0 || m.queue.cursor >= len(entries) {
+		entries := m.queue.FilteredEntries()
+		if m.queue.Cursor < 0 || m.queue.Cursor >= len(entries) {
 			return ""
 		}
-		return QueueEntryBucket(field, entries[m.queue.cursor])
+		return queue.EntryBucket(field, entries[m.queue.Cursor])
 	default:
 		return ""
 	}
@@ -104,7 +105,7 @@ func (m Model) hasCommittedFilter() bool {
 	case viewLibrary:
 		return committed(m.library.Filter.Text, m.library.Filter.Active)
 	case viewQueue:
-		return committed(m.queue.filter.Text, m.queue.filter.Active)
+		return committed(m.queue.Filter.Text, m.queue.Filter.Active)
 	case viewBrowse:
 		switch m.browse.mode {
 		case BrowseModeArtists:

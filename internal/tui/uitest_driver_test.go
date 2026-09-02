@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
 // sp / bp build pointers for constructing scenario actions and assertions in
@@ -100,7 +101,7 @@ func TestDriverCommandDrainAndPendingAsync(t *testing.T) {
 
 	// Resolve the parked future and confirm the message is fed back through the
 	// model (a notification lands in the status bar) and pending clears.
-	go func() { release <- TransientNotifyMsg("late-arrival") }()
+	go func() { release <- statusbar.TransientNotifyMsg("late-arrival") }()
 	d.waitPending(200 * time.Millisecond)
 	if len(d.pending) != 0 {
 		t.Fatalf("pending = %d, want 0 after wait resolves it", len(d.pending))
@@ -120,7 +121,7 @@ func TestDriverWaitActionResolvesPending(t *testing.T) {
 
 	d.drain(func() tea.Msg {
 		time.Sleep(25 * time.Millisecond)
-		return TransientNotifyMsg("ready")
+		return statusbar.TransientNotifyMsg("ready")
 	})
 	if len(d.pending) != 1 {
 		t.Fatalf("pending = %d, want 1", len(d.pending))

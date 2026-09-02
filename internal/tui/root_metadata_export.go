@@ -127,7 +127,7 @@ func (m Model) handleExportPathCopyKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd
 // the number of rows dropped for having no content hash.
 //
 // Every row is re-read from the library index: the view's own row type may be a
-// db.PlaylistTrackRow or a QueueEntry, neither of which carries a genre at all,
+// db.PlaylistTrackRow or a queue.Entry, neither of which carries a genre at all,
 // so the row itself is only a fallback for hashes the index no longer holds.
 // Duplicates collapse to the first visible occurrence, because one content hash
 // is shared by duplicate files and a queue can hold the same track twice.

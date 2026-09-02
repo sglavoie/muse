@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // setupPlayingModel returns a model that looks like a track is playing.
@@ -20,7 +21,7 @@ func setupPlayingModel(t *testing.T) Model {
 	m.playback.elapsedSecs = 30
 	m.playback.totalSecs = 180
 	m.playback.currentHash = "h1"
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Test Artist", Title: "Test Song"},
 		{ID: 2, Hash: "h2", Path: "/b.flac"},
 	}

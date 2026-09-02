@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -349,7 +350,7 @@ func (m Model) shufflePlaylistFromList() (Model, tea.Cmd) {
 	return m, func() tea.Msg {
 		tracks, err := reader.ReadPlaylistTracks(pid)
 		if err != nil || len(tracks) <= 1 {
-			return TransientNotifyMsg("Playlist too small to shuffle")
+			return statusbar.TransientNotifyMsg("Playlist too small to shuffle")
 		}
 		for i := len(tracks) - 1; i > 0; i-- {
 			j := rand.IntN(i + 1) //nolint:gosec // non-security random for playlist shuffle
@@ -362,6 +363,6 @@ func (m Model) shufflePlaylistFromList() (Model, tea.Cmd) {
 			}
 			_ = shuffler.SetPlaylistOrder(pid, ids)
 		}
-		return TransientNotifyMsg(fmt.Sprintf("Shuffled %q (%d tracks)", name, len(tracks)))
+		return statusbar.TransientNotifyMsg(fmt.Sprintf("Shuffled %q (%d tracks)", name, len(tracks)))
 	}
 }

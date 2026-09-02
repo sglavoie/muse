@@ -60,8 +60,8 @@ func (m *Model) clampAllScrollOffsets() {
 	libMaxRows := layout.VisibleRows(m.library.Height, libReserve)
 	m.library.ScrollOffset = sorting.AdjustScroll(m.library.Cursor, m.library.ScrollOffset, libMaxRows)
 
-	queueMaxRows := m.queue.visibleRows()
-	m.queue.scrollOffset = sorting.AdjustScroll(m.queue.cursor, m.queue.scrollOffset, queueMaxRows)
+	queueMaxRows := m.queue.VisibleRows()
+	m.queue.ScrollOffset = sorting.AdjustScroll(m.queue.Cursor, m.queue.ScrollOffset, queueMaxRows)
 
 	plReserve := playlistsVisibleReserve(m.playlists)
 	plMaxRows := layout.VisibleRows(m.playlists.Height, plReserve)

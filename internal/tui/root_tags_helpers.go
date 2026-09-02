@@ -39,7 +39,7 @@ func (m Model) selectedTrackHashes() []string {
 		return hashMapToSlice(m.library.SelectedHashes)
 	case viewQueue:
 		var hashes []string
-		for _, e := range m.queue.entries {
+		for _, e := range m.queue.Entries {
 			if e.Selected {
 				hashes = append(hashes, e.Hash)
 			}
@@ -124,9 +124,9 @@ func (m Model) focusedTrackHash() string {
 			return track.Hash
 		}
 	case viewQueue:
-		filtered := m.queue.filteredEntries()
-		if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
-			return filtered[m.queue.cursor].Hash
+		filtered := m.queue.FilteredEntries()
+		if m.queue.Cursor >= 0 && m.queue.Cursor < len(filtered) {
+			return filtered[m.queue.Cursor].Hash
 		}
 	case viewBrowse:
 		switch m.browse.mode {

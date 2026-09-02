@@ -46,18 +46,18 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewQueue:
-		if m.queue.savingAsPlaylist {
+		if m.queue.SavingAsPlaylist {
 			return m, nil, false
 		}
-		next := sorting.CycleSortField(m.queue.sortState.Field, sorting.QueueSortFields)
-		m.queue.sortState.Field = next
+		next := sorting.CycleSortField(m.queue.SortState.Field, sorting.QueueSortFields)
+		m.queue.SortState.Field = next
 		if next == sorting.SortDefault {
-			m.queue.sortState.Dir = sorting.SortAsc
+			m.queue.SortState.Dir = sorting.SortAsc
 		}
-		m.queue = m.queue.recomputeDisplayOrder()
-		m.queue.cursor = 0
-		m.queue.scrollOffset = 0
-		m.statusBar.NotifyInfo(sortNotification(m.queue.sortState))
+		m.queue = m.queue.RecomputeDisplayOrder()
+		m.queue.Cursor = 0
+		m.queue.ScrollOffset = 0
+		m.statusBar.NotifyInfo(sortNotification(m.queue.SortState))
 		return m, nil, true
 
 	case viewPlaylists:
@@ -162,15 +162,15 @@ func (m Model) handleSortDir(dir sorting.SortDir) (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewQueue:
-		if m.queue.sortState.Field == sorting.SortDefault {
+		if m.queue.SortState.Field == sorting.SortDefault {
 			return m, nil, false
 		}
-		prevEntryIdx := m.queue.focusedEntryIndex()
-		m.queue.sortState.Dir = dir
-		m.queue = m.queue.recomputeDisplayOrder()
-		m.queue.cursor = m.queue.findEntryFilteredPosition(prevEntryIdx)
-		m.queue.scrollOffset = sorting.AdjustScroll(m.queue.cursor, m.queue.scrollOffset, m.queue.visibleRows())
-		m.statusBar.NotifyInfo(sortNotification(m.queue.sortState))
+		prevEntryIdx := m.queue.FocusedEntryIndex()
+		m.queue.SortState.Dir = dir
+		m.queue = m.queue.RecomputeDisplayOrder()
+		m.queue.Cursor = m.queue.FindEntryFilteredPosition(prevEntryIdx)
+		m.queue.ScrollOffset = sorting.AdjustScroll(m.queue.Cursor, m.queue.ScrollOffset, m.queue.VisibleRows())
+		m.statusBar.NotifyInfo(sortNotification(m.queue.SortState))
 		return m, nil, true
 
 	case viewPlaylists:

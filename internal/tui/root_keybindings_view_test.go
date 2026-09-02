@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -90,20 +91,20 @@ func TestBracketKeysSwitchViewsAndAltAliasesAreUnbound(t *testing.T) {
 func TestQueueHalfPageNavigationUsesCtrlDAndCtrlU(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.height = 14
-	m.queue.entries = make([]QueueEntry, 20)
+	m.queue.Height = 14
+	m.queue.Entries = make([]queue.Entry, 20)
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
 	nm := next.(Model)
 	// visibleRows = height(14) - reserve(3) = 11; HalfPageDown = 11/2 = 5
-	if nm.queue.cursor != 5 {
-		t.Fatalf("ctrl+d: expected cursor 5, got %d", nm.queue.cursor)
+	if nm.queue.Cursor != 5 {
+		t.Fatalf("ctrl+d: expected cursor 5, got %d", nm.queue.Cursor)
 	}
 
 	next, _ = nm.Update(tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
 	nm = next.(Model)
-	if nm.queue.cursor != 0 {
-		t.Fatalf("ctrl+u: expected cursor 0, got %d", nm.queue.cursor)
+	if nm.queue.Cursor != 0 {
+		t.Fatalf("ctrl+u: expected cursor 0, got %d", nm.queue.Cursor)
 	}
 }
 

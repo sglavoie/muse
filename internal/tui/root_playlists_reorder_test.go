@@ -7,6 +7,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
 // stubPlaylistDeleterReorderer implements both playlistDeleter and
@@ -166,7 +167,7 @@ func TestPlaylistMoveTrack_SortedShowsNotification(t *testing.T) {
 		t.Fatal("expected cmd for sorted notification")
 	}
 	msg := cmd()
-	note, ok := msg.(TransientNotifyMsg)
+	note, ok := msg.(statusbar.TransientNotifyMsg)
 	if !ok {
 		t.Fatalf("expected TransientNotifyMsg, got %T", msg)
 	}

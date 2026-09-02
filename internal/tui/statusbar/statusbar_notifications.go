@@ -8,6 +8,9 @@ import (
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
+// TransientNotifyMsg carries a short message to display in the status bar.
+type TransientNotifyMsg string
+
 // NotifPriority controls which notification wins when multiple are queued.
 // Higher values win; the queue evicts the lowest-priority entry when full.
 type NotifPriority uint8

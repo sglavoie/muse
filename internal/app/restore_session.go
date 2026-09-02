@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // RestoreSession loads the persisted queue and session state from the
@@ -46,8 +47,8 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 	return restored, nil
 }
 
-func restoreQueue(rows []db.QueueRow, writer *db.Writer) ([]tui.QueueEntry, []player.QueueTrack) {
-	queueEntries := make([]tui.QueueEntry, 0, len(rows))
+func restoreQueue(rows []db.QueueRow, writer *db.Writer) ([]queue.Entry, []player.QueueTrack) {
+	queueEntries := make([]queue.Entry, 0, len(rows))
 	playerTracks := make([]player.QueueTrack, 0, len(rows))
 	for _, row := range rows {
 		missing := resolveQueueEntryMissing(row, writer)
@@ -90,8 +91,8 @@ func resolveQueueEntryMissing(row db.QueueRow, writer *db.Writer) bool {
 	return false
 }
 
-func queueEntryFromRow(row db.QueueRow, missing bool) tui.QueueEntry {
-	return tui.QueueEntry{
+func queueEntryFromRow(row db.QueueRow, missing bool) queue.Entry {
+	return queue.Entry{
 		ID:             row.ID,
 		Path:           row.Path,
 		Hash:           row.Hash,
@@ -120,7 +121,7 @@ func playerTrackFromRow(row db.QueueRow) player.QueueTrack {
 }
 
 func buildRestoredSession(
-	queueEntries []tui.QueueEntry,
+	queueEntries []queue.Entry,
 	playerTracks []player.QueueTrack,
 	sess *db.SessionRow,
 ) *RestoredSession {

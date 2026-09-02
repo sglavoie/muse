@@ -14,8 +14,8 @@ func TestCutSingleTrack(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
 	m.activeView = viewQueue
-	m.queue.entries = sampleQueueEntries()
-	m.queue.cursor = 1
+	m.queue.Entries = sampleQueueEntries()
+	m.queue.Cursor = 1
 
 	rm, _, handled := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
@@ -36,8 +36,8 @@ func TestCutSingleTrack(t *testing.T) {
 		t.Errorf("expected 'Cut' in notification, got %q", m.statusBar.TopNotification().Msg)
 	}
 	// Queue should not be modified yet (deferred to paste).
-	if len(m.queue.entries) != 4 {
-		t.Errorf("queue should still have 4 entries, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 4 {
+		t.Errorf("queue should still have 4 entries, got %d", len(m.queue.Entries))
 	}
 }
 
@@ -47,10 +47,10 @@ func TestCutBulkSelection(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
 	m.activeView = viewQueue
-	m.queue.entries = sampleQueueEntries()
-	m.queue.entries[0].Selected = true
-	m.queue.entries[2].Selected = true
-	m.queue.cursor = 0
+	m.queue.Entries = sampleQueueEntries()
+	m.queue.Entries[0].Selected = true
+	m.queue.Entries[2].Selected = true
+	m.queue.Cursor = 0
 
 	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
@@ -72,8 +72,8 @@ func TestYankAfterCutClearsCutFlag(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
 	m.activeView = viewQueue
-	m.queue.entries = sampleQueueEntries()
-	m.queue.cursor = 0
+	m.queue.Entries = sampleQueueEntries()
+	m.queue.Cursor = 0
 
 	// Cut.
 	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
@@ -83,7 +83,7 @@ func TestYankAfterCutClearsCutFlag(t *testing.T) {
 	}
 
 	// Now yank a different track.
-	m.queue.cursor = 1
+	m.queue.Cursor = 1
 	rm, _, _ = m.handleQueueKeyAction(keys.ActionYank)
 	m = rm.(Model)
 

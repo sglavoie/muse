@@ -97,7 +97,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 					m.playback.state = playback.StatePaused
 				}
 				return m, m.sessionPositionCmd(), true
-			case len(m.queue.entries) == 0:
+			case len(m.queue.Entries) == 0:
 				m.statusBar.Notify("Queue is empty")
 				return m, nil, true
 			default:
@@ -110,7 +110,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 					}
 				} else {
 					idx := m.playback.currentIndex
-					if idx < 0 || idx >= len(m.queue.entries) {
+					if idx < 0 || idx >= len(m.queue.Entries) {
 						idx = 0
 					}
 					return m, func() tea.Msg { return playback.PlayQueueIndexMsg{Index: idx} }, true

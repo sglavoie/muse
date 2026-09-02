@@ -65,14 +65,14 @@ func TestTagEnqueueAllAddsEntriesToQueue(t *testing.T) {
 	next, _ := m.Update(batchMsg)
 	m = next.(Model)
 
-	if len(m.queue.entries) != 2 {
-		t.Fatalf("expected 2 queue entries after enqueue, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 2 {
+		t.Fatalf("expected 2 queue entries after enqueue, got %d", len(m.queue.Entries))
 	}
-	if m.queue.entries[0].Hash != "h1" {
-		t.Errorf("expected first entry hash h1, got %s", m.queue.entries[0].Hash)
+	if m.queue.Entries[0].Hash != "h1" {
+		t.Errorf("expected first entry hash h1, got %s", m.queue.Entries[0].Hash)
 	}
-	if m.queue.entries[1].Hash != "h2" {
-		t.Errorf("expected second entry hash h2, got %s", m.queue.entries[1].Hash)
+	if m.queue.Entries[1].Hash != "h2" {
+		t.Errorf("expected second entry hash h2, got %s", m.queue.Entries[1].Hash)
 	}
 }
 
@@ -121,14 +121,14 @@ func TestEnqueueByTagFromPaletteAddsEntriesToQueue(t *testing.T) {
 	next, _ := m.Update(batchMsg)
 	m = next.(Model)
 
-	if len(m.queue.entries) != 1 {
-		t.Fatalf("expected 1 queue entry after enqueue, got %d", len(m.queue.entries))
+	if len(m.queue.Entries) != 1 {
+		t.Fatalf("expected 1 queue entry after enqueue, got %d", len(m.queue.Entries))
 	}
-	if m.queue.entries[0].Hash != "h3" {
-		t.Errorf("expected entry hash h3, got %s", m.queue.entries[0].Hash)
+	if m.queue.Entries[0].Hash != "h3" {
+		t.Errorf("expected entry hash h3, got %s", m.queue.Entries[0].Hash)
 	}
-	if m.queue.entries[0].SourcePlaylist != "rock" {
-		t.Errorf("expected source playlist 'rock', got %q", m.queue.entries[0].SourcePlaylist)
+	if m.queue.Entries[0].SourcePlaylist != "rock" {
+		t.Errorf("expected source playlist 'rock', got %q", m.queue.Entries[0].SourcePlaylist)
 	}
 }
 

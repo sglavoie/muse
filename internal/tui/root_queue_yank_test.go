@@ -13,8 +13,8 @@ func TestYankSingleTrack(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
 	m.activeView = viewQueue
-	m.queue.entries = sampleQueueEntries()
-	m.queue.cursor = 1
+	m.queue.Entries = sampleQueueEntries()
+	m.queue.Cursor = 1
 
 	rm, _, handled := m.handleQueueKeyAction(keys.ActionYank)
 	m = rm.(Model)
@@ -39,10 +39,10 @@ func TestYankBulkSelection(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
 	m.activeView = viewQueue
-	m.queue.entries = sampleQueueEntries()
-	m.queue.entries[0].Selected = true
-	m.queue.entries[2].Selected = true
-	m.queue.cursor = 0
+	m.queue.Entries = sampleQueueEntries()
+	m.queue.Entries[0].Selected = true
+	m.queue.Entries[2].Selected = true
+	m.queue.Cursor = 0
 
 	rm, _, handled := m.handleQueueKeyAction(keys.ActionYank)
 	m = rm.(Model)
@@ -66,8 +66,8 @@ func TestYankReplacesBuffer(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
 	m.activeView = viewQueue
-	m.queue.entries = sampleQueueEntries()
-	m.queue.cursor = 0
+	m.queue.Entries = sampleQueueEntries()
+	m.queue.Cursor = 0
 
 	rm, _, _ := m.handleQueueKeyAction(keys.ActionYank)
 	m = rm.(Model)
@@ -75,7 +75,7 @@ func TestYankReplacesBuffer(t *testing.T) {
 		t.Fatal("first yank should capture h1")
 	}
 
-	m.queue.cursor = 3
+	m.queue.Cursor = 3
 	rm, _, _ = m.handleQueueKeyAction(keys.ActionYank)
 	m = rm.(Model)
 	if len(m.yankBuffer) != 1 || m.yankBuffer[0].Hash != "h4" {

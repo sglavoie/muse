@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/overlay"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestPreviewTickUpdatesProgress verifies that a tickMsg updates the
@@ -57,7 +58,7 @@ func TestPreviewTickAutoFillsDurationWhenZero(t *testing.T) {
 	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 0,
 	})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", DurationMs: 0},
 	}
 	sp := &stubPreviewer{elapsed: 10.0, total: 225.0}
@@ -69,8 +70,8 @@ func TestPreviewTickAutoFillsDurationWhenZero(t *testing.T) {
 	if t2, ok := nm.library.Index.FindByHash("h1"); !ok || t2.Duration != 225.0 {
 		t.Fatalf("expected library duration 225.0, got %v", t2.Duration)
 	}
-	if nm.queue.entries[0].DurationMs != 225000 {
-		t.Fatalf("expected queue DurationMs 225000, got %d", nm.queue.entries[0].DurationMs)
+	if nm.queue.Entries[0].DurationMs != 225000 {
+		t.Fatalf("expected queue DurationMs 225000, got %d", nm.queue.Entries[0].DurationMs)
 	}
 	if !nm.overlay.previewDurationFilled {
 		t.Fatal("expected previewDurationFilled to be set")
@@ -110,7 +111,7 @@ func TestPreviewTickCorrectsWrongDuration(t *testing.T) {
 	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 180.0,
 	})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", DurationMs: 180000},
 	}
 	sp := &stubPreviewer{elapsed: 10.0, total: 225.0}
@@ -122,8 +123,8 @@ func TestPreviewTickCorrectsWrongDuration(t *testing.T) {
 	if t2, ok := nm.library.Index.FindByHash("h1"); !ok || t2.Duration != 225.0 {
 		t.Fatalf("expected library duration 225.0, got %v", t2.Duration)
 	}
-	if nm.queue.entries[0].DurationMs != 225000 {
-		t.Fatalf("expected queue DurationMs 225000, got %d", nm.queue.entries[0].DurationMs)
+	if nm.queue.Entries[0].DurationMs != 225000 {
+		t.Fatalf("expected queue DurationMs 225000, got %d", nm.queue.Entries[0].DurationMs)
 	}
 	if !nm.overlay.previewDurationFilled {
 		t.Fatal("expected previewDurationFilled to be set")
@@ -162,7 +163,7 @@ func TestPreviewTickSkipsCloseEnoughDuration(t *testing.T) {
 	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 180.5,
 	})
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", DurationMs: 180500},
 	}
 	sp := &stubPreviewer{elapsed: 10.0, total: 180.0}
@@ -175,8 +176,8 @@ func TestPreviewTickSkipsCloseEnoughDuration(t *testing.T) {
 	if t2, ok := nm.library.Index.FindByHash("h1"); !ok || t2.Duration != 180.5 {
 		t.Fatalf("expected library duration to stay 180.5, got %v", t2.Duration)
 	}
-	if nm.queue.entries[0].DurationMs != 180500 {
-		t.Fatalf("expected queue DurationMs to stay 180500, got %d", nm.queue.entries[0].DurationMs)
+	if nm.queue.Entries[0].DurationMs != 180500 {
+		t.Fatalf("expected queue DurationMs to stay 180500, got %d", nm.queue.Entries[0].DurationMs)
 	}
 	if !nm.overlay.previewDurationFilled {
 		t.Fatal("expected previewDurationFilled to be set even when no correction needed")

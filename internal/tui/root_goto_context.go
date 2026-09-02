@@ -30,9 +30,9 @@ func (m Model) focusedGoToContext() goToContext {
 		}
 
 	case viewQueue:
-		filtered := m.queue.filteredEntries()
-		if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
-			entry := filtered[m.queue.cursor]
+		filtered := m.queue.FilteredEntries()
+		if m.queue.Cursor >= 0 && m.queue.Cursor < len(filtered) {
+			entry := filtered[m.queue.Cursor]
 			ctx := goToContext{artist: entry.Artist, album: entry.Album, sourcePlaylist: entry.SourcePlaylist, found: true}
 			if track, ok := m.library.Index.FindByHash(entry.Hash); ok {
 				ctx.genre = track.Genre

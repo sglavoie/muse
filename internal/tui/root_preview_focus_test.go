@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -15,11 +16,11 @@ import (
 func TestFocusedTrackForPreview_Queue(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T1", DurationMs: 5000},
 		{Hash: "h2", Path: "/b.flac", Artist: "B", Title: "T2", DurationMs: 6000},
 	}
-	m.queue.cursor = 1
+	m.queue.Cursor = 1
 
 	track, ok := m.focusedTrackForPreview()
 	if !ok {
@@ -38,10 +39,10 @@ func TestFocusedTrackForPreview_Queue(t *testing.T) {
 func TestFocusedTrackForPreview_QueueMissing(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.flac", Missing: true},
 	}
-	m.queue.cursor = 0
+	m.queue.Cursor = 0
 
 	_, ok := m.focusedTrackForPreview()
 	if ok {
@@ -54,8 +55,8 @@ func TestFocusedTrackForPreview_QueueMissing(t *testing.T) {
 func TestFocusedTrackForPreview_EmptyQueue(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = nil
-	m.queue.cursor = 0
+	m.queue.Entries = nil
+	m.queue.Cursor = 0
 
 	_, ok := m.focusedTrackForPreview()
 	if ok {
@@ -69,14 +70,14 @@ func TestFocusedTrackForPreview_EmptyQueue(t *testing.T) {
 func TestFocusedTrackForPreview_QueueWithFilter(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.flac", Artist: "Alice", Title: "Alpha", DurationMs: 3000},
 		{Hash: "h2", Path: "/b.flac", Artist: "Bob", Title: "Beta", DurationMs: 4000},
 		{Hash: "h3", Path: "/c.flac", Artist: "Carol", Title: "Charlie", DurationMs: 5000},
 	}
 	// Activate a filter that matches only "Bob".
-	m.queue.filter.Text = "bob"
-	m.queue.cursor = 0 // first (and only) filtered entry
+	m.queue.Filter.Text = "bob"
+	m.queue.Cursor = 0 // first (and only) filtered entry
 
 	track, ok := m.focusedTrackForPreview()
 	if !ok {
@@ -92,14 +93,14 @@ func TestFocusedTrackForPreview_QueueWithFilter(t *testing.T) {
 func TestFocusedTrackForPreview_QueueWithSort(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.flac", Artist: "Zeta", Title: "Zulu", DurationMs: 3000},
 		{Hash: "h2", Path: "/b.flac", Artist: "Alpha", Title: "Able", DurationMs: 4000},
 	}
 	// Sort by artist ascending: Alpha first, then Zeta.
-	m.queue.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
-	m.queue = m.queue.recomputeDisplayOrder()
-	m.queue.cursor = 0 // first display entry after sort = Alpha
+	m.queue.SortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
+	m.queue = m.queue.RecomputeDisplayOrder()
+	m.queue.Cursor = 0 // first display entry after sort = Alpha
 
 	track, ok := m.focusedTrackForPreview()
 	if !ok {
@@ -117,10 +118,10 @@ func TestFocusedTrackForPreview_QueueWithSort(t *testing.T) {
 func TestFocusedTrackForPreview_QueueIncludesAlbum(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Album: "MyAlbum", DurationMs: 5000},
 	}
-	m.queue.cursor = 0
+	m.queue.Cursor = 0
 
 	track, ok := m.focusedTrackForPreview()
 	if !ok {

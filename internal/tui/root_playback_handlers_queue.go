@@ -18,7 +18,7 @@ func (m Model) handlePlayerStatusMsg(msg playback.PlayerStatusMsg) Model {
 // handleMissingTrackMsg marks a queue entry as missing, increments the missing
 // track counter, and notifies the status bar.
 func (m Model) handleMissingTrackMsg(msg playback.MissingTrackMsg) Model {
-	m.queue.markMissing(msg.Path)
+	m.queue.MarkMissing(msg.Path)
 	m.statusBar.HandleMissingTrack(msg.Path)
 	m.missingTrackCount++
 	player.PlaySound(player.SoundError)
@@ -34,11 +34,11 @@ func (m Model) handleMissingTrackMsg(msg playback.MissingTrackMsg) Model {
 // same grayed-out entry).
 func (m Model) handleMissingTrackSelectedMsg(msg playback.MissingTrackSelectedMsg) (Model, tea.Cmd) {
 	idx := msg.Index
-	if idx < 0 || idx >= len(m.queue.entries) {
+	if idx < 0 || idx >= len(m.queue.Entries) {
 		m.statusBar.Notify("Cannot play — file is missing")
 		return m, nil
 	}
-	entry := m.queue.entries[idx]
+	entry := m.queue.Entries[idx]
 	// Guard against a stale index (queue mutated between dispatch and Update).
 	if msg.Path != "" && entry.Path != msg.Path {
 		m.statusBar.Notify("Cannot play — file is missing")
@@ -48,9 +48,9 @@ func (m Model) handleMissingTrackSelectedMsg(msg playback.MissingTrackSelectedMs
 	m.statusBar.Notify("Removed — file missing: " + entry.Display)
 	player.PlaySound(player.SoundError)
 
-	m.queue.entries = append(m.queue.entries[:idx], m.queue.entries[idx+1:]...)
-	for i := range m.queue.entries {
-		m.queue.entries[i].Selected = false
+	m.queue.Entries = append(m.queue.Entries[:idx], m.queue.Entries[idx+1:]...)
+	for i := range m.queue.Entries {
+		m.queue.Entries[i].Selected = false
 	}
 	m = exitVisualMode(m)
 	m = m.preserveQueueSort()

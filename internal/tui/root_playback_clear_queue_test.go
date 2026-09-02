@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestClearQueueMsgStopsPlaybackAndTransitionsToIdle verifies that handling
@@ -14,11 +15,11 @@ func TestClearQueueMsgStopsPlaybackAndTransitionsToIdle(t *testing.T) {
 	p := &stubCommandPlayer{}
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StatePlaying
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/music/a.flac", Display: "A"},
 	}
 
-	next, _ := m.Update(ClearQueueMsg{})
+	next, _ := m.Update(queue.ClearQueueMsg{})
 	nm := next.(Model)
 
 	if nm.playback.state != playback.StateIdle {
@@ -36,17 +37,17 @@ func TestClearQueueMsgResetsScrollOffset(t *testing.T) {
 	p := &stubCommandPlayer{}
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StatePlaying
-	m.queue.entries = make([]QueueEntry, 50)
-	for i := range m.queue.entries {
-		m.queue.entries[i] = QueueEntry{ID: int64(i + 1), Display: "Track"}
+	m.queue.Entries = make([]queue.Entry, 50)
+	for i := range m.queue.Entries {
+		m.queue.Entries[i] = queue.Entry{ID: int64(i + 1), Display: "Track"}
 	}
-	m.queue.scrollOffset = 30
+	m.queue.ScrollOffset = 30
 
-	next, _ := m.Update(ClearQueueMsg{})
+	next, _ := m.Update(queue.ClearQueueMsg{})
 	nm := next.(Model)
 
-	if nm.queue.scrollOffset != 0 {
-		t.Fatalf("ClearQueueMsg: expected scrollOffset=0, got %d", nm.queue.scrollOffset)
+	if nm.queue.ScrollOffset != 0 {
+		t.Fatalf("ClearQueueMsg: expected scrollOffset=0, got %d", nm.queue.ScrollOffset)
 	}
 }
 
@@ -58,7 +59,7 @@ func TestClearQueueMsgExitsVisualMode(t *testing.T) {
 	p := &stubCommandPlayer{}
 	m := New(context.Background(), WithPlayer(p))
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Display: "A"},
 		{ID: 2, Path: "/b.flac", Display: "B"},
 	}
@@ -67,7 +68,7 @@ func TestClearQueueMsgExitsVisualMode(t *testing.T) {
 		t.Fatalf("precondition failed: visual mode must be active before clear")
 	}
 
-	next, _ := m.Update(ClearQueueMsg{})
+	next, _ := m.Update(queue.ClearQueueMsg{})
 	nm := next.(Model)
 
 	if nm.visual.active {
@@ -86,13 +87,13 @@ func TestClearQueueMsgExitsVisualMode(t *testing.T) {
 func TestClearQueueMsgResetsRadioEnqueuePending(t *testing.T) {
 	p := &stubCommandPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.queue.entries = []QueueEntry{
+	m.queue.Entries = []queue.Entry{
 		{ID: 1, Path: "/a.flac", Display: "A"},
 	}
 	m.radio.enabled = true
 	m.radio.enqueuePending = true
 
-	next, _ := m.Update(ClearQueueMsg{})
+	next, _ := m.Update(queue.ClearQueueMsg{})
 	nm := next.(Model)
 
 	if nm.radio.enqueuePending {

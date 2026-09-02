@@ -6,28 +6,29 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // TestQueueFilterRendersFilterBar verifies that the filter chunk appears in
 // the rendered queue output when the filter is active.
 func TestQueueFilterRendersFilterBar(t *testing.T) {
-	q := QueueView{
-		entries: []QueueEntry{
+	q := queue.View{
+		Entries: []queue.Entry{
 			{Path: "/a.flac", Title: "Song", Artist: "Art", Album: "Alb"},
 		},
-		width:  120,
-		height: 20,
+		Width:  120,
+		Height: 20,
 	}
-	q.filter, _ = q.filter.Activate()
+	q.Filter, _ = q.Filter.Activate()
 	for _, ch := range "song" {
-		q.filter, _ = q.filter.Update(tea.KeyPressMsg{Text: string(ch)})
+		q.Filter, _ = q.Filter.Update(tea.KeyPressMsg{Text: string(ch)})
 	}
-	q.cursor = 0
-	q.scrollOffset = 0
+	q.Cursor = 0
+	q.ScrollOffset = 0
 
 	s := styles.NewStyles(true)
-	out := q.render(s, -1, playback.StateIdle, nil, nil, nil)
+	out := q.Render(s, -1, playback.StateIdle, nil, nil, nil)
 	if !strings.Contains(out, `filter "`) {
 		t.Errorf("rendered output should contain filter chunk, got:\n%s", out)
 	}
@@ -36,18 +37,18 @@ func TestQueueFilterRendersFilterBar(t *testing.T) {
 // TestQueueFilterNoMatchesShowsMessage verifies that when filter matches
 // nothing, "(no matches)" is displayed.
 func TestQueueFilterNoMatchesShowsMessage(t *testing.T) {
-	q := QueueView{
-		entries: []QueueEntry{
+	q := queue.View{
+		Entries: []queue.Entry{
 			{Path: "/a.flac", Title: "Song", Artist: "Art"},
 		},
 	}
-	q.filter, _ = q.filter.Activate()
-	q.filter.Text = "zzzzz"
-	q.cursor = 0
-	q.scrollOffset = 0
+	q.Filter, _ = q.Filter.Activate()
+	q.Filter.Text = "zzzzz"
+	q.Cursor = 0
+	q.ScrollOffset = 0
 
 	s := styles.NewStyles(true)
-	out := q.render(s, -1, playback.StateIdle, nil, nil, nil)
+	out := q.Render(s, -1, playback.StateIdle, nil, nil, nil)
 	if !strings.Contains(out, "(no matches)") {
 		t.Errorf("expected '(no matches)' when filter has no results, got:\n%s", out)
 	}

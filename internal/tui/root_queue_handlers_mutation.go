@@ -6,12 +6,13 @@ import (
 
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // handleDequeueTrackMsg removes a track from the queue with undo support.
-func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
-	if msg.Index >= 0 && msg.Index < len(m.queue.entries) {
-		entry := m.queue.entries[msg.Index]
+func (m Model) handleDequeueTrackMsg(msg queue.DequeueTrackMsg) Model {
+	if msg.Index >= 0 && msg.Index < len(m.queue.Entries) {
+		entry := m.queue.Entries[msg.Index]
 		undoer := m.undoer
 		cancel := m.scheduleSoftDelete(
 			func() {
@@ -36,9 +37,9 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 		}, cancel)
 		slog.Debug("track dequeued", "hash", entry.Hash, "position", msg.Index)
 		player.PlaySound(player.SoundRemoved)
-		m.queue.entries = append(m.queue.entries[:msg.Index], m.queue.entries[msg.Index+1:]...)
-		for i := range m.queue.entries {
-			m.queue.entries[i].Selected = false
+		m.queue.Entries = append(m.queue.Entries[:msg.Index], m.queue.Entries[msg.Index+1:]...)
+		for i := range m.queue.Entries {
+			m.queue.Entries[i].Selected = false
 		}
 		m = exitVisualMode(m)
 		m = m.preserveQueueSort()
@@ -48,7 +49,7 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 		}
 		wasCurrent := msg.Index == m.playback.currentIndex
 		m.adjustPlaybackIndexAfterRemoval(msg.Index)
-		if wasCurrent && len(m.queue.entries) > 0 {
+		if wasCurrent && len(m.queue.Entries) > 0 {
 			m = m.endCurrentListen()
 			// The player's in-flight gapless prefetch will carry playback to
 			// the next track. Do NOT call resetPlaybackState here — it would
@@ -69,9 +70,9 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 }
 
 // handleBulkSelectionToggleMsg toggles the selection state of a queue entry.
-func (m Model) handleBulkSelectionToggleMsg(msg BulkSelectionToggleMsg) Model {
-	if msg.Index >= 0 && msg.Index < len(m.queue.entries) {
-		m.queue.entries[msg.Index].Selected = !m.queue.entries[msg.Index].Selected
+func (m Model) handleBulkSelectionToggleMsg(msg queue.BulkSelectionToggleMsg) Model {
+	if msg.Index >= 0 && msg.Index < len(m.queue.Entries) {
+		m.queue.Entries[msg.Index].Selected = !m.queue.Entries[msg.Index].Selected
 	}
 	return m
 }
@@ -79,8 +80,8 @@ func (m Model) handleBulkSelectionToggleMsg(msg BulkSelectionToggleMsg) Model {
 // handleClearQueueMsg clears the entire queue with undo support, stopping
 // active playback.
 func (m Model) handleClearQueueMsg() Model {
-	savedEntries := make([]QueueEntry, len(m.queue.entries))
-	copy(savedEntries, m.queue.entries)
+	savedEntries := make([]queue.Entry, len(m.queue.Entries))
+	copy(savedEntries, m.queue.Entries)
 	savedTracks := make([]player.QueueTrack, len(savedEntries))
 	for i, entry := range savedEntries {
 		savedTracks[i] = queueTrackFromEntry(entry)
@@ -140,7 +141,7 @@ func (m Model) handleClearQueueMsg() Model {
 // subsequent enqueue becomes the only entry. Unlike handleClearQueueMsg this
 // does not set up an undo slot — the enqueue that follows will create its own.
 func (m Model) clearQueueForReplace() Model {
-	if len(m.queue.entries) > 0 && m.undoer != nil {
+	if len(m.queue.Entries) > 0 && m.undoer != nil {
 		go func(undoer queueDequeuer) {
 			if _, err := undoer.ClearQueueSoft(); err == nil {
 				if err := undoer.PurgeDeletedQueueEntries(time.Now().Unix() + 1); err != nil {
@@ -173,12 +174,12 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 	if len(msg.Entries) == 0 {
 		return m
 	}
-	insertPos := min(msg.InsertPos, len(m.queue.entries))
-	newEntries := make([]QueueEntry, 0, len(m.queue.entries)+len(msg.Entries))
-	newEntries = append(newEntries, m.queue.entries[:insertPos]...)
+	insertPos := min(msg.InsertPos, len(m.queue.Entries))
+	newEntries := make([]queue.Entry, 0, len(m.queue.Entries)+len(msg.Entries))
+	newEntries = append(newEntries, m.queue.Entries[:insertPos]...)
 	newEntries = append(newEntries, msg.Entries...)
-	newEntries = append(newEntries, m.queue.entries[insertPos:]...)
-	m.queue.entries = newEntries
+	newEntries = append(newEntries, m.queue.Entries[insertPos:]...)
+	m.queue.Entries = newEntries
 	m = m.preserveQueueSort()
 	if m.playback.currentIndex >= 0 && insertPos <= m.playback.currentIndex {
 		m.playback.currentIndex += len(msg.Entries)
@@ -186,7 +187,7 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 	m.syncPlayerQueue()
 	m = m.resumeExhaustedPlayback(insertPos, msg.Entries[0])
 
-	var removedOriginals []QueueEntry
+	var removedOriginals []queue.Entry
 	var removedOriginalIndices []int
 	if len(msg.CutIDs) > 0 {
 		removedOriginals, removedOriginalIndices = m.removeCutOriginals(msg.CutIDs)
@@ -197,7 +198,7 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 		m = m.preserveQueueSort()
 	}
 
-	m.queue.cursor = insertPos + len(msg.Entries) - 1
+	m.queue.Cursor = insertPos + len(msg.Entries) - 1
 	m = m.adjustCursorForRemovedEntries(removedOriginalIndices)
 	m.clampQueueCursorAndScroll()
 
@@ -221,8 +222,8 @@ func (m Model) persistQueueOrder() {
 	if !ok {
 		return
 	}
-	ids := make([]int64, 0, len(m.queue.entries))
-	for _, entry := range m.queue.entries {
+	ids := make([]int64, 0, len(m.queue.Entries))
+	for _, entry := range m.queue.Entries {
 		if entry.ID != 0 {
 			ids = append(ids, entry.ID)
 		}
@@ -234,7 +235,7 @@ func (m Model) persistQueueOrder() {
 
 // resumeExhaustedPlayback starts playback from the given entry when the queue
 // was previously exhausted.
-func (m Model) resumeExhaustedPlayback(insertPos int, entry QueueEntry) Model {
+func (m Model) resumeExhaustedPlayback(insertPos int, entry queue.Entry) Model {
 	if !m.playback.queueExhausted || m.playback.state != playback.StateIdle || m.player == nil {
 		return m
 	}
@@ -254,15 +255,15 @@ func (m Model) resumeExhaustedPlayback(insertPos int, entry QueueEntry) Model {
 // removeCutOriginals removes the original cut entries from the queue,
 // soft-deletes them in the DB, adjusts the playback index, and syncs the
 // player. It returns the removed entries and their indices.
-func (m *Model) removeCutOriginals(cutIDs []int64) ([]QueueEntry, []int) {
+func (m *Model) removeCutOriginals(cutIDs []int64) ([]queue.Entry, []int) {
 	cutIDSet := make(map[int64]struct{}, len(cutIDs))
 	for _, id := range cutIDs {
 		cutIDSet[id] = struct{}{}
 	}
 	// Freshly pasted entries have new IDs, so they won't match cutIDs.
-	var kept, removed []QueueEntry
+	var kept, removed []queue.Entry
 	var removedIndices []int
-	for i, e := range m.queue.entries {
+	for i, e := range m.queue.Entries {
 		if _, isCut := cutIDSet[e.ID]; isCut {
 			removed = append(removed, e)
 			removedIndices = append(removedIndices, i)
@@ -270,7 +271,7 @@ func (m *Model) removeCutOriginals(cutIDs []int64) ([]QueueEntry, []int) {
 		}
 		kept = append(kept, e)
 	}
-	m.queue.entries = kept
+	m.queue.Entries = kept
 	if m.batchEnqueuer != nil {
 		if err := m.batchEnqueuer.DequeueTracksSoft(cutIDs); err != nil {
 			slog.Warn("cut-paste: soft-delete originals failed", "err", err)
@@ -297,24 +298,24 @@ func (m Model) adjustCursorForRemovedEntries(removedIndices []int) Model {
 	if len(removedIndices) > 0 {
 		removedBeforeCursor := 0
 		for _, ri := range removedIndices {
-			if ri < m.queue.cursor {
+			if ri < m.queue.Cursor {
 				removedBeforeCursor++
 			}
 		}
-		m.queue.cursor -= removedBeforeCursor
-		if m.queue.cursor < 0 {
-			m.queue.cursor = 0
+		m.queue.Cursor -= removedBeforeCursor
+		if m.queue.Cursor < 0 {
+			m.queue.Cursor = 0
 		}
 	}
-	maxRows := m.queue.visibleRows()
-	if maxRows > 0 && m.queue.cursor >= m.queue.scrollOffset+maxRows {
-		m.queue.scrollOffset = m.queue.cursor - maxRows + 1
+	maxRows := m.queue.VisibleRows()
+	if maxRows > 0 && m.queue.Cursor >= m.queue.ScrollOffset+maxRows {
+		m.queue.ScrollOffset = m.queue.Cursor - maxRows + 1
 	}
 	return m
 }
 
 // setupPasteUndo configures the undo slot for a paste or cut-paste operation.
-func (m *Model) setupPasteUndo(pastedIDs []int64, pastedEntries []QueueEntry, cutIDs []int64, removedOriginals []QueueEntry, removedOriginalIndices []int, insertPos int) {
+func (m *Model) setupPasteUndo(pastedIDs []int64, pastedEntries []queue.Entry, cutIDs []int64, removedOriginals []queue.Entry, removedOriginalIndices []int, insertPos int) {
 	if len(cutIDs) == 0 {
 		m.setUndoSlot(undoPasteAction{
 			ids:   pastedIDs,

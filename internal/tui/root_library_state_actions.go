@@ -94,10 +94,10 @@ func (m Model) handleLibraryStateAction(action keys.Action) (tea.Model, tea.Cmd,
 		case viewLibrary:
 			m.library = m.library.ClearFilter()
 		case viewQueue:
-			if m.queue.filter.Text != "" {
-				m.queue.filter = m.queue.filter.Deactivate()
-				m.queue.cursor = 0
-				m.queue.scrollOffset = 0
+			if m.queue.Filter.Text != "" {
+				m.queue.Filter = m.queue.Filter.Deactivate()
+				m.queue.Cursor = 0
+				m.queue.ScrollOffset = 0
 			}
 		}
 		return m, nil, true

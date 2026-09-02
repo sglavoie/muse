@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/overlay"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -32,8 +33,8 @@ func TestFocusedGoToContext_Queue(t *testing.T) {
 	tracks := []library.Track{{Artist: "Bob", Album: "Beta", Genre: "Jazz", Title: "T1", Hash: "h1", Path: "/b.flac"}}
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{{Artist: "Bob", Album: "Beta", Hash: "h1", SourcePlaylist: "MyPL"}}
-	m.queue.cursor = 0
+	m.queue.Entries = []queue.Entry{{Artist: "Bob", Album: "Beta", Hash: "h1", SourcePlaylist: "MyPL"}}
+	m.queue.Cursor = 0
 	ctx := m.focusedGoToContext()
 	if !ctx.found {
 		t.Fatal("expected found=true")
@@ -70,8 +71,8 @@ func TestBuildGoToOptions_QueueWithSource(t *testing.T) {
 	tracks := []library.Track{{Artist: "Bob", Album: "Beta", Genre: "Jazz", Title: "T1", Hash: "h1", Path: "/b.flac"}}
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	m.activeView = viewQueue
-	m.queue.entries = []QueueEntry{{Artist: "Bob", Album: "Beta", Hash: "h1", SourcePlaylist: "MyPL"}}
-	m.queue.cursor = 0
+	m.queue.Entries = []queue.Entry{{Artist: "Bob", Album: "Beta", Hash: "h1", SourcePlaylist: "MyPL"}}
+	m.queue.Cursor = 0
 	ctx := m.focusedGoToContext()
 	opts := m.buildGoToOptions(ctx)
 

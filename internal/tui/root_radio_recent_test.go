@@ -7,6 +7,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/radio"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
 // TestWithRadioRecentHashesSeedsRing verifies that the restore-time option
@@ -81,7 +82,7 @@ func TestRadioBatchAppendsToSeededRing(t *testing.T) {
 	m = applyOptions(m, WithRadioRecentHashes([]string{"seeded"}))
 
 	m, _ = m.handleRadioBatchEnqueuedMsg(RadioBatchEnqueuedMsg{
-		Entries:  []QueueEntry{{ID: 1, Hash: "h1", Path: "/a1.flac"}},
+		Entries:  []queue.Entry{{ID: 1, Hash: "h1", Path: "/a1.flac"}},
 		QueueIDs: []int64{1},
 		WasEmpty: true,
 	})
