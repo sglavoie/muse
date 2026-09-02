@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -30,7 +31,7 @@ func TestBuildPaletteCommandsIncludesStableNavigationTargets(t *testing.T) {
 		"nav.mixes":           {name: "Go to Mixes", shortcut: "7"},
 	}
 
-	seen := make(map[string]PaletteCommand, len(commands))
+	seen := make(map[string]palette.PaletteCommand, len(commands))
 	for _, command := range commands {
 		seen[command.Key()] = command
 	}
@@ -66,13 +67,13 @@ func TestNavigationPaletteSearchFindsRecentAndHistory(t *testing.T) {
 		{query: "history", want: "Go to Library: History"},
 	} {
 		t.Run(tc.query, func(t *testing.T) {
-			palette, _ := NewCommandPalette(m.buildPaletteCommands(), nil)
-			palette.filter.Text = tc.query
-			palette.refilter()
+			cp, _ := palette.NewCommandPalette(m.buildPaletteCommands(), nil)
+			cp.Filter.Text = tc.query
+			cp.Refilter()
 
-			var body []PaletteCommand
-			for _, command := range palette.filtered {
-				if command.Pinned == pinNone {
+			var body []palette.PaletteCommand
+			for _, command := range cp.Filtered {
+				if command.Pinned == palette.PinNone {
 					body = append(body, command)
 				}
 			}

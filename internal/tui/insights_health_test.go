@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/tui/metadata"
 )
 
 // newHealthModel returns a Model sitting on the loaded Data Health panel of the
@@ -191,7 +193,7 @@ func TestGenreMergeConcurrentMetadataEditPreservesLatestValues(t *testing.T) {
 			}
 
 			was, _ := m.library.index.FindByHash(target)
-			ed := NewMetadataEditor(target, edited[0], edited[1], edited[2], edited[3], was.Duration)
+			ed := metadata.NewEditor(target, edited[0], edited[1], edited[2], edited[3], was.Duration)
 			m.overlay.metadataEditor = &ed
 			saved, editCmd := m.handleMetadataSave()
 			m = saved.(Model)

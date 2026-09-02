@@ -1,4 +1,4 @@
-package tui
+package metadata
 
 import "github.com/sglavoie/muse/internal/tui/styles"
 

@@ -12,6 +12,7 @@ import (
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/metadata"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -78,7 +79,7 @@ func importModel(t *testing.T, dataDir string) Model {
 		termWidth:         100,
 		cfg:               config.Config{MusicDirectories: []string{"/music"}},
 		library:           LibraryView{index: idx},
-		metadataWrites:    newMetadataWriteQueue(),
+		metadataWrites:    metadata.NewWriteQueue(),
 		userEditedOverlay: map[string]db.UserEditedRow{},
 	}
 }

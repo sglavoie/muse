@@ -1,8 +1,8 @@
-package tui
+package metadata
 
 import "sync"
 
-// metadataWriteQueue orders the asynchronous full-row metadata writes. Every
+// WriteQueue orders the asynchronous full-row metadata writes. Every
 // writer changes memory on the UI goroutine and persists afterwards, so the
 // order the user made the changes is the order they were published here — but
 // the goroutines that carry them to the database can finish in any order. The
@@ -16,7 +16,7 @@ import "sync"
 //
 // A nil queue is a Model that never built one: every write runs unordered,
 // which is what the many Model{} literals in tests want.
-type metadataWriteQueue struct {
+type WriteQueue struct {
 	// writing is held across a database call so a stale writer cannot read the
 	// current ticket, lose the race to a newer writer, and then overwrite it.
 	writing sync.Mutex
@@ -27,14 +27,14 @@ type metadataWriteQueue struct {
 	waiting map[string]int    // hash → tickets not yet claimed
 }
 
-func newMetadataWriteQueue() *metadataWriteQueue {
-	return &metadataWriteQueue{current: map[string]uint64{}, waiting: map[string]int{}}
+func NewWriteQueue() *WriteQueue {
+	return &WriteQueue{current: map[string]uint64{}, waiting: map[string]int{}}
 }
 
-// publish claims the next write slot for hash. Call it on the UI goroutine
+// Publish claims the next write slot for hash. Call it on the UI goroutine
 // right after memory changes and before dispatching the write, and pair every
 // ticket with exactly one claim.
-func (q *metadataWriteQueue) publish(hash string) uint64 {
+func (q *WriteQueue) Publish(hash string) uint64 {
 	if q == nil {
 		return 0
 	}
@@ -46,10 +46,10 @@ func (q *metadataWriteQueue) publish(hash string) uint64 {
 	return q.next
 }
 
-// claim runs write when ticket is still the newest intent for hash, and reports
+// Claim runs write when ticket is still the newest intent for hash, and reports
 // whether it ran. A false means a later change superseded this one, so the
 // caller must not treat its snapshot as the truth anywhere else either.
-func (q *metadataWriteQueue) claim(hash string, ticket uint64, write func() error) (bool, error) {
+func (q *WriteQueue) Claim(hash string, ticket uint64, write func() error) (bool, error) {
 	if q == nil {
 		return true, write()
 	}

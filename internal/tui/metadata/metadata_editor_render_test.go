@@ -1,4 +1,4 @@
-package tui
+package metadata
 
 import (
 	"strings"
@@ -11,7 +11,7 @@ import (
 // TestDefaultEditorRenderShowsAllFields verifies that the default (full) editor
 // still shows all three fields (regression guard).
 func TestDefaultEditorRenderShowsAllFields(t *testing.T) {
-	ed := NewMetadataEditor("h1", "My Title", "My Artist", "My Album", "", 0)
+	ed := NewEditor("h1", "My Title", "My Artist", "My Album", "", 0)
 	s := newTestStyles()
 	out := ansi.Strip(ed.Render(80, 24, s))
 
@@ -29,7 +29,7 @@ func TestMetadataEditorRenderNarrowTerminalNoPanic(t *testing.T) {
 	for i := range hashes {
 		hashes[i] = "hash"
 	}
-	ed := NewBulkMetadataEditor(hashes, "T", "A", "B", "", "")
+	ed := NewBulkEditor(hashes, "T", "A", "B", "", "")
 	s := newTestStyles()
 
 	out := ed.Render(20, 10, s)
@@ -46,7 +46,7 @@ func TestMetadataEditorRenderWrapsLongValue(t *testing.T) {
 	termWidth := 88
 
 	t.Run("focused field does not overflow", func(t *testing.T) {
-		ed := NewMetadataEditor("h1", longTitle, "Artist", "Album", "Rock", 0)
+		ed := NewEditor("h1", longTitle, "Artist", "Album", "Rock", 0)
 		s := newTestStyles()
 
 		out := ansi.Strip(ed.Render(termWidth, 24, s))
@@ -71,7 +71,7 @@ func TestMetadataEditorRenderWrapsLongValue(t *testing.T) {
 	})
 
 	t.Run("non-focused field wraps correctly", func(t *testing.T) {
-		ed := NewMetadataEditor("h1", longTitle, "Artist", "Album", "Rock", 0)
+		ed := NewEditor("h1", longTitle, "Artist", "Album", "Rock", 0)
 		ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: '\t'})
 
 		s := newTestStyles()

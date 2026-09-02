@@ -1,4 +1,4 @@
-package tui
+package metadata
 
 import (
 	"fmt"
@@ -14,39 +14,39 @@ import (
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
-// metadataField identifies which field is focused in the metadata editor.
-type metadataField int
+// Field identifies which field is focused in the metadata editor.
+type Field int
 
 const (
-	fieldTitle metadataField = iota
-	fieldArtist
-	fieldAlbum
-	fieldGenre
-	fieldDuration
-	metadataFieldCount
+	FieldTitle Field = iota
+	FieldArtist
+	FieldAlbum
+	FieldGenre
+	FieldDuration
+	FieldCount
 )
 
-// editorAction is the result of a key press in the metadata editor.
-type editorAction int
+// Action is the result of a key press in the metadata editor.
+type Action int
 
 const (
-	editorNone   editorAction = iota
-	editorSave                // Enter was pressed
-	editorCancel              // Esc was pressed
+	ActionNone   Action = iota
+	ActionSave          // Enter was pressed
+	ActionCancel        // Esc was pressed
 )
 
-// editorMode controls which fields are shown and whether tab cycles between them.
-type editorMode int
+// Mode controls which fields are shown and whether tab cycles between them.
+type Mode int
 
 const (
-	editorModeDefault      editorMode = iota
-	editorModeRenameArtist            // single Artist field, bulk rename
-	editorModeRenameAlbum             // single Album field, bulk rename
+	ModeDefault      Mode = iota
+	ModeRenameArtist      // single Artist field, bulk rename
+	ModeRenameAlbum       // single Album field, bulk rename
 )
 
-// formatDurationForEditor converts seconds to "M:SS" or "H:MM:SS" for display
+// FormatDuration converts seconds to "M:SS" or "H:MM:SS" for display
 // in the editor. Returns "" when secs is 0 (unknown/missing duration).
-func formatDurationForEditor(secs float64) string {
+func FormatDuration(secs float64) string {
 	if secs <= 0 {
 		return ""
 	}
@@ -60,9 +60,9 @@ func formatDurationForEditor(secs float64) string {
 	return fmt.Sprintf("%d:%02d", m, s)
 }
 
-// parseDurationFromEditor parses "M:SS", "H:MM:SS", or "" back to seconds.
+// ParseDuration parses "M:SS", "H:MM:SS", or "" back to seconds.
 // Returns 0, nil for an empty string. Returns an error for invalid input.
-func parseDurationFromEditor(s string) (float64, error) {
+func ParseDuration(s string) (float64, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return 0, nil
@@ -98,15 +98,15 @@ func parseDurationFromEditor(s string) (float64, error) {
 	}
 }
 
-// MetadataEditor is a fullscreen overlay for editing track metadata.
-type MetadataEditor struct {
+// Editor is a fullscreen overlay for editing track metadata.
+type Editor struct {
 	hash          string
 	hashes        []string // nil for single-track, populated for bulk
-	fields        [metadataFieldCount]textinput.Model
-	focused       metadataField
-	initialValues [metadataFieldCount]string // snapshot at open time
-	dirty         [metadataFieldCount]bool   // true when field differs from initial
-	mode          editorMode
+	Fields        [FieldCount]textinput.Model
+	focused       Field
+	initialValues [FieldCount]string // snapshot at open time
+	Dirty         [FieldCount]bool   // true when field differs from initial
+	mode          Mode
 	renameTitle   string // custom dialog title, e.g. " ✎ Rename Artist "
 }
 
@@ -125,13 +125,13 @@ func newField(value string, focused bool) textinput.Model {
 	return ti
 }
 
-// NewMetadataEditor returns a MetadataEditor pre-populated with the given values.
-func NewMetadataEditor(hash, title, artist, album, genre string, duration float64) MetadataEditor {
-	dur := formatDurationForEditor(duration)
-	return MetadataEditor{
+// NewEditor returns a MetadataEditor pre-populated with the given values.
+func NewEditor(hash, title, artist, album, genre string, duration float64) Editor {
+	dur := FormatDuration(duration)
+	return Editor{
 		hash:          hash,
-		initialValues: [metadataFieldCount]string{title, artist, album, genre, dur},
-		fields: [metadataFieldCount]textinput.Model{
+		initialValues: [FieldCount]string{title, artist, album, genre, dur},
+		Fields: [FieldCount]textinput.Model{
 			newField(title, true),
 			newField(artist, false),
 			newField(album, false),
@@ -141,13 +141,13 @@ func NewMetadataEditor(hash, title, artist, album, genre string, duration float6
 	}
 }
 
-// NewBulkMetadataEditor returns a MetadataEditor for editing multiple tracks.
+// NewBulkEditor returns a MetadataEditor for editing multiple tracks.
 // Common values are pre-populated; differing fields are left empty.
-func NewBulkMetadataEditor(hashes []string, commonTitle, commonArtist, commonAlbum, commonGenre, commonDuration string) MetadataEditor {
-	return MetadataEditor{
+func NewBulkEditor(hashes []string, commonTitle, commonArtist, commonAlbum, commonGenre, commonDuration string) Editor {
+	return Editor{
 		hashes:        hashes,
-		initialValues: [metadataFieldCount]string{commonTitle, commonArtist, commonAlbum, commonGenre, commonDuration},
-		fields: [metadataFieldCount]textinput.Model{
+		initialValues: [FieldCount]string{commonTitle, commonArtist, commonAlbum, commonGenre, commonDuration},
+		Fields: [FieldCount]textinput.Model{
 			newField(commonTitle, true),
 			newField(commonArtist, false),
 			newField(commonAlbum, false),
@@ -159,14 +159,14 @@ func NewBulkMetadataEditor(hashes []string, commonTitle, commonArtist, commonAlb
 
 // NewArtistRenameEditor returns a MetadataEditor that shows only the Artist
 // field, pre-populated with artist. Saving applies the rename to all hashes.
-func NewArtistRenameEditor(hashes []string, artist string) MetadataEditor {
-	return MetadataEditor{
-		mode:          editorModeRenameArtist,
+func NewArtistRenameEditor(hashes []string, artist string) Editor {
+	return Editor{
+		mode:          ModeRenameArtist,
 		renameTitle:   " ✎ Rename Artist ",
 		hashes:        hashes,
-		focused:       fieldArtist,
-		initialValues: [metadataFieldCount]string{"", artist, "", "", ""},
-		fields: [metadataFieldCount]textinput.Model{
+		focused:       FieldArtist,
+		initialValues: [FieldCount]string{"", artist, "", "", ""},
+		Fields: [FieldCount]textinput.Model{
 			newField("", false),
 			newField(artist, true),
 			newField("", false),
@@ -178,14 +178,14 @@ func NewArtistRenameEditor(hashes []string, artist string) MetadataEditor {
 
 // NewAlbumRenameEditor returns a MetadataEditor that shows only the Album
 // field, pre-populated with album. Saving applies the rename to all hashes.
-func NewAlbumRenameEditor(hashes []string, album string) MetadataEditor {
-	return MetadataEditor{
-		mode:          editorModeRenameAlbum,
+func NewAlbumRenameEditor(hashes []string, album string) Editor {
+	return Editor{
+		mode:          ModeRenameAlbum,
 		renameTitle:   " ✎ Rename Album ",
 		hashes:        hashes,
-		focused:       fieldAlbum,
-		initialValues: [metadataFieldCount]string{"", "", album, "", ""},
-		fields: [metadataFieldCount]textinput.Model{
+		focused:       FieldAlbum,
+		initialValues: [FieldCount]string{"", "", album, "", ""},
+		Fields: [FieldCount]textinput.Model{
 			newField("", false),
 			newField("", false),
 			newField(album, true),
@@ -196,38 +196,38 @@ func NewAlbumRenameEditor(hashes []string, album string) MetadataEditor {
 }
 
 // Mode returns the editor mode.
-func (e MetadataEditor) Mode() editorMode { return e.mode }
+func (e Editor) Mode() Mode { return e.mode }
 
 // IsBulk reports whether this editor is in bulk mode (multiple tracks).
-func (e MetadataEditor) IsBulk() bool { return len(e.hashes) > 1 }
+func (e Editor) IsBulk() bool { return len(e.hashes) > 1 }
 
 // TrackCount returns the number of tracks being edited.
-func (e MetadataEditor) TrackCount() int { return len(e.hashes) }
+func (e Editor) TrackCount() int { return len(e.hashes) }
 
 // Hashes returns the hashes slice (nil for single-track editors).
-func (e MetadataEditor) Hashes() []string { return e.hashes }
+func (e Editor) Hashes() []string { return e.hashes }
 
 // DirtyFields returns pointers to the new values for fields that were modified.
 // Non-dirty fields return nil.
-func (e MetadataEditor) DirtyFields() (title, artist, album, genre, duration *string) {
-	if e.dirty[fieldTitle] {
-		v := strings.TrimSpace(e.fields[fieldTitle].Value())
+func (e Editor) DirtyFields() (title, artist, album, genre, duration *string) {
+	if e.Dirty[FieldTitle] {
+		v := strings.TrimSpace(e.Fields[FieldTitle].Value())
 		title = &v
 	}
-	if e.dirty[fieldArtist] {
-		v := strings.TrimSpace(e.fields[fieldArtist].Value())
+	if e.Dirty[FieldArtist] {
+		v := strings.TrimSpace(e.Fields[FieldArtist].Value())
 		artist = &v
 	}
-	if e.dirty[fieldAlbum] {
-		v := strings.TrimSpace(e.fields[fieldAlbum].Value())
+	if e.Dirty[FieldAlbum] {
+		v := strings.TrimSpace(e.Fields[FieldAlbum].Value())
 		album = &v
 	}
-	if e.dirty[fieldGenre] {
-		v := strings.TrimSpace(e.fields[fieldGenre].Value())
+	if e.Dirty[FieldGenre] {
+		v := strings.TrimSpace(e.Fields[FieldGenre].Value())
 		genre = &v
 	}
-	if e.dirty[fieldDuration] {
-		v := strings.TrimSpace(e.fields[fieldDuration].Value())
+	if e.Dirty[FieldDuration] {
+		v := strings.TrimSpace(e.Fields[FieldDuration].Value())
 		duration = &v
 	}
 	return
@@ -236,68 +236,68 @@ func (e MetadataEditor) DirtyFields() (title, artist, album, genre, duration *st
 // HandleKey processes a single key press and returns the updated editor and
 // the resulting action. Keys that the editor handles (tab, enter, esc) are
 // intercepted; everything else is forwarded to the focused Bubbles textinput.
-func (e MetadataEditor) HandleKey(msg tea.KeyPressMsg) (MetadataEditor, editorAction, tea.Cmd) {
+func (e Editor) HandleKey(msg tea.KeyPressMsg) (Editor, Action, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
-		return e, editorSave, nil
+		return e, ActionSave, nil
 	case "esc":
-		return e, editorCancel, nil
+		return e, ActionCancel, nil
 	case "tab":
-		if e.mode != editorModeDefault {
-			return e, editorNone, nil
+		if e.mode != ModeDefault {
+			return e, ActionNone, nil
 		}
-		e.fields[e.focused].Blur()
-		e.focused = (e.focused + 1) % metadataFieldCount
-		return e, editorNone, e.fields[e.focused].Focus()
+		e.Fields[e.focused].Blur()
+		e.focused = (e.focused + 1) % FieldCount
+		return e, ActionNone, e.Fields[e.focused].Focus()
 	case "shift+tab":
-		if e.mode != editorModeDefault {
-			return e, editorNone, nil
+		if e.mode != ModeDefault {
+			return e, ActionNone, nil
 		}
-		e.fields[e.focused].Blur()
-		e.focused = (e.focused + metadataFieldCount - 1) % metadataFieldCount
-		return e, editorNone, e.fields[e.focused].Focus()
+		e.Fields[e.focused].Blur()
+		e.focused = (e.focused + FieldCount - 1) % FieldCount
+		return e, ActionNone, e.Fields[e.focused].Focus()
 	}
 
 	// Forward to the focused textinput.
 	var cmd tea.Cmd
-	e.fields[e.focused], cmd = e.fields[e.focused].Update(msg)
-	e.dirty[e.focused] = e.fields[e.focused].Value() != e.initialValues[e.focused]
-	return e, editorNone, cmd
+	e.Fields[e.focused], cmd = e.Fields[e.focused].Update(msg)
+	e.Dirty[e.focused] = e.Fields[e.focused].Value() != e.initialValues[e.focused]
+	return e, ActionNone, cmd
 }
 
 // ForwardMsg routes a generic tea.Msg to the focused text input field.
 // This enables paste and other multi-step textinput commands.
-func (e MetadataEditor) ForwardMsg(msg tea.Msg) (MetadataEditor, tea.Cmd) {
+func (e Editor) ForwardMsg(msg tea.Msg) (Editor, tea.Cmd) {
 	var cmd tea.Cmd
-	e.fields[e.focused], cmd = e.fields[e.focused].Update(msg)
-	e.dirty[e.focused] = e.fields[e.focused].Value() != e.initialValues[e.focused]
+	e.Fields[e.focused], cmd = e.Fields[e.focused].Update(msg)
+	e.Dirty[e.focused] = e.Fields[e.focused].Value() != e.initialValues[e.focused]
 	return e, cmd
 }
 
 // Title returns the current title value.
-func (e MetadataEditor) Title() string { return e.fields[fieldTitle].Value() }
+func (e Editor) Title() string { return e.Fields[FieldTitle].Value() }
 
 // Artist returns the current artist value.
-func (e MetadataEditor) Artist() string { return e.fields[fieldArtist].Value() }
+func (e Editor) Artist() string { return e.Fields[FieldArtist].Value() }
 
 // Album returns the current album value.
-func (e MetadataEditor) Album() string { return e.fields[fieldAlbum].Value() }
+func (e Editor) Album() string { return e.Fields[FieldAlbum].Value() }
 
 // Genre returns the current genre value.
-func (e MetadataEditor) Genre() string { return e.fields[fieldGenre].Value() }
+func (e Editor) Genre() string { return e.Fields[FieldGenre].Value() }
 
 // Duration returns the current duration string value (e.g. "3:45").
-func (e MetadataEditor) Duration() string { return e.fields[fieldDuration].Value() }
+func (e Editor) Duration() string { return e.Fields[FieldDuration].Value() }
 
 // Hash returns the track hash this editor was opened for.
-func (e MetadataEditor) Hash() string { return e.hash }
+func (e Editor) Hash() string { return e.hash }
 
 // Render produces a centered box with five labelled, editable fields.
-func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) string {
-	labels := [metadataFieldCount]string{"Title:", "Artist:", "Album:", "Genre:", "Duration:"}
+func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
+	labels := [FieldCount]string{"Title:", "Artist:", "Album:", "Genre:", "Duration:"}
 	if e.IsBulk() {
-		for i := range metadataFieldCount {
-			if e.dirty[i] {
+		for i := range FieldCount {
+			if e.Dirty[i] {
 				labels[i] = "*" + labels[i]
 			}
 		}
@@ -318,12 +318,12 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	}
 
 	// Determine which field indices to render.
-	renderFields := []int{int(fieldTitle), int(fieldArtist), int(fieldAlbum), int(fieldGenre), int(fieldDuration)}
+	renderFields := []int{int(FieldTitle), int(FieldArtist), int(FieldAlbum), int(FieldGenre), int(FieldDuration)}
 	switch e.mode {
-	case editorModeRenameArtist:
-		renderFields = []int{int(fieldArtist)}
-	case editorModeRenameAlbum:
-		renderFields = []int{int(fieldAlbum)}
+	case ModeRenameArtist:
+		renderFields = []int{int(FieldArtist)}
+	case ModeRenameAlbum:
+		renderFields = []int{int(FieldAlbum)}
 	}
 
 	var lines []string
@@ -343,18 +343,18 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	// Field rows.
 	remainingContinuationLines := metadataEditorContinuationBudget(termHeight, len(renderFields))
 	for _, i := range renderFields {
-		if metadataField(i) == e.focused {
+		if Field(i) == e.focused {
 			// View() renders at Width+1 visible chars (cursor adds 1),
 			// so subtract 1 to fit exactly in valueWidth.
-			e.fields[i].SetWidth(valueWidth - 1)
-			pos := e.fields[i].Position()
-			e.fields[i].CursorEnd()    // force viewport recomputation with new width
-			e.fields[i].SetCursor(pos) // restore cursor; viewport is now correctly sized
-			padded := e.fields[i].View()
+			e.Fields[i].SetWidth(valueWidth - 1)
+			pos := e.Fields[i].Position()
+			e.Fields[i].CursorEnd()    // force viewport recomputation with new width
+			e.Fields[i].SetCursor(pos) // restore cursor; viewport is now correctly sized
+			padded := e.Fields[i].View()
 			row := fmt.Sprintf("  %*s %s  ", maxLabelW, labels[i], padded)
 			lines = append(lines, overlay.BorderV+s.Accent.Render(row)+overlay.BorderV)
 		} else {
-			value := e.fields[i].Value()
+			value := e.Fields[i].Value()
 			wrapLines := metadataEditorValueLines(value, valueWidth, remainingContinuationLines)
 			remainingContinuationLines -= max(len(wrapLines)-1, 0)
 			for j, wl := range wrapLines {
@@ -378,12 +378,12 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 
 	// Hint.
 	var hint string
-	if e.mode != editorModeDefault {
+	if e.mode != ModeDefault {
 		hint = "  enter save · esc cancel"
 	} else {
 		hint = "  tab/shift+tab fields · enter save · esc cancel"
 		if e.IsBulk() {
-			anyDirty := e.dirty[0] || e.dirty[1] || e.dirty[2] || e.dirty[3] || e.dirty[4]
+			anyDirty := e.Dirty[0] || e.Dirty[1] || e.Dirty[2] || e.Dirty[3] || e.Dirty[4]
 			if anyDirty {
 				hint += " · * = will be applied"
 			}

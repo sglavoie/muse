@@ -10,6 +10,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/metaexport"
+	"github.com/sglavoie/muse/internal/tui/metadata"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
@@ -113,7 +114,7 @@ func (m Model) handleMetadataImportParsedMsg(msg metadataImportParsedMsg) Model 
 		m.statusBar.Notify(notice)
 		return m
 	}
-	overlay := newMetadataImportOverlay(msg.path, msg.plan, msg.skipped)
+	overlay := metadata.NewImportOverlay(msg.path, msg.plan, msg.skipped)
 	m.overlay.metadataImport = &overlay
 	return m
 }
@@ -135,42 +136,42 @@ func (m Model) handleMetadataImportKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd
 		m.statusBar.Notify("Import canceled")
 		return m, nil, true
 	case "enter", "y":
-		if !o.canApply() {
+		if !o.CanApply() {
 			return m, nil, true
 		}
 		return m.applyMetadataImport(o)
 	case "w":
-		o.showWarnings = !o.showWarnings
-		o.cursor, o.offset = 0, 0
+		o.ShowWarnings = !o.ShowWarnings
+		o.Cursor, o.Offset = 0, 0
 	case "j", "down":
-		o.cursor++
+		o.Cursor++
 	case "k", "up":
-		o.cursor--
+		o.Cursor--
 	case "g", "home":
-		o.cursor = 0
+		o.Cursor = 0
 	case "G", "end":
-		o.cursor = o.rowCount() - 1
+		o.Cursor = o.RowCount() - 1
 	case "pgdown":
-		o.cursor += o.perPage(height)
+		o.Cursor += o.PerPage(height)
 	case "pgup":
-		o.cursor -= o.perPage(height)
+		o.Cursor -= o.PerPage(height)
 	default:
 		return m, nil, true
 	}
-	o = o.reclamp(height)
+	o = o.Reclamp(height)
 	m.overlay.metadataImport = &o
 	return m, nil, true
 }
 
 // applyMetadataImport mirrors handleBulkMetadataSave: memory first on the UI
 // goroutine, then one ordered database write per row.
-func (m Model) applyMetadataImport(o MetadataImportOverlay) (Model, tea.Cmd, bool) {
+func (m Model) applyMetadataImport(o metadata.ImportOverlay) (Model, tea.Cmd, bool) {
 	m.overlay.metadataImport = nil
 
-	originals := make(map[string]importOriginal, len(o.plan.Changes))
+	originals := make(map[string]importOriginal, len(o.Plan.Changes))
 	var writes []metadataImportWrite
 
-	for _, ch := range o.plan.Changes {
+	for _, ch := range o.Plan.Changes {
 		// Re-derived against the live index, not against ch.Current: an edit
 		// between parse and confirm owns the row now.
 		t, ok := m.library.index.FindByHash(ch.Hash)
@@ -260,7 +261,7 @@ func (m Model) applyMetadataImport(o MetadataImportOverlay) (Model, tea.Cmd, boo
 	// planned before it that has not reached the database yet.
 	q := m.metadataWrites
 	for i := range writes {
-		writes[i].ticket = q.publish(writes[i].hash)
+		writes[i].ticket = q.Publish(writes[i].hash)
 	}
 	// Hold the Insights reload until the rows land: the index already reads
 	// imported, so a snapshot taken now would mix new library figures with
@@ -271,7 +272,7 @@ func (m Model) applyMetadataImport(o MetadataImportOverlay) (Model, tea.Cmd, boo
 		defer pending.done()
 		var msg metadataImportAppliedMsg
 		for _, w := range writes {
-			wrote, err := q.claim(w.hash, w.ticket, func() error {
+			wrote, err := q.Claim(w.hash, w.ticket, func() error {
 				if mw != nil {
 					if err := mw.UpdateTrackMetadata(w.hash, w.title, w.artist, w.album, w.genre); err != nil {
 						return err

@@ -230,7 +230,7 @@ func TestEditMetadataOnHealthRowOpensBulkEditor(t *testing.T) {
 	if m.overlay.metadataEditor == nil {
 		t.Fatal("M should open the metadata editor")
 	}
-	if got := len(m.overlay.metadataEditor.hashes); got != len(m.insights.health[i].hashes) {
+	if got := len(m.overlay.metadataEditor.Hashes()); got != len(m.insights.health[i].hashes) {
 		t.Errorf("editor covers %d tracks, want the row's %d", got, len(m.insights.health[i].hashes))
 	}
 }

@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/metadata"
 )
 
 // TestMetadataEditUpdatesStatusBarForCurrentTrack verifies that editing
@@ -18,7 +19,7 @@ func TestMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	m.statusBar.Artist = "OldArt"
 	m.statusBar.Title = "OldTitle"
 
-	ed := NewMetadataEditor("playing", "NewTitle", "NewArt", "A", "", 0)
+	ed := metadata.NewEditor("playing", "NewTitle", "NewArt", "A", "", 0)
 	m.overlay.metadataEditor = &ed
 
 	result, _ := m.handleMetadataSave()
@@ -49,7 +50,7 @@ func TestBulkMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	}
 	m.activeView = viewQueue
 
-	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "OldT", "OldA", "A", "", "")
+	ed := metadata.NewBulkEditor([]string{"h1", "h2"}, "OldT", "OldA", "A", "", "")
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: 'X', Text: "X"})
 	m.overlay.metadataEditor = &ed
 
@@ -73,7 +74,7 @@ func TestMetadataUndoUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	m.statusBar.Artist = "OrigArt"
 	m.statusBar.Title = "OrigTitle"
 
-	ed := NewMetadataEditor("playing", "EditedTitle", "EditedArt", "A", "", 0)
+	ed := metadata.NewEditor("playing", "EditedTitle", "EditedArt", "A", "", 0)
 	m.overlay.metadataEditor = &ed
 
 	result, _ := m.handleMetadataSave()
@@ -102,7 +103,7 @@ func TestMetadataEditDoesNotAffectStatusBarForOtherTrack(t *testing.T) {
 	m.statusBar.Artist = "NowArt"
 	m.statusBar.Title = "NowTitle"
 
-	ed := NewMetadataEditor("other", "NewY", "NewX", "A", "", 0)
+	ed := metadata.NewEditor("other", "NewY", "NewX", "A", "", 0)
 	m.overlay.metadataEditor = &ed
 
 	result, _ := m.handleMetadataSave()

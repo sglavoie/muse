@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/metadata"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
@@ -20,7 +21,7 @@ type metadataEditedMsg struct {
 // and returns a command to persist the change to the database.
 func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	ed := m.overlay.metadataEditor
-	if ed.IsBulk() || ed.Mode() != editorModeDefault {
+	if ed.IsBulk() || ed.Mode() != metadata.ModeDefault {
 		return m.handleBulkMetadataSave()
 	}
 
@@ -31,7 +32,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	genre := ed.Genre()
 	durStr := strings.TrimSpace(ed.Duration())
 
-	newDuration, err := parseDurationFromEditor(durStr)
+	newDuration, err := metadata.ParseDuration(durStr)
 	if err != nil {
 		m.statusBar.Notify(fmt.Sprintf("Invalid duration: %s", err))
 		return m, nil
@@ -72,7 +73,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	m = m.preserveQueueSort()
 
 	m.setUndoSlot(undoBulkEditMetadataAction{
-		originals: map[string][5]string{hash: {origTitle, origArtist, origAlbum, origGenre, formatDurationForEditor(origDuration)}},
+		originals: map[string][5]string{hash: {origTitle, origArtist, origAlbum, origGenre, metadata.FormatDuration(origDuration)}},
 	}, nil)
 
 	m = m.refreshDerivedViews()
@@ -95,12 +96,12 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	q := m.metadataWrites
 	var ticket uint64
 	if mw != nil {
-		ticket = q.publish(hash)
+		ticket = q.Publish(hash)
 	}
 	return m, func() tea.Msg {
 		var firstErr error
 		if mw != nil {
-			_, err := q.claim(hash, ticket, func() error {
+			_, err := q.Claim(hash, ticket, func() error {
 				return mw.UpdateTrackMetadata(hash, title, artist, album, genre)
 			})
 			if err != nil {
@@ -135,7 +136,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 	var newDuration float64
 	if dirtyDuration != nil {
 		var err error
-		newDuration, err = parseDurationFromEditor(*dirtyDuration)
+		newDuration, err = metadata.ParseDuration(*dirtyDuration)
 		if err != nil {
 			m.statusBar.Notify(fmt.Sprintf("Invalid duration: %s", err))
 			return m, nil
@@ -158,7 +159,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		if !ok {
 			continue
 		}
-		originals[h] = [5]string{t.Title, t.Artist, t.Album, t.Genre, formatDurationForEditor(t.Duration)}
+		originals[h] = [5]string{t.Title, t.Artist, t.Album, t.Genre, metadata.FormatDuration(t.Duration)}
 
 		newTitle, newArtist, newAlbum, newGenre := t.Title, t.Artist, t.Album, t.Genre
 		trackDuration := t.Duration
@@ -227,14 +228,14 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 	q := m.metadataWrites
 	if mw != nil {
 		for i := range updates {
-			updates[i].ticket = q.publish(updates[i].hash)
+			updates[i].ticket = q.Publish(updates[i].hash)
 		}
 	}
 	return m, func() tea.Msg {
 		var firstErr error
 		for _, u := range updates {
 			if mw != nil {
-				_, err := q.claim(u.hash, u.ticket, func() error {
+				_, err := q.Claim(u.hash, u.ticket, func() error {
 					return mw.UpdateTrackMetadata(u.hash, u.title, u.artist, u.album, u.genre)
 				})
 				if err != nil {

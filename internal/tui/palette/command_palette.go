@@ -1,4 +1,4 @@
-package tui
+package palette
 
 import (
 	"strings"
@@ -6,7 +6,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/filter"
-	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -16,9 +15,9 @@ import (
 type PalettePin int
 
 const (
-	pinNone   PalettePin = iota
-	pinTop               // anchor at the top of the list (e.g. Help)
-	pinBottom            // anchor at the bottom of the list (e.g. Quit)
+	PinNone   PalettePin = iota
+	PinTop               // anchor at the top of the list (e.g. Help)
+	PinBottom            // anchor at the bottom of the list (e.g. Quit)
 )
 
 // PaletteCommand describes a single entry in the command palette.
@@ -40,7 +39,7 @@ func (c PaletteCommand) Key() string {
 	return c.Name
 }
 
-func (c PaletteCommand) isEnabled() bool {
+func (c PaletteCommand) IsEnabled() bool {
 	return c.Enabled == nil || c.Enabled()
 }
 
@@ -55,12 +54,12 @@ type CommandPaletteDismissedMsg struct{}
 // CommandPalette is the overlay sub-model for the searchable command palette.
 type CommandPalette struct {
 	all       []PaletteCommand // full command list
-	filtered  []PaletteCommand // [topPins..., body..., bottomPins...]
+	Filtered  []PaletteCommand // [topPins..., body..., bottomPins...]
 	topPins   int              // number of leading pinned rows in filtered
 	bottomPin int              // number of trailing pinned rows in filtered
 	cursor    int
-	filter    filter.State // always-active text input
-	usage     *palette.UsageStore
+	Filter    filter.State // always-active text input
+	usage     *UsageStore
 	lastQuery string // trimmed query from previous refilter; used to reset cursor on query change
 	hasQuery  bool   // true once a refilter has run (distinguishes initial state from "" query change)
 }
@@ -70,14 +69,14 @@ type CommandPalette struct {
 // otherwise the order is alphabetical. Pinned commands always anchor at the
 // top/bottom regardless of score. The filter text input is activated
 // immediately.
-func NewCommandPalette(commands []PaletteCommand, usage *palette.UsageStore) (CommandPalette, tea.Cmd) {
+func NewCommandPalette(commands []PaletteCommand, usage *UsageStore) (CommandPalette, tea.Cmd) {
 	cp := CommandPalette{
 		all:   commands,
 		usage: usage,
 	}
 	var cmd tea.Cmd
-	cp.filter, cmd = filter.New().Activate()
-	cp.refilter()
+	cp.Filter, cmd = filter.New().Activate()
+	cp.Refilter()
 	return cp, cmd
 }
 
@@ -94,9 +93,9 @@ func (cp CommandPalette) HandleKey(key string, msg tea.KeyPressMsg) (CommandPale
 	case "esc":
 		return cp, func() tea.Msg { return CommandPaletteDismissedMsg{} }
 	case "enter":
-		if cp.cursor >= 0 && cp.cursor < len(cp.filtered) {
-			picked := cp.filtered[cp.cursor]
-			if !picked.isEnabled() {
+		if cp.cursor >= 0 && cp.cursor < len(cp.Filtered) {
+			picked := cp.Filtered[cp.cursor]
+			if !picked.IsEnabled() {
 				return cp, nil
 			}
 			if cp.usage != nil {
@@ -110,37 +109,37 @@ func (cp CommandPalette) HandleKey(key string, msg tea.KeyPressMsg) (CommandPale
 			cp.cursor--
 		}
 	case "down", "ctrl+j", "ctrl+n":
-		if cp.cursor < len(cp.filtered)-1 {
+		if cp.cursor < len(cp.Filtered)-1 {
 			cp.cursor++
 		}
 	default:
 		var cmd tea.Cmd
-		cp.filter, cmd = cp.filter.Update(msg)
-		cp.refilter()
+		cp.Filter, cmd = cp.Filter.Update(msg)
+		cp.Refilter()
 		return cp, cmd
 	}
 	return cp, nil
 }
 
-// refilter rebuilds the filtered list using subsequence-fuzzy matching with
+// Refilter rebuilds the filtered list using subsequence-fuzzy matching with
 // MRU+frequency weighting, then clamps the cursor. Top-pinned and
 // bottom-pinned commands always appear at the anchors regardless of the
 // current filter; only the body section participates in scoring.
-func (cp *CommandPalette) refilter() {
-	query := strings.TrimSpace(cp.filter.Text)
+func (cp *CommandPalette) Refilter() {
+	query := strings.TrimSpace(cp.Filter.Text)
 
 	var topPins, body, bottomPins []PaletteCommand
 	for _, c := range cp.all {
 		switch c.Pinned {
-		case pinTop:
+		case PinTop:
 			topPins = append(topPins, c)
-		case pinBottom:
+		case PinBottom:
 			bottomPins = append(bottomPins, c)
 		default:
 			body = append(body, c)
 		}
 	}
-	body = palette.Rank(body, query, paletteCommandID, paletteCommandName, cp.usage)
+	body = Rank(body, query, paletteCommandID, paletteCommandName, cp.usage)
 
 	cp.topPins = len(topPins)
 	cp.bottomPin = len(bottomPins)
@@ -148,7 +147,7 @@ func (cp *CommandPalette) refilter() {
 	combined = append(combined, topPins...)
 	combined = append(combined, body...)
 	combined = append(combined, bottomPins...)
-	cp.filtered = combined
+	cp.Filtered = combined
 
 	// When the query changes, reset the cursor to the first body match so the
 	// user lands on the highest-scoring result rather than whatever entry
@@ -164,8 +163,8 @@ func (cp *CommandPalette) refilter() {
 	cp.lastQuery = query
 	cp.hasQuery = true
 
-	if cp.cursor >= len(cp.filtered) {
-		cp.cursor = max(len(cp.filtered)-1, 0)
+	if cp.cursor >= len(cp.Filtered) {
+		cp.cursor = max(len(cp.Filtered)-1, 0)
 	}
 	if cp.cursor < 0 {
 		cp.cursor = 0
@@ -222,7 +221,7 @@ func (cp CommandPalette) buildBoxLines(termWidth, termHeight int, s styles.Style
 
 	// Compute max shortcut width across filtered commands.
 	maxShortcutWidth := 0
-	for _, c := range cp.filtered {
+	for _, c := range cp.Filtered {
 		if w := ansi.StringWidth(c.Shortcut); w > maxShortcutWidth {
 			maxShortcutWidth = w
 		}
@@ -234,7 +233,7 @@ func (cp CommandPalette) buildBoxLines(termWidth, termHeight int, s styles.Style
 
 	// Compute max category width (rendered as "[cat] " before the name).
 	maxCategoryWidth := 0
-	for _, c := range cp.filtered {
+	for _, c := range cp.Filtered {
 		if w := ansi.StringWidth(c.Category); w > maxCategoryWidth {
 			maxCategoryWidth = w
 		}
@@ -252,7 +251,7 @@ func (cp CommandPalette) buildBoxLines(termWidth, termHeight int, s styles.Style
 	if ansi.StringWidth(modalTitle)+4 > innerWidth {
 		innerWidth = ansi.StringWidth(modalTitle) + 4
 	}
-	for _, c := range cp.filtered {
+	for _, c := range cp.Filtered {
 		if ansi.StringWidth(c.Name)+6+shortcutExtra+categoryExtra > innerWidth {
 			innerWidth = ansi.StringWidth(c.Name) + 6 + shortcutExtra + categoryExtra
 		}
@@ -284,9 +283,9 @@ func (cp CommandPalette) buildBoxLines(termWidth, termHeight int, s styles.Style
 	lines = append(lines, cpBorderV+strings.Repeat(" ", innerWidth)+cpBorderV)
 
 	// Filter input row.
-	filterText := cp.filter.View()
-	if !cp.filter.Active {
-		filterText = cp.filter.Text
+	filterText := cp.Filter.View()
+	if !cp.Filter.Active {
+		filterText = cp.Filter.Text
 	}
 	filterDisplay := " / " + filterText
 	filterPadded := text.Pad(filterDisplay, contentWidth)
@@ -298,13 +297,13 @@ func (cp CommandPalette) buildBoxLines(termWidth, termHeight int, s styles.Style
 	commandBudget := cpCommandRowBudget(termHeight)
 
 	// Command rows.
-	if len(cp.filtered) == 0 {
+	if len(cp.Filtered) == 0 {
 		noMatch := text.Pad("(no matches)", contentWidth)
 		lines = append(lines, cpBorderV+"  "+noMatch+"  "+cpBorderV)
 	} else {
 		dimItalic := s.Dim.Italic(true)
 		accentDim := s.Accent.Faint(true).Italic(true)
-		emptyQuery := strings.TrimSpace(cp.filter.Text) == ""
+		emptyQuery := strings.TrimSpace(cp.Filter.Text) == ""
 
 		visible := cp.visibleRows(commandBudget, emptyQuery)
 		for _, row := range visible {
@@ -321,14 +320,14 @@ func (cp CommandPalette) buildBoxLines(termWidth, termHeight int, s styles.Style
 			}
 
 			i := row.index
-			cmd := cp.filtered[i]
+			cmd := cp.Filtered[i]
 			rowContent := cp.buildRowContent(cmd, contentWidth, maxCategoryWidth, maxShortcutWidth, s)
 			switch {
-			case i == cp.cursor && !cmd.isEnabled():
+			case i == cp.cursor && !cmd.IsEnabled():
 				lines = append(lines, cpBorderV+" "+accentDim.Render(rowContent)+" "+cpBorderV)
 			case i == cp.cursor:
 				lines = append(lines, cpBorderV+" "+s.Accent.Render(rowContent)+" "+cpBorderV)
-			case !cmd.isEnabled():
+			case !cmd.IsEnabled():
 				lines = append(lines, cpBorderV+" "+dimItalic.Render(rowContent)+" "+cpBorderV)
 			default:
 				lines = append(lines, cpBorderV+" "+rowContent+" "+cpBorderV)
@@ -369,7 +368,7 @@ func cpCommandRowBudget(termHeight int) int {
 	return max(termHeight-nonCommandLines, 1)
 }
 
-func clampPaletteInt(v, lo, hi int) int {
+func clamp(v, lo, hi int) int {
 	if v < lo {
 		return lo
 	}
@@ -380,12 +379,12 @@ func clampPaletteInt(v, lo, hi int) int {
 }
 
 func (cp CommandPalette) visibleRows(budget int, emptyQuery bool) []cpPaletteRow {
-	if budget <= 0 || len(cp.filtered) == 0 {
+	if budget <= 0 || len(cp.Filtered) == 0 {
 		return nil
 	}
 
 	bodyStart := cp.topPins
-	bodyEnd := len(cp.filtered) - cp.bottomPin
+	bodyEnd := len(cp.Filtered) - cp.bottomPin
 	topCount := cp.topPins
 	bodyCount := max(bodyEnd-bodyStart, 0)
 	bottomCount := cp.bottomPin
@@ -416,7 +415,7 @@ func (cp CommandPalette) visibleRows(budget int, emptyQuery bool) []cpPaletteRow
 			bodyBudget = budget - fixed
 		}
 	}
-	bodyBudget = clampPaletteInt(bodyBudget, 0, bodyCount)
+	bodyBudget = clamp(bodyBudget, 0, bodyCount)
 
 	topVisible := min(topCount, budget)
 	remaining := budget - topVisible
@@ -432,7 +431,7 @@ func (cp CommandPalette) visibleRows(budget int, emptyQuery bool) []cpPaletteRow
 		if cursor < 0 || cursor >= bodyCount {
 			cursor = 0
 		}
-		bodyOffset = clampPaletteInt(cursor-bodyBudget/2, 0, bodyCount-bodyBudget)
+		bodyOffset = clamp(cursor-bodyBudget/2, 0, bodyCount-bodyBudget)
 	}
 
 	var rows []cpPaletteRow
@@ -454,8 +453,8 @@ func (cp CommandPalette) visibleRows(budget int, emptyQuery bool) []cpPaletteRow
 		if includeBodyBottomSep && bodyBudget > 0 && len(rows) < budget {
 			rows = append(rows, cpPaletteRow{kind: cpPaletteSeparator})
 		}
-		start := len(cp.filtered) - bottomVisible
-		for i := start; i < len(cp.filtered) && len(rows) < budget; i++ {
+		start := len(cp.Filtered) - bottomVisible
+		for i := start; i < len(cp.Filtered) && len(rows) < budget; i++ {
 			rows = append(rows, cpPaletteRow{kind: cpPaletteCommand, index: i})
 		}
 	}

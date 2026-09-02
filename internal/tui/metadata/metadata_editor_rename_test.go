@@ -1,4 +1,4 @@
-package tui
+package metadata
 
 import (
 	"strings"
@@ -14,10 +14,10 @@ func TestNewArtistRenameEditor(t *testing.T) {
 	hashes := []string{"h1", "h2", "h3"}
 	ed := NewArtistRenameEditor(hashes, "Alice")
 
-	if ed.Mode() != editorModeRenameArtist {
+	if ed.Mode() != ModeRenameArtist {
 		t.Errorf("expected editorModeRenameArtist, got %v", ed.Mode())
 	}
-	if ed.focused != fieldArtist {
+	if ed.focused != FieldArtist {
 		t.Errorf("expected focused=fieldArtist, got %v", ed.focused)
 	}
 	if ed.Artist() != "Alice" {
@@ -48,10 +48,10 @@ func TestNewAlbumRenameEditor(t *testing.T) {
 	hashes := []string{"h4", "h5"}
 	ed := NewAlbumRenameEditor(hashes, "Gamma")
 
-	if ed.Mode() != editorModeRenameAlbum {
+	if ed.Mode() != ModeRenameAlbum {
 		t.Errorf("expected editorModeRenameAlbum, got %v", ed.Mode())
 	}
-	if ed.focused != fieldAlbum {
+	if ed.focused != FieldAlbum {
 		t.Errorf("expected focused=fieldAlbum, got %v", ed.focused)
 	}
 	if ed.Album() != "Gamma" {
@@ -125,7 +125,7 @@ func TestRenameEditorHandleKeyTabNoOp(t *testing.T) {
 	if edAfterTab.focused != initialFocused {
 		t.Errorf("tab should not change focused in rename mode: was %v, got %v", initialFocused, edAfterTab.focused)
 	}
-	if action != editorNone {
+	if action != ActionNone {
 		t.Errorf("expected editorNone after tab, got %v", action)
 	}
 
@@ -133,7 +133,7 @@ func TestRenameEditorHandleKeyTabNoOp(t *testing.T) {
 	if edAfterShiftTab.focused != initialFocused {
 		t.Errorf("shift+tab should not change focused in rename mode: was %v, got %v", initialFocused, edAfterShiftTab.focused)
 	}
-	if action2 != editorNone {
+	if action2 != ActionNone {
 		t.Errorf("expected editorNone after shift+tab, got %v", action2)
 	}
 }
@@ -142,7 +142,7 @@ func TestRenameEditorHandleKeyTabNoOp(t *testing.T) {
 func TestRenameEditorEnterReturnsSave(t *testing.T) {
 	ed := NewArtistRenameEditor([]string{"h1"}, "Alice")
 	_, action, _ := ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
-	if action != editorSave {
+	if action != ActionSave {
 		t.Errorf("expected editorSave on Enter, got %v", action)
 	}
 }
@@ -151,7 +151,7 @@ func TestRenameEditorEnterReturnsSave(t *testing.T) {
 func TestRenameEditorEscReturnsCancel(t *testing.T) {
 	ed := NewAlbumRenameEditor([]string{"h1"}, "Gamma")
 	_, action, _ := ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
-	if action != editorCancel {
+	if action != ActionCancel {
 		t.Errorf("expected editorCancel on Esc, got %v", action)
 	}
 }

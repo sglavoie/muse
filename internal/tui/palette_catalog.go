@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/palette"
 )
 
 // Naming rules for palette entries, enforced by
@@ -73,7 +74,7 @@ type paletteEntry struct {
 	// (len(m.queue.entries) > 0, m.tagReader != nil), never cursor or focus
 	// state, which switchToView and the destination view's own state discard.
 	enabled func(Model) bool
-	pin     PalettePin
+	pin     palette.PalettePin
 }
 
 // paletteCatalog is the set of registry-backed palette commands. Every action
@@ -81,8 +82,8 @@ type paletteEntry struct {
 // reason; TestPaletteCatalogCoversRegistryActions enforces that.
 var paletteCatalog = []paletteEntry{
 	// Pinned anchors (Serial Position Effect): Help at top, Quit at bottom.
-	{act: keys.ActionHelp, id: "help.show", name: "Show help", ctx: keys.ContextGlobal, pin: pinTop},
-	{act: keys.ActionQuit, id: "app.quit", name: "Quit", ctx: keys.ContextGlobal, pin: pinBottom},
+	{act: keys.ActionHelp, id: "help.show", name: "Show help", ctx: keys.ContextGlobal, pin: palette.PinTop},
+	{act: keys.ActionQuit, id: "app.quit", name: "Quit", ctx: keys.ContextGlobal, pin: palette.PinBottom},
 
 	{act: keys.ActionDebug, id: "debug.show", name: "Show debug panel", category: "dev", ctx: keys.ContextGlobal},
 	{act: keys.ActionRadioToggle, id: "radio.toggle", name: "Toggle radio mode", category: "mode", ctx: keys.ContextGlobal},

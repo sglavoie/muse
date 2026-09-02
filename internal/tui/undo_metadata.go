@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/sglavoie/muse/internal/tui/metadata"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
@@ -27,7 +28,7 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 	dw := m.durationWriter
 	for hash, orig := range a.originals {
 		m.library.index.UpdateMetadata(hash, orig[0], orig[1], orig[2], orig[3])
-		origDur, _ := parseDurationFromEditor(orig[4])
+		origDur, _ := metadata.ParseDuration(orig[4])
 		m.library.index.UpdateDuration(hash, origDur)
 		display := text.TrackDisplay(orig[1], orig[0], "")
 		origDurMs := int64(origDur * 1000)
@@ -51,7 +52,7 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 		tickets := make(map[string]uint64, len(originals))
 		if mw != nil {
 			for h := range originals {
-				tickets[h] = q.publish(h)
+				tickets[h] = q.Publish(h)
 			}
 		}
 		// Hold the Insights reload until these rows land: the index above already
@@ -63,7 +64,7 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 			defer pending.done()
 			for h, orig := range originals {
 				if mw != nil {
-					_, err := q.claim(h, tickets[h], func() error {
+					_, err := q.Claim(h, tickets[h], func() error {
 						return mw.UpdateTrackMetadata(h, orig[0], orig[1], orig[2], orig[3])
 					})
 					if err != nil {
@@ -71,7 +72,7 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 					}
 				}
 				if dw != nil {
-					origDur, _ := parseDurationFromEditor(orig[4])
+					origDur, _ := metadata.ParseDuration(orig[4])
 					origDurMs := int64(origDur * 1000)
 					if err := dw.UpdateTrackDuration(h, origDurMs); err != nil {
 						slog.Warn("undo bulk metadata edit: duration DB write failed", "hash", h, "err", err)

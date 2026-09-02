@@ -11,11 +11,12 @@ import (
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/palette"
 )
 
 // buildPaletteCommands returns the list of commands available in the palette.
-func (m Model) buildPaletteCommands() []PaletteCommand {
-	var cmds []PaletteCommand
+func (m Model) buildPaletteCommands() []palette.PaletteCommand {
+	var cmds []palette.PaletteCommand
 
 	for _, entry := range paletteCatalog {
 		cmds = append(cmds, m.paletteCommandFor(entry))
@@ -23,7 +24,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 
 	if m.configPath != "" {
 		dir := filepath.Dir(m.configPath)
-		cmds = append(cmds, PaletteCommand{
+		cmds = append(cmds, palette.PaletteCommand{
 			ID:       "dir.open.config",
 			Name:     "Open config directory",
 			Category: "file",
@@ -33,7 +34,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 
 	if m.dataDir != "" {
 		dir := m.dataDir
-		cmds = append(cmds, PaletteCommand{
+		cmds = append(cmds, palette.PaletteCommand{
 			ID:       "dir.open.data",
 			Name:     "Open database directory",
 			Category: "file",
@@ -43,21 +44,21 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 
 	// Hand-written rather than catalog entries: the palette is the only trigger
 	// (no keybinding), so neither needs an action constant or a registry binding.
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "metadata.export.tsv",
 		Name:     "Export visible tracks to TSV",
 		Category: "lib",
 		Exec:     func() tea.Cmd { return func() tea.Msg { return metadataExportRequestedMsg{} } },
 		Enabled:  func() bool { return m.dataDir != "" },
 	})
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "metadata.import",
 		Name:     "Import metadata edits…",
 		Category: "lib",
 		Exec:     func() tea.Cmd { return func() tea.Msg { return metadataImportRequestedMsg{} } },
 		Enabled:  func() bool { return metadataExportExists(m.dataDir) },
 	})
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "metadata.export.reveal",
 		Name:     "Reveal metadata export file",
 		Category: "lib",
@@ -77,7 +78,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		paletteMessageCmd("nav.browse.genres", "nav", "Go to Browse: Genres", "", navigateBrowseModeMsg{mode: BrowseModeGenres}),
 	)
 
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "mixes.refresh",
 		Name:     "Refresh mixes",
 		Category: "lib",
@@ -87,7 +88,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 
 	trackFocused := func() bool { return hasFocusedTrack(m) }
 
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "track.reveal",
 		Name:     "Reveal in Finder",
 		Category: "file",
@@ -101,7 +102,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		Enabled: trackFocused,
 	})
 
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "track.copy.info",
 		Name:     "Copy track info",
 		Category: "file",
@@ -116,7 +117,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		Enabled: trackFocused,
 	})
 
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "track.copy.path",
 		Name:     "Copy file path",
 		Category: "file",
@@ -130,7 +131,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		Enabled: trackFocused,
 	})
 
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "ui.toggle.footer_hints",
 		Name:     "Toggle footer hints",
 		Category: "mode",
@@ -139,7 +140,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		},
 	})
 
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "ui.toggle.track_notify",
 		Name:     "Toggle track notifications",
 		Category: "mode",
@@ -148,7 +149,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		},
 	})
 
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "queue.toggle.follow",
 		Name:     "Toggle queue follow",
 		Category: "mode",
@@ -161,7 +162,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 	cmds = append(cmds, configTogglePalette("audio.toggle.eq", "mode", "Toggle equalizer", toggleEQ))
 	cmds = append(cmds, configTogglePalette("audio.toggle.stereo", "mode", "Toggle stereo widening", toggleStereoWide))
 
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "random.album",
 		Name:     "Random album",
 		Category: "play",
@@ -169,7 +170,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 			return func() tea.Msg { return randomAlbumMsg{} }
 		},
 	})
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "random.artist",
 		Name:     "Random artist",
 		Category: "play",
@@ -177,7 +178,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 			return func() tea.Msg { return randomArtistMsg{} }
 		},
 	})
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "library.jump.nowplaying",
 		Name:     "Jump to now-playing in library",
 		Category: "nav",
@@ -188,7 +189,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 	})
 
 	queueHasTracks := func() bool { return len(m.queue.entries) > 1 }
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "queue.shuffle",
 		Name:     "Shuffle queue in place",
 		Category: "play",
@@ -197,7 +198,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		},
 		Enabled: queueHasTracks,
 	})
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "queue.dedup",
 		Name:     "Remove queue duplicates",
 		Category: "play",
@@ -207,7 +208,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		Enabled: queueHasTracks,
 	})
 
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "playlist.shuffle",
 		Name:     "Shuffle playlist in place",
 		Category: "play",
@@ -226,7 +227,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		},
 	})
 
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "tag.filter.open",
 		Name:     "Filter by tag…",
 		Category: "tag",
@@ -237,7 +238,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		Enabled: func() bool { return len(nonEmptyTags(m.tags, m.tagsView.tagCounts)) > 0 },
 	})
 	if m.activeTagFilter != nil {
-		cmds = append(cmds, PaletteCommand{
+		cmds = append(cmds, palette.PaletteCommand{
 			ID:       "tag.filter.clear",
 			Name:     "Clear tag filter",
 			Category: "tag",
@@ -248,7 +249,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		})
 	}
 
-	cmds = append(cmds, PaletteCommand{
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "tag.track.remove_all",
 		Name:     "Remove all tags from track",
 		Category: "tag",
@@ -270,7 +271,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 			continue
 		}
 		t := tag
-		cmds = append(cmds, PaletteCommand{
+		cmds = append(cmds, palette.PaletteCommand{
 			ID:       fmt.Sprintf("tag.enqueue.%d", t.ID),
 			Name:     "Enqueue tag: " + t.Name,
 			Category: "tag",
@@ -362,8 +363,8 @@ func (m Model) focusedTrackForPalette() (path, artist, title string, found bool)
 // action is dispatched through the command palette action pipeline and the
 // shortcut is derived from the live registry, so a rebind cannot leave a stale
 // hint behind.
-func (m Model) paletteCommandFor(e paletteEntry) PaletteCommand {
-	cmd := PaletteCommand{
+func (m Model) paletteCommandFor(e paletteEntry) palette.PaletteCommand {
+	cmd := palette.PaletteCommand{
 		ID:       e.id,
 		Name:     e.name,
 		Category: e.category,
@@ -399,8 +400,8 @@ func (m Model) paletteShortcutFor(e paletteEntry) string {
 
 // paletteMessageCmd returns a command with a stable explicit identifier that
 // dispatches an internal message through the normal root update pipeline.
-func paletteMessageCmd(id, category, name, shortcut string, msg tea.Msg) PaletteCommand {
-	return PaletteCommand{
+func paletteMessageCmd(id, category, name, shortcut string, msg tea.Msg) palette.PaletteCommand {
+	return palette.PaletteCommand{
 		ID:       id,
 		Name:     name,
 		Category: category,
@@ -411,8 +412,8 @@ func paletteMessageCmd(id, category, name, shortcut string, msg tea.Msg) Palette
 
 // configTogglePalette returns a PaletteCommand that sends a configToggleMsg
 // for the given audio setting field.
-func configTogglePalette(id, category, name string, field configToggleField) PaletteCommand {
-	return PaletteCommand{
+func configTogglePalette(id, category, name string, field configToggleField) palette.PaletteCommand {
+	return palette.PaletteCommand{
 		ID:       id,
 		Name:     name,
 		Category: category,

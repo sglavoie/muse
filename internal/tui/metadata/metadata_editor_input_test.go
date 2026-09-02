@@ -1,4 +1,4 @@
-package tui
+package metadata
 
 import (
 	"testing"
@@ -9,18 +9,18 @@ import (
 // TestDefaultEditorHandleKeyTabCycles verifies that tab does cycle fields in
 // the default (non-rename) mode, to avoid regressions.
 func TestDefaultEditorHandleKeyTabCycles(t *testing.T) {
-	ed := NewMetadataEditor("h1", "Title", "Artist", "Album", "", 0)
-	if ed.focused != fieldTitle {
+	ed := NewEditor("h1", "Title", "Artist", "Album", "", 0)
+	if ed.focused != FieldTitle {
 		t.Fatalf("expected initial focus=fieldTitle, got %v", ed.focused)
 	}
 
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: '\t'})
-	if ed.focused != fieldArtist {
+	if ed.focused != FieldArtist {
 		t.Errorf("after tab: expected fieldArtist, got %v", ed.focused)
 	}
 
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: '\t', Mod: tea.ModShift})
-	if ed.focused != fieldTitle {
+	if ed.focused != FieldTitle {
 		t.Errorf("after shift+tab: expected fieldTitle, got %v", ed.focused)
 	}
 }
@@ -28,11 +28,11 @@ func TestDefaultEditorHandleKeyTabCycles(t *testing.T) {
 // TestDefaultEditorTabCyclesFiveFields verifies that tab cycles through all
 // five fields including Duration.
 func TestDefaultEditorTabCyclesFiveFields(t *testing.T) {
-	ed := NewMetadataEditor("h1", "T", "A", "B", "G", 225)
-	if ed.focused != fieldTitle {
+	ed := NewEditor("h1", "T", "A", "B", "G", 225)
+	if ed.focused != FieldTitle {
 		t.Fatalf("expected initial focus=fieldTitle, got %v", ed.focused)
 	}
-	expectedCycle := []metadataField{fieldArtist, fieldAlbum, fieldGenre, fieldDuration, fieldTitle}
+	expectedCycle := []Field{FieldArtist, FieldAlbum, FieldGenre, FieldDuration, FieldTitle}
 	for i, want := range expectedCycle {
 		ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: '\t'})
 		if ed.focused != want {
@@ -44,12 +44,12 @@ func TestDefaultEditorTabCyclesFiveFields(t *testing.T) {
 // TestDurationDirtyFieldReturnsPointer verifies that editing the Duration
 // field marks it dirty and DirtyFields returns a non-nil pointer.
 func TestDurationDirtyFieldReturnsPointer(t *testing.T) {
-	ed := NewMetadataEditor("h1", "T", "A", "B", "G", 0)
+	ed := NewEditor("h1", "T", "A", "B", "G", 0)
 
 	for range 4 {
 		ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: '\t'})
 	}
-	if ed.focused != fieldDuration {
+	if ed.focused != FieldDuration {
 		t.Fatalf("expected focus on fieldDuration, got %v", ed.focused)
 	}
 
@@ -69,7 +69,7 @@ func TestDurationDirtyFieldReturnsPointer(t *testing.T) {
 // TestDirtyFieldsTrimsWhitespace verifies that DirtyFields trims leading and
 // trailing whitespace from modified field values.
 func TestDirtyFieldsTrimsWhitespace(t *testing.T) {
-	ed := NewMetadataEditor("h1", "Alice", "", "", "", 0)
+	ed := NewEditor("h1", "Alice", "", "", "", 0)
 
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: ' ', Text: " "})
 

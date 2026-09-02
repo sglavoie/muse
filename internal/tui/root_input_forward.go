@@ -77,8 +77,8 @@ func (m Model) forwardCommandPaletteMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
 	if m.overlay.commandPalette != nil {
 		updated := *m.overlay.commandPalette
 		var cmd tea.Cmd
-		updated.filter, cmd = updated.filter.UpdateMsg(msg)
-		updated.refilter()
+		updated.Filter, cmd = updated.Filter.UpdateMsg(msg)
+		updated.Refilter()
 		m.overlay.commandPalette = &updated
 		return m, cmd, true
 	}

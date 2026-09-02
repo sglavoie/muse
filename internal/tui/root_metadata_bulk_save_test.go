@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	"github.com/sglavoie/muse/internal/tui/metadata"
 )
 
 // TestBulkMetadataEditClearsArtistsSelectionOnSave verifies that saving the
@@ -70,7 +71,7 @@ func TestBulkMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
 	m.queue.entries[0].Selected = true
 	m.queue.entries[1].Selected = true
 
-	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "Old", "Old", "A", "", "")
+	ed := metadata.NewBulkEditor([]string{"h1", "h2"}, "Old", "Old", "A", "", "")
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyTab})
 	for range 3 {
 		ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
@@ -91,9 +92,9 @@ func TestBulkMetadataSaveInvalidDurationKeepsEditorOpen(t *testing.T) {
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Old", Title: "One", Duration: 60})
 	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Old", Title: "Two", Duration: 90})
 
-	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "", "Old", "", "", "")
-	ed.fields[fieldDuration].SetValue("1:99")
-	ed.dirty[fieldDuration] = true
+	ed := metadata.NewBulkEditor([]string{"h1", "h2"}, "", "Old", "", "", "")
+	ed.Fields[metadata.FieldDuration].SetValue("1:99")
+	ed.Dirty[metadata.FieldDuration] = true
 	m.overlay.metadataEditor = &ed
 
 	result, cmd := m.handleMetadataSave()
@@ -127,7 +128,7 @@ func TestBulkMetadataSaveClearsGenresSelection(t *testing.T) {
 	m.browse.mode = BrowseModeGenres
 	m.browse.genres.selectedHashes = map[string]struct{}{"g1": {}, "g2": {}}
 
-	ed := NewBulkMetadataEditor([]string{"g1", "g2"}, "Song 1", "Alice", "Alpha", "Rock", "")
+	ed := metadata.NewBulkEditor([]string{"g1", "g2"}, "Song 1", "Alice", "Alpha", "Rock", "")
 	genreMsg := tea.KeyPressMsg{Code: tea.KeyTab}
 	ed, _, _ = ed.HandleKey(genreMsg)
 	ed, _, _ = ed.HandleKey(genreMsg)
@@ -162,7 +163,7 @@ func TestBulkMetadataSaveClearsFavoritesSelection(t *testing.T) {
 	}
 	m.favorites.selectedItems = map[int]struct{}{0: {}, 1: {}}
 
-	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "", "Alice", "", "", "")
+	ed := metadata.NewBulkEditor([]string{"h1", "h2"}, "", "Alice", "", "", "")
 	m.overlay.metadataEditor = &ed
 	m = typeIntoEditor(m, "X")
 
@@ -181,7 +182,7 @@ func TestBulkMetadataSaveClearsTagsSelection(t *testing.T) {
 	m.activeView = viewTags
 	m.tagsView.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
-	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "", "Alice", "", "", "")
+	ed := metadata.NewBulkEditor([]string{"h1", "h2"}, "", "Alice", "", "", "")
 	m.overlay.metadataEditor = &ed
 	m = typeIntoEditor(m, "X")
 
@@ -205,7 +206,7 @@ func TestBulkMetadataSaveClearsMixesSelection(t *testing.T) {
 	m.mixes.level = 1
 	m.mixes.trackView.selectedHashes = map[string]struct{}{"mx1": {}, "mx2": {}}
 
-	ed := NewBulkMetadataEditor([]string{"mx1", "mx2"}, "", "ArtX", "", "", "")
+	ed := metadata.NewBulkEditor([]string{"mx1", "mx2"}, "", "ArtX", "", "", "")
 	m.overlay.metadataEditor = &ed
 	m = typeIntoEditor(m, "X")
 

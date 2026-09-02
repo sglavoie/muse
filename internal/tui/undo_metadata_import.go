@@ -72,7 +72,7 @@ func (a undoImportMetadataAction) perform(m Model) (Model, tea.Cmd) {
 		tickets := make(map[string]uint64, len(originals))
 		if mw != nil {
 			for h := range originals {
-				tickets[h] = q.publish(h)
+				tickets[h] = q.Publish(h)
 			}
 		}
 		// Hold the Insights reload until these rows land: the index above already
@@ -96,7 +96,7 @@ func (a undoImportMetadataAction) perform(m Model) (Model, tea.Cmd) {
 				}
 				var err error
 				if mw != nil {
-					_, err = q.claim(h, tickets[h], write)
+					_, err = q.Claim(h, tickets[h], write)
 				} else {
 					err = write()
 				}

@@ -8,6 +8,7 @@ import (
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/metadata"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
@@ -23,10 +24,10 @@ func (m Model) handleMetadataEditorKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd
 	updated, act, cmd := m.overlay.metadataEditor.HandleKey(msg)
 	m.overlay.metadataEditor = &updated
 	switch act {
-	case editorCancel:
+	case metadata.ActionCancel:
 		m.overlay.metadataEditor = nil
 		return m, nil, true
-	case editorSave:
+	case metadata.ActionSave:
 		model, cmd := m.handleMetadataSave()
 		return model.(Model), cmd, true
 	}
@@ -69,14 +70,14 @@ func (m Model) handleMetadataKeyAction(a keys.Action) (Model, tea.Cmd, bool) {
 		}
 		track.Genre = full.Genre
 	}
-	ed := NewMetadataEditor(track.Hash, track.Title, track.Artist, track.Album, track.Genre, track.Duration)
+	ed := metadata.NewEditor(track.Hash, track.Title, track.Artist, track.Album, track.Genre, track.Duration)
 	m.overlay.metadataEditor = &ed
 	return m, nil, true
 }
 
 // bulkEditorForHashes seeds a bulk editor from the tracks behind the hashes,
 // leaving a field blank wherever they disagree.
-func (m Model) bulkEditorForHashes(hashes []string) MetadataEditor {
+func (m Model) bulkEditorForHashes(hashes []string) metadata.Editor {
 	var titles, artists, albums, genres, durations []string
 	for _, h := range hashes {
 		t, ok := m.library.index.FindByHash(h)
@@ -87,18 +88,18 @@ func (m Model) bulkEditorForHashes(hashes []string) MetadataEditor {
 		artists = append(artists, t.Artist)
 		albums = append(albums, t.Album)
 		genres = append(genres, t.Genre)
-		durations = append(durations, formatDurationForEditor(t.Duration))
+		durations = append(durations, metadata.FormatDuration(t.Duration))
 	}
-	return NewBulkMetadataEditor(hashes, commonValue(titles), commonValue(artists), commonValue(albums), commonValue(genres), commonValue(durations))
+	return metadata.NewBulkEditor(hashes, commonValue(titles), commonValue(artists), commonValue(albums), commonValue(genres), commonValue(durations))
 }
 
 // renameEditorForFocusedEntity returns a rename MetadataEditor when the active
 // view and level support bulk renaming (Artists/Albums view at ArtistLevel or
 // AlbumLevel). Returns false if the current context is not renameable.
-func (m Model) renameEditorForFocusedEntity() (MetadataEditor, bool) {
+func (m Model) renameEditorForFocusedEntity() (metadata.Editor, bool) {
 	tracks := m.library.index.Tracks()
 	if m.activeView != viewBrowse {
-		return MetadataEditor{}, false
+		return metadata.Editor{}, false
 	}
 	switch m.browse.mode {
 	case BrowseModeArtists:
@@ -106,7 +107,7 @@ func (m Model) renameEditorForFocusedEntity() (MetadataEditor, bool) {
 		case arttui.ArtistLevel:
 			displayName, ok := m.browse.artists.focusedArtist()
 			if !ok {
-				return MetadataEditor{}, false
+				return metadata.Editor{}, false
 			}
 			rawName := arttui.RawName(displayName)
 			matching := arttui.DeriveArtistTracks(tracks, rawName)
@@ -114,12 +115,12 @@ func (m Model) renameEditorForFocusedEntity() (MetadataEditor, bool) {
 			for _, t := range matching {
 				hashes = append(hashes, t.Hash)
 			}
-			return NewArtistRenameEditor(hashes, displayName), true
+			return metadata.NewArtistRenameEditor(hashes, displayName), true
 
 		case arttui.AlbumLevel:
 			displayName, ok := m.browse.artists.focusedAlbum()
 			if !ok {
-				return MetadataEditor{}, false
+				return metadata.Editor{}, false
 			}
 			rawAlbum := arttui.RawName(displayName)
 			matching := arttui.DeriveTracks(tracks, m.browse.artists.selectedArtist, rawAlbum)
@@ -127,14 +128,14 @@ func (m Model) renameEditorForFocusedEntity() (MetadataEditor, bool) {
 			for _, t := range matching {
 				hashes = append(hashes, t.Hash)
 			}
-			return NewAlbumRenameEditor(hashes, displayName), true
+			return metadata.NewAlbumRenameEditor(hashes, displayName), true
 		}
 
 	case BrowseModeAlbums:
 		if m.browse.albums.level == albtui.AlbumLevel {
 			displayName, ok := m.browse.albums.focusedAlbum()
 			if !ok {
-				return MetadataEditor{}, false
+				return metadata.Editor{}, false
 			}
 			rawAlbum := arttui.RawName(displayName)
 			matching := albtui.DeriveAlbumTracks(tracks, rawAlbum)
@@ -142,15 +143,15 @@ func (m Model) renameEditorForFocusedEntity() (MetadataEditor, bool) {
 			for _, t := range matching {
 				hashes = append(hashes, t.Hash)
 			}
-			return NewAlbumRenameEditor(hashes, displayName), true
+			return metadata.NewAlbumRenameEditor(hashes, displayName), true
 		}
 	}
-	return MetadataEditor{}, false
+	return metadata.Editor{}, false
 }
 
-func (m Model) metadataSaveNotification(mode editorMode, hashes []string, dirtyArtist, dirtyAlbum *string) Model {
+func (m Model) metadataSaveNotification(mode metadata.Mode, hashes []string, dirtyArtist, dirtyAlbum *string) Model {
 	switch mode {
-	case editorModeRenameArtist:
+	case metadata.ModeRenameArtist:
 		if dirtyArtist != nil {
 			newName := *dirtyArtist
 			if newName == "" {
@@ -166,7 +167,7 @@ func (m Model) metadataSaveNotification(mode editorMode, hashes []string, dirtyA
 		}
 		n := len(hashes)
 		m.statusBar.Notify(fmt.Sprintf("Renamed %d %s", n, text.Pluralize(n, "track", "tracks")))
-	case editorModeRenameAlbum:
+	case metadata.ModeRenameAlbum:
 		if dirtyAlbum != nil {
 			newName := *dirtyAlbum
 			if newName == "" {

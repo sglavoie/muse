@@ -1,4 +1,4 @@
-package tui
+package palette
 
 import (
 	"strings"
@@ -22,12 +22,12 @@ func testCommands() []PaletteCommand {
 func TestNewCommandPaletteSortsAlphabetically(t *testing.T) {
 	cp, _ := NewCommandPalette(testCommands(), nil)
 	want := []string{"Alpha action", "Middle action", "Zebra action"}
-	if len(cp.filtered) != len(want) {
-		t.Fatalf("filtered length: want %d, got %d", len(want), len(cp.filtered))
+	if len(cp.Filtered) != len(want) {
+		t.Fatalf("filtered length: want %d, got %d", len(want), len(cp.Filtered))
 	}
 	for i, w := range want {
-		if cp.filtered[i].Name != w {
-			t.Errorf("filtered[%d]: want %q, got %q", i, w, cp.filtered[i].Name)
+		if cp.Filtered[i].Name != w {
+			t.Errorf("filtered[%d]: want %q, got %q", i, w, cp.Filtered[i].Name)
 		}
 	}
 }
@@ -135,8 +135,8 @@ func TestCommandPaletteEnterSkipsDisabledCommand(t *testing.T) {
 	cp, _ := NewCommandPalette(cmds, nil)
 	// "Disabled cmd" sorts after "Enabled cmd"; cursor on it.
 	cp.cursor = 0 // "Disabled cmd" (alphabetically first: D < E)
-	if cp.filtered[0].Name != "Disabled cmd" {
-		t.Fatalf("expected Disabled cmd at index 0, got %q", cp.filtered[0].Name)
+	if cp.Filtered[0].Name != "Disabled cmd" {
+		t.Fatalf("expected Disabled cmd at index 0, got %q", cp.Filtered[0].Name)
 	}
 	_, cmd := cp.HandleKey("enter", tea.KeyPressMsg{})
 	if cmd != nil {
@@ -164,48 +164,48 @@ func TestCommandPaletteFilterNarrows(t *testing.T) {
 	cp, _ := NewCommandPalette(testCommands(), nil)
 	// Manually set the filter text and refilter (since HandleKey delegates to
 	// the textinput which requires a real key event).
-	cp.filter.Text = "alpha"
-	cp.refilter()
-	if len(cp.filtered) != 1 {
-		t.Fatalf("filtered length: want 1, got %d", len(cp.filtered))
+	cp.Filter.Text = "alpha"
+	cp.Refilter()
+	if len(cp.Filtered) != 1 {
+		t.Fatalf("filtered length: want 1, got %d", len(cp.Filtered))
 	}
-	if cp.filtered[0].Name != "Alpha action" {
-		t.Errorf("filtered[0]: want Alpha action, got %q", cp.filtered[0].Name)
+	if cp.Filtered[0].Name != "Alpha action" {
+		t.Errorf("filtered[0]: want Alpha action, got %q", cp.Filtered[0].Name)
 	}
 }
 
 func TestCommandPaletteFilterCaseInsensitive(t *testing.T) {
 	cp, _ := NewCommandPalette(testCommands(), nil)
-	cp.filter.Text = "MIDDLE"
-	cp.refilter()
-	if len(cp.filtered) != 1 {
-		t.Fatalf("filtered length: want 1, got %d", len(cp.filtered))
+	cp.Filter.Text = "MIDDLE"
+	cp.Refilter()
+	if len(cp.Filtered) != 1 {
+		t.Fatalf("filtered length: want 1, got %d", len(cp.Filtered))
 	}
-	if cp.filtered[0].Name != "Middle action" {
-		t.Errorf("filtered[0]: want Middle action, got %q", cp.filtered[0].Name)
+	if cp.Filtered[0].Name != "Middle action" {
+		t.Errorf("filtered[0]: want Middle action, got %q", cp.Filtered[0].Name)
 	}
 }
 
 func TestCommandPaletteFilterEmptyShowsAll(t *testing.T) {
 	cp, _ := NewCommandPalette(testCommands(), nil)
-	cp.filter.Text = "zzz"
-	cp.refilter()
-	if len(cp.filtered) != 0 {
-		t.Fatalf("filtered should be empty, got %d", len(cp.filtered))
+	cp.Filter.Text = "zzz"
+	cp.Refilter()
+	if len(cp.Filtered) != 0 {
+		t.Fatalf("filtered should be empty, got %d", len(cp.Filtered))
 	}
 	// Clear filter.
-	cp.filter.Text = ""
-	cp.refilter()
-	if len(cp.filtered) != 3 {
-		t.Errorf("filtered length: want 3, got %d", len(cp.filtered))
+	cp.Filter.Text = ""
+	cp.Refilter()
+	if len(cp.Filtered) != 3 {
+		t.Errorf("filtered length: want 3, got %d", len(cp.Filtered))
 	}
 }
 
 func TestCommandPaletteFilterClampsCursor(t *testing.T) {
 	cp, _ := NewCommandPalette(testCommands(), nil)
 	cp.cursor = 2 // last item
-	cp.filter.Text = "alpha"
-	cp.refilter()
+	cp.Filter.Text = "alpha"
+	cp.Refilter()
 	if cp.cursor != 0 {
 		t.Errorf("cursor: want 0 (clamped), got %d", cp.cursor)
 	}
@@ -235,8 +235,8 @@ func TestCommandPaletteRenderContainsCommands(t *testing.T) {
 
 func TestCommandPaletteRenderNoMatches(t *testing.T) {
 	cp, _ := NewCommandPalette(testCommands(), nil)
-	cp.filter.Text = "zzz"
-	cp.refilter()
+	cp.Filter.Text = "zzz"
+	cp.Refilter()
 	s := styles.NewStyles(true)
 	out := cp.Render(80, 24, s)
 	if !strings.Contains(out, "(no matches)") {
@@ -304,8 +304,8 @@ func TestCommandPaletteRenderTinyWidthWithCategoriesKeepsBordersAligned(t *testi
 
 func pinnedCommands() []PaletteCommand {
 	return []PaletteCommand{
-		{Name: "Help", Pinned: pinTop},
-		{Name: "Quit", Pinned: pinBottom},
+		{Name: "Help", Pinned: PinTop},
+		{Name: "Quit", Pinned: PinBottom},
 		{Name: "Alpha action", Category: "play"},
 		{Name: "Middle action", Category: "nav"},
 		{Name: "Zebra action", Category: "lib"},
@@ -314,46 +314,46 @@ func pinnedCommands() []PaletteCommand {
 
 func TestCommandPaletteTopPinFirst(t *testing.T) {
 	cp, _ := NewCommandPalette(pinnedCommands(), nil)
-	if cp.filtered[0].Name != "Help" {
-		t.Errorf("filtered[0]: want Help (top pin), got %q", cp.filtered[0].Name)
+	if cp.Filtered[0].Name != "Help" {
+		t.Errorf("filtered[0]: want Help (top pin), got %q", cp.Filtered[0].Name)
 	}
-	if cp.filtered[len(cp.filtered)-1].Name != "Quit" {
-		t.Errorf("filtered[last]: want Quit (bottom pin), got %q", cp.filtered[len(cp.filtered)-1].Name)
+	if cp.Filtered[len(cp.Filtered)-1].Name != "Quit" {
+		t.Errorf("filtered[last]: want Quit (bottom pin), got %q", cp.Filtered[len(cp.Filtered)-1].Name)
 	}
 }
 
 func TestCommandPalettePinsRemainAfterFilter(t *testing.T) {
 	cp, _ := NewCommandPalette(pinnedCommands(), nil)
-	cp.filter.Text = "alpha"
-	cp.refilter()
+	cp.Filter.Text = "alpha"
+	cp.Refilter()
 	// Help (top) + Alpha (body match) + Quit (bottom)
-	if got := len(cp.filtered); got != 3 {
+	if got := len(cp.Filtered); got != 3 {
 		t.Fatalf("filtered length: want 3 (pins + 1 body match), got %d", got)
 	}
-	if cp.filtered[0].Name != "Help" {
-		t.Errorf("filtered[0]: want Help, got %q", cp.filtered[0].Name)
+	if cp.Filtered[0].Name != "Help" {
+		t.Errorf("filtered[0]: want Help, got %q", cp.Filtered[0].Name)
 	}
-	if cp.filtered[1].Name != "Alpha action" {
-		t.Errorf("filtered[1]: want Alpha action, got %q", cp.filtered[1].Name)
+	if cp.Filtered[1].Name != "Alpha action" {
+		t.Errorf("filtered[1]: want Alpha action, got %q", cp.Filtered[1].Name)
 	}
-	if cp.filtered[2].Name != "Quit" {
-		t.Errorf("filtered[2]: want Quit, got %q", cp.filtered[2].Name)
+	if cp.Filtered[2].Name != "Quit" {
+		t.Errorf("filtered[2]: want Quit, got %q", cp.Filtered[2].Name)
 	}
 }
 
 func TestCommandPalettePinsRemainWhenBodyEmpty(t *testing.T) {
 	cp, _ := NewCommandPalette(pinnedCommands(), nil)
-	cp.filter.Text = "zzz"
-	cp.refilter()
+	cp.Filter.Text = "zzz"
+	cp.Refilter()
 	// Body has no match but pins still appear.
-	if got := len(cp.filtered); got != 2 {
+	if got := len(cp.Filtered); got != 2 {
 		t.Fatalf("filtered length: want 2 (pins only), got %d", got)
 	}
-	if cp.filtered[0].Name != "Help" {
-		t.Errorf("filtered[0]: want Help, got %q", cp.filtered[0].Name)
+	if cp.Filtered[0].Name != "Help" {
+		t.Errorf("filtered[0]: want Help, got %q", cp.Filtered[0].Name)
 	}
-	if cp.filtered[1].Name != "Quit" {
-		t.Errorf("filtered[1]: want Quit, got %q", cp.filtered[1].Name)
+	if cp.Filtered[1].Name != "Quit" {
+		t.Errorf("filtered[1]: want Quit, got %q", cp.Filtered[1].Name)
 	}
 }
 
@@ -368,8 +368,8 @@ func TestCommandPaletteRecentHeaderWhenEmpty(t *testing.T) {
 
 func TestCommandPaletteRecentHeaderHiddenWithQuery(t *testing.T) {
 	cp, _ := NewCommandPalette(pinnedCommands(), nil)
-	cp.filter.Text = "alpha"
-	cp.refilter()
+	cp.Filter.Text = "alpha"
+	cp.Refilter()
 	s := styles.NewStyles(true)
 	out := ansi.Strip(cp.Render(80, 24, s))
 	if strings.Contains(out, "Recent & frequent") {
@@ -384,17 +384,17 @@ func TestCommandPaletteQueryChangeResetsCursorOffBottomPin(t *testing.T) {
 	cp, _ := NewCommandPalette(pinnedCommands(), nil)
 	// Full layout: [Help, Alpha, Middle, Zebra, Quit] -> cursor on Zebra.
 	cp.cursor = 3
-	if cp.filtered[cp.cursor].Name != "Zebra action" {
-		t.Fatalf("setup: want Zebra action at 3, got %q", cp.filtered[cp.cursor].Name)
+	if cp.Filtered[cp.cursor].Name != "Zebra action" {
+		t.Fatalf("setup: want Zebra action at 3, got %q", cp.Filtered[cp.cursor].Name)
 	}
 	// Narrow body to a single match: layout becomes [Help, Alpha, Quit].
-	cp.filter.Text = "alpha"
-	cp.refilter()
+	cp.Filter.Text = "alpha"
+	cp.Refilter()
 	// Without the reset, cursor=3 would clamp to 2 == Quit.
-	if got := cp.filtered[cp.cursor].Name; got == "Quit" {
+	if got := cp.Filtered[cp.cursor].Name; got == "Quit" {
 		t.Fatalf("cursor accidentally landed on bottom pin %q after narrowing query", got)
 	}
-	if got := cp.filtered[cp.cursor].Name; got != "Alpha action" {
+	if got := cp.Filtered[cp.cursor].Name; got != "Alpha action" {
 		t.Errorf("cursor: want Alpha action (first body match), got %q", got)
 	}
 }
@@ -404,14 +404,14 @@ func TestCommandPaletteQueryChangeResetsCursorOffBottomPin(t *testing.T) {
 func TestCommandPaletteQueryChangeWithEmptyBodyClampsCursor(t *testing.T) {
 	cp, _ := NewCommandPalette(pinnedCommands(), nil)
 	cp.cursor = 4 // Quit
-	cp.filter.Text = "zzz"
-	cp.refilter()
+	cp.Filter.Text = "zzz"
+	cp.Refilter()
 	// Layout is [Help, Quit]; cursor must be in range.
-	if cp.cursor < 0 || cp.cursor >= len(cp.filtered) {
-		t.Fatalf("cursor out of range after empty-body query change: %d / %d", cp.cursor, len(cp.filtered))
+	if cp.cursor < 0 || cp.cursor >= len(cp.Filtered) {
+		t.Fatalf("cursor out of range after empty-body query change: %d / %d", cp.cursor, len(cp.Filtered))
 	}
-	if cp.filtered[cp.cursor].Name != "Help" {
-		t.Errorf("cursor: want Help (reset to 0), got %q", cp.filtered[cp.cursor].Name)
+	if cp.Filtered[cp.cursor].Name != "Help" {
+		t.Errorf("cursor: want Help (reset to 0), got %q", cp.Filtered[cp.cursor].Name)
 	}
 }
 
@@ -422,8 +422,8 @@ func TestCommandPaletteSameQueryDoesNotResetCursor(t *testing.T) {
 	cp, _ := NewCommandPalette(testCommands(), nil)
 	cp.cursor = 2
 	// Manually mutate text but keep it the same trimmed value across calls.
-	cp.filter.Text = ""
-	cp.refilter() // same query as initial ""
+	cp.Filter.Text = ""
+	cp.Refilter() // same query as initial ""
 	if cp.cursor != 2 {
 		t.Errorf("cursor should be preserved on same-query refilter: want 2, got %d", cp.cursor)
 	}

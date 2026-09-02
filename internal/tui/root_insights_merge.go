@@ -14,6 +14,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/metadata"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
@@ -39,7 +40,7 @@ type insightsMergeWrite struct {
 func (w insightsMergeWrite) planStillHolds(t library.Track) bool {
 	return t.Title == w.original[0] && t.Artist == w.original[1] &&
 		t.Album == w.original[2] && t.Genre == w.original[3] &&
-		formatDurationForEditor(t.Duration) == w.original[4]
+		metadata.FormatDuration(t.Duration) == w.original[4]
 }
 
 // insightsMergedMsg reports which of the merge's writes actually landed. The
@@ -118,7 +119,7 @@ func (m Model) confirmInsightsGenreMerge() (Model, tea.Cmd, bool) {
 		}
 		writes = append(writes, insightsMergeWrite{
 			hash: hash, title: t.Title, artist: t.Artist, album: t.Album, genre: merged,
-			original: [5]string{t.Title, t.Artist, t.Album, t.Genre, formatDurationForEditor(t.Duration)},
+			original: [5]string{t.Title, t.Artist, t.Album, t.Genre, metadata.FormatDuration(t.Duration)},
 		})
 	}
 
@@ -138,14 +139,14 @@ func (m Model) confirmInsightsGenreMerge() (Model, tea.Cmd, bool) {
 	// stands down rather than reverting it.
 	q := m.metadataWrites
 	for i := range writes {
-		writes[i].ticket = q.publish(writes[i].hash)
+		writes[i].ticket = q.Publish(writes[i].hash)
 	}
 
 	canonical := plan.canonical
 	return m, func() tea.Msg {
 		msg := insightsMergedMsg{canonical: canonical}
 		for _, w := range writes {
-			wrote, err := q.claim(w.hash, w.ticket, func() error {
+			wrote, err := q.Claim(w.hash, w.ticket, func() error {
 				return mw.UpdateTrackMetadata(w.hash, w.title, w.artist, w.album, w.genre)
 			})
 			switch {

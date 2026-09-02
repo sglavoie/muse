@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/metadata"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
@@ -34,7 +35,7 @@ func TestMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
 			m.queue.entries = []QueueEntry{
 				{ID: 1, Hash: "h1", Path: "/a.flac", Display: "Old – Old", Artist: "Old", Title: "Old", Album: "Old"},
 			}
-			ed := NewMetadataEditor("h1", tt.title, tt.artist, "Album", "", 0)
+			ed := metadata.NewEditor("h1", tt.title, tt.artist, "Album", "", 0)
 			m.overlay.metadataEditor = &ed
 			result, _ := m.handleMetadataSave()
 			nm := result.(Model)
@@ -56,7 +57,7 @@ func TestSingleTrackMetadataSaveRefreshesDerivedViews(t *testing.T) {
 		t.Fatalf("precondition: expected 3 artists, got %d", len(m.browse.artists.artists))
 	}
 
-	ed := NewMetadataEditor("h1", "Track A1", "Alice", "Alpha", "", 0)
+	ed := metadata.NewEditor("h1", "Track A1", "Alice", "Alpha", "", 0)
 	m.overlay.metadataEditor = &ed
 
 	ed2, _, _ := m.overlay.metadataEditor.HandleKey(tea.KeyPressMsg{Code: tea.KeyTab})
@@ -95,7 +96,7 @@ func TestSingleTrackMetadataSaveCreatesUndoSlot(t *testing.T) {
 		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "Old Artist – Old Title", Artist: "Old Artist", Title: "Old Title", Album: "Old Album"},
 	}
 
-	ed := NewMetadataEditor("h1", "New Title", "New Artist", "New Album", "", 0)
+	ed := metadata.NewEditor("h1", "New Title", "New Artist", "New Album", "", 0)
 	m.overlay.metadataEditor = &ed
 
 	result, _ := m.handleMetadataSave()
@@ -147,7 +148,7 @@ func TestMetadataSavePreservesQueueSort(t *testing.T) {
 	}
 
 	// Edit h1 artist from "Zara" to "Aaron" — should sort before "Alice"
-	ed := NewMetadataEditor("h1", "Song1", "Aaron", "", "", 0)
+	ed := metadata.NewEditor("h1", "Song1", "Aaron", "", "", 0)
 	m.overlay.metadataEditor = &ed
 	result, _ := m.handleMetadataSave()
 	nm := result.(Model)
@@ -174,7 +175,7 @@ func TestBulkMetadataSavePreservesQueueSort(t *testing.T) {
 	m.queue.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 
-	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "CommonTitle", "", "", "", "")
+	ed := metadata.NewBulkEditor([]string{"h1", "h2"}, "CommonTitle", "", "", "", "")
 	m.overlay.metadataEditor = &ed
 	result, _ := m.handleMetadataSave()
 	nm := result.(Model)
@@ -200,7 +201,7 @@ func TestMetadataSavePreservesPlaylistSort(t *testing.T) {
 
 	// Edit h1 artist — this goes through refreshDerivedViews which should
 	// recompute the playlist sort.
-	ed := NewMetadataEditor("h1", "T1", "Aaron", "", "", 0)
+	ed := metadata.NewEditor("h1", "T1", "Aaron", "", "", 0)
 	m.overlay.metadataEditor = &ed
 	result, _ := m.handleMetadataSave()
 	nm := result.(Model)

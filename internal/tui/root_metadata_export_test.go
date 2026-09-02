@@ -14,6 +14,7 @@ import (
 	"github.com/sglavoie/muse/internal/desktop"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/overlay"
+	"github.com/sglavoie/muse/internal/tui/palette"
 )
 
 func exportModel(t *testing.T, dataDir string) Model {
@@ -172,7 +173,7 @@ func TestMetadataExportPaletteEntriesAreHandWrittenAndUnsafe(t *testing.T) {
 	m := New(context.Background())
 	m.dataDir = dir
 
-	built := make(map[string]PaletteCommand)
+	built := make(map[string]palette.PaletteCommand)
 	for _, c := range m.buildPaletteCommands() {
 		built[c.ID] = c
 	}
@@ -195,17 +196,17 @@ func TestMetadataExportPaletteEntriesAreHandWrittenAndUnsafe(t *testing.T) {
 		}
 	}
 
-	if !built["metadata.export.tsv"].isEnabled() {
+	if !built["metadata.export.tsv"].IsEnabled() {
 		t.Error("export must be enabled once a data directory is configured")
 	}
-	if built["metadata.export.reveal"].isEnabled() {
+	if built["metadata.export.reveal"].IsEnabled() {
 		t.Error("reveal must stay disabled until an export exists")
 	}
 	if err := os.WriteFile(metadataExportPath(dir), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	for _, c := range m.buildPaletteCommands() {
-		if c.ID == "metadata.export.reveal" && !c.isEnabled() {
+		if c.ID == "metadata.export.reveal" && !c.IsEnabled() {
 			t.Error("reveal must become enabled once an export exists")
 		}
 	}

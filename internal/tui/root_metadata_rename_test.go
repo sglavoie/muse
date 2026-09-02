@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/metadata"
 )
 
 // TestRenameArtistFromArtistsView verifies that pressing M at ArtistLevel opens
@@ -27,7 +28,7 @@ func TestRenameArtistFromArtistsView(t *testing.T) {
 		t.Fatal("expected metadataEditor to be open after M at ArtistLevel")
 	}
 	ed := m.overlay.metadataEditor
-	if ed.Mode() != editorModeRenameArtist {
+	if ed.Mode() != metadata.ModeRenameArtist {
 		t.Errorf("expected editorModeRenameArtist, got %v", ed.Mode())
 	}
 	if len(ed.Hashes()) != 3 {
@@ -98,7 +99,7 @@ func TestRenameAlbumFromArtistsView(t *testing.T) {
 		t.Fatal("expected metadataEditor after M at AlbumLevel in artists view")
 	}
 	ed := m.overlay.metadataEditor
-	if ed.Mode() != editorModeRenameAlbum {
+	if ed.Mode() != metadata.ModeRenameAlbum {
 		t.Errorf("expected editorModeRenameAlbum, got %v", ed.Mode())
 	}
 	if ed.Album() != "Alpha" {
@@ -164,7 +165,7 @@ func TestRenameAlbumFromAlbumsView(t *testing.T) {
 		t.Fatal("expected metadataEditor after M at AlbumLevel in albums view")
 	}
 	ed := m.overlay.metadataEditor
-	if ed.Mode() != editorModeRenameAlbum {
+	if ed.Mode() != metadata.ModeRenameAlbum {
 		t.Errorf("expected editorModeRenameAlbum, got %v", ed.Mode())
 	}
 	if ed.Album() != "Alpha" {
@@ -264,7 +265,7 @@ func TestSingleTrackMetadataSaveUpdatesQueueAlbum(t *testing.T) {
 	}
 	m.queue.cursor = 0
 
-	ed := NewMetadataEditor("h1", "Track A1", "Alice", "Alpha", "", 0)
+	ed := metadata.NewEditor("h1", "Track A1", "Alice", "Alpha", "", 0)
 	m.overlay.metadataEditor = &ed
 
 	ed2, _, _ := m.overlay.metadataEditor.HandleKey(tea.KeyPressMsg{Code: tea.KeyTab})
@@ -371,7 +372,7 @@ func TestRenameNotOpenedAtTrackLevel(t *testing.T) {
 	if m.overlay.metadataEditor == nil {
 		t.Fatal("expected editor open at TrackLevel")
 	}
-	if m.overlay.metadataEditor.Mode() != editorModeDefault {
+	if m.overlay.metadataEditor.Mode() != metadata.ModeDefault {
 		t.Errorf("expected editorModeDefault at TrackLevel, got %v", m.overlay.metadataEditor.Mode())
 	}
 }
@@ -405,7 +406,7 @@ func TestRenameUnknownArtistSentinel(t *testing.T) {
 		t.Fatal("expected editor open for unknown artist")
 	}
 	ed := m.overlay.metadataEditor
-	if ed.Mode() != editorModeRenameArtist {
+	if ed.Mode() != metadata.ModeRenameArtist {
 		t.Errorf("expected editorModeRenameArtist, got %v", ed.Mode())
 	}
 	if len(ed.Hashes()) != 2 {

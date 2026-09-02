@@ -10,6 +10,8 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/metaexport"
+	"github.com/sglavoie/muse/internal/tui/metadata"
+	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -124,7 +126,7 @@ func TestMetadataImportApplyStandsDownForASupersedingEdit(t *testing.T) {
 
 	// A later edit of the same row publishes a newer ticket before the import's
 	// command runs; the import must not overwrite it.
-	m.metadataWrites.publish("h1")
+	m.metadataWrites.Publish("h1")
 
 	applied := cmd().(metadataImportAppliedMsg)
 	if applied.superseded != 1 || applied.applied != 0 {
@@ -291,7 +293,7 @@ func TestMetadataImportOverlayRendersCountsBadgesAndCanonicalGenre(t *testing.T)
 		Counts:    metaexport.FieldCounts{Artist: 1, Title: 1, Genre: 1, Track: 1},
 		Warnings:  []metaexport.Warning{{Line: 9, Msg: "bad track number"}},
 	}
-	o := newMetadataImportOverlay("/tmp/metadata-export.tsv", plan, 3)
+	o := metadata.NewImportOverlay("/tmp/metadata-export.tsv", plan, 3)
 	out := o.Render(120, 40, styles.NewStyles(true))
 
 	for _, want := range []string{
@@ -310,7 +312,7 @@ func TestMetadataImportOverlayRendersCountsBadgesAndCanonicalGenre(t *testing.T)
 		}
 	}
 
-	o.showWarnings = true
+	o.ShowWarnings = true
 	if got := o.Render(120, 40, styles.NewStyles(true)); !strings.Contains(got, "line 9: bad track number") {
 		t.Errorf("warnings page must list the parse warnings, got:\n%s", got)
 	}
@@ -325,20 +327,20 @@ func TestMetadataImportOverlayPreSlicesItsOwnWindow(t *testing.T) {
 			Title:   ptr("new"),
 		})
 	}
-	o := newMetadataImportOverlay("/tmp/x.tsv", plan, 0)
+	o := metadata.NewImportOverlay("/tmp/x.tsv", plan, 0)
 
 	const height = 20
-	if got := len(o.changeRows(height)); got > metadataImportRowBudget(height) {
-		t.Fatalf("changeRows returned %d rows for a budget of %d", got, metadataImportRowBudget(height))
+	if got := len(o.ChangeRows(height)); got > metadata.ImportRowBudget(height) {
+		t.Fatalf("changeRows returned %d rows for a budget of %d", got, metadata.ImportRowBudget(height))
 	}
 	// G lands on the last change and the window must follow it there.
-	o.cursor = len(plan.Changes) - 1
-	o = o.reclamp(height)
-	if o.offset == 0 {
+	o.Cursor = len(plan.Changes) - 1
+	o = o.Reclamp(height)
+	if o.Offset == 0 {
 		t.Fatal("the window must scroll to keep the cursor visible")
 	}
-	if o.cursor < o.offset || o.cursor >= o.offset+o.perPage(height) {
-		t.Fatalf("cursor %d outside window [%d,%d)", o.cursor, o.offset, o.offset+o.perPage(height))
+	if o.Cursor < o.Offset || o.Cursor >= o.Offset+o.PerPage(height) {
+		t.Fatalf("cursor %d outside window [%d,%d)", o.Cursor, o.Offset, o.Offset+o.PerPage(height))
 	}
 }
 
@@ -347,13 +349,13 @@ func TestMetadataImportPaletteEntryIsGatedOnTheExportFile(t *testing.T) {
 	m := New(context.Background())
 	m.dataDir = dir
 
-	find := func() (PaletteCommand, bool) {
+	find := func() (palette.PaletteCommand, bool) {
 		for _, c := range m.buildPaletteCommands() {
 			if c.ID == "metadata.import" {
 				return c, true
 			}
 		}
-		return PaletteCommand{}, false
+		return palette.PaletteCommand{}, false
 	}
 
 	cmd, ok := find()
@@ -363,7 +365,7 @@ func TestMetadataImportPaletteEntryIsGatedOnTheExportFile(t *testing.T) {
 	if cmd.Name != "Import metadata edits…" || cmd.Category != "lib" {
 		t.Fatalf("unexpected entry: name=%q category=%q", cmd.Name, cmd.Category)
 	}
-	if cmd.isEnabled() {
+	if cmd.IsEnabled() {
 		t.Fatal("import must stay disabled until an export exists")
 	}
 	if _, safe := safeDirectCommandIDs()["metadata.import"]; safe {
@@ -372,7 +374,7 @@ func TestMetadataImportPaletteEntryIsGatedOnTheExportFile(t *testing.T) {
 
 	writeImportFile(t, dir, editedExport)
 	cmd, _ = find()
-	if !cmd.isEnabled() {
+	if !cmd.IsEnabled() {
 		t.Fatal("import must become enabled once an export exists")
 	}
 	if _, ok := cmd.Exec()().(metadataImportRequestedMsg); !ok {

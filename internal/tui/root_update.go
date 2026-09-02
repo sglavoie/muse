@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/overlay"
+	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -282,10 +283,10 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m = m.jumpToPlaylist(msg.Value)
 		}
 
-	case CommandPaletteDismissedMsg:
+	case palette.CommandPaletteDismissedMsg:
 		m.overlay.commandPalette = nil
 
-	case CommandPalettePickedMsg:
+	case palette.CommandPalettePickedMsg:
 		m.overlay.commandPalette = nil
 		// In a fixture-backed harness run, gate key/text-driven palette
 		// selections through the same allowlist as direct command actions so a

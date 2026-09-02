@@ -1,4 +1,4 @@
-package tui
+package metadata
 
 import (
 	"fmt"
@@ -11,24 +11,24 @@ import (
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
-// MetadataImportOverlay confirms a parsed import before anything is written.
+// ImportOverlay confirms a parsed import before anything is written.
 //
 // It slices its own visible window rather than handing the whole plan to
 // overlay.Box: overlay.Box.rowsForHeight drops rows from the middle to make a box
 // fit, which is invisible on a fixed form and corrupts an ordered list.
-type MetadataImportOverlay struct {
+type ImportOverlay struct {
 	path string
-	plan metaexport.Plan
+	Plan metaexport.Plan
 	// skipped is metaexport.File.Skipped: dropped data rows only, which is a
 	// smaller number than len(plan.Warnings).
 	skipped      int
-	cursor       int
-	offset       int
-	showWarnings bool
+	Cursor       int
+	Offset       int
+	ShowWarnings bool
 }
 
-func newMetadataImportOverlay(path string, plan metaexport.Plan, skipped int) MetadataImportOverlay {
-	return MetadataImportOverlay{path: path, plan: plan, skipped: skipped}
+func NewImportOverlay(path string, plan metaexport.Plan, skipped int) ImportOverlay {
+	return ImportOverlay{path: path, Plan: plan, skipped: skipped}
 }
 
 // importFieldChange is one field of one row, ready to render as `old → new`.
@@ -67,10 +67,10 @@ func importChangedFields(ch metaexport.Change) []importFieldChange {
 	return out
 }
 
-// metadataImportRowBudget is how many content rows fit at this height. It
+// ImportRowBudget is how many content rows fit at this height. It
 // mirrors overlay.Box's own chrome accounting so that rowsForHeight has nothing
 // left to drop.
-func metadataImportRowBudget(termHeight int) int {
+func ImportRowBudget(termHeight int) int {
 	if termHeight <= 0 {
 		return 1 << 30
 	}
@@ -78,45 +78,55 @@ func metadataImportRowBudget(termHeight int) int {
 	return max(termHeight-chromeLines, 1)
 }
 
-// canApply reports whether there is anything to write. The overlay still opens
+// CanApply reports whether there is anything to write. The overlay still opens
 // with an empty change list when the parse skipped rows or warned, but then it
 // is a report: nothing may be applied from it.
-func (o MetadataImportOverlay) canApply() bool {
-	return len(o.plan.Changes) > 0
+func (o ImportOverlay) CanApply() bool {
+	return len(o.Plan.Changes) > 0
 }
 
-func (o MetadataImportOverlay) rowCount() int {
-	if o.showWarnings {
-		return len(o.plan.Warnings)
+func (o ImportOverlay) RowCount() int {
+	if o.ShowWarnings {
+		return len(o.Plan.Warnings)
 	}
-	return len(o.plan.Changes)
+	return len(o.Plan.Changes)
 }
 
-// perPage is how many list entries the window holds, after the summary rows and
+// PerPage is how many list entries the window holds, after the summary rows and
 // the focused row's expansion have taken their share.
-func (o MetadataImportOverlay) perPage(termHeight int) int {
-	budget := metadataImportRowBudget(termHeight)
-	if o.showWarnings {
+func (o ImportOverlay) PerPage(termHeight int) int {
+	budget := ImportRowBudget(termHeight)
+	if o.ShowWarnings {
 		return max(budget, 1)
 	}
 	budget -= len(o.headerRows())
-	if o.cursor >= 0 && o.cursor < len(o.plan.Changes) {
-		budget -= len(importChangedFields(o.plan.Changes[o.cursor]))
+	if o.Cursor >= 0 && o.Cursor < len(o.Plan.Changes) {
+		budget -= len(importChangedFields(o.Plan.Changes[o.Cursor]))
 	}
 	return max(budget, 1)
 }
 
-// reclamp keeps the cursor inside the list and the offset around the cursor.
+// Reclamp keeps the cursor inside the list and the offset around the cursor.
 // Key handling calls it because Render cannot persist what it computes.
-func (o MetadataImportOverlay) reclamp(termHeight int) MetadataImportOverlay {
-	n := o.rowCount()
+func (o ImportOverlay) Reclamp(termHeight int) ImportOverlay {
+	n := o.RowCount()
 	if n == 0 {
-		o.cursor, o.offset = 0, 0
+		o.Cursor, o.Offset = 0, 0
 		return o
 	}
-	o.cursor = clampPaletteInt(o.cursor, 0, n-1)
-	o.offset = clampImportOffset(o.offset, o.cursor, o.perPage(termHeight), n)
+	o.Cursor = clamp(o.Cursor, 0, n-1)
+	o.Offset = clampImportOffset(o.Offset, o.Cursor, o.PerPage(termHeight), n)
 	return o
+}
+
+func clamp(v, lo, hi int) int {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
 }
 
 func clampImportOffset(offset, cursor, per, n int) int {
@@ -138,16 +148,16 @@ func clampImportOffset(offset, cursor, per, n int) int {
 	return offset
 }
 
-func (o MetadataImportOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
+func (o ImportOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
 	title := " ♪ Import metadata "
-	rows := o.changeRows(termHeight)
-	if o.showWarnings {
+	rows := o.ChangeRows(termHeight)
+	if o.ShowWarnings {
 		title = " ♪ Import warnings "
 		rows = o.warningRows(termHeight)
 	}
 	// The truncation here is what keeps rowsForHeight a no-op; dropping a
 	// trailing row is safe where dropping a middle one is not.
-	if budget := metadataImportRowBudget(termHeight); len(rows) > budget {
+	if budget := ImportRowBudget(termHeight); len(rows) > budget {
 		rows = rows[:budget]
 	}
 	return overlay.Box{
@@ -158,8 +168,8 @@ func (o MetadataImportOverlay) Render(termWidth, termHeight int, s styles.Styles
 	}.Render(termWidth, termHeight, s)
 }
 
-func (o MetadataImportOverlay) headerRows() []overlay.Row {
-	p := o.plan
+func (o ImportOverlay) headerRows() []overlay.Row {
+	p := o.Plan
 	rows := []overlay.Row{
 		{Text: o.path},
 		{Text: fmt.Sprintf("%d changed · %d unchanged · %d unknown · %d skipped",
@@ -184,19 +194,19 @@ func (o MetadataImportOverlay) headerRows() []overlay.Row {
 	return append(rows, overlay.Row{Blank: true})
 }
 
-func (o MetadataImportOverlay) changeRows(termHeight int) []overlay.Row {
+func (o ImportOverlay) ChangeRows(termHeight int) []overlay.Row {
 	rows := o.headerRows()
-	n := len(o.plan.Changes)
+	n := len(o.Plan.Changes)
 	if n == 0 {
 		return append(rows, overlay.Row{Text: "Nothing to apply"})
 	}
-	per := o.perPage(termHeight)
-	start := clampImportOffset(o.offset, o.cursor, per, n)
+	per := o.PerPage(termHeight)
+	start := clampImportOffset(o.Offset, o.Cursor, per, n)
 	for i := start; i < min(start+per, n); i++ {
-		ch := o.plan.Changes[i]
+		ch := o.Plan.Changes[i]
 		fields := importChangedFields(ch)
-		rows = append(rows, overlay.Row{Text: importChangeLine(ch, fields), Styled: i == o.cursor})
-		if i != o.cursor {
+		rows = append(rows, overlay.Row{Text: importChangeLine(ch, fields), Styled: i == o.Cursor})
+		if i != o.Cursor {
 			continue
 		}
 		for _, f := range fields {
@@ -207,30 +217,30 @@ func (o MetadataImportOverlay) changeRows(termHeight int) []overlay.Row {
 	return rows
 }
 
-func (o MetadataImportOverlay) warningRows(termHeight int) []overlay.Row {
-	n := len(o.plan.Warnings)
+func (o ImportOverlay) warningRows(termHeight int) []overlay.Row {
+	n := len(o.Plan.Warnings)
 	if n == 0 {
 		return []overlay.Row{{Text: "No warnings"}}
 	}
-	per := o.perPage(termHeight)
-	start := clampImportOffset(o.offset, o.cursor, per, n)
+	per := o.PerPage(termHeight)
+	start := clampImportOffset(o.Offset, o.Cursor, per, n)
 	rows := make([]overlay.Row, 0, per)
 	for i := start; i < min(start+per, n); i++ {
-		rows = append(rows, overlay.Row{Text: o.plan.Warnings[i].String(), Styled: i == o.cursor})
+		rows = append(rows, overlay.Row{Text: o.Plan.Warnings[i].String(), Styled: i == o.Cursor})
 	}
 	return rows
 }
 
-func (o MetadataImportOverlay) hint() string {
+func (o ImportOverlay) hint() string {
 	tail := " · enter/y apply · esc cancel"
-	if !o.canApply() {
+	if !o.CanApply() {
 		tail = " · esc close"
 	}
-	if o.showWarnings {
+	if o.ShowWarnings {
 		return "j/k scroll · w back to changes" + tail
 	}
 	warnings := ""
-	if n := len(o.plan.Warnings); n > 0 {
+	if n := len(o.Plan.Warnings); n > 0 {
 		warnings = fmt.Sprintf(" · w %d %s", n, text.Pluralize(n, "warning", "warnings"))
 	}
 	return "j/k scroll" + warnings + tail

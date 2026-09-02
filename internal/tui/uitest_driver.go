@@ -13,6 +13,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/tui/palette"
 )
 
 // defaultDrainTimeout bounds how long a single dispatched command is allowed to
@@ -240,7 +242,7 @@ func (d *UITestDriver) availableCommands() []string {
 	cmds := d.model.buildPaletteCommands()
 	out := make([]string, 0, len(cmds))
 	for _, c := range cmds {
-		if c.isEnabled() {
+		if c.IsEnabled() {
 			out = append(out, c.Key())
 		}
 	}
@@ -356,7 +358,7 @@ func summarizeIssues(issues []UITestIssue) string {
 // unknown, disabled, or side-effectful commands with a structured error.
 func (d *UITestDriver) runCommand(name string) error {
 	cmds := d.model.buildPaletteCommands()
-	var match *PaletteCommand
+	var match *palette.PaletteCommand
 	for i := range cmds {
 		if cmds[i].Key() == name || strings.EqualFold(cmds[i].Name, name) {
 			match = &cmds[i]
@@ -369,7 +371,7 @@ func (d *UITestDriver) runCommand(name string) error {
 	if !isSafeDirectCommand(match.Key()) {
 		return fmt.Errorf("command %q (%s) is not permitted in fixture mode", match.Name, match.Key())
 	}
-	if !match.isEnabled() {
+	if !match.IsEnabled() {
 		return fmt.Errorf("command %q is not currently enabled", match.Name)
 	}
 	if match.Exec != nil {

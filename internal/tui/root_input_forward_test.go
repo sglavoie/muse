@@ -7,6 +7,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/metadata"
+	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/settings"
 )
 
@@ -39,7 +41,7 @@ func TestInputForwardingPrefersSettingsOverMetadataEditor(t *testing.T) {
 	overlaySettings := settings.NewSettingsOverlay(config.Defaults(), 50, nil)
 	overlaySettings.ExclPathInput = settings.NewSettingsInput()
 	m.overlay.settings = &overlaySettings
-	editor := NewMetadataEditor("hash", "title", "artist", "album", "genre", 0)
+	editor := metadata.NewEditor("hash", "title", "artist", "album", "genre", 0)
 	m.overlay.metadataEditor = &editor
 
 	next, _, ok := m.forwardToActiveInput(tea.KeyPressMsg{Code: 'z', Text: "z"})
@@ -60,7 +62,7 @@ func TestInputForwardingPrefersMetadataEditorOverViewFilter(t *testing.T) {
 	m.activeView = viewLibrary
 	m.library.filter = filter.New()
 	m.library.filter, _ = m.library.filter.Activate()
-	editor := NewMetadataEditor("hash", "title", "artist", "album", "genre", 0)
+	editor := metadata.NewEditor("hash", "title", "artist", "album", "genre", 0)
 	m.overlay.metadataEditor = &editor
 
 	next, _, ok := m.forwardToActiveInput(tea.KeyPressMsg{Code: 'm', Text: "m"})
@@ -78,7 +80,7 @@ func TestInputForwardingPrefersMetadataEditorOverViewFilter(t *testing.T) {
 
 func TestInputForwardingIncludesCommandPaletteFilter(t *testing.T) {
 	m := New(context.Background())
-	cp, _ := NewCommandPalette([]PaletteCommand{
+	cp, _ := palette.NewCommandPalette([]palette.PaletteCommand{
 		{Name: "Reveal in Finder"},
 		{Name: "Copy track info"},
 	}, nil)
@@ -92,11 +94,11 @@ func TestInputForwardingIncludesCommandPaletteFilter(t *testing.T) {
 		t.Fatal("expected command palette to remain open")
 	}
 
-	got := next.overlay.commandPalette.filter.Text
+	got := next.overlay.commandPalette.Filter.Text
 	if got != "v" {
 		t.Fatalf("expected command palette filter text %q, got %q", "v", got)
 	}
-	filtered := next.overlay.commandPalette.filtered
+	filtered := next.overlay.commandPalette.Filtered
 	if len(filtered) != 1 || filtered[0].Name != "Reveal in Finder" {
 		t.Fatalf("expected filtered command Reveal in Finder, got %+v", filtered)
 	}

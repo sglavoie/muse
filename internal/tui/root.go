@@ -13,6 +13,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/metadata"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/playback"
@@ -33,14 +34,14 @@ type overlayInfo struct {
 	queueSummary          *overlay.QueueSummaryOverlay
 	modesLegend           *overlay.ModesLegendOverlay
 	trackInfo             *overlay.TrackInfoOverlay
-	metadataEditor        *MetadataEditor
-	metadataImport        *MetadataImportOverlay
+	metadataEditor        *metadata.Editor
+	metadataImport        *metadata.ImportOverlay
 	destPicker            *pltui.DestinationPickerModal
 	destPickerTracks      []library.Track
 	goTo                  *overlay.GoToModal
 	settings              *settings.SettingsOverlay
 	smartRuleEditor       *smartrules.SmartRuleEditor
-	commandPalette        *CommandPalette
+	commandPalette        *palette.CommandPalette
 	tagPicker             *TagPicker
 	tagMergePicker        *TagMergePicker
 	tagFilterPicker       *TagFilterPicker
@@ -250,7 +251,7 @@ type Model struct {
 	metadataWriter      metadataUpdater      // may be nil; set via WithMetadataWriter
 	durationWriter      durationUpdater      // may be nil; set via WithDurationWriter
 	trackPositionWriter trackPositionUpdater // may be nil; set via WithTrackPositionWriter
-	metadataWrites      *metadataWriteQueue  // orders the async metadata row writes
+	metadataWrites      *metadata.WriteQueue // orders the async metadata row writes
 	scanWriter          scanUpsertBatcher    // may be nil; set via WithScanWriter
 	upsertBatchSize     int                  // batch size for scan DB writes; set via WithScanWriter
 
@@ -341,7 +342,7 @@ func New(ctx context.Context, opts ...Option) Model {
 		registry:        keys.NewRegistry(),
 		styles:          &initialStyles,
 		insightsPending: &insightsPendingWrites{},
-		metadataWrites:  newMetadataWriteQueue(),
+		metadataWrites:  metadata.NewWriteQueue(),
 	}
 	for _, opt := range opts {
 		opt(&m)

@@ -1,4 +1,4 @@
-package tui
+package metadata
 
 import "testing"
 
@@ -22,7 +22,7 @@ func TestParseDurationFromEditor(t *testing.T) {
 		{"1:2:3:4", 0, true},
 	}
 	for _, tt := range tests {
-		got, err := parseDurationFromEditor(tt.input)
+		got, err := ParseDuration(tt.input)
 		if tt.wantErr {
 			if err == nil {
 				t.Errorf("parseDurationFromEditor(%q): expected error, got nil (value=%v)", tt.input, got)
@@ -52,7 +52,7 @@ func TestFormatDurationForEditor(t *testing.T) {
 		{3661, "1:01:01"},
 	}
 	for _, tt := range tests {
-		got := formatDurationForEditor(tt.secs)
+		got := FormatDuration(tt.secs)
 		if got != tt.want {
 			t.Errorf("formatDurationForEditor(%v) = %q, want %q", tt.secs, got, tt.want)
 		}
@@ -62,7 +62,7 @@ func TestFormatDurationForEditor(t *testing.T) {
 // TestDurationFieldPopulated verifies that NewMetadataEditor pre-populates
 // the Duration field when a non-zero duration is provided.
 func TestDurationFieldPopulated(t *testing.T) {
-	ed := NewMetadataEditor("h1", "T", "A", "B", "G", 225)
+	ed := NewEditor("h1", "T", "A", "B", "G", 225)
 	if ed.Duration() != "3:45" {
 		t.Errorf("expected Duration()=%q, got %q", "3:45", ed.Duration())
 	}
@@ -71,7 +71,7 @@ func TestDurationFieldPopulated(t *testing.T) {
 // TestDurationFieldEmptyWhenZero verifies that NewMetadataEditor leaves the
 // Duration field empty when duration is 0.
 func TestDurationFieldEmptyWhenZero(t *testing.T) {
-	ed := NewMetadataEditor("h1", "T", "A", "B", "G", 0)
+	ed := NewEditor("h1", "T", "A", "B", "G", 0)
 	if ed.Duration() != "" {
 		t.Errorf("expected empty Duration(), got %q", ed.Duration())
 	}

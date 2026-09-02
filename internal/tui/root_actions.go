@@ -12,6 +12,7 @@ import (
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/overlay"
+	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
@@ -413,8 +414,8 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 	case keys.ActionCommandPalette:
 		commands := m.buildPaletteCommands()
 		if len(commands) > 0 {
-			palette, cmd := NewCommandPalette(commands, m.paletteUsage)
-			m.overlay.commandPalette = &palette
+			cp, cmd := palette.NewCommandPalette(commands, m.paletteUsage)
+			m.overlay.commandPalette = &cp
 			return m, cmd
 		}
 	case keys.ActionTagPicker:
