@@ -138,23 +138,31 @@ func (v View) moveCursor(delta int) View {
 		v.ScrollOffset = 0
 		return v
 	}
-	switch {
-	case delta > 0:
-		limit := n - 1 - delta
-		if limit < 0 || v.Cursor > limit {
-			v.Cursor = n - 1
-		} else {
-			v.Cursor += delta
-		}
-	case delta < 0:
-		step := -delta
-		if v.Cursor < step {
-			v.Cursor = 0
-		} else {
-			v.Cursor -= step
-		}
+	if delta != 0 {
+		v.Cursor = steppedCursor(v.Cursor, delta, n)
 	}
 	v.Cursor = max(0, min(v.Cursor, n-1))
+	return v.scrollCursorIntoView()
+}
+
+// steppedCursor returns the cursor position after moving delta rows, stopping
+// at either end rather than wrapping. n is the current item count.
+func steppedCursor(cursor, delta, n int) int {
+	if delta > 0 {
+		if limit := n - 1 - delta; limit < 0 || cursor > limit {
+			return n - 1
+		}
+		return cursor + delta
+	}
+	if step := -delta; step > cursor {
+		return 0
+	}
+	return cursor + delta
+}
+
+// scrollCursorIntoView adjusts ScrollOffset so the (already clamped) cursor
+// sits inside the visible window, and normalizes a negative stale offset.
+func (v View) scrollCursorIntoView() View {
 	maxRows := v.visibleRows()
 	if v.ScrollOffset < 0 {
 		v.ScrollOffset = 0
@@ -162,10 +170,7 @@ func (v View) moveCursor(delta int) View {
 	if v.Cursor < v.ScrollOffset {
 		v.ScrollOffset = v.Cursor
 	} else if maxRows > 0 && v.Cursor >= v.ScrollOffset+maxRows {
-		v.ScrollOffset = v.Cursor - maxRows + 1
-	}
-	if v.ScrollOffset < 0 {
-		v.ScrollOffset = 0
+		v.ScrollOffset = max(0, v.Cursor-maxRows+1)
 	}
 	return v
 }

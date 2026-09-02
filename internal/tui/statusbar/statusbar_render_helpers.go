@@ -38,48 +38,65 @@ func renderProgressBar(elapsed, total float64, width int, st styles.Styles) stri
 	if width <= 0 {
 		return ""
 	}
-	frac := 0.0
-	if total > 0 {
-		frac = elapsed / total
-		if math.IsNaN(frac) || math.IsInf(frac, 0) || frac < 0 {
-			frac = 0
-		} else if frac > 1 {
-			frac = 1
-		}
-	}
-	filledSteps := int(math.Round(frac * float64(width*progressCellSteps)))
-	if filledSteps > width*progressCellSteps {
-		filledSteps = width * progressCellSteps
-	}
-	if filledSteps < 0 {
-		filledSteps = 0
-	}
-
-	fullCells := filledSteps / progressCellSteps
-	partialSteps := filledSteps % progressCellSteps
-	emptyCells := width - fullCells
-	if partialSteps > 0 {
-		emptyCells--
-	}
+	fullCells, partialSteps, emptyCells := progressCells(progressFraction(elapsed, total), width)
 
 	fillColor := st.ProgressFilled.GetForeground()
 	emptyColor := st.ProgressEmpty.GetBackground()
 	if progressColorSet(fillColor) && progressColorSet(emptyColor) {
-		filled := ""
-		if fullCells > 0 {
-			filled = st.ProgressFilled.Background(fillColor).Render(strings.Repeat(" ", fullCells))
-		}
-		partial := ""
-		if partialSteps > 0 {
-			partial = st.ProgressFilled.Background(emptyColor).Render(progressPartialBlocks[partialSteps])
-		}
-		empty := ""
-		if emptyCells > 0 {
-			empty = st.ProgressEmpty.Background(emptyColor).Render(strings.Repeat(" ", emptyCells))
-		}
-		return filled + partial + empty
+		return renderColoredProgress(st, fillColor, emptyColor, fullCells, partialSteps, emptyCells)
 	}
+	return renderGlyphProgress(st, fullCells, partialSteps, emptyCells)
+}
 
+// progressFraction returns elapsed/total clamped to [0,1], reading an unknown
+// or non-finite total as no progress at all.
+func progressFraction(elapsed, total float64) float64 {
+	if total <= 0 {
+		return 0
+	}
+	frac := elapsed / total
+	if math.IsNaN(frac) || math.IsInf(frac, 0) || frac < 0 {
+		return 0
+	}
+	return min(frac, 1)
+}
+
+// progressCells splits frac of width cells into whole filled cells, the
+// eighths filled in the boundary cell, and the empty cells left after it.
+func progressCells(frac float64, width int) (fullCells, partialSteps, emptyCells int) {
+	maxSteps := width * progressCellSteps
+	filledSteps := min(max(int(math.Round(frac*float64(maxSteps))), 0), maxSteps)
+
+	fullCells = filledSteps / progressCellSteps
+	partialSteps = filledSteps % progressCellSteps
+	emptyCells = width - fullCells
+	if partialSteps > 0 {
+		emptyCells--
+	}
+	return fullCells, partialSteps, emptyCells
+}
+
+// renderColoredProgress paints the bar with background colours so the filled
+// span reads as one solid block.
+func renderColoredProgress(st styles.Styles, fillColor, emptyColor color.Color, fullCells, partialSteps, emptyCells int) string {
+	filled := ""
+	if fullCells > 0 {
+		filled = st.ProgressFilled.Background(fillColor).Render(strings.Repeat(" ", fullCells))
+	}
+	partial := ""
+	if partialSteps > 0 {
+		partial = st.ProgressFilled.Background(emptyColor).Render(progressPartialBlocks[partialSteps])
+	}
+	empty := ""
+	if emptyCells > 0 {
+		empty = st.ProgressEmpty.Background(emptyColor).Render(strings.Repeat(" ", emptyCells))
+	}
+	return filled + partial + empty
+}
+
+// renderGlyphProgress is the fallback for styles that carry no colour: block
+// glyphs stand in for the coloured spans.
+func renderGlyphProgress(st styles.Styles, fullCells, partialSteps, emptyCells int) string {
 	filled := strings.Repeat("█", fullCells)
 	if partialSteps > 0 {
 		filled += progressPartialBlocks[partialSteps]
@@ -95,34 +112,31 @@ func renderProgressBar(elapsed, total float64, width int, st styles.Styles) stri
 // rendered separately by render() as the 4-glyph RSND cluster.
 func (s StatusBar) modeLabels(abbreviated bool) []string {
 	var out []string
-	if abbreviated {
-		if s.VisualMode {
-			out = append(out, "V")
-		}
-		if s.YankCount > 0 {
-			if s.YankIsCut {
-				out = append(out, fmt.Sprintf("Cut:%d", s.YankCount))
-			} else {
-				out = append(out, fmt.Sprintf("Y:%d", s.YankCount))
-			}
-		}
-		if s.SelectionCount > 0 {
-			out = append(out, fmt.Sprintf("Sel:%d", s.SelectionCount))
-		}
-		return out
-	}
 	if s.VisualMode {
-		out = append(out, "Visual")
+		out = append(out, pickLabel(abbreviated, "V", "Visual"))
 	}
 	if s.YankCount > 0 {
-		if s.YankIsCut {
-			out = append(out, fmt.Sprintf("Cut: %d", s.YankCount))
-		} else {
-			out = append(out, fmt.Sprintf("Yank: %d", s.YankCount))
-		}
+		out = append(out, fmt.Sprintf(yankLabelFormat(abbreviated, s.YankIsCut), s.YankCount))
 	}
 	if s.SelectionCount > 0 {
-		out = append(out, fmt.Sprintf("Sel: %d", s.SelectionCount))
+		out = append(out, fmt.Sprintf(pickLabel(abbreviated, "Sel:%d", "Sel: %d"), s.SelectionCount))
 	}
 	return out
+}
+
+// pickLabel chooses between the short and verbose form of a chip label.
+func pickLabel(abbreviated bool, short, verbose string) string {
+	if abbreviated {
+		return short
+	}
+	return verbose
+}
+
+// yankLabelFormat returns the printf format for the yank/cut chip, which
+// changes wording as well as length between the two forms.
+func yankLabelFormat(abbreviated, isCut bool) string {
+	if isCut {
+		return pickLabel(abbreviated, "Cut:%d", "Cut: %d")
+	}
+	return pickLabel(abbreviated, "Y:%d", "Yank: %d")
 }

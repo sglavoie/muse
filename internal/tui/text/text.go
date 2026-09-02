@@ -262,44 +262,60 @@ func BuildFilterSeparator(sortIndicator string, filterActive bool, filterText, f
 	filterView = singleLine(filterView)
 	renderedHint = singleLine(renderedHint)
 
-	var prefix string
-	if sortIndicator != "" {
-		if leadingNewline {
-			prefix = "\n" + sortIndicator
-		} else {
-			prefix = sortIndicator + "\n"
-		}
-	}
-	sep := "\n"
-	if !leadingNewline {
-		sep = ""
+	prefix := sortPrefix(sortIndicator, leadingNewline)
+	sep := ""
+	if leadingNewline {
+		sep = "\n"
 	}
 	if filterActive {
-		if filterText == "" && renderedHint != "" {
-			return prefix + sep + clampLine("Filter: "+renderedHint, width) + "\n"
-		}
-		fv := filterView
-		if fv == "" {
-			fv = filterText
-		}
-		return prefix + sep + clampLine("Filter: "+fv, width) + "\n"
+		return prefix + sep + clampLine("Filter: "+activeFilterBody(filterText, filterView, renderedHint), width) + "\n"
 	}
 	if filterText != "" {
-		ft := filterText
-		maxLen := width - ansi.StringWidth("Filter: ")
-		if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
-			ft = ansi.Truncate(ft, maxLen, "…")
-		}
-		line := "Filter: " + ft
-		if ansi.StringWidth(line) > width {
-			line = clampLine(line, width)
-		}
-		return prefix + sep + line + "\n"
+		return prefix + sep + committedFilterLine(filterText, width) + "\n"
 	}
 	if leadingNewline {
 		return prefix + "\n\n"
 	}
 	return prefix
+}
+
+// sortPrefix places the sort indicator on its own line, above the filter line
+// when there is a heading above it and below it otherwise.
+func sortPrefix(sortIndicator string, leadingNewline bool) string {
+	if sortIndicator == "" {
+		return ""
+	}
+	if leadingNewline {
+		return "\n" + sortIndicator
+	}
+	return sortIndicator + "\n"
+}
+
+// activeFilterBody is what follows "Filter: " while the user is typing: the
+// placeholder hint on an empty query, otherwise the live input view.
+func activeFilterBody(filterText, filterView, renderedHint string) string {
+	if filterText == "" && renderedHint != "" {
+		return renderedHint
+	}
+	if filterView == "" {
+		return filterText
+	}
+	return filterView
+}
+
+// committedFilterLine renders a committed query, eliding the query itself
+// before falling back to a hard clamp of the whole line.
+func committedFilterLine(filterText string, width int) string {
+	ft := filterText
+	maxLen := width - ansi.StringWidth("Filter: ")
+	if maxLen > 0 && ansi.StringWidth(ft) > maxLen {
+		ft = ansi.Truncate(ft, maxLen, "…")
+	}
+	line := "Filter: " + ft
+	if ansi.StringWidth(line) > width {
+		return clampLine(line, width)
+	}
+	return line
 }
 
 func clampLine(line string, width int) string {

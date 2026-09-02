@@ -89,6 +89,28 @@ func (tp TagMergePicker) handlePickKey(key string) (TagMergePicker, tea.Cmd) {
 	switch key {
 	case "esc":
 		return tp, func() tea.Msg { return TagMergeDismissedMsg{} }
+	case "enter":
+		return tp.advanceToConfirm(), nil
+	default:
+		return tp.editSelection(key), nil
+	}
+}
+
+// advanceToConfirm locks in the focused destination tag and moves to the
+// confirmation step, or stays put when the filtered list is empty.
+func (tp TagMergePicker) advanceToConfirm() TagMergePicker {
+	if len(tp.filtered) == 0 {
+		return tp
+	}
+	tp.dest = tp.dests[tp.filtered[tp.cursor]]
+	tp.step = tagMergeStepConfirming
+	return tp
+}
+
+// editSelection applies the cursor-movement and filter-editing keys of the
+// picking step.
+func (tp TagMergePicker) editSelection(key string) TagMergePicker {
+	switch key {
 	case "up", "k":
 		if tp.cursor > 0 {
 			tp.cursor--
@@ -97,12 +119,6 @@ func (tp TagMergePicker) handlePickKey(key string) (TagMergePicker, tea.Cmd) {
 		if tp.cursor < len(tp.filtered)-1 {
 			tp.cursor++
 		}
-	case "enter":
-		if len(tp.filtered) == 0 {
-			return tp, nil
-		}
-		tp.dest = tp.dests[tp.filtered[tp.cursor]]
-		tp.step = tagMergeStepConfirming
 	case "backspace":
 		if len(tp.filter) > 0 {
 			runes := []rune(tp.filter)
@@ -117,7 +133,7 @@ func (tp TagMergePicker) handlePickKey(key string) (TagMergePicker, tea.Cmd) {
 			tp = tp.refilter()
 		}
 	}
-	return tp, nil
+	return tp
 }
 
 func (tp TagMergePicker) handleConfirmKey(key string) (TagMergePicker, tea.Cmd) {

@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -68,34 +69,42 @@ func ParseDuration(s string) (float64, error) {
 		return 0, nil
 	}
 	parts := strings.Split(s, ":")
+	// Seconds-per-unit for each field, most significant first: "M:SS" is
+	// minutes and seconds; "H:MM:SS" adds hours in front.
+	var multipliers []int
 	switch len(parts) {
 	case 2:
-		m, err := strconv.Atoi(parts[0])
-		if err != nil || m < 0 {
-			return 0, fmt.Errorf("invalid duration %q", s)
-		}
-		sec, err := strconv.Atoi(parts[1])
-		if err != nil || sec < 0 || sec > 59 {
-			return 0, fmt.Errorf("invalid duration %q", s)
-		}
-		return float64(m*60 + sec), nil
+		multipliers = []int{60, 1}
 	case 3:
-		h, err := strconv.Atoi(parts[0])
-		if err != nil || h < 0 {
-			return 0, fmt.Errorf("invalid duration %q", s)
-		}
-		m, err := strconv.Atoi(parts[1])
-		if err != nil || m < 0 || m > 59 {
-			return 0, fmt.Errorf("invalid duration %q", s)
-		}
-		sec, err := strconv.Atoi(parts[2])
-		if err != nil || sec < 0 || sec > 59 {
-			return 0, fmt.Errorf("invalid duration %q", s)
-		}
-		return float64(h*3600 + m*60 + sec), nil
+		multipliers = []int{3600, 60, 1}
 	default:
 		return 0, fmt.Errorf("invalid duration %q", s)
 	}
+
+	total := 0
+	for i, part := range parts {
+		// Only the leading field is unbounded; the rest must stay below the
+		// unit above them.
+		n, ok := parseDurationField(part, i > 0)
+		if !ok {
+			return 0, fmt.Errorf("invalid duration %q", s)
+		}
+		total += n * multipliers[i]
+	}
+	return float64(total), nil
+}
+
+// parseDurationField parses one colon-separated duration field. It must be a
+// non-negative integer, and at most 59 when bounded.
+func parseDurationField(part string, bounded bool) (int, bool) {
+	n, err := strconv.Atoi(part)
+	if err != nil || n < 0 {
+		return 0, false
+	}
+	if bounded && n > 59 {
+		return 0, false
+	}
+	return n, true
 }
 
 // Editor is a fullscreen overlay for editing track metadata.
@@ -292,39 +301,17 @@ func (e Editor) Duration() string { return e.Fields[FieldDuration].Value() }
 // Hash returns the track hash this editor was opened for.
 func (e Editor) Hash() string { return e.hash }
 
+// maxLabelW is the column width of the field labels: len("*Duration:").
+const maxLabelW = 10
+
 // Render produces a centered box with five labelled, editable fields.
 func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
-	labels := [fieldCount]string{"Title:", "Artist:", "Album:", "Genre:", "Duration:"}
-	if e.IsBulk() {
-		for i := range fieldCount {
-			if e.Dirty[i] {
-				labels[i] = "*" + labels[i]
-			}
-		}
-	}
-	maxLabelW := 10 // len("*Duration:")
-
 	// Box width: use most of the terminal width, capped at 80.
 	boxInner := max(min(termWidth-8, 80), overlay.MinInnerWidth)
-
 	contentWidth := boxInner - overlay.HPadding
 	valueWidth := contentWidth - maxLabelW - 1
 
-	title := " ✎ Edit Metadata "
-	if e.renameTitle != "" {
-		title = e.renameTitle
-	} else if e.IsBulk() {
-		title = fmt.Sprintf(" ✎ Edit Metadata (%d tracks) ", e.trackCount())
-	}
-
-	// Determine which field indices to render.
-	renderFields := []int{int(fieldTitle), int(fieldArtist), int(fieldAlbum), int(fieldGenre), int(FieldDuration)}
-	switch e.mode {
-	case ModeRenameArtist:
-		renderFields = []int{int(fieldArtist)}
-	case ModeRenameAlbum:
-		renderFields = []int{int(fieldAlbum)}
-	}
+	renderFields := e.renderFieldIndices()
 
 	var lines []string
 
@@ -332,6 +319,7 @@ func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
 	lines = append(lines, overlay.CornerTL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CornerTR)
 
 	// Title row (centered).
+	title := e.boxTitle()
 	titlePad := max(0, boxInner-ansi.StringWidth(title))
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
@@ -341,57 +329,121 @@ func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
 	lines = append(lines, overlay.CrossL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CrossR)
 
 	// Field rows.
-	remainingContinuationLines := metadataEditorContinuationBudget(termHeight, len(renderFields))
-	for _, i := range renderFields {
-		if Field(i) == e.focused {
-			// View() renders at Width+1 visible chars (cursor adds 1),
-			// so subtract 1 to fit exactly in valueWidth.
-			e.Fields[i].SetWidth(valueWidth - 1)
-			pos := e.Fields[i].Position()
-			e.Fields[i].CursorEnd()    // force viewport recomputation with new width
-			e.Fields[i].SetCursor(pos) // restore cursor; viewport is now correctly sized
-			padded := e.Fields[i].View()
-			row := fmt.Sprintf("  %*s %s  ", maxLabelW, labels[i], padded)
-			lines = append(lines, overlay.BorderV+s.Accent.Render(row)+overlay.BorderV)
-		} else {
-			value := e.Fields[i].Value()
-			wrapLines := metadataEditorValueLines(value, valueWidth, remainingContinuationLines)
-			remainingContinuationLines -= max(len(wrapLines)-1, 0)
-			for j, wl := range wrapLines {
-				visLen := ansi.StringWidth(wl)
-				if visLen < valueWidth {
-					wl += strings.Repeat(" ", valueWidth-visLen)
-				}
-				var row string
-				if j == 0 {
-					row = fmt.Sprintf("  %*s %s  ", maxLabelW, labels[i], wl)
-				} else {
-					row = fmt.Sprintf("  %*s %s  ", maxLabelW, "", wl)
-				}
-				lines = append(lines, overlay.BorderV+row+overlay.BorderV)
-			}
-		}
-	}
+	lines = append(lines, e.fieldRowLines(renderFields, valueWidth, termHeight, s)...)
 
 	// Bottom border.
 	lines = append(lines, overlay.CornerBL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CornerBR)
 
 	// Hint.
-	var hint string
-	if e.mode != ModeDefault {
-		hint = "  enter save · esc cancel"
-	} else {
-		hint = "  tab/shift+tab fields · enter save · esc cancel"
-		if e.IsBulk() {
-			anyDirty := e.Dirty[0] || e.Dirty[1] || e.Dirty[2] || e.Dirty[3] || e.Dirty[4]
-			if anyDirty {
-				hint += " · * = will be applied"
-			}
+	lines = append(lines, e.hintLine())
+
+	return centerBoxLines(lines, termWidth, termHeight)
+}
+
+// fieldLabels returns the field labels, marking every bulk-edit field that
+// differs from its opening value with a leading "*".
+func (e Editor) fieldLabels() [fieldCount]string {
+	labels := [fieldCount]string{"Title:", "Artist:", "Album:", "Genre:", "Duration:"}
+	if !e.IsBulk() {
+		return labels
+	}
+	for i := range fieldCount {
+		if e.Dirty[i] {
+			labels[i] = "*" + labels[i]
 		}
 	}
-	lines = append(lines, hint)
+	return labels
+}
 
-	// Center the box.
+// boxTitle returns the box's centered title row text.
+func (e Editor) boxTitle() string {
+	switch {
+	case e.renameTitle != "":
+		return e.renameTitle
+	case e.IsBulk():
+		return fmt.Sprintf(" ✎ Edit Metadata (%d tracks) ", e.trackCount())
+	default:
+		return " ✎ Edit Metadata "
+	}
+}
+
+// renderFieldIndices returns which field indices this mode shows: every field
+// by default, or the single renamed field in a rename mode.
+func (e Editor) renderFieldIndices() []int {
+	switch e.mode {
+	case ModeRenameArtist:
+		return []int{int(fieldArtist)}
+	case ModeRenameAlbum:
+		return []int{int(fieldAlbum)}
+	default:
+		return []int{int(fieldTitle), int(fieldArtist), int(fieldAlbum), int(fieldGenre), int(FieldDuration)}
+	}
+}
+
+// fieldRowLines renders one entry per visible field: the focused field as a
+// live text input, the others as wrapped static values drawing on a shared
+// continuation-line budget so the box still fits the terminal height.
+func (e Editor) fieldRowLines(renderFields []int, valueWidth, termHeight int, s styles.Styles) []string {
+	labels := e.fieldLabels()
+	remainingContinuationLines := metadataEditorContinuationBudget(termHeight, len(renderFields))
+
+	var lines []string
+	for _, i := range renderFields {
+		if Field(i) == e.focused {
+			row := e.focusedFieldRow(i, labels[i], valueWidth)
+			lines = append(lines, overlay.BorderV+s.Accent.Render(row)+overlay.BorderV)
+			continue
+		}
+		wrapLines := metadataEditorValueLines(e.Fields[i].Value(), valueWidth, remainingContinuationLines)
+		remainingContinuationLines -= max(len(wrapLines)-1, 0)
+		lines = append(lines, valueFieldRows(labels[i], wrapLines, valueWidth)...)
+	}
+	return lines
+}
+
+// focusedFieldRow renders the focused field's row content, resizing its text
+// input to the box first.
+func (e Editor) focusedFieldRow(i int, label string, valueWidth int) string {
+	// View() renders at Width+1 visible chars (cursor adds 1),
+	// so subtract 1 to fit exactly in valueWidth.
+	e.Fields[i].SetWidth(valueWidth - 1)
+	pos := e.Fields[i].Position()
+	e.Fields[i].CursorEnd()    // force viewport recomputation with new width
+	e.Fields[i].SetCursor(pos) // restore cursor; viewport is now correctly sized
+	return fmt.Sprintf("  %*s %s  ", maxLabelW, label, e.Fields[i].View())
+}
+
+// valueFieldRows renders a non-focused field: the label sits on the first row
+// and any wrapped remainder continues under a blank label column.
+func valueFieldRows(label string, wrapLines []string, valueWidth int) []string {
+	rows := make([]string, 0, len(wrapLines))
+	for j, wl := range wrapLines {
+		if visLen := ansi.StringWidth(wl); visLen < valueWidth {
+			wl += strings.Repeat(" ", valueWidth-visLen)
+		}
+		rowLabel := label
+		if j > 0 {
+			rowLabel = ""
+		}
+		rows = append(rows, overlay.BorderV+fmt.Sprintf("  %*s %s  ", maxLabelW, rowLabel, wl)+overlay.BorderV)
+	}
+	return rows
+}
+
+// hintLine returns the key hint printed under the box.
+func (e Editor) hintLine() string {
+	if e.mode != ModeDefault {
+		return "  enter save · esc cancel"
+	}
+	hint := "  tab/shift+tab fields · enter save · esc cancel"
+	if e.IsBulk() && slices.Contains(e.Dirty[:], true) {
+		hint += " · * = will be applied"
+	}
+	return hint
+}
+
+// centerBoxLines pads the assembled box so it sits centered in the terminal.
+func centerBoxLines(lines []string, termWidth, termHeight int) string {
 	boxW := ansi.StringWidth(lines[0])
 	boxH := len(lines)
 

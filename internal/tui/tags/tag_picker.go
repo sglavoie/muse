@@ -280,11 +280,10 @@ func (tp TagPicker) Render(termWidth, termHeight int, s styles.Styles) string {
 	return overlay.RenderCenteredLines(boxLines, s.Dim.Render(hint), termWidth, termHeight)
 }
 
-func (tp TagPicker) buildBoxLines(termWidth int, s styles.Styles) []string {
-	const modalTitle = " Manage Tags "
-	const minInner = 32
-
-	innerWidth := max(minInner, ansi.StringWidth(modalTitle)+2)
+// tagPickerInnerWidth sizes the modal to its widest tag row, then clamps it to
+// what the terminal can show.
+func (tp TagPicker) tagPickerInnerWidth(termWidth, minInner int) int {
+	innerWidth := minInner
 	for _, i := range tp.Filtered {
 		// Use plain name for width calculation (dot is always 1 visible cell).
 		label := tp.Items[i].checkboxLabel() + " ● " + tp.Items[i].tag.Name
@@ -293,9 +292,14 @@ func (tp TagPicker) buildBoxLines(termWidth int, s styles.Styles) []string {
 	if maxInner := termWidth - 4; termWidth > 0 && innerWidth > maxInner {
 		innerWidth = maxInner
 	}
-	if innerWidth < 1 {
-		innerWidth = 1
-	}
+	return max(innerWidth, 1)
+}
+
+func (tp TagPicker) buildBoxLines(termWidth int, s styles.Styles) []string {
+	const modalTitle = " Manage Tags "
+	const minInner = 32
+
+	innerWidth := tp.tagPickerInnerWidth(termWidth, max(minInner, ansi.StringWidth(modalTitle)+2))
 	contentWidth := max(innerWidth-2, 0)
 
 	var lines []string
@@ -325,36 +329,42 @@ func (tp TagPicker) buildBoxLines(termWidth int, s styles.Styles) []string {
 	lines = append(lines, tpCrossL+strings.Repeat(tpBorderH, innerWidth)+tpCrossR)
 
 	// Tag rows.
-	if len(tp.Filtered) == 0 && tp.filterText() == "" {
-		noTags := text.Pad("(no tags — type to create)", contentWidth)
-		lines = append(lines, tpBorderV+" "+noTags+" "+tpBorderV)
-	} else {
-		for rowIdx, itemIdx := range tp.Filtered {
-			item := tp.Items[itemIdx]
-			dot := styles.ColoredDot(item.tag.Color)
-			label := item.checkboxLabel() + " " + dot + " " + item.tag.Name
-			padded := text.Pad(label, contentWidth)
-			rowContent := " " + padded + " "
-			if rowIdx == tp.Cursor {
-				lines = append(lines, tpBorderV+s.Accent.Render(rowContent)+tpBorderV)
-			} else {
-				lines = append(lines, tpBorderV+rowContent+tpBorderV)
-			}
-		}
-
-		// "+ Create" synthetic row when filter text matches nothing.
-		if len(tp.Filtered) == 0 && tp.filterText() != "" {
-			createLabel := `+ Create "` + tp.filterText() + `"`
-			padded := text.Pad(createLabel, contentWidth)
-			rowContent := " " + padded + " "
-			lines = append(lines, tpBorderV+s.Accent.Render(rowContent)+tpBorderV)
-		}
-	}
+	lines = append(lines, tp.tagRowLines(contentWidth, s)...)
 
 	// Bottom border.
 	lines = append(lines, tpCornerBL+strings.Repeat(tpBorderH, innerWidth)+tpCornerBR)
 
 	return lines
+}
+
+// tagRowLines renders the modal's list body: one row per filtered tag, the
+// "no tags" placeholder when the list is empty and unfiltered, or the
+// "+ Create" row when a filter text matches nothing.
+func (tp TagPicker) tagRowLines(contentWidth int, s styles.Styles) []string {
+	if len(tp.Filtered) == 0 {
+		if tp.filterText() == "" {
+			return []string{tagPickerRow(text.Pad("(no tags — type to create)", contentWidth), false, s)}
+		}
+		createLabel := `+ Create "` + tp.filterText() + `"`
+		return []string{tagPickerRow(text.Pad(createLabel, contentWidth), true, s)}
+	}
+	lines := make([]string, 0, len(tp.Filtered))
+	for rowIdx, itemIdx := range tp.Filtered {
+		item := tp.Items[itemIdx]
+		label := item.checkboxLabel() + " " + styles.ColoredDot(item.tag.Color) + " " + item.tag.Name
+		lines = append(lines, tagPickerRow(text.Pad(label, contentWidth), rowIdx == tp.Cursor, s))
+	}
+	return lines
+}
+
+// tagPickerRow frames one padded row between the modal's vertical borders,
+// accenting it when focused.
+func tagPickerRow(padded string, accented bool, s styles.Styles) string {
+	rowContent := " " + padded + " "
+	if accented {
+		return tpBorderV + s.Accent.Render(rowContent) + tpBorderV
+	}
+	return tpBorderV + rowContent + tpBorderV
 }
 
 // checkboxLabel returns the [x], [ ], or [~] prefix for the item.

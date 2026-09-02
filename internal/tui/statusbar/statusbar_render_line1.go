@@ -23,22 +23,36 @@ func (s StatusBar) renderRightZone(ctx statusBarRenderContext) string {
 		segments = append(segments, notifErr.Render(" File watcher unavailable — press r to rescan manually "))
 	}
 	if top := s.TopNotification(); top.Msg != "" {
-		msg := top.Msg
-		if !s.UndoExpiresAt.IsZero() {
-			if remaining := time.Until(s.UndoExpiresAt); remaining > 0 {
-				msg = fmt.Sprintf("%s (%ds)", msg, int(math.Ceil(remaining.Seconds())))
-			}
-		}
-		style := notif
-		if strings.HasPrefix(msg, "Error:") {
-			style = notifErr
-		}
-		if top.isFading() {
-			style = style.Faint(true)
-		}
+		msg := s.withUndoCountdown(top.Msg)
+		style := notificationStyle(msg, top.isFading(), notif, notifErr)
 		segments = append(segments, style.Render(" "+msg+" "))
 	}
 	return strings.Join(segments, ctx.r(" "))
+}
+
+// withUndoCountdown appends the seconds left on an open undo window to msg.
+func (s StatusBar) withUndoCountdown(msg string) string {
+	if s.UndoExpiresAt.IsZero() {
+		return msg
+	}
+	remaining := time.Until(s.UndoExpiresAt)
+	if remaining <= 0 {
+		return msg
+	}
+	return fmt.Sprintf("%s (%ds)", msg, int(math.Ceil(remaining.Seconds())))
+}
+
+// notificationStyle picks the error or ordinary notification style, faded
+// while the notification is on its way out.
+func notificationStyle(msg string, fading bool, notif, notifErr lipgloss.Style) lipgloss.Style {
+	style := notif
+	if strings.HasPrefix(msg, "Error:") {
+		style = notifErr
+	}
+	if fading {
+		style = style.Faint(true)
+	}
+	return style
 }
 
 func (s StatusBar) renderLine1(ctx statusBarRenderContext, right string) string {

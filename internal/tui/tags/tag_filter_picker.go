@@ -60,7 +60,29 @@ func (tp TagFilterPicker) refilter() TagFilterPicker {
 func (tp TagFilterPicker) HandleKey(key string) (TagFilterPicker, tea.Cmd) {
 	switch key {
 	case "esc", "ctrl+t":
-		return tp, func() tea.Msg { return TagFilterDismissedMsg{} }
+		return tp, tagFilterDismiss
+	case "enter":
+		return tp.confirmSelection()
+	default:
+		return tp.editSelection(key), nil
+	}
+}
+
+func tagFilterDismiss() tea.Msg { return TagFilterDismissedMsg{} }
+
+// confirmSelection emits the focused tag, or dismisses when nothing matches.
+func (tp TagFilterPicker) confirmSelection() (TagFilterPicker, tea.Cmd) {
+	if len(tp.filtered) == 0 {
+		return tp, tagFilterDismiss
+	}
+	tag := tp.tags[tp.filtered[tp.cursor]]
+	return tp, func() tea.Msg { return TagFilterPickedMsg{Tag: tag} }
+}
+
+// editSelection applies the cursor-movement and filter-editing keys, all of
+// which only mutate picker state and never emit a command.
+func (tp TagFilterPicker) editSelection(key string) TagFilterPicker {
+	switch key {
 	case "up", "k":
 		if tp.cursor > 0 {
 			tp.cursor--
@@ -69,12 +91,6 @@ func (tp TagFilterPicker) HandleKey(key string) (TagFilterPicker, tea.Cmd) {
 		if tp.cursor < len(tp.filtered)-1 {
 			tp.cursor++
 		}
-	case "enter":
-		if len(tp.filtered) == 0 {
-			return tp, func() tea.Msg { return TagFilterDismissedMsg{} }
-		}
-		tag := tp.tags[tp.filtered[tp.cursor]]
-		return tp, func() tea.Msg { return TagFilterPickedMsg{Tag: tag} }
 	case "backspace":
 		if len(tp.filter) > 0 {
 			runes := []rune(tp.filter)
@@ -87,7 +103,7 @@ func (tp TagFilterPicker) HandleKey(key string) (TagFilterPicker, tea.Cmd) {
 			tp = tp.refilter()
 		}
 	}
-	return tp, nil
+	return tp
 }
 
 // Render produces a centered overlay string for the tag filter picker.

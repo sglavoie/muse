@@ -2,24 +2,31 @@ package artists
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
 	"charm.land/lipgloss/v2"
 
+	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
+// emptyMessage renders the dim placeholder shown when a level has no items at
+// all, truncated to the panel width when one is known.
+func (v View) emptyMessage(msg string) string {
+	if v.Width > 0 {
+		msg = text.Truncate(msg, v.Width)
+	}
+	return v.Styles.Dim.Render(msg)
+}
+
 func (v View) renderArtists() string {
 	items := v.EffectiveArtists()
 	if len(v.Artists) == 0 {
-		msg := "No artists yet — add music to your library"
-		if v.Width > 0 {
-			msg = text.Truncate(msg, v.Width)
-		}
-		return v.Styles.Dim.Render(msg)
+		return v.emptyMessage("No artists yet — add music to your library")
 	}
 	stripLine := v.renderStateStrip(len(v.Artists), len(items))
 	if len(items) == 0 {
@@ -33,37 +40,38 @@ func (v View) renderArtists() string {
 	for i, name := range items[start:end] {
 		absIdx := start + i
 		_, isFav := v.FavoriteArtists[name]
-		isOdd := absIdx%2 == 1
 		labelW, countStr := text.RowLabelWidthAndCount(v.Width, v.ArtistCounts, name)
 		label := text.FavPrefix(name, labelW, isFav)
-		switch {
-		case absIdx == v.Cursor && isFav:
-			a := v.Styles.FavArtistAccent
-			lines[i] = a.Render(label) + a.Render(countStr)
-		case absIdx == v.Cursor:
-			a := v.Styles.Accent
-			lines[i] = a.Render(label) + a.Render(countStr)
-		case isFav:
-			labelStyled := styles.WithZebraBg(v.Styles.FavArtist, v.Styles.ZebraBg, isOdd).Render(label)
-			lines[i] = labelStyled + styles.RenderCountZone(v.Styles, countStr, isOdd)
-		case isOdd:
-			labelStyled := lipgloss.NewStyle().Background(v.Styles.ZebraBg).Render(label)
-			lines[i] = labelStyled + styles.RenderCountZone(v.Styles, countStr, true)
-		default:
-			lines[i] = label + styles.RenderCountZone(v.Styles, countStr, false)
-		}
+		lines[i] = v.renderArtistRow(label, countStr, absIdx == v.Cursor, isFav, absIdx%2 == 1)
 	}
 	return strip.JoinStrip(stripLine, strings.Join(lines, "\n"))
+}
+
+// renderArtistRow styles one artist row's label and trailing count zone
+// according to its focus, favourite and zebra state.
+func (v View) renderArtistRow(label, countStr string, isFocused, isFav, isOdd bool) string {
+	switch {
+	case isFocused && isFav:
+		a := v.Styles.FavArtistAccent
+		return a.Render(label) + a.Render(countStr)
+	case isFocused:
+		a := v.Styles.Accent
+		return a.Render(label) + a.Render(countStr)
+	case isFav:
+		labelStyled := styles.WithZebraBg(v.Styles.FavArtist, v.Styles.ZebraBg, isOdd).Render(label)
+		return labelStyled + styles.RenderCountZone(v.Styles, countStr, isOdd)
+	case isOdd:
+		labelStyled := lipgloss.NewStyle().Background(v.Styles.ZebraBg).Render(label)
+		return labelStyled + styles.RenderCountZone(v.Styles, countStr, true)
+	default:
+		return label + styles.RenderCountZone(v.Styles, countStr, false)
+	}
 }
 
 func (v View) renderAlbums() string {
 	items := v.EffectiveAlbums()
 	if len(v.Albums) == 0 {
-		msg := "No albums found for this artist"
-		if v.Width > 0 {
-			msg = text.Truncate(msg, v.Width)
-		}
-		return v.Styles.Dim.Render(msg)
+		return v.emptyMessage("No albums found for this artist")
 	}
 	stripLine := v.renderStateStrip(len(v.Albums), len(items))
 	if len(items) == 0 {
@@ -97,11 +105,7 @@ func (v View) renderAlbums() string {
 func (v View) renderTracks() string {
 	items := v.EffectiveTracks()
 	if len(v.Tracks) == 0 {
-		msg := "No tracks found for this album"
-		if v.Width > 0 {
-			msg = text.Truncate(msg, v.Width)
-		}
-		return v.Styles.Dim.Render(msg)
+		return v.emptyMessage("No tracks found for this album")
 	}
 	stripLine := v.renderStateStrip(len(v.Tracks), len(items))
 	if len(items) == 0 {
@@ -109,88 +113,144 @@ func (v View) renderTracks() string {
 	}
 
 	cols := ComputeTrack(v.Width)
-	header := strings.Repeat(" ", cols.SelectionMarker) + v.Styles.ColHead.Render(
-		fmt.Sprintf("%-*s %-*s %*s",
-			cols.Position, "#", cols.Title, "Title", cols.Duration, "Time"))
 
 	maxRows := v.visibleRows()
 	start, end := layout.VisibleWindow(v.ScrollOffset, len(items), maxRows)
+	window := items[start:end]
+	showDisc := anyMultiDisc(window)
 
-	showDisc := false
-	for _, track := range items[start:end] {
-		if track.DiscNumber > 1 {
-			showDisc = true
-			break
-		}
+	lines := make([]string, len(window))
+	for i, track := range window {
+		lines[i] = v.renderTrackRow(v.trackRowAt(track, start+i, cols, showDisc))
 	}
-
-	lines := make([]string, end-start)
-	for i, track := range items[start:end] {
-		absIdx := start + i
-		isFocused := absIdx == v.Cursor
-		isNowPlaying := v.NowPlayingHash != "" && track.Hash == v.NowPlayingHash
-		_, isSelected := v.SelectedHashes[track.Hash]
-
-		markerStr := text.RowMarker(isSelected, isFocused, isNowPlaying, v.NowPlayingIcon)
-
-		var rawPos string
-		if showDisc {
-			rawPos = text.FormatTrackPos(track.TrackNumber, track.DiscNumber, absIdx+1)
-		} else {
-			rawPos = text.FormatTrackPosSimple(track.TrackNumber, absIdx+1)
-		}
-		pos := fmt.Sprintf("%-*s", cols.Position, rawPos)
-		_, isTrackFav := v.FavoriteHashes[track.Hash]
-		titleStr := text.FavPrefix(track.Title, cols.Title, isTrackFav)
-		dur := fmt.Sprintf("%*s", cols.Duration, text.FormatDurationSecs(track.Duration))
-		switch {
-		case isFocused:
-			accent := v.Styles.Accent
-			sep := accent.Render(" ")
-			titleStr = styles.AccentFavRender(accent, v.Styles.FavoriteAccent, isTrackFav, titleStr)
-			lines[i] = accent.Render(markerStr+pos) + sep + titleStr + sep + accent.Render(dur)
-		case isNowPlaying:
-			np := v.Styles.NowPlayingRow
-			sep := np.Render(" ")
-			titleStr = v.Styles.NowPlayingTitle.Render(titleStr)
-			lines[i] = np.Render(markerStr+pos) + sep + titleStr + sep + np.Render(dur)
-		default:
-			isOdd := absIdx%2 == 1
-			rowBg := v.Styles.ZebraBg
-			useBg := isOdd
-			if isSelected {
-				rowBg = v.Styles.SelectionBg
-				useBg = true
-			}
-			if isTrackFav {
-				titleStr = styles.WithZebraBg(v.Styles.Favorite, rowBg, useBg).Render(titleStr)
-			}
-			if useBg {
-				zb := lipgloss.NewStyle().Background(rowBg)
-				if !isTrackFav {
-					titleStr = styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(titleStr)
-				}
-				var markerPart string
-				if isSelected {
-					markerPart = v.Styles.AccentMark.Background(rowBg).Render("●") + zb.Render(" ")
-				} else {
-					markerPart = zb.Render(markerStr)
-				}
-				posPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(pos)
-				durPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(dur)
-				sep := zb.Render(" ")
-				lines[i] = markerPart + posPart + sep + titleStr + sep + durPart
-			} else {
-				if !isTrackFav {
-					titleStr = v.Styles.TextPrimary.Render(titleStr)
-				}
-				lines[i] = markerStr + v.Styles.TextTertiary.Render(pos) + " " + titleStr + " " + v.Styles.TextTertiary.Render(dur)
-			}
-		}
-	}
-	body := strings.Join(lines, "\n")
-	rest := header + "\n" + body
+	rest := trackHeader(cols, v.Styles) + "\n" + strings.Join(lines, "\n")
 	return strip.JoinStrip(stripLine, rest)
+}
+
+// anyMultiDisc reports whether the window contains a track from a disc past
+// the first, which is what promotes positions to the "disc-track" form.
+func anyMultiDisc(tracks []library.Track) bool {
+	for _, track := range tracks {
+		if track.DiscNumber > 1 {
+			return true
+		}
+	}
+	return false
+}
+
+// trackHeader builds the column-heading line above the track rows.
+func trackHeader(cols TrackColumns, st styles.Styles) string {
+	return strings.Repeat(" ", cols.SelectionMarker) + st.ColHead.Render(
+		fmt.Sprintf("%-*s %-*s %*s",
+			cols.Position, "#", cols.Title, "Title", cols.Duration, "Time"))
+}
+
+// trackRow carries one track row's pre-padded cells and visual state so each
+// per-state renderer below takes a single argument.
+type trackRow struct {
+	marker   string
+	pos      string
+	title    string
+	dur      string
+	focused  bool
+	playing  bool
+	selected bool
+	fav      bool
+	odd      bool
+}
+
+// trackRowAt derives the row descriptor for the track at absolute index absIdx.
+func (v View) trackRowAt(track library.Track, absIdx int, cols TrackColumns, showDisc bool) trackRow {
+	isFocused := absIdx == v.Cursor
+	isNowPlaying := v.NowPlayingHash != "" && track.Hash == v.NowPlayingHash
+	_, isSelected := v.SelectedHashes[track.Hash]
+	_, isTrackFav := v.FavoriteHashes[track.Hash]
+
+	rawPos := text.FormatTrackPosSimple(track.TrackNumber, absIdx+1)
+	if showDisc {
+		rawPos = text.FormatTrackPos(track.TrackNumber, track.DiscNumber, absIdx+1)
+	}
+
+	return trackRow{
+		marker:   text.RowMarker(isSelected, isFocused, isNowPlaying, v.NowPlayingIcon),
+		pos:      fmt.Sprintf("%-*s", cols.Position, rawPos),
+		title:    text.FavPrefix(track.Title, cols.Title, isTrackFav),
+		dur:      fmt.Sprintf("%*s", cols.Duration, text.FormatDurationSecs(track.Duration)),
+		focused:  isFocused,
+		playing:  isNowPlaying,
+		selected: isSelected,
+		fav:      isTrackFav,
+		odd:      absIdx%2 == 1,
+	}
+}
+
+func (v View) renderTrackRow(r trackRow) string {
+	switch {
+	case r.focused:
+		return v.renderFocusedTrackRow(r)
+	case r.playing:
+		return v.renderNowPlayingTrackRow(r)
+	default:
+		return v.renderRestingTrackRow(r)
+	}
+}
+
+func (v View) renderFocusedTrackRow(r trackRow) string {
+	accent := v.Styles.Accent
+	sep := accent.Render(" ")
+	title := styles.AccentFavRender(accent, v.Styles.FavoriteAccent, r.fav, r.title)
+	return accent.Render(r.marker+r.pos) + sep + title + sep + accent.Render(r.dur)
+}
+
+func (v View) renderNowPlayingTrackRow(r trackRow) string {
+	np := v.Styles.NowPlayingRow
+	sep := np.Render(" ")
+	title := v.Styles.NowPlayingTitle.Render(r.title)
+	return np.Render(r.marker+r.pos) + sep + title + sep + np.Render(r.dur)
+}
+
+// renderRestingTrackRow renders a row that is neither focused nor playing,
+// resolving which background — zebra, bulk-selection, or none — the row wears.
+func (v View) renderRestingTrackRow(r trackRow) string {
+	rowBg := v.Styles.ZebraBg
+	useBg := r.odd
+	if r.selected {
+		rowBg = v.Styles.SelectionBg
+		useBg = true
+	}
+	title := r.title
+	if r.fav {
+		title = styles.WithZebraBg(v.Styles.Favorite, rowBg, useBg).Render(title)
+	}
+	if !useBg {
+		return v.renderUnfilledTrackRow(r, title)
+	}
+	return v.renderFilledTrackRow(r, title, rowBg)
+}
+
+// renderFilledTrackRow renders a resting row whose every cell carries rowBg,
+// so separators and gaps have to be painted too.
+func (v View) renderFilledTrackRow(r trackRow, title string, rowBg color.Color) string {
+	zb := lipgloss.NewStyle().Background(rowBg)
+	if !r.fav {
+		title = styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(title)
+	}
+	markerPart := zb.Render(r.marker)
+	if r.selected {
+		markerPart = v.Styles.AccentMark.Background(rowBg).Render("●") + zb.Render(" ")
+	}
+	posPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(r.pos)
+	durPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(r.dur)
+	sep := zb.Render(" ")
+	return markerPart + posPart + sep + title + sep + durPart
+}
+
+// renderUnfilledTrackRow renders a resting row with no row background.
+func (v View) renderUnfilledTrackRow(r trackRow, title string) string {
+	if !r.fav {
+		title = v.Styles.TextPrimary.Render(title)
+	}
+	return r.marker + v.Styles.TextTertiary.Render(r.pos) + " " + title + " " + v.Styles.TextTertiary.Render(r.dur)
 }
 
 // renderStateStrip builds the unified single-line state strip carrying the
@@ -199,6 +259,27 @@ func (v View) renderTracks() string {
 // filtered is the count after filtering (equal to total when no filter is
 // active).
 func (v View) renderStateStrip(total, filtered int) string {
+	breadcrumb := v.breadcrumb()
+	hint := ""
+	if len(breadcrumb) > 1 {
+		hint = "esc ←"
+	}
+	sortChunk := strip.SortChunk{Label: v.StripSortLabel, Indicator: v.StripSortIndicator}
+	counts := strip.CountsChunk{
+		Filtered:  filtered,
+		Total:     total,
+		Filtering: v.FilterText != "",
+	}
+	var sel *strip.SelectionChunk
+	if n := len(v.SelectedHashes); n > 0 {
+		sel = &strip.SelectionChunk{Count: n}
+	}
+	return strip.Render(v.Width, breadcrumb, sortChunk, v.filterChunk(), counts, sel, hint, v.Styles)
+}
+
+// breadcrumb returns the strip's trail from the root label down to the
+// currently opened artist and album.
+func (v View) breadcrumb() []string {
 	root := v.StripViewLabel
 	if root == "" {
 		root = "Artists"
@@ -217,27 +298,20 @@ func (v View) renderStateStrip(total, filtered int) string {
 			breadcrumb = append(breadcrumb, v.SelectedAlbum)
 		}
 	}
-	hint := ""
-	if len(breadcrumb) > 1 {
-		hint = "esc ←"
-	}
-	sortChunk := strip.SortChunk{Label: v.StripSortLabel, Indicator: v.StripSortIndicator}
+	return breadcrumb
+}
+
+// filterChunk describes the filter zone of the strip: the live input view
+// while typing, or the placeholder hint when the query is still empty.
+func (v View) filterChunk() strip.FilterChunk {
 	f := strip.FilterChunk{Active: v.FilterActive, Text: v.FilterText}
-	if v.FilterActive {
-		if v.FilterText == "" && v.FilterHint != "" {
-			f.Hint = v.Styles.TextSecondary.Render(v.FilterHint)
-		} else {
-			f.InputView = v.FilterView
-		}
+	if !v.FilterActive {
+		return f
 	}
-	counts := strip.CountsChunk{
-		Filtered:  filtered,
-		Total:     total,
-		Filtering: v.FilterText != "",
+	if v.FilterText == "" && v.FilterHint != "" {
+		f.Hint = v.Styles.TextSecondary.Render(v.FilterHint)
+		return f
 	}
-	var sel *strip.SelectionChunk
-	if n := len(v.SelectedHashes); n > 0 {
-		sel = &strip.SelectionChunk{Count: n}
-	}
-	return strip.Render(v.Width, breadcrumb, sortChunk, f, counts, sel, hint, v.Styles)
+	f.InputView = v.FilterView
+	return f
 }
