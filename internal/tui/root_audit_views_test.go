@@ -48,11 +48,11 @@ func TestDurationAuditBatchSyncsHistoryTracks(t *testing.T) {
 func TestDurationAuditBatchSyncsPlaylistTracks(t *testing.T) {
 	m := newDurationAuditModel()
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
-	m.playlists.level = pltui.TrackLevel
-	m.playlists.tracks = []db.PlaylistTrackRow{{Hash: "h1", DurationMs: 120000}}
+	m.playlists.Level = pltui.TrackLevel
+	m.playlists.Tracks = []db.PlaylistTrackRow{{Hash: "h1", DurationMs: 120000}}
 
 	nm, _ := durationAuditBatchUpdate(t, m, library.DurationFix{Hash: "h1", DurationMs: 240000})
-	if got := nm.playlists.tracks[0].DurationMs; got != 240000 {
+	if got := nm.playlists.Tracks[0].DurationMs; got != 240000 {
 		t.Errorf("playlist track DurationMs after audit: got %d, want 240000", got)
 	}
 }

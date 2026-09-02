@@ -49,10 +49,10 @@ func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (M
 		}
 		m.library = m.library.RefreshView()
 	}
-	if m.playlists.level == pltui.TrackLevel {
-		for i := range m.playlists.tracks {
-			if ms, ok := fixMap[m.playlists.tracks[i].Hash]; ok {
-				m.playlists.tracks[i].DurationMs = ms
+	if m.playlists.Level == pltui.TrackLevel {
+		for i := range m.playlists.Tracks {
+			if ms, ok := fixMap[m.playlists.Tracks[i].Hash]; ok {
+				m.playlists.Tracks[i].DurationMs = ms
 			}
 		}
 		m = m.preservePlaylistsSort()

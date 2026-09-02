@@ -141,8 +141,8 @@ func TestFavoritePickerQueuePlaylistAndFavoritesTracks(t *testing.T) {
 	t.Run("playlist", func(t *testing.T) {
 		m := newModel()
 		m.activeView = viewPlaylists
-		m.playlists.level = pltui.TrackLevel
-		m.playlists.tracks = []db.PlaylistTrackRow{{ID: 1, Hash: "p1", Title: "Playlist", Artist: "A", Album: "B"}}
+		m.playlists.Level = pltui.TrackLevel
+		m.playlists.Tracks = []db.PlaylistTrackRow{{ID: 1, Hash: "p1", Title: "Playlist", Artist: "A", Album: "B"}}
 		opened := openFavoritePickerForTest(t, m)
 		if got := opened.overlay.favoriteTargetPicker.tracks[0].Hash; got != "p1" {
 			t.Fatalf("playlist picker hash = %q", got)

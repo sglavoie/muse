@@ -64,7 +64,7 @@ func TestJumpToGenre_UnknownGenre(t *testing.T) {
 
 func TestJumpToPlaylist(t *testing.T) {
 	m := newModelWithTracks()
-	m.playlists.playlists = []db.PlaylistRow{
+	m.playlists.Playlists = []db.PlaylistRow{
 		{ID: 1, Name: "Alpha"},
 		{ID: 2, Name: "Beta"},
 		{ID: 3, Name: "Gamma"},
@@ -74,17 +74,17 @@ func TestJumpToPlaylist(t *testing.T) {
 	if m.activeView != viewPlaylists {
 		t.Errorf("activeView: want viewPlaylists(%d), got %d", viewPlaylists, m.activeView)
 	}
-	if m.playlists.level != pltui.ListLevel {
-		t.Errorf("level: want ListLevel, got %v", m.playlists.level)
+	if m.playlists.Level != pltui.ListLevel {
+		t.Errorf("level: want ListLevel, got %v", m.playlists.Level)
 	}
-	if m.playlists.cursor != 1 {
-		t.Errorf("cursor: want 1 (Beta), got %d", m.playlists.cursor)
+	if m.playlists.Cursor != 1 {
+		t.Errorf("cursor: want 1 (Beta), got %d", m.playlists.Cursor)
 	}
 }
 
 func TestJumpToPlaylist_NotFound(t *testing.T) {
 	m := newModelWithTracks()
-	m.playlists.playlists = []db.PlaylistRow{{ID: 1, Name: "Alpha"}}
+	m.playlists.Playlists = []db.PlaylistRow{{ID: 1, Name: "Alpha"}}
 	original := m.activeView
 	m = m.jumpToPlaylist("Nonexistent")
 	if m.activeView != original {

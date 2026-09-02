@@ -128,17 +128,17 @@ func (m Model) watchSyncHistoryMetadata(tracks []library.Track) Model {
 // watchSyncPlaylistMetadata refreshes playlist track metadata so the
 // playlists view reflects watcher-detected changes.
 func (m Model) watchSyncPlaylistMetadata(tracks []library.Track) Model {
-	if m.playlists.level != pltui.TrackLevel {
+	if m.playlists.Level != pltui.TrackLevel {
 		return m
 	}
 	for _, t := range tracks {
-		for i := range m.playlists.tracks {
-			if m.playlists.tracks[i].Hash == t.Hash {
-				m.playlists.tracks[i].Path = t.Path
-				m.playlists.tracks[i].Title = t.Title
-				m.playlists.tracks[i].Artist = t.Artist
-				m.playlists.tracks[i].Album = t.Album
-				m.playlists.tracks[i].DurationMs = int64(t.Duration * 1000)
+		for i := range m.playlists.Tracks {
+			if m.playlists.Tracks[i].Hash == t.Hash {
+				m.playlists.Tracks[i].Path = t.Path
+				m.playlists.Tracks[i].Title = t.Title
+				m.playlists.Tracks[i].Artist = t.Artist
+				m.playlists.Tracks[i].Album = t.Album
+				m.playlists.Tracks[i].DurationMs = int64(t.Duration * 1000)
 			}
 		}
 	}

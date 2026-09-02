@@ -16,19 +16,19 @@ func TestUndoDeletePlaylistScrollsToRestoredEntry(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "A"}, {ID: 2, Name: "B"}, {ID: 3, Name: "C"}, {ID: 4, Name: "D"}, {ID: 5, Name: "E"}}))
 	m.activeView = viewPlaylists
-	m.playlists.cursor = 0
-	m.playlists.scrollOffset = 0
+	m.playlists.Cursor = 0
+	m.playlists.ScrollOffset = 0
 	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	nm := next.(Model)
 
-	nm.playlists.scrollOffset = 3
+	nm.playlists.ScrollOffset = 3
 
 	nm2 := nm.handleUndo()
-	if nm2.playlists.cursor != 0 {
-		t.Fatalf("expected cursor at 0 after undo, got %d", nm2.playlists.cursor)
+	if nm2.playlists.Cursor != 0 {
+		t.Fatalf("expected cursor at 0 after undo, got %d", nm2.playlists.Cursor)
 	}
-	if nm2.playlists.scrollOffset > nm2.playlists.cursor {
-		t.Fatalf("scrollOffset %d should be <= cursor %d so restored entry is visible", nm2.playlists.scrollOffset, nm2.playlists.cursor)
+	if nm2.playlists.ScrollOffset > nm2.playlists.Cursor {
+		t.Fatalf("scrollOffset %d should be <= cursor %d so restored entry is visible", nm2.playlists.ScrollOffset, nm2.playlists.Cursor)
 	}
 }
 
@@ -38,7 +38,7 @@ func TestUndoDeletePlaylistShowsNotification(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "A"}, {ID: 2, Name: "B"}}))
 	m.activeView = viewPlaylists
-	m.playlists.cursor = 0
+	m.playlists.Cursor = 0
 
 	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	nm := next.(Model)
@@ -77,13 +77,13 @@ func TestUndoBulkRemovePlaylistTracksShowsNotification(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd))
 	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{{ID: 10, Position: 1, Title: "Song A"}, {ID: 20, Position: 2, Title: "Song B"}, {ID: 30, Position: 3, Title: "Song C"}})
-	m.playlists.selectedTrackIDs = map[int64]struct{}{10: {}, 20: {}}
+	m.playlists.SelectedTrackIDs = map[int64]struct{}{10: {}, 20: {}}
 
 	m.setUndoSlot(undoBulkRemovePlaylistTracksAction{
 		entries: []db.PlaylistTrackRow{{ID: 10, Position: 1, Title: "Song A"}, {ID: 20, Position: 2, Title: "Song B"}},
 		indices: []int{0, 1},
 	}, nil)
-	m.playlists.tracks = []db.PlaylistTrackRow{{ID: 30, Position: 3, Title: "Song C"}}
+	m.playlists.Tracks = []db.PlaylistTrackRow{{ID: 30, Position: 3, Title: "Song C"}}
 
 	nm := m.handleUndo()
 	if nm.statusBar.TopNotification().Msg == "" {
@@ -109,26 +109,26 @@ func TestUndoDeletePlaylistCursorVisibleBelowViewport(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists(rows))
 	m.activeView = viewPlaylists
-	m.playlists.height = 8
+	m.playlists.Height = 8
 
-	m.playlists.cursor = 19
-	m.playlists.scrollOffset = 14
+	m.playlists.Cursor = 19
+	m.playlists.ScrollOffset = 14
 	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	nm := next.(Model)
 
-	nm.playlists.cursor = 0
-	nm.playlists.scrollOffset = 0
+	nm.playlists.Cursor = 0
+	nm.playlists.ScrollOffset = 0
 
 	nm2 := nm.handleUndo()
 
-	if nm2.playlists.cursor != 19 {
-		t.Fatalf("expected cursor at 19 after undo, got %d", nm2.playlists.cursor)
+	if nm2.playlists.Cursor != 19 {
+		t.Fatalf("expected cursor at 19 after undo, got %d", nm2.playlists.Cursor)
 	}
 
 	reserve := 3
-	maxRows := max(1, nm2.playlists.height-reserve)
-	if nm2.playlists.cursor >= nm2.playlists.scrollOffset+maxRows {
-		t.Errorf("cursor %d not visible: scrollOffset=%d, maxRows=%d", nm2.playlists.cursor, nm2.playlists.scrollOffset, maxRows)
+	maxRows := max(1, nm2.playlists.Height-reserve)
+	if nm2.playlists.Cursor >= nm2.playlists.ScrollOffset+maxRows {
+		t.Errorf("cursor %d not visible: scrollOffset=%d, maxRows=%d", nm2.playlists.Cursor, nm2.playlists.ScrollOffset, maxRows)
 	}
 }
 
@@ -145,25 +145,25 @@ func TestUndoRemovePlaylistTrackCursorVisibleBelowViewport(t *testing.T) {
 	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "Test"}}))
 	m.activeView = viewPlaylists
 	m = drillIntoPlaylistTrackLevel(m, tracks)
-	m.playlists.height = 8
+	m.playlists.Height = 8
 
-	m.playlists.cursor = 19
-	m.playlists.scrollOffset = 14
+	m.playlists.Cursor = 19
+	m.playlists.ScrollOffset = 14
 	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	nm := next.(Model)
 
-	nm.playlists.cursor = 0
-	nm.playlists.scrollOffset = 0
+	nm.playlists.Cursor = 0
+	nm.playlists.ScrollOffset = 0
 
 	nm2 := nm.handleUndo()
 
-	if nm2.playlists.cursor != 19 {
-		t.Fatalf("expected cursor at 19 after undo, got %d", nm2.playlists.cursor)
+	if nm2.playlists.Cursor != 19 {
+		t.Fatalf("expected cursor at 19 after undo, got %d", nm2.playlists.Cursor)
 	}
 
 	reserve := 3
-	maxRows := max(1, nm2.playlists.height-reserve)
-	if nm2.playlists.cursor >= nm2.playlists.scrollOffset+maxRows {
-		t.Errorf("cursor %d not visible: scrollOffset=%d, maxRows=%d", nm2.playlists.cursor, nm2.playlists.scrollOffset, maxRows)
+	maxRows := max(1, nm2.playlists.Height-reserve)
+	if nm2.playlists.Cursor >= nm2.playlists.ScrollOffset+maxRows {
+		t.Errorf("cursor %d not visible: scrollOffset=%d, maxRows=%d", nm2.playlists.Cursor, nm2.playlists.ScrollOffset, maxRows)
 	}
 }

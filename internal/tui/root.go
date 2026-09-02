@@ -106,7 +106,7 @@ type Model struct {
 	fixtureSafeCommands bool
 
 	library    libtui.View
-	playlists  PlaylistsView
+	playlists  pltui.PlaylistsView
 	queue      QueueView
 	queueDirty bool // true when queue has unsaved mutations since last save-as-playlist or clear
 	browse     BrowseView

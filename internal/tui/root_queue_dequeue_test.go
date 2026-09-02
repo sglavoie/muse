@@ -117,12 +117,12 @@ func TestDequeueTrackMsgDoesNotTouchPlaylistTracks(t *testing.T) {
 	next, _ := m.Update(DequeueTrackMsg{Index: 0})
 	nm := next.(Model)
 
-	if len(nm.playlists.tracks) != len(playlistTracks) {
+	if len(nm.playlists.Tracks) != len(playlistTracks) {
 		t.Fatalf("playlist tracks must be unchanged after dequeue: expected %d, got %d",
-			len(playlistTracks), len(nm.playlists.tracks))
+			len(playlistTracks), len(nm.playlists.Tracks))
 	}
-	if nm.playlists.tracks[0].ID != playlistTracks[0].ID {
+	if nm.playlists.Tracks[0].ID != playlistTracks[0].ID {
 		t.Fatalf("playlist track ID must be unchanged: expected %d, got %d",
-			playlistTracks[0].ID, nm.playlists.tracks[0].ID)
+			playlistTracks[0].ID, nm.playlists.Tracks[0].ID)
 	}
 }

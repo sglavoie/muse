@@ -94,18 +94,18 @@ func (m Model) forwardFilterMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
 }
 
 func (m Model) forwardPlaylistCreateMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
-	if m.playlists.isCreating() && m.activeView == viewPlaylists {
+	if m.playlists.IsCreating() && m.activeView == viewPlaylists {
 		var cmd tea.Cmd
-		m.playlists, cmd = m.playlists.updateCreateInputMsg(msg)
+		m.playlists, cmd = m.playlists.UpdateCreateInputMsg(msg)
 		return m, cmd, true
 	}
 	return m, nil, false
 }
 
 func (m Model) forwardPlaylistRenameMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
-	if m.playlists.isRenaming() && m.activeView == viewPlaylists {
+	if m.playlists.IsRenaming() && m.activeView == viewPlaylists {
 		var cmd tea.Cmd
-		m.playlists, cmd = m.playlists.updateRenameInputMsg(msg)
+		m.playlists, cmd = m.playlists.UpdateRenameInputMsg(msg)
 		return m, cmd, true
 	}
 	return m, nil, false

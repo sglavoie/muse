@@ -10,6 +10,7 @@ import (
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -141,7 +142,7 @@ func TestResetAllSorts(t *testing.T) {
 	m := Model{
 		library:   libtui.View{SortState: sorting.SortState{Field: sorting.SortArtist}},
 		queue:     QueueView{sortState: sorting.SortState{Field: sorting.SortTitle}},
-		playlists: PlaylistsView{sortState: sorting.SortState{Field: sorting.SortName}},
+		playlists: pltui.PlaylistsView{SortState: sorting.SortState{Field: sorting.SortName}},
 		browse: BrowseView{
 			artists: ArtistsView{sortState: sorting.SortState{Field: sorting.SortName}},
 			albums:  AlbumsView{sortState: sorting.SortState{Field: sorting.SortTitle}},
@@ -156,7 +157,7 @@ func TestResetAllSorts(t *testing.T) {
 	if m.queue.sortState.Field != sorting.SortDefault {
 		t.Error("queue sort not reset")
 	}
-	if m.playlists.sortState.Field != sorting.SortDefault {
+	if m.playlists.SortState.Field != sorting.SortDefault {
 		t.Error("playlists sort not reset")
 	}
 	if m.browse.artists.sortState.Field != sorting.SortDefault {

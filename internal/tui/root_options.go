@@ -379,7 +379,7 @@ func WithStatusBarTrack(artist, title, source string) Option {
 
 // WithPlaylists pre-populates the playlists view.
 func WithPlaylists(rows []db.PlaylistRow) Option {
-	return func(m *Model) { m.playlists.playlists = rows }
+	return func(m *Model) { m.playlists.Playlists = rows }
 }
 
 // WithLibraryTracks pre-populates the library index from cached tracks.

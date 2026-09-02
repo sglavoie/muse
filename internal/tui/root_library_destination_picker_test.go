@@ -127,7 +127,7 @@ func TestRootLibraryAConfirmPlaylistAddsToPlaylist(t *testing.T) {
 	pa := &stubPlaylistAdder{}
 	m := New(context.Background(), WithPlaylistAdder(pa))
 	m.library.Index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
-	m.playlists.playlists = []db.PlaylistRow{{ID: 7, Name: "Favourites"}}
+	m.playlists.Playlists = []db.PlaylistRow{{ID: 7, Name: "Favourites"}}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	nm := next.(Model)
@@ -177,7 +177,7 @@ func TestRootLibraryAConfirmPlaylistClearsSelectionAndNotifies(t *testing.T) {
 	m.library.Index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 	m.library.Index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
 	m.library.SelectedHashes = map[string]struct{}{"hash-one": {}, "hash-two": {}}
-	m.playlists.playlists = []db.PlaylistRow{{ID: 42, Name: "Chill Vibes"}}
+	m.playlists.Playlists = []db.PlaylistRow{{ID: 42, Name: "Chill Vibes"}}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	nm := next.(Model)

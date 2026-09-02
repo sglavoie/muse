@@ -27,14 +27,14 @@ func (a undoDeletePlaylistAction) perform(m Model) (Model, tea.Cmd) {
 			slog.Warn("undo delete playlist failed", "err", err)
 		}
 	}
-	idx := min(a.idx, len(m.playlists.playlists))
-	playlists := make([]db.PlaylistRow, len(m.playlists.playlists)+1)
-	copy(playlists, m.playlists.playlists[:idx])
+	idx := min(a.idx, len(m.playlists.Playlists))
+	playlists := make([]db.PlaylistRow, len(m.playlists.Playlists)+1)
+	copy(playlists, m.playlists.Playlists[:idx])
 	playlists[idx] = a.entry
-	copy(playlists[idx+1:], m.playlists.playlists[idx:])
-	m.playlists.playlists = playlists
-	m.playlists.cursor = idx
-	m.playlists = m.playlists.ensureCursorVisible()
+	copy(playlists[idx+1:], m.playlists.Playlists[idx:])
+	m.playlists.Playlists = playlists
+	m.playlists.Cursor = idx
+	m.playlists = m.playlists.EnsureCursorVisible()
 	m.statusBar.Notify("Undone: restored playlist")
 	return m, nil
 }
@@ -58,14 +58,14 @@ func (a undoRemovePlaylistTrackAction) perform(m Model) (Model, tea.Cmd) {
 			slog.Warn("undo remove playlist track failed", "err", err)
 		}
 	}
-	idx := min(a.idx, len(m.playlists.tracks))
-	tracks := make([]db.PlaylistTrackRow, len(m.playlists.tracks)+1)
-	copy(tracks, m.playlists.tracks[:idx])
+	idx := min(a.idx, len(m.playlists.Tracks))
+	tracks := make([]db.PlaylistTrackRow, len(m.playlists.Tracks)+1)
+	copy(tracks, m.playlists.Tracks[:idx])
 	tracks[idx] = a.entry
-	copy(tracks[idx+1:], m.playlists.tracks[idx:])
-	m.playlists.tracks = tracks
-	m.playlists.cursor = idx
-	m.playlists = m.playlists.ensureCursorVisible()
+	copy(tracks[idx+1:], m.playlists.Tracks[idx:])
+	m.playlists.Tracks = tracks
+	m.playlists.Cursor = idx
+	m.playlists = m.playlists.EnsureCursorVisible()
 	m.statusBar.Notify("Undone: restored playlist track")
 	return m, nil
 }
@@ -95,19 +95,19 @@ func (a undoBulkRemovePlaylistTracksAction) perform(m Model) (Model, tea.Cmd) {
 		}
 	}
 	for i := range a.indices {
-		idx := min(a.indices[i], len(m.playlists.tracks))
-		tracks := make([]db.PlaylistTrackRow, len(m.playlists.tracks)+1)
-		copy(tracks, m.playlists.tracks[:idx])
+		idx := min(a.indices[i], len(m.playlists.Tracks))
+		tracks := make([]db.PlaylistTrackRow, len(m.playlists.Tracks)+1)
+		copy(tracks, m.playlists.Tracks[:idx])
 		tracks[idx] = a.entries[i]
-		copy(tracks[idx+1:], m.playlists.tracks[idx:])
-		m.playlists.tracks = tracks
+		copy(tracks[idx+1:], m.playlists.Tracks[idx:])
+		m.playlists.Tracks = tracks
 	}
-	if m.playlists.cursor < 0 {
-		m.playlists.cursor = 0
-	} else if m.playlists.cursor >= len(m.playlists.tracks) {
-		m.playlists.cursor = len(m.playlists.tracks) - 1
+	if m.playlists.Cursor < 0 {
+		m.playlists.Cursor = 0
+	} else if m.playlists.Cursor >= len(m.playlists.Tracks) {
+		m.playlists.Cursor = len(m.playlists.Tracks) - 1
 	}
-	m.playlists = m.playlists.ensureCursorVisible()
+	m.playlists = m.playlists.EnsureCursorVisible()
 	n := len(a.entries)
 	m.statusBar.Notify(fmt.Sprintf("Undone: restored %d playlist %s", n, text.Pluralize(n, "track", "tracks")))
 	return m, nil

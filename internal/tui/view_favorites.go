@@ -325,26 +325,3 @@ func (v FavoritesView) toggleSelection(idx int) FavoritesView {
 	}
 	return v
 }
-
-// clampAfterRemoval adjusts cursor and scrollOffset after items are removed
-// from a list of the given length. Returns the clamped values.
-func clampAfterRemoval(cursor, scrollOffset, length int) (int, int) {
-	if length == 0 {
-		return 0, 0
-	}
-	if cursor >= length {
-		cursor = length - 1
-	}
-	if cursor < 0 {
-		cursor = 0
-	}
-	maxOffset := length - 1
-	if scrollOffset > maxOffset {
-		scrollOffset = maxOffset
-	}
-	// Ensure the cursor is not above the visible window.
-	if scrollOffset > cursor {
-		scrollOffset = cursor
-	}
-	return cursor, scrollOffset
-}

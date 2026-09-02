@@ -122,9 +122,9 @@ func (m Model) handleCommandPaletteAction(act keys.Action, target viewID) (tea.M
 func (m Model) atCollectionLevelFor(act keys.Action) Model {
 	switch act {
 	case keys.ActionPlaylistCreate, keys.ActionSmartPlaylistCreate:
-		if m.activeView == viewPlaylists && !m.playlists.atListLevel() {
+		if m.activeView == viewPlaylists && !m.playlists.AtListLevel() {
 			m = exitVisualMode(m)
-			m.playlists = m.playlists.backToList()
+			m.playlists = m.playlists.BackToList()
 		}
 	case keys.ActionTagCreate:
 		if m.activeView == viewTags && m.tagsView.level == tagtui.TrackLevel {
@@ -273,37 +273,37 @@ func (m Model) handlePlaylistShuffleMsg() (Model, tea.Cmd) {
 		m.statusBar.Notify("No playlist focused")
 		return m, nil
 	}
-	if m.playlists.atListLevel() {
+	if m.playlists.AtListLevel() {
 		return m.shufflePlaylistFromList()
 	}
 	return m.shufflePlaylistFromTracks()
 }
 
 func (m Model) shufflePlaylistFromTracks() (Model, tea.Cmd) {
-	if m.playlists.smartQuery != nil {
+	if m.playlists.SmartQuery != nil {
 		m.statusBar.Notify("Cannot shuffle smart playlist")
 		return m, nil
 	}
-	if len(m.playlists.tracks) <= 1 {
+	if len(m.playlists.Tracks) <= 1 {
 		m.statusBar.Notify("Playlist too small to shuffle")
 		return m, nil
 	}
 
-	tracks := make([]db.PlaylistTrackRow, len(m.playlists.tracks))
-	copy(tracks, m.playlists.tracks)
+	tracks := make([]db.PlaylistTrackRow, len(m.playlists.Tracks))
+	copy(tracks, m.playlists.Tracks)
 	for i := len(tracks) - 1; i > 0; i-- {
 		j := rand.IntN(i + 1) //nolint:gosec // non-security random for playlist shuffle
 		tracks[i], tracks[j] = tracks[j], tracks[i]
 	}
-	m.playlists.tracks = tracks
+	m.playlists.Tracks = tracks
 	m = m.resetPlaylistsSort()
 
 	n := len(tracks)
 	m.statusBar.Notify(fmt.Sprintf("Playlist shuffled (%d tracks)", n))
 
 	var playlistID int64
-	if m.playlists.listCursor >= 0 && m.playlists.listCursor < len(m.playlists.playlists) {
-		playlistID = m.playlists.playlists[m.playlists.listCursor].ID
+	if m.playlists.ListCursor >= 0 && m.playlists.ListCursor < len(m.playlists.Playlists) {
+		playlistID = m.playlists.Playlists[m.playlists.ListCursor].ID
 	}
 
 	if playlistID > 0 {
@@ -321,7 +321,7 @@ func (m Model) shufflePlaylistFromTracks() (Model, tea.Cmd) {
 }
 
 func (m Model) shufflePlaylistFromList() (Model, tea.Cmd) {
-	pl, ok := m.playlists.focusedPlaylist()
+	pl, ok := m.playlists.FocusedPlaylist()
 	if !ok {
 		m.statusBar.Notify("No playlist focused")
 		return m, nil

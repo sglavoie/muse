@@ -142,7 +142,7 @@ func (m Model) clearActiveViewSelection() Model {
 			m.queue.entries[i].Selected = false
 		}
 	case viewPlaylists:
-		m.playlists.selectedTrackIDs = nil
+		m.playlists.SelectedTrackIDs = nil
 	case viewFavorites:
 		m.favorites = m.favorites.clearSelection()
 	case viewBrowse:

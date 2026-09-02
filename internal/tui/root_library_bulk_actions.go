@@ -23,7 +23,7 @@ func (m Model) handleLibraryBulkAction(action keys.Action) (tea.Model, tea.Cmd, 
 
 	tracks := m.bulkActionTracks()
 	if len(tracks) > 0 {
-		modal := pltui.NewDestinationPicker(m.playlists.playlists)
+		modal := pltui.NewDestinationPicker(m.playlists.Playlists)
 		m.overlay.destPicker = &modal
 		m.overlay.destPickerTracks = tracks
 	}
@@ -219,7 +219,7 @@ func (m Model) bulkTagTracks() []library.Track {
 }
 
 func (m *Model) handlePlaylistBulkRemove() bool {
-	if m.playlists.level != pltui.TrackLevel || !m.playlists.hasTrackSelection() {
+	if m.playlists.Level != pltui.TrackLevel || !m.playlists.HasTrackSelection() {
 		return false
 	}
 	newM, _ := m.handlePlaylistDeleteBulkTracks()

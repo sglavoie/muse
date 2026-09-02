@@ -115,7 +115,7 @@ func collectDebugInfo(m Model) DebugPanel {
 	p.scanning = m.scanning
 	p.scanned = m.scanned
 	p.scanTotal = m.scanTotal
-	p.playlistCount = len(m.playlists.playlists)
+	p.playlistCount = len(m.playlists.Playlists)
 	p.favoriteCount = len(m.favoriteHashes)
 	p.watchDegraded = m.watchDegraded
 

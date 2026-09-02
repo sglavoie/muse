@@ -9,15 +9,15 @@ import (
 // is created, repositions the cursor on the new entry, and triggers a
 // background count evaluation so the list shows actual track counts.
 func (m Model) handleSmartPlaylistCreatedMsg(msg smartPlaylistCreatedMsg) (Model, tea.Cmd) {
-	m.playlists.playlists = msg.playlists
+	m.playlists.Playlists = msg.playlists
 	m = m.preservePlaylistsSort()
-	for i, p := range m.playlists.effectivePlaylists() {
+	for i, p := range m.playlists.EffectivePlaylists() {
 		if p.ID == msg.id {
-			m.playlists.cursor = i
+			m.playlists.Cursor = i
 			break
 		}
 	}
-	m.playlists = m.playlists.ensureCursorVisible()
+	m.playlists = m.playlists.EnsureCursorVisible()
 	m.statusBar.Notify("Smart playlist created")
 	return m, evalSmartPlaylistCountsCmd(msg.playlists, m.smartEval)
 }
@@ -25,9 +25,9 @@ func (m Model) handleSmartPlaylistCreatedMsg(msg smartPlaylistCreatedMsg) (Model
 // handleSmartPlaylistEditedMsg updates the playlist list after a smart playlist
 // query is edited and triggers a background count evaluation.
 func (m Model) handleSmartPlaylistEditedMsg(msg smartPlaylistEditedMsg) (Model, tea.Cmd) {
-	m.playlists.playlists = msg.playlists
+	m.playlists.Playlists = msg.playlists
 	m = m.preservePlaylistsSort()
-	m.playlists = m.playlists.ensureCursorVisible()
+	m.playlists = m.playlists.EnsureCursorVisible()
 	m.statusBar.Notify("Smart playlist updated")
 	return m, evalSmartPlaylistCountsCmd(msg.playlists, m.smartEval)
 }
@@ -35,10 +35,10 @@ func (m Model) handleSmartPlaylistEditedMsg(msg smartPlaylistEditedMsg) (Model, 
 // handleSmartPlaylistCountsUpdatedMsg patches TrackCount for smart playlists
 // whose counts have been evaluated in the background.
 func (m Model) handleSmartPlaylistCountsUpdatedMsg(msg smartPlaylistCountsUpdatedMsg) Model {
-	for i, p := range m.playlists.playlists {
+	for i, p := range m.playlists.Playlists {
 		if p.IsSmart {
 			if count, ok := msg.counts[p.ID]; ok {
-				m.playlists.playlists[i].TrackCount = count
+				m.playlists.Playlists[i].TrackCount = count
 			}
 		}
 	}

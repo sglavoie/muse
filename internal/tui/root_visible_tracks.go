@@ -201,11 +201,11 @@ func (m Model) tagsVisibleTracks() ([]library.Track, string, bool) {
 }
 
 func (m Model) playlistsVisibleTracks() ([]library.Track, string, bool) {
-	if m.playlists.level != pltui.TrackLevel {
+	if m.playlists.Level != pltui.TrackLevel {
 		return nil, "Open a playlist before exporting", false
 	}
-	rows := m.playlists.displayTracks()
-	selected := m.playlists.selectedTrackIDs
+	rows := m.playlists.DisplayTracks()
+	selected := m.playlists.SelectedTrackIDs
 	tracks := make([]library.Track, 0, len(rows))
 	for _, r := range rows {
 		if len(selected) > 0 {
@@ -216,8 +216,8 @@ func (m Model) playlistsVisibleTracks() ([]library.Track, string, bool) {
 		tracks = append(tracks, trackFromPlaylistRow(r))
 	}
 	name := "Playlist"
-	if m.playlists.listCursor >= 0 && m.playlists.listCursor < len(m.playlists.playlists) {
-		name = m.playlists.playlists[m.playlists.listCursor].Name
+	if m.playlists.ListCursor >= 0 && m.playlists.ListCursor < len(m.playlists.Playlists) {
+		name = m.playlists.Playlists[m.playlists.ListCursor].Name
 	}
 	return tracks, "Playlists ▸ " + name, true
 }

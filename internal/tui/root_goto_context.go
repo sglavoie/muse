@@ -124,7 +124,7 @@ func (m Model) focusedGoToContext() goToContext {
 		}
 
 	case viewPlaylists:
-		if track, ok := m.playlists.focusedTrack(); ok {
+		if track, ok := m.playlists.FocusedTrack(); ok {
 			ctx := goToContext{artist: track.Artist, album: track.Album, found: true}
 			if libTrack, ok := m.library.Index.FindByHash(track.Hash); ok {
 				ctx.genre = libTrack.Genre

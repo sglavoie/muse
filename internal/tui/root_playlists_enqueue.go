@@ -30,8 +30,8 @@ func (m Model) handlePlaylistEnqueueAll() (Model, tea.Cmd, bool) {
 // whether the user is at list level (focused playlist) or track level (open
 // playlist). Returns false when no valid playlist can be determined.
 func (m Model) resolvePlaylistForEnqueue() (pid int64, name string, isSmart bool, smartQuery *db.SmartPlaylistQuery, ok bool) {
-	if m.playlists.atListLevel() {
-		pl, found := m.playlists.focusedPlaylist()
+	if m.playlists.AtListLevel() {
+		pl, found := m.playlists.FocusedPlaylist()
 		if !found {
 			return 0, "", false, nil, false
 		}
@@ -45,11 +45,11 @@ func (m Model) resolvePlaylistForEnqueue() (pid int64, name string, isSmart bool
 		return pl.ID, pl.Name, false, nil, true
 	}
 
-	if m.playlists.listCursor < 0 || m.playlists.listCursor >= len(m.playlists.playlists) {
+	if m.playlists.ListCursor < 0 || m.playlists.ListCursor >= len(m.playlists.Playlists) {
 		return 0, "", false, nil, false
 	}
-	entry := m.playlists.playlists[m.playlists.listCursor]
-	return entry.ID, entry.Name, m.playlists.smartQuery != nil, m.playlists.smartQuery, true
+	entry := m.playlists.Playlists[m.playlists.ListCursor]
+	return entry.ID, entry.Name, m.playlists.SmartQuery != nil, m.playlists.SmartQuery, true
 }
 
 func (m Model) enqueueSmartPlaylist(q db.SmartPlaylistQuery, playlistName string) (Model, tea.Cmd, bool) {

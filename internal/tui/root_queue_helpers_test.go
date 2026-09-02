@@ -159,15 +159,15 @@ func TestSwitchViewCancelsSaveAsPlaylist(t *testing.T) {
 func TestSwitchViewCancelsPlaylistInlineInputs(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewPlaylists
-	m.playlists.creating = true
-	m.playlists.renaming = true
+	m.playlists.Creating = true
+	m.playlists.Renaming = true
 
 	m = m.switchToView(viewLibrary)
 
-	if m.playlists.creating {
+	if m.playlists.Creating {
 		t.Error("playlists.creating should be false after switchToView")
 	}
-	if m.playlists.renaming {
+	if m.playlists.Renaming {
 		t.Error("playlists.renaming should be false after switchToView")
 	}
 }

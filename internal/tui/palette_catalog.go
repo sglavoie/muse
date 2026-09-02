@@ -217,7 +217,7 @@ func queueHasEntries(m Model) bool { return len(m.queue.entries) > 0 }
 // refuses the action under the same condition, so the dimmed row is backed by
 // a real guard rather than by rendering alone.
 func atPlaylistListLevel(m Model) bool {
-	return m.activeView == viewPlaylists && m.playlists.atListLevel()
+	return m.activeView == viewPlaylists && m.playlists.AtListLevel()
 }
 
 // activeViewIs builds the gate for a cursor-row entry: true only while one of

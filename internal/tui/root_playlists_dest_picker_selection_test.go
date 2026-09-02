@@ -109,7 +109,7 @@ func TestDestPickerCreateExitsVisualMode(t *testing.T) {
 	if got.activeView != viewPlaylists {
 		t.Errorf("expected activeView=viewPlaylists, got %v", got.activeView)
 	}
-	if !got.playlists.creating {
+	if !got.playlists.Creating {
 		t.Error("expected playlists.creating=true after destination picker create")
 	}
 }
@@ -120,7 +120,7 @@ func TestDestPickerCreateExitsVisualMode(t *testing.T) {
 func TestClearAllSelectionsClearsQueueAndPlaylists(t *testing.T) {
 	m := New(context.Background())
 	m.queue.entries = []QueueEntry{{Hash: "h1", Selected: true}, {Hash: "h2", Selected: true}}
-	m.playlists.selectedTrackIDs = map[int64]struct{}{1: {}, 2: {}}
+	m.playlists.SelectedTrackIDs = map[int64]struct{}{1: {}, 2: {}}
 
 	got := m.clearAllSelections()
 
@@ -129,7 +129,7 @@ func TestClearAllSelectionsClearsQueueAndPlaylists(t *testing.T) {
 			t.Errorf("queue entry %d should be deselected", i)
 		}
 	}
-	if got.playlists.selectedTrackIDs != nil {
+	if got.playlists.SelectedTrackIDs != nil {
 		t.Error("playlists.selectedTrackIDs should be nil after clearAllSelections")
 	}
 }

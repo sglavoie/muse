@@ -18,22 +18,22 @@ import (
 func TestRefreshDerivedViewsUpdatesPlaylistTracks(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
-	m.playlists.level = pltui.TrackLevel
-	m.playlists.tracks = []db.PlaylistTrackRow{
+	m.playlists.Level = pltui.TrackLevel
+	m.playlists.Tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
 	}
 
 	m.library.Index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum", "")
 	m = m.refreshDerivedViews()
 
-	if m.playlists.tracks[0].Title != "NewTitle" {
-		t.Errorf("playlist track title = %q, want %q", m.playlists.tracks[0].Title, "NewTitle")
+	if m.playlists.Tracks[0].Title != "NewTitle" {
+		t.Errorf("playlist track title = %q, want %q", m.playlists.Tracks[0].Title, "NewTitle")
 	}
-	if m.playlists.tracks[0].Artist != "NewArt" {
-		t.Errorf("playlist track artist = %q, want %q", m.playlists.tracks[0].Artist, "NewArt")
+	if m.playlists.Tracks[0].Artist != "NewArt" {
+		t.Errorf("playlist track artist = %q, want %q", m.playlists.Tracks[0].Artist, "NewArt")
 	}
-	if m.playlists.tracks[0].Album != "NewAlbum" {
-		t.Errorf("playlist track album = %q, want %q", m.playlists.tracks[0].Album, "NewAlbum")
+	if m.playlists.Tracks[0].Album != "NewAlbum" {
+		t.Errorf("playlist track album = %q, want %q", m.playlists.Tracks[0].Album, "NewAlbum")
 	}
 }
 
@@ -127,7 +127,7 @@ func TestRefreshDerivedViewsSkipsTagsTracksAtTagLevel(t *testing.T) {
 func TestRefreshDerivedViewsSkipsPlaylistTracksAtListLevel(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "Title", Album: "Alb"})
-	m.playlists.level = pltui.ListLevel
+	m.playlists.Level = pltui.ListLevel
 	m = m.refreshDerivedViews()
 }
 
@@ -142,8 +142,8 @@ func TestRefreshDerivedViewsUpdatesDuration(t *testing.T) {
 	m.library.SourceTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Duration: 120},
 	}
-	m.playlists.level = pltui.TrackLevel
-	m.playlists.tracks = []db.PlaylistTrackRow{
+	m.playlists.Level = pltui.TrackLevel
+	m.playlists.Tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "h1", Path: "/a.flac", DurationMs: 120_000},
 	}
 	m.tagsView.level = tagtui.TrackLevel
@@ -164,8 +164,8 @@ func TestRefreshDerivedViewsUpdatesDuration(t *testing.T) {
 	if m.library.SourceTracks[0].Duration != 200 {
 		t.Errorf("library sourceTracks Duration = %v, want 200", m.library.SourceTracks[0].Duration)
 	}
-	if m.playlists.tracks[0].DurationMs != 200_000 {
-		t.Errorf("playlists DurationMs = %d, want 200000", m.playlists.tracks[0].DurationMs)
+	if m.playlists.Tracks[0].DurationMs != 200_000 {
+		t.Errorf("playlists DurationMs = %d, want 200000", m.playlists.Tracks[0].DurationMs)
 	}
 	if m.tagsView.tracks[0].DurationMs != 200_000 {
 		t.Errorf("tags DurationMs = %d, want 200000", m.tagsView.tracks[0].DurationMs)

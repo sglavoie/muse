@@ -139,10 +139,10 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 		}
 		m.library = m.library.RefreshView()
 	}
-	if m.playlists.level == pltui.TrackLevel {
-		for i := range m.playlists.tracks {
-			if m.playlists.tracks[i].Hash == hash {
-				m.playlists.tracks[i].DurationMs = newDurationMs
+	if m.playlists.Level == pltui.TrackLevel {
+		for i := range m.playlists.Tracks {
+			if m.playlists.Tracks[i].Hash == hash {
+				m.playlists.Tracks[i].DurationMs = newDurationMs
 			}
 		}
 		m = m.preservePlaylistsSort()

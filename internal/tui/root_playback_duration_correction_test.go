@@ -24,8 +24,8 @@ func TestCorrectStoredDurationSyncsDerivedViews(t *testing.T) {
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
 	m.library.Mode = libtui.LibraryModeHistory
 	m.library.SourceTracks = []library.Track{{Hash: "h1", Duration: 360.0}}
-	m.playlists.level = pltui.TrackLevel
-	m.playlists.tracks = []db.PlaylistTrackRow{{Hash: "h1", DurationMs: 360000}}
+	m.playlists.Level = pltui.TrackLevel
+	m.playlists.Tracks = []db.PlaylistTrackRow{{Hash: "h1", DurationMs: 360000}}
 	m.favorites.level = favtui.ListLevel
 	m.favorites.category = favtui.CategoryTracks
 	m.favorites.tracks = []library.Track{{Hash: "h1", Duration: 360.0}}
@@ -37,8 +37,8 @@ func TestCorrectStoredDurationSyncsDerivedViews(t *testing.T) {
 	if nm.library.SourceTracks[0].Duration != 180.0 {
 		t.Errorf("history duration: got %f, want 180.0", nm.library.SourceTracks[0].Duration)
 	}
-	if nm.playlists.tracks[0].DurationMs != 180000 {
-		t.Errorf("playlist DurationMs: got %d, want 180000", nm.playlists.tracks[0].DurationMs)
+	if nm.playlists.Tracks[0].DurationMs != 180000 {
+		t.Errorf("playlist DurationMs: got %d, want 180000", nm.playlists.Tracks[0].DurationMs)
 	}
 	if nm.favorites.tracks[0].Duration != 180.0 {
 		t.Errorf("favorites duration: got %f, want 180.0", nm.favorites.tracks[0].Duration)

@@ -19,8 +19,8 @@ func TestPlaylistRenamedMsgAdjustsScrollOffset(t *testing.T) {
 	m.activeView = viewPlaylists
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 6})
 	m = next.(Model)
-	m.playlists.cursor = 0
-	m.playlists.scrollOffset = 0
+	m.playlists.Cursor = 0
+	m.playlists.ScrollOffset = 0
 
 	renamedPlaylists := make([]db.PlaylistRow, 0, 10)
 	for i := 1; i < 10; i++ {
@@ -31,11 +31,11 @@ func TestPlaylistRenamedMsgAdjustsScrollOffset(t *testing.T) {
 	next, _ = m.Update(playlistRenamedMsg{id: 1, playlists: renamedPlaylists})
 	m = next.(Model)
 
-	if m.playlists.cursor != 9 {
-		t.Fatalf("expected cursor=9 (renamed entry), got %d", m.playlists.cursor)
+	if m.playlists.Cursor != 9 {
+		t.Fatalf("expected cursor=9 (renamed entry), got %d", m.playlists.Cursor)
 	}
-	if m.playlists.scrollOffset+3 <= m.playlists.cursor {
-		t.Fatalf("cursor %d is not visible: scrollOffset=%d, visibleRows=3", m.playlists.cursor, m.playlists.scrollOffset)
+	if m.playlists.ScrollOffset+3 <= m.playlists.Cursor {
+		t.Fatalf("cursor %d is not visible: scrollOffset=%d, visibleRows=3", m.playlists.Cursor, m.playlists.ScrollOffset)
 	}
 }
 
@@ -50,8 +50,8 @@ func TestPlaylistCreatedMsgAdjustsScrollOffset(t *testing.T) {
 	m.activeView = viewPlaylists
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 6})
 	m = next.(Model)
-	m.playlists.cursor = 0
-	m.playlists.scrollOffset = 0
+	m.playlists.Cursor = 0
+	m.playlists.ScrollOffset = 0
 
 	createdPlaylists := make([]db.PlaylistRow, len(playlists))
 	copy(createdPlaylists, playlists)
@@ -60,10 +60,10 @@ func TestPlaylistCreatedMsgAdjustsScrollOffset(t *testing.T) {
 	next, _ = m.Update(playlistCreatedMsg{id: 6, playlists: createdPlaylists})
 	m = next.(Model)
 
-	if m.playlists.cursor != 5 {
-		t.Fatalf("expected cursor=5 (new entry), got %d", m.playlists.cursor)
+	if m.playlists.Cursor != 5 {
+		t.Fatalf("expected cursor=5 (new entry), got %d", m.playlists.Cursor)
 	}
-	if m.playlists.scrollOffset+3 <= m.playlists.cursor {
-		t.Fatalf("cursor %d is not visible: scrollOffset=%d, visibleRows=3", m.playlists.cursor, m.playlists.scrollOffset)
+	if m.playlists.ScrollOffset+3 <= m.playlists.Cursor {
+		t.Fatalf("cursor %d is not visible: scrollOffset=%d, visibleRows=3", m.playlists.Cursor, m.playlists.ScrollOffset)
 	}
 }

@@ -40,10 +40,10 @@ func samplePlaylistTracks() []db.PlaylistTrackRow {
 
 func playlistModelAtTrackLevel(m Model, tracks []db.PlaylistTrackRow, playlistID int64) Model {
 	m.activeView = viewPlaylists
-	m.playlists.level = pltui.TrackLevel
-	m.playlists.tracks = tracks
-	m.playlists.pendingLoadID = playlistID
-	m.playlists.cursor = 0
+	m.playlists.Level = pltui.TrackLevel
+	m.playlists.Tracks = tracks
+	m.playlists.PendingLoadID = playlistID
+	m.playlists.Cursor = 0
 	return m
 }
 
@@ -53,15 +53,15 @@ func TestPlaylistMoveTrackUp_SwapsAndCursorMoves(t *testing.T) {
 	pd := &stubPlaylistDeleterReorderer{}
 	m := New(context.Background(), WithPlaylistDeleter(pd))
 	m = playlistModelAtTrackLevel(m, samplePlaylistTracks(), 42)
-	m.playlists.cursor = 1
+	m.playlists.Cursor = 1
 
 	m, cmd := m.handlePlaylistMoveTrackUp()
 
-	if m.playlists.tracks[0].ID != 20 || m.playlists.tracks[1].ID != 10 {
-		t.Fatalf("expected tracks swapped: got IDs %d %d", m.playlists.tracks[0].ID, m.playlists.tracks[1].ID)
+	if m.playlists.Tracks[0].ID != 20 || m.playlists.Tracks[1].ID != 10 {
+		t.Fatalf("expected tracks swapped: got IDs %d %d", m.playlists.Tracks[0].ID, m.playlists.Tracks[1].ID)
 	}
-	if m.playlists.cursor != 0 {
-		t.Fatalf("expected cursor 0, got %d", m.playlists.cursor)
+	if m.playlists.Cursor != 0 {
+		t.Fatalf("expected cursor 0, got %d", m.playlists.Cursor)
 	}
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd for DB persist")
@@ -81,14 +81,14 @@ func TestPlaylistMoveTrackUp_SwapsAndCursorMoves(t *testing.T) {
 func TestPlaylistMoveTrackUp_AtTopIsNoOp(t *testing.T) {
 	m := New(context.Background())
 	m = playlistModelAtTrackLevel(m, samplePlaylistTracks(), 1)
-	m.playlists.cursor = 0
+	m.playlists.Cursor = 0
 
 	m, cmd := m.handlePlaylistMoveTrackUp()
 
 	if cmd != nil {
 		t.Fatal("expected nil cmd when cursor at top")
 	}
-	if m.playlists.tracks[0].ID != 10 {
+	if m.playlists.Tracks[0].ID != 10 {
 		t.Fatal("tracks should not have changed")
 	}
 }
@@ -99,15 +99,15 @@ func TestPlaylistMoveTrackDown_SwapsAndCursorMoves(t *testing.T) {
 	pd := &stubPlaylistDeleterReorderer{}
 	m := New(context.Background(), WithPlaylistDeleter(pd))
 	m = playlistModelAtTrackLevel(m, samplePlaylistTracks(), 42)
-	m.playlists.cursor = 1
+	m.playlists.Cursor = 1
 
 	m, cmd := m.handlePlaylistMoveTrackDown()
 
-	if m.playlists.tracks[1].ID != 30 || m.playlists.tracks[2].ID != 20 {
-		t.Fatalf("expected tracks swapped: got IDs %d %d", m.playlists.tracks[1].ID, m.playlists.tracks[2].ID)
+	if m.playlists.Tracks[1].ID != 30 || m.playlists.Tracks[2].ID != 20 {
+		t.Fatalf("expected tracks swapped: got IDs %d %d", m.playlists.Tracks[1].ID, m.playlists.Tracks[2].ID)
 	}
-	if m.playlists.cursor != 2 {
-		t.Fatalf("expected cursor 2, got %d", m.playlists.cursor)
+	if m.playlists.Cursor != 2 {
+		t.Fatalf("expected cursor 2, got %d", m.playlists.Cursor)
 	}
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd for DB persist")
@@ -124,14 +124,14 @@ func TestPlaylistMoveTrackDown_SwapsAndCursorMoves(t *testing.T) {
 func TestPlaylistMoveTrackDown_AtBottomIsNoOp(t *testing.T) {
 	m := New(context.Background())
 	m = playlistModelAtTrackLevel(m, samplePlaylistTracks(), 1)
-	m.playlists.cursor = 2
+	m.playlists.Cursor = 2
 
 	m, cmd := m.handlePlaylistMoveTrackDown()
 
 	if cmd != nil {
 		t.Fatal("expected nil cmd when cursor at bottom")
 	}
-	if m.playlists.tracks[2].ID != 30 {
+	if m.playlists.Tracks[2].ID != 30 {
 		t.Fatal("tracks should not have changed")
 	}
 }
@@ -141,9 +141,9 @@ func TestPlaylistMoveTrackDown_AtBottomIsNoOp(t *testing.T) {
 func TestPlaylistMoveTrack_SmartPlaylistIsNoOp(t *testing.T) {
 	m := New(context.Background())
 	m = playlistModelAtTrackLevel(m, samplePlaylistTracks(), 1)
-	m.playlists.cursor = 1
+	m.playlists.Cursor = 1
 	q := db.SmartPlaylistQuery{}
-	m.playlists.smartQuery = &q
+	m.playlists.SmartQuery = &q
 
 	m, cmdUp := m.handlePlaylistMoveTrackUp()
 	if cmdUp != nil {
@@ -158,8 +158,8 @@ func TestPlaylistMoveTrack_SmartPlaylistIsNoOp(t *testing.T) {
 func TestPlaylistMoveTrack_SortedShowsNotification(t *testing.T) {
 	m := New(context.Background())
 	m = playlistModelAtTrackLevel(m, samplePlaylistTracks(), 1)
-	m.playlists.cursor = 1
-	m.playlists.sortedTrackOrder = []int{0, 1, 2}
+	m.playlists.Cursor = 1
+	m.playlists.SortedTrackOrder = []int{0, 1, 2}
 
 	_, cmd := m.handlePlaylistMoveTrackUp()
 	if cmd == nil {
@@ -179,7 +179,7 @@ func TestPlaylistMoveTrack_AtListLevelIsNoOp(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewPlaylists
 	// level defaults to ListLevel
-	m.playlists.cursor = 0
+	m.playlists.Cursor = 0
 
 	_, cmdUp := m.handlePlaylistMoveTrackUp()
 	if cmdUp != nil {
@@ -194,7 +194,7 @@ func TestPlaylistMoveTrack_AtListLevelIsNoOp(t *testing.T) {
 func TestPlaylistMoveTrackUp_ExitsVisualMode(t *testing.T) {
 	m := New(context.Background())
 	m = playlistModelAtTrackLevel(m, samplePlaylistTracks(), 1)
-	m.playlists.cursor = 1
+	m.playlists.Cursor = 1
 	m = doVisual(m)
 	if !m.visual.active {
 		t.Fatal("expected visual mode active")
@@ -210,7 +210,7 @@ func TestPlaylistMoveTrackUp_ExitsVisualMode(t *testing.T) {
 func TestPlaylistMoveTrackDown_ExitsVisualMode(t *testing.T) {
 	m := New(context.Background())
 	m = playlistModelAtTrackLevel(m, samplePlaylistTracks(), 1)
-	m.playlists.cursor = 1
+	m.playlists.Cursor = 1
 	m = doVisual(m)
 	if !m.visual.active {
 		t.Fatal("expected visual mode active")
@@ -230,16 +230,16 @@ func TestPlaylistMoveTrackUp_AdjustsScrollOffset(t *testing.T) {
 		tracks[i] = db.PlaylistTrackRow{ID: int64(i + 1), Hash: "h", Title: "T"}
 	}
 	m = playlistModelAtTrackLevel(m, tracks, 1)
-	m.playlists.cursor = 5
-	m.playlists.scrollOffset = 5
+	m.playlists.Cursor = 5
+	m.playlists.ScrollOffset = 5
 
 	m, _ = m.handlePlaylistMoveTrackUp()
 
-	if m.playlists.cursor != 4 {
-		t.Fatalf("expected cursor 4, got %d", m.playlists.cursor)
+	if m.playlists.Cursor != 4 {
+		t.Fatalf("expected cursor 4, got %d", m.playlists.Cursor)
 	}
-	if m.playlists.scrollOffset > m.playlists.cursor {
-		t.Fatalf("scrollOffset (%d) must be <= cursor (%d)", m.playlists.scrollOffset, m.playlists.cursor)
+	if m.playlists.ScrollOffset > m.playlists.Cursor {
+		t.Fatalf("scrollOffset (%d) must be <= cursor (%d)", m.playlists.ScrollOffset, m.playlists.Cursor)
 	}
 }
 
@@ -250,17 +250,17 @@ func TestPlaylistMoveTrackDown_AdjustsScrollOffset(t *testing.T) {
 		tracks[i] = db.PlaylistTrackRow{ID: int64(i + 1), Hash: "h", Title: "T"}
 	}
 	m = playlistModelAtTrackLevel(m, tracks, 1)
-	m.playlists.height = 7
-	m.playlists.cursor = 3 // will push past visible area with height=7, reserve=3 → rows=4
-	m.playlists.scrollOffset = 0
+	m.playlists.Height = 7
+	m.playlists.Cursor = 3 // will push past visible area with height=7, reserve=3 → rows=4
+	m.playlists.ScrollOffset = 0
 
 	m, _ = m.handlePlaylistMoveTrackDown()
 
-	if m.playlists.cursor != 4 {
-		t.Fatalf("expected cursor 4, got %d", m.playlists.cursor)
+	if m.playlists.Cursor != 4 {
+		t.Fatalf("expected cursor 4, got %d", m.playlists.Cursor)
 	}
-	rows := max(1, m.playlists.height-3) // reserve=3
-	if m.playlists.cursor >= m.playlists.scrollOffset+rows {
-		t.Fatalf("cursor (%d) must be < scrollOffset+rows (%d)", m.playlists.cursor, m.playlists.scrollOffset+rows)
+	rows := max(1, m.playlists.Height-3) // reserve=3
+	if m.playlists.Cursor >= m.playlists.ScrollOffset+rows {
+		t.Fatalf("cursor (%d) must be < scrollOffset+rows (%d)", m.playlists.Cursor, m.playlists.ScrollOffset+rows)
 	}
 }

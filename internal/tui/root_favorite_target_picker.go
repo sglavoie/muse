@@ -62,19 +62,19 @@ func (m Model) favoritePickerTracks() []library.Track {
 			return []library.Track{queueEntryAsTrack(filtered[m.queue.cursor])}
 		}
 	case viewPlaylists:
-		if m.playlists.level != pltui.TrackLevel {
+		if m.playlists.Level != pltui.TrackLevel {
 			return nil
 		}
-		if len(m.playlists.selectedTrackIDs) > 0 {
+		if len(m.playlists.SelectedTrackIDs) > 0 {
 			var tracks []library.Track
-			for _, row := range m.playlists.tracks {
-				if _, ok := m.playlists.selectedTrackIDs[row.ID]; ok {
+			for _, row := range m.playlists.Tracks {
+				if _, ok := m.playlists.SelectedTrackIDs[row.ID]; ok {
 					tracks = append(tracks, playlistTrackAsTrack(row))
 				}
 			}
 			return tracks
 		}
-		if track, ok := m.playlists.focusedTrack(); ok {
+		if track, ok := m.playlists.FocusedTrack(); ok {
 			return []library.Track{track}
 		}
 	case viewBrowse:

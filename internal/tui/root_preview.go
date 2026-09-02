@@ -110,7 +110,7 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 			return track, true
 		}
 	case viewPlaylists:
-		track, ok := m.playlists.focusedTrack()
+		track, ok := m.playlists.FocusedTrack()
 		if ok && track.Hash != "" {
 			if t, found := m.library.Index.FindByHash(track.Hash); found {
 				track.PlayCount = t.PlayCount

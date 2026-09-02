@@ -96,8 +96,8 @@ func TestWatchBatchHealsCollectionPaths(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Artist: "A", Title: "T1", Path: "/old.flac", Hash: "h1"})
 
-	m.playlists.level = pltui.TrackLevel
-	m.playlists.tracks = []db.PlaylistTrackRow{{Hash: "h1", Path: "/old.flac", Artist: "A", Title: "T1"}}
+	m.playlists.Level = pltui.TrackLevel
+	m.playlists.Tracks = []db.PlaylistTrackRow{{Hash: "h1", Path: "/old.flac", Artist: "A", Title: "T1"}}
 
 	m.favorites.level = favtui.ListLevel
 	m.favorites.category = favtui.CategoryTracks
@@ -116,7 +116,7 @@ func TestWatchBatchHealsCollectionPaths(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if got := nm.playlists.tracks[0].Path; got != "/new.flac" {
+	if got := nm.playlists.Tracks[0].Path; got != "/new.flac" {
 		t.Errorf("playlist track Path = %q; want /new.flac", got)
 	}
 	if got := nm.favorites.tracks[0].Path; got != "/new.flac" {

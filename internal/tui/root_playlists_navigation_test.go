@@ -45,8 +45,8 @@ func TestPlaylistEscFromTrackLevelReturnsToList(t *testing.T) {
 	// Move cursor to the second playlist (index 1).
 	next, _ = nm.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	nm = next.(Model)
-	if nm.playlists.cursor != 1 {
-		t.Fatalf("precondition: expected cursor at 1, got %d", nm.playlists.cursor)
+	if nm.playlists.Cursor != 1 {
+		t.Fatalf("precondition: expected cursor at 1, got %d", nm.playlists.Cursor)
 	}
 
 	// Press Enter to open the playlist and execute the async load.
@@ -73,8 +73,8 @@ func TestPlaylistEscFromTrackLevelReturnsToList(t *testing.T) {
 	if !strings.Contains(v.Content, "Alpha") || !strings.Contains(v.Content, "Beta") {
 		t.Fatalf("expected ListLevel output with playlist names, got:\n%s", v.Content)
 	}
-	if nm.playlists.cursor != 1 {
-		t.Errorf("expected list cursor preserved at 1 after Esc, got %d", nm.playlists.cursor)
+	if nm.playlists.Cursor != 1 {
+		t.Errorf("expected list cursor preserved at 1 after Esc, got %d", nm.playlists.Cursor)
 	}
 }
 
@@ -89,18 +89,18 @@ func TestPlaylistEscAtListLevelIsNoOp(t *testing.T) {
 	nm = next.(Model)
 
 	beforeView := nm.View()
-	beforeLevel := nm.playlists.level
-	beforeCursor := nm.playlists.cursor
+	beforeLevel := nm.playlists.Level
+	beforeCursor := nm.playlists.Cursor
 
 	// Press Esc at ListLevel — must be a no-op.
 	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	nm = next.(Model)
 
-	if nm.playlists.level != beforeLevel {
-		t.Errorf("Esc at ListLevel changed level: before=%v after=%v", beforeLevel, nm.playlists.level)
+	if nm.playlists.Level != beforeLevel {
+		t.Errorf("Esc at ListLevel changed level: before=%v after=%v", beforeLevel, nm.playlists.Level)
 	}
-	if nm.playlists.cursor != beforeCursor {
-		t.Errorf("Esc at ListLevel changed cursor: before=%d after=%d", beforeCursor, nm.playlists.cursor)
+	if nm.playlists.Cursor != beforeCursor {
+		t.Errorf("Esc at ListLevel changed cursor: before=%d after=%d", beforeCursor, nm.playlists.Cursor)
 	}
 	afterView := nm.View()
 	if beforeView.Content != afterView.Content {
@@ -134,10 +134,10 @@ func TestPlaylistRAtListLevelActivatesRenameInput(t *testing.T) {
 	next, _ = nm.Update(msg)
 	nm = next.(Model)
 
-	if !nm.playlists.isRenaming() {
+	if !nm.playlists.IsRenaming() {
 		t.Fatal("expected isRenaming() to be true after PlaylistRenameMsg")
 	}
-	if got := nm.playlists.renameInputValue(); got != "Chill Mix" {
+	if got := nm.playlists.RenameInputValue(); got != "Chill Mix" {
 		t.Fatalf("expected rename input pre-populated with %q, got %q", "Chill Mix", got)
 	}
 }
@@ -165,7 +165,7 @@ func TestPlaylistRAtTrackLevelIsNoOp(t *testing.T) {
 	next, _ = nm.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
 	nm = next.(Model)
 
-	if nm.playlists.isRenaming() {
+	if nm.playlists.IsRenaming() {
 		t.Fatal("isRenaming() must be false when 'r' is pressed at TrackLevel")
 	}
 }
@@ -212,8 +212,8 @@ func TestPlaylistTrackCursorDownJKey(t *testing.T) {
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	nm := next.(Model)
-	if nm.playlists.cursor != 1 {
-		t.Errorf("j key at TrackLevel: expected cursor 1, got %d", nm.playlists.cursor)
+	if nm.playlists.Cursor != 1 {
+		t.Errorf("j key at TrackLevel: expected cursor 1, got %d", nm.playlists.Cursor)
 	}
 }
 
@@ -222,12 +222,12 @@ func TestPlaylistTrackCursorDownJKey(t *testing.T) {
 func TestPlaylistTrackCursorUpKKey(t *testing.T) {
 	m := New(context.Background())
 	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000}, {ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000}})
-	m.playlists.cursor = 1
+	m.playlists.Cursor = 1
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
 	nm := next.(Model)
-	if nm.playlists.cursor != 0 {
-		t.Errorf("k key at TrackLevel: expected cursor 0, got %d", nm.playlists.cursor)
+	if nm.playlists.Cursor != 0 {
+		t.Errorf("k key at TrackLevel: expected cursor 0, got %d", nm.playlists.Cursor)
 	}
 }
 
@@ -239,8 +239,8 @@ func TestPlaylistTrackCursorDownArrow(t *testing.T) {
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown, Text: "down"})
 	nm := next.(Model)
-	if nm.playlists.cursor != 1 {
-		t.Errorf("down arrow at TrackLevel: expected cursor 1, got %d", nm.playlists.cursor)
+	if nm.playlists.Cursor != 1 {
+		t.Errorf("down arrow at TrackLevel: expected cursor 1, got %d", nm.playlists.Cursor)
 	}
 }
 
@@ -249,12 +249,12 @@ func TestPlaylistTrackCursorDownArrow(t *testing.T) {
 func TestPlaylistTrackCursorUpArrow(t *testing.T) {
 	m := New(context.Background())
 	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000}, {ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000}})
-	m.playlists.cursor = 1
+	m.playlists.Cursor = 1
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyUp, Text: "up"})
 	nm := next.(Model)
-	if nm.playlists.cursor != 0 {
-		t.Errorf("up arrow at TrackLevel: expected cursor 0, got %d", nm.playlists.cursor)
+	if nm.playlists.Cursor != 0 {
+		t.Errorf("up arrow at TrackLevel: expected cursor 0, got %d", nm.playlists.Cursor)
 	}
 }
 
@@ -263,12 +263,12 @@ func TestPlaylistTrackCursorUpArrow(t *testing.T) {
 func TestPlaylistTrackCursorClampAtBottom(t *testing.T) {
 	m := New(context.Background())
 	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{{ID: 1, Position: 1, Title: "Alpha", Artist: "A", DurationMs: 60000}, {ID: 2, Position: 2, Title: "Beta", Artist: "B", DurationMs: 60000}})
-	m.playlists.cursor = 1
+	m.playlists.Cursor = 1
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	nm := next.(Model)
-	if nm.playlists.cursor != 1 {
-		t.Errorf("j at last track: expected cursor 1 (clamped), got %d", nm.playlists.cursor)
+	if nm.playlists.Cursor != 1 {
+		t.Errorf("j at last track: expected cursor 1 (clamped), got %d", nm.playlists.Cursor)
 	}
 }
 
@@ -280,7 +280,7 @@ func TestPlaylistTrackCursorClampAtTop(t *testing.T) {
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
 	nm := next.(Model)
-	if nm.playlists.cursor != 0 {
-		t.Errorf("k at first track: expected cursor 0 (clamped), got %d", nm.playlists.cursor)
+	if nm.playlists.Cursor != 0 {
+		t.Errorf("k at first track: expected cursor 0 (clamped), got %d", nm.playlists.Cursor)
 	}
 }

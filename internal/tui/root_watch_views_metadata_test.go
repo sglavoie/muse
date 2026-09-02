@@ -18,8 +18,8 @@ import (
 func TestWatchBatchMsgUpdatesPlaylistTracks(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
-	m.playlists.level = pltui.TrackLevel
-	m.playlists.tracks = []db.PlaylistTrackRow{
+	m.playlists.Level = pltui.TrackLevel
+	m.playlists.Tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
 	}
 
@@ -30,14 +30,14 @@ func TestWatchBatchMsgUpdatesPlaylistTracks(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.playlists.tracks[0].Title != "NewTitle" {
-		t.Errorf("playlist track title = %q, want %q", nm.playlists.tracks[0].Title, "NewTitle")
+	if nm.playlists.Tracks[0].Title != "NewTitle" {
+		t.Errorf("playlist track title = %q, want %q", nm.playlists.Tracks[0].Title, "NewTitle")
 	}
-	if nm.playlists.tracks[0].Artist != "NewArt" {
-		t.Errorf("playlist track artist = %q, want %q", nm.playlists.tracks[0].Artist, "NewArt")
+	if nm.playlists.Tracks[0].Artist != "NewArt" {
+		t.Errorf("playlist track artist = %q, want %q", nm.playlists.Tracks[0].Artist, "NewArt")
 	}
-	if nm.playlists.tracks[0].Album != "NewAlbum" {
-		t.Errorf("playlist track album = %q, want %q", nm.playlists.tracks[0].Album, "NewAlbum")
+	if nm.playlists.Tracks[0].Album != "NewAlbum" {
+		t.Errorf("playlist track album = %q, want %q", nm.playlists.Tracks[0].Album, "NewAlbum")
 	}
 }
 

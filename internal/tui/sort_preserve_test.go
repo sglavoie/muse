@@ -197,18 +197,18 @@ func TestPlaylistDeletePreservesSortOrder(t *testing.T) {
 		{ID: 3, Name: "Middle"},
 	}))
 	m.activeView = viewPlaylists
-	m.playlists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
-	m.playlists = m.playlists.recomputePlaylistSort()
-	m.playlists.cursor = 0 // "Alpha" in sorted view
+	m.playlists.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
+	m.playlists = m.playlists.RecomputePlaylistSort()
+	m.playlists.Cursor = 0 // "Alpha" in sorted view
 
 	// 'd' triggers playlist delete
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	nm := next.(Model)
 
-	if nm.playlists.sortState.Field != sorting.SortName {
-		t.Errorf("expected sort preserved as SortName, got %v", nm.playlists.sortState.Field)
+	if nm.playlists.SortState.Field != sorting.SortName {
+		t.Errorf("expected sort preserved as SortName, got %v", nm.playlists.SortState.Field)
 	}
-	if nm.playlists.sortedPlaylists == nil {
+	if nm.playlists.SortedPlaylists == nil {
 		t.Error("expected sortedPlaylists to be recomputed, got nil")
 	}
 }
@@ -217,49 +217,49 @@ func TestPlaylistTrackRemovePreservesSortOrder(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd))
 	m.activeView = viewPlaylists
-	m.playlists.level = pltui.TrackLevel
-	m.playlists.tracks = []db.PlaylistTrackRow{
+	m.playlists.Level = pltui.TrackLevel
+	m.playlists.Tracks = []db.PlaylistTrackRow{
 		{ID: 10, Position: 1, Title: "Zulu", Artist: "A", DurationMs: 1000},
 		{ID: 20, Position: 2, Title: "Alpha", Artist: "B", DurationMs: 2000},
 		{ID: 30, Position: 3, Title: "Mike", Artist: "C", DurationMs: 3000},
 	}
-	m.playlists.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	m.playlists = m.playlists.recomputePlaylistSort()
-	m.playlists.cursor = 0 // "Alpha" in sorted view
+	m.playlists.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
+	m.playlists = m.playlists.RecomputePlaylistSort()
+	m.playlists.Cursor = 0 // "Alpha" in sorted view
 
 	// 'd' triggers track delete
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	nm := next.(Model)
 
-	if nm.playlists.sortState.Field != sorting.SortTitle {
-		t.Errorf("expected sort preserved as SortTitle, got %v", nm.playlists.sortState.Field)
+	if nm.playlists.SortState.Field != sorting.SortTitle {
+		t.Errorf("expected sort preserved as SortTitle, got %v", nm.playlists.SortState.Field)
 	}
-	if nm.playlists.sortedTrackOrder == nil {
+	if nm.playlists.SortedTrackOrder == nil {
 		t.Error("expected sortedTrackOrder to be recomputed, got nil")
 	}
-	if len(nm.playlists.tracks) != 2 {
-		t.Fatalf("expected 2 tracks remaining, got %d", len(nm.playlists.tracks))
+	if len(nm.playlists.Tracks) != 2 {
+		t.Fatalf("expected 2 tracks remaining, got %d", len(nm.playlists.Tracks))
 	}
 }
 
 func TestPlaylistShuffleStillResetsSortOrder(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewPlaylists
-	m.playlists.level = pltui.TrackLevel
-	m.playlists.tracks = []db.PlaylistTrackRow{
+	m.playlists.Level = pltui.TrackLevel
+	m.playlists.Tracks = []db.PlaylistTrackRow{
 		{ID: 10, Position: 1, Title: "A"},
 		{ID: 20, Position: 2, Title: "B"},
 		{ID: 30, Position: 3, Title: "C"},
 	}
-	m.playlists.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	m.playlists = m.playlists.recomputePlaylistSort()
+	m.playlists.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
+	m.playlists = m.playlists.RecomputePlaylistSort()
 
 	m, _ = m.handlePlaylistShuffleMsg()
 
-	if m.playlists.sortState.Field != sorting.SortDefault {
-		t.Errorf("expected sort reset after shuffle, got %v", m.playlists.sortState.Field)
+	if m.playlists.SortState.Field != sorting.SortDefault {
+		t.Errorf("expected sort reset after shuffle, got %v", m.playlists.SortState.Field)
 	}
-	if m.playlists.sortedTrackOrder != nil {
+	if m.playlists.SortedTrackOrder != nil {
 		t.Error("expected sortedTrackOrder nil after shuffle")
 	}
 }

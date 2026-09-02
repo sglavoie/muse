@@ -328,7 +328,7 @@ func (m Model) Init() tea.Cmd {
 	cmds = append(cmds, tickCmd())
 	cmds = append(cmds, sessionTickCmd())
 	cmds = append(cmds, tea.RequestBackgroundColor)
-	if cmd := evalSmartPlaylistCountsCmd(m.playlists.playlists, m.smartEval); cmd != nil {
+	if cmd := evalSmartPlaylistCountsCmd(m.playlists.Playlists, m.smartEval); cmd != nil {
 		cmds = append(cmds, cmd)
 	}
 	if cmd := purgeEmptyTagsCmd(m.tags, m.tagReader, m.tagWriter); cmd != nil {

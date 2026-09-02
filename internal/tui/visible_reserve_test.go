@@ -59,27 +59,27 @@ func TestLibraryViewVisibleReserve(t *testing.T) {
 func TestPlaylistsVisibleReserve(t *testing.T) {
 	tests := []struct {
 		name string
-		view PlaylistsView
+		view pltui.PlaylistsView
 		want int
 	}{
 		{
 			name: "list level no sort",
-			view: PlaylistsView{level: pltui.ListLevel, sortState: sorting.SortState{Field: sorting.SortDefault}},
+			view: pltui.PlaylistsView{Level: pltui.ListLevel, SortState: sorting.SortState{Field: sorting.SortDefault}},
 			want: 1,
 		},
 		{
 			name: "list level with sort",
-			view: PlaylistsView{level: pltui.ListLevel, sortState: sorting.SortState{Field: sorting.SortName}},
+			view: pltui.PlaylistsView{Level: pltui.ListLevel, SortState: sorting.SortState{Field: sorting.SortName}},
 			want: 2,
 		},
 		{
 			name: "track level",
-			view: PlaylistsView{level: pltui.TrackLevel},
+			view: pltui.PlaylistsView{Level: pltui.TrackLevel},
 			want: 4,
 		},
 		{
 			name: "track level ignores sort state",
-			view: PlaylistsView{level: pltui.TrackLevel, sortState: sorting.SortState{Field: sorting.SortArtist}},
+			view: pltui.PlaylistsView{Level: pltui.TrackLevel, SortState: sorting.SortState{Field: sorting.SortArtist}},
 			want: 4,
 		},
 	}

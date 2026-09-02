@@ -130,7 +130,7 @@ func (m Model) jumpToGenre(genreName string) Model {
 // jumpToPlaylist switches to the Playlists view with the cursor
 // pre-positioned on the named playlist at ListLevel.
 func (m Model) jumpToPlaylist(playlistName string) Model {
-	playlists := m.playlists.effectivePlaylists()
+	playlists := m.playlists.EffectivePlaylists()
 	idx := -1
 	for i, playlist := range playlists {
 		if playlist.Name == playlistName {
@@ -142,13 +142,13 @@ func (m Model) jumpToPlaylist(playlistName string) Model {
 		return m
 	}
 
-	scrollOffset := max(0, idx-m.playlists.height/2)
-	m.playlists.level = pltui.ListLevel
-	m.playlists.cursor = idx
-	m.playlists.scrollOffset = scrollOffset
-	m.playlists.tracks = nil
-	m.playlists.sortedPlaylists = nil
-	m.playlists.sortedTrackOrder = nil
+	scrollOffset := max(0, idx-m.playlists.Height/2)
+	m.playlists.Level = pltui.ListLevel
+	m.playlists.Cursor = idx
+	m.playlists.ScrollOffset = scrollOffset
+	m.playlists.Tracks = nil
+	m.playlists.SortedPlaylists = nil
+	m.playlists.SortedTrackOrder = nil
 	m.clearPendingConfirmations()
 	m = m.resetAllSorts()
 	m = exitVisualMode(m)

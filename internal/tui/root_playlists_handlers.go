@@ -16,15 +16,15 @@ import (
 // after the user navigated away (back to list or opened a different playlist).
 func (m Model) handlePlaylistTracksLoadedMsg(msg playlistTracksLoadedMsg) Model {
 	// Discard stale results: the user navigated away or opened a different playlist.
-	if msg.playlistID != 0 && msg.playlistID != m.playlists.pendingLoadID {
+	if msg.playlistID != 0 && msg.playlistID != m.playlists.PendingLoadID {
 		return m
 	}
 	if msg.isRefresh {
-		m.playlists = m.playlists.refreshTracks(msg.tracks)
+		m.playlists = m.playlists.RefreshTracks(msg.tracks)
 		m.statusBar.Notify("Smart playlist refreshed")
 		return m
 	}
-	m.playlists = m.playlists.openTracks(msg.tracks)
+	m.playlists = m.playlists.OpenTracks(msg.tracks)
 	return m
 }
 
@@ -38,9 +38,9 @@ func (m Model) handlePlaylistTracksLoadErrorMsg(msg playlistTracksLoadErrorMsg) 
 
 // handlePlaylistRenameMsg starts the inline rename input for the focused playlist.
 func (m Model) handlePlaylistRenameMsg() Model {
-	if m.playlists.atListLevel() {
-		if pl, ok := m.playlists.focusedPlaylist(); ok {
-			m.playlists = m.playlists.startRename(pl.Name)
+	if m.playlists.AtListLevel() {
+		if pl, ok := m.playlists.FocusedPlaylist(); ok {
+			m.playlists = m.playlists.StartRename(pl.Name)
 		}
 	}
 	return m
@@ -49,23 +49,23 @@ func (m Model) handlePlaylistRenameMsg() Model {
 // handlePlaylistRenamedMsg updates the playlist list after a successful rename
 // and repositions the cursor on the renamed playlist.
 func (m Model) handlePlaylistRenamedMsg(msg playlistRenamedMsg) Model {
-	m.playlists.playlists = msg.playlists
+	m.playlists.Playlists = msg.playlists
 	m = m.preservePlaylistsSort()
-	m.playlists = m.playlists.cancelRename()
-	for i, p := range m.playlists.effectivePlaylists() {
+	m.playlists = m.playlists.CancelRename()
+	for i, p := range m.playlists.EffectivePlaylists() {
 		if p.ID == msg.id {
-			m.playlists.cursor = i
+			m.playlists.Cursor = i
 			break
 		}
 	}
-	m.playlists = m.playlists.ensureCursorVisible()
+	m.playlists = m.playlists.EnsureCursorVisible()
 	return m
 }
 
 // handlePlaylistRenameErrorMsg cancels the inline rename input and shows an
 // error notification.
 func (m Model) handlePlaylistRenameErrorMsg(msg playlistRenameErrorMsg) Model {
-	m.playlists = m.playlists.cancelRename()
+	m.playlists = m.playlists.CancelRename()
 	m.statusBar.Notify("Rename playlist failed: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
@@ -73,8 +73,8 @@ func (m Model) handlePlaylistRenameErrorMsg(msg playlistRenameErrorMsg) Model {
 
 // handlePlaylistCreateMsg starts the inline create input for a new playlist.
 func (m Model) handlePlaylistCreateMsg() Model {
-	if m.playlists.atListLevel() {
-		m.playlists = m.playlists.startCreate()
+	if m.playlists.AtListLevel() {
+		m.playlists = m.playlists.StartCreate()
 	}
 	return m
 }
@@ -83,16 +83,16 @@ func (m Model) handlePlaylistCreateMsg() Model {
 // repositions the cursor on the new playlist, and optionally auto-adds staged
 // tracks from the destination picker.
 func (m Model) handlePlaylistCreatedMsg(msg playlistCreatedMsg) (Model, tea.Cmd) {
-	m.playlists.playlists = msg.playlists
+	m.playlists.Playlists = msg.playlists
 	m = m.preservePlaylistsSort()
-	m.playlists = m.playlists.cancelCreate()
-	for i, p := range m.playlists.effectivePlaylists() {
+	m.playlists = m.playlists.CancelCreate()
+	for i, p := range m.playlists.EffectivePlaylists() {
 		if p.ID == msg.id {
-			m.playlists.cursor = i
+			m.playlists.Cursor = i
 			break
 		}
 	}
-	m.playlists = m.playlists.ensureCursorVisible()
+	m.playlists = m.playlists.EnsureCursorVisible()
 
 	if len(m.overlay.destPickerTracks) > 0 && m.playlistAdder != nil {
 		tracks := m.overlay.destPickerTracks
@@ -130,7 +130,7 @@ func (m Model) handlePlaylistCreatedMsg(msg playlistCreatedMsg) (Model, tea.Cmd)
 // handlePlaylistCreateErrorMsg cancels the inline create input and shows an
 // error notification.
 func (m Model) handlePlaylistCreateErrorMsg(msg playlistCreateErrorMsg) Model {
-	m.playlists = m.playlists.cancelCreate()
+	m.playlists = m.playlists.CancelCreate()
 	m.statusBar.Notify("Create playlist failed: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
@@ -140,7 +140,7 @@ func (m Model) handlePlaylistCreateErrorMsg(msg playlistCreateErrorMsg) Model {
 // save-as-playlist operation and shows a success notification.
 func (m Model) handleQueueSavedAsPlaylistMsg(msg queueSavedAsPlaylistMsg) Model {
 	m.queue = m.queue.cancelSaveAsPlaylist()
-	m.playlists.playlists = msg.playlists
+	m.playlists.Playlists = msg.playlists
 	m = m.preservePlaylistsSort()
 	source := "queue"
 	if msg.fromSelection {
@@ -172,7 +172,7 @@ func (m Model) handlePlaylistAddErrorMsg(msg playlistAddErrorMsg) Model {
 // notification after tracks are added to a playlist.
 func (m Model) handleTracksAddedToPlaylistMsg(msg tracksAddedToPlaylistMsg) Model {
 	if msg.playlists != nil {
-		m.playlists.playlists = msg.playlists
+		m.playlists.Playlists = msg.playlists
 		m = m.preservePlaylistsSort()
 	}
 	m.statusBar.Notify(fmt.Sprintf("%d %s added to %s", msg.count, text.Pluralize(msg.count, "track", "tracks"), msg.playlistName))
@@ -191,7 +191,7 @@ func (m Model) clearAllSelections() Model {
 	m.favorites.selectedItems = nil
 	m.tagsView.selectedHashes = nil
 	m.insights.trackView.SelectedHashes = nil
-	m.playlists.selectedTrackIDs = nil
+	m.playlists.SelectedTrackIDs = nil
 	for i := range m.queue.entries {
 		m.queue.entries[i].Selected = false
 	}
@@ -214,7 +214,7 @@ func (m Model) handleDestinationPickerCreateMsg() Model {
 	m.overlay.destPicker = nil
 	m = m.clearAllSelections()
 	m = m.switchToView(viewPlaylists)
-	m.playlists = m.playlists.startCreate()
+	m.playlists = m.playlists.StartCreate()
 	return m
 }
 
@@ -230,7 +230,7 @@ func (m Model) handleDestinationPickedMsg(msg pltui.DestinationPickedMsg) (Model
 			return m, cmd
 		}
 	} else {
-		for _, p := range m.playlists.playlists {
+		for _, p := range m.playlists.Playlists {
 			if p.Name == msg.PlaylistName {
 				if m.playlistAdder == nil {
 					break

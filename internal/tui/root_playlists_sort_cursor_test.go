@@ -27,8 +27,8 @@ func TestPlaylistRenamedMsgCursorUsesEffectiveSort(t *testing.T) {
 	m = next.(Model)
 
 	// Activate name-ascending sort.
-	m.playlists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
-	m.playlists = m.playlists.recomputePlaylistSort()
+	m.playlists.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
+	m.playlists = m.playlists.RecomputePlaylistSort()
 
 	// Rename "Rock" (ID=1) to "Zulu". After rename, unsorted order is:
 	// Zulu(1), Alpha(2), Jazz(3). Sorted by name asc: Alpha(2), Jazz(3), Zulu(1).
@@ -41,13 +41,13 @@ func TestPlaylistRenamedMsgCursorUsesEffectiveSort(t *testing.T) {
 	m = next.(Model)
 
 	// "Zulu" (ID=1) should be at sorted index 2 (Alpha=0, Jazz=1, Zulu=2).
-	effective := m.playlists.effectivePlaylists()
-	if m.playlists.cursor < 0 || m.playlists.cursor >= len(effective) {
-		t.Fatalf("cursor %d out of range [0, %d)", m.playlists.cursor, len(effective))
+	effective := m.playlists.EffectivePlaylists()
+	if m.playlists.Cursor < 0 || m.playlists.Cursor >= len(effective) {
+		t.Fatalf("cursor %d out of range [0, %d)", m.playlists.Cursor, len(effective))
 	}
-	if got := effective[m.playlists.cursor]; got.ID != 1 {
+	if got := effective[m.playlists.Cursor]; got.ID != 1 {
 		t.Errorf("cursor should point to renamed playlist (ID=1), got ID=%d (%q) at index %d",
-			got.ID, got.Name, m.playlists.cursor)
+			got.ID, got.Name, m.playlists.Cursor)
 	}
 }
 
@@ -64,8 +64,8 @@ func TestPlaylistCreatedMsgCursorUsesEffectiveSort(t *testing.T) {
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m = next.(Model)
 
-	m.playlists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
-	m.playlists = m.playlists.recomputePlaylistSort()
+	m.playlists.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
+	m.playlists = m.playlists.RecomputePlaylistSort()
 
 	// Create "Beta" (ID=3). Unsorted: Rock(1), Alpha(2), Beta(3).
 	// Sorted by name asc: Alpha(2), Beta(3), Rock(1).
@@ -78,13 +78,13 @@ func TestPlaylistCreatedMsgCursorUsesEffectiveSort(t *testing.T) {
 	m = next.(Model)
 
 	// "Beta" (ID=3) should be at sorted index 1 (Alpha=0, Beta=1, Rock=2).
-	effective := m.playlists.effectivePlaylists()
-	if m.playlists.cursor < 0 || m.playlists.cursor >= len(effective) {
-		t.Fatalf("cursor %d out of range [0, %d)", m.playlists.cursor, len(effective))
+	effective := m.playlists.EffectivePlaylists()
+	if m.playlists.Cursor < 0 || m.playlists.Cursor >= len(effective) {
+		t.Fatalf("cursor %d out of range [0, %d)", m.playlists.Cursor, len(effective))
 	}
-	if got := effective[m.playlists.cursor]; got.ID != 3 {
+	if got := effective[m.playlists.Cursor]; got.ID != 3 {
 		t.Errorf("cursor should point to created playlist (ID=3), got ID=%d (%q) at index %d",
-			got.ID, got.Name, m.playlists.cursor)
+			got.ID, got.Name, m.playlists.Cursor)
 	}
 }
 
@@ -101,8 +101,8 @@ func TestSmartPlaylistCreatedMsgCursorUsesEffectiveSort(t *testing.T) {
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m = next.(Model)
 
-	m.playlists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
-	m.playlists = m.playlists.recomputePlaylistSort()
+	m.playlists.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
+	m.playlists = m.playlists.RecomputePlaylistSort()
 
 	// Create smart playlist "Beta" (ID=3). Sorted: Alpha, Beta, Rock.
 	createdPlaylists := []db.PlaylistRow{
@@ -113,12 +113,12 @@ func TestSmartPlaylistCreatedMsgCursorUsesEffectiveSort(t *testing.T) {
 	next, _ = m.Update(smartPlaylistCreatedMsg{id: 3, playlists: createdPlaylists})
 	m = next.(Model)
 
-	effective := m.playlists.effectivePlaylists()
-	if m.playlists.cursor < 0 || m.playlists.cursor >= len(effective) {
-		t.Fatalf("cursor %d out of range [0, %d)", m.playlists.cursor, len(effective))
+	effective := m.playlists.EffectivePlaylists()
+	if m.playlists.Cursor < 0 || m.playlists.Cursor >= len(effective) {
+		t.Fatalf("cursor %d out of range [0, %d)", m.playlists.Cursor, len(effective))
 	}
-	if got := effective[m.playlists.cursor]; got.ID != 3 {
+	if got := effective[m.playlists.Cursor]; got.ID != 3 {
 		t.Errorf("cursor should point to created smart playlist (ID=3), got ID=%d (%q) at index %d",
-			got.ID, got.Name, m.playlists.cursor)
+			got.ID, got.Name, m.playlists.Cursor)
 	}
 }

@@ -6,19 +6,19 @@ import tea "charm.land/bubbletea/v2"
 // create input is active. Returns true in the third value when the key was
 // consumed, preventing further dispatch.
 func (m Model) handlePlaylistCreateInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
-	if !m.playlists.isCreating() || m.activeView != viewPlaylists {
+	if !m.playlists.IsCreating() || m.activeView != viewPlaylists {
 		return m, nil, false
 	}
 	switch msg.String() {
 	case "ctrl+c":
 		return m, tea.Quit, true
 	case "esc":
-		m.playlists = m.playlists.cancelCreate()
+		m.playlists = m.playlists.CancelCreate()
 		return m, nil, true
 	case "enter":
-		if !m.playlists.createInputIsEmpty() {
-			name := m.playlists.createInputValue()
-			if playlistNameExists(m.playlists.playlists, name, 0) {
+		if !m.playlists.CreateInputIsEmpty() {
+			name := m.playlists.CreateInputValue()
+			if playlistNameExists(m.playlists.Playlists, name, 0) {
 				m.statusBar.Notify("A playlist with that name already exists")
 				return m, nil, true
 			}
@@ -37,13 +37,13 @@ func (m Model) handlePlaylistCreateInput(msg tea.KeyPressMsg) (Model, tea.Cmd, b
 				}, true
 			}
 			// No writer: dismiss the input without persisting.
-			m.playlists = m.playlists.cancelCreate()
+			m.playlists = m.playlists.CancelCreate()
 		}
 		// Empty/whitespace input: keep the field active (no-op).
 		return m, nil, true
 	default:
 		var cmd tea.Cmd
-		m.playlists, cmd = m.playlists.updateCreateInput(msg)
+		m.playlists, cmd = m.playlists.UpdateCreateInput(msg)
 		return m, cmd, true
 	}
 }
@@ -52,24 +52,24 @@ func (m Model) handlePlaylistCreateInput(msg tea.KeyPressMsg) (Model, tea.Cmd, b
 // rename input is active. Returns true in the third value when the key was
 // consumed, preventing further dispatch.
 func (m Model) handlePlaylistRenameInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
-	if !m.playlists.isRenaming() || m.activeView != viewPlaylists {
+	if !m.playlists.IsRenaming() || m.activeView != viewPlaylists {
 		return m, nil, false
 	}
 	switch msg.String() {
 	case "ctrl+c":
 		return m, tea.Quit, true
 	case "esc":
-		m.playlists = m.playlists.cancelRename()
+		m.playlists = m.playlists.CancelRename()
 		return m, nil, true
 	case "enter":
-		if !m.playlists.renameInputIsEmpty() {
-			name := m.playlists.renameInputValue()
-			pl, ok := m.playlists.focusedPlaylist()
+		if !m.playlists.RenameInputIsEmpty() {
+			name := m.playlists.RenameInputValue()
+			pl, ok := m.playlists.FocusedPlaylist()
 			if !ok {
-				m.playlists = m.playlists.cancelRename()
+				m.playlists = m.playlists.CancelRename()
 				return m, nil, true
 			}
-			if playlistNameExists(m.playlists.playlists, name, pl.ID) {
+			if playlistNameExists(m.playlists.Playlists, name, pl.ID) {
 				m.statusBar.Notify("A playlist with that name already exists")
 				return m, nil, true
 			}
@@ -88,13 +88,13 @@ func (m Model) handlePlaylistRenameInput(msg tea.KeyPressMsg) (Model, tea.Cmd, b
 				}, true
 			}
 			// No renamer: dismiss the input without persisting.
-			m.playlists = m.playlists.cancelRename()
+			m.playlists = m.playlists.CancelRename()
 		}
 		// Empty/whitespace input: keep the field active (no-op).
 		return m, nil, true
 	default:
 		var cmd tea.Cmd
-		m.playlists, cmd = m.playlists.updateRenameInput(msg)
+		m.playlists, cmd = m.playlists.UpdateRenameInput(msg)
 		return m, cmd, true
 	}
 }
@@ -115,7 +115,7 @@ func (m Model) handleQueueSaveInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) 
 	case "enter":
 		if !m.queue.saveInputIsEmpty() {
 			name := m.queue.saveInputValue()
-			if playlistNameExists(m.playlists.playlists, name, 0) {
+			if playlistNameExists(m.playlists.Playlists, name, 0) {
 				m.statusBar.Notify("A playlist with that name already exists")
 				return m, nil, true
 			}

@@ -14,23 +14,23 @@ import (
 )
 
 func (m Model) preservePlaylistCursorOnDirChange(dir sorting.SortDir) Model {
-	if m.playlists.level == pltui.ListLevel {
+	if m.playlists.Level == pltui.ListLevel {
 		var focusedID int64
-		pl := m.playlists.effectivePlaylists()
-		if m.playlists.cursor >= 0 && m.playlists.cursor < len(pl) {
-			focusedID = pl[m.playlists.cursor].ID
+		pl := m.playlists.EffectivePlaylists()
+		if m.playlists.Cursor >= 0 && m.playlists.Cursor < len(pl) {
+			focusedID = pl[m.playlists.Cursor].ID
 		}
-		m.playlists.sortState.Dir = dir
-		m.playlists = m.playlists.recomputePlaylistSort()
-		m.playlists.cursor = sorting.FindPlaylistPosition(m.playlists.effectivePlaylists(), focusedID)
+		m.playlists.SortState.Dir = dir
+		m.playlists = m.playlists.RecomputePlaylistSort()
+		m.playlists.Cursor = sorting.FindPlaylistPosition(m.playlists.EffectivePlaylists(), focusedID)
 	} else {
-		prevTrackIdx := m.playlists.trackIndex(m.playlists.cursor)
-		m.playlists.sortState.Dir = dir
-		m.playlists = m.playlists.recomputePlaylistSort()
-		m.playlists.cursor = m.playlists.findTrackDisplayPosition(prevTrackIdx)
+		prevTrackIdx := m.playlists.TrackIndex(m.playlists.Cursor)
+		m.playlists.SortState.Dir = dir
+		m.playlists = m.playlists.RecomputePlaylistSort()
+		m.playlists.Cursor = m.playlists.FindTrackDisplayPosition(prevTrackIdx)
 	}
 	plReserve := playlistsVisibleReserve(m.playlists)
-	m.playlists.scrollOffset = sorting.AdjustScroll(m.playlists.cursor, m.playlists.scrollOffset, layout.VisibleRows(m.playlists.height, plReserve))
+	m.playlists.ScrollOffset = sorting.AdjustScroll(m.playlists.Cursor, m.playlists.ScrollOffset, layout.VisibleRows(m.playlists.Height, plReserve))
 	return m
 }
 

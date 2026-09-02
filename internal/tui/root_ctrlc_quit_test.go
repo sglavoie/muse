@@ -52,7 +52,7 @@ func TestCtrlCQuitsWhilePlaylistCreateActive(t *testing.T) {
 		m = next.(Model)
 	}
 
-	if !m.playlists.isCreating() {
+	if !m.playlists.IsCreating() {
 		t.Fatal("precondition: expected isCreating=true")
 	}
 
@@ -80,7 +80,7 @@ func TestCtrlCQuitsWhilePlaylistRenameActive(t *testing.T) {
 		m = next.(Model)
 	}
 
-	if !m.playlists.isRenaming() {
+	if !m.playlists.IsRenaming() {
 		t.Fatal("precondition: expected isRenaming=true")
 	}
 

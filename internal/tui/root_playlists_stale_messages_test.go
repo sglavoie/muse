@@ -24,16 +24,16 @@ func TestStalePlaylistTracksLoadedMsgDiscarded(t *testing.T) {
 	m = next.(Model)
 
 	// Simulate user opening playlist 10: pendingLoadID set to 10.
-	m.playlists.pendingLoadID = 10
+	m.playlists.PendingLoadID = 10
 
 	// User backs out before async load completes — pendingLoadID cleared.
-	m.playlists = m.playlists.backToList()
-	if m.playlists.pendingLoadID != 0 {
+	m.playlists = m.playlists.BackToList()
+	if m.playlists.PendingLoadID != 0 {
 		t.Fatal("backToList should clear pendingLoadID")
 	}
 
 	// User opens playlist 20 — pendingLoadID set to 20.
-	m.playlists.pendingLoadID = 20
+	m.playlists.PendingLoadID = 20
 
 	// Stale result from playlist 10 arrives — should be discarded.
 	staleMsg := playlistTracksLoadedMsg{
@@ -43,11 +43,11 @@ func TestStalePlaylistTracksLoadedMsgDiscarded(t *testing.T) {
 	next, _ = m.Update(staleMsg)
 	m = next.(Model)
 
-	if m.playlists.level != pltui.ListLevel {
-		t.Errorf("stale msg should not transition to TrackLevel, got level=%d", m.playlists.level)
+	if m.playlists.Level != pltui.ListLevel {
+		t.Errorf("stale msg should not transition to TrackLevel, got level=%d", m.playlists.Level)
 	}
-	if len(m.playlists.tracks) != 0 {
-		t.Errorf("stale msg should not load tracks, got %d tracks", len(m.playlists.tracks))
+	if len(m.playlists.Tracks) != 0 {
+		t.Errorf("stale msg should not load tracks, got %d tracks", len(m.playlists.Tracks))
 	}
 
 	// Correct result from playlist 20 arrives — should be applied.
@@ -58,11 +58,11 @@ func TestStalePlaylistTracksLoadedMsgDiscarded(t *testing.T) {
 	next, _ = m.Update(correctMsg)
 	m = next.(Model)
 
-	if m.playlists.level != pltui.TrackLevel {
-		t.Errorf("correct msg should transition to TrackLevel, got level=%d", m.playlists.level)
+	if m.playlists.Level != pltui.TrackLevel {
+		t.Errorf("correct msg should transition to TrackLevel, got level=%d", m.playlists.Level)
 	}
-	if len(m.playlists.tracks) != 1 || m.playlists.tracks[0].Title != "Good Track" {
-		t.Errorf("correct msg should load tracks, got %v", m.playlists.tracks)
+	if len(m.playlists.Tracks) != 1 || m.playlists.Tracks[0].Title != "Good Track" {
+		t.Errorf("correct msg should load tracks, got %v", m.playlists.Tracks)
 	}
 }
 
@@ -71,9 +71,9 @@ func TestStalePlaylistTracksLoadedMsgDiscarded(t *testing.T) {
 func TestStaleRefreshMsgDiscarded(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewPlaylists
-	m.playlists.level = pltui.TrackLevel
-	m.playlists.tracks = []db.PlaylistTrackRow{{ID: 1, Title: "Original", DurationMs: 60000}}
-	m.playlists.pendingLoadID = 20
+	m.playlists.Level = pltui.TrackLevel
+	m.playlists.Tracks = []db.PlaylistTrackRow{{ID: 1, Title: "Original", DurationMs: 60000}}
+	m.playlists.PendingLoadID = 20
 
 	staleRefresh := playlistTracksLoadedMsg{
 		tracks:     []db.PlaylistTrackRow{{ID: 2, Title: "Stale Refresh", DurationMs: 30000}},
@@ -83,7 +83,7 @@ func TestStaleRefreshMsgDiscarded(t *testing.T) {
 	next, _ := m.Update(staleRefresh)
 	m = next.(Model)
 
-	if len(m.playlists.tracks) != 1 || m.playlists.tracks[0].Title != "Original" {
-		t.Errorf("stale refresh should not replace tracks, got %v", m.playlists.tracks)
+	if len(m.playlists.Tracks) != 1 || m.playlists.Tracks[0].Title != "Original" {
+		t.Errorf("stale refresh should not replace tracks, got %v", m.playlists.Tracks)
 	}
 }

@@ -37,7 +37,7 @@ func activeViewCursor(m Model) int {
 	case viewLibrary:
 		return m.library.Cursor
 	case viewPlaylists:
-		return m.playlists.cursor
+		return m.playlists.Cursor
 	case viewQueue:
 		return m.queue.cursor
 	case viewBrowse:
@@ -85,7 +85,7 @@ func enterVisualMode(m Model) Model {
 			return m
 		}
 	case viewPlaylists:
-		if m.playlists.level != pltui.TrackLevel {
+		if m.playlists.Level != pltui.TrackLevel {
 			return m
 		}
 	case viewTags:
@@ -159,7 +159,7 @@ func visualListLen(m Model) int {
 	case viewQueue:
 		return len(m.queue.filteredEntries())
 	case viewPlaylists:
-		return len(m.playlists.tracks)
+		return len(m.playlists.Tracks)
 	case viewBrowse:
 		switch m.visual.browseMode {
 		case BrowseModeArtists:
@@ -212,7 +212,7 @@ func takeSnapshot(m Model) selectionSnapshot {
 			}
 		}
 	case viewPlaylists:
-		snap.trackIDs = cloneInt64Set(m.playlists.selectedTrackIDs)
+		snap.trackIDs = cloneInt64Set(m.playlists.SelectedTrackIDs)
 	case viewBrowse:
 		switch m.browse.mode {
 		case BrowseModeArtists:
@@ -242,7 +242,7 @@ func restoreSnapshot(m Model) Model {
 			m.queue.entries[i].Selected = m.visual.snapshot.queueSel[i]
 		}
 	case viewPlaylists:
-		m.playlists.selectedTrackIDs = cloneInt64Set(m.visual.snapshot.trackIDs)
+		m.playlists.SelectedTrackIDs = cloneInt64Set(m.visual.snapshot.trackIDs)
 	case viewBrowse:
 		switch m.visual.browseMode {
 		case BrowseModeArtists:
@@ -279,16 +279,16 @@ func selectRange(m Model, lo, hi int) Model {
 			}
 		}
 	case viewPlaylists:
-		if m.playlists.level == pltui.TrackLevel {
+		if m.playlists.Level == pltui.TrackLevel {
 			for i := lo; i <= hi; i++ {
-				realIdx := m.playlists.trackIndex(i)
-				if realIdx < 0 || realIdx >= len(m.playlists.tracks) {
+				realIdx := m.playlists.TrackIndex(i)
+				if realIdx < 0 || realIdx >= len(m.playlists.Tracks) {
 					continue
 				}
-				if m.playlists.selectedTrackIDs == nil {
-					m.playlists.selectedTrackIDs = make(map[int64]struct{})
+				if m.playlists.SelectedTrackIDs == nil {
+					m.playlists.SelectedTrackIDs = make(map[int64]struct{})
 				}
-				m.playlists.selectedTrackIDs[m.playlists.tracks[realIdx].ID] = struct{}{}
+				m.playlists.SelectedTrackIDs[m.playlists.Tracks[realIdx].ID] = struct{}{}
 			}
 		}
 	case viewBrowse:

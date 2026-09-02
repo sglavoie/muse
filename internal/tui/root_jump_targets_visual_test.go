@@ -68,7 +68,7 @@ func TestJumpToGenre_ExitsVisualMode(t *testing.T) {
 // jumping to a playlist.
 func TestJumpToPlaylist_ExitsVisualMode(t *testing.T) {
 	m := newModelWithTracks()
-	m.playlists.playlists = []db.PlaylistRow{
+	m.playlists.Playlists = []db.PlaylistRow{
 		{ID: 1, Name: "Alpha"},
 		{ID: 2, Name: "Beta"},
 	}

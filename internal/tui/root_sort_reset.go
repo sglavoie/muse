@@ -51,17 +51,17 @@ func (m Model) preserveQueueSort() Model {
 
 // resetPlaylistsSort clears the playlists sort state and sorted caches.
 func (m Model) resetPlaylistsSort() Model {
-	m.playlists.sortState = sorting.SortState{}
-	m.playlists.sortedPlaylists = nil
-	m.playlists.sortedTrackOrder = nil
+	m.playlists.SortState = sorting.SortState{}
+	m.playlists.SortedPlaylists = nil
+	m.playlists.SortedTrackOrder = nil
 	return m
 }
 
 // preservePlaylistsSort recomputes playlist sort caches if a sort is active,
 // otherwise leaves the view in default order.
 func (m Model) preservePlaylistsSort() Model {
-	if m.playlists.sortState.Field != sorting.SortDefault {
-		m.playlists = m.playlists.recomputePlaylistSort()
+	if m.playlists.SortState.Field != sorting.SortDefault {
+		m.playlists = m.playlists.RecomputePlaylistSort()
 	}
 	return m
 }

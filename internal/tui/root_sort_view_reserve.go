@@ -9,12 +9,12 @@ import (
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
-func playlistsVisibleReserve(v PlaylistsView) int {
+func playlistsVisibleReserve(v pltui.PlaylistsView) int {
 	reserve := 1
-	if v.level == pltui.ListLevel && v.sortState.Field != sorting.SortDefault {
+	if v.Level == pltui.ListLevel && v.SortState.Field != sorting.SortDefault {
 		reserve++
 	}
-	if v.level == pltui.TrackLevel {
+	if v.Level == pltui.TrackLevel {
 		reserve = 4
 	}
 	return reserve

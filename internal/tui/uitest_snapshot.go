@@ -186,14 +186,14 @@ func (m Model) fillTagsSnapshot(snap *UITestSnapshot) {
 
 func (m Model) fillPlaylistsSnapshot(snap *UITestSnapshot) {
 	p := m.playlists
-	snap.Level = playlistsLevelName(p.level)
-	snap.Cursor = p.cursor
-	snap.ScrollOffset = p.scrollOffset
-	snap.SelectionCount = len(p.selectedTrackIDs)
-	if p.level == pltui.TrackLevel {
-		snap.VisibleCount = len(p.tracks)
+	snap.Level = playlistsLevelName(p.Level)
+	snap.Cursor = p.Cursor
+	snap.ScrollOffset = p.ScrollOffset
+	snap.SelectionCount = len(p.SelectedTrackIDs)
+	if p.Level == pltui.TrackLevel {
+		snap.VisibleCount = len(p.Tracks)
 	} else {
-		snap.VisibleCount = len(p.playlists)
+		snap.VisibleCount = len(p.Playlists)
 	}
 }
 

@@ -6,12 +6,13 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui/layout"
 )
 
 // handlePlaylistDelete handles the 'd' key in the playlists view for deleting
 // playlists (at list level) or removing tracks (at track level, including bulk).
 func (m Model) handlePlaylistDelete() (Model, tea.Cmd) {
-	if m.playlists.atListLevel() {
+	if m.playlists.AtListLevel() {
 		return m.handlePlaylistDeleteAtListLevel()
 	}
 	return m.handlePlaylistDeleteAtTrackLevel()
@@ -19,17 +20,17 @@ func (m Model) handlePlaylistDelete() (Model, tea.Cmd) {
 
 // handlePlaylistDeleteAtListLevel removes the focused playlist via soft-delete.
 func (m Model) handlePlaylistDeleteAtListLevel() (Model, tea.Cmd) {
-	effective := m.playlists.effectivePlaylists()
+	effective := m.playlists.EffectivePlaylists()
 	if len(effective) == 0 {
 		return m, nil
 	}
-	displayIdx := m.playlists.cursor
+	displayIdx := m.playlists.Cursor
 	if displayIdx < 0 || displayIdx >= len(effective) {
 		return m, nil
 	}
 	entry := effective[displayIdx]
 	canonicalIdx := -1
-	for i, p := range m.playlists.playlists {
+	for i, p := range m.playlists.Playlists {
 		if p.ID == entry.ID {
 			canonicalIdx = i
 			break
@@ -57,10 +58,10 @@ func (m Model) handlePlaylistDeleteAtListLevel() (Model, tea.Cmd) {
 	)
 	m.setUndoSlot(undoDeletePlaylistAction{entry: entry, idx: canonicalIdx}, cancel)
 	player.PlaySound(player.SoundRemoved)
-	m.playlists.playlists = append(m.playlists.playlists[:canonicalIdx], m.playlists.playlists[canonicalIdx+1:]...)
+	m.playlists.Playlists = append(m.playlists.Playlists[:canonicalIdx], m.playlists.Playlists[canonicalIdx+1:]...)
 	m = m.preservePlaylistsSort()
-	m.playlists.cursor, m.playlists.scrollOffset = clampAfterRemoval(
-		m.playlists.cursor, m.playlists.scrollOffset, len(m.playlists.playlists))
+	m.playlists.Cursor, m.playlists.ScrollOffset = layout.ClampAfterRemoval(
+		m.playlists.Cursor, m.playlists.ScrollOffset, len(m.playlists.Playlists))
 	return m, nil
 }
 
@@ -68,10 +69,10 @@ func (m Model) handlePlaylistDeleteAtListLevel() (Model, tea.Cmd) {
 // playlist. Bulk removal is used when a visual selection is active; otherwise
 // the single focused track is removed. Smart playlists are read-only.
 func (m Model) handlePlaylistDeleteAtTrackLevel() (Model, tea.Cmd) {
-	if m.playlists.smartQuery != nil {
+	if m.playlists.SmartQuery != nil {
 		return m, nil
 	}
-	if m.playlists.hasTrackSelection() {
+	if m.playlists.HasTrackSelection() {
 		return m.handlePlaylistDeleteBulkTracks()
 	}
 	return m.handlePlaylistDeleteSingleTrack()
@@ -81,8 +82,8 @@ func (m Model) handlePlaylistDeleteAtTrackLevel() (Model, tea.Cmd) {
 func (m Model) handlePlaylistDeleteBulkTracks() (Model, tea.Cmd) {
 	var removedEntries []db.PlaylistTrackRow
 	var removedIndices []int
-	for i, t := range m.playlists.tracks {
-		if _, ok := m.playlists.selectedTrackIDs[t.ID]; ok {
+	for i, t := range m.playlists.Tracks {
+		if _, ok := m.playlists.SelectedTrackIDs[t.ID]; ok {
 			removedEntries = append(removedEntries, t)
 			removedIndices = append(removedIndices, i)
 		}
@@ -107,17 +108,17 @@ func (m Model) handlePlaylistDeleteBulkTracks() (Model, tea.Cmd) {
 		},
 	)
 	var remaining []db.PlaylistTrackRow
-	for _, t := range m.playlists.tracks {
-		if _, ok := m.playlists.selectedTrackIDs[t.ID]; !ok {
+	for _, t := range m.playlists.Tracks {
+		if _, ok := m.playlists.SelectedTrackIDs[t.ID]; !ok {
 			remaining = append(remaining, t)
 		}
 	}
-	m.playlists.tracks = remaining
+	m.playlists.Tracks = remaining
 	m = m.preservePlaylistsSort()
-	m.playlists.cursor, m.playlists.scrollOffset = clampAfterRemoval(
-		m.playlists.cursor, m.playlists.scrollOffset, len(m.playlists.tracks))
+	m.playlists.Cursor, m.playlists.ScrollOffset = layout.ClampAfterRemoval(
+		m.playlists.Cursor, m.playlists.ScrollOffset, len(m.playlists.Tracks))
 	m = exitVisualMode(m)
-	m.playlists = m.playlists.clearTrackSelection()
+	m.playlists = m.playlists.ClearTrackSelection()
 	m.setUndoSlot(undoBulkRemovePlaylistTracksAction{entries: removedEntries, indices: removedIndices}, cancel)
 	player.PlaySound(player.SoundRemoved)
 	return m, nil
@@ -125,15 +126,15 @@ func (m Model) handlePlaylistDeleteBulkTracks() (Model, tea.Cmd) {
 
 // handlePlaylistDeleteSingleTrack removes the focused track from the active playlist.
 func (m Model) handlePlaylistDeleteSingleTrack() (Model, tea.Cmd) {
-	if len(m.playlists.tracks) == 0 {
+	if len(m.playlists.Tracks) == 0 {
 		return m, nil
 	}
-	displayIdx := m.playlists.cursor
-	if displayIdx < 0 || displayIdx >= len(m.playlists.tracks) {
+	displayIdx := m.playlists.Cursor
+	if displayIdx < 0 || displayIdx >= len(m.playlists.Tracks) {
 		return m, nil
 	}
-	idx := m.playlists.trackIndex(displayIdx)
-	entry := m.playlists.tracks[idx]
+	idx := m.playlists.TrackIndex(displayIdx)
+	entry := m.playlists.Tracks[idx]
 	pd := m.playlistDeleter
 	cancel := m.scheduleSoftDelete(
 		func() {
@@ -153,9 +154,9 @@ func (m Model) handlePlaylistDeleteSingleTrack() (Model, tea.Cmd) {
 	)
 	m.setUndoSlot(undoRemovePlaylistTrackAction{entry: entry, idx: idx}, cancel)
 	player.PlaySound(player.SoundRemoved)
-	m.playlists.tracks = append(m.playlists.tracks[:idx], m.playlists.tracks[idx+1:]...)
+	m.playlists.Tracks = append(m.playlists.Tracks[:idx], m.playlists.Tracks[idx+1:]...)
 	m = m.preservePlaylistsSort()
-	m.playlists.cursor, m.playlists.scrollOffset = clampAfterRemoval(
-		m.playlists.cursor, m.playlists.scrollOffset, len(m.playlists.tracks))
+	m.playlists.Cursor, m.playlists.ScrollOffset = layout.ClampAfterRemoval(
+		m.playlists.Cursor, m.playlists.ScrollOffset, len(m.playlists.Tracks))
 	return m, nil
 }

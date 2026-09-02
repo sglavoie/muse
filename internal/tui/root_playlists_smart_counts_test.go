@@ -23,10 +23,10 @@ func TestSmartPlaylistCountsUpdatesSortedCopy(t *testing.T) {
 	m = next.(Model)
 
 	// Sort by track count descending: Rock(10) before Smart(0).
-	m.playlists.sortState = sorting.SortState{Field: sorting.SortTrackCount, Dir: sorting.SortDesc}
-	m.playlists = m.playlists.recomputePlaylistSort()
+	m.playlists.SortState = sorting.SortState{Field: sorting.SortTrackCount, Dir: sorting.SortDesc}
+	m.playlists = m.playlists.RecomputePlaylistSort()
 
-	effective := m.playlists.effectivePlaylists()
+	effective := m.playlists.EffectivePlaylists()
 	if effective[0].ID != 1 {
 		t.Fatalf("before update: first should be Rock(ID=1), got ID=%d", effective[0].ID)
 	}
@@ -35,7 +35,7 @@ func TestSmartPlaylistCountsUpdatesSortedCopy(t *testing.T) {
 	next, _ = m.Update(smartPlaylistCountsUpdatedMsg{counts: map[int64]int{2: 20}})
 	m = next.(Model)
 
-	effective = m.playlists.effectivePlaylists()
+	effective = m.playlists.EffectivePlaylists()
 	if effective[0].ID != 2 {
 		t.Errorf("after count update: first should be Smart(ID=2, count=20), got ID=%d (count=%d)",
 			effective[0].ID, effective[0].TrackCount)

@@ -56,12 +56,12 @@ func (m Model) selectedTrackHashes() []string {
 		}
 		return nil
 	case viewPlaylists:
-		if len(m.playlists.selectedTrackIDs) == 0 {
+		if len(m.playlists.SelectedTrackIDs) == 0 {
 			return nil
 		}
-		hashes := make([]string, 0, len(m.playlists.selectedTrackIDs))
-		for _, t := range m.playlists.tracks {
-			if _, ok := m.playlists.selectedTrackIDs[t.ID]; ok {
+		hashes := make([]string, 0, len(m.playlists.SelectedTrackIDs))
+		for _, t := range m.playlists.Tracks {
+			if _, ok := m.playlists.SelectedTrackIDs[t.ID]; ok {
 				hashes = append(hashes, t.Hash)
 			}
 		}
@@ -150,7 +150,7 @@ func (m Model) focusedTrackHash() string {
 			}
 		}
 	case viewPlaylists:
-		if track, ok := m.playlists.focusedTrack(); ok {
+		if track, ok := m.playlists.FocusedTrack(); ok {
 			return track.Hash
 		}
 	case viewFavorites:

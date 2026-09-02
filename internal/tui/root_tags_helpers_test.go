@@ -186,13 +186,13 @@ func TestTagPickerHashes_BulkFromArtists(t *testing.T) {
 func TestSelectedTrackHashes_Playlists(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewPlaylists
-	m.playlists.level = pltui.TrackLevel
-	m.playlists.tracks = []db.PlaylistTrackRow{
+	m.playlists.Level = pltui.TrackLevel
+	m.playlists.Tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "hp1"},
 		{ID: 2, Hash: "hp2"},
 		{ID: 3, Hash: "hp3"},
 	}
-	m.playlists.selectedTrackIDs = map[int64]struct{}{1: {}, 3: {}}
+	m.playlists.SelectedTrackIDs = map[int64]struct{}{1: {}, 3: {}}
 
 	got := m.selectedTrackHashes()
 	if len(got) != 2 {

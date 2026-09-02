@@ -58,15 +58,15 @@ func TestCommandPaletteActionWithoutViewRunsInPlace(t *testing.T) {
 func TestCommandPaletteActionSameViewKeepsState(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewPlaylists
-	m.playlists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
-	m.playlists = m.playlists.startRename("Mix tape")
+	m.playlists.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
+	m.playlists = m.playlists.StartRename("Mix tape")
 
 	out := dispatchPaletteAction(t, m, commandPaletteActionMsg{action: keys.ActionQueueSummary, view: viewPlaylists})
 
-	if out.playlists.sortState != (sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}) {
-		t.Errorf("playlists sortState = %+v, want it preserved", out.playlists.sortState)
+	if out.playlists.SortState != (sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}) {
+		t.Errorf("playlists sortState = %+v, want it preserved", out.playlists.SortState)
 	}
-	if !out.playlists.isRenaming() {
+	if !out.playlists.IsRenaming() {
 		t.Error("in-flight rename was cancelled by a same-view dispatch")
 	}
 	if out.overlay.queueSummary == nil {
@@ -145,9 +145,9 @@ func TestPaletteDeletePlaylistOnlyAtListLevel(t *testing.T) {
 		m := New(context.Background(), WithPlaylistDeleter(pd),
 			WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "Alpha"}, {ID: 2, Name: "Beta"}}))
 		m.activeView = viewPlaylists
-		m.playlists.level = pltui.TrackLevel
-		m.playlists.tracks = []db.PlaylistTrackRow{{ID: 10, Position: 1, Title: "A"}, {ID: 20, Position: 2, Title: "B"}}
-		m.playlists.cursor = 1
+		m.playlists.Level = pltui.TrackLevel
+		m.playlists.Tracks = []db.PlaylistTrackRow{{ID: 10, Position: 1, Title: "A"}, {ID: 20, Position: 2, Title: "B"}}
+		m.playlists.Cursor = 1
 
 		if paletteCommandEnabledForTest(t, m, "Delete playlist") {
 			t.Error("Delete playlist is selectable at playlist track level")
@@ -155,13 +155,13 @@ func TestPaletteDeletePlaylistOnlyAtListLevel(t *testing.T) {
 
 		out := runPaletteCommandForTest(t, m, "Delete playlist")
 
-		if n := len(out.playlists.tracks); n != 2 {
+		if n := len(out.playlists.Tracks); n != 2 {
 			t.Errorf("playlist tracks = %d, want 2: the palette command removed tracks", n)
 		}
 		if n := len(pd.removePlaylistTrackSoftCalls); n != 0 {
 			t.Errorf("RemovePlaylistTrackSoft calls = %d, want 0", n)
 		}
-		if n := len(out.playlists.playlists); n != 2 {
+		if n := len(out.playlists.Playlists); n != 2 {
 			t.Errorf("playlists = %d, want 2", n)
 		}
 		if len(pd.deletePlaylistSoftCalls) != 0 {
@@ -177,7 +177,7 @@ func TestPaletteDeletePlaylistOnlyAtListLevel(t *testing.T) {
 		m := New(context.Background(), WithPlaylistDeleter(pd),
 			WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "Alpha"}, {ID: 2, Name: "Beta"}}))
 		m.activeView = viewPlaylists
-		m.playlists.cursor = 1
+		m.playlists.Cursor = 1
 
 		if !paletteCommandEnabledForTest(t, m, "Delete playlist") {
 			t.Error("Delete playlist is dimmed at playlist list level")
@@ -185,11 +185,11 @@ func TestPaletteDeletePlaylistOnlyAtListLevel(t *testing.T) {
 
 		out := runPaletteCommandForTest(t, m, "Delete playlist")
 
-		if n := len(out.playlists.playlists); n != 1 {
+		if n := len(out.playlists.Playlists); n != 1 {
 			t.Fatalf("playlists = %d, want 1", n)
 		}
-		if out.playlists.playlists[0].ID != 1 {
-			t.Errorf("remaining playlist ID = %d, want 1", out.playlists.playlists[0].ID)
+		if out.playlists.Playlists[0].ID != 1 {
+			t.Errorf("remaining playlist ID = %d, want 1", out.playlists.Playlists[0].ID)
 		}
 		if len(pd.deletePlaylistSoftCalls) != 1 || pd.deletePlaylistSoftCalls[0] != 2 {
 			t.Errorf("DeletePlaylistSoft calls = %v, want [2]", pd.deletePlaylistSoftCalls)
@@ -253,9 +253,9 @@ func TestPaletteCreateCommandsHandleNestedDestination(t *testing.T) {
 	nestedPlaylists := func() Model {
 		m := New(context.Background(), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "Alpha"}, {ID: 2, Name: "Beta"}}))
 		m.activeView = viewLibrary
-		m.playlists.level = pltui.TrackLevel
-		m.playlists.tracks = []db.PlaylistTrackRow{{ID: 10, Position: 1, Title: "A"}}
-		m.playlists.cursor = 0
+		m.playlists.Level = pltui.TrackLevel
+		m.playlists.Tracks = []db.PlaylistTrackRow{{ID: 10, Position: 1, Title: "A"}}
+		m.playlists.Cursor = 0
 		return m
 	}
 
@@ -270,10 +270,10 @@ func TestPaletteCreateCommandsHandleNestedDestination(t *testing.T) {
 		if out.activeView != viewPlaylists {
 			t.Fatalf("activeView = %v, want viewPlaylists", out.activeView)
 		}
-		if !out.playlists.atListLevel() {
+		if !out.playlists.AtListLevel() {
 			t.Error("playlists view is still at track level after the switch")
 		}
-		if !out.playlists.isCreating() {
+		if !out.playlists.IsCreating() {
 			t.Error("playlist create input is not active: the command was a silent no-op")
 		}
 	})
@@ -289,7 +289,7 @@ func TestPaletteCreateCommandsHandleNestedDestination(t *testing.T) {
 		if out.activeView != viewPlaylists {
 			t.Fatalf("activeView = %v, want viewPlaylists", out.activeView)
 		}
-		if !out.playlists.atListLevel() {
+		if !out.playlists.AtListLevel() {
 			t.Error("playlists view is still at track level after the switch")
 		}
 		if out.overlay.smartRuleEditor == nil {

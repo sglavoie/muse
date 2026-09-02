@@ -60,8 +60,8 @@ func TestWatchBatchUpdatesHistoryDuration(t *testing.T) {
 func TestWatchBatchUpdatesPlaylistDuration(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
-	m.playlists.level = pltui.TrackLevel
-	m.playlists.tracks = []db.PlaylistTrackRow{
+	m.playlists.Level = pltui.TrackLevel
+	m.playlists.Tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "h1", Path: "/a.flac", DurationMs: 120_000},
 	}
 
@@ -72,8 +72,8 @@ func TestWatchBatchUpdatesPlaylistDuration(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.playlists.tracks[0].DurationMs != 200_000 {
-		t.Errorf("playlist track DurationMs = %d, want 200000", nm.playlists.tracks[0].DurationMs)
+	if nm.playlists.Tracks[0].DurationMs != 200_000 {
+		t.Errorf("playlist track DurationMs = %d, want 200000", nm.playlists.Tracks[0].DurationMs)
 	}
 }
 

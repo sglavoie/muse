@@ -61,22 +61,22 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewPlaylists:
-		if m.playlists.creating || m.playlists.renaming {
+		if m.playlists.Creating || m.playlists.Renaming {
 			return m, nil, false
 		}
 		fields := sorting.PlaylistListSortFields
-		if m.playlists.level == pltui.TrackLevel {
+		if m.playlists.Level == pltui.TrackLevel {
 			fields = sorting.PlaylistTrackSortFields
 		}
-		next := sorting.CycleSortField(m.playlists.sortState.Field, fields)
-		m.playlists.sortState.Field = next
+		next := sorting.CycleSortField(m.playlists.SortState.Field, fields)
+		m.playlists.SortState.Field = next
 		if next == sorting.SortDefault {
-			m.playlists.sortState.Dir = sorting.SortAsc
+			m.playlists.SortState.Dir = sorting.SortAsc
 		}
-		m.playlists = m.playlists.recomputePlaylistSort()
-		m.playlists.cursor = 0
-		m.playlists.scrollOffset = 0
-		m.statusBar.NotifyInfo(sortNotification(m.playlists.sortState))
+		m.playlists = m.playlists.RecomputePlaylistSort()
+		m.playlists.Cursor = 0
+		m.playlists.ScrollOffset = 0
+		m.statusBar.NotifyInfo(sortNotification(m.playlists.SortState))
 		return m, nil, true
 
 	case viewBrowse:
@@ -174,11 +174,11 @@ func (m Model) handleSortDir(dir sorting.SortDir) (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewPlaylists:
-		if m.playlists.sortState.Field == sorting.SortDefault {
+		if m.playlists.SortState.Field == sorting.SortDefault {
 			return m, nil, false
 		}
 		m = m.preservePlaylistCursorOnDirChange(dir)
-		m.statusBar.NotifyInfo(sortNotification(m.playlists.sortState))
+		m.statusBar.NotifyInfo(sortNotification(m.playlists.SortState))
 		return m, nil, true
 
 	case viewBrowse:

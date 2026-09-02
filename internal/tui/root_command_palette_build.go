@@ -220,11 +220,11 @@ func (m Model) buildPaletteCommands() []palette.PaletteCommand {
 			if m.activeView != viewPlaylists {
 				return false
 			}
-			if m.playlists.atListLevel() {
-				pl, ok := m.playlists.focusedPlaylist()
+			if m.playlists.AtListLevel() {
+				pl, ok := m.playlists.FocusedPlaylist()
 				return ok && !pl.IsSmart && pl.TrackCount > 1
 			}
-			return m.playlists.smartQuery == nil && len(m.playlists.tracks) > 1
+			return m.playlists.SmartQuery == nil && len(m.playlists.Tracks) > 1
 		},
 	})
 
@@ -325,7 +325,7 @@ func (m Model) focusedTrackForPalette() (path, artist, title string, found bool)
 		}
 
 	case viewPlaylists:
-		if track, ok := m.playlists.focusedTrack(); ok {
+		if track, ok := m.playlists.FocusedTrack(); ok {
 			return track.Path, track.Artist, track.Title, true
 		}
 

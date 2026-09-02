@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -88,7 +89,7 @@ func queueTrackFromEntry(entry QueueEntry) player.QueueTrack {
 // count rather than the full entry count.
 func (m *Model) clampQueueCursorAndScroll() {
 	n := len(m.queue.filteredEntries())
-	m.queue.cursor, m.queue.scrollOffset = clampAfterRemoval(
+	m.queue.cursor, m.queue.scrollOffset = layout.ClampAfterRemoval(
 		m.queue.cursor, m.queue.scrollOffset, n)
 }
 

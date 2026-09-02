@@ -21,12 +21,12 @@ func (m Model) bulkSelectedHashes() []string {
 	case viewQueue:
 		return m.queue.selectedHashes()
 	case viewPlaylists:
-		if len(m.playlists.selectedTrackIDs) == 0 {
+		if len(m.playlists.SelectedTrackIDs) == 0 {
 			return nil
 		}
-		hashes := make([]string, 0, len(m.playlists.selectedTrackIDs))
-		for _, t := range m.playlists.tracks {
-			if _, ok := m.playlists.selectedTrackIDs[t.ID]; ok {
+		hashes := make([]string, 0, len(m.playlists.SelectedTrackIDs))
+		for _, t := range m.playlists.Tracks {
+			if _, ok := m.playlists.SelectedTrackIDs[t.ID]; ok {
 				hashes = append(hashes, t.Hash)
 			}
 		}
@@ -159,16 +159,16 @@ func (m Model) refreshDerivedViews() Model {
 		m.browse.genres = m.browse.genres.clampCursor()
 	}
 
-	if m.playlists.level == pltui.TrackLevel {
-		for i := range m.playlists.tracks {
-			if t, ok := m.library.Index.FindByHash(m.playlists.tracks[i].Hash); ok {
-				m.playlists.tracks[i].Title = t.Title
-				m.playlists.tracks[i].Artist = t.Artist
-				m.playlists.tracks[i].Album = t.Album
-				m.playlists.tracks[i].DurationMs = int64(t.Duration * 1000)
+	if m.playlists.Level == pltui.TrackLevel {
+		for i := range m.playlists.Tracks {
+			if t, ok := m.library.Index.FindByHash(m.playlists.Tracks[i].Hash); ok {
+				m.playlists.Tracks[i].Title = t.Title
+				m.playlists.Tracks[i].Artist = t.Artist
+				m.playlists.Tracks[i].Album = t.Album
+				m.playlists.Tracks[i].DurationMs = int64(t.Duration * 1000)
 			}
 		}
-		m.playlists = m.playlists.recomputePlaylistSort()
+		m.playlists = m.playlists.RecomputePlaylistSort()
 	}
 
 	refreshTrackMetadata := func(ts []musiclib.Track) {

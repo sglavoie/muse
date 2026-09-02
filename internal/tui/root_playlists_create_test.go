@@ -73,8 +73,8 @@ func TestPlaylistCreateFlowSuccess(t *testing.T) {
 	}
 
 	// Verify cursor is on the new entry (index 0, the only entry).
-	if m.playlists.cursor != 0 {
-		t.Errorf("expected cursor=0 on new entry, got %d", m.playlists.cursor)
+	if m.playlists.Cursor != 0 {
+		t.Errorf("expected cursor=0 on new entry, got %d", m.playlists.Cursor)
 	}
 }
 
@@ -99,7 +99,7 @@ func TestPlaylistCreateFlowEscCancels(t *testing.T) {
 	next, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	m = next.(Model)
 
-	if m.playlists.isCreating() {
+	if m.playlists.IsCreating() {
 		t.Error("expected isCreating=false after Esc")
 	}
 	if len(creator.rows) != 0 {
@@ -136,7 +136,7 @@ func TestPlaylistCreateFlowErrorShowsNotification(t *testing.T) {
 	next, _ = m.Update(result)
 	m = next.(Model)
 
-	if m.playlists.isCreating() {
+	if m.playlists.IsCreating() {
 		t.Error("expected isCreating=false after error")
 	}
 	if !strings.Contains(m.statusBar.TopNotification().Msg, "db locked") {
@@ -304,14 +304,14 @@ func TestPlaylistCreateNameTrimsWhitespace(t *testing.T) {
 func TestPlaylistRenameNameTrimsWhitespace(t *testing.T) {
 	renamer := &stubPlaylistRenamer{rows: []db.PlaylistRow{{ID: 1, Name: "Old"}}}
 	m := New(context.Background(), WithPlaylistRenamer(renamer))
-	m.playlists.playlists = []db.PlaylistRow{{ID: 1, Name: "Old"}}
-	m.playlists.cursor = 0
+	m.playlists.Playlists = []db.PlaylistRow{{ID: 1, Name: "Old"}}
+	m.playlists.Cursor = 0
 
 	// The renameInputValue method should trim whitespace.
-	m.playlists = m.playlists.startRename("Old")
-	m.playlists.renameInput.SetValue("  NewName  ")
+	m.playlists = m.playlists.StartRename("Old")
+	m.playlists.RenameInput.SetValue("  NewName  ")
 
-	got := m.playlists.renameInputValue()
+	got := m.playlists.RenameInputValue()
 	if got != "NewName" {
 		t.Errorf("expected trimmed rename value 'NewName', got %q", got)
 	}
@@ -338,7 +338,7 @@ func TestPlaylistCreateDuplicateWithWhitespace(t *testing.T) {
 	creator := &stubPlaylistCreator{nextID: 50}
 	m := New(context.Background(), WithPlaylistWriter(creator))
 	m = m.switchToView(viewPlaylists)
-	m.playlists.playlists = []db.PlaylistRow{{ID: 1, Name: "Existing"}}
+	m.playlists.Playlists = []db.PlaylistRow{{ID: 1, Name: "Existing"}}
 
 	// Activate the create input.
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Text: "c"})

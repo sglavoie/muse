@@ -86,8 +86,8 @@ func (m Model) handleLibraryPlayNextAction() (tea.Model, tea.Cmd, bool) {
 			}
 		}
 	case viewPlaylists:
-		if m.playlists.level == pltui.TrackLevel {
-			cmd = m.playlists.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
+		if m.playlists.Level == pltui.TrackLevel {
+			cmd = m.playlists.PlayNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
 		}
 	case viewFavorites:
 		if _, ok := m.favorites.focusedTrack(); ok {
@@ -133,9 +133,9 @@ func (m Model) handleLibraryEnqueueReplaceAction() (tea.Model, tea.Cmd, bool) {
 			}
 		}
 	case viewPlaylists:
-		if m.playlists.level == pltui.TrackLevel {
+		if m.playlists.Level == pltui.TrackLevel {
 			m = m.clearQueueForReplace()
-			cmd = m.playlists.enqueueFocusedTrack(m.queueWriter, 0)
+			cmd = m.playlists.EnqueueFocusedTrack(m.queueWriter, 0)
 		}
 	case viewFavorites:
 		if _, ok := m.favorites.focusedTrack(); ok {

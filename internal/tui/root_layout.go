@@ -64,8 +64,8 @@ func (m *Model) clampAllScrollOffsets() {
 	m.queue.scrollOffset = sorting.AdjustScroll(m.queue.cursor, m.queue.scrollOffset, queueMaxRows)
 
 	plReserve := playlistsVisibleReserve(m.playlists)
-	plMaxRows := layout.VisibleRows(m.playlists.height, plReserve)
-	m.playlists.scrollOffset = sorting.AdjustScroll(m.playlists.cursor, m.playlists.scrollOffset, plMaxRows)
+	plMaxRows := layout.VisibleRows(m.playlists.Height, plReserve)
+	m.playlists.ScrollOffset = sorting.AdjustScroll(m.playlists.Cursor, m.playlists.ScrollOffset, plMaxRows)
 
 	artReserve := artistsVisibleReserve(m.browse.artists)
 	artMaxRows := layout.VisibleRows(m.browse.artists.height, artReserve)

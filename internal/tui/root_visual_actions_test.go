@@ -77,13 +77,13 @@ func TestBulkFavoriteTracksReturnsDeterministicOrder(t *testing.T) {
 func TestPlaylistBulkDeleteExitsVisualMode(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewPlaylists
-	m.playlists.level = pltui.TrackLevel
-	m.playlists.tracks = []db.PlaylistTrackRow{
+	m.playlists.Level = pltui.TrackLevel
+	m.playlists.Tracks = []db.PlaylistTrackRow{
 		{ID: 1, Title: "T1", Artist: "A", DurationMs: 1000},
 		{ID: 2, Title: "T2", Artist: "A", DurationMs: 1000},
 		{ID: 3, Title: "T3", Artist: "A", DurationMs: 1000},
 	}
-	m.playlists.cursor = 0
+	m.playlists.Cursor = 0
 
 	m = doVisual(m)
 	m = doNav(m, keys.ActionCursorDown)
@@ -91,14 +91,14 @@ func TestPlaylistBulkDeleteExitsVisualMode(t *testing.T) {
 		t.Fatal("expected visual mode active before delete")
 	}
 
-	m.playlists.selectedTrackIDs = map[int64]struct{}{1: {}, 2: {}}
+	m.playlists.SelectedTrackIDs = map[int64]struct{}{1: {}, 2: {}}
 	m, _ = m.handlePlaylistDelete()
 
 	if m.visual.active {
 		t.Fatal("expected visual mode to exit after playlist bulk delete")
 	}
-	if len(m.playlists.tracks) != 1 {
-		t.Fatalf("expected 1 track remaining, got %d", len(m.playlists.tracks))
+	if len(m.playlists.Tracks) != 1 {
+		t.Fatalf("expected 1 track remaining, got %d", len(m.playlists.Tracks))
 	}
 }
 

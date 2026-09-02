@@ -47,13 +47,13 @@ func TestWatchBatchPreservesQueueSort(t *testing.T) {
 func TestWatchBatchPreservesPlaylistSort(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
-	m.playlists.level = pltui.TrackLevel
-	m.playlists.tracks = []db.PlaylistTrackRow{
+	m.playlists.Level = pltui.TrackLevel
+	m.playlists.Tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"},
 	}
-	m.playlists.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
-	m.playlists = m.playlists.recomputePlaylistSort()
+	m.playlists.SortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
+	m.playlists = m.playlists.RecomputePlaylistSort()
 
 	next, _ := m.Update(watchBatchMsg{
 		tracks: []library.Track{
@@ -62,7 +62,7 @@ func TestWatchBatchPreservesPlaylistSort(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.playlists.sortedTrackOrder == nil {
+	if nm.playlists.SortedTrackOrder == nil {
 		t.Fatal("expected sortedTrackOrder to be non-nil after watcher update with active playlist sort")
 	}
 }

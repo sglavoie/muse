@@ -103,13 +103,13 @@ func TestVisibleTracksQueuePrefersSelection(t *testing.T) {
 func TestVisibleTracksPlaylistsFollowsSortOrder(t *testing.T) {
 	m := Model{
 		activeView: viewPlaylists,
-		playlists: PlaylistsView{
-			level: pltui.TrackLevel,
-			tracks: []db.PlaylistTrackRow{
+		playlists: pltui.PlaylistsView{
+			Level: pltui.TrackLevel,
+			Tracks: []db.PlaylistTrackRow{
 				{ID: 1, Hash: "h1"},
 				{ID: 2, Hash: "h2"},
 			},
-			sortedTrackOrder: []int{1, 0},
+			SortedTrackOrder: []int{1, 0},
 		},
 	}
 	if got := visibleHashes(t, m); !slices.Equal(got, []string{"h2", "h1"}) {
@@ -140,7 +140,7 @@ func TestVisibleTracksRefusesLevelsWithNoTrackList(t *testing.T) {
 		model Model
 	}{
 		{"favorites category level", Model{activeView: viewFavorites, favorites: FavoritesView{level: favtui.CategoryLevel}}},
-		{"playlists list level", Model{activeView: viewPlaylists, playlists: PlaylistsView{level: pltui.ListLevel}}},
+		{"playlists list level", Model{activeView: viewPlaylists, playlists: pltui.PlaylistsView{Level: pltui.ListLevel}}},
 		{"tags tag level", Model{activeView: viewTags, tagsView: TagsView{level: tagtui.TagLevel}}},
 		{"insights briefing", Model{activeView: viewInsights, insights: InsightsView{level: insightsLevelBriefing}}},
 		{"mixes list level", Model{activeView: viewMixes, mixes: MixesView{level: 0}}},

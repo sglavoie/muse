@@ -130,7 +130,7 @@ func (m Model) handleMixEnqueueAll() (Model, tea.Cmd) {
 // handleMixSavedAsPlaylistMsg updates the playlist list and shows a success
 // notification after a mix is saved as a static playlist.
 func (m Model) handleMixSavedAsPlaylistMsg(msg mixSavedAsPlaylistMsg) Model {
-	m.playlists.playlists = msg.playlists
+	m.playlists.Playlists = msg.playlists
 	m = m.preservePlaylistsSort()
 	m.statusBar.Notify(fmt.Sprintf("Saved as %q (%d %s)", msg.playlistName, msg.count, text.Pluralize(msg.count, "track", "tracks")))
 	return m

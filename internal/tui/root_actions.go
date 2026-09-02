@@ -75,11 +75,11 @@ func (m Model) switchToView(id viewID) Model {
 	if m.queue.savingAsPlaylist {
 		m.queue = m.queue.cancelSaveAsPlaylist()
 	}
-	if m.playlists.creating {
-		m.playlists = m.playlists.cancelCreate()
+	if m.playlists.Creating {
+		m.playlists = m.playlists.CancelCreate()
 	}
-	if m.playlists.renaming {
-		m.playlists = m.playlists.cancelRename()
+	if m.playlists.Renaming {
+		m.playlists = m.playlists.CancelRename()
 	}
 	if m.tagsView.creating {
 		m.tagsView = m.tagsView.cancelCreate()

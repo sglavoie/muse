@@ -12,10 +12,10 @@ import (
 func (m Model) handlePlaylistKeyAction(action keys.Action) (Model, tea.Cmd, bool) {
 	switch action {
 	case keys.ActionPlaylistRename:
-		if !m.playlists.atListLevel() && m.playlists.smartQuery != nil && m.smartEval != nil {
-			q := *m.playlists.smartQuery
+		if !m.playlists.AtListLevel() && m.playlists.SmartQuery != nil && m.smartEval != nil {
+			q := *m.playlists.SmartQuery
 			evaluator := m.smartEval
-			pid := m.playlists.pendingLoadID
+			pid := m.playlists.PendingLoadID
 			return m, func() tea.Msg {
 				tracks, err := evaluator.EvalSmartPlaylist(q)
 				if err != nil {
@@ -30,9 +30,9 @@ func (m Model) handlePlaylistKeyAction(action keys.Action) (Model, tea.Cmd, bool
 	case keys.ActionPlaylistOpen:
 		return m.handlePlaylistOpen()
 	case keys.ActionPlaylistBack:
-		if !m.playlists.atListLevel() {
+		if !m.playlists.AtListLevel() {
 			m = exitVisualMode(m)
-			m.playlists = m.playlists.backToList()
+			m.playlists = m.playlists.BackToList()
 		}
 		return m, nil, true
 	case keys.ActionPlaylistEnqueueAll:
@@ -41,7 +41,7 @@ func (m Model) handlePlaylistKeyAction(action keys.Action) (Model, tea.Cmd, bool
 		m, cmd := m.handlePlaylistDelete()
 		return m, cmd, true
 	case keys.ActionSmartPlaylistCreate:
-		if m.activeView == viewPlaylists && m.playlists.atListLevel() {
+		if m.activeView == viewPlaylists && m.playlists.AtListLevel() {
 			editor := smartrules.NewSmartRuleEditor()
 			m.overlay.smartRuleEditor = &editor
 		}
@@ -53,8 +53,8 @@ func (m Model) handlePlaylistKeyAction(action keys.Action) (Model, tea.Cmd, bool
 		m, cmd := m.handlePlaylistMoveTrackDown()
 		return m, cmd, true
 	case keys.ActionSmartPlaylistEdit:
-		if m.activeView == viewPlaylists && m.playlists.atListLevel() {
-			pl, ok := m.playlists.focusedPlaylist()
+		if m.activeView == viewPlaylists && m.playlists.AtListLevel() {
+			pl, ok := m.playlists.FocusedPlaylist()
 			if ok && pl.IsSmart {
 				q, err := db.ParseSmartPlaylistQuery(pl.Query)
 				if err != nil {

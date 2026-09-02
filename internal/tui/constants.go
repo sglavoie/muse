@@ -19,8 +19,3 @@ const (
 	minTerminalWidth  = 60
 	minTerminalHeight = 15
 )
-
-// playlistFallbackVisibleRows is the assumed number of visible rows when
-// the terminal height is unknown (zero). Used by ensureCursorVisible to
-// keep the cursor within the viewport before the first WindowSizeMsg.
-const playlistFallbackVisibleRows = 50

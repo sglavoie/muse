@@ -100,8 +100,8 @@ func TestWindowSizeMsgPropagatesWidthToChildViews(t *testing.T) {
 	if nm.library.Width != newWidth {
 		t.Fatalf("library.width: expected %d, got %d", newWidth, nm.library.Width)
 	}
-	if nm.playlists.width != newWidth {
-		t.Fatalf("playlists.width: expected %d, got %d", newWidth, nm.playlists.width)
+	if nm.playlists.Width != newWidth {
+		t.Fatalf("playlists.width: expected %d, got %d", newWidth, nm.playlists.Width)
 	}
 
 	wide := libtui.Compute(120)

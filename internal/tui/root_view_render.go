@@ -190,7 +190,7 @@ func (m Model) renderPrimaryViewBody(display styles.Styles, nowPlayingIcon strin
 	case viewLibrary:
 		return m.library.Render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
 	case viewPlaylists:
-		return m.playlists.render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
+		return m.playlists.Render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
 	case viewQueue:
 		return m.queue.render(display, m.playback.currentIndex, m.playback.state, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 	case viewBrowse:

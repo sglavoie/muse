@@ -8,16 +8,16 @@ import (
 // handlePlaylistOpen opens a playlist (loading tracks) or enqueues the focused
 // track when already inside a playlist at track level.
 func (m Model) handlePlaylistOpen() (Model, tea.Cmd, bool) {
-	if !m.playlists.atListLevel() {
+	if !m.playlists.AtListLevel() {
 		if m.queueWriter != nil {
-			if cmd := m.playlists.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
+			if cmd := m.playlists.EnqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
 				return m, cmd, true
 			}
 		}
 		return m, nil, true
 	}
 
-	pl, ok := m.playlists.focusedPlaylist()
+	pl, ok := m.playlists.FocusedPlaylist()
 	if !ok {
 		return m, nil, true
 	}
@@ -36,8 +36,8 @@ func (m Model) openSmartPlaylist(pl db.PlaylistRow) (Model, tea.Cmd, bool) {
 	if err != nil {
 		return m, func() tea.Msg { return playlistTracksLoadErrorMsg{err: err} }, true
 	}
-	m.playlists.smartQuery = &q
-	m.playlists.pendingLoadID = pl.ID
+	m.playlists.SmartQuery = &q
+	m.playlists.PendingLoadID = pl.ID
 	evaluator := m.smartEval
 	pid := pl.ID
 	return m, func() tea.Msg {
@@ -51,7 +51,7 @@ func (m Model) openSmartPlaylist(pl db.PlaylistRow) (Model, tea.Cmd, bool) {
 
 func (m Model) openRegularPlaylist(pl db.PlaylistRow) (Model, tea.Cmd, bool) {
 	pid := pl.ID
-	m.playlists.pendingLoadID = pid
+	m.playlists.PendingLoadID = pid
 	reader := m.playlistReader
 	return m, func() tea.Msg {
 		tracks, err := reader.ReadPlaylistTracks(pid)
