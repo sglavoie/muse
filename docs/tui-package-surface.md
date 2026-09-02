@@ -19,19 +19,110 @@ rots when the code moves on. See [Per-identifier inventory](#per-identifier-inve
 
 ## Layering
 
-`go list -deps ./internal/tui/...` confirms the graph is acyclic and every edge
-points downward, with two intentional same-layer edges:
+Every package in the TUI graph carries a level, and the level fixes the
+permitted direction of every import: **a package may import only packages at a
+strictly lower level.** Nothing else is allowed — not a reference back up, and
+not a reference sideways between two packages sharing a level.
 
-- `queue → statusbar` — only for `statusbar.TransientNotifyMsg`, the message the
-  queue returns when a reorder is refused. `statusbar` imports `playback`,
-  `styles` and `text` only, so the edge is one-way.
-- `favorites → overlay` and `tags → overlay` — both need `overlay.Box`/`overlay.Row`
-  to draw their pickers. `overlay` imports `keys`, `playback`, `styles`, `text`
-  and never imports back.
+The levels are not drawn by hand. A package that imports no other package in
+the graph is L0; every other package sits one level above the highest package
+it imports. An assignment like that exists precisely when the graph is acyclic,
+which makes the rule above true by construction for the built graph and turns
+the level column into a fact about the code rather than an intention about it.
 
-`internal/tui/uitest` is the only `tui/*` package that imports `internal/tui`;
-no non-test file in `internal/tui` references a `uitest` symbol, so the
-dependency stays one-way.
+Scope is `main`, `internal/app`, `internal/desktop`, `internal/tui` and every
+`internal/tui/*` package. The rest of the module (`internal/library`,
+`internal/db`, `internal/player`, `internal/config`, `internal/insights`,
+`internal/recommendation`, `internal/metaexport`, `internal/radio`) sits
+underneath all of it and never imports back — a checked property, not an
+assumption. Three further rules are enforced with the levels:
+
+- **Test files obey the levels too.** The toolchain rejects an import cycle
+  between packages but accepts one introduced by an external test package
+  (`package foo_test`), so `_test.go` imports are checked against the same
+  ordering rather than exempted from it.
+- **Only `tui/uitest` may import `internal/tui`.** `internal/tui` owns the root
+  `Model` and imports the view packages; a view package reaching back would
+  invert the architecture. `tui/uitest` is the documented exception — it drives
+  the root model as a harness, and no non-test file in `internal/tui`
+  references a `uitest` symbol.
+- **The graph is closed.** No package outside the list below imports a package
+  inside it, so the importer sets recorded in this document are complete.
+
+This supersedes the level sketch in the refactor plan, which grouped packages by
+intent before the code existed. Three imports the plan drew as connecting two
+packages of equal rank — `queue → statusbar`, `favorites → overlay` and
+`tags → overlay` — are ordinary descending imports under the assignment
+measured from the code: `tui/queue`, `tui/favorites` and `tui/tags` are L4,
+`tui/statusbar` and `tui/overlay` are L3.
+
+The table below is generated from the direct imports `go list` reports, by
+`TestPackageLayersMatchImportGraph` in
+`internal/tui/styles/import_layering_test.go`. That test fails when a package
+changes level, gains or loses an import, appears, disappears, or breaks one of
+the rules above. `TestBuildNoImportCycles` in the same file is the standing
+import-cycle check: `go list` refuses to report a graph containing a cycle, so
+loading one is the proof for the built graph, and the test then walks the graph
+again with test imports included, where the compiler alone is not proof. Both
+live in the lowest package of the graph as an external test that imports
+nothing from the module, so the guard cannot add an edge to the graph it
+measures. Regenerate the table with:
+
+```sh
+MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersMatchImportGraph
+```
+
+<!-- BEGIN GENERATED: package layers -->
+
+**32 packages, 132 direct imports between them, 8 levels (L0–L7).** Levels are read off the graph, not assigned by hand: a package that imports nothing else in the table is L0, and every other package sits one level above the highest package it imports.
+
+| Level | Packages |
+|---:|---|
+| L7 | `main` |
+| L6 | `internal/app`, `tui/uitest` |
+| L5 | `internal/tui` |
+| L4 | `tui/browse`, `tui/favorites`, `tui/metadata`, `tui/queue`, `tui/settings`, `tui/smartrules`, `tui/tags` |
+| L3 | `tui/albums`, `tui/genres`, `tui/insights`, `tui/mixes`, `tui/overlay`, `tui/playlists`, `tui/statusbar` |
+| L2 | `tui/artists`, `tui/library`, `tui/playback` |
+| L1 | `tui/chart`, `tui/keys`, `tui/palette`, `tui/sorting`, `tui/strip` |
+| L0 | `internal/desktop`, `tui/buckets`, `tui/filter`, `tui/layout`, `tui/styles`, `tui/text` |
+
+| Package | Level | Direct imports within the graph |
+|---|---:|---|
+| `main` | L7 | `internal/app` (L6), `tui/uitest` (L6), `internal/tui` (L5), `tui/playback` (L2) |
+| `internal/app` | L6 | `internal/tui` (L5), `tui/queue` (L4), `tui/playback` (L2) |
+| `tui/uitest` | L6 | `internal/tui` (L5), `tui/palette` (L1) |
+| `internal/tui` | L5 | `tui/browse` (L4), `tui/favorites` (L4), `tui/metadata` (L4), `tui/queue` (L4), `tui/settings` (L4), `tui/smartrules` (L4), `tui/tags` (L4), `tui/albums` (L3), `tui/genres` (L3), `tui/insights` (L3), `tui/mixes` (L3), `tui/overlay` (L3), `tui/playlists` (L3), `tui/statusbar` (L3), `tui/artists` (L2), `tui/library` (L2), `tui/playback` (L2), `tui/keys` (L1), `tui/palette` (L1), `tui/sorting` (L1), `internal/desktop` (L0), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/browse` | L4 | `tui/albums` (L3), `tui/genres` (L3), `tui/artists` (L2), `tui/library` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/filter` (L0), `tui/styles` (L0) |
+| `tui/favorites` | L4 | `tui/overlay` (L3), `tui/artists` (L2), `tui/library` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/metadata` | L4 | `tui/overlay` (L3), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/queue` | L4 | `tui/playlists` (L3), `tui/statusbar` (L3), `tui/playback` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/strip` (L1), `tui/buckets` (L0), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/settings` | L4 | `tui/overlay` (L3), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/smartrules` | L4 | `tui/overlay` (L3), `tui/styles` (L0) |
+| `tui/tags` | L4 | `tui/overlay` (L3), `tui/library` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/albums` | L3 | `tui/artists` (L2), `tui/strip` (L1), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/genres` | L3 | `tui/artists` (L2), `tui/strip` (L1), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/insights` | L3 | `tui/library` (L2), `tui/chart` (L1), `tui/keys` (L1), `tui/sorting` (L1), `tui/strip` (L1), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/mixes` | L3 | `tui/library` (L2), `tui/keys` (L1), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/overlay` | L3 | `tui/playback` (L2), `tui/keys` (L1), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/playlists` | L3 | `tui/library` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/statusbar` | L3 | `tui/playback` (L2), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/artists` | L2 | `tui/strip` (L1), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/library` | L2 | `tui/keys` (L1), `tui/sorting` (L1), `tui/strip` (L1), `tui/buckets` (L0), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/playback` | L2 | `tui/keys` (L1) |
+| `tui/chart` | L1 | `tui/styles` (L0) |
+| `tui/keys` | L1 | `tui/styles` (L0) |
+| `tui/palette` | L1 | `tui/filter` (L0), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/sorting` | L1 | `tui/buckets` (L0) |
+| `tui/strip` | L1 | `tui/styles` (L0) |
+| `internal/desktop` | L0 | — |
+| `tui/buckets` | L0 | — |
+| `tui/filter` | L0 | — |
+| `tui/layout` | L0 | — |
+| `tui/styles` | L0 | — |
+| `tui/text` | L0 | — |
+
+<!-- END GENERATED: package layers -->
 
 ## Per-package summary
 

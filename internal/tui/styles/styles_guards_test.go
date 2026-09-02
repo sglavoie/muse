@@ -4,7 +4,6 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -177,19 +176,4 @@ func TestNoLipglossRenderHelpers(t *testing.T) {
 		t.Fatalf("no non-test .go files found under %s", stylesDir)
 	}
 	t.Logf("TestNoLipglossRenderHelpers: scanned %d non-test file(s)", fileCount)
-}
-
-// TestBuildNoImportCycles runs "go build" for this package and fails if the
-// command exits with a non-zero status. The Go toolchain reports import cycles
-// in this package or its dependencies as hard errors.
-func TestBuildNoImportCycles(t *testing.T) {
-	_, thisFile, _, _ := runtime.Caller(0)
-	stylesDir := filepath.Dir(thisFile)
-
-	cmd := exec.Command("go", "build", ".")
-	cmd.Dir = stylesDir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("go build . failed (import cycle or build error):\n%s", string(out))
-	}
 }
