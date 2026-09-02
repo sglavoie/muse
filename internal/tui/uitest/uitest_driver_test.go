@@ -42,7 +42,7 @@ func TestDriverResizeAndRender(t *testing.T) {
 		t.Fatal("expected snapshot to be attached")
 	}
 
-	d.Resize(80, 24)
+	d.resize(80, 24)
 	obs = d.Observe(ObserveOptions{})
 	if obs.Width != 80 || obs.Height != 24 {
 		t.Fatalf("resized size = %dx%d, want 80x24", obs.Width, obs.Height)
@@ -52,14 +52,14 @@ func TestDriverResizeAndRender(t *testing.T) {
 func TestDriverKeyNavigation(t *testing.T) {
 	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 
-	if err := d.SendKey("3"); err != nil {
+	if err := d.sendKey("3"); err != nil {
 		t.Fatalf("SendKey(3): %v", err)
 	}
 	if got := d.Observe(ObserveOptions{}).PrimaryView; got != "Queue" {
 		t.Fatalf("after '3', primary view = %q, want Queue", got)
 	}
 
-	if err := d.SendKey("6"); err != nil {
+	if err := d.sendKey("6"); err != nil {
 		t.Fatalf("SendKey(6): %v", err)
 	}
 	if got := d.Observe(ObserveOptions{}).PrimaryView; got != "Tags" {
@@ -70,7 +70,7 @@ func TestDriverKeyNavigation(t *testing.T) {
 func TestDriverTextInputThroughCommandPalette(t *testing.T) {
 	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 
-	if err := d.SendKey(":"); err != nil {
+	if err := d.sendKey(":"); err != nil {
 		t.Fatalf("SendKey(:): %v", err)
 	}
 	obs := d.Observe(ObserveOptions{})
@@ -78,7 +78,7 @@ func TestDriverTextInputThroughCommandPalette(t *testing.T) {
 		t.Fatalf("overlay = %q, want command_palette", obs.Overlay)
 	}
 
-	d.SendText("footer")
+	d.sendText("footer")
 	obs = d.Observe(ObserveOptions{})
 	if !strings.Contains(obs.PlainScreen, "footer") {
 		t.Fatalf("expected typed query 'footer' on screen:\n%s", obs.PlainScreen)
@@ -203,7 +203,7 @@ func TestDriverNoLayoutIssuesReportsDetectedIssue(t *testing.T) {
 	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 	obs := UITestObservation{
 		LayoutIssues: []UITestIssue{{
-			Kind:   IssueWidthOverflow,
+			Kind:   issueWidthOverflow,
 			Line:   1,
 			Actual: 61,
 			Limit:  60,
@@ -265,15 +265,15 @@ func TestDriverKeyDrivenPaletteRejectsUnsafeCommand(t *testing.T) {
 	// Open the command palette, filter to the side-effectful "Reveal in Finder"
 	// command, and select it with enter — the exact path a scenario could use to
 	// bypass the direct-command allowlist.
-	if err := d.SendKey(":"); err != nil {
+	if err := d.sendKey(":"); err != nil {
 		t.Fatalf("SendKey(:): %v", err)
 	}
 	if got := d.Observe(ObserveOptions{}).Overlay; got != "command_palette" {
 		t.Fatalf("overlay = %q, want command_palette", got)
 	}
 
-	d.SendText("Reveal in Finder")
-	if err := d.SendKey("enter"); err != nil {
+	d.sendText("Reveal in Finder")
+	if err := d.sendKey("enter"); err != nil {
 		t.Fatalf("SendKey(enter): %v", err)
 	}
 
@@ -293,11 +293,11 @@ func TestDriverKeyDrivenPaletteRunsSafeCommand(t *testing.T) {
 
 	// The same key-driven path must still run a fixture-safe command so normal
 	// palette selection is unaffected by the safety gate.
-	if err := d.SendKey(":"); err != nil {
+	if err := d.sendKey(":"); err != nil {
 		t.Fatalf("SendKey(:): %v", err)
 	}
-	d.SendText("Toggle footer hints")
-	if err := d.SendKey("enter"); err != nil {
+	d.sendText("Toggle footer hints")
+	if err := d.sendKey("enter"); err != nil {
 		t.Fatalf("SendKey(enter): %v", err)
 	}
 

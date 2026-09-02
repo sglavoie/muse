@@ -62,15 +62,15 @@ func ParseScenario(data []byte) (UITestScenario, error) {
 	if dec.More() {
 		return UITestScenario{}, errors.New("decode scenario: unexpected trailing content after JSON value")
 	}
-	if err := s.Validate(); err != nil {
+	if err := s.validate(); err != nil {
 		return UITestScenario{}, err
 	}
 	return s, nil
 }
 
-// Validate checks scenario-level invariants: a non-empty name, a well-formed
+// validate checks scenario-level invariants: a non-empty name, a well-formed
 // optional size, and at least one valid action.
-func (s UITestScenario) Validate() error {
+func (s UITestScenario) validate() error {
 	if strings.TrimSpace(s.Name) == "" {
 		return errors.New("scenario: name is required")
 	}
@@ -83,78 +83,78 @@ func (s UITestScenario) Validate() error {
 		return fmt.Errorf("scenario %q: must contain at least one action", s.Name)
 	}
 	for i, a := range s.Actions {
-		if _, err := a.Validate(); err != nil {
+		if _, err := a.validate(); err != nil {
 			return fmt.Errorf("scenario %q: action %d: %w", s.Name, i, err)
 		}
 	}
 	return nil
 }
 
-// Validate checks that the action sets exactly one recognized operation field
+// validate checks that the action sets exactly one recognized operation field
 // and that the field's value is well-formed. It returns the resolved action
 // kind so callers can dispatch without re-inspecting the struct.
-func (a UITestAction) Validate() (UITestActionKind, error) {
-	kind, err := a.Kind()
+func (a UITestAction) validate() (actionKind, error) {
+	kind, err := a.kind()
 	if err != nil {
 		return "", err
 	}
 	switch kind {
-	case ActionKey:
+	case actionKey:
 		if strings.TrimSpace(*a.Key) == "" {
 			return "", errors.New("key must not be empty")
 		}
-		if _, err := ParseKey(*a.Key); err != nil {
+		if _, err := parseKey(*a.Key); err != nil {
 			return "", fmt.Errorf("key: %w", err)
 		}
-	case ActionText:
+	case actionText:
 		if *a.Text == "" {
 			return "", errors.New("text must not be empty")
 		}
-	case ActionResize:
+	case actionResize:
 		if _, _, err := ParseSize(*a.Resize); err != nil {
 			return "", fmt.Errorf("resize: %w", err)
 		}
-	case ActionWait:
+	case actionWait:
 		if strings.TrimSpace(*a.Wait) != "" {
 			if _, err := time.ParseDuration(strings.TrimSpace(*a.Wait)); err != nil {
 				return "", fmt.Errorf("wait: invalid duration %q", *a.Wait)
 			}
 		}
-	case ActionCommand:
+	case actionCommand:
 		if strings.TrimSpace(*a.Command) == "" {
 			return "", errors.New("command must not be empty")
 		}
-	case ActionAssert:
-		if err := a.Assert.Validate(); err != nil {
+	case actionAssert:
+		if err := a.Assert.validate(); err != nil {
 			return "", err
 		}
 	}
 	return kind, nil
 }
 
-// Kind resolves which operation an action performs, requiring exactly one
+// kind resolves which operation an action performs, requiring exactly one
 // operation field to be present.
-func (a UITestAction) Kind() (UITestActionKind, error) {
+func (a UITestAction) kind() (actionKind, error) {
 	var (
-		kinds []UITestActionKind
+		kinds []actionKind
 	)
 	if a.Key != nil {
-		kinds = append(kinds, ActionKey)
+		kinds = append(kinds, actionKey)
 	}
 	if a.Text != nil {
-		kinds = append(kinds, ActionText)
+		kinds = append(kinds, actionText)
 	}
 	if a.Resize != nil {
-		kinds = append(kinds, ActionResize)
+		kinds = append(kinds, actionResize)
 	}
 	if a.Wait != nil {
-		kinds = append(kinds, ActionWait)
+		kinds = append(kinds, actionWait)
 	}
 	if a.Assert != nil {
-		kinds = append(kinds, ActionAssert)
+		kinds = append(kinds, actionAssert)
 	}
 	if a.Command != nil {
-		kinds = append(kinds, ActionCommand)
+		kinds = append(kinds, actionCommand)
 	}
 	switch len(kinds) {
 	case 0:
@@ -170,36 +170,36 @@ func (a UITestAction) Kind() (UITestActionKind, error) {
 	}
 }
 
-// Validate checks that the assertion sets exactly one recognized kind and that
+// validate checks that the assertion sets exactly one recognized kind and that
 // its value is usable. It returns the resolved assertion kind.
-func (a *UITestAssertion) Validate() error {
-	_, err := a.Kind()
+func (a *UITestAssertion) validate() error {
+	_, err := a.kind()
 	return err
 }
 
-// Kind resolves which assertion this is, requiring exactly one field present.
-func (a *UITestAssertion) Kind() (UITestAssertionKind, error) {
+// kind resolves which assertion this is, requiring exactly one field present.
+func (a *UITestAssertion) kind() (assertionKind, error) {
 	if a == nil {
 		return "", errors.New("assert must not be null")
 	}
-	var kinds []UITestAssertionKind
+	var kinds []assertionKind
 	if a.Contains != nil {
-		kinds = append(kinds, AssertContains)
+		kinds = append(kinds, assertContains)
 	}
 	if a.NotContains != nil {
-		kinds = append(kinds, AssertNotContains)
+		kinds = append(kinds, assertNotContains)
 	}
 	if a.View != nil {
-		kinds = append(kinds, AssertView)
+		kinds = append(kinds, assertView)
 	}
 	if a.Overlay != nil {
-		kinds = append(kinds, AssertOverlay)
+		kinds = append(kinds, assertOverlay)
 	}
 	if a.StatusContains != nil {
-		kinds = append(kinds, AssertStatusContains)
+		kinds = append(kinds, assertStatusContains)
 	}
 	if a.NoLayoutIssues != nil {
-		kinds = append(kinds, AssertNoLayoutIssues)
+		kinds = append(kinds, assertNoLayoutIssues)
 	}
 	switch len(kinds) {
 	case 0:
@@ -215,27 +215,27 @@ func (a *UITestAssertion) Kind() (UITestAssertionKind, error) {
 	}
 
 	switch kinds[0] {
-	case AssertContains:
+	case assertContains:
 		if *a.Contains == "" {
 			return "", errors.New("contains must not be empty")
 		}
-	case AssertNotContains:
+	case assertNotContains:
 		if *a.NotContains == "" {
 			return "", errors.New("not_contains must not be empty")
 		}
-	case AssertView:
+	case assertView:
 		if strings.TrimSpace(*a.View) == "" {
 			return "", errors.New("view must not be empty")
 		}
-	case AssertOverlay:
+	case assertOverlay:
 		if strings.TrimSpace(*a.Overlay) == "" {
 			return "", errors.New("overlay must not be empty")
 		}
-	case AssertStatusContains:
+	case assertStatusContains:
 		if *a.StatusContains == "" {
 			return "", errors.New("status_contains must not be empty")
 		}
-	case AssertNoLayoutIssues:
+	case assertNoLayoutIssues:
 		if !*a.NoLayoutIssues {
 			return "", errors.New("no_layout_issues must be true when set")
 		}

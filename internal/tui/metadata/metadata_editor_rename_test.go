@@ -17,7 +17,7 @@ func TestNewArtistRenameEditor(t *testing.T) {
 	if ed.Mode() != ModeRenameArtist {
 		t.Errorf("expected editorModeRenameArtist, got %v", ed.Mode())
 	}
-	if ed.focused != FieldArtist {
+	if ed.focused != fieldArtist {
 		t.Errorf("expected focused=fieldArtist, got %v", ed.focused)
 	}
 	if ed.Artist() != "Alice" {
@@ -51,7 +51,7 @@ func TestNewAlbumRenameEditor(t *testing.T) {
 	if ed.Mode() != ModeRenameAlbum {
 		t.Errorf("expected editorModeRenameAlbum, got %v", ed.Mode())
 	}
-	if ed.focused != FieldAlbum {
+	if ed.focused != fieldAlbum {
 		t.Errorf("expected focused=fieldAlbum, got %v", ed.focused)
 	}
 	if ed.Album() != "Gamma" {
@@ -125,7 +125,7 @@ func TestRenameEditorHandleKeyTabNoOp(t *testing.T) {
 	if edAfterTab.focused != initialFocused {
 		t.Errorf("tab should not change focused in rename mode: was %v, got %v", initialFocused, edAfterTab.focused)
 	}
-	if action != ActionNone {
+	if action != actionNone {
 		t.Errorf("expected editorNone after tab, got %v", action)
 	}
 
@@ -133,7 +133,7 @@ func TestRenameEditorHandleKeyTabNoOp(t *testing.T) {
 	if edAfterShiftTab.focused != initialFocused {
 		t.Errorf("shift+tab should not change focused in rename mode: was %v, got %v", initialFocused, edAfterShiftTab.focused)
 	}
-	if action2 != ActionNone {
+	if action2 != actionNone {
 		t.Errorf("expected editorNone after shift+tab, got %v", action2)
 	}
 }

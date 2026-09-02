@@ -22,30 +22,30 @@ func SearchHelpSections(sections []HelpSection, query string) []HelpSection {
 	q := strings.ToLower(query)
 	var result []HelpSection
 	for _, sec := range sections {
-		var matched []HelpEntry
-		for _, e := range sec.Entries {
-			if strings.Contains(strings.ToLower(e.Key), q) || strings.Contains(strings.ToLower(e.Desc), q) {
+		var matched []helpEntry
+		for _, e := range sec.entries {
+			if strings.Contains(strings.ToLower(e.key), q) || strings.Contains(strings.ToLower(e.desc), q) {
 				matched = append(matched, e)
 			}
 		}
 		if len(matched) > 0 {
-			result = append(result, HelpSection{Title: sec.Title, Context: sec.Context, Entries: matched})
+			result = append(result, HelpSection{Title: sec.Title, Context: sec.Context, entries: matched})
 		}
 	}
 	return result
 }
 
-// HelpEntry is a single row in the keybinding table.
-type HelpEntry struct {
-	Key  string
-	Desc string
+// helpEntry is a single row in the keybinding table.
+type helpEntry struct {
+	key  string
+	desc string
 }
 
 // HelpSection groups related keybinding entries under a named header.
 type HelpSection struct {
 	Title   string
 	Context keys.Context
-	Entries []HelpEntry
+	entries []helpEntry
 }
 
 // HelpOverlay renders a static keybinding reference grouped into named sections.
@@ -66,7 +66,7 @@ func HelpSections() []HelpSection {
 			// lists the toggle keys themselves.
 			Title:   StatusBarHelpSectionTitle,
 			Context: keys.ContextGlobal,
-			Entries: []HelpEntry{
+			entries: []helpEntry{
 				{"R / 1", "Repeat all / repeat one — toggle with r"},
 				{"S", "Shuffle — toggle with z"},
 				{"N", "Stop after current track — toggle with ctrl+n"},
@@ -76,7 +76,7 @@ func HelpSections() []HelpSection {
 		{
 			Title:   "Global",
 			Context: keys.ContextGlobal,
-			Entries: []HelpEntry{
+			entries: []helpEntry{
 				{"ctrl+c", "Quit"},
 				{"space", "Play / Pause"},
 				{"s", "Stop"},
@@ -127,7 +127,7 @@ func HelpSections() []HelpSection {
 		{
 			Title:   "Navigation (Library / Queue / Playlists / Browse / Favorites / Tags / Mixes)",
 			Context: keys.ContextGlobal,
-			Entries: []HelpEntry{
+			entries: []helpEntry{
 				{"j / k / down / up", "Move cursor down / up"},
 				{"ctrl+d / ctrl+u", "Half-page down / up"},
 				{"ctrl+f / ctrl+b", "Full page down / up"},
@@ -137,7 +137,7 @@ func HelpSections() []HelpSection {
 		{
 			Title:   "Library",
 			Context: keys.ContextLibrary,
-			Entries: []HelpEntry{
+			entries: []helpEntry{
 				{"` / ~", "Cycle sub-mode forward / backward (All ↔ Recently Added ↔ History)"},
 				{"/", "Filter tracks (prefixes: a: t: l: g:)"},
 				{"enter", "Enqueue focused / selected tracks"},
@@ -153,7 +153,7 @@ func HelpSections() []HelpSection {
 		{
 			Title:   "Playlists",
 			Context: keys.ContextPlaylists,
-			Entries: []HelpEntry{
+			entries: []helpEntry{
 				{"enter", "Open playlist / enqueue track"},
 				{"N", "Play next (insert after current track)"},
 				{"shift+enter", "Replace queue with track"},
@@ -175,7 +175,7 @@ func HelpSections() []HelpSection {
 		{
 			Title:   "Smart Rule Editor overlay",
 			Context: keys.ContextPlaylists,
-			Entries: []HelpEntry{
+			entries: []helpEntry{
 				{"enter", "Next step / confirm rule"},
 				{"esc", "Back one step / close overlay"},
 				{"tab", "Toggle AND / OR conjunction"},
@@ -190,7 +190,7 @@ func HelpSections() []HelpSection {
 		{
 			Title:   "Queue",
 			Context: keys.ContextQueue,
-			Entries: []HelpEntry{
+			entries: []helpEntry{
 				{"/", "Filter queue"},
 				{"esc", "Clear committed filter"},
 				{"enter", "Play selected track"},
@@ -209,7 +209,7 @@ func HelpSections() []HelpSection {
 		{
 			Title:   "Browse (Artists)",
 			Context: keys.ContextArtists,
-			Entries: []HelpEntry{
+			entries: []helpEntry{
 				{"` / ~", "Cycle Browse mode forward / backward (Artists ↔ Albums ↔ Genres)"},
 				{"/", "Filter current list"},
 				{"enter", "Open albums / tracks / enqueue track"},
@@ -225,7 +225,7 @@ func HelpSections() []HelpSection {
 		{
 			Title:   "Browse (Albums)",
 			Context: keys.ContextAlbums,
-			Entries: []HelpEntry{
+			entries: []helpEntry{
 				{"` / ~", "Cycle Browse mode forward / backward (Artists ↔ Albums ↔ Genres)"},
 				{"/", "Filter current list"},
 				{"enter", "Open tracks / enqueue track"},
@@ -241,7 +241,7 @@ func HelpSections() []HelpSection {
 		{
 			Title:   "Browse (Genres)",
 			Context: keys.ContextGenres,
-			Entries: []HelpEntry{
+			entries: []helpEntry{
 				{"` / ~", "Cycle Browse mode forward / backward (Artists ↔ Albums ↔ Genres)"},
 				{"/", "Filter current list"},
 				{"enter", "Open artists / tracks / enqueue track"},
@@ -257,7 +257,7 @@ func HelpSections() []HelpSection {
 		{
 			Title:   "Favorites",
 			Context: keys.ContextFavorites,
-			Entries: []HelpEntry{
+			entries: []helpEntry{
 				{"/", "Filter current list"},
 				{"enter", "Open category / drill into tracks / enqueue"},
 				{"N", "Play next (insert after current track)"},
@@ -273,7 +273,7 @@ func HelpSections() []HelpSection {
 		{
 			Title:   "Tags",
 			Context: keys.ContextTags,
-			Entries: []HelpEntry{
+			entries: []helpEntry{
 				{"6", "Switch to Tags"},
 				{"enter", "Drill into tag tracks / enqueue track"},
 				{"backspace / h / esc", "Back to tag list"},
@@ -296,7 +296,7 @@ func HelpSections() []HelpSection {
 		{
 			Title:   "Mixes",
 			Context: keys.ContextMixes,
-			Entries: []HelpEntry{
+			entries: []helpEntry{
 				{"enter", "Open mix / enqueue track"},
 				{"esc", "Back to mix list"},
 				{"e", "Enqueue focused track"},
@@ -318,7 +318,7 @@ func HelpSections() []HelpSection {
 		{
 			Title:   "Insights",
 			Context: keys.ContextInsights,
-			Entries: []HelpEntry{
+			entries: []helpEntry{
 				{"` / ~", "Next / previous panel"},
 				{"w / W", "Next / previous window, or bucket size on Momentum and Discovery"},
 				{"enter", "Drill into the focused row (Sessions first) / enqueue focused or selected tracks"},
@@ -346,7 +346,7 @@ func HelpSections() []HelpSection {
 			// Modals section covers any future modal dialogs as well.
 			Title:   "Modals / Help overlay",
 			Context: keys.ContextModals,
-			Entries: []HelpEntry{
+			entries: []helpEntry{
 				{"esc", "Dismiss modal or close this help overlay"},
 				{"space / left / right / shift+left / shift+right", "Preview pause / seek"},
 				{"/", "Search keybindings"},
@@ -460,22 +460,22 @@ func (h HelpOverlay) Render(s styles.Styles, sections []HelpSection, title strin
 
 		// Compute maxKeyLen per section so each section aligns independently.
 		maxKeyLen := 0
-		for _, e := range sec.Entries {
-			if len(e.Key) > maxKeyLen {
-				maxKeyLen = len(e.Key)
+		for _, e := range sec.entries {
+			if len(e.key) > maxKeyLen {
+				maxKeyLen = len(e.key)
 			}
 		}
 		// descCol is the column where descriptions start: "  " + key + "  ".
 		descCol := 2 + maxKeyLen + 2
 
-		for _, e := range sec.Entries {
-			styledKey := s.HelpKey.Render(fmt.Sprintf("%-*s", maxKeyLen, e.Key))
-			if width > 0 && descCol+len(e.Desc) > width {
+		for _, e := range sec.entries {
+			styledKey := s.HelpKey.Render(fmt.Sprintf("%-*s", maxKeyLen, e.key))
+			if width > 0 && descCol+len(e.desc) > width {
 				descWidth := max(width-descCol, 1)
-				wrapped := wrapText(e.Desc, descWidth, descCol)
+				wrapped := wrapText(e.desc, descWidth, descCol)
 				fmt.Fprintf(&b, "  %s  %s\n", styledKey, s.Dim.Render(wrapped))
 			} else {
-				fmt.Fprintf(&b, "  %s  %s\n", styledKey, s.Dim.Render(e.Desc))
+				fmt.Fprintf(&b, "  %s  %s\n", styledKey, s.Dim.Render(e.desc))
 			}
 		}
 		b.WriteString("\n")

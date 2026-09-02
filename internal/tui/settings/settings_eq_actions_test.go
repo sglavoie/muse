@@ -91,7 +91,7 @@ func TestEQSavePresetOpensNameInput(t *testing.T) {
 	o = switchToEQTab(o)
 
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
-	if action != ActionNone {
+	if action != actionNone {
 		t.Errorf("S: expected settingsNone, got %v", action)
 	}
 	if o.EQNameInput == nil {
@@ -134,7 +134,7 @@ func TestEQSavePresetEmptyNameNoOp(t *testing.T) {
 
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
-	if action != ActionNone {
+	if action != actionNone {
 		t.Errorf("Enter with empty name: expected settingsNone, got %v", action)
 	}
 	if len(o.EQPresets) != initialPresetCount {
@@ -150,7 +150,7 @@ func TestEQSavePresetEscCancels(t *testing.T) {
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'X', Text: "X"})
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
-	if action != ActionNone {
+	if action != actionNone {
 		t.Errorf("Esc in name input: expected settingsNone, got %v", action)
 	}
 	if o.EQNameInput != nil {
@@ -203,7 +203,7 @@ func TestEQDeleteBuiltinPresetIgnored(t *testing.T) {
 
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
-	if action != ActionNone {
+	if action != actionNone {
 		t.Errorf("D on built-in: expected settingsNone, got %v", action)
 	}
 	if o.EQConfirmDel {
@@ -218,7 +218,7 @@ func TestEQDeleteSentinelIgnored(t *testing.T) {
 	o.Fields[TabEqualizer][1].Value = len(o.EQPresets) - 1
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
-	if action != ActionNone {
+	if action != actionNone {
 		t.Errorf("D on sentinel: expected settingsNone, got %v", action)
 	}
 	if o.EQConfirmDel {
@@ -240,7 +240,7 @@ func TestEQDeleteCustomPresetFlow(t *testing.T) {
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
-	if action != ActionNone {
+	if action != actionNone {
 		t.Errorf("D: expected settingsNone, got %v", action)
 	}
 	if !o.EQConfirmDel {
@@ -279,7 +279,7 @@ func TestEQDeleteCustomPresetEscCancels(t *testing.T) {
 
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
-	if action != ActionNone {
+	if action != actionNone {
 		t.Errorf("Esc in confirm: expected settingsNone, got %v", action)
 	}
 	if o.EQConfirmDel {
@@ -306,7 +306,7 @@ func TestEQBandAtMinDoesNotResetPreset(t *testing.T) {
 	if o.Fields[TabEqualizer][1].Value != presetBefore {
 		t.Errorf("h at min: preset changed from %d to %d", presetBefore, o.Fields[TabEqualizer][1].Value)
 	}
-	if action != ActionNone {
+	if action != actionNone {
 		t.Errorf("h at min: expected settingsNone, got %v", action)
 	}
 }
@@ -327,7 +327,7 @@ func TestEQBandAtMaxDoesNotResetPreset(t *testing.T) {
 	if o.Fields[TabEqualizer][1].Value != presetBefore {
 		t.Errorf("l at max: preset changed from %d to %d", presetBefore, o.Fields[TabEqualizer][1].Value)
 	}
-	if action != ActionNone {
+	if action != actionNone {
 		t.Errorf("l at max: expected settingsNone, got %v", action)
 	}
 }
@@ -381,7 +381,7 @@ func TestEQSavePresetAllSpecialCharsNameNoOp(t *testing.T) {
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: '!', Text: "!"})
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 
-	if action != ActionNone {
+	if action != actionNone {
 		t.Errorf("Enter with all-special-chars name: expected settingsNone, got %v", action)
 	}
 	if len(o.EQPresets) != initialPresetCount {

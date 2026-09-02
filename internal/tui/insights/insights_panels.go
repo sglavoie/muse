@@ -25,9 +25,9 @@ const (
 	// insightsGenreRows caps both the affinity grid and its row list: past a
 	// handful of genres the grid stops being readable at a glance.
 	insightsGenreRows = 5
-	// MonthRows caps the month lists — Discovery's backlog, and the
+	// monthRows caps the month lists — Discovery's backlog, and the
 	// monthly trend rows — so a long history stays a briefing.
-	MonthRows = 24
+	monthRows = 24
 	// insightsPunchcardHours is the number of columns in a day.
 	insightsPunchcardHours = 24
 )
@@ -36,18 +36,18 @@ const (
 // Rhythm affinity grid draws and the shape "you only reach for jazz after
 // 22:00" is visible in.
 type GenreHours struct {
-	Genre string
-	Hours [insightsPunchcardHours]int
+	genre string
+	hours [insightsPunchcardHours]int
 }
 
 // BacklogMonth counts the never-played tracks that entered the library
 // in one local month, so Discovery can say what the backlog is made of rather
 // than only how big it is.
 type BacklogMonth struct {
-	Key    string // "2006-01", the drill key
-	Label  string
-	Tracks int
-	Secs   float64
+	key    string // "2006-01", the drill key
+	label  string
+	tracks int
+	secs   float64
 }
 
 // BacklogMonths groups the never-played tracks by the local month they entered
@@ -64,19 +64,19 @@ func BacklogMonths(tracks []library.Track, loc *time.Location) []BacklogMonth {
 		key := BucketKey(insightsdata.ResolutionMonthly, added)
 		b := byKey[key]
 		if b == nil {
-			b = &BacklogMonth{Key: key, Label: added.Format("January 2006")}
+			b = &BacklogMonth{key: key, label: added.Format("January 2006")}
 			byKey[key] = b
 		}
-		b.Tracks++
-		b.Secs += t.Duration
+		b.tracks++
+		b.secs += t.Duration
 	}
 
 	out := make([]BacklogMonth, 0, len(byKey))
 	for _, b := range byKey {
 		out = append(out, *b)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Key > out[j].Key })
-	return out[:min(len(out), MonthRows)]
+	sort.Slice(out, func(i, j int) bool { return out[i].key > out[j].key })
+	return out[:min(len(out), monthRows)]
 }
 
 func insightsFraction(part, whole int) float64 {
@@ -153,7 +153,7 @@ func insightsTrendRowCap(res insightsdata.Resolution) int {
 	case insightsdata.ResolutionWeekly:
 		return 52
 	default:
-		return MonthRows
+		return monthRows
 	}
 }
 
@@ -258,7 +258,7 @@ func (v View) rhythmRows() []Row {
 
 func (v View) rhythmHeaderLines(s styles.Styles) []string {
 	r := v.Snap.Rhythm
-	head := []string{"", s.Dim.Render(v.headline(PanelRhythm)), ""}
+	head := []string{"", s.Dim.Render(v.headline(panelRhythm)), ""}
 	if r.TotalPlays == 0 {
 		return head
 	}
@@ -308,10 +308,10 @@ func (v View) rhythmHeaderLines(s styles.Styles) []string {
 				break
 			}
 			cells := make([]chart.HeatCell, insightsPunchcardHours)
-			for h, n := range g.Hours {
+			for h, n := range g.hours {
 				cells[h] = chart.HeatCell{Value: float64(n), Present: true}
 			}
-			grid = append(grid, chart.HeatRow{Label: g.Genre, Cells: cells})
+			grid = append(grid, chart.HeatRow{Label: g.genre, Cells: cells})
 		}
 		affinity = append(affinity, chart.Heatmap(grid, chart.HeatmapOptions{
 			Width:      gutter + 1 + gridW,

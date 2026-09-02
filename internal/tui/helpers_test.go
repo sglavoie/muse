@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/sglavoie/muse/internal/player"
 	"go.uber.org/goleak"
 )
@@ -21,12 +20,6 @@ func TestMain(m *testing.M) {
 		// receive that is never signaled; it is discarded with the model.
 		goleak.IgnoreTopFunction("charm.land/bubbles/v2/cursor.(*Model).Blink.func1"),
 	)
-}
-
-// styledText returns text wrapped with the given lipgloss style, producing
-// the same string that production code generates via Style.Render.
-func styledText(style lipgloss.Style, text string) string {
-	return style.Render(text)
 }
 
 // drainCmd recursively executes cmd and any cmds nested in tea.BatchMsg /

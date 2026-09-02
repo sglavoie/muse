@@ -9,8 +9,8 @@ import (
 	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
-func makeTestMixes(n int) []MixInfo {
-	out := make([]MixInfo, n)
+func makeTestMixes(n int) []recommendation.MixInfo {
+	out := make([]recommendation.MixInfo, n)
 	for i := 0; i < n; i++ {
 		out[i] = recommendation.MixInfo{
 			ID:         db.MixID(i + 1),

@@ -35,7 +35,7 @@ type Panel int
 
 const (
 	PanelCoverage Panel = iota
-	PanelRhythm
+	panelRhythm
 	PanelMomentum
 	PanelConcentration
 	PanelTimeVsPlays
@@ -67,7 +67,7 @@ type PanelSpec struct {
 
 var insightsPanelSpecs = []PanelSpec{
 	{PanelCoverage, "Coverage", ClassFixed},
-	{PanelRhythm, "Rhythm", ClassWindowed},
+	{panelRhythm, "Rhythm", ClassWindowed},
 	{PanelMomentum, "Momentum", ClassResolution},
 	{PanelConcentration, "Concentration", ClassWindowed},
 	{PanelTimeVsPlays, "Time vs Plays", ClassWindowed},
@@ -160,8 +160,8 @@ const (
 	// The session kinds open a session list rather than a track list. key is
 	// the duration-bucket index, the shape name or the opener/closer artist.
 	DrillSessionsAll
-	DrillSessionsBucket
-	DrillSessionsShape
+	drillSessionsBucket
+	drillSessionsShape
 	DrillSessionsOpener
 	DrillSessionsCloser
 )
@@ -170,7 +170,7 @@ const (
 // straight into tracks.
 func (k DrillKind) OpensSessions() bool {
 	switch k {
-	case DrillSessionsAll, DrillSessionsBucket, DrillSessionsShape,
+	case DrillSessionsAll, drillSessionsBucket, drillSessionsShape,
 		DrillSessionsOpener, DrillSessionsCloser:
 		return true
 	}
@@ -297,7 +297,7 @@ func (v View) Rows() []Row {
 	switch v.Panel {
 	case PanelCoverage:
 		return v.coverageRows()
-	case PanelRhythm:
+	case panelRhythm:
 		return v.rhythmRows()
 	case PanelMomentum:
 		return v.momentumRows()

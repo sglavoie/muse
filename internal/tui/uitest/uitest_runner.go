@@ -46,7 +46,6 @@ type RunOptions struct {
 	Fixture             string
 	Size                string
 	IncludeANSI         bool
-	IncludeCommands     bool
 	CollectObservations bool
 	DrainTimeout        time.Duration
 }
@@ -83,7 +82,7 @@ func RunScenario(scenario UITestScenario, opts RunOptions) (UITestScenarioResult
 	}
 
 	driver := NewUITestDriver(model, width, height, opts.DrainTimeout)
-	obsOpts := ObserveOptions{IncludeANSI: opts.IncludeANSI, IncludeCommands: opts.IncludeCommands}
+	obsOpts := ObserveOptions{IncludeANSI: opts.IncludeANSI}
 
 	result := UITestScenarioResult{
 		OK:       true,

@@ -18,19 +18,19 @@ import (
 type Field int
 
 const (
-	FieldTitle Field = iota
-	FieldArtist
-	FieldAlbum
-	FieldGenre
+	fieldTitle Field = iota
+	fieldArtist
+	fieldAlbum
+	fieldGenre
 	FieldDuration
-	FieldCount
+	fieldCount
 )
 
 // Action is the result of a key press in the metadata editor.
 type Action int
 
 const (
-	ActionNone   Action = iota
+	actionNone   Action = iota
 	ActionSave          // Enter was pressed
 	ActionCancel        // Esc was pressed
 )
@@ -102,10 +102,10 @@ func ParseDuration(s string) (float64, error) {
 type Editor struct {
 	hash          string
 	hashes        []string // nil for single-track, populated for bulk
-	Fields        [FieldCount]textinput.Model
+	Fields        [fieldCount]textinput.Model
 	focused       Field
-	initialValues [FieldCount]string // snapshot at open time
-	Dirty         [FieldCount]bool   // true when field differs from initial
+	initialValues [fieldCount]string // snapshot at open time
+	Dirty         [fieldCount]bool   // true when field differs from initial
 	mode          Mode
 	renameTitle   string // custom dialog title, e.g. " ✎ Rename Artist "
 }
@@ -130,8 +130,8 @@ func NewEditor(hash, title, artist, album, genre string, duration float64) Edito
 	dur := FormatDuration(duration)
 	return Editor{
 		hash:          hash,
-		initialValues: [FieldCount]string{title, artist, album, genre, dur},
-		Fields: [FieldCount]textinput.Model{
+		initialValues: [fieldCount]string{title, artist, album, genre, dur},
+		Fields: [fieldCount]textinput.Model{
 			newField(title, true),
 			newField(artist, false),
 			newField(album, false),
@@ -146,8 +146,8 @@ func NewEditor(hash, title, artist, album, genre string, duration float64) Edito
 func NewBulkEditor(hashes []string, commonTitle, commonArtist, commonAlbum, commonGenre, commonDuration string) Editor {
 	return Editor{
 		hashes:        hashes,
-		initialValues: [FieldCount]string{commonTitle, commonArtist, commonAlbum, commonGenre, commonDuration},
-		Fields: [FieldCount]textinput.Model{
+		initialValues: [fieldCount]string{commonTitle, commonArtist, commonAlbum, commonGenre, commonDuration},
+		Fields: [fieldCount]textinput.Model{
 			newField(commonTitle, true),
 			newField(commonArtist, false),
 			newField(commonAlbum, false),
@@ -164,9 +164,9 @@ func NewArtistRenameEditor(hashes []string, artist string) Editor {
 		mode:          ModeRenameArtist,
 		renameTitle:   " ✎ Rename Artist ",
 		hashes:        hashes,
-		focused:       FieldArtist,
-		initialValues: [FieldCount]string{"", artist, "", "", ""},
-		Fields: [FieldCount]textinput.Model{
+		focused:       fieldArtist,
+		initialValues: [fieldCount]string{"", artist, "", "", ""},
+		Fields: [fieldCount]textinput.Model{
 			newField("", false),
 			newField(artist, true),
 			newField("", false),
@@ -183,9 +183,9 @@ func NewAlbumRenameEditor(hashes []string, album string) Editor {
 		mode:          ModeRenameAlbum,
 		renameTitle:   " ✎ Rename Album ",
 		hashes:        hashes,
-		focused:       FieldAlbum,
-		initialValues: [FieldCount]string{"", "", album, "", ""},
-		Fields: [FieldCount]textinput.Model{
+		focused:       fieldAlbum,
+		initialValues: [fieldCount]string{"", "", album, "", ""},
+		Fields: [fieldCount]textinput.Model{
 			newField("", false),
 			newField("", false),
 			newField(album, true),
@@ -201,8 +201,8 @@ func (e Editor) Mode() Mode { return e.mode }
 // IsBulk reports whether this editor is in bulk mode (multiple tracks).
 func (e Editor) IsBulk() bool { return len(e.hashes) > 1 }
 
-// TrackCount returns the number of tracks being edited.
-func (e Editor) TrackCount() int { return len(e.hashes) }
+// trackCount returns the number of tracks being edited.
+func (e Editor) trackCount() int { return len(e.hashes) }
 
 // Hashes returns the hashes slice (nil for single-track editors).
 func (e Editor) Hashes() []string { return e.hashes }
@@ -210,20 +210,20 @@ func (e Editor) Hashes() []string { return e.hashes }
 // DirtyFields returns pointers to the new values for fields that were modified.
 // Non-dirty fields return nil.
 func (e Editor) DirtyFields() (title, artist, album, genre, duration *string) {
-	if e.Dirty[FieldTitle] {
-		v := strings.TrimSpace(e.Fields[FieldTitle].Value())
+	if e.Dirty[fieldTitle] {
+		v := strings.TrimSpace(e.Fields[fieldTitle].Value())
 		title = &v
 	}
-	if e.Dirty[FieldArtist] {
-		v := strings.TrimSpace(e.Fields[FieldArtist].Value())
+	if e.Dirty[fieldArtist] {
+		v := strings.TrimSpace(e.Fields[fieldArtist].Value())
 		artist = &v
 	}
-	if e.Dirty[FieldAlbum] {
-		v := strings.TrimSpace(e.Fields[FieldAlbum].Value())
+	if e.Dirty[fieldAlbum] {
+		v := strings.TrimSpace(e.Fields[fieldAlbum].Value())
 		album = &v
 	}
-	if e.Dirty[FieldGenre] {
-		v := strings.TrimSpace(e.Fields[FieldGenre].Value())
+	if e.Dirty[fieldGenre] {
+		v := strings.TrimSpace(e.Fields[fieldGenre].Value())
 		genre = &v
 	}
 	if e.Dirty[FieldDuration] {
@@ -244,25 +244,25 @@ func (e Editor) HandleKey(msg tea.KeyPressMsg) (Editor, Action, tea.Cmd) {
 		return e, ActionCancel, nil
 	case "tab":
 		if e.mode != ModeDefault {
-			return e, ActionNone, nil
+			return e, actionNone, nil
 		}
 		e.Fields[e.focused].Blur()
-		e.focused = (e.focused + 1) % FieldCount
-		return e, ActionNone, e.Fields[e.focused].Focus()
+		e.focused = (e.focused + 1) % fieldCount
+		return e, actionNone, e.Fields[e.focused].Focus()
 	case "shift+tab":
 		if e.mode != ModeDefault {
-			return e, ActionNone, nil
+			return e, actionNone, nil
 		}
 		e.Fields[e.focused].Blur()
-		e.focused = (e.focused + FieldCount - 1) % FieldCount
-		return e, ActionNone, e.Fields[e.focused].Focus()
+		e.focused = (e.focused + fieldCount - 1) % fieldCount
+		return e, actionNone, e.Fields[e.focused].Focus()
 	}
 
 	// Forward to the focused textinput.
 	var cmd tea.Cmd
 	e.Fields[e.focused], cmd = e.Fields[e.focused].Update(msg)
 	e.Dirty[e.focused] = e.Fields[e.focused].Value() != e.initialValues[e.focused]
-	return e, ActionNone, cmd
+	return e, actionNone, cmd
 }
 
 // ForwardMsg routes a generic tea.Msg to the focused text input field.
@@ -275,16 +275,16 @@ func (e Editor) ForwardMsg(msg tea.Msg) (Editor, tea.Cmd) {
 }
 
 // Title returns the current title value.
-func (e Editor) Title() string { return e.Fields[FieldTitle].Value() }
+func (e Editor) Title() string { return e.Fields[fieldTitle].Value() }
 
 // Artist returns the current artist value.
-func (e Editor) Artist() string { return e.Fields[FieldArtist].Value() }
+func (e Editor) Artist() string { return e.Fields[fieldArtist].Value() }
 
 // Album returns the current album value.
-func (e Editor) Album() string { return e.Fields[FieldAlbum].Value() }
+func (e Editor) Album() string { return e.Fields[fieldAlbum].Value() }
 
 // Genre returns the current genre value.
-func (e Editor) Genre() string { return e.Fields[FieldGenre].Value() }
+func (e Editor) Genre() string { return e.Fields[fieldGenre].Value() }
 
 // Duration returns the current duration string value (e.g. "3:45").
 func (e Editor) Duration() string { return e.Fields[FieldDuration].Value() }
@@ -294,9 +294,9 @@ func (e Editor) Hash() string { return e.hash }
 
 // Render produces a centered box with five labelled, editable fields.
 func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
-	labels := [FieldCount]string{"Title:", "Artist:", "Album:", "Genre:", "Duration:"}
+	labels := [fieldCount]string{"Title:", "Artist:", "Album:", "Genre:", "Duration:"}
 	if e.IsBulk() {
-		for i := range FieldCount {
+		for i := range fieldCount {
 			if e.Dirty[i] {
 				labels[i] = "*" + labels[i]
 			}
@@ -314,16 +314,16 @@ func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
 	if e.renameTitle != "" {
 		title = e.renameTitle
 	} else if e.IsBulk() {
-		title = fmt.Sprintf(" ✎ Edit Metadata (%d tracks) ", e.TrackCount())
+		title = fmt.Sprintf(" ✎ Edit Metadata (%d tracks) ", e.trackCount())
 	}
 
 	// Determine which field indices to render.
-	renderFields := []int{int(FieldTitle), int(FieldArtist), int(FieldAlbum), int(FieldGenre), int(FieldDuration)}
+	renderFields := []int{int(fieldTitle), int(fieldArtist), int(fieldAlbum), int(fieldGenre), int(FieldDuration)}
 	switch e.mode {
 	case ModeRenameArtist:
-		renderFields = []int{int(FieldArtist)}
+		renderFields = []int{int(fieldArtist)}
 	case ModeRenameAlbum:
-		renderFields = []int{int(FieldAlbum)}
+		renderFields = []int{int(fieldAlbum)}
 	}
 
 	var lines []string

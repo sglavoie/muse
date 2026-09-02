@@ -38,7 +38,7 @@ var modifierNames = map[string]tea.KeyMod{
 	"shift": tea.ModShift,
 }
 
-// ParseKey converts a scenario key name into a tea.KeyPressMsg equivalent to
+// parseKey converts a scenario key name into a tea.KeyPressMsg equivalent to
 // what Bubble Tea would deliver for that key. Supported forms:
 //
 //   - printable single runes ("a", "F", "/", "?", "=", "+")
@@ -49,7 +49,7 @@ var modifierNames = map[string]tea.KeyMod{
 //
 // The resulting message's String() matches the key strings used by the
 // application's key registry.
-func ParseKey(name string) (tea.KeyPressMsg, error) {
+func parseKey(name string) (tea.KeyPressMsg, error) {
 	if name == "" {
 		return tea.KeyPressMsg{}, fmt.Errorf("key name is empty")
 	}

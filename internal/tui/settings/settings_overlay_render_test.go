@@ -82,7 +82,7 @@ func TestSettingsRenderClampsToBoxWidthAtNarrowTerm(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.ExcludedPaths = []string{strings.Repeat("a-very-long-excluded-path-pattern/", 4)}
 	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
-	o.Tab = TabLibrary
+	o.Tab = tabLibrary
 	o.libSubView = libSubViewExcluded
 	s := styles.NewStyles(true)
 

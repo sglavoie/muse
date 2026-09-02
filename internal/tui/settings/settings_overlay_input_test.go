@@ -37,7 +37,7 @@ func TestSettingsTabSwitchWraps(t *testing.T) {
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
-	if o.Tab != TabLibrary {
+	if o.Tab != tabLibrary {
 		t.Errorf("']' four times: expected wrap back to settingsTabLibrary, got %v", o.Tab)
 	}
 }
@@ -118,20 +118,20 @@ func TestSettingsDecrementValue(t *testing.T) {
 func TestSettingsIncrementClampsAtMax(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	f := &o.Fields[TabPlayback][0]
-	f.Value = f.Max
+	f.Value = f.max
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
-	if o.Fields[TabPlayback][0].Value != f.Max {
-		t.Errorf("l at max: expected value clamped to %d, got %d", f.Max, o.Fields[TabPlayback][0].Value)
+	if o.Fields[TabPlayback][0].Value != f.max {
+		t.Errorf("l at max: expected value clamped to %d, got %d", f.max, o.Fields[TabPlayback][0].Value)
 	}
 }
 
 func TestSettingsDecrementClampsAtMin(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	f := &o.Fields[TabPlayback][0]
-	f.Value = f.Min
+	f.Value = f.min
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'h', Text: "h"})
-	if o.Fields[TabPlayback][0].Value != f.Min {
-		t.Errorf("h at min: expected value clamped to %d, got %d", f.Min, o.Fields[TabPlayback][0].Value)
+	if o.Fields[TabPlayback][0].Value != f.min {
+		t.Errorf("h at min: expected value clamped to %d, got %d", f.min, o.Fields[TabPlayback][0].Value)
 	}
 }
 
@@ -168,7 +168,7 @@ func TestSettingsCtrlSReturnsSave(t *testing.T) {
 func TestSettingsCtrlCReturnsNone(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	_, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
-	if action != ActionNone {
+	if action != actionNone {
 		t.Errorf("ctrl+c: expected settingsNone (fall-through), got %v", action)
 	}
 }

@@ -156,17 +156,17 @@ func (v View) discoveryRows() []Row {
 	}
 	peakBacklog := 0
 	for _, b := range v.Backlog {
-		peakBacklog = max(peakBacklog, b.Tracks)
+		peakBacklog = max(peakBacklog, b.tracks)
 	}
 	for _, b := range v.Backlog {
 		rows = append(rows, Row{
 			Section: "Added but never played",
-			Label:   b.Label,
-			note: fmt.Sprintf("%d %s · %s", b.Tracks,
-				text.Pluralize(b.Tracks, "track", "tracks"), text.FormatListeningTime(int(b.Secs))),
-			fraction: insightsFraction(b.Tracks, peakBacklog),
+			Label:   b.label,
+			note: fmt.Sprintf("%d %s · %s", b.tracks,
+				text.Pluralize(b.tracks, "track", "tracks"), text.FormatListeningTime(int(b.secs))),
+			fraction: insightsFraction(b.tracks, peakBacklog),
 			Drill:    DrillAddedNeverPlayed,
-			Key:      b.Key,
+			Key:      b.key,
 		})
 	}
 	return rows
@@ -225,10 +225,10 @@ func HourGenreFold(plays []insightsdata.PlayRow, genreOf func(hash string) []str
 			}
 			a := byGenre[key]
 			if a == nil {
-				a = &acc{row: GenreHours{Genre: g}}
+				a = &acc{row: GenreHours{genre: g}}
 				byGenre[key] = a
 			}
-			a.row.Hours[hour]++
+			a.row.hours[hour]++
 			a.plays++
 		}
 	}
@@ -241,7 +241,7 @@ func HourGenreFold(plays []insightsdata.PlayRow, genreOf func(hash string) []str
 		if accs[i].plays != accs[j].plays {
 			return accs[i].plays > accs[j].plays
 		}
-		return accs[i].row.Genre < accs[j].row.Genre
+		return accs[i].row.genre < accs[j].row.genre
 	})
 
 	out := make([]GenreHours, 0, len(accs))

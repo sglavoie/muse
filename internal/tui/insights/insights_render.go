@@ -234,7 +234,7 @@ func (v View) headline(p Panel) string {
 		return fmt.Sprintf("%s of %s tracks never played · %s unheard",
 			text.FormatCount(c.UnheardTracks), text.FormatCount(c.TotalTracks),
 			text.FormatListeningTime(int(c.UnheardSecs)))
-	case PanelRhythm:
+	case panelRhythm:
 		r := snap.Rhythm
 		if r.TotalPlays == 0 {
 			return "no plays in this window"
@@ -305,7 +305,7 @@ func (v View) PanelHeaderLines(s styles.Styles) []string {
 	switch v.Panel {
 	case PanelCoverage:
 		lines = v.coverageHeaderLines(s)
-	case PanelRhythm:
+	case panelRhythm:
 		lines = v.rhythmHeaderLines(s)
 	case PanelMomentum:
 		lines = v.momentumHeaderLines(s)

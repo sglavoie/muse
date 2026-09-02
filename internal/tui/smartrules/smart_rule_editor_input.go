@@ -44,7 +44,7 @@ func (e SmartRuleEditor) HandleKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action
 	case stepSort:
 		return e.handleSortKey(msg)
 	}
-	return e, ActionNone, nil
+	return e, actionNone, nil
 }
 
 func (e SmartRuleEditor) handleNameKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action, tea.Cmd) {
@@ -55,11 +55,11 @@ func (e SmartRuleEditor) handleNameKey(msg tea.KeyPressMsg) (SmartRuleEditor, Ac
 		if strings.TrimSpace(e.nameInput.Value()) != "" {
 			e.step = stepRules
 		}
-		return e, ActionNone, nil
+		return e, actionNone, nil
 	default:
 		updated, cmd := e.nameInput.Update(msg)
 		e.nameInput = updated
-		return e, ActionNone, cmd
+		return e, actionNone, cmd
 	}
 }
 
@@ -75,7 +75,7 @@ func (e SmartRuleEditor) handleRulesKey(msg tea.KeyPressMsg) (SmartRuleEditor, A
 		}
 	case "right":
 		if len(e.rules) == 0 {
-			return e, ActionNone, nil
+			return e, actionNone, nil
 		}
 		e.step = stepSort
 	case "a":
@@ -102,7 +102,7 @@ func (e SmartRuleEditor) handleRulesKey(msg tea.KeyPressMsg) (SmartRuleEditor, A
 			e.ruleCursor--
 		}
 	}
-	return e, ActionNone, nil
+	return e, actionNone, nil
 }
 
 func (e SmartRuleEditor) startNewRule() SmartRuleEditor {
@@ -162,9 +162,9 @@ func (e SmartRuleEditor) handleEditRuleKey(msg tea.KeyPressMsg) (SmartRuleEditor
 		default:
 			updated, cmd := e.ruleValueInput.Update(msg)
 			e.ruleValueInput = updated
-			return e, ActionNone, cmd
+			return e, actionNone, cmd
 		}
-		return e, ActionNone, nil
+		return e, actionNone, nil
 	}
 
 	switch msg.String() {
@@ -211,7 +211,7 @@ func (e SmartRuleEditor) handleEditRuleKey(msg tea.KeyPressMsg) (SmartRuleEditor
 			e.ruleOpIdx = (e.ruleOpIdx + 1) % len(ops)
 		}
 	}
-	return e, ActionNone, nil
+	return e, actionNone, nil
 }
 
 func (e SmartRuleEditor) confirmEditRule() SmartRuleEditor {
@@ -249,9 +249,9 @@ func (e SmartRuleEditor) handleSortKey(msg tea.KeyPressMsg) (SmartRuleEditor, Ac
 		default:
 			updated, cmd := e.maxTracksInput.Update(msg)
 			e.maxTracksInput = updated
-			return e, ActionNone, cmd
+			return e, actionNone, cmd
 		}
-		return e, ActionNone, nil
+		return e, actionNone, nil
 	}
 
 	switch msg.String() {
@@ -290,5 +290,5 @@ func (e SmartRuleEditor) handleSortKey(msg tea.KeyPressMsg) (SmartRuleEditor, Ac
 			e.sortDir = 1 - e.sortDir
 		}
 	}
-	return e, ActionNone, nil
+	return e, actionNone, nil
 }

@@ -33,7 +33,7 @@ func RenderFooterHints(width int, ctx Context, mode HintMode, r Registry, s styl
 	if width <= 0 {
 		return ""
 	}
-	hints := r.PrimariesForMode(ctx, mode)
+	hints := r.primaryHintsForMode(ctx, mode)
 	if len(hints) == 0 {
 		return ""
 	}

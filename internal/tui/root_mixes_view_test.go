@@ -9,7 +9,6 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/recommendation"
 	"github.com/sglavoie/muse/internal/tui/keys"
-	"github.com/sglavoie/muse/internal/tui/mixes"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -97,7 +96,7 @@ func TestMixesViewTrackEnqueue(t *testing.T) {
 		WithQueueWriter(qa),
 	)
 	m = m.switchToView(viewMixes)
-	m.mixes.Mixes = append([]mixes.MixInfo(nil), recommendation.Registry()...)
+	m.mixes.Mixes = append([]recommendation.MixInfo(nil), recommendation.Registry()...)
 	m.mixes.CachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
 	m.mixes.SelectedMix = 0
 	m, _ = m.handleMixOpen()

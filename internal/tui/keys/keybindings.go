@@ -296,17 +296,17 @@ type Registry struct {
 	domainReasons map[RegistryKey]string
 }
 
-// Primaries returns the ordered list of default-mode primary keybinding
+// primaryHints returns the ordered list of default-mode primary keybinding
 // hints for ctx. Equivalent to PrimariesForMode(ctx, HintModeDefault).
-func (r Registry) Primaries(ctx Context) []primaryHint {
+func (r Registry) primaryHints(ctx Context) []primaryHint {
 	return r.primaries[primaryHintKey{ctx: ctx, mode: HintModeDefault}]
 }
 
-// PrimariesForMode returns the primary hints for (ctx, mode). When mode
+// primaryHintsForMode returns the primary hints for (ctx, mode). When mode
 // is non-default and no hints are registered for it, falls back to the
 // default-mode set so the footer never goes empty just because a mode-
 // specific set wasn't customized for this view.
-func (r Registry) PrimariesForMode(ctx Context, mode HintMode) []primaryHint {
+func (r Registry) primaryHintsForMode(ctx Context, mode HintMode) []primaryHint {
 	if hints, ok := r.primaries[primaryHintKey{ctx: ctx, mode: mode}]; ok && len(hints) > 0 {
 		return hints
 	}

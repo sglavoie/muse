@@ -24,7 +24,7 @@ const (
 type Action int
 
 const (
-	ActionNone   Action = iota
+	actionNone   Action = iota
 	ActionClose         // esc from stepName → dismiss overlay
 	ActionCommit        // enter on stepSort → persist and close
 )

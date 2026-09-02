@@ -85,7 +85,7 @@ func insightsSessionDiet(r insightsdata.SessionRow) string {
 // and the list it opens are always the same set.
 func SessionsMatching(sessions []insightsdata.SessionRow, kind DrillKind, key string) []insightsdata.SessionRow {
 	bucket := -1
-	if kind == DrillSessionsBucket {
+	if kind == drillSessionsBucket {
 		if idx, err := strconv.Atoi(key); err == nil {
 			bucket = idx
 		}
@@ -98,9 +98,9 @@ func SessionsMatching(sessions []insightsdata.SessionRow, kind DrillKind, key st
 		switch kind {
 		case DrillSessionsAll:
 			keep = true
-		case DrillSessionsBucket:
+		case drillSessionsBucket:
 			keep = bucket >= 0 && insightsDurationBucketOf(insightsSessionSecs(r)) == bucket
-		case DrillSessionsShape:
+		case drillSessionsShape:
 			if key == insightsShapeSinglePlay {
 				keep = r.Plays <= 1
 			} else {
@@ -154,7 +154,7 @@ func (v View) sessionRows() []Row {
 			Label:    b.label,
 			note:     sessionNote(counts[i]),
 			fraction: insightsFraction(counts[i], peak),
-			Drill:    DrillSessionsBucket,
+			Drill:    drillSessionsBucket,
 			Key:      strconv.Itoa(i),
 		})
 	}
@@ -165,7 +165,7 @@ func (v View) sessionRows() []Row {
 			Label:    "One play and out",
 			note:     sessionNote(ss.SinglePlay),
 			fraction: insightsFraction(ss.SinglePlay, ss.Count),
-			Drill:    DrillSessionsShape,
+			Drill:    drillSessionsShape,
 			Key:      insightsShapeSinglePlay,
 		})
 	}
@@ -189,7 +189,7 @@ func (v View) sessionRows() []Row {
 			Label:    d.label,
 			note:     sessionNote(diet[d.key]),
 			fraction: insightsFraction(diet[d.key], ss.Count),
-			Drill:    DrillSessionsShape,
+			Drill:    drillSessionsShape,
 			Key:      d.key,
 		})
 	}

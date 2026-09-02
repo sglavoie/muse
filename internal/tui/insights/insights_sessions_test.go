@@ -93,14 +93,14 @@ func TestInsightsSessionsMatching(t *testing.T) {
 	}{
 		// Newest first: a session list is read like history, most recent at top.
 		{"all", DrillSessionsAll, "", "s4,s3,s2,s1"},
-		{"under 15m bucket", DrillSessionsBucket, "0", "s1"},
-		{"15-30m bucket", DrillSessionsBucket, "1", "s4"},
-		{"empty bucket", DrillSessionsBucket, "5", ""},
-		{"unparseable bucket", DrillSessionsBucket, "x", ""},
-		{"single play", DrillSessionsShape, insightsShapeSinglePlay, "s1"},
-		{"one artist", DrillSessionsShape, insightsDietOne, "s4,s1"},
-		{"few artists", DrillSessionsShape, insightsDietFew, "s2"},
-		{"many artists", DrillSessionsShape, insightsDietMany, "s3"},
+		{"under 15m bucket", drillSessionsBucket, "0", "s1"},
+		{"15-30m bucket", drillSessionsBucket, "1", "s4"},
+		{"empty bucket", drillSessionsBucket, "5", ""},
+		{"unparseable bucket", drillSessionsBucket, "x", ""},
+		{"single play", drillSessionsShape, insightsShapeSinglePlay, "s1"},
+		{"one artist", drillSessionsShape, insightsDietOne, "s4,s1"},
+		{"few artists", drillSessionsShape, insightsDietFew, "s2"},
+		{"many artists", drillSessionsShape, insightsDietMany, "s3"},
 		{"opener", DrillSessionsOpener, "Alice", "s3,s1"},
 		// s1 both opens and closes with Alice, so it belongs to either list.
 		{"closer", DrillSessionsCloser, "Alice", "s2,s1"},

@@ -8,23 +8,23 @@ package uitest
 
 import "github.com/sglavoie/muse/internal/tui"
 
-// UITestActionKind identifies which operation a UITestAction performs. Every
+// actionKind identifies which operation a UITestAction performs. Every
 // action object sets exactly one of the recognized operation fields.
-type UITestActionKind string
+type actionKind string
 
 const (
-	// ActionKey dispatches a single parsed key press.
-	ActionKey UITestActionKind = "key"
-	// ActionText types a literal string into the active input.
-	ActionText UITestActionKind = "text"
-	// ActionResize dispatches a new terminal size.
-	ActionResize UITestActionKind = "resize"
-	// ActionWait drains pending async commands, optionally for a duration.
-	ActionWait UITestActionKind = "wait"
-	// ActionAssert evaluates a layout/state assertion.
-	ActionAssert UITestActionKind = "assert"
-	// ActionCommand invokes an allowlisted palette command directly.
-	ActionCommand UITestActionKind = "command"
+	// actionKey dispatches a single parsed key press.
+	actionKey actionKind = "key"
+	// actionText types a literal string into the active input.
+	actionText actionKind = "text"
+	// actionResize dispatches a new terminal size.
+	actionResize actionKind = "resize"
+	// actionWait drains pending async commands, optionally for a duration.
+	actionWait actionKind = "wait"
+	// actionAssert evaluates a layout/state assertion.
+	actionAssert actionKind = "assert"
+	// actionCommand invokes an allowlisted palette command directly.
+	actionCommand actionKind = "command"
 )
 
 // UITestAction is a single scripted step in a scenario. Exactly one operation
@@ -43,22 +43,22 @@ type UITestAction struct {
 	Command *string          `json:"command,omitempty"`
 }
 
-// UITestAssertionKind identifies which assertion a UITestAssertion evaluates.
-type UITestAssertionKind string
+// assertionKind identifies which assertion a UITestAssertion evaluates.
+type assertionKind string
 
 const (
-	// AssertContains requires the plain screen to contain a substring.
-	AssertContains UITestAssertionKind = "contains"
-	// AssertNotContains requires the plain screen to omit a substring.
-	AssertNotContains UITestAssertionKind = "not_contains"
-	// AssertView requires a specific active primary view.
-	AssertView UITestAssertionKind = "view"
-	// AssertOverlay requires a specific active overlay.
-	AssertOverlay UITestAssertionKind = "overlay"
-	// AssertStatusContains requires the status line to contain a substring.
-	AssertStatusContains UITestAssertionKind = "status_contains"
-	// AssertNoLayoutIssues requires the observation to report no layout issues.
-	AssertNoLayoutIssues UITestAssertionKind = "no_layout_issues"
+	// assertContains requires the plain screen to contain a substring.
+	assertContains assertionKind = "contains"
+	// assertNotContains requires the plain screen to omit a substring.
+	assertNotContains assertionKind = "not_contains"
+	// assertView requires a specific active primary view.
+	assertView assertionKind = "view"
+	// assertOverlay requires a specific active overlay.
+	assertOverlay assertionKind = "overlay"
+	// assertStatusContains requires the status line to contain a substring.
+	assertStatusContains assertionKind = "status_contains"
+	// assertNoLayoutIssues requires the observation to report no layout issues.
+	assertNoLayoutIssues assertionKind = "no_layout_issues"
 )
 
 // UITestAssertion is a single expectation evaluated against an observation.
@@ -85,16 +85,16 @@ type UITestScenario struct {
 type UITestIssueKind string
 
 const (
-	// IssueInvalidUTF8 flags screen content that is not valid UTF-8.
-	IssueInvalidUTF8 UITestIssueKind = "invalid_utf8"
-	// IssueWidthOverflow flags a line wider than the terminal.
-	IssueWidthOverflow UITestIssueKind = "width_overflow"
-	// IssueHeightOverflow flags more rendered lines than the terminal height.
-	IssueHeightOverflow UITestIssueKind = "height_overflow"
-	// IssueTabCharacter flags a tab, which breaks column-width arithmetic.
-	IssueTabCharacter UITestIssueKind = "tab_character"
-	// IssueBlankScreen flags a screen that is empty after stripping ANSI.
-	IssueBlankScreen UITestIssueKind = "blank_screen"
+	// issueInvalidUTF8 flags screen content that is not valid UTF-8.
+	issueInvalidUTF8 UITestIssueKind = "invalid_utf8"
+	// issueWidthOverflow flags a line wider than the terminal.
+	issueWidthOverflow UITestIssueKind = "width_overflow"
+	// issueHeightOverflow flags more rendered lines than the terminal height.
+	issueHeightOverflow UITestIssueKind = "height_overflow"
+	// issueTabCharacter flags a tab, which breaks column-width arithmetic.
+	issueTabCharacter UITestIssueKind = "tab_character"
+	// issueBlankScreen flags a screen that is empty after stripping ANSI.
+	issueBlankScreen UITestIssueKind = "blank_screen"
 )
 
 // UITestIssue is one detected layout problem. Line is 1-based and set only for

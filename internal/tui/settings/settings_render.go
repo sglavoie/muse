@@ -32,9 +32,9 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	lines = append(lines, overlay.CrossL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CrossR)
 
 	// Tab bar row.
-	tabNames := [TabCount]string{"Library", "Playback", "Equalizer", "Display"}
+	tabNames := [tabCount]string{"Library", "Playback", "Equalizer", "Display"}
 	var tabParts []string
-	for i := range TabCount {
+	for i := range tabCount {
 		name := tabNames[i]
 		if Tab(i) == o.Tab {
 			tabParts = append(tabParts, s.Heading.Render("["+name+"]"))
@@ -53,7 +53,7 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	lines = append(lines, overlay.CrossL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CrossR)
 
 	// Content rows.
-	if o.Tab == TabLibrary {
+	if o.Tab == tabLibrary {
 		lines = o.renderLibraryTab(lines, contentWidth, s)
 	} else {
 		lines = o.renderFieldsTab(lines, contentWidth, s)
@@ -64,7 +64,7 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 
 	var hint string
 	switch o.Tab {
-	case TabLibrary:
+	case tabLibrary:
 		if o.libSubView == libSubViewExcluded {
 			hint = "a add · d delete · [/] tabs · j/k navigate · ctrl+s save · esc back"
 		} else {
@@ -143,33 +143,33 @@ func (o SettingsOverlay) renderLibraryDirs(lines []string, contentWidth int, s s
 func (o SettingsOverlay) renderFieldsTab(lines []string, contentWidth int, s styles.Styles) []string {
 	maxLabelW := 0
 	for _, f := range o.Fields[o.Tab] {
-		if lw := len(f.Label); lw > maxLabelW {
+		if lw := len(f.label); lw > maxLabelW {
 			maxLabelW = lw
 		}
 	}
 	for i, f := range o.Fields[o.Tab] {
 		var spinner string
 		switch {
-		case f.Min == 0 && f.Max == 1 && f.Unit == "":
+		case f.min == 0 && f.max == 1 && f.unit == "":
 			label := "Off"
 			if f.Value != 0 {
 				label = "On"
 			}
 			spinner = fmt.Sprintf("< %s >", label)
-		case f.Unit == "preset":
+		case f.unit == "preset":
 			name := eqCustomSentinelName
 			if f.Value >= 0 && f.Value < len(o.EQPresets) {
 				name = o.EQPresets[f.Value].Name
 			}
 			spinner = fmt.Sprintf("< %s >", name)
-		case f.Unit == "tenth":
+		case f.unit == "tenth":
 			spinner = fmt.Sprintf("< %.1fx >", float64(f.Value)/10.0)
 		default:
-			spinner = fmt.Sprintf("< %d%s >", f.Value, f.Unit)
+			spinner = fmt.Sprintf("< %d%s >", f.Value, f.unit)
 		}
 		spinnerW := ansi.StringWidth(spinner)
 		gap := max(1, contentWidth-maxLabelW-spinnerW)
-		rowBody := fmt.Sprintf("%-*s%s%s", maxLabelW, f.Label, strings.Repeat(" ", gap), spinner)
+		rowBody := fmt.Sprintf("%-*s%s%s", maxLabelW, f.label, strings.Repeat(" ", gap), spinner)
 		rowBody = text.Truncate(rowBody, contentWidth)
 		rowBodyW := ansi.StringWidth(rowBody)
 		rowPad := max(0, contentWidth-rowBodyW)

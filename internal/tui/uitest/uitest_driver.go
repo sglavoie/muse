@@ -55,20 +55,20 @@ func NewUITestDriver(model tui.Model, width, height int, drainTimeout time.Durat
 		drainTimeout = defaultDrainTimeout
 	}
 	d := &UITestDriver{model: model, drainTimeout: drainTimeout}
-	d.Resize(width, height)
+	d.resize(width, height)
 	return d
 }
 
-// Resize dispatches a new terminal size and records it for layout checks.
-func (d *UITestDriver) Resize(width, height int) {
+// resize dispatches a new terminal size and records it for layout checks.
+func (d *UITestDriver) resize(width, height int) {
 	d.width = width
 	d.height = height
 	d.dispatch(tea.WindowSizeMsg{Width: width, Height: height})
 }
 
-// SendKey parses name and dispatches the equivalent key press.
-func (d *UITestDriver) SendKey(name string) error {
-	msg, err := ParseKey(name)
+// sendKey parses name and dispatches the equivalent key press.
+func (d *UITestDriver) sendKey(name string) error {
+	msg, err := parseKey(name)
 	if err != nil {
 		return err
 	}
@@ -76,8 +76,8 @@ func (d *UITestDriver) SendKey(name string) error {
 	return nil
 }
 
-// SendText types a literal string, one printable key press per rune.
-func (d *UITestDriver) SendText(text string) {
+// sendText types a literal string, one printable key press per rune.
+func (d *UITestDriver) sendText(text string) {
 	for _, r := range text {
 		d.dispatch(printableKey(r, 0))
 	}
@@ -202,7 +202,7 @@ func (d *UITestDriver) Release() {
 // Observe renders the current screen and returns a normalized observation.
 func (d *UITestDriver) Observe(opts ObserveOptions) UITestObservation {
 	raw := d.model.View().Content
-	plain := PlainScreen(raw)
+	plain := plainScreen(raw)
 
 	obs := UITestObservation{
 		CurrentView:  d.currentViewName(),
@@ -211,8 +211,8 @@ func (d *UITestDriver) Observe(opts ObserveOptions) UITestObservation {
 		Width:        d.width,
 		Height:       d.height,
 		PlainScreen:  plain,
-		Status:       PlainScreen(d.model.RenderStatusBar()),
-		LayoutIssues: DetectLayoutIssues(raw, plain, d.width, d.height),
+		Status:       plainScreen(d.model.RenderStatusBar()),
+		LayoutIssues: detectLayoutIssues(raw, plain, d.width, d.height),
 		PendingAsync: len(d.pending),
 		Snapshot:     d.model.Snapshot(),
 	}
@@ -255,31 +255,31 @@ func (d *UITestDriver) availableCommands() []string {
 // command, failed assertion); the returned observation is the failure-point
 // observation.
 func (d *UITestDriver) ApplyAction(a UITestAction, opts ObserveOptions) (UITestObservation, error) {
-	kind, err := a.Validate()
+	kind, err := a.validate()
 	if err != nil {
 		return d.Observe(opts), err
 	}
 
 	switch kind {
-	case ActionKey:
-		if err := d.SendKey(*a.Key); err != nil {
+	case actionKey:
+		if err := d.sendKey(*a.Key); err != nil {
 			return d.Observe(opts), fmt.Errorf("key: %w", err)
 		}
-	case ActionText:
-		d.SendText(*a.Text)
-	case ActionResize:
+	case actionText:
+		d.sendText(*a.Text)
+	case actionResize:
 		w, h, err := ParseSize(*a.Resize)
 		if err != nil {
 			return d.Observe(opts), fmt.Errorf("resize: %w", err)
 		}
-		d.Resize(w, h)
-	case ActionWait:
+		d.resize(w, h)
+	case actionWait:
 		d.waitPending(waitDuration(*a.Wait, d.drainTimeout))
-	case ActionCommand:
+	case actionCommand:
 		if err := d.runCommand(*a.Command); err != nil {
 			return d.Observe(opts), err
 		}
-	case ActionAssert:
+	case actionAssert:
 		obs := d.Observe(opts)
 		return obs, d.evalAssertion(a.Assert, obs)
 	}
@@ -302,32 +302,32 @@ func waitDuration(raw string, fallback time.Duration) time.Duration {
 
 // evalAssertion checks a single assertion against an observation.
 func (d *UITestDriver) evalAssertion(a *UITestAssertion, obs UITestObservation) error {
-	kind, err := a.Kind()
+	kind, err := a.kind()
 	if err != nil {
 		return err
 	}
 	switch kind {
-	case AssertContains:
+	case assertContains:
 		if !strings.Contains(obs.PlainScreen, *a.Contains) {
 			return fmt.Errorf("expected screen to contain %q", *a.Contains)
 		}
-	case AssertNotContains:
+	case assertNotContains:
 		if strings.Contains(obs.PlainScreen, *a.NotContains) {
 			return fmt.Errorf("expected screen not to contain %q", *a.NotContains)
 		}
-	case AssertView:
+	case assertView:
 		if !strings.EqualFold(obs.PrimaryView, *a.View) {
 			return fmt.Errorf("expected primary view %q, got %q", *a.View, obs.PrimaryView)
 		}
-	case AssertOverlay:
+	case assertOverlay:
 		if !strings.EqualFold(obs.Overlay, *a.Overlay) {
 			return fmt.Errorf("expected overlay %q, got %q", *a.Overlay, obs.Overlay)
 		}
-	case AssertStatusContains:
+	case assertStatusContains:
 		if !strings.Contains(obs.Status, *a.StatusContains) {
 			return fmt.Errorf("expected status to contain %q", *a.StatusContains)
 		}
-	case AssertNoLayoutIssues:
+	case assertNoLayoutIssues:
 		if len(obs.LayoutIssues) > 0 {
 			return fmt.Errorf("expected no layout issues, found %d: %s", len(obs.LayoutIssues), summarizeIssues(obs.LayoutIssues))
 		}
@@ -341,11 +341,11 @@ func summarizeIssues(issues []UITestIssue) string {
 	parts := make([]string, 0, len(issues))
 	for _, iss := range issues {
 		switch iss.Kind {
-		case IssueWidthOverflow:
+		case issueWidthOverflow:
 			parts = append(parts, fmt.Sprintf("%s(line %d: %d>%d)", iss.Kind, iss.Line, iss.Actual, iss.Limit))
-		case IssueHeightOverflow:
+		case issueHeightOverflow:
 			parts = append(parts, fmt.Sprintf("%s(%d>%d)", iss.Kind, iss.Actual, iss.Limit))
-		case IssueTabCharacter:
+		case issueTabCharacter:
 			parts = append(parts, fmt.Sprintf("%s(line %d)", iss.Kind, iss.Line))
 		default:
 			parts = append(parts, string(iss.Kind))

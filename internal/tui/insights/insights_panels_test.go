@@ -38,7 +38,7 @@ func TestRhythmRowsListEveryWeekdayIncludingSilentOnes(t *testing.T) {
 	r.Hours[9] = insightsdata.HourBucket{Hour: 9, Plays: 4, ListenedSecs: 600}
 	r.TotalPlays = 4
 
-	rows := View{Panel: PanelRhythm, Snap: insightsdata.Snapshot{Rhythm: r}}.Rows()
+	rows := View{Panel: panelRhythm, Snap: insightsdata.Snapshot{Rhythm: r}}.Rows()
 
 	if got := sectionLabels(rows, "Weekday"); len(got) != 7 {
 		t.Errorf("want all 7 weekdays listed, got %v", got)
@@ -55,13 +55,13 @@ func TestRhythmRowsHideGenreAffinityWhenGenresCollide(t *testing.T) {
 	snap := insightsdata.Snapshot{Rhythm: insightsdata.Rhythm{Genres: genres, TotalPlays: 3}}
 
 	snap.Rhythm.GenresUnclean = false
-	clean := View{Panel: PanelRhythm, Snap: snap}.Rows()
+	clean := View{Panel: panelRhythm, Snap: snap}.Rows()
 	if got := sectionLabels(clean, "Genre affinity"); len(got) != 1 {
 		t.Fatalf("clean genres should produce an affinity row, got %v", got)
 	}
 
 	snap.Rhythm.GenresUnclean = true
-	dirty := View{Panel: PanelRhythm, Snap: snap}.Rows()
+	dirty := View{Panel: panelRhythm, Snap: snap}.Rows()
 	if got := sectionLabels(dirty, "Genre affinity"); got != nil {
 		t.Errorf("colliding genres should withhold the affinity rows, got %v", got)
 	}
@@ -74,7 +74,7 @@ func TestRhythmHeaderExplainsTheWithheldAffinityEvenWhenCompact(t *testing.T) {
 	// The gate outlives the grid: at 60 columns there is no heatmap to hide, but
 	// the rows are withheld just the same, so the reason still has to show.
 	for _, w := range []int{60, 100} {
-		v := View{Panel: PanelRhythm, Snap: snap, width: w, Height: 30, Loc: panelsTestLoc()}
+		v := View{Panel: panelRhythm, Snap: snap, width: w, Height: 30, Loc: panelsTestLoc()}
 		if !strings.Contains(strings.Join(v.PanelHeaderLines(s), "\n"), "genre names collide") {
 			t.Errorf("width %d: header should explain why affinity is hidden", w)
 		}
@@ -109,7 +109,7 @@ func TestDiscoveryRowsLeadTheBacklogWithItsTotal(t *testing.T) {
 			Trends:   insightsdata.Trends{Buckets: []insightsdata.TrendBucket{{Start: at(time.August, 1, 0), FirstPlays: 2}}},
 			Coverage: insightsdata.Coverage{UnheardTracks: 5, UnheardSecs: 900},
 		},
-		Backlog: []BacklogMonth{{Key: "2026-08", Label: "August 2026", Tracks: 2, Secs: 400}},
+		Backlog: []BacklogMonth{{key: "2026-08", label: "August 2026", tracks: 2, secs: 400}},
 		Loc:     panelsTestLoc(),
 	}
 
@@ -146,14 +146,14 @@ func TestBacklogMonths(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("want two add-months, got %+v", got)
 	}
-	if got[0].Key != "2026-08" || got[0].Tracks != 2 || got[0].Secs != 300 {
+	if got[0].key != "2026-08" || got[0].tracks != 2 || got[0].secs != 300 {
 		t.Errorf("August bucket wrong: %+v", got[0])
 	}
-	if got[1].Key != "2026-06" || got[1].Tracks != 1 {
+	if got[1].key != "2026-06" || got[1].tracks != 1 {
 		t.Errorf("June bucket should exclude the heard track: %+v", got[1])
 	}
-	if got[0].Label != "August 2026" {
-		t.Errorf("label should be readable, got %q", got[0].Label)
+	if got[0].label != "August 2026" {
+		t.Errorf("label should be readable, got %q", got[0].label)
 	}
 }
 
@@ -172,10 +172,10 @@ func TestInsightsHourGenreFold(t *testing.T) {
 	}
 	// "ambient" folds into "Ambient" the same way the aggregate above the grid
 	// folds it, so a row and its heading cannot disagree on what one genre is.
-	if got[0].Genre != "Ambient" || got[0].Hours[9] != 2 || got[0].Hours[22] != 1 {
+	if got[0].genre != "Ambient" || got[0].hours[9] != 2 || got[0].hours[22] != 1 {
 		t.Errorf("Ambient should lead with 2 plays at 09h and 1 at 22h, got %+v", got[0])
 	}
-	if got[1].Genre != "Drone" || got[1].Hours[9] != 2 {
+	if got[1].genre != "Drone" || got[1].hours[9] != 2 {
 		t.Errorf("Drone row wrong: %+v", got[1])
 	}
 }

@@ -100,7 +100,7 @@ func TestExcludedSubViewEscReturnsToDir(t *testing.T) {
 	if o.libSubView != libSubViewDirs {
 		t.Errorf("esc: expected libSubViewDirs, got %v", o.libSubView)
 	}
-	if action != ActionNone {
+	if action != actionNone {
 		t.Errorf("esc from excluded sub-view: expected settingsNone, got %v", action)
 	}
 }

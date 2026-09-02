@@ -13,7 +13,6 @@ import (
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
-	"github.com/sglavoie/muse/internal/tui/mixes"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
@@ -94,7 +93,7 @@ func (m Model) switchToView(id viewID) Model {
 		m.queue = m.queue.ScrollToNowPlaying(m.playback.currentIndex)
 	}
 	if id == viewMixes && len(m.mixes.Mixes) == 0 {
-		m.mixes.Mixes = append([]mixes.MixInfo(nil), recommendation.Registry()...)
+		m.mixes.Mixes = append([]recommendation.MixInfo(nil), recommendation.Registry()...)
 	}
 	if id == viewBrowse {
 		m = m.deriveCurrentBrowseData()

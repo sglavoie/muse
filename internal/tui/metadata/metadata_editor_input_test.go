@@ -10,17 +10,17 @@ import (
 // the default (non-rename) mode, to avoid regressions.
 func TestDefaultEditorHandleKeyTabCycles(t *testing.T) {
 	ed := NewEditor("h1", "Title", "Artist", "Album", "", 0)
-	if ed.focused != FieldTitle {
+	if ed.focused != fieldTitle {
 		t.Fatalf("expected initial focus=fieldTitle, got %v", ed.focused)
 	}
 
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: '\t'})
-	if ed.focused != FieldArtist {
+	if ed.focused != fieldArtist {
 		t.Errorf("after tab: expected fieldArtist, got %v", ed.focused)
 	}
 
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: '\t', Mod: tea.ModShift})
-	if ed.focused != FieldTitle {
+	if ed.focused != fieldTitle {
 		t.Errorf("after shift+tab: expected fieldTitle, got %v", ed.focused)
 	}
 }
@@ -29,10 +29,10 @@ func TestDefaultEditorHandleKeyTabCycles(t *testing.T) {
 // five fields including Duration.
 func TestDefaultEditorTabCyclesFiveFields(t *testing.T) {
 	ed := NewEditor("h1", "T", "A", "B", "G", 225)
-	if ed.focused != FieldTitle {
+	if ed.focused != fieldTitle {
 		t.Fatalf("expected initial focus=fieldTitle, got %v", ed.focused)
 	}
-	expectedCycle := []Field{FieldArtist, FieldAlbum, FieldGenre, FieldDuration, FieldTitle}
+	expectedCycle := []Field{fieldArtist, fieldAlbum, fieldGenre, FieldDuration, fieldTitle}
 	for i, want := range expectedCycle {
 		ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: '\t'})
 		if ed.focused != want {

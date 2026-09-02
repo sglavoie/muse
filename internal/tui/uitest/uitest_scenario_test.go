@@ -66,7 +66,7 @@ func TestParseScenarioValid(t *testing.T) {
 	if len(s.Actions) != 8 {
 		t.Fatalf("expected 8 actions, got %d", len(s.Actions))
 	}
-	if k, err := s.Actions[0].Kind(); err != nil || k != ActionKey {
+	if k, err := s.Actions[0].kind(); err != nil || k != actionKey {
 		t.Errorf("action 0 kind = %q err %v, want key", k, err)
 	}
 	if s.Actions[7].Label != "look" {
@@ -111,32 +111,32 @@ func TestActionValidateExactlyOneOperation(t *testing.T) {
 	key := "a"
 	txt := "hi"
 	// No operation set.
-	if _, err := (UITestAction{}).Validate(); err == nil {
+	if _, err := (UITestAction{}).validate(); err == nil {
 		t.Error("expected error for action with no operation")
 	}
 	// Two operations set.
-	if _, err := (UITestAction{Key: &key, Text: &txt}).Validate(); err == nil {
+	if _, err := (UITestAction{Key: &key, Text: &txt}).validate(); err == nil {
 		t.Error("expected error for action with two operations")
 	}
 	// Bad key.
 	bad := "notakey"
-	if _, err := (UITestAction{Key: &bad}).Validate(); err == nil {
+	if _, err := (UITestAction{Key: &bad}).validate(); err == nil {
 		t.Error("expected error for invalid key")
 	}
 	// Empty text.
 	empty := ""
-	if _, err := (UITestAction{Text: &empty}).Validate(); err == nil {
+	if _, err := (UITestAction{Text: &empty}).validate(); err == nil {
 		t.Error("expected error for empty text")
 	}
 }
 
 func TestActionWaitAllowsEmptyAndValidatesDuration(t *testing.T) {
 	empty := ""
-	if k, err := (UITestAction{Wait: &empty}).Validate(); err != nil || k != ActionWait {
+	if k, err := (UITestAction{Wait: &empty}).validate(); err != nil || k != actionWait {
 		t.Errorf("empty wait should be valid drain, got kind %q err %v", k, err)
 	}
 	bad := "notaduration"
-	if _, err := (UITestAction{Wait: &bad}).Validate(); err == nil {
+	if _, err := (UITestAction{Wait: &bad}).validate(); err == nil {
 		t.Error("expected error for invalid wait duration")
 	}
 }
@@ -151,26 +151,26 @@ func TestAssertionValidation(t *testing.T) {
 		{NoLayoutIssues: &yes},
 	} {
 		act := UITestAction{Assert: &a}
-		if _, err := act.Validate(); err != nil {
+		if _, err := act.validate(); err != nil {
 			t.Errorf("assertion %+v unexpectedly invalid: %v", a, err)
 		}
 	}
 	// no_layout_issues must be true.
-	if err := (&UITestAssertion{NoLayoutIssues: &no}).Validate(); err == nil {
+	if err := (&UITestAssertion{NoLayoutIssues: &no}).validate(); err == nil {
 		t.Error("expected error for no_layout_issues:false")
 	}
 	// Multiple fields set.
 	other := "library"
-	if err := (&UITestAssertion{View: &view, Overlay: &other}).Validate(); err == nil {
+	if err := (&UITestAssertion{View: &view, Overlay: &other}).validate(); err == nil {
 		t.Error("expected error for assertion with two expectations")
 	}
 	// No field set.
-	if err := (&UITestAssertion{}).Validate(); err == nil {
+	if err := (&UITestAssertion{}).validate(); err == nil {
 		t.Error("expected error for empty assertion")
 	}
 	// Empty contains.
 	empty := ""
-	if err := (&UITestAssertion{Contains: &empty}).Validate(); err == nil {
+	if err := (&UITestAssertion{Contains: &empty}).validate(); err == nil {
 		t.Error("expected error for empty contains")
 	}
 }

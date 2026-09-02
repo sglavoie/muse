@@ -30,8 +30,8 @@ func TestEQPresetFieldMaxMatchesSentinelIndex(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	presetField := o.Fields[TabEqualizer][1]
 	wantMax := len(o.EQPresets) - 1
-	if presetField.Max != wantMax {
-		t.Errorf("Preset field Max: expected %d, got %d", wantMax, presetField.Max)
+	if presetField.max != wantMax {
+		t.Errorf("Preset field Max: expected %d, got %d", wantMax, presetField.max)
 	}
 }
 

@@ -15,14 +15,10 @@ import (
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
-// MixInfo is a type alias for recommendation.MixInfo, kept for backward
-// compatibility so callers using tui.MixInfo continue to compile unchanged.
-type MixInfo = recommendation.MixInfo
-
 // MixesView manages the two-level Mixes panel: a list of recommendation mixes
 // at level 0, and the track list for the selected mix at level 1.
 type MixesView struct {
-	Mixes             []MixInfo
+	Mixes             []recommendation.MixInfo
 	SelectedMix       int
 	Level             int // 0=list, 1=tracks
 	ActiveMix         db.MixID
@@ -51,9 +47,9 @@ func (v *MixesView) clampCursor() {
 	}
 }
 
-// FocusedMix returns a pointer to the currently focused MixInfo, or nil if the
+// FocusedMix returns a pointer to the currently focused mix, or nil if the
 // list is empty or the view is at track level.
-func (v *MixesView) FocusedMix() *MixInfo {
+func (v *MixesView) FocusedMix() *recommendation.MixInfo {
 	if v.Level != 0 || len(v.Mixes) == 0 {
 		return nil
 	}
@@ -189,7 +185,7 @@ func (v MixesView) Render(s styles.Styles, favHashes, favArtists, favAlbums map[
 	return strings.Join(lines, "\n")
 }
 
-func renderMixListRow(cursor string, mix MixInfo, width int) string {
+func renderMixListRow(cursor string, mix recommendation.MixInfo, width int) string {
 	name, rest := splitMixListRow(cursor, mix, width)
 	if width <= 0 {
 		return cursor + name + rest
@@ -197,7 +193,7 @@ func renderMixListRow(cursor string, mix MixInfo, width int) string {
 	return text.Truncate(cursor+name+rest, width)
 }
 
-func splitMixListRow(cursor string, mix MixInfo, width int) (name, rest string) {
+func splitMixListRow(cursor string, mix recommendation.MixInfo, width int) (name, rest string) {
 	if width <= 0 {
 		count := fmt.Sprintf("%d tracks", mix.TrackCount)
 		return fmt.Sprintf("%-14s", mix.Name), fmt.Sprintf("  %-10s  %s", count, mix.Description)

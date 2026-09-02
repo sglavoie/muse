@@ -15,14 +15,14 @@ func hasIssue(issues []UITestIssue, kind UITestIssueKind) *UITestIssue {
 
 func TestPlainScreenStripsANSI(t *testing.T) {
 	raw := "\x1b[31mhello\x1b[0m world"
-	if got := PlainScreen(raw); got != "hello world" {
+	if got := plainScreen(raw); got != "hello world" {
 		t.Errorf("PlainScreen = %q, want %q", got, "hello world")
 	}
 }
 
 func TestDetectLayoutIssuesClean(t *testing.T) {
 	plain := "line one\nline two\nline three"
-	issues := DetectLayoutIssues(plain, plain, 20, 10)
+	issues := detectLayoutIssues(plain, plain, 20, 10)
 	if len(issues) != 0 {
 		t.Errorf("expected no issues, got %+v", issues)
 	}
@@ -30,8 +30,8 @@ func TestDetectLayoutIssuesClean(t *testing.T) {
 
 func TestDetectWidthOverflow(t *testing.T) {
 	plain := "short\nthis line is way too wide"
-	issues := DetectLayoutIssues(plain, plain, 10, 10)
-	iss := hasIssue(issues, IssueWidthOverflow)
+	issues := detectLayoutIssues(plain, plain, 10, 10)
+	iss := hasIssue(issues, issueWidthOverflow)
 	if iss == nil {
 		t.Fatalf("expected width_overflow, got %+v", issues)
 	}
@@ -46,16 +46,16 @@ func TestDetectWidthOverflow(t *testing.T) {
 func TestDetectWidthOverflowWideRunes(t *testing.T) {
 	// CJK glyphs occupy two display columns each; five of them exceed width 8.
 	plain := "日本語テス"
-	issues := DetectLayoutIssues(plain, plain, 8, 5)
-	if hasIssue(issues, IssueWidthOverflow) == nil {
+	issues := detectLayoutIssues(plain, plain, 8, 5)
+	if hasIssue(issues, issueWidthOverflow) == nil {
 		t.Errorf("expected width_overflow for wide runes, got %+v", issues)
 	}
 }
 
 func TestDetectHeightOverflow(t *testing.T) {
 	plain := "a\nb\nc\nd\ne"
-	issues := DetectLayoutIssues(plain, plain, 40, 3)
-	iss := hasIssue(issues, IssueHeightOverflow)
+	issues := detectLayoutIssues(plain, plain, 40, 3)
+	iss := hasIssue(issues, issueHeightOverflow)
 	if iss == nil {
 		t.Fatalf("expected height_overflow, got %+v", issues)
 	}
@@ -66,8 +66,8 @@ func TestDetectHeightOverflow(t *testing.T) {
 
 func TestDetectTabCharacter(t *testing.T) {
 	plain := "col1\tcol2"
-	issues := DetectLayoutIssues(plain, plain, 40, 10)
-	iss := hasIssue(issues, IssueTabCharacter)
+	issues := detectLayoutIssues(plain, plain, 40, 10)
+	iss := hasIssue(issues, issueTabCharacter)
 	if iss == nil {
 		t.Fatalf("expected tab_character, got %+v", issues)
 	}
@@ -78,8 +78,8 @@ func TestDetectTabCharacter(t *testing.T) {
 
 func TestDetectBlankScreen(t *testing.T) {
 	for _, plain := range []string{"", "   ", "\n\n  \n"} {
-		issues := DetectLayoutIssues(plain, plain, 40, 10)
-		if hasIssue(issues, IssueBlankScreen) == nil {
+		issues := detectLayoutIssues(plain, plain, 40, 10)
+		if hasIssue(issues, issueBlankScreen) == nil {
 			t.Errorf("expected blank_screen for %q, got %+v", plain, issues)
 		}
 	}
@@ -87,27 +87,27 @@ func TestDetectBlankScreen(t *testing.T) {
 
 func TestDetectInvalidUTF8(t *testing.T) {
 	raw := "valid\xff\xfebytes"
-	issues := DetectLayoutIssues(raw, PlainScreen(raw), 40, 10)
-	if hasIssue(issues, IssueInvalidUTF8) == nil {
+	issues := detectLayoutIssues(raw, plainScreen(raw), 40, 10)
+	if hasIssue(issues, issueInvalidUTF8) == nil {
 		t.Errorf("expected invalid_utf8, got %+v", issues)
 	}
 }
 
 func TestDetectDisablesChecksOnZeroBounds(t *testing.T) {
 	plain := "a very very very long single line"
-	issues := DetectLayoutIssues(plain, plain, 0, 0)
-	if hasIssue(issues, IssueWidthOverflow) != nil {
+	issues := detectLayoutIssues(plain, plain, 0, 0)
+	if hasIssue(issues, issueWidthOverflow) != nil {
 		t.Errorf("width check should be disabled at width 0: %+v", issues)
 	}
-	if hasIssue(issues, IssueHeightOverflow) != nil {
+	if hasIssue(issues, issueHeightOverflow) != nil {
 		t.Errorf("height check should be disabled at height 0: %+v", issues)
 	}
 }
 
 func TestTrailingNewlineNotCountedAsLine(t *testing.T) {
 	plain := "a\nb\nc\n"
-	issues := DetectLayoutIssues(plain, plain, 40, 3)
-	if hasIssue(issues, IssueHeightOverflow) != nil {
+	issues := detectLayoutIssues(plain, plain, 40, 3)
+	if hasIssue(issues, issueHeightOverflow) != nil {
 		t.Errorf("trailing newline should not push over height: %+v", issues)
 	}
 }

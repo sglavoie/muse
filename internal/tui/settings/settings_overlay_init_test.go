@@ -30,14 +30,14 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	if pb[4].Value != boolToInt(cfg.NormalizeVolume) {
 		t.Errorf("NormalizeVolume: expected %d, got %d", boolToInt(cfg.NormalizeVolume), pb[4].Value)
 	}
-	if pb[5].Label != "Gapless" {
-		t.Errorf("Gapless label: expected %q, got %q", "Gapless", pb[5].Label)
+	if pb[5].label != "Gapless" {
+		t.Errorf("Gapless label: expected %q, got %q", "Gapless", pb[5].label)
 	}
-	if pb[5].Default != 1 {
-		t.Errorf("Gapless Default: expected 1, got %d", pb[5].Default)
+	if pb[5].defaultValue != 1 {
+		t.Errorf("Gapless Default: expected 1, got %d", pb[5].defaultValue)
 	}
-	if pb[5].Min != 0 || pb[5].Max != 1 {
-		t.Errorf("Gapless Min/Max: expected 0/1, got %d/%d", pb[5].Min, pb[5].Max)
+	if pb[5].min != 0 || pb[5].max != 1 {
+		t.Errorf("Gapless Min/Max: expected 0/1, got %d/%d", pb[5].min, pb[5].max)
 	}
 	if pb[5].Value != boolToInt(cfg.GaplessAudio) {
 		t.Errorf("GaplessAudio: expected %d, got %d", boolToInt(cfg.GaplessAudio), pb[5].Value)
@@ -53,12 +53,12 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	if disp[1].Value != cfg.VolumeFeedbackDurationSecs {
 		t.Errorf("VolumeFeedbackDurationSecs: expected %d, got %d", cfg.VolumeFeedbackDurationSecs, disp[1].Value)
 	}
-	if disp[2].Label != "Track notify" {
-		t.Errorf("Track notify label: expected %q, got %q", "Track notify", disp[2].Label)
+	if disp[2].label != "Track notify" {
+		t.Errorf("Track notify label: expected %q, got %q", "Track notify", disp[2].label)
 	}
-	if disp[2].Default != 0 || disp[2].Min != 0 || disp[2].Max != 1 {
+	if disp[2].defaultValue != 0 || disp[2].min != 0 || disp[2].max != 1 {
 		t.Errorf("Track notify Default/Min/Max: expected 0/0/1, got %d/%d/%d",
-			disp[2].Default, disp[2].Min, disp[2].Max)
+			disp[2].defaultValue, disp[2].min, disp[2].max)
 	}
 	if disp[2].Value != boolToInt(cfg.NotifyOnTrackChange) {
 		t.Errorf("NotifyOnTrackChange: expected %d, got %d", boolToInt(cfg.NotifyOnTrackChange), disp[2].Value)
@@ -78,7 +78,7 @@ func TestNewSettingsOverlayUsesCurrentVolume(t *testing.T) {
 
 func TestNewSettingsOverlayDefaultsTab(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
-	if o.Tab != TabLibrary {
+	if o.Tab != tabLibrary {
 		t.Errorf("expected initial tab=settingsTabLibrary, got %v", o.Tab)
 	}
 	if o.cursor != 0 {

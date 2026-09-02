@@ -37,7 +37,7 @@ func TestParseKeyStringRoundTrip(t *testing.T) {
 		"shift+enter": "shift+enter",
 	}
 	for input, want := range cases {
-		msg, err := ParseKey(input)
+		msg, err := parseKey(input)
 		if err != nil {
 			t.Fatalf("ParseKey(%q) unexpected error: %v", input, err)
 		}
@@ -48,7 +48,7 @@ func TestParseKeyStringRoundTrip(t *testing.T) {
 }
 
 func TestParseKeySpaceCarriesText(t *testing.T) {
-	msg, err := ParseKey("space")
+	msg, err := parseKey("space")
 	if err != nil {
 		t.Fatalf("ParseKey(space) error: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestParseKeySpaceCarriesText(t *testing.T) {
 }
 
 func TestParseKeyPrintableCarriesText(t *testing.T) {
-	msg, err := ParseKey("j")
+	msg, err := parseKey("j")
 	if err != nil {
 		t.Fatalf("ParseKey(j) error: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestParseKeyPrintableCarriesText(t *testing.T) {
 func TestParseKeyModifiedHasNoText(t *testing.T) {
 	// Modified printable keys must leave Text empty so String() renders the
 	// modifier prefix instead of echoing the bare rune.
-	msg, err := ParseKey("ctrl+c")
+	msg, err := parseKey("ctrl+c")
 	if err != nil {
 		t.Fatalf("ParseKey(ctrl+c) error: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestParseKeyModifiedHasNoText(t *testing.T) {
 
 func TestParseKeyErrors(t *testing.T) {
 	for _, input := range []string{"", "ctrl+", "meta+a", "notakey", "hyper+shift+z"} {
-		if _, err := ParseKey(input); err == nil {
+		if _, err := parseKey(input); err == nil {
 			t.Errorf("ParseKey(%q) expected error, got nil", input)
 		}
 	}

@@ -190,7 +190,7 @@ func TestPrimariesRegistered_AllPrimaryViews(t *testing.T) {
 		ContextBrowse, ContextArtists, ContextAlbums, ContextGenres,
 		ContextFavorites, ContextTags, ContextMixes,
 	} {
-		hints := reg.Primaries(ctx)
+		hints := reg.primaryHints(ctx)
 		if len(hints) < 4 || len(hints) > 6 {
 			t.Errorf("context %d: expected 4-6 primary hints, got %d", ctx, len(hints))
 		}

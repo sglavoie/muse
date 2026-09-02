@@ -67,8 +67,8 @@ func (s StatusBar) renderLongOpLine(ctx statusBarRenderContext, targetWidth int)
 	if label == "" {
 		label = "Working"
 	}
-	done := s.LongOp.Done
-	total := s.LongOp.Total
+	done := s.LongOp.done
+	total := s.LongOp.total
 	counts := text.FormatCount(done)
 	if total > 0 {
 		counts = fmt.Sprintf("%s/%s", text.FormatCount(done), text.FormatCount(total))

@@ -21,8 +21,8 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 	sectionKeys := make(map[string]map[string]bool)
 	for _, sec := range sections {
 		sectionKeys[sec.Title] = make(map[string]bool)
-		for _, e := range sec.Entries {
-			for k := range strings.SplitSeq(e.Key, " / ") {
+		for _, e := range sec.entries {
+			for k := range strings.SplitSeq(e.key, " / ") {
 				sectionKeys[sec.Title][strings.TrimSpace(k)] = true
 			}
 		}
@@ -98,8 +98,8 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 		if !directMatch && !isNav {
 			continue
 		}
-		for _, e := range sec.Entries {
-			parts := strings.Split(e.Key, " / ")
+		for _, e := range sec.entries {
+			parts := strings.Split(e.key, " / ")
 			anyFound := false
 			for _, part := range parts {
 				k := strings.TrimSpace(part)
@@ -123,7 +123,7 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 			}
 			if !anyFound {
 				t.Errorf("helpSections() %q section has entry %q with no corresponding registry binding (stale help text?)",
-					sec.Title, e.Key)
+					sec.Title, e.key)
 			}
 		}
 	}
@@ -266,21 +266,21 @@ func TestStatusBarHelpSectionDescribesToggleKeys(t *testing.T) {
 			break
 		}
 	}
-	if len(sec.Entries) != len(want) {
-		t.Fatalf("%q section has %d entries, want %d", StatusBarHelpSectionTitle, len(sec.Entries), len(want))
+	if len(sec.entries) != len(want) {
+		t.Fatalf("%q section has %d entries, want %d", StatusBarHelpSectionTitle, len(sec.entries), len(want))
 	}
 
 	reg := keys.NewRegistry()
 	for i, w := range want {
-		e := sec.Entries[i]
-		if e.Key != w.glyph {
-			t.Errorf("entry %d: key = %q, want %q", i, e.Key, w.glyph)
+		e := sec.entries[i]
+		if e.key != w.glyph {
+			t.Errorf("entry %d: key = %q, want %q", i, e.key, w.glyph)
 		}
-		if !strings.Contains(e.Desc, "toggle with "+w.toggle) {
-			t.Errorf("entry %q: desc %q does not name toggle key %q", e.Key, e.Desc, w.toggle)
+		if !strings.Contains(e.desc, "toggle with "+w.toggle) {
+			t.Errorf("entry %q: desc %q does not name toggle key %q", e.key, e.desc, w.toggle)
 		}
 		if got := reg.Lookup(keys.ContextGlobal, w.toggle); got != w.act {
-			t.Errorf("entry %q: key %q resolves to action %d, want %d", e.Key, w.toggle, got, w.act)
+			t.Errorf("entry %q: key %q resolves to action %d, want %d", e.key, w.toggle, got, w.act)
 		}
 	}
 }
@@ -294,10 +294,10 @@ func TestSearchHelpSections(t *testing.T) {
 		t.Fatal("searchHelpSections(\"shuffle\") returned no sections")
 	}
 	for _, sec := range result {
-		for _, e := range sec.Entries {
-			lower := strings.ToLower(e.Key) + " " + strings.ToLower(e.Desc)
+		for _, e := range sec.entries {
+			lower := strings.ToLower(e.key) + " " + strings.ToLower(e.desc)
 			if !strings.Contains(lower, "shuffle") {
-				t.Errorf("section %q: entry (%q, %q) does not match query \"shuffle\"", sec.Title, e.Key, e.Desc)
+				t.Errorf("section %q: entry (%q, %q) does not match query \"shuffle\"", sec.Title, e.key, e.desc)
 			}
 		}
 	}
@@ -323,8 +323,8 @@ func TestSearchHelpSectionsCaseInsensitive(t *testing.T) {
 		}
 		found := false
 		for _, sec := range result {
-			for _, e := range sec.Entries {
-				if strings.Contains(strings.ToLower(e.Desc), "quit") {
+			for _, e := range sec.entries {
+				if strings.Contains(strings.ToLower(e.desc), "quit") {
 					found = true
 				}
 			}
@@ -358,8 +358,8 @@ func TestSearchHelpSectionsEmptyQuery(t *testing.T) {
 		if result[i].Title != sections[i].Title {
 			t.Errorf("empty query: section %d title mismatch: %q vs %q", i, result[i].Title, sections[i].Title)
 		}
-		if len(result[i].Entries) != len(sections[i].Entries) {
-			t.Errorf("empty query: section %q entry count mismatch: %d vs %d", result[i].Title, len(result[i].Entries), len(sections[i].Entries))
+		if len(result[i].entries) != len(sections[i].entries) {
+			t.Errorf("empty query: section %q entry count mismatch: %d vs %d", result[i].Title, len(result[i].entries), len(sections[i].entries))
 		}
 	}
 }
@@ -423,7 +423,7 @@ func TestHelpOverlayWrapsLongDescriptions(t *testing.T) {
 		{
 			Title:   "Test Section With A Very Long Title That Should Wrap",
 			Context: keys.ContextGlobal,
-			Entries: []HelpEntry{
+			entries: []helpEntry{
 				{"key", "Short desc"},
 				{"/", "Filter (Library / Queue / Artists / Albums / Favorites / Genres)"},
 			},

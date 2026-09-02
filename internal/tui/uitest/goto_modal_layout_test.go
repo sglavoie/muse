@@ -17,7 +17,7 @@ func TestGoToRenderHintFitsMinimumSupportedSize(t *testing.T) {
 	s := styles.NewStyles(true)
 
 	raw := m.Render(tui.MinTerminalWidth, tui.MinTerminalHeight, s)
-	if issues := DetectLayoutIssues(raw, PlainScreen(raw), tui.MinTerminalWidth, tui.MinTerminalHeight); len(issues) != 0 {
-		t.Fatalf("go-to overlay should fit at minimum supported size, got %+v:\n%s", issues, PlainScreen(raw))
+	if issues := detectLayoutIssues(raw, plainScreen(raw), tui.MinTerminalWidth, tui.MinTerminalHeight); len(issues) != 0 {
+		t.Fatalf("go-to overlay should fit at minimum supported size, got %+v:\n%s", issues, plainScreen(raw))
 	}
 }

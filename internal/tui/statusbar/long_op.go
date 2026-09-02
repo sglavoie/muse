@@ -24,8 +24,8 @@ type longOpSample struct {
 type LongOpState struct {
 	Active    bool
 	Label     string
-	Done      int
-	Total     int
+	done      int
+	total     int
 	StartedAt time.Time
 	samples   []longOpSample
 }
@@ -39,8 +39,8 @@ type LongOpState struct {
 // a deferred tea.Cmd): mutating the shared backing array via append/copy
 // would otherwise corrupt the snapshot's view of its samples.
 func (s LongOpState) Update(done, total int, now time.Time) LongOpState {
-	s.Done = done
-	s.Total = total
+	s.done = done
+	s.total = total
 	cutoff := now.Add(-longOpRateWindow)
 	// Find the first prior sample within the window. Anything before is evicted.
 	i := 0
@@ -83,12 +83,12 @@ func (s LongOpState) rate() float64 {
 // etaSeconds returns the estimated seconds remaining based on the current
 // rate. Returns 0 when the rate is unknown or the operation has finished.
 func (s LongOpState) etaSeconds() int {
-	if s.Total <= 0 || s.Done >= s.Total {
+	if s.total <= 0 || s.done >= s.total {
 		return 0
 	}
 	r := s.rate()
 	if r <= 0 {
 		return 0
 	}
-	return int(float64(s.Total-s.Done) / r)
+	return int(float64(s.total-s.done) / r)
 }

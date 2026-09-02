@@ -65,8 +65,8 @@ func (v PlaylistsView) DisplayTracks() []db.PlaylistTrackRow {
 	return reordered
 }
 
-// effectiveTrack returns the track at the given display index, translating
-// through SortedTrackOrder when active.
+// TrackIndex translates a display row index to the underlying Tracks index,
+// going through SortedTrackOrder when a sort is active.
 func (v PlaylistsView) TrackIndex(displayIdx int) int {
 	if v.SortedTrackOrder == nil {
 		return displayIdx

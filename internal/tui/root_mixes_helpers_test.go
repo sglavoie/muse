@@ -6,7 +6,6 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/recommendation"
-	"github.com/sglavoie/muse/internal/tui/mixes"
 )
 
 // stubRecReader is a minimal recommendationReader for mixes tests.
@@ -100,6 +99,6 @@ func setupMixesAtTrackLevel(opts ...Option) Model {
 }
 
 func seedMixRegistry(m Model) Model {
-	m.mixes.Mixes = append([]mixes.MixInfo(nil), recommendation.Registry()...)
+	m.mixes.Mixes = append([]recommendation.MixInfo(nil), recommendation.Registry()...)
 	return m
 }

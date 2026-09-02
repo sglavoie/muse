@@ -2,7 +2,6 @@ package queue
 
 import (
 	"charm.land/bubbles/v2/textinput"
-	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/sorting"
@@ -31,10 +30,9 @@ type Entry struct {
 //
 // Key-input routing: all queue actions are dispatched by the root model via
 // HandleAction after the keybinding registry resolves the raw key to an action.
-// View.Update is therefore a no-op stub kept only so the type satisfies a
-// (View, tea.Cmd) call-site contract. Do NOT add key-string handlers to
-// Update — that would duplicate registry logic and create a path where registry
-// key renames silently stop working.
+// The view deliberately has no bubbletea-style Update method. Do NOT add one
+// that handles key strings — that would duplicate registry logic and create a
+// path where registry key renames silently stop working.
 type View struct {
 	Entries             []Entry
 	Cursor              int // index of the currently selected entry
@@ -102,10 +100,4 @@ func (v View) FindEntryFilteredPosition(entryIdx int) int {
 		}
 	}
 	return 0
-}
-
-// Update is a no-op stub. See the View godoc for why all key handling is
-// done via HandleAction instead.
-func (v View) Update(_ tea.Msg) (View, tea.Cmd) {
-	return v, nil
 }

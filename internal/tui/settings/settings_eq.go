@@ -68,7 +68,7 @@ func (o *SettingsOverlay) addCustomPreset(name string) bool {
 	newPresets = append(newPresets, o.EQPresets[sentinel])
 	o.EQPresets = newPresets
 
-	o.Fields[TabEqualizer][1].Max = len(o.EQPresets) - 1
+	o.Fields[TabEqualizer][1].max = len(o.EQPresets) - 1
 	o.Fields[TabEqualizer][1].Value = sentinel // new preset index
 	o.dirty = true
 	return true
@@ -82,7 +82,7 @@ func (o *SettingsOverlay) deleteCurrentPreset() {
 	newPresets = append(newPresets, o.EQPresets[presetIdx+1:]...)
 	o.EQPresets = newPresets
 
-	o.Fields[TabEqualizer][1].Max = len(o.EQPresets) - 1
+	o.Fields[TabEqualizer][1].max = len(o.EQPresets) - 1
 	o.Fields[TabEqualizer][1].Value = 0 // fall back to Flat
 	flat := o.EQPresets[0]
 	for i := range 10 {
