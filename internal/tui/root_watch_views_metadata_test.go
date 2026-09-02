@@ -47,9 +47,9 @@ func TestWatchBatchMsgUpdatesPlaylistTracks(t *testing.T) {
 func TestWatchBatchMsgUpdatesFavoritesTracks(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
 	}
 
@@ -60,11 +60,11 @@ func TestWatchBatchMsgUpdatesFavoritesTracks(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.favorites.tracks[0].Title != "NewTitle" {
-		t.Errorf("favorites track title = %q, want %q", nm.favorites.tracks[0].Title, "NewTitle")
+	if nm.favorites.Tracks[0].Title != "NewTitle" {
+		t.Errorf("favorites track title = %q, want %q", nm.favorites.Tracks[0].Title, "NewTitle")
 	}
-	if nm.favorites.tracks[0].Artist != "NewArt" {
-		t.Errorf("favorites track artist = %q, want %q", nm.favorites.tracks[0].Artist, "NewArt")
+	if nm.favorites.Tracks[0].Artist != "NewArt" {
+		t.Errorf("favorites track artist = %q, want %q", nm.favorites.Tracks[0].Artist, "NewArt")
 	}
 }
 
@@ -74,8 +74,8 @@ func TestWatchBatchMsgUpdatesFavoritesTracks(t *testing.T) {
 func TestWatchBatchMsgUpdatesFavoritesDrilldownTracks(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
-	m.favorites.level = favtui.TrackLevel
-	m.favorites.drilldownTracks = []library.Track{
+	m.favorites.Level = favtui.TrackLevel
+	m.favorites.DrilldownTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
 	}
 
@@ -86,11 +86,11 @@ func TestWatchBatchMsgUpdatesFavoritesDrilldownTracks(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.favorites.drilldownTracks[0].Title != "NewTitle" {
-		t.Errorf("drilldown track title = %q, want %q", nm.favorites.drilldownTracks[0].Title, "NewTitle")
+	if nm.favorites.DrilldownTracks[0].Title != "NewTitle" {
+		t.Errorf("drilldown track title = %q, want %q", nm.favorites.DrilldownTracks[0].Title, "NewTitle")
 	}
-	if nm.favorites.drilldownTracks[0].Artist != "NewArt" {
-		t.Errorf("drilldown track artist = %q, want %q", nm.favorites.drilldownTracks[0].Artist, "NewArt")
+	if nm.favorites.DrilldownTracks[0].Artist != "NewArt" {
+		t.Errorf("drilldown track artist = %q, want %q", nm.favorites.DrilldownTracks[0].Artist, "NewArt")
 	}
 }
 

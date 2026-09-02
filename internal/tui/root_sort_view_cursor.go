@@ -102,48 +102,48 @@ func (m Model) preserveAlbumsCursorOnDirChange(dir sorting.SortDir) Model {
 
 func (m Model) preserveFavoritesCursorOnDirChange(dir sorting.SortDir) Model {
 	switch {
-	case m.favorites.level == favtui.ListLevel && (m.favorites.category == favtui.CategoryArtists || m.favorites.category == favtui.CategoryAlbums):
+	case m.favorites.Level == favtui.ListLevel && (m.favorites.Category == favtui.CategoryArtists || m.favorites.Category == favtui.CategoryAlbums):
 		var name string
 		var items []string
-		if m.favorites.category == favtui.CategoryArtists {
-			items = arttui.FilterStrings(m.favorites.artists, m.favorites.filter.Text)
+		if m.favorites.Category == favtui.CategoryArtists {
+			items = arttui.FilterStrings(m.favorites.Artists, m.favorites.Filter.Text)
 		} else {
-			items = arttui.FilterStrings(m.favorites.albums, m.favorites.filter.Text)
+			items = arttui.FilterStrings(m.favorites.Albums, m.favorites.Filter.Text)
 		}
-		if m.favorites.cursor >= 0 && m.favorites.cursor < len(items) {
-			name = items[m.favorites.cursor]
+		if m.favorites.Cursor >= 0 && m.favorites.Cursor < len(items) {
+			name = items[m.favorites.Cursor]
 		}
-		m.favorites.sortState.Dir = dir
-		m.favorites = m.favorites.recomputeFavoritesSort()
-		if m.favorites.category == favtui.CategoryArtists {
-			items = arttui.FilterStrings(m.favorites.artists, m.favorites.filter.Text)
+		m.favorites.SortState.Dir = dir
+		m.favorites = m.favorites.RecomputeFavoritesSort()
+		if m.favorites.Category == favtui.CategoryArtists {
+			items = arttui.FilterStrings(m.favorites.Artists, m.favorites.Filter.Text)
 		} else {
-			items = arttui.FilterStrings(m.favorites.albums, m.favorites.filter.Text)
+			items = arttui.FilterStrings(m.favorites.Albums, m.favorites.Filter.Text)
 		}
-		m.favorites.cursor = sorting.FindStringPosition(items, name)
+		m.favorites.Cursor = sorting.FindStringPosition(items, name)
 	default:
 		var tracks []library.Track
-		if m.favorites.level == favtui.TrackLevel {
-			tracks = arttui.FilterTracks(m.favorites.drilldownTracks, m.favorites.filter.Text)
+		if m.favorites.Level == favtui.TrackLevel {
+			tracks = arttui.FilterTracks(m.favorites.DrilldownTracks, m.favorites.Filter.Text)
 		} else {
-			tracks = arttui.FilterTracks(m.favorites.tracks, m.favorites.filter.Text)
+			tracks = arttui.FilterTracks(m.favorites.Tracks, m.favorites.Filter.Text)
 		}
 		var focusedHash string
-		if m.favorites.cursor >= 0 && m.favorites.cursor < len(tracks) {
-			focusedHash = tracks[m.favorites.cursor].Hash
+		if m.favorites.Cursor >= 0 && m.favorites.Cursor < len(tracks) {
+			focusedHash = tracks[m.favorites.Cursor].Hash
 		}
-		m.favorites.sortState.Dir = dir
-		m.favorites = m.favorites.recomputeFavoritesSort()
-		if m.favorites.level == favtui.TrackLevel {
-			tracks = arttui.FilterTracks(m.favorites.drilldownTracks, m.favorites.filter.Text)
+		m.favorites.SortState.Dir = dir
+		m.favorites = m.favorites.RecomputeFavoritesSort()
+		if m.favorites.Level == favtui.TrackLevel {
+			tracks = arttui.FilterTracks(m.favorites.DrilldownTracks, m.favorites.Filter.Text)
 		} else {
-			tracks = arttui.FilterTracks(m.favorites.tracks, m.favorites.filter.Text)
+			tracks = arttui.FilterTracks(m.favorites.Tracks, m.favorites.Filter.Text)
 		}
-		m.favorites.cursor = sorting.FindTrackHashPosition(tracks, focusedHash)
+		m.favorites.Cursor = sorting.FindTrackHashPosition(tracks, focusedHash)
 	}
-	m.favorites.selectedItems = nil
+	m.favorites.SelectedItems = nil
 	reserve := favoritesVisibleReserve(m.favorites)
-	m.favorites.scrollOffset = sorting.AdjustScroll(m.favorites.cursor, m.favorites.scrollOffset, layout.VisibleRows(m.favorites.height, reserve))
+	m.favorites.ScrollOffset = sorting.AdjustScroll(m.favorites.Cursor, m.favorites.ScrollOffset, layout.VisibleRows(m.favorites.Height, reserve))
 	return m
 }
 
@@ -186,20 +186,20 @@ func (m Model) preserveGenresCursorOnDirChange(dir sorting.SortDir) Model {
 }
 
 func (m Model) preserveTagsCursorOnDirChange(dir sorting.SortDir) Model {
-	if m.tagsView.level != tagtui.TrackLevel {
+	if m.tagsView.Level != tagtui.TrackLevel {
 		return m
 	}
-	items := m.tagsView.displayTracks()
+	items := m.tagsView.DisplayTracks()
 	var focusedHash string
-	if m.tagsView.cursor >= 0 && m.tagsView.cursor < len(items) {
-		focusedHash = items[m.tagsView.cursor].Hash
+	if m.tagsView.Cursor >= 0 && m.tagsView.Cursor < len(items) {
+		focusedHash = items[m.tagsView.Cursor].Hash
 	}
-	m.tagsView.sortState.Dir = dir
-	m.tagsView = m.tagsView.recomputeTagsSort()
-	items = m.tagsView.displayTracks()
-	m.tagsView.cursor = findPlaylistTrackHashPosition(items, focusedHash)
+	m.tagsView.SortState.Dir = dir
+	m.tagsView = m.tagsView.RecomputeTagsSort()
+	items = m.tagsView.DisplayTracks()
+	m.tagsView.Cursor = findPlaylistTrackHashPosition(items, focusedHash)
 	reserve := tagsVisibleReserve(m.tagsView)
-	m.tagsView.scrollOffset = sorting.AdjustScroll(m.tagsView.cursor, m.tagsView.scrollOffset, layout.VisibleRows(m.tagsView.height, reserve))
+	m.tagsView.ScrollOffset = sorting.AdjustScroll(m.tagsView.Cursor, m.tagsView.ScrollOffset, layout.VisibleRows(m.tagsView.Height, reserve))
 	return m
 }
 

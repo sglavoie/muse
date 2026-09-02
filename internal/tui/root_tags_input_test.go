@@ -13,9 +13,9 @@ import (
 func TestTagCreateInputWithoutWriterDoesNotPanic(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewTags
-	m.tagsView.level = tagtui.TagLevel
-	m.tagsView = m.tagsView.startCreate()
-	m.tagsView.createInput.SetValue("New Tag")
+	m.tagsView.Level = tagtui.TagLevel
+	m.tagsView = m.tagsView.StartCreate()
+	m.tagsView.CreateInput.SetValue("New Tag")
 
 	m, cmd, consumed := m.handleTagCreateInput(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if !consumed {
@@ -24,7 +24,7 @@ func TestTagCreateInputWithoutWriterDoesNotPanic(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("expected no create command without tag writer")
 	}
-	if m.tagsView.isCreating() {
+	if m.tagsView.IsCreating() {
 		t.Fatal("expected create input to be cancelled")
 	}
 }
@@ -32,11 +32,11 @@ func TestTagCreateInputWithoutWriterDoesNotPanic(t *testing.T) {
 func TestTagRenameInputWithoutWriterDoesNotPanic(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewTags
-	m.tagsView.level = tagtui.TagLevel
-	m.tagsView.tags = []db.TagRow{{ID: 1, Name: "Old"}}
-	m.tagsView.tagCounts = map[int64]int{1: 1}
-	m.tagsView = m.tagsView.startRename("Old")
-	m.tagsView.renameInput.SetValue("New")
+	m.tagsView.Level = tagtui.TagLevel
+	m.tagsView.Tags = []db.TagRow{{ID: 1, Name: "Old"}}
+	m.tagsView.TagCounts = map[int64]int{1: 1}
+	m.tagsView = m.tagsView.StartRename("Old")
+	m.tagsView.RenameInput.SetValue("New")
 
 	m, cmd, consumed := m.handleTagRenameInput(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if !consumed {
@@ -45,7 +45,7 @@ func TestTagRenameInputWithoutWriterDoesNotPanic(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("expected no rename command without tag writer")
 	}
-	if m.tagsView.isRenaming() {
+	if m.tagsView.IsRenaming() {
 		t.Fatal("expected rename input to be cancelled")
 	}
 }

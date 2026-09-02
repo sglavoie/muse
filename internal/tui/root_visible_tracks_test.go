@@ -120,13 +120,13 @@ func TestVisibleTracksPlaylistsFollowsSortOrder(t *testing.T) {
 func TestVisibleTracksTagsPrefersSelection(t *testing.T) {
 	m := Model{
 		activeView: viewTags,
-		tagsView: TagsView{
-			level: tagtui.TrackLevel,
-			tracks: []db.PlaylistTrackRow{
+		tagsView: tagtui.TagsView{
+			Level: tagtui.TrackLevel,
+			Tracks: []db.PlaylistTrackRow{
 				{ID: 1, Hash: "h1"},
 				{ID: 2, Hash: "h2"},
 			},
-			selectedHashes: map[string]struct{}{"h1": {}},
+			SelectedHashes: map[string]struct{}{"h1": {}},
 		},
 	}
 	if got := visibleHashes(t, m); !slices.Equal(got, []string{"h1"}) {
@@ -139,9 +139,9 @@ func TestVisibleTracksRefusesLevelsWithNoTrackList(t *testing.T) {
 		name  string
 		model Model
 	}{
-		{"favorites category level", Model{activeView: viewFavorites, favorites: FavoritesView{level: favtui.CategoryLevel}}},
+		{"favorites category level", Model{activeView: viewFavorites, favorites: favtui.FavoritesView{Level: favtui.CategoryLevel}}},
 		{"playlists list level", Model{activeView: viewPlaylists, playlists: pltui.PlaylistsView{Level: pltui.ListLevel}}},
-		{"tags tag level", Model{activeView: viewTags, tagsView: TagsView{level: tagtui.TagLevel}}},
+		{"tags tag level", Model{activeView: viewTags, tagsView: tagtui.TagsView{Level: tagtui.TagLevel}}},
 		{"insights briefing", Model{activeView: viewInsights, insights: InsightsView{level: insightsLevelBriefing}}},
 		{"mixes list level", Model{activeView: viewMixes, mixes: MixesView{level: 0}}},
 	}

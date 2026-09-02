@@ -327,35 +327,35 @@ func TestSortCycleToDefaultRederivesFavoritesTracks(t *testing.T) {
 	m.library.Index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "hb"})
 	m.library.Index.Insert(library.Track{Artist: "C", Title: "Charlie", Path: "/c", Hash: "hc"})
 
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
 	allTracks := m.library.Index.Tracks()
-	m.favorites.tracks = make([]library.Track, len(allTracks))
-	copy(m.favorites.tracks, allTracks)
+	m.favorites.Tracks = make([]library.Track, len(allTracks))
+	copy(m.favorites.Tracks, allTracks)
 
-	originalOrder := make([]string, len(m.favorites.tracks))
-	for i, tr := range m.favorites.tracks {
+	originalOrder := make([]string, len(m.favorites.Tracks))
+	for i, tr := range m.favorites.Tracks {
 		originalOrder[i] = tr.Hash
 	}
 
-	m.favorites.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
-	m.favorites = m.favorites.recomputeFavoritesSort()
+	m.favorites.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
+	m.favorites = m.favorites.RecomputeFavoritesSort()
 
-	if m.favorites.tracks[0].Hash == originalOrder[0] {
+	if m.favorites.Tracks[0].Hash == originalOrder[0] {
 		t.Fatal("sort did not change the order — test is invalid")
 	}
 
-	for m.favorites.sortState.Field != sorting.SortDefault {
+	for m.favorites.SortState.Field != sorting.SortDefault {
 		result, _, _ := m.handleSortCycle()
 		m = result.(Model)
 	}
 
 	for i, wantHash := range originalOrder {
-		if i >= len(m.favorites.tracks) {
-			t.Fatalf("favorites tracks too short: got %d, want %d", len(m.favorites.tracks), len(originalOrder))
+		if i >= len(m.favorites.Tracks) {
+			t.Fatalf("favorites tracks too short: got %d, want %d", len(m.favorites.Tracks), len(originalOrder))
 		}
-		if m.favorites.tracks[i].Hash != wantHash {
-			t.Errorf("favorites.tracks[%d].Hash = %q, want %q", i, m.favorites.tracks[i].Hash, wantHash)
+		if m.favorites.Tracks[i].Hash != wantHash {
+			t.Errorf("favorites.tracks[%d].Hash = %q, want %q", i, m.favorites.Tracks[i].Hash, wantHash)
 		}
 	}
 }

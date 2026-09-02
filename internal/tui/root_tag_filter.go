@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/library"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // handleTagFilterAction is called when the user presses ctrl+t.
@@ -15,12 +16,12 @@ func (m Model) handleTagFilterAction() (Model, tea.Cmd) {
 	if m.activeTagFilter != nil {
 		return m.clearTagFilter(), nil
 	}
-	tags := nonEmptyTags(m.tags, m.tagsView.tagCounts)
+	tags := nonEmptyTags(m.tags, m.tagsView.TagCounts)
 	if len(tags) == 0 {
 		m.statusBar.Notify("No tags defined")
 		return m, nil
 	}
-	picker := NewTagFilterPicker(tags)
+	picker := tagtui.NewTagFilterPicker(tags)
 	m.overlay.tagFilterPicker = &picker
 	return m, nil
 }
@@ -40,12 +41,12 @@ func (m Model) handleTagFilterPickerKeyPress(msg tea.KeyPressMsg) (Model, tea.Cm
 }
 
 // handleTagFilterPicked sets activeTagFilter and rebuilds all view caches.
-func (m Model) handleTagFilterPicked(msg tagFilterPickedMsg) (Model, tea.Cmd) {
+func (m Model) handleTagFilterPicked(msg tagtui.TagFilterPickedMsg) (Model, tea.Cmd) {
 	m.overlay.tagFilterPicker = nil
-	tagID := msg.tag.ID
+	tagID := msg.Tag.ID
 	m.activeTagFilter = &tagID
 	m = m.applyTagFilterToViews()
-	m.statusBar.Notify("Filtering by tag: " + msg.tag.Name)
+	m.statusBar.Notify("Filtering by tag: " + msg.Tag.Name)
 	return m, nil
 }
 
@@ -96,12 +97,12 @@ func (m Model) buildTagFilterHashes(tagID int64) map[string]struct{} {
 
 // handleOpenTagFilterPicker opens the tag filter picker (used from palette).
 func (m Model) handleOpenTagFilterPicker() (Model, tea.Cmd) {
-	tags := nonEmptyTags(m.tags, m.tagsView.tagCounts)
+	tags := nonEmptyTags(m.tags, m.tagsView.TagCounts)
 	if len(tags) == 0 {
 		m.statusBar.Notify("No tags defined")
 		return m, nil
 	}
-	picker := NewTagFilterPicker(tags)
+	picker := tagtui.NewTagFilterPicker(tags)
 	m.overlay.tagFilterPicker = &picker
 	return m, nil
 }

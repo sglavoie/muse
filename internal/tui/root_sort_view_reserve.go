@@ -52,18 +52,18 @@ func albumsVisibleReserve(v AlbumsView) int {
 	return 1
 }
 
-func favoritesVisibleReserve(v FavoritesView) int {
+func favoritesVisibleReserve(v favtui.FavoritesView) int {
 	var reserve int
-	switch v.level {
+	switch v.Level {
 	case favtui.ListLevel:
 		reserve = 2
-		if v.category == favtui.CategoryTracks {
+		if v.Category == favtui.CategoryTracks {
 			reserve++
 		}
 	case favtui.TrackLevel:
 		reserve = 3
 	}
-	if v.sortState.Field != sorting.SortDefault {
+	if v.SortState.Field != sorting.SortDefault {
 		reserve++
 	}
 	return reserve

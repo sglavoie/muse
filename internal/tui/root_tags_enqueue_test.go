@@ -37,8 +37,8 @@ func TestTagEnqueueAllAddsEntriesToQueue(t *testing.T) {
 
 	// Navigate to Tags view and open the tag to see tracks.
 	m.activeView = viewTags
-	m.tagsView.tags = tr.tags
-	m.tagsView.tagCounts = tr.tagCounts
+	m.tagsView.Tags = tr.tags
+	m.tagsView.TagCounts = tr.tagCounts
 
 	// Simulate pressing 'E' to enqueue all tracks for the focused tag.
 	m2, cmd := m.handleTagEnqueueAll()
@@ -157,9 +157,9 @@ func TestTagEnqueueAllAtTrackLevelEnqueuesSingleTrack(t *testing.T) {
 	)
 
 	m.activeView = viewTags
-	m.tagsView = m.tagsView.openTracks(tr.tags[0], tr.tracksByID[1])
-	if m.tagsView.level != tagtui.TrackLevel {
-		t.Fatalf("expected TrackLevel after openTracks, got %d", m.tagsView.level)
+	m.tagsView = m.tagsView.OpenTracks(tr.tags[0], tr.tracksByID[1])
+	if m.tagsView.Level != tagtui.TrackLevel {
+		t.Fatalf("expected TrackLevel after openTracks, got %d", m.tagsView.Level)
 	}
 
 	// The 'enter' key at TrackLevel dispatches a single-track enqueue (TrackEnqueuedMsg),

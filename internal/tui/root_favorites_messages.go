@@ -75,43 +75,43 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 		if len(valuesToRemove) == 0 && msg.value != "" {
 			valuesToRemove = []string{msg.value}
 		}
-		switch m.favorites.level {
+		switch m.favorites.Level {
 		case favtui.ListLevel:
-			switch m.favorites.category {
+			switch m.favorites.Category {
 			case favtui.CategoryArtists:
 				for _, v := range valuesToRemove {
-					m.favorites.artists = removeString(m.favorites.artists, v)
+					m.favorites.Artists = removeString(m.favorites.Artists, v)
 				}
-				m.favorites.artistCount = len(m.favorites.artists)
+				m.favorites.ArtistCount = len(m.favorites.Artists)
 			case favtui.CategoryAlbums:
 				for _, v := range valuesToRemove {
-					m.favorites.albums = removeString(m.favorites.albums, v)
+					m.favorites.Albums = removeString(m.favorites.Albums, v)
 				}
-				m.favorites.albumCount = len(m.favorites.albums)
+				m.favorites.AlbumCount = len(m.favorites.Albums)
 			case favtui.CategoryTracks:
 				for _, v := range valuesToRemove {
-					m.favorites.tracks = removeTrackByHash(m.favorites.tracks, v)
+					m.favorites.Tracks = removeTrackByHash(m.favorites.Tracks, v)
 				}
-				m.favorites.trackCount = len(m.favorites.tracks)
+				m.favorites.TrackCount = len(m.favorites.Tracks)
 			}
-			m.favorites.selectedItems = nil
-			m.favorites = m.favorites.clampCursor()
+			m.favorites.SelectedItems = nil
+			m.favorites = m.favorites.ClampCursor()
 		case favtui.TrackLevel:
 			removedParent := msg.fromTargetPicker && msg.pickerOriginLevel == favtui.TrackLevel &&
-				msg.pickerDrilldownName == m.favorites.drilldownName &&
-				containsString(valuesToRemove, m.favorites.drilldownName)
+				msg.pickerDrilldownName == m.favorites.DrilldownName &&
+				containsString(valuesToRemove, m.favorites.DrilldownName)
 			switch {
-			case removedParent && msg.typ == "artist" && m.favorites.category == favtui.CategoryArtists:
-				m.favorites.artists = removeString(m.favorites.artists, m.favorites.drilldownName)
-				m.favorites.artistCount = len(m.favorites.artists)
-				m.favorites = m.favorites.back()
-			case removedParent && msg.typ == "album" && m.favorites.category == favtui.CategoryAlbums:
-				m.favorites.albums = removeString(m.favorites.albums, m.favorites.drilldownName)
-				m.favorites.albumCount = len(m.favorites.albums)
-				m.favorites = m.favorites.back()
+			case removedParent && msg.typ == "artist" && m.favorites.Category == favtui.CategoryArtists:
+				m.favorites.Artists = removeString(m.favorites.Artists, m.favorites.DrilldownName)
+				m.favorites.ArtistCount = len(m.favorites.Artists)
+				m.favorites = m.favorites.Back()
+			case removedParent && msg.typ == "album" && m.favorites.Category == favtui.CategoryAlbums:
+				m.favorites.Albums = removeString(m.favorites.Albums, m.favorites.DrilldownName)
+				m.favorites.AlbumCount = len(m.favorites.Albums)
+				m.favorites = m.favorites.Back()
 			default:
-				m.favorites.selectedItems = nil
-				m.favorites = m.favorites.clampCursor()
+				m.favorites.SelectedItems = nil
+				m.favorites = m.favorites.ClampCursor()
 			}
 		}
 	}
@@ -119,9 +119,9 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 	if m.activeView == viewFavorites && m.favoriteReader != nil {
 		a, al, t, err := m.favoriteReader.ReadFavoriteCounts()
 		if err == nil {
-			m.favorites.artistCount = a
-			m.favorites.albumCount = al
-			m.favorites.trackCount = t
+			m.favorites.ArtistCount = a
+			m.favorites.AlbumCount = al
+			m.favorites.TrackCount = t
 		}
 	}
 
@@ -145,21 +145,21 @@ func (m Model) handleFavoritesLoadedMsg(msg favoritesLoadedMsg) Model {
 	}
 
 	category := favtui.Category(msg.category)
-	m.favorites.category = category
+	m.favorites.Category = category
 	switch category {
 	case favtui.CategoryArtists:
-		m.favorites.artists = msg.artists
+		m.favorites.Artists = msg.artists
 	case favtui.CategoryAlbums:
-		m.favorites.albums = msg.albums
+		m.favorites.Albums = msg.albums
 	case favtui.CategoryTracks:
-		m.favorites.tracks = msg.tracks
+		m.favorites.Tracks = msg.tracks
 	}
-	m.favorites.categoryCursor = m.favorites.cursor
-	m.favorites.level = favtui.ListLevel
-	m.favorites.cursor = 0
-	m.favorites.scrollOffset = 0
-	m.favorites.filter = filter.State{}
-	m.favorites.sortState = sorting.SortState{}
-	m.favorites.selectedItems = nil
+	m.favorites.CategoryCursor = m.favorites.Cursor
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Cursor = 0
+	m.favorites.ScrollOffset = 0
+	m.favorites.Filter = filter.State{}
+	m.favorites.SortState = sorting.SortState{}
+	m.favorites.SelectedItems = nil
 	return m
 }

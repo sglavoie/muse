@@ -87,7 +87,7 @@ func TestSelectedTrackHashes_Genres(t *testing.T) {
 func TestSelectedTrackHashes_Tags(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewTags
-	m.tagsView.selectedHashes = map[string]struct{}{
+	m.tagsView.SelectedHashes = map[string]struct{}{
 		"ht1": {},
 	}
 
@@ -212,12 +212,12 @@ func TestSelectedTrackHashes_Playlists(t *testing.T) {
 func TestSelectedTrackHashes_FavoritesTrackLevel(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.TrackLevel
-	m.favorites.drilldownTracks = []library.Track{
+	m.favorites.Level = favtui.TrackLevel
+	m.favorites.DrilldownTracks = []library.Track{
 		{Hash: "hf1", Title: "Fav A"},
 		{Hash: "hf2", Title: "Fav B"},
 	}
-	m.favorites.selectedItems = map[int]struct{}{0: {}, 1: {}}
+	m.favorites.SelectedItems = map[int]struct{}{0: {}, 1: {}}
 
 	got := m.selectedTrackHashes()
 	if len(got) != 2 {
@@ -228,13 +228,13 @@ func TestSelectedTrackHashes_FavoritesTrackLevel(t *testing.T) {
 func TestSelectedTrackHashes_FavoritesListLevelTracks(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{
 		{Hash: "hf1", Title: "Fav A"},
 		{Hash: "hf2", Title: "Fav B"},
 	}
-	m.favorites.selectedItems = map[int]struct{}{1: {}}
+	m.favorites.SelectedItems = map[int]struct{}{1: {}}
 
 	got := m.selectedTrackHashes()
 	if len(got) != 1 {

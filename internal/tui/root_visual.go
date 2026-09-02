@@ -50,9 +50,9 @@ func activeViewCursor(m Model) int {
 			return m.browse.genres.cursor
 		}
 	case viewFavorites:
-		return m.favorites.cursor
+		return m.favorites.Cursor
 	case viewTags:
-		return m.tagsView.cursor
+		return m.tagsView.Cursor
 	case viewInsights:
 		return m.insights.trackView.Cursor
 	}
@@ -81,7 +81,7 @@ func enterVisualMode(m Model) Model {
 			}
 		}
 	case viewFavorites:
-		if m.favorites.level == favtui.CategoryLevel {
+		if m.favorites.Level == favtui.CategoryLevel {
 			return m
 		}
 	case viewPlaylists:
@@ -89,7 +89,7 @@ func enterVisualMode(m Model) Model {
 			return m
 		}
 	case viewTags:
-		if m.tagsView.level != tagtui.TrackLevel {
+		if m.tagsView.Level != tagtui.TrackLevel {
 			return m
 		}
 	case viewInsights:
@@ -171,22 +171,22 @@ func visualListLen(m Model) int {
 		}
 		return 0
 	case viewFavorites:
-		switch m.favorites.level {
+		switch m.favorites.Level {
 		case favtui.TrackLevel:
-			return len(arttui.FilterTracks(m.favorites.drilldownTracks, m.favorites.filter.Text))
+			return len(arttui.FilterTracks(m.favorites.DrilldownTracks, m.favorites.Filter.Text))
 		case favtui.ListLevel:
-			switch m.favorites.category {
+			switch m.favorites.Category {
 			case favtui.CategoryArtists:
-				return len(arttui.FilterStrings(m.favorites.artists, m.favorites.filter.Text))
+				return len(arttui.FilterStrings(m.favorites.Artists, m.favorites.Filter.Text))
 			case favtui.CategoryAlbums:
-				return len(arttui.FilterStrings(m.favorites.albums, m.favorites.filter.Text))
+				return len(arttui.FilterStrings(m.favorites.Albums, m.favorites.Filter.Text))
 			case favtui.CategoryTracks:
-				return len(arttui.FilterTracks(m.favorites.tracks, m.favorites.filter.Text))
+				return len(arttui.FilterTracks(m.favorites.Tracks, m.favorites.Filter.Text))
 			}
 		}
 	case viewTags:
-		if m.tagsView.level == tagtui.TrackLevel {
-			return len(m.tagsView.displayTracks())
+		if m.tagsView.Level == tagtui.TrackLevel {
+			return len(m.tagsView.DisplayTracks())
 		}
 	case viewInsights:
 		if m.insights.atTracks() {
@@ -223,9 +223,9 @@ func takeSnapshot(m Model) selectionSnapshot {
 			snap.hashes = cloneStringSet(m.browse.genres.selectedHashes)
 		}
 	case viewFavorites:
-		snap.favIdxSet = cloneIntSet(m.favorites.selectedItems)
+		snap.favIdxSet = cloneIntSet(m.favorites.SelectedItems)
 	case viewTags:
-		snap.hashes = cloneStringSet(m.tagsView.selectedHashes)
+		snap.hashes = cloneStringSet(m.tagsView.SelectedHashes)
 	case viewInsights:
 		snap.hashes = cloneStringSet(m.insights.trackView.SelectedHashes)
 	}
@@ -253,9 +253,9 @@ func restoreSnapshot(m Model) Model {
 			m.browse.genres.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 		}
 	case viewFavorites:
-		m.favorites.selectedItems = cloneIntSet(m.visual.snapshot.favIdxSet)
+		m.favorites.SelectedItems = cloneIntSet(m.visual.snapshot.favIdxSet)
 	case viewTags:
-		m.tagsView.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
+		m.tagsView.SelectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 	case viewInsights:
 		m.insights.trackView.SelectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 	}
@@ -307,16 +307,16 @@ func selectRange(m Model, lo, hi int) Model {
 			}
 		}
 	case viewFavorites:
-		if m.favorites.level != favtui.CategoryLevel {
+		if m.favorites.Level != favtui.CategoryLevel {
 			n := visualListLen(m)
 			for i := lo; i <= hi; i++ {
 				if i < 0 || (n > 0 && i >= n) {
 					continue
 				}
-				if m.favorites.selectedItems == nil {
-					m.favorites.selectedItems = make(map[int]struct{})
+				if m.favorites.SelectedItems == nil {
+					m.favorites.SelectedItems = make(map[int]struct{})
 				}
-				m.favorites.selectedItems[i] = struct{}{}
+				m.favorites.SelectedItems[i] = struct{}{}
 			}
 		}
 	case viewInsights:
@@ -324,8 +324,8 @@ func selectRange(m Model, lo, hi int) Model {
 			m.insights.trackView = libSelectRange(m.insights.trackView, lo, hi)
 		}
 	case viewTags:
-		if m.tagsView.level == tagtui.TrackLevel {
-			tracks := m.tagsView.displayTracks()
+		if m.tagsView.Level == tagtui.TrackLevel {
+			tracks := m.tagsView.DisplayTracks()
 			for i := lo; i <= hi; i++ {
 				if i < 0 || i >= len(tracks) {
 					continue
@@ -334,10 +334,10 @@ func selectRange(m Model, lo, hi int) Model {
 				if hash == "" {
 					continue
 				}
-				if m.tagsView.selectedHashes == nil {
-					m.tagsView.selectedHashes = make(map[string]struct{})
+				if m.tagsView.SelectedHashes == nil {
+					m.tagsView.SelectedHashes = make(map[string]struct{})
 				}
-				m.tagsView.selectedHashes[hash] = struct{}{}
+				m.tagsView.SelectedHashes[hash] = struct{}{}
 			}
 		}
 	}

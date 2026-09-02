@@ -39,25 +39,25 @@ func TestDestPickerClearsGenresSelection(t *testing.T) {
 // or confirming a destination picker clears the tags view's bulk selection.
 func TestDestPickerClearsTagsSelection(t *testing.T) {
 	m := New(context.Background())
-	m.tagsView.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.tagsView.SelectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	t.Run("dismissed", func(t *testing.T) {
 		got := m.handleDestinationPickerDismissedMsg()
-		if got.tagsView.selectedHashes != nil {
+		if got.tagsView.SelectedHashes != nil {
 			t.Error("tagsView selectedHashes should be nil after dismiss")
 		}
 	})
 
 	t.Run("create", func(t *testing.T) {
 		got := m.handleDestinationPickerCreateMsg()
-		if got.tagsView.selectedHashes != nil {
+		if got.tagsView.SelectedHashes != nil {
 			t.Error("tagsView selectedHashes should be nil after create")
 		}
 	})
 
 	t.Run("picked", func(t *testing.T) {
 		got, _ := m.handleDestinationPickedMsg(pltui.DestinationPickedMsg{IsQueue: true})
-		if got.tagsView.selectedHashes != nil {
+		if got.tagsView.SelectedHashes != nil {
 			t.Error("tagsView selectedHashes should be nil after pick")
 		}
 	})
@@ -68,25 +68,25 @@ func TestDestPickerClearsTagsSelection(t *testing.T) {
 // selection (selectedItems).
 func TestDestPickerClearsFavoritesSelection(t *testing.T) {
 	m := New(context.Background())
-	m.favorites.selectedItems = map[int]struct{}{0: {}, 2: {}}
+	m.favorites.SelectedItems = map[int]struct{}{0: {}, 2: {}}
 
 	t.Run("dismissed", func(t *testing.T) {
 		got := m.handleDestinationPickerDismissedMsg()
-		if got.favorites.selectedItems != nil {
+		if got.favorites.SelectedItems != nil {
 			t.Error("favorites selectedItems should be nil after dismiss")
 		}
 	})
 
 	t.Run("create", func(t *testing.T) {
 		got := m.handleDestinationPickerCreateMsg()
-		if got.favorites.selectedItems != nil {
+		if got.favorites.SelectedItems != nil {
 			t.Error("favorites selectedItems should be nil after create")
 		}
 	})
 
 	t.Run("picked", func(t *testing.T) {
 		got, _ := m.handleDestinationPickedMsg(pltui.DestinationPickedMsg{IsQueue: true})
-		if got.favorites.selectedItems != nil {
+		if got.favorites.SelectedItems != nil {
 			t.Error("favorites selectedItems should be nil after pick")
 		}
 	})

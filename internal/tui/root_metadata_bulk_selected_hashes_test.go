@@ -14,14 +14,14 @@ import (
 func TestBulkSelectedHashesFavoritesListLevelTracks(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{
 		{Hash: "h1", Artist: "Alice", Title: "Track A1"},
 		{Hash: "h2", Artist: "Alice", Title: "Track A2"},
 		{Hash: "h3", Artist: "Alice", Title: "Track B1"},
 	}
-	m.favorites.selectedItems = map[int]struct{}{0: {}, 2: {}}
+	m.favorites.SelectedItems = map[int]struct{}{0: {}, 2: {}}
 
 	hashes := m.bulkSelectedHashes()
 	if len(hashes) != 2 {
@@ -44,12 +44,12 @@ func TestBulkSelectedHashesFavoritesListLevelTracks(t *testing.T) {
 func TestBulkSelectedHashesFavoritesTrackLevel(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.TrackLevel
-	m.favorites.drilldownTracks = []library.Track{
+	m.favorites.Level = favtui.TrackLevel
+	m.favorites.DrilldownTracks = []library.Track{
 		{Hash: "h4", Artist: "Bob", Title: "Track G1"},
 		{Hash: "h5", Artist: "Bob", Title: "Track G2"},
 	}
-	m.favorites.selectedItems = map[int]struct{}{1: {}}
+	m.favorites.SelectedItems = map[int]struct{}{1: {}}
 
 	hashes := m.bulkSelectedHashes()
 	if len(hashes) != 1 {
@@ -65,10 +65,10 @@ func TestBulkSelectedHashesFavoritesTrackLevel(t *testing.T) {
 func TestBulkSelectedHashesFavoritesArtistLevelReturnsNil(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryArtists
-	m.favorites.artists = []string{"Alice", "Bob"}
-	m.favorites.selectedItems = map[int]struct{}{0: {}}
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryArtists
+	m.favorites.Artists = []string{"Alice", "Bob"}
+	m.favorites.SelectedItems = map[int]struct{}{0: {}}
 
 	if hashes := m.bulkSelectedHashes(); hashes != nil {
 		t.Errorf("expected nil for artist level, got %v", hashes)
@@ -117,7 +117,7 @@ func TestBulkSelectedHashesRecentlyAddedEmptyReturnsNil(t *testing.T) {
 func TestBulkSelectedHashesTags(t *testing.T) {
 	m := newModelWithTracks()
 	m.activeView = viewTags
-	m.tagsView.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.tagsView.SelectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	hashes := m.bulkSelectedHashes()
 	if len(hashes) != 2 {

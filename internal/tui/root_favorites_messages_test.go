@@ -19,10 +19,10 @@ func TestBulkFavoriteRemoval_UpdatesInViewState(t *testing.T) {
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryArtists
-	m.favorites.artists = []string{"Bach", "Coltrane", "Davis", "Ellington"}
-	m.favorites.artistCount = 4
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryArtists
+	m.favorites.Artists = []string{"Bach", "Coltrane", "Davis", "Ellington"}
+	m.favorites.ArtistCount = 4
 
 	msg := favoriteToggledMsg{
 		typ:           "artist",
@@ -35,11 +35,11 @@ func TestBulkFavoriteRemoval_UpdatesInViewState(t *testing.T) {
 	}
 	nm := m.handleFavoriteToggledMsg(msg)
 
-	if len(nm.favorites.artists) != 2 {
-		t.Fatalf("expected 2 artists after bulk removal, got %d: %v", len(nm.favorites.artists), nm.favorites.artists)
+	if len(nm.favorites.Artists) != 2 {
+		t.Fatalf("expected 2 artists after bulk removal, got %d: %v", len(nm.favorites.Artists), nm.favorites.Artists)
 	}
-	if nm.favorites.artists[0] != "Coltrane" || nm.favorites.artists[1] != "Ellington" {
-		t.Fatalf("expected [Coltrane, Ellington], got %v", nm.favorites.artists)
+	if nm.favorites.Artists[0] != "Coltrane" || nm.favorites.Artists[1] != "Ellington" {
+		t.Fatalf("expected [Coltrane, Ellington], got %v", nm.favorites.Artists)
 	}
 }
 
@@ -52,15 +52,15 @@ func TestBulkFavoriteRemoval_TrackLevelPreservesDrilldownTracks(t *testing.T) {
 	}}
 	m := New(context.Background(), WithFavoriteReader(r))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.TrackLevel
-	m.favorites.category = favtui.CategoryArtists
+	m.favorites.Level = favtui.TrackLevel
+	m.favorites.Category = favtui.CategoryArtists
 	m.favoriteHashes = map[string]struct{}{"h1": {}, "h2": {}, "h3": {}, "h4": {}}
 
 	t1 := library.Track{Hash: "h1", Title: "T1"}
 	t2 := library.Track{Hash: "h2", Title: "T2"}
 	t3 := library.Track{Hash: "h3", Title: "T3"}
 	t4 := library.Track{Hash: "h4", Title: "T4"}
-	m.favorites.drilldownTracks = []library.Track{t1, t2, t3, t4}
+	m.favorites.DrilldownTracks = []library.Track{t1, t2, t3, t4}
 
 	msg := favoriteToggledMsg{
 		typ:           "track",
@@ -71,13 +71,13 @@ func TestBulkFavoriteRemoval_TrackLevelPreservesDrilldownTracks(t *testing.T) {
 	}
 	nm := m.handleFavoriteToggledMsg(msg)
 
-	if len(nm.favorites.drilldownTracks) != 4 {
-		t.Fatalf("expected 4 drilldown tracks after bulk removal, got %d", len(nm.favorites.drilldownTracks))
+	if len(nm.favorites.DrilldownTracks) != 4 {
+		t.Fatalf("expected 4 drilldown tracks after bulk removal, got %d", len(nm.favorites.DrilldownTracks))
 	}
 	expected := []string{"h1", "h2", "h3", "h4"}
 	for i, hash := range expected {
-		if nm.favorites.drilldownTracks[i].Hash != hash {
-			t.Fatalf("index %d: expected %q, got %q", i, hash, nm.favorites.drilldownTracks[i].Hash)
+		if nm.favorites.DrilldownTracks[i].Hash != hash {
+			t.Fatalf("index %d: expected %q, got %q", i, hash, nm.favorites.DrilldownTracks[i].Hash)
 		}
 	}
 	if _, ok := nm.favoriteHashes["h1"]; ok {
@@ -100,15 +100,15 @@ func TestSingleFavoriteRemoval_TrackLevelPreservesDrilldownTrack(t *testing.T) {
 	}}
 	m := New(context.Background(), WithFavoriteReader(r))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.TrackLevel
-	m.favorites.category = favtui.CategoryAlbums
-	m.favorites.drilldownTracks = []library.Track{
+	m.favorites.Level = favtui.TrackLevel
+	m.favorites.Category = favtui.CategoryAlbums
+	m.favorites.DrilldownTracks = []library.Track{
 		{Hash: "h1", Title: "T1"},
 		{Hash: "h2", Title: "T2"},
 		{Hash: "h3", Title: "T3"},
 	}
 	m.favoriteHashes = map[string]struct{}{"h1": {}, "h2": {}, "h3": {}}
-	m.favorites.selectedItems = map[int]struct{}{0: {}}
+	m.favorites.SelectedItems = map[int]struct{}{0: {}}
 
 	msg := favoriteToggledMsg{
 		typ:         "track",
@@ -120,20 +120,20 @@ func TestSingleFavoriteRemoval_TrackLevelPreservesDrilldownTrack(t *testing.T) {
 	}
 	nm := m.handleFavoriteToggledMsg(msg)
 
-	if len(nm.favorites.drilldownTracks) != 3 {
-		t.Fatalf("expected 3 drilldown tracks after single removal, got %d", len(nm.favorites.drilldownTracks))
+	if len(nm.favorites.DrilldownTracks) != 3 {
+		t.Fatalf("expected 3 drilldown tracks after single removal, got %d", len(nm.favorites.DrilldownTracks))
 	}
 	expected := []string{"h1", "h2", "h3"}
 	for i, hash := range expected {
-		if nm.favorites.drilldownTracks[i].Hash != hash {
-			t.Fatalf("index %d: expected %q, got %q", i, hash, nm.favorites.drilldownTracks[i].Hash)
+		if nm.favorites.DrilldownTracks[i].Hash != hash {
+			t.Fatalf("index %d: expected %q, got %q", i, hash, nm.favorites.DrilldownTracks[i].Hash)
 		}
 	}
 	if _, ok := nm.favoriteHashes["h1"]; ok {
 		t.Fatal("expected h1 to be removed from favoriteHashes")
 	}
-	if nm.favorites.selectedItems != nil {
-		t.Fatalf("expected selectedItems to be nil after removal, got %v", nm.favorites.selectedItems)
+	if nm.favorites.SelectedItems != nil {
+		t.Fatalf("expected selectedItems to be nil after removal, got %v", nm.favorites.SelectedItems)
 	}
 }
 
@@ -145,10 +145,10 @@ func TestSingleFavoriteRemoval_StillWorksWithValue(t *testing.T) {
 	}}
 	m := New(context.Background(), WithFavoriteReader(r))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryAlbums
-	m.favorites.albums = []string{"Jazz", "Rock", "Blues"}
-	m.favorites.albumCount = 3
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryAlbums
+	m.favorites.Albums = []string{"Jazz", "Rock", "Blues"}
+	m.favorites.AlbumCount = 3
 
 	msg := favoriteToggledMsg{
 		typ:         "album",
@@ -160,11 +160,11 @@ func TestSingleFavoriteRemoval_StillWorksWithValue(t *testing.T) {
 	}
 	nm := m.handleFavoriteToggledMsg(msg)
 
-	if len(nm.favorites.albums) != 2 {
-		t.Fatalf("expected 2 albums after single removal, got %d: %v", len(nm.favorites.albums), nm.favorites.albums)
+	if len(nm.favorites.Albums) != 2 {
+		t.Fatalf("expected 2 albums after single removal, got %d: %v", len(nm.favorites.Albums), nm.favorites.Albums)
 	}
-	if nm.favorites.albums[0] != "Jazz" || nm.favorites.albums[1] != "Blues" {
-		t.Fatalf("expected [Jazz, Blues], got %v", nm.favorites.albums)
+	if nm.favorites.Albums[0] != "Jazz" || nm.favorites.Albums[1] != "Blues" {
+		t.Fatalf("expected [Jazz, Blues], got %v", nm.favorites.Albums)
 	}
 }
 
@@ -176,8 +176,8 @@ func TestSingleFavoriteRemoval_StillWorksWithValue(t *testing.T) {
 func TestFavoritesLoadedMsg_SavesCategoryCursor(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.CategoryLevel
-	m.favorites.cursor = 1
+	m.favorites.Level = favtui.CategoryLevel
+	m.favorites.Cursor = 1
 
 	msg := favoritesLoadedMsg{
 		category: int(favtui.CategoryAlbums),
@@ -185,20 +185,20 @@ func TestFavoritesLoadedMsg_SavesCategoryCursor(t *testing.T) {
 	}
 	m = m.handleFavoritesLoadedMsg(msg)
 
-	if m.favorites.level != favtui.ListLevel {
-		t.Fatalf("expected ListLevel, got %d", m.favorites.level)
+	if m.favorites.Level != favtui.ListLevel {
+		t.Fatalf("expected ListLevel, got %d", m.favorites.Level)
 	}
-	if m.favorites.categoryCursor != 1 {
-		t.Fatalf("expected categoryCursor=1 (Albums), got %d", m.favorites.categoryCursor)
+	if m.favorites.CategoryCursor != 1 {
+		t.Fatalf("expected categoryCursor=1 (Albums), got %d", m.favorites.CategoryCursor)
 	}
 
-	m.favorites = m.favorites.back()
+	m.favorites = m.favorites.Back()
 
-	if m.favorites.level != favtui.CategoryLevel {
-		t.Fatalf("expected CategoryLevel after back(), got %d", m.favorites.level)
+	if m.favorites.Level != favtui.CategoryLevel {
+		t.Fatalf("expected CategoryLevel after back(), got %d", m.favorites.Level)
 	}
-	if m.favorites.cursor != 1 {
-		t.Fatalf("expected cursor=1 (Albums) after back(), got %d", m.favorites.cursor)
+	if m.favorites.Cursor != 1 {
+		t.Fatalf("expected cursor=1 (Albums) after back(), got %d", m.favorites.Cursor)
 	}
 }
 
@@ -207,8 +207,8 @@ func TestFavoritesLoadedMsg_SavesCategoryCursor(t *testing.T) {
 func TestFavoritesLoadedMsg_SavesCategoryCursor_Tracks(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.CategoryLevel
-	m.favorites.cursor = 2
+	m.favorites.Level = favtui.CategoryLevel
+	m.favorites.Cursor = 2
 
 	msg := favoritesLoadedMsg{
 		category: int(favtui.CategoryTracks),
@@ -216,13 +216,13 @@ func TestFavoritesLoadedMsg_SavesCategoryCursor_Tracks(t *testing.T) {
 	}
 	m = m.handleFavoritesLoadedMsg(msg)
 
-	if m.favorites.categoryCursor != 2 {
-		t.Fatalf("expected categoryCursor=2 (Tracks), got %d", m.favorites.categoryCursor)
+	if m.favorites.CategoryCursor != 2 {
+		t.Fatalf("expected categoryCursor=2 (Tracks), got %d", m.favorites.CategoryCursor)
 	}
 
-	m.favorites = m.favorites.back()
-	if m.favorites.cursor != 2 {
-		t.Fatalf("expected cursor=2 after back(), got %d", m.favorites.cursor)
+	m.favorites = m.favorites.Back()
+	if m.favorites.Cursor != 2 {
+		t.Fatalf("expected cursor=2 after back(), got %d", m.favorites.Cursor)
 	}
 }
 
@@ -235,15 +235,15 @@ func TestSingleFavoriteRemoval_ClearsSelectedItems(t *testing.T) {
 	}}
 	m := New(context.Background(), WithFavoriteReader(r))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{
 		{Hash: "h1", Title: "T1"},
 		{Hash: "h2", Title: "T2"},
 		{Hash: "h3", Title: "T3"},
 	}
-	m.favorites.trackCount = 3
-	m.favorites.selectedItems = map[int]struct{}{0: {}, 2: {}}
+	m.favorites.TrackCount = 3
+	m.favorites.SelectedItems = map[int]struct{}{0: {}, 2: {}}
 
 	msg := favoriteToggledMsg{
 		typ:         "track",
@@ -255,8 +255,8 @@ func TestSingleFavoriteRemoval_ClearsSelectedItems(t *testing.T) {
 	}
 	nm := m.handleFavoriteToggledMsg(msg)
 
-	if nm.favorites.selectedItems != nil {
-		t.Fatalf("expected selectedItems to be nil after removal, got %v", nm.favorites.selectedItems)
+	if nm.favorites.SelectedItems != nil {
+		t.Fatalf("expected selectedItems to be nil after removal, got %v", nm.favorites.SelectedItems)
 	}
 }
 
@@ -268,13 +268,13 @@ func TestBulkFavoriteRemoval_ClearsSelectedItems_TrackLevel(t *testing.T) {
 	}}
 	m := New(context.Background(), WithFavoriteReader(r))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.TrackLevel
-	m.favorites.drilldownTracks = []library.Track{
+	m.favorites.Level = favtui.TrackLevel
+	m.favorites.DrilldownTracks = []library.Track{
 		{Hash: "h1", Title: "T1"},
 		{Hash: "h2", Title: "T2"},
 		{Hash: "h3", Title: "T3"},
 	}
-	m.favorites.selectedItems = map[int]struct{}{0: {}, 1: {}}
+	m.favorites.SelectedItems = map[int]struct{}{0: {}, 1: {}}
 
 	msg := favoriteToggledMsg{
 		typ:           "track",
@@ -285,7 +285,7 @@ func TestBulkFavoriteRemoval_ClearsSelectedItems_TrackLevel(t *testing.T) {
 	}
 	nm := m.handleFavoriteToggledMsg(msg)
 
-	if nm.favorites.selectedItems != nil {
-		t.Fatalf("expected selectedItems to be nil after bulk removal, got %v", nm.favorites.selectedItems)
+	if nm.favorites.SelectedItems != nil {
+		t.Fatalf("expected selectedItems to be nil after bulk removal, got %v", nm.favorites.SelectedItems)
 	}
 }

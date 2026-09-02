@@ -33,7 +33,7 @@ func TestCommandPaletteActionSwitchesToViewThenRuns(t *testing.T) {
 	if out.activeView != viewTags {
 		t.Fatalf("activeView = %v, want viewTags", out.activeView)
 	}
-	if !out.tagsView.isCreating() {
+	if !out.tagsView.IsCreating() {
 		t.Error("tag create input is not active: the action did not run after the switch")
 	}
 }
@@ -47,7 +47,7 @@ func TestCommandPaletteActionWithoutViewRunsInPlace(t *testing.T) {
 	if out.activeView != viewLibrary {
 		t.Fatalf("activeView = %v, want viewLibrary", out.activeView)
 	}
-	if out.tagsView.isCreating() {
+	if out.tagsView.IsCreating() {
 		t.Error("tag create input is active: the action ran outside the Tags view")
 	}
 }
@@ -300,9 +300,9 @@ func TestPaletteCreateCommandsHandleNestedDestination(t *testing.T) {
 	t.Run("create tag", func(t *testing.T) {
 		m := New(context.Background())
 		m.activeView = viewLibrary
-		m.tagsView.level = tagtui.TrackLevel
-		m.tagsView.tags = []db.TagRow{{ID: 1, Name: "chill"}}
-		m.tagsView.selectedTag = db.TagRow{ID: 1, Name: "chill"}
+		m.tagsView.Level = tagtui.TrackLevel
+		m.tagsView.Tags = []db.TagRow{{ID: 1, Name: "chill"}}
+		m.tagsView.SelectedTag = db.TagRow{ID: 1, Name: "chill"}
 
 		if !paletteCommandEnabledForTest(t, m, "Create tag") {
 			t.Fatal("Create tag is dimmed, so the no-op is not reachable through it")
@@ -313,10 +313,10 @@ func TestPaletteCreateCommandsHandleNestedDestination(t *testing.T) {
 		if out.activeView != viewTags {
 			t.Fatalf("activeView = %v, want viewTags", out.activeView)
 		}
-		if out.tagsView.level != tagtui.TagLevel {
+		if out.tagsView.Level != tagtui.TagLevel {
 			t.Error("tags view is still at track level after the switch")
 		}
-		if !out.tagsView.isCreating() {
+		if !out.tagsView.IsCreating() {
 			t.Error("tag create input is not active: the command was a silent no-op")
 		}
 	})

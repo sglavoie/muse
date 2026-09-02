@@ -90,12 +90,12 @@ func (m Model) handleLibraryPlayNextAction() (tea.Model, tea.Cmd, bool) {
 			cmd = m.playlists.PlayNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
 		}
 	case viewFavorites:
-		if _, ok := m.favorites.focusedTrack(); ok {
-			cmd = m.favorites.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
+		if _, ok := m.favorites.FocusedTrack(); ok {
+			cmd = m.favorites.PlayNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
 		}
 	case viewTags:
-		if _, ok := m.tagsView.focusedTrack(); ok {
-			cmd = m.tagsView.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
+		if _, ok := m.tagsView.FocusedTrack(); ok {
+			cmd = m.tagsView.PlayNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
 		}
 	}
 	return m, cmd, true
@@ -138,14 +138,14 @@ func (m Model) handleLibraryEnqueueReplaceAction() (tea.Model, tea.Cmd, bool) {
 			cmd = m.playlists.EnqueueFocusedTrack(m.queueWriter, 0)
 		}
 	case viewFavorites:
-		if _, ok := m.favorites.focusedTrack(); ok {
+		if _, ok := m.favorites.FocusedTrack(); ok {
 			m = m.clearQueueForReplace()
-			cmd = m.favorites.enqueueFocusedTrack(m.queueWriter, 0)
+			cmd = m.favorites.EnqueueFocusedTrack(m.queueWriter, 0)
 		}
 	case viewTags:
-		if _, ok := m.tagsView.focusedTrack(); ok {
+		if _, ok := m.tagsView.FocusedTrack(); ok {
 			m = m.clearQueueForReplace()
-			cmd = m.tagsView.enqueueFocusedTrack(m.queueWriter, 0)
+			cmd = m.tagsView.EnqueueFocusedTrack(m.queueWriter, 0)
 		}
 	}
 	return m, cmd, true

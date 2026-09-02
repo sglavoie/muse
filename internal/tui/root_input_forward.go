@@ -121,18 +121,18 @@ func (m Model) forwardQueueSaveMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
 }
 
 func (m Model) forwardTagCreateMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
-	if m.tagsView.isCreating() && m.activeView == viewTags {
+	if m.tagsView.IsCreating() && m.activeView == viewTags {
 		var cmd tea.Cmd
-		m.tagsView, cmd = m.tagsView.updateCreateInputMsg(msg)
+		m.tagsView, cmd = m.tagsView.UpdateCreateInputMsg(msg)
 		return m, cmd, true
 	}
 	return m, nil, false
 }
 
 func (m Model) forwardTagRenameMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
-	if m.tagsView.isRenaming() && m.activeView == viewTags {
+	if m.tagsView.IsRenaming() && m.activeView == viewTags {
 		var cmd tea.Cmd
-		m.tagsView, cmd = m.tagsView.updateRenameInputMsg(msg)
+		m.tagsView, cmd = m.tagsView.UpdateRenameInputMsg(msg)
 		return m, cmd, true
 	}
 	return m, nil, false

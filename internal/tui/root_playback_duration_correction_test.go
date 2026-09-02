@@ -26,11 +26,11 @@ func TestCorrectStoredDurationSyncsDerivedViews(t *testing.T) {
 	m.library.SourceTracks = []library.Track{{Hash: "h1", Duration: 360.0}}
 	m.playlists.Level = pltui.TrackLevel
 	m.playlists.Tracks = []db.PlaylistTrackRow{{Hash: "h1", DurationMs: 360000}}
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{{Hash: "h1", Duration: 360.0}}
-	m.tagsView.level = tagtui.TrackLevel
-	m.tagsView.tracks = []db.PlaylistTrackRow{{Hash: "h1", DurationMs: 360000}}
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{{Hash: "h1", Duration: 360.0}}
+	m.tagsView.Level = tagtui.TrackLevel
+	m.tagsView.Tracks = []db.PlaylistTrackRow{{Hash: "h1", DurationMs: 360000}}
 
 	nm, _ := m.correctStoredDuration("h1", 180.0)
 
@@ -40,11 +40,11 @@ func TestCorrectStoredDurationSyncsDerivedViews(t *testing.T) {
 	if nm.playlists.Tracks[0].DurationMs != 180000 {
 		t.Errorf("playlist DurationMs: got %d, want 180000", nm.playlists.Tracks[0].DurationMs)
 	}
-	if nm.favorites.tracks[0].Duration != 180.0 {
-		t.Errorf("favorites duration: got %f, want 180.0", nm.favorites.tracks[0].Duration)
+	if nm.favorites.Tracks[0].Duration != 180.0 {
+		t.Errorf("favorites duration: got %f, want 180.0", nm.favorites.Tracks[0].Duration)
 	}
-	if nm.tagsView.tracks[0].DurationMs != 180000 {
-		t.Errorf("tags DurationMs: got %d, want 180000", nm.tagsView.tracks[0].DurationMs)
+	if nm.tagsView.Tracks[0].DurationMs != 180000 {
+		t.Errorf("tags DurationMs: got %d, want 180000", nm.tagsView.Tracks[0].DurationMs)
 	}
 }
 
@@ -53,13 +53,13 @@ func TestCorrectStoredDurationSyncsDerivedViews(t *testing.T) {
 func TestCorrectStoredDurationSyncsFavoritesDrilldown(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
-	m.favorites.level = favtui.TrackLevel
-	m.favorites.drilldownTracks = []library.Track{{Hash: "h1", Duration: 360.0}}
+	m.favorites.Level = favtui.TrackLevel
+	m.favorites.DrilldownTracks = []library.Track{{Hash: "h1", Duration: 360.0}}
 
 	nm, _ := m.correctStoredDuration("h1", 180.0)
 
-	if nm.favorites.drilldownTracks[0].Duration != 180.0 {
-		t.Errorf("favorites drilldown duration: got %f, want 180.0", nm.favorites.drilldownTracks[0].Duration)
+	if nm.favorites.DrilldownTracks[0].Duration != 180.0 {
+		t.Errorf("favorites drilldown duration: got %f, want 180.0", nm.favorites.DrilldownTracks[0].Duration)
 	}
 }
 

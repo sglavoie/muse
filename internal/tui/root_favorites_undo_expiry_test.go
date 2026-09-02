@@ -15,9 +15,9 @@ func TestUndoRemoveFavorite_Expired(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	m := New(context.Background(), WithFavoriteWriter(w))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryArtists
-	m.favorites.artists = []string{"Coltrane"}
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryArtists
+	m.favorites.Artists = []string{"Coltrane"}
 
 	m.undo.slot = undoSlot{
 		action: undoRemoveFavoriteAction{
@@ -34,8 +34,8 @@ func TestUndoRemoveFavorite_Expired(t *testing.T) {
 	if len(w.added) != 0 {
 		t.Fatalf("AddFavorite must not be called after expiry, got %v", w.added)
 	}
-	if len(nm.favorites.artists) != 1 {
-		t.Fatalf("artists list must be unchanged, got %v", nm.favorites.artists)
+	if len(nm.favorites.Artists) != 1 {
+		t.Fatalf("artists list must be unchanged, got %v", nm.favorites.Artists)
 	}
 	if !strings.Contains(nm.statusBar.TopNotification().Msg, "Nothing to undo") {
 		t.Errorf("expected 'Nothing to undo' notification, got %q", nm.statusBar.TopNotification().Msg)
@@ -49,10 +49,10 @@ func TestUndoRemoveFavorite_Superseded(t *testing.T) {
 	r := &stubFavoriteReader{favorites: map[string][]string{"artist": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryArtists
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryArtists
 
-	m.favorites.artists = []string{}
+	m.favorites.Artists = []string{}
 	m.undo.slot = undoSlot{
 		action: undoRemoveFavoriteAction{
 			typ:      "artist",

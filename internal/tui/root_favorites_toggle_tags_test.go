@@ -13,15 +13,15 @@ func TestToggleFavorite_TagsTrackLevelSingleOpensPicker(t *testing.T) {
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
 	m.activeView = viewTags
-	m.tagsView.level = tagtui.TrackLevel
-	m.tagsView.tracks = []db.PlaylistTrackRow{
+	m.tagsView.Level = tagtui.TrackLevel
+	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{Hash: "ht1", Title: "Tag Song A"},
 		{Hash: "ht2", Title: "Tag Song B"},
 	}
-	m.tagsView.cursor = 1
+	m.tagsView.Cursor = 1
 
 	nm := openFavoritePickerForTest(t, m)
-	if got := nm.overlay.favoriteTargetPicker.tracks[0].Hash; got != "ht2" {
+	if got := nm.overlay.favoriteTargetPicker.Tracks[0].Hash; got != "ht2" {
 		t.Errorf("picker track hash = %q, want ht2", got)
 	}
 }
@@ -31,18 +31,18 @@ func TestToggleFavorite_TagsTrackLevelBulkOpensPicker(t *testing.T) {
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
 	m.activeView = viewTags
-	m.tagsView.level = tagtui.TrackLevel
-	m.tagsView.tracks = []db.PlaylistTrackRow{
+	m.tagsView.Level = tagtui.TrackLevel
+	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{Hash: "ht1", Title: "Tag Song A"},
 		{Hash: "ht2", Title: "Tag Song B"},
 	}
-	m.tagsView.selectedHashes = map[string]struct{}{"ht1": {}, "ht2": {}}
+	m.tagsView.SelectedHashes = map[string]struct{}{"ht1": {}, "ht2": {}}
 
 	nm := openFavoritePickerForTest(t, m)
-	if len(nm.tagsView.selectedHashes) != 2 {
+	if len(nm.tagsView.SelectedHashes) != 2 {
 		t.Fatal("opening picker should preserve selectedHashes")
 	}
-	if got := len(nm.overlay.favoriteTargetPicker.tracks); got != 2 {
+	if got := len(nm.overlay.favoriteTargetPicker.Tracks); got != 2 {
 		t.Errorf("picker tracks = %d, want 2", got)
 	}
 }
@@ -52,7 +52,7 @@ func TestToggleFavorite_TagsTagLevelNoop(t *testing.T) {
 	r := &stubFavoriteReader{favorites: map[string][]string{}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
 	m.activeView = viewTags
-	m.tagsView.level = tagtui.TagLevel
+	m.tagsView.Level = tagtui.TagLevel
 
 	_, cmd, handled := m.handleToggleFavorite()
 	if !handled {

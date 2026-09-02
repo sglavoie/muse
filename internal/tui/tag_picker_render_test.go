@@ -5,6 +5,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 func TestTagPickerRenderHintFitsMinimumSupportedSize(t *testing.T) {
@@ -13,7 +14,7 @@ func TestTagPickerRenderHintFitsMinimumSupportedSize(t *testing.T) {
 		{ID: 2, Name: "focus"},
 		{ID: 3, Name: "energetic"},
 	}
-	tp, _ := NewTagPicker(tags, "h1", map[int64]struct{}{})
+	tp, _ := tagtui.NewTagPicker(tags, "h1", map[int64]struct{}{})
 	s := styles.NewStyles(true)
 
 	raw := tp.Render(minTerminalWidth, minTerminalHeight, s)

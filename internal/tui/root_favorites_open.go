@@ -14,12 +14,12 @@ func (m Model) handleFavoritesOpen() (Model, tea.Cmd, bool) {
 		return m, nil, false
 	}
 
-	switch m.favorites.level {
+	switch m.favorites.Level {
 	case favtui.CategoryLevel:
 		if m.favoriteReader == nil {
 			return m, nil, true
 		}
-		category := favtui.Category(m.favorites.cursor)
+		category := favtui.Category(m.favorites.Cursor)
 		reader := m.favoriteReader
 		libraryTracks := snapshotTracks(m.library.Index.Tracks())
 		return m, func() tea.Msg {
@@ -67,36 +67,36 @@ func (m Model) handleFavoritesOpen() (Model, tea.Cmd, bool) {
 		}, true
 
 	case favtui.ListLevel:
-		if m.favorites.category == favtui.CategoryTracks {
+		if m.favorites.Category == favtui.CategoryTracks {
 			if m.queueWriter != nil {
-				if cmd := m.favorites.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
+				if cmd := m.favorites.EnqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
 					return m, cmd, true
 				}
 			}
 			return m, nil, true
 		}
 		tracks := m.library.Index.Tracks()
-		switch m.favorites.category {
+		switch m.favorites.Category {
 		case favtui.CategoryArtists:
-			name, ok := m.favorites.focusedArtist()
+			name, ok := m.favorites.FocusedArtist()
 			if !ok {
 				return m, nil, true
 			}
 			derived := deduplicateTracksByHash(arttui.DeriveArtistTracks(tracks, name))
-			m.favorites = m.favorites.openTracks(derived, name)
+			m.favorites = m.favorites.OpenTracks(derived, name)
 		case favtui.CategoryAlbums:
-			name, ok := m.favorites.focusedAlbum()
+			name, ok := m.favorites.FocusedAlbum()
 			if !ok {
 				return m, nil, true
 			}
 			derived := deduplicateTracksByHash(albtui.DeriveAlbumTracks(tracks, name))
-			m.favorites = m.favorites.openTracks(derived, name)
+			m.favorites = m.favorites.OpenTracks(derived, name)
 		}
 		return m, nil, true
 
 	case favtui.TrackLevel:
 		if m.queueWriter != nil {
-			if cmd := m.favorites.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
+			if cmd := m.favorites.EnqueueFocusedTrack(m.queueWriter, len(m.queue.entries)); cmd != nil {
 				return m, cmd, true
 			}
 		}

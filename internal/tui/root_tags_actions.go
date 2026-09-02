@@ -18,9 +18,9 @@ func (m Model) handleTagOpen() (Model, tea.Cmd) {
 	if m.activeView != viewTags {
 		return m, nil
 	}
-	switch m.tagsView.level {
+	switch m.tagsView.Level {
 	case tagtui.TagLevel:
-		tag, ok := m.tagsView.focusedTag()
+		tag, ok := m.tagsView.FocusedTag()
 		if !ok {
 			return m, nil
 		}
@@ -38,7 +38,7 @@ func (m Model) handleTagOpen() (Model, tea.Cmd) {
 			return tagViewTracksLoadedMsg{tag: tag, tracks: tracks, counts: counts}
 		}
 	case tagtui.TrackLevel:
-		cmd := m.tagsView.enqueueFocusedTrack(m.queueWriter, len(m.queue.entries))
+		cmd := m.tagsView.EnqueueFocusedTrack(m.queueWriter, len(m.queue.entries))
 		return m, cmd
 	}
 	return m, nil
@@ -50,44 +50,44 @@ func (m Model) handleTagBack() Model {
 		return m
 	}
 	m = exitVisualMode(m)
-	m.tagsView = m.tagsView.back()
+	m.tagsView = m.tagsView.Back()
 	return m
 }
 
 // handleTagCreate starts the inline create input.
 func (m Model) handleTagCreate() (Model, tea.Cmd) {
-	if m.activeView != viewTags || m.tagsView.level != tagtui.TagLevel {
+	if m.activeView != viewTags || m.tagsView.Level != tagtui.TagLevel {
 		return m, nil
 	}
-	if m.tagsView.isCreating() || m.tagsView.isRenaming() {
+	if m.tagsView.IsCreating() || m.tagsView.IsRenaming() {
 		return m, nil
 	}
-	m.tagsView = m.tagsView.startCreate()
+	m.tagsView = m.tagsView.StartCreate()
 	return m, nil
 }
 
 // handleTagRename starts the inline rename input for the focused tag.
 func (m Model) handleTagRename() (Model, tea.Cmd) {
-	if m.activeView != viewTags || m.tagsView.level != tagtui.TagLevel {
+	if m.activeView != viewTags || m.tagsView.Level != tagtui.TagLevel {
 		return m, nil
 	}
-	if m.tagsView.isCreating() || m.tagsView.isRenaming() {
+	if m.tagsView.IsCreating() || m.tagsView.IsRenaming() {
 		return m, nil
 	}
-	tag, ok := m.tagsView.focusedTag()
+	tag, ok := m.tagsView.FocusedTag()
 	if !ok {
 		return m, nil
 	}
-	m.tagsView = m.tagsView.startRename(tag.Name)
+	m.tagsView = m.tagsView.StartRename(tag.Name)
 	return m, nil
 }
 
 // handleTagDelete soft-deletes the focused tag and arms undo.
 func (m Model) handleTagDelete() (Model, tea.Cmd) {
-	if m.activeView != viewTags || m.tagsView.level != tagtui.TagLevel {
+	if m.activeView != viewTags || m.tagsView.Level != tagtui.TagLevel {
 		return m, nil
 	}
-	tag, ok := m.tagsView.focusedTag()
+	tag, ok := m.tagsView.FocusedTag()
 	if !ok {
 		return m, nil
 	}
@@ -95,21 +95,21 @@ func (m Model) handleTagDelete() (Model, tea.Cmd) {
 	// Find the canonical index in the unfiltered tag list so undo can
 	// re-insert at the correct position even when a filter is active.
 	canonicalIdx := 0
-	for i, t := range m.tagsView.tags {
+	for i, t := range m.tagsView.Tags {
 		if t.ID == tag.ID {
 			canonicalIdx = i
 			break
 		}
 	}
 
-	newTags := make([]db.TagRow, 0, len(m.tagsView.tags)-1)
-	for _, t := range m.tagsView.tags {
+	newTags := make([]db.TagRow, 0, len(m.tagsView.Tags)-1)
+	for _, t := range m.tagsView.Tags {
 		if t.ID != tag.ID {
 			newTags = append(newTags, t)
 		}
 	}
-	m.tagsView.tags = newTags
-	m.tagsView = m.tagsView.clampCursor()
+	m.tagsView.Tags = newTags
+	m.tagsView = m.tagsView.ClampCursor()
 
 	newGlobalTags := make([]db.TagRow, 0, len(m.tags)-1)
 	for _, t := range m.tags {
@@ -151,10 +151,10 @@ func (m Model) handleTagDelete() (Model, tea.Cmd) {
 
 // handleTagEnqueueAll enqueues all tracks for the focused tag.
 func (m Model) handleTagEnqueueAll() (Model, tea.Cmd) {
-	if m.activeView != viewTags || m.tagsView.level != tagtui.TagLevel {
+	if m.activeView != viewTags || m.tagsView.Level != tagtui.TagLevel {
 		return m, nil
 	}
-	tag, ok := m.tagsView.focusedTag()
+	tag, ok := m.tagsView.FocusedTag()
 	if !ok {
 		return m, nil
 	}
@@ -201,13 +201,13 @@ func (m Model) handleTagRenameInputKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd
 // handleTagCreateInput processes enter/esc on the inline create input.
 // Returns (updated model, cmd, consumed).
 func (m Model) handleTagCreateInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
-	if !m.tagsView.isCreating() || m.activeView != viewTags {
+	if !m.tagsView.IsCreating() || m.activeView != viewTags {
 		return m, nil, false
 	}
 	switch msg.String() {
 	case "enter":
-		name := m.tagsView.createInputValue()
-		m.tagsView = m.tagsView.cancelCreate()
+		name := m.tagsView.CreateInputValue()
+		m.tagsView = m.tagsView.CancelCreate()
 		if name == "" {
 			return m, nil, true
 		}
@@ -221,11 +221,11 @@ func (m Model) handleTagCreateInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) 
 			return tagCreatedMsg{id: id, name: name, err: err}
 		}, true
 	case "esc", "ctrl+c":
-		m.tagsView = m.tagsView.cancelCreate()
+		m.tagsView = m.tagsView.CancelCreate()
 		return m, nil, true
 	default:
 		var cmd tea.Cmd
-		m.tagsView, cmd = m.tagsView.updateCreateInput(msg)
+		m.tagsView, cmd = m.tagsView.UpdateCreateInput(msg)
 		return m, cmd, true
 	}
 }
@@ -233,14 +233,14 @@ func (m Model) handleTagCreateInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) 
 // handleTagRenameInput processes enter/esc on the inline rename input.
 // Returns (updated model, cmd, consumed).
 func (m Model) handleTagRenameInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
-	if !m.tagsView.isRenaming() || m.activeView != viewTags {
+	if !m.tagsView.IsRenaming() || m.activeView != viewTags {
 		return m, nil, false
 	}
 	switch msg.String() {
 	case "enter":
-		name := m.tagsView.renameInputValue()
-		tag, _ := m.tagsView.focusedTag()
-		m.tagsView = m.tagsView.cancelRename()
+		name := m.tagsView.RenameInputValue()
+		tag, _ := m.tagsView.FocusedTag()
+		m.tagsView = m.tagsView.CancelRename()
 		if name == "" || tag.ID == 0 {
 			return m, nil, true
 		}
@@ -255,11 +255,11 @@ func (m Model) handleTagRenameInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) 
 			return tagRenamedMsg{id: tagID, name: name, err: err}
 		}, true
 	case "esc", "ctrl+c":
-		m.tagsView = m.tagsView.cancelRename()
+		m.tagsView = m.tagsView.CancelRename()
 		return m, nil, true
 	default:
 		var cmd tea.Cmd
-		m.tagsView, cmd = m.tagsView.updateRenameInput(msg)
+		m.tagsView, cmd = m.tagsView.UpdateRenameInput(msg)
 		return m, cmd, true
 	}
 }

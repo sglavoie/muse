@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/db"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // handleTagPickerKeyPress intercepts key presses when the tag picker is open.
@@ -32,17 +33,17 @@ func (m Model) openTagPicker() (Model, tea.Cmd) {
 		return m, nil
 	}
 
-	var tp TagPicker
+	var tp tagtui.TagPicker
 	var cmd tea.Cmd
 
 	if isBulk {
-		tp, cmd = NewTagPickerBulk(m.tags, hashes, m.trackTags)
+		tp, cmd = tagtui.NewTagPickerBulk(m.tags, hashes, m.trackTags)
 	} else {
 		trackTagIDs := m.trackTags[hashes[0]]
 		if trackTagIDs == nil {
 			trackTagIDs = map[int64]struct{}{}
 		}
-		tp, cmd = NewTagPicker(m.tags, hashes[0], trackTagIDs)
+		tp, cmd = tagtui.NewTagPicker(m.tags, hashes[0], trackTagIDs)
 	}
 
 	m.overlay.tagPicker = &tp
@@ -51,7 +52,7 @@ func (m Model) openTagPicker() (Model, tea.Cmd) {
 
 // handleTagPickerToggle processes TagPickerToggleMsg: writes to DB, updates
 // the in-memory cache, updates the picker check state, and arms undo.
-func (m Model) handleTagPickerToggle(msg TagPickerToggleMsg) (Model, tea.Cmd) {
+func (m Model) handleTagPickerToggle(msg tagtui.TagPickerToggleMsg) (Model, tea.Cmd) {
 	tw := m.tagWriter
 	if tw == nil {
 		return m, nil
@@ -88,11 +89,11 @@ func (m Model) handleTagPickerToggle(msg TagPickerToggleMsg) (Model, tea.Cmd) {
 	}
 
 	if m.overlay.tagPicker != nil {
-		var newState checkState
+		var newState tagtui.CheckState
 		if add {
-			newState = checkChecked
+			newState = tagtui.CheckChecked
 		} else {
-			newState = checkUnchecked
+			newState = tagtui.CheckUnchecked
 		}
 		updated := m.overlay.tagPicker.UpdateItemState(tagID, newState)
 		m.overlay.tagPicker = &updated
@@ -139,7 +140,7 @@ func (m Model) handleTagPickerToggle(msg TagPickerToggleMsg) (Model, tea.Cmd) {
 
 // handleTagPickerCreate processes TagPickerCreateMsg: creates the tag in the
 // DB, refreshes the cache, and re-opens the picker with the new tag.
-func (m Model) handleTagPickerCreate(msg TagPickerCreateMsg) (Model, tea.Cmd) {
+func (m Model) handleTagPickerCreate(msg tagtui.TagPickerCreateMsg) (Model, tea.Cmd) {
 	tw := m.tagWriter
 	tr := m.tagReader
 	if tw == nil || tr == nil {
@@ -199,10 +200,10 @@ func (m Model) handleTagCreated(msg tagCreatedMsg) (Model, tea.Cmd) {
 
 	if len(msg.hashes) > 0 && msg.id != 0 {
 		m = m.applyTagToggle(msg.id, msg.hashes, true)
-		if m.tagsView.tagCounts == nil {
-			m.tagsView.tagCounts = make(map[int64]int)
+		if m.tagsView.TagCounts == nil {
+			m.tagsView.TagCounts = make(map[int64]int)
 		}
-		m.tagsView.tagCounts[msg.id] = len(msg.hashes)
+		m.tagsView.TagCounts[msg.id] = len(msg.hashes)
 	}
 
 	// Re-open the tag picker only when it was already active (i.e. the
@@ -222,11 +223,11 @@ func (m Model) handleTagToggled(msg tagToggledMsg) (Model, tea.Cmd) {
 	if msg.err != nil {
 		m = m.applyTagToggle(msg.tagID, msg.hashes, !msg.wasAdd)
 		if m.overlay.tagPicker != nil {
-			var prevState checkState
+			var prevState tagtui.CheckState
 			if msg.wasAdd {
-				prevState = checkUnchecked
+				prevState = tagtui.CheckUnchecked
 			} else {
-				prevState = checkChecked
+				prevState = tagtui.CheckChecked
 			}
 			updated := m.overlay.tagPicker.UpdateItemState(msg.tagID, prevState)
 			m.overlay.tagPicker = &updated

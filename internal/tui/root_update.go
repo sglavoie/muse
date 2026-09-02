@@ -7,12 +7,14 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/desktop"
 	"github.com/sglavoie/muse/internal/library"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // Update dispatches msg and then drains any listen the handler ended. The
@@ -249,10 +251,10 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case favoriteToggledMsg:
 		m = m.handleFavoriteToggledMsg(msg)
 
-	case favoriteTargetDismissedMsg:
+	case favtui.TargetDismissedMsg:
 		m.overlay.favoriteTargetPicker = nil
 
-	case favoriteTargetPickedMsg:
+	case favtui.TargetPickedMsg:
 		return m.handleFavoriteTargetPicked(msg)
 
 	case favoritesLoadedMsg:
@@ -302,13 +304,13 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, msg.Command.Exec()
 		}
 
-	case tagPickerDismissedMsg:
+	case tagtui.TagPickerDismissedMsg:
 		m.overlay.tagPicker = nil
 
-	case TagPickerToggleMsg:
+	case tagtui.TagPickerToggleMsg:
 		return m.handleTagPickerToggle(msg)
 
-	case TagPickerCreateMsg:
+	case tagtui.TagPickerCreateMsg:
 		return m.handleTagPickerCreate(msg)
 
 	case tagCreatedMsg:
@@ -347,19 +349,19 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tagDeletedMsg:
 		m = m.handleTagDeleted(msg)
 
-	case tagMergeDismissedMsg:
+	case tagtui.TagMergeDismissedMsg:
 		m.overlay.tagMergePicker = nil
 
-	case tagMergePickedMsg:
+	case tagtui.TagMergePickedMsg:
 		return m.handleTagMergePicked(msg)
 
 	case tagMergedMsg:
 		return m.handleTagMerged(msg)
 
-	case tagFilterPickedMsg:
+	case tagtui.TagFilterPickedMsg:
 		return m.handleTagFilterPicked(msg)
 
-	case tagFilterDismissedMsg:
+	case tagtui.TagFilterDismissedMsg:
 		m = m.handleTagFilterDismissed()
 
 	case openTagFilterPickerMsg:

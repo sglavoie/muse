@@ -1,21 +1,20 @@
-package tui
+package favorites
 
 import (
 	"strings"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
-	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 func TestFavoriteTargetPickerSingleRowsAndHotkeys(t *testing.T) {
-	p := newFavoriteTargetPicker(
+	p := NewTargetPicker(
 		[]library.Track{{Hash: "h1", Title: "Blue in Green", Artist: "Miles Davis", Album: "Kind of Blue"}},
 		map[string]struct{}{},
 		map[string]struct{}{"Miles Davis": {}},
 		map[string]struct{}{},
 		false,
-		favoritePickerOrigin{},
+		PickerOrigin{},
 	)
 
 	if got := p.rowText(p.rows[0]); !strings.Contains(got, "Blue in Green · none · Add") {
@@ -29,14 +28,14 @@ func TestFavoriteTargetPickerSingleRowsAndHotkeys(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("artist hotkey did not select")
 	}
-	msg := cmd().(favoriteTargetPickedMsg)
-	if msg.typ != "artist" || msg.add || len(msg.values) != 1 || msg.values[0] != "Miles Davis" {
+	msg := cmd().(TargetPickedMsg)
+	if msg.Typ != "artist" || msg.Add || len(msg.Values) != 1 || msg.Values[0] != "Miles Davis" {
 		t.Fatalf("artist selection = %+v", msg)
 	}
 }
 
 func TestFavoriteTargetPickerBulkCountsAndNormalize(t *testing.T) {
-	p := newFavoriteTargetPicker(
+	p := NewTargetPicker(
 		[]library.Track{
 			{Hash: "h1", Title: "One", Artist: "A", Album: "Shared"},
 			{Hash: "h2", Title: "Two", Artist: "B", Album: "Shared"},
@@ -46,7 +45,7 @@ func TestFavoriteTargetPickerBulkCountsAndNormalize(t *testing.T) {
 		map[string]struct{}{"A": {}, "B": {}},
 		map[string]struct{}{"Shared": {}},
 		true,
-		favoritePickerOrigin{},
+		PickerOrigin{},
 	)
 
 	if got := p.rowText(p.rows[0]); !strings.Contains(got, "3 tracks · mixed · Add") {
@@ -60,20 +59,20 @@ func TestFavoriteTargetPickerBulkCountsAndNormalize(t *testing.T) {
 	}
 
 	_, cmd := p.HandleKey("t")
-	msg := cmd().(favoriteTargetPickedMsg)
-	if !msg.add || strings.Join(msg.values, ",") != "h2,h3" {
+	msg := cmd().(TargetPickedMsg)
+	if !msg.Add || strings.Join(msg.Values, ",") != "h2,h3" {
 		t.Fatalf("mixed title changes = %+v, want add [h2 h3]", msg)
 	}
 }
 
 func TestFavoriteTargetPickerDisablesMissingMetadataAndSkipsRows(t *testing.T) {
-	p := newFavoriteTargetPicker(
+	p := NewTargetPicker(
 		[]library.Track{
 			{Hash: "h1", Title: "One", Artist: "Unknown Artist", Album: "A"},
 			{Hash: "h2", Title: "Two", Artist: "Known", Album: ""},
 		},
 		map[string]struct{}{}, map[string]struct{}{}, map[string]struct{}{}, true,
-		favoritePickerOrigin{},
+		PickerOrigin{},
 	)
 	if p.rows[1].enabled || p.rows[2].enabled {
 		t.Fatalf("missing metadata rows enabled: artist=%v album=%v", p.rows[1].enabled, p.rows[2].enabled)
@@ -83,23 +82,5 @@ func TestFavoriteTargetPickerDisablesMissingMetadataAndSkipsRows(t *testing.T) {
 	}
 	if _, cmd := p.HandleKey("r"); cmd != nil {
 		t.Fatal("disabled artist hotkey selected a target")
-	}
-}
-
-func TestFavoriteTargetPickerCancelAndRenderNarrow(t *testing.T) {
-	p := newFavoriteTargetPicker(
-		[]library.Track{{Hash: "h1", Title: strings.Repeat("界", 40), Artist: "A", Album: "B"}},
-		map[string]struct{}{}, map[string]struct{}{}, map[string]struct{}{}, false,
-		favoritePickerOrigin{},
-	)
-	for _, key := range []string{"esc", "F"} {
-		_, cmd := p.HandleKey(key)
-		if _, ok := cmd().(favoriteTargetDismissedMsg); !ok {
-			t.Fatalf("%s did not dismiss picker", key)
-		}
-	}
-	raw := p.Render(minTerminalWidth, minTerminalHeight, styles.NewStyles(true))
-	if issues := DetectLayoutIssues(raw, PlainScreen(raw), minTerminalWidth, minTerminalHeight); len(issues) != 0 {
-		t.Fatalf("favorite target picker should fit at minimum supported size, got %+v:\n%s", issues, PlainScreen(raw))
 	}
 }

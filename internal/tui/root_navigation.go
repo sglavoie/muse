@@ -74,8 +74,8 @@ func (m Model) handleNavigationAction(action keys.Action) (Model, tea.Cmd, bool)
 		case viewPlaylists:
 			m.playlists = m.playlists.HandleAction(action)
 		case viewFavorites:
-			if m.favorites.level != favtui.CategoryLevel {
-				m.favorites = m.favorites.toggleSelection(m.favorites.cursor)
+			if m.favorites.Level != favtui.CategoryLevel {
+				m.favorites = m.favorites.ToggleSelection(m.favorites.Cursor)
 			}
 		case viewBrowse:
 			switch m.browse.mode {
@@ -99,9 +99,9 @@ func (m Model) handleNavigationAction(action keys.Action) (Model, tea.Cmd, bool)
 				}
 			}
 		case viewTags:
-			if m.tagsView.level == tagtui.TrackLevel {
-				if t, ok := m.tagsView.focusedTrack(); ok {
-					m.tagsView.selectedHashes = toggleHashInSet(m.tagsView.selectedHashes, t.Hash)
+			if m.tagsView.Level == tagtui.TrackLevel {
+				if t, ok := m.tagsView.FocusedTrack(); ok {
+					m.tagsView.SelectedHashes = toggleHashInSet(m.tagsView.SelectedHashes, t.Hash)
 				}
 			}
 		case viewMixes:
@@ -144,7 +144,7 @@ func (m Model) clearActiveViewSelection() Model {
 	case viewPlaylists:
 		m.playlists.SelectedTrackIDs = nil
 	case viewFavorites:
-		m.favorites = m.favorites.clearSelection()
+		m.favorites = m.favorites.ClearSelection()
 	case viewBrowse:
 		switch m.browse.mode {
 		case BrowseModeArtists:
@@ -155,7 +155,7 @@ func (m Model) clearActiveViewSelection() Model {
 			m.browse.genres.selectedHashes = nil
 		}
 	case viewTags:
-		m.tagsView.selectedHashes = nil
+		m.tagsView.SelectedHashes = nil
 	case viewMixes:
 		m.mixes.trackView.SelectedHashes = nil
 	case viewInsights:

@@ -1,4 +1,4 @@
-package tui
+package tags
 
 import (
 	"strings"
@@ -20,13 +20,13 @@ type TagFilterPicker struct {
 	filter   string
 }
 
-// tagFilterPickedMsg is dispatched when the user selects a tag in the picker.
-type tagFilterPickedMsg struct {
-	tag db.TagRow
+// TagFilterPickedMsg is dispatched when the user selects a tag in the picker.
+type TagFilterPickedMsg struct {
+	Tag db.TagRow
 }
 
-// tagFilterDismissedMsg is dispatched when the picker is closed without picking.
-type tagFilterDismissedMsg struct{}
+// TagFilterDismissedMsg is dispatched when the picker is closed without picking.
+type TagFilterDismissedMsg struct{}
 
 // NewTagFilterPicker creates a TagFilterPicker populated with all active tags.
 func NewTagFilterPicker(tags []db.TagRow) TagFilterPicker {
@@ -60,7 +60,7 @@ func (tp TagFilterPicker) refilter() TagFilterPicker {
 func (tp TagFilterPicker) HandleKey(key string) (TagFilterPicker, tea.Cmd) {
 	switch key {
 	case "esc", "ctrl+t":
-		return tp, func() tea.Msg { return tagFilterDismissedMsg{} }
+		return tp, func() tea.Msg { return TagFilterDismissedMsg{} }
 	case "up", "k":
 		if tp.cursor > 0 {
 			tp.cursor--
@@ -71,10 +71,10 @@ func (tp TagFilterPicker) HandleKey(key string) (TagFilterPicker, tea.Cmd) {
 		}
 	case "enter":
 		if len(tp.filtered) == 0 {
-			return tp, func() tea.Msg { return tagFilterDismissedMsg{} }
+			return tp, func() tea.Msg { return TagFilterDismissedMsg{} }
 		}
 		tag := tp.tags[tp.filtered[tp.cursor]]
-		return tp, func() tea.Msg { return tagFilterPickedMsg{tag: tag} }
+		return tp, func() tea.Msg { return TagFilterPickedMsg{Tag: tag} }
 	case "backspace":
 		if len(tp.filter) > 0 {
 			runes := []rune(tp.filter)

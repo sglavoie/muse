@@ -58,7 +58,7 @@ func (a undoTagToggleAction) perform(m Model) (Model, tea.Cmd) {
 			copy(restored, m.tags)
 			restored[len(m.tags)] = a.tag
 			m = m.rebuildTagCache(restored)
-			m.tagsView.tags = m.tags
+			m.tagsView.Tags = m.tags
 		}
 	}
 
@@ -94,14 +94,14 @@ func (a undoDeleteTagAction) perform(m Model) (Model, tea.Cmd) {
 	copy(restored[idx+1:], m.tags[idx:])
 	m = m.rebuildTagCache(restored)
 
-	tvIdx := min(a.idx, len(m.tagsView.tags))
-	tvTags := make([]db.TagRow, len(m.tagsView.tags)+1)
-	copy(tvTags, m.tagsView.tags[:tvIdx])
+	tvIdx := min(a.idx, len(m.tagsView.Tags))
+	tvTags := make([]db.TagRow, len(m.tagsView.Tags)+1)
+	copy(tvTags, m.tagsView.Tags[:tvIdx])
 	tvTags[tvIdx] = a.tag
-	copy(tvTags[tvIdx+1:], m.tagsView.tags[tvIdx:])
-	m.tagsView.tags = tvTags
-	m.tagsView.cursor = tvIdx
-	m.tagsView = m.tagsView.clampCursor()
+	copy(tvTags[tvIdx+1:], m.tagsView.Tags[tvIdx:])
+	m.tagsView.Tags = tvTags
+	m.tagsView.Cursor = tvIdx
+	m.tagsView = m.tagsView.ClampCursor()
 
 	m.statusBar.Notify(fmt.Sprintf("Undone: restored tag %q", a.tag.Name))
 	return m, nil

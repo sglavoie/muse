@@ -103,19 +103,19 @@ func TestHandleActionReservesFilterBarLine_Favorites(t *testing.T) {
 	for i := range artists {
 		artists[i] = fmt.Sprintf("FavArtist %02d", i)
 	}
-	v := FavoritesView{
-		height:   12,
-		level:    favtui.ListLevel,
-		category: favtui.CategoryArtists,
-		artists:  artists,
-		filter:   filter.State{Active: true},
+	v := favtui.FavoritesView{
+		Height:   12,
+		Level:    favtui.ListLevel,
+		Category: favtui.CategoryArtists,
+		Artists:  artists,
+		Filter:   filter.State{Active: true},
 	}
 	v = v.HandleAction(keys.ActionGoToBottom)
-	if v.cursor != 19 {
-		t.Fatalf("expected cursor=19, got %d", v.cursor)
+	if v.Cursor != 19 {
+		t.Fatalf("expected cursor=19, got %d", v.Cursor)
 	}
 	// visibleRows = 12-2 = 10, scrollOffset = 19-10+1 = 10
-	if v.scrollOffset != 10 {
-		t.Errorf("expected scrollOffset=10 (heading+separator reserved), got %d", v.scrollOffset)
+	if v.ScrollOffset != 10 {
+		t.Errorf("expected scrollOffset=10 (heading+separator reserved), got %d", v.ScrollOffset)
 	}
 }

@@ -82,9 +82,9 @@ func TestWatchBatchUpdatesPlaylistDuration(t *testing.T) {
 func TestWatchBatchUpdatesFavoritesDuration(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Duration: 120},
 	}
 
@@ -95,8 +95,8 @@ func TestWatchBatchUpdatesFavoritesDuration(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.favorites.tracks[0].Duration != 200 {
-		t.Errorf("favorites track Duration = %v, want 200", nm.favorites.tracks[0].Duration)
+	if nm.favorites.Tracks[0].Duration != 200 {
+		t.Errorf("favorites track Duration = %v, want 200", nm.favorites.Tracks[0].Duration)
 	}
 }
 
@@ -105,8 +105,8 @@ func TestWatchBatchUpdatesFavoritesDuration(t *testing.T) {
 func TestWatchBatchUpdatesFavoritesDrilldownDuration(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
-	m.favorites.level = favtui.TrackLevel
-	m.favorites.drilldownTracks = []library.Track{
+	m.favorites.Level = favtui.TrackLevel
+	m.favorites.DrilldownTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Duration: 120},
 	}
 
@@ -117,8 +117,8 @@ func TestWatchBatchUpdatesFavoritesDrilldownDuration(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.favorites.drilldownTracks[0].Duration != 200 {
-		t.Errorf("favorites drilldown track Duration = %v, want 200", nm.favorites.drilldownTracks[0].Duration)
+	if nm.favorites.DrilldownTracks[0].Duration != 200 {
+		t.Errorf("favorites drilldown track Duration = %v, want 200", nm.favorites.DrilldownTracks[0].Duration)
 	}
 }
 
@@ -127,8 +127,8 @@ func TestWatchBatchUpdatesFavoritesDrilldownDuration(t *testing.T) {
 func TestWatchBatchUpdatesTagsDuration(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
-	m.tagsView.level = tagtui.TrackLevel
-	m.tagsView.tracks = []db.PlaylistTrackRow{
+	m.tagsView.Level = tagtui.TrackLevel
+	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "h1", Path: "/a.flac", DurationMs: 120_000},
 	}
 
@@ -139,7 +139,7 @@ func TestWatchBatchUpdatesTagsDuration(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.tagsView.tracks[0].DurationMs != 200_000 {
-		t.Errorf("tags track DurationMs = %d, want 200000", nm.tagsView.tracks[0].DurationMs)
+	if nm.tagsView.Tracks[0].DurationMs != 200_000 {
+		t.Errorf("tags track DurationMs = %d, want 200000", nm.tagsView.Tracks[0].DurationMs)
 	}
 }

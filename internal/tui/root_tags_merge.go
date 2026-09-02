@@ -23,13 +23,13 @@ func (m Model) handleTagMergeKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 
 // handleTagMerge opens the merge picker for the focused tag.
 func (m Model) handleTagMerge() (Model, tea.Cmd) {
-	if m.activeView != viewTags || m.tagsView.level != tagtui.TagLevel {
+	if m.activeView != viewTags || m.tagsView.Level != tagtui.TagLevel {
 		return m, nil
 	}
-	if m.tagsView.isCreating() || m.tagsView.isRenaming() {
+	if m.tagsView.IsCreating() || m.tagsView.IsRenaming() {
 		return m, nil
 	}
-	tag, ok := m.tagsView.focusedTag()
+	tag, ok := m.tagsView.FocusedTag()
 	if !ok {
 		return m, nil
 	}
@@ -37,19 +37,19 @@ func (m Model) handleTagMerge() (Model, tea.Cmd) {
 		m.statusBar.Notify("Need at least 2 tags to merge")
 		return m, nil
 	}
-	picker := NewTagMergePicker(tag, m.tags)
+	picker := tagtui.NewTagMergePicker(tag, m.tags)
 	m.overlay.tagMergePicker = &picker
 	return m, nil
 }
 
 // handleTagMergePicked executes the irreversible merge after user confirmation.
-func (m Model) handleTagMergePicked(msg tagMergePickedMsg) (Model, tea.Cmd) {
+func (m Model) handleTagMergePicked(msg tagtui.TagMergePickedMsg) (Model, tea.Cmd) {
 	m.overlay.tagMergePicker = nil
 	tw := m.tagWriter
 	if tw == nil {
 		return m, nil
 	}
-	src, dest := msg.src, msg.dest
+	src, dest := msg.Src, msg.Dest
 	return m, func() tea.Msg {
 		err := tw.MergeTags(src.ID, dest.ID)
 		return tagMergedMsg{src: src, dest: dest, err: err}
@@ -86,12 +86,12 @@ func (m Model) handleTagMerged(msg tagMergedMsg) (Model, tea.Cmd) {
 		tags, err := m.tagReader.ReadTags()
 		if err == nil {
 			m = m.rebuildTagCache(tags)
-			m.tagsView.tags = tags
+			m.tagsView.Tags = tags
 		}
 		counts, _ := m.tagReader.ReadTagCounts()
-		m.tagsView.tagCounts = counts
+		m.tagsView.TagCounts = counts
 	}
-	m.tagsView = m.tagsView.clampCursor()
+	m.tagsView = m.tagsView.ClampCursor()
 	m.statusBar.Notify(
 		fmt.Sprintf("Merged %q into %q", msg.src.Name, msg.dest.Name))
 	return m, nil

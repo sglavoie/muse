@@ -72,14 +72,14 @@ func TestWatchBatchPreservesPlaylistSort(t *testing.T) {
 func TestWatchBatchPreservesFavoritesSort(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"},
 		{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"},
 	}
-	m.favorites.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
-	m.favorites = m.favorites.recomputeFavoritesSort()
+	m.favorites.SortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
+	m.favorites = m.favorites.RecomputeFavoritesSort()
 
 	next, _ := m.Update(watchBatchMsg{
 		tracks: []library.Track{
@@ -89,8 +89,8 @@ func TestWatchBatchPreservesFavoritesSort(t *testing.T) {
 	nm := next.(Model)
 
 	// After re-sort: Aaron should come before Alice.
-	if nm.favorites.tracks[0].Artist != "Aaron" {
-		t.Errorf("expected first track artist=%q, got %q", "Aaron", nm.favorites.tracks[0].Artist)
+	if nm.favorites.Tracks[0].Artist != "Aaron" {
+		t.Errorf("expected first track artist=%q, got %q", "Aaron", nm.favorites.Tracks[0].Artist)
 	}
 }
 
@@ -99,13 +99,13 @@ func TestWatchBatchPreservesFavoritesSort(t *testing.T) {
 func TestWatchBatchPreservesTagsSort(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
-	m.tagsView.level = tagtui.TrackLevel
-	m.tagsView.tracks = []db.PlaylistTrackRow{
+	m.tagsView.Level = tagtui.TrackLevel
+	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"},
 	}
-	m.tagsView.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
-	m.tagsView = m.tagsView.recomputeTagsSort()
+	m.tagsView.SortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
+	m.tagsView = m.tagsView.RecomputeTagsSort()
 
 	next, _ := m.Update(watchBatchMsg{
 		tracks: []library.Track{
@@ -114,7 +114,7 @@ func TestWatchBatchPreservesTagsSort(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.tagsView.sortedTrackOrder == nil {
+	if nm.tagsView.SortedTrackOrder == nil {
 		t.Fatal("expected sortedTrackOrder to be non-nil after watcher update with active tags sort")
 	}
 }

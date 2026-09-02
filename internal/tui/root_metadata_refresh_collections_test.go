@@ -43,23 +43,23 @@ func TestRefreshDerivedViewsUpdatesPlaylistTracks(t *testing.T) {
 func TestRefreshDerivedViewsUpdatesFavoritesTracks(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
 	}
 
 	m.library.Index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum", "")
 	m = m.refreshDerivedViews()
 
-	if m.favorites.tracks[0].Title != "NewTitle" {
-		t.Errorf("favorites track title = %q, want %q", m.favorites.tracks[0].Title, "NewTitle")
+	if m.favorites.Tracks[0].Title != "NewTitle" {
+		t.Errorf("favorites track title = %q, want %q", m.favorites.Tracks[0].Title, "NewTitle")
 	}
-	if m.favorites.tracks[0].Artist != "NewArt" {
-		t.Errorf("favorites track artist = %q, want %q", m.favorites.tracks[0].Artist, "NewArt")
+	if m.favorites.Tracks[0].Artist != "NewArt" {
+		t.Errorf("favorites track artist = %q, want %q", m.favorites.Tracks[0].Artist, "NewArt")
 	}
-	if m.favorites.tracks[0].Album != "NewAlbum" {
-		t.Errorf("favorites track album = %q, want %q", m.favorites.tracks[0].Album, "NewAlbum")
+	if m.favorites.Tracks[0].Album != "NewAlbum" {
+		t.Errorf("favorites track album = %q, want %q", m.favorites.Tracks[0].Album, "NewAlbum")
 	}
 }
 
@@ -68,22 +68,22 @@ func TestRefreshDerivedViewsUpdatesFavoritesTracks(t *testing.T) {
 func TestRefreshDerivedViewsUpdatesFavoritesDrilldownTracks(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
-	m.favorites.level = favtui.TrackLevel
-	m.favorites.drilldownTracks = []library.Track{
+	m.favorites.Level = favtui.TrackLevel
+	m.favorites.DrilldownTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
 	}
 
 	m.library.Index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum", "")
 	m = m.refreshDerivedViews()
 
-	if m.favorites.drilldownTracks[0].Title != "NewTitle" {
-		t.Errorf("drilldown track title = %q, want %q", m.favorites.drilldownTracks[0].Title, "NewTitle")
+	if m.favorites.DrilldownTracks[0].Title != "NewTitle" {
+		t.Errorf("drilldown track title = %q, want %q", m.favorites.DrilldownTracks[0].Title, "NewTitle")
 	}
-	if m.favorites.drilldownTracks[0].Artist != "NewArt" {
-		t.Errorf("drilldown track artist = %q, want %q", m.favorites.drilldownTracks[0].Artist, "NewArt")
+	if m.favorites.DrilldownTracks[0].Artist != "NewArt" {
+		t.Errorf("drilldown track artist = %q, want %q", m.favorites.DrilldownTracks[0].Artist, "NewArt")
 	}
-	if m.favorites.drilldownTracks[0].Album != "NewAlbum" {
-		t.Errorf("drilldown track album = %q, want %q", m.favorites.drilldownTracks[0].Album, "NewAlbum")
+	if m.favorites.DrilldownTracks[0].Album != "NewAlbum" {
+		t.Errorf("drilldown track album = %q, want %q", m.favorites.DrilldownTracks[0].Album, "NewAlbum")
 	}
 }
 
@@ -92,22 +92,22 @@ func TestRefreshDerivedViewsUpdatesFavoritesDrilldownTracks(t *testing.T) {
 func TestRefreshDerivedViewsUpdatesTagsTracks(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "th1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
-	m.tagsView.level = tagtui.TrackLevel
-	m.tagsView.tracks = []db.PlaylistTrackRow{
+	m.tagsView.Level = tagtui.TrackLevel
+	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "th1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
 	}
 
 	m.library.Index.UpdateMetadata("th1", "NewTitle", "NewArt", "NewAlbum", "")
 	m = m.refreshDerivedViews()
 
-	if m.tagsView.tracks[0].Title != "NewTitle" {
-		t.Errorf("tags track title = %q, want %q", m.tagsView.tracks[0].Title, "NewTitle")
+	if m.tagsView.Tracks[0].Title != "NewTitle" {
+		t.Errorf("tags track title = %q, want %q", m.tagsView.Tracks[0].Title, "NewTitle")
 	}
-	if m.tagsView.tracks[0].Artist != "NewArt" {
-		t.Errorf("tags track artist = %q, want %q", m.tagsView.tracks[0].Artist, "NewArt")
+	if m.tagsView.Tracks[0].Artist != "NewArt" {
+		t.Errorf("tags track artist = %q, want %q", m.tagsView.Tracks[0].Artist, "NewArt")
 	}
-	if m.tagsView.tracks[0].Album != "NewAlbum" {
-		t.Errorf("tags track album = %q, want %q", m.tagsView.tracks[0].Album, "NewAlbum")
+	if m.tagsView.Tracks[0].Album != "NewAlbum" {
+		t.Errorf("tags track album = %q, want %q", m.tagsView.Tracks[0].Album, "NewAlbum")
 	}
 }
 
@@ -115,8 +115,8 @@ func TestRefreshDerivedViewsUpdatesTagsTracks(t *testing.T) {
 // refreshDerivedViews skips tags track metadata refresh at TagLevel.
 func TestRefreshDerivedViewsSkipsTagsTracksAtTagLevel(t *testing.T) {
 	m := New(context.Background())
-	m.tagsView.level = tagtui.TagLevel
-	m.tagsView.tags = []db.TagRow{{ID: 1, Name: "T1"}}
+	m.tagsView.Level = tagtui.TagLevel
+	m.tagsView.Tags = []db.TagRow{{ID: 1, Name: "T1"}}
 	// Should not panic with empty tracks at TagLevel.
 	m = m.refreshDerivedViews()
 }
@@ -146,13 +146,13 @@ func TestRefreshDerivedViewsUpdatesDuration(t *testing.T) {
 	m.playlists.Tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "h1", Path: "/a.flac", DurationMs: 120_000},
 	}
-	m.tagsView.level = tagtui.TrackLevel
-	m.tagsView.tracks = []db.PlaylistTrackRow{
+	m.tagsView.Level = tagtui.TrackLevel
+	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "h1", Path: "/a.flac", DurationMs: 120_000},
 	}
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Duration: 120},
 	}
 
@@ -167,11 +167,11 @@ func TestRefreshDerivedViewsUpdatesDuration(t *testing.T) {
 	if m.playlists.Tracks[0].DurationMs != 200_000 {
 		t.Errorf("playlists DurationMs = %d, want 200000", m.playlists.Tracks[0].DurationMs)
 	}
-	if m.tagsView.tracks[0].DurationMs != 200_000 {
-		t.Errorf("tags DurationMs = %d, want 200000", m.tagsView.tracks[0].DurationMs)
+	if m.tagsView.Tracks[0].DurationMs != 200_000 {
+		t.Errorf("tags DurationMs = %d, want 200000", m.tagsView.Tracks[0].DurationMs)
 	}
-	if m.favorites.tracks[0].Duration != 200 {
-		t.Errorf("favorites Duration = %v, want 200", m.favorites.tracks[0].Duration)
+	if m.favorites.Tracks[0].Duration != 200 {
+		t.Errorf("favorites Duration = %v, want 200", m.favorites.Tracks[0].Duration)
 	}
 }
 
@@ -185,8 +185,8 @@ func TestRefreshDerivedViewsUpdatesTrackAndDiscNumbers(t *testing.T) {
 
 	m.library.Mode = libtui.LibraryModeHistory
 	m.library.SourceTracks = []library.Track{{Hash: "h1", Path: "/a.flac", TrackNumber: 1, DiscNumber: 1}}
-	m.favorites.level = favtui.TrackLevel
-	m.favorites.drilldownTracks = []library.Track{{Hash: "h1", Path: "/a.flac", TrackNumber: 1, DiscNumber: 1}}
+	m.favorites.Level = favtui.TrackLevel
+	m.favorites.DrilldownTracks = []library.Track{{Hash: "h1", Path: "/a.flac", TrackNumber: 1, DiscNumber: 1}}
 	m.mixes.cachedMixes = map[db.MixID][]library.Track{
 		db.MixRediscover: {{Hash: "h1", Path: "/a.flac", TrackNumber: 1, DiscNumber: 1}},
 	}
@@ -196,7 +196,7 @@ func TestRefreshDerivedViewsUpdatesTrackAndDiscNumbers(t *testing.T) {
 
 	for name, got := range map[string]library.Track{
 		"history":   m.library.SourceTracks[0],
-		"favorites": m.favorites.drilldownTracks[0],
+		"favorites": m.favorites.DrilldownTracks[0],
 		"mixes":     m.mixes.cachedMixes[db.MixRediscover][0],
 	} {
 		if got.TrackNumber != 9 || got.DiscNumber != 2 {

@@ -104,10 +104,10 @@ func (m Model) allFilterOps() *filterOps {
 	case viewQueue:
 		return makeFilterOps(&m, &m.queue.filter, &m.queue.cursor, &m.queue.scrollOffset, nil)
 	case viewFavorites:
-		return makeFilterOps(&m, &m.favorites.filter, &m.favorites.cursor, &m.favorites.scrollOffset,
-			func() { m.favorites.selectedItems = nil })
+		return makeFilterOps(&m, &m.favorites.Filter, &m.favorites.Cursor, &m.favorites.ScrollOffset,
+			func() { m.favorites.SelectedItems = nil })
 	case viewTags:
-		return makeFilterOps(&m, &m.tagsView.filter, &m.tagsView.cursor, &m.tagsView.scrollOffset, nil)
+		return makeFilterOps(&m, &m.tagsView.Filter, &m.tagsView.Cursor, &m.tagsView.ScrollOffset, nil)
 	case viewMixes:
 		if m.mixes.level != 1 {
 			return nil

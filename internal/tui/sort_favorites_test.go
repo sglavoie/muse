@@ -11,20 +11,20 @@ import (
 func TestFavoritesVisibleReserve(t *testing.T) {
 	tests := []struct {
 		name string
-		v    FavoritesView
+		v    favtui.FavoritesView
 		want int
 	}{
-		{"category level", FavoritesView{level: favtui.CategoryLevel}, 0},
-		{"list level artists no filter no sort", FavoritesView{level: favtui.ListLevel, category: favtui.CategoryArtists}, 2},
-		{"list level artists with filter", FavoritesView{level: favtui.ListLevel, category: favtui.CategoryArtists, filter: filter.State{Active: true}}, 2},
-		{"list level artists with committed filter text", FavoritesView{level: favtui.ListLevel, category: favtui.CategoryArtists, filter: filter.State{Text: "foo"}}, 2},
-		{"list level artists with sort", FavoritesView{level: favtui.ListLevel, category: favtui.CategoryArtists, sortState: sorting.SortState{Field: sorting.SortName}}, 3},
-		{"list level artists with filter and sort", FavoritesView{level: favtui.ListLevel, category: favtui.CategoryArtists, filter: filter.State{Active: true}, sortState: sorting.SortState{Field: sorting.SortName}}, 3},
-		{"list level tracks no filter no sort", FavoritesView{level: favtui.ListLevel, category: favtui.CategoryTracks}, 3},
-		{"list level tracks with filter", FavoritesView{level: favtui.ListLevel, category: favtui.CategoryTracks, filter: filter.State{Active: true}}, 3},
-		{"list level tracks with sort", FavoritesView{level: favtui.ListLevel, category: favtui.CategoryTracks, sortState: sorting.SortState{Field: sorting.SortTitle}}, 4},
-		{"track level no sort", FavoritesView{level: favtui.TrackLevel}, 3},
-		{"track level with sort", FavoritesView{level: favtui.TrackLevel, sortState: sorting.SortState{Field: sorting.SortTitle}}, 4},
+		{"category level", favtui.FavoritesView{Level: favtui.CategoryLevel}, 0},
+		{"list level artists no filter no sort", favtui.FavoritesView{Level: favtui.ListLevel, Category: favtui.CategoryArtists}, 2},
+		{"list level artists with filter", favtui.FavoritesView{Level: favtui.ListLevel, Category: favtui.CategoryArtists, Filter: filter.State{Active: true}}, 2},
+		{"list level artists with committed filter text", favtui.FavoritesView{Level: favtui.ListLevel, Category: favtui.CategoryArtists, Filter: filter.State{Text: "foo"}}, 2},
+		{"list level artists with sort", favtui.FavoritesView{Level: favtui.ListLevel, Category: favtui.CategoryArtists, SortState: sorting.SortState{Field: sorting.SortName}}, 3},
+		{"list level artists with filter and sort", favtui.FavoritesView{Level: favtui.ListLevel, Category: favtui.CategoryArtists, Filter: filter.State{Active: true}, SortState: sorting.SortState{Field: sorting.SortName}}, 3},
+		{"list level tracks no filter no sort", favtui.FavoritesView{Level: favtui.ListLevel, Category: favtui.CategoryTracks}, 3},
+		{"list level tracks with filter", favtui.FavoritesView{Level: favtui.ListLevel, Category: favtui.CategoryTracks, Filter: filter.State{Active: true}}, 3},
+		{"list level tracks with sort", favtui.FavoritesView{Level: favtui.ListLevel, Category: favtui.CategoryTracks, SortState: sorting.SortState{Field: sorting.SortTitle}}, 4},
+		{"track level no sort", favtui.FavoritesView{Level: favtui.TrackLevel}, 3},
+		{"track level with sort", favtui.FavoritesView{Level: favtui.TrackLevel, SortState: sorting.SortState{Field: sorting.SortTitle}}, 4},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

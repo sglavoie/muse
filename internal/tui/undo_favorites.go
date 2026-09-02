@@ -51,45 +51,45 @@ func (a undoRemoveFavoriteAction) perform(m Model) (Model, tea.Cmd) {
 		m.favoriteAlbums[a.value] = struct{}{}
 	}
 	if m.activeView == viewFavorites && a.idx >= 0 &&
-		m.favorites.level == a.level {
+		m.favorites.Level == a.level {
 		switch a.level {
 		case favtui.ListLevel:
 			switch a.category {
 			case favtui.CategoryArtists:
-				m.favorites.artists = insertStringAt(m.favorites.artists, a.idx, a.value)
-				m.favorites.artistCount = len(m.favorites.artists)
+				m.favorites.Artists = insertStringAt(m.favorites.Artists, a.idx, a.value)
+				m.favorites.ArtistCount = len(m.favorites.Artists)
 			case favtui.CategoryAlbums:
-				m.favorites.albums = insertStringAt(m.favorites.albums, a.idx, a.value)
-				m.favorites.albumCount = len(m.favorites.albums)
+				m.favorites.Albums = insertStringAt(m.favorites.Albums, a.idx, a.value)
+				m.favorites.AlbumCount = len(m.favorites.Albums)
 			case favtui.CategoryTracks:
-				m.favorites.tracks = insertTrackAt(m.favorites.tracks, a.idx, a.track)
-				m.favorites.trackCount = len(m.favorites.tracks)
+				m.favorites.Tracks = insertTrackAt(m.favorites.Tracks, a.idx, a.track)
+				m.favorites.TrackCount = len(m.favorites.Tracks)
 			}
-			if m.favorites.category == a.category {
-				m.favorites.cursor = a.idx
-				m.favorites = m.favorites.clampCursor()
+			if m.favorites.Category == a.category {
+				m.favorites.Cursor = a.idx
+				m.favorites = m.favorites.ClampCursor()
 			}
 		case favtui.TrackLevel:
 			hash := a.value
 			if hash == "" {
 				hash = a.track.Hash
 			}
-			if hash != "" && indexOfTrackByHash(m.favorites.drilldownTracks, hash) < 0 && a.track.Hash != "" {
-				m.favorites.drilldownTracks = insertTrackAt(m.favorites.drilldownTracks, a.idx, a.track)
+			if hash != "" && indexOfTrackByHash(m.favorites.DrilldownTracks, hash) < 0 && a.track.Hash != "" {
+				m.favorites.DrilldownTracks = insertTrackAt(m.favorites.DrilldownTracks, a.idx, a.track)
 			}
-			m.favorites.selectedItems = nil
+			m.favorites.SelectedItems = nil
 			if a.idx >= 0 {
-				m.favorites.cursor = a.idx
+				m.favorites.Cursor = a.idx
 			}
-			m.favorites = m.favorites.clampCursor()
+			m.favorites = m.favorites.ClampCursor()
 		}
 	}
 	if m.activeView == viewFavorites && m.favoriteReader != nil {
 		ac, al, t, err := m.favoriteReader.ReadFavoriteCounts()
 		if err == nil {
-			m.favorites.artistCount = ac
-			m.favorites.albumCount = al
-			m.favorites.trackCount = t
+			m.favorites.ArtistCount = ac
+			m.favorites.AlbumCount = al
+			m.favorites.TrackCount = t
 		}
 	}
 	m.statusBar.Notify(fmt.Sprintf("Undone: added %s back to favorites", a.typ))
@@ -124,33 +124,33 @@ func (a undoAddFavoriteAction) perform(m Model) (Model, tea.Cmd) {
 		delete(m.favoriteAlbums, a.value)
 	}
 	if m.activeView == viewFavorites {
-		switch m.favorites.level {
+		switch m.favorites.Level {
 		case favtui.ListLevel:
 			switch {
-			case a.typ == "artist" && m.favorites.category == favtui.CategoryArtists:
-				m.favorites.artists = removeString(m.favorites.artists, a.value)
-				m.favorites.artistCount = len(m.favorites.artists)
-			case a.typ == "album" && m.favorites.category == favtui.CategoryAlbums:
-				m.favorites.albums = removeString(m.favorites.albums, a.value)
-				m.favorites.albumCount = len(m.favorites.albums)
-			case a.typ == "track" && m.favorites.category == favtui.CategoryTracks:
-				m.favorites.tracks = removeTrackByHash(m.favorites.tracks, a.value)
-				m.favorites.trackCount = len(m.favorites.tracks)
+			case a.typ == "artist" && m.favorites.Category == favtui.CategoryArtists:
+				m.favorites.Artists = removeString(m.favorites.Artists, a.value)
+				m.favorites.ArtistCount = len(m.favorites.Artists)
+			case a.typ == "album" && m.favorites.Category == favtui.CategoryAlbums:
+				m.favorites.Albums = removeString(m.favorites.Albums, a.value)
+				m.favorites.AlbumCount = len(m.favorites.Albums)
+			case a.typ == "track" && m.favorites.Category == favtui.CategoryTracks:
+				m.favorites.Tracks = removeTrackByHash(m.favorites.Tracks, a.value)
+				m.favorites.TrackCount = len(m.favorites.Tracks)
 			}
-			m.favorites.selectedItems = nil
-			m.favorites = m.favorites.clampCursor()
+			m.favorites.SelectedItems = nil
+			m.favorites = m.favorites.ClampCursor()
 		case favtui.TrackLevel:
 			if a.typ == "track" {
-				m.favorites.selectedItems = nil
-				m.favorites = m.favorites.clampCursor()
+				m.favorites.SelectedItems = nil
+				m.favorites = m.favorites.ClampCursor()
 			}
 		}
 		if m.favoriteReader != nil {
 			ac, al, t, err := m.favoriteReader.ReadFavoriteCounts()
 			if err == nil {
-				m.favorites.artistCount = ac
-				m.favorites.albumCount = al
-				m.favorites.trackCount = t
+				m.favorites.ArtistCount = ac
+				m.favorites.AlbumCount = al
+				m.favorites.TrackCount = t
 			}
 		}
 	}
@@ -194,39 +194,39 @@ func (a undoBulkAddFavoritesAction) perform(m Model) (Model, tea.Cmd) {
 		}
 	}
 	if m.activeView == viewFavorites {
-		switch m.favorites.level {
+		switch m.favorites.Level {
 		case favtui.ListLevel:
 			switch {
-			case a.typ == "artist" && m.favorites.category == favtui.CategoryArtists:
+			case a.typ == "artist" && m.favorites.Category == favtui.CategoryArtists:
 				for _, v := range a.values {
-					m.favorites.artists = removeString(m.favorites.artists, v)
+					m.favorites.Artists = removeString(m.favorites.Artists, v)
 				}
-				m.favorites.artistCount = len(m.favorites.artists)
-			case a.typ == "album" && m.favorites.category == favtui.CategoryAlbums:
+				m.favorites.ArtistCount = len(m.favorites.Artists)
+			case a.typ == "album" && m.favorites.Category == favtui.CategoryAlbums:
 				for _, v := range a.values {
-					m.favorites.albums = removeString(m.favorites.albums, v)
+					m.favorites.Albums = removeString(m.favorites.Albums, v)
 				}
-				m.favorites.albumCount = len(m.favorites.albums)
-			case a.typ == "track" && m.favorites.category == favtui.CategoryTracks:
+				m.favorites.AlbumCount = len(m.favorites.Albums)
+			case a.typ == "track" && m.favorites.Category == favtui.CategoryTracks:
 				for _, v := range a.values {
-					m.favorites.tracks = removeTrackByHash(m.favorites.tracks, v)
+					m.favorites.Tracks = removeTrackByHash(m.favorites.Tracks, v)
 				}
-				m.favorites.trackCount = len(m.favorites.tracks)
+				m.favorites.TrackCount = len(m.favorites.Tracks)
 			}
-			m.favorites.selectedItems = nil
-			m.favorites = m.favorites.clampCursor()
+			m.favorites.SelectedItems = nil
+			m.favorites = m.favorites.ClampCursor()
 		case favtui.TrackLevel:
 			if a.typ == "track" {
-				m.favorites.selectedItems = nil
-				m.favorites = m.favorites.clampCursor()
+				m.favorites.SelectedItems = nil
+				m.favorites = m.favorites.ClampCursor()
 			}
 		}
 		if m.favoriteReader != nil {
 			ac, al, t, err := m.favoriteReader.ReadFavoriteCounts()
 			if err == nil {
-				m.favorites.artistCount = ac
-				m.favorites.albumCount = al
-				m.favorites.trackCount = t
+				m.favorites.ArtistCount = ac
+				m.favorites.AlbumCount = al
+				m.favorites.TrackCount = t
 			}
 		}
 	}
@@ -286,28 +286,28 @@ func (a undoBulkRemoveFavoritesAction) perform(m Model) (Model, tea.Cmd) {
 		}
 	}
 	if m.activeView == viewFavorites && len(a.indices) > 0 &&
-		m.favorites.level == a.level {
+		m.favorites.Level == a.level {
 		switch a.level {
 		case favtui.ListLevel:
 			switch a.category {
 			case favtui.CategoryArtists:
 				for i, idx := range a.indices {
-					m.favorites.artists = insertStringAt(m.favorites.artists, min(idx, len(m.favorites.artists)), a.values[i])
+					m.favorites.Artists = insertStringAt(m.favorites.Artists, min(idx, len(m.favorites.Artists)), a.values[i])
 				}
-				m.favorites.artistCount = len(m.favorites.artists)
+				m.favorites.ArtistCount = len(m.favorites.Artists)
 			case favtui.CategoryAlbums:
 				for i, idx := range a.indices {
-					m.favorites.albums = insertStringAt(m.favorites.albums, min(idx, len(m.favorites.albums)), a.values[i])
+					m.favorites.Albums = insertStringAt(m.favorites.Albums, min(idx, len(m.favorites.Albums)), a.values[i])
 				}
-				m.favorites.albumCount = len(m.favorites.albums)
+				m.favorites.AlbumCount = len(m.favorites.Albums)
 			case favtui.CategoryTracks:
 				for i, idx := range a.indices {
-					m.favorites.tracks = insertTrackAt(m.favorites.tracks, min(idx, len(m.favorites.tracks)), a.tracks[i])
+					m.favorites.Tracks = insertTrackAt(m.favorites.Tracks, min(idx, len(m.favorites.Tracks)), a.tracks[i])
 				}
-				m.favorites.trackCount = len(m.favorites.tracks)
+				m.favorites.TrackCount = len(m.favorites.Tracks)
 			}
-			if m.favorites.category == a.category {
-				m.favorites = m.favorites.clampCursor()
+			if m.favorites.Category == a.category {
+				m.favorites = m.favorites.ClampCursor()
 			}
 		case favtui.TrackLevel:
 			for i, idx := range a.indices {
@@ -315,21 +315,21 @@ func (a undoBulkRemoveFavoritesAction) perform(m Model) (Model, tea.Cmd) {
 					continue
 				}
 				hash := a.tracks[i].Hash
-				if hash != "" && indexOfTrackByHash(m.favorites.drilldownTracks, hash) >= 0 {
+				if hash != "" && indexOfTrackByHash(m.favorites.DrilldownTracks, hash) >= 0 {
 					continue
 				}
-				m.favorites.drilldownTracks = insertTrackAt(m.favorites.drilldownTracks, min(idx, len(m.favorites.drilldownTracks)), a.tracks[i])
+				m.favorites.DrilldownTracks = insertTrackAt(m.favorites.DrilldownTracks, min(idx, len(m.favorites.DrilldownTracks)), a.tracks[i])
 			}
-			m.favorites.selectedItems = nil
-			m.favorites = m.favorites.clampCursor()
+			m.favorites.SelectedItems = nil
+			m.favorites = m.favorites.ClampCursor()
 		}
 	}
 	if m.activeView == viewFavorites && m.favoriteReader != nil {
 		ac, al, t, err := m.favoriteReader.ReadFavoriteCounts()
 		if err == nil {
-			m.favorites.artistCount = ac
-			m.favorites.albumCount = al
-			m.favorites.trackCount = t
+			m.favorites.ArtistCount = ac
+			m.favorites.AlbumCount = al
+			m.favorites.TrackCount = t
 		}
 	}
 	n := len(a.values)

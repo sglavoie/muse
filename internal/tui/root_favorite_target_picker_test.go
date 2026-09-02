@@ -33,7 +33,7 @@ func confirmFavoritePickerForTest(t *testing.T, m Model, key string) (Model, fav
 	if pickedCmd == nil {
 		t.Fatalf("favorite target key %q did not select", key)
 	}
-	picked := pickedCmd().(favoriteTargetPickedMsg)
+	picked := pickedCmd().(favtui.TargetPickedMsg)
 	next, writeCmd := m.handleFavoriteTargetPicked(picked)
 	if writeCmd == nil {
 		t.Fatal("favorite target selection did not produce write command")
@@ -117,7 +117,7 @@ func TestFavoritePickerMixesTrackLevel(t *testing.T) {
 	m.mixes.trackView = m.mixes.trackView.RefreshView()
 
 	opened := openFavoritePickerForTest(t, m)
-	if got := opened.overlay.favoriteTargetPicker.tracks[0].Hash; got != "mx" {
+	if got := opened.overlay.favoriteTargetPicker.Tracks[0].Hash; got != "mx" {
 		t.Fatalf("mix picker hash = %q", got)
 	}
 }
@@ -133,7 +133,7 @@ func TestFavoritePickerQueuePlaylistAndFavoritesTracks(t *testing.T) {
 		m.activeView = viewQueue
 		m.queue.entries = []QueueEntry{{Hash: "q1", Title: "Queued", Artist: "A", Album: "B"}}
 		opened := openFavoritePickerForTest(t, m)
-		if got := opened.overlay.favoriteTargetPicker.tracks[0].Hash; got != "q1" {
+		if got := opened.overlay.favoriteTargetPicker.Tracks[0].Hash; got != "q1" {
 			t.Fatalf("queue picker hash = %q", got)
 		}
 	})
@@ -144,7 +144,7 @@ func TestFavoritePickerQueuePlaylistAndFavoritesTracks(t *testing.T) {
 		m.playlists.Level = pltui.TrackLevel
 		m.playlists.Tracks = []db.PlaylistTrackRow{{ID: 1, Hash: "p1", Title: "Playlist", Artist: "A", Album: "B"}}
 		opened := openFavoritePickerForTest(t, m)
-		if got := opened.overlay.favoriteTargetPicker.tracks[0].Hash; got != "p1" {
+		if got := opened.overlay.favoriteTargetPicker.Tracks[0].Hash; got != "p1" {
 			t.Fatalf("playlist picker hash = %q", got)
 		}
 	})
@@ -152,11 +152,11 @@ func TestFavoritePickerQueuePlaylistAndFavoritesTracks(t *testing.T) {
 	t.Run("favorites", func(t *testing.T) {
 		m := newModel()
 		m.activeView = viewFavorites
-		m.favorites.level = favtui.ListLevel
-		m.favorites.category = favtui.CategoryTracks
-		m.favorites.tracks = []library.Track{{Hash: "f1", Title: "Favorite", Artist: "A", Album: "B"}}
+		m.favorites.Level = favtui.ListLevel
+		m.favorites.Category = favtui.CategoryTracks
+		m.favorites.Tracks = []library.Track{{Hash: "f1", Title: "Favorite", Artist: "A", Album: "B"}}
 		opened := openFavoritePickerForTest(t, m)
-		if got := opened.overlay.favoriteTargetPicker.tracks[0].Hash; got != "f1" {
+		if got := opened.overlay.favoriteTargetPicker.Tracks[0].Hash; got != "f1" {
 			t.Fatalf("favorites picker hash = %q", got)
 		}
 	})
@@ -166,9 +166,9 @@ func TestFavoriteEntityRowsKeepDirectToggle(t *testing.T) {
 	store := newUITestFavorites(map[string][]string{"artist": {"A"}})
 	m := New(context.Background(), WithFavoriteReader(store), WithFavoriteWriter(store))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryArtists
-	m.favorites.artists = []string{"A"}
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryArtists
+	m.favorites.Artists = []string{"A"}
 
 	next, cmd, handled := m.handleToggleFavorite()
 	if !handled || cmd == nil {
@@ -187,25 +187,25 @@ func TestFavoritePickerRemovingDrilldownParentReturnsToList(t *testing.T) {
 	store := newUITestFavorites(map[string][]string{"artist": {"A", "B"}})
 	m := New(context.Background(), WithFavoriteReader(store), WithFavoriteWriter(store))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.TrackLevel
-	m.favorites.category = favtui.CategoryArtists
-	m.favorites.artists = []string{"A", "B"}
-	m.favorites.drilldownName = "A"
-	m.favorites.drilldownTracks = []library.Track{{Hash: "h1", Title: "One", Artist: "A", Album: "X"}}
+	m.favorites.Level = favtui.TrackLevel
+	m.favorites.Category = favtui.CategoryArtists
+	m.favorites.Artists = []string{"A", "B"}
+	m.favorites.DrilldownName = "A"
+	m.favorites.DrilldownTracks = []library.Track{{Hash: "h1", Title: "One", Artist: "A", Album: "X"}}
 
 	opened := openFavoritePickerForTest(t, m)
 	confirmed, result := confirmFavoritePickerForTest(t, opened, "r")
 	confirmed = confirmed.handleFavoriteToggledMsg(result)
-	if confirmed.favorites.level != favtui.ListLevel {
-		t.Fatalf("favorites level = %v, want ListLevel", confirmed.favorites.level)
+	if confirmed.favorites.Level != favtui.ListLevel {
+		t.Fatalf("favorites level = %v, want ListLevel", confirmed.favorites.Level)
 	}
-	if len(confirmed.favorites.artists) != 1 || confirmed.favorites.artists[0] != "B" {
-		t.Fatalf("parent list = %v, want [B]", confirmed.favorites.artists)
+	if len(confirmed.favorites.Artists) != 1 || confirmed.favorites.Artists[0] != "B" {
+		t.Fatalf("parent list = %v, want [B]", confirmed.favorites.Artists)
 	}
 
 	undone := confirmed.handleUndo()
-	if len(undone.favorites.artists) != 2 || undone.favorites.artists[0] != "A" {
-		t.Fatalf("parent list after undo = %v", undone.favorites.artists)
+	if len(undone.favorites.Artists) != 2 || undone.favorites.Artists[0] != "A" {
+		t.Fatalf("parent list after undo = %v", undone.favorites.Artists)
 	}
 }
 
@@ -214,9 +214,9 @@ func TestFavoritePickerFavoritesTrackRemovalAndNonParentNavigation(t *testing.T)
 		store := newUITestFavorites(map[string][]string{"track": {"h1", "h2"}})
 		m := New(context.Background(), WithFavoriteReader(store), WithFavoriteWriter(store))
 		m.activeView = viewFavorites
-		m.favorites.level = favtui.ListLevel
-		m.favorites.category = favtui.CategoryTracks
-		m.favorites.tracks = []library.Track{
+		m.favorites.Level = favtui.ListLevel
+		m.favorites.Category = favtui.CategoryTracks
+		m.favorites.Tracks = []library.Track{
 			{Hash: "h1", Title: "One", Artist: "A", Album: "X"},
 			{Hash: "h2", Title: "Two", Artist: "B", Album: "Y"},
 		}
@@ -224,8 +224,8 @@ func TestFavoritePickerFavoritesTrackRemovalAndNonParentNavigation(t *testing.T)
 		opened := openFavoritePickerForTest(t, m)
 		confirmed, result := confirmFavoritePickerForTest(t, opened, "t")
 		confirmed = confirmed.handleFavoriteToggledMsg(result)
-		if len(confirmed.favorites.tracks) != 1 || confirmed.favorites.tracks[0].Hash != "h2" {
-			t.Fatalf("favorites tracks after removal = %+v", confirmed.favorites.tracks)
+		if len(confirmed.favorites.Tracks) != 1 || confirmed.favorites.Tracks[0].Hash != "h2" {
+			t.Fatalf("favorites tracks after removal = %+v", confirmed.favorites.Tracks)
 		}
 	})
 
@@ -233,17 +233,17 @@ func TestFavoritePickerFavoritesTrackRemovalAndNonParentNavigation(t *testing.T)
 		store := newUITestFavorites(map[string][]string{"artist": {"A"}, "album": {"X"}})
 		m := New(context.Background(), WithFavoriteReader(store), WithFavoriteWriter(store))
 		m.activeView = viewFavorites
-		m.favorites.level = favtui.TrackLevel
-		m.favorites.category = favtui.CategoryAlbums
-		m.favorites.albums = []string{"X"}
-		m.favorites.drilldownName = "X"
-		m.favorites.drilldownTracks = []library.Track{{Hash: "h1", Title: "One", Artist: "A", Album: "X"}}
+		m.favorites.Level = favtui.TrackLevel
+		m.favorites.Category = favtui.CategoryAlbums
+		m.favorites.Albums = []string{"X"}
+		m.favorites.DrilldownName = "X"
+		m.favorites.DrilldownTracks = []library.Track{{Hash: "h1", Title: "One", Artist: "A", Album: "X"}}
 
 		opened := openFavoritePickerForTest(t, m)
 		confirmed, result := confirmFavoritePickerForTest(t, opened, "r")
 		confirmed = confirmed.handleFavoriteToggledMsg(result)
-		if confirmed.favorites.level != favtui.TrackLevel {
-			t.Fatalf("favorites level = %v, want TrackLevel", confirmed.favorites.level)
+		if confirmed.favorites.Level != favtui.TrackLevel {
+			t.Fatalf("favorites level = %v, want TrackLevel", confirmed.favorites.Level)
 		}
 	})
 }

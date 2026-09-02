@@ -1,4 +1,4 @@
-package tui
+package tags
 
 import (
 	"strings"
@@ -31,14 +31,14 @@ type TagMergePicker struct {
 	dest     db.TagRow // the chosen destination (set when step == confirming)
 }
 
-// tagMergePickedMsg is dispatched when the user confirms a merge.
-type tagMergePickedMsg struct {
-	src  db.TagRow
-	dest db.TagRow
+// TagMergePickedMsg is dispatched when the user confirms a merge.
+type TagMergePickedMsg struct {
+	Src  db.TagRow
+	Dest db.TagRow
 }
 
-// tagMergeDismissedMsg is dispatched when the picker is closed without merging.
-type tagMergeDismissedMsg struct{}
+// TagMergeDismissedMsg is dispatched when the picker is closed without merging.
+type TagMergeDismissedMsg struct{}
 
 // NewTagMergePicker builds the picker with src excluded from the destination list.
 func NewTagMergePicker(src db.TagRow, all []db.TagRow) TagMergePicker {
@@ -88,7 +88,7 @@ func (tp TagMergePicker) HandleKey(key string) (TagMergePicker, tea.Cmd) {
 func (tp TagMergePicker) handlePickKey(key string) (TagMergePicker, tea.Cmd) {
 	switch key {
 	case "esc":
-		return tp, func() tea.Msg { return tagMergeDismissedMsg{} }
+		return tp, func() tea.Msg { return TagMergeDismissedMsg{} }
 	case "up", "k":
 		if tp.cursor > 0 {
 			tp.cursor--
@@ -124,9 +124,9 @@ func (tp TagMergePicker) handleConfirmKey(key string) (TagMergePicker, tea.Cmd) 
 	switch key {
 	case "y", "Y", "enter":
 		src, dest := tp.src, tp.dest
-		return tp, func() tea.Msg { return tagMergePickedMsg{src: src, dest: dest} }
+		return tp, func() tea.Msg { return TagMergePickedMsg{Src: src, Dest: dest} }
 	case "n", "N", "esc":
-		return tp, func() tea.Msg { return tagMergeDismissedMsg{} }
+		return tp, func() tea.Msg { return TagMergeDismissedMsg{} }
 	}
 	return tp, nil
 }

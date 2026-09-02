@@ -52,16 +52,16 @@ func TestSortedIntSetKeysEmpty(t *testing.T) {
 func TestBulkFavoriteTracksReturnsDeterministicOrder(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{
 		{Hash: "h0", Title: "T0", Artist: "A"},
 		{Hash: "h1", Title: "T1", Artist: "A"},
 		{Hash: "h2", Title: "T2", Artist: "A"},
 		{Hash: "h3", Title: "T3", Artist: "A"},
 		{Hash: "h4", Title: "T4", Artist: "A"},
 	}
-	m.favorites.selectedItems = map[int]struct{}{4: {}, 1: {}, 3: {}}
+	m.favorites.SelectedItems = map[int]struct{}{4: {}, 1: {}, 3: {}}
 
 	for i := 0; i < 50; i++ {
 		tracks := m.bulkFavoriteTracks()
@@ -105,14 +105,14 @@ func TestPlaylistBulkDeleteExitsVisualMode(t *testing.T) {
 func TestFavoritesBulkActionExitsVisualMode(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{
 		{Hash: "h0", Title: "T0", Artist: "A"},
 		{Hash: "h1", Title: "T1", Artist: "A"},
 		{Hash: "h2", Title: "T2", Artist: "A"},
 	}
-	m.favorites.cursor = 0
+	m.favorites.Cursor = 0
 
 	m = doVisual(m)
 	m = doNav(m, keys.ActionCursorDown)
@@ -131,9 +131,9 @@ func TestFavoritesBulkActionExitsVisualMode(t *testing.T) {
 func TestVisualSelectRangeFavoritesBoundsClamp(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{
 		{Hash: "h0", Title: "T0", Artist: "A"},
 		{Hash: "h1", Title: "T1", Artist: "A"},
 	}
@@ -141,12 +141,12 @@ func TestVisualSelectRangeFavoritesBoundsClamp(t *testing.T) {
 
 	m = selectRange(m, 0, 10)
 
-	for idx := range m.favorites.selectedItems {
-		if idx < 0 || idx >= len(m.favorites.tracks) {
-			t.Fatalf("selectedItems contains out-of-range index %d (list len=%d)", idx, len(m.favorites.tracks))
+	for idx := range m.favorites.SelectedItems {
+		if idx < 0 || idx >= len(m.favorites.Tracks) {
+			t.Fatalf("selectedItems contains out-of-range index %d (list len=%d)", idx, len(m.favorites.Tracks))
 		}
 	}
-	if len(m.favorites.selectedItems) != len(m.favorites.tracks) {
-		t.Fatalf("expected exactly %d clamped selections, got %d", len(m.favorites.tracks), len(m.favorites.selectedItems))
+	if len(m.favorites.SelectedItems) != len(m.favorites.Tracks) {
+		t.Fatalf("expected exactly %d clamped selections, got %d", len(m.favorites.Tracks), len(m.favorites.SelectedItems))
 	}
 }

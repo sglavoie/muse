@@ -60,7 +60,7 @@ func (m Model) activeViewSelectionCount() int {
 			return len(m.browse.genres.selectedHashes)
 		}
 	case viewFavorites:
-		return len(m.favorites.selectedItems)
+		return len(m.favorites.SelectedItems)
 	case viewInsights:
 		return len(m.insights.trackView.SelectedHashes)
 	}
@@ -115,9 +115,9 @@ func (m Model) hasCommittedFilter() bool {
 			return committed(m.browse.genres.filter.Text, m.browse.genres.filter.Active)
 		}
 	case viewFavorites:
-		return committed(m.favorites.filter.Text, m.favorites.filter.Active)
+		return committed(m.favorites.Filter.Text, m.favorites.Filter.Active)
 	case viewTags:
-		return committed(m.tagsView.filter.Text, m.tagsView.filter.Active)
+		return committed(m.tagsView.Filter.Text, m.tagsView.Filter.Active)
 	case viewInsights:
 		return committed(m.insights.trackView.Filter.Text, m.insights.trackView.Filter.Active)
 	}

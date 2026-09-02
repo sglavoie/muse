@@ -20,16 +20,16 @@ func TestUndoRemoveFavorite_CrossCategoryCursorUnchanged(t *testing.T) {
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
+	m.favorites.Level = favtui.ListLevel
 	// Currently viewing albums, but undo is for an artist removal.
-	m.favorites.category = favtui.CategoryAlbums
-	m.favorites.albums = []string{"AlbumA", "AlbumB"}
-	m.favorites.albumCount = 2
-	m.favorites.cursor = 1 // cursor on AlbumB
+	m.favorites.Category = favtui.CategoryAlbums
+	m.favorites.Albums = []string{"AlbumA", "AlbumB"}
+	m.favorites.AlbumCount = 2
+	m.favorites.Cursor = 1 // cursor on AlbumB
 
 	// Simulate state after "Bach" (index 0) was removed from artists.
-	m.favorites.artists = []string{"Coltrane", "Davis"}
-	m.favorites.artistCount = 2
+	m.favorites.Artists = []string{"Coltrane", "Davis"}
+	m.favorites.ArtistCount = 2
 
 	m.undo.slot = undoSlot{
 		action: undoRemoveFavoriteAction{
@@ -46,12 +46,12 @@ func TestUndoRemoveFavorite_CrossCategoryCursorUnchanged(t *testing.T) {
 	nm := next.(Model)
 
 	// Artist list should be restored.
-	if len(nm.favorites.artists) != 3 {
-		t.Fatalf("expected 3 artists after undo, got %d", len(nm.favorites.artists))
+	if len(nm.favorites.Artists) != 3 {
+		t.Fatalf("expected 3 artists after undo, got %d", len(nm.favorites.Artists))
 	}
 	// Cursor should still be on AlbumB (index 1), NOT moved to 0.
-	if nm.favorites.cursor != 1 {
-		t.Fatalf("expected cursor to remain at 1 (AlbumB), got %d", nm.favorites.cursor)
+	if nm.favorites.Cursor != 1 {
+		t.Fatalf("expected cursor to remain at 1 (AlbumB), got %d", nm.favorites.Cursor)
 	}
 }
 
@@ -62,17 +62,17 @@ func TestUndoBulkRemoveFavorites_CrossCategoryCursorUnchanged(t *testing.T) {
 	m := Model{
 		appCtx:     context.Background(),
 		activeView: viewFavorites,
-		favorites: FavoritesView{
-			level:    favtui.ListLevel,
-			category: favtui.CategoryTracks, // viewing tracks
-			tracks: []library.Track{
+		favorites: favtui.FavoritesView{
+			Level:    favtui.ListLevel,
+			Category: favtui.CategoryTracks, // viewing tracks
+			Tracks: []library.Track{
 				{Hash: "t1", Title: "Track1"},
 				{Hash: "t2", Title: "Track2"},
 				{Hash: "t3", Title: "Track3"},
 			},
-			trackCount: 3,
-			cursor:     2, // cursor on Track3
-			artists:    []string{"A"},
+			TrackCount: 3,
+			Cursor:     2, // cursor on Track3
+			Artists:    []string{"A"},
 		},
 	}
 
@@ -86,11 +86,11 @@ func TestUndoBulkRemoveFavorites_CrossCategoryCursorUnchanged(t *testing.T) {
 	m, _ = action.perform(m)
 
 	// Artists should be restored.
-	if len(m.favorites.artists) != 3 {
-		t.Fatalf("expected 3 artists after undo, got %d", len(m.favorites.artists))
+	if len(m.favorites.Artists) != 3 {
+		t.Fatalf("expected 3 artists after undo, got %d", len(m.favorites.Artists))
 	}
 	// Cursor should still be at 2 (Track3), not clamped by artist count.
-	if m.favorites.cursor != 2 {
-		t.Fatalf("expected cursor to remain at 2, got %d", m.favorites.cursor)
+	if m.favorites.Cursor != 2 {
+		t.Fatalf("expected cursor to remain at 2, got %d", m.favorites.Cursor)
 	}
 }

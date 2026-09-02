@@ -29,7 +29,7 @@ func TestToggleFavorite_AlbumsTrackLevelBulkOpensPicker(t *testing.T) {
 	if len(nm.browse.albums.selectedHashes) != 2 {
 		t.Fatal("opening picker should preserve selectedHashes")
 	}
-	if got := len(nm.overlay.favoriteTargetPicker.tracks); got != 2 {
+	if got := len(nm.overlay.favoriteTargetPicker.Tracks); got != 2 {
 		t.Fatalf("picker tracks = %d, want 2", got)
 	}
 	if len(w.added) != 0 {
@@ -51,7 +51,7 @@ func TestToggleFavorite_AlbumsTrackLevelSingleOpensPicker(t *testing.T) {
 	m.browse.albums.cursor = 0
 
 	nm := openFavoritePickerForTest(t, m)
-	if got := nm.overlay.favoriteTargetPicker.tracks[0].Hash; got != "b1" {
+	if got := nm.overlay.favoriteTargetPicker.Tracks[0].Hash; got != "b1" {
 		t.Errorf("picker track hash = %q, want b1", got)
 	}
 }

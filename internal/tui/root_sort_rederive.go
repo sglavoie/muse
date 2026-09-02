@@ -45,9 +45,9 @@ func (m Model) rederiveAlbumsData() Model {
 // recovered from the library index alone.
 func (m Model) rederiveFavoritesData() Model {
 	tracks := m.library.Index.Tracks()
-	switch m.favorites.level {
+	switch m.favorites.Level {
 	case favtui.ListLevel:
-		switch m.favorites.category {
+		switch m.favorites.Category {
 		case favtui.CategoryArtists:
 			if m.favoriteReader != nil {
 				rows, err := m.favoriteReader.ReadFavoritesByType("artist")
@@ -56,7 +56,7 @@ func (m Model) rederiveFavoritesData() Model {
 					for i, r := range rows {
 						artists[i] = r.Value
 					}
-					m.favorites.artists = artists
+					m.favorites.Artists = artists
 				}
 			}
 		case favtui.CategoryAlbums:
@@ -67,12 +67,12 @@ func (m Model) rederiveFavoritesData() Model {
 					for i, r := range rows {
 						albums[i] = r.Value
 					}
-					m.favorites.albums = albums
+					m.favorites.Albums = albums
 				}
 			}
 		case favtui.CategoryTracks:
-			hashSet := make(map[string]struct{}, len(m.favorites.tracks))
-			for _, t := range m.favorites.tracks {
+			hashSet := make(map[string]struct{}, len(m.favorites.Tracks))
+			for _, t := range m.favorites.Tracks {
 				hashSet[t.Hash] = struct{}{}
 			}
 			var rebuilt []library.Track
@@ -82,11 +82,11 @@ func (m Model) rederiveFavoritesData() Model {
 					delete(hashSet, t.Hash)
 				}
 			}
-			m.favorites.tracks = rebuilt
+			m.favorites.Tracks = rebuilt
 		}
 	case favtui.TrackLevel:
-		hashSet := make(map[string]struct{}, len(m.favorites.drilldownTracks))
-		for _, t := range m.favorites.drilldownTracks {
+		hashSet := make(map[string]struct{}, len(m.favorites.DrilldownTracks))
+		for _, t := range m.favorites.DrilldownTracks {
 			hashSet[t.Hash] = struct{}{}
 		}
 		var rebuilt []library.Track
@@ -96,7 +96,7 @@ func (m Model) rederiveFavoritesData() Model {
 				delete(hashSet, t.Hash)
 			}
 		}
-		m.favorites.drilldownTracks = rebuilt
+		m.favorites.DrilldownTracks = rebuilt
 	}
 	return m
 }

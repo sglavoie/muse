@@ -16,16 +16,16 @@ import (
 // fix, a cursor at index 2 in a filtered list of 2 items goes out of bounds.
 func TestFavoritesClampCursor_WithActiveFilter(t *testing.T) {
 	m := New(context.Background())
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryArtists
-	m.favorites.artists = []string{"Alice", "Bob", "Charlie", "David"}
-	m.favorites.filter.Text = "a"
-	m.favorites.cursor = 3
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryArtists
+	m.favorites.Artists = []string{"Alice", "Bob", "Charlie", "David"}
+	m.favorites.Filter.Text = "a"
+	m.favorites.Cursor = 3
 
-	m.favorites = m.favorites.clampCursor()
+	m.favorites = m.favorites.ClampCursor()
 
-	if m.favorites.cursor != 2 {
-		t.Errorf("expected cursor=2 (last filtered index), got %d", m.favorites.cursor)
+	if m.favorites.Cursor != 2 {
+		t.Errorf("expected cursor=2 (last filtered index), got %d", m.favorites.Cursor)
 	}
 }
 
@@ -33,19 +33,19 @@ func TestFavoritesClampCursor_WithActiveFilter(t *testing.T) {
 // scrollOffset down to cursor when scrollOffset > cursor after clamping.
 func TestFavoritesClampCursor_ScrollOffsetClamped(t *testing.T) {
 	m := New(context.Background())
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryAlbums
-	m.favorites.albums = []string{"Alpha"}
-	m.favorites.cursor = 5
-	m.favorites.scrollOffset = 10
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryAlbums
+	m.favorites.Albums = []string{"Alpha"}
+	m.favorites.Cursor = 5
+	m.favorites.ScrollOffset = 10
 
-	m.favorites = m.favorites.clampCursor()
+	m.favorites = m.favorites.ClampCursor()
 
-	if m.favorites.cursor != 0 {
-		t.Errorf("expected cursor=0, got %d", m.favorites.cursor)
+	if m.favorites.Cursor != 0 {
+		t.Errorf("expected cursor=0, got %d", m.favorites.Cursor)
 	}
-	if m.favorites.scrollOffset != 0 {
-		t.Errorf("expected scrollOffset=0, got %d", m.favorites.scrollOffset)
+	if m.favorites.ScrollOffset != 0 {
+		t.Errorf("expected scrollOffset=0, got %d", m.favorites.ScrollOffset)
 	}
 }
 
@@ -53,23 +53,23 @@ func TestFavoritesClampCursor_ScrollOffsetClamped(t *testing.T) {
 // TrackLevel with an active filter.
 func TestFavoritesClampCursor_TrackLevelWithFilter(t *testing.T) {
 	m := New(context.Background())
-	m.favorites.level = favtui.TrackLevel
-	m.favorites.drilldownTracks = []library.Track{
+	m.favorites.Level = favtui.TrackLevel
+	m.favorites.DrilldownTracks = []library.Track{
 		{Hash: "h1", Title: "Alpha", Artist: "A"},
 		{Hash: "h2", Title: "Beta", Artist: "B"},
 		{Hash: "h3", Title: "Gamma", Artist: "G"},
 	}
-	m.favorites.filter.Text = "beta"
-	m.favorites.cursor = 2
-	m.favorites.scrollOffset = 2
+	m.favorites.Filter.Text = "beta"
+	m.favorites.Cursor = 2
+	m.favorites.ScrollOffset = 2
 
-	m.favorites = m.favorites.clampCursor()
+	m.favorites = m.favorites.ClampCursor()
 
-	if m.favorites.cursor != 0 {
-		t.Errorf("expected cursor=0 (only 1 filtered item), got %d", m.favorites.cursor)
+	if m.favorites.Cursor != 0 {
+		t.Errorf("expected cursor=0 (only 1 filtered item), got %d", m.favorites.Cursor)
 	}
-	if m.favorites.scrollOffset != 0 {
-		t.Errorf("expected scrollOffset=0, got %d", m.favorites.scrollOffset)
+	if m.favorites.ScrollOffset != 0 {
+		t.Errorf("expected scrollOffset=0, got %d", m.favorites.ScrollOffset)
 	}
 }
 
@@ -77,22 +77,22 @@ func TestFavoritesClampCursor_TrackLevelWithFilter(t *testing.T) {
 // cursor and scrollOffset when the filter eliminates all items.
 func TestFavoritesClampCursor_EmptyFilteredList(t *testing.T) {
 	m := New(context.Background())
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{
 		{Hash: "h1", Title: "Song A"},
 	}
-	m.favorites.filter.Text = "zzz"
-	m.favorites.cursor = 1
-	m.favorites.scrollOffset = 1
+	m.favorites.Filter.Text = "zzz"
+	m.favorites.Cursor = 1
+	m.favorites.ScrollOffset = 1
 
-	m.favorites = m.favorites.clampCursor()
+	m.favorites = m.favorites.ClampCursor()
 
-	if m.favorites.cursor != 0 {
-		t.Errorf("expected cursor=0, got %d", m.favorites.cursor)
+	if m.favorites.Cursor != 0 {
+		t.Errorf("expected cursor=0, got %d", m.favorites.Cursor)
 	}
-	if m.favorites.scrollOffset != 0 {
-		t.Errorf("expected scrollOffset=0, got %d", m.favorites.scrollOffset)
+	if m.favorites.ScrollOffset != 0 {
+		t.Errorf("expected scrollOffset=0, got %d", m.favorites.ScrollOffset)
 	}
 }
 
@@ -105,33 +105,33 @@ func TestFavoritesGoToBottomWithSortAccountsForReserve(t *testing.T) {
 		artists[i] = fmt.Sprintf("Artist_%02d", i)
 	}
 
-	v := FavoritesView{
-		level:    favtui.ListLevel,
-		category: favtui.CategoryArtists,
-		cursor:   0,
-		artists:  artists,
-		height:   12,
+	v := favtui.FavoritesView{
+		Level:    favtui.ListLevel,
+		Category: favtui.CategoryArtists,
+		Cursor:   0,
+		Artists:  artists,
+		Height:   12,
 	}
 	v = v.HandleAction(keys.ActionGoToBottom)
-	if v.cursor != 19 {
-		t.Fatalf("GoToBottom without sort: expected cursor=19, got %d", v.cursor)
+	if v.Cursor != 19 {
+		t.Fatalf("GoToBottom without sort: expected cursor=19, got %d", v.Cursor)
 	}
-	scrollNoSort := v.scrollOffset
+	scrollNoSort := v.ScrollOffset
 
-	v2 := FavoritesView{
-		level:     favtui.ListLevel,
-		category:  favtui.CategoryArtists,
-		cursor:    0,
-		artists:   artists,
-		height:    12,
-		sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
+	v2 := favtui.FavoritesView{
+		Level:     favtui.ListLevel,
+		Category:  favtui.CategoryArtists,
+		Cursor:    0,
+		Artists:   artists,
+		Height:    12,
+		SortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 	}
 	v2 = v2.HandleAction(keys.ActionGoToBottom)
-	if v2.cursor != 19 {
-		t.Fatalf("GoToBottom with sort: expected cursor=19, got %d", v2.cursor)
+	if v2.Cursor != 19 {
+		t.Fatalf("GoToBottom with sort: expected cursor=19, got %d", v2.Cursor)
 	}
-	if v2.scrollOffset <= scrollNoSort {
+	if v2.ScrollOffset <= scrollNoSort {
 		t.Errorf("GoToBottom with sort: expected scrollOffset > %d (no-sort), got %d",
-			scrollNoSort, v2.scrollOffset)
+			scrollNoSort, v2.ScrollOffset)
 	}
 }

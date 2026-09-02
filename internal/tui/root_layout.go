@@ -76,16 +76,16 @@ func (m *Model) clampAllScrollOffsets() {
 	m.browse.albums.scrollOffset = sorting.AdjustScroll(m.browse.albums.cursor, m.browse.albums.scrollOffset, albMaxRows)
 
 	favReserve := favoritesVisibleReserve(m.favorites)
-	favMaxRows := layout.VisibleRows(m.favorites.height, favReserve)
-	m.favorites.scrollOffset = sorting.AdjustScroll(m.favorites.cursor, m.favorites.scrollOffset, favMaxRows)
+	favMaxRows := layout.VisibleRows(m.favorites.Height, favReserve)
+	m.favorites.ScrollOffset = sorting.AdjustScroll(m.favorites.Cursor, m.favorites.ScrollOffset, favMaxRows)
 
 	genReserve := genresVisibleReserve(m.browse.genres)
 	genMaxRows := layout.VisibleRows(m.browse.genres.height, genReserve)
 	m.browse.genres.scrollOffset = sorting.AdjustScroll(m.browse.genres.cursor, m.browse.genres.scrollOffset, genMaxRows)
 
 	tagReserve := tagsVisibleReserve(m.tagsView)
-	tagMaxRows := layout.VisibleRows(m.tagsView.height, tagReserve)
-	m.tagsView.scrollOffset = sorting.AdjustScroll(m.tagsView.cursor, m.tagsView.scrollOffset, tagMaxRows)
+	tagMaxRows := layout.VisibleRows(m.tagsView.Height, tagReserve)
+	m.tagsView.ScrollOffset = sorting.AdjustScroll(m.tagsView.Cursor, m.tagsView.ScrollOffset, tagMaxRows)
 
 	if m.mixes.level == 1 {
 		mixReserve := libtui.VisibleReserve(m.mixes.trackView)
@@ -105,10 +105,10 @@ func (m *Model) clampAllScrollOffsets() {
 }
 
 // tagsVisibleReserve returns the number of header rows to reserve in the tags view.
-func tagsVisibleReserve(v TagsView) int {
+func tagsVisibleReserve(v tagtui.TagsView) int {
 	return drilldownVisibleReserve(
-		v.level == tagtui.TagLevel,
-		v.filter.Active || v.filter.Text != "",
-		v.sortState.Field != sorting.SortDefault,
+		v.Level == tagtui.TagLevel,
+		v.Filter.Active || v.Filter.Text != "",
+		v.SortState.Field != sorting.SortDefault,
 	)
 }

@@ -29,14 +29,14 @@ func (m Model) openFavoriteTargetPicker() Model {
 	if len(tracks) == 0 {
 		return m
 	}
-	origin := favoritePickerOrigin{view: m.activeView}
+	origin := favtui.PickerOrigin{View: int(m.activeView)}
 	if m.activeView == viewFavorites {
-		origin.favLevel = int(m.favorites.level)
-		origin.favCategory = int(m.favorites.category)
-		origin.drilldownName = m.favorites.drilldownName
+		origin.FavLevel = int(m.favorites.Level)
+		origin.FavCategory = int(m.favorites.Category)
+		origin.DrilldownName = m.favorites.DrilldownName
 	}
 	bulk := m.activeViewSelectionCount() > 0
-	picker := newFavoriteTargetPicker(
+	picker := favtui.NewTargetPicker(
 		tracks, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, bulk, origin,
 	)
 	m.overlay.favoriteTargetPicker = &picker
@@ -95,7 +95,7 @@ func (m Model) favoritePickerTracks() []library.Track {
 	case viewFavorites:
 		return m.bulkFavoriteTracks()
 	case viewTags:
-		if m.tagsView.level == tagtui.TrackLevel {
+		if m.tagsView.Level == tagtui.TrackLevel {
 			return m.bulkTagTracks()
 		}
 	case viewMixes:
@@ -144,37 +144,37 @@ func playlistTrackAsTrack(row db.PlaylistTrackRow) library.Track {
 	}
 }
 
-func (m Model) handleFavoriteTargetPicked(msg favoriteTargetPickedMsg) (Model, tea.Cmd) {
+func (m Model) handleFavoriteTargetPicked(msg favtui.TargetPickedMsg) (Model, tea.Cmd) {
 	m.overlay.favoriteTargetPicker = nil
 	m = exitVisualMode(m)
 	m = m.clearActiveViewSelection()
-	if m.favoriteWriter == nil || len(msg.values) == 0 {
+	if m.favoriteWriter == nil || len(msg.Values) == 0 {
 		return m, nil
 	}
 
 	writer := m.favoriteWriter
 	result := favoriteToggledMsg{
-		typ:                 msg.typ,
-		added:               msg.add,
-		count:               len(msg.values),
+		typ:                 msg.Typ,
+		added:               msg.Add,
+		count:               len(msg.Values),
 		removedIdx:          -1,
 		fromTargetPicker:    true,
-		pickerOriginView:    msg.origin.view,
-		pickerOriginLevel:   favtui.Level(msg.origin.favLevel),
-		pickerDrilldownName: msg.origin.drilldownName,
-		favLevel:            favtui.Level(msg.origin.favLevel),
-		favCategory:         favtui.Category(msg.origin.favCategory),
+		pickerOriginView:    viewID(msg.Origin.View),
+		pickerOriginLevel:   favtui.Level(msg.Origin.FavLevel),
+		pickerDrilldownName: msg.Origin.DrilldownName,
+		favLevel:            favtui.Level(msg.Origin.FavLevel),
+		favCategory:         favtui.Category(msg.Origin.FavCategory),
 	}
-	if len(msg.values) == 1 {
-		result.value = msg.values[0]
+	if len(msg.Values) == 1 {
+		result.value = msg.Values[0]
 	}
-	if msg.add {
-		if len(msg.values) > 1 {
-			result.addedValues = append([]string(nil), msg.values...)
+	if msg.Add {
+		if len(msg.Values) > 1 {
+			result.addedValues = append([]string(nil), msg.Values...)
 		}
 	} else {
-		if len(msg.values) > 1 {
-			result.removedValues = append([]string(nil), msg.values...)
+		if len(msg.Values) > 1 {
+			result.removedValues = append([]string(nil), msg.Values...)
 		}
 		result = m.decoratePickerRemoval(result)
 	}
@@ -182,14 +182,14 @@ func (m Model) handleFavoriteTargetPicked(msg favoriteTargetPickedMsg) (Model, t
 	return m, func() tea.Msg {
 		var err error
 		switch {
-		case msg.add && len(msg.values) == 1:
-			err = writer.AddFavorite(msg.typ, msg.values[0])
-		case msg.add:
-			err = writer.AddFavoritesByTypeAndValues(msg.typ, msg.values)
-		case len(msg.values) == 1:
-			err = writer.RemoveFavorite(msg.typ, msg.values[0])
+		case msg.Add && len(msg.Values) == 1:
+			err = writer.AddFavorite(msg.Typ, msg.Values[0])
+		case msg.Add:
+			err = writer.AddFavoritesByTypeAndValues(msg.Typ, msg.Values)
+		case len(msg.Values) == 1:
+			err = writer.RemoveFavorite(msg.Typ, msg.Values[0])
 		default:
-			err = writer.RemoveFavoritesByTypeAndValues(msg.typ, msg.values)
+			err = writer.RemoveFavoritesByTypeAndValues(msg.Typ, msg.Values)
 		}
 		result.err = err
 		return result
@@ -207,10 +207,10 @@ func (m Model) decoratePickerRemoval(msg favoriteToggledMsg) favoriteToggledMsg 
 	if msg.typ == "track" {
 		var source []library.Track
 		switch {
-		case m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks:
-			source = m.favorites.tracks
-		case m.favorites.level == favtui.TrackLevel:
-			source = m.favorites.drilldownTracks
+		case m.favorites.Level == favtui.ListLevel && m.favorites.Category == favtui.CategoryTracks:
+			source = m.favorites.Tracks
+		case m.favorites.Level == favtui.TrackLevel:
+			source = m.favorites.DrilldownTracks
 		}
 		for _, value := range values {
 			for i, track := range source {
@@ -229,16 +229,16 @@ func (m Model) decoratePickerRemoval(msg favoriteToggledMsg) favoriteToggledMsg 
 		}
 	}
 
-	if m.favorites.level == favtui.TrackLevel && msg.value == m.favorites.drilldownName {
-		isParent := (m.favorites.category == favtui.CategoryArtists && msg.typ == "artist") ||
-			(m.favorites.category == favtui.CategoryAlbums && msg.typ == "album")
+	if m.favorites.Level == favtui.TrackLevel && msg.value == m.favorites.DrilldownName {
+		isParent := (m.favorites.Category == favtui.CategoryArtists && msg.typ == "artist") ||
+			(m.favorites.Category == favtui.CategoryAlbums && msg.typ == "album")
 		if isParent {
 			msg.favLevel = favtui.ListLevel
 			switch msg.typ {
 			case "artist":
-				msg.removedIdx = indexOfString(m.favorites.artists, msg.value)
+				msg.removedIdx = indexOfString(m.favorites.Artists, msg.value)
 			case "album":
-				msg.removedIdx = indexOfString(m.favorites.albums, msg.value)
+				msg.removedIdx = indexOfString(m.favorites.Albums, msg.value)
 			}
 		}
 	}

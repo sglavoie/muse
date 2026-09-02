@@ -104,11 +104,11 @@ func TestFocusedGoToContext_Tags(t *testing.T) {
 	tracks := []library.Track{{Artist: "Alice", Album: "Alpha", Genre: "Rock", Title: "T1", Hash: "th1", Path: "/a.flac"}}
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	m.activeView = viewTags
-	m.tagsView.level = tagtui.TrackLevel
-	m.tagsView.tracks = []db.PlaylistTrackRow{
+	m.tagsView.Level = tagtui.TrackLevel
+	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "th1", Artist: "Alice", Album: "Alpha", Title: "T1", Path: "/a.flac"},
 	}
-	m.tagsView.cursor = 0
+	m.tagsView.Cursor = 0
 
 	ctx := m.focusedGoToContext()
 	if !ctx.found {
@@ -129,8 +129,8 @@ func TestFocusedGoToContext_TagsTagLevel(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewTags
 	// level defaults to TagLevel
-	m.tagsView.tags = []db.TagRow{{ID: 1, Name: "T1"}}
-	m.tagsView.tagCounts = map[int64]int{1: 3}
+	m.tagsView.Tags = []db.TagRow{{ID: 1, Name: "T1"}}
+	m.tagsView.TagCounts = map[int64]int{1: 3}
 
 	ctx := m.focusedGoToContext()
 	if ctx.found {
@@ -142,11 +142,11 @@ func TestBuildGoToOptions_Tags(t *testing.T) {
 	tracks := []library.Track{{Artist: "Alice", Album: "Alpha", Genre: "Rock", Title: "T1", Hash: "th1", Path: "/a.flac"}}
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	m.activeView = viewTags
-	m.tagsView.level = tagtui.TrackLevel
-	m.tagsView.tracks = []db.PlaylistTrackRow{
+	m.tagsView.Level = tagtui.TrackLevel
+	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "th1", Artist: "Alice", Album: "Alpha", Title: "T1", Path: "/a.flac"},
 	}
-	m.tagsView.cursor = 0
+	m.tagsView.Cursor = 0
 
 	ctx := m.focusedGoToContext()
 	opts := m.buildGoToOptions(ctx)

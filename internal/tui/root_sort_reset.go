@@ -90,8 +90,8 @@ func (m Model) resetAlbumsSort() Model {
 
 // resetFavoritesSort clears the favorites sort state. See resetArtistsSort.
 func (m Model) resetFavoritesSort() Model {
-	hadSort := m.favorites.sortState.Field != sorting.SortDefault
-	m.favorites.sortState = sorting.SortState{}
+	hadSort := m.favorites.SortState.Field != sorting.SortDefault
+	m.favorites.SortState = sorting.SortState{}
 	if hadSort {
 		m = m.rederiveFavoritesData()
 	}
@@ -110,8 +110,8 @@ func (m Model) resetGenresSort() Model {
 
 // resetTagsSort clears the tags sort state.
 func (m Model) resetTagsSort() Model {
-	m.tagsView.sortState = sorting.SortState{}
-	m.tagsView.sortedTrackOrder = nil
+	m.tagsView.SortState = sorting.SortState{}
+	m.tagsView.SortedTrackOrder = nil
 	return m
 }
 

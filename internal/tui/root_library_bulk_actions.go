@@ -152,32 +152,32 @@ func (m Model) bulkGenreTracks() []library.Track {
 
 func (m Model) bulkFavoriteTracks() []library.Track {
 	switch {
-	case m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks:
-		if len(m.favorites.selectedItems) > 0 {
-			items := arttui.FilterTracks(m.favorites.tracks, m.favorites.filter.Text)
+	case m.favorites.Level == favtui.ListLevel && m.favorites.Category == favtui.CategoryTracks:
+		if len(m.favorites.SelectedItems) > 0 {
+			items := arttui.FilterTracks(m.favorites.Tracks, m.favorites.Filter.Text)
 			var tracks []library.Track
-			for _, idx := range sortedIntSetKeys(m.favorites.selectedItems) {
+			for _, idx := range sortedIntSetKeys(m.favorites.SelectedItems) {
 				if idx >= 0 && idx < len(items) {
 					tracks = append(tracks, items[idx])
 				}
 			}
 			return tracks
 		}
-		if track, ok := m.favorites.focusedTrack(); ok {
+		if track, ok := m.favorites.FocusedTrack(); ok {
 			return []library.Track{track}
 		}
-	case m.favorites.level == favtui.TrackLevel:
-		if len(m.favorites.selectedItems) > 0 {
-			items := arttui.FilterTracks(m.favorites.drilldownTracks, m.favorites.filter.Text)
+	case m.favorites.Level == favtui.TrackLevel:
+		if len(m.favorites.SelectedItems) > 0 {
+			items := arttui.FilterTracks(m.favorites.DrilldownTracks, m.favorites.Filter.Text)
 			var tracks []library.Track
-			for _, idx := range sortedIntSetKeys(m.favorites.selectedItems) {
+			for _, idx := range sortedIntSetKeys(m.favorites.SelectedItems) {
 				if idx >= 0 && idx < len(items) {
 					tracks = append(tracks, items[idx])
 				}
 			}
 			return tracks
 		}
-		if track, ok := m.favorites.focusedTrack(); ok {
+		if track, ok := m.favorites.FocusedTrack(); ok {
 			return []library.Track{track}
 		}
 	}
@@ -185,14 +185,14 @@ func (m Model) bulkFavoriteTracks() []library.Track {
 }
 
 func (m Model) bulkTagTracks() []library.Track {
-	if m.tagsView.level != tagtui.TrackLevel {
+	if m.tagsView.Level != tagtui.TrackLevel {
 		return nil
 	}
-	items := m.tagsView.displayTracks()
-	if len(m.tagsView.selectedHashes) > 0 {
+	items := m.tagsView.DisplayTracks()
+	if len(m.tagsView.SelectedHashes) > 0 {
 		var tracks []library.Track
 		for _, t := range items {
-			if _, ok := m.tagsView.selectedHashes[t.Hash]; ok {
+			if _, ok := m.tagsView.SelectedHashes[t.Hash]; ok {
 				tracks = append(tracks, library.Track{
 					Hash:     t.Hash,
 					Path:     t.Path,
@@ -205,7 +205,7 @@ func (m Model) bulkTagTracks() []library.Track {
 		}
 		return tracks
 	}
-	if t, ok := m.tagsView.focusedTrack(); ok {
+	if t, ok := m.tagsView.FocusedTrack(); ok {
 		return []library.Track{{
 			Hash:     t.Hash,
 			Path:     t.Path,

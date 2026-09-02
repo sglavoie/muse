@@ -349,8 +349,8 @@ func TestWatchBatchUpdatesTagsTrackMetadata(t *testing.T) {
 		Artist: "OldArtist", Title: "OldTitle", Album: "OldAlbum",
 		Path: "/a.flac", Hash: "h1",
 	})
-	m.tagsView.level = tagtui.TrackLevel
-	m.tagsView.tracks = []db.PlaylistTrackRow{
+	m.tagsView.Level = tagtui.TrackLevel
+	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{Hash: "h1", Path: "/a.flac", Artist: "OldArtist", Title: "OldTitle", Album: "OldAlbum"},
 	}
 
@@ -362,7 +362,7 @@ func TestWatchBatchUpdatesTagsTrackMetadata(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	tr := nm.tagsView.tracks[0]
+	tr := nm.tagsView.Tracks[0]
 	if tr.Artist != "NewArtist" {
 		t.Errorf("expected tags track Artist=%q, got %q", "NewArtist", tr.Artist)
 	}

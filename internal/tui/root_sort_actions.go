@@ -93,34 +93,34 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		if fields == nil {
 			return m, nil, false
 		}
-		next := sorting.CycleSortField(m.favorites.sortState.Field, fields)
-		m.favorites.sortState.Field = next
+		next := sorting.CycleSortField(m.favorites.SortState.Field, fields)
+		m.favorites.SortState.Field = next
 		if next == sorting.SortDefault {
-			m.favorites.sortState.Dir = sorting.SortAsc
+			m.favorites.SortState.Dir = sorting.SortAsc
 			m = m.rederiveFavoritesData()
 		}
-		m.favorites = m.favorites.recomputeFavoritesSort()
-		m.favorites.cursor = 0
-		m.favorites.scrollOffset = 0
-		m.favorites.selectedItems = nil
-		m.statusBar.NotifyInfo(sortNotification(m.favorites.sortState))
+		m.favorites = m.favorites.RecomputeFavoritesSort()
+		m.favorites.Cursor = 0
+		m.favorites.ScrollOffset = 0
+		m.favorites.SelectedItems = nil
+		m.statusBar.NotifyInfo(sortNotification(m.favorites.SortState))
 		return m, nil, true
 
 	case viewTags:
-		fields := tagsSortFieldsForLevel(m.tagsView.level)
+		fields := tagsSortFieldsForLevel(m.tagsView.Level)
 		if fields == nil {
 			return m, nil, false
 		}
-		next := sorting.CycleSortField(m.tagsView.sortState.Field, fields)
-		m.tagsView.sortState.Field = next
+		next := sorting.CycleSortField(m.tagsView.SortState.Field, fields)
+		m.tagsView.SortState.Field = next
 		if next == sorting.SortDefault {
-			m.tagsView.sortState.Dir = sorting.SortAsc
+			m.tagsView.SortState.Dir = sorting.SortAsc
 		}
-		m.tagsView = m.tagsView.recomputeTagsSort()
-		m.tagsView.cursor = 0
-		m.tagsView.scrollOffset = 0
-		m.tagsView.selectedHashes = nil
-		m.statusBar.NotifyInfo(sortNotification(m.tagsView.sortState))
+		m.tagsView = m.tagsView.RecomputeTagsSort()
+		m.tagsView.Cursor = 0
+		m.tagsView.ScrollOffset = 0
+		m.tagsView.SelectedHashes = nil
+		m.statusBar.NotifyInfo(sortNotification(m.tagsView.SortState))
 		return m, nil, true
 
 	case viewMixes:
@@ -191,19 +191,19 @@ func (m Model) handleSortDir(dir sorting.SortDir) (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewFavorites:
-		if m.favorites.sortState.Field == sorting.SortDefault {
+		if m.favorites.SortState.Field == sorting.SortDefault {
 			return m, nil, false
 		}
 		m = m.preserveFavoritesCursorOnDirChange(dir)
-		m.statusBar.NotifyInfo(sortNotification(m.favorites.sortState))
+		m.statusBar.NotifyInfo(sortNotification(m.favorites.SortState))
 		return m, nil, true
 
 	case viewTags:
-		if m.tagsView.sortState.Field == sorting.SortDefault {
+		if m.tagsView.SortState.Field == sorting.SortDefault {
 			return m, nil, false
 		}
 		m = m.preserveTagsCursorOnDirChange(dir)
-		m.statusBar.NotifyInfo(sortNotification(m.tagsView.sortState))
+		m.statusBar.NotifyInfo(sortNotification(m.tagsView.SortState))
 		return m, nil, true
 
 	case viewMixes:

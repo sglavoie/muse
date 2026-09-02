@@ -269,7 +269,7 @@ func TestHandleUndoResetsAllSorts(t *testing.T) {
 	m.playlists.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.browse.artists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
 	m.browse.albums.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
-	m.favorites.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
+	m.favorites.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
 
 	nm := m.handleUndo()
 
@@ -288,8 +288,8 @@ func TestHandleUndoResetsAllSorts(t *testing.T) {
 	if nm.browse.albums.sortState.Field != sorting.SortDefault {
 		t.Errorf("albums sort not reset: got field %d", nm.browse.albums.sortState.Field)
 	}
-	if nm.favorites.sortState.Field != sorting.SortDefault {
-		t.Errorf("favorites sort not reset: got field %d", nm.favorites.sortState.Field)
+	if nm.favorites.SortState.Field != sorting.SortDefault {
+		t.Errorf("favorites sort not reset: got field %d", nm.favorites.SortState.Field)
 	}
 }
 

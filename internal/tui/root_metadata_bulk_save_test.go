@@ -155,13 +155,13 @@ func TestBulkMetadataSaveClearsGenresSelection(t *testing.T) {
 func TestBulkMetadataSaveClearsFavoritesSelection(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{
 		{Hash: "h1", Artist: "Alice", Title: "Track A1"},
 		{Hash: "h2", Artist: "Alice", Title: "Track A2"},
 	}
-	m.favorites.selectedItems = map[int]struct{}{0: {}, 1: {}}
+	m.favorites.SelectedItems = map[int]struct{}{0: {}, 1: {}}
 
 	ed := metadata.NewBulkEditor([]string{"h1", "h2"}, "", "Alice", "", "", "")
 	m.overlay.metadataEditor = &ed
@@ -170,8 +170,8 @@ func TestBulkMetadataSaveClearsFavoritesSelection(t *testing.T) {
 	result, _ := m.handleMetadataSave()
 	nm := result.(Model)
 
-	if nm.favorites.selectedItems != nil {
-		t.Errorf("expected selectedItems to be cleared, got %v", nm.favorites.selectedItems)
+	if nm.favorites.SelectedItems != nil {
+		t.Errorf("expected selectedItems to be cleared, got %v", nm.favorites.SelectedItems)
 	}
 }
 
@@ -180,7 +180,7 @@ func TestBulkMetadataSaveClearsFavoritesSelection(t *testing.T) {
 func TestBulkMetadataSaveClearsTagsSelection(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
 	m.activeView = viewTags
-	m.tagsView.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.tagsView.SelectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	ed := metadata.NewBulkEditor([]string{"h1", "h2"}, "", "Alice", "", "", "")
 	m.overlay.metadataEditor = &ed
@@ -189,8 +189,8 @@ func TestBulkMetadataSaveClearsTagsSelection(t *testing.T) {
 	result, _ := m.handleMetadataSave()
 	nm := result.(Model)
 
-	if nm.tagsView.selectedHashes != nil {
-		t.Errorf("expected tagsView.selectedHashes to be cleared, got %v", nm.tagsView.selectedHashes)
+	if nm.tagsView.SelectedHashes != nil {
+		t.Errorf("expected tagsView.selectedHashes to be cleared, got %v", nm.tagsView.SelectedHashes)
 	}
 }
 

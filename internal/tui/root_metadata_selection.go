@@ -42,20 +42,20 @@ func (m Model) bulkSelectedHashes() []string {
 		}
 		return nil
 	case viewFavorites:
-		if len(m.favorites.selectedItems) == 0 {
+		if len(m.favorites.SelectedItems) == 0 {
 			return nil
 		}
 		var items []musiclib.Track
 		switch {
-		case m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks:
-			items = arttui.FilterTracks(m.favorites.tracks, m.favorites.filter.Text)
-		case m.favorites.level == favtui.TrackLevel:
-			items = arttui.FilterTracks(m.favorites.drilldownTracks, m.favorites.filter.Text)
+		case m.favorites.Level == favtui.ListLevel && m.favorites.Category == favtui.CategoryTracks:
+			items = arttui.FilterTracks(m.favorites.Tracks, m.favorites.Filter.Text)
+		case m.favorites.Level == favtui.TrackLevel:
+			items = arttui.FilterTracks(m.favorites.DrilldownTracks, m.favorites.Filter.Text)
 		default:
 			return nil
 		}
 		var hashes []string
-		for _, idx := range sortedIntSetKeys(m.favorites.selectedItems) {
+		for _, idx := range sortedIntSetKeys(m.favorites.SelectedItems) {
 			if idx >= 0 && idx < len(items) {
 				hashes = append(hashes, items[idx].Hash)
 			}
@@ -65,7 +65,7 @@ func (m Model) bulkSelectedHashes() []string {
 		}
 		return hashes
 	case viewTags:
-		return hashMapToSlice(m.tagsView.selectedHashes)
+		return hashMapToSlice(m.tagsView.SelectedHashes)
 	case viewMixes:
 		if m.mixes.level == 1 {
 			return hashMapToSlice(m.mixes.trackView.SelectedHashes)
@@ -190,25 +190,25 @@ func (m Model) refreshDerivedViews() Model {
 		m.library = m.library.RefreshView()
 	}
 
-	if m.tagsView.level == tagtui.TrackLevel {
-		for i := range m.tagsView.tracks {
-			if t, ok := m.library.Index.FindByHash(m.tagsView.tracks[i].Hash); ok {
-				m.tagsView.tracks[i].Title = t.Title
-				m.tagsView.tracks[i].Artist = t.Artist
-				m.tagsView.tracks[i].Album = t.Album
-				m.tagsView.tracks[i].DurationMs = int64(t.Duration * 1000)
+	if m.tagsView.Level == tagtui.TrackLevel {
+		for i := range m.tagsView.Tracks {
+			if t, ok := m.library.Index.FindByHash(m.tagsView.Tracks[i].Hash); ok {
+				m.tagsView.Tracks[i].Title = t.Title
+				m.tagsView.Tracks[i].Artist = t.Artist
+				m.tagsView.Tracks[i].Album = t.Album
+				m.tagsView.Tracks[i].DurationMs = int64(t.Duration * 1000)
 			}
 		}
-		m.tagsView = m.tagsView.recomputeTagsSort()
+		m.tagsView = m.tagsView.RecomputeTagsSort()
 	}
 
-	if m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks {
-		refreshTrackMetadata(m.favorites.tracks)
-		m.favorites = m.favorites.recomputeFavoritesSort()
+	if m.favorites.Level == favtui.ListLevel && m.favorites.Category == favtui.CategoryTracks {
+		refreshTrackMetadata(m.favorites.Tracks)
+		m.favorites = m.favorites.RecomputeFavoritesSort()
 	}
-	if m.favorites.level == favtui.TrackLevel {
-		refreshTrackMetadata(m.favorites.drilldownTracks)
-		m.favorites = m.favorites.recomputeFavoritesSort()
+	if m.favorites.Level == favtui.TrackLevel {
+		refreshTrackMetadata(m.favorites.DrilldownTracks)
+		m.favorites = m.favorites.RecomputeFavoritesSort()
 	}
 
 	// Refresh metadata for every cached mix, not just the active one — when

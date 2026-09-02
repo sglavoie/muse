@@ -81,11 +81,11 @@ func (m Model) switchToView(id viewID) Model {
 	if m.playlists.Renaming {
 		m.playlists = m.playlists.CancelRename()
 	}
-	if m.tagsView.creating {
-		m.tagsView = m.tagsView.cancelCreate()
+	if m.tagsView.Creating {
+		m.tagsView = m.tagsView.CancelCreate()
 	}
-	if m.tagsView.renaming {
-		m.tagsView = m.tagsView.cancelRename()
+	if m.tagsView.Renaming {
+		m.tagsView = m.tagsView.CancelRename()
 	}
 	m.activeView = id
 	if id == viewQueue && m.followNowPlaying {
@@ -100,9 +100,9 @@ func (m Model) switchToView(id viewID) Model {
 	if id == viewFavorites && m.favoriteReader != nil {
 		artistCount, albumCount, trackCount, err := m.favoriteReader.ReadFavoriteCounts()
 		if err == nil {
-			m.favorites.artistCount = artistCount
-			m.favorites.albumCount = albumCount
-			m.favorites.trackCount = trackCount
+			m.favorites.ArtistCount = artistCount
+			m.favorites.AlbumCount = albumCount
+			m.favorites.TrackCount = trackCount
 		}
 	}
 	if id == viewLibrary {
@@ -116,9 +116,9 @@ func (m Model) switchToView(id viewID) Model {
 	if id == viewTags {
 		// Sync global tag list into the tags view and load counts if needed.
 		m = m.syncTagsViewTags()
-		if m.tagsView.tagCounts == nil && m.tagReader != nil {
+		if m.tagsView.TagCounts == nil && m.tagReader != nil {
 			counts, _ := m.tagReader.ReadTagCounts()
-			m.tagsView.tagCounts = counts
+			m.tagsView.TagCounts = counts
 		}
 	}
 	return m

@@ -177,15 +177,15 @@ func TestSwitchViewCancelsPlaylistInlineInputs(t *testing.T) {
 func TestSwitchViewCancelsTagInlineInputs(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewTags
-	m.tagsView.creating = true
-	m.tagsView.renaming = true
+	m.tagsView.Creating = true
+	m.tagsView.Renaming = true
 
 	m = m.switchToView(viewLibrary)
 
-	if m.tagsView.creating {
+	if m.tagsView.Creating {
 		t.Error("tagsView.creating should be false after switchToView")
 	}
-	if m.tagsView.renaming {
+	if m.tagsView.Renaming {
 		t.Error("tagsView.renaming should be false after switchToView")
 	}
 }

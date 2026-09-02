@@ -16,21 +16,21 @@ import (
 func TestTagDeleteStoresCanonicalIndex(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewTags
-	m.tagsView.level = tagtui.TagLevel
-	m.tagsView.tags = []db.TagRow{
+	m.tagsView.Level = tagtui.TagLevel
+	m.tagsView.Tags = []db.TagRow{
 		{ID: 1, Name: "Alpha"},
 		{ID: 2, Name: "Beta"},
 		{ID: 3, Name: "Charlie"},
 		{ID: 4, Name: "Delta"},
 	}
-	m.tagsView.tagCounts = map[int64]int{1: 1, 2: 1, 3: 1, 4: 1}
-	m.tagsView.height = 40
-	m = m.rebuildTagCache(m.tagsView.tags)
+	m.tagsView.TagCounts = map[int64]int{1: 1, 2: 1, 3: 1, 4: 1}
+	m.tagsView.Height = 40
+	m = m.rebuildTagCache(m.tagsView.Tags)
 
 	// Activate a filter that shows only "Charlie" (canonical index 2).
-	m.tagsView.filter = filter.State{Text: "charlie"}
+	m.tagsView.Filter = filter.State{Text: "charlie"}
 	// Cursor 0 in the filtered list points to Charlie.
-	m.tagsView.cursor = 0
+	m.tagsView.Cursor = 0
 
 	m, cmd := m.handleTagDelete()
 
@@ -68,15 +68,15 @@ func TestTagDeleteStoresCanonicalIndex(t *testing.T) {
 func TestTagDeletePurgeDoesNotCorruptOtherSlot(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewTags
-	m.tagsView.level = tagtui.TagLevel
-	m.tagsView.tags = []db.TagRow{
+	m.tagsView.Level = tagtui.TagLevel
+	m.tagsView.Tags = []db.TagRow{
 		{ID: 1, Name: "Alpha"},
 		{ID: 2, Name: "Beta"},
 	}
-	m.tagsView.tagCounts = map[int64]int{1: 1, 2: 1}
-	m.tagsView.height = 40
-	m = m.rebuildTagCache(m.tagsView.tags)
-	m.tagsView.cursor = 0
+	m.tagsView.TagCounts = map[int64]int{1: 1, 2: 1}
+	m.tagsView.Height = 40
+	m = m.rebuildTagCache(m.tagsView.Tags)
+	m.tagsView.Cursor = 0
 
 	// Delete "Alpha" — this should set up the undo slot with a cancelPurge.
 	m, _ = m.handleTagDelete()
@@ -144,30 +144,30 @@ func TestAutoDeletedTagPurgeDoesNotCorruptUndoSlot(t *testing.T) {
 func TestTagDeleteUndoRestoresCanonicalPosition(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewTags
-	m.tagsView.level = tagtui.TagLevel
-	m.tagsView.tags = []db.TagRow{
+	m.tagsView.Level = tagtui.TagLevel
+	m.tagsView.Tags = []db.TagRow{
 		{ID: 1, Name: "Alpha"},
 		{ID: 2, Name: "Beta"},
 		{ID: 3, Name: "Charlie"},
 		{ID: 4, Name: "Delta"},
 	}
-	m.tagsView.tagCounts = map[int64]int{1: 1, 2: 1, 3: 1, 4: 1}
-	m.tagsView.height = 40
-	m = m.rebuildTagCache(m.tagsView.tags)
+	m.tagsView.TagCounts = map[int64]int{1: 1, 2: 1, 3: 1, 4: 1}
+	m.tagsView.Height = 40
+	m = m.rebuildTagCache(m.tagsView.Tags)
 
 	// Delete Charlie (canonical index 2) while filter is active.
-	m.tagsView.filter = filter.State{Text: "charlie"}
-	m.tagsView.cursor = 0
+	m.tagsView.Filter = filter.State{Text: "charlie"}
+	m.tagsView.Cursor = 0
 	m, _ = m.handleTagDelete()
 
 	// Clear filter to see the canonical list.
-	m.tagsView.filter = filter.State{}
+	m.tagsView.Filter = filter.State{}
 
 	// Charlie should be removed.
-	if len(m.tagsView.tags) != 3 {
-		t.Fatalf("expected 3 tags after delete, got %d", len(m.tagsView.tags))
+	if len(m.tagsView.Tags) != 3 {
+		t.Fatalf("expected 3 tags after delete, got %d", len(m.tagsView.Tags))
 	}
-	for _, tg := range m.tagsView.tags {
+	for _, tg := range m.tagsView.Tags {
 		if tg.ID == 3 {
 			t.Fatal("Charlie should have been removed")
 		}
@@ -178,18 +178,18 @@ func TestTagDeleteUndoRestoresCanonicalPosition(t *testing.T) {
 	m, _ = ua.perform(m)
 
 	// Charlie should be restored at canonical position 2.
-	if len(m.tagsView.tags) != 4 {
-		t.Fatalf("expected 4 tags after undo, got %d", len(m.tagsView.tags))
+	if len(m.tagsView.Tags) != 4 {
+		t.Fatalf("expected 4 tags after undo, got %d", len(m.tagsView.Tags))
 	}
-	if m.tagsView.tags[2].ID != 3 {
+	if m.tagsView.Tags[2].ID != 3 {
 		t.Errorf("expected tag at index 2 to be Charlie (ID=3), got ID=%d Name=%q",
-			m.tagsView.tags[2].ID, m.tagsView.tags[2].Name)
+			m.tagsView.Tags[2].ID, m.tagsView.Tags[2].Name)
 	}
 	// Verify the full order is restored.
 	expectedIDs := []int64{1, 2, 3, 4}
 	for i, want := range expectedIDs {
-		if m.tagsView.tags[i].ID != want {
-			t.Errorf("tag[%d]: expected ID %d, got %d", i, want, m.tagsView.tags[i].ID)
+		if m.tagsView.Tags[i].ID != want {
+			t.Errorf("tag[%d]: expected ID %d, got %d", i, want, m.tagsView.Tags[i].ID)
 		}
 	}
 }
@@ -201,21 +201,21 @@ func TestTagDeleteUndoRestoresCanonicalPosition(t *testing.T) {
 func TestTagDeleteClearsActiveTagFilter(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewTags
-	m.tagsView.level = tagtui.TagLevel
-	m.tagsView.tags = []db.TagRow{
+	m.tagsView.Level = tagtui.TagLevel
+	m.tagsView.Tags = []db.TagRow{
 		{ID: 1, Name: "Alpha"},
 		{ID: 2, Name: "Beta"},
 	}
-	m.tagsView.tagCounts = map[int64]int{1: 1, 2: 1}
-	m.tagsView.height = 40
-	m = m.rebuildTagCache(m.tagsView.tags)
+	m.tagsView.TagCounts = map[int64]int{1: 1, 2: 1}
+	m.tagsView.Height = 40
+	m = m.rebuildTagCache(m.tagsView.Tags)
 
 	// Activate the cross-view filter on tag ID 1 (Alpha).
 	alphaID := int64(1)
 	m.activeTagFilter = &alphaID
 
 	// Delete Alpha (cursor at 0).
-	m.tagsView.cursor = 0
+	m.tagsView.Cursor = 0
 	m, _ = m.handleTagDelete()
 
 	if m.activeTagFilter != nil {

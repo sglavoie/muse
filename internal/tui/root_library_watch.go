@@ -150,35 +150,35 @@ func (m Model) watchSyncPlaylistMetadata(tracks []library.Track) Model {
 // top-level track list and the drill-down track list) so the favorites view
 // reflects watcher-detected changes.
 func (m Model) watchSyncFavoritesMetadata(tracks []library.Track) Model {
-	if m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks {
+	if m.favorites.Level == favtui.ListLevel && m.favorites.Category == favtui.CategoryTracks {
 		for _, t := range tracks {
-			for i := range m.favorites.tracks {
-				if m.favorites.tracks[i].Hash == t.Hash {
-					m.favorites.tracks[i].Path = t.Path
-					m.favorites.tracks[i].Title = t.Title
-					m.favorites.tracks[i].Artist = t.Artist
-					m.favorites.tracks[i].Album = t.Album
-					m.favorites.tracks[i].Genre = t.Genre
-					m.favorites.tracks[i].Duration = t.Duration
+			for i := range m.favorites.Tracks {
+				if m.favorites.Tracks[i].Hash == t.Hash {
+					m.favorites.Tracks[i].Path = t.Path
+					m.favorites.Tracks[i].Title = t.Title
+					m.favorites.Tracks[i].Artist = t.Artist
+					m.favorites.Tracks[i].Album = t.Album
+					m.favorites.Tracks[i].Genre = t.Genre
+					m.favorites.Tracks[i].Duration = t.Duration
 				}
 			}
 		}
-		m.favorites = m.favorites.recomputeFavoritesSort()
+		m.favorites = m.favorites.RecomputeFavoritesSort()
 	}
-	if m.favorites.level == favtui.TrackLevel {
+	if m.favorites.Level == favtui.TrackLevel {
 		for _, t := range tracks {
-			for i := range m.favorites.drilldownTracks {
-				if m.favorites.drilldownTracks[i].Hash == t.Hash {
-					m.favorites.drilldownTracks[i].Path = t.Path
-					m.favorites.drilldownTracks[i].Title = t.Title
-					m.favorites.drilldownTracks[i].Artist = t.Artist
-					m.favorites.drilldownTracks[i].Album = t.Album
-					m.favorites.drilldownTracks[i].Genre = t.Genre
-					m.favorites.drilldownTracks[i].Duration = t.Duration
+			for i := range m.favorites.DrilldownTracks {
+				if m.favorites.DrilldownTracks[i].Hash == t.Hash {
+					m.favorites.DrilldownTracks[i].Path = t.Path
+					m.favorites.DrilldownTracks[i].Title = t.Title
+					m.favorites.DrilldownTracks[i].Artist = t.Artist
+					m.favorites.DrilldownTracks[i].Album = t.Album
+					m.favorites.DrilldownTracks[i].Genre = t.Genre
+					m.favorites.DrilldownTracks[i].Duration = t.Duration
 				}
 			}
 		}
-		m.favorites = m.favorites.recomputeFavoritesSort()
+		m.favorites = m.favorites.RecomputeFavoritesSort()
 	}
 	return m
 }
@@ -186,21 +186,21 @@ func (m Model) watchSyncFavoritesMetadata(tracks []library.Track) Model {
 // watchSyncTagsMetadata refreshes tags track metadata so the tags view
 // reflects watcher-detected changes.
 func (m Model) watchSyncTagsMetadata(tracks []library.Track) Model {
-	if m.tagsView.level != tagtui.TrackLevel {
+	if m.tagsView.Level != tagtui.TrackLevel {
 		return m
 	}
 	for _, t := range tracks {
-		for i := range m.tagsView.tracks {
-			if m.tagsView.tracks[i].Hash == t.Hash {
-				m.tagsView.tracks[i].Path = t.Path
-				m.tagsView.tracks[i].Title = t.Title
-				m.tagsView.tracks[i].Artist = t.Artist
-				m.tagsView.tracks[i].Album = t.Album
-				m.tagsView.tracks[i].DurationMs = int64(t.Duration * 1000)
+		for i := range m.tagsView.Tracks {
+			if m.tagsView.Tracks[i].Hash == t.Hash {
+				m.tagsView.Tracks[i].Path = t.Path
+				m.tagsView.Tracks[i].Title = t.Title
+				m.tagsView.Tracks[i].Artist = t.Artist
+				m.tagsView.Tracks[i].Album = t.Album
+				m.tagsView.Tracks[i].DurationMs = int64(t.Duration * 1000)
 			}
 		}
 	}
-	m.tagsView = m.tagsView.recomputeTagsSort()
+	m.tagsView = m.tagsView.RecomputeTagsSort()
 	return m
 }
 

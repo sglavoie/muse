@@ -236,7 +236,7 @@ func (m Model) buildPaletteCommands() []palette.PaletteCommand {
 		Exec: func() tea.Cmd {
 			return func() tea.Msg { return openTagFilterPickerMsg{} }
 		},
-		Enabled: func() bool { return len(nonEmptyTags(m.tags, m.tagsView.tagCounts)) > 0 },
+		Enabled: func() bool { return len(nonEmptyTags(m.tags, m.tagsView.TagCounts)) > 0 },
 	})
 	if m.activeTagFilter != nil {
 		cmds = append(cmds, palette.PaletteCommand{
@@ -268,7 +268,7 @@ func (m Model) buildPaletteCommands() []palette.PaletteCommand {
 	})
 
 	for _, tag := range m.tags {
-		if m.tagsView.tagCounts != nil && m.tagsView.tagCounts[tag.ID] == 0 {
+		if m.tagsView.TagCounts != nil && m.tagsView.TagCounts[tag.ID] == 0 {
 			continue
 		}
 		t := tag
@@ -330,21 +330,21 @@ func (m Model) focusedTrackForPalette() (path, artist, title string, found bool)
 		}
 
 	case viewFavorites:
-		switch m.favorites.level {
+		switch m.favorites.Level {
 		case favtui.ListLevel:
-			if m.favorites.category == favtui.CategoryTracks {
-				if track, ok := m.favorites.focusedTrack(); ok {
+			if m.favorites.Category == favtui.CategoryTracks {
+				if track, ok := m.favorites.FocusedTrack(); ok {
 					return track.Path, track.Artist, track.Title, true
 				}
 			}
 		case favtui.TrackLevel:
-			if track, ok := m.favorites.focusedTrack(); ok {
+			if track, ok := m.favorites.FocusedTrack(); ok {
 				return track.Path, track.Artist, track.Title, true
 			}
 		}
 
 	case viewTags:
-		if track, ok := m.tagsView.focusedTrack(); ok {
+		if track, ok := m.tagsView.FocusedTrack(); ok {
 			return track.Path, track.Artist, track.Title, true
 		}
 	case viewMixes:

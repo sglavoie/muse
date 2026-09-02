@@ -14,17 +14,17 @@ func (m Model) handleFavoritesRemove() (Model, tea.Cmd, bool) {
 	}
 	writer := m.favoriteWriter
 
-	switch m.favorites.level {
+	switch m.favorites.Level {
 	case favtui.ListLevel:
-		switch m.favorites.category {
+		switch m.favorites.Category {
 		case favtui.CategoryArtists:
-			name, ok := m.favorites.focusedArtist()
+			name, ok := m.favorites.FocusedArtist()
 			if !ok {
 				return m, nil, true
 			}
-			removedIdx := indexOfString(m.favorites.artists, name)
-			favLevel := m.favorites.level
-			favCategory := m.favorites.category
+			removedIdx := indexOfString(m.favorites.Artists, name)
+			favLevel := m.favorites.Level
+			favCategory := m.favorites.Category
 			return m, func() tea.Msg {
 				err := writer.RemoveFavorite("artist", name)
 				return favoriteToggledMsg{
@@ -38,13 +38,13 @@ func (m Model) handleFavoritesRemove() (Model, tea.Cmd, bool) {
 				}
 			}, true
 		case favtui.CategoryAlbums:
-			name, ok := m.favorites.focusedAlbum()
+			name, ok := m.favorites.FocusedAlbum()
 			if !ok {
 				return m, nil, true
 			}
-			removedIdx := indexOfString(m.favorites.albums, name)
-			favLevel := m.favorites.level
-			favCategory := m.favorites.category
+			removedIdx := indexOfString(m.favorites.Albums, name)
+			favLevel := m.favorites.Level
+			favCategory := m.favorites.Category
 			return m, func() tea.Msg {
 				err := writer.RemoveFavorite("album", name)
 				return favoriteToggledMsg{
@@ -58,13 +58,13 @@ func (m Model) handleFavoritesRemove() (Model, tea.Cmd, bool) {
 				}
 			}, true
 		case favtui.CategoryTracks:
-			track, ok := m.favorites.focusedTrack()
+			track, ok := m.favorites.FocusedTrack()
 			if !ok {
 				return m, nil, true
 			}
-			removedIdx := indexOfTrackByHash(m.favorites.tracks, track.Hash)
-			favLevel := m.favorites.level
-			favCategory := m.favorites.category
+			removedIdx := indexOfTrackByHash(m.favorites.Tracks, track.Hash)
+			favLevel := m.favorites.Level
+			favCategory := m.favorites.Category
 			return m, func() tea.Msg {
 				err := writer.RemoveFavorite("track", track.Hash)
 				return favoriteToggledMsg{
@@ -81,11 +81,11 @@ func (m Model) handleFavoritesRemove() (Model, tea.Cmd, bool) {
 		}
 
 	case favtui.TrackLevel:
-		track, ok := m.favorites.focusedTrack()
+		track, ok := m.favorites.FocusedTrack()
 		if !ok {
 			return m, nil, true
 		}
-		removedIdx := indexOfTrackByHash(m.favorites.drilldownTracks, track.Hash)
+		removedIdx := indexOfTrackByHash(m.favorites.DrilldownTracks, track.Hash)
 		return m, func() tea.Msg {
 			err := writer.RemoveFavorite("track", track.Hash)
 			return favoriteToggledMsg{
@@ -105,29 +105,29 @@ func (m Model) handleFavoritesRemove() (Model, tea.Cmd, bool) {
 
 // handleFavoritesBulkAction handles 'a' in the Favorites view with selected items.
 func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
-	if m.favoriteWriter == nil || !m.favorites.hasSelection() {
+	if m.favoriteWriter == nil || !m.favorites.HasSelection() {
 		return m, nil, true
 	}
 	writer := m.favoriteWriter
 
-	favLevel := m.favorites.level
-	favCategory := m.favorites.category
+	favLevel := m.favorites.Level
+	favCategory := m.favorites.Category
 
-	switch m.favorites.level {
+	switch m.favorites.Level {
 	case favtui.ListLevel:
 		var values []string
 		var removedIndices []int
 		var removedTracks []library.Track
 		var typ string
-		switch m.favorites.category {
+		switch m.favorites.Category {
 		case favtui.CategoryArtists:
 			typ = "artist"
-			items := arttui.FilterStrings(m.favorites.artists, m.favorites.filter.Text)
-			for idx := range m.favorites.selectedItems {
+			items := arttui.FilterStrings(m.favorites.Artists, m.favorites.Filter.Text)
+			for idx := range m.favorites.SelectedItems {
 				if idx >= 0 && idx < len(items) {
 					val := items[idx]
 					values = append(values, val)
-					for i, a := range m.favorites.artists {
+					for i, a := range m.favorites.Artists {
 						if a == val {
 							removedIndices = append(removedIndices, i)
 							break
@@ -137,12 +137,12 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 			}
 		case favtui.CategoryAlbums:
 			typ = "album"
-			items := arttui.FilterStrings(m.favorites.albums, m.favorites.filter.Text)
-			for idx := range m.favorites.selectedItems {
+			items := arttui.FilterStrings(m.favorites.Albums, m.favorites.Filter.Text)
+			for idx := range m.favorites.SelectedItems {
 				if idx >= 0 && idx < len(items) {
 					val := items[idx]
 					values = append(values, val)
-					for i, a := range m.favorites.albums {
+					for i, a := range m.favorites.Albums {
 						if a == val {
 							removedIndices = append(removedIndices, i)
 							break
@@ -152,13 +152,13 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 			}
 		case favtui.CategoryTracks:
 			typ = "track"
-			items := arttui.FilterTracks(m.favorites.tracks, m.favorites.filter.Text)
-			for idx := range m.favorites.selectedItems {
+			items := arttui.FilterTracks(m.favorites.Tracks, m.favorites.Filter.Text)
+			for idx := range m.favorites.SelectedItems {
 				if idx >= 0 && idx < len(items) {
 					t := items[idx]
 					values = append(values, t.Hash)
 					removedTracks = append(removedTracks, t)
-					for i, tr := range m.favorites.tracks {
+					for i, tr := range m.favorites.Tracks {
 						if tr.Hash == t.Hash {
 							removedIndices = append(removedIndices, i)
 							break
@@ -172,7 +172,7 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 		}
 		sortBulkRemovalByIndex(values, removedTracks, removedIndices)
 		m = exitVisualMode(m)
-		m.favorites = m.favorites.clearSelection()
+		m.favorites = m.favorites.ClearSelection()
 		return m, func() tea.Msg {
 			err := writer.RemoveFavoritesByTypeAndValues(typ, values)
 			return favoriteToggledMsg{
@@ -189,16 +189,16 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 		}, true
 
 	case favtui.TrackLevel:
-		items := arttui.FilterTracks(m.favorites.drilldownTracks, m.favorites.filter.Text)
+		items := arttui.FilterTracks(m.favorites.DrilldownTracks, m.favorites.Filter.Text)
 		var hashes []string
 		var removedTracks []library.Track
 		var removedIndices []int
-		for idx := range m.favorites.selectedItems {
+		for idx := range m.favorites.SelectedItems {
 			if idx >= 0 && idx < len(items) {
 				t := items[idx]
 				hashes = append(hashes, t.Hash)
 				removedTracks = append(removedTracks, t)
-				for i, tr := range m.favorites.drilldownTracks {
+				for i, tr := range m.favorites.DrilldownTracks {
 					if tr.Hash == t.Hash {
 						removedIndices = append(removedIndices, i)
 						break
@@ -211,7 +211,7 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 		}
 		sortBulkRemovalByIndex(hashes, removedTracks, removedIndices)
 		m = exitVisualMode(m)
-		m.favorites = m.favorites.clearSelection()
+		m.favorites = m.favorites.ClearSelection()
 		return m, func() tea.Msg {
 			err := writer.RemoveFavoritesByTypeAndValues("track", hashes)
 			return favoriteToggledMsg{

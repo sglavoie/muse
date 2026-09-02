@@ -67,27 +67,27 @@ func (m Model) selectedTrackHashes() []string {
 		}
 		return hashes
 	case viewFavorites:
-		if len(m.favorites.selectedItems) == 0 {
+		if len(m.favorites.SelectedItems) == 0 {
 			return nil
 		}
 		var items []musiclib.Track
 		switch {
-		case m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks:
-			items = arttui.FilterTracks(m.favorites.tracks, m.favorites.filter.Text)
-		case m.favorites.level == favtui.TrackLevel:
-			items = arttui.FilterTracks(m.favorites.drilldownTracks, m.favorites.filter.Text)
+		case m.favorites.Level == favtui.ListLevel && m.favorites.Category == favtui.CategoryTracks:
+			items = arttui.FilterTracks(m.favorites.Tracks, m.favorites.Filter.Text)
+		case m.favorites.Level == favtui.TrackLevel:
+			items = arttui.FilterTracks(m.favorites.DrilldownTracks, m.favorites.Filter.Text)
 		default:
 			return nil
 		}
 		var hashes []string
-		for _, idx := range sortedIntSetKeys(m.favorites.selectedItems) {
+		for _, idx := range sortedIntSetKeys(m.favorites.SelectedItems) {
 			if idx >= 0 && idx < len(items) {
 				hashes = append(hashes, items[idx].Hash)
 			}
 		}
 		return hashes
 	case viewTags:
-		return hashMapToSlice(m.tagsView.selectedHashes)
+		return hashMapToSlice(m.tagsView.SelectedHashes)
 	case viewMixes:
 		if m.mixes.level == 1 {
 			return hashMapToSlice(m.mixes.trackView.SelectedHashes)
@@ -154,21 +154,21 @@ func (m Model) focusedTrackHash() string {
 			return track.Hash
 		}
 	case viewFavorites:
-		switch m.favorites.level {
+		switch m.favorites.Level {
 		case favtui.ListLevel:
-			if m.favorites.category == favtui.CategoryTracks {
-				if track, ok := m.favorites.focusedTrack(); ok {
+			if m.favorites.Category == favtui.CategoryTracks {
+				if track, ok := m.favorites.FocusedTrack(); ok {
 					return track.Hash
 				}
 			}
 		case favtui.TrackLevel:
-			if track, ok := m.favorites.focusedTrack(); ok {
+			if track, ok := m.favorites.FocusedTrack(); ok {
 				return track.Hash
 			}
 		}
 	case viewTags:
-		if m.tagsView.level == tagtui.TrackLevel {
-			if track, ok := m.tagsView.focusedTrack(); ok {
+		if m.tagsView.Level == tagtui.TrackLevel {
+			if track, ok := m.tagsView.FocusedTrack(); ok {
 				return track.Hash
 			}
 		}
@@ -251,17 +251,17 @@ func (m Model) removeTagFromCaches(tagID int64) Model {
 	}
 	m = m.rebuildTagCache(filtered)
 
-	tvFiltered := make([]db.TagRow, 0, len(m.tagsView.tags))
-	for _, t := range m.tagsView.tags {
+	tvFiltered := make([]db.TagRow, 0, len(m.tagsView.Tags))
+	for _, t := range m.tagsView.Tags {
 		if t.ID != tagID {
 			tvFiltered = append(tvFiltered, t)
 		}
 	}
-	m.tagsView.tags = tvFiltered
-	m.tagsView = m.tagsView.clampCursor()
+	m.tagsView.Tags = tvFiltered
+	m.tagsView = m.tagsView.ClampCursor()
 
-	if m.tagsView.tagCounts != nil {
-		delete(m.tagsView.tagCounts, tagID)
+	if m.tagsView.TagCounts != nil {
+		delete(m.tagsView.TagCounts, tagID)
 	}
 
 	// Clear the cross-view tag filter when it pointed at the removed tag.
@@ -276,7 +276,7 @@ func (m Model) removeTagFromCaches(tagID int64) Model {
 
 // syncTagsViewTags copies the global tag list into the tags view on switch.
 func (m Model) syncTagsViewTags() Model {
-	m.tagsView.tags = m.tags
+	m.tagsView.Tags = m.tags
 	return m
 }
 

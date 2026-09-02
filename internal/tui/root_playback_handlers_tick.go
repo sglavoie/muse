@@ -147,29 +147,29 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 		}
 		m = m.preservePlaylistsSort()
 	}
-	if m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks {
-		for i := range m.favorites.tracks {
-			if m.favorites.tracks[i].Hash == hash {
-				m.favorites.tracks[i].Duration = mpvTotal
+	if m.favorites.Level == favtui.ListLevel && m.favorites.Category == favtui.CategoryTracks {
+		for i := range m.favorites.Tracks {
+			if m.favorites.Tracks[i].Hash == hash {
+				m.favorites.Tracks[i].Duration = mpvTotal
 			}
 		}
-		m.favorites = m.favorites.recomputeFavoritesSort()
+		m.favorites = m.favorites.RecomputeFavoritesSort()
 	}
-	if m.favorites.level == favtui.TrackLevel {
-		for i := range m.favorites.drilldownTracks {
-			if m.favorites.drilldownTracks[i].Hash == hash {
-				m.favorites.drilldownTracks[i].Duration = mpvTotal
+	if m.favorites.Level == favtui.TrackLevel {
+		for i := range m.favorites.DrilldownTracks {
+			if m.favorites.DrilldownTracks[i].Hash == hash {
+				m.favorites.DrilldownTracks[i].Duration = mpvTotal
 			}
 		}
-		m.favorites = m.favorites.recomputeFavoritesSort()
+		m.favorites = m.favorites.RecomputeFavoritesSort()
 	}
-	if m.tagsView.level == tagtui.TrackLevel {
-		for i := range m.tagsView.tracks {
-			if m.tagsView.tracks[i].Hash == hash {
-				m.tagsView.tracks[i].DurationMs = newDurationMs
+	if m.tagsView.Level == tagtui.TrackLevel {
+		for i := range m.tagsView.Tracks {
+			if m.tagsView.Tracks[i].Hash == hash {
+				m.tagsView.Tracks[i].DurationMs = newDurationMs
 			}
 		}
-		m.tagsView = m.tagsView.recomputeTagsSort()
+		m.tagsView = m.tagsView.RecomputeTagsSort()
 	}
 	if m.browse.artists.level == arttui.TrackLevel {
 		for i := range m.browse.artists.tracks {

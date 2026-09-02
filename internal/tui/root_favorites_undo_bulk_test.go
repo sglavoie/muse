@@ -18,14 +18,14 @@ func TestUndoBulkRemoveFavorites(t *testing.T) {
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
 
 	// After removing 3 tracks (original indices 1, 2, 4), only h0 and h3 remain.
 	t0 := library.Track{Hash: "h0", Title: "T0"}
 	t3 := library.Track{Hash: "h3", Title: "T3"}
-	m.favorites.tracks = []library.Track{t0, t3}
-	m.favorites.trackCount = 2
+	m.favorites.Tracks = []library.Track{t0, t3}
+	m.favorites.TrackCount = 2
 
 	t1 := library.Track{Hash: "h1", Title: "T1"}
 	t2 := library.Track{Hash: "h2", Title: "T2"}
@@ -46,13 +46,13 @@ func TestUndoBulkRemoveFavorites(t *testing.T) {
 	next, _ := m.Update(UndoMsg{})
 	nm := next.(Model)
 
-	if len(nm.favorites.tracks) != 5 {
-		t.Fatalf("expected 5 tracks after undo, got %d: %v", len(nm.favorites.tracks), nm.favorites.tracks)
+	if len(nm.favorites.Tracks) != 5 {
+		t.Fatalf("expected 5 tracks after undo, got %d: %v", len(nm.favorites.Tracks), nm.favorites.Tracks)
 	}
 	expected := []string{"h0", "h1", "h2", "h3", "h4"}
 	for i, h := range expected {
-		if nm.favorites.tracks[i].Hash != h {
-			t.Errorf("index %d: got hash %q, want %q", i, nm.favorites.tracks[i].Hash, h)
+		if nm.favorites.Tracks[i].Hash != h {
+			t.Errorf("index %d: got hash %q, want %q", i, nm.favorites.Tracks[i].Hash, h)
 		}
 	}
 	if len(w.added) != 3 {
@@ -69,10 +69,10 @@ func TestBulkFavoritesUndoReinsertionOrder(t *testing.T) {
 	m := Model{
 		appCtx:     context.Background(),
 		activeView: viewFavorites,
-		favorites: FavoritesView{
-			level:    favtui.ListLevel,
-			category: favtui.CategoryArtists,
-			artists:  []string{"A", "C", "E"},
+		favorites: favtui.FavoritesView{
+			Level:    favtui.ListLevel,
+			Category: favtui.CategoryArtists,
+			Artists:  []string{"A", "C", "E"},
 		},
 	}
 
@@ -86,12 +86,12 @@ func TestBulkFavoritesUndoReinsertionOrder(t *testing.T) {
 	m, _ = action.perform(m)
 
 	want := []string{"A", "B", "C", "D", "E"}
-	if len(m.favorites.artists) != len(want) {
-		t.Fatalf("got %d artists, want %d", len(m.favorites.artists), len(want))
+	if len(m.favorites.Artists) != len(want) {
+		t.Fatalf("got %d artists, want %d", len(m.favorites.Artists), len(want))
 	}
 	for i, w := range want {
-		if m.favorites.artists[i] != w {
-			t.Errorf("artists[%d] = %q, want %q", i, m.favorites.artists[i], w)
+		if m.favorites.Artists[i] != w {
+			t.Errorf("artists[%d] = %q, want %q", i, m.favorites.Artists[i], w)
 		}
 	}
 }
@@ -102,10 +102,10 @@ func TestBulkFavoritesUndoReinsertionOrder_Unsorted(t *testing.T) {
 	m := Model{
 		appCtx:     context.Background(),
 		activeView: viewFavorites,
-		favorites: FavoritesView{
-			level:    favtui.ListLevel,
-			category: favtui.CategoryArtists,
-			artists:  []string{"A", "C", "E"},
+		favorites: favtui.FavoritesView{
+			Level:    favtui.ListLevel,
+			Category: favtui.CategoryArtists,
+			Artists:  []string{"A", "C", "E"},
 		},
 	}
 
@@ -119,10 +119,10 @@ func TestBulkFavoritesUndoReinsertionOrder_Unsorted(t *testing.T) {
 	m, _ = action.perform(m)
 
 	correct := []string{"A", "B", "C", "D", "E"}
-	isCorrect := len(m.favorites.artists) == len(correct)
+	isCorrect := len(m.favorites.Artists) == len(correct)
 	if isCorrect {
 		for i, w := range correct {
-			if m.favorites.artists[i] != w {
+			if m.favorites.Artists[i] != w {
 				isCorrect = false
 				break
 			}

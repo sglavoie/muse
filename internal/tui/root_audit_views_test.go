@@ -60,12 +60,12 @@ func TestDurationAuditBatchSyncsPlaylistTracks(t *testing.T) {
 func TestDurationAuditBatchSyncsFavoritesTracks(t *testing.T) {
 	m := newDurationAuditModel()
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{{Hash: "h1", Duration: 120.0}}
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{{Hash: "h1", Duration: 120.0}}
 
 	nm, _ := durationAuditBatchUpdate(t, m, library.DurationFix{Hash: "h1", DurationMs: 240000})
-	if got := nm.favorites.tracks[0].Duration; got != 240.0 {
+	if got := nm.favorites.Tracks[0].Duration; got != 240.0 {
 		t.Errorf("favorites track duration after audit: got %f, want 240.0", got)
 	}
 }
@@ -73,11 +73,11 @@ func TestDurationAuditBatchSyncsFavoritesTracks(t *testing.T) {
 func TestDurationAuditBatchSyncsTagsTracks(t *testing.T) {
 	m := newDurationAuditModel()
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
-	m.tagsView.level = tagtui.TrackLevel
-	m.tagsView.tracks = []db.PlaylistTrackRow{{Hash: "h1", DurationMs: 120000}}
+	m.tagsView.Level = tagtui.TrackLevel
+	m.tagsView.Tracks = []db.PlaylistTrackRow{{Hash: "h1", DurationMs: 120000}}
 
 	nm, _ := durationAuditBatchUpdate(t, m, library.DurationFix{Hash: "h1", DurationMs: 240000})
-	if got := nm.tagsView.tracks[0].DurationMs; got != 240000 {
+	if got := nm.tagsView.Tracks[0].DurationMs; got != 240000 {
 		t.Errorf("tags track DurationMs after audit: got %d, want 240000", got)
 	}
 }

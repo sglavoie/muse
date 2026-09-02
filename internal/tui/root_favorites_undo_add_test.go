@@ -67,9 +67,9 @@ func TestUndoAddFavorite_TrackLevelKeepsDrilldownTracks(t *testing.T) {
 	}}
 	m := New(context.Background(), WithFavoriteWriter(w), WithFavoriteReader(r))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.TrackLevel
-	m.favorites.category = favtui.CategoryAlbums
-	m.favorites.drilldownTracks = []library.Track{
+	m.favorites.Level = favtui.TrackLevel
+	m.favorites.Category = favtui.CategoryAlbums
+	m.favorites.DrilldownTracks = []library.Track{
 		{Hash: "h1", Title: "T1"},
 		{Hash: "h2", Title: "T2"},
 	}
@@ -83,11 +83,11 @@ func TestUndoAddFavorite_TrackLevelKeepsDrilldownTracks(t *testing.T) {
 	next, _ := m.Update(UndoMsg{})
 	nm := next.(Model)
 
-	if len(nm.favorites.drilldownTracks) != 2 {
-		t.Fatalf("expected 2 drilldown tracks after undo, got %d", len(nm.favorites.drilldownTracks))
+	if len(nm.favorites.DrilldownTracks) != 2 {
+		t.Fatalf("expected 2 drilldown tracks after undo, got %d", len(nm.favorites.DrilldownTracks))
 	}
-	if nm.favorites.drilldownTracks[0].Hash != "h1" || nm.favorites.drilldownTracks[1].Hash != "h2" {
-		t.Fatalf("expected [h1 h2], got [%s %s]", nm.favorites.drilldownTracks[0].Hash, nm.favorites.drilldownTracks[1].Hash)
+	if nm.favorites.DrilldownTracks[0].Hash != "h1" || nm.favorites.DrilldownTracks[1].Hash != "h2" {
+		t.Fatalf("expected [h1 h2], got [%s %s]", nm.favorites.DrilldownTracks[0].Hash, nm.favorites.DrilldownTracks[1].Hash)
 	}
 	if _, ok := nm.favoriteHashes["h1"]; ok {
 		t.Fatal("expected h1 to be removed from favoriteHashes after undo")
@@ -104,13 +104,13 @@ func TestUndoAddFavorite_RemovesFromViewList(t *testing.T) {
 	}}
 	m := New(context.Background(), WithFavoriteWriter(w), WithFavoriteReader(r))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{
 		{Hash: "h1", Title: "T1"},
 		{Hash: "h2", Title: "T2"},
 	}
-	m.favorites.trackCount = 2
+	m.favorites.TrackCount = 2
 	m.favoriteHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	m.undo.slot = undoSlot{
@@ -121,11 +121,11 @@ func TestUndoAddFavorite_RemovesFromViewList(t *testing.T) {
 	next, _ := m.Update(UndoMsg{})
 	nm := next.(Model)
 
-	if len(nm.favorites.tracks) != 1 {
-		t.Fatalf("expected 1 track after undo add, got %d", len(nm.favorites.tracks))
+	if len(nm.favorites.Tracks) != 1 {
+		t.Fatalf("expected 1 track after undo add, got %d", len(nm.favorites.Tracks))
 	}
-	if nm.favorites.tracks[0].Hash != "h2" {
-		t.Fatalf("expected remaining track h2, got %s", nm.favorites.tracks[0].Hash)
+	if nm.favorites.Tracks[0].Hash != "h2" {
+		t.Fatalf("expected remaining track h2, got %s", nm.favorites.Tracks[0].Hash)
 	}
 }
 
@@ -138,10 +138,10 @@ func TestUndoAddFavorite_RemovesArtistFromViewList(t *testing.T) {
 	}}
 	m := New(context.Background(), WithFavoriteWriter(w), WithFavoriteReader(r))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryArtists
-	m.favorites.artists = []string{"Bach", "Davis"}
-	m.favorites.artistCount = 2
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryArtists
+	m.favorites.Artists = []string{"Bach", "Davis"}
+	m.favorites.ArtistCount = 2
 	m.favoriteArtists = map[string]struct{}{"Bach": {}, "Davis": {}}
 
 	m.undo.slot = undoSlot{
@@ -152,11 +152,11 @@ func TestUndoAddFavorite_RemovesArtistFromViewList(t *testing.T) {
 	next, _ := m.Update(UndoMsg{})
 	nm := next.(Model)
 
-	if len(nm.favorites.artists) != 1 {
-		t.Fatalf("expected 1 artist after undo add, got %d", len(nm.favorites.artists))
+	if len(nm.favorites.Artists) != 1 {
+		t.Fatalf("expected 1 artist after undo add, got %d", len(nm.favorites.Artists))
 	}
-	if nm.favorites.artists[0] != "Bach" {
-		t.Fatalf("expected remaining artist Bach, got %s", nm.favorites.artists[0])
+	if nm.favorites.Artists[0] != "Bach" {
+		t.Fatalf("expected remaining artist Bach, got %s", nm.favorites.Artists[0])
 	}
 }
 
@@ -169,14 +169,14 @@ func TestUndoBulkAddFavorites_RemovesFromViewList(t *testing.T) {
 	}}
 	m := New(context.Background(), WithFavoriteWriter(w), WithFavoriteReader(r))
 	m.activeView = viewFavorites
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{
 		{Hash: "h1", Title: "T1"},
 		{Hash: "h2", Title: "T2"},
 		{Hash: "h3", Title: "T3"},
 	}
-	m.favorites.trackCount = 3
+	m.favorites.TrackCount = 3
 	m.favoriteHashes = map[string]struct{}{"h1": {}, "h2": {}, "h3": {}}
 
 	m.undo.slot = undoSlot{
@@ -190,11 +190,11 @@ func TestUndoBulkAddFavorites_RemovesFromViewList(t *testing.T) {
 	next, _ := m.Update(UndoMsg{})
 	nm := next.(Model)
 
-	if len(nm.favorites.tracks) != 1 {
-		t.Fatalf("expected 1 track after undo bulk add, got %d", len(nm.favorites.tracks))
+	if len(nm.favorites.Tracks) != 1 {
+		t.Fatalf("expected 1 track after undo bulk add, got %d", len(nm.favorites.Tracks))
 	}
-	if nm.favorites.tracks[0].Hash != "h2" {
-		t.Fatalf("expected remaining track h2, got %s", nm.favorites.tracks[0].Hash)
+	if nm.favorites.Tracks[0].Hash != "h2" {
+		t.Fatalf("expected remaining track h2, got %s", nm.favorites.Tracks[0].Hash)
 	}
 }
 

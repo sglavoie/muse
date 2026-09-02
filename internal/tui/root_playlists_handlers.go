@@ -188,8 +188,8 @@ func (m Model) clearAllSelections() Model {
 	m.browse.artists.selectedHashes = nil
 	m.browse.albums.selectedHashes = nil
 	m.browse.genres.selectedHashes = nil
-	m.favorites.selectedItems = nil
-	m.tagsView.selectedHashes = nil
+	m.favorites.SelectedItems = nil
+	m.tagsView.SelectedHashes = nil
 	m.insights.trackView.SelectedHashes = nil
 	m.playlists.SelectedTrackIDs = nil
 	for i := range m.queue.entries {

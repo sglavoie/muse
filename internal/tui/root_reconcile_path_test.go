@@ -99,12 +99,12 @@ func TestWatchBatchHealsCollectionPaths(t *testing.T) {
 	m.playlists.Level = pltui.TrackLevel
 	m.playlists.Tracks = []db.PlaylistTrackRow{{Hash: "h1", Path: "/old.flac", Artist: "A", Title: "T1"}}
 
-	m.favorites.level = favtui.ListLevel
-	m.favorites.category = favtui.CategoryTracks
-	m.favorites.tracks = []library.Track{{Hash: "h1", Path: "/old.flac", Artist: "A", Title: "T1"}}
+	m.favorites.Level = favtui.ListLevel
+	m.favorites.Category = favtui.CategoryTracks
+	m.favorites.Tracks = []library.Track{{Hash: "h1", Path: "/old.flac", Artist: "A", Title: "T1"}}
 
-	m.tagsView.level = tagtui.TrackLevel
-	m.tagsView.tracks = []db.PlaylistTrackRow{{Hash: "h1", Path: "/old.flac", Artist: "A", Title: "T1"}}
+	m.tagsView.Level = tagtui.TrackLevel
+	m.tagsView.Tracks = []db.PlaylistTrackRow{{Hash: "h1", Path: "/old.flac", Artist: "A", Title: "T1"}}
 
 	m.mixes.cachedMixes = map[db.MixID][]library.Track{
 		db.MixRediscover: {{Hash: "h1", Path: "/old.flac", Artist: "A", Title: "T1"}},
@@ -119,10 +119,10 @@ func TestWatchBatchHealsCollectionPaths(t *testing.T) {
 	if got := nm.playlists.Tracks[0].Path; got != "/new.flac" {
 		t.Errorf("playlist track Path = %q; want /new.flac", got)
 	}
-	if got := nm.favorites.tracks[0].Path; got != "/new.flac" {
+	if got := nm.favorites.Tracks[0].Path; got != "/new.flac" {
 		t.Errorf("favorites track Path = %q; want /new.flac", got)
 	}
-	if got := nm.tagsView.tracks[0].Path; got != "/new.flac" {
+	if got := nm.tagsView.Tracks[0].Path; got != "/new.flac" {
 		t.Errorf("tags track Path = %q; want /new.flac", got)
 	}
 	for id, cached := range nm.mixes.cachedMixes {

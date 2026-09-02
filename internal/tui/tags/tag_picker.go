@@ -1,4 +1,4 @@
-package tui
+package tags
 
 import (
 	"strings"
@@ -13,28 +13,28 @@ import (
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
-// checkState represents the checkbox state for a tag in the picker.
-type checkState int
+// CheckState represents the checkbox state for a tag in the picker.
+type CheckState int
 
 const (
-	checkUnchecked checkState = iota // track does not have tag
-	checkChecked                     // track has tag
-	checkPartial                     // bulk: some tracks have tag, some do not
+	CheckUnchecked CheckState = iota // track does not have tag
+	CheckChecked                     // track has tag
+	CheckPartial                     // bulk: some tracks have tag, some do not
 )
 
-// tagPickerItem is a single row in the TagPicker list.
-type tagPickerItem struct {
+// TagPickerItem is a single row in the TagPicker list.
+type TagPickerItem struct {
 	tag   db.TagRow
-	state checkState
+	state CheckState
 }
 
 // TagPicker is the overlay sub-model for the tag management popup (key 't').
 // It supports both single-track and bulk (visual-selection) modes.
 type TagPicker struct {
-	items      []tagPickerItem // all tags, with current check states
-	filtered   []int           // indices into items after filter
-	cursor     int
-	filter     filter.State
+	Items      []TagPickerItem // all tags, with current check states
+	Filtered   []int           // indices into Items after filter
+	Cursor     int
+	Filter     filter.State
 	trackHash  string   // single-track mode (empty when bulkHashes is set)
 	bulkHashes []string // bulk mode (nil in single-track mode)
 }
@@ -43,19 +43,19 @@ type TagPicker struct {
 // state of every item from trackTagIDs (the set of tag IDs the track already
 // carries).
 func NewTagPicker(tags []db.TagRow, trackHash string, trackTagIDs map[int64]struct{}) (TagPicker, tea.Cmd) {
-	items := buildTagItems(tags, func(id int64) checkState {
+	items := buildTagItems(tags, func(id int64) CheckState {
 		if _, ok := trackTagIDs[id]; ok {
-			return checkChecked
+			return CheckChecked
 		}
-		return checkUnchecked
+		return CheckUnchecked
 	})
 	tp := TagPicker{
-		items:     items,
+		Items:     items,
 		trackHash: trackHash,
 	}
-	tp.refilter()
+	tp.Refilter()
 	var cmd tea.Cmd
-	tp.filter, cmd = filter.New().Activate()
+	tp.Filter, cmd = filter.New().Activate()
 	return tp, cmd
 }
 
@@ -66,7 +66,7 @@ func NewTagPicker(tags []db.TagRow, trackHash string, trackTagIDs map[int64]stru
 //   - checkPartial   when some hashes carry it and some do not
 func NewTagPickerBulk(tags []db.TagRow, hashes []string, trackTags map[string]map[int64]struct{}) (TagPicker, tea.Cmd) {
 	total := len(hashes)
-	items := buildTagItems(tags, func(id int64) checkState {
+	items := buildTagItems(tags, func(id int64) CheckState {
 		count := 0
 		for _, h := range hashes {
 			if tt, ok := trackTags[h]; ok {
@@ -77,27 +77,27 @@ func NewTagPickerBulk(tags []db.TagRow, hashes []string, trackTags map[string]ma
 		}
 		switch count {
 		case 0:
-			return checkUnchecked
+			return CheckUnchecked
 		case total:
-			return checkChecked
+			return CheckChecked
 		default:
-			return checkPartial
+			return CheckPartial
 		}
 	})
 	tp := TagPicker{
-		items:      items,
+		Items:      items,
 		bulkHashes: hashes,
 	}
-	tp.refilter()
+	tp.Refilter()
 	var cmd tea.Cmd
-	tp.filter, cmd = filter.New().Activate()
+	tp.Filter, cmd = filter.New().Activate()
 	return tp, cmd
 }
 
-func buildTagItems(tags []db.TagRow, stateFn func(int64) checkState) []tagPickerItem {
-	items := make([]tagPickerItem, len(tags))
+func buildTagItems(tags []db.TagRow, stateFn func(int64) CheckState) []TagPickerItem {
+	items := make([]TagPickerItem, len(tags))
 	for i, t := range tags {
-		items[i] = tagPickerItem{tag: t, state: stateFn(t.ID)}
+		items[i] = TagPickerItem{tag: t, state: stateFn(t.ID)}
 	}
 	return items
 }
@@ -117,20 +117,20 @@ func (tp TagPicker) Hashes() []string {
 }
 
 // filterText returns the current filter input value.
-func (tp TagPicker) filterText() string { return tp.filter.Text }
+func (tp TagPicker) filterText() string { return tp.Filter.Text }
 
-// focusedOnCreate reports whether the cursor is on the "+ Create" synthetic row
+// FocusedOnCreate reports whether the cursor is on the "+ Create" synthetic row
 // (only possible when no filtered items match the current filter text).
-func (tp TagPicker) focusedOnCreate() bool {
-	return len(tp.filtered) == 0 && tp.filterText() != ""
+func (tp TagPicker) FocusedOnCreate() bool {
+	return len(tp.Filtered) == 0 && tp.filterText() != ""
 }
 
-// focusedItem returns the tagPickerItem at the cursor, and true when valid.
-func (tp TagPicker) focusedItem() (tagPickerItem, bool) {
-	if tp.focusedOnCreate() || tp.cursor < 0 || tp.cursor >= len(tp.filtered) {
-		return tagPickerItem{}, false
+// focusedItem returns the TagPickerItem at the cursor, and true when valid.
+func (tp TagPicker) focusedItem() (TagPickerItem, bool) {
+	if tp.FocusedOnCreate() || tp.Cursor < 0 || tp.Cursor >= len(tp.Filtered) {
+		return TagPickerItem{}, false
 	}
-	return tp.items[tp.filtered[tp.cursor]], true
+	return tp.Items[tp.Filtered[tp.Cursor]], true
 }
 
 // TagPickerToggleMsg is dispatched when the user toggles a tag in the picker.
@@ -149,23 +149,27 @@ type TagPickerCreateMsg struct {
 	Hashes []string
 }
 
+// TagPickerDismissedMsg is dispatched when the tag picker overlay is closed
+// without making any changes.
+type TagPickerDismissedMsg struct{}
+
 // HandleKey processes a key press inside the tag picker.
 func (tp TagPicker) HandleKey(key string, msg tea.KeyPressMsg) (TagPicker, tea.Cmd) {
 	switch key {
 	case "esc":
-		return tp, func() tea.Msg { return tagPickerDismissedMsg{} }
+		return tp, func() tea.Msg { return TagPickerDismissedMsg{} }
 
 	case "up", "ctrl+k", "ctrl+p":
-		if tp.cursor > 0 {
-			tp.cursor--
+		if tp.Cursor > 0 {
+			tp.Cursor--
 		}
 		return tp, nil
 
 	case "down", "ctrl+j", "ctrl+n":
 		// When "+Create" is focused, there is no row to move to.
 		// Otherwise advance up to the last filtered row.
-		if !tp.focusedOnCreate() && tp.cursor < len(tp.filtered)-1 {
-			tp.cursor++
+		if !tp.FocusedOnCreate() && tp.Cursor < len(tp.Filtered)-1 {
+			tp.Cursor++
 		}
 		return tp, nil
 
@@ -174,15 +178,15 @@ func (tp TagPicker) HandleKey(key string, msg tea.KeyPressMsg) (TagPicker, tea.C
 
 	default:
 		var cmd tea.Cmd
-		tp.filter, cmd = tp.filter.Update(msg)
-		tp.refilter()
+		tp.Filter, cmd = tp.Filter.Update(msg)
+		tp.Refilter()
 		return tp, cmd
 	}
 }
 
 // handleToggleOrCreate executes the action for the currently focused row.
 func (tp TagPicker) handleToggleOrCreate() (TagPicker, tea.Cmd) {
-	if tp.focusedOnCreate() {
+	if tp.FocusedOnCreate() {
 		name := strings.TrimSpace(tp.filterText())
 		if name == "" {
 			return tp, nil
@@ -197,7 +201,7 @@ func (tp TagPicker) handleToggleOrCreate() (TagPicker, tea.Cmd) {
 	}
 
 	hashes := tp.Hashes()
-	add := item.state != checkChecked // partial and unchecked → add
+	add := item.state != CheckChecked // partial and unchecked → add
 
 	return tp, func() tea.Msg {
 		return TagPickerToggleMsg{TagID: item.tag.ID, Hashes: hashes, Add: add}
@@ -206,10 +210,10 @@ func (tp TagPicker) handleToggleOrCreate() (TagPicker, tea.Cmd) {
 
 // UpdateItemState updates the check state for the given tag ID in-place.
 // Called after a successful DB write to keep the picker display in sync.
-func (tp TagPicker) UpdateItemState(tagID int64, state checkState) TagPicker {
-	for i := range tp.items {
-		if tp.items[i].tag.ID == tagID {
-			tp.items[i].state = state
+func (tp TagPicker) UpdateItemState(tagID int64, state CheckState) TagPicker {
+	for i := range tp.Items {
+		if tp.Items[i].tag.ID == tagID {
+			tp.Items[i].state = state
 			break
 		}
 	}
@@ -221,35 +225,35 @@ func (tp TagPicker) UpdateItemState(tagID int64, state checkState) TagPicker {
 // auto-deleted while the picker is open (its row would otherwise still be
 // shown and toggling it on would attempt to re-add a deleted tag).
 func (tp TagPicker) RemoveItem(tagID int64) TagPicker {
-	out := make([]tagPickerItem, 0, len(tp.items))
-	for _, it := range tp.items {
+	out := make([]TagPickerItem, 0, len(tp.Items))
+	for _, it := range tp.Items {
 		if it.tag.ID != tagID {
 			out = append(out, it)
 		}
 	}
-	tp.items = out
-	tp.refilter()
+	tp.Items = out
+	tp.Refilter()
 	return tp
 }
 
-// refilter rebuilds tp.filtered and clamps the cursor.
-func (tp *TagPicker) refilter() {
-	query := strings.ToLower(tp.filter.Text)
+// Refilter rebuilds tp.Filtered and clamps the cursor.
+func (tp *TagPicker) Refilter() {
+	query := strings.ToLower(tp.Filter.Text)
 	if query == "" {
-		tp.filtered = make([]int, len(tp.items))
-		for i := range tp.items {
-			tp.filtered[i] = i
+		tp.Filtered = make([]int, len(tp.Items))
+		for i := range tp.Items {
+			tp.Filtered[i] = i
 		}
 	} else {
-		tp.filtered = nil
-		for i, item := range tp.items {
+		tp.Filtered = nil
+		for i, item := range tp.Items {
 			if strings.Contains(strings.ToLower(item.tag.Name), query) {
-				tp.filtered = append(tp.filtered, i)
+				tp.Filtered = append(tp.Filtered, i)
 			}
 		}
 	}
-	if tp.cursor >= len(tp.filtered) {
-		tp.cursor = max(len(tp.filtered)-1, 0)
+	if tp.Cursor >= len(tp.Filtered) {
+		tp.Cursor = max(len(tp.Filtered)-1, 0)
 	}
 }
 
@@ -281,9 +285,9 @@ func (tp TagPicker) buildBoxLines(termWidth int, s styles.Styles) []string {
 	const minInner = 32
 
 	innerWidth := max(minInner, ansi.StringWidth(modalTitle)+2)
-	for _, i := range tp.filtered {
+	for _, i := range tp.Filtered {
 		// Use plain name for width calculation (dot is always 1 visible cell).
-		label := tp.items[i].checkboxLabel() + " ● " + tp.items[i].tag.Name
+		label := tp.Items[i].checkboxLabel() + " ● " + tp.Items[i].tag.Name
 		innerWidth = max(innerWidth, ansi.StringWidth(label)+6)
 	}
 	if maxInner := termWidth - 4; termWidth > 0 && innerWidth > maxInner {
@@ -309,9 +313,9 @@ func (tp TagPicker) buildBoxLines(termWidth int, s styles.Styles) []string {
 	lines = append(lines, tpCrossL+strings.Repeat(tpBorderH, innerWidth)+tpCrossR)
 
 	// Filter row.
-	filterStr := tp.filter.View()
-	if !tp.filter.Active {
-		filterStr = tp.filter.Text
+	filterStr := tp.Filter.View()
+	if !tp.Filter.Active {
+		filterStr = tp.Filter.Text
 	}
 	filterDisplay := " / " + filterStr
 	filterPadded := text.Pad(filterDisplay, contentWidth)
@@ -321,17 +325,17 @@ func (tp TagPicker) buildBoxLines(termWidth int, s styles.Styles) []string {
 	lines = append(lines, tpCrossL+strings.Repeat(tpBorderH, innerWidth)+tpCrossR)
 
 	// Tag rows.
-	if len(tp.filtered) == 0 && tp.filterText() == "" {
+	if len(tp.Filtered) == 0 && tp.filterText() == "" {
 		noTags := text.Pad("(no tags — type to create)", contentWidth)
 		lines = append(lines, tpBorderV+" "+noTags+" "+tpBorderV)
 	} else {
-		for rowIdx, itemIdx := range tp.filtered {
-			item := tp.items[itemIdx]
+		for rowIdx, itemIdx := range tp.Filtered {
+			item := tp.Items[itemIdx]
 			dot := styles.ColoredDot(item.tag.Color)
 			label := item.checkboxLabel() + " " + dot + " " + item.tag.Name
 			padded := text.Pad(label, contentWidth)
 			rowContent := " " + padded + " "
-			if rowIdx == tp.cursor {
+			if rowIdx == tp.Cursor {
 				lines = append(lines, tpBorderV+s.Accent.Render(rowContent)+tpBorderV)
 			} else {
 				lines = append(lines, tpBorderV+rowContent+tpBorderV)
@@ -339,7 +343,7 @@ func (tp TagPicker) buildBoxLines(termWidth int, s styles.Styles) []string {
 		}
 
 		// "+ Create" synthetic row when filter text matches nothing.
-		if len(tp.filtered) == 0 && tp.filterText() != "" {
+		if len(tp.Filtered) == 0 && tp.filterText() != "" {
 			createLabel := `+ Create "` + tp.filterText() + `"`
 			padded := text.Pad(createLabel, contentWidth)
 			rowContent := " " + padded + " "
@@ -354,11 +358,11 @@ func (tp TagPicker) buildBoxLines(termWidth int, s styles.Styles) []string {
 }
 
 // checkboxLabel returns the [x], [ ], or [~] prefix for the item.
-func (item tagPickerItem) checkboxLabel() string {
+func (item TagPickerItem) checkboxLabel() string {
 	switch item.state {
-	case checkChecked:
+	case CheckChecked:
 		return "[x]"
-	case checkPartial:
+	case CheckPartial:
 		return "[~]"
 	default:
 		return "[ ]"

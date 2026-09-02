@@ -52,13 +52,13 @@ func TestSortDirNoopWhenDefault(t *testing.T) {
 func TestSortCycleTagsTrackLevel(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewTags
-	m.tagsView.level = tagtui.TrackLevel
-	m.tagsView.tracks = []db.PlaylistTrackRow{
+	m.tagsView.Level = tagtui.TrackLevel
+	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{Hash: "h1", Title: "Zulu", Artist: "C", Album: "Red", DurationMs: 300000},
 		{Hash: "h2", Title: "Alpha", Artist: "A", Album: "Blue", DurationMs: 100000},
 	}
-	m.tagsView.width = 80
-	m.tagsView.height = 40
+	m.tagsView.Width = 80
+	m.tagsView.Height = 40
 
 	// Cycle: Default -> Title -> Artist -> Album -> Duration -> Default
 	expected := []sorting.SortField{sorting.SortTitle, sorting.SortArtist, sorting.SortAlbum, sorting.SortDuration, sorting.SortDefault}
@@ -68,8 +68,8 @@ func TestSortCycleTagsTrackLevel(t *testing.T) {
 			t.Fatalf("handleSortCycle should be consumed for Tags TrackLevel (want field %d)", want)
 		}
 		m = next.(Model)
-		if m.tagsView.sortState.Field != want {
-			t.Errorf("expected sort field %d, got %d", want, m.tagsView.sortState.Field)
+		if m.tagsView.SortState.Field != want {
+			t.Errorf("expected sort field %d, got %d", want, m.tagsView.SortState.Field)
 		}
 	}
 }
@@ -78,7 +78,7 @@ func TestSortCycleTagsTrackLevel(t *testing.T) {
 func TestSortCycleTagsTagLevel(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewTags
-	m.tagsView.level = tagtui.TagLevel
+	m.tagsView.Level = tagtui.TagLevel
 
 	_, _, consumed := m.handleSortCycle()
 	if consumed {
@@ -91,25 +91,25 @@ func TestSortCycleTagsTagLevel(t *testing.T) {
 func TestSortDirTagsTrackLevel(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewTags
-	m.tagsView.level = tagtui.TrackLevel
-	m.tagsView.tracks = []db.PlaylistTrackRow{
+	m.tagsView.Level = tagtui.TrackLevel
+	m.tagsView.Tracks = []db.PlaylistTrackRow{
 		{Hash: "h1", Title: "Zulu", Artist: "C"},
 		{Hash: "h2", Title: "Alpha", Artist: "A"},
 	}
-	m.tagsView.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	m.tagsView = m.tagsView.recomputeTagsSort()
-	m.tagsView.width = 80
-	m.tagsView.height = 40
+	m.tagsView.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
+	m.tagsView = m.tagsView.RecomputeTagsSort()
+	m.tagsView.Width = 80
+	m.tagsView.Height = 40
 
 	next, _, consumed := m.handleSortDir(sorting.SortDesc)
 	if !consumed {
 		t.Fatal("handleSortDir should be consumed for Tags with active sort field")
 	}
 	m = next.(Model)
-	if m.tagsView.sortState.Dir != sorting.SortDesc {
-		t.Errorf("expected SortDesc, got %v", m.tagsView.sortState.Dir)
+	if m.tagsView.SortState.Dir != sorting.SortDesc {
+		t.Errorf("expected SortDesc, got %v", m.tagsView.SortState.Dir)
 	}
-	display := m.tagsView.displayTracks()
+	display := m.tagsView.DisplayTracks()
 	if display[0].Title != "Zulu" {
 		t.Errorf("first track in desc order should be Zulu, got %q", display[0].Title)
 	}
@@ -120,8 +120,8 @@ func TestSortDirTagsTrackLevel(t *testing.T) {
 func TestSortDirTagsNoopWhenDefault(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewTags
-	m.tagsView.level = tagtui.TrackLevel
-	m.tagsView.sortState = sorting.SortState{Field: sorting.SortDefault}
+	m.tagsView.Level = tagtui.TrackLevel
+	m.tagsView.SortState = sorting.SortState{Field: sorting.SortDefault}
 
 	_, _, consumed := m.handleSortDir(sorting.SortAsc)
 	if consumed {

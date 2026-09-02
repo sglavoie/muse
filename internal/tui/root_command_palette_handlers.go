@@ -127,9 +127,9 @@ func (m Model) atCollectionLevelFor(act keys.Action) Model {
 			m.playlists = m.playlists.BackToList()
 		}
 	case keys.ActionTagCreate:
-		if m.activeView == viewTags && m.tagsView.level == tagtui.TrackLevel {
+		if m.activeView == viewTags && m.tagsView.Level == tagtui.TrackLevel {
 			m = exitVisualMode(m)
-			m.tagsView = m.tagsView.back()
+			m.tagsView = m.tagsView.Back()
 		}
 	}
 	return m

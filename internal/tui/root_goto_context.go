@@ -133,11 +133,11 @@ func (m Model) focusedGoToContext() goToContext {
 		}
 
 	case viewFavorites:
-		switch m.favorites.level {
+		switch m.favorites.Level {
 		case favtui.ListLevel:
-			switch m.favorites.category {
+			switch m.favorites.Category {
 			case favtui.CategoryArtists:
-				if name, ok := m.favorites.focusedArtist(); ok {
+				if name, ok := m.favorites.FocusedArtist(); ok {
 					ctx := goToContext{artist: name, found: true}
 					rawArtist := arttui.RawName(name)
 					tracks := arttui.DeriveArtistTracks(m.library.Index.Tracks(), rawArtist)
@@ -148,7 +148,7 @@ func (m Model) focusedGoToContext() goToContext {
 					return ctx
 				}
 			case favtui.CategoryAlbums:
-				if name, ok := m.favorites.focusedAlbum(); ok {
+				if name, ok := m.favorites.FocusedAlbum(); ok {
 					ctx := goToContext{album: name, found: true}
 					rawAlbum := arttui.RawName(name)
 					tracks := albtui.DeriveAlbumTracks(m.library.Index.Tracks(), rawAlbum)
@@ -159,18 +159,18 @@ func (m Model) focusedGoToContext() goToContext {
 					return ctx
 				}
 			case favtui.CategoryTracks:
-				if track, ok := m.favorites.focusedTrack(); ok {
+				if track, ok := m.favorites.FocusedTrack(); ok {
 					return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
 				}
 			}
 		case favtui.TrackLevel:
-			if track, ok := m.favorites.focusedTrack(); ok {
+			if track, ok := m.favorites.FocusedTrack(); ok {
 				return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
 			}
 		}
 
 	case viewTags:
-		if track, ok := m.tagsView.focusedTrack(); ok {
+		if track, ok := m.tagsView.FocusedTrack(); ok {
 			ctx := goToContext{artist: track.Artist, album: track.Album, found: true}
 			if libTrack, found := m.library.Index.FindByHash(track.Hash); found {
 				ctx.genre = libTrack.Genre
@@ -258,9 +258,9 @@ func (m Model) buildGoToOptions(ctx goToContext) []overlay.GoToOption {
 		addGenres()
 
 	case viewFavorites:
-		switch m.favorites.level {
+		switch m.favorites.Level {
 		case favtui.ListLevel:
-			switch m.favorites.category {
+			switch m.favorites.Category {
 			case favtui.CategoryArtists:
 				addAlbum()
 				addGenres()

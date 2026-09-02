@@ -156,31 +156,31 @@ func (m Model) fillBrowseSnapshot(snap *UITestSnapshot) {
 
 func (m Model) fillFavoritesSnapshot(snap *UITestSnapshot) {
 	f := m.favorites
-	snap.Level = favoritesLevelName(f.level)
-	snap.Cursor = f.cursor
-	snap.ScrollOffset = f.scrollOffset
-	snap.SelectionCount = len(f.selectedItems)
-	switch f.level {
+	snap.Level = favoritesLevelName(f.Level)
+	snap.Cursor = f.Cursor
+	snap.ScrollOffset = f.ScrollOffset
+	snap.SelectionCount = len(f.SelectedItems)
+	switch f.Level {
 	case favtui.CategoryLevel:
 		snap.VisibleCount = 3
 	case favtui.TrackLevel:
-		snap.VisibleCount = len(f.drilldownTracks)
+		snap.VisibleCount = len(f.DrilldownTracks)
 	default:
 		// ListLevel: exactly one of the item slices is populated.
-		snap.VisibleCount = maxInt(len(f.artists), len(f.albums), len(f.tracks))
+		snap.VisibleCount = maxInt(len(f.Artists), len(f.Albums), len(f.Tracks))
 	}
 }
 
 func (m Model) fillTagsSnapshot(snap *UITestSnapshot) {
 	t := m.tagsView
-	snap.Level = tagsLevelName(t.level)
-	snap.Cursor = t.cursor
-	snap.ScrollOffset = t.scrollOffset
-	snap.SelectionCount = len(t.selectedHashes)
-	if t.level == tagtui.TrackLevel {
-		snap.VisibleCount = len(t.tracks)
+	snap.Level = tagsLevelName(t.Level)
+	snap.Cursor = t.Cursor
+	snap.ScrollOffset = t.ScrollOffset
+	snap.SelectionCount = len(t.SelectedHashes)
+	if t.Level == tagtui.TrackLevel {
+		snap.VisibleCount = len(t.Tracks)
 	} else {
-		snap.VisibleCount = len(t.tags)
+		snap.VisibleCount = len(t.Tags)
 	}
 }
 

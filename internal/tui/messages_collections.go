@@ -63,10 +63,6 @@ type smartPlaylistCountsUpdatedMsg struct {
 	counts map[int64]int
 }
 
-// tagPickerDismissedMsg is dispatched when the tag picker overlay is closed
-// without making any changes.
-type tagPickerDismissedMsg struct{}
-
 // tagToggledMsg is dispatched when a tag toggle (add or remove) completes.
 type tagToggledMsg struct {
 	tagID       int64

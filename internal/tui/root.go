@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
@@ -22,6 +23,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/smartrules"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // overlayInfo groups all overlay and modal state.
@@ -42,10 +44,10 @@ type overlayInfo struct {
 	settings              *settings.SettingsOverlay
 	smartRuleEditor       *smartrules.SmartRuleEditor
 	commandPalette        *palette.CommandPalette
-	tagPicker             *TagPicker
-	tagMergePicker        *TagMergePicker
-	tagFilterPicker       *TagFilterPicker
-	favoriteTargetPicker  *favoriteTargetPicker
+	tagPicker             *tagtui.TagPicker
+	tagMergePicker        *tagtui.TagMergePicker
+	tagFilterPicker       *tagtui.TagFilterPicker
+	favoriteTargetPicker  *favtui.TargetPicker
 }
 
 // undoInfo holds the reversible undo slot.
@@ -110,8 +112,8 @@ type Model struct {
 	queue      QueueView
 	queueDirty bool // true when queue has unsaved mutations since last save-as-playlist or clear
 	browse     BrowseView
-	favorites  FavoritesView
-	tagsView   TagsView
+	favorites  favtui.FavoritesView
+	tagsView   tagtui.TagsView
 	mixes      MixesView
 	insights   InsightsView
 

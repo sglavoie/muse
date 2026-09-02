@@ -57,29 +57,29 @@ func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (M
 		}
 		m = m.preservePlaylistsSort()
 	}
-	if m.favorites.level == favtui.ListLevel && m.favorites.category == favtui.CategoryTracks {
-		for i := range m.favorites.tracks {
-			if ms, ok := fixMap[m.favorites.tracks[i].Hash]; ok {
-				m.favorites.tracks[i].Duration = float64(ms) / 1000
+	if m.favorites.Level == favtui.ListLevel && m.favorites.Category == favtui.CategoryTracks {
+		for i := range m.favorites.Tracks {
+			if ms, ok := fixMap[m.favorites.Tracks[i].Hash]; ok {
+				m.favorites.Tracks[i].Duration = float64(ms) / 1000
 			}
 		}
-		m.favorites = m.favorites.recomputeFavoritesSort()
+		m.favorites = m.favorites.RecomputeFavoritesSort()
 	}
-	if m.favorites.level == favtui.TrackLevel {
-		for i := range m.favorites.drilldownTracks {
-			if ms, ok := fixMap[m.favorites.drilldownTracks[i].Hash]; ok {
-				m.favorites.drilldownTracks[i].Duration = float64(ms) / 1000
+	if m.favorites.Level == favtui.TrackLevel {
+		for i := range m.favorites.DrilldownTracks {
+			if ms, ok := fixMap[m.favorites.DrilldownTracks[i].Hash]; ok {
+				m.favorites.DrilldownTracks[i].Duration = float64(ms) / 1000
 			}
 		}
-		m.favorites = m.favorites.recomputeFavoritesSort()
+		m.favorites = m.favorites.RecomputeFavoritesSort()
 	}
-	if m.tagsView.level == tagtui.TrackLevel {
-		for i := range m.tagsView.tracks {
-			if ms, ok := fixMap[m.tagsView.tracks[i].Hash]; ok {
-				m.tagsView.tracks[i].DurationMs = ms
+	if m.tagsView.Level == tagtui.TrackLevel {
+		for i := range m.tagsView.Tracks {
+			if ms, ok := fixMap[m.tagsView.Tracks[i].Hash]; ok {
+				m.tagsView.Tracks[i].DurationMs = ms
 			}
 		}
-		m.tagsView = m.tagsView.recomputeTagsSort()
+		m.tagsView = m.tagsView.RecomputeTagsSort()
 	}
 	if m.browse.artists.level == arttui.TrackLevel {
 		for i := range m.browse.artists.tracks {

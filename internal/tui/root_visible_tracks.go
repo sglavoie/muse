@@ -171,23 +171,23 @@ func (m Model) browseGenresVisibleTracks() ([]library.Track, string, bool) {
 func (m Model) favoritesVisibleTracks() ([]library.Track, string, bool) {
 	v := m.favorites
 	switch {
-	case v.level == favtui.ListLevel && v.category == favtui.CategoryTracks:
-		rows := selectedByIndex(arttui.FilterTracks(v.tracks, v.filter.Text), v.selectedItems)
+	case v.Level == favtui.ListLevel && v.Category == favtui.CategoryTracks:
+		rows := selectedByIndex(arttui.FilterTracks(v.Tracks, v.Filter.Text), v.SelectedItems)
 		return rows, "Favorites ▸ Tracks", true
-	case v.level == favtui.TrackLevel:
-		rows := selectedByIndex(arttui.FilterTracks(v.drilldownTracks, v.filter.Text), v.selectedItems)
-		return rows, "Favorites ▸ " + v.drilldownName, true
+	case v.Level == favtui.TrackLevel:
+		rows := selectedByIndex(arttui.FilterTracks(v.DrilldownTracks, v.Filter.Text), v.SelectedItems)
+		return rows, "Favorites ▸ " + v.DrilldownName, true
 	default:
 		return nil, "Favorites shows no track list at this level", false
 	}
 }
 
 func (m Model) tagsVisibleTracks() ([]library.Track, string, bool) {
-	if m.tagsView.level != tagtui.TrackLevel {
+	if m.tagsView.Level != tagtui.TrackLevel {
 		return nil, "Open a tag before exporting", false
 	}
-	rows := m.tagsView.displayTracks()
-	selected := m.tagsView.selectedHashes
+	rows := m.tagsView.DisplayTracks()
+	selected := m.tagsView.SelectedHashes
 	tracks := make([]library.Track, 0, len(rows))
 	for _, r := range rows {
 		if len(selected) > 0 {
@@ -197,7 +197,7 @@ func (m Model) tagsVisibleTracks() ([]library.Track, string, bool) {
 		}
 		tracks = append(tracks, trackFromPlaylistRow(r))
 	}
-	return tracks, "Tags ▸ " + m.tagsView.selectedTag.Name, true
+	return tracks, "Tags ▸ " + m.tagsView.SelectedTag.Name, true
 }
 
 func (m Model) playlistsVisibleTracks() ([]library.Track, string, bool) {

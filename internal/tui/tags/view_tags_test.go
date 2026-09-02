@@ -1,10 +1,9 @@
-package tui
+package tags
 
 import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/db"
-	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // TestTagsViewDisplayTracksStaleSortOrderLength verifies that displayTracks
@@ -13,16 +12,16 @@ import (
 // not yet recomputed). The view must safely fall back to natural order.
 func TestTagsViewDisplayTracksStaleSortOrderLength(t *testing.T) {
 	v := TagsView{
-		level: tagtui.TrackLevel,
-		tracks: []db.PlaylistTrackRow{
+		Level: TrackLevel,
+		Tracks: []db.PlaylistTrackRow{
 			{ID: 1, Title: "A", Hash: "h1"},
 			{ID: 2, Title: "B", Hash: "h2"},
 			{ID: 3, Title: "C", Hash: "h3"},
 		},
 		// Stale: only 2 entries even though tracks has 3.
-		sortedTrackOrder: []int{2, 0},
+		SortedTrackOrder: []int{2, 0},
 	}
-	got := v.displayTracks()
+	got := v.DisplayTracks()
 	if len(got) != 3 {
 		t.Fatalf("expected 3 tracks (natural order fallback), got %d", len(got))
 	}
@@ -40,15 +39,15 @@ func TestTagsViewDisplayTracksStaleSortOrderLength(t *testing.T) {
 // track is removed but the sort permutation is not yet refreshed.
 func TestTagsViewDisplayTracksStaleSortOrderIndices(t *testing.T) {
 	v := TagsView{
-		level: tagtui.TrackLevel,
-		tracks: []db.PlaylistTrackRow{
+		Level: TrackLevel,
+		Tracks: []db.PlaylistTrackRow{
 			{ID: 1, Title: "A", Hash: "h1"},
 			{ID: 2, Title: "B", Hash: "h2"},
 		},
 		// Length matches but indices are out of range.
-		sortedTrackOrder: []int{1, 5},
+		SortedTrackOrder: []int{1, 5},
 	}
-	got := v.displayTracks()
+	got := v.DisplayTracks()
 	if len(got) != 2 {
 		t.Fatalf("expected 2 tracks (natural fallback), got %d", len(got))
 	}
@@ -62,15 +61,15 @@ func TestTagsViewDisplayTracksStaleSortOrderIndices(t *testing.T) {
 // from the new defensive guard).
 func TestTagsViewDisplayTracksValidSortOrderRespected(t *testing.T) {
 	v := TagsView{
-		level: tagtui.TrackLevel,
-		tracks: []db.PlaylistTrackRow{
+		Level: TrackLevel,
+		Tracks: []db.PlaylistTrackRow{
 			{ID: 1, Title: "A", Hash: "h1"},
 			{ID: 2, Title: "B", Hash: "h2"},
 			{ID: 3, Title: "C", Hash: "h3"},
 		},
-		sortedTrackOrder: []int{2, 0, 1},
+		SortedTrackOrder: []int{2, 0, 1},
 	}
-	got := v.displayTracks()
+	got := v.DisplayTracks()
 	if len(got) != 3 {
 		t.Fatalf("expected 3 tracks, got %d", len(got))
 	}

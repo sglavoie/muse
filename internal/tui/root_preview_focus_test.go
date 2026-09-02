@@ -135,7 +135,7 @@ func TestFocusedTrackForPreview_QueueIncludesAlbum(t *testing.T) {
 // returns the focused track from the Tags view at TrackLevel.
 func TestFocusedTrackForPreview_Tags(t *testing.T) {
 	m := newTagsTrackLevelModel()
-	m.tagsView.cursor = 1 // "Tag Track 2" by artist "B"
+	m.tagsView.Cursor = 1 // "Tag Track 2" by artist "B"
 
 	track, ok := m.focusedTrackForPreview()
 	if !ok {
@@ -158,7 +158,7 @@ func TestFocusedTrackForPreview_Tags(t *testing.T) {
 // overlay would show 0 plays and an empty genre.
 func TestFocusedTrackForPreview_TagsEnrichesFromIndex(t *testing.T) {
 	m := newTagsTrackLevelModel()
-	m.tagsView.cursor = 0 // "Tag Track 1", hash "th1"
+	m.tagsView.Cursor = 0 // "Tag Track 1", hash "th1"
 
 	// Seed the library index with PlayCount and Genre for the same hash.
 	m.library.Index.Insert(library.Track{
@@ -188,8 +188,8 @@ func TestFocusedTrackForPreview_TagsTagLevel(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewTags
 	// level defaults to TagLevel
-	m.tagsView.tags = []db.TagRow{{ID: 1, Name: "T1"}}
-	m.tagsView.tagCounts = map[int64]int{1: 3}
+	m.tagsView.Tags = []db.TagRow{{ID: 1, Name: "T1"}}
+	m.tagsView.TagCounts = map[int64]int{1: 3}
 
 	_, ok := m.focusedTrackForPreview()
 	if ok {
@@ -220,10 +220,10 @@ func TestFocusedTrackForPreview_RecentlyAdded(t *testing.T) {
 // returns the focused track's path, artist, and title from the Tags view.
 func TestFocusedTrackForPalette_Tags(t *testing.T) {
 	m := newTagsTrackLevelModel()
-	m.tagsView.cursor = 0 // "Tag Track 1" by artist "A", path not set in helper
+	m.tagsView.Cursor = 0 // "Tag Track 1" by artist "A", path not set in helper
 
 	// Set a path on the track so we can verify it
-	m.tagsView.tracks[0] = db.PlaylistTrackRow{
+	m.tagsView.Tracks[0] = db.PlaylistTrackRow{
 		ID: 1, Hash: "th1", Title: "Tag Track 1", Artist: "A", Album: "X",
 		DurationMs: 180000, Path: "/tag1.flac",
 	}
@@ -248,8 +248,8 @@ func TestFocusedTrackForPalette_Tags(t *testing.T) {
 func TestFocusedTrackForPalette_TagsTagLevel(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewTags
-	m.tagsView.tags = []db.TagRow{{ID: 1, Name: "T1"}}
-	m.tagsView.tagCounts = map[int64]int{1: 3}
+	m.tagsView.Tags = []db.TagRow{{ID: 1, Name: "T1"}}
+	m.tagsView.TagCounts = map[int64]int{1: 3}
 
 	_, _, _, found := m.focusedTrackForPalette()
 	if found {

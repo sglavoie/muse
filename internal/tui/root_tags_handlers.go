@@ -16,15 +16,15 @@ func (m Model) handleTagViewTracksLoaded(msg tagViewTracksLoadedMsg) Model {
 		m.statusBar.Notify("Load tracks failed: " + msg.err.Error())
 		return m
 	}
-	if m.activeView != viewTags || m.tagsView.level != tagtui.TagLevel {
+	if m.activeView != viewTags || m.tagsView.Level != tagtui.TagLevel {
 		if msg.counts != nil {
-			m.tagsView.tagCounts = msg.counts
+			m.tagsView.TagCounts = msg.counts
 		}
 		return m
 	}
-	m.tagsView = m.tagsView.openTracks(msg.tag, msg.tracks)
+	m.tagsView = m.tagsView.OpenTracks(msg.tag, msg.tracks)
 	if msg.counts != nil {
-		m.tagsView.tagCounts = msg.counts
+		m.tagsView.TagCounts = msg.counts
 	}
 	return m
 }
@@ -34,7 +34,7 @@ func (m Model) handleTagViewCountsLoaded(msg tagViewCountsLoadedMsg) Model {
 	if msg.err != nil {
 		return m
 	}
-	m.tagsView.tagCounts = msg.counts
+	m.tagsView.TagCounts = msg.counts
 	return m
 }
 
@@ -44,9 +44,9 @@ func (m Model) handleTagRenamed(msg tagRenamedMsg) Model {
 		m.statusBar.Notify("Rename failed: " + msg.err.Error())
 		return m
 	}
-	for i := range m.tagsView.tags {
-		if m.tagsView.tags[i].ID == msg.id {
-			m.tagsView.tags[i].Name = msg.name
+	for i := range m.tagsView.Tags {
+		if m.tagsView.Tags[i].ID == msg.id {
+			m.tagsView.Tags[i].Name = msg.name
 			break
 		}
 	}
@@ -66,12 +66,12 @@ func (m Model) handleTagRenamed(msg tagRenamedMsg) Model {
 // scheduleSoftDelete).
 func (m Model) handleTagDeleted(msg tagDeletedMsg) Model {
 	if msg.err != nil {
-		idx := min(msg.idx, len(m.tagsView.tags))
-		restored := make([]db.TagRow, len(m.tagsView.tags)+1)
-		copy(restored, m.tagsView.tags[:idx])
+		idx := min(msg.idx, len(m.tagsView.Tags))
+		restored := make([]db.TagRow, len(m.tagsView.Tags)+1)
+		copy(restored, m.tagsView.Tags[:idx])
 		restored[idx] = msg.tag
-		copy(restored[idx+1:], m.tagsView.tags[idx:])
-		m.tagsView.tags = restored
+		copy(restored[idx+1:], m.tagsView.Tags[idx:])
+		m.tagsView.Tags = restored
 		m = m.rebuildTagCache(append(m.tags, msg.tag))
 		m.statusBar.Notify("Delete tag failed: " + msg.err.Error())
 		return m
@@ -87,29 +87,29 @@ func (m Model) refreshTagsViewAfterCreate(msg tagCreatedMsg) Model {
 	if m.tagReader != nil {
 		tags, err := m.tagReader.ReadTags()
 		if err == nil {
-			m.tagsView.tags = tags
+			m.tagsView.Tags = tags
 		}
 		counts, _ := m.tagReader.ReadTagCounts()
 		if counts == nil {
 			counts = make(map[int64]int)
 		}
-		m.tagsView.tagCounts = counts
+		m.tagsView.TagCounts = counts
 	}
 	// Ensure the new tag appears in the view even if the DB read returned
 	// stale data (WAL snapshot isolation on the read connection).
 	if msg.id != 0 {
 		found := false
-		for _, t := range m.tagsView.tags {
+		for _, t := range m.tagsView.Tags {
 			if t.ID == msg.id {
 				found = true
 				break
 			}
 		}
 		if !found {
-			m.tagsView.tags = append(m.tagsView.tags, db.TagRow{ID: msg.id, Name: msg.name})
+			m.tagsView.Tags = append(m.tagsView.Tags, db.TagRow{ID: msg.id, Name: msg.name})
 		}
-		if m.tagsView.tagCounts[msg.id] == 0 && len(msg.hashes) > 0 {
-			m.tagsView.tagCounts[msg.id] = len(msg.hashes)
+		if m.tagsView.TagCounts[msg.id] == 0 && len(msg.hashes) > 0 {
+			m.tagsView.TagCounts[msg.id] = len(msg.hashes)
 		}
 	}
 	return m

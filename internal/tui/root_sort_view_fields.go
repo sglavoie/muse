@@ -33,12 +33,12 @@ func albumsSortFieldsForLevel(level albtui.Level) []sorting.SortField {
 	}
 }
 
-func favoritesSortFieldsForLevel(v FavoritesView) []sorting.SortField {
-	switch v.level {
+func favoritesSortFieldsForLevel(v favtui.FavoritesView) []sorting.SortField {
+	switch v.Level {
 	case favtui.CategoryLevel:
 		return nil
 	case favtui.ListLevel:
-		switch v.category {
+		switch v.Category {
 		case favtui.CategoryArtists, favtui.CategoryAlbums:
 			return sorting.FavListSortFields
 		case favtui.CategoryTracks:

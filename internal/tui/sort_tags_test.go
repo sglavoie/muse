@@ -37,16 +37,16 @@ func TestTagsRecomputeSort(t *testing.T) {
 	}
 
 	t.Run("sort by title asc", func(t *testing.T) {
-		v := TagsView{
-			level:     tagtui.TrackLevel,
-			tracks:    tracks,
-			sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
+		v := tagtui.TagsView{
+			Level:     tagtui.TrackLevel,
+			Tracks:    tracks,
+			SortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 		}
-		v = v.recomputeTagsSort()
-		if v.sortedTrackOrder == nil {
+		v = v.RecomputeTagsSort()
+		if v.SortedTrackOrder == nil {
 			t.Fatal("expected non-nil sortedTrackOrder")
 		}
-		display := v.displayTracks()
+		display := v.DisplayTracks()
 		if display[0].Title != "Alpha" {
 			t.Errorf("first should be Alpha, got %q", display[0].Title)
 		}
@@ -56,110 +56,110 @@ func TestTagsRecomputeSort(t *testing.T) {
 	})
 
 	t.Run("sort by artist desc", func(t *testing.T) {
-		v := TagsView{
-			level:     tagtui.TrackLevel,
-			tracks:    tracks,
-			sortState: sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortDesc},
+		v := tagtui.TagsView{
+			Level:     tagtui.TrackLevel,
+			Tracks:    tracks,
+			SortState: sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortDesc},
 		}
-		v = v.recomputeTagsSort()
-		display := v.displayTracks()
+		v = v.RecomputeTagsSort()
+		display := v.DisplayTracks()
 		if display[0].Artist != "Charlie" {
 			t.Errorf("first should be Charlie, got %q", display[0].Artist)
 		}
 	})
 
 	t.Run("sort by duration asc", func(t *testing.T) {
-		v := TagsView{
-			level:     tagtui.TrackLevel,
-			tracks:    tracks,
-			sortState: sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc},
+		v := tagtui.TagsView{
+			Level:     tagtui.TrackLevel,
+			Tracks:    tracks,
+			SortState: sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc},
 		}
-		v = v.recomputeTagsSort()
-		display := v.displayTracks()
+		v = v.RecomputeTagsSort()
+		display := v.DisplayTracks()
 		if display[0].DurationMs != 100000 {
 			t.Errorf("first should have 100000ms, got %d", display[0].DurationMs)
 		}
 	})
 
 	t.Run("default clears sortedTrackOrder", func(t *testing.T) {
-		v := TagsView{
-			level:     tagtui.TrackLevel,
-			tracks:    tracks,
-			sortState: sorting.SortState{Field: sorting.SortDefault},
+		v := tagtui.TagsView{
+			Level:     tagtui.TrackLevel,
+			Tracks:    tracks,
+			SortState: sorting.SortState{Field: sorting.SortDefault},
 		}
-		v = v.recomputeTagsSort()
-		if v.sortedTrackOrder != nil {
+		v = v.RecomputeTagsSort()
+		if v.SortedTrackOrder != nil {
 			t.Error("sortedTrackOrder should be nil for SortDefault")
 		}
 	})
 
 	t.Run("TagLevel clears sortedTrackOrder", func(t *testing.T) {
-		v := TagsView{
-			level:     tagtui.TagLevel,
-			tracks:    tracks,
-			sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
+		v := tagtui.TagsView{
+			Level:     tagtui.TagLevel,
+			Tracks:    tracks,
+			SortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 		}
-		v = v.recomputeTagsSort()
-		if v.sortedTrackOrder != nil {
+		v = v.RecomputeTagsSort()
+		if v.SortedTrackOrder != nil {
 			t.Error("sortedTrackOrder should be nil at TagLevel")
 		}
 	})
 }
 
 func TestTagsSortResetOnBack(t *testing.T) {
-	v := TagsView{
-		level:     tagtui.TrackLevel,
-		tracks:    []db.PlaylistTrackRow{{Hash: "h1", Title: "T1"}},
-		sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc},
+	v := tagtui.TagsView{
+		Level:     tagtui.TrackLevel,
+		Tracks:    []db.PlaylistTrackRow{{Hash: "h1", Title: "T1"}},
+		SortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc},
 	}
-	v = v.recomputeTagsSort()
-	if v.sortedTrackOrder == nil {
+	v = v.RecomputeTagsSort()
+	if v.SortedTrackOrder == nil {
 		t.Fatal("precondition: sortedTrackOrder should be non-nil")
 	}
 
-	v2 := v.back()
-	if v2.sortState.Field != sorting.SortDefault {
+	v2 := v.Back()
+	if v2.SortState.Field != sorting.SortDefault {
 		t.Error("sort should be reset on back")
 	}
-	if v2.sortedTrackOrder != nil {
+	if v2.SortedTrackOrder != nil {
 		t.Error("sortedTrackOrder should be nil after back")
 	}
 }
 
 func TestTagsBackClampsRestoredCursorAgainstCurrentTags(t *testing.T) {
-	v := TagsView{
-		level:           tagtui.TrackLevel,
-		tags:            []db.TagRow{{ID: 1, Name: "A"}, {ID: 2, Name: "B"}},
-		tagCounts:       map[int64]int{1: 1, 2: 1},
-		tracks:          []db.PlaylistTrackRow{{Hash: "h1", Title: "T1"}},
-		cursor:          0,
-		scrollOffset:    0,
-		tagCursor:       4,
-		tagScrollOffset: 3,
-		height:          10,
+	v := tagtui.TagsView{
+		Level:           tagtui.TrackLevel,
+		Tags:            []db.TagRow{{ID: 1, Name: "A"}, {ID: 2, Name: "B"}},
+		TagCounts:       map[int64]int{1: 1, 2: 1},
+		Tracks:          []db.PlaylistTrackRow{{Hash: "h1", Title: "T1"}},
+		Cursor:          0,
+		ScrollOffset:    0,
+		TagCursor:       4,
+		TagScrollOffset: 3,
+		Height:          10,
 	}
 
-	v = v.back()
-	if v.level != tagtui.TagLevel {
-		t.Fatalf("expected TagLevel after back, got %v", v.level)
+	v = v.Back()
+	if v.Level != tagtui.TagLevel {
+		t.Fatalf("expected TagLevel after back, got %v", v.Level)
 	}
-	if v.cursor != 1 {
-		t.Fatalf("expected cursor clamped to last tag, got %d", v.cursor)
+	if v.Cursor != 1 {
+		t.Fatalf("expected cursor clamped to last tag, got %d", v.Cursor)
 	}
-	if v.scrollOffset > v.cursor {
-		t.Fatalf("expected scrollOffset <= cursor, got scroll=%d cursor=%d", v.scrollOffset, v.cursor)
+	if v.ScrollOffset > v.Cursor {
+		t.Fatalf("expected scrollOffset <= cursor, got scroll=%d cursor=%d", v.ScrollOffset, v.Cursor)
 	}
 }
 
 func TestTagsSortResetOnOpenTracks(t *testing.T) {
-	v := TagsView{
-		level:     tagtui.TagLevel,
-		sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
+	v := tagtui.TagsView{
+		Level:     tagtui.TagLevel,
+		SortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 	}
 	tag := db.TagRow{ID: 1, Name: "MyTag"}
 	tracks := []db.PlaylistTrackRow{{Hash: "h1", Title: "T1"}}
-	v2 := v.openTracks(tag, tracks)
-	if v2.sortState.Field != sorting.SortDefault {
+	v2 := v.OpenTracks(tag, tracks)
+	if v2.SortState.Field != sorting.SortDefault {
 		t.Error("sort should be reset on openTracks")
 	}
 }
@@ -169,15 +169,15 @@ func TestTagsFocusedTrackWithSort(t *testing.T) {
 		{Hash: "h1", Title: "Zulu", Artist: "C"},
 		{Hash: "h2", Title: "Alpha", Artist: "A"},
 	}
-	v := TagsView{
-		level:     tagtui.TrackLevel,
-		tracks:    tracks,
-		sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
-		cursor:    0,
+	v := tagtui.TagsView{
+		Level:     tagtui.TrackLevel,
+		Tracks:    tracks,
+		SortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
+		Cursor:    0,
 	}
-	v = v.recomputeTagsSort()
+	v = v.RecomputeTagsSort()
 
-	track, ok := v.focusedTrack()
+	track, ok := v.FocusedTrack()
 	if !ok {
 		t.Fatal("expected focused track")
 	}
@@ -189,14 +189,14 @@ func TestTagsFocusedTrackWithSort(t *testing.T) {
 func TestTagsVisibleReserve(t *testing.T) {
 	tests := []struct {
 		name string
-		v    TagsView
+		v    tagtui.TagsView
 		want int
 	}{
-		{"tag level no filter no sort", TagsView{level: tagtui.TagLevel}, 0},
-		{"tag level with filter", TagsView{level: tagtui.TagLevel, filter: filter.State{Active: true}}, 1},
-		{"tag level with sort", TagsView{level: tagtui.TagLevel, sortState: sorting.SortState{Field: sorting.SortName}}, 1},
-		{"track level no sort", TagsView{level: tagtui.TrackLevel}, 3},
-		{"track level with sort", TagsView{level: tagtui.TrackLevel, sortState: sorting.SortState{Field: sorting.SortTitle}}, 4},
+		{"tag level no filter no sort", tagtui.TagsView{Level: tagtui.TagLevel}, 0},
+		{"tag level with filter", tagtui.TagsView{Level: tagtui.TagLevel, Filter: filter.State{Active: true}}, 1},
+		{"tag level with sort", tagtui.TagsView{Level: tagtui.TagLevel, SortState: sorting.SortState{Field: sorting.SortName}}, 1},
+		{"track level no sort", tagtui.TagsView{Level: tagtui.TrackLevel}, 3},
+		{"track level with sort", tagtui.TagsView{Level: tagtui.TrackLevel, SortState: sorting.SortState{Field: sorting.SortTitle}}, 4},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

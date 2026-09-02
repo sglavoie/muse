@@ -64,7 +64,7 @@ func TestToggleFavorite_GenresTrackLevelSingleOpensPicker(t *testing.T) {
 	m.browse.genres.cursor = 0
 
 	nm := openFavoritePickerForTest(t, m)
-	if got := nm.overlay.favoriteTargetPicker.tracks[0].Hash; got != "h1" {
+	if got := nm.overlay.favoriteTargetPicker.Tracks[0].Hash; got != "h1" {
 		t.Errorf("picker track hash = %q, want h1", got)
 	}
 }
@@ -95,7 +95,7 @@ func TestToggleFavorite_GenresTrackLevelBulkOpensPicker(t *testing.T) {
 	if len(nm.browse.genres.selectedHashes) != 2 {
 		t.Fatal("opening picker should preserve selectedHashes")
 	}
-	if got := len(nm.overlay.favoriteTargetPicker.tracks); got != 2 {
+	if got := len(nm.overlay.favoriteTargetPicker.Tracks); got != 2 {
 		t.Fatalf("picker tracks = %d, want 2", got)
 	}
 	if len(w.added) != 0 {

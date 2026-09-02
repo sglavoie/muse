@@ -1,4 +1,4 @@
-package tui
+package favorites
 
 import (
 	"fmt"
@@ -26,11 +26,13 @@ const (
 	favoriteStateAll
 )
 
-type favoritePickerOrigin struct {
-	view          viewID
-	favLevel      int
-	favCategory   int
-	drilldownName string
+type PickerOrigin struct {
+	// View is the numeric viewID the picker was opened from; the caller owns
+	// the enum, so it travels as a plain int to keep this package free of it.
+	View          int
+	FavLevel      int
+	FavCategory   int
+	DrilldownName string
 }
 
 type favoriteTargetRow struct {
@@ -46,33 +48,33 @@ type favoriteTargetRow struct {
 	unavailable  string
 }
 
-// favoriteTargetPicker selects whether F applies to the focused tracks'
+// TargetPicker selects whether F applies to the focused tracks'
 // individual titles, artists, or albums.
-type favoriteTargetPicker struct {
-	tracks []library.Track
+type TargetPicker struct {
+	Tracks []library.Track
 	rows   []favoriteTargetRow
 	cursor int
 	bulk   bool
-	origin favoritePickerOrigin
+	origin PickerOrigin
 }
 
-type favoriteTargetPickedMsg struct {
-	typ    string
-	values []string
-	add    bool
-	origin favoritePickerOrigin
+type TargetPickedMsg struct {
+	Typ    string
+	Values []string
+	Add    bool
+	Origin PickerOrigin
 }
 
-type favoriteTargetDismissedMsg struct{}
+type TargetDismissedMsg struct{}
 
-func newFavoriteTargetPicker(
+func NewTargetPicker(
 	tracks []library.Track,
 	favoriteHashes, favoriteArtists, favoriteAlbums map[string]struct{},
 	bulk bool,
-	origin favoritePickerOrigin,
-) favoriteTargetPicker {
+	origin PickerOrigin,
+) TargetPicker {
 	tracks = append([]library.Track(nil), tracks...)
-	p := favoriteTargetPicker{tracks: tracks, bulk: bulk, origin: origin}
+	p := TargetPicker{Tracks: tracks, bulk: bulk, origin: origin}
 	p.rows = []favoriteTargetRow{
 		buildFavoriteTargetRow(favoriteTargetTitle, tracks, favoriteHashes),
 		buildFavoriteTargetRow(favoriteTargetArtist, tracks, favoriteArtists),
@@ -186,7 +188,7 @@ func uniqueNonEmptyStrings(values []string) []string {
 	return result
 }
 
-func (p favoriteTargetPicker) firstEnabledRow() int {
+func (p TargetPicker) firstEnabledRow() int {
 	for i, row := range p.rows {
 		if row.enabled {
 			return i
@@ -195,7 +197,7 @@ func (p favoriteTargetPicker) firstEnabledRow() int {
 	return 0
 }
 
-func (p favoriteTargetPicker) move(delta int) favoriteTargetPicker {
+func (p TargetPicker) move(delta int) TargetPicker {
 	if len(p.rows) == 0 {
 		return p
 	}
@@ -213,23 +215,23 @@ func (p favoriteTargetPicker) move(delta int) favoriteTargetPicker {
 	return p
 }
 
-func (p favoriteTargetPicker) pick(row favoriteTargetRow) tea.Cmd {
+func (p TargetPicker) pick(row favoriteTargetRow) tea.Cmd {
 	if !row.enabled || len(row.changeValues) == 0 {
 		return nil
 	}
-	msg := favoriteTargetPickedMsg{
-		typ:    row.typ,
-		values: append([]string(nil), row.changeValues...),
-		add:    row.add,
-		origin: p.origin,
+	msg := TargetPickedMsg{
+		Typ:    row.typ,
+		Values: append([]string(nil), row.changeValues...),
+		Add:    row.add,
+		Origin: p.origin,
 	}
 	return func() tea.Msg { return msg }
 }
 
-func (p favoriteTargetPicker) HandleKey(key string) (favoriteTargetPicker, tea.Cmd) {
+func (p TargetPicker) HandleKey(key string) (TargetPicker, tea.Cmd) {
 	switch key {
 	case "esc", "F":
-		return p, func() tea.Msg { return favoriteTargetDismissedMsg{} }
+		return p, func() tea.Msg { return TargetDismissedMsg{} }
 	case "up", "k":
 		return p.move(-1), nil
 	case "down", "j":
@@ -248,7 +250,7 @@ func (p favoriteTargetPicker) HandleKey(key string) (favoriteTargetPicker, tea.C
 	return p, nil
 }
 
-func (p favoriteTargetPicker) Render(termWidth, termHeight int, s styles.Styles) string {
+func (p TargetPicker) Render(termWidth, termHeight int, s styles.Styles) string {
 	rows := make([]overlay.Row, 0, len(p.rows))
 	for i, row := range p.rows {
 		line := p.rowText(row)
@@ -265,7 +267,7 @@ func (p favoriteTargetPicker) Render(termWidth, termHeight int, s styles.Styles)
 	}.Render(termWidth, termHeight, s)
 }
 
-func (p favoriteTargetPicker) rowText(row favoriteTargetRow) string {
+func (p TargetPicker) rowText(row favoriteTargetRow) string {
 	prefix := "[" + row.hotkey + "] " + row.label + " · "
 	if !row.enabled {
 		return prefix + "unavailable · " + row.unavailable
@@ -275,7 +277,7 @@ func (p favoriteTargetPicker) rowText(row favoriteTargetRow) string {
 		action = "Remove"
 	}
 	state := row.state.String()
-	if !p.bulk && len(p.tracks) == 1 {
+	if !p.bulk && len(p.Tracks) == 1 {
 		return fmt.Sprintf("%s%s · %s · %s", prefix, row.displayValue, state, action)
 	}
 	unit := row.typ

@@ -22,7 +22,7 @@ func TestToggleFavorite_HistorySingleOpensPicker(t *testing.T) {
 	m.library.Cursor = 0
 
 	nm := openFavoritePickerForTest(t, m)
-	if got := nm.overlay.favoriteTargetPicker.tracks[0].Hash; got != "h1" {
+	if got := nm.overlay.favoriteTargetPicker.Tracks[0].Hash; got != "h1" {
 		t.Errorf("picker track hash = %q, want h1", got)
 	}
 }
@@ -44,7 +44,7 @@ func TestToggleFavorite_HistoryBulkOpensPicker(t *testing.T) {
 	if len(nm.library.SelectedHashes) != 2 {
 		t.Fatal("opening picker should preserve selectedHashes")
 	}
-	if got := len(nm.overlay.favoriteTargetPicker.tracks); got != 2 {
+	if got := len(nm.overlay.favoriteTargetPicker.Tracks); got != 2 {
 		t.Errorf("picker tracks = %d, want 2", got)
 	}
 }
