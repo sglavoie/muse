@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/desktop"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/keys"
@@ -75,9 +76,9 @@ func (m Model) buildPaletteCommands() []palette.PaletteCommand {
 		paletteMessageCmd("nav.library.all", "nav", "Go to Library: All Tracks", "", navigateLibraryModeMsg{mode: libtui.LibraryModeAll}),
 		paletteMessageCmd("nav.library.recent", "nav", "Go to Library: Recently Added", "", navigateLibraryModeMsg{mode: libtui.LibraryModeRecent}),
 		paletteMessageCmd("nav.library.history", "nav", "Go to Library: History", "", navigateLibraryModeMsg{mode: libtui.LibraryModeHistory}),
-		paletteMessageCmd("nav.browse.artists", "nav", "Go to Browse: Artists", "", navigateBrowseModeMsg{mode: BrowseModeArtists}),
-		paletteMessageCmd("nav.browse.albums", "nav", "Go to Browse: Albums", "", navigateBrowseModeMsg{mode: BrowseModeAlbums}),
-		paletteMessageCmd("nav.browse.genres", "nav", "Go to Browse: Genres", "", navigateBrowseModeMsg{mode: BrowseModeGenres}),
+		paletteMessageCmd("nav.browse.artists", "nav", "Go to Browse: Artists", "", navigateBrowseModeMsg{mode: browse.BrowseModeArtists}),
+		paletteMessageCmd("nav.browse.albums", "nav", "Go to Browse: Albums", "", navigateBrowseModeMsg{mode: browse.BrowseModeAlbums}),
+		paletteMessageCmd("nav.browse.genres", "nav", "Go to Browse: Genres", "", navigateBrowseModeMsg{mode: browse.BrowseModeGenres}),
 	)
 
 	cmds = append(cmds, palette.PaletteCommand{
@@ -304,22 +305,22 @@ func (m Model) focusedTrackForPalette() (path, artist, title string, found bool)
 		}
 
 	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			if m.browse.artists.level == arttui.TrackLevel {
-				if track, ok := m.browse.artists.focusedTrack(); ok {
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
+			if m.browse.Artists.Level == arttui.TrackLevel {
+				if track, ok := m.browse.Artists.FocusedTrack(); ok {
 					return track.Path, track.Artist, track.Title, true
 				}
 			}
-		case BrowseModeAlbums:
-			if m.browse.albums.level == albtui.TrackLevel {
-				if track, ok := m.browse.albums.focusedTrack(); ok {
+		case browse.BrowseModeAlbums:
+			if m.browse.Albums.Level == albtui.TrackLevel {
+				if track, ok := m.browse.Albums.FocusedTrack(); ok {
 					return track.Path, track.Artist, track.Title, true
 				}
 			}
-		case BrowseModeGenres:
-			if m.browse.genres.level == gentui.TrackLevel {
-				if track, ok := m.browse.genres.focusedTrack(); ok {
+		case browse.BrowseModeGenres:
+			if m.browse.Genres.Level == gentui.TrackLevel {
+				if track, ok := m.browse.Genres.FocusedTrack(); ok {
 					return track.Path, track.Artist, track.Title, true
 				}
 			}

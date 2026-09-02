@@ -7,6 +7,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 )
 
 // TestJumpToArtist verifies that jumpToArtist switches to the Artists view
@@ -19,20 +20,20 @@ func TestJumpToArtist(t *testing.T) {
 	if m.activeView != viewBrowse {
 		t.Errorf("activeView: want viewBrowse(%d), got %d", viewBrowse, m.activeView)
 	}
-	if m.browse.mode != BrowseModeArtists {
-		t.Errorf("browse.mode: want BrowseModeArtists, got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeArtists {
+		t.Errorf("browse.mode: want BrowseModeArtists, got %v", m.browse.Mode)
 	}
-	if m.browse.artists.level != arttui.ArtistLevel {
-		t.Errorf("level: want ArtistLevel, got %v", m.browse.artists.level)
+	if m.browse.Artists.Level != arttui.ArtistLevel {
+		t.Errorf("level: want ArtistLevel, got %v", m.browse.Artists.Level)
 	}
-	if m.browse.artists.cursor != 1 {
-		t.Errorf("cursor: want 1 (Bob), got %d", m.browse.artists.cursor)
+	if m.browse.Artists.Cursor != 1 {
+		t.Errorf("cursor: want 1 (Bob), got %d", m.browse.Artists.Cursor)
 	}
-	if len(m.browse.artists.artists) != 3 {
-		t.Errorf("artists list: want 3, got %d", len(m.browse.artists.artists))
+	if len(m.browse.Artists.Artists) != 3 {
+		t.Errorf("artists list: want 3, got %d", len(m.browse.Artists.Artists))
 	}
-	if m.browse.artists.artists[1] != "Bob" {
-		t.Errorf("artists[1]: want %q, got %q", "Bob", m.browse.artists.artists[1])
+	if m.browse.Artists.Artists[1] != "Bob" {
+		t.Errorf("artists[1]: want %q, got %q", "Bob", m.browse.Artists.Artists[1])
 	}
 }
 
@@ -41,8 +42,8 @@ func TestJumpToArtist_First(t *testing.T) {
 	m := newModelWithTracks()
 	m = m.jumpToArtist("Alice")
 
-	if m.browse.artists.cursor != 0 {
-		t.Errorf("cursor: want 0 (Alice), got %d", m.browse.artists.cursor)
+	if m.browse.Artists.Cursor != 0 {
+		t.Errorf("cursor: want 0 (Alice), got %d", m.browse.Artists.Cursor)
 	}
 }
 
@@ -73,14 +74,14 @@ func TestJumpToArtist_UnknownArtist(t *testing.T) {
 	if m.activeView != viewBrowse {
 		t.Errorf("activeView: want viewBrowse, got %d", m.activeView)
 	}
-	if m.browse.mode != BrowseModeArtists {
-		t.Errorf("browse.mode: want BrowseModeArtists, got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeArtists {
+		t.Errorf("browse.mode: want BrowseModeArtists, got %v", m.browse.Mode)
 	}
-	if m.browse.artists.cursor != 1 {
-		t.Errorf("cursor: want 1 (%s), got %d", arttui.UnknownArtist, m.browse.artists.cursor)
+	if m.browse.Artists.Cursor != 1 {
+		t.Errorf("cursor: want 1 (%s), got %d", arttui.UnknownArtist, m.browse.Artists.Cursor)
 	}
-	if len(m.browse.artists.artists) < 2 || m.browse.artists.artists[1] != arttui.UnknownArtist {
-		t.Errorf("artists[1]: want %q, got %q", arttui.UnknownArtist, m.browse.artists.artists[1])
+	if len(m.browse.Artists.Artists) < 2 || m.browse.Artists.Artists[1] != arttui.UnknownArtist {
+		t.Errorf("artists[1]: want %q, got %q", arttui.UnknownArtist, m.browse.Artists.Artists[1])
 	}
 }
 
@@ -98,16 +99,16 @@ func TestJumpToArtist_CentersScroll(t *testing.T) {
 		}
 	}
 	m := New(context.Background(), WithLibraryTracks(tracks))
-	m.browse.artists.height = 10
+	m.browse.Artists.Height = 10
 
 	m = m.jumpToArtist("Artist15")
 
-	if m.browse.artists.cursor != 15 {
-		t.Errorf("cursor: want 15, got %d", m.browse.artists.cursor)
+	if m.browse.Artists.Cursor != 15 {
+		t.Errorf("cursor: want 15, got %d", m.browse.Artists.Cursor)
 	}
-	wantScroll := max(0, 15-m.browse.artists.height/2)
-	if m.browse.artists.scrollOffset != wantScroll {
-		t.Errorf("scrollOffset: want %d, got %d", wantScroll, m.browse.artists.scrollOffset)
+	wantScroll := max(0, 15-m.browse.Artists.Height/2)
+	if m.browse.Artists.ScrollOffset != wantScroll {
+		t.Errorf("scrollOffset: want %d, got %d", wantScroll, m.browse.Artists.ScrollOffset)
 	}
 }
 
@@ -136,10 +137,10 @@ func TestJumpToArtist_EmptyArtistViaAction(t *testing.T) {
 	if m.activeView != viewBrowse {
 		t.Errorf("activeView: want viewBrowse, got %d", m.activeView)
 	}
-	if m.browse.mode != BrowseModeArtists {
-		t.Errorf("browse.mode: want BrowseModeArtists, got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeArtists {
+		t.Errorf("browse.mode: want BrowseModeArtists, got %v", m.browse.Mode)
 	}
-	if m.browse.artists.artists[m.browse.artists.cursor] != arttui.UnknownArtist {
-		t.Errorf("cursor on %q, want %q", m.browse.artists.artists[m.browse.artists.cursor], arttui.UnknownArtist)
+	if m.browse.Artists.Artists[m.browse.Artists.Cursor] != arttui.UnknownArtist {
+		t.Errorf("cursor on %q, want %q", m.browse.Artists.Artists[m.browse.Artists.Cursor], arttui.UnknownArtist)
 	}
 }

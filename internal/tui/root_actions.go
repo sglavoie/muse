@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/recommendation"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/keys"
@@ -173,19 +174,19 @@ func (m Model) handleBrowseModeNext() (Model, tea.Cmd) { return m.shiftBrowseMod
 func (m Model) handleBrowseModePrev() (Model, tea.Cmd) { return m.shiftBrowseMode(2) }
 
 // shiftBrowseMode rotates the Browse sub-mode by delta steps and updates the status bar.
-func (m Model) shiftBrowseMode(delta BrowseMode) (Model, tea.Cmd) {
+func (m Model) shiftBrowseMode(delta browse.BrowseMode) (Model, tea.Cmd) {
 	// Exit visual mode before switching browse sub-modes. visual.browseMode
 	// is snapshotted at enter time, so leaving it active after a sub-mode
 	// shift would let updateVisualSelection iterate the previous sub-mode's
 	// list while the cursor reads from the new sub-mode — mismatching
 	// indices and silently corrupting selection state.
 	m = exitVisualMode(m)
-	m.browse.mode = (m.browse.mode + delta) % 3
+	m.browse.Mode = (m.browse.Mode + delta) % 3
 	m = m.deriveCurrentBrowseData()
-	switch m.browse.mode {
-	case BrowseModeAlbums:
+	switch m.browse.Mode {
+	case browse.BrowseModeAlbums:
 		m.statusBar.NotifyInfo("Browse: Albums")
-	case BrowseModeGenres:
+	case browse.BrowseModeGenres:
 		m.statusBar.NotifyInfo("Browse: Genres")
 	default:
 		m.statusBar.NotifyInfo("Browse: Artists")
@@ -196,24 +197,24 @@ func (m Model) shiftBrowseMode(delta BrowseMode) (Model, tea.Cmd) {
 // deriveCurrentBrowseData lazily derives the artist/album/genre list for the
 // active browse sub-mode when it has not been populated yet.
 func (m Model) deriveCurrentBrowseData() Model {
-	switch m.browse.mode {
-	case BrowseModeArtists:
-		if len(m.browse.artists.artists) == 0 {
+	switch m.browse.Mode {
+	case browse.BrowseModeArtists:
+		if len(m.browse.Artists.Artists) == 0 {
 			tracks := m.library.Index.Tracks()
-			m.browse.artists.artists = arttui.DeriveArtists(tracks)
-			m.browse.artists.artistCounts = arttui.DeriveArtistCounts(tracks)
+			m.browse.Artists.Artists = arttui.DeriveArtists(tracks)
+			m.browse.Artists.ArtistCounts = arttui.DeriveArtistCounts(tracks)
 		}
-	case BrowseModeAlbums:
-		if len(m.browse.albums.albums) == 0 {
+	case browse.BrowseModeAlbums:
+		if len(m.browse.Albums.Albums) == 0 {
 			tracks := m.library.Index.Tracks()
-			m.browse.albums.albums = albtui.DeriveAllAlbums(tracks)
-			m.browse.albums.albumCounts = albtui.DeriveAllAlbumCounts(tracks)
+			m.browse.Albums.Albums = albtui.DeriveAllAlbums(tracks)
+			m.browse.Albums.AlbumCounts = albtui.DeriveAllAlbumCounts(tracks)
 		}
-	case BrowseModeGenres:
-		if len(m.browse.genres.genres) == 0 {
+	case browse.BrowseModeGenres:
+		if len(m.browse.Genres.Genres) == 0 {
 			tracks := m.library.Index.Tracks()
-			m.browse.genres.genres = gentui.DeriveGenres(tracks)
-			m.browse.genres.genreCounts = gentui.DeriveGenreCounts(tracks)
+			m.browse.Genres.Genres = gentui.DeriveGenres(tracks)
+			m.browse.Genres.GenreCounts = gentui.DeriveGenreCounts(tracks)
 		}
 	}
 	return m
@@ -221,7 +222,7 @@ func (m Model) deriveCurrentBrowseData() Model {
 
 // hintForAction returns a contextual hint for actions that are only valid in
 // specific views. Returns empty string when no hint applies.
-func hintForAction(a keys.Action, view viewID, _ BrowseMode) string {
+func hintForAction(a keys.Action, view viewID, _ browse.BrowseMode) string {
 	switch a {
 	case keys.ActionDequeue:
 		if view != viewQueue {
@@ -424,7 +425,7 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 	case keys.ActionTagFilter:
 		return m.handleTagFilterAction()
 	}
-	if hint := hintForAction(action, m.activeView, m.browse.mode); hint != "" {
+	if hint := hintForAction(action, m.activeView, m.browse.Mode); hint != "" {
 		m.statusBar.PushMsg(hint, 3*time.Second, statusbar.NotifInfo)
 	}
 	return m, nil

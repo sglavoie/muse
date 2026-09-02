@@ -5,6 +5,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/keys"
@@ -47,12 +48,12 @@ func (m Model) bulkActionTracks() []library.Track {
 	case viewLibrary:
 		return m.bulkLibraryTracks()
 	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
 			return m.bulkArtistTracks()
-		case BrowseModeAlbums:
+		case browse.BrowseModeAlbums:
 			return m.bulkAlbumTracks()
-		case BrowseModeGenres:
+		case browse.BrowseModeGenres:
 			return m.bulkGenreTracks()
 		}
 		return nil
@@ -83,9 +84,9 @@ func (m Model) bulkLibraryTracks() []library.Track {
 
 func (m Model) bulkArtistTracks() []library.Track {
 	allTracks := m.library.Index.Tracks()
-	switch m.browse.artists.level {
+	switch m.browse.Artists.Level {
 	case arttui.ArtistLevel:
-		if artist, ok := m.browse.artists.focusedArtist(); ok {
+		if artist, ok := m.browse.Artists.FocusedArtist(); ok {
 			var tracks []library.Track
 			raw := arttui.RawName(artist)
 			for _, track := range allTracks {
@@ -96,14 +97,14 @@ func (m Model) bulkArtistTracks() []library.Track {
 			return tracks
 		}
 	case arttui.AlbumLevel:
-		if album, ok := m.browse.artists.focusedAlbum(); ok {
-			return arttui.DeriveTracks(allTracks, m.browse.artists.selectedArtist, album)
+		if album, ok := m.browse.Artists.FocusedAlbum(); ok {
+			return arttui.DeriveTracks(allTracks, m.browse.Artists.SelectedArtist, album)
 		}
 	case arttui.TrackLevel:
-		if len(m.browse.artists.selectedHashes) > 0 {
-			return collectSelectedTracks(m.browse.artists.tracks, m.browse.artists.selectedHashes)
+		if len(m.browse.Artists.SelectedHashes) > 0 {
+			return collectSelectedTracks(m.browse.Artists.Tracks, m.browse.Artists.SelectedHashes)
 		}
-		if track, ok := m.browse.artists.focusedTrack(); ok {
+		if track, ok := m.browse.Artists.FocusedTrack(); ok {
 			return []library.Track{track}
 		}
 	}
@@ -112,16 +113,16 @@ func (m Model) bulkArtistTracks() []library.Track {
 
 func (m Model) bulkAlbumTracks() []library.Track {
 	allTracks := m.library.Index.Tracks()
-	switch m.browse.albums.level {
+	switch m.browse.Albums.Level {
 	case albtui.AlbumLevel:
-		if album, ok := m.browse.albums.focusedAlbum(); ok {
+		if album, ok := m.browse.Albums.FocusedAlbum(); ok {
 			return albtui.DeriveAlbumTracks(allTracks, album)
 		}
 	case albtui.TrackLevel:
-		if len(m.browse.albums.selectedHashes) > 0 {
-			return collectSelectedTracks(m.browse.albums.tracks, m.browse.albums.selectedHashes)
+		if len(m.browse.Albums.SelectedHashes) > 0 {
+			return collectSelectedTracks(m.browse.Albums.Tracks, m.browse.Albums.SelectedHashes)
 		}
-		if track, ok := m.browse.albums.focusedTrack(); ok {
+		if track, ok := m.browse.Albums.FocusedTrack(); ok {
 			return []library.Track{track}
 		}
 	}
@@ -130,20 +131,20 @@ func (m Model) bulkAlbumTracks() []library.Track {
 
 func (m Model) bulkGenreTracks() []library.Track {
 	allTracks := m.library.Index.Tracks()
-	switch m.browse.genres.level {
+	switch m.browse.Genres.Level {
 	case gentui.GenreLevel:
-		if genre, ok := m.browse.genres.focusedGenre(); ok {
+		if genre, ok := m.browse.Genres.FocusedGenre(); ok {
 			return gentui.DeriveGenreTracks(allTracks, genre)
 		}
 	case gentui.ArtistLevel:
-		if artist, ok := m.browse.genres.focusedArtist(); ok {
-			return gentui.DeriveGenreArtistTracks(allTracks, m.browse.genres.selectedGenre, artist)
+		if artist, ok := m.browse.Genres.FocusedArtist(); ok {
+			return gentui.DeriveGenreArtistTracks(allTracks, m.browse.Genres.SelectedGenre, artist)
 		}
 	case gentui.TrackLevel:
-		if len(m.browse.genres.selectedHashes) > 0 {
-			return collectSelectedTracks(m.browse.genres.tracks, m.browse.genres.selectedHashes)
+		if len(m.browse.Genres.SelectedHashes) > 0 {
+			return collectSelectedTracks(m.browse.Genres.Tracks, m.browse.Genres.SelectedHashes)
 		}
-		if track, ok := m.browse.genres.focusedTrack(); ok {
+		if track, ok := m.browse.Genres.FocusedTrack(); ok {
 			return []library.Track{track}
 		}
 	}

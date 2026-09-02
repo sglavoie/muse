@@ -14,7 +14,7 @@ func TestBulkMetadataEditFromArtistsTrackLevel(t *testing.T) {
 	m = pressEnter(m)
 	m = pressEnter(m)
 
-	m.browse.artists.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.browse.Artists.SelectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	hashes := m.bulkSelectedHashes()
 	if len(hashes) != 2 {
@@ -40,7 +40,7 @@ func TestBulkMetadataEditFromAlbumsTrackLevel(t *testing.T) {
 	m = switchToAlbumsMode(m)
 	m = pressEnter(m)
 
-	m.browse.albums.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.browse.Albums.SelectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	hashes := m.bulkSelectedHashes()
 	if len(hashes) != 2 {

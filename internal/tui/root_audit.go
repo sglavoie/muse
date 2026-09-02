@@ -81,29 +81,29 @@ func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (M
 		}
 		m.tagsView = m.tagsView.RecomputeTagsSort()
 	}
-	if m.browse.artists.level == arttui.TrackLevel {
-		for i := range m.browse.artists.tracks {
-			if ms, ok := fixMap[m.browse.artists.tracks[i].Hash]; ok {
-				m.browse.artists.tracks[i].Duration = float64(ms) / 1000
+	if m.browse.Artists.Level == arttui.TrackLevel {
+		for i := range m.browse.Artists.Tracks {
+			if ms, ok := fixMap[m.browse.Artists.Tracks[i].Hash]; ok {
+				m.browse.Artists.Tracks[i].Duration = float64(ms) / 1000
 			}
 		}
-		m.browse.artists = m.browse.artists.recomputeArtistsSort()
+		m.browse.Artists = m.browse.Artists.RecomputeArtistsSort()
 	}
-	if m.browse.albums.level == albtui.TrackLevel {
-		for i := range m.browse.albums.tracks {
-			if ms, ok := fixMap[m.browse.albums.tracks[i].Hash]; ok {
-				m.browse.albums.tracks[i].Duration = float64(ms) / 1000
+	if m.browse.Albums.Level == albtui.TrackLevel {
+		for i := range m.browse.Albums.Tracks {
+			if ms, ok := fixMap[m.browse.Albums.Tracks[i].Hash]; ok {
+				m.browse.Albums.Tracks[i].Duration = float64(ms) / 1000
 			}
 		}
-		m.browse.albums = m.browse.albums.recomputeAlbumsSort()
+		m.browse.Albums = m.browse.Albums.RecomputeAlbumsSort()
 	}
-	if m.browse.genres.level == gentui.TrackLevel {
-		for i := range m.browse.genres.tracks {
-			if ms, ok := fixMap[m.browse.genres.tracks[i].Hash]; ok {
-				m.browse.genres.tracks[i].Duration = float64(ms) / 1000
+	if m.browse.Genres.Level == gentui.TrackLevel {
+		for i := range m.browse.Genres.Tracks {
+			if ms, ok := fixMap[m.browse.Genres.Tracks[i].Hash]; ok {
+				m.browse.Genres.Tracks[i].Duration = float64(ms) / 1000
 			}
 		}
-		m.browse.genres = m.browse.genres.recomputeGenresSort()
+		m.browse.Genres = m.browse.Genres.RecomputeGenresSort()
 	}
 	// Propagate to cached mix tracks so opening a mix shows corrected
 	// durations, and refresh the active mix's trackView when at track level.

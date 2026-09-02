@@ -5,6 +5,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/overlay"
@@ -41,11 +42,11 @@ func (m Model) focusedGoToContext() goToContext {
 		}
 
 	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			switch m.browse.artists.level {
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
+			switch m.browse.Artists.Level {
 			case arttui.ArtistLevel:
-				if name, ok := m.browse.artists.focusedArtist(); ok {
+				if name, ok := m.browse.Artists.FocusedArtist(); ok {
 					ctx := goToContext{artist: name, found: true}
 					rawArtist := arttui.RawName(name)
 					tracks := arttui.DeriveArtistTracks(m.library.Index.Tracks(), rawArtist)
@@ -56,9 +57,9 @@ func (m Model) focusedGoToContext() goToContext {
 					return ctx
 				}
 			case arttui.AlbumLevel:
-				if name, ok := m.browse.artists.focusedAlbum(); ok {
-					ctx := goToContext{artist: m.browse.artists.selectedArtist, album: name, found: true}
-					rawArtist := arttui.RawName(m.browse.artists.selectedArtist)
+				if name, ok := m.browse.Artists.FocusedAlbum(); ok {
+					ctx := goToContext{artist: m.browse.Artists.SelectedArtist, album: name, found: true}
+					rawArtist := arttui.RawName(m.browse.Artists.SelectedArtist)
 					rawAlbum := arttui.RawName(name)
 					tracks := arttui.DeriveTracks(m.library.Index.Tracks(), rawArtist, rawAlbum)
 					if len(tracks) > 0 {
@@ -66,18 +67,18 @@ func (m Model) focusedGoToContext() goToContext {
 					}
 					return ctx
 				}
-				if m.browse.artists.selectedArtist != "" {
-					return goToContext{artist: m.browse.artists.selectedArtist, found: true}
+				if m.browse.Artists.SelectedArtist != "" {
+					return goToContext{artist: m.browse.Artists.SelectedArtist, found: true}
 				}
 			case arttui.TrackLevel:
-				if track, ok := m.browse.artists.focusedTrack(); ok {
+				if track, ok := m.browse.Artists.FocusedTrack(); ok {
 					return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
 				}
 			}
-		case BrowseModeAlbums:
-			switch m.browse.albums.level {
+		case browse.BrowseModeAlbums:
+			switch m.browse.Albums.Level {
 			case albtui.AlbumLevel:
-				if name, ok := m.browse.albums.focusedAlbum(); ok {
+				if name, ok := m.browse.Albums.FocusedAlbum(); ok {
 					ctx := goToContext{album: name, found: true}
 					rawAlbum := arttui.RawName(name)
 					tracks := albtui.DeriveAlbumTracks(m.library.Index.Tracks(), rawAlbum)
@@ -88,14 +89,14 @@ func (m Model) focusedGoToContext() goToContext {
 					return ctx
 				}
 			case albtui.TrackLevel:
-				if track, ok := m.browse.albums.focusedTrack(); ok {
+				if track, ok := m.browse.Albums.FocusedTrack(); ok {
 					return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
 				}
 			}
-		case BrowseModeGenres:
-			switch m.browse.genres.level {
+		case browse.BrowseModeGenres:
+			switch m.browse.Genres.Level {
 			case gentui.GenreLevel:
-				if name, ok := m.browse.genres.focusedGenre(); ok {
+				if name, ok := m.browse.Genres.FocusedGenre(); ok {
 					ctx := goToContext{genre: name, found: true}
 					rawGenre := gentui.RawGenre(name)
 					tracks := gentui.DeriveGenreTracks(m.library.Index.Tracks(), rawGenre)
@@ -106,10 +107,10 @@ func (m Model) focusedGoToContext() goToContext {
 					return ctx
 				}
 			case gentui.ArtistLevel:
-				if name, ok := m.browse.genres.focusedArtist(); ok {
-					ctx := goToContext{artist: name, genre: m.browse.genres.selectedGenre, found: true}
+				if name, ok := m.browse.Genres.FocusedArtist(); ok {
+					ctx := goToContext{artist: name, genre: m.browse.Genres.SelectedGenre, found: true}
 					rawArtist := arttui.RawName(name)
-					rawGenre := gentui.RawGenre(m.browse.genres.selectedGenre)
+					rawGenre := gentui.RawGenre(m.browse.Genres.SelectedGenre)
 					tracks := gentui.DeriveGenreArtistTracks(m.library.Index.Tracks(), rawGenre, rawArtist)
 					if len(tracks) > 0 {
 						ctx.album = tracks[0].Album
@@ -117,7 +118,7 @@ func (m Model) focusedGoToContext() goToContext {
 					return ctx
 				}
 			case gentui.TrackLevel:
-				if track, ok := m.browse.genres.focusedTrack(); ok {
+				if track, ok := m.browse.Genres.FocusedTrack(); ok {
 					return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
 				}
 			}
@@ -223,9 +224,9 @@ func (m Model) buildGoToOptions(ctx goToContext) []overlay.GoToOption {
 		addSource()
 
 	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			switch m.browse.artists.level {
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
+			switch m.browse.Artists.Level {
 			case arttui.ArtistLevel:
 				addAlbum()
 				addGenres()
@@ -236,11 +237,11 @@ func (m Model) buildGoToOptions(ctx goToContext) []overlay.GoToOption {
 				addAlbum()
 				addGenres()
 			}
-		case BrowseModeAlbums:
+		case browse.BrowseModeAlbums:
 			addArtist()
 			addGenres()
-		case BrowseModeGenres:
-			switch m.browse.genres.level {
+		case browse.BrowseModeGenres:
+			switch m.browse.Genres.Level {
 			case gentui.GenreLevel:
 				addArtist()
 				addAlbum()

@@ -4,13 +4,14 @@ import (
 	"context"
 	"testing"
 
+	"github.com/sglavoie/muse/internal/tui/browse"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
 func TestVisualModeHierarchicalViewGuard(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeArtists
+	m.browse.Mode = browse.BrowseModeArtists
 
 	m = doVisual(m)
 

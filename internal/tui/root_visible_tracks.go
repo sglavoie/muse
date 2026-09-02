@@ -5,6 +5,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
@@ -91,10 +92,10 @@ func (m Model) insightsVisibleTracks() ([]library.Track, string, bool) {
 }
 
 func (m Model) browseVisibleTracks() ([]library.Track, string, bool) {
-	switch m.browse.mode {
-	case BrowseModeAlbums:
+	switch m.browse.Mode {
+	case browse.BrowseModeAlbums:
 		return m.browseAlbumsVisibleTracks()
-	case BrowseModeGenres:
+	case browse.BrowseModeGenres:
 		return m.browseGenresVisibleTracks()
 	default:
 		return m.browseArtistsVisibleTracks()
@@ -102,23 +103,23 @@ func (m Model) browseVisibleTracks() ([]library.Track, string, bool) {
 }
 
 func (m Model) browseArtistsVisibleTracks() ([]library.Track, string, bool) {
-	v := m.browse.artists
-	switch v.level {
+	v := m.browse.Artists
+	switch v.Level {
 	case arttui.TrackLevel:
-		rows := arttui.FilterTracks(v.tracks, v.filter.Text)
-		if len(v.selectedHashes) > 0 {
-			rows = collectSelectedTracks(rows, v.selectedHashes)
+		rows := arttui.FilterTracks(v.Tracks, v.Filter.Text)
+		if len(v.SelectedHashes) > 0 {
+			rows = collectSelectedTracks(rows, v.SelectedHashes)
 		}
-		return rows, "Browse ▸ Artists ▸ " + v.selectedArtist + " ▸ " + v.selectedAlbum, true
+		return rows, "Browse ▸ Artists ▸ " + v.SelectedArtist + " ▸ " + v.SelectedAlbum, true
 	case arttui.AlbumLevel:
-		album, ok := v.focusedAlbum()
+		album, ok := v.FocusedAlbum()
 		if !ok {
 			return nil, "No album focused", false
 		}
-		rows := arttui.DeriveTracks(m.library.Index.Tracks(), v.selectedArtist, album)
-		return rows, "Browse ▸ Artists ▸ " + v.selectedArtist + " ▸ " + album, true
+		rows := arttui.DeriveTracks(m.library.Index.Tracks(), v.SelectedArtist, album)
+		return rows, "Browse ▸ Artists ▸ " + v.SelectedArtist + " ▸ " + album, true
 	default:
-		artist, ok := v.focusedArtist()
+		artist, ok := v.FocusedArtist()
 		if !ok {
 			return nil, "No artist focused", false
 		}
@@ -128,15 +129,15 @@ func (m Model) browseArtistsVisibleTracks() ([]library.Track, string, bool) {
 }
 
 func (m Model) browseAlbumsVisibleTracks() ([]library.Track, string, bool) {
-	v := m.browse.albums
-	if v.level == albtui.TrackLevel {
-		rows := arttui.FilterTracks(v.tracks, v.filter.Text)
-		if len(v.selectedHashes) > 0 {
-			rows = collectSelectedTracks(rows, v.selectedHashes)
+	v := m.browse.Albums
+	if v.Level == albtui.TrackLevel {
+		rows := arttui.FilterTracks(v.Tracks, v.Filter.Text)
+		if len(v.SelectedHashes) > 0 {
+			rows = collectSelectedTracks(rows, v.SelectedHashes)
 		}
-		return rows, "Browse ▸ Albums ▸ " + v.selectedAlbum, true
+		return rows, "Browse ▸ Albums ▸ " + v.SelectedAlbum, true
 	}
-	album, ok := v.focusedAlbum()
+	album, ok := v.FocusedAlbum()
 	if !ok {
 		return nil, "No album focused", false
 	}
@@ -144,23 +145,23 @@ func (m Model) browseAlbumsVisibleTracks() ([]library.Track, string, bool) {
 }
 
 func (m Model) browseGenresVisibleTracks() ([]library.Track, string, bool) {
-	v := m.browse.genres
-	switch v.level {
+	v := m.browse.Genres
+	switch v.Level {
 	case gentui.TrackLevel:
-		rows := arttui.FilterTracks(v.tracks, v.filter.Text)
-		if len(v.selectedHashes) > 0 {
-			rows = collectSelectedTracks(rows, v.selectedHashes)
+		rows := arttui.FilterTracks(v.Tracks, v.Filter.Text)
+		if len(v.SelectedHashes) > 0 {
+			rows = collectSelectedTracks(rows, v.SelectedHashes)
 		}
-		return rows, "Browse ▸ Genres ▸ " + v.selectedGenre + " ▸ " + v.selectedArtist, true
+		return rows, "Browse ▸ Genres ▸ " + v.SelectedGenre + " ▸ " + v.SelectedArtist, true
 	case gentui.ArtistLevel:
-		artist, ok := v.focusedArtist()
+		artist, ok := v.FocusedArtist()
 		if !ok {
 			return nil, "No artist focused", false
 		}
-		rows := gentui.DeriveGenreArtistTracks(m.library.Index.Tracks(), v.selectedGenre, artist)
-		return rows, "Browse ▸ Genres ▸ " + v.selectedGenre + " ▸ " + artist, true
+		rows := gentui.DeriveGenreArtistTracks(m.library.Index.Tracks(), v.SelectedGenre, artist)
+		return rows, "Browse ▸ Genres ▸ " + v.SelectedGenre + " ▸ " + artist, true
 	default:
-		genre, ok := v.focusedGenre()
+		genre, ok := v.FocusedGenre()
 		if !ok {
 			return nil, "No genre focused", false
 		}

@@ -325,46 +325,46 @@ func (m Model) watchRecomputeLibrary() Model {
 // data at the current drill-down level from the live library index.
 func (m Model) refreshBrowseDerivedViews() Model {
 	allTracks := m.library.Index.Tracks()
-	switch m.browse.artists.level {
+	switch m.browse.Artists.Level {
 	case arttui.ArtistLevel:
-		m.browse.artists.artists = arttui.DeriveArtists(allTracks)
-		m.browse.artists.artistCounts = arttui.DeriveArtistCounts(allTracks)
-		m.browse.artists = m.browse.artists.recomputeArtistsSort()
-		m.browse.artists = m.browse.artists.clampCursor()
+		m.browse.Artists.Artists = arttui.DeriveArtists(allTracks)
+		m.browse.Artists.ArtistCounts = arttui.DeriveArtistCounts(allTracks)
+		m.browse.Artists = m.browse.Artists.RecomputeArtistsSort()
+		m.browse.Artists = m.browse.Artists.ClampCursor()
 	case arttui.AlbumLevel:
-		m.browse.artists.albums = arttui.DeriveAlbums(allTracks, m.browse.artists.selectedArtist)
-		m.browse.artists = m.browse.artists.recomputeArtistsSort()
-		m.browse.artists = m.browse.artists.clampCursor()
+		m.browse.Artists.Albums = arttui.DeriveAlbums(allTracks, m.browse.Artists.SelectedArtist)
+		m.browse.Artists = m.browse.Artists.RecomputeArtistsSort()
+		m.browse.Artists = m.browse.Artists.ClampCursor()
 	case arttui.TrackLevel:
-		m.browse.artists.tracks = arttui.DeriveTracks(allTracks, m.browse.artists.selectedArtist, m.browse.artists.selectedAlbum)
-		m.browse.artists = m.browse.artists.recomputeArtistsSort()
-		m.browse.artists = m.browse.artists.clampCursor()
+		m.browse.Artists.Tracks = arttui.DeriveTracks(allTracks, m.browse.Artists.SelectedArtist, m.browse.Artists.SelectedAlbum)
+		m.browse.Artists = m.browse.Artists.RecomputeArtistsSort()
+		m.browse.Artists = m.browse.Artists.ClampCursor()
 	}
-	switch m.browse.albums.level {
+	switch m.browse.Albums.Level {
 	case albtui.AlbumLevel:
-		m.browse.albums.albums = albtui.DeriveAllAlbums(allTracks)
-		m.browse.albums.albumCounts = albtui.DeriveAllAlbumCounts(allTracks)
-		m.browse.albums = m.browse.albums.recomputeAlbumsSort()
-		m.browse.albums = m.browse.albums.clampCursor()
+		m.browse.Albums.Albums = albtui.DeriveAllAlbums(allTracks)
+		m.browse.Albums.AlbumCounts = albtui.DeriveAllAlbumCounts(allTracks)
+		m.browse.Albums = m.browse.Albums.RecomputeAlbumsSort()
+		m.browse.Albums = m.browse.Albums.ClampCursor()
 	case albtui.TrackLevel:
-		m.browse.albums.tracks = albtui.DeriveAlbumTracks(allTracks, m.browse.albums.selectedAlbum)
-		m.browse.albums = m.browse.albums.recomputeAlbumsSort()
-		m.browse.albums = m.browse.albums.clampCursor()
+		m.browse.Albums.Tracks = albtui.DeriveAlbumTracks(allTracks, m.browse.Albums.SelectedAlbum)
+		m.browse.Albums = m.browse.Albums.RecomputeAlbumsSort()
+		m.browse.Albums = m.browse.Albums.ClampCursor()
 	}
-	switch m.browse.genres.level {
+	switch m.browse.Genres.Level {
 	case gentui.GenreLevel:
-		m.browse.genres.genres = gentui.DeriveGenres(allTracks)
-		m.browse.genres.genreCounts = gentui.DeriveGenreCounts(allTracks)
-		m.browse.genres = m.browse.genres.recomputeGenresSort()
-		m.browse.genres = m.browse.genres.clampCursor()
+		m.browse.Genres.Genres = gentui.DeriveGenres(allTracks)
+		m.browse.Genres.GenreCounts = gentui.DeriveGenreCounts(allTracks)
+		m.browse.Genres = m.browse.Genres.RecomputeGenresSort()
+		m.browse.Genres = m.browse.Genres.ClampCursor()
 	case gentui.ArtistLevel:
-		m.browse.genres.artists = gentui.DeriveGenreArtists(allTracks, m.browse.genres.selectedGenre)
-		m.browse.genres = m.browse.genres.recomputeGenresSort()
-		m.browse.genres = m.browse.genres.clampCursor()
+		m.browse.Genres.Artists = gentui.DeriveGenreArtists(allTracks, m.browse.Genres.SelectedGenre)
+		m.browse.Genres = m.browse.Genres.RecomputeGenresSort()
+		m.browse.Genres = m.browse.Genres.ClampCursor()
 	case gentui.TrackLevel:
-		m.browse.genres.tracks = gentui.DeriveGenreArtistTracks(allTracks, m.browse.genres.selectedGenre, m.browse.genres.selectedArtist)
-		m.browse.genres = m.browse.genres.recomputeGenresSort()
-		m.browse.genres = m.browse.genres.clampCursor()
+		m.browse.Genres.Tracks = gentui.DeriveGenreArtistTracks(allTracks, m.browse.Genres.SelectedGenre, m.browse.Genres.SelectedArtist)
+		m.browse.Genres = m.browse.Genres.RecomputeGenresSort()
+		m.browse.Genres = m.browse.Genres.ClampCursor()
 	}
 	return m
 }

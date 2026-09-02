@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
@@ -21,15 +22,15 @@ func TestJumpToGenre(t *testing.T) {
 	if m.activeView != viewBrowse {
 		t.Errorf("activeView: want viewBrowse(%d), got %d", viewBrowse, m.activeView)
 	}
-	if m.browse.mode != BrowseModeGenres {
-		t.Errorf("browse.mode: want BrowseModeGenres, got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeGenres {
+		t.Errorf("browse.mode: want BrowseModeGenres, got %v", m.browse.Mode)
 	}
-	if m.browse.genres.level != gentui.GenreLevel {
-		t.Errorf("level: want GenreLevel, got %v", m.browse.genres.level)
+	if m.browse.Genres.Level != gentui.GenreLevel {
+		t.Errorf("level: want GenreLevel, got %v", m.browse.Genres.Level)
 	}
 	// Genres are sorted alphabetically: Jazz, Rock
-	if m.browse.genres.cursor != 0 {
-		t.Errorf("cursor: want 0 (Jazz), got %d", m.browse.genres.cursor)
+	if m.browse.Genres.Cursor != 0 {
+		t.Errorf("cursor: want 0 (Jazz), got %d", m.browse.Genres.Cursor)
 	}
 }
 
@@ -53,12 +54,12 @@ func TestJumpToGenre_UnknownGenre(t *testing.T) {
 	if m.activeView != viewBrowse {
 		t.Errorf("activeView: want viewBrowse, got %d", m.activeView)
 	}
-	if m.browse.mode != BrowseModeGenres {
-		t.Errorf("browse.mode: want BrowseModeGenres, got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeGenres {
+		t.Errorf("browse.mode: want BrowseModeGenres, got %v", m.browse.Mode)
 	}
 	// "(unknown genre)" sorts after "Rock"
-	if m.browse.genres.cursor != 1 {
-		t.Errorf("cursor: want 1 (unknown genre), got %d", m.browse.genres.cursor)
+	if m.browse.Genres.Cursor != 1 {
+		t.Errorf("cursor: want 1 (unknown genre), got %d", m.browse.Genres.Cursor)
 	}
 }
 

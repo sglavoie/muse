@@ -185,9 +185,9 @@ func (m Model) handleTracksAddedToPlaylistMsg(msg tracksAddedToPlaylistMsg) Mode
 // a playlist, so staged selections are always discarded on picker exit.
 func (m Model) clearAllSelections() Model {
 	m.library = m.library.ClearSelection()
-	m.browse.artists.selectedHashes = nil
-	m.browse.albums.selectedHashes = nil
-	m.browse.genres.selectedHashes = nil
+	m.browse.Artists.SelectedHashes = nil
+	m.browse.Albums.SelectedHashes = nil
+	m.browse.Genres.SelectedHashes = nil
 	m.favorites.SelectedItems = nil
 	m.tagsView.SelectedHashes = nil
 	m.insights.trackView.SelectedHashes = nil

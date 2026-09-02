@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
@@ -71,18 +72,18 @@ func (m Model) handleLibraryPlayNextAction() (tea.Model, tea.Cmd, bool) {
 		cmd = m.library.PlayNextFocused(m.queueWriter, prevLen, insertIdx)
 		m.library = m.library.ClearFilter()
 	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			if m.browse.artists.level == arttui.TrackLevel {
-				cmd = m.browse.artists.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
+			if m.browse.Artists.Level == arttui.TrackLevel {
+				cmd = m.browse.Artists.PlayNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
 			}
-		case BrowseModeAlbums:
-			if m.browse.albums.level == albtui.TrackLevel {
-				cmd = m.browse.albums.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
+		case browse.BrowseModeAlbums:
+			if m.browse.Albums.Level == albtui.TrackLevel {
+				cmd = m.browse.Albums.PlayNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
 			}
-		case BrowseModeGenres:
-			if _, ok := m.browse.genres.focusedTrack(); ok {
-				cmd = m.browse.genres.playNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
+		case browse.BrowseModeGenres:
+			if _, ok := m.browse.Genres.FocusedTrack(); ok {
+				cmd = m.browse.Genres.PlayNextFocusedTrack(m.queueWriter, prevLen, insertIdx)
 			}
 		}
 	case viewPlaylists:
@@ -115,21 +116,21 @@ func (m Model) handleLibraryEnqueueReplaceAction() (tea.Model, tea.Cmd, bool) {
 			m.library = m.library.ClearFilter()
 		}
 	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			if m.browse.artists.level == arttui.TrackLevel {
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
+			if m.browse.Artists.Level == arttui.TrackLevel {
 				m = m.clearQueueForReplace()
-				cmd = m.browse.artists.enqueueFocusedTrack(m.queueWriter, 0)
+				cmd = m.browse.Artists.EnqueueFocusedTrack(m.queueWriter, 0)
 			}
-		case BrowseModeAlbums:
-			if m.browse.albums.level == albtui.TrackLevel {
+		case browse.BrowseModeAlbums:
+			if m.browse.Albums.Level == albtui.TrackLevel {
 				m = m.clearQueueForReplace()
-				cmd = m.browse.albums.enqueueFocusedTrack(m.queueWriter, 0)
+				cmd = m.browse.Albums.EnqueueFocusedTrack(m.queueWriter, 0)
 			}
-		case BrowseModeGenres:
-			if _, ok := m.browse.genres.focusedTrack(); ok {
+		case browse.BrowseModeGenres:
+			if _, ok := m.browse.Genres.FocusedTrack(); ok {
 				m = m.clearQueueForReplace()
-				cmd = m.browse.genres.enqueueFocusedTrack(m.queueWriter, 0)
+				cmd = m.browse.Genres.EnqueueFocusedTrack(m.queueWriter, 0)
 			}
 		}
 	case viewPlaylists:

@@ -7,6 +7,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/queue"
@@ -40,8 +41,8 @@ func TestSelectedTrackHashes_Queue(t *testing.T) {
 func TestSelectedTrackHashes_Artists(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeArtists
-	m.browse.artists.selectedHashes = map[string]struct{}{
+	m.browse.Mode = browse.BrowseModeArtists
+	m.browse.Artists.SelectedHashes = map[string]struct{}{
 		"ha1": {},
 		"ha2": {},
 	}
@@ -55,8 +56,8 @@ func TestSelectedTrackHashes_Artists(t *testing.T) {
 func TestSelectedTrackHashes_Albums(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeAlbums
-	m.browse.albums.selectedHashes = map[string]struct{}{
+	m.browse.Mode = browse.BrowseModeAlbums
+	m.browse.Albums.SelectedHashes = map[string]struct{}{
 		"hab1": {},
 	}
 
@@ -72,8 +73,8 @@ func TestSelectedTrackHashes_Albums(t *testing.T) {
 func TestSelectedTrackHashes_Genres(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeGenres
-	m.browse.genres.selectedHashes = map[string]struct{}{
+	m.browse.Mode = browse.BrowseModeGenres
+	m.browse.Genres.SelectedHashes = map[string]struct{}{
 		"hg1": {},
 		"hg2": {},
 		"hg3": {},
@@ -165,12 +166,12 @@ func TestTagPickerHashes_SingleFocusedFromQueue(t *testing.T) {
 func TestTagPickerHashes_BulkFromArtists(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeArtists
-	m.browse.artists.selectedHashes = map[string]struct{}{
+	m.browse.Mode = browse.BrowseModeArtists
+	m.browse.Artists.SelectedHashes = map[string]struct{}{
 		"ha1": {},
 		"ha2": {},
 	}
-	m.browse.artists.tracks = []library.Track{
+	m.browse.Artists.Tracks = []library.Track{
 		{Hash: "ha1", Artist: "A", Title: "T1"},
 		{Hash: "ha2", Artist: "A", Title: "T2"},
 	}

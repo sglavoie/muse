@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/palette"
@@ -141,28 +142,28 @@ func TestPaletteLibraryNavigationTargetsExactMode(t *testing.T) {
 func TestPaletteBrowseNavigationTargetsExactModeAndPreservesState(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
-	m.browse.albums.albums = []string{"Alpha", "Beta", "Gamma"}
-	m.browse.albums.cursor = 2
-	m.browse.albums.filter = filter.State{Text: "a"}
+	m.browse.Albums.Albums = []string{"Alpha", "Beta", "Gamma"}
+	m.browse.Albums.Cursor = 2
+	m.browse.Albums.Filter = filter.State{Text: "a"}
 
 	m = runPaletteCommandForTest(t, m, "Go to Browse: Albums")
-	if m.activeView != viewBrowse || m.browse.mode != BrowseModeAlbums {
-		t.Fatalf("albums command landed on view=%v mode=%v", m.activeView, m.browse.mode)
+	if m.activeView != viewBrowse || m.browse.Mode != browse.BrowseModeAlbums {
+		t.Fatalf("albums command landed on view=%v mode=%v", m.activeView, m.browse.Mode)
 	}
-	if m.browse.albums.cursor != 2 || m.browse.albums.filter.Text != "a" {
-		t.Fatalf("albums state changed: cursor=%d filter=%q", m.browse.albums.cursor, m.browse.albums.filter.Text)
+	if m.browse.Albums.Cursor != 2 || m.browse.Albums.Filter.Text != "a" {
+		t.Fatalf("albums state changed: cursor=%d filter=%q", m.browse.Albums.Cursor, m.browse.Albums.Filter.Text)
 	}
 
 	for _, tc := range []struct {
 		name string
-		mode BrowseMode
+		mode browse.BrowseMode
 	}{
-		{name: "Go to Browse: Artists", mode: BrowseModeArtists},
-		{name: "Go to Browse: Genres", mode: BrowseModeGenres},
+		{name: "Go to Browse: Artists", mode: browse.BrowseModeArtists},
+		{name: "Go to Browse: Genres", mode: browse.BrowseModeGenres},
 	} {
 		m = runPaletteCommandForTest(t, m, tc.name)
-		if m.activeView != viewBrowse || m.browse.mode != tc.mode {
-			t.Errorf("%q landed on view=%v mode=%v", tc.name, m.activeView, m.browse.mode)
+		if m.activeView != viewBrowse || m.browse.Mode != tc.mode {
+			t.Errorf("%q landed on view=%v mode=%v", tc.name, m.activeView, m.browse.Mode)
 		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/browse"
 )
 
 // TestWatchBatchRefreshesArtistAlbumLevel verifies that when the artists view
@@ -15,13 +16,13 @@ func TestWatchBatchRefreshesArtistAlbumLevel(t *testing.T) {
 	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Album1"})
 	// Drill into "Art" albums.
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeArtists
-	m.browse.artists.artists = []string{"Art"}
-	m.browse.artists.selectedArtist = "Art"
-	m.browse.artists = m.browse.artists.openAlbums([]string{"Album1"})
+	m.browse.Mode = browse.BrowseModeArtists
+	m.browse.Artists.Artists = []string{"Art"}
+	m.browse.Artists.SelectedArtist = "Art"
+	m.browse.Artists = m.browse.Artists.OpenAlbums([]string{"Album1"})
 
-	if len(m.browse.artists.albums) != 1 {
-		t.Fatalf("setup: expected 1 album, got %d", len(m.browse.artists.albums))
+	if len(m.browse.Artists.Albums) != 1 {
+		t.Fatalf("setup: expected 1 album, got %d", len(m.browse.Artists.Albums))
 	}
 
 	// Watcher adds a second track with a new album under the same artist.
@@ -32,8 +33,8 @@ func TestWatchBatchRefreshesArtistAlbumLevel(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if len(nm.browse.artists.albums) != 2 {
-		t.Errorf("expected 2 albums after watcher, got %d: %v", len(nm.browse.artists.albums), nm.browse.artists.albums)
+	if len(nm.browse.Artists.Albums) != 2 {
+		t.Errorf("expected 2 albums after watcher, got %d: %v", len(nm.browse.Artists.Albums), nm.browse.Artists.Albums)
 	}
 }
 
@@ -45,17 +46,17 @@ func TestWatchBatchRefreshesArtistTrackLevel(t *testing.T) {
 	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
 	// Drill into "Art" > "Alb" tracks.
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeArtists
-	m.browse.artists.artists = []string{"Art"}
-	m.browse.artists.selectedArtist = "Art"
-	m.browse.artists = m.browse.artists.openAlbums([]string{"Alb"})
-	m.browse.artists.selectedAlbum = "Alb"
-	m.browse.artists = m.browse.artists.openTracks([]library.Track{
+	m.browse.Mode = browse.BrowseModeArtists
+	m.browse.Artists.Artists = []string{"Art"}
+	m.browse.Artists.SelectedArtist = "Art"
+	m.browse.Artists = m.browse.Artists.OpenAlbums([]string{"Alb"})
+	m.browse.Artists.SelectedAlbum = "Alb"
+	m.browse.Artists = m.browse.Artists.OpenTracks([]library.Track{
 		{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"},
 	})
 
-	if len(m.browse.artists.tracks) != 1 {
-		t.Fatalf("setup: expected 1 track, got %d", len(m.browse.artists.tracks))
+	if len(m.browse.Artists.Tracks) != 1 {
+		t.Fatalf("setup: expected 1 track, got %d", len(m.browse.Artists.Tracks))
 	}
 
 	// Watcher adds a new track under the same artist+album.
@@ -66,8 +67,8 @@ func TestWatchBatchRefreshesArtistTrackLevel(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if len(nm.browse.artists.tracks) != 2 {
-		t.Errorf("expected 2 tracks after watcher, got %d", len(nm.browse.artists.tracks))
+	if len(nm.browse.Artists.Tracks) != 2 {
+		t.Errorf("expected 2 tracks after watcher, got %d", len(nm.browse.Artists.Tracks))
 	}
 }
 
@@ -79,15 +80,15 @@ func TestWatchBatchRefreshesAlbumTrackLevel(t *testing.T) {
 	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
 	// Drill into "Alb" tracks.
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeAlbums
-	m.browse.albums.albums = []string{"Alb"}
-	m.browse.albums.selectedAlbum = "Alb"
-	m.browse.albums = m.browse.albums.openTracks([]library.Track{
+	m.browse.Mode = browse.BrowseModeAlbums
+	m.browse.Albums.Albums = []string{"Alb"}
+	m.browse.Albums.SelectedAlbum = "Alb"
+	m.browse.Albums = m.browse.Albums.OpenTracks([]library.Track{
 		{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"},
 	})
 
-	if len(m.browse.albums.tracks) != 1 {
-		t.Fatalf("setup: expected 1 track, got %d", len(m.browse.albums.tracks))
+	if len(m.browse.Albums.Tracks) != 1 {
+		t.Fatalf("setup: expected 1 track, got %d", len(m.browse.Albums.Tracks))
 	}
 
 	// Watcher adds a new track under the same album.
@@ -98,7 +99,7 @@ func TestWatchBatchRefreshesAlbumTrackLevel(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if len(nm.browse.albums.tracks) != 2 {
-		t.Errorf("expected 2 tracks after watcher, got %d", len(nm.browse.albums.tracks))
+	if len(nm.browse.Albums.Tracks) != 2 {
+		t.Errorf("expected 2 tracks after watcher, got %d", len(nm.browse.Albums.Tracks))
 	}
 }

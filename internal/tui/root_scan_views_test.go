@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -16,10 +17,10 @@ func TestScanBatchRefreshesArtistAlbumLevel(t *testing.T) {
 	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Album1"})
 	// Drill into "Art" albums.
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeArtists
-	m.browse.artists.artists = []string{"Art"}
-	m.browse.artists.selectedArtist = "Art"
-	m.browse.artists = m.browse.artists.openAlbums([]string{"Album1"})
+	m.browse.Mode = browse.BrowseModeArtists
+	m.browse.Artists.Artists = []string{"Art"}
+	m.browse.Artists.SelectedArtist = "Art"
+	m.browse.Artists = m.browse.Artists.OpenAlbums([]string{"Album1"})
 
 	// Scan batch adds a second track with a new album.
 	next, _ := m.Update(library.ScanBatchMsg{
@@ -29,8 +30,8 @@ func TestScanBatchRefreshesArtistAlbumLevel(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if len(nm.browse.artists.albums) != 2 {
-		t.Errorf("expected 2 albums after scan, got %d: %v", len(nm.browse.artists.albums), nm.browse.artists.albums)
+	if len(nm.browse.Artists.Albums) != 2 {
+		t.Errorf("expected 2 albums after scan, got %d: %v", len(nm.browse.Artists.Albums), nm.browse.Artists.Albums)
 	}
 }
 
@@ -41,12 +42,12 @@ func TestScanBatchRefreshesArtistTrackLevel(t *testing.T) {
 	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
 	// Drill into "Art" > "Alb" tracks.
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeArtists
-	m.browse.artists.artists = []string{"Art"}
-	m.browse.artists.selectedArtist = "Art"
-	m.browse.artists = m.browse.artists.openAlbums([]string{"Alb"})
-	m.browse.artists.selectedAlbum = "Alb"
-	m.browse.artists = m.browse.artists.openTracks([]library.Track{
+	m.browse.Mode = browse.BrowseModeArtists
+	m.browse.Artists.Artists = []string{"Art"}
+	m.browse.Artists.SelectedArtist = "Art"
+	m.browse.Artists = m.browse.Artists.OpenAlbums([]string{"Alb"})
+	m.browse.Artists.SelectedAlbum = "Alb"
+	m.browse.Artists = m.browse.Artists.OpenTracks([]library.Track{
 		{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"},
 	})
 
@@ -58,8 +59,8 @@ func TestScanBatchRefreshesArtistTrackLevel(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if len(nm.browse.artists.tracks) != 2 {
-		t.Errorf("expected 2 tracks after scan, got %d", len(nm.browse.artists.tracks))
+	if len(nm.browse.Artists.Tracks) != 2 {
+		t.Errorf("expected 2 tracks after scan, got %d", len(nm.browse.Artists.Tracks))
 	}
 }
 
@@ -70,10 +71,10 @@ func TestScanBatchRefreshesAlbumTrackLevel(t *testing.T) {
 	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
 	// Drill into "Alb" tracks.
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeAlbums
-	m.browse.albums.albums = []string{"Alb"}
-	m.browse.albums.selectedAlbum = "Alb"
-	m.browse.albums = m.browse.albums.openTracks([]library.Track{
+	m.browse.Mode = browse.BrowseModeAlbums
+	m.browse.Albums.Albums = []string{"Alb"}
+	m.browse.Albums.SelectedAlbum = "Alb"
+	m.browse.Albums = m.browse.Albums.OpenTracks([]library.Track{
 		{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"},
 	})
 
@@ -85,8 +86,8 @@ func TestScanBatchRefreshesAlbumTrackLevel(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if len(nm.browse.albums.tracks) != 2 {
-		t.Errorf("expected 2 tracks after scan, got %d", len(nm.browse.albums.tracks))
+	if len(nm.browse.Albums.Tracks) != 2 {
+		t.Errorf("expected 2 tracks after scan, got %d", len(nm.browse.Albums.Tracks))
 	}
 }
 
@@ -97,10 +98,10 @@ func TestScanBatchPreservesArtistLevelSort(t *testing.T) {
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"})
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeArtists
-	m.browse.artists.artists = []string{"Zara", "Alice"}
-	m.browse.artists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
-	m.browse.artists = m.browse.artists.recomputeArtistsSort()
+	m.browse.Mode = browse.BrowseModeArtists
+	m.browse.Artists.Artists = []string{"Zara", "Alice"}
+	m.browse.Artists.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
+	m.browse.Artists = m.browse.Artists.RecomputeArtistsSort()
 
 	// Scan batch adds a new artist.
 	next, _ := m.Update(library.ScanBatchMsg{
@@ -110,15 +111,15 @@ func TestScanBatchPreservesArtistLevelSort(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.browse.artists.sortState.Field != sorting.SortName {
-		t.Fatalf("sort field reset; got %v", nm.browse.artists.sortState.Field)
+	if nm.browse.Artists.SortState.Field != sorting.SortName {
+		t.Fatalf("sort field reset; got %v", nm.browse.Artists.SortState.Field)
 	}
-	if len(nm.browse.artists.artists) < 3 {
-		t.Fatalf("expected at least 3 artists, got %d", len(nm.browse.artists.artists))
+	if len(nm.browse.Artists.Artists) < 3 {
+		t.Fatalf("expected at least 3 artists, got %d", len(nm.browse.Artists.Artists))
 	}
 	// With ascending name sort: Alice, Bob, Zara.
-	if nm.browse.artists.artists[0] != "Alice" || nm.browse.artists.artists[1] != "Bob" || nm.browse.artists.artists[2] != "Zara" {
-		t.Errorf("unexpected artist order: %v", nm.browse.artists.artists)
+	if nm.browse.Artists.Artists[0] != "Alice" || nm.browse.Artists.Artists[1] != "Bob" || nm.browse.Artists.Artists[2] != "Zara" {
+		t.Errorf("unexpected artist order: %v", nm.browse.Artists.Artists)
 	}
 }
 
@@ -129,10 +130,10 @@ func TestScanBatchPreservesAlbumLevelSort(t *testing.T) {
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Album: "Zebra", Title: "T1"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "A", Album: "Alpha", Title: "T2"})
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeAlbums
-	m.browse.albums.albums = []string{"Zebra", "Alpha"}
-	m.browse.albums.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
-	m.browse.albums = m.browse.albums.recomputeAlbumsSort()
+	m.browse.Mode = browse.BrowseModeAlbums
+	m.browse.Albums.Albums = []string{"Zebra", "Alpha"}
+	m.browse.Albums.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
+	m.browse.Albums = m.browse.Albums.RecomputeAlbumsSort()
 
 	next, _ := m.Update(library.ScanBatchMsg{
 		Tracks: []library.Track{
@@ -141,15 +142,15 @@ func TestScanBatchPreservesAlbumLevelSort(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.browse.albums.sortState.Field != sorting.SortName {
-		t.Fatalf("sort field reset; got %v", nm.browse.albums.sortState.Field)
+	if nm.browse.Albums.SortState.Field != sorting.SortName {
+		t.Fatalf("sort field reset; got %v", nm.browse.Albums.SortState.Field)
 	}
-	if len(nm.browse.albums.albums) < 3 {
-		t.Fatalf("expected at least 3 albums, got %d", len(nm.browse.albums.albums))
+	if len(nm.browse.Albums.Albums) < 3 {
+		t.Fatalf("expected at least 3 albums, got %d", len(nm.browse.Albums.Albums))
 	}
 	// Ascending: Alpha, Middle, Zebra.
-	if nm.browse.albums.albums[0] != "Alpha" || nm.browse.albums.albums[1] != "Middle" || nm.browse.albums.albums[2] != "Zebra" {
-		t.Errorf("unexpected album order: %v", nm.browse.albums.albums)
+	if nm.browse.Albums.Albums[0] != "Alpha" || nm.browse.Albums.Albums[1] != "Middle" || nm.browse.Albums.Albums[2] != "Zebra" {
+		t.Errorf("unexpected album order: %v", nm.browse.Albums.Albums)
 	}
 }
 
@@ -160,10 +161,10 @@ func TestScanBatchPreservesGenreLevelSort(t *testing.T) {
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Genre: "Rock", Title: "T1"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Genre: "Jazz", Title: "T2"})
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeGenres
-	m.browse.genres.genres = []string{"Rock", "Jazz"}
-	m.browse.genres.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
-	m.browse.genres = m.browse.genres.recomputeGenresSort()
+	m.browse.Mode = browse.BrowseModeGenres
+	m.browse.Genres.Genres = []string{"Rock", "Jazz"}
+	m.browse.Genres.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
+	m.browse.Genres = m.browse.Genres.RecomputeGenresSort()
 
 	next, _ := m.Update(library.ScanBatchMsg{
 		Tracks: []library.Track{
@@ -172,14 +173,14 @@ func TestScanBatchPreservesGenreLevelSort(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.browse.genres.sortState.Field != sorting.SortName {
-		t.Fatalf("sort field reset; got %v", nm.browse.genres.sortState.Field)
+	if nm.browse.Genres.SortState.Field != sorting.SortName {
+		t.Fatalf("sort field reset; got %v", nm.browse.Genres.SortState.Field)
 	}
-	if len(nm.browse.genres.genres) < 3 {
-		t.Fatalf("expected at least 3 genres, got %d", len(nm.browse.genres.genres))
+	if len(nm.browse.Genres.Genres) < 3 {
+		t.Fatalf("expected at least 3 genres, got %d", len(nm.browse.Genres.Genres))
 	}
 	// Ascending: Jazz, Pop, Rock.
-	if nm.browse.genres.genres[0] != "Jazz" || nm.browse.genres.genres[1] != "Pop" || nm.browse.genres.genres[2] != "Rock" {
-		t.Errorf("unexpected genre order: %v", nm.browse.genres.genres)
+	if nm.browse.Genres.Genres[0] != "Jazz" || nm.browse.Genres.Genres[1] != "Pop" || nm.browse.Genres.Genres[2] != "Rock" {
+		t.Errorf("unexpected genre order: %v", nm.browse.Genres.Genres)
 	}
 }

@@ -17,8 +17,8 @@ func TestArtistsBulkActionAtTrackLevel(t *testing.T) {
 	m = pressKey(m, "4")
 	m = pressEnter(m)
 	m = pressEnter(m)
-	if m.browse.artists.level != arttui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.browse.artists.level)
+	if m.browse.Artists.Level != arttui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.Artists.Level)
 	}
 
 	m = pressKey(m, "a")
@@ -59,8 +59,8 @@ func TestArtistsBulkActionAtAlbumLevel(t *testing.T) {
 	m := newModelWithTracks()
 	m = pressKey(m, "4")
 	m = pressEnter(m)
-	if m.browse.artists.level != arttui.AlbumLevel {
-		t.Fatalf("expected AlbumLevel, got %v", m.browse.artists.level)
+	if m.browse.Artists.Level != arttui.AlbumLevel {
+		t.Fatalf("expected AlbumLevel, got %v", m.browse.Artists.Level)
 	}
 
 	m = pressKey(m, "a")
@@ -84,11 +84,11 @@ func TestBulkActionArtistLevelUnknownArtistCollectsTracks(t *testing.T) {
 	}
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	m = pressKey(m, "4")
-	m.browse.artists.width = 80
-	m.browse.artists.height = 40
+	m.browse.Artists.Width = 80
+	m.browse.Artists.Height = 40
 
 	unknownIdx := -1
-	for i, a := range m.browse.artists.artists {
+	for i, a := range m.browse.Artists.Artists {
 		if a == arttui.UnknownArtist {
 			unknownIdx = i
 			break
@@ -97,7 +97,7 @@ func TestBulkActionArtistLevelUnknownArtistCollectsTracks(t *testing.T) {
 	if unknownIdx < 0 {
 		t.Fatal("expected (unknown artist) in artist list")
 	}
-	m.browse.artists.cursor = unknownIdx
+	m.browse.Artists.Cursor = unknownIdx
 
 	next, _, handled := m.handleLibraryKeyAction(keys.ActionBulkAction)
 	if !handled {
@@ -124,7 +124,7 @@ func TestArtistsSelectedHashesClearedOnDestPickerConfirm(t *testing.T) {
 	m = pressEnter(m)
 
 	m = pressKey(m, "x")
-	if len(m.browse.artists.selectedHashes) == 0 {
+	if len(m.browse.Artists.SelectedHashes) == 0 {
 		t.Fatal("expected at least one selected hash after 'x'")
 	}
 
@@ -135,8 +135,8 @@ func TestArtistsSelectedHashesClearedOnDestPickerConfirm(t *testing.T) {
 
 	m2, _ := m.Update(pltui.DestinationPickedMsg{IsQueue: true})
 	nm := m2.(Model)
-	if len(nm.browse.artists.selectedHashes) != 0 {
-		t.Errorf("expected artists.selectedHashes cleared after DestinationPickedMsg, got %v", nm.browse.artists.selectedHashes)
+	if len(nm.browse.Artists.SelectedHashes) != 0 {
+		t.Errorf("expected artists.selectedHashes cleared after DestinationPickedMsg, got %v", nm.browse.Artists.SelectedHashes)
 	}
 }
 
@@ -156,8 +156,8 @@ func TestArtistsSelectedHashesClearedOnDestPickerDismiss(t *testing.T) {
 
 	m2, _ := m.Update(pltui.DestinationPickerDismissedMsg{})
 	nm := m2.(Model)
-	if len(nm.browse.artists.selectedHashes) != 0 {
-		t.Errorf("expected artists.selectedHashes cleared after dismiss, got %v", nm.browse.artists.selectedHashes)
+	if len(nm.browse.Artists.SelectedHashes) != 0 {
+		t.Errorf("expected artists.selectedHashes cleared after dismiss, got %v", nm.browse.Artists.SelectedHashes)
 	}
 }
 
@@ -178,7 +178,7 @@ func TestArtistsSelectedHashesClearedOnDestPickerCreate(t *testing.T) {
 
 	m2, _ := m.Update(pltui.DestinationPickerCreateMsg{})
 	nm := m2.(Model)
-	if len(nm.browse.artists.selectedHashes) != 0 {
-		t.Errorf("expected artists.selectedHashes cleared after create, got %v", nm.browse.artists.selectedHashes)
+	if len(nm.browse.Artists.SelectedHashes) != 0 {
+		t.Errorf("expected artists.selectedHashes cleared after create, got %v", nm.browse.Artists.SelectedHashes)
 	}
 }

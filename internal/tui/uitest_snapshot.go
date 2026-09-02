@@ -12,6 +12,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
@@ -129,28 +130,28 @@ func (m Model) fillQueueSnapshot(snap *UITestSnapshot) {
 }
 
 func (m Model) fillBrowseSnapshot(snap *UITestSnapshot) {
-	switch m.browse.mode {
-	case BrowseModeArtists:
-		v := m.browse.artists
+	switch m.browse.Mode {
+	case browse.BrowseModeArtists:
+		v := m.browse.Artists
 		snap.Mode = "artists"
-		snap.Level = artistsLevelName(v.level)
-		snap.Cursor = v.cursor
-		snap.ScrollOffset = v.scrollOffset
-		snap.SelectionCount = len(v.selectedHashes)
-	case BrowseModeAlbums:
-		v := m.browse.albums
+		snap.Level = artistsLevelName(v.Level)
+		snap.Cursor = v.Cursor
+		snap.ScrollOffset = v.ScrollOffset
+		snap.SelectionCount = len(v.SelectedHashes)
+	case browse.BrowseModeAlbums:
+		v := m.browse.Albums
 		snap.Mode = "albums"
-		snap.Level = albumsLevelName(v.level)
-		snap.Cursor = v.cursor
-		snap.ScrollOffset = v.scrollOffset
-		snap.SelectionCount = len(v.selectedHashes)
-	case BrowseModeGenres:
-		v := m.browse.genres
+		snap.Level = albumsLevelName(v.Level)
+		snap.Cursor = v.Cursor
+		snap.ScrollOffset = v.ScrollOffset
+		snap.SelectionCount = len(v.SelectedHashes)
+	case browse.BrowseModeGenres:
+		v := m.browse.Genres
 		snap.Mode = "genres"
-		snap.Level = genresLevelName(v.level)
-		snap.Cursor = v.cursor
-		snap.ScrollOffset = v.scrollOffset
-		snap.SelectionCount = len(v.selectedHashes)
+		snap.Level = genresLevelName(v.Level)
+		snap.Cursor = v.Cursor
+		snap.ScrollOffset = v.ScrollOffset
+		snap.SelectionCount = len(v.SelectedHashes)
 	}
 }
 

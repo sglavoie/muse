@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 )
 
@@ -22,27 +23,27 @@ func (m Model) handleToggleFavorite() (Model, tea.Cmd, bool) {
 
 	switch m.activeView {
 	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			switch m.browse.artists.level {
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
+			switch m.browse.Artists.Level {
 			case arttui.ArtistLevel:
-				if name, ok := m.browse.artists.focusedArtist(); ok {
+				if name, ok := m.browse.Artists.FocusedArtist(); ok {
 					return m, m.toggleFavoriteSingle(reader, writer, "artist", name), true
 				}
 			case arttui.AlbumLevel:
-				if name, ok := m.browse.artists.focusedAlbum(); ok {
+				if name, ok := m.browse.Artists.FocusedAlbum(); ok {
 					return m, m.toggleFavoriteSingle(reader, writer, "album", name), true
 				}
 			}
-		case BrowseModeAlbums:
-			if m.browse.albums.level == albtui.AlbumLevel {
-				if name, ok := m.browse.albums.focusedAlbum(); ok {
+		case browse.BrowseModeAlbums:
+			if m.browse.Albums.Level == albtui.AlbumLevel {
+				if name, ok := m.browse.Albums.FocusedAlbum(); ok {
 					return m, m.toggleFavoriteSingle(reader, writer, "album", name), true
 				}
 			}
-		case BrowseModeGenres:
-			if m.browse.genres.level == gentui.ArtistLevel {
-				if name, ok := m.browse.genres.focusedArtist(); ok {
+		case browse.BrowseModeGenres:
+			if m.browse.Genres.Level == gentui.ArtistLevel {
+				if name, ok := m.browse.Genres.FocusedArtist(); ok {
 					return m, m.toggleFavoriteSingle(reader, writer, "artist", name), true
 				}
 			}

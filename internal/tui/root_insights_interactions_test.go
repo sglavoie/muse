@@ -158,7 +158,7 @@ func TestInsightsJumpBrowseFromASession(t *testing.T) {
 		t.Fatalf("b should land in Browse, got view %d", m.activeView)
 	}
 	// A session is named by where it starts, so b follows its opener.
-	if got := m.browse.artists.artists[m.browse.artists.cursor]; got != "Alice" {
+	if got := m.browse.Artists.Artists[m.browse.Artists.Cursor]; got != "Alice" {
 		t.Errorf("want the session's opener focused, got %q", got)
 	}
 }
@@ -183,7 +183,7 @@ func TestInsightsJumpBrowseFromARankingRow(t *testing.T) {
 	if m.activeView != viewBrowse {
 		t.Fatalf("b should land in Browse, got view %d", m.activeView)
 	}
-	if got := m.browse.artists.artists[m.browse.artists.cursor]; got != "Bob" {
+	if got := m.browse.Artists.Artists[m.browse.Artists.Cursor]; got != "Bob" {
 		t.Errorf("want Bob focused, got %q", got)
 	}
 }

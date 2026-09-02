@@ -12,6 +12,7 @@ import (
 	musiclib "github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -46,13 +47,13 @@ func (m Model) selectedTrackHashes() []string {
 		}
 		return hashes
 	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			return hashMapToSlice(m.browse.artists.selectedHashes)
-		case BrowseModeAlbums:
-			return hashMapToSlice(m.browse.albums.selectedHashes)
-		case BrowseModeGenres:
-			return hashMapToSlice(m.browse.genres.selectedHashes)
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
+			return hashMapToSlice(m.browse.Artists.SelectedHashes)
+		case browse.BrowseModeAlbums:
+			return hashMapToSlice(m.browse.Albums.SelectedHashes)
+		case browse.BrowseModeGenres:
+			return hashMapToSlice(m.browse.Genres.SelectedHashes)
 		}
 		return nil
 	case viewPlaylists:
@@ -129,22 +130,22 @@ func (m Model) focusedTrackHash() string {
 			return filtered[m.queue.Cursor].Hash
 		}
 	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			if m.browse.artists.level == arttui.TrackLevel {
-				if track, ok := m.browse.artists.focusedTrack(); ok {
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
+			if m.browse.Artists.Level == arttui.TrackLevel {
+				if track, ok := m.browse.Artists.FocusedTrack(); ok {
 					return track.Hash
 				}
 			}
-		case BrowseModeAlbums:
-			if m.browse.albums.level == albtui.TrackLevel {
-				if track, ok := m.browse.albums.focusedTrack(); ok {
+		case browse.BrowseModeAlbums:
+			if m.browse.Albums.Level == albtui.TrackLevel {
+				if track, ok := m.browse.Albums.FocusedTrack(); ok {
 					return track.Hash
 				}
 			}
-		case BrowseModeGenres:
-			if m.browse.genres.level == gentui.TrackLevel {
-				if track, ok := m.browse.genres.focusedTrack(); ok {
+		case browse.BrowseModeGenres:
+			if m.browse.Genres.Level == gentui.TrackLevel {
+				if track, ok := m.browse.Genres.FocusedTrack(); ok {
 					return track.Hash
 				}
 			}

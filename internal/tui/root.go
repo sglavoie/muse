@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/keys"
@@ -112,7 +113,7 @@ type Model struct {
 	playlists  pltui.PlaylistsView
 	queue      queue.View
 	queueDirty bool // true when queue has unsaved mutations since last save-as-playlist or clear
-	browse     BrowseView
+	browse     browse.BrowseView
 	favorites  favtui.FavoritesView
 	tagsView   tagtui.TagsView
 	mixes      MixesView

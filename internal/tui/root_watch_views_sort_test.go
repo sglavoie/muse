@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/queue"
@@ -127,14 +128,14 @@ func TestWatchBatchPreservesArtistLevelSort(t *testing.T) {
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"})
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeArtists
-	m.browse.artists.artists = []string{"Zara", "Alice"}
+	m.browse.Mode = browse.BrowseModeArtists
+	m.browse.Artists.Artists = []string{"Zara", "Alice"}
 	// Simulate user sorting artists ascending.
-	m.browse.artists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
-	m.browse.artists = m.browse.artists.recomputeArtistsSort()
+	m.browse.Artists.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
+	m.browse.Artists = m.browse.Artists.RecomputeArtistsSort()
 
-	if m.browse.artists.artists[0] != "Alice" {
-		t.Fatalf("setup: expected first artist=%q after sort, got %q", "Alice", m.browse.artists.artists[0])
+	if m.browse.Artists.Artists[0] != "Alice" {
+		t.Fatalf("setup: expected first artist=%q after sort, got %q", "Alice", m.browse.Artists.Artists[0])
 	}
 
 	// Watcher adds a new track - sort state should be preserved.
@@ -145,18 +146,18 @@ func TestWatchBatchPreservesArtistLevelSort(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.browse.artists.sortState.Field != sorting.SortName {
-		t.Errorf("sort field = %v, want SortName", nm.browse.artists.sortState.Field)
+	if nm.browse.Artists.SortState.Field != sorting.SortName {
+		t.Errorf("sort field = %v, want SortName", nm.browse.Artists.SortState.Field)
 	}
 	// After re-derive + re-sort: Alice, Bob, Zara.
-	if len(nm.browse.artists.artists) != 3 {
-		t.Fatalf("expected 3 artists, got %d", len(nm.browse.artists.artists))
+	if len(nm.browse.Artists.Artists) != 3 {
+		t.Fatalf("expected 3 artists, got %d", len(nm.browse.Artists.Artists))
 	}
-	if nm.browse.artists.artists[0] != "Alice" {
-		t.Errorf("expected first artist=%q, got %q", "Alice", nm.browse.artists.artists[0])
+	if nm.browse.Artists.Artists[0] != "Alice" {
+		t.Errorf("expected first artist=%q, got %q", "Alice", nm.browse.Artists.Artists[0])
 	}
-	if nm.browse.artists.artists[1] != "Bob" {
-		t.Errorf("expected second artist=%q, got %q", "Bob", nm.browse.artists.artists[1])
+	if nm.browse.Artists.Artists[1] != "Bob" {
+		t.Errorf("expected second artist=%q, got %q", "Bob", nm.browse.Artists.Artists[1])
 	}
 }
 
@@ -168,13 +169,13 @@ func TestWatchBatchPreservesAlbumLevelSort(t *testing.T) {
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "T1", Album: "Zeta"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Art", Title: "T2", Album: "Alpha"})
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeAlbums
-	m.browse.albums.albums = []string{"Zeta", "Alpha"}
-	m.browse.albums.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
-	m.browse.albums = m.browse.albums.recomputeAlbumsSort()
+	m.browse.Mode = browse.BrowseModeAlbums
+	m.browse.Albums.Albums = []string{"Zeta", "Alpha"}
+	m.browse.Albums.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
+	m.browse.Albums = m.browse.Albums.RecomputeAlbumsSort()
 
-	if m.browse.albums.albums[0] != "Alpha" {
-		t.Fatalf("setup: expected first album=%q after sort, got %q", "Alpha", m.browse.albums.albums[0])
+	if m.browse.Albums.Albums[0] != "Alpha" {
+		t.Fatalf("setup: expected first album=%q after sort, got %q", "Alpha", m.browse.Albums.Albums[0])
 	}
 
 	next, _ := m.Update(watchBatchMsg{
@@ -184,17 +185,17 @@ func TestWatchBatchPreservesAlbumLevelSort(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.browse.albums.sortState.Field != sorting.SortName {
-		t.Errorf("sort field = %v, want SortName", nm.browse.albums.sortState.Field)
+	if nm.browse.Albums.SortState.Field != sorting.SortName {
+		t.Errorf("sort field = %v, want SortName", nm.browse.Albums.SortState.Field)
 	}
-	if len(nm.browse.albums.albums) != 3 {
-		t.Fatalf("expected 3 albums, got %d", len(nm.browse.albums.albums))
+	if len(nm.browse.Albums.Albums) != 3 {
+		t.Fatalf("expected 3 albums, got %d", len(nm.browse.Albums.Albums))
 	}
-	if nm.browse.albums.albums[0] != "Alpha" {
-		t.Errorf("expected first album=%q, got %q", "Alpha", nm.browse.albums.albums[0])
+	if nm.browse.Albums.Albums[0] != "Alpha" {
+		t.Errorf("expected first album=%q, got %q", "Alpha", nm.browse.Albums.Albums[0])
 	}
-	if nm.browse.albums.albums[1] != "Beta" {
-		t.Errorf("expected second album=%q, got %q", "Beta", nm.browse.albums.albums[1])
+	if nm.browse.Albums.Albums[1] != "Beta" {
+		t.Errorf("expected second album=%q, got %q", "Beta", nm.browse.Albums.Albums[1])
 	}
 }
 
@@ -205,13 +206,13 @@ func TestWatchBatchPreservesGenreLevelSort(t *testing.T) {
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "T1", Genre: "Zydeco"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Art", Title: "T2", Genre: "Alternative"})
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeGenres
-	m.browse.genres.genres = []string{"Zydeco", "Alternative"}
-	m.browse.genres.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
-	m.browse.genres = m.browse.genres.recomputeGenresSort()
+	m.browse.Mode = browse.BrowseModeGenres
+	m.browse.Genres.Genres = []string{"Zydeco", "Alternative"}
+	m.browse.Genres.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
+	m.browse.Genres = m.browse.Genres.RecomputeGenresSort()
 
-	if m.browse.genres.genres[0] != "Alternative" {
-		t.Fatalf("setup: expected first genre=%q after sort, got %q", "Alternative", m.browse.genres.genres[0])
+	if m.browse.Genres.Genres[0] != "Alternative" {
+		t.Fatalf("setup: expected first genre=%q after sort, got %q", "Alternative", m.browse.Genres.Genres[0])
 	}
 
 	next, _ := m.Update(watchBatchMsg{
@@ -221,16 +222,16 @@ func TestWatchBatchPreservesGenreLevelSort(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.browse.genres.sortState.Field != sorting.SortName {
-		t.Errorf("sort field = %v, want SortName", nm.browse.genres.sortState.Field)
+	if nm.browse.Genres.SortState.Field != sorting.SortName {
+		t.Errorf("sort field = %v, want SortName", nm.browse.Genres.SortState.Field)
 	}
-	if len(nm.browse.genres.genres) != 3 {
-		t.Fatalf("expected 3 genres, got %d", len(nm.browse.genres.genres))
+	if len(nm.browse.Genres.Genres) != 3 {
+		t.Fatalf("expected 3 genres, got %d", len(nm.browse.Genres.Genres))
 	}
-	if nm.browse.genres.genres[0] != "Alternative" {
-		t.Errorf("expected first genre=%q, got %q", "Alternative", nm.browse.genres.genres[0])
+	if nm.browse.Genres.Genres[0] != "Alternative" {
+		t.Errorf("expected first genre=%q, got %q", "Alternative", nm.browse.Genres.Genres[0])
 	}
-	if nm.browse.genres.genres[1] != "Blues" {
-		t.Errorf("expected second genre=%q, got %q", "Blues", nm.browse.genres.genres[1])
+	if nm.browse.Genres.Genres[1] != "Blues" {
+		t.Errorf("expected second genre=%q, got %q", "Blues", nm.browse.Genres.Genres[1])
 	}
 }

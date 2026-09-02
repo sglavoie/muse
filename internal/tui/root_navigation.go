@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/keys"
@@ -32,13 +33,13 @@ func (m Model) handleNavigationAction(action keys.Action) (Model, tea.Cmd, bool)
 		case viewPlaylists:
 			m.playlists = m.playlists.HandleAction(action)
 		case viewBrowse:
-			switch m.browse.mode {
-			case BrowseModeArtists:
-				m.browse.artists = m.browse.artists.HandleAction(action)
-			case BrowseModeAlbums:
-				m.browse.albums = m.browse.albums.HandleAction(action)
-			case BrowseModeGenres:
-				m.browse.genres = m.browse.genres.HandleAction(action)
+			switch m.browse.Mode {
+			case browse.BrowseModeArtists:
+				m.browse.Artists = m.browse.Artists.HandleAction(action)
+			case browse.BrowseModeAlbums:
+				m.browse.Albums = m.browse.Albums.HandleAction(action)
+			case browse.BrowseModeGenres:
+				m.browse.Genres = m.browse.Genres.HandleAction(action)
 			}
 		case viewFavorites:
 			m.favorites = m.favorites.HandleAction(action)
@@ -78,23 +79,23 @@ func (m Model) handleNavigationAction(action keys.Action) (Model, tea.Cmd, bool)
 				m.favorites = m.favorites.ToggleSelection(m.favorites.Cursor)
 			}
 		case viewBrowse:
-			switch m.browse.mode {
-			case BrowseModeArtists:
-				if m.browse.artists.level == arttui.TrackLevel {
-					if t, ok := m.browse.artists.focusedTrack(); ok {
-						m.browse.artists.selectedHashes = toggleHashInSet(m.browse.artists.selectedHashes, t.Hash)
+			switch m.browse.Mode {
+			case browse.BrowseModeArtists:
+				if m.browse.Artists.Level == arttui.TrackLevel {
+					if t, ok := m.browse.Artists.FocusedTrack(); ok {
+						m.browse.Artists.SelectedHashes = toggleHashInSet(m.browse.Artists.SelectedHashes, t.Hash)
 					}
 				}
-			case BrowseModeAlbums:
-				if m.browse.albums.level == albtui.TrackLevel {
-					if t, ok := m.browse.albums.focusedTrack(); ok {
-						m.browse.albums.selectedHashes = toggleHashInSet(m.browse.albums.selectedHashes, t.Hash)
+			case browse.BrowseModeAlbums:
+				if m.browse.Albums.Level == albtui.TrackLevel {
+					if t, ok := m.browse.Albums.FocusedTrack(); ok {
+						m.browse.Albums.SelectedHashes = toggleHashInSet(m.browse.Albums.SelectedHashes, t.Hash)
 					}
 				}
-			case BrowseModeGenres:
-				if m.browse.genres.level == gentui.TrackLevel {
-					if t, ok := m.browse.genres.focusedTrack(); ok {
-						m.browse.genres.selectedHashes = toggleHashInSet(m.browse.genres.selectedHashes, t.Hash)
+			case browse.BrowseModeGenres:
+				if m.browse.Genres.Level == gentui.TrackLevel {
+					if t, ok := m.browse.Genres.FocusedTrack(); ok {
+						m.browse.Genres.SelectedHashes = toggleHashInSet(m.browse.Genres.SelectedHashes, t.Hash)
 					}
 				}
 			}
@@ -146,13 +147,13 @@ func (m Model) clearActiveViewSelection() Model {
 	case viewFavorites:
 		m.favorites = m.favorites.ClearSelection()
 	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			m.browse.artists.selectedHashes = nil
-		case BrowseModeAlbums:
-			m.browse.albums.selectedHashes = nil
-		case BrowseModeGenres:
-			m.browse.genres.selectedHashes = nil
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
+			m.browse.Artists.SelectedHashes = nil
+		case browse.BrowseModeAlbums:
+			m.browse.Albums.SelectedHashes = nil
+		case browse.BrowseModeGenres:
+			m.browse.Genres.SelectedHashes = nil
 		}
 	case viewTags:
 		m.tagsView.SelectedHashes = nil

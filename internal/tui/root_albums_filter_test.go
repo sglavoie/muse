@@ -15,18 +15,18 @@ func TestAlbumsFilterActivateAndType(t *testing.T) {
 
 	// Activate filter bar.
 	m = pressSlash(m)
-	if !m.browse.albums.filter.Active {
+	if !m.browse.Albums.Filter.Active {
 		t.Fatal("expected filter to be active after /")
 	}
 
 	// Type "gam" — should filter to just Gamma.
 	m = typeText(m, "gam")
-	if m.browse.albums.filter.Text != "gam" {
-		t.Fatalf("expected filterText='gam', got %q", m.browse.albums.filter.Text)
+	if m.browse.Albums.Filter.Text != "gam" {
+		t.Fatalf("expected filterText='gam', got %q", m.browse.Albums.Filter.Text)
 	}
 
 	// focusedAlbum should be Gamma.
-	album, ok := m.browse.albums.focusedAlbum()
+	album, ok := m.browse.Albums.FocusedAlbum()
 	if !ok || album != "Gamma" {
 		t.Errorf("expected focused album='Gamma', got %q (ok=%v)", album, ok)
 	}
@@ -40,14 +40,14 @@ func TestAlbumsFilterEscClears(t *testing.T) {
 
 	// Esc should deactivate and clear the filter.
 	m = pressEsc(m)
-	if m.browse.albums.filter.Active {
+	if m.browse.Albums.Filter.Active {
 		t.Error("expected filter deactivated after Esc")
 	}
-	if m.browse.albums.filter.Text != "" {
-		t.Errorf("expected filterText cleared, got %q", m.browse.albums.filter.Text)
+	if m.browse.Albums.Filter.Text != "" {
+		t.Errorf("expected filterText cleared, got %q", m.browse.Albums.Filter.Text)
 	}
 	// All 4 albums should be visible again.
-	if len(arttui.FilterStrings(m.browse.albums.albums, m.browse.albums.filter.Text)) != 4 {
+	if len(arttui.FilterStrings(m.browse.Albums.Albums, m.browse.Albums.Filter.Text)) != 4 {
 		t.Error("expected full album list after filter cleared")
 	}
 }
@@ -60,11 +60,11 @@ func TestAlbumsFilterEnterCommits(t *testing.T) {
 
 	// Enter commits: filter stays but input mode exits.
 	m = pressEnter(m)
-	if m.browse.albums.filter.Active {
+	if m.browse.Albums.Filter.Active {
 		t.Error("expected filter not active after Enter")
 	}
-	if m.browse.albums.filter.Text != "alp" {
-		t.Errorf("expected filterText='alp' after commit, got %q", m.browse.albums.filter.Text)
+	if m.browse.Albums.Filter.Text != "alp" {
+		t.Errorf("expected filterText='alp' after commit, got %q", m.browse.Albums.Filter.Text)
 	}
 }
 
@@ -76,21 +76,21 @@ func TestAlbumsFilterDrillDownClearsFilter(t *testing.T) {
 	m = pressSlash(m)
 	m = typeText(m, "alp")
 	m = pressEnter(m) // commit filter
-	if m.browse.albums.filter.Text != "alp" {
-		t.Fatalf("expected filterText='alp', got %q", m.browse.albums.filter.Text)
+	if m.browse.Albums.Filter.Text != "alp" {
+		t.Fatalf("expected filterText='alp', got %q", m.browse.Albums.Filter.Text)
 	}
 
 	// Drill down into Alpha's tracks.
 	m = pressEnter(m)
-	if m.browse.albums.level != albtui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.browse.albums.level)
+	if m.browse.Albums.Level != albtui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.Albums.Level)
 	}
-	if m.browse.albums.selectedAlbum != "Alpha" {
-		t.Errorf("expected selectedAlbum='Alpha', got %q", m.browse.albums.selectedAlbum)
+	if m.browse.Albums.SelectedAlbum != "Alpha" {
+		t.Errorf("expected selectedAlbum='Alpha', got %q", m.browse.Albums.SelectedAlbum)
 	}
 	// Filter should be cleared on drill-down.
-	if m.browse.albums.filter.Text != "" {
-		t.Errorf("expected filterText cleared after drill-down, got %q", m.browse.albums.filter.Text)
+	if m.browse.Albums.Filter.Text != "" {
+		t.Errorf("expected filterText cleared after drill-down, got %q", m.browse.Albums.Filter.Text)
 	}
 }
 
@@ -106,8 +106,8 @@ func TestAlbumsFilterBackClearsFilter(t *testing.T) {
 
 	// Go back — filter should be cleared.
 	m = pressEsc(m)
-	if m.browse.albums.filter.Text != "" {
-		t.Errorf("expected filterText cleared after back, got %q", m.browse.albums.filter.Text)
+	if m.browse.Albums.Filter.Text != "" {
+		t.Errorf("expected filterText cleared after back, got %q", m.browse.Albums.Filter.Text)
 	}
 }
 
@@ -137,7 +137,7 @@ func TestAlbumsFilterBackspace(t *testing.T) {
 	// Backspace should remove last char.
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	m = next.(Model)
-	if m.browse.albums.filter.Text != "ga" {
-		t.Errorf("expected filterText='ga' after backspace, got %q", m.browse.albums.filter.Text)
+	if m.browse.Albums.Filter.Text != "ga" {
+		t.Errorf("expected filterText='ga' after backspace, got %q", m.browse.Albums.Filter.Text)
 	}
 }

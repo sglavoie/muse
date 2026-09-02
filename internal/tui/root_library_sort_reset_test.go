@@ -64,26 +64,26 @@ func TestResetArtistsSortRederivesData(t *testing.T) {
 	m.library.Index.Insert(library.Track{Hash: "h2", Artist: "Alpha", Title: "T2"})
 	m.library.Index.Insert(library.Track{Hash: "h3", Artist: "Beta", Title: "T3"})
 
-	m.browse.artists.level = arttui.ArtistLevel
-	m.browse.artists.artists = arttui.DeriveArtists(m.library.Index.Tracks())
-	if m.browse.artists.artists[0] != "Alpha" {
-		t.Fatalf("precondition: first artist should be Alpha, got %q", m.browse.artists.artists[0])
+	m.browse.Artists.Level = arttui.ArtistLevel
+	m.browse.Artists.Artists = arttui.DeriveArtists(m.library.Index.Tracks())
+	if m.browse.Artists.Artists[0] != "Alpha" {
+		t.Fatalf("precondition: first artist should be Alpha, got %q", m.browse.Artists.Artists[0])
 	}
 
 	// Sort descending: Charlie, Beta, Alpha.
-	m.browse.artists.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
-	m.browse.artists = m.browse.artists.recomputeArtistsSort()
-	if m.browse.artists.artists[0] != "Charlie" {
-		t.Fatalf("after sort desc: first artist should be Charlie, got %q", m.browse.artists.artists[0])
+	m.browse.Artists.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
+	m.browse.Artists = m.browse.Artists.RecomputeArtistsSort()
+	if m.browse.Artists.Artists[0] != "Charlie" {
+		t.Fatalf("after sort desc: first artist should be Charlie, got %q", m.browse.Artists.Artists[0])
 	}
 
 	// Reset should restore original alphabetical order.
 	m = m.resetArtistsSort()
-	if m.browse.artists.sortState.Field != sorting.SortDefault {
+	if m.browse.Artists.SortState.Field != sorting.SortDefault {
 		t.Fatal("sortState should be SortDefault after reset")
 	}
-	if m.browse.artists.artists[0] != "Alpha" {
-		t.Errorf("after reset: first artist should be Alpha (original order), got %q", m.browse.artists.artists[0])
+	if m.browse.Artists.Artists[0] != "Alpha" {
+		t.Errorf("after reset: first artist should be Alpha (original order), got %q", m.browse.Artists.Artists[0])
 	}
 }
 
@@ -94,24 +94,24 @@ func TestResetAlbumsSortRederivesData(t *testing.T) {
 	m.library.Index.Insert(library.Track{Hash: "h1", Artist: "A", Album: "Alpha", Title: "T1"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Artist: "A", Album: "Zebra", Title: "T2"})
 
-	m.browse.albums.level = albtui.AlbumLevel
-	m.browse.albums.albums = albtui.DeriveAllAlbums(m.library.Index.Tracks())
+	m.browse.Albums.Level = albtui.AlbumLevel
+	m.browse.Albums.Albums = albtui.DeriveAllAlbums(m.library.Index.Tracks())
 	// DeriveAllAlbums sorts alphabetically: Alpha, Zebra.
-	if m.browse.albums.albums[0] != "Alpha" {
-		t.Fatalf("precondition: first album should be Alpha, got %q", m.browse.albums.albums[0])
+	if m.browse.Albums.Albums[0] != "Alpha" {
+		t.Fatalf("precondition: first album should be Alpha, got %q", m.browse.Albums.Albums[0])
 	}
 
 	// Sort descending: Zebra, Alpha.
-	m.browse.albums.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
-	m.browse.albums = m.browse.albums.recomputeAlbumsSort()
-	if m.browse.albums.albums[0] != "Zebra" {
-		t.Fatalf("after sort desc: first album should be Zebra, got %q", m.browse.albums.albums[0])
+	m.browse.Albums.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
+	m.browse.Albums = m.browse.Albums.RecomputeAlbumsSort()
+	if m.browse.Albums.Albums[0] != "Zebra" {
+		t.Fatalf("after sort desc: first album should be Zebra, got %q", m.browse.Albums.Albums[0])
 	}
 
 	// Reset should restore default alphabetical order.
 	m = m.resetAlbumsSort()
-	if m.browse.albums.albums[0] != "Alpha" {
-		t.Errorf("after reset: first album should be Alpha (original order), got %q", m.browse.albums.albums[0])
+	if m.browse.Albums.Albums[0] != "Alpha" {
+		t.Errorf("after reset: first album should be Alpha (original order), got %q", m.browse.Albums.Albums[0])
 	}
 }
 
@@ -124,23 +124,23 @@ func TestResetGenresSortRederivesData(t *testing.T) {
 	m.library.Index.Insert(library.Track{Hash: "h1", Artist: "A", Genre: "Rock", Title: "T1"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Artist: "A", Genre: "Jazz", Title: "T2"})
 
-	m.browse.genres.level = gentui.GenreLevel
-	m.browse.genres.genres = gentui.DeriveGenres(m.library.Index.Tracks())
-	if len(m.browse.genres.genres) < 2 {
-		t.Fatalf("precondition: expected 2 genres, got %d", len(m.browse.genres.genres))
+	m.browse.Genres.Level = gentui.GenreLevel
+	m.browse.Genres.Genres = gentui.DeriveGenres(m.library.Index.Tracks())
+	if len(m.browse.Genres.Genres) < 2 {
+		t.Fatalf("precondition: expected 2 genres, got %d", len(m.browse.Genres.Genres))
 	}
-	origFirst := m.browse.genres.genres[0]
+	origFirst := m.browse.Genres.Genres[0]
 
 	// Sort ascending: Jazz, Rock.
-	m.browse.genres.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	m.browse.genres = m.browse.genres.recomputeGenresSort()
-	if m.browse.genres.genres[0] != "Jazz" {
-		t.Fatalf("after sort asc: first genre should be Jazz, got %q", m.browse.genres.genres[0])
+	m.browse.Genres.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
+	m.browse.Genres = m.browse.Genres.RecomputeGenresSort()
+	if m.browse.Genres.Genres[0] != "Jazz" {
+		t.Fatalf("after sort asc: first genre should be Jazz, got %q", m.browse.Genres.Genres[0])
 	}
 
 	// Reset should restore original derive order.
 	m = m.resetGenresSort()
-	if m.browse.genres.genres[0] != origFirst {
-		t.Errorf("after reset: first genre should be %q (original order), got %q", origFirst, m.browse.genres.genres[0])
+	if m.browse.Genres.Genres[0] != origFirst {
+		t.Errorf("after reset: first genre should be %q (original order), got %q", origFirst, m.browse.Genres.Genres[0])
 	}
 }

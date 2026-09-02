@@ -6,6 +6,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
@@ -79,17 +80,17 @@ func (m Model) favoritePickerTracks() []library.Track {
 			return []library.Track{track}
 		}
 	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			if m.browse.artists.level == arttui.TrackLevel {
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
+			if m.browse.Artists.Level == arttui.TrackLevel {
 				return m.bulkArtistTracks()
 			}
-		case BrowseModeAlbums:
-			if m.browse.albums.level == albtui.TrackLevel {
+		case browse.BrowseModeAlbums:
+			if m.browse.Albums.Level == albtui.TrackLevel {
 				return m.bulkAlbumTracks()
 			}
-		case BrowseModeGenres:
-			if m.browse.genres.level == gentui.TrackLevel {
+		case browse.BrowseModeGenres:
+			if m.browse.Genres.Level == gentui.TrackLevel {
 				return m.bulkGenreTracks()
 			}
 		}

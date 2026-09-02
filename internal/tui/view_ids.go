@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/sglavoie/muse/internal/tui/browse"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
@@ -69,12 +70,12 @@ func (m Model) viewDisplayName(id viewID) string {
 		}
 	}
 	if id == viewBrowse {
-		switch m.browse.mode {
-		case BrowseModeArtists:
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
 			return "Browse (Artists)"
-		case BrowseModeAlbums:
+		case browse.BrowseModeAlbums:
 			return "Browse (Albums)"
-		case BrowseModeGenres:
+		case browse.BrowseModeGenres:
 			return "Browse (Genres)"
 		}
 	}

@@ -3,6 +3,7 @@ package tui
 import (
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
@@ -29,20 +30,20 @@ func (m Model) jumpToArtist(artistName string) Model {
 		return m
 	}
 
-	scrollOffset := max(0, idx-m.browse.artists.height/2)
+	scrollOffset := max(0, idx-m.browse.Artists.Height/2)
 
-	m.browse.artists = ArtistsView{
-		level:        arttui.ArtistLevel,
-		cursor:       idx,
-		scrollOffset: scrollOffset,
-		artists:      artists,
-		width:        m.browse.artists.width,
-		height:       m.browse.artists.height,
+	m.browse.Artists = browse.ArtistsView{
+		Level:        arttui.ArtistLevel,
+		Cursor:       idx,
+		ScrollOffset: scrollOffset,
+		Artists:      artists,
+		Width:        m.browse.Artists.Width,
+		Height:       m.browse.Artists.Height,
 	}
 	m.clearPendingConfirmations()
 	m = m.resetAllSorts()
 	m = exitVisualMode(m)
-	m.browse.mode = BrowseModeArtists
+	m.browse.Mode = browse.BrowseModeArtists
 	m.activeView = viewBrowse
 	return m
 }
@@ -69,20 +70,20 @@ func (m Model) jumpToAlbum(albumName string) Model {
 		return m
 	}
 
-	scrollOffset := max(0, idx-m.browse.albums.height/2)
+	scrollOffset := max(0, idx-m.browse.Albums.Height/2)
 
-	m.browse.albums = AlbumsView{
-		level:        albtui.AlbumLevel,
-		cursor:       idx,
-		scrollOffset: scrollOffset,
-		albums:       albums,
-		width:        m.browse.albums.width,
-		height:       m.browse.albums.height,
+	m.browse.Albums = browse.AlbumsView{
+		Level:        albtui.AlbumLevel,
+		Cursor:       idx,
+		ScrollOffset: scrollOffset,
+		Albums:       albums,
+		Width:        m.browse.Albums.Width,
+		Height:       m.browse.Albums.Height,
 	}
 	m.clearPendingConfirmations()
 	m = m.resetAllSorts()
 	m = exitVisualMode(m)
-	m.browse.mode = BrowseModeAlbums
+	m.browse.Mode = browse.BrowseModeAlbums
 	m.activeView = viewBrowse
 	return m
 }
@@ -109,20 +110,20 @@ func (m Model) jumpToGenre(genreName string) Model {
 		return m
 	}
 
-	scrollOffset := max(0, idx-m.browse.genres.height/2)
+	scrollOffset := max(0, idx-m.browse.Genres.Height/2)
 
-	m.browse.genres = GenresView{
-		level:        gentui.GenreLevel,
-		cursor:       idx,
-		scrollOffset: scrollOffset,
-		genres:       genres,
-		width:        m.browse.genres.width,
-		height:       m.browse.genres.height,
+	m.browse.Genres = browse.GenresView{
+		Level:        gentui.GenreLevel,
+		Cursor:       idx,
+		ScrollOffset: scrollOffset,
+		Genres:       genres,
+		Width:        m.browse.Genres.Width,
+		Height:       m.browse.Genres.Height,
 	}
 	m.clearPendingConfirmations()
 	m = m.resetAllSorts()
 	m = exitVisualMode(m)
-	m.browse.mode = BrowseModeGenres
+	m.browse.Mode = browse.BrowseModeGenres
 	m.activeView = viewBrowse
 	return m
 }

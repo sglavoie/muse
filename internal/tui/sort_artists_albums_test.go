@@ -6,62 +6,63 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 func TestArtistsViewSortReset(t *testing.T) {
-	v := ArtistsView{
-		artists:   []string{"Charlie", "Alpha", "Bravo"},
-		sortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
+	v := browse.ArtistsView{
+		Artists:   []string{"Charlie", "Alpha", "Bravo"},
+		SortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
 	}
 
 	t.Run("openAlbums resets sort", func(t *testing.T) {
-		v2 := v.openAlbums([]string{"Album1"})
-		if v2.sortState.Field != sorting.SortDefault {
+		v2 := v.OpenAlbums([]string{"Album1"})
+		if v2.SortState.Field != sorting.SortDefault {
 			t.Error("sort should be reset on openAlbums")
 		}
 	})
 
 	t.Run("openTracks resets sort", func(t *testing.T) {
-		v2 := v.openTracks([]library.Track{{Title: "T1"}})
-		if v2.sortState.Field != sorting.SortDefault {
+		v2 := v.OpenTracks([]library.Track{{Title: "T1"}})
+		if v2.SortState.Field != sorting.SortDefault {
 			t.Error("sort should be reset on openTracks")
 		}
 	})
 
 	t.Run("back resets sort", func(t *testing.T) {
 		v2 := v
-		v2.level = 1
-		v2.albums = []string{"Album1"}
-		v2.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
-		v3 := v2.back()
-		if v3.sortState.Field != sorting.SortDefault {
+		v2.Level = 1
+		v2.Albums = []string{"Album1"}
+		v2.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
+		v3 := v2.Back()
+		if v3.SortState.Field != sorting.SortDefault {
 			t.Error("sort should be reset on back")
 		}
 	})
 }
 
 func TestAlbumsViewSortReset(t *testing.T) {
-	v := AlbumsView{
-		albums:    []string{"Zulu", "Alpha"},
-		sortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
+	v := browse.AlbumsView{
+		Albums:    []string{"Zulu", "Alpha"},
+		SortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
 	}
 
 	t.Run("openTracks resets sort", func(t *testing.T) {
-		v2 := v.openTracks([]library.Track{{Title: "T1"}})
-		if v2.sortState.Field != sorting.SortDefault {
+		v2 := v.OpenTracks([]library.Track{{Title: "T1"}})
+		if v2.SortState.Field != sorting.SortDefault {
 			t.Error("sort should be reset on openTracks")
 		}
 	})
 
 	t.Run("back resets sort", func(t *testing.T) {
 		v2 := v
-		v2.level = 1
-		v2.tracks = []library.Track{{Title: "T1"}}
-		v2.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
-		v3 := v2.back()
-		if v3.sortState.Field != sorting.SortDefault {
+		v2.Level = 1
+		v2.Tracks = []library.Track{{Title: "T1"}}
+		v2.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
+		v3 := v2.Back()
+		if v3.SortState.Field != sorting.SortDefault {
 			t.Error("sort should be reset on back")
 		}
 	})
@@ -69,68 +70,68 @@ func TestAlbumsViewSortReset(t *testing.T) {
 
 func TestArtistsRecomputeSort(t *testing.T) {
 	t.Run("sort artists by name asc", func(t *testing.T) {
-		v := ArtistsView{
-			artists:   []string{"Charlie", "Alpha", "Bravo"},
-			sortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
+		v := browse.ArtistsView{
+			Artists:   []string{"Charlie", "Alpha", "Bravo"},
+			SortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
 		}
-		v = v.recomputeArtistsSort()
-		if v.artists[0] != "Alpha" {
-			t.Errorf("first should be Alpha, got %q", v.artists[0])
+		v = v.RecomputeArtistsSort()
+		if v.Artists[0] != "Alpha" {
+			t.Errorf("first should be Alpha, got %q", v.Artists[0])
 		}
-		if v.artists[2] != "Charlie" {
-			t.Errorf("last should be Charlie, got %q", v.artists[2])
+		if v.Artists[2] != "Charlie" {
+			t.Errorf("last should be Charlie, got %q", v.Artists[2])
 		}
 	})
 
 	t.Run("sort albums by name desc", func(t *testing.T) {
-		v := ArtistsView{
-			level:     1,
-			albums:    []string{"Alpha", "Charlie", "Bravo"},
-			sortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc},
+		v := browse.ArtistsView{
+			Level:     1,
+			Albums:    []string{"Alpha", "Charlie", "Bravo"},
+			SortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc},
 		}
-		v = v.recomputeArtistsSort()
-		if v.albums[0] != "Charlie" {
-			t.Errorf("first should be Charlie, got %q", v.albums[0])
+		v = v.RecomputeArtistsSort()
+		if v.Albums[0] != "Charlie" {
+			t.Errorf("first should be Charlie, got %q", v.Albums[0])
 		}
 	})
 
 	t.Run("sort tracks by title asc", func(t *testing.T) {
-		v := ArtistsView{
-			level: 2,
-			tracks: []library.Track{
+		v := browse.ArtistsView{
+			Level: 2,
+			Tracks: []library.Track{
 				{Title: "Zulu", Duration: 300},
 				{Title: "Alpha", Duration: 100},
 			},
-			sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
+			SortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 		}
-		v = v.recomputeArtistsSort()
-		if v.tracks[0].Title != "Alpha" {
-			t.Errorf("first should be Alpha, got %q", v.tracks[0].Title)
+		v = v.RecomputeArtistsSort()
+		if v.Tracks[0].Title != "Alpha" {
+			t.Errorf("first should be Alpha, got %q", v.Tracks[0].Title)
 		}
 	})
 
 	t.Run("sort tracks by duration desc", func(t *testing.T) {
-		v := ArtistsView{
-			level: 2,
-			tracks: []library.Track{
+		v := browse.ArtistsView{
+			Level: 2,
+			Tracks: []library.Track{
 				{Title: "A", Duration: 100},
 				{Title: "B", Duration: 300},
 			},
-			sortState: sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortDesc},
+			SortState: sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortDesc},
 		}
-		v = v.recomputeArtistsSort()
-		if v.tracks[0].Duration != 300 {
-			t.Errorf("first should have duration 300, got %f", v.tracks[0].Duration)
+		v = v.RecomputeArtistsSort()
+		if v.Tracks[0].Duration != 300 {
+			t.Errorf("first should have duration 300, got %f", v.Tracks[0].Duration)
 		}
 	})
 
 	t.Run("default is no-op", func(t *testing.T) {
-		v := ArtistsView{
-			artists:   []string{"Charlie", "Alpha"},
-			sortState: sorting.SortState{Field: sorting.SortDefault},
+		v := browse.ArtistsView{
+			Artists:   []string{"Charlie", "Alpha"},
+			SortState: sorting.SortState{Field: sorting.SortDefault},
 		}
-		v = v.recomputeArtistsSort()
-		if v.artists[0] != "Charlie" {
+		v = v.RecomputeArtistsSort()
+		if v.Artists[0] != "Charlie" {
 			t.Error("default should not reorder")
 		}
 	})
@@ -138,76 +139,76 @@ func TestArtistsRecomputeSort(t *testing.T) {
 
 func TestAlbumsRecomputeSort(t *testing.T) {
 	t.Run("sort albums by name asc", func(t *testing.T) {
-		v := AlbumsView{
-			albums:    []string{"Zulu", "Alpha", "Bravo"},
-			sortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
+		v := browse.AlbumsView{
+			Albums:    []string{"Zulu", "Alpha", "Bravo"},
+			SortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
 		}
-		v = v.recomputeAlbumsSort()
-		if v.albums[0] != "Alpha" {
-			t.Errorf("first should be Alpha, got %q", v.albums[0])
+		v = v.RecomputeAlbumsSort()
+		if v.Albums[0] != "Alpha" {
+			t.Errorf("first should be Alpha, got %q", v.Albums[0])
 		}
 	})
 
 	t.Run("sort tracks by title desc", func(t *testing.T) {
-		v := AlbumsView{
-			level: 1,
-			tracks: []library.Track{
+		v := browse.AlbumsView{
+			Level: 1,
+			Tracks: []library.Track{
 				{Title: "Alpha", Duration: 100},
 				{Title: "Zulu", Duration: 300},
 			},
-			sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc},
+			SortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc},
 		}
-		v = v.recomputeAlbumsSort()
-		if v.tracks[0].Title != "Zulu" {
-			t.Errorf("first should be Zulu, got %q", v.tracks[0].Title)
+		v = v.RecomputeAlbumsSort()
+		if v.Tracks[0].Title != "Zulu" {
+			t.Errorf("first should be Zulu, got %q", v.Tracks[0].Title)
 		}
 	})
 }
 
 func TestSortResetOnArtistsDrillDown(t *testing.T) {
-	v := ArtistsView{
-		artists:   []string{"Charlie", "Alpha", "Bravo"},
-		sortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
+	v := browse.ArtistsView{
+		Artists:   []string{"Charlie", "Alpha", "Bravo"},
+		SortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
 	}
 
-	v = v.recomputeArtistsSort()
-	if v.artists[0] != "Alpha" {
-		t.Fatalf("expected sorted first to be Alpha, got %q", v.artists[0])
+	v = v.RecomputeArtistsSort()
+	if v.Artists[0] != "Alpha" {
+		t.Fatalf("expected sorted first to be Alpha, got %q", v.Artists[0])
 	}
 
-	v2 := v.openAlbums([]string{"Album1", "Album2"})
-	if v2.sortState.Field != sorting.SortDefault {
+	v2 := v.OpenAlbums([]string{"Album1", "Album2"})
+	if v2.SortState.Field != sorting.SortDefault {
 		t.Error("sort should reset on openAlbums")
 	}
 
-	v2.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
-	v3 := v2.openTracks([]library.Track{{Title: "T1"}})
-	if v3.sortState.Field != sorting.SortDefault {
+	v2.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
+	v3 := v2.OpenTracks([]library.Track{{Title: "T1"}})
+	if v3.SortState.Field != sorting.SortDefault {
 		t.Error("sort should reset on openTracks")
 	}
 
-	v3.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	v4 := v3.back()
-	if v4.sortState.Field != sorting.SortDefault {
+	v3.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
+	v4 := v3.Back()
+	if v4.SortState.Field != sorting.SortDefault {
 		t.Error("sort should reset on back")
 	}
 }
 
 func TestSortResetOnAlbumsDrillDown(t *testing.T) {
-	v := AlbumsView{
-		albums:    []string{"Zulu", "Alpha"},
-		sortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
+	v := browse.AlbumsView{
+		Albums:    []string{"Zulu", "Alpha"},
+		SortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
 	}
-	v = v.recomputeAlbumsSort()
+	v = v.RecomputeAlbumsSort()
 
-	v2 := v.openTracks([]library.Track{{Title: "T1"}})
-	if v2.sortState.Field != sorting.SortDefault {
+	v2 := v.OpenTracks([]library.Track{{Title: "T1"}})
+	if v2.SortState.Field != sorting.SortDefault {
 		t.Error("sort should reset on openTracks")
 	}
 
-	v2.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
-	v3 := v2.back()
-	if v3.sortState.Field != sorting.SortDefault {
+	v2.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
+	v3 := v2.Back()
+	if v3.SortState.Field != sorting.SortDefault {
 		t.Error("sort should reset on back")
 	}
 }
@@ -260,17 +261,17 @@ func TestAlbumsSortFieldsForLevel(t *testing.T) {
 func TestArtistsVisibleReserve(t *testing.T) {
 	tests := []struct {
 		name string
-		v    ArtistsView
+		v    browse.ArtistsView
 		want int
 	}{
-		{"artist level no filter no sort", ArtistsView{level: arttui.ArtistLevel}, 1},
-		{"artist level with filter (strip absorbs)", ArtistsView{level: arttui.ArtistLevel, filter: filter.State{Active: true}}, 1},
-		{"artist level with sort (strip absorbs)", ArtistsView{level: arttui.ArtistLevel, sortState: sorting.SortState{Field: sorting.SortName}}, 1},
-		{"artist level with filter and sort (strip absorbs)", ArtistsView{level: arttui.ArtistLevel, filter: filter.State{Active: true}, sortState: sorting.SortState{Field: sorting.SortName}}, 1},
-		{"album level no sort", ArtistsView{level: arttui.AlbumLevel}, 2},
-		{"album level with sort (strip absorbs)", ArtistsView{level: arttui.AlbumLevel, sortState: sorting.SortState{Field: sorting.SortName}}, 2},
-		{"track level no sort", ArtistsView{level: arttui.TrackLevel}, 3},
-		{"track level with sort (strip absorbs)", ArtistsView{level: arttui.TrackLevel, sortState: sorting.SortState{Field: sorting.SortTitle}}, 3},
+		{"artist level no filter no sort", browse.ArtistsView{Level: arttui.ArtistLevel}, 1},
+		{"artist level with filter (strip absorbs)", browse.ArtistsView{Level: arttui.ArtistLevel, Filter: filter.State{Active: true}}, 1},
+		{"artist level with sort (strip absorbs)", browse.ArtistsView{Level: arttui.ArtistLevel, SortState: sorting.SortState{Field: sorting.SortName}}, 1},
+		{"artist level with filter and sort (strip absorbs)", browse.ArtistsView{Level: arttui.ArtistLevel, Filter: filter.State{Active: true}, SortState: sorting.SortState{Field: sorting.SortName}}, 1},
+		{"album level no sort", browse.ArtistsView{Level: arttui.AlbumLevel}, 2},
+		{"album level with sort (strip absorbs)", browse.ArtistsView{Level: arttui.AlbumLevel, SortState: sorting.SortState{Field: sorting.SortName}}, 2},
+		{"track level no sort", browse.ArtistsView{Level: arttui.TrackLevel}, 3},
+		{"track level with sort (strip absorbs)", browse.ArtistsView{Level: arttui.TrackLevel, SortState: sorting.SortState{Field: sorting.SortTitle}}, 3},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -285,14 +286,14 @@ func TestArtistsVisibleReserve(t *testing.T) {
 func TestAlbumsVisibleReserve(t *testing.T) {
 	tests := []struct {
 		name string
-		v    AlbumsView
+		v    browse.AlbumsView
 		want int
 	}{
-		{"album level no filter no sort", AlbumsView{level: albtui.AlbumLevel}, 1},
-		{"album level with filter (strip absorbs)", AlbumsView{level: albtui.AlbumLevel, filter: filter.State{Active: true}}, 1},
-		{"album level with sort (strip absorbs)", AlbumsView{level: albtui.AlbumLevel, sortState: sorting.SortState{Field: sorting.SortName}}, 1},
-		{"track level no sort", AlbumsView{level: albtui.TrackLevel}, 3},
-		{"track level with sort (strip absorbs)", AlbumsView{level: albtui.TrackLevel, sortState: sorting.SortState{Field: sorting.SortTitle}}, 3},
+		{"album level no filter no sort", browse.AlbumsView{Level: albtui.AlbumLevel}, 1},
+		{"album level with filter (strip absorbs)", browse.AlbumsView{Level: albtui.AlbumLevel, Filter: filter.State{Active: true}}, 1},
+		{"album level with sort (strip absorbs)", browse.AlbumsView{Level: albtui.AlbumLevel, SortState: sorting.SortState{Field: sorting.SortName}}, 1},
+		{"track level no sort", browse.AlbumsView{Level: albtui.TrackLevel}, 3},
+		{"track level with sort (strip absorbs)", browse.AlbumsView{Level: albtui.TrackLevel, SortState: sorting.SortState{Field: sorting.SortTitle}}, 3},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

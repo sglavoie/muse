@@ -16,8 +16,8 @@ func TestAlbumsBulkActionAtTrackLevel(t *testing.T) {
 
 	// Drill down: Alpha -> tracks.
 	m = pressEnter(m) // -> TrackLevel
-	if m.browse.albums.level != albtui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.browse.albums.level)
+	if m.browse.Albums.Level != albtui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.Albums.Level)
 	}
 
 	// Press 'a' to open destination picker.
@@ -59,13 +59,13 @@ func TestAlbumsSelectedHashesClearedOnDestPickerConfirm(t *testing.T) {
 
 	// Drill down: first album -> tracks.
 	m = pressEnter(m)
-	if m.browse.albums.level != albtui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.browse.albums.level)
+	if m.browse.Albums.Level != albtui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.Albums.Level)
 	}
 
 	// Select the first track.
 	m = pressKey(m, "x")
-	if len(m.browse.albums.selectedHashes) == 0 {
+	if len(m.browse.Albums.SelectedHashes) == 0 {
 		t.Fatal("expected at least one selected hash after 'x'")
 	}
 
@@ -78,8 +78,8 @@ func TestAlbumsSelectedHashesClearedOnDestPickerConfirm(t *testing.T) {
 	// Simulate DestinationPickedMsg (queue).
 	m2, _ := m.Update(pltui.DestinationPickedMsg{IsQueue: true})
 	nm := m2.(Model)
-	if len(nm.browse.albums.selectedHashes) != 0 {
-		t.Errorf("expected albums.selectedHashes cleared after DestinationPickedMsg, got %v", nm.browse.albums.selectedHashes)
+	if len(nm.browse.Albums.SelectedHashes) != 0 {
+		t.Errorf("expected albums.selectedHashes cleared after DestinationPickedMsg, got %v", nm.browse.Albums.SelectedHashes)
 	}
 }
 
@@ -99,8 +99,8 @@ func TestAlbumsSelectedHashesClearedOnDestPickerDismiss(t *testing.T) {
 
 	m2, _ := m.Update(pltui.DestinationPickerDismissedMsg{})
 	nm := m2.(Model)
-	if len(nm.browse.albums.selectedHashes) != 0 {
-		t.Errorf("expected albums.selectedHashes cleared after dismiss, got %v", nm.browse.albums.selectedHashes)
+	if len(nm.browse.Albums.SelectedHashes) != 0 {
+		t.Errorf("expected albums.selectedHashes cleared after dismiss, got %v", nm.browse.Albums.SelectedHashes)
 	}
 }
 
@@ -121,7 +121,7 @@ func TestAlbumsSelectedHashesClearedOnDestPickerCreate(t *testing.T) {
 
 	m2, _ := m.Update(pltui.DestinationPickerCreateMsg{})
 	nm := m2.(Model)
-	if len(nm.browse.albums.selectedHashes) != 0 {
-		t.Errorf("expected albums.selectedHashes cleared after create, got %v", nm.browse.albums.selectedHashes)
+	if len(nm.browse.Albums.SelectedHashes) != 0 {
+		t.Errorf("expected albums.selectedHashes cleared after create, got %v", nm.browse.Albums.SelectedHashes)
 	}
 }

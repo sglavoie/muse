@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/sorting"
@@ -14,73 +15,73 @@ import (
 // TestAlbumsViewWrapperHandleAction verifies that the AlbumsView HandleAction
 // properly delegates cursor navigation.
 func TestAlbumsViewWrapperHandleAction(t *testing.T) {
-	v := AlbumsView{
-		albums: []string{"Alpha", "Beta", "Delta", "Gamma"},
-		cursor: 0,
-		height: 20,
+	v := browse.AlbumsView{
+		Albums: []string{"Alpha", "Beta", "Delta", "Gamma"},
+		Cursor: 0,
+		Height: 20,
 	}
 
 	v = v.HandleAction(keys.ActionCursorDown)
-	if v.cursor != 1 {
-		t.Errorf("CursorDown: expected 1, got %d", v.cursor)
+	if v.Cursor != 1 {
+		t.Errorf("CursorDown: expected 1, got %d", v.Cursor)
 	}
 
 	v = v.HandleAction(keys.ActionCursorUp)
-	if v.cursor != 0 {
-		t.Errorf("CursorUp: expected 0, got %d", v.cursor)
+	if v.Cursor != 0 {
+		t.Errorf("CursorUp: expected 0, got %d", v.Cursor)
 	}
 
 	v = v.HandleAction(keys.ActionGoToBottom)
-	if v.cursor != 3 {
-		t.Errorf("GoToBottom: expected 3, got %d", v.cursor)
+	if v.Cursor != 3 {
+		t.Errorf("GoToBottom: expected 3, got %d", v.Cursor)
 	}
 
 	v = v.HandleAction(keys.ActionGoToTop)
-	if v.cursor != 0 {
-		t.Errorf("GoToTop: expected 0, got %d", v.cursor)
+	if v.Cursor != 0 {
+		t.Errorf("GoToTop: expected 0, got %d", v.Cursor)
 	}
 }
 
 // TestAlbumsViewFocusedMethods verifies focusedAlbum and focusedTrack return
 // the correct values and false when out of bounds or at the wrong level.
 func TestAlbumsViewFocusedMethods(t *testing.T) {
-	v := AlbumsView{
-		level:  albtui.AlbumLevel,
-		albums: []string{"Alpha", "Beta"},
-		cursor: 1,
+	v := browse.AlbumsView{
+		Level:  albtui.AlbumLevel,
+		Albums: []string{"Alpha", "Beta"},
+		Cursor: 1,
 	}
-	album, ok := v.focusedAlbum()
+	album, ok := v.FocusedAlbum()
 	if !ok || album != "Beta" {
 		t.Errorf("focusedAlbum: expected (Beta, true), got (%q, %v)", album, ok)
 	}
 
 	// Out of bounds.
-	v.cursor = 5
-	_, ok = v.focusedAlbum()
+	v.Cursor = 5
+	_, ok = v.FocusedAlbum()
 	if ok {
 		t.Error("focusedAlbum: expected false when cursor out of bounds")
 	}
 
 	// Wrong level.
-	v.level = albtui.TrackLevel
-	v.cursor = 0
-	_, ok = v.focusedAlbum()
+	v.Level = albtui.TrackLevel
+	v.Cursor = 0
+	_, ok = v.FocusedAlbum()
 	if ok {
 		t.Error("focusedAlbum: expected false at TrackLevel")
 	}
 
 	// Track.
-	v.level = albtui.TrackLevel
-	v.tracks = []library.Track{{Title: "Song A"}}
-	v.cursor = 0
-	track, ok := v.focusedTrack()
+	v.Level = albtui.TrackLevel
+	v.Tracks = []library.Track{{Title: "Song A"}}
+	v.Cursor = 0
+	track, ok := v.FocusedTrack()
 	if !ok || track.Title != "Song A" {
 		t.Errorf("focusedTrack: expected (Song A, true), got (%q, %v)", track.Title, ok)
 	}
 
 	// Wrong level for track.
-	v.level = albtui.AlbumLevel
-	_, ok = v.focusedTrack()
+	v.Level = albtui.AlbumLevel
+	_, ok = v.FocusedTrack()
 	if ok {
 		t.Error("focusedTrack: expected false at AlbumLevel")
 	}
@@ -89,57 +90,57 @@ func TestAlbumsViewFocusedMethods(t *testing.T) {
 // TestAlbumsViewClampCursor verifies clampCursor clamps at each level.
 func TestAlbumsViewClampCursor(t *testing.T) {
 	t.Run("empty album list", func(t *testing.T) {
-		v := AlbumsView{cursor: 5, scrollOffset: 3}
-		v = v.clampCursor()
-		if v.cursor != 0 || v.scrollOffset != 0 {
-			t.Errorf("expected cursor=0 scrollOffset=0, got cursor=%d scrollOffset=%d", v.cursor, v.scrollOffset)
+		v := browse.AlbumsView{Cursor: 5, ScrollOffset: 3}
+		v = v.ClampCursor()
+		if v.Cursor != 0 || v.ScrollOffset != 0 {
+			t.Errorf("expected cursor=0 scrollOffset=0, got cursor=%d scrollOffset=%d", v.Cursor, v.ScrollOffset)
 		}
 	})
 
 	t.Run("cursor beyond list end", func(t *testing.T) {
-		v := AlbumsView{
-			albums: []string{"Alpha", "Beta"},
-			cursor: 5,
+		v := browse.AlbumsView{
+			Albums: []string{"Alpha", "Beta"},
+			Cursor: 5,
 		}
-		v = v.clampCursor()
-		if v.cursor != 1 {
-			t.Errorf("expected cursor=1, got %d", v.cursor)
+		v = v.ClampCursor()
+		if v.Cursor != 1 {
+			t.Errorf("expected cursor=1, got %d", v.Cursor)
 		}
 	})
 
 	t.Run("cursor within bounds is unchanged", func(t *testing.T) {
-		v := AlbumsView{
-			albums: []string{"Alpha", "Beta", "Gamma"},
-			cursor: 1,
+		v := browse.AlbumsView{
+			Albums: []string{"Alpha", "Beta", "Gamma"},
+			Cursor: 1,
 		}
-		v = v.clampCursor()
-		if v.cursor != 1 {
-			t.Errorf("expected cursor=1 (unchanged), got %d", v.cursor)
+		v = v.ClampCursor()
+		if v.Cursor != 1 {
+			t.Errorf("expected cursor=1 (unchanged), got %d", v.Cursor)
 		}
 	})
 
 	t.Run("track level", func(t *testing.T) {
-		v := AlbumsView{
-			level:  albtui.TrackLevel,
-			tracks: []library.Track{{Title: "T1"}},
-			cursor: 5,
+		v := browse.AlbumsView{
+			Level:  albtui.TrackLevel,
+			Tracks: []library.Track{{Title: "T1"}},
+			Cursor: 5,
 		}
-		v = v.clampCursor()
-		if v.cursor != 0 {
-			t.Errorf("expected cursor=0, got %d", v.cursor)
+		v = v.ClampCursor()
+		if v.Cursor != 0 {
+			t.Errorf("expected cursor=0, got %d", v.Cursor)
 		}
 	})
 }
 
 // TestAlbumsViewEnqueueFocusedTrack verifies the enqueue helper.
 func TestAlbumsViewEnqueueFocusedTrack(t *testing.T) {
-	v := AlbumsView{
-		level:  albtui.TrackLevel,
-		tracks: []library.Track{{Title: "Song A", Hash: "h1"}},
-		cursor: 0,
+	v := browse.AlbumsView{
+		Level:  albtui.TrackLevel,
+		Tracks: []library.Track{{Title: "Song A", Hash: "h1"}},
+		Cursor: 0,
 	}
 	qa := &stubQueueAppender{}
-	cmd := v.enqueueFocusedTrack(qa, 0)
+	cmd := v.EnqueueFocusedTrack(qa, 0)
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd")
 	}
@@ -158,13 +159,13 @@ func TestAlbumsViewEnqueueFocusedTrack(t *testing.T) {
 
 // TestAlbumsViewEnqueueFocusedTrackNotAtTrackLevel returns nil.
 func TestAlbumsViewEnqueueFocusedTrackNotAtTrackLevel(t *testing.T) {
-	v := AlbumsView{
-		level:  albtui.AlbumLevel,
-		albums: []string{"Alpha"},
-		cursor: 0,
+	v := browse.AlbumsView{
+		Level:  albtui.AlbumLevel,
+		Albums: []string{"Alpha"},
+		Cursor: 0,
 	}
 	qa := &stubQueueAppender{}
-	cmd := v.enqueueFocusedTrack(qa, 0)
+	cmd := v.EnqueueFocusedTrack(qa, 0)
 	if cmd != nil {
 		t.Fatal("expected nil cmd when not at TrackLevel")
 	}
@@ -173,82 +174,82 @@ func TestAlbumsViewEnqueueFocusedTrackNotAtTrackLevel(t *testing.T) {
 // TestAlbumsDrillDownPreservesWidthHeight verifies that openTracks does not
 // reset width/height.
 func TestAlbumsDrillDownPreservesWidthHeight(t *testing.T) {
-	v := AlbumsView{
-		level:  albtui.AlbumLevel,
-		albums: []string{"Alpha"},
-		width:  120,
-		height: 40,
+	v := browse.AlbumsView{
+		Level:  albtui.AlbumLevel,
+		Albums: []string{"Alpha"},
+		Width:  120,
+		Height: 40,
 	}
 
-	v = v.openTracks([]library.Track{{Title: "T1"}})
-	if v.width != 120 || v.height != 40 {
-		t.Errorf("openTracks changed width/height: %d/%d", v.width, v.height)
+	v = v.OpenTracks([]library.Track{{Title: "T1"}})
+	if v.Width != 120 || v.Height != 40 {
+		t.Errorf("openTracks changed width/height: %d/%d", v.Width, v.Height)
 	}
 }
 
 // TestAlbumsClampCursor_WithFilter verifies that clampCursor accounts for
 // the active filter rather than the raw list length.
 func TestAlbumsClampCursor_WithFilter(t *testing.T) {
-	v := AlbumsView{
-		level:  albtui.AlbumLevel,
-		albums: []string{"Alpha", "Beta", "Delta", "Gamma"},
+	v := browse.AlbumsView{
+		Level:  albtui.AlbumLevel,
+		Albums: []string{"Alpha", "Beta", "Delta", "Gamma"},
 	}
-	v.filter.Text = "al" // matches "Alpha" = 1 item
-	v.cursor = 3         // beyond filtered bounds
-	v.scrollOffset = 3
+	v.Filter.Text = "al" // matches "Alpha" = 1 item
+	v.Cursor = 3         // beyond filtered bounds
+	v.ScrollOffset = 3
 
-	v = v.clampCursor()
+	v = v.ClampCursor()
 
-	if v.cursor != 0 {
-		t.Errorf("expected cursor=0 (only 1 filtered match), got %d", v.cursor)
+	if v.Cursor != 0 {
+		t.Errorf("expected cursor=0 (only 1 filtered match), got %d", v.Cursor)
 	}
-	if v.scrollOffset != 0 {
-		t.Errorf("expected scrollOffset=0, got %d", v.scrollOffset)
+	if v.ScrollOffset != 0 {
+		t.Errorf("expected scrollOffset=0, got %d", v.ScrollOffset)
 	}
 }
 
 // TestAlbumsClampCursor_ScrollOffsetClamped verifies that clampCursor brings
 // scrollOffset down when it ends up above the cursor.
 func TestAlbumsClampCursor_ScrollOffsetClamped(t *testing.T) {
-	v := AlbumsView{
-		level:  albtui.AlbumLevel,
-		albums: []string{"Alpha"},
+	v := browse.AlbumsView{
+		Level:  albtui.AlbumLevel,
+		Albums: []string{"Alpha"},
 	}
-	v.cursor = 5
-	v.scrollOffset = 10
+	v.Cursor = 5
+	v.ScrollOffset = 10
 
-	v = v.clampCursor()
+	v = v.ClampCursor()
 
-	if v.cursor != 0 {
-		t.Errorf("expected cursor=0, got %d", v.cursor)
+	if v.Cursor != 0 {
+		t.Errorf("expected cursor=0, got %d", v.Cursor)
 	}
-	if v.scrollOffset != 0 {
-		t.Errorf("expected scrollOffset=0, got %d", v.scrollOffset)
+	if v.ScrollOffset != 0 {
+		t.Errorf("expected scrollOffset=0, got %d", v.ScrollOffset)
 	}
 }
 
 // TestAlbumsClampCursor_TrackLevelWithFilter verifies clampCursor at
 // TrackLevel with an active filter.
 func TestAlbumsClampCursor_TrackLevelWithFilter(t *testing.T) {
-	v := AlbumsView{
-		level: albtui.TrackLevel,
-		tracks: []library.Track{
+	v := browse.AlbumsView{
+		Level: albtui.TrackLevel,
+		Tracks: []library.Track{
 			{Hash: "h1", Title: "Foo", Artist: "A"},
 			{Hash: "h2", Title: "Bar", Artist: "B"},
 			{Hash: "h3", Title: "Baz", Artist: "C"},
 		},
 	}
-	v.filter.Text = "ba" // matches "Bar", "Baz" = 2 items
-	v.cursor = 3         // beyond filtered bounds
-	v.scrollOffset = 3
+	v.Filter.Text = "ba" // matches "Bar", "Baz" = 2 items
+	v.Cursor = 3         // beyond filtered bounds
+	v.ScrollOffset = 3
 
-	v = v.clampCursor()
+	v = v.ClampCursor()
 
-	if v.cursor != 1 {
-		t.Errorf("expected cursor=1 (last filtered index), got %d", v.cursor)
+	if v.Cursor != 1 {
+		t.Errorf("expected cursor=1 (last filtered index), got %d", v.Cursor)
 	}
-	if v.scrollOffset > v.cursor {
-		t.Errorf("scrollOffset %d should not be above cursor %d", v.scrollOffset, v.cursor)
+	if v.ScrollOffset > v.Cursor {
+		t.Errorf("scrollOffset %d should not be above cursor %d", v.ScrollOffset, v.Cursor)
 	}
 }
 
@@ -261,31 +262,31 @@ func TestAlbumsGoToBottomScrollOffsetIndependentOfSort(t *testing.T) {
 		albums[i] = fmt.Sprintf("Album_%02d", i)
 	}
 
-	v := AlbumsView{
-		level:  albtui.AlbumLevel,
-		cursor: 0,
-		albums: albums,
-		height: 12,
+	v := browse.AlbumsView{
+		Level:  albtui.AlbumLevel,
+		Cursor: 0,
+		Albums: albums,
+		Height: 12,
 	}
 	v = v.HandleAction(keys.ActionGoToBottom)
-	if v.cursor != 19 {
-		t.Fatalf("GoToBottom without sort: expected cursor=19, got %d", v.cursor)
+	if v.Cursor != 19 {
+		t.Fatalf("GoToBottom without sort: expected cursor=19, got %d", v.Cursor)
 	}
-	scrollNoSort := v.scrollOffset
+	scrollNoSort := v.ScrollOffset
 
-	v2 := AlbumsView{
-		level:     albtui.AlbumLevel,
-		cursor:    0,
-		albums:    albums,
-		height:    12,
-		sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
+	v2 := browse.AlbumsView{
+		Level:     albtui.AlbumLevel,
+		Cursor:    0,
+		Albums:    albums,
+		Height:    12,
+		SortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 	}
 	v2 = v2.HandleAction(keys.ActionGoToBottom)
-	if v2.cursor != 19 {
-		t.Fatalf("GoToBottom with sort: expected cursor=19, got %d", v2.cursor)
+	if v2.Cursor != 19 {
+		t.Fatalf("GoToBottom with sort: expected cursor=19, got %d", v2.Cursor)
 	}
-	if v2.scrollOffset != scrollNoSort {
+	if v2.ScrollOffset != scrollNoSort {
 		t.Errorf("GoToBottom with sort: expected scrollOffset = %d (strip absorbs sort), got %d",
-			scrollNoSort, v2.scrollOffset)
+			scrollNoSort, v2.ScrollOffset)
 	}
 }

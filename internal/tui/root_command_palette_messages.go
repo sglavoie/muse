@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/sglavoie/muse/internal/tui/browse"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
@@ -21,7 +22,7 @@ type navigateLibraryModeMsg struct{ mode libtui.LibraryMode }
 
 // navigateBrowseModeMsg requests deterministic navigation to one of the
 // Browse view's modes.
-type navigateBrowseModeMsg struct{ mode BrowseMode }
+type navigateBrowseModeMsg struct{ mode browse.BrowseMode }
 
 // configToggleField identifies which audio setting to toggle.
 type configToggleField int

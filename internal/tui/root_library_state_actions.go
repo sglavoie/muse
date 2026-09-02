@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/sorting"
@@ -80,9 +81,9 @@ func (m Model) handleLibraryStateAction(action keys.Action) (tea.Model, tea.Cmd,
 			m.scanned = 0
 			m.scanTotal = 0
 			m.longOp = statusbar.LongOpState{Active: true, Label: "Scan", StartedAt: time.Now()}
-			m.browse.artists = ArtistsView{width: m.browse.artists.width, height: m.browse.artists.height}
-			m.browse.albums = AlbumsView{width: m.browse.albums.width, height: m.browse.albums.height}
-			m.browse.genres = GenresView{width: m.browse.genres.width, height: m.browse.genres.height}
+			m.browse.Artists = browse.ArtistsView{Width: m.browse.Artists.Width, Height: m.browse.Artists.Height}
+			m.browse.Albums = browse.AlbumsView{Width: m.browse.Albums.Width, Height: m.browse.Albums.Height}
+			m.browse.Genres = browse.GenresView{Width: m.browse.Genres.Width, Height: m.browse.Genres.Height}
 			return m, tea.Batch(waitForNextBatch(ch), countAudioFiles(scanCtx, m.libraryRoots, m.cfg.ExcludedPaths)), true
 		}
 		return m, nil, true

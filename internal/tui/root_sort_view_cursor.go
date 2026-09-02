@@ -35,68 +35,68 @@ func (m Model) preservePlaylistCursorOnDirChange(dir sorting.SortDir) Model {
 }
 
 func (m Model) preserveArtistsCursorOnDirChange(dir sorting.SortDir) Model {
-	switch m.browse.artists.level {
+	switch m.browse.Artists.Level {
 	case arttui.ArtistLevel:
 		var name string
-		items := arttui.FilterStrings(m.browse.artists.artists, m.browse.artists.filter.Text)
-		if m.browse.artists.cursor >= 0 && m.browse.artists.cursor < len(items) {
-			name = items[m.browse.artists.cursor]
+		items := arttui.FilterStrings(m.browse.Artists.Artists, m.browse.Artists.Filter.Text)
+		if m.browse.Artists.Cursor >= 0 && m.browse.Artists.Cursor < len(items) {
+			name = items[m.browse.Artists.Cursor]
 		}
-		m.browse.artists.sortState.Dir = dir
-		m.browse.artists = m.browse.artists.recomputeArtistsSort()
-		items = arttui.FilterStrings(m.browse.artists.artists, m.browse.artists.filter.Text)
-		m.browse.artists.cursor = sorting.FindStringPosition(items, name)
+		m.browse.Artists.SortState.Dir = dir
+		m.browse.Artists = m.browse.Artists.RecomputeArtistsSort()
+		items = arttui.FilterStrings(m.browse.Artists.Artists, m.browse.Artists.Filter.Text)
+		m.browse.Artists.Cursor = sorting.FindStringPosition(items, name)
 	case arttui.AlbumLevel:
 		var name string
-		items := arttui.FilterStrings(m.browse.artists.albums, m.browse.artists.filter.Text)
-		if m.browse.artists.cursor >= 0 && m.browse.artists.cursor < len(items) {
-			name = items[m.browse.artists.cursor]
+		items := arttui.FilterStrings(m.browse.Artists.Albums, m.browse.Artists.Filter.Text)
+		if m.browse.Artists.Cursor >= 0 && m.browse.Artists.Cursor < len(items) {
+			name = items[m.browse.Artists.Cursor]
 		}
-		m.browse.artists.sortState.Dir = dir
-		m.browse.artists = m.browse.artists.recomputeArtistsSort()
-		items = arttui.FilterStrings(m.browse.artists.albums, m.browse.artists.filter.Text)
-		m.browse.artists.cursor = sorting.FindStringPosition(items, name)
+		m.browse.Artists.SortState.Dir = dir
+		m.browse.Artists = m.browse.Artists.RecomputeArtistsSort()
+		items = arttui.FilterStrings(m.browse.Artists.Albums, m.browse.Artists.Filter.Text)
+		m.browse.Artists.Cursor = sorting.FindStringPosition(items, name)
 	case arttui.TrackLevel:
 		var focusedHash string
-		items := arttui.FilterTracks(m.browse.artists.tracks, m.browse.artists.filter.Text)
-		if m.browse.artists.cursor >= 0 && m.browse.artists.cursor < len(items) {
-			focusedHash = items[m.browse.artists.cursor].Hash
+		items := arttui.FilterTracks(m.browse.Artists.Tracks, m.browse.Artists.Filter.Text)
+		if m.browse.Artists.Cursor >= 0 && m.browse.Artists.Cursor < len(items) {
+			focusedHash = items[m.browse.Artists.Cursor].Hash
 		}
-		m.browse.artists.sortState.Dir = dir
-		m.browse.artists = m.browse.artists.recomputeArtistsSort()
-		items = arttui.FilterTracks(m.browse.artists.tracks, m.browse.artists.filter.Text)
-		m.browse.artists.cursor = sorting.FindTrackHashPosition(items, focusedHash)
+		m.browse.Artists.SortState.Dir = dir
+		m.browse.Artists = m.browse.Artists.RecomputeArtistsSort()
+		items = arttui.FilterTracks(m.browse.Artists.Tracks, m.browse.Artists.Filter.Text)
+		m.browse.Artists.Cursor = sorting.FindTrackHashPosition(items, focusedHash)
 	}
-	reserve := artistsVisibleReserve(m.browse.artists)
-	m.browse.artists.scrollOffset = sorting.AdjustScroll(m.browse.artists.cursor, m.browse.artists.scrollOffset, layout.VisibleRows(m.browse.artists.height, reserve))
+	reserve := artistsVisibleReserve(m.browse.Artists)
+	m.browse.Artists.ScrollOffset = sorting.AdjustScroll(m.browse.Artists.Cursor, m.browse.Artists.ScrollOffset, layout.VisibleRows(m.browse.Artists.Height, reserve))
 	return m
 }
 
 func (m Model) preserveAlbumsCursorOnDirChange(dir sorting.SortDir) Model {
-	switch m.browse.albums.level {
+	switch m.browse.Albums.Level {
 	case albtui.AlbumLevel:
 		var name string
-		items := arttui.FilterStrings(m.browse.albums.albums, m.browse.albums.filter.Text)
-		if m.browse.albums.cursor >= 0 && m.browse.albums.cursor < len(items) {
-			name = items[m.browse.albums.cursor]
+		items := arttui.FilterStrings(m.browse.Albums.Albums, m.browse.Albums.Filter.Text)
+		if m.browse.Albums.Cursor >= 0 && m.browse.Albums.Cursor < len(items) {
+			name = items[m.browse.Albums.Cursor]
 		}
-		m.browse.albums.sortState.Dir = dir
-		m.browse.albums = m.browse.albums.recomputeAlbumsSort()
-		items = arttui.FilterStrings(m.browse.albums.albums, m.browse.albums.filter.Text)
-		m.browse.albums.cursor = sorting.FindStringPosition(items, name)
+		m.browse.Albums.SortState.Dir = dir
+		m.browse.Albums = m.browse.Albums.RecomputeAlbumsSort()
+		items = arttui.FilterStrings(m.browse.Albums.Albums, m.browse.Albums.Filter.Text)
+		m.browse.Albums.Cursor = sorting.FindStringPosition(items, name)
 	case albtui.TrackLevel:
 		var focusedHash string
-		items := arttui.FilterTracks(m.browse.albums.tracks, m.browse.albums.filter.Text)
-		if m.browse.albums.cursor >= 0 && m.browse.albums.cursor < len(items) {
-			focusedHash = items[m.browse.albums.cursor].Hash
+		items := arttui.FilterTracks(m.browse.Albums.Tracks, m.browse.Albums.Filter.Text)
+		if m.browse.Albums.Cursor >= 0 && m.browse.Albums.Cursor < len(items) {
+			focusedHash = items[m.browse.Albums.Cursor].Hash
 		}
-		m.browse.albums.sortState.Dir = dir
-		m.browse.albums = m.browse.albums.recomputeAlbumsSort()
-		items = arttui.FilterTracks(m.browse.albums.tracks, m.browse.albums.filter.Text)
-		m.browse.albums.cursor = sorting.FindTrackHashPosition(items, focusedHash)
+		m.browse.Albums.SortState.Dir = dir
+		m.browse.Albums = m.browse.Albums.RecomputeAlbumsSort()
+		items = arttui.FilterTracks(m.browse.Albums.Tracks, m.browse.Albums.Filter.Text)
+		m.browse.Albums.Cursor = sorting.FindTrackHashPosition(items, focusedHash)
 	}
-	reserve := albumsVisibleReserve(m.browse.albums)
-	m.browse.albums.scrollOffset = sorting.AdjustScroll(m.browse.albums.cursor, m.browse.albums.scrollOffset, layout.VisibleRows(m.browse.albums.height, reserve))
+	reserve := albumsVisibleReserve(m.browse.Albums)
+	m.browse.Albums.ScrollOffset = sorting.AdjustScroll(m.browse.Albums.Cursor, m.browse.Albums.ScrollOffset, layout.VisibleRows(m.browse.Albums.Height, reserve))
 	return m
 }
 
@@ -148,40 +148,40 @@ func (m Model) preserveFavoritesCursorOnDirChange(dir sorting.SortDir) Model {
 }
 
 func (m Model) preserveGenresCursorOnDirChange(dir sorting.SortDir) Model {
-	switch m.browse.genres.level {
+	switch m.browse.Genres.Level {
 	case gentui.GenreLevel:
 		var name string
-		items := arttui.FilterStrings(m.browse.genres.genres, m.browse.genres.filter.Text)
-		if m.browse.genres.cursor >= 0 && m.browse.genres.cursor < len(items) {
-			name = items[m.browse.genres.cursor]
+		items := arttui.FilterStrings(m.browse.Genres.Genres, m.browse.Genres.Filter.Text)
+		if m.browse.Genres.Cursor >= 0 && m.browse.Genres.Cursor < len(items) {
+			name = items[m.browse.Genres.Cursor]
 		}
-		m.browse.genres.sortState.Dir = dir
-		m.browse.genres = m.browse.genres.recomputeGenresSort()
-		items = arttui.FilterStrings(m.browse.genres.genres, m.browse.genres.filter.Text)
-		m.browse.genres.cursor = sorting.FindStringPosition(items, name)
+		m.browse.Genres.SortState.Dir = dir
+		m.browse.Genres = m.browse.Genres.RecomputeGenresSort()
+		items = arttui.FilterStrings(m.browse.Genres.Genres, m.browse.Genres.Filter.Text)
+		m.browse.Genres.Cursor = sorting.FindStringPosition(items, name)
 	case gentui.ArtistLevel:
 		var name string
-		items := arttui.FilterStrings(m.browse.genres.artists, m.browse.genres.filter.Text)
-		if m.browse.genres.cursor >= 0 && m.browse.genres.cursor < len(items) {
-			name = items[m.browse.genres.cursor]
+		items := arttui.FilterStrings(m.browse.Genres.Artists, m.browse.Genres.Filter.Text)
+		if m.browse.Genres.Cursor >= 0 && m.browse.Genres.Cursor < len(items) {
+			name = items[m.browse.Genres.Cursor]
 		}
-		m.browse.genres.sortState.Dir = dir
-		m.browse.genres = m.browse.genres.recomputeGenresSort()
-		items = arttui.FilterStrings(m.browse.genres.artists, m.browse.genres.filter.Text)
-		m.browse.genres.cursor = sorting.FindStringPosition(items, name)
+		m.browse.Genres.SortState.Dir = dir
+		m.browse.Genres = m.browse.Genres.RecomputeGenresSort()
+		items = arttui.FilterStrings(m.browse.Genres.Artists, m.browse.Genres.Filter.Text)
+		m.browse.Genres.Cursor = sorting.FindStringPosition(items, name)
 	case gentui.TrackLevel:
 		var focusedHash string
-		items := arttui.FilterTracks(m.browse.genres.tracks, m.browse.genres.filter.Text)
-		if m.browse.genres.cursor >= 0 && m.browse.genres.cursor < len(items) {
-			focusedHash = items[m.browse.genres.cursor].Hash
+		items := arttui.FilterTracks(m.browse.Genres.Tracks, m.browse.Genres.Filter.Text)
+		if m.browse.Genres.Cursor >= 0 && m.browse.Genres.Cursor < len(items) {
+			focusedHash = items[m.browse.Genres.Cursor].Hash
 		}
-		m.browse.genres.sortState.Dir = dir
-		m.browse.genres = m.browse.genres.recomputeGenresSort()
-		items = arttui.FilterTracks(m.browse.genres.tracks, m.browse.genres.filter.Text)
-		m.browse.genres.cursor = sorting.FindTrackHashPosition(items, focusedHash)
+		m.browse.Genres.SortState.Dir = dir
+		m.browse.Genres = m.browse.Genres.RecomputeGenresSort()
+		items = arttui.FilterTracks(m.browse.Genres.Tracks, m.browse.Genres.Filter.Text)
+		m.browse.Genres.Cursor = sorting.FindTrackHashPosition(items, focusedHash)
 	}
-	reserve := genresVisibleReserve(m.browse.genres)
-	m.browse.genres.scrollOffset = sorting.AdjustScroll(m.browse.genres.cursor, m.browse.genres.scrollOffset, layout.VisibleRows(m.browse.genres.height, reserve))
+	reserve := genresVisibleReserve(m.browse.Genres)
+	m.browse.Genres.ScrollOffset = sorting.AdjustScroll(m.browse.Genres.Cursor, m.browse.Genres.ScrollOffset, layout.VisibleRows(m.browse.Genres.Height, reserve))
 	return m
 }
 

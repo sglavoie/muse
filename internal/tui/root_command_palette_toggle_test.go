@@ -152,17 +152,17 @@ func TestConfigToggleMsg_StereoWideApplyFailureDoesNotPersist(t *testing.T) {
 // visible row instead.
 func TestRandomAlbumClearsFilter(t *testing.T) {
 	m := New(context.Background())
-	m.browse.albums.albums = []string{"A", "B", "C", "D"}
-	m.browse.albums.filter = filter.State{Active: true, Text: "zzz"}
+	m.browse.Albums.Albums = []string{"A", "B", "C", "D"}
+	m.browse.Albums.Filter = filter.State{Active: true, Text: "zzz"}
 
 	result, _ := m.handleRandomAlbumMsg()
 
-	if result.browse.albums.filter.Active || result.browse.albums.filter.Text != "" {
+	if result.browse.Albums.Filter.Active || result.browse.Albums.Filter.Text != "" {
 		t.Errorf("expected filter cleared, got Active=%v Text=%q",
-			result.browse.albums.filter.Active, result.browse.albums.filter.Text)
+			result.browse.Albums.Filter.Active, result.browse.Albums.Filter.Text)
 	}
-	if result.browse.albums.cursor < 0 || result.browse.albums.cursor >= len(result.browse.albums.albums) {
-		t.Errorf("cursor %d out of bounds", result.browse.albums.cursor)
+	if result.browse.Albums.Cursor < 0 || result.browse.Albums.Cursor >= len(result.browse.Albums.Albums) {
+		t.Errorf("cursor %d out of bounds", result.browse.Albums.Cursor)
 	}
 }
 
@@ -170,16 +170,16 @@ func TestRandomAlbumClearsFilter(t *testing.T) {
 // artists browse view.
 func TestRandomArtistClearsFilter(t *testing.T) {
 	m := New(context.Background())
-	m.browse.artists.artists = []string{"X", "Y", "Z"}
-	m.browse.artists.filter = filter.State{Active: true, Text: "zzz"}
+	m.browse.Artists.Artists = []string{"X", "Y", "Z"}
+	m.browse.Artists.Filter = filter.State{Active: true, Text: "zzz"}
 
 	result, _ := m.handleRandomArtistMsg()
 
-	if result.browse.artists.filter.Active || result.browse.artists.filter.Text != "" {
+	if result.browse.Artists.Filter.Active || result.browse.Artists.Filter.Text != "" {
 		t.Errorf("expected filter cleared, got Active=%v Text=%q",
-			result.browse.artists.filter.Active, result.browse.artists.filter.Text)
+			result.browse.Artists.Filter.Active, result.browse.Artists.Filter.Text)
 	}
-	if result.browse.artists.cursor < 0 || result.browse.artists.cursor >= len(result.browse.artists.artists) {
-		t.Errorf("cursor %d out of bounds", result.browse.artists.cursor)
+	if result.browse.Artists.Cursor < 0 || result.browse.Artists.Cursor >= len(result.browse.Artists.Artists) {
+		t.Errorf("cursor %d out of bounds", result.browse.Artists.Cursor)
 	}
 }

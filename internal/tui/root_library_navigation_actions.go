@@ -14,19 +14,19 @@ func (m Model) handleLibraryNavigationAction(action keys.Action) (tea.Model, tea
 		return m.handleArtistOpenAction()
 	case keys.ActionArtistBack:
 		m = exitVisualMode(m)
-		m.browse.artists = m.browse.artists.back()
+		m.browse.Artists = m.browse.Artists.Back()
 		return m, nil, true
 	case keys.ActionAlbumOpen:
 		return m.handleAlbumOpenAction()
 	case keys.ActionAlbumBack:
 		m = exitVisualMode(m)
-		m.browse.albums = m.browse.albums.back()
+		m.browse.Albums = m.browse.Albums.Back()
 		return m, nil, true
 	case keys.ActionGenreOpen:
 		return m.handleGenreOpenAction()
 	case keys.ActionGenreBack:
 		m = exitVisualMode(m)
-		m.browse.genres = m.browse.genres.back()
+		m.browse.Genres = m.browse.Genres.Back()
 		return m, nil, true
 	default:
 		return m, nil, false
@@ -35,31 +35,31 @@ func (m Model) handleLibraryNavigationAction(action keys.Action) (tea.Model, tea
 
 func (m Model) handleArtistOpenAction() (tea.Model, tea.Cmd, bool) {
 	allTracks := m.library.Index.Tracks()
-	switch m.browse.artists.level {
+	switch m.browse.Artists.Level {
 	case arttui.ArtistLevel:
-		artist, ok := m.browse.artists.focusedArtist()
+		artist, ok := m.browse.Artists.FocusedArtist()
 		if ok {
 			albums := arttui.DeriveAlbums(allTracks, artist)
-			m.browse.artists.selectedArtist = artist
+			m.browse.Artists.SelectedArtist = artist
 			if len(albums) == 0 {
 				tracks := arttui.DeriveArtistTracks(allTracks, artist)
-				m.browse.artists.selectedAlbum = ""
-				m.browse.artists = m.browse.artists.openAlbums(nil)
-				m.browse.artists = m.browse.artists.openTracks(tracks)
+				m.browse.Artists.SelectedAlbum = ""
+				m.browse.Artists = m.browse.Artists.OpenAlbums(nil)
+				m.browse.Artists = m.browse.Artists.OpenTracks(tracks)
 			} else {
-				m.browse.artists = m.browse.artists.openAlbums(albums)
+				m.browse.Artists = m.browse.Artists.OpenAlbums(albums)
 			}
 		}
 	case arttui.AlbumLevel:
-		album, ok := m.browse.artists.focusedAlbum()
+		album, ok := m.browse.Artists.FocusedAlbum()
 		if ok {
-			tracks := arttui.DeriveTracks(allTracks, m.browse.artists.selectedArtist, album)
-			m.browse.artists.selectedAlbum = album
-			m.browse.artists = m.browse.artists.openTracks(tracks)
+			tracks := arttui.DeriveTracks(allTracks, m.browse.Artists.SelectedArtist, album)
+			m.browse.Artists.SelectedAlbum = album
+			m.browse.Artists = m.browse.Artists.OpenTracks(tracks)
 		}
 	case arttui.TrackLevel:
 		if m.queueWriter != nil {
-			if cmd := m.browse.artists.enqueueFocusedTrack(m.queueWriter, len(m.queue.Entries)); cmd != nil {
+			if cmd := m.browse.Artists.EnqueueFocusedTrack(m.queueWriter, len(m.queue.Entries)); cmd != nil {
 				return m, cmd, true
 			}
 		}
@@ -69,17 +69,17 @@ func (m Model) handleArtistOpenAction() (tea.Model, tea.Cmd, bool) {
 
 func (m Model) handleAlbumOpenAction() (tea.Model, tea.Cmd, bool) {
 	allTracks := m.library.Index.Tracks()
-	switch m.browse.albums.level {
+	switch m.browse.Albums.Level {
 	case albtui.AlbumLevel:
-		album, ok := m.browse.albums.focusedAlbum()
+		album, ok := m.browse.Albums.FocusedAlbum()
 		if ok {
 			tracks := albtui.DeriveAlbumTracks(allTracks, album)
-			m.browse.albums.selectedAlbum = album
-			m.browse.albums = m.browse.albums.openTracks(tracks)
+			m.browse.Albums.SelectedAlbum = album
+			m.browse.Albums = m.browse.Albums.OpenTracks(tracks)
 		}
 	case albtui.TrackLevel:
 		if m.queueWriter != nil {
-			if cmd := m.browse.albums.enqueueFocusedTrack(m.queueWriter, len(m.queue.Entries)); cmd != nil {
+			if cmd := m.browse.Albums.EnqueueFocusedTrack(m.queueWriter, len(m.queue.Entries)); cmd != nil {
 				return m, cmd, true
 			}
 		}
@@ -89,30 +89,30 @@ func (m Model) handleAlbumOpenAction() (tea.Model, tea.Cmd, bool) {
 
 func (m Model) handleGenreOpenAction() (tea.Model, tea.Cmd, bool) {
 	allTracks := m.library.Index.Tracks()
-	switch m.browse.genres.level {
+	switch m.browse.Genres.Level {
 	case gentui.GenreLevel:
-		genre, ok := m.browse.genres.focusedGenre()
+		genre, ok := m.browse.Genres.FocusedGenre()
 		if ok {
 			artists := gentui.DeriveGenreArtists(allTracks, genre)
-			m.browse.genres.selectedGenre = genre
+			m.browse.Genres.SelectedGenre = genre
 			if len(artists) == 0 {
 				tracks := gentui.DeriveGenreTracks(allTracks, genre)
-				m.browse.genres = m.browse.genres.openArtists(nil)
-				m.browse.genres = m.browse.genres.openTracks(tracks)
+				m.browse.Genres = m.browse.Genres.OpenArtists(nil)
+				m.browse.Genres = m.browse.Genres.OpenTracks(tracks)
 			} else {
-				m.browse.genres = m.browse.genres.openArtists(artists)
+				m.browse.Genres = m.browse.Genres.OpenArtists(artists)
 			}
 		}
 	case gentui.ArtistLevel:
-		artist, ok := m.browse.genres.focusedArtist()
+		artist, ok := m.browse.Genres.FocusedArtist()
 		if ok {
-			tracks := gentui.DeriveGenreArtistTracks(allTracks, m.browse.genres.selectedGenre, artist)
-			m.browse.genres.selectedArtist = artist
-			m.browse.genres = m.browse.genres.openTracks(tracks)
+			tracks := gentui.DeriveGenreArtistTracks(allTracks, m.browse.Genres.SelectedGenre, artist)
+			m.browse.Genres.SelectedArtist = artist
+			m.browse.Genres = m.browse.Genres.OpenTracks(tracks)
 		}
 	case gentui.TrackLevel:
 		if m.queueWriter != nil {
-			if cmd := m.browse.genres.enqueueFocusedTrack(m.queueWriter, len(m.queue.Entries)); cmd != nil {
+			if cmd := m.browse.Genres.EnqueueFocusedTrack(m.queueWriter, len(m.queue.Entries)); cmd != nil {
 				return m, cmd, true
 			}
 		}

@@ -16,23 +16,23 @@ func TestBulkSelectionToggleArtistsTrackLevel(t *testing.T) {
 	m = pressEnter(m)    // ArtistLevel → AlbumLevel (Alice)
 	m = pressEnter(m)    // AlbumLevel → TrackLevel (Alpha)
 
-	if m.browse.artists.level != arttui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.browse.artists.level)
+	if m.browse.Artists.Level != arttui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.Artists.Level)
 	}
 	// Cursor at 0: Track A1 (hash h1).
 	m = pressKey(m, "x")
 
-	if len(m.browse.artists.selectedHashes) != 1 {
-		t.Fatalf("after first x: expected 1 selected hash, got %d", len(m.browse.artists.selectedHashes))
+	if len(m.browse.Artists.SelectedHashes) != 1 {
+		t.Fatalf("after first x: expected 1 selected hash, got %d", len(m.browse.Artists.SelectedHashes))
 	}
-	if _, ok := m.browse.artists.selectedHashes["h1"]; !ok {
-		t.Errorf("expected hash h1 selected, got: %v", m.browse.artists.selectedHashes)
+	if _, ok := m.browse.Artists.SelectedHashes["h1"]; !ok {
+		t.Errorf("expected hash h1 selected, got: %v", m.browse.Artists.SelectedHashes)
 	}
 
 	// Press x again: deselects.
 	m = pressKey(m, "x")
-	if len(m.browse.artists.selectedHashes) != 0 {
-		t.Errorf("after second x: expected 0 selected hashes, got %d", len(m.browse.artists.selectedHashes))
+	if len(m.browse.Artists.SelectedHashes) != 0 {
+		t.Errorf("after second x: expected 0 selected hashes, got %d", len(m.browse.Artists.SelectedHashes))
 	}
 }
 
@@ -42,13 +42,13 @@ func TestBulkSelectionToggleArtistsNoOpAtArtistLevel(t *testing.T) {
 	m := newModelWithTracks()
 	m = pressKey(m, "4") // Artists view, ArtistLevel
 
-	if m.browse.artists.level != arttui.ArtistLevel {
-		t.Fatalf("expected ArtistLevel, got %v", m.browse.artists.level)
+	if m.browse.Artists.Level != arttui.ArtistLevel {
+		t.Fatalf("expected ArtistLevel, got %v", m.browse.Artists.Level)
 	}
 
 	m = pressKey(m, "x")
-	if len(m.browse.artists.selectedHashes) != 0 {
-		t.Errorf("expected no selection at ArtistLevel, got %d", len(m.browse.artists.selectedHashes))
+	if len(m.browse.Artists.SelectedHashes) != 0 {
+		t.Errorf("expected no selection at ArtistLevel, got %d", len(m.browse.Artists.SelectedHashes))
 	}
 }
 
@@ -62,14 +62,14 @@ func TestClearSelectionArtists(t *testing.T) {
 
 	// Select a track.
 	m = pressKey(m, "x")
-	if len(m.browse.artists.selectedHashes) == 0 {
+	if len(m.browse.Artists.SelectedHashes) == 0 {
 		t.Fatal("precondition: expected selection after x")
 	}
 
 	// Clear selection.
 	m = pressKey(m, "X")
-	if len(m.browse.artists.selectedHashes) != 0 {
-		t.Errorf("after X: expected 0 selected hashes, got %d", len(m.browse.artists.selectedHashes))
+	if len(m.browse.Artists.SelectedHashes) != 0 {
+		t.Errorf("after X: expected 0 selected hashes, got %d", len(m.browse.Artists.SelectedHashes))
 	}
 }
 
@@ -82,13 +82,13 @@ func TestBulkSelectionClearedOnBackArtists(t *testing.T) {
 	m = pressEnter(m) // TrackLevel
 
 	m = pressKey(m, "x")
-	if len(m.browse.artists.selectedHashes) == 0 {
+	if len(m.browse.Artists.SelectedHashes) == 0 {
 		t.Fatal("precondition: expected selection after x")
 	}
 
 	m = pressEsc(m) // back to AlbumLevel
-	if len(m.browse.artists.selectedHashes) != 0 {
-		t.Errorf("after back: expected selectedHashes cleared, got %d", len(m.browse.artists.selectedHashes))
+	if len(m.browse.Artists.SelectedHashes) != 0 {
+		t.Errorf("after back: expected selectedHashes cleared, got %d", len(m.browse.Artists.SelectedHashes))
 	}
 }
 
@@ -99,18 +99,18 @@ func TestBulkSelectionToggleAlbumsTrackLevel(t *testing.T) {
 	m = switchToAlbumsMode(m) // Albums view
 	m = pressEnter(m)         // AlbumLevel → TrackLevel (Alpha)
 
-	if m.browse.albums.level != albtui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.browse.albums.level)
+	if m.browse.Albums.Level != albtui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.Albums.Level)
 	}
 
 	m = pressKey(m, "x")
-	if len(m.browse.albums.selectedHashes) != 1 {
-		t.Fatalf("after first x: expected 1 selected hash, got %d", len(m.browse.albums.selectedHashes))
+	if len(m.browse.Albums.SelectedHashes) != 1 {
+		t.Fatalf("after first x: expected 1 selected hash, got %d", len(m.browse.Albums.SelectedHashes))
 	}
 
 	m = pressKey(m, "x")
-	if len(m.browse.albums.selectedHashes) != 0 {
-		t.Errorf("after second x: expected 0 selected hashes, got %d", len(m.browse.albums.selectedHashes))
+	if len(m.browse.Albums.SelectedHashes) != 0 {
+		t.Errorf("after second x: expected 0 selected hashes, got %d", len(m.browse.Albums.SelectedHashes))
 	}
 }
 
@@ -120,13 +120,13 @@ func TestBulkSelectionToggleAlbumsNoOpAtAlbumLevel(t *testing.T) {
 	m := newModelWithTracks()
 	m = switchToAlbumsMode(m) // Albums view, AlbumLevel
 
-	if m.browse.albums.level != albtui.AlbumLevel {
-		t.Fatalf("expected AlbumLevel, got %v", m.browse.albums.level)
+	if m.browse.Albums.Level != albtui.AlbumLevel {
+		t.Fatalf("expected AlbumLevel, got %v", m.browse.Albums.Level)
 	}
 
 	m = pressKey(m, "x")
-	if len(m.browse.albums.selectedHashes) != 0 {
-		t.Errorf("expected no selection at AlbumLevel, got %d", len(m.browse.albums.selectedHashes))
+	if len(m.browse.Albums.SelectedHashes) != 0 {
+		t.Errorf("expected no selection at AlbumLevel, got %d", len(m.browse.Albums.SelectedHashes))
 	}
 }
 
@@ -138,13 +138,13 @@ func TestClearSelectionAlbums(t *testing.T) {
 	m = pressEnter(m) // TrackLevel
 
 	m = pressKey(m, "x")
-	if len(m.browse.albums.selectedHashes) == 0 {
+	if len(m.browse.Albums.SelectedHashes) == 0 {
 		t.Fatal("precondition: expected selection after x")
 	}
 
 	m = pressKey(m, "X")
-	if len(m.browse.albums.selectedHashes) != 0 {
-		t.Errorf("after X: expected 0 selected hashes, got %d", len(m.browse.albums.selectedHashes))
+	if len(m.browse.Albums.SelectedHashes) != 0 {
+		t.Errorf("after X: expected 0 selected hashes, got %d", len(m.browse.Albums.SelectedHashes))
 	}
 }
 
@@ -156,13 +156,13 @@ func TestBulkSelectionClearedOnBackAlbums(t *testing.T) {
 	m = pressEnter(m) // TrackLevel
 
 	m = pressKey(m, "x")
-	if len(m.browse.albums.selectedHashes) == 0 {
+	if len(m.browse.Albums.SelectedHashes) == 0 {
 		t.Fatal("precondition: expected selection after x")
 	}
 
 	m = pressEsc(m) // back to AlbumLevel
-	if len(m.browse.albums.selectedHashes) != 0 {
-		t.Errorf("after back: expected selectedHashes cleared, got %d", len(m.browse.albums.selectedHashes))
+	if len(m.browse.Albums.SelectedHashes) != 0 {
+		t.Errorf("after back: expected selectedHashes cleared, got %d", len(m.browse.Albums.SelectedHashes))
 	}
 }
 
@@ -174,8 +174,8 @@ func TestVisualModeExitedOnArtistBack(t *testing.T) {
 	m = pressEnter(m)    // AlbumLevel
 	m = pressEnter(m)    // TrackLevel
 
-	if m.browse.artists.level != arttui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.browse.artists.level)
+	if m.browse.Artists.Level != arttui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.Artists.Level)
 	}
 
 	m = pressKey(m, "v") // enter visual mode
@@ -196,8 +196,8 @@ func TestVisualModeExitedOnAlbumBack(t *testing.T) {
 	m = switchToAlbumsMode(m) // Albums view
 	m = pressEnter(m)         // TrackLevel
 
-	if m.browse.albums.level != albtui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.browse.albums.level)
+	if m.browse.Albums.Level != albtui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.Albums.Level)
 	}
 
 	m = pressKey(m, "v")

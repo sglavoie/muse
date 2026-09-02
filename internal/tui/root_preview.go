@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
@@ -118,13 +119,13 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 		}
 		return track, ok
 	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			return m.browse.artists.focusedTrack()
-		case BrowseModeAlbums:
-			return m.browse.albums.focusedTrack()
-		case BrowseModeGenres:
-			return m.browse.genres.focusedTrack()
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
+			return m.browse.Artists.FocusedTrack()
+		case browse.BrowseModeAlbums:
+			return m.browse.Albums.FocusedTrack()
+		case browse.BrowseModeGenres:
+			return m.browse.Genres.FocusedTrack()
 		}
 	case viewFavorites:
 		return m.favorites.FocusedTrack()

@@ -204,11 +204,11 @@ func TestRescanResetsGenresView(t *testing.T) {
 	m := New(context.Background(), WithLibraryRoots([]string{root}), WithExtractor(stubExtractor{}))
 
 	// Set up genres view at ArtistLevel with a selected genre.
-	m.browse.genres.level = gentui.ArtistLevel
-	m.browse.genres.selectedGenre = "Rock"
-	m.browse.genres.artists = []string{"Artist1", "Artist2"}
-	m.browse.genres.cursor = 1
-	m.browse.genres.scrollOffset = 0
+	m.browse.Genres.Level = gentui.ArtistLevel
+	m.browse.Genres.SelectedGenre = "Rock"
+	m.browse.Genres.Artists = []string{"Artist1", "Artist2"}
+	m.browse.Genres.Cursor = 1
+	m.browse.Genres.ScrollOffset = 0
 
 	// Trigger rescan.
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
@@ -218,19 +218,19 @@ func TestRescanResetsGenresView(t *testing.T) {
 	}
 
 	// Genres view must be reset to GenreLevel with no stale selection.
-	if nm.browse.genres.level != gentui.GenreLevel {
-		t.Fatalf("rescan: expected genres level=GenreLevel, got %v", nm.browse.genres.level)
+	if nm.browse.Genres.Level != gentui.GenreLevel {
+		t.Fatalf("rescan: expected genres level=GenreLevel, got %v", nm.browse.Genres.Level)
 	}
-	if nm.browse.genres.selectedGenre != "" {
-		t.Fatalf("rescan: expected selectedGenre='', got %q", nm.browse.genres.selectedGenre)
+	if nm.browse.Genres.SelectedGenre != "" {
+		t.Fatalf("rescan: expected selectedGenre='', got %q", nm.browse.Genres.SelectedGenre)
 	}
-	if nm.browse.genres.selectedArtist != "" {
-		t.Fatalf("rescan: expected selectedArtist='', got %q", nm.browse.genres.selectedArtist)
+	if nm.browse.Genres.SelectedArtist != "" {
+		t.Fatalf("rescan: expected selectedArtist='', got %q", nm.browse.Genres.SelectedArtist)
 	}
-	if nm.browse.genres.cursor != 0 {
-		t.Fatalf("rescan: expected genres cursor=0, got %d", nm.browse.genres.cursor)
+	if nm.browse.Genres.Cursor != 0 {
+		t.Fatalf("rescan: expected genres cursor=0, got %d", nm.browse.Genres.Cursor)
 	}
-	if len(nm.browse.genres.artists) != 0 {
-		t.Fatalf("rescan: expected genres artists empty, got %d", len(nm.browse.genres.artists))
+	if len(nm.browse.Genres.Artists) != 0 {
+		t.Fatalf("rescan: expected genres artists empty, got %d", len(nm.browse.Genres.Artists))
 	}
 }

@@ -26,13 +26,13 @@ func TestKey5SwitchesToAlbumsView(t *testing.T) {
 	if m.activeView != viewBrowse {
 		t.Fatalf("expected activeView=%d (viewBrowse), got %d", viewBrowse, m.activeView)
 	}
-	if len(m.browse.albums.albums) != 4 {
-		t.Fatalf("expected 4 albums, got %d: %v", len(m.browse.albums.albums), m.browse.albums.albums)
+	if len(m.browse.Albums.Albums) != 4 {
+		t.Fatalf("expected 4 albums, got %d: %v", len(m.browse.Albums.Albums), m.browse.Albums.Albums)
 	}
 	want := []string{"Alpha", "Beta", "Delta", "Gamma"}
 	for i, w := range want {
-		if m.browse.albums.albums[i] != w {
-			t.Errorf("albums[%d]: expected %q, got %q", i, w, m.browse.albums.albums[i])
+		if m.browse.Albums.Albums[i] != w {
+			t.Errorf("albums[%d]: expected %q, got %q", i, w, m.browse.Albums.Albums[i])
 		}
 	}
 }
@@ -46,17 +46,17 @@ func TestAlbumsDrillDownToTracks(t *testing.T) {
 	// Alpha is first (index 0). Press Enter.
 	m = pressEnter(m)
 
-	if m.browse.albums.level != albtui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.browse.albums.level)
+	if m.browse.Albums.Level != albtui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.Albums.Level)
 	}
-	if m.browse.albums.selectedAlbum != "Alpha" {
-		t.Errorf("expected selectedAlbum='Alpha', got %q", m.browse.albums.selectedAlbum)
+	if m.browse.Albums.SelectedAlbum != "Alpha" {
+		t.Errorf("expected selectedAlbum='Alpha', got %q", m.browse.Albums.SelectedAlbum)
 	}
-	if len(m.browse.albums.tracks) != 2 {
-		t.Fatalf("expected 2 tracks for Alpha, got %d", len(m.browse.albums.tracks))
+	if len(m.browse.Albums.Tracks) != 2 {
+		t.Fatalf("expected 2 tracks for Alpha, got %d", len(m.browse.Albums.Tracks))
 	}
-	if m.browse.albums.tracks[0].Title != "Track A1" {
-		t.Errorf("expected first track 'Track A1', got %q", m.browse.albums.tracks[0].Title)
+	if m.browse.Albums.Tracks[0].Title != "Track A1" {
+		t.Errorf("expected first track 'Track A1', got %q", m.browse.Albums.Tracks[0].Title)
 	}
 }
 
@@ -69,8 +69,8 @@ func TestAlbumsEnqueueTrack(t *testing.T) {
 
 	// Drill down to Alpha's tracks.
 	m = pressEnter(m)
-	if m.browse.albums.level != albtui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.browse.albums.level)
+	if m.browse.Albums.Level != albtui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.Albums.Level)
 	}
 
 	// Enqueue the first track.
@@ -101,16 +101,16 @@ func TestAlbumsEscGoesBack(t *testing.T) {
 
 	// Drill down to tracks.
 	m = pressEnter(m)
-	if m.browse.albums.level != albtui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.browse.albums.level)
+	if m.browse.Albums.Level != albtui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.Albums.Level)
 	}
 
 	// Back to AlbumLevel.
 	m = pressEsc(m)
-	if m.browse.albums.level != albtui.AlbumLevel {
-		t.Errorf("expected AlbumLevel after Esc, got %v", m.browse.albums.level)
+	if m.browse.Albums.Level != albtui.AlbumLevel {
+		t.Errorf("expected AlbumLevel after Esc, got %v", m.browse.Albums.Level)
 	}
-	if len(m.browse.albums.albums) == 0 {
+	if len(m.browse.Albums.Albums) == 0 {
 		t.Error("expected albums to be preserved after back from TrackLevel")
 	}
 }
@@ -125,8 +125,8 @@ func TestAlbumsEscAtAlbumLevelIsNoOp(t *testing.T) {
 	if m.activeView != viewBrowse {
 		t.Errorf("expected to remain on viewBrowse, got %d", m.activeView)
 	}
-	if m.browse.albums.level != albtui.AlbumLevel {
-		t.Errorf("expected AlbumLevel, got %v", m.browse.albums.level)
+	if m.browse.Albums.Level != albtui.AlbumLevel {
+		t.Errorf("expected AlbumLevel, got %v", m.browse.Albums.Level)
 	}
 }
 
@@ -140,8 +140,8 @@ func TestAlbumsBackRestoresCursors(t *testing.T) {
 	m = pressKey(m, "j")
 	m = pressKey(m, "j")
 	m = pressKey(m, "j")
-	if m.browse.albums.cursor != 3 {
-		t.Fatalf("expected cursor=3, got %d", m.browse.albums.cursor)
+	if m.browse.Albums.Cursor != 3 {
+		t.Fatalf("expected cursor=3, got %d", m.browse.Albums.Cursor)
 	}
 
 	// Drill down to Gamma's tracks.
@@ -149,8 +149,8 @@ func TestAlbumsBackRestoresCursors(t *testing.T) {
 
 	// Back should restore cursor=3 at AlbumLevel.
 	m = pressEsc(m)
-	if m.browse.albums.cursor != 3 {
-		t.Errorf("expected restored cursor=3 at AlbumLevel, got %d", m.browse.albums.cursor)
+	if m.browse.Albums.Cursor != 3 {
+		t.Errorf("expected restored cursor=3 at AlbumLevel, got %d", m.browse.Albums.Cursor)
 	}
 }
 
@@ -177,18 +177,18 @@ func TestAlbumsViewRenderOutput(t *testing.T) {
 func TestAlbumsViewNavigationKeys(t *testing.T) {
 	m := newModelWithTracks()
 	m = switchToAlbumsMode(m)
-	if m.browse.albums.cursor != 0 {
-		t.Fatalf("expected initial cursor=0, got %d", m.browse.albums.cursor)
+	if m.browse.Albums.Cursor != 0 {
+		t.Fatalf("expected initial cursor=0, got %d", m.browse.Albums.Cursor)
 	}
 
 	m = pressKey(m, "j")
-	if m.browse.albums.cursor != 1 {
-		t.Errorf("expected cursor=1 after j, got %d", m.browse.albums.cursor)
+	if m.browse.Albums.Cursor != 1 {
+		t.Errorf("expected cursor=1 after j, got %d", m.browse.Albums.Cursor)
 	}
 
 	m = pressKey(m, "k")
-	if m.browse.albums.cursor != 0 {
-		t.Errorf("expected cursor=0 after k, got %d", m.browse.albums.cursor)
+	if m.browse.Albums.Cursor != 0 {
+		t.Errorf("expected cursor=0 after k, got %d", m.browse.Albums.Cursor)
 	}
 }
 

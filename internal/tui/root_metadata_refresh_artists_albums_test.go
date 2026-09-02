@@ -18,18 +18,18 @@ func TestRefreshDerivedViewsUpdatesArtistsTrackLevel(t *testing.T) {
 	m = pressKey(m, "4")
 	m = pressEnter(m)
 	m = pressEnter(m)
-	if m.browse.artists.level != arttui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.browse.artists.level)
+	if m.browse.Artists.Level != arttui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.Artists.Level)
 	}
-	if len(m.browse.artists.tracks) != 2 {
-		t.Fatalf("expected 2 tracks at TrackLevel, got %d", len(m.browse.artists.tracks))
+	if len(m.browse.Artists.Tracks) != 2 {
+		t.Fatalf("expected 2 tracks at TrackLevel, got %d", len(m.browse.Artists.Tracks))
 	}
 
 	m.library.Index.UpdateMetadata("h1", "Renamed Track", "Alice", "Alpha", "")
 	m = m.refreshDerivedViews()
 
 	found := false
-	for _, tr := range m.browse.artists.tracks {
+	for _, tr := range m.browse.Artists.Tracks {
 		if tr.Hash == "h1" {
 			if tr.Title != "Renamed Track" {
 				t.Errorf("expected Title=%q, got %q", "Renamed Track", tr.Title)
@@ -49,18 +49,18 @@ func TestRefreshDerivedViewsUpdatesAlbumsTrackLevel(t *testing.T) {
 	m := newModelWithTracks()
 	m = switchToAlbumsMode(m)
 	m = pressEnter(m)
-	if m.browse.albums.level != albtui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.browse.albums.level)
+	if m.browse.Albums.Level != albtui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.Albums.Level)
 	}
-	if len(m.browse.albums.tracks) < 1 {
-		t.Fatalf("expected at least 1 track at TrackLevel, got %d", len(m.browse.albums.tracks))
+	if len(m.browse.Albums.Tracks) < 1 {
+		t.Fatalf("expected at least 1 track at TrackLevel, got %d", len(m.browse.Albums.Tracks))
 	}
 
 	m.library.Index.UpdateMetadata("h1", "Renamed Album Track", "Alice", "Alpha", "")
 	m = m.refreshDerivedViews()
 
 	found := false
-	for _, tr := range m.browse.albums.tracks {
+	for _, tr := range m.browse.Albums.Tracks {
 		if tr.Hash == "h1" {
 			if tr.Title != "Renamed Album Track" {
 				t.Errorf("expected Title=%q, got %q", "Renamed Album Track", tr.Title)
@@ -80,21 +80,21 @@ func TestRefreshDerivedViewsResortsArtistsAfterEdit(t *testing.T) {
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zebra", Title: "T1"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alpha", Title: "T2"})
 	m.library.Index.Insert(library.Track{Hash: "h3", Path: "/c.flac", Artist: "Middle", Title: "T3"})
-	m.browse.artists.artists = arttui.DeriveArtists(m.library.Index.Tracks())
-	m.browse.artists.level = arttui.ArtistLevel
-	m.browse.artists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
-	m.browse.artists = m.browse.artists.recomputeArtistsSort()
-	if len(m.browse.artists.artists) < 3 || m.browse.artists.artists[0] != "Zebra" {
-		t.Fatalf("pre-check: expected descending [Zebra, Middle, Alpha], got %v", m.browse.artists.artists)
+	m.browse.Artists.Artists = arttui.DeriveArtists(m.library.Index.Tracks())
+	m.browse.Artists.Level = arttui.ArtistLevel
+	m.browse.Artists.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
+	m.browse.Artists = m.browse.Artists.RecomputeArtistsSort()
+	if len(m.browse.Artists.Artists) < 3 || m.browse.Artists.Artists[0] != "Zebra" {
+		t.Fatalf("pre-check: expected descending [Zebra, Middle, Alpha], got %v", m.browse.Artists.Artists)
 	}
 
 	m = m.refreshDerivedViews()
 
-	if len(m.browse.artists.artists) != 3 {
-		t.Fatalf("after refresh: expected 3 artists, got %d", len(m.browse.artists.artists))
+	if len(m.browse.Artists.Artists) != 3 {
+		t.Fatalf("after refresh: expected 3 artists, got %d", len(m.browse.Artists.Artists))
 	}
-	if m.browse.artists.artists[0] != "Zebra" || m.browse.artists.artists[1] != "Middle" || m.browse.artists.artists[2] != "Alpha" {
-		t.Errorf("after refresh: expected descending [Zebra, Middle, Alpha], got %v", m.browse.artists.artists)
+	if m.browse.Artists.Artists[0] != "Zebra" || m.browse.Artists.Artists[1] != "Middle" || m.browse.Artists.Artists[2] != "Alpha" {
+		t.Errorf("after refresh: expected descending [Zebra, Middle, Alpha], got %v", m.browse.Artists.Artists)
 	}
 }
 
@@ -105,20 +105,20 @@ func TestRefreshDerivedViewsResortsAlbumsAfterEdit(t *testing.T) {
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Album: "Zen", Title: "T1"})
 	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Art", Album: "Apex", Title: "T2"})
 	m.library.Index.Insert(library.Track{Hash: "h3", Path: "/c.flac", Artist: "Art", Album: "Mid", Title: "T3"})
-	m.browse.albums.albums = albtui.DeriveAllAlbums(m.library.Index.Tracks())
-	m.browse.albums.level = albtui.AlbumLevel
-	m.browse.albums.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
-	m.browse.albums = m.browse.albums.recomputeAlbumsSort()
-	if len(m.browse.albums.albums) < 3 || m.browse.albums.albums[0] != "Zen" {
-		t.Fatalf("pre-check: expected descending [Zen, Mid, Apex], got %v", m.browse.albums.albums)
+	m.browse.Albums.Albums = albtui.DeriveAllAlbums(m.library.Index.Tracks())
+	m.browse.Albums.Level = albtui.AlbumLevel
+	m.browse.Albums.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
+	m.browse.Albums = m.browse.Albums.RecomputeAlbumsSort()
+	if len(m.browse.Albums.Albums) < 3 || m.browse.Albums.Albums[0] != "Zen" {
+		t.Fatalf("pre-check: expected descending [Zen, Mid, Apex], got %v", m.browse.Albums.Albums)
 	}
 
 	m = m.refreshDerivedViews()
 
-	if len(m.browse.albums.albums) != 3 {
-		t.Fatalf("after refresh: expected 3 albums, got %d", len(m.browse.albums.albums))
+	if len(m.browse.Albums.Albums) != 3 {
+		t.Fatalf("after refresh: expected 3 albums, got %d", len(m.browse.Albums.Albums))
 	}
-	if m.browse.albums.albums[0] != "Zen" || m.browse.albums.albums[1] != "Mid" || m.browse.albums.albums[2] != "Apex" {
-		t.Errorf("after refresh: expected descending [Zen, Mid, Apex], got %v", m.browse.albums.albums)
+	if m.browse.Albums.Albums[0] != "Zen" || m.browse.Albums.Albums[1] != "Mid" || m.browse.Albums.Albums[2] != "Apex" {
+		t.Errorf("after refresh: expected descending [Zen, Mid, Apex], got %v", m.browse.Albums.Albums)
 	}
 }

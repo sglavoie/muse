@@ -3,6 +3,7 @@ package tui
 import (
 	"log/slog"
 
+	"github.com/sglavoie/muse/internal/tui/browse"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
@@ -16,12 +17,12 @@ import (
 // based on the active browse mode so that sub-view keybindings work correctly.
 func (m Model) activeViewContext() keys.Context {
 	if m.activeView == viewBrowse {
-		switch m.browse.mode {
-		case BrowseModeArtists:
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
 			return keys.ContextArtists
-		case BrowseModeAlbums:
+		case browse.BrowseModeAlbums:
 			return keys.ContextAlbums
-		case BrowseModeGenres:
+		case browse.BrowseModeGenres:
 			return keys.ContextGenres
 		}
 	}
@@ -67,21 +68,21 @@ func (m *Model) clampAllScrollOffsets() {
 	plMaxRows := layout.VisibleRows(m.playlists.Height, plReserve)
 	m.playlists.ScrollOffset = sorting.AdjustScroll(m.playlists.Cursor, m.playlists.ScrollOffset, plMaxRows)
 
-	artReserve := artistsVisibleReserve(m.browse.artists)
-	artMaxRows := layout.VisibleRows(m.browse.artists.height, artReserve)
-	m.browse.artists.scrollOffset = sorting.AdjustScroll(m.browse.artists.cursor, m.browse.artists.scrollOffset, artMaxRows)
+	artReserve := artistsVisibleReserve(m.browse.Artists)
+	artMaxRows := layout.VisibleRows(m.browse.Artists.Height, artReserve)
+	m.browse.Artists.ScrollOffset = sorting.AdjustScroll(m.browse.Artists.Cursor, m.browse.Artists.ScrollOffset, artMaxRows)
 
-	albReserve := albumsVisibleReserve(m.browse.albums)
-	albMaxRows := layout.VisibleRows(m.browse.albums.height, albReserve)
-	m.browse.albums.scrollOffset = sorting.AdjustScroll(m.browse.albums.cursor, m.browse.albums.scrollOffset, albMaxRows)
+	albReserve := albumsVisibleReserve(m.browse.Albums)
+	albMaxRows := layout.VisibleRows(m.browse.Albums.Height, albReserve)
+	m.browse.Albums.ScrollOffset = sorting.AdjustScroll(m.browse.Albums.Cursor, m.browse.Albums.ScrollOffset, albMaxRows)
 
 	favReserve := favoritesVisibleReserve(m.favorites)
 	favMaxRows := layout.VisibleRows(m.favorites.Height, favReserve)
 	m.favorites.ScrollOffset = sorting.AdjustScroll(m.favorites.Cursor, m.favorites.ScrollOffset, favMaxRows)
 
-	genReserve := genresVisibleReserve(m.browse.genres)
-	genMaxRows := layout.VisibleRows(m.browse.genres.height, genReserve)
-	m.browse.genres.scrollOffset = sorting.AdjustScroll(m.browse.genres.cursor, m.browse.genres.scrollOffset, genMaxRows)
+	genReserve := genresVisibleReserve(m.browse.Genres)
+	genMaxRows := layout.VisibleRows(m.browse.Genres.Height, genReserve)
+	m.browse.Genres.ScrollOffset = sorting.AdjustScroll(m.browse.Genres.Cursor, m.browse.Genres.ScrollOffset, genMaxRows)
 
 	tagReserve := tagsVisibleReserve(m.tagsView)
 	tagMaxRows := layout.VisibleRows(m.tagsView.Height, tagReserve)

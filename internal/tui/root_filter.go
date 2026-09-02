@@ -3,6 +3,7 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/sglavoie/muse/internal/tui/browse"
 	"github.com/sglavoie/muse/internal/tui/filter"
 )
 
@@ -92,13 +93,13 @@ func (m Model) allFilterOps() *filterOps {
 		return makeFilterOps(&m, &m.library.Filter, &m.library.Cursor, &m.library.ScrollOffset,
 			func() { m.library = m.library.RebuildFilterCache() })
 	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			return makeFilterOps(&m, &m.browse.artists.filter, &m.browse.artists.cursor, &m.browse.artists.scrollOffset, nil)
-		case BrowseModeAlbums:
-			return makeFilterOps(&m, &m.browse.albums.filter, &m.browse.albums.cursor, &m.browse.albums.scrollOffset, nil)
-		case BrowseModeGenres:
-			return makeFilterOps(&m, &m.browse.genres.filter, &m.browse.genres.cursor, &m.browse.genres.scrollOffset, nil)
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
+			return makeFilterOps(&m, &m.browse.Artists.Filter, &m.browse.Artists.Cursor, &m.browse.Artists.ScrollOffset, nil)
+		case browse.BrowseModeAlbums:
+			return makeFilterOps(&m, &m.browse.Albums.Filter, &m.browse.Albums.Cursor, &m.browse.Albums.ScrollOffset, nil)
+		case browse.BrowseModeGenres:
+			return makeFilterOps(&m, &m.browse.Genres.Filter, &m.browse.Genres.Cursor, &m.browse.Genres.ScrollOffset, nil)
 		}
 		return nil
 	case viewQueue:

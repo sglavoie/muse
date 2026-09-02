@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 )
 
 func TestToggleFavorite_ArtistsTrackLevelBulkOpensPicker(t *testing.T) {
@@ -13,20 +14,20 @@ func TestToggleFavorite_ArtistsTrackLevelBulkOpensPicker(t *testing.T) {
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeArtists
-	m.browse.artists.level = arttui.TrackLevel
-	m.browse.artists.tracks = []library.Track{
+	m.browse.Mode = browse.BrowseModeArtists
+	m.browse.Artists.Level = arttui.TrackLevel
+	m.browse.Artists.Tracks = []library.Track{
 		{Hash: "a1", Title: "Song A"},
 		{Hash: "a2", Title: "Song B"},
 		{Hash: "a3", Title: "Song C"},
 	}
-	m.browse.artists.selectedHashes = map[string]struct{}{
+	m.browse.Artists.SelectedHashes = map[string]struct{}{
 		"a1": {},
 		"a3": {},
 	}
 
 	nm := openFavoritePickerForTest(t, m)
-	if len(nm.browse.artists.selectedHashes) != 2 {
+	if len(nm.browse.Artists.SelectedHashes) != 2 {
 		t.Fatal("opening picker should preserve selectedHashes")
 	}
 	if got := len(nm.overlay.favoriteTargetPicker.Tracks); got != 2 {
@@ -42,13 +43,13 @@ func TestToggleFavorite_ArtistsTrackLevelSingleOpensPicker(t *testing.T) {
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeArtists
-	m.browse.artists.level = arttui.TrackLevel
-	m.browse.artists.tracks = []library.Track{
+	m.browse.Mode = browse.BrowseModeArtists
+	m.browse.Artists.Level = arttui.TrackLevel
+	m.browse.Artists.Tracks = []library.Track{
 		{Hash: "a1", Title: "Song A"},
 		{Hash: "a2", Title: "Song B"},
 	}
-	m.browse.artists.cursor = 1
+	m.browse.Artists.Cursor = 1
 
 	nm := openFavoritePickerForTest(t, m)
 	if got := nm.overlay.favoriteTargetPicker.Tracks[0].Hash; got != "a2" {

@@ -20,8 +20,8 @@ func TestRenameArtistFromArtistsView(t *testing.T) {
 	m := newModelWithTracks()
 	m = pressKey(m, "4") // switch to Artists view (ArtistLevel, cursor=0 -> Alice)
 
-	if m.browse.artists.level != arttui.ArtistLevel {
-		t.Fatalf("expected ArtistLevel, got %v", m.browse.artists.level)
+	if m.browse.Artists.Level != arttui.ArtistLevel {
+		t.Fatalf("expected ArtistLevel, got %v", m.browse.Artists.Level)
 	}
 
 	m = pressMKey(m)
@@ -60,7 +60,7 @@ func TestRenameArtistFromArtistsView(t *testing.T) {
 	}
 
 	found := false
-	for _, a := range m.browse.artists.artists {
+	for _, a := range m.browse.Artists.Artists {
 		if a == "Alicia" {
 			found = true
 		}
@@ -69,14 +69,14 @@ func TestRenameArtistFromArtistsView(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("expected 'Alicia' in artists list; got: %v", m.browse.artists.artists)
+		t.Errorf("expected 'Alicia' in artists list; got: %v", m.browse.Artists.Artists)
 	}
 
-	if m.browse.artists.cursor < 0 || m.browse.artists.cursor >= len(m.browse.artists.artists) {
-		t.Fatalf("cursor out of bounds: %d (len=%d)", m.browse.artists.cursor, len(m.browse.artists.artists))
+	if m.browse.Artists.Cursor < 0 || m.browse.Artists.Cursor >= len(m.browse.Artists.Artists) {
+		t.Fatalf("cursor out of bounds: %d (len=%d)", m.browse.Artists.Cursor, len(m.browse.Artists.Artists))
 	}
-	if m.browse.artists.artists[m.browse.artists.cursor] != "Alicia" {
-		t.Errorf("expected cursor on 'Alicia', got %q", m.browse.artists.artists[m.browse.artists.cursor])
+	if m.browse.Artists.Artists[m.browse.Artists.Cursor] != "Alicia" {
+		t.Errorf("expected cursor on 'Alicia', got %q", m.browse.Artists.Artists[m.browse.Artists.Cursor])
 	}
 
 	if !strings.Contains(m.statusBar.TopNotification().Msg, "Renamed") {
@@ -91,8 +91,8 @@ func TestRenameAlbumFromArtistsView(t *testing.T) {
 	m = pressKey(m, "4")
 	m = pressEnter(m)
 
-	if m.browse.artists.level != arttui.AlbumLevel {
-		t.Fatalf("expected AlbumLevel, got %v", m.browse.artists.level)
+	if m.browse.Artists.Level != arttui.AlbumLevel {
+		t.Fatalf("expected AlbumLevel, got %v", m.browse.Artists.Level)
 	}
 
 	m = pressMKey(m)
@@ -131,20 +131,20 @@ func TestRenameAlbumFromArtistsView(t *testing.T) {
 	}
 
 	found := false
-	for _, a := range m.browse.artists.albums {
+	for _, a := range m.browse.Artists.Albums {
 		if a == "AlphaRenamed" {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("expected 'AlphaRenamed' in artists.albums; got: %v", m.browse.artists.albums)
+		t.Errorf("expected 'AlphaRenamed' in artists.albums; got: %v", m.browse.Artists.Albums)
 	}
 
-	if m.browse.artists.cursor < 0 || m.browse.artists.cursor >= len(m.browse.artists.albums) {
-		t.Fatalf("cursor out of bounds: %d (len=%d)", m.browse.artists.cursor, len(m.browse.artists.albums))
+	if m.browse.Artists.Cursor < 0 || m.browse.Artists.Cursor >= len(m.browse.Artists.Albums) {
+		t.Fatalf("cursor out of bounds: %d (len=%d)", m.browse.Artists.Cursor, len(m.browse.Artists.Albums))
 	}
-	if m.browse.artists.albums[m.browse.artists.cursor] != "AlphaRenamed" {
-		t.Errorf("expected cursor on 'AlphaRenamed', got %q", m.browse.artists.albums[m.browse.artists.cursor])
+	if m.browse.Artists.Albums[m.browse.Artists.Cursor] != "AlphaRenamed" {
+		t.Errorf("expected cursor on 'AlphaRenamed', got %q", m.browse.Artists.Albums[m.browse.Artists.Cursor])
 	}
 }
 
@@ -157,8 +157,8 @@ func TestRenameAlbumFromAlbumsView(t *testing.T) {
 	if m.activeView != viewBrowse {
 		t.Fatalf("expected viewBrowse, got %d", m.activeView)
 	}
-	if m.browse.albums.level != albtui.AlbumLevel {
-		t.Fatalf("expected AlbumLevel, got %v", m.browse.albums.level)
+	if m.browse.Albums.Level != albtui.AlbumLevel {
+		t.Fatalf("expected AlbumLevel, got %v", m.browse.Albums.Level)
 	}
 
 	m = pressMKey(m)
@@ -193,7 +193,7 @@ func TestRenameAlbumFromAlbumsView(t *testing.T) {
 	}
 
 	found := false
-	for _, a := range m.browse.albums.albums {
+	for _, a := range m.browse.Albums.Albums {
 		if a == "AlphaPrime" {
 			found = true
 		}
@@ -202,14 +202,14 @@ func TestRenameAlbumFromAlbumsView(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("expected 'AlphaPrime' in albums.albums; got: %v", m.browse.albums.albums)
+		t.Errorf("expected 'AlphaPrime' in albums.albums; got: %v", m.browse.Albums.Albums)
 	}
 
-	if m.browse.albums.cursor < 0 || m.browse.albums.cursor >= len(m.browse.albums.albums) {
-		t.Fatalf("cursor out of bounds: %d (len=%d)", m.browse.albums.cursor, len(m.browse.albums.albums))
+	if m.browse.Albums.Cursor < 0 || m.browse.Albums.Cursor >= len(m.browse.Albums.Albums) {
+		t.Fatalf("cursor out of bounds: %d (len=%d)", m.browse.Albums.Cursor, len(m.browse.Albums.Albums))
 	}
-	if m.browse.albums.albums[m.browse.albums.cursor] != "AlphaPrime" {
-		t.Errorf("expected cursor on 'AlphaPrime', got %q", m.browse.albums.albums[m.browse.albums.cursor])
+	if m.browse.Albums.Albums[m.browse.Albums.Cursor] != "AlphaPrime" {
+		t.Errorf("expected cursor on 'AlphaPrime', got %q", m.browse.Albums.Albums[m.browse.Albums.Cursor])
 	}
 }
 
@@ -323,7 +323,7 @@ func TestRenameUndo(t *testing.T) {
 	}
 
 	foundAlice := false
-	for _, a := range m.browse.artists.artists {
+	for _, a := range m.browse.Artists.Artists {
 		if a == "Alice" {
 			foundAlice = true
 		}
@@ -332,7 +332,7 @@ func TestRenameUndo(t *testing.T) {
 		}
 	}
 	if !foundAlice {
-		t.Errorf("after undo: expected 'Alice' in artists list; got: %v", m.browse.artists.artists)
+		t.Errorf("after undo: expected 'Alice' in artists list; got: %v", m.browse.Artists.Artists)
 	}
 }
 
@@ -365,8 +365,8 @@ func TestRenameNotOpenedAtTrackLevel(t *testing.T) {
 	m = pressEnter(m)
 	m = pressEnter(m)
 
-	if m.browse.artists.level != arttui.TrackLevel {
-		t.Fatalf("expected TrackLevel, got %v", m.browse.artists.level)
+	if m.browse.Artists.Level != arttui.TrackLevel {
+		t.Fatalf("expected TrackLevel, got %v", m.browse.Artists.Level)
 	}
 
 	m = pressMKey(m)
@@ -390,17 +390,17 @@ func TestRenameUnknownArtistSentinel(t *testing.T) {
 	m = pressKey(m, "4")
 
 	unknownIdx := -1
-	for i, a := range m.browse.artists.artists {
+	for i, a := range m.browse.Artists.Artists {
 		if a == arttui.UnknownArtist {
 			unknownIdx = i
 			break
 		}
 	}
 	if unknownIdx == -1 {
-		t.Fatalf("expected %q in artists list; got: %v", arttui.UnknownArtist, m.browse.artists.artists)
+		t.Fatalf("expected %q in artists list; got: %v", arttui.UnknownArtist, m.browse.Artists.Artists)
 	}
 
-	m.browse.artists.cursor = unknownIdx
+	m.browse.Artists.Cursor = unknownIdx
 
 	m = pressMKey(m)
 	if m.overlay.metadataEditor == nil {

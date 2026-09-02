@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
@@ -155,10 +156,10 @@ func (m Model) handleNavigateLibraryModeMsg(msg navigateLibraryModeMsg) (Model, 
 // sub-views intentionally retain their own cursor, filter, and drill-down
 // state, matching navigation via the mode-cycle keys.
 func (m Model) handleNavigateBrowseModeMsg(msg navigateBrowseModeMsg) (Model, tea.Cmd) {
-	if msg.mode > BrowseModeGenres {
+	if msg.mode > browse.BrowseModeGenres {
 		return m, nil
 	}
-	m.browse.mode = msg.mode
+	m.browse.Mode = msg.mode
 	m = m.switchToView(viewBrowse)
 	return m, nil
 }
@@ -167,17 +168,17 @@ func (m Model) handleNavigateBrowseModeMsg(msg navigateBrowseModeMsg) (Model, te
 // on a randomly-chosen album. Any active filter is cleared first so the random
 // index always refers to a visible row.
 func (m Model) handleRandomAlbumMsg() (Model, tea.Cmd) {
-	m.browse.mode = BrowseModeAlbums
+	m.browse.Mode = browse.BrowseModeAlbums
 	m = m.switchToView(viewBrowse)
-	m.browse.albums.filter = filter.State{}
-	if len(m.browse.albums.albums) == 0 {
+	m.browse.Albums.Filter = filter.State{}
+	if len(m.browse.Albums.Albums) == 0 {
 		m.statusBar.Notify("Library is empty")
 		return m, nil
 	}
-	idx := rand.IntN(len(m.browse.albums.albums)) //nolint:gosec // non-security random for UI navigation
-	m.browse.albums.cursor = idx
-	m.browse.albums.scrollOffset = max(0, idx-m.browse.albums.height/2)
-	m.browse.albums = m.browse.albums.clampCursor()
+	idx := rand.IntN(len(m.browse.Albums.Albums)) //nolint:gosec // non-security random for UI navigation
+	m.browse.Albums.Cursor = idx
+	m.browse.Albums.ScrollOffset = max(0, idx-m.browse.Albums.Height/2)
+	m.browse.Albums = m.browse.Albums.ClampCursor()
 	return m, nil
 }
 
@@ -185,17 +186,17 @@ func (m Model) handleRandomAlbumMsg() (Model, tea.Cmd) {
 // on a randomly-chosen artist. Any active filter is cleared first so the random
 // index always refers to a visible row.
 func (m Model) handleRandomArtistMsg() (Model, tea.Cmd) {
-	m.browse.mode = BrowseModeArtists
+	m.browse.Mode = browse.BrowseModeArtists
 	m = m.switchToView(viewBrowse)
-	m.browse.artists.filter = filter.State{}
-	if len(m.browse.artists.artists) == 0 {
+	m.browse.Artists.Filter = filter.State{}
+	if len(m.browse.Artists.Artists) == 0 {
 		m.statusBar.Notify("Library is empty")
 		return m, nil
 	}
-	idx := rand.IntN(len(m.browse.artists.artists)) //nolint:gosec // non-security random for UI navigation
-	m.browse.artists.cursor = idx
-	m.browse.artists.scrollOffset = max(0, idx-m.browse.artists.height/2)
-	m.browse.artists = m.browse.artists.clampCursor()
+	idx := rand.IntN(len(m.browse.Artists.Artists)) //nolint:gosec // non-security random for UI navigation
+	m.browse.Artists.Cursor = idx
+	m.browse.Artists.ScrollOffset = max(0, idx-m.browse.Artists.Height/2)
+	m.browse.Artists = m.browse.Artists.ClampCursor()
 	return m, nil
 }
 

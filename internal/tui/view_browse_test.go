@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 )
 
@@ -15,24 +16,24 @@ import (
 func TestBrowseModeNext_Cycles(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeArtists
+	m.browse.Mode = browse.BrowseModeArtists
 
 	// Artists → Albums
 	m, _ = m.handleBrowseModeNext()
-	if m.browse.mode != BrowseModeAlbums {
-		t.Errorf("want BrowseModeAlbums after first next, got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeAlbums {
+		t.Errorf("want BrowseModeAlbums after first next, got %v", m.browse.Mode)
 	}
 
 	// Albums → Genres
 	m, _ = m.handleBrowseModeNext()
-	if m.browse.mode != BrowseModeGenres {
-		t.Errorf("want BrowseModeGenres after second next, got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeGenres {
+		t.Errorf("want BrowseModeGenres after second next, got %v", m.browse.Mode)
 	}
 
 	// Genres → Artists (wrap around)
 	m, _ = m.handleBrowseModeNext()
-	if m.browse.mode != BrowseModeArtists {
-		t.Errorf("want BrowseModeArtists after third next (wrap), got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeArtists {
+		t.Errorf("want BrowseModeArtists after third next (wrap), got %v", m.browse.Mode)
 	}
 }
 
@@ -41,24 +42,24 @@ func TestBrowseModeNext_Cycles(t *testing.T) {
 func TestBrowseModePrev_Cycles(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeArtists
+	m.browse.Mode = browse.BrowseModeArtists
 
 	// Artists → Genres (backward)
 	m, _ = m.handleBrowseModePrev()
-	if m.browse.mode != BrowseModeGenres {
-		t.Errorf("want BrowseModeGenres after first prev, got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeGenres {
+		t.Errorf("want BrowseModeGenres after first prev, got %v", m.browse.Mode)
 	}
 
 	// Genres → Albums (backward)
 	m, _ = m.handleBrowseModePrev()
-	if m.browse.mode != BrowseModeAlbums {
-		t.Errorf("want BrowseModeAlbums after second prev, got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeAlbums {
+		t.Errorf("want BrowseModeAlbums after second prev, got %v", m.browse.Mode)
 	}
 
 	// Albums → Artists (backward)
 	m, _ = m.handleBrowseModePrev()
-	if m.browse.mode != BrowseModeArtists {
-		t.Errorf("want BrowseModeArtists after third prev (wrap), got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeArtists {
+		t.Errorf("want BrowseModeArtists after third prev (wrap), got %v", m.browse.Mode)
 	}
 }
 
@@ -67,7 +68,7 @@ func TestBrowseModePrev_Cycles(t *testing.T) {
 func TestBrowseModeNext_ActiveViewRemainsBrowse(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeArtists
+	m.browse.Mode = browse.BrowseModeArtists
 
 	for i := 0; i < 3; i++ {
 		m, _ = m.handleBrowseModeNext()
@@ -82,7 +83,7 @@ func TestBrowseModeNext_ActiveViewRemainsBrowse(t *testing.T) {
 func TestBrowseModePrev_ActiveViewRemainsBrowse(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeArtists
+	m.browse.Mode = browse.BrowseModeArtists
 
 	for i := 0; i < 3; i++ {
 		m, _ = m.handleBrowseModePrev()
@@ -99,15 +100,15 @@ func TestBrowseMode_ViewDisplayName(t *testing.T) {
 	m.activeView = viewBrowse
 
 	cases := []struct {
-		mode BrowseMode
+		mode browse.BrowseMode
 		want string
 	}{
-		{BrowseModeArtists, "Browse (Artists)"},
-		{BrowseModeAlbums, "Browse (Albums)"},
-		{BrowseModeGenres, "Browse (Genres)"},
+		{browse.BrowseModeArtists, "Browse (Artists)"},
+		{browse.BrowseModeAlbums, "Browse (Albums)"},
+		{browse.BrowseModeGenres, "Browse (Genres)"},
 	}
 	for _, tc := range cases {
-		m.browse.mode = tc.mode
+		m.browse.Mode = tc.mode
 		got := m.viewDisplayName(viewBrowse)
 		if got != tc.want {
 			t.Errorf("mode %v: want %q, got %q", tc.mode, tc.want, got)
@@ -125,38 +126,38 @@ func TestBrowseMode_StatePreservedOnSwitch(t *testing.T) {
 	}
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeArtists
-	m.browse.artists.artists = arttui.DeriveArtists(m.library.Index.Tracks())
-	m.browse.artists.cursor = 2
-	m.browse.artists.scrollOffset = 1
+	m.browse.Mode = browse.BrowseModeArtists
+	m.browse.Artists.Artists = arttui.DeriveArtists(m.library.Index.Tracks())
+	m.browse.Artists.Cursor = 2
+	m.browse.Artists.ScrollOffset = 1
 
 	// Switch to Albums
 	m, _ = m.handleBrowseModeNext()
-	if m.browse.mode != BrowseModeAlbums {
-		t.Fatalf("expected BrowseModeAlbums, got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeAlbums {
+		t.Fatalf("expected BrowseModeAlbums, got %v", m.browse.Mode)
 	}
 
 	// Artists state should be unchanged
-	if m.browse.artists.cursor != 2 {
-		t.Errorf("artists cursor should be preserved: want 2, got %d", m.browse.artists.cursor)
+	if m.browse.Artists.Cursor != 2 {
+		t.Errorf("artists cursor should be preserved: want 2, got %d", m.browse.Artists.Cursor)
 	}
-	if m.browse.artists.scrollOffset != 1 {
-		t.Errorf("artists scrollOffset should be preserved: want 1, got %d", m.browse.artists.scrollOffset)
+	if m.browse.Artists.ScrollOffset != 1 {
+		t.Errorf("artists scrollOffset should be preserved: want 1, got %d", m.browse.Artists.ScrollOffset)
 	}
 
 	// Switch back to Artists (go forward twice: Albums→Genres→Artists)
 	m, _ = m.handleBrowseModeNext()
 	m, _ = m.handleBrowseModeNext()
-	if m.browse.mode != BrowseModeArtists {
-		t.Fatalf("expected BrowseModeArtists after cycling back, got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeArtists {
+		t.Fatalf("expected BrowseModeArtists after cycling back, got %v", m.browse.Mode)
 	}
 
 	// Artists cursor and scroll should still be at the saved values
-	if m.browse.artists.cursor != 2 {
-		t.Errorf("artists cursor after return: want 2, got %d", m.browse.artists.cursor)
+	if m.browse.Artists.Cursor != 2 {
+		t.Errorf("artists cursor after return: want 2, got %d", m.browse.Artists.Cursor)
 	}
-	if m.browse.artists.scrollOffset != 1 {
-		t.Errorf("artists scrollOffset after return: want 1, got %d", m.browse.artists.scrollOffset)
+	if m.browse.Artists.ScrollOffset != 1 {
+		t.Errorf("artists scrollOffset after return: want 1, got %d", m.browse.Artists.ScrollOffset)
 	}
 }
 
@@ -169,20 +170,20 @@ func TestBrowseMode_AlbumsCursorPreservedOnSwitch(t *testing.T) {
 	}
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeAlbums
-	m.browse.albums.albums = albtui.DeriveAllAlbums(m.library.Index.Tracks())
-	m.browse.albums.cursor = 1
-	m.browse.albums.scrollOffset = 0
+	m.browse.Mode = browse.BrowseModeAlbums
+	m.browse.Albums.Albums = albtui.DeriveAllAlbums(m.library.Index.Tracks())
+	m.browse.Albums.Cursor = 1
+	m.browse.Albums.ScrollOffset = 0
 
 	// Switch away to Genres
 	m, _ = m.handleBrowseModeNext()
-	if m.browse.mode != BrowseModeGenres {
-		t.Fatalf("expected BrowseModeGenres, got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeGenres {
+		t.Fatalf("expected BrowseModeGenres, got %v", m.browse.Mode)
 	}
 
 	// Albums cursor should be preserved
-	if m.browse.albums.cursor != 1 {
-		t.Errorf("albums cursor preserved: want 1, got %d", m.browse.albums.cursor)
+	if m.browse.Albums.Cursor != 1 {
+		t.Errorf("albums cursor preserved: want 1, got %d", m.browse.Albums.Cursor)
 	}
 }
 
@@ -195,19 +196,19 @@ func TestBrowseMode_GenresCursorPreservedOnSwitch(t *testing.T) {
 	}
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeGenres
-	m.browse.genres.genres = gentui.DeriveGenres(m.library.Index.Tracks())
-	m.browse.genres.cursor = 1
-	m.browse.genres.scrollOffset = 0
+	m.browse.Mode = browse.BrowseModeGenres
+	m.browse.Genres.Genres = gentui.DeriveGenres(m.library.Index.Tracks())
+	m.browse.Genres.Cursor = 1
+	m.browse.Genres.ScrollOffset = 0
 
 	// Switch away to Artists
 	m, _ = m.handleBrowseModeNext()
-	if m.browse.mode != BrowseModeArtists {
-		t.Fatalf("expected BrowseModeArtists, got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeArtists {
+		t.Fatalf("expected BrowseModeArtists, got %v", m.browse.Mode)
 	}
 
 	// Genres cursor should be preserved
-	if m.browse.genres.cursor != 1 {
-		t.Errorf("genres cursor preserved: want 1, got %d", m.browse.genres.cursor)
+	if m.browse.Genres.Cursor != 1 {
+		t.Errorf("genres cursor preserved: want 1, got %d", m.browse.Genres.Cursor)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 )
 
@@ -18,10 +19,10 @@ func TestToggleFavorite_GenresArtistLevel(t *testing.T) {
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeGenres
-	m.browse.genres.level = gentui.ArtistLevel
-	m.browse.genres.artists = []string{"Bach", "Coltrane", "Davis"}
-	m.browse.genres.cursor = 1
+	m.browse.Mode = browse.BrowseModeGenres
+	m.browse.Genres.Level = gentui.ArtistLevel
+	m.browse.Genres.Artists = []string{"Bach", "Coltrane", "Davis"}
+	m.browse.Genres.Cursor = 1
 
 	_, cmd, handled := m.handleToggleFavorite()
 	if !handled {
@@ -55,13 +56,13 @@ func TestToggleFavorite_GenresTrackLevelSingleOpensPicker(t *testing.T) {
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeGenres
-	m.browse.genres.level = gentui.TrackLevel
-	m.browse.genres.tracks = []library.Track{
+	m.browse.Mode = browse.BrowseModeGenres
+	m.browse.Genres.Level = gentui.TrackLevel
+	m.browse.Genres.Tracks = []library.Track{
 		{Hash: "h1", Title: "Song A"},
 		{Hash: "h2", Title: "Song B"},
 	}
-	m.browse.genres.cursor = 0
+	m.browse.Genres.Cursor = 0
 
 	nm := openFavoritePickerForTest(t, m)
 	if got := nm.overlay.favoriteTargetPicker.Tracks[0].Hash; got != "h1" {
@@ -79,20 +80,20 @@ func TestToggleFavorite_GenresTrackLevelBulkOpensPicker(t *testing.T) {
 	}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeGenres
-	m.browse.genres.level = gentui.TrackLevel
-	m.browse.genres.tracks = []library.Track{
+	m.browse.Mode = browse.BrowseModeGenres
+	m.browse.Genres.Level = gentui.TrackLevel
+	m.browse.Genres.Tracks = []library.Track{
 		{Hash: "h1", Title: "Song A"},
 		{Hash: "h2", Title: "Song B"},
 		{Hash: "h3", Title: "Song C"},
 	}
-	m.browse.genres.selectedHashes = map[string]struct{}{
+	m.browse.Genres.SelectedHashes = map[string]struct{}{
 		"h1": {},
 		"h3": {},
 	}
 
 	nm := openFavoritePickerForTest(t, m)
-	if len(nm.browse.genres.selectedHashes) != 2 {
+	if len(nm.browse.Genres.SelectedHashes) != 2 {
 		t.Fatal("opening picker should preserve selectedHashes")
 	}
 	if got := len(nm.overlay.favoriteTargetPicker.Tracks); got != 2 {
@@ -110,10 +111,10 @@ func TestToggleFavorite_GenresGenreLevelNoop(t *testing.T) {
 	r := &stubFavoriteReader{favorites: map[string][]string{}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
 	m.activeView = viewBrowse
-	m.browse.mode = BrowseModeGenres
-	m.browse.genres.level = gentui.GenreLevel
-	m.browse.genres.genres = []string{"Jazz", "Rock"}
-	m.browse.genres.cursor = 0
+	m.browse.Mode = browse.BrowseModeGenres
+	m.browse.Genres.Level = gentui.GenreLevel
+	m.browse.Genres.Genres = []string{"Jazz", "Rock"}
+	m.browse.Genres.Cursor = 0
 
 	_, cmd, handled := m.handleToggleFavorite()
 	if !handled {

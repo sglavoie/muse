@@ -3,6 +3,7 @@ package tui
 import (
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
@@ -34,8 +35,8 @@ func drilldownVisibleReserve(isTopLevel, filterActive, hasSort bool) int {
 	return reserve
 }
 
-func artistsVisibleReserve(v ArtistsView) int {
-	switch v.level {
+func artistsVisibleReserve(v browse.ArtistsView) int {
+	switch v.Level {
 	case arttui.AlbumLevel:
 		return 2
 	case arttui.TrackLevel:
@@ -45,8 +46,8 @@ func artistsVisibleReserve(v ArtistsView) int {
 	}
 }
 
-func albumsVisibleReserve(v AlbumsView) int {
-	if v.level == albtui.TrackLevel {
+func albumsVisibleReserve(v browse.AlbumsView) int {
+	if v.Level == albtui.TrackLevel {
 		return 3
 	}
 	return 1
@@ -69,8 +70,8 @@ func favoritesVisibleReserve(v favtui.FavoritesView) int {
 	return reserve
 }
 
-func genresVisibleReserve(v GenresView) int {
-	switch v.level {
+func genresVisibleReserve(v browse.GenresView) int {
+	switch v.Level {
 	case gentui.ArtistLevel:
 		return 2
 	case gentui.TrackLevel:

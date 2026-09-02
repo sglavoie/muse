@@ -1,69 +1,73 @@
 package tui
 
+import (
+	"github.com/sglavoie/muse/internal/tui/browse"
+)
+
 import "github.com/sglavoie/muse/internal/tui/sorting"
 
 func (m Model) shiftBrowseSortDir(dir sorting.SortDir) (Model, sorting.SortState, bool) {
-	switch m.browse.mode {
-	case BrowseModeArtists:
-		if m.browse.artists.sortState.Field == sorting.SortDefault {
+	switch m.browse.Mode {
+	case browse.BrowseModeArtists:
+		if m.browse.Artists.SortState.Field == sorting.SortDefault {
 			return m, sorting.SortState{}, false
 		}
 		m = m.preserveArtistsCursorOnDirChange(dir)
-		return m, m.browse.artists.sortState, true
-	case BrowseModeAlbums:
-		if m.browse.albums.sortState.Field == sorting.SortDefault {
+		return m, m.browse.Artists.SortState, true
+	case browse.BrowseModeAlbums:
+		if m.browse.Albums.SortState.Field == sorting.SortDefault {
 			return m, sorting.SortState{}, false
 		}
 		m = m.preserveAlbumsCursorOnDirChange(dir)
-		return m, m.browse.albums.sortState, true
-	case BrowseModeGenres:
-		if m.browse.genres.sortState.Field == sorting.SortDefault {
+		return m, m.browse.Albums.SortState, true
+	case browse.BrowseModeGenres:
+		if m.browse.Genres.SortState.Field == sorting.SortDefault {
 			return m, sorting.SortState{}, false
 		}
 		m = m.preserveGenresCursorOnDirChange(dir)
-		return m, m.browse.genres.sortState, true
+		return m, m.browse.Genres.SortState, true
 	}
 	return m, sorting.SortState{}, false
 }
 
 func (m Model) cycleBrowseSortField() (Model, sorting.SortState, bool) {
-	switch m.browse.mode {
-	case BrowseModeArtists:
-		fields := artistsSortFieldsForLevel(m.browse.artists.level)
-		next := sorting.CycleSortField(m.browse.artists.sortState.Field, fields)
-		m.browse.artists.sortState.Field = next
+	switch m.browse.Mode {
+	case browse.BrowseModeArtists:
+		fields := artistsSortFieldsForLevel(m.browse.Artists.Level)
+		next := sorting.CycleSortField(m.browse.Artists.SortState.Field, fields)
+		m.browse.Artists.SortState.Field = next
 		if next == sorting.SortDefault {
-			m.browse.artists.sortState.Dir = sorting.SortAsc
+			m.browse.Artists.SortState.Dir = sorting.SortAsc
 			m = m.rederiveArtistsData()
 		}
-		m.browse.artists = m.browse.artists.recomputeArtistsSort()
-		m.browse.artists.cursor = 0
-		m.browse.artists.scrollOffset = 0
-		return m, m.browse.artists.sortState, true
-	case BrowseModeAlbums:
-		fields := albumsSortFieldsForLevel(m.browse.albums.level)
-		next := sorting.CycleSortField(m.browse.albums.sortState.Field, fields)
-		m.browse.albums.sortState.Field = next
+		m.browse.Artists = m.browse.Artists.RecomputeArtistsSort()
+		m.browse.Artists.Cursor = 0
+		m.browse.Artists.ScrollOffset = 0
+		return m, m.browse.Artists.SortState, true
+	case browse.BrowseModeAlbums:
+		fields := albumsSortFieldsForLevel(m.browse.Albums.Level)
+		next := sorting.CycleSortField(m.browse.Albums.SortState.Field, fields)
+		m.browse.Albums.SortState.Field = next
 		if next == sorting.SortDefault {
-			m.browse.albums.sortState.Dir = sorting.SortAsc
+			m.browse.Albums.SortState.Dir = sorting.SortAsc
 			m = m.rederiveAlbumsData()
 		}
-		m.browse.albums = m.browse.albums.recomputeAlbumsSort()
-		m.browse.albums.cursor = 0
-		m.browse.albums.scrollOffset = 0
-		return m, m.browse.albums.sortState, true
-	case BrowseModeGenres:
-		fields := genresSortFieldsForLevel(m.browse.genres.level)
-		next := sorting.CycleSortField(m.browse.genres.sortState.Field, fields)
-		m.browse.genres.sortState.Field = next
+		m.browse.Albums = m.browse.Albums.RecomputeAlbumsSort()
+		m.browse.Albums.Cursor = 0
+		m.browse.Albums.ScrollOffset = 0
+		return m, m.browse.Albums.SortState, true
+	case browse.BrowseModeGenres:
+		fields := genresSortFieldsForLevel(m.browse.Genres.Level)
+		next := sorting.CycleSortField(m.browse.Genres.SortState.Field, fields)
+		m.browse.Genres.SortState.Field = next
 		if next == sorting.SortDefault {
-			m.browse.genres.sortState.Dir = sorting.SortAsc
+			m.browse.Genres.SortState.Dir = sorting.SortAsc
 			m = m.rederiveGenresData()
 		}
-		m.browse.genres = m.browse.genres.recomputeGenresSort()
-		m.browse.genres.cursor = 0
-		m.browse.genres.scrollOffset = 0
-		return m, m.browse.genres.sortState, true
+		m.browse.Genres = m.browse.Genres.RecomputeGenresSort()
+		m.browse.Genres.Cursor = 0
+		m.browse.Genres.ScrollOffset = 0
+		return m, m.browse.Genres.SortState, true
 	}
 	return m, sorting.SortState{}, false
 }

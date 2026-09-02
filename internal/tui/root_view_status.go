@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/sglavoie/muse/internal/tui/browse"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/sorting"
@@ -52,13 +53,13 @@ func (m Model) activeViewSelectionCount() int {
 	case viewQueue:
 		return len(m.queue.SelectedHashes())
 	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			return len(m.browse.artists.selectedHashes)
-		case BrowseModeAlbums:
-			return len(m.browse.albums.selectedHashes)
-		case BrowseModeGenres:
-			return len(m.browse.genres.selectedHashes)
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
+			return len(m.browse.Artists.SelectedHashes)
+		case browse.BrowseModeAlbums:
+			return len(m.browse.Albums.SelectedHashes)
+		case browse.BrowseModeGenres:
+			return len(m.browse.Genres.SelectedHashes)
 		}
 	case viewFavorites:
 		return len(m.favorites.SelectedItems)
@@ -107,13 +108,13 @@ func (m Model) hasCommittedFilter() bool {
 	case viewQueue:
 		return committed(m.queue.Filter.Text, m.queue.Filter.Active)
 	case viewBrowse:
-		switch m.browse.mode {
-		case BrowseModeArtists:
-			return committed(m.browse.artists.filter.Text, m.browse.artists.filter.Active)
-		case BrowseModeAlbums:
-			return committed(m.browse.albums.filter.Text, m.browse.albums.filter.Active)
-		case BrowseModeGenres:
-			return committed(m.browse.genres.filter.Text, m.browse.genres.filter.Active)
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
+			return committed(m.browse.Artists.Filter.Text, m.browse.Artists.Filter.Active)
+		case browse.BrowseModeAlbums:
+			return committed(m.browse.Albums.Filter.Text, m.browse.Albums.Filter.Active)
+		case browse.BrowseModeGenres:
+			return committed(m.browse.Genres.Filter.Text, m.browse.Genres.Filter.Active)
 		}
 	case viewFavorites:
 		return committed(m.favorites.Filter.Text, m.favorites.Filter.Active)

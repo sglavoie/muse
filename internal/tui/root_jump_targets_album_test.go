@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
 )
 
 // TestJumpToAlbum verifies that jumpToAlbum switches to the Albums view with
@@ -20,20 +21,20 @@ func TestJumpToAlbum(t *testing.T) {
 	if m.activeView != viewBrowse {
 		t.Errorf("activeView: want viewBrowse(%d), got %d", viewBrowse, m.activeView)
 	}
-	if m.browse.mode != BrowseModeAlbums {
-		t.Errorf("browse.mode: want BrowseModeAlbums, got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeAlbums {
+		t.Errorf("browse.mode: want BrowseModeAlbums, got %v", m.browse.Mode)
 	}
-	if m.browse.albums.level != albtui.AlbumLevel {
-		t.Errorf("level: want AlbumLevel, got %v", m.browse.albums.level)
+	if m.browse.Albums.Level != albtui.AlbumLevel {
+		t.Errorf("level: want AlbumLevel, got %v", m.browse.Albums.Level)
 	}
-	if m.browse.albums.cursor != 3 {
-		t.Errorf("cursor: want 3 (Gamma), got %d", m.browse.albums.cursor)
+	if m.browse.Albums.Cursor != 3 {
+		t.Errorf("cursor: want 3 (Gamma), got %d", m.browse.Albums.Cursor)
 	}
-	if len(m.browse.albums.albums) != 4 {
-		t.Errorf("albums list: want 4, got %d", len(m.browse.albums.albums))
+	if len(m.browse.Albums.Albums) != 4 {
+		t.Errorf("albums list: want 4, got %d", len(m.browse.Albums.Albums))
 	}
-	if m.browse.albums.albums[3] != "Gamma" {
-		t.Errorf("albums[3]: want %q, got %q", "Gamma", m.browse.albums.albums[3])
+	if m.browse.Albums.Albums[3] != "Gamma" {
+		t.Errorf("albums[3]: want %q, got %q", "Gamma", m.browse.Albums.Albums[3])
 	}
 }
 
@@ -42,8 +43,8 @@ func TestJumpToAlbum_First(t *testing.T) {
 	m := newModelWithTracks()
 	m = m.jumpToAlbum("Alpha")
 
-	if m.browse.albums.cursor != 0 {
-		t.Errorf("cursor: want 0 (Alpha), got %d", m.browse.albums.cursor)
+	if m.browse.Albums.Cursor != 0 {
+		t.Errorf("cursor: want 0 (Alpha), got %d", m.browse.Albums.Cursor)
 	}
 }
 
@@ -73,14 +74,14 @@ func TestJumpToAlbum_UnknownAlbum(t *testing.T) {
 	if m.activeView != viewBrowse {
 		t.Errorf("activeView: want viewBrowse, got %d", m.activeView)
 	}
-	if m.browse.mode != BrowseModeAlbums {
-		t.Errorf("browse.mode: want BrowseModeAlbums, got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeAlbums {
+		t.Errorf("browse.mode: want BrowseModeAlbums, got %v", m.browse.Mode)
 	}
-	if m.browse.albums.cursor != 1 {
-		t.Errorf("cursor: want 1 (%s), got %d", arttui.UnknownAlbum, m.browse.albums.cursor)
+	if m.browse.Albums.Cursor != 1 {
+		t.Errorf("cursor: want 1 (%s), got %d", arttui.UnknownAlbum, m.browse.Albums.Cursor)
 	}
-	if len(m.browse.albums.albums) < 2 || m.browse.albums.albums[1] != arttui.UnknownAlbum {
-		t.Errorf("albums[1]: want %q, got %q", arttui.UnknownAlbum, m.browse.albums.albums[1])
+	if len(m.browse.Albums.Albums) < 2 || m.browse.Albums.Albums[1] != arttui.UnknownAlbum {
+		t.Errorf("albums[1]: want %q, got %q", arttui.UnknownAlbum, m.browse.Albums.Albums[1])
 	}
 }
 
@@ -97,16 +98,16 @@ func TestJumpToAlbum_CentersScroll(t *testing.T) {
 		}
 	}
 	m := New(context.Background(), WithLibraryTracks(tracks))
-	m.browse.albums.height = 10
+	m.browse.Albums.Height = 10
 
 	m = m.jumpToAlbum("Album15")
 
-	if m.browse.albums.cursor != 15 {
-		t.Errorf("cursor: want 15, got %d", m.browse.albums.cursor)
+	if m.browse.Albums.Cursor != 15 {
+		t.Errorf("cursor: want 15, got %d", m.browse.Albums.Cursor)
 	}
-	wantScroll := max(0, 15-m.browse.albums.height/2)
-	if m.browse.albums.scrollOffset != wantScroll {
-		t.Errorf("scrollOffset: want %d, got %d", wantScroll, m.browse.albums.scrollOffset)
+	wantScroll := max(0, 15-m.browse.Albums.Height/2)
+	if m.browse.Albums.ScrollOffset != wantScroll {
+		t.Errorf("scrollOffset: want %d, got %d", wantScroll, m.browse.Albums.ScrollOffset)
 	}
 }
 
@@ -136,10 +137,10 @@ func TestJumpToAlbum_EmptyAlbumViaAction(t *testing.T) {
 	if m.activeView != viewBrowse {
 		t.Errorf("activeView: want viewBrowse, got %d", m.activeView)
 	}
-	if m.browse.mode != BrowseModeAlbums {
-		t.Errorf("browse.mode: want BrowseModeAlbums, got %v", m.browse.mode)
+	if m.browse.Mode != browse.BrowseModeAlbums {
+		t.Errorf("browse.mode: want BrowseModeAlbums, got %v", m.browse.Mode)
 	}
-	if m.browse.albums.albums[m.browse.albums.cursor] != arttui.UnknownAlbum {
-		t.Errorf("cursor on %q, want %q", m.browse.albums.albums[m.browse.albums.cursor], arttui.UnknownAlbum)
+	if m.browse.Albums.Albums[m.browse.Albums.Cursor] != arttui.UnknownAlbum {
+		t.Errorf("cursor on %q, want %q", m.browse.Albums.Albums[m.browse.Albums.Cursor], arttui.UnknownAlbum)
 	}
 }
