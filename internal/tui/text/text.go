@@ -336,3 +336,11 @@ func RowLabelWidthAndCount(width int, counts map[string]int, name string) (int, 
 	}
 	return width - 1 - CountColWidth, FormatCountSuffix(counts[name])
 }
+
+// Pluralize returns singular when n == 1, plural otherwise.
+func Pluralize(n int, singular, plural string) string {
+	if n == 1 {
+		return singular
+	}
+	return plural
+}

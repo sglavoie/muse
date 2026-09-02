@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // handleMixOpen drills into the track list for the focused mix.
@@ -131,6 +132,6 @@ func (m Model) handleMixEnqueueAll() (Model, tea.Cmd) {
 func (m Model) handleMixSavedAsPlaylistMsg(msg mixSavedAsPlaylistMsg) Model {
 	m.playlists.playlists = msg.playlists
 	m = m.preservePlaylistsSort()
-	m.statusBar.notify(fmt.Sprintf("Saved as %q (%d %s)", msg.playlistName, msg.count, pluralize(msg.count, "track", "tracks")))
+	m.statusBar.notify(fmt.Sprintf("Saved as %q (%d %s)", msg.playlistName, msg.count, text.Pluralize(msg.count, "track", "tracks")))
 	return m
 }

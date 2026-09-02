@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // handlePlaybackEndedMsg handles the end of the play queue, optionally
@@ -86,7 +87,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 		msg = "Stopped after track"
 	case m.missingTrackCount > 0:
 		msg = fmt.Sprintf("Queue finished (%d %s skipped — missing files)",
-			m.missingTrackCount, pluralize(m.missingTrackCount, "track", "tracks"))
+			m.missingTrackCount, text.Pluralize(m.missingTrackCount, "track", "tracks"))
 	default:
 		msg = "Queue finished"
 	}
@@ -211,23 +212,23 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 
 	// Refresh the now-playing overlay with the new track's metadata.
 	if m.overlay.nowPlaying != nil {
-		m.overlay.nowPlaying.artist = msg.Artist
-		m.overlay.nowPlaying.title = msg.Title
-		m.overlay.nowPlaying.album = ""
-		m.overlay.nowPlaying.playCount = 0
-		m.overlay.nowPlaying.elapsed = 0
-		m.overlay.nowPlaying.total = 0
-		m.overlay.nowPlaying.state = playback.StatePlaying
-		m.overlay.nowPlaying.tagsLine = m.buildTagsLine(msg.Hash)
+		m.overlay.nowPlaying.Artist = msg.Artist
+		m.overlay.nowPlaying.Title = msg.Title
+		m.overlay.nowPlaying.Album = ""
+		m.overlay.nowPlaying.PlayCount = 0
+		m.overlay.nowPlaying.Elapsed = 0
+		m.overlay.nowPlaying.Total = 0
+		m.overlay.nowPlaying.State = playback.StatePlaying
+		m.overlay.nowPlaying.TagsLine = m.buildTagsLine(msg.Hash)
 		if t, ok := m.library.index.FindByHash(msg.Hash); ok {
-			if m.overlay.nowPlaying.artist == "" {
-				m.overlay.nowPlaying.artist = t.Artist
+			if m.overlay.nowPlaying.Artist == "" {
+				m.overlay.nowPlaying.Artist = t.Artist
 			}
-			if m.overlay.nowPlaying.title == "" {
-				m.overlay.nowPlaying.title = t.Title
+			if m.overlay.nowPlaying.Title == "" {
+				m.overlay.nowPlaying.Title = t.Title
 			}
-			m.overlay.nowPlaying.album = t.Album
-			m.overlay.nowPlaying.playCount = t.PlayCount
+			m.overlay.nowPlaying.Album = t.Album
+			m.overlay.nowPlaying.PlayCount = t.PlayCount
 		}
 	}
 

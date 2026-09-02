@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 )
 
 // TestPreviewTickUpdatesProgress verifies that a tickMsg updates the
@@ -14,7 +15,7 @@ import (
 func TestPreviewTickUpdatesProgress(t *testing.T) {
 	m := New(context.Background())
 	sp := &stubPreviewer{elapsed: 45.5, total: 200.0}
-	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.preview = &overlay.PreviewOverlay{Artist: "A", Title: "T"}
 	m.overlay.previewPlayer = sp
 
 	next, _ := m.Update(tickMsg{})
@@ -23,11 +24,11 @@ func TestPreviewTickUpdatesProgress(t *testing.T) {
 	if nm.overlay.preview == nil {
 		t.Fatal("expected preview to still be active after tick")
 	}
-	if nm.overlay.preview.elapsed != 45.5 {
-		t.Errorf("expected elapsed=45.5, got %v", nm.overlay.preview.elapsed)
+	if nm.overlay.preview.Elapsed != 45.5 {
+		t.Errorf("expected elapsed=45.5, got %v", nm.overlay.preview.Elapsed)
 	}
-	if nm.overlay.preview.total != 200.0 {
-		t.Errorf("expected total=200.0, got %v", nm.overlay.preview.total)
+	if nm.overlay.preview.Total != 200.0 {
+		t.Errorf("expected total=200.0, got %v", nm.overlay.preview.Total)
 	}
 }
 
@@ -36,7 +37,7 @@ func TestPreviewTickUpdatesProgress(t *testing.T) {
 func TestPreviewTickAutoDismissOnError(t *testing.T) {
 	m := New(context.Background())
 	sp := &stubPreviewer{elapsedErr: errTest("eof")}
-	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.preview = &overlay.PreviewOverlay{Artist: "A", Title: "T"}
 	m.overlay.previewPlayer = sp
 
 	next, _ := m.Update(tickMsg{})
@@ -60,7 +61,7 @@ func TestPreviewTickAutoFillsDurationWhenZero(t *testing.T) {
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", DurationMs: 0},
 	}
 	sp := &stubPreviewer{elapsed: 10.0, total: 225.0}
-	m.overlay.preview = &PreviewOverlay{hash: "h1", artist: "A", title: "T"}
+	m.overlay.preview = &overlay.PreviewOverlay{Hash: "h1", Artist: "A", Title: "T"}
 	m.overlay.previewPlayer = sp
 
 	nm, cmd := m.handleTickMsg()
@@ -113,7 +114,7 @@ func TestPreviewTickCorrectsWrongDuration(t *testing.T) {
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", DurationMs: 180000},
 	}
 	sp := &stubPreviewer{elapsed: 10.0, total: 225.0}
-	m.overlay.preview = &PreviewOverlay{hash: "h1", artist: "A", title: "T"}
+	m.overlay.preview = &overlay.PreviewOverlay{Hash: "h1", Artist: "A", Title: "T"}
 	m.overlay.previewPlayer = sp
 
 	nm, cmd := m.handleTickMsg()
@@ -165,7 +166,7 @@ func TestPreviewTickSkipsCloseEnoughDuration(t *testing.T) {
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", DurationMs: 180500},
 	}
 	sp := &stubPreviewer{elapsed: 10.0, total: 180.0}
-	m.overlay.preview = &PreviewOverlay{hash: "h1", artist: "A", title: "T"}
+	m.overlay.preview = &overlay.PreviewOverlay{Hash: "h1", Artist: "A", Title: "T"}
 	m.overlay.previewPlayer = sp
 
 	next, _ := m.Update(tickMsg{})
@@ -194,7 +195,7 @@ func TestPreviewTickFlagPreventsRepeatedWrites(t *testing.T) {
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 0,
 	})
 	sp := &stubPreviewer{elapsed: 10.0, total: 225.0}
-	m.overlay.preview = &PreviewOverlay{hash: "h1", artist: "A", title: "T"}
+	m.overlay.preview = &overlay.PreviewOverlay{Hash: "h1", Artist: "A", Title: "T"}
 	m.overlay.previewPlayer = sp
 	m.overlay.previewDurationFilled = true
 

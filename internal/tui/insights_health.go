@@ -16,6 +16,7 @@ import (
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // The Data Health section names. They are the row headers on screen and the
@@ -228,7 +229,7 @@ func healthArtistKey(name string) string {
 }
 
 func healthTrackNote(n int) string {
-	return fmt.Sprintf("%d %s", n, pluralize(n, "track", "tracks"))
+	return fmt.Sprintf("%d %s", n, text.Pluralize(n, "track", "tracks"))
 }
 
 func qualityHasIssue(q insights.Quality, kind insights.IssueKind) bool {

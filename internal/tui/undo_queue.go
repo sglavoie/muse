@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // undoEnqueueAction reverts a single-track enqueue (undoKindEnqueue).
@@ -143,7 +144,7 @@ func (a undoClearAction) perform(m Model) (Model, tea.Cmd) {
 		is.SetCurrentIndex(a.savedIndex)
 	}
 	n := len(a.entries)
-	m.statusBar.notify(fmt.Sprintf("Undone: restored %d %s", n, pluralize(n, "track", "tracks")))
+	m.statusBar.notify(fmt.Sprintf("Undone: restored %d %s", n, text.Pluralize(n, "track", "tracks")))
 	return m, nil
 }
 
@@ -159,7 +160,7 @@ func (a undoBulkDequeueAction) kind() undoKind { return undoKindBulkDequeue }
 
 func (a undoBulkDequeueAction) description() string {
 	n := len(a.entries)
-	return fmt.Sprintf("%d %s removed — press u to undo", n, pluralize(n, "track", "tracks"))
+	return fmt.Sprintf("%d %s removed — press u to undo", n, text.Pluralize(n, "track", "tracks"))
 }
 
 func (a undoBulkDequeueAction) perform(m Model) (Model, tea.Cmd) {
@@ -185,7 +186,7 @@ func (a undoBulkDequeueAction) perform(m Model) (Model, tea.Cmd) {
 	m.clampQueueCursorAndScroll()
 	m.syncPlayerQueue()
 	n := len(a.entries)
-	m.statusBar.notify(fmt.Sprintf("Undone: restored %d %s", n, pluralize(n, "track", "tracks")))
+	m.statusBar.notify(fmt.Sprintf("Undone: restored %d %s", n, text.Pluralize(n, "track", "tracks")))
 	return m, nil
 }
 
@@ -258,13 +259,13 @@ func (a undoBatchEnqueueAction) kind() undoKind { return undoKindBatchEnqueue }
 
 func (a undoBatchEnqueueAction) description() string {
 	return fmt.Sprintf("Added %d %s from %s — press u to undo",
-		a.count, pluralize(a.count, "track", "tracks"), a.playlistName)
+		a.count, text.Pluralize(a.count, "track", "tracks"), a.playlistName)
 }
 
 func (a undoBatchEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 	m = m.softRemoveQueueEntries(a.ids, "undo batch enqueue: soft-delete failed")
 	n := a.count
-	m.statusBar.notify(fmt.Sprintf("Undone: removed %d %s", n, pluralize(n, "track", "tracks")))
+	m.statusBar.notify(fmt.Sprintf("Undone: removed %d %s", n, text.Pluralize(n, "track", "tracks")))
 	return m, nil
 }
 
@@ -279,13 +280,13 @@ type undoPasteAction struct {
 func (a undoPasteAction) kind() undoKind { return undoKindPaste }
 
 func (a undoPasteAction) description() string {
-	return fmt.Sprintf("Pasted %d %s — press u to undo", a.count, pluralize(a.count, "track", "tracks"))
+	return fmt.Sprintf("Pasted %d %s — press u to undo", a.count, text.Pluralize(a.count, "track", "tracks"))
 }
 
 func (a undoPasteAction) perform(m Model) (Model, tea.Cmd) {
 	m = m.softRemoveQueueEntries(a.ids, "undo paste: soft-delete failed")
 	n := a.count
-	m.statusBar.notify(fmt.Sprintf("Undone: removed %d pasted %s", n, pluralize(n, "track", "tracks")))
+	m.statusBar.notify(fmt.Sprintf("Undone: removed %d pasted %s", n, text.Pluralize(n, "track", "tracks")))
 	return m, nil
 }
 
@@ -301,7 +302,7 @@ type undoCutPasteAction struct {
 func (a undoCutPasteAction) kind() undoKind { return undoKindCutPaste }
 
 func (a undoCutPasteAction) description() string {
-	return fmt.Sprintf("Moved %d %s — press u to undo", a.count, pluralize(a.count, "track", "tracks"))
+	return fmt.Sprintf("Moved %d %s — press u to undo", a.count, text.Pluralize(a.count, "track", "tracks"))
 }
 
 func (a undoCutPasteAction) perform(m Model) (Model, tea.Cmd) {
@@ -400,6 +401,6 @@ func (a undoCutPasteAction) perform(m Model) (Model, tea.Cmd) {
 		m = m.resetPlaybackState()
 	}
 	n := a.count
-	m.statusBar.notify(fmt.Sprintf("Undone: restored %d moved %s", n, pluralize(n, "track", "tracks")))
+	m.statusBar.notify(fmt.Sprintf("Undone: restored %d moved %s", n, text.Pluralize(n, "track", "tracks")))
 	return m, nil
 }

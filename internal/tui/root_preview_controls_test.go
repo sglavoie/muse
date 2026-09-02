@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
@@ -14,7 +15,7 @@ import (
 func TestPreviewDismissWithEsc(t *testing.T) {
 	m := New(context.Background())
 	sp := &stubPreviewer{}
-	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.preview = &overlay.PreviewOverlay{Artist: "A", Title: "T"}
 	m.overlay.previewPlayer = sp
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
@@ -33,7 +34,7 @@ func TestPreviewDismissWithEsc(t *testing.T) {
 func TestPreviewDismissWithP(t *testing.T) {
 	m := New(context.Background())
 	sp := &stubPreviewer{}
-	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.preview = &overlay.PreviewOverlay{Artist: "A", Title: "T"}
 	m.overlay.previewPlayer = sp
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'P', Text: "P"})
@@ -55,7 +56,7 @@ func TestPreviewSpaceControlsPreview(t *testing.T) {
 	m := New(context.Background())
 	m.player = mp
 	m.playback.state = playback.StatePlaying
-	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.preview = &overlay.PreviewOverlay{Artist: "A", Title: "T"}
 	m.overlay.previewPlayer = sp
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeySpace})
@@ -94,7 +95,7 @@ func TestPreviewSeekKeysControlPreview(t *testing.T) {
 			m.player = mp
 			m.cfg.SeekOffsetShort = 5
 			m.cfg.SeekOffsetLong = 30
-			m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+			m.overlay.preview = &overlay.PreviewOverlay{Artist: "A", Title: "T"}
 			m.overlay.previewPlayer = sp
 
 			next, _ := m.Update(tt.msg)
@@ -120,7 +121,7 @@ func TestPreviewSeekKeysControlPreview(t *testing.T) {
 // keys are swallowed (not processed).
 func TestPreviewSwallowsKeys(t *testing.T) {
 	m := New(context.Background())
-	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.preview = &overlay.PreviewOverlay{Artist: "A", Title: "T"}
 	m.overlay.previewPlayer = &stubPreviewer{}
 	m.activeView = viewLibrary
 
@@ -141,7 +142,7 @@ func TestPreviewSwallowsKeys(t *testing.T) {
 func TestPreviewCtrlCDismissesAndQuits(t *testing.T) {
 	m := New(context.Background())
 	sp := &stubPreviewer{}
-	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.preview = &overlay.PreviewOverlay{Artist: "A", Title: "T"}
 	m.overlay.previewPlayer = sp
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
@@ -169,7 +170,7 @@ func TestPreviewDismissResumesPlayback(t *testing.T) {
 	m.player = sp
 	m.playback.state = playback.StatePaused
 	m.overlay.previewWasPlaying = true
-	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.preview = &overlay.PreviewOverlay{Artist: "A", Title: "T"}
 	m.overlay.previewPlayer = &stubPreviewer{}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
@@ -194,7 +195,7 @@ func TestPreviewDismissDoesNotResumeIfNotPlaying(t *testing.T) {
 	m.player = sp
 	m.playback.state = playback.StatePaused
 	m.overlay.previewWasPlaying = false
-	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.preview = &overlay.PreviewOverlay{Artist: "A", Title: "T"}
 	m.overlay.previewPlayer = &stubPreviewer{}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
@@ -210,11 +211,11 @@ func TestPreviewDismissDoesNotResumeIfNotPlaying(t *testing.T) {
 // View() renders the preview overlay content.
 func TestPreviewOverlayRenderedInView(t *testing.T) {
 	m := New(context.Background())
-	m.overlay.preview = &PreviewOverlay{
-		artist:  "Preview Artist",
-		title:   "Preview Song",
-		elapsed: 30,
-		total:   120,
+	m.overlay.preview = &overlay.PreviewOverlay{
+		Artist:  "Preview Artist",
+		Title:   "Preview Song",
+		Elapsed: 30,
+		Total:   120,
 	}
 	m.termWidth = 80
 	m.termHeight = 24
@@ -229,7 +230,7 @@ func TestPreviewOverlayRenderedInView(t *testing.T) {
 // resets the previewDurationFilled flag for the next preview session.
 func TestPreviewDismissResetsDurationFilledFlag(t *testing.T) {
 	m := New(context.Background())
-	m.overlay.preview = &PreviewOverlay{hash: "h1", artist: "A", title: "T"}
+	m.overlay.preview = &overlay.PreviewOverlay{Hash: "h1", Artist: "A", Title: "T"}
 	m.overlay.previewPlayer = &stubPreviewer{}
 	m.overlay.previewDurationFilled = true
 

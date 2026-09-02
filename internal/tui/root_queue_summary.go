@@ -3,12 +3,13 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // buildQueueSummary computes aggregate statistics from the current queue
 // entries and playback position.
-func (m Model) buildQueueSummary() *QueueSummaryOverlay {
+func (m Model) buildQueueSummary() *overlay.QueueSummaryOverlay {
 	artists := make(map[string]struct{})
 	albums := make(map[string]struct{})
 	sources := make(map[string]struct{})
@@ -42,14 +43,14 @@ func (m Model) buildQueueSummary() *QueueSummaryOverlay {
 		}
 	}
 
-	return &QueueSummaryOverlay{
-		tracks:   len(m.queue.entries),
-		artists:  len(artists),
-		albums:   len(albums),
-		sources:  len(sources),
-		remainMs: remainMs,
-		remainN:  remainN,
-		totalMs:  totalMs,
+	return &overlay.QueueSummaryOverlay{
+		Tracks:   len(m.queue.entries),
+		Artists:  len(artists),
+		Albums:   len(albums),
+		Sources:  len(sources),
+		RemainMs: remainMs,
+		RemainN:  remainN,
+		TotalMs:  totalMs,
 	}
 }
 

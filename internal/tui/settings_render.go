@@ -6,29 +6,30 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // Render produces a vertically and horizontally centered settings box.
 func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
-	boxInner := max(min(termWidth-8, 80), OverlayMinInnerWidth)
-	contentWidth := boxInner - OverlayHPadding
+	boxInner := max(min(termWidth-8, 80), overlay.MinInnerWidth)
+	contentWidth := boxInner - overlay.HPadding
 
 	var lines []string
 
 	// Top border.
-	lines = append(lines, cornerTL+strings.Repeat(borderH, boxInner)+cornerTR)
+	lines = append(lines, overlay.CornerTL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CornerTR)
 
 	// Title row (centered).
 	title := " ⚙ Settings "
 	titlePad := max(0, boxInner-ansi.StringWidth(title))
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
-	lines = append(lines, borderV+strings.Repeat(" ", leftTP)+s.Heading.Render(title)+strings.Repeat(" ", rightTP)+borderV)
+	lines = append(lines, overlay.BorderV+strings.Repeat(" ", leftTP)+s.Heading.Render(title)+strings.Repeat(" ", rightTP)+overlay.BorderV)
 
 	// Separator below title.
-	lines = append(lines, crossL+strings.Repeat(borderH, boxInner)+crossR)
+	lines = append(lines, overlay.CrossL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CrossR)
 
 	// Tab bar row.
 	tabNames := [settingsTabCount]string{"Library", "Playback", "Equalizer", "Display"}
@@ -46,10 +47,10 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	tabVisW := ansi.StringWidth(tabContent)
 	tabPad := max(0, contentWidth-tabVisW)
 	tabRow := "  " + tabContent + strings.Repeat(" ", tabPad) + "  "
-	lines = append(lines, borderV+tabRow+borderV)
+	lines = append(lines, overlay.BorderV+tabRow+overlay.BorderV)
 
 	// Separator below tab bar.
-	lines = append(lines, crossL+strings.Repeat(borderH, boxInner)+crossR)
+	lines = append(lines, overlay.CrossL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CrossR)
 
 	// Content rows.
 	if o.tab == settingsTabLibrary {
@@ -59,7 +60,7 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	}
 
 	// Bottom border.
-	lines = append(lines, cornerBL+strings.Repeat(borderH, boxInner)+cornerBR)
+	lines = append(lines, overlay.CornerBL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CornerBR)
 
 	var hint string
 	switch o.tab {
@@ -75,7 +76,7 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 		hint = "[/] tabs · j/k fields · h/l adjust · ctrl+s save · esc cancel"
 	}
 
-	return renderCenteredOverlayLines(lines, hint, termWidth, termHeight)
+	return overlay.RenderCenteredLines(lines, hint, termWidth, termHeight)
 }
 
 func (o SettingsOverlay) renderLibraryTab(lines []string, contentWidth int, s styles.Styles) []string {
@@ -88,7 +89,7 @@ func (o SettingsOverlay) renderLibraryTab(lines []string, contentWidth int, s st
 func (o SettingsOverlay) renderExcludedPaths(lines []string, contentWidth int, s styles.Styles) []string {
 	if len(o.excludedPaths) == 0 && o.exclPathInput == nil {
 		row := "  (none)" + strings.Repeat(" ", max(0, contentWidth-6)) + "  "
-		lines = append(lines, borderV+s.Dim.Render(row)+borderV)
+		lines = append(lines, overlay.BorderV+s.Dim.Render(row)+overlay.BorderV)
 	}
 	for i, pattern := range o.excludedPaths {
 		pattern = text.Truncate(pattern, contentWidth)
@@ -96,20 +97,20 @@ func (o SettingsOverlay) renderExcludedPaths(lines []string, contentWidth int, s
 		pad := max(0, contentWidth-patW)
 		row := "  " + pattern + strings.Repeat(" ", pad) + "  "
 		if i == o.exclCursor {
-			lines = append(lines, borderV+s.Accent.Render(row)+borderV)
+			lines = append(lines, overlay.BorderV+s.Accent.Render(row)+overlay.BorderV)
 		} else {
-			lines = append(lines, borderV+row+borderV)
+			lines = append(lines, overlay.BorderV+row+overlay.BorderV)
 		}
 	}
 	if o.exclPathInput != nil {
 		body := text.Truncate("Add pattern: "+o.exclPathInput.View(), contentWidth)
 		pad := max(0, contentWidth-ansi.StringWidth(body))
-		lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
+		lines = append(lines, overlay.BorderV+"  "+body+strings.Repeat(" ", pad)+"  "+overlay.BorderV)
 	} else if o.exclConfirmDel && o.exclCursor < len(o.excludedPaths) {
 		pattern := o.excludedPaths[o.exclCursor]
 		body := text.Truncate(fmt.Sprintf("Delete %q? D/Enter=yes  Esc=no", pattern), contentWidth)
 		pad := max(0, contentWidth-ansi.StringWidth(body))
-		lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
+		lines = append(lines, overlay.BorderV+"  "+body+strings.Repeat(" ", pad)+"  "+overlay.BorderV)
 	}
 	return lines
 }
@@ -121,20 +122,20 @@ func (o SettingsOverlay) renderLibraryDirs(lines []string, contentWidth int, s s
 		pad := max(0, contentWidth-displayW)
 		row := "  " + display + strings.Repeat(" ", pad) + "  "
 		if i == o.libCursor {
-			lines = append(lines, borderV+s.Accent.Render(row)+borderV)
+			lines = append(lines, overlay.BorderV+s.Accent.Render(row)+overlay.BorderV)
 		} else {
-			lines = append(lines, borderV+row+borderV)
+			lines = append(lines, overlay.BorderV+row+overlay.BorderV)
 		}
 	}
 	if o.libDirInput != nil {
 		body := text.Truncate("Add dir: "+o.libDirInput.View(), contentWidth)
 		pad := max(0, contentWidth-ansi.StringWidth(body))
-		lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
+		lines = append(lines, overlay.BorderV+"  "+body+strings.Repeat(" ", pad)+"  "+overlay.BorderV)
 	} else if o.libConfirmDel && o.libCursor < len(o.libraryDirs) {
 		dirName := collapseHomeDir(o.libraryDirs[o.libCursor])
 		body := text.Truncate(fmt.Sprintf("Delete %q? D/Enter=yes  Esc=no", dirName), contentWidth)
 		pad := max(0, contentWidth-ansi.StringWidth(body))
-		lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
+		lines = append(lines, overlay.BorderV+"  "+body+strings.Repeat(" ", pad)+"  "+overlay.BorderV)
 	}
 	return lines
 }
@@ -174,9 +175,9 @@ func (o SettingsOverlay) renderFieldsTab(lines []string, contentWidth int, s sty
 		rowPad := max(0, contentWidth-rowBodyW)
 		row := "  " + rowBody + strings.Repeat(" ", rowPad) + "  "
 		if i == o.cursor {
-			lines = append(lines, borderV+s.Accent.Render(row)+borderV)
+			lines = append(lines, overlay.BorderV+s.Accent.Render(row)+overlay.BorderV)
 		} else {
-			lines = append(lines, borderV+row+borderV)
+			lines = append(lines, overlay.BorderV+row+overlay.BorderV)
 		}
 		if o.tab == settingsTabEqualizer && i == 1 {
 			lines = o.renderEQStateRow(lines, contentWidth, f)
@@ -189,13 +190,13 @@ func (o SettingsOverlay) renderEQStateRow(lines []string, contentWidth int, pres
 	if o.eqNameInput != nil {
 		body := text.Truncate("Save as: "+o.eqNameInput.View(), contentWidth)
 		pad := max(0, contentWidth-ansi.StringWidth(body))
-		return append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
+		return append(lines, overlay.BorderV+"  "+body+strings.Repeat(" ", pad)+"  "+overlay.BorderV)
 	}
 	if o.eqConfirmDel && presetField.Value >= 0 && presetField.Value < len(o.eqPresets) {
 		presetName := o.eqPresets[presetField.Value].Name
 		body := text.Truncate(fmt.Sprintf("Delete %q? D/Enter=yes  Esc=no", presetName), contentWidth)
 		pad := max(0, contentWidth-ansi.StringWidth(body))
-		return append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
+		return append(lines, overlay.BorderV+"  "+body+strings.Repeat(" ", pad)+"  "+overlay.BorderV)
 	}
 	return lines
 }

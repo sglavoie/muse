@@ -5,13 +5,15 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/tui/overlay"
 )
 
 func TestKeyRoutingPrefersHelpOverlayOverPreview(t *testing.T) {
 	m := New(context.Background())
 	m.helpVisible = true
 	m.prevActiveView = viewQueue
-	m.overlay.preview = &PreviewOverlay{}
+	m.overlay.preview = &overlay.PreviewOverlay{}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	nm := next.(Model)
@@ -29,7 +31,7 @@ func TestKeyRoutingPrefersHelpOverlayOverPreview(t *testing.T) {
 
 func TestKeyRoutingFallsBackToPreviewWhenNoHigherOverlayConsumes(t *testing.T) {
 	m := New(context.Background())
-	m.overlay.preview = &PreviewOverlay{}
+	m.overlay.preview = &overlay.PreviewOverlay{}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	nm := next.(Model)

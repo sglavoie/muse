@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
@@ -172,13 +173,13 @@ func (m Model) startPreviewCmd(track library.Track) tea.Cmd {
 		}
 		return previewStartedMsg{
 			player: pp,
-			overlay: PreviewOverlay{
-				hash:      track.Hash,
-				artist:    track.Artist,
-				title:     track.Title,
-				album:     track.Album,
-				playCount: track.PlayCount,
-				tagsLine:  tagsLine,
+			overlay: overlay.PreviewOverlay{
+				Hash:      track.Hash,
+				Artist:    track.Artist,
+				Title:     track.Title,
+				Album:     track.Album,
+				PlayCount: track.PlayCount,
+				TagsLine:  tagsLine,
 			},
 		}
 	}

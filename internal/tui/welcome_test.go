@@ -119,16 +119,3 @@ func TestWelcomeOverlay_DismissedByAnyKey(t *testing.T) {
 		t.Errorf("dismissed overlay still rendered:\n%s", got)
 	}
 }
-
-func TestHintRows_DropsBlankLines(t *testing.T) {
-	rows := hintRows(config.ConfigHint(testConfigPath))
-	if len(rows) != 2 {
-		t.Fatalf("hintRows = %d rows, want 2: %+v", len(rows), rows)
-	}
-	if !strings.Contains(rows[0].Text, testConfigPath) {
-		t.Errorf("row 0 = %q, want the config path", rows[0].Text)
-	}
-	if !strings.Contains(rows[1].Text, "music_directories = [") {
-		t.Errorf("row 1 = %q, want the music_directories key", rows[1].Text)
-	}
-}

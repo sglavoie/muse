@@ -137,7 +137,7 @@ func (v InsightsView) fit(line string) string {
 }
 
 func insightsPlaysNote(plays, secs int) string {
-	return fmt.Sprintf("%d %s · %s", plays, pluralize(plays, "play", "plays"), text.FormatListeningTime(secs))
+	return fmt.Sprintf("%d %s · %s", plays, text.Pluralize(plays, "play", "plays"), text.FormatListeningTime(secs))
 }
 
 // insightsFitHeader assembles a panel header from a mandatory prologue and
@@ -192,7 +192,7 @@ func (v InsightsView) rhythmRows() []insightsRow {
 	for _, d := range r.Weekdays {
 		note := "silent"
 		if d.Plays > 0 {
-			note = fmt.Sprintf("%d %s · %.0f%%", d.Plays, pluralize(d.Plays, "play", "plays"), d.Share*100)
+			note = fmt.Sprintf("%d %s · %.0f%%", d.Plays, text.Pluralize(d.Plays, "play", "plays"), d.Share*100)
 		}
 		rows = append(rows, insightsRow{
 			section:  "Weekday",
@@ -236,9 +236,9 @@ func (v InsightsView) rhythmHeaderLines(s styles.Styles) []string {
 	// summary takes the other end: what the punchcard's gaps are made of.
 	tail := []string{s.TextSecondary.Render(v.fit(fmt.Sprintf(
 		"%d %s in rotation · quietest %s with %d %s",
-		r.DistinctTracks, pluralize(r.DistinctTracks, "track", "tracks"),
+		r.DistinctTracks, text.Pluralize(r.DistinctTracks, "track", "tracks"),
 		r.BottomWeekday.Weekday, r.BottomWeekday.Plays,
-		pluralize(r.BottomWeekday.Plays, "play", "plays"))))}
+		text.Pluralize(r.BottomWeekday.Plays, "play", "plays"))))}
 	// The banner is part of the tail rather than of the chart block because the
 	// gate outlives the grid: at compact widths there is no grid to hide, but the
 	// affinity rows are withheld just the same and the reason still has to show.

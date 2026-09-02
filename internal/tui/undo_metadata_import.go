@@ -34,7 +34,7 @@ func (a undoImportMetadataAction) kind() undoKind { return undoKindImportMetadat
 
 func (a undoImportMetadataAction) description() string {
 	n := len(a.originals)
-	return fmt.Sprintf("Imported metadata for %d %s · u to undo", n, pluralize(n, "track", "tracks"))
+	return fmt.Sprintf("Imported metadata for %d %s · u to undo", n, text.Pluralize(n, "track", "tracks"))
 }
 
 func (a undoImportMetadataAction) perform(m Model) (Model, tea.Cmd) {
@@ -107,6 +107,6 @@ func (a undoImportMetadataAction) perform(m Model) (Model, tea.Cmd) {
 		}()
 	}
 	n := len(a.originals)
-	m.statusBar.notify(fmt.Sprintf("Undone metadata import for %d %s", n, pluralize(n, "track", "tracks")))
+	m.statusBar.notify(fmt.Sprintf("Undone metadata import for %d %s", n, text.Pluralize(n, "track", "tracks")))
 	return m, nil
 }

@@ -126,14 +126,14 @@ func (v InsightsView) sessionRows() []insightsRow {
 	rows := make([]insightsRow, 0, len(insightsDurationBuckets)+len(ss.TopOpeners)+len(ss.TopClosers)+5)
 
 	sessionNote := func(n int) string {
-		return fmt.Sprintf("%d %s · %.0f%%", n, pluralize(n, "session", "sessions"),
+		return fmt.Sprintf("%d %s · %.0f%%", n, text.Pluralize(n, "session", "sessions"),
 			insightsFraction(n, ss.Count)*100)
 	}
 
 	rows = append(rows, insightsRow{
 		section:  "Sessions",
 		label:    "All sessions",
-		note:     fmt.Sprintf("%d %s · %s", ss.Count, pluralize(ss.Count, "session", "sessions"), text.FormatListeningTime(ss.TotalSecs)),
+		note:     fmt.Sprintf("%d %s · %s", ss.Count, text.Pluralize(ss.Count, "session", "sessions"), text.FormatListeningTime(ss.TotalSecs)),
 		fraction: 1,
 		drill:    drillSessionsAll,
 	})
@@ -203,7 +203,7 @@ func (v InsightsView) sessionRows() []insightsRow {
 			rows = append(rows, insightsRow{
 				section:  section,
 				label:    e.Name,
-				note:     fmt.Sprintf("%d %s · %s", e.Plays, pluralize(e.Plays, "session", "sessions"), text.FormatListeningTime(e.ListenedSecs)),
+				note:     fmt.Sprintf("%d %s · %s", e.Plays, text.Pluralize(e.Plays, "session", "sessions"), text.FormatListeningTime(e.ListenedSecs)),
 				fraction: insightsFraction(e.Plays, top),
 				drill:    kind,
 				key:      e.Name,
@@ -237,7 +237,7 @@ func (v InsightsView) sessionsHeaderLines(s styles.Styles) []string {
 	tail := []string{
 		s.TextSecondary.Render(v.fit(fmt.Sprintf("longest %s · %.1f plays a session · %d false %s",
 			text.FormatListeningTime(ss.LongestSecs), ss.AvgPlays,
-			ss.SinglePlay, pluralize(ss.SinglePlay, "start", "starts")))),
+			ss.SinglePlay, text.Pluralize(ss.SinglePlay, "start", "starts")))),
 		s.Dim.Render(v.fit("enter opens the sessions themselves")),
 		"",
 	}
@@ -286,8 +286,8 @@ func (v InsightsView) sessionListHeaderLines(s styles.Styles) []string {
 		line,
 		"",
 		s.TextSecondary.Render(v.fit(fmt.Sprintf("%d %s · %d %s · %s listened",
-			n, pluralize(n, "session", "sessions"),
-			plays, pluralize(plays, "play", "plays"), text.FormatListeningTime(secs)))),
+			n, text.Pluralize(n, "session", "sessions"),
+			plays, text.Pluralize(plays, "play", "plays"), text.FormatListeningTime(secs)))),
 		s.Dim.Render(v.fit("enter → tracks · E → replay this session in order")),
 		"",
 	}
@@ -317,8 +317,8 @@ func (v InsightsView) renderSessionRow(s styles.Styles, r insights.SessionRow, f
 	width := max(v.width-len(cursor), 1)
 
 	note := fmt.Sprintf("%d %s · %d %s",
-		r.Plays, pluralize(r.Plays, "play", "plays"),
-		r.DistinctArtists, pluralize(r.DistinctArtists, "artist", "artists"))
+		r.Plays, text.Pluralize(r.Plays, "play", "plays"),
+		r.DistinctArtists, text.Pluralize(r.DistinctArtists, "artist", "artists"))
 	label := fmt.Sprintf("%s · %s · %s",
 		time.Unix(r.StartedAt, 0).In(v.location()).Format("2 Jan 15:04"),
 		text.FormatListeningTime(insightsSessionSecs(r)),

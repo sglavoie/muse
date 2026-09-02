@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/recommendation"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -336,10 +337,10 @@ func TestMixesViewSortAtTrackLevel(t *testing.T) {
 }
 
 func TestMixesViewHelpSection(t *testing.T) {
-	sections := helpSections()
+	sections := overlay.HelpSections()
 	var found bool
 	for _, s := range sections {
-		if s.title == "Mixes" && s.context == keys.ContextMixes {
+		if s.Title == "Mixes" && s.Context == keys.ContextMixes {
 			found = true
 			break
 		}
@@ -350,17 +351,17 @@ func TestMixesViewHelpSection(t *testing.T) {
 }
 
 func TestMixesViewFilteredHelp(t *testing.T) {
-	sections := filteredHelpSections(keys.ContextMixes)
+	sections := overlay.FilteredHelpSections(keys.ContextMixes)
 	// The status-bar legend is pinned ahead of everything; the view-specific
 	// section still leads the rest, before any global section.
 	if len(sections) < 2 {
 		t.Fatalf("expected at least two help sections for contextMixes, got %d", len(sections))
 	}
-	if sections[0].title != statusBarHelpSectionTitle {
-		t.Errorf("expected the pinned %q section first, got %q", statusBarHelpSectionTitle, sections[0].title)
+	if sections[0].Title != overlay.StatusBarHelpSectionTitle {
+		t.Errorf("expected the pinned %q section first, got %q", overlay.StatusBarHelpSectionTitle, sections[0].Title)
 	}
-	if sections[1].title != "Mixes" {
-		t.Errorf("expected Mixes section after the pinned legend, got %q", sections[1].title)
+	if sections[1].Title != "Mixes" {
+		t.Errorf("expected Mixes section after the pinned legend, got %q", sections[1].Title)
 	}
 }
 

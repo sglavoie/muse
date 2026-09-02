@@ -1,4 +1,4 @@
-package tui
+package overlay
 
 import (
 	"strings"
@@ -12,10 +12,10 @@ import (
 // remaining track was rendered as "(1 tracks)" instead of "(1 track)".
 func TestQueueSummaryOverlay_PluralizesTracksLabel(t *testing.T) {
 	q := QueueSummaryOverlay{
-		tracks:   2,
-		remainMs: 60_000,
-		remainN:  1,
-		totalMs:  120_000,
+		Tracks:   2,
+		RemainMs: 60_000,
+		RemainN:  1,
+		TotalMs:  120_000,
 	}
 	out := ansi.Strip(q.Render(80, 24, newTestStyles()))
 	if !strings.Contains(out, "(1 track)") {
@@ -30,10 +30,10 @@ func TestQueueSummaryOverlay_PluralizesTracksLabel(t *testing.T) {
 // used for counts other than 1.
 func TestQueueSummaryOverlay_UsesPluralWhenMany(t *testing.T) {
 	q := QueueSummaryOverlay{
-		tracks:   5,
-		remainMs: 300_000,
-		remainN:  3,
-		totalMs:  600_000,
+		Tracks:   5,
+		RemainMs: 300_000,
+		RemainN:  3,
+		TotalMs:  600_000,
 	}
 	out := ansi.Strip(q.Render(80, 24, newTestStyles()))
 	if !strings.Contains(out, "(3 tracks)") {
@@ -45,10 +45,10 @@ func TestQueueSummaryOverlay_UsesPluralWhenMany(t *testing.T) {
 // "(N tracks)" suffix is not appended when no tracks remain.
 func TestQueueSummaryOverlay_OmitsRemainingCountWhenZero(t *testing.T) {
 	q := QueueSummaryOverlay{
-		tracks:   2,
-		remainMs: 0,
-		remainN:  0,
-		totalMs:  120_000,
+		Tracks:   2,
+		RemainMs: 0,
+		RemainN:  0,
+		TotalMs:  120_000,
 	}
 	out := ansi.Strip(q.Render(80, 24, newTestStyles()))
 	if strings.Contains(out, "tracks)") || strings.Contains(out, "track)") {

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 )
 
 // undoKind distinguishes which type of destructive action is reversible.
@@ -73,7 +74,7 @@ type syncPositionMsg struct{}
 // and is ready for playback.
 type previewStartedMsg struct {
 	player  player.Previewer
-	overlay PreviewOverlay
+	overlay overlay.PreviewOverlay
 }
 
 // previewStartErrorMsg is dispatched when the preview player fails to start.

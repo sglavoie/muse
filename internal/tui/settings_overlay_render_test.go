@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/config"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -48,7 +49,7 @@ func TestSettingsRenderContainsBorderChars(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))
-	for _, ch := range []string{cornerTL, cornerBL, borderH, borderV} {
+	for _, ch := range []string{overlay.CornerTL, overlay.CornerBL, overlay.BorderH, overlay.BorderV} {
 		if !strings.Contains(out, ch) {
 			t.Errorf("Render: expected border char %q in output", ch)
 		}
@@ -111,12 +112,12 @@ func TestSettingsRenderClampsToBoxWidthAtNarrowTerm(t *testing.T) {
 				continue
 			}
 			lw := ansi.StringWidth(trimmed)
-			if boxWidth == 0 && strings.HasPrefix(trimmed, cornerTL) {
+			if boxWidth == 0 && strings.HasPrefix(trimmed, overlay.CornerTL) {
 				boxWidth = lw
 				continue
 			}
 			// Skip lines that aren't part of the box (e.g., the hint line).
-			if !strings.HasPrefix(trimmed, borderV) && !strings.HasPrefix(trimmed, cornerBL) && !strings.HasPrefix(trimmed, "├") {
+			if !strings.HasPrefix(trimmed, overlay.BorderV) && !strings.HasPrefix(trimmed, overlay.CornerBL) && !strings.HasPrefix(trimmed, "├") {
 				continue
 			}
 			foundLines++
@@ -153,11 +154,11 @@ func TestSettingsRenderEqualizerTabClampsAtNarrowTerm(t *testing.T) {
 			continue
 		}
 		lw := ansi.StringWidth(trimmed)
-		if boxWidth == 0 && strings.HasPrefix(trimmed, cornerTL) {
+		if boxWidth == 0 && strings.HasPrefix(trimmed, overlay.CornerTL) {
 			boxWidth = lw
 			continue
 		}
-		if !strings.HasPrefix(trimmed, borderV) && !strings.HasPrefix(trimmed, cornerBL) && !strings.HasPrefix(trimmed, "├") {
+		if !strings.HasPrefix(trimmed, overlay.BorderV) && !strings.HasPrefix(trimmed, overlay.CornerBL) && !strings.HasPrefix(trimmed, "├") {
 			continue
 		}
 		if lw != boxWidth {

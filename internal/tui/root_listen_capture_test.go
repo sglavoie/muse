@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
@@ -256,7 +257,7 @@ func TestPreviewDoesNotRecordListen(t *testing.T) {
 	m := armedModel(t, hr)
 	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
 
-	next, cmd := m.Update(previewStartedMsg{overlay: PreviewOverlay{hash: "h2", artist: "Beta", title: "Two"}})
+	next, cmd := m.Update(previewStartedMsg{overlay: overlay.PreviewOverlay{Hash: "h2", Artist: "Beta", Title: "Two"}})
 	m = next.(Model)
 	drainCmd(cmd)
 

@@ -1,4 +1,4 @@
-package tui
+package overlay
 
 import (
 	"context"
@@ -12,32 +12,32 @@ import (
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
-// trackInfoMsg carries the result of an async exiftool invocation.
-type trackInfoMsg struct {
-	path      string
-	hash      string
-	tags      map[string]any
-	err       error
-	playCount int
+// TrackInfoMsg carries the result of an async exiftool invocation.
+type TrackInfoMsg struct {
+	Path      string
+	Hash      string
+	Tags      map[string]any
+	Err       error
+	PlayCount int
 }
 
-// trackInfoCmd returns a tea.Cmd that extracts all exiftool tags for path.
-func trackInfoCmd(ctx context.Context, path, hash string, playCount int) tea.Cmd {
+// TrackInfoCmd returns a tea.Cmd that extracts all exiftool tags for path.
+func TrackInfoCmd(ctx context.Context, path, hash string, playCount int) tea.Cmd {
 	return func() tea.Msg {
 		tags, err := library.ExtractAllTags(ctx, path)
-		return trackInfoMsg{path: path, hash: hash, tags: tags, err: err, playCount: playCount}
+		return TrackInfoMsg{Path: path, Hash: hash, Tags: tags, Err: err, PlayCount: playCount}
 	}
 }
 
 // TrackInfoOverlay renders a centered overlay showing detailed file metadata.
 type TrackInfoOverlay struct {
-	path string
-	rows []OverlayRow
+	Path string
+	rows []Row
 }
 
 // Render produces a centered overlay string for the track info.
 func (t TrackInfoOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
-	box := OverlayBox{
+	box := Box{
 		Title:         " ℹ Track Info ",
 		Rows:          t.rows,
 		Hint:          "y to copy path · i or esc to dismiss",
@@ -87,9 +87,9 @@ var tagGroups = [][]tagSpec{
 	},
 }
 
-// newTrackInfoOverlay builds a TrackInfoOverlay from exiftool tags.
-func newTrackInfoOverlay(path string, tags map[string]any, playCount int, userTags []db.TagRow) TrackInfoOverlay {
-	rows := []OverlayRow{
+// NewTrackInfoOverlay builds a TrackInfoOverlay from exiftool tags.
+func NewTrackInfoOverlay(path string, tags map[string]any, playCount int, userTags []db.TagRow) TrackInfoOverlay {
+	rows := []Row{
 		{Label: "Path:", Text: path},
 		{Blank: true},
 	}
@@ -99,7 +99,7 @@ func newTrackInfoOverlay(path string, tags map[string]any, playCount int, userTa
 		for _, spec := range group {
 			for _, key := range spec.keys {
 				if val, ok := tags[key]; ok {
-					rows = append(rows, OverlayRow{
+					rows = append(rows, Row{
 						Label: spec.label,
 						Text:  fmt.Sprint(val),
 					})
@@ -110,20 +110,20 @@ func newTrackInfoOverlay(path string, tags map[string]any, playCount int, userTa
 		}
 		// Add a blank separator after non-empty groups (except the last).
 		if groupHasRow && gi < len(tagGroups)-1 {
-			rows = append(rows, OverlayRow{Blank: true})
+			rows = append(rows, Row{Blank: true})
 		}
 	}
 
-	rows = append(rows, OverlayRow{Blank: true})
-	rows = append(rows, OverlayRow{Label: "Play Count:", Text: strconv.Itoa(playCount)})
+	rows = append(rows, Row{Blank: true})
+	rows = append(rows, Row{Label: "Play Count:", Text: strconv.Itoa(playCount)})
 
 	if len(userTags) > 0 {
 		names := make([]string, len(userTags))
 		for i, t := range userTags {
 			names[i] = t.Name
 		}
-		rows = append(rows, OverlayRow{Label: "Tags:", Text: strings.Join(names, ", ")})
+		rows = append(rows, Row{Label: "Tags:", Text: strings.Join(names, ", ")})
 	}
 
-	return TrackInfoOverlay{path: path, rows: rows}
+	return TrackInfoOverlay{Path: path, rows: rows}
 }

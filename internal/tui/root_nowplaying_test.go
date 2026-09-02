@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
@@ -43,20 +44,20 @@ func TestNowPlayingKeyShowsOverlay(t *testing.T) {
 	if nm.overlay.nowPlaying == nil {
 		t.Fatal("expected nowPlayingInfo overlay to be set")
 	}
-	if nm.overlay.nowPlaying.artist != "Test Artist" {
-		t.Errorf("expected artist 'Test Artist', got %q", nm.overlay.nowPlaying.artist)
+	if nm.overlay.nowPlaying.Artist != "Test Artist" {
+		t.Errorf("expected artist 'Test Artist', got %q", nm.overlay.nowPlaying.Artist)
 	}
-	if nm.overlay.nowPlaying.title != "Test Song" {
-		t.Errorf("expected title 'Test Song', got %q", nm.overlay.nowPlaying.title)
+	if nm.overlay.nowPlaying.Title != "Test Song" {
+		t.Errorf("expected title 'Test Song', got %q", nm.overlay.nowPlaying.Title)
 	}
-	if nm.overlay.nowPlaying.album != "Test Album" {
-		t.Errorf("expected album 'Test Album', got %q", nm.overlay.nowPlaying.album)
+	if nm.overlay.nowPlaying.Album != "Test Album" {
+		t.Errorf("expected album 'Test Album', got %q", nm.overlay.nowPlaying.Album)
 	}
-	if nm.overlay.nowPlaying.elapsed != 30 {
-		t.Errorf("expected elapsed 30, got %v", nm.overlay.nowPlaying.elapsed)
+	if nm.overlay.nowPlaying.Elapsed != 30 {
+		t.Errorf("expected elapsed 30, got %v", nm.overlay.nowPlaying.Elapsed)
 	}
-	if nm.overlay.nowPlaying.state != playback.StatePlaying {
-		t.Errorf("expected state PlaybackPlaying, got %v", nm.overlay.nowPlaying.state)
+	if nm.overlay.nowPlaying.State != playback.StatePlaying {
+		t.Errorf("expected state PlaybackPlaying, got %v", nm.overlay.nowPlaying.State)
 	}
 }
 
@@ -101,7 +102,7 @@ func TestNowPlayingKeyStoppedShowsNotification(t *testing.T) {
 // dismisses it.
 func TestNowPlayingToggleOff(t *testing.T) {
 	m := setupPlayingModel(t)
-	m.overlay.nowPlaying = &NowPlayingOverlay{artist: "A", title: "T"}
+	m.overlay.nowPlaying = &overlay.NowPlayingOverlay{Artist: "A", Title: "T"}
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'I', Text: "I"})
 	nm := next.(Model)
@@ -117,7 +118,7 @@ func TestNowPlayingToggleOff(t *testing.T) {
 // TestNowPlayingEscDismisses verifies that Esc dismisses the overlay.
 func TestNowPlayingEscDismisses(t *testing.T) {
 	m := New(context.Background())
-	m.overlay.nowPlaying = &NowPlayingOverlay{artist: "A", title: "T"}
+	m.overlay.nowPlaying = &overlay.NowPlayingOverlay{Artist: "A", Title: "T"}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	nm := next.(Model)
@@ -131,7 +132,7 @@ func TestNowPlayingEscDismisses(t *testing.T) {
 // other keys are swallowed.
 func TestNowPlayingSwallowsKeys(t *testing.T) {
 	m := New(context.Background())
-	m.overlay.nowPlaying = &NowPlayingOverlay{artist: "A", title: "T"}
+	m.overlay.nowPlaying = &overlay.NowPlayingOverlay{Artist: "A", Title: "T"}
 	m.activeView = viewLibrary
 
 	// Press '3' (switch to queue) — should be swallowed.
@@ -150,7 +151,7 @@ func TestNowPlayingSwallowsKeys(t *testing.T) {
 // on the overlay.
 func TestNowPlayingTickUpdates(t *testing.T) {
 	m := New(context.Background())
-	m.overlay.nowPlaying = &NowPlayingOverlay{artist: "A", title: "T", state: playback.StatePlaying}
+	m.overlay.nowPlaying = &overlay.NowPlayingOverlay{Artist: "A", Title: "T", State: playback.StatePlaying}
 	m.playback.elapsedSecs = 45.5
 	m.playback.totalSecs = 200.0
 	m.playback.state = playback.StatePaused
@@ -161,14 +162,14 @@ func TestNowPlayingTickUpdates(t *testing.T) {
 	if nm.overlay.nowPlaying == nil {
 		t.Fatal("expected overlay to still be active")
 	}
-	if nm.overlay.nowPlaying.elapsed != 45.5 {
-		t.Errorf("expected elapsed=45.5, got %v", nm.overlay.nowPlaying.elapsed)
+	if nm.overlay.nowPlaying.Elapsed != 45.5 {
+		t.Errorf("expected elapsed=45.5, got %v", nm.overlay.nowPlaying.Elapsed)
 	}
-	if nm.overlay.nowPlaying.total != 200.0 {
-		t.Errorf("expected total=200.0, got %v", nm.overlay.nowPlaying.total)
+	if nm.overlay.nowPlaying.Total != 200.0 {
+		t.Errorf("expected total=200.0, got %v", nm.overlay.nowPlaying.Total)
 	}
-	if nm.overlay.nowPlaying.state != playback.StatePaused {
-		t.Errorf("expected state PlaybackPaused, got %v", nm.overlay.nowPlaying.state)
+	if nm.overlay.nowPlaying.State != playback.StatePaused {
+		t.Errorf("expected state PlaybackPaused, got %v", nm.overlay.nowPlaying.State)
 	}
 }
 
@@ -176,7 +177,7 @@ func TestNowPlayingTickUpdates(t *testing.T) {
 // the overlay and returns a quit command.
 func TestNowPlayingCtrlCDismissesAndQuits(t *testing.T) {
 	m := New(context.Background())
-	m.overlay.nowPlaying = &NowPlayingOverlay{artist: "A", title: "T"}
+	m.overlay.nowPlaying = &overlay.NowPlayingOverlay{Artist: "A", Title: "T"}
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	nm := next.(Model)
@@ -196,12 +197,12 @@ func TestNowPlayingCtrlCDismissesAndQuits(t *testing.T) {
 // active, View() renders its content.
 func TestNowPlayingOverlayRenderedInView(t *testing.T) {
 	m := New(context.Background())
-	m.overlay.nowPlaying = &NowPlayingOverlay{
-		artist:  "View Artist",
-		title:   "View Song",
-		elapsed: 10,
-		total:   60,
-		state:   playback.StatePlaying,
+	m.overlay.nowPlaying = &overlay.NowPlayingOverlay{
+		Artist:  "View Artist",
+		Title:   "View Song",
+		Elapsed: 10,
+		Total:   60,
+		State:   playback.StatePlaying,
 	}
 	m.termWidth = 80
 	m.termHeight = 24
@@ -217,13 +218,13 @@ func TestNowPlayingOverlayRenderedInView(t *testing.T) {
 // album, and state are updated to reflect the new track.
 func TestNowPlayingTrackChangeRefreshesOverlay(t *testing.T) {
 	m := setupPlayingModel(t)
-	m.overlay.nowPlaying = &NowPlayingOverlay{
-		artist:  "Test Artist",
-		title:   "Test Song",
-		album:   "Test Album",
-		elapsed: 30,
-		total:   180,
-		state:   playback.StatePlaying,
+	m.overlay.nowPlaying = &overlay.NowPlayingOverlay{
+		Artist:  "Test Artist",
+		Title:   "Test Song",
+		Album:   "Test Album",
+		Elapsed: 30,
+		Total:   180,
+		State:   playback.StatePlaying,
 	}
 	// Insert a second track.
 	m.library.index.Insert(library.Track{
@@ -241,20 +242,20 @@ func TestNowPlayingTrackChangeRefreshesOverlay(t *testing.T) {
 	if nm.overlay.nowPlaying == nil {
 		t.Fatal("expected overlay to remain active after track change")
 	}
-	if nm.overlay.nowPlaying.artist != "New Artist" {
-		t.Errorf("expected artist 'New Artist', got %q", nm.overlay.nowPlaying.artist)
+	if nm.overlay.nowPlaying.Artist != "New Artist" {
+		t.Errorf("expected artist 'New Artist', got %q", nm.overlay.nowPlaying.Artist)
 	}
-	if nm.overlay.nowPlaying.title != "New Song" {
-		t.Errorf("expected title 'New Song', got %q", nm.overlay.nowPlaying.title)
+	if nm.overlay.nowPlaying.Title != "New Song" {
+		t.Errorf("expected title 'New Song', got %q", nm.overlay.nowPlaying.Title)
 	}
-	if nm.overlay.nowPlaying.album != "New Album" {
-		t.Errorf("expected album 'New Album', got %q", nm.overlay.nowPlaying.album)
+	if nm.overlay.nowPlaying.Album != "New Album" {
+		t.Errorf("expected album 'New Album', got %q", nm.overlay.nowPlaying.Album)
 	}
-	if nm.overlay.nowPlaying.elapsed != 0 {
-		t.Errorf("expected elapsed=0 after track change, got %v", nm.overlay.nowPlaying.elapsed)
+	if nm.overlay.nowPlaying.Elapsed != 0 {
+		t.Errorf("expected elapsed=0 after track change, got %v", nm.overlay.nowPlaying.Elapsed)
 	}
-	if nm.overlay.nowPlaying.state != playback.StatePlaying {
-		t.Errorf("expected state PlaybackPlaying, got %v", nm.overlay.nowPlaying.state)
+	if nm.overlay.nowPlaying.State != playback.StatePlaying {
+		t.Errorf("expected state PlaybackPlaying, got %v", nm.overlay.nowPlaying.State)
 	}
 }
 
@@ -264,14 +265,14 @@ func TestNowPlayingTrackChangeRefreshesOverlay(t *testing.T) {
 // from the previous track.
 func TestNowPlayingTrackChangeClearsStaleAlbum(t *testing.T) {
 	m := setupPlayingModel(t)
-	m.overlay.nowPlaying = &NowPlayingOverlay{
-		artist:    "Test Artist",
-		title:     "Test Song",
-		album:     "Test Album",
-		playCount: 42,
-		elapsed:   30,
-		total:     180,
-		state:     playback.StatePlaying,
+	m.overlay.nowPlaying = &overlay.NowPlayingOverlay{
+		Artist:    "Test Artist",
+		Title:     "Test Song",
+		Album:     "Test Album",
+		PlayCount: 42,
+		Elapsed:   30,
+		Total:     180,
+		State:     playback.StatePlaying,
 	}
 
 	// Send a TrackChangedMsg with a hash that is NOT in the library index.
@@ -286,17 +287,17 @@ func TestNowPlayingTrackChangeClearsStaleAlbum(t *testing.T) {
 	if nm.overlay.nowPlaying == nil {
 		t.Fatal("expected overlay to remain active after track change")
 	}
-	if nm.overlay.nowPlaying.artist != "Mystery Artist" {
-		t.Errorf("expected artist 'Mystery Artist', got %q", nm.overlay.nowPlaying.artist)
+	if nm.overlay.nowPlaying.Artist != "Mystery Artist" {
+		t.Errorf("expected artist 'Mystery Artist', got %q", nm.overlay.nowPlaying.Artist)
 	}
-	if nm.overlay.nowPlaying.title != "Mystery Song" {
-		t.Errorf("expected title 'Mystery Song', got %q", nm.overlay.nowPlaying.title)
+	if nm.overlay.nowPlaying.Title != "Mystery Song" {
+		t.Errorf("expected title 'Mystery Song', got %q", nm.overlay.nowPlaying.Title)
 	}
-	if nm.overlay.nowPlaying.album != "" {
-		t.Errorf("expected album to be cleared, got %q", nm.overlay.nowPlaying.album)
+	if nm.overlay.nowPlaying.Album != "" {
+		t.Errorf("expected album to be cleared, got %q", nm.overlay.nowPlaying.Album)
 	}
-	if nm.overlay.nowPlaying.playCount != 0 {
-		t.Errorf("expected playCount to be cleared, got %d", nm.overlay.nowPlaying.playCount)
+	if nm.overlay.nowPlaying.PlayCount != 0 {
+		t.Errorf("expected playCount to be cleared, got %d", nm.overlay.nowPlaying.PlayCount)
 	}
 }
 
@@ -319,13 +320,13 @@ func TestNowPlayingSessionRestore(t *testing.T) {
 	if nm.overlay.nowPlaying == nil {
 		t.Fatal("expected overlay to be set")
 	}
-	if nm.overlay.nowPlaying.artist != "Restored Artist" {
-		t.Errorf("expected artist from index, got %q", nm.overlay.nowPlaying.artist)
+	if nm.overlay.nowPlaying.Artist != "Restored Artist" {
+		t.Errorf("expected artist from index, got %q", nm.overlay.nowPlaying.Artist)
 	}
-	if nm.overlay.nowPlaying.title != "Restored Song" {
-		t.Errorf("expected title from index, got %q", nm.overlay.nowPlaying.title)
+	if nm.overlay.nowPlaying.Title != "Restored Song" {
+		t.Errorf("expected title from index, got %q", nm.overlay.nowPlaying.Title)
 	}
-	if nm.overlay.nowPlaying.album != "Restored Album" {
-		t.Errorf("expected album from index, got %q", nm.overlay.nowPlaying.album)
+	if nm.overlay.nowPlaying.Album != "Restored Album" {
+		t.Errorf("expected album from index, got %q", nm.overlay.nowPlaying.Album)
 	}
 }

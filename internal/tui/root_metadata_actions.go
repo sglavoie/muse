@@ -8,6 +8,7 @@ import (
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // handleMetadataEditorKeyPress handles key events while the metadata editor
@@ -164,7 +165,7 @@ func (m Model) metadataSaveNotification(mode editorMode, hashes []string, dirtyA
 			}
 		}
 		n := len(hashes)
-		m.statusBar.notify(fmt.Sprintf("Renamed %d %s", n, pluralize(n, "track", "tracks")))
+		m.statusBar.notify(fmt.Sprintf("Renamed %d %s", n, text.Pluralize(n, "track", "tracks")))
 	case editorModeRenameAlbum:
 		if dirtyAlbum != nil {
 			newName := *dirtyAlbum
@@ -193,7 +194,7 @@ func (m Model) metadataSaveNotification(mode editorMode, hashes []string, dirtyA
 			}
 		}
 		n := len(hashes)
-		m.statusBar.notify(fmt.Sprintf("Renamed %d %s", n, pluralize(n, "track", "tracks")))
+		m.statusBar.notify(fmt.Sprintf("Renamed %d %s", n, text.Pluralize(n, "track", "tracks")))
 	}
 	return m
 }

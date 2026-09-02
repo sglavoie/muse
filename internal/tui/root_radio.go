@@ -44,7 +44,7 @@ func (m Model) radioToggle() (tea.Model, tea.Cmd, bool) {
 	} else {
 		m.radio.syntheticSeed = nil
 	}
-	m.statusBar.pushMsg(m.modeToggleMsg("Radio mode", modeIndexRadio), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
+	m.statusBar.pushMsg(m.modeToggleMsg("Radio mode", playback.ModeIndexRadio), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 	if m.radio.enabled {
 		cmd := m.radioMaybeEnqueueCmd()
 		if cmd != nil {

@@ -83,15 +83,15 @@ func TestModeToggleMsgMatchesClusterGlyph(t *testing.T) {
 	m.playback.stopAfterCurrent = true
 	m.radio.enabled = true
 
-	indicators := modeIndicators(m.playback.repeatMode, m.playback.shuffle, m.playback.stopAfterCurrent, m.radio.enabled)
+	indicators := playback.ModeIndicators(m.playback.repeatMode, m.playback.shuffle, m.playback.stopAfterCurrent, m.radio.enabled)
 	labels := map[int]string{
-		modeIndexRepeat:    "Repeat",
-		modeIndexShuffle:   "Shuffle",
-		modeIndexStopAfter: "Stop after current",
-		modeIndexRadio:     "Radio mode",
+		playback.ModeIndexRepeat:    "Repeat",
+		playback.ModeIndexShuffle:   "Shuffle",
+		playback.ModeIndexStopAfter: "Stop after current",
+		playback.ModeIndexRadio:     "Radio mode",
 	}
 	for i, ind := range indicators {
-		want := labels[i] + ": " + ind.state + " (" + ind.glyph + ")"
+		want := labels[i] + ": " + ind.State + " (" + ind.Glyph + ")"
 		if got := m.modeToggleMsg(labels[i], i); got != want {
 			t.Errorf("modeToggleMsg(%q, %d) = %q, want %q", labels[i], i, got, want)
 		}

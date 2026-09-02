@@ -1,4 +1,4 @@
-package tui
+package overlay
 
 import (
 	"strings"
@@ -14,10 +14,10 @@ func newTestStyles() styles.Styles {
 
 func TestPreviewOverlayRender_BasicContent(t *testing.T) {
 	p := PreviewOverlay{
-		artist:  "Test Artist",
-		title:   "Test Song",
-		elapsed: 83,  // 1:23
-		total:   296, // 4:56
+		Artist:  "Test Artist",
+		Title:   "Test Song",
+		Elapsed: 83,  // 1:23
+		Total:   296, // 4:56
 	}
 	s := newTestStyles()
 	out := p.Render(80, 24, s)
@@ -54,7 +54,7 @@ func TestPreviewOverlayRender_UnknownTrack(t *testing.T) {
 }
 
 func TestPreviewOverlayRender_ArtistOnly(t *testing.T) {
-	p := PreviewOverlay{artist: "Solo Artist"}
+	p := PreviewOverlay{Artist: "Solo Artist"}
 	s := newTestStyles()
 	out := p.Render(80, 24, s)
 
@@ -64,7 +64,7 @@ func TestPreviewOverlayRender_ArtistOnly(t *testing.T) {
 }
 
 func TestPreviewOverlayRender_TitleOnly(t *testing.T) {
-	p := PreviewOverlay{title: "Untitled Track"}
+	p := PreviewOverlay{Title: "Untitled Track"}
 	s := newTestStyles()
 	out := p.Render(80, 24, s)
 
@@ -74,7 +74,7 @@ func TestPreviewOverlayRender_TitleOnly(t *testing.T) {
 }
 
 func TestPreviewOverlayRender_CenteredVertically(t *testing.T) {
-	p := PreviewOverlay{artist: "A", title: "B"}
+	p := PreviewOverlay{Artist: "A", Title: "B"}
 	s := newTestStyles()
 	out := p.Render(80, 40, s)
 
@@ -94,7 +94,7 @@ func TestPreviewOverlayRender_CenteredVertically(t *testing.T) {
 }
 
 func TestPreviewOverlayRender_SmallTerminal(t *testing.T) {
-	p := PreviewOverlay{artist: "A", title: "B"}
+	p := PreviewOverlay{Artist: "A", Title: "B"}
 	s := newTestStyles()
 	// Should not panic with a very small terminal.
 	out := p.Render(10, 5, s)

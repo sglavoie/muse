@@ -1,11 +1,13 @@
 package tui
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 )
 
 // goToContext holds the metadata extracted from the focused item for the Go To
@@ -183,28 +185,28 @@ func (m Model) focusedGoToContext() goToContext {
 // buildGoToOptions generates the list of GoToOption for the Go To popup based
 // on the gathered context and current view/level. Options pointing to the
 // current view position are suppressed.
-func (m Model) buildGoToOptions(ctx goToContext) []GoToOption {
-	var opts []GoToOption
+func (m Model) buildGoToOptions(ctx goToContext) []overlay.GoToOption {
+	var opts []overlay.GoToOption
 
 	addArtist := func() {
 		if ctx.artist != "" {
-			opts = append(opts, GoToOption{Kind: goToArtist, Value: ctx.artist})
+			opts = append(opts, overlay.GoToOption{Kind: overlay.GoToArtist, Value: ctx.artist})
 		}
 	}
 	addAlbum := func() {
 		if ctx.album != "" {
-			opts = append(opts, GoToOption{Kind: goToAlbum, Value: ctx.album})
+			opts = append(opts, overlay.GoToOption{Kind: overlay.GoToAlbum, Value: ctx.album})
 		}
 	}
 	addGenres := func() {
 		genres := library.SplitGenres(ctx.genre)
 		for _, genre := range genres {
-			opts = append(opts, GoToOption{Kind: goToGenre, Value: genre})
+			opts = append(opts, overlay.GoToOption{Kind: overlay.GoToGenre, Value: genre})
 		}
 	}
 	addSource := func() {
 		if ctx.sourcePlaylist != "" {
-			opts = append(opts, GoToOption{Kind: goToPlaylist, Value: ctx.sourcePlaylist})
+			opts = append(opts, overlay.GoToOption{Kind: overlay.GoToPlaylist, Value: ctx.sourcePlaylist})
 		}
 	}
 
@@ -283,4 +285,17 @@ func (m Model) buildGoToOptions(ctx goToContext) []GoToOption {
 	}
 
 	return opts
+}
+
+// handleGoToKeyPress intercepts key presses when the Go To popup is active.
+func (m Model) handleGoToKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
+	if m.overlay.goTo == nil {
+		return m, nil, false
+	}
+	if msg.String() == "ctrl+c" {
+		return m, tea.Quit, true
+	}
+	updated, cmd := m.overlay.goTo.HandleKey(msg.String())
+	m.overlay.goTo = &updated
+	return m, cmd, true
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/desktop"
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -133,15 +134,15 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case previewStartErrorMsg:
 		m = m.handlePreviewStartErrorMsg(msg)
 
-	case trackInfoMsg:
-		if msg.err != nil {
-			m.statusBar.notify("Track info failed: " + msg.err.Error())
+	case overlay.TrackInfoMsg:
+		if msg.Err != nil {
+			m.statusBar.notify("Track info failed: " + msg.Err.Error())
 		} else {
 			var userTags []db.TagRow
-			if m.tagReader != nil && msg.hash != "" {
-				userTags, _ = m.tagReader.ReadTagsForTrack(msg.hash)
+			if m.tagReader != nil && msg.Hash != "" {
+				userTags, _ = m.tagReader.ReadTagsForTrack(msg.Hash)
 			}
-			overlay := newTrackInfoOverlay(msg.path, msg.tags, msg.playCount, userTags)
+			overlay := overlay.NewTrackInfoOverlay(msg.Path, msg.Tags, msg.PlayCount, userTags)
 			m.overlay.trackInfo = &overlay
 		}
 
@@ -265,19 +266,19 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// even attempted, so a failed write leaves them just as stale.
 		m.insightsInvalidate()
 
-	case GoToDismissedMsg:
+	case overlay.GoToDismissedMsg:
 		m.overlay.goTo = nil
 
-	case GoToPickedMsg:
+	case overlay.GoToPickedMsg:
 		m.overlay.goTo = nil
 		switch msg.Kind {
-		case goToArtist:
+		case overlay.GoToArtist:
 			m = m.jumpToArtist(msg.Value)
-		case goToAlbum:
+		case overlay.GoToAlbum:
 			m = m.jumpToAlbum(msg.Value)
-		case goToGenre:
+		case overlay.GoToGenre:
 			m = m.jumpToGenre(msg.Value)
-		case goToPlaylist:
+		case overlay.GoToPlaylist:
 			m = m.jumpToPlaylist(msg.Value)
 		}
 

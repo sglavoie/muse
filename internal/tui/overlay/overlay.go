@@ -1,4 +1,4 @@
-package tui
+package overlay
 
 import (
 	"strconv"
@@ -10,22 +10,22 @@ import (
 )
 
 const (
-	// OverlayMinInnerWidth is the minimum number of characters between the
+	// MinInnerWidth is the minimum number of characters between the
 	// vertical borders of an overlay box.
-	OverlayMinInnerWidth = 24
+	MinInnerWidth = 24
 
-	// OverlayHPadding is the horizontal padding (in characters) inside each
+	// HPadding is the horizontal padding (in characters) inside each
 	// content row, split equally between left and right.
-	OverlayHPadding = 4
+	HPadding = 4
 
-	borderH  = "─"
-	borderV  = "│"
-	cornerTL = "╭"
-	cornerTR = "╮"
-	cornerBL = "╰"
-	cornerBR = "╯"
-	crossL   = "├"
-	crossR   = "┤"
+	BorderH  = "─"
+	BorderV  = "│"
+	CornerTL = "╭"
+	CornerTR = "╮"
+	CornerBL = "╰"
+	CornerBR = "╯"
+	CrossL   = "├"
+	CrossR   = "┤"
 	// Doubled rule below modal titles strengthens Common Region by visually
 	// detaching the title from the body.
 	borderDoubleH = "═"
@@ -33,26 +33,26 @@ const (
 	crossDoubleR  = "╡"
 )
 
-// OverlayRow represents a single content row inside an OverlayBox.
-type OverlayRow struct {
+// Row represents a single content row inside a Box.
+type Row struct {
 	Label  string // optional right-aligned label (e.g. "Title:")
 	Text   string // text content of the row
 	Styled bool   // if true, wrap with styles.Accent
 	Blank  bool   // if true, render an empty row (Text is ignored)
 }
 
-// OverlayBox is a reusable centered-box renderer shared by all overlay types.
-type OverlayBox struct {
-	Title         string       // e.g. " ♪ Preview ", " ♪ Now Playing "
-	Rows          []OverlayRow // content rows between the title separator and bottom border
-	Hint          string       // e.g. "P or esc to dismiss"
-	MaxInnerWidth int          // if > 0, clamp inner width to this value
+// Box is a reusable centered-box renderer shared by all overlay types.
+type Box struct {
+	Title         string // e.g. " ♪ Preview ", " ♪ Now Playing "
+	Rows          []Row  // content rows between the title separator and bottom border
+	Hint          string // e.g. "P or esc to dismiss"
+	MaxInnerWidth int    // if > 0, clamp inner width to this value
 }
 
 // Render produces a vertically and horizontally centered box string.
 // The caller passes the current terminal dimensions so the box is positioned
 // in the middle of the screen.
-func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
+func (o Box) Render(termWidth, termHeight int, s styles.Styles) string {
 	rows := o.rowsForHeight(termHeight)
 
 	// Find the widest label for right-alignment.
@@ -78,9 +78,9 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 	}
 
 	// Calculate inner width (space between the vertical borders).
-	minInner := OverlayMinInnerWidth
+	minInner := MinInnerWidth
 	for _, text := range append([]string{o.Title}, rowTexts...) {
-		if w := ansi.StringWidth(text) + OverlayHPadding; w > minInner {
+		if w := ansi.StringWidth(text) + HPadding; w > minInner {
 			minInner = w
 		}
 	}
@@ -91,10 +91,10 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 	// Enforce a floor of OverlayHPadding so content rows (which always reserve
 	// that many characters for padding) cannot exceed innerWidth and misalign
 	// the borders when a caller passes a tiny MaxInnerWidth.
-	if innerWidth < OverlayHPadding {
-		innerWidth = OverlayHPadding
+	if innerWidth < HPadding {
+		innerWidth = HPadding
 	}
-	contentWidth := innerWidth - OverlayHPadding // padding inside borders
+	contentWidth := innerWidth - HPadding // padding inside borders
 	if contentWidth < 0 {
 		contentWidth = 0
 	}
@@ -102,7 +102,7 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 	var boxLines []string
 
 	// Top border.
-	boxLines = append(boxLines, cornerTL+strings.Repeat(borderH, innerWidth)+cornerTR)
+	boxLines = append(boxLines, CornerTL+strings.Repeat(BorderH, innerWidth)+CornerTR)
 
 	// Title row (centered). Truncate first so a MaxInnerWidth clamp narrower
 	// than the title cannot overflow and misalign the borders.
@@ -110,18 +110,18 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 	titlePad := max(0, innerWidth-ansi.StringWidth(displayTitle))
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
-	boxLines = append(boxLines, borderV+strings.Repeat(" ", leftTP)+s.Heading.Render(displayTitle)+strings.Repeat(" ", rightTP)+borderV)
+	boxLines = append(boxLines, BorderV+strings.Repeat(" ", leftTP)+s.Heading.Render(displayTitle)+strings.Repeat(" ", rightTP)+BorderV)
 
 	// Doubled rule below the title (Common Region + Uniform Connectedness).
 	boxLines = append(boxLines, crossDoubleL+strings.Repeat(borderDoubleH, innerWidth)+crossDoubleR)
 
 	// Inner top padding row.
-	boxLines = append(boxLines, borderV+strings.Repeat(" ", innerWidth)+borderV)
+	boxLines = append(boxLines, BorderV+strings.Repeat(" ", innerWidth)+BorderV)
 
 	// Content rows.
 	for _, r := range rows {
 		if r.Blank {
-			boxLines = append(boxLines, borderV+strings.Repeat(" ", innerWidth)+borderV)
+			boxLines = append(boxLines, BorderV+strings.Repeat(" ", innerWidth)+BorderV)
 			continue
 		}
 		var row string
@@ -142,17 +142,17 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 			row = "  " + text.Pad(truncated, contentWidth) + "  "
 		}
 		if r.Styled {
-			boxLines = append(boxLines, borderV+s.Accent.Render(row)+borderV)
+			boxLines = append(boxLines, BorderV+s.Accent.Render(row)+BorderV)
 		} else {
-			boxLines = append(boxLines, borderV+row+borderV)
+			boxLines = append(boxLines, BorderV+row+BorderV)
 		}
 	}
 
 	// Inner bottom padding row.
-	boxLines = append(boxLines, borderV+strings.Repeat(" ", innerWidth)+borderV)
+	boxLines = append(boxLines, BorderV+strings.Repeat(" ", innerWidth)+BorderV)
 
 	// Bottom border.
-	boxLines = append(boxLines, cornerBL+strings.Repeat(borderH, innerWidth)+cornerBR)
+	boxLines = append(boxLines, CornerBL+strings.Repeat(BorderH, innerWidth)+CornerBR)
 
 	// Center the box.
 	boxW := ansi.StringWidth(boxLines[0])
@@ -184,7 +184,7 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 	return b.String()
 }
 
-func renderCenteredOverlayLines(lines []string, hint string, termWidth, termHeight int) string {
+func RenderCenteredLines(lines []string, hint string, termWidth, termHeight int) string {
 	if len(lines) == 0 {
 		return ""
 	}
@@ -231,7 +231,7 @@ func centeredOverlayHintLine(hint string, termWidth int) string {
 	return strings.Repeat(" ", hintPad) + hint
 }
 
-func (o OverlayBox) rowsForHeight(termHeight int) []OverlayRow {
+func (o Box) rowsForHeight(termHeight int) []Row {
 	if termHeight <= 0 {
 		return o.Rows
 	}
@@ -247,7 +247,7 @@ func (o OverlayBox) rowsForHeight(termHeight int) []OverlayRow {
 		return nil
 	}
 
-	rows := make([]OverlayRow, 0, len(o.Rows))
+	rows := make([]Row, 0, len(o.Rows))
 	for _, row := range o.Rows {
 		if !row.Blank {
 			rows = append(rows, row)
@@ -275,7 +275,7 @@ func sanitizeHint(s string) string {
 	return strings.ReplaceAll(s, "\t", " ")
 }
 
-// renderTrackOverlay builds an OverlayBox for a track (preview or now-playing)
+// renderTrackOverlay builds a Box for a track (preview or now-playing)
 // and renders it centered. Callers provide the pre-formatted progress line,
 // box chrome (title, hint), and an optional tagsLine (empty = no Tags row).
 func renderTrackOverlay(title, artist, album, progressLine string, playCount int, tagsLine, boxTitle, hint string,
@@ -286,20 +286,20 @@ func renderTrackOverlay(title, artist, album, progressLine string, playCount int
 	if artist == "" {
 		artist = "(unknown artist)"
 	}
-	rows := []OverlayRow{
+	rows := []Row{
 		{Label: "Title:", Text: title},
 		{Label: "Artist:", Text: artist},
 	}
 	if album != "" {
-		rows = append(rows, OverlayRow{Label: "Album:", Text: album})
+		rows = append(rows, Row{Label: "Album:", Text: album})
 	}
-	rows = append(rows, OverlayRow{Label: "Play Count:", Text: strconv.Itoa(playCount)})
+	rows = append(rows, Row{Label: "Play Count:", Text: strconv.Itoa(playCount)})
 	if tagsLine != "" {
-		rows = append(rows, OverlayRow{Label: "Tags:", Text: tagsLine, Styled: true})
+		rows = append(rows, Row{Label: "Tags:", Text: tagsLine, Styled: true})
 	}
-	rows = append(rows, OverlayRow{Blank: true})
-	rows = append(rows, OverlayRow{Text: progressLine, Styled: true})
+	rows = append(rows, Row{Blank: true})
+	rows = append(rows, Row{Text: progressLine, Styled: true})
 
-	box := OverlayBox{Title: boxTitle, Rows: rows, Hint: hint}
+	box := Box{Title: boxTitle, Rows: rows, Hint: hint}
 	return box.Render(termWidth, termHeight, s)
 }

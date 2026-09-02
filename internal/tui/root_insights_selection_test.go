@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 )
 
 // insightsNotified reports whether any live notification carries substr.
@@ -227,16 +228,16 @@ func TestInsightsSelectionFooterMatchesEnterAction(t *testing.T) {
 }
 
 func TestInsightsHelpSection(t *testing.T) {
-	sections := filteredHelpSections(keys.ContextInsights)
+	sections := overlay.FilteredHelpSections(keys.ContextInsights)
 	// The status-bar legend is pinned ahead of everything; the view-specific
 	// section still leads the rest, before any global section.
 	if len(sections) < 2 {
 		t.Fatalf("expected at least two help sections for contextInsights, got %d", len(sections))
 	}
-	if sections[0].title != statusBarHelpSectionTitle {
-		t.Errorf("expected the pinned %q section first, got %q", statusBarHelpSectionTitle, sections[0].title)
+	if sections[0].Title != overlay.StatusBarHelpSectionTitle {
+		t.Errorf("expected the pinned %q section first, got %q", overlay.StatusBarHelpSectionTitle, sections[0].Title)
 	}
-	if sections[1].title != "Insights" {
-		t.Errorf("expected the Insights section after the pinned legend, got %q", sections[1].title)
+	if sections[1].Title != "Insights" {
+		t.Errorf("expected the Insights section after the pinned legend, got %q", sections[1].Title)
 	}
 }

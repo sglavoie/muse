@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
@@ -45,9 +46,9 @@ func TestPreviewStartedMsgSetsOverlay(t *testing.T) {
 
 	next, _ := m.Update(previewStartedMsg{
 		player: sp,
-		overlay: PreviewOverlay{
-			artist: "Test",
-			title:  "Song",
+		overlay: overlay.PreviewOverlay{
+			Artist: "Test",
+			Title:  "Song",
 		},
 	})
 	nm := next.(Model)
@@ -55,7 +56,7 @@ func TestPreviewStartedMsgSetsOverlay(t *testing.T) {
 	if nm.overlay.preview == nil {
 		t.Fatal("expected preview overlay to be set")
 	}
-	if nm.overlay.preview.artist != "Test" || nm.overlay.preview.title != "Song" {
+	if nm.overlay.preview.Artist != "Test" || nm.overlay.preview.Title != "Song" {
 		t.Fatalf("unexpected overlay content: %+v", *nm.overlay.preview)
 	}
 	if nm.overlay.previewPlayer != sp {

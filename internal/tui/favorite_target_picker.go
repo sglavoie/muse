@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -248,19 +249,19 @@ func (p favoriteTargetPicker) HandleKey(key string) (favoriteTargetPicker, tea.C
 }
 
 func (p favoriteTargetPicker) Render(termWidth, termHeight int, s styles.Styles) string {
-	rows := make([]OverlayRow, 0, len(p.rows))
+	rows := make([]overlay.Row, 0, len(p.rows))
 	for i, row := range p.rows {
 		line := p.rowText(row)
 		if !row.enabled {
 			line = s.Dim.Render(line)
 		}
-		rows = append(rows, OverlayRow{Text: line, Styled: row.enabled && i == p.cursor})
+		rows = append(rows, overlay.Row{Text: line, Styled: row.enabled && i == p.cursor})
 	}
-	return OverlayBox{
+	return overlay.Box{
 		Title:         " Favorite target ",
 		Rows:          rows,
 		Hint:          "j/k navigate · enter choose · t/r/l select · F/esc cancel",
-		MaxInnerWidth: max(termWidth-4, OverlayHPadding),
+		MaxInnerWidth: max(termWidth-4, overlay.HPadding),
 	}.Render(termWidth, termHeight, s)
 }
 

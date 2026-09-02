@@ -170,7 +170,7 @@ func (v InsightsView) renderStrip(s styles.Styles) string {
 	summary := fmt.Sprintf("%s plays · %s · %d %s",
 		formatCount(v.snap.TotalPlays),
 		text.FormatListeningTime(v.snap.TotalSecs),
-		v.snap.SpanDays, pluralize(v.snap.SpanDays, "day", "days"))
+		v.snap.SpanDays, text.Pluralize(v.snap.SpanDays, "day", "days"))
 	line := strip.Render(v.width, []string{"Insights", summary},
 		strip.SortChunk{}, strip.FilterChunk{}, strip.CountsChunk{}, nil,
 		v.windowHint(), s)
@@ -241,7 +241,7 @@ func (v InsightsView) headline(p insightsPanel) string {
 		}
 		return fmt.Sprintf("%ss %.0f%% of plays · peak %02d:00 · %d quiet %s",
 			r.TopWeekday.Weekday, r.TopWeekday.Share*100, r.PeakHour,
-			len(r.QuietHours), pluralize(len(r.QuietHours), "hour", "hours"))
+			len(r.QuietHours), text.Pluralize(len(r.QuietHours), "hour", "hours"))
 	case panelMomentum:
 		t := snap.Trends
 		if t.AvgSecs <= 0 {
@@ -256,7 +256,7 @@ func (v InsightsView) headline(p insightsPanel) string {
 			return "no artists in this window"
 		}
 		return fmt.Sprintf("%d %s = half your listening time · top-5 %.0f%%",
-			l.Artists50, pluralize(l.Artists50, "artist", "artists"),
+			l.Artists50, text.Pluralize(l.Artists50, "artist", "artists"),
 			snap.Rankings.TopFiveShare*100)
 	case panelTimeVsPlays:
 		r := snap.Rankings
@@ -277,7 +277,7 @@ func (v InsightsView) headline(p insightsPanel) string {
 	case panelDiscovery:
 		t := snap.Trends
 		return fmt.Sprintf("%d first-time %s %s · %.0f%% are repeats",
-			t.CurrentFirstPlays, pluralize(t.CurrentFirstPlays, "track", "tracks"),
+			t.CurrentFirstPlays, text.Pluralize(t.CurrentFirstPlays, "track", "tracks"),
 			t.Resolution.Current(), t.RepeatShare*100)
 	case panelDataHealth:
 		// The count is of rows rather than of snapshot issues: a finding with no
@@ -290,9 +290,9 @@ func (v InsightsView) headline(p insightsPanel) string {
 			return snap.Quality.Issues[0].Detail
 		default:
 			return fmt.Sprintf("%d %s · %s %s affected",
-				n, pluralize(n, "finding", "findings"),
+				n, text.Pluralize(n, "finding", "findings"),
 				formatCount(v.healthAffectedTracks()),
-				pluralize(v.healthAffectedTracks(), "track", "tracks"))
+				text.Pluralize(v.healthAffectedTracks(), "track", "tracks"))
 		}
 	}
 	return ""
@@ -347,7 +347,7 @@ func (v InsightsView) coverageHeaderLines(s styles.Styles) []string {
 	lines := []string{
 		"",
 		s.TextPrimary.Render(fmt.Sprintf("In %d %s you played %s tracks. You own %s.",
-			v.snap.SpanDays, pluralize(v.snap.SpanDays, "day", "days"),
+			v.snap.SpanDays, text.Pluralize(v.snap.SpanDays, "day", "days"),
 			formatCount(c.HeardTracks), formatCount(c.TotalTracks))),
 		"",
 	}
@@ -451,10 +451,10 @@ func formatMonths(months float64) string {
 	years, rest := total/12, total%12
 	switch {
 	case years > 0 && rest > 0:
-		return fmt.Sprintf("%d %s %d %s", years, pluralize(years, "year", "years"), rest, pluralize(rest, "month", "months"))
+		return fmt.Sprintf("%d %s %d %s", years, text.Pluralize(years, "year", "years"), rest, text.Pluralize(rest, "month", "months"))
 	case years > 0:
-		return fmt.Sprintf("%d %s", years, pluralize(years, "year", "years"))
+		return fmt.Sprintf("%d %s", years, text.Pluralize(years, "year", "years"))
 	default:
-		return fmt.Sprintf("%d %s", rest, pluralize(rest, "month", "months"))
+		return fmt.Sprintf("%d %s", rest, text.Pluralize(rest, "month", "months"))
 	}
 }

@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // undoTagToggleAction reverts a tag assignment or removal (undoKindTagToggle).
@@ -24,9 +25,9 @@ func (a undoTagToggleAction) kind() undoKind { return undoKindTagToggle }
 func (a undoTagToggleAction) description() string {
 	n := len(a.hashes)
 	if a.wasAdd {
-		return fmt.Sprintf("Tag added to %d %s — press u to undo", n, pluralize(n, "track", "tracks"))
+		return fmt.Sprintf("Tag added to %d %s — press u to undo", n, text.Pluralize(n, "track", "tracks"))
 	}
-	return fmt.Sprintf("Tag removed from %d %s — press u to undo", n, pluralize(n, "track", "tracks"))
+	return fmt.Sprintf("Tag removed from %d %s — press u to undo", n, text.Pluralize(n, "track", "tracks"))
 }
 
 func (a undoTagToggleAction) perform(m Model) (Model, tea.Cmd) {

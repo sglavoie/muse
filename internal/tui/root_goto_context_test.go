@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -54,13 +55,13 @@ func TestBuildGoToOptions_Library(t *testing.T) {
 	if len(opts) != 3 {
 		t.Fatalf("want 3 options, got %d", len(opts))
 	}
-	if opts[0].Kind != goToAlbum {
+	if opts[0].Kind != overlay.GoToAlbum {
 		t.Errorf("opts[0]: want goToAlbum, got %v", opts[0].Kind)
 	}
-	if opts[1].Kind != goToArtist {
+	if opts[1].Kind != overlay.GoToArtist {
 		t.Errorf("opts[1]: want goToArtist, got %v", opts[1].Kind)
 	}
-	if opts[2].Kind != goToGenre {
+	if opts[2].Kind != overlay.GoToGenre {
 		t.Errorf("opts[2]: want goToGenre, got %v", opts[2].Kind)
 	}
 }
@@ -77,7 +78,7 @@ func TestBuildGoToOptions_QueueWithSource(t *testing.T) {
 	if len(opts) != 4 {
 		t.Fatalf("want 4 options, got %d", len(opts))
 	}
-	if opts[3].Kind != goToPlaylist || opts[3].Value != "MyPL" {
+	if opts[3].Kind != overlay.GoToPlaylist || opts[3].Value != "MyPL" {
 		t.Errorf("opts[3]: want goToPlaylist/MyPL, got %v/%q", opts[3].Kind, opts[3].Value)
 	}
 }
@@ -91,10 +92,10 @@ func TestBuildGoToOptions_MultiGenre(t *testing.T) {
 	if len(opts) != 4 {
 		t.Fatalf("want 4 options, got %d", len(opts))
 	}
-	if opts[2].Kind != goToGenre || opts[2].Value != "Jazz" {
+	if opts[2].Kind != overlay.GoToGenre || opts[2].Value != "Jazz" {
 		t.Errorf("opts[2]: want goToGenre/Jazz, got %v/%q", opts[2].Kind, opts[2].Value)
 	}
-	if opts[3].Kind != goToGenre || opts[3].Value != "Rock" {
+	if opts[3].Kind != overlay.GoToGenre || opts[3].Value != "Rock" {
 		t.Errorf("opts[3]: want goToGenre/Rock, got %v/%q", opts[3].Kind, opts[3].Value)
 	}
 }
@@ -153,13 +154,13 @@ func TestBuildGoToOptions_Tags(t *testing.T) {
 	if len(opts) != 3 {
 		t.Fatalf("want 3 options, got %d", len(opts))
 	}
-	if opts[0].Kind != goToAlbum {
+	if opts[0].Kind != overlay.GoToAlbum {
 		t.Errorf("opts[0]: want goToAlbum, got %v", opts[0].Kind)
 	}
-	if opts[1].Kind != goToArtist {
+	if opts[1].Kind != overlay.GoToArtist {
 		t.Errorf("opts[1]: want goToArtist, got %v", opts[1].Kind)
 	}
-	if opts[2].Kind != goToGenre {
+	if opts[2].Kind != overlay.GoToGenre {
 		t.Errorf("opts[2]: want goToGenre, got %v", opts[2].Kind)
 	}
 }

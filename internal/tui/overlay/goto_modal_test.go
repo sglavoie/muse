@@ -1,4 +1,4 @@
-package tui
+package overlay
 
 import (
 	"strings"
@@ -12,8 +12,8 @@ import (
 
 func TestGoToCursorDown(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToAlbum, Value: "Alpha"},
-		{Kind: goToArtist, Value: "Bob"},
+		{Kind: GoToAlbum, Value: "Alpha"},
+		{Kind: GoToArtist, Value: "Bob"},
 	})
 	m2, cmd := m.HandleKey("j")
 	if cmd != nil {
@@ -26,8 +26,8 @@ func TestGoToCursorDown(t *testing.T) {
 
 func TestGoToCursorUp(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToAlbum, Value: "Alpha"},
-		{Kind: goToArtist, Value: "Bob"},
+		{Kind: GoToAlbum, Value: "Alpha"},
+		{Kind: GoToArtist, Value: "Bob"},
 	})
 	m.cursor = 1
 	m2, cmd := m.HandleKey("k")
@@ -41,7 +41,7 @@ func TestGoToCursorUp(t *testing.T) {
 
 func TestGoToCursorClampsBottom(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToAlbum, Value: "Alpha"},
+		{Kind: GoToAlbum, Value: "Alpha"},
 	})
 	m2, _ := m.HandleKey("j")
 	if m2.cursor != 0 {
@@ -51,7 +51,7 @@ func TestGoToCursorClampsBottom(t *testing.T) {
 
 func TestGoToCursorClampsTop(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToAlbum, Value: "Alpha"},
+		{Kind: GoToAlbum, Value: "Alpha"},
 	})
 	m2, _ := m.HandleKey("k")
 	if m2.cursor != 0 {
@@ -61,8 +61,8 @@ func TestGoToCursorClampsTop(t *testing.T) {
 
 func TestGoToDownArrow(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToAlbum, Value: "Alpha"},
-		{Kind: goToArtist, Value: "Bob"},
+		{Kind: GoToAlbum, Value: "Alpha"},
+		{Kind: GoToArtist, Value: "Bob"},
 	})
 	m2, _ := m.HandleKey("down")
 	if m2.cursor != 1 {
@@ -72,8 +72,8 @@ func TestGoToDownArrow(t *testing.T) {
 
 func TestGoToUpArrow(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToAlbum, Value: "Alpha"},
-		{Kind: goToArtist, Value: "Bob"},
+		{Kind: GoToAlbum, Value: "Alpha"},
+		{Kind: GoToArtist, Value: "Bob"},
 	})
 	m.cursor = 1
 	m2, _ := m.HandleKey("up")
@@ -86,8 +86,8 @@ func TestGoToUpArrow(t *testing.T) {
 
 func TestGoToEnterConfirms(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToAlbum, Value: "Alpha"},
-		{Kind: goToArtist, Value: "Bob"},
+		{Kind: GoToAlbum, Value: "Alpha"},
+		{Kind: GoToArtist, Value: "Bob"},
 	})
 	m.cursor = 1
 	_, cmd := m.HandleKey("enter")
@@ -99,7 +99,7 @@ func TestGoToEnterConfirms(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected GoToPickedMsg, got %T", msg)
 	}
-	if picked.Kind != goToArtist || picked.Value != "Bob" {
+	if picked.Kind != GoToArtist || picked.Value != "Bob" {
 		t.Errorf("expected goToArtist/Bob, got %v/%q", picked.Kind, picked.Value)
 	}
 }
@@ -108,7 +108,7 @@ func TestGoToEnterConfirms(t *testing.T) {
 
 func TestGoToEscDismisses(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToAlbum, Value: "Alpha"},
+		{Kind: GoToAlbum, Value: "Alpha"},
 	})
 	_, cmd := m.HandleKey("esc")
 	if cmd == nil {
@@ -124,68 +124,68 @@ func TestGoToEscDismisses(t *testing.T) {
 
 func TestGoToShortcutArtist(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToAlbum, Value: "Alpha"},
-		{Kind: goToArtist, Value: "Bob"},
-		{Kind: goToGenre, Value: "Rock"},
+		{Kind: GoToAlbum, Value: "Alpha"},
+		{Kind: GoToArtist, Value: "Bob"},
+		{Kind: GoToGenre, Value: "Rock"},
 	})
 	_, cmd := m.HandleKey("a")
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd")
 	}
 	picked := cmd().(GoToPickedMsg)
-	if picked.Kind != goToArtist || picked.Value != "Bob" {
+	if picked.Kind != GoToArtist || picked.Value != "Bob" {
 		t.Errorf("expected goToArtist/Bob, got %v/%q", picked.Kind, picked.Value)
 	}
 }
 
 func TestGoToShortcutAlbum(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToAlbum, Value: "Alpha"},
-		{Kind: goToArtist, Value: "Bob"},
+		{Kind: GoToAlbum, Value: "Alpha"},
+		{Kind: GoToArtist, Value: "Bob"},
 	})
 	_, cmd := m.HandleKey("b")
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd")
 	}
 	picked := cmd().(GoToPickedMsg)
-	if picked.Kind != goToAlbum || picked.Value != "Alpha" {
+	if picked.Kind != GoToAlbum || picked.Value != "Alpha" {
 		t.Errorf("expected goToAlbum/Alpha, got %v/%q", picked.Kind, picked.Value)
 	}
 }
 
 func TestGoToShortcutGenre(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToAlbum, Value: "Alpha"},
-		{Kind: goToGenre, Value: "Rock"},
+		{Kind: GoToAlbum, Value: "Alpha"},
+		{Kind: GoToGenre, Value: "Rock"},
 	})
 	_, cmd := m.HandleKey("g")
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd")
 	}
 	picked := cmd().(GoToPickedMsg)
-	if picked.Kind != goToGenre || picked.Value != "Rock" {
+	if picked.Kind != GoToGenre || picked.Value != "Rock" {
 		t.Errorf("expected goToGenre/Rock, got %v/%q", picked.Kind, picked.Value)
 	}
 }
 
 func TestGoToShortcutPlaylist(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToAlbum, Value: "Alpha"},
-		{Kind: goToPlaylist, Value: "My Playlist"},
+		{Kind: GoToAlbum, Value: "Alpha"},
+		{Kind: GoToPlaylist, Value: "My Playlist"},
 	})
 	_, cmd := m.HandleKey("p")
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd")
 	}
 	picked := cmd().(GoToPickedMsg)
-	if picked.Kind != goToPlaylist || picked.Value != "My Playlist" {
+	if picked.Kind != GoToPlaylist || picked.Value != "My Playlist" {
 		t.Errorf("expected goToPlaylist/My Playlist, got %v/%q", picked.Kind, picked.Value)
 	}
 }
 
 func TestGoToShortcutNoMatch(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToAlbum, Value: "Alpha"},
+		{Kind: GoToAlbum, Value: "Alpha"},
 	})
 	_, cmd := m.HandleKey("g") // no genre option
 	if cmd != nil {
@@ -195,8 +195,8 @@ func TestGoToShortcutNoMatch(t *testing.T) {
 
 func TestGoToShortcutPrefersFocused(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToGenre, Value: "Rock"},
-		{Kind: goToGenre, Value: "Jazz"},
+		{Kind: GoToGenre, Value: "Rock"},
+		{Kind: GoToGenre, Value: "Jazz"},
 	})
 	m.cursor = 1 // focused on Jazz
 	_, cmd := m.HandleKey("g")
@@ -211,9 +211,9 @@ func TestGoToShortcutPrefersFocused(t *testing.T) {
 
 func TestGoToShortcutFallsBackToFirst(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToAlbum, Value: "Alpha"},
-		{Kind: goToGenre, Value: "Rock"},
-		{Kind: goToGenre, Value: "Jazz"},
+		{Kind: GoToAlbum, Value: "Alpha"},
+		{Kind: GoToGenre, Value: "Rock"},
+		{Kind: GoToGenre, Value: "Jazz"},
 	})
 	m.cursor = 0 // focused on Album, not a genre
 	_, cmd := m.HandleKey("g")
@@ -233,10 +233,10 @@ func TestGoToDisplayLabel(t *testing.T) {
 		opt  GoToOption
 		want string
 	}{
-		{GoToOption{Kind: goToArtist, Value: "Bob"}, "a  Artist: Bob"},
-		{GoToOption{Kind: goToAlbum, Value: "Alpha"}, "b  Album: Alpha"},
-		{GoToOption{Kind: goToGenre, Value: "Rock"}, "g  Genre: Rock"},
-		{GoToOption{Kind: goToPlaylist, Value: "My PL"}, "p  Source: My PL"},
+		{GoToOption{Kind: GoToArtist, Value: "Bob"}, "a  Artist: Bob"},
+		{GoToOption{Kind: GoToAlbum, Value: "Alpha"}, "b  Album: Alpha"},
+		{GoToOption{Kind: GoToGenre, Value: "Rock"}, "g  Genre: Rock"},
+		{GoToOption{Kind: GoToPlaylist, Value: "My PL"}, "p  Source: My PL"},
 	}
 	for _, tt := range tests {
 		got := tt.opt.displayLabel()
@@ -250,7 +250,7 @@ func TestGoToDisplayLabel(t *testing.T) {
 
 func TestGoToRenderContainsTitle(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToArtist, Value: "Bob"},
+		{Kind: GoToArtist, Value: "Bob"},
 	})
 	s := styles.NewStyles(true)
 	out := m.Render(80, 24, s)
@@ -261,8 +261,8 @@ func TestGoToRenderContainsTitle(t *testing.T) {
 
 func TestGoToRenderContainsOptions(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToArtist, Value: "Bob"},
-		{Kind: goToAlbum, Value: "Alpha"},
+		{Kind: GoToArtist, Value: "Bob"},
+		{Kind: GoToAlbum, Value: "Alpha"},
 	})
 	s := styles.NewStyles(true)
 	out := m.Render(80, 24, s)
@@ -276,25 +276,11 @@ func TestGoToRenderContainsOptions(t *testing.T) {
 
 func TestGoToRenderContainsHint(t *testing.T) {
 	m := NewGoToModal([]GoToOption{
-		{Kind: goToArtist, Value: "Bob"},
+		{Kind: GoToArtist, Value: "Bob"},
 	})
 	s := styles.NewStyles(true)
 	out := m.Render(80, 24, s)
 	if !strings.Contains(out, "a/b/g/p shortcut") {
 		t.Error("rendered output should contain shortcut hint")
-	}
-}
-
-func TestGoToRenderHintFitsMinimumSupportedSize(t *testing.T) {
-	m := NewGoToModal([]GoToOption{
-		{Kind: goToAlbum, Value: "Alpha"},
-		{Kind: goToArtist, Value: "Alice"},
-		{Kind: goToGenre, Value: "Ambient"},
-	})
-	s := styles.NewStyles(true)
-
-	raw := m.Render(minTerminalWidth, minTerminalHeight, s)
-	if issues := DetectLayoutIssues(raw, PlainScreen(raw), minTerminalWidth, minTerminalHeight); len(issues) != 0 {
-		t.Fatalf("go-to overlay should fit at minimum supported size, got %+v:\n%s", issues, PlainScreen(raw))
 	}
 }

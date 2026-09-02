@@ -6,13 +6,15 @@ import (
 	"strings"
 
 	"github.com/sglavoie/muse/internal/metaexport"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // MetadataImportOverlay confirms a parsed import before anything is written.
 //
 // It slices its own visible window rather than handing the whole plan to
-// OverlayBox: OverlayBox.rowsForHeight drops rows from the middle to make a box
+// overlay.Box: overlay.Box.rowsForHeight drops rows from the middle to make a box
 // fit, which is invisible on a fixed form and corrupts an ordered list.
 type MetadataImportOverlay struct {
 	path string
@@ -66,7 +68,7 @@ func importChangedFields(ch metaexport.Change) []importFieldChange {
 }
 
 // metadataImportRowBudget is how many content rows fit at this height. It
-// mirrors OverlayBox's own chrome accounting so that rowsForHeight has nothing
+// mirrors overlay.Box's own chrome accounting so that rowsForHeight has nothing
 // left to drop.
 func metadataImportRowBudget(termHeight int) int {
 	if termHeight <= 0 {
@@ -148,17 +150,17 @@ func (o MetadataImportOverlay) Render(termWidth, termHeight int, s styles.Styles
 	if budget := metadataImportRowBudget(termHeight); len(rows) > budget {
 		rows = rows[:budget]
 	}
-	return OverlayBox{
+	return overlay.Box{
 		Title:         title,
 		Rows:          rows,
 		Hint:          o.hint(),
-		MaxInnerWidth: max(termWidth-4, OverlayHPadding),
+		MaxInnerWidth: max(termWidth-4, overlay.HPadding),
 	}.Render(termWidth, termHeight, s)
 }
 
-func (o MetadataImportOverlay) headerRows() []OverlayRow {
+func (o MetadataImportOverlay) headerRows() []overlay.Row {
 	p := o.plan
-	rows := []OverlayRow{
+	rows := []overlay.Row{
 		{Text: o.path},
 		{Text: fmt.Sprintf("%d changed · %d unchanged · %d unknown · %d skipped",
 			len(p.Changes), p.Unchanged, len(p.Unknown), o.skipped)},
@@ -166,55 +168,55 @@ func (o MetadataImportOverlay) headerRows() []OverlayRow {
 			p.Counts.Artist, p.Counts.Title, p.Counts.Album, p.Counts.Genre, p.Counts.Track, p.Counts.Disc)},
 	}
 	if n := len(p.Unknown); n > 0 {
-		rows = append(rows, OverlayRow{Text: fmt.Sprintf(
+		rows = append(rows, overlay.Row{Text: fmt.Sprintf(
 			"⚠ %d %s no longer in the library — re-export before importing",
-			n, pluralize(n, "hash", "hashes"))})
+			n, text.Pluralize(n, "hash", "hashes"))})
 	}
 	if o.skipped > 0 {
-		rows = append(rows, OverlayRow{Text: fmt.Sprintf(
+		rows = append(rows, overlay.Row{Text: fmt.Sprintf(
 			"⚠ %d %s skipped and not imported — w to review",
-			o.skipped, pluralize(o.skipped, "row", "rows"))})
+			o.skipped, text.Pluralize(o.skipped, "row", "rows"))})
 	}
 	if p.Moved > 0 {
-		rows = append(rows, OverlayRow{Text: fmt.Sprintf(
-			"%d %s moved since the export · applied anyway", p.Moved, pluralize(p.Moved, "file", "files"))})
+		rows = append(rows, overlay.Row{Text: fmt.Sprintf(
+			"%d %s moved since the export · applied anyway", p.Moved, text.Pluralize(p.Moved, "file", "files"))})
 	}
-	return append(rows, OverlayRow{Blank: true})
+	return append(rows, overlay.Row{Blank: true})
 }
 
-func (o MetadataImportOverlay) changeRows(termHeight int) []OverlayRow {
+func (o MetadataImportOverlay) changeRows(termHeight int) []overlay.Row {
 	rows := o.headerRows()
 	n := len(o.plan.Changes)
 	if n == 0 {
-		return append(rows, OverlayRow{Text: "Nothing to apply"})
+		return append(rows, overlay.Row{Text: "Nothing to apply"})
 	}
 	per := o.perPage(termHeight)
 	start := clampImportOffset(o.offset, o.cursor, per, n)
 	for i := start; i < min(start+per, n); i++ {
 		ch := o.plan.Changes[i]
 		fields := importChangedFields(ch)
-		rows = append(rows, OverlayRow{Text: importChangeLine(ch, fields), Styled: i == o.cursor})
+		rows = append(rows, overlay.Row{Text: importChangeLine(ch, fields), Styled: i == o.cursor})
 		if i != o.cursor {
 			continue
 		}
 		for _, f := range fields {
-			rows = append(rows, OverlayRow{Text: fmt.Sprintf("    %-6s %s → %s",
+			rows = append(rows, overlay.Row{Text: fmt.Sprintf("    %-6s %s → %s",
 				f.name, importValue(f.old), importValue(f.new))})
 		}
 	}
 	return rows
 }
 
-func (o MetadataImportOverlay) warningRows(termHeight int) []OverlayRow {
+func (o MetadataImportOverlay) warningRows(termHeight int) []overlay.Row {
 	n := len(o.plan.Warnings)
 	if n == 0 {
-		return []OverlayRow{{Text: "No warnings"}}
+		return []overlay.Row{{Text: "No warnings"}}
 	}
 	per := o.perPage(termHeight)
 	start := clampImportOffset(o.offset, o.cursor, per, n)
-	rows := make([]OverlayRow, 0, per)
+	rows := make([]overlay.Row, 0, per)
 	for i := start; i < min(start+per, n); i++ {
-		rows = append(rows, OverlayRow{Text: o.plan.Warnings[i].String(), Styled: i == o.cursor})
+		rows = append(rows, overlay.Row{Text: o.plan.Warnings[i].String(), Styled: i == o.cursor})
 	}
 	return rows
 }
@@ -229,7 +231,7 @@ func (o MetadataImportOverlay) hint() string {
 	}
 	warnings := ""
 	if n := len(o.plan.Warnings); n > 0 {
-		warnings = fmt.Sprintf(" · w %d %s", n, pluralize(n, "warning", "warnings"))
+		warnings = fmt.Sprintf(" · w %d %s", n, text.Pluralize(n, "warning", "warnings"))
 	}
 	return "j/k scroll" + warnings + tail
 }

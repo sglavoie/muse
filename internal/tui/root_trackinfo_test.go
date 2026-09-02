@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 )
 
 // setupTrackInfoModel returns a model with a focused track in the library.
@@ -71,14 +72,14 @@ func TestTrackInfoMsgSuccess(t *testing.T) {
 		"Title":  "Song",
 		"Artist": "Band",
 	}
-	next, _ := m.Update(trackInfoMsg{path: "/music/song.flac", tags: tags})
+	next, _ := m.Update(overlay.TrackInfoMsg{Path: "/music/song.flac", Tags: tags})
 	nm := next.(Model)
 
 	if nm.overlay.trackInfo == nil {
 		t.Fatal("expected trackInfo overlay to be set")
 	}
-	if nm.overlay.trackInfo.path != "/music/song.flac" {
-		t.Errorf("expected path '/music/song.flac', got %q", nm.overlay.trackInfo.path)
+	if nm.overlay.trackInfo.Path != "/music/song.flac" {
+		t.Errorf("expected path '/music/song.flac', got %q", nm.overlay.trackInfo.Path)
 	}
 }
 
@@ -87,9 +88,9 @@ func TestTrackInfoMsgSuccess(t *testing.T) {
 func TestTrackInfoMsgError(t *testing.T) {
 	m := New(context.Background())
 
-	next, _ := m.Update(trackInfoMsg{
-		path: "/music/song.flac",
-		err:  errors.New("exiftool failed"),
+	next, _ := m.Update(overlay.TrackInfoMsg{
+		Path: "/music/song.flac",
+		Err:  errors.New("exiftool failed"),
 	})
 	nm := next.(Model)
 
@@ -105,7 +106,7 @@ func TestTrackInfoMsgError(t *testing.T) {
 // dismisses it.
 func TestTrackInfoToggleOff(t *testing.T) {
 	m := New(context.Background())
-	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"}, 0, nil)
+	overlay := overlay.NewTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"}, 0, nil)
 	m.overlay.trackInfo = &overlay
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'i', Text: "i"})
@@ -122,7 +123,7 @@ func TestTrackInfoToggleOff(t *testing.T) {
 // TestTrackInfoEscDismisses verifies that Esc dismisses the overlay.
 func TestTrackInfoEscDismisses(t *testing.T) {
 	m := New(context.Background())
-	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"}, 0, nil)
+	overlay := overlay.NewTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"}, 0, nil)
 	m.overlay.trackInfo = &overlay
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
@@ -137,7 +138,7 @@ func TestTrackInfoEscDismisses(t *testing.T) {
 // other keys are swallowed.
 func TestTrackInfoSwallowsKeys(t *testing.T) {
 	m := New(context.Background())
-	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"}, 0, nil)
+	overlay := overlay.NewTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"}, 0, nil)
 	m.overlay.trackInfo = &overlay
 	m.activeView = viewLibrary
 
@@ -157,7 +158,7 @@ func TestTrackInfoSwallowsKeys(t *testing.T) {
 // the overlay and returns a quit command.
 func TestTrackInfoCtrlCDismissesAndQuits(t *testing.T) {
 	m := New(context.Background())
-	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"}, 0, nil)
+	overlay := overlay.NewTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "T"}, 0, nil)
 	m.overlay.trackInfo = &overlay
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
@@ -178,7 +179,7 @@ func TestTrackInfoCtrlCDismissesAndQuits(t *testing.T) {
 // active, View() renders its content.
 func TestTrackInfoOverlayRenderedInView(t *testing.T) {
 	m := New(context.Background())
-	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "View Song"}, 0, nil)
+	overlay := overlay.NewTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "View Song"}, 0, nil)
 	m.overlay.trackInfo = &overlay
 	m.termWidth = 80
 	m.termHeight = 24
@@ -216,7 +217,7 @@ func TestTrackInfoPathUnknown(t *testing.T) {
 // is active returns a clipboard command and shows a notification.
 func TestTrackInfoYankPath(t *testing.T) {
 	m := New(context.Background())
-	overlay := newTrackInfoOverlay("/music/artist/song.flac", map[string]any{"Title": "T"}, 0, nil)
+	overlay := overlay.NewTrackInfoOverlay("/music/artist/song.flac", map[string]any{"Title": "T"}, 0, nil)
 	m.overlay.trackInfo = &overlay
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})

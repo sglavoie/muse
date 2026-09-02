@@ -14,6 +14,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // insightsMergePlan is a genre merge waiting on the confirmation bar.
@@ -71,7 +72,7 @@ func (m Model) handleInsightsMergeGenre() Model {
 		hashes:    row.hashes,
 	}
 	m.confirmationBar = fmt.Sprintf("Merge %s into %q on %d %s? (y to confirm)",
-		strings.Join(row.variants, " / "), row.canonical, n, pluralize(n, "track", "tracks"))
+		strings.Join(row.variants, " / "), row.canonical, n, text.Pluralize(n, "track", "tracks"))
 	return m
 }
 
@@ -205,14 +206,14 @@ func (m Model) handleInsightsMergedMsg(msg insightsMergedMsg) (Model, tea.Cmd) {
 		m.statusBar.notify(fmt.Sprintf("Genre merge failed, nothing changed: %s", msg.err))
 	case done == 0 && lost > 0:
 		m.statusBar.notify(fmt.Sprintf("Genre merge stood down: %d %s changed while it ran · m retries",
-			lost, pluralize(lost, "track", "tracks")))
+			lost, text.Pluralize(lost, "track", "tracks")))
 	case lost > 0:
 		total := done + lost
 		m.statusBar.notify(fmt.Sprintf("Merged %d of %d %s into %s · m retries the rest",
-			done, total, pluralize(total, "track", "tracks"), msg.canonical))
+			done, total, text.Pluralize(total, "track", "tracks"), msg.canonical))
 	default:
 		m.statusBar.notify(fmt.Sprintf("Merged %d %s into %s",
-			done, pluralize(done, "track", "tracks"), msg.canonical))
+			done, text.Pluralize(done, "track", "tracks"), msg.canonical))
 	}
 	return m, m.insightsLoadCmd()
 }

@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/player"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // handlePlaylistTracksLoadedMsg transitions the playlists view to TrackLevel,
@@ -146,7 +147,7 @@ func (m Model) handleQueueSavedAsPlaylistMsg(msg queueSavedAsPlaylistMsg) Model 
 		source = "selection"
 	}
 	m.queueDirty = false
-	m.statusBar.notify(fmt.Sprintf("Saved %s as %q (%d %s)", source, msg.playlistName, msg.count, pluralize(msg.count, "track", "tracks")))
+	m.statusBar.notify(fmt.Sprintf("Saved %s as %q (%d %s)", source, msg.playlistName, msg.count, text.Pluralize(msg.count, "track", "tracks")))
 	player.PlaySound(player.SoundEnqueued)
 	return m
 }
@@ -174,7 +175,7 @@ func (m Model) handleTracksAddedToPlaylistMsg(msg tracksAddedToPlaylistMsg) Mode
 		m.playlists.playlists = msg.playlists
 		m = m.preservePlaylistsSort()
 	}
-	m.statusBar.notify(fmt.Sprintf("%d %s added to %s", msg.count, pluralize(msg.count, "track", "tracks"), msg.playlistName))
+	m.statusBar.notify(fmt.Sprintf("%d %s added to %s", msg.count, text.Pluralize(msg.count, "track", "tracks"), msg.playlistName))
 	player.PlaySound(player.SoundEnqueued)
 	return m
 }

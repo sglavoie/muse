@@ -19,7 +19,7 @@ func (m Model) handleTrackInfoKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, boo
 		return m, nil, true
 	case "y":
 		m.statusBar.notify("Path copied to clipboard")
-		return m, tea.SetClipboard(m.overlay.trackInfo.path), true
+		return m, tea.SetClipboard(m.overlay.trackInfo.Path), true
 	default:
 		return m, nil, true
 	}

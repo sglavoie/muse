@@ -19,7 +19,7 @@ func (a undoBulkEditMetadataAction) kind() undoKind { return undoKindBulkEditMet
 
 func (a undoBulkEditMetadataAction) description() string {
 	n := len(a.originals)
-	return fmt.Sprintf("Updated %d %s · u to undo", n, pluralize(n, "track", "tracks"))
+	return fmt.Sprintf("Updated %d %s · u to undo", n, text.Pluralize(n, "track", "tracks"))
 }
 
 func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
@@ -81,6 +81,6 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 		}()
 	}
 	n := len(a.originals)
-	m.statusBar.notify(fmt.Sprintf("Undone metadata edit for %d %s", n, pluralize(n, "track", "tracks")))
+	m.statusBar.notify(fmt.Sprintf("Undone metadata edit for %d %s", n, text.Pluralize(n, "track", "tracks")))
 	return m, nil
 }

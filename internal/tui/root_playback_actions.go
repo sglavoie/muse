@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
@@ -34,7 +35,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 			m.statusBar.notify("Track path unknown")
 			return m, nil, true
 		}
-		return m, trackInfoCmd(m.appCtx, track.Path, track.Hash, track.PlayCount), true
+		return m, overlay.TrackInfoCmd(m.appCtx, track.Path, track.Hash, track.PlayCount), true
 	case keys.ActionNowPlayingInfo:
 		if m.overlay.nowPlaying != nil {
 			m.overlay.nowPlaying = nil
@@ -44,24 +45,24 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 			m.statusBar.notify("No track playing")
 			return m, nil, true
 		}
-		overlay := NowPlayingOverlay{
-			artist:   m.statusBar.artist,
-			title:    m.statusBar.title,
-			elapsed:  m.playback.elapsedSecs,
-			total:    m.playback.totalSecs,
-			state:    m.playback.state,
-			tagsLine: m.buildTagsLine(m.playback.currentHash),
+		overlay := overlay.NowPlayingOverlay{
+			Artist:   m.statusBar.artist,
+			Title:    m.statusBar.title,
+			Elapsed:  m.playback.elapsedSecs,
+			Total:    m.playback.totalSecs,
+			State:    m.playback.state,
+			TagsLine: m.buildTagsLine(m.playback.currentHash),
 		}
 		if m.playback.currentHash != "" {
 			if t, ok := m.library.index.FindByHash(m.playback.currentHash); ok {
-				if overlay.artist == "" {
-					overlay.artist = t.Artist
+				if overlay.Artist == "" {
+					overlay.Artist = t.Artist
 				}
-				if overlay.title == "" {
-					overlay.title = t.Title
+				if overlay.Title == "" {
+					overlay.Title = t.Title
 				}
-				overlay.album = t.Album
-				overlay.playCount = t.PlayCount
+				overlay.Album = t.Album
+				overlay.PlayCount = t.PlayCount
 			}
 		}
 		m.overlay.nowPlaying = &overlay
@@ -191,11 +192,11 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 				slog.Warn("write repeat mode failed", "err", err)
 			}
 		}
-		m.statusBar.pushMsg(m.modeToggleMsg("Repeat", modeIndexRepeat), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
+		m.statusBar.pushMsg(m.modeToggleMsg("Repeat", playback.ModeIndexRepeat), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 		return m, nil, true
 	case keys.ActionShuffleToggle:
 		m.playback.shuffle = !m.playback.shuffle
-		label := modeState(m.playback.shuffle)
+		label := playback.ModeState(m.playback.shuffle)
 		// Surface a runtime failure to the user: the traversal order did not
 		// change, so revert the toggle and do not persist a mismatched flag.
 		if rs, ok := m.player.(repeatShuffler); ok {
@@ -215,7 +216,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 				return m, nil, true
 			}
 		}
-		m.statusBar.pushMsg(m.modeToggleMsg("Shuffle", modeIndexShuffle), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
+		m.statusBar.pushMsg(m.modeToggleMsg("Shuffle", playback.ModeIndexShuffle), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 		return m, nil, true
 	case keys.ActionStopAfterCurrent:
 		if m.playback.state != playback.StatePlaying && m.playback.state != playback.StatePaused {
@@ -226,7 +227,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 		if sat, ok := m.player.(stopAfterToggler); ok {
 			sat.SetStopAfterCurrent(m.playback.stopAfterCurrent)
 		}
-		m.statusBar.pushMsg(m.modeToggleMsg("Stop after current", modeIndexStopAfter), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
+		m.statusBar.pushMsg(m.modeToggleMsg("Stop after current", playback.ModeIndexStopAfter), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 		return m, nil, true
 	case keys.ActionRadioToggle:
 		return m.radioToggle()

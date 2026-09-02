@@ -1,4 +1,4 @@
-package tui
+package overlay
 
 import (
 	"slices"
@@ -14,16 +14,16 @@ import (
 // the static help overlay from drifting as new actions are added.
 func TestHelpSectionsMatchRegistry(t *testing.T) {
 	reg := keys.NewRegistry()
-	sections := helpSections()
+	sections := HelpSections()
 
 	// Build a map of section title → set of individual key strings.
 	// Composite display entries like "left / right" are split on " / ".
 	sectionKeys := make(map[string]map[string]bool)
 	for _, sec := range sections {
-		sectionKeys[sec.title] = make(map[string]bool)
-		for _, e := range sec.entries {
-			for k := range strings.SplitSeq(e.key, " / ") {
-				sectionKeys[sec.title][strings.TrimSpace(k)] = true
+		sectionKeys[sec.Title] = make(map[string]bool)
+		for _, e := range sec.Entries {
+			for k := range strings.SplitSeq(e.Key, " / ") {
+				sectionKeys[sec.Title][strings.TrimSpace(k)] = true
 			}
 		}
 	}
@@ -93,13 +93,13 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 	// of the view contexts.
 	navContexts := []keys.Context{keys.ContextLibrary, keys.ContextQueue, keys.ContextPlaylists, keys.ContextArtists, keys.ContextAlbums, keys.ContextFavorites, keys.ContextGenres, keys.ContextTags}
 	for _, sec := range sections {
-		ctx, directMatch := reverseCtx[sec.title]
-		isNav := sec.title == "Navigation (Library / Queue / Playlists / Browse / Favorites / Tags / Mixes)"
+		ctx, directMatch := reverseCtx[sec.Title]
+		isNav := sec.Title == "Navigation (Library / Queue / Playlists / Browse / Favorites / Tags / Mixes)"
 		if !directMatch && !isNav {
 			continue
 		}
-		for _, e := range sec.entries {
-			parts := strings.Split(e.key, " / ")
+		for _, e := range sec.Entries {
+			parts := strings.Split(e.Key, " / ")
 			anyFound := false
 			for _, part := range parts {
 				k := strings.TrimSpace(part)
@@ -123,7 +123,7 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 			}
 			if !anyFound {
 				t.Errorf("helpSections() %q section has entry %q with no corresponding registry binding (stale help text?)",
-					sec.title, e.key)
+					sec.Title, e.Key)
 			}
 		}
 	}
@@ -131,7 +131,7 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 
 func TestHelpOverlayRendersAllSectionHeaders(t *testing.T) {
 	h := HelpOverlay{}
-	out := h.render(styles.Styles{}, helpSections(), "Keybindings", 0)
+	out := h.Render(styles.Styles{}, HelpSections(), "Keybindings", 0)
 
 	for _, header := range []string{"Global", "Library", "Playlists", "Artists", "Albums", "Queue", "Modals"} {
 		if !strings.Contains(out, header) {
@@ -142,7 +142,7 @@ func TestHelpOverlayRendersAllSectionHeaders(t *testing.T) {
 
 func TestHelpOverlayRendersRepresentativeEntries(t *testing.T) {
 	h := HelpOverlay{}
-	out := h.render(styles.Styles{}, helpSections(), "Keybindings", 0)
+	out := h.Render(styles.Styles{}, HelpSections(), "Keybindings", 0)
 
 	checks := []struct {
 		section string
@@ -181,7 +181,7 @@ func TestHelpOverlayRendersRepresentativeEntries(t *testing.T) {
 }
 
 func TestFilteredHelpSections(t *testing.T) {
-	sections := filteredHelpSections(keys.ContextLibrary)
+	sections := FilteredHelpSections(keys.ContextLibrary)
 
 	// Should contain the pinned status-bar legend, Global, Navigation, and
 	// Library — but not Queue, Playlists, etc.
@@ -192,8 +192,8 @@ func TestFilteredHelpSections(t *testing.T) {
 		"Library": true,
 	}
 	for _, sec := range sections {
-		if !allowed[sec.title] {
-			t.Errorf("filteredHelpSections(contextLibrary) included unexpected section %q", sec.title)
+		if !allowed[sec.Title] {
+			t.Errorf("filteredHelpSections(contextLibrary) included unexpected section %q", sec.Title)
 		}
 	}
 	if len(sections) != len(allowed) {
@@ -212,17 +212,17 @@ var helpContexts = []keys.Context{
 // pinned first in both the unfiltered list and every view-filtered one — the
 // filtered mode is the default (m.helpFiltered starts true).
 func TestStatusBarHelpSectionIsFirst(t *testing.T) {
-	if got := helpSections()[0].title; got != statusBarHelpSectionTitle {
-		t.Errorf("helpSections()[0].title = %q, want %q", got, statusBarHelpSectionTitle)
+	if got := HelpSections()[0].Title; got != StatusBarHelpSectionTitle {
+		t.Errorf("helpSections()[0].title = %q, want %q", got, StatusBarHelpSectionTitle)
 	}
 	for _, ctx := range helpContexts {
-		sections := filteredHelpSections(ctx)
+		sections := FilteredHelpSections(ctx)
 		if len(sections) == 0 {
 			t.Errorf("filteredHelpSections(%d) returned no sections", ctx)
 			continue
 		}
-		if got := sections[0].title; got != statusBarHelpSectionTitle {
-			t.Errorf("filteredHelpSections(%d)[0].title = %q, want %q", ctx, got, statusBarHelpSectionTitle)
+		if got := sections[0].Title; got != StatusBarHelpSectionTitle {
+			t.Errorf("filteredHelpSections(%d)[0].title = %q, want %q", ctx, got, StatusBarHelpSectionTitle)
 		}
 	}
 }
@@ -233,13 +233,13 @@ func TestStatusBarHelpSectionIsFirst(t *testing.T) {
 func TestStatusBarHelpSectionNotDuplicated(t *testing.T) {
 	for _, ctx := range helpContexts {
 		count := 0
-		for _, sec := range filteredHelpSections(ctx) {
-			if sec.title == statusBarHelpSectionTitle {
+		for _, sec := range FilteredHelpSections(ctx) {
+			if sec.Title == StatusBarHelpSectionTitle {
 				count++
 			}
 		}
 		if count != 1 {
-			t.Errorf("filteredHelpSections(%d) contains %d %q sections, want 1", ctx, count, statusBarHelpSectionTitle)
+			t.Errorf("filteredHelpSections(%d) contains %d %q sections, want 1", ctx, count, StatusBarHelpSectionTitle)
 		}
 	}
 }
@@ -259,45 +259,45 @@ func TestStatusBarHelpSectionDescribesToggleKeys(t *testing.T) {
 		{"D", "A", keys.ActionRadioToggle},
 	}
 
-	var sec helpSection
-	for _, s := range helpSections() {
-		if s.title == statusBarHelpSectionTitle {
+	var sec HelpSection
+	for _, s := range HelpSections() {
+		if s.Title == StatusBarHelpSectionTitle {
 			sec = s
 			break
 		}
 	}
-	if len(sec.entries) != len(want) {
-		t.Fatalf("%q section has %d entries, want %d", statusBarHelpSectionTitle, len(sec.entries), len(want))
+	if len(sec.Entries) != len(want) {
+		t.Fatalf("%q section has %d entries, want %d", StatusBarHelpSectionTitle, len(sec.Entries), len(want))
 	}
 
 	reg := keys.NewRegistry()
 	for i, w := range want {
-		e := sec.entries[i]
-		if e.key != w.glyph {
-			t.Errorf("entry %d: key = %q, want %q", i, e.key, w.glyph)
+		e := sec.Entries[i]
+		if e.Key != w.glyph {
+			t.Errorf("entry %d: key = %q, want %q", i, e.Key, w.glyph)
 		}
-		if !strings.Contains(e.desc, "toggle with "+w.toggle) {
-			t.Errorf("entry %q: desc %q does not name toggle key %q", e.key, e.desc, w.toggle)
+		if !strings.Contains(e.Desc, "toggle with "+w.toggle) {
+			t.Errorf("entry %q: desc %q does not name toggle key %q", e.Key, e.Desc, w.toggle)
 		}
 		if got := reg.Lookup(keys.ContextGlobal, w.toggle); got != w.act {
-			t.Errorf("entry %q: key %q resolves to action %d, want %d", e.key, w.toggle, got, w.act)
+			t.Errorf("entry %q: key %q resolves to action %d, want %d", e.Key, w.toggle, got, w.act)
 		}
 	}
 }
 
 func TestSearchHelpSections(t *testing.T) {
-	sections := helpSections()
-	result := searchHelpSections(sections, "shuffle")
+	sections := HelpSections()
+	result := SearchHelpSections(sections, "shuffle")
 
 	// "shuffle" should match the Global entry "Toggle shuffle".
 	if len(result) == 0 {
 		t.Fatal("searchHelpSections(\"shuffle\") returned no sections")
 	}
 	for _, sec := range result {
-		for _, e := range sec.entries {
-			lower := strings.ToLower(e.key) + " " + strings.ToLower(e.desc)
+		for _, e := range sec.Entries {
+			lower := strings.ToLower(e.Key) + " " + strings.ToLower(e.Desc)
 			if !strings.Contains(lower, "shuffle") {
-				t.Errorf("section %q: entry (%q, %q) does not match query \"shuffle\"", sec.title, e.key, e.desc)
+				t.Errorf("section %q: entry (%q, %q) does not match query \"shuffle\"", sec.Title, e.Key, e.Desc)
 			}
 		}
 	}
@@ -307,7 +307,7 @@ func TestSearchHelpSections(t *testing.T) {
 	want := []string{"Status bar indicators", "Global"}
 	got := make([]string, len(result))
 	for i, s := range result {
-		got[i] = s.title
+		got[i] = s.Title
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("expected sections %v, got %v", want, got)
@@ -315,16 +315,16 @@ func TestSearchHelpSections(t *testing.T) {
 }
 
 func TestSearchHelpSectionsCaseInsensitive(t *testing.T) {
-	sections := helpSections()
+	sections := HelpSections()
 	for _, query := range []string{"QUIT", "quit", "Quit"} {
-		result := searchHelpSections(sections, query)
+		result := SearchHelpSections(sections, query)
 		if len(result) == 0 {
 			t.Fatalf("searchHelpSections(%q) returned no sections", query)
 		}
 		found := false
 		for _, sec := range result {
-			for _, e := range sec.entries {
-				if strings.Contains(strings.ToLower(e.desc), "quit") {
+			for _, e := range sec.Entries {
+				if strings.Contains(strings.ToLower(e.Desc), "quit") {
 					found = true
 				}
 			}
@@ -339,9 +339,9 @@ func TestSearchHelpSectionsCaseInsensitive(t *testing.T) {
 // treated as an empty query rather than searching for a literal " " (which
 // matches almost nothing and blanks the overlay).
 func TestSearchHelpSectionsWhitespaceQuery(t *testing.T) {
-	sections := helpSections()
+	sections := HelpSections()
 	for _, query := range []string{" ", "   ", "\t", " \n "} {
-		result := searchHelpSections(sections, query)
+		result := SearchHelpSections(sections, query)
 		if len(result) != len(sections) {
 			t.Errorf("whitespace query %q: expected %d sections, got %d", query, len(sections), len(result))
 		}
@@ -349,17 +349,17 @@ func TestSearchHelpSectionsWhitespaceQuery(t *testing.T) {
 }
 
 func TestSearchHelpSectionsEmptyQuery(t *testing.T) {
-	sections := helpSections()
-	result := searchHelpSections(sections, "")
+	sections := HelpSections()
+	result := SearchHelpSections(sections, "")
 	if len(result) != len(sections) {
 		t.Fatalf("empty query: expected %d sections, got %d", len(sections), len(result))
 	}
 	for i := range sections {
-		if result[i].title != sections[i].title {
-			t.Errorf("empty query: section %d title mismatch: %q vs %q", i, result[i].title, sections[i].title)
+		if result[i].Title != sections[i].Title {
+			t.Errorf("empty query: section %d title mismatch: %q vs %q", i, result[i].Title, sections[i].Title)
 		}
-		if len(result[i].entries) != len(sections[i].entries) {
-			t.Errorf("empty query: section %q entry count mismatch: %d vs %d", result[i].title, len(result[i].entries), len(sections[i].entries))
+		if len(result[i].Entries) != len(sections[i].Entries) {
+			t.Errorf("empty query: section %q entry count mismatch: %d vs %d", result[i].Title, len(result[i].Entries), len(sections[i].Entries))
 		}
 	}
 }
@@ -419,18 +419,18 @@ func TestWrapText(t *testing.T) {
 }
 
 func TestHelpOverlayWrapsLongDescriptions(t *testing.T) {
-	sections := []helpSection{
+	sections := []HelpSection{
 		{
-			title:   "Test Section With A Very Long Title That Should Wrap",
-			context: keys.ContextGlobal,
-			entries: []helpEntry{
+			Title:   "Test Section With A Very Long Title That Should Wrap",
+			Context: keys.ContextGlobal,
+			Entries: []HelpEntry{
 				{"key", "Short desc"},
 				{"/", "Filter (Library / Queue / Artists / Albums / Favorites / Genres)"},
 			},
 		},
 	}
 	// Width 50 should force both the title and the long description to wrap.
-	out := HelpOverlay{}.render(styles.Styles{}, sections, "Help", 50)
+	out := HelpOverlay{}.Render(styles.Styles{}, sections, "Help", 50)
 
 	// The long description should be split across lines.
 	lines := strings.Split(out, "\n")
@@ -446,8 +446,8 @@ func TestHelpOverlayWrapsLongDescriptions(t *testing.T) {
 }
 
 func TestFilteredHelpRender(t *testing.T) {
-	sections := filteredHelpSections(keys.ContextQueue)
-	out := HelpOverlay{}.render(styles.Styles{}, sections, "Keybindings — Queue", 0)
+	sections := FilteredHelpSections(keys.ContextQueue)
+	out := HelpOverlay{}.Render(styles.Styles{}, sections, "Keybindings — Queue", 0)
 
 	// Check that Queue section is present as a standalone section header.
 	if !strings.Contains(out, "\nQueue\n") {

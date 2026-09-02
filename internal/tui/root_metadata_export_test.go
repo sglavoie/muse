@@ -13,6 +13,7 @@ import (
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/desktop"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 )
 
 func exportModel(t *testing.T, dataDir string) Model {
@@ -270,7 +271,7 @@ func TestExportPathCopyKeyYieldsToOverlaysOwningY(t *testing.T) {
 	var m Model
 	m.appCtx = context.Background()
 	m = m.handleMetadataExportedMsg(metadataExportedMsg{path: "/tmp/e.tsv", label: "Library", count: 1})
-	m.overlay.trackInfo = &TrackInfoOverlay{path: "/music/a.mp3"}
+	m.overlay.trackInfo = &overlay.TrackInfoOverlay{Path: "/music/a.mp3"}
 
 	next, _, ok := m.routeKeyPress(tea.KeyPressMsg{Code: 'y', Text: "y"})
 	if !ok {

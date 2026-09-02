@@ -67,10 +67,10 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	if m.overlay.preview != nil && m.overlay.previewPlayer != nil {
 		if elapsed, total, err := m.overlay.previewPlayer.ElapsedPosition(); err == nil {
 			if finitePositive(elapsed) && finitePositive(total) {
-				m.overlay.preview.elapsed = elapsed
-				m.overlay.preview.total = total
+				m.overlay.preview.Elapsed = elapsed
+				m.overlay.preview.Total = total
 				if !m.overlay.previewDurationFilled && total > 0 {
-					m, previewDurationCmd = m.correctStoredDuration(m.overlay.preview.hash, total)
+					m, previewDurationCmd = m.correctStoredDuration(m.overlay.preview.Hash, total)
 					m.overlay.previewDurationFilled = true
 				}
 			}
@@ -80,9 +80,9 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	}
 
 	if m.overlay.nowPlaying != nil {
-		m.overlay.nowPlaying.elapsed = m.playback.elapsedSecs
-		m.overlay.nowPlaying.total = m.playback.totalSecs
-		m.overlay.nowPlaying.state = m.playback.state
+		m.overlay.nowPlaying.Elapsed = m.playback.elapsedSecs
+		m.overlay.nowPlaying.Total = m.playback.totalSecs
+		m.overlay.nowPlaying.State = m.playback.state
 	}
 	m.statusBar.pruneNotifications()
 	// Schedule a precise fade tick at expiry-minus-fade-window for the

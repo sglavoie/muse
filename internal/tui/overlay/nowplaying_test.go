@@ -1,4 +1,4 @@
-package tui
+package overlay
 
 import (
 	"strings"
@@ -11,11 +11,11 @@ import (
 
 func TestNowPlayingOverlay_BasicContent(t *testing.T) {
 	n := NowPlayingOverlay{
-		artist:  "Test Artist",
-		title:   "Test Song",
-		elapsed: 83,
-		total:   296,
-		state:   playback.StatePlaying,
+		Artist:  "Test Artist",
+		Title:   "Test Song",
+		Elapsed: 83,
+		Total:   296,
+		State:   playback.StatePlaying,
 	}
 	out := ansi.Strip(n.Render(80, 24, newTestStyles()))
 
@@ -35,10 +35,10 @@ func TestNowPlayingOverlay_BasicContent(t *testing.T) {
 
 func TestNowPlayingOverlay_AlbumShown(t *testing.T) {
 	n := NowPlayingOverlay{
-		artist: "A",
-		title:  "T",
-		album:  "Great Album",
-		state:  playback.StatePlaying,
+		Artist: "A",
+		Title:  "T",
+		Album:  "Great Album",
+		State:  playback.StatePlaying,
 	}
 	out := ansi.Strip(n.Render(80, 24, newTestStyles()))
 	if !strings.Contains(out, "Great Album") {
@@ -48,9 +48,9 @@ func TestNowPlayingOverlay_AlbumShown(t *testing.T) {
 
 func TestNowPlayingOverlay_AlbumAbsentWhenEmpty(t *testing.T) {
 	n := NowPlayingOverlay{
-		artist: "A",
-		title:  "T",
-		state:  playback.StatePlaying,
+		Artist: "A",
+		Title:  "T",
+		State:  playback.StatePlaying,
 	}
 	out := ansi.Strip(n.Render(80, 24, newTestStyles()))
 	// Count content rows between borders — should not have an extra row for album.
@@ -73,7 +73,7 @@ func TestNowPlayingOverlay_AlbumAbsentWhenEmpty(t *testing.T) {
 }
 
 func TestNowPlayingOverlay_PlayingIcon(t *testing.T) {
-	n := NowPlayingOverlay{artist: "A", title: "T", state: playback.StatePlaying}
+	n := NowPlayingOverlay{Artist: "A", Title: "T", State: playback.StatePlaying}
 	out := ansi.Strip(n.Render(80, 24, newTestStyles()))
 	if !strings.Contains(out, "▶") {
 		t.Error("expected ▶ icon for playing state")
@@ -81,7 +81,7 @@ func TestNowPlayingOverlay_PlayingIcon(t *testing.T) {
 }
 
 func TestNowPlayingOverlay_PausedIcon(t *testing.T) {
-	n := NowPlayingOverlay{artist: "A", title: "T", state: playback.StatePaused}
+	n := NowPlayingOverlay{Artist: "A", Title: "T", State: playback.StatePaused}
 	out := ansi.Strip(n.Render(80, 24, newTestStyles()))
 	if !strings.Contains(out, "⏸") {
 		t.Error("expected ⏸ icon for paused state")
@@ -89,7 +89,7 @@ func TestNowPlayingOverlay_PausedIcon(t *testing.T) {
 }
 
 func TestNowPlayingOverlay_StoppedIcon(t *testing.T) {
-	n := NowPlayingOverlay{artist: "A", title: "T", state: playback.StateStopped}
+	n := NowPlayingOverlay{Artist: "A", Title: "T", State: playback.StateStopped}
 	out := ansi.Strip(n.Render(80, 24, newTestStyles()))
 	if !strings.Contains(out, "■") {
 		t.Error("expected ■ icon for stopped state")
@@ -100,7 +100,7 @@ func TestNowPlayingOverlay_StoppedIcon(t *testing.T) {
 }
 
 func TestNowPlayingOverlay_UnknownTrack(t *testing.T) {
-	n := NowPlayingOverlay{state: playback.StatePlaying}
+	n := NowPlayingOverlay{State: playback.StatePlaying}
 	out := ansi.Strip(n.Render(80, 24, newTestStyles()))
 	if !strings.Contains(out, "(unknown title)") || !strings.Contains(out, "(unknown artist)") {
 		t.Error("expected '(unknown title)' and '(unknown artist)' for empty artist/title")
@@ -108,7 +108,7 @@ func TestNowPlayingOverlay_UnknownTrack(t *testing.T) {
 }
 
 func TestNowPlayingOverlay_DismissHint(t *testing.T) {
-	n := NowPlayingOverlay{artist: "A", title: "T", state: playback.StatePlaying}
+	n := NowPlayingOverlay{Artist: "A", Title: "T", State: playback.StatePlaying}
 	out := ansi.Strip(n.Render(80, 24, newTestStyles()))
 	if !strings.Contains(out, "I or esc to dismiss") {
 		t.Error("expected dismiss hint")
@@ -121,7 +121,7 @@ func TestNowPlayingOverlay_DismissHint(t *testing.T) {
 // render the stopped icon so the overlay never suggests playback is active when
 // it isn't.
 func TestNowPlayingOverlay_IdleStateDoesNotShowPlayingIcon(t *testing.T) {
-	n := NowPlayingOverlay{artist: "A", title: "T", state: playback.StateIdle}
+	n := NowPlayingOverlay{Artist: "A", Title: "T", State: playback.StateIdle}
 	out := ansi.Strip(n.Render(80, 24, newTestStyles()))
 	if strings.Contains(out, "▶") {
 		t.Error("idle state must not render the playing icon")

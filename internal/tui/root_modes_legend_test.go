@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
@@ -48,16 +49,16 @@ func TestModesLegendSnapshotsLiveModeState(t *testing.T) {
 	if legend == nil {
 		t.Fatal("expected modesLegend overlay to be set")
 	}
-	if legend.repeat != playback.RepeatOne {
-		t.Errorf("expected repeat RepeatOne, got %v", legend.repeat)
+	if legend.Repeat != playback.RepeatOne {
+		t.Errorf("expected repeat RepeatOne, got %v", legend.Repeat)
 	}
-	if !legend.shuffle {
+	if !legend.Shuffle {
 		t.Error("expected shuffle to be captured as true")
 	}
-	if !legend.stopAfter {
+	if !legend.StopAfter {
 		t.Error("expected stopAfter to be captured as true")
 	}
-	if !legend.radio {
+	if !legend.Radio {
 		t.Error("expected radio to be captured from m.radio.enabled")
 	}
 }
@@ -68,7 +69,7 @@ func TestModesLegendReopensWithUpdatedState(t *testing.T) {
 	m := New(context.Background())
 
 	nm := pressSemicolon(m)
-	if nm.overlay.modesLegend == nil || nm.overlay.modesLegend.shuffle {
+	if nm.overlay.modesLegend == nil || nm.overlay.modesLegend.Shuffle {
 		t.Fatal("expected an overlay with shuffle off")
 	}
 
@@ -82,7 +83,7 @@ func TestModesLegendReopensWithUpdatedState(t *testing.T) {
 	if nm.overlay.modesLegend == nil {
 		t.Fatal("expected modesLegend overlay to reopen")
 	}
-	if !nm.overlay.modesLegend.shuffle {
+	if !nm.overlay.modesLegend.Shuffle {
 		t.Error("expected the reopened overlay to reflect shuffle=true")
 	}
 }
@@ -91,7 +92,7 @@ func TestModesLegendReopensWithUpdatedState(t *testing.T) {
 // matching the overlay's own "; or esc to dismiss" hint.
 func TestModesLegendSemicolonCloses(t *testing.T) {
 	m := New(context.Background())
-	m.overlay.modesLegend = &ModesLegendOverlay{}
+	m.overlay.modesLegend = &overlay.ModesLegendOverlay{}
 
 	nm := pressSemicolon(m)
 
@@ -103,7 +104,7 @@ func TestModesLegendSemicolonCloses(t *testing.T) {
 // TestModesLegendEscCloses verifies that Esc dismisses the overlay.
 func TestModesLegendEscCloses(t *testing.T) {
 	m := New(context.Background())
-	m.overlay.modesLegend = &ModesLegendOverlay{}
+	m.overlay.modesLegend = &overlay.ModesLegendOverlay{}
 
 	nm := pressEsc(m)
 
@@ -117,7 +118,7 @@ func TestModesLegendEscCloses(t *testing.T) {
 func TestModesLegendSwallowsKeys(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewLibrary
-	m.overlay.modesLegend = &ModesLegendOverlay{}
+	m.overlay.modesLegend = &overlay.ModesLegendOverlay{}
 
 	// '3' switches to the Queue view when no overlay is active.
 	nm := pressKey(m, "3")
@@ -134,7 +135,7 @@ func TestModesLegendSwallowsKeys(t *testing.T) {
 // is up, and clears the overlay on the way out.
 func TestModesLegendCtrlCQuits(t *testing.T) {
 	m := New(context.Background())
-	m.overlay.modesLegend = &ModesLegendOverlay{}
+	m.overlay.modesLegend = &overlay.ModesLegendOverlay{}
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	nm := next.(Model)

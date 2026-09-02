@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -28,9 +29,9 @@ func (e SmartRuleEditor) renderNameStep(termWidth, termHeight int, s styles.Styl
 	if e.isEdit {
 		title = " Edit Smart Playlist "
 	}
-	box := OverlayBox{
+	box := overlay.Box{
 		Title: title,
-		Rows: []OverlayRow{
+		Rows: []overlay.Row{
 			{Blank: true},
 			{Label: "Name:", Text: e.nameInput.View(), Styled: true},
 			{Blank: true},
@@ -45,30 +46,30 @@ func (e SmartRuleEditor) renderRulesStep(termWidth, termHeight int, s styles.Sty
 	if e.conjunction == db.ConjOr {
 		conjLabel = "OR"
 	}
-	rows := []OverlayRow{
+	rows := []overlay.Row{
 		{Text: fmt.Sprintf("Match %s of the following:", conjLabel)},
 		{Blank: true},
 	}
 	if len(e.rules) == 0 {
-		rows = append(rows, OverlayRow{Text: "(no rules — all tracks match)"})
+		rows = append(rows, overlay.Row{Text: "(no rules — all tracks match)"})
 	} else {
 		for i, r := range e.rules {
 			marker := "  "
 			if i == e.ruleCursor {
 				marker = "▸ "
 			}
-			rows = append(rows, OverlayRow{
+			rows = append(rows, overlay.Row{
 				Text:   marker + ruleDisplayLabel(r),
 				Styled: i == e.ruleCursor,
 			})
 		}
 	}
-	rows = append(rows, OverlayRow{Blank: true})
+	rows = append(rows, overlay.Row{Blank: true})
 	hint := "a add · enter edit · d del · tab AND/OR · → next"
 	if len(e.rules) == 0 {
 		hint = "a add"
 	}
-	box := OverlayBox{
+	box := overlay.Box{
 		Title:         " Rules ",
 		Rows:          rows,
 		Hint:          hint,
@@ -107,9 +108,9 @@ func (e SmartRuleEditor) renderEditRuleStep(termWidth, termHeight int, s styles.
 		title = " Edit Rule "
 	}
 
-	box := OverlayBox{
+	box := overlay.Box{
 		Title: title,
-		Rows: []OverlayRow{
+		Rows: []overlay.Row{
 			{Blank: true},
 			{Label: "Field:", Text: "◀ " + fieldLabel + " ▶", Styled: e.editSubField == 0},
 			{Label: "Operator:", Text: "◀ " + opLabel + " ▶", Styled: e.editSubField == 1},
@@ -143,9 +144,9 @@ func (e SmartRuleEditor) renderSortStep(termWidth, termHeight int, s styles.Styl
 		saveLabel = "save"
 	}
 
-	box := OverlayBox{
+	box := overlay.Box{
 		Title: " Sort & Limit ",
-		Rows: []OverlayRow{
+		Rows: []overlay.Row{
 			{Blank: true},
 			{Label: "Sort by:", Text: "◀ " + sortByLabel + " ▶", Styled: e.sortCursor == 0},
 			{Label: "Direction:", Text: "◀ " + sortDirLabel + " ▶", Styled: e.sortCursor == 1},

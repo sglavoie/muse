@@ -11,6 +11,7 @@ import (
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // handleDurationAuditBatchMsg applies a batch of ffprobe-corrected durations
@@ -129,7 +130,7 @@ func (m Model) handleDurationAuditDoneMsg(_ library.DurationAuditDoneMsg) (Model
 	if corrected > 0 {
 		m.statusBar.notify(
 			fmt.Sprintf("Duration audit: corrected %d %s", corrected,
-				pluralize(corrected, "track", "tracks")),
+				text.Pluralize(corrected, "track", "tracks")),
 		)
 	}
 	m.auditCh = nil

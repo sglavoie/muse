@@ -1,4 +1,4 @@
-package tui
+package overlay
 
 import (
 	"strings"
@@ -9,41 +9,41 @@ import (
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
-// goToKind identifies what type of navigation a GoToOption represents.
-type goToKind int
+// GoToKind identifies what type of navigation a GoToOption represents.
+type GoToKind int
 
 const (
-	goToArtist goToKind = iota
-	goToAlbum
-	goToGenre
-	goToPlaylist
+	GoToArtist GoToKind = iota
+	GoToAlbum
+	GoToGenre
+	GoToPlaylist
 )
 
 // shortcutKey returns the single-character shortcut for the kind.
-func (k goToKind) shortcutKey() string {
+func (k GoToKind) shortcutKey() string {
 	switch k {
-	case goToArtist:
+	case GoToArtist:
 		return "a"
-	case goToAlbum:
+	case GoToAlbum:
 		return "b"
-	case goToGenre:
+	case GoToGenre:
 		return "g"
-	case goToPlaylist:
+	case GoToPlaylist:
 		return "p"
 	}
 	return ""
 }
 
 // label returns the display prefix for the kind.
-func (k goToKind) label() string {
+func (k GoToKind) label() string {
 	switch k {
-	case goToArtist:
+	case GoToArtist:
 		return "Artist"
-	case goToAlbum:
+	case GoToAlbum:
 		return "Album"
-	case goToGenre:
+	case GoToGenre:
 		return "Genre"
-	case goToPlaylist:
+	case GoToPlaylist:
 		return "Source"
 	}
 	return ""
@@ -51,7 +51,7 @@ func (k goToKind) label() string {
 
 // GoToOption is a single navigation target in the Go To popup.
 type GoToOption struct {
-	Kind  goToKind
+	Kind  GoToKind
 	Value string // raw value passed to the jump function
 }
 
@@ -63,7 +63,7 @@ func (o GoToOption) displayLabel() string {
 
 // GoToPickedMsg is dispatched when the user confirms a Go To selection.
 type GoToPickedMsg struct {
-	Kind  goToKind
+	Kind  GoToKind
 	Value string
 }
 
@@ -136,19 +136,6 @@ func (m GoToModal) confirmOption(opt GoToOption) tea.Cmd {
 	}
 }
 
-// handleGoToKeyPress intercepts key presses when the Go To popup is active.
-func (m Model) handleGoToKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
-	if m.overlay.goTo == nil {
-		return m, nil, false
-	}
-	if msg.String() == "ctrl+c" {
-		return m, tea.Quit, true
-	}
-	updated, cmd := m.overlay.goTo.HandleKey(msg.String())
-	m.overlay.goTo = &updated
-	return m, cmd, true
-}
-
 // Border characters (duplicated from playlists/modal.go to avoid circular dep).
 const (
 	gtBorderH  = "─"
@@ -164,7 +151,7 @@ const (
 // Render produces a centered overlay string for the modal.
 func (m GoToModal) Render(termWidth, termHeight int, s styles.Styles) string {
 	boxLines := m.buildBoxLines(termWidth, s)
-	return renderCenteredOverlayLines(boxLines, "j/k navigate · a/b/g/p shortcut · enter confirm · esc dismiss", termWidth, termHeight)
+	return RenderCenteredLines(boxLines, "j/k navigate · a/b/g/p shortcut · enter confirm · esc dismiss", termWidth, termHeight)
 }
 
 func (m GoToModal) buildBoxLines(termWidth int, s styles.Styles) []string {

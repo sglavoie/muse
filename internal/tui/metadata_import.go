@@ -106,11 +106,11 @@ func (m Model) handleMetadataImportParsedMsg(msg metadataImportParsedMsg) Model 
 	// may be missing from the change list precisely because it was skipped, so
 	// the overlay opens read-only rather than reporting nothing happened.
 	if len(msg.plan.Changes) == 0 && msg.skipped == 0 && len(msg.plan.Warnings) == 0 {
-		text := "No changes to import"
+		notice := "No changes to import"
 		if n := len(msg.plan.Unknown); n > 0 {
-			text += fmt.Sprintf(" · %d unknown %s", n, pluralize(n, "hash", "hashes"))
+			notice += fmt.Sprintf(" · %d unknown %s", n, text.Pluralize(n, "hash", "hashes"))
 		}
-		m.statusBar.notify(text)
+		m.statusBar.notify(notice)
 		return m
 	}
 	overlay := newMetadataImportOverlay(msg.path, msg.plan, msg.skipped)

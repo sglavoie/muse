@@ -1,4 +1,4 @@
-package tui
+package overlay
 
 import (
 	"strings"
@@ -10,8 +10,8 @@ import (
 
 func TestTrackInfoOverlayRender(t *testing.T) {
 	overlay := TrackInfoOverlay{
-		path: "/music/artist/song.flac",
-		rows: []OverlayRow{
+		Path: "/music/artist/song.flac",
+		rows: []Row{
 			{Label: "Path:", Text: "/music/artist/song.flac"},
 			{Blank: true},
 			{Label: "Title:", Text: "Song"},
@@ -53,10 +53,10 @@ func TestNewTrackInfoOverlay(t *testing.T) {
 		"FileSize":      "25 MB",
 		"AudioChannels": 2,
 	}
-	overlay := newTrackInfoOverlay("/music/test.flac", tags, 0, nil)
+	overlay := NewTrackInfoOverlay("/music/test.flac", tags, 0, nil)
 
-	if overlay.path != "/music/test.flac" {
-		t.Errorf("expected path '/music/test.flac', got %q", overlay.path)
+	if overlay.Path != "/music/test.flac" {
+		t.Errorf("expected path '/music/test.flac', got %q", overlay.Path)
 	}
 
 	// First row must be the path.
@@ -110,7 +110,7 @@ func TestNewTrackInfoOverlay(t *testing.T) {
 }
 
 func TestNewTrackInfoOverlay_EmptyTags(t *testing.T) {
-	overlay := newTrackInfoOverlay("/music/empty.flac", map[string]any{}, 0, nil)
+	overlay := NewTrackInfoOverlay("/music/empty.flac", map[string]any{}, 0, nil)
 
 	// Should have path row, blank separator, and play count row — but no tag rows.
 	nonBlankNonPath := 0
@@ -134,7 +134,7 @@ func TestNewTrackInfoOverlay_MissingTagsSkipped(t *testing.T) {
 		"Title":  "Only Title",
 		"Artist": "Only Artist",
 	}
-	overlay := newTrackInfoOverlay("/music/sparse.flac", tags, 0, nil)
+	overlay := NewTrackInfoOverlay("/music/sparse.flac", tags, 0, nil)
 
 	labels := map[string]bool{}
 	for _, row := range overlay.rows {
@@ -163,7 +163,7 @@ func TestNewTrackInfoOverlay_AlternateKeys(t *testing.T) {
 		"NumChannels": 2,
 		"Date":        "2024",
 	}
-	overlay := newTrackInfoOverlay("/music/alt.flac", tags, 0, nil)
+	overlay := NewTrackInfoOverlay("/music/alt.flac", tags, 0, nil)
 
 	labels := map[string]string{}
 	for _, row := range overlay.rows {
@@ -188,7 +188,7 @@ func TestNewTrackInfoOverlay_BlankSeparators(t *testing.T) {
 		"Title":    "Song",
 		"FileType": "MP3",
 	}
-	overlay := newTrackInfoOverlay("/music/sep.flac", tags, 0, nil)
+	overlay := NewTrackInfoOverlay("/music/sep.flac", tags, 0, nil)
 
 	blankCount := 0
 	for _, row := range overlay.rows {
@@ -207,9 +207,9 @@ func TestNewTrackInfoOverlay_WithUserTags(t *testing.T) {
 		{ID: 1, Name: "chill"},
 		{ID: 2, Name: "workout"},
 	}
-	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "Song"}, 5, userTags)
+	overlay := NewTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "Song"}, 5, userTags)
 
-	var tagsRow OverlayRow
+	var tagsRow Row
 	found := false
 	for _, row := range overlay.rows {
 		if row.Label == "Tags:" {
@@ -227,7 +227,7 @@ func TestNewTrackInfoOverlay_WithUserTags(t *testing.T) {
 }
 
 func TestNewTrackInfoOverlay_NoUserTags(t *testing.T) {
-	overlay := newTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "Song"}, 0, nil)
+	overlay := NewTrackInfoOverlay("/music/song.flac", map[string]any{"Title": "Song"}, 0, nil)
 
 	for _, row := range overlay.rows {
 		if row.Label == "Tags:" {
@@ -264,7 +264,7 @@ func TestNewTrackInfoOverlay_FFProbeKeys(t *testing.T) {
 		"FileType":      "FLAC",
 		"MIMEType":      "audio/flac",
 	}
-	overlay := newTrackInfoOverlay("/music/probe.flac", tags, 7, nil)
+	overlay := NewTrackInfoOverlay("/music/probe.flac", tags, 7, nil)
 
 	got := map[string]string{}
 	for _, row := range overlay.rows {
@@ -315,7 +315,7 @@ func TestNewTrackInfoOverlay_FFProbeOmissions(t *testing.T) {
 		"FileType":   "DTS",
 		"SampleRate": 48000,
 	}
-	overlay := newTrackInfoOverlay("/music/raw.dts", tags, 0, nil)
+	overlay := NewTrackInfoOverlay("/music/raw.dts", tags, 0, nil)
 
 	for _, row := range overlay.rows {
 		if row.Blank {

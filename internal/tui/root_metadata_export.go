@@ -12,6 +12,7 @@ import (
 	"github.com/sglavoie/muse/internal/fsutil"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/metaexport"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // metadataExportFile is the fixed name of the round-trip export. It is not
@@ -91,21 +92,21 @@ func (m Model) handleMetadataExportedMsg(msg metadataExportedMsg) Model {
 		m.statusBar.notify("Export failed: " + msg.err.Error())
 		return m
 	}
-	text := fmt.Sprintf("Exported %d %s from %s",
-		msg.count, pluralize(msg.count, "track", "tracks"), msg.label)
+	notice := fmt.Sprintf("Exported %d %s from %s",
+		msg.count, text.Pluralize(msg.count, "track", "tracks"), msg.label)
 	if msg.skipped > 0 {
-		text += fmt.Sprintf(" (%d %s skipped: no content hash)",
-			msg.skipped, pluralize(msg.skipped, "row", "rows"))
+		notice += fmt.Sprintf(" (%d %s skipped: no content hash)",
+			msg.skipped, text.Pluralize(msg.skipped, "row", "rows"))
 	}
 	if msg.count > metadataExportWarnRows {
-		text += " — too large for one chat paste; split it"
+		notice += " — too large for one chat paste; split it"
 	}
-	text += " · y copies path"
+	notice += " · y copies path"
 	m.exportCopyHint = exportPathCopy{
 		path:      msg.path,
 		expiresAt: time.Now().Add(m.statusBar.notifyDuration()),
 	}
-	m.statusBar.notify(text)
+	m.statusBar.notify(notice)
 	return m
 }
 

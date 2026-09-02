@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -304,9 +305,9 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	maxLabelW := 10 // len("*Duration:")
 
 	// Box width: use most of the terminal width, capped at 80.
-	boxInner := max(min(termWidth-8, 80), OverlayMinInnerWidth)
+	boxInner := max(min(termWidth-8, 80), overlay.MinInnerWidth)
 
-	contentWidth := boxInner - OverlayHPadding
+	contentWidth := boxInner - overlay.HPadding
 	valueWidth := contentWidth - maxLabelW - 1
 
 	title := " ✎ Edit Metadata "
@@ -328,16 +329,16 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 	var lines []string
 
 	// Top border.
-	lines = append(lines, cornerTL+strings.Repeat(borderH, boxInner)+cornerTR)
+	lines = append(lines, overlay.CornerTL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CornerTR)
 
 	// Title row (centered).
 	titlePad := max(0, boxInner-ansi.StringWidth(title))
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
-	lines = append(lines, borderV+strings.Repeat(" ", leftTP)+s.Heading.Render(title)+strings.Repeat(" ", rightTP)+borderV)
+	lines = append(lines, overlay.BorderV+strings.Repeat(" ", leftTP)+s.Heading.Render(title)+strings.Repeat(" ", rightTP)+overlay.BorderV)
 
 	// Separator.
-	lines = append(lines, crossL+strings.Repeat(borderH, boxInner)+crossR)
+	lines = append(lines, overlay.CrossL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CrossR)
 
 	// Field rows.
 	remainingContinuationLines := metadataEditorContinuationBudget(termHeight, len(renderFields))
@@ -351,7 +352,7 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 			e.fields[i].SetCursor(pos) // restore cursor; viewport is now correctly sized
 			padded := e.fields[i].View()
 			row := fmt.Sprintf("  %*s %s  ", maxLabelW, labels[i], padded)
-			lines = append(lines, borderV+s.Accent.Render(row)+borderV)
+			lines = append(lines, overlay.BorderV+s.Accent.Render(row)+overlay.BorderV)
 		} else {
 			value := e.fields[i].Value()
 			wrapLines := metadataEditorValueLines(value, valueWidth, remainingContinuationLines)
@@ -367,13 +368,13 @@ func (e MetadataEditor) Render(termWidth, termHeight int, s styles.Styles) strin
 				} else {
 					row = fmt.Sprintf("  %*s %s  ", maxLabelW, "", wl)
 				}
-				lines = append(lines, borderV+row+borderV)
+				lines = append(lines, overlay.BorderV+row+overlay.BorderV)
 			}
 		}
 	}
 
 	// Bottom border.
-	lines = append(lines, cornerBL+strings.Repeat(borderH, boxInner)+cornerBR)
+	lines = append(lines, overlay.CornerBL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CornerBR)
 
 	// Hint.
 	var hint string

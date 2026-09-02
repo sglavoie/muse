@@ -1,4 +1,4 @@
-package tui
+package overlay
 
 import (
 	"fmt"
@@ -9,64 +9,64 @@ import (
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
-// searchHelpSections filters help sections by a case-insensitive substring
+// SearchHelpSections filters help sections by a case-insensitive substring
 // match against both entry key and description. Sections with zero matching
 // entries are omitted. An empty or whitespace-only query returns sections
 // unchanged so a stray space typed into the filter does not blank out the
 // overlay.
-func searchHelpSections(sections []helpSection, query string) []helpSection {
+func SearchHelpSections(sections []HelpSection, query string) []HelpSection {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return sections
 	}
 	q := strings.ToLower(query)
-	var result []helpSection
+	var result []HelpSection
 	for _, sec := range sections {
-		var matched []helpEntry
-		for _, e := range sec.entries {
-			if strings.Contains(strings.ToLower(e.key), q) || strings.Contains(strings.ToLower(e.desc), q) {
+		var matched []HelpEntry
+		for _, e := range sec.Entries {
+			if strings.Contains(strings.ToLower(e.Key), q) || strings.Contains(strings.ToLower(e.Desc), q) {
 				matched = append(matched, e)
 			}
 		}
 		if len(matched) > 0 {
-			result = append(result, helpSection{title: sec.title, context: sec.context, entries: matched})
+			result = append(result, HelpSection{Title: sec.Title, Context: sec.Context, Entries: matched})
 		}
 	}
 	return result
 }
 
-// helpEntry is a single row in the keybinding table.
-type helpEntry struct {
-	key  string
-	desc string
+// HelpEntry is a single row in the keybinding table.
+type HelpEntry struct {
+	Key  string
+	Desc string
 }
 
-// helpSection groups related keybinding entries under a named header.
-type helpSection struct {
-	title   string
-	context keys.Context
-	entries []helpEntry
+// HelpSection groups related keybinding entries under a named header.
+type HelpSection struct {
+	Title   string
+	Context keys.Context
+	Entries []HelpEntry
 }
 
 // HelpOverlay renders a static keybinding reference grouped into named sections.
 type HelpOverlay struct{}
 
-// statusBarHelpSectionTitle names the legend section decoding the status bar's
+// StatusBarHelpSectionTitle names the legend section decoding the status bar's
 // mode cluster. It is pinned first in every help mode, so both helpSections()
 // and filteredHelpSections reference it by this constant.
-const statusBarHelpSectionTitle = "Status bar indicators"
+const StatusBarHelpSectionTitle = "Status bar indicators"
 
-// helpSections returns the ordered list of keybinding sections shown in the
+// HelpSections returns the ordered list of keybinding sections shown in the
 // help overlay. Each section corresponds to one bindingContext.
-func helpSections() []helpSection {
-	return []helpSection{
+func HelpSections() []HelpSection {
+	return []HelpSection{
 		{
 			// Pinned first: these are glyphs, not keybindings, and none of
 			// them match the key that toggles them. The Global section below
 			// lists the toggle keys themselves.
-			title:   statusBarHelpSectionTitle,
-			context: keys.ContextGlobal,
-			entries: []helpEntry{
+			Title:   StatusBarHelpSectionTitle,
+			Context: keys.ContextGlobal,
+			Entries: []HelpEntry{
 				{"R / 1", "Repeat all / repeat one — toggle with r"},
 				{"S", "Shuffle — toggle with z"},
 				{"N", "Stop after current track — toggle with ctrl+n"},
@@ -74,9 +74,9 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Global",
-			context: keys.ContextGlobal,
-			entries: []helpEntry{
+			Title:   "Global",
+			Context: keys.ContextGlobal,
+			Entries: []HelpEntry{
 				{"ctrl+c", "Quit"},
 				{"space", "Play / Pause"},
 				{"s", "Stop"},
@@ -125,9 +125,9 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Navigation (Library / Queue / Playlists / Browse / Favorites / Tags / Mixes)",
-			context: keys.ContextGlobal,
-			entries: []helpEntry{
+			Title:   "Navigation (Library / Queue / Playlists / Browse / Favorites / Tags / Mixes)",
+			Context: keys.ContextGlobal,
+			Entries: []HelpEntry{
 				{"j / k / down / up", "Move cursor down / up"},
 				{"ctrl+d / ctrl+u", "Half-page down / up"},
 				{"ctrl+f / ctrl+b", "Full page down / up"},
@@ -135,9 +135,9 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Library",
-			context: keys.ContextLibrary,
-			entries: []helpEntry{
+			Title:   "Library",
+			Context: keys.ContextLibrary,
+			Entries: []HelpEntry{
 				{"` / ~", "Cycle sub-mode forward / backward (All ↔ Recently Added ↔ History)"},
 				{"/", "Filter tracks (prefixes: a: t: l: g:)"},
 				{"enter", "Enqueue focused / selected tracks"},
@@ -151,9 +151,9 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Playlists",
-			context: keys.ContextPlaylists,
-			entries: []helpEntry{
+			Title:   "Playlists",
+			Context: keys.ContextPlaylists,
+			Entries: []HelpEntry{
 				{"enter", "Open playlist / enqueue track"},
 				{"N", "Play next (insert after current track)"},
 				{"shift+enter", "Replace queue with track"},
@@ -173,9 +173,9 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Smart Rule Editor overlay",
-			context: keys.ContextPlaylists,
-			entries: []helpEntry{
+			Title:   "Smart Rule Editor overlay",
+			Context: keys.ContextPlaylists,
+			Entries: []HelpEntry{
 				{"enter", "Next step / confirm rule"},
 				{"esc", "Back one step / close overlay"},
 				{"tab", "Toggle AND / OR conjunction"},
@@ -188,9 +188,9 @@ func helpSections() []helpSection {
 		// Library → Playlists → Queue → Browse → Favorites → Tags → Mixes.
 		// Library and Playlists appear above; the rest follow here.
 		{
-			title:   "Queue",
-			context: keys.ContextQueue,
-			entries: []helpEntry{
+			Title:   "Queue",
+			Context: keys.ContextQueue,
+			Entries: []HelpEntry{
 				{"/", "Filter queue"},
 				{"esc", "Clear committed filter"},
 				{"enter", "Play selected track"},
@@ -207,9 +207,9 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Browse (Artists)",
-			context: keys.ContextArtists,
-			entries: []helpEntry{
+			Title:   "Browse (Artists)",
+			Context: keys.ContextArtists,
+			Entries: []HelpEntry{
 				{"` / ~", "Cycle Browse mode forward / backward (Artists ↔ Albums ↔ Genres)"},
 				{"/", "Filter current list"},
 				{"enter", "Open albums / tracks / enqueue track"},
@@ -223,9 +223,9 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Browse (Albums)",
-			context: keys.ContextAlbums,
-			entries: []helpEntry{
+			Title:   "Browse (Albums)",
+			Context: keys.ContextAlbums,
+			Entries: []HelpEntry{
 				{"` / ~", "Cycle Browse mode forward / backward (Artists ↔ Albums ↔ Genres)"},
 				{"/", "Filter current list"},
 				{"enter", "Open tracks / enqueue track"},
@@ -239,9 +239,9 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Browse (Genres)",
-			context: keys.ContextGenres,
-			entries: []helpEntry{
+			Title:   "Browse (Genres)",
+			Context: keys.ContextGenres,
+			Entries: []HelpEntry{
 				{"` / ~", "Cycle Browse mode forward / backward (Artists ↔ Albums ↔ Genres)"},
 				{"/", "Filter current list"},
 				{"enter", "Open artists / tracks / enqueue track"},
@@ -255,9 +255,9 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Favorites",
-			context: keys.ContextFavorites,
-			entries: []helpEntry{
+			Title:   "Favorites",
+			Context: keys.ContextFavorites,
+			Entries: []HelpEntry{
 				{"/", "Filter current list"},
 				{"enter", "Open category / drill into tracks / enqueue"},
 				{"N", "Play next (insert after current track)"},
@@ -271,9 +271,9 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Tags",
-			context: keys.ContextTags,
-			entries: []helpEntry{
+			Title:   "Tags",
+			Context: keys.ContextTags,
+			Entries: []HelpEntry{
 				{"6", "Switch to Tags"},
 				{"enter", "Drill into tag tracks / enqueue track"},
 				{"backspace / h / esc", "Back to tag list"},
@@ -294,9 +294,9 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Mixes",
-			context: keys.ContextMixes,
-			entries: []helpEntry{
+			Title:   "Mixes",
+			Context: keys.ContextMixes,
+			Entries: []HelpEntry{
 				{"enter", "Open mix / enqueue track"},
 				{"esc", "Back to mix list"},
 				{"e", "Enqueue focused track"},
@@ -316,9 +316,9 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title:   "Insights",
-			context: keys.ContextInsights,
-			entries: []helpEntry{
+			Title:   "Insights",
+			Context: keys.ContextInsights,
+			Entries: []HelpEntry{
 				{"` / ~", "Next / previous panel"},
 				{"w / W", "Next / previous window, or bucket size on Momentum and Discovery"},
 				{"enter", "Drill into the focused row (Sessions first) / enqueue focused or selected tracks"},
@@ -344,9 +344,9 @@ func helpSections() []helpSection {
 			// Note: "esc" here also dismisses the help overlay itself, which is
 			// handled at the root level (outside the keybinding registry). The
 			// Modals section covers any future modal dialogs as well.
-			title:   "Modals / Help overlay",
-			context: keys.ContextModals,
-			entries: []helpEntry{
+			Title:   "Modals / Help overlay",
+			Context: keys.ContextModals,
+			Entries: []HelpEntry{
 				{"esc", "Dismiss modal or close this help overlay"},
 				{"space / left / right / shift+left / shift+right", "Preview pause / seek"},
 				{"/", "Search keybindings"},
@@ -357,30 +357,30 @@ func helpSections() []helpSection {
 	}
 }
 
-// filteredHelpSections returns only sections whose context is contextGlobal or
+// FilteredHelpSections returns only sections whose context is contextGlobal or
 // matches ctx. This powers the "view-specific" help mode toggled with "?".
 // The status-bar legend stays pinned first here too, so it keeps the same
 // position in both help modes.
-func filteredHelpSections(ctx keys.Context) []helpSection {
-	all := helpSections()
+func FilteredHelpSections(ctx keys.Context) []HelpSection {
+	all := HelpSections()
 	// Legend first, then the view-specific sections, then global sections.
-	var pinned, viewSpecific, global []helpSection
+	var pinned, viewSpecific, global []HelpSection
 	for _, sec := range all {
 		// Skip the context switch entirely: the legend is contextGlobal, so
 		// when ctx is contextGlobal it would otherwise also land in
 		// viewSpecific and be emitted twice.
-		if sec.title == statusBarHelpSectionTitle {
+		if sec.Title == StatusBarHelpSectionTitle {
 			pinned = append(pinned, sec)
 			continue
 		}
-		switch sec.context {
+		switch sec.Context {
 		case ctx:
 			viewSpecific = append(viewSpecific, sec)
 		case keys.ContextGlobal:
 			global = append(global, sec)
 		}
 	}
-	out := make([]helpSection, 0, len(pinned)+len(viewSpecific)+len(global))
+	out := make([]HelpSection, 0, len(pinned)+len(viewSpecific)+len(global))
 	out = append(out, pinned...)
 	out = append(out, viewSpecific...)
 	out = append(out, global...)
@@ -430,10 +430,10 @@ func wrapText(text string, maxWidth, indent int) string {
 	return b.String()
 }
 
-// render builds the help overlay string: a title, context-grouped keybinding
+// Render builds the help overlay string: a title, context-grouped keybinding
 // sections with section headers, and the log file path at the bottom.
 // When width > 0, long descriptions and section titles are word-wrapped.
-func (h HelpOverlay) render(s styles.Styles, sections []helpSection, title string, width int) string {
+func (h HelpOverlay) Render(s styles.Styles, sections []HelpSection, title string, width int) string {
 	var b strings.Builder
 	b.WriteString(s.Heading.Render(title) + "\n")
 	// Doubled rule visually anchors the title as its own region (Common
@@ -453,29 +453,29 @@ func (h HelpOverlay) render(s styles.Styles, sections []helpSection, title strin
 
 	for _, sec := range sections {
 		if width > 0 {
-			b.WriteString(s.Bold.Render(wrapText(sec.title, width, 2)) + "\n")
+			b.WriteString(s.Bold.Render(wrapText(sec.Title, width, 2)) + "\n")
 		} else {
-			b.WriteString(s.Bold.Render(sec.title) + "\n")
+			b.WriteString(s.Bold.Render(sec.Title) + "\n")
 		}
 
 		// Compute maxKeyLen per section so each section aligns independently.
 		maxKeyLen := 0
-		for _, e := range sec.entries {
-			if len(e.key) > maxKeyLen {
-				maxKeyLen = len(e.key)
+		for _, e := range sec.Entries {
+			if len(e.Key) > maxKeyLen {
+				maxKeyLen = len(e.Key)
 			}
 		}
 		// descCol is the column where descriptions start: "  " + key + "  ".
 		descCol := 2 + maxKeyLen + 2
 
-		for _, e := range sec.entries {
-			styledKey := s.HelpKey.Render(fmt.Sprintf("%-*s", maxKeyLen, e.key))
-			if width > 0 && descCol+len(e.desc) > width {
+		for _, e := range sec.Entries {
+			styledKey := s.HelpKey.Render(fmt.Sprintf("%-*s", maxKeyLen, e.Key))
+			if width > 0 && descCol+len(e.Desc) > width {
 				descWidth := max(width-descCol, 1)
-				wrapped := wrapText(e.desc, descWidth, descCol)
+				wrapped := wrapText(e.Desc, descWidth, descCol)
 				fmt.Fprintf(&b, "  %s  %s\n", styledKey, s.Dim.Render(wrapped))
 			} else {
-				fmt.Fprintf(&b, "  %s  %s\n", styledKey, s.Dim.Render(e.desc))
+				fmt.Fprintf(&b, "  %s  %s\n", styledKey, s.Dim.Render(e.Desc))
 			}
 		}
 		b.WriteString("\n")

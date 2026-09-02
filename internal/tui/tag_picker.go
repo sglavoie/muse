@@ -8,6 +8,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -272,7 +273,7 @@ func (tp TagPicker) Render(termWidth, termHeight int, s styles.Styles) string {
 	if tp.IsBulk() {
 		hint = "~ partial → assign all · " + hint
 	}
-	return renderCenteredOverlayLines(boxLines, s.Dim.Render(hint), termWidth, termHeight)
+	return overlay.RenderCenteredLines(boxLines, s.Dim.Render(hint), termWidth, termHeight)
 }
 
 func (tp TagPicker) buildBoxLines(termWidth int, s styles.Styles) []string {

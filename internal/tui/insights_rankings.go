@@ -50,7 +50,7 @@ func (v InsightsView) concentrationRows() []insightsRow {
 			section: "Repertoire ladder",
 			label:   fmt.Sprintf("%d%% of your time", step.share),
 			note: fmt.Sprintf("%d of %d %s", step.artists, l.TotalArtists,
-				pluralize(l.TotalArtists, "artist", "artists")),
+				text.Pluralize(l.TotalArtists, "artist", "artists")),
 			fraction: insightsFraction(step.artists, l.TotalArtists),
 			drill:    drillTopArtists,
 			key:      strconv.Itoa(step.artists),
@@ -90,7 +90,7 @@ func (v InsightsView) concentrationHeaderLines(s styles.Styles) []string {
 	tail := []string{
 		s.TextSecondary.Render(v.fit(fmt.Sprintf(
 			"%d %s in this window · %d of them cover 90%% of it · ! builds a set from outside the top %d",
-			l.TotalArtists, pluralize(l.TotalArtists, "artist", "artists"),
+			l.TotalArtists, text.Pluralize(l.TotalArtists, "artist", "artists"),
 			l.Artists90, insightsRutTopArtists))),
 		"",
 	}
@@ -168,7 +168,7 @@ func (v InsightsView) timeVsPlaysHeaderLines(s styles.Styles) []string {
 	tail := []string{
 		s.TextSecondary.Render(v.fit(fmt.Sprintf(
 			"%d of %d %s rank differently once time is counted · b opens the focused artist in Browse",
-			r.MovedCount, len(r.Deltas), pluralize(len(r.Deltas), "artist", "artists")))),
+			r.MovedCount, len(r.Deltas), text.Pluralize(len(r.Deltas), "artist", "artists")))),
 		"",
 	}
 	if v.compact() {

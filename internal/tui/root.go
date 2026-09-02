@@ -13,6 +13,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
@@ -21,19 +22,19 @@ import (
 
 // overlayInfo groups all overlay and modal state.
 type overlayInfo struct {
-	preview               *PreviewOverlay
+	preview               *overlay.PreviewOverlay
 	previewPlayer         player.Previewer
 	previewWasPlaying     bool
 	previewDurationFilled bool
-	nowPlaying            *NowPlayingOverlay
-	queueSummary          *QueueSummaryOverlay
-	modesLegend           *ModesLegendOverlay
-	trackInfo             *TrackInfoOverlay
+	nowPlaying            *overlay.NowPlayingOverlay
+	queueSummary          *overlay.QueueSummaryOverlay
+	modesLegend           *overlay.ModesLegendOverlay
+	trackInfo             *overlay.TrackInfoOverlay
 	metadataEditor        *MetadataEditor
 	metadataImport        *MetadataImportOverlay
 	destPicker            *pltui.DestinationPickerModal
 	destPickerTracks      []library.Track
-	goTo                  *GoToModal
+	goTo                  *overlay.GoToModal
 	settings              *SettingsOverlay
 	smartRuleEditor       *SmartRuleEditor
 	commandPalette        *CommandPalette

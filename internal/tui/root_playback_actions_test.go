@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
@@ -145,7 +146,7 @@ func TestDismissPreviewDoesNotResumeOnPlayError(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StatePaused
 	m.overlay.previewWasPlaying = true
-	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
+	m.overlay.preview = &overlay.PreviewOverlay{Artist: "A", Title: "T"}
 
 	nm := m.dismissPreview()
 

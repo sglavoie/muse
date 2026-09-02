@@ -11,14 +11,6 @@ import (
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
-// pluralize returns singular when n == 1, plural otherwise.
-func pluralize(n int, singular, plural string) string {
-	if n == 1 {
-		return singular
-	}
-	return plural
-}
-
 // scheduleSoftDelete cancels any in-flight purge timer from the previous undo
 // slot, calls softDeleteFn to perform the soft-delete, then schedules a
 // time.AfterFunc purge via purgeFn. Returns the cancel channel that the new

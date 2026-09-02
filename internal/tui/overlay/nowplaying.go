@@ -1,4 +1,4 @@
-package tui
+package overlay
 
 import (
 	"fmt"
@@ -11,20 +11,20 @@ import (
 // NowPlayingOverlay renders a centered overlay box showing information about
 // the currently playing track.
 type NowPlayingOverlay struct {
-	artist    string
-	title     string
-	album     string
-	elapsed   float64
-	total     float64
-	state     playback.State
-	playCount int
-	tagsLine  string // pre-rendered colored tag names; empty when none
+	Artist    string
+	Title     string
+	Album     string
+	Elapsed   float64
+	Total     float64
+	State     playback.State
+	PlayCount int
+	TagsLine  string // pre-rendered colored tag names; empty when none
 }
 
 // Render produces a centered overlay string for the now-playing info.
 func (n NowPlayingOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
 	var icon string
-	switch n.state {
+	switch n.State {
 	case playback.StatePaused:
 		icon = "⏸"
 	case playback.StateStopped:
@@ -38,7 +38,7 @@ func (n NowPlayingOverlay) Render(termWidth, termHeight int, s styles.Styles) st
 		// idle state on tests or defensive paths would be misleading.
 		icon = "■"
 	}
-	progress := fmt.Sprintf("%s %s / %s", icon, text.FormatPositionSecs(n.elapsed), text.FormatPositionSecs(n.total))
-	return renderTrackOverlay(n.title, n.artist, n.album, progress, n.playCount, n.tagsLine,
+	progress := fmt.Sprintf("%s %s / %s", icon, text.FormatPositionSecs(n.Elapsed), text.FormatPositionSecs(n.Total))
+	return renderTrackOverlay(n.Title, n.Artist, n.Album, progress, n.PlayCount, n.TagsLine,
 		" ♪ Now Playing ", "I or esc to dismiss", termWidth, termHeight, s)
 }

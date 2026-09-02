@@ -74,7 +74,7 @@ func (v InsightsView) momentumHeaderLines(s styles.Styles) []string {
 	if t.LongestDry.Days > 0 {
 		tail = append(tail, s.Dim.Render(v.fit(fmt.Sprintf("longest silence %d days, %s – %s · %d dry %s in all",
 			t.LongestDry.Days, t.LongestDry.Start.Format("2 Jan 2006"), t.LongestDry.End.Format("2 Jan 2006"),
-			len(t.DrySpells), pluralize(len(t.DrySpells), "spell", "spells")))))
+			len(t.DrySpells), text.Pluralize(len(t.DrySpells), "spell", "spells")))))
 	}
 	tail = append(tail, "")
 
@@ -133,7 +133,7 @@ func (v InsightsView) discoveryRows() []insightsRow {
 			section: "First heard",
 			label:   insightsBucketLabel(t.Resolution, b.Start),
 			note: fmt.Sprintf("%d new %s", b.FirstPlays,
-				pluralize(b.FirstPlays, "track", "tracks")),
+				text.Pluralize(b.FirstPlays, "track", "tracks")),
 			fraction: insightsFraction(b.FirstPlays, peak),
 			drill:    drillFirstPlaysBucket,
 			key:      insightsBucketKey(t.Resolution, b.Start),
@@ -149,7 +149,7 @@ func (v InsightsView) discoveryRows() []insightsRow {
 			section: "Added but never played",
 			label:   "Everything unheard",
 			note: fmt.Sprintf("%s %s · %s", formatCount(c.UnheardTracks),
-				pluralize(c.UnheardTracks, "track", "tracks"), text.FormatListeningTime(int(c.UnheardSecs))),
+				text.Pluralize(c.UnheardTracks, "track", "tracks"), text.FormatListeningTime(int(c.UnheardSecs))),
 			fraction: 1,
 			drill:    drillUnheardAll,
 		})
@@ -163,7 +163,7 @@ func (v InsightsView) discoveryRows() []insightsRow {
 			section: "Added but never played",
 			label:   b.Label,
 			note: fmt.Sprintf("%d %s · %s", b.Tracks,
-				pluralize(b.Tracks, "track", "tracks"), text.FormatListeningTime(int(b.Secs))),
+				text.Pluralize(b.Tracks, "track", "tracks"), text.FormatListeningTime(int(b.Secs))),
 			fraction: insightsFraction(b.Tracks, peakBacklog),
 			drill:    drillAddedNeverPlayed,
 			key:      b.Key,

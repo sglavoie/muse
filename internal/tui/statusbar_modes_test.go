@@ -77,14 +77,14 @@ func TestModeIndicatorsDriveRenderedCluster(t *testing.T) {
 		{playback.RepeatOne, true, true, true, "1SND", [4]string{"one", "on", "on", "on"}},
 	}
 	for _, tc := range cases {
-		indicators := modeIndicators(tc.repeat, tc.shuffle, tc.stopAfter, tc.radio)
+		indicators := playback.ModeIndicators(tc.repeat, tc.shuffle, tc.stopAfter, tc.radio)
 		if len(indicators) != 4 {
 			t.Fatalf("repeat=%v: got %d indicators, want 4", tc.repeat, len(indicators))
 		}
 
 		var glyphs strings.Builder
 		for _, ind := range indicators {
-			glyphs.WriteString(ind.glyph)
+			glyphs.WriteString(ind.Glyph)
 		}
 		if glyphs.String() != tc.wantGlyphs {
 			t.Errorf("%+v: glyphs=%q, want %q", tc, glyphs.String(), tc.wantGlyphs)
@@ -101,11 +101,11 @@ func TestModeIndicatorsDriveRenderedCluster(t *testing.T) {
 
 		wantActive := [4]bool{tc.repeat != playback.RepeatOff, tc.shuffle, tc.stopAfter, tc.radio}
 		for i, ind := range indicators {
-			if ind.active != wantActive[i] {
-				t.Errorf("%+v: indicator %d (%s) active=%v, want %v", tc, i, ind.name, ind.active, wantActive[i])
+			if ind.Active != wantActive[i] {
+				t.Errorf("%+v: indicator %d (%s) active=%v, want %v", tc, i, ind.Name, ind.Active, wantActive[i])
 			}
-			if ind.state != tc.wantStates[i] {
-				t.Errorf("%+v: indicator %d (%s) state=%q, want %q", tc, i, ind.name, ind.state, tc.wantStates[i])
+			if ind.State != tc.wantStates[i] {
+				t.Errorf("%+v: indicator %d (%s) state=%q, want %q", tc, i, ind.Name, ind.State, tc.wantStates[i])
 			}
 		}
 	}
@@ -123,17 +123,17 @@ func TestModeIndicatorsDescribeToggleKeys(t *testing.T) {
 		{"Stop after current", "ctrl+n", keys.ActionStopAfterCurrent},
 		{"Radio (Auto-DJ)", "A", keys.ActionRadioToggle},
 	}
-	indicators := modeIndicators(playback.RepeatOff, false, false, false)
+	indicators := playback.ModeIndicators(playback.RepeatOff, false, false, false)
 	if len(indicators) != len(want) {
 		t.Fatalf("got %d indicators, want %d", len(indicators), len(want))
 	}
 	registry := keys.NewRegistry()
 	for i, ind := range indicators {
-		if ind.name != want[i].name || ind.key != want[i].key {
-			t.Errorf("indicator %d: name=%q key=%q, want name=%q key=%q", i, ind.name, ind.key, want[i].name, want[i].key)
+		if ind.Name != want[i].name || ind.Key != want[i].key {
+			t.Errorf("indicator %d: name=%q key=%q, want name=%q key=%q", i, ind.Name, ind.Key, want[i].name, want[i].key)
 		}
-		if got := registry.Lookup(keys.ContextGlobal, ind.key); got != want[i].action {
-			t.Errorf("indicator %d (%s): key %q binds to action %v, want %v", i, ind.name, ind.key, got, want[i].action)
+		if got := registry.Lookup(keys.ContextGlobal, ind.Key); got != want[i].action {
+			t.Errorf("indicator %d (%s): key %q binds to action %v, want %v", i, ind.Name, ind.Key, got, want[i].action)
 		}
 	}
 }

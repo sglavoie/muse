@@ -11,17 +11,18 @@ import (
 	"github.com/sglavoie/muse/internal/tui/filter"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 )
 
 // helpState returns the sections and title to display in the help overlay,
 // depending on whether the user has toggled view-specific filtering.
-func (m Model) helpState() ([]helpSection, string) {
+func (m Model) helpState() ([]overlay.HelpSection, string) {
 	if !m.helpFiltered {
-		return helpSections(), "Keybindings  (? to filter by view)"
+		return overlay.HelpSections(), "Keybindings  (? to filter by view)"
 	}
 	ctx := viewToContext(m.prevActiveView)
 	name := viewName(m.prevActiveView)
-	return filteredHelpSections(ctx), "Keybindings — " + name + "  (? to show all)"
+	return overlay.FilteredHelpSections(ctx), "Keybindings — " + name + "  (? to show all)"
 }
 
 // refreshHelpViewport rebuilds the help viewport content from the current
@@ -29,9 +30,9 @@ func (m Model) helpState() ([]helpSection, string) {
 func (m *Model) refreshHelpViewport() {
 	sections, title := m.helpState()
 	if m.helpSearchFilter.Text != "" {
-		sections = searchHelpSections(sections, m.helpSearchFilter.Text)
+		sections = overlay.SearchHelpSections(sections, m.helpSearchFilter.Text)
 	}
-	m.helpViewport.SetContent(HelpOverlay{}.render(*m.styles, sections, title, m.termWidth))
+	m.helpViewport.SetContent(overlay.HelpOverlay{}.Render(*m.styles, sections, title, m.termWidth))
 	m.helpViewport.SetYOffset(0)
 	extraLines := 0
 	if m.helpSearchFilter.Active || m.helpSearchFilter.Text != "" {
@@ -398,7 +399,7 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 		} else {
 			options := m.buildGoToOptions(ctx)
 			if len(options) > 0 {
-				modal := NewGoToModal(options)
+				modal := overlay.NewGoToModal(options)
 				m.overlay.goTo = &modal
 			} else {
 				// Track was focused but no jump targets apply (e.g. orphan
@@ -424,4 +425,36 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 		m.statusBar.pushMsg(hint, 3*time.Second, notifInfo)
 	}
 	return m, nil
+}
+
+// buildModesLegend snapshots the live mode state into a legend overlay. Radio
+// lives on m.radio, not m.playback (root_view_status.go:11-16), so all four
+// indicators are read from the same places renderStatusBar reads them.
+func (m Model) buildModesLegend() *overlay.ModesLegendOverlay {
+	return &overlay.ModesLegendOverlay{
+		Repeat:    m.playback.repeatMode,
+		Shuffle:   m.playback.shuffle,
+		StopAfter: m.playback.stopAfterCurrent,
+		Radio:     m.radio.enabled,
+	}
+}
+
+// handleModesLegendKeyPress handles key events while the playback-mode legend
+// overlay is active. Returns (model, cmd, true) when the key was consumed. The
+// nil guard keeps ';' free for handlers further down orderedKeyPressHandlers —
+// an active filter input still receives it as literal text.
+func (m Model) handleModesLegendKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
+	if m.overlay.modesLegend == nil {
+		return m, nil, false
+	}
+	switch msg.String() {
+	case "ctrl+c":
+		m.overlay.modesLegend = nil
+		return m, tea.Quit, true
+	case "esc", ";":
+		m.overlay.modesLegend = nil
+		return m, nil, true
+	default:
+		return m, nil, true
+	}
 }

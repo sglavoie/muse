@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // undoDeletePlaylistAction reverts a playlist soft-delete (undoKindDeletePlaylist).
@@ -82,7 +83,7 @@ func (a undoBulkRemovePlaylistTracksAction) kind() undoKind {
 
 func (a undoBulkRemovePlaylistTracksAction) description() string {
 	n := len(a.entries)
-	return fmt.Sprintf("%d %s removed — press u to undo", n, pluralize(n, "track", "tracks"))
+	return fmt.Sprintf("%d %s removed — press u to undo", n, text.Pluralize(n, "track", "tracks"))
 }
 
 func (a undoBulkRemovePlaylistTracksAction) perform(m Model) (Model, tea.Cmd) {
@@ -108,6 +109,6 @@ func (a undoBulkRemovePlaylistTracksAction) perform(m Model) (Model, tea.Cmd) {
 	}
 	m.playlists = m.playlists.ensureCursorVisible()
 	n := len(a.entries)
-	m.statusBar.notify(fmt.Sprintf("Undone: restored %d playlist %s", n, pluralize(n, "track", "tracks")))
+	m.statusBar.notify(fmt.Sprintf("Undone: restored %d playlist %s", n, text.Pluralize(n, "track", "tracks")))
 	return m, nil
 }

@@ -1,4 +1,4 @@
-package tui
+package overlay
 
 import (
 	"strings"
@@ -8,9 +8,9 @@ import (
 )
 
 func TestOverlayBoxRender_ContainsTitle(t *testing.T) {
-	box := OverlayBox{
+	box := Box{
 		Title: " ♪ Test ",
-		Rows:  []OverlayRow{{Text: "content"}},
+		Rows:  []Row{{Text: "content"}},
 		Hint:  "press esc",
 	}
 	out := ansi.Strip(box.Render(80, 24, newTestStyles()))
@@ -20,9 +20,9 @@ func TestOverlayBoxRender_ContainsTitle(t *testing.T) {
 }
 
 func TestOverlayBoxRender_ContainsRowContent(t *testing.T) {
-	box := OverlayBox{
+	box := Box{
 		Title: " Title ",
-		Rows: []OverlayRow{
+		Rows: []Row{
 			{Text: "first row"},
 			{Text: "styled row", Styled: true},
 		},
@@ -37,9 +37,9 @@ func TestOverlayBoxRender_ContainsRowContent(t *testing.T) {
 }
 
 func TestOverlayBoxRender_ContainsHint(t *testing.T) {
-	box := OverlayBox{
+	box := Box{
 		Title: " T ",
-		Rows:  []OverlayRow{{Text: "x"}},
+		Rows:  []Row{{Text: "x"}},
 		Hint:  "esc to dismiss",
 	}
 	out := ansi.Strip(box.Render(80, 24, newTestStyles()))
@@ -49,9 +49,9 @@ func TestOverlayBoxRender_ContainsHint(t *testing.T) {
 }
 
 func TestOverlayBoxRender_CentersHintIndependently(t *testing.T) {
-	box := OverlayBox{
+	box := Box{
 		Title: " T ",
-		Rows:  []OverlayRow{{Text: "x"}},
+		Rows:  []Row{{Text: "x"}},
 		Hint:  "esc to dismiss",
 	}
 	stripped := ansi.Strip(box.Render(80, 24, newTestStyles()))
@@ -65,9 +65,9 @@ func TestOverlayBoxRender_CentersHintIndependently(t *testing.T) {
 }
 
 func TestOverlayBoxRender_VerticalCentering(t *testing.T) {
-	box := OverlayBox{
+	box := Box{
 		Title: " T ",
-		Rows:  []OverlayRow{{Text: "x"}},
+		Rows:  []Row{{Text: "x"}},
 	}
 	out := box.Render(80, 40, newTestStyles())
 	lines := strings.Split(out, "\n")
@@ -85,9 +85,9 @@ func TestOverlayBoxRender_VerticalCentering(t *testing.T) {
 }
 
 func TestOverlayBoxRender_SmallTerminalNoPanic(t *testing.T) {
-	box := OverlayBox{
+	box := Box{
 		Title: " ♪ Preview ",
-		Rows:  []OverlayRow{{Text: "some content"}},
+		Rows:  []Row{{Text: "some content"}},
 		Hint:  "dismiss",
 	}
 	out := box.Render(10, 5, newTestStyles())
@@ -99,9 +99,9 @@ func TestOverlayBoxRender_SmallTerminalNoPanic(t *testing.T) {
 func TestOverlayBoxRender_MultiByteRowAlignment(t *testing.T) {
 	// All rows in an overlay box should have identical display width
 	// regardless of whether the content contains multi-byte characters.
-	box := OverlayBox{
+	box := Box{
 		Title: " Test ",
-		Rows: []OverlayRow{
+		Rows: []Row{
 			{Text: "ASCII only row"},
 			{Text: "Björk — Jóga"}, // accented chars (2 bytes each)
 			{Text: "日本語テスト"},       // CJK chars (3 bytes, 2 display columns each)
@@ -117,7 +117,7 @@ func TestOverlayBoxRender_MultiByteRowAlignment(t *testing.T) {
 	var contentLines []string
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, borderV) && strings.HasSuffix(line, borderV) {
+		if strings.HasPrefix(line, BorderV) && strings.HasSuffix(line, BorderV) {
 			contentLines = append(contentLines, line)
 		}
 	}
@@ -140,9 +140,9 @@ func TestOverlayBoxRender_MultiByteRowAlignment(t *testing.T) {
 func TestOverlayBoxRender_MaxInnerWidthClampNoBorderMisalign(t *testing.T) {
 	// When MaxInnerWidth clamps innerWidth below the title's display width,
 	// the title row must not overflow and misalign the box borders.
-	box := OverlayBox{
+	box := Box{
 		Title:         " A Very Long Title That Should Be Truncated ",
-		Rows:          []OverlayRow{{Text: "x"}},
+		Rows:          []Row{{Text: "x"}},
 		MaxInnerWidth: 10,
 	}
 	stripped := ansi.Strip(box.Render(80, 24, newTestStyles()))
@@ -151,8 +151,8 @@ func TestOverlayBoxRender_MaxInnerWidthClampNoBorderMisalign(t *testing.T) {
 	var bordered []string
 	for _, line := range lines {
 		trimmed := strings.TrimLeft(line, " ")
-		if strings.HasPrefix(trimmed, cornerTL) || strings.HasPrefix(trimmed, cornerBL) ||
-			strings.HasPrefix(trimmed, borderV) || strings.HasPrefix(trimmed, crossDoubleL) {
+		if strings.HasPrefix(trimmed, CornerTL) || strings.HasPrefix(trimmed, CornerBL) ||
+			strings.HasPrefix(trimmed, BorderV) || strings.HasPrefix(trimmed, crossDoubleL) {
 			bordered = append(bordered, trimmed)
 		}
 	}
@@ -171,9 +171,9 @@ func TestOverlayBoxRender_MaxInnerWidthClampNoBorderMisalign(t *testing.T) {
 func TestOverlayBoxRender_TinyMaxInnerWidthNoBorderMisalign(t *testing.T) {
 	// A pathologically small MaxInnerWidth (below OverlayHPadding) must still
 	// produce a self-consistent box: every bordered line has the same width.
-	box := OverlayBox{
+	box := Box{
 		Title:         " T ",
-		Rows:          []OverlayRow{{Text: "abc"}, {Blank: true}, {Label: "X:", Text: "y"}},
+		Rows:          []Row{{Text: "abc"}, {Blank: true}, {Label: "X:", Text: "y"}},
 		MaxInnerWidth: 2,
 	}
 	stripped := ansi.Strip(box.Render(80, 24, newTestStyles()))
@@ -182,8 +182,8 @@ func TestOverlayBoxRender_TinyMaxInnerWidthNoBorderMisalign(t *testing.T) {
 	var bordered []string
 	for _, line := range lines {
 		trimmed := strings.TrimLeft(line, " ")
-		if strings.HasPrefix(trimmed, cornerTL) || strings.HasPrefix(trimmed, cornerBL) ||
-			strings.HasPrefix(trimmed, borderV) || strings.HasPrefix(trimmed, crossDoubleL) {
+		if strings.HasPrefix(trimmed, CornerTL) || strings.HasPrefix(trimmed, CornerBL) ||
+			strings.HasPrefix(trimmed, BorderV) || strings.HasPrefix(trimmed, crossDoubleL) {
 			bordered = append(bordered, trimmed)
 		}
 	}
@@ -203,9 +203,9 @@ func TestOverlayBoxRender_HintWithNewlineStaysSingleLine(t *testing.T) {
 	// A Hint containing embedded newlines / tabs must not break out into
 	// extra trailing lines (which would render uncentered and skew the
 	// vertical centering since boxH only reserves one hint row).
-	box := OverlayBox{
+	box := Box{
 		Title: " T ",
-		Rows:  []OverlayRow{{Text: "x"}},
+		Rows:  []Row{{Text: "x"}},
 		Hint:  "press\nesc\tto dismiss",
 	}
 	out := box.Render(80, 24, newTestStyles())
@@ -231,9 +231,9 @@ func TestOverlayBoxRender_HintWithNewlineStaysSingleLine(t *testing.T) {
 
 func TestOverlayBoxRender_LabelledRowsMultiByte(t *testing.T) {
 	// Verify labelled rows with multi-byte labels align correctly.
-	box := OverlayBox{
+	box := Box{
 		Title: " Box ",
-		Rows: []OverlayRow{
+		Rows: []Row{
 			{Label: "Artist:", Text: "Data One"},
 			{Label: "Title:", Text: "Data Two"},
 		},
@@ -246,7 +246,7 @@ func TestOverlayBoxRender_LabelledRowsMultiByte(t *testing.T) {
 	var dataLines []string
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, borderV) && strings.HasSuffix(line, borderV) && strings.Contains(line, "Data") {
+		if strings.HasPrefix(line, BorderV) && strings.HasSuffix(line, BorderV) && strings.Contains(line, "Data") {
 			dataLines = append(dataLines, line)
 		}
 	}
