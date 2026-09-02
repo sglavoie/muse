@@ -91,17 +91,11 @@ func NewGoToModal(options []GoToOption) GoToModal {
 func (m GoToModal) HandleKey(key string) (GoToModal, tea.Cmd) {
 	switch key {
 	case "j", "down":
-		if m.cursor < len(m.options)-1 {
-			m.cursor++
-		}
+		return m.nextOption(), nil
 	case "k", "up":
-		if m.cursor > 0 {
-			m.cursor--
-		}
+		return m.prevOption(), nil
 	case "enter":
-		if m.cursor >= 0 && m.cursor < len(m.options) {
-			return m, m.confirmOption(m.options[m.cursor])
-		}
+		return m, m.confirmFocused()
 	case "esc":
 		return m, func() tea.Msg { return GoToDismissedMsg{} }
 	case "a", "b", "g", "p":
@@ -110,6 +104,31 @@ func (m GoToModal) HandleKey(key string) (GoToModal, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+// nextOption moves the cursor one option down, stopping at the last option.
+func (m GoToModal) nextOption() GoToModal {
+	if m.cursor < len(m.options)-1 {
+		m.cursor++
+	}
+	return m
+}
+
+// prevOption moves the cursor one option up, stopping at the first option.
+func (m GoToModal) prevOption() GoToModal {
+	if m.cursor > 0 {
+		m.cursor--
+	}
+	return m
+}
+
+// confirmFocused returns the command confirming the focused option, or nil when
+// the cursor is out of range.
+func (m GoToModal) confirmFocused() tea.Cmd {
+	if m.cursor < 0 || m.cursor >= len(m.options) {
+		return nil
+	}
+	return m.confirmOption(m.options[m.cursor])
 }
 
 // findByShortcut returns the first option matching the shortcut key.

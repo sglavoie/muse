@@ -143,47 +143,53 @@ func (o SettingsOverlay) renderLibraryDirs(lines []string, contentWidth int, s s
 func (o SettingsOverlay) renderFieldsTab(lines []string, contentWidth int, s styles.Styles) []string {
 	maxLabelW := 0
 	for _, f := range o.Fields[o.Tab] {
-		if lw := len(f.label); lw > maxLabelW {
-			maxLabelW = lw
-		}
+		maxLabelW = max(maxLabelW, len(f.label))
 	}
 	for i, f := range o.Fields[o.Tab] {
-		var spinner string
-		switch {
-		case f.min == 0 && f.max == 1 && f.unit == "":
-			label := "Off"
-			if f.Value != 0 {
-				label = "On"
-			}
-			spinner = fmt.Sprintf("< %s >", label)
-		case f.unit == "preset":
-			name := eqCustomSentinelName
-			if f.Value >= 0 && f.Value < len(o.EQPresets) {
-				name = o.EQPresets[f.Value].Name
-			}
-			spinner = fmt.Sprintf("< %s >", name)
-		case f.unit == "tenth":
-			spinner = fmt.Sprintf("< %.1fx >", float64(f.Value)/10.0)
-		default:
-			spinner = fmt.Sprintf("< %d%s >", f.Value, f.unit)
-		}
-		spinnerW := ansi.StringWidth(spinner)
-		gap := max(1, contentWidth-maxLabelW-spinnerW)
-		rowBody := fmt.Sprintf("%-*s%s%s", maxLabelW, f.label, strings.Repeat(" ", gap), spinner)
-		rowBody = text.Truncate(rowBody, contentWidth)
-		rowBodyW := ansi.StringWidth(rowBody)
-		rowPad := max(0, contentWidth-rowBodyW)
-		row := "  " + rowBody + strings.Repeat(" ", rowPad) + "  "
-		if i == o.cursor {
-			lines = append(lines, overlay.BorderV+s.Accent.Render(row)+overlay.BorderV)
-		} else {
-			lines = append(lines, overlay.BorderV+row+overlay.BorderV)
-		}
+		lines = append(lines, o.renderFieldRow(f, i == o.cursor, maxLabelW, contentWidth, s))
 		if o.Tab == TabEqualizer && i == 1 {
 			lines = o.renderEQStateRow(lines, contentWidth, f)
 		}
 	}
 	return lines
+}
+
+// renderFieldRow lays out one settings row: a left-aligned label, then the
+// field's spinner pushed to the right edge of the content area.
+func (o SettingsOverlay) renderFieldRow(f Field, focused bool, maxLabelW, contentWidth int, s styles.Styles) string {
+	spinner := o.fieldSpinner(f)
+	gap := max(1, contentWidth-maxLabelW-ansi.StringWidth(spinner))
+	rowBody := fmt.Sprintf("%-*s%s%s", maxLabelW, f.label, strings.Repeat(" ", gap), spinner)
+	rowBody = text.Truncate(rowBody, contentWidth)
+	rowPad := max(0, contentWidth-ansi.StringWidth(rowBody))
+	row := "  " + rowBody + strings.Repeat(" ", rowPad) + "  "
+	if focused {
+		return overlay.BorderV + s.Accent.Render(row) + overlay.BorderV
+	}
+	return overlay.BorderV + row + overlay.BorderV
+}
+
+// fieldSpinner renders the "< value >" control for a field, formatting the
+// value according to the field's declared unit.
+func (o SettingsOverlay) fieldSpinner(f Field) string {
+	switch {
+	case f.min == 0 && f.max == 1 && f.unit == "":
+		label := "Off"
+		if f.Value != 0 {
+			label = "On"
+		}
+		return fmt.Sprintf("< %s >", label)
+	case f.unit == "preset":
+		name := eqCustomSentinelName
+		if f.Value >= 0 && f.Value < len(o.EQPresets) {
+			name = o.EQPresets[f.Value].Name
+		}
+		return fmt.Sprintf("< %s >", name)
+	case f.unit == "tenth":
+		return fmt.Sprintf("< %.1fx >", float64(f.Value)/10.0)
+	default:
+		return fmt.Sprintf("< %d%s >", f.Value, f.unit)
+	}
 }
 
 func (o SettingsOverlay) renderEQStateRow(lines []string, contentWidth int, presetField Field) []string {

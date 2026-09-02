@@ -64,15 +64,20 @@ func (s *UsageStore) Load() error {
 		// Usage history is best-effort only; treat parse errors as recoverable.
 		return nil
 	}
+	s.records = sanitizeUsageRecords(records)
+	return nil
+}
+
+// sanitizeUsageRecords clears non-positive counts and future LastUsed stamps so
+// a hand-edited or clock-skewed file cannot distort ranking.
+func sanitizeUsageRecords(records map[string]UsageRecord) map[string]UsageRecord {
 	if records == nil {
-		records = make(map[string]UsageRecord)
+		return make(map[string]UsageRecord)
 	}
 	now := time.Now()
 	for key, rec := range records {
 		if rec.Count <= 0 {
-			rec.Count = 0
-			rec.LastUsed = time.Time{}
-			records[key] = rec
+			records[key] = UsageRecord{}
 			continue
 		}
 		if rec.LastUsed.After(now) {
@@ -80,8 +85,7 @@ func (s *UsageStore) Load() error {
 			records[key] = rec
 		}
 	}
-	s.records = records
-	return nil
+	return records
 }
 
 // Save writes the current records to disk. Errors are logged but not

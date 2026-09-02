@@ -54,17 +54,46 @@ type Box struct {
 // in the middle of the screen.
 func (o Box) Render(termWidth, termHeight int, s styles.Styles) string {
 	rows := o.rowsForHeight(termHeight)
+	maxLabelW := boxLabelWidth(rows)
+	innerWidth := o.innerWidth(rows, maxLabelW)
+	contentWidth := max(innerWidth-HPadding, 0) // padding inside borders
+	padRow := BorderV + strings.Repeat(" ", innerWidth) + BorderV
 
-	// Find the widest label for right-alignment.
+	boxLines := []string{
+		// Top border.
+		CornerTL + strings.Repeat(BorderH, innerWidth) + CornerTR,
+		o.titleLine(innerWidth, s),
+		// Doubled rule below the title (Common Region + Uniform Connectedness).
+		crossDoubleL + strings.Repeat(borderDoubleH, innerWidth) + crossDoubleR,
+		// Inner top padding row.
+		padRow,
+	}
+	for _, r := range rows {
+		boxLines = append(boxLines, renderBoxRow(r, padRow, maxLabelW, contentWidth, s))
+	}
+	boxLines = append(boxLines,
+		// Inner bottom padding row.
+		padRow,
+		// Bottom border.
+		CornerBL+strings.Repeat(BorderH, innerWidth)+CornerBR,
+	)
+
+	return RenderCenteredLines(boxLines, o.Hint, termWidth, termHeight)
+}
+
+// boxLabelWidth is the display width of the widest row label, which fixes the
+// column every label is right-aligned into.
+func boxLabelWidth(rows []Row) int {
 	maxLabelW := 0
 	for _, r := range rows {
-		if lw := ansi.StringWidth(r.Label); lw > maxLabelW {
-			maxLabelW = lw
-		}
+		maxLabelW = max(maxLabelW, ansi.StringWidth(r.Label))
 	}
+	return maxLabelW
+}
 
-	// Collect plain-text row content for width calculation.
-	// For labelled rows the full visual width is: label + " " + text.
+// boxRowTexts returns the plain-text content of each row for width
+// calculation. A labelled row measures as label + " " + text.
+func boxRowTexts(rows []Row, maxLabelW int) []string {
 	rowTexts := make([]string, len(rows))
 	for i, r := range rows {
 		if r.Blank {
@@ -72,116 +101,64 @@ func (o Box) Render(termWidth, termHeight int, s styles.Styles) string {
 		}
 		if r.Label != "" {
 			rowTexts[i] = text.PadLeft(r.Label, maxLabelW) + " " + r.Text
-		} else {
-			rowTexts[i] = r.Text
+			continue
 		}
+		rowTexts[i] = r.Text
 	}
+	return rowTexts
+}
 
-	// Calculate inner width (space between the vertical borders).
-	minInner := MinInnerWidth
-	for _, text := range append([]string{o.Title}, rowTexts...) {
-		if w := ansi.StringWidth(text) + HPadding; w > minInner {
-			minInner = w
-		}
+// innerWidth is the space between the vertical borders: wide enough for the
+// title and every row, clamped to MaxInnerWidth, and floored at HPadding so
+// content rows (which always reserve that many characters for padding) cannot
+// exceed it and misalign the borders when a caller passes a tiny clamp.
+func (o Box) innerWidth(rows []Row, maxLabelW int) int {
+	inner := MinInnerWidth
+	for _, t := range append([]string{o.Title}, boxRowTexts(rows, maxLabelW)...) {
+		inner = max(inner, ansi.StringWidth(t)+HPadding)
 	}
-	innerWidth := minInner
-	if o.MaxInnerWidth > 0 && innerWidth > o.MaxInnerWidth {
-		innerWidth = o.MaxInnerWidth
+	if o.MaxInnerWidth > 0 && inner > o.MaxInnerWidth {
+		inner = o.MaxInnerWidth
 	}
-	// Enforce a floor of OverlayHPadding so content rows (which always reserve
-	// that many characters for padding) cannot exceed innerWidth and misalign
-	// the borders when a caller passes a tiny MaxInnerWidth.
-	if innerWidth < HPadding {
-		innerWidth = HPadding
-	}
-	contentWidth := innerWidth - HPadding // padding inside borders
-	if contentWidth < 0 {
-		contentWidth = 0
-	}
+	return max(inner, HPadding)
+}
 
-	var boxLines []string
-
-	// Top border.
-	boxLines = append(boxLines, CornerTL+strings.Repeat(BorderH, innerWidth)+CornerTR)
-
-	// Title row (centered). Truncate first so a MaxInnerWidth clamp narrower
-	// than the title cannot overflow and misalign the borders.
+// titleLine renders the centered title row. The title is truncated first so a
+// MaxInnerWidth clamp narrower than the title cannot overflow and misalign the
+// borders.
+func (o Box) titleLine(innerWidth int, s styles.Styles) string {
 	displayTitle := text.Truncate(o.Title, innerWidth)
 	titlePad := max(0, innerWidth-ansi.StringWidth(displayTitle))
 	leftTP := titlePad / 2
-	rightTP := titlePad - leftTP
-	boxLines = append(boxLines, BorderV+strings.Repeat(" ", leftTP)+s.Heading.Render(displayTitle)+strings.Repeat(" ", rightTP)+BorderV)
+	return BorderV + strings.Repeat(" ", leftTP) + s.Heading.Render(displayTitle) +
+		strings.Repeat(" ", titlePad-leftTP) + BorderV
+}
 
-	// Doubled rule below the title (Common Region + Uniform Connectedness).
-	boxLines = append(boxLines, crossDoubleL+strings.Repeat(borderDoubleH, innerWidth)+crossDoubleR)
-
-	// Inner top padding row.
-	boxLines = append(boxLines, BorderV+strings.Repeat(" ", innerWidth)+BorderV)
-
-	// Content rows.
-	for _, r := range rows {
-		if r.Blank {
-			boxLines = append(boxLines, BorderV+strings.Repeat(" ", innerWidth)+BorderV)
-			continue
-		}
-		var row string
-		if r.Label != "" {
-			// Right-align the label, then left-align the value.
-			valueWidth := max(0, contentWidth-maxLabelW-1) // 1 for the space between label and value
-			truncated := text.Truncate(r.Text, valueWidth)
-			// Use text.PadLeft for the label and text.Pad for the value
-			// so that multi-byte characters are padded by display width,
-			// not byte count.
-			row = text.PadLeft(r.Label, maxLabelW) + " " + text.Pad(truncated, valueWidth)
-			// Truncate/pad the assembled content to contentWidth so a tiny
-			// MaxInnerWidth that cannot fit the label cannot overflow.
-			row = text.Pad(text.Truncate(row, contentWidth), contentWidth)
-			row = "  " + row + "  "
-		} else {
-			truncated := text.Truncate(r.Text, contentWidth)
-			row = "  " + text.Pad(truncated, contentWidth) + "  "
-		}
-		if r.Styled {
-			boxLines = append(boxLines, BorderV+s.Accent.Render(row)+BorderV)
-		} else {
-			boxLines = append(boxLines, BorderV+row+BorderV)
-		}
+// renderBoxRow renders one content row, falling back to padRow for a blank one.
+func renderBoxRow(r Row, padRow string, maxLabelW, contentWidth int, s styles.Styles) string {
+	if r.Blank {
+		return padRow
 	}
+	row := "  " + boxRowBody(r, maxLabelW, contentWidth) + "  "
+	if r.Styled {
+		return BorderV + s.Accent.Render(row) + BorderV
+	}
+	return BorderV + row + BorderV
+}
 
-	// Inner bottom padding row.
-	boxLines = append(boxLines, BorderV+strings.Repeat(" ", innerWidth)+BorderV)
-
-	// Bottom border.
-	boxLines = append(boxLines, CornerBL+strings.Repeat(BorderH, innerWidth)+CornerBR)
-
-	// Center the box.
-	boxW := ansi.StringWidth(boxLines[0])
-	boxH := len(boxLines)
-	if o.Hint != "" {
-		boxH++
+// boxRowBody lays a row's content out across contentWidth: a right-aligned
+// label followed by a left-aligned value, or plain padded text. text.PadLeft
+// and text.Pad pad by display width, not byte count, so multi-byte characters
+// stay aligned.
+func boxRowBody(r Row, maxLabelW, contentWidth int) string {
+	if r.Label == "" {
+		return text.Pad(text.Truncate(r.Text, contentWidth), contentWidth)
 	}
-
-	leftPadBox := 0
-	if termWidth > boxW {
-		leftPadBox = (termWidth - boxW) / 2
-	}
-	topPad := 0
-	if termHeight > boxH {
-		topPad = (termHeight - boxH) / 2
-	}
-
-	boxPrefix := strings.Repeat(" ", leftPadBox)
-	var b strings.Builder
-	for range topPad {
-		b.WriteByte('\n')
-	}
-	for _, line := range boxLines {
-		b.WriteString(boxPrefix + line + "\n")
-	}
-	if o.Hint != "" {
-		b.WriteString(centeredOverlayHintLine(o.Hint, termWidth) + "\n")
-	}
-	return b.String()
+	valueWidth := max(0, contentWidth-maxLabelW-1) // 1 for the space between label and value
+	row := text.PadLeft(r.Label, maxLabelW) + " " + text.Pad(text.Truncate(r.Text, valueWidth), valueWidth)
+	// Truncate/pad the assembled content to contentWidth so a tiny
+	// MaxInnerWidth that cannot fit the label cannot overflow.
+	return text.Pad(text.Truncate(row, contentWidth), contentWidth)
 }
 
 func RenderCenteredLines(lines []string, hint string, termWidth, termHeight int) string {

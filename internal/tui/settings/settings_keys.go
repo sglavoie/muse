@@ -30,99 +30,158 @@ func (o SettingsOverlay) ForwardMsg(msg tea.Msg) (SettingsOverlay, tea.Cmd, bool
 	return o, nil, false
 }
 
+// settingsKeyFunc applies one non-modal settings key to the overlay.
+type settingsKeyFunc func(SettingsOverlay) (SettingsOverlay, Action, tea.Cmd)
+
+// settingsNavKeys maps each key handled outside a modal state to its action.
+// Keys absent from the table leave the overlay untouched.
+var settingsNavKeys = map[string]settingsKeyFunc{
+	"[":      func(o SettingsOverlay) (SettingsOverlay, Action, tea.Cmd) { return o.switchTab(-1) },
+	"]":      func(o SettingsOverlay) (SettingsOverlay, Action, tea.Cmd) { return o.switchTab(1) },
+	"j":      func(o SettingsOverlay) (SettingsOverlay, Action, tea.Cmd) { return o.withCursorMoved(1) },
+	"down":   func(o SettingsOverlay) (SettingsOverlay, Action, tea.Cmd) { return o.withCursorMoved(1) },
+	"k":      func(o SettingsOverlay) (SettingsOverlay, Action, tea.Cmd) { return o.withCursorMoved(-1) },
+	"up":     func(o SettingsOverlay) (SettingsOverlay, Action, tea.Cmd) { return o.withCursorMoved(-1) },
+	"h":      func(o SettingsOverlay) (SettingsOverlay, Action, tea.Cmd) { return o.adjustField(-1) },
+	"left":   func(o SettingsOverlay) (SettingsOverlay, Action, tea.Cmd) { return o.adjustField(-1) },
+	"l":      func(o SettingsOverlay) (SettingsOverlay, Action, tea.Cmd) { return o.adjustField(1) },
+	"right":  func(o SettingsOverlay) (SettingsOverlay, Action, tea.Cmd) { return o.adjustField(1) },
+	"a":      SettingsOverlay.beginAdd,
+	"s":      SettingsOverlay.beginSavePreset,
+	"d":      SettingsOverlay.beginDelete,
+	"e":      SettingsOverlay.enterExcludedSubView,
+	"esc":    SettingsOverlay.handleEscape,
+	"ctrl+s": func(o SettingsOverlay) (SettingsOverlay, Action, tea.Cmd) { return o, ActionSave, nil },
+}
+
 // HandleKey processes a key event and returns the updated overlay and the resulting action.
 // ctrl+c returns settingsNone so the caller can fall through to root quit handling.
 func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, Action, tea.Cmd) {
-	// Modal states: text inputs and delete confirmations consume all keys.
-	if o.Tab == tabLibrary && o.libSubView == libSubViewExcluded && o.ExclPathInput != nil {
-		return o.handleExclPathInput(msg)
+	if modal, ok := o.modalKeyHandler(); ok {
+		return modal(msg)
 	}
-	if o.Tab == tabLibrary && o.libSubView == libSubViewExcluded && o.exclConfirmDel {
-		return o.handleExclDeleteConfirm(msg)
-	}
-	if o.LibDirInput != nil {
-		return o.handleLibDirInput(msg)
-	}
-	if o.libConfirmDel {
-		return o.handleLibDeleteConfirm(msg)
-	}
-	if o.EQNameInput != nil {
-		return o.handleEQNameInput(msg)
-	}
-	if o.EQConfirmDel {
-		return o.handleEQDeleteConfirm(msg)
-	}
-
-	switch msg.String() {
-	case "[":
-		o.Tab = (o.Tab + tabCount - 1) % tabCount
-		o.cursor = 0
-		o.libSubView = libSubViewDirs
-	case "]":
-		o.Tab = (o.Tab + 1) % tabCount
-		o.cursor = 0
-		o.libSubView = libSubViewDirs
-	case "j", "down":
-		o.moveCursor(1)
-	case "k", "up":
-		o.moveCursor(-1)
-	case "h", "left":
-		return o.adjustField(-1)
-	case "l", "right":
-		return o.adjustField(1)
-	case "a":
-		if o.Tab == tabLibrary {
-			if o.libSubView == libSubViewExcluded {
-				o.ExclPathInput = NewSettingsInput()
-			} else {
-				o.LibDirInput = NewSettingsInput()
-			}
-			return o, actionNone, nil
-		}
-	case "s":
-		if o.Tab == TabEqualizer {
-			o.EQNameInput = NewSettingsInput()
-			return o, actionNone, nil
-		}
-	case "d":
-		if o.Tab == tabLibrary {
-			if o.libSubView == libSubViewExcluded {
-				if len(o.ExcludedPaths) > 0 {
-					o.exclConfirmDel = true
-				}
-			} else {
-				if len(o.LibraryDirs) > 1 {
-					o.libConfirmDel = true
-				}
-			}
-			return o, actionNone, nil
-		}
-		if o.Tab == TabEqualizer {
-			presetIdx := o.Fields[TabEqualizer][1].Value
-			if presetIdx >= 0 && presetIdx < len(o.EQPresets) {
-				p := o.EQPresets[presetIdx]
-				if !p.Builtin && p.Key != "custom" {
-					o.EQConfirmDel = true
-					return o, actionNone, nil
-				}
-			}
-		}
-	case "e":
-		if o.Tab == tabLibrary && o.libSubView == libSubViewDirs {
-			o.libSubView = libSubViewExcluded
-			o.exclCursor = 0
-			return o, actionNone, nil
-		}
-	case "esc":
-		if o.Tab == tabLibrary && o.libSubView == libSubViewExcluded {
-			o.libSubView = libSubViewDirs
-			return o, actionNone, nil
-		}
-		return o, ActionCancel, nil
-	case "ctrl+s":
-		return o, ActionSave, nil
+	if handle, ok := settingsNavKeys[msg.String()]; ok {
+		return handle(o)
 	}
 	return o, actionNone, nil
+}
+
+// modalKeyHandler returns the handler that owns every key while a text input
+// or a delete confirmation is open, or false when the overlay is in its
+// ordinary navigation mode.
+func (o SettingsOverlay) modalKeyHandler() (func(tea.KeyPressMsg) (SettingsOverlay, Action, tea.Cmd), bool) {
+	inExcluded := o.Tab == tabLibrary && o.libSubView == libSubViewExcluded
+	switch {
+	case inExcluded && o.ExclPathInput != nil:
+		return o.handleExclPathInput, true
+	case inExcluded && o.exclConfirmDel:
+		return o.handleExclDeleteConfirm, true
+	case o.LibDirInput != nil:
+		return o.handleLibDirInput, true
+	case o.libConfirmDel:
+		return o.handleLibDeleteConfirm, true
+	case o.EQNameInput != nil:
+		return o.handleEQNameInput, true
+	case o.EQConfirmDel:
+		return o.handleEQDeleteConfirm, true
+	}
+	return nil, false
+}
+
+// switchTab moves to the neighbouring tab, resetting the field cursor and
+// returning the library tab to its directory sub-view.
+func (o SettingsOverlay) switchTab(delta Tab) (SettingsOverlay, Action, tea.Cmd) {
+	o.Tab = (o.Tab + tabCount + delta) % tabCount
+	o.cursor = 0
+	o.libSubView = libSubViewDirs
+	return o, actionNone, nil
+}
+
+// withCursorMoved is moveCursor in the shape the key table expects.
+func (o SettingsOverlay) withCursorMoved(delta int) (SettingsOverlay, Action, tea.Cmd) {
+	o.moveCursor(delta)
+	return o, actionNone, nil
+}
+
+// beginAdd opens the text input for a new library directory or excluded path.
+func (o SettingsOverlay) beginAdd() (SettingsOverlay, Action, tea.Cmd) {
+	if o.Tab != tabLibrary {
+		return o, actionNone, nil
+	}
+	if o.libSubView == libSubViewExcluded {
+		o.ExclPathInput = NewSettingsInput()
+	} else {
+		o.LibDirInput = NewSettingsInput()
+	}
+	return o, actionNone, nil
+}
+
+// beginSavePreset opens the name prompt for saving the current EQ bands.
+func (o SettingsOverlay) beginSavePreset() (SettingsOverlay, Action, tea.Cmd) {
+	if o.Tab == TabEqualizer {
+		o.EQNameInput = NewSettingsInput()
+	}
+	return o, actionNone, nil
+}
+
+// beginDelete arms the delete confirmation for whatever the current tab shows.
+func (o SettingsOverlay) beginDelete() (SettingsOverlay, Action, tea.Cmd) {
+	if o.Tab == tabLibrary {
+		return o.armLibraryDelete(), actionNone, nil
+	}
+	if o.Tab == TabEqualizer {
+		return o.armPresetDelete(), actionNone, nil
+	}
+	return o, actionNone, nil
+}
+
+// armLibraryDelete arms the confirmation for the focused excluded path or
+// library directory; the last remaining directory cannot be removed.
+func (o SettingsOverlay) armLibraryDelete() SettingsOverlay {
+	if o.libSubView == libSubViewExcluded {
+		if len(o.ExcludedPaths) > 0 {
+			o.exclConfirmDel = true
+		}
+		return o
+	}
+	if len(o.LibraryDirs) > 1 {
+		o.libConfirmDel = true
+	}
+	return o
+}
+
+// armPresetDelete arms the confirmation for the focused EQ preset. Built-in
+// presets and the "(Custom)" sentinel are not deletable.
+func (o SettingsOverlay) armPresetDelete() SettingsOverlay {
+	presetIdx := o.Fields[TabEqualizer][1].Value
+	if presetIdx < 0 || presetIdx >= len(o.EQPresets) {
+		return o
+	}
+	p := o.EQPresets[presetIdx]
+	if !p.Builtin && p.Key != "custom" {
+		o.EQConfirmDel = true
+	}
+	return o
+}
+
+// enterExcludedSubView switches the library tab from directories to the
+// excluded-path list.
+func (o SettingsOverlay) enterExcludedSubView() (SettingsOverlay, Action, tea.Cmd) {
+	if o.Tab == tabLibrary && o.libSubView == libSubViewDirs {
+		o.libSubView = libSubViewExcluded
+		o.exclCursor = 0
+	}
+	return o, actionNone, nil
+}
+
+// handleEscape leaves the excluded-path sub-view if it is open, and otherwise
+// cancels the overlay.
+func (o SettingsOverlay) handleEscape() (SettingsOverlay, Action, tea.Cmd) {
+	if o.Tab == tabLibrary && o.libSubView == libSubViewExcluded {
+		o.libSubView = libSubViewDirs
+		return o, actionNone, nil
+	}
+	return o, ActionCancel, nil
 }
 
 // handleExclPathInput processes keys while the excluded-path text input is active.
@@ -255,19 +314,25 @@ func (o SettingsOverlay) handleEQDeleteConfirm(msg tea.KeyPressMsg) (SettingsOve
 // wrapping around the list boundaries.
 func (o *SettingsOverlay) moveCursor(delta int) {
 	if o.Tab == tabLibrary {
-		if o.libSubView == libSubViewExcluded {
-			if n := len(o.ExcludedPaths); n > 0 {
-				o.exclCursor = (o.exclCursor + n + delta) % n
-			}
-		} else {
-			if n := len(o.LibraryDirs); n > 0 {
-				o.libCursor = (o.libCursor + n + delta) % n
-			}
-		}
+		o.moveLibraryCursor(delta)
 		return
 	}
 	if n := len(o.Fields[o.Tab]); n > 0 {
 		o.cursor = (o.cursor + n + delta) % n
+	}
+}
+
+// moveLibraryCursor wraps the cursor of whichever list the Library tab is
+// currently showing.
+func (o *SettingsOverlay) moveLibraryCursor(delta int) {
+	if o.libSubView == libSubViewExcluded {
+		if n := len(o.ExcludedPaths); n > 0 {
+			o.exclCursor = (o.exclCursor + n + delta) % n
+		}
+		return
+	}
+	if n := len(o.LibraryDirs); n > 0 {
+		o.libCursor = (o.libCursor + n + delta) % n
 	}
 }
 

@@ -68,41 +68,78 @@ func (e SmartRuleEditor) handleRulesKey(msg tea.KeyPressMsg) (SmartRuleEditor, A
 	case "esc", "left":
 		e.step = stepName
 	case "enter":
-		if len(e.rules) == 0 {
-			e.step = stepSort
-		} else {
-			e = e.startEditRule(e.ruleCursor)
-		}
+		e = e.openFocusedRule()
 	case "right":
-		if len(e.rules) == 0 {
-			return e, actionNone, nil
-		}
-		e.step = stepSort
+		e = e.advanceToSort()
 	case "a":
 		e = e.startNewRule()
 	case "d":
-		if len(e.rules) > 0 && e.ruleCursor < len(e.rules) {
-			e.rules = append(e.rules[:e.ruleCursor], e.rules[e.ruleCursor+1:]...)
-			if e.ruleCursor > 0 && e.ruleCursor >= len(e.rules) {
-				e.ruleCursor = len(e.rules) - 1
-			}
-		}
+		e = e.deleteFocusedRule()
 	case "tab":
-		if e.conjunction == db.ConjAnd {
-			e.conjunction = db.ConjOr
-		} else {
-			e.conjunction = db.ConjAnd
-		}
+		e = e.toggleConjunction()
 	case "j", "down":
-		if e.ruleCursor < len(e.rules)-1 {
-			e.ruleCursor++
-		}
+		e = e.nextRule()
 	case "k", "up":
-		if e.ruleCursor > 0 {
-			e.ruleCursor--
-		}
+		e = e.prevRule()
 	}
 	return e, actionNone, nil
+}
+
+// openFocusedRule opens the rule under the cursor in the sub-form, or skips
+// straight to the sort step when there is nothing to edit.
+func (e SmartRuleEditor) openFocusedRule() SmartRuleEditor {
+	if len(e.rules) == 0 {
+		e.step = stepSort
+		return e
+	}
+	return e.startEditRule(e.ruleCursor)
+}
+
+// advanceToSort moves to the sort step, refusing to leave an empty rule list.
+func (e SmartRuleEditor) advanceToSort() SmartRuleEditor {
+	if len(e.rules) > 0 {
+		e.step = stepSort
+	}
+	return e
+}
+
+// deleteFocusedRule removes the rule under the cursor and keeps the cursor in
+// range afterwards.
+func (e SmartRuleEditor) deleteFocusedRule() SmartRuleEditor {
+	if len(e.rules) == 0 || e.ruleCursor >= len(e.rules) {
+		return e
+	}
+	e.rules = append(e.rules[:e.ruleCursor], e.rules[e.ruleCursor+1:]...)
+	if e.ruleCursor > 0 && e.ruleCursor >= len(e.rules) {
+		e.ruleCursor = len(e.rules) - 1
+	}
+	return e
+}
+
+// toggleConjunction flips the rule list between AND and OR.
+func (e SmartRuleEditor) toggleConjunction() SmartRuleEditor {
+	if e.conjunction == db.ConjAnd {
+		e.conjunction = db.ConjOr
+		return e
+	}
+	e.conjunction = db.ConjAnd
+	return e
+}
+
+// nextRule moves the cursor one rule down, stopping at the last rule.
+func (e SmartRuleEditor) nextRule() SmartRuleEditor {
+	if e.ruleCursor < len(e.rules)-1 {
+		e.ruleCursor++
+	}
+	return e
+}
+
+// prevRule moves the cursor one rule up, stopping at the first rule.
+func (e SmartRuleEditor) prevRule() SmartRuleEditor {
+	if e.ruleCursor > 0 {
+		e.ruleCursor--
+	}
+	return e
 }
 
 func (e SmartRuleEditor) startNewRule() SmartRuleEditor {
@@ -146,72 +183,90 @@ func (e SmartRuleEditor) startEditRule(idx int) SmartRuleEditor {
 
 func (e SmartRuleEditor) handleEditRuleKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action, tea.Cmd) {
 	if e.editSubField == 2 {
-		switch msg.String() {
-		case "esc":
-			e.ruleValueInput.Blur()
-			e.step = stepRules
-		case "enter":
-			e.ruleValueInput.Blur()
-			e = e.confirmEditRule()
-		case "tab", "down":
-			e.ruleValueInput.Blur()
-			e.editSubField = 0
-		case "shift+tab", "up":
-			e.ruleValueInput.Blur()
-			e.editSubField = 1
-		default:
-			updated, cmd := e.ruleValueInput.Update(msg)
-			e.ruleValueInput = updated
-			return e, actionNone, cmd
-		}
-		return e, actionNone, nil
+		return e.handleRuleValueKey(msg)
 	}
+	return e.handleRuleSelectionKey(msg)
+}
 
+// handleRuleValueKey processes keys while the rule's value text input is focused.
+func (e SmartRuleEditor) handleRuleValueKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		e.ruleValueInput.Blur()
+		e.step = stepRules
+	case "enter":
+		e.ruleValueInput.Blur()
+		e = e.confirmEditRule()
+	case "tab", "down":
+		e.ruleValueInput.Blur()
+		e.editSubField = 0
+	case "shift+tab", "up":
+		e.ruleValueInput.Blur()
+		e.editSubField = 1
+	default:
+		updated, cmd := e.ruleValueInput.Update(msg)
+		e.ruleValueInput = updated
+		return e, actionNone, cmd
+	}
+	return e, actionNone, nil
+}
+
+// handleRuleSelectionKey processes keys while the field or operator selector of
+// the rule sub-form is focused.
+func (e SmartRuleEditor) handleRuleSelectionKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
 		e.step = stepRules
 	case "enter":
 		e = e.confirmEditRule()
 	case "tab", "j", "down":
-		newSub := (e.editSubField + 1) % 3
-		if newSub == 2 {
-			e.ruleValueInput.Focus()
-		}
-		e.editSubField = newSub
+		e = e.focusEditSubField((e.editSubField + 1) % 3)
 	case "shift+tab", "k", "up":
-		newSub := (e.editSubField + 2) % 3
-		if newSub == 2 {
-			e.ruleValueInput.Focus()
-		}
-		e.editSubField = newSub
+		e = e.focusEditSubField((e.editSubField + 2) % 3)
 	case "left":
-		switch e.editSubField {
-		case 0:
-			if e.ruleFieldIdx > 0 {
-				e.ruleFieldIdx--
-			} else {
-				e.ruleFieldIdx = len(allRuleFields) - 1
-			}
-			e.ruleOpIdx = 0
-		case 1:
-			ops := validOpsForField(e.currentField())
-			if e.ruleOpIdx > 0 {
-				e.ruleOpIdx--
-			} else {
-				e.ruleOpIdx = len(ops) - 1
-			}
-		}
+		e = e.cycleEditSelection(-1)
 	case "right":
-		switch e.editSubField {
-		case 0:
-			e.ruleFieldIdx = (e.ruleFieldIdx + 1) % len(allRuleFields)
-			e.ruleOpIdx = 0
-		case 1:
-			ops := validOpsForField(e.currentField())
-			e.ruleOpIdx = (e.ruleOpIdx + 1) % len(ops)
-		}
+		e = e.cycleEditSelection(1)
 	}
 	return e, actionNone, nil
+}
+
+// focusEditSubField moves the sub-form focus to sub, activating the value text
+// input when that is where focus lands.
+func (e SmartRuleEditor) focusEditSubField(sub int) SmartRuleEditor {
+	if sub == 2 {
+		e.ruleValueInput.Focus()
+	}
+	e.editSubField = sub
+	return e
+}
+
+// cycleEditSelection steps the focused field or operator selector by delta,
+// wrapping at both ends. Changing the field resets the operator to the first
+// one valid for it.
+func (e SmartRuleEditor) cycleEditSelection(delta int) SmartRuleEditor {
+	switch e.editSubField {
+	case 0:
+		e.ruleFieldIdx = cycleIndex(e.ruleFieldIdx, delta, len(allRuleFields))
+		e.ruleOpIdx = 0
+	case 1:
+		e.ruleOpIdx = cycleIndex(e.ruleOpIdx, delta, len(validOpsForField(e.currentField())))
+	}
+	return e
+}
+
+// cycleIndex steps idx by delta (±1) within n entries, wrapping at both ends.
+func cycleIndex(idx, delta, n int) int {
+	if n <= 0 {
+		return 0
+	}
+	if delta < 0 {
+		if idx > 0 {
+			return idx - 1
+		}
+		return n - 1
+	}
+	return (idx + 1) % n
 }
 
 func (e SmartRuleEditor) confirmEditRule() SmartRuleEditor {
@@ -234,61 +289,71 @@ func (e SmartRuleEditor) confirmEditRule() SmartRuleEditor {
 
 func (e SmartRuleEditor) handleSortKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action, tea.Cmd) {
 	if e.sortCursor == 2 {
-		switch msg.String() {
-		case "esc":
-			e.maxTracksInput.Blur()
-			e.step = stepRules
-		case "enter":
-			return e, ActionCommit, nil
-		case "tab", "down":
-			e.maxTracksInput.Blur()
-			e.sortCursor = 0
-		case "shift+tab", "up":
-			e.maxTracksInput.Blur()
-			e.sortCursor = 1
-		default:
-			updated, cmd := e.maxTracksInput.Update(msg)
-			e.maxTracksInput = updated
-			return e, actionNone, cmd
-		}
-		return e, actionNone, nil
+		return e.handleMaxTracksKey(msg)
 	}
+	return e.handleSortSelectionKey(msg)
+}
 
+// handleMaxTracksKey processes keys while the max-tracks text input is focused.
+func (e SmartRuleEditor) handleMaxTracksKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		e.maxTracksInput.Blur()
+		e.step = stepRules
+	case "enter":
+		return e, ActionCommit, nil
+	case "tab", "down":
+		e.maxTracksInput.Blur()
+		e.sortCursor = 0
+	case "shift+tab", "up":
+		e.maxTracksInput.Blur()
+		e.sortCursor = 1
+	default:
+		updated, cmd := e.maxTracksInput.Update(msg)
+		e.maxTracksInput = updated
+		return e, actionNone, cmd
+	}
+	return e, actionNone, nil
+}
+
+// handleSortSelectionKey processes keys while the sort-field or sort-direction
+// selector is focused.
+func (e SmartRuleEditor) handleSortSelectionKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
 		e.step = stepRules
 	case "enter":
 		return e, ActionCommit, nil
 	case "tab", "j", "down":
-		newCursor := (e.sortCursor + 1) % 3
-		if newCursor == 2 {
-			e.maxTracksInput.Focus()
-		}
-		e.sortCursor = newCursor
+		e = e.focusSortCursor((e.sortCursor + 1) % 3)
 	case "shift+tab", "k", "up":
-		newCursor := (e.sortCursor + 2) % 3
-		if newCursor == 2 {
-			e.maxTracksInput.Focus()
-		}
-		e.sortCursor = newCursor
+		e = e.focusSortCursor((e.sortCursor + 2) % 3)
 	case "left":
-		switch e.sortCursor {
-		case 0:
-			if e.sortByIdx > 0 {
-				e.sortByIdx--
-			} else {
-				e.sortByIdx = len(sortByOptions) - 1
-			}
-		case 1:
-			e.sortDir = 1 - e.sortDir
-		}
+		e = e.cycleSortSelection(-1)
 	case "right":
-		switch e.sortCursor {
-		case 0:
-			e.sortByIdx = (e.sortByIdx + 1) % len(sortByOptions)
-		case 1:
-			e.sortDir = 1 - e.sortDir
-		}
+		e = e.cycleSortSelection(1)
 	}
 	return e, actionNone, nil
+}
+
+// focusSortCursor moves the sort-step focus to cursor, activating the
+// max-tracks text input when that is where focus lands.
+func (e SmartRuleEditor) focusSortCursor(cursor int) SmartRuleEditor {
+	if cursor == 2 {
+		e.maxTracksInput.Focus()
+	}
+	e.sortCursor = cursor
+	return e
+}
+
+// cycleSortSelection steps the focused sort selector by delta. The sort field
+// wraps; the direction is a two-way toggle, so delta does not affect it.
+func (e SmartRuleEditor) cycleSortSelection(delta int) SmartRuleEditor {
+	switch e.sortCursor {
+	case 0:
+		e.sortByIdx = cycleIndex(e.sortByIdx, delta, len(sortByOptions))
+	case 1:
+		e.sortDir = 1 - e.sortDir
+	}
+	return e
 }

@@ -93,32 +93,51 @@ func (cp CommandPalette) HandleKey(key string, msg tea.KeyPressMsg) (CommandPale
 	case "esc":
 		return cp, func() tea.Msg { return CommandPaletteDismissedMsg{} }
 	case "enter":
-		if cp.cursor >= 0 && cp.cursor < len(cp.Filtered) {
-			picked := cp.Filtered[cp.cursor]
-			if !picked.IsEnabled() {
-				return cp, nil
-			}
-			if cp.usage != nil {
-				cp.usage.Bump(picked.Key())
-				cp.usage.SaveBestEffort()
-			}
-			return cp, func() tea.Msg { return CommandPalettePickedMsg{Command: picked} }
-		}
+		return cp, cp.runFocused()
 	case "up", "ctrl+k", "ctrl+p":
-		if cp.cursor > 0 {
-			cp.cursor--
-		}
+		return cp.prevCommand(), nil
 	case "down", "ctrl+j", "ctrl+n":
-		if cp.cursor < len(cp.Filtered)-1 {
-			cp.cursor++
-		}
+		return cp.nextCommand(), nil
 	default:
 		var cmd tea.Cmd
 		cp.Filter, cmd = cp.Filter.Update(msg)
 		cp.Refilter()
 		return cp, cmd
 	}
-	return cp, nil
+}
+
+// runFocused records usage for the focused command and returns the Cmd that
+// dispatches it. Returns nil when nothing runnable is focused — an out-of-range
+// cursor or a command whose Enabled predicate is false.
+func (cp CommandPalette) runFocused() tea.Cmd {
+	if cp.cursor < 0 || cp.cursor >= len(cp.Filtered) {
+		return nil
+	}
+	picked := cp.Filtered[cp.cursor]
+	if !picked.IsEnabled() {
+		return nil
+	}
+	if cp.usage != nil {
+		cp.usage.Bump(picked.Key())
+		cp.usage.SaveBestEffort()
+	}
+	return func() tea.Msg { return CommandPalettePickedMsg{Command: picked} }
+}
+
+// prevCommand moves the selection up one row, stopping at the first.
+func (cp CommandPalette) prevCommand() CommandPalette {
+	if cp.cursor > 0 {
+		cp.cursor--
+	}
+	return cp
+}
+
+// nextCommand moves the selection down one row, stopping at the last.
+func (cp CommandPalette) nextCommand() CommandPalette {
+	if cp.cursor < len(cp.Filtered)-1 {
+		cp.cursor++
+	}
+	return cp
 }
 
 // Refilter rebuilds the filtered list using subsequence-fuzzy matching with
@@ -214,137 +233,134 @@ func (cp CommandPalette) Render(termWidth, termHeight int, s styles.Styles) stri
 	return b.String()
 }
 
-func (cp CommandPalette) buildBoxLines(termWidth, termHeight int, s styles.Styles) []string {
-	const modalTitle = " Command Palette "
-	const minInner = 30
-	const recentHeader = "Recent & frequent"
+const (
+	cpModalTitle   = " Command Palette "
+	cpMinInner     = 30
+	cpRecentHeader = "Recent & frequent"
+)
 
-	// Compute max shortcut width across filtered commands.
-	maxShortcutWidth := 0
+// cpBoxMetrics holds the column widths one palette render is laid out against.
+type cpBoxMetrics struct {
+	innerWidth       int // space between the vertical borders
+	contentWidth     int // space available to a row's text
+	maxCategoryWidth int // widest category tag across the filtered commands
+	maxShortcutWidth int // widest shortcut across the filtered commands
+}
+
+func (cp CommandPalette) buildBoxLines(termWidth, termHeight int, s styles.Styles) []string {
+	m := cp.boxMetrics(termWidth)
+	padRow := cpBorderV + strings.Repeat(" ", m.innerWidth) + cpBorderV
+
+	lines := []string{
+		// Top border.
+		cpCornerTL + strings.Repeat(cpBorderH, m.innerWidth) + cpCornerTR,
+		cp.titleLine(m, s),
+		// Doubled rule below the title (Common Region + Uniform Connectedness).
+		cpCrossDoubleL + strings.Repeat(cpBorderDoubleH, m.innerWidth) + cpCrossDoubleR,
+		// Inner top padding row.
+		padRow,
+		cp.filterLine(m),
+		// Separator before commands.
+		cpCrossL + strings.Repeat(cpBorderH, m.innerWidth) + cpCrossR,
+	}
+	lines = append(lines, cp.commandLines(cpCommandRowBudget(termHeight), m, s)...)
+	lines = append(lines,
+		// Inner bottom padding row.
+		padRow,
+		// Bottom border.
+		cpCornerBL+strings.Repeat(cpBorderH, m.innerWidth)+cpCornerBR,
+		// Hint line.
+		"  "+s.Dim.Render(text.Truncate("↑/↓ navigate · enter run · esc cancel", max(termWidth-2, 0))),
+	)
+	return lines
+}
+
+// boxMetrics sizes the box from the title and the filtered commands' names,
+// shortcuts and category tags, then clamps it to the terminal width.
+func (cp CommandPalette) boxMetrics(termWidth int) cpBoxMetrics {
+	var m cpBoxMetrics
 	for _, c := range cp.Filtered {
-		if w := ansi.StringWidth(c.Shortcut); w > maxShortcutWidth {
-			maxShortcutWidth = w
-		}
+		m.maxShortcutWidth = max(m.maxShortcutWidth, ansi.StringWidth(c.Shortcut))
+		m.maxCategoryWidth = max(m.maxCategoryWidth, ansi.StringWidth(c.Category))
 	}
 	shortcutExtra := 0
-	if maxShortcutWidth > 0 {
-		shortcutExtra = maxShortcutWidth + 2 // 2-space gap between name and shortcut
-	}
-
-	// Compute max category width (rendered as "[cat] " before the name).
-	maxCategoryWidth := 0
-	for _, c := range cp.Filtered {
-		if w := ansi.StringWidth(c.Category); w > maxCategoryWidth {
-			maxCategoryWidth = w
-		}
+	if m.maxShortcutWidth > 0 {
+		shortcutExtra = m.maxShortcutWidth + 2 // 2-space gap between name and shortcut
 	}
 	categoryExtra := 0
-	if maxCategoryWidth > 0 {
-		categoryExtra = maxCategoryWidth + 3 // "[" + cat + "] "
+	if m.maxCategoryWidth > 0 {
+		categoryExtra = m.maxCategoryWidth + 3 // "[" + cat + "] "
 	}
 
-	// Compute inner width from title, filter, and command names + shortcuts + category prefix.
-	// +4 / +6 budget below = 2 borders + 2 cells inner padding (1 each side
-	// at the wrap, plus 1 each side built into buildRowContent's leading and
+	// The +4 / +6 budgets = 2 borders + 2 cells inner padding (1 each side at
+	// the wrap, plus 1 each side built into buildRowContent's leading and
 	// trailing spaces) so rows sit two cells away from the vertical borders.
-	innerWidth := minInner
-	if ansi.StringWidth(modalTitle)+4 > innerWidth {
-		innerWidth = ansi.StringWidth(modalTitle) + 4
-	}
+	inner := max(cpMinInner, ansi.StringWidth(cpModalTitle)+4)
 	for _, c := range cp.Filtered {
-		if ansi.StringWidth(c.Name)+6+shortcutExtra+categoryExtra > innerWidth {
-			innerWidth = ansi.StringWidth(c.Name) + 6 + shortcutExtra + categoryExtra
-		}
+		inner = max(inner, ansi.StringWidth(c.Name)+6+shortcutExtra+categoryExtra)
 	}
-	if maxInner := termWidth - 4; termWidth > 0 && innerWidth > maxInner {
-		innerWidth = maxInner
+	if maxInner := termWidth - 4; termWidth > 0 && inner > maxInner {
+		inner = maxInner
 	}
-	if innerWidth < 1 {
-		innerWidth = 1
-	}
-	contentWidth := max(innerWidth-4, 0)
+	m.innerWidth = max(inner, 1)
+	m.contentWidth = max(m.innerWidth-4, 0)
+	return m
+}
 
-	var lines []string
-
-	// Top border.
-	lines = append(lines, cpCornerTL+strings.Repeat(cpBorderH, innerWidth)+cpCornerTR)
-
-	// Title row (centered).
-	displayTitle := text.Truncate(modalTitle, innerWidth)
-	titlePad := max(0, innerWidth-ansi.StringWidth(displayTitle))
+// titleLine renders the centered title row.
+func (cp CommandPalette) titleLine(m cpBoxMetrics, s styles.Styles) string {
+	displayTitle := text.Truncate(cpModalTitle, m.innerWidth)
+	titlePad := max(0, m.innerWidth-ansi.StringWidth(displayTitle))
 	leftTP := titlePad / 2
-	rightTP := titlePad - leftTP
-	lines = append(lines, cpBorderV+strings.Repeat(" ", leftTP)+s.Heading.Render(displayTitle)+strings.Repeat(" ", rightTP)+cpBorderV)
+	return cpBorderV + strings.Repeat(" ", leftTP) + s.Heading.Render(displayTitle) +
+		strings.Repeat(" ", titlePad-leftTP) + cpBorderV
+}
 
-	// Doubled rule below the title (Common Region + Uniform Connectedness).
-	lines = append(lines, cpCrossDoubleL+strings.Repeat(cpBorderDoubleH, innerWidth)+cpCrossDoubleR)
-
-	// Inner top padding row.
-	lines = append(lines, cpBorderV+strings.Repeat(" ", innerWidth)+cpBorderV)
-
-	// Filter input row.
+// filterLine renders the always-active "/ query" input row.
+func (cp CommandPalette) filterLine(m cpBoxMetrics) string {
 	filterText := cp.Filter.View()
 	if !cp.Filter.Active {
 		filterText = cp.Filter.Text
 	}
-	filterDisplay := " / " + filterText
-	filterPadded := text.Pad(filterDisplay, contentWidth)
-	lines = append(lines, cpBorderV+"  "+filterPadded+"  "+cpBorderV)
+	return cpBorderV + "  " + text.Pad(" / "+filterText, m.contentWidth) + "  " + cpBorderV
+}
 
-	// Separator before commands.
-	lines = append(lines, cpCrossL+strings.Repeat(cpBorderH, innerWidth)+cpCrossR)
-
-	commandBudget := cpCommandRowBudget(termHeight)
-
-	// Command rows.
+// commandLines renders the command area: either the "(no matches)" row or the
+// rows the height budget leaves room for.
+func (cp CommandPalette) commandLines(budget int, m cpBoxMetrics, s styles.Styles) []string {
 	if len(cp.Filtered) == 0 {
-		noMatch := text.Pad("(no matches)", contentWidth)
-		lines = append(lines, cpBorderV+"  "+noMatch+"  "+cpBorderV)
-	} else {
-		dimItalic := s.Dim.Italic(true)
-		accentDim := s.Accent.Faint(true).Italic(true)
-		emptyQuery := strings.TrimSpace(cp.Filter.Text) == ""
+		return []string{cpBorderV + "  " + text.Pad("(no matches)", m.contentWidth) + "  " + cpBorderV}
+	}
+	emptyQuery := strings.TrimSpace(cp.Filter.Text) == ""
+	var lines []string
+	for _, row := range cp.visibleRows(budget, emptyQuery) {
+		lines = append(lines, cp.paletteRowLine(row, m, s))
+	}
+	return lines
+}
 
-		visible := cp.visibleRows(commandBudget, emptyQuery)
-		for _, row := range visible {
-			// Insert separator + (optional) "Recent & frequent" header between
-			// top pins and body.
-			if row.kind == cpPaletteSeparator {
-				lines = append(lines, cpCrossL+strings.Repeat(cpBorderH, innerWidth)+cpCrossR)
-				continue
-			}
-			if row.kind == cpPaletteHeader {
-				header := text.Pad(recentHeader, contentWidth)
-				lines = append(lines, cpBorderV+"  "+s.Dim.Render(header)+"  "+cpBorderV)
-				continue
-			}
-
-			i := row.index
-			cmd := cp.Filtered[i]
-			rowContent := cp.buildRowContent(cmd, contentWidth, maxCategoryWidth, maxShortcutWidth, s)
-			switch {
-			case i == cp.cursor && !cmd.IsEnabled():
-				lines = append(lines, cpBorderV+" "+accentDim.Render(rowContent)+" "+cpBorderV)
-			case i == cp.cursor:
-				lines = append(lines, cpBorderV+" "+s.Accent.Render(rowContent)+" "+cpBorderV)
-			case !cmd.IsEnabled():
-				lines = append(lines, cpBorderV+" "+dimItalic.Render(rowContent)+" "+cpBorderV)
-			default:
-				lines = append(lines, cpBorderV+" "+rowContent+" "+cpBorderV)
-			}
-		}
+// paletteRowLine renders one visible row: the separator between the pinned and
+// body sections, the "Recent & frequent" header, or a command styled by whether
+// it is focused and whether it is enabled.
+func (cp CommandPalette) paletteRowLine(row cpPaletteRow, m cpBoxMetrics, s styles.Styles) string {
+	switch row.kind {
+	case cpPaletteSeparator:
+		return cpCrossL + strings.Repeat(cpBorderH, m.innerWidth) + cpCrossR
+	case cpPaletteHeader:
+		return cpBorderV + "  " + s.Dim.Render(text.Pad(cpRecentHeader, m.contentWidth)) + "  " + cpBorderV
 	}
 
-	// Inner bottom padding row.
-	lines = append(lines, cpBorderV+strings.Repeat(" ", innerWidth)+cpBorderV)
-
-	// Bottom border.
-	lines = append(lines, cpCornerBL+strings.Repeat(cpBorderH, innerWidth)+cpCornerBR)
-
-	// Hint line.
-	lines = append(lines, "  "+s.Dim.Render(text.Truncate("↑/↓ navigate · enter run · esc cancel", max(termWidth-2, 0))))
-
-	return lines
+	cmd := cp.Filtered[row.index]
+	body := cp.buildRowContent(cmd, m.contentWidth, m.maxCategoryWidth, m.maxShortcutWidth, s)
+	switch {
+	case row.index == cp.cursor && !cmd.IsEnabled():
+		body = s.Accent.Faint(true).Italic(true).Render(body)
+	case row.index == cp.cursor:
+		body = s.Accent.Render(body)
+	case !cmd.IsEnabled():
+		body = s.Dim.Italic(true).Render(body)
+	}
+	return cpBorderV + " " + body + " " + cpBorderV
 }
 
 type cpPaletteRowKind int
@@ -378,87 +394,135 @@ func clamp(v, lo, hi int) int {
 	return v
 }
 
+// cpRowPlan is the resolved layout of the command area: how many pinned rows
+// fit at each anchor, which slice of the body is shown, and which chrome rows
+// survived the height budget.
+type cpRowPlan struct {
+	topVisible    int  // leading pinned rows that fit
+	bottomVisible int  // trailing pinned rows that fit
+	bodyStart     int  // index in Filtered where the body section begins
+	bodyOffset    int  // scroll offset of the body window within the body
+	bodyBudget    int  // body rows that fit
+	topBodySep    bool // separator between the top pins and the body
+	header        bool // "Recent & frequent" header above the body
+	bodyBottomSep bool // separator between the body and the bottom pins
+}
+
 func (cp CommandPalette) visibleRows(budget int, emptyQuery bool) []cpPaletteRow {
 	if budget <= 0 || len(cp.Filtered) == 0 {
 		return nil
 	}
+	return cp.emitRows(cp.planRows(budget, emptyQuery), budget)
+}
 
-	bodyStart := cp.topPins
-	bodyEnd := len(cp.Filtered) - cp.bottomPin
-	topCount := cp.topPins
-	bodyCount := max(bodyEnd-bodyStart, 0)
-	bottomCount := cp.bottomPin
+// planRows resolves how the height budget is shared between the pinned rows,
+// the body and the chrome rows separating them. Pinned rows win outright; the
+// body takes whatever is left and scrolls to keep the cursor in view.
+func (cp CommandPalette) planRows(budget int, emptyQuery bool) cpRowPlan {
+	plan := cpRowPlan{bodyStart: cp.topPins}
+	bodyCount := max(len(cp.Filtered)-cp.bottomPin-plan.bodyStart, 0)
 
-	includeTopBodySep := topCount > 0 && bodyCount > 0
-	includeHeader := includeTopBodySep && emptyQuery
-	includeBodyBottomSep := bottomCount > 0 && bodyCount > 0
+	plan.topBodySep = cp.topPins > 0 && bodyCount > 0
+	plan.header = plan.topBodySep && emptyQuery
+	plan.bodyBottomSep = cp.bottomPin > 0 && bodyCount > 0
+	plan.bodyBudget = plan.fitBody(budget, cp.topPins+cp.bottomPin, bodyCount)
 
-	fixed := topCount + bottomCount
-	if includeTopBodySep {
-		fixed++
-	}
-	if includeHeader {
-		fixed++
-	}
-	if includeBodyBottomSep {
-		fixed++
-	}
-
-	bodyBudget := bodyCount
-	if fixed+bodyCount > budget {
-		bodyBudget = budget - fixed
-		if bodyBudget < 0 {
-			includeTopBodySep = false
-			includeHeader = false
-			includeBodyBottomSep = false
-			fixed = topCount + bottomCount
-			bodyBudget = budget - fixed
-		}
-	}
-	bodyBudget = clamp(bodyBudget, 0, bodyCount)
-
-	topVisible := min(topCount, budget)
-	remaining := budget - topVisible
-	bottomVisible := min(bottomCount, max(remaining, 0))
-	remaining -= bottomVisible
-	if remaining < bodyBudget {
-		bodyBudget = max(remaining, 0)
+	plan.topVisible = min(cp.topPins, budget)
+	remaining := budget - plan.topVisible
+	plan.bottomVisible = min(cp.bottomPin, max(remaining, 0))
+	remaining -= plan.bottomVisible
+	if remaining < plan.bodyBudget {
+		plan.bodyBudget = max(remaining, 0)
 	}
 
-	bodyOffset := 0
-	if bodyBudget > 0 && bodyBudget < bodyCount {
-		cursor := cp.cursor - bodyStart
-		if cursor < 0 || cursor >= bodyCount {
-			cursor = 0
-		}
-		bodyOffset = clamp(cursor-bodyBudget/2, 0, bodyCount-bodyBudget)
-	}
+	plan.bodyOffset = cp.bodyWindowOffset(plan.bodyStart, plan.bodyBudget, bodyCount)
+	return plan
+}
 
+// fitBody shrinks the body to what the budget leaves after the pinned and
+// chrome rows. When even that is negative, the chrome rows are dropped so the
+// pinned rows keep their space.
+func (p *cpRowPlan) fitBody(budget, pinned, bodyCount int) int {
+	fixed := pinned + countTrue(p.topBodySep, p.header, p.bodyBottomSep)
+	if fixed+bodyCount <= budget {
+		return bodyCount
+	}
+	bodyBudget := budget - fixed
+	if bodyBudget < 0 {
+		p.topBodySep = false
+		p.header = false
+		p.bodyBottomSep = false
+		bodyBudget = budget - pinned
+	}
+	return clamp(bodyBudget, 0, bodyCount)
+}
+
+// bodyWindowOffset centres the body window on the cursor when the body does not
+// fit whole.
+func (cp CommandPalette) bodyWindowOffset(bodyStart, bodyBudget, bodyCount int) int {
+	if bodyBudget <= 0 || bodyBudget >= bodyCount {
+		return 0
+	}
+	cursor := cp.cursor - bodyStart
+	if cursor < 0 || cursor >= bodyCount {
+		cursor = 0
+	}
+	return clamp(cursor-bodyBudget/2, 0, bodyCount-bodyBudget)
+}
+
+// emitRows expands a resolved plan into the ordered row list.
+func (cp CommandPalette) emitRows(plan cpRowPlan, budget int) []cpPaletteRow {
 	var rows []cpPaletteRow
-	for i := 0; i < topVisible; i++ {
+	for i := range plan.topVisible {
 		rows = append(rows, cpPaletteRow{kind: cpPaletteCommand, index: i})
 	}
-	if bodyBudget > 0 {
-		if includeTopBodySep && len(rows) < budget {
-			rows = append(rows, cpPaletteRow{kind: cpPaletteSeparator})
-		}
-		if includeHeader && len(rows) < budget {
-			rows = append(rows, cpPaletteRow{kind: cpPaletteHeader})
-		}
-		for i := 0; i < bodyBudget && len(rows) < budget; i++ {
-			rows = append(rows, cpPaletteRow{kind: cpPaletteCommand, index: bodyStart + bodyOffset + i})
-		}
+	rows = appendBodyRows(rows, plan, budget)
+	return cp.appendBottomPinRows(rows, plan, budget)
+}
+
+// appendBodyRows appends the top/body separator, the recency header and the
+// body window, stopping at the height budget.
+func appendBodyRows(rows []cpPaletteRow, plan cpRowPlan, budget int) []cpPaletteRow {
+	if plan.bodyBudget <= 0 {
+		return rows
 	}
-	if bottomVisible > 0 {
-		if includeBodyBottomSep && bodyBudget > 0 && len(rows) < budget {
-			rows = append(rows, cpPaletteRow{kind: cpPaletteSeparator})
-		}
-		start := len(cp.Filtered) - bottomVisible
-		for i := start; i < len(cp.Filtered) && len(rows) < budget; i++ {
-			rows = append(rows, cpPaletteRow{kind: cpPaletteCommand, index: i})
-		}
+	if plan.topBodySep && len(rows) < budget {
+		rows = append(rows, cpPaletteRow{kind: cpPaletteSeparator})
+	}
+	if plan.header && len(rows) < budget {
+		rows = append(rows, cpPaletteRow{kind: cpPaletteHeader})
+	}
+	for i := 0; i < plan.bodyBudget && len(rows) < budget; i++ {
+		rows = append(rows, cpPaletteRow{kind: cpPaletteCommand, index: plan.bodyStart + plan.bodyOffset + i})
 	}
 	return rows
+}
+
+// appendBottomPinRows appends the body/bottom separator and the bottom-pinned
+// rows, stopping at the height budget.
+func (cp CommandPalette) appendBottomPinRows(rows []cpPaletteRow, plan cpRowPlan, budget int) []cpPaletteRow {
+	if plan.bottomVisible <= 0 {
+		return rows
+	}
+	if plan.bodyBottomSep && plan.bodyBudget > 0 && len(rows) < budget {
+		rows = append(rows, cpPaletteRow{kind: cpPaletteSeparator})
+	}
+	for i := len(cp.Filtered) - plan.bottomVisible; i < len(cp.Filtered) && len(rows) < budget; i++ {
+		rows = append(rows, cpPaletteRow{kind: cpPaletteCommand, index: i})
+	}
+	return rows
+}
+
+// countTrue reports how many of the flags are set, sizing the chrome rows that
+// share the height budget with the commands.
+func countTrue(flags ...bool) int {
+	n := 0
+	for _, f := range flags {
+		if f {
+			n++
+		}
+	}
+	return n
 }
 
 // buildRowContent renders a single command row's inner text: leading space,
