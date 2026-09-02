@@ -4,12 +4,18 @@ package notify
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 )
+
+// stubWarmupArg lets a stub that would otherwise block for seconds recognise a
+// warming exec and exit immediately, so the cost of a file's first exec is paid
+// outside every timed section.
+const stubWarmupArg = "-muse-stub-warmup"
 
 // The group string is what lets a new banner replace the previous one, so it is
 // pinned as a literal: changing it silently costs one upgrade's worth of
@@ -172,9 +178,22 @@ func TestSendIsFireAndForget(t *testing.T) {
 	// The argv file is followed by a separate marker file, so the poll below
 	// can never observe a partially flushed argv list. Only shell builtins are
 	// used, so the stub works regardless of what $PATH is set to.
-	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + argvFile + "\n: > " + doneFile + "\nsleep 30\n"
+	//
+	// The warmup guard exists so the first exec of this freshly written file is
+	// paid here rather than inside the timed section: that first exec costs
+	// hundreds of milliseconds idle and several seconds while the whole suite
+	// runs concurrently, which is enough to blow both bounds below and report a
+	// working fire-and-forget Send as one that never spawned the stub. The
+	// guard returns before touching either file, so warming cannot satisfy the
+	// poll on its own.
+	script := "#!/bin/sh\n" +
+		"[ \"$1\" = \"" + stubWarmupArg + "\" ] && exit 0\n" +
+		"printf '%s\\n' \"$@\" > " + argvFile + "\n: > " + doneFile + "\nsleep 30\n"
 	if err := os.WriteFile(stub, []byte(script), 0o700); err != nil {
 		t.Fatalf("write stub: %v", err)
+	}
+	if err := exec.Command(stub, stubWarmupArg).Run(); err != nil {
+		t.Fatalf("warming stub %s: %v", stub, err)
 	}
 
 	original := alerterPaths

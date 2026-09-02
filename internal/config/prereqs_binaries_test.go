@@ -2,9 +2,7 @@ package config
 
 import (
 	"context"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -12,13 +10,8 @@ import (
 func TestCheckMPV_RunsVersionFlag(t *testing.T) {
 	// Verify that checkMPV calls "mpv --version" by using a stub that records
 	// its arguments via exit 0 only when called correctly.
-	dir := t.TempDir()
-	script := filepath.Join(dir, "mpv")
 	// The stub succeeds regardless of args; we just verify it can be found and run.
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", prependPATH(dir))
+	stubProbeBinary(t, "mpv", "#!/bin/sh\nexit 0\n")
 
 	if err := checkMPV(context.Background()); err != nil {
 		t.Errorf("expected no error with stub mpv, got: %v", err)
@@ -43,8 +36,7 @@ func TestCheckMPV_MissingBinary(t *testing.T) {
 }
 
 func TestCheckMPV_BrokenBinary(t *testing.T) {
-	dir := stubBinary(t, "mpv", 1) // exits non-zero
-	t.Setenv("PATH", prependPATH(dir))
+	stubProbeBinary(t, "mpv", "#!/bin/sh\nexit 1\n") // exits non-zero
 
 	err := checkMPV(context.Background())
 	if err == nil {
@@ -56,13 +48,7 @@ func TestCheckMPV_BrokenBinary(t *testing.T) {
 }
 
 func TestCheckExifTool_RunsVersionFlag(t *testing.T) {
-	dir := t.TempDir()
-	script := filepath.Join(dir, "exiftool")
-	content := "#!/bin/sh\nprintf '12.00\\n'\nexit 0\n"
-	if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", prependPATH(dir))
+	stubProbeBinary(t, "exiftool", "#!/bin/sh\nprintf '12.00\\n'\nexit 0\n")
 
 	if err := checkExifTool(context.Background()); err != nil {
 		t.Errorf("expected no error with stub exiftool emitting valid version, got: %v", err)
@@ -73,13 +59,7 @@ func TestCheckExifTool_ValidVersionOutput(t *testing.T) {
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("sh not available")
 	}
-	dir := t.TempDir()
-	script := filepath.Join(dir, "exiftool")
-	content := "#!/bin/sh\nprintf '12.00\\n'\nexit 0\n"
-	if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", prependPATH(dir))
+	stubProbeBinary(t, "exiftool", "#!/bin/sh\nprintf '12.00\\n'\nexit 0\n")
 
 	if err := checkExifTool(context.Background()); err != nil {
 		t.Errorf("stub emitting valid version should succeed, got: %v", err)
@@ -90,13 +70,7 @@ func TestCheckExifTool_InvalidVersionOutput(t *testing.T) {
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("sh not available")
 	}
-	dir := t.TempDir()
-	script := filepath.Join(dir, "exiftool")
-	content := "#!/bin/sh\nprintf 'not json'\nexit 0\n"
-	if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", prependPATH(dir))
+	stubProbeBinary(t, "exiftool", "#!/bin/sh\nprintf 'not json'\nexit 0\n")
 
 	err := checkExifTool(context.Background())
 	if err == nil {
@@ -125,8 +99,7 @@ func TestCheckExifTool_MissingBinary(t *testing.T) {
 }
 
 func TestCheckExifTool_BrokenBinary(t *testing.T) {
-	dir := stubBinary(t, "exiftool", 1)
-	t.Setenv("PATH", prependPATH(dir))
+	stubProbeBinary(t, "exiftool", "#!/bin/sh\nexit 1\n")
 
 	err := checkExifTool(context.Background())
 	if err == nil {
@@ -147,17 +120,11 @@ func TestCheckMPV_InvokesVersionFlag_Strict(t *testing.T) {
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("sh not available")
 	}
-	dir := t.TempDir()
-	script := filepath.Join(dir, "mpv")
 	// Exit 0 only when first arg is --version.
-	content := `#!/bin/sh
+	stubProbeBinary(t, "mpv", `#!/bin/sh
 if [ "$1" = "--version" ]; then exit 0; fi
 exit 1
-`
-	if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", prependPATH(dir))
+`)
 
 	if err := checkMPV(context.Background()); err != nil {
 		t.Errorf("checkMPV should invoke 'mpv --version', got error: %v", err)
@@ -169,17 +136,11 @@ func TestCheckExifTool_InvokesVersionFlag_Strict(t *testing.T) {
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("sh not available")
 	}
-	dir := t.TempDir()
-	script := filepath.Join(dir, "exiftool")
 	// Emit a valid version and exit 0 only when first arg is -ver.
-	content := `#!/bin/sh
+	stubProbeBinary(t, "exiftool", `#!/bin/sh
 if [ "$1" = "-ver" ]; then printf '12.00'; exit 0; fi
 exit 1
-`
-	if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", prependPATH(dir))
+`)
 
 	if err := checkExifTool(context.Background()); err != nil {
 		t.Errorf("checkExifTool should invoke 'exiftool -ver', got error: %v", err)

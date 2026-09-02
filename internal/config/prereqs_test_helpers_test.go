@@ -10,20 +10,28 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 )
 
-// stubBinary writes a tiny shell script that acts as a fake binary and returns
-// its path. exitCode controls whether it exits successfully or not.
-func stubBinary(t *testing.T, name string, exitCode int) string {
+// stubProbeBinary writes body as an executable stub named name into a fresh
+// temp dir, pays the stub's first-exec cost, and prepends that dir to $PATH so
+// the stub shadows any real binary of the same name.
+//
+// The warming exec is what makes these cases load-independent, for the same
+// reason it is needed in stubMetadataPATH: the first exec of a newly written
+// executable costs hundreds of milliseconds idle and several seconds while the
+// whole suite runs concurrently, and every check below runs its stub inside a
+// bounded probe (mpvProbeTimeout for mpv, BackendProbeTimeout for exiftool).
+// Charged against that deadline, a first exec reports a healthy stub as a
+// wedged binary — `signal: killed` rather than the outcome under test.
+func stubProbeBinary(t *testing.T, name, body string) {
 	t.Helper()
 	dir := t.TempDir()
-	script := filepath.Join(dir, name)
-	content := "#!/bin/sh\n"
-	if exitCode != 0 {
-		content += "exit 1\n"
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
+		t.Fatalf("stubProbeBinary %s: %v", name, err)
 	}
-	if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
-		t.Fatalf("stubBinary: %v", err)
-	}
-	return dir
+	// None of these stubs block, so the bare warming exec cannot hang; the
+	// timing-sensitive stubs that do block use stubTimingPATH instead.
+	_ = exec.Command(path).Run()
+	t.Setenv("PATH", prependPATH(dir))
 }
 
 // prependPATH returns a PATH string with dir prepended to the current PATH.
